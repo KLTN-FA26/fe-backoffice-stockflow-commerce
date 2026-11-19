@@ -707,6 +707,24 @@ export const QUOTE_STATUS_BY_API = {
   CANCELLED: "Cancelled",
   CONVERTED: "Converted",
 } as const satisfies Record<QuoteApiStatus, string>;
+/** Nhãn tiếng Việt của trạng thái báo giá (plan WF-02 A1). */
+export const QUOTE_STATUS_LABELS = {
+  DRAFT: "Nháp",
+  SENT: "Đã gửi",
+  CHANGES_REQUESTED: "Yêu cầu sửa",
+  ACCEPTED: "Đã chấp nhận",
+  EXPIRED: "Hết hiệu lực",
+  CANCELLED: "Đã huỷ",
+  CONVERTED: "Đã tạo đơn",
+} as const satisfies Record<QuoteApiStatus, string>;
+
+/** Loại dòng phí trên báo giá — BE `order.api.FeeKind` (14 BR-17, BR-20). */
+export const QUOTE_FEE_KINDS = ["PLATE_FEE", "SHIPPING_FEE"] as const;
+export type QuoteFeeKind = (typeof QUOTE_FEE_KINDS)[number];
+export const QUOTE_FEE_LABELS = {
+  PLATE_FEE: "Phí khuôn / bản in",
+  SHIPPING_FEE: "Phí vận chuyển",
+} as const satisfies Record<QuoteFeeKind, string>;
 
 /** Yêu cầu mẫu — BE `SampleStatus` (SCRUM-403). */
 export const SAMPLE_API_STATUSES = [
@@ -897,6 +915,12 @@ export const WAREHOUSE_STATUS = {
   ACTIVE: "ACTIVE",
   INACTIVE: "INACTIVE",
 } as const satisfies Record<string, (typeof WAREHOUSE_STATUSES)[number]>;
+
+/**
+ * BE `CapacityGroup.Kind` — một dòng của Bảng sức chứa dưới cấp kho (docs 06 §4.6 bước 4): zone, nhóm kệ không thuộc
+ * zone, kệ, khu vực. Khu vực không có sức chứa (BR-19, chốt 2026-11-13), chỉ có Đang chiếm.
+ */
+export const CAPACITY_GROUP_KINDS = ["ZONE", "NO_ZONE", "SHELF", "AREA"] as const;
 
 /** BE `LocationStatus` của kệ / bin / khu vực (docs 06 §5). `Full` không lưu — tính khi gợi ý. */
 export const LOCATION_STATUSES = ["ACTIVE", "BLOCKED", "MAINTENANCE", "INACTIVE"] as const;

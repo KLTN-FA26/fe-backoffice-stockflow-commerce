@@ -96,9 +96,6 @@ export const summaryItem = (over: Record<string, unknown> = {}) => ({
   sku: "TSHIRT-RED-M",
   unitOfMeasure: "PCS",
   barcode: "8930000000011",
-  storageClass: "NORMAL",
-  trackingMode: "NONE",
-  policyConfigured: true,
   ...over,
 });
 

@@ -1,15 +1,22 @@
 /**
- * Báo giá — API layer (BE local integration d215f6e, chưa merge develop). Parse tại biên.
- * Mọi thao tác đổi trạng thái gửi `version` vừa đọc → BE 409 OPTIMISTIC_LOCK nếu đã cũ.
+ * Báo giá theo thùng — API layer (BE `QuoteController`, origin/develop 438fe6fb). Parse tại biên.
+ * Mọi lệnh ghi gửi `version` đang hiển thị → BE 409 OPTIMISTIC_LOCK nếu đã cũ (plan WF-02 §1.4).
  */
 
 import { api } from "@/lib/api/client";
+import { ApiError } from "@/lib/api/error";
 
-import { quoteDtoSchema, quotePageDtoSchema } from "./schemas";
+import { toQuoteBody } from "./form-body";
+import {
+  customerPriceDtoSchema,
+  customerSkuListDtoSchema,
+  quoteDtoSchema,
+  quotePageDtoSchema,
+} from "./schemas";
 
 import type { QuoteApiStatus } from "@/constants";
 import type { ListQueryParams, PaginatedResponse } from "@/lib/api/query-factory";
-import type { Quote, QuoteFormOutput, QuoteRow } from "./types";
+import type { CustomerPrice, CustomerSku, Quote, QuoteFormOutput, QuoteRow } from "./types";
 
 const QUOTES = "/quotes";
 const byId = (id: string) => `${QUOTES}/${encodeURIComponent(id)}`;
@@ -28,6 +35,7 @@ export async function listQuotes(
   params: ListQuoteParams,
   signal?: AbortSignal,
 ): Promise<PaginatedResponse<QuoteRow>> {
+  // Trang 0-based trên dây (PageResponse BE).
   const query = new URLSearchParams({
     page: String(Math.max(0, params.page ?? 0)),
     size: String(params.size ?? 15),
@@ -45,37 +53,16 @@ export async function getQuote(id: string, signal?: AbortSignal): Promise<Quote>
   return quoteDtoSchema.parse(data);
 }
 
-/** Ngày hết hiệu lực (theo giờ VN) → Instant cuối ngày. */
-export function endOfDayVn(day: string): string {
-  return new Date(`${day}T23:59:59+07:00`).toISOString();
+/** `GET /quotes/{id}/document` — PDF báo giá. */
+export async function getQuotePdf(id: string): Promise<Blob> {
+  const { data } = await api.get<Blob>(`${byId(id)}/document`, {
+    responseType: "blob",
+    headers: { Accept: "application/pdf, application/json" },
+  });
+  return data;
 }
 
-function offerBody(values: QuoteFormOutput) {
-  return {
-    paymentTerm: values.paymentTerm,
-    ...(values.paymentTerm === "DEPOSIT" && values.depositPercent
-      ? { depositPercent: Number(values.depositPercent) }
-      : {}),
-    validUntil: endOfDayVn(values.validUntil),
-    ...(values.terms ? { terms: values.terms } : {}),
-    lines: values.lines.map((line) => ({
-      blankSku: line.blankSku,
-      designSnapshotId: line.designSnapshotId,
-      ...(line.printSpec ? { printSpec: line.printSpec } : {}),
-      quantity: Number(line.quantity),
-      // Bỏ `tiers` = BE lấy bậc giá từ bảng giá khách (snapshot, không tự đổi sau này).
-      ...(line.useListPrice
-        ? {}
-        : {
-            tiers: line.tiers.map((tier) => ({
-              minQuantity: Number(tier.minQuantity),
-              unitPrice: Number(tier.unitPrice),
-            })),
-          }),
-    })),
-  };
-}
-
+/** `requestId` sinh ở FE, giữ nguyên khi bấm lại → BE trả cùng báo giá (idempotent). */
 export async function createQuote(input: {
   requestId: string;
   values: QuoteFormOutput;
@@ -83,7 +70,7 @@ export async function createQuote(input: {
   const { data } = await api.post<unknown>(QUOTES, {
     requestId: input.requestId,
     customerId: input.values.customerId,
-    ...offerBody(input.values),
+    ...toQuoteBody(input.values),
   });
   return quoteDtoSchema.parse(data);
 }
@@ -95,7 +82,7 @@ export async function updateQuote(input: {
 }): Promise<Quote> {
   const { data } = await api.put<unknown>(byId(input.id), {
     version: input.version,
-    ...offerBody(input.values),
+    ...toQuoteBody(input.values),
   });
   return quoteDtoSchema.parse(data);
 }
@@ -115,6 +102,7 @@ export const reviseQuote = ({ id, version }: QuoteActionInput) =>
   action(id, "revision", { version });
 export const cancelQuote = ({ id, version, reason }: QuoteActionInput & { reason: string }) =>
   action(id, "cancellation", { version, reason });
+/** ACCEPTED → CONVERTED + đơn DRAFT; gọi lại trả cùng đơn (BE idempotent). */
 export const convertQuote = ({
   id,
   version,
@@ -127,15 +115,29 @@ export const convertQuote = ({
     ...(billingAddressId ? { billingAddressId } : {}),
   });
 
-/** Portal khách: chấp nhận (có thể đổi SL từng dòng — BE tính lại bậc giá theo tổng phôi, P5). */
-export const acceptQuote = ({
-  id,
-  version,
-  lines,
-}: QuoteActionInput & { lines?: { lineId: string; quantity: number }[] }) =>
-  action(id, "acceptance", { version, ...(lines?.length ? { lines } : {}) });
-export const requestQuoteChanges = ({
-  id,
-  version,
-  feedback,
-}: QuoteActionInput & { feedback: string }) => action(id, "change-request", { version, feedback });
+/** SKU riêng của khách (`product-variants:READ`). */
+export async function listCustomerSkus(
+  customerId: string,
+  signal?: AbortSignal,
+): Promise<CustomerSku[]> {
+  const { data } = await api.get<unknown>("/customer-skus", { params: { customerId }, signal });
+  return customerSkuListDtoSchema.parse(data);
+}
+
+/** Giá riêng của khách cho SKU; `null` = chưa có (404) → Sale phải nhập bậc giá. */
+export async function getCustomerPrice(
+  customerId: string,
+  sku: string,
+  signal?: AbortSignal,
+): Promise<CustomerPrice | null> {
+  try {
+    const { data } = await api.get<unknown>(
+      `/catalog/customer-prices/${encodeURIComponent(customerId)}/${encodeURIComponent(sku)}`,
+      { signal },
+    );
+    return customerPriceDtoSchema.parse(data);
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) return null;
+    throw error;
+  }
+}

@@ -6,7 +6,11 @@ import { statusLabelVi } from "@/lib/status-map";
 
 import { installmentTakesMoney } from "./lifecycle";
 
-import type { InstallmentApiStatus, ReceiptApiStatus } from "@/constants/payment";
+import type {
+  InstallmentApiStatus,
+  InstallmentDisplayStatus,
+  ReceiptApiStatus,
+} from "@/constants/payment";
 import type { Installment, ReceiptFormValues } from "./types";
 
 const L = PAYMENT_LABELS.installments;
@@ -22,7 +26,7 @@ export function installmentStatusLabel(status: InstallmentApiStatus): string {
  */
 export function displayStatus(
   installment: Pick<Installment, "status" | "overdue">,
-): InstallmentApiStatus {
+): InstallmentDisplayStatus {
   return installment.overdue ? "OVERDUE" : installment.status;
 }
 

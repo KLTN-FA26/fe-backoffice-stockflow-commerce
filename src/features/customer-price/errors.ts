@@ -10,6 +10,8 @@ export type CustomerPriceErrorKind =
   | "CUSTOMER_NOT_FOUND"
   | "CUSTOMER_PRICE_NOT_FOUND"
   | "VARIANT_NOT_FOUND"
+  /** SKU không phải SKU riêng của khách này, hoặc PUT giá cũ theo cái (BE `CustomerPriceService.requireOwnSku`). */
+  | "CUSTOMER_SKU_REQUIRED"
   /** POST khi khách đã có giá cho SKU. */
   | "CONFLICT"
   /** PUT với version cũ — tải lại phải do người dùng chọn. */
@@ -22,6 +24,7 @@ const KNOWN = new Set<CustomerPriceErrorKind>([
   "CUSTOMER_NOT_FOUND",
   "CUSTOMER_PRICE_NOT_FOUND",
   "VARIANT_NOT_FOUND",
+  "CUSTOMER_SKU_REQUIRED",
   "CONFLICT",
   "OPTIMISTIC_LOCK",
   "FORBIDDEN",

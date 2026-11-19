@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { parseAsString, useQueryState } from "nuqs";
 import Link from "next/link";
 import { cn } from "cn";
 import { BarChart3, Package, XCircle, Plus } from "lucide-react";
@@ -23,10 +24,12 @@ import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { CELL, statusCell, textCell, ViewAction } from "@/components/shared/column-helpers";
-import { shouldFlagProductRow, useCategories, useProducts } from "@/features/product";
+import { shouldFlagProductRow, useBrands, useCategories, useProducts } from "@/features/product";
 import { PRODUCT_LIST_FILTER_STATUSES, type ProductListFilterStatus } from "@/features/product/api";
 import { getProductListEmptyState } from "@/features/product/product-list-state";
 import { toProductApiPage, toProductUiPage } from "@/features/product/pagination";
+
+import { ProductListFacets } from "./ProductListFacets";
 
 import type { Product } from "@/features/product";
 
@@ -39,7 +42,7 @@ import type { Product } from "@/features/product";
 type ProductStatusFilter = "all" | ProductListFilterStatus;
 type ProductSearchField = "productId" | "name" | "category" | "type";
 type ProductColumnSearchKey = "productId" | "name" | "category";
-type ProductTableColumnKey = "productId" | "name" | "category" | "type" | "status" | "actions";
+type ProductTableColumnKey = "productId" | "name" | "category" | "status" | "actions";
 
 interface TabConfig<
   Status extends string,
@@ -67,7 +70,6 @@ const PRODUCT_DEFAULT_COLUMNS: ProductTableColumnKey[] = [
   "productId",
   "name",
   "category",
-  "type",
   "status",
   "actions",
 ];
@@ -89,7 +91,6 @@ const PRODUCT_COLUMN_LABELS: Record<ProductTableColumnKey, string> = {
   productId: "Mã SP",
   name: "Tên sản phẩm",
   category: "Danh mục",
-  type: "Loại",
   status: "Trạng thái",
   actions: "Thao tác",
 };
@@ -112,8 +113,11 @@ function mergeStoredConfig(
       ...stored.products,
       globalSearch: { ...fallback.products.globalSearch, ...stored.products?.globalSearch },
       columnSearch: stored.products?.columnSearch ?? {},
-      visibleColumns: stored.products?.visibleColumns?.length
-        ? stored.products.visibleColumns
+      // Bỏ cột đã gỡ (vd "type" — BE luôn CUSTOMIZABLE) khỏi cấu hình đã lưu
+      visibleColumns: stored.products?.visibleColumns?.some((c) =>
+        PRODUCT_DEFAULT_COLUMNS.includes(c),
+      )
+        ? stored.products.visibleColumns.filter((c) => PRODUCT_DEFAULT_COLUMNS.includes(c))
         : PRODUCT_DEFAULT_COLUMNS,
     },
   };
@@ -137,12 +141,23 @@ export function ProductList() {
     direction: "asc" | "desc";
   }>({ key: "code", direction: "asc" });
 
+  // Lọc danh mục / thương hiệu (BE `GET /products?categoryId=&brandId=`) — trên URL như các lọc khác
+  const [categoryFilter, setCategoryFilter] = useQueryState("productCategory", parseAsString);
+  const [brandFilter, setBrandFilter] = useQueryState("productBrand", parseAsString);
+  const changeFacet = (set: (value: string | null) => unknown) => (value: string | null) => {
+    void set(value);
+    void productFilters.setPage(1);
+  };
+  const brandsQuery = useBrands();
+
   const productsQuery = useProducts({
     // URL pages are human-facing/one-based; the shared API contract is backend/zero-based.
     page: toProductApiPage(productFilters.page),
     size: productPageSize,
     q: productFilters.debouncedQ.trim() || undefined,
     status: productFilters.status.length > 0 ? productFilters.status : undefined,
+    categoryId: categoryFilter ?? undefined,
+    brandId: brandFilter ?? undefined,
     sort: `${productSort.key},${productSort.direction}`,
   });
   const categoriesQuery = useCategories({});
@@ -197,7 +212,7 @@ export function ProductList() {
     itemCount: rawProducts.length,
     total: productPage?.totalElements ?? 0,
     search: productFilters.q,
-    statusCount: productFilters.status.length,
+    statusCount: productFilters.status.length + (categoryFilter ? 1 : 0) + (brandFilter ? 1 : 0),
   });
 
   const toggleProductStatus = (status: ProductStatusFilter) => {
@@ -252,15 +267,6 @@ export function ProductList() {
       ),
       key: "category",
     },
-    {
-      key: "type",
-      header: "Loại",
-      cell: (row) => (
-        <span className={CELL.text}>
-          {row.type === "Customizable" ? "Tùy chỉnh" : "Tiêu chuẩn"}
-        </span>
-      ),
-    },
     statusCell<Product>("status", "Trạng thái", (row) => row.status, "product", {
       sortable: true,
       compare: (a, b) => a.status.localeCompare(b.status),
@@ -283,8 +289,10 @@ export function ProductList() {
       (column) => column !== "actions",
     ).length;
     const hasColumnConfig = visibleColumnCount !== PRODUCT_DEFAULT_COLUMNS.length - 1;
+    const hasFacet = Boolean(categoryFilter || brandFilter);
     const hasAnyConfig =
-      hasStatusFilter || hasGlobalSearch || pageConfig.showStats || hasColumnConfig;
+      hasStatusFilter || hasGlobalSearch || hasFacet || pageConfig.showStats || hasColumnConfig;
+    const brands = brandsQuery.data ?? [];
     const summaryItems: ListSummaryItem[] = [
       { label: "Stats", value: pageConfig.showStats ? "Đang hiện" : "Đang ẩn" },
       {
@@ -297,6 +305,20 @@ export function ProductList() {
           .join(", "),
         active: hasStatusFilter,
         onClear: () => productFilters.setStatus([]),
+      },
+      {
+        label: "Danh mục",
+        value: categoryFilter ? categoryNameMap.get(categoryFilter) || categoryFilter : "Tất cả",
+        active: Boolean(categoryFilter),
+        onClear: () => changeFacet(setCategoryFilter)(null),
+      },
+      {
+        label: "Thương hiệu",
+        value: brandFilter
+          ? (brands.find((b) => b.brandId === brandFilter)?.name ?? brandFilter)
+          : "Tất cả",
+        active: Boolean(brandFilter),
+        onClear: () => changeFacet(setBrandFilter)(null),
       },
       {
         label: "Search chính",
@@ -367,7 +389,19 @@ export function ProductList() {
         onResetAll={() => {
           updateProductsConfig(() => DEFAULT_CONFIG.products);
           productFilters.reset();
+          void setCategoryFilter(null);
+          void setBrandFilter(null);
         }}
+        facets={
+          <ProductListFacets
+            categories={categories}
+            brands={brands.filter((b) => b.active || b.brandId === brandFilter)}
+            categoryId={categoryFilter}
+            brandId={brandFilter}
+            onCategoryChange={changeFacet(setCategoryFilter)}
+            onBrandChange={changeFacet(setBrandFilter)}
+          />
+        }
         resetDisabled={!hasAnyConfig}
         actions={
           <>

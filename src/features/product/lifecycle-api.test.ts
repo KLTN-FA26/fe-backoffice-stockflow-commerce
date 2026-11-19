@@ -83,7 +83,7 @@ describe("open references", () => {
     vi.spyOn(api, "get").mockResolvedValueOnce({
       data: {
         references: [
-          { kind: "PURCHASE_ORDER_LINE", documentNumber: "PO-1", documentId: "p1", sku: "A" },
+          { kind: "PRODUCTION_ORDER_LINE", documentNumber: "PO-1", documentId: "p1", sku: "A" },
         ],
         truncated: true,
       },
@@ -91,7 +91,7 @@ describe("open references", () => {
     const result = await getOpenReferences(ID);
     expect(result.truncated).toBe(true);
     expect(result.references[0]).toMatchObject({
-      kind: "PURCHASE_ORDER_LINE",
+      kind: "PRODUCTION_ORDER_LINE",
       documentNumber: "PO-1",
     });
   });
@@ -118,7 +118,7 @@ describe("open references", () => {
   });
 
   it("maps warning codes to Vietnamese and never echoes an unknown code", () => {
-    expect(discontinueWarningLabel("OPEN_PURCHASE_ORDER_LINES")).toMatch(/đơn mua/);
+    expect(discontinueWarningLabel("OPEN_PRODUCTION_ORDER_LINES")).toMatch(/Đơn sản xuất/);
     expect(discontinueWarningLabel("UNSHIPPED_ORDER_LINES")).toMatch(/đơn bán/);
     expect(discontinueWarningLabel("SOMETHING_NEW")).not.toContain("SOMETHING_NEW");
   });

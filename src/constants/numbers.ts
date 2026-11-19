@@ -195,13 +195,6 @@ export const TAXONOMY_LIMITS = {
   maxLookupPages: 25,
 } as const;
 
-/** Giới hạn chính sách tồn — BE PR #119. */
-export const INVENTORY_POLICY_LIMITS = {
-  /** `UpdateItemPolicyRequest.maxShelfLifeDays` @Min(1) @Max(36500). */
-  maxShelfLifeDaysMin: 1,
-  maxShelfLifeDaysMax: 36500,
-} as const;
-
 /** Ô quét mã vạch dùng chung (`use-scan-tone`). */
 export const SCAN_LIMITS = {
   /** Chờ trình duyệt mở AudioContext tối đa — quá thì bỏ tiếng báo đang chờ. */
@@ -256,22 +249,6 @@ export const SUPPLIER_ITEM_LIMITS = {
   // BE `moq` / `packSize` là `Integer` Java — quá int32 thì Jackson không bind được (400 chung)
   intMax: 2_147_483_647,
   catalogPageSize: 200,
-} as const;
-
-/**
- * Thông tin mua hàng của SKU — BE `SkuPurchasingRequest` + `ItemPurchasingRules` (docs 01 §3
- * "Thông tin mua hàng"). Cùng giới hạn với danh mục NCC (`SupplierItemTerms`).
- */
-export const SKU_PURCHASING_LIMITS = {
-  // `referencePurchasePrice` @Digits(integer = 16, fraction = 2); `MAX_PRICE` 9999999999999999.99
-  priceIntegerDigitsMax: 16,
-  // `stripTrailingZeros().scale() > 2` bị từ chối → "1.500" hợp lệ, "1.005" không
-  priceMaxScale: 2,
-  // `ItemPurchasingRules.MAX_LEAD_TIME_DAYS`
-  leadTimeDaysMax: 365,
-  moqMin: 1,
-  // `leadTimeDays` / `moq` là `Integer` Java — quá int32 thì Jackson không bind được (400 chung)
-  intMax: 2_147_483_647,
 } as const;
 
 /**
@@ -395,6 +372,21 @@ export const LOAD_PLAN_LIMITS = {
 } as const;
 
 /**
+ * Bảng sức chứa kho (docs 06 §4.6, open-questions C43): hệ số sử dụng của kho nhận giá trị trong (0%, 100%], mặc
+ * định 100%. BE `UpdateWarehouseRequest.utilizationFactor` lưu dạng (0, 1] tối đa 4 số lẻ → phần trăm tối đa 2 số lẻ.
+ */
+export const WAREHOUSE_CAPACITY_LIMITS = {
+  factorPercentMax: 100,
+  factorPercentDecimals: 2,
+  /** Sức chứa / chiếm theo m³ — BE làm tròn 3 số lẻ (`CapacityBoard.SCALE`). */
+  volumeDecimals: 3,
+  /** Phần trăm BE trả 0–100, 2 số lẻ; hiện 1 số lẻ cho gọn. */
+  percentDecimals: 1,
+  /** Từ ngưỡng này thanh % đang chiếm chuyển sang cảnh báo (cam) — chỉ là tín hiệu hiển thị, không phải BR. */
+  warnPercent: 85,
+} as const;
+
+/**
  * Giới hạn bản đồ kho — BE `RegisterWarehouseRequest`, `ShelfRequests`, `BinGrid` (docs 06 §3, §6).
  * Số đo tính bằng mét (`MapUnit.M`), tối đa 3 số lẻ (`@Digits(integer = 7, fraction = 3)`).
  */
@@ -424,6 +416,12 @@ export const WAREHOUSE_MAP_LIMITS = {
   /** Bước lưới vẽ 2D (m): vạch mảnh mỗi 1 m, vạch đậm mỗi 5 m. */
   gridMinor: 1,
   gridMajor: 5,
+  /** BR-17 (docs 06 §4.3): tối đa 2.000 nhãn vị trí mỗi lần in; danh sách mã gửi 1–2.000 mã. */
+  labelsPerPrintMax: 2000,
+  /** BE `LocationLabelRequest.locationCodes` — mỗi mã `[A-Za-z0-9-]{1,64}`. */
+  labelCodeMax: 64,
+  /** Câu lỗi nêu tối đa chừng này mã / thùng, còn lại chỉ đếm (như BE `LISTED_CODES`; BR-04 BE trả ≤ 50 thùng). */
+  listedInMessage: 10,
   /** Chiều cao tường vẽ 3D (m) — chỉ trực quan, BE không lưu chiều cao tường. */
   wallHeight3d: 3,
   /** Chế độ sửa: kéo / vẽ bám lưới 0,5 m; phím mũi tên dời 0,1 m (Shift: 1 m) — chỉnh tinh ở bảng thông số. */

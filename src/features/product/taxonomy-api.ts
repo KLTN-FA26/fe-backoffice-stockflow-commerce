@@ -105,14 +105,36 @@ export async function createCategory(values: CategoryFormValues): Promise<Catego
   return beCategorySchema.parse(data);
 }
 
+/**
+ * Sửa danh mục: `PUT /categories/{id}` (chi tiết) rồi, nếu đổi cha, `PUT /categories/{id}/parent` — BE chuyển
+ * cả nhánh con (docs 01 §4.1); 400 VALIDATION_FAILED trên `parentId` khi chuyển vào chính nó / nhánh con của nó
+ * hoặc cây sâu quá 11 cấp. `currentParentId` là cha lúc mở form.
+ */
 export async function updateCategory(input: {
   categoryId: string;
   values: CategoryFormValues;
+  currentParentId?: string | null;
 }): Promise<CategoryNode> {
   const { data } = await api.put<unknown>(
     `${CATEGORIES_PATH}/${enc(input.categoryId)}`,
     toCategoryUpdateRequest(input.values),
   );
+  const saved = beCategorySchema.parse(data);
+  const nextParent = input.values.parentId.trim() || null;
+  if (input.currentParentId === undefined || nextParent === (input.currentParentId ?? null)) {
+    return saved;
+  }
+  return moveCategory({ categoryId: input.categoryId, parentId: nextParent });
+}
+
+/** BE `MoveCategoryRequest { parentId }` — null đưa danh mục lên gốc. */
+export async function moveCategory(input: {
+  categoryId: string;
+  parentId: string | null;
+}): Promise<CategoryNode> {
+  const { data } = await api.put<unknown>(`${CATEGORIES_PATH}/${enc(input.categoryId)}/parent`, {
+    parentId: input.parentId,
+  });
   return beCategorySchema.parse(data);
 }
 

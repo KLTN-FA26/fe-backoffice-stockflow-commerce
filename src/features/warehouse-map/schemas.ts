@@ -179,3 +179,12 @@ export const locationStockDto = bePageSchema(
     })
     .loose(),
 );
+
+/**
+ * `details` của 409 LOCATION_HOLDS_CARTONS (BR-04, BE `LocationOccupants.refuse`): tổng số thùng thật và tối đa 50 thùng
+ * đầu theo mã vị trí rồi LPN.
+ */
+export const holdsCartonsDetailsDto = z.object({
+  total: z.number().int().nonnegative(),
+  cartons: z.array(z.object({ locationCode: z.string(), lpn: z.string() })),
+});

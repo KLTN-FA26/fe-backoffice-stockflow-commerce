@@ -11,6 +11,7 @@ import {
   CUSTOMER_STATUS_BY_API,
   QUOTE_PERMISSIONS,
   SAMPLE_REQUEST_PERMISSIONS,
+  VARIANT_PERMISSIONS,
 } from "@/constants";
 import { useCan, usePermissionChecker } from "@/lib/auth";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
@@ -32,6 +33,7 @@ import { Button } from "@/components/ui/button";
 import { CUSTOMER_COPY } from "./copy";
 import { CreditProfileCard } from "./detail/CreditProfileCard";
 import { CustomerEditDialog } from "./detail/CustomerEditDialog";
+import { CustomerSkusCard } from "./detail/CustomerSkusCard";
 import { CustomerStatusActions } from "./detail/CustomerStatusActions";
 import { InfoList } from "./detail/InfoList";
 import { InvitationCard } from "./detail/InvitationCard";
@@ -149,6 +151,12 @@ function CustomerDetailContent({ id }: { id: string }) {
           canRead={can(CREDIT_PROFILE_PERMISSIONS.read)}
         />
         <StatusHistoryCard customerId={customer.customerId} />
+        <CustomerSkusCard
+          customerId={customer.customerId}
+          canRead={can(VARIANT_PERMISSIONS.read)}
+          canBlock={can(VARIANT_PERMISSIONS.update)}
+          canApprove={can(VARIANT_PERMISSIONS.approve)}
+        />
       </div>
       <CustomerEditDialog customer={customer} open={editOpen} onOpenChange={setEditOpen} />
     </>

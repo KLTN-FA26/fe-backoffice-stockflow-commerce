@@ -59,18 +59,9 @@ describe("credit hold — BE CreditDecisionRequest / CreditRefusalRequest", () =
     });
   });
 
-  it("từ chối CANCEL → bỏ depositPercent khỏi body", () => {
-    expect(
-      creditRejectionSchema.parse({ action: "CANCEL", depositPercent: 30, note: "Quá hạn" }),
-    ).toEqual({ action: "CANCEL", note: "Quá hạn" });
-  });
-
-  it("SWITCH_TO_DEPOSIT: depositPercent phải trong (0, 100) — biên mở", () => {
-    const base = { action: "SWITCH_TO_DEPOSIT" as const, note: "Chuyển cọc" };
-    expect(creditRejectionSchema.safeParse({ ...base, depositPercent: 30 }).success).toBe(true);
-    expect(creditRejectionSchema.safeParse({ ...base }).success).toBe(true);
-    expect(creditRejectionSchema.safeParse({ ...base, depositPercent: 0 }).success).toBe(false);
-    expect(creditRejectionSchema.safeParse({ ...base, depositPercent: 100 }).success).toBe(false);
+  it("từ chối chỉ gửi {note} (BE CreditRefusalRequest, 438fe6fb) — ghi chú bắt buộc", () => {
+    expect(creditRejectionSchema.parse({ note: " Quá hạn " })).toEqual({ note: "Quá hạn" });
+    expect(creditRejectionSchema.safeParse({ note: "" }).success).toBe(false);
   });
 });
 

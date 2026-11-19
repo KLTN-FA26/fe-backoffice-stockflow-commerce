@@ -138,7 +138,9 @@ describe("ProductCreate — trục biến thể khi tạo sản phẩm", { timeo
     await waitFor(() => expect(post).toHaveBeenCalled());
     const body = post.mock.calls[0]?.[1] as Record<string, unknown>;
     expect(body).not.toHaveProperty("axes");
-    expect(body).toMatchObject({ code: "cup", kind: "STANDARD" });
+    expect(body).toMatchObject({ code: "cup" });
+    // BE `CreateProductRequest` không có `kind` — hệ thống gán CUSTOMIZABLE (docs 01 BR-19)
+    expect(body).not.toHaveProperty("kind");
     await waitFor(() =>
       expect(pushMock).toHaveBeenCalledWith(`/admin/products/${created.productId}`),
     );

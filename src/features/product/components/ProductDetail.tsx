@@ -4,7 +4,7 @@ import React, { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { History, Palette, Tag } from "lucide-react";
 
-import { ADMIN_ROUTES, PRODUCT_STATUS } from "@/constants";
+import { ADMIN_ROUTES, VARIANT_PERMISSIONS } from "@/constants";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { usePermissionChecker } from "@/lib/auth/components/Can";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
@@ -28,6 +28,7 @@ import { ProductLoadError } from "./ProductLoadError";
 import { ProductOpenReferencesCard } from "./ProductOpenReferencesCard";
 import { ProductPrintAreasSection } from "./ProductPrintAreasSection";
 import { Section } from "./ProductSection";
+import { ProductDuplicateList } from "./ProductDuplicateWarning";
 import { ProductSideCards } from "./ProductSideCards";
 import { ProductVariantsSection } from "./ProductVariantsSection";
 import { useProductStatusActions } from "./useProductStatusActions";
@@ -42,7 +43,9 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
   const productQuery = useProduct(productId);
   // URL dùng id kỹ thuật (UUID của BE) — breadcrumb hiện mã sản phẩm như trang chi tiết NCC.
   useBreadcrumbLabel(productId, productQuery.data?.code);
-  const variantsQuery = useVariants(productId);
+  // BE: GET biến thể / trục cần `product-variants:READ` — thiếu thì không gọi, mục báo không có quyền
+  const canReadVariants = can(VARIANT_PERMISSIONS.read);
+  const variantsQuery = useVariants(productId, canReadVariants);
   const categoriesQuery = useCategories({});
   const variants = useMemo(() => variantsQuery.data ?? [], [variantsQuery.data]);
   // variantId → SKU cho mục Lịch sử: chỉ dựng lại khi danh sách biến thể đổi, không mỗi lần render.
@@ -78,19 +81,25 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-5">
+          {/* BE `ProductResponse.possibleDuplicates` (GET một sản phẩm) — cảnh báo, không chặn (docs 01 BR-16) */}
+          <ProductDuplicateList matches={product.possibleDuplicates ?? []} />
           <ProductGeneralSection product={product} categories={categories} />
           <ProductDescriptionSection product={product} />
           {/* Trục biến thể + thuộc tính mô tả — BE PR #114 */}
           <Section title="Thuộc tính & trục biến thể" icon={Palette}>
-            <ProductAttributesSection productId={product.productId} status={product.status} />
+            <ProductAttributesSection
+              productId={product.productId}
+              status={product.status}
+              canRead={canReadVariants}
+            />
           </Section>
           <ProductVariantsSection
             productId={product.productId}
             productCode={product.code ?? product.productId}
-            productDiscontinued={product.status === PRODUCT_STATUS.DISCONTINUED}
             acceptsChanges={gate.acceptsChanges}
             productApproved={gate.approved}
             customizable={product.type === "Customizable"}
+            canRead={canReadVariants}
             query={variantsQuery}
           />
           {/* Thông tin bán trên cửa hàng — BE `GET/PUT /products/{id}/ecommerce` */}

@@ -18,11 +18,12 @@ export function productTransitionErrorMessage(error: ApiError): string {
       return PRODUCT_ERROR_MESSAGES.categoryRequired;
     case "PRODUCT_SKU_REQUIRED":
       return PRODUCT_ERROR_MESSAGES.skuRequired;
-    // BE CatalogCommerceService.publish: chưa lưu listing / SKU Đang dùng chưa có giá bán.
+    // BE CatalogCommerceService.publish: chưa lưu listing. Không còn điều kiện giá (kltn-docs 13 §4.1 bước 2).
     case "CATALOG_LISTING_REQUIRED":
       return PRODUCT_ERROR_MESSAGES.listingRequired;
-    case "PRICE_NOT_AVAILABLE":
-      return PRODUCT_ERROR_MESSAGES.priceRequired;
+    // BE Product.requireDetails: thiếu thông tin bắt buộc khi gửi duyệt / duyệt (docs 01 §3)
+    case "PRODUCT_DETAILS_REQUIRED":
+      return PRODUCT_ERROR_MESSAGES.detailsRequired;
     case "SELF_APPROVAL_NOT_ALLOWED":
       return "Bạn không thể phê duyệt sản phẩm do chính mình gửi duyệt.";
     case "INVALID_PRODUCT_STATUS_TRANSITION":
@@ -30,9 +31,9 @@ export function productTransitionErrorMessage(error: ApiError): string {
     // BE `Product.requireDeletable` (BR-02 docs 01): chỉ sản phẩm Nháp mới xoá được.
     case "PRODUCT_NOT_DELETABLE":
       return "Chỉ xoá được sản phẩm ở trạng thái Nháp. Sản phẩm đã gửi duyệt thì tạm ngưng hoặc ngừng kinh doanh.";
-    // BE `ProductService.deleteDraft`: còn PO / đơn mở, hoặc tồn kho, nhận hàng, giỏ, thiết kế, listing tham chiếu SKU.
+    // BE `ProductService.deleteDraft`: còn chứng từ mở, tồn kho, nhận hàng, thiết kế hoặc listing tham chiếu SKU.
     case "PRODUCT_IN_USE":
-      return "Sản phẩm còn được tồn kho, đơn mua, đơn bán, thiết kế hoặc cửa hàng tham chiếu nên không xoá được.";
+      return "Sản phẩm còn được tồn kho, báo giá / đơn hàng, Đơn sản xuất, thiết kế hoặc cửa hàng tham chiếu nên không xoá được.";
     case "PRODUCT_NOT_FOUND":
       return "Không tìm thấy sản phẩm — có thể đã bị xoá.";
     // BE ProductService: `version` gửi lên không còn là bản mới nhất (409).

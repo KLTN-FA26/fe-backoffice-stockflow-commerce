@@ -1,21 +1,13 @@
 /**
- * Mock routes — hồ sơ hàng tồn (BE PR #119 `InventoryItemController`): danh sách, chi tiết,
- * `PUT .../logistics` và `PUT .../policy`. Response đúng `InventoryItemResponse`
- * `{id, sku, version, logistics, policy, evaluation}`; version là của item, dùng chung cho cả hai
- * PUT. Logistics lưu chung kho `logistics` của mock biến thể (`mock-routes-variants.ts`, khoá theo
- * id biến thể) — item và biến thể 1-1 theo SKU, id item = `item-<variantId>`; chính sách ở
- * `mock-routes-inventory-policy.ts`.
+ * Mock routes — hồ sơ hàng tồn (BE `InventoryItemController`): danh sách, chi tiết, `PUT .../logistics`.
+ * Response đúng `InventoryItemResponse` `{id, sku, version, logistics}` và `InventoryItemSummaryResponse`
+ * `{id, sku, unitOfMeasure, barcode}`. Không còn chính sách tồn để sửa (kltn-docs 01 BR-17, team plan 5-5).
+ * Logistics lưu chung kho `logistics` của mock biến thể (`mock-routes-variants.ts`, khoá theo id biến thể) —
+ * item và biến thể 1-1 theo SKU, id item = `item-<variantId>`.
  */
 import { registerMockRoute } from "./mock-adapter";
-import { bodyOf, fail, ok, pageOf, pathParams, queryOf } from "./mock-route-utils";
-import {
-  evaluationOf,
-  isConfigured,
-  savePolicy,
-  policyOf,
-  readPolicy,
-  validatePolicy,
-} from "./mock-routes-inventory-policy";
+import { fail, ok, pageOf, pathParams, queryOf, bodyOf } from "./mock-route-utils";
+import { mockPackingUnitUses } from "./mock-routes-uom-conversions";
 import { mockInventoryItemRows, mockSkuRetired, saveMockLogistics } from "./mock-routes-variants";
 
 import type { AxiosRequestConfig } from "axios";
@@ -32,6 +24,17 @@ const retired = (sku: string) =>
     `SKU ${sku} is obsolete: its inventory settings are kept as they are`,
   );
 
+const MEASURES = [
+  "weightKg",
+  "lengthCm",
+  "widthCm",
+  "heightCm",
+  "packageWeightKg",
+  "packageLengthCm",
+  "packageWidthCm",
+  "packageHeightCm",
+] as const;
+
 async function findItem(config: AxiosRequestConfig) {
   const { id = "" } = pathParams(config);
   const row = (await mockInventoryItemRows()).find((r) => r.id === id)?.row;
@@ -39,10 +42,9 @@ async function findItem(config: AxiosRequestConfig) {
 }
 
 function toItem(id: string, row: MockLogistics) {
-  const { skuId: _skuId, sku, version, ...rest } = row;
+  const { skuId: _skuId, sku, version, ...logistics } = row;
   void _skuId;
-  const policy = policyOf(id);
-  return { id, sku, version, logistics: rest, policy, evaluation: evaluationOf(id, policy) };
+  return { id, sku, version, logistics };
 }
 
 async function listItems(config: AxiosRequestConfig) {
@@ -51,16 +53,13 @@ async function listItems(config: AxiosRequestConfig) {
   const size = Number(query.get("size")) || 20;
   const sku = query.get("sku");
   const q = query.get("q")?.trim().toLowerCase();
-  const storageClass = query.get("storageClass");
-  const configured = query.get("policyConfigured");
 
   const items = (await mockInventoryItemRows())
-    .filter(({ id, row }) => {
+    .filter(({ row }) => {
       if (sku && row.sku !== sku) return false;
-      if (q && !row.sku.toLowerCase().includes(q) && !(row.barcode ?? "").toLowerCase().includes(q))
-        return false;
-      if (storageClass && row.storageClass !== storageClass) return false;
-      return configured === null || isConfigured(id) === (configured === "true");
+      return (
+        !q || row.sku.toLowerCase().includes(q) || (row.barcode ?? "").toLowerCase().includes(q)
+      );
     })
     .sort((a, b) => (a.row.sku < b.row.sku ? -1 : a.row.sku > b.row.sku ? 1 : 0))
     .map(({ id, row }) => ({
@@ -68,11 +67,81 @@ async function listItems(config: AxiosRequestConfig) {
       sku: row.sku,
       unitOfMeasure: row.unitOfMeasure,
       barcode: row.barcode,
-      storageClass: row.storageClass,
-      trackingMode: policyOf(id).trackingMode,
-      policyConfigured: isConfigured(id),
     }));
   return ok(pageOf(items, page, size));
+}
+
+const invalid = (field: string, message: string) =>
+  fail(400, "VALIDATION_FAILED", message, [{ field, message, code: "VALIDATION_FAILED" }]);
+
+/** Body → logistics mới, hoặc lỗi như annotation của BE `UpdateItemLogisticsRequest`. */
+function readLogistics(b: Record<string, unknown>, row: MockLogistics) {
+  const unitOfMeasure = typeof b.unitOfMeasure === "string" ? b.unitOfMeasure : "";
+  if (!/^[A-Z0-9_]{1,16}$/.test(unitOfMeasure)) {
+    return {
+      error: invalid("unitOfMeasure", "unitOfMeasure is 1-16 upper-case letters, digits or _"),
+    };
+  }
+  const barcode = typeof b.barcode === "string" ? b.barcode : null;
+  if (barcode !== null && (barcode.length < 1 || barcode.length > 64)) {
+    return { error: invalid("barcode", "barcode must be 1-64 characters") };
+  }
+  const measures: Partial<Record<(typeof MEASURES)[number], number | null>> = {};
+  for (const key of MEASURES) {
+    const value = typeof b[key] === "number" ? (b[key] as number) : null;
+    if (value !== null && value <= 0) return { error: invalid(key, `${key} must be positive`) };
+    measures[key] = value;
+  }
+  const count = (key: "packageCount" | "packSize") => {
+    const value = b[key];
+    return typeof value === "number" ? value : 1; // BE: 1 khi vắng
+  };
+  for (const key of ["packageCount", "packSize"] as const) {
+    if (count(key) < 1) return { error: invalid(key, `${key} must be at least 1`) };
+  }
+  const next: MockLogistics = {
+    ...row,
+    ...measures,
+    unitOfMeasure,
+    barcode,
+    packageCount: count("packageCount"),
+    packSize: count("packSize"),
+    // BE `InventoryItemWebMapper.toLogistics`: `!Boolean.FALSE.equals(rotatable)` — thiếu = true
+    rotatable: b.rotatable !== false,
+    version: row.version + 1,
+  };
+  return { next };
+}
+
+async function putLogistics(config: AxiosRequestConfig) {
+  const { id, row } = await findItem(config);
+  if (!row) return itemNotFound(id);
+  const b = bodyOf(config);
+  if (typeof b.version !== "number" || b.version < 0)
+    return invalid("version", "version is required");
+  const read = readLogistics(b, row);
+  if (read.error) return read.error;
+  const { next } = read;
+  // Thứ tự BE `saveLogistics`: luật → khoá (SKU ngừng) → version → mã đơn vị → mã vạch
+  if (await mockSkuRetired(row.sku)) return retired(row.sku);
+  if (b.version !== row.version) return staleVersion();
+  if (
+    next.unitOfMeasure !== row.unitOfMeasure &&
+    mockPackingUnitUses(row.skuId, next.unitOfMeasure)
+  ) {
+    return fail(
+      409,
+      "UOM_CONVERSION_DUPLICATE",
+      `${row.sku} already has a packing unit ${next.unitOfMeasure}`,
+    );
+  }
+  const taken =
+    next.barcode !== null &&
+    (await mockInventoryItemRows()).some((o) => o.id !== id && o.row.barcode === next.barcode);
+  if (taken)
+    return fail(409, "CONFLICT", `Another inventory item already has barcode ${next.barcode}`);
+  saveMockLogistics(next);
+  return ok(toItem(id, next));
 }
 
 export function registerInventoryItemMockRoutes(): void {
@@ -83,48 +152,5 @@ export function registerInventoryItemMockRoutes(): void {
     return row ? ok(toItem(id, row)) : itemNotFound(id);
   });
 
-  registerMockRoute("PUT", "/inventory/items/:id/logistics", async (config) => {
-    const { id, row } = await findItem(config);
-    if (!row) return itemNotFound(id);
-    const b = bodyOf(config);
-    if (await mockSkuRetired(row.sku)) return retired(row.sku);
-    if (b.version !== row.version) return staleVersion();
-    // BE: mã vạch không trùng với item khác (409 CONFLICT)
-    const barcode = typeof b.barcode === "string" ? b.barcode : null;
-    const taken =
-      barcode !== null &&
-      (await mockInventoryItemRows()).some((o) => o.id !== id && o.row.barcode === barcode);
-    if (taken) return fail(409, "CONFLICT", "That barcode is already on another item");
-    const { version: _version, ...fields } = b;
-    void _version;
-    const next: MockLogistics = {
-      ...row,
-      ...(fields as Partial<MockLogistics>),
-      skuId: row.skuId,
-      sku: row.sku,
-      version: row.version + 1,
-      // BE #121 InventoryItemWebMapper.toLogistics: `!Boolean.FALSE.equals(rotatable)` — thiếu = true
-      rotatable: fields.rotatable !== false,
-    };
-    next.packageCount = next.packageCount ?? 1;
-    next.packSize = next.packSize ?? 1;
-    saveMockLogistics(next);
-    return ok(toItem(id, next));
-  });
-
-  registerMockRoute("PUT", "/inventory/items/:id/policy", async (config) => {
-    const { id, row } = await findItem(config);
-    if (!row) return itemNotFound(id);
-    const b = bodyOf(config);
-    // BE `savePolicy`: kiểm chính sách → khoá hồ sơ (SKU đã ngừng → VARIANT_OBSOLETE) → version
-    const policy = readPolicy(b);
-    const invalid = validatePolicy(policy);
-    if (invalid) return invalid;
-    if (await mockSkuRetired(row.sku)) return retired(row.sku);
-    if (b.version !== row.version) return staleVersion();
-    savePolicy(id, policy);
-    const next: MockLogistics = { ...row, version: row.version + 1 };
-    saveMockLogistics(next);
-    return ok(toItem(id, next));
-  });
+  registerMockRoute("PUT", "/inventory/items/:id/logistics", putLogistics);
 }
