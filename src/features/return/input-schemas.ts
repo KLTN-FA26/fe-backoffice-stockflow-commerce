@@ -51,10 +51,14 @@ export const proposeInputSchema = z.object({
  * Sale mở yêu cầu thay khách (BE `ReturnRequests.Open`, `ReturnRequest.open`):
  * - `OTHER` phải mô tả vấn đề;
  * - BR-RMA-002 (docs 17 BR-08): dòng in theo thiết kế chỉ trả vì lỗi có tên — không nhận `OTHER`;
- * - số trả mỗi dòng ≤ số đã giao (trần do màn tính, BE kiểm lại kể cả phần các yêu cầu khác đã giữ).
+ * - số trả mỗi dòng ≤ số đã giao trên lô đã chọn (trần do màn tính, BE kiểm lại kể cả phần các yêu cầu khác đã giữ).
  */
 export const openInputSchema = z
   .object({
+    /** WF-05 TH-1: lô đã giao chứa hàng trả; "" = đơn chỉ một lô đã giao / giao không qua lô (BE tự chọn). */
+    shipmentId: z.string(),
+    /** Đơn đã giao ≥ 2 lô: phải chọn lô (BE `RETURN_SHIPMENT_REQUIRED`). */
+    shipmentRequired: z.boolean(),
     reasonCode: z.enum(RETURN_OPENABLE_REASONS, { error: "Chọn lý do" }),
     description: z.string().trim().max(L.descriptionMax, max(L.descriptionMax)),
     lateClaimReason: z.string().trim().max(L.lateClaimReasonMax, max(L.lateClaimReasonMax)),
@@ -71,6 +75,11 @@ export const openInputSchema = z
           path: ["quantity"],
         }),
     ),
+  })
+  // WF-05 TH-1 (BE `ReturnRequest.deliveredShipment`): mỗi yêu cầu thuộc đúng một lô đã giao
+  .refine((v) => !v.shipmentRequired || v.shipmentId.length > 0, {
+    message: "Đơn giao nhiều lô — chọn lô chứa hàng khách trả",
+    path: ["shipmentId"],
   })
   .refine((v) => v.reasonCode !== "OTHER" || v.description.length > 0, {
     message: "Mô tả vấn đề khi chọn lý do Khác",
@@ -112,4 +121,17 @@ export const createReceiptInputSchema = z
 export const scanInputSchema = z.object({
   lpn: z.string().trim().min(1, "Quét hoặc nhập LPN").max(L.lpnMax, max(L.lpnMax)),
   condition: z.string().trim().max(L.conditionMax, max(L.conditionMax)),
+});
+
+/**
+ * Hàng lẻ không nhãn trên phiếu nhập hàng hoàn (WF-05 TH-4; BE `RecordLooseUnitsRequest`): SKU bắt buộc ≤ 64, lô ≤ 64,
+ * số lượng ≥ 1. SKU phải là SKU của đơn — BE kiểm (`VALIDATION_FAILED`).
+ */
+export const looseLineInputSchema = z.object({
+  sku: z.string().trim().min(1, "Nhập SKU").max(L.skuMax, max(L.skuMax)),
+  lotNumber: z.string().trim().max(L.lotMax, max(L.lotMax)),
+  quantity: z
+    .number({ error: "Nhập số lượng" })
+    .int("Số lượng là số nguyên")
+    .min(1, "Số lượng ≥ 1"),
 });

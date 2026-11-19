@@ -29,7 +29,19 @@ export function mockStoredLayout(warehouseId: string): unknown {
           ...level,
           bins: level.bins.map((bin) => {
             const effectiveStatus = narrowest(shelfEffective, bin.status);
-            return { ...bin, effectiveStatus, usable: effectiveStatus === "ACTIVE" };
+            // Sức chứa = rộng × dài × chiều cao thông thuỷ của tầng (06 BR-19); tầng chưa khai → vắng
+            const capacityVolumeM3 =
+              level.usableHeight === null
+                ? null
+                : Math.round(
+                    bin.footprint.width * bin.footprint.length * level.usableHeight * 1000,
+                  ) / 1000;
+            return {
+              ...bin,
+              capacityVolumeM3,
+              effectiveStatus,
+              usable: effectiveStatus === "ACTIVE",
+            };
           }),
         })),
     };

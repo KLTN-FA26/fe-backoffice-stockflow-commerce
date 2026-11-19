@@ -13,6 +13,7 @@ import { RETURN_ROUTES } from "@/constants/returns";
 import { Card } from "@/components/shared/Card";
 
 import { CodeLink, InfoList, InfoRow, Money, ReturnStatusDot, When } from "./primitives";
+import { ReturnParcelList } from "./ReturnParcelList";
 
 import type { ReturnRequest } from "../types";
 
@@ -100,6 +101,7 @@ export function ReturnProgressCard({ ret }: { ret: ReturnRequest }) {
               </InfoRow>
             )}
           </InfoList>
+          <ReturnParcelList parcels={receipt.parcels ?? []} />
         </section>
       )}
       {resolution && (
@@ -127,7 +129,11 @@ export function ReturnProgressCard({ ret }: { ret: ReturnRequest }) {
               </>
             )}
           </InfoList>
-          {resolution.settledAt && (
+          {/* WF-05 TH-4: kết thúc không hoàn tiền — giá trị 0, không có gì ở màn hoàn tiền */}
+          {resolution.settledAt && resolution.settlementAmount === 0 && (
+            <p className="text-ink-secondary">{D.closedWithoutRefund}</p>
+          )}
+          {resolution.settledAt && resolution.settlementAmount !== 0 && (
             <div className="flex flex-wrap gap-3">
               <Link
                 href={PAYMENT_ROUTES.refunds.ofOrder(ret.orderId)}

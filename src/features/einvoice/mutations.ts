@@ -22,6 +22,7 @@ import {
   reviseDraft,
   sendErrorNotice,
   voidDraft,
+  withdrawEInvoice,
 } from "./api";
 import { EINVOICE_STALE_CODES } from "./errors";
 import { einvoiceKeys, einvoiceSettingsKeys } from "./queries";
@@ -54,11 +55,15 @@ export const useIssueEInvoice = einvoiceMutation(
   issueEInvoice,
   "Đã gửi phát hành. Đang chờ kết quả từ nhà cung cấp.",
 );
-export const useReconcileEInvoice = einvoiceMutation(reconcileEInvoice, "Đã tra lại kết quả.");
+export const useReconcileEInvoice = einvoiceMutation(reconcileEInvoice, "Đã kiểm tra lại kết quả.");
 export const useReopenEInvoice = einvoiceMutation(reopenEInvoice, "Đã mở lại thành nháp.");
 export const useResubmitEInvoice = einvoiceMutation(
   resubmitEInvoice,
   "Đã gửi lại như giao dịch mới.",
+);
+export const useWithdrawEInvoice = einvoiceMutation(
+  withdrawEInvoice,
+  "Đã rút hoá đơn khỏi nhà cung cấp. Mở lại thành nháp để phát hành lại.",
 );
 export const useAdjustEInvoice = einvoiceMutation(adjustEInvoice, "Đã lập nháp điều chỉnh.");
 export const useReplaceEInvoice = einvoiceMutation(replaceEInvoice, "Đã lập nháp thay thế.");

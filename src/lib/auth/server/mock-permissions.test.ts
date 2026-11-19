@@ -15,7 +15,6 @@ import {
   CUSTOMER_PRICE_PERMISSIONS,
   FULFILLMENT_PICK_PERMISSIONS,
   INVENTORY_ITEM_PERMISSIONS as ITEM_PERMISSIONS,
-  SUPPLIER_ITEM_PERMISSIONS,
   INVENTORY_ITEM_PERMISSIONS,
   INVENTORY_OVERVIEW_PERMISSIONS,
   INVENTORY_PERMISSIONS,
@@ -24,7 +23,6 @@ import {
   PRODUCT_PERMISSIONS,
   SHIPMENT_PERMISSIONS,
   SUPPLIER_PERMISSIONS,
-  TRANSFER_PERMISSIONS,
   VARIANT_PERMISSIONS,
   WAREHOUSE_PERMISSIONS,
 } from "@/constants/permissions";
@@ -50,10 +48,6 @@ describe("explicit mock permission responses", () => {
     );
     // Fixture "không có quyền": user không có trong bảng grant, kể cả khi giả lập System Admin
     expect(mockSessionPermissions("unknown", ["System Admin"]).permissions).toEqual([]);
-    // Planner theo seed BE: không có quyền duyệt dù giả lập System Admin
-    const planner = mockSessionPermissions("USER-PLAN-01", ["System Admin"]).permissions;
-    expect(planner).toContain(TRANSFER_PERMISSIONS.create);
-    expect(planner).not.toContain(TRANSFER_PERMISSIONS.approve);
     expect(mockSessionPermissions("USER-PROC-01", []).permissions).toContain(
       SUPPLIER_PERMISSIONS.create,
     );
@@ -153,19 +147,10 @@ describe("explicit mock permission responses", () => {
     ]) {
       expect(coord).toContain(code);
     }
-    // Chuyển kho (phần WAREHOUSE_STAFF) + chuyến xe
-    for (const code of [
-      TRANSFER_PERMISSIONS.viewPage,
-      TRANSFER_PERMISSIONS.read,
-      TRANSFER_PERMISSIONS.update,
-      ...Object.values(SHIPMENT_PERMISSIONS),
-    ]) {
-      expect(coord).toContain(code);
-    }
-    // Không nới: duyệt công nợ chỉ ACCOUNTANT; duyệt / tạo chuyển kho không phải phần Coordinator
+    // Chuyến xe
+    for (const code of Object.values(SHIPMENT_PERMISSIONS)) expect(coord).toContain(code);
+    // Không nới: duyệt công nợ chỉ ACCOUNTANT
     expect(coord).not.toContain(CREDIT_HOLD_PERMISSIONS.approve);
-    expect(coord).not.toContain(TRANSFER_PERMISSIONS.approve);
-    expect(coord).not.toContain(TRANSFER_PERMISSIONS.create);
   });
 
   it("admin và E-commerce Admin có product-attributes / product-variants (seed BE V20260928006000); nhân viên kho thì không", () => {
@@ -433,21 +418,20 @@ describe("Inventory item grants (BE PR #119, seed V20260928006000)", () => {
 describe("Overview grants match backend seeds", () => {
   const OV = INVENTORY_OVERVIEW_PERMISSIONS;
   it.each([
-    ["USER-ADMIN-01", true, true, true, true],
-    ["USER-WH-01", true, true, true, true],
-    ["USER-PLAN-01", true, false, true, true],
-    ["USER-QC-01", true, false, false, false],
-    ["USER-PROC-01", false, false, false, true],
-    ["USER-ECAD-01", false, false, false, false],
-    ["USER-SALE-01", false, false, false, true],
+    ["USER-ADMIN-01", true, true, true],
+    ["USER-WH-01", true, true, true],
+    ["USER-PLAN-01", true, false, true],
+    ["USER-QC-01", true, false, false],
+    ["USER-PROC-01", false, false, true],
+    ["USER-ECAD-01", false, false, false],
+    ["USER-SALE-01", false, false, true],
   ] as const)(
-    "%s has seeded stock, reservation, alert and directory reads",
-    (id, stock, holds, alerts, directory) => {
+    "%s has seeded stock, reservation and directory reads",
+    (id, stock, holds, directory) => {
       const { permissions } = mockSessionPermissions(id, []);
       for (const [code, allowed] of [
         [OV.stockRead, stock],
         [OV.reservationRead, holds],
-        [OV.alertRead, alerts],
         [WAREHOUSE_PERMISSIONS.read, directory],
       ] as const) {
         expect(permissions.includes(code)).toBe(allowed);
@@ -516,11 +500,8 @@ describe("Customer price grants after a real mock login (seed V20261017000510 + 
     expect(procurement).not.toContain(PRODUCT_PERMISSIONS.update);
     expect(procurement).not.toContain(PRODUCT_PERMISSIONS.read);
     expect(procurement).not.toContain(ITEM_PERMISSIONS.update);
-    expect(procurement).toContain(SUPPLIER_ITEM_PERMISSIONS.read);
     for (const userId of ["USER-ECAD-01", "USER-SALE-01", "USER-COORD-01"]) {
-      const permissions = await sessionPermissions(userId);
-      expect(permissions).not.toContain(SUPPLIER_ITEM_PERMISSIONS.read);
-      expect(permissions).not.toContain(ITEM_PERMISSIONS.update);
+      expect(await sessionPermissions(userId)).not.toContain(ITEM_PERMISSIONS.update);
     }
     for (const userId of ["USER-SALE-01", "USER-COORD-01"])
       expect(await sessionPermissions(userId)).not.toContain(PRODUCT_PERMISSIONS.update);

@@ -74,6 +74,33 @@ describe("Khối Thanh toán — các đợt thanh toán của đơn", () => {
     expect(card.queryByText("—")).not.toBeInTheDocument();
   });
 
+  it("tình trạng thanh toán, còn phải thu, phải thu trước khi xuất (chỉ khi > 0) theo BE", async () => {
+    await renderOrder([...ORDER_PERMISSION_SETS.readOnly, PAYMENT_INSTALLMENT_PERMISSIONS.read], {
+      ...INSTALLMENTS,
+      paymentStatus: "PARTIALLY_PAID",
+      outstanding: 60_000_000,
+      dueBeforeHandover: 60_000_000,
+    });
+    const card = within(block());
+    expect(await card.findByText("Tình trạng thanh toán")).toBeInTheDocument();
+    expect(card.getByText("Thanh toán một phần")).toBeInTheDocument();
+    expect(card.getByText("Còn phải thu")).toBeInTheDocument();
+    expect(card.getByText("Phải thu trước khi xuất")).toBeInTheDocument();
+    expect(card.getAllByText(/60\.000\.000/).length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("trạng thái lạ → Không rõ; phải thu trước khi xuất = 0 → không hiện; field vắng → không dòng", async () => {
+    await renderOrder([...ORDER_PERMISSION_SETS.readOnly, PAYMENT_INSTALLMENT_PERMISSIONS.read], {
+      ...INSTALLMENTS,
+      paymentStatus: "OVERPAID",
+      dueBeforeHandover: 0,
+    });
+    const card = within(block());
+    expect(await card.findByText("Không rõ")).toBeInTheDocument();
+    expect(card.queryByText("Phải thu trước khi xuất")).not.toBeInTheDocument();
+    expect(card.queryByText("Còn phải thu")).not.toBeInTheDocument();
+  });
+
   it("thiếu payment-installments:READ → không gọi API, không hiện phần các đợt, không dòng '—'", async () => {
     await renderOrder(ORDER_PERMISSION_SETS.readOnly, INSTALLMENTS);
     expect(api.get).not.toHaveBeenCalledWith(INSTALLMENTS_PATH, expect.anything());

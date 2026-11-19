@@ -1,5 +1,6 @@
 /**
- * Màn chi tiết đơn — thu phần còn lại ON_CREDIT và huỷ đơn khi hàng có sẵn đã đóng trước hàng in (BE PR #150).
+ * Màn chi tiết đơn — khối Thanh toán bỏ các field thu phần còn lại BE đã xoá, và huỷ đơn khi hàng có sẵn đã đóng trước
+ * hàng in (BE PR #150).
  */
 import { screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -14,31 +15,19 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 afterEach(() => vi.restoreAllMocks());
 
-describe("OrderDetail — thu phần còn lại ON_CREDIT", () => {
-  it("đơn cọc ON_CREDIT: hiện 'Ghi công nợ phần còn lại' và hạn công nợ", async () => {
-    await renderDetail(ORDER_PERMISSION_SETS.readOnly, () =>
-      apiOrderWith({ paymentTerm: "DEPOSIT", balancePolicy: "ON_CREDIT", creditTermDays: 30 }),
-    );
-    expect(await screen.findByText("Ghi công nợ phần còn lại")).toBeInTheDocument();
-    expect(screen.getByText("30 ngày sau khi giao")).toBeInTheDocument();
-  });
-
+describe("OrderDetail — khối Thanh toán không đọc field BE đã bỏ (paymentTerm / balancePolicy / creditTermDays)", () => {
   it.each([
+    ["ON_CREDIT", "Ghi công nợ phần còn lại"],
     ["BEFORE_DELIVERY", "Chuyển khoản trước khi giao"],
     ["ON_DELIVERY", "Thu hộ khi giao hàng (COD)"],
-    ["BRAND_NEW", "Không rõ"],
-  ])("balancePolicy %s → %s", async (policy, label) => {
+  ])("response cũ mang balancePolicy %s → không hiện '%s' / hạn công nợ", async (policy, label) => {
     await renderDetail(ORDER_PERMISSION_SETS.readOnly, () =>
-      apiOrderWith({ paymentTerm: "DEPOSIT", balancePolicy: policy }),
+      apiOrderWith({ paymentTerm: "DEPOSIT", balancePolicy: policy, creditTermDays: 30 }),
     );
-    expect(await screen.findByText(label)).toBeInTheDocument();
-    expect(screen.queryByText(/ngày sau khi giao/)).not.toBeInTheDocument();
-  });
-
-  it("đơn không có balancePolicy → không hiện dòng 'Thu phần còn lại'", async () => {
-    await renderDetail(ORDER_PERMISSION_SETS.readOnly, () => apiOrder);
     await screen.findByRole("heading", { name: apiOrder.orderNumber });
+    expect(screen.queryByText(label)).not.toBeInTheDocument();
     expect(screen.queryByText("Thu phần còn lại")).not.toBeInTheDocument();
+    expect(screen.queryByText(/ngày sau khi giao/)).not.toBeInTheDocument();
   });
 });
 

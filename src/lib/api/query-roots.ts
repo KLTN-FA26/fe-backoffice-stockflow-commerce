@@ -9,8 +9,6 @@ import { INVENTORY_QUERY_KEYS } from "@/constants/inventory";
 export const QUERY_ROOTS = {
   customers: ["customers"],
   quotes: ["quotes"],
-  sampleRequests: ["sample-requests"],
-  productionOrders: ["production-orders"],
   /** = `orderKeys.all` (features/order). */
   orders: ["orders"],
   /** = `einvoiceKeys.all` (features/einvoice) — hoá đơn điện tử theo lần giao (docs 21). */

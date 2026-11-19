@@ -1,12 +1,12 @@
 "use client";
 
+import { Wallet } from "lucide-react";
+
 import { formatMoney } from "@/lib/format/money";
 import { useCreditProfile } from "@/features/customer/queries";
 import { PAYMENT_TERM_LABEL, allowedPaymentTerms } from "@/features/customer/selectors";
-import { Card } from "@/components/shared/Card";
+import { DetailSection, InfoRow } from "@/components/shared/DetailSection";
 import { Skeleton } from "@/components/shared/Skeleton";
-
-import { InfoList } from "./InfoList";
 
 import type { CreditProfile } from "@/features/customer/types";
 
@@ -64,8 +64,7 @@ export function CreditProfileCard({
 }) {
   const profile = useCreditProfile(customerId, canRead);
   return (
-    <Card className="space-y-3">
-      <h2 className="text-ink-primary text-sm font-semibold">Điều khoản thanh toán</h2>
+    <DetailSection title="Điều khoản thanh toán" icon={Wallet}>
       {!canRead && (
         <p className="text-ink-tertiary text-[0.8125rem]">
           Bạn chưa có quyền xem điều khoản thanh toán.
@@ -80,7 +79,15 @@ export function CreditProfileCard({
           </button>
         </p>
       )}
-      {profile.data && <InfoList items={rowsOf(profile.data)} />}
-    </Card>
+      {profile.data && (
+        <div className="divide-y divide-(--table-line)">
+          {rowsOf(profile.data).map((row) => (
+            <InfoRow key={row.label} label={row.label}>
+              {row.value}
+            </InfoRow>
+          ))}
+        </div>
+      )}
+    </DetailSection>
   );
 }

@@ -4,10 +4,23 @@ import {
   quarantineInput,
   releasedPutawayTaskDto,
   stockPackageDetailDto,
+  stockPackageListInput,
+  stockPackagePageDto,
 } from "./quarantine-schemas";
 import { inventoryRequest } from "./transport";
 
-import type { QuarantineInput } from "./quarantine-types";
+import type { QuarantineInput, StockPackageListParams } from "./quarantine-types";
+
+/**
+ * Thùng của một khu (BE `GET /inventory/stock-packages?location=`): mặc định thùng còn sống (RECEIVING, IN_STOCK), sắp theo
+ * LPN. BE trả 403 khi vị trí thuộc kho người dùng không được xem.
+ */
+export function listCartons(params: StockPackageListParams, signal?: AbortSignal) {
+  return inventoryRequest(
+    { url: QUARANTINE_API.list, params: stockPackageListInput.parse(params), signal },
+    stockPackagePageDto,
+  );
+}
 
 export function getCarton(lpn: string, signal?: AbortSignal) {
   return inventoryRequest({ url: QUARANTINE_API.carton(lpn), signal }, stockPackageDetailDto);

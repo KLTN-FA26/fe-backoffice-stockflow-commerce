@@ -5,9 +5,6 @@ import {
   INVENTORY_MESSAGES,
   INVENTORY_SORT_DIRECTIONS,
   RESERVATION_STATUSES,
-  STOCK_ALERT_KINDS,
-  STOCK_ALERT_SORT_FIELDS,
-  STOCK_ALERT_STATUSES,
   STOCK_ITEM_SORT_FIELDS,
   STOCK_STATUSES,
 } from "@/constants/inventory";
@@ -17,8 +14,8 @@ import { skuSchema } from "@/lib/validation/sku";
 
 import { inventoryPageDto } from "./schemas";
 
-// Read side of Inventory Overview (SCRUM-438). Source: backend develop 0f18f24 InventoryController,
-// StockAlertController and their response records. Jackson NON_NULL omits null fields, so every
+// Read side of Inventory Overview (SCRUM-438). Source: backend develop 0f18f24 InventoryController
+// and its response records. Jackson NON_NULL omits null fields, so every
 // nullable field is `.nullish()`. Enum-valued fields are Strings on the wire and are read open, as
 // in schemas.ts: one newer code must not invalidate a whole page. Request filters stay strict.
 
@@ -76,32 +73,6 @@ export const reservationRowDto = z.object({
   closedAt: z.iso.datetime().nullish(),
 });
 export const reservationPageDto = inventoryPageDto(reservationRowDto);
-
-/** StockAlertResponse. REORDER/SAFETY are SKU-wide: no warehouse, no lot, no expiry. */
-export const stockAlertDto = z.object({
-  id: beUuid,
-  kind: z.string(),
-  sku: z.string(),
-  warehouseId: warehouseId.nullish(),
-  warehouseCode: z.string().nullish(),
-  lotNumber: z.string().nullish(),
-  expiryDate: z.iso.date().nullish(),
-  daysToExpiry: quantity.nullish(),
-  observedQty: quantity,
-  thresholdQty: quantity.nullish(),
-  reservationImpaired: z.boolean(),
-  status: z.string(),
-  openedAt: z.iso.datetime(),
-  lastObservedAt: z.iso.datetime(),
-  acknowledgedBy: beUuid.nullish(),
-  acknowledgedByName: z.string().nullish(),
-  acknowledgedAt: z.iso.datetime().nullish(),
-  ackNote: z.string().nullish(),
-  resolvedAt: z.iso.datetime().nullish(),
-  resolution: z.string().nullish(),
-  version: z.number().int().nonnegative(),
-});
-export const stockAlertPageDto = inventoryPageDto(stockAlertDto);
 
 // ── Request inputs ─────────────────────────────────────────────────────────────────────────────
 
@@ -165,13 +136,4 @@ export const reservationListInput = z.object({
   status: commaList(RESERVATION_STATUSES),
   warehouse: optionalText,
   ...paging,
-});
-
-export const stockAlertListInput = z.object({
-  kind: commaList(STOCK_ALERT_KINDS),
-  status: commaList(STOCK_ALERT_STATUSES),
-  sku: optionalSku,
-  warehouseId: warehouseId.optional(),
-  ...paging,
-  sort: sortClause(STOCK_ALERT_SORT_FIELDS),
 });

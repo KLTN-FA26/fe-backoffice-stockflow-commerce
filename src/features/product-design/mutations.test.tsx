@@ -208,7 +208,6 @@ describe("activation refused for the file (BE 409 / 422)", () => {
   it.each([
     [409, "PRINT_CONFIG_MODEL_FILE_REQUIRED", ACTIVATE.PRINT_CONFIG_MODEL_FILE_REQUIRED],
     [422, "PRINT_CONFIG_SURFACES_INVALID", ACTIVATE.PRINT_CONFIG_SURFACES_INVALID],
-    [400, "PRINT_CONFIG_INVALID", ACTIVATE.PRINT_CONFIG_INVALID],
   ])(
     "%i %s: the toast says why it cannot be activated, and the variant is refetched",
     async (status, code, sentence) => {

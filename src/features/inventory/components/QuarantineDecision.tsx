@@ -1,11 +1,14 @@
 "use client";
 
-import { parseAsString, useQueryState } from "nuqs";
+import { ArrowLeft } from "lucide-react";
 
 import { INVENTORY_LABELS } from "@/constants/inventory";
-import { STOCK_PACKAGE_PERMISSIONS } from "@/constants/permissions";
-import { STOCK_PACKAGE_API_STATUSES, STOCK_PACKAGE_STATUS_BY_API } from "@/constants/statuses";
+import { STOCK_PACKAGE_PERMISSIONS, WAREHOUSE_LOCATION_PERMISSIONS } from "@/constants/permissions";
 import { QUARANTINE_LABELS, QUARANTINE_LIMITS } from "@/constants/quarantine";
+
+import { usePermissionChecker } from "@/lib/auth";
+import { useWarehouseAreas } from "@/lib/references/warehouse-layout";
+import { useAppStore } from "@/lib/store/use-app-store";
 
 import { ScanInput } from "@/components/backoffice/ScanInput";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -14,12 +17,14 @@ import { StatusDot } from "@/components/shared/StatusDot";
 import { Button } from "@/components/ui/button";
 
 import { quarantineActionError } from "../quarantine-errors";
-import { isQuarantined } from "../quarantine-lifecycle";
+import { cartonStatusLabel, isQuarantined } from "../quarantine-lifecycle";
 import { useCarton } from "../quarantine-queries";
 import { cartonLookupInput } from "../quarantine-schemas";
+import { useQuarantineFilters } from "../use-quarantine-filters";
 import { InventoryOffline } from "./InventoryFeedback";
 import { InventoryPermissionGate } from "./InventoryPermissionGate";
 import { QuarantineActions } from "./QuarantineActions";
+import { QuarantineList } from "./QuarantineList";
 
 import type { StockPackageDetail } from "../quarantine-types";
 
@@ -36,10 +41,21 @@ export function QuarantineDecision() {
   );
 }
 
+/** Khu QUARANTINE đầu tiên của kho đang chọn — mặc định cho danh sách (cần `warehouse-locations:READ`, như phiếu nhận hàng hoàn). */
+function useDefaultQuarantineArea(): string | null {
+  const can = usePermissionChecker();
+  const warehouseId = useAppStore((state) => state.warehouseId);
+  const areas = useWarehouseAreas(
+    warehouseId ?? undefined,
+    can(WAREHOUSE_LOCATION_PERMISSIONS.read),
+  );
+  return areas.data?.find((area) => area.type === "QUARANTINE")?.locationCode ?? null;
+}
+
 function QuarantineDecisionContent() {
-  // LPN trên URL: F5 / sao chép link giữ nguyên thùng đang xem (state-persistence).
-  const [lpn, setLpn] = useQueryState("lpn", parseAsString.withDefault(""));
-  const parsed = cartonLookupInput.safeParse({ lpn });
+  // LPN, khu và SKU trên URL: F5 / sao chép link giữ nguyên thùng / khu đang xem (state-persistence).
+  const filters = useQuarantineFilters(useDefaultQuarantineArea());
+  const parsed = cartonLookupInput.safeParse({ lpn: filters.lpn });
   const carton = useCarton(parsed.success ? parsed.data.lpn : "");
   return (
     <div className="surface-soft surface-compact space-y-[var(--card-pad)]">
@@ -50,33 +66,39 @@ function QuarantineDecisionContent() {
         label={L.lookupLabel}
         placeholder={L.lookupPlaceholder}
         maxLength={QUARANTINE_LIMITS.lpnLength}
-        onScan={(code) => void setLpn(code.toUpperCase())}
+        onScan={(code) => void filters.openCarton(code.toUpperCase())}
       />
       {!parsed.success ? (
-        <EmptyState title={L.prompt} description={L.promptDescription} />
-      ) : carton.isLoading ? (
-        <PageSkeleton variant="detail" />
-      ) : carton.isError ? (
-        <EmptyState
-          title={L.loadError}
-          description={quarantineActionError(carton.error).detail}
-          action={
-            <Button type="button" variant="outline" onClick={() => void carton.refetch()}>
-              {INVENTORY_LABELS.retry}
-            </Button>
-          }
-        />
+        <QuarantineList filters={filters} />
       ) : (
-        carton.data && <CartonCard carton={carton.data} />
+        <>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => void filters.closeCarton()}
+          >
+            <ArrowLeft className="size-3.5" aria-hidden="true" /> {L.backToList}
+          </Button>
+          {carton.isLoading ? (
+            <PageSkeleton variant="detail" />
+          ) : carton.isError ? (
+            <EmptyState
+              title={L.loadError}
+              description={quarantineActionError(carton.error).detail}
+              action={
+                <Button type="button" variant="outline" onClick={() => void carton.refetch()}>
+                  {INVENTORY_LABELS.retry}
+                </Button>
+              }
+            />
+          ) : (
+            carton.data && <CartonCard carton={carton.data} />
+          )}
+        </>
       )}
     </div>
   );
-}
-
-// Trạng thái thùng BE → chuỗi của StatusDot; VOID (không có trong bảng) và mã lạ hiện nguyên văn.
-function cartonStatusLabel(status: string): string {
-  const known = STOCK_PACKAGE_API_STATUSES.find((value) => value === status);
-  return known ? STOCK_PACKAGE_STATUS_BY_API[known] : status;
 }
 
 function CartonCard({ carton }: { carton: StockPackageDetail }) {
