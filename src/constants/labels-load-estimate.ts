@@ -26,7 +26,8 @@ export const LOAD_ESTIMATE_LABELS = {
   open: "Ước tính xếp xe",
   title: "Ước tính xếp xe",
   subtitle: (orderNumber: string) => `Đơn ${orderNumber}`,
-  selectWarehouseFirst: "Chọn kho trước khi ước tính.",
+  /** Docs 09 §4.0 bước 1 (RTM-ESTWH): ước tính theo kho xuất của đơn — chọn kho xuất cho đơn trước. */
+  selectWarehouseFirst: "Chọn kho xuất cho đơn trước khi ước tính.",
   noPermission: "Bạn không có quyền xem ước tính xếp xe.",
   controls: {
     vehicleTypes: "Loại xe được dùng",

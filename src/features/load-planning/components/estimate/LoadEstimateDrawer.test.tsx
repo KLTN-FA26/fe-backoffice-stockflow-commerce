@@ -301,7 +301,7 @@ describe("LoadEstimateDrawer — tính ước tính (POST)", () => {
     const routes = { [CURRENT]: notFound, [TYPES]: () => apiVehicleTypePage };
     const first = await open(ESTIMATE_PERMISSION_SETS.full, routes, { released: false });
     expect(await screen.findByRole("button", { name: "Ước tính" })).toBeDisabled();
-    expect(screen.getByText("Chọn kho trước khi ước tính.")).toBeInTheDocument();
+    expect(screen.getByText("Chọn kho xuất cho đơn trước khi ước tính.")).toBeInTheDocument();
     await first.user.keyboard("{Escape}");
   });
 
