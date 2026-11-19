@@ -14,6 +14,7 @@ import {
   productionOrder,
 } from "../__fixtures__/production-order";
 import { mockProductionApi, renderProductionScreen } from "@/test/production-screen";
+import { sampleRounds } from "../__fixtures__/sample-rounds";
 
 import type { PermissionCode } from "@/lib/auth";
 import type { ProductionOrder } from "../types";
@@ -40,6 +41,8 @@ function setup(order: ProductionOrder, permissions: readonly PermissionCode[], u
         ],
       }),
       [`${URL}/dispatch`]: () => ({ channel: "EMAIL", messages: bePage([]) }),
+      [`${URL}/sample-rounds`]: () =>
+        sampleRounds({ status: order.status, rounds: [], waitingRoundId: null }),
     },
     post: {
       [`${URL}/approval`]: () => ({ ...order, status: "SENT" }),
