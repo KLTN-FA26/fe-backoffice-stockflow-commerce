@@ -510,11 +510,17 @@ export const QUOTE_FEE_LABELS = {
 
 export const PRODUCTION_ORDER_TYPES = ["SAMPLE", "ORDER"] as const;
 
-/** Nhóm trạng thái đơn khách đọc — BE `CustomerOrderCardResponse.statusGroup` (develop). */
+/**
+ * Nhóm trạng thái đơn khách đọc — BE `CustomerOrders.StatusGroup` (`statusGroup` của thẻ, chi tiết và
+ * dòng thời gian đơn trên cổng; docs 17 §5.2). `AWAITING_CONTRACT`
+ * = `Pending Contract`, `AWAITING_STOCK` = `Awaiting Stock`; `IN_PRODUCTION` chỉ còn ở đơn cũ.
+ */
 export const ORDER_STATUS_GROUPS = [
+  "AWAITING_CONTRACT",
   "AWAITING_PAYMENT",
   "UNDER_REVIEW",
   "CONFIRMED",
+  "AWAITING_STOCK",
   "IN_PRODUCTION",
   "PREPARING",
   "SHIPPING",
@@ -525,9 +531,11 @@ export const ORDER_STATUS_GROUPS = [
 export type OrderStatusGroup = (typeof ORDER_STATUS_GROUPS)[number];
 /** Nhóm → chuỗi status-map (nhãn Việt + tone dùng chung). */
 export const ORDER_STATUS_GROUP_DISPLAY = {
+  AWAITING_CONTRACT: "Pending Contract",
   AWAITING_PAYMENT: "Pending Payment",
   UNDER_REVIEW: "Under Review",
   CONFIRMED: "Confirmed",
+  AWAITING_STOCK: "Awaiting Stock",
   IN_PRODUCTION: "In Production",
   PREPARING: "Preparing",
   SHIPPING: "Shipping",
