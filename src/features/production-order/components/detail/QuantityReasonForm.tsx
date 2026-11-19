@@ -111,7 +111,7 @@ export function QuantityReasonForm({
               id="qr-packing"
               label="Khu đóng gói (nếu hoàn tất luôn)"
               warehouseId={order.summary.warehouseId}
-              areaType="PACKING"
+              areaType="DISPATCH"
               value={field.value}
               onChange={field.onChange}
               emptyHint="Để trống nếu kho chỉ có một khu đóng gói."

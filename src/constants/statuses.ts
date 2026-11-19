@@ -779,9 +779,8 @@ export const BIN_TYPES = ["STANDARD", "PALLET", "SMALL_PARTS"] as const;
 /** BE `AreaType` — mọi loại trừ NON_STORAGE là vị trí tồn kho (docs 06 BR-11). */
 export const AREA_TYPES = [
   "RECEIVING",
-  "QUALITY_CONTROL",
+  // Khu QC cũ gộp vào QUARANTINE, khu đóng gói PACKING gộp vào DISPATCH (BE AreaType; docs 06 BR-22)
   "QUARANTINE",
-  "PACKING",
   "DISPATCH",
   // BE `AreaType.STAGING` — khu chờ xuất (docs 06 §4.5, BR-18): thiếu thì layout có khu này parse lỗi, mất cả bản đồ
   "STAGING",
