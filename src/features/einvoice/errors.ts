@@ -29,6 +29,18 @@ export const EINVOICE_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   // docs 21 BR-04 / BR-05: chống phát hành trùng
   EINVOICE_RESUBMISSION_REFUSED:
     "Không gửi lại được: nhà cung cấp có thể đang giữ hoá đơn này. Liên hệ nhà cung cấp rồi bấm “Tra lại”.",
+  // BE HĐ-1 (PR #369): rút hoá đơn kẹt ở NCC
+  EINVOICE_WITHDRAWAL_REFUSED:
+    "Chưa rút được hoá đơn: lần gửi cuối còn quá gần (dưới 3 giờ), nhà cung cấp có thể đang giữ hoá đơn, hoặc nhà cung cấp chưa trả lời được (khi đó chờ đủ 1 ngày từ lần gửi cuối). Bấm “Tra lại” để xem kết quả.",
+  // BE HĐ-5: điều chỉnh / thay thế chỉ đi qua NCC đã phát hành hoá đơn gốc
+  EINVOICE_ORIGINAL_PROVIDER_UNAVAILABLE:
+    "Nhà cung cấp đã phát hành hoá đơn gốc không còn dùng được (chưa có tài khoản hoặc ký hiệu cho năm). Không gửi điều chỉnh / thay thế qua nhà cung cấp khác — nhờ Quản trị hệ thống cấu hình lại.",
+  // BE HĐ-1: NCC không có mẫu số + ký hiệu này trên tài khoản
+  EINVOICE_SERIES_NOT_AT_PROVIDER:
+    "Nhà cung cấp không có mẫu số và ký hiệu này trên tài khoản. Nhờ Quản trị hệ thống chọn ký hiệu đã đăng ký với nhà cung cấp.",
+  // BE HĐ-7: dòng thuế suất 0% (không chịu thuế) chưa phát hành được
+  EINVOICE_TAX_EXEMPT_NOT_SUPPORTED:
+    "Hoá đơn có dòng hàng không chịu thuế (0%) — chưa phát hành được. Sửa nhóm thuế của sản phẩm rồi huỷ và lập lại hoá đơn nháp.",
   EINVOICE_PROVIDER_CANNOT_CORRECT:
     "Nhà cung cấp đang dùng chưa hỗ trợ điều chỉnh / thay thế. Chứng từ được giữ ở dạng nháp.",
   EINVOICE_NOT_IN_FORCE: "Chỉ điều chỉnh / thay thế được hoá đơn đã phát hành còn hiệu lực.",

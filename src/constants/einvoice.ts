@@ -172,6 +172,17 @@ export const EINVOICE_LIMITS = {
   yearMax: 2099,
 } as const;
 
+/**
+ * Mốc thời gian của BE `InvoicingProperties` (application.yml `stockflow.invoicing.*`, BE PR #369) —
+ * FE chỉ dùng để ẩn nút sớm; BE kiểm lại và trả 409 `EINVOICE_WITHDRAWAL_REFUSED`.
+ */
+export const EINVOICE_TIMING = {
+  /** `withdraw-after` (3 giờ): rút được hoá đơn kẹt ở NCC khi lần gửi cuối đã quá mốc này và NCC không có bản ghi. */
+  withdrawAfterMs: 3 * 60 * 60 * 1000,
+  /** `withdraw-unknown-after` (1 ngày): NCC "không trả lời được" (UNKNOWN) thì phải chờ lâu hơn. */
+  withdrawUnknownAfterMs: 24 * 60 * 60 * 1000,
+} as const;
+
 export const EINVOICE_STORAGE_KEYS = {
   listConfig: "stockflow:admin:invoicing:einvoices:config",
 } as const;

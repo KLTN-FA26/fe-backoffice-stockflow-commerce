@@ -8,6 +8,7 @@ import { allowedEInvoiceActions, EINVOICE_TRANSITIONS, isTerminalEInvoice } from
 import {
   einvoiceStatusLabel,
   invoiceReference,
+  lastSentAt,
   needsAttention,
   warningMessages,
 } from "../selectors";
@@ -105,6 +106,27 @@ describe("allowedEInvoiceActions — three roles (docs 21 BR-02)", () => {
     ).toEqual(["reconcile", "resubmit"]);
   });
 
+  it("HĐ-1: withdraw only once the last send is older than withdraw-after (3 h), and only for approvers", () => {
+    const submitting = gate({ status: "SUBMITTING" });
+    const sent = "2026-11-18T00:00:00Z";
+    const at = (hours: number) => ({
+      now: Date.parse(sent) + hours * 3_600_000,
+      lastSentAt: sent,
+    });
+    expect(allowedEInvoiceActions(submitting, ACCOUNTANT, at(2.9))).not.toContain("withdraw");
+    expect(allowedEInvoiceActions(submitting, ACCOUNTANT, at(3))).toEqual([
+      "reconcile",
+      "withdraw",
+    ]);
+    expect(allowedEInvoiceActions(submitting, SALES_MANAGER, at(30))).toEqual([]);
+    expect(
+      allowedEInvoiceActions(gate({ status: "SUBMITTING", provider: null }), ACCOUNTANT, at(30)),
+    ).not.toContain("withdraw");
+    expect(allowedEInvoiceActions(gate({ status: "DRAFT" }), ACCOUNTANT, at(30))).not.toContain(
+      "withdraw",
+    );
+  });
+
   it("BR-08: an adjusted invoice may be adjusted again but not replaced", () => {
     const issued = allowedEInvoiceActions(gate({ status: "ISSUED", hasFiles: true }), ACCOUNTANT);
     expect(issued).toEqual(["downloadFiles", "adjust", "replace", "notifyError"]);
@@ -163,6 +185,18 @@ describe("selectors", () => {
     expect(lines[0]).toContain("BR-06");
     expect(lines[1]).toContain("HDDT-0007");
     expect(lines[2]).toContain("cảnh báo mới");
+  });
+
+  it("the last send is the latest SUBMIT call, else submittedAt", () => {
+    const invoice = { submittedAt: "2026-11-18T00:00:00Z" };
+    expect(lastSentAt(invoice, undefined)).toBe("2026-11-18T00:00:00Z");
+    expect(
+      lastSentAt(invoice, [
+        { operation: "SUBMIT", calledAt: "2026-11-18T00:00:00Z" },
+        { operation: "SUBMIT", calledAt: "2026-11-18T00:40:00Z" },
+        { operation: "QUERY", calledAt: "2026-11-18T02:00:00Z" },
+      ]),
+    ).toBe("2026-11-18T00:40:00Z");
   });
 
   it("needs the accountant: drafts, rejected, overdue or unknown to the provider", () => {

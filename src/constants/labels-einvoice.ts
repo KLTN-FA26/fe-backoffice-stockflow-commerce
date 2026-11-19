@@ -72,6 +72,7 @@ export const EINVOICE_LABELS = {
     reconcile: "Tra lại",
     resubmit: "Gửi lại như giao dịch mới",
     reopen: "Mở lại thành nháp",
+    withdraw: "Rút hoá đơn",
     attachAgreement: "Gắn thoả thuận",
     adjust: "Lập điều chỉnh",
     replace: "Lập thay thế",

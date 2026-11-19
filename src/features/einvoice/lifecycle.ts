@@ -5,6 +5,7 @@
 
 import {
   EINVOICE_PERMISSIONS,
+  EINVOICE_TIMING,
   ERROR_NOTICE_PROVIDERS,
   SYSTEM_CORRECTION_BASES,
 } from "@/constants/einvoice";
@@ -36,6 +37,7 @@ export type EInvoiceAction =
   | "void"
   | "reconcile"
   | "resubmit"
+  | "withdraw"
   | "reopen"
   | "attachAgreement"
   | "adjust"
@@ -63,6 +65,21 @@ export const isSystemDrawn = (invoice: Pick<EInvoice, "correctionBasis">): boole
 export const sendsErrorNotices = (provider: string | null | undefined): boolean =>
   provider != null && ERROR_NOTICE_PROVIDERS.includes(provider);
 
+/** Thời điểm để gate theo thời gian: `now` (ms) và lần gửi NCC cuối (`selectors.lastSentAt`). */
+export interface GateClock {
+  now: number;
+  lastSentAt: string | null;
+}
+
+/**
+ * Rút được chưa (BE `EInvoiceIssuance.withdraw`, HĐ-1): lần gửi cuối đã quá `withdraw-after`. Phần còn
+ * lại — NCC trả NOT_FOUND, hoặc UNKNOWN đã quá `withdraw-unknown-after` — BE hỏi NCC lúc rút mới biết.
+ */
+export function withdrawable(clock: GateClock | undefined): boolean {
+  if (!clock?.lastSentAt) return false;
+  return clock.now - Date.parse(clock.lastSentAt) >= EINVOICE_TIMING.withdrawAfterMs;
+}
+
 /**
  * Nút được phép theo trạng thái (docs 21 §4.2, §4.4, §4.5) và quyền (BR-02: phát hành, tra lại,
  * lập điều chỉnh / thay thế là của Kế toán). Backend phải re-check.
@@ -70,6 +87,7 @@ export const sendsErrorNotices = (provider: string | null | undefined): boolean 
 export function allowedEInvoiceActions(
   invoice: Gate,
   can: (permission: PermissionCode) => boolean,
+  clock?: GateClock,
 ): EInvoiceAction[] {
   const P = EINVOICE_PERMISSIONS;
   const actions: EInvoiceAction[] = [];
@@ -90,6 +108,8 @@ export function allowedEInvoiceActions(
       // gửi như giao dịch mới chỉ khi NCC báo không biết giao dịch (UNKNOWN_TO_PROVIDER)
       if (can(P.approve)) actions.push("reconcile");
       if (can(P.approve) && unknownToProvider) actions.push("resubmit");
+      // BE HĐ-1: kẹt quá `withdraw-after` mà NCC không có bản ghi → rút về REJECTED để phát hành lại
+      if (can(P.approve) && invoice.provider && withdrawable(clock)) actions.push("withdraw");
       break;
     case "REJECTED":
       if (can(P.update)) actions.push("reopen");

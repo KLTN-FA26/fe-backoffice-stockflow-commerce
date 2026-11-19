@@ -171,3 +171,58 @@ describe("EInvoiceDetail — system-drawn reduction of a failed delivery (WF-05 
     expect(screen.queryByRole("button", { name: "Huỷ nháp" })).not.toBeInTheDocument();
   });
 });
+
+describe("EInvoiceDetail — withdrawing an invoice stuck at the provider (BE HĐ-1)", () => {
+  const stuck = detailJson({
+    status: "SUBMITTING",
+    provider: "SEPAY_EINVOICE",
+    submittedAt: "2026-11-01T00:00:00Z",
+  });
+
+  it("asks what was checked with the provider and sends it with the version", async () => {
+    const api = mockEInvoiceApi(ACCOUNTANT_GRANTS, {
+      get: get(stuck),
+      post: {
+        "/einvoices/einv-1/withdrawal": () =>
+          detailJson({ status: "REJECTED", rejectionCode: "WITHDRAWN_NO_PROVIDER_RECORD" }),
+      },
+    });
+    renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
+    await userEvent.click(await screen.findByRole("button", { name: "Rút hoá đơn" }));
+    const dialog = screen.getByRole("dialog", { name: "Rút hoá đơn khỏi nhà cung cấp?" });
+    await userEvent.type(within(dialog).getByRole("textbox"), "Cổng SePay không có hoá đơn");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Rút hoá đơn" }));
+    await waitFor(() =>
+      expect(api.post).toHaveBeenCalledWith("/einvoices/einv-1/withdrawal", {
+        version: 3,
+        reason: "Cổng SePay không có hoá đơn",
+      }),
+    );
+  });
+
+  it("says in Vietnamese why the provider's answer refused it", async () => {
+    mockEInvoiceApi(ACCOUNTANT_GRANTS, {
+      get: get(stuck),
+      post: {
+        "/einvoices/einv-1/withdrawal": () => {
+          throw new ApiError(409, "EINVOICE_WITHDRAWAL_REFUSED", "may hold it");
+        },
+      },
+    });
+    renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
+    await userEvent.click(await screen.findByRole("button", { name: "Rút hoá đơn" }));
+    const dialog = screen.getByRole("dialog");
+    await userEvent.type(within(dialog).getByRole("textbox"), "Đã kiểm tra");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Rút hoá đơn" }));
+    expect(await within(dialog).findByText(/Chưa rút được hoá đơn/)).toBeInTheDocument();
+  });
+
+  it("not offered while the last send is recent", async () => {
+    mockEInvoiceApi(ACCOUNTANT_GRANTS, {
+      get: get({ ...stuck, submittedAt: new Date().toISOString() }),
+    });
+    renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
+    expect(await screen.findByRole("button", { name: "Tra lại" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Rút hoá đơn" })).not.toBeInTheDocument();
+  });
+});
