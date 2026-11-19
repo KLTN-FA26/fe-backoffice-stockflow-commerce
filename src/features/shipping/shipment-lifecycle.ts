@@ -9,10 +9,12 @@
 
 import {
   DELIVERY_OUTCOMES,
+  FULFILLMENT_DELIVERY_CORRECTION_PERMISSIONS,
   FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS,
   SHIPMENT_PERMISSIONS,
   UI_LABELS,
 } from "@/constants";
+import { PACK_SHIPMENT_STATUS } from "@/constants/statuses";
 import { SHIPMENT_TRANSITIONS } from "@/lib/domain/lifecycle";
 
 import type { DeliveryOutcome } from "@/constants";
@@ -48,6 +50,23 @@ export function noOutcomeReason(
   if (shipment.status === "UNKNOWN") return N.terminal;
   if (SHIPMENT_TRANSITIONS[shipment.status].length === 0) return N.terminal;
   return N.needsApproval;
+}
+
+/**
+ * Sửa tay kết quả giao (docs 09 §4.3 bước 5): chỉ lô đã có kết quả ĐÃ GIAO hoặc GIAO THẤT BẠI, và người dùng có
+ * `fulfillment-delivery-corrections:UPDATE`. Đơn đã hoàn tất / lô giao cả đơn do BE từ chối (409) — FE không đoán.
+ */
+export function canCorrectOutcome(
+  shipment: Pick<ShipmentRow, "status">,
+  actor: ShippingActor,
+): boolean {
+  if (
+    shipment.status !== PACK_SHIPMENT_STATUS.DELIVERED &&
+    shipment.status !== PACK_SHIPMENT_STATUS.DELIVERY_FAILED
+  ) {
+    return false;
+  }
+  return actor.can(FULFILLMENT_DELIVERY_CORRECTION_PERMISSIONS.update);
 }
 
 /**

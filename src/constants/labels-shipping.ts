@@ -6,6 +6,11 @@
 import { SHIPPING_EVENT_LABELS, SHIPPING_EVENT_TOAST_MESSAGES } from "./labels-shipping-events";
 import { SHIPPING_FTL_LABELS, SHIPPING_FTL_TOAST_MESSAGES } from "./labels-shipping-ftl";
 import {
+  SHIPPING_CORRECTION_LABELS,
+  SHIPPING_OUTCOME_DIALOG_EXTRA,
+  SHIPPING_OUTCOME_ERROR_MESSAGES,
+} from "./labels-shipping-outcome";
+import {
   SHIPPING_WAYBILL_LABELS,
   SHIPPING_WAYBILL_TOAST_MESSAGES,
 } from "./labels-shipping-waybill";
@@ -264,7 +269,9 @@ export const SHIPPING_UI_LABELS = {
       noteRequired: 'Bắt buộc khi lý do là "Lý do khác". Chỉ nhân viên xem, không hiện cho khách.',
       noteOptional: "Không bắt buộc. Chỉ nhân viên xem, không hiện cho khách.",
       confirm: "Ghi nhận",
+      ...SHIPPING_OUTCOME_DIALOG_EXTRA,
     },
+    correction: SHIPPING_CORRECTION_LABELS,
   },
   orderShipments: {
     open: "Xem lô giao",
@@ -275,6 +282,7 @@ export const SHIPPING_TOAST_MESSAGES = {
   unscanned: "Đã gỡ kiện khỏi xe",
   handedOver: "Đã bàn giao chuyến cho hãng vận chuyển",
   outcomeRecorded: "Đã ghi nhận kết quả giao",
+  outcomeCorrected: "Đã sửa kết quả giao",
   ...SHIPPING_FTL_TOAST_MESSAGES,
   ...SHIPPING_WAYBILL_TOAST_MESSAGES,
   ...SHIPPING_EVENT_TOAST_MESSAGES,
@@ -307,6 +315,7 @@ export const SHIPPING_ERROR_MESSAGES = {
   SHIPMENT_NOT_FOR_LOAD: "Lô này không đi trên chuyến này.",
   SHIPMENT_ON_ANOTHER_LOAD: "Lô này đang nằm trên chuyến xe khác.",
   SHIPMENT_STATE_CONFLICT: "Lô giao không làm được thao tác này ở trạng thái hiện tại.",
+  ...SHIPPING_OUTCOME_ERROR_MESSAGES,
   // 409 / 404 — hãng và đặt xe
   CARRIER_INACTIVE: "Hãng này đã ngừng sử dụng — chọn hãng khác.",
   CARRIER_CODE_EXISTS: "Mã hãng này đã có trong danh mục — dùng mã khác.",
