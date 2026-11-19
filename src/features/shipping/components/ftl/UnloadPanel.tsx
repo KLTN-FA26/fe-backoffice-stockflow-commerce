@@ -96,9 +96,7 @@ export function UnloadPanel({
       <h2 className="text-ink-primary text-[0.9375rem] font-semibold">
         {title} ({count})
       </h2>
-      <p className="text-ink-secondary text-[0.8125rem]">
-        {description}
-      </p>
+      <p className="text-ink-secondary text-[0.8125rem]">{description}</p>
       {canUnload ? (
         <ScanInput
           id="load-unload"
