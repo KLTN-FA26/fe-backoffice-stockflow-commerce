@@ -3,11 +3,11 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { QUERY_TIMES } from "@/lib/api/query-client";
 import { createDetailQuery, createListQuery, createQueryKeys } from "@/lib/api/query-factory";
 
-import { getProduct, listBrands, listCategories, listProducts } from "./api";
+import { findProductDuplicates, getProduct, listBrands, listCategories, listProducts } from "./api";
 import { getOpenReferences, listProductVersions } from "./lifecycle-api";
 
 import type { Product } from "./types";
-import type { ListProductsParams } from "./api";
+import type { ListProductsParams, ProductDuplicateParams } from "./api";
 
 export const productKeys = createQueryKeys<ListProductsParams>("products");
 export const categoryKeys = createQueryKeys<Record<string, unknown>>("categories");
@@ -16,6 +16,18 @@ export const brandKeys = createQueryKeys<Record<string, unknown>>("brands");
 export const useProducts = createListQuery<Product, ListProductsParams>(productKeys, listProducts);
 
 export const useProduct = createDetailQuery<Product>(productKeys, getProduct);
+
+/** Chỉ hỏi khi đủ tên + thương hiệu + danh mục — thiếu thì BE luôn trả rỗng. */
+export function useProductDuplicates(params: ProductDuplicateParams) {
+  const ready = params.name.trim() !== "" && Boolean(params.brandId) && Boolean(params.categoryId);
+  return useQuery({
+    queryKey: [...productKeys.all, "duplicates", params] as const,
+    queryFn: ({ signal }) => findProductDuplicates(params, signal),
+    enabled: ready,
+    placeholderData: keepPreviousData,
+    ...QUERY_TIMES.list,
+  });
+}
 
 export function useCategories(enabled: boolean | Record<string, unknown> = true) {
   return useQuery({
@@ -42,7 +54,7 @@ const openReferencesKey = (productId: string) =>
 export interface OpenReferencesOptions {
   /**
    * Thẻ "Chứng từ còn mở" luôn hiện ở trang chi tiết: dùng lại dữ liệu trong `QUERY_TIMES.detail`,
-   * không tải lại mỗi lần quay về tab — BE quét đơn mua lẫn đơn bán theo từng SKU nên truy vấn nặng.
+   * không tải lại mỗi lần quay về tab — BE quét Đơn sản xuất lẫn đơn bán theo từng SKU nên truy vấn nặng.
    */
   cached?: boolean;
 }

@@ -210,24 +210,8 @@ export const OVERVIEW_RESERVATION = {
   reservedAt: "2026-10-14T02:00:00Z",
 };
 
-export function overviewAlert(kind: string, extra: Record<string, unknown> = {}) {
-  return {
-    id: crypto.randomUUID(),
-    kind,
-    sku: "CUP-PP-500",
-    observedQty: 430,
-    reservationImpaired: false,
-    status: "OPEN",
-    openedAt: "2026-10-15T01:00:00Z",
-    lastObservedAt: "2026-10-16T01:00:00Z",
-    version: 0,
-    ...extra,
-  };
-}
-
 /**
- * Backend + warehouse directory for the overview. Each override replaces one endpoint's answer;
- * alerts answer by kind (low stock vs expiry), as the two panels ask separately.
+ * Backend + warehouse directory for the overview. Each override replaces one endpoint's answer.
  */
 export function overviewHandlers(
   overrides: {
@@ -236,8 +220,6 @@ export function overviewHandlers(
     items?: unknown;
     atp?: unknown;
     reservations?: unknown;
-    lowStock?: unknown;
-    expiry?: unknown;
   } = {},
 ) {
   const ok = (data: unknown) => HttpResponse.json({ success: true, data });
@@ -257,11 +239,5 @@ export function overviewHandlers(
     http.get(inventoryEndpoint("/inventory/reservations"), () =>
       answer(overrides.reservations, overviewPage([OVERVIEW_RESERVATION])),
     ),
-    http.get(inventoryEndpoint("/inventory/alerts"), ({ request }) => {
-      const kind = new URL(request.url).searchParams.get("kind") ?? "";
-      return kind.includes("REORDER")
-        ? answer(overrides.lowStock, overviewPage([]))
-        : answer(overrides.expiry, overviewPage([]));
-    }),
   ];
 }

@@ -76,9 +76,10 @@ describe("product transition errors", () => {
     ["PRODUCT_SKU_REQUIRED", PRODUCT_ERROR_MESSAGES.skuRequired],
     // BE ProductPublicationAdapter.publish: SP không còn APPROVED / PUBLISHED (vd vừa bị tạm ngưng).
     ["PRODUCT_NOT_APPROVED", PRODUCT_ERROR_MESSAGES.notApproved],
-    // BE CatalogCommerceService.publish: chưa lưu thông tin cửa hàng / SKU Đang dùng chưa có giá bán.
+    // BE CatalogCommerceService.publish: chưa lưu thông tin cửa hàng (không còn điều kiện giá, 13 §4.1).
     ["CATALOG_LISTING_REQUIRED", PRODUCT_ERROR_MESSAGES.listingRequired],
-    ["PRICE_NOT_AVAILABLE", PRODUCT_ERROR_MESSAGES.priceRequired],
+    // BE Product.requireDetails khi gửi duyệt / duyệt
+    ["PRODUCT_DETAILS_REQUIRED", PRODUCT_ERROR_MESSAGES.detailsRequired],
   ])("%s → câu tiếng Việt, không lộ câu tiếng Anh của BE", (code, message) => {
     expect(productTransitionErrorMessage(new ApiError(409, code, "English server text"))).toBe(
       message,

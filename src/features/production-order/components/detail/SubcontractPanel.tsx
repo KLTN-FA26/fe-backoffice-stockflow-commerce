@@ -7,7 +7,6 @@ import { Printer } from "lucide-react";
 import {
   ADMIN_ROUTES,
   MATERIAL_ISSUE_PERMISSIONS,
-  PO_PERMISSIONS,
   PRODUCTION_ORDER_PERMISSIONS,
 } from "@/constants";
 
@@ -67,14 +66,8 @@ export function SubcontractPanel({ order }: { order: ProductionDetail }) {
         </dd>
         <dt className="text-ink-tertiary">Đơn đặt gia công</dt>
         <dd>
-          {terms.purchaseOrderId && can(PO_PERMISSIONS.read) ? (
-            <Link
-              href={ADMIN_ROUTES.purchaseOrders.detail(terms.purchaseOrderId)}
-              className="text-accent hover:underline"
-            >
-              {note.data?.purchaseOrderNumber ?? "Mở đơn đặt"}
-            </Link>
-          ) : terms.purchaseOrderId ? (
+          {/* BE 4A-8 đã bỏ đơn đặt hàng — chỉ còn hiện số đơn, không mở được */}
+          {terms.purchaseOrderId ? (
             <span className={MONO}>
               {note.data?.purchaseOrderNumber ?? terms.purchaseOrderId.slice(0, 8)}
             </span>

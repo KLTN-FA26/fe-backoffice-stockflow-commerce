@@ -11,7 +11,6 @@ import { Skeleton } from "@/components/shared/Skeleton";
 
 import { selectWarehouseByCode } from "../selectors";
 import { AtpSummary } from "./AtpSummary";
-import { ExpiryAlerts } from "./StockAlerts";
 import { WarehouseStockItems } from "./WarehouseStockItems";
 
 /**
@@ -22,11 +21,9 @@ import { WarehouseStockItems } from "./WarehouseStockItems";
 export function WarehouseInventorySection({
   sku,
   warehouseCode,
-  showAlerts,
 }: {
   sku: string;
   warehouseCode: string;
-  showAlerts: boolean;
 }) {
   const directory = useWarehouseDirectory();
   const warehouse = directory.data ? selectWarehouseByCode(directory.data, warehouseCode) : null;
@@ -63,7 +60,6 @@ export function WarehouseInventorySection({
   return (
     <div className="space-y-[var(--card-pad)]">
       <AtpSummary sku={sku} warehouseCode={warehouse.code} />
-      {showAlerts && <ExpiryAlerts sku={sku} warehouseId={warehouse.warehouseId} />}
       <WarehouseStockItems sku={sku} warehouse={warehouse} />
     </div>
   );

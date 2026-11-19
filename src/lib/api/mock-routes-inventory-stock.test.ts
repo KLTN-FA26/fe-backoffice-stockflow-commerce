@@ -15,7 +15,6 @@ import {
   getAtp,
   getStockLevels,
   listReservations,
-  listStockAlerts,
   listWarehouseStockItems,
 } from "@/features/inventory/api";
 import { inventoryRequest } from "@/features/inventory/transport";
@@ -162,31 +161,6 @@ describe("reservations", () => {
     const page = await listReservations({ sku: "CUP-PP-500", status: ["HELD"], page: 0, size: 20 });
     expect(page.items[0]).not.toHaveProperty("releaseReason");
     expect(page.items[0]).not.toHaveProperty("closedAt");
-  });
-});
-
-describe("alerts", () => {
-  it("returns SKU-wide low-stock alerts without a warehouse", async () => {
-    const page = await listStockAlerts({ kind: ["REORDER", "SAFETY"], page: 0, size: 20 });
-    expect(page.items.map((alert) => alert.kind).sort()).toEqual(["REORDER", "SAFETY"]);
-    expect(page.items.every((alert) => alert.warehouseId === undefined)).toBe(true);
-  });
-
-  it("returns open expiry alerts of one SKU and warehouse with lot, date and days left", async () => {
-    const page = await listStockAlerts({
-      kind: ["EXPIRING", "EXPIRED"],
-      status: ["OPEN", "ACKNOWLEDGED"],
-      sku: "cup-pp-500",
-      warehouseId: "WH-HN-01",
-      page: 0,
-      size: 20,
-    });
-    expect(
-      page.items.map(({ kind, lotNumber, daysToExpiry }) => [kind, lotNumber, daysToExpiry]),
-    ).toEqual([
-      ["EXPIRING", "L2601", 20],
-      ["EXPIRED", "L2599", -15],
-    ]);
   });
 });
 

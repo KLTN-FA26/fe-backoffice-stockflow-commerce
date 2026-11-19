@@ -95,12 +95,7 @@ export function registerLoadPlanMockRoutes(): void {
       const warehouseId = readString(params.warehouseId);
       if (!warehouseId) return invalid("warehouseId", "must not be null");
       const held = heldPackageIds(readString(params.loadPlanId) || undefined);
-      const sourceType = readString(params.sourceType) || "ORDER";
-      if (sourceType !== "ORDER" && sourceType !== "TRANSFER")
-        return invalid("sourceType", "ORDER or TRANSFER");
       const rows = getMockShipments()
-        // Nguồn TRANSFER: lệnh chuyển kho đã đóng gói của kho; nguồn ORDER: lô giao của đơn khách
-        .filter((s) => !!s.transfer === (sourceType === "TRANSFER"))
         .filter((s) => s.warehouseId === warehouseId)
         .map((s) => candidateView(s, held))
         // Lô mà mọi kiện đều thuộc kế hoạch khác thì không còn là ứng viên
@@ -123,26 +118,11 @@ export function registerLoadPlanMockRoutes(): void {
       if (!mode)
         return invalid(
           "selectionMode",
-          "must be SINGLE_TYPE, FEWEST_VEHICLES, KEEP_LINES or OVER_CAPACITY",
+          "must be SINGLE_TYPE, FEWEST_VEHICLES, KEEP_LINES, PRIORITY_FILL or OVER_CAPACITY",
         );
-      const sourceType = body.sourceType === undefined ? "ORDER" : readString(body.sourceType);
-      if (sourceType !== "ORDER" && sourceType !== "TRANSFER")
-        return fail(400, "VALIDATION_FAILED", "Invalid request data", [
-          { field: "sourceType", message: "ORDER or TRANSFER", code: "LOAD_PLAN_SOURCE_INVALID" },
-        ]);
-      // BE `requireOneSource`: ORDER nhận shipmentIds, TRANSFER nhận transferOrderIds — gửi nhầm loại là LOAD_PLAN_SOURCE_MISMATCH
-      const transferIds = strings(body.transferOrderIds);
-      if (sourceType === "TRANSFER" ? strings(body.shipmentIds).length > 0 : transferIds.length > 0)
-        return fail(409, "LOAD_PLAN_SOURCE_MISMATCH", "A load plan holds one kind of source only");
-      const shipmentIds = sourceType === "TRANSFER" ? transferIds : strings(body.shipmentIds);
+      const shipmentIds = strings(body.shipmentIds);
       const vehicleTypeIds = strings(body.vehicleTypeIds);
-      const refused = ops.checkInputs(
-        warehouseId,
-        shipmentIds,
-        vehicleTypeIds,
-        undefined,
-        sourceType,
-      );
+      const refused = ops.checkInputs(warehouseId, shipmentIds, vehicleTypeIds);
       if (refused) return refused;
       const { loadPlanId, code } = nextLoadPlan();
       const plan: MockPlan = {
@@ -150,7 +130,6 @@ export function registerLoadPlanMockRoutes(): void {
         code,
         requestId,
         warehouseId,
-        sourceType,
         selectionMode: mode,
         status: "DRAFT",
         note: readString(body.note) || null,
@@ -237,14 +216,13 @@ export function registerLoadPlanMockRoutes(): void {
         return fail(409, "OPTIMISTIC_LOCK", `Load plan ${plan.code} changed meanwhile; reload it`);
       const mode =
         body.selectionMode === undefined ? plan.selectionMode : modeOf(body.selectionMode);
-      if (!mode) return invalid("selectionMode", "must be SINGLE_TYPE or FEWEST_VEHICLES");
-      const sentSource = plan.sourceType === "TRANSFER" ? "shipmentIds" : "transferOrderIds";
-      if (strings(body[sentSource]).length > 0)
-        return fail(409, "LOAD_PLAN_SOURCE_MISMATCH", "A load plan holds one kind of source only");
+      if (!mode)
+        return invalid(
+          "selectionMode",
+          "must be SINGLE_TYPE, FEWEST_VEHICLES, KEEP_LINES, PRIORITY_FILL or OVER_CAPACITY",
+        );
       const refused = ops.setInputs(plan, {
-        shipmentIds: strings(
-          plan.sourceType === "TRANSFER" ? body.transferOrderIds : body.shipmentIds,
-        ),
+        shipmentIds: strings(body.shipmentIds),
         vehicleTypeIds: strings(body.vehicleTypeIds),
         selectionMode: mode,
       });

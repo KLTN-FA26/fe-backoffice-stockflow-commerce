@@ -1,6 +1,6 @@
 /** Số liệu và gom nhóm từ dữ liệu kế hoạch xếp xe — hàm thuần, không side effect. */
 
-import { LOAD_PLAN_SELECTION_MODE, LOAD_PLAN_SOURCE, LOAD_PLAN_STATUS } from "@/constants";
+import { LOAD_PLAN_SELECTION_MODE, LOAD_PLAN_STATUS } from "@/constants";
 
 import { summarizeLayouts } from "./selectors";
 
@@ -72,14 +72,9 @@ export function unplacedLinesOf(parcels: readonly PlanParcel[]): UnplacedLine[] 
 export const vehiclesNeedingRecalculation = (plan: Pick<PlanDetail, "vehicles">): number[] =>
   plan.vehicles.filter((vehicle) => vehicle.needsRecalculation).map((vehicle) => vehicle.seq);
 
-/** Kế hoạch nguồn TRANSFER (một lệnh chuyển kho, đi nguyên) — `transferOrder` hoặc `sourceType` (BE PR #164). */
-export const isTransferPlan = (plan: Pick<PlanDetail, "sourceType" | "transferOrder">): boolean =>
-  plan.sourceType === LOAD_PLAN_SOURCE.TRANSFER || !!plan.transferOrder;
-
-/** Khoá chọn của một ứng viên: id lô giao (ORDER) hoặc id lệnh chuyển kho (TRANSFER). */
-export const candidateKey = (
-  candidate: Pick<CandidateShipment, "shipmentId" | "transferOrderId">,
-): string => candidate.shipmentId ?? candidate.transferOrderId ?? "";
+/** Khoá chọn của một ứng viên: id lô giao. */
+export const candidateKey = (candidate: Pick<CandidateShipment, "shipmentId">): string =>
+  candidate.shipmentId ?? "";
 
 /** Một dòng đơn của các lô đã chọn: ô tick "hàng chèn" của chế độ Ưu tiên + hàng chèn (RTM-LPGROUP). */
 export interface FillLineOption {
@@ -91,10 +86,7 @@ export interface FillLineOption {
 
 /** Các dòng đơn (theo kiện) của những lô đã chọn, theo thứ tự lô rồi dòng; kiện không rõ dòng bỏ qua. */
 export function fillLineOptions(
-  candidates: readonly Pick<
-    CandidateShipment,
-    "shipmentId" | "transferOrderId" | "code" | "packages"
-  >[],
+  candidates: readonly Pick<CandidateShipment, "shipmentId" | "code" | "packages">[],
   selected: ReadonlySet<string>,
 ): FillLineOption[] {
   const out = new Map<string, FillLineOption>();
@@ -133,7 +125,7 @@ export function fillLinesToSend(
 export function totalsOf(
   candidates: readonly Pick<
     CandidateShipment,
-    "shipmentId" | "transferOrderId" | "packageCount" | "packagesInOtherPlans"
+    "shipmentId" | "packageCount" | "packagesInOtherPlans"
   >[],
   selected: ReadonlySet<string>,
 ): { shipments: number; packages: number } {

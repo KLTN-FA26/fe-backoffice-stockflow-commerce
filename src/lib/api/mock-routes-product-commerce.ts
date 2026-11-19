@@ -1,19 +1,15 @@
 /**
- * Mock routes — listing TMĐT và giá bán cơ sở của sản phẩm:
- *  `GET/PUT /products/{id}/ecommerce`, `GET/PUT /products/{id}/skus/{sku}/base-price`
- *  (BE `CatalogManagementController`, `Listing.edit`, `SellingPrice`) — base-price nhận MÃ SKU,
- *  không phải variantId. Chính sách tồn kho theo SKU đã rời sản phẩm (BE PR #119) — mock ở
- *  `mock-routes-inventory-items.ts` / `mock-routes-inventory-policy.ts`.
+ * Mock routes — listing TMĐT của sản phẩm: `GET/PUT /products/{id}/ecommerce` (BE
+ * `CatalogManagementController`, `Listing.edit`). Không còn giá bán cơ sở (kltn-docs 13 BR-04).
  * Phiên bản tăng sau mỗi lần ghi; lệch → 409 CONFLICT như BE (không phải OPTIMISTIC_LOCK).
  * `revision` của listing CHÍNH LÀ `version` của sản phẩm (BE
- * `CatalogCommerceService.get`: `source.version()`): sửa listing / đặt giá làm tăng version sản phẩm, và
+ * `CatalogCommerceService.get`: `source.version()`): sửa listing làm tăng version sản phẩm, và
  * mọi thao tác sản phẩm (tạm ngưng, sửa…) làm đổi revision của listing.
  */
 
 import { registerMockRoute } from "./mock-adapter";
 import { allMockProducts, findMockProduct, saveMockProduct } from "./mock-product-store";
 import { bodyOf, fail, ok, pathParams, slugCode, validationFailed } from "./mock-route-utils";
-import { mockVariantsOf } from "./mock-routes-variants";
 
 import type { MockProduct } from "./mock-product-store";
 
@@ -21,18 +17,15 @@ interface MockListing {
   slug: string;
   seoTitle: string | null;
   seoDescription: string | null;
-  /** Đã có bản ghi listing (BE `CATALOG_LISTING_REQUIRED` khi đặt giá mà chưa có). */
+  /** Đã có bản ghi listing (BE `CATALOG_LISTING_REQUIRED` khi xuất bản mà chưa có). */
   exists: boolean;
   everPublished: boolean;
 }
 
 const listings = new Map<string, MockListing>();
-/** Giá bán cơ sở theo MÃ SKU (VND, số nguyên). */
-const basePrices = new Map<string, number>();
 
 export function resetProductCommerceMock(): void {
   listings.clear();
-  basePrices.clear();
 }
 
 /** BE `Listing.normalizeSlug`: bỏ dấu, chữ thường, ngăn bằng '-', tối đa 255. */
@@ -59,7 +52,7 @@ async function listingOf(product: MockProduct): Promise<MockListing> {
 /** Revision của listing = version của sản phẩm (dùng chung một bộ đếm). */
 const revisionOf = (product: MockProduct): number => product.version ?? 0;
 
-/** Ghi vào listing / giá làm tăng version sản phẩm, như BE (`editEcommerce`, `advanceCommerceRevision`). */
+/** Ghi vào listing làm tăng version sản phẩm, như BE (`editEcommerce`, `advanceCommerceRevision`). */
 function bumpProductVersion(product: MockProduct): MockProduct {
   const bumped = { ...product, version: revisionOf(product) + 1 };
   saveMockProduct(bumped);
@@ -76,17 +69,6 @@ const listingView = (listing: MockListing, product: MockProduct) => ({
   published: product.status === "Published",
   projectionPending: false,
 });
-
-/** Giá cơ sở của SKU seed lấy từ giá bán trong mock-data khi sản phẩm đã có listing. */
-async function basePriceOf(sku: string, listing: MockListing): Promise<number | null> {
-  const stored = basePrices.get(sku);
-  if (stored !== undefined) return stored;
-  if (!listing.exists) return null;
-  const { skus } = await import("@/lib/mock-data");
-  return skus.find((s) => s.skuId === sku)?.price ?? null;
-}
-
-const notFound = (what: string) => fail(404, "NOT_FOUND", `${what} not found`);
 
 export function registerProductCommerceMockRoutes(): void {
   registerMockRoute("GET", "/products/:id/ecommerce", async (config) => {
@@ -129,50 +111,6 @@ export function registerProductCommerceMockRoutes(): void {
       seoDescription: seoDescription?.trim() || null,
       exists: true,
     });
-    return ok(listingView(listing, bumpProductVersion(product)));
-  });
-
-  registerMockRoute("GET", "/products/:id/skus/:sku/base-price", async (config) => {
-    const { id, sku } = pathParams(config);
-    const product = await findMockProduct(id ?? "");
-    if (!product) return fail(404, "PRODUCT_NOT_FOUND", "Product not found");
-    if (!(await mockVariantsOf(id ?? "")).some((v) => v.sku === sku)) return notFound("SKU");
-    const listing = await listingOf(product);
-    const price = await basePriceOf(sku ?? "", listing);
-    return ok({
-      sku,
-      revision: revisionOf(product),
-      basePrice: price,
-      baseCurrency: price === null ? null : "VND",
-      effectivePrice: price,
-      effectiveCurrency: price === null ? null : "VND",
-    });
-  });
-
-  registerMockRoute("PUT", "/products/:id/skus/:sku/base-price", async (config) => {
-    const { id, sku } = pathParams(config);
-    const product = await findMockProduct(id ?? "");
-    if (!product) return fail(404, "PRODUCT_NOT_FOUND", "Product not found");
-    const b = bodyOf(config);
-    if (typeof b.revision !== "number" || b.revision < 0)
-      return validationFailed("revision", "revision is required");
-    if (typeof b.price !== "number" || !(b.price > 0))
-      return validationFailed("price", "price must be greater than 0");
-    if (b.currency !== "VND") return validationFailed("currency", "currency must be VND");
-    if (product.status === "Discontinued") return fail(409, "CONFLICT", "Conflicting state");
-    if (!(await mockVariantsOf(id ?? "")).some((v) => v.sku === sku)) return notFound("SKU");
-    // BE `SellingPrice`: số nguyên VND, tối đa 16 chữ số — không làm tròn giá đã thoả thuận.
-    if (!Number.isInteger(b.price) || String(b.price).length > 16)
-      return fail(400, "VALIDATION_FAILED", "Invalid price");
-    const listing = await listingOf(product);
-    if (!listing.exists)
-      return fail(
-        409,
-        "CATALOG_LISTING_REQUIRED",
-        "Configure the storefront listing before publishing",
-      );
-    if (b.revision !== revisionOf(product)) return fail(409, "CONFLICT", "Conflicting state");
-    basePrices.set(sku ?? "", b.price);
     return ok(listingView(listing, bumpProductVersion(product)));
   });
 }

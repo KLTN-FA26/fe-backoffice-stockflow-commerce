@@ -2,15 +2,14 @@
 
 import { useState } from "react";
 
-import { LOAD_PLAN_SOURCE, UI_LABELS, VEHICLE_TYPE_STATUS } from "@/constants";
+import { UI_LABELS, VEHICLE_TYPE_STATUS } from "@/constants";
 import { loadPlanErrorMessage } from "@/features/load-planning/errors";
-import { planInputsSchema, transferPlanInputsSchema } from "@/features/load-planning/input-schemas";
+import { planInputsSchema } from "@/features/load-planning/input-schemas";
 import { useSetLoadPlanInputs } from "@/features/load-planning/mutations";
 import {
   candidateKey,
   fillLineOptions,
   fillLinesToSend,
-  isTransferPlan,
 } from "@/features/load-planning/plan-selectors";
 import {
   useActiveVehicleTypes,
@@ -41,12 +40,7 @@ export function EditInputsDialog({ plan, onClose }: { plan: PlanDetail; onClose:
   // Loại xe đã ngừng dùng không có ô trong danh sách chọn (chỉ liệt kê loại ACTIVE) nên không đưa vào lựa chọn ban
   // đầu: BE từ chối cả request (409 VEHICLE_TYPE_INACTIVE) nếu còn gửi lại id đó mà người dùng không bỏ chọn được.
   const inactive = plan.vehicleTypes.filter((t) => t.status !== VEHICLE_TYPE_STATUS.ACTIVE);
-  // Kế hoạch nguồn TRANSFER (BE PR #164) chỉ có MỘT lệnh chuyển kho, cố định: chỉ đổi loại xe / chế độ
-  const transferPlan = isTransferPlan(plan);
-  const transferOrderId = plan.transferOrder?.transferOrderId;
   const inputs = usePlanInputsState({
-    sourceType: transferPlan ? LOAD_PLAN_SOURCE.TRANSFER : LOAD_PLAN_SOURCE.ORDER,
-    transferOrderIds: transferOrderId ? [transferOrderId] : [],
     shipmentIds: plan.shipments.map((s) => s.shipmentId),
     vehicleTypeIds: plan.vehicleTypes
       .filter((t) => t.status === VEHICLE_TYPE_STATUS.ACTIVE)
@@ -57,7 +51,7 @@ export function EditInputsDialog({ plan, onClose }: { plan: PlanDetail; onClose:
       ...new Set(plan.packages.flatMap((p) => (p.fill && p.orderLineId ? [p.orderLineId] : []))),
     ],
   });
-  const candidates = useLoadPlanCandidates(plan.warehouseId, plan.loadPlanId, !transferPlan);
+  const candidates = useLoadPlanCandidates(plan.warehouseId, plan.loadPlanId);
   const types = useActiveVehicleTypes();
   const [error, setError] = useState<string | null>(null);
 
@@ -70,23 +64,6 @@ export function EditInputsDialog({ plan, onClose }: { plan: PlanDetail; onClose:
       onSuccess: onClose,
       onError: (e: unknown) => setError(loadPlanErrorMessage(e)),
     };
-    if (transferPlan) {
-      const parsed = transferPlanInputsSchema.safeParse({
-        transferOrderIds: transferOrderId ? [transferOrderId] : [],
-        vehicleTypeIds,
-        selectionMode: inputs.mode,
-      });
-      if (!parsed.success) {
-        setError(parsed.error.issues[0]?.message ?? null);
-        return;
-      }
-      setError(null);
-      update.mutate(
-        { ...base, ...parsed.data, sourceType: LOAD_PLAN_SOURCE.TRANSFER, shipmentIds: [] },
-        callbacks,
-      );
-      return;
-    }
     const shipmentIds = [...inputs.shipments].filter((id) => knownShipments.has(id));
     const parsed = planInputsSchema.safeParse({
       shipmentIds,
@@ -129,7 +106,6 @@ export function EditInputsDialog({ plan, onClose }: { plan: PlanDetail; onClose:
               idPrefix="lp-edit"
               warehouseId={current.warehouseId}
               candidates={candidates}
-              fixedTransfer={plan.transferOrder}
               types={types}
               inputs={inputs}
             />

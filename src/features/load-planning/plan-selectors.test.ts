@@ -7,15 +7,12 @@ import {
   candidateFixture,
   planFixture,
   planWithUnplaced,
-  transferCandidateFixture,
-  transferPlanFixture,
   unplacedParcel,
 } from "./__fixtures__/plans";
 import { buildItemTable } from "./lib/item-rows";
 import {
   candidateKey,
   isFinalLoadPlan,
-  isTransferPlan,
   layoutsForItemTable,
   loadPlanStatusTone,
   pickedOnTray,
@@ -111,39 +108,16 @@ describe("pickedOnTray", () => {
   });
 });
 
-describe("TRANSFER source (BE PR #164)", () => {
-  it("isTransferPlan: by sourceType or by the transfer order; an order plan is not", () => {
-    expect(isTransferPlan(transferPlanFixture())).toBe(true);
-    expect(isTransferPlan({ sourceType: "TRANSFER", transferOrder: undefined })).toBe(true);
-    expect(
-      isTransferPlan({ sourceType: undefined, transferOrder: transferPlanFixture().transferOrder }),
-    ).toBe(true);
-    expect(isTransferPlan(planFixture())).toBe(false);
-    expect(isTransferPlan({ sourceType: "ORDER" })).toBe(false);
-  });
-
-  it("candidateKey: the shipment id for an order candidate, the transfer order id for a transfer one", () => {
+describe("candidateKey / totalsOf", () => {
+  it("candidateKey: the shipment id of a candidate, empty when absent", () => {
     expect(candidateKey({ shipmentId: "s-1" })).toBe("s-1");
-    expect(candidateKey(transferCandidateFixture())).toBe(
-      transferCandidateFixture().transferOrderId,
-    );
     expect(candidateKey({})).toBe("");
-  });
-
-  it("totalsOf counts a selected transfer candidate through its transfer order id", () => {
-    const candidate = transferCandidateFixture({ packageCount: 5, packagesInOtherPlans: 1 });
-    expect(totalsOf([candidate], new Set([candidateKey(candidate)]))).toEqual({
-      shipments: 1,
-      packages: 4,
-    });
-    expect(totalsOf([candidate], new Set())).toEqual({ shipments: 0, packages: 0 });
   });
 });
 
 describe("fillLineOptions / fillLinesToSend — hàng chèn theo dòng đơn (RTM-LPGROUP)", () => {
   const candidate = (shipmentId: string, code: string, lines: (string | null)[]) => ({
     shipmentId,
-    transferOrderId: null,
     code,
     packages: lines.map((line, i) => ({
       ...candidateFixture().packages[0],

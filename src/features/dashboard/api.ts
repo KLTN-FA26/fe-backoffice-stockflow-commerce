@@ -1,17 +1,12 @@
-import {
-  DASHBOARD_ALERT_OPEN_STATUS,
-  DASHBOARD_API,
-  DASHBOARD_LABELS,
-  DASHBOARD_LIMITS,
-} from "@/constants/dashboard";
+import { DASHBOARD_LABELS, DASHBOARD_LIMITS } from "@/constants/dashboard";
 
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 
-import { alertSummaryDto, countPageDto, stockAlertPageDto } from "./schemas";
+import { countPageDto } from "./schemas";
 
 import type { z } from "zod";
-import type { AlertSummary, CountSource, StockAlertPage } from "./types";
+import type { CountSource } from "./types";
 
 function parseContract<T extends z.ZodType>(schema: T, data: unknown): z.infer<T> {
   const result = schema.safeParse(data);
@@ -48,19 +43,4 @@ export async function fetchCount(source: CountSource, signal?: AbortSignal): Pro
     source.statuses.map((status) => countOnce(source.path, [status], signal)),
   );
   return counts.reduce((sum, value) => sum + value, 0);
-}
-
-/** `GET /inventory/alerts/summary` — open (not resolved) alerts per kind. */
-export async function fetchAlertSummary(signal?: AbortSignal): Promise<AlertSummary> {
-  const { data } = await api.get<unknown>(DASHBOARD_API.alertSummary, { signal });
-  return parseContract(alertSummaryDto, data);
-}
-
-/** `GET /inventory/alerts?status=OPEN` — newest first (BE order). */
-export async function listOpenAlerts(signal?: AbortSignal): Promise<StockAlertPage> {
-  const { data } = await api.get<unknown>(DASHBOARD_API.alerts, {
-    params: { page: 0, size: DASHBOARD_LIMITS.alertRows, status: DASHBOARD_ALERT_OPEN_STATUS },
-    signal,
-  });
-  return parseContract(stockAlertPageDto, data);
 }

@@ -1,5 +1,4 @@
 /** In-memory inbox mock, scoped to the authenticated user like BE SCRUM-147. */
-import { INVENTORY_ROUTES } from "@/constants/inventory";
 import { NOTIFICATION_API } from "@/constants/notifications";
 import { INVENTORY_OVERVIEW_PERMISSIONS } from "@/constants/permissions";
 
@@ -42,10 +41,7 @@ function inbox(): Notification[] | null {
             severity: stockAlertSeverity(alert.kind),
             title: `${alert.kind} · ${alert.sku}`,
             body: `${alert.observedQty} sản phẩm cần kiểm tra`,
-            // Same shape as BE InventoryAlertMessages: kind, plus warehouseId for lot alerts.
-            link: `${INVENTORY_ROUTES.alerts}?kind=${alert.kind}${
-              alert.warehouseId ? `&warehouseId=${encodeURIComponent(alert.warehouseId)}` : ""
-            }`,
+            link: null,
             sourceType: "STOCK_ALERT",
             sourceId: alert.id,
             createdAt: alert.openedAt,

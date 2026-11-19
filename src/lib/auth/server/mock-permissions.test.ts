@@ -15,7 +15,6 @@ import {
   CUSTOMER_PRICE_PERMISSIONS,
   FULFILLMENT_PICK_PERMISSIONS,
   INVENTORY_ITEM_PERMISSIONS as ITEM_PERMISSIONS,
-  SUPPLIER_ITEM_PERMISSIONS,
   INVENTORY_ITEM_PERMISSIONS,
   INVENTORY_OVERVIEW_PERMISSIONS,
   INVENTORY_PERMISSIONS,
@@ -516,11 +515,8 @@ describe("Customer price grants after a real mock login (seed V20261017000510 + 
     expect(procurement).not.toContain(PRODUCT_PERMISSIONS.update);
     expect(procurement).not.toContain(PRODUCT_PERMISSIONS.read);
     expect(procurement).not.toContain(ITEM_PERMISSIONS.update);
-    expect(procurement).toContain(SUPPLIER_ITEM_PERMISSIONS.read);
     for (const userId of ["USER-ECAD-01", "USER-SALE-01", "USER-COORD-01"]) {
-      const permissions = await sessionPermissions(userId);
-      expect(permissions).not.toContain(SUPPLIER_ITEM_PERMISSIONS.read);
-      expect(permissions).not.toContain(ITEM_PERMISSIONS.update);
+      expect(await sessionPermissions(userId)).not.toContain(ITEM_PERMISSIONS.update);
     }
     for (const userId of ["USER-SALE-01", "USER-COORD-01"])
       expect(await sessionPermissions(userId)).not.toContain(PRODUCT_PERMISSIONS.update);

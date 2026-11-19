@@ -5,12 +5,6 @@
  */
 
 import { LOAD_PLAN_EDITOR_LABELS } from "./labels-load-plan-editor";
-import {
-  LOAD_PLAN_SOURCE_LABELS,
-  LOAD_PLAN_TRANSFER_ERROR_MESSAGES,
-  LOAD_PLAN_TRANSFER_FIELD_MESSAGES,
-  LOAD_PLAN_TRANSFER_LABELS,
-} from "./labels-load-plan-transfer";
 import { LOAD_PLAN_LIMITS } from "./numbers";
 
 import type {
@@ -74,8 +68,6 @@ export const LOAD_PLAN_UI_LABELS = {
   /** Trình soạn xếp tay (PR F5). */
   editor: LOAD_PLAN_EDITOR_LABELS,
   /** Kế hoạch cho lệnh chuyển kho (PR F9, LP-9). */
-  transfer: LOAD_PLAN_TRANSFER_LABELS,
-  source: LOAD_PLAN_SOURCE_LABELS,
   pageTitle: "Kế hoạch xếp xe",
   create: "Lập kế hoạch xếp xe",
   searchPlaceholder: "Tìm theo mã kế hoạch",
@@ -380,7 +372,6 @@ export const LOAD_PLAN_ERROR_MESSAGES = {
     "Có kiện không còn ở khay chưa xếp (vừa được xếp hoặc bị gỡ khỏi kế hoạch). Đã tải lại kế hoạch — chọn lại các kiện rồi thử lại.",
   VALIDATION_FAILED: "Dữ liệu gửi lên chưa hợp lệ.",
   NETWORK_ERROR: "Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại.",
-  ...LOAD_PLAN_TRANSFER_ERROR_MESSAGES,
 } as const;
 
 /** Câu LP-4 nêu MỌI đơn vi phạm BE báo ở `fieldErrors[].orderNumber`. */
@@ -400,5 +391,4 @@ export const LOAD_PLAN_FIELD_MESSAGES = {
   reasonTooLong: `Lý do tối đa ${LOAD_PLAN_LIMITS.reasonMax} ký tự.`,
   noteTooLong: `Ghi chú tối đa ${LOAD_PLAN_LIMITS.noteMax} ký tự.`,
   packagesTooMany: `Tối đa ${LOAD_PLAN_LIMITS.addPackagesMax} kiện mỗi lần.`,
-  ...LOAD_PLAN_TRANSFER_FIELD_MESSAGES,
 } as const;

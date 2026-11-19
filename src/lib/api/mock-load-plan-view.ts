@@ -28,19 +28,9 @@ export const heldParcels = (plan: MockPlan): MockParcel[] =>
 const seqOfParcel = (plan: MockPlan, packageId: string): number | undefined =>
   plan.vehicles.find((v) => v.boxes.some((b) => b.packageId === packageId))?.seq;
 
-const isTransferParcel = (parcel: MockParcel): boolean =>
-  getMockShipments().some((s) => s.shipmentId === parcel.shipmentId && !!s.transfer);
-
-/** Kiện ra wire: của lệnh chuyển kho thì không có lô giao, chỉ có `transferOrderId` (BE `LoadPlans.ParcelView`). */
-function wireParcel(parcel: MockParcel) {
-  return isTransferParcel(parcel)
-    ? { ...parcel, shipmentId: null, shipmentCode: null, transferOrderId: parcel.shipmentId }
-    : parcel;
-}
-
 function parcelView(plan: MockPlan, parcel: MockParcel) {
   return {
-    ...wireParcel(parcel),
+    ...parcel,
     vehicleSeq: seqOfParcel(plan, parcel.packageId) ?? null,
     unplacedReason: plan.unplaced.get(parcel.packageId) ?? null,
   };
@@ -48,15 +38,11 @@ function parcelView(plan: MockPlan, parcel: MockParcel) {
 
 export function candidateView(shipment: MockShipment, held: ReadonlySet<string>) {
   const free = shipment.packages.filter((p) => !held.has(p.packageId));
-  const { transfer } = shipment;
   return {
-    sourceType: transfer ? "TRANSFER" : "ORDER",
-    shipmentId: transfer ? null : shipment.shipmentId,
+    shipmentId: shipment.shipmentId,
     code: shipment.code,
-    orderId: transfer ? null : shipment.orderId,
-    orderNumber: transfer ? null : shipment.orderNumber,
-    transferOrderId: transfer?.transferOrderId ?? null,
-    toWarehouseId: transfer?.toWarehouseId ?? null,
+    orderId: shipment.orderId,
+    orderNumber: shipment.orderNumber,
     allowPartialShipment: shipment.allowPartialShipment,
     readyAt: shipment.readyAt,
     packageCount: shipment.packages.length,
@@ -66,7 +52,7 @@ export function candidateView(shipment: MockShipment, held: ReadonlySet<string>)
       3,
     ),
     volumeMm3: free.reduce((sum, p) => sum + p.lengthMm * p.widthMm * p.heightMm, 0),
-    packages: free.map((p) => ({ ...wireParcel(p), vehicleSeq: null, unplacedReason: null })),
+    packages: free.map((p) => ({ ...p, vehicleSeq: null, unplacedReason: null })),
   };
 }
 
@@ -120,7 +106,6 @@ export function planRow(plan: MockPlan) {
     code: plan.code,
     warehouseId: plan.warehouseId,
     status: plan.status,
-    sourceType: plan.sourceType,
     selectionMode: plan.selectionMode,
     shipmentCount: plan.shipmentIds.length,
     packageCount: held.length,
@@ -133,19 +118,6 @@ export function planRow(plan: MockPlan) {
   };
 }
 
-function transferInPlan(plan: MockPlan) {
-  const shipment = plan.sourceType === "TRANSFER" ? shipmentsOf(plan)[0] : undefined;
-  if (!shipment?.transfer) return null;
-  return {
-    transferOrderId: shipment.transfer.transferOrderId,
-    number: shipment.transfer.number,
-    fromWarehouseId: shipment.warehouseId,
-    toWarehouseId: shipment.transfer.toWarehouseId,
-    status: shipment.transfer.status,
-    packageCount: shipment.packages.length,
-  };
-}
-
 export function planDetail(plan: MockPlan) {
   const parcels = parcelIndex();
   const held = heldParcels(plan);
@@ -154,7 +126,6 @@ export function planDetail(plan: MockPlan) {
     loadPlanId: plan.loadPlanId,
     code: plan.code,
     warehouseId: plan.warehouseId,
-    sourceType: plan.sourceType,
     selectionMode: plan.selectionMode,
     status: plan.status,
     note: plan.note,
@@ -173,19 +144,14 @@ export function planDetail(plan: MockPlan) {
           ]
         : [];
     }),
-    // Kế hoạch TRANSFER không có lô giao: lệnh chuyển kho nằm ở `transferOrder`
-    shipments:
-      plan.sourceType === "TRANSFER"
-        ? []
-        : shipmentsOf(plan).map((s) => ({
-            shipmentId: s.shipmentId,
-            code: s.code,
-            orderId: s.orderId,
-            orderNumber: s.orderNumber,
-            allowPartialShipment: s.allowPartialShipment,
-            packageCount: s.packages.length,
-          })),
-    transferOrder: transferInPlan(plan),
+    shipments: shipmentsOf(plan).map((s) => ({
+      shipmentId: s.shipmentId,
+      code: s.code,
+      orderId: s.orderId,
+      orderNumber: s.orderNumber,
+      allowPartialShipment: s.allowPartialShipment,
+      packageCount: s.packages.length,
+    })),
     vehicles: plan.vehicles.map((v) => ({
       seq: v.seq,
       loadPlanVehicleId: v.loadPlanVehicleId,

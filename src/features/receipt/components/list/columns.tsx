@@ -10,7 +10,6 @@ import {
   statusCell,
   viewColumn,
 } from "@/components/shared/column-helpers";
-import { Badge } from "@/components/ui/badge";
 
 import { COLUMN_LABELS, SERVER_SORT_FIELDS } from "./constants";
 
@@ -34,12 +33,11 @@ function dateTimeCell(
 }
 
 /**
- * Cột bảng phiếu nhận — chỉ field có trong BE `GoodsReceiptRowResponse` (PR #62). Dòng danh sách
- * không kèm dòng nhận nên không có cột SL; số PO tra qua `poNumbers` (BE chỉ trả id).
+ * Cột bảng phiếu nhận — chỉ field có trong BE `GoodsReceiptRowResponse`. Dòng danh sách không kèm dòng nhận nên
+ * không có cột SL.
  */
 export function buildReceiptColumns(
   navigateToDetail: (row: GoodsReceiptRow) => void,
-  poNumbers: Readonly<Record<string, string>> | undefined,
 ): ColumnDef<GoodsReceiptRow>[] {
   return [
     {
@@ -57,23 +55,27 @@ export function buildReceiptColumns(
       ),
     },
     {
-      key: C.PURCHASE_ORDER,
-      header: COLUMN_LABELS[C.PURCHASE_ORDER] ?? C.PURCHASE_ORDER,
+      key: C.RECEIPT_TYPE,
+      header: COLUMN_LABELS[C.RECEIPT_TYPE] ?? C.RECEIPT_TYPE,
+      cell: (row) => (
+        <span className="text-ink-secondary">{UI_LABELS.receipt.receiptType[row.receiptType]}</span>
+      ),
+    },
+    {
+      key: C.PRODUCTION_ORDER,
+      header: COLUMN_LABELS[C.PRODUCTION_ORDER] ?? C.PRODUCTION_ORDER,
       cell: (row) =>
-        row.withoutPurchaseOrder || !row.purchaseOrderId ? (
-          // BR-RCP-002: hàng về không có PO — hiện NCC của phiếu thay cho số PO
+        row.productionOrderCode ? (
           <span className="inline-flex flex-col">
-            <Badge variant="outline" className="w-fit rounded-[var(--r-sm)] font-normal">
-              {UI_LABELS.receipt.blind.badge}
-            </Badge>
-            {row.supplierName && (
-              <span className="text-ink-tertiary mt-0.5 text-xs">{row.supplierName}</span>
+            <span className={CELL.ref} title={row.productionOrderId ?? undefined}>
+              {row.productionOrderCode}
+            </span>
+            {row.producerName && (
+              <span className="text-ink-tertiary mt-0.5 text-xs">{row.producerName}</span>
             )}
           </span>
         ) : (
-          <span className={CELL.ref} title={row.purchaseOrderId}>
-            {row.purchaseOrderNumber ?? poNumbers?.[row.purchaseOrderId] ?? "—"}
-          </span>
+          <span className="text-ink-tertiary">—</span>
         ),
     },
     refCell<GoodsReceiptRow>(

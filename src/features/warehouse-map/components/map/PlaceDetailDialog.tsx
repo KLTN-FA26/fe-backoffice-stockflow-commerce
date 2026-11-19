@@ -1,11 +1,15 @@
 "use client";
 
-import { AREA_TYPE_LABELS, STORAGE_CLASS_LABELS, UI_LABELS } from "@/constants";
+import { Printer } from "lucide-react";
+
+import { AREA_TYPE_LABELS, LOCATION_STATUS, UI_LABELS } from "@/constants";
 import { formatNumber } from "@/lib/format";
 
 import { boxOf } from "@/features/warehouse-map/selectors";
 
 import { StatusDot } from "@/components/shared/StatusDot";
+import { Button } from "@/components/ui/button";
+
 import { MapDialog } from "../shared/MapDialog";
 import { ShelfLevelsGrid } from "./ShelfLevelsGrid";
 
@@ -33,17 +37,20 @@ const mono = (text: string) => <span className="font-[family-name:var(--font-mon
 
 /**
  * Modal chi tiết kệ / khu vực vừa bấm trên bản đồ: trạng thái, vị trí, zone, tầng × bin.
- * `statusAction` = nút đổi trạng thái — chỉ có khi được phép (`placeStatusTargets`).
+ * `statusAction` = nút đổi trạng thái — chỉ có khi được phép (`placeStatusTargets`). `onPrintLabels` = in nhãn các bin
+ * của kệ (docs 06 §4.3) — kệ ngừng dùng không có nhãn (BR-17) nên không hiện nút.
  */
 export function PlaceDetailDialog({
   place,
   zones,
   statusAction,
+  onPrintLabels,
   onClose,
 }: {
   place: { kind: "shelf"; shelf: LayoutShelf } | { kind: "area"; area: LayoutArea };
   zones: readonly Zone[];
   statusAction?: ReactNode;
+  onPrintLabels?: () => void;
   onClose: () => void;
 }) {
   const item = place.kind === "shelf" ? place.shelf : place.area;
@@ -72,9 +79,6 @@ export function PlaceDetailDialog({
             <Row label={P.zone}>
               {zones.find((zone) => zone.id === place.shelf.zoneId)?.name ?? P.noZone}
             </Row>
-            <Row label={P.storageClass}>
-              {STORAGE_CLASS_LABELS[place.shelf.defaultStorageClass]}
-            </Row>
             <Row label={P.pickFaces}>
               {(["north", "east", "south", "west"] as const)
                 .filter((face) => place.shelf.pickFaces[face])
@@ -87,13 +91,17 @@ export function PlaceDetailDialog({
             <Row label={P.locationCode}>
               {place.area.locationCode ? mono(place.area.locationCode) : P.nonStorage}
             </Row>
-            {place.area.storageClass && (
-              <Row label={P.storageClass}>{STORAGE_CLASS_LABELS[place.area.storageClass]}</Row>
-            )}
           </>
         )}
       </dl>
       {statusAction}
+      {place.kind === "shelf" &&
+        onPrintLabels &&
+        place.shelf.status !== LOCATION_STATUS.INACTIVE && (
+          <Button type="button" variant="outline" size="sm" onClick={onPrintLabels}>
+            <Printer className="text-dot-info size-3.5" /> {L.print.openShelf}
+          </Button>
+        )}
       {place.kind === "shelf" && (
         <div className="space-y-1.5">
           <h3 className="text-ink-secondary text-xs font-medium">{P.levels}</h3>

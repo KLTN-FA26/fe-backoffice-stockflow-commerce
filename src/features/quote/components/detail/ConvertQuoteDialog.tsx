@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
-import { CUSTOMER_PERMISSIONS } from "@/constants";
+import { ADMIN_ROUTES, CUSTOMER_PERMISSIONS } from "@/constants";
 import { useCan } from "@/lib/auth/components/Can";
 import { formatAddress, useCustomerAddressOptions } from "@/lib/references/customer-lookup";
-import { quoteErrorMessage } from "@/features/quote/errors";
+import { isQuoteErrorCode, quoteErrorMessage } from "@/features/quote/errors";
 import { useConvertQuote } from "@/features/quote/mutations";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { FORM_INPUT_CLASS, FormField } from "@/components/shared/FormField";
@@ -52,6 +53,7 @@ function ConvertForm({ quote, onClose }: { quote: Quote; onClose: () => void }) 
   const [billing, setBilling] = useState("");
   const [error, setError] = useState<string | null>(null);
   const convert = useConvertQuote();
+  const router = useRouter();
   const options = (type: "SHIPPING" | "BILLING") =>
     (addresses.data ?? [])
       .filter((address) => address.type === type)
@@ -62,9 +64,9 @@ function ConvertForm({ quote, onClose }: { quote: Quote; onClose: () => void }) 
 
   return (
     <FormDialogBody
-      title={`Tạo đơn bán từ ${quote.quoteNumber}`}
-      description="Đơn được tạo theo số lượng và đơn giá khách đã chấp nhận, cùng điều khoản thanh toán của báo giá. Hệ thống giữ hàng ngay khi tạo đơn; thao tác lặp lại không tạo đơn thứ hai."
-      submitLabel="Tạo đơn bán"
+      title={`Tạo đơn từ ${quote.quoteNumber}`}
+      description="Tạo đơn Nháp từ báo giá đã chấp nhận. Đơn chưa giữ hàng; bước tiếp theo là lập hợp đồng."
+      submitLabel="Tạo đơn"
       canSubmit
       isPending={convert.isPending}
       error={error}
@@ -78,7 +80,20 @@ function ConvertForm({ quote, onClose }: { quote: Quote; onClose: () => void }) 
             shippingAddressId: shipping || undefined,
             billingAddressId: billing || undefined,
           },
-          { onSuccess: onClose, onError: (failure) => setError(quoteErrorMessage(failure)) },
+          {
+            onSuccess: (saved) => {
+              onClose();
+              // Bấm lại trả cùng đơn (BE idempotent) → luôn sang khối Hợp đồng của đơn đó.
+              if (saved.convertedOrder)
+                router.push(ADMIN_ROUTES.orders.contract(saved.convertedOrder.orderId));
+            },
+            onError: (failure) =>
+              setError(
+                isQuoteErrorCode(failure, ["SKU_NOT_SELLABLE"])
+                  ? `${quoteErrorMessage(failure)} Huỷ báo giá (ghi lý do) rồi lập báo giá mới.`
+                  : quoteErrorMessage(failure),
+              ),
+          },
         );
       }}
     >

@@ -178,14 +178,14 @@ describe("ProductDetail — ngừng kinh doanh cần lý do + version (BE Discon
 });
 
 describe("ProductDetail — hộp thoại ngừng kinh doanh hiện chứng từ còn mở và cảnh báo sau khi ngừng", () => {
-  it("liệt kê đơn mua / đơn bán còn mở tham chiếu SKU trong hộp thoại, trước khi xác nhận", async () => {
+  it("liệt kê Đơn sản xuất / đơn bán còn mở tham chiếu SKU trong hộp thoại, trước khi xác nhận", async () => {
     useOpenReferencesMock.mockReturnValue({
       isLoading: false,
       isError: false,
       data: {
         references: [
           {
-            kind: "PURCHASE_ORDER_LINE",
+            kind: "PRODUCTION_ORDER_LINE",
             documentNumber: "PO-1",
             documentId: "p1",
             sku: "CUP-12OZ",
@@ -200,7 +200,7 @@ describe("ProductDetail — hộp thoại ngừng kinh doanh hiện chứng từ
     const dialog = await screen.findByRole("dialog", { name: "Ngừng kinh doanh sản phẩm?" });
     expect(within(dialog).getByText("PO-1")).toBeInTheDocument();
     expect(within(dialog).getByText("ORD-9")).toBeInTheDocument();
-    expect(within(dialog).getByText(/Dòng đơn mua/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/Dòng Đơn sản xuất/)).toBeInTheDocument();
     expect(within(dialog).getByText(/Dòng đơn bán/)).toBeInTheDocument();
   });
 
@@ -213,7 +213,7 @@ describe("ProductDetail — hộp thoại ngừng kinh doanh hiện chứng từ
       isError: false,
       data: {
         references: [
-          { kind: "PURCHASE_ORDER_LINE", documentNumber: "PO-OLD", documentId: "p", sku: "CUP" },
+          { kind: "PRODUCTION_ORDER_LINE", documentNumber: "PO-OLD", documentId: "p", sku: "CUP" },
         ],
         truncated: false,
       },
@@ -237,15 +237,15 @@ describe("ProductDetail — hộp thoại ngừng kinh doanh hiện chứng từ
     expect(within(dialog).getByRole("button", { name: "Ngừng kinh doanh" })).toBeEnabled();
   });
 
-  it("sau khi ngừng: cảnh báo hiện bằng tiếng Việt kèm chứng từ — không lộ mã OPEN_PURCHASE_ORDER_LINES", async () => {
+  it("sau khi ngừng: cảnh báo hiện bằng tiếng Việt kèm chứng từ — không lộ mã OPEN_PRODUCTION_ORDER_LINES", async () => {
     discontinueMutateMock.mockImplementation(
       (_input: unknown, options: { onSuccess: (result: unknown) => void }) =>
         options.onSuccess({
           product: product(PRODUCT_STATUS.DISCONTINUED),
-          warnings: ["OPEN_PURCHASE_ORDER_LINES", "UNSHIPPED_ORDER_LINES"],
+          warnings: ["OPEN_PRODUCTION_ORDER_LINES", "UNSHIPPED_ORDER_LINES"],
           openReferences: [
             {
-              kind: "PURCHASE_ORDER_LINE",
+              kind: "PRODUCTION_ORDER_LINE",
               documentNumber: "PO-7",
               documentId: "p7",
               sku: "CUP-12OZ",
@@ -261,11 +261,11 @@ describe("ProductDetail — hộp thoại ngừng kinh doanh hiện chứng từ
     await user.click(within(dialog).getByRole("button", { name: "Ngừng kinh doanh" }));
 
     const result = await screen.findByRole("dialog", { name: "Đã ngừng kinh doanh sản phẩm" });
-    expect(within(result).getByText(/dòng đơn mua \(PO\) đang mở/i)).toBeInTheDocument();
+    expect(within(result).getByText(/dòng Đơn sản xuất đang mở/i)).toBeInTheDocument();
     expect(within(result).getByText(/dòng đơn bán đã đặt chưa giao/i)).toBeInTheDocument();
     expect(within(result).getByText("PO-7")).toBeInTheDocument();
     expect(within(result).getByText(/Còn nhiều chứng từ nữa/)).toBeInTheDocument();
-    expect(result).not.toHaveTextContent("OPEN_PURCHASE_ORDER_LINES");
+    expect(result).not.toHaveTextContent("OPEN_PRODUCTION_ORDER_LINES");
     expect(result).not.toHaveTextContent("UNSHIPPED_ORDER_LINES");
   });
 });

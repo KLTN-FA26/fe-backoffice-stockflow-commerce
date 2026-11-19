@@ -1,8 +1,7 @@
 "use client";
 
 import { CUSTOMER_PRICE_UI_LABELS } from "@/constants";
-import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import { useInventoryItemOptions } from "@/lib/references/inventory-item-options";
+import { useCustomerSkus } from "@/lib/references/customer-skus";
 import { FORM_INPUT_CLASS } from "@/components/shared/form-control-classes";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,30 +12,26 @@ import type { CustomerPriceFormValues } from "../form";
 const F = CUSTOMER_PRICE_UI_LABELS.form;
 const ID = "cp-sku";
 const LIST_ID = "cp-sku-suggestions";
-// Debounce ô tìm 300ms (PRODUCTION-FRONTEND-RULES §9)
-const SEARCH_DEBOUNCE_MS = 300;
 const MONO = "font-[family-name:var(--font-mono)]";
 
 /**
- * SKU của bảng giá. Tạo: ô nhập tay LUÔN dùng được (BE chuẩn hoá + kiểm SKU có trong danh mục →
- * VARIANT_NOT_FOUND); gợi ý từ hồ sơ hàng tồn (`GET /inventory/items?q=`) CHỈ khi có
- * `inventory-inventory-items:READ` — không có quyền thì không gọi API, không chặn việc tạo giá.
+ * SKU của bảng giá. Tạo: ô nhập tay LUÔN dùng được (BE chuẩn hoá + chỉ nhận SKU riêng của chính khách →
+ * CUSTOMER_SKU_REQUIRED / VARIANT_NOT_FOUND, 13 BR-02); gợi ý SKU riêng của khách (`GET /customer-skus`)
+ * CHỈ khi có `product-variants:READ` — không có quyền thì không gọi API, không chặn việc tạo giá.
  * Sửa: SKU là định danh của bảng giá → chỉ đọc.
  */
 export function SkuField({
   form,
   mode,
+  customerId,
   canSuggest,
 }: {
   form: UseFormReturn<CustomerPriceFormValues>;
   mode: "create" | "edit";
+  customerId: string;
   canSuggest: boolean;
 }) {
-  const typed = useDebouncedValue(form.watch("sku"), SEARCH_DEBOUNCE_MS);
-  const suggestions = useInventoryItemOptions(
-    typed,
-    canSuggest && mode === "create" && typed.trim() !== "",
-  );
+  const suggestions = useCustomerSkus(customerId, canSuggest && mode === "create");
   const error = form.formState.errors.sku?.message;
 
   if (mode === "edit") {
@@ -62,9 +57,13 @@ export function SkuField({
       />
       {canSuggest && (
         <datalist id={LIST_ID}>
-          {(suggestions.data?.items ?? []).map((item) => (
-            <option key={item.id} value={item.sku} />
-          ))}
+          {(suggestions.data ?? [])
+            .filter((item) => item.status !== "OBSOLETE")
+            .map((item) => (
+              <option key={item.variantId} value={item.sku}>
+                {item.name}
+              </option>
+            ))}
         </datalist>
       )}
       <p className="text-ink-tertiary text-xs">{F.skuHint}</p>

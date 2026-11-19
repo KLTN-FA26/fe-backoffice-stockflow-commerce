@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import { beAttributeSchema, beCategoryAttributeSchema } from "./attribute-schemas";
 import { beProductAttributesSchema } from "./axes-schemas";
-import { beListingSchema, beSkuPriceSchema } from "./listing-schemas";
+import { beListingSchema } from "./listing-schemas";
 import {
   discontinuationExtrasSchema,
   openReferencesSchema,
@@ -97,7 +97,7 @@ describe("response schemas accept BE payloads that omit unset fields", () => {
     expect(page.items[0]?.reason).toBeUndefined();
   });
 
-  it("open references, discontinuation extras, listing, price and generation result", () => {
+  it("open references, discontinuation extras, listing and generation result", () => {
     expect(openReferencesSchema.parse({ references: [], truncated: false }).references).toEqual([]);
     expect(
       discontinuationExtrasSchema.safeParse({
@@ -114,9 +114,6 @@ describe("response schemas accept BE payloads that omit unset fields", () => {
       projectionPending: true,
     });
     expect(listing.slug).toBeUndefined();
-    const price = beSkuPriceSchema.parse({ sku: "A", revision: 0 });
-    expect(price.basePrice).toBeUndefined();
-    expect(price.effectivePrice).toBeUndefined();
     expect(beGeneratedVariantsSchema.parse({ created: [], skipped: 0 }).skipped).toBe(0);
   });
 

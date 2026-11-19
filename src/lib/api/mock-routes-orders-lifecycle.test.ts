@@ -486,15 +486,12 @@ describe("release + quyết định công nợ dùng chung store", () => {
     });
   });
 
-  it("từ chối → đặt cọc: PENDING_PAYMENT + DEPOSIT, lịch sử CREDIT_REJECTED", async () => {
-    const switched = await data("POST", `/orders/${CREDIT_ON_HOLD}/credit-rejection`, {
-      action: "SWITCH_TO_DEPOSIT",
-      depositPercent: 50,
-      note: "Khách cọc",
+  it("từ chối {note} → huỷ đơn, lịch sử CREDIT_REJECTED (BE CreditRefusalRequest)", async () => {
+    const refused = await data("POST", `/orders/${CREDIT_ON_HOLD}/credit-rejection`, {
+      note: "Khách quá hạn",
     });
-    expect(switched).toMatchObject({ status: "PENDING_PAYMENT", paymentTerm: "DEPOSIT" });
-    expect(switched).not.toHaveProperty("holdReason");
-    expect((await history(CREDIT_ON_HOLD)).at(-1)).toMatchObject({ reason: "CREDIT_REJECTED" });
+    expect(refused).toMatchObject({ status: "CANCELLED" });
+    expect((await history(CREDIT_ON_HOLD)).at(-1)?.reason).toMatch(/^CREDIT_REJECTED/);
   });
 });
 

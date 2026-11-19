@@ -38,6 +38,9 @@ export const orderLineSchema = z.object({
   shippedQuantity: z.number().int().nullable(),
   deliveredQuantity: z.number().int().nullable(),
   cancelledQuantity: z.number().int().nullable(),
+  /** Số thùng / cái mỗi thùng (đơn từ báo giá theo thùng); null với dòng theo cái. */
+  cartons: z.number().int().nullable(),
+  unitsPerCarton: z.number().int().nullable(),
 });
 
 export const orderShipmentSchema = z.object({

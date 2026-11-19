@@ -82,14 +82,6 @@ export function BinGridFields({
           onChange={set("binType")}
         />
         <NumberField
-          id="build-capacity"
-          label={E.capacityUnits}
-          integer
-          optional
-          value={build.capacityUnits}
-          onCommit={set("capacityUnits")}
-        />
-        <NumberField
           id="build-weight"
           label={E.maxWeight}
           optional

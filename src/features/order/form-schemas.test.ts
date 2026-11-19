@@ -31,18 +31,8 @@ describe("form schemas → Input schemas (pipe)", () => {
     expect(other.error?.issues[0]?.path).toEqual(["note"]);
   });
 
-  it("từ chối: chưa chọn cách xử lý → 'Chọn cách xử lý'; % sai → lỗi ở depositPercent", () => {
-    const empty = creditRejectionFormSchema.safeParse({
-      action: "",
-      depositPercent: "",
-      note: "x",
-    });
-    expect(empty.error?.issues[0]?.message).toBe("Chọn cách xử lý");
-    const bad = creditRejectionFormSchema.safeParse({
-      action: "SWITCH_TO_DEPOSIT",
-      depositPercent: "100",
-      note: "x",
-    });
-    expect(bad.error?.issues[0]?.path).toEqual(["depositPercent"]);
+  it("từ chối: ghi chú trống → lỗi ở note", () => {
+    const empty = creditRejectionFormSchema.safeParse({ note: " " });
+    expect(empty.error?.issues[0]?.path).toEqual(["note"]);
   });
 });

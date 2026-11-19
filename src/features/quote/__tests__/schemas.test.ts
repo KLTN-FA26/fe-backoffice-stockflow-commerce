@@ -1,88 +1,103 @@
 import { describe, expect, it } from "vitest";
 
-import { quoteFormSchema, quoteLineInputSchema } from "../schemas";
+import { QUOTE_ACCEPTED, QUOTE_DRAFT_PLATE_UNPRICED, QUOTE_ROW } from "../__fixtures__/quote-ds02";
+import { toQuoteBody } from "../form-body";
+import { quoteFormSchema } from "../form-schemas";
+import { quoteDtoSchema, quotePageDtoSchema } from "../schemas";
+import { lineAmount, previewTotals, tierPrice } from "../selectors";
 
-import type { QuoteFormValues } from "../types";
-
-const LINE = {
-  blankSku: "CUP-PAPER-12OZ-WHT",
-  designSnapshotId: "01a13ad1-92b3-7056-8b50-aaa9da1f1968",
-  printSpec: "",
-  quantity: "1000",
-  useListPrice: true,
-  tiers: [],
-};
-
-const form = (rest: Partial<QuoteFormValues>): QuoteFormValues => ({
-  customerId: "01a13ad1-92b3-7056-8b50-aaa9da1f1969",
-  paymentTerm: "DEPOSIT",
-  depositPercent: "",
-  validUntil: "2999-12-31",
-  terms: "",
-  lines: [LINE],
-  ...rest,
-});
-
-describe("quoteLineInputSchema.blankSku — same pattern as BE @ValidSku (common.domain.Sku)", () => {
-  it.each(["CUP_PAPER.12OZ", "A", "b2", "cup-paper-12oz-wht"])("accepts %s", (blankSku) => {
-    expect(quoteLineInputSchema.safeParse({ ...LINE, blankSku }).success).toBe(true);
+describe("quote DTO (BE QuoteResponse, seed QT-20261120-9001)", () => {
+  it("parses the real shape; omitted nulls read as null", () => {
+    const quote = quoteDtoSchema.parse(QUOTE_ACCEPTED);
+    expect(quote.lines[0]).toMatchObject({
+      cartons: 60,
+      unitsPerCarton: 1000,
+      units: 60000,
+      moq: 20,
+    });
+    expect(quote.lines[0]?.designSnapshotId).toBeNull();
+    expect(quote.customerFeedback).toBeNull();
+    expect(quote.accepted?.total).toBe(77550000);
   });
 
-  it("upper-cases what the user typed", () => {
-    expect(quoteLineInputSchema.parse({ ...LINE, blankSku: "cup_a" }).blankSku).toBe("CUP_A");
+  it("a draft with an unpriced plate fee parses with amount null and no totals", () => {
+    const quote = quoteDtoSchema.parse(QUOTE_DRAFT_PLATE_UNPRICED);
+    expect(quote.fees[0]).toMatchObject({ kind: "PLATE_FEE", amount: null });
+    expect(quote.proposed).toBeNull();
   });
 
-  it.each(["-CUP", "_CUP", "CUP PAPER", "A".repeat(65)])("refuses %s", (blankSku) => {
-    expect(quoteLineInputSchema.safeParse({ ...LINE, blankSku }).success).toBe(false);
-  });
-});
-
-describe("quoteFormSchema.depositPercent — BE @Digits(integer = 3, fraction = 2), 0 < x < 100", () => {
-  it.each(["", "30", "33.33", "0.01", "99.99"])("DEPOSIT accepts %j", (depositPercent) => {
-    expect(quoteFormSchema.safeParse(form({ depositPercent })).success).toBe(true);
-  });
-
-  it.each(["33.333", "100", "0", "abc", "-5"])(
-    "DEPOSIT refuses %j on the field",
-    (depositPercent) => {
-      const result = quoteFormSchema.safeParse(form({ depositPercent }));
-      expect(result.success).toBe(false);
-      expect(result.error?.issues.map((issue) => issue.path.join("."))).toContain("depositPercent");
-    },
-  );
-
-  it("a stale value of the hidden field does not block another payment term", () => {
-    expect(
-      quoteFormSchema.safeParse(form({ paymentTerm: "PREPAID", depositPercent: "33.333" })).success,
-    ).toBe(true);
+  it("QuoteRowResponse has no payment term and parses in a 0-based page", () => {
+    const page = quotePageDtoSchema.parse({
+      items: [QUOTE_ROW],
+      page: 0,
+      size: 15,
+      totalElements: 1,
+      totalPages: 1,
+      hasNext: false,
+      hasPrevious: false,
+    });
+    expect(page.items[0]?.convertedOrderId).toBe(QUOTE_ROW.convertedOrderId);
   });
 });
 
-describe("quoteLineInputSchema.tiers — checked only when Sales enters the tiers", () => {
-  it("list price ticked: a stale, blank tier left in the hidden editor does not block saving", () => {
-    expect(
-      quoteLineInputSchema.safeParse({
-        ...LINE,
-        useListPrice: true,
-        tiers: [{ minQuantity: "", unitPrice: "" }],
-      }).success,
-    ).toBe(true);
+describe("TC-F03-02 — line amount and totals", () => {
+  const [line] = QUOTE_ACCEPTED.lines;
+  if (!line) throw new Error("fixture thiếu dòng");
+  it("line amount = cartons × units per carton × tier price, as BE", () => {
+    const price = tierPrice(line.tiers, 60);
+    expect(price).toBe(1150);
+    expect(lineAmount(60, 1000, price ?? 0)).toBe(line.proposedLineTotal);
   });
 
-  it("own tiers: each tier is validated on its own field, duplicates and empty list refused", () => {
-    const paths = (tiers: { minQuantity: string; unitPrice: string }[]) =>
-      quoteLineInputSchema
-        .safeParse({ ...LINE, useListPrice: false, tiers })
-        .error?.issues.map((issue) => issue.path.join("."))
-        .filter((path, index, all) => all.indexOf(path) === index);
-    expect(paths([{ minQuantity: "", unitPrice: "1000" }])).toEqual(["tiers.0.minQuantity"]);
-    expect(paths([])).toEqual(["tiers"]);
-    expect(
-      paths([
-        { minQuantity: "100", unitPrice: "1000" },
-        { minQuantity: "100", unitPrice: "900" },
-      ]),
-    ).toEqual(["tiers"]);
-    expect(paths([{ minQuantity: "100", unitPrice: "1000" }])).toBeUndefined();
+  it("below the lowest tier (MOQ) there is no price", () => {
+    expect(tierPrice(line.tiers, 10)).toBeNull();
+  });
+
+  it("total = Σ lines + fees + tax equals BE `proposed`", () => {
+    const totals = previewTotals(
+      [{ amount: 69000000, taxRate: line.taxRate }],
+      [{ amount: 1500000, taxRate: 10 }],
+    );
+    expect(totals).toEqual(QUOTE_ACCEPTED.proposed);
+  });
+});
+
+describe("quote form → BE body", () => {
+  const base = {
+    customerId: QUOTE_ACCEPTED.customerId,
+    validUntil: "2099-12-31",
+    requestedDeliveryDate: "",
+    terms: "",
+    lines: [{ sku: "LY-GIAY-DEMO-12OZ-XANH", cartons: "60", hasCustomerPrice: true, tiers: [] }],
+    plateFees: [{ sku: "LY-GIAY-DEMO-12OZ-XANH", amount: "1500000" }],
+    shippingFee: "",
+    hasShippingFee: false,
+  };
+
+  it("no tiers = customer's own price; plate fee sent with its sku and amount", () => {
+    const body = toQuoteBody(quoteFormSchema.parse(base));
+    expect(body.lines).toEqual([{ sku: "LY-GIAY-DEMO-12OZ-XANH", cartons: 60 }]);
+    expect(body.fees).toEqual([
+      { kind: "PLATE_FEE", sku: "LY-GIAY-DEMO-12OZ-XANH", amount: 1500000 },
+    ]);
+  });
+
+  it("without a customer price, tiers are required", () => {
+    const result = quoteFormSchema.safeParse({
+      ...base,
+      lines: [{ ...base.lines[0], hasCustomerPrice: false }],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("a SKU appears on one line only; shipping fee must be > 0", () => {
+    const result = quoteFormSchema.safeParse({
+      ...base,
+      lines: [base.lines[0], base.lines[0]],
+      hasShippingFee: true,
+      shippingFee: "0",
+    });
+    const paths = result.error?.issues.map((issue) => issue.path.join(".")) ?? [];
+    expect(paths).toEqual(expect.arrayContaining(["lines.1.sku", "shippingFee"]));
   });
 });

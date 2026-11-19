@@ -14,6 +14,7 @@ import { useOrder, useOrderProductionOrders } from "../queries";
 import { customLineCount, groupProductionOrdersByLine } from "../selectors";
 
 import { CancellationRequestCard } from "./cancellation/CancellationRequestCard";
+import { OrderContractSection } from "./contract/OrderContractSection";
 import { DeliverySchedulePanel } from "./delivery-schedule/DeliverySchedulePanel";
 import { OrderActionCard } from "./OrderActionCard";
 import { OrderEstimateCard } from "./OrderEstimateCard";
@@ -139,6 +140,7 @@ function OrderDetailContent({
               />
             )}
           />
+          <OrderContractSection order={order} can={can} />
           <DeliverySchedulePanel order={order} can={can} />
           {settlementSlot?.({
             orderId: order.orderId,

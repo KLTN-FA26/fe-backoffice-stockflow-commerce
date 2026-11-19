@@ -34,8 +34,6 @@ export interface MockWarehouse {
 export interface MockStorageLocation {
   locationId: string;
   locationCode: string;
-  storageClass: string;
-  capacityUnits: number | null;
   maxWeight: number | null;
   pickable: boolean;
   putawayTarget: boolean;
@@ -47,7 +45,6 @@ export interface MockBin extends MockStorageLocation {
   description: string | null;
   footprint: MockFootprint;
   type: string;
-  storageClassOverride: string | null;
   status: MockLocationStatus;
 }
 
@@ -70,7 +67,6 @@ export interface MockShelf {
   footprint: MockFootprint;
   obstacle: boolean;
   pickFaces: { north: boolean; east: boolean; south: boolean; west: boolean };
-  defaultStorageClass: string;
   status: MockLocationStatus;
   version: number;
   levels: MockLevel[];
@@ -129,8 +125,8 @@ const fp = (x: number, y: number, width: number, length: number): MockFootprint 
   rotation: 0,
 });
 
-/** Seed BE §4: kệ A01 / A02 (zone A, OVERSIZE), B01 (zone B, NORMAL); tầng 1–2; bin A (x 0), B (x 5). */
-function seedShelf(code: string, zone: string, y: number, storageClass: string): MockShelf {
+/** Seed BE §4: kệ A01 / A02 (zone A), B01 (zone B); tầng 1–2; bin A (x 0), B (x 5). */
+function seedShelf(code: string, zone: string, y: number): MockShelf {
   const levels = [1, 2].map((levelIndex) => ({
     id: `mock-level-HCM-${code}-${levelIndex}`,
     levelIndex,
@@ -143,11 +139,8 @@ function seedShelf(code: string, zone: string, y: number, storageClass: string):
       description: null,
       footprint: fp(i * 5, 0, 5, 1.2),
       type: "PALLET",
-      storageClassOverride: null,
       locationId: `mock-loc-HCM-${code}-${levelIndex}-${binCode}`,
       locationCode: `HCM-${code}-${levelIndex}-${binCode}`,
-      storageClass,
-      capacityUnits: 40,
       maxWeight: 250,
       pickable: true,
       putawayTarget: true,
@@ -164,7 +157,6 @@ function seedShelf(code: string, zone: string, y: number, storageClass: string):
     footprint: fp(5, y, 10, 1.2),
     obstacle: true,
     pickFaces: { north: false, east: false, south: true, west: false },
-    defaultStorageClass: storageClass,
     status: "ACTIVE",
     version: 0,
     levels,
@@ -187,8 +179,6 @@ function seedArea(code: string, type: string, name: string, box: MockFootprint):
       ? {
           locationId: `mock-loc-HCM-${code}`,
           locationCode: `HCM-${code}`,
-          storageClass: "OVERSIZE",
-          capacityUnits: null,
           maxWeight: null,
           pickable: false,
           putawayTarget: false,
@@ -222,11 +212,7 @@ function seed(): MockWarehouseStore {
     warehouses: new Map([[hcm.id, hcm]]),
     // Màu zone là DỮ LIỆU người dùng nhập (#RRGGBB) — chép nguyên từ seed BE
     zones: [zone("A", "Khu A - Sofa", "#4F81BD"), zone("B", "Khu B - Bàn", "#9BBB59")],
-    shelves: [
-      seedShelf("A01", "A", 5, "OVERSIZE"),
-      seedShelf("A02", "A", 9, "OVERSIZE"),
-      seedShelf("B01", "B", 14, "NORMAL"),
-    ],
+    shelves: [seedShelf("A01", "A", 5), seedShelf("A02", "A", 9), seedShelf("B01", "B", 14)],
     areas: [
       seedArea("RCV01", "RECEIVING", "Khu nhận hàng", fp(40, 2, 15, 8)),
       seedArea("QC01", "QUARANTINE", "Khu cách ly QC", fp(40, 12, 8, 6)),

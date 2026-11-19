@@ -4,11 +4,7 @@ import { HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import {
-  INVENTORY_LABELS,
-  INVENTORY_MESSAGES,
-  STOCK_ALERT_KIND_LABELS,
-} from "@/constants/inventory";
+import { INVENTORY_LABELS, INVENTORY_MESSAGES } from "@/constants/inventory";
 import { INVENTORY_OVERVIEW_PERMISSIONS, WAREHOUSE_PERMISSIONS } from "@/constants/permissions";
 
 import {
@@ -16,7 +12,6 @@ import {
   OVERVIEW_STOCK_ITEMS,
   OVERVIEW_WAREHOUSE,
   inventoryPermissions,
-  overviewAlert,
   overviewHandlers,
   overviewPage,
   renderInventory,
@@ -273,69 +268,6 @@ describe("reservation warehouse filter lifecycle", () => {
     expect(
       within(await region(INVENTORY_LABELS.reservationsTitle)).queryByRole("checkbox"),
     ).toBeNull();
-  });
-});
-
-describe("alerts", () => {
-  it("shows SKU-level low stock from the backend, as text and not colour alone", async () => {
-    await openFor("CUP-PP-500", {
-      lowStock: overviewPage([overviewAlert("REORDER", { thresholdQty: 500 })]),
-    });
-    const levels = await levelsRegion();
-    expect(await within(levels).findByText(STOCK_ALERT_KIND_LABELS.REORDER)).toBeInTheDocument();
-    expect(within(levels).getByText(/Ngưỡng: 500/)).toBeInTheDocument();
-    const query = sentTo("/inventory/alerts")[0]?.searchParams;
-    expect(query?.get("kind")).toBe("REORDER,SAFETY");
-    expect(query?.has("warehouseId")).toBe(false);
-  });
-
-  it("says there is no low-stock alert only when the server counts none", async () => {
-    await openFor("CUP-PP-500");
-    expect(await screen.findByText(INVENTORY_LABELS.noLowStockAlerts)).toBeInTheDocument();
-  });
-
-  it("does not read a later page's alerts as absent", async () => {
-    await openFor("CUP-PP-500", {
-      lowStock: overviewPage([overviewAlert("SAFETY")], {
-        totalElements: 16,
-        totalPages: 2,
-        hasNext: true,
-      }),
-    });
-    expect(await screen.findByText(STOCK_ALERT_KIND_LABELS.SAFETY)).toBeInTheDocument();
-    expect(screen.queryByText(INVENTORY_LABELS.noLowStockAlerts)).toBeNull();
-  });
-
-  it("shows expiry alerts of the open warehouse with the backend's own days-to-expiry", async () => {
-    const user = await openFor("CUP-PP-500", {
-      expiry: overviewPage([
-        overviewAlert("EXPIRED", {
-          warehouseId: OVERVIEW_WAREHOUSE.id,
-          warehouseCode: "HN01",
-          lotNumber: "L2599",
-          expiryDate: "2026-10-01",
-          daysToExpiry: -15,
-          reservationImpaired: true,
-        }),
-        // Far-off expiry still flagged EXPIRING: the page trusts the backend's kind, no own window.
-        overviewAlert("EXPIRING", {
-          warehouseId: OVERVIEW_WAREHOUSE.id,
-          lotNumber: "L3000",
-          expiryDate: "2030-01-01",
-          daysToExpiry: 1173,
-        }),
-      ]),
-    });
-    await openWarehouse(user, "HN01");
-    const expiry = await region(INVENTORY_LABELS.expiryAlertsTitle);
-    expect(await within(expiry).findByText(STOCK_ALERT_KIND_LABELS.EXPIRED)).toBeInTheDocument();
-    expect(within(expiry).getByText(/Số ngày đến hạn: -15/)).toBeInTheDocument();
-    expect(within(expiry).getByText(/Số ngày đến hạn: 1173/)).toBeInTheDocument();
-    expect(within(expiry).getByText(INVENTORY_LABELS.reservationImpaired)).toBeInTheDocument();
-    const query = sentTo("/inventory/alerts").find((url) =>
-      url.searchParams.get("kind")?.includes("EXPIRING"),
-    );
-    expect(query?.searchParams.get("warehouseId")).toBe(OVERVIEW_WAREHOUSE.id);
   });
 });
 
