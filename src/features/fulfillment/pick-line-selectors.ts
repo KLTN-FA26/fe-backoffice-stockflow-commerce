@@ -84,15 +84,19 @@ export function needsLinePlanning(
 
 /**
  * Đủ dòng để hoàn tất lấy hàng (BE `PickList.requireAllPicked`, docs 07 §4.2 bước 6: mọi dòng PICKED — hoặc STAGED
- * với task đích STAGING — hoặc CANCELLED, không thì 409 PICK_LINES_INCOMPLETE). Task không có dòng coi như đủ, trừ
- * khi còn phải lập dòng (`needsLinePlanning`).
+ * với task đích STAGING — hoặc CANCELLED, hoặc PUT_BACK, không thì 409 PICK_LINES_INCOMPLETE). Dòng CANCELLED là dòng
+ * thiếu đã phân bổ lại (dòng mới tính thay); dòng PUT_BACK đã lấy rồi thùng bị loại ở trạm kiểm (hư hỏng → khu cách ly,
+ * hoặc phần còn lại đã đóng → về bin), thùng bù lấy qua lấy bổ sung tính thay. Task không có dòng coi như đủ, trừ khi
+ * còn phải lập dòng (`needsLinePlanning`).
  */
 export function linesComplete(
   lines: readonly PickLine[],
   task?: Pick<FulfillmentTask, "pickStatus" | "lines">,
 ): boolean {
   if (task && needsLinePlanning(task, lines)) return false;
-  return lines.every((line) => isTaken(line) || isCancelled(line));
+  return lines.every(
+    (line) => isTaken(line) || isCancelled(line) || line.status === PICK_LINE_STATUS.PUT_BACK,
+  );
 }
 
 export function openLineCount(lines: readonly PickLine[]): number {

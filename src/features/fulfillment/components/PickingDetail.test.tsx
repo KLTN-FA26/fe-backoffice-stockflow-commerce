@@ -32,7 +32,9 @@ const PATH = `/fulfillment/tasks/${TASK_ID}`;
 
 const confirmPath = (lineId: string) => linePath(lineId, "confirmation");
 /** Dòng lấy hàng theo trạng thái (cùng thứ tự fixture) — PICKED thì đủ SL. */
-const linesWith = (statuses: ("OPEN" | "STAGED" | "PICKED" | "SHORT" | "CANCELLED")[]) =>
+const linesWith = (
+  statuses: ("OPEN" | "STAGED" | "PICKED" | "SHORT" | "CANCELLED" | "PUT_BACK")[],
+) =>
   apiPickLines().map((line, index) => {
     const status = statuses[index] ?? line.status;
     return {
@@ -133,6 +135,14 @@ describe("PickingDetail — action-gating theo trạng thái + quyền + vai tr�
       { lines: [] },
     );
     expect(await screen.findByText(L.noLines)).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: action.completePicking })).toBeInTheDocument();
+  });
+
+  it("thùng hư bị loại ở trạm kiểm rồi lấy bù: dòng Put Back không chặn — vẫn có nút Hoàn tất lấy hàng (BE requireAllPicked coi Put Back là xong)", async () => {
+    renderDetail(IDENTITIES.warehouseStaff, apiTask({ pickStatus: "PICKING" }), {
+      lines: linesWith(["PUT_BACK", "PUT_BACK", "PICKED"]),
+    });
+    expect(await screen.findByText(L.allPicked)).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: action.completePicking })).toBeInTheDocument();
   });
 
