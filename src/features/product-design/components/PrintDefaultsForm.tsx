@@ -13,16 +13,18 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
+import type { ReactNode } from "react";
 import type { Control, UseFormRegister, FieldErrors } from "react-hook-form";
 import type { ModelKind, PrintDefaultsValues } from "./print-defaults";
 
 const TEXT = PRINT_CONFIG_SCREEN_LABELS.advanced;
 type Choice = "cupMaterial" | "bagMaterial" | "handle";
-type FigureField = "safeMarginMm" | "bleedMm" | "seamMm" | "rimMm" | "topFoldMm";
+type FigureField =
+  "safeMarginMm" | "bleedMm" | "seamMm" | "rimMm" | "topFoldMm" | "glueFlapMm" | "bottomFoldMm";
 
 const FIGURES: Record<ModelKind, readonly FigureField[]> = {
   "parametric-cup": ["safeMarginMm", "bleedMm", "seamMm", "rimMm"],
-  "parametric-bag": ["safeMarginMm", "bleedMm", "topFoldMm"],
+  "parametric-bag": ["safeMarginMm", "bleedMm", "topFoldMm", "glueFlapMm", "bottomFoldMm"],
 };
 const CHOICES: Record<ModelKind, readonly Choice[]> = {
   "parametric-cup": ["cupMaterial"],
@@ -72,8 +74,9 @@ function ChoiceField({
 }
 
 /**
- * "Nâng cao": the defaults the file cannot tell (seam, rim, material, margins, top fold, handle). Prefilled, editable,
- * validated by zod through react-hook-form; the person confirms them with the manufacturer or the printer.
+ * "Nâng cao": the defaults the file cannot tell (seam, rim, material, margins, top fold, glue flap, bottom fold,
+ * handle). Prefilled, editable, validated by zod through react-hook-form; the person confirms them with the
+ * manufacturer or the printer. `preview` (a bag's flat sheet) is shown under the fields.
  */
 export function PrintDefaultsForm({
   kind,
@@ -81,12 +84,14 @@ export function PrintDefaultsForm({
   control,
   errors,
   disabled,
+  preview,
 }: {
   kind: ModelKind;
   register: UseFormRegister<PrintDefaultsValues>;
   control: Control<PrintDefaultsValues>;
   errors: FieldErrors<PrintDefaultsValues>;
   disabled: boolean;
+  preview?: ReactNode;
 }) {
   const [toggled, setOpen] = useState(false);
   // A refused value is shown on its input: the panel stays open while a field of the kind has an error.
@@ -125,6 +130,7 @@ export function PrintDefaultsForm({
               <ChoiceField key={name} name={name} control={control} disabled={disabled} />
             ))}
           </fieldset>
+          {preview}
         </div>
       )}
     </section>

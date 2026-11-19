@@ -152,6 +152,42 @@ describe("saveErrorView", () => {
     ]);
   });
 
+  it("PRINT_CONFIG_INVALID on a bag's glue flap and bottom fold goes on those two fields (BE requireBag)", () => {
+    const invalid = (list: ApiFieldErrorBody[]) =>
+      new ApiError(
+        400,
+        "PRINT_CONFIG_INVALID",
+        "English",
+        Object.fromEntries(list.map(({ field, message }) => [field, message])),
+        undefined,
+        undefined,
+        list,
+      );
+    const glue = saveErrorView(
+      invalid([
+        { field: "model.glueFlapMm", message: "A bag's glue flap is 0 to 100 mm", code: "Range" },
+      ]),
+      "parametric-bag",
+      BAG_BODY,
+    );
+    expect(glue.fields).toEqual([
+      { field: "glueFlapMm", message: "Máy chủ không chấp nhận giá trị này." },
+    ]);
+    expect(glue.general).not.toContain("English");
+    const fold = saveErrorView(
+      invalid([
+        {
+          field: "model.bottomFoldMm",
+          message: "A bag's bottom fold is 0 mm to its gusset",
+          code: "Range",
+        },
+      ]),
+      "parametric-bag",
+      BAG_BODY,
+    );
+    expect(fold.fields.map((f) => f.field)).toEqual(["bottomFoldMm"]);
+  });
+
   it("a plain error gets the fallback sentence", () => {
     expect(saveErrorView(new Error("boom"), null).general).toBe(FALLBACK);
   });

@@ -189,6 +189,8 @@ export const PRINT_CONFIG_SCREEN_LABELS = {
       bagMaterial: "Chất liệu túi",
       handle: "Quai túi",
       topFoldMm: "Gập miệng túi (mm)",
+      glueFlapMm: "Mép dán (mm)",
+      bottomFoldMm: "Gấp đáy (mm)",
     },
     cupMaterials: {
       "paper-white": "Giấy trắng",
@@ -214,6 +216,8 @@ export const PRINT_CONFIG_SCREEN_LABELS = {
       /** Túi: chiều cao gửi lên là mặt in cộng gập miệng, tối đa 2000 mm. */
       bagTooTall: (limit: string, max: number) =>
         `Gập miệng tối đa ${limit}: mặt túi cộng gập miệng không được quá ${max} mm.`,
+      glueFlapMax: (max: number) => `Tối đa ${max} mm.`,
+      bottomFoldMax: (gusset: string) => `Không sâu hơn hông túi (${gusset}).`,
     },
   },
   defaultRows: {
@@ -225,6 +229,26 @@ export const PRINT_CONFIG_SCREEN_LABELS = {
     bagMaterial: "Chất liệu túi",
     handle: "Quai túi",
     topFoldMm: "Gập miệng túi",
+    glueFlapMm: "Mép dán",
+    bottomFoldMm: "Gấp đáy",
+  },
+  bagSheet: {
+    title: "Tấm trải phẳng",
+    description:
+      "File in của túi là một tấm liền: mép dán, bốn mặt, gập miệng và gấp đáy. Hình vẽ lại theo số trong form.",
+    assumption: "Mép dán và gấp đáy điền sẵn là số tạm, chờ xưởng xác nhận khuôn thật.",
+    unusable: "Nhập đủ các số hợp lệ để xem tấm trải phẳng.",
+    figure: (trim: string, bleed: string) => `Tấm trải phẳng ${trim}, có tràn lề ${bleed}`,
+    trim: "Thành phẩm (đường bế)",
+    bleedBox: "Có tràn lề",
+    columns: "Cột (trái sang phải)",
+    rows: "Hàng (trên xuống dưới)",
+    glueFlap: "Mép dán",
+    topFold: "Gập miệng",
+    printed: "Mặt in",
+    bottomFold: "Gấp đáy",
+    size: (width: string, height: string) => `${width} × ${height}`,
+    part: (name: string, size: string) => `${name} ${size}`,
   },
   readOnly: {
     permission: "Bạn không có quyền sửa cấu hình in, nên chỉ xem được.",

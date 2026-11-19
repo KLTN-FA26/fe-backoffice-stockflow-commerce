@@ -21,6 +21,8 @@ import { editableWithoutFile, modelFileStateOf } from "../selectors";
 import { buildSaveInput } from "./save-input";
 import { defaultsFor, printDefaultsSchemaFor } from "./print-defaults";
 import { saveErrorView } from "./save-error";
+import { saveHint } from "./save-hint";
+import { sheetOfForm } from "./sheet-of-form";
 import { useFileChecks } from "./use-file-checks";
 import { useGlbReading } from "./use-glb-reading";
 
@@ -59,8 +61,9 @@ export function usePrintConfigEditor({
     ? result.kind && kindOf(result.kind)
     : (config?.model?.kind ?? null);
   const storedKind: ModelKind = config?.model?.kind ?? "parametric-cup";
+  const model = result ? result.model : (config?.model ?? null);
   const form = useForm<PrintDefaultsValues>({
-    resolver: zodResolver(printDefaultsSchemaFor(result ? result.model : (config?.model ?? null))),
+    resolver: zodResolver(printDefaultsSchemaFor(model)),
     defaultValues: defaultsFor(formKind, config),
   });
   // `useWatch` types every field optional: complete it from the starting values.
@@ -80,6 +83,8 @@ export function usePrintConfigEditor({
   }
 
   const { invalid, issues, blockedReason } = useFileChecks(result, nominalText, defaults);
+  const source = result?.model ? { model: result.model, printMeshes: result.parts } : null;
+  const sheet = sheetOfForm({ source, stored: config, defaults }); // `null` unless a bag is in play
 
   const fileState = config ? modelFileStateOf(config) : null;
   const withoutFile = fileState !== null && editableWithoutFile(fileState);
@@ -89,19 +94,7 @@ export function usePrintConfigEditor({
   const saving = save.isPending;
   const canSave = !saving && (fileReady || defaultsOnly);
 
-  const hint = saving
-    ? null
-    : fileReady && result
-      ? TEXT.save.newFile(result.fileName)
-      : defaultsOnly
-        ? fileState?.kind === "no-file"
-          ? TEXT.save.freeFieldsOnly
-          : TEXT.save.defaultsOnly
-        : result === null
-          ? withoutFile
-            ? TEXT.save.nothingToSave
-            : TEXT.save.fileNeeded
-          : null;
+  const hint = saveHint({ saving, fileReady, result, defaultsOnly, fileState, withoutFile });
 
   /** The form as the stored configuration has it (no other kind's defaults left behind). */
   function backToStored() {
@@ -123,7 +116,14 @@ export function usePrintConfigEditor({
     } else if (read.kind && kindOf(read.kind) !== formKind) {
       // Another kind of product: its own defaults replace the other kind's.
       setFormKind(kindOf(read.kind));
-      form.reset(defaultsFor(kindOf(read.kind), config));
+      form.reset(defaultsFor(kindOf(read.kind), config, read.model));
+    } else if (
+      read.model?.kind === "parametric-bag" &&
+      !form.getFieldState("bottomFoldMm").isDirty
+    ) {
+      // Another bag file: an untyped bottom fold follows its gusset (a stored fold is kept).
+      const { bottomFoldMm } = defaultsFor("parametric-bag", config, read.model);
+      form.resetField("bottomFoldMm", { defaultValue: bottomFoldMm });
     }
   }
 
@@ -138,7 +138,6 @@ export function usePrintConfigEditor({
     values: PrintDefaultsValues,
   ): { input: PrintConfigSaveInput } | { error: string } {
     try {
-      const source = result?.model ? { model: result.model, printMeshes: result.parts } : null;
       const file = result ? { name: result.fileName, bytes: result.bytes } : undefined;
       const input = buildSaveInput({ source, stored: config, defaults: values, file });
       if (!input) return { error: TEXT.save.fileNeeded };
@@ -183,6 +182,7 @@ export function usePrintConfigEditor({
     kind,
     form,
     defaults,
+    sheet,
     issues,
     nominalText,
     nominalInvalid: invalid,

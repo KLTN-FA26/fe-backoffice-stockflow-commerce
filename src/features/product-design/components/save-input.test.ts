@@ -74,6 +74,29 @@ describe("buildSaveInput", () => {
     expect(printConfigSaveInputSchema.safeParse(input).success).toBe(true);
   });
 
+  it("a new bag sends the pre-filled glue flap and bottom fold, and the ones typed", () => {
+    const prefilled = buildSaveInput({
+      source: { model: bagModel, printMeshes: FACES },
+      stored: null,
+      defaults: defaultsFor("parametric-bag", null, bagModel),
+      file: savedFile(),
+    });
+    // BAG_BODY's gusset is 110: round2(0.6 × 110) = 66
+    expect(prefilled?.config.model).toMatchObject({ glueFlapMm: 20, bottomFoldMm: 66 });
+    const typed = buildSaveInput({
+      source: { model: bagModel, printMeshes: FACES },
+      stored: null,
+      defaults: {
+        ...defaultsFor("parametric-bag", null, bagModel),
+        glueFlapMm: 15,
+        bottomFoldMm: 40,
+      },
+      file: savedFile(),
+    });
+    expect(typed?.config.model).toMatchObject({ glueFlapMm: 15, bottomFoldMm: 40 });
+    expect(printConfigSaveInputSchema.safeParse(typed).success).toBe(true);
+  });
+
   it("a bag with a top fold keeps it in the model", () => {
     const input = buildSaveInput({
       source: { model: bagModel, printMeshes: FACES },

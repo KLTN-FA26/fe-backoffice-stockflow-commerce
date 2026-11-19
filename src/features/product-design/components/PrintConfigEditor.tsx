@@ -4,6 +4,7 @@ import { PRINT_CONFIG_SCREEN_LABELS } from "@/constants/labels-print-config";
 import { Alert } from "@/components/shared/Alert";
 import { Button } from "@/components/ui/button";
 
+import { BagSheetPreview } from "./BagSheetPreview";
 import { ModelFileDropzone } from "./ModelFileDropzone";
 import { ModelFileStateNotice } from "./ModelFileStateNotice";
 import { ModelIssueList } from "./ModelIssueList";
@@ -75,6 +76,9 @@ export function PrintConfigEditor(args: PrintConfigEditorArgs) {
           control={form.control}
           errors={form.formState.errors}
           disabled={saving}
+          preview={
+            editor.kind === "parametric-bag" ? <BagSheetPreview sheet={editor.sheet} /> : undefined
+          }
         />
       )}
 
