@@ -3,6 +3,7 @@
  * (`CREATE_QUOTE`) còn tạo báo giá nháp → thêm root `quotes`. Toast lỗi do màn hình (message BE tiếng Việt).
  */
 
+import { fileTooLargeMessage } from "@/constants/upload-limits";
 import { serverErrorMessage } from "@/lib/api/error-message";
 import { QUERY_ROOTS } from "@/lib/api/query-roots";
 import { createMutation } from "@/lib/api/query-factory";
@@ -57,7 +58,10 @@ export const usePreviewCanned = createMutation(previewCannedResponse, {
   showErrorToast: false,
 });
 
-/** WF-02: lỗi chat của BE đã là tiếng Việt (PR #365) → hiện nguyên văn. */
+/**
+ * WF-02: lỗi chat của BE đã là tiếng Việt (PR #365) → hiện nguyên văn. 413 (BFF hoặc BE) chỉ đến từ file đính kèm →
+ * nói rõ giới hạn thay cho câu chung "Không thể hoàn tất yêu cầu." của BFF.
+ */
 export function chatErrorMessage(error: unknown): string {
-  return serverErrorMessage(error);
+  return serverErrorMessage(error, { PAYLOAD_TOO_LARGE: fileTooLargeMessage("chatAttachment") });
 }

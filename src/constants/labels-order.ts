@@ -35,7 +35,9 @@ export const ORDER_MANUAL_HOLD_REASONS = [
 ] as const;
 
 export const ORDER_HOLD_REASON_LABELS = {
-  CREDIT: "Vượt hạn mức công nợ",
+  // Giữ CREDIT khi ký: khách có nợ quá hạn HOẶC vượt hạn mức (BE CreditCheck OVERDUE / OVER_LIMIT) — đơn không cho
+  // biết là cái nào, nên không nói "vượt hạn mức" khi nguyên nhân là nợ quá hạn (WF-02 audit). Màn duyệt công nợ ghi rõ.
+  CREDIT: "Chờ duyệt công nợ (khách quá hạn hoặc vượt hạn mức)",
   DESIGN_MISMATCH: "Sai lệch thiết kế khi đóng gói",
   PAYMENT: "Vấn đề thanh toán",
   ADDRESS: "Sai địa chỉ / hãng vận chuyển không giao tới",

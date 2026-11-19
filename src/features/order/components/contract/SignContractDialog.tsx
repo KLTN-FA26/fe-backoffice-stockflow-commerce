@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { fileTooLargeMessage, uploadFileMaxBytes } from "@/constants/upload-limits";
 import { toLocalIsoDate } from "@/lib/format/date";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { FORM_INPUT_CLASS, FormField, fieldA11y } from "@/components/shared/FormField";
@@ -60,13 +61,18 @@ function SignForm({
       : sentOn && signedOn < sentOn
         ? "Ngày ký không được trước ngày gửi"
         : undefined;
+  // BE lưu bản scan vào FileCategory.DOCUMENT (25 MB) — chặn trước khi tải lên thay vì chờ 413.
+  const fileError =
+    file && file.size > uploadFileMaxBytes("signedContract")
+      ? fileTooLargeMessage("signedContract")
+      : undefined;
 
   return (
     <FormDialogBody
       title={`Ghi nhận đã ký ${contract.contractNumber}`}
-      description="Tải bản scan hợp đồng có chữ ký của khách (PDF hoặc ảnh, 1 file)."
+      description="Tải bản scan hợp đồng có chữ ký của khách (PDF hoặc ảnh, 1 file, tối đa 25 MB)."
       submitLabel="Ghi nhận đã ký"
-      canSubmit={!!file && !!signedOn && !dateError}
+      canSubmit={!!file && !fileError && !!signedOn && !dateError}
       isPending={sign.isPending}
       error={error}
       onCancel={onClose}
@@ -85,12 +91,12 @@ function SignForm({
         );
       }}
     >
-      <FormField id="sign-file" label="File đã ký" required>
+      <FormField id="sign-file" label="File đã ký" required error={fileError}>
         <Input
-          id="sign-file"
           type="file"
           accept={ACCEPT}
           onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+          {...fieldA11y("sign-file", fileError)}
           className={FORM_INPUT_CLASS}
         />
       </FormField>

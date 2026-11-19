@@ -11,7 +11,7 @@ describe("formatHistoryReason", () => {
     ["CONTRACT_SENT", "Đã gửi hợp đồng cho khách"],
     ["CONTRACT_CANCELLED", "Hợp đồng bị huỷ — đơn quay về nháp"],
     ["CREDIT_APPROVED", "Kế toán duyệt vượt hạn mức công nợ"],
-    ["CREDIT", "Vượt hạn mức công nợ"],
+    ["CREDIT", "Chờ duyệt công nợ (khách quá hạn hoặc vượt hạn mức)"],
     ["RETURNED_TO_ORIGIN", "Hàng giao thất bại đã về lại kho"],
     ["RETURN_WINDOW_CLOSED", "Hết hạn đổi / trả — đơn tự hoàn tất"],
     ["CLOSED_AFTER_SETTLEMENT", "Tự đóng sau khi đã tất toán"],
