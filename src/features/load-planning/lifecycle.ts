@@ -165,3 +165,11 @@ export function loadPlanActions(plan: PlanDetail | null, actor: LoadPlanActor): 
     confirmBlocked,
   };
 }
+
+/**
+ * "Tải PDF" phiếu xếp hàng của xe (docs 09 §4.2 bước 5, §5.3): sơ đồ chỉ chốt khi kế hoạch CONFIRMED (xuất PDF lúc chốt) và
+ * còn sau khi DISPATCHED. Kế hoạch PLANNED còn chỉnh tay / tính lại, DRAFT chưa có sơ đồ, CANCELLED không xếp hàng nữa — BE
+ * trả 409 `INVALID_LOAD_PLAN_TRANSITION`. Cần `:READ`, quyền của chính trang này. Backend phải re-check.
+ */
+export const canDownloadLoadingSheet = (plan: Pick<PlanDetail, "status">): boolean =>
+  plan.status === LOAD_PLAN_STATUS.CONFIRMED || plan.status === LOAD_PLAN_STATUS.DISPATCHED;

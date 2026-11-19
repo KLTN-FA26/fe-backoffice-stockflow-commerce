@@ -26,7 +26,12 @@
  * từ chối ngay trong dialog; để factory toast `error.message` (tiếng Anh) sẽ ra 2 thông báo.
  */
 
-import { ORDER_ACTION_LABELS, SHARED_QUERY_ROOTS, TOAST_MESSAGES } from "@/constants";
+import {
+  ORDER_ACTION_LABELS,
+  ORDER_SHIPPING_ADDRESS_LABELS,
+  SHARED_QUERY_ROOTS,
+  TOAST_MESSAGES,
+} from "@/constants";
 import { createMutation } from "@/lib/api/query-factory";
 import { RESERVATION_CHANGE_INVALIDATIONS } from "@/lib/api/shared-query-keys";
 
@@ -41,6 +46,7 @@ import {
 import { decidePartialShipment, type PartialShipmentInput } from "./partial-shipment-api";
 import { orderKeys } from "./queries";
 import { releaseOrder, type ReleaseOrderInput } from "./release-api";
+import { changeShippingAddress, type ChangeShippingAddressInput } from "./shipping-address-api";
 
 import type {
   DeliveryFailureInput,
@@ -156,3 +162,19 @@ export const useReleaseOrder = createMutation<ReleaseOrderInput, void>(releaseOr
   ],
   showErrorToast: false,
 });
+
+/* ── Đổi địa chỉ giao (docs 17 §4.7, BR-16) ──────────────────────────── */
+
+/**
+ * Đổi địa chỉ giao của đơn: đổi địa chỉ trên đơn (detail + list) và thêm một mục `ADDRESS_CHANGE` vào lịch sử — cả hai
+ * dưới `orderKeys.all`. Nhãn giao in sau đó đọc địa chỉ mới từ đơn nên không cần làm mới gì của kho.
+ * `showErrorToast: false`: dialog map lỗi (409 ORDER_ADDRESS_LOCKED, 404 ADDRESS_NOT_FOUND) qua `orderActionErrorView`.
+ */
+export const useChangeShippingAddress = createMutation<ChangeShippingAddressInput, Order>(
+  changeShippingAddress,
+  {
+    invalidate: ORDER_ONLY,
+    successMessage: ORDER_SHIPPING_ADDRESS_LABELS.success,
+    showErrorToast: false,
+  },
+);

@@ -4,7 +4,10 @@
  *   GET /fulfillment/shipments?warehouseId&status&carrierId&orderId&search&page&size
  *   GET /fulfillment/shipments/{id}                 → Shipment (kiện + lịch sử)
  *   POST /fulfillment/shipments/{id}/delivery-outcome {outcome, failureReason?, note?}
- *        (fulfillment-delivery-outcomes:UPDATE; ĐÃ GIAO / GIAO THẤT BẠI cần thêm :APPROVE)
+ *        (fulfillment-delivery-outcomes:UPDATE; ĐÃ GIAO / GIAO THẤT BẠI cần thêm :APPROVE); ĐÃ GIAO nhận thêm
+ *        `deliveredAt` (Instant ISO, mặc định lúc ghi nhận; không ở tương lai, không trước lúc bàn giao)
+ *   POST /fulfillment/shipments/{id}/delivery-outcome-correction {outcome, failureReason?, note?, reason, deliveredAt?}
+ *        (fulfillment-delivery-corrections:UPDATE) — sửa ĐÃ GIAO ↔ GIAO THẤT BẠI, lý do bắt buộc
  * Không còn `PUT /shipments/{id}/carrier`: hãng gắn vào xe khi ghi nhận đặt xe, không gắn vào từng lô.
  */
 
@@ -14,6 +17,7 @@ import { api } from "@/lib/api/client";
 import { beShipmentPageSchema, beShipmentSchema } from "./schemas";
 
 import type { ListQueryParams, PaginatedResponse } from "@/lib/api/query-factory";
+import type { CorrectOutcomeInput } from "./correction-schemas";
 import type { RecordOutcomeInput, Shipment, ShipmentRow } from "./types";
 
 export const SHIPMENTS_PATH = "/fulfillment/shipments";
@@ -61,5 +65,17 @@ export async function recordDeliveryOutcome({
   values,
 }: RecordOutcomeInput): Promise<Shipment> {
   const { data } = await api.post<unknown>(`${shipmentPath(shipmentId)}/delivery-outcome`, values);
+  return beShipmentSchema.parse(data);
+}
+
+/** Sửa tay kết quả giao khi hãng báo sai (docs 09 §4.3 bước 5). Cùng kết quả gửi lại → không đổi gì. */
+export async function correctDeliveryOutcome({
+  shipmentId,
+  values,
+}: CorrectOutcomeInput): Promise<Shipment> {
+  const { data } = await api.post<unknown>(
+    `${shipmentPath(shipmentId)}/delivery-outcome-correction`,
+    values,
+  );
   return beShipmentSchema.parse(data);
 }

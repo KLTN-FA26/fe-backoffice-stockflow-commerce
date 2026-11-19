@@ -3,7 +3,18 @@
  * kiện lên xe, mã vận đơn, biên bản bàn giao, kết quả giao (docs 09 §4). Chỉ giao nguyên chuyến, không thu hộ (BR-08).
  */
 
+import {
+  SHIPPING_AFTER_HANDOVER_ERROR_MESSAGES,
+  SHIPPING_AFTER_HANDOVER_LABELS,
+  SHIPPING_AFTER_HANDOVER_TOAST_MESSAGES,
+} from "./labels-shipping-after-handover";
+import { SHIPPING_EVENT_LABELS, SHIPPING_EVENT_TOAST_MESSAGES } from "./labels-shipping-events";
 import { SHIPPING_FTL_LABELS, SHIPPING_FTL_TOAST_MESSAGES } from "./labels-shipping-ftl";
+import {
+  SHIPPING_CORRECTION_LABELS,
+  SHIPPING_OUTCOME_DIALOG_EXTRA,
+  SHIPPING_OUTCOME_ERROR_MESSAGES,
+} from "./labels-shipping-outcome";
 import {
   SHIPPING_WAYBILL_LABELS,
   SHIPPING_WAYBILL_TOAST_MESSAGES,
@@ -15,6 +26,8 @@ export const SHIPPING_UI_LABELS = {
   pageTitle: "Giao cho hãng vận chuyển",
   ftl: SHIPPING_FTL_LABELS,
   waybill: SHIPPING_WAYBILL_LABELS,
+  afterHandover: SHIPPING_AFTER_HANDOVER_LABELS,
+  carrierEvents: SHIPPING_EVENT_LABELS,
   forbiddenDescription: "Tài khoản của bạn chưa được cấp quyền thao tác này với giao hàng.",
   noReadDescription:
     "Bạn được mở trang nhưng chưa được cấp quyền xem dữ liệu giao hàng. Liên hệ quản trị để được cấp.",
@@ -262,7 +275,9 @@ export const SHIPPING_UI_LABELS = {
       noteRequired: 'Bắt buộc khi lý do là "Lý do khác". Chỉ nhân viên xem, không hiện cho khách.',
       noteOptional: "Không bắt buộc. Chỉ nhân viên xem, không hiện cho khách.",
       confirm: "Ghi nhận",
+      ...SHIPPING_OUTCOME_DIALOG_EXTRA,
     },
+    correction: SHIPPING_CORRECTION_LABELS,
   },
   orderShipments: {
     open: "Xem lô giao",
@@ -273,8 +288,11 @@ export const SHIPPING_TOAST_MESSAGES = {
   unscanned: "Đã gỡ kiện khỏi xe",
   handedOver: "Đã bàn giao chuyến cho hãng vận chuyển",
   outcomeRecorded: "Đã ghi nhận kết quả giao",
+  outcomeCorrected: "Đã sửa kết quả giao",
   ...SHIPPING_FTL_TOAST_MESSAGES,
   ...SHIPPING_WAYBILL_TOAST_MESSAGES,
+  ...SHIPPING_AFTER_HANDOVER_TOAST_MESSAGES,
+  ...SHIPPING_EVENT_TOAST_MESSAGES,
 } as const;
 
 /**
@@ -304,6 +322,7 @@ export const SHIPPING_ERROR_MESSAGES = {
   SHIPMENT_NOT_FOR_LOAD: "Lô này không đi trên chuyến này.",
   SHIPMENT_ON_ANOTHER_LOAD: "Lô này đang nằm trên chuyến xe khác.",
   SHIPMENT_STATE_CONFLICT: "Lô giao không làm được thao tác này ở trạng thái hiện tại.",
+  ...SHIPPING_OUTCOME_ERROR_MESSAGES,
   // 409 / 404 — hãng và đặt xe
   CARRIER_INACTIVE: "Hãng này đã ngừng sử dụng — chọn hãng khác.",
   CARRIER_CODE_EXISTS: "Mã hãng này đã có trong danh mục — dùng mã khác.",
@@ -367,6 +386,7 @@ export const SHIPPING_ERROR_MESSAGES = {
   shipmentRefused:
     "Đơn của lô này không cho phép bàn giao lúc này (đơn huỷ, lô xung đột hoặc vượt số lượng).",
   generic: "Không thực hiện được thao tác. Thử lại sau.",
+  ...SHIPPING_AFTER_HANDOVER_ERROR_MESSAGES,
 } as const;
 
 export const SHIPPING_FIELD_MESSAGES = {

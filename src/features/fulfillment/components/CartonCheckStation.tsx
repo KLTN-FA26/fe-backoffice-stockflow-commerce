@@ -25,9 +25,17 @@ import { FulfillmentPermissionGate } from "./FulfillmentPermissionGate";
 import { taskCode } from "./primitives";
 import { useFulfillmentActor } from "./useFulfillmentActor";
 
+import type { CartonLpnLabelSlot } from "@/features/fulfillment/lpn-label-slot";
+
 const { common, cartonCheck } = UI_LABELS;
 
-function CartonCheckStationBody({ id }: { id: string }) {
+function CartonCheckStationBody({
+  id,
+  lpnLabelSlot,
+}: {
+  id: string;
+  lpnLabelSlot?: CartonLpnLabelSlot;
+}) {
   const actor = useFulfillmentActor();
   const canRead = actor.can(FULFILLMENT_PACKAGE_PERMISSIONS.read);
   const sessionQuery = useCartonCheckSession(id, { enabled: canRead });
@@ -79,7 +87,7 @@ function CartonCheckStationBody({ id }: { id: string }) {
           <CartonCheckNotices session={session} access={access} waitingPick={waitingPick} />
           <CartonLinesSection session={session} />
           {access.canWork && <CartonScanSection session={session} />}
-          <CartonsSection session={session} access={access} />
+          <CartonsSection session={session} access={access} lpnLabelSlot={lpnLabelSlot} />
           <ShipmentsSection session={session} />
         </div>
         <div className="space-y-5">
@@ -98,14 +106,21 @@ function CartonCheckStationBody({ id }: { id: string }) {
 /**
  * Trạm kiểm thùng & dán nhãn giao hàng của một task (BE 4C-6, docs 08): bắt đầu phiên, quét LPN từng thùng, dán nhãn và
  * in PDF nhãn giao hàng, in lại nhãn, loại thùng hư hỏng và hoàn tất thành shipment (đủ thùng hoặc giao một phần).
+ * `lpnLabelSlot`: hộp thoại in lại nhãn LPN của thùng (docs 08 §6), do chỗ ghép truyền vào.
  */
-export function CartonCheckStation({ id }: { id: string }) {
+export function CartonCheckStation({
+  id,
+  lpnLabelSlot,
+}: {
+  id: string;
+  lpnLabelSlot?: CartonLpnLabelSlot;
+}) {
   return (
     <FulfillmentPermissionGate
       scope="packing"
       permissions={[FULFILLMENT_PACKAGE_PERMISSIONS.viewPage]}
     >
-      <CartonCheckStationBody id={id} />
+      <CartonCheckStationBody id={id} lpnLabelSlot={lpnLabelSlot} />
     </FulfillmentPermissionGate>
   );
 }

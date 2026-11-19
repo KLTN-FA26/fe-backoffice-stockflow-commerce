@@ -107,6 +107,8 @@ export const ADMIN_ROUTES = {
   },
   /** Danh mục hãng vận chuyển (BE `CarrierController`, docs 09 §4.1). */
   carriers: `${ADMIN_BASE}/carriers`,
+  /** Nhật ký sự kiện webhook của hãng và danh sách lỗi (BE `CarrierEventController`, docs 09 §4.5). */
+  carrierEvents: `${ADMIN_BASE}/carrier-events`,
   /** Danh mục kho — BE `WarehouseController` (resource `warehouse-warehouses`, docs 06 §4.1 bước 1). */
   warehouses: {
     // Khai báo kho mới là modal trên trang này (không có route riêng)

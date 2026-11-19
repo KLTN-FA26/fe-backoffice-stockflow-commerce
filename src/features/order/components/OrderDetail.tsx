@@ -35,6 +35,7 @@ import { OrderLoadError } from "./OrderLoadError";
 import { OrderPartialShipmentCard } from "./OrderPartialShipmentCard";
 import { OrderPermissionGate } from "./OrderPermissionGate";
 import { LineProductionOrdersView, ProductionStatusNotice } from "./OrderProductionOrders";
+import { OrderDeliveryDocuments } from "./OrderDeliveryDocuments";
 import { OrderShipments } from "./OrderShipments";
 import { OrderDetailSkeleton } from "./OrderSkeletons";
 
@@ -207,7 +208,8 @@ function OrderDetailContent({
           <OrderEstimateCard order={order} estimateSlot={estimateSlot} />
           <OrderPartialShipmentCard order={order} can={can} />
           <OrderShipments order={order} />
-          <OrderInfoCard order={order} />
+          <OrderDeliveryDocuments orderId={order.orderId} />
+          <OrderInfoCard order={order} can={can} />
           <OrderFinanceCard order={order} can={can} />
         </div>
       </div>

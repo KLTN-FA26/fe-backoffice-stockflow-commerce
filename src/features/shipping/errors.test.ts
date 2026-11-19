@@ -56,6 +56,11 @@ describe("shippingErrorMessage — mọi mã lỗi BE có câu tiếng Việt", 
       "DELIVERY_BATCH_WINDOW_NOT_OPEN",
       "ORDER_INVALID_TRANSITION",
       "ORDER_CANCELLED",
+      // Ghi tay kết quả giao: thời điểm giao + sửa tay (docs 09 §4.3 bước 2, 5)
+      "SHIPMENT_DELIVERY_TIME_IN_FUTURE",
+      "SHIPMENT_DELIVERY_TIME_BEFORE_HANDOVER",
+      "ORDER_DELIVERY_NOT_CORRECTABLE",
+      "SHIPMENT_STATE_CONFLICT",
     ];
     for (const code of required) {
       expect(SHIPPING_ERROR_MESSAGES).toHaveProperty(code);

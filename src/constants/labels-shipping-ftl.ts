@@ -121,7 +121,7 @@ export const SHIPPING_FTL_LABELS = {
     vehicle: {
       title: "Huỷ có kiểm soát xe",
       description:
-        "Xe hỏng hoặc sai xe: chuyến này bị huỷ ngay, các kiện đã quét lên xe bị khoá cho tới khi từng kiện được quét dỡ xuống. Một chuyến mới (Chưa đặt xe) với cùng sơ đồ xếp được tạo thay thế để đặt xe khác; các xe còn lại của kế hoạch vẫn đi tiếp.",
+        "Xe hỏng hoặc sai xe: chuyến này bị huỷ ngay, các kiện đã quét lên xe bị khoá cho tới khi từng kiện được quét dỡ xuống. Một chuyến mới (Chưa đặt xe) với cùng sơ đồ xếp được tạo thay thế để đặt xe khác — hoặc sơ đồ tính lại nếu gỡ lô giao khỏi xe; các xe còn lại của kế hoạch vẫn đi tiếp.",
       confirm: "Huỷ xe này",
       cardTitle: "Xe gặp sự cố?",
       cardHint:

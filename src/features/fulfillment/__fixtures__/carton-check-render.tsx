@@ -12,6 +12,7 @@ import { PICKER_ID, TASK_ID, pickedTask } from "./task";
 
 import type { RouteHandler, TestIdentity } from "./render";
 import type { CartonCheckSessionDto } from "../carton-check-types";
+import type { CartonLpnLabelSlot } from "../lpn-label-slot";
 
 export interface CartonCheckState {
   session: CartonCheckSessionDto;
@@ -24,6 +25,8 @@ interface Options {
   task?: ReturnType<typeof pickedTask>;
   userId?: string;
   post?: (state: CartonCheckState) => Record<string, RouteHandler>;
+  /** Khe in lại nhãn LPN (chỗ ghép thật truyền hộp thoại của nhập kho). */
+  lpnLabelSlot?: CartonLpnLabelSlot;
 }
 
 /** `crypto.randomUUID` tuần tự — để assert `requestId` của lần hoàn tất. */
@@ -50,6 +53,9 @@ export function renderCartonCheckStation(options: Options = {}) {
     },
     options.post?.(state) ?? {},
   );
-  renderFulfillmentScreen(<CartonCheckStation id={TASK_ID} />, options.userId ?? PICKER_ID);
+  renderFulfillmentScreen(
+    <CartonCheckStation id={TASK_ID} lpnLabelSlot={options.lpnLabelSlot} />,
+    options.userId ?? PICKER_ID,
+  );
   return { state, ...spies };
 }

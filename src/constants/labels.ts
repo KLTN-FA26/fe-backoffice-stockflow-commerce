@@ -74,12 +74,12 @@ export const UI_LABELS = {
     pageTitle: "Đơn hàng",
     cancelFailedTitle: "Không huỷ được đơn",
     releaseRefusedTitle: "Không release được đơn",
-    creditFailedTitle: "Không xử lý được đơn vượt hạn mức",
-    creditHoldsTitle: "Đơn vượt hạn mức công nợ",
+    creditFailedTitle: "Không xử lý được đơn chờ duyệt công nợ",
+    creditHoldsTitle: "Đơn chờ duyệt công nợ",
     // Nhãn nút thao tác — dùng chung lifecycle (ORDER_ACTIONS) và component
     actions: {
       release: "Release đơn",
-      creditApprove: "Duyệt vượt hạn mức",
+      creditApprove: "Duyệt công nợ",
       creditReject: "Từ chối",
       cancel: "Huỷ đơn",
     },
@@ -392,8 +392,8 @@ export const TOAST_MESSAGES = {
   order: {
     cancelled: "Đã huỷ đơn hàng",
     released: "Đã release đơn cho kho",
-    creditApproved: "Đã duyệt vượt hạn mức công nợ",
-    creditRejected: "Đã từ chối vượt hạn mức công nợ",
+    creditApproved: "Đã duyệt công nợ",
+    creditRejected: "Đã từ chối duyệt công nợ",
   },
   receipt: {
     confirmed: "Đã xác nhận nhập kho",

@@ -54,7 +54,7 @@ export const ORDER_HOLD_REASON_LABELS = {
  */
 export const ORDER_HOLD_GUIDANCE = {
   CREDIT:
-    "Đơn bị giữ vì vượt hạn mức công nợ — không gỡ giữ tại đây. Duyệt hoặc từ chối ở màn duyệt công nợ.",
+    "Đơn bị giữ chờ duyệt công nợ (khách quá hạn hoặc vượt hạn mức) — không gỡ giữ tại đây. Duyệt hoặc từ chối ở màn duyệt công nợ.",
   DESIGN_MISMATCH:
     "Đơn bị giữ vì thiết kế in lệch checksum lúc đóng gói — không gỡ giữ tại đây. Quản lý kho kiểm tra lại kiện ở bàn đóng gói.",
   DELIVERY_FAILED:
@@ -128,7 +128,7 @@ export const ORDER_REMAINDER_CLOSURE_HISTORY_REASON_LABELS: Readonly<Record<stri
   DELIVERY_FAILED: "Giao hàng không thành công",
   PAYMENT_NOT_RECEIVED: "Chưa nhận được thanh toán",
   PAYMENT_FAILED: "Thanh toán thất bại",
-  CREDIT_REJECTED: "Từ chối vượt hạn mức công nợ",
+  CREDIT_REJECTED: "Kế toán từ chối duyệt công nợ",
 };
 
 /* ── Lô giao (BE OrderShipmentStatus) ────────────────────────────────── */
@@ -202,6 +202,29 @@ export const ORDER_PARTIAL_SHIPMENT_LABELS = {
   lockedClosed: "Đơn đã giao đi hoặc đã đóng — không còn đổi được cách giao.",
 } as const;
 
+/**
+ * Sale đổi địa chỉ giao của đơn (`PUT /orders/{id}/shipping-address`, docs 17 §4.7 bước 23-24, BR-16; 08 BR-04): chọn
+ * một địa chỉ giao khác trong sổ địa chỉ của khách, tới khi thùng đầu tiên của đơn được dán nhãn giao hàng. Mỗi lần đổi
+ * được ghi vào lịch sử đơn.
+ */
+export const ORDER_SHIPPING_ADDRESS_LABELS = {
+  button: "Đổi địa chỉ giao",
+  title: "Đổi địa chỉ giao",
+  description:
+    "Chọn địa chỉ giao khác trong sổ địa chỉ của khách. Đổi được tới khi thùng đầu tiên của đơn được dán nhãn giao hàng; lần đổi được ghi vào lịch sử đơn.",
+  addressLabel: "Địa chỉ giao mới",
+  addressPlaceholder: "Chọn địa chỉ giao",
+  addressRequired: "Chọn một địa chỉ giao trong sổ địa chỉ của khách",
+  defaultMark: "Mặc định",
+  loading: "Đang tải sổ địa chỉ của khách…",
+  loadFailed: "Không tải được sổ địa chỉ của khách.",
+  noAddress: "Khách chưa có địa chỉ giao nào khác — thêm địa chỉ vào sổ địa chỉ của khách trước.",
+  noAddressAccess: "Tài khoản chưa có quyền xem sổ địa chỉ của khách.",
+  submit: "Đổi địa chỉ",
+  success: "Đã đổi địa chỉ giao của đơn",
+  failedTitle: "Không đổi được địa chỉ giao",
+} as const;
+
 /* ── Lịch sử đơn (BE GET /orders/{id}/history) ───────────────────────── */
 
 /** BE `OrderStatusChangeResponse.type`. */
@@ -210,6 +233,7 @@ export const ORDER_HISTORY_ENTRY_TYPES = [
   "PARTIAL_SHIPMENT_DECISION",
   "DELIVERY_MODE_CHANGE",
   "REMAINDER_CLOSURE",
+  "ADDRESS_CHANGE",
 ] as const;
 
 /**
@@ -226,7 +250,7 @@ export const ORDER_HISTORY_REASON_LABELS: Readonly<Record<string, string>> = {
   CONTRACT_CANCELLED: "Hợp đồng bị huỷ — đơn quay về nháp",
   INSTALLMENT_PAID: "Đã thu đủ các đợt thanh toán khi ký hợp đồng",
   PRODUCTION_ORDER_SENT: "Đã gửi Đơn sản xuất",
-  CREDIT_APPROVED: "Kế toán duyệt vượt hạn mức công nợ",
+  CREDIT_APPROVED: "Kế toán duyệt công nợ",
   // Hàng của lần giao thất bại đã về kho (BE `Order#markReturnedToOrigin`)
   RETURNED_TO_ORIGIN: "Hàng giao thất bại đã về lại kho",
   // Chạy đêm (BE `Order#complete` / `#close`)
@@ -260,6 +284,10 @@ export const ORDER_HISTORY_LABELS = {
   /** Bước gỡ giữ: BE ghi `HOLD_RESOLVED_<lý do giữ>[: ghi chú]`. */
   holdResolved: "Gỡ giữ đơn",
   holdResolvedWithReason: (reason: string) => `Gỡ giữ đơn (${reason})`,
+  /** Mục "Đổi địa chỉ giao" (`ADDRESS_CHANGE`, docs 17 BR-16): địa chỉ cũ → mới. */
+  addressChanged: "Đổi địa chỉ giao",
+  addressFrom: "Từ",
+  addressTo: "Thành",
   unknownEntry: "Thay đổi không rõ",
   by: "Bởi",
   noteLabel: "Ghi chú",
@@ -362,6 +390,10 @@ export const ORDER_ERROR_MESSAGES = {
     "Đơn chưa được phép giao một phần — nhờ Sale bật “Cho phép giao một phần” trên đơn.",
   ORDER_PARTIAL_SHIPMENT_LOCKED:
     "Không đổi được cách giao nữa: đơn đã giao đi hoặc đóng, hoặc hàng có sẵn đã đi trước hàng in nên đơn đã tách.",
+  // Đổi địa chỉ giao (docs 17 §4.7 bước 24, BR-16; 08 BR-04): khoá từ thùng đầu tiên dán nhãn, hoặc đơn ở bước không đổi được
+  ORDER_ADDRESS_LOCKED:
+    "Không đổi được địa chỉ giao nữa: thùng đầu tiên của đơn đã được dán nhãn giao hàng, hoặc đơn đang ở bước không cho đổi địa chỉ (hợp đồng đã gửi chờ ký thì huỷ hợp đồng để sửa).",
+  ADDRESS_NOT_FOUND: "Địa chỉ đã chọn không còn trong sổ địa chỉ của khách. Chọn lại địa chỉ.",
   // BE PR #150 — thu phần còn lại ghi công nợ; huỷ / đóng phần còn lại có phí
   BALANCE_CREDIT_LIMIT_EXCEEDED:
     "Phần còn lại ghi công nợ làm công nợ của khách vượt hạn mức. Chọn cách thu khác hoặc nhờ Kế toán nâng hạn mức.",

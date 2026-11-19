@@ -201,6 +201,38 @@ describe("WF-02 audit — gợi ý số tiền, gửi, file ký", () => {
     expect(screen.getByLabelText("Đợt 1 — giá trị")).toHaveValue("40");
   });
 
+  it("mục 7: sửa số tiền sau một lần gợi ý → lần gợi ý sau vẫn hỏi trước khi thay", async () => {
+    const suggestion = {
+      contractId: contractDraft.id,
+      version: 0,
+      totalAmount: 77_550_000,
+      paymentPlan: contractDraft.paymentPlan.map((entry) => ({ ...entry, percent: undefined })),
+    };
+    const get = mockOrderApiGet(SALES, {
+      [PATH]: () => contractDraft,
+      [SUGGESTION]: () => suggestion,
+    });
+    const can = (code: PermissionCode) => SALES.includes(code);
+    renderOrderScreen(<OrderContractSection order={draftOrder} can={can} />);
+    await userEvent.click(await screen.findByRole("button", { name: /Sửa/ }));
+    // Lần 1: chưa sửa gì → gợi ý điền ngay, không hỏi.
+    await userEvent.click(screen.getByRole("button", { name: /Gợi ý số tiền theo đợt giao/ }));
+    await waitFor(() => expect(screen.getByLabelText("Đợt 1 — giá trị")).toHaveValue("23265000"));
+    expect(screen.queryByText("Thay lịch thanh toán đang sửa?")).not.toBeInTheDocument();
+    // Sale sửa số tiền gợi ý.
+    const value = screen.getByLabelText("Đợt 1 — giá trị");
+    await userEvent.clear(value);
+    await userEvent.type(value, "20000000");
+    const calls = get.mock.calls.filter(([url]) => url === SUGGESTION).length;
+    // Lần 2: phải hỏi, không gọi BE, không ghi đè.
+    await userEvent.click(screen.getByRole("button", { name: /Gợi ý số tiền theo đợt giao/ }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("Thay lịch thanh toán đang sửa?")).toBeInTheDocument();
+    expect(get.mock.calls.filter(([url]) => url === SUGGESTION)).toHaveLength(calls);
+    await userEvent.click(within(dialog).getByRole("button", { name: "Quay lại" }));
+    expect(screen.getByLabelText("Đợt 1 — giá trị")).toHaveValue("20000000");
+  });
+
   it("mục 7: lịch giao đang sửa chưa lưu → nhắc lưu trước, không gợi ý", async () => {
     const { get } = renderSection(() => contractDraft);
     await userEvent.click(await screen.findByRole("button", { name: /Sửa/ }));

@@ -10,8 +10,9 @@
  *   POST /fulfillment/loads/{id}/booking-cancellation {reason}   → về PLANNED, chỉ trước LOADING
  *   POST /fulfillment/loads/{id}/loading-start        VEHICLE_BOOKED → LOADING (BR-14: kế hoạch không mở lại được)
  *   POST /fulfillment/loads/{id}/unloads              {packageCode}  → dỡ kiện khỏi xe (đơn đã huỷ, hoặc xe huỷ có kiểm soát)
- *   POST /fulfillment/loads/{id}/controlled-cancellation {reasonCode, note}   SCRUM-474, quyền riêng của quản lý kho
- *        → {cancelled, replacement}: xe đang xếp huỷ ngay, kiện bị khoá tới khi dỡ, chuyến thay thế PLANNED cùng sơ đồ
+ *   POST /fulfillment/loads/{id}/controlled-cancellation {reasonCode, note, removedShipmentIds?}   SCRUM-474, quyền
+ *        riêng của quản lý kho → {cancelled, replacement}: xe đang xếp huỷ ngay, kiện bị khoá tới khi dỡ, chuyến thay thế
+ *        PLANNED cùng sơ đồ — hoặc sơ đồ tính lại khi có lô gỡ khỏi xe (docs 09 §4.2 bước 9); gỡ hết thì không có chuyến
  *   POST /fulfillment/loads/{id}/unload-overrides     {packageId, note?}  → xác nhận dỡ kiện không quét (nhãn hỏng), quyền như trên
  * Quét kiện / bàn giao dùng lại endpoint của chuyến gửi kiện (`api.ts`).
  * Lỗi: 404 CARRIER_NOT_FOUND, PACKAGE_NOT_FOUND; 409 INVALID_LOAD_TRANSITION, INVALID_LOAD_PLAN_TRANSITION,
@@ -73,10 +74,13 @@ export async function cancelLoadControlled({
   loadId,
   reasonCode,
   note,
+  removedShipmentIds,
 }: ControlledCancelLoadInput): Promise<ControlledCancelResult> {
   const { data } = await api.post<unknown>(`${loadPath(loadId)}/controlled-cancellation`, {
     reasonCode,
     note: note.trim(),
+    // Docs 09 §4.2 bước 9: lô gỡ khỏi xe bị loại khỏi kế hoạch, chuyến mới tính lại sơ đồ; không gửi = cùng sơ đồ
+    ...(removedShipmentIds?.length ? { removedShipmentIds } : {}),
   });
   const parsed = beControlledCancelSchema.parse(data);
   return { cancelled: parsed.cancelled, replacement: parsed.replacement ?? null };

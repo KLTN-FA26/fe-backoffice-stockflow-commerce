@@ -19,6 +19,7 @@ import {
   ORDER_LIMITS,
   ORDER_PARTIAL_SHIPMENT_LABELS,
   ORDER_RELEASE_LABELS,
+  ORDER_SHIPPING_ADDRESS_LABELS,
   UI_LABELS,
 } from "@/constants";
 
@@ -111,6 +112,8 @@ export const ORDER_STALE_ERROR_CODES: readonly string[] = [
   "ORDER_PARTIAL_SHIPMENT_LOCKED",
   // BE PR #157: hình thức giao đã khoá (kho bắt đầu đóng gói / đơn qua đóng gói) — tải lại để thấy trạng thái thật
   "DELIVERY_MODE_LOCKED",
+  // WF04 G2 (docs 08 BR-04): thùng đầu tiên vừa được dán nhãn / đơn đã sang bước khác — tải lại, nút đổi địa chỉ tự ẩn
+  "ORDER_ADDRESS_LOCKED",
 ];
 
 export type OrderErrorCategory =
@@ -353,7 +356,7 @@ export function creditDecisionErrorView(error: ApiError): OrderErrorView {
     case "ORDER_NOT_ON_CREDIT_HOLD":
       return {
         title: CREDIT_FAILED,
-        detail: "Đơn không còn chờ duyệt vượt hạn mức (đã được người khác xử lý).",
+        detail: "Đơn không còn chờ duyệt công nợ (đã được người khác xử lý).",
         traceId,
       };
     case "VALIDATION_FAILED":
@@ -373,7 +376,13 @@ export function creditDecisionErrorView(error: ApiError): OrderErrorView {
 /* ── Giữ / gỡ giữ / giao thất bại / đóng phần còn lại (BE PR #133) ───── */
 
 export type OrderStatusActionKey =
-  "hold" | "resolveHold" | "deliveryFailure" | "remainderClosure" | "partialShipment" | "release";
+  | "hold"
+  | "resolveHold"
+  | "deliveryFailure"
+  | "remainderClosure"
+  | "partialShipment"
+  | "release"
+  | "shippingAddress";
 
 /** Tiêu đề lỗi theo thao tác (giao một phần có bộ nhãn riêng — nút đổi theo bật / tắt). */
 const FAILED_TITLES: Readonly<Record<OrderStatusActionKey, string>> = {
@@ -383,6 +392,7 @@ const FAILED_TITLES: Readonly<Record<OrderStatusActionKey, string>> = {
   remainderClosure: ORDER_ACTION_LABELS.remainderClosure.failedTitle,
   partialShipment: ORDER_PARTIAL_SHIPMENT_LABELS.failedTitle,
   release: ORDER_RELEASE_LABELS.failedTitle,
+  shippingAddress: ORDER_SHIPPING_ADDRESS_LABELS.failedTitle,
 };
 
 /** Câu cho 400 VALIDATION_FAILED theo thao tác — BE trả fieldErrors / message tiếng Anh, không hiện thẳng. */
@@ -395,6 +405,7 @@ const VALIDATION_DETAIL: Readonly<Record<OrderStatusActionKey, string>> = {
     "Hãy chọn lý do (“Lý do khác” cần ghi chú). Khoản phí phải là số tiền nguyên VND lớn hơn 0, không vượt giá trị phần hàng in bị đóng, kèm lý do và chi tiết.",
   partialShipment: `Ghi chú tối đa ${ORDER_LIMITS.partialShipmentNoteMax} ký tự.`,
   release: "Hãy chọn kho xuất hàng hợp lệ.",
+  shippingAddress: "Hãy chọn một địa chỉ giao trong sổ địa chỉ của khách.",
 };
 
 /** Động từ cho câu lỗi chung / dự phòng của từng thao tác ("Bạn không có quyền …", "Đã xảy ra lỗi khi …"). */
@@ -405,6 +416,7 @@ const STATUS_ACTION_VERB: Readonly<Record<OrderStatusActionKey, string>> = {
   remainderClosure: "đóng phần còn lại của đơn",
   partialShipment: "đổi cách giao một phần",
   release: "release đơn",
+  shippingAddress: "đổi địa chỉ giao của đơn",
 };
 
 function isOrderErrorCode(code: string): code is keyof typeof ORDER_ERROR_MESSAGES {

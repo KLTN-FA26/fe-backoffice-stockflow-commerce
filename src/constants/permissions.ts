@@ -49,6 +49,9 @@ export const ORDER_PERMISSIONS = {
   // Cho phép / dừng giao một phần của đơn (`PUT /orders/{id}/partial-shipment`, BE PR #150) — resource
   // `sales-order-partial-shipments` (UPDATE, scope ALL; seed: SALES_STAFF + SYSTEM_ADMIN)
   partialShipment: "sales-order-partial-shipments:UPDATE",
+  // Đổi địa chỉ giao của đơn tới khi thùng đầu tiên được dán nhãn (`PUT /orders/{id}/shipping-address`, docs 17 §4.7
+  // bước 23-24, BR-16; 08 BR-04) — resource riêng `sales-order-addresses` (UPDATE, scope ALL; seed: SALES_STAFF + SYSTEM_ADMIN)
+  shippingAddress: "sales-order-addresses:UPDATE",
 } as const;
 
 /**
@@ -468,6 +471,11 @@ export const CUSTOMER_PERMISSIONS = {
   approve: "customer-status:APPROVE",
 } as const;
 
+/** Sổ địa chỉ của khách — resource `customer-addresses` (BE CustomerAddressController `GET /customers/{id}/addresses`). */
+export const CUSTOMER_ADDRESS_PERMISSIONS = {
+  read: "customer-addresses:READ",
+} as const;
+
 /**
  * Điều khoản thanh toán của khách — resource `customer-credit-profiles` (BE CreditProfileController).
  * APPROVE = người duyệt công nợ hiện có (BR-02). Quyết định B1 (2026-10-13): Sales chỉ chọn
@@ -582,6 +590,15 @@ export const FULFILLMENT_CARRIER_PERMISSIONS = {
 } as const;
 
 /**
+ * Sự kiện hãng vận chuyển (BE `CarrierEventController`, docs 09 §4.5 bước 2, 8): READ = xem nhật ký sự kiện webhook và
+ * danh sách lỗi; UPDATE = đánh dấu một sự kiện lỗi đã xử lý (kèm ghi chú). BE chưa có thao tác áp lại sự kiện.
+ */
+export const FULFILLMENT_CARRIER_EVENT_PERMISSIONS = {
+  read: "fulfillment-carrier-events:READ",
+  update: "fulfillment-carrier-events:UPDATE",
+} as const;
+
+/**
  * Kết quả giao — resource `fulfillment-delivery-outcomes` (BE PR #148, docs 09 BR-02).
  * UPDATE một mình = chỉ ghi HÀNG HOÀN VỀ KHO (RETURNED); ĐÃ GIAO / GIAO THẤT BẠI cần thêm APPROVE
  * (kéo theo đơn và công nợ). Seed: UPDATE cho ORDER_COORDINATOR, WAREHOUSE_MANAGER; APPROVE cho
@@ -590,6 +607,14 @@ export const FULFILLMENT_CARRIER_PERMISSIONS = {
 export const FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS = {
   update: "fulfillment-delivery-outcomes:UPDATE",
   approve: "fulfillment-delivery-outcomes:APPROVE",
+} as const;
+
+/**
+ * Sửa tay kết quả giao khi hãng báo sai — `POST /fulfillment/shipments/{id}/delivery-outcome-correction` (docs 09 §4.3
+ * bước 5, E17). BE seed: WAREHOUSE_MANAGER, SYSTEM_ADMIN.
+ */
+export const FULFILLMENT_DELIVERY_CORRECTION_PERMISSIONS = {
+  update: "fulfillment-delivery-corrections:UPDATE",
 } as const;
 
 /**
@@ -665,4 +690,28 @@ export const REPORTING_PERMISSIONS = {
   viewPage: "reporting-reports:VIEW_PAGE",
   read: "reporting-reports:READ",
   export: "reporting-reports:EXPORT",
+} as const;
+
+/**
+ * Sửa lý do giao thất bại khi đã biết lý do thật — `POST /fulfillment/shipments/{id}/failure-reason-correction` (docs 09
+ * edge "hoàn hàng khi còn Handed Over"). Cùng mã quyền sửa tay kết quả giao. BE seed: WAREHOUSE_MANAGER, SYSTEM_ADMIN.
+ */
+export const SHIPMENT_FAILURE_REASON_PERMISSIONS = {
+  correct: "fulfillment-delivery-corrections:UPDATE",
+} as const;
+
+/**
+ * File vận đơn và POD của một đơn — `GET /fulfillment/orders/{id}/delivery-documents` (docs 09 §2: Sale gửi khách khi
+ * khách xin qua chat). BE seed: SALES_STAFF, SALES_MANAGER, SYSTEM_ADMIN; khách không có (BR-05).
+ */
+export const ORDER_DELIVERY_DOCUMENT_PERMISSIONS = {
+  read: "fulfillment-delivery-documents:READ",
+} as const;
+
+/**
+ * Huỷ lô giao Sẵn sàng xuất — `POST /fulfillment/shipments/{id}/cancellation` (docs 09 §5.1, RTM-RTDCANCEL). BE seed:
+ * WAREHOUSE_MANAGER, SYSTEM_ADMIN.
+ */
+export const SHIPMENT_CANCELLATION_PERMISSIONS = {
+  update: "fulfillment-shipment-cancellations:UPDATE",
 } as const;

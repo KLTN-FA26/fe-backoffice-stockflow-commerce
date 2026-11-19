@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 import { QuoteFeesEditor } from "./form/QuoteFeesEditor";
 import { QuoteLineEditor } from "./form/QuoteLineEditor";
+import { QuoteTotalsPreview } from "./form/QuoteTotalsPreview";
 import { useQuoteForm } from "./form/useQuoteForm";
 
 import type { CustomerSku, Quote } from "@/features/quote/types";
@@ -135,6 +136,9 @@ export function QuoteForm({
           <p className="text-danger text-xs">{errors.lines.root.message}</p>
         )}
         {q.customerId && <QuoteFeesEditor form={form} />}
+        {q.customerId && skus.length > 0 && (
+          <QuoteTotalsPreview form={form} customerId={q.customerId} quote={quote} />
+        )}
 
         <Button
           type="button"

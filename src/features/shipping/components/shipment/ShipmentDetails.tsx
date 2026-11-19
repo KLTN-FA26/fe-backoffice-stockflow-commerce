@@ -4,12 +4,16 @@ import { formatNumber } from "@/lib/format/number";
 import { StatusDot } from "@/components/shared/StatusDot";
 
 import { MONO, NUM, Section } from "../primitives";
+import { FailureReasonCorrections } from "./FailureReasonCorrections";
 
 import type { Shipment } from "@/features/shipping/types";
 
 const L = UI_LABELS.shipping.shipment;
+const A = UI_LABELS.shipping.afterHandover;
+/** BE `ShipmentEventJpaEntity.source` của bước hãng báo qua webhook (docs 09 BR-02). */
+const WEBHOOK_SOURCE = "CARRIER_WEBHOOK";
 
-/** Kiện trong lô + lịch sử các bước (ai ghi nhận, lúc nào — docs 09 BR-02). */
+/** Kiện trong lô + lịch sử các bước (ai ghi nhận hay hãng báo qua webhook, lúc nào — docs 09 BR-02). */
 export function ShipmentDetails({ data }: { data: Shipment }) {
   return (
     <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
@@ -62,10 +66,14 @@ export function ShipmentDetails({ data }: { data: Shipment }) {
                 <span className="text-ink-secondary tabular-nums">
                   {formatDateTime(step.occurredAt)}
                 </span>
-                {step.recordedByName && (
-                  <span className="text-ink-secondary">
-                    {L.timelineWho}: {step.recordedByName}
-                  </span>
+                {step.source === WEBHOOK_SOURCE ? (
+                  <span className="text-ink-secondary">{A.webhookSource}</span>
+                ) : (
+                  step.recordedByName && (
+                    <span className="text-ink-secondary">
+                      {L.timelineWho}: {step.recordedByName}
+                    </span>
+                  )
                 )}
                 {step.note && <span className="text-ink-tertiary">— {step.note}</span>}
               </li>
@@ -73,6 +81,7 @@ export function ShipmentDetails({ data }: { data: Shipment }) {
           </ol>
         )}
       </Section>
+      <FailureReasonCorrections corrections={data.reasonCorrections} />
     </div>
   );
 }
