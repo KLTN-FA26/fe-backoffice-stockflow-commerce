@@ -8,6 +8,8 @@ import { InfoItem, Section } from "../primitives";
 
 import type { GoodsReceipt } from "@/features/receipt/types";
 
+const FIELD = UI_LABELS.receipt.field;
+
 const dt = (iso: string | null | undefined) => (iso ? formatDateTime(iso) : "—");
 
 /** Người trong phiếu: tên BE trả kèm (nếu có), tooltip là id. */
@@ -21,9 +23,12 @@ export function ReceiptInfo({ receipt }: { receipt: GoodsReceipt }) {
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
         {/* Trang chi tiết không có tiêu đề — số phiếu nằm ở đây */}
         <InfoItem label="Số phiếu" value={receipt.number} mono />
-        <InfoItem label="Loại phiếu" value={UI_LABELS.receipt.receiptType[receipt.receiptType]} />
-        <InfoItem label="Đơn sản xuất" value={receipt.productionOrderCode ?? "—"} mono />
-        <InfoItem label="Đơn vị sản xuất" value={receipt.producerName ?? "—"} />
+        <InfoItem
+          label={FIELD.receiptType}
+          value={UI_LABELS.receipt.receiptType[receipt.receiptType]}
+        />
+        <InfoItem label={FIELD.productionOrder} value={receipt.productionOrderCode ?? "—"} mono />
+        <InfoItem label={FIELD.producer} value={receipt.producerName ?? "—"} />
         <InfoItem label="Kho nhận" value={receipt.warehouseName ?? receipt.warehouseCode ?? "—"} />
         <InfoItem label="Phiếu giao" value={receipt.deliveryNote ?? "—"} mono />
         <InfoItem label="Ngày nhận" value={dt(receipt.receivedAt)} />

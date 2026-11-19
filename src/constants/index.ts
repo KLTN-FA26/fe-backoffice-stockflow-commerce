@@ -23,9 +23,7 @@ export {
   CARTON_LABEL_FORMATS,
   CARTON_PRINT_LABELS,
   RECEIPT_CARTON_ERROR_MESSAGES,
-  RECEIPT_CARTON_FIELD_MESSAGES,
   RECEIPT_CARTON_LABELS,
-  RECEIPT_CARTON_VALIDATION_MESSAGES,
 } from "./labels-receipt-carton";
 export type { CartonLabelFormat } from "./labels-receipt-carton";
 export {

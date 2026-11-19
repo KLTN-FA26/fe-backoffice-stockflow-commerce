@@ -14,7 +14,6 @@
 import { registerMockRoute } from "./mock-adapter";
 import { cartonsVoided } from "./mock-receipt-cartons";
 import {
-  MOCK_WAREHOUSE_OPTION,
   getReceiptStore,
   invalidReceiptTransition,
   loadReceipt,
@@ -76,8 +75,7 @@ export function registerGoodsReceiptMockRoutes(): void {
       .filter(
         (r) => !readString(params.warehouseId) || r.warehouseId === readString(params.warehouseId),
       )
-      // Phiếu seed đều là phiếu mua hàng cũ: lọc PRODUCTION / theo Đơn sản xuất không ra dòng nào
-      .filter((r) => !receiptType || receiptType === toReceiptView(r).receiptType)
+      // Phiếu seed đều là phiếu mua hàng cũ: lọc theo Đơn sản xuất không ra dòng nào
       .filter(() => !readString(params.productionOrderId))
       .filter((r) => !search || r.number.toLowerCase().includes(search))
       // BE receivedBetween: from ≤ receivedAt < to
@@ -87,7 +85,9 @@ export function registerGoodsReceiptMockRoutes(): void {
           (!to || r.receivedAt < new Date(to).toISOString()),
       )
       .sort((a, b) => (sortDir === "asc" ? 1 : -1) * key(a).localeCompare(key(b)))
-      .map(toRow);
+      .map(toRow)
+      // Lọc loại phiếu trên view đã dựng — mỗi phiếu chỉ dựng view một lần
+      .filter((row) => !receiptType || row.receiptType === receiptType);
     return beOk(bePage(rows, page, size));
   });
 
@@ -95,10 +95,6 @@ export function registerGoodsReceiptMockRoutes(): void {
     const { id, receipt } = await loadReceipt(config);
     return receipt ? beOk(toReceiptView(receipt)) : receiptNotFound(id);
   });
-
-  registerMockRoute("GET", "/warehouses", async () =>
-    beOk(bePage([MOCK_WAREHOUSE_OPTION], 0, BE_DEFAULT_PAGE_SIZE)),
-  );
 
   // BE 4A-9: phiếu mua hàng cũ không xác nhận được nữa — chỉ còn huỷ
   registerMockRoute("POST", `${PATH}/:id/confirmation`, async (config) => {

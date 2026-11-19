@@ -125,13 +125,6 @@ export async function mockSkuExists(sku: string): Promise<boolean> {
   return skus.some((s) => s.skuId === sku);
 }
 
-/** Kho demo duy nhất của mock (HCM) — cho ô chọn kho của phiếu không có PO. */
-export const MOCK_WAREHOUSE_OPTION = {
-  id: MOCK_WAREHOUSE_ID,
-  prefix: "HCM",
-  name: "Kho Hồ Chí Minh",
-} as const;
-
 /* ── Seed ────────────────────────────────────────────────────────────── */
 
 let store: Map<string, MockReceipt> | null = null;
@@ -244,8 +237,8 @@ function split(total: number, parts: number): number[] {
 }
 
 /**
- * Phiếu đã xác nhận cộng lại đúng `quantityReceived` của PO (3 đợt giao + 2 phiếu In QC: một chờ
- * chuyển QC, một đã ở khu QC); PO còn mở có thêm DRAFT / CANCELLED để demo đủ trạng thái.
+ * Phiếu đã xác nhận cộng lại đúng `quantityReceived` của PO (3 đợt giao: Closed / In Putaway); PO còn mở có thêm
+ * DRAFT / CANCELLED để demo đủ trạng thái.
  */
 async function seedSpecs(): Promise<SeedSpec[]> {
   const pos = [...(await getPoStore()).values()];

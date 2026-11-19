@@ -49,6 +49,7 @@ describe("ReceiptDetail — phiếu theo Đơn sản xuất (docs 03 §4.1)", ()
       within(table).getByRole("columnheader", { name: "Thùng theo Đơn SX" }),
     ).toBeInTheDocument();
     expect(within(table).getByText("4/10")).toBeInTheDocument();
+    expect(within(table).getByText("phiếu này 2")).toBeInTheDocument();
     expect(within(table).getByText("còn 4")).toBeInTheDocument();
     expect(screen.queryByText(LABEL.legacyPurchase.title)).not.toBeInTheDocument();
   });

@@ -9,9 +9,13 @@ import { LineNoteCell } from "./LineNoteCell";
 import type { GoodsReceipt, ReceiptLineDto } from "@/features/receipt/types";
 
 const CARTONS = RECEIPT_CARTON_LABELS.column;
-const PRODUCTION = "Thùng theo Đơn SX";
+const PROGRESS = UI_LABELS.receipt.productionProgress;
+const PRODUCTION = PROGRESS.header;
 
-/** 4A-5: thùng của dòng so với dòng Đơn sản xuất — phiếu này / đã nhận / còn lại trên số đặt. */
+/**
+ * 4A-5: thùng của dòng so với dòng Đơn sản xuất — đã nhận / đặt, phiếu này, còn lại. Phiếu nháp: `remaining` =
+ * đặt − đã nhận − phiếu này, nên phải hiện cả phần của phiếu này thì ba số mới cộng khớp.
+ */
 function ProductionProgressCell({ line }: { line: ReceiptLineDto }) {
   const p = line.production;
   if (!p) return <td className="text-ink-tertiary px-3 py-2">—</td>;
@@ -20,7 +24,8 @@ function ProductionProgressCell({ line }: { line: ReceiptLineDto }) {
       <div className="text-ink-primary">
         {p.receivedCartons}/{p.orderedCartons}
       </div>
-      <div className="text-ink-tertiary text-xs">còn {p.remainingCartons}</div>
+      <div className="text-ink-tertiary text-xs">{PROGRESS.thisReceipt(p.thisReceiptCartons)}</div>
+      <div className="text-ink-tertiary text-xs">{PROGRESS.remaining(p.remainingCartons)}</div>
     </td>
   );
 }

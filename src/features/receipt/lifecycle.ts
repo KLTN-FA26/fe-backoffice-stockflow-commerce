@@ -62,6 +62,8 @@ export const RECEIPT_ACTIONS: readonly ReceiptAction[] = [
     fromStatuses: [RECEIPT_STATUS.DRAFT],
     targetStatus: RECEIPT_STATUS.CANCELLED,
     destructive: true,
+    // Phiếu hàng hoàn huỷ qua luồng riêng (`features/return`, `/goods-receipts/returns`) — không huỷ ở màn này
+    receiptTypes: [RECEIPT_TYPE.PRODUCTION, RECEIPT_TYPE.PURCHASE],
   },
 ];
 

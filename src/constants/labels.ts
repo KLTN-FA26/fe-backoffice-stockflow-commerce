@@ -130,6 +130,25 @@ export const UI_LABELS = {
     linesConfirmedDescription:
       "Phiếu đã xác nhận chỉ còn xem; sai sót xử lý bằng điều chỉnh tồn (BR-05).",
     linesCancelledDescription: "Phiếu đã huỷ trước khi xác nhận — không nhập kho, chỉ còn xem.",
+    // Nhãn trường dùng chung giữa thông tin phiếu và cột danh sách
+    field: {
+      receiptType: "Loại phiếu",
+      productionOrder: "Đơn sản xuất",
+      producer: "Đơn vị sản xuất",
+    },
+    // Cột tiến độ thùng theo dòng Đơn sản xuất (4A-5)
+    productionProgress: {
+      header: "Thùng theo Đơn SX",
+      thisReceipt: (cartons: number) => `phiếu này ${cartons}`,
+      remaining: (cartons: number) => `còn ${cartons}`,
+    },
+    confirmDialog: {
+      cancelTitle: "Huỷ phiếu nhận",
+      confirmDescription: (number: string) =>
+        `Chốt số của ${number}: các thùng thành tồn Inbound ở khu nhận hàng, Đơn sản xuất cập nhật SL đã nhận, phiếu chuyển sang cất hàng. Sau khi xác nhận phiếu chỉ còn xem, sai sót phải điều chỉnh tồn (BR-05).`,
+      cancelDescription: (number: string) =>
+        `Huỷ ${number}? Chỉ phiếu nháp mới huỷ được; thùng đã cấp mã bị huỷ theo. Không thể khôi phục.`,
+    },
     dateRangeInvalid: "Ngày bắt đầu sau ngày kết thúc — không có phiếu nào khớp.",
   },
   transfer: TRANSFER_UI_LABELS,

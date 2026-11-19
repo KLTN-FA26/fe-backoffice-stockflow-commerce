@@ -13,17 +13,6 @@ export const CARTON_LABEL_FORMAT_LABELS = {
   THERMAL_ROLL: "Cuộn nhiệt — nhãn 60×40 mm",
 } as const satisfies Record<CartonLabelFormat, string>;
 
-/** Lỗi validate form chia thùng (zod Input) — hiện inline dưới ô. */
-export const RECEIPT_CARTON_FIELD_MESSAGES = {
-  unitRequired: "Chọn đơn vị thùng",
-  cartonQuantity: "SL trong thùng phải là số nguyên ≥ 1",
-  cartonsExceedLine: "Các thùng chứa nhiều hơn SL nhận của dòng",
-  duplicateLpn: "LPN này đã có ở thùng khác của dòng",
-  cartonsTooMany: `Tối đa ${RECEIPT_CARTON_LIMITS.cartonsPerLineMax} thùng mỗi dòng`,
-  qcLooseSum: (loose: number) =>
-    `Đạt + Cách ly + Không đạt của hàng lẻ phải bằng SL lẻ ${loose} (thùng tính nguyên thùng)`,
-} as const;
-
 /**
  * Mã lỗi BE khi lưu kiểm đếm có thùng / in nhãn → câu tiếng Việt (gộp vào `RECEIPT_ERROR_MESSAGES`).
  */
@@ -43,16 +32,6 @@ export const RECEIPT_CARTON_ERROR_MESSAGES = {
     "Thùng không còn nằm ở khu QC của dòng — kiểm tra lại vị trí thùng. Dữ liệu đã được tải lại.",
   STOCK_PACKAGE_LABELS_EMPTY: "Không có thùng nào để in nhãn",
   STOCK_PACKAGE_LABELS_TOO_MANY: `Mỗi lần in tối đa ${RECEIPT_CARTON_LIMITS.labelsMax} nhãn thùng`,
-} as const;
-
-/**
- * Lỗi theo ô do BE trả mã chung (`VALIDATION_FAILED`) — BE ghi câu tiếng Anh trong `fieldErrors[].message`, FE thay
- * bằng câu tiếng Việt theo đường dẫn ô (`GoodsReceiptServiceImpl#cartonUnit`).
- */
-export const RECEIPT_CARTON_VALIDATION_MESSAGES = {
-  unitOfMeasure: RECEIPT_CARTON_FIELD_MESSAGES.unitRequired,
-  quantity: RECEIPT_CARTON_FIELD_MESSAGES.cartonQuantity,
-  lpn: "LPN bị liệt kê hai lần — mỗi thùng chỉ một dòng",
 } as const;
 
 /** Chữ hiển thị của màn chia thùng / bảng thùng / in nhãn / QC theo thùng. */

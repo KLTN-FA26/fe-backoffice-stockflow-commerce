@@ -80,6 +80,12 @@ describe("allowedReceiptActions — phiếu mua hàng cũ (BE 4A-8)", () => {
   });
 });
 
+describe("allowedReceiptActions — phiếu hàng hoàn (luồng riêng features/return)", () => {
+  it("Draft RETURN → không xác nhận, không huỷ ở màn phiếu nhận", () => {
+    expect(codes("warehouseManager", "Draft", "RETURN")).toEqual([]);
+  });
+});
+
 describe("terminal — ẩn mọi nút mutating", () => {
   it.each(["Closed", "Cancelled"] as const)("%s → không nút nào với mọi vai trò", (status) => {
     for (const role of Object.keys(ROLE_PERMISSIONS) as Role[]) {

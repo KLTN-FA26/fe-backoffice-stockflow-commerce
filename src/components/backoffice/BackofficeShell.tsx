@@ -577,7 +577,7 @@ const DETAIL_LABEL_BY_ROUTE: Record<string, string> = {
   [ADMIN_ROUTES.loads.waybillImport]: UI_LABELS.shipping.waybill.import.title,
 };
 
-/** Required capabilities fail closed; unassigned items remain visible; mock-only items need mock mode. */
+/** Required capabilities fail closed; unassigned items remain visible. */
 export function useCanSeeNavItem(): (item: NavItem) => boolean {
   const can = usePermissionChecker();
   return (item) =>

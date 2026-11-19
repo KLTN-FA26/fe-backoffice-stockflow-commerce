@@ -85,7 +85,7 @@ export function ReceiptActions({ receipt }: { receipt: GoodsReceipt }) {
         open={dialog === "confirm"}
         onOpenChange={(open) => !open && setDialog(null)}
         title={LABEL.action.confirm}
-        description={`Chốt số của ${receipt.number}: các thùng thành tồn Inbound ở khu nhận hàng, Đơn sản xuất cập nhật SL đã nhận, phiếu chuyển sang cất hàng. Sau khi xác nhận phiếu chỉ còn xem, sai sót phải điều chỉnh tồn (BR-05).`}
+        description={LABEL.confirmDialog.confirmDescription(receipt.number)}
         confirmLabel={LABEL.action.confirm}
         variant="default"
         loading={confirm.isPending}
@@ -95,8 +95,8 @@ export function ReceiptActions({ receipt }: { receipt: GoodsReceipt }) {
       <ConfirmDialog
         open={dialog === "cancel"}
         onOpenChange={(open) => !open && setDialog(null)}
-        title="Huỷ phiếu nhận"
-        description={`Huỷ ${receipt.number}? Chỉ phiếu nháp mới huỷ được; thùng đã cấp mã bị huỷ theo. Không thể khôi phục.`}
+        title={LABEL.confirmDialog.cancelTitle}
+        description={LABEL.confirmDialog.cancelDescription(receipt.number)}
         confirmLabel={LABEL.action.cancel}
         variant="danger"
         loading={cancel.isPending}
