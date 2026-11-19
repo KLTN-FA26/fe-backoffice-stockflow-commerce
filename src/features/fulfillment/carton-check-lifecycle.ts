@@ -6,7 +6,9 @@
  * - xem hàng chờ / phiên: `fulfillment-packages:READ`;
  * - bắt đầu, quét LPN, dán nhãn, in lại, loại thùng, hoàn tất: `fulfillment-packing:UPDATE`; người khác ngoài người
  *   bắt đầu phiên bị `PACKING_TAKEN` trừ người có `fulfillment-packing:APPROVE` (quản lý kho, docs 08 BR-06);
- * - in PDF nhãn: `fulfillment-packing:READ`.
+ * - in PDF nhãn: `fulfillment-packing:READ`;
+ * - in lại nhãn LPN của thùng (nhãn nhập kho rách / mất, docs 08 §6, 03 §4.1 bước 4): `inventory-stock-packages:CREATE`
+ *   (BE StockPackageController `POST /inventory/stock-packages/labels`) — thùng đã lấy cho đơn, chưa bàn giao.
  * UI-only — Backend phải re-check (CartonCheckController, CartonCheckService, CartonCheck).
  */
 
@@ -15,6 +17,7 @@ import {
   FULFILLMENT_PACKAGE_PERMISSIONS,
   FULFILLMENT_PACKING_PERMISSIONS,
   PACK_STATUS,
+  STOCK_PACKAGE_PERMISSIONS,
 } from "@/constants";
 import { CARTON_TRANSITIONS, canTransition } from "@/lib/domain/lifecycle";
 
@@ -46,6 +49,8 @@ export interface CartonCheckAccess {
   managerAssist: boolean;
   /** In PDF nhãn giao hàng (packing:READ). */
   canPrint: boolean;
+  /** In lại nhãn LPN của thùng (inventory-stock-packages:CREATE — nhân viên kho, quản lý kho). */
+  canReprintLpn: boolean;
 }
 
 export function cartonCheckAccess(
@@ -69,6 +74,7 @@ export function cartonCheckAccess(
     takenByOther: canPack && inProgress && !isOwner && !canTakeOver,
     managerAssist: canPack && inProgress && canTakeOver && !isOwner && !!session.startedBy,
     canPrint: actor.can(PACKING.read),
+    canReprintLpn: actor.can(STOCK_PACKAGE_PERMISSIONS.create),
   };
 }
 
@@ -82,9 +88,17 @@ export interface CartonActions {
   reprint: boolean;
   /** Loại thùng hư hỏng (chưa thuộc shipment). */
   remove: boolean;
+  /** In lại nhãn LPN (nhãn nhập kho) của thùng còn ở kho: chưa bị loại, chưa vào shipment đã bàn giao. */
+  reprintLpn: boolean;
 }
 
-const NONE: CartonActions = { label: false, print: false, reprint: false, remove: false };
+const NONE: CartonActions = {
+  label: false,
+  print: false,
+  reprint: false,
+  remove: false,
+  reprintLpn: false,
+};
 
 export function cartonActions(
   carton: Carton,
@@ -113,6 +127,9 @@ export function cartonActions(
       access.canWork &&
       !inShipment &&
       canTransition(CARTON_TRANSITIONS, carton.status, CARTON_STATUS.REMOVED),
+    // Docs 03 §4.1 bước 4: thùng đã lấy cho đơn vẫn in lại nhãn LPN khi nhãn rách / mất; thùng đã bàn giao thì không
+    // (BE 409 INVALID_STOCK_PACKAGE_TRANSITION). UI-only — Backend phải re-check (StockPackageLabels).
+    reprintLpn: access.canReprintLpn && (!inShipment || shipment?.status === READY_SHIPMENT),
   };
 }
 

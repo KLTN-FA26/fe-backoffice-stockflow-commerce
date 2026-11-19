@@ -53,6 +53,8 @@ export const CARTON_CHECK_UI_LABELS = {
     print: "In nhãn",
     printAll: "In nhãn các thùng đã dán",
     reprint: "In lại nhãn",
+    /** Nhãn LPN (nhãn nhập kho) rách / mất: in lại theo mã LPN rồi quét kiểm (docs 08 §6, 03 §4.1 bước 4). */
+    reprintLpn: "In lại nhãn LPN",
     remove: "Loại thùng",
     dismiss: "Bỏ qua",
   },
@@ -146,6 +148,7 @@ export const CARTON_CHECK_UI_LABELS = {
     notRotatable: "Không xoay",
     removedDamaged: "Hư hỏng",
     removedOrderCancelled: "Đơn huỷ",
+    removedRemainderClosed: "Sale đã đóng phần còn lại",
     removalNote: (note: string) => `Ghi chú: ${note}`,
     notReceived: "Chưa quét",
   },

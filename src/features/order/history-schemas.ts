@@ -8,7 +8,7 @@ import { ORDER_HISTORY_ENTRY_TYPES } from "@/constants/labels-order";
 import { ORDER_READ_STATUSES } from "@/constants/statuses";
 
 import { orderDeliveryModeDtoSchema } from "./delivery-mode-schemas";
-import { orderStatusDtoSchema } from "./schemas";
+import { orderAddressDtoSchema, orderStatusDtoSchema } from "./schemas";
 
 /**
  * BE `OrderStatusChangeResponse` (BE PR #150, "review of #150"): mỗi mục có `type` — `STATUS_CHANGE`
@@ -16,7 +16,8 @@ import { orderStatusDtoSchema } from "./schemas";
  * `from` / `to` null, `partialShipmentAllowed`, `reason` = ghi chú của Sales) hoặc `DELIVERY_MODE_CHANGE`
  * (BE PR #157, LP-1: điều phối viên đổi hình thức giao — `deliveryMode` mới, `previousDeliveryMode` cũ,
  * `reason` = ghi chú) hoặc `REMAINDER_CLOSURE` (Sales đóng phần còn lại, kể cả khi trạng thái đơn không đổi — BE
- * `order_remainder_closure`: `from` / `to` null, `closureReasonCode` = mã lý do, `reason` = ghi chú). Ba mục sau chỉ nhân
+ * `order_remainder_closure`: `from` / `to` null, `closureReasonCode` = mã lý do, `reason` = ghi chú) hoặc `ADDRESS_CHANGE`
+ * (Sale đổi địa chỉ giao trước khi dán nhãn — docs 17 BR-16: `previousAddress` → `newAddress`). Các mục sau chỉ nhân
  * viên thấy. `type` vắng (BE cũ) = STATUS_CHANGE; giá trị lạ → "UNKNOWN".
  */
 export const orderHistoryEntryDtoSchema = z.object({
@@ -34,6 +35,8 @@ export const orderHistoryEntryDtoSchema = z.object({
   closureReasonCode: z.string().nullish(),
   deliveryMode: orderDeliveryModeDtoSchema.nullish(),
   previousDeliveryMode: orderDeliveryModeDtoSchema.nullish(),
+  previousAddress: orderAddressDtoSchema.nullish(),
+  newAddress: orderAddressDtoSchema.nullish(),
 });
 
 export const orderHistoryDtoSchema = z.array(orderHistoryEntryDtoSchema);
@@ -72,6 +75,13 @@ export const orderHistoryEntrySchema = z.discriminatedUnion("kind", [
     mode: orderDeliveryModeDtoSchema,
     /** null khi BE không trả hình thức trước đó. */
     previousMode: orderDeliveryModeDtoSchema.nullable(),
+  }),
+  z.object({
+    ...historyEntryBase,
+    kind: z.literal("address-change"),
+    /** Địa chỉ giao trước và sau khi đổi, đã ghép thành một dòng; null khi BE không gửi. */
+    from: z.string().nullable(),
+    to: z.string(),
   }),
   z.object({ ...historyEntryBase, kind: z.literal("unknown") }),
 ]);

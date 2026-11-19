@@ -17,6 +17,8 @@ import {
   remainderClosureReasonLabel,
 } from "../selectors";
 
+import { AddressChangeHead } from "./AddressChangeHead";
+
 import type { OrderHistoryEntry } from "../types";
 
 const L = ORDER_HISTORY_LABELS;
@@ -90,6 +92,9 @@ function EntryHead({ entry }: { entry: OrderHistoryEntry }) {
         </span>
       );
     }
+    case "address-change":
+      // Sale đổi địa chỉ giao trước khi dán nhãn (docs 17 BR-16) — địa chỉ cũ → mới
+      return <AddressChangeHead from={entry.from} to={entry.to} />;
     case "status-change":
       return (
         <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-0.5">
@@ -116,6 +121,7 @@ const HIGHLIGHTED_KINDS: readonly OrderHistoryEntry["kind"][] = [
   "partial-shipment",
   "remainder-closure",
   "delivery-mode",
+  "address-change",
 ];
 
 /** Một mục của lịch sử đơn: đầu mục theo loại, ai / khi nào, ghi chú. */

@@ -49,6 +49,9 @@ export const ORDER_PERMISSIONS = {
   // Cho phép / dừng giao một phần của đơn (`PUT /orders/{id}/partial-shipment`, BE PR #150) — resource
   // `sales-order-partial-shipments` (UPDATE, scope ALL; seed: SALES_STAFF + SYSTEM_ADMIN)
   partialShipment: "sales-order-partial-shipments:UPDATE",
+  // Đổi địa chỉ giao của đơn tới khi thùng đầu tiên được dán nhãn (`PUT /orders/{id}/shipping-address`, docs 17 §4.7
+  // bước 23-24, BR-16; 08 BR-04) — resource riêng `sales-order-addresses` (UPDATE, scope ALL; seed: SALES_STAFF + SYSTEM_ADMIN)
+  shippingAddress: "sales-order-addresses:UPDATE",
 } as const;
 
 /**
@@ -466,6 +469,11 @@ export const CUSTOMER_PERMISSIONS = {
   create: "customer-customers:CREATE",
   update: "customer-customers:UPDATE",
   approve: "customer-status:APPROVE",
+} as const;
+
+/** Sổ địa chỉ của khách — resource `customer-addresses` (BE CustomerAddressController `GET /customers/{id}/addresses`). */
+export const CUSTOMER_ADDRESS_PERMISSIONS = {
+  read: "customer-addresses:READ",
 } as const;
 
 /**

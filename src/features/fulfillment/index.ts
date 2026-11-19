@@ -33,3 +33,4 @@ export * from "./carton-check-mutations";
 export * from "./carton-check-errors";
 export * from "./carton-check-selectors";
 export * from "./carton-check-lifecycle";
+export type { CartonLpnLabelSlot, CartonLpnLabelSlotProps } from "./lpn-label-slot";
