@@ -43,7 +43,10 @@ export function ProductionOrderEditDialog({
   );
 }
 
-function EditForm({ order, onClose }: { order: ProductionOrder; onClose: () => void }) {
+function EditForm({ order: latest, onClose }: { order: ProductionOrder; onClose: () => void }) {
+  // Giữ bản đã đọc lúc mở form: 409 OPTIMISTIC_LOCK làm mới `latest` nhưng form vẫn là giá trị cũ — gửi lại với
+  // version mới sẽ ghi đè thay đổi của người khác. Version cũ → BE tiếp tục 409, người dùng phải đóng và mở lại.
+  const [order] = useState(latest);
   const edit = useEditProductionOrder();
   const [error, setError] = useState<string | null>(null);
   const form = useForm<ProductionOrderEditValues>({

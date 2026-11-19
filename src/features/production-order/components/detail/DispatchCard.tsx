@@ -92,7 +92,7 @@ export function DispatchCard({
               {messages.map((m) => (
                 <li key={`${m.generation}-${m.attemptNumber}-${m.message}`} className="py-1.5">
                   <p className="text-ink-primary">
-                    {L.message[m.message] ?? m.message} · {m.status}
+                    {L.message[m.message] ?? m.message} · {L.deliveryStatus[m.status] ?? m.status}
                     {m.failure ? ` · ${m.failure}` : ""}
                   </p>
                   <p className="text-ink-tertiary text-xs tabular-nums">

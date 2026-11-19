@@ -3,7 +3,13 @@
 import Link from "next/link";
 import { Info } from "lucide-react";
 
-import { ADMIN_ROUTES, PRODUCTION_LABELS } from "@/constants";
+import {
+  ADMIN_ROUTES,
+  ORDER_DELIVERY_BATCH_PERMISSIONS,
+  PRODUCER_PERMISSIONS,
+  PRODUCTION_LABELS,
+} from "@/constants";
+import { usePermissionChecker } from "@/lib/auth";
 import { formatDate, formatDateTime } from "@/lib/format/date";
 import { useProducerDirectory } from "@/lib/references/producer-options";
 
@@ -39,8 +45,13 @@ export function GeneralCard({
   order: ProductionOrder;
   me: string | null | undefined;
 }) {
-  const producers = useProducerDirectory();
-  const batches = useSalesOrderBatches(order.salesOrderId);
+  // Thiếu quyền đọc thì không gọi (403 làm tải lại quyền toàn app) — hiện mã rút gọn thay tên
+  const can = usePermissionChecker();
+  const producers = useProducerDirectory(can(PRODUCER_PERMISSIONS.read));
+  const batches = useSalesOrderBatches(
+    order.salesOrderId,
+    can(ORDER_DELIVERY_BATCH_PERMISSIONS.read),
+  );
   const batch = batches.data?.batches.find((b) => b.batchId === order.deliveryBatchId);
   const optionalRows: [string, string | null | undefined][] = [
     [L.submittedAt, when(order.submittedAt)],

@@ -4,6 +4,7 @@
  */
 
 import {
+  ORDER_DELIVERY_BATCH_PERMISSIONS,
   PRODUCER_PERMISSIONS,
   PRODUCTION_ORDER_PERMISSIONS,
   PRODUCTION_SCHEDULE_PERMISSIONS,
@@ -17,6 +18,8 @@ export const MANAGER_ID = "22222222-2222-4222-8222-222222222222";
 export const PRODUCER_ID = "33333333-3333-4333-8333-333333333333";
 
 const PO = PRODUCTION_ORDER_PERMISSIONS;
+// BE V20261124000650: mọi vai đọc hợp đồng (Sale, Sales Manager, Điều phối sản xuất) và vai release đọc lịch giao
+const BATCHES = ORDER_DELIVERY_BATCH_PERMISSIONS.read;
 
 /** Mã quyền theo BE PermissionMatrixTest — FE chỉ đọc mã, không đọc tên vai trò. */
 export const PRODUCTION_ACTORS = {
@@ -31,6 +34,7 @@ export const PRODUCTION_ACTORS = {
     PRODUCER_PERMISSIONS.update,
     PRODUCTION_SCHEDULE_PERMISSIONS.viewPage,
     PRODUCTION_SCHEDULE_PERMISSIONS.read,
+    BATCHES,
   ] as PermissionCode[],
   salesManager: [
     PO.viewPage,
@@ -40,14 +44,16 @@ export const PRODUCTION_ACTORS = {
     PRODUCER_PERMISSIONS.read,
     PRODUCTION_SCHEDULE_PERMISSIONS.viewPage,
     PRODUCTION_SCHEDULE_PERMISSIONS.read,
+    BATCHES,
   ] as PermissionCode[],
   sales: [
     PO.viewPage,
     PO.read,
     PRODUCER_PERMISSIONS.viewPage,
     PRODUCER_PERMISSIONS.read,
+    BATCHES,
   ] as PermissionCode[],
-  warehouseManager: [PO.viewPage, PO.read, PRODUCER_PERMISSIONS.read] as PermissionCode[],
+  warehouseManager: [PO.viewPage, PO.read, PRODUCER_PERMISSIONS.read, BATCHES] as PermissionCode[],
 };
 
 export const actorOf = (codes: readonly PermissionCode[]) => (code: PermissionCode) =>
