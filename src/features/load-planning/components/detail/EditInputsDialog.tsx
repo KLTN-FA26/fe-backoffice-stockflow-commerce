@@ -6,11 +6,7 @@ import { UI_LABELS, VEHICLE_TYPE_STATUS } from "@/constants";
 import { loadPlanErrorMessage } from "@/features/load-planning/errors";
 import { planInputsSchema } from "@/features/load-planning/input-schemas";
 import { useSetLoadPlanInputs } from "@/features/load-planning/mutations";
-import {
-  candidateKey,
-  fillLineOptions,
-  fillLinesToSend,
-} from "@/features/load-planning/plan-selectors";
+import { fillLineOptions, fillLinesToSend } from "@/features/load-planning/plan-selectors";
 import {
   useActiveVehicleTypes,
   useLoadPlan,
@@ -56,7 +52,7 @@ export function EditInputsDialog({ plan, onClose }: { plan: PlanDetail; onClose:
   const [error, setError] = useState<string | null>(null);
 
   const submit = () => {
-    const knownShipments = new Set(candidates.data?.map(candidateKey));
+    const knownShipments = new Set(candidates.data?.map((c) => c.shipmentId));
     const knownTypes = new Set(types.data?.map((t) => t.vehicleTypeId));
     const vehicleTypeIds = [...inputs.vehicleTypes].filter((id) => knownTypes.has(id));
     const base = { loadPlanId: current.loadPlanId, expectedVersion: current.version };

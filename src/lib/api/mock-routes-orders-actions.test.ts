@@ -83,33 +83,38 @@ describe("credit hold (SCRUM-427)", () => {
   });
 });
 
-describe("GET /production/orders?salesOrderId= (hợp đồng BE ProductionOrderController#list)", () => {
-  it("đơn In Production → LSX gốc + LSX con gia công trỏ về gốc (docs 19 BR-12)", async () => {
+describe("GET /production-orders?salesOrderId= (hợp đồng BE ProductionOrderController#list, docs 17 §4.3)", () => {
+  it("đơn In Production → Đơn sản xuất In Production, mỗi dòng in một phần, chưa nhập thùng nào", async () => {
     const list = await listOrderProductionOrders(IN_PRODUCTION);
-    const parent = list.find((po) => po.parentId === null);
-    const child = list.find((po) => po.parentId !== null);
-    expect(parent?.mode).toBe("IN_HOUSE");
-    expect(child?.parentId).toBe(parent?.productionOrderId);
-    expect(child?.mode).toBe("SUBCONTRACTED");
-    expect(child?.salesOrderLineId).toBe(parent?.salesOrderLineId);
+    expect(list.length).toBeGreaterThan(0);
+    for (const po of list) {
+      expect(po).toMatchObject({ status: "IN_PRODUCTION", receivedCartons: 0 });
+      expect(po.code).toMatch(/^PRD-\d{8}-\d{4}$/);
+      expect(po.cartons).toBeGreaterThan(0);
+    }
+    const order = await getOrder(IN_PRODUCTION);
+    expect(list.every((po) => order.lines.some((line) => line.lineId === po.orderLineId))).toBe(
+      true,
+    );
   });
 
-  it("mock trả đúng hình BE: trang PageResponse, row ProductionOrderRowResponse (không mảng trần)", async () => {
+  it("mock trả đúng hình BE: trang PageResponse, ProductionOrder có lines (không mảng trần)", async () => {
     const { data } = await api.get<{ items: Record<string, unknown>[]; hasNext: boolean }>(
-      "/production/orders",
-      { params: new URLSearchParams({ salesOrderId: IN_PRODUCTION, type: "ORDER" }) },
+      "/production-orders",
+      { params: new URLSearchParams({ salesOrderId: IN_PRODUCTION }) },
     );
     expect(data.hasNext).toBe(false);
     expect(data.items[0]).toMatchObject({
-      type: "ORDER",
       salesOrderId: IN_PRODUCTION,
-      orderNumber: expect.stringMatching(/^LSX-\d{8}-\d{4}$/),
+      status: "IN_PRODUCTION",
+      code: expect.stringMatching(/^PRD-\d{8}-\d{4}$/),
+      lines: expect.arrayContaining([expect.objectContaining({ receivedCartons: 0 })]),
     });
     expect(data.items[0]).toHaveProperty("id");
-    expect(data.items[0]).not.toHaveProperty("productionOrderId");
+    expect(data.items[0]).not.toHaveProperty("orderNumber");
   });
 
-  it("đơn chưa release → chưa có LSX", async () => {
+  it("đơn chưa release → chưa có Đơn sản xuất", async () => {
     expect(await listOrderProductionOrders(DEPOSIT_PENDING)).toEqual([]);
     expect((await getOrder(DEPOSIT_PENDING)).paymentTerm).toBe("DEPOSIT");
   });

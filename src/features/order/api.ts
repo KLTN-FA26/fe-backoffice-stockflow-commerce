@@ -90,6 +90,15 @@ export function toOrder(dto: OrderDto): Order {
     amountDue: dto.amountDue ?? null,
     amountDueBeforeHandover: dto.amountDueBeforeHandover ?? null,
     amountDueOnDelivery: dto.amountDueOnDelivery ?? null,
+    netAmount: dto.netAmount ?? null,
+    taxAmount: dto.taxAmount ?? null,
+    fees: (dto.fees ?? []).map((fee) => ({
+      kind: fee.kind,
+      sku: fee.sku ?? null,
+      amount: fee.amount,
+      taxRate: fee.taxRate ?? null,
+      taxAmount: fee.taxAmount ?? null,
+    })),
     shipments: (dto.shipments ?? []).map((shipment) => ({
       shipmentId: shipment.shipmentId,
       status: shipment.status,

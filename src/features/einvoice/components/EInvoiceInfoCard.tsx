@@ -8,7 +8,7 @@ import { ADMIN_ROUTES } from "@/constants";
 import { formatDateTime } from "@/lib/format/date";
 import { Card } from "@/components/shared/Card";
 
-import { invoiceReference, warningMessages } from "../selectors";
+import { invoiceReference, rejectionText, warningMessages } from "../selectors";
 
 import { CodeLink, DateCell, EInvoiceStatusDot, InfoRow, TypeText } from "./primitives";
 
@@ -65,9 +65,7 @@ export function EInvoiceInfoCard({ invoice }: { invoice: EInvoice }) {
       {invoice.status === "REJECTED" && (
         <p className="text-danger flex gap-2 text-[0.8125rem]">
           <XCircle aria-hidden className="mt-0.5 size-3.5 shrink-0" />
-          Nhà cung cấp từ chối{invoice.rejectionCode ? ` (${invoice.rejectionCode})` : ""}:{" "}
-          {invoice.rejectionMessage ?? "không nêu lý do"}. Sửa nguyên nhân, mở lại thành nháp rồi
-          phát hành lại.
+          {rejectionText(invoice)} Sửa nguyên nhân, mở lại thành nháp rồi phát hành lại.
         </p>
       )}
       {invoice.status === "VOIDED_DRAFT" && (
@@ -120,6 +118,11 @@ export function EInvoiceInfoCard({ invoice }: { invoice: EInvoice }) {
         )}
         {invoice.issuedAt && (
           <InfoRow label="Phát hành lúc">{formatDateTime(invoice.issuedAt)}</InfoRow>
+        )}
+        {invoice.deliveryFailedAt && (
+          <InfoRow label={D.deliveryFailedAt}>
+            <span className="text-danger">{formatDateTime(invoice.deliveryFailedAt)}</span>
+          </InfoRow>
         )}
         {invoice.taxAuthorityCode && (
           <InfoRow label="Mã cơ quan thuế">

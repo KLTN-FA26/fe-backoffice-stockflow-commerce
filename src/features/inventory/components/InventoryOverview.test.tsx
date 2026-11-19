@@ -271,6 +271,18 @@ describe("reservation warehouse filter lifecycle", () => {
   });
 });
 
+describe("alerts", () => {
+  // docs 20 BR-13: không có cảnh báo tồn nào — trang không đọc /inventory/alerts nữa.
+  it("never requests stock alerts, for the SKU or for an open warehouse", async () => {
+    const user = await openFor("CUP-PP-500");
+    await openWarehouse(user, "HN01");
+    await levelsRegion();
+    // Kho đã mở: đọc tồn theo kho đã đi, vậy mà vẫn không có request cảnh báo nào.
+    await waitFor(() => expect(sentTo(stockItemsPath)).toHaveLength(1));
+    expect(sentTo("/inventory/alerts")).toHaveLength(0);
+  });
+});
+
 it("invalid stock response shows a contract error rather than an empty result", async () => {
   await openFor("A", { levels: { items: [] } });
   expect(await screen.findByText(INVENTORY_MESSAGES.invalidContract)).toBeInTheDocument();

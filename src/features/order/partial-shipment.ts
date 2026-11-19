@@ -37,10 +37,14 @@ export function isPackedOnlyAheadOfPrints(
  * BE `Order#decidePartialShipment`: Sales đổi được cho tới khi hàng đi hết / đơn đóng. Từ SHIPPED trở đi
  * (giao thất bại, đã giao, trả hàng, hoàn tiền, hoàn tất, huỷ, đóng sổ) → 409 ORDER_PARTIAL_SHIPMENT_LOCKED.
  */
+// BE `Order#decidePartialShipment` (develop 053bd4a2): mở tới khi hàng đi hết / đơn đóng. "Pending Contract" và
+// "Awaiting Stock" từng thiếu ở đây → đơn Chờ ký hợp đồng bị báo "đã giao đi hoặc đã đóng" (WF-02 audit).
 export const PARTIAL_SHIPMENT_OPEN_STATUSES: readonly OrderStatus[] = [
   "Draft",
+  "Pending Contract",
   "Pending Payment",
   "Confirmed",
+  "Awaiting Stock",
   "In Production",
   "Ready to Fulfill",
   "Picking",

@@ -405,8 +405,7 @@ export function registerAllMockRoutes(): void {
   // Module 07/08 (lấy hàng, đóng gói): API thật `/fulfillment/tasks` — mock ở
   // `mock-routes-fulfillment.ts` (SCRUM-437).
 
-  // Module 09 (chuyến xe) và 10 (lệnh chuyển kho) theo hợp đồng BE: mock-routes-dispatch.ts,
-  // mock-routes-transfer-orders.ts — route cũ /shipments, /carriers, /transfer-orders đã bỏ.
+  // Module 09 (chuyến xe) theo hợp đồng BE: mock-routes-dispatch.ts — route cũ /shipments, /carriers đã bỏ.
 
   /* ====================================================================
    * Module 11 — Move Tasks

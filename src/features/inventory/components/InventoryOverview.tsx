@@ -18,8 +18,7 @@ import { StockOverviewSection } from "./StockOverviewSection";
 const { stockRead, reservationRead } = INVENTORY_OVERVIEW_PERMISSIONS;
 
 /**
- * Inventory Overview (SCRUM-438). Opens with stock READ or reservation READ; alert READ alone does
- * not. Each section is mounted only for its own permission, so no request is ever sent and then
+ * Inventory Overview (SCRUM-438). Opens with stock READ or reservation READ. Each section is mounted only for its own permission, so no request is ever sent and then
  * hidden. UI-only — the backend re-checks every read (@RequiresPermission, InventoryController).
  */
 export function InventoryOverview() {

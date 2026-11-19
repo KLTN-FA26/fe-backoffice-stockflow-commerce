@@ -10,6 +10,7 @@ import {
   atpDto,
   reservationPageDto,
   reservationRowDto,
+  reservationListInput,
   stockLevelsDto,
   skuLookupInput,
   stockLevelsInput,
@@ -235,4 +236,13 @@ describe("exact SKU contract", () => {
     expect(skuLookupInput.safeParse({ sku }).success).toBe(false);
     expect(stockLevelsInput.safeParse({ sku }).success).toBe(false);
   });
+});
+
+it("overview pagination rejects sizes above the backend Pages ceiling", () => {
+  expect(reservationListInput.safeParse({ sku: "CUP-PP-500", page: 0, size: 200 }).success).toBe(
+    true,
+  );
+  expect(reservationListInput.safeParse({ sku: "CUP-PP-500", page: 0, size: 201 }).success).toBe(
+    false,
+  );
 });

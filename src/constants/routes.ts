@@ -33,28 +33,6 @@ export const ADMIN_ROUTES = {
     byCustomer: (customerId: string) =>
       `${ADMIN_BASE}/quotes?customerId=${encodeURIComponent(customerId)}`,
   },
-  sampleRequests: {
-    create: `${ADMIN_BASE}/sample-requests/create`,
-    createForCustomer: (customerId: string) =>
-      `${ADMIN_BASE}/sample-requests/create?customerId=${encodeURIComponent(customerId)}`,
-    /** Làm mẫu cho một dòng báo giá (BE kiểm tra quote cùng khách + thiết kế + phôi). */
-    createFromQuoteLine: (q: {
-      quoteId: string;
-      customerId: string;
-      blankSku: string;
-      designSnapshotId: string;
-    }) => `${ADMIN_BASE}/sample-requests/create?${new URLSearchParams(q).toString()}`,
-    detail: (id: string) => `${ADMIN_BASE}/sample-requests/${id}`,
-    list: `${ADMIN_BASE}/sample-requests`,
-    byCustomer: (customerId: string) =>
-      `${ADMIN_BASE}/sample-requests?customerId=${encodeURIComponent(customerId)}`,
-  },
-  productionOrders: {
-    detail: (id: string) => `${ADMIN_BASE}/production-orders/${id}`,
-    list: `${ADMIN_BASE}/production-orders`,
-    bySalesOrder: (orderId: string) =>
-      `${ADMIN_BASE}/production-orders?salesOrderId=${encodeURIComponent(orderId)}`,
-  },
   permissions: `${ADMIN_BASE}/permissions`,
   /** Quản lý tài khoản nhân viên — BE `UserManagementController` (PR #72, SCRUM-458). */
   users: {
@@ -83,6 +61,8 @@ export const ADMIN_ROUTES = {
     // Đơn công nợ vượt hạn mức chờ duyệt (SCRUM-427) — segment tĩnh, ưu tiên hơn [id]
     creditHolds: `${ADMIN_BASE}/orders/credit-holds`,
     cancellationRequests: `${ADMIN_BASE}/orders/cancellation-requests`,
+    /** Hồ sơ giao thất bại chờ Sale quyết (WF-05 GH-1, BE `GET /orders/delivery-failures`). */
+    deliveryFailures: `${ADMIN_BASE}/orders/delivery-failures`,
     detail: (id: string) => `${ADMIN_BASE}/orders/${id}`,
     /** Khối "Hợp đồng" trong chi tiết đơn (WF-02 pha B). */
     contract: (id: string) => `${ADMIN_BASE}/orders/${id}#contract`,
@@ -157,9 +137,6 @@ export const ADMIN_ROUTES = {
   loadPlans: {
     list: `${ADMIN_BASE}/load-plans`,
     create: `${ADMIN_BASE}/load-plans/create`,
-    /** "Lập kế hoạch xe" từ lệnh chuyển kho đã đóng gói (SCRUM-287 PR F9): nguồn TRANSFER, kho nguồn và lệnh chọn sẵn. */
-    createFromTransfer: (transferId: string, warehouseId: string) =>
-      `${ADMIN_BASE}/load-plans/create?sourceType=TRANSFER&transferOrderId=${encodeURIComponent(transferId)}&warehouseId=${encodeURIComponent(warehouseId)}`,
     detail: (id: string) => `${ADMIN_BASE}/load-plans/${id}`,
     /** Phiếu xếp hàng in được của một xe (SCRUM-287 PR F6). */
     print: (id: string, seq: number) => `${ADMIN_BASE}/load-plans/${id}/vehicles/${seq}/print`,
@@ -173,10 +150,6 @@ export const PORTAL_ROUTES = {
   home: PORTAL_BASE,
   /** Trang kích hoạt từ email mời — BE `PORTAL_ACTIVATION_URL`, token nằm ở `#token=`. */
   activate: `${PORTAL_BASE}/activate`,
-  samples: {
-    list: `${PORTAL_BASE}/samples`,
-    detail: (id: string) => `${PORTAL_BASE}/samples/${id}`,
-  },
   orders: {
     list: `${PORTAL_BASE}/orders`,
     detail: (id: string) => `${PORTAL_BASE}/orders/${id}`,

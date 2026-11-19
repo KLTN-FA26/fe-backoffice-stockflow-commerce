@@ -14,13 +14,14 @@ import { registerMockRoute } from "./mock-adapter";
 import {
   findMockCarton,
   isMockQuarantined,
+  listMockCartons,
   mockWarehouseCodeOf,
   openMockReleaseTask,
   setMockQuarantined,
 } from "./mock-inventory-cartons";
 import { hasPendingMockAdjustment } from "./mock-routes-inventory";
 import { MOCK_AREAS } from "./mock-routes-goods-receipts-store";
-import { beError, parseJsonBody, readString } from "./mock-routes-purchase-orders-store";
+import { beError, isRecord, parseJsonBody, readString } from "./mock-routes-purchase-orders-store";
 
 import type { AxiosRequestConfig } from "axios";
 import type { MockCarton } from "./mock-inventory-cartons";
@@ -71,6 +72,65 @@ function detail(carton: MockCarton) {
         ]
       : [],
   };
+}
+
+/** BE `StockPackageResponse` — một dòng của danh sách thùng. */
+function row(carton: MockCarton) {
+  const { pkg } = carton;
+  const holding = pkg.status === "IN_STOCK" || pkg.status === "RECEIVING";
+  return {
+    lpn: pkg.lpn,
+    sku: carton.sku,
+    unitOfMeasure: "CARTON",
+    nominalQty: pkg.nominalQty,
+    receivedQty: pkg.receivedQty,
+    ...(carton.lotNumber ? { lotNumber: carton.lotNumber } : {}),
+    onHand: holding ? pkg.receivedQty : 0,
+    reserved: 0,
+    status: pkg.status,
+    ...(pkg.locationCode ? { locationCode: pkg.locationCode } : {}),
+  };
+}
+
+const LIVE = ["RECEIVING", "IN_STOCK"];
+const SIZE_DEFAULT = 20;
+const SIZE_MAX = 100;
+
+/**
+ * `GET /inventory/stock-packages?location&sku&status&page&size` (BE `StockPackageLookup#cartons`): đúng một mã vị trí,
+ * SKU khớp nguyên văn, trạng thái mặc định RECEIVING + IN_STOCK, sắp theo LPN, trang từ 0.
+ */
+async function list(config: AxiosRequestConfig) {
+  const params = isRecord(config.params) ? config.params : {};
+  const page = params.page === undefined ? 0 : Number(params.page);
+  const size = params.size === undefined ? SIZE_DEFAULT : Number(params.size);
+  if (!Number.isInteger(page) || page < 0 || !Number.isInteger(size) || size < 1 || size > SIZE_MAX)
+    return beError(400, "UNSUPPORTED_PARAMETER", "Unsupported parameter value");
+  const location = readString(params.location).toUpperCase();
+  const sku = readString(params.sku).toUpperCase();
+  const statuses = Array.isArray(params.status)
+    ? params.status.map((value) => readString(value))
+    : readString(params.status)
+      ? [readString(params.status)]
+      : LIVE;
+  const rows = (await listMockCartons())
+    .filter(
+      (carton) =>
+        statuses.includes(carton.pkg.status) &&
+        (!location || (carton.pkg.locationCode ?? "").toUpperCase() === location) &&
+        (!sku || carton.sku.toUpperCase() === sku),
+    )
+    .sort((a, b) => a.pkg.lpn.localeCompare(b.pkg.lpn));
+  const totalPages = Math.ceil(rows.length / size);
+  return ok({
+    items: rows.slice(page * size, page * size + size).map(row),
+    page,
+    size,
+    totalElements: rows.length,
+    totalPages,
+    hasNext: page + 1 < totalPages,
+    hasPrevious: page > 0,
+  });
 }
 
 async function load(config: AxiosRequestConfig) {
@@ -137,6 +197,7 @@ async function release(config: AxiosRequestConfig) {
 }
 
 export function registerQuarantineMockRoutes(): void {
+  registerMockRoute("GET", STOCK_PACKAGES, list);
   registerMockRoute("GET", `${STOCK_PACKAGES}/:lpn`, async (config) => {
     const loaded = await load(config);
     return loaded.error ?? ok(detail(loaded.carton));

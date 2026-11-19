@@ -72,10 +72,6 @@ export function unplacedLinesOf(parcels: readonly PlanParcel[]): UnplacedLine[] 
 export const vehiclesNeedingRecalculation = (plan: Pick<PlanDetail, "vehicles">): number[] =>
   plan.vehicles.filter((vehicle) => vehicle.needsRecalculation).map((vehicle) => vehicle.seq);
 
-/** Khoá chọn của một ứng viên: id lô giao. */
-export const candidateKey = (candidate: Pick<CandidateShipment, "shipmentId">): string =>
-  candidate.shipmentId ?? "";
-
 /** Một dòng đơn của các lô đã chọn: ô tick "hàng chèn" của chế độ Ưu tiên + hàng chèn (RTM-LPGROUP). */
 export interface FillLineOption {
   orderLineId: string;
@@ -91,7 +87,7 @@ export function fillLineOptions(
 ): FillLineOption[] {
   const out = new Map<string, FillLineOption>();
   for (const candidate of candidates) {
-    if (!selected.has(candidateKey(candidate))) continue;
+    if (!selected.has(candidate.shipmentId ?? "")) continue;
     for (const parcel of candidate.packages) {
       if (!parcel.orderLineId) continue;
       const known = out.get(parcel.orderLineId);
@@ -129,7 +125,7 @@ export function totalsOf(
   >[],
   selected: ReadonlySet<string>,
 ): { shipments: number; packages: number } {
-  const chosen = candidates.filter((candidate) => selected.has(candidateKey(candidate)));
+  const chosen = candidates.filter((candidate) => selected.has(candidate.shipmentId));
   return {
     shipments: chosen.length,
     packages: chosen.reduce((sum, c) => sum + c.packageCount - c.packagesInOtherPlans, 0),

@@ -11,7 +11,6 @@ import {
 } from "./__fixtures__/plans";
 import { buildItemTable } from "./lib/item-rows";
 import {
-  candidateKey,
   isFinalLoadPlan,
   layoutsForItemTable,
   loadPlanStatusTone,
@@ -105,13 +104,6 @@ describe("pickedOnTray", () => {
     expect([...pickedOnTray(picked, tray)]).toEqual(["unplaced-NO_SPACE-1"]);
     expect(pickedOnTray(picked, []).size).toBe(0);
     expect(pickedOnTray(new Set(), tray).size).toBe(0);
-  });
-});
-
-describe("candidateKey / totalsOf", () => {
-  it("candidateKey: the shipment id of a candidate, empty when absent", () => {
-    expect(candidateKey({ shipmentId: "s-1" })).toBe("s-1");
-    expect(candidateKey({})).toBe("");
   });
 });
 

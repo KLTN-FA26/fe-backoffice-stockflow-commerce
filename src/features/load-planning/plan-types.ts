@@ -24,9 +24,7 @@ export type VehicleTypeOption = z.infer<typeof beVehicleTypeOptionSchema>;
 export type Reconciliation = z.infer<typeof beReconciliationSchema>;
 export type EstimateComparison = NonNullable<Reconciliation["vsEstimate"]>;
 
-/**
- * Đầu vào của kế hoạch: lô (nguyên lô), loại xe, chế độ — cùng dạng khi tạo và khi đổi.
- */
+/** Đầu vào của kế hoạch: lô (nguyên lô), loại xe, chế độ — cùng dạng khi tạo và khi đổi. */
 export interface PlanInputs {
   shipmentIds: string[];
   vehicleTypeIds: string[];

@@ -27,7 +27,7 @@ export const beDecimal = z.union([z.number(), z.string()]).transform(Number).pip
 export const beParcelSchema = z.object({
   packageId: z.string(),
   labelCode: z.string(),
-  shipmentId: z.string().nullish(),
+  shipmentId: z.string(),
   shipmentCode: z.string().nullish(),
   /** SKU; kiện của bộ là `SKU n/N`, kiện hỗn hợp là `SKU1 + SKU2`. */
   partName: z.string(),
@@ -48,12 +48,13 @@ export const beParcelSchema = z.object({
 });
 
 /**
- * `LoadPlans.CandidateShipment`: lô giao nguyên xe chờ xuất, nguyên lô (LP-5).
+ * `LoadPlans.CandidateShipment`: lô giao nguyên xe chờ xuất, nguyên lô (LP-5). BE vẫn trả `sourceType` (luôn `ORDER` từ
+ * khi bỏ chuyển kho liên kho) — FE không đọc nên không khai báo.
  */
 export const beCandidateShipmentSchema = z.object({
-  shipmentId: z.string().nullish(),
+  shipmentId: z.string(),
   code: z.string(),
-  orderId: z.string().nullish(),
+  orderId: z.string(),
   /** Vắng khi BE không tra được đơn của lô. */
   orderNumber: z.string().nullish(),
   allowPartialShipment: z.boolean(),

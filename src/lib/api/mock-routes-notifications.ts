@@ -1,15 +1,17 @@
 /** In-memory inbox mock, scoped to the authenticated user like BE SCRUM-147. */
 import { NOTIFICATION_API } from "@/constants/notifications";
-import { INVENTORY_OVERVIEW_PERMISSIONS } from "@/constants/permissions";
+import { ORDER_PERMISSIONS } from "@/constants/permissions";
+import { ADMIN_ROUTES } from "@/constants/routes";
 
 import { useAuthStore } from "@/lib/auth/auth-store";
 
 import { registerMockRoute } from "./mock-adapter";
-import { MOCK_STOCK_ALERTS } from "./mock-routes-inventory-stock-data";
+import { mockInstallments, outstandingOf, overdueOf } from "./mock-payment-store";
 import { fail, noContent, ok, pageOf, pathParams, queryOf, typeMismatch } from "./mock-route-utils";
 import { mockGrantsOf } from "./mock-user-grants";
 
 import type { Notification } from "@/features/notification/types";
+import type { MockInstallment } from "./mock-payment-store";
 import type { MockResponseShape } from "./mock-route-utils";
 
 const inboxes = new Map<string, Notification[]>();
@@ -19,9 +21,28 @@ export function resetNotificationMockStore() {
   inboxes.clear();
 }
 
-/** Same as BE InventoryAlertMessages: SAFETY and EXPIRED are CRITICAL, REORDER and EXPIRING WARN. */
-export function stockAlertSeverity(kind: string): Notification["severity"] {
-  return kind === "SAFETY" || kind === "EXPIRED" ? "CRITICAL" : "WARN";
+const ddMMyyyy = (iso: string) => iso.split("-").reverse().join("/");
+
+/**
+ * BE `InstallmentOverdueNotificationListener.message` (docs 15 §4.3 bước 11, 17 §4.9): category `PAYMENT_OVERDUE`,
+ * WARN, câu tiếng Việt của `inbox.installment.overdue.*`, link tới chi tiết đơn, nguồn `INSTALLMENT`.
+ */
+export function installmentOverdueNotice(i: MockInstallment): Notification {
+  const due = i.dueDate ?? "";
+  const owed = `${new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 }).format(outstandingOf(i))} ${i.currency}`;
+  return {
+    id: crypto.randomUUID(),
+    category: "PAYMENT_OVERDUE",
+    severity: "WARN",
+    title: `Khách có đợt thanh toán quá hạn: hợp đồng ${i.contractNumber}, đợt ${i.seq}`,
+    body: `Đợt ${i.seq} của hợp đồng ${i.contractNumber} (đơn ${i.orderNumber}) có hạn trả ngày ${due ? ddMMyyyy(due) : "-"}, đã qua mà chưa trả đủ; còn phải thu ${owed}. Anh/chị có thể treo tay các đơn đang chạy của khách.`,
+    link: ADMIN_ROUTES.orders.detail(i.orderId),
+    sourceType: "INSTALLMENT",
+    sourceId: i.installmentId,
+    // BE quét hằng ngày: đợt quá hạn được báo vào đầu ngày sau hạn trả (giờ VN)
+    createdAt: `${due}T17:00:00Z`,
+    read: false,
+  };
 }
 
 function inbox(): Notification[] | null {
@@ -29,24 +50,13 @@ function inbox(): Notification[] | null {
   if (!user || useAuthStore.getState().status !== "authenticated") return null;
   let entries = inboxes.get(user.userId);
   if (!entries) {
-    // Mock staff messages are based on existing inventory alert fixtures, not invented stock levels.
-    // Only accounts that can read stock alerts get them (by permission code, not role name — BE
-    // picks recipients by role, which the FE never consults); everyone else has an empty inbox.
-    entries = !mockGrantsOf(user.userId).has(INVENTORY_OVERVIEW_PERMISSIONS.alertRead)
+    // BE gửi thông báo đợt quá hạn cho người giữ `sales-order-holds:UPDATE` (theo quyền, không theo tên vai trò); mock
+    // dựng từ đợt thanh toán seed đang quá hạn, không bịa số tiền. Tài khoản khác có hộp thư rỗng.
+    entries = !mockGrantsOf(user.userId).has(ORDER_PERMISSIONS.hold)
       ? []
-      : MOCK_STOCK_ALERTS.filter((alert) => alert.status === "OPEN")
-          .map((alert) => ({
-            id: crypto.randomUUID(),
-            category: "INVENTORY_ALERT",
-            severity: stockAlertSeverity(alert.kind),
-            title: `${alert.kind} · ${alert.sku}`,
-            body: `${alert.observedQty} sản phẩm cần kiểm tra`,
-            link: null,
-            sourceType: "STOCK_ALERT",
-            sourceId: alert.id,
-            createdAt: alert.openedAt,
-            read: false,
-          }))
+      : mockInstallments()
+          .filter(overdueOf)
+          .map(installmentOverdueNotice)
           .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     inboxes.set(user.userId, entries);
   }

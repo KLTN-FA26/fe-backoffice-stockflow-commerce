@@ -7,11 +7,11 @@ const response = {
   items: [
     {
       id: "77777777-7777-4777-8777-777777777777",
-      category: "INVENTORY_ALERT",
-      severity: "CRITICAL",
-      title: "Hàng cần xử lý",
-      link: "/admin/inventory/alerts?kind=EXPIRED",
-      sourceType: "STOCK_ALERT",
+      category: "PAYMENT_OVERDUE",
+      severity: "WARN",
+      title: "Khách có đợt thanh toán quá hạn: hợp đồng HD-20261108-000016-1, đợt 1",
+      link: "/admin/orders/0e380000-0000-4000-8000-000000000201",
+      sourceType: "INSTALLMENT",
       sourceId: "66666666-6666-4666-8666-666666666666",
       createdAt: "2026-10-15T01:00:00Z",
       read: false,

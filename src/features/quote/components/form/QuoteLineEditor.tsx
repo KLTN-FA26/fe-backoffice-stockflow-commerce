@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useWatch } from "react-hook-form";
+import { Controller, useWatch } from "react-hook-form";
 import { Trash2 } from "lucide-react";
 
 import { useCustomerPrice } from "@/features/quote/queries";
@@ -84,19 +84,34 @@ export function QuoteLineEditor({
           required
           error={errors?.sku?.message}
         >
-          <select
-            {...register(`lines.${index}.sku`)}
-            {...fieldA11y(`${prefix}-sku`, errors?.sku?.message)}
-            className={`${FORM_INPUT_CLASS} border px-2 font-[family-name:var(--font-mono)]`}
-          >
-            <option value="">Chọn SKU</option>
-            {skus.map((option) => (
-              <option key={option.variantId} value={option.sku}>
-                {option.sku}
-                {option.name ? ` — ${option.name}` : ""}
-              </option>
-            ))}
-          </select>
+          {/* Select có kiểm soát: danh sách SKU tải sau form, một <select> chỉ `register` thì hiện trống dù
+              giá trị form vẫn là SKU của dòng (WF-02 audit). SKU của dòng chưa có trong danh sách vẫn có option. */}
+          <Controller
+            control={control}
+            name={`lines.${index}.sku`}
+            render={({ field }) => (
+              <select
+                name={field.name}
+                ref={field.ref}
+                value={field.value ?? ""}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                {...fieldA11y(`${prefix}-sku`, errors?.sku?.message)}
+                className={`${FORM_INPUT_CLASS} border px-2 font-[family-name:var(--font-mono)]`}
+              >
+                <option value="">Chọn SKU</option>
+                {field.value && !skus.some((option) => option.sku === field.value) && (
+                  <option value={field.value}>{field.value}</option>
+                )}
+                {skus.map((option) => (
+                  <option key={option.variantId} value={option.sku}>
+                    {option.sku}
+                    {option.name ? ` — ${option.name}` : ""}
+                  </option>
+                ))}
+              </select>
+            )}
+          />
         </FormField>
         <FormField
           id={`${prefix}-cartons`}

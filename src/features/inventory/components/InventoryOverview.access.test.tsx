@@ -21,7 +21,7 @@ import { InventoryOverview } from "./InventoryOverview";
 
 import type { PermissionCode } from "@/lib/auth";
 
-const { stockRead, reservationRead, alertRead } = INVENTORY_OVERVIEW_PERMISSIONS;
+const { stockRead, reservationRead } = INVENTORY_OVERVIEW_PERMISSIONS;
 const warehouseRead = WAREHOUSE_PERMISSIONS.read;
 const server = setupServer();
 // Every request that left the page, as backend path + query (the BFF base path stripped).
@@ -82,7 +82,6 @@ describe("Inventory Overview access", () => {
       "/inventory/stock-levels",
       "/inventory/warehouses",
       "/inventory/stock-items",
-      "/inventory/alerts",
       "/warehouses",
     ]) {
       expect(sentTo(path)).toEqual([]);
@@ -100,15 +99,6 @@ describe("Inventory Overview access", () => {
     ).toBeInTheDocument();
     await waitFor(() => expect(sentTo("/inventory/reservations")).toHaveLength(1));
     expect(sentTo("/inventory/stock-levels")).toHaveLength(1);
-    expect(sentTo("/inventory/alerts")).toHaveLength(0);
-  });
-
-  it("alert READ alone does not open the page", async () => {
-    open([alertRead]);
-    expect(await screen.findByText(INVENTORY_LABELS.denied)).toBeInTheDocument();
-    expect(screen.queryByLabelText(INVENTORY_LABELS.skuLookup)).toBeNull();
-    expect(sent.filter((url) => url.startsWith("/inventory"))).toEqual([]);
-    expect(sentTo("/warehouses")).toEqual([]);
   });
 });
 
@@ -305,7 +295,6 @@ describe("permission failures and revocation", () => {
     open([stockRead, reservationRead]);
     await lookUp("CUP-PP-500");
     await screen.findByText(OVERVIEW_RESERVATION.orderId);
-    await waitFor(() => expect(sentTo("/inventory/stock-levels")).toHaveLength(1));
     server.use(inventoryPermissions([]));
     act(() => {
       focusManager.setFocused(false);

@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/shared/Skeleton";
 import { Button } from "@/components/ui/button";
 
 import { useCustomerOverview } from "../queries";
+import { contextStatusLabel } from "../selectors";
 
 import { AttachContextDialog } from "./AttachContextDialog";
 import { TransferDetailsDialog } from "./TransferDetailsDialog";
@@ -82,7 +83,12 @@ export function CustomerPanel({
               ) : (
                 label
               )}
-              {context.status && <span className="text-ink-tertiary"> · {context.status}</span>}
+              {context.status && (
+                <span className="text-ink-tertiary">
+                  {" "}
+                  · {contextStatusLabel(context.kind, context.status)}
+                </span>
+              )}
             </div>
           );
         })}

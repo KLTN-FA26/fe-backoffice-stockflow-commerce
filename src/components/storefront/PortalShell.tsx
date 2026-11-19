@@ -2,15 +2,10 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { FlaskConical, LogOut, PackageOpen } from "lucide-react";
+import { LogOut, PackageOpen } from "lucide-react";
 import { cn } from "cn";
 
-import {
-  APP_ROUTES,
-  ORDER_PERMISSIONS,
-  PORTAL_ROUTES,
-  SAMPLE_REQUEST_PERMISSIONS,
-} from "@/constants";
+import { APP_ROUTES, ORDER_PERMISSIONS, PORTAL_ROUTES } from "@/constants";
 import { logoutApi } from "@/lib/auth/auth-api";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { usePermissionChecker } from "@/lib/auth/components/Can";
@@ -36,12 +31,6 @@ const PORTAL_NAV: PortalNavItem[] = [
     href: PORTAL_ROUTES.orders.list,
     icon: PackageOpen,
     permission: ORDER_PERMISSIONS.read,
-  },
-  {
-    label: "Mẫu thử",
-    href: PORTAL_ROUTES.samples.list,
-    icon: FlaskConical,
-    permission: SAMPLE_REQUEST_PERMISSIONS.read,
   },
 ];
 

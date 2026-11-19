@@ -1,6 +1,6 @@
 /**
- * Order — API thao tác điều phối: credit hold (SCRUM-427) và lệnh sản xuất của đơn (đọc từ module
- * production của BE). Parse tại biên như `api.ts`. Release đơn (PR #74): `delivery-mode-api.ts`.
+ * Order — API thao tác điều phối: credit hold (SCRUM-427) và Đơn sản xuất của đơn (`/production-orders`, docs 17
+ * §4.3). Parse tại biên như `api.ts`. Release đơn (PR #74): `delivery-mode-api.ts`.
  */
 
 import { PAGE_SIZE } from "@/constants";
@@ -106,18 +106,18 @@ export async function getCreditPosition(
   };
 }
 
-/* ── Lệnh sản xuất của đơn ──────────────────────────────────────────── */
+/* ── Đơn sản xuất của đơn ───────────────────────────────────────────── */
 
-export const PRODUCTION_ORDERS_PATH = "/production/orders";
+export const PRODUCTION_ORDERS_PATH = "/production-orders";
 /** BE `Pages.MAX_PAGE_SIZE` — vượt thì 400 UNSUPPORTED_PARAMETER (không tự kẹp). */
 const PRODUCTION_PAGE_SIZE = 200;
-/** Chặn vòng lặp nếu BE trả `hasNext` sai — 200 × 10 LSX cho một đơn đã quá thực tế. */
+/** Chặn vòng lặp nếu BE trả `hasNext` sai — 200 × 10 Đơn sản xuất cho một đơn đã quá thực tế. */
 const PRODUCTION_MAX_PAGES = 10;
 
 /**
- * `GET /production/orders?salesOrderId=…&type=ORDER` — BE ProductionOrderController#list,
- * `production-orders:READ` (ACCOUNTANT không có → 403). Đọc hết các trang (cũ nhất trước để LSX gốc
- * đứng trước LSX con). Bỏ dòng không gắn dòng đơn (LSX mẫu) — không nhóm được theo dòng.
+ * `GET /production-orders?salesOrderId=…` — BE ProductionOrderController#list, `production-orders:READ`
+ * (ACCOUNTANT không có → 403). Đọc hết các trang, cũ nhất trước (đợt giao đầu đứng trước). Trải mỗi Đơn sản xuất ra
+ * từng dòng của nó để màn chi tiết gom theo dòng đơn bán.
  */
 export async function listOrderProductionOrders(
   salesOrderId: string,
@@ -127,7 +127,6 @@ export async function listOrderProductionOrders(
   for (let page = 0; page < PRODUCTION_MAX_PAGES; page++) {
     const params = new URLSearchParams({
       salesOrderId,
-      type: "ORDER",
       sort: "createdAt,asc",
       page: String(page),
       size: String(PRODUCTION_PAGE_SIZE),
@@ -138,21 +137,15 @@ export async function listOrderProductionOrders(
     if (!parsed.hasNext) break;
   }
   return rows.flatMap((po) =>
-    po.salesOrderLineId
-      ? [
-          {
-            productionOrderId: po.id,
-            productionOrderNumber: po.orderNumber,
-            salesOrderLineId: po.salesOrderLineId,
-            parentId: po.parentId ?? null,
-            mode: po.mode,
-            status: po.status,
-            holdReason: po.holdReason ?? null,
-            plannedQuantity: po.plannedQuantity,
-            goodQuantity: po.goodQuantity,
-            dueDate: po.dueDate ?? null,
-          },
-        ]
-      : [],
+    po.lines.map((line) => ({
+      productionOrderId: po.id,
+      code: po.code,
+      orderLineId: line.orderLineId,
+      status: po.status,
+      cartons: line.cartons,
+      receivedCartons: line.receivedCartons,
+      needByDate: po.needByDate ?? null,
+      expectedCompletionDate: po.expectedCompletionDate ?? null,
+    })),
   );
 }

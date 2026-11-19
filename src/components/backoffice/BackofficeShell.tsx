@@ -9,7 +9,6 @@ import {
   CalendarClock,
   ClipboardCheck,
   ClipboardList,
-  Factory,
   Database,
   FileBox,
   FileSignature,
@@ -60,6 +59,7 @@ import {
   CREDIT_HOLD_PERMISSIONS,
   CUSTOMER_PRICE_PERMISSIONS,
   CUSTOMER_PRICE_UI_LABELS,
+  DELIVERY_FAILURE_LABELS,
   FULFILLMENT_PACKAGE_PERMISSIONS,
   FULFILLMENT_PICK_PERMISSIONS,
   FULFILLMENT_PICKING_PERMISSIONS,
@@ -73,10 +73,8 @@ import {
   LOAD_PLAN_PRINT_LABELS,
   ORDER_PERMISSIONS,
   PRODUCT_PERMISSIONS,
-  PRODUCTION_ORDER_PERMISSIONS,
   QUOTE_PERMISSIONS,
   CHAT_PERMISSIONS,
-  SAMPLE_REQUEST_PERMISSIONS,
   PUT_BACK_LABELS,
   SHIPMENT_PERMISSIONS,
   STOCK_PACKAGE_PERMISSIONS,
@@ -266,7 +264,7 @@ export const NAV_GROUPS: NavGroup[] = [
         label: INVENTORY_LABELS.overviewTitle,
         href: INVENTORY_ROUTES.overview,
         icon: Boxes,
-        // Same rule as the page gate: stock READ or reservation READ; alert READ alone is not enough.
+        // Same rule as the page gate: stock READ or reservation READ.
         anyPermission: [
           INVENTORY_OVERVIEW_PERMISSIONS.stockRead,
           INVENTORY_OVERVIEW_PERMISSIONS.reservationRead,
@@ -371,12 +369,6 @@ export const NAV_GROUPS: NavGroup[] = [
         // BE `chat-conversations:VIEW_PAGE` (seed: SALES_STAFF, SALES_MANAGER, SYSTEM_ADMIN)
         permission: CHAT_PERMISSIONS.viewPage,
       },
-      {
-        label: "Yêu cầu mẫu",
-        href: ADMIN_ROUTES.sampleRequests.list,
-        icon: FlaskConical,
-        permission: SAMPLE_REQUEST_PERMISSIONS.viewPage,
-      },
     ],
   },
   {
@@ -427,19 +419,6 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    // Xưởng in: prepress → xuất phôi → in → QC → bàn giao đóng gói (SCRUM-406..419, 442)
-    title: "Sản xuất",
-    icon: Factory,
-    items: [
-      {
-        label: "Lệnh sản xuất",
-        href: ADMIN_ROUTES.productionOrders.list,
-        icon: Factory,
-        permission: PRODUCTION_ORDER_PERMISSIONS.viewPage,
-      },
-    ],
-  },
-  {
     title: "Thực hiện đơn",
     icon: ListChecks,
     items: [
@@ -464,6 +443,13 @@ export const NAV_GROUPS: NavGroup[] = [
         href: ADMIN_ROUTES.orders.cancellationRequests,
         icon: Ban,
         permission: CANCELLATION_REQUEST_PERMISSIONS.read,
+      },
+      // Giao thất bại (WF-05 GH-1): lô hãng mang về chờ Sale quyết — BE `GET /orders/delivery-failures` đòi sales-orders:READ
+      {
+        label: DELIVERY_FAILURE_LABELS.title,
+        href: ADMIN_ROUTES.orders.deliveryFailures,
+        icon: PackageX,
+        permission: ORDER_PERMISSIONS.read,
       },
       // Yêu cầu trả hàng (docs 17 §4.10) — `sales-rmas:VIEW_PAGE`: Sale, Kế toán, Kho, Quản trị (WF-05 BO-16)
       {
@@ -557,7 +543,6 @@ const DETAIL_LABEL_BY_ROUTE: Record<string, string> = {
   "/admin/products/create": "Tạo sản phẩm",
   [ADMIN_ROUTES.customers.create]: "Tạo khách hàng",
   [ADMIN_ROUTES.quotes.create]: "Tạo báo giá",
-  [ADMIN_ROUTES.sampleRequests.create]: "Tạo yêu cầu mẫu",
   [INVENTORY_ROUTES.createAdjustment]: INVENTORY_LABELS.createAdjustment,
   [ADMIN_ROUTES.loadPlans.create]: UI_LABELS.loadPlan.create,
   [ADMIN_ROUTES.loads.waybillImport]: UI_LABELS.shipping.waybill.import.title,

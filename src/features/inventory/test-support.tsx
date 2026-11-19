@@ -210,9 +210,22 @@ export const OVERVIEW_RESERVATION = {
   reservedAt: "2026-10-14T02:00:00Z",
 };
 
-/**
- * Backend + warehouse directory for the overview. Each override replaces one endpoint's answer.
- */
+export function overviewAlert(kind: string, extra: Record<string, unknown> = {}) {
+  return {
+    id: crypto.randomUUID(),
+    kind,
+    sku: "CUP-PP-500",
+    observedQty: 430,
+    reservationImpaired: false,
+    status: "OPEN",
+    openedAt: "2026-10-15T01:00:00Z",
+    lastObservedAt: "2026-10-16T01:00:00Z",
+    version: 0,
+    ...extra,
+  };
+}
+
+/** Backend + warehouse directory for the overview. Each override replaces one endpoint's answer. */
 export function overviewHandlers(
   overrides: {
     levels?: unknown;

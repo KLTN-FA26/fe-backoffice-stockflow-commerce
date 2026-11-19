@@ -15,6 +15,14 @@ export interface OrderReturnsSlotLine {
   customPrinted: boolean;
 }
 
+/** WF-05 TH-1: một lô đã giao (BE `OrderResponse.Shipment`, `DELIVERED`) — yêu cầu trả hàng mở theo từng lô. */
+export interface OrderReturnsSlotShipment {
+  shipmentId: string;
+  /** Lúc giao tới khách (`outcomeAt`) — hạn đổi / trả tính từ đây (Điều 318). */
+  deliveredAt: string | null;
+  lines: { lineId: string; quantity: number }[];
+}
+
 export interface OrderReturnsSlotProps {
   orderId: string;
   orderNumber: string;
@@ -22,6 +30,10 @@ export interface OrderReturnsSlotProps {
   status: string;
   deliveredAt: string | null;
   lines: OrderReturnsSlotLine[];
+  /** Các lô đã giao, cũ nhất trước; rỗng = đơn giao không qua lô. */
+  shipments: OrderReturnsSlotShipment[];
+  /** Hạn đổi / trả của hợp đồng (ngày); null = mặc định của hệ thống (BE `ReturnRequestService.policyOf`). */
+  returnWindowDays: number | null;
 }
 
 export type OrderReturnsSlot = (props: OrderReturnsSlotProps) => ReactNode;

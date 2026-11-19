@@ -19,7 +19,11 @@ import { useAuthStore } from "@/lib/auth/auth-store";
 
 import { beLoadSchema } from "./load-schemas";
 import { beCarrierPageSchema, beCarrierSchema } from "./schemas";
-import { beWaybillHistorySchema, beWaybillImportSchema } from "./waybill-schemas";
+import {
+  beImportWarehousesSchema,
+  beWaybillHistorySchema,
+  beWaybillImportSchema,
+} from "./waybill-schemas";
 
 import type { AxiosRequestConfig } from "axios";
 import type { PermissionCode } from "@/lib/auth";
@@ -290,6 +294,20 @@ describe("mock file mẫu nhập mã vận đơn", () => {
     const lines = (await readText(res.data as Blob)).split("\n").filter(Boolean);
     expect(lines).toHaveLength(1);
     expect(lines[0]?.split(",")).toHaveLength(5);
+  });
+});
+
+describe("mock kho được chọn khi nhập file (RTM-WBIMPORT-WH)", () => {
+  it("trả danh sách kho đúng schema FE cho người có quyền nhập, 403 cho người chỉ có quyền xem", async () => {
+    actAs(STAFF);
+    const res = await call("GET", `${IMPORTS}/warehouses`);
+    expect(res.status).toBe(200);
+    const warehouses = beImportWarehousesSchema.parse(res.data);
+    expect(warehouses.length).toBeGreaterThan(0);
+    expect(warehouses.every((w) => w.warehouseId && w.name)).toBe(true);
+
+    actAs([IMPORT.read]);
+    expect((await call("GET", `${IMPORTS}/warehouses`)).status).toBe(403);
   });
 });
 

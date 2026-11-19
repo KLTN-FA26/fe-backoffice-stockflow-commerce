@@ -43,8 +43,8 @@ describe("buildBreadcrumbItems", () => {
       { label: "LOAD-2026-0001", href: "/admin/loads/LOAD-2026-0001" },
       { label: "Biên bản bàn giao" },
     ]);
-    expect(buildBreadcrumbItems("/admin/quotes/create").at(-1)).toEqual({
-      label: "Tạo báo giá",
+    expect(buildBreadcrumbItems("/admin/products/create").at(-1)).toEqual({
+      label: "Tạo sản phẩm",
     });
   });
 

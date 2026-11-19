@@ -217,6 +217,16 @@ export const PACK_SHIPMENT_API_STATUSES = [
   "CANCELLED",
 ] as const;
 
+/** Tên trạng thái lô giao (`PACK_SHIPMENT_API_STATUSES`) để so sánh không gõ tay chuỗi. */
+export const PACK_SHIPMENT_STATUS = {
+  READY_TO_DISPATCH: "READY_TO_DISPATCH",
+  HANDED_OVER: "HANDED_OVER",
+  DELIVERED: "DELIVERED",
+  DELIVERY_FAILED: "DELIVERY_FAILED",
+  RETURNED: "RETURNED",
+  CANCELLED: "CANCELLED",
+} as const satisfies Record<string, (typeof PACK_SHIPMENT_API_STATUSES)[number]>;
+
 /** BE `DeliveryMode.java` — PARCEL (gửi kiện cho hãng) hoặc FULL_TRUCKLOAD (nguyên xe, kế hoạch xếp xe). */
 export const DELIVERY_MODES = ["PARCEL", "FULL_TRUCKLOAD"] as const;
 export type DeliveryMode = (typeof DELIVERY_MODES)[number];
@@ -311,26 +321,6 @@ export const ORDER_STATUS_UNKNOWN = "UNKNOWN";
 
 /** Trạng thái đơn sau khi parse response BE: trạng thái đã biết hoặc `ORDER_STATUS_UNKNOWN`. */
 export const ORDER_READ_STATUSES = [...ORDER_STATUSES, ORDER_STATUS_UNKNOWN] as const;
-
-/**
- * Lệnh chuyển kho liên kho — BE `TransferStatus` (SCRUM-327, `inventory/internal/domain/TransferStatus.java`),
- * nguyên văn mã wire, cùng vòng đời docs 10 §5. FE hiển thị qua status-map như PO.
- */
-export const TRANSFER_STATUSES = [
-  "DRAFT",
-  "PENDING_APPROVAL",
-  "APPROVED",
-  "PICKING",
-  "IN_TRANSIT",
-  "PARTIALLY_RECEIVED",
-  "RECEIVED",
-  "COMPLETED",
-  "CLOSED",
-  "CANCELLED",
-] as const;
-
-/** BE `TransferReason` — lý do chuyển kho (CreateTransferOrderRequest.reason, tuỳ chọn). */
-export const TRANSFER_REASONS = ["REBALANCING", "DEMAND", "CAMPAIGN", "OVERFLOW", "OTHER"] as const;
 
 /**
  * Chuyến xe xuất hàng — BE `LoadStatus`. Mọi chuyến là một xe của kế hoạch xếp xe (giao nguyên chuyến, docs 09 BR-08):
@@ -532,61 +522,19 @@ export const QUOTE_FEE_LABELS = {
   SHIPPING_FEE: "Phí vận chuyển",
 } as const satisfies Record<QuoteFeeKind, string>;
 
-/** Yêu cầu mẫu — BE `SampleStatus` (SCRUM-403). */
-export const SAMPLE_API_STATUSES = [
-  "DRAFT",
-  "SUBMITTED",
-  "IN_PRODUCTION",
-  "READY",
-  "SENT_TO_CUSTOMER",
-  "CHANGES_REQUESTED",
-  "APPROVED",
-  "CANCELLED",
-] as const;
-export type SampleApiStatus = (typeof SAMPLE_API_STATUSES)[number];
-export const SAMPLE_STATUS_BY_API = {
-  DRAFT: "Draft",
-  SUBMITTED: "Submitted",
-  IN_PRODUCTION: "In Production",
-  READY: "Ready",
-  SENT_TO_CUSTOMER: "Sent to Customer",
-  CHANGES_REQUESTED: "Changes Requested",
-  APPROVED: "Approved",
-  CANCELLED: "Cancelled",
-} as const satisfies Record<SampleApiStatus, string>;
-
-/** Lệnh sản xuất — BE `ProductionOrder.Status` (SCRUM-405..420). */
-export const PRODUCTION_API_STATUSES = [
-  "PENDING_PREPRESS",
-  "READY",
-  "MATERIAL_ISSUED",
-  "PRINTING",
-  "SUBCONTRACTED",
-  "QC",
-  "ON_HOLD",
-  "COMPLETED",
-  "CANCELLED",
-] as const;
-export type ProductionApiStatus = (typeof PRODUCTION_API_STATUSES)[number];
-export const PRODUCTION_STATUS_BY_API = {
-  PENDING_PREPRESS: "Pending Prepress",
-  READY: "Ready",
-  MATERIAL_ISSUED: "Material Issued",
-  PRINTING: "Printing",
-  SUBCONTRACTED: "Subcontracted",
-  QC: "QC",
-  ON_HOLD: "On Hold",
-  COMPLETED: "Completed",
-  CANCELLED: "Cancelled",
-} as const satisfies Record<ProductionApiStatus, string>;
 export const PRODUCTION_ORDER_TYPES = ["SAMPLE", "ORDER"] as const;
-export type ProductionOrderType = (typeof PRODUCTION_ORDER_TYPES)[number];
 
-/** Nhóm trạng thái đơn khách đọc — BE `CustomerOrderCardResponse.statusGroup` (develop). */
+/**
+ * Nhóm trạng thái đơn khách đọc — BE `CustomerOrders.StatusGroup` (`statusGroup` của thẻ, chi tiết và
+ * dòng thời gian đơn trên cổng; docs 17 §5.2). `AWAITING_CONTRACT`
+ * = `Pending Contract`, `AWAITING_STOCK` = `Awaiting Stock`; `IN_PRODUCTION` chỉ còn ở đơn cũ.
+ */
 export const ORDER_STATUS_GROUPS = [
+  "AWAITING_CONTRACT",
   "AWAITING_PAYMENT",
   "UNDER_REVIEW",
   "CONFIRMED",
+  "AWAITING_STOCK",
   "IN_PRODUCTION",
   "PREPARING",
   "SHIPPING",
@@ -597,9 +545,11 @@ export const ORDER_STATUS_GROUPS = [
 export type OrderStatusGroup = (typeof ORDER_STATUS_GROUPS)[number];
 /** Nhóm → chuỗi status-map (nhãn Việt + tone dùng chung). */
 export const ORDER_STATUS_GROUP_DISPLAY = {
+  AWAITING_CONTRACT: "Pending Contract",
   AWAITING_PAYMENT: "Pending Payment",
   UNDER_REVIEW: "Under Review",
   CONFIRMED: "Confirmed",
+  AWAITING_STOCK: "Awaiting Stock",
   IN_PRODUCTION: "In Production",
   PREPARING: "Preparing",
   SHIPPING: "Shipping",
@@ -607,8 +557,6 @@ export const ORDER_STATUS_GROUP_DISPLAY = {
   CANCELLED: "Cancelled",
   RETURNED: "Returned",
 } as const satisfies Record<OrderStatusGroup, string>;
-export type TransferStatus = (typeof TRANSFER_STATUSES)[number];
-export type TransferReason = (typeof TRANSFER_REASONS)[number];
 export type LoadStatus = (typeof LOAD_STATUSES)[number];
 export type ShipmentApiStatus = (typeof PACK_SHIPMENT_API_STATUSES)[number];
 export type DeliveryOutcome = (typeof DELIVERY_OUTCOMES)[number];
@@ -749,9 +697,8 @@ export const BIN_TYPES = ["STANDARD", "PALLET", "SMALL_PARTS"] as const;
 /** BE `AreaType` — mọi loại trừ NON_STORAGE là vị trí tồn kho (docs 06 BR-11). */
 export const AREA_TYPES = [
   "RECEIVING",
-  "QUALITY_CONTROL",
+  // Khu QC cũ gộp vào QUARANTINE, khu đóng gói PACKING gộp vào DISPATCH (BE AreaType; docs 06 BR-22)
   "QUARANTINE",
-  "PACKING",
   "DISPATCH",
   // BE `AreaType.STAGING` — khu chờ xuất (docs 06 §4.5, BR-18): thiếu thì layout có khu này parse lỗi, mất cả bản đồ
   "STAGING",

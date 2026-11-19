@@ -29,7 +29,6 @@ export interface MockParcel {
 }
 
 export interface MockShipment {
-  /** Lô giao. */
   shipmentId: string;
   code: string;
   orderId: string;

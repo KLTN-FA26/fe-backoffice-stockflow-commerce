@@ -29,9 +29,7 @@ function requireStatus(plan: MockPlan, ...allowed: MockPlan["status"][]): Err {
   return allowed.includes(plan.status) ? null : transition();
 }
 
-/**
- * Lô, loại xe của kế hoạch phải hợp lệ: BR-09, `VEHICLE_TYPE_INACTIVE`, cùng kho.
- */
+/** Lô và loại xe của kế hoạch phải hợp lệ: BR-09, `VEHICLE_TYPE_INACTIVE`, cùng kho. */
 export function checkInputs(
   warehouseId: string,
   shipmentIds: readonly string[],

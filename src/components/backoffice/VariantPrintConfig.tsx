@@ -1,6 +1,8 @@
 "use client";
 
-import { CUSTOMIZATION_TEMPLATE_PERMISSIONS } from "@/constants";
+import Link from "next/link";
+
+import { ADMIN_ROUTES, CUSTOMIZATION_TEMPLATE_PERMISSIONS, PRODUCT_PERMISSIONS } from "@/constants";
 import {
   PRINT_CONFIG_PAGE_LABELS as TEXT,
   PRINT_CONFIG_SCREEN_LABELS,
@@ -9,8 +11,15 @@ import { PRINT_CONFIG_SEGMENT } from "@/constants/routes";
 import { usePermissionChecker } from "@/lib/auth/components/Can";
 import { useMyPermissions } from "@/lib/auth/me-permissions";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
-import { productChangeGate, useProduct, useVariants } from "@/features/product";
+import {
+  isCartonCandidate,
+  productChangeGate,
+  useProduct,
+  useSkuUnits,
+  useVariants,
+} from "@/features/product";
 import { PrintConfigSection } from "@/features/product-design";
+import { Alert } from "@/components/shared/Alert";
 import { DETAIL_CARD_CLASS } from "@/components/shared/DetailSection";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
@@ -40,6 +49,14 @@ export function VariantPrintConfig({
   const variantsQuery = useVariants(productId);
   const product = productQuery.data ?? null;
   const variant = variantsQuery.data?.find((v) => v.variantId === variantId) ?? null;
+  // Preflight `CARTON_SPEC_MISSING` hỏi đúng câu "có đơn vị đóng gói nào không" (`isCartonCandidate`). Chưa tải /
+  // thiếu quyền đọc thì không báo gì: cảnh báo chỉ hiện khi chắc chắn biến thể chưa có thùng.
+  const units = useSkuUnits(
+    productId,
+    variantId,
+    can(PRODUCT_PERMISSIONS.read) && product?.type === "Customizable",
+  );
+  const cartonMissing = units.data !== undefined && !units.data.some(isCartonCandidate);
 
   // Breadcrumb của topbar: đoạn cuối URL là `print-config`, nhãn lấy theo đoạn đó
   useBreadcrumbLabel(PRINT_CONFIG_SEGMENT, TEXT.pageTitle);
@@ -98,14 +115,27 @@ export function VariantPrintConfig({
     <div className="surface-soft surface-compact">
       <h1 className="sr-only">{`${TEXT.pageTitle} — ${variant.sku}`}</h1>
       {product.type === "Customizable" ? (
-        <PrintConfigSection
-          productId={productId}
-          variantId={variantId}
-          can={can}
-          writable={writable}
-          readOnlyReason={readOnlyReason}
-          general={general}
-        />
+        <div className="space-y-5">
+          {cartonMissing && (
+            <Alert tone="warning" title={TEXT.cartonMissing.title}>
+              {TEXT.cartonMissing.description}{" "}
+              <Link
+                href={ADMIN_ROUTES.products.detail(productId)}
+                className="text-accent underline-offset-2 hover:underline"
+              >
+                {TEXT.cartonMissing.link}
+              </Link>
+            </Alert>
+          )}
+          <PrintConfigSection
+            productId={productId}
+            variantId={variantId}
+            can={can}
+            writable={writable}
+            readOnlyReason={readOnlyReason}
+            general={general}
+          />
+        </div>
       ) : (
         <div className="space-y-5">
           <section

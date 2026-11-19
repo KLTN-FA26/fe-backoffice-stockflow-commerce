@@ -8,7 +8,7 @@ export const INVENTORY_API = {
   rejection: (id: string) => `/inventory/adjustments/${encodeURIComponent(id)}/rejection`,
   withdrawal: (id: string) => `/inventory/adjustments/${encodeURIComponent(id)}/withdrawal`,
   movements: "/inventory/movements",
-  // SCRUM-438 reads — backend develop 0f18f24 InventoryController / StockAlertController.
+  // SCRUM-438 reads — backend develop 0f18f24 InventoryController.
   stockLevels: "/inventory/stock-levels",
   warehouseStockItems: (warehouseId: string) =>
     `/inventory/warehouses/${encodeURIComponent(warehouseId)}/stock-items`,
@@ -272,11 +272,6 @@ export const INVENTORY_LABELS = {
   closedAt: "Đóng lúc",
   noReservations: "SKU này không có giữ chỗ nào",
   onlySelectedWarehouse: "Chỉ giữ chỗ tại kho đang xem",
-  lowStockTitle: "Cảnh báo tồn thấp (toàn hệ thống)",
-  observedQty: "Số lượng ghi nhận",
-  thresholdQty: "Ngưỡng",
-  daysToExpiry: "Số ngày đến hạn",
-  reservationImpaired: "Lô quá hạn còn giữ chỗ của khách",
 } as const;
 
 export const STOCK_MOVEMENT_LABELS = {

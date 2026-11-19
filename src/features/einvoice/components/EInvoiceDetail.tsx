@@ -75,7 +75,9 @@ function EInvoiceDetailContent({
       {(invoice.status === "ISSUED" || invoice.status === "REPLACED") && (
         <CorrectionsCard id={invoice.id} />
       )}
-      {invoice.status === "ISSUED" && <ErrorNoticesCard id={invoice.id} />}
+      {invoice.status === "ISSUED" && (
+        <ErrorNoticesCard id={invoice.id} provider={invoice.provider} />
+      )}
       {sections?.(invoice)}
       <ProviderCallsCard id={invoice.id} />
     </div>
@@ -84,7 +86,7 @@ function EInvoiceDetailContent({
 
 /**
  * Chi tiết hoá đơn điện tử và phát hành (docs 21 §4.1–4.3, §4.5): sửa / làm mới bên mua, phát hành,
- * tra lại, gửi lại, mở lại, huỷ nháp, tải XML / PDF; nhật ký gọi nhà cung cấp. `extra` / `sections`
+ * kiểm tra lại, gửi lại, mở lại, huỷ nháp, tải XML / PDF; nhật ký gọi nhà cung cấp. `extra` / `sections`
  * gắn điều chỉnh, thay thế, thoả thuận, thông báo sai sót (docs 21 §4.4).
  */
 export function EInvoiceDetail(props: {

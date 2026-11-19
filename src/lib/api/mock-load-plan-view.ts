@@ -39,6 +39,8 @@ function parcelView(plan: MockPlan, parcel: MockParcel) {
 export function candidateView(shipment: MockShipment, held: ReadonlySet<string>) {
   const free = shipment.packages.filter((p) => !held.has(p.packageId));
   return {
+    // BE `LoadPlans.CandidateShipment.sourceType` luôn ORDER (chuyển kho liên kho đã bỏ)
+    sourceType: "ORDER",
     shipmentId: shipment.shipmentId,
     code: shipment.code,
     orderId: shipment.orderId,
@@ -106,6 +108,7 @@ export function planRow(plan: MockPlan) {
     code: plan.code,
     warehouseId: plan.warehouseId,
     status: plan.status,
+    sourceType: "ORDER",
     selectionMode: plan.selectionMode,
     shipmentCount: plan.shipmentIds.length,
     packageCount: held.length,
@@ -126,6 +129,7 @@ export function planDetail(plan: MockPlan) {
     loadPlanId: plan.loadPlanId,
     code: plan.code,
     warehouseId: plan.warehouseId,
+    sourceType: "ORDER",
     selectionMode: plan.selectionMode,
     status: plan.status,
     note: plan.note,

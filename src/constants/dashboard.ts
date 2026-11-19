@@ -46,7 +46,6 @@ export const DASHBOARD_RECEIPT_PROCESSING_STATUSES = [
 ] as const;
 // PickStatus.java: task lấy hàng chưa xong. BE lọc `status` một giá trị mỗi lần → đếm từng trạng thái rồi cộng.
 export const DASHBOARD_PICK_OPEN_STATUSES = ["PENDING", "PICKING"] as const;
-
 export const DASHBOARD_LABELS = {
   title: "Tổng quan",
   subtitle: "Theo dõi vận hành kho, đơn hàng và tồn kho.",

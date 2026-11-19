@@ -34,9 +34,7 @@ export const WAREHOUSE_STATUS_LABELS: Record<(typeof WAREHOUSE_STATUSES)[number]
 /** Nhãn loại khu vực (docs 06 §5 "Giá trị phân loại"). */
 export const AREA_TYPE_LABELS: Record<(typeof AREA_TYPES)[number], string> = {
   RECEIVING: "Khu nhận hàng",
-  QUALITY_CONTROL: "Khu kiểm QC",
   QUARANTINE: "Khu cách ly",
-  PACKING: "Khu đóng gói",
   DISPATCH: "Khu chờ giao",
   STAGING: "Khu chờ xuất",
   OVERFLOW: "Khu tràn",
