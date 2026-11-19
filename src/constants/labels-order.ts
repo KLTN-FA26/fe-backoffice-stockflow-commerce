@@ -54,7 +54,7 @@ export const ORDER_HOLD_REASON_LABELS = {
  */
 export const ORDER_HOLD_GUIDANCE = {
   CREDIT:
-    "Đơn bị giữ vì vượt hạn mức công nợ — không gỡ giữ tại đây. Duyệt hoặc từ chối ở màn duyệt công nợ.",
+    "Đơn bị giữ chờ duyệt công nợ (khách quá hạn hoặc vượt hạn mức) — không gỡ giữ tại đây. Duyệt hoặc từ chối ở màn duyệt công nợ.",
   DESIGN_MISMATCH:
     "Đơn bị giữ vì thiết kế in lệch checksum lúc đóng gói — không gỡ giữ tại đây. Quản lý kho kiểm tra lại kiện ở bàn đóng gói.",
   DELIVERY_FAILED:
@@ -128,7 +128,7 @@ export const ORDER_REMAINDER_CLOSURE_HISTORY_REASON_LABELS: Readonly<Record<stri
   DELIVERY_FAILED: "Giao hàng không thành công",
   PAYMENT_NOT_RECEIVED: "Chưa nhận được thanh toán",
   PAYMENT_FAILED: "Thanh toán thất bại",
-  CREDIT_REJECTED: "Từ chối vượt hạn mức công nợ",
+  CREDIT_REJECTED: "Kế toán từ chối duyệt công nợ",
 };
 
 /* ── Lô giao (BE OrderShipmentStatus) ────────────────────────────────── */
@@ -250,7 +250,7 @@ export const ORDER_HISTORY_REASON_LABELS: Readonly<Record<string, string>> = {
   CONTRACT_CANCELLED: "Hợp đồng bị huỷ — đơn quay về nháp",
   INSTALLMENT_PAID: "Đã thu đủ các đợt thanh toán khi ký hợp đồng",
   PRODUCTION_ORDER_SENT: "Đã gửi Đơn sản xuất",
-  CREDIT_APPROVED: "Kế toán duyệt vượt hạn mức công nợ",
+  CREDIT_APPROVED: "Kế toán duyệt công nợ",
   // Hàng của lần giao thất bại đã về kho (BE `Order#markReturnedToOrigin`)
   RETURNED_TO_ORIGIN: "Hàng giao thất bại đã về lại kho",
   // Chạy đêm (BE `Order#complete` / `#close`)

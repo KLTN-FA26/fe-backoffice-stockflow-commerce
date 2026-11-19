@@ -927,15 +927,15 @@ describe("OrderDetail — hồi quy tích hợp (credit hold / packed / UNKNOWN 
       }),
     );
     await screen.findByText("Đơn đang tạm giữ");
-    expect(screen.queryByRole("button", { name: /Duyệt vượt hạn mức/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Duyệt công nợ/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Từ chối/ })).not.toBeInTheDocument();
   });
 
-  it("2. giữ công nợ thật (lý do CREDIT, BE không gửi paymentTerm — TT-1) → kế toán thấy Duyệt vượt hạn mức", async () => {
+  it("2. giữ công nợ thật (lý do CREDIT, BE không gửi paymentTerm — TT-1) → kế toán thấy Duyệt công nợ", async () => {
     await renderDetail(ACCOUNTANT_READING, () =>
       apiOrderWith({ status: "ON_HOLD", paymentTerm: undefined, holdReason: "CREDIT" }),
     );
-    expect(await screen.findByRole("button", { name: /Duyệt vượt hạn mức/ })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /Duyệt công nợ/ })).toBeInTheDocument();
     // Không có quyền huỷ / giữ → không có nút nào khác
     expect(screen.queryByRole("button", { name: "Huỷ đơn" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Gỡ giữ" })).not.toBeInTheDocument();

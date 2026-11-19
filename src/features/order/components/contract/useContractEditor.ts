@@ -66,9 +66,15 @@ export function useContractEditor({
   const [suggesting, setSuggesting] = useState(false);
   /** Hỏi lại trước khi gợi ý thay lịch thanh toán Sale đã sửa (WF-02 audit, mục 7). */
   const [confirmingSuggest, setConfirmingSuggest] = useState(false);
-  // Mốc so sánh: lịch giao / lịch thanh toán như đã lưu, và lịch thanh toán lần gợi ý gần nhất.
-  const savedSchedule = useRef(form.getValues("deliverySchedule"));
-  const untouchedPlan = useRef(form.getValues("paymentPlan"));
+  // Mốc so sánh: lịch giao / lịch thanh toán như đã lưu, và lịch thanh toán lần gợi ý gần nhất. Luôn giữ BẢN SAO:
+  // `getValues` trả về chính mảng form đang giữ, và sửa một ô đổi mảng đó tại chỗ — giữ tham chiếu thì mốc so sánh đổi
+  // theo, lần "Gợi ý" sau không còn thấy Sale đã sửa và ghi đè không hỏi.
+  const [initial] = useState(() => ({
+    schedule: structuredClone(form.getValues("deliverySchedule")),
+    plan: structuredClone(form.getValues("paymentPlan")),
+  }));
+  const savedSchedule = useRef(initial.schedule);
+  const untouchedPlan = useRef(initial.plan);
 
   const onError = (error: unknown) => {
     const values = form.getValues();
@@ -118,7 +124,7 @@ export function useContractEditor({
         })),
         { shouldDirty: true, shouldValidate: true },
       );
-      untouchedPlan.current = form.getValues("paymentPlan");
+      untouchedPlan.current = structuredClone(form.getValues("paymentPlan"));
     } catch (error) {
       setFormError(contractErrorMessage(error));
     } finally {

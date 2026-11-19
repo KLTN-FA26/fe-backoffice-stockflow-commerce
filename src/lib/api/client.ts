@@ -40,14 +40,10 @@ api.interceptors.request.use((cfg) => {
 api.interceptors.response.use(
   (res) => {
     const body: unknown = res.data;
-    if (
-      typeof body === "object" &&
-      body !== null &&
-      "success" in body &&
-      body.success === true &&
-      "data" in body
-    ) {
-      return { ...res, data: body.data };
+    if (typeof body === "object" && body !== null && "success" in body && body.success === true) {
+      // BE bỏ trường null khỏi JSON (Jackson non_null): `{success: true}` không có `data` nghĩa là `data: null`, không
+      // phải envelope để đem đi parse — trước đây GET /orders/{id}/completion-hold của đơn không bị giữ báo lỗi.
+      return { ...res, data: "data" in body ? body.data : null };
     }
     return res;
   },

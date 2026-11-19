@@ -245,4 +245,36 @@ describe("Quote form", () => {
       QUOTE_DRAFT_PLATE_UNPRICED.quoteNumber,
     );
   });
+  it("WF-02 A3: the form previews goods, fees, tax by the saved rates and the total with tax", async () => {
+    mockApi("SALES_STAFF", {
+      get: {
+        [detailUrl]: () => QUOTE_DRAFT_PLATE_UNPRICED,
+        [`/customers/${CUSTOMER_ID}`]: () => CUSTOMER,
+        "/customer-skus": () => [
+          {
+            variantId: "v1",
+            productId: "p1",
+            sku: SKU,
+            name: "Ly 12oz xanh",
+            ownerCustomerId: CUSTOMER_ID,
+            status: "ACTIVE",
+          },
+        ],
+        [`/catalog/customer-prices/${CUSTOMER_ID}/${SKU}`]: () => null,
+      },
+    });
+    renderScreen(<QuoteEdit id={QUOTE_ID} />, "SALES_STAFF");
+    const preview = (await screen.findByRole("heading", { name: "Tạm tính báo giá" })).closest(
+      "div",
+    ) as HTMLElement;
+    // 60 thùng × 1.000 cái × 1.150 ₫; phí khuôn chưa nhập; thuế 10% theo dòng đã lưu.
+    expect(within(preview).getByText(/69\.000\.000/)).toBeInTheDocument();
+    expect(within(preview).getByText(/6\.900\.000/)).toBeInTheDocument();
+    expect(within(preview).getByText(/75\.900\.000/)).toBeInTheDocument();
+
+    await userEvent.type(screen.getByLabelText(/Phí khuôn \/ bản in/), "1500000");
+    // + 1.500.000 phí và 150.000 thuế của phí (thuế suất phí đã lưu).
+    expect(await within(preview).findByText(/77\.550\.000/)).toBeInTheDocument();
+    expect(within(preview).getByText(/7\.050\.000/)).toBeInTheDocument();
+  });
 });
