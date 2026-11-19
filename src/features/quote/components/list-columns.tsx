@@ -2,9 +2,14 @@
 
 import Link from "next/link";
 
-import { ADMIN_ROUTES, QUOTE_API_STATUSES, QUOTE_STATUS_BY_API } from "@/constants";
+import {
+  ADMIN_ROUTES,
+  QUOTE_API_STATUSES,
+  QUOTE_STATUS_BY_API,
+  QUOTE_STATUS_LABELS,
+} from "@/constants";
 
-import { formatDate } from "@/lib/format/date";
+import { formatDate, formatDateTime } from "@/lib/format/date";
 
 import { isExpired } from "@/features/quote/selectors";
 
@@ -43,7 +48,13 @@ export const COLUMNS: ColumnDef<QuoteRow>[] = [
     key: "status",
     header: "Trạng thái",
     sortable: true,
-    cell: (row) => <StatusDot domain="order" status={QUOTE_STATUS_BY_API[row.status]} />,
+    cell: (row) => (
+      <StatusDot
+        domain="order"
+        status={QUOTE_STATUS_BY_API[row.status]}
+        label={QUOTE_STATUS_LABELS[row.status]}
+      />
+    ),
   },
   {
     key: "revision",
@@ -65,8 +76,18 @@ export const COLUMNS: ColumnDef<QuoteRow>[] = [
     ),
   },
   {
+    key: "sentAt",
+    header: "Ngày gửi",
+    align: "right",
+    cell: (row) => (
+      <span className="text-ink-secondary tabular-nums">
+        {row.sentAt ? formatDateTime(row.sentAt) : "—"}
+      </span>
+    ),
+  },
+  {
     key: "order",
-    header: "Đơn bán",
+    header: "Đơn đã tạo",
     cell: (row) =>
       row.convertedOrderId ? (
         <Link
@@ -74,7 +95,7 @@ export const COLUMNS: ColumnDef<QuoteRow>[] = [
           className="text-accent hover:underline"
           onClick={(event) => event.stopPropagation()}
         >
-          Xem đơn
+          Mở đơn
         </Link>
       ) : (
         <span className="text-ink-tertiary">—</span>

@@ -2,9 +2,8 @@
 
 import { UI_LABELS } from "@/constants";
 
-import { CheckboxField } from "@/components/shared/CheckboxField";
-
 import { ProductInput } from "./form-controls";
+import { ProductDuplicateWarning } from "./ProductDuplicateWarning";
 import { ProductFormField } from "./ProductFormField";
 import { BrandSelectField, CategorySelectField, TaxClassSelectField } from "./ProductMasterSelects";
 
@@ -17,6 +16,8 @@ interface ProductMasterFieldsProps {
   categories: readonly Category[];
   form: UseFormReturn<ProductDraftFormValues>;
   isEditing: boolean;
+  /** Sửa: id sản phẩm đang sửa — bỏ khỏi cảnh báo trùng. */
+  productId?: string;
 }
 
 export function ProductMasterFields({
@@ -24,6 +25,7 @@ export function ProductMasterFields({
   categories,
   form,
   isEditing,
+  productId,
 }: ProductMasterFieldsProps) {
   const {
     control,
@@ -76,12 +78,9 @@ export function ProductMasterFields({
         />
         <TaxClassSelectField control={control} error={errors.taxClass?.message} />
       </div>
-      <CheckboxField
-        control={control}
-        name="customizable"
-        label="Sản phẩm cho phép cá nhân hoá / in ấn"
-        className="mt-4"
-      />
+      <div className="mt-4">
+        <ProductDuplicateWarning form={form} excludeProductId={productId} />
+      </div>
     </section>
   );
 }

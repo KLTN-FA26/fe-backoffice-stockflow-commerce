@@ -8,12 +8,16 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { withStaleRefetch } from "@/lib/api/stale-refetch";
 
-import { createCustomerPrice, updateCustomerPrice } from "./api";
+import { createCustomerPrice, deleteCustomerPrice, updateCustomerPrice } from "./api";
 import { isStaleCustomerPriceError } from "./errors";
 import { customerPriceKeys } from "./queries";
 
 import type { MutationHook } from "@/lib/api/stale-refetch";
-import type { CreateCustomerPriceInput, UpdateCustomerPriceInput } from "./api";
+import type {
+  CreateCustomerPriceInput,
+  DeleteCustomerPriceInput,
+  UpdateCustomerPriceInput,
+} from "./api";
 import type { CustomerPrice } from "./schemas";
 
 function priceMutation<TInput extends CreateCustomerPriceInput>(
@@ -47,3 +51,31 @@ function priceMutation<TInput extends CreateCustomerPriceInput>(
 
 export const useCreateCustomerPrice = priceMutation<CreateCustomerPriceInput>(createCustomerPrice);
 export const useUpdateCustomerPrice = priceMutation<UpdateCustomerPriceInput>(updateCustomerPrice);
+
+/**
+ * Xoá giá riêng: bỏ khoá chi tiết, làm mới danh sách của đúng khách. Lỗi dữ liệu cũ (version lệch, giá đã bị xoá)
+ * tải lại giá của khách trước khi tới `onError`.
+ */
+const useDeleteBase: MutationHook<DeleteCustomerPriceInput, void> = (options) => {
+  const queryClient = useQueryClient();
+  const { onSuccess, ...rest } = options ?? {};
+  return useMutation({
+    ...rest,
+    mutationFn: deleteCustomerPrice,
+    onSuccess: async (result, variables, ...args) => {
+      queryClient.removeQueries({
+        queryKey: customerPriceKeys.detail(variables.customerId, variables.sku),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: customerPriceKeys.lists(variables.customerId),
+      });
+      return onSuccess?.(result, variables, ...args);
+    },
+  });
+};
+
+export const useDeleteCustomerPrice = withStaleRefetch(
+  useDeleteBase,
+  (input: DeleteCustomerPriceInput) => [customerPriceKeys.customer(input.customerId)],
+  isStaleCustomerPriceError,
+);

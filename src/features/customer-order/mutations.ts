@@ -1,10 +1,5 @@
-import { QUERY_ROOTS } from "@/lib/api/query-roots";
-import { createMutation } from "@/lib/api/query-factory";
-
-import { reorder } from "./api";
-
-/** Đặt lại → yêu cầu báo giá mới cho Sales (R1b). Màn hình tự hiện kết quả / lỗi. */
-export const useReorder = createMutation<{ orderId: string; requestId: string }, void>(reorder, {
-  invalidate: [QUERY_ROOTS.quotes],
-  showErrorToast: false,
-});
+/**
+ * Cổng khách (cũ) chỉ đọc đơn của mình. "Đặt lại" (`POST /orders/{id}/reorder`) BE đã bỏ (WF-02 F1) — khách mở
+ * chat với Sale ở storefront; không còn mutation nào ở đây.
+ */
+export {};

@@ -154,6 +154,7 @@ describe("sửa", () => {
       beCustomerPriceSchema.parse({
         customerId: A,
         sku: SKU,
+        measure: "CARTON",
         moq: 1,
         tiers: [{ minQuantity: 1, unitPrice: 1 }],
         version: 9,

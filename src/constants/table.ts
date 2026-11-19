@@ -108,9 +108,6 @@ export const INVENTORY_ITEM_COLUMNS = {
   SKU: "sku",
   UOM: "unitOfMeasure",
   BARCODE: "barcode",
-  STORAGE: "storageClass",
-  TRACKING: "trackingMode",
-  POLICY: "policyConfigured",
 } as const;
 
 /** Cột danh sách chuyến xe (BE `LoadRowResponse`). */
@@ -145,6 +142,28 @@ export const WAREHOUSE_COLUMNS = {
   NAME: "name",
   PREFIX: "prefix",
   STATUS: "status",
+} as const;
+
+/** Cột Bảng sức chứa kho — một dòng mỗi kho (BE `WarehouseCapacityBoard`, docs 06 §4.6 bước 3). */
+export const WAREHOUSE_CAPACITY_COLUMNS = {
+  WAREHOUSE: "warehouse",
+  CAPACITY: "capacity",
+  OCCUPIED: "occupied",
+  INCOMING: "incoming",
+  PROJECTED_FREE: "projectedFree",
+  PENDING: "pending",
+  FREE_IF_ALL_APPROVED: "freeIfAllApproved",
+  OUTGOING: "outgoing",
+} as const;
+
+/** Cột bảng zone / kệ / khu của một kho (BE `WarehouseCapacityGroup`, docs 06 §4.6 bước 4). */
+export const CAPACITY_GROUP_COLUMNS = {
+  NAME: "name",
+  CAPACITY: "capacity",
+  OCCUPIED: "occupied",
+  FREE: "free",
+  USAGE: "usage",
+  BINS_WITHOUT_VOLUME: "binsWithoutVolume",
 } as const;
 
 /** Cột danh sách loại xe (BE `VehicleTypeResponse`). */

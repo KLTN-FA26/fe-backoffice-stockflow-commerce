@@ -131,6 +131,7 @@ export function ProductCreate({ productId }: { productId?: string }) {
       wizard={wizard}
       form={form}
       isEditing={isEditing}
+      productId={productId}
       brands={brandsQuery.data ?? []}
       categories={categoriesQuery.data?.items ?? []}
       productCode={productCode}

@@ -1,55 +1,35 @@
 import { describe, expect, it } from "vitest";
 
-import { evaluationState, isLotTracked, policyToForm } from "./selectors";
+import { logisticsToForm } from "./selectors";
 
-describe("evaluationState", () => {
-  it("true/false/null → yes/no/unset", () => {
+describe("logisticsToForm", () => {
+  it("null / vắng thành chuỗi rỗng, số thành chuỗi, giữ cờ xoay", () => {
     expect(
-      evaluationState({
-        usableOnHand: 3,
-        reorderPoint: 5,
-        safetyStock: null,
-        reorderRequired: true,
-        belowSafetyStock: null,
-      }),
-    ).toEqual({ reorder: "yes", belowSafety: "unset" });
-    expect(
-      evaluationState({ usableOnHand: 9, reorderRequired: false, belowSafetyStock: false }),
-    ).toEqual({ reorder: "no", belowSafety: "no" });
-  });
-});
-
-describe("policyToForm", () => {
-  it("null thành chuỗi rỗng, số thành chuỗi", () => {
-    expect(
-      policyToForm({
-        reorderPoint: 10,
-        safetyStock: null,
-        maxQty: undefined,
-        removalStrategy: "FEFO",
-        trackingMode: "LOT",
-        expiryTracked: true,
-        maxShelfLifeDays: 30,
+      logisticsToForm({
+        unitOfMeasure: "EACH",
+        barcode: null,
+        weightKg: 0.02,
+        lengthCm: undefined,
+        widthCm: null,
+        heightCm: 12.5,
+        packageCount: 1,
+        packSize: 50,
+        rotatable: false,
       }),
     ).toEqual({
-      reorderPoint: "10",
-      safetyStock: "",
-      maxQty: "",
-      maxShelfLifeDays: "30",
-      removalStrategy: "FEFO",
-      trackingMode: "LOT",
-      expiryTracked: true,
+      unitOfMeasure: "EACH",
+      barcode: "",
+      weightKg: "0.02",
+      lengthCm: "",
+      widthCm: "",
+      heightCm: "12.5",
+      packageWeightKg: "",
+      packageLengthCm: "",
+      packageWidthCm: "",
+      packageHeightCm: "",
+      packageCount: "1",
+      packSize: "50",
+      rotatable: false,
     });
-  });
-});
-
-describe("isLotTracked", () => {
-  it("chỉ LOT và LOT_SERIAL", () => {
-    expect(["NONE", "LOT", "SERIAL", "LOT_SERIAL"].map((m) => isLotTracked(m as never))).toEqual([
-      false,
-      true,
-      false,
-      true,
-    ]);
   });
 });

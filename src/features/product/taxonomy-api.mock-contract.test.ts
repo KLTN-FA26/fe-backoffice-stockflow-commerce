@@ -179,8 +179,51 @@ describe("liên kết với sản phẩm", () => {
       description: "",
       descriptionEn: "",
       taxClass: "STANDARD",
-      kind: "STANDARD",
     });
     expect(product).toMatchObject({ brandId: newBrand.brandId, brand: "Hanes" });
+  });
+});
+
+describe("chuyển danh mục cha (BE PUT /categories/{id}/parent, docs 01 §4.1)", () => {
+  it("đổi cha khi sửa → chuyển cả nhánh con; không vào nhánh con của chính nó; null = lên gốc", async () => {
+    const root = await createCategory(category({ code: "MOVE-ROOT", name: "Gốc" }));
+    const child = await createCategory(
+      category({ code: "MOVE-CHILD", name: "Con", parentId: root.categoryId }),
+    );
+    const leaf = await createCategory(
+      category({ code: "MOVE-LEAF", name: "Lá", parentId: child.categoryId }),
+    );
+    const other = await createCategory(category({ code: "MOVE-OTHER", name: "Khác" }));
+
+    // Vào nhánh con của chính nó → 400 trên parentId
+    const cycle = await apiError(
+      updateCategory({
+        categoryId: root.categoryId,
+        values: category({ code: "MOVE-ROOT", name: "Gốc", parentId: leaf.categoryId }),
+        currentParentId: null,
+      }),
+    );
+    expect(cycle).toMatchObject({ status: 400, code: "VALIDATION_FAILED" });
+    expect(cycle.fieldErrors).toHaveProperty("parentId");
+
+    const moved = await updateCategory({
+      categoryId: child.categoryId,
+      values: category({ code: "MOVE-CHILD", name: "Con", parentId: other.categoryId }),
+      currentParentId: root.categoryId,
+    });
+    expect(moved).toMatchObject({ parentId: other.categoryId, depth: 1 });
+    const page = await listCategoryPage({ page: 0, size: 200 });
+    expect(page.items.find((c) => c.categoryId === leaf.categoryId)).toMatchObject({
+      depth: 2,
+      path: "/MOVE-OTHER/MOVE-CHILD/MOVE-LEAF",
+    });
+
+    const toRoot = await updateCategory({
+      categoryId: child.categoryId,
+      values: category({ code: "MOVE-CHILD", name: "Con", parentId: "" }),
+      currentParentId: other.categoryId,
+    });
+    expect(toRoot.depth).toBe(0);
+    expect(toRoot.parentId ?? null).toBeNull();
   });
 });

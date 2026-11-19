@@ -5,12 +5,12 @@
 import type { OpenReference, ProductChangeType } from "./lifecycle-schemas";
 
 /**
- * BE `ProductDiscontinuation.OPEN_PURCHASE_ORDER_LINES` / `UNSHIPPED_ORDER_LINES`. Đây là cảnh báo,
+ * BE `ProductDiscontinuation.OPEN_PRODUCTION_ORDER_LINES` / `UNSHIPPED_ORDER_LINES`. Đây là cảnh báo,
  * không phải lỗi: sản phẩm đã ngừng kinh doanh (BR-PRD-005, docs 01 bước 12).
  */
 const WARNING_LABEL: Record<string, string> = {
-  OPEN_PURCHASE_ORDER_LINES:
-    "Còn dòng đơn mua (PO) đang mở tham chiếu SKU của sản phẩm — hàng đang về vẫn được nhận.",
+  OPEN_PRODUCTION_ORDER_LINES:
+    "Còn dòng Đơn sản xuất đang mở tham chiếu SKU của sản phẩm — hàng nhà sản xuất giao vẫn được nhận.",
   UNSHIPPED_ORDER_LINES:
     "Còn dòng đơn bán đã đặt chưa giao tham chiếu SKU của sản phẩm — các đơn này vẫn được xử lý tiếp.",
 };
@@ -20,7 +20,7 @@ export function discontinueWarningLabel(code: string): string {
 }
 
 const REFERENCE_KIND_LABEL: Record<OpenReference["kind"], string> = {
-  PURCHASE_ORDER_LINE: "Dòng đơn mua",
+  PRODUCTION_ORDER_LINE: "Dòng Đơn sản xuất",
   SALES_ORDER_LINE: "Dòng đơn bán",
 };
 export const openReferenceKindLabel = (kind: OpenReference["kind"]): string =>
@@ -42,7 +42,7 @@ export const CHANGE_TYPE_LABEL: Record<ProductChangeType, string> = {
   // BE PR #119 không ghi thêm hai loại dưới (đã chuyển sang hồ sơ hàng tồn) — dòng cũ vẫn đọc được.
   LOGISTICS: "Logistics của SKU",
   INVENTORY_CONTROL: "Chính sách tồn kho của SKU",
-  // BE #121 (`SkuUnitService`, V20261019000400)
+  // BE #121 (`SkuUnitService`, V20261019000400). PURCHASING: BE không còn ghi (mua hàng đã bỏ) — dòng cũ vẫn đọc được
   PURCHASING: "Thông tin mua hàng của SKU",
   UOM_CONVERSION: "Quy đổi đơn vị tính",
   SALES_UNIT: "Đơn vị bán",

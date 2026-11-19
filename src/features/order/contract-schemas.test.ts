@@ -193,43 +193,43 @@ describe("ProductionOrderRowResponse (GET /production/orders, BE develop 5683fe1
   });
 });
 
-describe("CreditPositionResponse (GET /orders/credit-position/{customerId})", () => {
-  it("B. parse đúng hình BE; khách chỉ trả trước: field null bị bỏ khỏi JSON vẫn parse", () => {
+describe("CreditPositionResponse (GET /orders/credit-position/{customerId}, BE 438fe6fb)", () => {
+  it("B. parse đúng hình BE; khách không bán trả sau: field null bị bỏ khỏi JSON vẫn parse", () => {
     expect(creditPositionDtoSchema.parse(apiCreditPosition)).toMatchObject({
-      allowedTerms: ["PREPAID", "DEPOSIT", "CREDIT"],
-      depositPercent: 40,
+      creditLimit: 1_000_000,
       availableCredit: 200_000,
       hasOverdue: false,
     });
-    const prepaidOnly = {
+    const noCredit = {
       customerId: apiOrder.customerId,
-      allowedTerms: ["PREPAID"],
-      defaultTerm: "PREPAID",
       exposure: 0,
       currency: "VND",
       hasOverdue: false,
+      overdueAmount: 0,
     };
-    const parsed = creditPositionDtoSchema.parse(prepaidOnly);
-    expect(parsed.depositPercent).toBeUndefined();
+    const parsed = creditPositionDtoSchema.parse(noCredit);
     expect(parsed.creditLimit).toBeUndefined();
     expect(parsed.availableCredit).toBeUndefined();
+    expect(parsed.oldestOverdueDueDate).toBeUndefined();
   });
 
-  it("C. thiếu field bắt buộc (exposure / currency / hasOverdue / allowedTerms) → fail", () => {
-    for (const key of ["exposure", "currency", "hasOverdue", "allowedTerms", "customerId"]) {
+  it("DS-02b: khách quá hạn — số quá hạn và ngày cũ nhất", () => {
+    const parsed = creditPositionDtoSchema.parse({
+      ...apiCreditPosition,
+      creditLimit: 300_000_000,
+      creditTermDays: 15,
+      hasOverdue: true,
+      overdueAmount: 41_195_000,
+      oldestOverdueDueDate: "2026-11-02",
+    });
+    expect(parsed).toMatchObject({ overdueAmount: 41_195_000, oldestOverdueDueDate: "2026-11-02" });
+  });
+
+  it("C. thiếu field bắt buộc (exposure / currency / hasOverdue / customerId) → fail", () => {
+    for (const key of ["exposure", "currency", "hasOverdue", "customerId"]) {
       const broken: Record<string, unknown> = { ...apiCreditPosition };
       delete broken[key];
       expect(creditPositionDtoSchema.safeParse(broken).success, key).toBe(false);
     }
-  });
-
-  it("mã phương thức FE chưa biết bị bỏ khỏi allowedTerms / defaultTerm — không thành lựa chọn", () => {
-    const parsed = creditPositionDtoSchema.parse({
-      ...apiCreditPosition,
-      allowedTerms: ["PREPAID", "INSTALLMENT"],
-      defaultTerm: "INSTALLMENT",
-    });
-    expect(parsed.allowedTerms).toEqual(["PREPAID"]);
-    expect(parsed.defaultTerm).toBeNull();
   });
 });

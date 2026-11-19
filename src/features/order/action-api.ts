@@ -45,7 +45,9 @@ export async function listCreditHolds(
   };
 }
 
-/** `POST /orders/{id}/credit-approval {note}` → đơn CONFIRMED. */
+/**
+ * `POST /orders/{id}/credit-approval {note}` → đơn PENDING_PAYMENT (còn đợt khi ký chưa trả) hoặc CONFIRMED.
+ */
 export async function approveCreditHold(
   input: OrderMutationVars<CreditApprovalInput>,
 ): Promise<Order> {
@@ -59,16 +61,16 @@ export async function approveCreditHold(
 }
 
 /**
- * `POST /orders/{id}/credit-rejection {action, depositPercent?, note}` — CANCEL huỷ đơn
- * (CREDIT_REJECTED); SWITCH_TO_* chuyển đơn về PENDING_PAYMENT.
+ * `POST /orders/{id}/credit-rejection {note}` — BE `CreditRefusalRequest`: từ chối luôn huỷ đơn
+ * (CREDIT_REJECTED); tiền đã thu thành số phải hoàn (15 §4.3).
  */
 export async function rejectCreditHold(
   input: OrderMutationVars<CreditRejectionInput>,
 ): Promise<Order> {
-  const { id, idempotencyKey, ...body } = input;
+  const { id, note, idempotencyKey } = input;
   const { data } = await api.post<unknown>(
     orderPath(id, "/credit-rejection"),
-    body,
+    { note },
     idempotencyRequestConfig(idempotencyKey),
   );
   return toOrder(orderDtoSchema.parse(data));
@@ -93,15 +95,14 @@ export async function getCreditPosition(
   const dto = creditPositionDtoSchema.parse(data);
   return {
     customerId: dto.customerId,
-    allowedTerms: dto.allowedTerms,
-    defaultTerm: dto.defaultTerm,
-    depositPercent: dto.depositPercent ?? null,
     creditLimit: dto.creditLimit ?? null,
     creditTermDays: dto.creditTermDays ?? null,
     exposure: dto.exposure,
     availableCredit: dto.availableCredit ?? null,
     currency: dto.currency,
     hasOverdue: dto.hasOverdue,
+    overdueAmount: dto.overdueAmount ?? 0,
+    oldestOverdueDueDate: dto.oldestOverdueDueDate ?? null,
   };
 }
 
