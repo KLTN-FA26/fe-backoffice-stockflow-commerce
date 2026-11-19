@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 
 import { RefetchErrorNotice } from "./primitives";
 import { FailureReasonCorrectionAction } from "./shipment/FailureReasonCorrectionAction";
+import { ShipmentCancelAction } from "./shipment/ShipmentCancelAction";
 import { OutcomeDialog } from "./shipment/OutcomeDialog";
 import { ShipmentDetails } from "./shipment/ShipmentDetails";
 import { ShipmentInfoCard } from "./shipment/ShipmentInfoCard";
@@ -75,6 +76,7 @@ function ShipmentBody({ id }: { id: string }) {
           })}
         />
         <FailureReasonCorrectionAction shipment={shipment} />
+        <ShipmentCancelAction data={data} />
         <ShipmentDetails data={data} />
       </div>
       {outcome && outcomes.includes(outcome) && (

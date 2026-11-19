@@ -39,6 +39,20 @@ export const SHIPPING_AFTER_HANDOVER_LABELS = {
     by: "Người sửa",
     why: "Lý do sửa",
   },
+  /**
+   * QLK huỷ lô Sẵn sàng xuất (docs 09 §5.1; RTM-RTDCANCEL 19/11): thùng hư vào cách ly, thùng tốt vào hàng chờ cất lại;
+   * đơn tạm giữ (thiếu hàng) để phân bổ thùng khác, kiểm lại thùng mới rồi gỡ treo về Đã đóng gói.
+   */
+  shipmentCancel: {
+    button: "Huỷ lô giao",
+    title: "Huỷ lô giao",
+    description:
+      "Lô chưa bàn giao. Thùng đánh dấu hư vào khu cách ly; thùng còn tốt vào hàng chờ cất lại. Đơn chuyển Tạm giữ (thiếu hàng) để phân bổ thùng khác, kiểm lại thùng mới rồi gỡ treo.",
+    reasonLabel: "Lý do huỷ",
+    damagedLabel: "Thùng hư hỏng (vào cách ly)",
+    damagedHint: "Đánh dấu các thùng hư; thùng không đánh dấu được cất lại vào kho.",
+    confirm: "Huỷ lô",
+  },
   /** Bước do hãng báo qua webhook (docs 09 BR-02: ghi nguồn webhook / tay). */
   webhookSource: "Hãng báo (webhook)",
   /** File vận đơn và POD của đơn — Sale gửi khách khi khách xin qua chat (docs 09 §2, §7). */
@@ -61,6 +75,7 @@ export const SHIPPING_AFTER_HANDOVER_LABELS = {
 
 export const SHIPPING_AFTER_HANDOVER_TOAST_MESSAGES = {
   failureReasonCorrected: "Đã sửa lý do giao thất bại",
+  shipmentCancelled: "Đã huỷ lô giao — đơn tạm giữ chờ phân bổ thùng khác",
 } as const;
 
 /** errorCode BE → câu tiếng Việt cho các thao tác trên. */

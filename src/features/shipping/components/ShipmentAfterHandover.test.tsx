@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  SHIPMENT_CANCELLATION_PERMISSIONS,
   SHIPMENT_FAILURE_REASON_PERMISSIONS,
   SHIPPING_ERROR_MESSAGES,
   UI_LABELS,
@@ -152,6 +153,43 @@ describe("Lô giao sau bàn giao — bước do hãng báo, sửa lý do thất 
     await user.click(within(again).getByRole("button", { name: C.confirm }));
     expect(await within(again).findByRole("alert")).toHaveTextContent(
       SHIPPING_ERROR_MESSAGES.SHIPMENT_FAILURE_REASON_LOCKED,
+    );
+  });
+});
+
+describe("RTM-RTDCANCEL — QLK huỷ lô Sẵn sàng xuất", () => {
+  const X = A.shipmentCancel;
+  const CANCELLER: TestActor = {
+    permissions: [...ACTORS.warehouseManager.permissions, SHIPMENT_CANCELLATION_PERMISSIONS.update],
+  };
+  const ready = () => apiShipment({ status: "READY_TO_DISPATCH" });
+
+  it("chỉ người có quyền thấy nút; lô đã bàn giao thì không", async () => {
+    render(ACTORS.warehouseManager, ready());
+    await screen.findByText("PKG-SO-1-1");
+    expect(screen.queryByRole("button", { name: X.button })).not.toBeInTheDocument();
+  });
+
+  it("nhập lý do, đánh dấu thùng hư → POST /cancellation {reason, damagedPackageIds}", async () => {
+    const user = userEvent.setup();
+    const cancelled = apiShipment({ status: "CANCELLED" });
+    const spies = mockShippingApi(CANCELLER, {
+      get: { [PATH]: () => ready() },
+      post: { [`${PATH}/cancellation`]: () => cancelled },
+    });
+    renderShippingScreen(<ShipmentScreen id="shp-1" />);
+    await user.click(await screen.findByRole("button", { name: X.button }));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(
+      within(dialog).getByRole("checkbox", { name: `${X.damagedLabel}: PKG-SO-1-2` }),
+    );
+    await user.type(within(dialog).getByRole("textbox"), "Mọi thùng móp khi chờ xe");
+    await user.click(within(dialog).getByRole("button", { name: X.confirm }));
+    await waitFor(() =>
+      expect(spies.post).toHaveBeenCalledWith(`${PATH}/cancellation`, {
+        reason: "Mọi thùng móp khi chờ xe",
+        damagedPackageIds: ["pkg-2"],
+      }),
     );
   });
 });
