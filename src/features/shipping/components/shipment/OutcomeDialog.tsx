@@ -4,23 +4,17 @@ import { useEffect, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
-import { SHIPPING_LIMITS, UI_LABELS } from "@/constants";
+import { UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
-import {
-  deliveredAtToSend,
-  deliveryTimeProblem,
-  toLocalInput,
-} from "@/features/shipping/delivery-time";
+import { useDeliveryTimeInput } from "@/features/shipping/useDeliveryTimeInput";
 import { shippingErrorMessage } from "@/features/shipping/errors";
 import { deliveryOutcomeInputSchema } from "@/features/shipping/input-schemas";
 import { useRecordDeliveryOutcome } from "@/features/shipping/shipment-mutations";
 import { DialogScrollArea } from "@/components/shared/DialogScrollArea";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 
-import { FieldError } from "../primitives";
 import { DeliveryTimeField } from "./DeliveryTimeField";
+import { FailureNoteField } from "./FailureNoteField";
 import { FailureReasonField } from "./FailureReasonField";
 import { OutcomeSummary } from "./OutcomeSummary";
 
@@ -49,9 +43,8 @@ export function OutcomeDialog({ data, outcome, onClose }: OutcomeDialogProps) {
   // Callback mức hook: ghi nhận kết quả tải lại lô (đổi trạng thái) có thể gỡ hộp thoại trước callback của `mutate`
   const record = useRecordDeliveryOutcome({ onSuccess: onClose });
   const [serverError, setServerError] = useState<string | null>(null);
-  const [opened] = useState(() => new Date());
-  const [deliveredLocal, setDeliveredLocal] = useState(() => toLocalInput(opened));
-  const [deliveredEdited, setDeliveredEdited] = useState(false);
+  const delivered = outcome === "DELIVERED";
+  const time = useDeliveryTimeInput(shipment.handedOverAt, delivered);
   const form = useForm<DeliveryOutcomeFormInput, unknown, DeliveryOutcomeValues>({
     resolver: zodResolver(deliveryOutcomeInputSchema),
     mode: "onChange",
@@ -59,11 +52,7 @@ export function OutcomeDialog({ data, outcome, onClose }: OutcomeDialogProps) {
   });
   const errors = form.formState.errors;
   const failed = outcome === "DELIVERY_FAILED";
-  const delivered = outcome === "DELIVERED";
   const reason = useWatch({ control: form.control, name: "failureReason" });
-  const timeProblem = delivered
-    ? deliveryTimeProblem(deliveredLocal, { handedOverAt: shipment.handedOverAt })
-    : null;
   useEffect(
     () =>
       form.subscribe({
@@ -82,7 +71,7 @@ export function OutcomeDialog({ data, outcome, onClose }: OutcomeDialogProps) {
         shipmentId: shipment.shipmentId,
         values: {
           ...values,
-          deliveredAt: delivered ? deliveredAtToSend(deliveredLocal, deliveredEdited) : undefined,
+          deliveredAt: time.toSend(),
         },
       },
       {
@@ -105,7 +94,7 @@ export function OutcomeDialog({ data, outcome, onClose }: OutcomeDialogProps) {
         title={`${D[outcome].title} · ${shipment.code}`}
         description={D[outcome].description}
         submitLabel={D.confirm}
-        canSubmit={form.formState.isValid && !timeProblem}
+        canSubmit={form.formState.isValid && !time.problem}
         isPending={record.isPending}
         error={serverError}
         onSubmit={() => void submit()}
@@ -116,15 +105,14 @@ export function OutcomeDialog({ data, outcome, onClose }: OutcomeDialogProps) {
           {!failed && <OutcomeSummary data={data} />}
           {delivered && (
             <DeliveryTimeField
-              value={deliveredLocal}
+              value={time.local}
               onChange={(next) => {
-                setDeliveredLocal(next);
-                setDeliveredEdited(true);
+                time.onChange(next);
                 setServerError(null);
               }}
               handedOverAt={shipment.handedOverAt}
-              now={opened}
-              error={timeProblem}
+              now={time.opened}
+              error={time.problem}
             />
           )}
           {/* Chỉ lần giao THẤT BẠI có lý do + ghi chú: BE không lưu ghi chú của kết quả khác */}
@@ -141,27 +129,12 @@ export function OutcomeDialog({ data, outcome, onClose }: OutcomeDialogProps) {
                   />
                 )}
               />
-              <div>
-                <Label
-                  htmlFor="outcome-note"
-                  className="text-ink-secondary mb-1 block text-xs font-medium"
-                >
-                  {D.note} {reason === "OTHER" && <span className="text-danger">*</span>}
-                </Label>
-                <Textarea
-                  id="outcome-note"
-                  rows={2}
-                  maxLength={SHIPPING_LIMITS.noteMax}
-                  aria-invalid={errors.note ? true : undefined}
-                  aria-describedby="outcome-note-hint"
-                  className="border-border-default bg-bg-surface rounded-[var(--r-sm)] text-[0.8125rem]"
-                  {...form.register("note")}
-                />
-                <p id="outcome-note-hint" className="text-ink-tertiary mt-1 text-xs">
-                  {reason === "OTHER" ? D.noteRequired : D.noteOptional}
-                </p>
-                <FieldError>{errors.note?.message}</FieldError>
-              </div>
+              <FailureNoteField
+                id="outcome-note"
+                register={form.register("note")}
+                reasonIsOther={reason === "OTHER"}
+                error={errors.note?.message}
+              />
             </>
           )}
           <p className="text-ink-tertiary text-xs">{D.audit}</p>

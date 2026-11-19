@@ -4,27 +4,23 @@ import { useEffect, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
-import { ORDER_DELIVERY_FAILURE_LABELS, SHIPPING_LIMITS, UI_LABELS } from "@/constants";
+import { UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 import {
   correctionTarget,
   deliveryCorrectionInputSchema,
 } from "@/features/shipping/correction-schemas";
-import {
-  deliveredAtToSend,
-  deliveryTimeProblem,
-  toLocalInput,
-} from "@/features/shipping/delivery-time";
+import { useDeliveryTimeInput } from "@/features/shipping/useDeliveryTimeInput";
 import { shippingErrorMessage } from "@/features/shipping/errors";
 import { useCorrectDeliveryOutcome } from "@/features/shipping/shipment-mutations";
 import { Alert } from "@/components/shared/Alert";
 import { DialogScrollArea } from "@/components/shared/DialogScrollArea";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 
-import { FieldError } from "../primitives";
+import { CorrectionCurrent } from "./CorrectionCurrent";
+import { CorrectionReasonField } from "./CorrectionReasonField";
 import { DeliveryTimeField } from "./DeliveryTimeField";
+import { FailureNoteField } from "./FailureNoteField";
 import { FailureReasonField } from "./FailureReasonField";
 import { OutcomeSummary } from "./OutcomeSummary";
 
@@ -48,9 +44,7 @@ export function CorrectionDialog({ data, onClose }: { data: Shipment; onClose: (
   const toFailed = target === "DELIVERY_FAILED";
   const correct = useCorrectDeliveryOutcome({ onSuccess: onClose });
   const [serverError, setServerError] = useState<string | null>(null);
-  const [opened] = useState(() => new Date());
-  const [deliveredLocal, setDeliveredLocal] = useState(() => toLocalInput(opened));
-  const [deliveredEdited, setDeliveredEdited] = useState(false);
+  const time = useDeliveryTimeInput(shipment.handedOverAt, !toFailed);
   const form = useForm<DeliveryCorrectionFormInput, unknown, DeliveryCorrectionValues>({
     resolver: zodResolver(deliveryCorrectionInputSchema),
     mode: "onChange",
@@ -58,9 +52,6 @@ export function CorrectionDialog({ data, onClose }: { data: Shipment; onClose: (
   });
   const errors = form.formState.errors;
   const failureReason = useWatch({ control: form.control, name: "failureReason" });
-  const timeProblem = toFailed
-    ? null
-    : deliveryTimeProblem(deliveredLocal, { handedOverAt: shipment.handedOverAt });
   useEffect(
     () =>
       form.subscribe({
@@ -79,7 +70,7 @@ export function CorrectionDialog({ data, onClose }: { data: Shipment; onClose: (
         shipmentId: shipment.shipmentId,
         values: {
           ...values,
-          deliveredAt: toFailed ? undefined : deliveredAtToSend(deliveredLocal, deliveredEdited),
+          deliveredAt: time.toSend(),
         },
       },
       {
@@ -96,38 +87,20 @@ export function CorrectionDialog({ data, onClose }: { data: Shipment; onClose: (
     );
   });
 
-  const currentLabel = shipment.status === "DELIVERED" ? C.toDelivered : C.toFailed;
-  const currentReason =
-    shipment.status === "DELIVERY_FAILED" && shipment.failureReason
-      ? (ORDER_DELIVERY_FAILURE_LABELS[
-          shipment.failureReason as keyof typeof ORDER_DELIVERY_FAILURE_LABELS
-        ] ?? shipment.failureReason)
-      : null;
-
   return (
     <FormDialog open onOpenChange={(next) => !next && !correct.isPending && onClose()}>
       <FormDialogBody
         title={`${C.title} · ${shipment.code}`}
         description={C.description}
         submitLabel={C.submit}
-        canSubmit={form.formState.isValid && !timeProblem}
+        canSubmit={form.formState.isValid && !time.problem}
         isPending={correct.isPending}
         error={serverError}
         onSubmit={() => void submit()}
         onCancel={() => !correct.isPending && onClose()}
       >
         <DialogScrollArea>
-          <dl className="grid grid-cols-[8.75rem_minmax(0,1fr)] items-center gap-x-4 gap-y-2 text-[0.8125rem]">
-            <dt className="text-ink-tertiary">{C.current}</dt>
-            <dd className="text-ink-primary">
-              <span className="font-medium">{currentLabel}</span>
-              {currentReason && <span className="text-ink-tertiary"> · {currentReason}</span>}
-            </dd>
-            <dt className="text-ink-tertiary">{C.to}</dt>
-            <dd className="text-ink-primary font-medium">
-              {toFailed ? C.toFailed : C.toDelivered}
-            </dd>
-          </dl>
+          <CorrectionCurrent shipment={shipment} toFailed={toFailed} />
           <OutcomeSummary data={data} showCurrent={false} />
           {toFailed ? (
             <>
@@ -142,63 +115,30 @@ export function CorrectionDialog({ data, onClose }: { data: Shipment; onClose: (
                   />
                 )}
               />
-              <div>
-                <Label
-                  htmlFor="correction-note"
-                  className="text-ink-secondary mb-1 block text-xs font-medium"
-                >
-                  {D.note} {failureReason === "OTHER" && <span className="text-danger">*</span>}
-                </Label>
-                <Textarea
-                  id="correction-note"
-                  rows={2}
-                  maxLength={SHIPPING_LIMITS.noteMax}
-                  aria-invalid={errors.note ? true : undefined}
-                  className="border-border-default bg-bg-surface rounded-[var(--r-sm)] text-[0.8125rem]"
-                  {...form.register("note")}
-                />
-                <p className="text-ink-tertiary mt-1 text-xs">
-                  {failureReason === "OTHER" ? D.noteRequired : D.noteOptional}
-                </p>
-                <FieldError>{errors.note?.message}</FieldError>
-              </div>
+              <FailureNoteField
+                id="correction-note"
+                register={form.register("note")}
+                reasonIsOther={failureReason === "OTHER"}
+                error={errors.note?.message}
+              />
               <Alert tone="info">{C.invoiceNote}</Alert>
             </>
           ) : (
             <DeliveryTimeField
-              value={deliveredLocal}
+              value={time.local}
               onChange={(next) => {
-                setDeliveredLocal(next);
-                setDeliveredEdited(true);
+                time.onChange(next);
                 setServerError(null);
               }}
               handedOverAt={shipment.handedOverAt}
-              now={opened}
-              error={timeProblem}
+              now={time.opened}
+              error={time.problem}
             />
           )}
-          <div>
-            <Label
-              htmlFor="correction-reason"
-              className="text-ink-secondary mb-1 block text-xs font-medium"
-            >
-              {C.reason} <span className="text-danger">*</span>
-            </Label>
-            <Textarea
-              id="correction-reason"
-              rows={3}
-              maxLength={SHIPPING_LIMITS.cancelReasonMax}
-              placeholder={C.reasonPlaceholder}
-              aria-invalid={errors.reason ? true : undefined}
-              aria-describedby="correction-reason-hint"
-              className="border-border-default bg-bg-surface rounded-[var(--r-sm)] text-[0.8125rem]"
-              {...form.register("reason")}
-            />
-            <p id="correction-reason-hint" className="text-ink-tertiary mt-1 text-xs">
-              {C.reasonHint}
-            </p>
-            <FieldError>{errors.reason?.message}</FieldError>
-          </div>
+          <CorrectionReasonField
+            register={form.register("reason")}
+            error={errors.reason?.message}
+          />
           <p className="text-ink-tertiary text-xs">{D.audit}</p>
         </DialogScrollArea>
       </FormDialogBody>
