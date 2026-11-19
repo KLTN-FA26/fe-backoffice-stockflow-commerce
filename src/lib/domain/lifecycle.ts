@@ -54,7 +54,6 @@ import type {
   PickStatus,
   ReceiptStatus,
   ShipmentApiStatus,
-  TransferStatus,
 } from "@/constants/statuses";
 
 /* ── Module 01: Product ──────────────────────────────────────────────── */
@@ -180,24 +179,6 @@ export const SHIPMENT_TRANSITIONS: Record<ShipmentApiStatus, readonly ShipmentAp
   DELIVERY_FAILED: ["DELIVERED", "RETURNED"],
   DELIVERED: [],
   RETURNED: [],
-  CANCELLED: [],
-};
-
-/* ── Module 10: Inter-warehouse Transfer ─────────────────────────────── */
-
-// docs 10 §5 = BE `TransferStatus.canTransitionTo` (SCRUM-327). DRAFT → APPROVED khi tổng SL ≤ ngưỡng
-// duyệt; PENDING_APPROVAL → DRAFT khi bị từ chối; PICKING → APPROVED khi dừng lấy hàng.
-// BR-04 (docs 10 §6): chỉ huỷ trước khi rời kho nguồn — sau IN_TRANSIT chỉ còn đóng (CLOSED).
-export const TRANSFER_TRANSITIONS: Record<TransferStatus, readonly TransferStatus[]> = {
-  DRAFT: ["PENDING_APPROVAL", "APPROVED", "CANCELLED"],
-  PENDING_APPROVAL: ["APPROVED", "DRAFT"],
-  APPROVED: ["PICKING", "CANCELLED"],
-  PICKING: ["IN_TRANSIT", "APPROVED"],
-  IN_TRANSIT: ["PARTIALLY_RECEIVED", "RECEIVED"],
-  PARTIALLY_RECEIVED: ["RECEIVED", "CLOSED"],
-  RECEIVED: ["COMPLETED"],
-  COMPLETED: [],
-  CLOSED: [],
   CANCELLED: [],
 };
 

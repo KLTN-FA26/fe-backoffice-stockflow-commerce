@@ -971,9 +971,9 @@ describe("OrderDetail — hồi quy tích hợp (credit hold / packed / UNKNOWN 
     expect(within(card).queryAllByRole("button")).toHaveLength(0);
   });
 
-  it("7. LSX theo dòng in và lô giao cùng hiện trên một trang chi tiết", async () => {
+  it("7. Đơn sản xuất theo dòng in và lô giao cùng hiện trên một trang chi tiết", async () => {
     const lineId = apiPartialOrder.lines[0]?.lineId ?? "";
-    // Chỉ đọc đơn + đọc LSX (production-orders:READ — BE ProductionOrderController#list)
+    // Chỉ đọc đơn + đọc Đơn sản xuất (production-orders:READ — BE ProductionOrderController#list)
     mockOrderApiGet([...ORDER_PERMISSION_SETS.readOnly, PRODUCTION_ORDER_PERMISSIONS.read], {
       [DETAIL_PATH]: () =>
         apiOrderWith({
@@ -985,20 +985,26 @@ describe("OrderDetail — hồi quy tích hợp (credit hold / packed / UNKNOWN 
             },
           ],
         }),
-      // BE ProductionOrderController#list — PageResponse<ProductionOrderRowResponse>
-      "/production/orders": () => ({
+      // BE ProductionOrderController#list — PageResponse<ProductionOrder>
+      "/production-orders": () => ({
         items: [
           {
             id: "0b0b0b0b-0000-4000-8000-000000000001",
-            orderNumber: "LSX-0001",
-            type: "ORDER",
-            mode: "IN_HOUSE",
-            status: "COMPLETED",
-            plannedQuantity: 2,
-            goodQuantity: 2,
+            code: "PRD-20261020-0001",
             salesOrderId: apiOrder.orderId,
-            salesOrderLineId: lineId,
-            createdAt: "2026-10-20T03:00:00Z",
+            status: "RECEIVED",
+            lines: [
+              {
+                id: "0c0c0c0c-0000-4000-8000-000000000001",
+                orderLineId: lineId,
+                sku: "CUP-PRINT-12OZ",
+                cartons: 2,
+                unitsPerCarton: 1,
+                totalUnits: 2,
+                receivedCartons: 2,
+              },
+            ],
+            version: 1,
           },
         ],
         page: 0,
@@ -1015,7 +1021,7 @@ describe("OrderDetail — hồi quy tích hợp (credit hold / packed / UNKNOWN 
     });
 
     expect(
-      await screen.findByRole("listitem", { name: "Lệnh sản xuất LSX-0001" }),
+      await screen.findByRole("listitem", { name: "Đơn sản xuất PRD-20261020-0001" }),
     ).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Lô giao" })).toBeInTheDocument();
     expect(screen.getByText("Đã bàn giao:")).toBeInTheDocument();

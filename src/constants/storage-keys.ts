@@ -15,7 +15,6 @@ export const STORAGE_KEYS = {
   /** Tab "Danh mục hàng" trên chi tiết NCC — số dòng/trang (dùng chung mọi NCC). */
   adminTaxonomyBrandsConfig: "stockflow:admin:taxonomy:brands:config",
   adminTaxonomyCategoriesConfig: "stockflow:admin:taxonomy:categories:config",
-  adminTransfersConfig: "stockflow:admin:transfers:config",
   adminShipmentsConfig: "stockflow:admin:shipments:config",
   adminLoadsConfig: "stockflow:admin:loads:config",
   adminVehicleTypesConfig: "stockflow:admin:vehicle-types:config",

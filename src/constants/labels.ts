@@ -11,7 +11,6 @@ import { PRODUCT_UI_LABELS } from "./labels-product";
 import { RECEIPT_CARTON_ERROR_MESSAGES } from "./labels-receipt-carton";
 import { SHIPPING_TOAST_MESSAGES, SHIPPING_UI_LABELS } from "./labels-shipping";
 import { TAXONOMY_TOAST_MESSAGES, TAXONOMY_UI_LABELS } from "./labels-taxonomy";
-import { TRANSFER_TOAST_MESSAGES, TRANSFER_UI_LABELS } from "./labels-transfer";
 import { VEHICLE_TYPE_TOAST_MESSAGES, VEHICLE_TYPE_UI_LABELS } from "./labels-vehicle-type";
 import {
   WAREHOUSE_CAPACITY_TOAST_MESSAGES,
@@ -151,7 +150,6 @@ export const UI_LABELS = {
     },
     dateRangeInvalid: "Ngày bắt đầu sau ngày kết thúc — không có phiếu nào khớp.",
   },
-  transfer: TRANSFER_UI_LABELS,
   shipping: SHIPPING_UI_LABELS,
   vehicleType: VEHICLE_TYPE_UI_LABELS,
   warehouseCapacity: WAREHOUSE_CAPACITY_UI_LABELS,
@@ -401,7 +399,6 @@ export const TOAST_MESSAGES = {
     confirmed: "Đã xác nhận nhập kho",
     cancelled: "Đã huỷ phiếu nhận",
   },
-  transfer: TRANSFER_TOAST_MESSAGES,
   shipping: SHIPPING_TOAST_MESSAGES,
   vehicleType: VEHICLE_TYPE_TOAST_MESSAGES,
   warehouseCapacity: WAREHOUSE_CAPACITY_TOAST_MESSAGES,

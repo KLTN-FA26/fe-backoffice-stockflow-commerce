@@ -1,6 +1,6 @@
 /**
  * Contract test: every dashboard source answers on the mock with the BE shape the real client
- * parses — the counters read `totalElements` of a size-1 page, the alerts follow StockAlertController.
+ * parses — the counters read `totalElements` of a size-1 page.
  */
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
@@ -11,7 +11,7 @@ import { ApiError } from "@/lib/api/error";
 import { activateMockAdapter } from "@/lib/api/mock-adapter";
 import { useAuthStore } from "@/lib/auth/auth-store";
 
-import { fetchAlertSummary, fetchCount, listOpenAlerts } from "./api";
+import { fetchCount } from "./api";
 import { KPI_DEFINITIONS } from "./kpis";
 
 vi.setConfig({ testTimeout: 30_000 });
@@ -86,19 +86,5 @@ describe("dashboard sources on the mock", () => {
       repeatStatus: true,
     });
     expect(pending).toBeLessThanOrEqual(all);
-  });
-
-  it("stock alerts: dashboard summary agrees with the shared overview alert records", async () => {
-    expect(await fetchAlertSummary()).toEqual({
-      openByKind: { REORDER: 1, SAFETY: 0, EXPIRING: 1, EXPIRED: 1 },
-    });
-    const alerts = await listOpenAlerts();
-    expect(alerts.totalElements).toBe(3);
-    expect(alerts.items.map((alert) => alert.kind).sort()).toEqual([
-      "EXPIRED",
-      "EXPIRING",
-      "REORDER",
-    ]);
-    expect(alerts.items.every((alert) => alert.status === "OPEN")).toBe(true);
   });
 });

@@ -81,20 +81,6 @@ export const VARIANT_COLUMNS = {
   VALUES: "values",
 } as const;
 
-/** Cột danh sách lệnh chuyển kho — field BE `TransferOrderRowResponse`. */
-export const TRANSFER_COLUMNS = {
-  ACTIONS: "actions",
-  CREATED_AT: "createdAt",
-  DELIVERY_MODE: "deliveryMode",
-  DISPATCHED_AT: "dispatchedAt",
-  EXPECTED_DATE: "expectedDate",
-  FROM_WAREHOUSE: "fromWarehouse",
-  NUMBER: "number",
-  PACKED_AT: "packedAt",
-  STATUS: "status",
-  TO_WAREHOUSE: "toWarehouse",
-} as const;
-
 /** Cột bảng hồ sơ hàng tồn (BE PR #119 `InventoryItemResponse`). */
 export const INVENTORY_ITEM_COLUMNS = {
   SKU: "sku",
@@ -179,8 +165,6 @@ export const LOAD_PLAN_COLUMNS = {
   MODE: "mode",
   PACKAGES: "packages",
   SHIPMENTS: "shipments",
-  /** Nguồn của kế hoạch: đơn khách hay lệnh chuyển kho (SCRUM-287 PR F9). */
-  SOURCE: "source",
   STATUS: "status",
   UNPLACED: "unplaced",
   VEHICLES: "vehicles",

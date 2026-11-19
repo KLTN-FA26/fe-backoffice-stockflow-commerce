@@ -117,24 +117,6 @@ export const CARTON_CHECK_LIMITS = {
   scanFeedbackMs: 1500,
 } as const;
 
-/** Giới hạn lệnh chuyển kho — đúng ràng buộc request BE (CreateTransferOrderRequest, ReasonRequest). */
-export const TRANSFER_LIMITS = {
-  /** `lines` @Size(max = 200). */
-  linesMax: 200,
-  /** `Line.quantity` @Max(1_000_000). */
-  quantityMax: 1_000_000,
-  /** `Line.lotNumber` @Size(max = 64); SKU @Pattern `[A-Za-z0-9-]{3,64}`. */
-  codeMax: 64,
-  skuMin: 3,
-  /** `ReasonRequest.reason` @Size(max = 500). */
-  reasonMax: 500,
-  /**
-   * `stockflow.inventory.transfer.approval-threshold-units` (mặc định 100; docs 10 §4 bước 3 + §5 "Draft → Approved: Submit (dưới ngưỡng)"): tổng SL ≤ ngưỡng
-   * thì gửi duyệt là duyệt luôn. Chỉ để hiện gợi ý — BE đọc cấu hình thật.
-   */
-  approvalThresholdUnits: 100,
-} as const;
-
 /** Giới hạn thương hiệu / danh mục — BE `Create*Request` / `Update*Request` + migration PIM dictionary. */
 export const TAXONOMY_LIMITS = {
   /** `name` @Size(max = 255). */
@@ -294,8 +276,6 @@ export const LOAD_PLANNING_LIMITS = {
 export const LOAD_PLAN_LIMITS = {
   /** `shipmentIds` @Size(max = 200). */
   shipmentsMax: 200,
-  /** `transferOrderIds` @Size(max = 1): kế hoạch nguồn TRANSFER chứa đúng một lệnh chuyển kho (BE PR #164). */
-  transferOrdersMax: 1,
   /** `vehicleTypeIds` @Size(max = 50). */
   vehicleTypesMax: 50,
   /** `reason` @NotBlank @Size(max = 500) khi mở lại / huỷ. */
