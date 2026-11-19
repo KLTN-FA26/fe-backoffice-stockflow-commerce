@@ -13,9 +13,10 @@ import { toOrder } from "./api";
 import { orderDtoSchema } from "./schemas";
 
 import type { OrderMutationVars } from "./api";
+import type { ShippingAddressChangeValues } from "./input-schemas";
 import type { Order } from "./types";
 
-export type ChangeShippingAddressInput = OrderMutationVars<{ shippingAddressId: string }>;
+export type ChangeShippingAddressInput = OrderMutationVars<ShippingAddressChangeValues>;
 
 export async function changeShippingAddress(input: ChangeShippingAddressInput): Promise<Order> {
   const { id, shippingAddressId, idempotencyKey } = input;

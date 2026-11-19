@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { MapPin } from "lucide-react";
+import { useForm, useWatch } from "react-hook-form";
 
 import { CUSTOMER_ADDRESS_PERMISSIONS, ORDER_SHIPPING_ADDRESS_LABELS } from "@/constants";
 import { useCan } from "@/lib/auth/components/Can";
@@ -10,10 +11,13 @@ import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { FORM_INPUT_CLASS, FormField } from "@/components/shared/FormField";
 import { Button } from "@/components/ui/button";
 
+import { shippingAddressChangeSchema } from "../input-schemas";
 import { useChangeShippingAddress } from "../mutations";
 
 import { useOrderActionDialog } from "./useOrderActionDialog";
 
+import type { UseFormRegisterReturn } from "react-hook-form";
+import type { ShippingAddressChangeValues } from "../input-schemas";
 import type { Order } from "../types";
 
 const L = ORDER_SHIPPING_ADDRESS_LABELS;
@@ -24,12 +28,12 @@ type ActionOrder = Pick<Order, "orderId" | "orderNumber" | "customerId">;
 /** Ô chọn địa chỉ giao trong sổ địa chỉ của khách (docs 14 §4.2 bước 9) — chỉ địa chỉ loại SHIPPING. */
 function AddressChoice({
   customerId,
-  value,
-  onChange,
+  field,
+  error,
 }: {
   customerId: string;
-  value: string;
-  onChange: (value: string) => void;
+  field: UseFormRegisterReturn<"shippingAddressId">;
+  error: string | undefined;
 }) {
   // UI-only — Backend phải re-check (@RequiresPermission customer-addresses:READ, CustomerAddressController)
   const canRead = useCan(CUSTOMER_ADDRESS_PERMISSIONS.read);
@@ -43,13 +47,8 @@ function AddressChoice({
     return <p className="text-ink-secondary text-[0.8125rem]">{L.noAddress}</p>;
   }
   return (
-    <FormField id={FIELD_ID} label={L.addressLabel}>
-      <select
-        id={FIELD_ID}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className={`${FORM_INPUT_CLASS} border px-2`}
-      >
+    <FormField id={FIELD_ID} label={L.addressLabel} error={error}>
+      <select id={FIELD_ID} {...field} className={`${FORM_INPUT_CLASS} border px-2`}>
         <option value="">{L.addressPlaceholder}</option>
         {shipping.map((address) => (
           <option key={address.addressId} value={address.addressId}>
@@ -69,9 +68,16 @@ function AddressChoice({
 export function OrderShippingAddressAction({ order }: { order: ActionOrder }) {
   const dialog = useOrderActionDialog("shippingAddress");
   const { mutate, isPending } = useChangeShippingAddress(dialog.hookOptions);
-  const [addressId, setAddressId] = useState("");
+  const form = useForm<ShippingAddressChangeValues>({
+    resolver: zodResolver(shippingAddressChangeSchema),
+    defaultValues: { shippingAddressId: "" },
+  });
+  const chosen = useWatch({ control: form.control, name: "shippingAddressId" });
   if (!order.customerId) return null;
   const customerId = order.customerId;
+  const submit = form.handleSubmit((values) =>
+    dialog.submit(mutate, { id: order.orderId, ...values }),
+  );
   return (
     <>
       <Button
@@ -80,7 +86,7 @@ export function OrderShippingAddressAction({ order }: { order: ActionOrder }) {
         size="sm"
         className="h-auto p-0 text-xs"
         onClick={() => {
-          setAddressId("");
+          form.reset({ shippingAddressId: "" });
           dialog.show();
         }}
       >
@@ -91,15 +97,17 @@ export function OrderShippingAddressAction({ order }: { order: ActionOrder }) {
           title={L.title}
           description={`${L.description} (${order.orderNumber})`}
           submitLabel={L.submit}
-          canSubmit={addressId !== ""}
+          canSubmit={chosen !== ""}
           isPending={isPending}
           error={dialog.error}
           onCancel={dialog.close}
-          onSubmit={() =>
-            dialog.submit(mutate, { id: order.orderId, shippingAddressId: addressId })
-          }
+          onSubmit={() => void submit()}
         >
-          <AddressChoice customerId={customerId} value={addressId} onChange={setAddressId} />
+          <AddressChoice
+            customerId={customerId}
+            field={form.register("shippingAddressId")}
+            error={form.formState.errors.shippingAddressId?.message}
+          />
         </FormDialogBody>
       </FormDialog>
     </>

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { ORDER_PERMISSIONS } from "@/constants";
 
 import { toOrderHistoryEntry } from "./history-api";
+import { shippingAddressChangeSchema } from "./input-schemas";
 import { SHIPPING_ADDRESS_CHANGE_STATUSES, canChangeShippingAddress } from "./shipping-address";
 
 import type { PermissionCode } from "@/lib/auth";
@@ -106,5 +107,17 @@ describe("toOrderHistoryEntry: ADDRESS_CHANGE (BE WF04 G2)", () => {
 
   it("thiếu địa chỉ mới → 'unknown', không đoán", () => {
     expect(toOrderHistoryEntry({ ...base, type: "ADDRESS_CHANGE" }).kind).toBe("unknown");
+  });
+});
+
+describe("shippingAddressChangeSchema — docs 14 §4.2 bước 9, 17 BR-16", () => {
+  it("bắt buộc chọn một địa chỉ giao; id của BE nhận nguyên văn", () => {
+    expect(shippingAddressChangeSchema.safeParse({ shippingAddressId: "" }).success).toBe(false);
+    expect(shippingAddressChangeSchema.safeParse({ shippingAddressId: "   " }).success).toBe(false);
+    expect(
+      shippingAddressChangeSchema.parse({
+        shippingAddressId: "a0a0a0a0-0000-4000-8000-000000000009",
+      }),
+    ).toEqual({ shippingAddressId: "a0a0a0a0-0000-4000-8000-000000000009" });
   });
 });

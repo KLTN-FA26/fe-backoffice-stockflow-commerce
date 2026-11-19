@@ -1,7 +1,7 @@
 "use client";
 
 import { CartonCheckStation } from "@/features/fulfillment/components/CartonCheckStation";
-import { PrintLabelsDialog } from "@/features/receipt/components/cartons/PrintLabelsDialog";
+import { PrintLabelsDialog } from "@/features/receipt";
 
 import type { CartonLpnLabelSlot } from "@/features/fulfillment";
 

@@ -207,6 +207,7 @@ export const ORDER_SHIPPING_ADDRESS_LABELS = {
     "Chọn địa chỉ giao khác trong sổ địa chỉ của khách. Đổi được tới khi thùng đầu tiên của đơn được dán nhãn giao hàng; lần đổi được ghi vào lịch sử đơn.",
   addressLabel: "Địa chỉ giao mới",
   addressPlaceholder: "Chọn địa chỉ giao",
+  addressRequired: "Chọn một địa chỉ giao trong sổ địa chỉ của khách",
   defaultMark: "Mặc định",
   loading: "Đang tải sổ địa chỉ của khách…",
   loadFailed: "Không tải được sổ địa chỉ của khách.",
