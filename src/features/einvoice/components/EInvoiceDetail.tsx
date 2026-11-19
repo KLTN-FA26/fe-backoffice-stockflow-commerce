@@ -63,7 +63,7 @@ function EInvoiceDetailContent({
             <ArrowLeft className="size-3.5" /> {EINVOICE_LABELS.list.pageTitle}
           </Link>
         </Button>
-        <EInvoiceActions invoice={invoice} readAt={query.dataUpdatedAt} extra={extra?.(invoice)} />
+        <EInvoiceActions invoice={invoice} extra={extra?.(invoice)} />
       </div>
       {invoice.status === "SUBMITTING" && !invoice.warnings.includes("UNKNOWN_TO_PROVIDER") && (
         <p role="status" className="text-ink-secondary text-[0.8125rem]">
@@ -86,7 +86,7 @@ function EInvoiceDetailContent({
 
 /**
  * Chi tiết hoá đơn điện tử và phát hành (docs 21 §4.1–4.3, §4.5): sửa / làm mới bên mua, phát hành,
- * tra lại, gửi lại, mở lại, huỷ nháp, tải XML / PDF; nhật ký gọi nhà cung cấp. `extra` / `sections`
+ * kiểm tra lại, gửi lại, mở lại, huỷ nháp, tải XML / PDF; nhật ký gọi nhà cung cấp. `extra` / `sections`
  * gắn điều chỉnh, thay thế, thoả thuận, thông báo sai sót (docs 21 §4.4).
  */
 export function EInvoiceDetail(props: {

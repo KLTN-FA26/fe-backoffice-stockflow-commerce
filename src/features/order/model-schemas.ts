@@ -10,7 +10,7 @@ import {
   ORDER_SHIPMENT_READ_STATUSES,
 } from "@/constants/labels-order";
 import { ORDER_PAYMENT_READ_STATUSES, ORDER_PAYMENT_TERMS } from "@/constants/orders";
-import { ORDER_READ_STATUSES, ORDER_STATUS_UNKNOWN } from "@/constants/statuses";
+import { ORDER_READ_STATUSES, ORDER_STATUS_UNKNOWN, QUOTE_FEE_KINDS } from "@/constants/statuses";
 
 import { orderDeliveryModeDtoSchema } from "./delivery-mode-schemas";
 import { currencyCode, orderBalancePolicyDtoSchema, orderShipmentLineDtoSchema } from "./schemas";
@@ -54,6 +54,15 @@ export const orderShipmentSchema = z.object({
   /** Rỗng khi BE không gửi `lines`. */
   lines: z.array(orderShipmentLineDtoSchema),
   codAmount: z.number().nullable(),
+});
+
+/** Dòng phí của đơn (4B-3); field BE vắng → null. */
+export const orderFeeSchema = z.object({
+  kind: z.enum([...QUOTE_FEE_KINDS, ORDER_STATUS_UNKNOWN]),
+  sku: z.string().nullable(),
+  amount: z.number(),
+  taxRate: z.number().nullable(),
+  taxAmount: z.number().nullable(),
 });
 
 export const orderCancellationSchema = z.object({
@@ -119,6 +128,11 @@ export const orderSchema = z.object({
   amountDue: z.number().nullable(),
   amountDueBeforeHandover: z.number().nullable(),
   amountDueOnDelivery: z.number().nullable(),
+  /** 4B-3: tổng trước thuế / VAT; null khi BE không trả (dòng danh sách, đơn cũ). */
+  netAmount: z.number().nullable(),
+  taxAmount: z.number().nullable(),
+  /** Rỗng khi BE không trả `fees`. */
+  fees: z.array(orderFeeSchema),
   /** Rỗng khi BE không trả `shipments` (đơn chưa chia lô). */
   shipments: z.array(orderShipmentSchema),
   /** null = BE không trả (dòng danh sách) — màn chi tiết không đoán, ẩn điều khiển. */

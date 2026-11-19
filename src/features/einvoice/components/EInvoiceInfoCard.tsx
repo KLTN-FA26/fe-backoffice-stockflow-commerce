@@ -119,6 +119,11 @@ export function EInvoiceInfoCard({ invoice }: { invoice: EInvoice }) {
         {invoice.issuedAt && (
           <InfoRow label="Phát hành lúc">{formatDateTime(invoice.issuedAt)}</InfoRow>
         )}
+        {invoice.deliveryFailedAt && (
+          <InfoRow label={D.deliveryFailedAt}>
+            <span className="text-danger">{formatDateTime(invoice.deliveryFailedAt)}</span>
+          </InfoRow>
+        )}
         {invoice.taxAuthorityCode && (
           <InfoRow label="Mã cơ quan thuế">
             <span className="font-mono">{invoice.taxAuthorityCode}</span>

@@ -9,7 +9,6 @@ import {
   retainedAmountPreview,
   creditHoldSummary,
   creditOverage,
-  creditState,
   customLineCount,
   depositState,
   groupProductionOrdersByLine,
@@ -32,26 +31,7 @@ describe("depositState — docs 15 BR-02 / docs 19 BR-09", () => {
   });
 });
 
-describe("creditState / creditOverage — docs 14 BR-06", () => {
-  it("chờ duyệt vượt hạn mức ⇔ đơn CREDIT On Hold với lý do CREDIT (BE PR #133 holdReason)", () => {
-    expect(creditState({ paymentTerm: "CREDIT", status: "On Hold", holdReason: "CREDIT" })).toBe(
-      "on-hold",
-    );
-    expect(creditState({ paymentTerm: "CREDIT", status: "Confirmed", holdReason: null })).toBe(
-      "within-limit",
-    );
-    expect(creditState({ paymentTerm: "DEPOSIT", status: "On Hold", holdReason: "ADDRESS" })).toBe(
-      "not-applicable",
-    );
-  });
-  it.each(["ADDRESS", "DESIGN_MISMATCH", "FRAUD", "UNKNOWN", null] as const)(
-    "đơn CREDIT giữ vì %s → không phải chờ duyệt công nợ (đã qua kiểm hạn mức)",
-    (holdReason) => {
-      expect(creditState({ paymentTerm: "CREDIT", status: "On Hold", holdReason })).toBe(
-        "within-limit",
-      );
-    },
-  );
+describe("creditOverage — docs 14 BR-06", () => {
   it("phần vượt = dư nợ + giá trị đơn − hạn mức, không âm", () => {
     expect(creditOverage({ creditLimit: 100, exposure: 60, orderAmount: 70 })).toBe(30);
     expect(creditOverage({ creditLimit: 100, exposure: 10, orderAmount: 20 })).toBe(0);

@@ -581,7 +581,7 @@ const STATUS_LABEL_VI_BY_DOMAIN: Partial<Record<StatusDomain, Record<string, str
     Received: "Hàng đã về",
     Inspected: "Đã kiểm (cũ)",
     "Settlement Pending": "Chờ duyệt hoàn tiền",
-    Resolved: "Đã hoàn tiền",
+    Resolved: "Đã xử lý xong",
     Rejected: "Từ chối",
     Cancelled: "Đã rút",
     Expired: "Quá hạn gửi hàng",

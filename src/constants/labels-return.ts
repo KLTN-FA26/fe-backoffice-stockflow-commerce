@@ -71,6 +71,13 @@ export const RETURN_LABELS = {
     evidence: "Ảnh bằng chứng",
     noEvidence: "Chưa có ảnh. Cần ít nhất một ảnh trước khi duyệt.",
     openPhoto: "Xem ảnh",
+    // Sale thêm ảnh thay khách khi yêu cầu còn mở (BE `/returns/{id}/evidence/uploads` → PUT → `/evidence`)
+    addPhoto: "Thêm ảnh",
+    photoHint: (max: number) => `JPEG, PNG hoặc WebP, tối đa 15 MB mỗi ảnh, tối đa ${max} ảnh.`,
+    photoUploading: (name: string) => `Đang tải ${name}…`,
+    photoWrongType: "Chỉ nhận ảnh JPEG, PNG hoặc WebP.",
+    photoTooLarge: "Ảnh vượt 15 MB.",
+    photoLimit: (max: number) => `Yêu cầu đã đủ ${max} ảnh.`,
     review: "Quyết định của Sale",
     decidedAt: "Quyết định lúc",
     reviewNote: "Ghi chú",
@@ -80,6 +87,10 @@ export const RETURN_LABELS = {
     receivedAt: "Nhận lúc",
     quarantine: "Khu cách ly",
     receiptLink: "Phiếu nhập hàng hoàn",
+    // WF-05 TH-3: khách có thể gửi hàng thành nhiều kiện, mỗi kiện một phiếu nhập
+    parcels: "Các lần hàng về",
+    parcel: (n: number) => `Lần ${n}`,
+    parcelReceiver: "Người nhận",
     discrepancies: "Chênh lệch khi nhận",
     resolution: "Hoàn tiền",
     settlementAmount: "Giá trị hoàn (gồm VAT)",
@@ -89,6 +100,8 @@ export const RETURN_LABELS = {
     settledAt: "Duyệt lúc",
     vatAdjustment: "Cần hoá đơn điều chỉnh giảm",
     openRefunds: "Mở màn hoàn tiền",
+    closedWithoutRefund:
+      "Đã kết thúc không hoàn tiền — không có đơn vị nào đã duyệt về kho dùng được.",
     cancelled: "Đã rút",
     cancellationReason: "Lý do rút",
     history: "Lịch sử",
@@ -103,6 +116,8 @@ export const RETURN_LABELS = {
     rejectSettlement: "Trả lại đề xuất",
     createReceipt: "Lập phiếu nhập hàng hoàn",
     openForCustomer: "Mở yêu cầu trả hàng",
+    goodsComplete: "Đã nhận đủ hàng",
+    closeWithoutRefund: "Kết thúc không hoàn tiền",
   },
   approveDialog: {
     title: "Duyệt yêu cầu trả hàng",
@@ -142,6 +157,20 @@ export const RETURN_LABELS = {
     description:
       "Giá trị hoàn được cấn trừ vào các đợt còn nợ của đơn; phần khách đã trả sẽ chờ Kế toán ghi nhận chuyển khoản ở màn Hoàn tiền.",
     submit: "Duyệt hoàn tiền",
+  },
+  goodsCompleteDialog: {
+    title: "Xác nhận đã nhận đủ hàng",
+    description:
+      "Khách không gửi thêm hàng của yêu cầu này. Yêu cầu chuyển sang Hàng đã về và chốt theo số đã về; phần thiếu so với số đã duyệt được ghi chênh lệch. Sau đó đề xuất hoàn tiền (hoặc kết thúc không hoàn tiền) theo số đã về.",
+    note: "Ghi chú (không bắt buộc)",
+    submit: "Đã nhận đủ hàng",
+  },
+  closeWithoutRefundDialog: {
+    title: "Kết thúc không hoàn tiền",
+    description:
+      "Không có đơn vị nào vừa được duyệt vừa về kho dùng được (thùng đếm rỗng, hoặc chỉ về hàng không thuộc yêu cầu). Yêu cầu chuyển sang Đã xử lý xong: không hoàn tiền, không lập hoá đơn điều chỉnh. Hàng đã về do kho ghi giảm.",
+    note: "Ghi chú (không bắt buộc)",
+    submit: "Kết thúc",
   },
   rejectSettlementDialog: {
     title: "Trả lại đề xuất hoàn tiền",
@@ -185,6 +214,9 @@ export const RETURN_LABELS = {
     proposed: "Đã gửi đề xuất hoàn tiền",
     settlementApproved: "Đã duyệt hoàn tiền",
     settlementRejected: "Đã trả lại đề xuất hoàn tiền",
+    goodsComplete: "Đã ghi nhận đủ hàng",
+    closedWithoutRefund: "Đã kết thúc yêu cầu không hoàn tiền",
+    evidenceAdded: "Đã thêm ảnh bằng chứng",
   },
 } as const;
 
@@ -248,6 +280,14 @@ export const RETURN_RECEIPT_LABELS = {
     scanPlaceholder: "Quét hoặc nhập mã LPN rồi Enter",
     condition: "Tình trạng thùng (nếu có)",
     conditionPlaceholder: "Móp, ướt, bị mở…",
+    // WF-05 TH-4: thùng về bị mở — đếm số thực có trong thùng (ít hơn nhãn = chỉ ghi giảm)
+    opened: "Thùng đã mở",
+    counted: "Số đếm thực tế",
+    countedRequired: "Thùng đã mở: nhập số đếm thực tế (số nguyên ≥ 0) rồi quét lại.",
+    countedAboveLabel: "Số đếm thực tế không được vượt số trên nhãn thùng.",
+    countColumn: "Kiểm đếm",
+    sealed: "Nguyên thùng",
+    openedState: (counted: number, label: number) => `Đã mở · đếm ${counted}/${label}`,
     add: "Thêm",
     scanned: "Thùng đã quét",
     expected: "Thùng của nguồn",
@@ -265,10 +305,22 @@ export const RETURN_RECEIPT_LABELS = {
     confirm: "Xác nhận nhập",
     confirmTitle: "Xác nhận phiếu nhập hàng hoàn",
     confirmDescription:
-      "Các thùng đã quét vào lại tồn ở khu cách ly (không bán được). Yêu cầu trả hàng chuyển sang Hàng đã về.",
+      'Các thùng đã quét vào lại tồn ở khu cách ly (không bán được). Yêu cầu trả hàng chuyển sang "Hàng đã về" khi đã về đủ số đã duyệt; nếu mới về một phần, yêu cầu vẫn "Chờ hàng về" và Sale có thể bấm "Đã nhận đủ hàng".',
     cancel: "Huỷ phiếu",
     cancelTitle: "Huỷ phiếu nhập hàng hoàn",
     cancelDescription: "Không nhận gì trên phiếu này. Có thể lập phiếu khác sau.",
+    // WF-05 TH-4: hàng về không nhãn thùng — ghi nhận cho yêu cầu trả hàng, không nhập tồn
+    loose: {
+      title: "Hàng lẻ không nhãn",
+      hint: "Hàng về không có nhãn thùng: ghi SKU, lô (nếu đọc được) và số lượng. Không nhập tồn (hàng bị huỷ) nhưng được tính là đã về cho yêu cầu trả hàng. Ghi lại cùng SKU và lô thì thay số cũ.",
+      sku: "SKU",
+      lot: "Lô (nếu có)",
+      quantity: "Số lượng",
+      add: "Ghi nhận",
+      remove: "Gỡ",
+      none: "Chưa ghi hàng lẻ nào.",
+      invalid: "SKU phải là một SKU của đơn, số lượng ≥ 1.",
+    },
   },
   success: {
     created: "Đã lập phiếu nhập hàng hoàn",
@@ -276,5 +328,7 @@ export const RETURN_RECEIPT_LABELS = {
     removed: "Đã gỡ thùng",
     confirmed: "Đã xác nhận nhập hàng hoàn",
     cancelled: "Đã huỷ phiếu",
+    looseRecorded: "Đã ghi nhận hàng lẻ",
+    looseRemoved: "Đã gỡ hàng lẻ",
   },
 } as const;

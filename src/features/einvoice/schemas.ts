@@ -121,6 +121,11 @@ export const einvoiceDtoSchema = z.object({
   listedInvoiceIds: z.array(z.string()).nullish(),
   /** Hoá đơn ngày sớm hơn chưa phát hành đang giữ nháp này lại (cảnh báo EARLIER_INVOICE_PENDING). */
   earlierPendingInvoice: z.string().nullish(),
+  /**
+   * WF-05 HĐ-3: lần giao của hoá đơn bị sửa thành thất bại lúc nào — đã phát hành thì bị điều chỉnh giảm toàn bộ
+   * (căn cứ DELIVERY_FAILED), bị từ chối thì huỷ thay vì gửi lại. Vắng khi chưa bị đánh dấu / đã gỡ đánh dấu.
+   */
+  deliveryFailedAt: z.string().nullish(),
 });
 
 /** BE `EInvoiceListItemResponse`. */

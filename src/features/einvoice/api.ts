@@ -156,7 +156,7 @@ export async function withdrawEInvoice(
   return parse(data);
 }
 
-/** Tra lại kết quả theo mã giao dịch (docs 21 §4.2 bước 8). */
+/** Kiểm tra lại kết quả theo mã giao dịch (docs 21 §4.2 bước 8). */
 export async function reconcileEInvoice({ id }: { id: string }): Promise<EInvoice> {
   const { data } = await api.post<unknown>(`${one(id)}/reconciliation`, {});
   return parse(data);

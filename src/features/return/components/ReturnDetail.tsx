@@ -12,12 +12,13 @@ import { LoadErrorState } from "@/components/backoffice/LoadErrorState";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Button } from "@/components/ui/button";
 
-import { allowedReturnActions } from "../lifecycle";
+import { allowedReturnActions, canAddReturnEvidence } from "../lifecycle";
 import { useReturn } from "../queries";
 
 import { RETURN_COPY } from "./primitives";
 import { ReturnActions } from "./ReturnActions";
 import { ReturnEvidenceCard } from "./ReturnEvidenceCard";
+import { ReturnGoodsActions } from "./ReturnGoodsActions";
 import { ReturnHistoryCard } from "./ReturnHistoryCard";
 import { RefundActions } from "./RefundActions";
 import { ReturnLinesCard } from "./ReturnLinesCard";
@@ -64,6 +65,7 @@ function ReturnDetailContent({ id }: { id: string }) {
               </Link>
             </Button>
           )}
+          <ReturnGoodsActions ret={ret} actions={actions} />
           <RefundActions ret={ret} actions={actions} />
           <ReturnActions ret={ret} actions={actions} />
         </div>
@@ -71,7 +73,7 @@ function ReturnDetailContent({ id }: { id: string }) {
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="min-w-0 space-y-4">
           <ReturnLinesCard ret={ret} />
-          <ReturnEvidenceCard ret={ret} />
+          <ReturnEvidenceCard ret={ret} canUpload={canAddReturnEvidence(ret, can)} />
           <ReturnHistoryCard history={ret.history ?? []} />
         </div>
         <div className="space-y-4">

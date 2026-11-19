@@ -149,6 +149,7 @@ function detail(i: MockEInvoice) {
     agreement: i.agreement,
     returnRequestId: i.returnRequestId,
     earlierPendingInvoice: earlier?.code ?? null,
+    deliveryFailedAt: i.deliveryFailedAt,
   };
 }
 

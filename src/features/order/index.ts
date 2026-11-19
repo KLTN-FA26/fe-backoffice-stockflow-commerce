@@ -76,7 +76,6 @@ export type { OrderAction, OrderActionCode, OrderActionContext } from "./lifecyc
 export {
   creditHoldSummary,
   creditOverage,
-  creditState,
   customLineCount,
   depositState,
   groupProductionOrdersByLine,
@@ -127,6 +126,7 @@ export type { ReleaseOrderInput } from "./release-api";
 
 // Components
 export { CancellationRequestList } from "./components/cancellation/CancellationRequestList";
+export { DeliveryFailureList } from "./components/delivery-failure/DeliveryFailureList";
 export { CreditHoldList } from "./components/credit-hold/CreditHoldList";
 export { OrderDetail } from "./components/OrderDetail";
 export { OrderList } from "./components/OrderList";

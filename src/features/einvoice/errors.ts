@@ -20,7 +20,7 @@ export const EINVOICE_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   // BE `findEarlierSubmitting`: hoá đơn cùng NCC / mẫu số / ký hiệu, ngày lập sớm hơn, đang SUBMITTING —
   // nháp hay bị từ chối ngày sớm hơn KHÔNG chặn (chỉ là cảnh báo EARLIER_INVOICE_PENDING)
   EINVOICE_OLDER_DRAFT_PENDING:
-    "Một hoá đơn cùng ký hiệu có ngày lập sớm hơn đang chờ nhà cung cấp trả kết quả. Chờ kết quả của hoá đơn đó (hoặc bấm “Tra lại” trên hoá đơn đó) rồi phát hành hoá đơn này.",
+    "Một hoá đơn cùng ký hiệu có ngày lập sớm hơn đang chờ nhà cung cấp trả kết quả. Chờ kết quả của hoá đơn đó (hoặc bấm “Kiểm tra lại” trên hoá đơn đó) rồi phát hành hoá đơn này.",
   EINVOICE_NOT_ISSUED: "Hoá đơn chưa phát hành nên chưa có tệp XML / PDF.",
   EINVOICE_PROVIDER_UNAVAILABLE:
     "Nhà cung cấp hoá đơn điện tử đang không phản hồi. Hệ thống sẽ tự kiểm tra lại.",
@@ -28,10 +28,11 @@ export const EINVOICE_ERROR_MESSAGES: Readonly<Record<string, string>> = {
     "Chưa lưu tài khoản nhà cung cấp hoá đơn điện tử. Nhờ Quản trị hệ thống cấu hình.",
   // docs 21 BR-04 / BR-05: chống phát hành trùng
   EINVOICE_RESUBMISSION_REFUSED:
-    "Không gửi lại được: nhà cung cấp có thể đang giữ hoá đơn này. Liên hệ nhà cung cấp rồi bấm “Tra lại”.",
-  // BE HĐ-1 (PR #369): rút hoá đơn kẹt ở NCC
+    "Không gửi lại được: nhà cung cấp có thể đang giữ hoá đơn này. Liên hệ nhà cung cấp rồi bấm “Kiểm tra lại”.",
+  // BE HĐ-1 (PR #369): rút hoá đơn kẹt ở NCC. Lỗi không mang mốc thời gian máy đọc được → câu cố định nêu cả hai mốc
+  // (`withdraw-after` 3 giờ khi NCC báo không tìm thấy, `withdraw-unknown-after` 1 ngày khi NCC chưa trả lời rõ).
   EINVOICE_WITHDRAWAL_REFUSED:
-    "Chưa rút được hoá đơn: lần gửi cuối còn quá gần (dưới 3 giờ), nhà cung cấp có thể đang giữ hoá đơn, hoặc nhà cung cấp chưa trả lời được (khi đó chờ đủ 1 ngày từ lần gửi cuối). Bấm “Tra lại” để xem kết quả.",
+    "Chưa rút được hoá đơn. Hệ thống chỉ cho rút 3 giờ sau lần gửi cuối khi nhà cung cấp báo không tìm thấy hoá đơn, hoặc 1 ngày sau lần gửi cuối khi nhà cung cấp chưa trả lời rõ. Bấm “Kiểm tra lại” rồi thử rút sau.",
   // BE HĐ-5: điều chỉnh / thay thế chỉ đi qua NCC đã phát hành hoá đơn gốc
   EINVOICE_ORIGINAL_PROVIDER_UNAVAILABLE:
     "Nhà cung cấp đã phát hành hoá đơn gốc không còn dùng được (chưa có tài khoản hoặc ký hiệu cho năm). Không gửi điều chỉnh / thay thế qua nhà cung cấp khác — nhờ Quản trị hệ thống cấu hình lại.",

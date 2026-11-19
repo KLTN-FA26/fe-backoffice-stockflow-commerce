@@ -55,7 +55,7 @@ export const useIssueEInvoice = einvoiceMutation(
   issueEInvoice,
   "Đã gửi phát hành. Đang chờ kết quả từ nhà cung cấp.",
 );
-export const useReconcileEInvoice = einvoiceMutation(reconcileEInvoice, "Đã tra lại kết quả.");
+export const useReconcileEInvoice = einvoiceMutation(reconcileEInvoice, "Đã kiểm tra lại kết quả.");
 export const useReopenEInvoice = einvoiceMutation(reopenEInvoice, "Đã mở lại thành nháp.");
 export const useResubmitEInvoice = einvoiceMutation(
   resubmitEInvoice,
