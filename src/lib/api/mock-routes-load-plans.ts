@@ -13,6 +13,7 @@ import {
 } from "@/constants";
 
 import { registerMockRoute } from "./mock-adapter";
+import { mockLoadingSheetPdf } from "./mock-loading-sheet-pdf";
 import { editPlacements } from "./mock-load-plan-edit";
 import * as ops from "./mock-load-plan-ops";
 import { reconciliationView } from "./mock-load-plan-reconciliation";
@@ -205,6 +206,37 @@ export function registerLoadPlanMockRoutes(): void {
       return vehicle
         ? ok(layoutView(vehicle))
         : fail(404, "LOAD_PLAN_VEHICLE_NOT_FOUND", "This vehicle is not in the load plan");
+    }),
+  );
+
+  // BE: PDF phiếu xếp hàng của một xe (WF4-PDF-PRINT-1118); cùng quyền đọc với bố cục
+  registerMockRoute("GET", `${PATH}/:id/vehicles/:seq/loading-sheet.pdf`, (config) =>
+    guarded(P.read, () => {
+      const plan = planOf(routeParam(config, "id"));
+      if (!plan) return notFound();
+      // BE: the diagram is final once the plan is confirmed (09 §4.2 step 5, §5.3)
+      if (plan.status !== "CONFIRMED" && plan.status !== "DISPATCHED")
+        return fail(
+          409,
+          "INVALID_LOAD_PLAN_TRANSITION",
+          "The load plan cannot do that in its current status",
+        );
+      const seq = Number(routeParam(config, "seq"));
+      const vehicle = plan.vehicles.find((v) => v.seq === seq);
+      if (!vehicle)
+        return fail(404, "LOAD_PLAN_VEHICLE_NOT_FOUND", "This vehicle is not in the load plan");
+      return {
+        status: 200,
+        data: mockLoadingSheetPdf(
+          plan.code,
+          seq,
+          layoutView(vehicle).boxes.map((box) => box.label),
+        ),
+        headers: {
+          "content-type": "application/pdf",
+          "content-disposition": `attachment; filename="loading-sheet-${plan.code}-vehicle${seq}.pdf"`,
+        },
+      };
     }),
   );
 

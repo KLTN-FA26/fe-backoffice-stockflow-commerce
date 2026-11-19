@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { UI_LABELS } from "@/constants";
+import { canDownloadLoadingSheet } from "@/features/load-planning/lifecycle";
 import { colorMapForLayouts } from "@/features/load-planning/lib/palette";
 import {
   layoutsForItemTable,
@@ -74,6 +75,7 @@ export function LoadingTab({
             vehicle={vehicle}
             layout={layouts?.find((layout) => layout.seq === vehicle.seq)}
             colorMap={colorMap}
+            canDownloadSheet={canDownloadLoadingSheet(plan)}
             canRecalculate={actions.recalculateVehicle}
             canDrop={actions.dropVehicleSeqs.includes(vehicle.seq)}
             pending={recalc.pending}
