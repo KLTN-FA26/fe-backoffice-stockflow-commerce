@@ -98,6 +98,8 @@ export const returnRequestDtoSchema = z.object({
   orderId: z.string(),
   orderNumber: z.string(),
   customerId: z.string(),
+  /** Lô giao đã giao mà hàng trả thuộc về (WF-05 TH-1); null với đơn giao không qua lô. */
+  shipmentId: z.string().nullish(),
   status,
   reasonCode: reason,
   description: z.string().nullish(),
@@ -127,6 +129,7 @@ export const returnRowDtoSchema = z.object({
   orderId: z.string(),
   orderNumber: z.string(),
   customerId: z.string(),
+  shipmentId: z.string().nullish(),
   status,
   reasonCode: reason,
   requestedResolution: z.string().nullish(),

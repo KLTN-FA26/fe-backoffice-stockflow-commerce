@@ -92,10 +92,13 @@ export const openReturnForCustomer = (input: {
   reasonCode: ReturnReason;
   description?: string;
   lateClaimReason?: string;
+  /** WF-05 TH-1: lô đã giao; bỏ trống khi đơn chỉ có một lô đã giao (BE `RETURN_SHIPMENT_REQUIRED` nếu nhiều lô). */
+  shipmentId?: string;
   lines: { orderLineId: string; quantity: number }[];
 }) =>
   post(`/orders/${seg(input.orderId)}/returns`, {
     requestId: input.requestId,
+    ...optional("shipmentId", input.shipmentId),
     reasonCode: input.reasonCode,
     requestedResolution: "REFUND",
     lines: input.lines,
