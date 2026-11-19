@@ -45,6 +45,13 @@ export const ROLE_PERMISSIONS = {
     // V20261017000800 (PR #109): nộp mẫu vào kho thật + chọn thiết kế đã xác nhận của khách.
     "warehouse-warehouses:READ",
     "design-snapshots:READ",
+    // V20261124000300 (chat foundation): SALES_STAFF đủ chat-conversations và chat-canned-responses
+    // (không có chat-supervision: chỉ quản lý phân công).
+    "chat-canned-responses:READ",
+    "chat-conversations:VIEW_PAGE",
+    "chat-conversations:READ",
+    "chat-conversations:CREATE",
+    "chat-conversations:UPDATE",
   ],
   ECOMMERCE_ADMIN: [
     "customer-customers:VIEW_PAGE",
@@ -129,9 +136,18 @@ export type TestRole = keyof typeof ROLE_PERMISSIONS;
 export type RouteHandler = (params: unknown, body?: unknown) => unknown;
 export type RouteTable = Record<string, RouteHandler>;
 
-/** Lỗi BE dạng ApiError để route giả lập ném ra. */
-export function apiError(status: number, code: string, fieldErrors?: Record<string, string>) {
-  return new ApiError(status, code, code, fieldErrors);
+/**
+ * Lỗi BE dạng ApiError để route giả lập ném ra. `message` = câu BE trả (mặc định bằng mã → màn dùng câu FE);
+ * `details` = `ApiResponse.details` nguyên dạng.
+ */
+export function apiError(
+  status: number,
+  code: string,
+  fieldErrors?: Record<string, string>,
+  message: string = code,
+  details?: Record<string, unknown>,
+) {
+  return new ApiError(status, code, message, fieldErrors, undefined, undefined, undefined, details);
 }
 
 /** Giả lập `api.get/post/put` theo URL. Trả spy để kiểm tra params / body đã gửi. */

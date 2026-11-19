@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatFixed, formatNumber } from "./number";
+import { formatDecimal, formatFixed, formatNumber } from "./number";
 
 describe("formatFixed", () => {
   it("giữ đúng số chữ số thập phân, dấu phẩy thập phân vi-VN", () => {
@@ -11,5 +11,13 @@ describe("formatFixed", () => {
   it("nhóm hàng nghìn bằng dấu chấm", () => {
     expect(formatFixed(12032, 0)).toBe("12.032");
     expect(formatNumber(28200)).toBe("28.200");
+  });
+});
+
+describe("formatDecimal", () => {
+  it("bỏ số 0 thừa, làm tròn tới số chữ số tối đa", () => {
+    expect(formatDecimal(12.5, 3)).toBe("12,5");
+    expect(formatDecimal(1234.5678, 2)).toBe("1.234,57");
+    expect(formatDecimal(-3, 3)).toBe("-3");
   });
 });

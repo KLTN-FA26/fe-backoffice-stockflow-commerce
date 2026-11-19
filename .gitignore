@@ -54,5 +54,5 @@ next-env.d.ts
 CLAUDE.local.md
 .claude/settings.local.json
 
-# ngữ cảnh review (docs + BE) do workflow Claude checkout về — xem .github/workflows/claude-review.yml
+# ngữ cảnh docs + BE do workflow Claude checkout về — xem .github/workflows/claude.yml
 .review-context/

@@ -31,8 +31,11 @@ export const suspendProductSchema = z.object({
 /** BE `ResumeProductRequest` / `DELETE ?version=`: chỉ cần `version` của lần đọc trước. */
 export const productVersionOnlySchema = z.object({ version: versionSchema });
 
-/** BE `SkuReference.Kind` — loại chứng từ còn mở tham chiếu SKU của sản phẩm. */
-export const OPEN_REFERENCE_KINDS = ["PURCHASE_ORDER_LINE", "SALES_ORDER_LINE"] as const;
+/**
+ * BE `SkuReference.Kind` — loại chứng từ còn mở tham chiếu SKU của sản phẩm: dòng Đơn sản xuất (thay dòng PO
+ * từ khi bỏ mua hàng, 4A-8) và dòng đơn bán chưa giao.
+ */
+export const OPEN_REFERENCE_KINDS = ["PRODUCTION_ORDER_LINE", "SALES_ORDER_LINE"] as const;
 
 /** BE `OpenReferenceResponse`. */
 export const openReferenceSchema = z.object({

@@ -11,13 +11,11 @@ import {
   listAdjustments,
   listMovements,
   listReservations,
-  listStockAlerts,
   listWarehouseStockItems,
 } from "./api";
 import {
   atpInput,
   reservationListInput,
-  stockAlertListInput,
   stockLevelsInput,
   warehouseStockItemsInput,
 } from "./stock-schemas";
@@ -27,7 +25,6 @@ import type {
   AdjustmentListParams,
   MovementListParams,
   ReservationListParams,
-  StockAlertListParams,
   WarehouseStockItemsParams,
 } from "./types";
 
@@ -104,12 +101,6 @@ export const stockReservationKeys = {
     [...stockReservationKeys.all, "list", warehouseId, params] as const,
 };
 
-export const stockAlertKeys = {
-  all: [INVENTORY_QUERY_KEYS.alerts] as const,
-  list: (params: z.output<typeof stockAlertListInput> | null, warehouseId: string | null) =>
-    [...stockAlertKeys.all, "list", warehouseId, params] as const,
-};
-
 function normalised<S extends z.ZodType>(schema: S, input: z.input<S>): z.output<S> | null {
   const parsed = schema.safeParse(input);
   return parsed.success ? parsed.data : null;
@@ -153,16 +144,6 @@ export function useReservations(input: ReservationListParams) {
   return useQuery({
     queryKey: stockReservationKeys.list(params, warehouseId),
     queryFn: ({ signal }) => listReservations(input, signal),
-    enabled: params !== null,
-  });
-}
-
-export function useStockAlerts(input: StockAlertListParams) {
-  const warehouseId = useAppStore((state) => state.warehouseId);
-  const params = normalised(stockAlertListInput, input);
-  return useQuery({
-    queryKey: stockAlertKeys.list(params, warehouseId),
-    queryFn: ({ signal }) => listStockAlerts(input, signal),
     enabled: params !== null,
   });
 }

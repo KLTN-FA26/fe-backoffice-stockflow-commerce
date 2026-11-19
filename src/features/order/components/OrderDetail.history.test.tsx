@@ -117,6 +117,40 @@ describe("OrderDetail — Lịch sử đơn có quyết định giao một phầ
     expect(within(history).getByText("SOMETHING_NEW")).toBeInTheDocument();
   });
 
+  it("WF-05: CODE / CODE: ghi chú / RETURN_REQUESTED <RMA> / HOLD_RESOLVED_<lý do> → nhãn + ghi chú", async () => {
+    const entry = (to: string, reason: string, hour: number) => ({
+      type: "STATUS_CHANGE",
+      from: null,
+      to,
+      reason,
+      occurredAt: `2026-11-1${hour}T01:00:00Z`,
+    });
+    await renderDetail(
+      ORDER_PERMISSION_SETS.readOnly,
+      () => apiOrder,
+      () => [
+        entry("ON_HOLD", "ADDRESS: Sai phường", 1),
+        entry("PICKING", "HOLD_RESOLVED_ADDRESS: Khách đã sửa", 2),
+        entry("RETURN_REQUESTED", "RETURN_REQUESTED RMA-20261113-0001", 3),
+        entry("RETURNED", "REFUND_VOIDED: Chuyển nhầm", 4),
+      ],
+    );
+    const history = await screen.findByRole("region", { name: "Lịch sử đơn" });
+    expect(
+      await within(history).findByText("Sai địa chỉ / hãng vận chuyển không giao tới — Sai phường"),
+    ).toBeInTheDocument();
+    expect(
+      within(history).getByText(
+        "Gỡ giữ đơn (Sai địa chỉ / hãng vận chuyển không giao tới) — Khách đã sửa",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(history).getByText("Khách yêu cầu trả hàng — RMA-20261113-0001"),
+    ).toBeInTheDocument();
+    expect(within(history).getByText("Huỷ phiếu hoàn tiền — Chuyển nhầm")).toBeInTheDocument();
+    expect(within(history).queryByText(/HOLD_RESOLVED|REFUND_VOIDED/)).not.toBeInTheDocument();
+  });
+
   it("đóng phần còn lại render riêng: 'Đóng phần còn lại: <lý do>', ai, khi nào, ghi chú; không lộ mã thô", async () => {
     await renderDetail(
       ORDER_PERMISSION_SETS.readOnly,

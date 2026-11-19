@@ -8,6 +8,7 @@
 import { registerMockRoute } from "./mock-adapter";
 import { getReceiptStore } from "./mock-routes-goods-receipts-store";
 import { beError, isRecord, parseJsonBody, readString } from "./mock-routes-purchase-orders-store";
+import { mockTextPdf } from "./mock-text-pdf";
 
 import type { MockReceiptPackage } from "./mock-receipt-cartons";
 
@@ -20,37 +21,15 @@ interface LabelRow {
   unit: string;
 }
 
-/** PDF 1 trang, font Helvetica dựng sẵn, xref đúng offset — trình xem PDF của trình duyệt mở được. */
+/** PDF nhãn thùng mock — mỗi nhãn một dòng chữ LPN + SKU + SL. */
 export function mockLabelsPdf(rows: readonly LabelRow[], format: string): Blob {
-  const escape = (text: string) => text.replace(/[\\()]/g, (c) => `\\${c}`);
-  const lines = [
+  return mockTextPdf([
     `Carton labels (${format}) - mock`,
     ...rows.map(
       ({ carton, sku, unit }) =>
         `${carton.lpn}   ${sku}   ${carton.receivedQty} / ${carton.nominalQty} ${unit}`,
     ),
-  ];
-  const text = lines
-    .map((line, i) => `BT /F1 11 Tf 40 ${800 - i * 18} Td (${escape(line)}) Tj ET`)
-    .join("\n");
-  const objects = [
-    "<< /Type /Catalog /Pages 2 0 R >>",
-    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
-    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-    `<< /Length ${text.length} >>\nstream\n${text}\nendstream`,
-  ];
-  let body = "%PDF-1.4\n";
-  const offsets = objects.map((object, i) => {
-    const offset = body.length;
-    body += `${i + 1} 0 obj\n${object}\nendobj\n`;
-    return offset;
-  });
-  const xref = body.length;
-  body += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
-  body += offsets.map((o) => `${String(o).padStart(10, "0")} 00000 n \n`).join("");
-  body += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
-  return new Blob([body], { type: "application/pdf" });
+  ]);
 }
 
 async function cartonsByLpn(): Promise<Map<string, LabelRow & { lineId: string }>> {

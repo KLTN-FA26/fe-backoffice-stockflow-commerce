@@ -1,44 +1,70 @@
 "use client";
 
-import { Controller, useWatch } from "react-hook-form";
+import { useEffect } from "react";
+import { useWatch } from "react-hook-form";
 import { Trash2 } from "lucide-react";
 
-import { DesignSnapshotField } from "@/components/backoffice/DesignSnapshotField";
+import { useCustomerPrice } from "@/features/quote/queries";
+import { moqOf, tierPrice } from "@/features/quote/selectors";
 import { Card } from "@/components/shared/Card";
 import { FORM_INPUT_CLASS, FormField, fieldA11y } from "@/components/shared/FormField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 
-import { LinePricePreview } from "./LinePricePreview";
+import { LinePreview, SuggestionBar } from "./LinePriceHints";
 import { TierEditor } from "./TierEditor";
 
 import type { UseFormReturn } from "react-hook-form";
-import type { QuoteFormValues } from "@/features/quote/types";
+import type { CustomerSku, QuoteFormValues, QuoteTier } from "@/features/quote/types";
 
-/** Một dòng báo giá: phôi + thiết kế + quy cách in + SL (cái) + giá theo bảng hoặc thoả thuận. */
+const NUM = "tabular-nums font-[family-name:var(--font-mono)]";
+
+function toTiers(values: QuoteFormValues["lines"][number]["tiers"] | undefined): QuoteTier[] {
+  return (values ?? [])
+    .map((tier) => ({ minQuantity: Number(tier.minQuantity), unitPrice: Number(tier.unitPrice) }))
+    .filter((tier) => tier.minQuantity > 0 && tier.unitPrice > 0);
+}
+
+/**
+ * Một dòng báo giá: SKU riêng của khách + số thùng + bậc giá (thùng tối thiểu → đơn giá / cái).
+ * `unitsPerCarton` chỉ biết sau khi lưu (BE trả trên dòng) — trước đó không quy đổi ra cái.
+ */
 export function QuoteLineEditor({
   form,
   index,
   customerId,
-  blankUnits,
+  skus,
+  unitsPerCarton,
   canRemove,
   onRemove,
 }: {
   form: UseFormReturn<QuoteFormValues>;
   index: number;
   customerId: string;
-  /** Tổng số cái của cùng mã phôi trên toàn báo giá (P5). */
-  blankUnits: number;
+  skus: readonly CustomerSku[];
+  unitsPerCarton: number | null;
   canRemove: boolean;
   onRemove: () => void;
 }) {
-  const { register, control, formState } = form;
+  const { register, control, formState, setValue } = form;
   const errors = formState.errors.lines?.[index];
-  const [blankSku, useListPrice] = useWatch({
+  const [sku, cartonsText, tierValues] = useWatch({
     control,
-    name: [`lines.${index}.blankSku`, `lines.${index}.useListPrice`],
+    name: [`lines.${index}.sku`, `lines.${index}.cartons`, `lines.${index}.tiers`],
   });
+  const price = useCustomerPrice(customerId, sku);
+  const suggestion = price.data ?? null;
+
+  // 13 BR-05: có giá riêng thì được để trống bậc giá (BE tự lấy).
+  useEffect(() => {
+    setValue(`lines.${index}.hasCustomerPrice`, !!suggestion);
+  }, [index, setValue, suggestion]);
+
+  const tiers = toTiers(tierValues);
+  const effective = tiers.length ? tiers : (suggestion?.tiers ?? []);
+  const moq = moqOf(effective);
+  const cartons = Number(cartonsText);
+  const unitPrice = tierPrice(effective, cartons);
   const prefix = `line-${index}`;
 
   return (
@@ -54,76 +80,66 @@ export function QuoteLineEditor({
       <div className="grid gap-3 md:grid-cols-2">
         <FormField
           id={`${prefix}-sku`}
-          label="Mã phôi (SKU)"
+          label="SKU riêng của khách"
           required
-          error={errors?.blankSku?.message}
+          error={errors?.sku?.message}
         >
-          <Input
-            {...register(`lines.${index}.blankSku`)}
-            {...fieldA11y(`${prefix}-sku`, errors?.blankSku?.message)}
-            autoCapitalize="characters"
-            className={`${FORM_INPUT_CLASS} font-[family-name:var(--font-mono)] uppercase`}
-          />
+          <select
+            {...register(`lines.${index}.sku`)}
+            {...fieldA11y(`${prefix}-sku`, errors?.sku?.message)}
+            className={`${FORM_INPUT_CLASS} border px-2 font-[family-name:var(--font-mono)]`}
+          >
+            <option value="">Chọn SKU</option>
+            {skus.map((option) => (
+              <option key={option.variantId} value={option.sku}>
+                {option.sku}
+                {option.name ? ` — ${option.name}` : ""}
+              </option>
+            ))}
+          </select>
         </FormField>
         <FormField
-          id={`${prefix}-qty`}
-          label="Số lượng (cái)"
+          id={`${prefix}-cartons`}
+          label="Số thùng"
           required
-          error={errors?.quantity?.message}
-          hint="Chỉ tính theo cái — không quy đổi thùng / carton."
+          error={errors?.cartons?.message}
+          hint={
+            unitsPerCarton && cartons > 0
+              ? `= ${(cartons * unitsPerCarton).toLocaleString("vi-VN")} cái (${unitsPerCarton.toLocaleString("vi-VN")} cái/thùng)`
+              : "Quy đổi ra cái hiện sau khi lưu nháp."
+          }
         >
           <Input
-            {...register(`lines.${index}.quantity`)}
-            {...fieldA11y(`${prefix}-qty`, errors?.quantity?.message, true)}
+            {...register(`lines.${index}.cartons`)}
+            {...fieldA11y(`${prefix}-cartons`, errors?.cartons?.message, true)}
             inputMode="numeric"
-            className={`${FORM_INPUT_CLASS} text-right tabular-nums`}
-          />
-        </FormField>
-        <Controller
-          control={control}
-          name={`lines.${index}.designSnapshotId`}
-          render={({ field }) => (
-            <DesignSnapshotField
-              id={`${prefix}-design`}
-              customerId={customerId}
-              blankSku={blankSku ?? ""}
-              value={field.value}
-              onChange={field.onChange}
-              error={errors?.designSnapshotId?.message}
-            />
-          )}
-        />
-        <FormField id={`${prefix}-spec`} label="Quy cách in" error={errors?.printSpec?.message}>
-          <Textarea
-            {...register(`lines.${index}.printSpec`)}
-            {...fieldA11y(`${prefix}-spec`, errors?.printSpec?.message)}
-            rows={3}
-            className="text-[0.8125rem]"
+            className={`${FORM_INPUT_CLASS} text-right ${NUM}`}
           />
         </FormField>
       </div>
-      <label className="text-ink-primary flex items-center gap-2 text-[0.8125rem]">
-        <input
-          type="checkbox"
-          {...register(`lines.${index}.useListPrice`)}
-          className="accent-[var(--brand)]"
-        />
-        Theo bảng giá của khách (BE tự lấy bậc giá hiện hành)
-      </label>
-      <LinePricePreview
-        customerId={customerId}
-        blankSku={(blankSku ?? "").trim().toUpperCase()}
-        blankUnits={blankUnits}
-        useListPrice={!!useListPrice}
+      <SuggestionBar
+        sku={sku}
+        moq={moq}
+        suggestion={suggestion}
+        loading={price.isFetching}
+        failed={price.isError}
+        tiersEmpty={tiers.length === 0}
+        onUse={(next) =>
+          setValue(`lines.${index}.tiers`, next, { shouldDirty: true, shouldValidate: true })
+        }
       />
-      {!useListPrice && (
-        <TierEditor
-          lineIndex={index}
-          control={control}
-          register={register}
-          errors={formState.errors.lines}
-        />
-      )}
+      <TierEditor
+        lineIndex={index}
+        control={control}
+        register={register}
+        errors={formState.errors.lines}
+      />
+      <LinePreview
+        cartons={cartons}
+        moq={moq}
+        unitPrice={unitPrice}
+        unitsPerCarton={unitsPerCarton}
+      />
     </Card>
   );
 }

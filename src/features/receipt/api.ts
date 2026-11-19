@@ -1,5 +1,7 @@
 /**
- * Goods receipt — API layer, khớp BE PR #62 (GoodsReceiptController, `/goods-receipts`).
+ * Goods receipt — API layer, khớp `GoodsReceiptController` của BE sau 4A-9 (`/goods-receipts`): danh sách, chi
+ * tiết, xác nhận, huỷ. Tạo phiếu theo Đơn sản xuất + kiểm đếm (`POST /production`, `PUT /{id}/lines`) thuộc
+ * SCRUM-566; tạo theo PO / không chứng từ, duyệt vượt dung sai, QC đã bị BE gỡ (4A-8, 2b).
  *
  * Base URL của env đã gồm `/api/v1` → path không ghi `v1`.
  * Parse tại biên (api-conventions §3.2): zod validate một lần ở đây, map `status` BE ↔ FE.
@@ -10,17 +12,13 @@ import { api } from "@/lib/api/client";
 
 import { beGoodsReceiptPageSchema, beGoodsReceiptSchema } from "./schemas";
 
-import type { ReceiptStatus } from "@/constants";
+import type { ReceiptStatus, ReceiptTypeApi } from "@/constants";
 import type { ListQueryParams, PaginatedResponse } from "@/lib/api/query-factory";
 import type {
-  DecideReceiptInput,
-  ReferencePurchaseOrderInput,
-  ReceiptCreateWithoutPoValues,
   GoodsReceipt,
   GoodsReceiptApiDto,
   GoodsReceiptRow,
   GoodsReceiptRowApiDto,
-  ReceiptCreateValues,
 } from "./types";
 
 const RECEIPTS_PATH = "/goods-receipts";
@@ -37,10 +35,6 @@ export function toReceipt(dto: GoodsReceiptApiDto): GoodsReceipt {
 
 function toReceiptRow(dto: GoodsReceiptRowApiDto): GoodsReceiptRow {
   return { ...dto, status: RECEIPT_STATUS_BY_API[dto.status] };
-}
-
-export function emptyToUndefined(value: string): string | undefined {
-  return value === "" ? undefined : value;
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -65,9 +59,9 @@ export interface ListGoodsReceiptParams extends ListQueryParams {
   page?: number;
   size?: number;
   status?: ReceiptStatus[];
-  purchaseOrderId?: string;
-  /** true: chỉ phiếu không có PO (BR-RCP-002); false: chỉ phiếu theo PO; bỏ trống: cả hai. */
-  withoutPo?: boolean;
+  productionOrderId?: string;
+  /** Bỏ trống: mọi loại. Phiếu hàng hoàn có màn riêng (`features/return`). */
+  receiptType?: ReceiptTypeApi;
   /** BE so khớp số phiếu (`GoodsReceiptSearch.Criteria.number`). */
   search?: string;
   /** yyyy-MM-dd theo giờ VN. */
@@ -86,8 +80,8 @@ export async function listGoodsReceipts(
       page: Math.max(0, params.page ?? 0),
       size: params.size ?? PAGE_SIZE.md,
       status: params.status?.map((status) => RECEIPT_API_STATUS_BY_STATUS[status]),
-      purchaseOrderId: params.purchaseOrderId || undefined,
-      withoutPo: params.withoutPo,
+      productionOrderId: params.productionOrderId || undefined,
+      receiptType: params.receiptType,
       search: params.search?.trim() || undefined,
       receivedFrom: params.receivedFrom ? dayStartInstant(params.receivedFrom) : undefined,
       receivedTo: params.receivedTo ? dayAfterStartInstant(params.receivedTo) : undefined,
@@ -114,61 +108,15 @@ export async function getGoodsReceipt(id: string, signal?: AbortSignal): Promise
   return toReceipt(beGoodsReceiptSchema.parse(data));
 }
 
-/* ── Kiểm đếm ────────────────────────────────────────────────────────── */
-
-/** Tạo phiếu DRAFT cho PO (BE `CreateGoodsReceiptRequest`). */
-export const createGoodsReceipt = (input: ReceiptCreateValues) =>
-  postReceipt(RECEIPTS_PATH, {
-    purchaseOrderId: input.purchaseOrderId,
-    deliveryNote: emptyToUndefined(input.deliveryNote),
-    note: emptyToUndefined(input.note),
-  });
+/* ── Chốt phiếu ──────────────────────────────────────────────────────── */
 
 /**
- * Tạo phiếu DRAFT cho hàng về KHÔNG có PO (BE `CreateGoodsReceiptWithoutPoRequest`, BR-RCP-002): NCC, kho nhận và
- * lý do bắt buộc (owner NOPO-SUPPLIER / NOPO-REASON).
+ * Xác nhận phiếu theo Đơn sản xuất: thùng thành tồn Inbound, Đơn sản xuất cập nhật tiến độ, phiếu sang In Putaway
+ * (docs 03 §4.1 bước 6–7). Phiếu mua hàng cũ BE trả `INVALID_RECEIPT_TRANSITION`.
  */
-export const createGoodsReceiptWithoutPo = (input: ReceiptCreateWithoutPoValues) =>
-  postReceipt(`${RECEIPTS_PATH}/without-po`, {
-    supplierId: input.supplierId,
-    warehouseId: input.warehouseId,
-    reason: input.reason,
-    deliveryNote: emptyToUndefined(input.deliveryNote),
-    note: emptyToUndefined(input.note),
-  });
-
-/** "Post": chốt số → tồn INBOUND, PO cập nhật tiến độ, phiếu sang In QC / In Putaway. */
 export const confirmGoodsReceipt = (receiptId: string) =>
   postReceipt(`${receiptPath(receiptId)}/confirmation`);
 
-/** Chỉ huỷ được phiếu chưa ghi nhận: Draft, hoặc Pending Approval (BR-05 docs 03 §6, SCRUM-477). */
+/** BR-05 (docs 03 §6): chỉ huỷ được phiếu Draft. */
 export const cancelGoodsReceipt = (receiptId: string) =>
   postReceipt(`${receiptPath(receiptId)}/cancellation`);
-
-/* ── Duyệt ngoại lệ của Quản lý kho (BR-RCP-001, quyền `procurement-goods-receipts:APPROVE`) ── */
-
-/** Duyệt phiếu `Pending Approval`: ghi nhận ĐỦ SL đã đếm. BE `ReceiptDecisionRequest { reason }`. */
-export const approveGoodsReceipt = ({ receiptId, reason }: DecideReceiptInput) =>
-  postReceipt(`${receiptPath(receiptId)}/approval`, { reason });
-
-/** BR-RCP-002: từ chối phiếu không có PO — huỷ cả phiếu (quyền `procurement-goods-receipts:APPROVE`). */
-export const rejectBlindReceipt = ({ receiptId, reason }: DecideReceiptInput) =>
-  postReceipt(`${receiptPath(receiptId)}/rejection`, { reason });
-
-/**
- * Gắn PO bổ sung cho phiếu không có PO (owner NOPO-ATTACH): CHỈ tham chiếu — BE không cộng SL đã nhận cho đơn.
- * PO phải tồn tại và cùng NCC với phiếu.
- */
-export async function referencePurchaseOrder({
-  receiptId,
-  purchaseOrderId,
-}: ReferencePurchaseOrderInput): Promise<GoodsReceipt> {
-  const { data } = await api.put<unknown>(`${receiptPath(receiptId)}/referenced-purchase-order`, {
-    purchaseOrderId,
-  });
-  return toReceipt(beGoodsReceiptSchema.parse(data));
-}
-
-/** Từ chối phần vượt: chỉ ghi nhận tới dung sai (không còn gì → phiếu bị huỷ). */
-export const rejectReceiptExcess = ({ receiptId, reason }: DecideReceiptInput) =>
-  postReceipt(`${receiptPath(receiptId)}/excess-rejection`, { reason });

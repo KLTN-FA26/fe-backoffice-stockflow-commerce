@@ -30,3 +30,25 @@ describe("thanh công cụ bản đồ — vị trí ngừng dùng", () => {
     expect(screen.queryByRole("button", { name: /ngừng dùng/ })).not.toBeInTheDocument();
   });
 });
+
+describe("thanh công cụ bản đồ — in nhãn vị trí (docs 06 §4.3)", () => {
+  it("có bố cục thì có nút In nhãn, kể cả khi không có quyền sửa (in là đọc bản đồ)", async () => {
+    const onPrint = vi.fn();
+    render(
+      <MapToolbar
+        url={url(false)}
+        canEdit={false}
+        onEdit={() => {}}
+        onPrintLabels={onPrint}
+        inactive={0}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "In nhãn" }));
+    expect(onPrint).toHaveBeenCalled();
+  });
+
+  it("bố cục chưa tải xong thì không có nút In nhãn", () => {
+    render(<MapToolbar url={url(false)} canEdit onEdit={() => {}} inactive={0} />);
+    expect(screen.queryByRole("button", { name: "In nhãn" })).not.toBeInTheDocument();
+  });
+});

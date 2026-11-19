@@ -42,6 +42,15 @@ export const beVariantSchema = z.object({
 });
 export type Variant = z.infer<typeof beVariantSchema>;
 
+/**
+ * SKU riêng của khách (docs 01 §1 "SKU thành phẩm theo mẫu của khách", §4.8): BE trả chung danh sách biến thể của
+ * sản phẩm nhưng `VariantResponse` không có `ownerCustomerId` — nhận diện tạm qua chữ ký BE
+ * `CustomerSkuService` đặt khi sinh SKU (`OWNED-SKU:<sku>`). ASSUMPTION: đổi khi BE thêm cờ riêng.
+ */
+export const CUSTOMER_SKU_SIGNATURE_PREFIX = "OWNED-SKU:";
+export const isCustomerOwnedSku = (variant: Pick<Variant, "attributeSignature">): boolean =>
+  variant.attributeSignature?.startsWith(CUSTOMER_SKU_SIGNATURE_PREFIX) ?? false;
+
 /** Nhãn tuỳ chọn của biến thể ("Trắng / 12oz"); "—" với biến thể không có trục. */
 export function variantOptionsLabel(variant: Pick<Variant, "options">): string {
   return variant.options.length > 0 ? variant.options.map((o) => o.label).join(" / ") : "—";
@@ -78,6 +87,8 @@ export const beMediaSchema = z.object({
         height: z.number().int(),
         contentType: z.string(),
         sizeBytes: z.number(),
+        /** BE: link có hạn xem bản hiển thị — chỉ có trong danh sách (null ở chỗ khác). */
+        url: z.string().nullish(),
       }),
     )
     .default([]),
@@ -92,6 +103,9 @@ export const beMediaSchema = z.object({
   version: z.number().int(),
 });
 export type VariantMedia = z.infer<typeof beMediaSchema>;
+
+/** BE `ProductMediaService.MAX_IMAGES_PER_VARIANT` (docs 01 §3: tối đa 20 ảnh mỗi biến thể). */
+export const MEDIA_PER_VARIANT_MAX = 20;
 
 /** BE `ImageDownloadResponse`. */
 export const beDownloadUrlSchema = z.object({ url: z.string(), expiresAt: z.string() });

@@ -22,6 +22,7 @@ const BASE = "/catalog/customer-prices";
 const dto = (sku: string, over: Record<string, unknown> = {}) => ({
   customerId: CUSTOMER,
   sku,
+  measure: "CARTON",
   moq: 10,
   tiers: [{ minQuantity: 10, unitPrice: 95000 }],
   version: 2,

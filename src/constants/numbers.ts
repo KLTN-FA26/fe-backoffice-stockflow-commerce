@@ -8,26 +8,6 @@
  */
 export const DATE_PICKER_YEAR_SPAN = { back: 10, ahead: 10 } as const;
 
-/** Giới hạn đơn đặt NCC — lấy đúng ràng buộc DB/BE nhánh `test` (BE request chưa có @Size). */
-export const PO_LIMITS = {
-  /** BE `purchase_order_lines.note VARCHAR(255)` (BE PR #71). */
-  lineDescriptionMax: 255,
-  /** BE lý do khôi phục / đổi ngày giao 1..1000. */
-  reasonMax: 1000,
-  /** BE `purchase_orders.cancel_reason` / `close_reason VARCHAR(255)` (BE PR #71). */
-  closeReasonMax: 255,
-  /** BE lý do từ chối duyệt — `purchase_order_approvals.reason VARCHAR(500)`. */
-  rejectReasonMax: 500,
-  /** BE `UpdatePurchaseOrderRequest.lines` @Size(max = 200). */
-  linesMax: 200,
-  /** BE `purchase_orders.note TEXT`, giới hạn ở request 2000. */
-  noteMax: 2000,
-  /** BE `SupplierConfirmationRequest.supplierReference` @Size(max = 100). */
-  supplierReferenceMax: 100,
-  /** BE `int quantityOrdered` (Java int). */
-  quantityMax: 2_147_483_647,
-} as const;
-
 export const ORDER_LIMITS = {
   /** BE `AdminCancelOrderRequest.note` @Size(max = 1000); bắt buộc khi reasonCode = OTHER. */
   cancelNoteMax: 1000,
@@ -85,28 +65,6 @@ export const WINDOW_EVIDENCE_FILE = {
   accept: ".pdf,.docx,.xlsx,.jpg,.jpeg,.png",
 } as const;
 
-/** Giới hạn phiếu nhận — đúng ràng buộc request BE goods receipt (PR #62, SCRUM-435). */
-export const RECEIPT_LIMITS = {
-  /** `ReceiptLinesRequest.lines` @Size(max = 200). */
-  linesMax: 200,
-  /** `ReceiptLinesRequest.Line.lotNumber` / `locationCode` @Size(max = 64); `MoveToQcRequest`. */
-  codeMax: 64,
-  /** `ReceiptLinesRequest.Line.note` @Size(max = 255). */
-  lineNoteMax: 255,
-  /** `CreateGoodsReceiptRequest.deliveryNote` @Size(max = 100). */
-  deliveryNoteMax: 100,
-  /** `CreateGoodsReceiptRequest.note` @Size(max = 2000). */
-  noteMax: 2000,
-  /** `QcDecisionRequest.Part.reason` @Size(max = 500). */
-  qcReasonMax: 500,
-  /** `ReceiptDecisionRequest.reason` @NotBlank @Size(max = 500) — duyệt / từ chối phần vượt (SCRUM-477). */
-  approvalReasonMax: 500,
-  /** `CreateGoodsReceiptWithoutPoRequest.reason` @NotBlank @Size(max = 500) — lý do không có PO (BR-RCP-002). */
-  blindReasonMax: 500,
-  /** `ReceiptLinesRequest.Line.sku` @Size(max = 64) — dòng của phiếu không có PO gọi hàng bằng SKU. */
-  skuMax: 64,
-} as const;
-
 /** Thùng có LPN trên phiếu nhận (SCRUM-473) — đúng ràng buộc request BE. */
 export const RECEIPT_CARTON_LIMITS = {
   /** `ReceiptLinesRequest.Line.packages` @Size(max = 500). */
@@ -159,24 +117,6 @@ export const CARTON_CHECK_LIMITS = {
   scanFeedbackMs: 1500,
 } as const;
 
-/** Giới hạn lệnh chuyển kho — đúng ràng buộc request BE (CreateTransferOrderRequest, ReasonRequest). */
-export const TRANSFER_LIMITS = {
-  /** `lines` @Size(max = 200). */
-  linesMax: 200,
-  /** `Line.quantity` @Max(1_000_000). */
-  quantityMax: 1_000_000,
-  /** `Line.lotNumber` @Size(max = 64); SKU @Pattern `[A-Za-z0-9-]{3,64}`. */
-  codeMax: 64,
-  skuMin: 3,
-  /** `ReasonRequest.reason` @Size(max = 500). */
-  reasonMax: 500,
-  /**
-   * `stockflow.inventory.transfer.approval-threshold-units` (mặc định 100; docs 10 §4 bước 3 + §5 "Draft → Approved: Submit (dưới ngưỡng)"): tổng SL ≤ ngưỡng
-   * thì gửi duyệt là duyệt luôn. Chỉ để hiện gợi ý — BE đọc cấu hình thật.
-   */
-  approvalThresholdUnits: 100,
-} as const;
-
 /** Giới hạn thương hiệu / danh mục — BE `Create*Request` / `Update*Request` + migration PIM dictionary. */
 export const TAXONOMY_LIMITS = {
   /** `name` @Size(max = 255). */
@@ -193,13 +133,6 @@ export const TAXONOMY_LIMITS = {
    * cắt ở trang đầu; chặn trên 25 trang (5000 bản ghi) để không lặp vô hạn nếu BE trả sai `hasNext`.
    */
   maxLookupPages: 25,
-} as const;
-
-/** Giới hạn chính sách tồn — BE PR #119. */
-export const INVENTORY_POLICY_LIMITS = {
-  /** `UpdateItemPolicyRequest.maxShelfLifeDays` @Min(1) @Max(36500). */
-  maxShelfLifeDaysMin: 1,
-  maxShelfLifeDaysMax: 36500,
 } as const;
 
 /** Ô quét mã vạch dùng chung (`use-scan-tone`). */
@@ -241,37 +174,6 @@ export const SHIPPING_LIMITS = {
   scanFeedbackMs: 1500,
   /** Chuyến đang xếp hàng (LOADING): tự tải lại để thấy kiện quét từ máy khác. */
   loadPollMs: 15_000,
-} as const;
-
-/**
- * Danh mục hàng NCC — nguồn BE: `SupplierItemTerms` (mã NCC, lead time), `PurchasePrices`
- * (số lẻ giá, tối đa 2 và không vượt số lẻ tiền tệ), `Pages.MAX_PAGE_SIZE`.
- */
-export const SUPPLIER_ITEM_LIMITS = {
-  supplierSkuCodeMax: 50,
-  leadTimeDaysMax: 365,
-  priceMaxScale: 2,
-  // BE `SaveSupplierItemRequest.price` @Digits(integer = 16) + `PurchasePrices.MAX` (numeric(18,2))
-  priceIntegerDigitsMax: 16,
-  // BE `moq` / `packSize` là `Integer` Java — quá int32 thì Jackson không bind được (400 chung)
-  intMax: 2_147_483_647,
-  catalogPageSize: 200,
-} as const;
-
-/**
- * Thông tin mua hàng của SKU — BE `SkuPurchasingRequest` + `ItemPurchasingRules` (docs 01 §3
- * "Thông tin mua hàng"). Cùng giới hạn với danh mục NCC (`SupplierItemTerms`).
- */
-export const SKU_PURCHASING_LIMITS = {
-  // `referencePurchasePrice` @Digits(integer = 16, fraction = 2); `MAX_PRICE` 9999999999999999.99
-  priceIntegerDigitsMax: 16,
-  // `stripTrailingZeros().scale() > 2` bị từ chối → "1.500" hợp lệ, "1.005" không
-  priceMaxScale: 2,
-  // `ItemPurchasingRules.MAX_LEAD_TIME_DAYS`
-  leadTimeDaysMax: 365,
-  moqMin: 1,
-  // `leadTimeDays` / `moq` là `Integer` Java — quá int32 thì Jackson không bind được (400 chung)
-  intMax: 2_147_483_647,
 } as const;
 
 /**
@@ -374,8 +276,6 @@ export const LOAD_PLANNING_LIMITS = {
 export const LOAD_PLAN_LIMITS = {
   /** `shipmentIds` @Size(max = 200). */
   shipmentsMax: 200,
-  /** `transferOrderIds` @Size(max = 1): kế hoạch nguồn TRANSFER chứa đúng một lệnh chuyển kho (BE PR #164). */
-  transferOrdersMax: 1,
   /** `vehicleTypeIds` @Size(max = 50). */
   vehicleTypesMax: 50,
   /** `reason` @NotBlank @Size(max = 500) khi mở lại / huỷ. */
@@ -392,6 +292,21 @@ export const LOAD_PLAN_LIMITS = {
   placementVehiclesMax: 100,
   /** `LoadPlacementsRequest.Vehicle.boxes` và `tray` @Size(max = 2000). */
   placementBoxesMax: 2000,
+} as const;
+
+/**
+ * Bảng sức chứa kho (docs 06 §4.6, open-questions C43): hệ số sử dụng của kho nhận giá trị trong (0%, 100%], mặc
+ * định 100%. BE `UpdateWarehouseRequest.utilizationFactor` lưu dạng (0, 1] tối đa 4 số lẻ → phần trăm tối đa 2 số lẻ.
+ */
+export const WAREHOUSE_CAPACITY_LIMITS = {
+  factorPercentMax: 100,
+  factorPercentDecimals: 2,
+  /** Sức chứa / chiếm theo m³ — BE làm tròn 3 số lẻ (`CapacityBoard.SCALE`). */
+  volumeDecimals: 3,
+  /** Phần trăm BE trả 0–100, 2 số lẻ; hiện 1 số lẻ cho gọn. */
+  percentDecimals: 1,
+  /** Từ ngưỡng này thanh % đang chiếm chuyển sang cảnh báo (cam) — chỉ là tín hiệu hiển thị, không phải BR. */
+  warnPercent: 85,
 } as const;
 
 /**
@@ -424,6 +339,12 @@ export const WAREHOUSE_MAP_LIMITS = {
   /** Bước lưới vẽ 2D (m): vạch mảnh mỗi 1 m, vạch đậm mỗi 5 m. */
   gridMinor: 1,
   gridMajor: 5,
+  /** BR-17 (docs 06 §4.3): tối đa 2.000 nhãn vị trí mỗi lần in; danh sách mã gửi 1–2.000 mã. */
+  labelsPerPrintMax: 2000,
+  /** BE `LocationLabelRequest.locationCodes` — mỗi mã `[A-Za-z0-9-]{1,64}`. */
+  labelCodeMax: 64,
+  /** Câu lỗi nêu tối đa chừng này mã / thùng, còn lại chỉ đếm (như BE `LISTED_CODES`; BR-04 BE trả ≤ 50 thùng). */
+  listedInMessage: 10,
   /** Chiều cao tường vẽ 3D (m) — chỉ trực quan, BE không lưu chiều cao tường. */
   wallHeight3d: 3,
   /** Chế độ sửa: kéo / vẽ bám lưới 0,5 m; phím mũi tên dời 0,1 m (Shift: 1 m) — chỉnh tinh ở bảng thông số. */
@@ -547,6 +468,20 @@ export const PRINT_TEMPLATE_DEFAULTS = {
 } as const;
 
 /**
+ * Tấm trải phẳng của túi giấy: mép dán dọc và phần gấp đáy (spec storefront 2026-11-18 §2). Nguồn: BE
+ * `BagModel.DEFAULT_GLUE_FLAP_MM` / `DEFAULT_BOTTOM_FOLD_SHARE` và `PrintConfigRules.MAX_GLUE_FLAP_MM`
+ * (origin/develop 3672ffb7). ⚠️ ASSUMPTION: hai số mặc định là số tạm, chờ xưởng xác nhận khuôn thật.
+ */
+export const BAG_SHEET_LIMITS = {
+  /** Mép dán điền sẵn, và BE dùng khi request không gửi hoặc bản ghi cũ chưa có. */
+  glueFlapDefaultMm: 20,
+  /** Gấp đáy điền sẵn = `round2(0,6 × hông túi)`. */
+  bottomFoldShare: 0.6,
+  /** Mép dán từ 0 đến 100 mm. */
+  glueFlapMaxMm: 100,
+} as const;
+
+/**
  * Giới hạn của cấu hình in (customization template) mà BE kiểm — nguồn: BE `CustomizationTemplateRequest`
  * / `PrintAreaRequest` / `CustomizationTemplateController` (origin/develop) và, cho file `.glb`, yêu cầu BE
  * B-1 / B-2 (`docs/superpowers/reports/2026-11-13-design-yeu-cau-bo-sung-cho-be.md` của storefront).
@@ -563,6 +498,14 @@ export const PRINT_CONFIG_LIMITS = {
   maxFileSizeMbRange: [1, 50],
   /** `bleedMm` 0–20. */
   bleedMaxMm: 20,
+  /** `safeMarginMm` của mỗi vùng in 0–500 (BE `PrintConfigRules.areas`). */
+  safeMarginMaxMm: 500,
+  /** Mép dán của ly (`seamMm`) 0–100 (BE `PrintConfigRules.MAX_SEAM_MM`). */
+  seamMaxMm: 100,
+  /** Mọi số đo của model tối đa 2000 mm (BE `PrintConfigRules.requirePositive` / `requireNonNegative`). */
+  modelFigureMaxMm: 2000,
+  /** Đường kính miệng, đáy và chiều cao của ly tối thiểu 10 mm (BE `PrintConfigRules.MIN_CUP_DIAMETER_MM`). */
+  cupMinSizeMm: 10,
   /** `meshName` 1–100 ký tự (B-2). */
   meshNameMaxLength: 100,
   /** Đuôi file model (B-1). */

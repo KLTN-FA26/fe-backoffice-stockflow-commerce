@@ -47,7 +47,6 @@ const draftInput = (code: string) => ({
   description: "",
   descriptionEn: "",
   taxClass: "STANDARD" as const,
-  kind: "STANDARD" as const,
 });
 
 describe("product mock ↔ BE PR #71 contract", () => {
@@ -58,10 +57,9 @@ describe("product mock ↔ BE PR #71 contract", () => {
     expect((await listBrands()).map((b) => b.name)).toEqual(["Gildan", "StockFlow Basics"]);
   });
 
-  it("tạo / sửa giữ brandId + tên thương hiệu và kind; không còn ảnh trên sản phẩm", async () => {
+  it("tạo / sửa giữ brandId + tên thương hiệu; loại luôn CUSTOMIZABLE (hệ thống gán); không còn ảnh trên sản phẩm", async () => {
     const created = await createProduct({
       ...draftInput(`MOCK-BRAND-${Date.now()}`),
-      kind: "CUSTOMIZABLE",
     });
     expect(created).toMatchObject({ brandId, type: "Customizable", images: [] });
     expect(created.brand).not.toBe("");
@@ -75,7 +73,7 @@ describe("product mock ↔ BE PR #71 contract", () => {
     });
     expect(await getProduct(created.productId)).toMatchObject({
       brandId: otherBrandId,
-      type: "Standard",
+      type: "Customizable",
       shortDescription: "Cốc giấy 12oz",
     });
   });
@@ -142,20 +140,5 @@ describe("product mock lifecycle contract", () => {
     expect((await getProduct(created.productId)).status).toBe("Published");
     await expect(unpublishProduct(created.productId)).resolves.toBeUndefined();
     expect((await getProduct(created.productId)).status).toBe("Approved");
-  });
-});
-
-// Regression review PR #12: màn legacy gửi `page=1&pageSize=` — paginate() dùng chung
-// không được đổi sang 0-based, nếu không các list này rỗng ở chế độ mock.
-// `/purchase-orders` không còn ở đây: PR #14 đã chuyển sang route mock khớp BE PageResponse.
-// `/receipts` cũng vậy: SCRUM-436 bỏ màn mock, phiếu nhận dùng `/goods-receipts` khớp BE PR #62.
-// `/invoices` (hoá đơn NCC, module 04) đã bỏ cùng màn của nó — module ra khỏi phạm vi (2026-11-04).
-describe("legacy mock lists vẫn có dữ liệu với page=1&pageSize=500", () => {
-  it.each(["/replenishment-proposals"])("%s", async (path) => {
-    const response = await api.get<{ items: unknown[]; total: number }>(path, {
-      params: { page: 1, pageSize: 500 },
-    });
-    expect(response.data.items.length).toBeGreaterThan(0);
-    expect(response.data.items).toHaveLength(response.data.total);
   });
 });

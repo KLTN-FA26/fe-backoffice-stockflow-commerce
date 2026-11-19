@@ -13,7 +13,6 @@ describe("create product form helpers", () => {
       categoryId: "c5ad8d15-e378-4ea7-8c75-b5c012508ced",
       brandId: "0b6a2f4e-9a43-4c55-8f0e-0c1c6e8c1b11",
       taxClass: "STANDARD",
-      customizable: true,
       shortDescription: "  Áo thun in  ",
       description: "Mô tả",
       descriptionEn: "Description",
@@ -29,7 +28,6 @@ describe("create product form helpers", () => {
       description: "Mô tả",
       descriptionEn: "Description",
       taxClass: "STANDARD",
-      kind: "CUSTOMIZABLE",
     });
   });
 
@@ -74,7 +72,6 @@ describe("create product form helpers", () => {
       categoryId: "c",
       brandId: "b",
       taxClass: "STANDARD" as const,
-      customizable: false,
       shortDescription: "",
       description: "",
       descriptionEn: "",

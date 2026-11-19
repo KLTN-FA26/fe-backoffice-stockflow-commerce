@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 
 import { einvoiceErrorMessage } from "../errors";
 import { agreementInputSchema } from "../input-schemas";
+import { isSystemDrawn } from "../lifecycle";
 import { useAttachAgreement } from "../mutations";
 
 import type { EInvoice } from "../types";
@@ -35,7 +36,11 @@ function AgreementForm({ invoice, onClose }: { invoice: EInvoice; onClose: () =>
   return (
     <FormDialogBody
       title="Gắn văn bản thoả thuận"
-      description="Điều chỉnh / thay thế vì sai sót cần văn bản thoả thuận với bên mua (tệp PDF đã ký, số, ngày) trước khi phát hành (TT 91/2026 Điều 10). Gắn lại sẽ thay văn bản cũ."
+      description={
+        isSystemDrawn(invoice)
+          ? "Không bắt buộc: gắn văn bản chứng minh lần giao thất bại (xác nhận của hãng vận chuyển, biên bản với bên mua — tệp PDF, số, ngày) khi nhà cung cấp hoặc cơ quan thuế yêu cầu. Gắn lại sẽ thay văn bản cũ."
+          : "Điều chỉnh / thay thế vì sai sót cần văn bản thoả thuận với bên mua (tệp PDF đã ký, số, ngày) trước khi phát hành (TT 91/2026 Điều 10). Gắn lại sẽ thay văn bản cũ."
+      }
       submitLabel="Gắn văn bản"
       canSubmit
       isPending={attach.isPending}

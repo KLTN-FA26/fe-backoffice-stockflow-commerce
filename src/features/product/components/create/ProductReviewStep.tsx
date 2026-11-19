@@ -43,10 +43,6 @@ export function ProductReviewStep({
     ],
     [L.edit.fields.brandId, brands.find((b) => b.brandId === values.brandId)?.name ?? "—"],
     [L.edit.fields.taxClass, taxClassLabel(values.taxClass)],
-    [
-      L.wizard.fields.kind,
-      values.customizable ? L.wizard.kind.customizable : L.wizard.kind.standard,
-    ],
   ];
   return (
     <section className="border-border-default bg-bg-surface space-y-4 rounded-(--section-radius) border p-4 shadow-(--card-shadow)">

@@ -18,7 +18,6 @@ export type ProductCreateFormSnapshot = ProductDraftFormValues;
 export const PRODUCT_DRAFT_FORM_DEFAULTS: ProductDraftFormValues = {
   brandId: "",
   categoryId: "",
-  customizable: false,
   description: "",
   descriptionEn: "",
   name: "",
@@ -32,7 +31,6 @@ export function productToDraftForm(product: Product): ProductDraftFormValues {
   return {
     brandId: product.brandId ?? "",
     categoryId: product.categoryId ?? "",
-    customizable: product.type === "Customizable",
     description: product.description,
     descriptionEn: product.descriptionEn,
     name: product.name,
@@ -44,8 +42,9 @@ export function productToDraftForm(product: Product): ProductDraftFormValues {
 }
 
 /**
- * Payload BE PR #71 `CreateProductRequest`. Ảnh (theo biến thể) và kích thước / khối lượng (theo
- * SKU) không còn đi cùng sản phẩm — BE tạo sẵn một biến thể mặc định có SKU = mã sản phẩm.
+ * Payload BE `CreateProductRequest`. Ảnh (theo biến thể) và kích thước / khối lượng (theo SKU) không còn đi
+ * cùng sản phẩm — BE tạo sẵn một biến thể mặc định có SKU = mã sản phẩm. Không có loại sản phẩm: BE luôn gán
+ * CUSTOMIZABLE (kltn-docs 01 §3, BR-19).
  */
 export function buildCreateProductInput(
   form: ProductCreateFormSnapshot,
@@ -61,7 +60,6 @@ export function buildCreateProductInput(
     description: form.description.trim(),
     descriptionEn: form.descriptionEn.trim(),
     taxClass: form.taxClass,
-    kind: form.customizable ? "CUSTOMIZABLE" : "STANDARD",
     // Chỉ gửi khi có trục — không có thì BE tạo một biến thể mặc định (SKU = mã sản phẩm).
     ...(axes.length > 0 ? { axes: toAxisInputs(axes) } : {}),
   };
@@ -98,6 +96,19 @@ export function mapCreateProductError(
   }
   if (error.code === "BRAND_NOT_FOUND" && !fieldErrors.brandId) {
     fieldErrors.brandId = "Thương hiệu đã bị xoá hoặc không còn khả dụng.";
+  }
+  // BE `ProductServiceImpl` (SCRUM-87): chọn mới một thương hiệu / danh mục đã ngưng dùng → 409 kèm fieldErrors
+  if (error.code === "BRAND_INACTIVE") {
+    fieldErrors.brandId = "Thương hiệu này đã ngưng dùng — chọn thương hiệu khác.";
+  }
+  if (error.code === "CATEGORY_INACTIVE") {
+    fieldErrors.categoryId = "Danh mục này đã ngưng dùng — chọn danh mục khác.";
+  }
+  if (
+    (error.code === "BRAND_INACTIVE" || error.code === "CATEGORY_INACTIVE") &&
+    Object.keys(fieldErrors).length > 0
+  ) {
+    return { fieldErrors, message: "Thương hiệu hoặc danh mục đã chọn không còn dùng được." };
   }
   if (error.code === "OPTIMISTIC_LOCK") {
     return {
@@ -180,11 +191,8 @@ function normalizeFieldName(field: string): CreateProductServerField | null {
     case "productCode":
     case "productId":
       return "productCode";
-    case "kind":
-      return "customizable";
     case "brandId":
     case "categoryId":
-    case "customizable":
     case "description":
     case "descriptionEn":
     case "name":

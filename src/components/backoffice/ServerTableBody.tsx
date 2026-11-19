@@ -39,6 +39,8 @@ interface ServerTableBodyProps<T> {
     direction: "asc" | "desc";
     onChange: (key: string, direction: "asc" | "desc") => void;
   };
+  /** Bảng chính của trang danh sách (style Vercel): header dính, thân cuộn trong khung. */
+  stickyHeader?: boolean;
 }
 
 /**
@@ -61,6 +63,7 @@ export function ServerTableBody<T>({
   onPageChange,
   onPageSizeChange,
   sorting,
+  stickyHeader = false,
 }: ServerTableBodyProps<T>) {
   if (!canRead) return <LoadErrorState inline error={null} kind="no-read" copy={errorCopy} />;
   if (query.isError)
@@ -130,6 +133,7 @@ export function ServerTableBody<T>({
         caption={`Hiển thị ${page.items.length} / ${page.totalElements} ${noun}`}
         flagRow={flagRow}
         onRowClick={onRowClick}
+        stickyHeader={stickyHeader}
         pageSize={pageSize}
         pageSizeOptions={LIST_PAGE_SIZE_OPTIONS}
         serverPagination={{

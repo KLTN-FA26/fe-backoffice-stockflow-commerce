@@ -10,7 +10,7 @@ import { STOCK_PACKAGE_API_STATUSES } from "@/constants";
 /**
  * BE `GoodsReceiptResponse.Package` (SCRUM-473) — một thùng có LPN. `quantity`: trong thùng hiện còn (lúc đếm =
  * số đếm); `receivedQty`: số đếm lúc nhận, chốt khi vào kho; `nominalQty`: sức chứa theo đơn vị đóng gói;
- * `locationCode`: khu nhận → khu QC / cách ly → bin. Thùng VOID không được trả.
+ * `locationCode`: khu nhận → bin (hoặc khu cách ly với hàng hoàn). Thùng VOID không được trả.
  */
 export const beReceiptPackageSchema = z.object({
   id: z.string(),

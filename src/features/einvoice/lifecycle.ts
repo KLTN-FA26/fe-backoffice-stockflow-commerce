@@ -3,14 +3,21 @@
  * thái + quyền. UI-only — BE kiểm lại mọi thao tác (409 / 403).
  */
 
-import { EINVOICE_PERMISSIONS } from "@/constants/einvoice";
+import {
+  EINVOICE_PERMISSIONS,
+  ERROR_NOTICE_PROVIDERS,
+  SYSTEM_CORRECTION_BASES,
+} from "@/constants/einvoice";
 
-import type { EInvoiceStatus } from "@/constants/einvoice";
+import type { EInvoiceStatusRead } from "@/constants/einvoice";
 import type { PermissionCode } from "@/lib/auth";
 import type { EInvoice } from "./types";
 
-/** BE `EInvoiceStatus.next()` — VOIDED_DRAFT và REPLACED là trạng thái cuối. */
-export const EINVOICE_TRANSITIONS: Record<EInvoiceStatus, readonly EInvoiceStatus[]> = {
+/**
+ * BE `EInvoiceStatus.next()` — VOIDED_DRAFT và REPLACED là trạng thái cuối. `UNKNOWN` (trạng thái BE
+ * mới FE chưa biết) không có chuyển tiếp nào: chỉ xem, không thao tác.
+ */
+export const EINVOICE_TRANSITIONS: Record<EInvoiceStatusRead, readonly EInvoiceStatusRead[]> = {
   DRAFT: ["SUBMITTING", "VOIDED_DRAFT"],
   SUBMITTING: ["ISSUED", "REJECTED"],
   // docs 21 §4.2 bước 7: sửa nguyên nhân rồi phát hành lại — BE mở lại thành nháp trước
@@ -19,6 +26,7 @@ export const EINVOICE_TRANSITIONS: Record<EInvoiceStatus, readonly EInvoiceStatu
   ISSUED: ["REPLACED"],
   VOIDED_DRAFT: [],
   REPLACED: [],
+  UNKNOWN: [],
 };
 
 export type EInvoiceAction =
@@ -28,6 +36,7 @@ export type EInvoiceAction =
   | "void"
   | "reconcile"
   | "resubmit"
+  | "withdraw"
   | "reopen"
   | "attachAgreement"
   | "adjust"
@@ -37,11 +46,26 @@ export type EInvoiceAction =
 
 type Gate = Pick<
   EInvoice,
-  "status" | "type" | "warnings" | "agreementRequired" | "adjusted" | "hasFiles"
+  | "status"
+  | "type"
+  | "warnings"
+  | "agreementRequired"
+  | "adjusted"
+  | "hasFiles"
+  | "provider"
+  | "correctionBasis"
 >;
 
+/** Chứng từ hệ thống tự lập (điều chỉnh giảm toàn bộ khi giao bị sửa thành thất bại, WF-05 HĐ-3). */
+export const isSystemDrawn = (invoice: Pick<EInvoice, "correctionBasis">): boolean =>
+  invoice.correctionBasis != null && SYSTEM_CORRECTION_BASES.includes(invoice.correctionBasis);
+
+/** NCC của hoá đơn gửi được 04/SS-HĐĐT không (BE `sendsErrorNotices`; NCC khác → luôn 409). */
+export const sendsErrorNotices = (provider: string | null | undefined): boolean =>
+  provider != null && ERROR_NOTICE_PROVIDERS.includes(provider);
+
 /**
- * Nút được phép theo trạng thái (docs 21 §4.2, §4.4, §4.5) và quyền (BR-02: phát hành, tra lại,
+ * Nút được phép theo trạng thái (docs 21 §4.2, §4.4, §4.5) và quyền (BR-02: phát hành, kiểm tra lại,
  * lập điều chỉnh / thay thế là của Kế toán). Backend phải re-check.
  */
 export function allowedEInvoiceActions(
@@ -51,18 +75,25 @@ export function allowedEInvoiceActions(
   const P = EINVOICE_PERMISSIONS;
   const actions: EInvoiceAction[] = [];
   const unknownToProvider = invoice.warnings.includes("UNKNOWN_TO_PROVIDER");
+  const systemDrawn = isSystemDrawn(invoice);
   switch (invoice.status) {
     case "DRAFT":
       if (can(P.update)) actions.push("revise", "refreshBuyer");
-      if (can(P.update) && invoice.agreementRequired) actions.push("attachAgreement");
+      // TT 91 Điều 10 khoản 1 điểm b: ERROR bắt buộc; DELIVERY_FAILED nhận văn bản chứng minh (tuỳ chọn)
+      if (can(P.update) && (invoice.agreementRequired || systemDrawn))
+        actions.push("attachAgreement");
       if (can(P.approve)) actions.push("issue");
-      if (can(P.update)) actions.push("void");
+      // BE `EInvoice.voidDraft`: nháp hệ thống lập (DELIVERY_FAILED) không huỷ tay — chỉ phát hành
+      if (can(P.update) && !systemDrawn) actions.push("void");
       break;
     case "SUBMITTING":
-      // docs 21 BR-05: chưa xác nhận được kết quả thì không gửi lại — chỉ tra lại;
+      // docs 21 BR-05: chưa xác nhận được kết quả thì không gửi lại — chỉ kiểm tra lại;
       // gửi như giao dịch mới chỉ khi NCC báo không biết giao dịch (UNKNOWN_TO_PROVIDER)
       if (can(P.approve)) actions.push("reconcile");
       if (can(P.approve) && unknownToProvider) actions.push("resubmit");
+      // BE HĐ-1: rút về REJECTED để phát hành lại. Mốc thời gian (3 giờ / 1 ngày từ lần gửi cuối) và câu trả lời
+      // của NCC do BE quyết lúc rút (409 EINVOICE_WITHDRAWAL_REFUSED) — FE không tự tính đồng hồ.
+      if (can(P.approve) && invoice.provider) actions.push("withdraw");
       break;
     case "REJECTED":
       if (can(P.update)) actions.push("reopen");
@@ -72,16 +103,18 @@ export function allowedEInvoiceActions(
       // docs 21 BR-08: đã điều chỉnh thì không thay thế (BE còn kiểm điều chỉnh / thay thế đang mở)
       if (can(P.create)) actions.push("adjust");
       if (can(P.create) && !invoice.adjusted) actions.push("replace");
-      if (can(P.approve)) actions.push("notifyError");
+      // BE HĐ-6: chỉ NCC gửi được mẫu 04/SS-HĐĐT; SePay / Viettel luôn 409 NOT_SUPPORTED
+      if (can(P.approve) && sendsErrorNotices(invoice.provider)) actions.push("notifyError");
       break;
     case "REPLACED":
       if (invoice.hasFiles && can(P.read)) actions.push("downloadFiles");
       break;
     case "VOIDED_DRAFT":
+    case "UNKNOWN":
       break;
   }
   return actions;
 }
 
-export const isTerminalEInvoice = (status: EInvoiceStatus) =>
+export const isTerminalEInvoice = (status: EInvoiceStatusRead) =>
   EINVOICE_TRANSITIONS[status].length === 0;

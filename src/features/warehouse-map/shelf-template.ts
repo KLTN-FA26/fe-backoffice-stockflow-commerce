@@ -1,5 +1,5 @@
 /**
- * Thông số dựng lại một kệ ĐÃ LƯU (số tầng, cao tầng, lưới bin, kiểu đặt mã, loại / sức chứa bin, cờ
+ * Thông số dựng lại một kệ ĐÃ LƯU (số tầng, cao tầng, lưới bin, kiểu đặt mã, loại bin, tải trọng, cờ
  * lấy hàng / cất hàng) suy ra từ chính tầng / bin BE trả về — để sao chép (Ctrl+D, Ctrl+C / V) ra bản
  * sao giống kệ gốc thay vì thông số mặc định. Thuần.
  */
@@ -33,7 +33,6 @@ export function shelfTemplate(shelf: LayoutShelf, fallback: ShelfBuild): ShelfBu
     columnCount: bins.length > 0 ? distinct(bins.map((b) => b.footprint.x)) : fallback.columnCount,
     namingScheme: bin && ROW_LETTER_CODE.test(bin.code) ? "ROW_LETTER_COLUMN" : "SEQUENTIAL",
     binType: bin?.type ?? fallback.binType,
-    capacityUnits: bin ? (bin.capacityUnits ?? null) : fallback.capacityUnits,
     maxWeight: bin ? (bin.maxWeight ?? null) : fallback.maxWeight,
     pickable: bin?.pickable ?? fallback.pickable,
     putawayTarget: bin?.putawayTarget ?? fallback.putawayTarget,

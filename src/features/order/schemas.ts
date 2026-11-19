@@ -22,7 +22,7 @@ import {
   ORDER_PAYMENT_STATUSES,
   ORDER_PAYMENT_TERMS,
 } from "@/constants/orders";
-import { ORDER_STATUS_UNKNOWN } from "@/constants/statuses";
+import { ORDER_STATUS_UNKNOWN, QUOTE_FEE_KINDS } from "@/constants/statuses";
 
 import { uuid } from "@/lib/validation/primitives";
 
@@ -153,6 +153,9 @@ export const orderLineDtoSchema = z.object({
   deliveredQuantity: z.number().int().nullish(),
   /** Số đơn vị đã đóng ở đơn giao một phần — sẽ không được giao. */
   cancelledQuantity: z.number().int().nullish(),
+  /** 4B-2: số thùng đặt; `quantity` = thùng × `unitsPerCarton`. Vắng với dòng không đặt theo thùng. */
+  cartons: z.number().int().nullish(),
+  unitsPerCarton: z.number().int().nullish(),
 });
 
 /** BE `OrderResponse.ShipmentLine`. */
@@ -175,6 +178,16 @@ export const orderShipmentDtoSchema = z.object({
   lines: z.array(orderShipmentLineDtoSchema).nullish(),
   /** Tiền hãng vận chuyển thu khi giao lô (đơn cọc ON_DELIVERY), chốt lúc bàn giao. */
   codAmount: z.number().nullish(),
+});
+
+/** BE `OrderResponse.Fee` (4B-3, 14 BR-17/BR-20/BR-21): dòng phí của đơn kèm VAT; `kind` lạ → `UNKNOWN`. */
+export const orderFeeDtoSchema = z.object({
+  kind: tolerantEnum(QUOTE_FEE_KINDS, ORDER_STATUS_UNKNOWN),
+  /** PLATE_FEE: SKU được làm khuôn lần đầu; vắng với SHIPPING_FEE. */
+  sku: z.string().nullish(),
+  amount: z.number(),
+  taxRate: z.number().nullish(),
+  taxAmount: z.number().nullish(),
 });
 
 /**
@@ -250,6 +263,13 @@ export const orderDtoSchema = z.object({
   amountDueBeforeHandover: z.number().nullish(),
   /** Hãng vận chuyển thu khi giao (đơn cọc ON_DELIVERY), 0 với đơn khác. */
   amountDueOnDelivery: z.number().nullish(),
+  // ── Thuế + dòng phí (4B-3): totalAmount = netAmount + taxAmount
+  /** Tổng trước thuế — hàng + dòng phí. */
+  netAmount: z.number().nullish(),
+  /** VAT của mọi dòng hàng + dòng phí (0 với đơn không VAT). */
+  taxAmount: z.number().nullish(),
+  /** Dòng phí: phí khuôn mỗi SKU làm lần đầu, phí vận chuyển. */
+  fees: z.array(orderFeeDtoSchema).nullish(),
   /** BE luôn gửi danh sách (rỗng khi chưa chia lô); nullish để dòng danh sách / BE cũ vẫn parse. */
   shipments: z.array(orderShipmentDtoSchema).nullish(),
   /**

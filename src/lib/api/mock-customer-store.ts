@@ -5,6 +5,8 @@
  * Tìm / sắp / phân trang theo BE `CustomerSearchRepository.search` + `SortWhitelist` + `Pages`.
  */
 
+import { wf02MockCustomer } from "./mock-quote-seed";
+
 /** BE `CustomerStatus`. */
 export const MOCK_CUSTOMER_STATUSES = [
   "PENDING_ACTIVATION",
@@ -91,9 +93,13 @@ export function allMockCustomers(): readonly MockCustomer[] {
   return customers;
 }
 
+/**
+ * Ngoài 45 khách của danh sách, còn tìm được hai khách của seed demo WF-02 của BE (khách demo, Trà Sữa Mây — báo giá /
+ * hợp đồng mock trỏ tới) — để tên khách và giá riêng của họ đọc được. Họ không nằm trong `/customers`.
+ */
 export function findMockCustomer(customerId: string): MockCustomer | null {
   const id = customerId.toLowerCase();
-  return allMockCustomers().find((c) => c.customerId === id) ?? null;
+  return allMockCustomers().find((c) => c.customerId === id) ?? wf02MockCustomer(id);
 }
 
 /** BE `TaxCode.normalise`: bỏ khoảng trắng / dấu chấm; 13 chữ số → 10-3; sai dạng → null (không khớp ai). */

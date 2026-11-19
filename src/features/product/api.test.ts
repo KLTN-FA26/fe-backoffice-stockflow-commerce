@@ -179,7 +179,6 @@ describe("product API contract", () => {
       description: "",
       descriptionEn: "",
       taxClass: "STANDARD",
-      kind: "STANDARD",
       version: 3,
     });
 
@@ -196,7 +195,7 @@ describe("product API contract", () => {
         ...backendProduct,
         status: "DISCONTINUED",
         version: 4,
-        warnings: ["OPEN_PURCHASE_ORDER_LINES"],
+        warnings: ["OPEN_PRODUCTION_ORDER_LINES"],
         openReferences: [],
         openReferencesTruncated: false,
       },
@@ -213,7 +212,7 @@ describe("product API contract", () => {
       version: 3,
     });
     expect(result.product.status).toBe("Discontinued");
-    expect(result.warnings).toEqual(["OPEN_PURCHASE_ORDER_LINES"]);
+    expect(result.warnings).toEqual(["OPEN_PRODUCTION_ORDER_LINES"]);
   });
 
   it("refuses to discontinue without a reason or over the BE 500-character limit", async () => {

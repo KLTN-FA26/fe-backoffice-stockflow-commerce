@@ -4,6 +4,7 @@ import type {
   approveInputSchema,
   cancelInputSchema,
   createReceiptInputSchema,
+  looseLineInputSchema,
   openInputSchema,
   proposeInputSchema,
   reasonInputSchema,
@@ -15,6 +16,8 @@ import type {
   returnEvidenceDtoSchema,
   returnHistoryDtoSchema,
   returnLineDtoSchema,
+  returnLooseLineDtoSchema,
+  returnParcelDtoSchema,
   returnReceiptCartonDtoSchema,
   returnReceiptDtoSchema,
   returnReceiptRowDtoSchema,
@@ -30,6 +33,8 @@ export type ReturnHistoryEntry = z.infer<typeof returnHistoryDtoSchema>;
 export type ReturnReceipt = z.infer<typeof returnReceiptDtoSchema>;
 export type ReturnReceiptRow = z.infer<typeof returnReceiptRowDtoSchema>;
 export type ReturnReceiptCarton = z.infer<typeof returnReceiptCartonDtoSchema>;
+export type ReturnLooseLine = z.infer<typeof returnLooseLineDtoSchema>;
+export type ReturnParcel = z.infer<typeof returnParcelDtoSchema>;
 export type ExpectedCarton = z.infer<typeof expectedCartonDtoSchema>;
 export type ReturnedShipment = z.infer<typeof returnedShipmentDtoSchema>;
 
@@ -40,3 +45,4 @@ export type ProposeFormValues = z.input<typeof proposeInputSchema>;
 export type OpenFormValues = z.input<typeof openInputSchema>;
 export type CreateReceiptFormValues = z.input<typeof createReceiptInputSchema>;
 export type ScanFormValues = z.input<typeof scanInputSchema>;
+export type LooseLineFormValues = z.input<typeof looseLineInputSchema>;

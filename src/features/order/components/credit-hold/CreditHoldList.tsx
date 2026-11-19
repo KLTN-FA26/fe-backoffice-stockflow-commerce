@@ -2,6 +2,7 @@
 
 import { ArrowLeft, ShieldAlert } from "lucide-react";
 import { parseAsInteger, useQueryState } from "nuqs";
+import { useState } from "react";
 
 import {
   ADMIN_ROUTES,
@@ -29,8 +30,10 @@ import { HeaderLink } from "../HeaderLink";
 import { buildCreditHoldColumns } from "./columns";
 import { CreditApproveAction } from "./CreditApproveAction";
 import { CreditRejectAction } from "./CreditRejectAction";
+import { RefundDueNotice } from "./RefundDueNotice";
 
 import type { CreditHold } from "../../types";
+import type { CreditHoldTarget } from "./types";
 
 const TITLE = UI_LABELS.order.creditHoldsTitle;
 const PAGE_SIZE_OPTIONS: number[] = [PAGE_SIZE.sm, PAGE_SIZE.md, PAGE_SIZE.lg, PAGE_SIZE.xl];
@@ -82,6 +85,8 @@ function CreditHoldListContent() {
     { page: Math.max(0, page - 1), size: config.pageSize },
     { enabled: canRead },
   );
+  // Đơn vừa từ chối rời hàng đợi khi tải lại → giữ ở đây để hiện số phải hoàn (plan WF-02 C5)
+  const [rejected, setRejected] = useState<CreditHoldTarget | null>(null);
   const columns = buildCreditHoldColumns((row: CreditHold) => {
     // Cùng gate với trang chi tiết: On Hold + CREDIT + lý do giữ CREDIT + quyền APPROVE
     const codes = allowedOrderActions(row.order.status, can, orderActionContextOf(row.order)).map(
@@ -90,7 +95,9 @@ function CreditHoldListContent() {
     return (
       <div className="flex justify-end gap-1.5">
         {codes.includes("credit-approve") && <CreditApproveAction order={row.order} compact />}
-        {codes.includes("credit-reject") && <CreditRejectAction order={row.order} compact />}
+        {codes.includes("credit-reject") && (
+          <CreditRejectAction order={row.order} compact onRejected={setRejected} />
+        )}
       </div>
     );
   }, canOpenOrders);
@@ -108,6 +115,9 @@ function CreditHoldListContent() {
           )
         }
       />
+      {rejected && (
+        <RefundDueNotice orderId={rejected.orderId} orderNumber={rejected.orderNumber} />
+      )}
       {!canRead ? (
         <OrderLoadError inline error={null} kind="no-read" />
       ) : query.isError ? (

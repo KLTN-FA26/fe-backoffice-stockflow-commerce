@@ -9,7 +9,7 @@
 import { z } from "zod";
 
 import { ORDER_LIMITS } from "@/constants/numbers";
-import { CREDIT_REJECTION_ACTIONS, ORDER_CANCELLATION_REASON_CODES } from "@/constants/orders";
+import { ORDER_CANCELLATION_REASON_CODES } from "@/constants/orders";
 
 /* ── Credit hold (SCRUM-427) ─────────────────────────────────────────── */
 
@@ -24,34 +24,10 @@ const creditNote = z
 export const creditApprovalSchema = z.object({ note: creditNote });
 
 /**
- * BE `CreditRefusalRequest(action, depositPercent?, note)`.
- * docs 15 §4.3 / docs 14 edge case "Đơn công nợ vượt hạn mức": từ chối → huỷ, hoặc khách chuyển
- * sang trả trước / đặt cọc.
+ * BE `CreditRefusalRequest(note)` (origin/develop 438fe6fb) — docs 15 §4.3: từ chối = huỷ đơn
+ * (CREDIT_REJECTED); không còn chuyển sang trả trước / đặt cọc.
  */
-export const creditRejectionSchema = z
-  .object({
-    action: z.enum(CREDIT_REJECTION_ACTIONS, { error: "Chọn cách xử lý" }),
-    depositPercent: z.number().optional(),
-    note: creditNote,
-  })
-  .superRefine((value, ctx) => {
-    if (value.action !== "SWITCH_TO_DEPOSIT") return;
-    const pct = value.depositPercent;
-    // BE CreditRefusalRequest: depositPercent 0 < x < 100 (biên mở) khi chuyển sang đặt cọc;
-    // bỏ trống → BE dùng % cọc mặc định của hồ sơ công nợ khách.
-    if (pct === undefined) return;
-    if (!(pct > ORDER_LIMITS.depositPercentMin && pct < ORDER_LIMITS.depositPercentMax)) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["depositPercent"],
-        message: `Tỷ lệ cọc phải lớn hơn ${ORDER_LIMITS.depositPercentMin}% và nhỏ hơn ${ORDER_LIMITS.depositPercentMax}%`,
-      });
-    }
-  })
-  // Chỉ gửi depositPercent khi chuyển sang đặt cọc
-  .transform((value) =>
-    value.action === "SWITCH_TO_DEPOSIT" ? value : { action: value.action, note: value.note },
-  );
+export const creditRejectionSchema = z.object({ note: creditNote });
 
 /* ── Admin cancel ────────────────────────────────────────────────────── */
 

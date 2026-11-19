@@ -70,7 +70,7 @@ describe("product mutations also refresh the listing and prices that share its v
     code: "A",
     name: "A",
     taxClass: "STANDARD",
-    kind: "STANDARD",
+    kind: "CUSTOMIZABLE",
     status: "INACTIVE",
     version: 4,
     createdAt: "2026-01-01T00:00:00Z",
@@ -102,7 +102,6 @@ describe("product mutations also refresh the listing and prices that share its v
         description: "",
         descriptionEn: "",
         taxClass: "STANDARD",
-        kind: "STANDARD",
         version: 3,
       });
     });
@@ -124,7 +123,7 @@ describe("duyệt / ngừng kinh doanh đổi trạng thái biến thể ở BE 
     code: "A",
     name: "A",
     taxClass: "STANDARD",
-    kind: "STANDARD",
+    kind: "CUSTOMIZABLE",
     status: "APPROVED",
     version: 5,
     createdAt: "2026-01-01T00:00:00Z",
