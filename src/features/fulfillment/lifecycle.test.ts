@@ -96,6 +96,7 @@ describe("allowedFulfillmentActions — mã quyền + người được gán (BE
     const manager = actorOf(IDENTITIES.warehouseManager);
     expect(codes(task("Pending", "Pending", SOMEONE_ELSE), manager)).toEqual([
       "assign",
+      "changeDestination",
       "startPicking",
     ]);
     expect(codes(task("Picking", "Pending", SOMEONE_ELSE), manager)).toEqual(["completePicking"]);
@@ -116,12 +117,16 @@ describe("allowedFulfillmentActions — mã quyền + người được gán (BE
 
   it("quản lý kho tự được gán → gán lại + bắt đầu lấy hàng", () => {
     const manager = actorOf(IDENTITIES.warehouseManager);
-    expect(codes(task("Pending", "Pending"), manager)).toEqual(["assign", "startPicking"]);
+    expect(codes(task("Pending", "Pending"), manager)).toEqual([
+      "assign",
+      "changeDestination",
+      "startPicking",
+    ]);
   });
 
-  it("điều phối đơn: chỉ gán khi pick còn Pending; không lấy hàng, không gỡ giữ", () => {
+  it("điều phối đơn: chỉ gán / đổi đích khi pick còn Pending; không lấy hàng, không gỡ giữ", () => {
     const coordinator = actorOf(IDENTITIES.orderCoordinator);
-    expect(codes(task("Pending", "Pending"), coordinator)).toEqual(["assign"]);
+    expect(codes(task("Pending", "Pending"), coordinator)).toEqual(["assign", "changeDestination"]);
     expect(codes(task("Picking", "Pending"), coordinator)).toEqual([]);
     expect(codes(task("Picked", "Pending"), coordinator)).toEqual([]);
   });
@@ -171,7 +176,7 @@ describe("allowedFulfillmentActions — mã quyền + người được gán (BE
   it("mỗi thao tác theo đúng mã quyền của endpoint — một vai trò tạo lúc chạy chỉ cần được cấp mã đó", () => {
     const only = (code: PermissionCode) => actorOf({ permissions: [code] });
     const pending = task("Pending", "Pending");
-    expect(codes(pending, only(ASSIGNMENT.update))).toEqual(["assign"]);
+    expect(codes(pending, only(ASSIGNMENT.update))).toEqual(["assign", "changeDestination"]);
     expect(codes(pending, only(PICKING.update))).toEqual(["startPicking"]);
     expect(codes(task("Picking", "Pending"), only(PICKING.update))).toEqual(["completePicking"]);
     expect(codes(task("Staged", "Pending", SOMEONE_ELSE), only(ASSIGNMENT.update))).toEqual([

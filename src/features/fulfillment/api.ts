@@ -16,6 +16,7 @@ import type { PickApiStatus } from "@/constants";
 import type { ListQueryParams, PaginatedResponse } from "@/lib/api/query-factory";
 import type {
   AssignTaskInput,
+  ChangeDestinationInput,
   CreateTaskValues,
   FulfillmentTask,
   FulfillmentTaskApiDto,
@@ -117,6 +118,24 @@ export async function assignFulfillmentTask({
   assignedUserId,
 }: AssignTaskInput): Promise<FulfillmentTask> {
   const { data } = await api.put<unknown>(`${taskPath(taskId)}/assignment`, { assignedUserId });
+  return parseTask(data);
+}
+
+/**
+ * Đổi đích lấy hàng (BE `PUT /tasks/{id}/destination`, docs 07 §4.1 bước 3): chỉ khi pick còn PENDING (409
+ * PICK_TASK_STATE_CONFLICT). Khu chờ xuất chỉ gửi khi đích là STAGING (bỏ được khi kho có đúng một khu).
+ */
+export async function changeFulfillmentTaskDestination({
+  taskId,
+  destination,
+  stagingLocationCode,
+}: ChangeDestinationInput): Promise<FulfillmentTask> {
+  const { data } = await api.put<unknown>(`${taskPath(taskId)}/destination`, {
+    destination,
+    ...(destination === PICK_DESTINATION.STAGING && stagingLocationCode
+      ? { stagingLocationCode }
+      : {}),
+  });
   return parseTask(data);
 }
 

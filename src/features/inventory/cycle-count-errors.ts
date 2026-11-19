@@ -4,7 +4,7 @@
  * trên phiếu kiểm mù luôn trung tính — không nói sổ sách ghi thùng ở đâu hay đang ở trạng thái nào (docs 20 BR-07).
  */
 
-import { CYCLE_COUNT_ERROR_MESSAGES } from "@/constants/cycle-count";
+import { CYCLE_COUNT_CREATE_LABELS, CYCLE_COUNT_ERROR_MESSAGES } from "@/constants/cycle-count";
 
 import { ApiError } from "@/lib/api/error";
 
@@ -58,6 +58,14 @@ function messageOf(code: string): string | null {
     default:
       return null;
   }
+}
+
+/** Lập phiếu: "quá lớn" ở đây là phạm vi vượt 500 thùng (không phải phiếu đã đầy khi thêm thùng). */
+export function planCycleCountError(error: unknown): CycleCountActionError {
+  if (error instanceof ApiError && error.code === "CYCLE_COUNT_TOO_LARGE") {
+    return { detail: CYCLE_COUNT_CREATE_LABELS.tooLarge, traceId: error.traceId };
+  }
+  return cycleCountActionError(error);
 }
 
 export function cycleCountActionError(error: unknown): CycleCountActionError {

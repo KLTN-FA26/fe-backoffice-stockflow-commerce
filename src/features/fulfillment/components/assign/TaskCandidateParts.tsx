@@ -15,9 +15,6 @@ import type { TaskCandidate } from "@/features/fulfillment/types";
 const { fulfillment, loadError, common } = UI_LABELS;
 const { candidate: candidateCopy } = fulfillment;
 
-/** Có dòng in tuỳ chỉnh (BE `lines[].printed`) — cần chú ý khi lấy hàng / đóng gói. */
-const hasPrintedLines = (candidate: TaskCandidate) => candidate.lines.some((line) => line.printed);
-
 const customerOf = (candidate: TaskCandidate) =>
   candidate.customerName || candidateCopy.guestCustomer;
 
@@ -31,18 +28,13 @@ export function CandidateSummary({ candidate }: { candidate: TaskCandidate }) {
   );
 }
 
-/** Một dòng trong danh sách: số đơn, khách, số dòng / số lượng, ngày đặt, dấu "có dòng in" / "chờ hàng". */
+/** Một dòng trong danh sách: số đơn, khách, số dòng / số lượng, ngày đặt, dấu "chờ hàng". */
 export function CandidateOption({ candidate }: { candidate: TaskCandidate }) {
   return (
     <span className="flex min-w-0 flex-col items-start gap-0.5">
       <span className="flex items-center gap-2">
         <span className={MONO}>{candidate.orderNumber}</span>
         <span className="truncate">{customerOf(candidate)}</span>
-        {hasPrintedLines(candidate) && (
-          <Badge variant="outline" className="text-[0.6875rem]">
-            {candidateCopy.printed}
-          </Badge>
-        )}
         {/* Docs 07 §4.1 bước 1: đơn chờ hàng đã giữ được một phần thùng — lấy trước phần đã có */}
         {candidate.orderStatus === TASK_CANDIDATE_AWAITING_STOCK && (
           <Badge variant="outline" className="text-[0.6875rem]">

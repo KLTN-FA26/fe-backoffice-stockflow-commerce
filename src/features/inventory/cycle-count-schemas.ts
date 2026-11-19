@@ -1,6 +1,10 @@
 import { z } from "zod";
 
-import { CYCLE_COUNT_LIMITS, CYCLE_COUNT_STATUSES } from "@/constants/cycle-count";
+import {
+  CYCLE_COUNT_CREATE_LABELS,
+  CYCLE_COUNT_LIMITS,
+  CYCLE_COUNT_STATUSES,
+} from "@/constants/cycle-count";
 import { INVENTORY_MESSAGES } from "@/constants/inventory";
 
 import { beUuid, requiredString } from "@/lib/validation/primitives";
@@ -96,3 +100,49 @@ export const recountCycleCountInput = z.object({
   lineIds: z.array(beUuid).min(1, INVENTORY_MESSAGES.required).max(CYCLE_COUNT_LIMITS.maxLines),
   note: z.string().trim().max(CYCLE_COUNT_LIMITS.noteLength).optional(),
 });
+
+// PlanCycleCountRequest (docs 20 §4.2 a1, BR-12): the warehouse, one scope - zones, shelves by their own code, full
+// bin codes and SKUs, at least one of them - blind or not, who counts if already known, the day (today when absent) and a
+// note: every field docs 20 §3 lists for a sheet planned by hand.
+export const planCycleCountInput = z
+  .object({
+    warehouseId: beUuid,
+    blind: z.boolean(),
+    assignedUserId: beUuid.optional(),
+    // Docs 20 §3: "Ngày kiểm, ghi chú - mặc định hôm nay; ghi chú ≤ 500 ký tự" (the BE defaults an absent day to today)
+    plannedDate: z.iso.date().optional(),
+    note: z.string().trim().max(CYCLE_COUNT_LIMITS.noteLength).optional(),
+    zoneIds: z.array(beUuid).max(CYCLE_COUNT_LIMITS.maxZones),
+    shelfCodes: z
+      .array(z.string().min(1).max(CYCLE_COUNT_LIMITS.shelfLength))
+      .max(CYCLE_COUNT_LIMITS.maxShelves),
+    locationCodes: z
+      .array(z.string().min(1).max(CYCLE_COUNT_LIMITS.locationLength))
+      .max(CYCLE_COUNT_LIMITS.maxLocations),
+    skus: z
+      .array(z.string().min(1).max(CYCLE_COUNT_LIMITS.skuLength))
+      .max(CYCLE_COUNT_LIMITS.maxSkus),
+  })
+  .refine(
+    (input) =>
+      input.zoneIds.length +
+        input.shelfCodes.length +
+        input.locationCodes.length +
+        input.skus.length >
+      0,
+    { path: ["zoneIds"], message: CYCLE_COUNT_CREATE_LABELS.anyScope },
+  );
+
+export const plannedCycleCountDto = z.object({
+  count: cycleCountDto,
+  skipped: z.array(z.object({ locationCode: z.string(), sku: z.string() }).loose()).default([]),
+});
+
+export const cycleCountAssigneesDto = z.array(
+  z.object({ userId: beUuid, displayName: z.string() }).loose(),
+);
+
+/** "A01, A02\nA03" → ["A01", "A02", "A03"]: split on commas, semicolons and whitespace, without repeats. */
+export function splitCodes(text: string): string[] {
+  return [...new Set(text.split(/[\s,;]+/).filter(Boolean))];
+}

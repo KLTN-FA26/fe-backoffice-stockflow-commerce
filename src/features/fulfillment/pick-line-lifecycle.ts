@@ -38,12 +38,27 @@ export function canReportShort(task: FulfillmentGateState, actor: FulfillmentAct
 }
 
 /**
+ * Báo thiếu thùng đã về khu chờ xuất (dòng `Staged`): BE `PickList.reportShort` nhận dòng STAGED khi task đang `Picking`
+ * HOẶC `Staged` (docs 20 §4.9 bước 4 — thùng ở khu chờ không còn thấy / hư hỏng, xử lý như báo thiếu). Cùng điều kiện
+ * người làm với báo thiếu thường: người được gán, hoặc quản lý kho làm thay. UI-only — Backend phải re-check.
+ */
+export function canReportStagedShort(task: FulfillmentGateState, actor: FulfillmentActor): boolean {
+  return (
+    (task.pickStatus === PICK_STATUS.PICKING || task.pickStatus === PICK_STATUS.STAGED) &&
+    actor.can(FULFILLMENT_PICKING_PERMISSIONS.update) &&
+    canWorkOnTask(task, actor)
+  );
+}
+
+/**
  * Phân bổ lại dòng thiếu (X-SHORT bước 04): quyết định của người phân việc — `fulfillment-task-assignment:UPDATE`
- * (quản lý kho, docs 07 §4.4 bước 10), không cần là người được gán. Dòng SHORT chỉ có khi task đang `Picking`.
+ * (quản lý kho, docs 07 §4.4 bước 10), không cần là người được gán. Dòng SHORT có khi task đang `Picking`, hoặc `Staged`
+ * khi thùng ở khu chờ xuất bị báo / kiểm kê thấy thiếu (BE `reallocateShort` không đòi trạng thái task; thùng mới được
+ * lấy về khu chờ xuất và task trở lại `Picking`).
  */
 export function canReallocate(task: FulfillmentGateState, actor: FulfillmentActor): boolean {
   return (
-    task.pickStatus === PICK_STATUS.PICKING &&
+    (task.pickStatus === PICK_STATUS.PICKING || task.pickStatus === PICK_STATUS.STAGED) &&
     actor.can(FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS.update)
   );
 }
@@ -89,6 +104,21 @@ export function canReallocateLine(
     (isReallocatableLine(line) && canReallocate(task, actor)) ||
     (isReplaceableRemovedLine(line) && canReplaceRemovedCarton(task, actor))
   );
+}
+
+/**
+ * Nút cuối dòng của bảng dòng lấy hàng: phân bổ lại / bù thùng (dòng SHORT, thùng hư đã loại), hoặc báo thiếu thùng đã
+ * về khu chờ xuất (dòng STAGED, docs 20 §4.9 bước 4); không có thì `null`. UI-only — Backend phải re-check.
+ */
+export function pickLineAction(
+  task: FulfillmentGateState,
+  actor: FulfillmentActor,
+  line: Pick<PickLine, "status" | "removalReason" | "replacementPending">,
+): "reallocate" | "reportShort" | null {
+  if (canReallocateLine(task, actor, line)) return "reallocate";
+  return line.status === PICK_LINE_STATUS.STAGED && canReportStagedShort(task, actor)
+    ? "reportShort"
+    : null;
 }
 
 /** BE `PickList.confirm` / `reportShort`: chỉ dòng OPEN (khác → PICK_LINE_NOT_OPEN). */

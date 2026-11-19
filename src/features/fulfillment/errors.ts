@@ -12,7 +12,7 @@ import { ApiError } from "@/lib/api/error";
 type MessageKey = keyof typeof FULFILLMENT_ERROR_MESSAGES;
 
 export type FulfillmentErrorContext =
-  "create" | "assign" | "pick" | "dispatch" | "pack" | "candidates" | "topUp";
+  "create" | "assign" | "destination" | "pick" | "dispatch" | "pack" | "candidates" | "topUp";
 
 /**
  * Lỗi trạng thái của task / đơn: BE (FulfillmentServiceImpl, PickList, PickJpaEntity) trả
@@ -27,6 +27,11 @@ const BY_CONTEXT: Record<FulfillmentErrorContext, Readonly<Record<string, Messag
     NOT_FOUND: "orderNotFound",
     CONFLICT: "createConflict",
     VALIDATION_FAILED: "assigneeInvalid",
+    STAGING_AREA_INVALID: "STAGING_AREA_INVALID",
+  },
+  // 409 = pick không còn PENDING (PickJpaEntity#changeDestination); 422 = khu chờ xuất không hợp lệ (đích STAGING)
+  destination: {
+    CONFLICT: "destinationConflict",
     STAGING_AREA_INVALID: "STAGING_AREA_INVALID",
   },
   // 409 = pick không còn PENDING (PickJpaEntity#assign)

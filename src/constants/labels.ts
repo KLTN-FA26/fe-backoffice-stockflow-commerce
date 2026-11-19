@@ -538,6 +538,7 @@ export const UI_LABELS = {
     action: {
       create: "Tạo task lấy hàng",
       assign: "Gán lại",
+      changeDestination: "Đổi đích",
       startPicking: "Bắt đầu lấy hàng",
       completePicking: "Hoàn tất lấy hàng",
       moveToDispatch: "Chuyển sang khu xuất hàng",
@@ -578,11 +579,10 @@ export const UI_LABELS = {
       empty: "Không có đơn nào chờ xuất kho",
       emptyTitle: "Chưa có đơn nào chờ xuất kho",
       emptyDescription:
-        "Chỉ đơn đã release (sẵn sàng xuất kho), hoặc đơn đang chờ hàng đã giữ được một phần thùng, và chưa có task mới hiện ở đây. Đơn mới xác nhận cần release trước.",
+        "Chỉ đơn đã release (sẵn sàng xuất kho) và chưa có task — kể cả đợt giao kế tiếp đã release — hoặc đơn đang chờ hàng đã giữ được một phần thùng mới hiện ở đây. Đơn mới xác nhận cần release trước.",
       // Docs 07 §4.1 bước 1: đơn Awaiting Stock có thùng đã giữ — lấy trước phần đã có
       awaitingStock: "Chờ hàng",
       loadFailed: "Không tải được danh sách đơn hàng chờ xuất kho.",
-      printed: "Có dòng in",
       guestCustomer: "Khách vãng lai",
       truncated: (shown: number, total: number) =>
         `Chỉ hiện ${shown}/${total} đơn cũ nhất đang chờ — tạo task cho các đơn này trước để thấy tiếp.`,
@@ -622,6 +622,9 @@ export const UI_LABELS = {
       // Docs 07 §4.1 bước 2, 17 §4.4 bước 15: đơn Awaiting Stock chỉ lấy sang khu xuất hàng khi Sale cho giao một phần
       awaitingStockStagingOnly:
         "Đơn đang chờ hàng: lấy trước phần đã có về khu chờ xuất. Chỉ lấy sang khu xuất hàng khi Sale đã cho phép giao một phần.",
+      // Dialog "Đổi đích" của task Pending (BE `PUT …/destination`, docs 07 §4.1 bước 3, BR-08)
+      changeTitle: (taskCode: string) => `Đổi đích task ${taskCode}`,
+      changeDescription: "Chỉ đổi đích được khi task chưa bắt đầu lấy hàng.",
     },
     self: "Tôi",
     // Nhãn trường dùng chung giữa cột danh sách, thẻ thông tin và form
@@ -673,6 +676,8 @@ export const FULFILLMENT_ERROR_MESSAGES = {
     "Task không còn ở trạng thái Đã tập kết (khu chờ xuất) nên không chuyển được. Dữ liệu đã được tải lại.",
   orderNotFound: "Không tìm thấy đơn hàng",
   assignConflict: "Chỉ gán lại được khi task chưa bắt đầu lấy hàng. Dữ liệu đã được tải lại.",
+  // 409 PICK_TASK_STATE_CONFLICT khi đổi đích: task đã bắt đầu lấy hàng (docs 07 §4.1 bước 3, BR-08)
+  destinationConflict: "Chỉ đổi đích được khi task chưa bắt đầu lấy hàng. Dữ liệu đã được tải lại.",
   assigneeInvalid: "Người được gán phải là nhân viên kho hoặc quản lý kho đang hoạt động",
   VALIDATION_FAILED: "Dữ liệu không hợp lệ",
   FORBIDDEN: "Bạn không có quyền thực hiện thao tác này",
@@ -1001,6 +1006,7 @@ export const TOAST_MESSAGES = {
     // BE trả lại task đã có của đơn (vẫn 201) thay vì tạo mới
     alreadyExists: "Đơn này đã có task và đang gán cho người khác — không tạo task mới",
     assigned: "Đã gán task",
+    destinationChanged: "Đã đổi đích lấy hàng",
     pickingStarted: "Đã bắt đầu lấy hàng",
     pickingCompleted: "Đã hoàn tất lấy hàng",
     held: "Lệch checksum thiết kế — kiện bị giữ, chờ kiểm tra lại thiết kế",

@@ -17,6 +17,7 @@ import { toast } from "@/components/shared/Toast";
 
 import {
   assignFulfillmentTask,
+  changeFulfillmentTaskDestination,
   completePicking,
   createFulfillmentTask,
   moveToDispatch,
@@ -26,7 +27,12 @@ import { fulfillmentErrorMessage, isStaleFulfillmentError } from "./errors";
 import { fulfillmentKeys, fulfillmentReferenceKeys } from "./queries";
 
 import type { FulfillmentErrorContext } from "./errors";
-import type { AssignTaskInput, CreateTaskValues, FulfillmentTask } from "./types";
+import type {
+  AssignTaskInput,
+  ChangeDestinationInput,
+  CreateTaskValues,
+  FulfillmentTask,
+} from "./types";
 
 /** = `orderKeys.all` của features/order — khai báo lại để không import chéo feature. */
 const ORDER_ROOT_KEY = ["orders"] as const;
@@ -84,6 +90,14 @@ export const useAssignFulfillmentTask = withStaleRefetch(
   createMutation<AssignTaskInput, FulfillmentTask>(assignFulfillmentTask, {
     invalidate: TASK_KEYS,
     successMessage: TOAST.assigned,
+    showErrorToast: false,
+  }),
+);
+
+export const useChangeFulfillmentTaskDestination = withStaleRefetch(
+  createMutation<ChangeDestinationInput, FulfillmentTask>(changeFulfillmentTaskDestination, {
+    invalidate: TASK_KEYS,
+    successMessage: TOAST.destinationChanged,
     showErrorToast: false,
   }),
 );

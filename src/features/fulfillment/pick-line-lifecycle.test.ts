@@ -9,10 +9,12 @@ import {
   canReallocateLine,
   canReplaceRemovedCarton,
   canReportShort,
+  canReportStagedShort,
   canViewPutBacks,
   isConfirmableLine,
   isReallocatableLine,
   isReplaceableRemovedLine,
+  pickLineAction,
 } from "./pick-line-lifecycle";
 
 import type { PackStatus, PickStatus } from "@/constants";
@@ -70,10 +72,66 @@ describe("canReallocate — BE reallocation: task-assignment:UPDATE (người ph
     ["quản lý kho, Picking", manager, gate("Picking"), true],
     ["NV kho được gán (không có task-assignment:UPDATE)", assignee, gate("Picking"), false],
     ["QC", qc, gate("Picking"), false],
+    [
+      "điều phối, task Staged (thùng ở khu chờ xuất bị báo thiếu)",
+      coordinator,
+      gate("Staged"),
+      true,
+    ],
+    ["quản lý kho, task Staged", manager, gate("Staged"), true],
+    [
+      "NV kho được gán, task Staged (không có task-assignment:UPDATE)",
+      assignee,
+      gate("Staged"),
+      false,
+    ],
     ["điều phối nhưng task Picked", coordinator, gate("Picked"), false],
     ["điều phối nhưng task Cancelled", coordinator, gate("Cancelled"), false],
   ])("%s → %s", (_, who, task, expected) => {
     expect(canReallocate(task, who)).toBe(expected);
+  });
+});
+
+describe("canReportStagedShort — BE PickList.reportShort: dòng Staged, task Picking hoặc Staged; picking:UPDATE + requireWorker", () => {
+  it.each([
+    ["NV kho được gán, Staged", assignee, gate("Staged"), true],
+    ["NV kho được gán, Picking", assignee, gate("Picking"), true],
+    ["quản lý kho làm thay, Staged", manager, gate("Staged"), true],
+    ["NV kho khác (không được gán), Staged", otherStaff, gate("Staged"), false],
+    [
+      "quản lý kho, task chưa có người gán",
+      manager,
+      { ...gate("Staged"), assignedUserId: null },
+      false,
+    ],
+    ["điều phối (không có picking:UPDATE), Staged", coordinator, gate("Staged", OTHER), false],
+    ["QC chỉ đọc", qc, gate("Staged"), false],
+    ["NV được gán nhưng task Picked", assignee, gate("Picked"), false],
+    ["NV được gán nhưng task Cancelled", assignee, gate("Cancelled"), false],
+  ])("%s → %s", (_, who, task, expected) => {
+    expect(canReportStagedShort(task, who)).toBe(expected);
+  });
+});
+
+describe("pickLineAction — nút cuối dòng", () => {
+  const plain = { removalReason: null, replacementPending: null } as const;
+  it("dòng Short: quản lý kho phân bổ lại được cả khi task Staged; NV kho không", () => {
+    expect(pickLineAction(gate("Staged"), manager, { ...plain, status: "Short" })).toBe(
+      "reallocate",
+    );
+    expect(pickLineAction(gate("Staged"), assignee, { ...plain, status: "Short" })).toBeNull();
+  });
+
+  it("dòng Staged: người làm được báo thiếu (task Picking hoặc Staged); dòng khác trạng thái thì không", () => {
+    expect(pickLineAction(gate("Staged"), assignee, { ...plain, status: "Staged" })).toBe(
+      "reportShort",
+    );
+    expect(pickLineAction(gate("Picking"), assignee, { ...plain, status: "Staged" })).toBe(
+      "reportShort",
+    );
+    expect(pickLineAction(gate("Staged"), assignee, { ...plain, status: "Open" })).toBeNull();
+    expect(pickLineAction(gate("Staged"), otherStaff, { ...plain, status: "Staged" })).toBeNull();
+    expect(pickLineAction(gate("Picked"), assignee, { ...plain, status: "Staged" })).toBeNull();
   });
 });
 

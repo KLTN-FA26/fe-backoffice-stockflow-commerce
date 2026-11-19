@@ -76,8 +76,12 @@ export function PickLinesSection({
       return <p className="text-ink-secondary text-[0.8125rem]">{text}</p>;
     }
     const awaiting = awaitingPutBackCount(task, lines);
-    // Đơn huỷ thì dòng Thiếu vẫn giữ SHORT (BE chỉ huỷ dòng Open) — "tạm giữ chờ phân bổ lại" chỉ khi đang lấy
-    const shortLines = task.pickStatus === PICK_STATUS.PICKING ? shortLineCount(lines) : 0;
+    // Đơn huỷ thì dòng Thiếu vẫn giữ SHORT (BE chỉ huỷ dòng Open) — "tạm giữ chờ phân bổ lại" chỉ khi đang lấy, hoặc
+    // khi task Staged có thùng ở khu chờ xuất bị báo / kiểm kê thấy thiếu (docs 20 §4.9 bước 4)
+    const shortLines =
+      task.pickStatus === PICK_STATUS.PICKING || task.pickStatus === PICK_STATUS.STAGED
+        ? shortLineCount(lines)
+        : 0;
     const { picked, total } = pickProgress(lines);
     return (
       <div className="space-y-3">
