@@ -367,6 +367,16 @@ export const PACK_SHIPMENT_API_STATUSES = [
   "CANCELLED",
 ] as const;
 
+/** Tên trạng thái lô giao (`PACK_SHIPMENT_API_STATUSES`) để so sánh không gõ tay chuỗi. */
+export const PACK_SHIPMENT_STATUS = {
+  READY_TO_DISPATCH: "READY_TO_DISPATCH",
+  HANDED_OVER: "HANDED_OVER",
+  DELIVERED: "DELIVERED",
+  DELIVERY_FAILED: "DELIVERY_FAILED",
+  RETURNED: "RETURNED",
+  CANCELLED: "CANCELLED",
+} as const satisfies Record<string, (typeof PACK_SHIPMENT_API_STATUSES)[number]>;
+
 /** BE `DeliveryMode.java` — PARCEL (gửi kiện cho hãng) hoặc FULL_TRUCKLOAD (nguyên xe, kế hoạch xếp xe). */
 export const DELIVERY_MODES = ["PARCEL", "FULL_TRUCKLOAD"] as const;
 export type DeliveryMode = (typeof DELIVERY_MODES)[number];

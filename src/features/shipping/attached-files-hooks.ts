@@ -2,7 +2,9 @@
 
 /**
  * Shipping — hook file đính kèm: danh sách (query) và tải lên một file (băm → slot → PUT → đính kèm, có tiến độ, huỷ được).
- * Lỗi tải lên hiện inline bằng câu tiếng Việt (`attachedFileUploadError`), không toast.
+ * Cố ý KHÔNG dùng `createMutation` (api-conventions §2.3): tải lên có ba bước, tiến độ, huỷ giữa chừng (AbortController) và lỗi
+ * phải hiện inline theo từng bước — `useMutation` không có tiến độ / huỷ; danh sách file được làm mới bằng `invalidateQueries`
+ * ở đây. Lỗi tải lên hiện inline bằng câu tiếng Việt (`attachedFileUploadError`), không toast.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
