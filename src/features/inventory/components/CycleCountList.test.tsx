@@ -255,6 +255,11 @@ describe("planning a count by hand (docs 20 §4.2 a, BR-12)", () => {
     renderInventory(<CycleCountList />);
     await user.click(await screen.findByRole("button", { name: C.action }));
     const dialog = await screen.findByRole("dialog");
+    // A tall form scrolls inside the dialog: the fields do, the Lập phiếu button stays reachable on a 768 px screen
+    expect(within(dialog).getByLabelText(C.skus).closest(".overflow-y-auto")).not.toBeNull();
+    expect(
+      within(dialog).getByRole("button", { name: C.action }).closest(".overflow-y-auto"),
+    ).toBeNull();
     await chooseWarehouse(user, dialog);
     await user.click(within(dialog).getByRole("button", { name: C.action }));
     expect(await within(dialog).findByText(C.anyScope)).toBeInTheDocument();
@@ -286,10 +291,13 @@ describe("planning a count by hand (docs 20 §4.2 a, BR-12)", () => {
         warehouseId: WAREHOUSE,
         blind: true,
         note: "Kiểm kê cuối tháng",
-        zoneIds: [ZONE],
-        shelfCodes: ["A01", "A02"],
-        locationCodes: [],
-        skus: ["MUG-RED", "MUG-BLUE"],
+        // The BE's PlanCycleCountRequest: the lists go inside `scope`
+        scope: {
+          zoneIds: [ZONE],
+          shelfCodes: ["A01", "A02"],
+          locationCodes: [],
+          skus: ["MUG-RED", "MUG-BLUE"],
+        },
       },
     ]);
   });

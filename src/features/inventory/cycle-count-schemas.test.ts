@@ -186,4 +186,33 @@ describe("planCycleCountInput — PlanCycleCountRequest (docs 20 §4.2 a, BR-12)
     expect(splitCodes(" A01, A02;A03\nA01  \n")).toEqual(["A01", "A02", "A03"]);
     expect(splitCodes("")).toEqual([]);
   });
+
+  it("contract with the BE's PlanCycleCountRequest: the four lists are one `scope` object, nothing else is nested", () => {
+    const request = planCycleCountInput.parse({
+      warehouseId: WAREHOUSE,
+      blind: true,
+      assignedUserId: LINE,
+      plannedDate: "2026-11-20",
+      note: "cuối tháng",
+      zoneIds: [LINE],
+      shelfCodes: ["A01"],
+      locationCodes: ["HCM-A01-1-B"],
+      skus: ["MUG-RED"],
+    });
+    expect(request).toEqual({
+      warehouseId: WAREHOUSE,
+      blind: true,
+      assignedUserId: LINE,
+      plannedDate: "2026-11-20",
+      note: "cuối tháng",
+      scope: {
+        zoneIds: [LINE],
+        shelfCodes: ["A01"],
+        locationCodes: ["HCM-A01-1-B"],
+        skus: ["MUG-RED"],
+      },
+    });
+    expect(request).not.toHaveProperty("zoneIds");
+    expect(request).not.toHaveProperty("skus");
+  });
 });

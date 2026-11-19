@@ -11,6 +11,7 @@ import { useWarehouseZones } from "@/lib/references/warehouse-layout";
 import { useWarehouseOptions } from "@/lib/references/warehouse-options";
 import { useAppStore } from "@/lib/store/use-app-store";
 
+import { DialogScrollArea } from "@/components/shared/DialogScrollArea";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { FormField, fieldA11y } from "@/components/shared/FormField";
 import { FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
@@ -58,7 +59,8 @@ export function CycleCountCreateDialog({ onClose }: { onClose: () => void }) {
       setError(values.warehouseId ? parsed.error.issues[0]?.message : C.warehouseRequired);
       return;
     }
-    plan.mutate(parsed.data, {
+    // The flat form values: the request body (with its `scope` object) is made when it is sent
+    plan.mutate(toPlanInput(values), {
       onSuccess: ({ count }) => {
         onClose();
         router.push(CYCLE_COUNT_ROUTES.detail(count.id));
@@ -79,30 +81,34 @@ export function CycleCountCreateDialog({ onClose }: { onClose: () => void }) {
         onSubmit={submit}
         onCancel={onClose}
       >
-        <FormField id="plan-warehouse" label={C.warehouse} required>
-          <Select
-            value={values.warehouseId}
-            onValueChange={(warehouseId) => edit({ warehouseId, zoneIds: [], assignedUserId: "" })}
-          >
-            <SelectTrigger {...fieldA11y("plan-warehouse")} className={FORM_SELECT_CLASS}>
-              <SelectValue placeholder={C.warehousePlaceholder} />
-            </SelectTrigger>
-            <TitledSelectContent title={C.warehouse}>
-              {(warehouses.data ?? []).map((warehouse) => (
-                <SelectItem key={warehouse.warehouseId} value={warehouse.warehouseId}>
-                  {warehouse.name}
-                </SelectItem>
-              ))}
-            </TitledSelectContent>
-          </Select>
-        </FormField>
-        <CycleCountScopeFields
-          values={values}
-          zones={zones.data ?? []}
-          error={error}
-          onChange={edit}
-        />
-        <CycleCountPlanOptions values={values} assignees={assignees.data ?? []} onChange={edit} />
+        <DialogScrollArea>
+          <FormField id="plan-warehouse" label={C.warehouse} required>
+            <Select
+              value={values.warehouseId}
+              onValueChange={(warehouseId) =>
+                edit({ warehouseId, zoneIds: [], assignedUserId: "" })
+              }
+            >
+              <SelectTrigger {...fieldA11y("plan-warehouse")} className={FORM_SELECT_CLASS}>
+                <SelectValue placeholder={C.warehousePlaceholder} />
+              </SelectTrigger>
+              <TitledSelectContent title={C.warehouse}>
+                {(warehouses.data ?? []).map((warehouse) => (
+                  <SelectItem key={warehouse.warehouseId} value={warehouse.warehouseId}>
+                    {warehouse.name}
+                  </SelectItem>
+                ))}
+              </TitledSelectContent>
+            </Select>
+          </FormField>
+          <CycleCountScopeFields
+            values={values}
+            zones={zones.data ?? []}
+            error={error}
+            onChange={edit}
+          />
+          <CycleCountPlanOptions values={values} assignees={assignees.data ?? []} onChange={edit} />
+        </DialogScrollArea>
       </FormDialogBody>
     </FormDialog>
   );
