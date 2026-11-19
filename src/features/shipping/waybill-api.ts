@@ -7,6 +7,7 @@
  *        WAYBILL_FROM_CARRIER_API (hãng đặt xe qua API không nhập tay).
  *   GET  /fulfillment/loads/{id}/waybill-history        → mọi lần đổi mã, cũ nhất trước (`fulfillment-shipments:READ`)
  *   GET  /fulfillment/waybill-imports/template          → file CSV mẫu (UTF-8 có BOM) — `fulfillment-waybill-imports:READ`
+ *   GET  /fulfillment/waybill-imports/warehouses        → kho được chọn khi nhập (theo kho được gán) — `…:CREATE`
  *   POST /fulfillment/waybill-imports/preview           multipart `file` + `warehouseId` (bắt buộc, chỉ nhận chuyến của kho đó) → kiểm từng dòng, chưa ghi gì — `…:CREATE`
  *   POST /fulfillment/waybill-imports?overwriteLines=…  multipart `file` → áp các dòng hợp lệ; dòng GHI ĐÈ mã cũ chỉ áp
  *        khi số dòng nằm trong `overwriteLines` (BR-25) — `…:CREATE`. 400 WAYBILL_IMPORT_INVALID_FILE.
@@ -17,7 +18,11 @@ import { api } from "@/lib/api/client";
 
 import { loadPath } from "./api";
 import { beLoadSchema } from "./load-schemas";
-import { beWaybillHistorySchema, beWaybillImportSchema } from "./waybill-schemas";
+import {
+  beImportWarehousesSchema,
+  beWaybillHistorySchema,
+  beWaybillImportSchema,
+} from "./waybill-schemas";
 
 import type {
   Load,
@@ -50,6 +55,12 @@ export async function downloadWaybillTemplate(): Promise<Blob> {
     responseType: "blob",
   });
   return data;
+}
+
+/** Kho người dùng được nhập mã vận đơn: kho đang hoạt động, giới hạn theo kho được gán (`…:CREATE`). */
+export async function listImportWarehouses(signal?: AbortSignal) {
+  const { data } = await api.get<unknown>(`${WAYBILL_IMPORTS_PATH}/warehouses`, { signal });
+  return beImportWarehousesSchema.parse(data);
 }
 
 /** Như `uploadVariantMedia`: ghi đè `application/json` mặc định của axios client để trình duyệt đặt boundary. */

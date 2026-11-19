@@ -6,8 +6,9 @@ import { Download, FileUp } from "lucide-react";
 import { ADMIN_ROUTES, UI_LABELS } from "@/constants";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { WarehouseSelect } from "@/features/shipping/components/WarehouseSelect";
 import { WAYBILL_IMPORT_ACCEPT } from "@/features/shipping/waybill-import-file";
+
+import { ImportWarehouseSelect } from "./ImportWarehouseSelect";
 
 import type { RefObject } from "react";
 
@@ -61,11 +62,10 @@ export function WaybillImportPicker({
               >
                 {I.warehouseLabel}
               </Label>
-              <WarehouseSelect
+              <ImportWarehouseSelect
                 id="waybill-import-warehouse"
                 value={warehouseId}
                 onChange={onWarehouse}
-                placeholder={I.warehousePlaceholder}
               />
             </div>
             <div>

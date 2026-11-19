@@ -65,3 +65,9 @@ export const beWaybillImportRowSchema = z.object({
 });
 
 export const beWaybillImportPageSchema = bePageSchema(beWaybillImportRowSchema);
+
+/** BE `WaybillImports.WarehouseOption` — kho được phép nhập mã vận đơn (RTM-WBIMPORT-WH). */
+export const beImportWarehousesSchema = z.array(
+  z.object({ warehouseId: z.string(), code: z.string().nullish(), name: z.string() }),
+);
+export type ImportWarehouse = z.infer<typeof beImportWarehousesSchema>[number];

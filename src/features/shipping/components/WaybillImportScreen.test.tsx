@@ -24,6 +24,12 @@ import type { TestActor } from "../__fixtures__/render";
 const I = UI_LABELS.shipping.waybill.import;
 const IMPORT = FULFILLMENT_WAYBILL_IMPORT_PERMISSIONS;
 const TEMPLATE_URL = "/fulfillment/waybill-imports/template";
+const WAREHOUSES_URL = "/fulfillment/waybill-imports/warehouses";
+/** Kho BE cho phép chọn khi nhập (đã giới hạn theo kho được gán). */
+const IMPORT_WAREHOUSES = [
+  { warehouseId: "wh-hn", code: "HN", name: "Kho Hà Nội" },
+  { warehouseId: "wh-hcm", code: "HCM", name: "Kho TP.HCM" },
+];
 const PREVIEW_URL = "/fulfillment/waybill-imports/preview";
 const IMPORT_URL = "/fulfillment/waybill-imports";
 
@@ -88,7 +94,10 @@ function renderScreen(
   handlers: { preview?: Handler; import?: Handler; template?: Handler } = {},
 ) {
   const spies = mockShippingApi(actor, {
-    get: { [TEMPLATE_URL]: handlers.template ?? (() => new Blob(["h"], { type: "text/csv" })) },
+    get: {
+      [TEMPLATE_URL]: handlers.template ?? (() => new Blob(["h"], { type: "text/csv" })),
+      [WAREHOUSES_URL]: () => IMPORT_WAREHOUSES,
+    },
     post: {
       [PREVIEW_URL]: handlers.preview ?? (() => PREVIEW),
       [IMPORT_URL]: handlers.import ?? (() => RESULT),
