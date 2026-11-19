@@ -1,44 +1,30 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { ArrowLeft, FilePlus2, FileText, Pencil } from "lucide-react";
 
 import {
   ADMIN_ROUTES,
   CREDIT_PROFILE_PERMISSIONS,
   CUSTOMER_PERMISSIONS,
-  CUSTOMER_STATUS_BY_API,
-  QUOTE_PERMISSIONS,
   VARIANT_PERMISSIONS,
 } from "@/constants";
 import { useCan, usePermissionChecker } from "@/lib/auth";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
-import { formatDateTime } from "@/lib/format/date";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
-import {
-  canChangeCustomerStatus,
-  canResendInvitation,
-  canViewInvitation,
-} from "@/features/customer/lifecycle";
+import { canResendInvitation, canViewInvitation } from "@/features/customer/lifecycle";
 import { useCustomer } from "@/features/customer/queries";
 import { LoadErrorState } from "@/components/backoffice/LoadErrorState";
-import { Card } from "@/components/shared/Card";
-import { PageHeader } from "@/components/shared/PageHeader";
+import { DETAIL_GRID_CLASS } from "@/components/shared/DetailSection";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
-import { StatusDot } from "@/components/shared/StatusDot";
-import { Button } from "@/components/ui/button";
 
 import { CUSTOMER_COPY } from "./copy";
 import { CreditProfileCard } from "./detail/CreditProfileCard";
+import { CustomerActionCard } from "./detail/CustomerActionCard";
 import { CustomerEditDialog } from "./detail/CustomerEditDialog";
+import { CustomerGeneralSection } from "./detail/CustomerGeneralSection";
 import { CustomerSkusCard } from "./detail/CustomerSkusCard";
-import { CustomerStatusActions } from "./detail/CustomerStatusActions";
-import { InfoList } from "./detail/InfoList";
 import { InvitationCard } from "./detail/InvitationCard";
 import { StatusHistoryCard } from "./detail/StatusHistoryCard";
-
-const MONO = "font-[family-name:var(--font-mono)] tabular-nums";
 
 function CustomerDetailContent({ id }: { id: string }) {
   const canRead = useCan(CUSTOMER_PERMISSIONS.read);
@@ -62,89 +48,38 @@ function CustomerDetailContent({ id }: { id: string }) {
   if (query.isPending) return <PageSkeleton variant="detail" />;
 
   const customer = query.data;
-  const active = customer.status === "ACTIVE";
 
   return (
-    <>
-      <PageHeader
-        title={customer.fullName}
-        subtitle={customer.email}
-        actions={
-          <>
-            <Button asChild variant="outline" size="sm">
-              <Link href={ADMIN_ROUTES.customers.list}>
-                <ArrowLeft className="size-3.5" /> Danh sách
-              </Link>
-            </Button>
-            {can(CUSTOMER_PERMISSIONS.update) && (
-              <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
-                <Pencil className="size-3.5" /> Sửa
-              </Button>
-            )}
-            <CustomerStatusActions
-              customer={customer}
-              canChangeStatus={canChangeCustomerStatus(can)}
-            />
-            {active && can(QUOTE_PERMISSIONS.create) && (
-              <Button asChild size="sm">
-                <Link href={ADMIN_ROUTES.quotes.createForCustomer(customer.customerId)}>
-                  <FilePlus2 className="size-3.5" /> Tạo báo giá
-                </Link>
-              </Button>
-            )}
-          </>
-        }
-      />
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <Card className="space-y-3">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="text-ink-primary text-sm font-semibold">Hồ sơ</h2>
-            <StatusDot domain="customer" status={CUSTOMER_STATUS_BY_API[customer.status]} />
-          </div>
-          <InfoList
-            items={[
-              { label: "Email", value: <span className="break-all">{customer.email}</span> },
-              { label: "Điện thoại", value: <span className={MONO}>{customer.phone ?? "—"}</span> },
-              {
-                label: "Mã số thuế",
-                value: customer.taxCode ? (
-                  <span className={MONO}>{customer.taxCode}</span>
-                ) : (
-                  "Chưa có"
-                ),
-              },
-              { label: "Ngày tạo", value: formatDateTime(customer.createdAt) },
-            ]}
+    // Giao diện kiểu Vercel như trang chi tiết sản phẩm (globals.css `.surface-soft`). Không hiện tiêu đề —
+    // breadcrumb topbar đã có tên khách và link về danh sách; h1 giữ cho screen reader.
+    <div className="surface-soft surface-compact">
+      <h1 className="sr-only">{customer.fullName}</h1>
+      <div className={DETAIL_GRID_CLASS}>
+        <div className="min-w-0 space-y-5">
+          <CustomerGeneralSection customer={customer} />
+          <CreditProfileCard
+            customerId={customer.customerId}
+            canRead={can(CREDIT_PROFILE_PERMISSIONS.read)}
           />
-          <div className="border-border-default flex flex-wrap gap-2 border-t pt-3">
-            {can(QUOTE_PERMISSIONS.read) && (
-              <Button asChild variant="outline" size="sm">
-                <Link href={ADMIN_ROUTES.quotes.byCustomer(customer.customerId)}>
-                  <FileText className="size-3.5" /> Báo giá của khách
-                </Link>
-              </Button>
-            )}
-          </div>
-        </Card>
-        <InvitationCard
-          customerId={customer.customerId}
-          canRead={canViewInvitation(can)}
-          canResend={canResendInvitation(customer.status, can)}
-        />
-        <CreditProfileCard
-          customerId={customer.customerId}
-          canRead={can(CREDIT_PROFILE_PERMISSIONS.read)}
-        />
-        <StatusHistoryCard customerId={customer.customerId} />
-        <CustomerSkusCard
-          customerId={customer.customerId}
-          canRead={can(VARIANT_PERMISSIONS.read)}
-          canBlock={can(VARIANT_PERMISSIONS.update)}
-          canApprove={can(VARIANT_PERMISSIONS.approve)}
-        />
+          <CustomerSkusCard
+            customerId={customer.customerId}
+            canRead={can(VARIANT_PERMISSIONS.read)}
+            canBlock={can(VARIANT_PERMISSIONS.update)}
+            canApprove={can(VARIANT_PERMISSIONS.approve)}
+          />
+        </div>
+        <div className="space-y-5">
+          <CustomerActionCard customer={customer} can={can} onEdit={() => setEditOpen(true)} />
+          <InvitationCard
+            customerId={customer.customerId}
+            canRead={canViewInvitation(can)}
+            canResend={canResendInvitation(customer.status, can)}
+          />
+          <StatusHistoryCard customerId={customer.customerId} />
+        </div>
       </div>
       <CustomerEditDialog customer={customer} open={editOpen} onOpenChange={setEditOpen} />
-    </>
+    </div>
   );
 }
 
