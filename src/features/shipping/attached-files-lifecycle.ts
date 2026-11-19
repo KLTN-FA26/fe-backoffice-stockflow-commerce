@@ -14,8 +14,8 @@ import {
   FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS,
   FULFILLMENT_DISPATCH_PERMISSIONS,
   LOAD_STATUS,
-  PACK_SHIPMENT_STATUS,
 } from "@/constants";
+import { PACK_SHIPMENT_STATUS } from "@/constants/statuses";
 import { SHIPPING_FILE_LABELS } from "@/constants/shipping-files";
 
 import type { ShippingActor } from "./lifecycle";
