@@ -3,7 +3,11 @@
  * thái + quyền. UI-only — BE kiểm lại mọi thao tác (409 / 403).
  */
 
-import { EINVOICE_PERMISSIONS, ERROR_NOTICE_PROVIDERS } from "@/constants/einvoice";
+import {
+  EINVOICE_PERMISSIONS,
+  ERROR_NOTICE_PROVIDERS,
+  SYSTEM_CORRECTION_BASES,
+} from "@/constants/einvoice";
 
 import type { EInvoiceStatusRead } from "@/constants/einvoice";
 import type { PermissionCode } from "@/lib/auth";
@@ -41,8 +45,19 @@ export type EInvoiceAction =
 
 type Gate = Pick<
   EInvoice,
-  "status" | "type" | "warnings" | "agreementRequired" | "adjusted" | "hasFiles" | "provider"
+  | "status"
+  | "type"
+  | "warnings"
+  | "agreementRequired"
+  | "adjusted"
+  | "hasFiles"
+  | "provider"
+  | "correctionBasis"
 >;
+
+/** Chứng từ hệ thống tự lập (điều chỉnh giảm toàn bộ khi giao bị sửa thành thất bại, WF-05 HĐ-3). */
+export const isSystemDrawn = (invoice: Pick<EInvoice, "correctionBasis">): boolean =>
+  invoice.correctionBasis != null && SYSTEM_CORRECTION_BASES.includes(invoice.correctionBasis);
 
 /** NCC của hoá đơn gửi được 04/SS-HĐĐT không (BE `sendsErrorNotices`; NCC khác → luôn 409). */
 export const sendsErrorNotices = (provider: string | null | undefined): boolean =>
@@ -59,12 +74,16 @@ export function allowedEInvoiceActions(
   const P = EINVOICE_PERMISSIONS;
   const actions: EInvoiceAction[] = [];
   const unknownToProvider = invoice.warnings.includes("UNKNOWN_TO_PROVIDER");
+  const systemDrawn = isSystemDrawn(invoice);
   switch (invoice.status) {
     case "DRAFT":
       if (can(P.update)) actions.push("revise", "refreshBuyer");
-      if (can(P.update) && invoice.agreementRequired) actions.push("attachAgreement");
+      // TT 91 Điều 10 khoản 1 điểm b: ERROR bắt buộc; DELIVERY_FAILED nhận văn bản chứng minh (tuỳ chọn)
+      if (can(P.update) && (invoice.agreementRequired || systemDrawn))
+        actions.push("attachAgreement");
       if (can(P.approve)) actions.push("issue");
-      if (can(P.update)) actions.push("void");
+      // BE `EInvoice.voidDraft`: nháp hệ thống lập (DELIVERY_FAILED) không huỷ tay — chỉ phát hành
+      if (can(P.update) && !systemDrawn) actions.push("void");
       break;
     case "SUBMITTING":
       // docs 21 BR-05: chưa xác nhận được kết quả thì không gửi lại — chỉ tra lại;

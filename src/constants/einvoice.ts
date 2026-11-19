@@ -102,6 +102,13 @@ export type CorrectionBasisRead = CorrectionBasis | EInvoiceUnknown;
 export const MANUAL_CORRECTION_BASES = ["ERROR", "RETURN", "TRADE_DISCOUNT"] as const;
 export type ManualCorrectionBasis = (typeof MANUAL_CORRECTION_BASES)[number];
 
+/**
+ * Căn cứ của chứng từ do hệ thống tự lập (BE `CorrectionBasis.systemOnly()`): không lập tay, không huỷ
+ * nháp tay (BE `EInvoice.voidDraft` → 409 `EINVOICE_CORRECTION_NOT_APPLICABLE`); văn bản chứng minh
+ * giao thất bại được gắn kèm nhưng không bắt buộc (`acceptsAgreement()`).
+ */
+export const SYSTEM_CORRECTION_BASES: readonly string[] = ["DELIVERY_FAILED"];
+
 /** BE `EInvoice.Warning` + `EARLIER_INVOICE_PENDING` (chi tiết). */
 export const EINVOICE_WARNINGS = [
   "BUYER_PROFILE_INCOMPLETE",

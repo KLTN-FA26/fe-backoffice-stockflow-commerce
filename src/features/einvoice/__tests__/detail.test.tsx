@@ -151,3 +151,23 @@ describe("EInvoiceDetail — issuing (docs 21 §4.2)", () => {
     }
   });
 });
+
+describe("EInvoiceDetail — system-drawn reduction of a failed delivery (WF-05 HĐ-3)", () => {
+  it("opens the DELIVERY_FAILED correction, labels its basis and offers no void", async () => {
+    mockEInvoiceApi(ACCOUNTANT_GRANTS, {
+      get: get(
+        detailJson({
+          type: "ADJUSTMENT",
+          originalEInvoiceId: "einv-0",
+          correctionBasis: "DELIVERY_FAILED",
+          correctionReason: "Lần giao bị sửa thành thất bại",
+        }),
+      ),
+    });
+    renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
+    expect(await screen.findByText(/Giao hàng thất bại/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Phát hành" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Gắn thoả thuận" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Huỷ nháp" })).not.toBeInTheDocument();
+  });
+});

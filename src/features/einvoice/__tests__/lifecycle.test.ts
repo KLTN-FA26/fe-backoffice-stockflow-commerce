@@ -29,6 +29,7 @@ const gate = (over: Partial<Parameters<typeof allowedEInvoiceActions>[0]> = {}) 
   adjusted: false,
   hasFiles: false,
   provider: "SANDBOX" as string | null,
+  correctionBasis: null as Parameters<typeof allowedEInvoiceActions>[0]["correctionBasis"],
   ...over,
 });
 
@@ -66,6 +67,19 @@ describe("allowedEInvoiceActions — three roles (docs 21 BR-02)", () => {
     expect(allowedEInvoiceActions(gate({ agreementRequired: true }), ACCOUNTANT)).toContain(
       "attachAgreement",
     );
+  });
+
+  it("HĐ-3: a system-drawn reduction (DELIVERY_FAILED) is never voided by hand; evidence optional", () => {
+    const system = gate({ type: "ADJUSTMENT", correctionBasis: "DELIVERY_FAILED" });
+    expect(allowedEInvoiceActions(system, ACCOUNTANT)).toEqual([
+      "revise",
+      "refreshBuyer",
+      "attachAgreement",
+      "issue",
+    ]);
+    const manual = gate({ type: "ADJUSTMENT", correctionBasis: "RETURN" });
+    expect(allowedEInvoiceActions(manual, ACCOUNTANT)).toContain("void");
+    expect(allowedEInvoiceActions(manual, ACCOUNTANT)).not.toContain("attachAgreement");
   });
 
   it("sales manager only reads: no mutating action on any status", () => {
