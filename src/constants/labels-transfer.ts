@@ -5,8 +5,6 @@
 
 import { TRANSFER_LIMITS } from "./numbers";
 
-import type { DeliveryMode, TransferReason } from "./statuses";
-
 export const TRANSFER_UI_LABELS = {
   pageTitle: "Chuyển kho liên kho",
   subtitle: "Lập lệnh chuyển hàng giữa các kho, duyệt, lấy hàng và xuất kho tại kho nguồn.",
@@ -150,20 +148,6 @@ export const TRANSFER_UI_LABELS = {
   searchPlaceholder: "Tìm theo số lệnh chuyển (TO-…)",
 } as const;
 
-/** BE `TransferDeliveryMode` (LP2-8). */
-export const TRANSFER_DELIVERY_MODE_LABELS: Record<DeliveryMode, string> = {
-  PARCEL: "Giao lẻ",
-  FULL_TRUCKLOAD: "Nguyên xe (FTL)",
-};
-
-export const TRANSFER_REASON_LABELS: Record<TransferReason, string> = {
-  REBALANCING: "Cân bằng tồn",
-  DEMAND: "Theo nhu cầu",
-  CAMPAIGN: "Chiến dịch",
-  OVERFLOW: "Kho đầy",
-  OTHER: "Khác",
-};
-
 export const TRANSFER_TOAST_MESSAGES = {
   created: "Đã tạo lệnh chuyển kho",
   updated: "Đã lưu lệnh chuyển kho",
@@ -175,62 +159,4 @@ export const TRANSFER_TOAST_MESSAGES = {
   pickingCancelled: "Đã dừng lấy hàng",
   dispatched: "Đã xuất kho — hàng đang vận chuyển",
   cancelled: "Đã huỷ lệnh chuyển kho",
-} as const;
-
-/** errorCode BE (common/error/ErrorCode.java) → câu tiếng Việt. BE trả detail tiếng Anh. */
-export const TRANSFER_ERROR_MESSAGES = {
-  INSUFFICIENT_STOCK: "Kho nguồn không đủ hàng khả dụng cho một số dòng.",
-  // Không khẳng định "đã tải lại": lần tải lại có thể thất bại (khi đó có thông báo riêng)
-  INVALID_TRANSFER_TRANSITION:
-    "Trạng thái lệnh đã thay đổi ở nơi khác — thao tác chưa được thực hiện.",
-  TRANSFER_SELF_APPROVAL: "Người gửi duyệt không được tự duyệt hoặc từ chối lệnh của mình.",
-  TRANSFER_ORDER_NOT_EDITABLE: "Chỉ sửa được lệnh ở trạng thái Nháp.",
-  OPTIMISTIC_LOCK: "Lệnh vừa được người khác sửa — thao tác chưa được lưu.",
-  // SCRUM-287 PR F9 (BE PR #164)
-  TRANSFER_DISPATCH_BY_LOAD_PLAN:
-    "Lệnh nguyên chuyến được xuất khi xe cuối cùng của kế hoạch xe bàn giao — không xuất kho thủ công.",
-  TRANSFER_GOODS_LEFT: "Hàng của lệnh đã rời kho nguồn trên xe nên không dừng lấy hàng được nữa.",
-  LOAD_PLAN_LOADING_STARTED:
-    "Một xe của kế hoạch xe đã bắt đầu xếp hàng nên chưa dừng lấy hàng được. Đợi xe xong hoặc dỡ hàng trước.",
-  // SCRUM-474 UNLOAD-DESIGN điểm 10: xe đang xếp → huỷ có kiểm soát kế hoạch trước, rồi mới dừng lấy hàng
-  TRANSFER_LOADING_IN_PROGRESS:
-    "Đang có xe của kế hoạch xe xếp hàng cho lệnh này — quản lý kho huỷ có kiểm soát kế hoạch xe trước (quét dỡ hết kiện xuống), rồi mới dừng lấy hàng.",
-  PACKAGE_UNLOAD_PENDING:
-    "Còn kiện của lệnh trên xe đã huỷ có kiểm soát — quét dỡ hết kiện xuống rồi mới dừng lấy hàng.",
-  TRANSFER_NOT_FULL_TRUCKLOAD: "Lệnh này giao lẻ nên không đóng gói để lập kế hoạch xe.",
-  TRANSFER_NOT_PACKED: "Lệnh chuyển kho chưa đóng gói xong để lập kế hoạch xe.",
-  WAREHOUSE_INACTIVE: "Kho nguồn hoặc kho đích đang ngừng hoạt động.",
-  WAREHOUSE_NOT_FOUND: "Không tìm thấy kho đã chọn.",
-  TRANSFER_ORDER_NOT_FOUND: "Không tìm thấy lệnh chuyển kho.",
-  OUT_OF_DATA_SCOPE: "Bạn không phụ trách kho liên quan đến lệnh này.",
-  VALIDATION_FAILED: "Dữ liệu chưa hợp lệ — kiểm tra lại các ô được đánh dấu.",
-  validationGeneral:
-    "Máy chủ từ chối dữ liệu của lệnh — kiểm tra lại kho nguồn / đích và các dòng.",
-  validationDispatch: "Máy chủ từ chối số lượng xuất — kiểm tra lại SL từng dòng.",
-  LOCK_TIMEOUT: "Tồn kho đang được thao tác ở nơi khác — đợi vài giây rồi thử lại.",
-  INVENTORY_POLICY_STOCK_CONFLICT:
-    "Tồn của SKU chưa khớp chính sách xuất (FIFO/FEFO) — liên hệ quản lý kho kiểm tra lại tồn.",
-  FORBIDDEN: "Bạn không có quyền thực hiện thao tác này.",
-  MALFORMED_REQUEST: "Yêu cầu gửi lên không hợp lệ — tải lại trang rồi thử lại.",
-  UNSUPPORTED_PARAMETER: "Tham số lọc không hợp lệ — bỏ bộ lọc rồi thử lại.",
-  generic: "Không thực hiện được thao tác với lệnh chuyển kho. Thử lại sau.",
-} as const;
-
-export const TRANSFER_FIELD_MESSAGES = {
-  fromRequired: "Chọn kho nguồn",
-  toRequired: "Chọn kho đích",
-  sameWarehouse: "Kho đích phải khác kho nguồn",
-  skuRequired: "Nhập SKU",
-  skuFormat: "SKU 1–64 ký tự gồm chữ, số, '.', '_', '-', bắt đầu bằng chữ hoặc số",
-  quantity: "SL là số nguyên từ 1",
-  quantityMax: "SL tối đa 1.000.000",
-  duplicateLine: "Trùng SKU và lô với dòng khác — gộp vào một dòng",
-  linesRequired: "Cần ít nhất một dòng hàng",
-  linesTooMany: "Tối đa 200 dòng",
-  tooLong: "Quá dài",
-  reasonRequired: "Nhập lý do",
-  shippedRange: "SL xuất từ 0 đến SL yêu cầu",
-  shippedTotal: "Phải xuất ít nhất 1 đơn vị",
-  notEnoughStock: "Kho nguồn không đủ — khả dụng",
-  notEnoughStockNoQty: "Kho nguồn không đủ hàng cho SKU này",
 } as const;

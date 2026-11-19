@@ -2,7 +2,7 @@ import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ADMIN_ROUTES, LOAD_PLAN_ERROR_MESSAGES as ERRORS, UI_LABELS } from "@/constants";
+import { LOAD_PLAN_ERROR_MESSAGES as ERRORS, UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 
 import { LAYOUT_PICKUP_KIT } from "../__fixtures__/layouts";
@@ -102,14 +102,15 @@ const calls = (spy: { mock: { calls: unknown[][] } }, url: string) =>
   spy.mock.calls.filter(([u]) => u === url);
 
 describe("LoadPlanDetail — kế hoạch nguồn TRANSFER (BE PR #164)", () => {
-  it("hiện nguồn 'Lệnh chuyển kho', số lệnh (liên kết sang lệnh) và kho đích thay cho lô giao", async () => {
+  it("hiện nguồn 'Lệnh chuyển kho', số lệnh và kho đích thay cho lô giao", async () => {
     renderDetail(ACTORS.viewOnly, transferPlanFixture());
     expect(await screen.findByText("LP-20261022-0001")).toBeInTheDocument();
     expect(screen.getByText(T.detail.source)).toBeInTheDocument();
     // Nguồn và nhãn ô "Lệnh chuyển kho" cùng chữ: một ô nguồn, một ô số lệnh
     expect(screen.getAllByText(UI_LABELS.loadPlan.source.TRANSFER)).toHaveLength(2);
-    const link = screen.getByRole("link", { name: TRANSFER_NUMBER });
-    expect(link).toHaveAttribute("href", ADMIN_ROUTES.transfers.detail(TRANSFER_ORDER_ID));
+    // Màn lệnh chuyển kho đã gỡ (module 10 bỏ 2026-11-05): số lệnh chỉ là chữ, không còn liên kết
+    expect(screen.getByText(TRANSFER_NUMBER)).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: TRANSFER_NUMBER })).not.toBeInTheDocument();
     expect(await screen.findByText("HCM · Kho TP.HCM")).toBeInTheDocument();
     // Không còn ô "Lô giao" của kế hoạch đơn khách
     expect(screen.queryByText(L.shipments)).not.toBeInTheDocument();

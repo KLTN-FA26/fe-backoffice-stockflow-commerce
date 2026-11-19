@@ -33,29 +33,6 @@ export const ADMIN_ROUTES = {
     byCustomer: (customerId: string) =>
       `${ADMIN_BASE}/quotes?customerId=${encodeURIComponent(customerId)}`,
   },
-  sampleRequests: {
-    create: `${ADMIN_BASE}/sample-requests/create`,
-    createForCustomer: (customerId: string) =>
-      `${ADMIN_BASE}/sample-requests/create?customerId=${encodeURIComponent(customerId)}`,
-    /** Làm mẫu cho một dòng báo giá (BE kiểm tra quote cùng khách + thiết kế + phôi). */
-    createFromQuoteLine: (q: {
-      quoteId: string;
-      customerId: string;
-      blankSku: string;
-      designSnapshotId: string;
-    }) => `${ADMIN_BASE}/sample-requests/create?${new URLSearchParams(q).toString()}`,
-    detail: (id: string) => `${ADMIN_BASE}/sample-requests/${id}`,
-    list: `${ADMIN_BASE}/sample-requests`,
-    byCustomer: (customerId: string) =>
-      `${ADMIN_BASE}/sample-requests?customerId=${encodeURIComponent(customerId)}`,
-  },
-  productionOrders: {
-    detail: (id: string) => `${ADMIN_BASE}/production-orders/${id}`,
-    list: `${ADMIN_BASE}/production-orders`,
-    bySalesOrder: (orderId: string) =>
-      `${ADMIN_BASE}/production-orders?salesOrderId=${encodeURIComponent(orderId)}`,
-  },
-  workshop: `${ADMIN_BASE}/workshop`,
   permissions: `${ADMIN_BASE}/permissions`,
   /** Quản lý tài khoản nhân viên — BE `UserManagementController` (PR #72, SCRUM-458). */
   users: {
@@ -92,8 +69,6 @@ export const ADMIN_ROUTES = {
   packing: {
     detail: (id: string) => `${ADMIN_BASE}/packing/${id}`,
     list: `${ADMIN_BASE}/packing`,
-    /** Trạm đóng gói của một lệnh chuyển kho nguyên chuyến (SCRUM-287 PR F9, BE `TransferPackController`). */
-    transfer: (transferId: string) => `${ADMIN_BASE}/packing/transfers/${transferId}`,
   },
   picking: {
     detail: (id: string) => `${ADMIN_BASE}/picking/${id}`,
@@ -114,12 +89,6 @@ export const ADMIN_ROUTES = {
   /** Thương hiệu & danh mục — BE `ProductTaxonomyController` (gate product-products). */
   taxonomy: {
     list: `${ADMIN_BASE}/taxonomy`,
-  },
-  transfers: {
-    create: `${ADMIN_BASE}/transfers/create`,
-    detail: (id: string) => `${ADMIN_BASE}/transfers/${id}`,
-    edit: (id: string) => `${ADMIN_BASE}/transfers/${id}/edit`,
-    list: `${ADMIN_BASE}/transfers`,
   },
   /** Lô giao chờ xuất / đã giao (BE `ShipmentController`, PR #137). */
   shipments: {
@@ -182,10 +151,6 @@ export const PORTAL_ROUTES = {
   home: PORTAL_BASE,
   /** Trang kích hoạt từ email mời — BE `PORTAL_ACTIVATION_URL`, token nằm ở `#token=`. */
   activate: `${PORTAL_BASE}/activate`,
-  samples: {
-    list: `${PORTAL_BASE}/samples`,
-    detail: (id: string) => `${PORTAL_BASE}/samples/${id}`,
-  },
   orders: {
     list: `${PORTAL_BASE}/orders`,
     detail: (id: string) => `${PORTAL_BASE}/orders/${id}`,

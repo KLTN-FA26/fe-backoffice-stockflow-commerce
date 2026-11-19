@@ -1,7 +1,4 @@
-import Link from "next/link";
-
 import {
-  ADMIN_ROUTES,
   LOAD_PLAN_MODE_LABELS,
   LOAD_PLAN_STATUS_LABELS,
   UI_LABELS,
@@ -80,16 +77,7 @@ export function PlanHeaderCard({
           <>
             <Field label={T.source}>{UI_LABELS.loadPlan.source.TRANSFER}</Field>
             <Field label={T.transferOrder}>
-              {transferOrder ? (
-                <Link
-                  href={ADMIN_ROUTES.transfers.detail(transferOrder.transferOrderId)}
-                  className="text-accent font-mono hover:underline"
-                >
-                  {transferOrder.number}
-                </Link>
-              ) : (
-                "—"
-              )}
+              {transferOrder ? <span className="font-mono">{transferOrder.number}</span> : "—"}
             </Field>
             <Field label={T.destination}>{destinationLabel ?? "—"}</Field>
           </>

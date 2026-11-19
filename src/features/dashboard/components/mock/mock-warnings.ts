@@ -13,7 +13,6 @@ import {
   pickTasks,
   putawayTasks,
   shipments,
-  transferOrders,
   moveTasks,
   type MoveTask,
   type PackingTask,
@@ -21,7 +20,6 @@ import {
   type PutawayTask,
   type Shipment,
   type StatusDomain,
-  type TransferOrder,
 } from "@/lib/mock-data";
 
 export interface WarningItem {
@@ -83,22 +81,6 @@ export function collectWarningItems(): WarningItem[] {
         description: sh.trackingEvents[sh.trackingEvents.length - 1]?.note || "Ngoại lệ vận chuyển",
         date: sh.createdAt.split("T")[0]!,
         href: "/admin/shipments",
-      }),
-    );
-
-  // Transfer: Partially Received
-  transferOrders
-    .filter((to: TransferOrder) => to.status === "Partially Received")
-    .forEach((to: TransferOrder) =>
-      items.push({
-        id: to.transferOrderId,
-        document: to.toNumber,
-        module: "Chuyển kho",
-        status: to.status,
-        domain: "to",
-        description: to.reason,
-        date: to.createdAt.split("T")[0]!,
-        href: "/admin/transfers",
       }),
     );
 

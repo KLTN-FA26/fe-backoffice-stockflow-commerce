@@ -14,8 +14,6 @@ import {
   atpInput,
   reservationListInput,
   reservationPageDto,
-  stockAlertListInput,
-  stockAlertPageDto,
   stockLevelsDto,
   stockLevelsInput,
   warehouseStockItemPageDto,
@@ -30,7 +28,6 @@ import type {
   MovementListParams,
   RejectAdjustmentInput,
   ReservationListParams,
-  StockAlertListParams,
   StockLevelsParams,
   WarehouseStockItemsParams,
 } from "./types";
@@ -116,12 +113,5 @@ export function listReservations(params: ReservationListParams, signal?: AbortSi
   return inventoryRequest(
     { url: INVENTORY_API.reservations, params: reservationListInput.parse(params), signal },
     reservationPageDto,
-  );
-}
-
-export function listStockAlerts(params: StockAlertListParams, signal?: AbortSignal) {
-  return inventoryRequest(
-    { url: INVENTORY_API.alerts, params: stockAlertListInput.parse(params), signal },
-    stockAlertPageDto,
   );
 }

@@ -51,10 +51,6 @@ export const RESERVATION_RELEASE_REASONS = [
   "RESERVATION_EXPIRED",
   "MANUAL_OVERRIDE",
 ] as const;
-// StockAlert.Kind / Status and the StockAlertsImpl SORT whitelist.
-export const STOCK_ALERT_KINDS = ["REORDER", "SAFETY", "EXPIRING", "EXPIRED"] as const;
-export const STOCK_ALERT_STATUSES = ["OPEN", "ACKNOWLEDGED", "RESOLVED"] as const;
-export const STOCK_ALERT_SORT_FIELDS = ["openedAt", "kind", "sku"] as const;
 export const INVENTORY_SORT_DIRECTIONS = ["asc", "desc"] as const;
 
 // BE `StockAdjustmentReason` — mọi giá trị một phiếu có thể mang (đọc). EXPIRED, SCRAP, SAMPLE, SUBCONTRACT_LOSS
@@ -302,20 +298,6 @@ export const INVENTORY_LABELS = {
   noAlertsDescription:
     "Tồn kho và hạn dùng đang trong ngưỡng cấu hình, trong phạm vi bạn được xem.",
 } as const;
-
-// StockAlert.Kind: REORDER/SAFETY là tồn thấp theo SKU, EXPIRING/EXPIRED là hạn dùng theo lô.
-export const STOCK_ALERT_KIND_LABELS = {
-  REORDER: "Cần đặt hàng lại",
-  SAFETY: "Dưới tồn an toàn",
-  EXPIRING: "Sắp hết hạn",
-  EXPIRED: "Đã quá hạn",
-} as const satisfies Record<(typeof STOCK_ALERT_KINDS)[number], string>;
-
-export const STOCK_ALERT_STATUS_LABELS = {
-  OPEN: "Đang mở",
-  ACKNOWLEDGED: "Đã ghi nhận",
-  RESOLVED: "Đã đóng",
-} as const satisfies Record<(typeof STOCK_ALERT_STATUSES)[number], string>;
 
 export const STOCK_MOVEMENT_LABELS = {
   RECEIPT: "Nhập hàng",
