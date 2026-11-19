@@ -14,6 +14,9 @@ import type { PermissionCode } from "@/lib/auth/me-permissions";
 import type { PrintConfigDto } from "../types";
 
 const TEXT = PRINT_CONFIG_SCREEN_LABELS.status;
+// The action buttons of the page band, beside the save: the page's action size.
+const ACTION_CLASS =
+  "h-(--action-h) rounded-(--action-radius) px-(--action-px) text-[0.8125rem] font-medium";
 type StatusAction = "activate" | "deactivate";
 
 /**
@@ -57,7 +60,7 @@ export function PrintConfigStatusActions({
     );
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
+    <div className="flex max-w-64 flex-col items-end gap-1.5">
       {actions.map((action) => (
         <Button
           key={action.code}
@@ -65,15 +68,16 @@ export function PrintConfigStatusActions({
           variant="outline"
           size="sm"
           onClick={() => setAsking(action.code)}
+          className={ACTION_CLASS}
         >
           {action.label}
         </Button>
       ))}
       {actions.some((action) => action.code === "activate") && (
-        <p className="text-ink-tertiary text-xs">{TEXT.activateNote}</p>
+        <p className="text-ink-tertiary text-right text-xs">{TEXT.activateNote}</p>
       )}
       {activateBlocked && (
-        <p role="status" className="text-ink-secondary text-xs">
+        <p role="status" className="text-ink-secondary text-right text-xs">
           {TEXT.activateBlocked[fileState.kind]}
         </p>
       )}

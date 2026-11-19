@@ -20,10 +20,12 @@ import { plantTemplate } from "../mock-backend-test-utils";
 import { BAG_BODY } from "../test-fixtures";
 import {
   cupTree,
+  DEFAULTS_TOGGLE,
   EMPTY_VARIANT,
   glbFile,
   loaderOf,
   renderSection,
+  REPLACE_FILE,
 } from "./print-config-test-utils";
 
 vi.setConfig({ testTimeout: 60_000 });
@@ -43,7 +45,7 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 async function setSeam(user: ReturnType<typeof userEvent.setup>, seam: string) {
-  await user.click(await screen.findByRole("button", { name: /Nâng cao/ }));
+  await user.click(await screen.findByRole("button", DEFAULTS_TOGGLE));
   const field = screen.getByLabelText("Mép dán (mm)");
   await user.clear(field);
   await user.type(field, seam);
@@ -87,7 +89,7 @@ describe("a template written before files were required (no file)", () => {
       const user = userEvent.setup();
       renderSection(EMPTY_VARIANT);
       expect(await screen.findByText("Cấu hình cũ chưa có file 3D")).toBeInTheDocument();
-      await user.click(await screen.findByRole("button", { name: /Nâng cao/ }));
+      await user.click(await screen.findByRole("button", DEFAULTS_TOGGLE));
       const margin = screen.getByLabelText("Lề an toàn (mm)");
       await user.clear(margin);
       await user.type(margin, "6");
@@ -167,7 +169,7 @@ describe("a template with a file whose area ↔ mesh table the BE refuses", () =
     const user = userEvent.setup({ applyAccept: true });
     renderSection({ ...EMPTY_VARIANT, loadModel: loaderOf(cupTree()) });
     await screen.findByText("File 3D đang lưu không khớp các vùng in");
-    await user.upload(screen.getByLabelText(/Chọn hoặc kéo thả file/), glbFile("fixed.glb"));
+    await user.upload(screen.getByLabelText(REPLACE_FILE), glbFile("fixed.glb"));
     await screen.findByText("Nhận ra: Ly");
     await user.click(screen.getByRole("button", { name: SAVE.name }));
     await waitFor(() => expect(put).toHaveBeenCalledTimes(1));
@@ -186,7 +188,7 @@ describe("a stored file that is not the measured one", () => {
     const user = userEvent.setup({ applyAccept: true });
     renderSection({ loadModel: loaderOf(cupTree()) });
     await screen.findByRole("table", { name: "Số đo lấy từ file 3D" });
-    await user.upload(screen.getByLabelText(/Chọn hoặc kéo thả file/), glbFile("new.glb"));
+    await user.upload(screen.getByLabelText(REPLACE_FILE), glbFile("new.glb"));
     await screen.findByText("Nhận ra: Ly");
     const readsBefore = get.mock.calls.length;
     await user.click(screen.getByRole("button", { name: SAVE.name }));
