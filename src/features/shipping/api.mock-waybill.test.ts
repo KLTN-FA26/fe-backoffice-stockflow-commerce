@@ -302,7 +302,7 @@ describe("mock kho được chọn khi nhập file (RTM-WBIMPORT-WH)", () => {
     actAs(STAFF);
     const res = await call("GET", `${IMPORTS}/warehouses`);
     expect(res.status).toBe(200);
-    const warehouses = beImportWarehousesSchema.parse((res.data as { data: unknown }).data);
+    const warehouses = beImportWarehousesSchema.parse(res.data);
     expect(warehouses.length).toBeGreaterThan(0);
     expect(warehouses.every((w) => w.warehouseId && w.name)).toBe(true);
 
