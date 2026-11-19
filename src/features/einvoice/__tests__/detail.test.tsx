@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "@/lib/api/error";
+import { formatDateTime } from "@/lib/format/date";
 
 import {
   ACCOUNTANT_GRANTS,
@@ -109,7 +110,7 @@ describe("EInvoiceDetail — issuing (docs 21 §4.2)", () => {
     mockEInvoiceApi(ACCOUNTANT_GRANTS, { get: get(detailJson({ status: "SUBMITTING" })) });
     renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
     expect(await screen.findByText(/Đang chờ nhà cung cấp trả kết quả/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Tra lại" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Kiểm tra lại" })).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Gửi lại như giao dịch mới" }),
     ).not.toBeInTheDocument();
@@ -146,7 +147,7 @@ describe("EInvoiceDetail — issuing (docs 21 §4.2)", () => {
     renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
     expect(await screen.findByRole("button", { name: /Tải PDF/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Tải XML/ })).toBeInTheDocument();
-    for (const name of ["Phát hành", "Huỷ nháp", "Sửa nháp", "Tra lại"]) {
+    for (const name of ["Phát hành", "Huỷ nháp", "Sửa nháp", "Kiểm tra lại"]) {
       expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
     }
   });
@@ -169,6 +170,28 @@ describe("EInvoiceDetail — system-drawn reduction of a failed delivery (WF-05 
     expect(screen.getByRole("button", { name: "Phát hành" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Gắn thoả thuận" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Huỷ nháp" })).not.toBeInTheDocument();
+  });
+
+  it("shows when the invoice's delivery was corrected to a failure (deliveryFailedAt), only when BE sends it", async () => {
+    mockEInvoiceApi(ACCOUNTANT_GRANTS, {
+      get: get(
+        detailJson({
+          status: "ISSUED",
+          issuedAt: "2026-11-08T03:00:00Z",
+          deliveryFailedAt: "2026-11-09T07:00:00Z",
+        }),
+      ),
+    });
+    renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
+    expect(await screen.findByText("Giao thất bại lúc")).toBeInTheDocument();
+    expect(screen.getByText(formatDateTime("2026-11-09T07:00:00Z"))).toBeInTheDocument();
+  });
+
+  it("no failed-delivery row on an invoice never marked", async () => {
+    mockEInvoiceApi(ACCOUNTANT_GRANTS, { get: get(detailJson()) });
+    renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
+    expect(await screen.findByText("Ly giấy 8oz in logo")).toBeInTheDocument();
+    expect(screen.queryByText("Giao thất bại lúc")).not.toBeInTheDocument();
   });
 });
 
@@ -217,12 +240,23 @@ describe("EInvoiceDetail — withdrawing an invoice stuck at the provider (BE H�
     expect(await within(dialog).findByText(/Chưa rút được hoá đơn/)).toBeInTheDocument();
   });
 
-  it("not offered while the last send is recent", async () => {
+  it("offered right after sending too — the time rule is BE's, refused with a fixed Vietnamese reason", async () => {
     mockEInvoiceApi(ACCOUNTANT_GRANTS, {
       get: get({ ...stuck, submittedAt: new Date().toISOString() }),
+      post: {
+        "/einvoices/einv-1/withdrawal": () => {
+          throw new ApiError(409, "EINVOICE_WITHDRAWAL_REFUSED", "sent too recently");
+        },
+      },
     });
     renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
-    expect(await screen.findByRole("button", { name: "Tra lại" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Rút hoá đơn" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Kiểm tra lại" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Rút hoá đơn" }));
+    const dialog = screen.getByRole("dialog");
+    await userEvent.type(within(dialog).getByRole("textbox"), "Đã kiểm tra");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Rút hoá đơn" }));
+    expect(await within(dialog).findByText(/3 giờ sau lần gửi cuối/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/Kiểm tra lại/)).toBeInTheDocument();
+    expect(within(dialog).queryByText(/sent too recently/)).not.toBeInTheDocument();
   });
 });

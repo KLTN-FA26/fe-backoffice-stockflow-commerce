@@ -20,8 +20,6 @@ import {
   useVoidDraft,
   useWithdrawEInvoice,
 } from "../mutations";
-import { useProviderCalls } from "../queries";
-import { lastSentAt } from "../selectors";
 
 import { AgreementDialog } from "./AgreementDialog";
 import { CorrectionDialog } from "./CorrectionDialog";
@@ -43,22 +41,13 @@ const A = EINVOICE_LABELS.actions;
  */
 export function EInvoiceActions({
   invoice,
-  readAt,
   extra,
 }: {
   invoice: EInvoice;
-  /** Lúc đọc hoá đơn (`dataUpdatedAt`, ms) — mốc "bây giờ" của gate theo thời gian (rút hoá đơn). */
-  readAt?: number;
   extra?: (action: EInvoiceAction) => ReactNode;
 }) {
   const can = usePermissionChecker();
-  // Nhật ký gọi NCC dùng chung cache với ProviderCallsCard — chỉ cần khi đang chờ NCC (mốc rút hoá đơn)
-  const calls = useProviderCalls(invoice.status === "SUBMITTING" ? invoice.id : null);
-  const actions = allowedEInvoiceActions(
-    invoice,
-    can,
-    readAt === undefined ? undefined : { now: readAt, lastSentAt: lastSentAt(invoice, calls.data) },
-  );
+  const actions = allowedEInvoiceActions(invoice, can);
   const [confirming, setConfirming] = useState<Confirmable | null>(null);
   const [revising, setRevising] = useState(false);
   const [correcting, setCorrecting] = useState<"adjust" | "replace" | null>(null);

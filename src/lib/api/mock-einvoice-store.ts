@@ -54,10 +54,12 @@ export interface MockEInvoice {
   voidedAt: string | null;
   voidReason: string | null;
   version: number;
-  correctionBasis: "ERROR" | "RETURN" | "TRADE_DISCOUNT" | null;
+  correctionBasis: "ERROR" | "RETURN" | "TRADE_DISCOUNT" | "DELIVERY_FAILED" | null;
   correctionReason: string | null;
   agreement: { number: string; date: string } | null;
   returnRequestId: string | null;
+  /** WF-05 HĐ-3: lần giao của hoá đơn bị sửa thành thất bại lúc nào (BE `deliveryFailedAt`); null khi chưa bị đánh dấu. */
+  deliveryFailedAt: string | null;
 }
 
 export interface MockErrorNotice {
@@ -174,6 +176,7 @@ function invoice(
     correctionReason: null,
     agreement: null,
     returnRequestId: null,
+    deliveryFailedAt: null,
     ...over,
   };
 }
@@ -267,6 +270,32 @@ export function resetEInvoiceMockStore(): void {
       status: "VOIDED_DRAFT",
       voidedAt: "2026-11-09T05:00:00Z",
       voidReason: "Kết quả giao sửa thành giao không thành công",
+    }),
+    // Đã phát hành rồi lần giao bị sửa thành thất bại → hệ thống lập điều chỉnh giảm toàn bộ (WF-05 HĐ-3)
+    invoice({
+      id: "EINV-0011",
+      orderId: "ORD-2026-0018",
+      status: "ISSUED",
+      adjusted: true,
+      deliveryFailedAt: "2026-11-09T07:00:00Z",
+      ...issued(35),
+    }),
+    invoice({
+      id: "EINV-0012",
+      orderId: "ORD-2026-0018",
+      type: "ADJUSTMENT",
+      status: "DRAFT",
+      originalEInvoiceId: "EINV-0011",
+      correctionBasis: "DELIVERY_FAILED",
+      correctionReason: "Lần giao bị sửa thành giao không thành công",
+      issueDate: "2026-11-09",
+      issueDueAt: "2099-11-10T16:59:59Z",
+      lines: [
+        {
+          ...goods(1, "CUP-PAPER-8OZ-WHT", "Ly giấy 8oz in logo", 20, 1000, 780),
+          quantity: -20000,
+        },
+      ],
     }),
   ];
   notices = [];
