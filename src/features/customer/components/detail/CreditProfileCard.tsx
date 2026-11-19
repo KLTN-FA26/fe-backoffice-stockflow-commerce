@@ -1,11 +1,11 @@
 "use client";
 
+import { Wallet } from "lucide-react";
+
 import { formatMoney } from "@/lib/format/money";
 import { useCreditProfile } from "@/features/customer/queries";
-import { Card } from "@/components/shared/Card";
+import { DetailSection, InfoRow } from "@/components/shared/DetailSection";
 import { Skeleton } from "@/components/shared/Skeleton";
-
-import { InfoList } from "./InfoList";
 
 import type { CreditProfile } from "@/features/customer/types";
 
@@ -46,8 +46,7 @@ export function CreditProfileCard({
 }) {
   const profile = useCreditProfile(customerId, canRead);
   return (
-    <Card className="space-y-3">
-      <h2 className="text-ink-primary text-sm font-semibold">Hạn mức & kỳ hạn công nợ</h2>
+    <DetailSection title="Hạn mức & kỳ hạn công nợ" icon={Wallet}>
       {!canRead && (
         <p className="text-ink-tertiary text-[0.8125rem]">Bạn chưa có quyền xem hạn mức công nợ.</p>
       )}
@@ -60,7 +59,15 @@ export function CreditProfileCard({
           </button>
         </p>
       )}
-      {profile.data && <InfoList items={rowsOf(profile.data)} />}
-    </Card>
+      {profile.data && (
+        <div className="divide-y divide-(--table-line)">
+          {rowsOf(profile.data).map((row) => (
+            <InfoRow key={row.label} label={row.label}>
+              {row.value}
+            </InfoRow>
+          ))}
+        </div>
+      )}
+    </DetailSection>
   );
 }

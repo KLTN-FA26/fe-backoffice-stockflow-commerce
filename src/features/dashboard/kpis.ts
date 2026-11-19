@@ -1,4 +1,4 @@
-import { ArrowRightLeft, ClipboardList, PackageCheck, Receipt, ShoppingCart } from "lucide-react";
+import { ClipboardList, PackageCheck, Receipt } from "lucide-react";
 
 import { ADMIN_ROUTES } from "@/constants";
 import {
@@ -7,16 +7,12 @@ import {
   DASHBOARD_ORDER_PENDING_FILTER,
   DASHBOARD_ORDER_PENDING_STATUSES,
   DASHBOARD_PICK_OPEN_STATUSES,
-  DASHBOARD_PO_PENDING_STATUSES,
   DASHBOARD_RECEIPT_PROCESSING_STATUSES,
-  DASHBOARD_TRANSFER_IN_TRANSIT_STATUSES,
 } from "@/constants/dashboard";
 import {
   FULFILLMENT_PICK_PERMISSIONS,
   GOODS_RECEIPT_PERMISSIONS,
   ORDER_PERMISSIONS,
-  PO_PERMISSIONS,
-  TRANSFER_PERMISSIONS,
 } from "@/constants/permissions";
 
 import type { LucideIcon } from "lucide-react";
@@ -59,19 +55,6 @@ export const KPI_DEFINITIONS: readonly KpiDefinition[] = [
     href: orderListHref(DASHBOARD_ORDER_PENDING_FILTER),
   },
   {
-    key: "purchase-orders",
-    tone: "warning",
-    label: DASHBOARD_LABELS.poPending,
-    icon: ShoppingCart,
-    permission: PO_PERMISSIONS.read,
-    source: {
-      path: DASHBOARD_API.purchaseOrders,
-      statuses: DASHBOARD_PO_PENDING_STATUSES,
-      repeatStatus: true,
-    },
-    href: ADMIN_ROUTES.purchaseOrders.list,
-  },
-  {
     key: "receipts",
     tone: "positive",
     label: DASHBOARD_LABELS.receiptsProcessing,
@@ -96,18 +79,5 @@ export const KPI_DEFINITIONS: readonly KpiDefinition[] = [
       repeatStatus: false,
     },
     href: ADMIN_ROUTES.picking.list,
-  },
-  {
-    key: "transfers",
-    tone: "info",
-    label: DASHBOARD_LABELS.transfersInTransit,
-    icon: ArrowRightLeft,
-    permission: TRANSFER_PERMISSIONS.read,
-    source: {
-      path: DASHBOARD_API.transfers,
-      statuses: DASHBOARD_TRANSFER_IN_TRANSIT_STATUSES,
-      repeatStatus: true,
-    },
-    href: ADMIN_ROUTES.transfers.list,
   },
 ];

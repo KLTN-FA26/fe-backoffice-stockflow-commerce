@@ -1,5 +1,7 @@
 "use client";
 
+import { FileText, ScrollText } from "lucide-react";
+
 import {
   ADMIN_ROUTES,
   QUOTE_PERMISSIONS,
@@ -14,7 +16,7 @@ import { useQuote } from "@/features/quote/queries";
 import { isExpired } from "@/features/quote/selectors";
 import { CustomerName } from "@/components/backoffice/CustomerName";
 import { LoadErrorState } from "@/components/backoffice/LoadErrorState";
-import { Card } from "@/components/shared/Card";
+import { DETAIL_CARD_CLASS, DetailSection, InfoRow } from "@/components/shared/DetailSection";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { StatusDot } from "@/components/shared/StatusDot";
 
@@ -25,59 +27,39 @@ import { QuoteNotices } from "./detail/QuoteNotices";
 import { QuoteLinesTable } from "./detail/QuoteLinesTable";
 import { QuoteStaffActions } from "./detail/QuoteStaffActions";
 
-import type { ReactNode } from "react";
 import type { Quote } from "@/features/quote/types";
 
+/** "Thông tin chung" — trang chi tiết không có tiêu đề, nên số báo giá là dòng đầu của mục này. */
 function General({ quote }: { quote: Quote }) {
   const expired = quote.status === "SENT" && isExpired(quote.validUntil);
-  const rows: [string, ReactNode][] = [
-    [
-      "Số báo giá",
-      <span key="n" className={MONO}>
-        {quote.quoteNumber}
-      </span>,
-    ],
-    [
-      "Bản sửa số",
-      <span key="r" className={MONO}>
-        {quote.revision}
-      </span>,
-    ],
-    ["Khách hàng", <CustomerName key="c" id={quote.customerId} />],
-    [
-      "Hiệu lực đến",
-      <span key="v" className={expired ? "text-danger" : undefined}>
-        {formatDate(quote.validUntil)}
-        {expired ? " — Hết hiệu lực" : ""}
-      </span>,
-    ],
-    [
-      "Ngày giao yêu cầu",
-      quote.requestedDeliveryDate ? formatDate(quote.requestedDeliveryDate) : "—",
-    ],
-    ["Tạo lúc", formatDateTime(quote.createdAt)],
-    ...(quote.sentAt ? [["Gửi khách", formatDateTime(quote.sentAt)] as [string, ReactNode]] : []),
-    ...(quote.respondedAt
-      ? [["Khách phản hồi", formatDateTime(quote.respondedAt)] as [string, ReactNode]]
-      : []),
-  ];
   return (
-    <Card className="space-y-3">
-      <h2 className="text-ink-primary text-sm font-semibold">Thông tin chung</h2>
-      <dl className="grid grid-cols-[minmax(140px,auto)_1fr] gap-x-4 gap-y-2 text-[0.8125rem]">
-        {rows.map(([label, value]) => (
-          <div key={label} className="contents">
-            <dt className="text-ink-tertiary">{label}</dt>
-            <dd className="text-ink-primary min-w-0 break-words">{value}</dd>
-          </div>
-        ))}
-      </dl>
-      {quote.terms && (
-        <p className="text-ink-secondary border-border-default border-t pt-3 text-[0.8125rem] whitespace-pre-line">
-          {quote.terms}
-        </p>
-      )}
-    </Card>
+    <DetailSection title="Thông tin chung" icon={FileText}>
+      <div className="divide-y divide-(--table-line)">
+        <InfoRow label="Số báo giá">
+          <span className={`text-accent font-medium ${MONO}`}>{quote.quoteNumber}</span>
+        </InfoRow>
+        <InfoRow label="Bản sửa số">
+          <span className={MONO}>{quote.revision}</span>
+        </InfoRow>
+        <InfoRow label="Khách hàng">
+          <CustomerName id={quote.customerId} />
+        </InfoRow>
+        <InfoRow label="Hiệu lực đến">
+          <span className={expired ? "text-danger" : undefined}>
+            {formatDate(quote.validUntil)}
+            {expired ? " — Hết hiệu lực" : ""}
+          </span>
+        </InfoRow>
+        <InfoRow label="Ngày giao yêu cầu">
+          {quote.requestedDeliveryDate ? formatDate(quote.requestedDeliveryDate) : "—"}
+        </InfoRow>
+        <InfoRow label="Tạo lúc">{formatDateTime(quote.createdAt)}</InfoRow>
+        {quote.sentAt && <InfoRow label="Gửi khách">{formatDateTime(quote.sentAt)}</InfoRow>}
+        {quote.respondedAt && (
+          <InfoRow label="Khách phản hồi">{formatDateTime(quote.respondedAt)}</InfoRow>
+        )}
+      </div>
+    </DetailSection>
   );
 }
 
@@ -100,27 +82,38 @@ function QuoteDetailContent({ id }: { id: string }) {
   const quote = query.data;
 
   return (
+    // Giao diện kiểu Vercel như trang chi tiết sản phẩm (globals.css `.surface-soft`). Không hiện tiêu đề —
+    // breadcrumb topbar đã có số báo giá; h1 giữ cho screen reader. Lưới tách hai cột từ `xl` (không như sản phẩm
+    // từ `lg`) vì bảng dòng báo giá rộng ~960px.
     <div className="surface-soft surface-compact">
       <h1 className="sr-only">Báo giá {quote.quoteNumber}</h1>
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 space-y-5">
           <QuoteNotices quote={quote} />
           <General quote={quote} />
+          {quote.terms && (
+            <DetailSection title="Điều khoản" icon={ScrollText}>
+              <p className="text-ink-secondary text-[0.8125rem] leading-relaxed whitespace-pre-line">
+                {quote.terms}
+              </p>
+            </DetailSection>
+          )}
           <QuoteLinesTable lines={quote.lines} />
           <QuoteFeesTotals quote={quote} />
         </div>
         <div className="space-y-5">
-          <Card className="space-y-3">
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="text-ink-primary text-sm font-semibold">Trạng thái</h2>
+          {/* Trạng thái + hành động — cùng bố cục thẻ hành động trang chi tiết sản phẩm */}
+          <section className={DETAIL_CARD_CLASS}>
+            <div className="mb-4 flex justify-center">
               <StatusDot
                 domain="order"
                 status={QUOTE_STATUS_BY_API[quote.status]}
                 label={QUOTE_STATUS_LABELS[quote.status]}
+                size="md"
               />
             </div>
             <QuoteStaffActions quote={quote} />
-          </Card>
+          </section>
           <QuoteHistory history={quote.history} />
         </div>
       </div>

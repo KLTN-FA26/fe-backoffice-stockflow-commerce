@@ -63,7 +63,7 @@ function EInvoiceDetailContent({
             <ArrowLeft className="size-3.5" /> {EINVOICE_LABELS.list.pageTitle}
           </Link>
         </Button>
-        <EInvoiceActions invoice={invoice} extra={extra?.(invoice)} />
+        <EInvoiceActions invoice={invoice} readAt={query.dataUpdatedAt} extra={extra?.(invoice)} />
       </div>
       {invoice.status === "SUBMITTING" && !invoice.warnings.includes("UNKNOWN_TO_PROVIDER") && (
         <p role="status" className="text-ink-secondary text-[0.8125rem]">
@@ -75,7 +75,9 @@ function EInvoiceDetailContent({
       {(invoice.status === "ISSUED" || invoice.status === "REPLACED") && (
         <CorrectionsCard id={invoice.id} />
       )}
-      {invoice.status === "ISSUED" && <ErrorNoticesCard id={invoice.id} />}
+      {invoice.status === "ISSUED" && (
+        <ErrorNoticesCard id={invoice.id} provider={invoice.provider} />
+      )}
       {sections?.(invoice)}
       <ProviderCallsCard id={invoice.id} />
     </div>

@@ -9,6 +9,7 @@ import { RETURN_LABELS, RETURN_REASON_LABELS } from "@/constants/labels-return";
 import {
   RETURN_LATE_ORDER_STATUSES,
   RETURN_LIMITS,
+  RETURN_OPENABLE_IN_DELIVERY_ORDER_STATUSES,
   RETURN_OPENABLE_ORDER_STATUSES,
   RETURN_ROUTES,
   RMA_PERMISSIONS,
@@ -18,12 +19,12 @@ import { Card } from "@/components/shared/Card";
 import { Button } from "@/components/ui/button";
 
 import { getReturn } from "../api";
-import { isReturnOpen } from "../lifecycle";
 import { returnKeys, useOrderReturns } from "../queries";
-import { openCaps, windowClosed } from "../selectors";
 
 import { OpenReturnDialog } from "./OpenReturnDialog";
 import { CodeLink, ReturnStatusDot, When } from "./primitives";
+
+import type { OpenReturnShipment } from "./OpenReturnShipmentField";
 
 const L = RETURN_LABELS.orderCard;
 
@@ -34,10 +35,20 @@ export interface OrderReturnsCardProps {
   status: string;
   deliveredAt: string | null;
   lines: { lineId: string; sku: string; deliveredQuantity: number; customPrinted: boolean }[];
+  /** Lô đã giao (WF-05 TH-1); vắng / rỗng = đơn giao không qua lô. */
+  shipments?: OpenReturnShipment[];
+  /** Hạn đổi / trả của hợp đồng; null = mặc định (BE `policyOf`). */
+  returnWindowDays?: number | null;
 }
 
-const openable = (status: string) =>
-  (RETURN_OPENABLE_ORDER_STATUSES as readonly string[]).includes(status);
+/**
+ * Mở được yêu cầu (BE `ReturnRequest.requireReturnable`): đơn đã giao / đang trả / hoàn tất / đã hoàn tiền; hoặc các lô
+ * sau còn đang giao mà đã có ít nhất một lô giao xong (WF-05 TH-1).
+ */
+const openable = (status: string, deliveredShipments: number) =>
+  (RETURN_OPENABLE_ORDER_STATUSES as readonly string[]).includes(status) ||
+  (deliveredShipments > 0 &&
+    (RETURN_OPENABLE_IN_DELIVERY_ORDER_STATUSES as readonly string[]).includes(status));
 
 /**
  * Thẻ "Trả hàng" trên màn đơn: các yêu cầu của đơn và nút Sale mở thay khách (docs 17 §4.10 bước 37). Không hiện với
@@ -57,13 +68,11 @@ export function OrderReturnsCard(props: OrderReturnsCardProps) {
       enabled: opening,
     })),
   });
-  if (!canRead || (!openable(props.status) && rows.length === 0)) return null;
+  const shipments = props.shipments ?? [];
+  const canOpen = openable(props.status, shipments.length);
+  if (!canRead || (!canOpen && rows.length === 0)) return null;
 
   const loaded = details.flatMap((detail) => (detail.data ? [detail.data] : []));
-  const caps = openCaps(props.lines, loaded, isReturnOpen);
-  const late =
-    (RETURN_LATE_ORDER_STATUSES as readonly string[]).includes(props.status) ||
-    windowClosed(props.deliveredAt, RETURN_LIMITS.windowDays, new Date());
   const ready = details.every((detail) => !detail.isPending);
 
   return (
@@ -79,7 +88,7 @@ export function OrderReturnsCard(props: OrderReturnsCardProps) {
               {L.viewAll}
             </Link>
           )}
-          {canCreate && openable(props.status) && (
+          {canCreate && canOpen && (
             <Button size="sm" variant="outline" onClick={() => setOpening(true)}>
               <Plus className="size-3.5" /> {RETURN_LABELS.actions.openForCustomer}
             </Button>
@@ -111,13 +120,12 @@ export function OrderReturnsCard(props: OrderReturnsCardProps) {
         open={opening && ready}
         orderId={props.orderId}
         orderNumber={props.orderNumber}
-        late={late}
-        lines={props.lines.map((line) => ({
-          lineId: line.lineId,
-          sku: line.sku,
-          customPrinted: line.customPrinted,
-          cap: caps.get(line.lineId) ?? line.deliveredQuantity,
-        }))}
+        orderLines={props.lines}
+        returns={loaded}
+        shipments={shipments}
+        windowDays={props.returnWindowDays ?? RETURN_LIMITS.windowDays}
+        orderDeliveredAt={props.deliveredAt}
+        lateByStatus={(RETURN_LATE_ORDER_STATUSES as readonly string[]).includes(props.status)}
         onClose={() => setOpening(false)}
       />
     </Card>

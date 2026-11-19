@@ -13,9 +13,11 @@ import type { Quote } from "@/features/quote/types";
 export function QuotePdfButton({
   quote,
   onError,
+  className,
 }: {
   quote: Pick<Quote, "id" | "quoteNumber">;
   onError: (error: unknown) => void;
+  className?: string;
 }) {
   const [downloading, setDownloading] = useState(false);
   const download = async () => {
@@ -29,7 +31,14 @@ export function QuotePdfButton({
     }
   };
   return (
-    <Button size="sm" variant="outline" disabled={downloading} onClick={() => void download()}>
+    <Button
+      type="button"
+      size="sm"
+      variant="outline"
+      disabled={downloading}
+      onClick={() => void download()}
+      className={className}
+    >
       {downloading ? (
         <LoaderCircle className="size-3.5 animate-spin" />
       ) : (

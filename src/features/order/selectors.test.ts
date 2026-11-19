@@ -115,27 +115,25 @@ describe("dòng đơn & lệnh sản xuất", () => {
     ).toBe(1);
   });
 
-  it("groupProductionOrdersByLine tách LSX gốc / con theo dòng (docs 19 BR-01, BR-12)", () => {
+  it("groupProductionOrdersByLine gom phần Đơn sản xuất theo dòng đơn, giữ thứ tự lập (docs 17 §4.3 bước 6)", () => {
     const base: ProductionOrder = {
       productionOrderId: "P1",
-      productionOrderNumber: "LSX-1",
-      salesOrderLineId: "L1",
-      parentId: null,
-      mode: "IN_HOUSE",
-      status: "PRINTING",
-      holdReason: null,
-      plannedQuantity: 10,
-      goodQuantity: 0,
-      dueDate: null,
+      code: "PRD-20261020-0001",
+      orderLineId: "L1",
+      status: "RECEIVED",
+      cartons: 10,
+      receivedCartons: 10,
+      needByDate: null,
+      expectedCompletionDate: null,
     };
     const grouped = groupProductionOrdersByLine([
       base,
-      { ...base, productionOrderId: "P1-S1", parentId: "P1", mode: "SUBCONTRACTED" },
-      { ...base, productionOrderId: "P2", salesOrderLineId: "L2" },
+      { ...base, productionOrderId: "P2", code: "PRD-20261020-0002", status: "SENT" },
+      { ...base, orderLineId: "L2" },
     ]);
-    expect(grouped.get("L1")?.parents.map((p) => p.productionOrderId)).toEqual(["P1"]);
-    expect(grouped.get("L1")?.children.map((p) => p.productionOrderId)).toEqual(["P1-S1"]);
-    expect(grouped.get("L2")?.parents).toHaveLength(1);
+    expect(grouped.get("L1")?.map((p) => p.productionOrderId)).toEqual(["P1", "P2"]);
+    expect(grouped.get("L2")).toHaveLength(1);
+    expect(grouped.get("L3")).toBeUndefined();
   });
 
   it("shouldFlagOrderRow — On Hold và Delivery Failed (ngoại lệ chờ nhân viên quyết)", () => {

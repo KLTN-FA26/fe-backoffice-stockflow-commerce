@@ -10,6 +10,7 @@ import { Card } from "@/components/shared/Card";
 import { Button } from "@/components/ui/button";
 
 import { einvoiceErrorMessage } from "../errors";
+import { sendsErrorNotices } from "../lifecycle";
 import { useSendErrorNotice } from "../mutations";
 import { useErrorNotices } from "../queries";
 
@@ -20,15 +21,17 @@ const STATUS: Record<ErrorNotice["status"], string> = {
   SENT: "Đã gửi, chờ cơ quan thuế",
   ACCEPTED: "Cơ quan thuế chấp nhận",
   REJECTED: "Cơ quan thuế từ chối",
+  UNKNOWN: "Không rõ",
 };
 
 /**
  * Thông báo sai sót của hoá đơn, cũ nhất trước, kèm phản hồi của cơ quan thuế. Thông báo chưa gửi /
- * đang chờ có nút gửi lại hoặc hỏi kết quả (BE `/error-notices/{id}/sending`).
+ * đang chờ có nút gửi lại hoặc hỏi kết quả (BE `/error-notices/{id}/sending`) — chỉ khi NCC của hoá
+ * đơn gửi được mẫu này (BE HĐ-6).
  */
-export function ErrorNoticesCard({ id }: { id: string }) {
+export function ErrorNoticesCard({ id, provider }: { id: string; provider?: string | null }) {
   const query = useErrorNotices(id);
-  const canSend = useCan(EINVOICE_PERMISSIONS.approve);
+  const canSend = useCan(EINVOICE_PERMISSIONS.approve) && sendsErrorNotices(provider);
   const send = useSendErrorNotice();
   const [error, setError] = useState<string | null>(null);
   const notices = query.data ?? [];

@@ -157,22 +157,16 @@ export function customLineCount(order: Pick<Order, "lines">): number {
   return order.lines.filter((line) => line.isCustom).length;
 }
 
-export interface LineProductionOrders {
-  /** LSX gốc của dòng (docs 19 BR-01: đúng 1). */
-  parents: ProductionOrder[];
-  /** LSX con tách gia công, theo `parentId` (docs 19 BR-12). */
-  children: ProductionOrder[];
-}
+/** Đơn sản xuất của một dòng đơn bán, theo thứ tự lập (mỗi đợt giao một Đơn sản xuất — docs 17 §4.3 bước 6). */
+export type LineProductionOrders = ProductionOrder[];
 
-/** Gom LSX theo dòng đơn: gốc (`parentId` null) và con gia công trỏ về gốc của dòng đó. */
+/** Gom phần Đơn sản xuất theo dòng đơn bán (`orderLineId`). */
 export function groupProductionOrdersByLine(
   productionOrders: readonly ProductionOrder[],
 ): Map<string, LineProductionOrders> {
   const byLine = new Map<string, LineProductionOrders>();
   for (const po of productionOrders) {
-    const entry = byLine.get(po.salesOrderLineId) ?? { parents: [], children: [] };
-    (po.parentId ? entry.children : entry.parents).push(po);
-    byLine.set(po.salesOrderLineId, entry);
+    byLine.set(po.orderLineId, [...(byLine.get(po.orderLineId) ?? []), po]);
   }
   return byLine;
 }
