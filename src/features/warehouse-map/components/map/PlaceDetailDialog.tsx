@@ -2,7 +2,7 @@
 
 import { Printer } from "lucide-react";
 
-import { AREA_TYPE_LABELS, LOCATION_STATUS, STORAGE_CLASS_LABELS, UI_LABELS } from "@/constants";
+import { AREA_TYPE_LABELS, LOCATION_STATUS, UI_LABELS } from "@/constants";
 import { formatNumber } from "@/lib/format";
 
 import { boxOf } from "@/features/warehouse-map/selectors";
@@ -79,12 +79,6 @@ export function PlaceDetailDialog({
             <Row label={P.zone}>
               {zones.find((zone) => zone.id === place.shelf.zoneId)?.name ?? P.noZone}
             </Row>
-            {/* BE không còn gửi lớp lưu trữ (kltn-docs 06, 2026-11-05) — chỉ hiện khi có */}
-            {place.shelf.defaultStorageClass && (
-              <Row label={P.storageClass}>
-                {STORAGE_CLASS_LABELS[place.shelf.defaultStorageClass]}
-              </Row>
-            )}
             <Row label={P.pickFaces}>
               {(["north", "east", "south", "west"] as const)
                 .filter((face) => place.shelf.pickFaces[face])
@@ -97,9 +91,6 @@ export function PlaceDetailDialog({
             <Row label={P.locationCode}>
               {place.area.locationCode ? mono(place.area.locationCode) : P.nonStorage}
             </Row>
-            {place.area.storageClass && (
-              <Row label={P.storageClass}>{STORAGE_CLASS_LABELS[place.area.storageClass]}</Row>
-            )}
           </>
         )}
       </dl>

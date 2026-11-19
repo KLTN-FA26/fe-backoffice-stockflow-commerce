@@ -80,17 +80,7 @@ export function AreaFields({
       />
       {storage && (
         <Section title={I.location}>
-          {/* Không còn chọn lớp lưu trữ: BE bỏ storage class khỏi domain kho (kltn-docs 06, 2026-11-05) */}
           <div className="grid grid-cols-2 gap-2">
-            <NumberField
-              id="area-capacity"
-              label={E.capacityUnits}
-              integer
-              optional
-              value={area.location.capacityUnits}
-              onCommit={(capacityUnits) => location({ capacityUnits })}
-              disabled={locks.identity}
-            />
             <NumberField
               id="area-weight"
               label={E.maxWeight}

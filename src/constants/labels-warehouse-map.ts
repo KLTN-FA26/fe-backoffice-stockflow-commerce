@@ -22,7 +22,6 @@ import type {
   BIN_TYPES,
   BOUNDARY_TYPES,
   DOOR_STATUSES,
-  STORAGE_CLASSES,
   WAREHOUSE_STATUSES,
 } from "./statuses";
 
@@ -43,14 +42,6 @@ export const AREA_TYPE_LABELS: Record<(typeof AREA_TYPES)[number], string> = {
   OVERFLOW: "Khu tràn",
   PRODUCTION: "Xưởng in",
   NON_STORAGE: "Không chứa hàng",
-};
-
-export const STORAGE_CLASS_LABELS: Record<(typeof STORAGE_CLASSES)[number], string> = {
-  NORMAL: "Thường",
-  COLD: "Lạnh",
-  HAZMAT: "Nguy hiểm",
-  FRAGILE: "Dễ vỡ",
-  OVERSIZE: "Quá khổ",
 };
 
 export const BIN_TYPE_LABELS: Record<(typeof BIN_TYPES)[number], string> = {
@@ -222,7 +213,6 @@ export const WAREHOUSE_MAP_UI_LABELS = {
     name: "Tên",
     zone: "Zone",
     noZone: "Không thuộc zone",
-    storageClass: "Lớp lưu trữ",
     status: "Trạng thái",
     effectiveStatus: "Trạng thái hiệu lực",
     footprint: "Vị trí · kích thước",
@@ -269,7 +259,6 @@ export const WAREHOUSE_MAP_UI_LABELS = {
     rotation: "Góc xoay",
     obstacle: "Là vật cản khi tìm đường",
     pickFaces: "Mặt lấy hàng",
-    defaultStorageClass: "Lớp lưu trữ mặc định",
     levelCount: "Số tầng",
     levelHeight: "Chiều cao mỗi tầng (m)",
     generateBins: "Tự sinh bin (BR-14)",
@@ -277,7 +266,6 @@ export const WAREHOUSE_MAP_UI_LABELS = {
     columnCount: "Số cột",
     namingScheme: "Kiểu đặt mã",
     binType: "Loại ô",
-    capacityUnits: "Sức chứa (đơn vị)",
     maxWeight: "Tải trọng tối đa (kg)",
     pickable: "Cho phép lấy hàng",
     putawayTarget: "Cho phép cất hàng",

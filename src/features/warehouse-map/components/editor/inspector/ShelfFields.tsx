@@ -22,8 +22,7 @@ const FACES = ["north", "east", "south", "west"] as const;
 const NO_ZONE = "none";
 
 /**
- * Thông số kệ: mã (chỉ khi chưa lưu, BR-13), tên, zone, vị trí, mặt lấy hàng, tầng & bin. Không còn lớp lưu trữ —
- * BE bỏ storage class khỏi domain kho (kltn-docs 06, 2026-11-05).
+ * Thông số kệ: mã (chỉ khi chưa lưu, BR-13), tên, zone, vị trí, mặt lấy hàng, tầng & bin.
  */
 export function ShelfFields({
   shelf,

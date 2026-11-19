@@ -11,7 +11,6 @@ const ITEMS = ["AAA-1", "BBB-2", "CCC-3"].map((sku, i) => ({
   id: `0b6f6a8e-0000-4000-8000-00000000000${i}`,
   sku,
   unitOfMeasure: "EACH",
-  storageClass: "NORMAL",
   trackingMode: "NONE",
   policyConfigured: false,
 }));
