@@ -37,6 +37,11 @@ const POD = {
   uploadedAt: "2026-11-17T15:00:00Z",
 };
 const input = () => document.querySelector<HTMLInputElement>("input[type='file']");
+const fileInput = (): HTMLInputElement => {
+  const el = input();
+  if (!el) throw new Error("Không có ô chọn file");
+  return el;
+};
 
 function renderCard(actor: TestActor, status: ShipmentRow["status"], files: unknown[] = [POD]) {
   const spies = mockShippingApi(actor, { get: { [`${PATH}/pod-files`]: () => files } });
@@ -99,7 +104,7 @@ describe("ShipmentPodFiles — gate quyền và trạng thái", () => {
         : POD,
     }));
     await screen.findByText(L.pod.empty);
-    await user.upload(input()!, new File(["png"], "bien-ban-ky.png", { type: "image/png" }));
+    await user.upload(fileInput(), new File(["png"], "bien-ban-ky.png", { type: "image/png" }));
     expect(await screen.findByText(L.common.uploaded("bien-ban-ky.png"))).toBeInTheDocument();
     expect(spies.post).toHaveBeenCalledWith(
       `${PATH}/pod-files/uploads`,

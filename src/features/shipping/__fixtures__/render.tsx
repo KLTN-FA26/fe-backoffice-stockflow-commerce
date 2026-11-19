@@ -148,7 +148,6 @@ export function mockShippingApi(actor: TestActor, routes: ApiRoutes = {}) {
         return { data: { roles: ["TEST"], permissions: actor.permissions, dataScope: "ALL" } };
       }
       if (url === "/warehouses") return { data: WAREHOUSES };
-      // File đính kèm (file vận đơn, POD): mặc định chưa có file nào — màn không đọc thì test không phải mock
       if (/\/(waybill|pod)-files$/.test(url) && !routes.get?.[url]) return { data: [] };
       if (url === "/fulfillment/carriers" && !routes.get?.[url]) {
         return { data: bePage(CARRIERS) };
