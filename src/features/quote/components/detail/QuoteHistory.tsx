@@ -1,15 +1,17 @@
+import { History } from "lucide-react";
+
 import { formatDateTime } from "@/lib/format/date";
-import { Card } from "@/components/shared/Card";
+import { DETAIL_CARD_CLASS, DetailCardTitle } from "@/components/shared/DetailSection";
 
 import { quoteStatusLabel } from "../copy";
 
 import type { QuoteTransition } from "@/features/quote/types";
 
-/** Lịch sử chuyển trạng thái thật từ BE (không cho thêm / sửa mốc bằng tay). */
+/** Lịch sử chuyển trạng thái thật từ BE (thẻ cột phải; không cho thêm / sửa mốc bằng tay). */
 export function QuoteHistory({ history }: { history: QuoteTransition[] }) {
   return (
-    <Card className="space-y-3">
-      <h2 className="text-ink-primary text-sm font-semibold">Lịch sử</h2>
+    <section className={`${DETAIL_CARD_CLASS} space-y-3`}>
+      <DetailCardTitle icon={History}>Lịch sử</DetailCardTitle>
       {history.length === 0 ? (
         <p className="text-ink-tertiary text-[0.8125rem]">Chưa có lịch sử.</p>
       ) : (
@@ -34,6 +36,6 @@ export function QuoteHistory({ history }: { history: QuoteTransition[] }) {
           ))}
         </ol>
       )}
-    </Card>
+    </section>
   );
 }

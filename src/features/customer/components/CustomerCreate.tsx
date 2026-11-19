@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, LoaderCircle } from "lucide-react";
+import { LoaderCircle } from "lucide-react";
 
 import { ADMIN_ROUTES, CUSTOMER_PERMISSIONS } from "@/constants";
 
@@ -17,10 +17,10 @@ import { customerErrorMessage } from "@/features/customer/errors";
 import { useCreateCustomer } from "@/features/customer/mutations";
 import { customerCreateInputSchema } from "@/features/customer/schemas";
 
+import { FORM_BAR_ACTION_CLASS, FormBottomBar } from "@/components/backoffice/FormBottomBar";
 import { Card } from "@/components/shared/Card";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { FORM_INPUT_CLASS, FormField, fieldA11y } from "@/components/shared/FormField";
-import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -74,17 +74,11 @@ function CustomerCreateForm() {
   const cancel = () => (isDirty ? setLeaveOpen(true) : router.push(ADMIN_ROUTES.customers.list));
 
   return (
-    <>
-      <PageHeader
-        title="Tạo khách hàng doanh nghiệp"
-        subtitle="Tạo hồ sơ khách và gửi email mời kích hoạt portal. Khách chưa đăng nhập được tới khi tự đặt mật khẩu."
-        actions={
-          <Button variant="outline" size="sm" onClick={cancel}>
-            <ArrowLeft className="size-3.5" /> Quay lại danh sách
-          </Button>
-        }
-      />
-      <form onSubmit={handleSubmit(onSubmit)} noValidate className="max-w-3xl space-y-4">
+    // Giao diện kiểu Vercel như form sản phẩm (globals.css `.surface-soft`). Không hiện tiêu đề / nút quay lại —
+    // breadcrumb topbar đã có tên trang và link về danh sách; h1 giữ cho screen reader.
+    <div className="surface-soft surface-compact">
+      <h1 className="sr-only">Tạo khách hàng doanh nghiệp</h1>
+      <form onSubmit={handleSubmit(onSubmit)} noValidate className="max-w-3xl space-y-4 pb-24">
         {formError && (
           <div
             role="alert"
@@ -164,17 +158,29 @@ function CustomerCreateForm() {
 
         <PaymentTermSection register={register} errors={errors} paymentTerm={paymentTerm} />
 
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={cancel} disabled={create.isPending}>
+        <FormBottomBar note="Khách nhận email mời kích hoạt portal; chưa đăng nhập được tới khi tự đặt mật khẩu.">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={cancel}
+            disabled={create.isPending}
+            className={FORM_BAR_ACTION_CLASS.outline}
+          >
             Huỷ
           </Button>
-          <Button type="submit" disabled={create.isPending}>
+          <Button
+            type="submit"
+            size="sm"
+            disabled={create.isPending}
+            className={FORM_BAR_ACTION_CLASS.primary}
+          >
             {create.isPending && (
-              <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+              <LoaderCircle className="size-3.5 animate-spin" aria-hidden="true" />
             )}
             Tạo khách và gửi lời mời
           </Button>
-        </div>
+        </FormBottomBar>
       </form>
       <ConfirmDialog
         open={leaveOpen}
@@ -185,7 +191,7 @@ function CustomerCreateForm() {
         cancelLabel="Ở lại"
         onConfirm={() => router.push(ADMIN_ROUTES.customers.list)}
       />
-    </>
+    </div>
   );
 }
 

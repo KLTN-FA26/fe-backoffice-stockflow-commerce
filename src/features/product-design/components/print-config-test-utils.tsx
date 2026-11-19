@@ -1,6 +1,6 @@
 /** Helpers of the print-configuration screen tests: a render with providers, `.glb` files, and in-memory trees. */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { BufferAttribute, BufferGeometry, Group, Mesh } from "three";
@@ -16,6 +16,28 @@ import type { GlbLoader } from "./use-glb-reading";
 export const SEED = SEED_PRINT_CONFIG_VARIANT;
 /** A customizable variant with no configuration yet. */
 export const EMPTY_VARIANT = { productId: "PRD-001", variantId: "SKU-001-BLK-L" };
+
+/** The file input's name with no file chosen, for a new configuration and for a saved one. */
+export const NEW_FILE = "Chọn hoặc kéo thả file .glb";
+export const REPLACE_FILE = "Chọn file .glb khác để thay";
+/** The same input's name once a file is chosen (the row's "Đổi file" opens it). */
+export const CHANGE_FILE = "Đổi file .glb";
+/** The file input, whatever its look: present means the person may choose a file. */
+export const FILE_INPUT =
+  /^(Chọn hoặc kéo thả file \.glb|Chọn file \.glb khác để thay|Đổi file \.glb)$/;
+/** The title button of the defaults card (closed until opened). */
+export const DEFAULTS_TOGGLE = { name: "Số mặc định (cần xác nhận với nhà in)" };
+/** The page band: who the page is about, the configuration's status, activate / stop and the save. */
+export const STATUS_CARD = { name: "Biến thể và trạng thái cấu hình in" };
+export const CHOSEN_FILE = { name: "File đã chọn" };
+
+/**
+ * The status in the page band, once the configuration is loaded (waits for it to read `label`). The band is looked up
+ * again on each try: the loading band and the loaded one are different elements.
+ */
+export async function findStatus(label: string) {
+  return waitFor(() => within(screen.getByRole("region", STATUS_CARD)).getByText(label));
+}
 
 export const allowAll = (_: PermissionCode) => true;
 export const allowNone = (_: PermissionCode) => false;

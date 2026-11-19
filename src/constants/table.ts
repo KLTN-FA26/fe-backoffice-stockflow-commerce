@@ -6,22 +6,14 @@ export const PAGE_SIZE = {
   xl: 50,
 } as const;
 
-export const PO_COLUMNS = {
-  ACTIONS: "actions",
-  EXPECTED_DATE: "expectedDate",
-  GRAND_TOTAL: "grandTotal",
-  PO_NUMBER: "poNumber",
-  STATUS: "status",
-  SUPPLIER: "supplier",
-} as const;
-
 /** Cột danh sách phiếu nhận — chỉ field có trong BE `GoodsReceiptRowResponse` (PR #62). */
 export const RECEIPT_COLUMNS = {
   ACTIONS: "actions",
   CONFIRMED_AT: "confirmedAt",
   DELIVERY_NOTE: "deliveryNote",
   NUMBER: "number",
-  PURCHASE_ORDER: "purchaseOrder",
+  PRODUCTION_ORDER: "productionOrder",
+  RECEIPT_TYPE: "receiptType",
   RECEIVED_AT: "receivedAt",
   STATUS: "status",
 } as const;
@@ -87,20 +79,6 @@ export const VARIANT_COLUMNS = {
   NAME_EN: "nameEn",
   NAME_VI: "nameVi",
   VALUES: "values",
-} as const;
-
-/** Cột danh sách lệnh chuyển kho — field BE `TransferOrderRowResponse`. */
-export const TRANSFER_COLUMNS = {
-  ACTIONS: "actions",
-  CREATED_AT: "createdAt",
-  DELIVERY_MODE: "deliveryMode",
-  DISPATCHED_AT: "dispatchedAt",
-  EXPECTED_DATE: "expectedDate",
-  FROM_WAREHOUSE: "fromWarehouse",
-  NUMBER: "number",
-  PACKED_AT: "packedAt",
-  STATUS: "status",
-  TO_WAREHOUSE: "toWarehouse",
 } as const;
 
 /** Cột bảng hồ sơ hàng tồn (BE PR #119 `InventoryItemResponse`). */
@@ -187,8 +165,6 @@ export const LOAD_PLAN_COLUMNS = {
   MODE: "mode",
   PACKAGES: "packages",
   SHIPMENTS: "shipments",
-  /** Nguồn của kế hoạch: đơn khách hay lệnh chuyển kho (SCRUM-287 PR F9). */
-  SOURCE: "source",
   STATUS: "status",
   UNPLACED: "unplaced",
   VEHICLES: "vehicles",

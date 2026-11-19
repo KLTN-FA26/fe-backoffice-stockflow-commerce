@@ -136,7 +136,7 @@ describe("đăng ký route — mỗi METHOD + PATH đúng một chủ", () => {
     "GET /orders/credit-holds",
     "POST /orders/:id/credit-approval",
     "POST /orders/:id/credit-rejection",
-    "GET /production/orders",
+    "GET /production-orders",
     // Giao thất bại — hàng đợi + quyết định của Sale (`mock-routes-order-delivery-failures.ts`, WF-05 GH-1)
     "GET /orders/delivery-failures",
     "GET /orders/:id/delivery-failures",

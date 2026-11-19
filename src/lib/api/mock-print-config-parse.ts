@@ -13,6 +13,7 @@ import { blobBytes } from "@/lib/crypto/blob-bytes";
 import { printAreaCodeSchema } from "@/features/product-design/model3d/model-types";
 import { AREAS_OF, printModelSchema } from "@/features/product-design/schemas";
 
+import { bagFlapsFault, withBagFlaps } from "./mock-print-config-bag";
 import { bodyOf, fail, text, validationFailed } from "./mock-route-utils";
 
 import type { AxiosRequestConfig } from "axios";
@@ -97,11 +98,16 @@ export function checkRequest(
   return { code: text(b.code), version };
 }
 
-/** `CustomizationTemplateWebMapper.toModel`: a kind the BE does not know is 400 PRINT_CONFIG_INVALID. */
+/**
+ * `CustomizationTemplateWebMapper.toModel`: a kind the BE does not know is 400 PRINT_CONFIG_INVALID; a bag without a
+ * glue flap or bottom fold takes the defaults, one out of range is refused with its field (`requireBag`).
+ */
 export function modelOf(b: Record<string, unknown>): Model | MockResponseShape {
+  const fault = bagFlapsFault(record(b.model));
+  if (fault) return fault;
   const model = printModelSchema.safeParse(b.model);
   return model.success
-    ? model.data
+    ? withBagFlaps(model.data)
     : fail(400, "PRINT_CONFIG_INVALID", "The model kind is parametric-cup or parametric-bag");
 }
 

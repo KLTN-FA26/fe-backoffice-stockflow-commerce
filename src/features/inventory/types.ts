@@ -15,9 +15,6 @@ import type {
   reservationListInput,
   reservationPageDto,
   reservationRowDto,
-  stockAlertDto,
-  stockAlertListInput,
-  stockAlertPageDto,
   stockLevelDto,
   stockLevelsInput,
   warehouseStockItemDto,
@@ -41,10 +38,7 @@ export type WarehouseStockItem = z.infer<typeof warehouseStockItemDto>;
 export type WarehouseStockItemPage = z.infer<typeof warehouseStockItemPageDto>;
 export type StockReservation = z.infer<typeof reservationRowDto>;
 export type StockReservationPage = z.infer<typeof reservationPageDto>;
-export type StockAlert = z.infer<typeof stockAlertDto>;
-export type StockAlertPage = z.infer<typeof stockAlertPageDto>;
 export type StockLevelsParams = z.input<typeof stockLevelsInput>;
 export type WarehouseStockItemsParams = z.input<typeof warehouseStockItemsInput>;
 export type AtpParams = z.input<typeof atpInput>;
 export type ReservationListParams = z.input<typeof reservationListInput>;
-export type StockAlertListParams = z.input<typeof stockAlertListInput>;
