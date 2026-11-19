@@ -954,9 +954,9 @@ describe("OrderDetail — hồi quy tích hợp (credit hold / packed / UNKNOWN 
     expect(screen.queryByRole("button", { name: /Từ chối/ })).not.toBeInTheDocument();
   });
 
-  it("2. giữ công nợ thật (CREDIT + lý do CREDIT) → kế toán thấy Duyệt vượt hạn mức", async () => {
+  it("2. giữ công nợ thật (lý do CREDIT, BE không gửi paymentTerm — TT-1) → kế toán thấy Duyệt vượt hạn mức", async () => {
     await renderDetail(ACCOUNTANT_READING, () =>
-      apiOrderWith({ status: "ON_HOLD", paymentTerm: "CREDIT", holdReason: "CREDIT" }),
+      apiOrderWith({ status: "ON_HOLD", paymentTerm: undefined, holdReason: "CREDIT" }),
     );
     expect(await screen.findByRole("button", { name: /Duyệt vượt hạn mức/ })).toBeInTheDocument();
     // Không có quyền huỷ / giữ → không có nút nào khác

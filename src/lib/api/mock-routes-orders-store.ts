@@ -661,11 +661,11 @@ export function holdOf(
 }
 
 /**
- * Đơn đang chờ quyết định công nợ: BE `Order#requireCreditHold` (ON_HOLD + phương thức CREDIT) VÀ
- * `CreditHoldService#decide` (hồ sơ giữ có lý do CREDIT). Đơn công nợ bị giữ vì lý do khác KHÔNG phải.
+ * Đơn đang chờ quyết định công nợ: BE `Order#requireCreditHold` (ON_HOLD + lý do giữ CREDIT) VÀ
+ * `CreditHoldService#decide` (hồ sơ giữ có lý do CREDIT). Từ 4B-10 không còn xét phương thức thanh toán.
  */
 export function isCreditHold(order: Order): boolean {
-  return holdOf(order)?.reason === "CREDIT" && paymentTermOf(order) === "CREDIT";
+  return holdOf(order)?.reason === "CREDIT";
 }
 
 /**

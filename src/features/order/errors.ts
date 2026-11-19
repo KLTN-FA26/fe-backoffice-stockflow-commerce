@@ -11,6 +11,7 @@
  */
 
 import {
+  DELIVERY_FAILURE_ERROR_MESSAGES,
   ORDER_ACTION_LABELS,
   ORDER_ERROR_MESSAGES,
   ORDER_LIMITS,
@@ -102,6 +103,8 @@ export const ORDER_STALE_ERROR_CODES: readonly string[] = [
   "ORDER_CANCELLED",
   // Người khác đã duyệt / từ chối (hoặc đơn không còn giữ công nợ) — CreditHoldService#decide
   "ORDER_NOT_ON_CREDIT_HOLD",
+  // WF-05: đơn đã chuyển sang giữ vì giao thất bại — gỡ bằng quyết định hồ sơ, tải lại để thấy khối "Giao thất bại"
+  "ORDER_DELIVERY_FAILURE_USE_DECISION",
   // BE PR #150: đơn đã đi / đóng (hoặc đã tách vì hàng có sẵn đi trước hàng in) — tải lại để thấy trạng thái thật
   "ORDER_PARTIAL_SHIPMENT_LOCKED",
   // BE PR #157: hình thức giao đã khoá (kho bắt đầu đóng gói / đơn qua đóng gói) — tải lại để thấy trạng thái thật
@@ -406,6 +409,13 @@ function isOrderErrorCode(code: string): code is keyof typeof ORDER_ERROR_MESSAG
   return Object.hasOwn(ORDER_ERROR_MESSAGES, code);
 }
 
+/** Mã lỗi giao thất bại / sửa kết quả giao (WF-05) — bảng riêng `DELIVERY_FAILURE_ERROR_MESSAGES`. */
+export function isDeliveryFailureErrorCode(
+  code: string,
+): code is keyof typeof DELIVERY_FAILURE_ERROR_MESSAGES {
+  return Object.hasOwn(DELIVERY_FAILURE_ERROR_MESSAGES, code);
+}
+
 /**
  * Message cho lỗi của bốn thao tác trạng thái đơn. Mã `ORDER_*` tra bảng `ORDER_ERROR_MESSAGES`
  * (riêng ORDER_BALANCE_NOT_PAID khi gỡ giữ: BE `resumeFromHold` — giữ vì thanh toán gỡ bằng tiền);
@@ -427,6 +437,10 @@ export function orderActionErrorView(
   }
   if (isOrderErrorCode(error.code)) {
     return { title, detail: ORDER_ERROR_MESSAGES[error.code], traceId };
+  }
+  // WF-05: gỡ giữ đơn giữ vì giao thất bại (ORDER_DELIVERY_FAILURE_USE_DECISION) và các mã giao thất bại khác
+  if (isDeliveryFailureErrorCode(error.code)) {
+    return { title, detail: DELIVERY_FAILURE_ERROR_MESSAGES[error.code], traceId };
   }
   if (error.code === "VALIDATION_FAILED") {
     // BE trả fieldErrors tiếng Anh ("reasonCode is required"…) — không hiện thẳng.
