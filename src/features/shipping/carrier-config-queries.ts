@@ -5,19 +5,22 @@
 
 import { useQuery } from "@tanstack/react-query";
 
+import { QUERY_TIMES } from "@/lib/api/query-client";
+
 import {
   listCarrierServices,
   listPickupPoints,
   listServiceCodes,
   listVehicleTypeOptions,
 } from "./carrier-config-api";
-import { QUERY_TIMES } from "@/lib/api/query-client";
-
 import { carrierKeys } from "./queries";
 
 export const carrierConfigKeys = {
   serviceCodes: (carrierId: string) => [...carrierKeys.all, "service-codes", carrierId] as const,
   pickupPoints: (carrierId: string) => [...carrierKeys.all, "pickup-points", carrierId] as const,
+  services: (carrierId: string, cityId: string) =>
+    [...carrierKeys.all, "services", carrierId, cityId] as const,
+  vehicleTypeOptions: () => [...carrierKeys.all, "vehicle-type-options"] as const,
 };
 
 const FRESH_ON_OPEN = {
@@ -57,7 +60,7 @@ export function useCarrierServices(
   enabled: boolean,
 ) {
   return useQuery({
-    queryKey: [...carrierKeys.all, "services", carrierId ?? "", cityId] as const,
+    queryKey: carrierConfigKeys.services(carrierId ?? "", cityId),
     queryFn: ({ signal }) => listCarrierServices(carrierId ?? "", cityId, signal),
     enabled: enabled && !!carrierId && cityId !== "",
     staleTime: 0,
@@ -70,7 +73,7 @@ export function useCarrierServices(
 /** Loại xe cho ô chọn của bảng mã dịch vụ (danh mục hiếm đổi). */
 export function useVehicleTypeOptions(enabled: boolean) {
   return useQuery({
-    queryKey: [...carrierKeys.all, "vehicle-type-options"] as const,
+    queryKey: carrierConfigKeys.vehicleTypeOptions(),
     queryFn: ({ signal }) => listVehicleTypeOptions(signal),
     enabled,
     ...QUERY_TIMES.master,

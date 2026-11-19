@@ -49,19 +49,21 @@ export type ServiceCodeRecord = z.infer<typeof beServiceCodeSchema>;
 export type PickupPointRecord = z.infer<typeof bePickupPointSchema>;
 export type ServiceOption = z.infer<typeof beServiceOptionSchema>;
 
-/** Thân `PUT /carriers/{id}/service-codes`. */
-export interface ServiceCodeBody {
-  vehicleTypeId: string;
-  provinceCode: string;
-  carrierCityCode: string;
-  serviceCode: string;
-}
+/** Thân `PUT /carriers/{id}/service-codes` (lớp Input). */
+export const serviceCodeBodySchema = z.object({
+  vehicleTypeId: z.string(),
+  provinceCode: z.string(),
+  carrierCityCode: z.string(),
+  serviceCode: z.string(),
+});
+export type ServiceCodeBody = z.infer<typeof serviceCodeBodySchema>;
 
-/** Thân `PUT /carriers/{id}/pickup-points`. */
-export interface PickupPointBody {
-  warehouseId: string;
-  provinceCode: string;
-  address: string;
-  contactName?: string;
-  contactPhone?: string;
-}
+/** Thân `PUT /carriers/{id}/pickup-points` (lớp Input). */
+export const pickupPointBodySchema = z.object({
+  warehouseId: z.string(),
+  provinceCode: z.string(),
+  address: z.string(),
+  contactName: z.string().optional(),
+  contactPhone: z.string().optional(),
+});
+export type PickupPointBody = z.infer<typeof pickupPointBodySchema>;
