@@ -71,6 +71,8 @@ export function toOrder(dto: OrderDto): Order {
       shippedQuantity: line.shippedQuantity ?? null,
       deliveredQuantity: line.deliveredQuantity ?? null,
       cancelledQuantity: line.cancelledQuantity ?? null,
+      cartons: line.cartons ?? null,
+      unitsPerCarton: line.unitsPerCarton ?? null,
     })),
     holdReason: dto.holdReason ?? null,
     holdReasonPublic: dto.holdReasonPublic ?? null,
