@@ -5,6 +5,8 @@ import { QUARANTINE_LIMITS } from "@/constants/quarantine";
 
 import { beUuid, requiredString } from "@/lib/validation/primitives";
 
+import { inventoryPageDto } from "./schemas";
+
 // Source: backend develop df34c338 `StockPackageDetailResponse` (GET /inventory/stock-packages/{lpn}). `status` is
 // a String on the wire (RECEIVING, IN_STOCK, CONSUMED, LOST, VOID): read it open.
 export const stockPackageContentDto = z.object({
@@ -29,6 +31,37 @@ export const stockPackageDetailDto = z.object({
   goodsReceiptLineId: beUuid.nullish(),
   closedAt: z.iso.datetime().nullish(),
   contents: z.array(stockPackageContentDto).nullish(),
+});
+
+// Source: backend develop `StockPackageResponse` (GET /inventory/stock-packages, page by page). `status` is open
+// (RECEIVING, IN_STOCK, CONSUMED, LOST, VOID): an unknown value is shown verbatim, never breaks the list.
+export const stockPackageDto = z.object({
+  lpn: z.string(),
+  sku: z.string(),
+  unitOfMeasure: z.string().nullish(),
+  nominalQty: z.number().int().nonnegative(),
+  receivedQty: z.number().int().nonnegative().nullish(),
+  lotNumber: z.string().nullish(),
+  onHand: z.number().int().nonnegative(),
+  reserved: z.number().int().nonnegative(),
+  status: z.string(),
+  locationCode: z.string().nullish(),
+  goodsReceiptLineId: beUuid.nullish(),
+});
+
+export const stockPackagePageDto = inventoryPageDto(stockPackageDto);
+
+// Query of the list: one exact location code (the quarantine area), an optional SKU; zero-based page.
+export const stockPackageListInput = z.object({
+  location: z.string().trim().min(1).toUpperCase(),
+  sku: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .optional()
+    .transform((value) => value || undefined),
+  page: z.number().int().nonnegative(),
+  size: z.number().int().positive(),
 });
 
 // `PutawayTaskResponse` of `POST …/quarantine-release`: only what the screen shows.
