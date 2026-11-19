@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   INSTALLMENT_API_STATUSES,
+  INSTALLMENT_DISPLAY_STATUS_BY_API,
   INSTALLMENT_STATUS_BY_API,
   RECEIPT_API_STATUSES,
   RECEIPT_STATUS_BY_API,
@@ -10,11 +11,9 @@ import { statusLabelVi, toneOf } from "@/lib/status-map";
 
 describe("installment and receipt statuses render in the shared status map", () => {
   it("every installment status has a Vietnamese label and a deliberate tone", () => {
+    // Overdue là cờ hiển thị (không phải trạng thái BE) nhưng vẫn có tone riêng.
     const tones = Object.fromEntries(
-      INSTALLMENT_API_STATUSES.map((status) => [
-        INSTALLMENT_STATUS_BY_API[status],
-        toneOf(INSTALLMENT_STATUS_BY_API[status]),
-      ]),
+      Object.values(INSTALLMENT_DISPLAY_STATUS_BY_API).map((label) => [label, toneOf(label)]),
     );
     expect(tones).toEqual({
       "Not Due": "neutral",

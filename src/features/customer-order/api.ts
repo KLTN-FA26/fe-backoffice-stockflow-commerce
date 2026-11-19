@@ -31,14 +31,3 @@ export async function getMyOrder(id: string, signal?: AbortSignal): Promise<MyOr
   const { data } = await api.get<unknown>(`/orders/me/${encodeURIComponent(id)}`, { signal });
   return myOrderDetailDtoSchema.parse(data);
 }
-
-/**
- * Đặt lại (BE local d215f6e `POST /orders/{id}/reorder`): KHÔNG tạo đơn — tạo YÊU CẦU BÁO GIÁ mới
- * cho Sales theo giá hiện hành (P1 rút lại, R1/R1b: không dùng lại giá cũ / điều khoản đã thu hồi).
- * `requestId` cố định cho một lần bấm → bấm lặp không tạo hai yêu cầu.
- */
-export async function reorder(input: { orderId: string; requestId: string }): Promise<void> {
-  await api.post<unknown>(`/orders/${encodeURIComponent(input.orderId)}/reorder`, {
-    requestId: input.requestId,
-  });
-}

@@ -61,20 +61,21 @@ export const PAYMENT_ROUTES = {
 
 /* ── Trạng thái (docs 15 §5.1, §5.2, §5.3 — nguyên văn) ─────────────────────────────────── */
 
-/** BE `InstallmentStatus`; `Cancelled` bổ sung ngoài danh sách đã chốt (docs 15 §5.1, 2026-11-05). */
+/**
+ * BE `InstallmentStatus`; `Cancelled` bổ sung ngoài danh sách đã chốt (docs 15 §5.1, 2026-11-05). Quá hạn
+ * KHÔNG phải trạng thái: là cờ `overdue: boolean` của đợt (plan WF-02 F1).
+ */
 export const INSTALLMENT_API_STATUSES = [
   "NOT_DUE",
   "DUE",
   "PARTIALLY_PAID",
   "PAID",
-  "OVERDUE",
   "CANCELLED",
 ] as const;
 export type InstallmentApiStatus = (typeof INSTALLMENT_API_STATUSES)[number];
 /**
- * Trạng thái lọc được ở `GET /installments`. `OVERDUE` chỉ còn là hằng số lịch sử của BE: quá hạn là
- * CỜ `overdue` tính từ hạn trả khi đọc (WF-05 fix plan §8) — `status=OVERDUE` bị BE trả 400
- * `INSTALLMENT_OVERDUE_IS_A_FLAG`; lọc quá hạn bằng tham số `overdue=true`.
+ * Trạng thái lọc được ở `GET /installments`. Quá hạn là CỜ `overdue` tính từ hạn trả khi đọc (WF-05 fix
+ * plan §8) — `status=OVERDUE` bị BE trả 400 `INSTALLMENT_OVERDUE_IS_A_FLAG`; lọc quá hạn bằng `overdue=true`.
  */
 export const INSTALLMENT_FILTER_STATUSES = [
   "NOT_DUE",
@@ -88,9 +89,14 @@ export const INSTALLMENT_STATUS_BY_API = {
   DUE: "Due",
   PARTIALLY_PAID: "Partially Paid",
   PAID: "Paid",
-  OVERDUE: "Overdue",
   CANCELLED: "Cancelled",
 } as const satisfies Record<InstallmentApiStatus, string>;
+/** Trạng thái HIỂN THỊ: đợt còn nợ có cờ `overdue` hiện "Overdue" (chỉ để vẽ, không gửi lên BE). */
+export type InstallmentDisplayStatus = InstallmentApiStatus | "OVERDUE";
+export const INSTALLMENT_DISPLAY_STATUS_BY_API = {
+  ...INSTALLMENT_STATUS_BY_API,
+  OVERDUE: "Overdue",
+} as const satisfies Record<InstallmentDisplayStatus, string>;
 
 /**
  * Mốc của đợt — BE `InstallmentMilestone`. `CANCELLATION_FEE` không phải mốc của lịch: là khoản phí
@@ -111,7 +117,6 @@ export const INSTALLMENT_PAYABLE_STATUSES = [
   "NOT_DUE",
   "DUE",
   "PARTIALLY_PAID",
-  "OVERDUE",
 ] as const satisfies readonly InstallmentApiStatus[];
 
 /** Phiếu thu và ghi nhận hoàn (docs 15 §5.3): `Recorded` → `Voided`. */

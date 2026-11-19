@@ -47,11 +47,6 @@ export function PortalOrderList() {
           icon={<PackageOpen className="size-8" />}
           title="Chưa có đơn hàng"
           description="Đơn được tạo khi bạn chấp nhận báo giá và Sales xác nhận."
-          action={
-            <Button asChild variant="outline" className="min-h-11">
-              <Link href={PORTAL_ROUTES.quotes.list}>Xem báo giá</Link>
-            </Button>
-          }
         />
       ) : (
         <>

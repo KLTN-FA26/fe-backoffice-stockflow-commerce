@@ -2,23 +2,26 @@
 
 import Link from "next/link";
 import { Controller } from "react-hook-form";
-import { ArrowLeft, LoaderCircle, Plus } from "lucide-react";
+import { LoaderCircle, Plus } from "lucide-react";
 
-import { ADMIN_ROUTES, PAYMENT_TERM_LABELS } from "@/constants";
+import { ADMIN_ROUTES } from "@/constants";
+import { EMPTY_LINE } from "@/features/quote/form-body";
+import { useCustomerSkus } from "@/features/quote/queries";
 import { CustomerPicker } from "@/components/backoffice/CustomerPicker";
 import { Card } from "@/components/shared/Card";
 import { FORM_INPUT_CLASS, FormField, fieldA11y } from "@/components/shared/FormField";
-import { PageHeader } from "@/components/shared/PageHeader";
+import { Notice } from "@/components/shared/Notice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
+import { QuoteFeesEditor } from "./form/QuoteFeesEditor";
 import { QuoteLineEditor } from "./form/QuoteLineEditor";
-import { EMPTY_LINE, useQuoteForm } from "./form/useQuoteForm";
+import { useQuoteForm } from "./form/useQuoteForm";
 
-import type { Quote } from "@/features/quote/types";
+import type { CustomerSku, Quote } from "@/features/quote/types";
 
-/** Tạo / sửa báo giá nháp. Giá cuối cùng do BE tính; FE chỉ xem trước. */
+/** Tạo / sửa báo giá nháp theo thùng. Giá cuối cùng do BE tính; FE chỉ xem trước. */
 export function QuoteForm({
   quote,
   initialCustomerId,
@@ -29,34 +32,24 @@ export function QuoteForm({
   const q = useQuoteForm({ quote, initialCustomerId });
   const { form } = q;
   const { errors } = form.formState;
+  const skusQuery = useCustomerSkus(q.customerId || undefined);
+  // 14 BR-04: chỉ SKU riêng đang ACTIVE; giữ SKU đã có trên báo giá để không mất dòng khi sửa.
+  const onQuote = new Set(quote?.lines.map((line) => line.sku) ?? []);
+  const skus: CustomerSku[] = (skusQuery.data ?? []).filter(
+    (sku) => sku.status === "ACTIVE" || onQuote.has(sku.sku),
+  );
+  const perCarton = new Map(quote?.lines.map((line) => [line.sku, line.unitsPerCarton]) ?? []);
   const backHref = quote ? ADMIN_ROUTES.quotes.detail(quote.id) : ADMIN_ROUTES.quotes.list;
 
   return (
-    <>
-      <PageHeader
-        title={quote ? `Sửa báo giá ${quote.quoteNumber}` : "Tạo báo giá"}
-        subtitle="Lưu thành nháp; gửi khách ở màn chi tiết sau khi kiểm tra giá từng dòng."
-        actions={
-          <Button asChild variant="outline" size="sm">
-            <Link href={backHref}>
-              <ArrowLeft className="size-3.5" /> Quay lại
-            </Link>
-          </Button>
-        }
-      />
+    <div className="surface-soft surface-compact">
+      <h1 className="sr-only">{quote ? `Sửa báo giá ${quote.quoteNumber}` : "Tạo báo giá"}</h1>
       <form
         onSubmit={(event) => void q.submit(event)}
         noValidate
         className="max-w-5xl space-y-4 pb-16"
       >
-        {q.formError && (
-          <div
-            role="alert"
-            className="border-danger/30 bg-danger/5 text-danger rounded-[var(--r-sm)] border px-4 py-3 text-[0.8125rem]"
-          >
-            {q.formError}
-          </div>
-        )}
+        {q.formError && <Notice tone="danger">{q.formError}</Notice>}
         <Card className="grid gap-4 md:grid-cols-2">
           <Controller
             control={form.control}
@@ -72,44 +65,6 @@ export function QuoteForm({
             )}
           />
           <FormField
-            id="quote-term"
-            label="Điều khoản thanh toán"
-            required
-            error={errors.paymentTerm?.message}
-            hint={
-              q.customerId && q.credit.isError
-                ? "Không đọc được điều khoản của khách — BE sẽ kiểm tra khi lưu."
-                : "Chỉ các điều khoản đang được phép cho khách (BE kiểm lại khi gửi và khi khách chấp nhận)."
-            }
-          >
-            <select
-              {...form.register("paymentTerm")}
-              {...fieldA11y("quote-term", errors.paymentTerm?.message, true)}
-              className={`${FORM_INPUT_CLASS} border px-2`}
-            >
-              {(q.allowedTerms.length ? q.allowedTerms : (["PREPAID"] as const)).map((term) => (
-                <option key={term} value={term}>
-                  {PAYMENT_TERM_LABELS[term]}
-                </option>
-              ))}
-            </select>
-          </FormField>
-          {q.paymentTerm === "DEPOSIT" && (
-            <FormField
-              id="quote-deposit"
-              label="Tỷ lệ cọc (%)"
-              error={errors.depositPercent?.message}
-              hint="Để trống = dùng tỷ lệ cọc đã thoả thuận trên hồ sơ khách."
-            >
-              <Input
-                {...form.register("depositPercent")}
-                {...fieldA11y("quote-deposit", errors.depositPercent?.message, true)}
-                inputMode="decimal"
-                className={`${FORM_INPUT_CLASS} text-right tabular-nums`}
-              />
-            </FormField>
-          )}
-          <FormField
             id="quote-valid"
             label="Hiệu lực đến hết ngày"
             required
@@ -123,8 +78,21 @@ export function QuoteForm({
             />
           </FormField>
           <FormField
+            id="quote-delivery"
+            label="Ngày giao khách yêu cầu"
+            error={errors.requestedDeliveryDate?.message}
+            hint="Tuỳ chọn, không ở quá khứ."
+          >
+            <Input
+              type="date"
+              {...form.register("requestedDeliveryDate")}
+              {...fieldA11y("quote-delivery", errors.requestedDeliveryDate?.message)}
+              className={FORM_INPUT_CLASS}
+            />
+          </FormField>
+          <FormField
             id="quote-terms"
-            label="Điều khoản khác"
+            label="Điều khoản"
             error={errors.terms?.message}
             className="md:col-span-2"
           >
@@ -132,34 +100,39 @@ export function QuoteForm({
               {...form.register("terms")}
               {...fieldA11y("quote-terms", errors.terms?.message)}
               rows={3}
+              maxLength={2000}
             />
           </FormField>
         </Card>
 
-        {q.customerId ? (
+        {!q.customerId ? (
+          <p className="text-ink-tertiary text-[0.8125rem]">
+            Chọn khách hàng trước để thêm dòng báo giá.
+          </p>
+        ) : skusQuery.isError ? (
+          <Notice tone="danger">Không tải được SKU riêng của khách.</Notice>
+        ) : !skusQuery.isPending && skus.length === 0 ? (
+          <Notice tone="warning">
+            Khách chưa có SKU riêng đang bán (SKU cấp khi thiết kế được duyệt).
+          </Notice>
+        ) : (
           q.lines.fields.map((field, index) => (
             <QuoteLineEditor
               key={field.id}
               form={form}
               index={index}
               customerId={q.customerId}
-              blankUnits={
-                q.units.get(
-                  (form.getValues(`lines.${index}.blankSku`) ?? "").trim().toUpperCase(),
-                ) ?? 0
-              }
+              skus={skus}
+              unitsPerCarton={perCarton.get(form.getValues(`lines.${index}.sku`)) ?? null}
               canRemove={q.lines.fields.length > 1}
               onRemove={() => q.lines.remove(index)}
             />
           ))
-        ) : (
-          <p className="text-ink-tertiary text-[0.8125rem]">
-            Chọn khách hàng trước để thêm dòng báo giá.
-          </p>
         )}
         {errors.lines?.root?.message && (
           <p className="text-danger text-xs">{errors.lines.root.message}</p>
         )}
+        {q.customerId && <QuoteFeesEditor form={form} />}
 
         <div className="flex flex-wrap justify-between gap-2">
           <Button
@@ -171,12 +144,17 @@ export function QuoteForm({
           >
             <Plus className="size-3.5" /> Thêm dòng
           </Button>
-          <Button type="submit" disabled={q.pending}>
-            {q.pending && <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />}
-            {quote ? "Lưu báo giá" : "Lưu nháp"}
-          </Button>
+          <div className="flex gap-2">
+            <Button asChild variant="outline">
+              <Link href={backHref}>Huỷ</Link>
+            </Button>
+            <Button type="submit" disabled={q.pending}>
+              {q.pending && <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />}
+              {quote ? "Lưu báo giá" : "Lưu nháp"}
+            </Button>
+          </div>
         </div>
       </form>
-    </>
+    </div>
   );
 }

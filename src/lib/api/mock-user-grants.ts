@@ -6,6 +6,7 @@
 
 import {
   ATTRIBUTE_PERMISSIONS,
+  CHAT_PERMISSIONS,
   CUSTOMIZATION_TEMPLATE_PERMISSIONS,
   CREDIT_HOLD_PERMISSIONS,
   CUSTOMER_CREDIT_PROFILE_PERMISSIONS,
@@ -41,6 +42,7 @@ import {
   PRODUCT_PERMISSIONS,
   PRODUCTION_ORDER_PERMISSIONS,
   QC_TASK_PERMISSIONS,
+  QUOTE_PERMISSIONS,
   REPORTING_PERMISSIONS,
   SHIPMENT_PERMISSIONS,
   STOCK_PACKAGE_PERMISSIONS,
@@ -256,6 +258,23 @@ const PAY_SALES = [...PAY_INSTALLMENT_READ, ...PAY_REFUND_READ];
 const EINVOICE_ALL = Object.values(EINVOICE_PERMISSIONS);
 const EINVOICE_SETTINGS_ALL = Object.values(EINVOICE_SETTINGS_PERMISSIONS);
 
+// Seed BE V20261124000300 (chat, docs 16): chat-conversations đủ action cho SALES_STAFF / SALES_MANAGER / SYSTEM_ADMIN,
+// chat-canned-responses cho cả ba; chat-supervision (giao hội thoại chưa ai nhận, xử lý hội thoại đã chuyển cấp) chỉ
+// SALES_MANAGER / SYSTEM_ADMIN.
+const CHAT_AGENT = Object.values(CHAT_PERMISSIONS).filter(
+  (code) => code !== CHAT_PERMISSIONS.supervise,
+);
+const CHAT_ALL = Object.values(CHAT_PERMISSIONS);
+
+// WF-02 (docs 14 §2; BE PermissionMatrixTest): Sale lập / sửa / gửi / huỷ báo giá và tạo đơn từ báo giá; lập, gửi, ghi
+// nhận đã ký hợp đồng (`sales-contracts:CREATE/UPDATE/APPROVE` — SALES_STAFF + SYSTEM_ADMIN). Chấp nhận / yêu cầu sửa
+// báo giá (`sales-quotes:APPROVE`) là việc của khách, không cấp cho nhân viên.
+const QUOTE_SALES = Object.values(QUOTE_PERMISSIONS).filter(
+  (code) => code !== QUOTE_PERMISSIONS.approve,
+);
+const CONTRACT_SALES = [SALES_CONTRACT_PERMISSIONS.create, SALES_CONTRACT_PERMISSIONS.approve];
+const SALES_WF02 = [...QUOTE_SALES, ...CONTRACT_SALES];
+
 /** Explicit demo session responses keyed by existing staff IDs, never computed from roles. */
 export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
   "USER-ADMIN-01": [
@@ -295,6 +314,8 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...PAY_ACCOUNTANT,
     ...EINVOICE_ALL,
     ...EINVOICE_SETTINGS_ALL,
+    ...CHAT_ALL,
+    ...SALES_WF02,
   ],
   "USER-PROC-01": [
     SUPPLIER_PERMISSIONS.viewPage,
@@ -384,6 +405,8 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...CUSTOMER_PRICE_READ,
     CUSTOMER_LOOKUP,
     ...PAY_SALES,
+    ...CHAT_AGENT,
+    ...SALES_WF02,
   ],
   "USER-SALE-02": [
     ORDER_PERMISSIONS.viewPage,
@@ -399,6 +422,8 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...CUSTOMER_PRICE_READ,
     CUSTOMER_LOOKUP,
     ...PAY_SALES,
+    ...CHAT_AGENT,
+    ...SALES_WF02,
   ],
   "USER-SALE-03": [
     ORDER_PERMISSIONS.viewPage,
@@ -414,6 +439,8 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...CUSTOMER_PRICE_READ,
     CUSTOMER_LOOKUP,
     ...PAY_SALES,
+    ...CHAT_AGENT,
+    ...SALES_WF02,
   ],
   // Seed BE: SALES_STAFF có sales-order-cancellations:UPDATE (huỷ đơn, đóng phần còn lại) và sales-order-holds:UPDATE
   // (giữ / gỡ giữ); ghi giao thất bại ở cấp đơn là fulfillment-delivery-outcomes:APPROVE
