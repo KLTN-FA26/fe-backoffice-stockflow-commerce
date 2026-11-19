@@ -10,13 +10,17 @@ import {
 } from "./labels-inventory-item";
 import { LOAD_PLAN_TOAST_MESSAGES, LOAD_PLAN_UI_LABELS } from "./labels-load-plan";
 import { CARTON_CHECK_TOAST_MESSAGES, CARTON_CHECK_UI_LABELS } from "./labels-carton-check";
+import { CARTON_SPEC_UI_LABELS } from "./labels-carton-spec";
 import { PRODUCT_UI_LABELS } from "./labels-product";
 import { RECEIPT_CARTON_ERROR_MESSAGES } from "./labels-receipt-carton";
 import { SHIPPING_TOAST_MESSAGES, SHIPPING_UI_LABELS } from "./labels-shipping";
-import { SKU_PURCHASING_UI_LABELS } from "./labels-sku-purchasing";
 import { TAXONOMY_TOAST_MESSAGES, TAXONOMY_UI_LABELS } from "./labels-taxonomy";
 import { TRANSFER_TOAST_MESSAGES, TRANSFER_UI_LABELS } from "./labels-transfer";
 import { VEHICLE_TYPE_TOAST_MESSAGES, VEHICLE_TYPE_UI_LABELS } from "./labels-vehicle-type";
+import {
+  WAREHOUSE_CAPACITY_TOAST_MESSAGES,
+  WAREHOUSE_CAPACITY_UI_LABELS,
+} from "./labels-warehouse-capacity";
 import { WAREHOUSE_MAP_TOAST_MESSAGES, WAREHOUSE_MAP_UI_LABELS } from "./labels-warehouse-map";
 
 export const UI_LABELS = {
@@ -511,11 +515,12 @@ export const UI_LABELS = {
   transfer: TRANSFER_UI_LABELS,
   shipping: SHIPPING_UI_LABELS,
   vehicleType: VEHICLE_TYPE_UI_LABELS,
+  warehouseCapacity: WAREHOUSE_CAPACITY_UI_LABELS,
   warehouseMap: WAREHOUSE_MAP_UI_LABELS,
   loadPlan: LOAD_PLAN_UI_LABELS,
   taxonomy: TAXONOMY_UI_LABELS,
   inventoryItem: INVENTORY_ITEM_UI_LABELS,
-  skuPurchasing: SKU_PURCHASING_UI_LABELS,
+  cartonSpec: CARTON_SPEC_UI_LABELS,
   product: PRODUCT_UI_LABELS,
   cartonCheck: CARTON_CHECK_UI_LABELS,
   fulfillment: {
@@ -964,6 +969,7 @@ export const TOAST_MESSAGES = {
   transfer: TRANSFER_TOAST_MESSAGES,
   shipping: SHIPPING_TOAST_MESSAGES,
   vehicleType: VEHICLE_TYPE_TOAST_MESSAGES,
+  warehouseCapacity: WAREHOUSE_CAPACITY_TOAST_MESSAGES,
   warehouseMap: WAREHOUSE_MAP_TOAST_MESSAGES,
   loadPlan: LOAD_PLAN_TOAST_MESSAGES,
   taxonomy: TAXONOMY_TOAST_MESSAGES,

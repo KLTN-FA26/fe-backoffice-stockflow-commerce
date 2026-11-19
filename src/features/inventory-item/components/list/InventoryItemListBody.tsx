@@ -107,8 +107,6 @@ export function InventoryItemListBody({
         data={page.items}
         rowKey={(row) => row.id}
         caption={L.listCaption(page.items.length, page.totalElements)}
-        // SKU chưa cấu hình chính sách tồn cần chú ý
-        flagRow={(row) => !row.policyConfigured}
         onRowClick={s.navigateToDetail}
         pageSize={s.config.pageSize}
         pageSizeOptions={PAGE_SIZE_OPTIONS}

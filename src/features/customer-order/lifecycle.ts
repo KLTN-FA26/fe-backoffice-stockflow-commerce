@@ -1,6 +1,6 @@
 /**
  * Thao tác của khách trên đơn của mình (portal). UI-only — Backend phải re-check (scope OWN).
- * - Không có "đặt lại" trên đơn: mọi lối đặt lại mở chat với Sale (docs 13 BR-08).
+ * - "Đặt lại" (`POST /orders/{id}/reorder`) BE đã bỏ (WF-02 F1): khách mở chat với Sale ở storefront.
  * - Đổi trả (SCRUM-257): chỉ đơn đã giao; BE CHƯA có API RMA → hiển thị "chưa khả dụng".
  */
 

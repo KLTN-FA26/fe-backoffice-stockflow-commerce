@@ -9,6 +9,11 @@ import {
   WAREHOUSE_MAP_EDIT_TOASTS,
   WAREHOUSE_WORKSPACE_LABELS,
 } from "./labels-warehouse-map-edit";
+import {
+  LOCATION_LABEL_ERROR_MESSAGES,
+  LOCATION_LABEL_PRINT_LABELS,
+  WAREHOUSE_HOLDS_CARTONS_LABELS,
+} from "./labels-warehouse-map-print";
 import { WAREHOUSE_MAP_LIMITS as LIMITS } from "./numbers";
 
 import type {
@@ -83,6 +88,9 @@ export const WAREHOUSE_MAP_ERROR_MESSAGES: Record<string, string> = {
     "Người khác vừa sửa bản đồ — thoát chế độ sửa để tải bản mới rồi làm lại phần chưa lưu.",
   AREA_TYPE_CHANGE_NOT_ALLOWED: "Khu chứa hàng không đổi được thành khu không chứa hàng (BR-11).",
   WAREHOUSE_NOT_FOUND: "Không tìm thấy kho.",
+  // BR-04 — câu đầy đủ (kèm thùng) do `warehouseMapErrorMessage` dựng từ `details`; đây là câu khi thiếu details
+  LOCATION_HOLDS_CARTONS: WAREHOUSE_HOLDS_CARTONS_LABELS.fallback,
+  ...LOCATION_LABEL_ERROR_MESSAGES,
 };
 
 export const WAREHOUSE_MAP_UI_LABELS = {
@@ -290,6 +298,8 @@ export const WAREHOUSE_MAP_UI_LABELS = {
       "Kệ đã được tạo nhưng chưa xong tầng / bin — kệ vẫn có trên bản đồ, thêm phần còn lại sau.",
   },
   edit: WAREHOUSE_MAP_EDIT_LABELS,
+  print: LOCATION_LABEL_PRINT_LABELS,
+  holdsCartons: WAREHOUSE_HOLDS_CARTONS_LABELS,
   workspace: WAREHOUSE_WORKSPACE_LABELS,
   validation: {
     codeFormat: `Chỉ gồm A–Z, 0–9, tối đa ${LIMITS.codeMax} ký tự, không có "-" (BR-10).`,

@@ -31,7 +31,7 @@ type CategoryTextField = (typeof CATEGORY_FIELDS)[number];
 const isCategoryField = (field: string | undefined): field is CategoryTextField =>
   field !== undefined && (CATEGORY_FIELDS as readonly string[]).includes(field);
 
-/** Tạo (`category` trống) / sửa / xem danh mục — mã và cha bất biến, không xoá (ngưng dùng). */
+/** Tạo (`category` trống) / sửa / xem danh mục — mã bất biến, đổi cha = chuyển cả nhánh, không xoá (ngưng dùng). */
 export function CategoryFormDialog({
   category,
   open,
@@ -89,7 +89,10 @@ function CategoryForm({ category, onDone }: { category?: CategoryNode; onDone: (
       else setError(message);
     };
     if (category) {
-      update.mutate({ categoryId: category.categoryId, values }, { onSuccess: onDone, onError });
+      update.mutate(
+        { categoryId: category.categoryId, values, currentParentId: category.parentId ?? null },
+        { onSuccess: onDone, onError },
+      );
     } else {
       create.mutate(values, { onSuccess: onDone, onError });
     }

@@ -19,6 +19,7 @@ const B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const dto = (customerId: string, sku: string, version = 1) => ({
   customerId,
   sku,
+  measure: "CARTON",
   moq: 1,
   tiers: [{ minQuantity: 1, unitPrice: 100 }],
   version,

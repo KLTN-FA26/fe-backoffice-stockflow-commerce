@@ -72,7 +72,5 @@ export const myOrderDetailDtoSchema = z.object({
     }),
   ),
   deliveryState: z.string().nullish(),
-  // BE `CustomerOrders.AllowedActions`: không có "đặt lại" — mọi lối đặt lại mở chat với Sale
-  // (docs 13 BR-08), BE đã bỏ `POST /orders/{id}/reorder`.
   allowedActions: z.object({ cancel: z.boolean(), requestCancellation: z.boolean() }).nullish(),
 });

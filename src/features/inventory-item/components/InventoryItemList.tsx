@@ -6,7 +6,7 @@ import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 import { ListToolbar } from "@/components/shared/ListToolbar";
 
 import { buildInventoryItemColumns, inventoryItemViewColumn } from "./list/columns";
-import { COLUMN_LABELS, DEFAULT_COLUMNS, FILTER_OPTIONS, LOCKED_COLUMNS } from "./list/constants";
+import { COLUMN_LABELS, DEFAULT_COLUMNS, LOCKED_COLUMNS } from "./list/constants";
 import { InventoryItemListBody } from "./list/InventoryItemListBody";
 import { buildSummaryItems } from "./list/summary";
 import { useInventoryItemListState } from "./list/useInventoryItemListState";
@@ -18,7 +18,7 @@ const COLUMN_OPTIONS = DEFAULT_COLUMNS.map((c) => ({ label: COLUMN_LABELS[c] ?? 
 
 function InventoryItemListContent() {
   // READ = đọc dữ liệu (tách khỏi VIEW_PAGE mở trang): thiếu thì không gọi API.
-  // UI-only — Backend phải re-check (BE PR #119 @RequiresPermission).
+  // UI-only — Backend phải re-check (BE `InventoryItemController` @RequiresPermission).
   const canRead = useCan(INVENTORY_ITEM_PERMISSIONS.read);
   const s = useInventoryItemListState(canRead);
   const { filters } = s;
@@ -36,11 +36,6 @@ function InventoryItemListContent() {
           search={filters.q}
           onSearchChange={(v) => void filters.setQ(v)}
           searchPlaceholder={L.searchPlaceholder}
-          statusOptions={FILTER_OPTIONS}
-          selectedStatuses={filters.status}
-          onToggleStatus={s.toggleFilter}
-          onClearStatuses={() => void filters.setStatus([])}
-          hasStatusFilter={filters.status.length > 0}
           columnOptions={COLUMN_OPTIONS}
           selectedColumns={s.config.visibleColumns}
           defaultColumns={DEFAULT_COLUMNS}

@@ -47,7 +47,14 @@ describe("Portal order detail (SCRUM-248 timeline, SCRUM-257 unavailable)", () =
     expect(screen.queryByRole("button", { name: /thêm sự kiện/i })).not.toBeInTheDocument();
   });
 
-  it("reads the contract and stock groups of docs 17 §5.2 and offers no reorder (docs 13 BR-08)", async () => {
+  it("no 'Đặt lại' any more: BE dropped POST /orders/{id}/reorder (WF-02 F1)", async () => {
+    mockApi("CUSTOMER", { get: { "/orders/me/o-1": () => detail("DELIVERED") } });
+    renderScreen(<PortalOrderDetail id="o-1" />, "CUSTOMER");
+    expect(await screen.findByRole("heading", { name: "SO-20261014-000001" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Đặt lại/ })).not.toBeInTheDocument();
+  });
+
+  it("reads the contract and stock groups of docs 17 §5.2 (BE CustomerOrders.StatusGroup)", async () => {
     mockApi("CUSTOMER", {
       get: {
         "/orders/me/o-1": () => ({
@@ -74,7 +81,6 @@ describe("Portal order detail (SCRUM-248 timeline, SCRUM-257 unavailable)", () =
       .parentElement as HTMLElement;
     expect(within(timeline).getByText("Chờ ký hợp đồng")).toBeInTheDocument();
     expect(within(timeline).getByText("Đang chờ hàng")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Đặt lại/ })).not.toBeInTheDocument();
   });
 
   it("a role without sales-orders:READ is refused without calling the API", async () => {

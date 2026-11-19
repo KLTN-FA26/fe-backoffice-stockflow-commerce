@@ -38,9 +38,6 @@ export function ProductGeneralSection({
           <span className="font-medium">{product.name}</span>
         </InfoRow>
         {product.nameEn && <InfoRow label={F.nameEn}>{product.nameEn}</InfoRow>}
-        <InfoRow label="Loại">
-          {product.type === "Customizable" ? "Tùy chỉnh / In ấn" : "Tiêu chuẩn"}
-        </InfoRow>
         <InfoRow label="Danh mục">{categoryName(product.categoryId, categories)}</InfoRow>
         <InfoRow label="Thương hiệu">{product.brand}</InfoRow>
         <InfoRow label="Thuế">{taxClassLabel(product.taxClass)}</InfoRow>

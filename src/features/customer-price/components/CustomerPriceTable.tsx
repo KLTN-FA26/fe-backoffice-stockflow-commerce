@@ -29,10 +29,16 @@ const PAGE_SIZE = 10;
 export function CustomerPriceTable({
   customerId,
   canRead,
+  canDelete = false,
+  canSeeCarton = false,
   onEdit,
 }: {
   customerId: string;
   canRead: boolean;
+  /** `catalog-customer-prices:DELETE` — panel chi tiết có nút xoá giá. */
+  canDelete?: boolean;
+  /** Tra được số cái / thùng của SKU riêng (`product-variants:READ` + `product-products:READ`). */
+  canSeeCarton?: boolean;
   /** Có khi người dùng có quyền sửa — thêm cột "Sửa bảng giá". */
   onEdit?: (sku: string) => void;
 }) {
@@ -116,7 +122,13 @@ export function CustomerPriceTable({
           )}
         </>
       )}
-      <CustomerPriceDetail price={open} onClose={() => setOpenSku(null)} />
+      <CustomerPriceDetail
+        customerId={customerId}
+        price={open}
+        canDelete={canDelete}
+        canSeeCarton={canSeeCarton}
+        onClose={() => setOpenSku(null)}
+      />
     </div>
   );
 }

@@ -2,47 +2,56 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { LoaderCircle, Pencil, Send } from "lucide-react";
 
 import { ADMIN_ROUTES } from "@/constants";
 import { usePermissionChecker } from "@/lib/auth/components/Can";
-import { quoteErrorMessage } from "@/features/quote/errors";
+import {
+  QUOTE_PRICE_MISSING_CODES,
+  isQuoteErrorCode,
+  quoteErrorMessage,
+} from "@/features/quote/errors";
 import { allowedStaffQuoteActions } from "@/features/quote/lifecycle";
-import { useCancelQuote, useReviseQuote, useSendQuote } from "@/features/quote/mutations";
-import { isExpired } from "@/features/quote/selectors";
+import { useReviseQuote, useSendQuote } from "@/features/quote/mutations";
+import { sendBlockReason } from "@/features/quote/selectors";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
 
+import { CancelQuoteDialog } from "./CancelQuoteDialog";
 import { ConvertQuoteDialog } from "./ConvertQuoteDialog";
+import { QuotePdfButton } from "./QuotePdfButton";
 
 import type { Quote } from "@/features/quote/types";
 
 type Dialog = "send" | "cancel" | "revise" | "convert" | null;
 
 /**
- * Nút back-office theo lifecycle (allowedStaffQuoteActions). Nút chính đặt cuối (bên phải):
- * DRAFT → Gửi khách; CHANGES_REQUESTED → Mở bản sửa; ACCEPTED → Tạo đơn bán.
- * Giả định tần suất: Sales thao tác "Gửi" nhiều nhất — cần kiểm chứng với người dùng thật.
+ * Nút back-office theo lifecycle (allowedStaffQuoteActions, plan WF-02 A4):
+ * DRAFT → Sửa / Gửi khách / Huỷ; CHANGES_REQUESTED → Mở bản sửa; ACCEPTED → Tạo đơn (Huỷ chỉ khi BE cho).
+ * Tải PDF luôn có cho người đọc được báo giá.
  */
 export function QuoteStaffActions({ quote }: { quote: Quote }) {
   const can = usePermissionChecker();
+  const router = useRouter();
   const [dialog, setDialog] = useState<Dialog>(null);
   const send = useSendQuote();
-  const cancel = useCancelQuote();
   const revise = useReviseQuote();
-  const actions = allowedStaffQuoteActions(quote.status, can);
+  const actions = allowedStaffQuoteActions(quote.status, can, quote.legacy);
   const onError = (error: unknown) => toast.error(quoteErrorMessage(error));
   const close = () => setDialog(null);
-  // BE từ chối gửi khi còn dòng chưa có giá hoặc hạn hiệu lực đã qua — báo lý do ngay trên nút.
-  const sendBlocked = !quote.priced
-    ? "Còn dòng chưa có giá"
-    : isExpired(quote.validUntil)
-      ? "Hạn hiệu lực đã qua — sửa ngày hết hiệu lực"
-      : null;
+  const sendBlocked = sendBlockReason(quote);
+  const onSendError = (error: unknown) => {
+    onError(error);
+    // Thiếu phí khuôn / giá → về form sửa để nhập (plan §4).
+    if (isQuoteErrorCode(error, QUOTE_PRICE_MISSING_CODES))
+      router.push(ADMIN_ROUTES.quotes.edit(quote.id));
+  };
 
   return (
-    <>
+    <div className="flex flex-wrap items-center gap-2">
+      <QuotePdfButton quote={quote} onError={onError} />
       {actions.includes("cancel") && (
         <Button
           size="sm"
@@ -50,7 +59,7 @@ export function QuoteStaffActions({ quote }: { quote: Quote }) {
           className="text-danger"
           onClick={() => setDialog("cancel")}
         >
-          {quote.status === "ACCEPTED" ? "Huỷ vì phôi ngừng bán" : "Huỷ báo giá"}
+          {quote.status === "ACCEPTED" ? "Huỷ (SKU ngừng bán)" : "Huỷ báo giá"}
         </Button>
       )}
       {actions.includes("edit") && (
@@ -77,7 +86,7 @@ export function QuoteStaffActions({ quote }: { quote: Quote }) {
       )}
       {actions.includes("convert") && (
         <Button size="sm" onClick={() => setDialog("convert")}>
-          Tạo đơn bán
+          Tạo đơn
         </Button>
       )}
       {sendBlocked && actions.includes("send") && (
@@ -88,13 +97,22 @@ export function QuoteStaffActions({ quote }: { quote: Quote }) {
         open={dialog === "send"}
         onOpenChange={(open) => !open && close()}
         title="Gửi báo giá cho khách?"
-        description="Khách thấy báo giá trên portal và có thể chấp nhận hoặc yêu cầu chỉnh sửa. Sau khi gửi không sửa được nội dung."
+        description="Khách thấy báo giá trong chat / trang báo giá và có thể chấp nhận hoặc yêu cầu sửa. Sau khi gửi không sửa được nội dung."
         confirmLabel="Gửi khách"
         variant="default"
         loading={send.isPending}
         closeOnConfirm={false}
         onConfirm={() =>
-          send.mutate({ id: quote.id, version: quote.version }, { onSuccess: close, onError })
+          send.mutate(
+            { id: quote.id, version: quote.version },
+            {
+              onSuccess: close,
+              onError: (error) => {
+                close();
+                onSendError(error);
+              },
+            },
+          )
         }
       />
       <ConfirmDialog
@@ -110,33 +128,17 @@ export function QuoteStaffActions({ quote }: { quote: Quote }) {
           revise.mutate({ id: quote.id, version: quote.version }, { onSuccess: close, onError })
         }
       />
-      <ConfirmDialog
+      <CancelQuoteDialog
+        quote={quote}
         open={dialog === "cancel"}
-        onOpenChange={(open) => !open && close()}
-        title={quote.status === "ACCEPTED" ? "Huỷ báo giá đã chấp nhận?" : "Huỷ báo giá nháp?"}
-        description={
-          quote.status === "ACCEPTED"
-            ? "Chỉ huỷ được khi ít nhất một phôi trong báo giá đã ngừng bán. Ghi lý do và lập báo giá mới nếu khách vẫn muốn mua; hệ thống sẽ kiểm tra lại trạng thái phôi."
-            : "Báo giá bị huỷ không thể khôi phục."
-        }
-        confirmLabel="Huỷ báo giá"
-        requireReason
-        reasonLabel="Lý do huỷ"
-        reasonMaxLength={500}
-        loading={cancel.isPending}
-        closeOnConfirm={false}
-        onConfirm={(reason) =>
-          cancel.mutate(
-            { id: quote.id, version: quote.version, reason: reason ?? "" },
-            { onSuccess: close, onError },
-          )
-        }
+        onClose={close}
+        onError={onError}
       />
       <ConvertQuoteDialog
         quote={quote}
         open={dialog === "convert"}
         onOpenChange={(open) => !open && close()}
       />
-    </>
+    </div>
   );
 }
