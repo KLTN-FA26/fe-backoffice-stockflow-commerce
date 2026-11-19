@@ -71,3 +71,14 @@ export const beImportWarehousesSchema = z.array(
   z.object({ warehouseId: z.string(), code: z.string().nullish(), name: z.string() }),
 );
 export type ImportWarehouse = z.infer<typeof beImportWarehousesSchema>[number];
+
+/** Đầu vào xem trước file mã vận đơn của MỘT kho (RTM-WBIMPORT-WH): chỉ nhận chuyến của kho này. */
+export const waybillImportPreviewInputSchema = z.object({
+  file: z.instanceof(File),
+  warehouseId: z.string().min(1),
+});
+
+/** Nhập file: thêm số dòng ghi đè người dùng đã xác nhận (BR-25). */
+export const waybillImportFileInputSchema = waybillImportPreviewInputSchema.extend({
+  overwriteLines: z.array(z.number().int()).readonly(),
+});

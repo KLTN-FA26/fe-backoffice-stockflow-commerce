@@ -1,10 +1,7 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-
 import { UI_LABELS } from "@/constants";
-import { QUERY_TIMES } from "@/lib/api/query-client";
-import { listImportWarehouses } from "@/features/shipping/waybill-api";
+import { useImportWarehouses } from "@/features/shipping/queries";
 import { FormSelect } from "@/components/shared/FormSelect";
 import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -21,11 +18,7 @@ export function ImportWarehouseSelect({
   value: string;
   onChange: (warehouseId: string) => void;
 }) {
-  const { data: warehouses = [] } = useQuery({
-    queryKey: ["fulfillment-waybill-imports", "warehouses"],
-    queryFn: ({ signal }) => listImportWarehouses(signal),
-    ...QUERY_TIMES.master,
-  });
+  const { data: warehouses = [] } = useImportWarehouses();
   return (
     <FormSelect value={value} onValueChange={onChange}>
       <SelectTrigger
