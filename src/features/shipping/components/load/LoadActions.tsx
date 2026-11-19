@@ -4,7 +4,8 @@ import Link from "next/link";
 import { ClipboardList, ShieldAlert, Truck } from "lucide-react";
 
 import { ADMIN_ROUTES, UI_LABELS } from "@/constants";
-import { hasLoadAction, loadingSheetOf } from "@/features/shipping/lifecycle";
+import { hasLoadAction } from "@/features/shipping/lifecycle";
+import { loadingSheetOf } from "@/features/shipping/loading-sheet-lifecycle";
 import { Button } from "@/components/ui/button";
 
 import { LoadingSheetButton } from "./LoadingSheetButton";

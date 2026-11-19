@@ -223,6 +223,13 @@ export function registerLoadPlanMockRoutes(): void {
     guarded(P.read, () => {
       const plan = planOf(routeParam(config, "id"));
       if (!plan) return notFound();
+      // BE: the diagram is final once the plan is confirmed (09 §4.2 step 5, §5.3)
+      if (plan.status !== "CONFIRMED" && plan.status !== "DISPATCHED")
+        return fail(
+          409,
+          "INVALID_LOAD_PLAN_TRANSITION",
+          "The load plan cannot do that in its current status",
+        );
       const seq = Number(routeParam(config, "seq"));
       const vehicle = plan.vehicles.find((v) => v.seq === seq);
       if (!vehicle)
@@ -236,7 +243,7 @@ export function registerLoadPlanMockRoutes(): void {
         ),
         headers: {
           "content-type": "application/pdf",
-          "content-disposition": `attachment; filename="loading-sheet-${plan.code}-xe${seq}.pdf"`,
+          "content-disposition": `attachment; filename="loading-sheet-${plan.code}-vehicle${seq}.pdf"`,
         },
       };
     }),

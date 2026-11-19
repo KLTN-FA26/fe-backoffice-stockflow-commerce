@@ -38,7 +38,7 @@ describe("LoadActions — Tải PDF phiếu xếp hàng của xe (WF4-PDF-PRINT-
     const pdf = new Blob(["%PDF"], { type: "application/pdf" });
     const get = vi.spyOn(api, "get").mockResolvedValueOnce({
       data: pdf,
-      headers: { "content-disposition": 'attachment; filename="loading-sheet-LP-1-xe2.pdf"' },
+      headers: { "content-disposition": 'attachment; filename="loading-sheet-LP-1-vehicle2.pdf"' },
     });
     vi.stubGlobal("URL", { createObjectURL: () => "blob:sheet", revokeObjectURL: vi.fn() });
     const saved: string[] = [];
@@ -51,10 +51,16 @@ describe("LoadActions — Tải PDF phiếu xếp hàng của xe (WF4-PDF-PRINT-
     rendered();
     await userEvent.setup().click(screen.getByRole("button", BUTTON));
 
-    await waitFor(() => expect(saved).toEqual(["loading-sheet-LP-1-xe2.pdf"]));
+    await waitFor(() => expect(saved).toEqual(["loading-sheet-LP-1-vehicle2.pdf"]));
     expect(get.mock.calls[0]?.[0]).toBe(
       "/fulfillment/load-plans/lp-1/vehicles/2/loading-sheet.pdf",
     );
+  });
+
+  it("chuyến đã huỷ → không có nút", () => {
+    actor = { can: () => true };
+    rendered(ftlLoad({ loadPlanId: "lp-1", vehicleSeq: 2, status: "CANCELLED" }));
+    expect(screen.queryByRole("button", BUTTON)).not.toBeInTheDocument();
   });
 
   it("không có mã quyền đọc kế hoạch → không có nút", () => {

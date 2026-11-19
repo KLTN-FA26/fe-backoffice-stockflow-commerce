@@ -14,7 +14,7 @@ import {
   vehicleOfLayout,
 } from "./__fixtures__/plans";
 import { LAYOUT_PICKUP_KIT } from "./__fixtures__/layouts";
-import { LOAD_PLAN_TRANSITIONS, loadPlanActions } from "./lifecycle";
+import { LOAD_PLAN_TRANSITIONS, canDownloadLoadingSheet, loadPlanActions } from "./lifecycle";
 
 import type { PermissionCode } from "@/lib/auth";
 import type { PlanDetail } from "./plan-types";
@@ -365,5 +365,12 @@ describe("loadPlanActions — TRANSFER plan: the transfer order ships whole (BE 
   it("without :UPDATE the transfer plan is read-only too", () => {
     const { create: _create, ...actions } = loadPlanActions(transferPlanWithUnplaced(), viewer);
     expect(Object.values(actions).filter((value) => value === true)).toEqual([]);
+  });
+});
+
+describe("canDownloadLoadingSheet (docs 09 §4.2 bước 5, §5.3)", () => {
+  it("chỉ CONFIRMED và DISPATCHED: sơ đồ chốt khi chốt kế hoạch, còn lại sau khi xe rời kho", () => {
+    const allowed = LOAD_PLAN_STATUSES.filter((status) => canDownloadLoadingSheet({ status }));
+    expect(allowed).toEqual(["CONFIRMED", "DISPATCHED"]);
   });
 });

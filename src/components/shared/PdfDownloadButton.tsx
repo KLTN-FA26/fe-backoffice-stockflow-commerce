@@ -21,7 +21,11 @@ export function PdfDownloadButton({
 }) {
   return (
     <Button type="button" size="sm" variant="outline" disabled={pending} onClick={onDownload}>
-      {pending ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />}
+      {pending ? (
+        <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+      ) : (
+        <Download className="size-3.5" aria-hidden="true" />
+      )}
       {pending ? pendingLabel : label}
     </Button>
   );
