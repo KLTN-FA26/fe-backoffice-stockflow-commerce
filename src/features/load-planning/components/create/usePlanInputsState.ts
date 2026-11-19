@@ -2,15 +2,10 @@ import { useState } from "react";
 
 import { LOAD_PLAN_SOURCE } from "@/constants";
 
+import { toggled, useToggleSet } from "./useToggleSet";
+
 import type { LoadPlanSelectionMode, LoadPlanSourceType } from "@/constants";
 import type { PlanInputs } from "@/features/load-planning/plan-types";
-
-const toggled = (set: ReadonlySet<string>, id: string): Set<string> => {
-  const next = new Set(set);
-  if (next.has(id)) next.delete(id);
-  else next.add(id);
-  return next;
-};
 
 /**
  * Đầu vào đang soạn của một kế hoạch: nguồn (đơn khách / lệnh chuyển kho), lô (nguyên lô) HOẶC đúng một lệnh chuyển
@@ -27,9 +22,7 @@ export function usePlanInputsState(initial?: Partial<PlanInputs>) {
   );
   const [mode, setMode] = useState<LoadPlanSelectionMode>(initial?.selectionMode ?? "SINGLE_TYPE");
   // Dòng đơn tick là hàng chèn (RTM-LPGROUP): mặc định không dòng nào — mọi dòng là hàng chính
-  const [fillLines, setFillLines] = useState<ReadonlySet<string>>(
-    new Set(initial?.fillOrderLineIds),
-  );
+  const fill = useToggleSet(initial?.fillOrderLineIds);
 
   return {
     sourceType,
@@ -39,8 +32,8 @@ export function usePlanInputsState(initial?: Partial<PlanInputs>) {
     shipments,
     vehicleTypes,
     mode,
-    fillLines,
-    toggleFillLine: (id: string) => setFillLines((current) => toggled(current, id)),
+    fillLines: fill.ids,
+    toggleFillLine: fill.toggle,
     toggleShipment: (id: string) => setShipments((current) => toggled(current, id)),
     setShipments: (ids: readonly string[]) => setShipments(new Set(ids)),
     toggleVehicleType: (id: string) => setVehicleTypes((current) => toggled(current, id)),

@@ -860,6 +860,14 @@ export const LOAD_PLAN_SELECTION_MODES = [
 
 export type LoadPlanSelectionMode = (typeof LOAD_PLAN_SELECTION_MODES)[number];
 
+export const LOAD_PLAN_SELECTION_MODE = {
+  SINGLE_TYPE: "SINGLE_TYPE",
+  FEWEST_VEHICLES: "FEWEST_VEHICLES",
+  KEEP_LINES: "KEEP_LINES",
+  PRIORITY_FILL: "PRIORITY_FILL",
+  OVER_CAPACITY: "OVER_CAPACITY",
+} as const satisfies Record<string, LoadPlanSelectionMode>;
+
 /**
  * BE `LoadPlanUnplacedReason`: lý do của solver (`UnplacedReason`) cộng MANUAL — kiện người điều phối
  * tự đưa xuống khay chưa xếp (PR F5).

@@ -1,32 +1,20 @@
 "use client";
 
-import { useState } from "react";
-
 import { LOAD_ESTIMATE_LABELS } from "@/constants";
 import { formatDateTime } from "@/lib/format/date";
 import { Skeleton } from "@/components/shared/Skeleton";
 import { Button } from "@/components/ui/button";
 
-import { estimateErrorMessage, packagingMissingItemIds } from "../../estimate-errors";
-import {
-  useCreateLoadEstimate,
-  useCurrentEstimate,
-  useEstimateVehicleTypes,
-} from "../../estimate-queries";
-import { CreateEstimateInputSchema } from "../../estimate-schemas";
-
 import { FillLinesPicker } from "../create/FillLinesPicker";
 
-import { ESTIMATE_MODE_OPTIONS, EstimateControls, type SelectionMode } from "./EstimateControls";
+import { ESTIMATE_MODE_OPTIONS, EstimateControls } from "./EstimateControls";
 import { EstimateResult } from "./EstimateResult";
 import { PackagingMissingLinks } from "./PackagingMissingLinks";
+import { useEstimatePanel } from "./useEstimatePanel";
 
-/** Một dòng của đơn (đủ để vẽ ô "Hàng chèn"). */
-export interface EstimateOrderLine {
-  lineId: string;
-  sku: string;
-  quantity: number;
-}
+import type { EstimateOrderLine } from "./useEstimatePanel";
+
+export type { EstimateOrderLine } from "./useEstimatePanel";
 
 interface EstimatePanelProps {
   orderId: string;
@@ -43,61 +31,27 @@ interface EstimatePanelProps {
 
 /**
  * Thân ngăn kéo ước tính: nạp ước tính hiện hành (GET) trước nếu có quyền đọc; có quyền tạo thì hiện ô chọn loại xe /
- * cách chọn xe và nút "Ước tính" (POST). Kết quả mới (của phiên này) thay bản hiện hành. Lỗi hiện tại chỗ bằng tiếng Việt.
+ * cách chọn xe (và ô "Hàng chèn" theo dòng đơn với "Ưu tiên + hàng chèn") và nút "Ước tính" (POST). Kết quả mới (của
+ * phiên này) thay bản hiện hành. Lỗi hiện tại chỗ bằng tiếng Việt. State ở `useEstimatePanel`.
  */
-export function EstimatePanel({
-  orderId,
-  warehouseId,
-  released,
-  lines,
-  canCreate,
-  canRead,
-}: EstimatePanelProps) {
+export function EstimatePanel(props: EstimatePanelProps) {
   const L = LOAD_ESTIMATE_LABELS;
-  const current = useCurrentEstimate(orderId, canRead);
-  const vehicleTypes = useEstimateVehicleTypes(canCreate);
-  const create = useCreateLoadEstimate();
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [mode, setMode] = useState<SelectionMode>("SINGLE_TYPE");
-  // Dòng đơn tick là hàng chèn — mặc định không dòng nào (mọi dòng là hàng chính, RTM-LPGROUP)
-  const [fillLines, setFillLines] = useState<ReadonlySet<string>>(new Set());
-  const toggleFillLine = (id: string) =>
-    setFillLines((current) => {
-      const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  const [error, setError] = useState<{ message: string; itemIds: string[] } | null>(null);
-
-  const estimate = create.data ?? current.data ?? null;
-  const blockedReason = !released && !warehouseId ? L.selectWarehouseFirst : null;
-
-  const run = () => {
-    const input = CreateEstimateInputSchema.safeParse({
-      orderId,
-      warehouseId: released ? null : warehouseId,
-      vehicleTypeIds: selectedIds,
-      selectionMode: mode,
-      // Chỉ chế độ "Ưu tiên + hàng chèn" đọc hàng chèn; chế độ khác không gửi
-      fillOrderLineIds:
-        mode === "PRIORITY_FILL"
-          ? lines.map((l) => l.lineId).filter((id) => fillLines.has(id))
-          : undefined,
-    });
-    if (!input.success) {
-      setError({ message: L.controls.tooManyTypes, itemIds: [] });
-      return;
-    }
-    setError(null);
-    create.mutate(input.data, {
-      onError: (apiError) =>
-        setError({
-          message: estimateErrorMessage(apiError),
-          itemIds: packagingMissingItemIds(apiError),
-        }),
-    });
-  };
+  const { canCreate, canRead, lines } = props;
+  const {
+    current,
+    vehicleTypes,
+    create,
+    selectedIds,
+    setSelectedIds,
+    mode,
+    setMode,
+    priorityFill,
+    fill,
+    error,
+    run,
+    estimate,
+    blockedReason,
+  } = useEstimatePanel(props);
 
   return (
     <div className="space-y-4">
@@ -119,7 +73,7 @@ export function EstimatePanel({
           hasResult={estimate !== null}
         />
       )}
-      {canCreate && mode === "PRIORITY_FILL" && (
+      {canCreate && priorityFill && (
         <FillLinesPicker
           idPrefix="estimate"
           options={lines.map((l) => ({
@@ -127,8 +81,8 @@ export function EstimatePanel({
             label: L.controls.fillLine(l.sku, l.quantity),
             ariaLabel: L.controls.fillAria(l.sku),
           }))}
-          ticked={fillLines}
-          onToggle={toggleFillLine}
+          ticked={fill.ids}
+          onToggle={fill.toggle}
           emptyText={L.controls.fillEmpty}
         />
       )}

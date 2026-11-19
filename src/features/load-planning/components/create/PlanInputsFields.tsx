@@ -1,6 +1,6 @@
 "use client";
 
-import { LOAD_PLAN_SOURCE, UI_LABELS } from "@/constants";
+import { LOAD_PLAN_SELECTION_MODE, LOAD_PLAN_SOURCE, UI_LABELS } from "@/constants";
 import { knownLoadPlanReadError } from "@/features/load-planning/errors";
 import { fillLineOptions } from "@/features/load-planning/plan-selectors";
 
@@ -115,7 +115,7 @@ export function PlanInputsFields({
           {L.modeTitle}
         </h3>
         <ModePicker name={`${idPrefix}-mode-radio`} value={inputs.mode} onChange={inputs.setMode} />
-        {inputs.mode === "PRIORITY_FILL" && !transfer && (
+        {inputs.mode === LOAD_PLAN_SELECTION_MODE.PRIORITY_FILL && !transfer && (
           <FillLinesPicker
             idPrefix={idPrefix}
             options={fillLineOptions(candidates.data ?? [], inputs.shipments).map((o) => ({

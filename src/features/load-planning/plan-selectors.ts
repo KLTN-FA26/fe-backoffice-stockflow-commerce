@@ -1,10 +1,10 @@
 /** Số liệu và gom nhóm từ dữ liệu kế hoạch xếp xe — hàm thuần, không side effect. */
 
-import { LOAD_PLAN_SOURCE, LOAD_PLAN_STATUS } from "@/constants";
+import { LOAD_PLAN_SELECTION_MODE, LOAD_PLAN_SOURCE, LOAD_PLAN_STATUS } from "@/constants";
 
 import { summarizeLayouts } from "./selectors";
 
-import type { LoadPlanStatus } from "@/constants";
+import type { LoadPlanSelectionMode, LoadPlanStatus } from "@/constants";
 import type { CandidateShipment, PlanDetail, PlanParcel } from "./plan-types";
 import type { LayoutSummary } from "./selectors";
 import type { Layout, UnplacedLine } from "./types";
@@ -121,11 +121,11 @@ export function fillLineOptions(
  * khác → `undefined` (không gửi; BE không giữ hàng chèn dưới chế độ khác).
  */
 export function fillLinesToSend(
-  mode: string,
+  mode: LoadPlanSelectionMode,
   ticked: ReadonlySet<string>,
   options: readonly FillLineOption[],
 ): string[] | undefined {
-  if (mode !== "PRIORITY_FILL") return undefined;
+  if (mode !== LOAD_PLAN_SELECTION_MODE.PRIORITY_FILL) return undefined;
   return options.map((o) => o.orderLineId).filter((id) => ticked.has(id));
 }
 
