@@ -122,3 +122,16 @@ export const scanInputSchema = z.object({
   lpn: z.string().trim().min(1, "Quét hoặc nhập LPN").max(L.lpnMax, max(L.lpnMax)),
   condition: z.string().trim().max(L.conditionMax, max(L.conditionMax)),
 });
+
+/**
+ * Hàng lẻ không nhãn trên phiếu nhập hàng hoàn (WF-05 TH-4; BE `RecordLooseUnitsRequest`): SKU bắt buộc ≤ 64, lô ≤ 64,
+ * số lượng ≥ 1. SKU phải là SKU của đơn — BE kiểm (`VALIDATION_FAILED`).
+ */
+export const looseLineInputSchema = z.object({
+  sku: z.string().trim().min(1, "Nhập SKU").max(L.skuMax, max(L.skuMax)),
+  lotNumber: z.string().trim().max(L.lotMax, max(L.lotMax)),
+  quantity: z
+    .number({ error: "Nhập số lượng" })
+    .int("Số lượng là số nguyên")
+    .min(1, "Số lượng ≥ 1"),
+});
