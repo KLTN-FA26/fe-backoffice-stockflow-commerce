@@ -53,8 +53,10 @@ export function ReceiptListFilters({ s }: { s: ReceiptListState }) {
       )}
       {s.productionOrder && (
         <Badge variant="outline" className="gap-1 rounded-[var(--r-sm)] font-normal">
-          Đơn sản xuất:{" "}
-          <span className="font-[family-name:var(--font-mono)]">{s.productionOrder}</span>
+          {UI_LABELS.receipt.field.productionOrder}:{" "}
+          <span className="font-[family-name:var(--font-mono)]" title={s.productionOrder}>
+            {s.productionOrderLabel}
+          </span>
           <Button
             type="button"
             variant="ghost"

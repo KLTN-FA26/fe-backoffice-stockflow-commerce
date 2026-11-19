@@ -43,7 +43,7 @@ export function buildReceiptSummary(s: ReceiptListState): ListSummaryItem[] {
     },
     {
       label: "Đơn sản xuất",
-      value: s.productionOrder || "Tất cả",
+      value: s.productionOrderLabel || "Tất cả",
       active: !!s.productionOrder,
       onClear: () => s.setProductionOrder(""),
     },

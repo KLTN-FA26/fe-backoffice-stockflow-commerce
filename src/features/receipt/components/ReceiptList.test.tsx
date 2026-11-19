@@ -73,6 +73,15 @@ describe("ReceiptList — danh sách phiếu nhận (BE GET /goods-receipts)", (
     expect(params).not.toHaveProperty("purchaseOrderId");
     expect(params).not.toHaveProperty("withoutPo");
     expect(screen.getByRole("button", { name: "Bỏ lọc Đơn sản xuất" })).toBeInTheDocument();
+    // Chip lọc hiện mã Đơn sản xuất (cùng ô của bảng); id trên URL không hiện ở đâu
+    expect(screen.getAllByText("PO-HCM-0007")).toHaveLength(2);
+    expect(screen.queryByText(PRODUCTION_ORDER_ID)).not.toBeInTheDocument();
+  });
+
+  it("lọc theo Đơn sản xuất mà không phiếu nào khớp → chip đành hiện id", async () => {
+    renderList(ROLES.reader, bePage([]), `?productionOrder=${PRODUCTION_ORDER_ID}`);
+    expect(await screen.findByText("Không tìm thấy kết quả")).toBeInTheDocument();
+    expect(screen.getAllByText(PRODUCTION_ORDER_ID).length).toBeGreaterThanOrEqual(1);
   });
 
   it("chưa có phiếu → EmptyState 'Chưa có phiếu nhận' không có nút tạo", async () => {

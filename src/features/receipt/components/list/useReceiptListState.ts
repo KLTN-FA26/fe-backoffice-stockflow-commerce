@@ -6,6 +6,7 @@ import { ADMIN_ROUTES, RECEIPT_COLUMNS, RECEIPT_STATUSES, STORAGE_KEYS } from "@
 import { usePageConfig } from "@/hooks/use-page-config";
 import { useUrlFilters } from "@/hooks/use-url-filters";
 import { useGoodsReceipts } from "@/features/receipt/queries";
+import { productionOrderCodeOf } from "@/features/receipt/selectors";
 
 import {
   DEFAULT_COLUMNS,
@@ -80,6 +81,9 @@ export function useReceiptListState(canRead = true) {
     !!receivedFrom ||
     !!receivedTo;
   const page = query.data;
+  // Chip lọc hiện mã Đơn sản xuất thay cho id trên URL; chưa có dòng khớp thì đành hiện id
+  const productionOrderLabel =
+    productionOrderCodeOf(page?.items ?? [], productionOrder) ?? productionOrder;
   const emptyState: ReceiptListEmptyState = !page
     ? "none"
     : page.totalElements === 0
@@ -156,6 +160,7 @@ export function useReceiptListState(canRead = true) {
     filters,
     sort,
     productionOrder,
+    productionOrderLabel,
     receivedFrom,
     receivedTo,
     setProductionOrder: (value: string) => withPageReset(() => setProductionOrder(value || null)),
