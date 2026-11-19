@@ -23,6 +23,7 @@ import { DispatchCard } from "./detail/DispatchCard";
 import { GeneralCard } from "./detail/GeneralCard";
 import { HistoryCard } from "./detail/HistoryCard";
 import { LinesCard } from "./detail/LinesCard";
+import { SampleRoundsCard } from "./sample/SampleRoundsCard";
 
 import type { ProductionOrderStatus } from "@/constants";
 
@@ -57,6 +58,7 @@ function DetailContent({ id }: { id: string }) {
           <CapacityWarning order={order} />
           <GeneralCard order={order} me={me} />
           <LinesCard order={order} />
+          <SampleRoundsCard order={order} />
           {dispatch.data && (
             <DispatchCard order={order} dispatch={dispatch.data} canResend={actions.resend} />
           )}
