@@ -3,19 +3,22 @@
  * TT 91/2026/TT-BTC: "hoá đơn nháp", "phát hành", "điều chỉnh", "thay thế", "thông báo sai sót".
  */
 
-import type { CorrectionBasis, EInvoiceType } from "./einvoice";
+import type { CorrectionBasisRead, EInvoiceTypeRead } from "./einvoice";
 
 export const EINVOICE_TYPE_LABELS = {
   ORIGINAL: "Hoá đơn gốc",
   ADJUSTMENT: "Hoá đơn điều chỉnh",
   REPLACEMENT: "Hoá đơn thay thế",
-} as const satisfies Record<EInvoiceType, string>;
+  UNKNOWN: "Loại hoá đơn chưa hỗ trợ",
+} as const satisfies Record<EInvoiceTypeRead, string>;
 
 export const CORRECTION_BASIS_LABELS = {
   ERROR: "Sai sót (mã số thuế, số lượng, giá, thuế suất, tiền)",
   RETURN: "Trả hàng",
   TRADE_DISCOUNT: "Chiết khấu thương mại",
-} as const satisfies Record<CorrectionBasis, string>;
+  DELIVERY_FAILED: "Giao hàng thất bại — hệ thống điều chỉnh giảm toàn bộ",
+  UNKNOWN: "Căn cứ chưa hỗ trợ hiển thị",
+} as const satisfies Record<CorrectionBasisRead, string>;
 
 export const EINVOICE_LABELS = {
   navGroup: "Hoá đơn",

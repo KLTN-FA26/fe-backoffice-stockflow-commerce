@@ -5,12 +5,15 @@
 
 import { EINVOICE_PERMISSIONS } from "@/constants/einvoice";
 
-import type { EInvoiceStatus } from "@/constants/einvoice";
+import type { EInvoiceStatusRead } from "@/constants/einvoice";
 import type { PermissionCode } from "@/lib/auth";
 import type { EInvoice } from "./types";
 
-/** BE `EInvoiceStatus.next()` — VOIDED_DRAFT và REPLACED là trạng thái cuối. */
-export const EINVOICE_TRANSITIONS: Record<EInvoiceStatus, readonly EInvoiceStatus[]> = {
+/**
+ * BE `EInvoiceStatus.next()` — VOIDED_DRAFT và REPLACED là trạng thái cuối. `UNKNOWN` (trạng thái BE
+ * mới FE chưa biết) không có chuyển tiếp nào: chỉ xem, không thao tác.
+ */
+export const EINVOICE_TRANSITIONS: Record<EInvoiceStatusRead, readonly EInvoiceStatusRead[]> = {
   DRAFT: ["SUBMITTING", "VOIDED_DRAFT"],
   SUBMITTING: ["ISSUED", "REJECTED"],
   // docs 21 §4.2 bước 7: sửa nguyên nhân rồi phát hành lại — BE mở lại thành nháp trước
@@ -19,6 +22,7 @@ export const EINVOICE_TRANSITIONS: Record<EInvoiceStatus, readonly EInvoiceStatu
   ISSUED: ["REPLACED"],
   VOIDED_DRAFT: [],
   REPLACED: [],
+  UNKNOWN: [],
 };
 
 export type EInvoiceAction =
@@ -78,10 +82,11 @@ export function allowedEInvoiceActions(
       if (invoice.hasFiles && can(P.read)) actions.push("downloadFiles");
       break;
     case "VOIDED_DRAFT":
+    case "UNKNOWN":
       break;
   }
   return actions;
 }
 
-export const isTerminalEInvoice = (status: EInvoiceStatus) =>
+export const isTerminalEInvoice = (status: EInvoiceStatusRead) =>
   EINVOICE_TRANSITIONS[status].length === 0;

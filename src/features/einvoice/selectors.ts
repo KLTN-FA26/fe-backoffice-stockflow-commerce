@@ -4,10 +4,10 @@ import { EINVOICE_STATUS_BY_API } from "@/constants/einvoice";
 import { EINVOICE_LABELS } from "@/constants/labels-einvoice";
 import { statusLabelVi } from "@/lib/status-map";
 
-import type { EInvoiceStatus } from "@/constants/einvoice";
+import type { EInvoiceStatusRead } from "@/constants/einvoice";
 import type { EInvoice, EInvoiceListItem } from "./types";
 
-export function einvoiceStatusLabel(status: EInvoiceStatus): string {
+export function einvoiceStatusLabel(status: EInvoiceStatusRead): string {
   const display = EINVOICE_STATUS_BY_API[status];
   return statusLabelVi(display, "invoice") ?? display;
 }

@@ -20,6 +20,7 @@ const STATUS: Record<ErrorNotice["status"], string> = {
   SENT: "Đã gửi, chờ cơ quan thuế",
   ACCEPTED: "Cơ quan thuế chấp nhận",
   REJECTED: "Cơ quan thuế từ chối",
+  UNKNOWN: "Không rõ",
 };
 
 /**

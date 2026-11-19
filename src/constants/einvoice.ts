@@ -60,6 +60,15 @@ export const EINVOICE_STATUSES = [
 ] as const;
 export type EInvoiceStatus = (typeof EINVOICE_STATUSES)[number];
 
+/**
+ * Giá trị enum BE mà FE chưa biết (BE thêm về sau) — DTO đọc tolerant thành chuỗi này thay vì làm hỏng
+ * cả trang. Chỉ để hiển thị "Không rõ" và khoá mọi thao tác; KHÔNG bao giờ gửi lên BE.
+ */
+export const EINVOICE_UNKNOWN = "UNKNOWN";
+export type EInvoiceUnknown = typeof EINVOICE_UNKNOWN;
+/** Trạng thái như FE đọc được từ BE: một giá trị BE đã biết hoặc `UNKNOWN`. */
+export type EInvoiceStatusRead = EInvoiceStatus | EInvoiceUnknown;
+
 /** Chuỗi hiển thị qua `StatusDot` (domain `invoice`) — nhãn tiếng Việt ở `status-map`. */
 export const EINVOICE_STATUS_BY_API = {
   DRAFT: "Draft",
@@ -68,19 +77,30 @@ export const EINVOICE_STATUS_BY_API = {
   REJECTED: "Rejected",
   VOIDED_DRAFT: "Voided Draft",
   REPLACED: "Replaced",
-} as const satisfies Record<EInvoiceStatus, string>;
+  UNKNOWN: "UNKNOWN",
+} as const satisfies Record<EInvoiceStatusRead, string>;
 
 /** BE `EInvoiceType`: gốc (mỗi shipment `Delivered`), điều chỉnh, thay thế (docs 21 §4.4). */
 export const EINVOICE_TYPES = ["ORIGINAL", "ADJUSTMENT", "REPLACEMENT"] as const;
 export type EInvoiceType = (typeof EINVOICE_TYPES)[number];
+export type EInvoiceTypeRead = EInvoiceType | EInvoiceUnknown;
 
 /**
  * BE `CorrectionBasis` (TT 91/2026 Điều 10): ERROR — sai mã số thuế / số lượng / giá / thuế suất / tiền,
  * cần thoả thuận bằng văn bản trước khi phát hành; RETURN — trả hàng (chỉ giảm); TRADE_DISCOUNT —
- * chiết khấu thương mại (chỉ giảm).
+ * chiết khấu thương mại (chỉ giảm); DELIVERY_FAILED — giao hàng bị sửa thành thất bại sau khi hoá đơn
+ * đã phát hành: hệ thống tự lập điều chỉnh giảm toàn bộ (docs 21 §4.4, WF-05 HĐ-3; BE PR #369).
  */
-export const CORRECTION_BASES = ["ERROR", "RETURN", "TRADE_DISCOUNT"] as const;
+export const CORRECTION_BASES = ["ERROR", "RETURN", "TRADE_DISCOUNT", "DELIVERY_FAILED"] as const;
 export type CorrectionBasis = (typeof CORRECTION_BASES)[number];
+export type CorrectionBasisRead = CorrectionBasis | EInvoiceUnknown;
+
+/**
+ * Căn cứ Kế toán được chọn khi tự lập điều chỉnh. DELIVERY_FAILED chỉ hệ thống lập
+ * (BE `CorrectionBasis.systemOnly()`, `EInvoiceCorrections` từ chối khi lập tay).
+ */
+export const MANUAL_CORRECTION_BASES = ["ERROR", "RETURN", "TRADE_DISCOUNT"] as const;
+export type ManualCorrectionBasis = (typeof MANUAL_CORRECTION_BASES)[number];
 
 /** BE `EInvoice.Warning` + `EARLIER_INVOICE_PENDING` (chi tiết). */
 export const EINVOICE_WARNINGS = [

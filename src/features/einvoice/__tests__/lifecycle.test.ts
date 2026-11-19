@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { EINVOICE_PERMISSIONS, EINVOICE_STATUSES } from "@/constants/einvoice";
+import { EINVOICE_PERMISSIONS, EINVOICE_STATUSES, EINVOICE_UNKNOWN } from "@/constants/einvoice";
 
 import type { PermissionCode } from "@/lib/auth";
 
@@ -32,8 +32,10 @@ const gate = (over: Partial<Parameters<typeof allowedEInvoiceActions>[0]> = {}) 
 });
 
 describe("EINVOICE_TRANSITIONS (docs 21 §5.1; BE EInvoiceStatus.next)", () => {
-  it("covers every BE status; VOIDED_DRAFT and REPLACED are final", () => {
-    expect(Object.keys(EINVOICE_TRANSITIONS).sort()).toEqual([...EINVOICE_STATUSES].sort());
+  it("covers every BE status (+ UNKNOWN); VOIDED_DRAFT and REPLACED are final", () => {
+    expect(Object.keys(EINVOICE_TRANSITIONS).sort()).toEqual(
+      [...EINVOICE_STATUSES, EINVOICE_UNKNOWN].sort(),
+    );
     expect(EINVOICE_TRANSITIONS.VOIDED_DRAFT).toEqual([]);
     expect(EINVOICE_TRANSITIONS.REPLACED).toEqual([]);
     expect(isTerminalEInvoice("REPLACED")).toBe(true);
@@ -97,6 +99,11 @@ describe("allowedEInvoiceActions — three roles (docs 21 BR-02)", () => {
     );
     expect(adjusted).toContain("adjust");
     expect(adjusted).not.toContain("replace");
+  });
+
+  it("a status the FE does not know yet offers nothing", () => {
+    expect(allowedEInvoiceActions(gate({ status: EINVOICE_UNKNOWN }), ACCOUNTANT)).toEqual([]);
+    expect(isTerminalEInvoice(EINVOICE_UNKNOWN)).toBe(true);
   });
 
   it("final statuses offer no mutating action", () => {
