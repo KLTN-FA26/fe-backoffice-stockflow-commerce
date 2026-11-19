@@ -16,8 +16,12 @@ import { blobBytes } from "@/lib/crypto/blob-bytes";
 import type { GlbLoader } from "./use-glb-reading";
 import { Model3dError } from "../model3d/model3d-error";
 import {
+  CHANGE_FILE,
+  CHOSEN_FILE,
   cupTree,
   EMPTY_VARIANT,
+  FILE_INPUT,
+  findStatus,
   firstGeometry,
   frontFaceOnlyTree,
   glbFile,
@@ -34,7 +38,7 @@ configure({ asyncUtilTimeout: 45_000 });
 const SAVE = { name: "Lưu cấu hình in" };
 const MB = 1024 * 1024;
 const upload = (file: File, applyAccept = true) =>
-  userEvent.setup({ applyAccept }).upload(screen.getByLabelText(/Chọn hoặc kéo thả file/), file);
+  userEvent.setup({ applyAccept }).upload(screen.getByLabelText(FILE_INPUT), file);
 
 beforeAll(() => activateMockAdapter());
 beforeEach(() => {
@@ -48,7 +52,7 @@ afterEach(() => vi.restoreAllMocks());
 
 async function renderEmpty(loadModel?: GlbLoader) {
   renderSection({ ...EMPTY_VARIANT, loadModel });
-  await screen.findByText("Chưa có cấu hình in");
+  await findStatus("Chưa có cấu hình in");
 }
 
 describe("choosing the real sample cup", () => {
@@ -197,8 +201,12 @@ describe("files that are too big or cannot be read", () => {
     let finish: (tree: ReturnType<typeof cupTree>) => void = () => {};
     await renderEmpty(() => new Promise((resolve) => (finish = resolve)));
     await upload(glbFile("slow.glb"));
-    expect(await screen.findByText("Đang đọc slow.glb…")).toBeInTheDocument();
-    expect(screen.getByLabelText(/Chọn hoặc kéo thả file/)).toBeDisabled();
+    const row = within(await screen.findByRole("group", CHOSEN_FILE));
+    expect(row.getByText("slow.glb")).toBeInTheDocument();
+    expect(row.getByText("Đang đọc…")).toBeInTheDocument();
+    expect(screen.getByLabelText(CHANGE_FILE)).toBeDisabled();
+    expect(row.getByRole("button", { name: "Đổi file" })).toBeDisabled();
+    expect(row.getByRole("button", { name: "Bỏ file" })).toBeDisabled();
     finish(cupTree());
     expect(await screen.findByText("Nhận ra: Ly")).toBeInTheDocument();
   });
@@ -228,7 +236,7 @@ describe("a second file", () => {
     const freed = vi.fn();
     firstGeometry(tree).addEventListener("dispose", freed);
     const view = renderSection({ ...EMPTY_VARIANT, loadModel: loaderOf(tree) });
-    await screen.findByText("Chưa có cấu hình in");
+    await findStatus("Chưa có cấu hình in");
     await upload(glbFile());
     await screen.findByText("Nhận ra: Ly");
     expect(freed).not.toHaveBeenCalled();

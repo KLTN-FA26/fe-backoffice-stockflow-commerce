@@ -14,6 +14,7 @@ import {
   trimBoundsOf,
 } from "@/features/product-design/model3d/cup-sector";
 
+import { withBagFlaps } from "./mock-print-config-bag";
 import { seedTemplates } from "./mock-print-config-seed";
 
 import type { PrintConfigDto, PrintSurface } from "@/features/product-design";
@@ -134,7 +135,8 @@ export function responseOf(t: MockPrintTemplate) {
     maxColors: t.maxColors,
     allowedFontCodes: t.allowedFontCodes,
     active: t.active,
-    model: t.model,
+    // A bag stored before its glue flap and bottom fold is returned with the defaults, as the BE fills them.
+    model: withBagFlaps(t.model),
     printAreas: t.areas.map((area) => {
       const { width, height, shape } = areaGeometry(t.model, area.code);
       return {

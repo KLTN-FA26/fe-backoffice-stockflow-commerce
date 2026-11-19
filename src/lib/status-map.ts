@@ -141,6 +141,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "PARTIALLY_RECEIVED",
     "PENDING_APPROVAL",
     "Pending Approval",
+    // Đơn sản xuất chờ khách duyệt mẫu in (docs 17 §5.3)
+    "Sample Pending",
     "On Hold",
     "Exception",
     "Short",
@@ -406,6 +408,7 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   "In Production": "Đang sản xuất",
   // Warning
   "Pending Approval": "Chờ duyệt",
+  "Sample Pending": "Chờ duyệt mẫu in",
   "On Hold": "Tạm giữ",
   Exception: "Ngoại lệ",
   Short: "Thiếu",
@@ -578,7 +581,7 @@ const STATUS_LABEL_VI_BY_DOMAIN: Partial<Record<StatusDomain, Record<string, str
     Received: "Hàng đã về",
     Inspected: "Đã kiểm (cũ)",
     "Settlement Pending": "Chờ duyệt hoàn tiền",
-    Resolved: "Đã hoàn tiền",
+    Resolved: "Đã xử lý xong",
     Rejected: "Từ chối",
     Cancelled: "Đã rút",
     Expired: "Quá hạn gửi hàng",

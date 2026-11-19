@@ -127,22 +127,35 @@ describe("OrderResponse — field SCRUM-423/427/460", () => {
   });
 });
 
-describe("ProductionOrderRowResponse (GET /production/orders, BE develop 5683fe14)", () => {
-  // Hình thật của BE row (Jackson non_null: parentId / holdReason / dueDate / packingLocation vắng)
-  const parent = {
+describe("ProductionOrder (GET /production-orders, BE ProductionOrderController#list, docs 17 §4.3)", () => {
+  // Hình thật của BE `ProductionOrderResponse` (Jackson non_null: expectedCompletionDate / note / history… vắng)
+  const order = {
     id: "0b0b0b0b-0000-4000-8000-000000000001",
-    orderNumber: "LSX-20261020-0001",
-    type: "ORDER",
-    mode: "IN_HOUSE",
-    status: "PENDING_PREPRESS",
-    warehouseId: "8f8f8f8f-0000-4000-8000-000000000001",
-    blankSku: "CUP-12OZ-WHT",
-    designSnapshotId: "c0ffee00-0000-4000-8000-000000000001",
-    plannedQuantity: 100,
-    goodQuantity: 0,
+    code: "PRD-20261020-0001",
     salesOrderId: "5e5e5e5e-0000-4000-8000-000000000001",
-    salesOrderLineId: "5e5e5e5e-0000-4000-8000-000000000002",
-    createdAt: "2026-10-20T03:00:00Z",
+    deliveryBatchId: "5e5e5e5e-0000-4000-8000-000000000009",
+    customerId: "5e5e5e5e-0000-4000-8000-000000000003",
+    producerId: "9a9a9a9a-0000-4000-8000-000000000001",
+    receivingWarehouseId: "8f8f8f8f-0000-4000-8000-000000000001",
+    needByDate: "2026-11-05",
+    status: "SENT",
+    sampleApprovalRequired: true,
+    sampleRequiredByDefault: true,
+    currency: "VND",
+    capacityComputed: true,
+    lines: [
+      {
+        id: "0c0c0c0c-0000-4000-8000-000000000001",
+        orderLineId: "5e5e5e5e-0000-4000-8000-000000000002",
+        sku: "CUP-12OZ-WHT-KH01",
+        cartons: 10,
+        unitsPerCarton: 50,
+        totalUnits: 500,
+        designSnapshotId: "c0ffee00-0000-4000-8000-000000000001",
+        receivedCartons: 0,
+      },
+    ],
+    version: 3,
   };
   const page = (items: unknown[]) => ({
     items,
@@ -154,82 +167,78 @@ describe("ProductionOrderRowResponse (GET /production/orders, BE develop 5683fe1
     hasPrevious: false,
   });
 
-  it("LSX gốc: field null bị bỏ khỏi JSON (non_null) vẫn parse; field thừa của BE bị bỏ", () => {
-    const parsed = productionOrderDtoSchema.parse(parent);
-    expect(parsed.parentId).toBeUndefined();
-    expect(parsed).not.toHaveProperty("blankSku");
+  it("field null bị bỏ khỏi JSON (non_null) vẫn parse; field thừa của BE bị bỏ", () => {
+    const parsed = productionOrderDtoSchema.parse(order);
+    expect(parsed.expectedCompletionDate).toBeUndefined();
+    expect(parsed).not.toHaveProperty("producerId");
+    expect(parsed.lines[0]).toMatchObject({ cartons: 10, receivedCartons: 0 });
   });
 
-  it("trang PageResponse: LSX con gia công + treo (parentId, holdReason)", () => {
+  it("mọi trạng thái docs 17 §5.3 parse được, kể cả Sample Pending và Partially Received", () => {
     const parsed = productionOrderPageDtoSchema.parse(
       page([
-        parent,
-        {
-          ...parent,
-          id: "0b0b0b0b-0000-4000-8000-000000000002",
-          orderNumber: "LSX-20261020-0002",
-          parentId: parent.id,
-          mode: "SUBCONTRACTED",
-          status: "ON_HOLD",
-          holdReason: "SUBCONTRACTOR_LATE",
-        },
+        { ...order, status: "SAMPLE_PENDING", expectedCompletionDate: "2026-11-03" },
+        { ...order, id: "0b0b0b0b-0000-4000-8000-000000000002", status: "PARTIALLY_RECEIVED" },
       ]),
     );
-    expect(parsed.items[1]?.parentId).toBe(parent.id);
-    expect(parsed.items[1]?.holdReason).toBe("SUBCONTRACTOR_LATE");
+    expect(parsed.items.map((item) => item.status)).toEqual([
+      "SAMPLE_PENDING",
+      "PARTIALLY_RECEIVED",
+    ]);
+    expect(parsed.items[0]?.expectedCompletionDate).toBe("2026-11-03");
   });
 
-  it("trang rỗng (salesOrderId không có LSX) là hợp lệ", () => {
+  it("trang rỗng (salesOrderId không có Đơn sản xuất) là hợp lệ", () => {
     expect(productionOrderPageDtoSchema.parse(page([])).items).toEqual([]);
   });
 
-  it("status / mode / type ngoài enum BE → fail; mảng trần (hợp đồng mock cũ) → fail", () => {
-    expect(productionOrderDtoSchema.safeParse({ ...parent, status: "DONE" }).success).toBe(false);
-    expect(productionOrderDtoSchema.safeParse({ ...parent, mode: "OUTSOURCE" }).success).toBe(
+  it("status cũ của lệnh sản xuất nội bộ (PRINTING) → fail; thiếu lines → fail; mảng trần → fail", () => {
+    expect(productionOrderDtoSchema.safeParse({ ...order, status: "PRINTING" }).success).toBe(
       false,
     );
-    expect(productionOrderDtoSchema.safeParse({ ...parent, type: "RUSH" }).success).toBe(false);
-    expect(productionOrderPageDtoSchema.safeParse([parent]).success).toBe(false);
+    const { lines: _lines, ...noLines } = order;
+    expect(productionOrderDtoSchema.safeParse(noLines).success).toBe(false);
+    expect(productionOrderPageDtoSchema.safeParse([order]).success).toBe(false);
   });
 });
 
-describe("CreditPositionResponse (GET /orders/credit-position/{customerId})", () => {
-  it("B. parse đúng hình BE; khách chỉ trả trước: field null bị bỏ khỏi JSON vẫn parse", () => {
+describe("CreditPositionResponse (GET /orders/credit-position/{customerId}, BE 438fe6fb)", () => {
+  it("B. parse đúng hình BE; khách không bán trả sau: field null bị bỏ khỏi JSON vẫn parse", () => {
     expect(creditPositionDtoSchema.parse(apiCreditPosition)).toMatchObject({
-      allowedTerms: ["PREPAID", "DEPOSIT", "CREDIT"],
-      depositPercent: 40,
+      creditLimit: 1_000_000,
       availableCredit: 200_000,
       hasOverdue: false,
     });
-    const prepaidOnly = {
+    const noCredit = {
       customerId: apiOrder.customerId,
-      allowedTerms: ["PREPAID"],
-      defaultTerm: "PREPAID",
       exposure: 0,
       currency: "VND",
       hasOverdue: false,
+      overdueAmount: 0,
     };
-    const parsed = creditPositionDtoSchema.parse(prepaidOnly);
-    expect(parsed.depositPercent).toBeUndefined();
+    const parsed = creditPositionDtoSchema.parse(noCredit);
     expect(parsed.creditLimit).toBeUndefined();
     expect(parsed.availableCredit).toBeUndefined();
+    expect(parsed.oldestOverdueDueDate).toBeUndefined();
   });
 
-  it("C. thiếu field bắt buộc (exposure / currency / hasOverdue / allowedTerms) → fail", () => {
-    for (const key of ["exposure", "currency", "hasOverdue", "allowedTerms", "customerId"]) {
+  it("DS-02b: khách quá hạn — số quá hạn và ngày cũ nhất", () => {
+    const parsed = creditPositionDtoSchema.parse({
+      ...apiCreditPosition,
+      creditLimit: 300_000_000,
+      creditTermDays: 15,
+      hasOverdue: true,
+      overdueAmount: 41_195_000,
+      oldestOverdueDueDate: "2026-11-02",
+    });
+    expect(parsed).toMatchObject({ overdueAmount: 41_195_000, oldestOverdueDueDate: "2026-11-02" });
+  });
+
+  it("C. thiếu field bắt buộc (exposure / currency / hasOverdue / customerId) → fail", () => {
+    for (const key of ["exposure", "currency", "hasOverdue", "customerId"]) {
       const broken: Record<string, unknown> = { ...apiCreditPosition };
       delete broken[key];
       expect(creditPositionDtoSchema.safeParse(broken).success, key).toBe(false);
     }
-  });
-
-  it("mã phương thức FE chưa biết bị bỏ khỏi allowedTerms / defaultTerm — không thành lựa chọn", () => {
-    const parsed = creditPositionDtoSchema.parse({
-      ...apiCreditPosition,
-      allowedTerms: ["PREPAID", "INSTALLMENT"],
-      defaultTerm: "INSTALLMENT",
-    });
-    expect(parsed.allowedTerms).toEqual(["PREPAID"]);
-    expect(parsed.defaultTerm).toBeNull();
   });
 });

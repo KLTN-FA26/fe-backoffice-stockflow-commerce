@@ -52,6 +52,21 @@ describe("completionChecks (docs 17 §4.6 bước 21 + BE WF-05 plan §4)", () =
   });
 });
 
+describe("completionChecks — giữ hoàn tất (WF-05 GH-2)", () => {
+  const now = new Date("2026-12-01T00:00:00Z");
+  it("no hold condition when the screen does not know about holds", () => {
+    expect(met(completionChecks(facts(), now))).not.toHaveProperty("notHeld");
+  });
+
+  it("an open hold keeps the order delivered; unknown is not met either", () => {
+    expect(met(completionChecks(facts({ completionHeld: false }), now)).notHeld).toBe(true);
+    expect(met(completionChecks(facts({ completionHeld: true }), now)).notHeld).toBe(false);
+    const unknown = completionChecks(facts({ completionHeld: null }), now);
+    expect(met(unknown).notHeld).toBe(false);
+    expect(unknown[4]?.detail).toBe("Chưa đọc được tình trạng giữ hoàn tất");
+  });
+});
+
 describe("closingDate (BE Order.close)", () => {
   it("is 30 days after completion", () => {
     expect(closingDate("2026-11-10T17:30:00Z").toISOString()).toBe("2026-12-10T17:30:00.000Z");

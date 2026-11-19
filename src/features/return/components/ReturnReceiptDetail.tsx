@@ -36,6 +36,7 @@ import {
 } from "./primitives";
 import { ReturnCartonScan } from "./ReturnCartonScan";
 import { ReturnCartonTables } from "./ReturnCartonTables";
+import { ReturnLooseLines } from "./ReturnLooseLines";
 
 const L = RETURN_RECEIPT_LABELS;
 const D = L.detail;
@@ -96,7 +97,9 @@ function Content({ id }: { id: string }) {
       </div>
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0 space-y-4">
-          {actions.includes("scan") && <ReturnCartonScan receiptId={receipt.id} />}
+          {actions.includes("scan") && (
+            <ReturnCartonScan receiptId={receipt.id} expectedCartons={receipt.expectedCartons} />
+          )}
           <ReturnCartonTables
             receipt={receipt}
             removing={remove.isPending}
@@ -106,6 +109,7 @@ function Content({ id }: { id: string }) {
                 : undefined
             }
           />
+          <ReturnLooseLines receipt={receipt} editable={actions.includes("loose")} />
         </div>
         <Card className="space-y-3">
           <div className="flex items-center justify-between gap-2">
@@ -174,8 +178,10 @@ function Content({ id }: { id: string }) {
 }
 
 /**
- * Một phiếu nhập hàng hoàn: quét LPN vào phiếu nháp, đối chiếu với thùng của nguồn, xác nhận (thùng về tồn cách ly,
- * RMA → RECEIVED) hoặc huỷ (docs 03 §4.2 bước 10–12, BR-05, BR-14).
+ * Một phiếu nhập hàng hoàn: quét LPN vào phiếu nháp (thùng đã mở kèm số đếm thực tế), ghi hàng lẻ không nhãn (phiếu
+ * của yêu cầu trả hàng), đối chiếu với thùng của nguồn, xác nhận hoặc huỷ (docs 03 §4.2 bước 10–12, BR-05, BR-14).
+ * Xác nhận: thùng về tồn cách ly; yêu cầu trả hàng sang RECEIVED khi đã về đủ số đã duyệt, về một phần thì vẫn
+ * AWAITING_RETURN (một lần hàng về) để Sale bấm "Đã nhận đủ hàng" (WF-05 TH-3, TH-4).
  */
 export function ReturnReceiptDetail({ id }: { id: string }) {
   return (

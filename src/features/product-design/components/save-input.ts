@@ -1,7 +1,7 @@
 /**
  * From what the screen holds (a measurement of a chosen file, or the stored configuration; the defaults the person
  * confirmed) to the input of `savePrintConfig`. Pure. The measured figures are never changed here: only the defaults
- * (seam, rim, material, top fold, handle, margins) are applied on top of them.
+ * (seam, rim, material, top fold, glue flap, bottom fold, handle, margins) are applied on top of them.
  */
 import { PRINT_CONFIG_SCREEN_LABELS } from "@/constants/labels-print-config";
 
@@ -49,6 +49,8 @@ export function withDefaults(
         ...model,
         heightMm: bagHeightFor(model, d.topFoldMm),
         topFoldMm: d.topFoldMm,
+        glueFlapMm: d.glueFlapMm,
+        bottomFoldMm: d.bottomFoldMm,
         handle: d.handle,
         material: d.bagMaterial,
       };

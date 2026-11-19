@@ -18,19 +18,6 @@ export const SUPPLIER_PERMISSIONS = {
 } as const;
 
 /**
- * Danh mục hàng của NCC — resource `procurement-supplier-items` (BE SupplierItemController).
- * Seed V20260928006000 chỉ cấp đủ 5 action cho PROCUREMENT_STAFF (ACCOUNTANT,
- * ECOMMERCE_ADMIN không có).
- */
-export const SUPPLIER_ITEM_PERMISSIONS = {
-  viewPage: "procurement-supplier-items:VIEW_PAGE",
-  read: "procurement-supplier-items:READ",
-  create: "procurement-supplier-items:CREATE",
-  update: "procurement-supplier-items:UPDATE",
-  delete: "procurement-supplier-items:DELETE",
-} as const;
-
-/**
  * Đơn hàng — resource `sales-orders` (BE `OrderResources.ORDERS`).
  * - `release`: release đơn sang kho xuất (`POST /orders/{id}/release`, BR-03 docs 17) — resource riêng
  *   `sales-order-releases` (UPDATE, scope ALL, BE V20261115000200): quản lý kho của kho xuất; BE kiểm thêm kho
@@ -85,6 +72,21 @@ export const ORDER_DELIVERY_BATCH_PERMISSIONS = {
 } as const;
 
 /**
+ * Chat Sale ↔ khách — resource `chat-conversations` (BE StaffChatController, seed V20261124000300: SALES_STAFF,
+ * SALES_MANAGER, SYSTEM_ADMIN đủ VIEW_PAGE / READ / CREATE / UPDATE). Giám sát (`chat-supervision`) chỉ quản lý.
+ */
+export const CHAT_PERMISSIONS = {
+  viewPage: "chat-conversations:VIEW_PAGE",
+  read: "chat-conversations:READ",
+  create: "chat-conversations:CREATE",
+  update: "chat-conversations:UPDATE",
+  /** Người giám sát chat (16 §2): phân công hội thoại chưa ai nhận, xử lý hội thoại đã chuyển cấp. */
+  supervise: "chat-supervision:UPDATE",
+  /** Câu trả lời mẫu (S23, S24; seed: SALES_STAFF, SALES_MANAGER, SYSTEM_ADMIN). */
+  cannedRead: "chat-canned-responses:READ",
+} as const;
+
+/**
  * Hợp đồng bán — resource `sales-contracts` (BE `OrderResources.SALES_CONTRACTS`). Chỉ khai báo mã FE đang dùng:
  * - `read`: không còn dùng cho lịch giao (đã chuyển sang `sales-order-delivery-batches:READ`, bên trên); giữ lại cho fixture
  *   / mock mô tả vai đọc hợp đồng. Seed BE: SALES_STAFF, SALES_MANAGER, ACCOUNTANT, PRODUCTION_COORDINATOR, SYSTEM_ADMIN.
@@ -93,7 +95,12 @@ export const ORDER_DELIVERY_BATCH_PERMISSIONS = {
  */
 export const SALES_CONTRACT_PERMISSIONS = {
   read: "sales-contracts:READ",
+  // WF-02 pha B: lập hợp đồng nháp (`POST /orders/{id}/contract`)
+  create: "sales-contracts:CREATE",
+  // Sửa nháp, gửi, huỷ hợp đồng; dời cửa sổ giao
   update: "sales-contracts:UPDATE",
+  // Ghi nhận đã ký (`POST /orders/{id}/contract/signature`)
+  approve: "sales-contracts:APPROVE",
 } as const;
 
 /**
@@ -301,8 +308,6 @@ export const INVENTORY_PERMISSIONS = {
   movementRead: "inventory-stock-movements:READ",
   // GET /inventory/stock-items?sku= (tồn theo SKU và vị trí) — gợi ý nguồn khi chuyển vị trí
   stockRead: "inventory-stock-items:READ",
-  // GET /inventory/alerts, /inventory/alerts/summary (BE StockAlertController, resource inventory-alerts)
-  alertRead: "inventory-alerts:READ",
 } as const;
 
 /**
@@ -367,20 +372,13 @@ export const WAREHOUSE_LOCATION_PERMISSIONS = {
 } as const;
 
 /**
- * Tổng quan tồn kho (SCRUM-438) — resource `InventoryResources.STOCK_ITEMS` / `RESERVATIONS` /
- * `ALERTS`. Tồn kho và giữ chỗ là hai resource riêng; seed BE V20260903000100.
+ * Tổng quan tồn kho (SCRUM-438) — resource `InventoryResources.STOCK_ITEMS` / `RESERVATIONS`. Tồn kho và giữ chỗ là hai resource riêng; seed BE V20260903000100.
  */
 export const INVENTORY_OVERVIEW_PERMISSIONS = {
   stockViewPage: "inventory-stock-items:VIEW_PAGE",
   stockRead: "inventory-stock-items:READ",
   reservationViewPage: "inventory-reservations:VIEW_PAGE",
   reservationRead: "inventory-reservations:READ",
-  // GET /inventory/alerts (StockAlertController, READ) — cảnh báo nhúng trong màn tổng quan và màn
-  // Cảnh báo tồn kho. Seed V20261014000900.
-  alertRead: "inventory-alerts:READ",
-  // Màn Cảnh báo tồn kho (`/admin/inventory/alerts`, đích deep link thông báo SCRUM-147): BE khai báo
-  // VIEW_PAGE cho resource inventory-alerts; seed V20261014000900 cấp cùng READ.
-  alertViewPage: "inventory-alerts:VIEW_PAGE",
 } as const;
 
 /**
@@ -497,18 +495,6 @@ export const QUOTE_PERMISSIONS = {
 } as const;
 
 /**
- * Yêu cầu làm mẫu — resource `production-sample-requests` (BE SampleRequestController, SCRUM-403;
- * seed V20261010000500 + V20261017000200: CUSTOMER V/R/APPROVE, SALES_STAFF có APPROVE).
- */
-export const SAMPLE_REQUEST_PERMISSIONS = {
-  viewPage: "production-sample-requests:VIEW_PAGE",
-  read: "production-sample-requests:READ",
-  create: "production-sample-requests:CREATE",
-  update: "production-sample-requests:UPDATE",
-  approve: "production-sample-requests:APPROVE",
-} as const;
-
-/**
  * Lệnh sản xuất (LSX) — resource `production-orders` (BE ProductionOrderController, SCRUM-405..415).
  * UPDATE = prepress, treo, in, ghi sản lượng · APPROVE = huỷ / dừng / tiếp tục, tách gia công.
  */
@@ -532,37 +518,12 @@ export const DESIGN_SNAPSHOT_PERMISSIONS = {
   read: "design-snapshots:READ",
 } as const;
 
-/** Xuất phôi cho LSX + gửi / nhận gia công — `production-material-issues` (seed V20261017000400). */
-export const MATERIAL_ISSUE_PERMISSIONS = {
-  read: "production-material-issues:READ",
-  create: "production-material-issues:CREATE",
-} as const;
-
-/** QC thành phẩm LSX — `production-qc-results` (seed V20261017000420: QC_STAFF, WAREHOUSE_MANAGER). */
-export const PRODUCTION_QC_PERMISSIONS = {
-  read: "production-qc-results:READ",
-  create: "production-qc-results:CREATE",
-} as const;
-
 /**
  * Mã vai trò tài khoản cửa hàng (storefront) — BE `Role.CUSTOMER`. CHỈ dùng ở cổng back-office
  * (`lib/auth/back-office.ts`, gương BE `ScopeGuards` / `CurrentUser#isPortalCustomer`) để tách phạm vi dữ liệu
  * khách hàng khỏi back-office. Không phải mã quyền: quyền thao tác luôn theo mã quyền ở file này.
  */
 export const PORTAL_CUSTOMER_ROLE = "CUSTOMER";
-
-/**
- * Lệnh chuyển kho — resource `inventory-transfer-orders` (BE TransferOrderController, SCRUM-326/327).
- * Tạo / sửa nháp / gửi duyệt / huỷ = CREATE; lấy hàng / xuất kho ở kho nguồn = UPDATE; duyệt / từ chối
- * = APPROVE (seed BE: chỉ WAREHOUSE_MANAGER).
- */
-export const TRANSFER_PERMISSIONS = {
-  viewPage: "inventory-transfer-orders:VIEW_PAGE",
-  read: "inventory-transfer-orders:READ",
-  create: "inventory-transfer-orders:CREATE",
-  update: "inventory-transfer-orders:UPDATE",
-  approve: "inventory-transfer-orders:APPROVE",
-} as const;
 
 /**
  * Xem lô giao / chuyến xe / hãng — resource `fulfillment-shipments` (BE `ShipmentController`,
@@ -636,6 +597,18 @@ export const FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS = {
  * Seed V20260928006000: WAREHOUSE_MANAGER, WAREHOUSE_STAFF, INVENTORY_PLANNER, PROCUREMENT_STAFF;
  * V20261017000800 thêm SALES_STAFF; QC_STAFF không có.
  */
+/**
+ * Bảng sức chứa kho — resource `warehouse-capacity` (BE `OrderResources.WAREHOUSE_CAPACITY`, seed
+ * V20261125000100): Quản lý kho (chỉ kho được gán — BE tự thu hẹp), Sale, Điều phối sản xuất, Quản lý kinh doanh
+ * (docs 06 §2). Sửa hệ số sử dụng đi qua `PUT /warehouses/{id}` nên cần `warehouse-warehouses:UPDATE`.
+ */
+export const WAREHOUSE_CAPACITY_PERMISSIONS = {
+  viewPage: "warehouse-capacity:VIEW_PAGE",
+  read: "warehouse-capacity:READ",
+  warehouseRead: "warehouse-warehouses:READ",
+  warehouseUpdate: "warehouse-warehouses:UPDATE",
+} as const;
+
 export const WAREHOUSE_PERMISSIONS = {
   // Trang danh mục kho `/admin/warehouses` (`WarehouseController` @PermissionResource route)
   viewPage: "warehouse-warehouses:VIEW_PAGE",

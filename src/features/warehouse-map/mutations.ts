@@ -10,7 +10,7 @@ import { withStaleRefetch } from "@/lib/api/stale-refetch";
 import { warehouseLocationKeys } from "@/lib/references/warehouse-locations";
 import { warehouseOptionKeys } from "@/lib/references/warehouse-options";
 
-import { changePlaceStatus, createWarehouse } from "./api";
+import { changePlaceStatus, createWarehouse, printLocationLabels } from "./api";
 import { DraftSaveError, saveMapDraft } from "./draft-save";
 import { isStaleLayoutError } from "./errors";
 import { warehouseKeys, warehouseLayoutKeys } from "./queries";
@@ -44,3 +44,8 @@ export const useSaveMapDraft = withStaleRefetch(
     (error instanceof DraftSaveError &&
       error.result.saved.length + error.result.removedKeys.length > 0),
 );
+
+/** In nhãn vị trí (BR-17) — không đổi dữ liệu nên không invalidate; lỗi hiện trong dialog in. */
+export const usePrintLocationLabels = createMutation(printLocationLabels, {
+  showErrorToast: false,
+});

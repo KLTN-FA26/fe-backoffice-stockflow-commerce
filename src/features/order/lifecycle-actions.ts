@@ -28,8 +28,6 @@ import type { Order, OrderStatus } from "./types";
  * Thiếu dữ kiện thì action phụ thuộc vào nó bị ẩn, không bao giờ coi như trạng thái an toàn.
  */
 export interface OrderActionContext {
-  /** BE `paymentTerm`; null / undefined → không phải giữ công nợ đã xác nhận. */
-  readonly paymentTerm: Order["paymentTerm"] | undefined;
   /** Lý do đang giữ (staff); null khi không ON_HOLD. */
   readonly holdReason: Order["holdReason"] | undefined;
   /** Đơn đã có lô giao: kết quả giao ghi theo từng lô, không ghi ở cấp đơn (G4-Q5). */
@@ -55,7 +53,6 @@ export interface OrderActionContext {
 
 /** Ngữ cảnh khi FE không biết gì ngoài trạng thái — action phụ thuộc dữ kiện đều bị ẩn. */
 export const UNKNOWN_CONTEXT: OrderActionContext = {
-  paymentTerm: undefined,
   holdReason: undefined,
   hasShipments: undefined,
   packedAt: undefined,
@@ -119,12 +116,13 @@ export function isManuallyResolvableHold(reason: Order["holdReason"] | undefined
 }
 
 /**
- * Giữ công nợ thật (đơn vượt hạn mức chờ quyết định): BE `Order#requireCreditHold` (ON_HOLD +
- * phương thức CREDIT) VÀ `CreditHoldService#decide` (hồ sơ giữ lý do CREDIT). Đơn công nợ bị giữ vì
- * địa chỉ / thiết kế / giữ tay KHÔNG phải — ORDER_NOT_ON_CREDIT_HOLD.
+ * Giữ công nợ thật (đơn chờ Kế toán quyết định): BE `Order#requireCreditHold` (ON_HOLD + `holdReason == CREDIT`) VÀ
+ * `CreditHoldService#decide` (hồ sơ giữ lý do CREDIT). Từ 4B-10 BE không còn `paymentTerm` trên `OrderResponse` —
+ * hợp đồng (các đợt thanh toán) quyết định cách trả, nên chỉ xét lý do giữ. Đơn bị giữ vì địa chỉ / thiết kế / giao
+ * thất bại / giữ tay KHÔNG phải — ORDER_NOT_ON_CREDIT_HOLD. Trạng thái ON_HOLD do `fromStatuses` của action gate.
  */
-export function isCreditHold(context: Pick<OrderActionContext, "holdReason" | "paymentTerm">) {
-  return context.holdReason === "CREDIT" && context.paymentTerm === "CREDIT";
+export function isCreditHold(context: Pick<OrderActionContext, "holdReason">) {
+  return context.holdReason === "CREDIT";
 }
 
 export const ORDER_ACTIONS: readonly OrderAction[] = [

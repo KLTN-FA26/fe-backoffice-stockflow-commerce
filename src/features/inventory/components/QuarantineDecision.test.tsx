@@ -10,6 +10,7 @@ import {
   QUARANTINE_API,
   QUARANTINE_ERROR_MESSAGES,
   QUARANTINE_LABELS as L,
+  QUARANTINE_LIST_LABELS as LL,
 } from "@/constants/quarantine";
 
 import {
@@ -72,7 +73,8 @@ describe("quarantine decisions on one carton (docs 20 §4.8)", () => {
       http.get(cartonEndpoint, () => ok(cartonBody("AVAILABLE"))),
     );
     renderInventory(<QuarantineDecision />);
-    expect(await screen.findByText(L.prompt)).toBeInTheDocument();
+    // Không có khu mặc định (thiếu warehouse-locations:READ / chưa chọn kho) → nhắc nhập mã khu, chưa gọi danh sách
+    expect(await screen.findByText(LL.prompt)).toBeInTheDocument();
     await userEvent.type(screen.getByLabelText(L.lookupLabel), `${LPN.toLowerCase()}{Enter}`);
     expect(await screen.findByText("HCM-A01-1-B")).toBeInTheDocument();
     expect(screen.getByText("PO-1001")).toBeInTheDocument();
@@ -145,6 +147,24 @@ describe("quarantine decisions on one carton (docs 20 §4.8)", () => {
     await userEvent.type(within(dialog).getByLabelText(/Vị trí khu cách ly/), "HCM-A01-1-B");
     await userEvent.click(within(dialog).getByRole("button", { name: L.quarantine }));
     expect(await within(dialog).findByText(text)).toBeInTheDocument();
+    expect(screen.queryByText(/English backend prose/)).not.toBeInTheDocument();
+  });
+
+  it("WF-05 TH-4: a returned carton that came back opened is refused release — written off only, in Vietnamese", async () => {
+    server.use(
+      inventoryPermissions(MANAGER),
+      http.get(cartonEndpoint, () => ok(cartonBody("QUARANTINE"))),
+      http.post(inventoryEndpoint(QUARANTINE_API.release(LPN)), () =>
+        fail("RETURN_CARTON_OPENED", 409),
+      ),
+    );
+    renderInventory(<QuarantineDecision />, `?lpn=${LPN}`);
+    await userEvent.click(await screen.findByRole("button", { name: L.release }));
+    const dialog = screen.getByRole("dialog");
+    await userEvent.click(within(dialog).getByRole("button", { name: L.release }));
+    expect(
+      await within(dialog).findByText(QUARANTINE_ERROR_MESSAGES.returnCartonOpened),
+    ).toBeInTheDocument();
     expect(screen.queryByText(/English backend prose/)).not.toBeInTheDocument();
   });
 
@@ -250,5 +270,80 @@ describe("quarantine decisions on one carton (docs 20 §4.8)", () => {
     renderInventory(<QuarantineDecision />, `?lpn=${LPN}`);
     expect(await screen.findByText(INVENTORY_LABELS.denied)).toBeInTheDocument();
     expect(fetched).not.toHaveBeenCalled();
+  });
+});
+
+describe("cartons in a quarantine area (BE GET /inventory/stock-packages?location=)", () => {
+  const listEndpoint = inventoryEndpoint(QUARANTINE_API.list);
+  const row = (lpn: string, extra: Record<string, unknown> = {}) => ({
+    lpn,
+    sku: "CUP-PP-500",
+    nominalQty: 120,
+    receivedQty: 120,
+    lotNumber: "PO-1001",
+    onHand: 120,
+    reserved: 0,
+    status: "IN_STOCK",
+    locationCode: "HCM-QC01",
+    ...extra,
+  });
+  const page = (items: unknown[], over: Record<string, unknown> = {}) => ({
+    items,
+    page: 0,
+    size: 15,
+    totalElements: items.length,
+    totalPages: 1,
+    hasNext: false,
+    hasPrevious: false,
+    ...over,
+  });
+
+  it("lists the area typed (upper-cased, exact) with SKU filter in the URL; a row opens that carton", async () => {
+    const seen: URLSearchParams[] = [];
+    server.use(
+      inventoryPermissions(MANAGER),
+      http.get(listEndpoint, ({ request }) => {
+        seen.push(new URL(request.url).searchParams);
+        return ok(page([row(LPN), row("LPN-20261110-000009", { status: "VOID", onHand: 0 })]));
+      }),
+      http.get(cartonEndpoint, () => ok(cartonBody("QUARANTINE"))),
+    );
+    renderInventory(<QuarantineDecision />);
+    await userEvent.type(await screen.findByLabelText(LL.location), "hcm-qc01");
+    await userEvent.type(screen.getByLabelText(LL.sku), "cup-pp-500");
+    await userEvent.click(screen.getByRole("button", { name: LL.apply }));
+    const table = await screen.findByRole("region", { name: LL.title });
+    expect(await within(table).findByRole("button", { name: LPN })).toBeInTheDocument();
+    expect(seen.at(-1)?.get("location")).toBe("HCM-QC01");
+    expect(seen.at(-1)?.get("sku")).toBe("CUP-PP-500");
+    expect(seen.at(-1)?.get("page")).toBe("0");
+    // VOID không có nhãn → nguyên văn, không làm hỏng bảng
+    expect(within(table).getByText("VOID")).toBeInTheDocument();
+    await userEvent.click(within(table).getByRole("button", { name: LPN }));
+    expect(await screen.findByRole("button", { name: L.release })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: L.backToList }));
+    expect(await screen.findByRole("region", { name: LL.title })).toBeInTheDocument();
+  });
+
+  it("opens straight on the area in the URL; an empty area says so, distinct from a SKU that matches nothing", async () => {
+    server.use(
+      inventoryPermissions(MANAGER),
+      http.get(listEndpoint, () => ok(page([]))),
+    );
+    renderInventory(<QuarantineDecision />, "?location=HCM-QC01");
+    expect(await screen.findByText(LL.empty)).toBeInTheDocument();
+    cleanup();
+    renderInventory(<QuarantineDecision />, "?location=HCM-QC01&sku=NOPE");
+    expect(await screen.findByText(LL.noMatch)).toBeInTheDocument();
+  });
+
+  it("says why the list failed without the backend text", async () => {
+    server.use(
+      inventoryPermissions(MANAGER),
+      http.get(listEndpoint, () => fail("FORBIDDEN", 403)),
+    );
+    renderInventory(<QuarantineDecision />, "?location=HN-QC01");
+    expect(await screen.findByText(INVENTORY_LABELS.denied)).toBeInTheDocument();
+    expect(screen.queryByText(/English backend prose/)).not.toBeInTheDocument();
   });
 });

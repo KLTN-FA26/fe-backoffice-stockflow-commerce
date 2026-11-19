@@ -5,182 +5,202 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { toast } from "@/components/shared/Toast";
 import { apiError, bePage, mockApi, renderScreen } from "@/test/api-screen";
 
-import { PortalQuoteDetail, QuoteDetail, QuoteList } from "..";
+import { QuoteCreate, QuoteDetail, QuoteList } from "..";
+import {
+  CUSTOMER,
+  CUSTOMER_ID,
+  ORDER_ID,
+  QUOTE_ACCEPTED,
+  QUOTE_DRAFT_PLATE_UNPRICED,
+  QUOTE_ID,
+  QUOTE_ROW,
+  SKU,
+} from "../__fixtures__/quote-ds02";
 
+const push = vi.fn();
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
-  useSearchParams: () => new URLSearchParams(),
+  useRouter: () => ({ push, replace: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(`customerId=${CUSTOMER_ID}`),
 }));
 
-const line = {
-  id: "l-1",
-  lineNo: 1,
-  blankSku: "CUP-PAPER-12OZ",
-  designSnapshotId: "5f1a2b3c-0000-4000-8000-000000000001",
-  quantity: 1200,
-  priced: true,
-  moq: 1000,
-  tiers: [{ minQuantity: 1000, unitPrice: 2500 }],
-  proposedUnitPrice: 2500,
-  proposedLineTotal: 3000000,
-  sample: { satisfied: true, approvedSampleId: "s-1", reorder: false },
-};
-const quote = (status: string, extra: Record<string, unknown> = {}) => ({
-  id: "q-1",
-  quoteNumber: "QT-20261014-0001",
-  customerId: "c-1",
-  status,
-  revision: 1,
-  paymentTerm: "DEPOSIT",
-  depositPercent: 30,
-  validUntil: "2099-12-31T16:59:59Z",
-  lines: [line],
-  priced: true,
-  proposedTotal: 3000000,
-  history: [{ revision: 1, toStatus: "DRAFT", changedAt: "2026-10-14T02:00:00Z" }],
-  createdAt: "2026-10-14T02:00:00Z",
-  version: 3,
-  ...extra,
+afterEach(() => {
+  vi.restoreAllMocks();
+  push.mockReset();
 });
-const customer = {
-  customerId: "c-1",
-  fullName: "Công ty Bao Bì Xanh",
-  email: "a@example.com",
-  status: "ACTIVE",
+
+const detailUrl = `/quotes/${QUOTE_ID}`;
+const priced = {
+  ...QUOTE_DRAFT_PLATE_UNPRICED,
+  fees: QUOTE_ACCEPTED.fees,
+  priced: true,
+  proposed: QUOTE_ACCEPTED.proposed,
 };
 
-afterEach(() => vi.restoreAllMocks());
-
-describe("Quote back office", () => {
-  it("list: real rows, customer name lookup, status filter sent as repeated params", async () => {
+describe("Quote list", () => {
+  it("real rows, Vietnamese status, status filter as repeated params (page 0-based)", async () => {
     const api = mockApi("SALES_STAFF", {
-      get: {
-        "/quotes": () =>
-          bePage([
-            {
-              id: "q-1",
-              quoteNumber: "QT-20261014-0001",
-              customerId: "c-1",
-              status: "SENT",
-              revision: 2,
-              paymentTerm: "PREPAID",
-              validUntil: "2099-12-31T16:59:59Z",
-              createdAt: "2026-10-14T02:00:00Z",
-              version: 1,
-            },
-          ]),
-        "/customers/c-1": () => customer,
-      },
+      get: { "/quotes": () => bePage([QUOTE_ROW]), [`/customers/${CUSTOMER_ID}`]: () => CUSTOMER },
     });
-    renderScreen(<QuoteList />, "SALES_STAFF", "?status=SENT&customerId=c-1");
-    expect(await screen.findByRole("link", { name: "QT-20261014-0001" })).toHaveAttribute(
+    renderScreen(<QuoteList />, "SALES_STAFF", "?status=CONVERTED");
+    expect(await screen.findByRole("link", { name: "QT-20261120-9001" })).toHaveAttribute(
       "href",
-      "/admin/quotes/q-1",
+      detailUrl.replace("/quotes", "/admin/quotes"),
     );
-    expect(await screen.findAllByText("Công ty Bao Bì Xanh")).not.toHaveLength(0);
-    const params = api.get.mock.calls.find((call) => call[0] === "/quotes")?.[1] as {
+    expect(await screen.findAllByText("Đã tạo đơn")).not.toHaveLength(0);
+    const call = api.get.mock.calls.find((c) => c[0] === "/quotes")?.[1] as {
       params: URLSearchParams;
     };
-    expect(params.params.getAll("status")).toEqual(["SENT"]);
-    expect(params.params.get("customerId")).toBe("c-1");
+    expect(call.params.getAll("status")).toEqual(["CONVERTED"]);
+    expect(call.params.get("page")).toBe("0");
   });
+});
 
-  it("SALES_STAFF on DRAFT: send posts {version}; cancel requires a reason", async () => {
-    const api = mockApi("SALES_STAFF", {
-      get: { "/quotes/q-1": () => quote("DRAFT"), "/customers/c-1": () => customer },
-      post: { "/quotes/q-1/sending": () => quote("SENT", { version: 4 }) },
+describe("Quote detail", () => {
+  it("TC-F03-02: shows BE line total, fee and total with tax", async () => {
+    mockApi("SALES_STAFF", {
+      get: { [detailUrl]: () => QUOTE_ACCEPTED, [`/customers/${CUSTOMER_ID}`]: () => CUSTOMER },
     });
-    renderScreen(<QuoteDetail id="q-1" />, "SALES_STAFF");
-    await userEvent.click(await screen.findByRole("button", { name: /Gửi khách/ }));
-    const dialog = await screen.findByRole("dialog");
-    await userEvent.click(within(dialog).getByRole("button", { name: "Gửi khách" }));
-    await waitFor(() =>
-      expect(api.post).toHaveBeenCalledWith("/quotes/q-1/sending", { version: 3 }),
-    );
-    expect(screen.getByRole("button", { name: "Huỷ báo giá" })).toBeInTheDocument();
+    renderScreen(<QuoteDetail id={QUOTE_ID} />, "SALES_STAFF");
+    const table = await screen.findByRole("table", { name: "Các dòng của báo giá" });
+    expect(within(table).getByText(SKU)).toBeInTheDocument();
+    expect(within(table).getAllByText(/69\.000\.000/)).not.toHaveLength(0);
+    expect(screen.getAllByText(/1\.500\.000/)).not.toHaveLength(0);
+    expect(screen.getByText(/77\.550\.000/)).toBeInTheDocument();
   });
 
-  it("ORDER_COORDINATOR (READ+UPDATE, no CREATE): may convert an accepted quote, sees no create button", async () => {
-    mockApi("ORDER_COORDINATOR", {
-      get: { "/quotes/q-1": () => quote("ACCEPTED", { acceptedTotal: 3000000 }) },
+  it("DRAFT with an unpriced plate fee: send is blocked with the reason", async () => {
+    mockApi("SALES_STAFF", {
+      get: {
+        [detailUrl]: () => QUOTE_DRAFT_PLATE_UNPRICED,
+        [`/customers/${CUSTOMER_ID}`]: () => CUSTOMER,
+      },
     });
-    renderScreen(<QuoteDetail id="q-1" />, "ORDER_COORDINATOR");
-    expect(await screen.findByRole("button", { name: "Tạo đơn bán" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Gửi khách/ })).not.toBeInTheDocument();
+    renderScreen(<QuoteDetail id={QUOTE_ID} />, "SALES_STAFF");
+    expect(await screen.findByRole("button", { name: /Gửi khách/ })).toBeDisabled();
+    expect(screen.getByText("Chưa nhập phí khuôn — sửa báo giá để nhập")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Tạo đơn" })).not.toBeInTheDocument();
   });
 
-  it("stale version (409 OPTIMISTIC_LOCK) shows the Vietnamese message and refetches", async () => {
+  it("DRAFT send posts {version}; a BE refusal shows its Vietnamese message", async () => {
+    const message = "Báo giá QT-20261120-9001 đã hết hiệu lực.";
     const api = mockApi("SALES_STAFF", {
-      get: { "/quotes/q-1": () => quote("DRAFT"), "/customers/c-1": () => customer },
+      get: { [detailUrl]: () => priced, [`/customers/${CUSTOMER_ID}`]: () => CUSTOMER },
       post: {
-        "/quotes/q-1/sending": () => {
-          throw apiError(409, "OPTIMISTIC_LOCK");
+        [`${detailUrl}/sending`]: () => {
+          throw apiError(409, "QUOTE_EXPIRED", undefined, message);
         },
       },
     });
     const toastError = vi.spyOn(toast, "error");
-    renderScreen(<QuoteDetail id="q-1" />, "SALES_STAFF");
+    renderScreen(<QuoteDetail id={QUOTE_ID} />, "SALES_STAFF");
     await userEvent.click(await screen.findByRole("button", { name: /Gửi khách/ }));
     await userEvent.click(
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Gửi khách" }),
     );
     await waitFor(() =>
-      expect(toastError).toHaveBeenCalledWith(
-        expect.stringMatching(/Người khác vừa thay đổi bản ghi này/),
-      ),
+      expect(api.post).toHaveBeenCalledWith(`${detailUrl}/sending`, { version: 0 }),
     );
-    await waitFor(() =>
-      expect(api.get.mock.calls.filter((call) => call[0] === "/quotes/q-1").length).toBeGreaterThan(
-        1,
-      ),
-    );
-  });
-});
-
-describe("Quote customer portal", () => {
-  it("CUSTOMER on SENT: accept is blocked with a reason while a design still needs sample approval", async () => {
-    mockApi("CUSTOMER", {
-      get: {
-        "/quotes/q-1": () =>
-          quote("SENT", { lines: [{ ...line, sample: { satisfied: false, reorder: false } }] }),
-      },
-    });
-    renderScreen(<PortalQuoteDetail id="q-1" />, "CUSTOMER");
-    expect(await screen.findByText("Cần duyệt mẫu in trước khi chấp nhận")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Chấp nhận báo giá" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Yêu cầu chỉnh sửa" })).toBeEnabled();
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith(message));
   });
 
-  it("CUSTOMER accepts with a changed quantity → only the changed line is sent", async () => {
-    const api = mockApi("CUSTOMER", {
-      get: { "/quotes/q-1": () => quote("SENT") },
-      post: { "/quotes/q-1/acceptance": () => quote("ACCEPTED", { version: 4 }) },
-    });
-    renderScreen(<PortalQuoteDetail id="q-1" />, "CUSTOMER");
-    const qty = await screen.findByLabelText(/Dòng 1/);
-    await userEvent.clear(qty);
-    await userEvent.type(qty, "1500");
-    await userEvent.click(screen.getByRole("button", { name: "Chấp nhận báo giá" }));
-    await userEvent.click(
-      within(await screen.findByRole("dialog")).getByRole("button", { name: "Chấp nhận" }),
-    );
-    await waitFor(() =>
-      expect(api.post).toHaveBeenCalledWith("/quotes/q-1/acceptance", {
-        version: 3,
-        lines: [{ lineId: "l-1", quantity: 1500 }],
-      }),
-    );
-  });
-
-  it("CUSTOMER on a non-visible quote (BE 404) gets not-found, not a fake quote", async () => {
-    mockApi("CUSTOMER", {
-      get: {
-        "/quotes/q-1": () => {
-          throw apiError(404, "NOT_FOUND");
+  it("stale version (409 OPTIMISTIC_LOCK) → 'đã tải lại' and refetch", async () => {
+    const api = mockApi("SALES_STAFF", {
+      get: { [detailUrl]: () => priced, [`/customers/${CUSTOMER_ID}`]: () => CUSTOMER },
+      post: {
+        [`${detailUrl}/sending`]: () => {
+          throw apiError(409, "OPTIMISTIC_LOCK");
         },
       },
     });
-    renderScreen(<PortalQuoteDetail id="q-1" />, "CUSTOMER");
-    expect(await screen.findByText("Không tìm thấy báo giá")).toBeInTheDocument();
+    const toastError = vi.spyOn(toast, "error");
+    renderScreen(<QuoteDetail id={QUOTE_ID} />, "SALES_STAFF");
+    await userEvent.click(await screen.findByRole("button", { name: /Gửi khách/ }));
+    await userEvent.click(
+      within(await screen.findByRole("dialog")).getByRole("button", { name: "Gửi khách" }),
+    );
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith("Dữ liệu vừa thay đổi, đã tải lại."),
+    );
+    await waitFor(() =>
+      expect(api.get.mock.calls.filter((c) => c[0] === detailUrl).length).toBeGreaterThan(1),
+    );
+  });
+
+  it("TC-F04-01: ACCEPTED → Tạo đơn posts conversion and goes to the order's contract", async () => {
+    const converted = {
+      ...QUOTE_ACCEPTED,
+      status: "CONVERTED",
+      version: 3,
+      convertedOrder: {
+        orderId: ORDER_ID,
+        orderNumber: "SO-20261120-900001",
+        status: "DRAFT",
+        total: 77550000,
+      },
+    };
+    const api = mockApi("SALES_STAFF", {
+      get: {
+        [detailUrl]: () => QUOTE_ACCEPTED,
+        [`/customers/${CUSTOMER_ID}`]: () => CUSTOMER,
+        [`/customers/${CUSTOMER_ID}/addresses`]: () => [],
+      },
+      post: { [`${detailUrl}/conversion`]: () => converted },
+    });
+    renderScreen(<QuoteDetail id={QUOTE_ID} />, "SALES_STAFF");
+    await userEvent.click(await screen.findByRole("button", { name: "Tạo đơn" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(
+      within(dialog).getByText(/Đơn chưa giữ hàng; bước tiếp theo là lập hợp đồng/),
+    ).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Tạo đơn" }));
+    await waitFor(() =>
+      expect(api.post).toHaveBeenCalledWith(`${detailUrl}/conversion`, { version: 2 }),
+    );
+    await waitFor(() => expect(push).toHaveBeenCalledWith(`/admin/orders/${ORDER_ID}#contract`));
+  });
+});
+
+describe("Quote form", () => {
+  it("lists only ACTIVE customer SKUs and fills tiers from the suggested price", async () => {
+    mockApi("SALES_STAFF", {
+      get: {
+        [`/customers/${CUSTOMER_ID}`]: () => CUSTOMER,
+        "/customer-skus": () => [
+          {
+            variantId: "v1",
+            productId: "p1",
+            sku: SKU,
+            name: "Ly 12oz xanh",
+            ownerCustomerId: CUSTOMER_ID,
+            status: "ACTIVE",
+          },
+          {
+            variantId: "v2",
+            productId: "p1",
+            sku: "LY-CU",
+            ownerCustomerId: CUSTOMER_ID,
+            status: "OBSOLETE",
+          },
+        ],
+        [`/catalog/customer-prices/${CUSTOMER_ID}/${SKU}`]: () => ({
+          customerId: CUSTOMER_ID,
+          sku: SKU,
+          measure: "CARTON",
+          moq: 20,
+          tiers: QUOTE_ACCEPTED.lines[0]?.tiers ?? [],
+          version: 1,
+        }),
+      },
+    });
+    renderScreen(<QuoteCreate />, "SALES_STAFF");
+    const select = await screen.findByLabelText(/SKU riêng của khách/);
+    expect(within(select).queryByRole("option", { name: /LY-CU/ })).not.toBeInTheDocument();
+    await within(select).findByRole("option", { name: new RegExp(SKU) });
+    await userEvent.selectOptions(select, SKU);
+    await userEvent.click(await screen.findByRole("button", { name: /Dùng giá gợi ý/ }));
+    expect(screen.getByLabelText("Đơn giá (bậc 2)")).toHaveValue("1150");
+    expect(
+      screen.getByText((_, el) => el?.tagName === "SPAN" && el.textContent === "MOQ: 20 thùng"),
+    ).toBeInTheDocument();
   });
 });

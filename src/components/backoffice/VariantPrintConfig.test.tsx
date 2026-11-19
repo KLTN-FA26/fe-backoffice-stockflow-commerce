@@ -12,7 +12,10 @@ import {
   PRODUCT_PERMISSIONS,
   UI_LABELS,
 } from "@/constants";
-import { PRINT_CONFIG_PAGE_LABELS } from "@/constants/labels-print-config";
+import {
+  PRINT_CONFIG_PAGE_LABELS,
+  PRINT_CONFIG_SCREEN_LABELS,
+} from "@/constants/labels-print-config";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 import { activateMockAdapter } from "@/lib/api/mock-adapter";
@@ -55,7 +58,8 @@ const ACTIVE_VARIANT = { productId: "PRD-001", variantId: "SKU-001-BLK-M" };
 const NO_CONFIG = "Biến thể này chưa có cấu hình in.";
 const READ = [...PRODUCT_VIEW, TEMPLATE.viewPage, TEMPLATE.read];
 const passThrough = api.get.bind(api);
-const UPLOAD = /Chọn hoặc kéo thả file/;
+/** The file input, a first file or one to replace the saved one: present means the person may choose a file. */
+const UPLOAD = /^(Chọn hoặc kéo thả file \.glb|Chọn file \.glb khác để thay)$/;
 
 beforeAll(() => activateMockAdapter());
 beforeEach(() => {
@@ -89,6 +93,54 @@ function open(
 
 const measured = () => screen.findByRole("table", { name: "Số đo lấy từ file 3D" });
 
+/** The variant's units as the BE lists them: `carton` adds a packing unit of 50 (a carton candidate). */
+function withUnits(ids: { productId: string; variantId: string }, carton: boolean) {
+  const unit = (id: string, unitOfMeasure: string, factor: number, base: boolean) => ({
+    id,
+    sku: ids.variantId,
+    unitOfMeasure,
+    factor,
+    base,
+    defaultPurchase: base,
+    active: true,
+    version: 0,
+  });
+  const items = [
+    unit("u-each", "EACH", 1, true),
+    ...(carton ? [unit("u-box", "THUNG", 50, false)] : []),
+  ];
+  const unitsPath = `/products/${ids.productId}/variants/${ids.variantId}/uom-conversions`;
+  vi.spyOn(api, "get").mockImplementation(async (url, config) =>
+    url === "/identity/me/permissions"
+      ? { data: { roles: ["TEST"], permissions: [...FULL], dataScope: "ALL" } }
+      : url === unitsPath
+        ? { data: { items } }
+        : passThrough(url, config),
+  );
+  return renderApp(<VariantPrintConfig {...ids} />);
+}
+
+describe("VariantPrintConfig — quy cách thùng (preflight CARTON_SPEC_MISSING)", () => {
+  it("a variant without a packing unit warns that customers cannot submit, with the way to the product", async () => {
+    await setStatus(SEED.productId, "Approved");
+    withUnits(SEED, false);
+    const warning = await screen.findByText(PRINT_CONFIG_PAGE_LABELS.cartonMissing.title);
+    expect(warning).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: PRINT_CONFIG_PAGE_LABELS.cartonMissing.link }),
+    ).toHaveAttribute("href", ADMIN_ROUTES.products.detail(SEED.productId));
+  });
+
+  it("a variant with a carton says nothing about it", async () => {
+    await setStatus(SEED.productId, "Approved");
+    withUnits(SEED, true);
+    await measured();
+    expect(
+      screen.queryByText(PRINT_CONFIG_PAGE_LABELS.cartonMissing.title),
+    ).not.toBeInTheDocument();
+  });
+});
+
 describe("VariantPrintConfig", () => {
   it("shows the SKU and name of the variant, the way back, and the saved figures of the seeded variant", async () => {
     await setStatus(SEED.productId, "Approved");
@@ -104,7 +156,11 @@ describe("VariantPrintConfig", () => {
     const seeded = await findMockVariant(SEED.productId, SEED.variantId);
     expect(seeded?.name).toBeTruthy();
     expect(screen.getByText(seeded?.name ?? "")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: T.backToProduct })).toHaveAttribute(
+    // The way back is the product's name, a link in the page band (no "Quay lại" on a detail page).
+    const band = within(
+      screen.getByRole("region", { name: PRINT_CONFIG_SCREEN_LABELS.cards.header }),
+    );
+    expect(band.getByRole("link")).toHaveAttribute(
       "href",
       ADMIN_ROUTES.products.detail(SEED.productId),
     );

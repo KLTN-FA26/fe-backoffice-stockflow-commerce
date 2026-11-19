@@ -6,8 +6,8 @@
  * tables.  When docs change, update here + tests in one commit.
  *
  * Usage:
- *   canTransition(PO_TRANSITIONS, "Draft", "Pending Approval") // true
- *   isTerminal(PO_TRANSITIONS, "Closed")                       // true
+ *   canTransition(PRODUCT_TRANSITIONS, "Draft", "Pending Approval") // true
+ *   isTerminal(PRODUCT_TRANSITIONS, "Discontinued")              // true
  */
 
 /* ── Generic helpers ─────────────────────────────────────────────────── */
@@ -36,7 +36,6 @@ export function allowedTransitions<S extends string>(
 import type {
   ProductStatus,
   SkuStatus,
-  PoStatus,
   QcStatus,
   PutawayStatus,
   MoveTaskStatus,
@@ -44,7 +43,7 @@ import type {
 // OrderStatus lấy từ constants/statuses.ts (không phải mock-data) — đúng 19 trạng thái BE
 // (OrderStatus.java, PR #133), dùng cho zod enum / lifecycle / filter UI; OrderReadStatus thêm
 // UNKNOWN (trạng thái BE FE chưa hiểu) — chỉ đọc, không chuyển tiếp được, không là đích.
-// ReceiptStatus cũng vậy — 6 trạng thái docs 03 §5.1 (mock-data chỉ có 5, thiếu "In QC").
+// ReceiptStatus cũng vậy — trạng thái BE GoodsReceiptStatus (docs 03 §5).
 // PickStatus / PackStatus: các trạng thái BE `/fulfillment/tasks` phát ra được (SCRUM-437).
 import type {
   CartonStatus,
@@ -55,7 +54,6 @@ import type {
   PickStatus,
   ReceiptStatus,
   ShipmentApiStatus,
-  TransferStatus,
 } from "@/constants/statuses";
 
 /* ── Module 01: Product ──────────────────────────────────────────────── */
@@ -77,35 +75,19 @@ export const SKU_TRANSITIONS: Record<SkuStatus, readonly SkuStatus[]> = {
   Obsolete: [],
 };
 
-/* ── Module 02: Purchase Order ───────────────────────────────────────── */
-
-// docs/warehouse/02-purchase-order §5
-export const PO_TRANSITIONS: Record<PoStatus, readonly PoStatus[]> = {
-  Draft: ["Pending Approval", "Approved", "Cancelled"],
-  "Pending Approval": ["Approved", "Draft"],
-  Approved: ["Confirmed", "Cancelled"],
-  Confirmed: ["Partially Received", "Received", "Cancelled", "Closed"],
-  "Partially Received": ["Received", "Closed"],
-  Received: ["Closed"],
-  Closed: [],
-  Cancelled: [],
-};
-
 /* ── Module 03: Receipt ──────────────────────────────────────────────── */
 
-// ReceiptStatus = "Draft" | "Pending Approval" | "Confirmed" | "In QC" | "In Putaway" | "Closed" | "Cancelled"
-// docs/warehouse/03-receipt §5.1 — bảng "Chuyển tiếp"; BE GoodsReceiptStatus (PR #62, SCRUM-477)
+// ReceiptStatus = "Draft" | "Pending Approval" | "Confirmed" | "In Putaway" | "Closed" | "Cancelled"
+// docs/warehouse/03-receipt §5 — bảng "Chuyển tiếp" (rescope 04/11); BE GoodsReceiptStatus. Phiếu hàng hoàn có
+// màn riêng (`features/return`), nên bảng này là của phiếu theo Đơn sản xuất.
 export const RECEIPT_TRANSITIONS: Record<ReceiptStatus, readonly ReceiptStatus[]> = {
-  // BR-05: chỉ huỷ được khi chưa Confirmed; đã Confirmed thì sửa bằng điều chỉnh tồn.
-  // BR-02 / BR-RCP-001 (docs 03 §4 bước 5): đếm vượt dung sai → Pending Approval, chờ Quản lý kho duyệt
-  Draft: ["Pending Approval", "Confirmed", "Cancelled"],
-  // Quản lý kho duyệt (đủ SL) hoặc từ chối phần vượt (tới dung sai) → ghi nhận như Confirmed; từ chối
-  // mà không còn gì trong dung sai thì phiếu Cancelled. Chưa ghi nhận tồn nên huỷ được như Draft.
-  "Pending Approval": ["In QC", "In Putaway", "Cancelled"],
-  // Có dòng cần QC → In QC, không có → In Putaway (BR-07)
-  Confirmed: ["In QC", "In Putaway"],
-  // Hết phần Accepted phải putaway → đi thẳng Closed
-  "In QC": ["In Putaway", "Closed"],
+  // BR-05 (docs 03 §6): chỉ phiếu Draft được huỷ; đã xác nhận thì sửa bằng điều chỉnh tồn có duyệt.
+  // BE đi qua Confirmed trong cùng transaction xác nhận rồi sang In Putaway (không QC ở kho, BR-07).
+  Draft: ["Confirmed", "Cancelled"],
+  // Mã cũ của BE — không còn bước duyệt vượt dung sai (BR-02: không nhận quá Đơn sản xuất); chỉ đọc
+  "Pending Approval": [],
+  Confirmed: ["In Putaway"],
+  // Cất xong mọi thùng → Closed tự động (docs 03 §4.1 bước 8)
   "In Putaway": ["Closed"],
   Closed: [],
   Cancelled: [],
@@ -197,24 +179,6 @@ export const SHIPMENT_TRANSITIONS: Record<ShipmentApiStatus, readonly ShipmentAp
   DELIVERY_FAILED: ["DELIVERED", "RETURNED"],
   DELIVERED: [],
   RETURNED: [],
-  CANCELLED: [],
-};
-
-/* ── Module 10: Inter-warehouse Transfer ─────────────────────────────── */
-
-// docs 10 §5 = BE `TransferStatus.canTransitionTo` (SCRUM-327). DRAFT → APPROVED khi tổng SL ≤ ngưỡng
-// duyệt; PENDING_APPROVAL → DRAFT khi bị từ chối; PICKING → APPROVED khi dừng lấy hàng.
-// BR-04 (docs 10 §6): chỉ huỷ trước khi rời kho nguồn — sau IN_TRANSIT chỉ còn đóng (CLOSED).
-export const TRANSFER_TRANSITIONS: Record<TransferStatus, readonly TransferStatus[]> = {
-  DRAFT: ["PENDING_APPROVAL", "APPROVED", "CANCELLED"],
-  PENDING_APPROVAL: ["APPROVED", "DRAFT"],
-  APPROVED: ["PICKING", "CANCELLED"],
-  PICKING: ["IN_TRANSIT", "APPROVED"],
-  IN_TRANSIT: ["PARTIALLY_RECEIVED", "RECEIVED"],
-  PARTIALLY_RECEIVED: ["RECEIVED", "CLOSED"],
-  RECEIVED: ["COMPLETED"],
-  COMPLETED: [],
-  CLOSED: [],
   CANCELLED: [],
 };
 
