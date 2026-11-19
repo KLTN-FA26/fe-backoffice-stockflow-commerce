@@ -135,9 +135,6 @@ export const ADMIN_ROUTES = {
   loadPlans: {
     list: `${ADMIN_BASE}/load-plans`,
     create: `${ADMIN_BASE}/load-plans/create`,
-    /** "Lập kế hoạch xe" từ lệnh chuyển kho đã đóng gói (SCRUM-287 PR F9): nguồn TRANSFER, kho nguồn và lệnh chọn sẵn. */
-    createFromTransfer: (transferId: string, warehouseId: string) =>
-      `${ADMIN_BASE}/load-plans/create?sourceType=TRANSFER&transferOrderId=${encodeURIComponent(transferId)}&warehouseId=${encodeURIComponent(warehouseId)}`,
     detail: (id: string) => `${ADMIN_BASE}/load-plans/${id}`,
     /** Phiếu xếp hàng in được của một xe (SCRUM-287 PR F6). */
     print: (id: string, seq: number) => `${ADMIN_BASE}/load-plans/${id}/vehicles/${seq}/print`,

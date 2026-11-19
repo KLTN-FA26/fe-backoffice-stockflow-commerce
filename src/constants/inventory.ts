@@ -8,13 +8,12 @@ export const INVENTORY_API = {
   rejection: (id: string) => `/inventory/adjustments/${encodeURIComponent(id)}/rejection`,
   withdrawal: (id: string) => `/inventory/adjustments/${encodeURIComponent(id)}/withdrawal`,
   movements: "/inventory/movements",
-  // SCRUM-438 reads — backend develop 0f18f24 InventoryController / StockAlertController.
+  // SCRUM-438 reads — backend develop 0f18f24 InventoryController.
   stockLevels: "/inventory/stock-levels",
   warehouseStockItems: (warehouseId: string) =>
     `/inventory/warehouses/${encodeURIComponent(warehouseId)}/stock-items`,
   atp: "/inventory/stock-items/atp",
   reservations: "/inventory/reservations",
-  alerts: "/inventory/alerts",
 } as const;
 
 export const INVENTORY_QUERY_KEYS = {
@@ -22,7 +21,6 @@ export const INVENTORY_QUERY_KEYS = {
   movements: "inventory-stock-movements",
   stock: SHARED_QUERY_ROOTS.inventoryStock,
   reservations: "inventory-reservations",
-  alerts: "inventory-alerts",
 } as const;
 
 // Backend develop 0f18f24 StockStatus — values GET /warehouses/{id}/stock-items?status= accepts.
@@ -149,14 +147,11 @@ export const INVENTORY_ROUTES = {
   adjustment: (id: string) => `/admin/inventory/adjustments/${encodeURIComponent(id)}`,
   // Cách ly / gỡ cách ly thùng (docs 20 §4.8): LPN trên URL `?lpn=`.
   quarantine: "/admin/inventory/quarantine",
-  // Đích deep link của thông báo INVENTORY_ALERT (BE InventoryAlertMessages: `?kind=…&warehouseId=…`).
-  alerts: "/admin/inventory/alerts",
 } as const;
 
 export const INVENTORY_STORAGE_KEYS = {
   movements: "stockflow:admin:movements:config",
   adjustments: "stockflow:admin:inventory:adjustments:config",
-  alerts: "stockflow:admin:inventory:alerts:config",
 } as const;
 
 export const INVENTORY_PAGE_SIZES = [10, 15, 20, 50] as const;
@@ -277,26 +272,6 @@ export const INVENTORY_LABELS = {
   closedAt: "Đóng lúc",
   noReservations: "SKU này không có giữ chỗ nào",
   onlySelectedWarehouse: "Chỉ giữ chỗ tại kho đang xem",
-  lowStockTitle: "Cảnh báo tồn thấp (toàn hệ thống)",
-  expiryAlertsTitle: "Cảnh báo hạn dùng tại kho",
-  alertsUnavailable: "Không có quyền xem cảnh báo tồn kho — chưa có thông tin cảnh báo.",
-  noLowStockAlerts: "Không có cảnh báo tồn thấp đang mở trong phạm vi bạn được xem.",
-  noExpiryAlerts: "Không có cảnh báo hạn dùng đang mở trong phạm vi bạn được xem.",
-  observedQty: "Số lượng ghi nhận",
-  thresholdQty: "Ngưỡng",
-  daysToExpiry: "Số ngày đến hạn",
-  reservationImpaired: "Lô quá hạn còn giữ chỗ của khách",
-  alertListTitle: "Cảnh báo tồn kho",
-  alertKind: "Loại cảnh báo",
-  alertOpenedAt: "Mở lúc",
-  alertFilter: "Đang lọc",
-  alertAllKinds: "Mọi loại cảnh báo",
-  alertWarehouseFilter: (id: string) => `Kho ${id}`,
-  alertInvalidLink:
-    "Liên kết có tham số không hợp lệ nên đã bỏ qua — đang hiện mọi cảnh báo còn hiệu lực.",
-  noAlerts: "Không có cảnh báo tồn kho còn hiệu lực",
-  noAlertsDescription:
-    "Tồn kho và hạn dùng đang trong ngưỡng cấu hình, trong phạm vi bạn được xem.",
 } as const;
 
 export const STOCK_MOVEMENT_LABELS = {

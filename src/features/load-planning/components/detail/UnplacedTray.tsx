@@ -11,14 +11,6 @@ import type { PlanParcel } from "@/features/load-planning/plan-types";
 const L = UI_LABELS.loadPlan.detail;
 const U = L.unplaced;
 
-/** Câu đầu khay: lệnh chuyển kho đi nguyên (không có "để lại") / đã xác nhận để lại / còn cần xác nhận (BR-13). */
-const trayNotice = (shipsWhole: boolean, acknowledged: boolean): string =>
-  shipsWhole
-    ? UI_LABELS.loadPlan.transfer.detail.shipsWhole
-    : acknowledged
-      ? U.acknowledged
-      : U.pending;
-
 interface UnplacedTrayProps {
   parcels: readonly PlanParcel[];
   acknowledged: boolean;
@@ -26,8 +18,6 @@ interface UnplacedTrayProps {
   canReturn: boolean;
   /** Được xác nhận để lại các kiện này: hiện nút ngay trong khay. */
   canAcknowledge: boolean;
-  /** Kế hoạch nguồn TRANSFER: lệnh chuyển kho đi nguyên, không có "để lại" — thay câu xác nhận bằng lời nhắc xếp đủ. */
-  shipsWhole?: boolean;
   /** Xe đang xem — nơi các kiện đã chọn được đưa lại vào. */
   vehicleSeq: number | null;
   selected: ReadonlySet<string>;
@@ -47,7 +37,6 @@ export function UnplacedTray({
   acknowledged,
   canReturn,
   canAcknowledge,
-  shipsWhole = false,
   vehicleSeq,
   selected,
   pending,
@@ -69,8 +58,9 @@ export function UnplacedTray({
       <h3 className="text-ink-primary text-sm font-medium">
         {U.title} ({parcels.length})
       </h3>
-      <Alert tone={acknowledged && !shipsWhole ? "info" : "warning"}>
-        {trayNotice(shipsWhole, acknowledged)}
+      {/* Đã xác nhận để lại / còn cần xác nhận (BR-13) */}
+      <Alert tone={acknowledged ? "info" : "warning"}>
+        {acknowledged ? U.acknowledged : U.pending}
         {canAcknowledge && (
           <Button
             type="button"

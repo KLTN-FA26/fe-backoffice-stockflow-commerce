@@ -73,7 +73,7 @@ describe("creditDecisionErrorView (SCRUM-427)", () => {
   });
 });
 
-describe("isProductionForbidden — GET /production/orders", () => {
+describe("isProductionForbidden — GET /production-orders", () => {
   it.each(["FORBIDDEN", "OUT_OF_DATA_SCOPE"])("403 %s → không có quyền xem LSX", (code) => {
     expect(isProductionForbidden(apiError(403, code))).toBe(true);
   });

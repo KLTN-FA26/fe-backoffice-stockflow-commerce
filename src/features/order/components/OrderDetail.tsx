@@ -78,7 +78,7 @@ function OrderDetailContent({
   // UI-only — Backend phải re-check (@RequiresPermission sales-orders:READ trên OrderController)
   const canRead = can(ORDER_PERMISSIONS.read);
   const query = useOrder(id, { enabled: canRead });
-  // Lệnh sản xuất chỉ có với dòng in (docs 19 BR-01) — đơn chỉ hàng sẵn không gọi API.
+  // Đơn sản xuất chỉ có với dòng in (docs 17 §4.3) — đơn chỉ hàng sẵn không gọi API.
   // UI-only — Backend phải re-check (@RequiresPermission production-orders:READ, ProductionOrderController)
   const canReadProduction = can(PRODUCTION_ORDER_PERMISSIONS.read);
   const hasCustomLines = !!query.data && customLineCount(query.data) > 0;

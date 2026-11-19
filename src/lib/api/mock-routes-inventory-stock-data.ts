@@ -1,6 +1,6 @@
 /**
  * Dữ liệu tĩnh cho mock tổng quan tồn kho (SCRUM-438), đúng hình dạng DTO BE develop 0f18f24
- * (StockLevelResponse, WarehouseStockItemResponse, ReservationRowResponse, StockAlertResponse).
+ * (StockLevelResponse, WarehouseStockItemResponse, ReservationRowResponse).
  *
  * Một bộ dữ liệu nhất quán, KHÔNG tính toán lúc chạy: số lượng ghi sẵn như BE trả về.
  *   - `reserved` của mỗi dòng tồn = tổng giữ chỗ HELD trên dòng đó.
@@ -8,7 +8,6 @@
  *     và atp chỉ hàng AVAILABLE chưa hết hạn). Mock không tự cộng lại.
  *   - Kho dùng đúng id + mã của danh bạ kho mock (`/warehouses`, mock-data `warehouses`). Id đó
  *     không phải UUID như BE; mã kho là tiền tố mã vị trí (`HN01-A01-01-A`).
- *   - Ngày tháng cố định: `daysToExpiry` của cảnh báo là giá trị tại lúc soạn dữ liệu.
  * Không mô phỏng hàng gia công (BR-PRD-15 BE chưa làm) và không có ngưỡng tồn theo kho.
  */
 
@@ -54,30 +53,6 @@ export interface MockReservation {
   expiresAt: string | null;
   releaseReason: string | null;
   closedAt: string | null;
-}
-
-export interface MockStockAlert {
-  id: string;
-  kind: string;
-  sku: string;
-  warehouseId: string | null;
-  warehouseCode: string | null;
-  lotNumber: string | null;
-  expiryDate: string | null;
-  daysToExpiry: number | null;
-  observedQty: number;
-  thresholdQty: number | null;
-  reservationImpaired: boolean;
-  status: string;
-  openedAt: string;
-  lastObservedAt: string;
-  acknowledgedBy: string | null;
-  acknowledgedByName: string | null;
-  acknowledgedAt: string | null;
-  ackNote: string | null;
-  resolvedAt: string | null;
-  resolution: string | null;
-  version: number;
 }
 
 const id = (n: number) => `0e380000-0000-4000-8000-${String(n).padStart(12, "0")}`;
@@ -333,108 +308,4 @@ export const MOCK_RESERVATIONS: readonly MockReservation[] = [
     expiresAt: "2026-10-19T02:00:00Z",
     ...open,
   }),
-];
-
-const unacknowledged = {
-  acknowledgedBy: null,
-  acknowledgedByName: null,
-  acknowledgedAt: null,
-  ackNote: null,
-  resolvedAt: null,
-  resolution: null,
-};
-const skuWide = { warehouseId: null, warehouseCode: null, lotNumber: null, expiryDate: null };
-
-export const MOCK_STOCK_ALERTS: readonly MockStockAlert[] = [
-  {
-    id: id(301),
-    kind: "REORDER",
-    sku: CUP,
-    ...skuWide,
-    daysToExpiry: null,
-    observedQty: 430,
-    thresholdQty: 500,
-    reservationImpaired: false,
-    status: "OPEN",
-    openedAt: "2026-10-15T01:00:00Z",
-    lastObservedAt: "2026-10-16T01:00:00Z",
-    ...unacknowledged,
-    version: 0,
-  },
-  {
-    id: id(302),
-    kind: "SAFETY",
-    sku: LID,
-    ...skuWide,
-    daysToExpiry: null,
-    observedQty: 25,
-    thresholdQty: 30,
-    reservationImpaired: false,
-    status: "ACKNOWLEDGED",
-    openedAt: "2026-10-12T01:00:00Z",
-    lastObservedAt: "2026-10-16T01:00:00Z",
-    ...unacknowledged,
-    acknowledgedBy: id(401),
-    acknowledgedByName: "Quản lý kho mock",
-    acknowledgedAt: "2026-10-13T03:00:00Z",
-    ackNote: "Đã lên đề nghị mua",
-    version: 1,
-  },
-  {
-    id: id(303),
-    kind: "EXPIRING",
-    sku: CUP,
-    warehouseId: "WH-HN-01",
-    warehouseCode: "HN01",
-    lotNumber: "L2601",
-    expiryDate: "2026-11-05",
-    daysToExpiry: 20,
-    observedQty: 120,
-    thresholdQty: null,
-    reservationImpaired: false,
-    status: "OPEN",
-    openedAt: "2026-10-06T17:00:00Z",
-    lastObservedAt: "2026-10-15T17:00:00Z",
-    ...unacknowledged,
-    version: 0,
-  },
-  {
-    id: id(304),
-    kind: "EXPIRED",
-    sku: CUP,
-    warehouseId: "WH-HN-01",
-    warehouseCode: "HN01",
-    lotNumber: "L2599",
-    expiryDate: "2026-10-01",
-    daysToExpiry: -15,
-    observedQty: 15,
-    thresholdQty: null,
-    // Lô hết hạn còn giữ chỗ của khách nên không chặn được (ExpiryPolicy.canBlock).
-    reservationImpaired: true,
-    status: "OPEN",
-    openedAt: "2026-10-01T17:00:00Z",
-    lastObservedAt: "2026-10-15T17:00:00Z",
-    ...unacknowledged,
-    version: 0,
-  },
-  {
-    id: id(305),
-    kind: "EXPIRING",
-    sku: CUP,
-    warehouseId: "WH-HCM-01",
-    warehouseCode: "HCM01",
-    lotNumber: "L2590",
-    expiryDate: "2026-10-20",
-    daysToExpiry: 4,
-    observedQty: 0,
-    thresholdQty: null,
-    reservationImpaired: false,
-    status: "RESOLVED",
-    openedAt: "2026-09-20T17:00:00Z",
-    lastObservedAt: "2026-10-03T17:00:00Z",
-    ...unacknowledged,
-    resolvedAt: "2026-10-03T17:00:00Z",
-    resolution: "STOCK_GONE",
-    version: 2,
-  },
 ];

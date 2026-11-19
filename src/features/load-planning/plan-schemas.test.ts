@@ -43,7 +43,7 @@ const BE_DETAIL = {
   loadPlanId: "01a1635c-bdcf-7081-ae47-598859eefe51",
   code: "LP-20261022-0001",
   warehouseId: "WH-HN-01",
-  sourceType: "SHIPMENT",
+  sourceType: "ORDER",
   selectionMode: "SINGLE_TYPE",
   status: "PLANNED",
   vehicleTypes: [
@@ -170,6 +170,29 @@ describe("bePlanRowPageSchema and candidates", () => {
     ]);
     expect(candidate.packages[0]).toMatchObject({ kitPartNo: 1, rotatable: true });
     expect(candidate.volumeMm3).toBe(8023920000);
+  });
+
+  // BE `LoadPlans.CandidateShipment`: chỉ còn lô giao của đơn khách (sourceType luôn ORDER) — lô và đơn luôn có
+  it("a candidate without its shipment or order is a contract error", () => {
+    const candidate = {
+      shipmentId: "s-1",
+      code: "S-1",
+      orderId: "o-1",
+      allowPartialShipment: false,
+      packageCount: 0,
+      packagesInOtherPlans: 0,
+      weightKg: 0,
+      volumeMm3: 0,
+      packages: [],
+      sourceType: "ORDER",
+    };
+    expect(beCandidateListSchema.safeParse([candidate]).success).toBe(true);
+    expect(beCandidateListSchema.safeParse([{ ...candidate, shipmentId: undefined }]).success).toBe(
+      false,
+    );
+    expect(beCandidateListSchema.safeParse([{ ...candidate, orderId: undefined }]).success).toBe(
+      false,
+    );
   });
 });
 
@@ -332,128 +355,5 @@ describe("beReconciliationSchema (pieceCheck + vsEstimate)", () => {
       "VOLUME_ABOVE",
     ]);
     expect(knownFlags([])).toEqual([]);
-  });
-});
-
-/** Mẫu của BE PR #164: kiện / ứng viên / chi tiết của kế hoạch nguồn TRANSFER (một lệnh chuyển kho). */
-const TRANSFER_ID = "01a1635c-cc00-7000-8000-000000000001";
-const TRANSFER_PARCEL = {
-  packageId: "01a1635c-cc00-7000-8000-0000000000a1",
-  labelCode: "PKG-TO-20261022-0001-1",
-  transferOrderId: TRANSFER_ID,
-  partName: "SKU-001-BLK-L",
-  lengthMm: 600,
-  widthMm: 400,
-  heightMm: 350,
-  weightKg: 18.5,
-  rotatable: true,
-};
-
-describe("nguồn TRANSFER (BE PR #164, LP-9)", () => {
-  it("kiện của lệnh chuyển kho: shipmentId / shipmentCode vắng (BE bỏ null), chỉ có transferOrderId", () => {
-    const detail = bePlanDetailSchema.parse({
-      ...BE_DETAIL,
-      sourceType: "TRANSFER",
-      shipments: [],
-      transferOrder: {
-        transferOrderId: TRANSFER_ID,
-        number: "TO-20261022-0001",
-        fromWarehouseId: "WH-HN-01",
-        toWarehouseId: "WH-HCM-01",
-        status: "PICKING",
-        packageCount: 2,
-      },
-      packages: [{ ...TRANSFER_PARCEL, vehicleSeq: 1 }],
-    });
-    expect(detail.sourceType).toBe("TRANSFER");
-    expect(detail.shipments).toEqual([]);
-    expect(detail.transferOrder).toMatchObject({ number: "TO-20261022-0001", packageCount: 2 });
-    expect(detail.packages[0]).toMatchObject({ transferOrderId: TRANSFER_ID });
-    expect(detail.packages[0].shipmentId).toBeUndefined();
-    expect(detail.packages[0].shipmentCode).toBeUndefined();
-  });
-
-  it("kế hoạch đơn khách: transferOrder vắng, kiện vẫn có lô giao", () => {
-    const detail = bePlanDetailSchema.parse({ ...BE_DETAIL, sourceType: "ORDER" });
-    expect(detail.transferOrder).toBeUndefined();
-    expect(detail.packages[0].shipmentId).toBe(BE_PARCEL.shipmentId);
-    expect(detail.packages[0].transferOrderId).toBeUndefined();
-  });
-
-  it("transferOrder thiếu số lệnh hoặc kho → lỗi parse", () => {
-    const transferOrder = {
-      transferOrderId: TRANSFER_ID,
-      number: "TO-1",
-      fromWarehouseId: "a",
-      toWarehouseId: "b",
-      status: "PICKING",
-      packageCount: 1,
-    };
-    expect(() =>
-      bePlanDetailSchema.parse({
-        ...BE_DETAIL,
-        transferOrder: { ...transferOrder, number: undefined },
-      }),
-    ).toThrow();
-    expect(() =>
-      bePlanDetailSchema.parse({
-        ...BE_DETAIL,
-        transferOrder: { ...transferOrder, toWarehouseId: undefined },
-      }),
-    ).toThrow();
-  });
-
-  it("ứng viên TRANSFER: shipmentId / orderId / orderNumber vắng; có transferOrderId, toWarehouseId, sourceType", () => {
-    const [candidate] = beCandidateListSchema.parse([
-      {
-        sourceType: "TRANSFER",
-        code: "TO-20261022-0001",
-        transferOrderId: TRANSFER_ID,
-        toWarehouseId: "WH-HCM-01",
-        allowPartialShipment: false,
-        readyAt: "2026-10-22T04:00:00Z",
-        packageCount: 2,
-        packagesInOtherPlans: 0,
-        weightKg: 37,
-        volumeMm3: 168000000,
-        packages: [TRANSFER_PARCEL],
-      },
-    ]);
-    expect(candidate).toMatchObject({
-      sourceType: "TRANSFER",
-      transferOrderId: TRANSFER_ID,
-      toWarehouseId: "WH-HCM-01",
-    });
-    expect(candidate.shipmentId).toBeUndefined();
-    expect(candidate.orderId).toBeUndefined();
-  });
-
-  it("dòng danh sách kế hoạch có sourceType (BE cũ không gửi vẫn parse được)", () => {
-    const row = {
-      loadPlanId: "p",
-      code: "LP-1",
-      warehouseId: "WH-HN-01",
-      status: "DRAFT",
-      selectionMode: "SINGLE_TYPE",
-      shipmentCount: 1,
-      packageCount: 2,
-      vehicleCount: 0,
-      unplacedCount: 0,
-      createdAt: "2026-10-22T02:00:00Z",
-      version: 0,
-    };
-    const page = (items: unknown[]) => ({
-      items,
-      page: 0,
-      size: 15,
-      totalElements: 1,
-      totalPages: 1,
-      hasNext: false,
-      hasPrevious: false,
-    });
-    expect(
-      bePlanRowPageSchema.parse(page([{ ...row, sourceType: "TRANSFER" }])).items[0].sourceType,
-    ).toBe("TRANSFER");
-    expect(bePlanRowPageSchema.parse(page([row])).items[0].sourceType).toBeUndefined();
   });
 });

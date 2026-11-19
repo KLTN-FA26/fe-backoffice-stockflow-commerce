@@ -331,26 +331,6 @@ export const SUPPLIER_API_STATUSES = ["ACTIVE", "INACTIVE", "BLACKLISTED"] as co
 export const SUPPLIER_CHANNELS = ["EMAIL", "API"] as const;
 
 /**
- * Lệnh chuyển kho liên kho — BE `TransferStatus` (SCRUM-327, `inventory/internal/domain/TransferStatus.java`),
- * nguyên văn mã wire, cùng vòng đời docs 10 §5. FE hiển thị qua status-map như PO.
- */
-export const TRANSFER_STATUSES = [
-  "DRAFT",
-  "PENDING_APPROVAL",
-  "APPROVED",
-  "PICKING",
-  "IN_TRANSIT",
-  "PARTIALLY_RECEIVED",
-  "RECEIVED",
-  "COMPLETED",
-  "CLOSED",
-  "CANCELLED",
-] as const;
-
-/** BE `TransferReason` — lý do chuyển kho (CreateTransferOrderRequest.reason, tuỳ chọn). */
-export const TRANSFER_REASONS = ["REBALANCING", "DEMAND", "CAMPAIGN", "OVERFLOW", "OTHER"] as const;
-
-/**
  * Chuyến xe xuất hàng — BE `LoadStatus`. Mọi chuyến là một xe của kế hoạch xếp xe (giao nguyên chuyến, docs 09 BR-08):
  * Planned → Vehicle Booked → Loading → Dispatched, hoặc Cancelled (docs 09 §5.2).
  */
@@ -576,8 +556,6 @@ export const ORDER_STATUS_GROUP_DISPLAY = {
   CANCELLED: "Cancelled",
   RETURNED: "Returned",
 } as const satisfies Record<OrderStatusGroup, string>;
-export type TransferStatus = (typeof TRANSFER_STATUSES)[number];
-export type TransferReason = (typeof TRANSFER_REASONS)[number];
 export type LoadStatus = (typeof LOAD_STATUSES)[number];
 export type ShipmentApiStatus = (typeof PACK_SHIPMENT_API_STATUSES)[number];
 export type DeliveryOutcome = (typeof DELIVERY_OUTCOMES)[number];
@@ -620,19 +598,6 @@ export const LOAD_PLAN_STATUS = {
   DISPATCHED: "DISPATCHED",
   CANCELLED: "CANCELLED",
 } as const satisfies Record<string, LoadPlanStatus>;
-
-/**
- * BE `LoadPlan.SOURCE_*` (SCRUM-287 PR T, docs 09 §3 "LoadPlan.source_type"): kế hoạch chứa các lô giao của đơn khách
- * (`ORDER`, mặc định) hoặc kiện của MỘT lệnh chuyển kho (`TRANSFER`, LP-9). Một kế hoạch không trộn hai loại.
- */
-export const LOAD_PLAN_SOURCE_TYPES = ["ORDER", "TRANSFER"] as const;
-
-export type LoadPlanSourceType = (typeof LOAD_PLAN_SOURCE_TYPES)[number];
-
-export const LOAD_PLAN_SOURCE = {
-  ORDER: "ORDER",
-  TRANSFER: "TRANSFER",
-} as const satisfies Record<string, LoadPlanSourceType>;
 
 /** BE `SelectionMode` (LP-6): một loại xe (mặc định) hoặc trộn loại để ít xe nhất. */
 export const LOAD_PLAN_SELECTION_MODES = ["SINGLE_TYPE", "FEWEST_VEHICLES"] as const;
