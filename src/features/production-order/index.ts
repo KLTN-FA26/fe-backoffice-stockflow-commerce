@@ -10,6 +10,7 @@ export * from "./input-schemas";
 export * from "./schedule-schemas";
 export * from "./api";
 export * from "./schedule-api";
+export * from "./schedule-selectors";
 export * from "./queries";
 export * from "./mutations";
 export * from "./selectors";

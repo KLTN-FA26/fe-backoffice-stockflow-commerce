@@ -7,6 +7,7 @@ import {
   Building2,
   Boxes,
   CalendarClock,
+  CalendarRange,
   ClipboardCheck,
   ClipboardList,
   Factory,
@@ -88,6 +89,7 @@ import {
   PRODUCER_PERMISSIONS,
   PRODUCTION_LABELS,
   PRODUCTION_ORDER_PERMISSIONS,
+  PRODUCTION_SCHEDULE_PERMISSIONS,
   WAREHOUSE_LOCATION_PERMISSIONS,
   WAREHOUSE_PERMISSIONS,
 } from "@/constants";
@@ -356,6 +358,13 @@ export const NAV_GROUPS: NavGroup[] = [
     title: PRODUCTION_LABELS.navGroup,
     icon: Factory,
     items: [
+      {
+        label: PRODUCTION_LABELS.schedule.pageTitle,
+        href: ADMIN_ROUTES.productionSchedule,
+        icon: CalendarRange,
+        // BE ProductionScheduleController route `/production/schedule`: Điều phối SX, Sale, QLKD, Quản lý kho
+        permission: PRODUCTION_SCHEDULE_PERMISSIONS.viewPage,
+      },
       {
         label: PRODUCTION_LABELS.order.pageTitle,
         href: ADMIN_ROUTES.productionOrders.list,
