@@ -87,8 +87,9 @@ export function MediaPicker({
           ))}
         </ul>
       )}
-      {problems.map((problem) => (
-        <p key={problem} role="alert" className="text-danger text-xs">
+      {problems.map((problem, index) => (
+        // Hai tệp trùng tên cùng lỗi cho cùng một câu — khoá theo vị trí
+        <p key={index} role="alert" className="text-danger text-xs">
           {problem}
         </p>
       ))}
