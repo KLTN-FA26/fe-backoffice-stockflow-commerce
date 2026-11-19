@@ -108,7 +108,6 @@ export const PRINT_CONFIG_STATUS_LABELS = {
 
 /** Chữ của màn hình "Cấu hình in" của biến thể (module 12, back-office). Câu về file 3D lấy từ `labels-model3d.ts`. */
 export const PRINT_CONFIG_SCREEN_LABELS = {
-  title: "Cấu hình in",
   loadFailed: "Không tải được cấu hình in.",
   retry: "Thử lại",
   empty: {
@@ -119,6 +118,21 @@ export const PRINT_CONFIG_SCREEN_LABELS = {
     checklistTitle: "File .glb cần dựng như sau",
   },
   kinds: { cup: "Ly", bag: "Túi" },
+  /**
+   * Tiêu đề các khối của trang: dải đầu trang (biến thể, trạng thái, nút), cột làm việc (file, số mặc định, cấu hình
+   * đang lưu) và cột xem (model 3D và khuôn in).
+   */
+  cards: {
+    general: "Thông tin chung",
+    configStatus: "Cấu hình in",
+    saved: "Cấu hình đang lưu",
+    file: "File 3D (.glb)",
+    statusCard: "Trạng thái cấu hình in",
+    header: "Biến thể và trạng thái cấu hình in",
+    view: "Model 3D và khuôn in",
+    viewEmpty:
+      "Chọn file .glb ở cột bên trái: model 3D và khuôn in của file hiện ở đây để bạn kiểm trước khi lưu.",
+  },
   summary: {
     kind: "Loại sản phẩm",
     measuredTitle: "Số đo lấy từ file 3D",
@@ -141,9 +155,22 @@ export const PRINT_CONFIG_SCREEN_LABELS = {
   },
   dropzone: {
     choose: "Chọn hoặc kéo thả file .glb",
-    chooseAnother: "Chọn hoặc kéo thả file .glb khác",
+    chooseAnother: "Chọn file .glb khác để thay",
     hint: "File được đọc ngay trên máy bạn; chỉ khi bấm Lưu mới được gửi đi.",
-    reading: (name: string) => `Đang đọc ${name}…`,
+  },
+  /** Dòng file đã chọn (thay ô chọn file cho tới khi lưu xong hoặc bỏ file). */
+  chosenFile: {
+    label: "File đã chọn",
+    states: {
+      reading: "Đang đọc…",
+      read: "Đã đọc, chưa lưu",
+      unreadable: "Không đọc được",
+    },
+    change: "Đổi file",
+    changeInput: "Đổi file .glb",
+    discard: "Bỏ file",
+    notUploaded: 'File chưa được gửi lên. Bấm "Lưu cấu hình in" để lưu file cùng cấu hình.',
+    notUploadedUnreadable: "File chưa được gửi lên và không lưu được. Hãy chọn file khác.",
   },
   report: {
     recognized: (kind: string) => `Nhận ra: ${kind}`,
@@ -177,8 +204,8 @@ export const PRINT_CONFIG_SCREEN_LABELS = {
     unit: (label: string) => `${label} (mm)`,
   },
   advanced: {
-    toggle: "Nâng cao: số mặc định",
-    note: "Hệ thống tự điền các số này vì file không nói được; hãy xác nhận với nhà sản xuất hoặc nhà in.",
+    title: "Số mặc định (cần xác nhận với nhà in)",
+    note: "File 3D không cho biết mép dán, vành miệng, chất liệu và lề in. Hệ thống điền sẵn số thường dùng; hãy kiểm lại với nhà sản xuất hoặc nhà in trước khi lưu.",
     fields: {
       safeMarginMm: "Lề an toàn (mm)",
       bleedMm: "Tràn lề (mm)",
@@ -285,7 +312,6 @@ export const PRINT_CONFIG_SCREEN_LABELS = {
       "Hệ thống chặn mọi thay đổi của cấu hình này, kể cả chỉ đổi số mặc định, và chưa kích hoạt được cho tới khi bạn tải lại file .glb có mesh print:<mã vùng in> cho từng vùng in.",
   },
   unreadableTitle: "Không đọc được file",
-  discard: "Bỏ file đã chọn",
   serverField: "Máy chủ không chấp nhận giá trị này.",
   save: {
     saving: "Đang lưu…",
@@ -307,8 +333,13 @@ export const PRINT_CONFIG_SCREEN_LABELS = {
 export const PRINT_CONFIG_PAGE_LABELS = {
   /** Tiêu đề cho screen reader (trang không hiện title) và chữ breadcrumb của trang. */
   pageTitle: "Cấu hình in",
-  backToProduct: "Về sản phẩm",
-  variantHeading: "Biến thể",
+  /** Dòng của thẻ "Thông tin chung": tên biến thể ở đây vì trang không có tiêu đề; tên sản phẩm là link về sản phẩm. */
+  general: {
+    sku: "SKU",
+    variantName: "Tên biến thể",
+    product: "Sản phẩm",
+    variantStatus: "Trạng thái biến thể",
+  },
   notCustomizable: {
     title: "Sản phẩm này không có cấu hình in",
     description:

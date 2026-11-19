@@ -12,13 +12,13 @@ import { resetProductMockStore } from "@/lib/api/mock-product-store";
 import { resetPrintConfigMockStore } from "@/lib/api/mock-routes-print-configs";
 import { resetVariantMockStore } from "@/lib/api/mock-routes-variants";
 
-import { renderSection } from "./print-config-test-utils";
+import { DEFAULTS_TOGGLE, renderSection } from "./print-config-test-utils";
 
 vi.setConfig({ testTimeout: 60_000 });
 configure({ asyncUtilTimeout: 45_000 });
 
 const SAVE = { name: "Lưu cấu hình in" };
-const ADVANCED = { name: /Nâng cao/ };
+const ADVANCED = DEFAULTS_TOGGLE;
 
 beforeAll(() => activateMockAdapter());
 beforeEach(() => {
@@ -66,8 +66,8 @@ describe("PrintConfigSection: BE PrintConfigRules before the save", () => {
     renderSection();
     await user.click(await screen.findByRole("button", ADVANCED));
     await typeInto(user, "Mép dán (mm)", "100.01");
-    await user.click(screen.getByRole("button", ADVANCED)); // closed again
-    expect(screen.queryByLabelText("Mép dán (mm)")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", ADVANCED)); // closed again (the card animates shut)
+    await waitFor(() => expect(screen.queryByLabelText("Mép dán (mm)")).not.toBeInTheDocument());
 
     await user.click(screen.getByRole("button", SAVE));
     expect(await screen.findByText("Tối đa 100 mm.")).toBeInTheDocument();

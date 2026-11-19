@@ -17,6 +17,7 @@ import { blobBytes } from "@/lib/crypto/blob-bytes";
 
 import {
   bagTree,
+  DEFAULTS_TOGGLE,
   EMPTY_VARIANT,
   glbFile,
   loaderOf,
@@ -38,14 +39,14 @@ beforeEach(() => {
 });
 afterEach(() => vi.restoreAllMocks());
 
-/** The 260 × 120 × 280 bag of `bagTree`, read, with "Nâng cao" open and the top fold at 40 mm (the pinned example). */
+/** The 260 × 120 × 280 bag of `bagTree`, read, with "Số mặc định" open and the top fold at 40 mm (the pinned example). */
 async function chooseBagWithFold40() {
   const user = userEvent.setup();
   renderSection({ ...EMPTY_VARIANT, loadModel: loaderOf(bagTree()) });
   await screen.findByText("Chưa có cấu hình in");
   await user.upload(screen.getByLabelText(/Chọn hoặc kéo thả file/), glbFile());
   await screen.findByText("Nhận ra: Túi");
-  await user.click(screen.getByRole("button", { name: /Nâng cao/ }));
+  await user.click(screen.getByRole("button", DEFAULTS_TOGGLE));
   const fold = screen.getByLabelText("Gập miệng túi (mm)");
   await user.clear(fold);
   await user.type(fold, "40");

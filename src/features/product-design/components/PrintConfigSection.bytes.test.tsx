@@ -10,7 +10,13 @@ import { resetVariantMockStore } from "@/lib/api/mock-routes-variants";
 
 import { savePrintConfig } from "../api";
 import { cupDto } from "../test-fixtures";
-import { cupTree, EMPTY_VARIANT, renderSection } from "./print-config-test-utils";
+import {
+  cupTree,
+  EMPTY_VARIANT,
+  findStatus,
+  NEW_FILE,
+  renderSection,
+} from "./print-config-test-utils";
 
 import type { GlbLoader } from "./use-glb-reading";
 
@@ -43,10 +49,10 @@ describe("the measured bytes are the uploaded bytes", () => {
     };
     const content = Uint8Array.from({ length: 64 }, (_, i) => (i * 7) % 256);
     renderSection({ ...EMPTY_VARIANT, loadModel });
-    await screen.findByText("Chưa có cấu hình in");
+    await findStatus("Chưa có cấu hình in");
     const user = userEvent.setup();
     await user.upload(
-      screen.getByLabelText(/Chọn hoặc kéo thả file/),
+      screen.getByLabelText(NEW_FILE),
       new File([content], "cup.glb", { type: "model/gltf-binary" }),
     );
     await screen.findByText("Nhận ra: Ly");
