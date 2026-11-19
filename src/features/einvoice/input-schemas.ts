@@ -5,7 +5,11 @@
 
 import { z } from "zod";
 
-import { EINVOICE_LIMITS, PROVIDER_ENVIRONMENTS } from "@/constants/einvoice";
+import {
+  EINVOICE_LIMITS,
+  MANUAL_CORRECTION_BASES,
+  PROVIDER_ENVIRONMENTS,
+} from "@/constants/einvoice";
 import { toLocalIsoDate } from "@/lib/format/date";
 import { isoDate } from "@/lib/validation/primitives";
 
@@ -75,10 +79,11 @@ const correctionLine = z.object({
 /**
  * Lập điều chỉnh (docs 21 §4.4; TT 91/2026 Điều 10): RETURN và TRADE_DISCOUNT chỉ giảm — mọi số
  * lượng chỉnh phải ≤ 0 (BE `CorrectionBasis`); ERROR cần thoả thuận trước khi phát hành.
+ * DELIVERY_FAILED không lập tay được (BE `CorrectionBasis.systemOnly()`).
  */
 export const adjustInputSchema = z
   .object({
-    basis: z.enum(["ERROR", "RETURN", "TRADE_DISCOUNT"]),
+    basis: z.enum(MANUAL_CORRECTION_BASES),
     reason,
     buyer: correctionBuyer,
     lines: z.array(correctionLine).max(L.linesMax, `Tối đa ${L.linesMax} dòng`),

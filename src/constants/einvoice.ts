@@ -60,6 +60,15 @@ export const EINVOICE_STATUSES = [
 ] as const;
 export type EInvoiceStatus = (typeof EINVOICE_STATUSES)[number];
 
+/**
+ * Giá trị enum BE mà FE chưa biết (BE thêm về sau) — DTO đọc tolerant thành chuỗi này thay vì làm hỏng
+ * cả trang. Chỉ để hiển thị "Không rõ" và khoá mọi thao tác; KHÔNG bao giờ gửi lên BE.
+ */
+export const EINVOICE_UNKNOWN = "UNKNOWN";
+export type EInvoiceUnknown = typeof EINVOICE_UNKNOWN;
+/** Trạng thái như FE đọc được từ BE: một giá trị BE đã biết hoặc `UNKNOWN`. */
+export type EInvoiceStatusRead = EInvoiceStatus | EInvoiceUnknown;
+
 /** Chuỗi hiển thị qua `StatusDot` (domain `invoice`) — nhãn tiếng Việt ở `status-map`. */
 export const EINVOICE_STATUS_BY_API = {
   DRAFT: "Draft",
@@ -68,33 +77,75 @@ export const EINVOICE_STATUS_BY_API = {
   REJECTED: "Rejected",
   VOIDED_DRAFT: "Voided Draft",
   REPLACED: "Replaced",
-} as const satisfies Record<EInvoiceStatus, string>;
+  UNKNOWN: "UNKNOWN",
+} as const satisfies Record<EInvoiceStatusRead, string>;
 
 /** BE `EInvoiceType`: gốc (mỗi shipment `Delivered`), điều chỉnh, thay thế (docs 21 §4.4). */
 export const EINVOICE_TYPES = ["ORIGINAL", "ADJUSTMENT", "REPLACEMENT"] as const;
 export type EInvoiceType = (typeof EINVOICE_TYPES)[number];
+export type EInvoiceTypeRead = EInvoiceType | EInvoiceUnknown;
 
 /**
  * BE `CorrectionBasis` (TT 91/2026 Điều 10): ERROR — sai mã số thuế / số lượng / giá / thuế suất / tiền,
  * cần thoả thuận bằng văn bản trước khi phát hành; RETURN — trả hàng (chỉ giảm); TRADE_DISCOUNT —
- * chiết khấu thương mại (chỉ giảm).
+ * chiết khấu thương mại (chỉ giảm); DELIVERY_FAILED — giao hàng bị sửa thành thất bại sau khi hoá đơn
+ * đã phát hành: hệ thống tự lập điều chỉnh giảm toàn bộ (docs 21 §4.4, WF-05 HĐ-3; BE PR #369).
  */
-export const CORRECTION_BASES = ["ERROR", "RETURN", "TRADE_DISCOUNT"] as const;
+export const CORRECTION_BASES = ["ERROR", "RETURN", "TRADE_DISCOUNT", "DELIVERY_FAILED"] as const;
 export type CorrectionBasis = (typeof CORRECTION_BASES)[number];
+export type CorrectionBasisRead = CorrectionBasis | EInvoiceUnknown;
 
-/** BE `EInvoice.Warning` + `EARLIER_INVOICE_PENDING` (chi tiết). */
+/**
+ * Căn cứ Kế toán được chọn khi tự lập điều chỉnh. DELIVERY_FAILED chỉ hệ thống lập
+ * (BE `CorrectionBasis.systemOnly()`, `EInvoiceCorrections` từ chối khi lập tay).
+ */
+export const MANUAL_CORRECTION_BASES = ["ERROR", "RETURN", "TRADE_DISCOUNT"] as const;
+export type ManualCorrectionBasis = (typeof MANUAL_CORRECTION_BASES)[number];
+
+/**
+ * Căn cứ của chứng từ do hệ thống tự lập (BE `CorrectionBasis.systemOnly()`): không lập tay, không huỷ
+ * nháp tay (BE `EInvoice.voidDraft` → 409 `EINVOICE_CORRECTION_NOT_APPLICABLE`); văn bản chứng minh
+ * giao thất bại được gắn kèm nhưng không bắt buộc (`acceptsAgreement()`).
+ */
+export const SYSTEM_CORRECTION_BASES: readonly string[] = ["DELIVERY_FAILED"];
+
+/**
+ * BE `EInvoice.Warning` + `EARLIER_INVOICE_PENDING` (chi tiết, `InvoicingWebMapper`). DTO đọc `warnings`
+ * là chuỗi mở — giá trị ngoài danh sách hiện câu chung (`EINVOICE_LABELS.warnings.unknown`).
+ */
 export const EINVOICE_WARNINGS = [
   "BUYER_PROFILE_INCOMPLETE",
+  "BUYER_EMAIL_MISSING",
   "TAX_RATE_DIFFERS_FROM_CONTRACT",
   "TAX_RATE_NOT_ON_CONTRACT",
+  "TAX_RATE_OUT_OF_DATE",
+  "TAX_EXEMPT_NOT_SUPPORTED",
   "UNKNOWN_TO_PROVIDER",
+  "SIGNATURE_INVALID",
   "EARLIER_INVOICE_PENDING",
 ] as const;
+
+/**
+ * `rejectionCode` do chính hệ thống ghi (BE `EInvoice.UNKNOWN_TO_PROVIDER_CODE`, `WITHDRAWN_CODE`) — không
+ * phải NCC từ chối; mã khác là mã lỗi của NCC, hiện nguyên văn.
+ */
+export const EINVOICE_SYSTEM_REJECTION_CODES = [
+  "UNKNOWN_TO_PROVIDER",
+  "WITHDRAWN_NO_PROVIDER_RECORD",
+] as const;
+export type EInvoiceSystemRejectionCode = (typeof EINVOICE_SYSTEM_REJECTION_CODES)[number];
 export type EInvoiceWarning = (typeof EINVOICE_WARNINGS)[number];
 
 /** Tệp của hoá đơn đã phát hành: XML (giá trị pháp lý) và PDF (bản xem, in) — docs 21 §1. */
 export const EINVOICE_FILE_KINDS = ["XML", "PDF"] as const;
 export type EInvoiceFileKind = (typeof EINVOICE_FILE_KINDS)[number];
+
+/**
+ * Nhà cung cấp gửi được thông báo sai sót 04/SS-HĐĐT (BE `EInvoiceProvider.sendsErrorNotices()`, HĐ-6):
+ * chỉ `SANDBOX`. SePay (`SEPAY_EINVOICE`) không có API cho mẫu này, adapter Viettel (`VIETTEL_SINVOICE`)
+ * không gửi → BE luôn trả 409 `EINVOICE_ERROR_NOTICE_NOT_SUPPORTED`; Kế toán lập trên cổng NCC / cơ quan thuế.
+ */
+export const ERROR_NOTICE_PROVIDERS: readonly string[] = ["SANDBOX"];
 
 /** BE `ErrorNotice.Subject` / `Status` — thông báo sai sót mẫu 04/SS-HDDT. */
 export const ERROR_NOTICE_SUBJECTS = ["BUYER_NAME_ADDRESS", "WITH_CORRECTION"] as const;
@@ -136,6 +187,17 @@ export const EINVOICE_LIMITS = {
   taxCodePattern: /^(\d{10}|\d{10}-\d{3}|\d{12})$/,
   yearMin: 2026,
   yearMax: 2099,
+} as const;
+
+/**
+ * Mốc thời gian của BE `InvoicingProperties` (application.yml `stockflow.invoicing.*`, BE PR #369) —
+ * FE chỉ dùng để ẩn nút sớm; BE kiểm lại và trả 409 `EINVOICE_WITHDRAWAL_REFUSED`.
+ */
+export const EINVOICE_TIMING = {
+  /** `withdraw-after` (3 giờ): rút được hoá đơn kẹt ở NCC khi lần gửi cuối đã quá mốc này và NCC không có bản ghi. */
+  withdrawAfterMs: 3 * 60 * 60 * 1000,
+  /** `withdraw-unknown-after` (1 ngày): NCC "không trả lời được" (UNKNOWN) thì phải chờ lâu hơn. */
+  withdrawUnknownAfterMs: 24 * 60 * 60 * 1000,
 } as const;
 
 export const EINVOICE_STORAGE_KEYS = {

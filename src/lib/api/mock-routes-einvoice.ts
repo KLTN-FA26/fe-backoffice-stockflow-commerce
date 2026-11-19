@@ -3,6 +3,7 @@
  *   GET  /einvoices?status&type&orderId&customerId&issuedFrom&issuedTo&dueBefore&page&size
  *   GET  /einvoices/{id} · /provider-calls · /files/{kind} · /corrections · /error-notices · /agreement
  *   POST /einvoices · /{id}/buyer-refresh · /void · /reopening · /issuance · /resubmission · /reconciliation
+ *        · /withdrawal
  *   PUT  /einvoices/{id} · /{id}/agreement
  *   POST /einvoices/{id}/adjustments · /replacements · /error-notices · /error-notices/{nid}/sending
  *   GET  /einvoices/register?from&to · /register/export
@@ -10,7 +11,11 @@
  * Phát hành là bất đồng bộ: `issuance` trả SUBMITTING; lần đọc sau ≥ 2 giây (hoặc `reconciliation`) ra ISSUED.
  */
 
-import { EINVOICE_PERMISSIONS, EINVOICE_SETTINGS_PERMISSIONS } from "@/constants/einvoice";
+import {
+  EINVOICE_PERMISSIONS,
+  EINVOICE_SETTINGS_PERMISSIONS,
+  EINVOICE_TIMING,
+} from "@/constants/einvoice";
 
 import { registerMockRoute } from "./mock-adapter";
 import {
@@ -348,6 +353,26 @@ export function registerEInvoiceMockRoutes(): void {
         return fail(409, "EINVOICE_RESUBMISSION_REFUSED", "Refused");
       i.warnings = i.warnings.filter((w) => w !== "UNKNOWN_TO_PROVIDER");
       i.submittedAt = nowIso();
+      return touch(i);
+    }),
+  );
+  registerMockRoute(
+    "POST",
+    "/einvoices/:id/withdrawal",
+    versioned(P.approve, (i, body) => {
+      if (i.status !== "SUBMITTING") return transition();
+      if (!text(body.reason))
+        return fail(400, "VALIDATION_FAILED", "reason", [{ field: "reason", message: "required" }]);
+      // BE HĐ-1: lần gửi cuối quá `withdraw-after`; mock coi NCC luôn trả NOT_FOUND
+      const sent = Date.parse(i.submittedAt ?? nowIso());
+      if (Date.now() - sent < EINVOICE_TIMING.withdrawAfterMs)
+        return fail(409, "EINVOICE_WITHDRAWAL_REFUSED", "Too recent");
+      Object.assign(i, {
+        status: "REJECTED",
+        rejectionCode: "WITHDRAWN_NO_PROVIDER_RECORD",
+        rejectionMessage: text(body.reason),
+        warnings: i.warnings.filter((w) => w !== "UNKNOWN_TO_PROVIDER"),
+      });
       return touch(i);
     }),
   );
