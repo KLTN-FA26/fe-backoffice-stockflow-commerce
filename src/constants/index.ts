@@ -186,6 +186,14 @@ export { LOAD_PLAN_PRINT_LABELS } from "./labels-load-plan-print";
 export { LOAD_PLANNING_LABELS, PLACEMENT_RULE_LABELS } from "./labels-load-planning";
 export { SHIPPING_ERROR_MESSAGES, SHIPPING_FIELD_MESSAGES } from "./labels-shipping";
 export {
+  CARRIER_API_ENVIRONMENTS,
+  CARRIER_CONFIG_LIMITS,
+  CARRIER_CONFIG_MESSAGES,
+  CARRIER_FIELD_ERROR_MESSAGES,
+  CARRIER_LIST_ERROR_CODES,
+} from "./labels-carrier-config";
+export type { CarrierApiEnvironment } from "./labels-carrier-config";
+export {
   SHIPPING_WRONG_VEHICLE_MESSAGE,
   SHIPPING_WRONG_VEHICLE_NO_CODE_MESSAGE,
 } from "./labels-shipping-ftl";

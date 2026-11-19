@@ -142,17 +142,7 @@ export interface RecordWaybillInput {
 export type WaybillImportPreviewInput = z.infer<typeof waybillImportPreviewInputSchema>;
 export type WaybillImportFileInput = z.infer<typeof waybillImportFileInputSchema>;
 
-/** Thân tạo / sửa hãng (BE `CarrierRequest`). `connection` vắng = giữ nguyên cấu hình kết nối hiện có. */
-export interface SaveCarrierInput {
-  code: string;
-  name: string;
-  contactName?: string;
-  contactPhone?: string;
-  status: Carrier["status"];
-  connection?: { connectionType: "MANUAL" | "WEBHOOK_LOAD"; webhookSecret?: string };
-  /** Bắt buộc khi sửa: phiên bản đã đọc. */
-  version?: number;
-}
+export type { SaveCarrierConnection, SaveCarrierInput } from "./carrier-request-schemas";
 
 export interface CancelBookingInput {
   loadId: string;

@@ -8,6 +8,7 @@ import {
   SHIPPING_WAYBILL_LABELS,
   SHIPPING_WAYBILL_TOAST_MESSAGES,
 } from "./labels-shipping-waybill";
+import { CARRIER_CONFIG_ERROR_MESSAGES } from "./labels-carrier-config";
 import { SHIPPING_LIMITS } from "./numbers";
 
 export const SHIPPING_UI_LABELS = {
@@ -320,6 +321,7 @@ export const SHIPPING_ERROR_MESSAGES = {
   CARRIER_CANCEL_REFUSED:
     "Hãng không huỷ đơn được (tài xế đã lấy hàng) — liên hệ trực tiếp với hãng để xử lý.",
   SECRETS_UNAVAILABLE: "Hệ thống chưa lưu được khoá bí mật lúc này — thử lại sau.",
+  ...CARRIER_CONFIG_ERROR_MESSAGES,
   EXTERNAL_SERVICE_ERROR:
     "Hãng không phản hồi và có thể đã tạo đơn: kiểm tra trên cổng của hãng (đơn ghi chú mã chuyến), huỷ ở đó nếu có, rồi huỷ đặt xe và đặt lại.",
   // 409 — mã vận đơn (BR-23, BR-24)
