@@ -269,7 +269,6 @@ export function activateMockAdapter(): void {
     import("./mock-routes-print-configs"),
     import("./mock-routes-inventory"),
     import("./mock-routes-inventory-items"),
-    import("./mock-routes-stock-alerts"),
     import("./mock-routes-notifications"),
     import("./mock-routes-reports"),
     import("./mock-routes-fulfillment"),
@@ -304,7 +303,6 @@ export function activateMockAdapter(): void {
       { registerPrintConfigMockRoutes },
       { registerInventoryMockRoutes },
       { registerInventoryItemMockRoutes },
-      { registerStockAlertMockRoutes },
       { registerNotificationMockRoutes },
       { registerReportMockRoutes },
       { registerFulfillmentMockRoutes },
@@ -345,7 +343,6 @@ export function activateMockAdapter(): void {
       registerPrintConfigMockRoutes();
       registerInventoryMockRoutes();
       registerInventoryItemMockRoutes();
-      registerStockAlertMockRoutes();
       registerNotificationMockRoutes();
       registerReportMockRoutes();
       registerFulfillmentMockRoutes();

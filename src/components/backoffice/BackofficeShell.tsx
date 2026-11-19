@@ -2,16 +2,13 @@
 
 import { cn } from "cn";
 import {
-  ArrowRightLeft,
   Ban,
   Banknote,
   Building2,
-  BellRing,
   Boxes,
   CalendarClock,
   ClipboardCheck,
   ClipboardList,
-  Factory,
   Database,
   FileBox,
   FileSignature,
@@ -43,7 +40,6 @@ import {
   TableProperties,
   PackageX,
   SlidersHorizontal,
-  SquareKanban,
   Tags,
   Truck,
   TruckElectric,
@@ -76,14 +72,11 @@ import {
   LOAD_PLAN_PRINT_LABELS,
   ORDER_PERMISSIONS,
   PRODUCT_PERMISSIONS,
-  PRODUCTION_ORDER_PERMISSIONS,
   QUOTE_PERMISSIONS,
   CHAT_PERMISSIONS,
-  SAMPLE_REQUEST_PERMISSIONS,
   PUT_BACK_LABELS,
   SHIPMENT_PERMISSIONS,
   STOCK_PACKAGE_PERMISSIONS,
-  TRANSFER_PERMISSIONS,
   TRIAL_LABELS,
   UI_LABELS,
   VEHICLE_TYPE_PERMISSIONS,
@@ -270,18 +263,11 @@ export const NAV_GROUPS: NavGroup[] = [
         label: INVENTORY_LABELS.overviewTitle,
         href: INVENTORY_ROUTES.overview,
         icon: Boxes,
-        // Same rule as the page gate: stock READ or reservation READ; alert READ alone is not enough.
+        // Same rule as the page gate: stock READ or reservation READ.
         anyPermission: [
           INVENTORY_OVERVIEW_PERMISSIONS.stockRead,
           INVENTORY_OVERVIEW_PERMISSIONS.reservationRead,
         ],
-      },
-      {
-        label: INVENTORY_LABELS.alertListTitle,
-        href: INVENTORY_ROUTES.alerts,
-        icon: BellRing,
-        // BE StockAlertController khai báo VIEW_PAGE cho inventory-alerts (route của deep link thông báo)
-        permission: INVENTORY_OVERVIEW_PERMISSIONS.alertViewPage,
       },
       {
         label: "Hồ sơ hàng tồn",
@@ -290,12 +276,6 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: FileBox,
         // Route BE khai báo cho resource inventory-inventory-items (PR #119)
         permission: INVENTORY_ITEM_PERMISSIONS.viewPage,
-      },
-      {
-        label: UI_LABELS.transfer.pageTitle,
-        href: ADMIN_ROUTES.transfers.list,
-        icon: ArrowRightLeft,
-        permission: TRANSFER_PERMISSIONS.viewPage,
       },
       {
         label: "Di chuyển nội bộ",
@@ -388,12 +368,6 @@ export const NAV_GROUPS: NavGroup[] = [
         // BE `chat-conversations:VIEW_PAGE` (seed: SALES_STAFF, SALES_MANAGER, SYSTEM_ADMIN)
         permission: CHAT_PERMISSIONS.viewPage,
       },
-      {
-        label: "Yêu cầu mẫu",
-        href: ADMIN_ROUTES.sampleRequests.list,
-        icon: FlaskConical,
-        permission: SAMPLE_REQUEST_PERMISSIONS.viewPage,
-      },
     ],
   },
   {
@@ -440,25 +414,6 @@ export const NAV_GROUPS: NavGroup[] = [
         href: EINVOICE_ROUTES.settings,
         icon: Settings,
         permission: EINVOICE_SETTINGS_PERMISSIONS.read,
-      },
-    ],
-  },
-  {
-    // Xưởng in: prepress → xuất phôi → in → QC → bàn giao đóng gói (SCRUM-406..419, 442)
-    title: "Sản xuất",
-    icon: Factory,
-    items: [
-      {
-        label: "Xưởng in",
-        href: ADMIN_ROUTES.workshop,
-        icon: SquareKanban,
-        permission: PRODUCTION_ORDER_PERMISSIONS.viewPage,
-      },
-      {
-        label: "Lệnh sản xuất",
-        href: ADMIN_ROUTES.productionOrders.list,
-        icon: Factory,
-        permission: PRODUCTION_ORDER_PERMISSIONS.viewPage,
       },
     ],
   },
@@ -580,9 +535,7 @@ const DETAIL_LABEL_BY_ROUTE: Record<string, string> = {
   "/admin/products/create": "Tạo sản phẩm",
   [ADMIN_ROUTES.customers.create]: "Tạo khách hàng",
   [ADMIN_ROUTES.quotes.create]: "Tạo báo giá",
-  [ADMIN_ROUTES.sampleRequests.create]: "Tạo yêu cầu mẫu",
   [INVENTORY_ROUTES.createAdjustment]: INVENTORY_LABELS.createAdjustment,
-  "/admin/transfers/create": "Tạo lệnh chuyển kho",
   [ADMIN_ROUTES.loadPlans.create]: UI_LABELS.loadPlan.create,
   [ADMIN_ROUTES.loads.waybillImport]: UI_LABELS.shipping.waybill.import.title,
 };

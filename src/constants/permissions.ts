@@ -504,18 +504,6 @@ export const QUOTE_PERMISSIONS = {
 } as const;
 
 /**
- * Yêu cầu làm mẫu — resource `production-sample-requests` (BE SampleRequestController, SCRUM-403;
- * seed V20261010000500 + V20261017000200: CUSTOMER V/R/APPROVE, SALES_STAFF có APPROVE).
- */
-export const SAMPLE_REQUEST_PERMISSIONS = {
-  viewPage: "production-sample-requests:VIEW_PAGE",
-  read: "production-sample-requests:READ",
-  create: "production-sample-requests:CREATE",
-  update: "production-sample-requests:UPDATE",
-  approve: "production-sample-requests:APPROVE",
-} as const;
-
-/**
  * Lệnh sản xuất (LSX) — resource `production-orders` (BE ProductionOrderController, SCRUM-405..415).
  * UPDATE = prepress, treo, in, ghi sản lượng · APPROVE = huỷ / dừng / tiếp tục, tách gia công.
  */
@@ -537,18 +525,6 @@ export const CATALOG_CUSTOMER_PRICE_PERMISSIONS = {
  */
 export const DESIGN_SNAPSHOT_PERMISSIONS = {
   read: "design-snapshots:READ",
-} as const;
-
-/** Xuất phôi cho LSX + gửi / nhận gia công — `production-material-issues` (seed V20261017000400). */
-export const MATERIAL_ISSUE_PERMISSIONS = {
-  read: "production-material-issues:READ",
-  create: "production-material-issues:CREATE",
-} as const;
-
-/** QC thành phẩm LSX — `production-qc-results` (seed V20261017000420: QC_STAFF, WAREHOUSE_MANAGER). */
-export const PRODUCTION_QC_PERMISSIONS = {
-  read: "production-qc-results:READ",
-  create: "production-qc-results:CREATE",
 } as const;
 
 /**

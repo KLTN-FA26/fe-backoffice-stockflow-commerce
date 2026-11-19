@@ -175,22 +175,19 @@ describe("declared navigation permissions", () => {
     expect(link !== null).toBe(visible);
     if (link) expect(link).toHaveAttribute("href", "/admin/put-backs");
   });
-  it.each([
-    ["inventory-alerts:VIEW_PAGE", [INVENTORY_OVERVIEW_PERMISSIONS.alertViewPage], true],
-    ["inventory-alerts:READ alone", [INVENTORY_OVERVIEW_PERMISSIONS.alertRead], false],
-  ] as const)("menu Cảnh báo tồn kho với %s → hiện: %s", async (_, permissions, visible) => {
+  it("không còn menu Cảnh báo tồn kho (docs 20 BR-13: không có cảnh báo tồn), kể cả với inventory-alerts:VIEW_PAGE", async () => {
     vi.spyOn(api, "get").mockResolvedValue({
       data: {
         roles: [],
-        permissions: [...permissions, IDENTITY_PERMISSIONS.rbacRead],
+        permissions: [INVENTORY_OVERVIEW_PERMISSIONS.alertViewPage, IDENTITY_PERMISSIONS.rbacRead],
         dataScope: "ALL",
       },
     });
     mount();
     expect(await screen.findByRole("link", { name: "Phân quyền" })).toBeInTheDocument();
-    const link = screen.queryByRole("link", { name: INVENTORY_LABELS.alertListTitle });
-    expect(link !== null).toBe(visible);
-    if (link) expect(link).toHaveAttribute("href", INVENTORY_ROUTES.alerts);
+    expect(
+      screen.queryByRole("link", { name: INVENTORY_LABELS.alertListTitle }),
+    ).not.toBeInTheDocument();
   });
   it.each([
     ["cycle-counts:VIEW_PAGE", [CYCLE_COUNT_PERMISSIONS.viewPage], true],

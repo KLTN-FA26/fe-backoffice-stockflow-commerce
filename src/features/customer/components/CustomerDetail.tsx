@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, FilePlus2, FileText, FlaskConical, Pencil } from "lucide-react";
+import { ArrowLeft, FilePlus2, FileText, Pencil } from "lucide-react";
 
 import {
   ADMIN_ROUTES,
@@ -10,7 +10,6 @@ import {
   CUSTOMER_PERMISSIONS,
   CUSTOMER_STATUS_BY_API,
   QUOTE_PERMISSIONS,
-  SAMPLE_REQUEST_PERMISSIONS,
   VARIANT_PERMISSIONS,
 } from "@/constants";
 import { useCan, usePermissionChecker } from "@/lib/auth";
@@ -122,20 +121,6 @@ function CustomerDetailContent({ id }: { id: string }) {
               <Button asChild variant="outline" size="sm">
                 <Link href={ADMIN_ROUTES.quotes.byCustomer(customer.customerId)}>
                   <FileText className="size-3.5" /> Báo giá của khách
-                </Link>
-              </Button>
-            )}
-            {active && can(SAMPLE_REQUEST_PERMISSIONS.create) && (
-              <Button asChild variant="outline" size="sm">
-                <Link href={ADMIN_ROUTES.sampleRequests.createForCustomer(customer.customerId)}>
-                  <FlaskConical className="size-3.5" /> Tạo yêu cầu mẫu
-                </Link>
-              </Button>
-            )}
-            {can(SAMPLE_REQUEST_PERMISSIONS.read) && (
-              <Button asChild variant="outline" size="sm">
-                <Link href={ADMIN_ROUTES.sampleRequests.byCustomer(customer.customerId)}>
-                  <FlaskConical className="size-3.5" /> Yêu cầu mẫu
                 </Link>
               </Button>
             )}

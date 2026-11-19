@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, FlaskConical, PackageOpen } from "lucide-react";
+import { ArrowRight, PackageOpen } from "lucide-react";
 
-import { ORDER_PERMISSIONS, PORTAL_ROUTES, SAMPLE_REQUEST_PERMISSIONS } from "@/constants";
+import { ORDER_PERMISSIONS, PORTAL_ROUTES } from "@/constants";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { usePermissionChecker } from "@/lib/auth/components/Can";
 import { useMyPermissions } from "@/lib/auth/me-permissions";
@@ -16,13 +16,6 @@ const ENTRIES = [
     title: "Đơn hàng",
     description: "Theo dõi tiến trình đơn và đặt lại bằng yêu cầu báo giá mới.",
     permission: ORDER_PERMISSIONS.read,
-  },
-  {
-    href: PORTAL_ROUTES.samples.list,
-    icon: FlaskConical,
-    title: "Mẫu thử",
-    description: "Duyệt mẫu in trước khi sản xuất hàng loạt, hoặc gửi góp ý để làm lại.",
-    permission: SAMPLE_REQUEST_PERMISSIONS.read,
   },
 ] as const;
 

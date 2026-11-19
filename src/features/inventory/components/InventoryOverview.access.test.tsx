@@ -111,11 +111,12 @@ describe("Inventory Overview access", () => {
     expect(sentTo("/warehouses")).toEqual([]);
   });
 
-  it("stock without alert READ: no alert request, and says alerts are unavailable — not absent", async () => {
-    open([stockRead]);
+  // docs 20 BR-13: không có cảnh báo tồn — kể cả có alert READ, trang không đọc cảnh báo.
+  it("stock with alert READ still sends no alert request and shows no alert notice", async () => {
+    open([stockRead, alertRead]);
     await lookUp("CUP-PP-500");
-    expect(await screen.findByText(INVENTORY_LABELS.alertsUnavailable)).toBeInTheDocument();
-    expect(screen.queryByText(INVENTORY_LABELS.noLowStockAlerts)).toBeNull();
+    expect(await screen.findByText(INVENTORY_LABELS.stockLevelsTitle)).toBeInTheDocument();
+    expect(screen.queryByText(INVENTORY_LABELS.alertsUnavailable)).toBeNull();
     expect(sentTo("/inventory/alerts")).toEqual([]);
   });
 });
@@ -309,11 +310,10 @@ describe("permission failures and revocation", () => {
     expect(sent).toEqual([]);
   });
 
-  it("revoking stock, reservation and alert reads prevents later requests", async () => {
-    open([stockRead, reservationRead, alertRead]);
+  it("revoking stock and reservation reads prevents later requests", async () => {
+    open([stockRead, reservationRead]);
     await lookUp("CUP-PP-500");
     await screen.findByText(OVERVIEW_RESERVATION.orderId);
-    await waitFor(() => expect(sentTo("/inventory/alerts")).toHaveLength(1));
     server.use(inventoryPermissions([]));
     act(() => {
       focusManager.setFocused(false);
