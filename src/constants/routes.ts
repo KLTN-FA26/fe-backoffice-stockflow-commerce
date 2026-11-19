@@ -91,6 +91,8 @@ export const ADMIN_ROUTES = {
     // Đơn công nợ vượt hạn mức chờ duyệt (SCRUM-427) — segment tĩnh, ưu tiên hơn [id]
     creditHolds: `${ADMIN_BASE}/orders/credit-holds`,
     cancellationRequests: `${ADMIN_BASE}/orders/cancellation-requests`,
+    /** Hồ sơ giao thất bại chờ Sale quyết (WF-05 GH-1, BE `GET /orders/delivery-failures`). */
+    deliveryFailures: `${ADMIN_BASE}/orders/delivery-failures`,
     detail: (id: string) => `${ADMIN_BASE}/orders/${id}`,
     /** Khối "Hợp đồng" trong chi tiết đơn (WF-02 pha B). */
     contract: (id: string) => `${ADMIN_BASE}/orders/${id}#contract`,

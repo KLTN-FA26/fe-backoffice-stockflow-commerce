@@ -67,6 +67,7 @@ import {
   CREDIT_HOLD_PERMISSIONS,
   CUSTOMER_PRICE_PERMISSIONS,
   CUSTOMER_PRICE_UI_LABELS,
+  DELIVERY_FAILURE_LABELS,
   FULFILLMENT_PACKAGE_PERMISSIONS,
   FULFILLMENT_PICK_PERMISSIONS,
   FULFILLMENT_PICKING_PERMISSIONS,
@@ -524,6 +525,13 @@ export const NAV_GROUPS: NavGroup[] = [
         href: ADMIN_ROUTES.orders.cancellationRequests,
         icon: Ban,
         permission: CANCELLATION_REQUEST_PERMISSIONS.read,
+      },
+      // Giao thất bại (WF-05 GH-1): lô hãng mang về chờ Sale quyết — BE `GET /orders/delivery-failures` đòi sales-orders:READ
+      {
+        label: DELIVERY_FAILURE_LABELS.title,
+        href: ADMIN_ROUTES.orders.deliveryFailures,
+        icon: PackageX,
+        permission: ORDER_PERMISSIONS.read,
       },
       // Yêu cầu trả hàng (docs 17 §4.10) — `sales-rmas:VIEW_PAGE`: Sale, Kế toán, Kho, Quản trị (WF-05 BO-16)
       {
