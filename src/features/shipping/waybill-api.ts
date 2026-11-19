@@ -7,7 +7,8 @@
  *        WAYBILL_FROM_CARRIER_API (hãng đặt xe qua API không nhập tay).
  *   GET  /fulfillment/loads/{id}/waybill-history        → mọi lần đổi mã, cũ nhất trước (`fulfillment-shipments:READ`)
  *   GET  /fulfillment/waybill-imports/template          → file CSV mẫu (UTF-8 có BOM) — `fulfillment-waybill-imports:READ`
- *   POST /fulfillment/waybill-imports/preview           multipart `file` → kiểm từng dòng, chưa ghi gì — `…:CREATE`
+ *   GET  /fulfillment/waybill-imports/warehouses        → kho được chọn khi nhập (theo kho được gán) — `…:CREATE`
+ *   POST /fulfillment/waybill-imports/preview           multipart `file` + `warehouseId` (bắt buộc, chỉ nhận chuyến của kho đó) → kiểm từng dòng, chưa ghi gì — `…:CREATE`
  *   POST /fulfillment/waybill-imports?overwriteLines=…  multipart `file` → áp các dòng hợp lệ; dòng GHI ĐÈ mã cũ chỉ áp
  *        khi số dòng nằm trong `overwriteLines` (BR-25) — `…:CREATE`. 400 WAYBILL_IMPORT_INVALID_FILE.
  * File vận đơn đính kèm chuyến (BR-28, tuỳ chọn) chưa có màn hình.
@@ -17,7 +18,11 @@ import { api } from "@/lib/api/client";
 
 import { loadPath } from "./api";
 import { beLoadSchema } from "./load-schemas";
-import { beWaybillHistorySchema, beWaybillImportSchema } from "./waybill-schemas";
+import {
+  beImportWarehousesSchema,
+  beWaybillHistorySchema,
+  beWaybillImportSchema,
+} from "./waybill-schemas";
 
 import type {
   Load,
@@ -25,6 +30,7 @@ import type {
   WaybillChange,
   WaybillImport,
   WaybillImportFileInput,
+  WaybillImportPreviewInput,
 } from "./types";
 
 export const WAYBILL_IMPORTS_PATH = "/fulfillment/waybill-imports";
@@ -51,6 +57,12 @@ export async function downloadWaybillTemplate(): Promise<Blob> {
   return data;
 }
 
+/** Kho người dùng được nhập mã vận đơn: kho đang hoạt động, giới hạn theo kho được gán (`…:CREATE`). */
+export async function listImportWarehouses(signal?: AbortSignal) {
+  const { data } = await api.get<unknown>(`${WAYBILL_IMPORTS_PATH}/warehouses`, { signal });
+  return beImportWarehousesSchema.parse(data);
+}
+
 /** Như `uploadVariantMedia`: ghi đè `application/json` mặc định của axios client để trình duyệt đặt boundary. */
 const MULTIPART = { "Content-Type": "multipart/form-data" } as const;
 
@@ -61,9 +73,13 @@ function formOf(file: File): FormData {
 }
 
 /** Xem trước: kiểm từng dòng của file với các chuyến nó nêu, KHÔNG ghi gì. */
-export async function previewWaybillImport(file: File): Promise<WaybillImport> {
+export async function previewWaybillImport({
+  file,
+  warehouseId,
+}: WaybillImportPreviewInput): Promise<WaybillImport> {
   const { data } = await api.post<unknown>(`${WAYBILL_IMPORTS_PATH}/preview`, formOf(file), {
     headers: MULTIPART,
+    params: { warehouseId },
   });
   return beWaybillImportSchema.parse(data);
 }
@@ -74,11 +90,15 @@ export async function previewWaybillImport(file: File): Promise<WaybillImport> {
  */
 export async function importWaybillFile({
   file,
+  warehouseId,
   overwriteLines,
 }: WaybillImportFileInput): Promise<WaybillImport> {
   const { data } = await api.post<unknown>(WAYBILL_IMPORTS_PATH, formOf(file), {
     headers: MULTIPART,
-    params: overwriteLines.length > 0 ? { overwriteLines: overwriteLines.join(",") } : undefined,
+    params: {
+      warehouseId,
+      ...(overwriteLines.length > 0 ? { overwriteLines: overwriteLines.join(",") } : {}),
+    },
   });
   return beWaybillImportSchema.parse(data);
 }

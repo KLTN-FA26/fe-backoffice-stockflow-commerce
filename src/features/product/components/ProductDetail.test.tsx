@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Suspense } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PRODUCT_STATUS, UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 import { useBreadcrumbLabelStore } from "@/lib/store/use-breadcrumb-labels";
+import { renderWithProviders } from "@/test/render";
 
 import type { Product } from "@/features/product";
 
@@ -99,7 +100,8 @@ const resolvedParams = Object.assign(Promise.resolve({ id: "product-1" }), {
 });
 
 async function renderDetail() {
-  render(
+  // The detail reads the approver's name and refetches itself after a transition (React Query).
+  renderWithProviders(
     <Suspense fallback={null}>
       <ProductDetail params={resolvedParams} />
     </Suspense>,
@@ -273,7 +275,7 @@ describe("ProductDetail — hộp thoại ngừng kinh doanh hiện chứng từ
 describe("ProductDetail — tạm ngưng, tiếp tục, xoá nháp (BE SCRUM-461)", () => {
   it("Published: Tạm ngưng hỏi lý do rồi gửi { id, reason, version }", async () => {
     const user = userEvent.setup();
-    render(
+    renderWithProviders(
       <Suspense fallback={null}>
         <ProductDetail params={resolvedParams} />
       </Suspense>,
@@ -304,7 +306,7 @@ describe("ProductDetail — tạm ngưng, tiếp tục, xoá nháp (BE SCRUM-461
       refetch: refetchMock,
     });
     const user = userEvent.setup();
-    render(
+    renderWithProviders(
       <Suspense fallback={null}>
         <ProductDetail params={resolvedParams} />
       </Suspense>,
@@ -332,7 +334,7 @@ describe("ProductDetail — tạm ngưng, tiếp tục, xoá nháp (BE SCRUM-461
       options.onSuccess(),
     );
     const user = userEvent.setup();
-    render(
+    renderWithProviders(
       <Suspense fallback={null}>
         <ProductDetail params={resolvedParams} />
       </Suspense>,
@@ -361,7 +363,7 @@ describe("ProductDetail — tạm ngưng, tiếp tục, xoá nháp (BE SCRUM-461
         options.onError(Object.assign(new Error("x"), { code: "PRODUCT_IN_USE" })),
     );
     const user = userEvent.setup();
-    render(
+    renderWithProviders(
       <Suspense fallback={null}>
         <ProductDetail params={resolvedParams} />
       </Suspense>,
@@ -383,7 +385,7 @@ describe("ProductDetail — từ chối duyệt qua hộp thoại có lý do, kh
     });
     const prompt = vi.spyOn(window, "prompt");
     const user = userEvent.setup();
-    render(
+    renderWithProviders(
       <Suspense fallback={null}>
         <ProductDetail params={resolvedParams} />
       </Suspense>,
@@ -408,7 +410,7 @@ describe("ProductDetail — từ chối duyệt qua hộp thoại có lý do, kh
 describe("ProductDetail — mục Mô tả", () => {
   async function openDescription() {
     const user = userEvent.setup();
-    render(
+    renderWithProviders(
       <Suspense fallback={null}>
         <ProductDetail params={resolvedParams} />
       </Suspense>,
@@ -445,7 +447,7 @@ describe("ProductDetail — mục Mô tả", () => {
 
 describe("ProductDetail — thẻ Chứng từ còn mở ở cột phải", () => {
   const renderPage = () =>
-    render(
+    renderWithProviders(
       <Suspense fallback={null}>
         <ProductDetail params={resolvedParams} />
       </Suspense>,
@@ -481,7 +483,7 @@ describe("ProductDetail — breadcrumb và nhóm thuế", () => {
       isLoading: false,
       refetch: refetchMock,
     });
-    render(
+    renderWithProviders(
       <Suspense fallback={null}>
         <ProductDetail params={resolvedParams} />
       </Suspense>,
@@ -502,7 +504,7 @@ describe("ProductDetail — lỗi tải: chỉ 404 mới là không tìm thấy 
       error,
       refetch: refetchMock,
     });
-    render(
+    renderWithProviders(
       <Suspense fallback={null}>
         <ProductDetail params={resolvedParams} />
       </Suspense>,

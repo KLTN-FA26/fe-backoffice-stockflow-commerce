@@ -128,10 +128,9 @@ async function submitApprove(user: User) {
 async function submitReject(user: User) {
   await user.click(await screen.findByRole("button", { name: /^Từ chối vượt hạn mức đơn/ }));
   const dialog = await screen.findByRole("dialog");
-  await screen.findByRole("region", { name: "Công nợ hiện tại của khách" });
-  await pickOrderSelectOption(user, /Cách xử lý/, "Huỷ đơn");
+  await screen.findByRole("region", { name: "Vị thế tín dụng của khách" });
   await user.type(within(dialog).getByLabelText(/Ghi chú/), "Không đủ điều kiện");
-  await user.click(within(dialog).getByRole("button", { name: "Từ chối" }));
+  await user.click(within(dialog).getByRole("button", { name: "Từ chối và huỷ đơn" }));
   return dialog;
 }
 
@@ -294,7 +293,7 @@ describe("Quyết định công nợ — dialog khi đang gửi", { timeout: DIA
     expect(post).toHaveBeenCalledTimes(1);
     expect(post).toHaveBeenCalledWith(
       REJECT_PATH,
-      { action: "CANCEL", note: "Không đủ điều kiện" },
+      { note: "Không đủ điều kiện" },
       expect.anything(),
     );
   });
@@ -353,10 +352,9 @@ describe("Bấm đúp nút gửi → đúng 1 request", { timeout: DIALOG_FLOW_T
     const post = slowPost({ ...heldOrder, status: "CANCELLED" });
     await user.click(await screen.findByRole("button", { name: /^Từ chối vượt hạn mức đơn/ }));
     const dialog = await screen.findByRole("dialog");
-    await screen.findByRole("region", { name: "Công nợ hiện tại của khách" });
-    await pickOrderSelectOption(user, /Cách xử lý/, "Huỷ đơn");
+    await screen.findByRole("region", { name: "Vị thế tín dụng của khách" });
     await user.type(within(dialog).getByLabelText(/Ghi chú/), "Không đủ điều kiện");
-    await user.dblClick(within(dialog).getByRole("button", { name: "Từ chối" }));
+    await user.dblClick(within(dialog).getByRole("button", { name: "Từ chối và huỷ đơn" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expect(post).toHaveBeenCalledTimes(1);
   });

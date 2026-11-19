@@ -30,6 +30,8 @@ function formFieldOf(path: string, kind: ModelKind | null): keyof PrintDefaultsV
     case "seamMm":
     case "rimMm":
     case "topFoldMm":
+    case "glueFlapMm":
+    case "bottomFoldMm":
     case "handle":
       return name;
     case "material":

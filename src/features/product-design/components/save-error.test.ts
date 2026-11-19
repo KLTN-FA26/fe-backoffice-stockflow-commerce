@@ -152,8 +152,80 @@ describe("saveErrorView", () => {
     ]);
   });
 
+  it("PRINT_CONFIG_INVALID on a bag's glue flap and bottom fold goes on those two fields (BE requireBag)", () => {
+    const invalid = (list: ApiFieldErrorBody[]) =>
+      new ApiError(
+        400,
+        "PRINT_CONFIG_INVALID",
+        "English",
+        Object.fromEntries(list.map(({ field, message }) => [field, message])),
+        undefined,
+        undefined,
+        list,
+      );
+    const glue = saveErrorView(
+      invalid([
+        { field: "model.glueFlapMm", message: "A bag's glue flap is 0 to 100 mm", code: "Range" },
+      ]),
+      "parametric-bag",
+      BAG_BODY,
+    );
+    expect(glue.fields).toEqual([
+      { field: "glueFlapMm", message: "Máy chủ không chấp nhận giá trị này." },
+    ]);
+    expect(glue.general).not.toContain("English");
+    const fold = saveErrorView(
+      invalid([
+        {
+          field: "model.bottomFoldMm",
+          message: "A bag's bottom fold is 0 mm to its gusset",
+          code: "Range",
+        },
+      ]),
+      "parametric-bag",
+      BAG_BODY,
+    );
+    expect(fold.fields.map((f) => f.field)).toEqual(["bottomFoldMm"]);
+  });
+
   it("a plain error gets the fallback sentence", () => {
     expect(saveErrorView(new Error("boom"), null).general).toBe(FALLBACK);
+  });
+});
+
+describe("saveErrorView: the fields of BE PrintConfigRules (origin/develop 3672ffb7)", () => {
+  const invalid = (field: string, code: string) =>
+    new ApiError(
+      400,
+      "PRINT_CONFIG_INVALID",
+      "English",
+      { [field]: "English" },
+      undefined,
+      undefined,
+      [{ field, message: "English", code }],
+    );
+
+  it.each([
+    ["model.seamMm", "SeamOverlaps", "seamMm"],
+    ["model.seamMm", "Range", "seamMm"],
+    ["printAreas[0].bleedMm", "BleedPastCentre", "bleedMm"],
+    ["printAreas[2].safeMarginMm", "NoSafeArea", "safeMarginMm"],
+    ["printAreas[0].safeMarginMm", "Range", "safeMarginMm"],
+    ["model.rimMm", "Range", "rimMm"],
+    ["model.topFoldMm", "Range", "topFoldMm"],
+  ])("%s (%s) goes to the %s input", (path, code, field) => {
+    const view = saveErrorView(invalid(path, code), "parametric-cup");
+    expect(view.fields.map((f) => f.field)).toEqual([field]);
+  });
+
+  it.each([
+    ["model.bottomDiameterMm", "BaseWiderThanRim"],
+    ["model.heightMm", "Range"],
+    ["model.bandTopOffsetMm", "NoBand"],
+  ])("%s (%s) comes from the file: no input, the general sentence only", (path, code) => {
+    const view = saveErrorView(invalid(path, code), "parametric-cup");
+    expect(view.fields).toEqual([]);
+    expect(view.general).toContain("chưa hợp lệ");
   });
 });
 
@@ -162,15 +234,17 @@ describe("printConfigErrorMessage by context", () => {
   const message = (status: number, code: string) =>
     printConfigErrorMessage(new ApiError(status, code, "x"), "activate");
 
-  it("activation words for the file, the table and an old template without a model", () => {
+  it("activation words for the file (or an old template without a model, the same 409) and the table", () => {
     expect(message(409, "PRINT_CONFIG_MODEL_FILE_REQUIRED")).toBe(
       ACTIVATE.PRINT_CONFIG_MODEL_FILE_REQUIRED,
     );
     expect(message(422, "PRINT_CONFIG_SURFACES_INVALID")).toBe(
       ACTIVATE.PRINT_CONFIG_SURFACES_INVALID,
     );
-    expect(message(400, "PRINT_CONFIG_INVALID")).toBe(ACTIVATE.PRINT_CONFIG_INVALID);
-    // other codes keep their general sentence
+    // other codes keep their general sentence (the BE no longer answers activation with 400, 8c63a729)
+    expect(message(400, "PRINT_CONFIG_INVALID")).toBe(
+      PRINT_CONFIG_ERROR_MESSAGES.PRINT_CONFIG_INVALID,
+    );
     expect(message(409, "OPTIMISTIC_LOCK")).toBe(PRINT_CONFIG_ERROR_MESSAGES.OPTIMISTIC_LOCK);
   });
 

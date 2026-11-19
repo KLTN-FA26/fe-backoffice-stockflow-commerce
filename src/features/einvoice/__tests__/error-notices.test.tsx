@@ -24,6 +24,7 @@ const issued = detailJson({
   hasFiles: true,
   invoiceNumber: 42,
   symbol: "C26TAA",
+  provider: "SANDBOX",
 });
 const notice = (over: Record<string, unknown> = {}) => ({
   id: "n-1",
@@ -36,8 +37,8 @@ const notice = (over: Record<string, unknown> = {}) => ({
   recordedAt: "2026-11-12T03:00:00Z",
   ...over,
 });
-const get = (notices: unknown[]) => ({
-  "/einvoices/einv-1": () => issued,
+const get = (notices: unknown[], invoice: unknown = issued) => ({
+  "/einvoices/einv-1": () => invoice,
   "/einvoices/einv-1/provider-calls": () => [],
   "/einvoices/einv-1/corrections": () => [],
   "/einvoices/einv-1/error-notices": () => notices,
@@ -97,6 +98,17 @@ describe("error notices 04/SS-HDDT (TT 91/2026 Điều 10 khoản 1 điểm a)",
       expect(api.post).toHaveBeenCalledWith("/einvoices/einv-1/error-notices/n-1/sending", {}),
     );
     expect(screen.getAllByRole("button", { name: /Hỏi kết quả|Gửi lại/ })).toHaveLength(1);
+  });
+
+  it("HĐ-6: SePay cannot send the form — no notify button, no resend of an old draft notice", async () => {
+    mockEInvoiceApi(ACCOUNTANT_GRANTS, {
+      get: get([notice({ status: "DRAFT" })], { ...issued, provider: "SEPAY_EINVOICE" }),
+    });
+    renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
+    expect(await screen.findByText("Sai địa chỉ bên mua")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Lập điều chỉnh" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Thông báo sai sót" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Gửi lại" })).not.toBeInTheDocument();
   });
 
   it("the sales manager sees the notices but cannot send one", async () => {

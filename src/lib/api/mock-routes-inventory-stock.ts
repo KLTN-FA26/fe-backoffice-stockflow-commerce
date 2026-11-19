@@ -14,9 +14,6 @@
 import {
   INVENTORY_API,
   RESERVATION_STATUSES,
-  STOCK_ALERT_KINDS,
-  STOCK_ALERT_SORT_FIELDS,
-  STOCK_ALERT_STATUSES,
   STOCK_ITEM_SORT_FIELDS,
   STOCK_STATUSES,
 } from "@/constants/inventory";
@@ -26,7 +23,6 @@ import { SKU_CODE_PATTERN } from "@/lib/validation/sku";
 import { paginatePage, registerMockRoute } from "./mock-adapter";
 import {
   MOCK_RESERVATIONS,
-  MOCK_STOCK_ALERTS,
   MOCK_STOCK_LEVELS,
   MOCK_STOCK_ROWS,
   MOCK_STOCK_WAREHOUSES,
@@ -217,26 +213,6 @@ const reservations = route((params) => {
   return ok(pageOf(sorted, params));
 });
 
-// GET /inventory/alerts — mặc định openedAt DESC; sku được trim + viết hoa (StockAlertRepository).
-const alerts = route((params) => {
-  const kinds = enumList(params.kind, STOCK_ALERT_KINDS, "kind");
-  const statuses = enumList(params.status, STOCK_ALERT_STATUSES, "status");
-  const sku = text(params.sku)?.toUpperCase();
-  const warehouseId = text(params.warehouseId);
-  const sort = sortClauses(params.sort, STOCK_ALERT_SORT_FIELDS, {
-    field: "openedAt",
-    descending: true,
-  });
-  const rows = MOCK_STOCK_ALERTS.filter(
-    (alert) =>
-      (!kinds || kinds.includes(alert.kind)) &&
-      (!statuses || statuses.includes(alert.status)) &&
-      (!sku || alert.sku === sku) &&
-      (!warehouseId || alert.warehouseId === warehouseId),
-  );
-  return ok(pageOf(sortRows(rows, sort), params));
-});
-
 // The path builder URL-encodes its argument, so build with a plain token and swap in `:id`.
 const ROUTE_ID = "ROUTE_ID";
 
@@ -249,5 +225,4 @@ export function registerInventoryStockMockRoutes(): void {
   );
   registerMockRoute("GET", INVENTORY_API.atp, atp);
   registerMockRoute("GET", INVENTORY_API.reservations, reservations);
-  registerMockRoute("GET", INVENTORY_API.alerts, alerts);
 }

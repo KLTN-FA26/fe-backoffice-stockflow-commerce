@@ -1,26 +1,36 @@
 /**
  * Shipping — giá trị mặc định của form hãng và thân yêu cầu `POST / PUT /fulfillment/carriers` (BE `CarrierRequest`).
- * Pure — không gọi mạng.
+ * Khoá bí mật chỉ đi vào: không bao giờ nằm trong giá trị mặc định (BE chỉ trả cờ `…Configured`). Pure — không gọi mạng.
  */
 
 import { CARRIER_CONNECTION_TYPE } from "@/constants";
 
-import type { Carrier, CarrierFormInput, CarrierValues, SaveCarrierInput } from "./types";
+import { NO_SAVED_CONNECTION } from "./carrier-schemas";
 
-/** Hãng tích hợp API đặt xe: cấu hình API (khoá, điểm lấy hàng, mã dịch vụ) chưa sửa được ở màn này. */
-export function isConnectionLocked(
-  carrier: Pick<Carrier, "connection"> | null | undefined,
-): boolean {
-  return carrier?.connection?.connectionType === CARRIER_CONNECTION_TYPE.API_BOOKING;
-}
+import type { SavedCarrierConnection } from "./carrier-schemas";
+import type { Carrier, CarrierFormInput, CarrierValues, SaveCarrierInput } from "./types";
 
 /** Đã lưu khoá bí mật webhook chưa (BE chỉ trả cờ, không trả khoá). */
 export function hasSavedWebhookSecret(carrier: Carrier | null | undefined): boolean {
   return carrier?.connection?.webhookSecretConfigured === true;
 }
 
+/** Cấu hình API đã lưu của hãng (cờ + môi trường + tài khoản) để áp luật "để trống = giữ khoá" ở form. */
+export function savedConnectionOf(carrier: Carrier | null | undefined): SavedCarrierConnection {
+  const connection = carrier?.connection;
+  if (!connection) return NO_SAVED_CONNECTION;
+  return {
+    apiKey: connection.apiKeyConfigured === true,
+    webhookAuthValue: connection.webhookAuthValueConfigured === true,
+    apiEnvironment: connection.apiEnvironment ?? null,
+    apiAccount: connection.apiAccount ?? null,
+  };
+}
+
 export function carrierFormDefaults(carrier: Carrier | null): CarrierFormInput {
-  const type = carrier?.connection?.connectionType;
+  const connection = carrier?.connection;
+  const type = connection?.connectionType;
+  const environment = connection?.apiEnvironment;
   return {
     code: carrier?.code ?? "",
     name: carrier?.name ?? "",
@@ -29,16 +39,22 @@ export function carrierFormDefaults(carrier: Carrier | null): CarrierFormInput {
     status: carrier?.status === "INACTIVE" ? "INACTIVE" : "ACTIVE",
     connectionType: type && type !== "UNKNOWN" ? type : CARRIER_CONNECTION_TYPE.MANUAL,
     webhookSecret: "",
+    apiEnvironment: environment === "STAGING" || environment === "PRODUCTION" ? environment : "",
+    apiAccount: connection?.apiAccount ?? "",
+    apiKey: "",
+    webhookAuthHeader: connection?.webhookAuthHeader ?? "",
+    webhookAuthValue: "",
   };
 }
 
 /**
- * Thân yêu cầu. `connection` chỉ đi khi KHÔNG khoá: hãng API đặt xe để vắng thì BE giữ nguyên cấu hình. Khoá bí mật chỉ gửi
- * khi người dùng nhập mới (vắng = giữ khoá đã lưu).
+ * Thân yêu cầu. `connection` luôn đi theo kiểu đang chọn (BE thay cấu hình theo kiểu; cái kiểu đó không dùng bị xoá). Khoá
+ * bí mật chỉ gửi khi người dùng nhập mới (vắng = giữ khoá đã lưu). `failureReasonMap`: gửi đủ bảng khi người dùng đã sửa
+ * (bảng rỗng = xoá hết), vắng khi chưa sửa (BE giữ bảng đã lưu); chỉ có nghĩa với kiểu có webhook.
  */
 export function carrierRequestBody(
   values: CarrierValues,
-  options: { locked: boolean; version?: number },
+  options: { version?: number; failureReasonMap?: Record<string, string> },
 ): SaveCarrierInput {
   const body: SaveCarrierInput = {
     code: values.code,
@@ -48,7 +64,29 @@ export function carrierRequestBody(
     status: values.status,
     version: options.version,
   };
-  if (options.locked) return body;
-  const type = values.connectionType === "WEBHOOK_LOAD" ? "WEBHOOK_LOAD" : "MANUAL";
-  return { ...body, connection: { connectionType: type, webhookSecret: values.webhookSecret } };
+  if (values.connectionType === "API_BOOKING") {
+    return {
+      ...body,
+      connection: {
+        connectionType: "API_BOOKING",
+        apiEnvironment: values.apiEnvironment,
+        apiAccount: values.apiAccount,
+        apiKey: values.apiKey,
+        webhookAuthHeader: values.webhookAuthHeader,
+        webhookAuthValue: values.webhookAuthValue,
+        failureReasonMap: options.failureReasonMap,
+      },
+    };
+  }
+  if (values.connectionType === "WEBHOOK_LOAD") {
+    return {
+      ...body,
+      connection: {
+        connectionType: "WEBHOOK_LOAD",
+        webhookSecret: values.webhookSecret,
+        failureReasonMap: options.failureReasonMap,
+      },
+    };
+  }
+  return { ...body, connection: { connectionType: "MANUAL", webhookSecret: undefined } };
 }

@@ -57,7 +57,7 @@ export const WAREHOUSE_MAP_EDIT_LABELS = {
   stock: {
     checking: "Đang kiểm tra tồn ở vị trí này…",
     stocked:
-      "Vị trí đang có hàng — chỉ sửa được tên, mô tả và zone. Chuyển hết hàng đi trước khi dời, đổi kích thước, đổi lớp lưu trữ hoặc ngừng dùng (BR-04).",
+      "Vị trí đang có hàng — chỉ sửa được tên, mô tả và zone. Chuyển hết hàng đi trước khi dời, đổi kích thước hoặc ngừng dùng (BR-04).",
     unknown:
       "Không kiểm tra được tồn — hãy chắc chắn vị trí không còn hàng trước khi dời hoặc ngừng dùng (BR-04).",
   },

@@ -12,9 +12,13 @@ export const printConfigKeys = {
   all: ["print-configs"] as const,
   variant: (productId: string, variantId: string) =>
     [...printConfigKeys.all, productId, variantId] as const,
-  /** The short-lived link to a stored `.glb`; a new `version` is a new file, so a new key. */
+  /**
+   * The short-lived link to a stored `.glb`; a new `version` is a new key, so a save asks it once by itself. Kept out
+   * of `all` on purpose: the mutations invalidate `all`, which would refetch the old version's link right before the
+   * saved template moves the screen to the new version, and that request would then be aborted.
+   */
   modelFile: (productId: string, variantId: string, templateId: string, version: number) =>
-    [...printConfigKeys.variant(productId, variantId), "model-file", templateId, version] as const,
+    ["print-config-model-file", productId, variantId, templateId, version] as const,
 };
 
 /** The variant's print configuration; `null` data when it has none (not an error). */

@@ -61,7 +61,10 @@ describe("CustomerSkusCard — SKU riêng của khách (BE GET /customer-skus)",
     const link = await screen.findByRole("link", { name: "LY12OZ-C1-01" });
     expect(link).toHaveAttribute("href", "/admin/products/p-1");
     expect(screen.getByText("Từ quy cách LY12OZ-TRANG")).toBeInTheDocument();
-    expect(screen.queryByRole("button")).toBeNull();
+    // Nút duy nhất là tiêu đề mục (thu gọn / mở) — không có nút chuyển trạng thái SKU.
+    expect(screen.getAllByRole("button")).toEqual([
+      screen.getByRole("button", { name: "SKU riêng của khách" }),
+    ]);
     const params = get.mock.calls[0]?.[1]?.params as URLSearchParams;
     expect(get.mock.calls[0]?.[0]).toBe("/customer-skus");
     expect(params.get("customerId")).toBe(CUSTOMER);

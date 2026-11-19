@@ -6,6 +6,7 @@ import { ADMIN_ROUTES, QUOTE_PERMISSIONS } from "@/constants";
 import { useCan } from "@/lib/auth";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 import { useQuote } from "@/features/quote/queries";
+import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
 import { LoadErrorState } from "@/components/backoffice/LoadErrorState";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 
@@ -31,6 +32,8 @@ export function QuoteCreate() {
 function EditContent({ id }: { id: string }) {
   const canRead = useCan(QUOTE_PERMISSIONS.read);
   const query = useQuote(id, { enabled: canRead });
+  // Breadcrumb ghi số báo giá thay cho UUID của đường dẫn, như trang chi tiết (WF-02 audit).
+  useBreadcrumbLabel(id, query.data?.quoteNumber);
   const back = { href: ADMIN_ROUTES.quotes.detail(id), label: "Về báo giá" };
   if (query.isError)
     return (

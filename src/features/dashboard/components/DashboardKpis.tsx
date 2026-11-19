@@ -1,8 +1,6 @@
 "use client";
 
-import { AlertTriangle } from "lucide-react";
-
-import { DASHBOARD_ALERT_PERMISSION, DASHBOARD_LABELS } from "@/constants/dashboard";
+import { DASHBOARD_LABELS } from "@/constants/dashboard";
 
 import { hasPermission, useMyPermissions } from "@/lib/auth";
 
@@ -12,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { KPI_DEFINITIONS } from "../kpis";
-import { AlertsKpiTile, KpiTile } from "./KpiTile";
+import { KpiTile } from "./KpiTile";
 
 /**
  * Số cột theo số ô thấy được (ô lọc theo quyền) để dải luôn đầy: đủ 6 ô thì một hàng từ xl (laptop
@@ -57,17 +55,12 @@ export function DashboardKpis() {
   const visible = KPI_DEFINITIONS.filter((definition) =>
     hasPermission(permissions.data, definition.permission),
   );
-  const showAlerts = hasPermission(permissions.data, DASHBOARD_ALERT_PERMISSION);
-  if (visible.length === 0 && !showAlerts) return null;
+  if (visible.length === 0) return null;
   return (
-    <StatStrip
-      className="mb-6"
-      columns={COLUMNS[visible.length + (showAlerts ? 1 : 0)] ?? COLUMNS[6]}
-    >
+    <StatStrip className="mb-6" columns={COLUMNS[visible.length] ?? COLUMNS[6]}>
       {visible.map((definition) => (
         <KpiTile key={definition.key} definition={definition} />
       ))}
-      {showAlerts && <AlertsKpiTile icon={AlertTriangle} />}
     </StatStrip>
   );
 }

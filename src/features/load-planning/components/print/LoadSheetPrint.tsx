@@ -95,7 +95,7 @@ function PrintBody({ id, seq }: { id: string; seq: number }) {
 
 /**
  * Phiếu xếp hàng in được của một xe trong kế hoạch (SCRUM-287 PR F6, LP-10): trang HTML dựng từ API bố cục, in bằng
- * hộp thoại của trình duyệt (không xuất PDF trong ứng dụng). Cần `fulfillment-load-plans:READ`; ô hãng / biển số / tài xế chỉ
+ * hộp thoại của trình duyệt. File PDF do BE sinh (WF4-PDF-PRINT-1118) là nút "Tải PDF" riêng, không thay trang này. Cần `fulfillment-load-plans:READ`; ô hãng / biển số / tài xế chỉ
  * có khi xe đã thành chuyến và người xem có `fulfillment-shipments:READ` — UI-only, Backend phải re-check.
  */
 export function LoadSheetPrint({ id, seq }: { id: string; seq: number }) {

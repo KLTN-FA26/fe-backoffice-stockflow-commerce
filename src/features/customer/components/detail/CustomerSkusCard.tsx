@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { Package } from "lucide-react";
 
 import { ADMIN_ROUTES } from "@/constants";
 import {
@@ -9,8 +10,8 @@ import {
   useCustomerSkus,
   useTransitionCustomerSku,
 } from "@/lib/references/customer-skus";
-import { Card } from "@/components/shared/Card";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { DetailSection } from "@/components/shared/DetailSection";
 import { StatusDot } from "@/components/shared/StatusDot";
 import { Button } from "@/components/ui/button";
 
@@ -82,8 +83,7 @@ export function CustomerSkusCard({
   const confirmCopy = pending ? CONFIRM[pending.action]?.(pending.sku.sku) : undefined;
 
   return (
-    <Card className="space-y-3">
-      <h2 className="text-ink-primary text-sm font-semibold">SKU riêng của khách</h2>
+    <DetailSection title="SKU riêng của khách" icon={Package}>
       {query.isPending ? (
         <p className={NOTE}>Đang tải SKU riêng…</p>
       ) : query.isError ? (
@@ -131,7 +131,7 @@ export function CustomerSkusCard({
         </ul>
       )}
       {error && !pending && (
-        <p role="alert" className="text-danger text-xs">
+        <p role="alert" className="text-danger mt-2 text-xs">
           {error}
         </p>
       )}
@@ -147,6 +147,6 @@ export function CustomerSkusCard({
         error={error}
         onConfirm={() => pending && run(pending.sku, pending.action)}
       />
-    </Card>
+    </DetailSection>
   );
 }

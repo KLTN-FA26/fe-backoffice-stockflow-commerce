@@ -45,7 +45,6 @@ describe("status strings (docs 15 §5.1, §5.3 — verbatim)", () => {
       DUE: "Due",
       PARTIALLY_PAID: "Partially Paid",
       PAID: "Paid",
-      OVERDUE: "Overdue",
       CANCELLED: "Cancelled",
     });
     expect(RECEIPT_STATUS_BY_API).toEqual({ RECORDED: "Recorded", VOIDED: "Voided" });
@@ -65,8 +64,8 @@ describe("INSTALLMENT_TRANSITIONS (docs 15 §5.1)", () => {
     expect(INSTALLMENT_TRANSITIONS.NOT_DUE).toEqual(["DUE", "PARTIALLY_PAID", "PAID", "CANCELLED"]);
   });
 
-  it("Overdue only goes to Paid or Cancelled — it stays overdue until paid in full", () => {
-    expect(INSTALLMENT_TRANSITIONS.OVERDUE).toEqual(["PAID", "CANCELLED"]);
+  it("overdue is a flag, not a status (plan WF-02 F1)", () => {
+    expect(INSTALLMENT_API_STATUSES).not.toContain("OVERDUE");
   });
 
   it("BR-05: only unpaid, uncancelled installments take money — including Not Due", () => {
@@ -74,7 +73,6 @@ describe("INSTALLMENT_TRANSITIONS (docs 15 §5.1)", () => {
       "NOT_DUE",
       "DUE",
       "PARTIALLY_PAID",
-      "OVERDUE",
     ]);
   });
 });

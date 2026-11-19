@@ -120,6 +120,7 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
             can={can}
             currentUserId={currentUserId}
             isPending={status.isPending}
+            pendingAction={status.pendingAction}
             onAction={(action) => void status.run(action)}
           />
           <ProductOpenReferencesCard

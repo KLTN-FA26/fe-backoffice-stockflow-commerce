@@ -33,6 +33,9 @@ export const bagModelSchema = z.object({
   gussetMm: lengthMm,
   heightMm: lengthMm,
   topFoldMm: offsetMm,
+  /** The flat sheet's glue flap and bottom fold (BE `BagModel`); absent in a template saved before them. */
+  glueFlapMm: offsetMm.optional(),
+  bottomFoldMm: offsetMm.optional(),
   handle: z.enum(["twisted", "flat", "none"]),
   material: z.enum(["kraft-brown", "kraft-white"]),
 });

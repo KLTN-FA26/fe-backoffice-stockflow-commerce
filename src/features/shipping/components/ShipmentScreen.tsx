@@ -13,9 +13,11 @@ import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Button } from "@/components/ui/button";
 
 import { RefetchErrorNotice } from "./primitives";
+import { DeliveryNoteButton } from "./shipment/DeliveryNoteButton";
 import { OutcomeDialog } from "./shipment/OutcomeDialog";
 import { ShipmentDetails } from "./shipment/ShipmentDetails";
 import { ShipmentInfoCard } from "./shipment/ShipmentInfoCard";
+import { ShipmentPodFiles } from "./shipment/ShipmentPodFiles";
 import { ShippingLoadError } from "./ShippingLoadError";
 import { ShippingPermissionGate } from "./ShippingPermissionGate";
 import { useShippingActor } from "./useShippingActor";
@@ -59,21 +61,27 @@ function ShipmentBody({ id }: { id: string }) {
         {outcomes.length === 0 && <Alert tone="info">{noOutcomeReason(shipment, actor)}</Alert>}
         <ShipmentInfoCard
           data={data}
-          actions={outcomes.map((value) => {
-            const Icon = OUTCOME_ICON[value];
-            return (
-              <Button
-                key={value}
-                size="sm"
-                variant={value === "DELIVERED" ? "default" : "outline"}
-                onClick={() => setOutcome(value)}
-              >
-                <Icon className="size-3.5" /> {L.outcomeAction[value]}
-              </Button>
-            );
-          })}
+          actions={
+            <>
+              {outcomes.map((value) => {
+                const Icon = OUTCOME_ICON[value];
+                return (
+                  <Button
+                    key={value}
+                    size="sm"
+                    variant={value === "DELIVERED" ? "default" : "outline"}
+                    onClick={() => setOutcome(value)}
+                  >
+                    <Icon className="size-3.5" /> {L.outcomeAction[value]}
+                  </Button>
+                );
+              })}
+              <DeliveryNoteButton shipment={shipment} />
+            </>
+          }
         />
         <ShipmentDetails data={data} />
+        <ShipmentPodFiles shipment={shipment} />
       </div>
       {outcome && outcomes.includes(outcome) && (
         <OutcomeDialog shipment={shipment} outcome={outcome} onClose={() => setOutcome(null)} />
@@ -82,7 +90,7 @@ function ShipmentBody({ id }: { id: string }) {
   );
 }
 
-/** Chi tiết lô giao (BE `GET /fulfillment/shipments/{id}`): kiện, lịch sử, ghi nhận kết quả giao. */
+/** Chi tiết lô giao (BE `GET /fulfillment/shipments/{id}`): kiện, lịch sử, ghi nhận kết quả giao, biên bản giao nhận (POD). */
 export function ShipmentScreen({ id }: { id: string }) {
   return (
     <ShippingPermissionGate permissions={[SHIPMENT_PERMISSIONS.viewPage]}>

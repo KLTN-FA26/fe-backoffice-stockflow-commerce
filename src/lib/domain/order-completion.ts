@@ -35,10 +35,15 @@ export interface CompletionFacts {
   deliveredShipmentIds: readonly string[];
   /** Các lần giao đã có hoá đơn (gốc hoặc thay thế) `ISSUED`. */
   invoicedShipmentIds: readonly string[];
+  /**
+   * WF-05 GH-2: Sale đang giữ hoàn tất (BE `OrderCompletionHolds` — lần chạy đêm bỏ qua đơn có lần giữ mở). `null` =
+   * chưa đọc được; vắng (undefined) = màn không biết về giữ hoàn tất → không thêm điều kiện này.
+   */
+  completionHeld?: boolean | null;
 }
 
 export interface CompletionCheck {
-  key: "returnWindow" | "paid" | "noOpenReturn" | "invoiced";
+  key: "returnWindow" | "paid" | "noOpenReturn" | "invoiced" | "notHeld";
   label: string;
   met: boolean;
   detail?: string;
@@ -49,7 +54,28 @@ const fmt = (date: Date) =>
     date,
   );
 
-/** Bốn điều kiện hoàn tất của đơn `Delivered` (BE `Order.complete`), theo thứ tự hiển thị. */
+/** Điều kiện "không bị giữ hoàn tất" (WF-05 GH-2) — chỉ khi màn biết tình trạng giữ. */
+function holdCheck(held: boolean | null | undefined): CompletionCheck[] {
+  if (held === undefined) return [];
+  return [
+    {
+      key: "notHeld",
+      label: "Không bị Sale giữ hoàn tất",
+      met: held === false,
+      detail:
+        held === null
+          ? "Chưa đọc được tình trạng giữ hoàn tất"
+          : held
+            ? "Đang giữ để xác minh lần giao — gỡ giữ ở thẻ “Giữ hoàn tất”"
+            : undefined,
+    },
+  ];
+}
+
+/**
+ * Các điều kiện hoàn tất của đơn `Delivered` (BE `Order.complete`), theo thứ tự hiển thị: bốn điều kiện của đơn, thêm
+ * "không bị giữ hoàn tất" khi màn biết tình trạng giữ (WF-05 GH-2).
+ */
 export function completionChecks(facts: CompletionFacts, now = new Date()): CompletionCheck[] {
   const windowEnd = facts.deliveredAt ? endOfDays(facts.deliveredAt, RETURN_WINDOW_DAYS) : null;
   const missing = facts.deliveredShipmentIds.filter(
@@ -82,6 +108,7 @@ export function completionChecks(facts: CompletionFacts, now = new Date()): Comp
       detail:
         missing.length > 0 ? `Còn ${missing.length} lần giao chưa có hoá đơn phát hành` : undefined,
     },
+    ...holdCheck(facts.completionHeld),
   ];
 }
 

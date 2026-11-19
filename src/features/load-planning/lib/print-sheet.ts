@@ -65,6 +65,8 @@ export interface PrintUnplaced {
 }
 
 export interface PrintSheet {
+  /** Kho xuất của kế hoạch (kế hoạch chỉ mang id; tên tra ở danh mục kho hoặc từ chuyến). */
+  warehouseId: string;
   vehicle: PlanVehicle;
   layout: Layout;
   lines: PrintLine[];
@@ -91,12 +93,7 @@ function parcelRow(
     labelCode: parcel?.labelCode ?? box.label,
     partName: box.partName,
     letter: context.letters.get(box.partName) ?? "",
-    // Kiện của lệnh chuyển kho (BE PR #164) không có lô giao: `orders` nêu số lệnh theo `transferOrderId`
-    orderNo: parcel
-      ? (context.orders.get(parcel.shipmentId ?? parcel.transferOrderId ?? "") ??
-        parcel.shipmentCode ??
-        null)
-      : null,
+    orderNo: parcel ? (context.orders.get(parcel.shipmentId) ?? parcel.shipmentCode ?? null) : null,
     sizeCm: formatNominalCm(box.origMm),
     weightKg: box.weightKg,
     kit: kitText(parcel, box),
@@ -156,12 +153,9 @@ export function buildPrintSheet(
   const letters = letterMapOf(layouts.flatMap((l) => l.boxes));
   const context = {
     parcels: new Map(plan.packages.map((parcel) => [parcel.packageId, parcel])),
-    orders: new Map([
-      ...plan.shipments.map((s): [string, string] => [s.shipmentId, s.orderNumber ?? s.code]),
-      ...(plan.transferOrder
-        ? [[plan.transferOrder.transferOrderId, plan.transferOrder.number] as [string, string]]
-        : []),
-    ]),
+    orders: new Map(
+      plan.shipments.map((s): [string, string] => [s.shipmentId, s.orderNumber ?? s.code]),
+    ),
     letters,
   };
   const loadingSteps = buildLoadingSteps([layout]);
@@ -176,6 +170,7 @@ export function buildPrintSheet(
     parcels: [...step.boxes].sort(byPosition).map((box) => parcelRow(box, step.seq, context)),
   }));
   return {
+    warehouseId: plan.warehouseId,
     vehicle,
     layout,
     lines: linesOf(layout, letters),

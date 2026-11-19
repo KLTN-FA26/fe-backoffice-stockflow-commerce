@@ -1,16 +1,19 @@
 "use client";
 
-import { LoaderCircle, Send } from "lucide-react";
+import { LoaderCircle, Mail, Send } from "lucide-react";
 
 import { formatDateTime } from "@/lib/format/date";
 import { useResendInvitation } from "@/features/customer/mutations";
 import { usePortalInvitation } from "@/features/customer/queries";
-import { Card } from "@/components/shared/Card";
+import {
+  DETAIL_ACTION_CLASS,
+  DETAIL_CARD_CLASS,
+  DetailCardTitle,
+  InfoRow,
+} from "@/components/shared/DetailSection";
+import { Notice } from "@/components/shared/Notice";
 import { Skeleton } from "@/components/shared/Skeleton";
 import { Button } from "@/components/ui/button";
-import { Notice } from "@/components/shared/Notice";
-
-import { InfoList } from "./InfoList";
 
 const STATE_LABEL = {
   PENDING: "Đang chờ khách kích hoạt",
@@ -22,7 +25,9 @@ const STATE_LABEL = {
 
 const DELIVERY_LABEL = { SENT: "Đã gửi email", FAILED: "Gửi email thất bại" } as const;
 
-/** Lời mời portal — trạng thái thật từ BE; nút gửi lại chỉ khi khách còn chờ kích hoạt. */
+/**
+ * Lời mời portal (thẻ cột phải) — trạng thái thật từ BE; nút gửi lại chỉ khi khách còn chờ kích hoạt.
+ */
 export function InvitationCard({
   customerId,
   canRead,
@@ -46,25 +51,8 @@ export function InvitationCard({
     : [];
 
   return (
-    <Card className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-ink-primary text-sm font-semibold">Tài khoản portal</h2>
-        {canResend && (
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={resend.isPending}
-            onClick={() => resend.mutate(customerId)}
-          >
-            {resend.isPending ? (
-              <LoaderCircle className="size-3.5 animate-spin" aria-hidden="true" />
-            ) : (
-              <Send className="size-3.5" aria-hidden="true" />
-            )}
-            Gửi lại lời mời
-          </Button>
-        )}
-      </div>
+    <section className={`${DETAIL_CARD_CLASS} space-y-3`}>
+      <DetailCardTitle icon={Mail}>Tài khoản portal</DetailCardTitle>
       {!canRead && (
         <p className="text-ink-tertiary text-[0.8125rem]">
           Bạn không có quyền xem trạng thái lời mời.
@@ -79,12 +67,37 @@ export function InvitationCard({
           </button>
         </p>
       )}
-      {data && <InfoList items={rows} />}
+      {data && (
+        <div className="divide-y divide-(--table-line)">
+          {rows.map((row) => (
+            <InfoRow key={row.label} label={row.label}>
+              {row.value}
+            </InfoRow>
+          ))}
+        </div>
+      )}
       {data?.delivery === "FAILED" && (
         <Notice tone="warning">
           Email chưa tới được khách. Kiểm tra lại địa chỉ email rồi gửi lại lời mời.
         </Notice>
       )}
-    </Card>
+      {canResend && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={resend.isPending}
+          onClick={() => resend.mutate(customerId)}
+          className={DETAIL_ACTION_CLASS.outline}
+        >
+          {resend.isPending ? (
+            <LoaderCircle className="size-3.5 animate-spin" aria-hidden="true" />
+          ) : (
+            <Send className="size-3.5" aria-hidden="true" />
+          )}
+          Gửi lại lời mời
+        </Button>
+      )}
+    </section>
   );
 }

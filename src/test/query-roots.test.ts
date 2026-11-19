@@ -6,9 +6,7 @@ import { fulfillmentKeys } from "@/features/fulfillment/queries";
 import { stockKeys, stockReservationKeys } from "@/features/inventory/queries";
 import { orderKeys } from "@/features/order/queries";
 import { installmentKeys, refundKeys } from "@/features/payment/queries";
-import { productionKeys } from "@/features/production-order/queries";
 import { quoteKeys } from "@/features/quote/queries";
-import { sampleKeys } from "@/features/sample-request/queries";
 
 import { QUERY_ROOTS } from "@/lib/api/query-roots";
 
@@ -16,8 +14,6 @@ describe("QUERY_ROOTS match the owning features' key factories (cross-feature in
   it.each([
     ["customers", customerKeys.all],
     ["quotes", quoteKeys.all],
-    ["sampleRequests", sampleKeys.all],
-    ["productionOrders", productionKeys.all],
     ["orders", orderKeys.all],
     ["myOrders", myOrderKeys.all],
     ["fulfillmentTasks", fulfillmentKeys.all],

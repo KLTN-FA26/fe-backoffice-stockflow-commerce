@@ -11,7 +11,7 @@ import { StatusDot } from "@/components/shared/StatusDot";
 import { MONO } from "./copy";
 
 import type { ReactNode } from "react";
-import type { EInvoiceStatus, EInvoiceType } from "@/constants/einvoice";
+import type { EInvoiceStatusRead, EInvoiceTypeRead } from "@/constants/einvoice";
 
 const EMPTY = "—";
 
@@ -24,11 +24,11 @@ export function DateCell({ iso }: { iso: string | null | undefined }) {
 }
 
 /** Trạng thái hoá đơn qua `StatusDot` (domain `invoice`, nhãn ở status-map). */
-export function EInvoiceStatusDot({ status }: { status: EInvoiceStatus }) {
+export function EInvoiceStatusDot({ status }: { status: EInvoiceStatusRead }) {
   return <StatusDot domain="invoice" status={EINVOICE_STATUS_BY_API[status]} />;
 }
 
-export function TypeText({ type, adjusted }: { type: EInvoiceType; adjusted?: boolean }) {
+export function TypeText({ type, adjusted }: { type: EInvoiceTypeRead; adjusted?: boolean }) {
   return (
     <span className="text-ink-secondary">
       {EINVOICE_TYPE_LABELS[type]}

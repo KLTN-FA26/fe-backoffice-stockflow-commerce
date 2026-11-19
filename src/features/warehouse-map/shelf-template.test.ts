@@ -18,7 +18,6 @@ describe("shelfTemplate — thông số dựng lại kệ đã lưu", () => {
       columnCount: 2,
       namingScheme: "SEQUENTIAL",
       binType: "PALLET",
-      capacityUnits: null,
       maxWeight: null,
       pickable: true,
       putawayTarget: true,
@@ -55,7 +54,6 @@ describe("sao chép kệ đã lưu (Ctrl+D / Ctrl+C → Ctrl+V)", () => {
     // Giữ nguyên các thông số khác của kệ gốc
     expect(copy.pickFaces).toEqual(A01.pickFaces);
     expect(copy.zoneKey).toBe(A01.zoneId);
-    expect(copy.defaultStorageClass).toBe(A01.defaultStorageClass);
     expect(copy.id).toBeNull();
   });
 
