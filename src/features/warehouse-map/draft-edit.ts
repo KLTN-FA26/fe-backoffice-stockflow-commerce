@@ -84,8 +84,6 @@ function drawnItem(draft: MapDraft, shape: DrawnShape, key: string): DraftItem {
       footprint,
       obstacle: false,
       location: {
-        storageClass: "NORMAL",
-        capacityUnits: null,
         maxWeight: null,
         pickable: false,
         putawayTarget: false,
@@ -105,7 +103,6 @@ function drawnItem(draft: MapDraft, shape: DrawnShape, key: string): DraftItem {
     obstacle: true,
     // Mặt dài phía nam lấy hàng như kệ demo; BR-08 cần ≥ 1 mặt khi bin cho lấy hàng
     pickFaces: { north: false, east: false, south: true, west: false },
-    defaultStorageClass: "NORMAL",
     build: { ...DEFAULT_SHELF_BUILD },
     binExtent: null,
     hasPickableBins: false,
