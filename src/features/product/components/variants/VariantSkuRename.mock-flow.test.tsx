@@ -24,11 +24,6 @@ import {
 import { resetCustomerMockStore } from "@/lib/api/mock-customer-store";
 import { resetProductHistoryMock } from "@/lib/api/mock-product-history";
 import { resetProductMockStore } from "@/lib/api/mock-product-store";
-import {
-  resetSupplierItemMockStore,
-  seedMockSupplierItem,
-} from "@/lib/api/mock-routes-supplier-items-store";
-import { resetSupplierMockStore } from "@/lib/api/mock-routes-suppliers";
 import { resetUomConversionMockStore } from "@/lib/api/mock-routes-uom-conversions";
 import { resetVariantMockStore } from "@/lib/api/mock-routes-variants";
 import { getInventoryItem } from "@/features/inventory-item/api";
@@ -45,7 +40,6 @@ import { VariantPanel } from "./VariantPanel";
 import type { Variant } from "../../variant-schemas";
 
 const L = UI_LABELS.cartonSpec;
-const SUPPLIER = "SUP-001";
 
 vi.setConfig({ testTimeout: 30_000 });
 const passThrough = api.get.bind(api);
@@ -57,8 +51,6 @@ beforeEach(() => {
   resetVariantMockStore();
   resetProductMockStore();
   resetProductHistoryMock();
-  resetSupplierMockStore();
-  resetSupplierItemMockStore();
   resetUomConversionMockStore();
   resetCustomerMockStore();
   resetCustomerPriceMockStore();
@@ -112,21 +104,6 @@ describe("mock = BE khi đổi SKU của biến thể nháp", () => {
     const itemAfter = await getInventoryItem(variant.inventoryItemId ?? "");
     expect(itemAfter.sku).toBe(next);
     expect(itemAfter.version).toBe(itemBefore.version + 1);
-  });
-
-  it("SKU đã có dòng danh mục NCC → 409 INVALID_VARIANT_TRANSITION, không đổi gì", async () => {
-    const { productId, variant } = await draftVariant();
-    seedMockSupplierItem({ supplierId: SUPPLIER, sku: variant.sku, price: 9000, currency: "VND" });
-    const before = await listSkuUnits(productId, variant.variantId);
-
-    const error = await rename(productId, variant, `${variant.sku}-NEW`).then(
-      () => null,
-      (e: unknown) => e,
-    );
-    expect(error).toBeInstanceOf(ApiError);
-    expect((error as ApiError).code).toBe("INVALID_VARIANT_TRANSITION");
-    expect((await listVariants(productId))[0]?.sku).toBe(variant.sku);
-    expect(await listSkuUnits(productId, variant.variantId)).toEqual(before);
   });
 });
 
@@ -363,7 +340,6 @@ describe("bảng giá khách hàng chặn đổi SKU như BE", () => {
   it("đặt lại kho (reset) giữa các lần không làm mất / nhân đôi đăng ký: vẫn chặn đúng một lần", async () => {
     const { productId, variant } = await draftVariant();
     resetCustomerPriceMockStore();
-    resetSupplierItemMockStore();
     seedMockCustomerPrice({
       customerId: UNPRICED_CUSTOMER,
       sku: variant.sku,

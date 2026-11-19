@@ -46,7 +46,6 @@ import {
   REPORTING_PERMISSIONS,
   SHIPMENT_PERMISSIONS,
   STOCK_PACKAGE_PERMISSIONS,
-  SUPPLIER_ITEM_PERMISSIONS,
   SUPPLIER_PERMISSIONS,
   TRANSFER_PERMISSIONS,
   VARIANT_PERMISSIONS,
@@ -280,7 +279,6 @@ const SALES_WF02 = [...QUOTE_SALES, ...CONTRACT_SALES];
 export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
   "USER-ADMIN-01": [
     ...Object.values(SUPPLIER_PERMISSIONS),
-    ...Object.values(SUPPLIER_ITEM_PERMISSIONS),
     ...Object.values(PO_PERMISSIONS),
     ...Object.values(ORDER_PERMISSIONS),
     ...CREDIT_ALL,
@@ -325,8 +323,6 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     SUPPLIER_PERMISSIONS.create,
     SUPPLIER_PERMISSIONS.update,
     SUPPLIER_PERMISSIONS.export,
-    // Seed BE: chỉ PROCUREMENT_STAFF có procurement-supplier-items (đủ 5 action).
-    ...Object.values(SUPPLIER_ITEM_PERMISSIONS),
     PO_PERMISSIONS.viewPage,
     PO_PERMISSIONS.read,
     PO_PERMISSIONS.create,

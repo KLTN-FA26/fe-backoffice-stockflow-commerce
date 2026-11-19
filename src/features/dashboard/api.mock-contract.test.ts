@@ -74,15 +74,15 @@ describe("dashboard sources on the mock", () => {
     ).rejects.toBeInstanceOf(ApiError);
   });
 
-  it("a status filter narrows the count (PO list)", async () => {
+  it("a status filter narrows the count (goods receipt list)", async () => {
     const all = await fetchCount({
-      path: DASHBOARD_API.purchaseOrders,
+      path: DASHBOARD_API.receipts,
       statuses: [],
       repeatStatus: true,
     });
     const pending = await fetchCount({
-      path: DASHBOARD_API.purchaseOrders,
-      statuses: ["PENDING_APPROVAL"],
+      path: DASHBOARD_API.receipts,
+      statuses: ["DRAFT"],
       repeatStatus: true,
     });
     expect(pending).toBeLessThanOrEqual(all);

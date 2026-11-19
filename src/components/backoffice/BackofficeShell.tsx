@@ -22,7 +22,6 @@ import {
   FolderTree,
   History as HistoryIcon,
   LayoutDashboard,
-  Lightbulb,
   ListChecks,
   Map as MapIcon,
   MapPin,
@@ -40,9 +39,7 @@ import {
   ShieldCheck,
   ShieldAlert,
   UserCog,
-  ShoppingBag,
   Settings,
-  ShoppingCart,
   TableProperties,
   PackageX,
   SlidersHorizontal,
@@ -51,7 +48,6 @@ import {
   Truck,
   TruckElectric,
   Undo2,
-  Users,
   Warehouse as WarehouseIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -79,7 +75,6 @@ import {
   LOAD_PLAN_PERMISSIONS,
   LOAD_PLAN_PRINT_LABELS,
   ORDER_PERMISSIONS,
-  PO_PERMISSIONS,
   PRODUCT_PERMISSIONS,
   PRODUCTION_ORDER_PERMISSIONS,
   QUOTE_PERMISSIONS,
@@ -88,7 +83,6 @@ import {
   PUT_BACK_LABELS,
   SHIPMENT_PERMISSIONS,
   STOCK_PACKAGE_PERMISSIONS,
-  SUPPLIER_PERMISSIONS,
   TRANSFER_PERMISSIONS,
   TRIAL_LABELS,
   UI_LABELS,
@@ -125,7 +119,7 @@ import { WarehouseNavPanel } from "@/features/warehouse-map/components/workspace
 import { usePermissionChecker } from "@/lib/auth/components/Can";
 import { useAppStore } from "@/lib/store/use-app-store";
 import { useBreadcrumbLabelStore } from "@/lib/store/use-breadcrumb-labels";
-import { purchaseOrders, putawayTasks } from "@/lib/mock-data";
+import { putawayTasks } from "@/lib/mock-data";
 import { useIsMock } from "@/providers/app-providers";
 
 import { SearchBar } from "@/components/shared/SearchBar";
@@ -153,15 +147,11 @@ import type { PermissionCode } from "@/lib/auth/me-permissions";
 /* -------------------------------------------------------------------------- */
 
 const WARNING_STATUSES: Record<string, string[]> = {
-  "/admin/purchase-orders": ["Pending Approval"],
   "/admin/putaway": ["On Hold"],
 };
 
 function computeWarningCounts(): Record<string, number> {
   const counts: Record<string, number> = {};
-  counts["/admin/purchase-orders"] = purchaseOrders.filter((po) =>
-    WARNING_STATUSES["/admin/purchase-orders"]!.includes(po.status),
-  ).length;
   counts["/admin/putaway"] = putawayTasks.filter((pt) =>
     WARNING_STATUSES["/admin/putaway"]!.includes(pt.status),
   ).length;
@@ -180,8 +170,6 @@ export interface NavItem {
   permission?: PermissionCode;
   /** Thấy menu khi có ít nhất một mã trong danh sách (màn mở bằng nhiều quyền khác nhau). */
   anyPermission?: readonly PermissionCode[];
-  /** Màn chỉ chạy được trên mock (BE chưa có API) — ẩn khi nối BE thật. */
-  mockOnly?: boolean;
   /** Breadcrumb riêng cho các đoạn URL sau `href` (vd `[kho ⇅] / Bản đồ kho`) thay cách đọc id mặc định. */
   breadcrumbTail?: (rest: readonly string[]) => BreadcrumbItem[];
 }
@@ -227,12 +215,6 @@ export const NAV_GROUPS: NavGroup[] = [
         permission: PRODUCT_PERMISSIONS.viewPage,
       },
       {
-        label: "Nhà cung cấp",
-        href: "/admin/suppliers",
-        icon: Users,
-        permission: SUPPLIER_PERMISSIONS.viewPage,
-      },
-      {
         label: CUSTOMER_PRICE_UI_LABELS.navLabel,
         href: ADMIN_ROUTES.customerPrices.list,
         icon: Tags,
@@ -257,25 +239,6 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: UserCog,
         // Cổng theo READ (BE `identity-users:READ`), cùng kiểu menu "Phân quyền" ngay trên
         permission: IDENTITY_PERMISSIONS.usersRead,
-      },
-    ],
-  },
-  {
-    title: "Mua hàng",
-    icon: ShoppingBag,
-    items: [
-      {
-        label: "Đề xuất nhập hàng",
-        href: "/admin/replenishment",
-        icon: Lightbulb,
-        // BE chưa có API đề xuất nhập hàng (chỉ có đánh giá ngưỡng tồn) — màn chạy trên dữ liệu mẫu
-        mockOnly: true,
-      },
-      {
-        label: "Đơn đặt NCC",
-        href: "/admin/purchase-orders",
-        icon: ShoppingCart,
-        permission: PO_PERMISSIONS.viewPage,
       },
     ],
   },
@@ -618,20 +581,16 @@ const DETAIL_LABEL_BY_ROUTE: Record<string, string> = {
   [ADMIN_ROUTES.customers.create]: "Tạo khách hàng",
   [ADMIN_ROUTES.quotes.create]: "Tạo báo giá",
   [ADMIN_ROUTES.sampleRequests.create]: "Tạo yêu cầu mẫu",
-  "/admin/purchase-orders/create": "Tạo đơn đặt hàng",
-  "/admin/suppliers/create": "Tạo nhà cung cấp",
   [INVENTORY_ROUTES.createAdjustment]: INVENTORY_LABELS.createAdjustment,
   "/admin/transfers/create": "Tạo lệnh chuyển kho",
   [ADMIN_ROUTES.loadPlans.create]: UI_LABELS.loadPlan.create,
   [ADMIN_ROUTES.loads.waybillImport]: UI_LABELS.shipping.waybill.import.title,
 };
 
-/** Required capabilities fail closed; unassigned items remain visible; mock-only items need mock mode. */
+/** Required capabilities fail closed; unassigned items remain visible. */
 export function useCanSeeNavItem(): (item: NavItem) => boolean {
   const can = usePermissionChecker();
-  const isMock = useIsMock();
   return (item) =>
-    (!item.mockOnly || isMock) &&
     (!item.permission || can(item.permission)) &&
     (!item.anyPermission || item.anyPermission.some(can));
 }

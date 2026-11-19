@@ -8,26 +8,6 @@
  */
 export const DATE_PICKER_YEAR_SPAN = { back: 10, ahead: 10 } as const;
 
-/** Giới hạn đơn đặt NCC — lấy đúng ràng buộc DB/BE nhánh `test` (BE request chưa có @Size). */
-export const PO_LIMITS = {
-  /** BE `purchase_order_lines.note VARCHAR(255)` (BE PR #71). */
-  lineDescriptionMax: 255,
-  /** BE lý do khôi phục / đổi ngày giao 1..1000. */
-  reasonMax: 1000,
-  /** BE `purchase_orders.cancel_reason` / `close_reason VARCHAR(255)` (BE PR #71). */
-  closeReasonMax: 255,
-  /** BE lý do từ chối duyệt — `purchase_order_approvals.reason VARCHAR(500)`. */
-  rejectReasonMax: 500,
-  /** BE `UpdatePurchaseOrderRequest.lines` @Size(max = 200). */
-  linesMax: 200,
-  /** BE `purchase_orders.note TEXT`, giới hạn ở request 2000. */
-  noteMax: 2000,
-  /** BE `SupplierConfirmationRequest.supplierReference` @Size(max = 100). */
-  supplierReferenceMax: 100,
-  /** BE `int quantityOrdered` (Java int). */
-  quantityMax: 2_147_483_647,
-} as const;
-
 export const ORDER_LIMITS = {
   /** BE `AdminCancelOrderRequest.note` @Size(max = 1000); bắt buộc khi reasonCode = OTHER. */
   cancelNoteMax: 1000,
@@ -83,28 +63,6 @@ export const WINDOW_EVIDENCE_FILE = {
   ],
   /** Giá trị `accept` của ô chọn tệp. */
   accept: ".pdf,.docx,.xlsx,.jpg,.jpeg,.png",
-} as const;
-
-/** Giới hạn phiếu nhận — đúng ràng buộc request BE goods receipt (PR #62, SCRUM-435). */
-export const RECEIPT_LIMITS = {
-  /** `ReceiptLinesRequest.lines` @Size(max = 200). */
-  linesMax: 200,
-  /** `ReceiptLinesRequest.Line.lotNumber` / `locationCode` @Size(max = 64); `MoveToQcRequest`. */
-  codeMax: 64,
-  /** `ReceiptLinesRequest.Line.note` @Size(max = 255). */
-  lineNoteMax: 255,
-  /** `CreateGoodsReceiptRequest.deliveryNote` @Size(max = 100). */
-  deliveryNoteMax: 100,
-  /** `CreateGoodsReceiptRequest.note` @Size(max = 2000). */
-  noteMax: 2000,
-  /** `QcDecisionRequest.Part.reason` @Size(max = 500). */
-  qcReasonMax: 500,
-  /** `ReceiptDecisionRequest.reason` @NotBlank @Size(max = 500) — duyệt / từ chối phần vượt (SCRUM-477). */
-  approvalReasonMax: 500,
-  /** `CreateGoodsReceiptWithoutPoRequest.reason` @NotBlank @Size(max = 500) — lý do không có PO (BR-RCP-002). */
-  blindReasonMax: 500,
-  /** `ReceiptLinesRequest.Line.sku` @Size(max = 64) — dòng của phiếu không có PO gọi hàng bằng SKU. */
-  skuMax: 64,
 } as const;
 
 /** Thùng có LPN trên phiếu nhận (SCRUM-473) — đúng ràng buộc request BE. */
@@ -234,21 +192,6 @@ export const SHIPPING_LIMITS = {
   scanFeedbackMs: 1500,
   /** Chuyến đang xếp hàng (LOADING): tự tải lại để thấy kiện quét từ máy khác. */
   loadPollMs: 15_000,
-} as const;
-
-/**
- * Danh mục hàng NCC — nguồn BE: `SupplierItemTerms` (mã NCC, lead time), `PurchasePrices`
- * (số lẻ giá, tối đa 2 và không vượt số lẻ tiền tệ), `Pages.MAX_PAGE_SIZE`.
- */
-export const SUPPLIER_ITEM_LIMITS = {
-  supplierSkuCodeMax: 50,
-  leadTimeDaysMax: 365,
-  priceMaxScale: 2,
-  // BE `SaveSupplierItemRequest.price` @Digits(integer = 16) + `PurchasePrices.MAX` (numeric(18,2))
-  priceIntegerDigitsMax: 16,
-  // BE `moq` / `packSize` là `Integer` Java — quá int32 thì Jackson không bind được (400 chung)
-  intMax: 2_147_483_647,
-  catalogPageSize: 200,
 } as const;
 
 /**

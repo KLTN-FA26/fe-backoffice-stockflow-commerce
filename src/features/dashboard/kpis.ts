@@ -1,4 +1,4 @@
-import { ArrowRightLeft, ClipboardList, PackageCheck, Receipt, ShoppingCart } from "lucide-react";
+import { ArrowRightLeft, ClipboardList, PackageCheck, Receipt } from "lucide-react";
 
 import { ADMIN_ROUTES } from "@/constants";
 import {
@@ -7,7 +7,6 @@ import {
   DASHBOARD_ORDER_PENDING_FILTER,
   DASHBOARD_ORDER_PENDING_STATUSES,
   DASHBOARD_PICK_OPEN_STATUSES,
-  DASHBOARD_PO_PENDING_STATUSES,
   DASHBOARD_RECEIPT_PROCESSING_STATUSES,
   DASHBOARD_TRANSFER_IN_TRANSIT_STATUSES,
 } from "@/constants/dashboard";
@@ -15,7 +14,6 @@ import {
   FULFILLMENT_PICK_PERMISSIONS,
   GOODS_RECEIPT_PERMISSIONS,
   ORDER_PERMISSIONS,
-  PO_PERMISSIONS,
   TRANSFER_PERMISSIONS,
 } from "@/constants/permissions";
 
@@ -57,19 +55,6 @@ export const KPI_DEFINITIONS: readonly KpiDefinition[] = [
     },
     // Cùng tập trạng thái tile đang đếm → bấm vào thấy đúng những đơn đó
     href: orderListHref(DASHBOARD_ORDER_PENDING_FILTER),
-  },
-  {
-    key: "purchase-orders",
-    tone: "warning",
-    label: DASHBOARD_LABELS.poPending,
-    icon: ShoppingCart,
-    permission: PO_PERMISSIONS.read,
-    source: {
-      path: DASHBOARD_API.purchaseOrders,
-      statuses: DASHBOARD_PO_PENDING_STATUSES,
-      repeatStatus: true,
-    },
-    href: ADMIN_ROUTES.purchaseOrders.list,
   },
   {
     key: "receipts",
