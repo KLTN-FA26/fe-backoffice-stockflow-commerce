@@ -57,7 +57,7 @@ export const ORDER_CANCELLATION_REASON_LABELS = {
   PAYMENT_FAILED: "Thanh toán thất bại",
   OUT_OF_STOCK: "Hết hàng, không thể giao",
   SUSPECTED_FRAUD: "Nghi gian lận",
-  CREDIT_REJECTED: "Từ chối vượt hạn mức công nợ",
+  CREDIT_REJECTED: "Kế toán từ chối duyệt công nợ",
   DUPLICATE_ORDER: "Đơn trùng",
   PRODUCTION_ISSUE: "Sự cố sản xuất",
   OTHER: "Lý do khác",

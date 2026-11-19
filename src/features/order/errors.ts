@@ -356,7 +356,7 @@ export function creditDecisionErrorView(error: ApiError): OrderErrorView {
     case "ORDER_NOT_ON_CREDIT_HOLD":
       return {
         title: CREDIT_FAILED,
-        detail: "Đơn không còn chờ duyệt vượt hạn mức (đã được người khác xử lý).",
+        detail: "Đơn không còn chờ duyệt công nợ (đã được người khác xử lý).",
         traceId,
       };
     case "VALIDATION_FAILED":
