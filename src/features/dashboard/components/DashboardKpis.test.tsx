@@ -37,17 +37,18 @@ describe("KPI tiles — real list endpoints, gated by the endpoint's own permiss
   it("shows only the tiles the user may read, with the BE counts and the right filters", async () => {
     const seen: Record<string, URLSearchParams> = {};
     server.use(
-      dashboardPermissions([ORDER_PERMISSIONS.read]),
+      dashboardPermissions([ORDER_PERMISSIONS.read, GOODS_RECEIPT_PERMISSIONS.read]),
       http.get(dashboardEndpoint(DASHBOARD_API.orders), ({ request }) => {
         seen.orders = new URL(request.url).searchParams;
         return countPage(7);
       }),
+      http.get(dashboardEndpoint(DASHBOARD_API.receipts), () => countPage(2)),
     );
     renderDashboard(<DashboardKpis />);
     await waitFor(() =>
       expect(within(tile(DASHBOARD_LABELS.ordersPending)).getByText("7")).toBeInTheDocument(),
     );
-    expect(screen.queryByText(DASHBOARD_LABELS.receiptsProcessing)).not.toBeInTheDocument();
+    expect(within(tile(DASHBOARD_LABELS.receiptsProcessing)).getByText("2")).toBeInTheDocument();
     expect(screen.queryByText(DASHBOARD_LABELS.picksOpen)).not.toBeInTheDocument();
     // BE enum values, repeated key, page of one.
     expect(seen.orders?.getAll("status")).toEqual([
@@ -98,13 +99,7 @@ describe("KPI tiles — real list endpoints, gated by the endpoint's own permiss
     await waitFor(() =>
       expect(within(tile(DASHBOARD_LABELS.receiptsProcessing)).getByText("5")).toBeInTheDocument(),
     );
-    expect(seen.receipts).toEqual([
-      "DRAFT",
-      "PENDING_APPROVAL",
-      "CONFIRMED",
-      "IN_QC",
-      "IN_PUTAWAY",
-    ]);
+    expect(seen.receipts).toEqual(["DRAFT", "PENDING_APPROVAL", "CONFIRMED", "IN_PUTAWAY"]);
   });
 
   it("a failing endpoint shows an em dash, never a number; the other tiles are unaffected", async () => {

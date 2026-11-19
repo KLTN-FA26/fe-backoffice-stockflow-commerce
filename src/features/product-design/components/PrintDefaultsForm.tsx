@@ -1,28 +1,30 @@
 "use client";
 
-import { ChevronDown } from "lucide-react";
-import { useId, useState } from "react";
+import { SlidersHorizontal } from "lucide-react";
+import { useId } from "react";
 import { Controller } from "react-hook-form";
 
 import { PRINT_CONFIG_SCREEN_LABELS } from "@/constants/labels-print-config";
 import { cn } from "cn";
+import { DetailSection } from "@/components/shared/DetailSection";
 import { FORM_INPUT_CLASS, FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
 import { FormSelect } from "@/components/shared/FormSelect";
 import { TextField } from "@/components/shared/TextField";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
+import type { ReactNode } from "react";
 import type { Control, UseFormRegister, FieldErrors } from "react-hook-form";
 import type { ModelKind, PrintDefaultsValues } from "./print-defaults";
 
 const TEXT = PRINT_CONFIG_SCREEN_LABELS.advanced;
 type Choice = "cupMaterial" | "bagMaterial" | "handle";
-type FigureField = "safeMarginMm" | "bleedMm" | "seamMm" | "rimMm" | "topFoldMm";
+type FigureField =
+  "safeMarginMm" | "bleedMm" | "seamMm" | "rimMm" | "topFoldMm" | "glueFlapMm" | "bottomFoldMm";
 
 const FIGURES: Record<ModelKind, readonly FigureField[]> = {
   "parametric-cup": ["safeMarginMm", "bleedMm", "seamMm", "rimMm"],
-  "parametric-bag": ["safeMarginMm", "bleedMm", "topFoldMm"],
+  "parametric-bag": ["safeMarginMm", "bleedMm", "topFoldMm", "glueFlapMm", "bottomFoldMm"],
 };
 const CHOICES: Record<ModelKind, readonly Choice[]> = {
   "parametric-cup": ["cupMaterial"],
@@ -72,8 +74,11 @@ function ChoiceField({
 }
 
 /**
- * "Nâng cao": the defaults the file cannot tell (seam, rim, material, margins, top fold, handle). Prefilled, editable,
- * validated by zod through react-hook-form; the person confirms them with the manufacturer or the printer.
+ * "Số mặc định": the defaults the file cannot tell (seam, rim, material, margins, top fold, glue flap, bottom fold,
+ * handle). Prefilled, editable, validated by zod through react-hook-form; the person confirms them with the
+ * manufacturer or the printer. A card of the page like the others, closed until opened, and kept open while a field
+ * of the kind has an error so the refused value is seen on its input. `preview` (a bag's flat sheet) is shown under
+ * the fields.
  */
 export function PrintDefaultsForm({
   kind,
@@ -81,50 +86,46 @@ export function PrintDefaultsForm({
   control,
   errors,
   disabled,
+  preview,
 }: {
   kind: ModelKind;
   register: UseFormRegister<PrintDefaultsValues>;
   control: Control<PrintDefaultsValues>;
   errors: FieldErrors<PrintDefaultsValues>;
   disabled: boolean;
+  preview?: ReactNode;
 }) {
-  const [open, setOpen] = useState(false);
-  const panelId = useId();
+  // A refused value is shown on its input: the card stays open while a field of the kind has an error.
+  const hasError = FIGURES[kind].some((name) => errors[name] !== undefined);
   return (
-    <section className="space-y-3">
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        aria-expanded={open}
-        aria-controls={panelId}
-        onClick={() => setOpen((value) => !value)}
-      >
-        <ChevronDown aria-hidden className={open ? "rotate-180" : undefined} />
-        {TEXT.toggle}
-      </Button>
-      {open && (
-        <div id={panelId} className="space-y-3">
-          <p className="text-ink-secondary text-[0.8125rem]">{TEXT.note}</p>
-          <fieldset disabled={disabled} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {FIGURES[kind].map((name) => (
-              <TextField
-                key={name}
-                label={TEXT.fields[name]}
-                type="number"
-                inputMode="decimal"
-                step="any"
-                className={cn(FORM_INPUT_CLASS, "tabular-nums")}
-                error={errors[name]?.message}
-                {...register(name, { valueAsNumber: true })}
-              />
-            ))}
-            {CHOICES[kind].map((name) => (
-              <ChoiceField key={name} name={name} control={control} disabled={disabled} />
-            ))}
-          </fieldset>
-        </div>
-      )}
-    </section>
+    <DetailSection
+      title={TEXT.title}
+      icon={SlidersHorizontal}
+      defaultOpen={false}
+      forceOpen={hasError}
+    >
+      {/* Sized by its column (the narrow work column on a wide screen), not by the screen. */}
+      <div className="@container space-y-3">
+        <p className="text-ink-secondary max-w-[68ch] text-[0.8125rem]">{TEXT.note}</p>
+        <fieldset disabled={disabled} className="grid gap-3 @sm:grid-cols-2 @3xl:grid-cols-3">
+          {FIGURES[kind].map((name) => (
+            <TextField
+              key={name}
+              label={TEXT.fields[name]}
+              type="number"
+              inputMode="decimal"
+              step="any"
+              className={cn(FORM_INPUT_CLASS, "tabular-nums")}
+              error={errors[name]?.message}
+              {...register(name, { valueAsNumber: true })}
+            />
+          ))}
+          {CHOICES[kind].map((name) => (
+            <ChoiceField key={name} name={name} control={control} disabled={disabled} />
+          ))}
+        </fieldset>
+        {preview}
+      </div>
+    </DetailSection>
   );
 }

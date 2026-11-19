@@ -166,8 +166,6 @@ export interface NavItem {
   permission?: PermissionCode;
   /** Thấy menu khi có ít nhất một mã trong danh sách (màn mở bằng nhiều quyền khác nhau). */
   anyPermission?: readonly PermissionCode[];
-  /** Màn chỉ chạy được trên mock (BE chưa có API) — ẩn khi nối BE thật. */
-  mockOnly?: boolean;
   /** Breadcrumb riêng cho các đoạn URL sau `href` (vd `[kho ⇅] / Bản đồ kho`) thay cách đọc id mặc định. */
   breadcrumbTail?: (rest: readonly string[]) => BreadcrumbItem[];
 }
@@ -565,12 +563,10 @@ const DETAIL_LABEL_BY_ROUTE: Record<string, string> = {
   [ADMIN_ROUTES.loads.waybillImport]: UI_LABELS.shipping.waybill.import.title,
 };
 
-/** Required capabilities fail closed; unassigned items remain visible; mock-only items need mock mode. */
+/** Required capabilities fail closed; unassigned items remain visible. */
 export function useCanSeeNavItem(): (item: NavItem) => boolean {
   const can = usePermissionChecker();
-  const isMock = useIsMock();
   return (item) =>
-    (!item.mockOnly || isMock) &&
     (!item.permission || can(item.permission)) &&
     (!item.anyPermission || item.anyPermission.some(can));
 }

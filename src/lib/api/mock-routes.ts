@@ -96,7 +96,7 @@ const MOCK_APPROVER_ID = "22222222-2222-4222-8222-222222222222";
 
 export function registerAllMockRoutes(): void {
   /* ====================================================================
-   * Module 01 — Products / SKUs / Categories / Suppliers
+   * Module 01 — Products / SKUs / Categories
    * ==================================================================*/
 
   // GET /products
@@ -322,14 +322,6 @@ export function registerAllMockRoutes(): void {
   registerProductLifecycleRoutes();
 
   // GET /categories, /brands (+ tạo / sửa): mock-routes-taxonomy.ts
-
-  // Suppliers: xem mock-routes-suppliers.ts (đăng ký trong mock-adapter.ts)
-
-  /* ====================================================================
-   * Module 02 — Purchase Orders / Replenishment
-   * ==================================================================*/
-
-  // Purchase orders: mock-routes-purchase-orders.ts (BE PurchaseOrderController contract).
 
   /* ====================================================================
    * Module 05 — Putaway Tasks

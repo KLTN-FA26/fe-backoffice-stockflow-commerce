@@ -84,11 +84,12 @@ describe("dashboard — no demo numbers against the real backend", () => {
 });
 
 describe("dashboard — mock mode keeps its demo widgets", () => {
-  it("shows every widget", async () => {
+  it("shows every widget; the purchasing proposals panel is gone with purchasing (BE 4A-8)", async () => {
     mockMode.isMock = true;
     renderPage();
     for (const title of MOCK_ONLY_WIDGETS) {
       expect(await screen.findByText(title)).toBeInTheDocument();
     }
+    expect(screen.queryByText("Đề xuất nhập hàng")).not.toBeInTheDocument();
   });
 });

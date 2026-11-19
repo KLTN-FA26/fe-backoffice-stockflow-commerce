@@ -12,7 +12,8 @@ export const RECEIPT_COLUMNS = {
   CONFIRMED_AT: "confirmedAt",
   DELIVERY_NOTE: "deliveryNote",
   NUMBER: "number",
-  PURCHASE_ORDER: "purchaseOrder",
+  PRODUCTION_ORDER: "productionOrder",
+  RECEIPT_TYPE: "receiptType",
   RECEIVED_AT: "receivedAt",
   STATUS: "status",
 } as const;

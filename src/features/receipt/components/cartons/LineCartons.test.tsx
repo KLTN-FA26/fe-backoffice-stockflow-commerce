@@ -21,21 +21,20 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 const PATH = `/goods-receipts/${RECEIPT_ID}`;
 const LABELS = "/inventory/stock-packages/labels";
 
-/** Dòng của ví dụ issue #104 đã ở khu QC: 2 thùng IN_STOCK, 3.010 lẻ. */
+/** Dòng của ví dụ issue #104 đã vào kho, đang chờ cất ở bin: 2 thùng IN_STOCK, 3.010 lẻ. */
 function inStock(overrides: Partial<ReceiptLineDto> = {}): ReceiptLineDto {
   return cartonLine({
+    sku: "TABLE-OAK-160",
     lotNumber: "L01",
-    qcProgress: "IN_QC_AREA",
-    qcLocationCode: "HCM-QCA01",
     packages: [
-      cartonPackage({ status: "IN_STOCK", locationCode: "HCM-QCA01" }),
+      cartonPackage({ status: "IN_STOCK", locationCode: "HCM-A01-L1-B01" }),
       cartonPackage({
         id: "c0000000-0000-4000-8000-000000000002",
         lpn: "LPN-20261024-000002",
         quantity: 980,
         receivedQty: 980,
         status: "IN_STOCK",
-        locationCode: "HCM-QCA01",
+        locationCode: "HCM-A01-L1-B01",
       }),
     ],
     ...overrides,
@@ -70,12 +69,12 @@ async function openCartons(user: ReturnType<typeof userEvent.setup>) {
 describe("Thùng trên chi tiết phiếu (issue #104: LPN, đếm được, hiện còn, trạng thái, vị trí)", () => {
   it("ô Thùng / Lẻ tóm tắt; panel liệt kê từng thùng, trạng thái tiếng Việt và vị trí", async () => {
     const user = userEvent.setup();
-    renderLines(ROLES.qcStaff, apiReceipt({ status: "IN_QC", lines: [inStock()] }));
+    renderLines(ROLES.cartonViewer, apiReceipt({ status: "IN_PUTAWAY", lines: [inStock()] }));
     expect(await screen.findByText(L.cellSummary(2, 3010))).toBeInTheDocument();
     const panel = await openCartons(user);
     expect(within(panel).getByText("LPN-20261024-000002")).toBeInTheDocument();
     expect(within(panel).getAllByText("Trong kho")).toHaveLength(2);
-    expect(within(panel).getAllByText("HCM-QCA01")).toHaveLength(2);
+    expect(within(panel).getAllByText("HCM-A01-L1-B01")).toHaveLength(2);
     expect(within(panel).getByText(L.panelSubtitle(2, 3010, "CARTON"))).toBeInTheDocument();
   });
 });
@@ -84,10 +83,10 @@ describe("Action-gating: in nhãn thùng (inventory-stock-packages:CREATE — V2
   it.each([
     ["NV kho", ROLES.warehouseStaff, true],
     ["Quản lý kho", ROLES.warehouseManager, true],
-    ["NV QC", ROLES.qcStaff, false],
+    ["Người chỉ xem thùng", ROLES.cartonViewer, false],
   ] as const)("%s → thấy nút in nhãn: %s", async (_role, permissions, visible) => {
     const user = userEvent.setup();
-    renderLines(permissions, apiReceipt({ status: "IN_QC", lines: [inStock()] }));
+    renderLines(permissions, apiReceipt({ status: "IN_PUTAWAY", lines: [inStock()] }));
     const panel = await openCartons(user);
     expect(within(panel).queryByRole("button", { name: L.printLine }) !== null).toBe(visible);
     expect(within(panel).queryAllByRole("checkbox").length > 0).toBe(visible);
@@ -113,7 +112,7 @@ describe("In / in lại nhãn thùng (BE POST /inventory/stock-packages/labels)"
     const user = userEvent.setup();
     const { post } = renderLines(
       ROLES.warehouseStaff,
-      apiReceipt({ status: "IN_QC", lines: [inStock()] }),
+      apiReceipt({ status: "IN_PUTAWAY", lines: [inStock()] }),
     );
     const panel = await openCartons(user);
     await user.click(
@@ -136,7 +135,7 @@ describe("In / in lại nhãn thùng (BE POST /inventory/stock-packages/labels)"
     const user = userEvent.setup();
     const { post } = renderLines(
       ROLES.warehouseStaff,
-      apiReceipt({ status: "IN_QC", lines: [inStock()] }),
+      apiReceipt({ status: "IN_PUTAWAY", lines: [inStock()] }),
       () => {
         throw new ApiError(409, "INVALID_STOCK_PACKAGE_TRANSITION", "LPN is CONSUMED");
       },
@@ -156,7 +155,7 @@ describe("In / in lại nhãn thùng (BE POST /inventory/stock-packages/labels)"
 describe("In nhãn — mỗi lần mở dialog là một lần in mới", () => {
   it("in cả dòng rồi đóng; in lại 1 thùng → dialog không còn PDF / nút In của lần trước", async () => {
     const user = userEvent.setup();
-    renderLines(ROLES.warehouseStaff, apiReceipt({ status: "IN_QC", lines: [inStock()] }));
+    renderLines(ROLES.warehouseStaff, apiReceipt({ status: "IN_PUTAWAY", lines: [inStock()] }));
     const panel = await openCartons(user);
     await user.click(within(panel).getByRole("button", { name: L.printLine }));
     let dialog = await screen.findByRole("dialog", { name: P.title });
@@ -180,7 +179,7 @@ describe("In nhãn — đang tạo PDF thì không đổi khổ được", () =>
     const user = userEvent.setup();
     const { post } = renderLines(
       ROLES.warehouseStaff,
-      apiReceipt({ status: "IN_QC", lines: [inStock()] }),
+      apiReceipt({ status: "IN_PUTAWAY", lines: [inStock()] }),
     );
     // BE chưa trả lời
     post.mockImplementationOnce(() => new Promise(() => {}));

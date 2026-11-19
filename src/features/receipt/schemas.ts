@@ -1,20 +1,15 @@
 /**
- * Goods receipt — zod schemas, khớp hợp đồng BE PR #62 (GoodsReceiptController, SCRUM-435).
+ * Goods receipt — zod schemas, khớp `GoodsReceiptResponse` / `GoodsReceiptRowResponse` của BE sau 4A-5 / 4A-9:
+ * phiếu nhập theo Đơn sản xuất (`receiptType = PRODUCTION`), phiếu mua hàng cũ (`PURCHASE`) chỉ còn để đọc.
+ * BE đã bỏ QC ở kho (docs 03 BR-07), duyệt vượt dung sai (BR-02) và phiếu không chứng từ (03 §1) — các field đó
+ * không còn trên wire.
  *
- * Hai lớp (api-conventions §3.1):
- *  - DTO: đúng hình dạng response BE (`GoodsReceiptResponse`, `GoodsReceiptRowResponse`) và
- *    phần PO mà phiếu nhận cần từ `GET /purchase-orders` (xem `receivablePoSchema`).
- *  - Input: dữ liệu form gửi đi + BR refine — ở `input-schemas.ts`.
+ * Hai lớp (api-conventions §3.1): file này là DTO; Input của màn nhập theo Đơn sản xuất sẽ thêm ở SCRUM-566.
  */
 
 import { z } from "zod";
 
-import {
-  QC_OUTCOME_API,
-  RECEIPT_API_STATUSES,
-  RECEIPT_APPROVAL_DECISION_API,
-  RECEIPT_QC_PROGRESS_API,
-} from "@/constants";
+import { RECEIPT_API_STATUSES, RECEIPT_TYPE_API } from "@/constants";
 import { bePageSchema } from "@/lib/api/page-schema";
 
 import { beReceiptPackageSchema, beReceiptUnitSchema } from "./carton-schemas";
@@ -22,80 +17,52 @@ import { beReceiptPackageSchema, beReceiptUnitSchema } from "./carton-schemas";
 /* ── Enums ───────────────────────────────────────────────────────────── */
 
 export const receiptApiStatusSchema = z.enum(RECEIPT_API_STATUSES);
-export const qcProgressSchema = z.enum(RECEIPT_QC_PROGRESS_API);
-export const qcOutcomeSchema = z.enum(QC_OUTCOME_API);
-export const receiptApprovalDecisionSchema = z.enum(RECEIPT_APPROVAL_DECISION_API);
+export const receiptTypeSchema = z.enum(RECEIPT_TYPE_API);
 
 /* ── DTO: goods receipt ──────────────────────────────────────────────── */
 
-/** BE `GoodsReceiptResponse.Inspection` — một phần kết luận QC của dòng. */
-export const beInspectionSchema = z.object({
-  id: z.string(),
-  outcome: qcOutcomeSchema,
-  quantity: z.number().int().positive(),
-  // null với phần ACCEPTED: hàng đạt nằm lại khu QC chờ putaway
-  locationCode: z.string().nullish(),
-  reason: z.string().nullish(),
-  inspectedBy: z.string(),
-  inspectedAt: z.string(),
+/**
+ * BE `GoodsReceiptResponse.ProductionLineProgress` (4A-5, docs 03 §4.1 bước 3): dòng của Đơn sản xuất tính theo
+ * thùng và theo cái. `remaining*` của phiếu nháp = đặt − đã nhận − phiếu này.
+ */
+export const beProductionLineProgressSchema = z.object({
+  unitsPerCarton: z.number().int().positive(),
+  orderedCartons: z.number().int().min(0),
+  receivedCartons: z.number().int().min(0),
+  thisReceiptCartons: z.number().int().min(0),
+  remainingCartons: z.number().int(),
+  orderedUnits: z.number().int().min(0),
+  receivedUnits: z.number().int().min(0),
+  thisReceiptUnits: z.number().int().min(0),
+  remainingUnits: z.number().int(),
 });
 
 /** BE `GoodsReceiptResponse.Line`. `quantityForPutaway` = phần đang chờ cất lên bin. */
 export const beReceiptLineSchema = z.object({
   id: z.string(),
-  // null trên phiếu không có PO (BR-RCP-002): dòng gọi hàng bằng SKU
-  purchaseOrderLineId: z.string().nullish(),
-  purchaseOrderLineNo: z.number().int().nullish(),
   inventoryItemId: z.string(),
   // BE tra SKU qua inventory.itemPolicy(...).orElse(null) — có thể null
   sku: z.string().nullish(),
-  quantity: z.number().int().positive(),
+  quantity: z.number().int().min(0),
   lotNumber: z.string().nullish(),
-  expiryDate: z.string().nullish(),
   locationCode: z.string().nullish(),
   note: z.string().nullish(),
-  qcRequired: z.boolean(),
-  qcProgress: qcProgressSchema,
-  qcLocationCode: z.string().nullish(),
-  movedToQcAt: z.string().nullish(),
   quantityForPutaway: z.number().int().min(0),
-  inspections: z.array(beInspectionSchema).default([]),
-  // Cảnh báo không chặn của BE: `OVER_TOLERANCE` (BR-RCP-001), `EXPIRY_NEAR` (BR-06)
   warnings: z.array(z.string()).default([]),
-  // SCRUM-473: đơn vị đóng gói của các thùng (null = dòng lẻ, đơn vị cơ sở); phần không vào thùng nào
+  // SCRUM-473: đơn vị đóng gói của các thùng (null = dòng lẻ cũ); phần không vào thùng nào
   unitOfMeasure: z.string().nullish(),
   looseQuantity: z.number().int().min(0),
   packages: z.array(beReceiptPackageSchema).default([]),
   units: z.array(beReceiptUnitSchema).default([]),
-  // BE #219: đơn vị dòng PO được đặt theo — để chọn sẵn; null khi đặt theo đơn vị cơ sở / phiếu không có PO
-  orderedUnitOfMeasure: z.string().nullish(),
+  // 4A-5: null trên phiếu mua hàng cũ
+  productionOrderLineId: z.string().nullish(),
+  production: beProductionLineProgressSchema.nullish(),
 });
 
-/**
- * BE `GoodsReceiptResponse.Approval` (SCRUM-477, BR-RCP-001) — duyệt ngoại lệ của Quản lý kho.
- * `decision` và các field sau nó null khi phiếu còn chờ (`Pending Approval`).
- */
-export const beReceiptApprovalSchema = z.object({
-  requestedAt: z.string(),
-  requestedBy: z.string(),
-  requestedByName: z.string().nullish(),
-  decision: receiptApprovalDecisionSchema.nullish(),
-  decidedAt: z.string().nullish(),
-  decidedBy: z.string().nullish(),
-  decidedByName: z.string().nullish(),
-  reason: z.string().nullish(),
-});
-
-/** BE `GoodsReceiptResponse` — một phiếu kèm dòng và kết quả QC. */
+/** BE `GoodsReceiptResponse` — một phiếu kèm dòng. */
 export const beGoodsReceiptSchema = z.object({
   id: z.string(),
   number: z.string(),
-  // null trên phiếu không có PO (BR-RCP-002, SCRUM-478)
-  purchaseOrderId: z.string().nullish(),
-  purchaseOrderNumber: z.string().nullish(),
-  // BE trả kèm: NCC của PO, hoặc NCC của chính phiếu khi không có PO
-  supplierId: z.string().nullish(),
-  supplierName: z.string().nullish(),
   warehouseId: z.string(),
   warehouseCode: z.string().nullish(),
   warehouseName: z.string().nullish(),
@@ -104,82 +71,42 @@ export const beGoodsReceiptSchema = z.object({
   note: z.string().nullish(),
   receivedAt: z.string(),
   receivedBy: z.string().nullish(),
+  receivedByName: z.string().nullish(),
   confirmedAt: z.string().nullish(),
   confirmedBy: z.string().nullish(),
+  confirmedByName: z.string().nullish(),
   closedAt: z.string().nullish(),
   lines: z.array(beReceiptLineSchema).default([]),
   warnings: z.array(z.string()).default([]),
-  // null với phiếu chưa từng cần Quản lý kho duyệt
-  approval: beReceiptApprovalSchema.nullish(),
-  // BR-RCP-002: phiếu không có PO — lý do; PO gắn bổ sung chỉ là tham chiếu
-  withoutPurchaseOrder: z.boolean().default(false),
-  blindReason: z.string().nullish(),
-  referencedPurchaseOrderId: z.string().nullish(),
-  referencedPurchaseOrderNumber: z.string().nullish(),
+  receiptType: receiptTypeSchema,
+  // 4A-5: null trên phiếu mua hàng cũ
+  productionOrderId: z.string().nullish(),
+  productionOrderCode: z.string().nullish(),
+  productionOrderStatus: z.string().nullish(),
+  producerId: z.string().nullish(),
+  producerName: z.string().nullish(),
 });
 
 /** BE `GoodsReceiptRowResponse` — một dòng danh sách, không kèm dòng nhận. */
 export const beGoodsReceiptRowSchema = z.object({
   id: z.string(),
   number: z.string(),
-  purchaseOrderId: z.string().nullish(),
-  purchaseOrderNumber: z.string().nullish(),
-  supplierId: z.string().nullish(),
-  supplierName: z.string().nullish(),
-  withoutPurchaseOrder: z.boolean().default(false),
   warehouseId: z.string(),
+  warehouseCode: z.string().nullish(),
+  warehouseName: z.string().nullish(),
   status: receiptApiStatusSchema,
   deliveryNote: z.string().nullish(),
   receivedAt: z.string(),
   receivedBy: z.string().nullish(),
+  receivedByName: z.string().nullish(),
   confirmedAt: z.string().nullish(),
+  confirmedBy: z.string().nullish(),
+  confirmedByName: z.string().nullish(),
   closedAt: z.string().nullish(),
+  receiptType: receiptTypeSchema,
+  productionOrderId: z.string().nullish(),
+  productionOrderCode: z.string().nullish(),
+  producerName: z.string().nullish(),
 });
 
 export const beGoodsReceiptPageSchema = bePageSchema(beGoodsReceiptRowSchema);
-
-/* ── DTO: PO để nhận hàng ────────────────────────────────────────────── */
-
-/**
- * Phần `PurchaseOrderResponse` mà phiếu nhận cần, đọc qua `GET /purchase-orders`.
- * Chỉ giữ field dùng tới — feature này KHÔNG import `features/purchase-order` (import boundary).
- * `lineId` chính là `purchaseOrderLineId` gửi lên `PUT /goods-receipts/{id}/lines`.
- */
-export const receivablePoLineSchema = z.object({
-  lineId: z.string(),
-  sku: z.string(),
-  description: z.string().nullish(),
-  quantityOrdered: z.number().int().positive(),
-  quantityReceived: z.number().int().min(0),
-  openQuantity: z.number().int().min(0),
-});
-
-export const receivablePoSchema = z.object({
-  purchaseOrderId: z.string(),
-  poNumber: z.string(),
-  supplierId: z.string(),
-  status: z.string(),
-  expectedAt: z.string().nullish(),
-  // Dòng danh sách PO trả `lines: []` (BE PurchaseOrderSearchRepository) — chỉ detail có dòng
-  lines: z.array(receivablePoLineSchema).default([]),
-});
-
-export const receivablePoPageSchema = bePageSchema(receivablePoSchema);
-
-/* ── Tra cứu cho phiếu không có PO: NCC, kho ─────────────────────────── */
-
-/** Phần `SupplierResponse` mà ô chọn NCC cần (`GET /suppliers`). */
-export const supplierOptionSchema = z.object({
-  supplierId: z.string(),
-  code: z.string(),
-  name: z.string(),
-});
-export const supplierOptionPageSchema = bePageSchema(supplierOptionSchema);
-
-/** Phần `WarehouseResponse` mà ô chọn kho cần (`GET /warehouses`). */
-export const warehouseOptionSchema = z.object({
-  id: z.string(),
-  prefix: z.string(),
-  name: z.string(),
-});
-export const warehouseOptionPageSchema = bePageSchema(warehouseOptionSchema);

@@ -14,6 +14,7 @@ import {
   CYCLE_COUNT_PERMISSIONS,
   GOODS_RECEIPT_PERMISSIONS,
   CREDIT_HOLD_PERMISSIONS,
+  CUSTOMER_PERMISSIONS,
   FULFILLMENT_PICKING_PERMISSIONS,
   FULFILLMENT_PICK_PERMISSIONS,
   FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS,
@@ -25,7 +26,6 @@ import {
   PRODUCT_PERMISSIONS,
   SHIPMENT_PERMISSIONS,
   STOCK_PACKAGE_PERMISSIONS,
-  CUSTOMER_PERMISSIONS,
   VEHICLE_TYPE_PERMISSIONS,
 } from "@/constants/permissions";
 
@@ -97,12 +97,12 @@ describe("declared navigation permissions", () => {
       data: { roles: [], permissions: [CUSTOMER_PERMISSIONS.viewPage], dataScope: "ALL" },
     });
     mount();
-    for (const name of ["Khách hàng", "Báo giá", "Đơn hàng", "Phân quyền"])
+    for (const name of ["Khách hàng", "Đơn hàng", "Phân quyền"])
       expect(screen.queryByRole("link", { name })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Tổng quan" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Sản phẩm & SKU" })).not.toBeInTheDocument();
     expect(await screen.findByRole("link", { name: "Khách hàng" })).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Báo giá" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Đơn hàng" })).not.toBeInTheDocument();
   });
   it("query errors hide required entries without hiding ungated entries", async () => {
     vi.spyOn(api, "get").mockRejectedValue(new ApiError(503, "UNAVAILABLE", "Unavailable"));
@@ -453,8 +453,8 @@ describe("credit hold navigation — gate bằng quyền credit hold, không ph�
   });
 });
 
-describe("mockOnly đi chung pipeline hiển thị + mục đang mở (một tập mục được thấy)", () => {
-  /** Chạy đúng pipeline của sidebar: quyền + mockOnly → nhóm được thấy → mục đang mở. */
+describe("pipeline hiển thị + mục đang mở (một tập mục được thấy)", () => {
+  /** Chạy đúng pipeline của sidebar: quyền → nhóm được thấy → mục đang mở. */
   function ActiveProbe({ pathname }: { pathname: string }) {
     const canSee = useCanSeeNavItem();
     const groups = visibleNavGroups(canSee);
@@ -483,26 +483,13 @@ describe("mockOnly đi chung pipeline hiển thị + mục đang mở (một t�
     );
   }
 
-  // Không còn mục mockOnly nào trên menu (Đề xuất nhập hàng đã bỏ); Hoá đơn NCC đã bỏ (module 04 ra khỏi
-  // phạm vi), Chuyến xe / Vận đơn đã có BE nên không còn mockOnly
-  const MOCK_ONLY_ROUTE = "/admin/replenishment";
   const SHIPMENT_DETAIL = ADMIN_ROUTES.shipments.detail("trip-1");
 
   afterEach(() => {
     mockMode.isMock = false;
   });
 
-  it("A/B. ngoài mock: mục mockOnly ẩn và KHÔNG thành mục đang mở dù đúng route của nó", async () => {
-    mockMode.isMock = false;
-    probe(MOCK_ONLY_ROUTE, [SHIPMENT_PERMISSIONS.viewPage]);
-    await waitFor(() =>
-      expect(screen.getByLabelText("visible")).toHaveTextContent(ADMIN_ROUTES.shipments.list),
-    );
-    expect(screen.getByLabelText("visible")).not.toHaveTextContent(MOCK_ONLY_ROUTE);
-    expect(screen.getByLabelText("active")).toHaveTextContent("none");
-  });
-
-  it("D. trong mock nhưng thiếu quyền của mục → vẫn ẩn, không sáng (quyền vẫn áp dụng)", async () => {
+  it("thiếu quyền của mục → ẩn, không sáng dù đang ở route của nó", async () => {
     mockMode.isMock = true;
     probe(SHIPMENT_DETAIL, [ORDER_PERMISSIONS.viewPage]);
     await waitFor(() =>

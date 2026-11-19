@@ -79,10 +79,6 @@ export const ADMIN_ROUTES = {
     printConfig: (productId: string, variantId: string) =>
       `${ADMIN_BASE}/products/${productId}/variants/${variantId}/${PRINT_CONFIG_SEGMENT}`,
   },
-  purchaseOrders: {
-    detail: (id: string) => `${ADMIN_BASE}/purchase-orders/${id}`,
-    list: `${ADMIN_BASE}/purchase-orders`,
-  },
   orders: {
     // Đơn công nợ vượt hạn mức chờ duyệt (SCRUM-427) — segment tĩnh, ưu tiên hơn [id]
     creditHolds: `${ADMIN_BASE}/orders/credit-holds`,
@@ -107,12 +103,6 @@ export const ADMIN_ROUTES = {
       `${ADMIN_BASE}/put-backs?warehouse=${encodeURIComponent(warehouseId)}`,
   },
   receipts: {
-    create: `${ADMIN_BASE}/receipts/create`,
-    // Tạo phiếu từ một PO đã chọn sẵn (vd nút "Nhận hàng" ở màn PO)
-    createFromPo: (poId: string) =>
-      `${ADMIN_BASE}/receipts/create?poId=${encodeURIComponent(poId)}`,
-    // Hàng về không có PO (BR-RCP-002, SCRUM-478): cùng trang tạo phiếu, chế độ "không có đơn đặt hàng"
-    createWithoutPo: `${ADMIN_BASE}/receipts/create?mode=without-po`,
     detail: (id: string) => `${ADMIN_BASE}/receipts/${id}`,
     list: `${ADMIN_BASE}/receipts`,
   },

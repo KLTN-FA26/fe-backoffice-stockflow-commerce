@@ -274,3 +274,33 @@ describe("PrintConfigSaveInput rules (the BE's, checked before sending)", () => 
     expect(result.success).toBe(false);
   });
 });
+
+describe("printConfigBodySchema: BE PrintConfigRules before the save is sent", () => {
+  const withModel = (model: Partial<typeof CUP>) =>
+    printConfigBodySchema.safeParse({ ...CUP_BODY, model: { ...CUP, ...model } });
+  const paths = (result: { error?: { issues: { path: PropertyKey[] }[] } }) =>
+    result.error?.issues.map((issue) => issue.path.join(".")) ?? [];
+
+  it("a cup whose base is wider than its rim is refused on model.bottomDiameterMm (BaseWiderThanRim)", () => {
+    expect(withModel({ bottomDiameterMm: 90 }).success).toBe(true);
+    const result = withModel({ bottomDiameterMm: 90.01 });
+    expect(paths(result)).toEqual(["model.bottomDiameterMm"]);
+    expect(messages(result)).toEqual([
+      "Đáy ly đo từ file rộng hơn miệng ly: hãy kiểm tra lại file.",
+    ]);
+  });
+
+  it("a measured figure over 2000 mm is refused on its path (Range)", () => {
+    expect(paths(withModel({ topDiameterMm: 2000.01 }))).toEqual(["model.topDiameterMm"]);
+  });
+
+  it("a print area's safe margin is at most 500 mm", () => {
+    const area = (safeMarginMm: number) =>
+      printConfigBodySchema.safeParse({
+        ...CUP_BODY,
+        printAreas: [{ ...CUP_BODY.printAreas[0], safeMarginMm }],
+      });
+    expect(area(500).success).toBe(true);
+    expect(paths(area(500.01))).toEqual(["printAreas.0.safeMarginMm"]);
+  });
+});

@@ -76,7 +76,7 @@ describe("buildBreadcrumbItems", () => {
     ]);
   });
 
-  it("có nhãn đăng ký cho id (vd UUID → mã KH) thì hiện nhãn thay vì id", () => {
+  it("có nhãn đăng ký cho id (vd UUID → mã khách hàng) thì hiện nhãn thay vì id", () => {
     const uuid = "d0000001-0000-4000-8000-000000000002";
     const labelFor = (id: string) => (id === uuid ? "CUS-002" : undefined);
 

@@ -6,7 +6,6 @@ export { canTransition, isTerminal, allowedTransitions } from "./lifecycle";
 export {
   PRODUCT_TRANSITIONS,
   SKU_TRANSITIONS,
-  PO_TRANSITIONS,
   RECEIPT_TRANSITIONS,
   QC_TRANSITIONS,
   PUTAWAY_TRANSITIONS,

@@ -36,12 +36,12 @@ export const DASHBOARD_ORDER_PENDING_FILTER = [
   "Ready to Fulfill",
   "On Hold",
 ] as const satisfies readonly OrderStatus[];
-// GoodsReceiptStatus.java / docs 03 §5.1: còn đang xử lý (chưa CLOSED / CANCELLED).
+// GoodsReceiptStatus.java / docs 03 §5: còn đang xử lý (chưa CLOSED / CANCELLED). BE đã bỏ IN_QC (2b) — gửi mã
+// đó thì BE trả 400 khi bind enum.
 export const DASHBOARD_RECEIPT_PROCESSING_STATUSES = [
   "DRAFT",
   "PENDING_APPROVAL",
   "CONFIRMED",
-  "IN_QC",
   "IN_PUTAWAY",
 ] as const;
 // PickStatus.java: task lấy hàng chưa xong. BE lọc `status` một giá trị mỗi lần → đếm từng trạng thái rồi cộng.

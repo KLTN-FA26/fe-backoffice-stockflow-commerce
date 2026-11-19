@@ -937,16 +937,6 @@ export function mockItemRowOf(variantId: string): MockLogistics | null {
   return logistics.get(variantId) ?? null;
 }
 
-/**
- * BE `ItemPurchasingRepository.assign/clearDefaultSupplier`: đổi NCC mặc định từ danh mục NCC tăng
- * `version` của hồ sơ hàng tồn mang SKU đó. Hồ sơ chưa nạp thì không có version nào để lệch.
- */
-export function bumpMockItemVersionForSku(sku: string): void {
-  for (const row of logistics.values()) {
-    if (row.sku === sku) logistics.set(row.skuId, { ...row, version: row.version + 1 });
-  }
-}
-
 /** Biến thể của một sản phẩm (đã sắp theo vị trí). */
 export async function mockVariantsOf(productId: string): Promise<MockVariant[]> {
   return (await store())

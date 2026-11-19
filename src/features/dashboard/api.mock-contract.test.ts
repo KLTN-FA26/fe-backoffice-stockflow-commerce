@@ -73,4 +73,18 @@ describe("dashboard sources on the mock", () => {
       fetchCount({ path: DASHBOARD_API.pickTasks, statuses: ["NOPE"], repeatStatus: false }),
     ).rejects.toBeInstanceOf(ApiError);
   });
+
+  it("a status filter narrows the count (goods receipt list)", async () => {
+    const all = await fetchCount({
+      path: DASHBOARD_API.receipts,
+      statuses: [],
+      repeatStatus: true,
+    });
+    const pending = await fetchCount({
+      path: DASHBOARD_API.receipts,
+      statuses: ["DRAFT"],
+      repeatStatus: true,
+    });
+    expect(pending).toBeLessThanOrEqual(all);
+  });
 });
