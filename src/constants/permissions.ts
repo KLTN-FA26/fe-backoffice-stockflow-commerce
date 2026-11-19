@@ -503,14 +503,42 @@ export const QUOTE_PERMISSIONS = {
 } as const;
 
 /**
- * Lệnh sản xuất (LSX) — resource `production-orders` (BE ProductionOrderController, SCRUM-405..415).
- * UPDATE = prepress, treo, in, ghi sản lượng · APPROVE = huỷ / dừng / tiếp tục, tách gia công.
+ * Đơn sản xuất — resource `production-orders` (BE `OrderResources.PRODUCTION_ORDERS`, PermissionMatrixTest; docs 17
+ * §4.3, BR-23). CREATE / UPDATE: Điều phối sản xuất (lập, sửa nháp, gửi duyệt, ghi nhận nhận đơn, ngày dự kiến, bắt đầu
+ * sản xuất, huỷ, đóng, gửi lại mail, vòng mẫu in). APPROVE: Sales Manager (duyệt = gửi, trả lại). READ: thêm Sale và Quản
+ * lý kho (BE lọc theo kho).
  */
 export const PRODUCTION_ORDER_PERMISSIONS = {
   viewPage: "production-orders:VIEW_PAGE",
   read: "production-orders:READ",
+  create: "production-orders:CREATE",
   update: "production-orders:UPDATE",
   approve: "production-orders:APPROVE",
+} as const;
+
+/**
+ * Danh mục đơn vị sản xuất — resource `sales-producers` (BE `OrderResources.PRODUCERS`, docs 17 §4.3, chốt 2026-11-07):
+ * Điều phối sản xuất thêm / sửa; Sales Manager, Sale, Quản lý kho chỉ đọc.
+ */
+export const PRODUCER_PERMISSIONS = {
+  viewPage: "sales-producers:VIEW_PAGE",
+  read: "sales-producers:READ",
+  create: "sales-producers:CREATE",
+  update: "sales-producers:UPDATE",
+} as const;
+
+/** Lịch sản xuất — resource `production-schedule` (docs 17 §4.12 bước 47): Điều phối SX, Sale, QLKD, Quản lý kho. */
+export const PRODUCTION_SCHEDULE_PERMISSIONS = {
+  viewPage: "production-schedule:VIEW_PAGE",
+  read: "production-schedule:READ",
+} as const;
+
+/**
+ * Cờ trễ trên trang đơn — resource `delay-alerts` (docs 17 §4.12 bước 49): Sale, Sales Manager, Quản lý kho. Điều phối
+ * sản xuất không có — họ xem cờ trên lịch sản xuất.
+ */
+export const DELAY_ALERT_PERMISSIONS = {
+  read: "delay-alerts:READ",
 } as const;
 
 /** Bảng giá theo khách — `catalog-customer-prices` (BE d215f6e, P7): Sales chỉ đọc. */

@@ -133,6 +133,19 @@ export const ADMIN_ROUTES = {
     list: `${ADMIN_BASE}/warehouse-capacity`,
     detail: (prefix: string) => `${ADMIN_BASE}/warehouse-capacity/${encodeURIComponent(prefix)}`,
   },
+  /** Danh mục đơn vị sản xuất (docs 17 §4.3) — BE `ProducerController` (`/producers`). */
+  producers: `${ADMIN_BASE}/producers`,
+  /**
+   * Đơn sản xuất (docs 17 §4.3, §5.3) — BE `ProductionOrderController`. Lập chỉ từ đợt giao còn thiếu (BR-05) nên
+   * `create` là trang chọn đợt, không phải form trắng.
+   */
+  productionOrders: {
+    list: `${ADMIN_BASE}/production-orders`,
+    create: `${ADMIN_BASE}/production-orders/create`,
+    detail: (id: string) => `${ADMIN_BASE}/production-orders/${encodeURIComponent(id)}`,
+  },
+  /** Lịch sản xuất & đợt giao còn thiếu (docs 17 §4.12) — BE `ProductionScheduleController`. */
+  productionSchedule: `${ADMIN_BASE}/production-schedule`,
   /** Danh mục loại xe (container, xe tải, bán tải) — BE `VehicleTypeController`, PR #153. */
   vehicleTypes: `${ADMIN_BASE}/vehicle-types`,
   /** Kế hoạch xếp xe (SCRUM-287 PR F4): danh sách, lập mới, chi tiết — BE `LoadPlanController`, PR #161. */
