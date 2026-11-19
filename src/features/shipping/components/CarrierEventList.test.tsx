@@ -100,7 +100,9 @@ const lastParams = (get: Spy) =>
   (listCalls(get).at(-1)?.[1] as { params?: Record<string, unknown> } | undefined)?.params;
 const openRow = async (user: ReturnType<typeof userEvent.setup>, index: number) => {
   const buttons = await screen.findAllByRole("button", { name: new RegExp(E.openRow) });
-  await user.click(buttons[index]!);
+  const button = buttons[index];
+  if (!button) throw new Error(`Không có dòng ${index}`);
+  await user.click(button);
   return screen.findByRole("dialog");
 };
 

@@ -17,6 +17,9 @@ export const CARRIER_EVENT_RESULTS = [
 ] as const;
 export type CarrierEventResultCode = (typeof CARRIER_EVENT_RESULTS)[number];
 
+/** Kết quả "đang xử lý": có khoá riêng trong `status-map` (xem `CARRIER_EVENT_STATUS_KEYS`). */
+export const CARRIER_EVENT_RESULT_RECEIVED = "RECEIVED";
+
 /**
  * Kết quả thuộc danh sách lỗi (BE `CarrierEventResult.errorList()`, docs 09 §4.5 bước 8): không bao giờ tự áp lại,
  * Quản lý kho xử lý tay rồi đánh dấu đã xử lý.

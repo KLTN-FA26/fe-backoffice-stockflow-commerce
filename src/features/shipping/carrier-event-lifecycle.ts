@@ -8,6 +8,7 @@ import {
   CARRIER_EVENT_ERROR_RESULTS,
   CARRIER_EVENT_STATUS_KEYS,
   CARRIER_EVENT_ERRORS_FILTER,
+  CARRIER_EVENT_RESULT_RECEIVED,
   FULFILLMENT_CARRIER_EVENT_PERMISSIONS,
 } from "@/constants";
 
@@ -40,7 +41,7 @@ export function carrierEventActions(
 
 /** Khoá của `status-map` (tông màu + nhãn tiếng Việt) cho một kết quả xử lý sự kiện. */
 export function carrierEventStatusKey(result: string): string {
-  return result === "RECEIVED" ? CARRIER_EVENT_STATUS_KEYS.RECEIVED : result;
+  return result === CARRIER_EVENT_RESULT_RECEIVED ? CARRIER_EVENT_STATUS_KEYS.RECEIVED : result;
 }
 
 /** Lựa chọn "mọi sự kiện" của bộ lọc kết quả (không gửi `result` cho BE). */
