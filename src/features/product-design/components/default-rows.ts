@@ -28,6 +28,8 @@ export function defaultRows(kind: ModelKind, d: PrintDefaultsValues): ValueRow[]
   }
   return [
     { label: ROWS.topFoldMm, value: formatMm(d.topFoldMm) },
+    { label: ROWS.glueFlapMm, value: formatMm(d.glueFlapMm) },
+    { label: ROWS.bottomFoldMm, value: formatMm(d.bottomFoldMm) },
     { label: ROWS.handle, value: ADVANCED.handles[d.handle] },
     { label: ROWS.bagMaterial, value: ADVANCED.bagMaterials[d.bagMaterial] },
     ...margins,

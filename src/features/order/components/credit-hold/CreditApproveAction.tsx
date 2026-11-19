@@ -5,7 +5,9 @@ import { CheckCircle2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 
 import { ORDER_LIMITS, UI_LABELS } from "@/constants";
+import { statusLabelVi } from "@/lib/status-map";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
+import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -26,7 +28,8 @@ import type { CreditApprovalInput } from "../../types";
 import type { CreditHoldTarget } from "./types";
 
 /**
- * Duyệt vượt hạn mức công nợ (SCRUM-427, docs 14 BR-06) → đơn Confirmed. Chỉ người có
+ * Duyệt tín dụng (docs 15 §4.3, BE `CreditDecisionRequest {note}`) → đơn Chờ thanh toán (còn đợt khi ký chưa
+ * trả) hoặc Đã xác nhận — hiện đúng trạng thái BE trả. Chỉ người có
  * `sales-order-credit-holds:APPROVE` (ACCOUNTANT) thấy nút — gate ở `allowedOrderActions`
  * (UI-only, Backend phải re-check: CreditHoldController @RequiresPermission APPROVE).
  * `compact`: trong hàng bảng — nhãn ngắn, aria-label kèm mã đơn để phân biệt giữa các hàng.
@@ -91,8 +94,11 @@ function ApproveForm({
     approve(
       { ...variables, idempotencyKey: idempotencyKeyFor(variables) },
       {
-        onSuccess: () => {
+        onSuccess: (saved) => {
           finishAttempt();
+          toast.info(
+            `Đơn ${saved.orderNumber} chuyển sang: ${statusLabelVi(saved.status, "order") ?? saved.status}.`,
+          );
           onClose();
         },
         onError,
@@ -102,8 +108,8 @@ function ApproveForm({
 
   return (
     <FormDialogBody
-      title="Duyệt vượt hạn mức công nợ"
-      description={`Cho đơn ${order.orderNumber} đi tiếp dù vượt hạn mức tín dụng của khách. Đơn chuyển sang Đã xác nhận và có thể release.`}
+      title="Duyệt tín dụng"
+      description={`Cho đơn ${order.orderNumber} đi tiếp. Đơn chuyển sang Chờ thanh toán nếu còn đợt khi ký chưa trả, không thì Đã xác nhận.`}
       submitLabel="Duyệt"
       canSubmit={form.formState.isValid}
       isPending={isPending}

@@ -1,9 +1,8 @@
 "use client";
 
-import Link from "next/link";
-import { FileText, Plus } from "lucide-react";
+import { FileText } from "lucide-react";
 
-import { ADMIN_ROUTES, RECEIPT_STATUS, UI_LABELS } from "@/constants";
+import { UI_LABELS } from "@/constants";
 import { DataTable } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
@@ -24,11 +23,9 @@ import type { ReceiptListState } from "./useReceiptListState";
 export function ReceiptListBody({
   s,
   columns,
-  canCreate,
 }: {
   s: ReceiptListState;
   columns: ColumnDef<GoodsReceiptRow>[];
-  canCreate: boolean;
 }) {
   const { query, filters } = s;
 
@@ -49,16 +46,7 @@ export function ReceiptListBody({
       <EmptyState
         icon={<FileText className="size-8" />}
         title="Chưa có phiếu nhận"
-        description="Chưa có lần nhận hàng nào theo đơn đặt hàng."
-        action={
-          canCreate ? (
-            <Button asChild size="sm" className="rounded-[var(--r-sm)]">
-              <Link href={ADMIN_ROUTES.receipts.create}>
-                <Plus className="size-3.5" /> Tạo phiếu nhận đầu tiên
-              </Link>
-            </Button>
-          ) : undefined
-        }
+        description="Chưa có lần nhận hàng nào. Phiếu nhập được lập theo Đơn sản xuất khi hàng về."
       />
     );
   }
@@ -100,8 +88,6 @@ export function ReceiptListBody({
         data={page.items}
         rowKey={(row) => row.id}
         caption={`Hiển thị ${page.items.length} / ${page.totalElements} phiếu nhận`}
-        // Còn dòng chờ QC → chặn putaway, cần NV kho / QC xử lý (data-table-mode-a: row cần chú ý)
-        flagRow={(row) => row.status === RECEIPT_STATUS.IN_QC}
         onRowClick={s.navigateToDetail}
         pageSize={s.config.pageSize}
         pageSizeOptions={PAGE_SIZE_OPTIONS}

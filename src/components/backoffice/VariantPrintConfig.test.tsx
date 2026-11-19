@@ -12,7 +12,10 @@ import {
   PRODUCT_PERMISSIONS,
   UI_LABELS,
 } from "@/constants";
-import { PRINT_CONFIG_PAGE_LABELS } from "@/constants/labels-print-config";
+import {
+  PRINT_CONFIG_PAGE_LABELS,
+  PRINT_CONFIG_SCREEN_LABELS,
+} from "@/constants/labels-print-config";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 import { activateMockAdapter } from "@/lib/api/mock-adapter";
@@ -55,7 +58,8 @@ const ACTIVE_VARIANT = { productId: "PRD-001", variantId: "SKU-001-BLK-M" };
 const NO_CONFIG = "Biến thể này chưa có cấu hình in.";
 const READ = [...PRODUCT_VIEW, TEMPLATE.viewPage, TEMPLATE.read];
 const passThrough = api.get.bind(api);
-const UPLOAD = /Chọn hoặc kéo thả file/;
+/** The file input, a first file or one to replace the saved one: present means the person may choose a file. */
+const UPLOAD = /^(Chọn hoặc kéo thả file \.glb|Chọn file \.glb khác để thay)$/;
 
 beforeAll(() => activateMockAdapter());
 beforeEach(() => {
@@ -104,7 +108,11 @@ describe("VariantPrintConfig", () => {
     const seeded = await findMockVariant(SEED.productId, SEED.variantId);
     expect(seeded?.name).toBeTruthy();
     expect(screen.getByText(seeded?.name ?? "")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: T.backToProduct })).toHaveAttribute(
+    // The way back is the product's name, a link in the page band (no "Quay lại" on a detail page).
+    const band = within(
+      screen.getByRole("region", { name: PRINT_CONFIG_SCREEN_LABELS.cards.header }),
+    );
+    expect(band.getByRole("link")).toHaveAttribute(
       "href",
       ADMIN_ROUTES.products.detail(SEED.productId),
     );

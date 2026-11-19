@@ -105,7 +105,6 @@ export async function generateShelfBins(
       namingScheme: v.namingScheme,
       defaults: {
         type: v.binType,
-        capacityUnits: v.capacityUnits ?? undefined,
         maxWeight: v.maxWeight ?? undefined,
         pickable: v.pickable,
         putawayTarget: v.putawayTarget,

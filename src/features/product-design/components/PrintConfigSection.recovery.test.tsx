@@ -17,7 +17,10 @@ import {
   allowAll,
   bagTree,
   cupTree,
+  DEFAULTS_TOGGLE,
   EMPTY_VARIANT,
+  FILE_INPUT,
+  findStatus,
   glbFile,
   loaderOf,
   readOnly,
@@ -28,8 +31,7 @@ vi.setConfig({ testTimeout: 60_000 });
 configure({ asyncUtilTimeout: 45_000 });
 
 const SAVE = { name: "Lưu cấu hình in" };
-const upload = (file: File) =>
-  userEvent.setup().upload(screen.getByLabelText(/Chọn hoặc kéo thả file/), file);
+const upload = (file: File) => userEvent.setup().upload(screen.getByLabelText(FILE_INPUT), file);
 
 beforeAll(() => activateMockAdapter());
 beforeEach(() => {
@@ -42,7 +44,7 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 async function setSeam(user: ReturnType<typeof userEvent.setup>, value: string) {
-  await user.click(await screen.findByRole("button", { name: /Nâng cao/ }));
+  await user.click(await screen.findByRole("button", DEFAULTS_TOGGLE));
   const seam = screen.getByLabelText("Mép dán (mm)");
   await user.clear(seam);
   await user.type(seam, value);
@@ -64,7 +66,7 @@ describe("a failed save", () => {
     vi.spyOn(api, "post").mockRejectedValueOnce(new ApiError(400, "PRINT_CONFIG_INVALID", "x"));
     const user = userEvent.setup();
     renderSection({ ...EMPTY_VARIANT, loadModel: loaderOf(cupTree()) });
-    await screen.findByText("Chưa có cấu hình in");
+    await findStatus("Chưa có cấu hình in");
     await upload(glbFile("new.glb"));
     await screen.findByText("Nhận ra: Ly");
     const seam = await setSeam(user, "6");
@@ -110,10 +112,10 @@ describe("discarding a chosen file", () => {
     await screen.findByText("Đã đính kèm file 3D");
     await upload(glbFile("bag.glb"));
     await screen.findByText("Nhận ra: Túi");
-    await user.click(screen.getByRole("button", { name: "Bỏ file đã chọn" }));
+    await user.click(screen.getByRole("button", { name: "Bỏ file" }));
     await waitFor(() => expect(screen.queryByText("Nhận ra: Túi")).not.toBeInTheDocument());
 
-    await user.click(screen.getByRole("button", { name: /Nâng cao/ }));
+    await user.click(screen.getByRole("button", DEFAULTS_TOGGLE));
     const rim = screen.getByLabelText("Vành miệng ly (mm)");
     await user.clear(rim);
     await user.type(rim, "4");

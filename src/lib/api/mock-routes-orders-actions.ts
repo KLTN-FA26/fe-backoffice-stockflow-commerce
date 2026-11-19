@@ -6,8 +6,6 @@
  * Thứ tự kiểm + mã lỗi chép theo BE develop: CreditHoldService.
  */
 
-import { ORDER_LIMITS } from "@/constants";
-
 import { paginatePage, registerMockRoute } from "./mock-adapter";
 import {
   MOCK_CREDIT_LIMIT,
@@ -64,17 +62,16 @@ async function creditPositionOf(mockCustomerId: string, currency: string) {
     .filter((o) => o.customerId === mockCustomerId)
     .filter(countsTowardExposure)
     .reduce((sum, o) => sum + Math.max(0, o.grandTotal - o.amountPaid), 0);
+  // BE CreditPositionResponse (origin/develop 438fe6fb): không còn điều khoản thanh toán; null bị bỏ.
   return {
     customerId: mockCustomerUuid(mockCustomerId),
-    allowedTerms: [...profile.allowedTerms],
-    defaultTerm: profile.defaultTerm,
-    depositPercent: profile.depositPercent,
     creditLimit: allowsCredit ? MOCK_CREDIT_LIMIT : null,
     creditTermDays: allowsCredit ? 30 : null,
     exposure,
     availableCredit: allowsCredit ? Math.max(0, MOCK_CREDIT_LIMIT - exposure) : null,
     currency,
     hasOverdue: profile.hasOverdue,
+    overdueAmount: 0,
   };
 }
 
@@ -85,24 +82,6 @@ function readNote(body: Record<string, unknown>): string {
 }
 
 const NOTE_REQUIRED = [{ field: "note", message: "note is required", code: "NotBlank" }];
-const DEPOSIT_PERCENT_INVALID = [
-  { field: "depositPercent", message: "must be between 0 and 100 (exclusive)", code: "Range" },
-];
-const INVALID = Symbol("invalid");
-
-/**
- * BE CreditRefusalRequest.depositPercent: tuỳ chọn (bỏ trống = mặc định của khách), có thì
- * 0 < x < 100 (biên mở) — cùng giới hạn với `ORDER_LIMITS.depositPercent*`.
- */
-function readDepositPercent(body: Record<string, unknown>): number | undefined | typeof INVALID {
-  const value = body.depositPercent;
-  if (value === undefined || value === null) return undefined;
-  if (typeof value !== "number" || !Number.isFinite(value)) return INVALID;
-  return value > ORDER_LIMITS.depositPercentMin && value < ORDER_LIMITS.depositPercentMax
-    ? value
-    : INVALID;
-}
-
 function registerCreditRoutes(): void {
   // GET /orders/credit-position/:id — CreditHoldController#position (customer-credit-profiles:READ)
   registerMockRoute("GET", "/orders/credit-position/:id", async (config) => {
@@ -156,56 +135,22 @@ function registerCreditRoutes(): void {
   registerMockRoute("POST", "/orders/:id/credit-rejection", async (config) => {
     const order = await findOrder(idParam(config));
     if (!order) return error(404, "NOT_FOUND", "Resource not found");
-    const body = readBody(config);
-    const note = readNote(body);
+    const note = readNote(readBody(config));
     if (!note) return error(400, "VALIDATION_FAILED", "Invalid request data", NOTE_REQUIRED);
     if (!isCreditHold(order)) {
       return error(409, "ORDER_NOT_ON_CREDIT_HOLD", "Order is not held over its credit limit");
     }
-    // BE CreditHoldService#refuse: chuyển sang phương thức khách không được phép → 409
-    const switchTo =
-      body.action === "SWITCH_TO_PREPAID"
-        ? "PREPAID"
-        : body.action === "SWITCH_TO_DEPOSIT"
-          ? "DEPOSIT"
-          : null;
-    const profile = creditProfileOf(order.customerId);
-    if (switchTo && !profile.allowedTerms.includes(switchTo)) {
-      return error(409, "PAYMENT_TERM_NOT_ALLOWED", "This payment term is not available");
-    }
-    switch (body.action) {
-      case "CANCEL":
-        // BE Order#cancel: lý do = "CREDIT_REJECTED: ghi chú" (đơn + lịch sử)
-        applyTransition(order, "CANCELLED", `CREDIT_REJECTED: ${note}`, {
-          cancellation: {
-            reasonCode: "CREDIT_REJECTED",
-            reason: `CREDIT_REJECTED: ${note}`,
-            retainedAmount: 0,
-            feeReason: null,
-            feeDetail: null,
-            feeAmount: null,
-          },
-        });
-        break;
-      // BE Order#switchTermsAfterCreditRefusal: lý do bước lịch sử = "CREDIT_REJECTED"
-      case "SWITCH_TO_PREPAID":
-        applyTransition(order, "PENDING_PAYMENT", "CREDIT_REJECTED", { paymentTerm: "PREPAID" });
-        break;
-      case "SWITCH_TO_DEPOSIT": {
-        const depositPercent = readDepositPercent(body);
-        if (depositPercent === INVALID) {
-          return error(400, "VALIDATION_FAILED", "Invalid request data", DEPOSIT_PERCENT_INVALID);
-        }
-        // Bỏ trống → % cọc mặc định của hồ sơ khách (BE `terms.depositPercent()`)
-        applyTransition(order, "PENDING_PAYMENT", "CREDIT_REJECTED", {
-          paymentTerm: "DEPOSIT",
-          depositPercent: depositPercent ?? profile.depositPercent ?? undefined,
-        });
-        break;
-      }
-      default:
-        return error(400, "MALFORMED_REQUEST", "Unknown refusal action");
-    }
+    // BE CreditHoldService#refuse (CreditRefusalRequest {note}): từ chối luôn huỷ đơn — CREDIT_REJECTED
+    applyTransition(order, "CANCELLED", `CREDIT_REJECTED: ${note}`, {
+      cancellation: {
+        reasonCode: "CREDIT_REJECTED",
+        reason: `CREDIT_REJECTED: ${note}`,
+        retainedAmount: 0,
+        feeReason: null,
+        feeDetail: null,
+        feeAmount: null,
+      },
+    });
     return ok(toOrderResponse(order));
   });
 }

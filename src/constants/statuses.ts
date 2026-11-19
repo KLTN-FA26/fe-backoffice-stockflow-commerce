@@ -1,131 +1,12 @@
 /**
- * BE `PurchaseOrderStatus` (quyết định D4, BE PR #71): gửi duyệt → duyệt (4 mắt) → xác nhận
- * (= chốt và gửi NCC) → nhận hàng qua phiếu nhận → đóng. `SENT` cũ là `CONFIRMED`;
- * `CLOSED_SHORT` cũ là `CLOSED` + `closeKind = SHORT_CLOSE`.
- */
-export const PO_STATUSES = [
-  "DRAFT",
-  "PENDING_APPROVAL",
-  "APPROVED",
-  "CONFIRMED",
-  "PARTIALLY_RECEIVED",
-  "RECEIVED",
-  "CLOSED",
-  "CANCELLED",
-] as const;
-
-export const PO_STATUS = {
-  DRAFT: "DRAFT",
-  PENDING_APPROVAL: "PENDING_APPROVAL",
-  APPROVED: "APPROVED",
-  CONFIRMED: "CONFIRMED",
-  PARTIALLY_RECEIVED: "PARTIALLY_RECEIVED",
-  RECEIVED: "RECEIVED",
-  CLOSED: "CLOSED",
-  CANCELLED: "CANCELLED",
-} as const satisfies Record<string, PoStatus>;
-
-/** BE `PurchaseOrder.Type`: chỉ PO thường (STANDARD) sửa nháp được (`PurchaseOrder#reviseDraft`). */
-export const PO_TYPE = {
-  STANDARD: "STANDARD",
-  SUBCONTRACT: "SUBCONTRACT",
-} as const;
-
-/** BE `purchase_order_lines.status`. */
-export const PO_LINE_STATUSES = [
-  "OPEN",
-  "PARTIALLY_RECEIVED",
-  "RECEIVED",
-  "CLOSED",
-  "CANCELLED",
-] as const;
-
-/** BE `closeKind` của PO đã đóng. */
-export const PO_CLOSE_KIND = {
-  NORMAL: "NORMAL",
-  SHORT_CLOSE: "SHORT_CLOSE",
-  FORCE_CLOSE: "FORCE_CLOSE",
-} as const;
-
-/** BE `SupplierConfirmationStatus` — NCC đã phản hồi PO chưa. */
-export const SUPPLIER_CONFIRMATION_STATUSES = [
-  "NOT_SENT",
-  "PENDING",
-  "CONFIRMED",
-  "REJECTED",
-] as const;
-
-export const SUPPLIER_CONFIRMATION_STATUS = {
-  NOT_SENT: "NOT_SENT",
-  PENDING: "PENDING",
-  CONFIRMED: "CONFIRMED",
-  REJECTED: "REJECTED",
-} as const satisfies Record<string, SupplierConfirmationStatus>;
-
-/** BE `PurchaseOrderController.deliveryStatus` — gom từ notification log (BE #36). */
-export const PO_DELIVERY_STATUSES = [
-  "NOT_SENT",
-  "QUEUED",
-  "UNKNOWN",
-  "RETRYING",
-  "FAILED",
-  "DELIVERED",
-  "SUPPRESSED",
-] as const;
-
-export const PO_DELIVERY_STATUS = {
-  NOT_SENT: "NOT_SENT",
-  QUEUED: "QUEUED",
-  UNKNOWN: "UNKNOWN",
-  RETRYING: "RETRYING",
-  FAILED: "FAILED",
-  DELIVERED: "DELIVERED",
-  SUPPRESSED: "SUPPRESSED",
-} as const satisfies Record<string, PoDeliveryStatus>;
-
-/**
- * BE #36 (9fbb90f) `PurchaseOrderResponse.cancellationDeliveryStatus` — thông báo huỷ gửi tới NCC
- * khi PO đã gửi rồi mới huỷ. NOT_REQUIRED: huỷ trước khi gửi, không cần báo.
- */
-export const PO_CANCELLATION_DELIVERY_STATUSES = [
-  "NOT_REQUIRED",
-  "UNKNOWN",
-  "QUEUED",
-  "RETRYING",
-  "FAILED",
-  "DELIVERED",
-] as const;
-
-export const PO_CANCELLATION_DELIVERY_STATUS = {
-  NOT_REQUIRED: "NOT_REQUIRED",
-  UNKNOWN: "UNKNOWN",
-  QUEUED: "QUEUED",
-  RETRYING: "RETRYING",
-  FAILED: "FAILED",
-  DELIVERED: "DELIVERED",
-} as const satisfies Record<string, PoCancellationDeliveryStatus>;
-
-/** BE notification `DeliveryStatus` — kết quả từng lần gửi (`GET …/deliveries`). */
-export const PO_DELIVERY_ATTEMPT_STATUSES = ["PENDING", "SENT", "FAILED"] as const;
-
-export const PO_DELIVERY_ATTEMPT_STATUS = {
-  PENDING: "PENDING",
-  SENT: "SENT",
-  FAILED: "FAILED",
-} as const satisfies Record<string, PoDeliveryAttemptStatus>;
-
-export const PROPOSAL_STATUSES = ["Draft Proposal", "Reviewed", "Converted"] as const;
-
-/**
- * Trạng thái phiếu nhận — nguyên văn docs 03 §5.1 (6 trạng thái, thứ tự vòng đời), thêm `Pending Approval`
- * (SCRUM-477, BR-RCP-001): đếm vượt dung sai chờ Quản lý kho duyệt, chưa ghi nhận tồn. Docs 03 §5.1 chưa
- * có trạng thái này — tên theo `Pending Approval` của PO (docs 02 §5); cần bổ sung vào docs.
+ * Trạng thái phiếu nhận. Docs 03 §5 (sau rescope 04/11) còn 4 trạng thái: `Draft` → `In Putaway` → `Closed`, hoặc
+ * `Cancelled`. Enum BE `GoodsReceiptStatus` vẫn giữ `PENDING_APPROVAL` và `CONFIRMED` (phiếu cũ / bước trung gian
+ * trong transaction xác nhận) nên FE vẫn đọc được hai mã này. `IN_QC` đã bỏ cùng QC ở kho (docs 03 BR-07, BE 2b).
  */
 export const RECEIPT_STATUSES = [
   "Draft",
   "Pending Approval",
   "Confirmed",
-  "In QC",
   "In Putaway",
   "Closed",
   "Cancelled",
@@ -137,16 +18,14 @@ export const RECEIPT_STATUS = {
   CONFIRMED: "Confirmed",
   DRAFT: "Draft",
   IN_PUTAWAY: "In Putaway",
-  IN_QC: "In QC",
   PENDING_APPROVAL: "Pending Approval",
 } as const satisfies Record<string, ReceiptStatus>;
 
-/** Mã trạng thái BE `GoodsReceiptStatus` (PR #62, SCRUM-435) — map 1-1 với `RECEIPT_STATUSES`. */
+/** Mã trạng thái BE `GoodsReceiptStatus` — map 1-1 với `RECEIPT_STATUSES`. */
 export const RECEIPT_API_STATUSES = [
   "DRAFT",
   "PENDING_APPROVAL",
   "CONFIRMED",
-  "IN_QC",
   "IN_PUTAWAY",
   "CLOSED",
   "CANCELLED",
@@ -157,7 +36,6 @@ export const RECEIPT_STATUS_BY_API = {
   DRAFT: "Draft",
   PENDING_APPROVAL: "Pending Approval",
   CONFIRMED: "Confirmed",
-  IN_QC: "In QC",
   IN_PUTAWAY: "In Putaway",
   CLOSED: "Closed",
   CANCELLED: "Cancelled",
@@ -167,50 +45,22 @@ export const RECEIPT_API_STATUS_BY_STATUS = {
   Draft: "DRAFT",
   "Pending Approval": "PENDING_APPROVAL",
   Confirmed: "CONFIRMED",
-  "In QC": "IN_QC",
   "In Putaway": "IN_PUTAWAY",
   Closed: "CLOSED",
   Cancelled: "CANCELLED",
 } as const satisfies Record<ReceiptStatus, ReceiptApiStatus>;
 
 /**
- * Quyết định của Quản lý kho với phiếu đếm vượt dung sai (BE `ReceiptApproval.Decision`, BR-RCP-001):
- * `APPROVED` ghi nhận đủ SL đã đếm; `EXCESS_REJECTED` từ chối phần vượt — chỉ ghi nhận tới dung sai;
- * `REJECTED` (SCRUM-478, BR-RCP-002): từ chối phiếu nhận không có PO — huỷ cả phiếu.
+ * Loại phiếu — BE `GoodsReceiptType`: `PRODUCTION` = theo Đơn sản xuất (docs 03 §4.1), `RETURN` = hàng hoàn
+ * (§4.2, màn riêng `features/return`), `PURCHASE` = phiếu mua hàng cũ, BE chỉ còn cho đọc và huỷ (4A-8).
  */
-export const RECEIPT_APPROVAL_DECISION_API = ["APPROVED", "EXCESS_REJECTED", "REJECTED"] as const;
+export const RECEIPT_TYPE_API = ["PURCHASE", "PRODUCTION", "RETURN"] as const;
 
-/** Cảnh báo BE trên dòng / phiếu chưa ghi nhận mà SL đếm vượt dung sai của dòng PO (BR-RCP-001). */
-export const RECEIPT_WARNING_OVER_TOLERANCE = "OVER_TOLERANCE";
-
-/**
- * Tiến độ QC của một dòng nhận — BE `GoodsReceipts.QcProgress` (luồng 3 bước, docs 03 §5.2).
- * Docs gộp AWAITING_MOVE_TO_QC + IN_QC_AREA thành `Pending`; FE giữ mã BE để gate action dòng.
- */
-export const RECEIPT_QC_PROGRESS_API = [
-  "NOT_REQUIRED",
-  "AWAITING_MOVE_TO_QC",
-  "IN_QC_AREA",
-  "INSPECTED",
-] as const;
-
-/** Nhãn hiển thị (nguyên văn docs 03 §5.2) cho tiến độ QC chưa có kết luận. */
-export const RECEIPT_QC_PROGRESS_STATUS = {
-  NOT_REQUIRED: "Not Required",
-  AWAITING_MOVE_TO_QC: "Pending",
-  IN_QC_AREA: "Pending",
-} as const satisfies Partial<Record<ReceiptQcProgressApi, string>>;
-
-/** Kết luận QC — BE `QcOutcome` ↔ docs 03 §5.2. */
-export const QC_OUTCOME_API = ["ACCEPTED", "QUARANTINE", "REJECTED"] as const;
-
-export const QC_OUTCOME_STATUSES = ["Accepted", "Quarantine", "Rejected"] as const;
-
-export const QC_OUTCOME_BY_API = {
-  ACCEPTED: "Accepted",
-  QUARANTINE: "Quarantine",
-  REJECTED: "Rejected",
-} as const satisfies Record<QcOutcomeApi, QcOutcomeStatus>;
+export const RECEIPT_TYPE = {
+  PRODUCTION: "PRODUCTION",
+  PURCHASE: "PURCHASE",
+  RETURN: "RETURN",
+} as const satisfies Record<string, ReceiptTypeApi>;
 
 /**
  * Thùng có LPN — BE `inventory.StockPackageStatus` (SCRUM-473). `VOID` (bị loại khi còn đếm) không bao giờ
@@ -627,17 +477,9 @@ export const VEHICLE_TYPE_STATUS = {
   INACTIVE: "INACTIVE",
 } as const satisfies Record<string, (typeof VEHICLE_TYPE_STATUSES)[number]>;
 
-export type PoStatus = (typeof PO_STATUSES)[number];
-export type SupplierConfirmationStatus = (typeof SUPPLIER_CONFIRMATION_STATUSES)[number];
-export type PoDeliveryStatus = (typeof PO_DELIVERY_STATUSES)[number];
-export type PoCancellationDeliveryStatus = (typeof PO_CANCELLATION_DELIVERY_STATUSES)[number];
-export type PoDeliveryAttemptStatus = (typeof PO_DELIVERY_ATTEMPT_STATUSES)[number];
 export type ReceiptStatus = (typeof RECEIPT_STATUSES)[number];
 export type ReceiptApiStatus = (typeof RECEIPT_API_STATUSES)[number];
-export type ReceiptApprovalDecisionApi = (typeof RECEIPT_APPROVAL_DECISION_API)[number];
-export type ReceiptQcProgressApi = (typeof RECEIPT_QC_PROGRESS_API)[number];
-export type QcOutcomeApi = (typeof QC_OUTCOME_API)[number];
-export type QcOutcomeStatus = (typeof QC_OUTCOME_STATUSES)[number];
+export type ReceiptTypeApi = (typeof RECEIPT_TYPE_API)[number];
 export type StockPackageApiStatus = (typeof STOCK_PACKAGE_API_STATUSES)[number];
 export type StockPackageStatus = (typeof STOCK_PACKAGE_STATUS_BY_API)[StockPackageApiStatus];
 export type PickStatus = (typeof PICK_STATUSES)[number];
@@ -652,7 +494,6 @@ export type CartonRemovalReason = (typeof CARTON_REMOVAL_REASONS)[number];
 export type PickDestination = (typeof PICK_DESTINATIONS)[number];
 export type ShortPickReason = (typeof SHORT_PICK_REASONS)[number];
 export type ProductStatus = (typeof PRODUCT_STATUSES)[number];
-export type ProposalStatus = (typeof PROPOSAL_STATUSES)[number];
 export type SkuStatus = (typeof SKU_STATUSES)[number];
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
 export type OrderReadStatus = (typeof ORDER_READ_STATUSES)[number];
@@ -714,6 +555,24 @@ export const QUOTE_STATUS_BY_API = {
   CANCELLED: "Cancelled",
   CONVERTED: "Converted",
 } as const satisfies Record<QuoteApiStatus, string>;
+/** Nhãn tiếng Việt của trạng thái báo giá (plan WF-02 A1). */
+export const QUOTE_STATUS_LABELS = {
+  DRAFT: "Nháp",
+  SENT: "Đã gửi",
+  CHANGES_REQUESTED: "Yêu cầu sửa",
+  ACCEPTED: "Đã chấp nhận",
+  EXPIRED: "Hết hiệu lực",
+  CANCELLED: "Đã huỷ",
+  CONVERTED: "Đã tạo đơn",
+} as const satisfies Record<QuoteApiStatus, string>;
+
+/** Loại dòng phí trên báo giá — BE `order.api.FeeKind` (14 BR-17, BR-20). */
+export const QUOTE_FEE_KINDS = ["PLATE_FEE", "SHIPPING_FEE"] as const;
+export type QuoteFeeKind = (typeof QUOTE_FEE_KINDS)[number];
+export const QUOTE_FEE_LABELS = {
+  PLATE_FEE: "Phí khuôn / bản in",
+  SHIPPING_FEE: "Phí vận chuyển",
+} as const satisfies Record<QuoteFeeKind, string>;
 
 /** Yêu cầu mẫu — BE `SampleStatus` (SCRUM-403). */
 export const SAMPLE_API_STATUSES = [
@@ -921,9 +780,6 @@ export const LOCATION_STATUS = {
   INACTIVE: "INACTIVE",
 } as const satisfies Record<string, (typeof LOCATION_STATUSES)[number]>;
 
-/** BE `StorageClass` — lớp lưu trữ, ràng buộc cứng khi cất hàng (docs 06 BR-01). */
-export const STORAGE_CLASSES = ["NORMAL", "COLD", "HAZMAT", "FRAGILE", "OVERSIZE"] as const;
-
 /** BE `BinType` — chỉ để mô tả, chưa dùng trong gợi ý (docs 06 §5). */
 export const BIN_TYPES = ["STANDARD", "PALLET", "SMALL_PARTS"] as const;
 
@@ -934,6 +790,8 @@ export const AREA_TYPES = [
   "QUARANTINE",
   "PACKING",
   "DISPATCH",
+  // BE `AreaType.STAGING` — khu chờ xuất (docs 06 §4.5, BR-18): thiếu thì layout có khu này parse lỗi, mất cả bản đồ
+  "STAGING",
   "OVERFLOW",
   "PRODUCTION",
   "NON_STORAGE",

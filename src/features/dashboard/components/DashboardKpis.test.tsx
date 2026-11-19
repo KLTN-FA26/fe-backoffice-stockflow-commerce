@@ -10,7 +10,6 @@ import {
   GOODS_RECEIPT_PERMISSIONS,
   INVENTORY_PERMISSIONS,
   ORDER_PERMISSIONS,
-  PO_PERMISSIONS,
   TRANSFER_PERMISSIONS,
 } from "@/constants/permissions";
 
@@ -41,22 +40,18 @@ describe("KPI tiles — real list endpoints, gated by the endpoint's own permiss
   it("shows only the tiles the user may read, with the BE counts and the right filters", async () => {
     const seen: Record<string, URLSearchParams> = {};
     server.use(
-      dashboardPermissions([ORDER_PERMISSIONS.read, PO_PERMISSIONS.read]),
+      dashboardPermissions([ORDER_PERMISSIONS.read, GOODS_RECEIPT_PERMISSIONS.read]),
       http.get(dashboardEndpoint(DASHBOARD_API.orders), ({ request }) => {
         seen.orders = new URL(request.url).searchParams;
         return countPage(7);
       }),
-      http.get(dashboardEndpoint(DASHBOARD_API.purchaseOrders), ({ request }) => {
-        seen.po = new URL(request.url).searchParams;
-        return countPage(2);
-      }),
+      http.get(dashboardEndpoint(DASHBOARD_API.receipts), () => countPage(2)),
     );
     renderDashboard(<DashboardKpis />);
     await waitFor(() =>
       expect(within(tile(DASHBOARD_LABELS.ordersPending)).getByText("7")).toBeInTheDocument(),
     );
-    expect(within(tile(DASHBOARD_LABELS.poPending)).getByText("2")).toBeInTheDocument();
-    expect(screen.queryByText(DASHBOARD_LABELS.receiptsProcessing)).not.toBeInTheDocument();
+    expect(within(tile(DASHBOARD_LABELS.receiptsProcessing)).getByText("2")).toBeInTheDocument();
     expect(screen.queryByText(DASHBOARD_LABELS.transfersInTransit)).not.toBeInTheDocument();
     expect(screen.queryByText(DASHBOARD_LABELS.picksOpen)).not.toBeInTheDocument();
     expect(screen.queryByText(DASHBOARD_LABELS.alertsOpen)).not.toBeInTheDocument();
@@ -80,7 +75,6 @@ describe("KPI tiles — real list endpoints, gated by the endpoint's own permiss
       "Ready to Fulfill",
       "On Hold",
     ]);
-    expect(seen.po?.getAll("status")).toEqual(["PENDING_APPROVAL"]);
   });
 
   it("counts pick tasks per status (the BE filters one status at a time) and adds them", async () => {
@@ -114,26 +108,20 @@ describe("KPI tiles — real list endpoints, gated by the endpoint's own permiss
     await waitFor(() =>
       expect(within(tile(DASHBOARD_LABELS.receiptsProcessing)).getByText("5")).toBeInTheDocument(),
     );
-    expect(seen.receipts).toEqual([
-      "DRAFT",
-      "PENDING_APPROVAL",
-      "CONFIRMED",
-      "IN_QC",
-      "IN_PUTAWAY",
-    ]);
+    expect(seen.receipts).toEqual(["DRAFT", "PENDING_APPROVAL", "CONFIRMED", "IN_PUTAWAY"]);
     expect(seen.transfers).toEqual(["IN_TRANSIT", "PARTIALLY_RECEIVED"]);
   });
 
   it("a failing endpoint shows an em dash, never a number; the other tiles are unaffected", async () => {
     server.use(
-      dashboardPermissions([ORDER_PERMISSIONS.read, PO_PERMISSIONS.read]),
+      dashboardPermissions([ORDER_PERMISSIONS.read, GOODS_RECEIPT_PERMISSIONS.read]),
       http.get(dashboardEndpoint(DASHBOARD_API.orders), () =>
         HttpResponse.json(
           { success: false, errorCode: "INTERNAL_ERROR", message: "x" },
           { status: 500 },
         ),
       ),
-      http.get(dashboardEndpoint(DASHBOARD_API.purchaseOrders), () => countPage(0)),
+      http.get(dashboardEndpoint(DASHBOARD_API.receipts), () => countPage(0)),
     );
     renderDashboard(<DashboardKpis />);
     await waitFor(() =>
@@ -147,7 +135,7 @@ describe("KPI tiles — real list endpoints, gated by the endpoint's own permiss
       DASHBOARD_LABELS.unavailableHint,
     );
     await waitFor(() =>
-      expect(within(tile(DASHBOARD_LABELS.poPending)).getByText("0")).toBeInTheDocument(),
+      expect(within(tile(DASHBOARD_LABELS.receiptsProcessing)).getByText("0")).toBeInTheDocument(),
     );
   });
 
