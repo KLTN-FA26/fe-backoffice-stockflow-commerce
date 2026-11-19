@@ -79,10 +79,6 @@ export interface MockLogistics {
   packageHeightCm: number | null;
   packageCount: number;
   packSize: number;
-  storageClass: "NORMAL" | "COLD" | "HAZMAT" | "FRAGILE" | "OVERSIZE";
-  requiresAdultSignature: boolean;
-  shippingRestrictionNote: string | null;
-  qcRequired: boolean;
   /** BE #121 — kiện được xoay 6 hướng khi xếp xe (docs 01 E13); mặc định true. */
   rotatable: boolean;
 }
@@ -164,7 +160,6 @@ async function buildStore(): Promise<MockVariant[]> {
       unitOfMeasure: sku.uom.toUpperCase(),
       barcode: sku.barcode || null,
       weightKg: sku.weightKg,
-      qcRequired: sku.lotTracking || sku.expiryTracking,
     });
     media.set(
       sku.skuId,
@@ -236,10 +231,6 @@ function defaultLogistics(skuId: string, sku: string): MockLogistics {
     packageHeightCm: null,
     packageCount: 1,
     packSize: 1,
-    storageClass: "NORMAL",
-    requiresAdultSignature: false,
-    shippingRestrictionNote: null,
-    qcRequired: false,
     rotatable: true,
   };
 }
@@ -946,16 +937,6 @@ export function mockItemRowOf(variantId: string): MockLogistics | null {
   return logistics.get(variantId) ?? null;
 }
 
-/**
- * BE `ItemPurchasingRepository.assign/clearDefaultSupplier`: đổi NCC mặc định từ danh mục NCC tăng
- * `version` của hồ sơ hàng tồn mang SKU đó. Hồ sơ chưa nạp thì không có version nào để lệch.
- */
-export function bumpMockItemVersionForSku(sku: string): void {
-  for (const row of logistics.values()) {
-    if (row.sku === sku) logistics.set(row.skuId, { ...row, version: row.version + 1 });
-  }
-}
-
 /** Biến thể của một sản phẩm (đã sắp theo vị trí). */
 export async function mockVariantsOf(productId: string): Promise<MockVariant[]> {
   return (await store())
@@ -1010,7 +991,7 @@ export async function deleteMockProductVariants(productId: string): Promise<void
 }
 
 interface MockOpenReference {
-  kind: "PURCHASE_ORDER_LINE" | "SALES_ORDER_LINE";
+  kind: "PRODUCTION_ORDER_LINE" | "SALES_ORDER_LINE";
   documentNumber: string;
   documentId: string;
   sku: string;
@@ -1025,8 +1006,9 @@ const UNSHIPPED_LINE_STATUSES = ["pending", "in-production", "picking", "picked"
 const NOT_PLACED_ORDER_STATUSES = ["Pending Payment", "Payment Failed", "Cancelled"];
 
 /**
- * BE `GET /products/{id}/open-references`: đơn mua và đơn bán còn mở tham chiếu SKU của sản phẩm,
- * tối đa 20, lấy lần lượt từng loại. Mock đọc PO / đơn của mock-data.
+ * BE `GET /products/{id}/open-references`: dòng Đơn sản xuất và đơn bán còn mở tham chiếu SKU của sản phẩm,
+ * tối đa 20, lấy lần lượt từng loại. mock-data chưa có Đơn sản xuất mang dòng SKU nên mock lấy dòng PO cũ còn
+ * thiếu hàng làm nguồn giả lập cho loại `PRODUCTION_ORDER_LINE`.
  */
 export async function mockOpenReferences(
   productId: string,
@@ -1039,7 +1021,7 @@ export async function mockOpenReferences(
       po.lines
         .filter((line) => skus.has(line.skuId) && line.receivedQty < line.orderedQty)
         .map((line) => ({
-          kind: "PURCHASE_ORDER_LINE" as const,
+          kind: "PRODUCTION_ORDER_LINE" as const,
           documentNumber: po.poNumber,
           documentId: po.poId,
           sku: line.skuId,

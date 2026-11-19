@@ -136,7 +136,17 @@ describe("đăng ký route — mỗi METHOD + PATH đúng một chủ", () => {
     "GET /orders/credit-holds",
     "POST /orders/:id/credit-approval",
     "POST /orders/:id/credit-rejection",
-    "GET /production/orders",
+    "GET /production-orders",
+    // Giao thất bại — hàng đợi + quyết định của Sale (`mock-routes-order-delivery-failures.ts`, WF-05 GH-1)
+    "GET /orders/delivery-failures",
+    "GET /orders/:id/delivery-failures",
+    "POST /orders/:id/delivery-failures/:caseId/redelivery",
+    "POST /orders/:id/delivery-failures/:caseId/cancellation",
+    "POST /orders/:id/delivery-failures/cancellation",
+    // Giữ hoàn tất (WF-05 GH-2)
+    "GET /orders/:id/completion-hold",
+    "POST /orders/:id/completion-hold",
+    "POST /orders/:id/completion-hold/release",
   ];
 
   it("không trùng, không mất endpoint nào của hai nhánh", () => {
@@ -486,15 +496,12 @@ describe("release + quyết định công nợ dùng chung store", () => {
     });
   });
 
-  it("từ chối → đặt cọc: PENDING_PAYMENT + DEPOSIT, lịch sử CREDIT_REJECTED", async () => {
-    const switched = await data("POST", `/orders/${CREDIT_ON_HOLD}/credit-rejection`, {
-      action: "SWITCH_TO_DEPOSIT",
-      depositPercent: 50,
-      note: "Khách cọc",
+  it("từ chối {note} → huỷ đơn, lịch sử CREDIT_REJECTED (BE CreditRefusalRequest)", async () => {
+    const refused = await data("POST", `/orders/${CREDIT_ON_HOLD}/credit-rejection`, {
+      note: "Khách quá hạn",
     });
-    expect(switched).toMatchObject({ status: "PENDING_PAYMENT", paymentTerm: "DEPOSIT" });
-    expect(switched).not.toHaveProperty("holdReason");
-    expect((await history(CREDIT_ON_HOLD)).at(-1)).toMatchObject({ reason: "CREDIT_REJECTED" });
+    expect(refused).toMatchObject({ status: "CANCELLED" });
+    expect((await history(CREDIT_ON_HOLD)).at(-1)?.reason).toMatch(/^CREDIT_REJECTED/);
   });
 });
 

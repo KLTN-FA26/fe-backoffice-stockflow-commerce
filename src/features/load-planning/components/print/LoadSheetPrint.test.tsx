@@ -38,6 +38,8 @@ const BOOKED = {
   vehiclePlate: "51C-123.45",
   driverName: "Nguyễn Văn Tài",
   driverPhone: "0901234567",
+  warehouseName: "Kho Hà Nội (từ chuyến)",
+  waybillNo: "GHN-998877",
 };
 const PLAN_WITH_LOAD = planFixture({
   vehicles: [
@@ -210,6 +212,37 @@ describe("LoadSheetPrint — booking, unplaced note, bad input", () => {
     expect(screen.getByText("GHN Giao Hàng Nhanh")).toBeInTheDocument();
     expect(screen.getByText("Nguyễn Văn Tài · 0901234567")).toBeInTheDocument();
     expect(get.mock.calls.some(([url]) => url === `/fulfillment/loads/${LOAD_ID}`)).toBe(true);
+  });
+
+  it("prints the warehouse and the waybill number from the dispatch load", async () => {
+    renderSheet(WITH_LOADS, PLAN_WITH_LOAD);
+    await screen.findByRole("heading", { name: L.documentTitle, level: 2 });
+    expect(await screen.findByText("GHN-998877")).toBeInTheDocument();
+    expect(screen.getByText(H.waybill)).toBeInTheDocument();
+    expect(screen.getByText(H.warehouse)).toBeInTheDocument();
+    expect(screen.getByText("Kho Hà Nội (từ chuyến)")).toBeInTheDocument();
+  });
+
+  it("says the booked load has no waybill number yet, instead of a blank", async () => {
+    mockLoadPlanApi(WITH_LOADS as never, {
+      get: {
+        [PATH]: () => PLAN_WITH_LOAD,
+        [`${PATH}/layouts`]: () => [LAYOUT_PICKUP_KIT],
+        [`/fulfillment/loads/${LOAD_ID}`]: () => ({ ...BOOKED, waybillNo: null }),
+      },
+    });
+    renderLoadPlanScreen(<LoadSheetPrint id={PLAN_ID} seq={1} />);
+    expect(await screen.findByText(H.noWaybill)).toBeInTheDocument();
+    expect(screen.queryByText("GHN-998877")).not.toBeInTheDocument();
+  });
+
+  it("names the warehouse from the warehouse directory when the load is not booked or cannot be read", async () => {
+    const { get } = renderSheet(ACTORS.viewOnly, planWithLoad("PLANNED"));
+    await screen.findByRole("heading", { name: L.documentTitle, level: 2 });
+    expect(await screen.findByText("HN · Kho Hà Nội")).toBeInTheDocument();
+    expect(get.mock.calls.some(([url]) => url === "/warehouses")).toBe(true);
+    // no load to read: no waybill to show, only the dash
+    expect(screen.queryByText(H.noWaybill)).not.toBeInTheDocument();
   });
 
   it("leaves the booking boxes blank and never calls the load API without fulfillment-shipments:READ", async () => {

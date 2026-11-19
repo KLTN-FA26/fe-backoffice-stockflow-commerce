@@ -225,10 +225,7 @@ export function overviewAlert(kind: string, extra: Record<string, unknown> = {})
   };
 }
 
-/**
- * Backend + warehouse directory for the overview. Each override replaces one endpoint's answer;
- * alerts answer by kind (low stock vs expiry), as the two panels ask separately.
- */
+/** Backend + warehouse directory for the overview. Each override replaces one endpoint's answer. */
 export function overviewHandlers(
   overrides: {
     levels?: unknown;
@@ -236,8 +233,6 @@ export function overviewHandlers(
     items?: unknown;
     atp?: unknown;
     reservations?: unknown;
-    lowStock?: unknown;
-    expiry?: unknown;
   } = {},
 ) {
   const ok = (data: unknown) => HttpResponse.json({ success: true, data });
@@ -257,11 +252,5 @@ export function overviewHandlers(
     http.get(inventoryEndpoint("/inventory/reservations"), () =>
       answer(overrides.reservations, overviewPage([OVERVIEW_RESERVATION])),
     ),
-    http.get(inventoryEndpoint("/inventory/alerts"), ({ request }) => {
-      const kind = new URL(request.url).searchParams.get("kind") ?? "";
-      return kind.includes("REORDER")
-        ? answer(overrides.lowStock, overviewPage([]))
-        : answer(overrides.expiry, overviewPage([]));
-    }),
   ];
 }

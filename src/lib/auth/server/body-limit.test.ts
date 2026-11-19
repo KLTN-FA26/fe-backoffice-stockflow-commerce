@@ -4,9 +4,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AUTH_COOKIE_NAME } from "@/constants/auth";
 
+import { MAX_UPLOAD_REQUEST_BYTES } from "@/constants/upload-limits";
+
 import {
+  CHAT_ATTACHMENT_UPLOAD_LIMIT_BYTES as CHAT,
   DEFAULT_PROXY_BODY_LIMIT_BYTES as DEFAULT,
+  EINVOICE_AGREEMENT_UPLOAD_LIMIT_BYTES as AGREEMENT,
   PRINT_MODEL_UPLOAD_LIMIT_BYTES as MODEL,
+  SIGNED_CONTRACT_UPLOAD_LIMIT_BYTES as SIGNED,
+  WAYBILL_IMPORT_UPLOAD_LIMIT_BYTES as WAYBILL,
   PRODUCT_IMAGE_UPLOAD_LIMIT_BYTES as UPLOAD,
   requestBodyLimit,
 } from "./body-limit";
@@ -20,6 +26,8 @@ const origin = "https://backoffice.example.com";
 const credential = "server-session-fixture";
 const MEDIA = ["products", "p-1", "variants", "v-1", "media"];
 const TEMPLATES = ["products", "p-1", "variants", "v-1", "customization-templates"];
+const SIGNATURE = ["orders", "o-1", "contract", "signature"];
+const CHAT_FILE = ["chat", "conversations", "c-1", "attachments"];
 const fetchMock = vi.fn<typeof fetch>();
 
 /** A body delivered in chunks; `pulled` shows how far the reader actually got. */
@@ -105,6 +113,19 @@ describe("limit resolution uses only method + path", () => {
     ["POST", [...TEMPLATES, "t-1", "activation"], DEFAULT],
     ["PUT", [...TEMPLATES, "t-1", "model-file"], DEFAULT],
     ["PUT", ["orders", "p-1", "variants", "v-1", "customization-templates", "t-1"], DEFAULT],
+    // WF-02 audit item 2: a signed contract scan (1-5 MB) and a chat file used to stop at the 1 MiB default.
+    ["POST", SIGNATURE, SIGNED],
+    ["PUT", SIGNATURE, DEFAULT],
+    ["POST", ["orders", "o-1", "contract", "sending"], DEFAULT],
+    ["POST", ["orders", "o-1", "contract", "signed-file", "uploads"], DEFAULT],
+    ["POST", CHAT_FILE, CHAT],
+    ["POST", ["chat", "conversations", "c-1", "messages"], DEFAULT],
+    ["GET", [...CHAT_FILE, "a-1", "link"], DEFAULT],
+    ["PUT", ["einvoices", "e-1", "agreement"], AGREEMENT],
+    ["POST", ["einvoices", "e-1", "agreement"], DEFAULT],
+    ["POST", ["fulfillment", "waybill-imports"], WAYBILL],
+    ["POST", ["fulfillment", "waybill-imports", "preview"], WAYBILL],
+    ["POST", ["fulfillment", "waybill-imports", "w-1"], DEFAULT],
   ])("%s %j → %i bytes", (method, paths, limit) => {
     expect(requestBodyLimit(method, paths)).toBe(limit);
   });
@@ -112,16 +133,29 @@ describe("limit resolution uses only method + path", () => {
     expect(DEFAULT).toBe(1_048_576);
     expect(UPLOAD).toBe(10 * 1024 * 1024 + 64 * 1024);
     expect(MODEL).toBe(10 * 1024 * 1024 + 64 * 1024);
+    // BE FileCategory: DOCUMENT 25 MiB, CHAT_ATTACHMENT 20 MiB, EINVOICE 10 MiB, WAYBILL_IMPORT 2 MiB.
+    expect(SIGNED).toBe(25 * 1024 * 1024 + 64 * 1024);
+    expect(CHAT).toBe(20 * 1024 * 1024 + 64 * 1024);
+    expect(AGREEMENT).toBe(10 * 1024 * 1024 + 64 * 1024);
+    expect(WAYBILL).toBe(2 * 1024 * 1024 + 64 * 1024);
   });
   it("Next's proxy lets the largest allowed body through whole (it cuts bodies at proxyClientMaxBodySize)", () => {
     // `src/proxy.ts` runs on /api/*; Next buffers the body for it and hands the route only the first
     // `proxyClientMaxBodySize` bytes (default 10 MiB). Below the BFF's own limits, a 10 MiB `.glb` plus its
     // envelope would reach the handler truncated and be forwarded as a broken multipart.
     const proxyLimit = nextConfig.experimental?.proxyClientMaxBodySize;
-    expect(proxyLimit).toBe(MODEL);
-    expect(proxyLimit).toBeGreaterThanOrEqual(Math.max(DEFAULT, UPLOAD, MODEL));
+    expect(proxyLimit).toBe(MAX_UPLOAD_REQUEST_BYTES);
+    expect(proxyLimit).toBe(Math.max(DEFAULT, UPLOAD, MODEL, SIGNED, CHAT, AGREEMENT, WAYBILL));
   });
 
+  it("a 1.5 MB signed contract scan reaches the BE (was 413 at the 1 MiB default)", async () => {
+    const response = await proxy("POST", SIGNATURE, bytes(1_500_000));
+    expect(response.status).toBe(200);
+    expect(sentBody()?.byteLength).toBe(1_500_000);
+  });
+  it("a signed contract scan above 25 MiB is still 413 without calling Spring", async () => {
+    await expectTooLarge(await proxy("POST", SIGNATURE, bytes(SIGNED + 1)));
+  });
   it("a template save carrying a 2 MiB .glb reaches the BE", async () => {
     const response = await proxy("PUT", [...TEMPLATES, "t-1"], bytes(2 * 1024 * 1024));
     expect(response.status).toBe(200);
@@ -231,6 +265,13 @@ describe("variant image upload keeps its own, narrow limit", () => {
 });
 
 describe("unchanged proxy behaviour around the limit", () => {
+  it("Spring always gets Accept-Language: vi, whatever the browser sends (WF-02 audit item 3)", async () => {
+    const response = await proxy("GET", ["purchase-orders"], undefined, {
+      "Accept-Language": "en-US,en;q=0.9",
+    });
+    expect(response.status).toBe(200);
+    expect(new Headers(fetchMock.mock.calls[0][1]?.headers).get("Accept-Language")).toBe("vi");
+  });
   it.each(["GET", "HEAD"])("%s is proxied without any body", async (method) => {
     const response = await proxy(method, ["purchase-orders"]);
     expect(response.status).toBe(200);

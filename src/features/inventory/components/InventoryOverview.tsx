@@ -15,11 +15,10 @@ import { InventoryReservationsSection } from "./InventoryReservationsSection";
 import { InventorySkuLookup } from "./InventorySkuLookup";
 import { StockOverviewSection } from "./StockOverviewSection";
 
-const { stockRead, reservationRead, alertRead } = INVENTORY_OVERVIEW_PERMISSIONS;
+const { stockRead, reservationRead } = INVENTORY_OVERVIEW_PERMISSIONS;
 
 /**
- * Inventory Overview (SCRUM-438). Opens with stock READ or reservation READ; alert READ alone does
- * not. Each section is mounted only for its own permission, so no request is ever sent and then
+ * Inventory Overview (SCRUM-438). Opens with stock READ or reservation READ. Each section is mounted only for its own permission, so no request is ever sent and then
  * hidden. UI-only — the backend re-checks every read (@RequiresPermission, InventoryController).
  */
 export function InventoryOverview() {
@@ -62,7 +61,6 @@ function InventoryOverviewContent() {
             <StockOverviewSection
               key={`stock:${activeSku}`}
               sku={activeSku}
-              showAlerts={can(alertRead)}
               canResolveWarehouse={canResolveWarehouse}
               warehouseCode={warehouseCode}
               onSelectWarehouse={setWarehouseCode}

@@ -6,15 +6,9 @@ import {
   LOAD_PLAN_STATUSES,
 } from "@/constants";
 
-import {
-  planFixture,
-  planWithUnplaced,
-  transferPlanFixture,
-  transferPlanWithUnplaced,
-  vehicleOfLayout,
-} from "./__fixtures__/plans";
+import { planFixture, planWithUnplaced, vehicleOfLayout } from "./__fixtures__/plans";
 import { LAYOUT_PICKUP_KIT } from "./__fixtures__/layouts";
-import { LOAD_PLAN_TRANSITIONS, loadPlanActions } from "./lifecycle";
+import { LOAD_PLAN_TRANSITIONS, canDownloadLoadingSheet, loadPlanActions } from "./lifecycle";
 
 import type { PermissionCode } from "@/lib/auth";
 import type { PlanDetail } from "./plan-types";
@@ -330,40 +324,9 @@ describe("loadPlanActions — editPlacements (PR F5, BE LoadPlan.editPlacements)
   });
 });
 
-describe("loadPlanActions — TRANSFER plan: the transfer order ships whole (BE requireTransferWhole)", () => {
-  it("unplaced parcels: no acknowledge (nothing can be left behind) and confirm is blocked as 'transferShipsWhole'", () => {
-    expect(loadPlanActions(transferPlanWithUnplaced(), worker)).toMatchObject({
-      acknowledge: false,
-      confirm: true,
-      confirmBlocked: "transferShipsWhole",
-    });
-  });
-
-  it("the same plan from an order source still offers the BR-13 acknowledgement", () => {
-    expect(loadPlanActions(planWithUnplaced(), worker)).toMatchObject({
-      acknowledge: true,
-      confirmBlocked: "unplacedPending",
-    });
-  });
-
-  it("everything placed: confirmable like any plan; the other steps follow the order plan table", () => {
-    expect(loadPlanActions(transferPlanFixture(), worker)).toMatchObject({
-      confirm: true,
-      confirmBlocked: null,
-      acknowledge: false,
-      editInputs: true,
-      calculate: true,
-      cancel: true,
-    });
-    expect(loadPlanActions(transferPlanFixture({ status: "CONFIRMED" }), worker)).toMatchObject({
-      reopen: true,
-      cancel: true,
-      confirm: false,
-    });
-  });
-
-  it("without :UPDATE the transfer plan is read-only too", () => {
-    const { create: _create, ...actions } = loadPlanActions(transferPlanWithUnplaced(), viewer);
-    expect(Object.values(actions).filter((value) => value === true)).toEqual([]);
+describe("canDownloadLoadingSheet (docs 09 §4.2 bước 5, §5.3)", () => {
+  it("chỉ CONFIRMED và DISPATCHED: sơ đồ chốt khi chốt kế hoạch, còn lại sau khi xe rời kho", () => {
+    const allowed = LOAD_PLAN_STATUSES.filter((status) => canDownloadLoadingSheet({ status }));
+    expect(allowed).toEqual(["CONFIRMED", "DISPATCHED"]);
   });
 });

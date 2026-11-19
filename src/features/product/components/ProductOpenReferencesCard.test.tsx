@@ -27,7 +27,7 @@ const CATALOG_EDITOR = role(PRODUCT_PERMISSIONS.read, PRODUCT_PERMISSIONS.update
 
 const references = {
   references: [
-    { kind: "PURCHASE_ORDER_LINE", documentNumber: "PO-1", documentId: "p1", sku: "CUP-12OZ" },
+    { kind: "PRODUCTION_ORDER_LINE", documentNumber: "PO-1", documentId: "p1", sku: "CUP-12OZ" },
     { kind: "SALES_ORDER_LINE", documentNumber: "ORD-9", documentId: "o9", sku: "CUP-16OZ" },
   ],
   truncated: false,
@@ -50,13 +50,13 @@ describe("ProductOpenReferencesCard — chứng từ còn mở luôn hiện ở 
     PRODUCT_STATUS.PUBLISHED,
     PRODUCT_STATUS.INACTIVE,
     PRODUCT_STATUS.DISCONTINUED,
-  ])("%s: liệt kê dòng đơn mua / đơn bán còn mở tham chiếu SKU", async (status) => {
+  ])("%s: liệt kê dòng Đơn sản xuất / đơn bán còn mở tham chiếu SKU", async (status) => {
     renderCard(status);
     expect(screen.getByRole("heading", { name: new RegExp(L.title) })).toBeInTheDocument();
     expect(await screen.findByText("PO-1")).toBeInTheDocument();
     const list = screen.getByRole("list");
     expect(within(list).getByText("ORD-9")).toBeInTheDocument();
-    expect(within(list).getByText(/Dòng đơn mua/)).toBeInTheDocument();
+    expect(within(list).getByText(/Dòng Đơn sản xuất/)).toBeInTheDocument();
     expect(within(list).getByText(/Dòng đơn bán/)).toBeInTheDocument();
   });
 

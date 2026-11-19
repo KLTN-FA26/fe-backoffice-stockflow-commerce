@@ -1,12 +1,13 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { ImageOff, Star, Trash2, Upload } from "lucide-react";
+import { ImageOff, Pencil, Star, Trash2, Upload } from "lucide-react";
 
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useAuthStore } from "@/lib/auth/auth-store";
 
 import { variantErrorMessage } from "../../variant-errors";
 import {
@@ -18,7 +19,8 @@ import {
   useVariantMedia,
   useWithdrawVariantMedia,
 } from "../../variant-queries";
-import { PUBLISH_MEDIA_MAX } from "../../variant-schemas";
+import { MEDIA_PER_VARIANT_MAX, PUBLISH_MEDIA_MAX } from "../../variant-schemas";
+import { MediaDescribeDialog } from "./MediaDescribeDialog";
 
 import type { VariantMedia } from "../../variant-schemas";
 
@@ -55,8 +57,10 @@ export function VariantMediaGallery({
   compact?: boolean;
 }) {
   const query = useVariantMedia(productId, variantId);
+  const me = useAuthStore((state) => state.user);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState<VariantMedia | null>(null);
+  const [describing, setDescribing] = useState<VariantMedia | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const upload = useUploadVariantMedia();
   const publish = usePublishVariantMedia();
@@ -64,6 +68,10 @@ export function VariantMediaGallery({
   const remove = useDeleteVariantMedia();
   const makePrimary = useMakePrimaryMedia();
   const target = { productId, variantId };
+  // BE `uploadedBy` là username (khác `publishedBy` là UUID); người tải lên không được tự xuất bản
+  // (409 SELF_APPROVAL_NOT_ALLOWED) nên không cho chọn ảnh đó. UI-only — BE vẫn kiểm lại.
+  const uploadedByMe = (m: VariantMedia) =>
+    Boolean(me && m.uploadedBy && (m.uploadedBy === me.username || m.uploadedBy === me.userId));
   const fail = (context: Parameters<typeof variantErrorMessage>[1]) => (e: unknown) =>
     toast.error("Không thực hiện được", variantErrorMessage(e, context));
 
@@ -98,21 +106,30 @@ export function VariantMediaGallery({
             <li key={m.mediaId} className="space-y-1">
               <label className="relative block">
                 <Thumb productId={productId} variantId={variantId} media={m} />
-                {!compact && canPublish && !m.published && (
+                {!compact && canPublish && !m.published && !uploadedByMe(m) && (
                   <Checkbox
                     aria-label={`Chọn ảnh ${m.originalName ?? m.mediaId} để xuất bản`}
                     checked={selected.has(m.mediaId)}
                     onCheckedChange={() => toggle(m.mediaId)}
-                    className="absolute top-1.5 left-1.5"
+                    className="bg-bg-surface absolute top-1.5 left-1.5"
                   />
                 )}
-                <span className="absolute top-1.5 right-1.5 flex gap-1">
-                  {m.primary && <Badge tone="accent">Ảnh bìa</Badge>}
-                  <Badge tone={m.published ? "positive" : "muted"}>
-                    {m.published ? "Đã xuất bản" : "Riêng tư"}
-                  </Badge>
-                </span>
+                {compact ? (
+                  <MediaStatusDots media={m} />
+                ) : (
+                  <span className="absolute top-1.5 right-1.5 flex gap-1">
+                    {m.primary && <Badge tone="accent">Ảnh bìa</Badge>}
+                    <Badge tone={m.published ? "positive" : "muted"}>
+                      {m.published ? "Đã xuất bản" : "Riêng tư"}
+                    </Badge>
+                  </span>
+                )}
               </label>
+              {!compact && canPublish && !m.published && uploadedByMe(m) && (
+                <p className="text-ink-tertiary text-[0.6875rem]">
+                  Bạn đã tải ảnh này lên — người khác cần xuất bản (duyệt bốn mắt).
+                </p>
+              )}
               {!compact && (
                 <div className="flex flex-wrap items-center gap-1">
                   {canManage && !m.primary && (
@@ -142,6 +159,11 @@ export function VariantMediaGallery({
                     >
                       Gỡ khỏi cửa hàng
                     </Button>
+                  )}
+                  {canManage && (
+                    <IconButton label="Sửa mô tả / thứ tự ảnh" onClick={() => setDescribing(m)}>
+                      <Pencil className="size-3.5" />
+                    </IconButton>
                   )}
                   {canManage && (
                     <IconButton label="Xoá ảnh" onClick={() => setDeleting(m)} danger>
@@ -180,12 +202,18 @@ export function VariantMediaGallery({
                 type="button"
                 variant="outline"
                 size="sm"
-                disabled={upload.isPending}
+                // BE `MAX_IMAGES_PER_VARIANT` (docs 01 §3): tối đa 20 ảnh — chặn trước, không đợi 400
+                disabled={upload.isPending || media.length >= MEDIA_PER_VARIANT_MAX}
                 onClick={() => fileInput.current?.click()}
               >
                 <Upload className="size-3.5" />
                 {upload.isPending ? "Đang tải lên…" : "Tải ảnh lên"}
               </Button>
+              {media.length >= MEDIA_PER_VARIANT_MAX && (
+                <p className="text-ink-tertiary text-xs">
+                  Đã đủ {MEDIA_PER_VARIANT_MAX} ảnh — xoá bớt ảnh để tải ảnh mới.
+                </p>
+              )}
             </>
           )}
           {canPublish && unpublishedSelected.length > 0 && (
@@ -206,6 +234,12 @@ export function VariantMediaGallery({
         </div>
       )}
 
+      <MediaDescribeDialog
+        productId={productId}
+        variantId={variantId}
+        media={describing}
+        onClose={() => setDescribing(null)}
+      />
       <ConfirmDialog
         open={deleting !== null}
         onOpenChange={(open) => !open && setDeleting(null)}
@@ -264,8 +298,31 @@ function Badge({
     muted: "bg-bg-surface/90 text-ink-secondary border-border-default border",
   }[tone];
   return (
-    <span className={`rounded-full px-1.5 py-0.5 text-[0.625rem] font-semibold ${cls}`}>
+    <span
+      className={`rounded-full px-1.5 py-0.5 text-[0.625rem] font-semibold whitespace-nowrap ${cls}`}
+    >
       {children}
+    </span>
+  );
+}
+
+/**
+ * Ô ảnh của thẻ bên phải chỉ rộng vài chục px: nhãn chữ sẽ xuống dòng và che ảnh, nên ở đây là chấm màu
+ * (ảnh bìa = accent, đã xuất bản = positive, riêng tư = xám), tên trạng thái trong tooltip và cho screen reader.
+ */
+function MediaStatusDots({ media }: { media: VariantMedia }) {
+  const status = media.published ? "Đã xuất bản" : "Riêng tư";
+  const label = media.primary ? `Ảnh bìa, ${status.toLowerCase()}` : status;
+  return (
+    <span title={label} className="absolute top-1 right-1 flex gap-0.5">
+      <span className="sr-only">{label}</span>
+      {media.primary && (
+        <span aria-hidden className="bg-accent ring-bg-surface size-2 rounded-full ring-1" />
+      )}
+      <span
+        aria-hidden
+        className={`ring-bg-surface size-2 rounded-full ring-1 ${media.published ? "bg-positive" : "bg-ink-tertiary"}`}
+      />
     </span>
   );
 }

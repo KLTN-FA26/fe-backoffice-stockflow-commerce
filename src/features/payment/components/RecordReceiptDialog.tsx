@@ -11,7 +11,7 @@ import { FormField, fieldA11y } from "@/components/shared/FormField";
 import { FORM_INPUT_CLASS } from "@/components/shared/form-control-classes";
 import { Input } from "@/components/ui/input";
 
-import { paymentErrorMessage } from "../errors";
+import { paymentErrorMessage, receiptFieldError } from "../errors";
 import { useRecordReceipt } from "../mutations";
 import { todayInVietnam } from "../input-schemas";
 import { useReceiptForm } from "../useReceiptForm";
@@ -41,7 +41,20 @@ function RecordReceiptForm({
         onClose();
         onRecorded?.(receipt);
       },
-      onError: (failure) => setError(paymentErrorMessage(failure)),
+      onError: (failure) => {
+        const fieldError = receiptFieldError(failure, (installmentId) =>
+          values.lines.findIndex((line) => line.installmentId === installmentId),
+        );
+        if (fieldError) {
+          // Gắn vào ô: RHF tự xoá khi ô được sửa — không còn câu lỗi cũ treo trên form.
+          form.setError(fieldError.field, { type: "server", message: fieldError.message });
+          if (fieldError.field === "reference") {
+            setError(null);
+            return;
+          }
+        }
+        setError(paymentErrorMessage(failure));
+      },
     }),
   );
 

@@ -69,7 +69,7 @@ export type StockState = "free" | "checking" | "stocked" | "unknown";
 
 /**
  * Phần nào của hình đang chọn được sửa. `identity`: tên, mô tả, zone, loại (BR-13 cho phép sửa).
- * `geometry`: vị trí, kích thước, xoay, mặt lấy hàng, lớp lưu trữ, xoá — khoá khi vị trí còn hàng.
+ * `geometry`: vị trí, kích thước, xoay, mặt lấy hàng, xoá — khoá khi vị trí còn hàng.
  */
 export interface PlaceLocks {
   identity: boolean;

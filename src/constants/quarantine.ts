@@ -4,13 +4,25 @@
  * theo điều chỉnh `DAMAGED` có duyệt (màn Điều chỉnh tồn), không phải ở đây.
  */
 export const QUARANTINE_API = {
+  /**
+   * `GET /inventory/stock-packages?location&sku&status&page&size&sort` (`inventory-stock-packages:READ`): thùng theo trang.
+   * Không có trạng thái QUARANTINE cho thùng — khu cách ly lọc bằng `location` = mã khu / bin cách ly (đúng một mã).
+   */
+  list: "/inventory/stock-packages",
   carton: (lpn: string) => `/inventory/stock-packages/${encodeURIComponent(lpn)}`,
   quarantine: (lpn: string) => `/inventory/stock-packages/${encodeURIComponent(lpn)}/quarantine`,
   release: (lpn: string) =>
     `/inventory/stock-packages/${encodeURIComponent(lpn)}/quarantine-release`,
 } as const;
 
-export const QUARANTINE_QUERY_KEYS = { carton: "inventory-stock-package" } as const;
+export const QUARANTINE_QUERY_KEYS = {
+  carton: "inventory-stock-package",
+  list: "inventory-stock-packages",
+} as const;
+
+export const QUARANTINE_STORAGE_KEYS = {
+  list: "stockflow:admin:inventory:quarantine:config",
+} as const;
 
 // BE StockStatus của hàng trong thùng (docs 20 §5.1).
 export const QUARANTINE_STOCK_STATUS = "QUARANTINE" as const;
@@ -56,6 +68,38 @@ export const QUARANTINE_LABELS = {
   released: "Đã mở nhiệm vụ cất hàng cho thùng này.",
   back: "Quay lại",
   loadError: "Không tra cứu được thùng",
+  backToList: "Về danh sách khu cách ly",
+} as const;
+
+/** Danh sách thùng trong khu cách ly (BE `GET /inventory/stock-packages?location=`). */
+export const QUARANTINE_LIST_LABELS = {
+  title: "Thùng trong khu cách ly",
+  location: "Mã khu cách ly",
+  locationPlaceholder: "Ví dụ HCM-QC01",
+  locationHint: "Đúng một mã khu / bin thuộc khu QUARANTINE của kho.",
+  sku: "SKU",
+  skuPlaceholder: "Lọc theo SKU (tuỳ chọn)",
+  apply: "Xem",
+  reset: "Bỏ lọc",
+  prompt: "Nhập mã khu cách ly",
+  promptDescription:
+    "Nhập mã khu QUARANTINE của kho để xem các thùng đang nằm ở đó, hoặc quét LPN ở trên để xem một thùng.",
+  empty: "Khu cách ly đang trống",
+  emptyDescription: "Không có thùng nào đang nằm ở vị trí này.",
+  noMatch: "Không có thùng khớp SKU đã lọc",
+  loadError: "Không tải được danh sách thùng",
+  fetching: "Đang tải lại danh sách thùng",
+  open: "Xem thùng",
+  columns: {
+    lpn: "LPN",
+    sku: "SKU",
+    lot: "Lô",
+    location: "Vị trí",
+    onHand: "Còn trong thùng",
+    reserved: "Đang giữ cho đơn",
+    status: "Trạng thái thùng",
+  },
+  caption: "Thùng trong khu cách ly",
 } as const;
 
 // Backend develop df34c338 ErrorCode.java. Never show the backend `message`: English prose, not a contract.
@@ -71,6 +115,8 @@ export const QUARANTINE_ERROR_MESSAGES = {
   decisionPending:
     "Thùng này đang chờ một quyết định khác (nhiệm vụ cất hàng hoặc phiếu ghi giảm chờ duyệt).",
   notInStock: "Thùng không còn trong kho nên không thao tác được.",
+  // BE `CartonQuarantineService#release` (WF-05 TH-4): thùng khách trả về đã mở, thiếu so với nhãn — chỉ ghi giảm
+  returnCartonOpened: "Thùng hàng trả về đã bị mở, chỉ được huỷ/ghi giảm, không nhả ra kệ được.",
   forbidden: "Bạn không có quyền thực hiện thao tác này với thùng hàng.",
   outOfScope: "Bạn không có quyền với thùng của kho này.",
   validation: "Dữ liệu chưa hợp lệ. Vui lòng kiểm tra lại.",

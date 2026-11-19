@@ -7,7 +7,6 @@ import {
   CUSTOMIZATION_TEMPLATE_PERMISSIONS,
   INVENTORY_ITEM_PERMISSIONS,
   PRODUCT_PERMISSIONS,
-  SUPPLIER_ITEM_PERMISSIONS,
   UI_LABELS,
 } from "@/constants";
 import { usePermissionChecker } from "@/lib/auth";
@@ -15,27 +14,26 @@ import { SlideOverPanel } from "@/components/shared/SlideOverPanel";
 import { StatusDot } from "@/components/shared/StatusDot";
 
 import { mediaCapabilities } from "../../product-capabilities";
-import { VariantBasePrice } from "./VariantBasePrice";
+import { VariantCartonSpec } from "./VariantCartonSpec";
 import { VariantFormDialog } from "./VariantFormDialog";
-import { VariantInventorySummary } from "./VariantInventorySummary";
 import { VariantMediaGallery } from "./VariantMediaGallery";
 import { VariantOverview } from "./VariantOverview";
-import { usePurchasingCloseGuard } from "./purchasing-close-guard";
 import { VariantPrintConfigLink } from "./VariantPrintConfigLink";
-import { VariantPurchasing } from "./VariantPurchasing";
+
+import { isCustomerOwnedSku } from "../../variant-schemas";
 
 import type { Variant } from "../../variant-schemas";
 
 /**
- * Chi tiết một biến thể: trạng thái, tóm tắt hồ sơ hàng tồn (logistics — sửa ở trang Hồ sơ hàng tồn,
- * BE PR #119), thông tin mua hàng, giá bán, ảnh.
+ * Chi tiết một biến thể (quy cách): trạng thái, logistics & quy cách thùng (đơn vị tính của SKU), ảnh, cấu
+ * hình in. Quy cách không có giá và không có thông tin mua hàng (docs 01 §1 "Sản phẩm, quy cách và SKU
+ * riêng"; BE đã bỏ `.../skus/{sku}/base-price` và `.../variants/{id}/purchasing`).
  */
 export function VariantPanel({
   productId,
   variant,
   productApproved,
   acceptsChanges,
-  productDiscontinued,
   customizable,
   open,
   onClose,
@@ -45,27 +43,25 @@ export function VariantPanel({
   productApproved: boolean;
   /** Không chờ duyệt, không ngừng kinh doanh: biến thể và ảnh mới sửa được (BE 409). */
   acceptsChanges: boolean;
-  /** Sản phẩm đã ngừng kinh doanh: BE `CatalogCommerceService.price` chỉ từ chối trường hợp này (chờ duyệt vẫn đặt giá được). */
-  productDiscontinued: boolean;
   /** Sản phẩm tuỳ chỉnh / in ấn (`kind` CUSTOMIZABLE): chỉ khi đó biến thể có cấu hình in. */
   customizable: boolean;
   open: boolean;
   onClose: () => void;
 }) {
   const can = usePermissionChecker();
-  // Biến thể: `product-variants:UPDATE`; giá, ảnh: `product-products`; hồ sơ hàng tồn:
-  // `inventory-inventory-items`, không theo trạng thái SP (BE PR #119). UI-only — BE re-check.
+  // Biến thể: `product-variants:UPDATE`; đơn vị tính / thùng, ảnh: `product-products`; logistics của hồ
+  // sơ hàng tồn: `inventory-inventory-items`. UI-only — BE re-check.
   const canUpdate = can(PRODUCT_PERMISSIONS.update);
   const [editing, setEditing] = useState(false);
   const obsolete = variant?.status === "OBSOLETE";
   const media = mediaCapabilities({ acceptsChanges, approved: productApproved }, can, obsolete);
-  // Mọi lối đóng panel đi qua đây: không làm mất thông tin mua hàng đang sửa dở / đang lưu
-  const closeGuard = usePurchasingCloseGuard(onClose);
+  // SKU riêng của khách: không có cấu hình in riêng (docs 01 §4.10, BR-21 — chỉ quy cách)
+  const ownedSku = variant !== null && isCustomerOwnedSku(variant);
 
   return (
     <SlideOverPanel
       open={open}
-      onClose={closeGuard.requestClose}
+      onClose={onClose}
       title={variant?.sku ?? ""}
       monoTitle
       subtitle={variant?.name}
@@ -73,6 +69,11 @@ export function VariantPanel({
     >
       {variant && (
         <div className="space-y-6">
+          {ownedSku && (
+            <p className="text-ink-tertiary text-xs">
+              {UI_LABELS.product.variants.customerSkuHint}
+            </p>
+          )}
           <VariantOverview
             productId={productId}
             variant={variant}
@@ -83,39 +84,19 @@ export function VariantPanel({
 
           <section>
             <h3 className="text-ink-primary mb-2 text-sm font-semibold">
-              {UI_LABELS.inventoryItem.variantSummary.title}
+              {UI_LABELS.cartonSpec.title}
             </h3>
-            <VariantInventorySummary
-              inventoryItemId={variant.inventoryItemId}
-              canRead={can(INVENTORY_ITEM_PERMISSIONS.read)}
-            />
-          </section>
-
-          <section>
-            <h3 className="text-ink-primary mb-2 text-sm font-semibold">
-              {UI_LABELS.skuPurchasing.title}
-            </h3>
-            {/* `key`: đổi biến thể là một mục mới — không giữ trạng thái của biến thể trước */}
-            <VariantPurchasing
+            {/* `key`: đổi biến thể là một mục mới — dialog của biến thể trước không giữ lại */}
+            <VariantCartonSpec
               key={variant.variantId}
               productId={productId}
               variantId={variant.variantId}
+              inventoryItemId={variant.inventoryItemId}
               canRead={can(PRODUCT_PERMISSIONS.read)}
-              canReadSuppliers={can(SUPPLIER_ITEM_PERMISSIONS.read)}
-              // BE `SkuPurchasingService.describe`: 409 khi sản phẩm chờ duyệt / ngừng kinh doanh, biến
-              // thể ngừng. Đổi NCC mặc định cần thêm quyền đọc danh mục NCC (xét trong form)
+              // BE `SkuUnitService.editableSku`: 409 khi sản phẩm chờ duyệt / ngừng kinh doanh, biến thể ngừng
               canEdit={can(PRODUCT_PERMISSIONS.read) && canUpdate && acceptsChanges && !obsolete}
+              canOpenInventoryItem={can(INVENTORY_ITEM_PERMISSIONS.read)}
               open={open}
-              closeGuardRef={closeGuard.guard}
-            />
-          </section>
-
-          <section>
-            <h3 className="text-ink-primary mb-2 text-sm font-semibold">Giá bán</h3>
-            <VariantBasePrice
-              productId={productId}
-              sku={variant.sku}
-              canEdit={canUpdate && !productDiscontinued}
             />
           </section>
 
@@ -131,12 +112,10 @@ export function VariantPanel({
             />
           </section>
 
-          {customizable && can(CUSTOMIZATION_TEMPLATE_PERMISSIONS.read) && (
+          {customizable && !ownedSku && can(CUSTOMIZATION_TEMPLATE_PERMISSIONS.read) && (
             <section>
               <VariantPrintConfigLink
                 href={ADMIN_ROUTES.products.printConfig(productId, variant.variantId)}
-                onClick={closeGuard.onLeaveLinkClick}
-                anchorRef={closeGuard.attachLeaveAnchor}
               />
             </section>
           )}
@@ -151,7 +130,6 @@ export function VariantPanel({
           onOpenChange={setEditing}
         />
       )}
-      {closeGuard.confirm}
     </SlideOverPanel>
   );
 }

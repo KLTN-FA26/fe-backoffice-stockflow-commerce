@@ -3,7 +3,9 @@
  * luôn chọn câu theo `errorCode` (ErrorCode.java, 4B-6 / 4B-9). Không bao giờ hiện chữ của BE.
  */
 
+import { ApiError } from "@/lib/api/error";
 import { apiErrorMessage } from "@/lib/api/error-message";
+import { formatMoney } from "@/lib/format/money";
 
 export const PAYMENT_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   INSTALLMENT_NOT_FOUND: "Không tìm thấy đợt thanh toán.",
@@ -37,8 +39,56 @@ export const PAYMENT_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   NOT_FOUND: "Không tìm thấy đơn hàng.",
 };
 
+/**
+ * `PAYMENT_RECEIPT_EXCEEDS_OUTSTANDING` kèm `details` `{ installmentId, outstanding, currency }` (plan §1.2): nói rõ
+ * đợt đó còn phải thu bao nhiêu thay vì câu chung (WF-02 audit, mục 9).
+ */
+export function exceedsOutstanding(
+  error: unknown,
+): { installmentId: string | null; outstanding: number; currency: string } | null {
+  if (!(error instanceof ApiError) || error.code !== "PAYMENT_RECEIPT_EXCEEDS_OUTSTANDING")
+    return null;
+  const outstanding = error.details?.outstanding;
+  if (typeof outstanding !== "number") return null;
+  const installmentId = error.details?.installmentId;
+  const currency = error.details?.currency;
+  return {
+    installmentId: typeof installmentId === "string" ? installmentId : null,
+    outstanding,
+    currency: typeof currency === "string" ? currency : "VND",
+  };
+}
+
 export function paymentErrorMessage(error: unknown): string {
+  const exceeds = exceedsOutstanding(error);
+  if (exceeds)
+    return `Có dòng trả nhiều hơn số đợt đó còn phải thu (còn ${formatMoney(exceeds.outstanding, exceeds.currency)}). Dữ liệu đã được tải lại, kiểm tra lại số tiền.`;
   return apiErrorMessage(error, PAYMENT_ERROR_MESSAGES);
+}
+
+/**
+ * Lỗi gắn được vào một ô của phiếu thu: mã sao kê đã dùng → ô "Mã tham chiếu"; vượt số còn phải thu → ô số tiền của
+ * đợt đó. Gắn vào ô thì tự mất khi người dùng sửa ô (WF-02 audit mục 9: báo lỗi trùng mã từng còn sau khi đổi mã).
+ */
+export function receiptFieldError(
+  error: unknown,
+  lineIndexOf: (installmentId: string) => number,
+): { field: "reference" | `lines.${number}.amount`; message: string } | null {
+  if (error instanceof ApiError && error.code === "PAYMENT_RECEIPT_REFERENCE_IN_USE")
+    return {
+      field: "reference",
+      message: PAYMENT_ERROR_MESSAGES.PAYMENT_RECEIPT_REFERENCE_IN_USE!,
+    };
+  const exceeds = exceedsOutstanding(error);
+  if (exceeds?.installmentId) {
+    const index = lineIndexOf(exceeds.installmentId);
+    if (index >= 0)
+      return {
+        field: `lines.${index}.amount`,
+        message: `Vượt số còn phải thu (${formatMoney(exceeds.outstanding, exceeds.currency)}).`,
+      };
+  }
+  return null;
 }
 
 /** Lỗi "dữ liệu đã đổi" ngoài các mã chung: tải lại trước khi cho thao tác tiếp. */

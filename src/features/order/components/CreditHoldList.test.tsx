@@ -1,4 +1,3 @@
-import { focusManager } from "@tanstack/react-query";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -8,12 +7,7 @@ import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 
 import { apiCreditPosition, apiOrder, apiOrderPage } from "../__fixtures__/order";
-import {
-  ORDER_PERMISSION_SETS,
-  mockOrderApiGet,
-  pickOrderSelectOption,
-  renderOrderScreen,
-} from "../__fixtures__/render";
+import { ORDER_PERMISSION_SETS, mockOrderApiGet, renderOrderScreen } from "../__fixtures__/render";
 import { CreditHoldList } from "./credit-hold/CreditHoldList";
 
 import type { PermissionCode } from "@/lib/auth";
@@ -21,12 +15,13 @@ import type { RouteHandler } from "../__fixtures__/render";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
-// BE CreditHoldResponse.order (staff) luôn mang holdReason CREDIT cho đơn vượt hạn mức (PR #133)
+// BE CreditHoldResponse.order (staff) luôn mang holdReason CREDIT cho đơn vượt hạn mức (PR #133). Từ 4B-10 BE không
+// còn gửi `paymentTerm` / `paymentStatus` (TT-1) — fixture bỏ hẳn hai field để nút duyệt không phụ thuộc chúng.
 const heldOrder = {
   ...apiOrder,
   status: "ON_HOLD" as const,
-  paymentTerm: "CREDIT" as const,
-  paymentStatus: "ON_CREDIT" as const,
+  paymentTerm: undefined,
+  paymentStatus: undefined,
   holdReason: "CREDIT" as const,
 };
 const hold = {
@@ -185,58 +180,38 @@ describe("Credit hold — duyệt / từ chối", { timeout: DIALOG_FLOW_TIMEOUT
     );
   });
 
-  it("từ chối chuyển cọc: % ngoài (0,100) báo lỗi; % thập phân hợp lệ → body {action, depositPercent, note}", async () => {
+  it("Credit: từ chối gửi đúng {note}; hộp thoại nói rõ đơn bị huỷ và tiền đã thu thành số phải hoàn", async () => {
     const user = userEvent.setup();
-    renderList(ORDER_PERMISSION_SETS.accountant);
-    const post = vi.spyOn(api, "post").mockResolvedValue({
-      data: { ...heldOrder, status: "PENDING_PAYMENT", paymentTerm: "DEPOSIT" },
+    renderList([...ORDER_PERMISSION_SETS.accountant, "payment-refunds:READ"], [hold], {
+      [POSITION_PATH]: () => apiCreditPosition,
+      [`/refunds/orders/${apiOrder.orderId}`]: () => ({
+        orderId: apiOrder.orderId,
+        orderNumber: apiOrder.orderNumber,
+        currency: "VND",
+        refundStatus: "PENDING",
+        refundable: 23_328_000,
+        refunded: 0,
+        remaining: 23_328_000,
+      }),
     });
+    const post = vi
+      .spyOn(api, "post")
+      .mockResolvedValue({ data: { ...heldOrder, status: "CANCELLED" } });
 
     await user.click(await screen.findByRole("button", { name: /^Từ chối vượt hạn mức đơn/ }));
-    await pickOrderSelectOption(user, /Cách xử lý/, "Chuyển sang đặt cọc");
-    const dialog = screen.getByRole("dialog");
-    await user.type(within(dialog).getByLabelText(/Ghi chú/), "Chuyển cọc");
-    const percent = within(dialog).getByLabelText(/Tỷ lệ cọc/);
-    // Điền sẵn % cọc mặc định của khách (credit position) — xoá để nhập giá trị khác
-    await user.clear(percent);
-    await user.type(percent, "100");
+    const dialog = await screen.findByRole("dialog");
     expect(
-      within(dialog).getByText(/Tỷ lệ cọc phải lớn hơn 0% và nhỏ hơn 100%/),
+      within(dialog).getByText(/sẽ bị huỷ\. Tiền đã thu \(nếu có\) chuyển thành số tiền phải hoàn/),
     ).toBeInTheDocument();
-    expect(within(dialog).getByRole("button", { name: "Từ chối" })).toBeDisabled();
-
-    // BE nhận BigDecimal → 30.5% hợp lệ; validation gốc của trình duyệt (step) không được chặn submit
-    await user.clear(percent);
-    await user.type(percent, "30.5");
-    expect(percent).toBeValid();
-    await user.click(within(dialog).getByRole("button", { name: "Từ chối" }));
+    expect(within(dialog).queryByRole("combobox", { name: /Cách xử lý/ })).not.toBeInTheDocument();
+    await user.type(within(dialog).getByLabelText(/Ghi chú/), " Quá hạn lâu ");
+    await user.click(within(dialog).getByRole("button", { name: "Từ chối và huỷ đơn" }));
 
     await waitFor(() =>
-      expect(post).toHaveBeenCalledWith(
-        REJECT_PATH,
-        {
-          action: "SWITCH_TO_DEPOSIT",
-          depositPercent: 30.5,
-          note: "Chuyển cọc",
-        },
-        WITH_IDEMPOTENCY_KEY,
-      ),
+      expect(post).toHaveBeenCalledWith(REJECT_PATH, { note: "Quá hạn lâu" }, WITH_IDEMPOTENCY_KEY),
     );
-  });
-
-  it("PAYMENT_TERM_NOT_ALLOWED → lý do hiện trong dialog (docs 14 BR-05)", async () => {
-    const user = userEvent.setup();
-    renderList(ORDER_PERMISSION_SETS.accountant);
-    vi.spyOn(api, "post").mockRejectedValue(new ApiError(409, "PAYMENT_TERM_NOT_ALLOWED", "x"));
-
-    await user.click(await screen.findByRole("button", { name: /^Từ chối vượt hạn mức đơn/ }));
-    await pickOrderSelectOption(user, /Cách xử lý/, "Chuyển sang trả trước 100%");
-    const dialog = screen.getByRole("dialog");
-    await user.type(within(dialog).getByLabelText(/Ghi chú/), "Thử");
-    await user.click(within(dialog).getByRole("button", { name: "Từ chối" }));
-
-    const alert = await within(dialog).findByRole("alert");
-    expect(alert).toHaveTextContent("BR-05");
+    expect(await screen.findAllByText(/Phải hoàn:/)).not.toHaveLength(0);
+    expect(screen.getAllByText(/23\.328\.000/)).not.toHaveLength(0);
   });
 
   it("ORDER_NOT_ON_CREDIT_HOLD (người khác đã xử lý) → đóng dialog, tải lại danh sách", async () => {
@@ -258,25 +233,7 @@ describe("Credit hold — duyệt / từ chối", { timeout: DIALOG_FLOW_TIMEOUT
   });
 });
 
-/* ── Step 6: công nợ HIỆN TẠI (GET /orders/credit-position/{customerId}) ── */
-
-const OTHER_CUSTOMER = "7e57c0de-0000-4000-8000-0000000000aa";
-const otherHold = {
-  ...hold,
-  order: {
-    ...heldOrder,
-    orderId: "2b8c9d0e-1111-4aaa-8bbb-000000000002",
-    orderNumber: "SO-20260908-000777",
-    customerId: OTHER_CUSTOMER,
-  },
-};
-const restrictedPosition = {
-  ...apiCreditPosition,
-  customerId: OTHER_CUSTOMER,
-  allowedTerms: ["PREPAID", "CREDIT"],
-  depositPercent: undefined,
-  hasOverdue: true,
-};
+/* ── Vị thế tín dụng (GET /orders/credit-position/{customerId}, BE CreditPositionResponse) ── */
 
 async function openReject(user: ReturnType<typeof userEvent.setup>, orderNumber: string) {
   await user.click(
@@ -285,232 +242,28 @@ async function openReject(user: ReturnType<typeof userEvent.setup>, orderNumber:
   return screen.findByRole("dialog");
 }
 
-/** Mở Select "Cách xử lý" và trả nhãn các lựa chọn đang có. */
-async function refusalOptions(user: ReturnType<typeof userEvent.setup>): Promise<string[]> {
-  Element.prototype.hasPointerCapture ??= () => false;
-  Element.prototype.scrollIntoView ??= () => {};
-  await user.click(screen.getByRole("combobox", { name: /Cách xử lý/ }));
-  const options = (await screen.findAllByRole("option")).map((o) => o.textContent ?? "");
-  await user.keyboard("{Escape}");
-  return options;
-}
-
-describe("Credit hold — công nợ hiện tại của khách", { timeout: DIALOG_FLOW_TIMEOUT_MS }, () => {
-  it("D/E. hàng đợi KHÔNG gọi credit position theo từng dòng; mở dialog mới gọi, đúng 1 lần cho khách đó", async () => {
+describe("Credit hold — vị thế tín dụng của khách", { timeout: DIALOG_FLOW_TIMEOUT_MS }, () => {
+  it("Credit: hàng đợi không gọi theo từng dòng; mở dialog → panel parse đúng hạn mức, dư nợ, quá hạn", async () => {
     const user = userEvent.setup();
-    const get = renderList(ORDER_PERMISSION_SETS.accountant, [hold, otherHold], {
-      [POSITION_PATH]: () => apiCreditPosition,
-      [positionPath(OTHER_CUSTOMER)]: () => restrictedPosition,
-    });
-
-    expect(await screen.findByText(otherHold.order.orderNumber)).toBeInTheDocument();
-    expect(get.mock.calls.some(([url]) => String(url).includes("credit-position"))).toBe(false);
-
-    await openReject(user, apiOrder.orderNumber);
-    await waitFor(() => expect(callsTo(get, POSITION_PATH)).toBe(1));
-    expect(callsTo(get, positionPath(OTHER_CUSTOMER))).toBe(0);
-  });
-
-  it("D. thiếu customer-credit-profiles:READ → không gọi API, chỉ còn 'Huỷ đơn'", async () => {
-    const user = userEvent.setup();
-    const get = renderList([
-      CREDIT_HOLD_PERMISSIONS.viewPage,
-      CREDIT_HOLD_PERMISSIONS.read,
-      CREDIT_HOLD_PERMISSIONS.approve,
-    ]);
-    await openReject(user, apiOrder.orderNumber);
-
-    expect(await refusalOptions(user)).toEqual(["Huỷ đơn"]);
-    expect(screen.getByText(/cần xem được hồ sơ công nợ của khách/)).toBeInTheDocument();
-    expect(callsTo(get, POSITION_PATH)).toBe(0);
-  });
-
-  it("F/G/J/H. chỉ cách xử lý theo allowedTerms của từng khách, nhãn tiếng Việt sẵn có", async () => {
-    const user = userEvent.setup();
-    renderList(ORDER_PERMISSION_SETS.accountant, [hold, otherHold], {
-      [POSITION_PATH]: () => apiCreditPosition,
-      [positionPath(OTHER_CUSTOMER)]: () => restrictedPosition,
-    });
-
-    await openReject(user, apiOrder.orderNumber);
-    await screen.findByRole("region", { name: "Công nợ hiện tại của khách" });
-    expect(await refusalOptions(user)).toEqual([
-      "Huỷ đơn",
-      "Chuyển sang trả trước 100%",
-      "Chuyển sang đặt cọc",
-    ]);
-    await user.click(screen.getByRole("button", { name: "Huỷ" }));
-
-    // Khách khác: hồ sơ không có DEPOSIT → không có "Chuyển sang đặt cọc"
-    await openReject(user, otherHold.order.orderNumber);
-    await screen.findByText("Hiện có khoản quá hạn");
-    expect(await refusalOptions(user)).toEqual(["Huỷ đơn", "Chuyển sang trả trước 100%"]);
-  });
-
-  it("I. allowedTerms không có PREPAID / DEPOSIT → chỉ huỷ được, không gửi chuyển phương thức", async () => {
-    const user = userEvent.setup();
-    renderList(ORDER_PERMISSION_SETS.accountant, [hold], {
-      [POSITION_PATH]: () => ({ ...apiCreditPosition, allowedTerms: ["CREDIT", "INSTALLMENT"] }),
-    });
-    await openReject(user, apiOrder.orderNumber);
-    await screen.findByRole("region", { name: "Công nợ hiện tại của khách" });
-
-    // Mã FE chưa biết (INSTALLMENT) không thành lựa chọn
-    expect(await refusalOptions(user)).toEqual(["Huỷ đơn"]);
-  });
-
-  it("K/L. % cọc điền sẵn từ credit position của đúng khách (40 / 25), không phải số FE tự đặt", async () => {
-    const user = userEvent.setup();
-    renderList(ORDER_PERMISSION_SETS.accountant, [hold, otherHold], {
-      [POSITION_PATH]: () => apiCreditPosition,
-      [positionPath(OTHER_CUSTOMER)]: () => ({
-        ...restrictedPosition,
-        allowedTerms: ["DEPOSIT"],
-        depositPercent: 25,
+    const get = renderList(ORDER_PERMISSION_SETS.accountant, [hold], {
+      [POSITION_PATH]: () => ({
+        ...apiCreditPosition,
+        creditLimit: 300_000_000,
+        creditTermDays: 15,
+        exposure: 50_000_000,
+        availableCredit: 250_000_000,
+        hasOverdue: true,
+        overdueAmount: 41_195_000,
+        oldestOverdueDueDate: "2026-11-02",
       }),
     });
-
-    for (const [orderNumber, expected] of [
-      [apiOrder.orderNumber, "40"],
-      [otherHold.order.orderNumber, "25"],
-    ] as const) {
-      const dialog = await openReject(user, orderNumber);
-      await screen.findByRole("region", { name: "Công nợ hiện tại của khách" });
-      await pickOrderSelectOption(user, /Cách xử lý/, "Chuyển sang đặt cọc");
-      expect(within(dialog).getByLabelText(/Tỷ lệ cọc/)).toHaveValue(Number(expected));
-      await user.click(within(dialog).getByRole("button", { name: "Huỷ" }));
-    }
-  });
-
-  it("M. tải lại nền (focus cửa sổ) không ghi đè % cọc người dùng đã sửa", async () => {
-    const user = userEvent.setup();
-    let calls = 0;
-    const get = renderList(ORDER_PERMISSION_SETS.accountant, [hold], {
-      [POSITION_PATH]: () => ({ ...apiCreditPosition, depositPercent: ++calls === 1 ? 40 : 60 }),
-    });
+    await screen.findByText(apiOrder.orderNumber);
+    expect(callsTo(get, POSITION_PATH)).toBe(0);
     const dialog = await openReject(user, apiOrder.orderNumber);
-    await screen.findByRole("region", { name: "Công nợ hiện tại của khách" });
-    await pickOrderSelectOption(user, /Cách xử lý/, "Chuyển sang đặt cọc");
-    const percent = within(dialog).getByLabelText(/Tỷ lệ cọc/);
-    await user.clear(percent);
-    await user.type(percent, "35");
-
-    focusManager.setFocused(false);
-    focusManager.setFocused(true);
-    await waitFor(() => expect(callsTo(get, POSITION_PATH)).toBe(2));
-    expect(percent).toHaveValue(35);
-    focusManager.setFocused(undefined);
-  });
-
-  it("N/O. công nợ hiện tại ghi rõ là HIỆN TẠI; nợ quá hạn hiện tại không đổi tình trạng lúc kiểm ở hàng đợi", async () => {
-    const user = userEvent.setup();
-    renderList(ORDER_PERMISSION_SETS.accountant, [hold], {
-      [POSITION_PATH]: () => ({ ...apiCreditPosition, hasOverdue: true }),
-    });
-    const row = (await screen.findByText(apiOrder.orderNumber)).closest("tr") as HTMLElement;
-    await openReject(user, apiOrder.orderNumber);
-
-    const panel = await screen.findByRole("region", { name: "Công nợ hiện tại của khách" });
-    expect(within(panel).getByText("Hiện có khoản quá hạn")).toBeInTheDocument();
-    expect(within(panel).getByText(/200\.000/)).toBeInTheDocument();
-    // Cột tình trạng của hàng đợi vẫn theo số liệu lúc kiểm (vượt 150.000), không thành "quá hạn"
-    expect(within(row).getByText(/^Vượt hạn mức/)).toHaveTextContent(/150\.000/);
-    expect(within(row).queryByText("Khách có công nợ quá hạn")).not.toBeInTheDocument();
-  });
-
-  it("P. đang tải credit position → chỉ 'Huỷ đơn', không có lựa chọn / % cọc giả", async () => {
-    const user = userEvent.setup();
-    const get = renderList(ORDER_PERMISSION_SETS.accountant);
-    const base = get.getMockImplementation();
-    get.mockImplementation((url: string, config?: { params?: unknown }) =>
-      url === POSITION_PATH ? new Promise(() => {}) : (base?.(url, config) ?? Promise.reject()),
-    );
-    await openReject(user, apiOrder.orderNumber);
-
-    expect(
-      await screen.findByRole("status", { name: /Đang tải công nợ hiện tại/ }),
-    ).toBeInTheDocument();
-    expect(await refusalOptions(user)).toEqual(["Huỷ đơn"]);
-    expect(screen.queryByLabelText(/Tỷ lệ cọc/)).not.toBeInTheDocument();
-  });
-
-  it("Q. tải lỗi → dialog vẫn mở, báo lỗi + Thử lại; vẫn huỷ đơn được", async () => {
-    const user = userEvent.setup();
-    let fail = true;
-    const get = renderList(ORDER_PERMISSION_SETS.accountant, [hold], {
-      [POSITION_PATH]: () => {
-        if (fail) throw new ApiError(503, "SERVICE_UNAVAILABLE", "down");
-        return apiCreditPosition;
-      },
-    });
-    const post = vi.spyOn(api, "post").mockResolvedValue({
-      data: { ...heldOrder, status: "CANCELLED" },
-    });
-    const dialog = await openReject(user, apiOrder.orderNumber);
-
-    expect(await within(dialog).findByText(/Không tải được công nợ hiện tại/)).toBeInTheDocument();
-    expect(await refusalOptions(user)).toEqual(["Huỷ đơn"]);
-
-    fail = false;
-    await user.click(within(dialog).getByRole("button", { name: "Thử lại" }));
-    await screen.findByRole("region", { name: "Công nợ hiện tại của khách" });
-    expect(callsTo(get, POSITION_PATH)).toBeGreaterThanOrEqual(2);
-
-    await pickOrderSelectOption(user, /Cách xử lý/, "Huỷ đơn");
-    await user.type(within(dialog).getByLabelText(/Ghi chú/), "Huỷ");
-    await user.click(within(dialog).getByRole("button", { name: "Từ chối" }));
-    await waitFor(() =>
-      expect(post).toHaveBeenCalledWith(
-        REJECT_PATH,
-        { action: "CANCEL", note: "Huỷ" },
-        WITH_IDEMPOTENCY_KEY,
-      ),
-    );
-  });
-
-  it("R. PAYMENT_TERM_NOT_ALLOWED → lỗi ở 'Cách xử lý', không báo thành công, tải lại công nợ và bỏ lựa chọn không còn được phép", async () => {
-    const user = userEvent.setup();
-    let calls = 0;
-    const get = renderList(ORDER_PERMISSION_SETS.accountant, [hold], {
-      [POSITION_PATH]: () =>
-        ++calls === 1 ? apiCreditPosition : { ...apiCreditPosition, allowedTerms: ["PREPAID"] },
-    });
-    vi.spyOn(api, "post").mockRejectedValue(new ApiError(409, "PAYMENT_TERM_NOT_ALLOWED", "x"));
-    const dialog = await openReject(user, apiOrder.orderNumber);
-    await screen.findByRole("region", { name: "Công nợ hiện tại của khách" });
-    await pickOrderSelectOption(user, /Cách xử lý/, "Chuyển sang đặt cọc");
-    await user.type(within(dialog).getByLabelText(/Ghi chú/), "Cọc");
-    await user.click(within(dialog).getByRole("button", { name: "Từ chối" }));
-
-    expect(
-      await within(dialog).findByText(/không còn được dùng phương thức này/),
-    ).toBeInTheDocument();
-    expect(within(dialog).getByRole("combobox", { name: /Cách xử lý/ })).toHaveAttribute(
-      "aria-invalid",
-      "true",
-    );
-    expect(screen.queryByText("Đã từ chối vượt hạn mức công nợ")).not.toBeInTheDocument();
-    await waitFor(() => expect(callsTo(get, POSITION_PATH)).toBe(2));
-    await waitFor(() =>
-      expect(within(dialog).queryByLabelText(/Tỷ lệ cọc/)).not.toBeInTheDocument(),
-    );
-    expect(await refusalOptions(user)).toEqual(["Huỷ đơn", "Chuyển sang trả trước 100%"]);
-  });
-
-  it("S. lỗi khác (500) giữ hành vi cũ — không tải lại công nợ, không gắn lỗi vào 'Cách xử lý'", async () => {
-    const user = userEvent.setup();
-    const get = renderList(ORDER_PERMISSION_SETS.accountant);
-    vi.spyOn(api, "post").mockRejectedValue(new ApiError(500, "INTERNAL_ERROR", "boom"));
-    const dialog = await openReject(user, apiOrder.orderNumber);
-    await screen.findByRole("region", { name: "Công nợ hiện tại của khách" });
-    await pickOrderSelectOption(user, /Cách xử lý/, "Huỷ đơn");
-    await user.type(within(dialog).getByLabelText(/Ghi chú/), "Huỷ");
-    await user.click(within(dialog).getByRole("button", { name: "Từ chối" }));
-
-    expect(await within(dialog).findByText(/Đã xảy ra lỗi khi xử lý đơn/)).toBeInTheDocument();
-    expect(
-      within(dialog).queryByText(/không còn được dùng phương thức này/),
-    ).not.toBeInTheDocument();
+    const panel = await within(dialog).findByRole("region", { name: "Vị thế tín dụng của khách" });
+    expect(panel).toHaveTextContent(/300\.000\.000/);
+    expect(panel).toHaveTextContent(/Có quá hạn: 41\.195\.000/);
+    expect(panel).toHaveTextContent(/cũ nhất từ ngày 2 thg 11, 2026/);
     expect(callsTo(get, POSITION_PATH)).toBe(1);
   });
 
@@ -526,7 +279,9 @@ describe("Credit hold — công nợ hiện tại của khách", { timeout: DIAL
       .mockResolvedValue({ data: { ...heldOrder, status: "CONFIRMED" } });
     await user.click(await screen.findByRole("button", { name: /^Duyệt vượt hạn mức đơn/ }));
     const dialog = await screen.findByRole("dialog");
-    expect(await within(dialog).findByText(/Không tải được công nợ hiện tại/)).toBeInTheDocument();
+    expect(
+      await within(dialog).findByText(/Không tải được công nợ hiện tại của khách/),
+    ).toBeInTheDocument();
     await user.type(within(dialog).getByLabelText(/Ghi chú duyệt/), "Ok");
     await user.click(within(dialog).getByRole("button", { name: "Duyệt" }));
     await waitFor(() =>
@@ -542,10 +297,8 @@ describe(
   { timeout: DIALOG_FLOW_TIMEOUT_MS },
   () => {
     async function fillCancel(user: ReturnType<typeof userEvent.setup>, dialog: HTMLElement) {
-      await screen.findByRole("region", { name: "Công nợ hiện tại của khách" });
-      await pickOrderSelectOption(user, /Cách xử lý/, "Huỷ đơn");
       await user.type(within(dialog).getByLabelText(/Ghi chú/), "Huỷ");
-      await user.click(within(dialog).getByRole("button", { name: "Từ chối" }));
+      await user.click(within(dialog).getByRole("button", { name: "Từ chối và huỷ đơn" }));
     }
 
     it("A. OPTIMISTIC_LOCK khi từ chối → báo + giữ dialog/ghi chú, tải lại hàng đợi + công nợ, không tự gửi lại", async () => {
@@ -567,11 +320,8 @@ describe(
       expect(post).toHaveBeenCalledTimes(1);
       expect(within(dialog).getByLabelText(/Ghi chú/)).toHaveValue("Huỷ");
       // Lỗi khoá không gắn vào ô nào
-      expect(within(dialog).getByRole("combobox", { name: /Cách xử lý/ })).not.toHaveAttribute(
-        "aria-invalid",
-      );
 
-      await user.click(within(dialog).getByRole("button", { name: "Từ chối" }));
+      await user.click(within(dialog).getByRole("button", { name: "Từ chối và huỷ đơn" }));
       await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
     });
 
@@ -590,10 +340,10 @@ describe(
       expect(callsTo(get, "/orders/credit-holds")).toBe(queue);
       expect(callsTo(get, POSITION_PATH)).toBe(1);
       expect(post).toHaveBeenCalledTimes(1);
-      expect(within(dialog).getByRole("button", { name: "Từ chối" })).toBeEnabled();
+      expect(within(dialog).getByRole("button", { name: "Từ chối và huỷ đơn" })).toBeEnabled();
     });
 
-    it("fieldErrors note + depositPercent → lỗi tại cả hai ô; field cấp lớp lạ → thông báo chung; sửa ô → hết lỗi, gửi lại được", async () => {
+    it("fieldErrors note → lỗi tại ô; field cấp lớp lạ → thông báo chung; sửa ô → gửi lại được", async () => {
       const user = userEvent.setup();
       renderList(ORDER_PERMISSION_SETS.accountant);
       const post = vi
@@ -601,43 +351,23 @@ describe(
         .mockRejectedValueOnce(
           new ApiError(400, "VALIDATION_FAILED", "Invalid request data", {
             note: "note is required",
-            depositPercent: "depositPercent must be below 100",
             creditRefusalRequest: "object-level problem",
           }),
         )
-        .mockResolvedValueOnce({ data: { ...heldOrder, status: "PENDING_PAYMENT" } });
+        .mockResolvedValueOnce({ data: { ...heldOrder, status: "CANCELLED" } });
       const dialog = await openReject(user, apiOrder.orderNumber);
-      await screen.findByRole("region", { name: "Công nợ hiện tại của khách" });
-      await pickOrderSelectOption(user, /Cách xử lý/, "Chuyển sang đặt cọc");
-      await user.type(within(dialog).getByLabelText(/Ghi chú/), "Cọc");
-      await user.click(within(dialog).getByRole("button", { name: "Từ chối" }));
+      await user.type(within(dialog).getByLabelText(/Ghi chú/), "Huỷ");
+      await user.click(within(dialog).getByRole("button", { name: "Từ chối và huỷ đơn" }));
 
       expect(await within(dialog).findByText(/Ghi chú là bắt buộc/)).toBeInTheDocument();
-      expect(
-        within(dialog).getByText(/Tỷ lệ cọc phải lớn hơn 0% và nhỏ hơn 100%\./),
-      ).toBeInTheDocument();
-      expect(within(dialog).getByLabelText(/Tỷ lệ cọc/)).toHaveAttribute("aria-invalid", "true");
       expect(within(dialog).getByText("object-level problem")).toBeInTheDocument();
-
-      // F. sửa ô → lỗi máy chủ của ô đó mất, form chạy bình thường
       await user.type(within(dialog).getByLabelText(/Ghi chú/), " lại");
       await waitFor(() =>
         expect(within(dialog).queryByText(/Ghi chú là bắt buộc/)).not.toBeInTheDocument(),
       );
-      const percent = within(dialog).getByLabelText(/Tỷ lệ cọc/);
-      await user.clear(percent);
-      await user.type(percent, "35");
-      await user.click(within(dialog).getByRole("button", { name: "Từ chối" }));
+      await user.click(within(dialog).getByRole("button", { name: "Từ chối và huỷ đơn" }));
       await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
-      expect(post).toHaveBeenLastCalledWith(
-        REJECT_PATH,
-        {
-          action: "SWITCH_TO_DEPOSIT",
-          depositPercent: 35,
-          note: "Cọc lại",
-        },
-        WITH_IDEMPOTENCY_KEY,
-      );
+      expect(post).toHaveBeenLastCalledWith(REJECT_PATH, { note: "Huỷ lại" }, WITH_IDEMPOTENCY_KEY);
     });
 
     it("E. kiểm tra phía client (zod) vẫn chạy: ghi chú trống → không gửi", async () => {
@@ -645,9 +375,7 @@ describe(
       renderList(ORDER_PERMISSION_SETS.accountant);
       const post = vi.spyOn(api, "post");
       const dialog = await openReject(user, apiOrder.orderNumber);
-      await screen.findByRole("region", { name: "Công nợ hiện tại của khách" });
-      await pickOrderSelectOption(user, /Cách xử lý/, "Huỷ đơn");
-      expect(within(dialog).getByRole("button", { name: "Từ chối" })).toBeDisabled();
+      expect(within(dialog).getByRole("button", { name: "Từ chối và huỷ đơn" })).toBeDisabled();
       expect(post).not.toHaveBeenCalled();
     });
 
@@ -684,10 +412,9 @@ describe("Credit hold — Idempotency-Key", { timeout: DIALOG_FLOW_TIMEOUT_MS },
 
   async function rejectCancel(user: ReturnType<typeof userEvent.setup>, note: string) {
     const dialog = await openReject(user, apiOrder.orderNumber);
-    await screen.findByRole("region", { name: "Công nợ hiện tại của khách" });
-    await pickOrderSelectOption(user, /Cách xử lý/, "Huỷ đơn");
+    await screen.findByRole("region", { name: "Vị thế tín dụng của khách" });
     await user.type(within(dialog).getByLabelText(/Ghi chú/), note);
-    await user.click(within(dialog).getByRole("button", { name: "Từ chối" }));
+    await user.click(within(dialog).getByRole("button", { name: "Từ chối và huỷ đơn" }));
     return dialog;
   }
 
@@ -702,12 +429,9 @@ describe("Credit hold — Idempotency-Key", { timeout: DIALOG_FLOW_TIMEOUT_MS },
     await within(dialog).findByText(/đang được xử lý ở nơi khác/);
 
     await user.type(within(dialog).getByLabelText(/Ghi chú/), "B");
-    await user.click(within(dialog).getByRole("button", { name: "Từ chối" }));
+    await user.click(within(dialog).getByRole("button", { name: "Từ chối và huỷ đơn" }));
     await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
-    expect(post.mock.calls.map((c) => c[1])).toEqual([
-      { action: "CANCEL", note: "A" },
-      { action: "CANCEL", note: "AB" },
-    ]);
+    expect(post.mock.calls.map((c) => c[1])).toEqual([{ note: "A" }, { note: "AB" }]);
     expect(keyOf(post, 1)).not.toBe(keyOf(post, 0));
   });
 
@@ -722,7 +446,7 @@ describe("Credit hold — Idempotency-Key", { timeout: DIALOG_FLOW_TIMEOUT_MS },
 
     expect(await within(dialog).findByText(/vẫn đang được máy chủ xử lý/)).toBeInTheDocument();
     expect(post).toHaveBeenCalledTimes(1);
-    await user.click(within(dialog).getByRole("button", { name: "Từ chối" }));
+    await user.click(within(dialog).getByRole("button", { name: "Từ chối và huỷ đơn" }));
     await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
     expect(keyOf(post, 1)).toBe(keyOf(post, 0));
   });
@@ -738,11 +462,8 @@ describe("Credit hold — Idempotency-Key", { timeout: DIALOG_FLOW_TIMEOUT_MS },
 
     expect(await within(dialog).findByText(/trùng mã với yêu cầu trước/)).toBeInTheDocument();
     expect(within(dialog).getByLabelText(/Ghi chú/)).not.toHaveAttribute("aria-invalid");
-    expect(within(dialog).getByRole("combobox", { name: /Cách xử lý/ })).not.toHaveAttribute(
-      "aria-invalid",
-    );
     expect(post).toHaveBeenCalledTimes(1);
-    await user.click(within(dialog).getByRole("button", { name: "Từ chối" }));
+    await user.click(within(dialog).getByRole("button", { name: "Từ chối và huỷ đơn" }));
     await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
     expect(keyOf(post, 1)).not.toBe(keyOf(post, 0));
   });

@@ -9,6 +9,7 @@ import { VehicleViewer } from "../viewer/VehicleViewer";
 import { Button } from "@/components/ui/button";
 
 import { ColorLegend } from "./ColorLegend";
+import { LoadingSheetPdfButton } from "./LoadingSheetPdfButton";
 
 import type { ColorMap } from "@/features/load-planning/lib/palette";
 import type { PlanVehicle } from "@/features/load-planning/plan-types";
@@ -25,6 +26,7 @@ export function VehiclePanel({
   vehicle,
   layout,
   colorMap,
+  canDownloadSheet,
   canRecalculate,
   canDrop,
   pending,
@@ -35,6 +37,8 @@ export function VehiclePanel({
   vehicle: PlanVehicle;
   layout: Layout | undefined;
   colorMap: ColorMap;
+  /** "Tải PDF": kế hoạch CONFIRMED / DISPATCHED (docs 09 §4.2 bước 5, §5.3). */
+  canDownloadSheet: boolean;
   canRecalculate: boolean;
   /** "Bỏ xe khỏi kế hoạch" (SCRUM-474 UNLOAD-DROP): xe còn PLANNED, mọi xe khác đã đi, có mã quyền huỷ có kiểm soát. */
   canDrop: boolean;
@@ -72,6 +76,7 @@ export function VehiclePanel({
               <Printer className="size-3.5" /> {LOAD_PLAN_PRINT_LABELS.printButton}
             </Link>
           </Button>
+          {canDownloadSheet && <LoadingSheetPdfButton planId={planId} seq={vehicle.seq} />}
           {canRecalculate && (
             <Button
               type="button"

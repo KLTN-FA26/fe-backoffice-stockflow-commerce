@@ -34,6 +34,11 @@ const CODE_MESSAGE: Record<string, string> = {
   STORAGE_ERROR: "Kho ảnh tạm thời không phản hồi. Vui lòng thử lại sau.",
   FORBIDDEN: "Bạn không có quyền thực hiện thao tác này.",
   VALIDATION_FAILED: "Dữ liệu chưa hợp lệ.",
+  // BE `ProductVariantService.requireChangeable`: sản phẩm chờ duyệt / ngừng kinh doanh
+  INVALID_PRODUCT_STATUS_TRANSITION:
+    "Sản phẩm đang chờ duyệt hoặc đã ngừng kinh doanh nên không sửa được biến thể. Dữ liệu đã được tải lại.",
+  // BE `ProductMediaService`: cùng khoá idempotency nhưng nội dung khác
+  IDEMPOTENCY_KEY_REUSED: "Yêu cầu tải ảnh bị trùng — hãy tải lại trang rồi thử lại.",
 };
 
 const CONFLICT_MESSAGE: Partial<Record<VariantErrorContext, string>> = {

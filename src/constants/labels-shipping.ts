@@ -8,6 +8,7 @@ import {
   SHIPPING_WAYBILL_LABELS,
   SHIPPING_WAYBILL_TOAST_MESSAGES,
 } from "./labels-shipping-waybill";
+import { CARRIER_CONFIG_ERROR_MESSAGES } from "./labels-carrier-config";
 import { SHIPPING_LIMITS } from "./numbers";
 
 export const SHIPPING_UI_LABELS = {
@@ -234,6 +235,7 @@ export const SHIPPING_UI_LABELS = {
       needsApproval:
         'Bạn chỉ ghi nhận được hàng hoàn về kho — "đã giao" / "giao thất bại" cần quyền phê duyệt kết quả giao.',
     },
+    deliveryNote: { button: "Tải biên bản giao nhận", downloading: "Đang tạo biên bản…" },
     outcomeAction: {
       DELIVERED: "Ghi nhận đã giao",
       DELIVERY_FAILED: "Ghi nhận giao thất bại",
@@ -319,6 +321,7 @@ export const SHIPPING_ERROR_MESSAGES = {
   CARRIER_CANCEL_REFUSED:
     "Hãng không huỷ đơn được (tài xế đã lấy hàng) — liên hệ trực tiếp với hãng để xử lý.",
   SECRETS_UNAVAILABLE: "Hệ thống chưa lưu được khoá bí mật lúc này — thử lại sau.",
+  ...CARRIER_CONFIG_ERROR_MESSAGES,
   EXTERNAL_SERVICE_ERROR:
     "Hãng không phản hồi và có thể đã tạo đơn: kiểm tra trên cổng của hãng (đơn ghi chú mã chuyến), huỷ ở đó nếu có, rồi huỷ đặt xe và đặt lại.",
   // 409 — mã vận đơn (BR-23, BR-24)
@@ -331,7 +334,7 @@ export const SHIPPING_ERROR_MESSAGES = {
   // WF4-DRIVER (BE PR #316): tên tài xế phải có trên chuyến trước khi ký
   LOAD_DRIVER_MISSING: "Chuyến chưa có tên tài xế — nhập tên tài xế trước khi ký bàn giao.",
   WAYBILL_IMPORT_INVALID_FILE:
-    "File không đúng mẫu nhập mã vận đơn (cần CSV UTF-8, có dòng tiêu đề và ít nhất một dòng dữ liệu, tối đa 1.000 dòng, 1 MB).",
+    "File không đúng mẫu nhập mã vận đơn (cần CSV UTF-8 hoặc Excel .xlsx không đặt mật khẩu, có dòng tiêu đề và ít nhất một dòng dữ liệu, tối đa 1.000 dòng, 1 MB).",
   // 409 — chuyến
   INVALID_LOAD_TRANSITION: "Trạng thái chuyến đã đổi ở nơi khác — thao tác chưa được thực hiện.",
   LOAD_NOT_FULLY_LOADED:

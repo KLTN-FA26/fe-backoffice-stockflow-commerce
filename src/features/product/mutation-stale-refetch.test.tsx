@@ -134,7 +134,6 @@ describe("trục / mô tả / sinh ma trận — lỗi dữ liệu cũ tải l�
       description: "",
       descriptionEn: "",
       taxClass: "STANDARD",
-      kind: "STANDARD",
     };
     const keys = await failWith("ATTRIBUTE_VALUE_NOT_FOUND", () => useCreateProduct(), input);
     expect(keys).toContain(key(attributeKeys.all));

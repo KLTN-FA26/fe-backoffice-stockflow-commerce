@@ -11,16 +11,15 @@ import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { inventoryItemCapabilities } from "../../lifecycle";
 import { useInventoryItem } from "../../queries";
 import { ItemDetailError } from "./ItemDetailError";
-import { ItemEvaluationCard } from "./ItemEvaluationCard";
 import { ItemLogisticsCard } from "./ItemLogisticsCard";
-import { ItemPolicyCard } from "./ItemPolicyCard";
+import { ItemStockRulesCard } from "./ItemStockRulesCard";
 
-export type ItemEditing = "logistics" | "policy" | null;
+export type ItemEditing = "logistics" | null;
 
 function InventoryItemDetailContent({ id }: { id: string }) {
   const [editing, setEditing] = useState<ItemEditing>(null);
   // READ = đọc dữ liệu (tách khỏi VIEW_PAGE mở trang): thiếu thì không gọi API; UPDATE chỉ để hiện
-  // nút Sửa. UI-only — Backend phải re-check (BE PR #119 @RequiresPermission).
+  // nút Sửa. UI-only — Backend phải re-check (BE `InventoryItemController` @RequiresPermission).
   const { canRead, canEdit } = inventoryItemCapabilities(usePermissionChecker());
   const query = useInventoryItem(id, { enabled: canRead });
   // Breadcrumb hiện SKU thay vì UUID của BE
@@ -42,25 +41,16 @@ function InventoryItemDetailContent({ id }: { id: string }) {
     // breadcrumb topbar đã có SKU và link về danh sách; h1 giữ cho screen reader.
     <div className="surface-soft surface-compact">
       <h1 className="sr-only">{item.sku}</h1>
+      {/* Logistics (sửa được) cạnh chính sách tồn cố định (chỉ đọc) */}
       <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
-        {/* Logistics và chính sách tồn đứng cạnh nhau, mỗi khối một cột */}
-        <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
-          <ItemLogisticsCard
-            item={item}
-            editing={editing}
-            canEdit={canEdit}
-            onEdit={() => setEditing("logistics")}
-            onDone={done}
-          />
-          <ItemPolicyCard
-            item={item}
-            editing={editing}
-            canEdit={canEdit}
-            onEdit={() => setEditing("policy")}
-            onDone={done}
-          />
-        </div>
-        <ItemEvaluationCard item={item} />
+        <ItemLogisticsCard
+          item={item}
+          editing={editing}
+          canEdit={canEdit}
+          onEdit={() => setEditing("logistics")}
+          onDone={done}
+        />
+        <ItemStockRulesCard />
       </div>
     </div>
   );

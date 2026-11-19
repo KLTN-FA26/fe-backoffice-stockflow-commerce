@@ -17,6 +17,8 @@ export const ORDER_HOLD_REASONS = [
   "CUSTOMER",
   "FRAUD",
   "OTHER",
+  // WF-05 GH-1: lô hãng mang về → đơn giữ tới khi Sale quyết hồ sơ giao thất bại (không gỡ tay — HoldReason#resolvedByNote)
+  "DELIVERY_FAILED",
 ] as const;
 
 /**
@@ -33,7 +35,9 @@ export const ORDER_MANUAL_HOLD_REASONS = [
 ] as const;
 
 export const ORDER_HOLD_REASON_LABELS = {
-  CREDIT: "Vượt hạn mức công nợ",
+  // Giữ CREDIT khi ký: khách có nợ quá hạn HOẶC vượt hạn mức (BE CreditCheck OVERDUE / OVER_LIMIT) — đơn không cho
+  // biết là cái nào, nên không nói "vượt hạn mức" khi nguyên nhân là nợ quá hạn (WF-02 audit). Màn duyệt công nợ ghi rõ.
+  CREDIT: "Chờ duyệt công nợ (khách quá hạn hoặc vượt hạn mức)",
   DESIGN_MISMATCH: "Sai lệch thiết kế khi đóng gói",
   PAYMENT: "Vấn đề thanh toán",
   ADDRESS: "Sai địa chỉ / hãng vận chuyển không giao tới",
@@ -41,6 +45,7 @@ export const ORDER_HOLD_REASON_LABELS = {
   CUSTOMER: "Chờ khách xác nhận thay đổi",
   FRAUD: "Nghi ngờ gian lận",
   OTHER: "Lý do khác",
+  DELIVERY_FAILED: "Giao thất bại — chờ Sale quyết định giao lại hoặc huỷ phần chưa giao",
 } as const satisfies Record<(typeof ORDER_HOLD_REASONS)[number], string>;
 
 /**
@@ -52,6 +57,8 @@ export const ORDER_HOLD_GUIDANCE = {
     "Đơn bị giữ vì vượt hạn mức công nợ — không gỡ giữ tại đây. Duyệt hoặc từ chối ở màn duyệt công nợ.",
   DESIGN_MISMATCH:
     "Đơn bị giữ vì thiết kế in lệch checksum lúc đóng gói — không gỡ giữ tại đây. Quản lý kho kiểm tra lại kiện ở bàn đóng gói.",
+  DELIVERY_FAILED:
+    "Đơn bị giữ vì giao thất bại — không gỡ giữ tại đây. Quyết định giao lại hoặc huỷ phần chưa giao ở khối “Giao thất bại”.",
   UNRESOLVABLE: "Không xác định được lý do giữ — chưa thể gỡ giữ từ màn này. Tải lại trang.",
 } as const;
 
@@ -230,15 +237,36 @@ export const ORDER_HISTORY_ENTRY_TYPES = [
 ] as const;
 
 /**
- * Nhãn của mã ghi chú BE ghi ở bước đổi trạng thái do hệ thống / Sale (BE `Order#transitionTo`; tên bước theo docs 17 §5:
- * `Pending Contract` "hợp đồng đã gửi, chờ ký", `Pending Payment` "hợp đồng đã ký, chờ đợt ON_SIGNING", `Awaiting Stock`
- * khi Đơn sản xuất được gửi). Mã lạ không có trong bảng → hiện nguyên văn (có thể là ghi chú tự do).
+ * Nhãn của mã ghi chú BE ghi ở bước đổi trạng thái do hệ thống / Sale (BE `Order#transitionTo`, dạng `CODE` hoặc
+ * `CODE: ghi chú`; tên bước theo docs 17 §5: `Pending Contract` "hợp đồng đã gửi, chờ ký", `Pending Payment` "hợp đồng đã
+ * ký, chờ đợt ON_SIGNING", `Awaiting Stock` khi Đơn sản xuất được gửi). Mã giữ đơn (`HoldReason`) và lý do giao thất bại
+ * (`DeliveryFailureReason`) dùng nhãn sẵn có của chúng. Mã lạ không có trong bảng → hiện nguyên văn (có thể là ghi chú
+ * tự do).
  */
 export const ORDER_HISTORY_REASON_LABELS: Readonly<Record<string, string>> = {
   CONTRACT_SENT: "Đã gửi hợp đồng cho khách",
   CONTRACT_SIGNED: "Khách đã ký hợp đồng",
+  // Hợp đồng bị huỷ trước khi ký → đơn quay về nháp để lập lại (BE `Order#withdrawContract`)
+  CONTRACT_CANCELLED: "Hợp đồng bị huỷ — đơn quay về nháp",
   INSTALLMENT_PAID: "Đã thu đủ các đợt thanh toán khi ký hợp đồng",
   PRODUCTION_ORDER_SENT: "Đã gửi Đơn sản xuất",
+  CREDIT_APPROVED: "Kế toán duyệt vượt hạn mức công nợ",
+  // Hàng của lần giao thất bại đã về kho (BE `Order#markReturnedToOrigin`)
+  RETURNED_TO_ORIGIN: "Hàng giao thất bại đã về lại kho",
+  // Chạy đêm (BE `Order#complete` / `#close`)
+  RETURN_WINDOW_CLOSED: "Hết hạn đổi / trả — đơn tự hoàn tất",
+  CLOSED_AFTER_SETTLEMENT: "Tự đóng sau khi đã tất toán",
+  // Trả hàng (BE `ReturnRequestService`); RETURN_REQUESTED có thể kèm " <số RMA>"
+  RETURN_REQUESTED: "Khách yêu cầu trả hàng",
+  RETURN_REQUESTED_ON_FULL_DELIVERY: "Đơn giao đủ, còn yêu cầu trả hàng đang mở",
+  RETURN_GOODS_ARRIVED: "Hàng trả đã về kho",
+  RETURN_GOODS_BACK: "Đã nhận lại hàng trả",
+  RETURN_ENDED: "Kết thúc yêu cầu trả hàng, không có hàng về",
+  REFUNDED: "Đã hoàn tiền hàng trả",
+  // Kế toán huỷ phiếu hoàn tiền → đơn quay về "Đã trả hàng" (BE `Order#refundReopened`)
+  REFUND_VOIDED: "Huỷ phiếu hoàn tiền",
+  // Giao thất bại đã tất toán tiền (BE `DeliveryFailureService`)
+  DELIVERY_FAILED_SETTLED: "Đã tất toán tiền sau giao thất bại",
 };
 
 export const ORDER_HISTORY_LABELS = {
@@ -253,6 +281,9 @@ export const ORDER_HISTORY_LABELS = {
   /** Mục "Đóng phần còn lại" (`REMAINDER_CLOSURE`): đầu mục là `Đóng phần còn lại: <lý do>`. */
   remainderClosed: "Đóng phần còn lại",
   remainderClosedWithReason: (reason: string) => `Đóng phần còn lại: ${reason}`,
+  /** Bước gỡ giữ: BE ghi `HOLD_RESOLVED_<lý do giữ>[: ghi chú]`. */
+  holdResolved: "Gỡ giữ đơn",
+  holdResolvedWithReason: (reason: string) => `Gỡ giữ đơn (${reason})`,
   /** Mục "Đổi địa chỉ giao" (`ADDRESS_CHANGE`, docs 17 BR-16): địa chỉ cũ → mới. */
   addressChanged: "Đổi địa chỉ giao",
   addressFrom: "Từ",
@@ -384,10 +415,35 @@ export const ORDER_ERROR_MESSAGES = {
 
 export type OrderErrorCode = keyof typeof ORDER_ERROR_MESSAGES;
 
-/** Khối "Thanh toán" ở chi tiết đơn, phần các đợt thanh toán (docs 15 §5.2). */
+/**
+ * Khối "Thanh toán" ở chi tiết đơn, phần các đợt thanh toán (docs 15 §5.2; BE `GET /installments/orders/{id}` —
+ * `paymentStatus`, `paid`, `outstanding`, `dueBeforeHandover`).
+ */
 export const ORDER_INSTALLMENTS_LABELS = {
+  paymentStatus: "Tình trạng thanh toán",
+  unknownStatus: "Không rõ",
   count: "Số đợt thanh toán",
   collected: "Đã thu / tổng",
+  outstanding: "Còn phải thu",
+  dueBeforeHandover: "Phải thu trước khi xuất",
   list: "Các đợt",
   countValue: (n: number) => `${n} đợt`,
+} as const;
+
+/**
+ * Khối "Thanh toán" ở chi tiết đơn — số tiền BE `OrderResponse` có (4B-3): tổng, tạm tính trước thuế, dòng phí, VAT, giá
+ * trị sau khi đóng phần còn lại. Tiến độ thu tiền đọc từ các đợt (`ORDER_INSTALLMENTS_LABELS`).
+ */
+export const ORDER_FINANCE_LABELS = {
+  title: "Thanh toán",
+  total: "Tổng thanh toán",
+  net: "Tạm tính (trước thuế)",
+  tax: "Thuế GTGT",
+  effectiveTotal: "Giá trị sau khi đóng phần còn lại",
+  feeKinds: {
+    PLATE_FEE: "Phí khuôn / bản in",
+    SHIPPING_FEE: "Phí vận chuyển",
+    UNKNOWN: "Phí khác",
+  },
+  feeOfSku: (label: string, sku: string) => `${label} · ${sku}`,
 } as const;

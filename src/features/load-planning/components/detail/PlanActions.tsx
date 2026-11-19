@@ -11,7 +11,6 @@ const CC = UI_LABELS.shipping.ftl.controlledCancel;
 const BLOCK_TEXT: Record<ConfirmBlock, string> = {
   noVehicles: L.noVehicles,
   needsRecalculation: L.needsRecalculationAlert,
-  transferShipsWhole: UI_LABELS.loadPlan.transfer.detail.shipsWholeBlocked,
   unplacedPending: L.unplaced.pending,
 };
 

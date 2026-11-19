@@ -1,11 +1,12 @@
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { parseAsBoolean, parseAsString, useQueryState } from "nuqs";
+import { parseAsString, useQueryState } from "nuqs";
 
 import { ADMIN_ROUTES, RECEIPT_COLUMNS, RECEIPT_STATUSES, STORAGE_KEYS } from "@/constants";
 import { usePageConfig } from "@/hooks/use-page-config";
 import { useUrlFilters } from "@/hooks/use-url-filters";
 import { useGoodsReceipts } from "@/features/receipt/queries";
+import { productionOrderCodeOf } from "@/features/receipt/selectors";
 
 import {
   DEFAULT_COLUMNS,
@@ -38,15 +39,17 @@ function parseSort(raw: string): { key: SortableColumn | null; direction: SortDi
 }
 
 /**
- * State trang danh sách phiếu nhận — status/search/PO/ngày/sort/page trên URL (nuqs), cột + số
- * dòng trong localStorage (state-persistence.md). Lọc / sắp xếp / phân trang phía server (PR #62).
+ * State trang danh sách phiếu nhận — status/search/Đơn sản xuất/ngày/sort/page trên URL (nuqs), cột + số
+ * dòng trong localStorage (state-persistence.md). Lọc / sắp xếp / phân trang phía server.
  */
 export function useReceiptListState(canRead = true) {
   const router = useRouter();
   const filters = useUrlFilters(RECEIPT_STATUSES);
-  const [po, setPo] = useQueryState("po", parseAsString.withDefault(""));
-  // BR-RCP-002: chỉ phiếu không có PO (?noPo=1); không có tham số = cả hai loại
-  const [noPo, setNoPo] = useQueryState("noPo", parseAsBoolean.withDefault(false));
+  // Lọc theo một Đơn sản xuất (`?productionOrder=<id>`) — link từ màn Đơn sản xuất
+  const [productionOrder, setProductionOrder] = useQueryState(
+    "productionOrder",
+    parseAsString.withDefault(""),
+  );
   const [from, setFrom] = useQueryState("from", parseAsString.withDefault(""));
   const [to, setTo] = useQueryState("to", parseAsString.withDefault(""));
   const { config, updateConfig } = usePageConfig<ReceiptPageConfig>(
@@ -63,8 +66,7 @@ export function useReceiptListState(canRead = true) {
       size: config.pageSize,
       search: filters.debouncedQ,
       status: filters.status,
-      purchaseOrderId: po || undefined,
-      withoutPo: noPo || undefined,
+      productionOrderId: productionOrder || undefined,
       receivedFrom: receivedFrom || undefined,
       receivedTo: receivedTo || undefined,
       sort: sort.key ? `${SERVER_SORT_FIELDS[sort.key]},${sort.direction}` : undefined,
@@ -75,11 +77,13 @@ export function useReceiptListState(canRead = true) {
   const hasFilters =
     filters.q.trim() !== "" ||
     filters.status.length > 0 ||
-    !!po ||
-    noPo ||
+    !!productionOrder ||
     !!receivedFrom ||
     !!receivedTo;
   const page = query.data;
+  // Chip lọc hiện mã Đơn sản xuất thay cho id trên URL; chưa có dòng khớp thì đành hiện id
+  const productionOrderLabel =
+    productionOrderCodeOf(page?.items ?? [], productionOrder) ?? productionOrder;
   const emptyState: ReceiptListEmptyState = !page
     ? "none"
     : page.totalElements === 0
@@ -132,11 +136,10 @@ export function useReceiptListState(canRead = true) {
     void filters.setPage(1);
   };
 
-  /** Bỏ mọi bộ lọc dữ liệu (search, trạng thái, PO, chỉ-không-có-PO, ngày) — giữ cấu hình cột. */
+  /** Bỏ mọi bộ lọc dữ liệu (search, trạng thái, Đơn sản xuất, ngày) — giữ cấu hình cột. */
   const clearFilters = () => {
     filters.reset();
-    void setPo(null);
-    void setNoPo(null);
+    void setProductionOrder(null);
     void setFrom(null);
     void setTo(null);
   };
@@ -156,12 +159,11 @@ export function useReceiptListState(canRead = true) {
     config,
     filters,
     sort,
-    po,
-    noPo,
+    productionOrder,
+    productionOrderLabel,
     receivedFrom,
     receivedTo,
-    setNoPo: (value: boolean) => withPageReset(() => setNoPo(value || null)),
-    setPo: (value: string) => withPageReset(() => setPo(value || null)),
+    setProductionOrder: (value: string) => withPageReset(() => setProductionOrder(value || null)),
     setFrom: (value: string) => withPageReset(() => setFrom(value || null)),
     setTo: (value: string) => withPageReset(() => setTo(value || null)),
     hasFilters,

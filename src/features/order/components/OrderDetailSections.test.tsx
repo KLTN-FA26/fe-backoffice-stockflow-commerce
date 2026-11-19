@@ -57,81 +57,67 @@ describe("OrderDetail — dòng hàng sẵn / dòng in + giữ hàng", () => {
 });
 
 describe("OrderDetail — thanh toán / cọc / công nợ / huỷ", () => {
-  it("đơn đặt cọc chưa nhận cọc → 'Chưa nhận cọc' (docs 19 BR-09)", async () => {
-    await renderDetail({
-      ...apiOrder,
-      paymentTerm: "DEPOSIT",
-      paymentStatus: "UNPAID",
-      paidAmount: 0,
-      depositRequired: 105_000,
-    });
-
-    // Phương thức / trạng thái thanh toán không còn đọc từ đơn (BE bỏ field) — khối đọc các đợt thanh toán
-    expect(await screen.findByText("Chưa nhận cọc")).toBeInTheDocument();
-  });
-
-  it("đơn đặt cọc đã nhận cọc → 'Đã nhận cọc'", async () => {
-    await renderDetail({
-      ...apiOrder,
-      status: "CONFIRMED",
-      paymentTerm: "DEPOSIT",
-      depositRequired: 105_000,
-      depositReceivedAt: "2026-09-08T02:00:00Z",
-    });
-
-    expect(await screen.findByText(/Đã nhận cọc/)).toBeInTheDocument();
-  });
-
-  /** Card "Thanh toán" — "Tạm giữ" còn xuất hiện ở badge trạng thái đơn nên phải giới hạn phạm vi. */
+  /** Card "Thanh toán" — giới hạn phạm vi (nhãn tiền có thể trùng chỗ khác). */
   async function financeCard() {
     const heading = await screen.findByRole("heading", { name: "Thanh toán" });
     return within(heading.closest("section") as HTMLElement);
   }
 
-  it("E/F. đơn công nợ giữ vì CREDIT → trạng thái 'Tạm giữ', KHÔNG đoán 'nợ quá hạn'", async () => {
+  it("4B-3: tổng, tạm tính trước thuế, từng dòng phí (phí khuôn kèm SKU) và VAT theo BE", async () => {
+    // Response thô (loại phí lạ chỉ có ở wire, chưa qua parse) — route ghi đè DETAIL_PATH
+    const wire = {
+      ...apiOrder,
+      totalAmount: 2_376_000,
+      netAmount: 2_200_000,
+      taxAmount: 176_000,
+      fees: [
+        {
+          kind: "PLATE_FEE",
+          sku: "CUP-PRINT-12OZ",
+          amount: 150_000,
+          taxRate: 8,
+          taxAmount: 12_000,
+        },
+        { kind: "SHIPPING_FEE", amount: 50_000, taxRate: 8, taxAmount: 4_000 },
+        { kind: "INSURANCE_FEE", amount: 1_000 },
+      ],
+    };
+    await renderDetail(apiOrder, { [DETAIL_PATH]: () => wire });
+
+    const card = await financeCard();
+    expect(card.getByText("Tạm tính (trước thuế)")).toBeInTheDocument();
+    expect(card.getByText(/2\.200\.000/)).toBeInTheDocument();
+    expect(card.getByText("Phí khuôn / bản in · CUP-PRINT-12OZ")).toBeInTheDocument();
+    expect(card.getByText("Phí vận chuyển")).toBeInTheDocument();
+    // Loại phí BE thêm sau → nhãn chung, không lộ mã
+    expect(card.getByText("Phí khác")).toBeInTheDocument();
+    expect(card.queryByText(/INSURANCE_FEE/)).not.toBeInTheDocument();
+    expect(card.getByText("Thuế GTGT")).toBeInTheDocument();
+    expect(card.getByText(/176\.000/)).toBeInTheDocument();
+  });
+
+  it("BE không gửi netAmount / taxAmount / fees → không dòng nào, không '0 ₫' bịa", async () => {
+    await renderDetail(apiOrder);
+    const card = await financeCard();
+    expect(card.queryByText("Tạm tính (trước thuế)")).not.toBeInTheDocument();
+    expect(card.queryByText("Thuế GTGT")).not.toBeInTheDocument();
+  });
+
+  it("không còn dòng cọc / công nợ suy từ field BE đã bỏ (paymentTerm, deposit*, creditTermDays)", async () => {
     await renderDetail({
       ...apiOrder,
       status: "ON_HOLD",
       paymentTerm: "CREDIT",
-      paymentStatus: "ON_CREDIT",
       creditTermDays: 30,
       holdReason: "CREDIT",
+      depositRequired: 105_000,
     });
 
     const card = await financeCard();
-    expect(card.getByText("Tạm giữ")).toBeInTheDocument();
-    expect(card.queryByText(/Vượt hạn mức|công nợ quá hạn/)).not.toBeInTheDocument();
-    expect(card.getByText("Kỳ hạn 30 ngày")).toBeInTheDocument();
-  });
-
-  it("E/F'. đơn công nợ giữ vì ADDRESS (đã qua kiểm hạn mức lúc xác nhận) → KHÔNG 'Tạm giữ' công nợ", async () => {
-    await renderDetail({
-      ...apiOrder,
-      status: "ON_HOLD",
-      paymentTerm: "CREDIT",
-      paymentStatus: "ON_CREDIT",
-      creditTermDays: 30,
-      holdReason: "ADDRESS",
-      statusBeforeHold: "PICKING",
-    });
-
-    const card = await financeCard();
-    expect(card.queryByText("Tạm giữ")).not.toBeInTheDocument();
-    expect(card.getByText(/Đã qua kiểm hạn mức/)).toBeInTheDocument();
-  });
-
-  it("G. đơn công nợ không On Hold → giữ nguyên 'Đã qua kiểm hạn mức'", async () => {
-    await renderDetail({
-      ...apiOrder,
-      status: "CONFIRMED",
-      paymentTerm: "CREDIT",
-      paymentStatus: "ON_CREDIT",
-      creditTermDays: 30,
-    });
-
-    const card = await financeCard();
-    expect(card.getByText("Đã qua kiểm hạn mức")).toBeInTheDocument();
-    expect(card.queryByText("Tạm giữ")).not.toBeInTheDocument();
+    expect(card.queryByText("Tiền cọc")).not.toBeInTheDocument();
+    expect(card.queryByText(/nhận cọc/)).not.toBeInTheDocument();
+    expect(card.queryByText("Công nợ")).not.toBeInTheDocument();
+    expect(card.queryByText(/Kỳ hạn 30 ngày|Đã qua kiểm hạn mức/)).not.toBeInTheDocument();
   });
 
   it('đơn đã huỷ → nhãn lý do + ghi chú tách khỏi cột BE "CODE: ghi chú", không lộ mã', async () => {

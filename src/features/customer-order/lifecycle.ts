@@ -1,24 +1,15 @@
 /**
  * Thao tác của khách trên đơn của mình (portal). UI-only — Backend phải re-check (scope OWN).
- * - Đặt lại: chỉ khi BE báo `allowedActions.reorder` và khách có CREATE; đơn mua theo
- *   giá niêm yết không tạo lại báo giá cũ.
+ * - "Đặt lại" (`POST /orders/{id}/reorder`) BE đã bỏ (WF-02 F1): khách mở chat với Sale ở storefront.
  * - Đổi trả (SCRUM-257): chỉ đơn đã giao; BE CHƯA có API RMA → hiển thị "chưa khả dụng".
  */
 
-import { ORDER_PERMISSIONS } from "@/constants";
-
 import type { OrderStatusGroup } from "@/constants";
-import type { PermissionCode } from "@/lib/auth/me-permissions";
 
-export type MyOrderAction = "reorder" | "returnUnavailable";
+export type MyOrderAction = "returnUnavailable";
 
-export function allowedMyOrderActions(
-  statusGroup: OrderStatusGroup,
-  allowedActions: { reorder: boolean } | null | undefined,
-  can: (code: PermissionCode) => boolean,
-): MyOrderAction[] {
+export function allowedMyOrderActions(statusGroup: OrderStatusGroup): MyOrderAction[] {
   const actions: MyOrderAction[] = [];
-  if (allowedActions?.reorder && can(ORDER_PERMISSIONS.create)) actions.push("reorder");
   if (statusGroup === "DELIVERED") actions.push("returnUnavailable");
   return actions;
 }

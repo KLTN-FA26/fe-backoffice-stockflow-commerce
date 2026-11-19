@@ -76,7 +76,7 @@ afterAll(() => {
 describe("GET /einvoices", () => {
   it("lists what is still to issue first and filters by status and order", async () => {
     const all = await listEInvoices({ page: 0, size: 50 });
-    expect(all.totalElements).toBe(10);
+    expect(all.totalElements).toBe(12);
     expect(all.items[0]?.issuedAt).toBeFalsy();
     const drafts = await listEInvoices({ status: "DRAFT" });
     expect(drafts.items.every((i) => i.status === "DRAFT")).toBe(true);

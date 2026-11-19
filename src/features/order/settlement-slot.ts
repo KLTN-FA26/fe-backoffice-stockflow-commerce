@@ -18,6 +18,8 @@ export interface OrderSettlementSlotProps {
   closedAt: string | null;
   /** Các lần giao đã giao thành công — mỗi lần phải có hoá đơn điện tử (docs 21 BR-01). */
   deliveredShipmentIds: string[];
+  /** WF-05 GH-2: Sale đang giữ hoàn tất đơn; null = chưa đọc được (đang tải / lỗi). */
+  completionHeld: boolean | null;
 }
 
 export type OrderSettlementSlot = (props: OrderSettlementSlotProps) => ReactNode;

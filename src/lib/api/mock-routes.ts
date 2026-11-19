@@ -96,7 +96,7 @@ const MOCK_APPROVER_ID = "22222222-2222-4222-8222-222222222222";
 
 export function registerAllMockRoutes(): void {
   /* ====================================================================
-   * Module 01 — Products / SKUs / Categories / Suppliers
+   * Module 01 — Products / SKUs / Categories
    * ==================================================================*/
 
   // GET /products
@@ -120,6 +120,11 @@ export function registerAllMockRoutes(): void {
         (p) => p.name.toLowerCase().includes(q) || p.productId.toLowerCase().includes(q),
       );
     if (statuses.length) filtered = filtered.filter((p) => statuses.includes(p.status));
+    // BE `ListProductsQuery.categoryId` / `brandId` — một giá trị, khớp đúng
+    const categoryId = params.get("categoryId");
+    const brandId = params.get("brandId");
+    if (categoryId) filtered = filtered.filter((p) => p.categoryId === categoryId);
+    if (brandId) filtered = filtered.filter((p) => p.brandId === brandId);
     if (sortField === "code" || sortField === "name" || sortField === "status") {
       filtered.sort((left, right) => {
         const leftValue = sortField === "code" ? left.productId : left[sortField];
@@ -146,6 +151,34 @@ export function registerAllMockRoutes(): void {
       },
       headers: {},
     };
+  });
+
+  // GET /products/duplicates — BE `ProductDuplicates.possibleDuplicates` (docs 01 §4.3, BR-16): cùng thương hiệu +
+  // danh mục chính, tên trùng khoá (bỏ dấu / hoa thường / khoảng trắng / dấu câu). Thiếu thương hiệu hoặc danh
+  // mục → rỗng. Đăng ký TRƯỚC `/products/:id` (khớp theo thứ tự).
+  registerMockRoute("GET", "/products/duplicates", async (config) => {
+    const params = queryOf(config);
+    const key = nameKey(params.get("name") ?? "");
+    const brandId = params.get("brandId");
+    const categoryId = params.get("categoryId");
+    const exclude = params.get("excludeProductId");
+    if (!key || !brandId || !categoryId) return ok([]);
+    const matches = (await allMockProducts())
+      .map(withBrandId)
+      .filter(
+        (p) =>
+          p.productId !== exclude &&
+          p.brandId === brandId &&
+          p.categoryId === categoryId &&
+          nameKey(p.name) === key,
+      )
+      .map((p) => ({
+        productId: p.productId,
+        code: p.productId,
+        name: p.name,
+        status: beProductStatus(p.status),
+      }));
+    return ok(matches);
   });
 
   // GET /products/:id
@@ -209,14 +242,15 @@ export function registerAllMockRoutes(): void {
       name: readString(body.name),
       nameEn: readString(body.nameEn) || readString(body.name),
       slug: slugify(readString(body.name) || productId),
-      // BE PR #71: `kind` thay `customizable`; ảnh theo biến thể, logistics theo SKU.
-      type: body.kind === "CUSTOMIZABLE" ? "Customizable" : "Standard",
+      // BE `ProductKind`: hệ thống gán CUSTOMIZABLE, request không có `kind` (kltn-docs 01 §3, BR-19).
+      type: "Customizable",
       categoryId,
       status: "Draft",
       shortDescription: readString(body.shortDescription) || undefined,
       description: readString(body.description),
       descriptionEn: readString(body.descriptionEn),
       images: [],
+      // Kiểu `Product` của mock-data (không sửa) còn bắt trường này; BE không còn giá cơ sở
       basePrice: 0,
       attributes: [],
       taxClass: readTaxClass(
@@ -270,7 +304,8 @@ export function registerAllMockRoutes(): void {
       descriptionEn: readString(body.descriptionEn),
       brand: brand?.name ?? "",
       brandId: brand?.brandId ?? null,
-      type: body.kind === "CUSTOMIZABLE" ? "Customizable" : "Standard",
+      // Loại không đổi được (BE `UpdateProductRequest` không có `kind`)
+      type: current.type,
       taxClass: readTaxClass(
         typeof body.taxClass === "string" ? body.taxClass.toLowerCase() : body.taxClass,
       ),
@@ -287,25 +322,6 @@ export function registerAllMockRoutes(): void {
   registerProductLifecycleRoutes();
 
   // GET /categories, /brands (+ tạo / sửa): mock-routes-taxonomy.ts
-
-  // Suppliers: xem mock-routes-suppliers.ts (đăng ký trong mock-adapter.ts)
-
-  /* ====================================================================
-   * Module 02 — Purchase Orders / Replenishment
-   * ==================================================================*/
-
-  // Purchase orders: mock-routes-purchase-orders.ts (BE PurchaseOrderController contract).
-
-  // FE-only: BE has no GET /api/v1/replenishment-proposals yet.
-  // GET /replenishment-proposals
-  registerMockRoute("GET", "/replenishment-proposals", async (config) => {
-    const { replenishmentProposals } = await import("@/lib/mock-data");
-    const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 1;
-    const pageSize = Number(params.get("pageSize")) || 15;
-
-    return { status: 200, data: paginate(replenishmentProposals, page, pageSize), headers: {} };
-  });
 
   /* ====================================================================
    * Module 05 — Putaway Tasks
@@ -389,8 +405,7 @@ export function registerAllMockRoutes(): void {
   // Module 07/08 (lấy hàng, đóng gói): API thật `/fulfillment/tasks` — mock ở
   // `mock-routes-fulfillment.ts` (SCRUM-437).
 
-  // Module 09 (chuyến xe) và 10 (lệnh chuyển kho) theo hợp đồng BE: mock-routes-dispatch.ts,
-  // mock-routes-transfer-orders.ts — route cũ /shipments, /carriers, /transfer-orders đã bỏ.
+  // Module 09 (chuyến xe) theo hợp đồng BE: mock-routes-dispatch.ts — route cũ /shipments, /carriers đã bỏ.
 
   /* ====================================================================
    * Module 11 — Move Tasks
@@ -495,7 +510,7 @@ function registerProductTransitionRoutes(): void {
     if (result.status !== 200) return result;
     const kinds = new Set(open.references.map((reference) => reference.kind));
     const warnings = [
-      ...(kinds.has("PURCHASE_ORDER_LINE") ? ["OPEN_PURCHASE_ORDER_LINES"] : []),
+      ...(kinds.has("PRODUCTION_ORDER_LINE") ? ["OPEN_PRODUCTION_ORDER_LINES"] : []),
       ...(kinds.has("SALES_ORDER_LINE") ? ["UNSHIPPED_ORDER_LINES"] : []),
     ];
     return {
@@ -782,4 +797,9 @@ function slugify(value: string): string {
     .replace(/đ/g, "d")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+/** BE khoá tên sản phẩm: bỏ dấu, chữ thường, bỏ khoảng trắng và dấu câu. */
+function nameKey(value: string): string {
+  return slugify(value).replace(/-/g, "");
 }

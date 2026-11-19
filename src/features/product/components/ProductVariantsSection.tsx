@@ -20,8 +20,8 @@ export function ProductVariantsSection({
   productCode,
   productApproved,
   acceptsChanges,
-  productDiscontinued,
   customizable,
+  canRead,
   query,
 }: {
   productId: string;
@@ -31,10 +31,10 @@ export function ProductVariantsSection({
   productApproved: boolean;
   /** Không chờ duyệt, không ngừng kinh doanh (BE `Product.acceptsChanges`). */
   acceptsChanges: boolean;
-  /** Đã ngừng kinh doanh — chỉ trường hợp này BE từ chối đặt giá. */
-  productDiscontinued: boolean;
   /** Sản phẩm tuỳ chỉnh / in ấn (`kind` CUSTOMIZABLE). */
   customizable: boolean;
+  /** `product-variants:READ` — thiếu thì BE trả 403 cho GET biến thể; mục báo không có quyền. */
+  canRead: boolean;
   query: UseQueryResult<Variant[]>;
 }) {
   const [dialog, setDialog] = useState<VariantDialog>(null);
@@ -46,17 +46,22 @@ export function ProductVariantsSection({
         <VariantsActions productId={productId} acceptsChanges={acceptsChanges} onOpen={setDialog} />
       }
     >
-      <VariantsSection
-        productId={productId}
-        productCode={productCode}
-        productApproved={productApproved}
-        acceptsChanges={acceptsChanges}
-        productDiscontinued={productDiscontinued}
-        customizable={customizable}
-        query={query}
-        dialog={dialog}
-        onDialogChange={setDialog}
-      />
+      {!canRead ? (
+        <p className="text-ink-tertiary text-[0.8125rem]">
+          Bạn không có quyền xem biến thể của sản phẩm.
+        </p>
+      ) : (
+        <VariantsSection
+          productId={productId}
+          productCode={productCode}
+          productApproved={productApproved}
+          acceptsChanges={acceptsChanges}
+          customizable={customizable}
+          query={query}
+          dialog={dialog}
+          onDialogChange={setDialog}
+        />
+      )}
     </Section>
   );
 }

@@ -2,7 +2,8 @@
  * Mock routes — thương hiệu / danh mục (BE `ProductTaxonomyController` + `ProductTaxonomyService`).
  * Đúng hình `BrandResponse` / `CategoryResponse` (field null bị bỏ — `non_null`) và các luật: mã
  * `@Pattern` trên chuỗi thô rồi in hoa, trùng mã / slug 409, cha không tồn tại 404, cây tối đa
- * 11 cấp, PUT thay toàn bộ, mã và cha bất biến, không có DELETE.
+ * 11 cấp, PUT thay toàn bộ, mã bất biến, đổi cha qua `PUT /categories/{id}/parent` (chuyển cả nhánh), không có
+ * DELETE.
  */
 import { paginatePage, registerMockRoute } from "./mock-adapter";
 import { bodyOf, fail, ok, pathParams, queryOf, text } from "./mock-route-utils";
@@ -228,6 +229,45 @@ export function registerTaxonomyMockRoutes(): void {
       active: b.active === true,
       version: category.version + 1,
     });
+    return ok(toResponse(category));
+  });
+  // BE `ProductTaxonomyService.moveCategory`: null = lên gốc; không vào chính nó / nhánh con; cây ≤ 11 cấp
+  registerMockRoute("PUT", "/categories/:categoryId/parent", async (config) => {
+    const { categoryId = "" } = pathParams(config);
+    const store = await categoryStore();
+    const category = store.find((c) => c.categoryId === categoryId);
+    if (!category) return categoryNotFound(categoryId);
+    const parentId = text(bodyOf(config).parentId) || null;
+    if (parentId === category.parentId) return ok(toResponse(category));
+    const parent = parentId ? store.find((c) => c.categoryId === parentId) : undefined;
+    if (parentId && !parent) return categoryNotFound(parentId);
+    const oldPath = category.path;
+    const invalidParent = (message: string) =>
+      fail(400, "VALIDATION_FAILED", message, [
+        { field: "parentId", message, code: "VALIDATION_FAILED" },
+      ]);
+    if (parent && (parent.categoryId === categoryId || parent.path.startsWith(`${oldPath}/`))) {
+      return invalidParent("A category cannot move under itself or one of its own subcategories");
+    }
+    const descendants = store.filter((c) => c.path.startsWith(`${oldPath}/`));
+    const depthChange = (parent ? parent.depth + 1 : 0) - category.depth;
+    const deepest = Math.max(category.depth, ...descendants.map((c) => c.depth));
+    if (deepest + depthChange > MAX_PARENT_DEPTH + 1) {
+      return invalidParent("The category tree is at most 11 levels deep");
+    }
+    const newPath = `${parent?.path ?? ""}/${category.code}`;
+    Object.assign(category, {
+      parentId: parent?.categoryId ?? null,
+      path: newPath,
+      depth: category.depth + depthChange,
+      version: category.version + 1,
+    });
+    for (const d of descendants) {
+      Object.assign(d, {
+        path: newPath + d.path.slice(oldPath.length),
+        depth: d.depth + depthChange,
+      });
+    }
     return ok(toResponse(category));
   });
 }

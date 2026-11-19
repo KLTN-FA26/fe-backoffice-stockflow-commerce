@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { parseAsString, useQueryState } from "nuqs";
+import { cn } from "cn";
 import { FileSignature, Plus } from "lucide-react";
 
 import { ADMIN_ROUTES, QUOTE_API_STATUSES, QUOTE_PERMISSIONS, STORAGE_KEYS } from "@/constants";
@@ -15,8 +16,11 @@ import { useQuotes } from "@/features/quote/queries";
 
 import { CustomerName } from "@/components/backoffice/CustomerName";
 import { ServerTableBody } from "@/components/backoffice/ServerTableBody";
-import { ListToolbar } from "@/components/shared/ListToolbar";
-import { PageHeader } from "@/components/shared/PageHeader";
+import {
+  ListToolbar,
+  TOOLBAR_ACTION_CLASS,
+  TOOLBAR_PRIMARY_CLASS,
+} from "@/components/shared/ListToolbar";
 import { Button } from "@/components/ui/button";
 
 import { QUOTE_COPY, quoteStatusLabel } from "./copy";
@@ -52,7 +56,7 @@ function QuoteListContent() {
     ? ADMIN_ROUTES.quotes.createForCustomer(customerId)
     : ADMIN_ROUTES.quotes.create;
   const createButton = canCreate ? (
-    <Button asChild size="sm" className="rounded-[var(--r-sm)]">
+    <Button asChild size="sm" className={cn(TOOLBAR_PRIMARY_CLASS, TOOLBAR_ACTION_CLASS)}>
       <Link href={createHref}>
         <Plus className="size-3.5" /> Tạo báo giá
       </Link>
@@ -60,13 +64,11 @@ function QuoteListContent() {
   ) : undefined;
 
   return (
-    <>
-      <PageHeader
-        title={QUOTE_COPY.pageTitle}
-        subtitle="Báo giá bậc thang cho khách B2B — gửi khách duyệt trên portal, chấp nhận rồi chuyển thành đơn bán."
-        actions={createButton}
-      />
-      {canRead && (
+    // Giao diện kiểu Vercel như danh sách sản phẩm (globals.css `.surface-soft`). Không hiện tiêu đề —
+    // tên trang nằm ở breadcrumb topbar; h1 giữ cho screen reader.
+    <div className="surface-soft">
+      <h1 className="sr-only">{QUOTE_COPY.pageTitle}</h1>
+      {canRead ? (
         <ListToolbar
           search={filters.q}
           onSearchChange={(value) => void filters.setQ(value)}
@@ -102,7 +104,10 @@ function QuoteListContent() {
           ]}
           onResetAll={clearAll}
           resetDisabled={!hasFilters && !filters.sort}
+          actions={createButton}
         />
+      ) : (
+        createButton && <div className="mb-3 flex justify-end">{createButton}</div>
       )}
       <ServerTableBody
         query={query}
@@ -124,6 +129,7 @@ function QuoteListContent() {
         pageSize={list.pageSize}
         onPageChange={list.goToPage}
         onPageSizeChange={list.changePageSize}
+        stickyHeader
         sorting={{
           key: sortActive ? (sortKey ?? null) : null,
           direction,
@@ -134,7 +140,7 @@ function QuoteListContent() {
           },
         }}
       />
-    </>
+    </div>
   );
 }
 

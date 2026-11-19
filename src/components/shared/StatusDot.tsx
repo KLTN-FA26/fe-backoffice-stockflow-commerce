@@ -10,6 +10,8 @@ interface StatusDotProps {
   size?: "sm" | "md";
   withIcon?: boolean;
   className?: string;
+  /** Nhãn riêng của module khi nhãn chung của status-map không sát nghĩa (tone vẫn theo status-map). */
+  label?: string;
 }
 
 const DOT_TONE_CLASSES: Record<SemanticTone, string> = {
@@ -22,9 +24,9 @@ const DOT_TONE_CLASSES: Record<SemanticTone, string> = {
   warning: "bg-dot-warning",
 };
 
-export function StatusDot({ domain, status, size = "sm", className }: StatusDotProps) {
+export function StatusDot({ domain, status, size = "sm", className, label }: StatusDotProps) {
   const tone = toneOf(status);
-  const labelVi = statusLabelVi(status, domain);
+  const labelVi = label ?? statusLabelVi(status, domain);
   const title = labelVi ? `${labelVi} — ${status}` : status;
 
   return (

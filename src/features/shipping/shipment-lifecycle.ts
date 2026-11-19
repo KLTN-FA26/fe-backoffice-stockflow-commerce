@@ -10,6 +10,7 @@
 import {
   DELIVERY_OUTCOMES,
   FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS,
+  SHIPMENT_PERMISSIONS,
   UI_LABELS,
 } from "@/constants";
 import { SHIPMENT_TRANSITIONS } from "@/lib/domain/lifecycle";
@@ -47,4 +48,15 @@ export function noOutcomeReason(
   if (shipment.status === "UNKNOWN") return N.terminal;
   if (SHIPMENT_TRANSITIONS[shipment.status].length === 0) return N.terminal;
   return N.needsApproval;
+}
+
+/**
+ * Có tải được biên bản giao nhận (PDF) của lô không: cần `fulfillment-shipments:READ`; lô đã huỷ không có biên bản (BE 409
+ * SHIPMENT_STATE_CONFLICT). UI-only — Backend phải re-check (quyền + trạng thái).
+ */
+export function canDownloadDeliveryNote(
+  shipment: Pick<ShipmentRow, "status">,
+  actor: ShippingActor,
+): boolean {
+  return actor.can(SHIPMENT_PERMISSIONS.read) && shipment.status !== "CANCELLED";
 }
