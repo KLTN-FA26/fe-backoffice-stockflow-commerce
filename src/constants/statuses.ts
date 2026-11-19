@@ -312,24 +312,6 @@ export const ORDER_STATUS_UNKNOWN = "UNKNOWN";
 /** Trạng thái đơn sau khi parse response BE: trạng thái đã biết hoặc `ORDER_STATUS_UNKNOWN`. */
 export const ORDER_READ_STATUSES = [...ORDER_STATUSES, ORDER_STATUS_UNKNOWN] as const;
 
-/** Nhà cung cấp (module 01) — BE: ACTIVE/INACTIVE (SCRUM-118). */
-export const SUPPLIER_STATUSES = ["Active", "Inactive", "Blacklisted"] as const;
-
-export const SUPPLIER_STATUS = {
-  ACTIVE: "Active",
-  INACTIVE: "Inactive",
-  BLACKLISTED: "Blacklisted",
-} as const satisfies Record<string, SupplierStatus>;
-
-/**
- * Giá trị status trên wire của BE (SaveSupplierRequest/SupplierResponse). BE PR #71 thêm
- * BLACKLISTED = ngừng hợp tác có lý do không đặt lại (không nhận PO mới như INACTIVE).
- */
-export const SUPPLIER_API_STATUSES = ["ACTIVE", "INACTIVE", "BLACKLISTED"] as const;
-
-/** Kênh gửi PO cho NCC — BE `communicationChannel` (EMAIL|API, BE PR #36). */
-export const SUPPLIER_CHANNELS = ["EMAIL", "API"] as const;
-
 /**
  * Chuyến xe xuất hàng — BE `LoadStatus`. Mọi chuyến là một xe của kế hoạch xếp xe (giao nguyên chuyến, docs 09 BR-08):
  * Planned → Vehicle Booked → Loading → Dispatched, hoặc Cancelled (docs 09 §5.2).
@@ -452,9 +434,6 @@ export type ProductStatus = (typeof PRODUCT_STATUSES)[number];
 export type SkuStatus = (typeof SKU_STATUSES)[number];
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
 export type OrderReadStatus = (typeof ORDER_READ_STATUSES)[number];
-export type SupplierStatus = (typeof SUPPLIER_STATUSES)[number];
-export type SupplierApiStatus = (typeof SUPPLIER_API_STATUSES)[number];
-export type SupplierChannel = (typeof SUPPLIER_CHANNELS)[number];
 
 /* ── Bán hàng B2B & sản xuất (BE local integration d215f6e, chưa merge develop) ─────────── */
 

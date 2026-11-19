@@ -408,10 +408,6 @@ export {
   SKU_STATUSES,
   STOCK_PACKAGE_API_STATUSES,
   STOCK_PACKAGE_STATUS_BY_API,
-  SUPPLIER_API_STATUSES,
-  SUPPLIER_CHANNELS,
-  SUPPLIER_STATUS,
-  SUPPLIER_STATUSES,
   USER_STATUS,
   USER_STATUSES,
   VEHICLE_TYPE_KIND,
@@ -468,9 +464,6 @@ export type {
   SkuStatus,
   StockPackageApiStatus,
   StockPackageStatus,
-  SupplierApiStatus,
-  SupplierChannel,
-  SupplierStatus,
 } from "./statuses";
 export { VN_DIVISIONS_API, VN_DIVISIONS_STALE_MS } from "./vn-divisions";
 export {
