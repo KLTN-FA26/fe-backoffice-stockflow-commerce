@@ -2,7 +2,7 @@
  * Thẻ file đính kèm dùng chung (file vận đơn của chuyến, POD của lô giao; docs 09 §4.4, §4.3 bước 2, BR-28): danh sách, rỗng,
  * lỗi tải danh sách, tải lên ba bước, từ chối ở máy, lỗi BE bằng tiếng Việt, tải xuống bằng link ngắn hạn, gate quyền / trạng thái.
  */
-import { fireEvent, screen, waitFor, within, configure } from "@testing-library/react";
+import { configure, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -93,6 +93,11 @@ function renderCard({ kind = "waybill", canUpload = true, blocked, ...routes }: 
 }
 
 const input = () => document.querySelector<HTMLInputElement>("input[type='file']");
+const fileInput = (): HTMLInputElement => {
+  const el = input();
+  if (!el) throw new Error("Không có ô chọn file");
+  return el;
+};
 
 describe("AttachedFilesCard — danh sách", () => {
   it("file vận đơn: tiêu đề kèm số file; tên, loại, dung lượng, thời điểm; không hiện uuid người tải", async () => {
@@ -169,7 +174,7 @@ describe("AttachedFilesCard — tải lên", () => {
     });
     await screen.findByText(L.waybill.empty);
     const chosen = pdf();
-    await user.upload(input()!, chosen);
+    await user.upload(fileInput(), chosen);
 
     expect(await screen.findByText(L.common.uploaded("xac-nhan.pdf"))).toBeInTheDocument();
     expect(spies.post).toHaveBeenCalledWith(
@@ -191,7 +196,7 @@ describe("AttachedFilesCard — tải lên", () => {
     const put = vi.spyOn(storageClient, "request").mockResolvedValue({ status: 200 });
     const spies = renderCard();
     await screen.findByText(L.waybill.empty);
-    const box = input()!.parentElement as HTMLElement;
+    const box = fileInput().parentElement as HTMLElement;
     const dropped = pdf("keo-tha.pdf");
     fireEvent.dragOver(box, { dataTransfer: { types: ["Files"], files: [dropped] } });
     fireEvent.drop(box, { dataTransfer: { types: ["Files"], files: [dropped] } });
@@ -212,7 +217,7 @@ describe("AttachedFilesCard — tải lên", () => {
     });
     const spies = renderCard({ kind: "pod" });
     await screen.findByText(L.pod.empty);
-    await user.upload(input()!, xlsx);
+    await user.upload(fileInput(), xlsx);
     expect(await screen.findByRole("alert")).toHaveTextContent(L.pod.typeNotAccepted);
     expect(spies.post).not.toHaveBeenCalled();
     expect(put).not.toHaveBeenCalled();
@@ -222,12 +227,12 @@ describe("AttachedFilesCard — tải lên", () => {
     const user = userEvent.setup({ applyAccept: false });
     const spies = renderCard();
     await screen.findByText(L.waybill.empty);
-    await user.upload(input()!, new File(["x"], "ghi-chu.txt", { type: "text/plain" }));
+    await user.upload(fileInput(), new File(["x"], "ghi-chu.txt", { type: "text/plain" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(L.waybill.typeNotAccepted);
 
     const big = pdf("lon.pdf");
     Object.defineProperty(big, "size", { value: SHIPPING_FILE_MAX_BYTES + 1 });
-    await user.upload(input()!, big);
+    await user.upload(fileInput(), big);
     await waitFor(() =>
       expect(screen.getByRole("alert")).toHaveTextContent(L.common.fileProblem.tooLarge),
     );
@@ -244,7 +249,7 @@ describe("AttachedFilesCard — tải lên", () => {
       },
     });
     await screen.findByText(L.pod.empty);
-    await user.upload(input()!, pdf());
+    await user.upload(fileInput(), pdf());
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent(L.pod.stateConflict);
     expect(alert).not.toHaveTextContent("English server message");
@@ -256,7 +261,7 @@ describe("AttachedFilesCard — tải lên", () => {
     vi.spyOn(storageClient, "request").mockRejectedValue({ response: { status: 403 } });
     const spies = renderCard();
     await screen.findByText(L.waybill.empty);
-    await user.upload(input()!, pdf());
+    await user.upload(fileInput(), pdf());
     expect(await screen.findByRole("alert")).toHaveTextContent(L.common.error.storageRefused);
     expect(spies.post).not.toHaveBeenCalledWith(BASE.waybill, expect.anything(), expect.anything());
   });
@@ -270,7 +275,7 @@ describe("AttachedFilesCard — tải lên", () => {
       },
     });
     await screen.findByText(L.waybill.empty);
-    await user.upload(input()!, pdf());
+    await user.upload(fileInput(), pdf());
     expect(await screen.findByRole("alert")).toHaveTextContent(L.waybill.rejected);
   });
 });

@@ -1,7 +1,7 @@
 /**
  * File vận đơn trên chuyến (docs 09 §4.4, BR-28): gate theo mã quyền + trạng thái chuyến, và có mặt trên màn chuyến.
  */
-import { screen, configure } from "@testing-library/react";
+import { configure, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { SHIPPING_FILE_LABELS as L } from "@/constants/shipping-files";

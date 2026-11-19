@@ -3,13 +3,13 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { SHIPPING_FILE_LABELS as L } from "@/constants/shipping-files";
 import {
   FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS as OUTCOME,
   FULFILLMENT_DISPATCH_PERMISSIONS as DISPATCH,
   LOAD_STATUSES,
   PACK_SHIPMENT_API_STATUSES,
 } from "@/constants";
+import { SHIPPING_FILE_LABELS as L } from "@/constants/shipping-files";
 
 import { podFilesGate, waybillFilesGate } from "./attached-files-lifecycle";
 
