@@ -52,8 +52,11 @@ describe("partialShipmentControl — Giao một phần (sales-order-partial-ship
 
   it.each([
     "Draft",
+    "Pending Contract",
     "Pending Payment",
     "Confirmed",
+    // Docs 17 BR-15, §4.5 bước 18 (QA v2 F6): đơn Chờ hàng — Sale cho giao trước phần đã giữ
+    "Awaiting Stock",
     "In Production",
     "Ready to Fulfill",
     "Picking",
