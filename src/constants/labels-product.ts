@@ -76,6 +76,14 @@ export const PRODUCT_UI_LABELS = {
     edit: "Chỉnh sửa sản phẩm",
     noActions: "Bạn không có thao tác nào với sản phẩm ở trạng thái này.",
     draftOnly: "Chỉ sản phẩm Nháp mới sửa được thông tin chung.",
+    pending: "Đang xử lý…",
+    // BE CatalogCommerceService.publish + ProductPublicationAdapter.publish (CATALOG_LISTING_REQUIRED,
+    // PRODUCT_GALLERY_REQUIRED): báo trước thay vì để người dùng bấm rồi mới biết từng điều kiện.
+    publishNeedsTitle: "Trước khi xuất bản cần:",
+    publishNeeds: [
+      "Lưu Thông tin cửa hàng (đường dẫn) ở mục cuối trang.",
+      "Có ít nhất một ảnh đã xuất bản. Ảnh phải do người khác người tải lên xuất bản.",
+    ],
   },
   // BE chỉ trả các trường này khi INACTIVE (tạm ngưng) / DISCONTINUED
   statusReason: {

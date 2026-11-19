@@ -161,3 +161,35 @@ describe("ProductActionCard — nút theo trạng thái × vai trò (allowedProd
     expect(screen.getByText("Hết mẫu")).toBeInTheDocument();
   });
 });
+
+// BE CatalogCommerceService.publish (CATALOG_LISTING_REQUIRED) + ProductPublicationAdapter.publish
+// (PRODUCT_GALLERY_REQUIRED): what publishing needs is said before the click, not one refusal at a time.
+describe("ProductActionCard — xuất bản: báo trước điều kiện, giữ nút tới khi trang cập nhật", () => {
+  it("Đã duyệt + người duyệt: dưới Xuất bản có danh sách điều kiện", () => {
+    renderCard(product(PRODUCT_STATUS.APPROVED), APPROVER);
+    expect(screen.getByText(L.actionCard.publishNeedsTitle)).toBeInTheDocument();
+    for (const need of L.actionCard.publishNeeds)
+      expect(screen.getByText(need)).toBeInTheDocument();
+  });
+
+  it("Nháp: không có danh sách điều kiện xuất bản", () => {
+    renderCard(product(PRODUCT_STATUS.DRAFT), CATALOG_EDITOR);
+    expect(screen.queryByText(L.actionCard.publishNeedsTitle)).not.toBeInTheDocument();
+  });
+
+  it("đang xuất bản: nút đó đổi chữ thành Đang xử lý… và mọi nút bị khoá", () => {
+    render(
+      <ProductActionCard
+        product={product(PRODUCT_STATUS.APPROVED)}
+        can={APPROVER}
+        currentUserId="u-reviewer"
+        isPending
+        pendingAction="publish"
+        onAction={vi.fn()}
+      />,
+    );
+    const pending = screen.getByRole("button", { name: L.actionCard.pending });
+    expect(pending).toBeDisabled();
+    expect(screen.queryByRole("button", { name: /^Xuất bản$/ })).not.toBeInTheDocument();
+  });
+});
