@@ -12,7 +12,7 @@ import { ApiError } from "@/lib/api/error";
 type MessageKey = keyof typeof FULFILLMENT_ERROR_MESSAGES;
 
 export type FulfillmentErrorContext =
-  "create" | "assign" | "destination" | "pick" | "dispatch" | "pack" | "candidates";
+  "create" | "assign" | "destination" | "pick" | "dispatch" | "pack" | "candidates" | "topUp";
 
 /**
  * Lỗi trạng thái của task / đơn: BE (FulfillmentServiceImpl, PickList, PickJpaEntity) trả
@@ -44,8 +44,11 @@ const BY_CONTEXT: Record<FulfillmentErrorContext, Readonly<Record<string, Messag
   pick: { NOT_FOUND: "notAssignee", CONFLICT: "stale" },
   pack: { NOT_FOUND: "notAssignee", CONFLICT: "stale" },
   // Chuyển sang khu xuất hàng (quản lý kho, không cần là người được gán): 409 PICK_TASK_STATE_CONFLICT = task
-  // không còn Staged; 409 PICK_ORDER_ON_HOLD = đơn đang treo
+  // không còn Staged; 409 PICK_ORDER_ON_HOLD = đơn đang treo; 409 PICK_AWAITING_STOCK_NOT_READY = đơn còn chờ hàng
+  // (tra theo mã, `FULFILLMENT_ERROR_MESSAGES`)
   dispatch: { CONFLICT: "dispatchConflict", PICK_ORDER_ON_HOLD: "PICK_ORDER_ON_HOLD" },
+  // Lấy bổ sung (docs 07 §4.3 bước 7): 409 PICK_TASK_STATE_CONFLICT = task đã huỷ / đã hoàn tất kiểm thùng
+  topUp: { CONFLICT: "topUpConflict" },
   // GET /fulfillment/task-candidates: 403 FORBIDDEN (thiếu fulfillment-task-assignment:CREATE),
   // 403 OUT_OF_DATA_SCOPE (kho ngoài phạm vi), 404 WAREHOUSE_NOT_FOUND
   candidates: {

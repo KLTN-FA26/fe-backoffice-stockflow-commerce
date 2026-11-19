@@ -63,6 +63,8 @@ export const beFulfillmentTaskSchema = z.object({
   // Chỉ có ở câu trả lời của `packing-completion` (BE PR #136): lô giao vừa tạo + cảnh báo thu tiền
   shipmentId: z.string().nullish(),
   paymentDue: bePaymentDueSchema.nullish(),
+  // Chỉ có ở `GET /tasks/{id}`: đơn còn thùng đã giữ cho task mà chưa có dòng — nút "Lấy bổ sung" (docs 07 §4.3 bước 7)
+  topUpAvailable: z.boolean().nullish(),
 });
 
 export const beFulfillmentTaskPageSchema = bePageSchema(beFulfillmentTaskSchema);
@@ -74,6 +76,8 @@ export const beFulfillmentTaskPageSchema = bePageSchema(beFulfillmentTaskSchema)
  * `fulfillment-task-assignment:CREATE`, BE PR #151): đơn đã release (READY_TO_FULFILL) chưa có task,
  * cũ nhất trước. Thay cho `GET /orders` (cần `sales-orders:READ`, quản lý kho không có). Một dòng
  * `printed` là dòng in tuỳ chỉnh (BR-06 — đã release sản xuất mới vào được danh sách này).
+ * Docs 07 §4.1 bước 1: kèm đơn đang chờ hàng (`orderStatus` AWAITING_STOCK) đã giữ được một phần thùng, xếp sau —
+ * `warehouseId` là kho xuất của đơn; `partialShipmentAllowed` = Sale cho phép giao một phần (17 BR-15).
  */
 export const taskCandidateLineSchema = z.object({
   orderLineId: z.string(),
@@ -93,6 +97,8 @@ export const taskCandidateSchema = z.object({
   lineCount: z.number().int().min(0),
   totalQuantity: z.number().int().min(0),
   lines: z.array(taskCandidateLineSchema).default([]),
+  orderStatus: z.string().nullish(),
+  partialShipmentAllowed: z.boolean().nullish(),
 });
 
 export const taskCandidatePageSchema = bePageSchema(taskCandidateSchema);

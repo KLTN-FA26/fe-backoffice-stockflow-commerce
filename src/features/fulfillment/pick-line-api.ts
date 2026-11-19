@@ -87,6 +87,19 @@ export async function reportShortPick({
 }
 
 /**
+ * Lấy bổ sung (BE `POST /tasks/{id}/top-up`, docs 07 §4.3 bước 7, BR-07): thùng đơn đã giữ thêm (phần còn thiếu đã
+ * về kho xuất) thành dòng mới của CÙNG task, giữ đích của task; task `Staged` / `Picked` quay lại `Picking`. Với đơn
+ * lấy trước khi đủ hàng (đang chờ hàng, docs 07 §4.1 bước 2), BE phân bổ phần mới giữ và — khi đợt đã giữ đủ — release
+ * đơn. Trả các dòng mới (rỗng khi không có gì mới). Task đã huỷ / đã hoàn tất kiểm thùng → 409.
+ */
+export async function topUpTask(taskId: string): Promise<PickLine[]> {
+  const { data } = await api.post<unknown>(
+    `/fulfillment/tasks/${encodeURIComponent(taskId)}/top-up`,
+  );
+  return bePickLineSchema.array().parse(data).map(toPickLine);
+}
+
+/**
  * Phân bổ lại một dòng SHORT sang thùng khác của kho (nguyên thùng, FIFO theo ngày nhập, không bao giờ lấy lại
  * thùng vừa thiếu — docs 07 §4.4 bước 10, BR-03): dòng cũ → CANCELLED, trả các dòng OPEN mới. Không đủ thùng → 409
  * INSUFFICIENT_STOCK, không đổi gì.

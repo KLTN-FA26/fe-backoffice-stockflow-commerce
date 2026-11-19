@@ -8,6 +8,7 @@ import { fulfillmentErrorMessage } from "@/features/fulfillment/errors";
 import { createTaskInputSchema } from "@/features/fulfillment/input-schemas";
 import { useCreateFulfillmentTask } from "@/features/fulfillment/mutations";
 import { useTaskCandidates } from "@/features/fulfillment/queries";
+import { prePickStagingOnly } from "@/features/fulfillment/selectors";
 import { Alert } from "@/components/shared/Alert";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 
@@ -24,7 +25,9 @@ type FieldErrors = Partial<Record<"orderId" | "assignedUserId" | "stagingLocatio
 /**
  * Đưa một đơn vào xuất kho, chọn đích lấy hàng (khu xuất hàng / khu chờ xuất) và gán người lấy hàng (BE
  * `POST /fulfillment/tasks`, docs 07 §4.1 bước 2). BR-01 (docs 07 §6): chỉ picking khi đơn đã release — BE chỉ nhận
- * đơn READY_TO_FULFILL; đơn CONFIRMED phải được quản lý kho release trước.
+ * đơn READY_TO_FULFILL; đơn CONFIRMED phải được quản lý kho release trước. Đơn đang chờ hàng đã giữ được một phần
+ * thùng (docs 07 §4.1 bước 1) lấy trước phần đó: về khu chờ xuất, hoặc sang khu xuất hàng khi Sale đã cho phép giao
+ * một phần (bước 2, 17 §4.4 bước 15) — chưa cho thì khoá đích khu xuất hàng.
  * Danh sách đơn đọc từ `GET /fulfillment/task-candidates` (BE PR #151, cần `fulfillment-task-assignment:CREATE`)
  * thay cho `GET /orders` (cần `sales-orders:READ` — quản lý kho không có). Người nhận vẫn lấy từ
  * `GET /fulfillment/assignees` (cần `fulfillment-task-assignment:UPDATE`).
@@ -48,15 +51,19 @@ export function CreateTaskDialog({ onClose }: { onClose: () => void }) {
   };
 
   const options = candidates.data?.items ?? [];
+  const selected = options.find((order) => order.orderId === orderId);
   // Người nhận và khu chờ xuất theo kho của đơn đã chọn (BE `GET /fulfillment/assignees?warehouseId=`)
-  const warehouseId = options.find((order) => order.orderId === orderId)?.warehouseId;
-  const stagingArea = useStagingArea(warehouseId, destination, stagingChoice);
+  const warehouseId = selected?.warehouseId;
+  // Docs 07 §4.1 bước 2: đơn chờ hàng chưa được giao một phần → chỉ khu chờ xuất (Backend phải re-check)
+  const stagingOnly = prePickStagingOnly(selected);
+  const target = stagingOnly ? PICK_DESTINATION.STAGING : destination;
+  const stagingArea = useStagingArea(warehouseId, target, stagingChoice);
 
   const submit = () => {
     const parsed = createTaskInputSchema.safeParse({
       orderId,
       assignedUserId,
-      destination,
+      destination: target,
       stagingLocationCode: stagingArea.code || undefined,
     });
     if (!parsed.success || stagingArea.needsChoice) {
@@ -82,7 +89,7 @@ export function CreateTaskDialog({ onClose }: { onClose: () => void }) {
     <FormDialog open onOpenChange={(open) => !open && onClose()}>
       <FormDialogBody
         title={fulfillment.action.create}
-        description="Chọn đơn đã release (sẵn sàng xuất kho) để đưa vào xuất kho và gán nhân viên lấy hàng. Mỗi đơn chỉ có một task."
+        description={fulfillment.createDescription}
         submitLabel={fulfillment.action.create}
         canSubmit={
           canCreate && canAssign && !candidates.isError && options.length > 0 && !stagingArea.none
@@ -112,7 +119,8 @@ export function CreateTaskDialog({ onClose }: { onClose: () => void }) {
           </Alert>
         )}
         <DestinationField
-          value={destination}
+          value={target}
+          stagingOnly={stagingOnly}
           onChange={(value) =>
             edit(() => {
               setDestination(value);
