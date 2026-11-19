@@ -66,15 +66,19 @@ export function canReplaceRemovedCarton(
 }
 
 /**
- * Dòng có thùng đã loại vì hư hỏng mà đơn còn thiếu nó (BE `PickLineResponse.removalReason` / `replacementPending`):
- * dòng vẫn PICKED (hoặc PUT_BACK khi thùng hư đã cất sang khu cách ly), thùng REMOVED. BE báo `replacementPending=false` khi đã bù rồi.
+ * Dòng có thùng đã loại vì hư hỏng — hoặc theo lô giao QLK huỷ trước khi bàn giao (RTM-RTDCANCEL, `SHIPMENT_CANCELLED`:
+ * thùng tốt đã vào hàng chờ cất lại) — mà đơn còn thiếu nó (BE `PickLineResponse.removalReason` / `replacementPending`):
+ * dòng vẫn PICKED (hoặc PUT_BACK khi thùng đã cất), thùng REMOVED. BE báo `replacementPending=false` khi đã bù rồi.
  */
+const REPLACEABLE_REMOVALS: readonly string[] = ["DAMAGED", "SHIPMENT_CANCELLED"];
+
 export function isReplaceableRemovedLine(
   line: Pick<PickLine, "status" | "removalReason" | "replacementPending">,
 ): boolean {
   return (
     (line.status === PICK_LINE_STATUS.PICKED || line.status === PICK_LINE_STATUS.PUT_BACK) &&
-    line.removalReason === "DAMAGED" &&
+    !!line.removalReason &&
+    REPLACEABLE_REMOVALS.includes(line.removalReason) &&
     line.replacementPending === true
   );
 }

@@ -17,6 +17,8 @@ import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Button } from "@/components/ui/button";
 
 import { RefetchErrorNotice } from "./primitives";
+import { FailureReasonCorrectionAction } from "./shipment/FailureReasonCorrectionAction";
+import { ShipmentCancelAction } from "./shipment/ShipmentCancelAction";
 import { CorrectionDialog } from "./shipment/CorrectionDialog";
 import { DeliveryNoteButton } from "./shipment/DeliveryNoteButton";
 import { OutcomeDialog } from "./shipment/OutcomeDialog";
@@ -94,6 +96,8 @@ function ShipmentBody({ id }: { id: string }) {
             </>
           }
         />
+        <FailureReasonCorrectionAction shipment={shipment} />
+        <ShipmentCancelAction data={data} />
         <ShipmentDetails data={data} />
         <ShipmentPodFiles shipment={shipment} />
       </div>

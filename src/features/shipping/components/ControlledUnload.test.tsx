@@ -11,10 +11,12 @@ import {
   FTL_ID,
   dispatchedLoad,
   ftlLoad,
+  ftlParcel,
   loadingFtl,
   pendingUnload,
   plannedLoad,
 } from "../__fixtures__/ftl-load";
+import { loadShipment } from "../__fixtures__/load";
 import {
   SHIPPING_ACTORS as ACTORS,
   mockShippingApi,
@@ -169,6 +171,49 @@ describe("Huỷ có kiểm soát một xe (SCRUM-474 UNLOAD-DESIGN)", () => {
     expect(push).not.toHaveBeenCalled();
   });
 
+  it("docs 09 §4.2 bước 9 (G5): chọn lô gỡ khỏi xe → POST kèm removedShipmentIds; biểu ngữ có liên kết in lại sơ đồ xếp của xe", async () => {
+    const user = userEvent.setup();
+    const A = L.afterHandover;
+    const cancelled = controlledCancelled({
+      replacementLoadId: REPLACEMENT_ID,
+      replacementLoadCode: `${FTL_ID}-R`,
+    });
+    const replacement = plannedLoad({ loadId: REPLACEMENT_ID, code: `${FTL_ID}-R` });
+    const twoOrders = loadingFtl({
+      shipments: [
+        loadShipment("SO-1-S1", [ftlParcel("PKG-SO-1-1", true)]),
+        loadShipment("SO-2-S1", [ftlParcel("PKG-SO-2-1", true)]),
+      ],
+    });
+    const { post } = render(ACTORS.warehouseManager, twoOrders, {
+      "/controlled-cancellation": () => ({ cancelled, replacement }),
+    });
+    await user.click(await screen.findByRole("button", { name: C.cancelButton }));
+    const dialog = await screen.findByRole("dialog");
+    await user.type(within(dialog).getByRole("textbox"), "Đơn chưa thu đợt trước giao");
+    await user.click(within(dialog).getByRole("combobox"));
+    await user.click(await screen.findByRole("option", { name: C.reasonCode.KHAC }));
+    // Chọn cả hai lô → báo xe không còn gì để chở; bỏ chọn một lô thì hết báo
+    await user.click(within(dialog).getByRole("checkbox", { name: `${A.removal.label}: SO-1-S1` }));
+    await user.click(within(dialog).getByRole("checkbox", { name: `${A.removal.label}: SO-2-S1` }));
+    expect(within(dialog).getByText(A.removal.allRemoved)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("checkbox", { name: `${A.removal.label}: SO-1-S1` }));
+    expect(within(dialog).queryByText(A.removal.allRemoved)).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: C.vehicle.confirm }));
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(`${PATH}/controlled-cancellation`, {
+        reasonCode: "KHAC",
+        note: "Đơn chưa thu đợt trước giao",
+        removedShipmentIds: ["shp-SO-2-S1"],
+      }),
+    );
+    const banner = (await screen.findByText(C.cancelledBanner.title)).parentElement as HTMLElement;
+    expect(within(banner).getByRole("link", { name: A.reprintLayout })).toHaveAttribute(
+      "href",
+      "/admin/load-plans/lp-1/vehicles/1/print",
+    );
+  });
+
   it("409 INVALID_LOAD_TRANSITION (xe vừa đổi trạng thái ở nơi khác): lỗi trong hộp thoại và tải lại chuyến", async () => {
     const user = userEvent.setup();
     const { post, get } = render(ACTORS.warehouseManager, loadingFtl());
@@ -196,6 +241,27 @@ describe("Huỷ có kiểm soát một xe (SCRUM-474 UNLOAD-DESIGN)", () => {
     for (const label of Object.values(C.reasonCode)) {
       expect(await screen.findByRole("option", { name: label })).toBeInTheDocument();
     }
+  });
+});
+
+describe("RTM-LOADCANCEL2 — hãng huỷ đơn khi xe đang xếp", () => {
+  it("chuyến về Chưa đặt xe còn kiện trên xe: hiện ô quét dỡ, quét → POST /unloads; nút đặt xe bị khoá", async () => {
+    const user = userEvent.setup();
+    const A = L.afterHandover;
+    const back = plannedLoad({
+      pendingUnloads: [pendingUnload("PKG-SO-1-1", { reason: "The carrier cancelled the order" })],
+    });
+    const { post } = render(ACTORS.warehouseStaff, back, { "/unloads": () => back });
+    expect(
+      await screen.findByRole("heading", { name: `${A.carrierCancelledUnload.title} (1)` }),
+    ).toBeInTheDocument();
+    const book = screen.getByRole("button", { name: L.ftl.booking.book });
+    expect(book).toBeDisabled();
+    expect(book).toHaveAttribute("title", A.unloadBeforeBooking);
+    await user.type(screen.getByLabelText(U.label), "PKG-SO-1-1{Enter}");
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(`${PATH}/unloads`, { packageCode: "PKG-SO-1-1" }),
+    );
   });
 });
 

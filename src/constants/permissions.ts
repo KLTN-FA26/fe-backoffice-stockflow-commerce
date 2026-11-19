@@ -691,3 +691,27 @@ export const REPORTING_PERMISSIONS = {
   read: "reporting-reports:READ",
   export: "reporting-reports:EXPORT",
 } as const;
+
+/**
+ * Sửa lý do giao thất bại khi đã biết lý do thật — `POST /fulfillment/shipments/{id}/failure-reason-correction` (docs 09
+ * edge "hoàn hàng khi còn Handed Over"). Cùng mã quyền sửa tay kết quả giao. BE seed: WAREHOUSE_MANAGER, SYSTEM_ADMIN.
+ */
+export const SHIPMENT_FAILURE_REASON_PERMISSIONS = {
+  correct: "fulfillment-delivery-corrections:UPDATE",
+} as const;
+
+/**
+ * File vận đơn và POD của một đơn — `GET /fulfillment/orders/{id}/delivery-documents` (docs 09 §2: Sale gửi khách khi
+ * khách xin qua chat). BE seed: SALES_STAFF, SALES_MANAGER, SYSTEM_ADMIN; khách không có (BR-05).
+ */
+export const ORDER_DELIVERY_DOCUMENT_PERMISSIONS = {
+  read: "fulfillment-delivery-documents:READ",
+} as const;
+
+/**
+ * Huỷ lô giao Sẵn sàng xuất — `POST /fulfillment/shipments/{id}/cancellation` (docs 09 §5.1, RTM-RTDCANCEL). BE seed:
+ * WAREHOUSE_MANAGER, SYSTEM_ADMIN.
+ */
+export const SHIPMENT_CANCELLATION_PERMISSIONS = {
+  update: "fulfillment-shipment-cancellations:UPDATE",
+} as const;

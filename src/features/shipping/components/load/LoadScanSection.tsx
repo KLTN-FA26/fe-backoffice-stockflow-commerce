@@ -30,8 +30,12 @@ export function LoadScanSection({
 }) {
   const canScan = !!hasLoadAction(actions, "scan");
   const rejectedItems = withoutLoaded(rejected.items, loadedLabelCodes(load));
-  // Xe đã huỷ có kiểm soát (CANCELLED) còn kiện bị khoá cũng cần ô quét dỡ (SCRUM-474)
-  const unloadable = load.status === LOAD_STATUS.LOADING || load.status === LOAD_STATUS.CANCELLED;
+  // Xe đã huỷ có kiểm soát (CANCELLED) còn kiện bị khoá cũng cần ô quét dỡ (SCRUM-474); chuyến về Chưa đặt xe vì hãng
+  // huỷ đơn khi đang xếp cũng vậy (RTM-LOADCANCEL2, docs 09 §4.5)
+  const unloadable =
+    load.status === LOAD_STATUS.LOADING ||
+    load.status === LOAD_STATUS.CANCELLED ||
+    load.status === LOAD_STATUS.PLANNED;
   if (unloadable && hasPendingUnloads(load)) {
     return (
       <>

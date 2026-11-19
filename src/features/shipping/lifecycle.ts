@@ -28,6 +28,7 @@ import type { Load, LoadApiStatus } from "./types";
 const D = UI_LABELS.shipping.load.disabledReason;
 const N = UI_LABELS.shipping.load.noActions;
 const F = UI_LABELS.shipping.ftl;
+const A = UI_LABELS.shipping.afterHandover;
 
 /** Người đang đăng nhập: mã quyền (`/identity/me/permissions`). */
 export interface ShippingActor {
@@ -101,7 +102,8 @@ export const LOAD_ACTIONS: readonly LoadAction[] = [
     fromStatuses: [DISPATCHED],
   },
   // Quét dỡ cả trên xe đã huỷ có kiểm soát: kiện của nó bị khoá tới khi dỡ (SCRUM-474 UNLOAD-DESIGN điểm 4)
-  { code: "unload", permission: UPDATE, fromStatuses: [LOADING, CANCELLED] },
+  // PLANNED: hãng huỷ đơn khi xe đang xếp — kiện đã quét phải dỡ về khu xuất trước khi đặt xe lại (RTM-LOADCANCEL2)
+  { code: "unload", permission: UPDATE, fromStatuses: [LOADING, CANCELLED, PLANNED] },
   // SCRUM-474 UNLOAD-DESIGN điểm 2, 5, 6: huỷ có kiểm soát MỘT xe đang xếp hàng, và xác nhận dỡ kiện không quét (nhãn
   // hỏng) — chung MỘT mã quyền của quản lý kho. Backend phải re-check (BR-14).
   {
@@ -143,6 +145,9 @@ function loadAllows(action: LoadAction, load: LoadGateState): boolean {
     case "book":
       return !(load.status === VEHICLE_BOOKED && isApiBookedLoad(load));
     // Mã vận đơn của hãng API là mã đơn hãng trả về — không nhập tay; cần đã có hãng
+    // Chuyến Chưa đặt xe chỉ có việc dỡ khi hãng huỷ đơn lúc đang xếp còn để lại kiện (RTM-LOADCANCEL2)
+    case "unload":
+      return load.status !== PLANNED || hasPendingUnloads(load);
     case "recordWaybill":
     case "correctWaybill":
       return !!load.carrierId && !isApiBookedLoad(load);
@@ -165,6 +170,10 @@ export function allowedLoadActions(
       (!action.alsoPermission || actor.can(action.alsoPermission)) &&
       loadAllows(action, load),
   ).map((action) => {
+    // RTM-LOADCANCEL2 (docs 09 §4.5): hãng huỷ đơn khi đang xếp — dỡ hết kiện về khu xuất rồi mới đặt xe lại (BE 409)
+    if (action.code === "book" && hasPendingUnloads(load)) {
+      return { action, disabledReason: A.unloadBeforeBooking };
+    }
     if (!action.requiresFullyLoaded) return { action };
     if (load.shipmentCount === 0) return { action, disabledReason: D.empty };
     // BE 409 LOAD_UNLOAD_PENDING: kiện của đơn đã huỷ còn trên xe thì chưa ký được

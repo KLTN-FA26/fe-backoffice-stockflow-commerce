@@ -3,6 +3,11 @@
  * kiện lên xe, mã vận đơn, biên bản bàn giao, kết quả giao (docs 09 §4). Chỉ giao nguyên chuyến, không thu hộ (BR-08).
  */
 
+import {
+  SHIPPING_AFTER_HANDOVER_ERROR_MESSAGES,
+  SHIPPING_AFTER_HANDOVER_LABELS,
+  SHIPPING_AFTER_HANDOVER_TOAST_MESSAGES,
+} from "./labels-shipping-after-handover";
 import { SHIPPING_EVENT_LABELS, SHIPPING_EVENT_TOAST_MESSAGES } from "./labels-shipping-events";
 import { SHIPPING_FTL_LABELS, SHIPPING_FTL_TOAST_MESSAGES } from "./labels-shipping-ftl";
 import {
@@ -21,6 +26,7 @@ export const SHIPPING_UI_LABELS = {
   pageTitle: "Giao cho hãng vận chuyển",
   ftl: SHIPPING_FTL_LABELS,
   waybill: SHIPPING_WAYBILL_LABELS,
+  afterHandover: SHIPPING_AFTER_HANDOVER_LABELS,
   carrierEvents: SHIPPING_EVENT_LABELS,
   forbiddenDescription: "Tài khoản của bạn chưa được cấp quyền thao tác này với giao hàng.",
   noReadDescription:
@@ -285,6 +291,7 @@ export const SHIPPING_TOAST_MESSAGES = {
   outcomeCorrected: "Đã sửa kết quả giao",
   ...SHIPPING_FTL_TOAST_MESSAGES,
   ...SHIPPING_WAYBILL_TOAST_MESSAGES,
+  ...SHIPPING_AFTER_HANDOVER_TOAST_MESSAGES,
   ...SHIPPING_EVENT_TOAST_MESSAGES,
 } as const;
 
@@ -379,6 +386,7 @@ export const SHIPPING_ERROR_MESSAGES = {
   shipmentRefused:
     "Đơn của lô này không cho phép bàn giao lúc này (đơn huỷ, lô xung đột hoặc vượt số lượng).",
   generic: "Không thực hiện được thao tác. Thử lại sau.",
+  ...SHIPPING_AFTER_HANDOVER_ERROR_MESSAGES,
 } as const;
 
 export const SHIPPING_FIELD_MESSAGES = {
