@@ -503,7 +503,7 @@ describe("OrderDetail — hiển thị vòng đời (BE PR #133)", () => {
     expect(screen.getByText("Đang lấy hàng")).toBeInTheDocument();
   });
 
-  it("mốc thời gian, tiền (billed / effective / amountDue) và giao thất bại", async () => {
+  it("mốc thời gian, giá trị sau khi đóng phần còn lại và giao thất bại; field tiền BE đã bỏ không hiện", async () => {
     await renderDetail(ORDER_PERMISSION_SETS.readOnly, () =>
       apiOrderWith({
         status: "DELIVERY_FAILED",
@@ -521,10 +521,10 @@ describe("OrderDetail — hiển thị vòng đời (BE PR #133)", () => {
     expect(screen.getByText("Đóng gói xong")).toBeInTheDocument();
     expect(screen.getByText("Bàn giao vận chuyển")).toBeInTheDocument();
     expect(screen.getByText("Khách vắng mặt")).toBeInTheDocument();
-    expect(screen.getByText("Đã ghi công nợ")).toBeInTheDocument();
     expect(screen.getByText("Giá trị sau khi đóng phần còn lại")).toBeInTheDocument();
-    expect(screen.getByText("Khách còn nợ")).toBeInTheDocument();
-    // = 0 → không có hàng nào bị chặn bàn giao vì tiền
+    // BE `OrderResponse` không còn billedAmount / amountDue / amountDueBeforeHandover (4B-10) — khối không đọc chúng nữa
+    expect(screen.queryByText("Đã ghi công nợ")).not.toBeInTheDocument();
+    expect(screen.queryByText("Khách còn nợ")).not.toBeInTheDocument();
     expect(screen.queryByText("Phải trả trước khi xuất hàng")).not.toBeInTheDocument();
   });
 
@@ -847,43 +847,18 @@ describe("OrderDetail — số liệu BE luôn gửi (0 khi chưa có lô / chư
     expect(screen.queryByText(/Đã bàn giao:/)).not.toBeInTheDocument();
   });
 
-  it("billedAmount = 0 ẩn với đơn trả trước; hiện với đơn CREDIT (kể cả 0) hoặc khi > 0", async () => {
-    await renderDetail(ORDER_PERMISSION_SETS.readOnly, () => apiOrder);
-    await screen.findByRole("heading", { name: apiOrder.orderNumber });
-    expect(screen.queryByText("Đã ghi công nợ")).not.toBeInTheDocument();
-    expect(screen.getByText("Khách còn nợ")).toBeInTheDocument();
-  });
-
-  it("đơn CREDIT: hiện 'Đã ghi công nợ' dù = 0", async () => {
-    await renderDetail(ORDER_PERMISSION_SETS.readOnly, () =>
-      apiOrderWith({ paymentTerm: "CREDIT" }),
-    );
-    expect(await screen.findByText("Đã ghi công nợ")).toBeInTheDocument();
-  });
-
-  it("billedAmount > 0 hiện dù đơn không phải CREDIT", async () => {
-    await renderDetail(ORDER_PERMISSION_SETS.readOnly, () =>
-      apiOrderWith({ billedAmount: 120000 }),
-    );
-    expect(await screen.findByText("Đã ghi công nợ")).toBeInTheDocument();
-  });
-
-  it.each(["DRAFT", "CANCELLED", "CLOSED"] as const)(
-    "%s: ẩn 'Khách còn nợ' và 'Phải trả trước khi xuất hàng' dù BE tính từ tổng đơn",
+  it.each(["PACKED", "DRAFT", "CANCELLED"] as const)(
+    "%s: không hiện số tiền BE đã bỏ (đã ghi công nợ / khách còn nợ / phải trả trước khi xuất) dù response cũ còn mang",
     async (status) => {
-      await renderDetail(ORDER_PERMISSION_SETS.readOnly, () => withStatus(status));
-
+      await renderDetail(ORDER_PERMISSION_SETS.readOnly, () =>
+        apiOrderWith({ status, paymentTerm: "CREDIT", billedAmount: 120000 }),
+      );
       await screen.findByRole("heading", { name: apiOrder.orderNumber });
+      expect(screen.queryByText("Đã ghi công nợ")).not.toBeInTheDocument();
       expect(screen.queryByText("Khách còn nợ")).not.toBeInTheDocument();
       expect(screen.queryByText("Phải trả trước khi xuất hàng")).not.toBeInTheDocument();
     },
   );
-
-  it("đơn trả trước còn nợ trước khi xuất kho: hiện cả hai dòng", async () => {
-    await renderDetail(ORDER_PERMISSION_SETS.readOnly, () => withStatus("PACKED"));
-    expect(await screen.findByText("Khách còn nợ")).toBeInTheDocument();
-    expect(screen.getByText("Phải trả trước khi xuất hàng")).toBeInTheDocument();
-  });
 });
 
 describe("OrderDetail — huỷ khi đã đóng gói (BE Order#requireNotPacked)", () => {

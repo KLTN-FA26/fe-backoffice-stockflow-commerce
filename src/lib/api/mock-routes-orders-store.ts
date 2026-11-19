@@ -14,6 +14,7 @@
  */
 
 import { resetCancellationRequestMockStore } from "./mock-order-cancellation-requests";
+import { resetCompletionHoldMockStore } from "./mock-order-completion-holds";
 import { resetDeliveryScheduleMockStore } from "./mock-order-delivery-schedule";
 
 import type { AxiosRequestConfig } from "axios";
@@ -424,6 +425,7 @@ export function resetOrderMockStore(): void {
   // Yêu cầu huỷ + lịch sử dời cửa sổ gắn với đơn: xoá cùng trạng thái đơn
   resetCancellationRequestMockStore();
   resetDeliveryScheduleMockStore();
+  resetCompletionHoldMockStore();
 }
 
 function stateById(orderId: string): MockOrderState {

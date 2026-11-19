@@ -76,7 +76,6 @@ export type { OrderAction, OrderActionCode, OrderActionContext } from "./lifecyc
 export {
   creditHoldSummary,
   creditOverage,
-  creditState,
   customLineCount,
   depositState,
   groupProductionOrdersByLine,

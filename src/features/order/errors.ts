@@ -11,6 +11,8 @@
  */
 
 import {
+  COMPLETION_HOLD_ERROR_MESSAGES,
+  COMPLETION_HOLD_LABELS,
   DELIVERY_FAILURE_ERROR_MESSAGES,
   ORDER_ACTION_LABELS,
   ORDER_ERROR_MESSAGES,
@@ -450,6 +452,48 @@ export function orderActionErrorView(
     commonErrorView(error, title, "thực hiện thao tác này") ??
     fallback(error, title, STATUS_ACTION_VERB[action])
   );
+}
+
+/* ── Giữ hoàn tất (WF-05 GH-2) ────────────────────────────────────────── */
+
+/**
+ * Dữ liệu trên màn đã cũ (người khác vừa giữ / gỡ, đơn vừa hoàn tất / đóng) → đóng hộp thoại, tải lại. CONFLICT không
+ * thuộc nhóm này: BE giữ hoàn tất không trả CONFLICT chung.
+ */
+export const COMPLETION_HOLD_STALE_CODES: readonly string[] = [
+  ...ORDER_STALE_ERROR_CODES.filter((code) => code !== "CONFLICT"),
+  "ORDER_COMPLETION_ALREADY_HELD",
+  "ORDER_COMPLETION_HOLD_NOT_APPLICABLE",
+  "ORDER_COMPLETION_NOT_HELD",
+];
+
+export type CompletionHoldDecision = "hold" | "release";
+
+function isCompletionHoldErrorCode(
+  code: string,
+): code is keyof typeof COMPLETION_HOLD_ERROR_MESSAGES {
+  return Object.hasOwn(COMPLETION_HOLD_ERROR_MESSAGES, code);
+}
+
+/** BE `OrderCompletionHolds#hold` / `#release` → câu tiếng Việt theo `error.code` (không hiện message tiếng Anh). */
+export function completionHoldErrorView(
+  error: ApiError,
+  decision: CompletionHoldDecision,
+): OrderErrorView {
+  const title = COMPLETION_HOLD_LABELS[decision].failedTitle;
+  const traceId = error.traceId;
+  if (isCompletionHoldErrorCode(error.code)) {
+    return { title, detail: COMPLETION_HOLD_ERROR_MESSAGES[error.code], traceId };
+  }
+  if (error.code === "VALIDATION_FAILED") {
+    const detail =
+      decision === "hold"
+        ? "Kiểm tra lại lý do giữ và ghi chú (bắt buộc với lý do khác, tối đa 1000 ký tự)."
+        : "Nhập kết quả xác minh (tối đa 1000 ký tự).";
+    return { title, detail, traceId };
+  }
+  const verb = decision === "hold" ? "giữ hoàn tất đơn" : "gỡ giữ hoàn tất đơn";
+  return commonErrorView(error, title, verb) ?? fallback(error, title, verb);
 }
 
 /* ── Lệnh sản xuất của đơn ──────────────────────────────────────────── */

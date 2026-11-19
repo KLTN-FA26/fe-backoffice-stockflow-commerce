@@ -16,6 +16,7 @@
 import { paginatePage, registerMockRoute } from "./mock-adapter";
 import { findWf02Order, wf02OrderHistory, wf02OrderResponse } from "./mock-contract-orders";
 import { registerOrderCancellationRequestMockRoutes } from "./mock-routes-order-cancellation-requests";
+import { registerOrderCompletionHoldMockRoutes } from "./mock-routes-order-completion-holds";
 import { registerOrderReleaseMockRoutes } from "./mock-routes-order-release";
 import { registerOrderDeliveryFailureMockRoutes } from "./mock-routes-order-delivery-failures";
 import { registerOrderScheduleMockRoutes } from "./mock-routes-order-schedule";
@@ -588,6 +589,7 @@ export function registerOrderMockRoutes(): void {
   registerOrderCancellationRequestMockRoutes();
   // `/orders/delivery-failures` (WF-05 GH-1) cũng là segment tĩnh — trước `/orders/:id`
   registerOrderDeliveryFailureMockRoutes();
+  registerOrderCompletionHoldMockRoutes();
   registerReadRoutes();
   registerCancellationRoute();
   registerLifecycleRoutes();

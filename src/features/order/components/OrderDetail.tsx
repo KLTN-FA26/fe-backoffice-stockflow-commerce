@@ -15,11 +15,13 @@ import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { BackLink } from "@/components/shared/BackLink";
 
+import { useCompletionHold } from "../completion-hold-queries";
 import { useOrder, useOrderProductionOrders } from "../queries";
 import { useSalesContract } from "../sales-contract-queries";
 import { customLineCount, groupProductionOrdersByLine } from "../selectors";
 
 import { CancellationRequestCard } from "./cancellation/CancellationRequestCard";
+import { CompletionHoldCard } from "./completion-hold/CompletionHoldCard";
 import { OrderContractSection } from "./contract/OrderContractSection";
 import { OrderDeliveryFailureSection } from "./delivery-failure/OrderDeliveryFailureSection";
 import { DeliverySchedulePanel } from "./delivery-schedule/DeliverySchedulePanel";
@@ -98,6 +100,10 @@ function OrderDetailContent({
     query.data?.orderId ?? "",
     canRead && can(SALES_CONTRACT_PERMISSIONS.read) && !!query.data,
   );
+  // WF-05 GH-2: cùng key với thẻ "Giữ hoàn tất" (không gọi thêm) — điều kiện tự hoàn tất của khối thanh toán
+  const completionHold = useCompletionHold(query.data?.orderId ?? "", {
+    enabled: canRead && !!query.data,
+  });
   // Breadcrumb hiện mã đơn (SO-…) thay vì orderId (UUID của BE), như NCC
   useBreadcrumbLabel(id, query.data?.orderNumber);
 
@@ -165,6 +171,7 @@ function OrderDetailContent({
             deliveredShipmentIds: order.shipments
               .filter((shipment) => shipment.status === "DELIVERED")
               .map((shipment) => shipment.shipmentId),
+            completionHeld: completionHold.isSuccess ? completionHold.data !== null : null,
           })}
           {returnsSlot?.({
             orderId: order.orderId,
@@ -196,6 +203,7 @@ function OrderDetailContent({
         <div className="space-y-5">
           <OrderActionCard order={order} can={can} estimateSlot={estimateSlot} />
           <CancellationRequestCard order={order} can={can} />
+          <CompletionHoldCard order={order} can={can} />
           <OrderEstimateCard order={order} estimateSlot={estimateSlot} />
           <OrderPartialShipmentCard order={order} can={can} />
           <OrderShipments order={order} />

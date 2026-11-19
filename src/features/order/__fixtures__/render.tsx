@@ -103,6 +103,8 @@ export function mockOrderApiGet(
       const handler = routes[url];
       // Lịch sử đơn: mặc định rỗng — test về lịch sử khai báo handler riêng
       if (!handler && url.endsWith("/history")) return { data: [] };
+      // Giữ hoàn tất (WF-05 GH-2): mặc định đơn không bị giữ (BE trả data null)
+      if (!handler && url.endsWith("/completion-hold")) return { data: null };
       if (!handler) throw new Error(`Không có mock cho GET ${url}`);
       const params = config?.params instanceof URLSearchParams ? config.params : undefined;
       return { data: handler(params) };
