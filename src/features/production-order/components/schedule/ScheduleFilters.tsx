@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 
+import { shortId } from "../parts";
+
 import type { ScheduleFiltersState } from "./useScheduleFilters";
 
 const L = PRODUCTION_LABELS.schedule;
@@ -20,7 +22,16 @@ interface Option {
 }
 
 /**
- * Hàng lọc của lịch sản xuất (Mode A, không khung bao): đơn vị sản xuất, kho (chỉ khi đọc được danh mục kho), khoảng
+ * Giá trị đang lọc trên URL mà danh mục không có (không có quyền đọc danh mục, đang tải, lỗi) vẫn phải hiện ô lọc —
+ * nếu không màn bị lọc ngầm mà không có chỗ bỏ.
+ */
+function withCurrent(options: Option[], value: string | null): Option[] {
+  if (value === null || options.some((option) => option.value === value)) return options;
+  return [...options, { value, label: shortId(value) }];
+}
+
+/**
+ * Hàng lọc của lịch sản xuất (Mode A, không khung bao): đơn vị sản xuất, kho (khi đọc được danh mục kho hoặc URL đang lọc theo kho), khoảng
  * ngày (ngày cần hàng / ngày bắt đầu cửa sổ giao), chỉ dòng có cảnh báo, đặt lại.
  */
 export function ScheduleFilters({
@@ -33,25 +44,27 @@ export function ScheduleFilters({
   warehouseOptions: Option[];
 }) {
   const { filters, set } = state;
+  const producers = withCurrent(producerOptions, filters.producerId);
+  const warehouses = withCurrent(warehouseOptions, filters.warehouseId);
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-      {producerOptions.length > 0 && (
+      {producers.length > 0 && (
         <FilterSelect
           id="schedule-producer"
           label={L.producerFilter}
           allLabel={L.all}
           value={filters.producerId}
-          options={producerOptions}
+          options={producers}
           onChange={(producerId) => set({ producerId })}
         />
       )}
-      {warehouseOptions.length > 0 && (
+      {warehouses.length > 0 && (
         <FilterSelect
           id="schedule-warehouse"
           label={L.warehouseFilter}
           allLabel={L.all}
           value={filters.warehouseId}
-          options={warehouseOptions}
+          options={warehouses}
           onChange={(warehouseId) => set({ warehouseId })}
         />
       )}

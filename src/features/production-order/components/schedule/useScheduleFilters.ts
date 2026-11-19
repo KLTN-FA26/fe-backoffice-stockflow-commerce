@@ -1,5 +1,7 @@
 import { parseAsBoolean, parseAsString, useQueryStates } from "nuqs";
 
+import { isValidIsoDay } from "@/lib/date-range";
+
 import type { ProductionScheduleParams } from "@/features/production-order/schedule-schemas";
 
 const PARSERS = {
@@ -10,18 +12,25 @@ const PARSERS = {
   alertsOnly: parseAsBoolean.withDefault(false),
 };
 
+/** Ngày trên URL không phải yyyy-MM-dd thật (link sửa tay) → bỏ, BE sẽ trả 400 cho cả màn. */
+const validDay = (value: string | null): string | undefined =>
+  value !== null && isValidIsoDay(value) ? value : undefined;
+
 /**
  * Bộ lọc lịch sản xuất trên URL (state-persistence: người khác mở link thấy cùng thứ): đơn vị sản xuất, kho, khoảng
  * ngày, chỉ dòng có cảnh báo (docs 17 §4.12 bước 47). Khoảng ngày ngược → không gửi lên BE, báo lỗi tại chỗ.
  */
 export function useScheduleFilters() {
   const [filters, setFilters] = useQueryStates(PARSERS);
-  const rangeInvalid = Boolean(filters.from && filters.to && filters.from > filters.to);
+  const from = validDay(filters.from);
+  const to = validDay(filters.to);
+  // BE ProductionScheduleService: from sau to → 400 VALIDATION_FAILED
+  const rangeInvalid = Boolean(from && to && from > to);
   const params: ProductionScheduleParams = {
     producerId: filters.producerId ?? undefined,
     warehouseId: filters.warehouseId ?? undefined,
-    from: rangeInvalid ? undefined : (filters.from ?? undefined),
-    to: rangeInvalid ? undefined : (filters.to ?? undefined),
+    from: rangeInvalid ? undefined : from,
+    to: rangeInvalid ? undefined : to,
     alertsOnly: filters.alertsOnly || undefined,
   };
   const hasFilters =

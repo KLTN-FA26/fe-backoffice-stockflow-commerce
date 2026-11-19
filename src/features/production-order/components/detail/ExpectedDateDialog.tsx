@@ -32,6 +32,9 @@ const COPY = {
   start: { title: D.startTitle, description: D.startDescription },
 } as const;
 
+/** Ngày đã ghi đã qua thì không điền sẵn — ngày quá khứ làm form hỏng mà chưa hiện lỗi (nút Xác nhận tắt không rõ lý do). */
+const prefill = (date: string | null | undefined) => (date && date >= todayIso() ? date : "");
+
 /**
  * Ghi ngày hoàn thành dự kiến (docs 17 §4.3 bước 8, 10): nhận đơn (bắt buộc), đổi ngày, bắt đầu sản xuất (tuỳ chọn —
  * trống = giữ ngày cũ). Ngày muộn hơn ngày cần hàng → báo trước sẽ có cảnh báo AT_RISK (§4.12), không chặn.
@@ -53,7 +56,7 @@ export function ExpectedDateDialog({
   const form = useForm<ExpectedDateValues>({
     resolver: zodResolver(expectedDateInput(mode === "start")),
     mode: "onChange",
-    defaultValues: { date: mode === "accept" ? "" : (order.expectedCompletionDate ?? "") },
+    defaultValues: { date: mode === "accept" ? "" : prefill(order.expectedCompletionDate) },
   });
   const date = useWatch({ control: form.control, name: "date" });
   const fieldError = form.formState.errors.date?.message;
@@ -67,7 +70,7 @@ export function ExpectedDateDialog({
   });
 
   return (
-    <FormDialog open onOpenChange={(next) => !next && onClose()}>
+    <FormDialog open onOpenChange={(next) => !next && !mutation.isPending && onClose()}>
       <FormDialogBody
         title={COPY[mode].title}
         description={COPY[mode].description}

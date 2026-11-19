@@ -11,9 +11,9 @@ import {
   SHORT_BATCH_COLUMNS,
   WAREHOUSE_PERMISSIONS,
 } from "@/constants";
-import { todayIso } from "@/lib/date-range";
 import { usePermissionChecker } from "@/lib/auth";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
+import { todayIso } from "@/lib/date-range";
 import { useProducerDirectory } from "@/lib/references/producer-options";
 import { useWarehouseDirectory } from "@/lib/references/warehouse-options";
 
@@ -34,6 +34,7 @@ import { RefetchBar } from "@/components/shared/RefetchBar";
 import { DrawUpDialog } from "../draw-up/DrawUpDialog";
 import { ShortBatchTable } from "../draw-up/ShortBatchTable";
 import { ScheduledOrdersTable } from "./ScheduledOrdersTable";
+import { ScheduleEmpty } from "./ScheduleEmpty";
 import { ScheduleFilters } from "./ScheduleFilters";
 import { useScheduleFilters } from "./useScheduleFilters";
 
@@ -92,7 +93,18 @@ function ScheduleContent() {
             title={`${L.ordersTitle} (${data.productionOrders.length})`}
             icon={CalendarRange}
           >
-            <ScheduledOrdersTable rows={byNeedByDate(data.productionOrders)} today={todayIso()} />
+            <ScheduledOrdersTable
+              rows={byNeedByDate(data.productionOrders)}
+              today={todayIso()}
+              empty={
+                <ScheduleEmpty
+                  filtered={filters.hasFilters}
+                  title={L.ordersEmptyTitle}
+                  description={L.ordersEmptyDescription}
+                  onClearFilters={filters.reset}
+                />
+              }
+            />
           </DetailSection>
           <DetailSection
             title={`${PRODUCTION_LABELS.drawUp.title} (${data.shortBatches.length})`}
@@ -102,6 +114,14 @@ function ScheduleContent() {
               batches={byWindowStart(data.shortBatches)}
               onDrawUp={canDrawUp ? setBatch : undefined}
               extraColumns={[BATCH_ALERTS]}
+              empty={
+                <ScheduleEmpty
+                  filtered={filters.hasFilters}
+                  title={L.batchesEmptyTitle}
+                  description={L.batchesEmptyDescription}
+                  onClearFilters={filters.reset}
+                />
+              }
             />
           </DetailSection>
         </>
