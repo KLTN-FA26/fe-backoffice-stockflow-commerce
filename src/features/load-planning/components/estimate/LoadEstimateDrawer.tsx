@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 
 import { EstimatePanel } from "./EstimatePanel";
 
+import type { EstimateOrderLine } from "./EstimatePanel";
+
 interface LoadEstimateDrawerProps {
   open: boolean;
   onClose: () => void;
@@ -13,6 +15,7 @@ interface LoadEstimateDrawerProps {
   orderNumber: string;
   warehouseId: string | null;
   released: boolean;
+  lines: readonly EstimateOrderLine[];
   canCreate: boolean;
   canRead: boolean;
 }

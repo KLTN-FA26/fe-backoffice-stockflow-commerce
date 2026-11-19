@@ -118,7 +118,11 @@ export function PlanInputsFields({
         {inputs.mode === "PRIORITY_FILL" && !transfer && (
           <FillLinesPicker
             idPrefix={idPrefix}
-            options={fillLineOptions(candidates.data ?? [], inputs.shipments)}
+            options={fillLineOptions(candidates.data ?? [], inputs.shipments).map((o) => ({
+              orderLineId: o.orderLineId,
+              label: L.fillLine(o.shipmentCode, o.sku, o.packages),
+              ariaLabel: L.fillAria(o.shipmentCode, o.sku),
+            }))}
             ticked={inputs.fillLines}
             onToggle={inputs.toggleFillLine}
           />

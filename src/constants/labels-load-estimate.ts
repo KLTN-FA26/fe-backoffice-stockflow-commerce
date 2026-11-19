@@ -7,13 +7,14 @@
 import { LOAD_ESTIMATE_LIMITS } from "./numbers";
 
 /**
- * BE `LoadEstimateRequest.selectionMode` (mặc định SINGLE_TYPE; docs 09 §4.2, WF4-LP-MODES). "Ưu tiên + hàng chèn" chưa
- * mở cho ước tính của đơn (docs issue #40, câu 4).
+ * BE `LoadEstimateRequest.selectionMode` (mặc định SINGLE_TYPE; docs 09 §4.0 gắn với các chế độ §4.2, WF4-LP-MODES).
+ * "Ưu tiên + hàng chèn": dòng đơn tick là hàng chèn, mặc định là hàng chính (RTM-LPGROUP).
  */
 export const LOAD_ESTIMATE_SELECTION_MODES = [
   "SINGLE_TYPE",
   "FEWEST_VEHICLES",
   "KEEP_LINES",
+  "PRIORITY_FILL",
   "OVER_CAPACITY",
 ] as const;
 
@@ -38,14 +39,21 @@ export const LOAD_ESTIMATE_LABELS = {
       SINGLE_TYPE: "Một loại xe",
       FEWEST_VEHICLES: "Ít xe nhất",
       KEEP_LINES: "Giữ nguyên dòng",
+      PRIORITY_FILL: "Ưu tiên + hàng chèn",
       OVER_CAPACITY: "Vượt sức chứa",
     },
     modeHints: {
       SINGLE_TYPE: "Dùng cùng một loại xe cho cả đơn.",
       FEWEST_VEHICLES: "Trộn nhiều loại xe để dùng ít xe nhất.",
       KEEP_LINES: "Các thùng cùng một dòng của đơn đi chung một xe.",
+      PRIORITY_FILL:
+        "Hàng chính quyết định cần bao nhiêu xe; dòng tick là hàng chèn chỉ chèn vào chỗ trống còn lại.",
       OVER_CAPACITY: "Xếp tối đa những thùng vừa với số xe sẵn có và báo phần phải bỏ lại.",
     },
+    /** Ô "Hàng chèn" theo dòng đơn của chế độ "Ưu tiên + hàng chèn" (RTM-LPGROUP). */
+    fillLine: (sku: string, quantity: number) => `${sku} · ${quantity} cái`,
+    fillAria: (sku: string) => `Hàng chèn: ${sku}`,
+    fillEmpty: "Đơn không có dòng nào để chọn.",
     run: "Ước tính",
     rerun: "Ước tính lại",
     running: "Đang tính…",

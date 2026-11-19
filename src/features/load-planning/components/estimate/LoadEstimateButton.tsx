@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 
 import { LoadEstimateDrawer } from "./LoadEstimateDrawer";
 
+import type { EstimateOrderLine } from "./EstimatePanel";
+
 export interface LoadEstimateButtonProps {
   orderId: string;
   orderNumber: string;
@@ -16,6 +18,8 @@ export interface LoadEstimateButtonProps {
   warehouseId: string | null;
   /** false = đơn CONFIRMED chưa release: bắt buộc có kho trước khi ước tính. */
   released: boolean;
+  /** Dòng của đơn: ô "Hàng chèn" của chế độ "Ưu tiên + hàng chèn" (RTM-LPGROUP). */
+  lines?: readonly EstimateOrderLine[];
 }
 
 /**
@@ -48,6 +52,7 @@ export function LoadEstimateButton(props: LoadEstimateButtonProps) {
           orderNumber={props.orderNumber}
           warehouseId={props.warehouseId}
           released={props.released}
+          lines={props.lines ?? []}
           canCreate={canCreate}
           canRead={canRead}
         />
