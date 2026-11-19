@@ -15,6 +15,7 @@ import {
 import { defaultBottomFoldMm } from "../bag-sheet";
 import { DEFAULT_MODEL_DEFAULTS } from "../model3d/measure-types";
 import { bagModelSchema, cupModelSchema } from "../model3d/model-types";
+import { geometryFaults } from "../print-config-rules";
 import { formatMm } from "./format-mm";
 
 import type { BagModel, CupModel } from "../model3d/model-types";
@@ -24,19 +25,26 @@ export type ModelKind = "parametric-cup" | "parametric-bag";
 
 const V = PRINT_CONFIG_SCREEN_LABELS.advanced.validation;
 const figure = z.number({ error: V.number }).min(0, { error: V.notNegative });
+const upTo = (max: number) => figure.max(max, { error: V.atMost(max) });
+const { modelFigureMaxMm } = PRINT_CONFIG_LIMITS;
 
-/** The fold is added on top of the face height (see `withDefaults`), so it has no upper limit of its own. */
+/**
+ * The limits of each value on its own (BE `PrintConfigRules`, origin/develop 3672ffb7): margins of an area
+ * (`safeMarginMm` 0–500, `bleedMm` 0–20), a cup's seam (`MAX_SEAM_MM` 100) and rim, a bag's top fold
+ * (`requireNonNegative`, at most 2000). The fold is added on top of the face height (see `withDefaults`): the height
+ * that makes is checked with the model, by `printDefaultsSchemaFor`.
+ */
 export const printDefaultsSchema = z.object({
-  safeMarginMm: figure,
+  safeMarginMm: upTo(PRINT_CONFIG_LIMITS.safeMarginMaxMm),
   bleedMm: figure.max(PRINT_CONFIG_LIMITS.bleedMaxMm, {
     error: V.bleedMax(PRINT_CONFIG_LIMITS.bleedMaxMm),
   }),
-  seamMm: figure,
-  rimMm: figure,
+  seamMm: upTo(PRINT_CONFIG_LIMITS.seamMaxMm),
+  rimMm: upTo(modelFigureMaxMm),
   cupMaterial: cupModelSchema.shape.material,
   bagMaterial: bagModelSchema.shape.material,
   handle: bagModelSchema.shape.handle,
-  topFoldMm: figure,
+  topFoldMm: upTo(modelFigureMaxMm),
   // BE `PrintConfigRules.requireBag` (origin/develop 3672ffb7): `0 ≤ glueFlapMm ≤ 100`.
   glueFlapMm: figure.max(BAG_SHEET_LIMITS.glueFlapMaxMm, {
     error: V.glueFlapMax(BAG_SHEET_LIMITS.glueFlapMaxMm),
@@ -47,15 +55,23 @@ export const printDefaultsSchema = z.object({
 export type PrintDefaultsValues = z.infer<typeof printDefaultsSchema>;
 
 /**
- * The form's schema for a bag of `gussetMm` (the file's, or the stored model's): BE `PrintConfigRules.requireBag`
- * (origin/develop 3672ffb7) also refuses `bottomFoldMm > gussetMm`, compared as sent, unrounded. `null` (a cup, or a
- * bag not sized yet) leaves the gusset rule out.
+ * The form's schema for the model in play (the chosen file's, else the stored one): the BE rules that need its sizes,
+ * each on the field the BE names. `geometryFaults`: the cup's seam and bleed against its unrolled band, the safe margin
+ * against each print area, a bag's height with its fold. BE `PrintConfigRules.requireBag` (origin/develop 3672ffb7):
+ * a bag's `bottomFoldMm ≤ gussetMm`, compared as sent, unrounded. `null` (no model yet) checks the values alone. Built
+ * again on every render: react-hook-form validates with the latest resolver.
  */
-export function printDefaultsSchemaFor(gussetMm: number | null) {
-  if (gussetMm === null) return printDefaultsSchema;
-  return printDefaultsSchema.refine((d) => d.bottomFoldMm <= gussetMm, {
-    path: ["bottomFoldMm"],
-    error: V.bottomFoldMax(formatMm(gussetMm)),
+export function printDefaultsSchemaFor(model: CupModel | BagModel | null) {
+  if (!model) return printDefaultsSchema;
+  const gussetMm = gussetOf(model);
+  return printDefaultsSchema.superRefine((values, ctx) => {
+    for (const { field, message } of geometryFaults(model, values)) {
+      ctx.addIssue({ code: "custom", path: [field], message });
+    }
+    if (gussetMm !== null && values.bottomFoldMm > gussetMm) {
+      const message = V.bottomFoldMax(formatMm(gussetMm));
+      ctx.addIssue({ code: "custom", path: ["bottomFoldMm"], message });
+    }
   });
 }
 

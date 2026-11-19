@@ -9,6 +9,7 @@ import { PRINT_CONFIG_SCHEMA_MESSAGES as M } from "@/constants/labels-print-conf
 import { MODEL3D_LIMITS, PRINT_CONFIG_LIMITS as LIMITS } from "@/constants/numbers";
 
 import { measuredChanged } from "./measured";
+import { measuredFaults } from "./print-config-rules";
 import {
   incompleteSurfaces,
   looseSurfaceFaults,
@@ -79,7 +80,7 @@ export const downloadLinkSchema = z.object({
 const printAreaInputSchema = z.object({
   code: printAreaCodeSchema,
   name: z.string().min(1).max(LIMITS.nameMaxLength),
-  safeMarginMm: z.number().nonnegative(),
+  safeMarginMm: z.number().min(0).max(LIMITS.safeMarginMaxMm),
   bleedMm: z.number().min(0).max(LIMITS.bleedMaxMm),
 });
 
@@ -109,6 +110,10 @@ export const printConfigBodySchema = z
     surfaces: z.array(surfaceSchema),
   })
   .superRefine((config, ctx) => {
+    // BE `PrintConfigRules.requireCup` / `requireBag`: the figures the file determines. No input fixes them.
+    for (const { key, message } of measuredFaults(config.model)) {
+      ctx.addIssue({ code: "custom", path: ["model", key], message });
+    }
     const codes: string[] = config.printAreas.map((area) => area.code);
     const expected: readonly string[] = AREAS_OF[config.model.kind];
     // BE `CustomizationTemplateController.create`: a cup has one area, a bag four, no missing and no extra.

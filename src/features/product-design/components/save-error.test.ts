@@ -193,6 +193,42 @@ describe("saveErrorView", () => {
   });
 });
 
+describe("saveErrorView: the fields of BE PrintConfigRules (origin/develop 3672ffb7)", () => {
+  const invalid = (field: string, code: string) =>
+    new ApiError(
+      400,
+      "PRINT_CONFIG_INVALID",
+      "English",
+      { [field]: "English" },
+      undefined,
+      undefined,
+      [{ field, message: "English", code }],
+    );
+
+  it.each([
+    ["model.seamMm", "SeamOverlaps", "seamMm"],
+    ["model.seamMm", "Range", "seamMm"],
+    ["printAreas[0].bleedMm", "BleedPastCentre", "bleedMm"],
+    ["printAreas[2].safeMarginMm", "NoSafeArea", "safeMarginMm"],
+    ["printAreas[0].safeMarginMm", "Range", "safeMarginMm"],
+    ["model.rimMm", "Range", "rimMm"],
+    ["model.topFoldMm", "Range", "topFoldMm"],
+  ])("%s (%s) goes to the %s input", (path, code, field) => {
+    const view = saveErrorView(invalid(path, code), "parametric-cup");
+    expect(view.fields.map((f) => f.field)).toEqual([field]);
+  });
+
+  it.each([
+    ["model.bottomDiameterMm", "BaseWiderThanRim"],
+    ["model.heightMm", "Range"],
+    ["model.bandTopOffsetMm", "NoBand"],
+  ])("%s (%s) comes from the file: no input, the general sentence only", (path, code) => {
+    const view = saveErrorView(invalid(path, code), "parametric-cup");
+    expect(view.fields).toEqual([]);
+    expect(view.general).toContain("chưa hợp lệ");
+  });
+});
+
 describe("printConfigErrorMessage by context", () => {
   const ACTIVATE = PRINT_CONFIG_CONTEXT_ERROR_MESSAGES.activate;
   const message = (status: number, code: string) =>

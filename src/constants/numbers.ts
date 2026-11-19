@@ -518,6 +518,14 @@ export const PRINT_CONFIG_LIMITS = {
   maxFileSizeMbRange: [1, 50],
   /** `bleedMm` 0–20. */
   bleedMaxMm: 20,
+  /** `safeMarginMm` của mỗi vùng in 0–500 (BE `PrintConfigRules.areas`). */
+  safeMarginMaxMm: 500,
+  /** Mép dán của ly (`seamMm`) 0–100 (BE `PrintConfigRules.MAX_SEAM_MM`). */
+  seamMaxMm: 100,
+  /** Mọi số đo của model tối đa 2000 mm (BE `PrintConfigRules.requirePositive` / `requireNonNegative`). */
+  modelFigureMaxMm: 2000,
+  /** Đường kính miệng, đáy và chiều cao của ly tối thiểu 10 mm (BE `PrintConfigRules.MIN_CUP_DIAMETER_MM`). */
+  cupMinSizeMm: 10,
   /** `meshName` 1–100 ký tự (B-2). */
   meshNameMaxLength: 100,
   /** Đuôi file model (B-1). */

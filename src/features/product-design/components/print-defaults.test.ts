@@ -64,7 +64,8 @@ describe("defaultsFor — glue flap and bottom fold (BE BagModel.withDefaults)",
 describe("printDefaultsSchemaFor — BE PrintConfigRules.requireBag", () => {
   const base = defaultsFor("parametric-bag", null, measured(120));
   const issue = (gusset: number | null, patch: Partial<typeof base>) => {
-    const parsed = printDefaultsSchemaFor(gusset).safeParse({ ...base, ...patch });
+    const model = gusset === null ? null : measured(gusset);
+    const parsed = printDefaultsSchemaFor(model).safeParse({ ...base, ...patch });
     return parsed.success ? null : parsed.error.issues[0];
   };
 
@@ -91,7 +92,7 @@ describe("printDefaultsSchemaFor — BE PrintConfigRules.requireBag", () => {
     expect(issue(120, { bottomFoldMm: -1 })?.path).toEqual(["bottomFoldMm"]);
   });
 
-  it("without a gusset (a cup) the gusset rule is left out", () => {
+  it("without a bag (no model yet) the gusset rule is left out", () => {
     expect(issue(null, { bottomFoldMm: 500 })).toBeNull();
   });
 

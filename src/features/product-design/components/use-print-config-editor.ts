@@ -19,7 +19,7 @@ import { useSavePrintConfig } from "../mutations";
 import { printConfigSaveInputSchema } from "../schemas";
 import { editableWithoutFile, modelFileStateOf } from "../selectors";
 import { buildSaveInput } from "./save-input";
-import { defaultsFor, gussetOf, printDefaultsSchemaFor } from "./print-defaults";
+import { defaultsFor, printDefaultsSchemaFor } from "./print-defaults";
 import { saveErrorView } from "./save-error";
 import { saveHint } from "./save-hint";
 import { sheetOfForm } from "./sheet-of-form";
@@ -61,10 +61,9 @@ export function usePrintConfigEditor({
     ? result.kind && kindOf(result.kind)
     : (config?.model?.kind ?? null);
   const storedKind: ModelKind = config?.model?.kind ?? "parametric-cup";
-  // The bottom fold ≤ the gusset in play (BE `requireBag`); react-hook-form uses the latest render's resolver.
-  const gusset = gussetOf(result ? result.model : config?.model);
+  const model = result ? result.model : (config?.model ?? null);
   const form = useForm<PrintDefaultsValues>({
-    resolver: zodResolver(printDefaultsSchemaFor(gusset)),
+    resolver: zodResolver(printDefaultsSchemaFor(model)),
     defaultValues: defaultsFor(formKind, config),
   });
   // `useWatch` types every field optional: complete it from the starting values.
