@@ -1,6 +1,10 @@
 "use client";
 
+import { Boxes } from "lucide-react";
+
 import { formatMoney } from "@/lib/format/money";
+
+import { DetailSection } from "@/components/shared/DetailSection";
 
 import { MONO } from "../copy";
 
@@ -37,61 +41,63 @@ const HEADERS: [string, boolean][] = [
 /** Bảng dòng báo giá theo thùng — số liệu đọc nguyên từ BE, FE không tự tính giá. */
 export function QuoteLinesTable({ lines }: { lines: QuoteLine[] }) {
   return (
-    <div
-      role="region"
-      aria-label="Các dòng của báo giá"
-      tabIndex={0}
-      className="border-border-default bg-bg-surface focus-visible:ring-brand overflow-x-auto rounded-[var(--card-radius)] border shadow-[var(--card-shadow)] focus-visible:ring-2 focus-visible:outline-none"
-    >
-      <table className="w-full min-w-[960px] text-[0.8125rem]">
-        <caption className="sr-only">Các dòng của báo giá</caption>
-        <thead className="bg-bg-subtle text-ink-secondary text-left">
-          <tr>
-            {HEADERS.map(([label, right]) => (
-              <th key={label} scope="col" className={`${TH} ${right ? "text-right" : ""}`}>
-                {label}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-[var(--table-line)]">
-          {lines.map((line) => {
-            const figures = lineFigures(line);
-            return (
-              <tr key={line.id}>
-                <td className={`${TD} ${MONO}`}>{line.lineNo}</td>
-                <td className={`${TD} ${MONO}`}>{line.sku}</td>
-                <td className={NUM}>{figures.cartons ?? "—"}</td>
-                <td className={NUM}>{figures.units.toLocaleString("vi-VN")}</td>
-                <td className={NUM}>{line.moq ?? "—"}</td>
-                <td className={TD}>
-                  {line.tiers.length === 0 ? (
-                    <span className="text-ink-tertiary">Chưa có giá</span>
-                  ) : (
-                    <ul className={MONO}>
-                      {line.tiers.map((tier) => (
-                        <li key={tier.minQuantity}>
-                          ≥ {tier.minQuantity} → {formatMoney(tier.unitPrice, "VND")}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </td>
-                <td className={NUM}>
-                  {figures.unitPrice != null ? formatMoney(figures.unitPrice, "VND") : "—"}
-                </td>
-                <td className={`${NUM} text-ink-primary font-semibold`}>
-                  {figures.total != null ? formatMoney(figures.total, "VND") : "—"}
-                </td>
-                <td className={NUM}>{line.taxRate != null ? `${line.taxRate}%` : "—"}</td>
-                <td className={NUM}>
-                  {figures.tax != null ? formatMoney(figures.tax, "VND") : "—"}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+    <DetailSection title="Dòng báo giá" icon={Boxes}>
+      <div
+        role="region"
+        aria-label="Các dòng của báo giá"
+        tabIndex={0}
+        className="border-border-default bg-bg-surface focus-visible:ring-brand overflow-x-auto rounded-(--section-radius) border shadow-(--card-shadow) focus-visible:ring-2 focus-visible:outline-none"
+      >
+        <table className="w-full min-w-[960px] text-[0.8125rem]">
+          <caption className="sr-only">Các dòng của báo giá</caption>
+          <thead className="bg-bg-subtle text-ink-secondary border-b border-(--table-line) text-left">
+            <tr>
+              {HEADERS.map(([label, right]) => (
+                <th key={label} scope="col" className={`${TH} ${right ? "text-right" : ""}`}>
+                  {label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[var(--table-line)]">
+            {lines.map((line) => {
+              const figures = lineFigures(line);
+              return (
+                <tr key={line.id}>
+                  <td className={`${TD} ${MONO}`}>{line.lineNo}</td>
+                  <td className={`${TD} ${MONO}`}>{line.sku}</td>
+                  <td className={NUM}>{figures.cartons ?? "—"}</td>
+                  <td className={NUM}>{figures.units.toLocaleString("vi-VN")}</td>
+                  <td className={NUM}>{line.moq ?? "—"}</td>
+                  <td className={TD}>
+                    {line.tiers.length === 0 ? (
+                      <span className="text-ink-tertiary">Chưa có giá</span>
+                    ) : (
+                      <ul className={MONO}>
+                        {line.tiers.map((tier) => (
+                          <li key={tier.minQuantity}>
+                            ≥ {tier.minQuantity} → {formatMoney(tier.unitPrice, "VND")}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </td>
+                  <td className={NUM}>
+                    {figures.unitPrice != null ? formatMoney(figures.unitPrice, "VND") : "—"}
+                  </td>
+                  <td className={`${NUM} text-ink-primary font-semibold`}>
+                    {figures.total != null ? formatMoney(figures.total, "VND") : "—"}
+                  </td>
+                  <td className={NUM}>{line.taxRate != null ? `${line.taxRate}%` : "—"}</td>
+                  <td className={NUM}>
+                    {figures.tax != null ? formatMoney(figures.tax, "VND") : "—"}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </DetailSection>
   );
 }

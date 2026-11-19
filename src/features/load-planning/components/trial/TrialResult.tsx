@@ -17,7 +17,8 @@ import type { TrialEstimate } from "../../trial/trial-types";
 
 /**
  * Kết quả chạy thử trong khung 3D có sẵn của ước tính (cùng `VehicleViewer`, số liệu, bảng kiện chưa xếp). Huy hiệu
- * "Chạy thử — không lưu" luôn hiện: kết quả này không lưu và không lấy lại được. Không hiện ô khối lượng (file không có).
+ * "Chạy thử — không lưu" luôn hiện: kết quả này không lưu và không lấy lại được. Có ô khối lượng: tải trọng xe được
+ * kiểm theo cột Total weight (WF4-TRIAL-EST).
  */
 export function TrialResult({ estimate }: { estimate: TrialEstimate }) {
   const L = TRIAL_LABELS.result;
@@ -38,7 +39,7 @@ export function TrialResult({ estimate }: { estimate: TrialEstimate }) {
           {R.budgetExhaustedHint}
         </Alert>
       )}
-      <LayoutMetrics summary={summarizeEstimate(estimate)} hideWeight />
+      <LayoutMetrics summary={summarizeEstimate(estimate)} />
       {vehicle ? (
         <div className="space-y-2">
           <VehicleSwitcher

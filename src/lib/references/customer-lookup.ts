@@ -103,39 +103,3 @@ export function formatAddress(address: CustomerAddressRef): string {
     .filter(Boolean)
     .join(", ");
 }
-
-const creditTermsSchema = z.object({
-  allowPrepaid: z.boolean(),
-  allowDeposit: z.boolean(),
-  allowCredit: z.boolean(),
-  defaultPaymentTerm: z.enum(["PREPAID", "DEPOSIT", "CREDIT"]),
-  depositPercent: z.number().nullish(),
-});
-export type CreditTermsRef = z.infer<typeof creditTermsSchema>;
-
-/**
- * Điều khoản thanh toán đang được phép của khách (`customer-credit-profiles:READ`). R1b: chỉ
- * điều khoản hiện hành được chào / chấp nhận — BE kiểm lại lúc gửi, chấp nhận và chuyển đơn.
- */
-export function useCustomerCreditTerms(customerId: string | undefined, enabled = true) {
-  return useQuery({
-    queryKey: [...customerRefKeys.all, "credit-terms", customerId ?? ""],
-    queryFn: async ({ signal }) => {
-      const { data } = await api.get<unknown>(
-        `/customers/${encodeURIComponent(customerId ?? "")}/credit-profile`,
-        { signal },
-      );
-      return creditTermsSchema.parse(data);
-    },
-    enabled: enabled && !!customerId,
-    ...QUERY_TIMES.detail,
-  });
-}
-
-export function allowedTermsOf(terms: CreditTermsRef): ("PREPAID" | "DEPOSIT" | "CREDIT")[] {
-  return [
-    ...(terms.allowPrepaid ? (["PREPAID"] as const) : []),
-    ...(terms.allowDeposit ? (["DEPOSIT"] as const) : []),
-    ...(terms.allowCredit ? (["CREDIT"] as const) : []),
-  ];
-}

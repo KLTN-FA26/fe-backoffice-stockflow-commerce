@@ -8,6 +8,7 @@ import { ADMIN_ROUTES } from "@/constants";
 import { EMPTY_LINE } from "@/features/quote/form-body";
 import { useCustomerSkus } from "@/features/quote/queries";
 import { CustomerPicker } from "@/components/backoffice/CustomerPicker";
+import { FORM_BAR_ACTION_CLASS, FormBottomBar } from "@/components/backoffice/FormBottomBar";
 import { Card } from "@/components/shared/Card";
 import { FORM_INPUT_CLASS, FormField, fieldA11y } from "@/components/shared/FormField";
 import { Notice } from "@/components/shared/Notice";
@@ -17,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 import { QuoteFeesEditor } from "./form/QuoteFeesEditor";
 import { QuoteLineEditor } from "./form/QuoteLineEditor";
+import { QuoteTotalsPreview } from "./form/QuoteTotalsPreview";
 import { useQuoteForm } from "./form/useQuoteForm";
 
 import type { CustomerSku, Quote } from "@/features/quote/types";
@@ -47,10 +49,11 @@ export function QuoteForm({
       <form
         onSubmit={(event) => void q.submit(event)}
         noValidate
-        className="max-w-5xl space-y-4 pb-16"
+        className="max-w-5xl space-y-4 pb-24"
       >
         {q.formError && <Notice tone="danger">{q.formError}</Notice>}
         <Card className="grid gap-4 md:grid-cols-2">
+          <h2 className="text-ink-primary text-sm font-semibold md:col-span-2">Thông tin chung</h2>
           <Controller
             control={form.control}
             name="customerId"
@@ -133,27 +136,35 @@ export function QuoteForm({
           <p className="text-danger text-xs">{errors.lines.root.message}</p>
         )}
         {q.customerId && <QuoteFeesEditor form={form} />}
+        {q.customerId && skus.length > 0 && (
+          <QuoteTotalsPreview form={form} customerId={q.customerId} quote={quote} />
+        )}
 
-        <div className="flex flex-wrap justify-between gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={!q.customerId || q.lines.fields.length >= 50}
-            onClick={() => q.lines.append(EMPTY_LINE)}
-          >
-            <Plus className="size-3.5" /> Thêm dòng
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={!q.customerId || q.lines.fields.length >= 50}
+          onClick={() => q.lines.append(EMPTY_LINE)}
+          className={FORM_BAR_ACTION_CLASS.outline}
+        >
+          <Plus className="size-3.5" /> Thêm dòng
+        </Button>
+
+        <FormBottomBar note="Giá cuối cùng do hệ thống tính khi lưu; số trên form chỉ để xem trước.">
+          <Button asChild variant="outline" size="sm" className={FORM_BAR_ACTION_CLASS.outline}>
+            <Link href={backHref}>Huỷ</Link>
           </Button>
-          <div className="flex gap-2">
-            <Button asChild variant="outline">
-              <Link href={backHref}>Huỷ</Link>
-            </Button>
-            <Button type="submit" disabled={q.pending}>
-              {q.pending && <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />}
-              {quote ? "Lưu báo giá" : "Lưu nháp"}
-            </Button>
-          </div>
-        </div>
+          <Button
+            type="submit"
+            size="sm"
+            disabled={q.pending}
+            className={FORM_BAR_ACTION_CLASS.primary}
+          >
+            {q.pending && <LoaderCircle className="size-3.5 animate-spin" aria-hidden="true" />}
+            {quote ? "Lưu báo giá" : "Lưu nháp"}
+          </Button>
+        </FormBottomBar>
       </form>
     </div>
   );

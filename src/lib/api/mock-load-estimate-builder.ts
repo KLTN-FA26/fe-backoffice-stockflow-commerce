@@ -5,6 +5,7 @@
  * vào `missing[]`, ước tính `incomplete`. Tách khỏi `mock-routes-load-estimates.ts` (giới hạn 200 dòng / file).
  */
 
+import { LOAD_ESTIMATE_SELECTION_MODES } from "@/constants";
 import {
   KIT_BAN,
   LAYOUT_40HC,
@@ -79,7 +80,8 @@ export async function buildMockEstimate(
     sourceId: order.orderId,
     warehouseId,
     status: "CURRENT",
-    selectionMode: fewest ? "FEWEST_VEHICLES" : "SINGLE_TYPE",
+    selectionMode:
+      LOAD_ESTIMATE_SELECTION_MODES.find((mode) => mode === body.selectionMode) ?? "SINGLE_TYPE",
     vehicleTypeIds: Array.isArray(body.vehicleTypeIds) ? body.vehicleTypeIds : [],
     lines: linesOf(vehicles),
     missing,

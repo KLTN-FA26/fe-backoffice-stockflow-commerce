@@ -1,5 +1,5 @@
 /**
- * Thông tin đặt xe in trên phiếu xếp hàng (SCRUM-287 PR F6): hãng, biển số, tài xế của chuyến (dispatch load) mà một xe đã
+ * Thông tin đặt xe in trên phiếu xếp hàng (SCRUM-287 PR F6): hãng, biển số, tài xế, kho xuất, mã vận đơn của chuyến (dispatch load) mà một xe đã
  * chốt trở thành. Kế hoạch chỉ mang `load: {loadId, code, status}`; phần đặt xe nằm ở `GET /fulfillment/loads/{id}`
  * (BE PR #162 `LoadResponse`, quyền `fulfillment-shipments:READ`). Feature không import chéo `features/shipping`, nên chỉ
  * đọc đúng các trường cần, mọi trường đều `nullish` (chuyến chưa đặt xe thì vắng).
@@ -23,6 +23,9 @@ export const beLoadBookingSchema = z.object({
   vehiclePlate: z.string().nullish(),
   driverName: z.string().nullish(),
   driverPhone: z.string().nullish(),
+  /** Kho xuất của chuyến (BE `LoadResponse.warehouseName`) và mã vận đơn của hãng — chỉ có khi chuyến đã có. */
+  warehouseName: z.string().nullish(),
+  waybillNo: z.string().nullish(),
 });
 
 export type LoadBooking = z.infer<typeof beLoadBookingSchema>;

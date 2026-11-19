@@ -28,13 +28,6 @@ describe("buildBreadcrumbItems", () => {
     ]);
   });
 
-  it("đích deep link cảnh báo tồn là mục menu riêng, không rơi về Tổng quan tồn kho", () => {
-    expect(buildBreadcrumbItems(INVENTORY_ROUTES.alerts)).toEqual([
-      { label: "Back-office", href: "/admin" },
-      { label: INVENTORY_LABELS.alertListTitle, href: undefined },
-    ]);
-  });
-
   it("trang sửa hiện '… / <mã> / Chỉnh sửa', không hiện chữ 'edit'", () => {
     expect(buildBreadcrumbItems("/admin/customers/CUS-001/edit")).toEqual([
       { label: "Back-office", href: "/admin" },
@@ -50,8 +43,8 @@ describe("buildBreadcrumbItems", () => {
       { label: "LOAD-2026-0001", href: "/admin/loads/LOAD-2026-0001" },
       { label: "Biên bản bàn giao" },
     ]);
-    expect(buildBreadcrumbItems("/admin/transfers/create").at(-1)).toEqual({
-      label: "Tạo lệnh chuyển kho",
+    expect(buildBreadcrumbItems("/admin/products/create").at(-1)).toEqual({
+      label: "Tạo sản phẩm",
     });
   });
 

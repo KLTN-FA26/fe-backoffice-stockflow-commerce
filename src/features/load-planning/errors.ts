@@ -86,9 +86,8 @@ const STALE_CODES: ReadonlySet<string> = new Set([
   "PACKAGE_UNLOAD_PENDING",
   "LOAD_PLAN_PACKAGE_TAKEN",
   "SHIPMENT_STATE_CONFLICT",
-  // SCRUM-287 PR F9: lệnh chuyển kho đã đổi (dừng lấy hàng, đã có kế hoạch khác) — danh sách ứng viên đã cũ
-  "TRANSFER_NOT_PACKED",
-  "LOAD_PLAN_SOURCE_MISMATCH",
+  // Lô giao vừa rời kế hoạch (người khác gỡ trước): danh sách lô trên màn đã cũ
+  "LOAD_PLAN_SHIPMENT_NOT_IN_PLAN",
 ]);
 
 export function isStaleLoadPlanError(error: unknown): boolean {

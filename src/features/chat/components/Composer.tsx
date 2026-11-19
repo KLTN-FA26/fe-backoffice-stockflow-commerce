@@ -6,6 +6,7 @@ import { LoaderCircle, Paperclip, Send } from "lucide-react";
 import { Notice } from "@/components/shared/Notice";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { fileTooLargeMessage, uploadFileMaxBytes } from "@/constants/upload-limits";
 
 import { chatErrorMessage, useSendAttachment, useSendNote, useSendText } from "../mutations";
 
@@ -123,7 +124,18 @@ export function Composer({
               accept={ACCEPT}
               className="sr-only"
               aria-label="Đính kèm file"
-              onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+              onChange={(event) => {
+                const picked = event.target.files?.[0] ?? null;
+                // BE FileCategory.CHAT_ATTACHMENT = 20 MB: chặn ngay, không tải lên để nhận 413.
+                if (picked && picked.size > uploadFileMaxBytes("chatAttachment")) {
+                  setFile(null);
+                  setError(fileTooLargeMessage("chatAttachment"));
+                  event.target.value = "";
+                  return;
+                }
+                setError(null);
+                setFile(picked);
+              }}
             />
           </label>
         ) : (

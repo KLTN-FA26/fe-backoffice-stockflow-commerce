@@ -15,12 +15,13 @@ import type { RouteHandler } from "../__fixtures__/render";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
-// BE CreditHoldResponse.order (staff) luôn mang holdReason CREDIT cho đơn vượt hạn mức (PR #133)
+// BE CreditHoldResponse.order (staff) luôn mang holdReason CREDIT cho đơn vượt hạn mức (PR #133). Từ 4B-10 BE không
+// còn gửi `paymentTerm` / `paymentStatus` (TT-1) — fixture bỏ hẳn hai field để nút duyệt không phụ thuộc chúng.
 const heldOrder = {
   ...apiOrder,
   status: "ON_HOLD" as const,
-  paymentTerm: "CREDIT" as const,
-  paymentStatus: "ON_CREDIT" as const,
+  paymentTerm: undefined,
+  paymentStatus: undefined,
   holdReason: "CREDIT" as const,
 };
 const hold = {
@@ -106,10 +107,8 @@ describe("Credit hold — danh sách (SCRUM-427)", () => {
   it("ACCOUNTANT (APPROVE) thấy Duyệt / Từ chối; mã đơn không là link (không có quyền sales-orders)", async () => {
     renderList(ORDER_PERMISSION_SETS.accountant);
 
-    expect(
-      await screen.findByRole("button", { name: /^Duyệt vượt hạn mức đơn/ }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^Từ chối vượt hạn mức đơn/ })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /^Duyệt công nợ đơn/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Từ chối duyệt công nợ đơn/ })).toBeInTheDocument();
     // G. mã đơn vẫn hiện nhưng không là link tới trang đơn bị chặn
     expect(screen.getByText(apiOrder.orderNumber)).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: apiOrder.orderNumber })).not.toBeInTheDocument();
@@ -125,7 +124,7 @@ describe("Credit hold — danh sách (SCRUM-427)", () => {
       "href",
       ADMIN_ROUTES.orders.detail(apiOrder.orderId),
     );
-    expect(screen.queryByRole("button", { name: /Duyệt vượt hạn mức/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Duyệt công nợ/ })).not.toBeInTheDocument();
     // F. có sales-orders:VIEW_PAGE → link "Đơn hàng" ở header về đúng danh sách đơn
     expect(screen.getByRole("link", { name: /Đơn hàng/ })).toHaveAttribute(
       "href",
@@ -151,7 +150,7 @@ describe("Credit hold — danh sách (SCRUM-427)", () => {
 
   it("hàng đợi trống → EmptyState riêng", async () => {
     renderList(ORDER_PERMISSION_SETS.accountant, []);
-    expect(await screen.findByText("Không có đơn vượt hạn mức")).toBeInTheDocument();
+    expect(await screen.findByText("Không có đơn chờ duyệt công nợ")).toBeInTheDocument();
   });
 });
 
@@ -164,7 +163,7 @@ describe("Credit hold — duyệt / từ chối", { timeout: DIALOG_FLOW_TIMEOUT
       .spyOn(api, "post")
       .mockResolvedValue({ data: { ...heldOrder, status: "CONFIRMED" } });
 
-    await user.click(await screen.findByRole("button", { name: /^Duyệt vượt hạn mức đơn/ }));
+    await user.click(await screen.findByRole("button", { name: /^Duyệt công nợ đơn/ }));
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByRole("button", { name: "Duyệt" })).toBeDisabled();
     await user.type(within(dialog).getByLabelText(/Ghi chú duyệt/), "  Khách đã cam kết  ");
@@ -197,7 +196,7 @@ describe("Credit hold — duyệt / từ chối", { timeout: DIALOG_FLOW_TIMEOUT
       .spyOn(api, "post")
       .mockResolvedValue({ data: { ...heldOrder, status: "CANCELLED" } });
 
-    await user.click(await screen.findByRole("button", { name: /^Từ chối vượt hạn mức đơn/ }));
+    await user.click(await screen.findByRole("button", { name: /^Từ chối duyệt công nợ đơn/ }));
     const dialog = await screen.findByRole("dialog");
     expect(
       within(dialog).getByText(/sẽ bị huỷ\. Tiền đã thu \(nếu có\) chuyển thành số tiền phải hoàn/),
@@ -218,7 +217,7 @@ describe("Credit hold — duyệt / từ chối", { timeout: DIALOG_FLOW_TIMEOUT
     const get = renderList(ORDER_PERMISSION_SETS.accountant);
     vi.spyOn(api, "post").mockRejectedValue(new ApiError(409, "ORDER_NOT_ON_CREDIT_HOLD", "x"));
 
-    await user.click(await screen.findByRole("button", { name: /^Duyệt vượt hạn mức đơn/ }));
+    await user.click(await screen.findByRole("button", { name: /^Duyệt công nợ đơn/ }));
     await user.type(await screen.findByLabelText(/Ghi chú duyệt/), "Ok");
     const before = get.mock.calls.filter(([url]) => url === "/orders/credit-holds").length;
     await user.click(screen.getByRole("button", { name: "Duyệt" }));
@@ -236,7 +235,7 @@ describe("Credit hold — duyệt / từ chối", { timeout: DIALOG_FLOW_TIMEOUT
 
 async function openReject(user: ReturnType<typeof userEvent.setup>, orderNumber: string) {
   await user.click(
-    await screen.findByRole("button", { name: `Từ chối vượt hạn mức đơn ${orderNumber}` }),
+    await screen.findByRole("button", { name: `Từ chối duyệt công nợ đơn ${orderNumber}` }),
   );
   return screen.findByRole("dialog");
 }
@@ -276,7 +275,7 @@ describe("Credit hold — vị thế tín dụng của khách", { timeout: DIALO
     const post = vi
       .spyOn(api, "post")
       .mockResolvedValue({ data: { ...heldOrder, status: "CONFIRMED" } });
-    await user.click(await screen.findByRole("button", { name: /^Duyệt vượt hạn mức đơn/ }));
+    await user.click(await screen.findByRole("button", { name: /^Duyệt công nợ đơn/ }));
     const dialog = await screen.findByRole("dialog");
     expect(
       await within(dialog).findByText(/Không tải được công nợ hiện tại của khách/),
@@ -386,7 +385,7 @@ describe(
           note: "note is required",
         }),
       );
-      await user.click(await screen.findByRole("button", { name: /^Duyệt vượt hạn mức đơn/ }));
+      await user.click(await screen.findByRole("button", { name: /^Duyệt công nợ đơn/ }));
       const dialog = await screen.findByRole("dialog");
       await user.type(within(dialog).getByLabelText(/Ghi chú duyệt/), "Ok");
       await user.click(within(dialog).getByRole("button", { name: "Duyệt" }));
@@ -475,7 +474,7 @@ describe("Credit hold — Idempotency-Key", { timeout: DIALOG_FLOW_TIMEOUT_MS },
     await within(rejectDialog).findByText(/đang được xử lý ở nơi khác/);
     await user.click(within(rejectDialog).getByRole("button", { name: "Huỷ" }));
 
-    await user.click(await screen.findByRole("button", { name: /^Duyệt vượt hạn mức đơn/ }));
+    await user.click(await screen.findByRole("button", { name: /^Duyệt công nợ đơn/ }));
     const approve = await screen.findByRole("dialog");
     await user.type(within(approve).getByLabelText(/Ghi chú duyệt/), "Ok");
     await user.click(within(approve).getByRole("button", { name: "Duyệt" }));
@@ -505,7 +504,7 @@ describe("Credit hold — Idempotency-Key", { timeout: DIALOG_FLOW_TIMEOUT_MS },
     await rejectCancel(user, "Huỷ");
 
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-    expect(await screen.findByText("Không có đơn vượt hạn mức")).toBeInTheDocument();
+    expect(await screen.findByText("Không có đơn chờ duyệt công nợ")).toBeInTheDocument();
     expect(post).toHaveBeenCalledTimes(1);
   });
 });

@@ -2,7 +2,12 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { CARTON_CHECK_ERROR_MESSAGES, CARTON_NOT_CHECKED_MESSAGES, UI_LABELS } from "@/constants";
+import {
+  CARTON_CHECK_ERROR_MESSAGES,
+  CARTON_NOT_CHECKED_MESSAGES,
+  STOCK_PACKAGE_PERMISSIONS,
+  UI_LABELS,
+} from "@/constants";
 import { ApiError } from "@/lib/api/error";
 import { toast } from "@/components/shared/Toast";
 
@@ -600,6 +605,56 @@ describe("CartonCheckStation — action-gating theo quyền và người bắt �
     vi.spyOn(console, "error").mockImplementation(() => {});
     renderCartonCheckStation({ identity: IDENTITIES.orderCoordinator });
     expect(await screen.findByText(UI_LABELS.loadError.forbiddenTitle)).toBeInTheDocument();
+  });
+});
+
+describe("WF04 G8 — thùng bị loại vì Sale đóng phần còn lại (BE RemovalReason.REMAINDER_CLOSED)", () => {
+  it("hiện lý do tiếng Việt 'Sale đã đóng phần còn lại', không có thao tác", async () => {
+    renderCartonCheckStation({
+      session: startedSession({
+        cartons: [apiCarton({ status: "REMOVED", removalReason: "REMAINDER_CLOSED" })],
+      }),
+    });
+    const row = await waitForRow("LPN000001");
+    expect(within(row).getByText(L.cartons.removedRemainderClosed)).toBeInTheDocument();
+    expect(within(row).queryByText("REMAINDER_CLOSED")).toBeNull();
+    expect(within(row).queryByRole("button")).toBeNull();
+  });
+});
+
+describe("WF04 G1 — In lại nhãn LPN ở trạm kiểm (docs 08 §6 'Nhãn LPN rách', 03 §4.1 bước 4)", () => {
+  const lpnPrinter = {
+    permissions: [...IDENTITIES.warehouseStaff.permissions, STOCK_PACKAGE_PERMISSIONS.create],
+  };
+
+  it("thùng chưa quét được vì nhãn LPN rách: bấm 'In lại nhãn LPN' → mở hộp thoại in nhãn thùng của đúng LPN", async () => {
+    const user = userEvent.setup();
+    const slot = vi.fn(({ lpn }: { lpn: string }) => <p>{`in nhãn ${lpn}`}</p>);
+    renderCartonCheckStation({
+      identity: lpnPrinter,
+      session: startedSession(),
+      lpnLabelSlot: slot,
+    });
+    const row = await waitForRow("LPN000001");
+
+    await user.click(within(row).getByRole("button", { name: L.action.reprintLpn }));
+
+    expect(await screen.findByText("in nhãn LPN000001")).toBeInTheDocument();
+    expect(slot).toHaveBeenLastCalledWith(expect.objectContaining({ lpn: "LPN000001" }));
+  });
+
+  it("thiếu inventory-stock-packages:CREATE, hoặc màn không có hộp thoại in nhãn thùng: không có nút", async () => {
+    renderCartonCheckStation({ session: startedSession(), lpnLabelSlot: () => null });
+    expect(
+      within(await waitForRow("LPN000001")).queryByRole("button", { name: L.action.reprintLpn }),
+    ).toBeNull();
+  });
+
+  it("có quyền nhưng không có khe hộp thoại: không có nút", async () => {
+    renderCartonCheckStation({ identity: lpnPrinter, session: startedSession() });
+    expect(
+      within(await waitForRow("LPN000001")).queryByRole("button", { name: L.action.reprintLpn }),
+    ).toBeNull();
   });
 });
 

@@ -12,8 +12,11 @@ import {
   RMA_RESOLUTION_PERMISSIONS,
 } from "@/constants/returns";
 
+import { hasGoodsBack, totalRefundableUnits } from "./selectors";
+
 import type { ReturnApiStatus, ReturnReceiptApiStatus } from "@/constants/returns";
 import type { PermissionCode } from "@/lib/auth/me-permissions";
+import type { ReturnRequest } from "./types";
 
 /**
  * BE `ReturnStatus.canTransitionTo`. Phiếu nhập mở trước khi hết hạn / bị rút vẫn đưa hàng về (EXPIRED / CANCELLED →
@@ -22,7 +25,8 @@ import type { PermissionCode } from "@/lib/auth/me-permissions";
 export const RETURN_TRANSITIONS: Readonly<Record<ReturnApiStatus, readonly ReturnApiStatus[]>> = {
   REQUESTED: ["AWAITING_RETURN", "REJECTED", "CANCELLED"],
   AWAITING_RETURN: ["RECEIVED", "CANCELLED", "EXPIRED"],
-  RECEIVED: ["SETTLEMENT_PENDING"],
+  // WF-05 TH-4: không còn đơn vị nào hoàn được → kết thúc không hoàn tiền (BE `closeWithoutRefund`)
+  RECEIVED: ["SETTLEMENT_PENDING", "RESOLVED"],
   SETTLEMENT_PENDING: ["RESOLVED", "RECEIVED"],
   EXPIRED: ["RECEIVED"],
   CANCELLED: ["RECEIVED"],
@@ -36,23 +40,61 @@ export type ReturnAction =
   | "reject"
   | "cancel"
   | "createReceipt"
+  | "goodsComplete"
   | "propose"
+  | "closeWithoutRefund"
   | "approveSettlement"
   | "rejectSettlement";
 
 type Can = (code: PermissionCode) => boolean;
 
-/** Mỗi hành động: trạng thái nguồn + quyền cần. */
-const RULES: Readonly<
-  Record<ReturnAction, { from: readonly ReturnApiStatus[]; needs: PermissionCode }>
-> = {
+/**
+ * Phần của yêu cầu mà nút cần: trạng thái, hàng đã về (`receipt`) và các dòng (số hoàn được). `receipt` / `lines` vắng
+ * mặt = chưa có hàng về, không đơn vị nào hoàn được.
+ */
+export type ReturnGateInput = Pick<ReturnRequest, "status"> &
+  Partial<Pick<ReturnRequest, "receipt" | "lines">>;
+
+interface ReturnRule {
+  from: readonly ReturnApiStatus[];
+  needs: PermissionCode;
+  /** Điều kiện thêm trên dữ liệu của yêu cầu (ngoài trạng thái + quyền). */
+  when?: (ret: ReturnGateInput) => boolean;
+}
+
+const refundable = (ret: ReturnGateInput) => totalRefundableUnits(ret.lines ?? []);
+
+/** Mỗi hành động: trạng thái nguồn + quyền cần (+ điều kiện thêm). */
+const RULES: Readonly<Record<ReturnAction, ReturnRule>> = {
   approve: { from: ["REQUESTED"], needs: RMA_PERMISSIONS.approve },
   reject: { from: ["REQUESTED"], needs: RMA_PERMISSIONS.approve },
-  // Rút trước khi hàng về (BE `POST /returns/{id}/cancellation`)
-  cancel: { from: ["REQUESTED", "AWAITING_RETURN"], needs: RMA_PERMISSIONS.update },
+  // Rút trước khi hàng về (BE `POST /returns/{id}/cancellation`). WF-05 TH-3: đã có kiện về thì không rút được nữa
+  // (`RETURN_GOODS_PARTLY_RECEIVED`) — Sale chốt bằng "Đã nhận đủ hàng"
+  cancel: {
+    from: ["REQUESTED", "AWAITING_RETURN"],
+    needs: RMA_PERMISSIONS.update,
+    when: (ret) => !hasGoodsBack(ret.receipt),
+  },
   // 17 BR-18: hàng của yêu cầu đã duyệt luôn về qua phiếu nhập hàng hoàn
   createReceipt: { from: ["AWAITING_RETURN"], needs: GOODS_RECEIPT_PERMISSIONS.create },
-  propose: { from: ["RECEIVED"], needs: RMA_RESOLUTION_PERMISSIONS.propose },
+  // WF-05 TH-3 (BE `POST /returns/{id}/goods-complete`): về thiếu, khách không gửi thêm — chỉ khi đã có ≥ 1 kiện về
+  goodsComplete: {
+    from: ["AWAITING_RETURN"],
+    needs: RMA_RESOLUTION_PERMISSIONS.propose,
+    when: (ret) => hasGoodsBack(ret.receipt),
+  },
+  // Đề xuất hoàn ít nhất một đơn vị (BE `RETURN_QUANTITIES_INVALID` khi mọi dòng hoàn được = 0)
+  propose: {
+    from: ["RECEIVED"],
+    needs: RMA_RESOLUTION_PERMISSIONS.propose,
+    when: (ret) => refundable(ret) > 0,
+  },
+  // WF-05 TH-4 (BE `POST /returns/{id}/closure-without-refund`): không đơn vị nào đã duyệt về dùng được
+  closeWithoutRefund: {
+    from: ["RECEIVED"],
+    needs: RMA_RESOLUTION_PERMISSIONS.propose,
+    when: (ret) => refundable(ret) === 0,
+  },
   approveSettlement: {
     from: ["SETTLEMENT_PENDING"],
     needs: RMA_RESOLUTION_PERMISSIONS.approve,
@@ -64,17 +106,29 @@ const ORDER: readonly ReturnAction[] = [
   "approve",
   "reject",
   "createReceipt",
+  "goodsComplete",
   "propose",
+  "closeWithoutRefund",
   "approveSettlement",
   "rejectSettlement",
   "cancel",
 ];
 
-export function allowedReturnActions(ret: { status: ReturnApiStatus }, can: Can): ReturnAction[] {
+export function allowedReturnActions(ret: ReturnGateInput, can: Can): ReturnAction[] {
   return ORDER.filter((action) => {
     const rule = RULES[action];
-    return rule.from.includes(ret.status) && can(rule.needs);
+    return rule.from.includes(ret.status) && can(rule.needs) && (rule.when?.(ret) ?? true);
   });
+}
+
+/**
+ * Sale thêm ảnh của khiếu nại khi yêu cầu còn chờ duyệt hoặc chờ hàng về (BE `requireEvidenceAllowed`, stage CLAIM;
+ * quyền `sales-rmas:CREATE`). Tách khỏi `allowedReturnActions` vì không phải nút đổi trạng thái.
+ */
+export function canAddReturnEvidence(ret: Pick<ReturnRequest, "status">, can: Can): boolean {
+  return (
+    (ret.status === "REQUESTED" || ret.status === "AWAITING_RETURN") && can(RMA_PERMISSIONS.create)
+  );
 }
 
 export function isReturnOpen(status: ReturnApiStatus): boolean {
@@ -93,13 +147,28 @@ export const RETURN_RECEIPT_TRANSITIONS: Readonly<
   CANCELLED: [],
 };
 
-export type ReturnReceiptAction = "scan" | "remove" | "confirm" | "cancel";
+/** `loose` = ghi / gỡ hàng lẻ không nhãn (WF-05 TH-4). */
+export type ReturnReceiptAction = "scan" | "remove" | "loose" | "confirm" | "cancel";
 
 export function allowedReturnReceiptActions(
-  receipt: { status: ReturnReceiptApiStatus; cartons: readonly unknown[] },
+  receipt: {
+    status: ReturnReceiptApiStatus;
+    cartons: readonly unknown[];
+    looseLines?: readonly unknown[] | null;
+    returnRequestId?: string | null;
+  },
   can: Can,
 ): ReturnReceiptAction[] {
   if (receipt.status !== "DRAFT" || !can(GOODS_RECEIPT_PERMISSIONS.update)) return [];
-  // INVALID_RECEIPT_TRANSITION khi xác nhận phiếu chưa có thùng (BE `ReturnReceipt.confirm`)
-  return receipt.cartons.length > 0 ? ["scan", "remove", "confirm", "cancel"] : ["scan", "cancel"];
+  const hasCartons = receipt.cartons.length > 0;
+  const hasLoose = (receipt.looseLines?.length ?? 0) > 0;
+  const actions: ReturnReceiptAction[] = ["scan"];
+  if (hasCartons) actions.push("remove");
+  // Hàng lẻ chỉ trên phiếu của một yêu cầu trả hàng — chuyến hãng hoàn về thì hàng về trong thùng
+  // (BE `ReturnReceipt.recordLoose` → INVALID_RECEIPT_TRANSITION)
+  if (receipt.returnRequestId) actions.push("loose");
+  // INVALID_RECEIPT_TRANSITION khi phiếu không có thùng lẫn hàng lẻ (BE `ReturnReceipt.confirm`)
+  if (hasCartons || hasLoose) actions.push("confirm");
+  actions.push("cancel");
+  return actions;
 }

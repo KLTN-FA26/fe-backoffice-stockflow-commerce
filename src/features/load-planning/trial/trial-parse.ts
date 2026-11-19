@@ -3,8 +3,12 @@
  * `nesting-standalone/api/nesting/parsers.py` (`parse_box_workbook`), chỉ nhận mảng dòng đã đọc (thuần, không file):
  *
  *   Group → group · Description → name · Pieces → quantity · Length → lengthMm (dọc xe, "depth" của solver) ·
- *   Width → widthMm · Height → heightMm · Rotable → rotatable (ô trống = xoay được). Cột khối lượng, Stackable,
- *   Tiltable KHÔNG đọc (solver Python không ràng buộc khối lượng).
+ *   Width → widthMm · Height → heightMm · Rotable → rotatable (ô trống = xoay được). Stackable, Tiltable KHÔNG đọc.
+ *
+ * Khác Python theo quyết định WF4-TRIAL-EST (18/11): đọc thêm "Total weight" → totalWeightKg (tổng cả dòng; đơn vị
+ * theo ô đơn vị dưới cột, mặc định kg) và cột tuỳ chọn "Hàng chèn" → fill (trống = hàng chính). Dòng thiếu khối
+ * lượng KHÔNG bị bỏ: được liệt kê ở `missingWeight` và màn khoá nút chạy (docs 09 §6 edge case "kiện thiếu kích
+ * thước / khối lượng": chặn tính phương án). File cũ không có cột "Hàng chèn" đọc như cũ (mọi dòng là hàng chính).
  *
  * Giống bản Python: cột map theo TÊN tiêu đề; dòng ngay dưới tiêu đề là dòng đơn vị (mm / cm / m / inch, mặc định cm);
  * dòng thiếu Length/Width/Height bị bỏ im lặng (dòng đơn vị, dòng trống); dòng Pieces 0 hoặc kích thước ≤ 0 bị bỏ KÈM
@@ -14,34 +18,31 @@
 
 import {
   TRIAL_DEFAULT_LENGTH_FACTOR,
-  TRIAL_FALSE_VALUES,
   TRIAL_FIELDS,
   TRIAL_GROUP_MAX,
   TRIAL_HEADER_ALIASES,
   TRIAL_LENGTH_UNIT_LABELS,
-  TRIAL_LENGTH_UNITS,
   TRIAL_NAME_MAX,
   TRIAL_REQUIRED_FIELDS,
 } from "@/constants";
 
+import {
+  cleanText,
+  norm,
+  roundKg,
+  toBool,
+  toFloat,
+  toKg,
+  toMm,
+  unitFactor,
+  weightFactor,
+} from "./trial-cells";
+
 import type { TrialField } from "@/constants";
+import type { TrialCell, TrialRow } from "./trial-cells";
 
-export type TrialCell = string | number | boolean | Date | null | undefined;
-export type TrialRow = readonly TrialCell[];
-
-/**
- * Dòng thô của thư viện đọc xlsx → `TrialCell`. Thư viện khai báo kiểu ô ngày là `typeof Date` (hàm dựng) dù giá trị
- * thật là `Date`, nên chuẩn lại từng ô thay vì ép kiểu; ô lạ → null.
- */
-export function normalizeRows(rows: readonly (readonly unknown[])[]): TrialCell[][] {
-  return rows.map((row) =>
-    row.map((value): TrialCell => {
-      if (typeof value === "string" || typeof value === "number" || typeof value === "boolean")
-        return value;
-      return value instanceof Date ? value : null;
-    }),
-  );
-}
+export { normalizeRows } from "./trial-cells";
+export type { TrialCell, TrialRow } from "./trial-cells";
 
 /** Một dòng hàng của danh sách chạy thử: đúng dạng BE `TrialLoadEstimateRequest.Line`. */
 export interface TrialLine {
@@ -51,7 +52,11 @@ export interface TrialLine {
   widthMm: number;
   heightMm: number;
   quantity: number;
+  /** Tổng khối lượng cả dòng, kg (3 chữ số thập phân như BE); null = ô trống / không dương → chặn chạy thử. */
+  totalWeightKg: number | null;
   rotatable: boolean;
+  /** Cột "Hàng chèn": hàng phụ, chỉ chế độ PRIORITY_FILL đọc. */
+  fill: boolean;
   /** Số dòng trong file (đếm từ 1), để báo lỗi dẫn về đúng dòng. */
   sourceRow: number;
 }
@@ -65,7 +70,16 @@ export interface TrialSkippedRow {
 export interface TrialParseResult {
   lines: TrialLine[];
   skipped: TrialSkippedRow[];
-  summary: { rows: number; groups: number; totalPieces: number; unitLabel: string };
+  /** Số dòng (trong file) thiếu khối lượng — có dòng nào thì không chạy thử được. */
+  missingWeight: number[];
+  summary: {
+    rows: number;
+    groups: number;
+    totalPieces: number;
+    totalWeightKg: number;
+    fillRows: number;
+    unitLabel: string;
+  };
 }
 
 export type TrialParseErrorCode = "NOT_XLSX" | "TOO_BIG" | "UNREADABLE" | "NO_HEADER" | "NO_ROWS";
@@ -77,42 +91,6 @@ export class TrialParseError extends Error {
     this.name = "TrialParseError";
     this.code = code;
   }
-}
-
-/** `_norm`: gộp khoảng trắng / xuống dòng, cắt hai đầu, chữ thường. */
-const norm = (value: TrialCell): string =>
-  value === null || value === undefined
-    ? ""
-    : String(value).replace(/\s+/g, " ").trim().toLowerCase();
-
-/** `_clean_text`: như `norm` nhưng giữ nguyên hoa thường. */
-const cleanText = (value: TrialCell): string =>
-  value === null || value === undefined ? "" : String(value).replace(/\s+/g, " ").trim();
-
-/** `_to_float`: số thường, dấu phẩy thập phân kiểu EU, đơn vị thừa ("90 cm"); không phải số → null. */
-function toFloat(value: TrialCell): number | null {
-  if (value === null || value === undefined || value === "") return null;
-  if (typeof value === "number") return Number.isFinite(value) ? value : null;
-  if (typeof value === "boolean") return Number(value);
-  if (value instanceof Date) return null;
-  let text = value.trim();
-  if (!text) return null;
-  text =
-    text.includes(",") && !text.includes(".") ? text.replace(/,/g, ".") : text.replace(/,/g, "");
-  const match = /-?\d+(?:\.\d+)?/.exec(text);
-  return match ? Number(match[0]) : null;
-}
-
-/** `_to_bool`: ô trống → mặc định; "n/no/false/0/f/không/khong" → false; còn lại → true. */
-function toBool(value: TrialCell, fallback: boolean): boolean {
-  const text = norm(value);
-  return text === "" ? fallback : !TRIAL_FALSE_VALUES.includes(text);
-}
-
-/** `_unit_factor`: bí danh đầu tiên (theo thứ tự bảng) nằm trong chuỗi đơn vị. */
-function unitFactor(text: string): number {
-  for (const [token, factor] of TRIAL_LENGTH_UNITS) if (text.includes(token)) return factor;
-  return TRIAL_DEFAULT_LENGTH_FACTOR;
 }
 
 /** `_build_header_map`: dòng đầu tiên có đủ Pieces/Length/Width/Height; mỗi trường lấy cột đầu tiên khớp. */
@@ -134,8 +112,6 @@ function buildHeaderMap(
   return null;
 }
 
-const toMm = (value: number, factor: number): number => Math.max(1, Math.round(value * factor));
-
 /** `parse_box_workbook` trên các dòng đã đọc. Ném `TrialParseError` NO_HEADER / NO_ROWS như `ValueError` của Python. */
 export function parseTrialRows(rows: readonly TrialRow[]): TrialParseResult {
   const header = buildHeaderMap(rows);
@@ -148,11 +124,14 @@ export function parseTrialRows(rows: readonly TrialRow[]): TrialParseResult {
     const at = col.get(field);
     return at === undefined ? null : row[at];
   };
+  const kgFactor = weightFactor(unitRow ? norm(cell(unitRow, "weight")) : "");
 
   const lines: TrialLine[] = [];
   const skipped: TrialSkippedRow[] = [];
+  const missingWeight: number[] = [];
   const groups = new Set<string>();
   let totalPieces = 0;
+  let totalWeightKg = 0;
 
   for (let i = headerIndex + 1; i < rows.length; i++) {
     const row = rows[i];
@@ -177,6 +156,8 @@ export function parseTrialRows(rows: readonly TrialRow[]): TrialParseResult {
       0,
       TRIAL_NAME_MAX,
     );
+    const weight = toKg(toFloat(cell(row, "weight")), kgFactor);
+    if (weight === null) missingWeight.push(i + 1);
     lines.push({
       name,
       group,
@@ -185,10 +166,13 @@ export function parseTrialRows(rows: readonly TrialRow[]): TrialParseResult {
       widthMm: toMm(width, factor),
       heightMm: toMm(height, factor),
       quantity,
+      totalWeightKg: weight,
       rotatable: toBool(cell(row, "rotable"), true),
+      fill: toBool(cell(row, "fill"), false),
       sourceRow: i + 1,
     });
     totalPieces += quantity;
+    totalWeightKg += weight ?? 0;
     if (group) groups.add(group);
   }
 
@@ -196,10 +180,13 @@ export function parseTrialRows(rows: readonly TrialRow[]): TrialParseResult {
   return {
     lines,
     skipped,
+    missingWeight,
     summary: {
       rows: lines.length,
       groups: groups.size,
       totalPieces,
+      totalWeightKg: roundKg(totalWeightKg),
+      fillRows: lines.filter((line) => line.fill).length,
       unitLabel:
         TRIAL_LENGTH_UNIT_LABELS[factor] ?? TRIAL_LENGTH_UNIT_LABELS[TRIAL_DEFAULT_LENGTH_FACTOR],
     },

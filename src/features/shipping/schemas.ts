@@ -42,9 +42,13 @@ export const beCarrierConnectionSchema = z.object({
   webhookSecretConfigured: z.boolean().nullish(),
   webhookAuthHeader: z.string().nullish(),
   webhookAuthValueConfigured: z.boolean().nullish(),
+  /** Đang thay thông tin xác thực webhook: một giá trị thứ hai cũng có hiệu lực (BE `webhookAuthValueNextConfigured`). */
+  webhookAuthValueNextConfigured: z.boolean().nullish(),
   apiEnvironment: z.string().nullish(),
   apiAccount: z.string().nullish(),
   apiKeyConfigured: z.boolean().nullish(),
+  /** Cách hãng nêu lý do giao thất bại → mã lý do nội bộ (BE `failureReasonMap`). */
+  failureReasonMap: z.record(z.string(), z.string()).nullish(),
 });
 
 /** BE `CarrierResponse` — hãng trong danh mục (docs 09 §3: tên và liên hệ) kèm kiểu kết nối. */
@@ -103,13 +107,30 @@ export const beShipmentParcelSchema = z.object({
   heightCm: measure.nullish(),
 });
 
-/** BE `ShipmentResponse.Step` — mỗi bước ghi người thực hiện và thời điểm (docs 09 BR-02). */
+/**
+ * BE `ShipmentResponse.Step` — mỗi bước ghi nguồn (tay / webhook), người hoặc sự kiện của hãng và thời điểm (docs 09
+ * BR-02). `source` CARRIER_WEBHOOK: hãng báo qua webhook, không có người ghi; `carrierEventId` là sự kiện đó.
+ */
 export const beShipmentStepSchema = z.object({
   status: shipmentStatusSchema,
   occurredAt: isoInstant,
   recordedBy: z.string().nullish(),
   recordedByName: z.string().nullish(),
   note: z.string().nullish(),
+  source: z.string().nullish(),
+  carrierEventId: z.string().nullish(),
+});
+
+/** BE `ShipmentResponse.ReasonCorrection` — lý do giao thất bại quản lý kho đã sửa (docs 09 edge hoàn hàng). */
+export const beReasonCorrectionSchema = z.object({
+  fromReason: z.string(),
+  fromNote: z.string().nullish(),
+  toReason: z.string(),
+  toNote: z.string().nullish(),
+  reason: z.string(),
+  correctedBy: z.string().nullish(),
+  correctedByName: z.string().nullish(),
+  correctedAt: isoInstant,
 });
 
 /** BE `ShipmentResponse` — lô giao kèm kiện và lịch sử (chỉ nhân viên xem). */
@@ -122,4 +143,5 @@ export const beShipmentSchema = z.object({
   cancelledAt: isoInstant.nullish(),
   packages: z.array(beShipmentParcelSchema),
   timeline: z.array(beShipmentStepSchema),
+  reasonCorrections: z.array(beReasonCorrectionSchema).default([]),
 });

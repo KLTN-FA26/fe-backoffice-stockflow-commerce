@@ -63,6 +63,7 @@ export function OrderSettlementPanel(props: OrderSettlementSlotProps) {
           outstanding: plan ? plan.outstanding : null,
           deliveredShipmentIds: props.deliveredShipmentIds,
           invoicedShipmentIds: invoicedShipments(rows),
+          completionHeld: props.completionHeld,
         })
       : [];
 

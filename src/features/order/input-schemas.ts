@@ -10,6 +10,7 @@ import {
   ORDER_MANUAL_HOLD_REASONS,
   ORDER_REMAINDER_CLOSURE_REASONS,
   ORDER_REMAINDER_FEE_LABELS,
+  ORDER_SHIPPING_ADDRESS_LABELS,
 } from "@/constants/labels-order";
 import { ORDER_LIMITS } from "@/constants/numbers";
 
@@ -126,3 +127,14 @@ export type DeliveryFailureValues = z.infer<typeof deliveryFailureSchema>;
 export type RemainderClosureValues = z.infer<typeof remainderClosureSchema>;
 export type AgreedFeeValues = z.infer<typeof agreedFeeSchema>;
 export type PartialShipmentValues = z.infer<typeof partialShipmentSchema>;
+
+/**
+ * Đổi địa chỉ giao (`PUT /orders/{id}/shipping-address`, BE `ShippingAddressChangeRequest`): một địa chỉ giao trong sổ
+ * địa chỉ của khách (docs 14 §4.2 bước 9). BR-16 (docs 17): chỉ đổi được tới khi thùng đầu tiên được dán nhãn — BE kiểm
+ * (409 ORDER_ADDRESS_LOCKED); form chỉ hiện khi `canChangeShippingAddress`.
+ */
+export const shippingAddressChangeSchema = z.object({
+  // Id do BE cấp; địa chỉ của seed demo không đúng biến thể RFC 4122 nên không dùng `.uuid()` (như product/schemas)
+  shippingAddressId: z.string().trim().min(1, ORDER_SHIPPING_ADDRESS_LABELS.addressRequired),
+});
+export type ShippingAddressChangeValues = z.infer<typeof shippingAddressChangeSchema>;

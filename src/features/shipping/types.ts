@@ -30,6 +30,8 @@ import type {
   beWaybillImportLineSchema,
   beWaybillImportRowSchema,
   beWaybillImportSchema,
+  waybillImportFileInputSchema,
+  waybillImportPreviewInputSchema,
 } from "./waybill-schemas";
 import type {
   beCarrierConnectionSchema,
@@ -137,23 +139,10 @@ export interface RecordWaybillInput {
   values: WaybillValues;
 }
 
-/** Nhập file mã vận đơn: file CSV theo mẫu + số dòng ghi đè đã được xác nhận (BR-25). */
-export interface WaybillImportFileInput {
-  file: File;
-  overwriteLines: readonly number[];
-}
+export type WaybillImportPreviewInput = z.infer<typeof waybillImportPreviewInputSchema>;
+export type WaybillImportFileInput = z.infer<typeof waybillImportFileInputSchema>;
 
-/** Thân tạo / sửa hãng (BE `CarrierRequest`). `connection` vắng = giữ nguyên cấu hình kết nối hiện có. */
-export interface SaveCarrierInput {
-  code: string;
-  name: string;
-  contactName?: string;
-  contactPhone?: string;
-  status: Carrier["status"];
-  connection?: { connectionType: "MANUAL" | "WEBHOOK_LOAD"; webhookSecret?: string };
-  /** Bắt buộc khi sửa: phiên bản đã đọc. */
-  version?: number;
-}
+export type { SaveCarrierConnection, SaveCarrierInput } from "./carrier-request-schemas";
 
 export interface CancelBookingInput {
   loadId: string;
@@ -175,6 +164,8 @@ export interface ControlledCancelLoadInput {
   loadId: string;
   reasonCode: UnloadReasonCode;
   note: string;
+  /** Lô giao gỡ khỏi xe cùng lần huỷ (docs 09 §4.2 bước 9, BR-14 — `REMOVED_FROM_VEHICLE`); trống = giữ nguyên sơ đồ. */
+  removedShipmentIds?: readonly string[];
 }
 
 /** Xác nhận dỡ một kiện không cần quét vì nhãn hỏng (quản lý kho): chọn theo `packageId`, ghi chú không bắt buộc. */

@@ -9,6 +9,7 @@ import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { Label } from "@/components/ui/label";
 import { SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
+import type { ReactNode } from "react";
 import type { UnloadReasonCode } from "@/constants";
 
 const C = UI_LABELS.shipping.ftl.controlledCancel;
@@ -27,6 +28,8 @@ interface ControlledCancelDialogProps {
   error: string | null;
   onSubmit: (values: ControlledCancelValues) => void;
   onClose: () => void;
+  /** Phần thêm dưới ô lý do (ví dụ chọn lô giao gỡ khỏi xe) — bên gọi quản lý state. */
+  children?: ReactNode;
 }
 
 /**
@@ -42,6 +45,7 @@ export function ControlledCancelDialog({
   error,
   onSubmit,
   onClose,
+  children,
 }: ControlledCancelDialogProps) {
   const [reasonCode, setReasonCode] = useState<UnloadReasonCode | undefined>(undefined);
   return (
@@ -85,6 +89,7 @@ export function ControlledCancelDialog({
         </FormSelect>
         <p className="text-ink-tertiary text-xs">{C.noteHint}</p>
       </div>
+      {children}
     </ConfirmDialog>
   );
 }

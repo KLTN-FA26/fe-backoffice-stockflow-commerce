@@ -1,8 +1,12 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { SHIPPING_ERROR_MESSAGES as ERR, UI_LABELS } from "@/constants";
+import {
+  SHIPPING_DELIVERY_TIME_MESSAGES as DT,
+  SHIPPING_ERROR_MESSAGES as ERR,
+  UI_LABELS,
+} from "@/constants";
 import { ApiError } from "@/lib/api/error";
 
 import { apiShipment } from "../__fixtures__/load";
@@ -23,6 +27,7 @@ afterEach(() => vi.restoreAllMocks());
 const PATH = "/fulfillment/shipments/shp-1";
 const L = UI_LABELS.shipping.shipment;
 const O = L.outcomeDialog;
+const C = L.correction;
 
 const shipment = (patch: Partial<ShipmentRow> = {}): Shipment => apiShipment(patch);
 
@@ -30,10 +35,15 @@ function renderShipment(
   actor: TestActor,
   data: Shipment,
   outcome?: (body: Record<string, unknown>) => unknown,
+  correction?: (body: Record<string, unknown>) => unknown,
 ) {
   const spies = mockShippingApi(actor, {
     get: { [PATH]: () => data },
-    post: { [`${PATH}/delivery-outcome`]: (_p, body) => (outcome ?? (() => data))(body as never) },
+    post: {
+      [`${PATH}/delivery-outcome`]: (_p, body) => (outcome ?? (() => data))(body as never),
+      [`${PATH}/delivery-outcome-correction`]: (_p, body) =>
+        (correction ?? (() => data))(body as never),
+    },
     put: { [`${PATH}/carrier`]: () => data },
   });
   renderShippingScreen(<ShipmentScreen id="shp-1" />);
@@ -192,8 +202,7 @@ describe("ShipmentScreen — ghi nhận kết quả giao (BR-02)", () => {
     const dialog = screen.getByRole("dialog");
     const confirm = within(dialog).getByRole("button", { name: O.confirm });
     expect(confirm).toBeDisabled();
-    await user.click(within(dialog).getByRole("combobox"));
-    await user.click(await screen.findByRole("option", { name: "Lý do khác" }));
+    await user.click(within(dialog).getByRole("radio", { name: "Lý do khác" }));
     await waitFor(() => expect(confirm).toBeDisabled());
     await user.type(within(dialog).getByLabelText(new RegExp(O.note)), "Khách chuyển nhà");
     await waitFor(() => expect(confirm).toBeEnabled());
@@ -228,5 +237,238 @@ describe("ShipmentScreen — ghi nhận kết quả giao (BR-02)", () => {
     });
     renderShippingScreen(<ShipmentScreen id="shp-1" />);
     expect(await screen.findByText(UI_LABELS.shipping.notFoundTitle)).toBeInTheDocument();
+  });
+});
+
+describe("ShipmentScreen — hộp thoại ghi nhận theo artboard", () => {
+  const handedOver = () =>
+    shipment({
+      status: "HANDED_OVER",
+      carrierName: "Ahamove",
+      loadId: "L1",
+      loadCode: "LD-1",
+      handedOverAt: "2026-10-21T03:00:00Z",
+    });
+
+  it("đã giao: có bảng tóm tắt đơn / hãng / chuyến / số kiện kèm cân nặng, và dòng lưu người ghi nhận", async () => {
+    const user = userEvent.setup();
+    renderShipment(ACTORS.orderCoordinator, handedOver());
+    await user.click(await screen.findByRole("button", { name: L.outcomeAction.DELIVERED }));
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText(O.summary.order)).toBeInTheDocument();
+    expect(within(dialog).getByText("SO-1")).toBeInTheDocument();
+    expect(within(dialog).getByText("Ahamove")).toBeInTheDocument();
+    expect(within(dialog).getByText("LD-1")).toBeInTheDocument();
+    // hai kiện 1,5 + 0,8 kg
+    expect(within(dialog).getByText(/2 kiện · 2,3 kg/)).toBeInTheDocument();
+    expect(within(dialog).getByText(O.audit)).toBeInTheDocument();
+  });
+
+  it("giao thất bại: sáu thẻ lý do hiện sẵn, không có bảng tóm tắt", async () => {
+    const user = userEvent.setup();
+    renderShipment(ACTORS.orderCoordinator, handedOver());
+    await user.click(await screen.findByRole("button", { name: L.outcomeAction.DELIVERY_FAILED }));
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getAllByRole("radio")).toHaveLength(6);
+    expect(within(dialog).queryByText(O.summary.order)).not.toBeInTheDocument();
+  });
+
+  it("lô giao thất bại ghi nhận đã giao (giao lại): nêu kết quả hiện tại và lý do", async () => {
+    const user = userEvent.setup();
+    renderShipment(
+      ACTORS.orderCoordinator,
+      shipment({ status: "DELIVERY_FAILED", failureReason: "CUSTOMER_ABSENT" }),
+    );
+    await user.click(await screen.findByRole("button", { name: L.outcomeAction.DELIVERED }));
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText(O.summary.currentResult)).toBeInTheDocument();
+    expect(within(dialog).getByText(/Khách vắng mặt/)).toBeInTheDocument();
+  });
+});
+
+describe("ShipmentScreen — thời điểm giao khi ghi tay (docs 09 §4.3 bước 2)", () => {
+  const handedOver = () =>
+    shipment({ status: "HANDED_OVER", handedOverAt: "2026-10-21T03:00:00Z" });
+
+  async function openDelivered(actor: TestActor = ACTORS.orderCoordinator, data = handedOver()) {
+    const user = userEvent.setup();
+    const spies = renderShipment(actor, data);
+    await user.click(await screen.findByRole("button", { name: L.outcomeAction.DELIVERED }));
+    const dialog = screen.getByRole("dialog");
+    return { user, dialog, post: spies.post, time: within(dialog).getByLabelText(O.deliveredAt) };
+  }
+
+  it("có ô thời điểm giao, mặc định bây giờ; chặn từ lúc bàn giao (giờ Việt Nam) đến bây giờ", async () => {
+    const { dialog, time } = await openDelivered();
+    expect(time).toHaveAttribute("type", "datetime-local");
+    expect(time).toHaveAttribute("min", "2026-10-21T10:00");
+    expect((time as HTMLInputElement).value).toBe(time.getAttribute("max"));
+    expect(within(dialog).getByText(O.deliveredAtHint)).toBeInTheDocument();
+  });
+
+  it("không đụng vào ô → không gửi deliveredAt (BE lấy lúc ghi nhận)", async () => {
+    const { user, dialog, post } = await openDelivered();
+    await user.click(within(dialog).getByRole("button", { name: O.confirm }));
+    await waitFor(() => expect(post).toHaveBeenCalled());
+    expect(post.mock.calls[0]?.[1]).not.toHaveProperty("deliveredAt", expect.any(String));
+  });
+
+  it("nhập giờ hãng báo → gửi Instant ISO của giờ Việt Nam", async () => {
+    const { user, dialog, post, time } = await openDelivered();
+    fireEvent.change(time, { target: { value: "2026-10-22T09:15" } });
+    await user.click(within(dialog).getByRole("button", { name: O.confirm }));
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(`${PATH}/delivery-outcome`, {
+        outcome: "DELIVERED",
+        failureReason: undefined,
+        note: undefined,
+        deliveredAt: "2026-10-22T02:15:00.000Z",
+      }),
+    );
+  });
+
+  it("thời điểm ở tương lai → báo lỗi tiếng Việt, nút Ghi nhận bị khoá", async () => {
+    const { dialog, time } = await openDelivered();
+    fireEvent.change(time, { target: { value: "2999-01-01T10:00" } });
+    expect(await within(dialog).findByText(DT.future)).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: O.confirm })).toBeDisabled();
+  });
+
+  it("thời điểm trước lúc bàn giao → báo lỗi, nút Ghi nhận bị khoá", async () => {
+    const { dialog, time } = await openDelivered();
+    fireEvent.change(time, { target: { value: "2026-10-20T09:00" } });
+    expect(await within(dialog).findByText(DT.beforeHandover)).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: O.confirm })).toBeDisabled();
+  });
+
+  it("BE từ chối thời điểm (422) → câu tiếng Việt của mã đó trong hộp thoại", async () => {
+    const user = userEvent.setup();
+    renderShipment(ACTORS.orderCoordinator, handedOver(), () => {
+      throw new ApiError(422, "SHIPMENT_DELIVERY_TIME_BEFORE_HANDOVER", "en");
+    });
+    await user.click(await screen.findByRole("button", { name: L.outcomeAction.DELIVERED }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: O.confirm }));
+    expect(
+      await within(dialog).findByText(ERR.SHIPMENT_DELIVERY_TIME_BEFORE_HANDOVER),
+    ).toBeInTheDocument();
+  });
+
+  it("giao thất bại / hàng hoàn không có ô thời điểm giao", async () => {
+    const user = userEvent.setup();
+    renderShipment(ACTORS.orderCoordinator, handedOver());
+    await user.click(await screen.findByRole("button", { name: L.outcomeAction.DELIVERY_FAILED }));
+    expect(screen.queryByLabelText(O.deliveredAt)).not.toBeInTheDocument();
+  });
+});
+
+describe("ShipmentScreen — sửa tay kết quả giao (docs 09 §4.3 bước 5)", () => {
+  const delivered = () =>
+    shipment({
+      status: "DELIVERED",
+      carrierName: "Ahamove",
+      handedOverAt: "2026-10-21T03:00:00Z",
+      outcomeAt: "2026-10-22T03:00:00Z",
+    });
+  const failed = () =>
+    shipment({
+      status: "DELIVERY_FAILED",
+      failureReason: "REFUSED",
+      handedOverAt: "2026-10-21T03:00:00Z",
+      outcomeAt: "2026-10-22T03:00:00Z",
+    });
+
+  it("chỉ người có mã quyền sửa kết quả thấy nút; lô chưa có kết quả thì không", async () => {
+    renderShipment(ACTORS.warehouseManagerFull, delivered());
+    expect(await screen.findByRole("button", { name: C.action })).toBeInTheDocument();
+  });
+
+  it.each([
+    ["quản lý kho thiếu mã quyền sửa", ACTORS.warehouseManager],
+    ["điều phối (chỉ ghi nhận kết quả)", ACTORS.orderCoordinator],
+    ["nhân viên kho", ACTORS.warehouseStaff],
+    ["chỉ xem", ACTORS.viewOnly],
+  ])("%s: không thấy nút sửa", async (_name, actor) => {
+    renderShipment(actor, delivered());
+    await screen.findByRole("heading", { name: `${L.title} · SO-1-S1` });
+    expect(screen.queryByRole("button", { name: C.action })).not.toBeInTheDocument();
+  });
+
+  it("lô đã bàn giao (chưa có kết quả) không có nút sửa dù có quyền", async () => {
+    renderShipment(ACTORS.warehouseManagerFull, shipment({ status: "HANDED_OVER" }));
+    await screen.findByRole("button", { name: L.outcomeAction.DELIVERED });
+    expect(screen.queryByRole("button", { name: C.action })).not.toBeInTheDocument();
+  });
+
+  it("đã giao → giao thất bại: bắt buộc lý do sửa và lý do thất bại; gửi đúng body", async () => {
+    const user = userEvent.setup();
+    const { post } = renderShipment(ACTORS.warehouseManagerFull, delivered());
+    await user.click(await screen.findByRole("button", { name: C.action }));
+    const dialog = screen.getByRole("dialog");
+    const save = within(dialog).getByRole("button", { name: C.submit });
+    expect(save).toBeDisabled();
+    await user.click(within(dialog).getByRole("radio", { name: "Thất lạc hàng" }));
+    await waitFor(() => expect(save).toBeDisabled());
+    await user.type(within(dialog).getByLabelText(new RegExp(C.reason)), "Khách báo chưa nhận");
+    await waitFor(() => expect(save).toBeEnabled());
+    expect(within(dialog).getByText(C.invoiceNote)).toBeInTheDocument();
+    await user.click(save);
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(`${PATH}/delivery-outcome-correction`, {
+        outcome: "DELIVERY_FAILED",
+        failureReason: "LOST",
+        note: undefined,
+        reason: "Khách báo chưa nhận",
+        deliveredAt: undefined,
+      }),
+    );
+  });
+
+  it("giao thất bại → đã giao: có ô thời điểm giao; không nhập lý do sửa thì không lưu được", async () => {
+    const user = userEvent.setup();
+    const { post } = renderShipment(ACTORS.warehouseManagerFull, failed());
+    await user.click(await screen.findByRole("button", { name: C.action }));
+    const dialog = screen.getByRole("dialog");
+    const save = within(dialog).getByRole("button", { name: C.submit });
+    expect(save).toBeDisabled();
+    expect(within(dialog).queryAllByRole("radio")).toHaveLength(0);
+    fireEvent.change(within(dialog).getByLabelText(O.deliveredAt), {
+      target: { value: "2026-10-22T09:15" },
+    });
+    expect(save).toBeDisabled();
+    await user.type(within(dialog).getByLabelText(new RegExp(C.reason)), "Tìm thấy ở lễ tân");
+    await waitFor(() => expect(save).toBeEnabled());
+    await user.click(save);
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(`${PATH}/delivery-outcome-correction`, {
+        outcome: "DELIVERED",
+        failureReason: undefined,
+        note: undefined,
+        reason: "Tìm thấy ở lễ tân",
+        deliveredAt: "2026-10-22T02:15:00.000Z",
+      }),
+    );
+  });
+
+  it("hộp thoại cao cuộn được, nút Lưu nằm ngoài vùng cuộn (màn thấp vẫn bấm được)", async () => {
+    const user = userEvent.setup();
+    renderShipment(ACTORS.warehouseManagerFull, delivered());
+    await user.click(await screen.findByRole("button", { name: C.action }));
+    const dialog = screen.getByRole("dialog");
+    const scroll = within(dialog).getByLabelText(new RegExp(C.reason)).closest(".overflow-y-auto");
+    expect(scroll).not.toBeNull();
+    expect(scroll).not.toContainElement(within(dialog).getByRole("button", { name: C.submit }));
+  });
+
+  it("đơn đã hoàn tất (409 ORDER_DELIVERY_NOT_CORRECTABLE) → câu tiếng Việt trong hộp thoại", async () => {
+    const user = userEvent.setup();
+    renderShipment(ACTORS.warehouseManagerFull, failed(), undefined, () => {
+      throw new ApiError(409, "ORDER_DELIVERY_NOT_CORRECTABLE", "en");
+    });
+    await user.click(await screen.findByRole("button", { name: C.action }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText(new RegExp(C.reason)), "Nhầm kết quả");
+    await user.click(within(dialog).getByRole("button", { name: C.submit }));
+    expect(await within(dialog).findByText(ERR.ORDER_DELIVERY_NOT_CORRECTABLE)).toBeInTheDocument();
   });
 });

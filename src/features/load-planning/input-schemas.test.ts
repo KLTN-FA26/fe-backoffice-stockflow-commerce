@@ -5,10 +5,8 @@ import { LOAD_PLAN_FIELD_MESSAGES as M, LOAD_PLAN_LIMITS } from "@/constants";
 import {
   addPackagesSchema,
   createPlanFormSchema,
-  createTransferPlanFormSchema,
   planInputsSchema,
   planReasonSchema,
-  transferPlanInputsSchema,
 } from "./input-schemas";
 
 const valid = {
@@ -46,10 +44,18 @@ describe("createPlanFormSchema (CreateLoadPlanRequest)", () => {
     );
   });
 
-  it("only knows SINGLE_TYPE and FEWEST_VEHICLES (LP-6)", () => {
-    expect(planInputsSchema.safeParse({ ...valid, selectionMode: "FEWEST_VEHICLES" }).success).toBe(
-      true,
-    );
+  it("knows the modes a plan stores (docs 09 §4.2, WF4-LP-MODES)", () => {
+    for (const mode of [
+      "SINGLE_TYPE",
+      "FEWEST_VEHICLES",
+      "KEEP_LINES",
+      "PRIORITY_FILL",
+      "OVER_CAPACITY",
+    ]) {
+      expect(planInputsSchema.safeParse({ ...valid, selectionMode: mode }).success, mode).toBe(
+        true,
+      );
+    }
     expect(planInputsSchema.safeParse({ ...valid, selectionMode: "BEST" }).success).toBe(false);
   });
 
@@ -81,37 +87,5 @@ describe("addPackagesSchema", () => {
     expect(
       addPackagesSchema.safeParse(Array.from({ length: 501 }, (_, i) => `p-${i}`)).success,
     ).toBe(false);
-  });
-});
-
-describe("transferPlanInputsSchema / createTransferPlanFormSchema (BE PR #164: transferOrderIds @Size(max = 1))", () => {
-  const transfer = {
-    warehouseId: "WH-HN-01",
-    transferOrderIds: ["to-1"],
-    vehicleTypeIds: ["t-1"],
-    selectionMode: "SINGLE_TYPE",
-  };
-
-  it("accepts exactly ONE transfer order and trims the note", () => {
-    expect(createTransferPlanFormSchema.parse({ ...transfer, note: "  gấp " }).note).toBe("gấp");
-    expect(transferPlanInputsSchema.safeParse(transfer).success).toBe(true);
-  });
-
-  it.each([
-    [{ transferOrderIds: [] }, M.transferRequired],
-    [{ transferOrderIds: ["a", "b"] }, M.transferOnlyOne],
-    [{ vehicleTypeIds: [] }, M.vehicleTypesRequired],
-    [{ warehouseId: "" }, M.warehouseRequired],
-  ])("rejects %j with the Vietnamese message", (patch, message) => {
-    const result = createTransferPlanFormSchema.safeParse({ ...transfer, ...patch });
-    expect(result.success).toBe(false);
-    expect(result.error?.issues[0]?.message).toBe(message);
-  });
-
-  it("the order schema is unchanged: it still wants shipments and ignores transfer ids", () => {
-    expect(
-      createPlanFormSchema.safeParse({ ...valid, shipmentIds: [] }).error?.issues[0]?.message,
-    ).toBe(M.shipmentsRequired);
-    expect(LOAD_PLAN_LIMITS.transferOrdersMax).toBe(1);
   });
 });

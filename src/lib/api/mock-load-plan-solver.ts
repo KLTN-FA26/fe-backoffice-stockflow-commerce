@@ -8,7 +8,7 @@
 import { LAYOUT_ORIENTATIONS } from "@/constants";
 import { orientedExtent } from "@/features/load-planning/lib/dims";
 
-import type { LayoutOrientation, LoadPlanUnplacedReason } from "@/constants";
+import type { LayoutOrientation, LoadPlanSelectionMode, LoadPlanUnplacedReason } from "@/constants";
 import type { ExtentMm } from "@/features/load-planning/types";
 import type { MockParcel } from "./mock-load-plan-store";
 import type { MockVehicleType } from "./mock-vehicle-type-store";
@@ -102,16 +102,18 @@ class OpenVehicle {
 const volumeOf = (parcel: MockParcel) => parcel.lengthMm * parcel.widthMm * parcel.heightMm;
 
 /**
- * Xếp `parcels` lên các xe của `types` (đã sắp theo tải trọng giảm dần). `SINGLE_TYPE` chỉ dùng loại lớn nhất mà kiện
- * vừa; `FEWEST_VEHICLES` được dùng thêm loại khác khi hết xe loại lớn. `limit` mỗi loại = `availableCount` (BR-12).
+ * Xếp `parcels` lên các xe của `types` (đã sắp theo tải trọng giảm dần). `SINGLE_TYPE` (và `KEEP_LINES`, mock không giữ
+ * dòng) chỉ dùng loại lớn nhất mà kiện vừa; `FEWEST_VEHICLES` và `OVER_CAPACITY` được dùng thêm loại khác khi hết xe
+ * loại lớn. `limit` mỗi loại = `availableCount` (BR-12).
  */
 export function solveMock(
   parcels: readonly MockParcel[],
   types: readonly MockVehicleType[],
-  mode: "SINGLE_TYPE" | "FEWEST_VEHICLES",
+  mode: LoadPlanSelectionMode,
 ): SolveResult {
   const ordered = [...types].sort((a, b) => b.maxPayloadKg - a.maxPayloadKg);
-  const usable = mode === "SINGLE_TYPE" ? ordered.slice(0, 1) : ordered;
+  const mixed = mode === "FEWEST_VEHICLES" || mode === "OVER_CAPACITY";
+  const usable = mixed ? ordered : ordered.slice(0, 1);
   const open: OpenVehicle[] = [];
   const unplaced: SolveResult["unplaced"] = [];
   for (const parcel of [...parcels].sort((a, b) => volumeOf(b) - volumeOf(a))) {

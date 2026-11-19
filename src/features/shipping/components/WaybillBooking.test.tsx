@@ -230,24 +230,16 @@ describe("Đặt xe — hãng đặt xe qua API (BR-29)", () => {
     });
   });
 
-  it("đặt lại xe đã có biển số / tài xế sang hãng API: thông tin cũ không bị gửi theo", async () => {
+  it("docs 09 BR-16: đặt lại xe đã đặt không đổi được hãng — ô hãng khoá, kèm hướng dẫn huỷ đặt xe rồi đặt lại", async () => {
     const user = userEvent.setup();
-    const { post } = renderLoad(
-      ACTORS.warehouseStaff,
-      ftlLoad({ driverPhone: "0911222333", waybillNo: "GHN-1" }),
-      { booking: () => apiBooked() },
-    );
+    renderLoad(ACTORS.warehouseStaff, ftlLoad({ driverPhone: "0911222333", waybillNo: "GHN-1" }));
     await user.click(await screen.findByRole("button", { name: F.booking.rebook }));
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByLabelText(F.bookDialog.vehiclePlate)).toHaveValue("51C-628.14");
-    await chooseCarrier(user, /AHAMOVE/);
-    await user.click(within(dialog).getByRole("button", { name: A.submit }));
-    await waitFor(() => expect(post).toHaveBeenCalledTimes(1));
-    const body = sent(post.mock.calls[0]?.[1]);
-    expect(body).toMatchObject({ carrierId: "car-ahm" });
-    for (const key of ["vehiclePlate", "driverName", "driverPhone", "waybillNo"]) {
-      expect(body).not.toHaveProperty(key);
-    }
+    expect(within(dialog).getByRole("combobox")).toBeDisabled();
+    expect(
+      within(dialog).getByText(UI_LABELS.shipping.afterHandover.carrierLocked),
+    ).toBeInTheDocument();
   });
 
   it("hãng từ chối đơn (409 CARRIER_BOOKING_FAILED): câu tiếng Việt kèm lý do hãng nêu, hộp thoại giữ nguyên", async () => {

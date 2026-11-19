@@ -106,7 +106,9 @@ describe("OrderDetailWithLoadEstimate", () => {
     const dialog = await screen.findByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: "Ước tính xếp xe" }));
     // ngăn kéo mở TRÊN hộp thoại release (Radix ẩn hộp thoại bên dưới khỏi cây truy cập); chưa chọn kho nên khoá nút
-    expect(await screen.findByText("Chọn kho trước khi ước tính.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Chọn kho xuất cho đơn trước khi ước tính."),
+    ).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "Ước tính" })).toBeDisabled();
   });
 });

@@ -2,6 +2,7 @@
 
 import { LoaderCircle, WandSparkles } from "lucide-react";
 
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { FORM_INPUT_CLASS, FormField, fieldA11y } from "@/components/shared/FormField";
 import { Notice } from "@/components/shared/Notice";
 import { Button } from "@/components/ui/button";
@@ -52,6 +53,17 @@ export function ContractEditor({
           Gợi ý số tiền theo đợt giao
         </Button>
       </div>
+      <ConfirmDialog
+        open={editor.confirmingSuggest}
+        onOpenChange={(open) => {
+          if (!open) editor.cancelSuggest();
+        }}
+        title="Thay lịch thanh toán đang sửa?"
+        description="Lịch thanh toán có thay đổi chưa lưu. Gợi ý sẽ thay toàn bộ các đợt bằng số tiền theo từng đợt giao."
+        confirmLabel="Thay bằng gợi ý"
+        variant="default"
+        onConfirm={() => void editor.suggest(true)}
+      />
       <PaymentPlanEditor
         form={form}
         totalWithTax={contract.totals.totalAmount}

@@ -4,13 +4,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { INVENTORY_API } from "@/constants/inventory";
 
-import {
-  getAtp,
-  getStockLevels,
-  listReservations,
-  listStockAlerts,
-  listWarehouseStockItems,
-} from "./api";
+import { getAtp, getStockLevels, listReservations, listWarehouseStockItems } from "./api";
 import { inventoryEndpoint } from "./test-support";
 
 // Requests go through the production client (same-origin BFF base path, `{ success, data }`
@@ -173,30 +167,6 @@ describe("listReservations", () => {
     expect(query()).toEqual([
       ["page", "0"],
       ["size", "20"],
-    ]);
-  });
-});
-
-describe("listStockAlerts", () => {
-  it("sends kinds, statuses, SKU, warehouse id, paging and sort as the backend binds them", async () => {
-    answer(INVENTORY_API.alerts, emptyPage);
-    await listStockAlerts({
-      kind: ["EXPIRING", "EXPIRED"],
-      status: ["OPEN", "ACKNOWLEDGED"],
-      sku: "cup-pp-500",
-      warehouseId: "WH-HN-01",
-      page: 0,
-      size: 20,
-      sort: { field: "openedAt", direction: "desc" },
-    });
-    expect(query()).toEqual([
-      ["kind", "EXPIRING,EXPIRED"],
-      ["status", "OPEN,ACKNOWLEDGED"],
-      ["sku", "CUP-PP-500"],
-      ["warehouseId", "WH-HN-01"],
-      ["page", "0"],
-      ["size", "20"],
-      ["sort", "openedAt,desc"],
     ]);
   });
 });

@@ -106,7 +106,7 @@ function CreditHoldListContent() {
     <>
       <PageHeader
         title={TITLE}
-        subtitle="Đơn công nợ có dư nợ + giá trị đơn vượt hạn mức tín dụng, chờ người có quyền duyệt."
+        subtitle="Đơn bị giữ khi ký vì khách có khoản quá hạn, hoặc dư nợ cộng phần trả sau giao vượt hạn mức; chờ Kế toán duyệt hoặc từ chối."
         actions={
           canOpenOrders && (
             <HeaderLink href={ADMIN_ROUTES.orders.list}>
@@ -127,8 +127,8 @@ function CreditHoldListContent() {
       ) : query.data.totalElements === 0 ? (
         <EmptyState
           icon={<ShieldAlert className="size-8" />}
-          title="Không có đơn vượt hạn mức"
-          description="Mọi đơn công nợ hiện đều nằm trong hạn mức của khách."
+          title="Không có đơn chờ duyệt công nợ"
+          description="Chưa có đơn nào bị giữ vì công nợ."
         />
       ) : (
         <>

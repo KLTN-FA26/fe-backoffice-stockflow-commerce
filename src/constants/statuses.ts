@@ -206,7 +206,9 @@ export const CARTON_STATUS = {
 } as const satisfies Record<CartonApiStatus, CartonStatus>;
 
 /** BE `CartonCheck.RemovalReason` — vì sao thùng bị loại: hư hỏng khi kiểm, hoặc đơn huỷ khi chưa thùng nào dán nhãn. */
-export const CARTON_REMOVAL_REASONS = ["DAMAGED", "ORDER_CANCELLED"] as const;
+// BE `CartonCheck.RemovalReason`: hư hỏng (08 §4.2 bước 4), đơn huỷ trước khi dán nhãn (08 BR-04), Sale đóng phần còn
+// lại khi thùng chưa dán nhãn (17 §4.8 bước 33)
+export const CARTON_REMOVAL_REASONS = ["DAMAGED", "ORDER_CANCELLED", "REMAINDER_CLOSED"] as const;
 
 /** BE `fulfillment/internal/domain/PackageStatus.java` (PR #136) — kiện ở trạm đóng gói. */
 export const PACKAGE_API_STATUSES = ["OPEN", "SEALED", "VOIDED"] as const;
@@ -224,14 +226,19 @@ export const PACK_SHIPMENT_API_STATUSES = [
   "CANCELLED",
 ] as const;
 
+/** Tên trạng thái lô giao (`PACK_SHIPMENT_API_STATUSES`) để so sánh không gõ tay chuỗi. */
+export const PACK_SHIPMENT_STATUS = {
+  READY_TO_DISPATCH: "READY_TO_DISPATCH",
+  HANDED_OVER: "HANDED_OVER",
+  DELIVERED: "DELIVERED",
+  DELIVERY_FAILED: "DELIVERY_FAILED",
+  RETURNED: "RETURNED",
+  CANCELLED: "CANCELLED",
+} as const satisfies Record<string, (typeof PACK_SHIPMENT_API_STATUSES)[number]>;
+
 /** BE `DeliveryMode.java` — PARCEL (gửi kiện cho hãng) hoặc FULL_TRUCKLOAD (nguyên xe, kế hoạch xếp xe). */
 export const DELIVERY_MODES = ["PARCEL", "FULL_TRUCKLOAD"] as const;
 export type DeliveryMode = (typeof DELIVERY_MODES)[number];
-
-export const DELIVERY_MODE = {
-  PARCEL: "PARCEL",
-  FULL_TRUCKLOAD: "FULL_TRUCKLOAD",
-} as const satisfies Record<string, DeliveryMode>;
 
 /** Trạng thái kiện / lô giao → chuỗi status của `StatusDot` (nhãn + màu ở `lib/status-map.ts`). */
 export const PACKAGE_STATUS_DISPLAY = {
@@ -324,57 +331,6 @@ export const ORDER_STATUS_UNKNOWN = "UNKNOWN";
 /** Trạng thái đơn sau khi parse response BE: trạng thái đã biết hoặc `ORDER_STATUS_UNKNOWN`. */
 export const ORDER_READ_STATUSES = [...ORDER_STATUSES, ORDER_STATUS_UNKNOWN] as const;
 
-/** Nhà cung cấp (module 01) — BE: ACTIVE/INACTIVE (SCRUM-118). */
-export const SUPPLIER_STATUSES = ["Active", "Inactive", "Blacklisted"] as const;
-
-export const SUPPLIER_STATUS = {
-  ACTIVE: "Active",
-  INACTIVE: "Inactive",
-  BLACKLISTED: "Blacklisted",
-} as const satisfies Record<string, SupplierStatus>;
-
-/**
- * Giá trị status trên wire của BE (SaveSupplierRequest/SupplierResponse). BE PR #71 thêm
- * BLACKLISTED = ngừng hợp tác có lý do không đặt lại (không nhận PO mới như INACTIVE).
- */
-export const SUPPLIER_API_STATUSES = ["ACTIVE", "INACTIVE", "BLACKLISTED"] as const;
-
-/** Kênh gửi PO cho NCC — BE `communicationChannel` (EMAIL|API, BE PR #36). */
-export const SUPPLIER_CHANNELS = ["EMAIL", "API"] as const;
-
-/**
- * Lệnh chuyển kho liên kho — BE `TransferStatus` (SCRUM-327, `inventory/internal/domain/TransferStatus.java`),
- * nguyên văn mã wire, cùng vòng đời docs 10 §5. FE hiển thị qua status-map như PO.
- */
-export const TRANSFER_STATUSES = [
-  "DRAFT",
-  "PENDING_APPROVAL",
-  "APPROVED",
-  "PICKING",
-  "IN_TRANSIT",
-  "PARTIALLY_RECEIVED",
-  "RECEIVED",
-  "COMPLETED",
-  "CLOSED",
-  "CANCELLED",
-] as const;
-
-export const TRANSFER_STATUS = {
-  DRAFT: "DRAFT",
-  PENDING_APPROVAL: "PENDING_APPROVAL",
-  APPROVED: "APPROVED",
-  PICKING: "PICKING",
-  IN_TRANSIT: "IN_TRANSIT",
-  PARTIALLY_RECEIVED: "PARTIALLY_RECEIVED",
-  RECEIVED: "RECEIVED",
-  COMPLETED: "COMPLETED",
-  CLOSED: "CLOSED",
-  CANCELLED: "CANCELLED",
-} as const satisfies Record<string, TransferStatus>;
-
-/** BE `TransferReason` — lý do chuyển kho (CreateTransferOrderRequest.reason, tuỳ chọn). */
-export const TRANSFER_REASONS = ["REBALANCING", "DEMAND", "CAMPAIGN", "OVERFLOW", "OTHER"] as const;
-
 /**
  * Chuyến xe xuất hàng — BE `LoadStatus`. Mọi chuyến là một xe của kế hoạch xếp xe (giao nguyên chuyến, docs 09 BR-08):
  * Planned → Vehicle Booked → Loading → Dispatched, hoặc Cancelled (docs 09 §5.2).
@@ -428,11 +384,15 @@ export const CARRIER_CONNECTION_TYPE = {
   API_BOOKING: "API_BOOKING",
 } as const satisfies Record<string, CarrierConnectionType>;
 
-/** BE `LoadResponse.CarrierBooking.status` — đơn của chuyến ở hãng tích hợp API đặt xe (BR-29). */
+/**
+ * BE `LoadResponse.CarrierBooking.status` — đơn của chuyến ở hãng tích hợp API đặt xe (BR-29). `UNCONFIRMED`: lời gọi
+ * hãng không trả về, đơn có thể đã có ở hãng; chuyến bị giữ tới khi kiểm trên cổng hãng rồi huỷ đặt (RTM 09A-131).
+ */
 export const CARRIER_BOOKING_STATUSES = [
   "REQUESTED",
   "BOOKED",
   "FAILED",
+  "UNCONFIRMED",
   "CANCELLED",
   "CANCEL_FAILED",
 ] as const;
@@ -497,9 +457,6 @@ export type ProductStatus = (typeof PRODUCT_STATUSES)[number];
 export type SkuStatus = (typeof SKU_STATUSES)[number];
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
 export type OrderReadStatus = (typeof ORDER_READ_STATUSES)[number];
-export type SupplierStatus = (typeof SUPPLIER_STATUSES)[number];
-export type SupplierApiStatus = (typeof SUPPLIER_API_STATUSES)[number];
-export type SupplierChannel = (typeof SUPPLIER_CHANNELS)[number];
 
 /* ── Bán hàng B2B & sản xuất (BE local integration d215f6e, chưa merge develop) ─────────── */
 
@@ -574,61 +531,19 @@ export const QUOTE_FEE_LABELS = {
   SHIPPING_FEE: "Phí vận chuyển",
 } as const satisfies Record<QuoteFeeKind, string>;
 
-/** Yêu cầu mẫu — BE `SampleStatus` (SCRUM-403). */
-export const SAMPLE_API_STATUSES = [
-  "DRAFT",
-  "SUBMITTED",
-  "IN_PRODUCTION",
-  "READY",
-  "SENT_TO_CUSTOMER",
-  "CHANGES_REQUESTED",
-  "APPROVED",
-  "CANCELLED",
-] as const;
-export type SampleApiStatus = (typeof SAMPLE_API_STATUSES)[number];
-export const SAMPLE_STATUS_BY_API = {
-  DRAFT: "Draft",
-  SUBMITTED: "Submitted",
-  IN_PRODUCTION: "In Production",
-  READY: "Ready",
-  SENT_TO_CUSTOMER: "Sent to Customer",
-  CHANGES_REQUESTED: "Changes Requested",
-  APPROVED: "Approved",
-  CANCELLED: "Cancelled",
-} as const satisfies Record<SampleApiStatus, string>;
-
-/** Lệnh sản xuất — BE `ProductionOrder.Status` (SCRUM-405..420). */
-export const PRODUCTION_API_STATUSES = [
-  "PENDING_PREPRESS",
-  "READY",
-  "MATERIAL_ISSUED",
-  "PRINTING",
-  "SUBCONTRACTED",
-  "QC",
-  "ON_HOLD",
-  "COMPLETED",
-  "CANCELLED",
-] as const;
-export type ProductionApiStatus = (typeof PRODUCTION_API_STATUSES)[number];
-export const PRODUCTION_STATUS_BY_API = {
-  PENDING_PREPRESS: "Pending Prepress",
-  READY: "Ready",
-  MATERIAL_ISSUED: "Material Issued",
-  PRINTING: "Printing",
-  SUBCONTRACTED: "Subcontracted",
-  QC: "QC",
-  ON_HOLD: "On Hold",
-  COMPLETED: "Completed",
-  CANCELLED: "Cancelled",
-} as const satisfies Record<ProductionApiStatus, string>;
 export const PRODUCTION_ORDER_TYPES = ["SAMPLE", "ORDER"] as const;
-export type ProductionOrderType = (typeof PRODUCTION_ORDER_TYPES)[number];
 
-/** Nhóm trạng thái đơn khách đọc — BE `CustomerOrderCardResponse.statusGroup` (develop). */
+/**
+ * Nhóm trạng thái đơn khách đọc — BE `CustomerOrders.StatusGroup` (`statusGroup` của thẻ, chi tiết và
+ * dòng thời gian đơn trên cổng; docs 17 §5.2). `AWAITING_CONTRACT`
+ * = `Pending Contract`, `AWAITING_STOCK` = `Awaiting Stock`; `IN_PRODUCTION` chỉ còn ở đơn cũ.
+ */
 export const ORDER_STATUS_GROUPS = [
+  "AWAITING_CONTRACT",
   "AWAITING_PAYMENT",
   "UNDER_REVIEW",
   "CONFIRMED",
+  "AWAITING_STOCK",
   "IN_PRODUCTION",
   "PREPARING",
   "SHIPPING",
@@ -639,9 +554,11 @@ export const ORDER_STATUS_GROUPS = [
 export type OrderStatusGroup = (typeof ORDER_STATUS_GROUPS)[number];
 /** Nhóm → chuỗi status-map (nhãn Việt + tone dùng chung). */
 export const ORDER_STATUS_GROUP_DISPLAY = {
+  AWAITING_CONTRACT: "Pending Contract",
   AWAITING_PAYMENT: "Pending Payment",
   UNDER_REVIEW: "Under Review",
   CONFIRMED: "Confirmed",
+  AWAITING_STOCK: "Awaiting Stock",
   IN_PRODUCTION: "In Production",
   PREPARING: "Preparing",
   SHIPPING: "Shipping",
@@ -649,8 +566,6 @@ export const ORDER_STATUS_GROUP_DISPLAY = {
   CANCELLED: "Cancelled",
   RETURNED: "Returned",
 } as const satisfies Record<OrderStatusGroup, string>;
-export type TransferStatus = (typeof TRANSFER_STATUSES)[number];
-export type TransferReason = (typeof TRANSFER_REASONS)[number];
 export type LoadStatus = (typeof LOAD_STATUSES)[number];
 export type ShipmentApiStatus = (typeof PACK_SHIPMENT_API_STATUSES)[number];
 export type DeliveryOutcome = (typeof DELIVERY_OUTCOMES)[number];
@@ -695,22 +610,27 @@ export const LOAD_PLAN_STATUS = {
 } as const satisfies Record<string, LoadPlanStatus>;
 
 /**
- * BE `LoadPlan.SOURCE_*` (SCRUM-287 PR T, docs 09 §3 "LoadPlan.source_type"): kế hoạch chứa các lô giao của đơn khách
- * (`ORDER`, mặc định) hoặc kiện của MỘT lệnh chuyển kho (`TRANSFER`, LP-9). Một kế hoạch không trộn hai loại.
+ * BE `SelectionMode` của kế hoạch (docs 09 §4.2, quyết định WF4-LP-MODES 12/11). "Ưu tiên + hàng chèn": hàng chèn tick
+ * theo dòng đơn khi lập kế hoạch, mặc định là hàng chính (RTM-LPGROUP 19/11). "Chỉnh tay" là kéo thả trên mô hình 3D rồi
+ * tính lại một xe ở trang kế hoạch (§4.2 bước 3), không phải giá trị chế độ gửi BE.
  */
-export const LOAD_PLAN_SOURCE_TYPES = ["ORDER", "TRANSFER"] as const;
-
-export type LoadPlanSourceType = (typeof LOAD_PLAN_SOURCE_TYPES)[number];
-
-export const LOAD_PLAN_SOURCE = {
-  ORDER: "ORDER",
-  TRANSFER: "TRANSFER",
-} as const satisfies Record<string, LoadPlanSourceType>;
-
-/** BE `SelectionMode` (LP-6): một loại xe (mặc định) hoặc trộn loại để ít xe nhất. */
-export const LOAD_PLAN_SELECTION_MODES = ["SINGLE_TYPE", "FEWEST_VEHICLES"] as const;
+export const LOAD_PLAN_SELECTION_MODES = [
+  "SINGLE_TYPE",
+  "FEWEST_VEHICLES",
+  "KEEP_LINES",
+  "PRIORITY_FILL",
+  "OVER_CAPACITY",
+] as const;
 
 export type LoadPlanSelectionMode = (typeof LOAD_PLAN_SELECTION_MODES)[number];
+
+export const LOAD_PLAN_SELECTION_MODE = {
+  SINGLE_TYPE: "SINGLE_TYPE",
+  FEWEST_VEHICLES: "FEWEST_VEHICLES",
+  KEEP_LINES: "KEEP_LINES",
+  PRIORITY_FILL: "PRIORITY_FILL",
+  OVER_CAPACITY: "OVER_CAPACITY",
+} as const satisfies Record<string, LoadPlanSelectionMode>;
 
 /**
  * BE `LoadPlanUnplacedReason`: lý do của solver (`UnplacedReason`) cộng MANUAL — kiện người điều phối
@@ -786,9 +706,8 @@ export const BIN_TYPES = ["STANDARD", "PALLET", "SMALL_PARTS"] as const;
 /** BE `AreaType` — mọi loại trừ NON_STORAGE là vị trí tồn kho (docs 06 BR-11). */
 export const AREA_TYPES = [
   "RECEIVING",
-  "QUALITY_CONTROL",
+  // Khu QC cũ gộp vào QUARANTINE, khu đóng gói PACKING gộp vào DISPATCH (BE AreaType; docs 06 BR-22)
   "QUARANTINE",
-  "PACKING",
   "DISPATCH",
   // BE `AreaType.STAGING` — khu chờ xuất (docs 06 §4.5, BR-18): thiếu thì layout có khu này parse lỗi, mất cả bản đồ
   "STAGING",

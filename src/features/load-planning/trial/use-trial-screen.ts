@@ -12,7 +12,7 @@ import { TrialRunInputSchema } from "./trial-schemas";
 import { TrialParseError } from "./trial-parse";
 import { readTrialFile } from "./trial-xlsx";
 
-import type { SelectionMode } from "../components/estimate/EstimateControls";
+import type { TrialSelectionMode } from "@/constants";
 import type { TrialParseResult } from "./trial-parse";
 
 interface PickedFile {
@@ -38,7 +38,7 @@ export function useTrialScreen(canRun: boolean) {
   const [reading, setReading] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [mode, setMode] = useState<SelectionMode>("SINGLE_TYPE");
+  const [mode, setMode] = useState<TrialSelectionMode>("SINGLE_TYPE");
   const [runError, setRunError] = useState<string | null>(null);
   const vehicleTypes = useEstimateVehicleTypes(canRun);
   const run = useRunTrialEstimate();
@@ -60,9 +60,15 @@ export function useTrialScreen(canRun: boolean) {
 
   const pieces = file?.parsed.summary.totalPieces ?? 0;
   const overCap = pieces > TRIAL_MAX_BOXES;
+  const missingWeight = (file?.parsed.missingWeight.length ?? 0) > 0;
+  const blockedReason = overCap
+    ? TRIAL_LABELS.run.blockedOverCap
+    : missingWeight
+      ? TRIAL_LABELS.run.blockedMissingWeight
+      : null;
 
   const execute = () => {
-    if (!file || overCap) return;
+    if (!file || blockedReason) return;
     const input = TrialRunInputSchema.safeParse({
       lines: file.parsed.lines.map(({ sourceRow: _row, ...line }) => line),
       vehicleTypeIds: selectedIds,
@@ -87,6 +93,7 @@ export function useTrialScreen(canRun: boolean) {
     mode,
     setMode,
     overCap,
+    blockedReason,
     execute,
     running: run.isPending,
     result: run.data ?? null,

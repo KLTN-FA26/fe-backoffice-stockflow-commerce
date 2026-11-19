@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  CARRIER_FIELD_ERROR_MESSAGES,
   PAGE_SIZE,
   SHIPMENT_PERMISSIONS,
   SHIPPING_ERROR_MESSAGES,
@@ -78,9 +79,9 @@ const dialogOf = async () => screen.findByRole("dialog");
 const field = (dialog: HTMLElement, label: string) =>
   within(dialog).getByLabelText(label, { exact: false });
 
+/** Kiểu kết nối là thẻ chọn (radio) theo artboard "Thêm hãng vận chuyển". */
 async function pickConnection(user: User, dialog: HTMLElement, label: string) {
-  await user.click(within(dialog).getByRole("combobox", { name: F.connectionType }));
-  await user.click(await screen.findByRole("option", { name: label }));
+  await user.click(within(dialog).getByRole("radio", { name: label }));
 }
 
 describe("CarrierList — danh sách", () => {
@@ -303,7 +304,8 @@ describe("CarrierList — thêm hãng", () => {
     await user.type(field(dialog, F.code), "bad-1");
     await user.type(field(dialog, F.name), "Tên");
     await user.click(within(dialog).getByRole("button", { name: F.create }));
-    expect(await within(dialog).findByText("Tên hãng quá dài theo BE")).toBeVisible();
+    // Câu của BE là tiếng Anh: hiện câu tiếng Việt theo tên ô
+    expect(await within(dialog).findByText(CARRIER_FIELD_ERROR_MESSAGES.name)).toBeVisible();
     expect(field(dialog, F.name)).toHaveAttribute("aria-invalid", "true");
   });
 
@@ -350,25 +352,25 @@ describe("CarrierList — sửa hãng", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 
-  it("hãng API đặt xe: kiểu kết nối bị khoá (chỉ có câu giải thích), PUT KHÔNG có `connection`", async () => {
+  it("kiểu kết nối là ba thẻ chọn, thẻ đang dùng được chọn sẵn; hãng API đặt xe không còn bị khoá", async () => {
     const user = userEvent.setup();
-    const { put } = renderList(ACTORS.warehouseManager);
-    const dialog = await openEdit(user, "AHAMOVE");
-    expect(within(dialog).getByText(F.apiBookingLocked)).toBeInTheDocument();
+    renderList(ACTORS.warehouseManager);
+    const dialog = await openEdit(user, "GHN");
+    const radios = within(dialog).getAllByRole("radio");
+    expect(radios.map((radio) => radio.getAttribute("aria-checked"))).toEqual([
+      "true",
+      "false",
+      "false",
+    ]);
+    expect(
+      within(dialog).getByRole("radio", { name: C.connectionType.API_BOOKING }),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).queryByText(/giữ nguyên, chỉ sửa được thông tin chung/),
+    ).not.toBeInTheDocument();
     expect(
       within(dialog).queryByRole("combobox", { name: F.connectionType }),
     ).not.toBeInTheDocument();
-    expect(
-      within(dialog).queryByLabelText(F.webhookSecret, { exact: false }),
-    ).not.toBeInTheDocument();
-    await user.clear(field(dialog, F.name));
-    await user.type(field(dialog, F.name), "Ahamove (đổi tên)");
-    await user.click(within(dialog).getByRole("button", { name: F.save }));
-    await waitFor(() => expect(put).toHaveBeenCalledTimes(1));
-    expect(put.mock.calls[0]?.[0]).toBe(`${LIST_URL}/car-ahm`);
-    const body = bodyOf(put);
-    expect(body).toMatchObject({ name: "Ahamove (đổi tên)", version: API?.version });
-    expect(Object.keys(body)).not.toContain("connection");
   });
 
   it("hãng webhook đã lưu khoá: khoá để trống = giữ (không gửi khoá), nhập khoá ngắn bị chặn, nhập khoá mới thì gửi", async () => {

@@ -6,16 +6,18 @@ import {
   ORDER_DELIVERY_MODE_LABELS,
   ORDER_DELIVERY_MODE_UI,
   ORDER_HISTORY_LABELS,
-  ORDER_HISTORY_REASON_LABELS,
 } from "@/constants";
 import { formatDateTime } from "@/lib/format/date";
 import { StatusDot } from "@/components/shared/StatusDot";
 
+import { formatHistoryReason } from "../history-reason";
 import {
   formatCancellationReason,
   formatRemainderClosedStatusReason,
   remainderClosureReasonLabel,
 } from "../selectors";
+
+import { AddressChangeHead } from "./AddressChangeHead";
 
 import type { OrderHistoryEntry } from "../types";
 
@@ -35,23 +37,17 @@ function EntryMeta({ entry }: { entry: OrderHistoryEntry }) {
   );
 }
 
-/** Mã ghi chú của hệ thống → tiếng Việt; mã lạ giữ nguyên văn. */
-function historyReasonLabel(reason: string): string {
-  return Object.hasOwn(ORDER_HISTORY_REASON_LABELS, reason)
-    ? ORDER_HISTORY_REASON_LABELS[reason]!
-    : reason;
-}
-
 /** Ghi chú của Sales (hoặc lý do / mã của bước đổi trạng thái). Trống thì không hiện. */
 function EntryNote({ entry }: { entry: OrderHistoryEntry }) {
   if (!entry.reason) return null;
   // BE ghi lý do huỷ dạng "CODE: ghi chú" → nhãn tiếng Việt (lý do cũ tự do giữ nguyên)
   // Bước đổi trạng thái do đóng phần còn lại: "REMAINDER_CLOSED_<MÃ>: ghi chú" → nhãn tiếng Việt, không hiện mã thô
+  // Bước khác: "CODE" / "CODE: ghi chú" (giữ, gỡ giữ, giao thất bại, trả hàng, chạy đêm…) → nhãn + ghi chú; mã lạ nguyên văn
   const reason =
     entry.kind === "status-change" && entry.to === "Cancelled"
       ? formatCancellationReason(entry.reason)
       : entry.kind === "status-change"
-        ? (formatRemainderClosedStatusReason(entry.reason) ?? historyReasonLabel(entry.reason))
+        ? (formatRemainderClosedStatusReason(entry.reason) ?? formatHistoryReason(entry.reason))
         : entry.reason;
   return (
     <p className="text-ink-secondary mt-1 text-[0.8125rem] break-words whitespace-pre-wrap">
@@ -96,6 +92,9 @@ function EntryHead({ entry }: { entry: OrderHistoryEntry }) {
         </span>
       );
     }
+    case "address-change":
+      // Sale đổi địa chỉ giao trước khi dán nhãn (docs 17 BR-16) — địa chỉ cũ → mới
+      return <AddressChangeHead from={entry.from} to={entry.to} />;
     case "status-change":
       return (
         <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-0.5">
@@ -122,6 +121,7 @@ const HIGHLIGHTED_KINDS: readonly OrderHistoryEntry["kind"][] = [
   "partial-shipment",
   "remainder-closure",
   "delivery-mode",
+  "address-change",
 ];
 
 /** Một mục của lịch sử đơn: đầu mục theo loại, ai / khi nào, ghi chú. */

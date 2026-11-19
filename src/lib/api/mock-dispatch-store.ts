@@ -119,7 +119,7 @@ export interface MockWaybillChange {
 
 /** Đơn của chuyến ở hãng đặt xe qua API (BE `LoadResponse.CarrierBooking`). */
 export interface MockCarrierBooking {
-  status: "REQUESTED" | "BOOKED" | "FAILED" | "CANCELLED" | "CANCEL_FAILED";
+  status: "REQUESTED" | "BOOKED" | "FAILED" | "UNCONFIRMED" | "CANCELLED" | "CANCEL_FAILED";
   carrierOrderId: string | null;
   trackingLink: string | null;
   bookedAt: string | null;

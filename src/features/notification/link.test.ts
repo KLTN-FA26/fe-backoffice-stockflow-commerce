@@ -2,18 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import { toSafeNotificationPath } from "./link";
 
-// Exact link BE InventoryAlertMessages builds for a lot alert (kind + warehouse UUID).
-const BE_ALERT_LINK =
-  "/admin/inventory/alerts?kind=EXPIRED&warehouseId=0e380000-0000-4000-8000-0000000000a1";
+// Exact link BE InstallmentOverdueNotificationListener builds (order detail).
+const BE_OVERDUE_LINK = "/admin/orders/0e380000-0000-4000-8000-000000000201";
 
 describe("toSafeNotificationPath — strict root-relative /admin policy (SCRUM-147)", () => {
   it.each([
-    [BE_ALERT_LINK, BE_ALERT_LINK],
-    ["/admin/inventory/alerts?kind=REORDER", "/admin/inventory/alerts?kind=REORDER"],
-    [
-      "/admin/orders/0e380000-0000-4000-8000-000000000201",
-      "/admin/orders/0e380000-0000-4000-8000-000000000201",
-    ],
+    [BE_OVERDUE_LINK, BE_OVERDUE_LINK],
+    ["/admin/orders?status=ON_HOLD", "/admin/orders?status=ON_HOLD"],
     ["/admin", "/admin"],
     ["/admin/orders#line-2", "/admin/orders#line-2"],
     // WF-05 BO-11: BE invoicing / production notifications link their route, relative to /admin

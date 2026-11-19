@@ -13,6 +13,7 @@ import {
   RETURN_TRANSITIONS,
   allowedReturnActions,
   allowedReturnReceiptActions,
+  canAddReturnEvidence,
   isReturnOpen,
 } from "../lifecycle";
 
@@ -34,6 +35,20 @@ const WAREHOUSE: PermissionCode[] = [
   ...Object.values(GOODS_RECEIPT_PERMISSIONS),
 ];
 const as = (grants: PermissionCode[]) => (code: PermissionCode) => grants.includes(code);
+
+/** Một dòng của yêu cầu: số đã duyệt và số đã về. */
+const line = (approvedQuantity: number, receivedQuantity: number) => ({
+  id: "line-1",
+  orderLineId: "ol-1",
+  sku: "SKU-1",
+  customPrinted: false,
+  unitPrice: 100_000,
+  requestedQuantity: approvedQuantity,
+  approvedQuantity,
+  receivedQuantity,
+  refundQuantity: 0,
+});
+const parcel = { parcel: 1, goodsReceiptId: "gr-1", receiptNumber: "GR-RET-0001" };
 
 describe("RETURN_TRANSITIONS (BE ReturnStatus.canTransitionTo)", () => {
   it("covers every BE status", () => {
@@ -80,8 +95,9 @@ describe("allowedReturnActions — three roles", () => {
   });
 
   it("RECEIVED: Sales propose the refund; SETTLEMENT_PENDING: only the accountant decides (four eyes)", () => {
-    expect(allowedReturnActions({ status: "RECEIVED" }, as(SALES))).toEqual(["propose"]);
-    expect(allowedReturnActions({ status: "RECEIVED" }, as(ACCOUNTANT))).toEqual([]);
+    const back = { status: "RECEIVED" as const, lines: [line(2, 2)] };
+    expect(allowedReturnActions(back, as(SALES))).toEqual(["propose"]);
+    expect(allowedReturnActions(back, as(ACCOUNTANT))).toEqual([]);
     expect(allowedReturnActions({ status: "SETTLEMENT_PENDING" }, as(ACCOUNTANT))).toEqual([
       "approveSettlement",
       "rejectSettlement",
@@ -117,5 +133,64 @@ describe("return receipt", () => {
     expect(allowedReturnReceiptActions({ status: "CLOSED", cartons: [{}] }, as(WAREHOUSE))).toEqual(
       [],
     );
+  });
+});
+
+describe("WF-05 — parcels, goods complete, closure without refund", () => {
+  it("RECEIVED → RESOLVED is allowed (closure without refund)", () => {
+    expect(RETURN_TRANSITIONS.RECEIVED).toEqual(["SETTLEMENT_PENDING", "RESOLVED"]);
+  });
+
+  it("TH-3: once a parcel is back, Sales mark the goods complete instead of withdrawing", () => {
+    const partly = { status: "AWAITING_RETURN" as const, receipt: { parcels: [parcel] } };
+    expect(allowedReturnActions(partly, as(SALES))).toEqual(["goodsComplete"]);
+    expect(
+      allowedReturnActions(
+        { status: "AWAITING_RETURN", receipt: { goodsReceiptId: "gr-1" } },
+        as(SALES),
+      ),
+    ).toEqual(["goodsComplete"]);
+    // Chưa có kiện nào về: rút được, chưa chốt được
+    expect(
+      allowedReturnActions({ status: "AWAITING_RETURN", receipt: { parcels: [] } }, as(SALES)),
+    ).toEqual(["cancel"]);
+    // Kế toán / kho không chốt hàng về
+    expect(allowedReturnActions(partly, as(ACCOUNTANT))).toEqual([]);
+    expect(allowedReturnActions(partly, as(WAREHOUSE))).toEqual(["createReceipt"]);
+  });
+
+  it("TH-4: nothing refundable → close without refund replaces the refund proposal", () => {
+    const empty = { status: "RECEIVED" as const, lines: [line(2, 0)] };
+    expect(allowedReturnActions(empty, as(SALES))).toEqual(["closeWithoutRefund"]);
+    expect(allowedReturnActions(empty, as(ACCOUNTANT))).toEqual([]);
+    const some = { status: "RECEIVED" as const, lines: [line(2, 0), line(1, 1)] };
+    expect(allowedReturnActions(some, as(SALES))).toEqual(["propose"]);
+  });
+
+  it("claim photos: REQUESTED / AWAITING_RETURN with sales-rmas:CREATE only", () => {
+    expect(canAddReturnEvidence({ status: "REQUESTED" }, as(SALES))).toBe(true);
+    expect(canAddReturnEvidence({ status: "AWAITING_RETURN" }, as(SALES))).toBe(true);
+    expect(canAddReturnEvidence({ status: "RECEIVED" }, as(SALES))).toBe(false);
+    expect(canAddReturnEvidence({ status: "REQUESTED" }, as(ACCOUNTANT))).toBe(false);
+  });
+
+  it("TH-4 loose units: only on a draft against a return request; they alone allow the confirmation", () => {
+    const draft = { status: "DRAFT" as const, cartons: [], returnRequestId: "ret-1" };
+    expect(allowedReturnReceiptActions(draft, as(WAREHOUSE))).toEqual(["scan", "loose", "cancel"]);
+    expect(allowedReturnReceiptActions({ ...draft, looseLines: [{}] }, as(WAREHOUSE))).toEqual([
+      "scan",
+      "loose",
+      "confirm",
+      "cancel",
+    ]);
+    expect(
+      allowedReturnReceiptActions(
+        { status: "DRAFT", cartons: [{}], returnRequestId: null },
+        as(WAREHOUSE),
+      ),
+    ).toEqual(["scan", "remove", "confirm", "cancel"]);
+    expect(
+      allowedReturnReceiptActions({ ...draft, status: "CLOSED", looseLines: [{}] }, as(WAREHOUSE)),
+    ).toEqual([]);
   });
 });

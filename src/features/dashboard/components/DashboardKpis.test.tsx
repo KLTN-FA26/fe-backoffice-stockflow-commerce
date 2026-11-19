@@ -8,9 +8,7 @@ import { ADMIN_ROUTES } from "@/constants/routes";
 import {
   FULFILLMENT_PICK_PERMISSIONS,
   GOODS_RECEIPT_PERMISSIONS,
-  INVENTORY_PERMISSIONS,
   ORDER_PERMISSIONS,
-  TRANSFER_PERMISSIONS,
 } from "@/constants/permissions";
 
 import {
@@ -21,7 +19,6 @@ import {
   signInDashboardActor,
 } from "../test-support";
 import { DashboardKpis } from "./DashboardKpis";
-import { StockAlertsWidget } from "./StockAlertsWidget";
 
 const server = setupServer();
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
@@ -52,9 +49,7 @@ describe("KPI tiles — real list endpoints, gated by the endpoint's own permiss
       expect(within(tile(DASHBOARD_LABELS.ordersPending)).getByText("7")).toBeInTheDocument(),
     );
     expect(within(tile(DASHBOARD_LABELS.receiptsProcessing)).getByText("2")).toBeInTheDocument();
-    expect(screen.queryByText(DASHBOARD_LABELS.transfersInTransit)).not.toBeInTheDocument();
     expect(screen.queryByText(DASHBOARD_LABELS.picksOpen)).not.toBeInTheDocument();
-    expect(screen.queryByText(DASHBOARD_LABELS.alertsOpen)).not.toBeInTheDocument();
     // BE enum values, repeated key, page of one.
     expect(seen.orders?.getAll("status")).toEqual([
       "PENDING_PAYMENT",
@@ -91,17 +86,13 @@ describe("KPI tiles — real list endpoints, gated by the endpoint's own permiss
     );
   });
 
-  it("receipts and transfers use their processing / in-transit statuses", async () => {
+  it("receipts use their processing statuses", async () => {
     const seen: Record<string, string[]> = {};
     server.use(
-      dashboardPermissions([GOODS_RECEIPT_PERMISSIONS.read, TRANSFER_PERMISSIONS.read]),
+      dashboardPermissions([GOODS_RECEIPT_PERMISSIONS.read]),
       http.get(dashboardEndpoint(DASHBOARD_API.receipts), ({ request }) => {
         seen.receipts = new URL(request.url).searchParams.getAll("status");
         return countPage(5);
-      }),
-      http.get(dashboardEndpoint(DASHBOARD_API.transfers), ({ request }) => {
-        seen.transfers = new URL(request.url).searchParams.getAll("status");
-        return countPage(1);
       }),
     );
     renderDashboard(<DashboardKpis />);
@@ -109,7 +100,6 @@ describe("KPI tiles — real list endpoints, gated by the endpoint's own permiss
       expect(within(tile(DASHBOARD_LABELS.receiptsProcessing)).getByText("5")).toBeInTheDocument(),
     );
     expect(seen.receipts).toEqual(["DRAFT", "PENDING_APPROVAL", "CONFIRMED", "IN_PUTAWAY"]);
-    expect(seen.transfers).toEqual(["IN_TRANSIT", "PARTIALLY_RECEIVED"]);
   });
 
   it("a failing endpoint shows an em dash, never a number; the other tiles are unaffected", async () => {
@@ -161,26 +151,6 @@ describe("KPI tiles — real list endpoints, gated by the endpoint's own permiss
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("alert tile sums the open alerts of every kind and names the breakdown", async () => {
-    server.use(
-      dashboardPermissions([INVENTORY_PERMISSIONS.alertRead]),
-      http.get(dashboardEndpoint(DASHBOARD_API.alertSummary), () =>
-        HttpResponse.json({
-          success: true,
-          data: { openByKind: { REORDER: 2, SAFETY: 0, EXPIRING: 3, EXPIRED: 1, FUTURE_KIND: 4 } },
-        }),
-      ),
-    );
-    renderDashboard(<DashboardKpis />);
-    await waitFor(() =>
-      expect(within(tile(DASHBOARD_LABELS.alertsOpen)).getByText("10")).toBeInTheDocument(),
-    );
-    // Chi tiết theo loại chỉ nằm ở tooltip của ô — không chiếm thêm dòng
-    expect(
-      screen.getByTitle("Đến điểm đặt hàng 2 · Sắp hết hạn 3 · Đã hết hạn 1 · FUTURE_KIND 4"),
-    ).toBeInTheDocument();
-  });
-
   it("the permission list failing shows a retryable notice, not guessed tiles", async () => {
     const calls = vi.fn();
     server.use(
@@ -195,98 +165,5 @@ describe("KPI tiles — real list endpoints, gated by the endpoint's own permiss
     renderDashboard(<DashboardKpis />);
     expect(await screen.findByText(new RegExp(DASHBOARD_LABELS.permissionsError))).toBeVisible();
     expect(screen.queryByText(DASHBOARD_LABELS.ordersPending)).not.toBeInTheDocument();
-  });
-});
-
-describe("stock alerts widget", () => {
-  const alert = {
-    id: crypto.randomUUID(),
-    kind: "EXPIRING",
-    sku: "CUP-PP-500",
-    warehouseCode: "HCM",
-    lotNumber: "LOT-7",
-    expiryDate: "2026-11-01",
-    observedQty: 12,
-    status: "OPEN",
-    openedAt: "2026-10-18T03:00:00Z",
-  };
-
-  it("lists the open alerts (BE order), with 'whole system' for a SKU-level alert", async () => {
-    let query: URLSearchParams | undefined;
-    server.use(
-      dashboardPermissions([INVENTORY_PERMISSIONS.alertRead]),
-      http.get(dashboardEndpoint(DASHBOARD_API.alerts), ({ request }) => {
-        query = new URL(request.url).searchParams;
-        return HttpResponse.json({
-          success: true,
-          data: {
-            items: [
-              alert,
-              {
-                ...alert,
-                id: crypto.randomUUID(),
-                kind: "REORDER",
-                sku: "SOFA-3S-GREY",
-                warehouseCode: undefined,
-                lotNumber: undefined,
-                expiryDate: undefined,
-                thresholdQty: 20,
-                observedQty: 5,
-              },
-            ],
-            page: 0,
-            size: 8,
-            totalElements: 11,
-            totalPages: 2,
-            hasNext: true,
-            hasPrevious: false,
-          },
-        });
-      }),
-    );
-    renderDashboard(<StockAlertsWidget />);
-    expect(await screen.findByText("SOFA-3S-GREY")).toBeInTheDocument();
-    expect(screen.getByText("Sắp hết hạn")).toBeInTheDocument();
-    expect(screen.getByText("Đến điểm đặt hàng")).toBeInTheDocument();
-    expect(screen.getByText(DASHBOARD_LABELS.alertAllWarehouses)).toBeInTheDocument();
-    expect(screen.getByText("HCM")).toBeInTheDocument();
-    expect(screen.getByText(DASHBOARD_LABELS.alertsMore)).toBeInTheDocument();
-    expect(query?.get("status")).toBe("OPEN");
-    expect(query?.get("size")).toBe("8");
-  });
-
-  it("empty state when there is nothing to act on", async () => {
-    server.use(
-      dashboardPermissions([INVENTORY_PERMISSIONS.alertRead]),
-      http.get(dashboardEndpoint(DASHBOARD_API.alerts), () =>
-        HttpResponse.json({
-          success: true,
-          data: { items: [], page: 0, size: 8, totalElements: 0, totalPages: 0 },
-        }),
-      ),
-    );
-    renderDashboard(<StockAlertsWidget />);
-    expect(await screen.findByText(DASHBOARD_LABELS.alertsEmptyTitle)).toBeInTheDocument();
-  });
-
-  it("renders nothing and requests nothing without inventory-alerts:READ", async () => {
-    server.use(dashboardPermissions([ORDER_PERMISSIONS.read]));
-    const { container } = renderDashboard(<StockAlertsWidget />);
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    expect(container).toBeEmptyDOMElement();
-  });
-
-  it("a failed load is reported, not hidden", async () => {
-    server.use(
-      dashboardPermissions([INVENTORY_PERMISSIONS.alertRead]),
-      http.get(dashboardEndpoint(DASHBOARD_API.alerts), () =>
-        HttpResponse.json(
-          { success: false, errorCode: "INTERNAL_ERROR", message: "x" },
-          { status: 500 },
-        ),
-      ),
-    );
-    renderDashboard(<StockAlertsWidget />);
-    expect(await screen.findByText(DASHBOARD_LABELS.alertsLoadError)).toBeInTheDocument();
   });
 });

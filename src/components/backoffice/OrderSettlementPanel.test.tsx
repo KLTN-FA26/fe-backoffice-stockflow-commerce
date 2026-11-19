@@ -45,6 +45,7 @@ const props = {
   completedAt: null,
   closedAt: null,
   deliveredShipmentIds: ["shp-1", "shp-2"],
+  completionHeld: false as boolean | null,
 };
 const routes = (outstanding: number, invoices: unknown[]) => ({
   get: {
@@ -85,6 +86,18 @@ describe("OrderSettlementPanel (WF-05 BO-10)", () => {
     expect(
       within(checks).getByText(/Còn 1 lần giao chưa có hoá đơn phát hành/),
     ).toBeInTheDocument();
+    expect(row(/Không bị Sale giữ hoàn tất/)).toHaveAttribute("data-met", "true");
+  });
+
+  it("WF-05 GH-2: an open completion hold is a condition not met, pointing at the hold card", async () => {
+    mockEInvoiceApi(ALL, routes(0, []));
+    renderEInvoiceScreen(<OrderSettlementPanel {...props} completionHeld />);
+    const checks = await screen.findByRole("region", { name: "Điều kiện hoàn tất" });
+    const row = within(checks)
+      .getByText(/Không bị Sale giữ hoàn tất/)
+      .closest("li");
+    expect(row).toHaveAttribute("data-met", "false");
+    expect(within(checks).getByText(/gỡ giữ ở thẻ/)).toBeInTheDocument();
   });
 
   it("says when a completed order closes, and lists no conditions", async () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { CARTON_STATUSES } from "@/constants";
+import { CARTON_STATUSES, STOCK_PACKAGE_PERMISSIONS } from "@/constants";
 import { CARTON_TRANSITIONS } from "@/lib/domain/lifecycle";
 
 import { IDENTITIES, type TestIdentity } from "./__fixtures__/render";
@@ -182,6 +182,7 @@ describe("cartonActions — action-gating theo trạng thái thùng + quyền", 
       print: false,
       reprint: false,
       remove: true,
+      reprintLpn: false,
     });
   });
 
@@ -207,6 +208,7 @@ describe("cartonActions — action-gating theo trạng thái thùng + quyền", 
       print: true,
       reprint: true,
       remove: true,
+      reprintLpn: false,
     });
   });
 
@@ -216,6 +218,7 @@ describe("cartonActions — action-gating theo trạng thái thùng + quyền", 
       print: true,
       reprint: true,
       remove: false,
+      reprintLpn: false,
     });
     expect(cartonActions(carton(labeledCarton({ shipmentId: "s-2" })), view, owner)).toMatchObject({
       reprint: false,
@@ -230,7 +233,7 @@ describe("cartonActions — action-gating theo trạng thái thùng + quyền", 
         view,
         owner,
       ),
-    ).toEqual({ label: false, print: false, reprint: false, remove: false });
+    ).toEqual({ label: false, print: false, reprint: false, remove: false, reprintLpn: false });
   });
 
   it("người không phải người bắt đầu (và không phải quản lý kho): không dán nhãn / loại / in lại, vẫn in PDF nếu có packing:READ", () => {
@@ -243,6 +246,7 @@ describe("cartonActions — action-gating theo trạng thái thùng + quyền", 
       print: true,
       reprint: false,
       remove: false,
+      reprintLpn: false,
     });
   });
 
@@ -254,6 +258,7 @@ describe("cartonActions — action-gating theo trạng thái thùng + quyền", 
       print: false,
       reprint: false,
       remove: false,
+      reprintLpn: false,
     });
   });
 });
@@ -278,5 +283,72 @@ describe("labelableCartons / printableCartons", () => {
 
   it("phiên đã dán nhãn hết: không còn gì để dán", () => {
     expect(labelableCartons(session(allLabeledSession()))).toEqual([]);
+  });
+});
+
+describe("cartonActions — In lại nhãn LPN (docs 08 §6 'Nhãn LPN rách', 03 §4.1 bước 4)", () => {
+  // Nhân viên kho có inventory-stock-packages:CREATE (BE StockPackageController — in / in lại nhãn thùng)
+  const lpnPrinter: TestIdentity = {
+    permissions: [...IDENTITIES.warehouseStaff.permissions, STOCK_PACKAGE_PERMISSIONS.create],
+  };
+  const view = session(
+    startedSession({
+      shipments: [
+        {
+          shipmentId: "s-1",
+          code: "SO-1-S1",
+          status: "READY_TO_DISPATCH",
+          packageCount: 1,
+          partial: false,
+        },
+        {
+          shipmentId: "s-2",
+          code: "SO-1-S2",
+          status: "HANDED_OVER",
+          packageCount: 1,
+          partial: false,
+        },
+      ],
+    }),
+  );
+  const carton = (dto: ReturnType<typeof apiCarton>) => {
+    const [first] = toCartonCheckSession(startedSession({ cartons: [dto] })).cartons;
+    if (!first) throw new Error("thùng không parse được");
+    return first;
+  };
+  const access = (identity: TestIdentity, userId: string | null = STARTER_ID) =>
+    cartonCheckAccess(session(startedSession()), actorOf(identity, userId));
+
+  it("thùng đã lấy còn ở kho — To Check, Checked, Labeled chưa / đang chờ bàn giao: in lại được", () => {
+    const printer = access(lpnPrinter);
+    expect(cartonActions(carton(apiCarton()), view, printer).reprintLpn).toBe(true);
+    expect(cartonActions(carton(checkedCarton()), view, printer).reprintLpn).toBe(true);
+    expect(cartonActions(carton(labeledCarton()), view, printer).reprintLpn).toBe(true);
+    expect(
+      cartonActions(carton(labeledCarton({ shipmentId: "s-1" })), view, printer).reprintLpn,
+    ).toBe(true);
+  });
+
+  it("không phải người bắt đầu phiên vẫn in lại được nhãn LPN (quyền in nhãn thùng, không phải quyền phiên)", () => {
+    expect(
+      cartonActions(carton(apiCarton()), view, access(lpnPrinter, OTHER_STARTER_ID)).reprintLpn,
+    ).toBe(true);
+  });
+
+  it("đã bàn giao (shipment rời kho), đã loại, hoặc thiếu inventory-stock-packages:CREATE: không in lại", () => {
+    const printer = access(lpnPrinter);
+    expect(
+      cartonActions(carton(labeledCarton({ shipmentId: "s-2" })), view, printer).reprintLpn,
+    ).toBe(false);
+    expect(
+      cartonActions(
+        carton(apiCarton({ status: "REMOVED", removalReason: "DAMAGED" })),
+        view,
+        printer,
+      ).reprintLpn,
+    ).toBe(false);
+    expect(
+      cartonActions(carton(apiCarton()), view, access(IDENTITIES.warehouseStaff)).reprintLpn,
+    ).toBe(false);
   });
 });

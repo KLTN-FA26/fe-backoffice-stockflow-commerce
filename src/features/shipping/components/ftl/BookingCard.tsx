@@ -89,6 +89,8 @@ export function BookingCard({
               size="sm"
               variant={planned ? "default" : "outline"}
               className={planned ? PRIMARY : undefined}
+              disabled={!!book.disabledReason}
+              title={book.disabledReason}
               onClick={() => onOpen("book")}
             >
               {planned ? <CalendarCheck className="size-3.5" /> : <Pencil className="size-3.5" />}{" "}

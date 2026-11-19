@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { SHIPPING_LIMITS, UI_LABELS } from "@/constants";
 import { shippingErrorMessage } from "@/features/shipping/errors";
 import { downloadWaybillTemplate } from "@/features/shipping/waybill-api";
+import { isWaybillImportFile } from "@/features/shipping/waybill-import-file";
 import {
   useImportWaybillFile,
   usePreviewWaybillImport,
@@ -21,13 +22,15 @@ export function applicableCount(preview: WaybillImport, overwrite: ReadonlySet<n
 
 /**
  * State của màn nhập mã vận đơn từ file (docs 09 §4.4): file đã chọn → xem trước → tick ghi đè → nhập → kết quả. Đổi file thì
- * bỏ bản xem trước cũ; file > 1 MB bị từ chối ngay ở máy (BE cũng từ chối). Lỗi hiện inline (không toast).
+ * bỏ bản xem trước cũ; file không phải CSV / .xlsx hoặc > 1 MB bị từ chối ngay ở máy (BE cũng từ chối). Lỗi hiện inline (không toast).
  */
 export function useWaybillImport() {
   const preview = usePreviewWaybillImport();
   const importFile = useImportWaybillFile();
   const input = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
+  // Kho chọn trước khi chọn file: chỉ nhận chuyến của kho này (RTM-WBIMPORT-WH)
+  const [warehouseId, setWarehouseId] = useState("");
   const [previewed, setPreviewed] = useState<WaybillImport | null>(null);
   const [result, setResult] = useState<WaybillImport | null>(null);
   const [overwrite, setOverwrite] = useState<ReadonlySet<number>>(new Set());
@@ -42,6 +45,7 @@ export function useWaybillImport() {
   return {
     input,
     file,
+    warehouseId,
     previewed,
     result,
     overwrite,
@@ -49,8 +53,18 @@ export function useWaybillImport() {
     previewing: preview.isPending,
     importing: importFile.isPending,
     toApply: previewed ? applicableCount(previewed, overwrite) : 0,
+    chooseWarehouse: (next: string) => {
+      clear();
+      setWarehouseId(next);
+      setError(null);
+    },
     choose: (next: File | null) => {
       clear();
+      if (next && !isWaybillImportFile(next)) {
+        setFile(null);
+        setError(I.fileWrongType);
+        return;
+      }
       if (next && next.size > SHIPPING_LIMITS.waybillImportMaxBytes) {
         setFile(null);
         setError(I.fileTooLarge);
@@ -62,6 +76,7 @@ export function useWaybillImport() {
     reset: () => {
       clear();
       setFile(null);
+      setWarehouseId("");
       setError(null);
       if (input.current) input.current.value = "";
     },
@@ -80,21 +95,24 @@ export function useWaybillImport() {
       }
     },
     runPreview: () => {
-      if (!file) return;
+      if (!file || !warehouseId) return;
       setError(null);
-      preview.mutate(file, {
-        onSuccess: (data) => {
-          setPreviewed(data);
-          setOverwrite(new Set());
+      preview.mutate(
+        { file, warehouseId },
+        {
+          onSuccess: (data) => {
+            setPreviewed(data);
+            setOverwrite(new Set());
+          },
+          onError: (e) => setError(shippingErrorMessage(e)),
         },
-        onError: (e) => setError(shippingErrorMessage(e)),
-      });
+      );
     },
     runImport: () => {
-      if (!file || !previewed) return;
+      if (!file || !previewed || !warehouseId) return;
       setError(null);
       importFile.mutate(
-        { file, overwriteLines: [...overwrite].sort((a, b) => a - b) },
+        { file, warehouseId, overwriteLines: [...overwrite].sort((a, b) => a - b) },
         { onSuccess: setResult, onError: (e) => setError(shippingErrorMessage(e)) },
       );
     },

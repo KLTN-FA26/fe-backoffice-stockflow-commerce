@@ -1,10 +1,10 @@
 /** Số liệu và gom nhóm từ dữ liệu kế hoạch xếp xe — hàm thuần, không side effect. */
 
-import { LOAD_PLAN_SOURCE, LOAD_PLAN_STATUS } from "@/constants";
+import { LOAD_PLAN_SELECTION_MODE, LOAD_PLAN_STATUS } from "@/constants";
 
 import { summarizeLayouts } from "./selectors";
 
-import type { LoadPlanStatus } from "@/constants";
+import type { LoadPlanSelectionMode, LoadPlanStatus } from "@/constants";
 import type { CandidateShipment, PlanDetail, PlanParcel } from "./plan-types";
 import type { LayoutSummary } from "./selectors";
 import type { Layout, UnplacedLine } from "./types";
@@ -72,24 +72,60 @@ export function unplacedLinesOf(parcels: readonly PlanParcel[]): UnplacedLine[] 
 export const vehiclesNeedingRecalculation = (plan: Pick<PlanDetail, "vehicles">): number[] =>
   plan.vehicles.filter((vehicle) => vehicle.needsRecalculation).map((vehicle) => vehicle.seq);
 
-/** Kế hoạch nguồn TRANSFER (một lệnh chuyển kho, đi nguyên) — `transferOrder` hoặc `sourceType` (BE PR #164). */
-export const isTransferPlan = (plan: Pick<PlanDetail, "sourceType" | "transferOrder">): boolean =>
-  plan.sourceType === LOAD_PLAN_SOURCE.TRANSFER || !!plan.transferOrder;
+/** Một dòng đơn của các lô đã chọn: ô tick "hàng chèn" của chế độ Ưu tiên + hàng chèn (RTM-LPGROUP). */
+export interface FillLineOption {
+  orderLineId: string;
+  shipmentCode: string;
+  sku: string;
+  packages: number;
+}
 
-/** Khoá chọn của một ứng viên: id lô giao (ORDER) hoặc id lệnh chuyển kho (TRANSFER). */
-export const candidateKey = (
-  candidate: Pick<CandidateShipment, "shipmentId" | "transferOrderId">,
-): string => candidate.shipmentId ?? candidate.transferOrderId ?? "";
+/** Các dòng đơn (theo kiện) của những lô đã chọn, theo thứ tự lô rồi dòng; kiện không rõ dòng bỏ qua. */
+export function fillLineOptions(
+  candidates: readonly Pick<CandidateShipment, "shipmentId" | "code" | "packages">[],
+  selected: ReadonlySet<string>,
+): FillLineOption[] {
+  const out = new Map<string, FillLineOption>();
+  for (const candidate of candidates) {
+    if (!selected.has(candidate.shipmentId ?? "")) continue;
+    for (const parcel of candidate.packages) {
+      if (!parcel.orderLineId) continue;
+      const known = out.get(parcel.orderLineId);
+      if (known) known.packages += 1;
+      else
+        out.set(parcel.orderLineId, {
+          orderLineId: parcel.orderLineId,
+          shipmentCode: candidate.code,
+          sku: parcel.partName,
+          packages: 1,
+        });
+    }
+  }
+  return [...out.values()];
+}
+
+/**
+ * Dòng hàng chèn để gửi BE: chỉ với `PRIORITY_FILL` (mặc định mọi dòng là hàng chính), chỉ dòng của lô đang chọn. Chế độ
+ * khác → `undefined` (không gửi; BE không giữ hàng chèn dưới chế độ khác).
+ */
+export function fillLinesToSend(
+  mode: LoadPlanSelectionMode,
+  ticked: ReadonlySet<string>,
+  options: readonly FillLineOption[],
+): string[] | undefined {
+  if (mode !== LOAD_PLAN_SELECTION_MODE.PRIORITY_FILL) return undefined;
+  return options.map((o) => o.orderLineId).filter((id) => ticked.has(id));
+}
 
 /** Tổng số kiện / khối lượng / thể tích của các lô đã chọn trong màn lập kế hoạch. */
 export function totalsOf(
   candidates: readonly Pick<
     CandidateShipment,
-    "shipmentId" | "transferOrderId" | "packageCount" | "packagesInOtherPlans"
+    "shipmentId" | "packageCount" | "packagesInOtherPlans"
   >[],
   selected: ReadonlySet<string>,
 ): { shipments: number; packages: number } {
-  const chosen = candidates.filter((candidate) => selected.has(candidateKey(candidate)));
+  const chosen = candidates.filter((candidate) => selected.has(candidate.shipmentId));
   return {
     shipments: chosen.length,
     packages: chosen.reduce((sum, c) => sum + c.packageCount - c.packagesInOtherPlans, 0),

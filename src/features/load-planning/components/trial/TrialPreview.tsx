@@ -18,15 +18,22 @@ const W = TRIAL_LABELS.warnings;
 
 /**
  * Bước 2: danh sách kiện đọc từ file (đúng thứ tự file) và cảnh báo các dòng bị bỏ (Pieces 0 / kích thước ≤ 0, như
- * `warnings` của parsers.py). Quá giới hạn kiện của một lần ước tính thì báo ngay, nút chạy thử bị khoá.
+ * `warnings` của parsers.py). Quá giới hạn kiện của một lần ước tính, hay có dòng thiếu khối lượng (docs 09 §6 edge
+ * case "kiện thiếu kích thước / khối lượng": chặn tính phương án), thì báo ngay, nút chạy thử bị khoá.
  */
 export function TrialPreview({ parsed, overCap }: { parsed: TrialParseResult; overCap: boolean }) {
-  const { summary, skipped, lines } = parsed;
+  const { summary, skipped, lines, missingWeight } = parsed;
   return (
     <div className="space-y-3">
       <h2 className="text-ink-primary text-sm font-semibold">{L.title}</h2>
       <p className="text-ink-secondary text-[0.8125rem]">
-        {L.summary(summary.rows, summary.totalPieces, summary.groups, summary.unitLabel)}
+        {L.summary(
+          summary.rows,
+          summary.totalPieces,
+          summary.groups,
+          summary.unitLabel,
+          formatNumber(summary.totalWeightKg),
+        )}
       </p>
       {skipped.length > 0 && (
         <Alert tone="warning" title={W.title(skipped.length)}>
@@ -42,6 +49,11 @@ export function TrialPreview({ parsed, overCap }: { parsed: TrialParseResult; ov
         </Alert>
       )}
       {overCap && <Alert tone="danger">{L.overCap(summary.totalPieces, TRIAL_MAX_BOXES)}</Alert>}
+      {missingWeight.length > 0 && (
+        <Alert tone="danger" title={L.missingWeightTitle}>
+          {L.missingWeight(missingWeight.join(", "))}
+        </Alert>
+      )}
       <div className="border-border-default max-h-80 overflow-auto rounded border">
         <Table>
           <TableCaption className="sr-only">{L.caption}</TableCaption>
@@ -53,7 +65,9 @@ export function TrialPreview({ parsed, overCap }: { parsed: TrialParseResult; ov
               <TableHead className="text-right">{L.length}</TableHead>
               <TableHead className="text-right">{L.width}</TableHead>
               <TableHead className="text-right">{L.height}</TableHead>
+              <TableHead className="text-right">{L.weight}</TableHead>
               <TableHead>{L.rotatable}</TableHead>
+              <TableHead>{L.fill}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -73,7 +87,11 @@ export function TrialPreview({ parsed, overCap }: { parsed: TrialParseResult; ov
                 <TableCell className="text-right tabular-nums">
                   {formatNumber(line.heightMm)}
                 </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {line.totalWeightKg === null ? L.noGroup : formatNumber(line.totalWeightKg)}
+                </TableCell>
                 <TableCell>{line.rotatable ? L.yes : L.no}</TableCell>
+                <TableCell>{line.fill ? L.yes : L.noGroup}</TableCell>
               </TableRow>
             ))}
           </TableBody>

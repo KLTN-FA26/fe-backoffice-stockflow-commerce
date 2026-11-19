@@ -51,7 +51,7 @@ export function CreditRejectAction({
         type="button"
         variant="outline"
         size="sm"
-        aria-label={compact ? `${label} vượt hạn mức đơn ${order.orderNumber}` : undefined}
+        aria-label={compact ? `${label} duyệt công nợ đơn ${order.orderNumber}` : undefined}
         className={`${DANGER_OUTLINE_BUTTON} ${compact ? "" : "w-full"}`}
         onClick={dialog.show}
       >

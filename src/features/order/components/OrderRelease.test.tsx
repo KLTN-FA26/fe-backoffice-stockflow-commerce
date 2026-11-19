@@ -436,6 +436,7 @@ describe("Release đơn — khe 'Ước tính xếp xe'", () => {
       orderNumber: apiOrder.orderNumber,
       warehouseId: null,
       released: false,
+      lines: expect.any(Array),
     });
     await pickSelectOption(user, /Kho xuất hàng/, "HCM01 — Kho TP.HCM");
     expect(slot).toHaveBeenLastCalledWith(
@@ -456,6 +457,7 @@ describe("Release đơn — khe 'Ước tính xếp xe'", () => {
       orderNumber: apiOrder.orderNumber,
       warehouseId: null,
       released: true,
+      lines: expect.any(Array),
     });
   });
 

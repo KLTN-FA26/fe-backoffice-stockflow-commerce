@@ -12,6 +12,7 @@ import {
   CUSTOMER_CREDIT_PROFILE_PERMISSIONS,
   CUSTOMER_PERMISSIONS,
   CUSTOMER_PRICE_PERMISSIONS,
+  FULFILLMENT_CARRIER_EVENT_PERMISSIONS,
   FULFILLMENT_CARRIER_PERMISSIONS,
   FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS,
   FULFILLMENT_DESIGN_REVERIFICATION_PERMISSIONS,
@@ -47,7 +48,6 @@ import {
   SHIPMENT_PERMISSIONS,
   STOCK_PACKAGE_PERMISSIONS,
   SUPPLIER_PERMISSIONS,
-  TRANSFER_PERMISSIONS,
   VARIANT_PERMISSIONS,
   VEHICLE_TYPE_PERMISSIONS,
   WAREHOUSE_LOCATION_PERMISSIONS,
@@ -64,12 +64,8 @@ import type { PermissionCode } from "@/lib/auth/me-permissions";
 const GR = GOODS_RECEIPT_PERMISSIONS;
 const QC = QC_TASK_PERMISSIONS;
 const GR_WORK = [GR.viewPage, GR.read, GR.create, GR.update];
-// Seed BE: inventory-transfer-orders — WAREHOUSE_MANAGER đủ 5 quyền (gồm APPROVE), INVENTORY_PLANNER
-// VIEW_PAGE/READ/CREATE/UPDATE, WAREHOUSE_STAFF VIEW_PAGE/READ/UPDATE (V20261010000500).
 // fulfillment-shipments VIEW_PAGE/READ cho WAREHOUSE_STAFF / MANAGER / ORDER_COORDINATOR (ghi đã tách ra
 // các resource fulfillment-dispatch / -carriers / -load-cancellations / -delivery-outcomes, BE PR #148).
-const TO = TRANSFER_PERMISSIONS;
-const TO_STAFF = [TO.viewPage, TO.read, TO.update];
 const SHIP = Object.values(SHIPMENT_PERMISSIONS);
 
 // Seed BE V20260903000100 + V20260919001300 + V20261022000200 (fulfillment, BE PR #148):
@@ -91,6 +87,8 @@ const WAYBILL_IMPORT = Object.values(FULFILLMENT_WAYBILL_IMPORT_PERMISSIONS);
 // Seed BE V20261029007100 (SCRUM-474 UNLOAD-DESIGN): huỷ có kiểm soát + xác nhận dỡ kiện không quét — chỉ quản lý kho.
 const CONTROLLED_CANCEL = Object.values(FULFILLMENT_CONTROLLED_CANCELLATION_PERMISSIONS);
 const CARRIER = Object.values(FULFILLMENT_CARRIER_PERMISSIONS);
+// Seed BE: sự kiện hãng vận chuyển (READ + UPDATE) — quản lý kho, hệ thống
+const CARRIER_EVENT = Object.values(FULFILLMENT_CARRIER_EVENT_PERMISSIONS);
 const OUTCOME = FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS;
 // Seed BE V20261022000700 (BE PR #153): fulfillment-vehicle-types VIEW_PAGE + READ cho WAREHOUSE_STAFF /
 // WAREHOUSE_MANAGER / ORDER_COORDINATOR / SYSTEM_ADMIN; UPDATE chỉ WAREHOUSE_MANAGER / SYSTEM_ADMIN.
@@ -118,6 +116,7 @@ const MANAGER_WORK = [
   ...OVERSIGHT,
   ...REVERIFY,
   ...CARRIER,
+  ...CARRIER_EVENT,
   ...WAYBILL_CORRECTION,
   ...WAYBILL_IMPORT,
   ...CONTROLLED_CANCEL,
@@ -142,8 +141,7 @@ const PRODUCT_STRUCTURE = [
   ...Object.values(VARIANT_PERMISSIONS),
   ...Object.values(ATTRIBUTE_PERMISSIONS),
 ];
-// Seed BE: WAREHOUSE_STAFF / INVENTORY_PLANNER giữ inventory-stock-items:READ/UPDATE và
-// inventory-alerts:READ (V20261014000900); WAREHOUSE_STAFF thêm warehouse-locations:READ (V20260928006000).
+// Seed BE: WAREHOUSE_STAFF / INVENTORY_PLANNER giữ inventory-stock-items:READ/UPDATE; WAREHOUSE_STAFF thêm warehouse-locations:READ (V20260928006000).
 // Sổ kho + phiếu điều chỉnh: VIEW_PAGE + READ cho WAREHOUSE_STAFF (V20261013000200) và INVENTORY_PLANNER
 // (sổ kho V20260903000100, phiếu điều chỉnh V20261014001200).
 const INVENTORY_FLOOR = [
@@ -153,7 +151,6 @@ const INVENTORY_FLOOR = [
   INV.stockUpdate,
   INV.stockRead,
   INV.movementRead,
-  INV.alertRead,
 ];
 const INVENTORY_ALL = Object.values(INV);
 // Seed BE V20260903000100 / V20261023000300 / V20261028001000: WAREHOUSE_MANAGER đủ quyền phiếu kiểm kê
@@ -162,8 +159,7 @@ const CC = CYCLE_COUNT_PERMISSIONS;
 const CYCLE_COUNT_ALL = Object.values(CC);
 const CYCLE_COUNT_COUNTER = [CC.viewPage, CC.read, CC.update];
 // Seed BE V20260903000100: WAREHOUSE_STAFF / MANAGER đọc tồn + giữ chỗ; INVENTORY_PLANNER và
-// QC_STAFF chỉ đọc tồn (inventory-stock-items VIEW_PAGE/READ). V20261014000900: inventory-alerts:READ
-// cho WAREHOUSE_MANAGER / INVENTORY_PLANNER / WAREHOUSE_STAFF (QC_STAFF không có).
+// QC_STAFF chỉ đọc tồn (inventory-stock-items VIEW_PAGE/READ).
 const OV = INVENTORY_OVERVIEW_PERMISSIONS;
 const STOCK_READ = [OV.stockViewPage, OV.stockRead];
 const OVERVIEW_ALL = Object.values(OV);
@@ -305,7 +301,6 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     // Seed V20260903000100 / V20260928006000: WAREHOUSE_MANAGER đủ quyền danh mục kho và bản đồ kho
     ...Object.values(WAREHOUSE_PERMISSIONS),
     ...Object.values(WAREHOUSE_LOCATION_PERMISSIONS),
-    ...Object.values(TO),
     ...SHIP,
     ...ITEM_ALL,
     ...CUSTOMER_PRICE_ALL,
@@ -338,21 +333,15 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
   "USER-PLAN-01": [
     ...INVENTORY_FLOOR,
     ...STOCK_READ,
-    OV.alertRead,
-    OV.alertViewPage,
     WAREHOUSE_READ,
-    TO.viewPage,
-    TO.read,
-    TO.create,
-    TO.update,
     ...ITEM_ALL,
     ...STOCK_PACKAGE_READ,
   ],
   // Existing USER-ADMIN-01 is also the only Warehouse Manager; WH users are staff.
-  "USER-WH-01": [...WH_WORK, ...TO_STAFF, ...SHIP],
-  "USER-WH-02": [...WH_WORK, ...TO_STAFF, ...SHIP],
-  "USER-WH-03": [...WH_WORK, ...TO_STAFF, ...SHIP],
-  "USER-WH-04": [...WH_WORK, ...TO_STAFF, ...SHIP],
+  "USER-WH-01": [...WH_WORK, ...SHIP],
+  "USER-WH-02": [...WH_WORK, ...SHIP],
+  "USER-WH-03": [...WH_WORK, ...SHIP],
+  "USER-WH-04": [...WH_WORK, ...SHIP],
   "USER-QC-01": [
     GR.viewPage,
     GR.read,
@@ -456,7 +445,6 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...INVENTORY_FLOOR,
     ...OVERVIEW_ALL,
     WAREHOUSE_READ,
-    ...TO_STAFF,
     ...SHIP,
     ...ITEM_READ,
     // ORDER_COORDINATOR: chỉ READ — không VIEW_PAGE / customer-customers:READ nên không vào được màn bảng giá

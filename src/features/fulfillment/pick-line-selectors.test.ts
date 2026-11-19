@@ -92,6 +92,16 @@ describe("pick-line selectors", () => {
     ]);
   });
 
+  it("linesComplete: dòng Put Back (thùng hư bị loại ở trạm kiểm, đã cất đi) tính là xong như BE requireAllPicked — thùng bù thay chỗ", () => {
+    expect(linesComplete(withStatus(["Picked", "Put Back", "Put Back"]))).toBe(true);
+    expect(linesComplete(withStatus(["Put Back", "Cancelled", "Staged"]))).toBe(true);
+    expect(linesComplete(withStatus(["Put Back", "Open", "Picked"]))).toBe(false);
+    expect(linesComplete(withStatus(["Put Back", "Short", "Picked"]))).toBe(false);
+    expect(
+      pickIncompleteReason(withStatus(["Picked", "Put Back", "Put Back"]), false),
+    ).toBeUndefined();
+  });
+
   it("linesComplete: mọi dòng Picked / Staged / Cancelled; còn Open / Short → false; không có dòng → true", () => {
     expect(linesComplete([])).toBe(true);
     expect(linesComplete(withStatus(["Picked", "Cancelled", "Picked"]))).toBe(true);

@@ -503,7 +503,7 @@ describe("OrderDetail — hiển thị vòng đời (BE PR #133)", () => {
     expect(screen.getByText("Đang lấy hàng")).toBeInTheDocument();
   });
 
-  it("mốc thời gian, tiền (billed / effective / amountDue) và giao thất bại", async () => {
+  it("mốc thời gian, giá trị sau khi đóng phần còn lại và giao thất bại; field tiền BE đã bỏ không hiện", async () => {
     await renderDetail(ORDER_PERMISSION_SETS.readOnly, () =>
       apiOrderWith({
         status: "DELIVERY_FAILED",
@@ -521,10 +521,10 @@ describe("OrderDetail — hiển thị vòng đời (BE PR #133)", () => {
     expect(screen.getByText("Đóng gói xong")).toBeInTheDocument();
     expect(screen.getByText("Bàn giao vận chuyển")).toBeInTheDocument();
     expect(screen.getByText("Khách vắng mặt")).toBeInTheDocument();
-    expect(screen.getByText("Đã ghi công nợ")).toBeInTheDocument();
     expect(screen.getByText("Giá trị sau khi đóng phần còn lại")).toBeInTheDocument();
-    expect(screen.getByText("Khách còn nợ")).toBeInTheDocument();
-    // = 0 → không có hàng nào bị chặn bàn giao vì tiền
+    // BE `OrderResponse` không còn billedAmount / amountDue / amountDueBeforeHandover (4B-10) — khối không đọc chúng nữa
+    expect(screen.queryByText("Đã ghi công nợ")).not.toBeInTheDocument();
+    expect(screen.queryByText("Khách còn nợ")).not.toBeInTheDocument();
     expect(screen.queryByText("Phải trả trước khi xuất hàng")).not.toBeInTheDocument();
   });
 
@@ -616,7 +616,9 @@ describe("OrderDetail — Giữ đơn", () => {
     expect(post).not.toHaveBeenCalled();
 
     await pickSelectOption(user, /Lý do giữ/, "Vấn đề thanh toán");
-    expect(screen.queryByRole("option", { name: "Vượt hạn mức công nợ" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("option", { name: "Chờ duyệt công nợ (khách quá hạn hoặc vượt hạn mức)" }),
+    ).not.toBeInTheDocument();
   });
 
   it("ORDER_INVALID_TRANSITION → toast tiếng Việt, đóng dialog, tải lại đơn", async () => {
@@ -847,43 +849,18 @@ describe("OrderDetail — số liệu BE luôn gửi (0 khi chưa có lô / chư
     expect(screen.queryByText(/Đã bàn giao:/)).not.toBeInTheDocument();
   });
 
-  it("billedAmount = 0 ẩn với đơn trả trước; hiện với đơn CREDIT (kể cả 0) hoặc khi > 0", async () => {
-    await renderDetail(ORDER_PERMISSION_SETS.readOnly, () => apiOrder);
-    await screen.findByRole("heading", { name: apiOrder.orderNumber });
-    expect(screen.queryByText("Đã ghi công nợ")).not.toBeInTheDocument();
-    expect(screen.getByText("Khách còn nợ")).toBeInTheDocument();
-  });
-
-  it("đơn CREDIT: hiện 'Đã ghi công nợ' dù = 0", async () => {
-    await renderDetail(ORDER_PERMISSION_SETS.readOnly, () =>
-      apiOrderWith({ paymentTerm: "CREDIT" }),
-    );
-    expect(await screen.findByText("Đã ghi công nợ")).toBeInTheDocument();
-  });
-
-  it("billedAmount > 0 hiện dù đơn không phải CREDIT", async () => {
-    await renderDetail(ORDER_PERMISSION_SETS.readOnly, () =>
-      apiOrderWith({ billedAmount: 120000 }),
-    );
-    expect(await screen.findByText("Đã ghi công nợ")).toBeInTheDocument();
-  });
-
-  it.each(["DRAFT", "CANCELLED", "CLOSED"] as const)(
-    "%s: ẩn 'Khách còn nợ' và 'Phải trả trước khi xuất hàng' dù BE tính từ tổng đơn",
+  it.each(["PACKED", "DRAFT", "CANCELLED"] as const)(
+    "%s: không hiện số tiền BE đã bỏ (đã ghi công nợ / khách còn nợ / phải trả trước khi xuất) dù response cũ còn mang",
     async (status) => {
-      await renderDetail(ORDER_PERMISSION_SETS.readOnly, () => withStatus(status));
-
+      await renderDetail(ORDER_PERMISSION_SETS.readOnly, () =>
+        apiOrderWith({ status, paymentTerm: "CREDIT", billedAmount: 120000 }),
+      );
       await screen.findByRole("heading", { name: apiOrder.orderNumber });
+      expect(screen.queryByText("Đã ghi công nợ")).not.toBeInTheDocument();
       expect(screen.queryByText("Khách còn nợ")).not.toBeInTheDocument();
       expect(screen.queryByText("Phải trả trước khi xuất hàng")).not.toBeInTheDocument();
     },
   );
-
-  it("đơn trả trước còn nợ trước khi xuất kho: hiện cả hai dòng", async () => {
-    await renderDetail(ORDER_PERMISSION_SETS.readOnly, () => withStatus("PACKED"));
-    expect(await screen.findByText("Khách còn nợ")).toBeInTheDocument();
-    expect(screen.getByText("Phải trả trước khi xuất hàng")).toBeInTheDocument();
-  });
 });
 
 describe("OrderDetail — huỷ khi đã đóng gói (BE Order#requireNotPacked)", () => {
@@ -950,15 +927,15 @@ describe("OrderDetail — hồi quy tích hợp (credit hold / packed / UNKNOWN 
       }),
     );
     await screen.findByText("Đơn đang tạm giữ");
-    expect(screen.queryByRole("button", { name: /Duyệt vượt hạn mức/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Duyệt công nợ/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Từ chối/ })).not.toBeInTheDocument();
   });
 
-  it("2. giữ công nợ thật (CREDIT + lý do CREDIT) → kế toán thấy Duyệt vượt hạn mức", async () => {
+  it("2. giữ công nợ thật (lý do CREDIT, BE không gửi paymentTerm — TT-1) → kế toán thấy Duyệt công nợ", async () => {
     await renderDetail(ACCOUNTANT_READING, () =>
-      apiOrderWith({ status: "ON_HOLD", paymentTerm: "CREDIT", holdReason: "CREDIT" }),
+      apiOrderWith({ status: "ON_HOLD", paymentTerm: undefined, holdReason: "CREDIT" }),
     );
-    expect(await screen.findByRole("button", { name: /Duyệt vượt hạn mức/ })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /Duyệt công nợ/ })).toBeInTheDocument();
     // Không có quyền huỷ / giữ → không có nút nào khác
     expect(screen.queryByRole("button", { name: "Huỷ đơn" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Gỡ giữ" })).not.toBeInTheDocument();
@@ -971,9 +948,9 @@ describe("OrderDetail — hồi quy tích hợp (credit hold / packed / UNKNOWN 
     expect(within(card).queryAllByRole("button")).toHaveLength(0);
   });
 
-  it("7. LSX theo dòng in và lô giao cùng hiện trên một trang chi tiết", async () => {
+  it("7. Đơn sản xuất theo dòng in và lô giao cùng hiện trên một trang chi tiết", async () => {
     const lineId = apiPartialOrder.lines[0]?.lineId ?? "";
-    // Chỉ đọc đơn + đọc LSX (production-orders:READ — BE ProductionOrderController#list)
+    // Chỉ đọc đơn + đọc Đơn sản xuất (production-orders:READ — BE ProductionOrderController#list)
     mockOrderApiGet([...ORDER_PERMISSION_SETS.readOnly, PRODUCTION_ORDER_PERMISSIONS.read], {
       [DETAIL_PATH]: () =>
         apiOrderWith({
@@ -985,20 +962,26 @@ describe("OrderDetail — hồi quy tích hợp (credit hold / packed / UNKNOWN 
             },
           ],
         }),
-      // BE ProductionOrderController#list — PageResponse<ProductionOrderRowResponse>
-      "/production/orders": () => ({
+      // BE ProductionOrderController#list — PageResponse<ProductionOrder>
+      "/production-orders": () => ({
         items: [
           {
             id: "0b0b0b0b-0000-4000-8000-000000000001",
-            orderNumber: "LSX-0001",
-            type: "ORDER",
-            mode: "IN_HOUSE",
-            status: "COMPLETED",
-            plannedQuantity: 2,
-            goodQuantity: 2,
+            code: "PRD-20261020-0001",
             salesOrderId: apiOrder.orderId,
-            salesOrderLineId: lineId,
-            createdAt: "2026-10-20T03:00:00Z",
+            status: "RECEIVED",
+            lines: [
+              {
+                id: "0c0c0c0c-0000-4000-8000-000000000001",
+                orderLineId: lineId,
+                sku: "CUP-PRINT-12OZ",
+                cartons: 2,
+                unitsPerCarton: 1,
+                totalUnits: 2,
+                receivedCartons: 2,
+              },
+            ],
+            version: 1,
           },
         ],
         page: 0,
@@ -1015,7 +998,7 @@ describe("OrderDetail — hồi quy tích hợp (credit hold / packed / UNKNOWN 
     });
 
     expect(
-      await screen.findByRole("listitem", { name: "Lệnh sản xuất LSX-0001" }),
+      await screen.findByRole("listitem", { name: "Đơn sản xuất PRD-20261020-0001" }),
     ).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Lô giao" })).toBeInTheDocument();
     expect(screen.getByText("Đã bàn giao:")).toBeInTheDocument();

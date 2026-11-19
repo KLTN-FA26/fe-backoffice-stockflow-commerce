@@ -3,9 +3,10 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { toast } from "@/components/shared/Toast";
+import { useBreadcrumbLabelStore } from "@/lib/store/use-breadcrumb-labels";
 import { apiError, bePage, mockApi, renderScreen } from "@/test/api-screen";
 
-import { QuoteCreate, QuoteDetail, QuoteList } from "..";
+import { QuoteCreate, QuoteDetail, QuoteEdit, QuoteList } from "..";
 import {
   CUSTOMER,
   CUSTOMER_ID,
@@ -202,5 +203,78 @@ describe("Quote form", () => {
     expect(
       screen.getByText((_, el) => el?.tagName === "SPAN" && el.textContent === "MOQ: 20 thùng"),
     ).toBeInTheDocument();
+  });
+
+  it("WF-02 audit: editing a draft shows the line's SKU and names the quote in the breadcrumb", async () => {
+    let releaseSkus: (value: unknown) => void = () => undefined;
+    const skus = new Promise((resolve) => {
+      releaseSkus = resolve;
+    });
+    mockApi("SALES_STAFF", {
+      get: {
+        [detailUrl]: () => QUOTE_DRAFT_PLATE_UNPRICED,
+        [`/customers/${CUSTOMER_ID}`]: () => CUSTOMER,
+        // The SKU list arrives after the form: the select must still show the line's SKU.
+        "/customer-skus": () => skus,
+        [`/catalog/customer-prices/${CUSTOMER_ID}/${SKU}`]: () => ({
+          customerId: CUSTOMER_ID,
+          sku: SKU,
+          measure: "CARTON",
+          moq: 20,
+          tiers: QUOTE_ACCEPTED.lines[0]?.tiers ?? [],
+          version: 1,
+        }),
+      },
+    });
+    renderScreen(<QuoteEdit id={QUOTE_ID} />, "SALES_STAFF");
+    const select = await screen.findByLabelText(/SKU riêng của khách/);
+    expect(select).toHaveValue(SKU);
+    releaseSkus([
+      {
+        variantId: "v1",
+        productId: "p1",
+        sku: SKU,
+        name: "Ly 12oz xanh",
+        ownerCustomerId: CUSTOMER_ID,
+        status: "ACTIVE",
+      },
+    ]);
+    await within(select).findByRole("option", { name: /Ly 12oz xanh/ });
+    expect(select).toHaveValue(SKU);
+    expect(useBreadcrumbLabelStore.getState().labels[QUOTE_ID]).toBe(
+      QUOTE_DRAFT_PLATE_UNPRICED.quoteNumber,
+    );
+  });
+  it("WF-02 A3: the form previews goods, fees, tax by the saved rates and the total with tax", async () => {
+    mockApi("SALES_STAFF", {
+      get: {
+        [detailUrl]: () => QUOTE_DRAFT_PLATE_UNPRICED,
+        [`/customers/${CUSTOMER_ID}`]: () => CUSTOMER,
+        "/customer-skus": () => [
+          {
+            variantId: "v1",
+            productId: "p1",
+            sku: SKU,
+            name: "Ly 12oz xanh",
+            ownerCustomerId: CUSTOMER_ID,
+            status: "ACTIVE",
+          },
+        ],
+        [`/catalog/customer-prices/${CUSTOMER_ID}/${SKU}`]: () => null,
+      },
+    });
+    renderScreen(<QuoteEdit id={QUOTE_ID} />, "SALES_STAFF");
+    const preview = (await screen.findByRole("heading", { name: "Tạm tính báo giá" })).closest(
+      "div",
+    ) as HTMLElement;
+    // 60 thùng × 1.000 cái × 1.150 ₫; phí khuôn chưa nhập; thuế 10% theo dòng đã lưu.
+    expect(within(preview).getByText(/69\.000\.000/)).toBeInTheDocument();
+    expect(within(preview).getByText(/6\.900\.000/)).toBeInTheDocument();
+    expect(within(preview).getByText(/75\.900\.000/)).toBeInTheDocument();
+
+    await userEvent.type(screen.getByLabelText(/Phí khuôn \/ bản in/), "1500000");
+    // + 1.500.000 phí và 150.000 thuế của phí (thuế suất phí đã lưu).
+    expect(await within(preview).findByText(/77\.550\.000/)).toBeInTheDocument();
+    expect(within(preview).getByText(/7\.050\.000/)).toBeInTheDocument();
   });
 });

@@ -11,11 +11,15 @@
  */
 
 import {
+  COMPLETION_HOLD_ERROR_MESSAGES,
+  COMPLETION_HOLD_LABELS,
+  DELIVERY_FAILURE_ERROR_MESSAGES,
   ORDER_ACTION_LABELS,
   ORDER_ERROR_MESSAGES,
   ORDER_LIMITS,
   ORDER_PARTIAL_SHIPMENT_LABELS,
   ORDER_RELEASE_LABELS,
+  ORDER_SHIPPING_ADDRESS_LABELS,
   UI_LABELS,
 } from "@/constants";
 
@@ -102,10 +106,14 @@ export const ORDER_STALE_ERROR_CODES: readonly string[] = [
   "ORDER_CANCELLED",
   // Người khác đã duyệt / từ chối (hoặc đơn không còn giữ công nợ) — CreditHoldService#decide
   "ORDER_NOT_ON_CREDIT_HOLD",
+  // WF-05: đơn đã chuyển sang giữ vì giao thất bại — gỡ bằng quyết định hồ sơ, tải lại để thấy khối "Giao thất bại"
+  "ORDER_DELIVERY_FAILURE_USE_DECISION",
   // BE PR #150: đơn đã đi / đóng (hoặc đã tách vì hàng có sẵn đi trước hàng in) — tải lại để thấy trạng thái thật
   "ORDER_PARTIAL_SHIPMENT_LOCKED",
   // BE PR #157: hình thức giao đã khoá (kho bắt đầu đóng gói / đơn qua đóng gói) — tải lại để thấy trạng thái thật
   "DELIVERY_MODE_LOCKED",
+  // WF04 G2 (docs 08 BR-04): thùng đầu tiên vừa được dán nhãn / đơn đã sang bước khác — tải lại, nút đổi địa chỉ tự ẩn
+  "ORDER_ADDRESS_LOCKED",
 ];
 
 export type OrderErrorCategory =
@@ -348,7 +356,7 @@ export function creditDecisionErrorView(error: ApiError): OrderErrorView {
     case "ORDER_NOT_ON_CREDIT_HOLD":
       return {
         title: CREDIT_FAILED,
-        detail: "Đơn không còn chờ duyệt vượt hạn mức (đã được người khác xử lý).",
+        detail: "Đơn không còn chờ duyệt công nợ (đã được người khác xử lý).",
         traceId,
       };
     case "VALIDATION_FAILED":
@@ -368,7 +376,13 @@ export function creditDecisionErrorView(error: ApiError): OrderErrorView {
 /* ── Giữ / gỡ giữ / giao thất bại / đóng phần còn lại (BE PR #133) ───── */
 
 export type OrderStatusActionKey =
-  "hold" | "resolveHold" | "deliveryFailure" | "remainderClosure" | "partialShipment" | "release";
+  | "hold"
+  | "resolveHold"
+  | "deliveryFailure"
+  | "remainderClosure"
+  | "partialShipment"
+  | "release"
+  | "shippingAddress";
 
 /** Tiêu đề lỗi theo thao tác (giao một phần có bộ nhãn riêng — nút đổi theo bật / tắt). */
 const FAILED_TITLES: Readonly<Record<OrderStatusActionKey, string>> = {
@@ -378,6 +392,7 @@ const FAILED_TITLES: Readonly<Record<OrderStatusActionKey, string>> = {
   remainderClosure: ORDER_ACTION_LABELS.remainderClosure.failedTitle,
   partialShipment: ORDER_PARTIAL_SHIPMENT_LABELS.failedTitle,
   release: ORDER_RELEASE_LABELS.failedTitle,
+  shippingAddress: ORDER_SHIPPING_ADDRESS_LABELS.failedTitle,
 };
 
 /** Câu cho 400 VALIDATION_FAILED theo thao tác — BE trả fieldErrors / message tiếng Anh, không hiện thẳng. */
@@ -390,6 +405,7 @@ const VALIDATION_DETAIL: Readonly<Record<OrderStatusActionKey, string>> = {
     "Hãy chọn lý do (“Lý do khác” cần ghi chú). Khoản phí phải là số tiền nguyên VND lớn hơn 0, không vượt giá trị phần hàng in bị đóng, kèm lý do và chi tiết.",
   partialShipment: `Ghi chú tối đa ${ORDER_LIMITS.partialShipmentNoteMax} ký tự.`,
   release: "Hãy chọn kho xuất hàng hợp lệ.",
+  shippingAddress: "Hãy chọn một địa chỉ giao trong sổ địa chỉ của khách.",
 };
 
 /** Động từ cho câu lỗi chung / dự phòng của từng thao tác ("Bạn không có quyền …", "Đã xảy ra lỗi khi …"). */
@@ -400,10 +416,18 @@ const STATUS_ACTION_VERB: Readonly<Record<OrderStatusActionKey, string>> = {
   remainderClosure: "đóng phần còn lại của đơn",
   partialShipment: "đổi cách giao một phần",
   release: "release đơn",
+  shippingAddress: "đổi địa chỉ giao của đơn",
 };
 
 function isOrderErrorCode(code: string): code is keyof typeof ORDER_ERROR_MESSAGES {
   return Object.hasOwn(ORDER_ERROR_MESSAGES, code);
+}
+
+/** Mã lỗi giao thất bại / sửa kết quả giao (WF-05) — bảng riêng `DELIVERY_FAILURE_ERROR_MESSAGES`. */
+export function isDeliveryFailureErrorCode(
+  code: string,
+): code is keyof typeof DELIVERY_FAILURE_ERROR_MESSAGES {
+  return Object.hasOwn(DELIVERY_FAILURE_ERROR_MESSAGES, code);
 }
 
 /**
@@ -428,6 +452,10 @@ export function orderActionErrorView(
   if (isOrderErrorCode(error.code)) {
     return { title, detail: ORDER_ERROR_MESSAGES[error.code], traceId };
   }
+  // WF-05: gỡ giữ đơn giữ vì giao thất bại (ORDER_DELIVERY_FAILURE_USE_DECISION) và các mã giao thất bại khác
+  if (isDeliveryFailureErrorCode(error.code)) {
+    return { title, detail: DELIVERY_FAILURE_ERROR_MESSAGES[error.code], traceId };
+  }
   if (error.code === "VALIDATION_FAILED") {
     // BE trả fieldErrors tiếng Anh ("reasonCode is required"…) — không hiện thẳng.
     return { title, detail: VALIDATION_DETAIL[action], traceId };
@@ -438,10 +466,52 @@ export function orderActionErrorView(
   );
 }
 
+/* ── Giữ hoàn tất (WF-05 GH-2) ────────────────────────────────────────── */
+
+/**
+ * Dữ liệu trên màn đã cũ (người khác vừa giữ / gỡ, đơn vừa hoàn tất / đóng) → đóng hộp thoại, tải lại. CONFLICT không
+ * thuộc nhóm này: BE giữ hoàn tất không trả CONFLICT chung.
+ */
+export const COMPLETION_HOLD_STALE_CODES: readonly string[] = [
+  ...ORDER_STALE_ERROR_CODES.filter((code) => code !== "CONFLICT"),
+  "ORDER_COMPLETION_ALREADY_HELD",
+  "ORDER_COMPLETION_HOLD_NOT_APPLICABLE",
+  "ORDER_COMPLETION_NOT_HELD",
+];
+
+export type CompletionHoldDecision = "hold" | "release";
+
+function isCompletionHoldErrorCode(
+  code: string,
+): code is keyof typeof COMPLETION_HOLD_ERROR_MESSAGES {
+  return Object.hasOwn(COMPLETION_HOLD_ERROR_MESSAGES, code);
+}
+
+/** BE `OrderCompletionHolds#hold` / `#release` → câu tiếng Việt theo `error.code` (không hiện message tiếng Anh). */
+export function completionHoldErrorView(
+  error: ApiError,
+  decision: CompletionHoldDecision,
+): OrderErrorView {
+  const title = COMPLETION_HOLD_LABELS[decision].failedTitle;
+  const traceId = error.traceId;
+  if (isCompletionHoldErrorCode(error.code)) {
+    return { title, detail: COMPLETION_HOLD_ERROR_MESSAGES[error.code], traceId };
+  }
+  if (error.code === "VALIDATION_FAILED") {
+    const detail =
+      decision === "hold"
+        ? "Kiểm tra lại lý do giữ và ghi chú (bắt buộc với lý do khác, tối đa 1000 ký tự)."
+        : "Nhập kết quả xác minh (tối đa 1000 ký tự).";
+    return { title, detail, traceId };
+  }
+  const verb = decision === "hold" ? "giữ hoàn tất đơn" : "gỡ giữ hoàn tất đơn";
+  return commonErrorView(error, title, verb) ?? fallback(error, title, verb);
+}
+
 /* ── Lệnh sản xuất của đơn ──────────────────────────────────────────── */
 
 /**
- * `GET /production/orders` bị từ chối quyền: 403 FORBIDDEN (thiếu `production-orders:READ`, hoặc
+ * `GET /production-orders` bị từ chối quyền: 403 FORBIDDEN (thiếu `production-orders:READ`, hoặc
  * quyền bị thu sau khi FE đã tải danh sách quyền) / OUT_OF_DATA_SCOPE. Báo "không có quyền xem",
  * không phải lỗi tải + Thử lại (bấm lại cũng không qua).
  */

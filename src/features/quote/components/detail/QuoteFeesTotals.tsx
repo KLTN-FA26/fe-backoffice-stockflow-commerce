@@ -1,9 +1,11 @@
 "use client";
 
+import { Calculator } from "lucide-react";
+
 import { QUOTE_FEE_LABELS } from "@/constants";
 import { formatMoney } from "@/lib/format/money";
 import { displayTotals } from "@/features/quote/selectors";
-import { Card } from "@/components/shared/Card";
+import { DetailSection } from "@/components/shared/DetailSection";
 
 import { MONO } from "../copy";
 
@@ -13,8 +15,7 @@ import type { Quote } from "@/features/quote/types";
 export function QuoteFeesTotals({ quote }: { quote: Quote }) {
   const totals = displayTotals(quote);
   return (
-    <Card className="space-y-3">
-      <h2 className="text-ink-primary text-sm font-semibold">Phí & tổng</h2>
+    <DetailSection title="Phí & tổng" icon={Calculator}>
       {quote.fees.length === 0 ? (
         <p className="text-ink-tertiary text-[0.8125rem]">Không có phí.</p>
       ) : (
@@ -42,7 +43,7 @@ export function QuoteFeesTotals({ quote }: { quote: Quote }) {
           </tbody>
         </table>
       )}
-      <dl className="border-border-default grid grid-cols-[1fr_auto] gap-y-1 border-t pt-3 text-[0.8125rem]">
+      <dl className="mt-3 grid grid-cols-[1fr_auto] gap-y-1 border-t border-(--table-line) pt-3 text-[0.8125rem]">
         {totals ? (
           <>
             <dt className="text-ink-tertiary">Tiền hàng</dt>
@@ -62,6 +63,6 @@ export function QuoteFeesTotals({ quote }: { quote: Quote }) {
           <dd className="text-ink-tertiary col-span-2">Chưa đủ giá các dòng / phí để tính tổng.</dd>
         )}
       </dl>
-    </Card>
+    </DetailSection>
   );
 }

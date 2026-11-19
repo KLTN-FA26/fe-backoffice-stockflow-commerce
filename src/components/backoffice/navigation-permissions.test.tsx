@@ -120,7 +120,6 @@ describe("declared navigation permissions", () => {
   it.each([
     ["stock READ", [INVENTORY_OVERVIEW_PERMISSIONS.stockRead], true],
     ["reservation READ", [INVENTORY_OVERVIEW_PERMISSIONS.reservationRead], true],
-    ["alert READ alone", [INVENTORY_OVERVIEW_PERMISSIONS.alertRead], false],
   ] as const)("inventory overview menu with %s → visible: %s", async (_, permissions, visible) => {
     vi.spyOn(api, "get").mockResolvedValue({
       data: {
@@ -174,23 +173,6 @@ describe("declared navigation permissions", () => {
     const link = screen.queryByRole("link", { name: "Trả hàng về kệ" });
     expect(link !== null).toBe(visible);
     if (link) expect(link).toHaveAttribute("href", "/admin/put-backs");
-  });
-  it.each([
-    ["inventory-alerts:VIEW_PAGE", [INVENTORY_OVERVIEW_PERMISSIONS.alertViewPage], true],
-    ["inventory-alerts:READ alone", [INVENTORY_OVERVIEW_PERMISSIONS.alertRead], false],
-  ] as const)("menu Cảnh báo tồn kho với %s → hiện: %s", async (_, permissions, visible) => {
-    vi.spyOn(api, "get").mockResolvedValue({
-      data: {
-        roles: [],
-        permissions: [...permissions, IDENTITY_PERMISSIONS.rbacRead],
-        dataScope: "ALL",
-      },
-    });
-    mount();
-    expect(await screen.findByRole("link", { name: "Phân quyền" })).toBeInTheDocument();
-    const link = screen.queryByRole("link", { name: INVENTORY_LABELS.alertListTitle });
-    expect(link !== null).toBe(visible);
-    if (link) expect(link).toHaveAttribute("href", INVENTORY_ROUTES.alerts);
   });
   it.each([
     ["cycle-counts:VIEW_PAGE", [CYCLE_COUNT_PERMISSIONS.viewPage], true],
@@ -350,6 +332,24 @@ describe("declared navigation permissions", () => {
     mount();
     expect(await screen.findByRole("link", { name: "Chuyến xe" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Loại xe" })).not.toBeInTheDocument();
+  });
+  it("Đề xuất nhập hàng, Nhà cung cấp, Đơn đặt NCC, Xưởng in, Chuyển kho, Cảnh báo tồn kho đã ra khỏi menu, kể cả ở mock", async () => {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: { roles: [], permissions: [], dataScope: "ALL" },
+    });
+    mockMode.isMock = true;
+    mount();
+    expect(await screen.findByRole("link", { name: "Tổng quan" })).toBeInTheDocument();
+    for (const name of [
+      "Đề xuất nhập hàng",
+      "Nhà cung cấp",
+      "Đơn đặt NCC",
+      "Xưởng in",
+      "Chuyển kho liên kho",
+      "Cảnh báo tồn kho",
+    ])
+      expect(screen.queryByRole("link", { name })).not.toBeInTheDocument();
+    mockMode.isMock = false;
   });
   it("Hoá đơn NCC (module 04, đã ra khỏi phạm vi) không còn trên menu, kể cả ở mock", async () => {
     vi.spyOn(api, "get").mockResolvedValue({

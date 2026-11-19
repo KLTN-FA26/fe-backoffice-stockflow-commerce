@@ -17,6 +17,8 @@ export * from "./api";
 export * from "./api-steps";
 export * from "./queries";
 export * from "./mutations";
+export * from "./loading-sheet-api";
+export * from "./loading-sheet-mutations";
 export * from "./lifecycle";
 export * from "./errors";
 export * from "./lib/dims";

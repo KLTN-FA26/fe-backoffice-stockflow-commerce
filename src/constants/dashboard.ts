@@ -1,6 +1,3 @@
-import { INVENTORY_API } from "./inventory";
-import { INVENTORY_PERMISSIONS } from "./permissions";
-
 import type { OrderStatus } from "./statuses";
 
 // Wire contract: backend develop — mọi widget tổng quan đọc API thật có sẵn; không có API thì không
@@ -8,22 +5,16 @@ import type { OrderStatus } from "./statuses";
 export const DASHBOARD_API = {
   orders: "/orders",
   receipts: "/goods-receipts",
-  transfers: "/inventory/transfer-orders",
   pickTasks: "/fulfillment/tasks",
-  alerts: INVENTORY_API.alerts,
-  alertSummary: "/inventory/alerts/summary",
 } as const;
 
 export const DASHBOARD_QUERY_KEYS = {
   count: "dashboard-count",
-  alertSummary: "dashboard-alert-summary",
-  alerts: "dashboard-alerts",
 } as const;
 
 // Đếm bằng `totalElements` của một trang cỡ 1 (BE `Pages`: size tối thiểu 1).
 export const DASHBOARD_LIMITS = {
   countPageSize: 1,
-  alertRows: 8,
 } as const;
 
 // Trạng thái BE (giá trị enum) mỗi chỉ số đếm — không dùng nhãn Title Case của FE.
@@ -53,48 +44,17 @@ export const DASHBOARD_RECEIPT_PROCESSING_STATUSES = [
   "CONFIRMED",
   "IN_PUTAWAY",
 ] as const;
-// TransferStatus.java: hàng đã rời kho nguồn, kho đích chưa nhận đủ.
-export const DASHBOARD_TRANSFER_IN_TRANSIT_STATUSES = ["IN_TRANSIT", "PARTIALLY_RECEIVED"] as const;
 // PickStatus.java: task lấy hàng chưa xong. BE lọc `status` một giá trị mỗi lần → đếm từng trạng thái rồi cộng.
 export const DASHBOARD_PICK_OPEN_STATUSES = ["PENDING", "PICKING"] as const;
-// StockAlert.Status: cần người xử lý (chưa ACKNOWLEDGED / RESOLVED).
-export const DASHBOARD_ALERT_OPEN_STATUS = "OPEN";
-
-export const DASHBOARD_ALERT_KIND_LABELS: Record<string, string> = {
-  REORDER: "Đến điểm đặt hàng",
-  SAFETY: "Dưới tồn an toàn",
-  EXPIRING: "Sắp hết hạn",
-  EXPIRED: "Đã hết hạn",
-};
-
-export const DASHBOARD_ALERT_PERMISSION = INVENTORY_PERMISSIONS.alertRead;
-
 export const DASHBOARD_LABELS = {
   title: "Tổng quan",
   subtitle: "Theo dõi vận hành kho, đơn hàng và tồn kho.",
   ordersPending: "Đơn chờ xử lý",
   receiptsProcessing: "Phiếu nhận đang xử lý",
   picksOpen: "Task lấy hàng đang mở",
-  // Ngắn để vừa một dòng trong ô dải số liệu ở laptop (~150px)
-  transfersInTransit: "Chuyển kho trên đường",
-  alertsOpen: "Cảnh báo tồn kho",
   loading: "…",
   unavailable: "—",
   unavailableHint: "Không tải được",
   retry: "Thử lại",
   permissionsError: "Không tải được quyền truy cập nên chưa hiện được số liệu.",
-  alertsTitle: "Cảnh báo tồn kho",
-  alertsEmptyTitle: "Không có cảnh báo cần xử lý",
-  alertsEmptyDescription: "Tồn kho đang trong ngưỡng cấu hình.",
-  alertsLoadError: "Không tải được cảnh báo tồn kho.",
-  alertKind: "Loại",
-  alertSku: "SKU",
-  alertWarehouse: "Kho",
-  alertAllWarehouses: "Toàn hệ thống",
-  alertObserved: "Hiện có",
-  alertThreshold: "Ngưỡng",
-  alertLot: "Lô",
-  alertExpiry: "Hạn dùng",
-  alertOpenedAt: "Phát sinh",
-  alertsMore: "Chỉ hiện các cảnh báo mới nhất.",
 } as const;

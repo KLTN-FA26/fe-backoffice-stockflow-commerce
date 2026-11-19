@@ -197,6 +197,17 @@ describe("isReplaceableRemovedLine — thùng hư đã loại ở trạm kiểm 
   it("Picked (hoặc Put Back, thùng hư đã cất sang khu cách ly) + DAMAGED + replacementPending → được", () => {
     expect(isReplaceableRemovedLine(removed)).toBe(true);
     expect(isReplaceableRemovedLine({ ...removed, status: "Put Back" })).toBe(true);
+    // RTM-RTDCANCEL: thùng tốt của lô QLK huỷ trước khi bàn giao cũng được bù
+    expect(isReplaceableRemovedLine({ ...removed, removalReason: "SHIPMENT_CANCELLED" })).toBe(
+      true,
+    );
+    expect(
+      isReplaceableRemovedLine({
+        ...removed,
+        removalReason: "SHIPMENT_CANCELLED",
+        replacementPending: false,
+      }),
+    ).toBe(false);
   });
 
   it.each([

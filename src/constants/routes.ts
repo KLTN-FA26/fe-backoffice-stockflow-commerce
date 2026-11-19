@@ -33,29 +33,6 @@ export const ADMIN_ROUTES = {
     byCustomer: (customerId: string) =>
       `${ADMIN_BASE}/quotes?customerId=${encodeURIComponent(customerId)}`,
   },
-  sampleRequests: {
-    create: `${ADMIN_BASE}/sample-requests/create`,
-    createForCustomer: (customerId: string) =>
-      `${ADMIN_BASE}/sample-requests/create?customerId=${encodeURIComponent(customerId)}`,
-    /** Làm mẫu cho một dòng báo giá (BE kiểm tra quote cùng khách + thiết kế + phôi). */
-    createFromQuoteLine: (q: {
-      quoteId: string;
-      customerId: string;
-      blankSku: string;
-      designSnapshotId: string;
-    }) => `${ADMIN_BASE}/sample-requests/create?${new URLSearchParams(q).toString()}`,
-    detail: (id: string) => `${ADMIN_BASE}/sample-requests/${id}`,
-    list: `${ADMIN_BASE}/sample-requests`,
-    byCustomer: (customerId: string) =>
-      `${ADMIN_BASE}/sample-requests?customerId=${encodeURIComponent(customerId)}`,
-  },
-  productionOrders: {
-    detail: (id: string) => `${ADMIN_BASE}/production-orders/${id}`,
-    list: `${ADMIN_BASE}/production-orders`,
-    bySalesOrder: (orderId: string) =>
-      `${ADMIN_BASE}/production-orders?salesOrderId=${encodeURIComponent(orderId)}`,
-  },
-  workshop: `${ADMIN_BASE}/workshop`,
   permissions: `${ADMIN_BASE}/permissions`,
   /** Quản lý tài khoản nhân viên — BE `UserManagementController` (PR #72, SCRUM-458). */
   users: {
@@ -84,6 +61,8 @@ export const ADMIN_ROUTES = {
     // Đơn công nợ vượt hạn mức chờ duyệt (SCRUM-427) — segment tĩnh, ưu tiên hơn [id]
     creditHolds: `${ADMIN_BASE}/orders/credit-holds`,
     cancellationRequests: `${ADMIN_BASE}/orders/cancellation-requests`,
+    /** Hồ sơ giao thất bại chờ Sale quyết (WF-05 GH-1, BE `GET /orders/delivery-failures`). */
+    deliveryFailures: `${ADMIN_BASE}/orders/delivery-failures`,
     detail: (id: string) => `${ADMIN_BASE}/orders/${id}`,
     /** Khối "Hợp đồng" trong chi tiết đơn (WF-02 pha B). */
     contract: (id: string) => `${ADMIN_BASE}/orders/${id}#contract`,
@@ -92,8 +71,6 @@ export const ADMIN_ROUTES = {
   packing: {
     detail: (id: string) => `${ADMIN_BASE}/packing/${id}`,
     list: `${ADMIN_BASE}/packing`,
-    /** Trạm đóng gói của một lệnh chuyển kho nguyên chuyến (SCRUM-287 PR F9, BE `TransferPackController`). */
-    transfer: (transferId: string) => `${ADMIN_BASE}/packing/transfers/${transferId}`,
   },
   picking: {
     detail: (id: string) => `${ADMIN_BASE}/picking/${id}`,
@@ -115,12 +92,6 @@ export const ADMIN_ROUTES = {
   taxonomy: {
     list: `${ADMIN_BASE}/taxonomy`,
   },
-  transfers: {
-    create: `${ADMIN_BASE}/transfers/create`,
-    detail: (id: string) => `${ADMIN_BASE}/transfers/${id}`,
-    edit: (id: string) => `${ADMIN_BASE}/transfers/${id}/edit`,
-    list: `${ADMIN_BASE}/transfers`,
-  },
   /** Lô giao chờ xuất / đã giao (BE `ShipmentController`, PR #137). */
   shipments: {
     list: `${ADMIN_BASE}/shipments`,
@@ -136,6 +107,8 @@ export const ADMIN_ROUTES = {
   },
   /** Danh mục hãng vận chuyển (BE `CarrierController`, docs 09 §4.1). */
   carriers: `${ADMIN_BASE}/carriers`,
+  /** Nhật ký sự kiện webhook của hãng và danh sách lỗi (BE `CarrierEventController`, docs 09 §4.5). */
+  carrierEvents: `${ADMIN_BASE}/carrier-events`,
   /** Danh mục kho — BE `WarehouseController` (resource `warehouse-warehouses`, docs 06 §4.1 bước 1). */
   warehouses: {
     // Khai báo kho mới là modal trên trang này (không có route riêng)
@@ -166,9 +139,6 @@ export const ADMIN_ROUTES = {
   loadPlans: {
     list: `${ADMIN_BASE}/load-plans`,
     create: `${ADMIN_BASE}/load-plans/create`,
-    /** "Lập kế hoạch xe" từ lệnh chuyển kho đã đóng gói (SCRUM-287 PR F9): nguồn TRANSFER, kho nguồn và lệnh chọn sẵn. */
-    createFromTransfer: (transferId: string, warehouseId: string) =>
-      `${ADMIN_BASE}/load-plans/create?sourceType=TRANSFER&transferOrderId=${encodeURIComponent(transferId)}&warehouseId=${encodeURIComponent(warehouseId)}`,
     detail: (id: string) => `${ADMIN_BASE}/load-plans/${id}`,
     /** Phiếu xếp hàng in được của một xe (SCRUM-287 PR F6). */
     print: (id: string, seq: number) => `${ADMIN_BASE}/load-plans/${id}/vehicles/${seq}/print`,
@@ -182,10 +152,6 @@ export const PORTAL_ROUTES = {
   home: PORTAL_BASE,
   /** Trang kích hoạt từ email mời — BE `PORTAL_ACTIVATION_URL`, token nằm ở `#token=`. */
   activate: `${PORTAL_BASE}/activate`,
-  samples: {
-    list: `${PORTAL_BASE}/samples`,
-    detail: (id: string) => `${PORTAL_BASE}/samples/${id}`,
-  },
   orders: {
     list: `${PORTAL_BASE}/orders`,
     detail: (id: string) => `${PORTAL_BASE}/orders/${id}`,

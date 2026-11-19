@@ -2,14 +2,13 @@
 
 import type { z } from "zod";
 
-import type { LoadPlanSelectionMode, LoadPlanSourceType, UnloadReasonCode } from "@/constants";
+import type { LoadPlanSelectionMode, UnloadReasonCode } from "@/constants";
 import type {
   beCandidateShipmentSchema,
   beParcelSchema,
   bePlanDetailSchema,
   bePlanPendingUnloadSchema,
   bePlanRowSchema,
-  beTransferInPlanSchema,
   beVehicleSummarySchema,
   beVehicleTypeOptionSchema,
 } from "./plan-schemas";
@@ -20,22 +19,18 @@ export type CandidateShipment = z.infer<typeof beCandidateShipmentSchema>;
 export type PlanRow = z.infer<typeof bePlanRowSchema>;
 export type PlanDetail = z.infer<typeof bePlanDetailSchema>;
 export type PlanPendingUnload = z.infer<typeof bePlanPendingUnloadSchema>;
-export type TransferInPlan = z.infer<typeof beTransferInPlanSchema>;
 export type PlanVehicle = z.infer<typeof beVehicleSummarySchema>;
 export type VehicleTypeOption = z.infer<typeof beVehicleTypeOptionSchema>;
 export type Reconciliation = z.infer<typeof beReconciliationSchema>;
 export type EstimateComparison = NonNullable<Reconciliation["vsEstimate"]>;
 
-/**
- * Đầu vào của kế hoạch: lô (nguyên lô) HOẶC đúng một lệnh chuyển kho (nguồn TRANSFER, BE PR #164), loại xe, chế độ —
- * cùng dạng khi tạo và khi đổi. Nguồn ORDER (mặc định) nhận `shipmentIds`; TRANSFER nhận `transferOrderIds`.
- */
+/** Đầu vào của kế hoạch: lô (nguyên lô), loại xe, chế độ — cùng dạng khi tạo và khi đổi. */
 export interface PlanInputs {
-  sourceType?: LoadPlanSourceType;
   shipmentIds: string[];
-  transferOrderIds?: string[];
   vehicleTypeIds: string[];
   selectionMode: LoadPlanSelectionMode;
+  /** Dòng đơn tick là hàng chèn — chỉ với `PRIORITY_FILL` (RTM-LPGROUP); vắng = BE giữ lựa chọn cũ. */
+  fillOrderLineIds?: string[];
 }
 
 export interface CreatePlanInput extends PlanInputs {
@@ -61,6 +56,11 @@ export interface RecalculateVehicleInput extends VersionedInput {
   seq: number;
   /** Kiện lấy từ khay chưa xếp (kiện của bộ kéo theo cả bộ). */
   addPackageIds?: string[];
+}
+
+/** Gỡ MỘT lô giao khỏi kế hoạch PLANNED (docs 09 §4.2 bước 9). */
+export interface RemoveShipmentInput extends VersionedInput {
+  shipmentId: string;
 }
 
 /** Huỷ có kiểm soát cả kế hoạch sau khi đã bắt đầu xếp hàng (SCRUM-474): mã lý do + ghi chú. */

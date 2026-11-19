@@ -16,6 +16,36 @@ export const DETAIL_CARD_CLASS =
 /** Lưới hai cột của trang chi tiết: các mục ở trái, thẻ trạng thái / hành động 320px ở phải. */
 export const DETAIL_GRID_CLASS = "grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px]";
 
+const DETAIL_ACTION_BASE =
+  "h-(--action-h) w-full rounded-(--action-radius) border px-3 text-[0.8125rem] font-medium";
+
+/**
+ * Nút xếp dọc, rộng hết thẻ trạng thái / hành động ở cột phải (cùng thông số thẻ hành động trang chi tiết sản phẩm).
+ * `primary` dùng với variant `default` (variant `outline` có `dark:bg-input/30` đè nền brand ở dark mode); `danger` dùng
+ * với variant `ghost` để giữ chữ đỏ khi hover.
+ */
+export const DETAIL_ACTION_CLASS = {
+  outline: `border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted ${DETAIL_ACTION_BASE}`,
+  primary: `border-border-default bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse ${DETAIL_ACTION_BASE}`,
+  danger: `border-danger text-danger hover:text-danger hover:bg-danger/10 dark:hover:bg-danger/10 bg-transparent ${DETAIL_ACTION_BASE}`,
+} as const;
+
+/** Tiêu đề thẻ ở cột phải (không thu gọn), cùng cỡ tiêu đề mục `DetailSection`. */
+export function DetailCardTitle({
+  icon: Icon,
+  children,
+}: {
+  icon?: LucideIcon;
+  children: ReactNode;
+}) {
+  return (
+    <h2 className="text-ink-primary mb-3 flex items-center gap-2 text-[0.9375rem] font-semibold">
+      {Icon && <Icon className="text-accent size-3.5" />}
+      {children}
+    </h2>
+  );
+}
+
 /**
  * Nút tiêu đề của mục: chữ như tiêu đề, không nền ở mọi trạng thái. Biến thể `ghost` tô `bg-muted` khi hover và khi
  * `aria-expanded` (dành cho nút mở menu) — ở đây mục mở là trạng thái thường, nên bỏ nền đó; vòng focus của nút giữ nguyên.

@@ -102,7 +102,7 @@ export const recountCycleCountInput = z.object({
 });
 
 // PlanCycleCountRequest (docs 20 §4.2 a1, BR-12): the warehouse, one scope - zones, shelves by their own code, full
-// bin codes and SKUs, at least one of them - blind or not, who counts if already known, the day (today when absent) and a
+// bin codes and SKUs (sent as the request's `scope` object), at least one of them - blind or not, who counts if already known, the day (today when absent) and a
 // note: every field docs 20 §3 lists for a sheet planned by hand.
 export const planCycleCountInput = z
   .object({
@@ -131,7 +131,12 @@ export const planCycleCountInput = z
         input.skus.length >
       0,
     { path: ["zoneIds"], message: CYCLE_COUNT_CREATE_LABELS.anyScope },
-  );
+  )
+  // The BE's PlanCycleCountRequest (SCRUM-162) takes the four lists inside one `scope` object, `scope` being required.
+  .transform(({ zoneIds, shelfCodes, locationCodes, skus, ...request }) => ({
+    ...request,
+    scope: { zoneIds, shelfCodes, locationCodes, skus },
+  }));
 
 export const plannedCycleCountDto = z.object({
   count: cycleCountDto,

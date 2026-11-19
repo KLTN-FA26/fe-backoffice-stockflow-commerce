@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
@@ -41,6 +41,12 @@ export function contractFieldPath(field: string, values: ContractFormValues): st
 
 export const NEEDS_CREDIT_HINT = " Đổi đợt Sau giao sang Trước giao, hoặc cấp hạn mức cho khách.";
 
+/** Gợi ý tính theo lịch giao ĐÃ LƯU (BE đọc hợp đồng đang lưu) — lịch giao đang sửa thì lưu trước. */
+export const SUGGEST_NEEDS_SAVED_SCHEDULE =
+  "Lịch giao đang sửa chưa lưu. Lưu hợp đồng trước rồi bấm Gợi ý: số tiền gợi ý tính theo lịch giao đã lưu.";
+
+const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+
 export function useContractEditor({
   contract,
   orderLineIds,
@@ -58,6 +64,17 @@ export function useContractEditor({
   const edit = useEditSalesContract();
   const [formError, setFormError] = useState<string | null>(null);
   const [suggesting, setSuggesting] = useState(false);
+  /** Hỏi lại trước khi gợi ý thay lịch thanh toán Sale đã sửa (WF-02 audit, mục 7). */
+  const [confirmingSuggest, setConfirmingSuggest] = useState(false);
+  // Mốc so sánh: lịch giao / lịch thanh toán như đã lưu, và lịch thanh toán lần gợi ý gần nhất. Luôn giữ BẢN SAO:
+  // `getValues` trả về chính mảng form đang giữ, và sửa một ô đổi mảng đó tại chỗ — giữ tham chiếu thì mốc so sánh đổi
+  // theo, lần "Gợi ý" sau không còn thấy Sale đã sửa và ghi đè không hỏi.
+  const [initial] = useState(() => ({
+    schedule: structuredClone(form.getValues("deliverySchedule")),
+    plan: structuredClone(form.getValues("paymentPlan")),
+  }));
+  const savedSchedule = useRef(initial.schedule);
+  const untouchedPlan = useRef(initial.plan);
 
   const onError = (error: unknown) => {
     const values = form.getValues();
@@ -79,8 +96,22 @@ export function useContractEditor({
     );
   });
 
-  /** Gợi ý số tiền theo đợt giao (`GET …/payment-plan-suggestion`) — điền bảng, Sale vẫn sửa được. */
-  const suggest = async () => {
+  /**
+   * Gợi ý số tiền theo đợt giao (`GET …/payment-plan-suggestion`) — điền bảng, Sale vẫn sửa được. BE tính theo lịch
+   * giao đã lưu, nên lịch giao đang sửa phải lưu trước; lịch thanh toán Sale đã sửa thì hỏi trước khi thay
+   * (`confirmed` = Sale đã đồng ý thay).
+   */
+  const suggest = async (confirmed = false) => {
+    if (!same(form.getValues("deliverySchedule"), savedSchedule.current)) {
+      setFormError(SUGGEST_NEEDS_SAVED_SCHEDULE);
+      return;
+    }
+    if (!confirmed && !same(form.getValues("paymentPlan"), untouchedPlan.current)) {
+      setConfirmingSuggest(true);
+      return;
+    }
+    setConfirmingSuggest(false);
+    setFormError(null);
     setSuggesting(true);
     try {
       const suggestion = await getPaymentPlanSuggestion(contract.orderId);
@@ -93,6 +124,7 @@ export function useContractEditor({
         })),
         { shouldDirty: true, shouldValidate: true },
       );
+      untouchedPlan.current = structuredClone(form.getValues("paymentPlan"));
     } catch (error) {
       setFormError(contractErrorMessage(error));
     } finally {
@@ -100,5 +132,14 @@ export function useContractEditor({
     }
   };
 
-  return { form, submit, formError, pending: edit.isPending, suggest, suggesting };
+  return {
+    form,
+    submit,
+    formError,
+    pending: edit.isPending,
+    suggest,
+    suggesting,
+    confirmingSuggest,
+    cancelSuggest: () => setConfirmingSuggest(false),
+  };
 }

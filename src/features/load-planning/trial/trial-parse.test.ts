@@ -44,11 +44,20 @@ describe("parseTrialRows — ánh xạ cột như parsers.py", () => {
         widthMm: 720,
         heightMm: 1310,
         quantity: 10,
+        totalWeightKg: 1,
         rotatable: true,
+        fill: false,
         sourceRow: 4,
       },
     ]);
-    expect(summary).toEqual({ rows: 1, groups: 1, totalPieces: 10, unitLabel: "xentimét" });
+    expect(summary).toEqual({
+      rows: 1,
+      groups: 1,
+      totalPieces: 10,
+      totalWeightKg: 1,
+      fillRows: 0,
+      unitLabel: "xentimét",
+    });
   });
 
   it("tìm cột theo TÊN, không theo vị trí: cột đảo chỗ, thừa cột, tiêu đề có xuống dòng / hoa thường", () => {
@@ -212,6 +221,89 @@ describe("parseTrialRows — giá trị ô", () => {
       ),
     );
     expect(summary).toMatchObject({ rows: 4, groups: 2, totalPieces: 11 });
+  });
+});
+
+describe("parseTrialRows — khối lượng và hàng chèn (WF4-TRIAL-EST)", () => {
+  const W_HEADER: TrialRow = [
+    "Description",
+    "Pieces",
+    "Length",
+    "Width",
+    "Height",
+    "Total weight",
+    "Hàng chèn",
+  ];
+  const weighed = (unit: string | null, ...rows: TrialRow[]) =>
+    parseTrialRows([W_HEADER, [null, null, "cm", null, null, unit, "Y/N"], ...rows]);
+
+  it("Total weight là tổng cả dòng, đơn vị theo ô dưới cột: kg / g / tấn / lb; trống = kg", () => {
+    const kg = (unit: string | null, value: number) =>
+      weighed(unit, ["a", 2, 10, 10, 10, value]).lines[0]?.totalWeightKg;
+    expect(kg("kilograms", 45)).toBe(45);
+    expect(kg("kg", 45)).toBe(45);
+    expect(kg(null, 45)).toBe(45);
+    expect(kg("grams", 1500)).toBe(1.5);
+    expect(kg("tấn", 1.2)).toBe(1200);
+    expect(kg("tonnes", 2)).toBe(2000);
+    expect(kg("lbs", 10)).toBe(4.536);
+  });
+
+  it("làm tròn 3 chữ số như BE; số kiểu chữ / phẩy thập phân đọc như kích thước", () => {
+    const r = weighed("kg", ["a", 3, 10, 10, 10, "12,3456 kg"]);
+    expect(r.lines[0]?.totalWeightKg).toBe(12.346);
+    expect(r.summary.totalWeightKg).toBe(12.346);
+  });
+
+  it("thiếu / 0 / âm / chữ: dòng VẪN được đọc, ghi vào missingWeight (màn khoá nút chạy thử)", () => {
+    const r = weighed(
+      "kg",
+      ["ok", 1, 10, 10, 10, 5],
+      ["trống", 1, 10, 10, 10, null],
+      ["không", 1, 10, 10, 10, 0],
+      ["âm", 1, 10, 10, 10, -2],
+      ["chữ", 1, 10, 10, 10, "n/a"],
+      ["tí", 1, 10, 10, 10, 0.0001],
+    );
+    expect(r.lines).toHaveLength(6);
+    expect(r.lines.slice(1).map((l) => l.totalWeightKg)).toEqual([null, null, null, null, null]);
+    expect(r.missingWeight).toEqual([4, 5, 6, 7, 8]);
+    expect(r.summary.totalWeightKg).toBe(5);
+  });
+
+  it("file không có cột Total weight: mọi dòng thiếu khối lượng", () => {
+    const r = parseTrialRows([
+      ["Pieces", "Length", "Width", "Height"],
+      [2, 10, 10, 10],
+    ]);
+    expect(r.missingWeight).toEqual([2]);
+  });
+
+  it("cột Hàng chèn tuỳ chọn: Y / có → hàng chèn; trống / N → hàng chính; file cũ không có cột → hàng chính", () => {
+    const r = weighed(
+      "kg",
+      ["a", 1, 10, 10, 10, 1, "Y"],
+      ["b", 1, 10, 10, 10, 1, "có"],
+      ["c", 1, 10, 10, 10, 1, null],
+      ["d", 1, 10, 10, 10, 1, "N"],
+    );
+    expect(r.lines.map((l) => l.fill)).toEqual([true, true, false, false]);
+    expect(r.summary.fillRows).toBe(2);
+    expect(parseTrialRows(table(SAMPLE)).lines[0]?.fill).toBe(false);
+  });
+
+  it("tiêu đề không phân biệt hoa thường và dấu: 'HANG CHEN', 'Filler', 'Tổng khối lượng'", () => {
+    const r = parseTrialRows([
+      ["Pieces", "Length", "Width", "Height", "Tổng khối lượng (kg)", "HANG CHEN"],
+      [null, "cm", null, null, "kg", null],
+      [1, 10, 10, 10, 7, "x"],
+    ]);
+    expect(r.lines[0]).toMatchObject({ totalWeightKg: 7, fill: true });
+    const f = parseTrialRows([
+      ["Pieces", "Length", "Width", "Height", "Total weight", "Filler"],
+      [1, 10, 10, 10, 7, "yes"],
+    ]);
+    expect(f.lines[0]?.fill).toBe(true);
   });
 });
 

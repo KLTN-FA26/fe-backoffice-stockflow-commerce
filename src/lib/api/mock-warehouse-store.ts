@@ -216,7 +216,7 @@ function seed(): MockWarehouseStore {
     areas: [
       seedArea("RCV01", "RECEIVING", "Khu nhận hàng", fp(40, 2, 15, 8)),
       seedArea("QC01", "QUARANTINE", "Khu cách ly QC", fp(40, 12, 8, 6)),
-      seedArea("PACK01", "PACKING", "Khu đóng gói", fp(40, 20, 10, 6)),
+      seedArea("PACK01", "DISPATCH", "Khu đóng gói", fp(40, 20, 10, 6)),
       seedArea("DSP01", "DISPATCH", "Khu chờ giao", fp(40, 28, 10, 6)),
       seedArea("OFFICE", "NON_STORAGE", "Văn phòng kho", fp(2, 30, 10, 8)),
     ],

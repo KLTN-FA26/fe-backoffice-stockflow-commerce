@@ -45,5 +45,23 @@ export function bookingViewOf(input: {
   return isError ? { kind: "error" } : { kind: "loading" };
 }
 
+type WarehouseEntry = { warehouseId: string; code: string; name: string };
+
+/**
+ * Kho xuất in trên phiếu: tên kho do chuyến trả về (người xem có quyền đọc lô); chưa có thì tra danh mục kho theo id kế
+ * hoạch (danh mục có thể 403 với tài khoản không có quyền kho). Không tra được thì null — phiếu ghi "—", không bao giờ in
+ * id thô.
+ */
+export function warehouseLabelOf(
+  booking: LoadBooking | null,
+  directory: readonly WarehouseEntry[] | undefined,
+  warehouseId: string,
+): string | null {
+  if (booking?.warehouseName) return booking.warehouseName;
+  const entry = directory?.find((w) => w.warehouseId === warehouseId);
+  if (!entry) return null;
+  return entry.code ? `${entry.code} · ${entry.name}` : entry.name;
+}
+
 /** Nút in chỉ mở khi không còn gì đang tải: tờ in ra phải có đủ thông tin đặt xe (hoặc lý do vắng). */
 export const bookingSettled = (view: BookingView): boolean => view.kind !== "loading";

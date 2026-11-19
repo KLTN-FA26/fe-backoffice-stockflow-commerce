@@ -21,6 +21,13 @@ describe("partialShipmentControl — Giao một phần (sales-order-partial-ship
     statusBeforeHold: OrderReadStatus | null = null,
   ) => ({ status, statusBeforeHold, allowPartialShipment, printLinesReady });
 
+  it("WF-02 audit: đơn Chờ ký hợp đồng / Chờ hàng chưa khoá (BE decidePartialShipment còn mở)", () => {
+    for (const status of ["Pending Contract", "Awaiting Stock"] as const)
+      expect(
+        partialShipmentControl(order(status, false), checkerFor("SALES_STAFF"))?.lock,
+      ).toBeNull();
+  });
+
   it("BE không trả cờ (dòng danh sách) → null, không đoán", () => {
     expect(partialShipmentControl(order("Picking", null), checkerFor("SALES_STAFF"))).toBeNull();
   });

@@ -5,7 +5,7 @@ import { cartonActions } from "@/features/fulfillment/carton-check-lifecycle";
 
 import { CartonRow } from "./CartonRow";
 
-import type { CartonRowHandlers } from "./CartonRow";
+import type { CartonRowHandlers } from "./CartonRowActions";
 import type { CartonCheckAccess } from "@/features/fulfillment/carton-check-lifecycle";
 import type { Carton, CartonCheckSession } from "@/features/fulfillment/carton-check-types";
 

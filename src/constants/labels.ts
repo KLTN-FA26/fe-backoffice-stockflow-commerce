@@ -11,7 +11,6 @@ import { PRODUCT_UI_LABELS } from "./labels-product";
 import { RECEIPT_CARTON_ERROR_MESSAGES } from "./labels-receipt-carton";
 import { SHIPPING_TOAST_MESSAGES, SHIPPING_UI_LABELS } from "./labels-shipping";
 import { TAXONOMY_TOAST_MESSAGES, TAXONOMY_UI_LABELS } from "./labels-taxonomy";
-import { TRANSFER_TOAST_MESSAGES, TRANSFER_UI_LABELS } from "./labels-transfer";
 import { VEHICLE_TYPE_TOAST_MESSAGES, VEHICLE_TYPE_UI_LABELS } from "./labels-vehicle-type";
 import {
   WAREHOUSE_CAPACITY_TOAST_MESSAGES,
@@ -75,12 +74,12 @@ export const UI_LABELS = {
     pageTitle: "Đơn hàng",
     cancelFailedTitle: "Không huỷ được đơn",
     releaseRefusedTitle: "Không release được đơn",
-    creditFailedTitle: "Không xử lý được đơn vượt hạn mức",
-    creditHoldsTitle: "Đơn vượt hạn mức công nợ",
+    creditFailedTitle: "Không xử lý được đơn chờ duyệt công nợ",
+    creditHoldsTitle: "Đơn chờ duyệt công nợ",
     // Nhãn nút thao tác — dùng chung lifecycle (ORDER_ACTIONS) và component
     actions: {
       release: "Release đơn",
-      creditApprove: "Duyệt vượt hạn mức",
+      creditApprove: "Duyệt công nợ",
       creditReject: "Từ chối",
       cancel: "Huỷ đơn",
     },
@@ -151,7 +150,6 @@ export const UI_LABELS = {
     },
     dateRangeInvalid: "Ngày bắt đầu sau ngày kết thúc — không có phiếu nào khớp.",
   },
-  transfer: TRANSFER_UI_LABELS,
   shipping: SHIPPING_UI_LABELS,
   vehicleType: VEHICLE_TYPE_UI_LABELS,
   warehouseCapacity: WAREHOUSE_CAPACITY_UI_LABELS,
@@ -419,14 +417,13 @@ export const TOAST_MESSAGES = {
   order: {
     cancelled: "Đã huỷ đơn hàng",
     released: "Đã release đơn cho kho",
-    creditApproved: "Đã duyệt vượt hạn mức công nợ",
-    creditRejected: "Đã từ chối vượt hạn mức công nợ",
+    creditApproved: "Đã duyệt công nợ",
+    creditRejected: "Đã từ chối duyệt công nợ",
   },
   receipt: {
     confirmed: "Đã xác nhận nhập kho",
     cancelled: "Đã huỷ phiếu nhận",
   },
-  transfer: TRANSFER_TOAST_MESSAGES,
   shipping: SHIPPING_TOAST_MESSAGES,
   vehicleType: VEHICLE_TYPE_TOAST_MESSAGES,
   warehouseCapacity: WAREHOUSE_CAPACITY_TOAST_MESSAGES,

@@ -4,6 +4,7 @@
  * `WaybillImportController`, `CarrierController`, `DispatchController`).
  */
 
+import { CARRIER_CONFIG_LABELS } from "./labels-carrier-config";
 import { SHIPPING_LIMITS } from "./numbers";
 
 export const SHIPPING_WAYBILL_LABELS = {
@@ -62,9 +63,13 @@ export const SHIPPING_WAYBILL_LABELS = {
     template: "Tải file mẫu",
     templateFileName: "waybill-import-template.csv",
     templateFailed: "Không tải được file mẫu — thử lại sau.",
-    fileLabel: "Chọn file (CSV theo file mẫu)",
-    fileHint: `Tối đa ${SHIPPING_LIMITS.waybillImportMaxRows} dòng dữ liệu, dung lượng không quá 1 MB. Cột theo thứ tự: mã chuyến, mã vận đơn, biển số, tên tài xế, điện thoại tài xế.`,
+    warehouseLabel: "Kho nhập mã vận đơn",
+    warehousePlaceholder: "Chọn kho",
+    warehouseRequired: "Chọn kho trước, rồi chọn file — chỉ các chuyến của kho này được nhập.",
+    fileLabel: "Chọn file (CSV hoặc Excel .xlsx theo file mẫu)",
+    fileHint: `File CSV hoặc Excel (.xlsx), tối đa ${SHIPPING_LIMITS.waybillImportMaxRows} dòng dữ liệu, dung lượng không quá 1 MB. Cột theo thứ tự: mã chuyến, mã vận đơn, biển số, tên tài xế, điện thoại tài xế; hệ thống đọc sheet đầu tiên, dòng đầu là tiêu đề.`,
     fileTooLarge: "File quá lớn (tối đa 1 MB).",
+    fileWrongType: "Chỉ nhận file CSV hoặc Excel (.xlsx) theo file mẫu.",
     preview: "Xem trước",
     previewing: "Đang kiểm file…",
     previewTitle: "Kết quả kiểm file",
@@ -91,7 +96,7 @@ export const SHIPPING_WAYBILL_LABELS = {
       INVALID_WAYBILL: "Mã vận đơn không hợp lệ (1–64 ký tự, không khoảng trắng).",
       INVALID_VEHICLE_DETAILS: "Biển số hoặc thông tin tài xế không hợp lệ.",
       LOAD_NOT_FOUND: "Không có chuyến nào mang mã này.",
-      LOAD_OUT_OF_SCOPE: "Chuyến thuộc kho bạn không phụ trách.",
+      LOAD_OUT_OF_SCOPE: "Chuyến không thuộc kho đã chọn (hoặc kho bạn không phụ trách).",
       LOAD_REPEATED: "Mã chuyến này đã có ở dòng khác trong file.",
       LOAD_NOT_BOOKED: "Chuyến chưa ghi nhận đặt xe (chưa có hãng).",
       LOAD_CANCELLED: "Chuyến đã huỷ.",
@@ -170,6 +175,7 @@ export const SHIPPING_WAYBILL_LABELS = {
         REQUESTED: "Đang tạo đơn ở hãng",
         BOOKED: "Đã tạo đơn ở hãng",
         FAILED: "Hãng từ chối đơn",
+        UNCONFIRMED: "Chưa rõ hãng đã tạo đơn — kiểm trên cổng hãng rồi huỷ đặt",
         CANCELLED: "Đã huỷ ở hãng",
         CANCEL_FAILED: "Hãng không huỷ được đơn — xử lý trực tiếp với hãng",
         UNKNOWN: "Không rõ",
@@ -221,7 +227,7 @@ export const SHIPPING_WAYBILL_LABELS = {
       WEBHOOK_LOAD:
         "Hãng đẩy mã vận đơn, biển số, tài xế và kết quả giao về hệ thống qua webhook kèm mã chuyến, ký bằng khoá bí mật.",
       API_BOOKING:
-        "Hệ thống tạo / huỷ đơn ở hãng. Cấu hình kết nối (khoá API, điểm lấy hàng, mã dịch vụ theo loại xe) chưa chỉnh được ở màn này.",
+        "Hệ thống tạo và huỷ đơn đặt xe ở hãng qua API; hãng đẩy trạng thái đơn và từng điểm giao về qua webhook kèm thông tin xác thực trong header.",
     },
     form: {
       createTitle: "Thêm hãng vận chuyển",
@@ -238,12 +244,12 @@ export const SHIPPING_WAYBILL_LABELS = {
       webhookSecretNew: `Bắt buộc với webhook theo chuyến (${SHIPPING_LIMITS.webhookSecretMin}–${SHIPPING_LIMITS.webhookSecretMax} ký tự, không có khoảng trắng đầu / cuối). Khoá không hiển thị lại sau khi lưu.`,
       webhookSecretSaved:
         "Đã lưu khoá — để trống để giữ khoá hiện tại, hoặc nhập khoá mới để thay.",
-      apiBookingLocked:
-        "Hãng tích hợp API đặt xe: kiểu kết nối và cấu hình API giữ nguyên, chỉ sửa được thông tin chung.",
       create: "Thêm hãng",
       save: "Lưu thay đổi",
       stale: "Hãng vừa được cập nhật ở nơi khác — đã tải lại danh mục, kiểm tra rồi lưu lại.",
     },
+    /** Cấu hình hãng tích hợp API đặt xe (khoá API, mã dịch vụ, điểm lấy hàng, lý do thất bại). */
+    config: CARRIER_CONFIG_LABELS,
   },
 } as const;
 

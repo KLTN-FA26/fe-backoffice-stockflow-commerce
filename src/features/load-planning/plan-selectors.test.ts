@@ -4,17 +4,14 @@ import { LOAD_PLAN_STATUSES } from "@/constants";
 
 import { LAYOUT_PICKUP_KIT } from "./__fixtures__/layouts";
 import {
+  candidateFixture,
   planFixture,
   planWithUnplaced,
-  transferCandidateFixture,
-  transferPlanFixture,
   unplacedParcel,
 } from "./__fixtures__/plans";
 import { buildItemTable } from "./lib/item-rows";
 import {
-  candidateKey,
   isFinalLoadPlan,
-  isTransferPlan,
   layoutsForItemTable,
   loadPlanStatusTone,
   pickedOnTray,
@@ -23,6 +20,8 @@ import {
   unplacedLinesOf,
   unplacedParcels,
   vehiclesNeedingRecalculation,
+  fillLineOptions,
+  fillLinesToSend,
 } from "./plan-selectors";
 
 describe("status helpers", () => {
@@ -108,31 +107,33 @@ describe("pickedOnTray", () => {
   });
 });
 
-describe("TRANSFER source (BE PR #164)", () => {
-  it("isTransferPlan: by sourceType or by the transfer order; an order plan is not", () => {
-    expect(isTransferPlan(transferPlanFixture())).toBe(true);
-    expect(isTransferPlan({ sourceType: "TRANSFER", transferOrder: undefined })).toBe(true);
-    expect(
-      isTransferPlan({ sourceType: undefined, transferOrder: transferPlanFixture().transferOrder }),
-    ).toBe(true);
-    expect(isTransferPlan(planFixture())).toBe(false);
-    expect(isTransferPlan({ sourceType: "ORDER" })).toBe(false);
+describe("fillLineOptions / fillLinesToSend — hàng chèn theo dòng đơn (RTM-LPGROUP)", () => {
+  const candidate = (shipmentId: string, code: string, lines: (string | null)[]) => ({
+    shipmentId,
+    code,
+    packages: lines.map((line, i) => ({
+      ...candidateFixture().packages[0],
+      packageId: `${shipmentId}-${i}`,
+      orderLineId: line,
+      partName: `SKU-${line}`,
+    })),
   });
 
-  it("candidateKey: the shipment id for an order candidate, the transfer order id for a transfer one", () => {
-    expect(candidateKey({ shipmentId: "s-1" })).toBe("s-1");
-    expect(candidateKey(transferCandidateFixture())).toBe(
-      transferCandidateFixture().transferOrderId,
+  it("lists each order line of the chosen shipments once, with its parcel count; unknown lines are skipped", () => {
+    const options = fillLineOptions(
+      [candidate("s1", "S1", ["A", "A", "B", null]), candidate("s2", "S2", ["C"])],
+      new Set(["s1"]),
     );
-    expect(candidateKey({})).toBe("");
+    expect(options).toEqual([
+      { orderLineId: "A", shipmentCode: "S1", sku: "SKU-A", packages: 2 },
+      { orderLineId: "B", shipmentCode: "S1", sku: "SKU-B", packages: 1 },
+    ]);
   });
 
-  it("totalsOf counts a selected transfer candidate through its transfer order id", () => {
-    const candidate = transferCandidateFixture({ packageCount: 5, packagesInOtherPlans: 1 });
-    expect(totalsOf([candidate], new Set([candidateKey(candidate)]))).toEqual({
-      shipments: 1,
-      packages: 4,
-    });
-    expect(totalsOf([candidate], new Set())).toEqual({ shipments: 0, packages: 0 });
+  it("sends the ticked lines of the chosen shipments with PRIORITY_FILL only", () => {
+    const options = fillLineOptions([candidate("s1", "S1", ["A", "B"])], new Set(["s1"]));
+    expect(fillLinesToSend("PRIORITY_FILL", new Set(["B", "GONE"]), options)).toEqual(["B"]);
+    expect(fillLinesToSend("PRIORITY_FILL", new Set(), options)).toEqual([]);
+    expect(fillLinesToSend("SINGLE_TYPE", new Set(["B"]), options)).toBeUndefined();
   });
 });

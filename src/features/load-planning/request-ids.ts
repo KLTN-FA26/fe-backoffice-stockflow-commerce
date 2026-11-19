@@ -5,7 +5,7 @@
  * nhận về kế hoạch CŨ. Id bỏ đi khi lập thành công.
  */
 
-import { LOAD_PLAN_SOURCE, STORAGE_KEYS } from "@/constants";
+import { STORAGE_KEYS } from "@/constants";
 
 import type { CreatePlanInput } from "./plan-types";
 
@@ -44,12 +44,12 @@ function readStored(): StoredRequest | undefined {
 export function createPlanFingerprint(intent: Omit<CreatePlanInput, "requestId">): string {
   return JSON.stringify([
     intent.warehouseId,
-    intent.sourceType ?? LOAD_PLAN_SOURCE.ORDER,
     [...intent.shipmentIds].sort(),
-    [...(intent.transferOrderIds ?? [])].sort(),
     [...intent.vehicleTypeIds].sort(),
     intent.selectionMode,
     intent.note?.trim() ?? "",
+    // Dòng hàng chèn khác là một kế hoạch khác (RTM-LPGROUP)
+    [...(intent.fillOrderLineIds ?? [])].sort(),
   ]);
 }
 

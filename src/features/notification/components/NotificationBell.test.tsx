@@ -28,17 +28,17 @@ const staff: AuthUser = {
   lastLoginAt: null,
   mustChangePassword: false,
 };
-// BE InventoryAlertMessages: `/admin/inventory/alerts?kind=<kind>[&warehouseId=<uuid>]`.
-const ALERT_LINK =
-  "/admin/inventory/alerts?kind=EXPIRED&warehouseId=0e380000-0000-4000-8000-0000000000a1";
+// BE EInvoiceDueNotificationListener: CRITICAL, link `/invoicing/einvoices/<id>` (route tương đối /admin, WF-05 BO-11).
+const EINVOICE_ID = "0e380000-0000-4000-8000-000000000301";
+const NOTICE_LINK = `/admin/invoicing/einvoices/${EINVOICE_ID}`;
 const notice = {
   id: "77777777-7777-4777-8777-777777777777",
-  category: "INVENTORY_ALERT",
+  category: "EINVOICE_DUE",
   severity: "CRITICAL",
-  title: "Hàng sắp hết",
-  link: ALERT_LINK,
-  sourceType: "STOCK_ALERT",
-  sourceId: "stock-1",
+  title: "Hoá đơn HD-0001 phải phát hành trước 20/11/2026",
+  link: `/invoicing/einvoices/${EINVOICE_ID}`,
+  sourceType: "EINVOICE",
+  sourceId: EINVOICE_ID,
   createdAt: "2026-10-15T01:00:00Z",
   read: false,
 };
@@ -87,17 +87,19 @@ afterEach(() => {
 });
 
 describe("notification bell", () => {
-  it("shows list count without initial count GET; marks and navigates to the inventory-alert page", async () => {
+  it("shows list count without initial count GET; marks and navigates to the e-invoice page", async () => {
     const get = vi.spyOn(api, "get").mockResolvedValue({ data: page });
     const post = vi.spyOn(api, "post").mockResolvedValue({ status: 204 });
     mount();
     const user = await openBell();
     expect(get.mock.calls.every(([url]) => url === NOTIFICATION_API.inbox)).toBe(true);
-    expect(await screen.findByText("Hàng sắp hết")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Hoá đơn HD-0001 phải phát hành trước 20/11/2026"),
+    ).toBeInTheDocument();
     expect(screen.getByText(NOTIFICATION_LABELS.severity.CRITICAL)).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /Hàng sắp hết/ }));
+    await user.click(screen.getByRole("button", { name: /Hoá đơn HD-0001/ }));
     expect(post).toHaveBeenCalledWith(NOTIFICATION_API.markRead(notice.id));
-    expect(push).toHaveBeenCalledWith(ALERT_LINK);
+    expect(push).toHaveBeenCalledWith(NOTICE_LINK);
   });
 
   it("marks an item whose link is unsafe as read but never navigates", async () => {
@@ -107,7 +109,7 @@ describe("notification bell", () => {
     const post = vi.spyOn(api, "post").mockResolvedValue({ status: 204 });
     mount();
     const user = await openBell();
-    await user.click(await screen.findByRole("button", { name: /Hàng sắp hết/ }));
+    await user.click(await screen.findByRole("button", { name: /Hoá đơn HD-0001/ }));
     expect(post).toHaveBeenCalledWith(NOTIFICATION_API.markRead(notice.id));
     expect(push).not.toHaveBeenCalled();
   });
@@ -143,9 +145,13 @@ describe("notification bell", () => {
     mount();
     const user = await openBell();
     const before = inboxCalls(get).length;
-    await user.click(await screen.findByRole("button", { name: /Hàng sắp hết/ }));
+    await user.click(await screen.findByRole("button", { name: /Hoá đơn HD-0001/ }));
     await waitFor(() => expect(inboxCalls(get).length).toBeGreaterThan(before));
-    await waitFor(() => expect(screen.queryByText("Hàng sắp hết")).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(
+        screen.queryByText("Hoá đơn HD-0001 phải phát hành trước 20/11/2026"),
+      ).not.toBeInTheDocument(),
+    );
     expect(screen.getByRole("button", { name: NOTIFICATION_LABELS.trigger })).toBeInTheDocument();
   });
 
@@ -188,9 +194,13 @@ describe("notification bell", () => {
     });
     mount();
     await openBell();
-    expect(await screen.findByText("Hàng sắp hết")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Hoá đơn HD-0001 phải phát hành trước 20/11/2026"),
+    ).toBeInTheDocument();
     act(() => useAuthStore.getState().login({ ...staff, userId: "staff-2" }, false));
-    expect(screen.queryByText("Hàng sắp hết")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Hoá đơn HD-0001 phải phát hành trước 20/11/2026"),
+    ).not.toBeInTheDocument();
     expect(await screen.findByText(NOTIFICATION_LABELS.empty)).toBeInTheDocument();
   });
 
@@ -198,10 +208,14 @@ describe("notification bell", () => {
     const get = vi.spyOn(api, "get").mockResolvedValue({ data: page });
     mount();
     await openBell();
-    expect(await screen.findByText("Hàng sắp hết")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Hoá đơn HD-0001 phải phát hành trước 20/11/2026"),
+    ).toBeInTheDocument();
     const before = get.mock.calls.length;
     act(() => useAuthStore.getState().logout(false));
-    expect(screen.queryByText("Hàng sắp hết")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Hoá đơn HD-0001 phải phát hành trước 20/11/2026"),
+    ).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: NOTIFICATION_LABELS.trigger })).toBeNull();
     expect(get.mock.calls.length).toBe(before);
   });
@@ -226,6 +240,8 @@ describe("notification bell", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(NOTIFICATION_LABELS.error);
     fail = false;
     await user.click(screen.getByRole("button", { name: NOTIFICATION_LABELS.retry }));
-    expect(await screen.findByText("Hàng sắp hết")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Hoá đơn HD-0001 phải phát hành trước 20/11/2026"),
+    ).toBeInTheDocument();
   });
 });

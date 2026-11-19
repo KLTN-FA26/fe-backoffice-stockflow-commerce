@@ -11,12 +11,18 @@ const CC = UI_LABELS.shipping.ftl.controlledCancel;
 const BLOCK_TEXT: Record<ConfirmBlock, string> = {
   noVehicles: L.noVehicles,
   needsRecalculation: L.needsRecalculationAlert,
-  transferShipsWhole: UI_LABELS.loadPlan.transfer.detail.shipsWholeBlocked,
   unplacedPending: L.unplaced.pending,
 };
 
 export type PlanDialogKind =
-  "calculate" | "acknowledge" | "confirm" | "reopen" | "cancel" | "cancelControlled" | "editInputs";
+  | "calculate"
+  | "acknowledge"
+  | "confirm"
+  | "reopen"
+  | "cancel"
+  | "cancelControlled"
+  | "editInputs"
+  | "removeShipment";
 
 const PRIMARY = "bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse";
 
@@ -41,6 +47,11 @@ export function PlanActions({
       {actions.editInputs && (
         <Button type="button" size="sm" variant="outline" onClick={() => onOpen("editInputs")}>
           {A.editInputs}
+        </Button>
+      )}
+      {actions.removeShipment && (
+        <Button type="button" size="sm" variant="outline" onClick={() => onOpen("removeShipment")}>
+          {A.removeShipment}
         </Button>
       )}
       {actions.editPlacements && (

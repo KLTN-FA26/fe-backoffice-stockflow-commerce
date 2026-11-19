@@ -49,6 +49,9 @@ export const ORDER_PERMISSIONS = {
   // Cho phép / dừng giao một phần của đơn (`PUT /orders/{id}/partial-shipment`, BE PR #150) — resource
   // `sales-order-partial-shipments` (UPDATE, scope ALL; seed: SALES_STAFF + SYSTEM_ADMIN)
   partialShipment: "sales-order-partial-shipments:UPDATE",
+  // Đổi địa chỉ giao của đơn tới khi thùng đầu tiên được dán nhãn (`PUT /orders/{id}/shipping-address`, docs 17 §4.7
+  // bước 23-24, BR-16; 08 BR-04) — resource riêng `sales-order-addresses` (UPDATE, scope ALL; seed: SALES_STAFF + SYSTEM_ADMIN)
+  shippingAddress: "sales-order-addresses:UPDATE",
 } as const;
 
 /**
@@ -308,8 +311,6 @@ export const INVENTORY_PERMISSIONS = {
   movementRead: "inventory-stock-movements:READ",
   // GET /inventory/stock-items?sku= (tồn theo SKU và vị trí) — gợi ý nguồn khi chuyển vị trí
   stockRead: "inventory-stock-items:READ",
-  // GET /inventory/alerts, /inventory/alerts/summary (BE StockAlertController, resource inventory-alerts)
-  alertRead: "inventory-alerts:READ",
 } as const;
 
 /**
@@ -374,20 +375,13 @@ export const WAREHOUSE_LOCATION_PERMISSIONS = {
 } as const;
 
 /**
- * Tổng quan tồn kho (SCRUM-438) — resource `InventoryResources.STOCK_ITEMS` / `RESERVATIONS` /
- * `ALERTS`. Tồn kho và giữ chỗ là hai resource riêng; seed BE V20260903000100.
+ * Tổng quan tồn kho (SCRUM-438) — resource `InventoryResources.STOCK_ITEMS` / `RESERVATIONS`. Tồn kho và giữ chỗ là hai resource riêng; seed BE V20260903000100.
  */
 export const INVENTORY_OVERVIEW_PERMISSIONS = {
   stockViewPage: "inventory-stock-items:VIEW_PAGE",
   stockRead: "inventory-stock-items:READ",
   reservationViewPage: "inventory-reservations:VIEW_PAGE",
   reservationRead: "inventory-reservations:READ",
-  // GET /inventory/alerts (StockAlertController, READ) — cảnh báo nhúng trong màn tổng quan và màn
-  // Cảnh báo tồn kho. Seed V20261014000900.
-  alertRead: "inventory-alerts:READ",
-  // Màn Cảnh báo tồn kho (`/admin/inventory/alerts`, đích deep link thông báo SCRUM-147): BE khai báo
-  // VIEW_PAGE cho resource inventory-alerts; seed V20261014000900 cấp cùng READ.
-  alertViewPage: "inventory-alerts:VIEW_PAGE",
 } as const;
 
 /**
@@ -477,6 +471,11 @@ export const CUSTOMER_PERMISSIONS = {
   approve: "customer-status:APPROVE",
 } as const;
 
+/** Sổ địa chỉ của khách — resource `customer-addresses` (BE CustomerAddressController `GET /customers/{id}/addresses`). */
+export const CUSTOMER_ADDRESS_PERMISSIONS = {
+  read: "customer-addresses:READ",
+} as const;
+
 /**
  * Điều khoản thanh toán của khách — resource `customer-credit-profiles` (BE CreditProfileController).
  * APPROVE = người duyệt công nợ hiện có (BR-02). Quyết định B1 (2026-10-13): Sales chỉ chọn
@@ -504,18 +503,6 @@ export const QUOTE_PERMISSIONS = {
 } as const;
 
 /**
- * Yêu cầu làm mẫu — resource `production-sample-requests` (BE SampleRequestController, SCRUM-403;
- * seed V20261010000500 + V20261017000200: CUSTOMER V/R/APPROVE, SALES_STAFF có APPROVE).
- */
-export const SAMPLE_REQUEST_PERMISSIONS = {
-  viewPage: "production-sample-requests:VIEW_PAGE",
-  read: "production-sample-requests:READ",
-  create: "production-sample-requests:CREATE",
-  update: "production-sample-requests:UPDATE",
-  approve: "production-sample-requests:APPROVE",
-} as const;
-
-/**
  * Lệnh sản xuất (LSX) — resource `production-orders` (BE ProductionOrderController, SCRUM-405..415).
  * UPDATE = prepress, treo, in, ghi sản lượng · APPROVE = huỷ / dừng / tiếp tục, tách gia công.
  */
@@ -539,37 +526,12 @@ export const DESIGN_SNAPSHOT_PERMISSIONS = {
   read: "design-snapshots:READ",
 } as const;
 
-/** Xuất phôi cho LSX + gửi / nhận gia công — `production-material-issues` (seed V20261017000400). */
-export const MATERIAL_ISSUE_PERMISSIONS = {
-  read: "production-material-issues:READ",
-  create: "production-material-issues:CREATE",
-} as const;
-
-/** QC thành phẩm LSX — `production-qc-results` (seed V20261017000420: QC_STAFF, WAREHOUSE_MANAGER). */
-export const PRODUCTION_QC_PERMISSIONS = {
-  read: "production-qc-results:READ",
-  create: "production-qc-results:CREATE",
-} as const;
-
 /**
  * Mã vai trò tài khoản cửa hàng (storefront) — BE `Role.CUSTOMER`. CHỈ dùng ở cổng back-office
  * (`lib/auth/back-office.ts`, gương BE `ScopeGuards` / `CurrentUser#isPortalCustomer`) để tách phạm vi dữ liệu
  * khách hàng khỏi back-office. Không phải mã quyền: quyền thao tác luôn theo mã quyền ở file này.
  */
 export const PORTAL_CUSTOMER_ROLE = "CUSTOMER";
-
-/**
- * Lệnh chuyển kho — resource `inventory-transfer-orders` (BE TransferOrderController, SCRUM-326/327).
- * Tạo / sửa nháp / gửi duyệt / huỷ = CREATE; lấy hàng / xuất kho ở kho nguồn = UPDATE; duyệt / từ chối
- * = APPROVE (seed BE: chỉ WAREHOUSE_MANAGER).
- */
-export const TRANSFER_PERMISSIONS = {
-  viewPage: "inventory-transfer-orders:VIEW_PAGE",
-  read: "inventory-transfer-orders:READ",
-  create: "inventory-transfer-orders:CREATE",
-  update: "inventory-transfer-orders:UPDATE",
-  approve: "inventory-transfer-orders:APPROVE",
-} as const;
 
 /**
  * Xem lô giao / chuyến xe / hãng — resource `fulfillment-shipments` (BE `ShipmentController`,
@@ -628,6 +590,15 @@ export const FULFILLMENT_CARRIER_PERMISSIONS = {
 } as const;
 
 /**
+ * Sự kiện hãng vận chuyển (BE `CarrierEventController`, docs 09 §4.5 bước 2, 8): READ = xem nhật ký sự kiện webhook và
+ * danh sách lỗi; UPDATE = đánh dấu một sự kiện lỗi đã xử lý (kèm ghi chú). BE chưa có thao tác áp lại sự kiện.
+ */
+export const FULFILLMENT_CARRIER_EVENT_PERMISSIONS = {
+  read: "fulfillment-carrier-events:READ",
+  update: "fulfillment-carrier-events:UPDATE",
+} as const;
+
+/**
  * Kết quả giao — resource `fulfillment-delivery-outcomes` (BE PR #148, docs 09 BR-02).
  * UPDATE một mình = chỉ ghi HÀNG HOÀN VỀ KHO (RETURNED); ĐÃ GIAO / GIAO THẤT BẠI cần thêm APPROVE
  * (kéo theo đơn và công nợ). Seed: UPDATE cho ORDER_COORDINATOR, WAREHOUSE_MANAGER; APPROVE cho
@@ -636,6 +607,14 @@ export const FULFILLMENT_CARRIER_PERMISSIONS = {
 export const FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS = {
   update: "fulfillment-delivery-outcomes:UPDATE",
   approve: "fulfillment-delivery-outcomes:APPROVE",
+} as const;
+
+/**
+ * Sửa tay kết quả giao khi hãng báo sai — `POST /fulfillment/shipments/{id}/delivery-outcome-correction` (docs 09 §4.3
+ * bước 5, E17). BE seed: WAREHOUSE_MANAGER, SYSTEM_ADMIN.
+ */
+export const FULFILLMENT_DELIVERY_CORRECTION_PERMISSIONS = {
+  update: "fulfillment-delivery-corrections:UPDATE",
 } as const;
 
 /**
@@ -711,4 +690,28 @@ export const REPORTING_PERMISSIONS = {
   viewPage: "reporting-reports:VIEW_PAGE",
   read: "reporting-reports:READ",
   export: "reporting-reports:EXPORT",
+} as const;
+
+/**
+ * Sửa lý do giao thất bại khi đã biết lý do thật — `POST /fulfillment/shipments/{id}/failure-reason-correction` (docs 09
+ * edge "hoàn hàng khi còn Handed Over"). Cùng mã quyền sửa tay kết quả giao. BE seed: WAREHOUSE_MANAGER, SYSTEM_ADMIN.
+ */
+export const SHIPMENT_FAILURE_REASON_PERMISSIONS = {
+  correct: "fulfillment-delivery-corrections:UPDATE",
+} as const;
+
+/**
+ * File vận đơn và POD của một đơn — `GET /fulfillment/orders/{id}/delivery-documents` (docs 09 §2: Sale gửi khách khi
+ * khách xin qua chat). BE seed: SALES_STAFF, SALES_MANAGER, SYSTEM_ADMIN; khách không có (BR-05).
+ */
+export const ORDER_DELIVERY_DOCUMENT_PERMISSIONS = {
+  read: "fulfillment-delivery-documents:READ",
+} as const;
+
+/**
+ * Huỷ lô giao Sẵn sàng xuất — `POST /fulfillment/shipments/{id}/cancellation` (docs 09 §5.1, RTM-RTDCANCEL). BE seed:
+ * WAREHOUSE_MANAGER, SYSTEM_ADMIN.
+ */
+export const SHIPMENT_CANCELLATION_PERMISSIONS = {
+  update: "fulfillment-shipment-cancellations:UPDATE",
 } as const;

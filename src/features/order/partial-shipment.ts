@@ -39,6 +39,8 @@ export function isPackedOnlyAheadOfPrints(
  * Docs 17 BR-15, §4.5 bước 18: Sale quyết theo từng đơn — kể cả đơn Chờ hàng (giao trước phần đã giữ, 07 §4.1 bước 2)
  * và đơn chờ ký hợp đồng, như BE cho phép.
  */
+// BE `Order#decidePartialShipment` (develop 053bd4a2): mở tới khi hàng đi hết / đơn đóng. "Pending Contract" và
+// "Awaiting Stock" từng thiếu ở đây → đơn Chờ ký hợp đồng bị báo "đã giao đi hoặc đã đóng" (WF-02 audit).
 export const PARTIAL_SHIPMENT_OPEN_STATUSES: readonly OrderStatus[] = [
   "Draft",
   "Pending Contract",
