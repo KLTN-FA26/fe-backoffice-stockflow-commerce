@@ -50,6 +50,8 @@ export function createPlanFingerprint(intent: Omit<CreatePlanInput, "requestId">
     [...intent.vehicleTypeIds].sort(),
     intent.selectionMode,
     intent.note?.trim() ?? "",
+    // Dòng hàng chèn khác là một kế hoạch khác (RTM-LPGROUP)
+    [...(intent.fillOrderLineIds ?? [])].sort(),
   ]);
 }
 

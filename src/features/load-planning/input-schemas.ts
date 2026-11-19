@@ -20,6 +20,8 @@ export const planInputsSchema = z.object({
   shipmentIds: ids(M.shipmentsRequired, LIMITS.shipmentsMax, M.shipmentsTooMany),
   vehicleTypeIds: ids(M.vehicleTypesRequired, LIMITS.vehicleTypesMax, M.vehicleTypesTooMany),
   selectionMode: z.enum(LOAD_PLAN_SELECTION_MODES),
+  /** Dòng đơn tick là hàng chèn (RTM-LPGROUP); chỉ gửi với `PRIORITY_FILL`. */
+  fillOrderLineIds: z.array(z.string().min(1)).optional(),
 });
 
 /**

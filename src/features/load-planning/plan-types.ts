@@ -36,6 +36,8 @@ export interface PlanInputs {
   transferOrderIds?: string[];
   vehicleTypeIds: string[];
   selectionMode: LoadPlanSelectionMode;
+  /** Dòng đơn tick là hàng chèn — chỉ với `PRIORITY_FILL` (RTM-LPGROUP); vắng = BE giữ lựa chọn cũ. */
+  fillOrderLineIds?: string[];
 }
 
 export interface CreatePlanInput extends PlanInputs {

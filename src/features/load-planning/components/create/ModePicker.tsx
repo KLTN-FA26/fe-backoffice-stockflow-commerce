@@ -12,8 +12,9 @@ import type { LoadPlanSelectionMode } from "@/constants";
 const L = UI_LABELS.loadPlan.createForm;
 
 /**
- * Chế độ chọn xe (docs 09 §4.2, WF4-LP-MODES): một loại (mặc định), ít xe nhất, giữ nguyên dòng, vượt sức chứa. Nhóm
- * radio có nhãn, mỗi lựa chọn kèm một câu giải thích.
+ * Chế độ chọn xe — đủ sáu dòng của bảng docs 09 §4.2 (WF4-LP-MODES): năm chế độ chọn được (một loại là mặc định) và
+ * "Chỉnh tay", không chọn trước khi tính mà làm ở trang kế hoạch (kéo thả rồi tính lại một xe), nên hiện như một dòng
+ * giải thích, không phải ô chọn. Nhóm radio có nhãn, mỗi lựa chọn kèm một câu giải thích.
  */
 export function ModePicker({
   name,
@@ -53,6 +54,12 @@ export function ModePicker({
           </label>
         );
       })}
+      <div className="border-border-default bg-bg-subtle flex items-start gap-2 rounded-[var(--r-sm)] border border-dashed p-2.5 text-[0.8125rem]">
+        <span>
+          <span className="text-ink-primary block font-medium">{L.manualMode}</span>
+          <span className="text-ink-tertiary block text-xs">{L.manualModeHint}</span>
+        </span>
+      </div>
     </fieldset>
   );
 }

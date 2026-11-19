@@ -846,14 +846,15 @@ export const LOAD_PLAN_SOURCE = {
 } as const satisfies Record<string, LoadPlanSourceType>;
 
 /**
- * BE `SelectionMode` mà kế hoạch lưu được (docs 09 §4.2, quyết định WF4-LP-MODES 12/11). "Ưu tiên + hàng chèn" chưa mở
- * cho kế hoạch: docs chưa nói chia hàng chính / hàng chèn ở mức nào (docs issue #40, câu 4). "Chỉnh tay" là kéo thả trên
- * mô hình 3D rồi tính lại một xe ở trang kế hoạch (§4.2 bước 3), không phải giá trị chế độ.
+ * BE `SelectionMode` của kế hoạch (docs 09 §4.2, quyết định WF4-LP-MODES 12/11). "Ưu tiên + hàng chèn": hàng chèn tick
+ * theo dòng đơn khi lập kế hoạch, mặc định là hàng chính (RTM-LPGROUP 19/11). "Chỉnh tay" là kéo thả trên mô hình 3D rồi
+ * tính lại một xe ở trang kế hoạch (§4.2 bước 3), không phải giá trị chế độ gửi BE.
  */
 export const LOAD_PLAN_SELECTION_MODES = [
   "SINGLE_TYPE",
   "FEWEST_VEHICLES",
   "KEEP_LINES",
+  "PRIORITY_FILL",
   "OVER_CAPACITY",
 ] as const;
 

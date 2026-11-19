@@ -81,6 +81,54 @@ export const candidateKey = (
   candidate: Pick<CandidateShipment, "shipmentId" | "transferOrderId">,
 ): string => candidate.shipmentId ?? candidate.transferOrderId ?? "";
 
+/** Một dòng đơn của các lô đã chọn: ô tick "hàng chèn" của chế độ Ưu tiên + hàng chèn (RTM-LPGROUP). */
+export interface FillLineOption {
+  orderLineId: string;
+  shipmentCode: string;
+  sku: string;
+  packages: number;
+}
+
+/** Các dòng đơn (theo kiện) của những lô đã chọn, theo thứ tự lô rồi dòng; kiện không rõ dòng bỏ qua. */
+export function fillLineOptions(
+  candidates: readonly Pick<
+    CandidateShipment,
+    "shipmentId" | "transferOrderId" | "code" | "packages"
+  >[],
+  selected: ReadonlySet<string>,
+): FillLineOption[] {
+  const out = new Map<string, FillLineOption>();
+  for (const candidate of candidates) {
+    if (!selected.has(candidateKey(candidate))) continue;
+    for (const parcel of candidate.packages) {
+      if (!parcel.orderLineId) continue;
+      const known = out.get(parcel.orderLineId);
+      if (known) known.packages += 1;
+      else
+        out.set(parcel.orderLineId, {
+          orderLineId: parcel.orderLineId,
+          shipmentCode: candidate.code,
+          sku: parcel.partName,
+          packages: 1,
+        });
+    }
+  }
+  return [...out.values()];
+}
+
+/**
+ * Dòng hàng chèn để gửi BE: chỉ với `PRIORITY_FILL` (mặc định mọi dòng là hàng chính), chỉ dòng của lô đang chọn. Chế độ
+ * khác → `undefined` (không gửi; BE không giữ hàng chèn dưới chế độ khác).
+ */
+export function fillLinesToSend(
+  mode: string,
+  ticked: ReadonlySet<string>,
+  options: readonly FillLineOption[],
+): string[] | undefined {
+  if (mode !== "PRIORITY_FILL") return undefined;
+  return options.map((o) => o.orderLineId).filter((id) => ticked.has(id));
+}
+
 /** Tổng số kiện / khối lượng / thể tích của các lô đã chọn trong màn lập kế hoạch. */
 export function totalsOf(
   candidates: readonly Pick<

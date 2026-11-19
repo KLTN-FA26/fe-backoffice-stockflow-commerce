@@ -26,6 +26,10 @@ export function usePlanInputsState(initial?: Partial<PlanInputs>) {
     new Set(initial?.vehicleTypeIds),
   );
   const [mode, setMode] = useState<LoadPlanSelectionMode>(initial?.selectionMode ?? "SINGLE_TYPE");
+  // Dòng đơn tick là hàng chèn (RTM-LPGROUP): mặc định không dòng nào — mọi dòng là hàng chính
+  const [fillLines, setFillLines] = useState<ReadonlySet<string>>(
+    new Set(initial?.fillOrderLineIds),
+  );
 
   return {
     sourceType,
@@ -35,6 +39,8 @@ export function usePlanInputsState(initial?: Partial<PlanInputs>) {
     shipments,
     vehicleTypes,
     mode,
+    fillLines,
+    toggleFillLine: (id: string) => setFillLines((current) => toggled(current, id)),
     toggleShipment: (id: string) => setShipments((current) => toggled(current, id)),
     setShipments: (ids: readonly string[]) => setShipments(new Set(ids)),
     toggleVehicleType: (id: string) => setVehicleTypes((current) => toggled(current, id)),

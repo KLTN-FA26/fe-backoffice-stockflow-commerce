@@ -46,15 +46,18 @@ describe("createPlanFormSchema (CreateLoadPlanRequest)", () => {
     );
   });
 
-  it("knows the modes a plan stores (docs 09 §4.2, WF4-LP-MODES); PRIORITY_FILL is not one yet", () => {
-    for (const mode of ["SINGLE_TYPE", "FEWEST_VEHICLES", "KEEP_LINES", "OVER_CAPACITY"]) {
+  it("knows the modes a plan stores (docs 09 §4.2, WF4-LP-MODES)", () => {
+    for (const mode of [
+      "SINGLE_TYPE",
+      "FEWEST_VEHICLES",
+      "KEEP_LINES",
+      "PRIORITY_FILL",
+      "OVER_CAPACITY",
+    ]) {
       expect(planInputsSchema.safeParse({ ...valid, selectionMode: mode }).success, mode).toBe(
         true,
       );
     }
-    expect(planInputsSchema.safeParse({ ...valid, selectionMode: "PRIORITY_FILL" }).success).toBe(
-      false,
-    );
     expect(planInputsSchema.safeParse({ ...valid, selectionMode: "BEST" }).success).toBe(false);
   });
 

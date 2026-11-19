@@ -34,6 +34,7 @@ export const LOAD_PLAN_MODE_LABELS: Record<LoadPlanSelectionMode, string> = {
   SINGLE_TYPE: "Một loại xe",
   FEWEST_VEHICLES: "Ít xe nhất",
   KEEP_LINES: "Giữ nguyên dòng",
+  PRIORITY_FILL: "Ưu tiên + hàng chèn",
   OVER_CAPACITY: "Vượt sức chứa",
 };
 
@@ -41,6 +42,8 @@ export const LOAD_PLAN_MODE_HINTS: Record<LoadPlanSelectionMode, string> = {
   SINGLE_TYPE: "Chọn loại xe xếp tốt nhất rồi dùng bao nhiêu xe loại đó tuỳ cần.",
   FEWEST_VEHICLES: "Trộn các loại xe đã chọn sao cho tổng số xe ít nhất.",
   KEEP_LINES: "Các kiện cùng một dòng hàng của đơn đi chung một xe.",
+  PRIORITY_FILL:
+    "Hàng chính quyết định cần bao nhiêu xe; dòng tick là hàng chèn chỉ chèn vào chỗ trống còn lại.",
   OVER_CAPACITY: "Xếp tối đa những kiện vừa với số xe sẵn có và báo phần phải bỏ lại.",
 };
 
@@ -137,6 +140,17 @@ export const LOAD_PLAN_UI_LABELS = {
     vehicleTypesEmpty: "Chưa có loại xe nào đang dùng.",
     availableCount: (count: number) => `${count} xe sẵn có`,
     modeTitle: "Chế độ chọn xe",
+    /** Dòng thứ sáu của bảng "Chế độ chọn xe" (docs 09 §4.2): không chọn trước khi tính, làm ở trang kế hoạch. */
+    manualMode: "Chỉnh tay",
+    manualModeHint:
+      "Kéo thả kiện trên mô hình 3D rồi tính lại một xe — làm ở trang kế hoạch sau khi tính xếp xe, với mọi chế độ.",
+    fillTitle: "Hàng chèn",
+    fillHint:
+      "Tick dòng đơn là hàng chèn; dòng không tick là hàng chính. Hàng chèn không mở thêm xe, phần không vừa chờ kế hoạch sau.",
+    fillEmpty: "Chọn lô giao để thấy các dòng đơn.",
+    fillLine: (shipmentCode: string, sku: string, packages: number) =>
+      `${shipmentCode} · ${sku} · ${packages} kiện`,
+    fillAria: (shipmentCode: string, sku: string) => `Hàng chèn: ${shipmentCode} · ${sku}`,
     note: "Ghi chú",
     notePlaceholder: "Ghi chú cho kế hoạch (không bắt buộc)",
     submit: "Tạo và tính xếp xe",

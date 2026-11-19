@@ -4,6 +4,7 @@ import { LOAD_PLAN_STATUSES } from "@/constants";
 
 import { LAYOUT_PICKUP_KIT } from "./__fixtures__/layouts";
 import {
+  candidateFixture,
   planFixture,
   planWithUnplaced,
   transferCandidateFixture,
@@ -23,6 +24,8 @@ import {
   unplacedLinesOf,
   unplacedParcels,
   vehiclesNeedingRecalculation,
+  fillLineOptions,
+  fillLinesToSend,
 } from "./plan-selectors";
 
 describe("status helpers", () => {
@@ -134,5 +137,37 @@ describe("TRANSFER source (BE PR #164)", () => {
       packages: 4,
     });
     expect(totalsOf([candidate], new Set())).toEqual({ shipments: 0, packages: 0 });
+  });
+});
+
+describe("fillLineOptions / fillLinesToSend — hàng chèn theo dòng đơn (RTM-LPGROUP)", () => {
+  const candidate = (shipmentId: string, code: string, lines: (string | null)[]) => ({
+    shipmentId,
+    transferOrderId: null,
+    code,
+    packages: lines.map((line, i) => ({
+      ...candidateFixture().packages[0],
+      packageId: `${shipmentId}-${i}`,
+      orderLineId: line,
+      partName: `SKU-${line}`,
+    })),
+  });
+
+  it("lists each order line of the chosen shipments once, with its parcel count; unknown lines are skipped", () => {
+    const options = fillLineOptions(
+      [candidate("s1", "S1", ["A", "A", "B", null]), candidate("s2", "S2", ["C"])],
+      new Set(["s1"]),
+    );
+    expect(options).toEqual([
+      { orderLineId: "A", shipmentCode: "S1", sku: "SKU-A", packages: 2 },
+      { orderLineId: "B", shipmentCode: "S1", sku: "SKU-B", packages: 1 },
+    ]);
+  });
+
+  it("sends the ticked lines of the chosen shipments with PRIORITY_FILL only", () => {
+    const options = fillLineOptions([candidate("s1", "S1", ["A", "B"])], new Set(["s1"]));
+    expect(fillLinesToSend("PRIORITY_FILL", new Set(["B", "GONE"]), options)).toEqual(["B"]);
+    expect(fillLinesToSend("PRIORITY_FILL", new Set(), options)).toEqual([]);
+    expect(fillLinesToSend("SINGLE_TYPE", new Set(["B"]), options)).toBeUndefined();
   });
 });

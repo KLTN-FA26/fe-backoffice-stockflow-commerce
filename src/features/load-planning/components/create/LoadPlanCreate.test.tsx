@@ -58,10 +58,14 @@ afterEach(() => {
   useAppStore.setState({ warehouseId: null });
 });
 
-function renderCreate(actor: TestActor, calc: () => unknown = () => planFixture({ version: 5 })) {
+function renderCreate(
+  actor: TestActor,
+  calc: () => unknown = () => planFixture({ version: 5 }),
+  candidate = candidateFixture(),
+) {
   const spies = mockLoadPlanApi(actor, {
     get: {
-      [CANDIDATES]: () => [candidateFixture()],
+      [CANDIDATES]: () => [candidate],
       [VEHICLE_TYPES]: () => ({
         items: [vehicleType],
         page: 0,
@@ -187,18 +191,81 @@ describe("LoadPlanCreate — lập kế hoạch rồi tính xếp xe", () => {
     expect(calcBody).toEqual({ expectedVersion: 0 });
   });
 
-  it("offers the four modes of docs 09 §4.2 a plan stores, each with its hint (WF4-LP-MODES)", async () => {
+  it("shows the six rows of docs 09 §4.2: five modes to choose, each with its hint, and 'Chỉnh tay' done on the plan page (WF4-LP-MODES)", async () => {
     renderCreate(ACTORS.dispatcher);
     const radios = await screen.findAllByRole("radio");
     expect(radios.map((radio) => radio.getAttribute("value"))).toEqual([
       "SINGLE_TYPE",
       "FEWEST_VEHICLES",
       "KEEP_LINES",
+      "PRIORITY_FILL",
       "OVER_CAPACITY",
     ]);
+    expect(screen.getByRole("radio", { name: /Ưu tiên \+ hàng chèn/ })).toBeInTheDocument();
+    expect(screen.getByText(L.manualMode)).toBeInTheDocument();
+    expect(screen.getByText(L.manualModeHint)).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: /Giữ nguyên dòng/ })).toBeInTheDocument();
     expect(screen.getByText(/cùng một dòng hàng của đơn đi chung một xe/)).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: /Vượt sức chứa/ })).toBeInTheDocument();
+  });
+
+  it("RTM-LPGROUP: 'Ưu tiên + hàng chèn' shows a tick per order line of the chosen shipments, main cargo by default; the ticked lines are sent", async () => {
+    const base = candidateFixture();
+    const half = Math.ceil(base.packages.length / 2);
+    const candidate = candidateFixture({
+      packages: base.packages.map((p, i) => ({
+        ...p,
+        orderLineId: i < half ? "LINE-A" : "LINE-B",
+        partName: i < half ? "SKU-A" : "SKU-B",
+      })),
+    });
+    const { post } = renderCreate(ACTORS.dispatcher, undefined, candidate);
+    const user = userEvent.setup();
+    await user.click(
+      await screen.findByRole("checkbox", { name: `${L.shipmentCode} ${candidate.code}` }),
+    );
+    expect(screen.queryByText(L.fillTitle)).not.toBeInTheDocument();
+    await user.click(screen.getByRole("radio", { name: /Ưu tiên \+ hàng chèn/ }));
+    const lineA = await screen.findByRole("checkbox", {
+      name: L.fillAria(candidate.code, "SKU-A"),
+    });
+    const lineB = screen.getByRole("checkbox", { name: L.fillAria(candidate.code, "SKU-B") });
+    expect(lineA).not.toBeChecked();
+    expect(lineB).not.toBeChecked();
+    expect(
+      screen.getByText(L.fillLine(candidate.code, "SKU-B", base.packages.length - half)),
+    ).toBeInTheDocument();
+    await user.click(lineB);
+    await user.click(await screen.findByRole("checkbox", { name: /PICKUP/ }));
+    await user.click(screen.getByRole("button", { name: L.submit }));
+    await waitFor(() => expect(post).toHaveBeenCalled());
+    expect(post.mock.calls[0][1]).toMatchObject({
+      selectionMode: "PRIORITY_FILL",
+      fillOrderLineIds: ["LINE-B"],
+    });
+  });
+
+  it("another mode sends no filler lines, even after ticking some under 'Ưu tiên + hàng chèn'", async () => {
+    const base = candidateFixture();
+    const candidate = candidateFixture({
+      packages: base.packages.map((p) => ({ ...p, orderLineId: "LINE-A", partName: "SKU-A" })),
+    });
+    const { post } = renderCreate(ACTORS.dispatcher, undefined, candidate);
+    const user = userEvent.setup();
+    await user.click(
+      await screen.findByRole("checkbox", { name: `${L.shipmentCode} ${candidate.code}` }),
+    );
+    await user.click(screen.getByRole("radio", { name: /Ưu tiên \+ hàng chèn/ }));
+    await user.click(
+      await screen.findByRole("checkbox", { name: L.fillAria(candidate.code, "SKU-A") }),
+    );
+    await user.click(screen.getByRole("radio", { name: /Một loại xe/ }));
+    await user.click(await screen.findByRole("checkbox", { name: /PICKUP/ }));
+    await user.click(screen.getByRole("button", { name: L.submit }));
+    await waitFor(() => expect(post).toHaveBeenCalled());
+    expect(
+      (post.mock.calls[0][1] as { fillOrderLineIds?: unknown }).fillOrderLineIds,
+    ).toBeUndefined();
   });
 
   it("sends the chosen mode (KEEP_LINES)", async () => {
