@@ -74,8 +74,11 @@ export const layoutBinDto = z.object({
   storageClassOverride: z.enum(STORAGE_CLASSES).nullish(),
   locationId: z.string(),
   locationCode: z.string(),
-  storageClass: z.enum(STORAGE_CLASSES),
+  // BE bỏ storage class khỏi domain kho (kltn-docs 06, 2026-11-05) — layout không còn gửi; giữ tuỳ chọn cho mock cũ
+  storageClass: z.enum(STORAGE_CLASSES).nullish(),
   capacityUnits: z.number().int().nullish(),
+  /** Sức chứa tính sẵn = rộng × dài × chiều cao thông thuỷ của tầng (06 BR-19); vắng khi tầng chưa khai. */
+  capacityVolumeM3: beDecimal.nullish(),
   maxWeight: beDecimal.nullish(),
   pickable: z.boolean(),
   putawayTarget: z.boolean(),
@@ -102,7 +105,8 @@ export const layoutShelfDto = z.object({
   footprint: footprintDto,
   obstacle: z.boolean(),
   pickFaces: pickFacesDto,
-  defaultStorageClass: z.enum(STORAGE_CLASSES),
+  // BE không còn gửi (kltn-docs 06, 2026-11-05) — xem layoutBinDto.storageClass
+  defaultStorageClass: z.enum(STORAGE_CLASSES).nullish(),
   status: locationStatus,
   effectiveStatus: locationStatus,
   version: z.number().int(),

@@ -39,6 +39,7 @@ export const AREA_TYPE_LABELS: Record<(typeof AREA_TYPES)[number], string> = {
   QUARANTINE: "Khu cách ly",
   PACKING: "Khu đóng gói",
   DISPATCH: "Khu chờ giao",
+  STAGING: "Khu chờ xuất",
   OVERFLOW: "Khu tràn",
   PRODUCTION: "Xưởng in",
   NON_STORAGE: "Không chứa hàng",

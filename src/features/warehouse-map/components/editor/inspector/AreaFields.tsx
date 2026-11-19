@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  AREA_TYPE,
-  AREA_TYPE_LABELS,
-  AREA_TYPES,
-  STORAGE_CLASS_LABELS,
-  STORAGE_CLASSES,
-  UI_LABELS,
-} from "@/constants";
+import { AREA_TYPE, AREA_TYPE_LABELS, AREA_TYPES, UI_LABELS } from "@/constants";
 
 import { CheckField, ChoiceField, Section, TextField } from "./fields";
 import { NumberField } from "./NumberField";
@@ -19,10 +12,6 @@ import type { PlaceLocks } from "@/features/warehouse-map/lifecycle";
 
 const E = UI_LABELS.warehouseMap.editor;
 const I = UI_LABELS.warehouseMap.edit.inspector;
-const storageOptions = STORAGE_CLASSES.map((value) => ({
-  value,
-  label: STORAGE_CLASS_LABELS[value],
-}));
 
 /**
  * Thông số khu vực: mã (chỉ khi chưa lưu, BR-13), loại, tên, vị trí, vật cản; khu chứa hàng có thêm
@@ -91,14 +80,7 @@ export function AreaFields({
       />
       {storage && (
         <Section title={I.location}>
-          <ChoiceField
-            id="area-storage-class"
-            label={E.defaultStorageClass}
-            value={area.location.storageClass}
-            options={storageOptions}
-            onChange={(storageClass) => location({ storageClass })}
-            disabled={locks.geometry}
-          />
+          {/* Không còn chọn lớp lưu trữ: BE bỏ storage class khỏi domain kho (kltn-docs 06, 2026-11-05) */}
           <div className="grid grid-cols-2 gap-2">
             <NumberField
               id="area-capacity"
