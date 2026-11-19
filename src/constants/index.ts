@@ -181,6 +181,7 @@ export {
   CARRIER_CONFIG_LIMITS,
   CARRIER_CONFIG_MESSAGES,
   CARRIER_FIELD_ERROR_MESSAGES,
+  CARRIER_LIST_ERROR_CODES,
 } from "./labels-carrier-config";
 export type { CarrierApiEnvironment } from "./labels-carrier-config";
 export {

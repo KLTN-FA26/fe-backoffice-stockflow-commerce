@@ -196,3 +196,9 @@ export const CARRIER_CONFIG_ERROR_MESSAGES = {
   VEHICLE_TYPE_NOT_FOUND:
     "Có loại xe không còn trong danh mục — chọn lại loại xe ở các dòng mã dịch vụ.",
 } as const;
+
+/** Mã lỗi BE mà hộp thoại hãng xử lý riêng khi ghi danh sách điểm lấy hàng (kho ngoài phạm vi / không còn). */
+export const CARRIER_LIST_ERROR_CODES = {
+  outOfScope: "OUT_OF_DATA_SCOPE",
+  notFound: "NOT_FOUND",
+} as const;

@@ -1,4 +1,4 @@
-import { UI_LABELS } from "@/constants";
+import { CARRIER_LIST_ERROR_CODES, UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 import {
   useReplacePickupPoints,
@@ -18,9 +18,9 @@ const CFG = UI_LABELS.shipping.waybill.carriers.config;
 
 /** Lỗi ghi danh sách: kho ngoài phạm vi / không có là chuyện của điểm lấy hàng, không phải "chuyến / lô giao". */
 function listErrorMessage(error: unknown): string {
-  if (error instanceof ApiError && error.code === "OUT_OF_DATA_SCOPE")
+  if (error instanceof ApiError && error.code === CARRIER_LIST_ERROR_CODES.outOfScope)
     return CFG.saveProgress.outOfScope;
-  if (error instanceof ApiError && error.code === "NOT_FOUND")
+  if (error instanceof ApiError && error.code === CARRIER_LIST_ERROR_CODES.notFound)
     return CFG.saveProgress.warehouseNotFound;
   return shippingErrorMessage(error);
 }
