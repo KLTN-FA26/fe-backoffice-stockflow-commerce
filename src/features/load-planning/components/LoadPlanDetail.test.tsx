@@ -148,6 +148,15 @@ function renderDetail(
       [`${PATH}/unplaced-acknowledgement`]: step("acknowledge"),
       [`${PATH}/vehicles/1/recalculation`]: step("recalculate"),
       [`${PATH}/vehicles/2/recalculation`]: step("recalculate"),
+      // Gỡ lô giao: BE trả kế hoạch còn PLANNED, xe từng chở lô đó chờ tính lại (GET sau đó thấy đúng bản này)
+      [`${PATH}/shipments/${SHIPMENT_ID}/removal`]: () => {
+        latest.plan = {
+          ...latest.plan,
+          version: latest.plan.version + 1,
+          vehicles: latest.plan.vehicles.map((v) => ({ ...v, needsRecalculation: true })),
+        };
+        return latest.plan;
+      },
     },
     put: { [`${PATH}/inputs`]: step("inputs") },
   });
@@ -300,6 +309,40 @@ describe("LoadPlanDetail — hộp thoại xác nhận ngay trong trang", () => 
     expect(calls(post, `${PATH}/confirmation`)[0][1]).toEqual({ expectedVersion: 4 });
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
+
+  it("09 §4.2 step 9: a PLANNED plan takes one shipment out after a confirmation; the vehicle that carried it shows 'Cần tính lại'", async () => {
+    const user = userEvent.setup();
+    const { post } = renderDetail(ACTORS.dispatcher);
+    await user.click(await screen.findByRole("button", { name: L.actions.removeShipment }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(D.removeShipment.description)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: D.removeShipment.confirm }));
+    expect(await within(dialog).findByText(D.removeShipment.required)).toBeInTheDocument();
+    expect(calls(post, `${PATH}/shipments/${SHIPMENT_ID}/removal`)).toHaveLength(0);
+
+    await user.click(within(dialog).getByRole("radio", { name: /SO-20261004-000001-S1/ }));
+    await user.click(within(dialog).getByRole("button", { name: D.removeShipment.confirm }));
+    await waitFor(() =>
+      expect(calls(post, `${PATH}/shipments/${SHIPMENT_ID}/removal`)).toHaveLength(1),
+    );
+    expect(calls(post, `${PATH}/shipments/${SHIPMENT_ID}/removal`)[0][1]).toEqual({
+      expectedVersion: 4,
+    });
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect((await screen.findAllByText(L.needsRecalculation)).length).toBeGreaterThan(0);
+    expect(screen.getByText(L.needsRecalculationAlert)).toBeInTheDocument();
+  });
+
+  it.each(["DRAFT", "CONFIRMED"] as const)(
+    "%s: no 'Gỡ lô giao' (a draft changes its inputs; a confirmed plan is reopened first, BR-14)",
+    async (status) => {
+      renderDetail(ACTORS.dispatcher, planFixture({ status }));
+      await screen.findByText("LP-20261022-0001");
+      expect(
+        screen.queryByRole("button", { name: L.actions.removeShipment }),
+      ).not.toBeInTheDocument();
+    },
+  );
 
   it("cancel needs a reason: the confirm button stays off until one is typed, then it is sent trimmed", async () => {
     const user = userEvent.setup();

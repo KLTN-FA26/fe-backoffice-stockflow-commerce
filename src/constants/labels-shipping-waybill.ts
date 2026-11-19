@@ -175,6 +175,7 @@ export const SHIPPING_WAYBILL_LABELS = {
         REQUESTED: "Đang tạo đơn ở hãng",
         BOOKED: "Đã tạo đơn ở hãng",
         FAILED: "Hãng từ chối đơn",
+        UNCONFIRMED: "Chưa rõ hãng đã tạo đơn — kiểm trên cổng hãng rồi huỷ đặt",
         CANCELLED: "Đã huỷ ở hãng",
         CANCEL_FAILED: "Hãng không huỷ được đơn — xử lý trực tiếp với hãng",
         UNKNOWN: "Không rõ",

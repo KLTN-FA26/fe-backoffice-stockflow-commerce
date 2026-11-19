@@ -6,6 +6,7 @@ import { UI_LABELS, VEHICLE_TYPE_STATUS } from "@/constants";
 import { loadPlanErrorMessage } from "@/features/load-planning/errors";
 import { planInputsSchema } from "@/features/load-planning/input-schemas";
 import { useSetLoadPlanInputs } from "@/features/load-planning/mutations";
+import { fillLineOptions, fillLinesToSend } from "@/features/load-planning/plan-selectors";
 import {
   useActiveVehicleTypes,
   useLoadPlan,
@@ -41,6 +42,10 @@ export function EditInputsDialog({ plan, onClose }: { plan: PlanDetail; onClose:
       .filter((t) => t.status === VEHICLE_TYPE_STATUS.ACTIVE)
       .map((t) => t.vehicleTypeId),
     selectionMode: plan.selectionMode,
+    // Dòng đơn của các kiện đang là hàng chèn (RTM-LPGROUP)
+    fillOrderLineIds: [
+      ...new Set(plan.packages.flatMap((p) => (p.fill && p.orderLineId ? [p.orderLineId] : []))),
+    ],
   });
   const candidates = useLoadPlanCandidates(plan.warehouseId, plan.loadPlanId);
   const types = useActiveVehicleTypes();
@@ -55,10 +60,16 @@ export function EditInputsDialog({ plan, onClose }: { plan: PlanDetail; onClose:
       onSuccess: onClose,
       onError: (e: unknown) => setError(loadPlanErrorMessage(e)),
     };
+    const shipmentIds = [...inputs.shipments].filter((id) => knownShipments.has(id));
     const parsed = planInputsSchema.safeParse({
-      shipmentIds: [...inputs.shipments].filter((id) => knownShipments.has(id)),
+      shipmentIds,
       vehicleTypeIds,
       selectionMode: inputs.mode,
+      fillOrderLineIds: fillLinesToSend(
+        inputs.mode,
+        inputs.fillLines,
+        fillLineOptions(candidates.data ?? [], new Set(shipmentIds)),
+      ),
     });
     if (!parsed.success) {
       setError(parsed.error.issues[0]?.message ?? null);

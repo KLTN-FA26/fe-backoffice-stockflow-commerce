@@ -229,6 +229,59 @@ describe("LoadEstimateDrawer — tính ước tính (POST)", () => {
     expect(screen.getByRole("button", { name: "Ước tính lại" })).toBeInTheDocument();
   });
 
+  it("RTM-LPGROUP: 'Ưu tiên + hàng chèn' hiện một ô 'Hàng chèn' cho mỗi dòng đơn, mặc định không tick; dòng tick được gửi", async () => {
+    const lines = [
+      { lineId: "LINE-A", sku: "CUP-A", quantity: 100 },
+      { lineId: "LINE-B", sku: "CUP-B", quantity: 40 },
+    ];
+    const { user } = await open(
+      ESTIMATE_PERMISSION_SETS.full,
+      { [CURRENT]: notFound, [TYPES]: () => apiVehicleTypePage },
+      { lines },
+    );
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: apiEstimate() });
+
+    expect(screen.queryByRole("checkbox", { name: "Hàng chèn: CUP-A" })).not.toBeInTheDocument();
+    await user.click(await screen.findByRole("radio", { name: /Ưu tiên \+ hàng chèn/ }));
+    const lineA = await screen.findByRole("checkbox", { name: "Hàng chèn: CUP-A" });
+    const lineB = screen.getByRole("checkbox", { name: "Hàng chèn: CUP-B" });
+    expect(lineA).not.toBeChecked();
+    expect(lineB).not.toBeChecked();
+    expect(screen.getByText("CUP-B · 40 cái")).toBeInTheDocument();
+    await user.click(lineB);
+    await user.click(screen.getByRole("button", { name: "Ước tính" }));
+
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith("/fulfillment/load-estimates", {
+        sources: [{ type: "ORDER", id: ORDER_ID }],
+        vehicleTypeIds: [],
+        selectionMode: "PRIORITY_FILL",
+        fillOrderLineIds: ["LINE-B"],
+      }),
+    );
+  });
+
+  it("chế độ khác không gửi hàng chèn, kể cả khi đã tick dưới 'Ưu tiên + hàng chèn'", async () => {
+    const { user } = await open(
+      ESTIMATE_PERMISSION_SETS.full,
+      { [CURRENT]: notFound, [TYPES]: () => apiVehicleTypePage },
+      { lines: [{ lineId: "LINE-A", sku: "CUP-A", quantity: 100 }] },
+    );
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: apiEstimate() });
+    await user.click(await screen.findByRole("radio", { name: /Ưu tiên \+ hàng chèn/ }));
+    await user.click(await screen.findByRole("checkbox", { name: "Hàng chèn: CUP-A" }));
+    await user.click(screen.getByRole("radio", { name: /Một loại xe/ }));
+    await user.click(screen.getByRole("button", { name: "Ước tính" }));
+
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith("/fulfillment/load-estimates", {
+        sources: [{ type: "ORDER", id: ORDER_ID }],
+        vehicleTypeIds: [],
+        selectionMode: "SINGLE_TYPE",
+      }),
+    );
+  });
+
   it("mặc định: không chọn loại xe (= mọi loại đang dùng), 'Một loại xe'", async () => {
     const { user } = await open(ESTIMATE_PERMISSION_SETS.full, {
       [CURRENT]: notFound,
@@ -248,7 +301,7 @@ describe("LoadEstimateDrawer — tính ước tính (POST)", () => {
     const routes = { [CURRENT]: notFound, [TYPES]: () => apiVehicleTypePage };
     const first = await open(ESTIMATE_PERMISSION_SETS.full, routes, { released: false });
     expect(await screen.findByRole("button", { name: "Ước tính" })).toBeDisabled();
-    expect(screen.getByText("Chọn kho trước khi ước tính.")).toBeInTheDocument();
+    expect(screen.getByText("Chọn kho xuất cho đơn trước khi ước tính.")).toBeInTheDocument();
     await first.user.keyboard("{Escape}");
   });
 
@@ -272,6 +325,7 @@ describe("LoadEstimateDrawer — tính ước tính (POST)", () => {
     [422, "LOAD_ESTIMATE_PACKAGING_MISSING", /Không dòng nào có đủ kích thước/],
     [422, "LOAD_ESTIMATE_TOO_MANY_CARTONS", /quá nhiều thùng/],
     [409, "LOAD_ESTIMATE_SOURCE_NOT_ELIGIBLE", /không ước tính được ở trạng thái hiện tại/],
+    [409, "LOAD_ESTIMATE_WAREHOUSE_NOT_CHOSEN", /Đơn chưa có kho xuất: chọn kho xuất cho đơn/],
     [409, "VEHICLE_TYPE_INACTIVE", /loại xe đã ngừng dùng/],
   ] as const)(
     "%s %s → câu tiếng Việt trong ngăn kéo, không lộ message tiếng Anh",

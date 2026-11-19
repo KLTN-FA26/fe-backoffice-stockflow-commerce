@@ -86,6 +86,8 @@ const STALE_CODES: ReadonlySet<string> = new Set([
   "PACKAGE_UNLOAD_PENDING",
   "LOAD_PLAN_PACKAGE_TAKEN",
   "SHIPMENT_STATE_CONFLICT",
+  // Lô giao vừa rời kế hoạch (người khác gỡ trước): danh sách lô trên màn đã cũ
+  "LOAD_PLAN_SHIPMENT_NOT_IN_PLAN",
 ]);
 
 export function isStaleLoadPlanError(error: unknown): boolean {

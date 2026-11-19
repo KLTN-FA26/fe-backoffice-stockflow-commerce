@@ -8,7 +8,7 @@ import type { OrderEstimateSlot } from "../estimate-slot";
 import type { Order } from "../types";
 
 interface OrderEstimateCardProps {
-  order: Pick<Order, "orderId" | "orderNumber" | "status">;
+  order: Pick<Order, "orderId" | "orderNumber" | "status" | "lines">;
   /** Khe "Ước tính xếp xe" cho đơn đã release (xem `estimate-slot.ts`). */
   estimateSlot?: OrderEstimateSlot;
 }
@@ -25,6 +25,7 @@ export function OrderEstimateCard({ order, estimateSlot }: OrderEstimateCardProp
         orderNumber: order.orderNumber,
         warehouseId: null,
         released: true,
+        lines: order.lines,
       })
     : null;
   if (!estimate) return null;

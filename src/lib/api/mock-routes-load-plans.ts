@@ -127,7 +127,11 @@ export function registerLoadPlanMockRoutes(): void {
       const replay = [...plans.values()].find((plan) => plan.requestId === requestId);
       if (replay) return ok(planDetail(replay), 201);
       const mode = body.selectionMode === undefined ? "SINGLE_TYPE" : modeOf(body.selectionMode);
-      if (!mode) return invalid("selectionMode", "must be SINGLE_TYPE or FEWEST_VEHICLES");
+      if (!mode)
+        return invalid(
+          "selectionMode",
+          "must be SINGLE_TYPE, FEWEST_VEHICLES, KEEP_LINES, PRIORITY_FILL or OVER_CAPACITY",
+        );
       if (!isOrderSource(body.sourceType)) return sourceInvalid();
       const shipmentIds = strings(body.shipmentIds);
       const vehicleTypeIds = strings(body.vehicleTypeIds);
@@ -256,7 +260,11 @@ export function registerLoadPlanMockRoutes(): void {
         return fail(409, "OPTIMISTIC_LOCK", `Load plan ${plan.code} changed meanwhile; reload it`);
       const mode =
         body.selectionMode === undefined ? plan.selectionMode : modeOf(body.selectionMode);
-      if (!mode) return invalid("selectionMode", "must be SINGLE_TYPE or FEWEST_VEHICLES");
+      if (!mode)
+        return invalid(
+          "selectionMode",
+          "must be SINGLE_TYPE, FEWEST_VEHICLES, KEEP_LINES, PRIORITY_FILL or OVER_CAPACITY",
+        );
       const refused = ops.setInputs(plan, {
         shipmentIds: strings(body.shipmentIds),
         vehicleTypeIds: strings(body.vehicleTypeIds),
@@ -277,6 +285,9 @@ export function registerLoadPlanMockRoutes(): void {
     }),
   );
   step(`${PATH}/:id/calculation`, (plan) => ops.calculate(plan));
+  step(`${PATH}/:id/shipments/:shipmentId/removal`, (plan, _body, config) =>
+    ops.removeShipment(plan, routeParam(config, "shipmentId")),
+  );
   step(`${PATH}/:id/vehicles/:seq/recalculation`, (plan, body, config) =>
     ops.recalculateVehicle(plan, Number(routeParam(config, "seq")), strings(body.addPackageIds)),
   );

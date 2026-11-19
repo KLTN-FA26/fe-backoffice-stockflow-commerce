@@ -15,6 +15,7 @@ import {
   cancelPlanControlled,
   dropVehicleFromPlan,
   recalculateVehicle,
+  removeShipmentFromPlan,
   runPlanStep,
   savePlacements,
 } from "./api-steps";
@@ -84,6 +85,13 @@ export const useDropVehicleFromPlan = withStaleRefetch(
     showErrorToast: false,
     successMessage: T.vehicleDropped,
   }),
+  ROOT,
+  isStaleLoadPlanError,
+);
+
+/** Gỡ một lô giao khỏi kế hoạch PLANNED: tải lại kế hoạch và lô ứng viên (kiện của lô chờ kế hoạch khác). */
+export const useRemoveShipmentFromPlan = withStaleRefetch(
+  createMutation(removeShipmentFromPlan, { ...base, successMessage: T.shipmentRemoved }),
   ROOT,
   isStaleLoadPlanError,
 );

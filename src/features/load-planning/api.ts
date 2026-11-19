@@ -120,6 +120,7 @@ export async function createLoadPlan(input: CreatePlanInput): Promise<PlanDetail
     shipmentIds: input.shipmentIds,
     vehicleTypeIds: input.vehicleTypeIds,
     selectionMode: input.selectionMode,
+    fillOrderLineIds: input.fillOrderLineIds,
     note: input.note?.trim() || undefined,
   });
   return bePlanDetailSchema.parse(data);
@@ -132,6 +133,7 @@ export async function setLoadPlanInputs(input: SetInputsInput): Promise<PlanDeta
     shipmentIds: input.shipmentIds,
     vehicleTypeIds: input.vehicleTypeIds,
     selectionMode: input.selectionMode,
+    fillOrderLineIds: input.fillOrderLineIds,
   });
   return bePlanDetailSchema.parse(data);
 }

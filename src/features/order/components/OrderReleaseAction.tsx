@@ -19,7 +19,7 @@ import type { OrderEstimateSlot } from "../estimate-slot";
 import type { Order } from "../types";
 
 interface OrderReleaseActionProps {
-  order: Pick<Order, "orderId" | "orderNumber">;
+  order: Pick<Order, "orderId" | "orderNumber" | "lines">;
   can: (code: PermissionCode) => boolean;
   estimateSlot?: OrderEstimateSlot;
 }

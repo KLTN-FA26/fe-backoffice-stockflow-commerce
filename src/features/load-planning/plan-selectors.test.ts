@@ -3,7 +3,12 @@ import { describe, expect, it } from "vitest";
 import { LOAD_PLAN_STATUSES } from "@/constants";
 
 import { LAYOUT_PICKUP_KIT } from "./__fixtures__/layouts";
-import { planFixture, planWithUnplaced, unplacedParcel } from "./__fixtures__/plans";
+import {
+  candidateFixture,
+  planFixture,
+  planWithUnplaced,
+  unplacedParcel,
+} from "./__fixtures__/plans";
 import { buildItemTable } from "./lib/item-rows";
 import {
   isFinalLoadPlan,
@@ -15,6 +20,8 @@ import {
   unplacedLinesOf,
   unplacedParcels,
   vehiclesNeedingRecalculation,
+  fillLineOptions,
+  fillLinesToSend,
 } from "./plan-selectors";
 
 describe("status helpers", () => {
@@ -97,5 +104,36 @@ describe("pickedOnTray", () => {
     expect([...pickedOnTray(picked, tray)]).toEqual(["unplaced-NO_SPACE-1"]);
     expect(pickedOnTray(picked, []).size).toBe(0);
     expect(pickedOnTray(new Set(), tray).size).toBe(0);
+  });
+});
+
+describe("fillLineOptions / fillLinesToSend — hàng chèn theo dòng đơn (RTM-LPGROUP)", () => {
+  const candidate = (shipmentId: string, code: string, lines: (string | null)[]) => ({
+    shipmentId,
+    code,
+    packages: lines.map((line, i) => ({
+      ...candidateFixture().packages[0],
+      packageId: `${shipmentId}-${i}`,
+      orderLineId: line,
+      partName: `SKU-${line}`,
+    })),
+  });
+
+  it("lists each order line of the chosen shipments once, with its parcel count; unknown lines are skipped", () => {
+    const options = fillLineOptions(
+      [candidate("s1", "S1", ["A", "A", "B", null]), candidate("s2", "S2", ["C"])],
+      new Set(["s1"]),
+    );
+    expect(options).toEqual([
+      { orderLineId: "A", shipmentCode: "S1", sku: "SKU-A", packages: 2 },
+      { orderLineId: "B", shipmentCode: "S1", sku: "SKU-B", packages: 1 },
+    ]);
+  });
+
+  it("sends the ticked lines of the chosen shipments with PRIORITY_FILL only", () => {
+    const options = fillLineOptions([candidate("s1", "S1", ["A", "B"])], new Set(["s1"]));
+    expect(fillLinesToSend("PRIORITY_FILL", new Set(["B", "GONE"]), options)).toEqual(["B"]);
+    expect(fillLinesToSend("PRIORITY_FILL", new Set(), options)).toEqual([]);
+    expect(fillLinesToSend("SINGLE_TYPE", new Set(["B"]), options)).toBeUndefined();
   });
 });

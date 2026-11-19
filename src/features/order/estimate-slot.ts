@@ -20,6 +20,11 @@ export interface OrderEstimateSlotProps {
   warehouseId: string | null;
   /** Đơn đã release: không cần kho. false = CONFIRMED, cần kho. */
   released: boolean;
+  /**
+   * Dòng của đơn: ô "Hàng chèn" của chế độ "Ưu tiên + hàng chèn" (RTM-LPGROUP, docs 09 §4.0 gắn ước tính với các chế
+   * độ của §4.2). Vắng = ngăn kéo không có ô tick.
+   */
+  lines?: readonly { lineId: string; sku: string; quantity: number }[];
 }
 
 /** Khe render nút / ngăn kéo ước tính; chỗ ghép trả null nếu không có gì để hiện. */

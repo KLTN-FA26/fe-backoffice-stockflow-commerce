@@ -44,10 +44,18 @@ describe("createPlanFormSchema (CreateLoadPlanRequest)", () => {
     );
   });
 
-  it("only knows SINGLE_TYPE and FEWEST_VEHICLES (LP-6)", () => {
-    expect(planInputsSchema.safeParse({ ...valid, selectionMode: "FEWEST_VEHICLES" }).success).toBe(
-      true,
-    );
+  it("knows the modes a plan stores (docs 09 §4.2, WF4-LP-MODES)", () => {
+    for (const mode of [
+      "SINGLE_TYPE",
+      "FEWEST_VEHICLES",
+      "KEEP_LINES",
+      "PRIORITY_FILL",
+      "OVER_CAPACITY",
+    ]) {
+      expect(planInputsSchema.safeParse({ ...valid, selectionMode: mode }).success, mode).toBe(
+        true,
+      );
+    }
     expect(planInputsSchema.safeParse({ ...valid, selectionMode: "BEST" }).success).toBe(false);
   });
 

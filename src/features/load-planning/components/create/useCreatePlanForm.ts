@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { useAppStore } from "@/lib/store/use-app-store";
 import { createPlanFormSchema } from "@/features/load-planning/input-schemas";
+import { fillLineOptions, fillLinesToSend } from "@/features/load-planning/plan-selectors";
 import { useActiveVehicleTypes, useLoadPlanCandidates } from "@/features/load-planning/queries";
 
 import { shipmentIdsToSend } from "./shipment-selection";
@@ -35,7 +36,12 @@ export function useCreatePlanForm() {
     const rest = { warehouseId, vehicleTypeIds, selectionMode: inputs.mode, note };
     const known = new Set(candidates.data?.map((c) => c.shipmentId));
     const shipmentIds = shipmentIdsToSend([...inputs.shipments], known, rest);
-    const parsed = createPlanFormSchema.safeParse({ ...rest, shipmentIds });
+    const fillOrderLineIds = fillLinesToSend(
+      inputs.mode,
+      inputs.fillLines,
+      fillLineOptions(candidates.data ?? [], new Set(shipmentIds)),
+    );
+    const parsed = createPlanFormSchema.safeParse({ ...rest, shipmentIds, fillOrderLineIds });
     if (!parsed.success) {
       setFieldError(parsed.error.issues[0]?.message ?? null);
       return;

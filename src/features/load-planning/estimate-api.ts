@@ -28,6 +28,7 @@ export function toEstimateBody(input: CreateEstimateInput) {
     ...(input.warehouseId ? { warehouseId: input.warehouseId } : {}),
     vehicleTypeIds: input.vehicleTypeIds,
     selectionMode: input.selectionMode,
+    ...(input.fillOrderLineIds ? { fillOrderLineIds: input.fillOrderLineIds } : {}),
   };
 }
 

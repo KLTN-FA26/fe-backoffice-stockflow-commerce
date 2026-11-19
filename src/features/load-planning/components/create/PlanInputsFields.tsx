@@ -1,8 +1,10 @@
 "use client";
 
-import { UI_LABELS } from "@/constants";
+import { LOAD_PLAN_SELECTION_MODE, UI_LABELS } from "@/constants";
 import { knownLoadPlanReadError } from "@/features/load-planning/errors";
+import { fillLineOptions } from "@/features/load-planning/plan-selectors";
 
+import { FillLinesPicker } from "./FillLinesPicker";
 import { ModePicker } from "./ModePicker";
 import { ShipmentPicker } from "./ShipmentPicker";
 import { VehicleTypePicker } from "./VehicleTypePicker";
@@ -67,6 +69,18 @@ export function PlanInputsFields({
           {L.modeTitle}
         </h3>
         <ModePicker name={`${idPrefix}-mode-radio`} value={inputs.mode} onChange={inputs.setMode} />
+        {inputs.mode === LOAD_PLAN_SELECTION_MODE.PRIORITY_FILL && (
+          <FillLinesPicker
+            idPrefix={idPrefix}
+            options={fillLineOptions(candidates.data ?? [], inputs.shipments).map((o) => ({
+              orderLineId: o.orderLineId,
+              label: L.fillLine(o.shipmentCode, o.sku, o.packages),
+              ariaLabel: L.fillAria(o.shipmentCode, o.sku),
+            }))}
+            ticked={inputs.fillLines}
+            onToggle={inputs.toggleFillLine}
+          />
+        )}
       </section>
     </div>
   );

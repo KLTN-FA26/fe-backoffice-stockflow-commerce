@@ -29,6 +29,8 @@ export interface PlanInputs {
   shipmentIds: string[];
   vehicleTypeIds: string[];
   selectionMode: LoadPlanSelectionMode;
+  /** Dòng đơn tick là hàng chèn — chỉ với `PRIORITY_FILL` (RTM-LPGROUP); vắng = BE giữ lựa chọn cũ. */
+  fillOrderLineIds?: string[];
 }
 
 export interface CreatePlanInput extends PlanInputs {
@@ -54,6 +56,11 @@ export interface RecalculateVehicleInput extends VersionedInput {
   seq: number;
   /** Kiện lấy từ khay chưa xếp (kiện của bộ kéo theo cả bộ). */
   addPackageIds?: string[];
+}
+
+/** Gỡ MỘT lô giao khỏi kế hoạch PLANNED (docs 09 §4.2 bước 9). */
+export interface RemoveShipmentInput extends VersionedInput {
+  shipmentId: string;
 }
 
 /** Huỷ có kiểm soát cả kế hoạch sau khi đã bắt đầu xếp hàng (SCRUM-474): mã lý do + ghi chú. */

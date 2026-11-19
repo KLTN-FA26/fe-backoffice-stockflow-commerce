@@ -22,7 +22,7 @@ import type { ReleaseFormValues } from "../release-schemas";
 import type { Order } from "../types";
 
 interface OrderReleaseDialogProps {
-  order: Pick<Order, "orderId" | "orderNumber">;
+  order: Pick<Order, "orderId" | "orderNumber" | "lines">;
   /** Có `sales-order-delivery-batches:READ` — mới đọc được lịch giao để chọn đợt (xem `ReleaseBatchField`). */
   canChooseBatch: boolean;
   /** Khe "Ước tính xếp xe": nhận kho đang chọn (đơn CONFIRMED chưa có kho). */
@@ -109,6 +109,7 @@ export function OrderReleaseDialog({
           orderNumber: order.orderNumber,
           warehouseId: warehouseId || null,
           released: false,
+          lines: order.lines,
         })}
         {release.refusal && <OrderRefusalAlert view={release.refusal} />}
       </FormDialogBody>

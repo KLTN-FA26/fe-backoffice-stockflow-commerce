@@ -41,6 +41,10 @@ export const beParcelSchema = z.object({
   kitPartCount: z.number().int().nullish(),
   vehicleSeq: z.number().int().nullish(),
   unplacedReason: z.enum(LOAD_PLAN_UNPLACED_REASONS).nullish(),
+  /** Dòng đơn của kiện (một thùng một dòng); vắng khi kiện chứa nhiều dòng / BE cũ. */
+  orderLineId: z.string().nullish(),
+  /** Hàng chèn của kế hoạch "Ưu tiên + hàng chèn" (RTM-LPGROUP). */
+  fill: z.boolean().optional(),
 });
 
 /**

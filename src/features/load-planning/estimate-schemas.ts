@@ -127,4 +127,6 @@ export const CreateEstimateInputSchema = z.object({
   warehouseId: z.string().min(1).nullable(),
   vehicleTypeIds: z.array(z.string().min(1)).max(LOAD_ESTIMATE_LIMITS.vehicleTypesMax),
   selectionMode: z.enum(LOAD_ESTIMATE_SELECTION_MODES),
+  /** Dòng đơn tick là hàng chèn — chỉ với `PRIORITY_FILL` (RTM-LPGROUP). */
+  fillOrderLineIds: z.array(z.string().min(1)).optional(),
 });

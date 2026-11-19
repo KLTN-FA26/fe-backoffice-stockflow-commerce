@@ -6,8 +6,17 @@
 
 import { LOAD_ESTIMATE_LIMITS } from "./numbers";
 
-/** BE `LoadEstimateRequest.selectionMode` (mặc định SINGLE_TYPE). */
-export const LOAD_ESTIMATE_SELECTION_MODES = ["SINGLE_TYPE", "FEWEST_VEHICLES"] as const;
+/**
+ * BE `LoadEstimateRequest.selectionMode` (mặc định SINGLE_TYPE; docs 09 §4.0 gắn với các chế độ §4.2, WF4-LP-MODES).
+ * "Ưu tiên + hàng chèn": dòng đơn tick là hàng chèn, mặc định là hàng chính (RTM-LPGROUP).
+ */
+export const LOAD_ESTIMATE_SELECTION_MODES = [
+  "SINGLE_TYPE",
+  "FEWEST_VEHICLES",
+  "KEEP_LINES",
+  "PRIORITY_FILL",
+  "OVER_CAPACITY",
+] as const;
 
 export const LOAD_ESTIMATE_LABELS = {
   /** LP2-1 — luôn hiện cạnh kết quả. */
@@ -17,7 +26,8 @@ export const LOAD_ESTIMATE_LABELS = {
   open: "Ước tính xếp xe",
   title: "Ước tính xếp xe",
   subtitle: (orderNumber: string) => `Đơn ${orderNumber}`,
-  selectWarehouseFirst: "Chọn kho trước khi ước tính.",
+  /** Docs 09 §4.0 bước 1 (RTM-ESTWH): ước tính theo kho xuất của đơn — chọn kho xuất cho đơn trước. */
+  selectWarehouseFirst: "Chọn kho xuất cho đơn trước khi ước tính.",
   noPermission: "Bạn không có quyền xem ước tính xếp xe.",
   controls: {
     vehicleTypes: "Loại xe được dùng",
@@ -29,11 +39,22 @@ export const LOAD_ESTIMATE_LABELS = {
     modes: {
       SINGLE_TYPE: "Một loại xe",
       FEWEST_VEHICLES: "Ít xe nhất",
+      KEEP_LINES: "Giữ nguyên dòng",
+      PRIORITY_FILL: "Ưu tiên + hàng chèn",
+      OVER_CAPACITY: "Vượt sức chứa",
     },
     modeHints: {
       SINGLE_TYPE: "Dùng cùng một loại xe cho cả đơn.",
       FEWEST_VEHICLES: "Trộn nhiều loại xe để dùng ít xe nhất.",
+      KEEP_LINES: "Các thùng cùng một dòng của đơn đi chung một xe.",
+      PRIORITY_FILL:
+        "Hàng chính quyết định cần bao nhiêu xe; dòng tick là hàng chèn chỉ chèn vào chỗ trống còn lại.",
+      OVER_CAPACITY: "Xếp tối đa những thùng vừa với số xe sẵn có và báo phần phải bỏ lại.",
     },
+    /** Ô "Hàng chèn" theo dòng đơn của chế độ "Ưu tiên + hàng chèn" (RTM-LPGROUP). */
+    fillLine: (sku: string, quantity: number) => `${sku} · ${quantity} cái`,
+    fillAria: (sku: string) => `Hàng chèn: ${sku}`,
+    fillEmpty: "Đơn không có dòng nào để chọn.",
     run: "Ước tính",
     rerun: "Ước tính lại",
     running: "Đang tính…",
@@ -147,6 +168,9 @@ export const LOAD_ESTIMATE_ERROR_MESSAGES = {
     "Đơn có quá nhiều thùng để ước tính một lần. Hãy chia đơn hoặc lập kế hoạch xếp xe thật.",
   LOAD_ESTIMATE_SOURCE_NOT_ELIGIBLE:
     "Đơn không ước tính được ở trạng thái hiện tại, hoặc không còn gì để giao. Hãy tải lại trang đơn.",
+  /** Docs 09 §4.0 bước 1 (RTM-ESTWH 18/11): đơn phải đã có kho xuất mới ước tính được. */
+  LOAD_ESTIMATE_WAREHOUSE_NOT_CHOSEN:
+    "Đơn chưa có kho xuất: chọn kho xuất cho đơn trước khi ước tính tải.",
   LOAD_ESTIMATE_SOURCE_UNSUPPORTED: "Loại nguồn này chưa ước tính được.",
   LOAD_ESTIMATE_NOT_FOUND: "Chưa có ước tính cho đơn này.",
   VEHICLE_TYPE_INACTIVE: "Có loại xe đã ngừng dùng — bỏ chọn loại đó rồi thử lại.",
