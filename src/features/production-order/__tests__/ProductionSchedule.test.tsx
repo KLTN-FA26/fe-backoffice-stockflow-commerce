@@ -1,4 +1,5 @@
 import { screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { PRODUCTION_LABELS } from "@/constants";
@@ -81,5 +82,38 @@ describe("ProductionSchedule (docs 17 §4.12)", () => {
     expect(
       within(region).queryByRole("button", { name: new RegExp(`^${D.action} `) }),
     ).not.toBeInTheDocument();
+  });
+
+  it("chưa có dữ liệu, không lọc → empty \"chưa có\", không có nút Bỏ bộ lọc", async () => {
+    mockProductionApi(PRODUCTION_ACTORS.coordinator, {
+      get: {
+        "/production-schedule": () => schedule({ productionOrders: [], shortBatches: [] }),
+        "/producers": () => bePage([producerDto]),
+      },
+    });
+    renderProductionScreen(<ProductionSchedule />);
+    expect(await screen.findByText(L.ordersEmptyTitle)).toBeInTheDocument();
+    expect(screen.getByText(L.batchesEmptyTitle)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: L.clearFilters })).not.toBeInTheDocument();
+  });
+
+  it("lọc không ra kết quả → empty khác, Bỏ bộ lọc gọi lại lịch không tham số lọc", async () => {
+    const user = userEvent.setup();
+    const { get } = mockProductionApi(PRODUCTION_ACTORS.coordinator, {
+      get: {
+        "/production-schedule": () => schedule({ productionOrders: [], shortBatches: [] }),
+        "/producers": () => bePage([producerDto]),
+      },
+    });
+    renderProductionScreen(<ProductionSchedule />, "u-test", "?alertsOnly=true");
+    const buttons = await screen.findAllByRole("button", { name: L.clearFilters });
+    expect(buttons).toHaveLength(2);
+    expect(screen.queryByText(L.ordersEmptyTitle)).not.toBeInTheDocument();
+    const [first] = buttons;
+    if (first) await user.click(first);
+    await waitFor(() => {
+      const last = get.mock.calls.filter(([url]) => url === "/production-schedule").at(-1);
+      expect(last?.[1]).toMatchObject({ params: { alertsOnly: undefined } });
+    });
   });
 });

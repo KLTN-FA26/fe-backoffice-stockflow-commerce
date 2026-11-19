@@ -12,6 +12,7 @@ import { DataTable } from "@/components/shared/DataTable";
 
 import { formatWindow, ProductionStatusDot, shortId } from "../parts";
 
+import type { ReactNode } from "react";
 import type { ColumnDef } from "@/components/shared/DataTable";
 import type { ScheduledProductionOrder } from "@/features/production-order/schedule-schemas";
 
@@ -122,12 +123,14 @@ function columns(today: string): ColumnDef<ScheduledProductionOrder>[] {
 export function ScheduledOrdersTable({
   rows,
   today,
+  empty,
 }: {
   rows: ScheduledProductionOrder[];
   today: string;
+  /** Hiện khi không có dòng — bên gọi chọn loại empty (chưa có dữ liệu / lọc không ra). */
+  empty: ReactNode;
 }) {
-  if (rows.length === 0)
-    return <p className="text-ink-tertiary py-6 text-center text-sm">{L.ordersEmpty}</p>;
+  if (rows.length === 0) return empty;
   return (
     <DataTable
       columns={columns(today)}

@@ -372,7 +372,14 @@ export const PRODUCTION_LABELS = {
     all: "Tất cả",
     reset: "Đặt lại",
     ordersTitle: "Đơn sản xuất đang mở",
-    ordersEmpty: "Không có Đơn sản xuất đang mở khớp bộ lọc.",
+    // Hai loại empty tách riêng (api-conventions §8): chưa có dữ liệu ≠ lọc không ra kết quả
+    ordersEmptyTitle: "Chưa có Đơn sản xuất đang mở",
+    ordersEmptyDescription: "Đơn sản xuất từ lúc lập (Nháp) tới khi nhập kho đủ sẽ hiện ở đây.",
+    batchesEmptyTitle: "Không có đợt giao nào còn thiếu",
+    batchesEmptyDescription: "Mọi đợt giao của đơn đã ký đều đủ hàng hoặc đã có Đơn sản xuất phủ.",
+    filteredTitle: "Không tìm thấy kết quả",
+    filteredDescription: "Không có dòng nào khớp bộ lọc hiện tại.",
+    clearFilters: "Bỏ bộ lọc",
     rangeInvalid: "Ngày bắt đầu phải trước hoặc bằng ngày kết thúc",
     errorCopy: errorCopy("Lịch sản xuất", "lịch sản xuất"),
     column: {

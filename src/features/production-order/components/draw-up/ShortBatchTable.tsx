@@ -36,7 +36,7 @@ export function ShortBatchTable({
   empty?: ReactNode;
 }) {
   if (batches.length === 0)
-    return <p className="text-ink-tertiary py-6 text-center text-sm">{empty ?? L.empty}</p>;
+    return empty ?? <p className="text-ink-tertiary py-6 text-center text-sm">{L.empty}</p>;
   const columns: ColumnDef<ShortDeliveryBatch>[] = [
     {
       key: C.ORDER,
