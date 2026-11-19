@@ -137,9 +137,17 @@ export interface RecordWaybillInput {
   values: WaybillValues;
 }
 
+/** Xem trước file mã vận đơn của MỘT kho (RTM-WBIMPORT-WH). */
+export interface WaybillImportPreviewInput {
+  file: File;
+  warehouseId: string;
+}
+
 /** Nhập file mã vận đơn: file CSV theo mẫu + số dòng ghi đè đã được xác nhận (BR-25). */
 export interface WaybillImportFileInput {
   file: File;
+  /** Kho được chọn khi nhập: chỉ nhận chuyến của kho này (RTM-WBIMPORT-WH). */
+  warehouseId: string;
   overwriteLines: readonly number[];
 }
 

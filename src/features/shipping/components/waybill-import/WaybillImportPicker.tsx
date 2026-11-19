@@ -6,6 +6,7 @@ import { Download, FileUp } from "lucide-react";
 import { ADMIN_ROUTES, UI_LABELS } from "@/constants";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { WarehouseSelect } from "@/features/shipping/components/WarehouseSelect";
 import { WAYBILL_IMPORT_ACCEPT } from "@/features/shipping/waybill-import-file";
 
 import type { RefObject } from "react";
@@ -18,6 +19,8 @@ const I = UI_LABELS.shipping.waybill.import;
  */
 export function WaybillImportPicker({
   canCreate,
+  warehouseId,
+  onWarehouse,
   input,
   canPreview,
   previewing,
@@ -26,6 +29,9 @@ export function WaybillImportPicker({
   onPreview,
 }: {
   canCreate: boolean;
+  /** Kho chọn trước khi chọn file (bắt buộc); chỉ chuyến của kho này được nhận. */
+  warehouseId: string;
+  onWarehouse: (warehouseId: string) => void;
   input: RefObject<HTMLInputElement | null>;
   canPreview: boolean;
   previewing: boolean;
@@ -48,6 +54,20 @@ export function WaybillImportPicker({
         </Button>
         {canCreate && (
           <>
+            <div className="w-56">
+              <Label
+                htmlFor="waybill-import-warehouse"
+                className="text-ink-secondary mb-1 block text-xs font-medium"
+              >
+                {I.warehouseLabel}
+              </Label>
+              <WarehouseSelect
+                id="waybill-import-warehouse"
+                value={warehouseId}
+                onChange={onWarehouse}
+                placeholder={I.warehousePlaceholder}
+              />
+            </div>
             <div>
               <Label
                 htmlFor="waybill-import-file"
@@ -59,6 +79,7 @@ export function WaybillImportPicker({
                 ref={input}
                 id="waybill-import-file"
                 type="file"
+                disabled={!warehouseId}
                 accept={WAYBILL_IMPORT_ACCEPT}
                 className="text-ink-primary text-[0.8125rem]"
                 onChange={(event) => onChoose(event.target.files?.[0] ?? null)}
@@ -71,6 +92,9 @@ export function WaybillImportPicker({
         )}
       </div>
       <p className="text-ink-tertiary mt-2 text-xs">{I.fileHint}</p>
+      {canCreate && !warehouseId && (
+        <p className="text-ink-secondary mt-1 text-xs">{I.warehouseRequired}</p>
+      )}
       {!canCreate && <p className="text-ink-secondary mt-2 text-xs">{I.noPermission}</p>}
     </section>
   );

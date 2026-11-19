@@ -11,7 +11,13 @@ import { importWaybillFile, previewWaybillImport, recordWaybill } from "./waybil
 import { LOAD_LIST_KEY, toastIfStale, withLoadCache } from "./mutations";
 import { loadKeys } from "./queries";
 
-import type { Load, RecordWaybillInput, WaybillImport, WaybillImportFileInput } from "./types";
+import type {
+  Load,
+  RecordWaybillInput,
+  WaybillImport,
+  WaybillImportFileInput,
+  WaybillImportPreviewInput,
+} from "./types";
 
 const T = TOAST_MESSAGES.shipping;
 
@@ -29,9 +35,12 @@ export const useRecordWaybill = withLoadCache(
 );
 
 /** Xem trước file: không ghi gì nên không làm mới gì; lỗi hiện inline ở màn nhập file. */
-export const usePreviewWaybillImport = createMutation<File, WaybillImport>(previewWaybillImport, {
-  showErrorToast: false,
-});
+export const usePreviewWaybillImport = createMutation<WaybillImportPreviewInput, WaybillImport>(
+  previewWaybillImport,
+  {
+    showErrorToast: false,
+  },
+);
 
 /** Nhập file: nhiều chuyến đổi mã cùng lúc → làm mới mọi thứ dưới chuyến xe (danh sách, chi tiết, lịch sử, biên bản). */
 export const useImportWaybillFile = createMutation<WaybillImportFileInput, WaybillImport>(

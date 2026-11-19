@@ -98,8 +98,15 @@ function renderScreen(
   return spies;
 }
 
+/** Kho phải chọn trước khi chọn file (RTM-WBIMPORT-WH). */
+async function chooseWarehouse(user: ReturnType<typeof userEvent.setup>, name = "HN · Kho Hà Nội") {
+  await user.click(await screen.findByRole("combobox", { name: I.warehouseLabel }));
+  await user.click(await screen.findByRole("option", { name }));
+}
+
 /** Chọn file qua ô file gốc (userEvent.upload) rồi bấm Xem trước. */
 async function previewFile(user: ReturnType<typeof userEvent.setup>, file = csvFile()) {
+  await chooseWarehouse(user);
   await user.upload(await screen.findByLabelText(I.fileLabel), file);
   await user.click(screen.getByRole("button", { name: I.preview }));
   await screen.findByText(I.previewTitle, { selector: "h2" });
@@ -169,6 +176,7 @@ describe("WaybillImportScreen — chọn file và xem trước", () => {
     const button = await screen.findByRole("button", { name: I.preview });
     expect(button).toBeDisabled();
     const file = csvFile();
+    await chooseWarehouse(user);
     await user.upload(screen.getByLabelText(I.fileLabel), file);
     expect(button).toBeEnabled();
     await user.click(button);
@@ -241,6 +249,7 @@ describe("WaybillImportScreen — chọn file và xem trước", () => {
     const big = new File([new Uint8Array(SHIPPING_LIMITS.waybillImportMaxBytes + 1)], "lon.csv", {
       type: "text/csv",
     });
+    await chooseWarehouse(user);
     await user.upload(await screen.findByLabelText(I.fileLabel), big);
     expect(await screen.findByRole("alert")).toHaveTextContent(I.fileTooLarge);
     expect(screen.getByRole("button", { name: I.preview })).toBeDisabled();
@@ -253,11 +262,38 @@ describe("WaybillImportScreen — chọn file và xem trước", () => {
     const exact = new File([new Uint8Array(SHIPPING_LIMITS.waybillImportMaxBytes)], "vua.csv", {
       type: "text/csv",
     });
+    await chooseWarehouse(user);
     await user.upload(await screen.findByLabelText(I.fileLabel), exact);
     expect(screen.queryByText(I.fileTooLarge)).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: I.preview }));
     await screen.findByText(I.previewTitle, { selector: "h2" });
     expect(callsTo(post, PREVIEW_URL)).toHaveLength(1);
+  });
+
+  it("phải chọn kho trước: chưa chọn thì ô chọn file khóa, chọn rồi xem trước và nhập đều gửi kho đó", async () => {
+    const user = userEvent.setup();
+    const { post } = renderScreen();
+    const input = await screen.findByLabelText(I.fileLabel);
+    expect(input).toBeDisabled();
+    expect(screen.getByText(I.warehouseRequired)).toBeInTheDocument();
+    await chooseWarehouse(user);
+    expect(input).toBeEnabled();
+    await user.upload(input, csvFile());
+    await user.click(screen.getByRole("button", { name: I.preview }));
+    await screen.findByText(I.previewTitle, { selector: "h2" });
+    expect(callsTo(post, PREVIEW_URL)[0]?.[2]).toMatchObject({ params: { warehouseId: "wh-hn" } });
+    await user.click(screen.getByRole("button", { name: I.apply }));
+    await screen.findByText(I.resultTitle);
+    expect(callsTo(post, IMPORT_URL)[0]?.[2]).toMatchObject({ params: { warehouseId: "wh-hn" } });
+  });
+
+  it("đổi kho sau khi xem trước → bỏ bản xem trước cũ, phải xem trước lại", async () => {
+    const user = userEvent.setup();
+    renderScreen();
+    await previewFile(user);
+    await chooseWarehouse(user, "HCM · Kho TP.HCM");
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: I.apply })).not.toBeInTheDocument();
   });
 
   it("nhận file Excel .xlsx như CSV: ô chọn file cho phép đuôi .xlsx, xem trước gửi đúng file", async () => {
@@ -271,6 +307,7 @@ describe("WaybillImportScreen — chọn file và xem trước", () => {
     const workbook = new File([new Uint8Array([0x50, 0x4b, 3, 4])], "Van-Don.XLSX", {
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });
+    await chooseWarehouse(user);
     await user.upload(input, workbook);
     expect(screen.queryByText(I.fileWrongType)).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: I.preview }));
@@ -283,6 +320,7 @@ describe("WaybillImportScreen — chọn file và xem trước", () => {
     // `applyAccept: false` mô phỏng người dùng chọn "Tất cả file" trong hộp thoại của trình duyệt.
     const user = userEvent.setup({ applyAccept: false });
     const { post } = renderScreen();
+    await chooseWarehouse(user);
     for (const name of ["van-don.xls", "van-don.pdf", "van-don"]) {
       await user.upload(
         await screen.findByLabelText(I.fileLabel),
@@ -301,6 +339,7 @@ describe("WaybillImportScreen — chọn file và xem trước", () => {
         throw new ApiError(400, "WAYBILL_IMPORT_INVALID_FILE", "en");
       },
     });
+    await chooseWarehouse(user);
     await user.upload(await screen.findByLabelText(I.fileLabel), csvFile());
     await user.click(screen.getByRole("button", { name: I.preview }));
     expect(await screen.findByRole("alert")).toHaveTextContent(
@@ -348,7 +387,7 @@ describe("WaybillImportScreen — nhập các dòng hợp lệ", () => {
     await user.click(screen.getByRole("button", { name: I.apply }));
     await screen.findByText(I.resultTitle);
     const [importCall] = callsTo(post, IMPORT_URL);
-    expect((importCall?.[2] as { params?: unknown }).params).toBeUndefined();
+    expect((importCall?.[2] as { params?: unknown }).params).toEqual({ warehouseId: "wh-hn" });
   });
 
   it("bỏ tick lại thì dòng đó không còn trong overwriteLines", async () => {

@@ -29,6 +29,8 @@ export function useWaybillImport() {
   const importFile = useImportWaybillFile();
   const input = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
+  // Kho chọn trước khi chọn file: chỉ nhận chuyến của kho này (RTM-WBIMPORT-WH)
+  const [warehouseId, setWarehouseId] = useState("");
   const [previewed, setPreviewed] = useState<WaybillImport | null>(null);
   const [result, setResult] = useState<WaybillImport | null>(null);
   const [overwrite, setOverwrite] = useState<ReadonlySet<number>>(new Set());
@@ -43,6 +45,7 @@ export function useWaybillImport() {
   return {
     input,
     file,
+    warehouseId,
     previewed,
     result,
     overwrite,
@@ -50,6 +53,11 @@ export function useWaybillImport() {
     previewing: preview.isPending,
     importing: importFile.isPending,
     toApply: previewed ? applicableCount(previewed, overwrite) : 0,
+    chooseWarehouse: (next: string) => {
+      clear();
+      setWarehouseId(next);
+      setError(null);
+    },
     choose: (next: File | null) => {
       clear();
       if (next && !isWaybillImportFile(next)) {
@@ -68,6 +76,7 @@ export function useWaybillImport() {
     reset: () => {
       clear();
       setFile(null);
+      setWarehouseId("");
       setError(null);
       if (input.current) input.current.value = "";
     },
@@ -86,21 +95,24 @@ export function useWaybillImport() {
       }
     },
     runPreview: () => {
-      if (!file) return;
+      if (!file || !warehouseId) return;
       setError(null);
-      preview.mutate(file, {
-        onSuccess: (data) => {
-          setPreviewed(data);
-          setOverwrite(new Set());
+      preview.mutate(
+        { file, warehouseId },
+        {
+          onSuccess: (data) => {
+            setPreviewed(data);
+            setOverwrite(new Set());
+          },
+          onError: (e) => setError(shippingErrorMessage(e)),
         },
-        onError: (e) => setError(shippingErrorMessage(e)),
-      });
+      );
     },
     runImport: () => {
-      if (!file || !previewed) return;
+      if (!file || !previewed || !warehouseId) return;
       setError(null);
       importFile.mutate(
-        { file, overwriteLines: [...overwrite].sort((a, b) => a - b) },
+        { file, warehouseId, overwriteLines: [...overwrite].sort((a, b) => a - b) },
         { onSuccess: setResult, onError: (e) => setError(shippingErrorMessage(e)) },
       );
     },
