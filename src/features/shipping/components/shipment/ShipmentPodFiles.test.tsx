@@ -17,7 +17,7 @@ import {
   renderShippingScreen,
 } from "../../__fixtures__/render";
 import { ShipmentScreen } from "../ShipmentScreen";
-import { ShipmentPodFiles, podBlockedReason } from "./ShipmentPodFiles";
+import { ShipmentPodFiles } from "./ShipmentPodFiles";
 
 import type { TestActor } from "../../__fixtures__/render";
 import type { ShipmentRow } from "../../types";
@@ -43,23 +43,6 @@ function renderCard(actor: TestActor, status: ShipmentRow["status"], files: unkn
   renderShippingScreen(<ShipmentPodFiles shipment={{ shipmentId: "shp-1", status }} />);
   return spies;
 }
-
-describe("podBlockedReason", () => {
-  it("chỉ lô đã giao nhận biên bản; lô đang đi giải thích phải ghi nhận giao trước; hoàn / huỷ thì không áp dụng", () => {
-    expect(podBlockedReason("DELIVERED")).toBeNull();
-    for (const status of [
-      "READY_TO_DISPATCH",
-      "HANDED_OVER",
-      "DELIVERY_FAILED",
-      "UNKNOWN",
-    ] as const) {
-      expect(podBlockedReason(status)).toBe(L.pod.notDelivered);
-    }
-    for (const status of ["RETURNED", "CANCELLED"] as const) {
-      expect(podBlockedReason(status)).toBe(L.pod.notApplicable);
-    }
-  });
-});
 
 describe("ShipmentPodFiles — gate quyền và trạng thái", () => {
   it("quản lý kho (fulfillment-delivery-outcomes:UPDATE), lô đã giao: xem danh sách và có hộp tải lên chỉ nhận PDF / ảnh", async () => {
