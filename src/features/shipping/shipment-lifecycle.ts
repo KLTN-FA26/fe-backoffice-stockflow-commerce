@@ -13,6 +13,7 @@ import {
   FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS,
   UI_LABELS,
 } from "@/constants";
+import { PACK_SHIPMENT_STATUS } from "@/constants/statuses";
 import { SHIPMENT_TRANSITIONS } from "@/lib/domain/lifecycle";
 
 import type { DeliveryOutcome } from "@/constants";
@@ -58,6 +59,11 @@ export function canCorrectOutcome(
   shipment: Pick<ShipmentRow, "status">,
   actor: ShippingActor,
 ): boolean {
-  if (shipment.status !== "DELIVERED" && shipment.status !== "DELIVERY_FAILED") return false;
+  if (
+    shipment.status !== PACK_SHIPMENT_STATUS.DELIVERED &&
+    shipment.status !== PACK_SHIPMENT_STATUS.DELIVERY_FAILED
+  ) {
+    return false;
+  }
   return actor.can(FULFILLMENT_DELIVERY_CORRECTION_PERMISSIONS.update);
 }

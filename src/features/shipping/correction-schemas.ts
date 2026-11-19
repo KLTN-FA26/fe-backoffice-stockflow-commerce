@@ -12,42 +12,40 @@ import {
   SHIPPING_FIELD_MESSAGES as MSG,
   SHIPPING_LIMITS,
 } from "@/constants";
+import { PACK_SHIPMENT_STATUS } from "@/constants/statuses";
 
 import { optionalText } from "./input-schemas";
 
 /** Kết quả mà BE cho sửa thành (`DeliveryOutcomeCorrectionRequest.outcome`). */
-export const CORRECTION_OUTCOMES = ["DELIVERED", "DELIVERY_FAILED"] as const;
+export const CORRECTION_OUTCOMES = [
+  PACK_SHIPMENT_STATUS.DELIVERED,
+  PACK_SHIPMENT_STATUS.DELIVERY_FAILED,
+] as const;
 export type CorrectionOutcome = (typeof CORRECTION_OUTCOMES)[number];
 
 /** Kết quả đối nghịch: một lô đã giao thì sửa thành giao thất bại và ngược lại. */
 export function correctionTarget(current: string): CorrectionOutcome | null {
-  if (current === "DELIVERED") return "DELIVERY_FAILED";
-  if (current === "DELIVERY_FAILED") return "DELIVERED";
+  if (current === PACK_SHIPMENT_STATUS.DELIVERED) return PACK_SHIPMENT_STATUS.DELIVERY_FAILED;
+  if (current === PACK_SHIPMENT_STATUS.DELIVERY_FAILED) return PACK_SHIPMENT_STATUS.DELIVERED;
   return null;
 }
 
-interface CorrectionBody {
-  outcome: CorrectionOutcome;
-  failureReason?: (typeof ORDER_DELIVERY_FAILURE_REASONS)[number] | undefined;
-  note?: string | undefined;
-  reason: string;
-  deliveredAt?: string | undefined;
-}
+const correctionShape = z.object({
+  outcome: z.enum(CORRECTION_OUTCOMES),
+  failureReason: z.enum(ORDER_DELIVERY_FAILURE_REASONS).optional(),
+  note: optionalText(SHIPPING_LIMITS.noteMax),
+  reason: z
+    .string()
+    .trim()
+    .min(1, C.reasonRequired)
+    .max(SHIPPING_LIMITS.cancelReasonMax, MSG.tooLong),
+  deliveredAt: z.string().optional(),
+});
+type CorrectionBody = z.output<typeof correctionShape>;
 
-export const deliveryCorrectionInputSchema = z
-  .object({
-    outcome: z.enum(CORRECTION_OUTCOMES),
-    failureReason: z.enum(ORDER_DELIVERY_FAILURE_REASONS).optional(),
-    note: optionalText(SHIPPING_LIMITS.noteMax),
-    reason: z
-      .string()
-      .trim()
-      .min(1, C.reasonRequired)
-      .max(SHIPPING_LIMITS.cancelReasonMax, MSG.tooLong),
-    deliveredAt: z.string().optional(),
-  })
+export const deliveryCorrectionInputSchema = correctionShape
   .superRefine((value, ctx) => {
-    if (value.outcome !== "DELIVERY_FAILED") return;
+    if (value.outcome !== PACK_SHIPMENT_STATUS.DELIVERY_FAILED) return;
     if (!value.failureReason) {
       ctx.addIssue({ code: "custom", path: ["failureReason"], message: MSG.reasonRequired });
     } else if (value.failureReason === "OTHER" && !value.note) {
@@ -56,7 +54,7 @@ export const deliveryCorrectionInputSchema = z
   })
   // BE: lý do / ghi chú chỉ với giao thất bại; thời điểm giao chỉ với đã giao (kèm kia là 400)
   .transform((value): CorrectionBody =>
-    value.outcome === "DELIVERY_FAILED"
+    value.outcome === PACK_SHIPMENT_STATUS.DELIVERY_FAILED
       ? { ...value, deliveredAt: undefined }
       : { ...value, failureReason: undefined, note: undefined },
   );

@@ -159,21 +159,16 @@ export const overrideUnloadInputSchema = z.object({
  * Kết quả hãng báo lại (docs 09 §4.3, BR-02; BE `DeliveryOutcomeRequest`): giao thất bại phải có lý do,
  * lý do "Khác" phải có ghi chú.
  */
-interface DeliveryOutcomeBody {
-  outcome: (typeof DELIVERY_OUTCOMES)[number];
-  failureReason?: (typeof ORDER_DELIVERY_FAILURE_REASONS)[number] | undefined;
-  note?: string | undefined;
-  deliveredAt?: string | undefined;
-}
+const deliveryOutcomeShape = z.object({
+  outcome: z.enum(DELIVERY_OUTCOMES),
+  failureReason: z.enum(ORDER_DELIVERY_FAILURE_REASONS).optional(),
+  note: optionalText(L.noteMax),
+  // Thời điểm giao (Instant ISO) — chỉ với "đã giao" (BE `DeliveryOutcomeRequest.deliveredAt`); vắng = lúc ghi nhận
+  deliveredAt: z.string().optional(),
+});
+type DeliveryOutcomeBody = z.output<typeof deliveryOutcomeShape>;
 
-export const deliveryOutcomeInputSchema = z
-  .object({
-    outcome: z.enum(DELIVERY_OUTCOMES),
-    failureReason: z.enum(ORDER_DELIVERY_FAILURE_REASONS).optional(),
-    note: optionalText(L.noteMax),
-    // Thời điểm giao (Instant ISO) — chỉ với "đã giao" (BE `DeliveryOutcomeRequest.deliveredAt`); vắng = lúc ghi nhận
-    deliveredAt: z.string().optional(),
-  })
+export const deliveryOutcomeInputSchema = deliveryOutcomeShape
   .superRefine((value, ctx) => {
     if (value.outcome !== "DELIVERY_FAILED") return;
     if (!value.failureReason) {
