@@ -18,6 +18,7 @@ import {
 } from "@/constants";
 
 import { registerMockRoute } from "./mock-adapter";
+import { registerCarrierEventMockRoutes } from "./mock-routes-carrier-events";
 import { createCarrier, updateCarrier } from "./mock-dispatch-carriers";
 import { book, cancelBooking, recordDriver, startLoading } from "./mock-dispatch-booking";
 import { cancelControlled, dropFromPlan, overrideUnload, unload } from "./mock-dispatch-ftl-rules";
@@ -238,6 +239,7 @@ export function registerDispatchMockRoutes(): void {
   registerShipmentRoutes();
   registerWaybillRoutes();
   registerAttachedFilesMockRoutes();
+  registerCarrierEventMockRoutes();
 
   registerMockRoute("GET", LOADS, async (config) => {
     const params = readParams(config);

@@ -582,6 +582,15 @@ export const FULFILLMENT_CARRIER_PERMISSIONS = {
 } as const;
 
 /**
+ * Sự kiện hãng vận chuyển (BE `CarrierEventController`, docs 09 §4.5 bước 2, 8): READ = xem nhật ký sự kiện webhook và
+ * danh sách lỗi; UPDATE = đánh dấu một sự kiện lỗi đã xử lý (kèm ghi chú). BE chưa có thao tác áp lại sự kiện.
+ */
+export const FULFILLMENT_CARRIER_EVENT_PERMISSIONS = {
+  read: "fulfillment-carrier-events:READ",
+  update: "fulfillment-carrier-events:UPDATE",
+} as const;
+
+/**
  * Kết quả giao — resource `fulfillment-delivery-outcomes` (BE PR #148, docs 09 BR-02).
  * UPDATE một mình = chỉ ghi HÀNG HOÀN VỀ KHO (RETURNED); ĐÃ GIAO / GIAO THẤT BẠI cần thêm APPROVE
  * (kéo theo đơn và công nợ). Seed: UPDATE cho ORDER_COORDINATOR, WAREHOUSE_MANAGER; APPROVE cho
