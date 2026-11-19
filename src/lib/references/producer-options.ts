@@ -44,10 +44,12 @@ export function useProducerDirectory(enabled = true) {
     ...QUERY_TIMES.master,
   });
   const items = query.data ?? [];
+  // Tra theo id dùng Map (bảng gọi mỗi dòng) — không `.find()` O(n) mỗi ô
+  const index = new Map(items.map((producer) => [producer.id, producer]));
   return {
     query,
     /** Chỉ đơn vị ACTIVE nhận Đơn sản xuất mới (BE 409 PRODUCER_INACTIVE). */
     active: items.filter((producer) => producer.status === "ACTIVE"),
-    byId: (id: string | null | undefined) => items.find((producer) => producer.id === id),
+    byId: (id: string | null | undefined) => (id ? index.get(id) : undefined),
   };
 }

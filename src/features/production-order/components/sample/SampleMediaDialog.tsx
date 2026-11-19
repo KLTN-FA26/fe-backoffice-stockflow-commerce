@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 
-import { PRODUCTION_LABELS, REPRINT_REASON_LABELS, REPRINT_REASONS } from "@/constants";
+import { PRODUCTION_LABELS } from "@/constants";
 import { todayIso } from "@/lib/date-range";
 
 import { productionOrderErrorMessage } from "@/features/production-order/errors";
 import { useAddSampleMedia, useOpenSampleRound } from "@/features/production-order/sample-hooks";
 import { sampleFileProblems } from "@/features/production-order/sample-files";
 import { willExceedFreeRounds } from "@/features/production-order/sample-lifecycle";
+import { openRoundInput } from "@/features/production-order/sample-schemas";
 
 import { Alert } from "@/components/shared/Alert";
 import { DatePicker } from "@/components/shared/DatePicker";
@@ -16,6 +17,7 @@ import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { FormField } from "@/components/shared/FormField";
 
 import { MediaPicker } from "./MediaPicker";
+import { ReprintReasonField } from "./ReprintReasonField";
 import { useSampleUpload } from "./useSampleUpload";
 
 import type { ReprintReason } from "@/constants";
@@ -49,17 +51,23 @@ export function SampleMediaDialog({
 }) {
   const open = useOpenSampleRound();
   const add = useAddSampleMedia();
-  const { uploadAll, progress } = useSampleUpload(view.productionOrderId);
+  const { uploadAll, settleFailure, progress } = useSampleUpload(view.productionOrderId);
   const [files, setFiles] = useState<File[]>([]);
   const [reason, setReason] = useState<ReprintReason | null>(null);
   const [sentOn, setSentOn] = useState("");
   const [error, setError] = useState<string | null>(null);
   const busy = progress !== null || open.isPending || add.isPending;
   const counts = mode === "first" || reason === "CUSTOMER_CHANGE";
+  // BR-24: vòng in lại bắt buộc lý do; ngày gửi mẫu vật không sau hôm nay. Thêm tệp chỉ khi còn vòng đang chờ.
+  const round = openRoundInput(mode === "reprint").safeParse({
+    reprintReason: reason,
+    physicalSampleSentOn: sentOn,
+  });
+  const sentOnError = round.error?.issues.find((i) => i.path[0] === "physicalSampleSentOn");
   const valid =
     files.length > 0 &&
     sampleFileProblems(files).length === 0 &&
-    (mode !== "reprint" || reason !== null);
+    (mode === "add" ? roundId !== undefined : round.success);
 
   const submit = async () => {
     setError(null);
@@ -72,11 +80,14 @@ export function SampleMediaDialog({
     }
     const handlers = {
       onSuccess: onClose,
-      onError: (failure: unknown) => setError(productionOrderErrorMessage(failure)),
+      onError: (failure: unknown) => {
+        settleFailure(failure);
+        setError(productionOrderErrorMessage(failure));
+      },
     };
-    if (mode === "add" && roundId)
-      add.mutate({ orderId: view.productionOrderId, roundId, uploadIds }, handlers);
-    else
+    if (mode === "add") {
+      if (roundId) add.mutate({ orderId: view.productionOrderId, roundId, uploadIds }, handlers);
+    } else
       open.mutate(
         {
           orderId: view.productionOrderId,
@@ -101,30 +112,10 @@ export function SampleMediaDialog({
         onSubmit={() => void submit()}
         onCancel={onClose}
       >
-        {mode === "reprint" && (
-          <fieldset className="space-y-1.5">
-            <legend className="text-ink-secondary mb-1 text-xs font-medium">
-              {S.reprintReason} *
-            </legend>
-            {REPRINT_REASONS.map((value) => (
-              <label key={value} className="flex items-center gap-2 text-[0.8125rem]">
-                <input
-                  type="radio"
-                  name="reprint-reason"
-                  value={value}
-                  checked={reason === value}
-                  onChange={() => setReason(value)}
-                  className="accent-brand size-3.5"
-                />
-                {REPRINT_REASON_LABELS[value]} —{" "}
-                {value === "PRINT_DEFECT" ? S.notCounted : S.counted}
-              </label>
-            ))}
-          </fieldset>
-        )}
+        {mode === "reprint" && <ReprintReasonField value={reason} onChange={setReason} />}
         <MediaPicker files={files} onChange={setFiles} disabled={busy} />
         {mode !== "add" && (
-          <FormField id="sample-sent-on" label={S.physicalOptional}>
+          <FormField id="sample-sent-on" label={S.physicalOptional} error={sentOnError?.message}>
             <DatePicker
               id="sample-sent-on"
               value={sentOn}
