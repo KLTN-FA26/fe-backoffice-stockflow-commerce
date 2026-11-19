@@ -30,6 +30,8 @@ import type {
   beWaybillImportLineSchema,
   beWaybillImportRowSchema,
   beWaybillImportSchema,
+  waybillImportFileInputSchema,
+  waybillImportPreviewInputSchema,
 } from "./waybill-schemas";
 import type {
   beCarrierConnectionSchema,
@@ -137,11 +139,8 @@ export interface RecordWaybillInput {
   values: WaybillValues;
 }
 
-/** Nhập file mã vận đơn: file CSV theo mẫu + số dòng ghi đè đã được xác nhận (BR-25). */
-export interface WaybillImportFileInput {
-  file: File;
-  overwriteLines: readonly number[];
-}
+export type WaybillImportPreviewInput = z.infer<typeof waybillImportPreviewInputSchema>;
+export type WaybillImportFileInput = z.infer<typeof waybillImportFileInputSchema>;
 
 /** Thân tạo / sửa hãng (BE `CarrierRequest`). `connection` vắng = giữ nguyên cấu hình kết nối hiện có. */
 export interface SaveCarrierInput {

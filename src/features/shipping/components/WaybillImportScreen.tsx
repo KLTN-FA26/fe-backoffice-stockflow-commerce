@@ -23,6 +23,7 @@ function ImportBody() {
   const {
     input,
     file,
+    warehouseId,
     previewed,
     result,
     overwrite,
@@ -31,6 +32,7 @@ function ImportBody() {
     importing,
     toApply,
     choose,
+    chooseWarehouse,
     reset,
     downloadTemplate,
     runPreview,
@@ -45,6 +47,8 @@ function ImportBody() {
       <div className="space-y-5">
         <WaybillImportPicker
           canCreate={canCreate}
+          warehouseId={warehouseId}
+          onWarehouse={chooseWarehouse}
           input={input}
           canPreview={!!file && !previewing && !importing}
           previewing={previewing}

@@ -1,6 +1,8 @@
 import { LOAD_PLAN_PRINT_LABELS } from "@/constants";
 import { formatDate, formatNumber, formatPercent } from "@/lib/format";
+import { useWarehouseDirectory } from "@/lib/references/warehouse-options";
 
+import { warehouseLabelOf } from "../../lib/booking-view";
 import { formatNominalCm } from "../../lib/dims";
 import { formatKg } from "../../lib/print-labels";
 import { EMPTY, Field } from "./primitives";
@@ -28,7 +30,7 @@ const BOOKING_TEXT: Record<Exclude<BookingView["kind"], "booked">, string> = {
 
 /**
  * Đầu phiếu: mã kế hoạch, xe (loại, số thứ tự, lòng xe, tải trọng, mức lấp đầy), thông tin đặt xe nếu xe đã thành chuyến
- * có hãng / biển số / tài xế, ngày in. Chưa có thông tin đặt xe thì các ô ghi "—" và ô "Đặt xe" nêu lý do (`BookingView`).
+ * có hãng / biển số / tài xế / mã vận đơn, kho xuất, ngày in. Chưa có thông tin đặt xe thì các ô ghi "—" và ô "Đặt xe" nêu lý do (`BookingView`).
  */
 export function SheetHeader({
   planCode,
@@ -43,6 +45,9 @@ export function SheetHeader({
 }) {
   const { vehicle, layout } = sheet;
   const booking = view.kind === "booked" ? view.booking : null;
+  // Tên kho do chuyến trả về thì khỏi hỏi danh mục kho (tài khoản điều phối có thể không có quyền kho).
+  const directory = useWarehouseDirectory(!booking?.warehouseName).data;
+  const warehouse = warehouseLabelOf(booking, directory, sheet.warehouseId);
   return (
     <header className="space-y-3">
       <div className="flex flex-wrap items-end justify-between gap-2">
@@ -65,6 +70,8 @@ export function SheetHeader({
         <Field label={H.carrier}>{booking ? carrierOf(booking) : EMPTY}</Field>
         <Field label={H.plate}>{booking?.vehiclePlate || EMPTY}</Field>
         <Field label={H.driver}>{booking ? driverOf(booking) : EMPTY}</Field>
+        <Field label={H.warehouse}>{warehouse ?? EMPTY}</Field>
+        <Field label={H.waybill}>{booking ? booking.waybillNo || H.noWaybill : EMPTY}</Field>
         <Field label={H.printedAt}>{formatDate(printedAt)}</Field>
         {vehicle.load && <Field label={H.dispatchLoad}>{vehicle.load.code}</Field>}
         <Field label={H.booking}>

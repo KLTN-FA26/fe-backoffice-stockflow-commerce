@@ -204,6 +204,17 @@ function registerWaybillRoutes(): void {
       headers: {},
     };
   });
+  // Kho được chọn khi nhập (BE `GET /waybill-imports/warehouses`, `…:CREATE`): kho có trong dữ liệu mock.
+  registerMockRoute("GET", `${WAYBILL_IMPORTS}/warehouses`, async () => {
+    if (!(await currentActor()).can(IMPORT_CREATE)) return forbidden();
+    const { warehouseNames } = await getDispatchState();
+    return ok(
+      [...warehouseNames].map(([warehouseId, warehouse]) => ({
+        warehouseId,
+        name: warehouse.name,
+      })),
+    );
+  });
   registerMockRoute("POST", `${WAYBILL_IMPORTS}/preview`, async (config) => {
     if (!(await currentActor()).can(IMPORT_CREATE)) return forbidden();
     const file = uploadOf(config);

@@ -13,6 +13,7 @@ import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Button } from "@/components/ui/button";
 
 import { RefetchErrorNotice } from "./primitives";
+import { DeliveryNoteButton } from "./shipment/DeliveryNoteButton";
 import { OutcomeDialog } from "./shipment/OutcomeDialog";
 import { ShipmentDetails } from "./shipment/ShipmentDetails";
 import { ShipmentInfoCard } from "./shipment/ShipmentInfoCard";
@@ -59,19 +60,24 @@ function ShipmentBody({ id }: { id: string }) {
         {outcomes.length === 0 && <Alert tone="info">{noOutcomeReason(shipment, actor)}</Alert>}
         <ShipmentInfoCard
           data={data}
-          actions={outcomes.map((value) => {
-            const Icon = OUTCOME_ICON[value];
-            return (
-              <Button
-                key={value}
-                size="sm"
-                variant={value === "DELIVERED" ? "default" : "outline"}
-                onClick={() => setOutcome(value)}
-              >
-                <Icon className="size-3.5" /> {L.outcomeAction[value]}
-              </Button>
-            );
-          })}
+          actions={
+            <>
+              {outcomes.map((value) => {
+                const Icon = OUTCOME_ICON[value];
+                return (
+                  <Button
+                    key={value}
+                    size="sm"
+                    variant={value === "DELIVERED" ? "default" : "outline"}
+                    onClick={() => setOutcome(value)}
+                  >
+                    <Icon className="size-3.5" /> {L.outcomeAction[value]}
+                  </Button>
+                );
+              })}
+              <DeliveryNoteButton shipment={shipment} />
+            </>
+          }
         />
         <ShipmentDetails data={data} />
       </div>
