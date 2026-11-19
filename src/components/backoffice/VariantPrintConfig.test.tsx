@@ -93,6 +93,54 @@ function open(
 
 const measured = () => screen.findByRole("table", { name: "Số đo lấy từ file 3D" });
 
+/** The variant's units as the BE lists them: `carton` adds a packing unit of 50 (a carton candidate). */
+function withUnits(ids: { productId: string; variantId: string }, carton: boolean) {
+  const unit = (id: string, unitOfMeasure: string, factor: number, base: boolean) => ({
+    id,
+    sku: ids.variantId,
+    unitOfMeasure,
+    factor,
+    base,
+    defaultPurchase: base,
+    active: true,
+    version: 0,
+  });
+  const items = [
+    unit("u-each", "EACH", 1, true),
+    ...(carton ? [unit("u-box", "THUNG", 50, false)] : []),
+  ];
+  const unitsPath = `/products/${ids.productId}/variants/${ids.variantId}/uom-conversions`;
+  vi.spyOn(api, "get").mockImplementation(async (url, config) =>
+    url === "/identity/me/permissions"
+      ? { data: { roles: ["TEST"], permissions: [...FULL], dataScope: "ALL" } }
+      : url === unitsPath
+        ? { data: { items } }
+        : passThrough(url, config),
+  );
+  return renderApp(<VariantPrintConfig {...ids} />);
+}
+
+describe("VariantPrintConfig — quy cách thùng (preflight CARTON_SPEC_MISSING)", () => {
+  it("a variant without a packing unit warns that customers cannot submit, with the way to the product", async () => {
+    await setStatus(SEED.productId, "Approved");
+    withUnits(SEED, false);
+    const warning = await screen.findByText(PRINT_CONFIG_PAGE_LABELS.cartonMissing.title);
+    expect(warning).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: PRINT_CONFIG_PAGE_LABELS.cartonMissing.link }),
+    ).toHaveAttribute("href", ADMIN_ROUTES.products.detail(SEED.productId));
+  });
+
+  it("a variant with a carton says nothing about it", async () => {
+    await setStatus(SEED.productId, "Approved");
+    withUnits(SEED, true);
+    await measured();
+    expect(
+      screen.queryByText(PRINT_CONFIG_PAGE_LABELS.cartonMissing.title),
+    ).not.toBeInTheDocument();
+  });
+});
+
 describe("VariantPrintConfig", () => {
   it("shows the SKU and name of the variant, the way back, and the saved figures of the seeded variant", async () => {
     await setStatus(SEED.productId, "Approved");
