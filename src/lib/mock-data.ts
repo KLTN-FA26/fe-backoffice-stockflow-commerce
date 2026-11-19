@@ -863,6 +863,18 @@ export type PoStatus =
 /** Vòng đời Đề xuất Nhập hàng (Replenishment Proposal — 02 §5). */
 export type ProposalStatus = "Draft Proposal" | "Reviewed" | "Converted";
 
+export interface ReplenishmentProposal {
+  proposalId: ID;
+  skuId: ID;
+  warehouseId: WarehouseId;
+  suggestedQty: Qty;
+  reason: string; // "Dưới reorder point", "Sức mua tăng"
+  status: ProposalStatus;
+  createdAt: ISODateTime;
+  reviewedBy?: string;
+  convertedToPoId?: ID;
+}
+
 export interface PoLine {
   lineId: ID;
   poId: ID;
@@ -898,6 +910,39 @@ export interface PurchaseOrder {
   revisionOf?: ID; // PO Confirmed → Create Revision
   notes?: string;
 }
+
+export const replenishmentProposals: ReplenishmentProposal[] = [
+  {
+    proposalId: "PROP-001",
+    skuId: "SKU-001-WHT-L",
+    warehouseId: "WH-HN-01",
+    suggestedQty: 200,
+    reason: "Tồn dưới reorder point (6 còn < 60)",
+    status: "Draft Proposal",
+    createdAt: "2026-06-08T07:30:00+07:00",
+  },
+  {
+    proposalId: "PROP-002",
+    skuId: "SKU-001-NVY-XL",
+    warehouseId: "WH-HN-01",
+    suggestedQty: 150,
+    reason: "Hết hàng, sức mua cao",
+    status: "Reviewed",
+    createdAt: "2026-06-08T07:32:00+07:00",
+    reviewedBy: "Đỗ Hồng Nhung",
+  },
+  {
+    proposalId: "PROP-003",
+    skuId: "SKU-003-WHT-L",
+    warehouseId: "WH-HCM-01",
+    suggestedQty: 800,
+    reason: "Cân bằng tồn giữa kho HN & HCM",
+    status: "Converted",
+    createdAt: "2026-06-05T09:00:00+07:00",
+    reviewedBy: "Đỗ Hồng Nhung",
+    convertedToPoId: "PO-2026-0012",
+  },
+];
 
 export const purchaseOrders: PurchaseOrder[] = [
   {
@@ -4586,6 +4631,254 @@ export type TransferOrderStatus =
   | "Completed"
   | "Cancelled";
 // Ghi chú: docs ghi "Completed / Closed" là một trạng thái cuối — dùng "Completed".
+
+export interface TransferLine {
+  lineId: ID;
+  transferOrderId: ID;
+  skuId: ID;
+  requestedQty: Qty;
+  shippedQty: Qty;
+  receivedQty: Qty;
+  uom: Uom;
+  lotId?: ID;
+}
+
+export interface TransferOrder {
+  transferOrderId: ID;
+  toNumber: string;
+  fromWarehouseId: WarehouseId;
+  toWarehouseId: WarehouseId;
+  status: TransferOrderStatus;
+  reason: string; // "Cân bằng tồn", "Điều phối theo khu vực"
+  requestedBy: string;
+  approvedBy?: string;
+  createdAt: ISODateTime;
+  shippedAt?: ISODateTime;
+  receivedAt?: ISODateTime;
+  /** Tồn in-transit KHÔNG tính vào ATP kho đích tới khi nhận (C4). */
+  inTransitQty: Qty;
+  carrierShipmentId?: ID;
+  lines: TransferLine[];
+  notes?: string;
+}
+
+export const transferOrders: TransferOrder[] = [
+  {
+    transferOrderId: "TO-2026-0009",
+    toNumber: "TO-2026-0009",
+    fromWarehouseId: "WH-HN-01",
+    toWarehouseId: "WH-DN-01",
+    status: "Draft",
+    reason: "Cân bằng tồn khu vực miền Trung",
+    requestedBy: "Đỗ Hồng Nhung",
+    createdAt: "2026-06-12T10:00:00+07:00",
+    inTransitQty: 0,
+    lines: [
+      {
+        lineId: "TOL-0009-1",
+        transferOrderId: "TO-2026-0009",
+        skuId: "SKU-001-BLK-L",
+        requestedQty: 100,
+        shippedQty: 0,
+        receivedQty: 0,
+        uom: "pcs",
+      },
+    ],
+  },
+  {
+    transferOrderId: "TO-2026-0008",
+    toNumber: "TO-2026-0008",
+    fromWarehouseId: "WH-HCM-01",
+    toWarehouseId: "WH-HN-01",
+    status: "Pending Approval",
+    reason: "Kho HN sắp hết SKU cốc sứ",
+    requestedBy: "Đỗ Hồng Nhung",
+    createdAt: "2026-06-11T09:00:00+07:00",
+    inTransitQty: 0,
+    lines: [
+      {
+        lineId: "TOL-0008-1",
+        transferOrderId: "TO-2026-0008",
+        skuId: "SKU-002-WHT",
+        requestedQty: 150,
+        shippedQty: 0,
+        receivedQty: 0,
+        uom: "pcs",
+      },
+    ],
+    notes: "Vượt ngưỡng duyệt → chờ Warehouse Manager (A2).",
+  },
+  {
+    transferOrderId: "TO-2026-0007",
+    toNumber: "TO-2026-0007",
+    fromWarehouseId: "WH-HN-01",
+    toWarehouseId: "WH-HCM-01",
+    status: "Approved",
+    reason: "Điều phối phôi áo cho xưởng in HCM",
+    requestedBy: "Đỗ Hồng Nhung",
+    approvedBy: "Trần Minh Quang",
+    createdAt: "2026-06-10T08:00:00+07:00",
+    inTransitQty: 0,
+    lines: [
+      {
+        lineId: "TOL-0007-1",
+        transferOrderId: "TO-2026-0007",
+        skuId: "SKU-001-BLK-M",
+        requestedQty: 200,
+        shippedQty: 0,
+        receivedQty: 0,
+        uom: "pcs",
+      },
+    ],
+  },
+  {
+    transferOrderId: "TO-2026-0006",
+    toNumber: "TO-2026-0006",
+    fromWarehouseId: "WH-HN-01",
+    toWarehouseId: "WH-DN-01",
+    status: "Picking",
+    reason: "Mở rộng bán khu vực Đà Nẵng",
+    requestedBy: "Đỗ Hồng Nhung",
+    approvedBy: "Trần Minh Quang",
+    createdAt: "2026-06-09T08:00:00+07:00",
+    inTransitQty: 0,
+    lines: [
+      {
+        lineId: "TOL-0006-1",
+        transferOrderId: "TO-2026-0006",
+        skuId: "SKU-001-BLK-L",
+        requestedQty: 80,
+        shippedQty: 0,
+        receivedQty: 0,
+        uom: "pcs",
+      },
+    ],
+  },
+  {
+    transferOrderId: "TO-2026-0005",
+    toNumber: "TO-2026-0005",
+    fromWarehouseId: "WH-HCM-01",
+    toWarehouseId: "WH-HN-01",
+    status: "In Transit",
+    reason: "Cân bằng tồn áo thun trắng",
+    requestedBy: "Đỗ Hồng Nhung",
+    approvedBy: "Trần Minh Quang",
+    createdAt: "2026-06-06T08:00:00+07:00",
+    shippedAt: "2026-06-08T17:00:00+07:00",
+    inTransitQty: 120,
+    carrierShipmentId: "SHP-TO-0005",
+    lines: [
+      {
+        lineId: "TOL-0005-1",
+        transferOrderId: "TO-2026-0005",
+        skuId: "SKU-001-WHT-L",
+        requestedQty: 120,
+        shippedQty: 120,
+        receivedQty: 0,
+        uom: "pcs",
+      },
+    ],
+  },
+  {
+    transferOrderId: "TO-2026-0004",
+    toNumber: "TO-2026-0004",
+    fromWarehouseId: "WH-HN-01",
+    toWarehouseId: "WH-HCM-01",
+    status: "Partially Received",
+    reason: "Điều phối tồn theo sức mua",
+    requestedBy: "Đỗ Hồng Nhung",
+    approvedBy: "Trần Minh Quang",
+    createdAt: "2026-06-02T08:00:00+07:00",
+    shippedAt: "2026-06-03T17:00:00+07:00",
+    inTransitQty: 50,
+    carrierShipmentId: "SHP-TO-0004",
+    lines: [
+      {
+        lineId: "TOL-0004-1",
+        transferOrderId: "TO-2026-0004",
+        skuId: "SKU-001-BLK-M",
+        requestedQty: 250,
+        shippedQty: 250,
+        receivedQty: 200,
+        uom: "pcs",
+      },
+    ],
+  },
+  {
+    transferOrderId: "TO-2026-0003",
+    toNumber: "TO-2026-0003",
+    fromWarehouseId: "WH-HCM-01",
+    toWarehouseId: "WH-DN-01",
+    status: "Received",
+    reason: "Cân bằng tồn cốc sứ",
+    requestedBy: "Đỗ Hồng Nhung",
+    approvedBy: "Trần Minh Quang",
+    createdAt: "2026-05-28T08:00:00+07:00",
+    shippedAt: "2026-05-29T17:00:00+07:00",
+    receivedAt: "2026-06-01T10:00:00+07:00",
+    inTransitQty: 0,
+    carrierShipmentId: "SHP-TO-0003",
+    lines: [
+      {
+        lineId: "TOL-0003-1",
+        transferOrderId: "TO-2026-0003",
+        skuId: "SKU-002-WHT",
+        requestedQty: 90,
+        shippedQty: 90,
+        receivedQty: 90,
+        uom: "pcs",
+      },
+    ],
+  },
+  {
+    transferOrderId: "TO-2026-0002",
+    toNumber: "TO-2026-0002",
+    fromWarehouseId: "WH-HN-01",
+    toWarehouseId: "WH-HCM-01",
+    status: "Completed",
+    reason: "Điều phối phôi in",
+    requestedBy: "Đỗ Hồng Nhung",
+    approvedBy: "Trần Minh Quang",
+    createdAt: "2026-05-20T08:00:00+07:00",
+    shippedAt: "2026-05-21T17:00:00+07:00",
+    receivedAt: "2026-05-24T10:00:00+07:00",
+    inTransitQty: 0,
+    carrierShipmentId: "SHP-TO-0002",
+    lines: [
+      {
+        lineId: "TOL-0002-1",
+        transferOrderId: "TO-2026-0002",
+        skuId: "SKU-003-WHT-L",
+        requestedQty: 300,
+        shippedQty: 300,
+        receivedQty: 300,
+        uom: "pcs",
+      },
+    ],
+  },
+  {
+    transferOrderId: "TO-2026-0001",
+    toNumber: "TO-2026-0001",
+    fromWarehouseId: "WH-DN-01",
+    toWarehouseId: "WH-HN-01",
+    status: "Cancelled",
+    reason: "Huỷ — kho nguồn không đủ tồn khả dụng",
+    requestedBy: "Đỗ Hồng Nhung",
+    createdAt: "2026-05-15T08:00:00+07:00",
+    inTransitQty: 0,
+    lines: [
+      {
+        lineId: "TOL-0001-1",
+        transferOrderId: "TO-2026-0001",
+        skuId: "SKU-001-BLK-L",
+        requestedQty: 50,
+        shippedQty: 0,
+        receivedQty: 0,
+        uom: "pcs",
+      },
+    ],
+  },
+];
 
 /* ============================================================================
  * MODULE 11 — INTRA-WAREHOUSE TRANSFER (warehouse/11-intra-warehouse-transfer)
@@ -9825,6 +10118,7 @@ export const mockDb = {
   skus,
   suppliers,
   // 02
+  replenishmentProposals,
   purchaseOrders,
   // 03
   lots,
@@ -9848,6 +10142,7 @@ export const mockDb = {
   carriers,
   shipments,
   // 10
+  transferOrders,
   // 11
   moveTasks,
   // 12
