@@ -89,7 +89,6 @@ function registerShelfEdits(): void {
       footprint,
       obstacle: body.obstacle === true,
       pickFaces,
-      defaultStorageClass: text(body.defaultStorageClass) || "NORMAL",
       version: shelf.version + 1,
     });
     return ok(shelf);
@@ -130,8 +129,6 @@ function registerAreaEdits(): void {
               locationId: area.location?.locationId ?? crypto.randomUUID(),
               locationCode:
                 area.location?.locationCode ?? `${warehouse?.prefix ?? ""}-${area.code}`,
-              storageClass: text(loc.storageClass) || "NORMAL",
-              capacityUnits: optionalNumber(loc.capacityUnits),
               maxWeight: optionalNumber(loc.maxWeight),
               pickable: loc.pickable === true,
               putawayTarget: loc.putawayTarget === true,

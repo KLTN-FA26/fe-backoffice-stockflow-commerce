@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { CORRECTION_BASES, EINVOICE_LIMITS, EINVOICE_ROUTES } from "@/constants/einvoice";
+import { EINVOICE_LIMITS, EINVOICE_ROUTES, MANUAL_CORRECTION_BASES } from "@/constants/einvoice";
 import { CORRECTION_BASIS_LABELS } from "@/constants/labels-einvoice";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { FormField } from "@/components/shared/FormField";
@@ -24,7 +24,7 @@ import { useAdjustEInvoice, useReplaceEInvoice } from "../mutations";
 
 import { CorrectionLinesEditor, draftLinesOf, toCorrectionLines } from "./CorrectionLinesEditor";
 
-import type { CorrectionBasis } from "@/constants/einvoice";
+import type { ManualCorrectionBasis } from "@/constants/einvoice";
 import type { EInvoice } from "../types";
 
 type Mode = "adjust" | "replace";
@@ -46,7 +46,7 @@ function CorrectionForm({
   onClose: () => void;
 }) {
   const router = useRouter();
-  const [basis, setBasis] = useState<CorrectionBasis>("ERROR");
+  const [basis, setBasis] = useState<ManualCorrectionBasis>("ERROR");
   const [reason, setReason] = useState("");
   const [returnRequestId, setReturnRequestId] = useState(invoice.returnRequestId ?? "");
   const [lines, setLines] = useState(() => draftLinesOf(invoice.lines, mode));
@@ -97,12 +97,12 @@ function CorrectionForm({
     >
       {mode === "adjust" && (
         <FormField id="correction-basis" label="Căn cứ điều chỉnh" required>
-          <Select value={basis} onValueChange={(value) => setBasis(value as CorrectionBasis)}>
+          <Select value={basis} onValueChange={(value) => setBasis(value as ManualCorrectionBasis)}>
             <SelectTrigger id="correction-basis">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {CORRECTION_BASES.map((value) => (
+              {MANUAL_CORRECTION_BASES.map((value) => (
                 <SelectItem key={value} value={value}>
                   {CORRECTION_BASIS_LABELS[value]}
                 </SelectItem>

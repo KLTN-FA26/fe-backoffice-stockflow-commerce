@@ -1,7 +1,7 @@
 /**
  * Đơn bán (module 14/17) — enum wire của BE + nhãn hiển thị. Nguồn: BE develop
  * `order/api/*.java` (SCRUM-423 release, SCRUM-427 credit hold, SCRUM-460 payment status).
- * Production order: enum của BE `production/domain/ProductionOrder.java` (ProductionOrderRowResponse).
+ * Production order: enum của BE `order/internal/domain/ProductionOrderStatus.java` (docs 17 §5.3).
  */
 
 /** BE `order/api/PaymentTerm.java` — phương thức thanh toán của đơn (docs 14 §4.3 bước 12). */
@@ -63,67 +63,87 @@ export const ORDER_CANCELLATION_REASON_LABELS = {
   OTHER: "Lý do khác",
 } as const satisfies Record<OrderCancellationReasonCode, string>;
 
-/** BE `CreditHoldService.RefusalAction` — xử lý khi từ chối duyệt vượt hạn mức (docs 15 §4.3). */
-export const CREDIT_REJECTION_ACTIONS = [
-  "CANCEL",
-  "SWITCH_TO_PREPAID",
-  "SWITCH_TO_DEPOSIT",
-] as const;
-
-export const CREDIT_REJECTION_ACTION_LABELS = {
-  CANCEL: "Huỷ đơn",
-  SWITCH_TO_PREPAID: "Chuyển sang trả trước 100%",
-  SWITCH_TO_DEPOSIT: "Chuyển sang đặt cọc",
-} as const satisfies Record<CreditRejectionAction, string>;
-
-/** Ràng buộc DB `production_orders.status` (docs 19 §5.1). */
+/**
+ * Đơn sản xuất — BE `order/internal/domain/ProductionOrderStatus.java` (`GET /production-orders`), vòng đời
+ * docs 17 §5.3: Draft → Pending Approval → Sent → Accepted → Sample Pending → In Production → Partially Received /
+ * Received; Cancelled (trước khi in hàng loạt) và Closed (đóng thiếu) là terminal.
+ */
 export const PRODUCTION_ORDER_STATUSES = [
-  "PENDING_PREPRESS",
-  "READY",
-  "MATERIAL_ISSUED",
-  "PRINTING",
-  "SUBCONTRACTED",
-  "QC",
-  "ON_HOLD",
-  "COMPLETED",
+  "DRAFT",
+  "PENDING_APPROVAL",
+  "SENT",
+  "ACCEPTED",
+  "SAMPLE_PENDING",
+  "IN_PRODUCTION",
+  "PARTIALLY_RECEIVED",
+  "RECEIVED",
   "CANCELLED",
+  "CLOSED",
 ] as const;
 
-/** Chuỗi nguyên văn docs 19 §5.1 — tra màu/nhãn ở `lib/status-map.ts`. */
+/** Chuỗi nguyên văn docs 17 §5.3 — tra tone ở `lib/status-map.ts`. */
 export const PRODUCTION_ORDER_STATUS_DISPLAY = {
-  PENDING_PREPRESS: "Pending Prepress",
-  READY: "Ready",
-  MATERIAL_ISSUED: "Material Issued",
-  PRINTING: "Printing",
-  SUBCONTRACTED: "Subcontracted",
-  QC: "QC",
-  ON_HOLD: "On Hold",
-  COMPLETED: "Completed",
+  DRAFT: "Draft",
+  PENDING_APPROVAL: "Pending Approval",
+  SENT: "Sent",
+  ACCEPTED: "Accepted",
+  SAMPLE_PENDING: "Sample Pending",
+  IN_PRODUCTION: "In Production",
+  PARTIALLY_RECEIVED: "Partially Received",
+  RECEIVED: "Received",
   CANCELLED: "Cancelled",
+  CLOSED: "Closed",
 } as const satisfies Record<ProductionOrderStatus, string>;
 
-/** Ràng buộc DB `production_orders.mode` — in nội bộ hay gia công ngoài (docs 19 §4.7). */
-export const PRODUCTION_ORDER_MODES = ["IN_HOUSE", "SUBCONTRACTED"] as const;
-
-export const PRODUCTION_ORDER_MODE_LABELS = {
-  IN_HOUSE: "In nội bộ",
-  SUBCONTRACTED: "Gia công ngoài",
-} as const satisfies Record<ProductionOrderMode, string>;
-
-/** Ràng buộc DB `production_orders.hold_reason` (docs 19 §5.1 — lý do treo lệnh). */
-export const PRODUCTION_HOLD_REASON_LABELS: Record<string, string> = {
-  FILE_REJECTED: "File in lỗi",
-  BLANKS_SHORT: "Thiếu phôi",
-  MACHINE_DOWN: "Máy hỏng",
-  WAITING_CUSTOMER: "Chờ khách",
-  SUBCONTRACTOR_LATE: "Nhà gia công trễ",
-  OTHER: "Khác",
-};
+/** Nhãn của Đơn sản xuất — "Sent"/"Accepted" ở đây là gửi / được đơn vị sản xuất nhận, không phải khách. */
+export const PRODUCTION_ORDER_STATUS_LABELS = {
+  DRAFT: "Nháp",
+  PENDING_APPROVAL: "Chờ duyệt",
+  SENT: "Đã gửi đơn vị sản xuất",
+  ACCEPTED: "Đơn vị sản xuất đã nhận",
+  SAMPLE_PENDING: "Chờ duyệt mẫu in",
+  IN_PRODUCTION: "Đang sản xuất",
+  PARTIALLY_RECEIVED: "Đã nhập kho một phần",
+  RECEIVED: "Đã nhập kho đủ",
+  CANCELLED: "Đã huỷ",
+  CLOSED: "Đã đóng",
+} as const satisfies Record<ProductionOrderStatus, string>;
 
 export type OrderPaymentTerm = (typeof ORDER_PAYMENT_TERMS)[number];
 export type OrderPaymentStatus = (typeof ORDER_PAYMENT_STATUSES)[number];
 export type OrderPaymentReadStatus = (typeof ORDER_PAYMENT_READ_STATUSES)[number];
+/** Hợp đồng mua bán — BE `SalesContractStatus` (docs 14 §5, origin/develop 438fe6fb). */
+export const SALES_CONTRACT_STATUSES = [
+  "DRAFT",
+  "SENT",
+  "SIGNED",
+  "COMPLETED",
+  "CANCELLED",
+] as const;
+export type SalesContractStatus = (typeof SALES_CONTRACT_STATUSES)[number];
+export const SALES_CONTRACT_STATUS_LABELS = {
+  DRAFT: "Nháp",
+  SENT: "Đã gửi",
+  SIGNED: "Đã ký",
+  COMPLETED: "Hoàn tất",
+  CANCELLED: "Đã huỷ",
+} as const satisfies Record<SalesContractStatus, string>;
+/** Tone (status-map) cho chấm trạng thái hợp đồng. */
+export const SALES_CONTRACT_STATUS_TONE_KEY = {
+  DRAFT: "Draft",
+  SENT: "Sent",
+  SIGNED: "Confirmed",
+  COMPLETED: "Completed",
+  CANCELLED: "Cancelled",
+} as const satisfies Record<SalesContractStatus, string>;
+/** Mốc đợt thanh toán của hợp đồng — BE `PaymentMilestone` (không gồm phí huỷ). */
+export const CONTRACT_MILESTONES = ["ON_SIGNING", "BEFORE_DELIVERY", "AFTER_DELIVERY"] as const;
+export type ContractMilestone = (typeof CONTRACT_MILESTONES)[number];
+export const CONTRACT_MILESTONE_LABELS = {
+  ON_SIGNING: "Khi ký",
+  BEFORE_DELIVERY: "Trước giao",
+  AFTER_DELIVERY: "Sau giao",
+} as const satisfies Record<ContractMilestone, string>;
+
 export type OrderCancellationReasonCode = (typeof ORDER_CANCELLATION_REASON_CODES)[number];
-export type CreditRejectionAction = (typeof CREDIT_REJECTION_ACTIONS)[number];
 export type ProductionOrderStatus = (typeof PRODUCTION_ORDER_STATUSES)[number];
-export type ProductionOrderMode = (typeof PRODUCTION_ORDER_MODES)[number];

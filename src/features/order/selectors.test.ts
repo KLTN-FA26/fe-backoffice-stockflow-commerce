@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  availableRefusalActions,
   cancelConsequence,
   formatCancellationReason,
   formatRemainderClosedStatusReason,
@@ -102,6 +101,8 @@ describe("dòng đơn & lệnh sản xuất", () => {
     shippedQuantity: null,
     deliveredQuantity: null,
     cancelledQuantity: null,
+    cartons: null,
+    unitsPerCarton: null,
   };
   it("customLineCount đếm dòng in", () => {
     expect(
@@ -114,27 +115,25 @@ describe("dòng đơn & lệnh sản xuất", () => {
     ).toBe(1);
   });
 
-  it("groupProductionOrdersByLine tách LSX gốc / con theo dòng (docs 19 BR-01, BR-12)", () => {
+  it("groupProductionOrdersByLine gom phần Đơn sản xuất theo dòng đơn, giữ thứ tự lập (docs 17 §4.3 bước 6)", () => {
     const base: ProductionOrder = {
       productionOrderId: "P1",
-      productionOrderNumber: "LSX-1",
-      salesOrderLineId: "L1",
-      parentId: null,
-      mode: "IN_HOUSE",
-      status: "PRINTING",
-      holdReason: null,
-      plannedQuantity: 10,
-      goodQuantity: 0,
-      dueDate: null,
+      code: "PRD-20261020-0001",
+      orderLineId: "L1",
+      status: "RECEIVED",
+      cartons: 10,
+      receivedCartons: 10,
+      needByDate: null,
+      expectedCompletionDate: null,
     };
     const grouped = groupProductionOrdersByLine([
       base,
-      { ...base, productionOrderId: "P1-S1", parentId: "P1", mode: "SUBCONTRACTED" },
-      { ...base, productionOrderId: "P2", salesOrderLineId: "L2" },
+      { ...base, productionOrderId: "P2", code: "PRD-20261020-0002", status: "SENT" },
+      { ...base, orderLineId: "L2" },
     ]);
-    expect(grouped.get("L1")?.parents.map((p) => p.productionOrderId)).toEqual(["P1"]);
-    expect(grouped.get("L1")?.children.map((p) => p.productionOrderId)).toEqual(["P1-S1"]);
-    expect(grouped.get("L2")?.parents).toHaveLength(1);
+    expect(grouped.get("L1")?.map((p) => p.productionOrderId)).toEqual(["P1", "P2"]);
+    expect(grouped.get("L2")).toHaveLength(1);
+    expect(grouped.get("L3")).toBeUndefined();
   });
 
   it("shouldFlagOrderRow — On Hold và Delivery Failed (ngoại lệ chờ nhân viên quyết)", () => {
@@ -175,22 +174,6 @@ describe("cancelConsequence — hệ quả huỷ theo trạng thái (19 trạng 
   it("chưa giao kho / sản xuất, UNKNOWN → không có cảnh báo thêm", () => {
     expect(cancelConsequence("Pending Payment")).toBeNull();
     expect(cancelConsequence("UNKNOWN")).toBeNull();
-  });
-});
-
-describe("availableRefusalActions — theo allowedTerms HIỆN TẠI (docs 14 BR-05)", () => {
-  it("huỷ luôn được; chuyển trả trước / đặt cọc chỉ khi BE cho phép", () => {
-    expect(availableRefusalActions(["PREPAID", "DEPOSIT", "CREDIT"])).toEqual([
-      "CANCEL",
-      "SWITCH_TO_PREPAID",
-      "SWITCH_TO_DEPOSIT",
-    ]);
-    expect(availableRefusalActions(["PREPAID", "CREDIT"])).toEqual(["CANCEL", "SWITCH_TO_PREPAID"]);
-    expect(availableRefusalActions(["CREDIT"])).toEqual(["CANCEL"]);
-    expect(availableRefusalActions([])).toEqual(["CANCEL"]);
-  });
-  it("chưa có credit position (đang tải / lỗi / thiếu quyền) → chỉ huỷ, không đoán", () => {
-    expect(availableRefusalActions(null)).toEqual(["CANCEL"]);
   });
 });
 

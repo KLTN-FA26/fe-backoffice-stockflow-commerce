@@ -12,6 +12,7 @@ import { canonicalDecimal } from "@/lib/validation/decimal";
 import { registerMockRoute } from "./mock-adapter";
 import {
   customerPricesOf,
+  deleteCustomerPrice,
   findCustomerPrice,
   saveCustomerPrice,
 } from "./mock-customer-price-store";
@@ -46,10 +47,14 @@ const normaliseSku = (raw: string): string | null => {
   return SKU.test(code) ? code : null;
 };
 
-/** BE `CustomerPriceResponse`: MOQ = bậc đầu; đơn giá về số JSON như Jackson ghi `BigDecimal`. */
+/**
+ * BE `CustomerPriceResponse`: MOQ = bậc đầu; đơn giá về số JSON như Jackson ghi `BigDecimal`. Mock không có giá cũ
+ * theo cái nên `measure` luôn CARTON (bậc theo số thùng, 13 BR-05).
+ */
 const toWire = (p: MockCustomerPrice) => ({
   customerId: p.customerId,
   sku: p.sku,
+  measure: "CARTON",
   moq: p.tiers[0]?.minQuantity ?? 0,
   tiers: p.tiers.map((t) => ({ minQuantity: t.minQuantity, unitPrice: Number(t.unitPrice) })),
   note: p.note,
@@ -287,9 +292,32 @@ async function replaceRoute(config: AxiosRequestConfig) {
   return ok(toWire(saved));
 }
 
+/** BE `CustomerPriceService.delete`: khách → SKU → giá có (404) → version (409 OPTIMISTIC_LOCK) → xoá. */
+async function deleteRoute(config: AxiosRequestConfig) {
+  const path = pathOf(config);
+  if (path.error) return path.error;
+  const version = Number(queryOf(config).get("version"));
+  if (!Number.isInteger(version))
+    return invalid("Required request parameter 'version' is not present");
+  const prepared = await prepare(path.customerId, path.sku);
+  if (prepared.error) return prepared.error;
+  const current = findCustomerPrice(path.customerId, prepared.sku);
+  if (!current) return fail(404, "CUSTOMER_PRICE_NOT_FOUND", "Customer price not found");
+  if (version !== current.version) {
+    return fail(
+      409,
+      "OPTIMISTIC_LOCK",
+      `The price of ${current.sku} for this customer changed since it was read`,
+    );
+  }
+  deleteCustomerPrice(path.customerId, prepared.sku);
+  return ok(null);
+}
+
 export function registerCustomerPriceMockRoutes(): void {
   registerMockRoute("GET", "/catalog/customer-prices", listRoute);
   registerMockRoute("GET", "/catalog/customer-prices/:customerId/:sku", detailRoute);
   registerMockRoute("POST", "/catalog/customer-prices/:customerId/:sku", createRoute);
   registerMockRoute("PUT", "/catalog/customer-prices/:customerId/:sku", replaceRoute);
+  registerMockRoute("DELETE", "/catalog/customer-prices/:customerId/:sku", deleteRoute);
 }

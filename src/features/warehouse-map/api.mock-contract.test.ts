@@ -113,7 +113,6 @@ describe("khai báo kho → vẽ bản đồ", () => {
       footprint: { x: 2, y: 2, width: 10, length: 1.2, rotation: 0 },
       obstacle: true,
       pickFaces: { north: false, east: false, south: true, west: false },
-      defaultStorageClass: "NORMAL",
     });
     const shelfId = (shelf.data as { id: string }).id;
     const level = await call("POST", `/shelves/${shelfId}/levels`, { levelIndex: 1 });

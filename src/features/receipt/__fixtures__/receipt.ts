@@ -1,77 +1,61 @@
 /**
- * Fixture đúng hình dạng response BE PR #62, số liệu lấy theo seed demo BE
- * (db/demo/V20260929000270__demo_receiving.sql): PO-HCM-DEMO-0002 — 10 SOFA-3S-GREY (2 bước)
- * + 6 TABLE-OAK-160 (3 bước QC, lô + hạn dùng), khu HCM-RCV01 / HCM-QCA01 / HCM-QC01 / HCM-RTV01.
+ * Fixture đúng hình dạng `GoodsReceiptResponse` / `GoodsReceiptRowResponse` của BE sau 4A-5 / 4A-9: phiếu theo Đơn
+ * sản xuất (`PRODUCTION`) có Đơn sản xuất + đơn vị sản xuất + tiến độ thùng theo dòng; phiếu mua hàng cũ
+ * (`PURCHASE`) không có Đơn sản xuất. Khu nhận HCM-RCV01 của kho HCM (seed demo BE).
  */
 
 import type {
   GoodsReceiptApiDto,
+  ProductionLineProgressDto,
   ReceiptLineDto,
   ReceiptPackageDto,
   ReceiptUnitDto,
-  ReceivablePo,
 } from "../types";
 
-export const PO_ID = "bd69ad30-f972-2fac-2cef-6f8eef44618c";
-export const SOFA_PO_LINE_ID = "931404fb-06e5-d326-c3f5-9e7bf831af8a";
-export const TABLE_PO_LINE_ID = "567a8afe-f4b4-aa3f-91d8-fee285876b74";
-export const SUPPLIER_ID = "be4cc8dd-0883-65f5-d979-488ffe0c14b6";
 export const HCM_ID = "d99123fd-2997-4751-6bb9-e10a2e6d9949";
 export const RECEIPT_ID = "0f3a7c1e-9b2d-4e8a-8c51-6d2f9e4b7a10";
+export const PRODUCTION_ORDER_ID = "5b1e2f3a-7c4d-4e8a-9b0c-1d2e3f4a5b6c";
+export const PRODUCTION_ORDER_LINE_ID = "6c2f3a4b-8d5e-4f9a-8c1d-2e3f4a5b6c7d";
+export const PRODUCER_ID = "7d3a4b5c-9e6f-4a0b-9d2e-3f4a5b6c7d8e";
 const CLERK = "7e1d0c2b-3a4f-4b5c-9d6e-8f7a6b5c4d3e";
 
-export const receivablePo: ReceivablePo = {
-  purchaseOrderId: PO_ID,
-  poNumber: "PO-HCM-DEMO-0002",
-  supplierId: "be4cc8dd-0883-65f5-d979-488ffe0c14b6",
-  status: "CONFIRMED",
-  expectedAt: "2026-10-15",
-  lines: [
-    {
-      lineId: SOFA_PO_LINE_ID,
-      sku: "SOFA-3S-GREY",
-      description: "SOFA-3S-GREY",
-      quantityOrdered: 10,
-      quantityReceived: 0,
-      openQuantity: 10,
-    },
-    {
-      lineId: TABLE_PO_LINE_ID,
-      sku: "TABLE-OAK-160",
-      description: "TABLE-OAK-160",
-      quantityOrdered: 6,
-      quantityReceived: 0,
-      openQuantity: 6,
-    },
-  ],
-};
+/** 10 thùng × 50 ly đặt; đã nhận 4 thùng ở phiếu trước, phiếu này 2 thùng, còn 4. */
+export function productionProgress(
+  overrides: Partial<ProductionLineProgressDto> = {},
+): ProductionLineProgressDto {
+  return {
+    unitsPerCarton: 50,
+    orderedCartons: 10,
+    receivedCartons: 4,
+    thisReceiptCartons: 2,
+    remainingCartons: 4,
+    orderedUnits: 500,
+    receivedUnits: 200,
+    thisReceiptUnits: 100,
+    remainingUnits: 200,
+    ...overrides,
+  };
+}
 
 export function apiLine(overrides: Partial<ReceiptLineDto> = {}): ReceiptLineDto {
-  const quantity = overrides.quantity ?? 6;
+  const quantity = overrides.quantity ?? 100;
   const inCartons = (overrides.packages ?? []).reduce((sum, p) => sum + p.receivedQty, 0);
   return {
     unitOfMeasure: null,
     looseQuantity: quantity - inCartons,
     packages: [],
     units: [],
-    orderedUnitOfMeasure: null,
     id: "a1b2c3d4-0000-4000-8000-000000000001",
-    purchaseOrderLineId: TABLE_PO_LINE_ID,
-    purchaseOrderLineNo: 2,
     inventoryItemId: "2cdf6e40-fbc3-aa6b-3f79-42b5c07d7e41",
-    sku: "TABLE-OAK-160",
-    quantity: 6,
-    lotNumber: "LOT-2026-10",
-    expiryDate: "2027-10-01",
+    sku: "CUP-PRINT-ACME-12OZ",
+    quantity: 100,
+    lotNumber: "PO-HCM-0007",
     locationCode: "HCM-RCV01",
     note: null,
-    qcRequired: true,
-    qcProgress: "AWAITING_MOVE_TO_QC",
-    qcLocationCode: null,
-    movedToQcAt: null,
     quantityForPutaway: 0,
-    inspections: [],
     warnings: [],
+    productionOrderLineId: PRODUCTION_ORDER_LINE_ID,
+    production: productionProgress(),
     ...overrides,
   };
 }
@@ -98,13 +82,12 @@ export function cartonPackage(overrides: Partial<ReceiptPackageDto> = {}): Recei
 
 /**
  * Ví dụ của issue #104 / BE spec SCRUM-473 §3: dòng 4.990 đơn vị, thùng `…001` (1.000) và `…002` (980),
- * phần lẻ 3.010, đếm theo CARTON (PO line đặt theo CARTON).
+ * phần lẻ 3.010, đếm theo CARTON.
  */
 export function cartonLine(overrides: Partial<ReceiptLineDto> = {}): ReceiptLineDto {
   return apiLine({
     quantity: 4990,
     unitOfMeasure: "CARTON",
-    orderedUnitOfMeasure: "CARTON",
     units: CARTON_UNITS,
     packages: [
       cartonPackage(),
@@ -119,48 +102,69 @@ export function cartonLine(overrides: Partial<ReceiptLineDto> = {}): ReceiptLine
   });
 }
 
+/** Phiếu theo Đơn sản xuất (docs 03 §4.1). */
 export function apiReceipt(overrides: Partial<GoodsReceiptApiDto> = {}): GoodsReceiptApiDto {
   return {
     id: RECEIPT_ID,
     number: "GR-20261009-0001",
-    purchaseOrderId: PO_ID,
-    purchaseOrderNumber: "PO-HCM-DEMO-0002",
-    warehouseId: "d99123fd-2997-4751-6bb9-e10a2e6d9949",
+    warehouseId: HCM_ID,
+    warehouseCode: "HCM",
+    warehouseName: "Kho Hồ Chí Minh",
     status: "DRAFT",
     deliveryNote: "DN-001",
     note: null,
     // 23:30 ngày 08/10 theo UTC = 06:30 ngày 09/10 giờ VN
     receivedAt: "2026-10-08T23:30:00Z",
     receivedBy: CLERK,
+    receivedByName: "Nguyễn Văn Kho",
     confirmedAt: null,
     confirmedBy: null,
+    confirmedByName: null,
     closedAt: null,
     lines: [],
     warnings: [],
-    approval: null,
-    withoutPurchaseOrder: false,
+    receiptType: "PRODUCTION",
+    productionOrderId: PRODUCTION_ORDER_ID,
+    productionOrderCode: "PO-HCM-0007",
+    productionOrderStatus: "IN_PRODUCTION",
+    producerId: PRODUCER_ID,
+    producerName: "Xưởng in Ánh Dương",
     ...overrides,
   };
 }
 
-/** Phiếu hàng về KHÔNG có PO (BR-RCP-002): NCC + lý do của chính phiếu, dòng gọi hàng bằng SKU. */
-export function apiBlindReceipt(overrides: Partial<GoodsReceiptApiDto> = {}): GoodsReceiptApiDto {
+/** Phiếu mua hàng cũ (BE 4A-8): không có Đơn sản xuất, chỉ còn đọc và huỷ khi còn nháp. */
+export function apiPurchaseReceipt(
+  overrides: Partial<GoodsReceiptApiDto> = {},
+): GoodsReceiptApiDto {
   return apiReceipt({
-    purchaseOrderId: null,
-    purchaseOrderNumber: null,
-    supplierId: SUPPLIER_ID,
-    supplierName: "Xưởng gỗ Việt",
-    withoutPurchaseOrder: true,
-    blindReason: "NCC tặng kèm hàng mẫu",
+    receiptType: "PURCHASE",
+    productionOrderId: null,
+    productionOrderCode: null,
+    productionOrderStatus: null,
+    producerId: null,
+    producerName: null,
+    lines: [apiLine({ productionOrderLineId: null, production: null })],
     ...overrides,
   });
 }
 
+/** `GoodsReceiptRowResponse`: dòng danh sách, không kèm dòng nhận. */
+export function apiReceiptRow(receipt: GoodsReceiptApiDto = apiReceipt()) {
+  const {
+    lines: _lines,
+    note: _note,
+    warnings: _warnings,
+    productionOrderStatus: _poStatus,
+    producerId: _producerId,
+    ...row
+  } = receipt;
+  return row;
+}
+
 export function apiReceiptPage(items = [apiReceipt()]) {
   return {
-    items: items.map(
-      ({ lines: _lines, purchaseOrderNumber: _po, note: _note, confirmedBy: _by, ...row }) => row,
-    ),
+    items: items.map((receipt) => apiReceiptRow(receipt)),
     page: 0,
     size: 15,
     totalElements: items.length,

@@ -144,6 +144,18 @@ export async function voidDraft(input: VersionedInput & { reason: string }): Pro
   return parse(data);
 }
 
+/**
+ * Rút hoá đơn kẹt ở NCC (SUBMITTING → REJECTED mã `WITHDRAWN_NO_PROVIDER_RECORD`, lý do = điều Kế toán đã
+ * kiểm trên cổng NCC) để mở lại và phát hành như giao dịch mới (BE HĐ-1). 409 `EINVOICE_WITHDRAWAL_REFUSED`.
+ */
+export async function withdrawEInvoice(
+  input: VersionedInput & { reason: string },
+): Promise<EInvoice> {
+  const { id, ...body } = input;
+  const { data } = await api.post<unknown>(`${one(id)}/withdrawal`, body);
+  return parse(data);
+}
+
 /** Tra lại kết quả theo mã giao dịch (docs 21 §4.2 bước 8). */
 export async function reconcileEInvoice({ id }: { id: string }): Promise<EInvoice> {
   const { data } = await api.post<unknown>(`${one(id)}/reconciliation`, {});

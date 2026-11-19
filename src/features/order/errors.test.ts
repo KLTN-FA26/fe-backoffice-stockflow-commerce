@@ -5,7 +5,6 @@ import { ApiError } from "@/lib/api/error";
 
 import {
   ADMIN_CANCEL_FIELD_ERRORS,
-  CREDIT_REJECTION_FIELD_ERRORS,
   ORDER_STALE_ERROR_CODES,
   adminCancelErrorView,
   creditDecisionErrorView,
@@ -68,12 +67,13 @@ describe("creditDecisionErrorView (SCRUM-427)", () => {
     );
   });
 
-  it("PAYMENT_TERM_NOT_ALLOWED → docs 14 BR-05", () => {
-    expect(creditDecisionErrorView(apiError(409, "PAYMENT_TERM_NOT_ALLOWED")).rule).toBe("BR-05");
+  it("WF-02: lỗi nghiệp vụ BE (message tiếng Việt) hiện nguyên văn", () => {
+    const message = "Đơn SO-1 không còn chờ duyệt tín dụng.";
+    expect(creditDecisionErrorView(apiError(409, "SOMETHING_NEW", message)).detail).toBe(message);
   });
 });
 
-describe("isProductionForbidden — GET /production/orders", () => {
+describe("isProductionForbidden — GET /production-orders", () => {
   it.each(["FORBIDDEN", "OUT_OF_DATA_SCOPE"])("403 %s → không có quyền xem LSX", (code) => {
     expect(isProductionForbidden(apiError(403, code))).toBe(true);
   });
@@ -114,15 +114,14 @@ describe("tranh chấp đồng thời — OPTIMISTIC_LOCK / LOCK_TIMEOUT (BE 409
   });
 
   it("C. mã nghiệp vụ 409 vẫn có câu riêng, không bị nuốt bởi nhánh khoá", () => {
-    expect(creditDecisionErrorView(apiError(409, "PAYMENT_TERM_NOT_ALLOWED")).rule).toBe("BR-05");
     expect(creditDecisionErrorView(apiError(409, "ORDER_NOT_ON_CREDIT_HOLD")).detail).toMatch(
       /người khác xử lý/,
     );
     expect(adminCancelErrorView(apiError(409, "ORDER_NOT_CANCELLABLE")).rule).toBe("BR-ORD-004");
   });
 
-  it("D. 409 / mã lạ → câu chung như cũ", () => {
-    const v = creditDecisionErrorView(apiError(409, "SOMETHING_NEW"));
+  it("D. 409 / mã lạ không có message BE → câu chung như cũ", () => {
+    const v = creditDecisionErrorView(apiError(409, "SOMETHING_NEW", "SOMETHING_NEW"));
     expect(v.detail).toBe("Đã xảy ra lỗi khi xử lý đơn. Vui lòng thử lại.");
   });
 });
@@ -142,10 +141,10 @@ describe("mapServerFieldErrors — fieldErrors BE → ô form (map riêng từng
 
   it("B. nhiều field nhận ra → giữ tất cả", () => {
     const { mapped } = mapServerFieldErrors(
-      withFields({ note: "note is required", depositPercent: "must be below 100" }),
-      CREDIT_REJECTION_FIELD_ERRORS,
+      withFields({ reasonCode: "must not be null", note: "too long" }),
+      ADMIN_CANCEL_FIELD_ERRORS,
     );
-    expect(mapped.map((m) => m.field)).toEqual(["note", "depositPercent"]);
+    expect(mapped.map((m) => m.field)).toEqual(["reasonCode", "note"]);
   });
 
   it("C. field lạ (vd field cấp lớp, `reason` cũ) → không gắn ô, trả message để báo chung", () => {

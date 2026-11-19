@@ -11,7 +11,7 @@
  * status-map.ts → BE→FE status mapping
  * api.ts      → axios calls (list, detail, admin-cancel, giữ / gỡ giữ / giao thất bại / đóng phần còn lại)
  * release-api.ts → release đơn; delivery-batch-api.ts → lịch giao (chọn đợt khi release); history-api.ts; partial-shipment-api.ts
- * action-api.ts → credit hold, lệnh sản xuất (GET /production/orders)
+ * action-api.ts → credit hold, Đơn sản xuất (GET /production-orders)
  * queries.ts  → React Query hooks
  * mutations.ts → mutation hooks
  * lifecycle.ts → transition table + action-gating
@@ -114,7 +114,11 @@ export {
 // Khe "Ước tính xếp xe" (SCRUM-287 F3): chỗ ghép truyền vào, feature không import chéo
 export type { OrderEstimateSlot, OrderEstimateSlotProps } from "./estimate-slot";
 export type { OrderSettlementSlot, OrderSettlementSlotProps } from "./settlement-slot";
-export type { OrderReturnsSlot, OrderReturnsSlotProps } from "./returns-slot";
+export type {
+  OrderReturnsSlot,
+  OrderReturnsSlotProps,
+  OrderReturnsSlotShipment,
+} from "./returns-slot";
 
 // API params
 export type { ListOrderParams } from "./api";

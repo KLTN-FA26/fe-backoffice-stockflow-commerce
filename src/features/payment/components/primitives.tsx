@@ -4,7 +4,7 @@ import Link from "next/link";
 
 import { PAYMENT_LABELS, REFUND_STATUS_LABELS } from "@/constants/labels-payment";
 import {
-  INSTALLMENT_STATUS_BY_API,
+  INSTALLMENT_DISPLAY_STATUS_BY_API,
   ORDER_PAYMENT_STATUS_BY_API,
   RECEIPT_STATUS_BY_API,
 } from "@/constants/payment";
@@ -16,7 +16,7 @@ import { MONO } from "./copy";
 
 import type { ReactNode } from "react";
 import type {
-  InstallmentApiStatus,
+  InstallmentDisplayStatus,
   OrderPaymentApiStatus,
   ReceiptApiStatus,
   RefundApiStatus,
@@ -32,8 +32,8 @@ export function DateCell({ iso }: { iso: string | null | undefined }) {
   return <span className="text-ink-secondary tabular-nums">{iso ? formatDate(iso) : EMPTY}</span>;
 }
 
-export function InstallmentStatusDot({ status }: { status: InstallmentApiStatus }) {
-  return <StatusDot domain="payment" status={INSTALLMENT_STATUS_BY_API[status]} />;
+export function InstallmentStatusDot({ status }: { status: InstallmentDisplayStatus }) {
+  return <StatusDot domain="payment" status={INSTALLMENT_DISPLAY_STATUS_BY_API[status]} />;
 }
 
 export function ReceiptStatusDot({ status }: { status: ReceiptApiStatus }) {

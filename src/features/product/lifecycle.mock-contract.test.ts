@@ -66,7 +66,6 @@ async function draft() {
     description: "",
     descriptionEn: "",
     taxClass: "STANDARD",
-    kind: "STANDARD",
   });
 }
 
@@ -170,7 +169,7 @@ describe("chứng từ còn mở + cảnh báo khi ngừng kinh doanh", () => {
     const found = await productWithOpenReferences();
     expect(found).not.toBeNull();
     for (const reference of found?.open.references ?? []) {
-      expect(["PURCHASE_ORDER_LINE", "SALES_ORDER_LINE"]).toContain(reference.kind);
+      expect(["PRODUCTION_ORDER_LINE", "SALES_ORDER_LINE"]).toContain(reference.kind);
       expect(reference.documentNumber).toBeTruthy();
       expect(reference.sku).toBeTruthy();
     }
@@ -192,8 +191,8 @@ describe("chứng từ còn mở + cảnh báo khi ngừng kinh doanh", () => {
     });
     expect(result.product.status).toBe("Discontinued");
     const kinds = new Set(open.references.map((r) => r.kind));
-    expect(result.warnings.includes("OPEN_PURCHASE_ORDER_LINES")).toBe(
-      kinds.has("PURCHASE_ORDER_LINE"),
+    expect(result.warnings.includes("OPEN_PRODUCTION_ORDER_LINES")).toBe(
+      kinds.has("PRODUCTION_ORDER_LINE"),
     );
     expect(result.warnings.includes("UNSHIPPED_ORDER_LINES")).toBe(kinds.has("SALES_ORDER_LINE"));
     expect(result.openReferences.length).toBe(open.references.length);

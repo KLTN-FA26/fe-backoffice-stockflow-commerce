@@ -21,9 +21,9 @@ export const PRODUCT_ERROR_MESSAGES = {
     "Chưa xuất bản được: cần ít nhất một biến thể Đang dùng — hãy kích hoạt một biến thể rồi thử lại.",
   // BE `CatalogCommerceService.publish`: chưa có bản ghi listing (`PUT /products/{id}/ecommerce`).
   listingRequired: "Chưa xuất bản được: hãy lưu Thông tin cửa hàng (đường dẫn) của sản phẩm trước.",
-  // BE `CatalogCommerceService.publish`: một SKU Đang dùng chưa có giá bán cơ sở.
-  priceRequired:
-    "Chưa xuất bản được: mọi biến thể Đang dùng cần có Giá bán cơ sở — hãy đặt giá cho biến thể còn thiếu.",
+  // BE `Product.requireDetails` (gửi duyệt / duyệt): thiếu thông tin bắt buộc của sản phẩm (docs 01 §3)
+  detailsRequired:
+    "Sản phẩm còn thiếu thông tin bắt buộc (danh mục, thương hiệu, mô tả…) — bổ sung rồi thử lại.",
 } as const;
 
 /** Hộp thoại từ chối duyệt — BE `POST /products/{id}/rejection` (`RejectProductRequest.reason` @NotBlank). */
@@ -56,7 +56,6 @@ export const PRODUCT_UI_LABELS = {
       brandId: "Thương hiệu",
       categoryId: "Danh mục",
       taxClass: "Nhóm thuế",
-      customizable: "Cho phép cá nhân hoá / in ấn",
       shortDescription: "Mô tả ngắn",
       description: "Mô tả tiếng Việt",
       descriptionEn: "Mô tả tiếng Anh",
@@ -77,6 +76,14 @@ export const PRODUCT_UI_LABELS = {
     edit: "Chỉnh sửa sản phẩm",
     noActions: "Bạn không có thao tác nào với sản phẩm ở trạng thái này.",
     draftOnly: "Chỉ sản phẩm Nháp mới sửa được thông tin chung.",
+    pending: "Đang xử lý…",
+    // BE CatalogCommerceService.publish + ProductPublicationAdapter.publish (CATALOG_LISTING_REQUIRED,
+    // PRODUCT_GALLERY_REQUIRED): báo trước thay vì để người dùng bấm rồi mới biết từng điều kiện.
+    publishNeedsTitle: "Trước khi xuất bản cần:",
+    publishNeeds: [
+      "Lưu Thông tin cửa hàng (đường dẫn) ở mục cuối trang.",
+      "Có ít nhất một ảnh đã xuất bản. Ảnh phải do người khác người tải lên xuất bản.",
+    ],
   },
   // BE chỉ trả các trường này khi INACTIVE (tạm ngưng) / DISCONTINUED
   statusReason: {
@@ -105,7 +112,7 @@ export const PRODUCT_UI_LABELS = {
   // Chứng từ còn mở — BE `GET /products/{id}/open-references` (BR-PRD-005: chỉ cảnh báo, không chặn)
   openReferences: {
     title: "Chứng từ còn mở",
-    hint: "Dòng đơn mua / đơn bán chưa xong có SKU của sản phẩm — tạm ngưng hay ngừng kinh doanh không huỷ các dòng này.",
+    hint: "Dòng Đơn sản xuất / đơn bán chưa xong có SKU của sản phẩm — tạm ngưng hay ngừng kinh doanh không huỷ các dòng này.",
     loading: "Đang kiểm tra chứng từ còn mở…",
     loadFailed: "Không tải được chứng từ còn mở.",
     empty: "Không còn chứng từ nào đang mở.",
@@ -133,11 +140,6 @@ export const PRODUCT_UI_LABELS = {
     fields: {
       productCode: "Mã sản phẩm",
       name: "Tên",
-      kind: "Loại",
-    },
-    kind: {
-      customizable: "Tùy chỉnh / In ấn",
-      standard: "Tiêu chuẩn",
     },
   },
   // Ô chọn trục biến thể (dialog "Trục biến thể" + form tạo) — lý do khoá hiện thành chữ, không chỉ
@@ -167,5 +169,10 @@ export const PRODUCT_UI_LABELS = {
       "Sản phẩm đang chờ duyệt hoặc đã ngừng kinh doanh nên không sửa được biến thể và ảnh.",
     // Link ở panel biến thể tới trang cấu hình in (chỉ sản phẩm tuỳ chỉnh)
     printConfigLink: "Cấu hình in",
+    // SKU riêng của khách (docs 01 §1, §4.8): sinh khi thiết kế được duyệt, không phải quy cách
+    customerSku: "SKU riêng của khách",
+    customerSkuHint:
+      "SKU riêng của một khách, sinh tự động khi thiết kế của khách được duyệt — không có cấu hình in riêng (cấu hình in thuộc quy cách gốc).",
+    customerSkuCount: "Trong đó SKU riêng của khách",
   },
 } as const;

@@ -2,16 +2,10 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { FileText, FlaskConical, LogOut, PackageOpen } from "lucide-react";
+import { LogOut, PackageOpen } from "lucide-react";
 import { cn } from "cn";
 
-import {
-  APP_ROUTES,
-  ORDER_PERMISSIONS,
-  PORTAL_ROUTES,
-  QUOTE_PERMISSIONS,
-  SAMPLE_REQUEST_PERMISSIONS,
-} from "@/constants";
+import { APP_ROUTES, ORDER_PERMISSIONS, PORTAL_ROUTES } from "@/constants";
 import { logoutApi } from "@/lib/auth/auth-api";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { usePermissionChecker } from "@/lib/auth/components/Can";
@@ -26,29 +20,17 @@ import type { PermissionCode } from "@/lib/auth/me-permissions";
 interface PortalNavItem {
   label: string;
   href: string;
-  icon: typeof FileText;
+  icon: typeof PackageOpen;
   permission: PermissionCode;
 }
 
 /** Menu portal khách B2B — ẩn mục thiếu quyền (UI-only, BE re-check từng API). */
 const PORTAL_NAV: PortalNavItem[] = [
   {
-    label: "Báo giá",
-    href: PORTAL_ROUTES.quotes.list,
-    icon: FileText,
-    permission: QUOTE_PERMISSIONS.read,
-  },
-  {
     label: "Đơn hàng",
     href: PORTAL_ROUTES.orders.list,
     icon: PackageOpen,
     permission: ORDER_PERMISSIONS.read,
-  },
-  {
-    label: "Mẫu thử",
-    href: PORTAL_ROUTES.samples.list,
-    icon: FlaskConical,
-    permission: SAMPLE_REQUEST_PERMISSIONS.read,
   },
 ];
 

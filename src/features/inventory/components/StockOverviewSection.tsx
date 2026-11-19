@@ -8,7 +8,6 @@ import { PageSkeleton } from "@/components/shared/PageSkeleton";
 
 import { useStockLevels } from "../queries";
 import { InventoryError } from "./InventoryFeedback";
-import { LowStockAlerts } from "./StockAlerts";
 import { StockLevelsTable } from "./StockLevelsTable";
 import { WarehouseInventorySection } from "./WarehouseInventorySection";
 
@@ -18,14 +17,11 @@ import { WarehouseInventorySection } from "./WarehouseInventorySection";
  */
 export function StockOverviewSection({
   sku,
-  showAlerts,
   canResolveWarehouse,
   warehouseCode,
   onSelectWarehouse,
 }: {
   sku: string;
-  /** alert READ held as well: without it the page shows "unavailable", never "no alert". */
-  showAlerts: boolean;
   /** warehouse-warehouses:READ held too: only then is the warehouse resolved and drilled into. */
   canResolveWarehouse: boolean;
   warehouseCode: string | null;
@@ -41,11 +37,6 @@ export function StockOverviewSection({
       <h2 id="inventory-stock-levels" className="text-ink-primary font-semibold">
         {INVENTORY_LABELS.stockLevelsTitle}
       </h2>
-      {showAlerts ? (
-        <LowStockAlerts sku={sku} />
-      ) : (
-        <p className="text-ink-tertiary text-sm">{INVENTORY_LABELS.alertsUnavailable}</p>
-      )}
       {levels.isLoading ? (
         <PageSkeleton variant="list" />
       ) : levels.isError ? (
@@ -64,12 +55,7 @@ export function StockOverviewSection({
       )}
       {warehouseCode &&
         (canResolveWarehouse ? (
-          <WarehouseInventorySection
-            key={warehouseCode}
-            sku={sku}
-            warehouseCode={warehouseCode}
-            showAlerts={showAlerts}
-          />
+          <WarehouseInventorySection key={warehouseCode} sku={sku} warehouseCode={warehouseCode} />
         ) : (
           // No directory permission: the id cannot be known, so no directory, stock-item or ATP read.
           <div role="alert">

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { apiLine, cartonLine } from "./__fixtures__/receipt";
-import { beReceiptLineSchema } from "./schemas";
+import { apiLine, apiReceipt, cartonLine } from "./__fixtures__/receipt";
+import { beGoodsReceiptSchema, beReceiptLineSchema } from "./schemas";
 
 describe("beReceiptLineSchema — thùng có LPN (BE GoodsReceiptResponse.Line, SCRUM-473)", () => {
   it("parse dòng có 2 thùng + đơn vị (ví dụ issue #104: 4.990 = 1.000 + 980 + 3.010 lẻ)", () => {
@@ -13,10 +13,9 @@ describe("beReceiptLineSchema — thùng có LPN (BE GoodsReceiptResponse.Line, 
       ["LPN-20261024-000002", 980, 1000],
     ]);
     expect(line.units[0]).toMatchObject({ unitOfMeasure: "PCS", base: true, factor: 1 });
-    expect(line.orderedUnitOfMeasure).toBe("CARTON");
   });
 
-  it("dòng không gửi packages / units (phiếu cũ) → mảng rỗng", () => {
+  it("dòng không gửi packages / units → mảng rỗng", () => {
     const { packages: _p, units: _u, ...legacy } = apiLine();
     const line = beReceiptLineSchema.parse(legacy);
     expect(line.packages).toEqual([]);
@@ -29,5 +28,48 @@ describe("beReceiptLineSchema — thùng có LPN (BE GoodsReceiptResponse.Line, 
     expect(() =>
       beReceiptLineSchema.parse({ ...bad, packages: [{ ...first, status: "VOID" }] }),
     ).toThrow();
+  });
+});
+
+describe("beReceiptLineSchema — dòng theo Đơn sản xuất (4A-5)", () => {
+  it("parse tiến độ thùng / cái của dòng Đơn sản xuất", () => {
+    const line = beReceiptLineSchema.parse(apiLine());
+    expect(line.production).toMatchObject({
+      unitsPerCarton: 50,
+      orderedCartons: 10,
+      receivedCartons: 4,
+      thisReceiptCartons: 2,
+      remainingCartons: 4,
+    });
+  });
+
+  it("dòng phiếu mua hàng cũ: productionOrderLineId / production null", () => {
+    const line = beReceiptLineSchema.parse(
+      apiLine({ productionOrderLineId: null, production: null }),
+    );
+    expect(line.productionOrderLineId).toBeNull();
+    expect(line.production).toBeNull();
+  });
+
+  it("field cũ của BE (QC, dòng PO) bị bỏ qua, không lọt vào model", () => {
+    const line = beReceiptLineSchema.parse({
+      ...apiLine(),
+      qcRequired: true,
+      purchaseOrderLineId: "x",
+    });
+    expect(line).not.toHaveProperty("qcRequired");
+    expect(line).not.toHaveProperty("purchaseOrderLineId");
+  });
+});
+
+describe("beGoodsReceiptSchema — loại phiếu", () => {
+  it("receiptType ngoài enum BE → lỗi hợp đồng", () => {
+    expect(() =>
+      beGoodsReceiptSchema.parse(apiReceipt({ receiptType: "BLIND" as never })),
+    ).toThrow();
+  });
+
+  it("trạng thái IN_QC đã bỏ cùng QC ở kho (BR-07) → lỗi hợp đồng", () => {
+    expect(() => beGoodsReceiptSchema.parse(apiReceipt({ status: "IN_QC" as never }))).toThrow();
   });
 });

@@ -9,7 +9,7 @@ import { resetProductMockStore } from "@/lib/api/mock-product-store";
 import { resetPrintConfigMockStore } from "@/lib/api/mock-routes-print-configs";
 import { resetVariantMockStore } from "@/lib/api/mock-routes-variants";
 
-import { readOnly, renderSection } from "./print-config-test-utils";
+import { findStatus, readOnly, renderSection, STATUS_CARD } from "./print-config-test-utils";
 
 vi.setConfig({ testTimeout: 60_000 });
 configure({ asyncUtilTimeout: 45_000 });
@@ -27,19 +27,19 @@ afterEach(() => vi.restoreAllMocks());
 describe("activating and stopping a saved configuration", () => {
   it("an active configuration offers to stop, not to activate; the viewer and a locked product offer neither", async () => {
     const view = renderSection();
-    expect(await screen.findByText("Đang dùng")).toBeInTheDocument();
+    expect(await findStatus("Đang dùng")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Ngừng dùng" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Kích hoạt" })).not.toBeInTheDocument();
     view.unmount();
 
     renderSection({ can: readOnly });
-    await screen.findByText("Đang dùng");
+    await findStatus("Đang dùng");
     expect(screen.queryByRole("button", { name: "Ngừng dùng" })).not.toBeInTheDocument();
   });
 
   it("a locked product offers neither", async () => {
     renderSection({ writable: false, readOnlyReason: "product" });
-    await screen.findByText("Đang dùng");
+    await findStatus("Đang dùng");
     expect(screen.queryByRole("button", { name: "Ngừng dùng" })).not.toBeInTheDocument();
   });
 
@@ -47,7 +47,7 @@ describe("activating and stopping a saved configuration", () => {
     const post = vi.spyOn(api, "post");
     const user = userEvent.setup();
     renderSection();
-    await screen.findByText("Đang dùng");
+    await findStatus("Đang dùng");
 
     await user.click(screen.getByRole("button", { name: "Ngừng dùng" }));
     const stop = within(await screen.findByRole("dialog"));
@@ -55,7 +55,7 @@ describe("activating and stopping a saved configuration", () => {
     expect(post).not.toHaveBeenCalled(); // asking is not doing
     await user.click(stop.getByRole("button", { name: "Ngừng dùng" }));
 
-    expect(await screen.findByText("Chưa kích hoạt")).toBeInTheDocument();
+    expect(await findStatus("Chưa kích hoạt")).toBeInTheDocument();
     expect(post.mock.calls[0]?.[0]).toMatch(/\/tpl-seed-cup12-body\/deactivation$/);
     expect(post.mock.calls[0]?.[1]).toEqual({ version: 3 });
     expect(screen.queryByRole("button", { name: "Ngừng dùng" })).not.toBeInTheDocument();
@@ -65,7 +65,7 @@ describe("activating and stopping a saved configuration", () => {
     const start = within(await screen.findByRole("dialog"));
     expect(start.getByText(/bắt đầu thiết kế trên cấu hình in này/)).toBeInTheDocument();
     await user.click(start.getByRole("button", { name: "Kích hoạt" }));
-    expect(await screen.findByText("Đang dùng")).toBeInTheDocument();
+    expect(await findStatus("Đang dùng")).toBeInTheDocument();
     await waitFor(() => expect(post.mock.calls[1]?.[0]).toMatch(/\/activation$/));
   });
 
@@ -78,6 +78,8 @@ describe("activating and stopping a saved configuration", () => {
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Quay lại" }),
     );
     expect(post).not.toHaveBeenCalled();
-    expect(screen.getByText("Đang dùng")).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("region", STATUS_CARD)).getByText("Đang dùng"),
+    ).toBeInTheDocument();
   });
 });

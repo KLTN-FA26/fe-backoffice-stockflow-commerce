@@ -19,6 +19,8 @@ import {
   UI_LABELS,
 } from "@/constants";
 
+import { serverErrorMessage } from "@/lib/api/error-message";
+
 import type { ApiError } from "@/lib/api/error";
 
 export interface OrderErrorView {
@@ -332,15 +334,10 @@ export const CREDIT_APPROVAL_FIELD_ERRORS = {
   note: CREDIT_NOTE_FIELD,
 } as const satisfies ServerFieldMap<"note">;
 
-/** BE `CreditRefusalRequest(action, depositPercent, note)`. */
+/** BE `CreditRefusalRequest(note)` — từ chối chỉ có ghi chú. */
 export const CREDIT_REJECTION_FIELD_ERRORS = {
-  action: { field: "action", message: "Chọn cách xử lý." },
-  depositPercent: {
-    field: "depositPercent",
-    message: `Tỷ lệ cọc phải lớn hơn ${ORDER_LIMITS.depositPercentMin}% và nhỏ hơn ${ORDER_LIMITS.depositPercentMax}%.`,
-  },
   note: CREDIT_NOTE_FIELD,
-} as const satisfies ServerFieldMap<"action" | "depositPercent" | "note">;
+} as const satisfies ServerFieldMap<"note">;
 
 const CREDIT_FAILED = UI_LABELS.order.creditFailedTitle;
 
@@ -354,20 +351,16 @@ export function creditDecisionErrorView(error: ApiError): OrderErrorView {
         detail: "Đơn không còn chờ duyệt vượt hạn mức (đã được người khác xử lý).",
         traceId,
       };
-    // docs 14 BR-05: chỉ dùng phương thức thanh toán được phép cho khách
-    case "PAYMENT_TERM_NOT_ALLOWED":
-      return {
-        title: CREDIT_FAILED,
-        detail: "Khách không được phép dùng phương thức thanh toán đã chọn. Chọn cách xử lý khác.",
-        rule: "BR-05",
-        traceId,
-      };
     case "VALIDATION_FAILED":
-      return { title: CREDIT_FAILED, detail: "Kiểm tra lại ghi chú và tỷ lệ cọc.", traceId };
+      return { title: CREDIT_FAILED, detail: "Kiểm tra lại ghi chú.", traceId };
     default:
+      // WF-02: lỗi nghiệp vụ BE trả message tiếng Việt → hiện nguyên văn.
       return (
-        commonErrorView(error, CREDIT_FAILED, "duyệt vượt hạn mức") ??
-        fallback(error, CREDIT_FAILED, "xử lý đơn")
+        commonErrorView(error, CREDIT_FAILED, "duyệt tín dụng") ?? {
+          title: CREDIT_FAILED,
+          detail: serverErrorMessage(error, {}, fallback(error, CREDIT_FAILED, "xử lý đơn").detail),
+          traceId,
+        }
       );
   }
 }
@@ -448,7 +441,7 @@ export function orderActionErrorView(
 /* ── Lệnh sản xuất của đơn ──────────────────────────────────────────── */
 
 /**
- * `GET /production/orders` bị từ chối quyền: 403 FORBIDDEN (thiếu `production-orders:READ`, hoặc
+ * `GET /production-orders` bị từ chối quyền: 403 FORBIDDEN (thiếu `production-orders:READ`, hoặc
  * quyền bị thu sau khi FE đã tải danh sách quyền) / OUT_OF_DATA_SCOPE. Báo "không có quyền xem",
  * không phải lỗi tải + Thử lại (bấm lại cũng không qua).
  */

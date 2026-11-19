@@ -1,19 +1,30 @@
 "use client";
 
-import { ADMIN_ROUTES, CUSTOMIZATION_TEMPLATE_PERMISSIONS } from "@/constants";
-import { PRINT_CONFIG_PAGE_LABELS as TEXT } from "@/constants/labels-print-config";
+import Link from "next/link";
+
+import { ADMIN_ROUTES, CUSTOMIZATION_TEMPLATE_PERMISSIONS, PRODUCT_PERMISSIONS } from "@/constants";
+import {
+  PRINT_CONFIG_PAGE_LABELS as TEXT,
+  PRINT_CONFIG_SCREEN_LABELS,
+} from "@/constants/labels-print-config";
 import { PRINT_CONFIG_SEGMENT } from "@/constants/routes";
 import { usePermissionChecker } from "@/lib/auth/components/Can";
 import { useMyPermissions } from "@/lib/auth/me-permissions";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
-import { productChangeGate, useProduct, useVariants } from "@/features/product";
+import {
+  isCartonCandidate,
+  productChangeGate,
+  useProduct,
+  useSkuUnits,
+  useVariants,
+} from "@/features/product";
 import { PrintConfigSection } from "@/features/product-design";
-import { BackLink } from "@/components/shared/BackLink";
-import { Card } from "@/components/shared/Card";
+import { Alert } from "@/components/shared/Alert";
+import { DETAIL_CARD_CLASS } from "@/components/shared/DetailSection";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
-import { StatusDot } from "@/components/shared/StatusDot";
 
+import { VariantPrintConfigGeneral } from "./VariantPrintConfigGeneral";
 import { VariantPrintConfigState } from "./VariantPrintConfigStates";
 
 /**
@@ -22,6 +33,8 @@ import { VariantPrintConfigState } from "./VariantPrintConfigStates";
  * component client này — như `OrderDetailWithLoadEstimate` — là nơi duy nhất biết cả hai; `can` là hàm nên không
  * truyền được từ Server Component của `page.tsx`. Chỉ sản phẩm tuỳ chỉnh có cấu hình in (BE 409
  * PRODUCT_NOT_CUSTOMIZABLE khi ghi). Đo file .glb nằm trong section và chỉ tải khi cần — trang không import `model3d`.
+ * Bố cục trang chi tiết (như `ProductDetail`): không tiêu đề, không "Quay lại" — tên biến thể và link về sản phẩm nằm ở
+ * "Thông tin chung" (các dòng do trang dựng, section thêm trạng thái cấu hình in); breadcrumb có đường quay lại.
  */
 export function VariantPrintConfig({
   productId,
@@ -36,6 +49,14 @@ export function VariantPrintConfig({
   const variantsQuery = useVariants(productId);
   const product = productQuery.data ?? null;
   const variant = variantsQuery.data?.find((v) => v.variantId === variantId) ?? null;
+  // Preflight `CARTON_SPEC_MISSING` hỏi đúng câu "có đơn vị đóng gói nào không" (`isCartonCandidate`). Chưa tải /
+  // thiếu quyền đọc thì không báo gì: cảnh báo chỉ hiện khi chắc chắn biến thể chưa có thùng.
+  const units = useSkuUnits(
+    productId,
+    variantId,
+    can(PRODUCT_PERMISSIONS.read) && product?.type === "Customizable",
+  );
+  const cartonMissing = units.data !== undefined && !units.data.some(isCartonCandidate);
 
   // Breadcrumb của topbar: đoạn cuối URL là `print-config`, nhãn lấy theo đoạn đó
   useBreadcrumbLabel(PRINT_CONFIG_SEGMENT, TEXT.pageTitle);
@@ -88,43 +109,47 @@ export function VariantPrintConfig({
         : undefined;
   const writable = readOnlyReason === undefined;
 
+  const general = <VariantPrintConfigGeneral product={product} variant={variant} />;
+
   return (
     <div className="surface-soft surface-compact">
       <h1 className="sr-only">{`${TEXT.pageTitle} — ${variant.sku}`}</h1>
-      <div className="max-w-4xl space-y-5">
-        <Card>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="min-w-0 space-y-0.5">
-              <p className="text-ink-tertiary text-xs">{`${TEXT.variantHeading} · ${product.name}`}</p>
-              <p className="flex items-center gap-2">
-                <span className="text-ink-primary font-[family-name:var(--font-mono)] text-[0.9375rem] font-semibold">
-                  {variant.sku}
-                </span>
-                <StatusDot domain="sku" status={variant.status} size="sm" />
-              </p>
-              <p className="text-ink-secondary text-[0.8125rem]">{variant.name}</p>
-            </div>
-            <BackLink href={ADMIN_ROUTES.products.detail(productId)} label={TEXT.backToProduct} />
-          </div>
-        </Card>
-
-        {product.type === "Customizable" ? (
-          <Card>
-            <PrintConfigSection
-              productId={productId}
-              variantId={variantId}
-              can={can}
-              writable={writable}
-              readOnlyReason={readOnlyReason}
-            />
-          </Card>
-        ) : (
+      {product.type === "Customizable" ? (
+        <div className="space-y-5">
+          {cartonMissing && (
+            <Alert tone="warning" title={TEXT.cartonMissing.title}>
+              {TEXT.cartonMissing.description}{" "}
+              <Link
+                href={ADMIN_ROUTES.products.detail(productId)}
+                className="text-accent underline-offset-2 hover:underline"
+              >
+                {TEXT.cartonMissing.link}
+              </Link>
+            </Alert>
+          )}
+          <PrintConfigSection
+            productId={productId}
+            variantId={variantId}
+            can={can}
+            writable={writable}
+            readOnlyReason={readOnlyReason}
+            general={general}
+          />
+        </div>
+      ) : (
+        <div className="space-y-5">
+          <section
+            aria-label={PRINT_CONFIG_SCREEN_LABELS.cards.header}
+            className={DETAIL_CARD_CLASS}
+          >
+            {general}
+          </section>
           <EmptyState
             title={TEXT.notCustomizable.title}
             description={TEXT.notCustomizable.description}
           />
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

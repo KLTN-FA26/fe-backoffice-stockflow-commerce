@@ -253,14 +253,11 @@ export function activateMockAdapter(): void {
   // exist by the time the first request arrives.
   routesReady = Promise.all([
     import("./mock-routes"),
-    import("./mock-routes-suppliers"),
-    import("./mock-routes-supplier-items"),
-    import("./mock-routes-purchase-orders"),
-    import("./mock-routes-purchase-orders-draft"),
     import("./mock-routes-orders"),
     import("./mock-routes-goods-receipts"),
     import("./mock-routes-variants"),
-    import("./mock-routes-sku-purchasing"),
+    import("./mock-routes-uom-conversions"),
+    import("./mock-routes-customer-skus"),
     import("./mock-routes-customers"),
     import("./mock-routes-customer-prices"),
     import("./mock-routes-payment"),
@@ -272,13 +269,10 @@ export function activateMockAdapter(): void {
     import("./mock-routes-print-configs"),
     import("./mock-routes-inventory"),
     import("./mock-routes-inventory-items"),
-    import("./mock-routes-stock-alerts"),
     import("./mock-routes-notifications"),
     import("./mock-routes-reports"),
     import("./mock-routes-fulfillment"),
     import("./mock-routes-warehouse-layout"),
-    import("./mock-routes-transfer-orders"),
-    import("./mock-routes-transfer-packs"),
     import("./mock-routes-dispatch"),
     import("./mock-routes-taxonomy"),
     import("./mock-routes-vehicle-types"),
@@ -287,17 +281,15 @@ export function activateMockAdapter(): void {
     import("./mock-routes-warehouses"),
     import("./mock-routes-returns"),
     import("./mock-routes-return-receipts"),
+    import("./mock-routes-wf02"),
   ]).then(
     ([
       { registerAllMockRoutes },
-      { registerSupplierMockRoutes },
-      { registerSupplierItemMockRoutes },
-      { registerPurchaseOrderMockRoutes },
-      { registerPoDraftMockRoutes },
       { registerOrderMockRoutes },
       { registerGoodsReceiptMockRoutes },
       { registerVariantMockRoutes },
-      { registerSkuPurchasingMockRoutes },
+      { registerUomConversionMockRoutes },
+      { registerCustomerSkuMockRoutes },
       { registerCustomerMockRoutes },
       { registerCustomerPriceMockRoutes },
       { registerPaymentMockRoutes },
@@ -309,13 +301,10 @@ export function activateMockAdapter(): void {
       { registerPrintConfigMockRoutes },
       { registerInventoryMockRoutes },
       { registerInventoryItemMockRoutes },
-      { registerStockAlertMockRoutes },
       { registerNotificationMockRoutes },
       { registerReportMockRoutes },
       { registerFulfillmentMockRoutes },
       { registerWarehouseLayoutMockRoutes },
-      { registerTransferOrderMockRoutes },
-      { registerTransferPackMockRoutes },
       { registerDispatchMockRoutes },
       { registerTaxonomyMockRoutes },
       { registerVehicleTypeMockRoutes },
@@ -324,12 +313,12 @@ export function activateMockAdapter(): void {
       { registerWarehouseMockRoutes },
       { registerReturnMockRoutes },
       { registerReturnReceiptMockRoutes },
+      { registerWf02MockRoutes },
     ]) => {
       registerAllMockRoutes();
-      registerSupplierMockRoutes();
-      registerSupplierItemMockRoutes();
-      registerPurchaseOrderMockRoutes();
-      registerPoDraftMockRoutes();
+      // WF-02 (báo giá, hợp đồng của đơn, chat Sale) TRƯỚC đơn: `/orders/:id/contract…` phải khớp trước mọi
+      // mẫu `/orders/:id/…` chung của module đơn (khớp theo thứ tự đăng ký).
+      registerWf02MockRoutes();
       registerOrderMockRoutes();
       // Trả hàng (WF-05 BO-12): `/goods-receipts/returns` phải đứng TRƯỚC `/goods-receipts/:id` (khớp theo thứ tự
       // đăng ký).
@@ -337,7 +326,8 @@ export function activateMockAdapter(): void {
       registerReturnReceiptMockRoutes();
       registerGoodsReceiptMockRoutes();
       registerVariantMockRoutes();
-      registerSkuPurchasingMockRoutes();
+      registerUomConversionMockRoutes();
+      registerCustomerSkuMockRoutes();
       registerCustomerMockRoutes();
       registerCustomerPriceMockRoutes();
       registerPaymentMockRoutes();
@@ -349,19 +339,16 @@ export function activateMockAdapter(): void {
       registerPrintConfigMockRoutes();
       registerInventoryMockRoutes();
       registerInventoryItemMockRoutes();
-      registerStockAlertMockRoutes();
       registerNotificationMockRoutes();
       registerReportMockRoutes();
       registerFulfillmentMockRoutes();
       registerWarehouseLayoutMockRoutes();
-      registerTransferOrderMockRoutes();
-      registerTransferPackMockRoutes();
       registerDispatchMockRoutes();
       registerTaxonomyMockRoutes();
       registerVehicleTypeMockRoutes();
       registerLoadEstimateMockRoutes();
       registerLoadPlanMockRoutes();
-      // Sau goods-receipts: thay `GET /warehouses` rút gọn bằng danh mục kho đầy đủ của module 06
+      // Danh mục kho của module 06 (`/warehouses`)
       registerWarehouseMockRoutes();
     },
   );

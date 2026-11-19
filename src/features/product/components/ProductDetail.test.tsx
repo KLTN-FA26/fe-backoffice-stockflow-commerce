@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Suspense } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PRODUCT_STATUS, UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 import { useBreadcrumbLabelStore } from "@/lib/store/use-breadcrumb-labels";
+import { renderWithProviders } from "@/test/render";
 
 import type { Product } from "@/features/product";
 
@@ -99,7 +100,8 @@ const resolvedParams = Object.assign(Promise.resolve({ id: "product-1" }), {
 });
 
 async function renderDetail() {
-  render(
+  // The detail reads the approver's name and refetches itself after a transition (React Query).
+  renderWithProviders(
     <Suspense fallback={null}>
       <ProductDetail params={resolvedParams} />
     </Suspense>,
@@ -178,14 +180,14 @@ describe("ProductDetail — ngừng kinh doanh cần lý do + version (BE Discon
 });
 
 describe("ProductDetail — hộp thoại ngừng kinh doanh hiện chứng từ còn mở và cảnh báo sau khi ngừng", () => {
-  it("liệt kê đơn mua / đơn bán còn mở tham chiếu SKU trong hộp thoại, trước khi xác nhận", async () => {
+  it("liệt kê Đơn sản xuất / đơn bán còn mở tham chiếu SKU trong hộp thoại, trước khi xác nhận", async () => {
     useOpenReferencesMock.mockReturnValue({
       isLoading: false,
       isError: false,
       data: {
         references: [
           {
-            kind: "PURCHASE_ORDER_LINE",
+            kind: "PRODUCTION_ORDER_LINE",
             documentNumber: "PO-1",
             documentId: "p1",
             sku: "CUP-12OZ",
@@ -200,7 +202,7 @@ describe("ProductDetail — hộp thoại ngừng kinh doanh hiện chứng từ
     const dialog = await screen.findByRole("dialog", { name: "Ngừng kinh doanh sản phẩm?" });
     expect(within(dialog).getByText("PO-1")).toBeInTheDocument();
     expect(within(dialog).getByText("ORD-9")).toBeInTheDocument();
-    expect(within(dialog).getByText(/Dòng đơn mua/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/Dòng Đơn sản xuất/)).toBeInTheDocument();
     expect(within(dialog).getByText(/Dòng đơn bán/)).toBeInTheDocument();
   });
 
@@ -213,7 +215,7 @@ describe("ProductDetail — hộp thoại ngừng kinh doanh hiện chứng từ
       isError: false,
       data: {
         references: [
-          { kind: "PURCHASE_ORDER_LINE", documentNumber: "PO-OLD", documentId: "p", sku: "CUP" },
+          { kind: "PRODUCTION_ORDER_LINE", documentNumber: "PO-OLD", documentId: "p", sku: "CUP" },
         ],
         truncated: false,
       },
@@ -237,15 +239,15 @@ describe("ProductDetail — hộp thoại ngừng kinh doanh hiện chứng từ
     expect(within(dialog).getByRole("button", { name: "Ngừng kinh doanh" })).toBeEnabled();
   });
 
-  it("sau khi ngừng: cảnh báo hiện bằng tiếng Việt kèm chứng từ — không lộ mã OPEN_PURCHASE_ORDER_LINES", async () => {
+  it("sau khi ngừng: cảnh báo hiện bằng tiếng Việt kèm chứng từ — không lộ mã OPEN_PRODUCTION_ORDER_LINES", async () => {
     discontinueMutateMock.mockImplementation(
       (_input: unknown, options: { onSuccess: (result: unknown) => void }) =>
         options.onSuccess({
           product: product(PRODUCT_STATUS.DISCONTINUED),
-          warnings: ["OPEN_PURCHASE_ORDER_LINES", "UNSHIPPED_ORDER_LINES"],
+          warnings: ["OPEN_PRODUCTION_ORDER_LINES", "UNSHIPPED_ORDER_LINES"],
           openReferences: [
             {
-              kind: "PURCHASE_ORDER_LINE",
+              kind: "PRODUCTION_ORDER_LINE",
               documentNumber: "PO-7",
               documentId: "p7",
               sku: "CUP-12OZ",
@@ -261,11 +263,11 @@ describe("ProductDetail — hộp thoại ngừng kinh doanh hiện chứng từ
     await user.click(within(dialog).getByRole("button", { name: "Ngừng kinh doanh" }));
 
     const result = await screen.findByRole("dialog", { name: "Đã ngừng kinh doanh sản phẩm" });
-    expect(within(result).getByText(/dòng đơn mua \(PO\) đang mở/i)).toBeInTheDocument();
+    expect(within(result).getByText(/dòng Đơn sản xuất đang mở/i)).toBeInTheDocument();
     expect(within(result).getByText(/dòng đơn bán đã đặt chưa giao/i)).toBeInTheDocument();
     expect(within(result).getByText("PO-7")).toBeInTheDocument();
     expect(within(result).getByText(/Còn nhiều chứng từ nữa/)).toBeInTheDocument();
-    expect(result).not.toHaveTextContent("OPEN_PURCHASE_ORDER_LINES");
+    expect(result).not.toHaveTextContent("OPEN_PRODUCTION_ORDER_LINES");
     expect(result).not.toHaveTextContent("UNSHIPPED_ORDER_LINES");
   });
 });
@@ -273,7 +275,7 @@ describe("ProductDetail — hộp thoại ngừng kinh doanh hiện chứng từ
 describe("ProductDetail — tạm ngưng, tiếp tục, xoá nháp (BE SCRUM-461)", () => {
   it("Published: Tạm ngưng hỏi lý do rồi gửi { id, reason, version }", async () => {
     const user = userEvent.setup();
-    render(
+    renderWithProviders(
       <Suspense fallback={null}>
         <ProductDetail params={resolvedParams} />
       </Suspense>,
@@ -304,7 +306,7 @@ describe("ProductDetail — tạm ngưng, tiếp tục, xoá nháp (BE SCRUM-461
       refetch: refetchMock,
     });
     const user = userEvent.setup();
-    render(
+    renderWithProviders(
       <Suspense fallback={null}>
         <ProductDetail params={resolvedParams} />
       </Suspense>,
@@ -332,7 +334,7 @@ describe("ProductDetail — tạm ngưng, tiếp tục, xoá nháp (BE SCRUM-461
       options.onSuccess(),
     );
     const user = userEvent.setup();
-    render(
+    renderWithProviders(
       <Suspense fallback={null}>
         <ProductDetail params={resolvedParams} />
       </Suspense>,
@@ -361,7 +363,7 @@ describe("ProductDetail — tạm ngưng, tiếp tục, xoá nháp (BE SCRUM-461
         options.onError(Object.assign(new Error("x"), { code: "PRODUCT_IN_USE" })),
     );
     const user = userEvent.setup();
-    render(
+    renderWithProviders(
       <Suspense fallback={null}>
         <ProductDetail params={resolvedParams} />
       </Suspense>,
@@ -383,7 +385,7 @@ describe("ProductDetail — từ chối duyệt qua hộp thoại có lý do, kh
     });
     const prompt = vi.spyOn(window, "prompt");
     const user = userEvent.setup();
-    render(
+    renderWithProviders(
       <Suspense fallback={null}>
         <ProductDetail params={resolvedParams} />
       </Suspense>,
@@ -408,7 +410,7 @@ describe("ProductDetail — từ chối duyệt qua hộp thoại có lý do, kh
 describe("ProductDetail — mục Mô tả", () => {
   async function openDescription() {
     const user = userEvent.setup();
-    render(
+    renderWithProviders(
       <Suspense fallback={null}>
         <ProductDetail params={resolvedParams} />
       </Suspense>,
@@ -445,7 +447,7 @@ describe("ProductDetail — mục Mô tả", () => {
 
 describe("ProductDetail — thẻ Chứng từ còn mở ở cột phải", () => {
   const renderPage = () =>
-    render(
+    renderWithProviders(
       <Suspense fallback={null}>
         <ProductDetail params={resolvedParams} />
       </Suspense>,
@@ -481,7 +483,7 @@ describe("ProductDetail — breadcrumb và nhóm thuế", () => {
       isLoading: false,
       refetch: refetchMock,
     });
-    render(
+    renderWithProviders(
       <Suspense fallback={null}>
         <ProductDetail params={resolvedParams} />
       </Suspense>,
@@ -502,7 +504,7 @@ describe("ProductDetail — lỗi tải: chỉ 404 mới là không tìm thấy 
       error,
       refetch: refetchMock,
     });
-    render(
+    renderWithProviders(
       <Suspense fallback={null}>
         <ProductDetail params={resolvedParams} />
       </Suspense>,

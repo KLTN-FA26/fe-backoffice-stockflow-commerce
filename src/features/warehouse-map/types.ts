@@ -31,6 +31,9 @@ export type {
   ZoneCreateBody,
   ZoneCreateInput,
 } from "./input-schemas";
+export type { LocationLabelBody, LocationLabelInput } from "./location-label-schema";
+export type { LabelSelection } from "./location-labels";
+export type { LocationLabelsPdf } from "./api";
 
 /** Đổi trạng thái kệ hoặc khu vực (`PUT /shelves|areas/{id}/status`). */
 export interface PlaceStatusInput {

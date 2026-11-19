@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { EINVOICE_PERMISSIONS, EINVOICE_STATUSES } from "@/constants/einvoice";
+import {
+  EINVOICE_PERMISSIONS,
+  EINVOICE_STATUSES,
+  EINVOICE_UNKNOWN,
+  EINVOICE_WARNINGS,
+} from "@/constants/einvoice";
 
 import type { PermissionCode } from "@/lib/auth";
 
@@ -8,7 +13,9 @@ import { allowedEInvoiceActions, EINVOICE_TRANSITIONS, isTerminalEInvoice } from
 import {
   einvoiceStatusLabel,
   invoiceReference,
+  lastSentAt,
   needsAttention,
+  rejectionText,
   warningMessages,
 } from "../selectors";
 
@@ -28,12 +35,16 @@ const gate = (over: Partial<Parameters<typeof allowedEInvoiceActions>[0]> = {}) 
   agreementRequired: false,
   adjusted: false,
   hasFiles: false,
+  provider: "SANDBOX" as string | null,
+  correctionBasis: null as Parameters<typeof allowedEInvoiceActions>[0]["correctionBasis"],
   ...over,
 });
 
 describe("EINVOICE_TRANSITIONS (docs 21 §5.1; BE EInvoiceStatus.next)", () => {
-  it("covers every BE status; VOIDED_DRAFT and REPLACED are final", () => {
-    expect(Object.keys(EINVOICE_TRANSITIONS).sort()).toEqual([...EINVOICE_STATUSES].sort());
+  it("covers every BE status (+ UNKNOWN); VOIDED_DRAFT and REPLACED are final", () => {
+    expect(Object.keys(EINVOICE_TRANSITIONS).sort()).toEqual(
+      [...EINVOICE_STATUSES, EINVOICE_UNKNOWN].sort(),
+    );
     expect(EINVOICE_TRANSITIONS.VOIDED_DRAFT).toEqual([]);
     expect(EINVOICE_TRANSITIONS.REPLACED).toEqual([]);
     expect(isTerminalEInvoice("REPLACED")).toBe(true);
@@ -65,6 +76,19 @@ describe("allowedEInvoiceActions — three roles (docs 21 BR-02)", () => {
     );
   });
 
+  it("HĐ-3: a system-drawn reduction (DELIVERY_FAILED) is never voided by hand; evidence optional", () => {
+    const system = gate({ type: "ADJUSTMENT", correctionBasis: "DELIVERY_FAILED" });
+    expect(allowedEInvoiceActions(system, ACCOUNTANT)).toEqual([
+      "revise",
+      "refreshBuyer",
+      "attachAgreement",
+      "issue",
+    ]);
+    const manual = gate({ type: "ADJUSTMENT", correctionBasis: "RETURN" });
+    expect(allowedEInvoiceActions(manual, ACCOUNTANT)).toContain("void");
+    expect(allowedEInvoiceActions(manual, ACCOUNTANT)).not.toContain("attachAgreement");
+  });
+
   it("sales manager only reads: no mutating action on any status", () => {
     for (const status of EINVOICE_STATUSES) {
       const actions = allowedEInvoiceActions(gate({ status, hasFiles: true }), SALES_MANAGER);
@@ -88,6 +112,27 @@ describe("allowedEInvoiceActions — three roles (docs 21 BR-02)", () => {
     ).toEqual(["reconcile", "resubmit"]);
   });
 
+  it("HĐ-1: withdraw only once the last send is older than withdraw-after (3 h), and only for approvers", () => {
+    const submitting = gate({ status: "SUBMITTING" });
+    const sent = "2026-11-18T00:00:00Z";
+    const at = (hours: number) => ({
+      now: Date.parse(sent) + hours * 3_600_000,
+      lastSentAt: sent,
+    });
+    expect(allowedEInvoiceActions(submitting, ACCOUNTANT, at(2.9))).not.toContain("withdraw");
+    expect(allowedEInvoiceActions(submitting, ACCOUNTANT, at(3))).toEqual([
+      "reconcile",
+      "withdraw",
+    ]);
+    expect(allowedEInvoiceActions(submitting, SALES_MANAGER, at(30))).toEqual([]);
+    expect(
+      allowedEInvoiceActions(gate({ status: "SUBMITTING", provider: null }), ACCOUNTANT, at(30)),
+    ).not.toContain("withdraw");
+    expect(allowedEInvoiceActions(gate({ status: "DRAFT" }), ACCOUNTANT, at(30))).not.toContain(
+      "withdraw",
+    );
+  });
+
   it("BR-08: an adjusted invoice may be adjusted again but not replaced", () => {
     const issued = allowedEInvoiceActions(gate({ status: "ISSUED", hasFiles: true }), ACCOUNTANT);
     expect(issued).toEqual(["downloadFiles", "adjust", "replace", "notifyError"]);
@@ -97,6 +142,22 @@ describe("allowedEInvoiceActions — three roles (docs 21 BR-02)", () => {
     );
     expect(adjusted).toContain("adjust");
     expect(adjusted).not.toContain("replace");
+  });
+
+  it("a status the FE does not know yet offers nothing", () => {
+    expect(allowedEInvoiceActions(gate({ status: EINVOICE_UNKNOWN }), ACCOUNTANT)).toEqual([]);
+    expect(isTerminalEInvoice(EINVOICE_UNKNOWN)).toBe(true);
+  });
+
+  it("HĐ-6: the 04/SS notice only through a provider that sends it (not SePay / Viettel)", () => {
+    for (const provider of ["SEPAY_EINVOICE", "VIETTEL_SINVOICE", null]) {
+      const actions = allowedEInvoiceActions(
+        gate({ status: "ISSUED", hasFiles: true, provider }),
+        ACCOUNTANT,
+      );
+      expect(actions).not.toContain("notifyError");
+      expect(actions).toContain("adjust");
+    }
   });
 
   it("final statuses offer no mutating action", () => {
@@ -130,6 +191,53 @@ describe("selectors", () => {
     expect(lines[0]).toContain("BR-06");
     expect(lines[1]).toContain("HDDT-0007");
     expect(lines[2]).toContain("cảnh báo mới");
+  });
+
+  it("every BE warning has its own line (BE PR #369 warnings included)", () => {
+    const lines = warningMessages({
+      warnings: [...EINVOICE_WARNINGS],
+      earlierPendingInvoice: null,
+    });
+    expect(lines.some((line) => line.includes("cảnh báo mới"))).toBe(false);
+    const [email, outOfDate, exempt, signature] = warningMessages({
+      warnings: [
+        "BUYER_EMAIL_MISSING",
+        "TAX_RATE_OUT_OF_DATE",
+        "TAX_EXEMPT_NOT_SUPPORTED",
+        "SIGNATURE_INVALID",
+      ],
+      earlierPendingInvoice: null,
+    });
+    expect(email).toContain("email");
+    expect(outOfDate).toContain("Thuế suất trên nháp không còn đúng");
+    expect(exempt).toContain("không chịu thuế");
+    expect(signature).toContain("Chữ ký số");
+  });
+
+  it("explains a withdrawal apart from a provider's refusal", () => {
+    expect(
+      rejectionText({
+        rejectionCode: "WITHDRAWN_NO_PROVIDER_RECORD",
+        rejectionMessage: "Cổng SePay không có hoá đơn",
+      }),
+    ).toBe(
+      "Đã rút khỏi nhà cung cấp (nhà cung cấp không có bản ghi): Cổng SePay không có hoá đơn.",
+    );
+    expect(rejectionText({ rejectionCode: "INVALID_SERIES", rejectionMessage: null })).toBe(
+      "Nhà cung cấp từ chối (INVALID_SERIES): không nêu lý do.",
+    );
+  });
+
+  it("the last send is the latest SUBMIT call, else submittedAt", () => {
+    const invoice = { submittedAt: "2026-11-18T00:00:00Z" };
+    expect(lastSentAt(invoice, undefined)).toBe("2026-11-18T00:00:00Z");
+    expect(
+      lastSentAt(invoice, [
+        { operation: "SUBMIT", calledAt: "2026-11-18T00:00:00Z" },
+        { operation: "SUBMIT", calledAt: "2026-11-18T00:40:00Z" },
+        { operation: "QUERY", calledAt: "2026-11-18T02:00:00Z" },
+      ]),
+    ).toBe("2026-11-18T00:40:00Z");
   });
 
   it("needs the accountant: drafts, rejected, overdue or unknown to the provider", () => {

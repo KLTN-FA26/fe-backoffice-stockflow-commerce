@@ -151,12 +151,20 @@ export const RETURN_LABELS = {
   },
   openDialog: {
     title: "Mở yêu cầu trả hàng thay khách",
-    description:
-      "Trong 7 ngày sau giao. Ngoài hạn phải ghi lý do nhận và cần một người khác duyệt. Hàng in theo thiết kế chỉ nhận lỗi có tên.",
+    description: (days: number) =>
+      `Trong ${days} ngày sau khi lô hàng được giao. Ngoài hạn phải ghi lý do nhận và cần một người khác duyệt. Hàng in theo thiết kế chỉ nhận lỗi có tên.`,
     reason: "Lý do",
     descriptionField: "Mô tả vấn đề",
     descriptionRequired: "Mô tả vấn đề khi chọn lý do Khác",
-    lateClaim: "Lý do nhận ngoài hạn (nếu đã quá 7 ngày)",
+    lateClaim: (days: number) => `Lý do nhận ngoài hạn (nếu đã quá ${days} ngày sau giao)`,
+    lateClaimRequired: "Đã quá hạn đổi / trả — ghi lý do nhận ngoài hạn",
+    // WF-05 TH-1: mỗi yêu cầu trả hàng thuộc một lô đã giao
+    shipment: "Lô giao chứa hàng trả",
+    shipmentPlaceholder: "Chọn lô đã giao",
+    shipmentRequired: "Đơn giao nhiều lô — chọn lô chứa hàng khách trả",
+    shipmentOption: (index: number, deliveredOn: string) => `Lô ${index} — giao ${deliveredOn}`,
+    shipmentHint: "Chỉ các lô đã giao tới khách. Số trả tối đa theo số đã giao trên lô.",
+    noLines: "Lô này không còn dòng nào trả được.",
     quantity: "SL trả",
     delivered: (n: number) => `đã giao ${n}`,
     submit: "Mở yêu cầu",

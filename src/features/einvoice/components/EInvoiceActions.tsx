@@ -18,44 +18,24 @@ import {
   useReopenEInvoice,
   useResubmitEInvoice,
   useVoidDraft,
+  useWithdrawEInvoice,
 } from "../mutations";
+import { useProviderCalls } from "../queries";
+import { lastSentAt } from "../selectors";
 
 import { AgreementDialog } from "./AgreementDialog";
 import { CorrectionDialog } from "./CorrectionDialog";
 import { ErrorNoticeDialog } from "./ErrorNoticeDialog";
+import { CONFIRM } from "./confirm-copy";
 import { ReviseDraftDialog } from "./ReviseDraftDialog";
 import { useFileDownload } from "./useFileDownload";
 
 import type { ReactNode } from "react";
 import type { EInvoiceAction } from "../lifecycle";
 import type { EInvoice } from "../types";
+import type { Confirmable } from "./confirm-copy";
 
 const A = EINVOICE_LABELS.actions;
-type Confirmable = "issue" | "void" | "resubmit" | "reopen";
-
-const CONFIRM: Record<Confirmable, { title: string; description: string; danger?: boolean }> = {
-  issue: {
-    title: "Phát hành hoá đơn?",
-    description:
-      "Hoá đơn được gửi tới nhà cung cấp để ký số, cấp số và nộp cơ quan thuế. Đã phát hành thì không sửa, không xoá — chỉ điều chỉnh hoặc thay thế (BR-03).",
-  },
-  void: {
-    title: "Huỷ hoá đơn nháp?",
-    description: "Nháp chưa từng gửi nhà cung cấp sẽ bị huỷ và không dùng lại được.",
-    danger: true,
-  },
-  resubmit: {
-    title: "Gửi lại như giao dịch mới?",
-    description:
-      "Chỉ làm khi nhà cung cấp đã xác nhận KHÔNG giữ hoá đơn này — gửi nhầm có thể thành hai hoá đơn (BR-04, BR-05).",
-    danger: true,
-  },
-  reopen: {
-    title: "Mở lại thành nháp?",
-    description: "Hoá đơn bị từ chối trở lại nháp để sửa nguyên nhân rồi phát hành lại.",
-  },
-};
-
 /**
  * Thanh hành động của hoá đơn: nút theo `allowedEInvoiceActions` (trạng thái + quyền); thao tác phá
  * huỷ / ra ngoài hệ thống phải xác nhận; điều chỉnh / thay thế / thoả thuận mở hộp thoại riêng
@@ -63,13 +43,22 @@ const CONFIRM: Record<Confirmable, { title: string; description: string; danger?
  */
 export function EInvoiceActions({
   invoice,
+  readAt,
   extra,
 }: {
   invoice: EInvoice;
+  /** Lúc đọc hoá đơn (`dataUpdatedAt`, ms) — mốc "bây giờ" của gate theo thời gian (rút hoá đơn). */
+  readAt?: number;
   extra?: (action: EInvoiceAction) => ReactNode;
 }) {
   const can = usePermissionChecker();
-  const actions = allowedEInvoiceActions(invoice, can);
+  // Nhật ký gọi NCC dùng chung cache với ProviderCallsCard — chỉ cần khi đang chờ NCC (mốc rút hoá đơn)
+  const calls = useProviderCalls(invoice.status === "SUBMITTING" ? invoice.id : null);
+  const actions = allowedEInvoiceActions(
+    invoice,
+    can,
+    readAt === undefined ? undefined : { now: readAt, lastSentAt: lastSentAt(invoice, calls.data) },
+  );
   const [confirming, setConfirming] = useState<Confirmable | null>(null);
   const [revising, setRevising] = useState(false);
   const [correcting, setCorrecting] = useState<"adjust" | "replace" | null>(null);
@@ -89,7 +78,8 @@ export function EInvoiceActions({
   const reopen = useReopenEInvoice();
   const refresh = useRefreshBuyer();
   const reconcile = useReconcileEInvoice();
-  const pending = [issue, voidDraft, resubmit, reopen].some((m) => m.isPending);
+  const withdraw = useWithdrawEInvoice();
+  const pending = [issue, voidDraft, resubmit, reopen, withdraw].some((m) => m.isPending);
 
   const confirm = (reason?: string) => {
     const done = { onSuccess: close, onError };
@@ -97,6 +87,7 @@ export function EInvoiceActions({
     if (confirming === "resubmit") resubmit.mutate(versioned, done);
     if (confirming === "reopen") reopen.mutate(versioned, done);
     if (confirming === "void") voidDraft.mutate({ ...versioned, reason: reason ?? "" }, done);
+    if (confirming === "withdraw") withdraw.mutate({ ...versioned, reason: reason ?? "" }, done);
   };
   const button = (action: EInvoiceAction, label: string, onClick: () => void, busy = false) =>
     actions.includes(action) ? (
@@ -127,6 +118,7 @@ export function EInvoiceActions({
         reconcile.isPending,
       )}
       {button("resubmit", A.resubmit, () => setConfirming("resubmit"))}
+      {button("withdraw", A.withdraw, () => setConfirming("withdraw"))}
       {button("reopen", A.reopen, () => setConfirming("reopen"))}
       {button("void", A.void, () => setConfirming("void"))}
       {actions.includes("downloadFiles") && (
@@ -168,8 +160,8 @@ export function EInvoiceActions({
           description={CONFIRM[confirming].description}
           confirmLabel={A[confirming]}
           variant={CONFIRM[confirming].danger ? "danger" : "default"}
-          requireReason={confirming === "void"}
-          reasonLabel="Lý do huỷ"
+          requireReason={CONFIRM[confirming].reasonLabel !== undefined}
+          reasonLabel={CONFIRM[confirming].reasonLabel}
           reasonMaxLength={EINVOICE_LIMITS.reasonMax}
           closeOnConfirm={false}
           loading={pending}

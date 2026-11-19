@@ -36,18 +36,8 @@ function optionalNumber(raw: string): number | undefined {
 export const creditApprovalFormSchema = creditApprovalSchema;
 export const CREDIT_APPROVAL_FORM_DEFAULTS: z.input<typeof creditApprovalFormSchema> = { note: "" };
 
-export const creditRejectionFormSchema = z
-  .object({ action: z.string(), depositPercent: z.string(), note: z.string() })
-  .transform((v) => ({
-    action: v.action || undefined,
-    // Bỏ trống → BE dùng % cọc mặc định của hồ sơ công nợ khách
-    depositPercent: optionalNumber(v.depositPercent),
-    note: v.note,
-  }))
-  .transform(parseInto(creditRejectionSchema));
+export const creditRejectionFormSchema = creditRejectionSchema;
 export const CREDIT_REJECTION_FORM_DEFAULTS: z.input<typeof creditRejectionFormSchema> = {
-  action: "",
-  depositPercent: "",
   note: "",
 };
 

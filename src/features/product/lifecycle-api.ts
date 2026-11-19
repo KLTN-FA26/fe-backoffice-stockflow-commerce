@@ -14,7 +14,7 @@ import type { Product } from "./types";
 
 const productPath = (id: string) => `/products/${encodeURIComponent(id)}`;
 
-/** Tạm ngưng: sản phẩm bị ẩn, không có dòng PO mới; đơn / phiếu đang chạy vẫn xử lý tiếp. */
+/** Tạm ngưng: sản phẩm bị ẩn, không nhận báo giá / đơn / Đơn sản xuất mới; chứng từ đang chạy vẫn xử lý tiếp. */
 export async function suspendProduct(input: {
   id: string;
   reason: string;

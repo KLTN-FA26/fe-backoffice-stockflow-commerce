@@ -12,7 +12,8 @@ export const RETURN_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   RETURN_ORDER_NOT_DELIVERED: "Đơn chưa giao xong nên chưa trả hàng được.",
   RETURN_ORDER_NOT_RETURNABLE: "Đơn không nhận thêm yêu cầu trả hàng ở trạng thái hiện tại.",
   // BR-RMA-001 (docs 17 §4.10 bước 37): trong hạn chính sách — Sale nhận ngoài hạn phải ghi lý do
-  RETURN_WINDOW_CLOSED: "Đã quá 7 ngày sau giao. Ghi lý do nhận ngoài hạn để mở yêu cầu.",
+  RETURN_WINDOW_CLOSED:
+    "Đã quá hạn đổi / trả tính từ ngày giao lô hàng. Ghi lý do nhận ngoài hạn để mở yêu cầu.",
   RETURN_QUANTITY_EXCEEDED:
     "Số lượng trả vượt số đã giao trừ phần các yêu cầu khác đang giữ. Dữ liệu đã được tải lại.",
   RETURN_QUANTITIES_INVALID: "Số lượng các dòng không hợp lệ.",
@@ -50,6 +51,20 @@ export const RETURN_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   INVALID_STOCK_PACKAGE_TRANSITION:
     "Có thùng vừa được nhận trên phiếu khác. Dữ liệu đã được tải lại, gỡ thùng đó rồi xác nhận lại.",
   STOCK_PACKAGE_NOT_FOUND: "Không tìm thấy thùng có mã LPN này.",
+  // ── WF-05 (BE PR #362, #364, #369) ──
+  // TH-1: mỗi yêu cầu trả hàng thuộc một lô đã giao
+  RETURN_SHIPMENT_REQUIRED:
+    "Đơn được giao thành nhiều lô — chọn lô giao chứa hàng khách trả rồi mở lại yêu cầu.",
+  RETURN_SHIPMENT_NOT_DELIVERED:
+    "Lô đã chọn chưa giao tới khách nên chưa trả được hàng của lô này. Dữ liệu đã được tải lại.",
+  // TH-3: đã có kiện hàng về thì không rút được nữa
+  RETURN_GOODS_PARTLY_RECEIVED:
+    "Đã có kiện hàng của yêu cầu này về kho nên không rút được nữa. Sale bấm “Đã nhận đủ hàng” rồi đề xuất hoàn tiền (hoặc kết thúc không hoàn tiền) theo số đã về.",
+  // TH-4: thùng về bị mở chỉ được ghi giảm
+  RETURN_CARTON_OPENED:
+    "Thùng này về bị mở (ít hơn số trên nhãn) nên không gỡ cách ly để bán lại được — chỉ ghi giảm.",
+  ORDER_DELIVERY_HAS_RETURN:
+    "Lô giao này đã có yêu cầu trả hàng nên không sửa thành giao thất bại được.",
 };
 
 export function returnErrorMessage(error: unknown): string {
@@ -63,4 +78,6 @@ export const RETURN_STALE_CODES = [
   "RETURN_NOT_AWAITING_GOODS",
   "INVALID_RECEIPT_TRANSITION",
   "INVALID_STOCK_PACKAGE_TRANSITION",
+  "RETURN_SHIPMENT_NOT_DELIVERED",
+  "RETURN_GOODS_PARTLY_RECEIVED",
 ] as const;

@@ -1,12 +1,10 @@
 /**
- * Mock routes — thao tác điều phối đơn: credit hold (SCRUM-427), lệnh sản xuất của đơn
- * (`GET /production/orders`, khớp hợp đồng BE ProductionOrderController#list). Release (SCRUM-423):
+ * Mock routes — thao tác điều phối đơn: credit hold (SCRUM-427), Đơn sản xuất của đơn
+ * (`GET /production-orders`, khớp hợp đồng BE ProductionOrderController#list, docs 17 §4.3). Release (SCRUM-423):
  * `mock-routes-order-delivery-mode.ts` (PR #74).
  *
  * Thứ tự kiểm + mã lỗi chép theo BE develop: CreditHoldService.
  */
-
-import { ORDER_LIMITS } from "@/constants";
 
 import { paginatePage, registerMockRoute } from "./mock-adapter";
 import {
@@ -28,6 +26,7 @@ import {
   toOrderResponse,
 } from "./mock-routes-orders-store";
 
+import type { ProductionOrderStatus } from "@/constants/orders";
 import type { Order } from "@/lib/mock-data";
 
 /**
@@ -64,17 +63,16 @@ async function creditPositionOf(mockCustomerId: string, currency: string) {
     .filter((o) => o.customerId === mockCustomerId)
     .filter(countsTowardExposure)
     .reduce((sum, o) => sum + Math.max(0, o.grandTotal - o.amountPaid), 0);
+  // BE CreditPositionResponse (origin/develop 438fe6fb): không còn điều khoản thanh toán; null bị bỏ.
   return {
     customerId: mockCustomerUuid(mockCustomerId),
-    allowedTerms: [...profile.allowedTerms],
-    defaultTerm: profile.defaultTerm,
-    depositPercent: profile.depositPercent,
     creditLimit: allowsCredit ? MOCK_CREDIT_LIMIT : null,
     creditTermDays: allowsCredit ? 30 : null,
     exposure,
     availableCredit: allowsCredit ? Math.max(0, MOCK_CREDIT_LIMIT - exposure) : null,
     currency,
     hasOverdue: profile.hasOverdue,
+    overdueAmount: 0,
   };
 }
 
@@ -85,24 +83,6 @@ function readNote(body: Record<string, unknown>): string {
 }
 
 const NOTE_REQUIRED = [{ field: "note", message: "note is required", code: "NotBlank" }];
-const DEPOSIT_PERCENT_INVALID = [
-  { field: "depositPercent", message: "must be between 0 and 100 (exclusive)", code: "Range" },
-];
-const INVALID = Symbol("invalid");
-
-/**
- * BE CreditRefusalRequest.depositPercent: tuỳ chọn (bỏ trống = mặc định của khách), có thì
- * 0 < x < 100 (biên mở) — cùng giới hạn với `ORDER_LIMITS.depositPercent*`.
- */
-function readDepositPercent(body: Record<string, unknown>): number | undefined | typeof INVALID {
-  const value = body.depositPercent;
-  if (value === undefined || value === null) return undefined;
-  if (typeof value !== "number" || !Number.isFinite(value)) return INVALID;
-  return value > ORDER_LIMITS.depositPercentMin && value < ORDER_LIMITS.depositPercentMax
-    ? value
-    : INVALID;
-}
-
 function registerCreditRoutes(): void {
   // GET /orders/credit-position/:id — CreditHoldController#position (customer-credit-profiles:READ)
   registerMockRoute("GET", "/orders/credit-position/:id", async (config) => {
@@ -156,70 +136,36 @@ function registerCreditRoutes(): void {
   registerMockRoute("POST", "/orders/:id/credit-rejection", async (config) => {
     const order = await findOrder(idParam(config));
     if (!order) return error(404, "NOT_FOUND", "Resource not found");
-    const body = readBody(config);
-    const note = readNote(body);
+    const note = readNote(readBody(config));
     if (!note) return error(400, "VALIDATION_FAILED", "Invalid request data", NOTE_REQUIRED);
     if (!isCreditHold(order)) {
       return error(409, "ORDER_NOT_ON_CREDIT_HOLD", "Order is not held over its credit limit");
     }
-    // BE CreditHoldService#refuse: chuyển sang phương thức khách không được phép → 409
-    const switchTo =
-      body.action === "SWITCH_TO_PREPAID"
-        ? "PREPAID"
-        : body.action === "SWITCH_TO_DEPOSIT"
-          ? "DEPOSIT"
-          : null;
-    const profile = creditProfileOf(order.customerId);
-    if (switchTo && !profile.allowedTerms.includes(switchTo)) {
-      return error(409, "PAYMENT_TERM_NOT_ALLOWED", "This payment term is not available");
-    }
-    switch (body.action) {
-      case "CANCEL":
-        // BE Order#cancel: lý do = "CREDIT_REJECTED: ghi chú" (đơn + lịch sử)
-        applyTransition(order, "CANCELLED", `CREDIT_REJECTED: ${note}`, {
-          cancellation: {
-            reasonCode: "CREDIT_REJECTED",
-            reason: `CREDIT_REJECTED: ${note}`,
-            retainedAmount: 0,
-            feeReason: null,
-            feeDetail: null,
-            feeAmount: null,
-          },
-        });
-        break;
-      // BE Order#switchTermsAfterCreditRefusal: lý do bước lịch sử = "CREDIT_REJECTED"
-      case "SWITCH_TO_PREPAID":
-        applyTransition(order, "PENDING_PAYMENT", "CREDIT_REJECTED", { paymentTerm: "PREPAID" });
-        break;
-      case "SWITCH_TO_DEPOSIT": {
-        const depositPercent = readDepositPercent(body);
-        if (depositPercent === INVALID) {
-          return error(400, "VALIDATION_FAILED", "Invalid request data", DEPOSIT_PERCENT_INVALID);
-        }
-        // Bỏ trống → % cọc mặc định của hồ sơ khách (BE `terms.depositPercent()`)
-        applyTransition(order, "PENDING_PAYMENT", "CREDIT_REJECTED", {
-          paymentTerm: "DEPOSIT",
-          depositPercent: depositPercent ?? profile.depositPercent ?? undefined,
-        });
-        break;
-      }
-      default:
-        return error(400, "MALFORMED_REQUEST", "Unknown refusal action");
-    }
+    // BE CreditHoldService#refuse (CreditRefusalRequest {note}): từ chối luôn huỷ đơn — CREDIT_REJECTED
+    applyTransition(order, "CANCELLED", `CREDIT_REJECTED: ${note}`, {
+      cancellation: {
+        reasonCode: "CREDIT_REJECTED",
+        reason: `CREDIT_REJECTED: ${note}`,
+        retainedAmount: 0,
+        feeReason: null,
+        feeDetail: null,
+        feeAmount: null,
+      },
+    });
     return ok(toOrderResponse(order));
   });
 }
 
 /**
- * Trạng thái LSX gốc suy từ trạng thái đơn (docs 19 §5.1 + docs 17 §4.2 bước 5–6). Đơn ON_HOLD theo
- * trạng thái đã bị giữ (giữ công nợ: chưa release → chưa có LSX).
+ * Trạng thái Đơn sản xuất suy từ trạng thái đơn bán (docs 17 §4.2 bước 5–6, §5.3). Đơn ON_HOLD theo trạng thái đã bị
+ * giữ (giữ công nợ: chưa release → chưa có Đơn sản xuất). Hàng đã về kho đủ khi đơn đã qua sản xuất.
  */
-function parentStatusFor(order: Order): string | null {
+function productionStatusFor(order: Order): ProductionOrderStatus | null {
   const status = backendStatus(order);
   const effective = status === "ON_HOLD" ? holdOf(order)?.statusBeforeHold : status;
   switch (effective) {
     case "IN_PRODUCTION":
-      return "PRINTING";
+      return "IN_PRODUCTION";
     case "READY_TO_FULFILL":
     case "PICKING":
     case "PARTIALLY_FULFILLED":
@@ -233,7 +179,7 @@ function parentStatusFor(order: Order): string | null {
     case "PARTIALLY_REFUNDED":
     case "COMPLETED":
     case "CLOSED":
-      return "COMPLETED";
+      return "RECEIVED";
     case "CANCELLED":
       return "CANCELLED";
     default:
@@ -241,71 +187,52 @@ function parentStatusFor(order: Order): string | null {
   }
 }
 
-/** `LSX-yyyyMMdd-NNNN` như BE `ProductionOrder` — ngày đặt đơn + số thứ tự trong đơn (mock-only). */
-function productionNumber(order: Order, seq: number): string {
+/** `PRD-yyyyMMdd-NNNN` như BE `ProductionOrderRepositoryAdapter#nextCode` — ngày đặt đơn + số thứ tự (mock-only). */
+function productionCode(order: Order, seq: number): string {
   const day = order.placedAt.slice(0, 10).replaceAll("-", "");
-  return `LSX-${day}-${String(seq).padStart(4, "0")}`;
+  return `PRD-${day}-${String(seq).padStart(4, "0")}`;
 }
 
 function registerProductionRoute(): void {
-  // GET /production/orders — BE ProductionOrderController#list: trang `PageResponse` của
-  // ProductionOrderRowResponse. Mock chỉ hỗ trợ lọc `salesOrderId` (+ `type`) mà FE dùng; BE không
-  // kiểm đơn tồn tại → đơn lạ trả trang rỗng, không 404.
-  registerMockRoute("GET", "/production/orders", async (config) => {
+  // GET /production-orders — BE ProductionOrderController#list: trang `PageResponse` của `ProductionOrder`. Mock chỉ
+  // hỗ trợ lọc `salesOrderId` mà FE dùng; BE không kiểm đơn tồn tại → đơn lạ trả trang rỗng, không 404.
+  registerMockRoute("GET", "/production-orders", async (config) => {
     const params = readParams(config);
     const page = Math.max(0, Number(params.get("page")) || 0);
     const size = Math.max(1, Number(params.get("size")) || 20);
     const salesOrderId = params.get("salesOrderId");
-    const types = params.getAll("type").flatMap((t) => t.split(","));
     const order = salesOrderId ? await findOrder(salesOrderId) : undefined;
-    // Đơn chưa release → chưa có LSX (docs 17 §4.2 bước 5: LSX sinh khi release)
-    const parentStatus = order ? parentStatusFor(order) : null;
-    if (!order || !parentStatus || (types.length > 0 && !types.includes("ORDER"))) {
-      return ok(paginatePage([], page, size));
-    }
+    // Đơn chưa release → chưa có Đơn sản xuất (docs 17 §4.2 bước 5)
+    const status = order ? productionStatusFor(order) : null;
+    const custom = order ? order.lines.filter(isCustomLine) : [];
+    if (!order || !status || custom.length === 0) return ok(paginatePage([], page, size));
     const { lines, warehouseId } = toOrderResponse(order);
-    let seq = 0;
-
-    const rows = order.lines.filter(isCustomLine).flatMap((line, index) => {
-      const parentId = `PRD-${line.lineId}`;
-      const inProduction = parentStatus === "PRINTING";
-      // ASSUMPTION (mock-only, docs 19 BR-12): dòng in đầu tiên của đơn đang sản xuất tách
-      // 40% phần chưa xuất phôi sang gia công ngoài → có LSX con để demo cây gốc/con.
-      const splitQty = inProduction && index === 0 ? Math.floor(line.quantity * 0.4) : 0;
-      const common = {
-        type: "ORDER",
-        warehouseId,
-        blankSku: line.skuId,
-        designSnapshotId: lines.find((l) => l.lineId === line.lineId)?.designSnapshotId ?? null,
-        salesOrderId: order.orderId,
-        salesOrderLineId: line.lineId,
-        createdAt: order.placedAt,
-      };
-      const parent = {
-        ...common,
-        id: parentId,
-        orderNumber: productionNumber(order, ++seq),
-        mode: "IN_HOUSE",
-        status: parentStatus,
-        plannedQuantity: line.quantity - splitQty,
-        goodQuantity: parentStatus === "COMPLETED" ? line.quantity - splitQty : 0,
-      };
-      if (!splitQty) return [parent];
-      return [
-        parent,
-        {
-          ...common,
-          id: `${parentId}-S1`,
-          orderNumber: productionNumber(order, ++seq),
-          parentId,
-          mode: "SUBCONTRACTED",
-          status: "SUBCONTRACTED",
-          plannedQuantity: splitQty,
-          goodQuantity: 0,
-        },
-      ];
-    });
-    return ok(paginatePage(rows, page, size));
+    const received = status === "RECEIVED";
+    // ASSUMPTION (mock-only): đơn mock có một đợt giao → một Đơn sản xuất gồm mọi dòng tuỳ chỉnh; dòng mock không đặt
+    // theo thùng nên coi như 1 cái / thùng.
+    const productionLines = custom.map((line) => ({
+      id: `PRD-${line.lineId}-L1`,
+      orderLineId: line.lineId,
+      sku: line.skuId,
+      cartons: line.quantity,
+      unitsPerCarton: 1,
+      totalUnits: line.quantity,
+      designSnapshotId: lines.find((l) => l.lineId === line.lineId)?.designSnapshotId ?? null,
+      receivedCartons: received ? line.quantity : 0,
+    }));
+    const row = {
+      id: `PRD-${order.orderId}`,
+      code: productionCode(order, 1),
+      salesOrderId: order.orderId,
+      receivingWarehouseId: warehouseId,
+      status,
+      needByDate: order.placedAt.slice(0, 10),
+      sampleApprovalRequired: false,
+      currency: "VND",
+      lines: productionLines,
+      version: 0,
+    };
+    return ok(paginatePage([row], page, size));
   });
 }
 

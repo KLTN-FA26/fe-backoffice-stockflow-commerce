@@ -70,6 +70,7 @@ function toProduct(dto: ProductMasterDto): Product {
     suspendReason: dto.suspendReason ?? undefined,
     discontinuedAt: dto.discontinuedAt ?? undefined,
     discontinueReason: dto.discontinueReason ?? undefined,
+    possibleDuplicates: dto.possibleDuplicates ?? undefined,
   });
 }
 
