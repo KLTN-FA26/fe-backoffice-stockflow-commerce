@@ -11,12 +11,6 @@ import {
   PICK_STATUS,
   UI_LABELS,
 } from "@/constants";
-import {
-  useCompletePicking,
-  useMoveToDispatch,
-  useStartPicking,
-} from "@/features/fulfillment/mutations";
-import { useTopUpTask } from "@/features/fulfillment/pick-line-mutations";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { StatusDot } from "@/components/shared/StatusDot";
 import { Button } from "@/components/ui/button";
@@ -31,6 +25,7 @@ import {
   scopeActions,
 } from "./action-config";
 import { noActionText } from "./no-action-text";
+import { useTaskActionMutations } from "./use-task-action-mutations";
 
 import type { FulfillmentActionCode, FulfillmentActor } from "@/features/fulfillment/lifecycle";
 import type { FulfillmentTask } from "@/features/fulfillment/types";
@@ -58,12 +53,7 @@ export function TaskActionCard({
   linesComplete?: boolean;
   incompleteReason?: string;
 }) {
-  const mutations = {
-    startPicking: useStartPicking(),
-    completePicking: useCompletePicking(),
-    moveToDispatch: useMoveToDispatch(),
-    topUp: useTopUpTask(),
-  };
+  const mutations = useTaskActionMutations();
   const [dialog, setDialog] = useState<FulfillmentActionCode | null>(null);
   const actions = scopeActions(task, actor, scope, linesComplete);
   const pending = Object.values(mutations).some((mutation) => mutation.isPending);

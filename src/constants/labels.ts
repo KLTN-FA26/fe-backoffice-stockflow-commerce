@@ -565,6 +565,9 @@ export const UI_LABELS = {
       assigneesFailed: "Không tải được danh sách người được gán.",
     },
     // Dialog tạo task: đơn chờ xuất kho đọc từ GET /fulfillment/task-candidates (cần fulfillment-task-assignment:CREATE)
+    // Docs 07 §4.1 bước 1–2: đơn đã release, hoặc đơn chờ hàng lấy trước phần đã giữ
+    createDescription:
+      "Chọn đơn đã release (sẵn sàng xuất kho), hoặc đơn đang chờ hàng để lấy trước phần đã có, và gán nhân viên lấy hàng. Mỗi đơn chỉ có một task.",
     noCreateTitle: "Chưa đủ quyền tạo task lấy hàng",
     noCreateDescription:
       "Tài khoản chưa được cấp quyền tạo task xuất kho — liên hệ quản trị để được cấp.",

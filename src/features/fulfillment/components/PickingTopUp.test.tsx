@@ -101,6 +101,14 @@ describe("Lấy bổ sung — action-gating (docs 07 §4.3 bước 7)", () => {
     expect(screen.queryByRole("button", { name: action.topUp })).toBeNull();
   });
 
+  it("điều phối (task-assignment:UPDATE, không đóng gói) → có nút như quản lý kho", async () => {
+    renderTask(
+      IDENTITIES.orderCoordinator,
+      stagedTask({ assignedUserId: OTHER_PICKER_ID, topUpAvailable: true }),
+    );
+    expect(await screen.findByRole("button", { name: action.topUp })).toBeInTheDocument();
+  });
+
   it("NV kho (không có task-assignment:UPDATE) → không có nút dù còn thùng", async () => {
     renderTask(IDENTITIES.warehouseStaff, stagedTask({ topUpAvailable: true }));
     expect(

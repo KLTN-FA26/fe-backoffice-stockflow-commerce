@@ -2,17 +2,13 @@
 
 import { useState } from "react";
 
-import {
-  FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS,
-  PICK_DESTINATION,
-  TASK_CANDIDATE_AWAITING_STOCK,
-  UI_LABELS,
-} from "@/constants";
+import { FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS, PICK_DESTINATION, UI_LABELS } from "@/constants";
 import { useCan } from "@/lib/auth";
 import { fulfillmentErrorMessage } from "@/features/fulfillment/errors";
 import { createTaskInputSchema } from "@/features/fulfillment/input-schemas";
 import { useCreateFulfillmentTask } from "@/features/fulfillment/mutations";
 import { useTaskCandidates } from "@/features/fulfillment/queries";
+import { prePickStagingOnly } from "@/features/fulfillment/selectors";
 import { Alert } from "@/components/shared/Alert";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 
@@ -58,10 +54,8 @@ export function CreateTaskDialog({ onClose }: { onClose: () => void }) {
   const selected = options.find((order) => order.orderId === orderId);
   // Người nhận và khu chờ xuất theo kho của đơn đã chọn (BE `GET /fulfillment/assignees?warehouseId=`)
   const warehouseId = selected?.warehouseId;
-  // Docs 07 §4.1 bước 2: đơn chờ hàng, Sale chưa cho giao một phần → chỉ đích khu chờ xuất.
-  // Backend phải re-check (409 PICK_AWAITING_STOCK_DESTINATION) — UI-only.
-  const stagingOnly =
-    selected?.orderStatus === TASK_CANDIDATE_AWAITING_STOCK && !selected.partialShipmentAllowed;
+  // Docs 07 §4.1 bước 2: đơn chờ hàng chưa được giao một phần → chỉ khu chờ xuất (Backend phải re-check)
+  const stagingOnly = prePickStagingOnly(selected);
   const target = stagingOnly ? PICK_DESTINATION.STAGING : destination;
   const stagingArea = useStagingArea(warehouseId, target, stagingChoice);
 
@@ -95,7 +89,7 @@ export function CreateTaskDialog({ onClose }: { onClose: () => void }) {
     <FormDialog open onOpenChange={(open) => !open && onClose()}>
       <FormDialogBody
         title={fulfillment.action.create}
-        description="Chọn đơn đã release (sẵn sàng xuất kho), hoặc đơn đang chờ hàng để lấy trước phần đã có, và gán nhân viên lấy hàng. Mỗi đơn chỉ có một task."
+        description={fulfillment.createDescription}
         submitLabel={fulfillment.action.create}
         canSubmit={
           canCreate && canAssign && !candidates.isError && options.length > 0 && !stagingArea.none
