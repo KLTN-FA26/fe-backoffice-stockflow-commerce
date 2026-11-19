@@ -23,22 +23,11 @@ export interface DelayFlagView {
 }
 
 /**
- * Cờ trễ đang mở của một dòng (lịch sản xuất, trang đơn). Mỗi cờ một chấm màu + tên; tooltip là điều kiện của cờ và
- * lúc mở. Không có cờ → ô trống (`emptyLabel` để hiện chữ thay vì "—").
+ * Cờ trễ đang mở của một dòng (lịch sản xuất). Mỗi cờ một chấm màu + tên; tooltip là điều kiện của cờ và lúc mở.
+ * Không có cờ → ô trống "—".
  */
-export function DelayFlags({
-  flags,
-  emptyLabel,
-}: {
-  flags: readonly DelayFlagView[];
-  emptyLabel?: string;
-}) {
-  if (flags.length === 0)
-    return emptyLabel ? (
-      <span className="text-ink-tertiary text-xs">{emptyLabel}</span>
-    ) : (
-      <EmptyCell />
-    );
+export function DelayFlags({ flags }: { flags: readonly DelayFlagView[] }) {
+  if (flags.length === 0) return <EmptyCell />;
   return (
     <ul className="flex flex-col gap-1" aria-label={PRODUCTION_LABELS.alerts.flagsTitle}>
       {flags.map((flag) => (

@@ -43,7 +43,7 @@ function Subject({ alert }: { alert: DelayAlert }) {
         {L.productionOrder(alert.productionOrderCode)}
       </Link>
     );
-  if (alert.deliveryBatchSeq) return <span>{L.batch(alert.deliveryBatchSeq)}</span>;
+  if (alert.deliveryBatchSeq != null) return <span>{L.batch(alert.deliveryBatchSeq)}</span>;
   return null;
 }
 
@@ -68,7 +68,8 @@ export function DelayAlertsPanel({
     ),
   );
   if (!canRead) return null;
-  if (query.isError)
+  // Refetch nền lỗi mà đã có cờ → giữ danh sách cũ, chỉ báo lỗi khi chưa tải được lần nào
+  if (query.isError && query.data === undefined)
     return (
       <Alert tone="warning">
         {L.loadFailed}{" "}

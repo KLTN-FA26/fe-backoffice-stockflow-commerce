@@ -1,4 +1,5 @@
-import { screen } from "@testing-library/react";
+import { focusManager } from "@tanstack/react-query";
+import { act, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { DELAY_ALERT_LABELS, DELAY_ALERT_PERMISSIONS, PRODUCTION_LABELS } from "@/constants";
@@ -40,7 +41,10 @@ const alerts = [
   },
 ];
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
 
 describe("DelayAlertsPanel — cờ trễ trên trang đơn (docs 17 §4.12 bước 49)", () => {
   it("Sale thấy cờ đang mở của đơn, trễ thật trước nguy cơ, kèm chủ thể", async () => {
@@ -83,5 +87,32 @@ describe("DelayAlertsPanel — cờ trễ trên trang đơn (docs 17 §4.12 bư�
     });
     renderProductionScreen(<DelayAlertsPanel salesOrderId="so-1" />);
     expect(await screen.findByText(L.loadFailed)).toBeInTheDocument();
+  });
+
+  it("làm mới nền lỗi khi đã có cờ → giữ cờ đang hiện, không thay bằng dòng lỗi", async () => {
+    let fail = false;
+    const { get } = mockProductionApi(SALES, {
+      get: {
+        "/delay-alerts": () => {
+          if (fail) throw new Error("down");
+          return page(alerts);
+        },
+      },
+    });
+    renderProductionScreen(<DelayAlertsPanel salesOrderId="so-1" />);
+    expect(await screen.findByText(DELAY_ALERT_LABELS.AT_RISK)).toBeInTheDocument();
+    fail = true;
+    const calls = get.mock.calls.length;
+    // Quá staleTime rồi quay lại tab → React Query làm mới nền
+    vi.setSystemTime(Date.now() + 60 * 60_000);
+    act(() => {
+      focusManager.setFocused(false);
+      focusManager.setFocused(true);
+    });
+    await waitFor(() => expect(get.mock.calls.length).toBeGreaterThan(calls));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(screen.getByText(DELAY_ALERT_LABELS.AT_RISK)).toBeInTheDocument();
+    expect(screen.queryByText(L.loadFailed)).not.toBeInTheDocument();
+    act(() => focusManager.setFocused(undefined));
   });
 });
