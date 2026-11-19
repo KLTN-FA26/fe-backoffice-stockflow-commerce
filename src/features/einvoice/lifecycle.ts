@@ -5,7 +5,6 @@
 
 import {
   EINVOICE_PERMISSIONS,
-  EINVOICE_TIMING,
   ERROR_NOTICE_PROVIDERS,
   SYSTEM_CORRECTION_BASES,
 } from "@/constants/einvoice";
@@ -65,29 +64,13 @@ export const isSystemDrawn = (invoice: Pick<EInvoice, "correctionBasis">): boole
 export const sendsErrorNotices = (provider: string | null | undefined): boolean =>
   provider != null && ERROR_NOTICE_PROVIDERS.includes(provider);
 
-/** Thời điểm để gate theo thời gian: `now` (ms) và lần gửi NCC cuối (`selectors.lastSentAt`). */
-export interface GateClock {
-  now: number;
-  lastSentAt: string | null;
-}
-
 /**
- * Rút được chưa (BE `EInvoiceIssuance.withdraw`, HĐ-1): lần gửi cuối đã quá `withdraw-after`. Phần còn
- * lại — NCC trả NOT_FOUND, hoặc UNKNOWN đã quá `withdraw-unknown-after` — BE hỏi NCC lúc rút mới biết.
- */
-export function withdrawable(clock: GateClock | undefined): boolean {
-  if (!clock?.lastSentAt) return false;
-  return clock.now - Date.parse(clock.lastSentAt) >= EINVOICE_TIMING.withdrawAfterMs;
-}
-
-/**
- * Nút được phép theo trạng thái (docs 21 §4.2, §4.4, §4.5) và quyền (BR-02: phát hành, tra lại,
+ * Nút được phép theo trạng thái (docs 21 §4.2, §4.4, §4.5) và quyền (BR-02: phát hành, kiểm tra lại,
  * lập điều chỉnh / thay thế là của Kế toán). Backend phải re-check.
  */
 export function allowedEInvoiceActions(
   invoice: Gate,
   can: (permission: PermissionCode) => boolean,
-  clock?: GateClock,
 ): EInvoiceAction[] {
   const P = EINVOICE_PERMISSIONS;
   const actions: EInvoiceAction[] = [];
@@ -104,12 +87,13 @@ export function allowedEInvoiceActions(
       if (can(P.update) && !systemDrawn) actions.push("void");
       break;
     case "SUBMITTING":
-      // docs 21 BR-05: chưa xác nhận được kết quả thì không gửi lại — chỉ tra lại;
+      // docs 21 BR-05: chưa xác nhận được kết quả thì không gửi lại — chỉ kiểm tra lại;
       // gửi như giao dịch mới chỉ khi NCC báo không biết giao dịch (UNKNOWN_TO_PROVIDER)
       if (can(P.approve)) actions.push("reconcile");
       if (can(P.approve) && unknownToProvider) actions.push("resubmit");
-      // BE HĐ-1: kẹt quá `withdraw-after` mà NCC không có bản ghi → rút về REJECTED để phát hành lại
-      if (can(P.approve) && invoice.provider && withdrawable(clock)) actions.push("withdraw");
+      // BE HĐ-1: rút về REJECTED để phát hành lại. Mốc thời gian (3 giờ / 1 ngày từ lần gửi cuối) và câu trả lời
+      // của NCC do BE quyết lúc rút (409 EINVOICE_WITHDRAWAL_REFUSED) — FE không tự tính đồng hồ.
+      if (can(P.approve) && invoice.provider) actions.push("withdraw");
       break;
     case "REJECTED":
       if (can(P.update)) actions.push("reopen");

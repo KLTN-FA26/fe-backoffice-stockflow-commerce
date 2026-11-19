@@ -36,20 +36,6 @@ export function shouldFlagOrderRow(order: Pick<Order, "status">): boolean {
 export { depositState } from "./release-rules";
 export type { DepositState } from "./release-rules";
 
-export type CreditState = "not-applicable" | "on-hold" | "within-limit";
-
-/**
- * Trạng thái công nợ — BE không có field riêng. Chờ duyệt vượt hạn mức ⇔ On Hold với lý do CREDIT
- * (BE `Order#submitOnCredit` + `holdReason`, PR #133). Đơn CREDIT bị giữ vì lý do khác (địa chỉ, thiết
- * kế, giữ tay) đã qua kiểm hạn mức lúc xác nhận → "within-limit". Số liệu vượt bao nhiêu: `creditHoldSummary`.
- */
-export function creditState(
-  order: Pick<Order, "paymentTerm" | "status" | "holdReason">,
-): CreditState {
-  if (order.paymentTerm !== "CREDIT") return "not-applicable";
-  return order.status === "On Hold" && order.holdReason === "CREDIT" ? "on-hold" : "within-limit";
-}
-
 /** Phần vượt hạn mức: dư nợ + giá trị đơn − hạn mức (docs 14 BR-06). Không âm. */
 export function creditOverage(hold: Pick<CreditHold, "creditLimit" | "exposure" | "orderAmount">) {
   return Math.max(0, hold.exposure + hold.orderAmount - hold.creditLimit);

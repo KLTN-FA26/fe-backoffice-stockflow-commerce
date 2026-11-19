@@ -53,11 +53,23 @@ export const returnReviewDtoSchema = z.object({
   returnDeadline: z.string().nullish(),
 });
 
+/** Một lần hàng về (WF-05 TH-3): mỗi phiếu nhập hàng hoàn đã xác nhận mang hàng của yêu cầu, lần đầu trước. */
+export const returnParcelDtoSchema = z.object({
+  parcel: z.number().int(),
+  goodsReceiptId: z.string().nullish(),
+  receiptNumber: z.string().nullish(),
+  locationCode: z.string().nullish(),
+  receivedBy: z.string().nullish(),
+  receivedAt: z.string().nullish(),
+});
+
+/** `goodsReceiptId` = phiếu đầu tiên (không đổi); người / lúc / khu theo lần về gần nhất. */
 export const returnReceiptRefDtoSchema = z.object({
   receivedBy: z.string().nullish(),
   receivedAt: z.string().nullish(),
   locationCode: z.string().nullish(),
   goodsReceiptId: z.string().nullish(),
+  parcels: z.array(returnParcelDtoSchema).nullish(),
 });
 
 /** Hoàn tiền: `settlementAmount` = `offsetAmount` (cấn trừ đợt còn nợ) + `refundedAmount` (đã trả, phải chuyển lại). */
@@ -160,6 +172,18 @@ export const returnReceiptCartonDtoSchema = z.object({
   condition: z.string().nullish(),
   scannedBy: z.string().nullish(),
   scannedAt: z.string().nullish(),
+  /** WF-05 TH-4: số đếm thực trong thùng; `opened` khi ít hơn nhãn (`quantity`) — chỉ ghi giảm. */
+  countedQuantity: z.number().int().nullish(),
+  opened: z.boolean().nullish(),
+});
+
+/** Hàng về không nhãn thùng (WF-05 TH-4): ghi trên phiếu, không nhập tồn, vẫn tính là đã về cho RMA. */
+export const returnLooseLineDtoSchema = z.object({
+  id: z.string(),
+  sku: z.string(),
+  lotNumber: z.string().nullish(),
+  quantity: z.number().int(),
+  recordedBy: z.string().nullish(),
 });
 
 export const expectedCartonDtoSchema = z.object({
@@ -192,6 +216,7 @@ export const returnReceiptDtoSchema = z.object({
   closedAt: z.string().nullish(),
   cartons: z.array(returnReceiptCartonDtoSchema),
   expectedCartons: z.array(expectedCartonDtoSchema),
+  looseLines: z.array(returnLooseLineDtoSchema).nullish(),
   version: z.number().int(),
 });
 

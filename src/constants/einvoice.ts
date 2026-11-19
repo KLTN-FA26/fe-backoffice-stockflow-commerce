@@ -10,7 +10,7 @@
 /**
  * Resource `einvoices` (seed V20261120000300): Kế toán và Quản trị đủ 6 action — CREATE (lập nháp từ
  * shipment đã giao, lập điều chỉnh / thay thế), UPDATE (sửa / huỷ / mở lại nháp, gắn thoả thuận),
- * APPROVE (phát hành, tra lại, gửi lại, gửi thông báo sai sót), EXPORT (bảng kê) — docs 21 BR-02;
+ * APPROVE (phát hành, kiểm tra lại, gửi lại, gửi thông báo sai sót), EXPORT (bảng kê) — docs 21 BR-02;
  * Sales Manager chỉ VIEW_PAGE + READ. Sales Staff không có quyền (docs 21 §2 ghi Sale xem được hoá
  * đơn đơn mình — BE chưa cấp). Khách: READ, chỉ qua `/einvoices/me`.
  */

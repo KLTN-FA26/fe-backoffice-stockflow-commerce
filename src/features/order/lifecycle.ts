@@ -90,11 +90,10 @@ export function allowedOrderActions(
 export function orderActionContextOf(
   order: Pick<
     Order,
-    "paymentTerm" | "holdReason" | "shipments" | "packedAt" | "firstLabeledAt" | "statusBeforeHold"
+    "holdReason" | "shipments" | "packedAt" | "firstLabeledAt" | "statusBeforeHold"
   >,
 ): OrderActionContext {
   return {
-    paymentTerm: order.paymentTerm,
     holdReason: order.holdReason,
     hasShipments: order.shipments.length > 0,
     packedAt: order.packedAt,

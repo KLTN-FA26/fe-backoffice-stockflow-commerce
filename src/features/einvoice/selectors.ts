@@ -5,7 +5,7 @@ import { EINVOICE_LABELS } from "@/constants/labels-einvoice";
 import { statusLabelVi } from "@/lib/status-map";
 
 import type { EInvoiceStatusRead } from "@/constants/einvoice";
-import type { EInvoice, EInvoiceListItem, ProviderCall } from "./types";
+import type { EInvoice, EInvoiceListItem } from "./types";
 
 export function einvoiceStatusLabel(status: EInvoiceStatusRead): string {
   const display = EINVOICE_STATUS_BY_API[status];
@@ -68,21 +68,4 @@ export function issuedTotal(
   return invoices
     .filter((invoice) => invoice.status === "ISSUED")
     .reduce((sum, invoice) => sum + invoice.grandTotal, 0);
-}
-
-/**
- * Lần gửi NCC cuối của hoá đơn: lần `SUBMIT` mới nhất trong nhật ký gọi NCC, không có thì `submittedAt`
- * (BE `EInvoiceIssuanceSteps.lastSent` — mốc tính `withdraw-after`).
- */
-export function lastSentAt(
-  invoice: Pick<EInvoice, "submittedAt">,
-  calls: readonly Pick<ProviderCall, "operation" | "calledAt">[] | undefined,
-): string | null {
-  const submits = (calls ?? []).filter((call) => call.operation === "SUBMIT");
-  const latest = submits.reduce<string | null>(
-    (last, call) =>
-      last === null || Date.parse(call.calledAt) > Date.parse(last) ? call.calledAt : last,
-    null,
-  );
-  return latest ?? invoice.submittedAt ?? null;
 }
