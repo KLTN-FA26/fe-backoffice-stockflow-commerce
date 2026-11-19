@@ -15,12 +15,13 @@ import type { RouteHandler } from "../__fixtures__/render";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
-// BE CreditHoldResponse.order (staff) luôn mang holdReason CREDIT cho đơn vượt hạn mức (PR #133)
+// BE CreditHoldResponse.order (staff) luôn mang holdReason CREDIT cho đơn vượt hạn mức (PR #133). Từ 4B-10 BE không
+// còn gửi `paymentTerm` / `paymentStatus` (TT-1) — fixture bỏ hẳn hai field để nút duyệt không phụ thuộc chúng.
 const heldOrder = {
   ...apiOrder,
   status: "ON_HOLD" as const,
-  paymentTerm: "CREDIT" as const,
-  paymentStatus: "ON_CREDIT" as const,
+  paymentTerm: undefined,
+  paymentStatus: undefined,
   holdReason: "CREDIT" as const,
 };
 const hold = {

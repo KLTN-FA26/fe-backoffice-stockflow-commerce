@@ -225,6 +225,42 @@ describe("Record a receipt from a due installment (WF4 X03: pay BEFORE_DELIVERY 
     ).toBeInTheDocument();
   });
 
+  it("WF-02 audit 9: the reference-in-use message sits on the field and goes once the reference changes", async () => {
+    mockPaymentApi(
+      ACCOUNTANT_GRANTS,
+      receiptRoutes(() => {
+        throw apiError(409, "PAYMENT_RECEIPT_REFERENCE_IN_USE");
+      }),
+    );
+    const dialog = await openDialog();
+    const reference = dialog.getByLabelText(/Mã tham chiếu sao kê/);
+    await userEvent.type(reference, "FT26313123456");
+    await userEvent.click(dialog.getByRole("button", { name: "Lập phiếu thu" }));
+    const message = "Mã tham chiếu sao kê này đã được ghi trong một phiếu thu còn hiệu lực.";
+    expect(await dialog.findByText(message)).toBeInTheDocument();
+    expect(reference).toHaveAttribute("aria-invalid", "true");
+    await userEvent.type(reference, "9");
+    await waitFor(() => expect(dialog.queryByText(message)).not.toBeInTheDocument());
+  });
+
+  it("WF-02 audit 9: EXCEEDS_OUTSTANDING says how much the installment still owes (details.outstanding)", async () => {
+    mockPaymentApi(
+      ACCOUNTANT_GRANTS,
+      receiptRoutes(() => {
+        throw apiError(409, "PAYMENT_RECEIPT_EXCEEDS_OUTSTANDING", undefined, undefined, {
+          installmentId: "inst-2",
+          outstanding: 20_000_000,
+          currency: "VND",
+        });
+      }),
+    );
+    const dialog = await openDialog();
+    await userEvent.type(dialog.getByLabelText(/Mã tham chiếu sao kê/), "FT26313123456");
+    await userEvent.click(dialog.getByRole("button", { name: "Lập phiếu thu" }));
+    expect(await dialog.findByText(/còn phải thu \(còn 20\.000\.000/)).toBeInTheDocument();
+    expect(dialog.getByText(/Vượt số còn phải thu \(20\.000\.000/)).toBeInTheDocument();
+  });
+
   it("an empty reference is flagged before anything is sent", async () => {
     const api = mockPaymentApi(
       ACCOUNTANT_GRANTS,

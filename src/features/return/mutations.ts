@@ -12,7 +12,10 @@ import { withStaleRefetch } from "@/lib/api/stale-refetch";
 import {
   approveReturn,
   approveSettlement,
+  attachReturnEvidence,
   cancelReturn,
+  closeWithoutRefund,
+  markGoodsComplete,
   openReturnForCustomer,
   proposeRefund,
   rejectReturn,
@@ -24,6 +27,8 @@ import {
   cancelReturnReceipt,
   confirmReturnReceipt,
   createReturnReceipt,
+  recordLooseLine,
+  removeLooseLine,
   removeReturnCarton,
   scanReturnCarton,
 } from "./receipt-api";
@@ -77,6 +82,22 @@ export const useRejectSettlement = returnMutation(
   S.settlementRejected,
   RETURN_INVALIDATION,
 );
+/** WF-05 TH-3: AWAITING_RETURN → RECEIVED theo số đã về — đơn đổi trạng thái theo. */
+export const useMarkGoodsComplete = returnMutation(
+  markGoodsComplete,
+  S.goodsComplete,
+  RETURN_INVALIDATION,
+);
+/** WF-05 TH-4: RECEIVED → RESOLVED không hoàn tiền — không đụng số phải hoàn / các đợt. */
+export const useCloseWithoutRefund = returnMutation(
+  closeWithoutRefund,
+  S.closedWithoutRefund,
+  RETURN_INVALIDATION,
+);
+/** Ảnh bằng chứng chỉ thuộc yêu cầu. */
+export const useAttachReturnEvidence = returnMutation(attachReturnEvidence, S.evidenceAdded, [
+  returnKeys.all,
+]);
 
 export const useCreateReturnReceipt = returnMutation(
   createReturnReceipt,
@@ -88,6 +109,13 @@ export const useScanReturnCarton = returnMutation(scanReturnCarton, undefined, [
   returnReceiptKeys.all,
 ]);
 export const useRemoveReturnCarton = returnMutation(removeReturnCarton, R.removed, [
+  returnReceiptKeys.all,
+]);
+/** Hàng lẻ chỉ ghi trên phiếu (không nhập tồn) — yêu cầu trả hàng đổi lúc xác nhận phiếu. */
+export const useRecordLooseLine = returnMutation(recordLooseLine, R.looseRecorded, [
+  returnReceiptKeys.all,
+]);
+export const useRemoveLooseLine = returnMutation(removeLooseLine, R.looseRemoved, [
   returnReceiptKeys.all,
 ]);
 export const useConfirmReturnReceipt = returnMutation(

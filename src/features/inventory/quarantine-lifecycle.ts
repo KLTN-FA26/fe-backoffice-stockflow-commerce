@@ -4,11 +4,18 @@ import {
   QUARANTINE_STOCK_STATUS,
 } from "@/constants/quarantine";
 import { INVENTORY_PERMISSIONS, STOCK_PACKAGE_PERMISSIONS } from "@/constants/permissions";
+import { STOCK_PACKAGE_API_STATUSES, STOCK_PACKAGE_STATUS_BY_API } from "@/constants/statuses";
 
 import type { StockPackageDetail } from "./quarantine-types";
 import type { PermissionCode } from "@/lib/auth";
 
 export type QuarantineAction = (typeof QUARANTINE_ACTION)[keyof typeof QUARANTINE_ACTION];
+
+// Trạng thái thùng BE → chuỗi của StatusDot; VOID (không có trong bảng) và mã lạ hiện nguyên văn.
+export function cartonStatusLabel(status: string): string {
+  const known = STOCK_PACKAGE_API_STATUSES.find((value) => value === status);
+  return known ? STOCK_PACKAGE_STATUS_BY_API[known] : status;
+}
 
 // Docs 20 §5.1: the stock of a carton is `Quarantine` when what it holds is; the carton itself stays `In Stock`.
 export function isQuarantined(carton: StockPackageDetail): boolean {

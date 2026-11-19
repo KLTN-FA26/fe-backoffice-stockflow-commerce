@@ -12,6 +12,7 @@ import { getEvidenceLink } from "../api";
 import { returnErrorMessage } from "../errors";
 
 import { When } from "./primitives";
+import { ReturnEvidenceUpload } from "./ReturnEvidenceUpload";
 
 import type { ReturnRequest } from "../types";
 
@@ -20,8 +21,9 @@ const D = RETURN_LABELS.detail;
 /**
  * Ảnh bằng chứng của khách (bước CLAIM). Ảnh nhỏ có link ngắn hạn ở chi tiết; ảnh lớn lấy link 5 phút từ BE mỗi
  * lần mở (`/evidence/{id}/download-url`) — không lưu link. Duyệt cần ít nhất một ảnh (BE `RETURN_EVIDENCE_REQUIRED`).
+ * `canUpload` (`canAddReturnEvidence`): Sale thêm ảnh thay khách khi yêu cầu còn chờ duyệt / chờ hàng về.
  */
-export function ReturnEvidenceCard({ ret }: { ret: ReturnRequest }) {
+export function ReturnEvidenceCard({ ret, canUpload }: { ret: ReturnRequest; canUpload: boolean }) {
   const [error, setError] = useState<string | null>(null);
   const [opening, setOpening] = useState<string | null>(null);
   const photos = ret.evidence ?? [];
@@ -82,6 +84,7 @@ export function ReturnEvidenceCard({ ret }: { ret: ReturnRequest }) {
           {error}
         </Notice>
       )}
+      {canUpload && <ReturnEvidenceUpload ret={ret} />}
     </Card>
   );
 }

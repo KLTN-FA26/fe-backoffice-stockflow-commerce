@@ -35,7 +35,6 @@ const shelfBody = (shelf: DraftShelf, zoneId: string | null) => ({
   footprint: shelf.footprint,
   obstacle: shelf.obstacle,
   pickFaces: shelf.pickFaces,
-  defaultStorageClass: shelf.defaultStorageClass,
 });
 
 /** Tạo kệ (chưa có tầng) hoặc sửa kệ đã lưu — PUT thay toàn bộ, không đổi mã (BR-13). */
@@ -64,7 +63,6 @@ export async function saveArea(warehouseId: string, area: DraftArea) {
         ? undefined
         : {
             ...area.location,
-            capacityUnits: area.location.capacityUnits ?? undefined,
             maxWeight: area.location.maxWeight ?? undefined,
           },
   };

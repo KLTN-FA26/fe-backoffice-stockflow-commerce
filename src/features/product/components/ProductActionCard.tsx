@@ -79,17 +79,21 @@ export function ProductActionCard({
   can,
   currentUserId,
   isPending,
+  pendingAction = null,
   onAction,
 }: {
   product: Product;
   can: (permission: PermissionCode) => boolean;
   currentUserId: string | undefined;
   isPending: boolean;
+  /** Hành động đang chạy (gồm cả lúc tải lại sản phẩm sau khi BE nhận): nút đó hiện "Đang xử lý…". */
+  pendingAction?: ProductAction["transition"] | null;
   onAction: (action: ProductAction) => void;
 }) {
   // UI-only — Backend phải re-check quyền UPDATE và trạng thái Nháp (BE `Product.updateDetails`).
   const canEdit = can(PRODUCT_PERMISSIONS.update) && product.status === PRODUCT_STATUS.DRAFT;
   const actions = visibleProductActions(product, can, currentUserId);
+  const canPublish = actions.some((action) => action.transition === "publish");
   return (
     <section className={PRODUCT_CARD_CLASS}>
       <div className="mb-4 flex justify-center">
@@ -114,13 +118,26 @@ export function ProductActionCard({
             onClick={() => onAction(action)}
             className={action.destructive ? DANGER : PRIMARY}
           >
-            {action.transition && ACTION_ICON[action.transition]} {action.label}
+            {action.transition && ACTION_ICON[action.transition]}{" "}
+            {pendingAction && pendingAction === action.transition
+              ? L.actionCard.pending
+              : action.label}
           </Button>
         ))}
         {!canEdit && actions.length === 0 && (
           <p className="text-ink-tertiary text-center text-xs">{L.actionCard.noActions}</p>
         )}
       </div>
+      {canPublish && (
+        <div className="text-ink-secondary mt-3 text-xs">
+          <p className="font-medium">{L.actionCard.publishNeedsTitle}</p>
+          <ul className="mt-1 list-disc space-y-0.5 pl-4">
+            {L.actionCard.publishNeeds.map((need) => (
+              <li key={need}>{need}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       {product.status !== PRODUCT_STATUS.DRAFT && (
         <p className="text-ink-tertiary mt-3 text-center text-xs">{L.actionCard.draftOnly}</p>
       )}

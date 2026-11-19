@@ -12,11 +12,26 @@ import {
   EINVOICE_TYPES,
   ERROR_NOTICE_STATUSES,
   ERROR_NOTICE_SUBJECTS,
+  EINVOICE_UNKNOWN,
 } from "@/constants/einvoice";
 import { bePageSchema } from "@/lib/api/page-schema";
 
 /** Chuỗi BE có thể thêm giá trị mới (cảnh báo, kết quả gọi NCC…) — đọc là chuỗi, hiển thị tra bảng. */
 const openString = z.string();
+
+/**
+ * Enum BE đọc tolerant (cùng cách `features/order/schemas.ts`): chuỗi ngoài `values` → `UNKNOWN` thay vì
+ * làm hỏng cả response — BE PR #369 thêm `CorrectionBasis.DELIVERY_FAILED` và trang chi tiết của điều
+ * chỉnh đó không mở được. Chỉ nhận CHUỖI: vắng key / null / sai kiểu ở field bắt buộc vẫn fail.
+ */
+function tolerantEnum<const T extends readonly [string, ...string[]]>(values: T) {
+  return z.union([
+    z.enum(values),
+    z.string().transform((): typeof EINVOICE_UNKNOWN => EINVOICE_UNKNOWN),
+  ]);
+}
+const statusSchema = tolerantEnum(EINVOICE_STATUSES);
+const typeSchema = tolerantEnum(EINVOICE_TYPES);
 
 export const partyDtoSchema = z.object({
   name: z.string().nullish(),
@@ -53,8 +68,8 @@ export const taxRateTotalDtoSchema = z.object({
 export const einvoiceDtoSchema = z.object({
   id: z.string(),
   code: z.string(),
-  type: z.enum(EINVOICE_TYPES),
-  status: z.enum(EINVOICE_STATUSES),
+  type: typeSchema,
+  status: statusSchema,
   /** Đã có ít nhất một hoá đơn điều chỉnh phát hành (docs 21 §5.1 `Adjusted` — BE là cờ). */
   adjusted: z.boolean(),
   orderId: z.string(),
@@ -97,7 +112,7 @@ export const einvoiceDtoSchema = z.object({
   hasFiles: z.boolean(),
   /** Khoá lạc quan: mọi thao tác ghi gửi lại `version` đã đọc. */
   version: z.number().int(),
-  correctionBasis: z.enum(CORRECTION_BASES).nullish(),
+  correctionBasis: tolerantEnum(CORRECTION_BASES).nullish(),
   correctionReason: z.string().nullish(),
   /** Điều chỉnh vì sai sót cần văn bản thoả thuận trước khi phát hành (TT 91/2026 Điều 10). */
   agreementRequired: z.boolean(),
@@ -106,14 +121,19 @@ export const einvoiceDtoSchema = z.object({
   listedInvoiceIds: z.array(z.string()).nullish(),
   /** Hoá đơn ngày sớm hơn chưa phát hành đang giữ nháp này lại (cảnh báo EARLIER_INVOICE_PENDING). */
   earlierPendingInvoice: z.string().nullish(),
+  /**
+   * WF-05 HĐ-3: lần giao của hoá đơn bị sửa thành thất bại lúc nào — đã phát hành thì bị điều chỉnh giảm toàn bộ
+   * (căn cứ DELIVERY_FAILED), bị từ chối thì huỷ thay vì gửi lại. Vắng khi chưa bị đánh dấu / đã gỡ đánh dấu.
+   */
+  deliveryFailedAt: z.string().nullish(),
 });
 
 /** BE `EInvoiceListItemResponse`. */
 export const einvoiceListItemDtoSchema = z.object({
   id: z.string(),
   code: z.string(),
-  type: z.enum(EINVOICE_TYPES),
-  status: z.enum(EINVOICE_STATUSES),
+  type: typeSchema,
+  status: statusSchema,
   adjusted: z.boolean(),
   orderId: z.string(),
   orderNumber: z.string().nullish(),
@@ -156,11 +176,11 @@ export const errorNoticeDtoSchema = z.object({
   id: z.string(),
   einvoiceId: z.string(),
   formCode: z.string(),
-  subject: z.enum(ERROR_NOTICE_SUBJECTS).nullish(),
+  subject: tolerantEnum(ERROR_NOTICE_SUBJECTS).nullish(),
   reason: z.string(),
   correctBuyerName: z.string().nullish(),
   correctBuyerAddress: z.string().nullish(),
-  status: z.enum(ERROR_NOTICE_STATUSES),
+  status: tolerantEnum(ERROR_NOTICE_STATUSES),
   sentAt: z.string().nullish(),
   responseCode: z.string().nullish(),
   responseMessage: z.string().nullish(),
@@ -176,8 +196,8 @@ export const registerEntryDtoSchema = z.object({
   symbol: z.string(),
   invoiceNumber: z.number().int(),
   issueDate: z.string(),
-  type: z.enum(EINVOICE_TYPES),
-  status: z.enum(EINVOICE_STATUSES),
+  type: typeSchema,
+  status: statusSchema,
   adjusted: z.boolean(),
   buyerName: z.string().nullish(),
   buyerTaxCode: z.string().nullish(),

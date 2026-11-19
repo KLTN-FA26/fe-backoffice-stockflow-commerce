@@ -5,26 +5,27 @@ import { creditProfileDtoSchema, customerCreateInputSchema } from "../schemas";
 const PROFILE = {
   customerId: "c-1",
   configured: true,
-  allowPrepaid: true,
-  allowDeposit: true,
-  allowCredit: true,
-  defaultPaymentTerm: "DEPOSIT",
-  depositPercent: 30,
   creditLimit: 50_000_000,
   creditTermDays: 30,
   currency: "VND",
   version: 2,
 };
 
-describe("creditProfileDtoSchema — BE GET /customers/{id}/credit-profile (develop 492a2d61)", () => {
-  it.each(["BEFORE_DELIVERY", "ON_DELIVERY", "ON_CREDIT", null])(
-    "parses depositBalancePolicy %j (ON_CREDIT: dbf7da04, deposit balance on credit)",
-    (depositBalancePolicy) => {
-      expect(creditProfileDtoSchema.safeParse({ ...PROFILE, depositBalancePolicy }).success).toBe(
-        true,
-      );
-    },
-  );
+describe("creditProfileDtoSchema — BE GET /customers/{id}/credit-profile", () => {
+  it("parses the credit limit and days without payment terms (docs 15 BR-01)", () => {
+    expect(creditProfileDtoSchema.safeParse(PROFILE).success).toBe(true);
+  });
+
+  it("parses a customer whose credit was never configured", () => {
+    expect(
+      creditProfileDtoSchema.safeParse({
+        customerId: "c-1",
+        configured: false,
+        currency: "VND",
+        version: -1,
+      }).success,
+    ).toBe(true);
+  });
 });
 
 describe("customerCreateInputSchema.depositPercent — required and checked only for DEPOSIT", () => {

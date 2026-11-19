@@ -66,16 +66,46 @@ export async function createReturnReceipt(input: {
   return parse(data);
 }
 
-/** Quét lại cùng LPN = cùng thùng; `condition` gửi kèm thay ghi chú cũ. */
+/**
+ * Quét lại cùng LPN = cùng thùng; `condition` gửi kèm thay ghi chú cũ. `countedQuantity` (WF-05 TH-4): số thực có trong
+ * thùng đã mở, 0..số trên nhãn (vượt → `VALIDATION_FAILED`); không gửi = thùng nguyên. BE tự đánh `opened` khi ít hơn nhãn.
+ */
 export async function scanReturnCarton(input: {
   id: string;
   lpn: string;
   condition?: string;
+  countedQuantity?: number;
 }): Promise<ReturnReceipt> {
   const { data } = await api.post<unknown>(`${BASE}/${seg(input.id)}/cartons`, {
     lpn: input.lpn,
     ...(input.condition?.trim() ? { condition: input.condition.trim() } : {}),
+    ...(input.countedQuantity !== undefined ? { countedQuantity: input.countedQuantity } : {}),
   });
+  return parse(data);
+}
+
+/**
+ * Hàng lẻ không nhãn thùng (WF-05 TH-4; BE `POST /{id}/loose-lines`): chỉ phiếu nháp của một yêu cầu trả hàng. Cùng SKU
+ * và lô thì thay số cũ. SKU không thuộc đơn → `VALIDATION_FAILED`.
+ */
+export async function recordLooseLine(input: {
+  id: string;
+  sku: string;
+  lotNumber?: string;
+  quantity: number;
+}): Promise<ReturnReceipt> {
+  const { data } = await api.post<unknown>(`${BASE}/${seg(input.id)}/loose-lines`, {
+    sku: input.sku.trim(),
+    ...(input.lotNumber?.trim() ? { lotNumber: input.lotNumber.trim() } : {}),
+    quantity: input.quantity,
+  });
+  return parse(data);
+}
+
+export async function removeLooseLine(input: { id: string; lineId: string }) {
+  const { data } = await api.delete<unknown>(
+    `${BASE}/${seg(input.id)}/loose-lines/${seg(input.lineId)}`,
+  );
   return parse(data);
 }
 

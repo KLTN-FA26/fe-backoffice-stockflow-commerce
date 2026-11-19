@@ -5,6 +5,7 @@
  * OPTIMISTIC_LOCK → tải lại, không tự gửi lại (plan WF-02 §1.4). Toast lỗi do màn hình (hiện message BE).
  */
 
+import { fileTooLargeMessage } from "@/constants/upload-limits";
 import { serverErrorMessage } from "@/lib/api/error-message";
 import { QUERY_ROOTS } from "@/lib/api/query-roots";
 import { createMutation } from "@/lib/api/query-factory";
@@ -51,7 +52,13 @@ export const useSignSalesContract = contractMutation(signSalesContract, undefine
 ]);
 export const useCancelSalesContract = contractMutation(cancelSalesContract, "Đã huỷ hợp đồng.");
 
-/** WF-02: BE trả message tiếng Việt → hiện nguyên văn; khoá lạc quan → câu "đã tải lại". */
+/**
+ * WF-02: BE trả message tiếng Việt → hiện nguyên văn; khoá lạc quan → câu "đã tải lại". 413 (BFF hoặc BE) chỉ đến từ
+ * file scan đã ký → nói rõ giới hạn thay cho câu chung "Không thể hoàn tất yêu cầu." của BFF.
+ */
 export function contractErrorMessage(error: unknown): string {
-  return serverErrorMessage(error, { OPTIMISTIC_LOCK: "Dữ liệu vừa thay đổi, đã tải lại." });
+  return serverErrorMessage(error, {
+    OPTIMISTIC_LOCK: "Dữ liệu vừa thay đổi, đã tải lại.",
+    PAYLOAD_TOO_LARGE: fileTooLargeMessage("signedContract"),
+  });
 }

@@ -4,10 +4,8 @@ import { DASHBOARD_LABELS } from "@/constants/dashboard";
 
 import { StatCell } from "@/components/shared/StatStrip";
 
-import { useAlertSummary, useKpiCount } from "../queries";
-import { alertBreakdown, totalOpenAlerts } from "../selectors";
+import { useKpiCount } from "../queries";
 
-import type { LucideIcon } from "lucide-react";
 import type { KpiDefinition } from "../kpis";
 
 interface TileView {
@@ -37,22 +35,6 @@ export function KpiTile({ definition }: { definition: KpiDefinition }) {
       href={definition.href}
       value={state.value}
       title={state.title}
-    />
-  );
-}
-
-export function AlertsKpiTile({ icon }: { icon: LucideIcon }) {
-  const query = useAlertSummary(true);
-  const state = view(query, query.data ? totalOpenAlerts(query.data) : undefined);
-  // Chi tiết theo loại cảnh báo chỉ hiện khi rê chuột — ô giữ một dòng số cho gọn.
-  const breakdown = query.data ? alertBreakdown(query.data) : "";
-  return (
-    <StatCell
-      label={DASHBOARD_LABELS.alertsOpen}
-      icon={icon}
-      tone="danger"
-      value={state.value}
-      title={state.title ?? (breakdown || undefined)}
     />
   );
 }

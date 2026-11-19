@@ -13,7 +13,7 @@ export function ValueTable({
   rows: readonly ValueRow[];
 }) {
   return (
-    <div className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-[var(--card-shadow)]">
+    <div className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
       {note && <p className="text-ink-secondary pb-2 text-[0.8125rem]">{note}</p>}
       <Table>
         <caption className="text-ink-primary pb-2 text-left text-sm font-semibold">

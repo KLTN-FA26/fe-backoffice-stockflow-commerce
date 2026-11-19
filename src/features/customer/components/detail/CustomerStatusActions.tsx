@@ -9,6 +9,7 @@ import {
   allowedCustomerActions,
 } from "@/features/customer/lifecycle";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { DETAIL_ACTION_CLASS } from "@/components/shared/DetailSection";
 import { Button } from "@/components/ui/button";
 
 import type { CustomerStatusAction } from "@/features/customer/lifecycle";
@@ -46,7 +47,10 @@ const COPY: Record<
   },
 };
 
-/** Thao tác đổi trạng thái — chỉ hiện các bước bảng vòng đời cho phép (lifecycle.ts). */
+/**
+ * Thao tác đổi trạng thái — chỉ hiện các bước bảng vòng đời cho phép (lifecycle.ts). Nút xếp dọc trong thẻ hành
+ * động cột phải; bước phá huỷ (tạm khoá / đóng) tô đỏ.
+ */
 export function CustomerStatusActions({
   customer,
   canChangeStatus,
@@ -65,9 +69,10 @@ export function CustomerStatusActions({
       {actions.map((action) => (
         <Button
           key={action}
+          type="button"
           size="sm"
-          variant="outline"
-          className={COPY[action].danger ? "text-danger" : undefined}
+          variant={COPY[action].danger ? "ghost" : "outline"}
+          className={COPY[action].danger ? DETAIL_ACTION_CLASS.danger : DETAIL_ACTION_CLASS.outline}
           onClick={() => setPending(action)}
         >
           {COPY[action].label}

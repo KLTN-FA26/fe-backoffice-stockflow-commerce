@@ -86,6 +86,10 @@ export interface ListToolbarProps<
 export const TOOLBAR_ACTION_CLASS =
   "h-(--action-h) gap-1.5 rounded-(--action-radius) px-(--action-px) text-[0.8125rem] shadow-(--control-shadow)";
 
+/** Màu nút hành động chính trên toolbar (Tạo mới) — đi kèm `TOOLBAR_ACTION_CLASS`. */
+export const TOOLBAR_PRIMARY_CLASS =
+  "bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse";
+
 /** Nút icon công cụ của toolbar (cùng dáng nút Lọc / Ẩn hiện cột) — nhãn nằm ở tooltip. */
 export function ToolbarIconButton({
   label,

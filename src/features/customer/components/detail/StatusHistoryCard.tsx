@@ -1,10 +1,12 @@
 "use client";
 
+import { History } from "lucide-react";
+
 import { CUSTOMER_STATUS_BY_API } from "@/constants";
 import { STATUS_LABEL_VI } from "@/lib/domain/status-map";
 import { formatDateTime } from "@/lib/format/date";
 import { useCustomerStatusHistory } from "@/features/customer/queries";
-import { Card } from "@/components/shared/Card";
+import { DETAIL_CARD_CLASS, DetailCardTitle } from "@/components/shared/DetailSection";
 import { Skeleton } from "@/components/shared/Skeleton";
 
 import type { CustomerApiStatus } from "@/constants";
@@ -18,8 +20,8 @@ function label(status: CustomerApiStatus) {
 export function StatusHistoryCard({ customerId }: { customerId: string }) {
   const history = useCustomerStatusHistory(customerId);
   return (
-    <Card className="space-y-3">
-      <h2 className="text-ink-primary text-sm font-semibold">Lịch sử trạng thái</h2>
+    <section className={`${DETAIL_CARD_CLASS} space-y-3`}>
+      <DetailCardTitle icon={History}>Lịch sử trạng thái</DetailCardTitle>
       {history.isPending && <Skeleton className="h-16" />}
       {history.isError && (
         <p role="alert" className="text-danger text-[0.8125rem]">
@@ -50,6 +52,6 @@ export function StatusHistoryCard({ customerId }: { customerId: string }) {
           ))}
         </ol>
       )}
-    </Card>
+    </section>
   );
 }

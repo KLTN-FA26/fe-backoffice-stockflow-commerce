@@ -8,7 +8,7 @@
 
 import { z } from "zod";
 
-import { CUSTOMER_API_STATUSES, PAYMENT_TERMS, SALES_ONBOARDING_PAYMENT_TERMS } from "@/constants";
+import { CUSTOMER_API_STATUSES, SALES_ONBOARDING_PAYMENT_TERMS } from "@/constants";
 import { bePageSchema } from "@/lib/api/page-schema";
 import { depositPercentText } from "@/lib/validation/primitives";
 
@@ -67,15 +67,10 @@ export const portalInvitationDtoSchema = z.object({
 
 export const creditProfileDtoSchema = z.object({
   customerId: z.string(),
-  /** false = chưa từng cấu hình → chỉ trả trước, version = -1. */
+  /** false = chưa từng cấu hình hạn mức / kỳ hạn công nợ, version = -1. */
   configured: z.boolean(),
-  allowPrepaid: z.boolean(),
-  allowDeposit: z.boolean(),
-  allowCredit: z.boolean(),
-  defaultPaymentTerm: z.enum(PAYMENT_TERMS),
-  depositPercent: z.number().nullish(),
-  // BE `DepositBalancePolicy` — ON_CREDIT (phần còn lại ghi công nợ) thêm ở dbf7da04 / V20261022000500.
-  depositBalancePolicy: z.enum(["BEFORE_DELIVERY", "ON_DELIVERY", "ON_CREDIT"]).nullish(),
+  // Không còn điều khoản thanh toán theo khách / đơn: khách trả theo lịch thanh toán của hợp đồng
+  // (docs 15 BR-01, docs 18 §2) — BE `CreditProfileResponse` chỉ còn hạn mức và kỳ hạn công nợ.
   creditLimit: z.number().nullish(),
   creditTermDays: z.number().int().nullish(),
   currency: z.string(),

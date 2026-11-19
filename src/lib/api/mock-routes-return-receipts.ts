@@ -3,9 +3,12 @@
  *   GET    /goods-receipts/returns                 danh sách (status lặp, returnRequestId, orderId)
  *   GET    /goods-receipts/returns/{id}            phiếu + thùng đã quét + thùng của nguồn
  *   POST   /goods-receipts/returns                 lập phiếu DRAFT từ RMA AWAITING_RETURN (mock chưa có chuyến RTO)
- *   POST   /goods-receipts/returns/{id}/cartons    quét LPN (+ tình trạng)
+ *   POST   /goods-receipts/returns/{id}/cartons    quét LPN (+ tình trạng, + số đếm thực của thùng mở — WF-05 TH-4)
  *   DELETE /goods-receipts/returns/{id}/cartons/{lpn}
- *   POST   /goods-receipts/returns/{id}/confirmation   CLOSED; yêu cầu trả hàng → RECEIVED
+ *   POST   /goods-receipts/returns/{id}/loose-lines           hàng lẻ không nhãn (phiếu của RMA, WF-05 TH-4)
+ *   DELETE /goods-receipts/returns/{id}/loose-lines/{lineId}
+ *   POST   /goods-receipts/returns/{id}/confirmation   CLOSED; một lần hàng về của RMA — đủ số đã duyệt thì RECEIVED,
+ *                                                       về một phần thì vẫn AWAITING_RETURN (WF-05 TH-3)
  *   POST   /goods-receipts/returns/{id}/cancellation   CANCELLED
  * Phải đăng ký TRƯỚC `/goods-receipts/:id` (mock adapter khớp route đăng ký trước).
  */
@@ -17,10 +20,19 @@ import {
   nextMockReturnId,
   sourceCartonsOf,
 } from "./mock-returns-store";
-import { bodyOf, fail, ok, pageOf, pathParams, queryOf, text } from "./mock-route-utils";
+import {
+  bodyOf,
+  fail,
+  ok,
+  pageOf,
+  pathParams,
+  queryOf,
+  text,
+  validationFailed,
+} from "./mock-route-utils";
 import { mockUsableAreaCodes } from "./mock-routes-warehouse-layout";
 
-import type { MockReturnReceipt } from "./mock-returns-store";
+import type { MockReturn, MockReturnReceipt } from "./mock-returns-store";
 
 const BASE = "/goods-receipts/returns";
 const now = () => new Date().toISOString();
@@ -64,8 +76,9 @@ async function create(body: Record<string, unknown>) {
   if (!ret) return fail(404, "RETURN_REQUEST_NOT_FOUND", "No return request");
   if (ret.status !== "AWAITING_RETURN")
     return fail(409, "RETURN_NOT_AWAITING_GOODS", "Not awaiting its goods");
+  // WF-05 TH-3: mỗi kiện về một phiếu riêng — chỉ một phiếu NHÁP mỗi lúc (BE `findDraftForReturnRequest`)
   const open = mockReturnReceipts().find(
-    (r) => r.returnRequestId === ret.id && r.status !== "CANCELLED",
+    (r) => r.returnRequestId === ret.id && r.status === "DRAFT",
   );
   if (open)
     return fail(409, "RETURN_RECEIPT_ALREADY_OPEN", "Already open", [], { receiptId: open.id });
@@ -91,6 +104,7 @@ async function create(body: Record<string, unknown>) {
     receivedAt: now(),
     closedAt: null,
     cartons: [],
+    looseLines: [],
     source: sourceCartonsOf(ret),
     version: 0,
   };
@@ -98,36 +112,103 @@ async function create(body: Record<string, unknown>) {
   return ok(wire(receipt), 201);
 }
 
+/** Thùng đã về trên một phiếu khác đã xác nhận (BE `RETURN_CARTON_IN_WAREHOUSE`). */
+const alreadyBack = (receipt: MockReturnReceipt, lpn: string) =>
+  mockReturnReceipts().some(
+    (r) => r.id !== receipt.id && r.status === "CLOSED" && r.cartons.some((c) => c.lpn === lpn),
+  );
+
 function scan(receipt: MockReturnReceipt, body: Record<string, unknown>) {
   if (receipt.status !== "DRAFT") return notDraft();
   const lpn = text(body.lpn);
   const carton = receipt.source.find((c) => c.lpn === lpn);
   if (!carton) return fail(409, "RETURN_CARTON_NOT_OF_SOURCE", `${lpn} is not of this source`);
+  if (alreadyBack(receipt, lpn))
+    return fail(409, "RETURN_CARTON_IN_WAREHOUSE", `${lpn} is already back in the warehouse`);
+  // WF-05 TH-4: số đếm 0..nhãn; không gửi = nguyên thùng (lần quét lại giữ số đã đếm)
+  const raw = body.countedQuantity;
+  const counted = typeof raw === "number" ? raw : null;
+  if (raw != null && (counted === null || !Number.isInteger(counted) || counted < 0))
+    return validationFailed("countedQuantity", "countedQuantity must be zero or more");
+  if (counted !== null && counted > carton.quantity)
+    return validationFailed("countedQuantity", "More than the carton's label");
   const condition = text(body.condition) || null;
   const existing = receipt.cartons.find((c) => c.lpn === lpn);
-  if (existing) existing.condition = condition ?? existing.condition;
-  else receipt.cartons.push({ ...carton, condition, scannedAt: now() });
+  if (existing) {
+    existing.condition = condition ?? existing.condition;
+    existing.countedQuantity = counted ?? existing.countedQuantity;
+    existing.opened = existing.countedQuantity < existing.quantity;
+  } else {
+    const units = counted ?? carton.quantity;
+    receipt.cartons.push({
+      ...carton,
+      condition,
+      scannedAt: now(),
+      countedQuantity: units,
+      opened: units < carton.quantity,
+    });
+  }
   receipt.version += 1;
   return ok(wire(receipt));
 }
 
-function confirm(receipt: MockReturnReceipt) {
-  if (receipt.status === "CLOSED") return ok(wire(receipt));
-  if (receipt.status !== "DRAFT" || !receipt.cartons.length) return notDraft();
-  receipt.status = "CLOSED";
-  receipt.closedAt = now();
+/** Hàng lẻ không nhãn (BE `ReturnReceipt.recordLoose`): phiếu nháp của RMA, SKU của đơn, cùng SKU + lô thì thay số. */
+function recordLoose(receipt: MockReturnReceipt, body: Record<string, unknown>) {
+  if (receipt.status !== "DRAFT" || !receipt.returnRequestId) return notDraft();
+  const sku = text(body.sku);
+  const lotNumber = text(body.lotNumber) || null;
+  const quantity = typeof body.quantity === "number" ? body.quantity : 0;
+  if (!sku || sku.length > 64) return validationFailed("sku", "Name the SKU of the loose units");
+  if (lotNumber && lotNumber.length > 64) return validationFailed("lotNumber", "At most 64");
+  if (!Number.isInteger(quantity) || quantity < 1)
+    return validationFailed("quantity", "quantity must be at least 1");
+  if (!receipt.source.some((c) => c.sku === sku))
+    return validationFailed("sku", `${sku} is not a SKU of the order`);
+  const held = receipt.looseLines.find((l) => l.sku === sku && l.lotNumber === lotNumber);
+  if (held) held.quantity = quantity;
+  else receipt.looseLines.push({ id: nextMockReturnId("RLL"), sku, lotNumber, quantity });
   receipt.version += 1;
-  const ret = mockReturns().find((r) => r.id === receipt.returnRequestId);
-  if (ret && (ret.status === "AWAITING_RETURN" || ret.status === "EXPIRED")) {
-    for (const line of ret.lines)
-      line.receivedQuantity = receipt.cartons
-        .filter((c) => c.sku === line.sku)
-        .reduce((sum, c) => sum + c.quantity, 0);
-    ret.receipt = {
-      receivedAt: now(),
-      locationCode: receipt.quarantineLocationCode,
-      goodsReceiptId: receipt.id,
-    };
+  return ok(wire(receipt));
+}
+
+function removeLoose(receipt: MockReturnReceipt, lineId: string) {
+  if (receipt.status !== "DRAFT") return notDraft();
+  const before = receipt.looseLines.length;
+  receipt.looseLines = receipt.looseLines.filter((l) => l.id !== lineId);
+  if (receipt.looseLines.length === before)
+    return fail(404, "NOT_FOUND", `No loose line ${lineId}`);
+  receipt.version += 1;
+  return ok(wire(receipt));
+}
+
+/**
+ * Một lần hàng về của yêu cầu (BE `ReturnRequest.goodsReceived`): cộng số của phiếu (thùng theo số đếm + hàng lẻ) vào
+ * từng dòng, ghi một parcel; đủ số đã duyệt → RECEIVED, chưa đủ → vẫn AWAITING_RETURN; EXPIRED nhận về → RECEIVED.
+ */
+function takeParcel(ret: MockReturn, receipt: MockReturnReceipt) {
+  const units = (sku: string) =>
+    receipt.cartons.filter((c) => c.sku === sku).reduce((sum, c) => sum + c.countedQuantity, 0) +
+    receipt.looseLines.filter((l) => l.sku === sku).reduce((sum, l) => sum + l.quantity, 0);
+  for (const line of ret.lines)
+    line.receivedQuantity = (line.receivedQuantity ?? 0) + units(line.sku);
+  const parcels = ret.receipt?.parcels ?? [];
+  const parcel = {
+    parcel: parcels.length + 1,
+    goodsReceiptId: receipt.id,
+    receiptNumber: receipt.number,
+    locationCode: receipt.quarantineLocationCode,
+    receivedBy: "mock-current-user",
+    receivedAt: now(),
+  };
+  ret.receipt = {
+    receivedBy: parcel.receivedBy,
+    receivedAt: parcel.receivedAt,
+    locationCode: parcel.locationCode,
+    goodsReceiptId: ret.receipt?.goodsReceiptId ?? receipt.id,
+    parcels: [...parcels, parcel],
+  };
+  const complete = ret.lines.every((l) => (l.receivedQuantity ?? 0) >= (l.approvedQuantity ?? 0));
+  if (ret.status === "EXPIRED" || complete) {
     ret.history.push({
       from: ret.status,
       to: "RECEIVED",
@@ -135,8 +216,21 @@ function confirm(receipt: MockReturnReceipt) {
       occurredAt: now(),
     });
     ret.status = "RECEIVED";
-    ret.version += 1;
   }
+  ret.version += 1;
+}
+
+function confirm(receipt: MockReturnReceipt) {
+  if (receipt.status === "CLOSED") return ok(wire(receipt));
+  // BE `ReturnReceipt.confirm`: cần ít nhất một thùng hoặc một dòng hàng lẻ
+  if (receipt.status !== "DRAFT" || (!receipt.cartons.length && !receipt.looseLines.length))
+    return notDraft();
+  receipt.status = "CLOSED";
+  receipt.closedAt = now();
+  receipt.version += 1;
+  const ret = mockReturns().find((r) => r.id === receipt.returnRequestId);
+  if (ret && (ret.status === "AWAITING_RETURN" || ret.status === "EXPIRED"))
+    takeParcel(ret, receipt);
   return ok(wire(receipt));
 }
 
@@ -186,6 +280,16 @@ export function registerReturnReceiptMockRoutes(): void {
       r.version += 1;
       return ok(wire(r));
     }),
+  );
+  registerMockRoute(
+    "POST",
+    `${BASE}/:id/loose-lines`,
+    withReceipt((r, c) => recordLoose(r, bodyOf(c))),
+  );
+  registerMockRoute(
+    "DELETE",
+    `${BASE}/:id/loose-lines/:lineId`,
+    withReceipt((r, c) => removeLoose(r, pathParams(c).lineId ?? "")),
   );
   registerMockRoute(
     "POST",

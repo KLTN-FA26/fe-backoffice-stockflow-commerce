@@ -8,10 +8,20 @@ import { scanProgress } from "../selectors";
 
 import { EMPTY, MONO } from "./primitives";
 
-import type { ReturnReceipt } from "../types";
+import type { ReturnReceipt, ReturnReceiptCarton } from "../types";
 
 const D = RETURN_RECEIPT_LABELS.detail;
 const TH = "py-1 pr-3 font-medium";
+
+/** WF-05 TH-4: thùng mở (đếm ít hơn nhãn) chỉ ghi giảm — hiện "Đã mở · đếm 7/10"; thiếu dữ liệu = nguyên thùng. */
+function CountCell({ carton }: { carton: ReturnReceiptCarton }) {
+  if (!carton.opened) return <span className="text-ink-tertiary">{D.sealed}</span>;
+  return (
+    <span className="text-warning tabular-nums">
+      {D.openedState(carton.countedQuantity ?? 0, carton.quantity)}
+    </span>
+  );
+}
 
 /** Thùng đã quét (gỡ được khi phiếu nháp) và thùng của nguồn để đối chiếu (docs 03 §4.2 bước 11). */
 export function ReturnCartonTables({
@@ -54,6 +64,9 @@ export function ReturnCartonTables({
                   {D.quantity}
                 </th>
                 <th scope="col" className={TH}>
+                  {D.countColumn}
+                </th>
+                <th scope="col" className={TH}>
                   {D.conditionColumn}
                 </th>
                 {onRemove && <th scope="col" className={TH} aria-label={D.remove} />}
@@ -66,6 +79,9 @@ export function ReturnCartonTables({
                   <td className={`py-1.5 pr-3 ${MONO}`}>{carton.sku}</td>
                   <td className={`py-1.5 pr-3 ${MONO}`}>{carton.lotNumber ?? EMPTY}</td>
                   <td className={`py-1.5 pr-3 text-right ${MONO}`}>{carton.quantity}</td>
+                  <td className="py-1.5 pr-3">
+                    <CountCell carton={carton} />
+                  </td>
                   <td className="py-1.5 pr-3">{carton.condition ?? EMPTY}</td>
                   {onRemove && (
                     <td className="py-1.5 text-right">

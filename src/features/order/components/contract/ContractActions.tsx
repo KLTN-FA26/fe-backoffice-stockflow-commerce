@@ -1,6 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { Pencil, Send, Signature } from "lucide-react";
+
+import { ApiError } from "@/lib/api/error";
 
 import { formatMoney } from "@/lib/format/money";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -12,7 +15,7 @@ import {
   useCancelSalesContract,
   useSendSalesContract,
 } from "../../sales-contract-mutations";
-import { creditWarningText } from "../../sales-contract-rules";
+import { contractFieldLabel, creditWarningText } from "../../sales-contract-rules";
 
 import { ContractDownloads } from "./ContractDownloads";
 import { SignContractDialog } from "./SignContractDialog";
@@ -21,6 +24,30 @@ import type { ContractAction } from "../../sales-contract-rules";
 import type { SalesContract } from "../../sales-contract-schemas";
 
 export type ContractDialog = "send" | "sign" | "cancel" | null;
+
+/**
+ * Lỗi gửi hợp đồng TRONG hộp thoại: câu của BE + từng `fieldErrors[]` (vd cửa sổ giao ở quá khứ —
+ * `deliverySchedule[0].windowStart`) theo tên đợt, để Sale biết sửa ô nào (WF-02 audit, mục 8).
+ */
+function SendError({ error }: { error: unknown }) {
+  const fields = error instanceof ApiError ? (error.fieldErrorList ?? []) : [];
+  return (
+    <div className="space-y-1">
+      <p>{contractErrorMessage(error)}</p>
+      {fields.length > 0 && (
+        <ul className="list-disc space-y-0.5 pl-5">
+          {fields.map((entry, index) => (
+            <li key={`${entry.field}-${index}`}>
+              <span className="font-medium">{contractFieldLabel(entry.field)}:</span>{" "}
+              {entry.message}
+            </li>
+          ))}
+        </ul>
+      )}
+      {fields.length > 0 && <p>Huỷ hộp thoại, bấm Sửa để chỉnh rồi gửi lại.</p>}
+    </div>
+  );
+}
 
 /** Nút hợp đồng theo trạng thái (`allowedContractActions`) + tải PDF / bản đã gửi / bản đã ký. */
 export function ContractActions({
@@ -41,7 +68,11 @@ export function ContractActions({
 }) {
   const send = useSendSalesContract();
   const cancel = useCancelSalesContract();
-  const close = () => setDialog(null);
+  const [sendError, setSendError] = useState<unknown>(null);
+  const close = () => {
+    setSendError(null);
+    setDialog(null);
+  };
   const onError = (error: unknown) => toast.error(contractErrorMessage(error));
   const money = (amount: number) => formatMoney(amount, contract.totals.currency);
   const warning = contract.creditWarning;
@@ -92,6 +123,7 @@ export function ContractActions({
         variant="default"
         loading={send.isPending}
         closeOnConfirm={false}
+        error={sendError ? <SendError error={sendError} /> : undefined}
         onConfirm={() =>
           send.mutate(
             { orderId: contract.orderId, version: contract.version },
@@ -102,10 +134,8 @@ export function ContractActions({
                   toast.warning(`Đã gửi hợp đồng. ${creditWarningText(sent.creditWarning, money)}`);
                 else toast.success("Đã gửi hợp đồng cho khách.");
               },
-              onError: (error) => {
-                close();
-                onError(error);
-              },
+              // Giữ hộp thoại mở, hiện lỗi kèm fieldErrors ngay trong đó (dialog modal che phần còn lại).
+              onError: setSendError,
             },
           )
         }

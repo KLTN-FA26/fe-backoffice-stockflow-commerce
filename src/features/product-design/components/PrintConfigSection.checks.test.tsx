@@ -13,7 +13,11 @@ import { resetVariantMockStore } from "@/lib/api/mock-routes-variants";
 
 import {
   bagTree,
+  CHOSEN_FILE,
+  DEFAULTS_TOGGLE,
   EMPTY_VARIANT,
+  FILE_INPUT,
+  findStatus,
   glbFile,
   loaderOf,
   renderSection,
@@ -28,7 +32,7 @@ configure({ asyncUtilTimeout: 45_000 });
 const SAVE = { name: "Lưu cấu hình in" };
 const CLEAN = "File đạt các bước kiểm: không có lỗi hay cảnh báo.";
 const upload = (file: File, applyAccept = true) =>
-  userEvent.setup({ applyAccept }).upload(screen.getByLabelText(/Chọn hoặc kéo thả file/), file);
+  userEvent.setup({ applyAccept }).upload(screen.getByLabelText(FILE_INPUT), file);
 
 beforeAll(() => activateMockAdapter());
 beforeEach(() => {
@@ -42,7 +46,7 @@ afterEach(() => vi.restoreAllMocks());
 
 async function chooseBag(shift: BagShift, faces?: readonly string[]) {
   renderSection({ ...EMPTY_VARIANT, loadModel: loaderOf(bagTree(shift, faces)) });
-  await screen.findByText("Chưa có cấu hình in");
+  await findStatus("Chưa có cấu hình in");
   await upload(glbFile());
   await screen.findByText("Nhận ra: Túi");
 }
@@ -79,7 +83,7 @@ describe("the file against the model that will be saved", () => {
   it("a top fold typed in the defaults keeps the file clean (it is added on the face height)", async () => {
     await chooseBag({});
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: /Nâng cao/ }));
+    await user.click(screen.getByRole("button", DEFAULTS_TOGGLE));
     const fold = screen.getByLabelText("Gập miệng túi (mm)");
     await user.clear(fold);
     await user.type(fold, "40");
@@ -101,7 +105,7 @@ describe("a bag with fewer than four faces", () => {
 describe("the name of the file, and what the screen never shows", () => {
   async function renderEmpty(loadModel?: GlbLoader) {
     renderSection({ ...EMPTY_VARIANT, loadModel });
-    await screen.findByText("Chưa có cấu hình in");
+    await findStatus("Chưa có cấu hình in");
   }
 
   it("a file whose name does not end in .glb is refused when it is chosen, without being read", async () => {
@@ -125,13 +129,15 @@ describe("the name of the file, and what the screen never shows", () => {
   it("while a file is being read the defaults of the stored file cannot be saved", async () => {
     renderSection({ loadModel: () => new Promise(() => {}) });
     const user = userEvent.setup();
-    await user.click(await screen.findByRole("button", { name: /Nâng cao/ }));
+    await user.click(await screen.findByRole("button", DEFAULTS_TOGGLE));
     const seam = screen.getByLabelText("Mép dán (mm)");
     await user.clear(seam);
     await user.type(seam, "6");
     expect(screen.getByRole("button", { name: SAVE.name })).toBeEnabled();
     await upload(glbFile("slow.glb"));
-    await screen.findByText("Đang đọc slow.glb…");
+    const row = within(await screen.findByRole("group", CHOSEN_FILE));
+    expect(row.getByText("slow.glb")).toBeInTheDocument();
+    expect(row.getByText("Đang đọc…")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: SAVE.name })).toBeDisabled();
   });
 });

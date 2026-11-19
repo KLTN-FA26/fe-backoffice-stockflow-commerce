@@ -1,5 +1,9 @@
 /** Chat — selector thuần: đọc payload thẻ (JSON tự do) thành giá trị đã narrow. */
 
+import { QUOTE_STATUS_LABELS, SALES_CONTRACT_STATUS_LABELS } from "@/constants";
+import { REPORT_ORDER_STATUS_TO_FE } from "@/constants/reporting";
+import { statusLabelVi } from "@/lib/status-map";
+
 import type { ChatAttachableContext } from "@/constants";
 import type { ChatCard, ChatCustomerOverview, ChatMessage } from "./schemas";
 
@@ -54,6 +58,34 @@ export const DESIGN_STATUS_LABELS: Readonly<Record<string, string>> = {
   APPROVED: "Đã duyệt",
   ARCHIVED: "Đã lưu trữ",
 };
+
+const PROJECT_STATUS_LABELS: Readonly<Record<string, string>> = {
+  ACTIVE: "Đang mở",
+  ARCHIVED: "Đã đóng",
+};
+
+/**
+ * Trạng thái của một chứng từ ngữ cảnh (`ConversationContext.status`, mã BE thô như `APPROVED`, `DRAFT`) → nhãn tiếng
+ * Việt theo loại chứng từ (WF-02 audit: chip từng hiện thô). Mã lạ giữ nguyên.
+ */
+export function contextStatusLabel(kind: string, status: string): string {
+  const byKind: Readonly<Record<string, string>> | undefined =
+    kind === "DESIGN"
+      ? DESIGN_STATUS_LABELS
+      : kind === "DESIGN_PROJECT"
+        ? PROJECT_STATUS_LABELS
+        : kind === "QUOTE"
+          ? QUOTE_STATUS_LABELS
+          : kind === "CONTRACT"
+            ? SALES_CONTRACT_STATUS_LABELS
+            : undefined;
+  if (byKind?.[status]) return byKind[status];
+  if (kind === "ORDER") {
+    const fe = (REPORT_ORDER_STATUS_TO_FE as Readonly<Record<string, string>>)[status];
+    if (fe) return statusLabelVi(fe, "order") ?? fe;
+  }
+  return statusLabelVi(status) ?? status;
+}
 
 export function payloadText(card: ChatCard, key: string): string | null {
   return str(card.payload?.[key]);

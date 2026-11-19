@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { INVENTORY_ROUTES } from "@/constants/inventory";
+import { ADMIN_ROUTES } from "@/constants/routes";
 import { NOTIFICATION_API } from "@/constants/notifications";
 
 import { useAuthStore } from "@/lib/auth/auth-store";
@@ -10,39 +10,35 @@ import { toSafeNotificationPath } from "@/features/notification/link";
 import { api } from "./client";
 import { ApiError } from "./error";
 import { activateMockAdapter } from "./mock-adapter";
-import { resetNotificationMockStore, stockAlertSeverity } from "./mock-routes-notifications";
+import { mockInstallments, overdueOf, resetPaymentMockStore } from "./mock-payment-store";
+import { resetNotificationMockStore } from "./mock-routes-notifications";
 
 import type { AuthUser } from "@/lib/auth/auth-store";
 import type { NotificationPage } from "@/features/notification/types";
 
 activateMockAdapter();
 
-// Demo accounts from mock-user-grants: two warehouse staff (inventory-alerts:READ) and an account
-// with no grants standing in for a customer.
+// Demo accounts from mock-user-grants: two salespeople (sales-order-holds:UPDATE — who BE
+// InstallmentOverdueNotificationListener tells), a warehouse staff without it, and an account with
+// no grants standing in for a customer.
 const staffA: AuthUser = {
-  userId: "USER-WH-01",
+  userId: "USER-SALE-01",
   username: "a",
   email: "a@example.test",
   fullName: null,
   status: "ACTIVE",
-  roles: ["INVENTORY_MANAGER"],
+  roles: ["SALES_STAFF"],
   lastLoginAt: null,
   mustChangePassword: false,
 };
 const staffB: AuthUser = {
   ...staffA,
-  userId: "USER-WH-02",
+  userId: "USER-SALE-02",
   username: "b",
   email: "b@example.test",
 };
+const warehouse: AuthUser = { ...staffB, userId: "USER-WH-01", roles: ["WAREHOUSE_STAFF"] };
 const customer: AuthUser = { ...staffB, userId: "CUSTOMER-01", roles: ["CUSTOMER"] };
-// Copied from the BE InventoryAlertMessages severity switch, not derived from the mock.
-const BE_ALERT_SEVERITY: Record<string, string> = {
-  SAFETY: "CRITICAL",
-  EXPIRED: "CRITICAL",
-  REORDER: "WARN",
-  EXPIRING: "WARN",
-};
 
 function signIn(user: AuthUser) {
   useAuthStore.getState().login(user, false);
@@ -52,12 +48,17 @@ async function page(params: Record<string, string> = {}): Promise<NotificationPa
 }
 
 beforeEach(() => {
+  // "Overdue" is computed from today (mockToday): pin it so the seed gives a fixed set of overdue installments.
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-11-20T05:00:00Z"));
+  resetPaymentMockStore();
   resetNotificationMockStore();
   vi.spyOn(Math, "random").mockReturnValue(0.5); // disable the generic random 500
 });
 
 afterEach(() => {
   useAuthStore.getState().logout(false);
+  vi.useRealTimers();
   vi.restoreAllMocks();
 });
 
@@ -84,36 +85,34 @@ describe("mock inbox: ownership and BE endpoint semantics", () => {
     expect((await page()).unreadCount).toBe(a.items.length);
   });
 
-  it("stock-alert links follow BE InventoryAlertMessages (kind[, warehouseId]) and pass the safe-link policy", async () => {
-    signIn(staffA);
-    const links = (await page()).items.map((item) => item.link);
-    expect(links.length).toBeGreaterThan(0);
-    for (const link of links) {
-      expect(link).toMatch(
-        /^\/admin\/inventory\/alerts\?kind=(REORDER|SAFETY|EXPIRING|EXPIRED)(&warehouseId=[\w-]+)?$/,
-      );
-      expect(link?.startsWith(`${INVENTORY_ROUTES.alerts}?`)).toBe(true);
-      expect(link && toSafeNotificationPath(link)).toBe(link);
-    }
-  });
-
-  // BE InventoryAlertMessages severity switch (develop 878a1be). The seeded SAFETY alert is
-  // ACKNOWLEDGED, so it never reaches the inbox; the mapping is checked per kind instead.
-  it.each(Object.entries(BE_ALERT_SEVERITY))(
-    "a %s stock alert is %s, as BE sends it",
-    (kind, severity) => {
-      expect(stockAlertSeverity(kind)).toBe(severity);
-    },
-  );
-
-  it("every seeded stock-alert notice carries the BE severity of its kind", async () => {
+  it("seeds one PAYMENT_OVERDUE notice per overdue installment, worded and linked as BE sends it", async () => {
     signIn(staffA);
     const items = (await page()).items;
-    expect(items.length).toBeGreaterThan(0);
+    const overdue = mockInstallments().filter(overdueOf);
+    expect(overdue.length).toBeGreaterThan(1);
+    expect(items.map((item) => item.sourceId).sort()).toEqual(
+      overdue.map((i) => i.installmentId).sort(),
+    );
     for (const item of items) {
-      const kind = new URLSearchParams(item.link?.split("?")[1]).get("kind") ?? "";
-      expect(item.severity).toBe(BE_ALERT_SEVERITY[kind]);
+      const installment = overdue.find((i) => i.installmentId === item.sourceId);
+      expect(item).toMatchObject({
+        category: "PAYMENT_OVERDUE",
+        severity: "WARN",
+        sourceType: "INSTALLMENT",
+        link: ADMIN_ROUTES.orders.detail(installment?.orderId ?? ""),
+        title: `Khách có đợt thanh toán quá hạn: hợp đồng ${installment?.contractNumber}, đợt ${installment?.seq}`,
+      });
+      expect(item.body).toContain(`(đơn ${installment?.orderNumber})`);
+      expect(item.link && toSafeNotificationPath(item.link)).toBe(item.link);
     }
+    // Mới nhất trước
+    const created = items.map((item) => item.createdAt);
+    expect(created).toEqual([...created].sort().reverse());
+  });
+
+  it("only holders of sales-order-holds:UPDATE are told; warehouse staff get an empty inbox", async () => {
+    signIn(warehouse);
+    expect(await page()).toMatchObject({ items: [], unreadCount: 0 });
   });
 
   it("mark-one is idempotent, unreadOnly pages filter correctly, read-all stays per user", async () => {

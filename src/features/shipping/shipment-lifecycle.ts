@@ -11,6 +11,7 @@ import {
   DELIVERY_OUTCOMES,
   FULFILLMENT_DELIVERY_CORRECTION_PERMISSIONS,
   FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS,
+  SHIPMENT_PERMISSIONS,
   UI_LABELS,
 } from "@/constants";
 import { PACK_SHIPMENT_STATUS } from "@/constants/statuses";
@@ -66,4 +67,15 @@ export function canCorrectOutcome(
     return false;
   }
   return actor.can(FULFILLMENT_DELIVERY_CORRECTION_PERMISSIONS.update);
+}
+
+/**
+ * Có tải được biên bản giao nhận (PDF) của lô không: cần `fulfillment-shipments:READ`; lô đã huỷ không có biên bản (BE 409
+ * SHIPMENT_STATE_CONFLICT). UI-only — Backend phải re-check (quyền + trạng thái).
+ */
+export function canDownloadDeliveryNote(
+  shipment: Pick<ShipmentRow, "status">,
+  actor: ShippingActor,
+): boolean {
+  return actor.can(SHIPMENT_PERMISSIONS.read) && shipment.status !== "CANCELLED";
 }
