@@ -24,12 +24,7 @@ import { GeneralCard } from "./detail/GeneralCard";
 import { HistoryCard } from "./detail/HistoryCard";
 import { LinesCard } from "./detail/LinesCard";
 
-import type { ProductionOrderStatus } from "@/constants";
-
 const COPY = PRODUCTION_LABELS.order.errorCopy;
-
-/** Chưa duyệt thì chưa gửi gì cho đơn vị sản xuất — không gọi `/dispatch` (docs 17 §4.3 bước 7). */
-const NOT_SENT: readonly ProductionOrderStatus[] = ["DRAFT", "PENDING_APPROVAL"];
 
 function DetailContent({ id }: { id: string }) {
   const can = usePermissionChecker();
@@ -37,7 +32,9 @@ function DetailContent({ id }: { id: string }) {
   const canRead = can(PRODUCTION_ORDER_PERMISSIONS.read);
   const query = useProductionOrder(id, { enabled: canRead });
   const order = query.data;
-  const sent = Boolean(order && (order.sentAt || !NOT_SENT.includes(order.status)));
+  // Chỉ duyệt mới gửi cho đơn vị sản xuất (BE ghi `sentAt`) — đơn huỷ từ nháp chưa gửi gì, không gọi `/dispatch`
+  // (docs 17 §4.3 bước 7).
+  const sent = Boolean(order?.sentAt);
   const dispatch = useProductionOrderDispatch(id, 0, canRead && sent);
   useBreadcrumbLabel(id, order?.code);
 

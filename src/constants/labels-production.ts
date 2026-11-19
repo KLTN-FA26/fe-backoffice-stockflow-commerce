@@ -211,6 +211,13 @@ export const PRODUCTION_LABELS = {
       production_order_sample_approved: "Mẫu in đã duyệt",
       production_order_stopped: "Dừng sản xuất",
     } as Readonly<Record<string, string>>,
+    /** BE notification `DeliveryStatus` của một lần gửi mail. */
+    deliveryStatus: {
+      PENDING: "Đang gửi",
+      SENT: "Đã gửi",
+      FAILED: "Gửi lỗi",
+      SKIPPED: "Không gửi",
+    } as Readonly<Record<string, string>>,
     attempt: (n: number, generation: number) =>
       generation > 0 ? `Lần ${n} · gửi lại #${generation}` : `Lần ${n}`,
     pdfChannelHint: "Kênh PDF: tải phiếu và tự giao cho đơn vị sản xuất.",

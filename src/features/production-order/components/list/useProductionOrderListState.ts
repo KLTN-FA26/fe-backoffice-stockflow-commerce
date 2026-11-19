@@ -26,7 +26,7 @@ const mergeConfig = (stored: Partial<PageConfig>, fallback: PageConfig): PageCon
 
 /**
  * Tìm trong trang: BE danh sách không có tham số tìm kiếm, nên ô search lọc trang đang có theo mã / SKU; khi đang
- * tìm, phân trang thu về đúng số dòng khớp (không giả vờ đếm cả danh sách).
+ * tìm, phân trang thu về một trang gồm đúng các dòng khớp (không giả vờ đếm cả danh sách, không còn nút trang trước).
  */
 function narrow(page: PaginatedResponse<ProductionOrder>, q: string) {
   if (!q.trim()) return page;
@@ -35,8 +35,10 @@ function narrow(page: PaginatedResponse<ProductionOrder>, q: string) {
     ...page,
     items,
     totalElements: items.length,
+    page: 0,
     totalPages: items.length ? 1 : 0,
     hasNext: false,
+    hasPrevious: false,
   };
 }
 
@@ -83,7 +85,7 @@ export function useProductionOrderListState(canRead: boolean) {
     warehouseId,
     hasFilters: q.trim() !== "" || status !== null || producerId !== null || warehouseId !== null,
     setPage: (zeroBased: number) => void setPage(zeroBased + 1),
-    setQ: (value: string) => void setQ(value || null),
+    setQ: withPageReset((value: string) => setQ(value || null)),
     setStatus: withPageReset(setStatus),
     setProducerId: withPageReset(setProducerId),
     setWarehouseId: withPageReset(setWarehouseId),
