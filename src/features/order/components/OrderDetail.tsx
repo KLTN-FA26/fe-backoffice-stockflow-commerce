@@ -3,7 +3,12 @@
 import { onlineManager } from "@tanstack/react-query";
 import { use } from "react";
 
-import { ADMIN_ROUTES, ORDER_PERMISSIONS, PRODUCTION_ORDER_PERMISSIONS } from "@/constants";
+import {
+  ADMIN_ROUTES,
+  ORDER_PERMISSIONS,
+  PRODUCTION_ORDER_PERMISSIONS,
+  SALES_CONTRACT_PERMISSIONS,
+} from "@/constants";
 import { usePermissionChecker } from "@/lib/auth";
 import { formatDateTime } from "@/lib/format/date";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
@@ -11,6 +16,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { BackLink } from "@/components/shared/BackLink";
 
 import { useOrder, useOrderProductionOrders } from "../queries";
+import { useSalesContract } from "../sales-contract-queries";
 import { customLineCount, groupProductionOrdersByLine } from "../selectors";
 
 import { CancellationRequestCard } from "./cancellation/CancellationRequestCard";
@@ -86,6 +92,11 @@ function OrderDetailContent({
   const production = useOrderProductionOrders(query.data?.orderId ?? "", {
     enabled: canRead && canReadProduction && hasCustomLines,
   });
+  // WF-05: hạn đổi / trả theo hợp đồng cho thẻ "Trả hàng" (cùng query key với khối Hợp đồng — không gọi thêm)
+  const contract = useSalesContract(
+    query.data?.orderId ?? "",
+    canRead && can(SALES_CONTRACT_PERMISSIONS.read) && !!query.data,
+  );
   // Breadcrumb hiện mã đơn (SO-…) thay vì orderId (UUID của BE), như NCC
   useBreadcrumbLabel(id, query.data?.orderNumber);
 
@@ -165,6 +176,17 @@ function OrderDetailContent({
                 line.deliveredQuantity ?? line.quantity - (line.cancelledQuantity ?? 0),
               customPrinted: line.isCustom,
             })),
+            shipments: order.shipments
+              .filter((shipment) => shipment.status === "DELIVERED")
+              .map((shipment) => ({
+                shipmentId: shipment.shipmentId,
+                deliveredAt: shipment.outcomeAt ?? null,
+                lines: shipment.lines,
+              })),
+            returnWindowDays:
+              contract.data && contract.data.status !== "CANCELLED"
+                ? (contract.data.returnWindowDays ?? null)
+                : null,
           })}
           <OrderHistory orderId={order.orderId} />
         </div>

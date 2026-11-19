@@ -86,11 +86,21 @@ describe("input schemas", () => {
     customPrinted,
   });
   const open = (over: Record<string, unknown> = {}) => ({
+    shipmentId: "",
+    shipmentRequired: false,
     reasonCode: "PRINT_DEFECT",
     description: "",
     lateClaimReason: "",
     lines: [line(2)],
     ...over,
+  });
+
+  it("WF-05 TH-1: an order delivered in several shipments needs the shipment named", () => {
+    const missing = openInputSchema.safeParse(open({ shipmentRequired: true }));
+    expect(missing.error?.issues[0]?.path).toEqual(["shipmentId"]);
+    expect(
+      openInputSchema.safeParse(open({ shipmentRequired: true, shipmentId: "s-1" })).success,
+    ).toBe(true);
   });
 
   it("OTHER needs a description", () => {
