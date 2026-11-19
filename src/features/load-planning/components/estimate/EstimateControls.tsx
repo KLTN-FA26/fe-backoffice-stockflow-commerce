@@ -11,19 +11,32 @@ import {
 import { formatNumber } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 
+import { SelectionModeField } from "./SelectionModeField";
+
 import type { EstimateVehicleType } from "../../estimate-types";
+import type { SelectionModeOption } from "./SelectionModeField";
 
 export type SelectionMode = (typeof LOAD_ESTIMATE_SELECTION_MODES)[number];
 
-interface EstimateControlsProps {
+/** Hai chế độ của ước tính một đơn (BE `LoadEstimateRequest.selectionMode`). */
+export const ESTIMATE_MODE_OPTIONS: readonly SelectionModeOption<SelectionMode>[] =
+  LOAD_ESTIMATE_SELECTION_MODES.map((mode) => ({
+    value: mode,
+    label: LOAD_ESTIMATE_LABELS.controls.modes[mode],
+    hint: LOAD_ESTIMATE_LABELS.controls.modeHints[mode],
+  }));
+
+interface EstimateControlsProps<M extends string> {
   /** Loại xe đang dùng; `undefined` khi chưa tải xong. */
   vehicleTypes: readonly EstimateVehicleType[] | undefined;
   vehicleTypesState: "loading" | "error" | "ready";
   onRetryVehicleTypes: () => void;
   selectedIds: readonly string[];
   onSelectedChange: (ids: string[]) => void;
-  mode: SelectionMode;
-  onModeChange: (mode: SelectionMode) => void;
+  mode: M;
+  onModeChange: (mode: M) => void;
+  /** Các chế độ được chọn: `ESTIMATE_MODE_OPTIONS` cho ước tính một đơn, năm chế độ cho ước tính thử. */
+  modeOptions: readonly SelectionModeOption<M>[];
   onRun: () => void;
   isPending: boolean;
   /** Lý do chưa chạy được (vd chưa chọn kho) — nút khoá và nêu lý do. */
@@ -43,7 +56,7 @@ const KIND_LABEL = (kind: string): string =>
  * `LOAD_ESTIMATE_LIMITS.vehicleTypesMax` loại (BE `@Size(max = 20)`). Hai nhóm là checkbox / radio gốc: bàn phím và
  * trình đọc màn hình dùng được, không cần dropdown. Cần `fulfillment-load-estimates:CREATE` — cha quyết có render không.
  */
-export function EstimateControls(props: EstimateControlsProps) {
+export function EstimateControls<M extends string>(props: EstimateControlsProps<M>) {
   const L = LOAD_ESTIMATE_LABELS.controls;
   const run = props.runLabels ?? L;
   const { selectedIds, vehicleTypes } = props;
@@ -107,30 +120,13 @@ export function EstimateControls(props: EstimateControlsProps) {
         {atMax && <p className="text-warning mt-1 text-xs">{L.tooManyTypes}</p>}
       </fieldset>
 
-      <fieldset className="m-0 min-w-0 border-0 p-0">
-        <legend className="text-[0.8125rem] font-medium">{L.selectionMode}</legend>
-        <div className="mt-1 flex flex-wrap gap-2">
-          {LOAD_ESTIMATE_SELECTION_MODES.map((mode) => (
-            <label
-              key={mode}
-              className="border-border-default hover:bg-bg-muted has-[:checked]:border-ink-primary flex cursor-pointer items-start gap-2 rounded-[var(--r-sm)] border px-2.5 py-1.5"
-            >
-              <input
-                type="radio"
-                name="estimate-selection-mode"
-                value={mode}
-                checked={props.mode === mode}
-                onChange={() => props.onModeChange(mode)}
-                className="accent-ink-primary mt-0.5"
-              />
-              <span className="text-[0.8125rem]">
-                <span className="text-ink-primary block font-medium">{L.modes[mode]}</span>
-                <span className="text-ink-tertiary block text-xs">{L.modeHints[mode]}</span>
-              </span>
-            </label>
-          ))}
-        </div>
-      </fieldset>
+      <SelectionModeField<M>
+        legend={L.selectionMode}
+        name="estimate-selection-mode"
+        options={props.modeOptions}
+        value={props.mode}
+        onChange={props.onModeChange}
+      />
 
       <div className="flex flex-wrap items-center gap-3">
         <Button
