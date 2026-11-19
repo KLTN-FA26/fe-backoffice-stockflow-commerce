@@ -308,8 +308,6 @@ export const INVENTORY_PERMISSIONS = {
   movementRead: "inventory-stock-movements:READ",
   // GET /inventory/stock-items?sku= (tồn theo SKU và vị trí) — gợi ý nguồn khi chuyển vị trí
   stockRead: "inventory-stock-items:READ",
-  // GET /inventory/alerts, /inventory/alerts/summary (BE StockAlertController, resource inventory-alerts)
-  alertRead: "inventory-alerts:READ",
 } as const;
 
 /**
@@ -374,20 +372,13 @@ export const WAREHOUSE_LOCATION_PERMISSIONS = {
 } as const;
 
 /**
- * Tổng quan tồn kho (SCRUM-438) — resource `InventoryResources.STOCK_ITEMS` / `RESERVATIONS` /
- * `ALERTS`. Tồn kho và giữ chỗ là hai resource riêng; seed BE V20260903000100.
+ * Tổng quan tồn kho (SCRUM-438) — resource `InventoryResources.STOCK_ITEMS` / `RESERVATIONS`. Tồn kho và giữ chỗ là hai resource riêng; seed BE V20260903000100.
  */
 export const INVENTORY_OVERVIEW_PERMISSIONS = {
   stockViewPage: "inventory-stock-items:VIEW_PAGE",
   stockRead: "inventory-stock-items:READ",
   reservationViewPage: "inventory-reservations:VIEW_PAGE",
   reservationRead: "inventory-reservations:READ",
-  // GET /inventory/alerts (StockAlertController, READ) — cảnh báo nhúng trong màn tổng quan và màn
-  // Cảnh báo tồn kho. Seed V20261014000900.
-  alertRead: "inventory-alerts:READ",
-  // Màn Cảnh báo tồn kho (`/admin/inventory/alerts`, đích deep link thông báo SCRUM-147): BE khai báo
-  // VIEW_PAGE cho resource inventory-alerts; seed V20261014000900 cấp cùng READ.
-  alertViewPage: "inventory-alerts:VIEW_PAGE",
 } as const;
 
 /**
@@ -533,19 +524,6 @@ export const DESIGN_SNAPSHOT_PERMISSIONS = {
  * khách hàng khỏi back-office. Không phải mã quyền: quyền thao tác luôn theo mã quyền ở file này.
  */
 export const PORTAL_CUSTOMER_ROLE = "CUSTOMER";
-
-/**
- * Lệnh chuyển kho — resource `inventory-transfer-orders` (BE TransferOrderController, SCRUM-326/327).
- * Tạo / sửa nháp / gửi duyệt / huỷ = CREATE; lấy hàng / xuất kho ở kho nguồn = UPDATE; duyệt / từ chối
- * = APPROVE (seed BE: chỉ WAREHOUSE_MANAGER).
- */
-export const TRANSFER_PERMISSIONS = {
-  viewPage: "inventory-transfer-orders:VIEW_PAGE",
-  read: "inventory-transfer-orders:READ",
-  create: "inventory-transfer-orders:CREATE",
-  update: "inventory-transfer-orders:UPDATE",
-  approve: "inventory-transfer-orders:APPROVE",
-} as const;
 
 /**
  * Xem lô giao / chuyến xe / hãng — resource `fulfillment-shipments` (BE `ShipmentController`,

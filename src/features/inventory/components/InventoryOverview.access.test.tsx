@@ -21,7 +21,7 @@ import { InventoryOverview } from "./InventoryOverview";
 
 import type { PermissionCode } from "@/lib/auth";
 
-const { stockRead, reservationRead, alertRead } = INVENTORY_OVERVIEW_PERMISSIONS;
+const { stockRead, reservationRead } = INVENTORY_OVERVIEW_PERMISSIONS;
 const warehouseRead = WAREHOUSE_PERMISSIONS.read;
 const server = setupServer();
 // Every request that left the page, as backend path + query (the BFF base path stripped).
@@ -82,7 +82,6 @@ describe("Inventory Overview access", () => {
       "/inventory/stock-levels",
       "/inventory/warehouses",
       "/inventory/stock-items",
-      "/inventory/alerts",
       "/warehouses",
     ]) {
       expect(sentTo(path)).toEqual([]);
@@ -100,24 +99,6 @@ describe("Inventory Overview access", () => {
     ).toBeInTheDocument();
     await waitFor(() => expect(sentTo("/inventory/reservations")).toHaveLength(1));
     expect(sentTo("/inventory/stock-levels")).toHaveLength(1);
-    expect(sentTo("/inventory/alerts")).toHaveLength(0);
-  });
-
-  it("alert READ alone does not open the page", async () => {
-    open([alertRead]);
-    expect(await screen.findByText(INVENTORY_LABELS.denied)).toBeInTheDocument();
-    expect(screen.queryByLabelText(INVENTORY_LABELS.skuLookup)).toBeNull();
-    expect(sent.filter((url) => url.startsWith("/inventory"))).toEqual([]);
-    expect(sentTo("/warehouses")).toEqual([]);
-  });
-
-  // docs 20 BR-13: không có cảnh báo tồn — kể cả có alert READ, trang không đọc cảnh báo.
-  it("stock with alert READ still sends no alert request and shows no alert notice", async () => {
-    open([stockRead, alertRead]);
-    await lookUp("CUP-PP-500");
-    expect(await screen.findByText(INVENTORY_LABELS.stockLevelsTitle)).toBeInTheDocument();
-    expect(screen.queryByText(INVENTORY_LABELS.alertsUnavailable)).toBeNull();
-    expect(sentTo("/inventory/alerts")).toEqual([]);
   });
 });
 

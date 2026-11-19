@@ -280,7 +280,6 @@ describe("alerts", () => {
     // Kho đã mở: đọc tồn theo kho đã đi, vậy mà vẫn không có request cảnh báo nào.
     await waitFor(() => expect(sentTo(stockItemsPath)).toHaveLength(1));
     expect(sentTo("/inventory/alerts")).toHaveLength(0);
-    expect(screen.queryByText(INVENTORY_LABELS.noLowStockAlerts)).toBeNull();
   });
 });
 
