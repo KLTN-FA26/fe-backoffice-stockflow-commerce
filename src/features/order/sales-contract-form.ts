@@ -158,11 +158,19 @@ export type ContractDraftBody = ReturnType<typeof toContractDraftBody>;
 const isMilestone = (value: string): value is (typeof CONTRACT_MILESTONES)[number] =>
   (CONTRACT_MILESTONES as readonly string[]).includes(value);
 
+/**
+ * Tên đợt mặc định BE tự đặt bằng tiếng Anh (`SalesContractService#defaultPlan`: "On signing" khi khách chưa có lịch
+ * thanh toán mặc định) → tên tiếng Việt trong editor, để lần lưu kế tiếp không còn chữ Anh trên hợp đồng (WF-02 audit).
+ */
+const BE_DEFAULT_INSTALLMENT_NAMES: Readonly<Record<string, string>> = {
+  "On signing": "Thanh toán khi ký",
+};
+
 export function toInstallmentForm(
   entry: SalesContract["paymentPlan"][number],
 ): InstallmentFormValues {
   return {
-    name: entry.name,
+    name: BE_DEFAULT_INSTALLMENT_NAMES[entry.name] ?? entry.name,
     milestone: isMilestone(entry.milestone) ? entry.milestone : "ON_SIGNING",
     mode: entry.percent != null ? "percent" : "amount",
     value: String(entry.percent ?? entry.amount),
