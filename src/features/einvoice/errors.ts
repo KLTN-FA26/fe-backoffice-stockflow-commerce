@@ -17,8 +17,10 @@ export const EINVOICE_ERROR_MESSAGES: Readonly<Record<string, string>> = {
     "Lần giao chưa có thời điểm giao thành công để ghi ngày lập. Nhờ Quản lý kho ghi nhận trước.",
   EINVOICE_SERIES_NOT_CONFIGURED:
     "Chưa cấu hình ký hiệu hoá đơn cho năm của hoá đơn. Nhờ Quản trị hệ thống cấu hình.",
+  // BE `findEarlierSubmitting`: hoá đơn cùng NCC / mẫu số / ký hiệu, ngày lập sớm hơn, đang SUBMITTING —
+  // nháp hay bị từ chối ngày sớm hơn KHÔNG chặn (chỉ là cảnh báo EARLIER_INVOICE_PENDING)
   EINVOICE_OLDER_DRAFT_PENDING:
-    "Còn hoá đơn ngày lập sớm hơn chưa phát hành. Phát hành (hoặc huỷ) hoá đơn đó trước.",
+    "Một hoá đơn cùng ký hiệu có ngày lập sớm hơn đang chờ nhà cung cấp trả kết quả. Chờ kết quả của hoá đơn đó (hoặc bấm “Tra lại” trên hoá đơn đó) rồi phát hành hoá đơn này.",
   EINVOICE_NOT_ISSUED: "Hoá đơn chưa phát hành nên chưa có tệp XML / PDF.",
   EINVOICE_PROVIDER_UNAVAILABLE:
     "Nhà cung cấp hoá đơn điện tử đang không phản hồi. Hệ thống sẽ tự kiểm tra lại.",
@@ -40,6 +42,9 @@ export const EINVOICE_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   EINVOICE_ERROR_NOTICE_NOT_FOUND: "Không tìm thấy thông báo sai sót.",
   EINVOICE_ERROR_NOTICE_NOT_SENDABLE:
     "Không gửi được thông báo này: hoá đơn còn thông báo khác đang mở, hoặc thông báo đã có phản hồi.",
+  // BE HĐ-6: SePay / Viettel không gửi được mẫu 04/SS-HĐĐT
+  EINVOICE_ERROR_NOTICE_NOT_SUPPORTED:
+    "Nhà cung cấp của hoá đơn này không gửi được thông báo sai sót. Lập mẫu 04/SS-HĐĐT trên cổng của nhà cung cấp hoặc cổng cơ quan thuế.",
   UNSUPPORTED_MEDIA_TYPE: "Văn bản thoả thuận phải là tệp PDF.",
   OPTIMISTIC_LOCK: "Hoá đơn vừa được người khác cập nhật. Dữ liệu đã được tải lại.",
 };

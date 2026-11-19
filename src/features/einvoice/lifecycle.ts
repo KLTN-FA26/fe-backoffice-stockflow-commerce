@@ -3,7 +3,7 @@
  * thái + quyền. UI-only — BE kiểm lại mọi thao tác (409 / 403).
  */
 
-import { EINVOICE_PERMISSIONS } from "@/constants/einvoice";
+import { EINVOICE_PERMISSIONS, ERROR_NOTICE_PROVIDERS } from "@/constants/einvoice";
 
 import type { EInvoiceStatusRead } from "@/constants/einvoice";
 import type { PermissionCode } from "@/lib/auth";
@@ -41,8 +41,12 @@ export type EInvoiceAction =
 
 type Gate = Pick<
   EInvoice,
-  "status" | "type" | "warnings" | "agreementRequired" | "adjusted" | "hasFiles"
+  "status" | "type" | "warnings" | "agreementRequired" | "adjusted" | "hasFiles" | "provider"
 >;
+
+/** NCC của hoá đơn gửi được 04/SS-HĐĐT không (BE `sendsErrorNotices`; NCC khác → luôn 409). */
+export const sendsErrorNotices = (provider: string | null | undefined): boolean =>
+  provider != null && ERROR_NOTICE_PROVIDERS.includes(provider);
 
 /**
  * Nút được phép theo trạng thái (docs 21 §4.2, §4.4, §4.5) và quyền (BR-02: phát hành, tra lại,
@@ -76,7 +80,8 @@ export function allowedEInvoiceActions(
       // docs 21 BR-08: đã điều chỉnh thì không thay thế (BE còn kiểm điều chỉnh / thay thế đang mở)
       if (can(P.create)) actions.push("adjust");
       if (can(P.create) && !invoice.adjusted) actions.push("replace");
-      if (can(P.approve)) actions.push("notifyError");
+      // BE HĐ-6: chỉ NCC gửi được mẫu 04/SS-HĐĐT; SePay / Viettel luôn 409 NOT_SUPPORTED
+      if (can(P.approve) && sendsErrorNotices(invoice.provider)) actions.push("notifyError");
       break;
     case "REPLACED":
       if (invoice.hasFiles && can(P.read)) actions.push("downloadFiles");

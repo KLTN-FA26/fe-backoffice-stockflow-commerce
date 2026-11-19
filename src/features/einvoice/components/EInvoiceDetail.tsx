@@ -75,7 +75,9 @@ function EInvoiceDetailContent({
       {(invoice.status === "ISSUED" || invoice.status === "REPLACED") && (
         <CorrectionsCard id={invoice.id} />
       )}
-      {invoice.status === "ISSUED" && <ErrorNoticesCard id={invoice.id} />}
+      {invoice.status === "ISSUED" && (
+        <ErrorNoticesCard id={invoice.id} provider={invoice.provider} />
+      )}
       {sections?.(invoice)}
       <ProviderCallsCard id={invoice.id} />
     </div>

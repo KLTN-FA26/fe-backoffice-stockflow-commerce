@@ -116,6 +116,13 @@ export type EInvoiceWarning = (typeof EINVOICE_WARNINGS)[number];
 export const EINVOICE_FILE_KINDS = ["XML", "PDF"] as const;
 export type EInvoiceFileKind = (typeof EINVOICE_FILE_KINDS)[number];
 
+/**
+ * Nhà cung cấp gửi được thông báo sai sót 04/SS-HĐĐT (BE `EInvoiceProvider.sendsErrorNotices()`, HĐ-6):
+ * chỉ `SANDBOX`. SePay (`SEPAY_EINVOICE`) không có API cho mẫu này, adapter Viettel (`VIETTEL_SINVOICE`)
+ * không gửi → BE luôn trả 409 `EINVOICE_ERROR_NOTICE_NOT_SUPPORTED`; Kế toán lập trên cổng NCC / cơ quan thuế.
+ */
+export const ERROR_NOTICE_PROVIDERS: readonly string[] = ["SANDBOX"];
+
 /** BE `ErrorNotice.Subject` / `Status` — thông báo sai sót mẫu 04/SS-HDDT. */
 export const ERROR_NOTICE_SUBJECTS = ["BUYER_NAME_ADDRESS", "WITH_CORRECTION"] as const;
 export const ERROR_NOTICE_STATUSES = ["DRAFT", "SENT", "ACCEPTED", "REJECTED"] as const;

@@ -28,6 +28,7 @@ const gate = (over: Partial<Parameters<typeof allowedEInvoiceActions>[0]> = {}) 
   agreementRequired: false,
   adjusted: false,
   hasFiles: false,
+  provider: "SANDBOX" as string | null,
   ...over,
 });
 
@@ -104,6 +105,17 @@ describe("allowedEInvoiceActions — three roles (docs 21 BR-02)", () => {
   it("a status the FE does not know yet offers nothing", () => {
     expect(allowedEInvoiceActions(gate({ status: EINVOICE_UNKNOWN }), ACCOUNTANT)).toEqual([]);
     expect(isTerminalEInvoice(EINVOICE_UNKNOWN)).toBe(true);
+  });
+
+  it("HĐ-6: the 04/SS notice only through a provider that sends it (not SePay / Viettel)", () => {
+    for (const provider of ["SEPAY_EINVOICE", "VIETTEL_SINVOICE", null]) {
+      const actions = allowedEInvoiceActions(
+        gate({ status: "ISSUED", hasFiles: true, provider }),
+        ACCOUNTANT,
+      );
+      expect(actions).not.toContain("notifyError");
+      expect(actions).toContain("adjust");
+    }
   });
 
   it("final statuses offer no mutating action", () => {
