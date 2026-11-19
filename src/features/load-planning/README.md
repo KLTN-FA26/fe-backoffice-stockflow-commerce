@@ -267,7 +267,8 @@ Còn vi phạm thì Lưu hỏi lại; BE vẫn là nơi quyết định.
 ## PR F6 — phiếu xếp hàng in được (LP-10)
 
 Trang HTML dựng từ API bố cục (`GET load-plans/{id}` + `/layouts`), in bằng hộp thoại của trình duyệt (Ctrl+P, khổ A4,
-lưu PDF từ đó) — không có xuất PDF trong ứng dụng, không jsPDF. Nội dung theo báo cáo PDF EasyCargo của dự án gốc.
+lưu PDF từ đó) — không jsPDF. WF4-PDF-PRINT-1118: thêm nút "Tải PDF" (`loading-sheet-api.ts`) tải file do BE sinh
+(`GET load-plans/{id}/vehicles/{seq}/loading-sheet.pdf`, docs 09 §4.2 bước 5); trang in vẫn còn. Nội dung theo báo cáo PDF EasyCargo của dự án gốc.
 
 - Quyền: `fulfillment-load-plans:READ`. Ô hãng / biển số / tài xế lấy từ chuyến của xe (`GET /fulfillment/loads/{id}`,
   `fulfillment-shipments:READ`, `print-booking.ts`); thiếu quyền hoặc lỗi thì để trống, không chặn in.

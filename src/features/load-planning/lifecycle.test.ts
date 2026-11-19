@@ -8,7 +8,7 @@ import {
 
 import { planFixture, planWithUnplaced, vehicleOfLayout } from "./__fixtures__/plans";
 import { LAYOUT_PICKUP_KIT } from "./__fixtures__/layouts";
-import { LOAD_PLAN_TRANSITIONS, loadPlanActions } from "./lifecycle";
+import { LOAD_PLAN_TRANSITIONS, canDownloadLoadingSheet, loadPlanActions } from "./lifecycle";
 
 import type { PermissionCode } from "@/lib/auth";
 import type { PlanDetail } from "./plan-types";
@@ -321,5 +321,12 @@ describe("loadPlanActions — editPlacements (PR F5, BE LoadPlan.editPlacements)
     });
     expect(loadPlanActions(flagged, worker).editPlacements).toBe(true);
     expect(loadPlanActions(planWithUnplaced(), worker).editPlacements).toBe(true);
+  });
+});
+
+describe("canDownloadLoadingSheet (docs 09 §4.2 bước 5, §5.3)", () => {
+  it("chỉ CONFIRMED và DISPATCHED: sơ đồ chốt khi chốt kế hoạch, còn lại sau khi xe rời kho", () => {
+    const allowed = LOAD_PLAN_STATUSES.filter((status) => canDownloadLoadingSheet({ status }));
+    expect(allowed).toEqual(["CONFIRMED", "DISPATCHED"]);
   });
 });

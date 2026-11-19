@@ -333,6 +333,24 @@ describe("declared navigation permissions", () => {
     expect(await screen.findByRole("link", { name: "Chuyến xe" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Loại xe" })).not.toBeInTheDocument();
   });
+  it("Đề xuất nhập hàng, Nhà cung cấp, Đơn đặt NCC, Xưởng in, Chuyển kho, Cảnh báo tồn kho đã ra khỏi menu, kể cả ở mock", async () => {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: { roles: [], permissions: [], dataScope: "ALL" },
+    });
+    mockMode.isMock = true;
+    mount();
+    expect(await screen.findByRole("link", { name: "Tổng quan" })).toBeInTheDocument();
+    for (const name of [
+      "Đề xuất nhập hàng",
+      "Nhà cung cấp",
+      "Đơn đặt NCC",
+      "Xưởng in",
+      "Chuyển kho liên kho",
+      "Cảnh báo tồn kho",
+    ])
+      expect(screen.queryByRole("link", { name })).not.toBeInTheDocument();
+    mockMode.isMock = false;
+  });
   it("Hoá đơn NCC (module 04, đã ra khỏi phạm vi) không còn trên menu, kể cả ở mock", async () => {
     vi.spyOn(api, "get").mockResolvedValue({
       data: { roles: [], permissions: [], dataScope: "ALL" },

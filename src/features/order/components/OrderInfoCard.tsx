@@ -5,10 +5,16 @@ import { usePermissionChecker } from "@/lib/auth";
 import { formatDate, formatDateTime } from "@/lib/format/date";
 import { useWarehouseDirectory } from "@/lib/references/warehouse-options";
 
+import { canChangeShippingAddress } from "../shipping-address";
+
+import { OrderShippingAddressAction } from "./OrderShippingAddressAction";
+
+import type { PermissionCode } from "@/lib/auth";
 import type { Order } from "../types";
 
 interface OrderInfoCardProps {
   order: Order;
+  can: (code: PermissionCode) => boolean;
 }
 
 const EMPTY = "—";
@@ -48,7 +54,7 @@ const MILESTONES = [
   ["closedAt", "Đã đóng sổ"],
 ] as const satisfies readonly (readonly [keyof Order, string])[];
 
-export function OrderInfoCard({ order }: OrderInfoCardProps) {
+export function OrderInfoCard({ order, can }: OrderInfoCardProps) {
   return (
     <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
       <h2 className="text-ink-primary mb-3 text-[0.9375rem] font-semibold">Thông tin</h2>
@@ -83,7 +89,15 @@ export function OrderInfoCard({ order }: OrderInfoCardProps) {
         <dt className="text-ink-secondary">Email</dt>
         <dd className="text-ink-primary">{order.contactEmail ?? EMPTY}</dd>
         <dt className="text-ink-secondary">Địa chỉ giao</dt>
-        <dd className="text-ink-primary">{order.shippingAddressText ?? EMPTY}</dd>
+        <dd className="text-ink-primary">
+          {order.shippingAddressText ?? EMPTY}
+          {/* Ẩn từ thùng đầu tiên dán nhãn (08 BR-04). UI-only — Backend phải re-check (BR-16, ORDER_ADDRESS_LOCKED) */}
+          {canChangeShippingAddress(order, can) && (
+            <span className="mt-0.5 block">
+              <OrderShippingAddressAction order={order} />
+            </span>
+          )}
+        </dd>
         <dt className="text-ink-secondary">Kho xuất</dt>
         <dd className="text-ink-primary">
           {order.warehouseId ? <WarehouseName warehouseId={order.warehouseId} /> : "Chưa release"}

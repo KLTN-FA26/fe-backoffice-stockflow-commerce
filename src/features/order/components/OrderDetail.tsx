@@ -209,7 +209,7 @@ function OrderDetailContent({
           <OrderPartialShipmentCard order={order} can={can} />
           <OrderShipments order={order} />
           <OrderDeliveryDocuments orderId={order.orderId} />
-          <OrderInfoCard order={order} />
+          <OrderInfoCard order={order} can={can} />
           <OrderFinanceCard order={order} can={can} />
         </div>
       </div>

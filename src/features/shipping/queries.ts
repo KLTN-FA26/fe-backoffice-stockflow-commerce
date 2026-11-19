@@ -6,7 +6,7 @@ import { createDetailQuery, createListQuery, createQueryKeys } from "@/lib/api/q
 import { getLoad, getManifest, listLoads } from "./api";
 import { listCarriers } from "./carrier-api";
 import { getShipment, listShipments } from "./shipment-api";
-import { getWaybillHistory } from "./waybill-api";
+import { getWaybillHistory, listImportWarehouses } from "./waybill-api";
 
 import type { ListLoadParams } from "./api";
 import type { ListCarrierParams } from "./carrier-api";
@@ -20,6 +20,9 @@ export const carrierKeys = createQueryKeys<ListCarrierParams>("fulfillment-carri
 export const manifestKey = (loadId: string) => [...loadKeys.all, "manifest", loadId] as const;
 export const waybillHistoryKey = (loadId: string) =>
   [...loadKeys.all, "waybill-history", loadId] as const;
+
+/** Kho được chọn khi nhập mã vận đơn (BE giới hạn theo kho được gán) — dưới root chuyến xe. */
+export const importWarehouseKey = () => [...loadKeys.all, "waybill-import-warehouses"] as const;
 
 export const useLoads = createListQuery<LoadRow, ListLoadParams>(loadKeys, listLoads);
 
@@ -77,3 +80,13 @@ export const useActiveCarriers = createListQuery<Carrier, ListCarrierParams>(
   (params, signal) => listCarriers({ ...params, status: "ACTIVE" }, signal),
   { ...QUERY_TIMES.master },
 );
+
+/** Kho người dùng được nhập mã vận đơn (`fulfillment-waybill-imports:CREATE`): danh mục, ít đổi. */
+export function useImportWarehouses(enabled = true) {
+  return useQuery({
+    queryKey: importWarehouseKey(),
+    queryFn: ({ signal }) => listImportWarehouses(signal),
+    enabled,
+    ...QUERY_TIMES.master,
+  });
+}

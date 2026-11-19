@@ -18,6 +18,7 @@ import { ReprintLabelDialog } from "./ReprintLabelDialog";
 import { ShippingLabelsDialog } from "./ShippingLabelsDialog";
 
 import type { CartonCheckAccess } from "@/features/fulfillment/carton-check-lifecycle";
+import type { CartonLpnLabelSlot } from "@/features/fulfillment/lpn-label-slot";
 import type { Carton, CartonCheckSession } from "@/features/fulfillment/carton-check-types";
 
 const L = UI_LABELS.cartonCheck;
@@ -25,6 +26,7 @@ const L = UI_LABELS.cartonCheck;
 type Dialog =
   | { kind: "remove"; carton: Carton }
   | { kind: "reprint"; carton: Carton }
+  | { kind: "lpn"; lpn: string }
   | { kind: "labels"; lpns: readonly string[] | undefined; autoGenerate: boolean };
 
 /**
@@ -35,9 +37,12 @@ type Dialog =
 export function CartonsSection({
   session,
   access,
+  lpnLabelSlot,
 }: {
   session: CartonCheckSession;
   access: CartonCheckAccess;
+  /** Hộp thoại in lại nhãn LPN (xem `lpn-label-slot.ts`); vắng thì không có nút. */
+  lpnLabelSlot?: CartonLpnLabelSlot;
 }) {
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const label = useLabelCartons();
@@ -102,6 +107,9 @@ export function CartonsSection({
             onPrint: (target) =>
               setDialog({ kind: "labels", lpns: [target.lpn], autoGenerate: false }),
             onReprint: (target) => setDialog({ kind: "reprint", carton: target }),
+            onReprintLpn: lpnLabelSlot
+              ? (target) => setDialog({ kind: "lpn", lpn: target.lpn })
+              : undefined,
             onRemove: (target) => setDialog({ kind: "remove", carton: target }),
           }}
         />
@@ -121,6 +129,8 @@ export function CartonsSection({
           onReprinted={(lpn) => setDialog({ kind: "labels", lpns: [lpn], autoGenerate: true })}
         />
       )}
+      {dialog?.kind === "lpn" &&
+        lpnLabelSlot?.({ lpn: dialog.lpn, onClose: () => setDialog(null) })}
       {dialog?.kind === "labels" && (
         <ShippingLabelsDialog
           taskId={session.taskId}

@@ -93,6 +93,37 @@ export function creditWarningText(
   return `Phần trả sau giao (${format(warning.afterDelivery ?? 0)}) cộng dư nợ hiện tại (${format(warning.exposure ?? 0)}) vượt hạn mức (${format(warning.creditLimit ?? 0)}). Đơn sẽ bị treo khi ký.`;
 }
 
+const FIELD_NAMES: Readonly<Record<string, string>> = {
+  windowStart: "Từ ngày",
+  windowEnd: "Đến ngày",
+  cartons: "Số thùng",
+  amount: "Số tiền",
+  percent: "Tỷ lệ %",
+  name: "Tên đợt",
+  milestone: "Mốc",
+  dueDays: "Số ngày",
+  deliveryBatchSeq: "Đợt giao gắn kèm",
+};
+
+/**
+ * Tên dễ đọc của một `fieldErrors[].field` hợp đồng của BE (plan §1.2): `deliverySchedule[1].windowStart` → "Đợt giao 2
+ * · Từ ngày", `paymentPlan[0].amount` → "Đợt thanh toán 1 · Số tiền", `deliverySchedule` → "Lịch giao". Trường lạ giữ
+ * nguyên tên BE.
+ */
+export function contractFieldLabel(field: string): string {
+  if (field === "deliverySchedule") return "Lịch giao";
+  if (field === "paymentPlan") return "Lịch thanh toán";
+  const batchLine = /^deliverySchedule\[(\d+)\]\.lines\[(\d+)\]\.(\w+)$/.exec(field);
+  if (batchLine)
+    return `Đợt giao ${Number(batchLine[1]) + 1} · dòng ${Number(batchLine[2]) + 1} · ${FIELD_NAMES[batchLine[3]!] ?? batchLine[3]}`;
+  const entry = /^(deliverySchedule|paymentPlan)\[(\d+)\](?:\.(\w+))?$/.exec(field);
+  if (entry) {
+    const head = `${entry[1] === "deliverySchedule" ? "Đợt giao" : "Đợt thanh toán"} ${Number(entry[2]) + 1}`;
+    return entry[3] ? `${head} · ${FIELD_NAMES[entry[3]] ?? entry[3]}` : head;
+  }
+  return field;
+}
+
 /** Kết quả sau khi ký (F-04.3) theo trạng thái đơn đọc lại. */
 export function signOutcomeText(order: Pick<Order, "status" | "holdReason">): string | null {
   if (order.status === "Pending Payment")

@@ -65,6 +65,8 @@ export interface PrintUnplaced {
 }
 
 export interface PrintSheet {
+  /** Kho xuất của kế hoạch (kế hoạch chỉ mang id; tên tra ở danh mục kho hoặc từ chuyến). */
+  warehouseId: string;
   vehicle: PlanVehicle;
   layout: Layout;
   lines: PrintLine[];
@@ -168,6 +170,7 @@ export function buildPrintSheet(
     parcels: [...step.boxes].sort(byPosition).map((box) => parcelRow(box, step.seq, context)),
   }));
   return {
+    warehouseId: plan.warehouseId,
     vehicle,
     layout,
     lines: linesOf(layout, letters),

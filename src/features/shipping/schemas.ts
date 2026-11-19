@@ -42,9 +42,13 @@ export const beCarrierConnectionSchema = z.object({
   webhookSecretConfigured: z.boolean().nullish(),
   webhookAuthHeader: z.string().nullish(),
   webhookAuthValueConfigured: z.boolean().nullish(),
+  /** Đang thay thông tin xác thực webhook: một giá trị thứ hai cũng có hiệu lực (BE `webhookAuthValueNextConfigured`). */
+  webhookAuthValueNextConfigured: z.boolean().nullish(),
   apiEnvironment: z.string().nullish(),
   apiAccount: z.string().nullish(),
   apiKeyConfigured: z.boolean().nullish(),
+  /** Cách hãng nêu lý do giao thất bại → mã lý do nội bộ (BE `failureReasonMap`). */
+  failureReasonMap: z.record(z.string(), z.string()).nullish(),
 });
 
 /** BE `CarrierResponse` — hãng trong danh mục (docs 09 §3: tên và liên hệ) kèm kiểu kết nối. */

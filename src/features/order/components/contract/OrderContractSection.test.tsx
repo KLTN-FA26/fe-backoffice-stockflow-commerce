@@ -182,3 +182,85 @@ describe("TC-F04-03 — ghi nhận đã ký", () => {
     ).toBeInTheDocument();
   });
 });
+
+describe("WF-02 audit — gợi ý số tiền, gửi, file ký", () => {
+  const SUGGESTION = `${PATH}/payment-plan-suggestion`;
+
+  it("mục 7: lịch thanh toán đã sửa → hỏi trước khi gợi ý thay, chưa gọi BE", async () => {
+    const { get } = renderSection(() => contractDraft);
+    await userEvent.click(await screen.findByRole("button", { name: /Sửa/ }));
+    const value = screen.getByLabelText("Đợt 1 — giá trị");
+    await userEvent.clear(value);
+    await userEvent.type(value, "40");
+    await userEvent.click(screen.getByRole("button", { name: /Gợi ý số tiền theo đợt giao/ }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("Thay lịch thanh toán đang sửa?")).toBeInTheDocument();
+    expect(get.mock.calls.some(([url]) => url === SUGGESTION)).toBe(false);
+    // Huỷ: số đang sửa còn nguyên.
+    await userEvent.click(within(dialog).getByRole("button", { name: "Quay lại" }));
+    expect(screen.getByLabelText("Đợt 1 — giá trị")).toHaveValue("40");
+  });
+
+  it("mục 7: lịch giao đang sửa chưa lưu → nhắc lưu trước, không gợi ý", async () => {
+    const { get } = renderSection(() => contractDraft);
+    await userEvent.click(await screen.findByRole("button", { name: /Sửa/ }));
+    const cartons = screen.getByLabelText("Đợt 1 — LY-GIAY-DEMO-12OZ-XANH (thùng)");
+    await userEvent.clear(cartons);
+    await userEvent.type(cartons, "25");
+    await userEvent.click(screen.getByRole("button", { name: /Gợi ý số tiền theo đợt giao/ }));
+    expect(await screen.findByText(/Lịch giao đang sửa chưa lưu/)).toBeInTheDocument();
+    expect(get.mock.calls.some(([url]) => url === SUGGESTION)).toBe(false);
+  });
+
+  it("mục 8: gửi bị từ chối → hộp thoại giữ mở, hiện từng fieldErrors theo tên đợt", async () => {
+    renderSection(() => contractDraft);
+    vi.spyOn(api, "post").mockRejectedValue(
+      new ApiError(
+        409,
+        "DELIVERY_SCHEDULE_INVALID",
+        "Lịch giao không hợp lệ.",
+        undefined,
+        undefined,
+        undefined,
+        [
+          {
+            field: "deliverySchedule[0].windowStart",
+            message: "Cửa sổ giao không được ở quá khứ.",
+          },
+        ],
+      ),
+    );
+    await userEvent.click(await screen.findByRole("button", { name: /Gửi hợp đồng/ }));
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Gửi hợp đồng" }));
+    expect(await within(dialog).findByText("Lịch giao không hợp lệ.")).toBeInTheDocument();
+    expect(within(dialog).getByText("Đợt giao 1 · Từ ngày:")).toBeInTheDocument();
+    expect(within(dialog).getByText(/Cửa sổ giao không được ở quá khứ\./)).toBeInTheDocument();
+  });
+
+  it("lỗi 2: file scan trên 25 MB bị chặn ngay trên form, nói rõ giới hạn", async () => {
+    renderSection(() => contractSent);
+    const post = vi.spyOn(api, "post");
+    await userEvent.click(await screen.findByRole("button", { name: /Ghi nhận đã ký/ }));
+    const dialog = await screen.findByRole("dialog");
+    const file = new File(["%PDF-1.4"], "scan.pdf", { type: "application/pdf" });
+    Object.defineProperty(file, "size", { value: 26 * 1024 * 1024 });
+    await userEvent.upload(within(dialog).getByLabelText(/File đã ký/), file);
+    expect(within(dialog).getByText("File quá lớn (tối đa 25 MB).")).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Ghi nhận đã ký" })).toBeDisabled();
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  it("lỗi 2: 413 của BFF hiện 'File quá lớn (tối đa 25 MB).' thay cho câu chung", async () => {
+    renderSection(() => contractSent);
+    vi.spyOn(api, "post").mockRejectedValue(
+      new ApiError(413, "PAYLOAD_TOO_LARGE", "Không thể hoàn tất yêu cầu."),
+    );
+    await userEvent.click(await screen.findByRole("button", { name: /Ghi nhận đã ký/ }));
+    const dialog = await screen.findByRole("dialog");
+    const file = new File(["%PDF-1.4"], "scan.pdf", { type: "application/pdf" });
+    await userEvent.upload(within(dialog).getByLabelText(/File đã ký/), file);
+    await userEvent.click(within(dialog).getByRole("button", { name: "Ghi nhận đã ký" }));
+    expect(await within(dialog).findByText("File quá lớn (tối đa 25 MB).")).toBeInTheDocument();
+  });
+});

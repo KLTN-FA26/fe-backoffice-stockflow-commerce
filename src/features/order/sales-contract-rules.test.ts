@@ -4,8 +4,14 @@ import { SALES_CONTRACT_PERMISSIONS } from "@/constants";
 
 import { contractDraft } from "./__fixtures__/contract";
 import { contractFieldPath } from "./components/contract/useContractEditor";
-import { toContractDraftBody, toContractForm, contractFormSchema } from "./sales-contract-form";
 import {
+  contractFormSchema,
+  toContractDraftBody,
+  toContractForm,
+  toInstallmentForm,
+} from "./sales-contract-form";
+import {
+  contractFieldLabel,
   CONTRACT_TRANSITIONS,
   allowedContractActions,
   cartonGaps,
@@ -101,5 +107,28 @@ describe("TC-F04-03 — kết quả sau khi ký (3 nhánh)", () => {
     expect(signOutcomeText({ status: "On Hold", holdReason: "CREDIT" })).toMatch(
       /chờ Kế toán duyệt tín dụng/,
     );
+  });
+});
+
+describe("contractFieldLabel — fieldErrors của BE theo tên đợt (WF-02 audit mục 8)", () => {
+  it.each([
+    ["deliverySchedule", "Lịch giao"],
+    ["paymentPlan", "Lịch thanh toán"],
+    ["deliverySchedule[1].windowStart", "Đợt giao 2 · Từ ngày"],
+    ["deliverySchedule[0].lines[1].cartons", "Đợt giao 1 · dòng 2 · Số thùng"],
+    ["paymentPlan[2].amount", "Đợt thanh toán 3 · Số tiền"],
+    ["paymentPlan[0].dueDays", "Đợt thanh toán 1 · Số ngày"],
+    ["paymentPlan[0]", "Đợt thanh toán 1"],
+    ["freeSampleRounds", "freeSampleRounds"],
+  ])("%s → %s", (field, label) => {
+    expect(contractFieldLabel(field)).toBe(label);
+  });
+});
+
+describe("toInstallmentForm — tên đợt mặc định tiếng Anh của BE (WF-02 audit)", () => {
+  it('"On signing" của kế hoạch mặc định → "Thanh toán khi ký"; tên Sale đặt giữ nguyên', () => {
+    const entry = contract.paymentPlan[0]!;
+    expect(toInstallmentForm({ ...entry, name: "On signing" }).name).toBe("Thanh toán khi ký");
+    expect(toInstallmentForm(entry).name).toBe(entry.name);
   });
 });

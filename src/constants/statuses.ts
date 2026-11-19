@@ -199,7 +199,9 @@ export const CARTON_STATUS = {
 } as const satisfies Record<CartonApiStatus, CartonStatus>;
 
 /** BE `CartonCheck.RemovalReason` — vì sao thùng bị loại: hư hỏng khi kiểm, hoặc đơn huỷ khi chưa thùng nào dán nhãn. */
-export const CARTON_REMOVAL_REASONS = ["DAMAGED", "ORDER_CANCELLED"] as const;
+// BE `CartonCheck.RemovalReason`: hư hỏng (08 §4.2 bước 4), đơn huỷ trước khi dán nhãn (08 BR-04), Sale đóng phần còn
+// lại khi thùng chưa dán nhãn (17 §4.8 bước 33)
+export const CARTON_REMOVAL_REASONS = ["DAMAGED", "ORDER_CANCELLED", "REMAINDER_CLOSED"] as const;
 
 /** BE `fulfillment/internal/domain/PackageStatus.java` (PR #136) — kiện ở trạm đóng gói. */
 export const PACKAGE_API_STATUSES = ["OPEN", "SEALED", "VOIDED"] as const;
@@ -216,6 +218,16 @@ export const PACK_SHIPMENT_API_STATUSES = [
   "RETURNED",
   "CANCELLED",
 ] as const;
+
+/** Tên trạng thái lô giao (`PACK_SHIPMENT_API_STATUSES`) để so sánh không gõ tay chuỗi. */
+export const PACK_SHIPMENT_STATUS = {
+  READY_TO_DISPATCH: "READY_TO_DISPATCH",
+  HANDED_OVER: "HANDED_OVER",
+  DELIVERED: "DELIVERED",
+  DELIVERY_FAILED: "DELIVERY_FAILED",
+  RETURNED: "RETURNED",
+  CANCELLED: "CANCELLED",
+} as const satisfies Record<string, (typeof PACK_SHIPMENT_API_STATUSES)[number]>;
 
 /** BE `DeliveryMode.java` — PARCEL (gửi kiện cho hãng) hoặc FULL_TRUCKLOAD (nguyên xe, kế hoạch xếp xe). */
 export const DELIVERY_MODES = ["PARCEL", "FULL_TRUCKLOAD"] as const;
@@ -311,24 +323,6 @@ export const ORDER_STATUS_UNKNOWN = "UNKNOWN";
 
 /** Trạng thái đơn sau khi parse response BE: trạng thái đã biết hoặc `ORDER_STATUS_UNKNOWN`. */
 export const ORDER_READ_STATUSES = [...ORDER_STATUSES, ORDER_STATUS_UNKNOWN] as const;
-
-/** Nhà cung cấp (module 01) — BE: ACTIVE/INACTIVE (SCRUM-118). */
-export const SUPPLIER_STATUSES = ["Active", "Inactive", "Blacklisted"] as const;
-
-export const SUPPLIER_STATUS = {
-  ACTIVE: "Active",
-  INACTIVE: "Inactive",
-  BLACKLISTED: "Blacklisted",
-} as const satisfies Record<string, SupplierStatus>;
-
-/**
- * Giá trị status trên wire của BE (SaveSupplierRequest/SupplierResponse). BE PR #71 thêm
- * BLACKLISTED = ngừng hợp tác có lý do không đặt lại (không nhận PO mới như INACTIVE).
- */
-export const SUPPLIER_API_STATUSES = ["ACTIVE", "INACTIVE", "BLACKLISTED"] as const;
-
-/** Kênh gửi PO cho NCC — BE `communicationChannel` (EMAIL|API, BE PR #36). */
-export const SUPPLIER_CHANNELS = ["EMAIL", "API"] as const;
 
 /**
  * Chuyến xe xuất hàng — BE `LoadStatus`. Mọi chuyến là một xe của kế hoạch xếp xe (giao nguyên chuyến, docs 09 BR-08):
@@ -452,9 +446,6 @@ export type ProductStatus = (typeof PRODUCT_STATUSES)[number];
 export type SkuStatus = (typeof SKU_STATUSES)[number];
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
 export type OrderReadStatus = (typeof ORDER_READ_STATUSES)[number];
-export type SupplierStatus = (typeof SUPPLIER_STATUSES)[number];
-export type SupplierApiStatus = (typeof SUPPLIER_API_STATUSES)[number];
-export type SupplierChannel = (typeof SUPPLIER_CHANNELS)[number];
 
 /* ── Bán hàng B2B & sản xuất (BE local integration d215f6e, chưa merge develop) ─────────── */
 
@@ -531,11 +522,17 @@ export const QUOTE_FEE_LABELS = {
 
 export const PRODUCTION_ORDER_TYPES = ["SAMPLE", "ORDER"] as const;
 
-/** Nhóm trạng thái đơn khách đọc — BE `CustomerOrderCardResponse.statusGroup` (develop). */
+/**
+ * Nhóm trạng thái đơn khách đọc — BE `CustomerOrders.StatusGroup` (`statusGroup` của thẻ, chi tiết và
+ * dòng thời gian đơn trên cổng; docs 17 §5.2). `AWAITING_CONTRACT`
+ * = `Pending Contract`, `AWAITING_STOCK` = `Awaiting Stock`; `IN_PRODUCTION` chỉ còn ở đơn cũ.
+ */
 export const ORDER_STATUS_GROUPS = [
+  "AWAITING_CONTRACT",
   "AWAITING_PAYMENT",
   "UNDER_REVIEW",
   "CONFIRMED",
+  "AWAITING_STOCK",
   "IN_PRODUCTION",
   "PREPARING",
   "SHIPPING",
@@ -546,9 +543,11 @@ export const ORDER_STATUS_GROUPS = [
 export type OrderStatusGroup = (typeof ORDER_STATUS_GROUPS)[number];
 /** Nhóm → chuỗi status-map (nhãn Việt + tone dùng chung). */
 export const ORDER_STATUS_GROUP_DISPLAY = {
+  AWAITING_CONTRACT: "Pending Contract",
   AWAITING_PAYMENT: "Pending Payment",
   UNDER_REVIEW: "Under Review",
   CONFIRMED: "Confirmed",
+  AWAITING_STOCK: "Awaiting Stock",
   IN_PRODUCTION: "In Production",
   PREPARING: "Preparing",
   SHIPPING: "Shipping",

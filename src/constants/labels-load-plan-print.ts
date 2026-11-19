@@ -1,11 +1,16 @@
 /**
- * Nhãn của phiếu xếp hàng in được (SCRUM-287 PR F6, quyết định LP-10: trang in HTML dựng từ API bố cục, không xuất PDF).
+ * Nhãn của phiếu xếp hàng in được (SCRUM-287 PR F6, quyết định LP-10: trang in HTML dựng từ API bố cục). WF4-PDF-PRINT-1118 bổ sung file PDF do BE sinh
+ * (nút "Tải PDF"); trang in giữ nguyên.
  * Nội dung theo báo cáo PDF EasyCargo của dự án gốc (`easycargo-pdf.ts`): đầu phiếu, bảng kê hàng, ảnh từng bước, ô ký.
  */
 
 export const LOAD_PLAN_PRINT_LABELS = {
   documentTitle: "Phiếu xếp hàng",
   printButton: "In phiếu xếp hàng",
+  /** WF4-PDF-PRINT-1118: file PDF phiếu xếp hàng do BE sinh (docs 09 §4.2 bước 5), tải về từng xe; trang in giữ nguyên. */
+  pdfButton: "Tải PDF",
+  pdfBusy: "Đang tạo PDF…",
+  pdfFallbackName: "phieu-xep-hang.pdf",
   printHint:
     "In bằng hộp thoại của trình duyệt (Ctrl+P / ⌘P): chọn khổ A4, có thể lưu thành PDF từ đó.",
   back: "Quay lại kế hoạch",
@@ -30,6 +35,11 @@ export const LOAD_PLAN_PRINT_LABELS = {
     carrier: "Hãng vận chuyển",
     plate: "Biển số",
     driver: "Tài xế",
+    /** Kho xuất của kế hoạch (docs 09 §3 Output của phiếu đặt xe). */
+    warehouse: "Kho xuất",
+    waybill: "Mã vận đơn",
+    /** Chuyến đã đặt xe nhưng hãng chưa có mã vận đơn. */
+    noWaybill: "Chưa có mã vận đơn",
     /** Chỉ khi chuyến của xe ở trạng thái PLANNED (chưa đặt xe với hãng). */
     notBooked: "Chưa đặt xe",
     booked: "Đã đặt xe",

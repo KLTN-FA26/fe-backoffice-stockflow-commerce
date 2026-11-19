@@ -1,12 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, PackageX, Undo2 } from "lucide-react";
+import { CheckCircle2, PackageX, Pencil, Undo2 } from "lucide-react";
 
 import { SHIPMENT_PERMISSIONS, UI_LABELS } from "@/constants";
 import { useCan } from "@/lib/auth";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
-import { allowedOutcomes, noOutcomeReason } from "@/features/shipping/shipment-lifecycle";
+import {
+  allowedOutcomes,
+  canCorrectOutcome,
+  noOutcomeReason,
+} from "@/features/shipping/shipment-lifecycle";
 import { useShipment } from "@/features/shipping/queries";
 import { Alert } from "@/components/shared/Alert";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
@@ -15,9 +19,12 @@ import { Button } from "@/components/ui/button";
 import { RefetchErrorNotice } from "./primitives";
 import { FailureReasonCorrectionAction } from "./shipment/FailureReasonCorrectionAction";
 import { ShipmentCancelAction } from "./shipment/ShipmentCancelAction";
+import { CorrectionDialog } from "./shipment/CorrectionDialog";
+import { DeliveryNoteButton } from "./shipment/DeliveryNoteButton";
 import { OutcomeDialog } from "./shipment/OutcomeDialog";
 import { ShipmentDetails } from "./shipment/ShipmentDetails";
 import { ShipmentInfoCard } from "./shipment/ShipmentInfoCard";
+import { ShipmentPodFiles } from "./shipment/ShipmentPodFiles";
 import { ShippingLoadError } from "./ShippingLoadError";
 import { ShippingPermissionGate } from "./ShippingPermissionGate";
 import { useShippingActor } from "./useShippingActor";
@@ -36,6 +43,7 @@ function ShipmentBody({ id }: { id: string }) {
   const actor = useShippingActor();
   const query = useShipment(id, { enabled: canRead });
   const [outcome, setOutcome] = useState<DeliveryOutcome | null>(null);
+  const [correcting, setCorrecting] = useState(false);
   useBreadcrumbLabel(id, query.data?.shipment.code);
 
   if (!canRead) return <ShippingLoadError error={null} kind="no-read" />;
@@ -50,6 +58,7 @@ function ShipmentBody({ id }: { id: string }) {
   if (!data) return <ShippingLoadError error={query.error} onRetry={() => void query.refetch()} />;
   const { shipment } = data;
   const outcomes = allowedOutcomes(shipment, actor);
+  const canCorrect = canCorrectOutcome(shipment, actor);
 
   return (
     // Giao diện kiểu Vercel như chi tiết load plan (globals.css `.surface-soft`): không tiêu đề hiển
@@ -58,35 +67,51 @@ function ShipmentBody({ id }: { id: string }) {
       <h1 className="sr-only">{`${L.title} · ${shipment.code}`}</h1>
       {query.isError && <RefetchErrorNotice onRetry={() => void query.refetch()} />}
       <div className="space-y-5">
-        {outcomes.length === 0 && <Alert tone="info">{noOutcomeReason(shipment, actor)}</Alert>}
+        {outcomes.length === 0 && !canCorrect && (
+          <Alert tone="info">{noOutcomeReason(shipment, actor)}</Alert>
+        )}
         <ShipmentInfoCard
           data={data}
-          actions={outcomes.map((value) => {
-            const Icon = OUTCOME_ICON[value];
-            return (
-              <Button
-                key={value}
-                size="sm"
-                variant={value === "DELIVERED" ? "default" : "outline"}
-                onClick={() => setOutcome(value)}
-              >
-                <Icon className="size-3.5" /> {L.outcomeAction[value]}
-              </Button>
-            );
-          })}
+          actions={
+            <>
+              {outcomes.map((value) => {
+                const Icon = OUTCOME_ICON[value];
+                return (
+                  <Button
+                    key={value}
+                    size="sm"
+                    variant={value === "DELIVERED" ? "default" : "outline"}
+                    onClick={() => setOutcome(value)}
+                  >
+                    <Icon className="size-3.5" /> {L.outcomeAction[value]}
+                  </Button>
+                );
+              })}
+              {canCorrect && (
+                <Button size="sm" variant="outline" onClick={() => setCorrecting(true)}>
+                  <Pencil className="size-3.5" /> {L.correction.action}
+                </Button>
+              )}
+              <DeliveryNoteButton shipment={shipment} />
+            </>
+          }
         />
         <FailureReasonCorrectionAction shipment={shipment} />
         <ShipmentCancelAction data={data} />
         <ShipmentDetails data={data} />
+        <ShipmentPodFiles shipment={shipment} />
       </div>
       {outcome && outcomes.includes(outcome) && (
-        <OutcomeDialog shipment={shipment} outcome={outcome} onClose={() => setOutcome(null)} />
+        <OutcomeDialog data={data} outcome={outcome} onClose={() => setOutcome(null)} />
+      )}
+      {correcting && canCorrect && (
+        <CorrectionDialog data={data} onClose={() => setCorrecting(false)} />
       )}
     </div>
   );
 }
 
-/** Chi tiết lô giao (BE `GET /fulfillment/shipments/{id}`): kiện, lịch sử, ghi nhận kết quả giao. */
+/** Chi tiết lô giao (BE `GET /fulfillment/shipments/{id}`): kiện, lịch sử, ghi nhận kết quả giao, biên bản giao nhận (POD). */
 export function ShipmentScreen({ id }: { id: string }) {
   return (
     <ShippingPermissionGate permissions={[SHIPMENT_PERMISSIONS.viewPage]}>

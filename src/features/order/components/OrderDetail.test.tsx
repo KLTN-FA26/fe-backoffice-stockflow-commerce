@@ -616,7 +616,9 @@ describe("OrderDetail — Giữ đơn", () => {
     expect(post).not.toHaveBeenCalled();
 
     await pickSelectOption(user, /Lý do giữ/, "Vấn đề thanh toán");
-    expect(screen.queryByRole("option", { name: "Vượt hạn mức công nợ" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("option", { name: "Chờ duyệt công nợ (khách quá hạn hoặc vượt hạn mức)" }),
+    ).not.toBeInTheDocument();
   });
 
   it("ORDER_INVALID_TRANSITION → toast tiếng Việt, đóng dialog, tải lại đơn", async () => {

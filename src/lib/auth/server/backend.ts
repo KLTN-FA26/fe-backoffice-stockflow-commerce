@@ -37,13 +37,23 @@ export function backendUrl(path: string, query = ""): URL {
   target.search = query;
   return target;
 }
+/**
+ * Ngôn ngữ BE dùng cho `message` / `fieldErrors[].message` (BE `I18nConfig`, `AcceptHeaderLocaleResolver`). Back office
+ * chỉ có tiếng Việt: BFF luôn gửi `vi`, không theo ngôn ngữ trình duyệt — máy để en-US từng nhận lỗi tiếng Anh
+ * (WF-02 audit, lỗi 3).
+ */
+export const BACKEND_ACCEPT_LANGUAGE = "vi";
+
 export async function backendFetch(path: string, init: RequestInit, query = ""): Promise<Response> {
   if (IS_MOCK) {
     const { mockAuthBackend } = await import("./mock");
     return mockAuthBackend(path, init, query);
   }
+  const headers = new Headers(init.headers);
+  headers.set("Accept-Language", BACKEND_ACCEPT_LANGUAGE);
   return fetch(backendUrl(path, query), {
     ...init,
+    headers,
     cache: "no-store",
     redirect: "manual",
     signal: AbortSignal.timeout(BFF_UPSTREAM_TIMEOUT_MS),

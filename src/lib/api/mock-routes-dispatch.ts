@@ -18,11 +18,13 @@ import {
 } from "@/constants";
 
 import { registerMockRoute } from "./mock-adapter";
+import { registerCarrierEventMockRoutes } from "./mock-routes-carrier-events";
 import { createCarrier, updateCarrier } from "./mock-dispatch-carriers";
 import { book, cancelBooking, recordDriver, startLoading } from "./mock-dispatch-booking";
 import { cancelControlled, dropFromPlan, overrideUnload, unload } from "./mock-dispatch-ftl-rules";
 import { handover, recordOutcome } from "./mock-dispatch-handover";
 import { scan, unscan } from "./mock-dispatch-rules";
+import { registerAttachedFilesMockRoutes } from "./mock-routes-dispatch-files";
 import { getDispatchState } from "./mock-dispatch-store";
 import {
   IMPORT_TEMPLATE,
@@ -204,6 +206,17 @@ function registerWaybillRoutes(): void {
       headers: {},
     };
   });
+  // Kho được chọn khi nhập (BE `GET /waybill-imports/warehouses`, `…:CREATE`): kho có trong dữ liệu mock.
+  registerMockRoute("GET", `${WAYBILL_IMPORTS}/warehouses`, async () => {
+    if (!(await currentActor()).can(IMPORT_CREATE)) return forbidden();
+    const { warehouseNames } = await getDispatchState();
+    return ok(
+      [...warehouseNames].map(([warehouseId, warehouse]) => ({
+        warehouseId,
+        name: warehouse.name,
+      })),
+    );
+  });
   registerMockRoute("POST", `${WAYBILL_IMPORTS}/preview`, async (config) => {
     if (!(await currentActor()).can(IMPORT_CREATE)) return forbidden();
     const file = uploadOf(config);
@@ -225,6 +238,8 @@ export function registerDispatchMockRoutes(): void {
   registerCarrierRoutes();
   registerShipmentRoutes();
   registerWaybillRoutes();
+  registerAttachedFilesMockRoutes();
+  registerCarrierEventMockRoutes();
 
   registerMockRoute("GET", LOADS, async (config) => {
     const params = readParams(config);
