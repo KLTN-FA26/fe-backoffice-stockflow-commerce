@@ -43,6 +43,7 @@ const BE_DETAIL = {
   loadPlanId: "01a1635c-bdcf-7081-ae47-598859eefe51",
   code: "LP-20261022-0001",
   warehouseId: "WH-HN-01",
+  sourceType: "ORDER",
   selectionMode: "SINGLE_TYPE",
   status: "PLANNED",
   vehicleTypes: [
@@ -169,6 +170,29 @@ describe("bePlanRowPageSchema and candidates", () => {
     ]);
     expect(candidate.packages[0]).toMatchObject({ kitPartNo: 1, rotatable: true });
     expect(candidate.volumeMm3).toBe(8023920000);
+  });
+
+  // BE `LoadPlans.CandidateShipment`: chỉ còn lô giao của đơn khách (sourceType luôn ORDER) — lô và đơn luôn có
+  it("a candidate without its shipment or order is a contract error", () => {
+    const candidate = {
+      shipmentId: "s-1",
+      code: "S-1",
+      orderId: "o-1",
+      allowPartialShipment: false,
+      packageCount: 0,
+      packagesInOtherPlans: 0,
+      weightKg: 0,
+      volumeMm3: 0,
+      packages: [],
+      sourceType: "ORDER",
+    };
+    expect(beCandidateListSchema.safeParse([candidate]).success).toBe(true);
+    expect(beCandidateListSchema.safeParse([{ ...candidate, shipmentId: undefined }]).success).toBe(
+      false,
+    );
+    expect(beCandidateListSchema.safeParse([{ ...candidate, orderId: undefined }]).success).toBe(
+      false,
+    );
   });
 });
 

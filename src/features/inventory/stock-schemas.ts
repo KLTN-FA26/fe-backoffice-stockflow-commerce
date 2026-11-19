@@ -14,8 +14,8 @@ import { skuSchema } from "@/lib/validation/sku";
 
 import { inventoryPageDto } from "./schemas";
 
-// Read side of Inventory Overview (SCRUM-438). Source: backend develop 0f18f24 InventoryController,
-// StockAlertController and their response records. Jackson NON_NULL omits null fields, so every
+// Read side of Inventory Overview (SCRUM-438). Source: backend develop 0f18f24 InventoryController
+// and its response records. Jackson NON_NULL omits null fields, so every
 // nullable field is `.nullish()`. Enum-valued fields are Strings on the wire and are read open, as
 // in schemas.ts: one newer code must not invalidate a whole page. Request filters stay strict.
 

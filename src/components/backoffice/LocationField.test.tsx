@@ -15,7 +15,7 @@ const LAYOUT = "/warehouses/wh-1/layout";
 const AREAS = {
   areas: [
     { code: "PRD01", type: "PRODUCTION", name: "Xưởng in", locationCode: "HCM-PRD01" },
-    { code: "PACK01", type: "PACKING", name: "Đóng gói", locationCode: "HCM-PACK01" },
+    { code: "PACK01", type: "DISPATCH", name: "Đóng gói", locationCode: "HCM-PACK01" },
   ],
 };
 

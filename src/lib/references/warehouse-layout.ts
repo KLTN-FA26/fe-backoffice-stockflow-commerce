@@ -1,27 +1,18 @@
 /**
  * Khu vực trong kho (BE `GET /warehouses/{id}/layout`, `warehouse-locations:READ`) — dùng chọn
- * vị trí đích khi xuất phôi (khu PRODUCTION) và khu đóng gói khi QC hoàn tất (khu PACKING).
+ * khu đích theo loại (vd khu PRODUCTION khi xuất phôi). Loại khu dùng chung `AREA_TYPES` của constants.
  * Vai trò thiếu quyền (QC, sản xuất) → hook tắt; form cho nhập / quét mã vị trí, BE kiểm tra.
  */
 
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 
+import { AREA_TYPES } from "@/constants";
 import { api } from "@/lib/api/client";
 import { QUERY_TIMES } from "@/lib/api/query-client";
 
-export const AREA_TYPES = [
-  "RECEIVING",
-  "QUALITY_CONTROL",
-  "QUARANTINE",
-  "PACKING",
-  "DISPATCH",
-  // BE `AreaType.STAGING` (V20261113000600): thiếu thì cả bản đồ kho có khu này parse lỗi
-  "STAGING",
-  "OVERFLOW",
-  "PRODUCTION",
-  "NON_STORAGE",
-] as const;
+// Một nguồn duy nhất với bản đồ kho: bản sao riêng từng lệch (STAGING có ở đây mà thiếu ở constants)
+export { AREA_TYPES };
 export type AreaType = (typeof AREA_TYPES)[number];
 
 const areaSchema = z

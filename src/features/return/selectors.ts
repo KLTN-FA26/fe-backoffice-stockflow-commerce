@@ -22,34 +22,62 @@ export function claimedUnits(line: ReturnLine, status: ReturnApiStatus): number 
   }
 }
 
+/** Một lô đã giao của đơn: số đã giao trên lô theo dòng đơn (BE `OrderResponse.Shipment`, `status=DELIVERED`). */
+export interface DeliveredShipment {
+  shipmentId: string;
+  lines: readonly { lineId: string; quantity: number }[];
+}
+
+const add = (map: Map<string, number>, key: string, n: number) =>
+  map.set(key, (map.get(key) ?? 0) + n);
+
 /**
- * Còn trả được bao nhiêu trên mỗi dòng đơn: đã giao − phần các yêu cầu khác đang giữ (BE `ReturnRequest.open`,
- * `RETURN_QUANTITY_EXCEEDED`). Dòng có yêu cầu đang mở bị khoá hẳn (`RETURN_LINE_ALREADY_OPEN`) → 0.
+ * Còn trả được bao nhiêu trên mỗi dòng đơn (BE `ReturnRequest.open`, `RETURN_QUANTITY_EXCEEDED`):
+ * - đã giao − phần mọi yêu cầu khác của đơn đang giữ;
+ * - WF-05 TH-1: có `shipment` thì thêm trần số đã giao **trên lô đó** − phần các yêu cầu khác của cùng lô; dòng chỉ bị
+ *   khoá (`RETURN_LINE_ALREADY_OPEN`) khi một yêu cầu đang mở **của cùng lô** giữ nó. `shipment` null = đơn giao không
+ *   qua lô (cùng "lô" là các yêu cầu không có `shipmentId`).
  */
 export function openCaps(
   orderLines: readonly { lineId: string; deliveredQuantity: number }[],
-  returns: readonly Pick<ReturnRequest, "status" | "lines">[],
+  returns: readonly (Pick<ReturnRequest, "status" | "lines"> & { shipmentId?: string | null })[],
   isOpen: (status: ReturnApiStatus) => boolean,
+  shipment: DeliveredShipment | null = null,
 ): Map<string, number> {
   const claimed = new Map<string, number>();
+  const claimedHere = new Map<string, number>();
   const locked = new Set<string>();
   for (const ret of returns) {
+    const sameDelivery = (ret.shipmentId ?? null) === (shipment?.shipmentId ?? null);
     for (const line of ret.lines) {
-      claimed.set(
-        line.orderLineId,
-        (claimed.get(line.orderLineId) ?? 0) + claimedUnits(line, ret.status),
-      );
+      const units = claimedUnits(line, ret.status);
+      add(claimed, line.orderLineId, units);
+      if (!sameDelivery) continue;
+      add(claimedHere, line.orderLineId, units);
       if (isOpen(ret.status)) locked.add(line.orderLineId);
     }
   }
+  const onShipment = new Map(shipment?.lines.map((l) => [l.lineId, l.quantity]) ?? []);
   return new Map(
-    orderLines.map((line) => [
-      line.lineId,
-      locked.has(line.lineId)
-        ? 0
-        : Math.max(0, line.deliveredQuantity - (claimed.get(line.lineId) ?? 0)),
-    ]),
+    orderLines.map((line) => {
+      if (locked.has(line.lineId)) return [line.lineId, 0];
+      const overall = line.deliveredQuantity - (claimed.get(line.lineId) ?? 0);
+      const here = shipment
+        ? (onShipment.get(line.lineId) ?? 0) - (claimedHere.get(line.lineId) ?? 0)
+        : overall;
+      return [line.lineId, Math.max(0, Math.min(overall, here))];
+    }),
   );
+}
+
+/** Dòng đơn có hàng trên lô (đơn không qua lô: mọi dòng). */
+export function linesOnShipment<T extends { lineId: string }>(
+  orderLines: readonly T[],
+  shipment: DeliveredShipment | null,
+): T[] {
+  if (!shipment) return [...orderLines];
+  const on = new Set(shipment.lines.filter((l) => l.quantity > 0).map((l) => l.lineId));
+  return orderLines.filter((line) => on.has(line.lineId));
 }
 
 /** Trần hoàn của một dòng: đã duyệt và đã về kho (BE `ReturnLine.refundableUnits`). */
@@ -101,4 +129,33 @@ export function returnWindowEnd(deliveredAtIso: string, days: number): Date {
 /** Đã quá hạn đổi / trả: Sale mở thay khách phải ghi lý do nhận ngoài hạn (BE `RETURN_WINDOW_CLOSED`). */
 export function windowClosed(deliveredAtIso: string | null, days: number, now: Date): boolean {
   return !!deliveredAtIso && returnWindowEnd(deliveredAtIso, days).getTime() <= now.getTime();
+}
+
+/** Một dòng của form mở yêu cầu: dòng đơn có trên lô, kèm trần còn trả được. */
+export interface OpenLine {
+  lineId: string;
+  sku: string;
+  customPrinted: boolean;
+  cap: number;
+}
+
+/** Dòng mở được cho một lô (WF-05 TH-1): chỉ dòng có hàng trên lô, trần theo `openCaps`. */
+export function openLines(
+  orderLines: readonly {
+    lineId: string;
+    sku: string;
+    deliveredQuantity: number;
+    customPrinted: boolean;
+  }[],
+  returns: Parameters<typeof openCaps>[1],
+  isOpen: (status: ReturnApiStatus) => boolean,
+  shipment: DeliveredShipment | null,
+): OpenLine[] {
+  const caps = openCaps(orderLines, returns, isOpen, shipment);
+  return linesOnShipment(orderLines, shipment).map((line) => ({
+    lineId: line.lineId,
+    sku: line.sku,
+    customPrinted: line.customPrinted,
+    cap: caps.get(line.lineId) ?? 0,
+  }));
 }

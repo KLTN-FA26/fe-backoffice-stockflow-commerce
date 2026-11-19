@@ -340,6 +340,16 @@ export const PRINT_CONFIG_PAGE_LABELS = {
     product: "Sản phẩm",
     variantStatus: "Trạng thái biến thể",
   },
+  /**
+   * Biến thể chưa có đơn vị đóng gói (thùng): khách vẫn mở studio nhưng preflight `CARTON_SPEC_MISSING` chặn gửi
+   * duyệt, và khách không tự sửa được. Báo ở đây, nơi nhân viên kích hoạt cấu hình in.
+   */
+  cartonMissing: {
+    title: "Biến thể chưa có quy cách thùng.",
+    description:
+      "Khách vẫn thiết kế được nhưng không gửi duyệt được cho tới khi biến thể có đơn vị thùng. Khai báo ở panel biến thể của sản phẩm:",
+    link: "mở sản phẩm",
+  },
   notCustomizable: {
     title: "Sản phẩm này không có cấu hình in",
     description:

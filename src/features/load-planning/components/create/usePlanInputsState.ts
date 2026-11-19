@@ -10,9 +10,7 @@ const toggled = (set: ReadonlySet<string>, id: string): Set<string> => {
   return next;
 };
 
-/**
- * Đầu vào đang soạn của một kế hoạch: lô (nguyên lô), loại xe, chế độ — dùng chung cho lập mới và đổi đầu vào.
- */
+/** Đầu vào đang soạn của một kế hoạch: lô (nguyên lô), loại xe, chế độ — dùng chung cho lập mới và đổi đầu vào. */
 export function usePlanInputsState(initial?: Partial<PlanInputs>) {
   const [shipments, setShipments] = useState<ReadonlySet<string>>(new Set(initial?.shipmentIds));
   const [vehicleTypes, setVehicleTypes] = useState<ReadonlySet<string>>(

@@ -441,7 +441,7 @@ export function orderActionErrorView(
 /* ── Lệnh sản xuất của đơn ──────────────────────────────────────────── */
 
 /**
- * `GET /production/orders` bị từ chối quyền: 403 FORBIDDEN (thiếu `production-orders:READ`, hoặc
+ * `GET /production-orders` bị từ chối quyền: 403 FORBIDDEN (thiếu `production-orders:READ`, hoặc
  * quyền bị thu sau khi FE đã tải danh sách quyền) / OUT_OF_DATA_SCOPE. Báo "không có quyền xem",
  * không phải lỗi tải + Thử lại (bấm lại cũng không qua).
  */

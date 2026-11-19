@@ -103,13 +103,12 @@ describe("LoadPlanCreate — lập kế hoạch rồi tính xếp xe", () => {
     });
   });
 
-  it("only the customers' shipments are a source: no transfer-order candidates asked (BE: sourceType is ORDER only)", async () => {
+  it("only the customers' shipments are a source: no sourceType asked or sent (BE: sourceType is ORDER only)", async () => {
     const { get, post } = renderCreate(ACTORS.dispatcher);
     expect(await screen.findByText(candidateFixture().code)).toBeInTheDocument();
     expect(
       get.mock.calls.some(
-        ([, config]) =>
-          (config?.params as { sourceType?: string } | undefined)?.sourceType === "TRANSFER",
+        ([, config]) => (config?.params as { sourceType?: string } | undefined)?.sourceType,
       ),
     ).toBe(false);
     await fillAndSubmit();

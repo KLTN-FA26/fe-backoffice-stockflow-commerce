@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { cn } from "cn";
 import { Plus, Users } from "lucide-react";
 
 import {
@@ -20,8 +21,11 @@ import { STATUS_LABEL_VI } from "@/lib/domain/status-map";
 import { useCustomers } from "@/features/customer/queries";
 
 import { ServerTableBody } from "@/components/backoffice/ServerTableBody";
-import { ListToolbar } from "@/components/shared/ListToolbar";
-import { PageHeader } from "@/components/shared/PageHeader";
+import {
+  ListToolbar,
+  TOOLBAR_ACTION_CLASS,
+  TOOLBAR_PRIMARY_CLASS,
+} from "@/components/shared/ListToolbar";
 import { Button } from "@/components/ui/button";
 
 import { CUSTOMER_COPY } from "./copy";
@@ -53,7 +57,7 @@ function CustomerListContent() {
   );
 
   const createButton = canCreate ? (
-    <Button asChild size="sm" className="rounded-[var(--r-sm)]">
+    <Button asChild size="sm" className={cn(TOOLBAR_PRIMARY_CLASS, TOOLBAR_ACTION_CLASS)}>
       <Link href={ADMIN_ROUTES.customers.create}>
         <Plus className="size-3.5" /> Tạo khách hàng
       </Link>
@@ -61,13 +65,11 @@ function CustomerListContent() {
   ) : undefined;
 
   return (
-    <>
-      <PageHeader
-        title={CUSTOMER_COPY.pageTitle}
-        subtitle="Khách doanh nghiệp do Sales tạo — mời kích hoạt portal, theo dõi trạng thái tài khoản."
-        actions={createButton}
-      />
-      {canRead && (
+    // Giao diện kiểu Vercel như danh sách sản phẩm (globals.css `.surface-soft`). Không hiện tiêu đề —
+    // tên trang nằm ở breadcrumb topbar; h1 giữ cho screen reader.
+    <div className="surface-soft">
+      <h1 className="sr-only">{CUSTOMER_COPY.pageTitle}</h1>
+      {canRead ? (
         <ListToolbar
           search={filters.q}
           onSearchChange={(value) => void filters.setQ(value)}
@@ -96,7 +98,10 @@ function CustomerListContent() {
           ]}
           onResetAll={() => filters.reset()}
           resetDisabled={!list.hasBaseFilters && !filters.sort}
+          actions={createButton}
         />
+      ) : (
+        createButton && <div className="mb-3 flex justify-end">{createButton}</div>
       )}
       <ServerTableBody
         query={query}
@@ -118,6 +123,7 @@ function CustomerListContent() {
         pageSize={list.pageSize}
         onPageChange={list.goToPage}
         onPageSizeChange={list.changePageSize}
+        stickyHeader
         sorting={{
           key: sort.key,
           direction: sort.direction,
@@ -128,7 +134,7 @@ function CustomerListContent() {
           },
         }}
       />
-    </>
+    </div>
   );
 }
 

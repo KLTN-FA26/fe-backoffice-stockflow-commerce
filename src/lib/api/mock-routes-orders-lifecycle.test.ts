@@ -136,7 +136,7 @@ describe("đăng ký route — mỗi METHOD + PATH đúng một chủ", () => {
     "GET /orders/credit-holds",
     "POST /orders/:id/credit-approval",
     "POST /orders/:id/credit-rejection",
-    "GET /production/orders",
+    "GET /production-orders",
   ];
 
   it("không trùng, không mất endpoint nào của hai nhánh", () => {

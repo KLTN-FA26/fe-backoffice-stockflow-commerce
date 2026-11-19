@@ -88,6 +88,15 @@ function step(
   );
 }
 
+/** BE `LoadPlanService`: `sourceType` vắng hoặc ORDER; khác (TRANSFER đã bỏ) là VALIDATION_FAILED `LOAD_PLAN_SOURCE_INVALID`. */
+const isOrderSource = (value: unknown): boolean =>
+  value === undefined || value === null || value === "" || value === "ORDER";
+
+const sourceInvalid = () =>
+  fail(400, "VALIDATION_FAILED", "Invalid request data", [
+    { field: "sourceType", message: "ORDER", code: "LOAD_PLAN_SOURCE_INVALID" },
+  ]);
+
 export function registerLoadPlanMockRoutes(): void {
   registerMockRoute("GET", "/fulfillment/load-plan-candidates", (config) =>
     guarded(P.read, () => {
@@ -95,6 +104,8 @@ export function registerLoadPlanMockRoutes(): void {
       const warehouseId = readString(params.warehouseId);
       if (!warehouseId) return invalid("warehouseId", "must not be null");
       const held = heldPackageIds(readString(params.loadPlanId) || undefined);
+      // BE `requireOrderSource`: chỉ còn nguồn ORDER (chuyển kho liên kho đã bỏ)
+      if (!isOrderSource(params.sourceType)) return sourceInvalid();
       const rows = getMockShipments()
         .filter((s) => s.warehouseId === warehouseId)
         .map((s) => candidateView(s, held))
@@ -116,6 +127,7 @@ export function registerLoadPlanMockRoutes(): void {
       if (replay) return ok(planDetail(replay), 201);
       const mode = body.selectionMode === undefined ? "SINGLE_TYPE" : modeOf(body.selectionMode);
       if (!mode) return invalid("selectionMode", "must be SINGLE_TYPE or FEWEST_VEHICLES");
+      if (!isOrderSource(body.sourceType)) return sourceInvalid();
       const shipmentIds = strings(body.shipmentIds);
       const vehicleTypeIds = strings(body.vehicleTypeIds);
       const refused = ops.checkInputs(warehouseId, shipmentIds, vehicleTypeIds);

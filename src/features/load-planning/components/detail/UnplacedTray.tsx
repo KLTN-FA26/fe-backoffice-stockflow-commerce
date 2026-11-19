@@ -11,9 +11,6 @@ import type { PlanParcel } from "@/features/load-planning/plan-types";
 const L = UI_LABELS.loadPlan.detail;
 const U = L.unplaced;
 
-/** Câu đầu khay: đã xác nhận để lại / còn cần xác nhận (BR-13). */
-const trayNotice = (acknowledged: boolean): string => (acknowledged ? U.acknowledged : U.pending);
-
 interface UnplacedTrayProps {
   parcels: readonly PlanParcel[];
   acknowledged: boolean;
@@ -61,8 +58,9 @@ export function UnplacedTray({
       <h3 className="text-ink-primary text-sm font-medium">
         {U.title} ({parcels.length})
       </h3>
+      {/* Đã xác nhận để lại / còn cần xác nhận (BR-13) */}
       <Alert tone={acknowledged ? "info" : "warning"}>
-        {trayNotice(acknowledged)}
+        {acknowledged ? U.acknowledged : U.pending}
         {canAcknowledge && (
           <Button
             type="button"

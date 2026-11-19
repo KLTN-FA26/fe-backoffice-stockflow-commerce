@@ -120,7 +120,6 @@ describe("declared navigation permissions", () => {
   it.each([
     ["stock READ", [INVENTORY_OVERVIEW_PERMISSIONS.stockRead], true],
     ["reservation READ", [INVENTORY_OVERVIEW_PERMISSIONS.reservationRead], true],
-    ["alert READ alone", [INVENTORY_OVERVIEW_PERMISSIONS.alertRead], false],
   ] as const)("inventory overview menu with %s → visible: %s", async (_, permissions, visible) => {
     vi.spyOn(api, "get").mockResolvedValue({
       data: {

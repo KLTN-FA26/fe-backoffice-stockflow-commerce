@@ -91,9 +91,7 @@ function parcelRow(
     labelCode: parcel?.labelCode ?? box.label,
     partName: box.partName,
     letter: context.letters.get(box.partName) ?? "",
-    orderNo: parcel
-      ? (context.orders.get(parcel.shipmentId ?? "") ?? parcel.shipmentCode ?? null)
-      : null,
+    orderNo: parcel ? (context.orders.get(parcel.shipmentId) ?? parcel.shipmentCode ?? null) : null,
     sizeCm: formatNominalCm(box.origMm),
     weightKg: box.weightKg,
     kit: kitText(parcel, box),
@@ -153,9 +151,9 @@ export function buildPrintSheet(
   const letters = letterMapOf(layouts.flatMap((l) => l.boxes));
   const context = {
     parcels: new Map(plan.packages.map((parcel) => [parcel.packageId, parcel])),
-    orders: new Map([
-      ...plan.shipments.map((s): [string, string] => [s.shipmentId, s.orderNumber ?? s.code]),
-    ]),
+    orders: new Map(
+      plan.shipments.map((s): [string, string] => [s.shipmentId, s.orderNumber ?? s.code]),
+    ),
     letters,
   };
   const loadingSteps = buildLoadingSteps([layout]);

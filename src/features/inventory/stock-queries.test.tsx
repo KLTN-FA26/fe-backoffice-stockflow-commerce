@@ -160,7 +160,7 @@ describe("paged lists", () => {
       { wrapper },
     );
     await waitFor(() => expect(reservations.result.current.isSuccess).toBe(true));
-    expect(requests.map((url) => url.pathname).sort()).toEqual([
+    expect(requests.map((url) => url.pathname)).toEqual([
       `/api/backend${INVENTORY_API.reservations}`,
     ]);
   });

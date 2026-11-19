@@ -134,6 +134,19 @@ export const RETURN_OPENABLE_ORDER_STATUSES = [
 ] as const;
 /** Đơn đã quá hạn theo định nghĩa (hoàn tất / đã hoàn tiền): luôn cần lý do nhận ngoài hạn. */
 export const RETURN_LATE_ORDER_STATUSES = ["Completed", "Refunded", "Partially Refunded"] as const;
+/**
+ * WF-05 TH-1 (BE `ReturnRequest.requireReturnable`): các lô sau còn đang giao — đơn ở các trạng thái này vẫn mở được yêu
+ * cầu trả hàng cho một lô **đã giao** (Luật Thương mại Điều 313, mỗi lần giao xử lý riêng). Không có lô đã giao →
+ * BE `RETURN_ORDER_NOT_DELIVERED`.
+ */
+export const RETURN_OPENABLE_IN_DELIVERY_ORDER_STATUSES = [
+  "Picking",
+  "Partially Fulfilled",
+  "Packed",
+  "On Hold",
+  "Shipped",
+  "Delivery Failed",
+] as const;
 
 /* ── Phiếu nhập hàng hoàn (BE `GoodsReceiptStatus`, loại RETURN) ───────────────────────── */
 
@@ -173,7 +186,10 @@ export const RETURN_LIMITS = {
   evidenceMaxBytes: 15 * 1024 * 1024,
   evidenceMax: 10,
   evidenceTypes: ["image/jpeg", "image/png", "image/webp"],
-  /** Hạn đổi / trả 7 ngày sau giao, hạn gửi hàng về 14 ngày sau duyệt (BE `ReturnPolicy.defaults`). */
+  /**
+   * Hạn đổi / trả mặc định 7 ngày sau giao (hợp đồng có `returnWindowDays` thì theo hợp đồng — BE `policyOf`), hạn gửi
+   * hàng về 14 ngày sau duyệt (BE `ReturnPolicy.defaults`).
+   */
   windowDays: 7,
   returnDeadlineDays: 14,
   /** Trần `size` của BE (`Pages.MAX_PAGE_SIZE`). */
