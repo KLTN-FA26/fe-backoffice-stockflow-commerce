@@ -607,6 +607,9 @@ export const UI_LABELS = {
       stagingAreasFailed:
         "Không tải được sơ đồ kho — để trống, máy chủ tự chọn khu chờ xuất nếu kho chỉ có một.",
       stagingAreaRequired: "Chọn khu chờ xuất của kho",
+      // Dialog "Đổi đích" của task Pending (BE `PUT …/destination`, docs 07 §4.1 bước 3, BR-08)
+      changeTitle: (taskCode: string) => `Đổi đích task ${taskCode}`,
+      changeDescription: "Chỉ đổi đích được khi task chưa bắt đầu lấy hàng.",
     },
     self: "Tôi",
     // Nhãn trường dùng chung giữa cột danh sách, thẻ thông tin và form

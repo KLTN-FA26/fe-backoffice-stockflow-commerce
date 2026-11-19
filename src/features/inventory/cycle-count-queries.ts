@@ -12,6 +12,7 @@ export const cycleCountKeys = {
   all: [CYCLE_COUNT_QUERY_KEYS.all] as const,
   list: (params: CycleCountListParams, warehouseId: string | null) =>
     [...cycleCountKeys.all, "list", warehouseId, params] as const,
+  lists: () => [...cycleCountKeys.all, "list"] as const,
   assignees: (warehouseId: string) => [...cycleCountKeys.all, "assignees", warehouseId] as const,
   detail: (id: string, warehouseId: string | null) =>
     [...cycleCountKeys.all, "detail", warehouseId, id] as const,

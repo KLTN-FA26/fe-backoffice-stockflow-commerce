@@ -70,6 +70,10 @@ const zonesLayoutSchema = z
   .object({ zones: z.array(z.object({ id: z.string(), name: z.string() }).loose()).default([]) })
   .loose();
 
+export const warehouseZoneKeys = {
+  byWarehouse: (warehouseId: string) => ["references", "warehouse-zones", warehouseId] as const,
+};
+
 export interface ZoneOption {
   id: string;
   name: string;
@@ -81,7 +85,7 @@ export interface ZoneOption {
  */
 export function useWarehouseZones(warehouseId: string | undefined, enabled = true) {
   return useQuery({
-    queryKey: ["references", "warehouse-zones", warehouseId ?? ""],
+    queryKey: warehouseZoneKeys.byWarehouse(warehouseId ?? ""),
     queryFn: async ({ signal }): Promise<ZoneOption[]> => {
       const { data } = await api.get<unknown>(
         `/warehouses/${encodeURIComponent(warehouseId ?? "")}/layout`,

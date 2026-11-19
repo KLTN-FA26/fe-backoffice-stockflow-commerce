@@ -14,7 +14,6 @@ import { useAppStore } from "@/lib/store/use-app-store";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { FormField, fieldA11y } from "@/components/shared/FormField";
 import { FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
-import { toast } from "@/components/shared/Toast";
 import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -60,9 +59,7 @@ export function CycleCountCreateDialog({ onClose }: { onClose: () => void }) {
       return;
     }
     plan.mutate(parsed.data, {
-      onSuccess: ({ count, skipped }) => {
-        toast.success(C.planned(count.countNumber));
-        if (skipped.length > 0) toast.warning(C.skipped(skipped.length));
+      onSuccess: ({ count }) => {
         onClose();
         router.push(CYCLE_COUNT_ROUTES.detail(count.id));
       },

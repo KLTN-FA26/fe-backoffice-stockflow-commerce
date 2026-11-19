@@ -1,8 +1,11 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { CYCLE_COUNT_QUERY_KEYS } from "@/constants/cycle-count";
+import { CYCLE_COUNT_CREATE_LABELS, CYCLE_COUNT_QUERY_KEYS } from "@/constants/cycle-count";
 
+import { createMutation } from "@/lib/api/query-factory";
 import { useAppStore } from "@/lib/store/use-app-store";
+
+import { toast } from "@/components/shared/Toast";
 
 import {
   addCycleCountLine,
@@ -21,6 +24,8 @@ import type {
   CancelCycleCountInput,
   CountLineInput,
   CycleCount,
+  PlanCycleCountInput,
+  PlannedCycleCount,
   RecountCycleCountInput,
 } from "./cycle-count-types";
 
@@ -32,7 +37,7 @@ function useCycleCountWrite() {
   return {
     applied: async (count: CycleCount) => {
       client.setQueryData(cycleCountKeys.detail(count.id, warehouseId), count);
-      await client.invalidateQueries({ queryKey: [...cycleCountKeys.all, "list"] });
+      await client.invalidateQueries({ queryKey: cycleCountKeys.lists() });
     },
     // The sheet changed under the screen (closed, line counted elsewhere, stock moved): reload it.
     refreshOnStale: async (error: unknown, id: string) => {
@@ -44,14 +49,19 @@ function useCycleCountWrite() {
   };
 }
 
-// Planning adds a sheet to the lists; no stock moves, nor is anything written to the adjustments.
-export function usePlanCycleCount() {
-  const client = useQueryClient();
-  return useMutation({
-    mutationFn: planCycleCount,
-    onSuccess: () => client.invalidateQueries({ queryKey: [...cycleCountKeys.all, "list"] }),
-  });
-}
+// Planning adds a sheet to the lists; no stock moves, nor is anything written to the adjustments. The dialog shows
+// the refusal inline (`planCycleCountError`), so no error toast.
+export const usePlanCycleCount = createMutation<PlanCycleCountInput, PlannedCycleCount>(
+  planCycleCount,
+  {
+    invalidate: [cycleCountKeys.lists()],
+    showErrorToast: false,
+    onSuccess: ({ count, skipped }) => {
+      toast.success(CYCLE_COUNT_CREATE_LABELS.planned(count.countNumber));
+      if (skipped.length > 0) toast.warning(CYCLE_COUNT_CREATE_LABELS.skipped(skipped.length));
+    },
+  },
+);
 
 export function useCountCycleCountLine(id: string) {
   const { applied, refreshOnStale } = useCycleCountWrite();
