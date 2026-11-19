@@ -85,6 +85,21 @@ export const ORDER_DELIVERY_BATCH_PERMISSIONS = {
 } as const;
 
 /**
+ * Chat Sale ↔ khách — resource `chat-conversations` (BE StaffChatController, seed V20261124000300: SALES_STAFF,
+ * SALES_MANAGER, SYSTEM_ADMIN đủ VIEW_PAGE / READ / CREATE / UPDATE). Giám sát (`chat-supervision`) chỉ quản lý.
+ */
+export const CHAT_PERMISSIONS = {
+  viewPage: "chat-conversations:VIEW_PAGE",
+  read: "chat-conversations:READ",
+  create: "chat-conversations:CREATE",
+  update: "chat-conversations:UPDATE",
+  /** Người giám sát chat (16 §2): phân công hội thoại chưa ai nhận, xử lý hội thoại đã chuyển cấp. */
+  supervise: "chat-supervision:UPDATE",
+  /** Câu trả lời mẫu (S23, S24; seed: SALES_STAFF, SALES_MANAGER, SYSTEM_ADMIN). */
+  cannedRead: "chat-canned-responses:READ",
+} as const;
+
+/**
  * Hợp đồng bán — resource `sales-contracts` (BE `OrderResources.SALES_CONTRACTS`). Chỉ khai báo mã FE đang dùng:
  * - `read`: không còn dùng cho lịch giao (đã chuyển sang `sales-order-delivery-batches:READ`, bên trên); giữ lại cho fixture
  *   / mock mô tả vai đọc hợp đồng. Seed BE: SALES_STAFF, SALES_MANAGER, ACCOUNTANT, PRODUCTION_COORDINATOR, SYSTEM_ADMIN.
@@ -93,7 +108,12 @@ export const ORDER_DELIVERY_BATCH_PERMISSIONS = {
  */
 export const SALES_CONTRACT_PERMISSIONS = {
   read: "sales-contracts:READ",
+  // WF-02 pha B: lập hợp đồng nháp (`POST /orders/{id}/contract`)
+  create: "sales-contracts:CREATE",
+  // Sửa nháp, gửi, huỷ hợp đồng; dời cửa sổ giao
   update: "sales-contracts:UPDATE",
+  // Ghi nhận đã ký (`POST /orders/{id}/contract/signature`)
+  approve: "sales-contracts:APPROVE",
 } as const;
 
 /**
@@ -636,6 +656,18 @@ export const FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS = {
  * Seed V20260928006000: WAREHOUSE_MANAGER, WAREHOUSE_STAFF, INVENTORY_PLANNER, PROCUREMENT_STAFF;
  * V20261017000800 thêm SALES_STAFF; QC_STAFF không có.
  */
+/**
+ * Bảng sức chứa kho — resource `warehouse-capacity` (BE `OrderResources.WAREHOUSE_CAPACITY`, seed
+ * V20261125000100): Quản lý kho (chỉ kho được gán — BE tự thu hẹp), Sale, Điều phối sản xuất, Quản lý kinh doanh
+ * (docs 06 §2). Sửa hệ số sử dụng đi qua `PUT /warehouses/{id}` nên cần `warehouse-warehouses:UPDATE`.
+ */
+export const WAREHOUSE_CAPACITY_PERMISSIONS = {
+  viewPage: "warehouse-capacity:VIEW_PAGE",
+  read: "warehouse-capacity:READ",
+  warehouseRead: "warehouse-warehouses:READ",
+  warehouseUpdate: "warehouse-warehouses:UPDATE",
+} as const;
+
 export const WAREHOUSE_PERMISSIONS = {
   // Trang danh mục kho `/admin/warehouses` (`WarehouseController` @PermissionResource route)
   viewPage: "warehouse-warehouses:VIEW_PAGE",

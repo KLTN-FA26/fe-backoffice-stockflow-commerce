@@ -1,11 +1,15 @@
 "use client";
 
-import { AREA_TYPE_LABELS, STORAGE_CLASS_LABELS, UI_LABELS } from "@/constants";
+import { Printer } from "lucide-react";
+
+import { AREA_TYPE_LABELS, LOCATION_STATUS, STORAGE_CLASS_LABELS, UI_LABELS } from "@/constants";
 import { formatNumber } from "@/lib/format";
 
 import { boxOf } from "@/features/warehouse-map/selectors";
 
 import { StatusDot } from "@/components/shared/StatusDot";
+import { Button } from "@/components/ui/button";
+
 import { MapDialog } from "../shared/MapDialog";
 import { ShelfLevelsGrid } from "./ShelfLevelsGrid";
 
@@ -33,17 +37,20 @@ const mono = (text: string) => <span className="font-[family-name:var(--font-mon
 
 /**
  * Modal chi tiết kệ / khu vực vừa bấm trên bản đồ: trạng thái, vị trí, zone, tầng × bin.
- * `statusAction` = nút đổi trạng thái — chỉ có khi được phép (`placeStatusTargets`).
+ * `statusAction` = nút đổi trạng thái — chỉ có khi được phép (`placeStatusTargets`). `onPrintLabels` = in nhãn các bin
+ * của kệ (docs 06 §4.3) — kệ ngừng dùng không có nhãn (BR-17) nên không hiện nút.
  */
 export function PlaceDetailDialog({
   place,
   zones,
   statusAction,
+  onPrintLabels,
   onClose,
 }: {
   place: { kind: "shelf"; shelf: LayoutShelf } | { kind: "area"; area: LayoutArea };
   zones: readonly Zone[];
   statusAction?: ReactNode;
+  onPrintLabels?: () => void;
   onClose: () => void;
 }) {
   const item = place.kind === "shelf" ? place.shelf : place.area;
@@ -94,6 +101,13 @@ export function PlaceDetailDialog({
         )}
       </dl>
       {statusAction}
+      {place.kind === "shelf" &&
+        onPrintLabels &&
+        place.shelf.status !== LOCATION_STATUS.INACTIVE && (
+          <Button type="button" variant="outline" size="sm" onClick={onPrintLabels}>
+            <Printer className="text-dot-info size-3.5" /> {L.print.openShelf}
+          </Button>
+        )}
       {place.kind === "shelf" && (
         <div className="space-y-1.5">
           <h3 className="text-ink-secondary text-xs font-medium">{P.levels}</h3>

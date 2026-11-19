@@ -285,6 +285,7 @@ export function activateMockAdapter(): void {
     import("./mock-routes-warehouses"),
     import("./mock-routes-returns"),
     import("./mock-routes-return-receipts"),
+    import("./mock-routes-wf02"),
   ]).then(
     ([
       { registerAllMockRoutes },
@@ -320,12 +321,16 @@ export function activateMockAdapter(): void {
       { registerWarehouseMockRoutes },
       { registerReturnMockRoutes },
       { registerReturnReceiptMockRoutes },
+      { registerWf02MockRoutes },
     ]) => {
       registerAllMockRoutes();
       registerSupplierMockRoutes();
       registerSupplierItemMockRoutes();
       registerPurchaseOrderMockRoutes();
       registerPoDraftMockRoutes();
+      // WF-02 (báo giá, hợp đồng của đơn, chat Sale) TRƯỚC đơn: `/orders/:id/contract…` phải khớp trước mọi
+      // mẫu `/orders/:id/…` chung của module đơn (khớp theo thứ tự đăng ký).
+      registerWf02MockRoutes();
       registerOrderMockRoutes();
       // Trả hàng (WF-05 BO-12): `/goods-receipts/returns` phải đứng TRƯỚC `/goods-receipts/:id` (khớp theo thứ tự
       // đăng ký).

@@ -49,3 +49,36 @@ export function isStaleApiError(error: unknown, extraCodes: readonly string[] = 
 export function apiFieldErrors(error: unknown): Record<string, string> {
   return error instanceof ApiError ? (error.fieldErrors ?? {}) : {};
 }
+
+/** Mã lỗi khung (mạng, phiên, quyền) — luôn dùng câu FE, không phụ thuộc message BE. */
+const FRAMEWORK_CODES = new Set([
+  "NETWORK_ERROR",
+  "UNAUTHORIZED",
+  "FORBIDDEN",
+  "AUTHORIZATION_UNAVAILABLE",
+  "BACKEND_UNAVAILABLE",
+  "CSRF_REJECTED",
+]);
+
+/**
+ * WF-02 (BE PR #365): lỗi nghiệp vụ 4xx trả `message` tiếng Việt → hiện nguyên văn. `overrides` theo
+ * `errorCode` chỉ dùng khi cần câu riêng (vd OPTIMISTIC_LOCK → "đã tải lại"). Lỗi khung / 5xx / không có
+ * message dùng câu FE như `apiErrorMessage`.
+ */
+export function serverErrorMessage(
+  error: unknown,
+  overrides: Readonly<Record<string, string>> = {},
+  fallback = GENERIC_API_ERROR,
+): string {
+  if (!(error instanceof ApiError)) return fallback;
+  const override = overrides[error.code];
+  if (override) return override;
+  const fromServer =
+    error.status >= 400 &&
+    error.status < 500 &&
+    !FRAMEWORK_CODES.has(error.code) &&
+    error.message.trim() !== "" &&
+    error.message !== error.code;
+  if (fromServer) return error.message;
+  return COMMON_API_ERROR_MESSAGES[error.code] ?? fallback;
+}

@@ -14,6 +14,7 @@
  */
 
 import { paginatePage, registerMockRoute } from "./mock-adapter";
+import { findWf02Order, wf02OrderHistory, wf02OrderResponse } from "./mock-contract-orders";
 import { registerOrderCancellationRequestMockRoutes } from "./mock-routes-order-cancellation-requests";
 import { registerOrderReleaseMockRoutes } from "./mock-routes-order-release";
 import { registerOrderScheduleMockRoutes } from "./mock-routes-order-schedule";
@@ -274,6 +275,9 @@ function registerReadRoutes(): void {
   // GET /orders/:id
   registerMockRoute("GET", "/orders/:id", async (config) => {
     const order = await findOrder(idParam(config));
+    // Đơn WF-02 (báo giá → hợp đồng, đặt theo thùng) có store riêng — mock-data không có đơn theo thùng
+    const wf02 = order ? undefined : findWf02Order(idParam(config));
+    if (wf02) return ok(wf02OrderResponse(wf02));
     if (!order) return notFound();
     return ok(toOrderResponse(order));
   });
@@ -281,6 +285,8 @@ function registerReadRoutes(): void {
   // GET /orders/:id/history — dựng từ `orderEvents` (module 17) + bước phát sinh trong phiên
   registerMockRoute("GET", "/orders/:id/history", async (config) => {
     const order = await findOrder(idParam(config));
+    const wf02 = order ? undefined : findWf02Order(idParam(config));
+    if (wf02) return ok(wf02OrderHistory(wf02));
     if (!order) return notFound();
     const { orderEvents } = await import("@/lib/mock-data");
 

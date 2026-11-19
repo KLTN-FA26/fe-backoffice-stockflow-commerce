@@ -1,40 +1,30 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, RotateCcw } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 
 import { ORDER_PERMISSIONS, PORTAL_ROUTES } from "@/constants";
 
-import { useCan, usePermissionChecker } from "@/lib/auth";
+import { useCan } from "@/lib/auth";
 import { formatDateTime } from "@/lib/format/date";
 import { formatMoney } from "@/lib/format/money";
 import { formatNumber } from "@/lib/format/number";
 
-import { myOrderErrorMessage } from "@/features/customer-order/errors";
-import { useReorder } from "@/features/customer-order/mutations";
 import { useMyOrder } from "@/features/customer-order/queries";
 import { allowedMyOrderActions } from "@/features/customer-order/lifecycle";
 import { PRODUCTION_STATE_LABEL, statusGroupDisplay } from "@/features/customer-order/selectors";
 
 import { LoadErrorState } from "@/components/backoffice/LoadErrorState";
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
-import { Notice } from "@/components/shared/Notice";
 import { StatusDot } from "@/components/shared/StatusDot";
 import { Button } from "@/components/ui/button";
 
 import { COPY, MONO } from "./portal-copy";
 
-/** Chi tiết đơn của khách: dòng thời gian thật từ BE (SCRUM-248), đặt lại → yêu cầu báo giá (R1b). */
+/** Chi tiết đơn của khách: dòng thời gian thật từ BE (SCRUM-248). */
 export function PortalOrderDetail({ id }: { id: string }) {
   const canRead = useCan(ORDER_PERMISSIONS.read);
-  const can = usePermissionChecker();
   const query = useMyOrder(id, { enabled: canRead });
-  const reorder = useReorder();
-  const [requestId] = useState(() => crypto.randomUUID());
-  const [confirm, setConfirm] = useState(false);
-  const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
   const back = { href: PORTAL_ROUTES.orders.list, label: "Về danh sách đơn" };
   if (!canRead) return <LoadErrorState error={null} kind="no-read" copy={COPY} back={back} />;
   if (query.isError)
@@ -48,7 +38,7 @@ export function PortalOrderDetail({ id }: { id: string }) {
     );
   if (query.isPending) return <PageSkeleton variant="detail" />;
   const order = query.data;
-  const actions = allowedMyOrderActions(order.statusGroup, order.allowedActions, can);
+  const actions = allowedMyOrderActions(order.statusGroup);
 
   return (
     <div className="space-y-6">
@@ -121,22 +111,7 @@ export function PortalOrderDetail({ id }: { id: string }) {
           </ol>
         </section>
       </div>
-      {result && (
-        <Notice tone={result.ok ? "positive" : "danger"} live>
-          {result.text}
-        </Notice>
-      )}
       <div className="flex flex-wrap gap-3">
-        {actions.includes("reorder") && (
-          <Button
-            variant="outline"
-            className="min-h-11"
-            disabled={reorder.isPending}
-            onClick={() => setConfirm(true)}
-          >
-            <RotateCcw className="size-4" /> Đặt lại
-          </Button>
-        )}
         {/* SCRUM-257: BE chưa có API đổi trả (RMA) — hiện rõ là chưa khả dụng, không giả lập gửi. */}
         {actions.includes("returnUnavailable") && (
           <span className="inline-flex flex-col">
@@ -154,34 +129,6 @@ export function PortalOrderDetail({ id }: { id: string }) {
           </span>
         )}
       </div>
-      <ConfirmDialog
-        open={confirm}
-        onOpenChange={setConfirm}
-        title="Đặt lại đơn này?"
-        description="Hệ thống gửi yêu cầu báo giá mới cho bộ phận bán hàng theo giá và điều khoản hiện hành; đơn chỉ được tạo sau khi bạn chấp nhận báo giá mới."
-        confirmLabel="Gửi yêu cầu báo giá"
-        variant="default"
-        loading={reorder.isPending}
-        closeOnConfirm={false}
-        onConfirm={() =>
-          reorder.mutate(
-            { orderId: order.orderId, requestId },
-            {
-              onSuccess: () => {
-                setConfirm(false);
-                setResult({
-                  ok: true,
-                  text: "Đã gửi yêu cầu báo giá mới. Bạn sẽ thấy báo giá ở mục Báo giá khi Sales gửi.",
-                });
-              },
-              onError: (error) => {
-                setConfirm(false);
-                setResult({ ok: false, text: myOrderErrorMessage(error) });
-              },
-            },
-          )
-        }
-      />
     </div>
   );
 }

@@ -16,6 +16,10 @@ import { RECEIPT_CARTON_ERROR_MESSAGES } from "./labels-receipt-carton";
 import { SHIPPING_TOAST_MESSAGES, SHIPPING_UI_LABELS } from "./labels-shipping";
 import { TAXONOMY_TOAST_MESSAGES, TAXONOMY_UI_LABELS } from "./labels-taxonomy";
 import { VEHICLE_TYPE_TOAST_MESSAGES, VEHICLE_TYPE_UI_LABELS } from "./labels-vehicle-type";
+import {
+  WAREHOUSE_CAPACITY_TOAST_MESSAGES,
+  WAREHOUSE_CAPACITY_UI_LABELS,
+} from "./labels-warehouse-capacity";
 import { WAREHOUSE_MAP_TOAST_MESSAGES, WAREHOUSE_MAP_UI_LABELS } from "./labels-warehouse-map";
 
 export const UI_LABELS = {
@@ -509,6 +513,7 @@ export const UI_LABELS = {
   },
   shipping: SHIPPING_UI_LABELS,
   vehicleType: VEHICLE_TYPE_UI_LABELS,
+  warehouseCapacity: WAREHOUSE_CAPACITY_UI_LABELS,
   warehouseMap: WAREHOUSE_MAP_UI_LABELS,
   loadPlan: LOAD_PLAN_UI_LABELS,
   taxonomy: TAXONOMY_UI_LABELS,
@@ -831,6 +836,7 @@ export const TOAST_MESSAGES = {
   },
   shipping: SHIPPING_TOAST_MESSAGES,
   vehicleType: VEHICLE_TYPE_TOAST_MESSAGES,
+  warehouseCapacity: WAREHOUSE_CAPACITY_TOAST_MESSAGES,
   warehouseMap: WAREHOUSE_MAP_TOAST_MESSAGES,
   loadPlan: LOAD_PLAN_TOAST_MESSAGES,
   taxonomy: TAXONOMY_TOAST_MESSAGES,

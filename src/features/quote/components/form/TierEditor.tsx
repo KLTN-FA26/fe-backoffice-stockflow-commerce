@@ -12,7 +12,7 @@ import type { QuoteFormValues } from "@/features/quote/types";
 
 const NUM = `${FORM_INPUT_CLASS} text-right font-[family-name:var(--font-mono)] tabular-nums`;
 
-/** Bậc giá thoả thuận của một dòng (P4: dưới bậc niêm yết thì Sales nhập bậc riêng). */
+/** Bậc giá của một dòng: từ N thùng trở lên → đơn giá VND / cái; bậc thấp nhất là MOQ (14 BR-08). */
 export function TierEditor({
   lineIndex,
   control,
@@ -31,7 +31,7 @@ export function TierEditor({
   return (
     <fieldset className="space-y-2">
       <legend className="text-ink-secondary text-xs font-medium">
-        Bậc giá thoả thuận (VND / cái)
+        Bậc giá (từ số thùng → đơn giá VND / cái)
       </legend>
       {tiers.fields.map((field, tierIndex) => {
         const tierErrors = lineErrors?.tiers?.[tierIndex];
@@ -41,13 +41,13 @@ export function TierEditor({
           <div key={field.id} className="grid grid-cols-[1fr_1fr_auto] items-start gap-2">
             <div>
               <label htmlFor={minId} className="sr-only">
-                Từ số lượng (bậc {tierIndex + 1})
+                Từ số thùng (bậc {tierIndex + 1})
               </label>
               <Input
                 id={minId}
                 {...register(`lines.${lineIndex}.tiers.${tierIndex}.minQuantity`)}
                 inputMode="numeric"
-                placeholder="Từ SL"
+                placeholder="Từ thùng"
                 aria-invalid={tierErrors?.minQuantity ? true : undefined}
                 aria-describedby={tierErrors?.minQuantity ? `${minId}-error` : undefined}
                 className={NUM}
@@ -66,7 +66,7 @@ export function TierEditor({
                 id={priceId}
                 {...register(`lines.${lineIndex}.tiers.${tierIndex}.unitPrice`)}
                 inputMode="numeric"
-                placeholder="Đơn giá"
+                placeholder="Đơn giá / cái"
                 aria-invalid={tierErrors?.unitPrice ? true : undefined}
                 aria-describedby={tierErrors?.unitPrice ? `${priceId}-error` : undefined}
                 className={NUM}

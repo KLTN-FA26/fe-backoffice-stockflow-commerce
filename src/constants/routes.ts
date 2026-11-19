@@ -17,6 +17,11 @@ export const ADMIN_ROUTES = {
     detail: (id: string) => `${ADMIN_BASE}/customers/${id}`,
     list: `${ADMIN_BASE}/customers`,
   },
+  /** Hộp thư chat của Sale (WF-02 pha E2). */
+  chat: {
+    list: `${ADMIN_BASE}/chat`,
+    detail: (id: string) => `${ADMIN_BASE}/chat/${id}`,
+  },
   quotes: {
     create: `${ADMIN_BASE}/quotes/create`,
     /** Tạo báo giá cho một khách chọn sẵn (nút "Tạo báo giá" ở chi tiết khách). */
@@ -83,6 +88,8 @@ export const ADMIN_ROUTES = {
     creditHolds: `${ADMIN_BASE}/orders/credit-holds`,
     cancellationRequests: `${ADMIN_BASE}/orders/cancellation-requests`,
     detail: (id: string) => `${ADMIN_BASE}/orders/${id}`,
+    /** Khối "Hợp đồng" trong chi tiết đơn (WF-02 pha B). */
+    contract: (id: string) => `${ADMIN_BASE}/orders/${id}#contract`,
     list: `${ADMIN_BASE}/orders`,
   },
   packing: {
@@ -146,6 +153,14 @@ export const ADMIN_ROUTES = {
     slotting: (prefix: string) =>
       `${ADMIN_BASE}/warehouse-map/${encodeURIComponent(prefix)}/slotting`,
   },
+  /**
+   * Bảng sức chứa kho (docs 06 §4.6, BE `WarehouseCapacityController`): danh sách mọi kho, chi tiết theo prefix kho
+   * (duy nhất, không đổi — BR-10 / BR-13) để breadcrumb đọc được mã kho thay vì UUID.
+   */
+  warehouseCapacity: {
+    list: `${ADMIN_BASE}/warehouse-capacity`,
+    detail: (prefix: string) => `${ADMIN_BASE}/warehouse-capacity/${encodeURIComponent(prefix)}`,
+  },
   /** Danh mục loại xe (container, xe tải, bán tải) — BE `VehicleTypeController`, PR #153. */
   vehicleTypes: `${ADMIN_BASE}/vehicle-types`,
   /** Kế hoạch xếp xe (SCRUM-287 PR F4): danh sách, lập mới, chi tiết — BE `LoadPlanController`, PR #161. */
@@ -168,10 +183,6 @@ export const PORTAL_ROUTES = {
   home: PORTAL_BASE,
   /** Trang kích hoạt từ email mời — BE `PORTAL_ACTIVATION_URL`, token nằm ở `#token=`. */
   activate: `${PORTAL_BASE}/activate`,
-  quotes: {
-    list: `${PORTAL_BASE}/quotes`,
-    detail: (id: string) => `${PORTAL_BASE}/quotes/${id}`,
-  },
   samples: {
     list: `${PORTAL_BASE}/samples`,
     detail: (id: string) => `${PORTAL_BASE}/samples/${id}`,
