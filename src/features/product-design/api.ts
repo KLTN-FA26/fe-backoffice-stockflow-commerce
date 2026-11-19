@@ -147,9 +147,9 @@ async function changeStatus(target: PrintConfigTarget, action: "activation" | "d
 }
 
 /**
- * `POST …/{templateId}/activation`, body `{ version }` (BE, origin/develop d47ed4ae). The variant's previously active
- * template is retired in the same transaction. Errors: 400 PRINT_CONFIG_INVALID (template without a model), 409
- * PRINT_CONFIG_MODEL_FILE_REQUIRED (no `.glb`), 422 PRINT_CONFIG_SURFACES_INVALID (an area without its `print:<code>`
+ * `POST …/{templateId}/activation`, body `{ version }` (BE, origin/develop 8c63a729). The variant's previously active
+ * template is retired in the same transaction. Errors: 409 PRINT_CONFIG_MODEL_FILE_REQUIRED (no `.glb`, or a template
+ * stored before models were kept, without a model: the same fix, upload the `.glb` with its measurements), 422 PRINT_CONFIG_SURFACES_INVALID (an area without its `print:<code>`
  * mesh), 409 PRODUCT_NOT_CUSTOMIZABLE, 409 CONFLICT (variant or product no longer sold), 409 OPTIMISTIC_LOCK, 404
  * PRINT_CONFIG_NOT_FOUND.
  */
