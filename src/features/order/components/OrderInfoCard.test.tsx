@@ -1,4 +1,4 @@
-import { act, screen, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -9,6 +9,7 @@ import {
   WAREHOUSE_PERMISSIONS,
 } from "@/constants";
 import { api } from "@/lib/api/client";
+import { ApiError } from "@/lib/api/error";
 
 import { apiOrder, apiOrderWith } from "../__fixtures__/order";
 import { ORDER_PERMISSION_SETS, mockOrderApiGet, renderOrderScreen } from "../__fixtures__/render";
@@ -167,6 +168,50 @@ describe("WF04 G2 — Đổi địa chỉ giao trên chi tiết đơn (docs 17 �
       { shippingAddressId: ADDRESS_ID },
       expect.anything(),
     );
+  });
+
+  it("409 ORDER_ADDRESS_LOCKED (vừa có thùng dán nhãn): đóng hộp thoại và tải lại đơn", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(api, "put").mockRejectedValue(
+      new ApiError(409, "ORDER_ADDRESS_LOCKED", "The delivery address can no longer change"),
+    );
+    const get = mockOrderApiGet(SALES, {
+      [DETAIL_PATH]: () => apiOrderWith({ status: "PICKING", firstLabeledAt: null }),
+      [addressesPath]: addressBook,
+    });
+    await act(async () => {
+      renderOrderScreen(<OrderDetail params={Promise.resolve({ id: apiOrder.orderId })} />);
+    });
+    await screen.findByRole("heading", { name: apiOrder.orderNumber });
+    const detailReads = () => get.mock.calls.filter(([url]) => url === DETAIL_PATH).length;
+    const before = detailReads();
+
+    await user.click(screen.getByRole("button", { name: L.button }));
+    const dialog = await screen.findByRole("dialog");
+    await user.selectOptions(await within(dialog).findByLabelText(L.addressLabel), ADDRESS_ID);
+    await user.click(within(dialog).getByRole("button", { name: L.submit }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await waitFor(() => expect(detailReads()).toBeGreaterThan(before));
+  });
+
+  it("thiếu customer-addresses:READ: hộp thoại báo không xem được sổ địa chỉ, không gọi API sổ địa chỉ", async () => {
+    const user = userEvent.setup();
+    const get = mockOrderApiGet(
+      [...ORDER_PERMISSION_SETS.salesStaff, ORDER_PERMISSIONS.shippingAddress],
+      { [DETAIL_PATH]: () => apiOrderWith({ status: "PICKING", firstLabeledAt: null }) },
+    );
+    await act(async () => {
+      renderOrderScreen(<OrderDetail params={Promise.resolve({ id: apiOrder.orderId })} />);
+    });
+    await screen.findByRole("heading", { name: apiOrder.orderNumber });
+
+    await user.click(screen.getByRole("button", { name: L.button }));
+
+    expect(
+      await within(await screen.findByRole("dialog")).findByText(L.noAddressAccess),
+    ).toBeInTheDocument();
+    expect(get.mock.calls.some(([url]) => url === addressesPath)).toBe(false);
   });
 
   it("08 BR-04: thùng đầu tiên đã dán nhãn → không có nút đổi địa chỉ", async () => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { MapPin, Scissors, Split, Truck } from "lucide-react";
+import { Scissors, Split, Truck } from "lucide-react";
 
 import {
   ORDER_DELIVERY_MODE_LABELS,
@@ -16,6 +16,8 @@ import {
   formatRemainderClosedStatusReason,
   remainderClosureReasonLabel,
 } from "../selectors";
+
+import { AddressChangeHead } from "./AddressChangeHead";
 
 import type { OrderHistoryEntry } from "../types";
 
@@ -98,22 +100,7 @@ function EntryHead({ entry }: { entry: OrderHistoryEntry }) {
     }
     case "address-change":
       // Sale đổi địa chỉ giao trước khi dán nhãn (docs 17 BR-16) — địa chỉ cũ → mới
-      return (
-        <span className="text-ink-primary block">
-          <span className="inline-flex items-center gap-1.5 font-semibold">
-            <MapPin className="text-accent size-3.5" aria-hidden="true" />
-            {L.addressChanged}
-          </span>
-          {entry.from && (
-            <span className="text-ink-secondary mt-1 block break-words">
-              {L.addressFrom}: {entry.from}
-            </span>
-          )}
-          <span className="mt-0.5 block break-words">
-            {L.addressTo}: {entry.to}
-          </span>
-        </span>
-      );
+      return <AddressChangeHead from={entry.from} to={entry.to} />;
     case "status-change":
       return (
         <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-0.5">

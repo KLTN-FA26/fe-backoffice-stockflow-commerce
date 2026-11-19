@@ -1,20 +1,18 @@
 "use client";
 
-import { Barcode, Printer, RotateCcw, Tag, Trash2 } from "lucide-react";
-
 import { UI_LABELS } from "@/constants";
 import { formatDateTime } from "@/lib/format/date";
 import { StatusDot } from "@/components/shared/StatusDot";
-import { Button } from "@/components/ui/button";
 
 import { MONO, formatMeasure } from "../primitives";
+import { CartonRowActions } from "./CartonRowActions";
 
 import type { CartonRemovalReason } from "@/constants";
+import type { CartonRowHandlers } from "./CartonRowActions";
 import type { CartonActions } from "@/features/fulfillment/carton-check-lifecycle";
 import type { Carton } from "@/features/fulfillment/carton-check-types";
 
 const L = UI_LABELS.cartonCheck.cartons;
-const A = UI_LABELS.cartonCheck.action;
 const TD = "px-3 py-2 text-[0.8125rem] align-top";
 
 function sizeText(carton: Carton): string {
@@ -36,15 +34,6 @@ const REMOVAL_REASON = {
   ORDER_CANCELLED: L.removedOrderCancelled,
   REMAINDER_CLOSED: L.removedRemainderClosed,
 } as const satisfies Record<CartonRemovalReason, string>;
-
-export interface CartonRowHandlers {
-  onLabel: (carton: Carton) => void;
-  onPrint: (carton: Carton) => void;
-  onReprint: (carton: Carton) => void;
-  /** In lại nhãn LPN của thùng; vắng khi màn không có hộp thoại in nhãn thùng (xem `CartonLpnLabelSlot`). */
-  onReprintLpn?: (carton: Carton) => void;
-  onRemove: (carton: Carton) => void;
-}
 
 /** Một thùng: LPN, SKU, số cái, trạng thái, nhãn (phiên bản), kích thước / khối lượng theo quy cách thùng và thao tác khả dụng. */
 export function CartonRow({
@@ -96,58 +85,12 @@ export function CartonRow({
       <td className={`${TD} text-ink-secondary tabular-nums`}>{weightText(carton)}</td>
       <td className={`${TD} text-ink-secondary ${MONO}`}>{shipmentCode ?? "—"}</td>
       <td className={TD}>
-        <div className="flex flex-wrap gap-1.5">
-          {actions.label && (
-            <Button
-              type="button"
-              size="xs"
-              disabled={labeling}
-              onClick={() => handlers.onLabel(carton)}
-            >
-              <Tag className="size-3" /> {A.label}
-            </Button>
-          )}
-          {actions.print && (
-            <Button
-              type="button"
-              size="xs"
-              variant="outline"
-              onClick={() => handlers.onPrint(carton)}
-            >
-              <Printer className="size-3" /> {A.print}
-            </Button>
-          )}
-          {actions.reprint && (
-            <Button
-              type="button"
-              size="xs"
-              variant="outline"
-              onClick={() => handlers.onReprint(carton)}
-            >
-              <RotateCcw className="size-3" /> {A.reprint}
-            </Button>
-          )}
-          {actions.reprintLpn && handlers.onReprintLpn && (
-            <Button
-              type="button"
-              size="xs"
-              variant="outline"
-              onClick={() => handlers.onReprintLpn?.(carton)}
-            >
-              <Barcode className="size-3" /> {A.reprintLpn}
-            </Button>
-          )}
-          {actions.remove && (
-            <Button
-              type="button"
-              size="xs"
-              variant="outline"
-              onClick={() => handlers.onRemove(carton)}
-            >
-              <Trash2 className="size-3" /> {A.remove}
-            </Button>
-          )}
-        </div>
+        <CartonRowActions
+          carton={carton}
+          actions={actions}
+          labeling={labeling}
+          handlers={handlers}
+        />
       </td>
     </tr>
   );
