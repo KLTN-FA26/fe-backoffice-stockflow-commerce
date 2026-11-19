@@ -19,7 +19,7 @@ import { useSavePrintConfig } from "../mutations";
 import { printConfigSaveInputSchema } from "../schemas";
 import { editableWithoutFile, modelFileStateOf } from "../selectors";
 import { buildSaveInput } from "./save-input";
-import { defaultsFor, printDefaultsSchema } from "./print-defaults";
+import { defaultsFor, printDefaultsSchemaFor } from "./print-defaults";
 import { saveErrorView } from "./save-error";
 import { useFileChecks } from "./use-file-checks";
 import { useGlbReading } from "./use-glb-reading";
@@ -30,7 +30,6 @@ import type { ModelKind, PrintDefaultsValues } from "./print-defaults";
 import type { GlbLoader, MeasuredFile } from "./use-glb-reading";
 
 const TEXT = PRINT_CONFIG_SCREEN_LABELS;
-const resolver = zodResolver(printDefaultsSchema);
 const kindOf = (kind: "cup" | "bag"): ModelKind =>
   kind === "cup" ? "parametric-cup" : "parametric-bag";
 
@@ -61,7 +60,7 @@ export function usePrintConfigEditor({
     : (config?.model?.kind ?? null);
   const storedKind: ModelKind = config?.model?.kind ?? "parametric-cup";
   const form = useForm<PrintDefaultsValues>({
-    resolver,
+    resolver: zodResolver(printDefaultsSchemaFor(result ? result.model : (config?.model ?? null))),
     defaultValues: defaultsFor(formKind, config),
   });
   // `useWatch` types every field optional: complete it from the starting values.

@@ -24,6 +24,15 @@ export const PRINT_CONFIG_SCHEMA_MESSAGES = {
   modelFileRequired: "Số đo này lấy từ file 3D, hãy tải file mới cùng số đo.",
   /** Tạo cấu hình in mới mà không có file (BE 409 PRINT_CONFIG_MODEL_FILE_REQUIRED). */
   fileRequiredToCreate: "Cấu hình in mới phải tạo cùng file 3D (.glb): hãy chọn file rồi lưu.",
+  /** Số đo từ file ngoài khoảng BE nhận (BE `PrintConfigRules` `Range`). */
+  measuredPositive: (label: string, max: number) =>
+    `${label} đo từ file phải lớn hơn 0 và không quá ${max} mm: hãy kiểm tra đơn vị của file.`,
+  measuredNonNegative: (label: string, max: number) =>
+    `${label} đo từ file phải từ 0 đến ${max} mm: hãy kiểm tra lại file.`,
+  cupTooSmall: (label: string, min: number) =>
+    `${label} của ly đo từ file nhỏ hơn ${min} mm: hãy kiểm tra đơn vị của file.`,
+  baseWiderThanRim: "Đáy ly đo từ file rộng hơn miệng ly: hãy kiểm tra lại file.",
+  noBand: "Phần không in ở miệng và đáy ly (đo từ file) chiếm hết thân ly, không còn dải để in.",
 } as const;
 
 export const PRINT_CONFIG_ERROR_MESSAGES = {
@@ -192,6 +201,19 @@ export const PRINT_CONFIG_SCREEN_LABELS = {
       number: "Nhập một số.",
       notNegative: "Không được âm.",
       bleedMax: (max: number) => `Tối đa ${max} mm.`,
+      atMost: (max: number) => `Tối đa ${max} mm.`,
+      /** Ly côn: góc của dải in trải phẳng cộng mép dán phải dưới một vòng (BE `SeamOverlaps`). */
+      seamOverlaps: (limit: string) =>
+        `Mép dán phải ngắn hơn ${limit}: dài hơn thì dải in trải phẳng của ly chồng lên chính nó.`,
+      /** Ly côn: tràn lề không vượt qua bán kính trong của dải in trải phẳng (BE `BleedPastCentre`). */
+      bleedPastCentre: (limit: string) =>
+        `Tràn lề phải nhỏ hơn ${limit}: lớn hơn thì vượt qua tâm của dải in trải phẳng.`,
+      /** Hai lề an toàn phải để lại chỗ in theo cả hai chiều của vùng in (BE `NoSafeArea`). */
+      noSafeArea: (limit: string) =>
+        `Lề an toàn phải nhỏ hơn ${limit} (một nửa cạnh ngắn nhất của vùng in), nếu không vùng in không còn chỗ in.`,
+      /** Túi: chiều cao gửi lên là mặt in cộng gập miệng, tối đa 2000 mm. */
+      bagTooTall: (limit: string, max: number) =>
+        `Gập miệng tối đa ${limit}: mặt túi cộng gập miệng không được quá ${max} mm.`,
     },
   },
   defaultRows: {

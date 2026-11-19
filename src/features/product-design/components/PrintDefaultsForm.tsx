@@ -88,7 +88,9 @@ export function PrintDefaultsForm({
   errors: FieldErrors<PrintDefaultsValues>;
   disabled: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [toggled, setOpen] = useState(false);
+  // A refused value is shown on its input: the panel stays open while a field of the kind has an error.
+  const open = toggled || FIGURES[kind].some((name) => errors[name] !== undefined);
   const panelId = useId();
   return (
     <section className="space-y-3">
@@ -98,7 +100,7 @@ export function PrintDefaultsForm({
         size="sm"
         aria-expanded={open}
         aria-controls={panelId}
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => setOpen(!open)}
       >
         <ChevronDown aria-hidden className={open ? "rotate-180" : undefined} />
         {TEXT.toggle}
