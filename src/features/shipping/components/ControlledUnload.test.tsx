@@ -244,6 +244,27 @@ describe("Huỷ có kiểm soát một xe (SCRUM-474 UNLOAD-DESIGN)", () => {
   });
 });
 
+describe("RTM-LOADCANCEL2 — hãng huỷ đơn khi xe đang xếp", () => {
+  it("chuyến về Chưa đặt xe còn kiện trên xe: hiện ô quét dỡ, quét → POST /unloads; nút đặt xe bị khoá", async () => {
+    const user = userEvent.setup();
+    const A = L.afterHandover;
+    const back = plannedLoad({
+      pendingUnloads: [pendingUnload("PKG-SO-1-1", { reason: "The carrier cancelled the order" })],
+    });
+    const { post } = render(ACTORS.warehouseStaff, back, { "/unloads": () => back });
+    expect(
+      await screen.findByRole("heading", { name: `${A.carrierCancelledUnload.title} (1)` }),
+    ).toBeInTheDocument();
+    const book = screen.getByRole("button", { name: L.ftl.booking.book });
+    expect(book).toBeDisabled();
+    expect(book).toHaveAttribute("title", A.unloadBeforeBooking);
+    await user.type(screen.getByLabelText(U.label), "PKG-SO-1-1{Enter}");
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(`${PATH}/unloads`, { packageCode: "PKG-SO-1-1" }),
+    );
+  });
+});
+
 describe("Xe đã huỷ có kiểm soát — kiện bị khoá, quét dỡ và xác nhận không quét", () => {
   it("huỷ cả kế hoạch (không có chuyến thay thế): biểu ngữ chỉ nêu lý do, không nhắc chuyến thay thế", async () => {
     render(ACTORS.warehouseManager, controlledCancelled());

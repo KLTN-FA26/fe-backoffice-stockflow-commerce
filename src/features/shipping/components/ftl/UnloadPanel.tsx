@@ -17,6 +17,7 @@ import { PendingUnloadTable } from "./PendingUnloadTable";
 import type { Load } from "@/features/shipping/types";
 
 const U = UI_LABELS.shipping.ftl.unload;
+const C = UI_LABELS.shipping.afterHandover.carrierCancelledUnload;
 
 /**
  * Kiện còn phải dỡ khỏi xe (BE `pendingUnloads`): quét từng kiện để dỡ xuống. Hai nguồn: đơn đã huỷ khi xe đang xếp (còn kiện
@@ -79,16 +80,24 @@ export function UnloadPanel({
 
   const count = pendingUnloadsOf(load).length;
   const controlled = load.status === LOAD_STATUS.CANCELLED;
+  // RTM-LOADCANCEL2: hãng huỷ đơn khi xe đang xếp — chuyến về Chưa đặt xe, kiện đã quét phải dỡ
+  const carrierCancelled = load.status === LOAD_STATUS.PLANNED;
+  const title = carrierCancelled ? C.title : controlled ? U.controlledTitle : U.title;
+  const description = carrierCancelled
+    ? C.description
+    : controlled
+      ? U.controlledDescription
+      : U.description;
   return (
     <section
-      aria-label={controlled ? U.controlledTitle : U.title}
+      aria-label={title}
       className="border-warning/50 bg-bg-surface space-y-3 rounded-[var(--card-radius)] border p-[var(--card-pad)]"
     >
       <h2 className="text-ink-primary text-[0.9375rem] font-semibold">
-        {controlled ? U.controlledTitle : U.title} ({count})
+        {title} ({count})
       </h2>
       <p className="text-ink-secondary text-[0.8125rem]">
-        {controlled ? U.controlledDescription : U.description}
+        {description}
       </p>
       {canUnload ? (
         <ScanInput

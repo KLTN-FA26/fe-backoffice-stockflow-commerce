@@ -12,6 +12,14 @@ export const SHIPPING_AFTER_HANDOVER_LABELS = {
     packages: "kiện",
     allRemoved: "Đã chọn mọi lô — xe không còn gì để chở nên không có chuyến mới.",
   },
+  /** RTM-LOADCANCEL2 (docs 09 §4.5): hãng huỷ đơn khi xe đang xếp — chuyến về Chưa đặt xe, kiện đã quét phải dỡ. */
+  unloadBeforeBooking:
+    "Hãng đã huỷ đơn khi xe đang xếp — quét dỡ các kiện còn trên xe về khu xuất hàng rồi mới đặt xe lại.",
+  carrierCancelledUnload: {
+    title: "Kiện còn trên xe hãng đã huỷ đơn",
+    description:
+      "Hãng huỷ đơn khi xe đang xếp: chuyến về Chưa đặt xe với cùng sơ đồ. Quét dỡ từng kiện về khu xuất hàng; dỡ hết mới đặt xe lại.",
+  },
   /** Docs 09 BR-16: chuyến đã đặt xe không đổi hãng trực tiếp. */
   carrierLocked: "Muốn đổi hãng: huỷ đặt xe (ghi lý do) rồi đặt lại với hãng mới.",
   /** In lại sơ đồ xếp của xe sau khi tính lại (docs 09 §4.2 bước 9: "xuất lại PDF sơ đồ xếp"). */
