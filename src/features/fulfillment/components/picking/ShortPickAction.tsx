@@ -11,17 +11,27 @@ import type { ShortPickProps } from "./ShortPickDialog";
 
 const L = PICK_LINE_LABELS;
 
-/** Nút phụ "Báo thiếu hàng" trên thẻ xác nhận dòng — mở dialog cho đúng dòng đang làm. */
-export function ShortPickAction(props: ShortPickProps) {
+/**
+ * Nút "Báo thiếu hàng" — mở dialog cho đúng dòng. Trên thẻ xác nhận dòng thì rộng hết cột; `compact` là nút nhỏ cuối
+ * dòng của bảng (thùng đã về khu chờ xuất bị báo thiếu, docs 20 §4.9 bước 4).
+ */
+export function ShortPickAction({
+  compact = false,
+  ...props
+}: ShortPickProps & { compact?: boolean }) {
   const [open, setOpen] = useState(false);
   return (
     <>
       <Button
         type="button"
         variant="outline"
-        size="sm"
+        size={compact ? "xs" : "sm"}
         onClick={() => setOpen(true)}
-        className="border-border-default w-full rounded-[var(--r-sm)]"
+        className={
+          compact
+            ? "border-border-default rounded-[var(--r-sm)]"
+            : "border-border-default w-full rounded-[var(--r-sm)]"
+        }
       >
         {L.shortAction}
       </Button>

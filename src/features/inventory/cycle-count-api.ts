@@ -4,9 +4,12 @@ import {
   addCountLineInput,
   cancelCycleCountInput,
   countLineInput,
+  cycleCountAssigneesDto,
   cycleCountDto,
   cycleCountListInput,
   cycleCountPageDto,
+  planCycleCountInput,
+  plannedCycleCountDto,
   recountCycleCountInput,
 } from "./cycle-count-schemas";
 import { inventoryRequest } from "./transport";
@@ -16,6 +19,7 @@ import type {
   CancelCycleCountInput,
   CountLineInput,
   CycleCountListParams,
+  PlanCycleCountInput,
   RecountCycleCountInput,
 } from "./cycle-count-types";
 
@@ -23,6 +27,22 @@ export function listCycleCounts(params: CycleCountListParams, signal?: AbortSign
   return inventoryRequest(
     { url: CYCLE_COUNT_API.list, params: cycleCountListInput.parse(params), signal },
     cycleCountPageDto,
+  );
+}
+
+/** Lập phiếu tay (docs 20 §4.2 a): trả phiếu `Planned` và các thùng bị bỏ qua vì đang nằm trên phiếu khác. */
+export function planCycleCount(input: PlanCycleCountInput) {
+  return inventoryRequest(
+    { url: CYCLE_COUNT_API.list, method: "POST", data: planCycleCountInput.parse(input) },
+    plannedCycleCountDto,
+  );
+}
+
+/** Người đếm chọn được của một kho: nhân viên kho / quản lý kho đang hoạt động (docs 20 BR-12). */
+export function listCycleCountAssignees(warehouseId: string, signal?: AbortSignal) {
+  return inventoryRequest(
+    { url: CYCLE_COUNT_API.assignees, params: { warehouseId }, signal },
+    cycleCountAssigneesDto,
   );
 }
 

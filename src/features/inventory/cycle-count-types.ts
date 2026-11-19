@@ -6,12 +6,15 @@ import type {
   addCountLineInput,
   cancelCycleCountInput,
   countLineInput,
+  cycleCountAssigneesDto,
   cycleCountDto,
   cycleCountLineAdjustmentDto,
   cycleCountLineDto,
   cycleCountListInput,
   cycleCountPageDto,
   cycleCountSummaryDto,
+  planCycleCountInput,
+  plannedCycleCountDto,
   recountCycleCountInput,
 } from "./cycle-count-schemas";
 
@@ -25,5 +28,9 @@ export type CountLineInput = z.input<typeof countLineInput>;
 export type AddCountLineInput = z.input<typeof addCountLineInput>;
 export type CancelCycleCountInput = z.input<typeof cancelCycleCountInput>;
 export type RecountCycleCountInput = z.input<typeof recountCycleCountInput>;
+
+export type PlanCycleCountInput = z.input<typeof planCycleCountInput>;
+export type PlannedCycleCount = z.infer<typeof plannedCycleCountDto>;
+export type CycleCountAssignee = z.infer<typeof cycleCountAssigneesDto>[number];
 
 export type CycleCountStatus = (typeof CYCLE_COUNT_STATUSES)[number];

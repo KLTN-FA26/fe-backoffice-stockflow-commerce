@@ -56,3 +56,35 @@ export function useWarehouseAreas(warehouseId: string | undefined, enabled = tru
     ...QUERY_TIMES.master,
   });
 }
+
+const zonesLayoutSchema = z
+  .object({ zones: z.array(z.object({ id: z.string(), name: z.string() }).loose()).default([]) })
+  .loose();
+
+export const warehouseZoneKeys = {
+  byWarehouse: (warehouseId: string) => ["references", "warehouse-zones", warehouseId] as const,
+};
+
+export interface ZoneOption {
+  id: string;
+  name: string;
+}
+
+/**
+ * Khu (zone) của kho từ `GET /warehouses/{id}/layout` — chọn phạm vi khi lập phiếu kiểm kê (docs 20 §4.2 a1). Thiếu
+ * quyền `warehouse-locations:READ` → lỗi; form vẫn lập được theo kệ / vị trí / SKU.
+ */
+export function useWarehouseZones(warehouseId: string | undefined, enabled = true) {
+  return useQuery({
+    queryKey: warehouseZoneKeys.byWarehouse(warehouseId ?? ""),
+    queryFn: async ({ signal }): Promise<ZoneOption[]> => {
+      const { data } = await api.get<unknown>(
+        `/warehouses/${encodeURIComponent(warehouseId ?? "")}/layout`,
+        { signal },
+      );
+      return zonesLayoutSchema.parse(data).zones.map(({ id, name }) => ({ id, name }));
+    },
+    enabled: enabled && !!warehouseId,
+    ...QUERY_TIMES.master,
+  });
+}

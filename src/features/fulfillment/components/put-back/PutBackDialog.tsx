@@ -7,20 +7,15 @@ import { ApiError } from "@/lib/api/error";
 import { createIdempotencyAttempt } from "@/lib/api/idempotency";
 import { useWarehouseLocations } from "@/lib/references/warehouse-locations";
 import { putBackError } from "@/features/fulfillment/pick-line-errors";
-import {
-  defaultPutBackLocation,
-  putBackLocationOptions,
-} from "@/features/fulfillment/pick-line-selectors";
+import { putBackChoices } from "@/features/fulfillment/put-back-choices";
 import { usePutBackLine } from "@/features/fulfillment/put-back-mutations";
 import { putBackInputSchema } from "@/features/fulfillment/put-back-schemas";
 import { Alert } from "@/components/shared/Alert";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { toast } from "@/components/shared/Toast";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 
-import { FieldError, MONO } from "../primitives";
 import { CodeField } from "../picking/CodeField";
+import { PutBackLpnField } from "./PutBackLpnField";
 
 import type { PutBackRow } from "@/features/fulfillment/types";
 
@@ -42,18 +37,10 @@ export function PutBackDialog({ row, onClose }: { row: PutBackRow; onClose: () =
   const [locationError, setLocationError] = useState<string | undefined>();
   const [lpnError, setLpnError] = useState<string | undefined>();
   const [serverError, setServerError] = useState<string | null>(null);
-  // Không tải được sơ đồ kho → chỉ còn bin đã lấy ra (BE vẫn kiểm bin: sai thì PUT_BACK_LOCATION_INVALID); thùng
-  // cách ly thì không có gợi ý nào — người dùng gõ mã khu cách ly
-  const fallback = locations.isError && !quarantine;
-  const options = fallback
-    ? [{ value: row.fromLocationCode, label: row.fromLocationCode }]
-    : putBackLocationOptions(locations.data, quarantine);
+  const { fallback, options, defaultCode } = putBackChoices(row, locations.data, locations.isError);
   // Chưa chọn gì → mặc định bin đã lấy ra (khi danh sách bin đã tải và bin đó còn dùng được)
-  const locationCode =
-    picked ??
-    (fallback
-      ? row.fromLocationCode
-      : defaultPutBackLocation(row.fromLocationCode, locations.data, quarantine));
+  const locationCode = picked ?? defaultCode;
+  const overflow = row.overflowLocationCodes ?? [];
 
   const submit = () => {
     if (putBack.isPending) return;
@@ -120,6 +107,11 @@ export function PutBackDialog({ row, onClose }: { row: PutBackRow; onClose: () =
             {null}
           </Alert>
         )}
+        {overflow.length > 0 && !quarantine && (
+          <Alert tone="info" title={P.overflowHint}>
+            {null}
+          </Alert>
+        )}
         <CodeField
           id="put-back-location"
           label={quarantine ? P.quarantineLocation : P.location}
@@ -135,33 +127,15 @@ export function PutBackDialog({ row, onClose }: { row: PutBackRow; onClose: () =
             document.getElementById("put-back-lpn")?.focus();
           }}
         />
-        <div className="space-y-1">
-          <Label htmlFor="put-back-lpn" className="text-ink-primary text-[0.8125rem] font-medium">
-            {P.lpn}
-          </Label>
-          <Input
-            id="put-back-lpn"
-            value={lpn}
-            autoComplete="off"
-            spellCheck={false}
-            placeholder={P.lpnPlaceholder}
-            aria-invalid={lpnError ? true : undefined}
-            aria-describedby={lpnError ? "put-back-lpn-error" : "put-back-lpn-hint"}
-            className={`bg-bg-surface h-9 rounded-[var(--r-sm)] ${MONO}`}
-            onChange={(event) => {
-              setLpn(event.target.value);
-              setLpnError(undefined);
-              setServerError(null);
-            }}
-          />
-          {lpnError ? (
-            <FieldError id="put-back-lpn-error">{lpnError}</FieldError>
-          ) : (
-            <p id="put-back-lpn-hint" className="text-ink-tertiary text-xs">
-              {P.lpnHint}
-            </p>
-          )}
-        </div>
+        <PutBackLpnField
+          value={lpn}
+          error={lpnError}
+          onChange={(value) => {
+            setLpn(value);
+            setLpnError(undefined);
+            setServerError(null);
+          }}
+        />
       </FormDialogBody>
     </FormDialog>
   );

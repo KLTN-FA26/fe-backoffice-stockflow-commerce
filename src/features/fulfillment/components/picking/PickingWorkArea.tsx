@@ -7,10 +7,11 @@ import { FULFILLMENT_PICK_PERMISSIONS, PICK_LINE_LABELS, PICK_STATUS } from "@/c
 import { useWarehouseLocations } from "@/lib/references/warehouse-locations";
 import {
   canConfirmPickLines,
-  canReallocateLine,
-  canViewPutBacks,
   canReportShort,
+  canReportStagedShort,
+  canViewPutBacks,
   isConfirmableLine,
+  pickLineAction,
 } from "@/features/fulfillment/pick-line-lifecycle";
 import {
   linesComplete,
@@ -49,16 +50,16 @@ export function PickingWorkArea({
   const lines = usePickLines(task.taskId, actor.can(FULFILLMENT_PICK_PERMISSIONS.read));
   // UI-only — Backend phải re-check (picking:UPDATE + người được gán; phân bổ lại: task-assignment:UPDATE)
   const canConfirm = canConfirmPickLines(task, actor);
-  const locations = useWarehouseLocations(task.warehouseId ?? undefined, canConfirm);
+  // Thùng đã về khu chờ xuất cũng báo thiếu được, kể cả khi task đã `Staged` (docs 20 §4.9 bước 4)
+  const canReportStaged = canReportStagedShort(task, actor);
+  const locations = useWarehouseLocations(
+    task.warehouseId ?? undefined,
+    canConfirm || canReportStaged,
+  );
   const [selectedId, setSelectedId] = useState<string | undefined>();
   // Câu "Đã lấy dòng …" chỉ nói thao tác vừa làm: báo thiếu / phân bổ lại xong thì bỏ
   const [lastDone, setLastDone] = useState<string | null>(null);
   const clearDone = () => setLastDone(null);
-  // Mỗi dòng tự xét: dòng SHORT khi task đang lấy, hoặc thùng hư đã loại ở trạm kiểm thùng chưa được bù
-  const lineActionOf = (line: PickLine) =>
-    canReallocateLine(task, actor, line) && (
-      <ReallocateButton taskId={task.taskId} line={line} onReallocated={clearDone} />
-    );
 
   const data = lines.data;
   const selected = data?.find((line) => line.lineId === selectedId && isConfirmableLine(line));
@@ -68,6 +69,22 @@ export function PickingWorkArea({
   const complete = !!data && linesComplete(data, task);
   const incompleteReason = pickIncompleteReason(data, lines.isError, task);
   const locationOptions = pickLocationOptions(locations.data, data ?? []);
+  // Mỗi dòng tự xét (`pickLineAction`): phân bổ lại / bù thùng, hoặc báo thiếu thùng đã về khu chờ xuất
+  const lineActionOf = (line: PickLine) => {
+    const action = pickLineAction(task, actor, line);
+    if (action === "reallocate") {
+      return <ReallocateButton taskId={task.taskId} line={line} onReallocated={clearDone} />;
+    }
+    return action === "reportShort" ? (
+      <ShortPickAction
+        compact
+        taskId={task.taskId}
+        line={line}
+        locationOptions={locationOptions}
+        onReported={clearDone}
+      />
+    ) : null;
+  };
   const onConfirmed = (line: PickLine) => {
     setSelectedId(undefined);
     setLastDone(L.done(line.sequenceNo));

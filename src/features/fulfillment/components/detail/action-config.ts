@@ -1,4 +1,4 @@
-import { CheckCircle2, PackageCheck, UserCog } from "lucide-react";
+import { ArrowRightLeft, CheckCircle2, PackageCheck, UserCog } from "lucide-react";
 
 import { allowedTaskActions } from "@/features/fulfillment/pick-line-lifecycle";
 
@@ -12,7 +12,7 @@ import type { FulfillmentScope } from "../primitives";
 
 /** Nhóm thao tác của từng màn — cùng một bảng `FULFILLMENT_ACTIONS`, không rải if/else. */
 export const SCOPE_ACTIONS: Record<FulfillmentScope, readonly FulfillmentActionCode[]> = {
-  picking: ["assign", "startPicking", "completePicking", "moveToDispatch"],
+  picking: ["assign", "changeDestination", "startPicking", "completePicking", "moveToDispatch"],
   packing: [],
 };
 
@@ -38,6 +38,11 @@ export function isConfirmCode(code: FulfillmentActionCode | null): code is Confi
   return CONFIRM_CODES.some((candidate) => candidate === code);
 }
 
+/** Thao tác phụ của task Pending (mở dialog, không đổi trạng thái): gán lại, đổi đích. */
+export function isSecondaryCode(code: FulfillmentActionCode): boolean {
+  return code === "assign" || code === "changeDestination";
+}
+
 export const CONFIRM_COPY: Record<ConfirmCode, (code: string) => string> = {
   startPicking: (code) =>
     `Bắt đầu lấy hàng cho task ${code}? Sau khi bắt đầu, task không gán lại được cho người khác.`,
@@ -52,6 +57,7 @@ export const CONFIRM_COPY: Record<ConfirmCode, (code: string) => string> = {
 
 export const ACTION_ICON: Partial<Record<FulfillmentActionCode, typeof CheckCircle2>> = {
   assign: UserCog,
+  changeDestination: ArrowRightLeft,
   moveToDispatch: PackageCheck,
 };
 

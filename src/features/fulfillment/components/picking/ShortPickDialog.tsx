@@ -4,7 +4,7 @@ import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 
-import { PICK_LINE_LABELS, SHORT_PICK_REASONS, TOAST_MESSAGES } from "@/constants";
+import { PICK_LINE_LABELS, TOAST_MESSAGES } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 import { createIdempotencyAttempt } from "@/lib/api/idempotency";
 import { shortPickError } from "@/features/fulfillment/pick-line-errors";
@@ -12,17 +12,9 @@ import { useReportShortPick } from "@/features/fulfillment/pick-line-mutations";
 import { shortPickInputSchema } from "@/features/fulfillment/pick-line-schemas";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { toast } from "@/components/shared/Toast";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
-import { FieldError } from "../primitives";
 import { CodeField } from "./CodeField";
+import { ShortPickReasonField } from "./ShortPickReasonField";
 
 import type { CodeOption } from "@/features/fulfillment/pick-line-selectors";
 import type { PickLine, ShortPickFormValues, ShortPickValues } from "@/features/fulfillment/types";
@@ -93,7 +85,13 @@ export function ShortPickDialog({
     <FormDialog open onOpenChange={(open) => !open && onClose()}>
       <FormDialogBody
         title={L.shortTitle}
-        description={L.target(line.locationCode, line.lpn, line.sku, line.allocatedQty)}
+        // Thùng đã về khu chờ xuất thì quét khu chờ, không phải bin lấy ra (BE `PickList.expectedAt`)
+        description={L.target(
+          line.stagedLocationCode ?? line.locationCode,
+          line.lpn,
+          line.sku,
+          line.allocatedQty,
+        )}
         submitLabel={L.shortAction}
         canSubmit
         isPending={report.isPending}
@@ -122,47 +120,11 @@ export function ShortPickDialog({
             />
           )}
         />
-        <div className="space-y-1">
-          <Label htmlFor="short-reason" className="text-ink-primary text-[0.8125rem] font-medium">
-            {L.shortReason}
-          </Label>
-          <Controller
-            control={form.control}
-            name="reason"
-            render={({ field }) => (
-              <Select
-                value={field.value ?? ""}
-                onValueChange={(value) => {
-                  field.onChange(value);
-                  form.clearErrors("reason");
-                }}
-              >
-                <SelectTrigger
-                  id="short-reason"
-                  aria-invalid={errors.reason ? true : undefined}
-                  aria-describedby={errors.reason ? "short-reason-error" : "short-reason-hint"}
-                  className="border-border-default bg-bg-surface text-ink-primary w-full rounded-[var(--r-sm)] text-[0.8125rem]"
-                >
-                  <SelectValue placeholder={L.shortReasonPlaceholder} />
-                </SelectTrigger>
-                <SelectContent>
-                  {SHORT_PICK_REASONS.map((reason) => (
-                    <SelectItem key={reason} value={reason}>
-                      {L.shortReasons[reason]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          />
-          {errors.reason ? (
-            <FieldError id="short-reason-error">{errors.reason.message}</FieldError>
-          ) : (
-            <p id="short-reason-hint" className="text-ink-tertiary text-xs">
-              {L.shortHint}
-            </p>
-          )}
-        </div>
+        <ShortPickReasonField
+          control={form.control}
+          error={errors.reason?.message}
+          onPicked={() => form.clearErrors("reason")}
+        />
       </FormDialogBody>
     </FormDialog>
   );

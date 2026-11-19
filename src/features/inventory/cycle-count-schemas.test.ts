@@ -9,7 +9,9 @@ import {
   cycleCountDto,
   cycleCountListInput,
   cycleCountPageDto,
+  planCycleCountInput,
   recountCycleCountInput,
+  splitCodes,
 } from "./cycle-count-schemas";
 import { cycleCountFixture, cycleCountLineFixture, cycleCountSummaryFixture } from "./test-support";
 
@@ -123,5 +125,94 @@ describe("cycle count request contracts", () => {
       lineIds: [LINE],
       note: "nghi đếm sai",
     });
+  });
+});
+
+describe("planCycleCountInput — PlanCycleCountRequest (docs 20 §4.2 a, BR-12)", () => {
+  const WAREHOUSE = "d0000001-0000-4000-8000-0000000000c1";
+  const base = {
+    warehouseId: WAREHOUSE,
+    blind: true,
+    zoneIds: [],
+    shelfCodes: [],
+    locationCodes: [],
+    skus: [],
+  };
+
+  it("needs at least one zone, shelf, bin or SKU: an empty scope would count the whole warehouse", () => {
+    expect(planCycleCountInput.safeParse(base).success).toBe(false);
+    expect(planCycleCountInput.safeParse({ ...base, shelfCodes: ["A01"] }).success).toBe(true);
+    expect(planCycleCountInput.safeParse({ ...base, skus: ["MUG-RED"] }).success).toBe(true);
+    expect(planCycleCountInput.safeParse({ ...base, zoneIds: [LINE] }).success).toBe(true);
+  });
+
+  it("keeps each list within the BE limits (50 zones, 200 shelves, 500 bins, 200 SKUs)", () => {
+    const many = (n: number) => Array.from({ length: n }, (_, i) => `C${i}`);
+    expect(planCycleCountInput.safeParse({ ...base, shelfCodes: many(201) }).success).toBe(false);
+    expect(planCycleCountInput.safeParse({ ...base, locationCodes: many(501) }).success).toBe(
+      false,
+    );
+    expect(planCycleCountInput.safeParse({ ...base, locationCodes: many(500) }).success).toBe(true);
+    expect(planCycleCountInput.safeParse({ ...base, skus: many(201) }).success).toBe(false);
+    expect(planCycleCountInput.safeParse({ ...base, shelfCodes: ["S".repeat(21)] }).success).toBe(
+      false,
+    );
+  });
+
+  it("the day (YYYY-MM-DD) and the note (at most 500 characters) are optional", () => {
+    const withSku = { ...base, skus: ["X"] };
+    expect(
+      planCycleCountInput.parse({ ...withSku, plannedDate: "2026-11-20", note: " cuối tháng " }),
+    ).toMatchObject({
+      plannedDate: "2026-11-20",
+      note: "cuối tháng",
+    });
+    expect(planCycleCountInput.safeParse({ ...withSku, plannedDate: "20/11/2026" }).success).toBe(
+      false,
+    );
+    expect(planCycleCountInput.safeParse({ ...withSku, note: "x".repeat(501) }).success).toBe(
+      false,
+    );
+    expect(planCycleCountInput.parse(withSku)).not.toHaveProperty("plannedDate");
+  });
+
+  it("the counter is optional", () => {
+    const parsed = planCycleCountInput.parse({ ...base, skus: ["X"], assignedUserId: LINE });
+    expect(parsed.assignedUserId).toBe(LINE);
+    expect(planCycleCountInput.parse({ ...base, skus: ["X"] }).assignedUserId).toBeUndefined();
+  });
+
+  it("splitCodes reads commas, semicolons and new lines, and drops blanks and repeats", () => {
+    expect(splitCodes(" A01, A02;A03\nA01  \n")).toEqual(["A01", "A02", "A03"]);
+    expect(splitCodes("")).toEqual([]);
+  });
+
+  it("contract with the BE's PlanCycleCountRequest: the four lists are one `scope` object, nothing else is nested", () => {
+    const request = planCycleCountInput.parse({
+      warehouseId: WAREHOUSE,
+      blind: true,
+      assignedUserId: LINE,
+      plannedDate: "2026-11-20",
+      note: "cuối tháng",
+      zoneIds: [LINE],
+      shelfCodes: ["A01"],
+      locationCodes: ["HCM-A01-1-B"],
+      skus: ["MUG-RED"],
+    });
+    expect(request).toEqual({
+      warehouseId: WAREHOUSE,
+      blind: true,
+      assignedUserId: LINE,
+      plannedDate: "2026-11-20",
+      note: "cuối tháng",
+      scope: {
+        zoneIds: [LINE],
+        shelfCodes: ["A01"],
+        locationCodes: ["HCM-A01-1-B"],
+        skus: ["MUG-RED"],
+      },
+    });
+    expect(request).not.toHaveProperty("zoneIds");
+    expect(request).not.toHaveProperty("skus");
   });
 });

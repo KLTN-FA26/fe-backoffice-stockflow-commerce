@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { PICK_LINE_LABELS as L } from "@/constants";
+import { PICK_LINE_LABELS as L, PUT_BACK_LABELS } from "@/constants";
 
 import { PICK_LINE_2, apiPickLines } from "./__fixtures__/pick-lines";
 import { apiTaskLines } from "./__fixtures__/task";
@@ -92,6 +92,16 @@ describe("pick-line selectors", () => {
     ]);
   });
 
+  it("linesComplete: dòng Put Back (thùng hư bị loại ở trạm kiểm, đã cất đi) tính là xong như BE requireAllPicked — thùng bù thay chỗ", () => {
+    expect(linesComplete(withStatus(["Picked", "Put Back", "Put Back"]))).toBe(true);
+    expect(linesComplete(withStatus(["Put Back", "Cancelled", "Staged"]))).toBe(true);
+    expect(linesComplete(withStatus(["Put Back", "Open", "Picked"]))).toBe(false);
+    expect(linesComplete(withStatus(["Put Back", "Short", "Picked"]))).toBe(false);
+    expect(
+      pickIncompleteReason(withStatus(["Picked", "Put Back", "Put Back"]), false),
+    ).toBeUndefined();
+  });
+
   it("linesComplete: mọi dòng Picked / Staged / Cancelled; còn Open / Short → false; không có dòng → true", () => {
     expect(linesComplete([])).toBe(true);
     expect(linesComplete(withStatus(["Picked", "Cancelled", "Picked"]))).toBe(true);
@@ -155,6 +165,25 @@ describe("vị trí cất lại thùng — BE PickList.putBack: bin đang dùng 
     expect(putBackLocationOptions(undefined)).toEqual([]);
   });
 
+  it("khu tạm OVERFLOW (BE chỉ gửi khi không bin nào vừa thùng) được thêm vào sau bin; thùng cách ly không có", () => {
+    expect(putBackLocationOptions(LOCATIONS, false, ["HN-OVF-01"])).toEqual([
+      { value: "HN-A01-01-01-A", label: "HN-A01-01-01-A" },
+      { value: "HN-OVF-01", label: "HN-OVF-01", hint: PUT_BACK_LABELS.overflowOption },
+    ]);
+    expect(putBackLocationOptions(LOCATIONS, true, ["HN-OVF-01"]).map((o) => o.value)).toEqual([
+      "HN-QC-01",
+    ]);
+  });
+
+  it("defaultPutBackLocation: không bin nào vừa và kho có đúng một khu tạm → chọn sẵn khu đó", () => {
+    expect(defaultPutBackLocation("HN-A01-01-01-A", LOCATIONS, false, ["HN-OVF-01"])).toBe(
+      "HN-OVF-01",
+    );
+    expect(
+      defaultPutBackLocation("HN-A01-01-01-A", LOCATIONS, false, ["HN-OVF-01", "HN-OVF-02"]),
+    ).toBe("HN-A01-01-01-A");
+  });
+
   it("thùng quarantine: chỉ khu QUARANTINE đang dùng được, không có bin", () => {
     expect(putBackLocationOptions(LOCATIONS, true).map((o) => o.value)).toEqual(["HN-QC-01"]);
   });
@@ -182,5 +211,12 @@ describe("vị trí cất lại thùng — BE PickList.putBack: bin đang dùng 
   it("stagingAreaOptions: chỉ khu STAGING đang dùng được (đích STAGING khi tạo task)", () => {
     expect(stagingAreaOptions(LOCATIONS).map((o) => o.value)).toEqual(["HN-STAGE-01"]);
     expect(stagingAreaOptions(undefined)).toEqual([]);
+  });
+});
+
+describe("pickLocationOptions — dòng Staged báo thiếu quét đúng khu chờ xuất", () => {
+  it("thêm khu chờ xuất của dòng dù không tải được sơ đồ kho", () => {
+    const staged = { ...lines()[0], status: "Staged" as const, stagedLocationCode: "HN-STAGE-01" };
+    expect(pickLocationOptions(undefined, [staged]).map((o) => o.value)).toContain("HN-STAGE-01");
   });
 });

@@ -19,6 +19,15 @@ export const assignInputSchema = z.object({
 });
 
 /**
+ * BE `DestinationRequest` (đổi đích khi task còn Pending) — `destination` @NotNull, `stagingLocationCode`
+ * @Size(max = 64): như tạo task, khu chờ xuất chỉ gửi khi đích là STAGING (docs 07 §4.1 bước 3).
+ */
+export const changeDestinationInputSchema = z.object({
+  destination: z.enum(PICK_DESTINATIONS),
+  stagingLocationCode: z.string().trim().max(PICK_LINE_LIMITS.codeMax, MSG.codeTooLong).optional(),
+});
+
+/**
  * BE `CreateTaskRequest` — `orderId`, `assignedUserId` @NotNull; `destination` mặc định DISPATCH (docs 07 §3 "Đích
  * lấy hàng"); `stagingLocationCode` @Size(max = 64) là khu chờ xuất của task STAGING — có thể bỏ khi kho chỉ có đúng
  * một khu chờ xuất đang hoạt động (BE `stagingAreaFor`, 422 STAGING_AREA_INVALID nếu không phải khu của kho).

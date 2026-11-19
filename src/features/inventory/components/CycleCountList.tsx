@@ -1,9 +1,16 @@
 "use client";
 
-import { CYCLE_COUNT_LABELS, CYCLE_COUNT_STATUSES } from "@/constants/cycle-count";
+import { useState } from "react";
+
+import {
+  CYCLE_COUNT_CREATE_LABELS,
+  CYCLE_COUNT_LABELS,
+  CYCLE_COUNT_STATUSES,
+} from "@/constants/cycle-count";
 import { INVENTORY_LABELS, INVENTORY_PAGE_SIZES } from "@/constants/inventory";
 import { CYCLE_COUNT_PERMISSIONS } from "@/constants/permissions";
 
+import { useCan } from "@/lib/auth";
 import { statusLabelVi } from "@/lib/status-map";
 
 import { DataTable } from "@/components/shared/DataTable";
@@ -16,6 +23,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { useCycleCounts } from "../cycle-count-queries";
+import { CycleCountCreateDialog } from "./CycleCountCreateDialog";
 import { useCycleCountFilters } from "../use-cycle-count-filters";
 import { buildCycleCountColumns, isOpenCycleCount } from "./cycle-count-columns";
 import {
@@ -44,6 +52,9 @@ export function CycleCountList() {
 
 function CycleCountListContent() {
   const state = useCycleCountFilters();
+  // UI-only — Backend phải re-check (inventory-cycle-counts:CREATE, docs 20 §4.2 a)
+  const canPlan = useCan(CYCLE_COUNT_PERMISSIONS.create);
+  const [planning, setPlanning] = useState(false);
   const query = useCycleCounts({
     page: state.page - 1,
     size: state.size,
@@ -51,7 +62,7 @@ function CycleCountListContent() {
   });
   return (
     // Giao diện kiểu Vercel như danh sách điều chỉnh tồn (`.surface-soft`): không tiêu đề hiển thị — breadcrumb là
-    // tên trang. Phiếu do quản lý kho lập hoặc hệ thống tự mở khi báo thiếu thùng, nên không có nút tạo ở đây.
+    // tên trang. Phiếu do quản lý kho lập tay (nút "Lập phiếu") hoặc hệ thống tự mở khi báo thiếu thùng.
     <div className="surface-soft space-y-[var(--card-pad)]">
       <h1 className="sr-only">{L.title}</h1>
       <InventoryOffline />
@@ -82,7 +93,13 @@ function CycleCountListContent() {
             {INVENTORY_LABELS.reset}
           </Button>
         )}
+        {canPlan && (
+          <Button type="button" size="sm" className="ml-auto" onClick={() => setPlanning(true)}>
+            {CYCLE_COUNT_CREATE_LABELS.action}
+          </Button>
+        )}
       </div>
+      {planning && <CycleCountCreateDialog onClose={() => setPlanning(false)} />}
       {query.isFetching && !query.isLoading && (
         <div role="status" aria-label={L.fetching} className="bg-info h-1" />
       )}

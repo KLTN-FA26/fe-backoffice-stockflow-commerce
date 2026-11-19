@@ -121,6 +121,9 @@ export const PUT_BACK_LABELS = {
   quarantineLocation: "Khu cách ly",
   quarantineLocationPlaceholder: "Chọn khu cách ly đang hoạt động",
   quarantineBadge: "Cách ly",
+  /** Không bin nào của kho vừa thùng → cất vào khu tạm (docs 07 BR-12, 05 BR-13). */
+  overflowHint: "Không bin nào của kho vừa thùng này — chọn khu tạm (OVERFLOW) để cất lại.",
+  overflowOption: "Khu tạm",
   quarantineHint: "Thùng hư hỏng được loại ở trạm kiểm — cất nguyên thùng vào khu cách ly của kho.",
   lpn: "Mã thùng (LPN)",
   lpnPlaceholder: "Quét hoặc nhập mã LPN của thùng",
@@ -166,6 +169,8 @@ export const PUT_BACK_ERROR_MESSAGES = {
     lpn ? `Sai thùng — dòng này trả thùng ${lpn}` : "Sai thùng — quét đúng mã LPN của dòng này",
   // BE CARTON_DOES_NOT_FIT_BIN (422, BR-12): thùng phải vừa bin theo từng chiều
   doesNotFit: "Thùng không vừa bin này theo kích thước — chọn bin khác",
+  // BE PUT_BACK_OVERFLOW_NOT_ALLOWED (409, BR-12): còn bin nhận được thùng thì chưa được cất vào khu tạm
+  overflowNotAllowed: "Vẫn còn bin nhận được thùng này — cất lại vào bin, không vào khu tạm",
   // BE STOCK_PACKAGE_TAKEN_WHOLE: một phần thùng đã đi cách ly lúc kiểm, không cất cả thùng về bin được
   takenWhole:
     "Một phần thùng đã được lấy ra lúc kiểm nên không cất nguyên thùng về bin được — báo quản lý kho.",

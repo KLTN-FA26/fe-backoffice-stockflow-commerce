@@ -2,7 +2,7 @@
  * Dòng lấy hàng — selector thuần (không side effect), dùng cho bảng dòng, card xác nhận và chặn hoàn tất.
  */
 
-import { PICK_LINE_LABELS, PICK_LINE_STATUS, PICK_STATUS } from "@/constants";
+import { PICK_LINE_LABELS, PICK_LINE_STATUS, PICK_STATUS, PUT_BACK_LABELS } from "@/constants";
 
 import type { PickStatus } from "@/constants";
 import type { WarehouseLocation } from "@/lib/references/warehouse-locations";
@@ -50,8 +50,8 @@ export function nextOpenLine(lines: readonly PickLine[]): PickLine | undefined {
 
 /**
  * Vị trí chọn được khi lấy hàng: mọi vị trí có mã của kho (bin + khu chứa, kể cả đang không dùng
- * được — hàng giữ có thể nằm ở bin vừa bị khoá) hợp với vị trí của các dòng, để vẫn xác nhận được
- * khi không tải được sơ đồ kho.
+ * được — hàng giữ có thể nằm ở bin vừa bị khoá) hợp với vị trí của các dòng (cả khu chờ xuất của dòng Staged), để vẫn
+ * xác nhận / báo thiếu được khi không tải được sơ đồ kho.
  */
 export function pickLocationOptions(
   locations: readonly WarehouseLocation[] | undefined,
@@ -60,6 +60,8 @@ export function pickLocationOptions(
   const codes = new Set<string>([
     ...(locations ?? []).map((location) => location.locationCode),
     ...lines.map((line) => line.locationCode),
+    // Thùng ở khu chờ xuất: báo thiếu quét đúng khu chờ (BE `PickList.expectedAt`)
+    ...lines.flatMap((line) => (line.stagedLocationCode ? [line.stagedLocationCode] : [])),
   ]);
   return [...codes].sort().map((code) => ({ value: code, label: code }));
 }
@@ -82,15 +84,19 @@ export function needsLinePlanning(
 
 /**
  * Đủ dòng để hoàn tất lấy hàng (BE `PickList.requireAllPicked`, docs 07 §4.2 bước 6: mọi dòng PICKED — hoặc STAGED
- * với task đích STAGING — hoặc CANCELLED, không thì 409 PICK_LINES_INCOMPLETE). Task không có dòng coi như đủ, trừ
- * khi còn phải lập dòng (`needsLinePlanning`).
+ * với task đích STAGING — hoặc CANCELLED, hoặc PUT_BACK, không thì 409 PICK_LINES_INCOMPLETE). Dòng CANCELLED là dòng
+ * thiếu đã phân bổ lại (dòng mới tính thay); dòng PUT_BACK đã lấy rồi thùng bị loại ở trạm kiểm (hư hỏng → khu cách ly,
+ * hoặc phần còn lại đã đóng → về bin), thùng bù lấy qua lấy bổ sung tính thay. Task không có dòng coi như đủ, trừ khi
+ * còn phải lập dòng (`needsLinePlanning`).
  */
 export function linesComplete(
   lines: readonly PickLine[],
   task?: Pick<FulfillmentTask, "pickStatus" | "lines">,
 ): boolean {
   if (task && needsLinePlanning(task, lines)) return false;
-  return lines.every((line) => isTaken(line) || isCancelled(line));
+  return lines.every(
+    (line) => isTaken(line) || isCancelled(line) || line.status === PICK_LINE_STATUS.PUT_BACK,
+  );
 }
 
 export function openLineCount(lines: readonly PickLine[]): number {
@@ -129,34 +135,47 @@ export function awaitingPutBackCount(
 }
 
 /**
- * Vị trí trả hàng: bình thường chỉ bin đang dùng được của kho task — BE `PickList.putBack` từ chối khu chứa, bin bị
- * khoá và vị trí kho khác (PUT_BACK_LOCATION_INVALID). Thùng hư hỏng bị loại ở trạm kiểm (`quarantine`, docs 08 §4.2
- * bước 4) thì ngược lại: chỉ khu `QUARANTINE` đang dùng được, không phải bin.
+ * Vị trí trả hàng: bình thường chỉ bin đang dùng được của kho task — BE `PickList.putBack` từ chối khu chứa khác, bin
+ * bị khoá và vị trí kho khác (PUT_BACK_LOCATION_INVALID). Thùng hư hỏng bị loại ở trạm kiểm (`quarantine`, docs 08
+ * §4.2 bước 4) thì ngược lại: chỉ khu `QUARANTINE` đang dùng được, không phải bin. Thêm khu tạm `OVERFLOW` — BE gửi
+ * `overflowLocationCodes` của dòng, chỉ có khi không bin nào của kho vừa thùng (docs 07 BR-12, 05 BR-13).
  */
 export function putBackLocationOptions(
   locations: readonly WarehouseLocation[] | undefined,
   quarantine = false,
+  overflow: readonly string[] = [],
 ): CodeOption[] {
-  return (locations ?? [])
+  const places = (locations ?? [])
     .filter((location) =>
       quarantine
         ? location.kind === "AREA" && location.areaType === "QUARANTINE" && location.usable
         : location.kind === "BIN" && location.usable,
     )
     .map((location) => ({ value: location.locationCode, label: location.locationCode }));
+  if (quarantine) return places;
+  const known = new Set(places.map((option) => option.value));
+  const tempAreas = overflow
+    .filter((code) => !known.has(code))
+    .map((code) => ({ value: code, label: code, hint: PUT_BACK_LABELS.overflowOption }));
+  return [...places, ...tempAreas];
 }
 
 /**
  * Mặc định cho ô vị trí trả: bin đã lấy ra nếu bin đó vẫn dùng được; thùng cách ly mà kho chỉ có một khu cách ly thì
- * khu đó; không thì để người dùng chọn.
+ * khu đó; thùng không bin nào vừa mà kho chỉ có một khu tạm thì khu đó; không thì để người dùng chọn.
  */
 export function defaultPutBackLocation(
   fromLocationCode: string,
   locations: readonly WarehouseLocation[] | undefined,
   quarantine = false,
+  overflow: readonly string[] = [],
 ): string {
-  const options = putBackLocationOptions(locations, quarantine);
-  if (quarantine) return options.length === 1 ? (options[0]?.value ?? "") : "";
+  if (quarantine) {
+    const options = putBackLocationOptions(locations, true);
+    return options.length === 1 ? (options[0]?.value ?? "") : "";
+  }
+  if (overflow.length === 1) return overflow[0] ?? "";
+  const options = putBackLocationOptions(locations);
   return options.some((option) => option.value === fromLocationCode) ? fromLocationCode : "";
 }
 
