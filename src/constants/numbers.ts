@@ -545,6 +545,20 @@ export const PRINT_TEMPLATE_DEFAULTS = {
 } as const;
 
 /**
+ * Tấm trải phẳng của túi giấy: mép dán dọc và phần gấp đáy (spec storefront 2026-11-18 §2). Nguồn: BE
+ * `BagModel.DEFAULT_GLUE_FLAP_MM` / `DEFAULT_BOTTOM_FOLD_SHARE` và `PrintConfigRules.MAX_GLUE_FLAP_MM`
+ * (origin/develop 3672ffb7). ⚠️ ASSUMPTION: hai số mặc định là số tạm, chờ xưởng xác nhận khuôn thật.
+ */
+export const BAG_SHEET_LIMITS = {
+  /** Mép dán điền sẵn, và BE dùng khi request không gửi hoặc bản ghi cũ chưa có. */
+  glueFlapDefaultMm: 20,
+  /** Gấp đáy điền sẵn = `round2(0,6 × hông túi)`. */
+  bottomFoldShare: 0.6,
+  /** Mép dán từ 0 đến 100 mm. */
+  glueFlapMaxMm: 100,
+} as const;
+
+/**
  * Giới hạn của cấu hình in (customization template) mà BE kiểm — nguồn: BE `CustomizationTemplateRequest`
  * / `PrintAreaRequest` / `CustomizationTemplateController` (origin/develop) và, cho file `.glb`, yêu cầu BE
  * B-1 / B-2 (`docs/superpowers/reports/2026-11-13-design-yeu-cau-bo-sung-cho-be.md` của storefront).
