@@ -921,6 +921,8 @@ export const AREA_TYPES = [
   "QUARANTINE",
   "PACKING",
   "DISPATCH",
+  // BE `AreaType.STAGING` — khu chờ xuất (docs 06 §4.5, BR-18): thiếu thì layout có khu này parse lỗi, mất cả bản đồ
+  "STAGING",
   "OVERFLOW",
   "PRODUCTION",
   "NON_STORAGE",

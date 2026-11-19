@@ -79,9 +79,12 @@ export function PlaceDetailDialog({
             <Row label={P.zone}>
               {zones.find((zone) => zone.id === place.shelf.zoneId)?.name ?? P.noZone}
             </Row>
-            <Row label={P.storageClass}>
-              {STORAGE_CLASS_LABELS[place.shelf.defaultStorageClass]}
-            </Row>
+            {/* BE không còn gửi lớp lưu trữ (kltn-docs 06, 2026-11-05) — chỉ hiện khi có */}
+            {place.shelf.defaultStorageClass && (
+              <Row label={P.storageClass}>
+                {STORAGE_CLASS_LABELS[place.shelf.defaultStorageClass]}
+              </Row>
+            )}
             <Row label={P.pickFaces}>
               {(["north", "east", "south", "west"] as const)
                 .filter((face) => place.shelf.pickFaces[face])
