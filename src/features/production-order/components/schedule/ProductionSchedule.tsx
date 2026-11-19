@@ -8,6 +8,7 @@ import {
   PRODUCTION_LABELS,
   PRODUCTION_ORDER_PERMISSIONS,
   PRODUCTION_SCHEDULE_PERMISSIONS,
+  SHORT_BATCH_COLUMNS,
   WAREHOUSE_PERMISSIONS,
 } from "@/constants";
 import { todayIso } from "@/lib/date-range";
@@ -17,8 +18,13 @@ import { useProducerDirectory } from "@/lib/references/producer-options";
 import { useWarehouseDirectory } from "@/lib/references/warehouse-options";
 
 import { useProductionSchedule } from "@/features/production-order/queries";
-import { byNeedByDate, byWindowStart } from "@/features/production-order/schedule-selectors";
+import {
+  byNeedByDate,
+  byWindowStart,
+  sortFlags,
+} from "@/features/production-order/schedule-selectors";
 
+import { DelayFlags } from "@/components/backoffice/DelayFlags";
 import { LoadErrorState } from "@/components/backoffice/LoadErrorState";
 import { Alert } from "@/components/shared/Alert";
 import { DetailSection } from "@/components/shared/DetailSection";
@@ -31,9 +37,17 @@ import { ScheduledOrdersTable } from "./ScheduledOrdersTable";
 import { ScheduleFilters } from "./ScheduleFilters";
 import { useScheduleFilters } from "./useScheduleFilters";
 
+import type { ColumnDef } from "@/components/shared/DataTable";
 import type { ShortDeliveryBatch } from "@/features/production-order/schedule-schemas";
 
 const L = PRODUCTION_LABELS.schedule;
+
+/** Cột cờ trễ của đợt còn thiếu (PO_NEEDED, DELIVERY_LATE — docs 17 §4.12 bước 48). */
+const BATCH_ALERTS: ColumnDef<ShortDeliveryBatch> = {
+  key: SHORT_BATCH_COLUMNS.ALERTS,
+  header: PRODUCTION_LABELS.drawUp.alerts,
+  cell: (row) => <DelayFlags flags={sortFlags(row.alerts)} />,
+};
 
 function ScheduleContent() {
   const can = usePermissionChecker();
@@ -87,6 +101,7 @@ function ScheduleContent() {
             <ShortBatchTable
               batches={byWindowStart(data.shortBatches)}
               onDrawUp={canDrawUp ? setBatch : undefined}
+              extraColumns={[BATCH_ALERTS]}
             />
           </DetailSection>
         </>

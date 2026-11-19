@@ -12,6 +12,7 @@ import {
 import { usePermissionChecker } from "@/lib/auth";
 import { formatDateTime } from "@/lib/format/date";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
+import { DelayAlertsPanel } from "@/components/backoffice/DelayAlertsPanel";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { BackLink } from "@/components/shared/BackLink";
 
@@ -144,6 +145,8 @@ function OrderDetailContent({
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 space-y-5">
+          {/* Cờ trễ của đơn (docs 17 §4.12 bước 49) — không chặn thao tác nào */}
+          <DelayAlertsPanel salesOrderId={order.orderId} />
           {hasCustomLines && (
             <ProductionStatusNotice query={production} canRead={canReadProduction} />
           )}

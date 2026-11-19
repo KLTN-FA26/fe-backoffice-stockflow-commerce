@@ -12,6 +12,7 @@ import {
   useProductionOrderDispatch,
 } from "@/features/production-order/queries";
 
+import { DelayAlertsPanel } from "@/components/backoffice/DelayAlertsPanel";
 import { LoadErrorState } from "@/components/backoffice/LoadErrorState";
 import { DETAIL_GRID_CLASS } from "@/components/shared/DetailSection";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
@@ -55,6 +56,7 @@ function DetailContent({ id }: { id: string }) {
       <RefetchBar active={query.isFetching} label={PRODUCTION_LABELS.detail.loadingRefs} />
       <div className={DETAIL_GRID_CLASS}>
         <div className="flex min-w-0 flex-col gap-5">
+          <DelayAlertsPanel salesOrderId={order.salesOrderId} productionOrderId={order.id} />
           <CapacityWarning order={order} />
           <GeneralCard order={order} me={me} />
           <LinesCard order={order} />

@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { PRODUCTION_LABELS } from "@/constants";
+import { DELAY_ALERT_LABELS, PRODUCTION_LABELS } from "@/constants";
 import { mockProductionApi, renderProductionScreen } from "@/test/production-screen";
 
 import { ProductionSchedule } from "../components/schedule/ProductionSchedule";
@@ -25,10 +25,12 @@ function setup(permissions = PRODUCTION_ACTORS.coordinator, searchParams = "") {
 afterEach(() => vi.restoreAllMocks());
 
 describe("ProductionSchedule (docs 17 §4.12)", () => {
-  it("hiện Đơn sản xuất đang mở và đợt giao còn thiếu", async () => {
+  it("hiện Đơn sản xuất đang mở kèm cờ trễ và đợt còn thiếu kèm PO_NEEDED", async () => {
     setup();
     expect(await screen.findByText("PRD-20261120-0001")).toBeInTheDocument();
+    expect(screen.getByText(DELAY_ALERT_LABELS.AT_RISK)).toBeInTheDocument();
     expect(screen.getByText("SO-2026-0050")).toBeInTheDocument();
+    expect(screen.getByText(DELAY_ALERT_LABELS.PO_NEEDED)).toBeInTheDocument();
   });
 
   it("bộ lọc trên URL gửi đúng tham số cho BE", async () => {

@@ -5,8 +5,13 @@ import Link from "next/link";
 import { ADMIN_ROUTES, PRODUCTION_LABELS, PRODUCTION_SCHEDULE_COLUMNS as C } from "@/constants";
 import { formatDate, formatNumber } from "@/lib/format";
 
-import { daysUntil, expectedAfterNeedBy } from "@/features/production-order/schedule-selectors";
+import {
+  daysUntil,
+  expectedAfterNeedBy,
+  sortFlags,
+} from "@/features/production-order/schedule-selectors";
 
+import { DelayFlags } from "@/components/backoffice/DelayFlags";
 import { CELL, EmptyCell, StackText } from "@/components/shared/column-helpers";
 import { DataTable } from "@/components/shared/DataTable";
 
@@ -114,6 +119,11 @@ function columns(today: string): ColumnDef<ScheduledProductionOrder>[] {
       key: C.STATUS,
       header: col.status,
       cell: (row) => <ProductionStatusDot status={row.status} />,
+    },
+    {
+      key: C.ALERTS,
+      header: col.alerts,
+      cell: (row) => <DelayFlags flags={sortFlags(row.alerts)} />,
     },
   ];
 }
