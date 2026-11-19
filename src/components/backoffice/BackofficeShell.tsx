@@ -15,6 +15,7 @@ import {
   Database,
   FileBox,
   FileSignature,
+  MessagesSquare,
   FileText,
   FlaskConical,
   Gauge,
@@ -82,6 +83,7 @@ import {
   PRODUCT_PERMISSIONS,
   PRODUCTION_ORDER_PERMISSIONS,
   QUOTE_PERMISSIONS,
+  CHAT_PERMISSIONS,
   SAMPLE_REQUEST_PERMISSIONS,
   PUT_BACK_LABELS,
   SHIPMENT_PERMISSIONS,
@@ -115,6 +117,7 @@ import {
 } from "@/constants/payment";
 import { RETURN_ROUTES, RMA_PERMISSIONS } from "@/constants/returns";
 
+import { useStaffChatBadge } from "@/features/chat";
 import { NotificationBell } from "@/features/notification";
 import { warehouseBreadcrumbTail } from "@/features/warehouse-map/components/workspace/WarehouseCrumb";
 import { WarehouseNavPanel } from "@/features/warehouse-map/components/workspace/WarehouseNavPanel";
@@ -414,6 +417,13 @@ export const NAV_GROUPS: NavGroup[] = [
         href: ADMIN_ROUTES.quotes.list,
         icon: FileSignature,
         permission: QUOTE_PERMISSIONS.viewPage,
+      },
+      {
+        label: "Chat với khách",
+        href: ADMIN_ROUTES.chat.list,
+        icon: MessagesSquare,
+        // BE `chat-conversations:VIEW_PAGE` (seed: SALES_STAFF, SALES_MANAGER, SYSTEM_ADMIN)
+        permission: CHAT_PERMISSIONS.viewPage,
       },
       {
         label: "Yêu cầu mẫu",
@@ -782,10 +792,14 @@ function BackofficeSidebar() {
   const collapsed = state === "collapsed";
 
   const isMock = useIsMock();
-  // Số đếm lấy từ dữ liệu mẫu: không hiện khi nối BE thật (không bịa số liệu)
+  const chatBadge = useStaffChatBadge();
+  // Số đếm lấy từ dữ liệu mẫu: không hiện khi nối BE thật (không bịa số liệu). Riêng chat đọc số thật của BE (S22).
   const warningCounts = useMemo<Record<string, number>>(
-    () => (isMock ? computeWarningCounts() : {}),
-    [isMock],
+    () => ({
+      ...(isMock ? computeWarningCounts() : {}),
+      ...(chatBadge > 0 ? { [ADMIN_ROUTES.chat.list]: chatBadge } : {}),
+    }),
+    [isMock, chatBadge],
   );
   const canSeeItem = useCanSeeNavItem();
   const visibleGroups = visibleNavGroups(canSeeItem);

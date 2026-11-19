@@ -1,5 +1,4 @@
-import { STATUS_LABEL_VI } from "@/lib/domain/status-map";
-import { QUOTE_STATUS_BY_API } from "@/constants";
+import { QUOTE_STATUS_LABELS } from "@/constants";
 
 import type { QuoteApiStatus } from "@/constants";
 import type { LoadErrorCopy } from "@/components/backoffice/LoadErrorState";
@@ -14,8 +13,7 @@ export const QUOTE_COPY: LoadErrorCopy = {
 };
 
 export function quoteStatusLabel(status: QuoteApiStatus): string {
-  const key = QUOTE_STATUS_BY_API[status];
-  return STATUS_LABEL_VI[key] ?? key;
+  return QUOTE_STATUS_LABELS[status];
 }
 
 export const MONO = "font-[family-name:var(--font-mono)] text-[0.8125rem] tabular-nums";

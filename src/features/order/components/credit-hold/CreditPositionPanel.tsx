@@ -3,6 +3,7 @@
 import { RotateCw } from "lucide-react";
 
 import { formatMoney } from "@/lib/format";
+import { formatDate } from "@/lib/format/date";
 
 import { Alert } from "@/components/shared/Alert";
 import { Button } from "@/components/ui/button";
@@ -20,11 +21,11 @@ export interface CreditPositionState {
   refetch: () => void;
 }
 
-const TITLE = "Công nợ hiện tại của khách";
+const TITLE = "Vị thế tín dụng của khách";
 
 /**
- * Công nợ HIỆN TẠI của khách (BE `GET /orders/credit-position/{customerId}`) để người duyệt cân
- * nhắc — KHÔNG phải lý do đơn này bị giữ (lý do lúc kiểm nằm ở hàng đợi công nợ). Tiền theo
+ * Vị thế tín dụng HIỆN TẠI của khách (BE `CreditPositionResponse`, `GET /orders/credit-position/{customerId}`)
+ * để người duyệt cân nhắc — KHÔNG phải lý do đơn này bị giữ (lý do lúc kiểm nằm ở hàng đợi). Tiền theo
  * `currency` của hồ sơ khách.
  */
 export function CreditPositionPanel({ state }: { state: CreditPositionState }) {
@@ -33,7 +34,7 @@ export function CreditPositionPanel({ state }: { state: CreditPositionState }) {
     return (
       <Alert tone="warning" title="Không tải được công nợ hiện tại của khách">
         <div className="flex items-center justify-between gap-2">
-          <span>Chuyển sang trả trước / đặt cọc chưa chọn được tới khi tải lại thành công.</span>
+          <span>Vẫn duyệt / từ chối được; tải lại để xem hạn mức và khoản quá hạn.</span>
           <Button type="button" variant="outline" size="sm" onClick={state.refetch}>
             <RotateCw className="size-3.5" /> Thử lại
           </Button>
@@ -57,17 +58,32 @@ export function CreditPositionPanel({ state }: { state: CreditPositionState }) {
     >
       <h3 className="text-ink-secondary text-xs font-medium">{TITLE}</h3>
       <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-[0.8125rem]">
-        <dt className="text-ink-tertiary">Hạn mức còn lại</dt>
+        <dt className="text-ink-tertiary">Hạn mức</dt>
         <dd className="text-right font-mono tabular-nums">
-          {p.availableCredit === null
-            ? "Không bán công nợ"
-            : formatMoney(p.availableCredit, p.currency)}
+          {p.creditLimit === null ? "Không bán trả sau" : formatMoney(p.creditLimit, p.currency)}
+          {p.creditTermDays !== null ? ` · ${p.creditTermDays} ngày` : ""}
         </dd>
-        <dt className="text-ink-tertiary">Đang nợ</dt>
+        <dt className="text-ink-tertiary">Dư nợ</dt>
         <dd className="text-right font-mono tabular-nums">{formatMoney(p.exposure, p.currency)}</dd>
-        <dt className="text-ink-tertiary">Nợ quá hạn</dt>
+        <dt className="text-ink-tertiary">Còn lại</dt>
+        <dd className="text-right font-mono tabular-nums">
+          {p.availableCredit === null ? "—" : formatMoney(p.availableCredit, p.currency)}
+        </dd>
+        <dt className="text-ink-tertiary">Quá hạn</dt>
         <dd className={`text-right ${p.hasOverdue ? "text-danger font-medium" : ""}`}>
-          {p.hasOverdue ? "Hiện có khoản quá hạn" : "Hiện không có"}
+          {p.hasOverdue ? (
+            <>
+              Có quá hạn:{" "}
+              <span className="font-mono tabular-nums">
+                {formatMoney(p.overdueAmount, p.currency)}
+              </span>
+              {p.oldestOverdueDueDate
+                ? `, cũ nhất từ ngày ${formatDate(p.oldestOverdueDueDate)}`
+                : ""}
+            </>
+          ) : (
+            "Không có"
+          )}
         </dd>
       </dl>
     </section>

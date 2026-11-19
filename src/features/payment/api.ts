@@ -47,8 +47,8 @@ function pageQuery(params: ListQueryParams) {
 export interface ListInstallmentParams extends ListQueryParams {
   customerId?: string;
   orderId?: string;
-  /** BE nhận MỘT trạng thái (enum), không phải danh sách; không bao giờ `OVERDUE` (400). */
-  status?: Exclude<InstallmentApiStatus, "OVERDUE">;
+  /** BE nhận MỘT trạng thái (enum), không phải danh sách; quá hạn lọc bằng `overdue=true`. */
+  status?: InstallmentApiStatus;
   milestone?: InstallmentMilestone;
   /** `YYYY-MM-DD`: chỉ đợt có hạn trả trước ngày này. */
   dueBefore?: string;

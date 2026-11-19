@@ -707,6 +707,24 @@ export const QUOTE_STATUS_BY_API = {
   CANCELLED: "Cancelled",
   CONVERTED: "Converted",
 } as const satisfies Record<QuoteApiStatus, string>;
+/** Nhãn tiếng Việt của trạng thái báo giá (plan WF-02 A1). */
+export const QUOTE_STATUS_LABELS = {
+  DRAFT: "Nháp",
+  SENT: "Đã gửi",
+  CHANGES_REQUESTED: "Yêu cầu sửa",
+  ACCEPTED: "Đã chấp nhận",
+  EXPIRED: "Hết hiệu lực",
+  CANCELLED: "Đã huỷ",
+  CONVERTED: "Đã tạo đơn",
+} as const satisfies Record<QuoteApiStatus, string>;
+
+/** Loại dòng phí trên báo giá — BE `order.api.FeeKind` (14 BR-17, BR-20). */
+export const QUOTE_FEE_KINDS = ["PLATE_FEE", "SHIPPING_FEE"] as const;
+export type QuoteFeeKind = (typeof QUOTE_FEE_KINDS)[number];
+export const QUOTE_FEE_LABELS = {
+  PLATE_FEE: "Phí khuôn / bản in",
+  SHIPPING_FEE: "Phí vận chuyển",
+} as const satisfies Record<QuoteFeeKind, string>;
 
 /** Yêu cầu mẫu — BE `SampleStatus` (SCRUM-403). */
 export const SAMPLE_API_STATUSES = [
