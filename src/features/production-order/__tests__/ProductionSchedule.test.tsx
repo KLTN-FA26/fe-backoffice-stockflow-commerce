@@ -53,6 +53,20 @@ describe("ProductionSchedule (docs 17 §4.12)", () => {
     expect(call?.[1]).toMatchObject({ params: { from: undefined, to: undefined } });
   });
 
+  it("ngày sai định dạng trên URL → không gửi lên BE", async () => {
+    const { get } = setup(PRODUCTION_ACTORS.coordinator, "?from=2026-12-1&to=abc");
+    await screen.findByText("PRD-20261120-0001");
+    const call = get.mock.calls.find(([url]) => url === "/production-schedule");
+    expect(call?.[1]).toMatchObject({ params: { from: undefined, to: undefined } });
+    expect(screen.queryByText(L.rangeInvalid)).not.toBeInTheDocument();
+  });
+
+  it("lọc kho từ link khi không đọc được danh mục kho → vẫn hiện ô lọc kho", async () => {
+    setup(PRODUCTION_ACTORS.coordinator, "?warehouseId=wh-000000009");
+    await screen.findByText("PRD-20261120-0001");
+    expect(screen.getByRole("combobox", { name: L.warehouseFilter })).toBeInTheDocument();
+  });
+
   it("Điều phối sản xuất có nút Lập ở đợt còn thiếu", async () => {
     setup(PRODUCTION_ACTORS.coordinator);
     const region = await screen.findByRole("region", { name: new RegExp(D.title) });
