@@ -7,8 +7,14 @@
  *   POST /returns/{id}/approval | rejection | cancellation         Sale duyệt / từ chối / rút
  *   POST /returns/{id}/resolution                                  Sale đề xuất hoàn tiền (RECEIVED)
  *   POST /returns/{id}/settlement-approval | settlement-rejection  Kế toán duyệt / trả lại (SETTLEMENT_PENDING)
+ *   POST /returns/{id}/goods-complete                              WF-05 TH-3: chốt theo số đã về (AWAITING_RETURN)
+ *   POST /returns/{id}/closure-without-refund                      WF-05 TH-4: kết thúc không hoàn tiền (RECEIVED)
+ *   POST /returns/{id}/evidence/uploads → PUT /__mock-storage/returns/{uploadId} → POST /returns/{id}/evidence
+ *                                                                  ảnh bằng chứng tải thẳng lên kho (CLAIM)
  * Kiểm `version` như BE (409 OPTIMISTIC_LOCK), trạng thái nguồn (409 RETURN_INVALID_TRANSITION) và trần số lượng.
  */
+
+import { RETURN_LIMITS } from "@/constants/returns";
 
 import { registerMockRoute } from "./mock-adapter";
 import { mockReturns, nextMockReturnId, MOCK_RETURN_WAREHOUSE } from "./mock-returns-store";
@@ -22,6 +28,7 @@ import {
   pathParams,
   queryOf,
   text,
+  validationFailed,
 } from "./mock-route-utils";
 
 import type { ReturnApiStatus, ReturnReason } from "@/constants/returns";
@@ -133,8 +140,15 @@ function reject(ret: MockReturn, body: Record<string, unknown>) {
   return ok(wire(ret));
 }
 
+/** Đã có kiện hàng về (BE `ReturnRequest.anyParcel`). */
+const anyParcel = (ret: MockReturn) =>
+  !!ret.receipt?.goodsReceiptId || (ret.receipt?.parcels.length ?? 0) > 0;
+
 function cancel(ret: MockReturn, body: Record<string, unknown>) {
   if (ret.status !== "REQUESTED" && ret.status !== "AWAITING_RETURN") return invalid(ret.status);
+  // WF-05 TH-3: rút sẽ bỏ hàng đã về trong kho mà không hoàn gì
+  if (anyParcel(ret))
+    return fail(409, "RETURN_GOODS_PARTLY_RECEIVED", "A parcel came back: mark the goods complete");
   ret.cancellationReason = text(body.reason) || null;
   ret.closedAt = now();
   move(ret, "CANCELLED", ret.cancellationReason);
@@ -167,6 +181,123 @@ function propose(ret: MockReturn, body: Record<string, unknown>) {
   };
   move(ret, "SETTLEMENT_PENDING");
   return ok(wire(ret));
+}
+
+/** Số đơn vị hoàn được (BE `ReturnLine.refundableUnits`). */
+const refundable = (ret: MockReturn) =>
+  ret.lines.reduce((sum, l) => sum + Math.min(l.approvedQuantity ?? 0, l.receivedQuantity ?? 0), 0);
+
+/** WF-05 TH-3 (BE `ReturnRequest.markGoodsComplete`): AWAITING_RETURN có ≥ 1 kiện về → RECEIVED. */
+function goodsComplete(ret: MockReturn, body: Record<string, unknown>) {
+  if (stale(ret, body)) return optimisticLock();
+  if (ret.status !== "AWAITING_RETURN" || !anyParcel(ret)) return invalid(ret.status);
+  const note = text(body.note);
+  if (note.length > RETURN_LIMITS.goodsCompleteNoteMax)
+    return validationFailed("note", "note is at most 500 characters");
+  move(ret, "RECEIVED", note ? `GOODS_COMPLETE: ${note}` : "GOODS_COMPLETE");
+  return ok(wire(ret));
+}
+
+/** WF-05 TH-4 (BE `ReturnRequest.closeWithoutRefund`): RECEIVED, không đơn vị nào hoàn được → RESOLVED, 0 đồng. */
+function closeWithoutRefund(ret: MockReturn, body: Record<string, unknown>) {
+  if (stale(ret, body)) return optimisticLock();
+  if (ret.status !== "RECEIVED") return invalid(ret.status);
+  if (refundable(ret) > 0)
+    return fail(400, "RETURN_QUANTITIES_INVALID", "Units approved came back: propose their refund");
+  const note = text(body.note);
+  if (note.length > RETURN_LIMITS.noteMax)
+    return validationFailed("note", "note is at most 1000 characters");
+  for (const l of ret.lines) {
+    l.refundQuantity = 0;
+    l.refundAmount = 0;
+  }
+  ret.resolution = {
+    moneyMode: null,
+    settlementAmount: 0,
+    proposedBy: "mock-current-user",
+    proposedAt: now(),
+    note: note || null,
+    settledBy: "mock-current-user",
+    settledAt: now(),
+    offsetAmount: 0,
+    refundedAmount: 0,
+    vatAdjustmentRequired: false,
+  };
+  ret.closedAt = now();
+  move(ret, "RESOLVED", "RESOLVED_NOTHING_USABLE");
+  return ok(wire(ret));
+}
+
+/* ── Ảnh bằng chứng tải thẳng lên kho (BE `beginEvidenceUpload` / `addUploadedEvidence`) ───────────── */
+
+interface MockEvidenceUpload {
+  returnId: string;
+  fileName: string;
+  received: boolean;
+  evidenceId: string | null;
+}
+const evidenceUploads = new Map<string, MockEvidenceUpload>();
+
+/** Ảnh của khiếu nại chỉ nhận khi còn chờ duyệt / chờ hàng về, tối đa 10 ảnh (BE `requireEvidenceAllowed`). */
+function evidenceRefusal(ret: MockReturn) {
+  if (ret.status !== "REQUESTED" && ret.status !== "AWAITING_RETURN") return invalid(ret.status);
+  if (ret.evidence.length >= RETURN_LIMITS.evidenceMax)
+    return fail(409, "RETURN_EVIDENCE_LIMIT_REACHED", "The return holds its photos already");
+  return null;
+}
+
+function beginEvidenceUpload(ret: MockReturn, body: Record<string, unknown>) {
+  const fileName = text(body.fileName);
+  const contentType = text(body.contentType);
+  const sizeBytes = typeof body.sizeBytes === "number" ? body.sizeBytes : 0;
+  // UploadSlotRequest: fileName ≤ 255, contentType ≤ 100, sizeBytes > 0, sha256 hex thường 64
+  if (!fileName || fileName.length > 255)
+    return validationFailed("fileName", "fileName is required");
+  if (!contentType || contentType.length > 100)
+    return validationFailed("contentType", "contentType is required");
+  if (!(sizeBytes > 0)) return validationFailed("sizeBytes", "sizeBytes must be positive");
+  if (!/^[0-9a-f]{64}$/.test(text(body.sha256)))
+    return validationFailed("sha256", "must be a lower-case hex SHA-256");
+  const refused = evidenceRefusal(ret);
+  if (refused) return refused;
+  if (!(RETURN_LIMITS.evidenceTypes as readonly string[]).includes(contentType))
+    return fail(415, "UNSUPPORTED_MEDIA_TYPE", "This file type is not accepted");
+  if (sizeBytes > RETURN_LIMITS.evidenceMaxBytes)
+    return fail(413, "PAYLOAD_TOO_LARGE", "The uploaded file is too large");
+  const uploadId = crypto.randomUUID();
+  evidenceUploads.set(uploadId, { returnId: ret.id, fileName, received: false, evidenceId: null });
+  return ok(
+    {
+      uploadId,
+      method: "PUT",
+      url: `/__mock-storage/returns/${uploadId}`,
+      headers: { "Content-Type": contentType },
+      expiresAt: new Date(Date.now() + 15 * 60_000).toISOString(),
+    },
+    201,
+  );
+}
+
+function attachEvidence(ret: MockReturn, body: Record<string, unknown>) {
+  const uploadId = text(body.uploadId);
+  const upload = evidenceUploads.get(uploadId);
+  if (!upload || upload.returnId !== ret.id)
+    return validationFailed("uploadId", "No such upload for this return");
+  // Gửi lại cùng uploadId → trả yêu cầu như đã gắn
+  if (upload.evidenceId) return ok(wire(ret), 201);
+  if (!upload.received) return validationFailed("uploadId", "The file was never uploaded");
+  const refused = evidenceRefusal(ret);
+  if (refused) return refused;
+  const evidenceId = nextMockReturnId("EV");
+  ret.evidence.push({
+    id: evidenceId,
+    stage: "CLAIM",
+    originalName: upload.fileName,
+    uploadedAt: now(),
+  });
+  upload.evidenceId = evidenceId;
+  ret.version += 1;
+  return ok(wire(ret), 201);
 }
 
 function settle(ret: MockReturn, body: Record<string, unknown>, approved: boolean) {
@@ -285,6 +416,18 @@ export function registerReturnMockRoutes(): void {
   registerMockRoute("POST", "/returns/:id/rejection", step(reject));
   registerMockRoute("POST", "/returns/:id/cancellation", step(cancel));
   registerMockRoute("POST", "/returns/:id/resolution", step(propose));
+  registerMockRoute("POST", "/returns/:id/goods-complete", step(goodsComplete));
+  registerMockRoute("POST", "/returns/:id/closure-without-refund", step(closeWithoutRefund));
+  // `/evidence/uploads` trước `/evidence` không cần (khác số đoạn) — giữ cạnh nhau cho dễ đọc
+  registerMockRoute("POST", "/returns/:id/evidence/uploads", step(beginEvidenceUpload));
+  registerMockRoute("POST", "/returns/:id/evidence", step(attachEvidence));
+  // Kho đối tượng của ảnh trả hàng: nhận byte rồi đánh dấu đã tới (URL ký sẵn, không xác thực)
+  registerMockRoute("PUT", "/__mock-storage/returns/:uploadId", (config) => {
+    const upload = evidenceUploads.get(pathParams(config).uploadId ?? "");
+    if (!upload) return fail(403, "SIGNATURE_MISMATCH", "Request signature does not match");
+    upload.received = true;
+    return { status: 200, data: null, headers: {} };
+  });
   registerMockRoute(
     "POST",
     "/returns/:id/settlement-approval",

@@ -59,6 +59,8 @@ export const EINVOICE_LABELS = {
   },
   detail: {
     general: "Thông tin chung",
+    /** WF-05 HĐ-3: lần giao của hoá đơn bị sửa thành thất bại (`deliveryFailedAt`). */
+    deliveryFailedAt: "Giao thất bại lúc",
     buyer: "Bên mua",
     seller: "Bên bán",
     lines: "Dòng hàng",
@@ -74,7 +76,7 @@ export const EINVOICE_LABELS = {
     refreshBuyer: "Làm mới bên mua",
     issue: "Phát hành",
     void: "Huỷ nháp",
-    reconcile: "Tra lại",
+    reconcile: "Kiểm tra lại",
     resubmit: "Gửi lại như giao dịch mới",
     reopen: "Mở lại thành nháp",
     withdraw: "Rút hoá đơn",

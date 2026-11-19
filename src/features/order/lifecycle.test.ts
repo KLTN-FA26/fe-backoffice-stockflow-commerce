@@ -165,7 +165,6 @@ function checkerFor(role: Role) {
 
 /** Đơn chi tiết điển hình: trả trước, không giữ, chưa chia lô, chưa đóng gói. */
 const BASE_CONTEXT: OrderActionContext = {
-  paymentTerm: "PREPAID",
   holdReason: null,
   hasShipments: false,
   packedAt: null,
@@ -177,7 +176,7 @@ const codes = (status: OrderReadStatus, role: Role, context?: Partial<OrderActio
   allowedOrderActions(status, checkerFor(role), { ...BASE_CONTEXT, ...context }).map((a) => a.code);
 
 const PACKED_AT = "2026-09-08T01:00:00Z";
-const CREDIT_HOLD = { paymentTerm: "CREDIT", holdReason: "CREDIT" } as const;
+const CREDIT_HOLD = { holdReason: "CREDIT" } as const;
 
 describe("allowedOrderActions — release (docs 17 §4.2 bước 5, BR-03; sales-order-releases:UPDATE)", () => {
   it("Confirmed + quản lý kho (sales-order-releases:UPDATE) → chỉ Release (không huỷ, không giữ)", () => {
@@ -203,7 +202,7 @@ describe("allowedOrderActions — release (docs 17 §4.2 bước 5, BR-03; sales
       stayIn: ["Partially Fulfilled"],
     });
     // Đơn công nợ cũng release được trên FE: nợ quá hạn / giữ đủ hàng / kho là điều kiện server
-    expect(codes("Confirmed", "WAREHOUSE_MANAGER", { paymentTerm: "CREDIT" })).toContain("release");
+    expect(codes("Confirmed", "WAREHOUSE_MANAGER")).toContain("release");
   });
 
   // BE Order#release (CONFIRMED, hoặc AWAITING_STOCK) + Order#releaseLaterBatch (PARTIALLY_FULFILLED) — docs 17 §4.2 / §4.4 / §4.5
@@ -270,28 +269,34 @@ describe("allowedOrderActions — credit hold (SCRUM-427, docs 14 BR-06)", () =>
   });
 
   it.each(["ADDRESS", "DESIGN_MISMATCH", "FRAUD", "UNKNOWN", null] as const)(
-    "đơn CREDIT giữ vì %s → KHÔNG có duyệt / từ chối công nợ (BE ORDER_NOT_ON_CREDIT_HOLD)",
+    "đơn giữ vì %s → KHÔNG có duyệt / từ chối công nợ (BE ORDER_NOT_ON_CREDIT_HOLD)",
     (holdReason) => {
-      const actions = codes("On Hold", "ACCOUNTANT", { paymentTerm: "CREDIT", holdReason });
+      const actions = codes("On Hold", "ACCOUNTANT", { holdReason });
       expect(actions).not.toContain("credit-approve");
       expect(actions).not.toContain("credit-reject");
     },
   );
 
-  it("lý do CREDIT nhưng phương thức không phải / chưa biết là CREDIT → không duyệt (BE requireCreditHold)", () => {
-    for (const paymentTerm of ["DEPOSIT", null, undefined] as const) {
-      expect(codes("On Hold", "ACCOUNTANT", { paymentTerm, holdReason: "CREDIT" })).toEqual([]);
-    }
+  it("TT-1: BE không còn gửi paymentTerm — chỉ lý do giữ CREDIT là đủ để Kế toán thấy duyệt / từ chối", () => {
+    expect(codes("On Hold", "ACCOUNTANT", { holdReason: "CREDIT" })).toEqual([
+      "credit-approve",
+      "credit-reject",
+    ]);
   });
 
-  it("đơn CREDIT đã Confirmed → hết credit hold", () => {
-    expect(codes("Confirmed", "ACCOUNTANT", { paymentTerm: "CREDIT" })).toEqual([]);
+  it("lý do giữ chưa biết (dòng danh sách không mang field) → không duyệt", () => {
+    expect(codes("On Hold", "ACCOUNTANT", { holdReason: undefined })).toEqual([]);
   });
 
-  it("isCreditHold cần cả lý do CREDIT lẫn phương thức CREDIT", () => {
-    expect(isCreditHold({ holdReason: "CREDIT", paymentTerm: "CREDIT" })).toBe(true);
-    expect(isCreditHold({ holdReason: "ADDRESS", paymentTerm: "CREDIT" })).toBe(false);
-    expect(isCreditHold({ holdReason: "CREDIT", paymentTerm: "PREPAID" })).toBe(false);
+  it("đơn đã Confirmed → hết credit hold", () => {
+    expect(codes("Confirmed", "ACCOUNTANT", { holdReason: null })).toEqual([]);
+  });
+
+  it("isCreditHold chỉ xét lý do giữ CREDIT (BE Order#requireCreditHold)", () => {
+    expect(isCreditHold({ holdReason: "CREDIT" })).toBe(true);
+    expect(isCreditHold({ holdReason: "ADDRESS" })).toBe(false);
+    expect(isCreditHold({ holdReason: null })).toBe(false);
+    expect(isCreditHold({ holdReason: undefined })).toBe(false);
   });
 });
 
@@ -558,7 +563,6 @@ describe("allowedOrderActions — trạng thái lạ + định nghĩa action", (
   it("orderActionContextOf dựng ngữ cảnh từ đơn chi tiết", () => {
     expect(
       orderActionContextOf({
-        paymentTerm: "CREDIT",
         holdReason: "CREDIT",
         shipments: [],
         packedAt: null,
@@ -566,7 +570,6 @@ describe("allowedOrderActions — trạng thái lạ + định nghĩa action", (
         statusBeforeHold: null,
       }),
     ).toEqual({
-      paymentTerm: "CREDIT",
       holdReason: "CREDIT",
       hasShipments: false,
       packedAt: null,

@@ -3,6 +3,9 @@
  * của phiếu nhập hàng hoàn. Không side effect.
  */
 
+import { RETURN_LABELS } from "@/constants/labels-return";
+import { RETURN_LIMITS } from "@/constants/returns";
+
 import type { ReturnApiStatus } from "@/constants/returns";
 import type { ExpectedCarton, ReturnLine, ReturnReceipt, ReturnRequest } from "./types";
 
@@ -83,6 +86,26 @@ export function linesOnShipment<T extends { lineId: string }>(
 /** Trần hoàn của một dòng: đã duyệt và đã về kho (BE `ReturnLine.refundableUnits`). */
 export const refundableUnits = (line: ReturnLine): number =>
   Math.min(line.approvedQuantity ?? 0, line.receivedQuantity ?? 0);
+
+/** Tổng số đơn vị hoàn được của yêu cầu — 0 thì chỉ còn "Kết thúc không hoàn tiền" (BE `closeWithoutRefund`). */
+export const totalRefundableUnits = (lines: readonly ReturnLine[]): number =>
+  lines.reduce((sum, line) => sum + refundableUnits(line), 0);
+
+/**
+ * Đã có kiện hàng của yêu cầu về kho (BE `ReturnRequest.anyParcel`): phiếu đầu tiên hoặc một lần hàng về. Khi đó không
+ * rút được nữa (`RETURN_GOODS_PARTLY_RECEIVED`) và Sale chốt bằng "Đã nhận đủ hàng" (WF-05 TH-3).
+ */
+export const hasGoodsBack = (receipt: ReturnRequest["receipt"]): boolean =>
+  !!receipt?.goodsReceiptId || (receipt?.parcels?.length ?? 0) > 0;
+
+/** Ảnh bằng chứng: JPEG / PNG / WebP ≤ 15 MB (BE `ContentTypePolicy` của ảnh trả hàng) — null là hợp lệ. */
+export function evidenceFileProblem(file: { type: string; size: number }): string | null {
+  if (!(RETURN_LIMITS.evidenceTypes as readonly string[]).includes(file.type))
+    return RETURN_LABELS.detail.photoWrongType;
+  if (file.size <= 0 || file.size > RETURN_LIMITS.evidenceMaxBytes)
+    return RETURN_LABELS.detail.photoTooLarge;
+  return null;
+}
 
 /** Giá trị dự kiến của đề xuất (đơn giá dòng × SL) — BE tính lại gồm VAT, đây chỉ là ước tính trước thuế. */
 export function proposedValue(

@@ -33,6 +33,8 @@ function messageOf(code: string): string | null {
       return M.decisionPending;
     case "INVALID_STOCK_PACKAGE_TRANSITION":
       return M.notInStock;
+    case "RETURN_CARTON_OPENED":
+      return M.returnCartonOpened;
     case "FORBIDDEN":
       return M.forbidden;
     case "OUT_OF_DATA_SCOPE":

@@ -13,7 +13,6 @@ import { allowedEInvoiceActions, EINVOICE_TRANSITIONS, isTerminalEInvoice } from
 import {
   einvoiceStatusLabel,
   invoiceReference,
-  lastSentAt,
   needsAttention,
   rejectionText,
   warningMessages,
@@ -101,36 +100,26 @@ describe("allowedEInvoiceActions — three roles (docs 21 BR-02)", () => {
   });
 
   it("BR-05: a submitting invoice is only looked up; resubmitted only when unknown to the provider", () => {
-    expect(allowedEInvoiceActions(gate({ status: "SUBMITTING" }), ACCOUNTANT)).toEqual([
-      "reconcile",
-    ]);
+    expect(allowedEInvoiceActions(gate({ status: "SUBMITTING" }), ACCOUNTANT)).not.toContain(
+      "resubmit",
+    );
     expect(
       allowedEInvoiceActions(
         gate({ status: "SUBMITTING", warnings: ["UNKNOWN_TO_PROVIDER"] }),
         ACCOUNTANT,
       ),
-    ).toEqual(["reconcile", "resubmit"]);
+    ).toEqual(["reconcile", "resubmit", "withdraw"]);
   });
 
-  it("HĐ-1: withdraw only once the last send is older than withdraw-after (3 h), and only for approvers", () => {
+  it("HĐ-1: withdraw is offered on any submitting invoice with a provider, to approvers only — BE decides the timing", () => {
+    // Mốc 3 giờ / 1 ngày từ lần gửi cuối và câu trả lời của NCC do BE kiểm lúc rút (EINVOICE_WITHDRAWAL_REFUSED)
     const submitting = gate({ status: "SUBMITTING" });
-    const sent = "2026-11-18T00:00:00Z";
-    const at = (hours: number) => ({
-      now: Date.parse(sent) + hours * 3_600_000,
-      lastSentAt: sent,
-    });
-    expect(allowedEInvoiceActions(submitting, ACCOUNTANT, at(2.9))).not.toContain("withdraw");
-    expect(allowedEInvoiceActions(submitting, ACCOUNTANT, at(3))).toEqual([
-      "reconcile",
-      "withdraw",
-    ]);
-    expect(allowedEInvoiceActions(submitting, SALES_MANAGER, at(30))).toEqual([]);
+    expect(allowedEInvoiceActions(submitting, ACCOUNTANT)).toEqual(["reconcile", "withdraw"]);
+    expect(allowedEInvoiceActions(submitting, SALES_MANAGER)).toEqual([]);
     expect(
-      allowedEInvoiceActions(gate({ status: "SUBMITTING", provider: null }), ACCOUNTANT, at(30)),
+      allowedEInvoiceActions(gate({ status: "SUBMITTING", provider: null }), ACCOUNTANT),
     ).not.toContain("withdraw");
-    expect(allowedEInvoiceActions(gate({ status: "DRAFT" }), ACCOUNTANT, at(30))).not.toContain(
-      "withdraw",
-    );
+    expect(allowedEInvoiceActions(gate({ status: "DRAFT" }), ACCOUNTANT)).not.toContain("withdraw");
   });
 
   it("BR-08: an adjusted invoice may be adjusted again but not replaced", () => {
@@ -226,18 +215,6 @@ describe("selectors", () => {
     expect(rejectionText({ rejectionCode: "INVALID_SERIES", rejectionMessage: null })).toBe(
       "Nhà cung cấp từ chối (INVALID_SERIES): không nêu lý do.",
     );
-  });
-
-  it("the last send is the latest SUBMIT call, else submittedAt", () => {
-    const invoice = { submittedAt: "2026-11-18T00:00:00Z" };
-    expect(lastSentAt(invoice, undefined)).toBe("2026-11-18T00:00:00Z");
-    expect(
-      lastSentAt(invoice, [
-        { operation: "SUBMIT", calledAt: "2026-11-18T00:00:00Z" },
-        { operation: "SUBMIT", calledAt: "2026-11-18T00:40:00Z" },
-        { operation: "QUERY", calledAt: "2026-11-18T02:00:00Z" },
-      ]),
-    ).toBe("2026-11-18T00:40:00Z");
   });
 
   it("needs the accountant: drafts, rejected, overdue or unknown to the provider", () => {

@@ -11,7 +11,12 @@ import { ApiError } from "@/lib/api/error";
 import { useAuthStore } from "@/lib/auth/auth-store";
 
 import { approveAdjustment, createAdjustment, listMovements } from "@/features/inventory/api";
-import { getCarton, quarantineCarton, releaseCarton } from "@/features/inventory/quarantine-api";
+import {
+  getCarton,
+  listCartons,
+  quarantineCarton,
+  releaseCarton,
+} from "@/features/inventory/quarantine-api";
 
 import { seedMockCartons } from "@/test/mock-cartons";
 
@@ -166,5 +171,27 @@ describe("quarantine and release (docs 20 §4.8)", () => {
     // Approval posts the write-off: the carton has left stock, so it cannot be quarantined or released again.
     expect(await getCarton(LPN)).toMatchObject({ status: "CONSUMED", onHand: 0 });
     expect(await captureError(releaseCarton(LPN))).toMatchObject({ status: 409 });
+  });
+});
+
+describe("cartons of one quarantine area (GET /inventory/stock-packages?location=)", () => {
+  it("lists the live cartons at exactly that location, by LPN; SKU narrows; consumed cartons stay out", async () => {
+    expect((await listCartons({ location: QUARANTINE_AREA, page: 0, size: 20 })).items).toEqual([]);
+    await quarantineCarton(LPN, { locationCode: QUARANTINE_AREA, reason: "Móp" });
+    const page = await listCartons({ location: QUARANTINE_AREA.toLowerCase(), page: 0, size: 20 });
+    expect(page).toMatchObject({ page: 0, totalElements: 1, hasNext: false });
+    expect(page.items[0]).toMatchObject({
+      lpn: LPN,
+      locationCode: QUARANTINE_AREA,
+      status: "IN_STOCK",
+      onHand: 120,
+    });
+    expect(
+      (await listCartons({ location: QUARANTINE_AREA, sku: "OTHER-SKU", page: 0, size: 20 })).items,
+    ).toEqual([]);
+    // LPN_OUT is CONSUMED: never listed by default
+    expect(
+      (await listCartons({ location: "HCM-A01-1-B", page: 0, size: 20 })).items.map((c) => c.lpn),
+    ).not.toContain(LPN_OUT);
   });
 });

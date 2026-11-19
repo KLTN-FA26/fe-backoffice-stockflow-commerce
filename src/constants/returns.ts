@@ -181,6 +181,11 @@ export const RETURN_LIMITS = {
   receiptNoteMax: 2000,
   lpnMax: 30,
   conditionMax: 500,
+  /** Hàng lẻ không nhãn (BE `RecordLooseUnitsRequest`). */
+  skuMax: 64,
+  lotMax: 64,
+  /** Ghi chú khi Sale bấm "Đã nhận đủ hàng" (BE `ReturnRequests.GoodsComplete`). */
+  goodsCompleteNoteMax: 500,
   locationCodeMax: 64,
   /** Ảnh bằng chứng: JPEG / PNG / WebP ≤ 15 MB, tối đa 10 ảnh (BE `ReturnPolicy.maxEvidence`). */
   evidenceMaxBytes: 15 * 1024 * 1024,

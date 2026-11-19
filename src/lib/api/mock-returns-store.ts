@@ -22,6 +22,25 @@ export interface MockReturnLine {
   refundAmount: number | null;
 }
 
+/** Một lần hàng về (BE `ReturnRequestResponse.Parcel`, WF-05 TH-3). */
+export interface MockReturnParcel {
+  parcel: number;
+  goodsReceiptId: string;
+  receiptNumber: string;
+  locationCode: string;
+  receivedBy: string;
+  receivedAt: string;
+}
+
+/** Hàng đã về (BE `ReturnRequestResponse.Receipt`): phiếu đầu tiên + mọi lần hàng về. */
+export interface MockReturnReceiptRef {
+  receivedBy?: string | null;
+  receivedAt: string;
+  locationCode: string;
+  goodsReceiptId?: string | null;
+  parcels: MockReturnParcel[];
+}
+
 export interface MockReturn {
   id: string;
   rmaNumber: string;
@@ -38,7 +57,7 @@ export interface MockReturn {
   lateClaimReason: string | null;
   currency: string;
   review: Record<string, unknown> | null;
-  receipt: Record<string, unknown> | null;
+  receipt: MockReturnReceiptRef | null;
   resolution: Record<string, unknown> | null;
   cancellationReason: string | null;
   closedAt: string | null;
@@ -70,7 +89,12 @@ export interface MockReturnReceipt {
     quantity: number;
     condition: string | null;
     scannedAt: string;
+    /** WF-05 TH-4: số đếm thực; `opened` khi ít hơn nhãn. */
+    countedQuantity: number;
+    opened: boolean;
   }[];
+  /** Hàng lẻ không nhãn (WF-05 TH-4) — chỉ phiếu của yêu cầu trả hàng. */
+  looseLines: { id: string; sku: string; lotNumber: string | null; quantity: number }[];
   /** Thùng của nguồn (shipment / đơn) — ASSUMPTION mock: LPN sinh theo dòng đơn. */
   source: { lpn: string; sku: string; lotNumber: string; quantity: number }[];
   version: number;
@@ -154,6 +178,30 @@ function seed(
   };
 }
 
+const QUARANTINE = "WH-HCM-01-QUARANTINE";
+
+/** Hàng đã về qua một phiếu (một lần hàng về). */
+const backOn = (
+  goodsReceiptId: string,
+  receiptNumber: string,
+  at: string,
+): MockReturnReceiptRef => ({
+  receivedBy: "mock-warehouse-staff",
+  receivedAt: at,
+  locationCode: QUARANTINE,
+  goodsReceiptId,
+  parcels: [
+    {
+      parcel: 1,
+      goodsReceiptId,
+      receiptNumber,
+      locationCode: QUARANTINE,
+      receivedBy: "mock-warehouse-staff",
+      receivedAt: at,
+    },
+  ],
+});
+
 const reviewed = (deadline = "2026-11-25T17:00:00Z") => ({
   decidedBy: SALES,
   decidedAt: "2026-11-11T02:00:00Z",
@@ -195,11 +243,7 @@ export function resetReturnMockStore(): void {
         channel: "BACK_OFFICE",
         requestedBy: SALES,
         review: reviewed(),
-        receipt: {
-          receivedAt: "2026-11-13T04:00:00Z",
-          locationCode: "WH-HCM-01-QUARANTINE",
-          goodsReceiptId: "RRC-SEED-1",
-        },
+        receipt: backOn("RRC-SEED-1", "GR-RET-SEED-1", "2026-11-13T04:00:00Z"),
       },
     ),
     seed(
@@ -216,7 +260,7 @@ export function resetReturnMockStore(): void {
       ],
       {
         review: reviewed(),
-        receipt: { receivedAt: "2026-11-12T04:00:00Z", locationCode: "WH-HCM-01-QUARANTINE" },
+        receipt: backOn("RRC-SEED-2", "GR-RET-SEED-2", "2026-11-12T04:00:00Z"),
         resolution: {
           moneyMode: "REFUND",
           settlementAmount: 160_920,
@@ -241,7 +285,7 @@ export function resetReturnMockStore(): void {
       {
         requestedAt: "2026-10-20T03:00:00Z",
         review: reviewed("2026-11-04T17:00:00Z"),
-        receipt: { receivedAt: "2026-10-24T04:00:00Z", locationCode: "WH-HCM-01-QUARANTINE" },
+        receipt: backOn("RRC-SEED-3", "GR-RET-SEED-3", "2026-10-24T04:00:00Z"),
         resolution: {
           moneyMode: "REFUND",
           settlementAmount: 160_920,
@@ -281,9 +325,79 @@ export function resetReturnMockStore(): void {
         closedAt: "2026-10-16T00:00:00Z",
       },
     ),
+    // WF-05 TH-3: mới về 1 / 3 — còn chờ hàng, không rút được, Sale có thể "Đã nhận đủ hàng"
+    seed(
+      "RMA-0009",
+      "AWAITING_RETURN",
+      o16,
+      [
+        line("ORDL-0016-1", "SKU-002-WHT", 89_000, 3, {
+          approvedQuantity: 3,
+          receivedQuantity: 1,
+        }),
+      ],
+      {
+        reasonCode: "WRONG_ITEM",
+        description: "Giao nhầm màu.",
+        review: reviewed(),
+        receipt: backOn("RRC-SEED-9", "GR-RET-SEED-9", "2026-11-14T04:00:00Z"),
+      },
+    ),
+    // WF-05 TH-4: thùng về bị mở, đếm rỗng — không đơn vị nào hoàn được, chỉ "Kết thúc không hoàn tiền"
+    seed(
+      "RMA-0010",
+      "RECEIVED",
+      o4,
+      [
+        line("ORDL-0004-1", "SKU-001-BLK-M", 149_000, 1, {
+          approvedQuantity: 1,
+          receivedQuantity: 0,
+        }),
+      ],
+      {
+        review: reviewed(),
+        receipt: backOn("RRC-SEED-10", "GR-RET-SEED-10", "2026-11-14T05:00:00Z"),
+      },
+    ),
   ];
-  receipts = [];
+  receipts = [seedClosedReceipt(returns[8])];
   counter = returns.length;
+}
+
+/** Phiếu đã xác nhận của lần hàng về đầu tiên của RMA-0009 (1 / 3 đơn vị, thùng mở) — để link "Lần 1" mở được. */
+function seedClosedReceipt(ret: MockReturn | undefined): MockReturnReceipt {
+  const source = ret ? sourceCartonsOf(ret) : [];
+  const first = source[0];
+  return {
+    id: "RRC-SEED-9",
+    number: "GR-RET-SEED-9",
+    status: "CLOSED",
+    warehouseId: MOCK_RETURN_WAREHOUSE,
+    orderId: ret?.orderId ?? "",
+    orderNumber: ret?.orderNumber ?? "",
+    shipmentId: null,
+    shipmentCode: null,
+    returnRequestId: ret?.id ?? null,
+    rmaNumber: ret?.rmaNumber ?? null,
+    quarantineLocationCode: QUARANTINE,
+    note: null,
+    receivedAt: "2026-11-14T03:00:00Z",
+    closedAt: "2026-11-14T04:00:00Z",
+    cartons: first
+      ? [
+          {
+            ...first,
+            condition: "Thùng bị rạch",
+            scannedAt: "2026-11-14T03:30:00Z",
+            countedQuantity: 1,
+            opened: true,
+          },
+        ]
+      : [],
+    looseLines: [],
+    source,
+    version: 2,
+  };
 }
 
 resetReturnMockStore();
