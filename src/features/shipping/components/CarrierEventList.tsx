@@ -3,6 +3,7 @@
 import { RadioTower } from "lucide-react";
 
 import {
+  CARRIER_EVENT_PAGE_SIZES,
   FULFILLMENT_CARRIER_EVENT_PERMISSIONS,
   SHIPMENT_PERMISSIONS,
   UI_LABELS,
@@ -18,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { buildCarrierEventColumns } from "./carrier-event/carrier-event-columns";
 import { CarrierEventDialog } from "./carrier-event/CarrierEventDialog";
 import { CarrierEventFilters } from "./carrier-event/CarrierEventFilters";
+import { CarrierEventSummary } from "./carrier-event/CarrierEventSummary";
 import { useCarrierEventListState } from "./carrier-event/useCarrierEventListState";
 import { RefetchErrorNotice } from "./primitives";
 import { ShippingLoadError } from "./ShippingLoadError";
@@ -102,8 +104,8 @@ function CarrierEventListContent() {
           rowKey={(row) => row.eventId}
           onRowClick={(row) => s.openEvent(row.eventId)}
           caption={`${UI_LABELS.common.showing} ${page.items.length} / ${page.totalElements} ${E.listCaption}`}
-          pageSize={page.size}
-          pageSizeOptions={[page.size]}
+          pageSize={s.size}
+          pageSizeOptions={[...CARRIER_EVENT_PAGE_SIZES]}
           serverPagination={{
             page: page.page,
             size: page.size,
@@ -112,7 +114,7 @@ function CarrierEventListContent() {
             hasNext: page.hasNext,
             hasPrevious: page.hasPrevious,
             onPageChange: (p) => s.setPage(p + 1),
-            onPageSizeChange: () => undefined,
+            onPageSizeChange: s.setPageSize,
           }}
         />
       </>
@@ -123,6 +125,7 @@ function CarrierEventListContent() {
     <div className="surface-soft">
       <h1 className="sr-only">{E.title}</h1>
       {canRead && <CarrierEventFilters s={s} />}
+      {canRead && <CarrierEventSummary s={s} />}
       {query.isError && page && <RefetchErrorNotice onRetry={() => void query.refetch()} />}
       {body}
       {s.eventId && <CarrierEventDialog eventId={s.eventId} onClose={s.closeEvent} />}

@@ -3,6 +3,7 @@ import { parseAsInteger, parseAsString, parseAsStringLiteral, useQueryState } fr
 import {
   CARRIER_EVENT_ERRORS_FILTER,
   CARRIER_EVENT_PAGE_SIZE,
+  CARRIER_EVENT_PAGE_SIZES,
   CARRIER_EVENT_RESULTS,
 } from "@/constants";
 import {
@@ -33,6 +34,10 @@ export function useCarrierEventListState(canRead: boolean) {
     "handling",
     parseAsStringLiteral(HANDLING_FILTERS).withDefault("all"),
   );
+  const [rawSize, setSize] = useQueryState(
+    "size",
+    parseAsInteger.withDefault(CARRIER_EVENT_PAGE_SIZE),
+  );
   const [carrierId, setCarrierId] = useQueryState("carrier", parseAsString.withDefault(""));
   const [loadId, setLoadId] = useQueryState("load", parseAsString.withDefault(""));
   const [eventId, setEventId] = useQueryState("event", parseAsString.withDefault(""));
@@ -41,12 +46,14 @@ export function useCarrierEventListState(canRead: boolean) {
   // sẽ trống và trông như hỏng. Không có `?load=` thì mặc định là danh sách lỗi.
   const defaultResult = loadId ? CARRIER_EVENT_ALL_FILTER : CARRIER_EVENT_ERRORS_FILTER;
   const result = explicitResult ?? defaultResult;
+  const size =
+    CARRIER_EVENT_PAGE_SIZES.find((option) => option === rawSize) ?? CARRIER_EVENT_PAGE_SIZE;
   const errorView = isErrorFilter(result);
   const effectiveHandling = errorView ? handling : "all";
   const query = useCarrierEvents(
     {
       page: Math.max(0, page - 1),
-      size: CARRIER_EVENT_PAGE_SIZE,
+      size,
       result: resultParam(result),
       open: effectiveHandling === "all" ? undefined : effectiveHandling === "open",
       carrierId: carrierId || undefined,
@@ -73,6 +80,8 @@ export function useCarrierEventListState(canRead: boolean) {
     result,
     handling: effectiveHandling,
     errorView,
+    size,
+    resultIsDefault: result === defaultResult,
     carrierId,
     loadId,
     eventId,
@@ -104,6 +113,23 @@ export function useCarrierEventListState(canRead: boolean) {
       void setHandling(null);
       void setCarrierId(null);
       void setLoadId(null);
+      void setPage(1);
+    },
+    setPageSize: (value: number) => {
+      void setSize(value === CARRIER_EVENT_PAGE_SIZE ? null : value);
+      void setPage(1);
+    },
+    clearHandling: () => {
+      void setHandling(null);
+      void setPage(1);
+    },
+    clearCarrier: () => {
+      void setCarrierId(null);
+      void setPage(1);
+    },
+    clearResult: () => {
+      void setResult(null);
+      void setHandling(null);
       void setPage(1);
     },
     openEvent: (id: string) => void setEventId(id),

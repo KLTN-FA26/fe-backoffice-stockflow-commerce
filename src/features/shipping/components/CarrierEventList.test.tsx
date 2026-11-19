@@ -203,7 +203,7 @@ describe("CarrierEventList — danh sách", () => {
       carrierId: "car-ghn",
       loadId: "ld-1",
     });
-    expect(screen.getByText(E.filter.load)).toBeInTheDocument();
+    expect(screen.getByText(`${E.filter.load}: ${E.filter.loadValue}`)).toBeInTheDocument();
   });
 
   it("số trang nằm trên URL (?page=2 → page=1 của BE); trang vượt quá dữ liệu hiện nút về trang đầu", async () => {
@@ -240,15 +240,40 @@ describe("CarrierEventList — danh sách", () => {
     expect(lastParams(get)).toMatchObject({ result: "ERRORS", loadId: "ld-1" });
   });
 
+  it("thanh Cấu hình: mỗi bộ lọc đang bật có nút X gỡ riêng; mặc định 'Đặt lại' bị khoá", async () => {
+    const user = userEvent.setup();
+    const { get } = renderList(ACTORS.manager, { search: "?handling=open&carrier=car-vtp" });
+    await screen.findByText(E.result.UNMATCHED);
+    expect(screen.getByText(`${E.filter.handling}: ${E.filter.handlingOpen}`)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: E.filter.clearHandling }));
+    await waitFor(() =>
+      expect(lastParams(get)).toMatchObject({ open: undefined, carrierId: "car-vtp" }),
+    );
+    await user.click(screen.getByRole("button", { name: E.filter.clearCarrier }));
+    await waitFor(() => expect(lastParams(get)?.carrierId).toBeUndefined());
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: E.filter.resetAll })).toBeDisabled(),
+    );
+  });
+
+  it("?size không nằm trong 10 / 15 / 20 / 50 thì dùng cỡ trang mặc định", async () => {
+    const { get } = renderList(ACTORS.manager, { search: "?size=7&page=3" });
+    await waitFor(() =>
+      expect(lastParams(get)).toMatchObject({ size: CARRIER_EVENT_PAGE_SIZE, page: 2 }),
+    );
+  });
+
   it("'Xoá bộ lọc' trả về danh sách lỗi mặc định", async () => {
     const user = userEvent.setup();
     const { get } = renderList(ACTORS.manager, { search: "?result=ALL&load=ld-1" });
     await screen.findByText(E.result.UNMATCHED);
-    await user.click(screen.getByRole("button", { name: E.filter.clear }));
+    await user.click(screen.getByRole("button", { name: E.filter.resetAll }));
     await waitFor(() =>
       expect(lastParams(get)).toMatchObject({ result: "ERRORS", loadId: undefined }),
     );
-    expect(screen.queryByRole("button", { name: E.filter.clear })).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: E.filter.resetAll })).toBeDisabled(),
+    );
   });
 
   it("danh sách lỗi trống: nói chưa có sự kiện lỗi và mời xem tất cả sự kiện", async () => {
@@ -263,11 +288,9 @@ describe("CarrierEventList — danh sách", () => {
   });
 
   it("chưa có sự kiện nào (xem tất cả) khác với lọc không ra kết quả", async () => {
-    const user = userEvent.setup();
     renderList(ACTORS.manager, { search: "?result=ALL", list: () => bePage([]) });
     expect(await screen.findByText(E.empty.noDataTitle)).toBeInTheDocument();
     expect(screen.queryByText(EMPTY.noResultsTitle)).not.toBeInTheDocument();
-    expect(user).toBeDefined();
   });
 
   it("lọc không ra kết quả: nêu 'không tìm thấy' và nút bỏ lọc", async () => {

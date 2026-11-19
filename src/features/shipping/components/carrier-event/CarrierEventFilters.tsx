@@ -9,7 +9,6 @@ import {
 import { CARRIER_EVENT_ALL_FILTER } from "@/features/shipping/carrier-event-lifecycle";
 import { useCan } from "@/lib/auth";
 import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -84,19 +83,6 @@ export function CarrierEventFilters({ s }: { s: CarrierEventListState }) {
             />
           </div>
         </div>
-      )}
-      {s.loadId && (
-        <div className="text-ink-secondary flex items-center gap-2 text-[0.8125rem]">
-          <span>{F.load}</span>
-          <Button type="button" variant="outline" size="xs" onClick={s.clearLoad}>
-            {F.clearLoad}
-          </Button>
-        </div>
-      )}
-      {s.hasFilters && (
-        <Button type="button" variant="ghost" size="xs" onClick={s.clearFilters}>
-          {F.clear}
-        </Button>
       )}
     </div>
   );

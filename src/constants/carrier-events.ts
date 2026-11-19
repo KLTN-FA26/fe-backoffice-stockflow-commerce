@@ -69,8 +69,9 @@ export const CARRIER_EVENT_COLUMNS = {
 /** Ghi chú xử lý: bắt buộc, tối đa 1000 ký tự (BE `CarrierEventResolutionRequest`). */
 export const CARRIER_EVENT_NOTE_MAX = 1000;
 
-/** Số dòng một trang bảng sự kiện (BE `size` mặc định 20). */
+/** Số dòng một trang bảng sự kiện: mặc định 20 (BE `size` mặc định), chọn được 10 / 15 / 20 / 50 (data-table-mode-a §5). */
 export const CARRIER_EVENT_PAGE_SIZE = 20;
+export const CARRIER_EVENT_PAGE_SIZES = [10, 15, 20, 50] as const;
 
 /**
  * Khoá trạng thái dùng cho `status-map` khi hiện kết quả sự kiện: giống tên enum BE, riêng `RECEIVED` đổi thành
