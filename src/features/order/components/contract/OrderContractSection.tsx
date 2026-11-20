@@ -53,14 +53,12 @@ export function OrderContractSection({
   const contract = query.data ?? null;
   const actions = query.isSuccess ? allowedContractActions(contract, order.status, can) : [];
   const outcome = signed ? signOutcomeText(order) : null;
-  const startContract = () =>
+  const startContract = () => {
+    setLegalMissing(null);
     create.mutate(
       { orderId: order.orderId },
       {
-        onSuccess: () => {
-          setLegalMissing(null);
-          setEditing(true);
-        },
+        onSuccess: () => setEditing(true),
         onError: (error) => {
           // Khách chưa có hồ sơ pháp lý: không chỉ toast, dẫn Sale tới nơi nhập (không import `features/customer`).
           if (error instanceof ApiError && error.code === "CUSTOMER_LEGAL_PROFILE_MISSING")
@@ -69,6 +67,7 @@ export function OrderContractSection({
         },
       },
     );
+  };
 
   return (
     <Card className="scroll-mt-20 space-y-3">

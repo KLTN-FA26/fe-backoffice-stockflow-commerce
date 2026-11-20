@@ -113,4 +113,41 @@ describe("LegalProfileCard", () => {
     await waitFor(() => expect(gets()).toBe(2));
     expect(api.put).toHaveBeenCalledWith(PATH, expect.objectContaining({ version: 3 }));
   });
+
+  it("after a 409 the stale form cannot overwrite the newer profile: retry waits for the reload", async () => {
+    let current = { ...profile };
+    const api = mockApi("SALES_STAFF", {
+      get: { [PATH]: () => current },
+      put: {
+        [PATH]: (_params, body) => {
+          if ((body as { version: number }).version !== current.version)
+            throw apiError(409, "OPTIMISTIC_LOCK");
+          return current;
+        },
+      },
+    });
+    renderCard("?legalProfile=edit");
+    const dialog = await screen.findByRole("dialog");
+    const address = within(dialog).getByLabelText(/Địa chỉ đăng ký kinh doanh/);
+    await userEvent.clear(address);
+    await userEvent.type(address, "Địa chỉ cũ của tôi");
+    // Someone else saves first: version 4 with a different address.
+    current = { ...profile, version: 4, registeredAddress: "Địa chỉ mới của người khác" };
+    await userEvent.click(within(dialog).getByRole("button", { name: "Lưu" }));
+    expect(await within(dialog).findByText(/Người khác vừa lưu/)).toBeInTheDocument();
+    // The save is blocked: the old values must not go out under the new version.
+    expect(within(dialog).getByRole("button", { name: "Lưu" })).toBeDisabled();
+    expect(api.put).toHaveBeenCalledTimes(1);
+    expect(api.put).toHaveBeenLastCalledWith(PATH, expect.objectContaining({ version: 3 }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Tải lại theo bản mới" }));
+    expect(within(dialog).getByLabelText(/Địa chỉ đăng ký kinh doanh/)).toHaveValue(
+      "Địa chỉ mới của người khác",
+    );
+    await userEvent.click(within(dialog).getByRole("button", { name: "Lưu" }));
+    await waitFor(() => expect(api.put).toHaveBeenCalledTimes(2));
+    expect(api.put).toHaveBeenLastCalledWith(
+      PATH,
+      expect.objectContaining({ version: 4, registeredAddress: "Địa chỉ mới của người khác" }),
+    );
+  });
 });

@@ -9,6 +9,8 @@ import { useSaveLegalProfile } from "@/features/customer/mutations";
 import { legalProfileInputSchema } from "@/features/customer/schemas";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { FORM_INPUT_CLASS, FormField, fieldA11y } from "@/components/shared/FormField";
+import { Notice } from "@/components/shared/Notice";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 import type { LegalProfile, LegalProfileValues } from "@/features/customer/types";
@@ -37,6 +39,10 @@ function LegalProfileForm({
   onClose: () => void;
 }) {
   const [error, setError] = useState<string | null>(null);
+  // Version của bản mà các ô đang hiển thị. Sau 409 BE tải lại `profile` (version mới) nhưng các ô vẫn là bản cũ:
+  // gửi version mới kèm giá trị cũ sẽ ghi đè thầm lặng, nên chỉ gửi version đã mở và chờ người dùng tải bản mới.
+  const [openedVersion, setOpenedVersion] = useState(profile?.version ?? null);
+  const stale = (profile?.version ?? null) !== openedVersion;
   const form = useForm<LegalProfileValues>({
     resolver: zodResolver(legalProfileInputSchema),
     defaultValues: defaultsOf(profile),
@@ -48,11 +54,17 @@ function LegalProfileForm({
     ...fieldA11y(`legal-${name}`, errors[name]?.message),
   });
 
+  const reloadLatest = () => {
+    form.reset(defaultsOf(profile));
+    setOpenedVersion(profile?.version ?? null);
+    setError(null);
+  };
+
   const submit = form.handleSubmit((values) => {
     setError(null);
     // Lần đầu gửi `version: null`; đã có hồ sơ thì gửi version đang xem (người khác vừa sửa → 409, đã tải lại).
     save.mutate(
-      { id: customerId, version: profile?.version ?? null, values },
+      { id: customerId, version: openedVersion, values },
       { onSuccess: onClose, onError: (failure) => setError(legalProfileErrorMessage(failure)) },
     );
   });
@@ -62,12 +74,30 @@ function LegalProfileForm({
       title={profile ? "Sửa thông tin pháp lý" : "Nhập thông tin pháp lý"}
       description="Dùng để lập hợp đồng và hoá đơn. Tên công ty và mã số thuế lấy từ hồ sơ khách."
       submitLabel="Lưu"
-      canSubmit
+      canSubmit={!stale}
       isPending={save.isPending}
       error={error}
       onSubmit={() => void submit()}
       onCancel={onClose}
     >
+      {stale && (
+        <Notice tone="warning" live>
+          <span>
+            Người khác vừa lưu thông tin pháp lý của khách này. Các ô bên dưới vẫn là bản cũ của
+            bạn.{" "}
+            <Button
+              type="button"
+              variant="link"
+              size="sm"
+              className="h-auto p-0"
+              onClick={reloadLatest}
+            >
+              Tải lại theo bản mới
+            </Button>{" "}
+            (các chỉnh sửa của bạn sẽ mất).
+          </span>
+        </Notice>
+      )}
       <FormField
         id="legal-registeredAddress"
         label="Địa chỉ đăng ký kinh doanh"
@@ -97,7 +127,7 @@ function LegalProfileForm({
         label="Email nhận hoá đơn (để trống = email liên hệ)"
         error={errors.invoiceEmail?.message}
       >
-        <Input {...field("invoiceEmail")} type="email" className={FORM_INPUT_CLASS} />
+        <Input {...field("invoiceEmail")} inputMode="email" className={FORM_INPUT_CLASS} />
       </FormField>
       <FormField
         id="legal-accountNumber"
