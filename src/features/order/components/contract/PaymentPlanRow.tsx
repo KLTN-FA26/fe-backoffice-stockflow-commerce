@@ -50,10 +50,18 @@ export function PaymentPlanRow({
       </div>
       <select
         {...register(`paymentPlan.${index}.milestone`, {
-          // N10: an ON_SIGNING row left without a number of days defaults to the BE's 3 days.
+          // N10: an ON_SIGNING row left without a number of days defaults to the BE's 3 days. Moving
+          // away from ON_SIGNING drops that untouched default so AFTER_DELIVERY falls back to the credit term.
           onChange: (event: { target: { value: string } }) => {
-            if (event.target.value === "ON_SIGNING" && !getValues(`paymentPlan.${index}.dueDays`))
-              setValue(`paymentPlan.${index}.dueDays`, String(DEFAULT_ON_SIGNING_DUE_DAYS));
+            const path = `paymentPlan.${index}.dueDays` as const;
+            const current = getValues(path);
+            if (event.target.value === "ON_SIGNING" && !current)
+              setValue(path, String(DEFAULT_ON_SIGNING_DUE_DAYS));
+            else if (
+              event.target.value !== "ON_SIGNING" &&
+              current === String(DEFAULT_ON_SIGNING_DUE_DAYS)
+            )
+              setValue(path, "");
           },
         })}
         aria-label={`Đợt ${index + 1} — mốc`}

@@ -163,6 +163,8 @@ describe("WF-02 mục 29 — loại file bản ký", () => {
     ["a.png", "image/png", true],
     ["a.docx", "", true],
     ["a.xlsx", "", true],
+    ["a.docx", "application/octet-stream", true],
+    ["a.exe", "application/octet-stream", false],
     ["a.webp", "image/webp", false],
     ["a.webp", "", false],
     ["a.gif", "image/gif", false],

@@ -165,9 +165,12 @@ const SIGNED_FILE_TYPES: Record<string, string> = {
 export const SIGNED_FILE_ACCEPT = Object.keys(SIGNED_FILE_TYPES).join(",");
 export const SIGNED_FILE_TYPE_MESSAGE = "Chỉ nhận PDF, Word, Excel hoặc ảnh JPG/PNG.";
 
-/** MIME type first; some browsers leave it empty for Office files, so fall back to the extension. */
+/**
+ * MIME type first; some browsers leave it empty (or say `application/octet-stream`) for Office files, so fall
+ * back to the extension in both cases.
+ */
 export function isSignedFileTypeAllowed(file: Pick<File, "name" | "type">): boolean {
-  if (file.type) return file.type in SIGNED_FILE_TYPES;
+  if (file.type && file.type !== "application/octet-stream") return file.type in SIGNED_FILE_TYPES;
   const name = file.name.toLowerCase();
   return Object.values(SIGNED_FILE_TYPES)
     .flatMap((extensions) => extensions.split(","))

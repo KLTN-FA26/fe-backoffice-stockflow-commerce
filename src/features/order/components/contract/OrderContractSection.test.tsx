@@ -172,6 +172,23 @@ describe("TC-F04-02 — editor lịch giao / lịch thanh toán", () => {
   });
 });
 
+describe("WF-02 N10 — đổi mốc khỏi ON_SIGNING", () => {
+  it("số ngày mặc định 3 bị xoá; số ngày do người dùng nhập khác 3 được giữ", async () => {
+    renderSection(() => contractDraft);
+    await userEvent.click(await screen.findByRole("button", { name: /Sửa/ }));
+    const milestone = screen.getByRole("combobox", { name: "Đợt 1 — mốc" });
+    const days = screen.getByRole("textbox", { name: "Đợt 1 — số ngày" });
+    expect(days).toHaveValue("3");
+    await userEvent.selectOptions(milestone, "AFTER_DELIVERY");
+    expect(days).toHaveValue("");
+    await userEvent.type(days, "7");
+    await userEvent.selectOptions(milestone, "ON_SIGNING");
+    expect(days).toHaveValue("7");
+    await userEvent.selectOptions(milestone, "AFTER_DELIVERY");
+    expect(days).toHaveValue("7");
+  });
+});
+
 describe("WF-02 mục 7 — form cũ không ghi đè bản mới", () => {
   const newer = { ...contractDraft, version: 1, freeSampleRounds: 7, returnWindowDays: 21 };
   const refetchFocus = () => {
