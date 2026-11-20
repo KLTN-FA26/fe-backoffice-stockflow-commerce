@@ -28,8 +28,11 @@ floating cart/chat) · `<PageContainer>` (max-width + padding theo mode).
 ## Dữ liệu & hiển thị
 
 `<DataTable>` (chủ lực mode A — xem [data-table-mode-a.md](data-table-mode-a.md); prop
-`stickyHeader` cho trang danh sách chính) · `<ListToolbar>` (prop `actions` cho nút của trang,
-cỡ nút qua `TOOLBAR_ACTION_CLASS`) · `<ListConfigSummary>` ·
+`stickyHeader` cho trang danh sách chính, `emptyState` giữ header khi rỗng) · `<ListToolbar>` (prop
+`actions` cho nút của trang, cỡ nút qua `TOOLBAR_ACTION_CLASS`; `columnOptions…` cho ẩn hiện cột) ·
+`<ListConfigSummary>` · `ColumnHeaderFilter.tsx` — lọc trên header cột: `ColumnFilterButton` (chữ),
+`HeaderOptionFilter` (chọn một id), `HeaderFilterPopover` (nội dung tự do), gắn bằng `withHeaderFilters`
+(xem [data-table-mode-a.md §4.1](data-table-mode-a.md)) ·
 `<FilterBar>`/`<FilterPanel>` (drawer trên mobile, dùng chung 2 mode) · `<SortDropdown>` ·
 `<SearchBar>` · `<StatTile>`/`<KpiCard>` (giá trị mono tabular + nhãn + delta) ·
 `<EmptyState>` · `<MoneyText>` (formatVND, tabular-nums, hỗ trợ giá khuyến mãi + % giảm).
