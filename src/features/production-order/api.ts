@@ -11,7 +11,7 @@
  *   POST …/cancellation · …/closing {version, reason}                     (:UPDATE)
  *   GET  …/slip → DownloadLink · GET …/dispatch · POST …/dispatch/resend  (READ / UPDATE)
  *
- * Chốt lại 2026-11-20 (docs 17 §4.3 bước 7, BR-23; BE V20261211000100): bỏ bước duyệt — `/submission`, `/approval`,
+ * Chốt lại 2026-11-20 (docs 17 §4.3 bước 7, BR-23; BE V20261213000100): bỏ bước duyệt — `/submission`, `/approval`,
  * `/return` và quyền `production-orders:APPROVE` không còn.
  */
 

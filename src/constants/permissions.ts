@@ -506,7 +506,7 @@ export const QUOTE_PERMISSIONS = {
  * Đơn sản xuất — resource `production-orders` (BE `OrderResources.PRODUCTION_ORDERS`, PermissionMatrixTest; docs 17
  * §4.3, BR-23). CREATE / UPDATE: Điều phối sản xuất (lập, sửa nháp, gửi cho đơn vị sản xuất, ghi nhận nhận đơn, ngày dự
  * kiến, bắt đầu sản xuất, huỷ, đóng, gửi lại mail, vòng mẫu in). READ: Sales Manager, Sale, Quản lý kho (BE lọc theo kho).
- * Chốt lại 2026-11-20 (BE V20261211000200): bỏ bước duyệt — `production-orders:APPROVE` đã xoá; Sales Manager chỉ xem và
+ * Chốt lại 2026-11-20 (BE V20261213000200): bỏ bước duyệt — `production-orders:APPROVE` đã xoá; Sales Manager chỉ xem và
  * được báo khi một đơn được gửi (`production-order-sends:READ`, chỉ là đối tượng nhận thông báo, FE không gate theo nó).
  */
 export const PRODUCTION_ORDER_PERMISSIONS = {

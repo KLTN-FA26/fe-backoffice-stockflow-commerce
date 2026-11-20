@@ -39,7 +39,7 @@ export const PRODUCTION_ACTORS = {
     // BE V20261209000400: Điều phối sản xuất đọc cảnh báo trễ (BE bỏ DELIVERY_LATE — BR-30)
     DELAY_ALERT_PERMISSIONS.read,
   ] as PermissionCode[],
-  // Chốt lại 2026-11-20 (BE V20261211000200): không còn duyệt — Sales Manager chỉ đọc
+  // Chốt lại 2026-11-20 (BE V20261213000200): không còn duyệt — Sales Manager chỉ đọc
   salesManager: [
     PO.viewPage,
     PO.read,

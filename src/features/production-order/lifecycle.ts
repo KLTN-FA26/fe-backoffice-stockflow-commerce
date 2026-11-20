@@ -13,7 +13,7 @@ import type { ProductionOrder } from "./types";
 /**
  * Docs 17 §5.3. Terminal (`Received`, `Cancelled`, `Closed`) không có chuyển tiếp nào.
  * BR-23 (docs 17 §6, chốt lại 2026-11-20): bỏ bước duyệt — Điều phối sản xuất gửi thẳng `Draft` → `Sent`.
- * `Pending Approval` chỉ còn trong lịch sử: không chuyển vào, không chuyển ra (BE V20261211000100 đưa đơn đang chờ về
+ * `Pending Approval` chỉ còn trong lịch sử: không chuyển vào, không chuyển ra (BE V20261213000100 đưa đơn đang chờ về
  * `Draft`).
  */
 export const PRODUCTION_ORDER_TRANSITIONS = {
