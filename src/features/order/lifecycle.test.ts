@@ -429,7 +429,7 @@ describe("allowedOrderActions — Gỡ giữ", () => {
   );
 
   it.each(["CREDIT", "DESIGN_MISMATCH", "UNKNOWN", null, undefined] as const)(
-    "giữ %s → ẩn nút gỡ giữ (BE ORDER_CREDIT_HOLD_USE_APPROVAL / ORDER_DESIGN_HOLD_USE_REVERIFICATION / không đoán)",
+    "giữ %s → ẩn nút gỡ giữ (BE ORDER_CREDIT_HOLD_USE_APPROVAL / mã cũ / không đoán)",
     (holdReason) => {
       expect(codes("On Hold", "SALES_STAFF", { holdReason })).not.toContain("resolve-hold");
     },

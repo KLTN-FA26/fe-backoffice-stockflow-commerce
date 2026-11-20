@@ -70,10 +70,8 @@ export {
   lockedChecksumOf,
   mockOrderAllowsPartialShipment,
   mockOrderCancellations,
-  putMockOrderOnDesignHold,
   putMockOrderOnInventoryHold,
   resetOrderMockStore,
-  resolveMockDesignHold,
   resolveMockInventoryHold,
   seedLifecycle,
   setMockOrderBalancePolicy,
@@ -512,13 +510,6 @@ function registerLifecycleRoutes(): void {
         409,
         "ORDER_CREDIT_HOLD_USE_APPROVAL",
         "A credit hold is decided through credit approval",
-      );
-    }
-    if (hold.reason === "DESIGN_MISMATCH") {
-      return error(
-        409,
-        "ORDER_DESIGN_HOLD_USE_REVERIFICATION",
-        "A design hold is resolved by reverifying the package",
       );
     }
     // G2-3: giữ vì thanh toán gỡ bằng tiền, không bằng ghi chú

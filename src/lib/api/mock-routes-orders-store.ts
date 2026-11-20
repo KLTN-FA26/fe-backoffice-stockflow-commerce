@@ -592,36 +592,11 @@ export async function backendOrderStatusOf(orderId: string): Promise<BeOrderStat
 }
 
 /**
- * Mock xuất kho đổi trạng thái đơn như BE (READY_TO_FULFILL → PICKING → PACKED; kiểm tra lại thiết kế
- * đạt thì gỡ giữ DESIGN_MISMATCH thẳng sang PACKED). Đồng bộ (không có `Order`) — seed vẫn áp sau đó
+ * Mock xuất kho đổi trạng thái đơn như BE (READY_TO_FULFILL → PICKING → PACKED). Đồng bộ (không có `Order`) — seed vẫn áp sau đó
  * cho các field phiên chưa đổi.
  */
 export function setMockOrderStatus(orderId: string, status: BeOrderStatus): void {
   moveTo(stateById(orderId), status, null);
-}
-
-/**
- * Mock xuất kho giữ đơn do lệch checksum thiết kế (BE `HoldReason.DESIGN_MISMATCH`): nhớ trạng thái
- * đang làm để kiểm tra lại đạt thì quay về. Đơn đã ON_HOLD thì không đổi (BE `mayBePutOnHold` false).
- */
-export async function putMockOrderOnDesignHold(orderId: string): Promise<void> {
-  const order = await findOrder(orderId);
-  if (!order) return;
-  const state = stateOf(order);
-  const before = backendStatus(order);
-  if (before === "ON_HOLD") return;
-  moveTo(state, "ON_HOLD", "DESIGN_MISMATCH");
-  state.holdReason = "DESIGN_MISMATCH";
-  state.statusBeforeHold = before;
-  state.holdNote = undefined;
-}
-
-/**
- * Mock kiểm tra lại thiết kế khớp: gỡ giữ DESIGN_MISMATCH, đơn về đúng bước đang làm trước khi bị giữ
- * (BE `OrderService.resolveDesignHold`) — KHÔNG sang PACKED, người đóng gói hoàn tất lại (BE PR #136).
- */
-export function resolveMockDesignHold(orderId: string): void {
-  setMockOrderStatus(orderId, stateById(orderId).statusBeforeHold ?? "PICKING");
 }
 
 /**

@@ -108,8 +108,7 @@ export interface OrderAction {
 
 /**
  * Lý do giữ mà điều phối viên gỡ tay được (`POST /orders/{id}/hold/resolution`). CREDIT đi qua duyệt
- * công nợ (`ORDER_CREDIT_HOLD_USE_APPROVAL`), DESIGN_MISMATCH qua kiểm tra lại kiện
- * (`ORDER_DESIGN_HOLD_USE_REVERIFICATION`); lý do lạ / vắng không đoán — không hiện nút.
+ * công nợ (`ORDER_CREDIT_HOLD_USE_APPROVAL`), DESIGN_MISMATCH là mã cũ (BE đã bỏ); lý do lạ / vắng không đoán — không hiện nút.
  */
 export function isManuallyResolvableHold(reason: Order["holdReason"] | undefined): boolean {
   return reason != null && (ORDER_MANUAL_HOLD_REASONS as readonly string[]).includes(reason);
@@ -209,7 +208,7 @@ export const ORDER_ACTIONS: readonly OrderAction[] = [
     ],
     outcome: { kind: "to", statuses: ["On Hold"] },
   },
-  // `Order#resolveHold`: chỉ giữ do điều phối viên nêu; CREDIT / DESIGN_MISMATCH bị BE từ chối. Đơn quay
+  // `Order#resolveHold`: chỉ giữ do điều phối viên nêu; CREDIT / DESIGN_MISMATCH không phải lý do tự nêu. Đơn quay
   // về `statusBeforeHold` (rồi theo lô giao). POST /orders/{id}/hold/resolution.
   {
     code: "resolve-hold",

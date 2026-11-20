@@ -714,10 +714,10 @@ describe("OrderDetail — Gỡ giữ", () => {
     expect(screen.getByRole("button", { name: "Huỷ đơn" })).toBeInTheDocument();
   });
 
-  it("giữ do DESIGN_MISMATCH → không có nút Gỡ giữ, hướng dẫn kiểm tra lại kiện ở bàn đóng gói", async () => {
+  it("giữ do DESIGN_MISMATCH (lịch sử cũ) → vẫn đọc được lý do, không có nút Gỡ giữ", async () => {
     await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => held("DESIGN_MISMATCH"));
 
-    expect(await screen.findByText(/kiểm tra lại kiện ở bàn đóng gói/)).toBeInTheDocument();
+    expect(await screen.findByText("Sai lệch thiết kế (luồng cũ)")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Gỡ giữ" })).not.toBeInTheDocument();
   });
 

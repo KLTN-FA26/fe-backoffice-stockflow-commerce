@@ -244,7 +244,6 @@ describe("Fulfillment / order grants (BE PR #148, V20261022000200)", () => {
       "fulfillment-packing:APPROVE",
       "fulfillment-task-assignment:UPDATE",
       "fulfillment-task-oversight:READ",
-      "fulfillment-design-reverification:UPDATE",
       "fulfillment-waybill-corrections:UPDATE",
       "fulfillment-carriers:UPDATE",
       "fulfillment-delivery-outcomes:UPDATE",
@@ -258,7 +257,6 @@ describe("Fulfillment / order grants (BE PR #148, V20261022000200)", () => {
       "fulfillment-packing:APPROVE",
       "fulfillment-task-assignment:CREATE",
       "fulfillment-task-oversight:READ",
-      "fulfillment-design-reverification:READ",
       "fulfillment-waybill-corrections:UPDATE",
       "fulfillment-carriers:UPDATE",
       "fulfillment-delivery-outcomes:UPDATE",
@@ -266,9 +264,8 @@ describe("Fulfillment / order grants (BE PR #148, V20261022000200)", () => {
       expect(manager).toContain(code);
   });
 
-  it("QC chỉ kiểm tra lại thiết kế; kế toán đọc được đơn (BE PR #148 ACCREAD); điều phối ghi đã giao", () => {
+  it("QC không đóng gói; kế toán đọc được đơn (BE PR #148 ACCREAD); điều phối ghi đã giao", () => {
     const qc = grants("USER-QC-01");
-    expect(qc).toContain("fulfillment-design-reverification:UPDATE");
     expect(qc).not.toContain("fulfillment-packing:UPDATE");
     const accountant = grants("USER-ACC-01");
     expect(accountant).toEqual(

@@ -15,7 +15,6 @@ import {
   FULFILLMENT_CARRIER_EVENT_PERMISSIONS,
   FULFILLMENT_CARRIER_PERMISSIONS,
   FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS,
-  FULFILLMENT_DESIGN_REVERIFICATION_PERMISSIONS,
   FULFILLMENT_DISPATCH_PERMISSIONS,
   FULFILLMENT_CONTROLLED_CANCELLATION_PERMISSIONS,
   FULFILLMENT_WAYBILL_CORRECTION_PERMISSIONS,
@@ -79,7 +78,6 @@ const OVERSIGHT = Object.values(FULFILLMENT_TASK_OVERSIGHT_PERMISSIONS);
 const PICKING = Object.values(FULFILLMENT_PICKING_PERMISSIONS);
 const PACKING_WORK = [FULFILLMENT_PACKING_PERMISSIONS.read, FULFILLMENT_PACKING_PERMISSIONS.update];
 const PACKING_ALL = Object.values(FULFILLMENT_PACKING_PERMISSIONS);
-const REVERIFY = Object.values(FULFILLMENT_DESIGN_REVERIFICATION_PERMISSIONS);
 const DISPATCH = Object.values(FULFILLMENT_DISPATCH_PERMISSIONS);
 // V20261108001400 / 001500: sửa mã vận đơn sau khi rời kho (quản lý kho) và nhập mã vận đơn từ file (nhân viên kho + quản lý kho)
 const WAYBILL_CORRECTION = Object.values(FULFILLMENT_WAYBILL_CORRECTION_PERMISSIONS);
@@ -114,7 +112,6 @@ const MANAGER_WORK = [
   ...DISPATCH,
   ...TA,
   ...OVERSIGHT,
-  ...REVERIFY,
   ...CARRIER,
   ...CARRIER_EVENT,
   ...WAYBILL_CORRECTION,
@@ -350,10 +347,9 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     QC.approve,
     ...STOCK_READ,
     ...STOCK_PACKAGE_READ,
-    // QC_STAFF: chỉ kiểm tra lại thiết kế (BE PR #148) + đọc task / artifact
+    // QC_STAFF: đọc task / artifact (BE đã bỏ bước kiểm tra thiết kế lúc đóng gói)
     PICK.read,
     PACK.read,
-    ...REVERIFY,
   ],
   // ACCOUNTANT: xem danh sách / chi tiết đơn (BE PR #148 "ACCREAD"); KHÔNG có hàng chờ yêu cầu huỷ
   "USER-ACC-01": [

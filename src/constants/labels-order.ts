@@ -38,7 +38,8 @@ export const ORDER_HOLD_REASON_LABELS = {
   // Giữ CREDIT khi ký: khách có nợ quá hạn HOẶC vượt hạn mức (BE CreditCheck OVERDUE / OVER_LIMIT) — đơn không cho
   // biết là cái nào, nên không nói "vượt hạn mức" khi nguyên nhân là nợ quá hạn (WF-02 audit). Màn duyệt công nợ ghi rõ.
   CREDIT: "Chờ duyệt công nợ (khách quá hạn hoặc vượt hạn mức)",
-  DESIGN_MISMATCH: "Sai lệch thiết kế khi đóng gói",
+  // Luồng cũ: BE đã bỏ bước kiểm thiết kế lúc đóng gói, nhưng lịch sử giữ đơn cũ còn mã này.
+  DESIGN_MISMATCH: "Sai lệch thiết kế (luồng cũ)",
   PAYMENT: "Vấn đề thanh toán",
   ADDRESS: "Sai địa chỉ / hãng vận chuyển không giao tới",
   INVENTORY: "Thiếu hàng / lệch tồn kho",
@@ -50,13 +51,11 @@ export const ORDER_HOLD_REASON_LABELS = {
 
 /**
  * Hướng dẫn thay cho nút "Gỡ giữ" khi đơn bị giữ bởi hệ thống — BE từ chối gỡ tay
- * (`ORDER_CREDIT_HOLD_USE_APPROVAL`, `ORDER_DESIGN_HOLD_USE_REVERIFICATION`).
+ * (`ORDER_CREDIT_HOLD_USE_APPROVAL`, `ORDER_DELIVERY_FAILURE_USE_DECISION`).
  */
 export const ORDER_HOLD_GUIDANCE = {
   CREDIT:
     "Đơn bị giữ chờ duyệt công nợ (khách quá hạn hoặc vượt hạn mức) — không gỡ giữ tại đây. Duyệt hoặc từ chối ở màn duyệt công nợ.",
-  DESIGN_MISMATCH:
-    "Đơn bị giữ vì thiết kế in lệch checksum lúc đóng gói — không gỡ giữ tại đây. Quản lý kho kiểm tra lại kiện ở bàn đóng gói.",
   DELIVERY_FAILED:
     "Đơn bị giữ vì giao thất bại — không gỡ giữ tại đây. Quyết định giao lại hoặc huỷ phần chưa giao ở khối “Giao thất bại”.",
   UNRESOLVABLE: "Không xác định được lý do giữ — chưa thể gỡ giữ từ màn này. Tải lại trang.",
@@ -373,7 +372,6 @@ export const ORDER_ERROR_MESSAGES = {
     "Đơn hàng không thể chuyển sang trạng thái này lúc này — trạng thái đơn đã đổi. Dữ liệu đã được tải lại.",
   ORDER_NOT_ON_HOLD: "Đơn hàng không ở trạng thái tạm giữ. Dữ liệu đã được tải lại.",
   ORDER_CREDIT_HOLD_USE_APPROVAL: ORDER_HOLD_GUIDANCE.CREDIT,
-  ORDER_DESIGN_HOLD_USE_REVERIFICATION: ORDER_HOLD_GUIDANCE.DESIGN_MISMATCH,
   ORDER_DELIVERY_VIA_SHIPMENT: ORDER_ACTION_LABELS.shipmentsHint,
   ORDER_BALANCE_NOT_PAID: "Đơn hàng phải được thanh toán đủ trước khi xuất hàng.",
   ORDER_SHIPMENT_NOT_FOUND: "Đơn hàng không có lô giao này.",
