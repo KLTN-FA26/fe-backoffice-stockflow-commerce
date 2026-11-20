@@ -36,7 +36,7 @@ const when = (iso: string | null | undefined) => (iso ? formatDateTime(iso) : nu
 
 /**
  * "Thông tin chung" (docs 17 §4.3 bảng đầu đơn): mã, trạng thái, đơn bán + đợt giao (cửa sổ), khách, đơn vị sản xuất,
- * kho nhận, ngày cần hàng / dự kiến, cờ duyệt mẫu, người lập / duyệt và các mốc, lý do trả lại / huỷ / đóng.
+ * kho nhận, ngày cần hàng / dự kiến, cờ duyệt mẫu, người lập / gửi và các mốc, ghi chú nhận đơn, lý do huỷ / đóng.
  */
 export function GeneralCard({
   order,
@@ -53,11 +53,14 @@ export function GeneralCard({
     can(ORDER_DELIVERY_BATCH_PERMISSIONS.read),
   );
   const batch = batches.data?.batches.find((b) => b.batchId === order.deliveryBatchId);
+  // Người gửi + giờ gửi (docs 17 §4.3 bước 7). Người duyệt / gửi duyệt chỉ có ở đơn trước 2026-11-20 (BR-23 chốt lại)
   const optionalRows: [string, string | null | undefined][] = [
+    [L.sentBy, order.sentBy ? actorLabel(order.sentBy, me) : null],
+    [L.sentAt, when(order.sentAt)],
     [L.submittedAt, when(order.submittedAt)],
     [L.approvedBy, order.approvedBy ? actorLabel(order.approvedBy, me) : null],
     [L.approvedAt, when(order.approvedAt)],
-    [L.sentAt, when(order.sentAt)],
+    [L.acceptanceNote, order.acceptanceNote],
     [L.productionStartedAt, when(order.productionStartedAt)],
     [L.returnedReason, order.status === "DRAFT" ? order.returnedReason : null],
     [L.cancellationReason, order.cancellationReason],

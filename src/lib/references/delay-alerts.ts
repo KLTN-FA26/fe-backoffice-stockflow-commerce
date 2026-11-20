@@ -50,7 +50,10 @@ export async function fetchOpenDelayAlerts(
   return delayAlertPageSchema.parse(data).items;
 }
 
-/** `enabled=false` khi người dùng không có `delay-alerts:READ` (Điều phối sản xuất xem cờ trên lịch sản xuất). */
+/**
+ * `enabled=false` khi người dùng không có `delay-alerts:READ`. Điều phối sản xuất có quyền này từ BE V20261209000400 —
+ * BE bỏ `DELIVERY_LATE` khỏi danh sách của họ (BR-30).
+ */
 export function useOpenDelayAlerts(salesOrderId: string | null | undefined, enabled = true) {
   return useQuery({
     queryKey: delayAlertKeys.ofOrder(salesOrderId ?? ""),

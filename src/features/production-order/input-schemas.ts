@@ -40,7 +40,8 @@ export const productionOrderEditInput = z
 
 /**
  * Ngày hoàn thành dự kiến (docs 17 §4.3 bước 8, 10). BE trả VALIDATION_FAILED khi ở quá khứ. `optional` cho "Bắt đầu
- * sản xuất" — bỏ trống = giữ ngày đã ghi khi nhận đơn.
+ * sản xuất" — bỏ trống = giữ ngày đã ghi khi nhận đơn. `note` chỉ gửi khi ghi nhận nhận đơn (docs 17 §4.3 bước 8, chốt
+ * lại 2026-11-20: ghi chú tuỳ chọn ≤ 500, ghi một lần — BE `AcceptProductionOrderRequest.note`).
  */
 export function expectedDateInput(optional: boolean) {
   return z.object({
@@ -48,5 +49,6 @@ export function expectedDateInput(optional: boolean) {
       .string()
       .refine((value) => optional || value !== "", D.expectedRequired)
       .refine((value) => value === "" || value >= todayIso(), D.expectedPast),
+    note: z.string().trim().max(LIMITS.textMax, E.textMax),
   });
 }

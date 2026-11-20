@@ -97,7 +97,6 @@ export const ROLE_PERMISSIONS = {
     "production-orders:READ",
     "production-orders:CREATE",
     "production-orders:UPDATE",
-    "production-orders:APPROVE",
     "production-material-issues:READ",
     "production-material-issues:CREATE",
     "production-qc-results:READ",

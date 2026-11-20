@@ -370,6 +370,9 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     REFUND_READ,
     ...EINVOICE_ALL,
     EINVOICE_SETTINGS_PERMISSIONS.read,
+    // BE V20261209000200 (docs 20 §3): Kế toán xem phiếu điều chỉnh tồn — chỉ đọc, không lập / duyệt
+    INVENTORY_PERMISSIONS.adjustmentViewPage,
+    INVENTORY_PERMISSIONS.adjustmentRead,
   ],
   // ECOMMERCE_ADMIN: duyệt / xuất bản nhưng không tạm ngưng / ngừng kinh doanh (product-lifecycle chỉ
   // System Admin, BE PR #123)

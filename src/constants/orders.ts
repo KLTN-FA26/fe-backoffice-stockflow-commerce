@@ -65,8 +65,9 @@ export const ORDER_CANCELLATION_REASON_LABELS = {
 
 /**
  * Đơn sản xuất — BE `order/internal/domain/ProductionOrderStatus.java` (`GET /production-orders`), vòng đời
- * docs 17 §5.3: Draft → Pending Approval → Sent → Accepted → Sample Pending → In Production → Partially Received /
- * Received; Cancelled (trước khi in hàng loạt) và Closed (đóng thiếu) là terminal.
+ * docs 17 §5.3: Draft → Sent → Accepted → Sample Pending → In Production → Partially Received / Received; Cancelled
+ * (trước khi in hàng loạt) và Closed (đóng thiếu) là terminal. `PENDING_APPROVAL` giữ để đọc lịch sử trạng thái đơn
+ * cũ — bỏ bước duyệt từ 2026-11-20 (docs 17 BR-23 chốt lại), BE không còn đơn nào ở trạng thái này.
  */
 export const PRODUCTION_ORDER_STATUSES = [
   "DRAFT",
