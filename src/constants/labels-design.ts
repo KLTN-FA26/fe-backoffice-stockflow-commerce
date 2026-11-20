@@ -110,10 +110,37 @@ export const DESIGN_REVIEW_LABELS = {
   preflightBlocked: "File in có lỗi chặn — nên trả lại",
 } as const;
 
+/** Chữ trên màn vòng duyệt dự án (BO-4). */
+export const DESIGN_ROUND_LABELS = {
+  listTitle: "Vòng duyệt dự án",
+  detailTitle: "Vòng duyệt",
+  emptyTitle: "Không có vòng duyệt nào đang chờ",
+  emptyDescription: "Dự án khách gửi duyệt cả bộ thiết kế sẽ hiện ở đây, chờ lâu nhất trước.",
+  notFoundTitle: "Không tìm thấy vòng duyệt",
+  notFoundDescription: "Vòng duyệt không tồn tại hoặc đường dẫn không hợp lệ.",
+  statusOpen: "Đang chờ",
+  statusClosed: "Đã đóng",
+  outcomeApproved: "Đã duyệt",
+  outcomeReturned: "Đã trả lại",
+  outcomeWaiting: "Đang chờ",
+  outcomeGone: "Không còn dữ liệu",
+  reviewAndDecide: "Xem & quyết định",
+  approveAll: "Duyệt tất cả",
+  confirmTitle: "Duyệt tất cả thiết kế còn chờ?",
+  running: "Đang duyệt {n} thiết kế… có thể mất vài phút, đừng đóng trang.",
+  resultTitle: "Kết quả duyệt tất cả",
+  resultApproved: "Đã duyệt",
+  resultNotApproved: "Không duyệt được",
+  resultSkipped: "Bỏ qua — không còn chờ",
+  slowOutcome: "Đang xử lý lâu — đã tải lại vòng duyệt, xem kết quả trên từng thiết kế.",
+  approvedSome: "Đã duyệt {n} thiết kế",
+} as const;
+
 /** Số ký tự tối đa của lý do trả lại / ghi chú duyệt (BE `DesignReviewService.REASON_MAX`). */
 export const DESIGN_REASON_MAX = 2000;
 
 /** Cấu hình danh sách lưu theo trình duyệt (số dòng / trang) — tách khỏi `STORAGE_KEYS` chung. */
 export const DESIGN_REVIEW_STORAGE_KEYS = {
   queueConfig: "stockflow:admin:designs:review-queue:config",
+  roundsConfig: "stockflow:admin:design-review-rounds:config",
 } as const;

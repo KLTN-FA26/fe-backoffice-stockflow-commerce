@@ -9,6 +9,8 @@ import type {
   designPreflightDtoSchema,
   designQuoteRequestDtoSchema,
   designReturnInputSchema,
+  reviewRoundDtoSchema,
+  roundApprovalDtoSchema,
 } from "./schemas";
 
 export type Design = z.infer<typeof designDtoSchema>;
@@ -21,3 +23,7 @@ export type DesignDecisionInput = z.input<typeof designDecisionInputSchema>;
 export type DesignDecisionOutput = z.output<typeof designDecisionInputSchema>;
 export type DesignReturnFormValues = z.input<typeof designReturnInputSchema>;
 export type DesignReturnFormOutput = z.output<typeof designReturnInputSchema>;
+export type ReviewRound = z.infer<typeof reviewRoundDtoSchema>;
+export type ReviewRoundDesign = ReviewRound["designs"][number];
+export type RoundApproval = z.infer<typeof roundApprovalDtoSchema>;
+export type RoundApprovalOutcome = RoundApproval["outcomes"][number];

@@ -1,4 +1,4 @@
-import { DESIGN_REVIEW_LABELS } from "@/constants";
+import { DESIGN_REVIEW_LABELS, DESIGN_ROUND_LABELS } from "@/constants";
 
 import type { LoadErrorCopy } from "@/components/backoffice/LoadErrorState";
 
@@ -24,3 +24,11 @@ export const MONO = "font-[family-name:var(--font-mono)] text-[0.8125rem] tabula
 
 /** Ảnh xem trước khách gửi luôn là PNG (storefront `studio/submission-bundle.ts`); `previewUrl` không kèm kiểu file. */
 export const PREVIEW_CONTENT_TYPE = "image/png";
+
+export const REVIEW_ROUNDS_COPY: LoadErrorCopy = {
+  pageTitle: DESIGN_ROUND_LABELS.listTitle,
+  notFoundTitle: DESIGN_ROUND_LABELS.notFoundTitle,
+  notFoundDescription: DESIGN_ROUND_LABELS.notFoundDescription,
+  forbiddenDescription: "Chỉ Quản lý bán hàng được duyệt thiết kế của khách.",
+  noReadDescription: "Tài khoản của bạn chưa có quyền duyệt thiết kế.",
+};

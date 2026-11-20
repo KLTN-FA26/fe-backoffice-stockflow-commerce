@@ -128,3 +128,41 @@ export const designDecisionInputSchema = z.discriminatedUnion("approved", [
 
 /** Form "Trả lại" (react-hook-form). */
 export const designReturnInputSchema = designDecisionInputSchema.options[1];
+
+/* ── Vòng duyệt dự án ───────────────────────────────────────────────── */
+
+/** `DesignReviewRoundResponse.java` — `design` chỉ có khi thiết kế đang chờ hoặc đã duyệt; bị trả lại thì chỉ còn id + outcome. */
+export const reviewRoundDtoSchema = z.object({
+  id: z.string(),
+  projectId: z.string(),
+  projectName: z.string(),
+  customerId: z.string(),
+  customerName: omittedOrNull(z.string()),
+  submittedBy: z.string(),
+  submittedAt: z.string(),
+  /** Vòng tự đóng khi mọi thiết kế có outcome (12 BR-20). */
+  closedAt: omittedOrNull(z.string()),
+  designs: z.array(
+    z.object({
+      designId: z.string(),
+      design: omittedOrNull(designDtoSchema),
+      /** Vắng khi thiết kế còn chờ. */
+      outcome: omittedOrNull(z.enum(["APPROVED", "RETURNED"])),
+      decidedAt: omittedOrNull(z.string()),
+    }),
+  ),
+});
+export const reviewRoundPageSchema = bePageSchema(reviewRoundDtoSchema);
+
+/** `DesignRoundApprovalResponse.java` — `SKIPPED` kèm `CONFLICT`; `NOT_APPROVED` kèm mã lỗi của lần duyệt đó. */
+export const roundApprovalDtoSchema = z.object({
+  outcomes: z.array(
+    z.object({
+      designId: z.string(),
+      outcome: z.enum(["APPROVED", "NOT_APPROVED", "SKIPPED"]),
+      errorCode: omittedOrNull(z.string()),
+      message: omittedOrNull(z.string()),
+    }),
+  ),
+  round: reviewRoundDtoSchema,
+});

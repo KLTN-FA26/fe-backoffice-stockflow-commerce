@@ -16,6 +16,9 @@ import {
   designPageSchema,
   designPreflightDtoSchema,
   designQuoteRequestListSchema,
+  reviewRoundDtoSchema,
+  reviewRoundPageSchema,
+  roundApprovalDtoSchema,
 } from "./schemas";
 
 import type { PaginatedResponse } from "@/lib/api/query-factory";
@@ -27,6 +30,8 @@ import type {
   DesignDecisionOutput,
   DesignPreflight,
   DesignQuoteRequest,
+  ReviewRound,
+  RoundApproval,
 } from "./types";
 
 const DESIGNS = "/designs";
@@ -119,4 +124,43 @@ export async function decideDesign({
     ...(notes ? { notes } : {}),
   });
   return designDtoSchema.parse(data);
+}
+
+const ROUNDS = "/design-review-rounds";
+const roundById = (id: string) => `${ROUNDS}/${encodeURIComponent(id)}`;
+
+/** Vòng duyệt dự án chưa đóng, chờ lâu nhất trước; BE không nhận lọc / sắp xếp. */
+export async function listReviewRounds(
+  params: PageParams,
+  signal?: AbortSignal,
+): Promise<PaginatedResponse<ReviewRound>> {
+  const { data } = await api.get<unknown>(ROUNDS, {
+    params: { page: Math.max(0, params.page), size: params.size },
+    signal,
+  });
+  return reviewRoundPageSchema.parse(data);
+}
+
+/** Cả vòng đã đóng. */
+export async function getReviewRound(id: string, signal?: AbortSignal): Promise<ReviewRound> {
+  const { data } = await api.get<unknown>(roundById(id), { signal });
+  return reviewRoundDtoSchema.parse(data);
+}
+
+export interface ApproveRoundInput {
+  roundId: string;
+  /** Đúng `version` đang hiển thị của từng thiết kế còn chờ (1–20, 12 BR-11). */
+  designs: { id: string; version: number }[];
+}
+
+/**
+ * "Duyệt tất cả": BE duyệt tuần tự, thiết kế nào không duyệt được vẫn chờ. Lệnh chạy lâu (tới 20 thiết kế): axios và BFF
+ * chờ 120 s theo `LONG_RUNNING_ROUTES`.
+ */
+export async function approveRound({
+  roundId,
+  designs,
+}: ApproveRoundInput): Promise<RoundApproval> {
+  const { data } = await api.post<unknown>(`${roundById(roundId)}/approvals`, { designs });
+  return roundApprovalDtoSchema.parse(data);
 }

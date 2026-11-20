@@ -5,7 +5,7 @@ import { DESIGN_PERMISSIONS, DESIGN_SUBMISSION_ROLES } from "@/constants";
 import { formatFixed } from "@/lib/format";
 
 import type { PermissionCode } from "@/lib/auth/me-permissions";
-import type { Design, DesignArtifact } from "./types";
+import type { Design, DesignArtifact, ReviewRound } from "./types";
 
 type SubmissionRole = (typeof DESIGN_SUBMISSION_ROLES)[number];
 
@@ -70,4 +70,27 @@ export function fileSizeLabel(bytes: number): string {
 /** Mã rút gọn của người làm (BE chỉ trả `actorId`, không có tên). */
 export function shortId(id: string | null): string {
   return id ? id.slice(0, 8) : "Hệ thống";
+}
+
+/** Thiết kế còn chờ trong vòng (chưa có outcome, đang `PENDING_REVIEW`) ở đúng `version` đang hiển thị — body "Duyệt tất cả". */
+export function pendingInRound(round: Pick<ReviewRound, "designs">): {
+  id: string;
+  version: number;
+}[] {
+  return round.designs.flatMap(({ designId, design, outcome }) =>
+    outcome == null && design?.status === "PENDING_REVIEW"
+      ? [{ id: designId, version: design.version }]
+      : [],
+  );
+}
+
+/** Đã duyệt / đã trả lại / còn chờ (chưa có outcome). */
+export function roundProgress(round: Pick<ReviewRound, "designs">): {
+  approved: number;
+  returned: number;
+  waiting: number;
+} {
+  const count = (outcome: "APPROVED" | "RETURNED" | null) =>
+    round.designs.filter((entry) => (entry.outcome ?? null) === outcome).length;
+  return { approved: count("APPROVED"), returned: count("RETURNED"), waiting: count(null) };
 }

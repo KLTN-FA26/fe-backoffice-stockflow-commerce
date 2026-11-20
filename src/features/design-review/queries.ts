@@ -6,10 +6,12 @@ import {
   getArtifactDownloadUrl,
   getArtifactPreflight,
   getDesign,
+  getReviewRound,
   listDesignArtifacts,
   listDesignHistory,
   listDesignQuoteRequests,
   listReviewQueue,
+  listReviewRounds,
 } from "./api";
 
 import type { PageParams } from "./api";
@@ -32,9 +34,13 @@ export const designKeys = {
   link: (id: string, artifactId: string) => [...designKeys.design(id), "link", artifactId] as const,
 };
 
-/** Vòng duyệt dự án — BO-4 bổ sung list / detail; ở đây chỉ cần gốc để invalidate sau khi quyết định. */
+/** Vòng duyệt dự án. `all` để invalidate cả danh sách lẫn chi tiết sau khi quyết định. */
 export const roundKeys = {
   all: ["design-review-rounds"] as const,
+  lists: () => [...roundKeys.all, "list"] as const,
+  list: (params: PageParams) => [...roundKeys.lists(), params] as const,
+  details: () => [...roundKeys.all, "detail"] as const,
+  detail: (id: string) => [...roundKeys.details(), id] as const,
 };
 
 const HISTORY_PAGE: PageParams = { page: 0, size: 50 };
@@ -45,6 +51,25 @@ export function useReviewQueue(params: PageParams, options?: { enabled?: boolean
     queryFn: ({ signal }) => listReviewQueue(params, signal),
     placeholderData: keepPreviousData,
     ...QUERY_TIMES.list,
+    enabled: options?.enabled !== false,
+  });
+}
+
+export function useReviewRounds(params: PageParams, options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: roundKeys.list(params),
+    queryFn: ({ signal }) => listReviewRounds(params, signal),
+    placeholderData: keepPreviousData,
+    ...QUERY_TIMES.list,
+    enabled: options?.enabled !== false,
+  });
+}
+
+export function useReviewRound(id: string, options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: roundKeys.detail(id),
+    queryFn: ({ signal }) => getReviewRound(id, signal),
+    ...QUERY_TIMES.detail,
     enabled: options?.enabled !== false,
   });
 }

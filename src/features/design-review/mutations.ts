@@ -13,17 +13,17 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 
-import { ADMIN_ROUTES, DESIGN_REVIEW_LABELS } from "@/constants";
+import { ADMIN_ROUTES, DESIGN_REVIEW_LABELS, DESIGN_ROUND_LABELS } from "@/constants";
 
 import { toast } from "@/components/shared/Toast";
 
-import { decideDesign } from "./api";
+import { approveRound, decideDesign } from "./api";
 import { DESIGN_STALE_CODES, isDesignErrorCode, isUncertainOutcome } from "./errors";
 import { designKeys, roundKeys } from "./queries";
 
 import type { ApiError } from "@/lib/api/error";
-import type { DecideDesignInput } from "./api";
-import type { Design } from "./types";
+import type { ApproveRoundInput, DecideDesignInput } from "./api";
+import type { Design, RoundApproval } from "./types";
 
 /** Đích sau khi quyết định: vòng duyệt `?round=` nếu đến từ đó, không thì hàng đợi. */
 export function reviewReturnHref(roundId?: string | null): string {
@@ -80,3 +80,31 @@ export function useDecideDesign({ roundId }: { roundId?: string | null } = {}) {
 }
 
 export type DecideDesignMutation = ReturnType<typeof useDecideDesign>;
+
+/**
+ * "Duyệt tất cả": cache chi tiết vòng được ghi bằng `round` trong response (không tải lại). Thiết kế đã duyệt thì người
+ * duyệt mất quyền đọc (404) → bỏ dữ liệu của chúng khỏi cache; hàng đợi và danh sách vòng được tải lại. Hết giờ / mất kết
+ * nối: BE có thể đã duyệt xong → không gửi lại, tải lại vòng để thấy kết quả thật.
+ */
+export function useApproveRound(roundId: string) {
+  const queryClient = useQueryClient();
+  return useMutation<RoundApproval, ApiError, ApproveRoundInput>({
+    mutationFn: approveRound,
+    onSuccess: (result) => {
+      queryClient.setQueryData(roundKeys.detail(roundId), result.round);
+      for (const { designId, outcome } of result.outcomes) {
+        if (outcome === "APPROVED")
+          queryClient.removeQueries({ queryKey: designKeys.design(designId) });
+      }
+      void queryClient.invalidateQueries({ queryKey: roundKeys.lists() });
+      void queryClient.invalidateQueries({ queryKey: designKeys.queue() });
+    },
+    onError: (error) => {
+      if (isUncertainOutcome(error)) {
+        void queryClient.invalidateQueries({ queryKey: roundKeys.all });
+        void queryClient.invalidateQueries({ queryKey: designKeys.queue() });
+        toast.warning(DESIGN_ROUND_LABELS.slowOutcome);
+      }
+    },
+  });
+}
