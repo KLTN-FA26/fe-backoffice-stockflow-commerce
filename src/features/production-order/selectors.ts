@@ -22,7 +22,7 @@ export function productionOrderTotals(
   );
 }
 
-/** BR-25 (docs 17 §6): có cảnh báo sức chứa kho nhận không — vượt dự kiến hoặc vượt nếu duyệt hết. Không chặn. */
+/** BR-25 (docs 17 §6): có cảnh báo sức chứa kho nhận không — vượt dự kiến hoặc vượt nếu gửi hết đơn nháp. Không chặn. */
 export function hasCapacityWarning(order: Pick<ProductionOrder, "capacity">): boolean {
   const capacity = order.capacity;
   return Boolean(capacity && (capacity.exceedsProjected || capacity.exceedsIfAllApproved));

@@ -66,8 +66,10 @@ export const WAREHOUSE_CAPACITY_UI_LABELS = {
     occupied: "Thùng ở bin và ở khu nhận hàng, khu tạm, khu cách ly",
     incoming: "Phần chưa nhận của Đơn sản xuất đã gửi về kho",
     projectedFree: "Sức chứa − Đang chiếm − Sắp về (có thể âm)",
-    pending: "Đơn sản xuất chưa gửi đi — không trừ vào còn trống dự kiến",
-    freeIfAllApproved: "Còn trống dự kiến − Chờ duyệt (có thể âm)",
+    // Docs 06 §4.6 (chốt lại 2026-11-20): tên cột giữ nguyên, nay là Đơn sản xuất nháp chưa gửi
+    pending: "Đơn sản xuất nháp, chưa gửi đi — không trừ vào còn trống dự kiến",
+    freeIfAllApproved:
+      "Còn trống dự kiến − Chờ duyệt, tức còn trống nếu gửi hết đơn nháp (có thể âm)",
     outgoing: "Thùng đã giữ cho đơn chưa giao — chỉ tham khảo, không cộng vào chỗ trống",
   },
   general: "Thông tin chung",
@@ -104,7 +106,7 @@ export const WAREHOUSE_CAPACITY_UI_LABELS = {
       `Hàng sắp về vượt chỗ trống ${m3} m³. Hàng về vẫn được nhận và cất vào khu tạm OVERFLOW (BR-21).`,
     negativeIfApprovedTitle: "Không đủ chỗ nếu duyệt hết",
     negativeIfApproved: (m3: string) =>
-      `Nếu mọi Đơn sản xuất đang chờ duyệt được gửi, kho thiếu ${m3} m³.`,
+      `Nếu gửi hết các Đơn sản xuất nháp về kho này, kho thiếu ${m3} m³.`,
     binsWithoutVolume: (n: number) =>
       `${n} bin chưa tính được thể tích (tầng thiếu chiều cao lọt) — chưa cộng vào Sức chứa. Bổ sung chiều cao lọt của tầng trên bản đồ kho.`,
     cartonsWithoutSize: (n: number) =>

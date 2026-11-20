@@ -5,11 +5,14 @@
  *   GET  /production-orders/{id}                     → có `history`
  *   POST /production-orders {salesOrderId, deliveryBatchSeq, producerId}  (:CREATE; 409 PRODUCTION_ORDER_NOTHING_SHORT)
  *   PUT  /production-orders/{id}                     sửa nháp (:UPDATE; 409 PRODUCTION_ORDER_EXCEEDS_SHORTAGE)
- *   POST …/submission {version} · …/acceptance {version, expectedCompletionDate}
+ *   POST …/sending {version}                 gửi thẳng cho đơn vị SX, không qua duyệt (409 PRINT_FILE_MISMATCH)
+ *   POST …/acceptance {version, expectedCompletionDate, note?}
  *   POST …/production-start {version, expectedCompletionDate?} · PUT …/expected-completion-date
  *   POST …/cancellation · …/closing {version, reason}                     (:UPDATE)
- *   POST …/approval {version} · …/return {version, reason}               (:APPROVE; 409 PRODUCTION_ORDER_SELF_APPROVAL)
  *   GET  …/slip → DownloadLink · GET …/dispatch · POST …/dispatch/resend  (READ / UPDATE)
+ *
+ * Chốt lại 2026-11-20 (docs 17 §4.3 bước 7, BR-23; BE V20261211000100): bỏ bước duyệt — `/submission`, `/approval`,
+ * `/return` và quyền `production-orders:APPROVE` không còn.
  */
 
 import { PAGE_SIZE } from "@/constants";
@@ -25,6 +28,7 @@ import {
 
 import type { ListQueryParams, PaginatedResponse } from "@/lib/api/query-factory";
 import type {
+  AcceptInput,
   DrawUpInput,
   EditInput,
   ExpectedDateInput,
@@ -109,11 +113,14 @@ const reason = (input: ReasonInput) => ({ reason: input.reason });
 const expected = (input: ExpectedDateInput) => ({
   expectedCompletionDate: input.expectedCompletionDate ?? undefined,
 });
+// Ghi chú trống thì không gửi (BE: blank → null)
+const acceptance = (input: AcceptInput) => ({
+  ...expected(input),
+  note: input.note?.trim() || undefined,
+});
 
-export const submitProductionOrder = transition<VersionInput>("/submission", none);
-export const approveProductionOrder = transition<VersionInput>("/approval", none);
-export const returnProductionOrder = transition<ReasonInput>("/return", reason);
-export const acceptProductionOrder = transition<ExpectedDateInput>("/acceptance", expected);
+export const sendProductionOrder = transition<VersionInput>("/sending", none);
+export const acceptProductionOrder = transition<AcceptInput>("/acceptance", acceptance);
 export const changeExpectedCompletion = transition<ExpectedDateInput>(
   "/expected-completion-date",
   expected,

@@ -4,6 +4,7 @@
  */
 
 import {
+  DELAY_ALERT_PERMISSIONS,
   ORDER_DELIVERY_BATCH_PERMISSIONS,
   PRODUCER_PERMISSIONS,
   PRODUCTION_ORDER_PERMISSIONS,
@@ -35,11 +36,13 @@ export const PRODUCTION_ACTORS = {
     PRODUCTION_SCHEDULE_PERMISSIONS.viewPage,
     PRODUCTION_SCHEDULE_PERMISSIONS.read,
     BATCHES,
+    // BE V20261209000400: Điều phối sản xuất đọc cảnh báo trễ (BE bỏ DELIVERY_LATE — BR-30)
+    DELAY_ALERT_PERMISSIONS.read,
   ] as PermissionCode[],
+  // Chốt lại 2026-11-20 (BE V20261211000200): không còn duyệt — Sales Manager chỉ đọc
   salesManager: [
     PO.viewPage,
     PO.read,
-    PO.approve,
     PRODUCER_PERMISSIONS.viewPage,
     PRODUCER_PERMISSIONS.read,
     PRODUCTION_SCHEDULE_PERMISSIONS.viewPage,

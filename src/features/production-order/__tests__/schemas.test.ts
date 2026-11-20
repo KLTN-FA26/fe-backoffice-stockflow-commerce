@@ -51,9 +51,18 @@ describe("productionOrderEditInput", () => {
 
 describe("expectedDateInput", () => {
   it("ngày dự kiến không ở quá khứ; bắt buộc trừ khi bắt đầu sản xuất", () => {
-    expect(expectedDateInput(false).safeParse({ date: "" }).success).toBe(false);
-    expect(expectedDateInput(true).safeParse({ date: "" }).success).toBe(true);
-    expect(expectedDateInput(false).safeParse({ date: "2000-01-01" }).success).toBe(false);
-    expect(expectedDateInput(false).safeParse({ date: "2999-01-01" }).success).toBe(true);
+    const at = (date: string) => ({ date, note: "" });
+    expect(expectedDateInput(false).safeParse(at("")).success).toBe(false);
+    expect(expectedDateInput(true).safeParse(at("")).success).toBe(true);
+    expect(expectedDateInput(false).safeParse(at("2000-01-01")).success).toBe(false);
+    expect(expectedDateInput(false).safeParse(at("2999-01-01")).success).toBe(true);
+  });
+
+  it("ghi chú nhận đơn tuỳ chọn, tối đa 500 ký tự sau khi cắt khoảng trắng (docs 17 §4.3 bước 8)", () => {
+    const schema = expectedDateInput(false);
+    const date = "2999-01-01";
+    expect(schema.parse({ date, note: "  Zalo  " }).note).toBe("Zalo");
+    expect(schema.safeParse({ date, note: "x".repeat(500) }).success).toBe(true);
+    expect(schema.safeParse({ date, note: "x".repeat(501) }).success).toBe(false);
   });
 });

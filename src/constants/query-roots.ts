@@ -31,7 +31,7 @@ export const SHARED_QUERY_ROOTS = {
    */
   producers: "sales-producers",
   /**
-   * Đơn bán — feature `order` sở hữu (`orderKeys.all`). Đơn sản xuất được duyệt / nhận đổi trạng thái đơn bán (Awaiting
+   * Đơn bán — feature `order` sở hữu (`orderKeys.all`). Đơn sản xuất được gửi / nhận đổi trạng thái đơn bán (Awaiting
    * Stock) và phần "đơn sản xuất" trên trang đơn, nên feature `production-order` invalidate qua root này.
    */
   salesOrders: "orders",
@@ -45,4 +45,9 @@ export const SHARED_QUERY_ROOTS = {
   productionSchedule: "production-schedule",
   /** Cảnh báo trễ của đơn (`GET /delay-alerts`) — tự đóng / mở khi Đơn sản xuất đổi ngày hoặc trạng thái. */
   delayAlerts: "delay-alerts",
+  /**
+   * Bảng sức chứa kho — feature `warehouse-capacity` sở hữu (`capacityKeys.all`). Lập / gửi / huỷ Đơn sản xuất đổi "chờ
+   * gửi" và "sắp nhập" của kho nhận (docs 06 §4.6), nên `production-order` invalidate qua root này.
+   */
+  warehouseCapacity: "warehouse-capacity",
 } as const;

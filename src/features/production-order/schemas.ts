@@ -78,13 +78,18 @@ export const productionOrderDto = z.object({
   sampleWaiverReason: z.string().nullish(),
   note: z.string().nullish(),
   drawnUpBy: z.string(),
+  // Chỉ còn ở đơn trước 2026-11-20 (bỏ bước duyệt, docs 17 BR-23) — BE vẫn trả cho đơn cũ
   submittedAt: z.string().nullish(),
   approvedBy: z.string().nullish(),
   approvedAt: z.string().nullish(),
   returnedReason: z.string().nullish(),
   sentAt: z.string().nullish(),
+  /** Người gửi cho đơn vị sản xuất (đơn trước 2026-11-20: người duyệt). */
+  sentBy: z.string().nullish(),
   productionStartedAt: z.string().nullish(),
   expectedCompletionDate: z.string().nullish(),
+  /** Ghi chú khi ghi nhận nhận đơn (docs 17 §4.3 bước 8) — ghi một lần. */
+  acceptanceNote: z.string().nullish(),
   cancelledAt: z.string().nullish(),
   cancellationReason: z.string().nullish(),
   closedAt: z.string().nullish(),

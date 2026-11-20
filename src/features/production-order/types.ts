@@ -28,20 +28,25 @@ export interface DrawUpInput {
   producerId: string;
 }
 
-/** Thao tác chỉ cần `version` (gửi duyệt, duyệt). */
+/** Thao tác chỉ cần `version` (gửi cho đơn vị sản xuất). */
 export interface VersionInput {
   id: string;
   version: number;
 }
 
-/** Trả lại / huỷ / đóng — lý do bắt buộc, ≤ 500 ký tự. */
+/** Huỷ / đóng — lý do bắt buộc, ≤ 500 ký tự. */
 export interface ReasonInput extends VersionInput {
   reason: string;
 }
 
-/** Ghi nhận nhận đơn / đổi ngày dự kiến / bắt đầu sản xuất (ngày tuỳ chọn). */
+/** Đổi ngày dự kiến / bắt đầu sản xuất (ngày tuỳ chọn). */
 export interface ExpectedDateInput extends VersionInput {
   expectedCompletionDate: string | null;
+}
+
+/** Ghi nhận nhận đơn: ngày bắt buộc + ghi chú tuỳ chọn (docs 17 §4.3 bước 8, chốt lại 2026-11-20). */
+export interface AcceptInput extends ExpectedDateInput {
+  note?: string | null;
 }
 
 /** Body `PUT /production-orders/{id}` (BE `EditProductionOrderRequest`) — `lines` chỉ dòng muốn đổi. */

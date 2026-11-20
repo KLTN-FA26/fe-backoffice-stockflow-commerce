@@ -504,16 +504,16 @@ export const QUOTE_PERMISSIONS = {
 
 /**
  * Đơn sản xuất — resource `production-orders` (BE `OrderResources.PRODUCTION_ORDERS`, PermissionMatrixTest; docs 17
- * §4.3, BR-23). CREATE / UPDATE: Điều phối sản xuất (lập, sửa nháp, gửi duyệt, ghi nhận nhận đơn, ngày dự kiến, bắt đầu
- * sản xuất, huỷ, đóng, gửi lại mail, vòng mẫu in). APPROVE: Sales Manager (duyệt = gửi, trả lại). READ: thêm Sale và Quản
- * lý kho (BE lọc theo kho).
+ * §4.3, BR-23). CREATE / UPDATE: Điều phối sản xuất (lập, sửa nháp, gửi cho đơn vị sản xuất, ghi nhận nhận đơn, ngày dự
+ * kiến, bắt đầu sản xuất, huỷ, đóng, gửi lại mail, vòng mẫu in). READ: Sales Manager, Sale, Quản lý kho (BE lọc theo kho).
+ * Chốt lại 2026-11-20 (BE V20261211000200): bỏ bước duyệt — `production-orders:APPROVE` đã xoá; Sales Manager chỉ xem và
+ * được báo khi một đơn được gửi (`production-order-sends:READ`, chỉ là đối tượng nhận thông báo, FE không gate theo nó).
  */
 export const PRODUCTION_ORDER_PERMISSIONS = {
   viewPage: "production-orders:VIEW_PAGE",
   read: "production-orders:READ",
   create: "production-orders:CREATE",
   update: "production-orders:UPDATE",
-  approve: "production-orders:APPROVE",
 } as const;
 
 /**
@@ -534,8 +534,9 @@ export const PRODUCTION_SCHEDULE_PERMISSIONS = {
 } as const;
 
 /**
- * Cờ trễ trên trang đơn — resource `delay-alerts` (docs 17 §4.12 bước 49): Sale, Sales Manager, Quản lý kho. Điều phối
- * sản xuất không có — họ xem cờ trên lịch sản xuất.
+ * Cờ trễ trên trang đơn — resource `delay-alerts` (docs 17 §4.12 bước 49): Sale, Sales Manager, Quản lý kho và (BE
+ * V20261209000400) Điều phối sản xuất. BE tự bỏ `DELIVERY_LATE` khỏi danh sách với ai thiếu `delivery-delay-alerts:READ`
+ * (Điều phối sản xuất — BR-30), nên FE không lọc lại.
  */
 export const DELAY_ALERT_PERMISSIONS = {
   read: "delay-alerts:READ",

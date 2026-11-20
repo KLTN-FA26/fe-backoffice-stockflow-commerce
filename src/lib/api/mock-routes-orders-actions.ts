@@ -238,7 +238,6 @@ async function productionOrderOf(order: Order) {
     status,
     needByDate: order.placedAt.slice(0, 10),
     sampleApprovalRequired: false,
-    currency: "VND",
     lines: productionLines,
     version: 0,
   };

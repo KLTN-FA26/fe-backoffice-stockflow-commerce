@@ -34,7 +34,7 @@ function DetailContent({ id }: { id: string }) {
   const canRead = can(PRODUCTION_ORDER_PERMISSIONS.read);
   const query = useProductionOrder(id, { enabled: canRead });
   const order = query.data;
-  // Chỉ duyệt mới gửi cho đơn vị sản xuất (BE ghi `sentAt`) — đơn huỷ từ nháp chưa gửi gì, không gọi `/dispatch`
+  // Chỉ khi gửi mới có phiếu và mail cho đơn vị sản xuất (BE ghi `sentAt`) — đơn huỷ từ nháp chưa gửi gì, không gọi `/dispatch`
   // (docs 17 §4.3 bước 7).
   const sent = Boolean(order?.sentAt);
   const dispatch = useProductionOrderDispatch(id, 0, canRead && sent);
@@ -47,7 +47,7 @@ function DetailContent({ id }: { id: string }) {
     );
   if (!order) return <PageSkeleton variant="detail" />;
 
-  const actions = productionOrderActions(order, { can, userId: me }, dispatch.data?.channel);
+  const actions = productionOrderActions(order, { can }, dispatch.data?.channel);
   return (
     <>
       <RefetchBar active={query.isFetching} label={PRODUCTION_LABELS.detail.loadingRefs} />

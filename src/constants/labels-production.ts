@@ -85,7 +85,7 @@ export const PRODUCTION_LABELS = {
       createTitle: "Thêm đơn vị sản xuất",
       editTitle: "Sửa đơn vị sản xuất",
       createDescription:
-        "Kênh Email: hệ thống tự gửi phiếu Đơn sản xuất khi được duyệt. Kênh PDF: Điều phối sản xuất tự giao phiếu.",
+        "Kênh Email: hệ thống tự gửi phiếu khi Điều phối sản xuất gửi Đơn sản xuất. Kênh PDF: Điều phối sản xuất tự giao phiếu.",
       editDescription:
         "Mã không đổi được. Ngừng dùng thì đơn vị không nhận Đơn sản xuất mới; đơn đang mở vẫn chạy tiếp.",
       submitCreate: "Thêm",
@@ -161,12 +161,15 @@ export const PRODUCTION_LABELS = {
     waiverReason: "Lý do tắt duyệt mẫu",
     note: "Ghi chú",
     drawnUpBy: "Người lập",
-    approvedBy: "Người duyệt",
+    sentBy: "Người gửi",
+    // Đơn gửi trước 2026-11-20 còn bước duyệt (docs 17 BR-23 chốt lại) — chỉ hiện khi BE trả
+    approvedBy: "Người duyệt (trước 2026-11-20)",
     submittedAt: "Gửi duyệt lúc",
     approvedAt: "Duyệt lúc",
     sentAt: "Gửi đơn vị sản xuất lúc",
+    acceptanceNote: "Ghi chú khi nhận đơn",
     productionStartedAt: "Bắt đầu sản xuất lúc",
-    returnedReason: "Lý do trả lại",
+    returnedReason: "Lý do về nháp (trước 2026-11-20)",
     cancellationReason: "Lý do huỷ",
     closingReason: "Lý do đóng",
     lines: "Dòng sản xuất",
@@ -187,17 +190,17 @@ export const PRODUCTION_LABELS = {
     capacityProjected: (code: string) =>
       `Thể tích Đơn sản xuất vượt còn trống dự kiến của kho ${code}.`,
     capacityIfAllApproved: (code: string) =>
-      `Nếu duyệt hết các Đơn sản xuất đang chờ, kho ${code} không còn đủ chỗ.`,
+      `Nếu gửi hết các Đơn sản xuất nháp khác về kho ${code}, kho không còn đủ chỗ.`,
     capacityShortfall: (m3: string) => `Thiếu khoảng ${m3} m³.`,
-    capacityNotBlocking: "Chỉ là cảnh báo — không chặn gửi duyệt hay duyệt.",
-    capacityFigures: "Thể tích đơn / còn trống dự kiến / còn trống nếu duyệt hết",
+    capacityNotBlocking: "Chỉ là cảnh báo — không chặn gửi (BR-25).",
+    capacityFigures: "Thể tích đơn / còn trống dự kiến / còn trống nếu gửi hết đơn nháp",
     loadingRefs: "Đang tải…",
   },
   dispatch: {
     title: "Gửi cho đơn vị sản xuất",
     channel: "Kênh",
     slip: "Phiếu Đơn sản xuất (PDF)",
-    slipMissing: "Chưa có phiếu — phiếu được xuất khi Sales Manager duyệt.",
+    slipMissing: "Chưa có phiếu — phiếu được xuất khi gửi Đơn sản xuất.",
     downloadSlip: "Tải phiếu",
     downloading: "Đang lấy link…",
     messages: "Lịch sử gửi mail",
@@ -225,28 +228,19 @@ export const PRODUCTION_LABELS = {
   actions: {
     title: "Trạng thái & thao tác",
     edit: "Sửa nháp",
-    submit: "Gửi duyệt",
-    approve: "Duyệt & gửi",
-    return: "Trả lại",
+    send: "Gửi cho đơn vị sản xuất",
     accept: "Ghi nhận nhận đơn",
     changeExpected: "Đổi ngày dự kiến",
     startProduction: "Bắt đầu sản xuất",
     cancel: "Huỷ đơn",
     close: "Đóng đơn",
-    selfApprovalHint: "Bạn là người lập đơn này — người khác có quyền duyệt phải duyệt (BR-23).",
     sampleBlocksStart:
       "Đơn cần duyệt mẫu in: chỉ sang Đang sản xuất khi khách duyệt mẫu (BR-24). Tải mẫu vòng 1 ở mục Vòng mẫu in.",
   },
   dialogs: {
-    submitTitle: "Gửi duyệt Đơn sản xuất?",
-    submitDescription:
-      "Sales Manager (không phải người lập) sẽ xem lại sức chứa kho nhận và duyệt.",
-    approveTitle: "Duyệt và gửi Đơn sản xuất?",
-    approveDescription:
-      "Hệ thống kiểm file in, xuất phiếu PDF và gửi qua kênh của đơn vị sản xuất; đơn bán chuyển Chờ hàng. Không hoàn tác được.",
-    returnTitle: "Trả lại Đơn sản xuất",
-    returnDescription: "Đơn về Nháp để Điều phối sản xuất sửa và gửi duyệt lại.",
-    returnReason: "Lý do trả lại",
+    sendTitle: "Gửi Đơn sản xuất cho đơn vị sản xuất?",
+    sendDescription:
+      "Chỉ gửi khi đã thoả thuận với đơn vị sản xuất. Hệ thống kiểm lại file in, xuất phiếu PDF và gửi qua kênh của đơn vị; đơn bán chuyển Chờ hàng, Quản lý kho của kho nhận và Sales Manager được báo. Gửi rồi không rút lại — đơn vị rút lui thì huỷ và lập đơn mới.",
     cancelTitle: "Huỷ Đơn sản xuất",
     cancelDescription:
       "Chỉ huỷ được khi chưa in hàng loạt (BR-06). Đơn đã gửi thì hệ thống báo đơn vị sản xuất dừng.",
@@ -258,6 +252,9 @@ export const PRODUCTION_LABELS = {
     acceptTitle: "Ghi nhận đơn vị sản xuất đã nhận đơn",
     acceptDescription:
       "Nhập ngày hoàn thành dự kiến đơn vị sản xuất báo. Ngày này muộn hơn ngày cần hàng sẽ sinh cảnh báo Nguy cơ trễ.",
+    acceptNote: "Ghi chú",
+    acceptNoteHint: "Tuỳ chọn — ai xác nhận, qua kênh nào. Ghi một lần, không sửa được.",
+    acceptNotePlaceholder: "VD: anh Hùng xác nhận qua Zalo",
     expectedTitle: "Đổi ngày hoàn thành dự kiến",
     expectedDescription: "Ghi ngày mới đơn vị sản xuất báo. Không được ở quá khứ.",
     startTitle: "Bắt đầu sản xuất hàng loạt",
@@ -422,9 +419,7 @@ export const PRODUCTION_TOAST_MESSAGES = {
   producerUpdated: "Đã lưu đơn vị sản xuất",
   drawnUp: "Đã lập Đơn sản xuất nháp",
   edited: "Đã lưu Đơn sản xuất nháp",
-  submitted: "Đã gửi duyệt Đơn sản xuất",
-  approved: "Đã duyệt — Đơn sản xuất đang được gửi cho đơn vị sản xuất",
-  returned: "Đã trả lại Đơn sản xuất",
+  sent: "Đã gửi Đơn sản xuất cho đơn vị sản xuất",
   accepted: "Đã ghi nhận đơn vị sản xuất nhận đơn",
   expectedChanged: "Đã cập nhật ngày hoàn thành dự kiến",
   productionStarted: "Đã ghi nhận bắt đầu sản xuất",
@@ -444,7 +439,6 @@ export const PRODUCTION_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   PRODUCTION_ORDER_NOT_FOUND: "Không tìm thấy Đơn sản xuất.",
   PRODUCTION_ORDER_STATUS_INVALID:
     "Thao tác không còn phù hợp với trạng thái Đơn sản xuất. Dữ liệu đã được tải lại.",
-  PRODUCTION_ORDER_SELF_APPROVAL: "Không tự duyệt Đơn sản xuất mình lập (BR-23).",
   PRODUCTION_ORDER_NOT_ALLOWED:
     "Đơn bán chưa ở trạng thái cho phép lập Đơn sản xuất (chưa xác nhận hoặc chưa chọn kho xuất).",
   PRODUCTION_ORDER_NOTHING_SHORT: "Đợt giao không còn thiếu thùng nào — danh sách đã được làm mới.",
