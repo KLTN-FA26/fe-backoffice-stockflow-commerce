@@ -143,4 +143,35 @@ export const DESIGN_REASON_MAX = 2000;
 export const DESIGN_REVIEW_STORAGE_KEYS = {
   queueConfig: "stockflow:admin:designs:review-queue:config",
   roundsConfig: "stockflow:admin:design-review-rounds:config",
+  quoteRequestsConfig: "stockflow:admin:design-quote-requests:config",
+  projectQuoteRequestsConfig: "stockflow:admin:design-project-quote-requests:config",
+} as const;
+
+/** Hộp yêu cầu báo giá thiết kế (đơn lẻ + dự án). */
+export const DESIGN_QUOTE_REQUEST_LABELS = {
+  navLabel: "Yêu cầu báo giá thiết kế",
+  title: "Yêu cầu báo giá thiết kế",
+  tabSingle: "Thiết kế đơn lẻ",
+  tabProject: "Dự án",
+  emptyTitle: "Chưa có yêu cầu báo giá nào đang mở",
+  emptyDescription: "Khi khách gửi yêu cầu báo giá cho thiết kế đã duyệt, yêu cầu sẽ hiện ở đây.",
+  projectEmptyTitle: "Chưa có yêu cầu báo giá dự án nào",
+  projectEmptyDescription: "Yêu cầu báo giá cả bộ thiết kế của dự án sẽ hiện ở đây.",
+  statusFilter: "Trạng thái",
+  statusAll: "Tất cả",
+  openChat: "Mở chat",
+  createQuote: "Lập báo giá",
+  close: "Đóng",
+  noConversation: "Khách chưa có hội thoại về thiết kế này",
+  noConversationProject: "Khách chưa có hội thoại về dự án này",
+  quoteReminder: "Sau khi lập báo giá, bấm 'Đóng' yêu cầu này",
+  closeTitle: "Đóng yêu cầu báo giá?",
+  closeDescription:
+    "Đóng yêu cầu này khi đã báo giá hoặc đã thống nhất với khách ngoài chat. Khách sẽ phải gửi yêu cầu mới cho lần sau.",
+  closed: "Đã đóng yêu cầu báo giá",
+  blockedPending: "Chờ duyệt thiết kế",
+  blockedDraft: "Khách đang sửa thiết kế",
+  blockedArchived: "Thiết kế đã bị xoá",
+  blockedNoSku: "Thiết kế chưa có SKU riêng",
+  blockedEmpty: "Dự án chưa có thiết kế",
 } as const;

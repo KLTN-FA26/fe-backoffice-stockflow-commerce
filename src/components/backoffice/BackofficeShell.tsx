@@ -13,6 +13,7 @@ import {
   Factory,
   Database,
   FileBox,
+  FileInput,
   FileSignature,
   MessagesSquare,
   FileText,
@@ -62,6 +63,8 @@ import {
   CREDIT_HOLD_PERMISSIONS,
   CUSTOMER_PRICE_PERMISSIONS,
   DESIGN_PERMISSIONS,
+  DESIGN_QUOTE_REQUEST_LABELS,
+  DESIGN_QUOTE_REQUEST_PERMISSIONS,
   CUSTOMER_PRICE_UI_LABELS,
   DELIVERY_FAILURE_LABELS,
   FULFILLMENT_CARRIER_EVENT_PERMISSIONS,
@@ -405,6 +408,13 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: ClipboardCheck,
         // `design-designs:APPROVE` (SALES_MANAGER, SYSTEM_ADMIN) — không dùng VIEW_PAGE: SALES_STAFF cũng có, sẽ bị 403
         permission: DESIGN_PERMISSIONS.approve,
+      },
+      {
+        label: DESIGN_QUOTE_REQUEST_LABELS.navLabel,
+        href: ADMIN_ROUTES.designQuoteRequests.list,
+        icon: FileInput,
+        // BE `design-quote-requests:VIEW_PAGE` (SALES_STAFF, SALES_MANAGER); hai route (đơn lẻ / dự án) chia mục này
+        permission: DESIGN_QUOTE_REQUEST_PERMISSIONS.viewPage,
       },
       {
         label: "Chat với khách",
