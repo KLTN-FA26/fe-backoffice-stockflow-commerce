@@ -51,6 +51,11 @@ export interface MockReceiptLine {
   unitOfMeasure?: string | null;
   /** SCRUM-473: thùng của dòng, kể cả VOID (view lọc bỏ — `cartonLineView`). */
   packages?: MockReceiptPackage[];
+  /** SCRUM-566: dòng Đơn sản xuất của phiếu theo Đơn sản xuất (BE 4A-5). */
+  productionOrderLineId?: string | null;
+  /** SCRUM-566: số thùng đặt / số cái chuẩn mỗi thùng của dòng Đơn sản xuất — dựng `production` của view. */
+  orderedCartons?: number;
+  unitsPerCarton?: number;
 }
 
 export interface MockReceipt {
@@ -77,6 +82,9 @@ export interface MockReceipt {
   closedAt: string | null;
   lines: MockReceiptLine[];
   warnings?: string[];
+  /** SCRUM-566: phiếu theo Đơn sản xuất (`receiptType = PRODUCTION`); thiếu = phiếu mua hàng cũ. */
+  productionOrderId?: string | null;
+  productionOrderCode?: string | null;
 }
 
 /* ── Kho & khu (chép seed demo BE: db/demo V20260928009000 + V20260929000270) ─ */
@@ -291,16 +299,67 @@ export function resetReceiptMockStore(): void {
 
 /* ── Helpers dùng chung cho routes phiếu ─────────────────────────────── */
 
+/** Phiếu đã xác nhận (đã ghi tồn) — tính vào số thùng Đơn sản xuất đã nhận. */
+const CONFIRMED_RECEIPT: readonly MockReceiptStatus[] = ["CONFIRMED", "IN_PUTAWAY", "CLOSED"];
+
+function liveCartonCount(line: MockReceiptLine): number {
+  return (line.packages ?? []).filter((p) => p.status !== "VOID").length;
+}
+
 /**
- * Như BE `GoodsReceiptWebMapper#toResponse` sau 4A-9: gắn field thùng của mọi dòng (SCRUM-473) và
- * `receiptType`. Phiếu seed sinh từ PO mock nên đều là phiếu mua hàng cũ (`PURCHASE`).
+ * Thùng của dòng Đơn sản xuất trên các phiếu thoả `include` (bỏ `exceptReceiptId`). Store chưa nạp → 0 (chưa phiếu
+ * theo Đơn sản xuất nào: seed chỉ có phiếu mua hàng cũ).
+ */
+export function productionCartonsOf(
+  productionOrderLineId: string,
+  include: (status: MockReceiptStatus) => boolean = (status) => CONFIRMED_RECEIPT.includes(status),
+  exceptReceiptId?: string,
+): number {
+  let total = 0;
+  for (const receipt of store?.values() ?? []) {
+    if (receipt.id === exceptReceiptId || !include(receipt.status)) continue;
+    for (const line of receipt.lines) {
+      if (line.productionOrderLineId === productionOrderLineId) total += liveCartonCount(line);
+    }
+  }
+  return total;
+}
+
+/** BE `GoodsReceiptResponse.ProductionLineProgress`: `remaining` = đặt − đã nhận (phiếu khác) − phiếu này. */
+function productionProgress(receipt: MockReceipt, line: MockReceiptLine) {
+  if (!receipt.productionOrderId || !line.productionOrderLineId) return null;
+  const perCarton = line.unitsPerCarton ?? 1;
+  const ordered = line.orderedCartons ?? 0;
+  const received = productionCartonsOf(line.productionOrderLineId, undefined, receipt.id);
+  const mine = liveCartonCount(line);
+  return {
+    unitsPerCarton: perCarton,
+    orderedCartons: ordered,
+    receivedCartons: received,
+    thisReceiptCartons: mine,
+    remainingCartons: ordered - received - mine,
+    orderedUnits: ordered * perCarton,
+    receivedUnits: received * perCarton,
+    thisReceiptUnits: mine * perCarton,
+    remainingUnits: (ordered - received - mine) * perCarton,
+  };
+}
+
+/**
+ * Như BE `GoodsReceiptWebMapper#toResponse` sau 4A-9: gắn field thùng của mọi dòng (SCRUM-473) và `receiptType`.
+ * Phiếu seed sinh từ PO mock là phiếu mua hàng cũ (`PURCHASE`); phiếu lập ở SCRUM-566 là `PRODUCTION`.
  */
 export function toReceiptView(receipt: MockReceipt) {
   return {
     ...receipt,
-    receiptType: "PURCHASE" as const,
+    receiptType: receipt.productionOrderId ? ("PRODUCTION" as const) : ("PURCHASE" as const),
     warnings: [],
-    lines: receipt.lines.map((line) => ({ ...line, ...cartonLineView(line), warnings: [] })),
+    lines: receipt.lines.map((line) => ({
+      ...line,
+      ...cartonLineView(line),
+      warnings: [],
+      production: productionProgress(receipt, line),
+    })),
   };
 }
 

@@ -7,6 +7,7 @@
  */
 
 import { paginatePage, registerMockRoute } from "./mock-adapter";
+import { MOCK_WAREHOUSE_ID, productionCartonsOf } from "./mock-routes-goods-receipts-store";
 import {
   MOCK_CREDIT_LIMIT,
   applyTransition,
@@ -193,46 +194,91 @@ function productionCode(order: Order, seq: number): string {
   return `PRD-${day}-${String(seq).padStart(4, "0")}`;
 }
 
-function registerProductionRoute(): void {
-  // GET /production-orders — BE ProductionOrderController#list: trang `PageResponse` của `ProductionOrder`. Mock chỉ
-  // hỗ trợ lọc `salesOrderId` mà FE dùng; BE không kiểm đơn tồn tại → đơn lạ trả trang rỗng, không 404.
-  registerMockRoute("GET", "/production-orders", async (config) => {
-    const params = readParams(config);
-    const page = Math.max(0, Number(params.get("page")) || 0);
-    const size = Math.max(1, Number(params.get("size")) || 20);
-    const salesOrderId = params.get("salesOrderId");
-    const order = salesOrderId ? await findOrder(salesOrderId) : undefined;
-    // Đơn chưa release → chưa có Đơn sản xuất (docs 17 §4.2 bước 5)
-    const status = order ? productionStatusFor(order) : null;
-    const custom = order ? order.lines.filter(isCustomLine) : [];
-    if (!order || !status || custom.length === 0) return ok(paginatePage([], page, size));
-    const { lines, warehouseId } = toOrderResponse(order);
-    const received = status === "RECEIVED";
-    // ASSUMPTION (mock-only): đơn mock có một đợt giao → một Đơn sản xuất gồm mọi dòng tuỳ chỉnh; dòng mock không đặt
-    // theo thùng nên coi như 1 cái / thùng.
-    const productionLines = custom.map((line) => ({
-      id: `PRD-${line.lineId}-L1`,
+const LEGACY_HCM = "WH-HCM-01";
+
+/**
+ * Đơn sản xuất mock của một đơn bán (BE `ProductionOrderResponse`). ASSUMPTION (mock-only): đơn mock có một đợt giao →
+ * một Đơn sản xuất gồm mọi dòng tuỳ chỉnh; dòng mock không đặt theo thùng nên coi như 1 cái / thùng. Số thùng đã nhận
+ * cộng thêm thùng của phiếu nhập mock đã xác nhận (SCRUM-566) — đơn đang sản xuất chuyển Partially Received / Received.
+ */
+async function productionOrderOf(order: Order) {
+  const base = productionStatusFor(order);
+  const custom = order.lines.filter(isCustomLine);
+  if (!base || custom.length === 0) return null;
+  const { lines, warehouseId } = toOrderResponse(order);
+  const productionLines = custom.map((line) => {
+    const id = `PRD-${line.lineId}-L1`;
+    const received = base === "RECEIVED" ? line.quantity : productionCartonsOf(id);
+    return {
+      id,
       orderLineId: line.lineId,
       sku: line.skuId,
       cartons: line.quantity,
       unitsPerCarton: 1,
       totalUnits: line.quantity,
       designSnapshotId: lines.find((l) => l.lineId === line.lineId)?.designSnapshotId ?? null,
-      receivedCartons: received ? line.quantity : 0,
-    }));
-    const row = {
-      id: `PRD-${order.orderId}`,
-      code: productionCode(order, 1),
-      salesOrderId: order.orderId,
-      receivingWarehouseId: warehouseId,
-      status,
-      needByDate: order.placedAt.slice(0, 10),
-      sampleApprovalRequired: false,
-      currency: "VND",
-      lines: productionLines,
-      version: 0,
+      receivedCartons: Math.min(received, line.quantity),
     };
-    return ok(paginatePage([row], page, size));
+  });
+  const receivedAny = productionLines.some((line) => line.receivedCartons > 0);
+  const receivedAll = productionLines.every((line) => line.receivedCartons >= line.cartons);
+  const status: ProductionOrderStatus =
+    base !== "IN_PRODUCTION" || !receivedAny
+      ? base
+      : receivedAll
+        ? "RECEIVED"
+        : "PARTIALLY_RECEIVED";
+  return {
+    id: `PRD-${order.orderId}`,
+    code: productionCode(order, 1),
+    salesOrderId: order.orderId,
+    // ASSUMPTION (mock-only): kho `WH-HCM-01` của mock-data không có khu RECEIVING — Đơn sản xuất nhận về kho HCM của
+    // store module 06 (`MOCK_WAREHOUSE_ID`, có khu RCV01) để lập phiếu nhập được (docs 03 §3: khu nhận bắt buộc).
+    receivingWarehouseId: warehouseId === LEGACY_HCM ? MOCK_WAREHOUSE_ID : warehouseId,
+    status,
+    needByDate: order.placedAt.slice(0, 10),
+    sampleApprovalRequired: false,
+    currency: "VND",
+    lines: productionLines,
+    version: 0,
+  };
+}
+
+export type MockProductionOrder = NonNullable<Awaited<ReturnType<typeof productionOrderOf>>>;
+
+/** Mọi Đơn sản xuất mock (một đơn bán → tối đa một Đơn sản xuất). */
+export async function mockProductionOrders(): Promise<MockProductionOrder[]> {
+  const { orders } = await import("@/lib/mock-data");
+  const rows = await Promise.all(orders.map(productionOrderOf));
+  return rows.filter((row): row is MockProductionOrder => row !== null);
+}
+
+export async function findMockProductionOrder(id: string): Promise<MockProductionOrder | null> {
+  return (await mockProductionOrders()).find((row) => row.id === id) ?? null;
+}
+
+function registerProductionRoute(): void {
+  // GET /production-orders — BE ProductionOrderController#list: trang `PageResponse`, lọc `salesOrderId` / `status` /
+  // `warehouseId`. BE không kiểm đơn tồn tại → đơn lạ trả trang rỗng, không 404.
+  registerMockRoute("GET", "/production-orders", async (config) => {
+    const params = readParams(config);
+    const page = Math.max(0, Number(params.get("page")) || 0);
+    const size = Math.max(1, Number(params.get("size")) || 20);
+    const salesOrderId = params.get("salesOrderId");
+    const status = params.get("status");
+    const warehouseId = params.get("warehouseId");
+    const rows = (await mockProductionOrders())
+      .filter((row) => !salesOrderId || row.salesOrderId === salesOrderId)
+      .filter((row) => !status || row.status === status)
+      .filter((row) => !warehouseId || row.receivingWarehouseId === warehouseId);
+    return ok(paginatePage(rows, page, size));
+  });
+
+  // GET /production-orders/{id} — BE ProductionOrderController#one
+  registerMockRoute("GET", "/production-orders/:id", async (config) => {
+    const id = idParam(config);
+    const row = await findMockProductionOrder(id);
+    return row ? ok(row) : error(404, "PRODUCTION_ORDER_NOT_FOUND", `No production order ${id}`);
   });
 }
 

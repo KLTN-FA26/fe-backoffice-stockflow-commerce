@@ -6,6 +6,7 @@ import { GOODS_RECEIPT_PERMISSIONS, RECEIPT_COLUMNS, UI_LABELS } from "@/constan
 import { useCan } from "@/lib/auth";
 import { ListToolbar } from "@/components/shared/ListToolbar";
 
+import { CreateReceiptAction } from "./create/CreateReceiptAction";
 import { buildReceiptColumns } from "./list/columns";
 import { COLUMN_LABELS, DEFAULT_COLUMNS, STATUS_OPTIONS } from "./list/constants";
 import { ReceiptListBody } from "./list/ReceiptListBody";
@@ -29,7 +30,7 @@ function ReceiptListContent() {
 
   return (
     // Giao diện kiểu Vercel như danh sách sản phẩm (globals.css `.surface-soft`): không tiêu đề hiển
-    // thị — breadcrumb là tên trang. Lập phiếu theo Đơn sản xuất thêm ở SCRUM-566.
+    // thị — breadcrumb là tên trang. Nút lập phiếu theo Đơn sản xuất nằm trong `actions` (SCRUM-566).
     <div className="surface-soft">
       <h1 className="sr-only">{UI_LABELS.receipt.pageTitle}</h1>
       {canRead && (
@@ -56,6 +57,7 @@ function ReceiptListContent() {
             summaryItems={buildReceiptSummary(s)}
             onResetAll={s.resetAll}
             resetDisabled={!s.hasFilters && !s.hasColumnConfig && s.sort.key === null}
+            actions={<CreateReceiptAction />}
           />
           <ReceiptListFilters s={s} />
         </>

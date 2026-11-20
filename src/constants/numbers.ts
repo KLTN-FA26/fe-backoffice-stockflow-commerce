@@ -79,6 +79,19 @@ export const RECEIPT_CARTON_LIMITS = {
   scrollAfter: 10,
 } as const;
 
+/**
+ * Lập phiếu nhập theo Đơn sản xuất + kiểm đếm (docs 03 §3 Input, SCRUM-566) — đúng ràng buộc request BE
+ * `CreateProductionGoodsReceiptRequest` / `ReceiptLinesRequest`.
+ */
+export const PRODUCTION_RECEIPT_LIMITS = {
+  /** `deliveryNote` @Size(max = 100). */
+  deliveryNoteMax: 100,
+  /** `note` @Size(max = 2000). */
+  noteMax: 2000,
+  /** `lines` @Size(max = 200) — docs 03 §3: 1–200 dòng. */
+  linesMax: 200,
+} as const;
+
 /** Giới hạn task xuất kho — đúng ràng buộc request BE FulfillmentController. */
 export const FULFILLMENT_LIMITS = {
   /** `ReverificationRequest.resolutionNote` @NotBlank @Size(max = 1000). */
