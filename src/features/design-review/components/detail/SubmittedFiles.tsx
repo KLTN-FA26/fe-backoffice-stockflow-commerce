@@ -48,7 +48,7 @@ function ArtifactRow({
 }) {
   return (
     <li className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-[0.8125rem]">
-      <span className="text-ink-tertiary w-[150px] shrink-0 text-xs font-medium">
+      <span className="text-ink-tertiary w-36 shrink-0 text-xs font-medium">
         {labelOf(DESIGN_ARTIFACT_ROLE_LABELS, artifact.role)}
       </span>
       <span className="text-ink-primary min-w-0 flex-1 truncate" title={artifact.originalName}>

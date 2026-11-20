@@ -20,7 +20,7 @@ import { useDesign, useDesignArtifacts } from "@/features/design-review/queries"
 import { currentSubmission } from "@/features/design-review/selectors";
 
 import { LoadErrorState } from "@/components/backoffice/LoadErrorState";
-import { DETAIL_CARD_CLASS } from "@/components/shared/DetailSection";
+import { DETAIL_CARD_CLASS, DETAIL_GRID_CLASS } from "@/components/shared/DetailSection";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { StatusDot } from "@/components/shared/StatusDot";
 
@@ -80,7 +80,7 @@ function DesignReviewDetailContent({ id }: { id: string }) {
     // Trang chi tiết kiểu Vercel (globals.css `.surface-soft`): không tiêu đề hiển thị, breadcrumb có tên thiết kế.
     <div className="surface-soft surface-compact">
       <h1 className="sr-only">Thiết kế {design.name}</h1>
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <div className={DETAIL_GRID_CLASS}>
         <div className="min-w-0 space-y-5">
           <DesignGeneral design={design} now={now} />
           <DesignPreview design={design} onRefresh={() => void query.refetch()} />

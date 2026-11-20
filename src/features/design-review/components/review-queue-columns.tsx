@@ -26,13 +26,16 @@ export function reviewQueueColumns(now: Date, onRefreshPreview: () => void): Col
       header: "Ảnh",
       cell: (row) =>
         row.previewUrl ? (
-          <SignedFilePreview
-            url={row.previewUrl}
-            contentType={PREVIEW_CONTENT_TYPE}
-            alt={`Ảnh xem trước ${row.name}`}
-            size="thumb"
-            onRefresh={onRefreshPreview}
-          />
+          // "Lấy link mới" trong ô ảnh không được mở trang chi tiết (onRowClick của dòng).
+          <div onClick={(event) => event.stopPropagation()}>
+            <SignedFilePreview
+              url={row.previewUrl}
+              contentType={PREVIEW_CONTENT_TYPE}
+              alt={`Ảnh xem trước ${row.name}`}
+              size="thumb"
+              onRefresh={onRefreshPreview}
+            />
+          </div>
         ) : (
           DASH
         ),
