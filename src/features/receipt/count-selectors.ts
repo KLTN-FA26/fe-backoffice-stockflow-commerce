@@ -11,6 +11,11 @@ import { countRowTotal, isCountedRow } from "./count-schemas";
 import type { ProductionLineRef } from "@/lib/references/production-orders";
 import type { CountRow, GoodsReceipt, ReceiptLinesInput } from "./types";
 
+/** Thùng còn sống (`RECEIVING`) của một dòng phiếu nháp — nguồn chung cho dòng form và chữ ký bản đếm. */
+function receivingCartons(line: GoodsReceipt["lines"][number]) {
+  return line.packages.filter((carton) => carton.status === "RECEIVING");
+}
+
 /**
  * Một dòng form cho mỗi dòng Đơn sản xuất. Dòng đã có trên phiếu: giữ thùng `RECEIVING` của nó, giới hạn =
  * còn lại + phiếu này (BE `remaining` của phiếu nháp đã trừ phần phiếu này). Dòng chưa đếm: giới hạn = đặt − đã nhận.
@@ -40,9 +45,7 @@ export function buildCountRows(
         existing: [],
       };
     }
-    const existing = line.packages
-      .filter((carton) => carton.status === "RECEIVING")
-      .map((carton) => ({ lpn: carton.lpn, keep: true }));
+    const existing = receivingCartons(line).map((carton) => ({ lpn: carton.lpn, keep: true }));
     return {
       ...base,
       receivedCartons: progress?.receivedCartons ?? orderLine.receivedCartons,
@@ -145,8 +148,7 @@ export function countFieldErrors(error: unknown, rowOf: readonly number[]): Coun
 export function countSignature(receipt: Pick<GoodsReceipt, "lines">): string {
   return receipt.lines
     .map((line) => {
-      const cartons = line.packages
-        .filter((carton) => carton.status === "RECEIVING")
+      const cartons = receivingCartons(line)
         .map((carton) => carton.lpn)
         .join(",");
       return `${line.id}@${line.locationCode ?? ""}:${cartons}`;

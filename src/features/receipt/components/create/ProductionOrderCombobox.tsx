@@ -51,19 +51,22 @@ export function ProductionOrderCombobox({
       mono
     >
       <CommandList>
-        {orders.isError ? (
-          <CommandItem
-            value="retry"
-            className={COMBOBOX_ITEM_CLASS}
-            onSelect={() => orders.refetch()}
-          >
-            {L.loadError}
-          </CommandItem>
-        ) : orders.isPending && orders.data.length === 0 ? (
+        {orders.isPending && !orders.isError && orders.data.length === 0 ? (
           <p className={NOTE}>{L.loading}</p>
         ) : (
           <>
-            <CommandEmpty>{L.productionOrderEmpty}</CommandEmpty>
+            {/* Một trạng thái tải lỗi không che các đơn đã tải được — vẫn hiện danh sách, kèm mục thử lại */}
+            {orders.isError && (
+              <CommandItem
+                value="retry"
+                forceMount
+                className={COMBOBOX_ITEM_CLASS}
+                onSelect={() => orders.refetch()}
+              >
+                {L.loadError}
+              </CommandItem>
+            )}
+            {!orders.isError && <CommandEmpty>{L.productionOrderEmpty}</CommandEmpty>}
             <CommandGroup>
               {orders.data.map((order) => (
                 <CommandItem

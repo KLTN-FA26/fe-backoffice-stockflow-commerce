@@ -67,7 +67,7 @@ export function CountLineRow({
           control={control}
           name={`rows.${index}.locationCode`}
           render={({ field }) => (
-            <FormSelect value={field.value || undefined} onValueChange={field.onChange}>
+            <FormSelect value={field.value} onValueChange={field.onChange}>
               <SelectTrigger
                 id={ids.location}
                 aria-label={C.locationAria(row.sku)}

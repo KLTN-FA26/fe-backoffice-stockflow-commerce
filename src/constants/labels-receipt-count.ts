@@ -47,6 +47,9 @@ export const RECEIPT_COUNT_LABELS = {
     locationAria: (sku: string) => `Khu nhận của ${sku}`,
     locationPlaceholder: "Chọn khu",
     noReceivingArea: "Kho chưa có khu nhận hàng (RECEIVING)",
+    noLocationRead:
+      "Cần quyền xem vị trí kho (warehouse-locations:READ) để chọn khu nhận hàng — liên hệ quản trị.",
+    areasLoadError: "Không tải được danh sách khu nhận hàng của kho",
     removeCarton: (lpn: string) => `Bỏ thùng ${lpn}`,
     restoreCarton: (lpn: string) => `Giữ lại thùng ${lpn}`,
     voidHint: "Thùng gạch ngang sẽ thành Void khi lưu.",

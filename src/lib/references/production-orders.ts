@@ -18,6 +18,7 @@ import {
 import { api } from "@/lib/api/client";
 import { QUERY_TIMES } from "@/lib/api/query-client";
 
+import type { UseQueryResult } from "@tanstack/react-query";
 import type { ProductionOrderStatus } from "@/constants";
 
 /** Dòng Đơn sản xuất (BE `ProductionOrderResponse.Line`) — chỉ phần phiếu nhập cần: số thùng đặt / đã nhận. */
@@ -86,6 +87,25 @@ async function fetchByStatus(
   return productionOrderRefPageSchema.parse(data).items;
 }
 
+/** Hạn cần sớm nhất lên đầu; đơn chưa có hạn xếp cuối (không chen trước đơn gấp). */
+function byNeedByDate(a: ProductionOrderRef, b: ProductionOrderRef): number {
+  if (!a.needByDate || !b.needByDate) return Number(!a.needByDate) - Number(!b.needByDate);
+  return a.needByDate.localeCompare(b.needByDate);
+}
+
+/** Ổn định tham chiếu (module-level) để TanStack memo kết quả gộp, không gộp + sắp lại mỗi lần render. */
+function combineReceivable(results: UseQueryResult<ProductionOrderRef[]>[]) {
+  return {
+    data: results
+      .flatMap((result) => result.data ?? [])
+      .filter(isReceivableProductionOrder)
+      .sort(byNeedByDate),
+    isPending: results.some((result) => result.isPending),
+    isError: results.some((result) => result.isError),
+    refetch: () => results.forEach((result) => void result.refetch()),
+  };
+}
+
 /**
  * Đơn sản xuất nhận được hàng ở kho người dùng được gán (BE lọc theo kho với người dùng gắn kho). BE chỉ lọc một
  * `status` mỗi lần → gọi song song từng trạng thái nhận được rồi gộp, bỏ đơn chờ duyệt mẫu in (BR-15).
@@ -98,15 +118,7 @@ export function useReceivableProductionOrders(enabled = true) {
       enabled,
       ...QUERY_TIMES.list,
     })),
-    combine: (results) => ({
-      data: results
-        .flatMap((result) => result.data ?? [])
-        .filter(isReceivableProductionOrder)
-        .sort((a, b) => (a.needByDate ?? "").localeCompare(b.needByDate ?? "")),
-      isPending: results.some((result) => result.isPending),
-      isError: results.some((result) => result.isError),
-      refetch: () => results.forEach((result) => void result.refetch()),
-    }),
+    combine: combineReceivable,
   });
 }
 

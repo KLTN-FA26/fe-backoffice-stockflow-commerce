@@ -61,8 +61,9 @@ export function ReceiptCountForm({
   const rootError =
     form.formState.errors.rows?.root?.message ?? form.formState.errors.rows?.message;
 
-  // Báo trang chi tiết: còn thay đổi chưa lưu thì khoá "Xác nhận nhập kho"
+  // Báo trang chi tiết: còn thay đổi chưa lưu thì khoá "Xác nhận nhập kho"; form gỡ ra → không còn gì để chặn
   useEffect(() => onDirtyChange(isDirty), [isDirty, onDirtyChange]);
+  useEffect(() => () => onDirtyChange(false), [onDirtyChange]);
 
   const submit = form.handleSubmit((values) => {
     setError(null);

@@ -188,7 +188,10 @@ async function countLines(receipt: MockReceipt, order: MockProductionOrder, raws
   return { lines: counted };
 }
 
-/** Docs 03 §4.1 bước 6: thùng → IN_STOCK (tồn Inbound), phiếu → IN_PUTAWAY; BR-02 kiểm lại. */
+/**
+ * Docs 03 §4.1 bước 6: thùng → IN_STOCK (tồn Inbound), phiếu → IN_PUTAWAY. Mock không kiểm lại BR-02 ở đây — `PUT
+ * /lines` đã chặn tổng thùng mọi phiếu chưa huỷ vượt số đặt.
+ */
 export function confirmProductionReceipt(receipt: MockReceipt) {
   if (receipt.status !== "DRAFT")
     return invalidReceiptTransition(

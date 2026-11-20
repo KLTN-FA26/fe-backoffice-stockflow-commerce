@@ -25,7 +25,8 @@ function CountBody({
   onDirtyChange: (dirty: boolean) => void;
 }) {
   const order = useProductionOrderRef(receipt.productionOrderId);
-  const areas = useWarehouseAreas(receipt.warehouseId, useCan(WAREHOUSE_LOCATION_PERMISSIONS.read));
+  const canReadLocations = useCan(WAREHOUSE_LOCATION_PERMISSIONS.read);
+  const areas = useWarehouseAreas(receipt.warehouseId, canReadLocations);
   // Docs 03 §3 Input: khu nhận là Area `RECEIVING` của kho nhận
   const receiving = (areas.data ?? []).filter((area) => area.type === "RECEIVING");
 
@@ -43,7 +44,18 @@ function CountBody({
 
   return (
     <>
-      {receiving.length === 0 && <Alert tone="warning">{C.noReceivingArea}</Alert>}
+      {/* Danh sách khu rỗng vì thiếu quyền / lỗi tải ≠ kho chưa có khu nhận — báo đúng nguyên nhân */}
+      {!canReadLocations ? (
+        <Alert tone="info">{C.noLocationRead}</Alert>
+      ) : areas.isError ? (
+        <Alert tone="danger" title={C.areasLoadError}>
+          <Button type="button" variant="outline" size="sm" onClick={() => void areas.refetch()}>
+            {C.retry}
+          </Button>
+        </Alert>
+      ) : (
+        receiving.length === 0 && <Alert tone="warning">{C.noReceivingArea}</Alert>
+      )}
       <ReceiptCountForm
         // Phiếu được lưu / đổi ở nơi khác → dựng lại form từ dữ liệu mới
         key={countSignature(receipt)}
