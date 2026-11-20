@@ -15,6 +15,9 @@ import {
   CONTRACT_TRANSITIONS,
   allowedContractActions,
   cartonGaps,
+  isSignedFileTypeAllowed,
+  passedBatches,
+  passedBatchesText,
   planTotal,
   signOutcomeText,
 } from "./sales-contract-rules";
@@ -130,5 +133,56 @@ describe("toInstallmentForm — tên đợt mặc định tiếng Anh của BE (
     const entry = contract.paymentPlan[0]!;
     expect(toInstallmentForm({ ...entry, name: "On signing" }).name).toBe("Thanh toán khi ký");
     expect(toInstallmentForm(entry).name).toBe(entry.name);
+  });
+});
+
+describe("WF-02 mục 10 — đợt giao đã qua so với hôm nay (giờ VN)", () => {
+  const schedule = (windowEnd: string | null) => ({
+    deliverySchedule: [{ ...contract.deliverySchedule[0]!, seq: 1, windowEnd }],
+  });
+  const TODAY = "2026-11-20"; // fixed fake date
+
+  it("windowEnd hôm qua → đã qua; hôm nay / tương lai / null → không", () => {
+    expect(passedBatches(schedule("2026-11-19"), TODAY)).toEqual([
+      { seq: 1, windowEnd: "2026-11-19" },
+    ]);
+    expect(passedBatches(schedule("2026-11-20"), TODAY)).toEqual([]);
+    expect(passedBatches(schedule("2026-11-21"), TODAY)).toEqual([]);
+    expect(passedBatches(schedule(null), TODAY)).toEqual([]);
+  });
+  it("câu cảnh báo gộp nhiều đợt, không có đợt thì không có câu", () => {
+    expect(passedBatchesText([{ seq: 1 }, { seq: 2 }])).toMatch(/^Đợt giao 1, 2 đã qua/);
+    expect(passedBatchesText([])).toBeNull();
+  });
+});
+
+describe("WF-02 mục 29 — loại file bản ký", () => {
+  it.each([
+    ["a.pdf", "application/pdf", true],
+    ["a.jpg", "image/jpeg", true],
+    ["a.png", "image/png", true],
+    ["a.docx", "", true],
+    ["a.xlsx", "", true],
+    ["a.webp", "image/webp", false],
+    ["a.webp", "", false],
+    ["a.gif", "image/gif", false],
+  ])("%s (%s) → %s", (name, type, ok) => {
+    expect(isSignedFileTypeAllowed({ name, type })).toBe(ok);
+  });
+});
+
+describe("WF-02 N10 — đợt ON_SIGNING để trống số ngày", () => {
+  const withPlan = (milestone: string, dueDays: string) => {
+    const values = toContractForm(contract, [LINE]);
+    values.paymentPlan = [
+      { ...values.paymentPlan[0]!, milestone: milestone as "ON_SIGNING", dueDays },
+    ];
+    return toContractDraftBody(contractFormSchema.parse(values)).paymentPlan[0];
+  };
+  it("ON_SIGNING trống → 3 ngày; có số thì giữ; 0 tự nhập giữ 0; AFTER_DELIVERY trống không gửi", () => {
+    expect(withPlan("ON_SIGNING", "")).toHaveProperty("dueDays", 3);
+    expect(withPlan("ON_SIGNING", "5")).toHaveProperty("dueDays", 5);
+    expect(withPlan("ON_SIGNING", "0")).toHaveProperty("dueDays", 0);
+    expect(withPlan("AFTER_DELIVERY", "")).not.toHaveProperty("dueDays");
   });
 });

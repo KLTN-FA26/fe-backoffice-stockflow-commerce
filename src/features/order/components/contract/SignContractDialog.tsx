@@ -4,15 +4,21 @@ import { useState } from "react";
 
 import { fileTooLargeMessage, uploadFileMaxBytes } from "@/constants/upload-limits";
 import { toLocalIsoDate } from "@/lib/format/date";
+import { Notice } from "@/components/shared/Notice";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { FORM_INPUT_CLASS, FormField, fieldA11y } from "@/components/shared/FormField";
 import { Input } from "@/components/ui/input";
 
 import { contractErrorMessage, useSignSalesContract } from "../../sales-contract-mutations";
+import {
+  isSignedFileTypeAllowed,
+  passedBatches,
+  passedBatchesText,
+  SIGNED_FILE_ACCEPT,
+  SIGNED_FILE_TYPE_MESSAGE,
+} from "../../sales-contract-rules";
 
 import type { SalesContract } from "../../sales-contract-schemas";
-
-const ACCEPT = "application/pdf,image/jpeg,image/png,image/webp";
 
 /**
  * Ghi nhận đã ký (`POST …/contract/signature`, multipart `file` + `version` + `signedOn`): đúng 1 file scan,
@@ -63,14 +69,18 @@ function SignForm({
         : undefined;
   // BE lưu bản scan vào FileCategory.DOCUMENT (25 MB) — chặn trước khi tải lên thay vì chờ 413.
   const fileError =
-    file && file.size > uploadFileMaxBytes("signedContract")
-      ? fileTooLargeMessage("signedContract")
-      : undefined;
+    file && !isSignedFileTypeAllowed(file)
+      ? SIGNED_FILE_TYPE_MESSAGE
+      : file && file.size > uploadFileMaxBytes("signedContract")
+        ? fileTooLargeMessage("signedContract")
+        : undefined;
+  // Mục 10: warn only — a passed window is fixed after signing with "Dời cửa sổ giao".
+  const passedText = passedBatchesText(passedBatches(contract, today));
 
   return (
     <FormDialogBody
       title={`Ghi nhận đã ký ${contract.contractNumber}`}
-      description="Tải bản scan hợp đồng có chữ ký của khách (PDF hoặc ảnh, 1 file, tối đa 25 MB)."
+      description="Tải bản scan hợp đồng có chữ ký của khách (PDF, Word, Excel hoặc ảnh JPG/PNG, 1 file, tối đa 25 MB)."
       submitLabel="Ghi nhận đã ký"
       canSubmit={!!file && !fileError && !!signedOn && !dateError}
       isPending={sign.isPending}
@@ -91,10 +101,11 @@ function SignForm({
         );
       }}
     >
+      {passedText && <Notice tone="warning">{passedText}</Notice>}
       <FormField id="sign-file" label="File đã ký" required error={fileError}>
         <Input
           type="file"
-          accept={ACCEPT}
+          accept={SIGNED_FILE_ACCEPT}
           onChange={(event) => setFile(event.target.files?.[0] ?? null)}
           {...fieldA11y("sign-file", fileError)}
           className={FORM_INPUT_CLASS}

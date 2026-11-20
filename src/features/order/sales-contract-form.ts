@@ -126,6 +126,14 @@ export type ContractFormValues = z.input<typeof contractFormSchema>;
 export type ContractFormOutput = z.output<typeof contractFormSchema>;
 export type InstallmentFormValues = ContractFormValues["paymentPlan"][number];
 
+/**
+ * N10: BE PR #388 `DEFAULT_ON_SIGNING_DUE_DAYS = 3`. A blank "Ngày" on an ON_SIGNING row would otherwise reach the
+ * BE as 0 days (due the next morning), so default it to 3 here.
+ */
+export const DEFAULT_ON_SIGNING_DUE_DAYS = 3;
+const onSigningDefault = (entry: { milestone: string; dueDays: string }) =>
+  entry.milestone === "ON_SIGNING" && !entry.dueDays;
+
 /** Body `Draft` (không gồm `version`). */
 export function toContractDraftBody(values: ContractFormOutput) {
   return {
@@ -143,8 +151,8 @@ export function toContractDraftBody(values: ContractFormOutput) {
       ...(entry.mode === "percent"
         ? { percent: Number(entry.value) }
         : { amount: Number(entry.value) }),
-      ...(entry.milestone !== "BEFORE_DELIVERY" && entry.dueDays
-        ? { dueDays: Number(entry.dueDays) }
+      ...(entry.milestone !== "BEFORE_DELIVERY" && (entry.dueDays || onSigningDefault(entry))
+        ? { dueDays: Number(entry.dueDays || DEFAULT_ON_SIGNING_DUE_DAYS) }
         : {}),
       ...(entry.milestone !== "ON_SIGNING" && entry.deliveryBatchSeq
         ? { deliveryBatchSeq: Number(entry.deliveryBatchSeq) }

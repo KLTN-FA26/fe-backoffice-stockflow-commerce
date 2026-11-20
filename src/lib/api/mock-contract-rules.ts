@@ -234,7 +234,8 @@ const DEFAULT_PLAN: InstallmentEntry[] = [
     milestone: "ON_SIGNING",
     amount: null,
     percent: 100,
-    dueDays: 0,
+    // BE PR #388 DEFAULT_ON_SIGNING_DUE_DAYS
+    dueDays: 3,
     deliveryBatchSeq: null,
   },
 ];

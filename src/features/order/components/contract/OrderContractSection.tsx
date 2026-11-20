@@ -22,6 +22,7 @@ import { useSalesContract } from "../../sales-contract-queries";
 import { allowedContractActions, signOutcomeText } from "../../sales-contract-rules";
 
 import { ContractActions } from "./ContractActions";
+import { CancelledContractNotice } from "./CancelledContractNotice";
 import { ContractCreditWarning } from "./ContractCreditWarning";
 import { ContractEditor } from "./ContractEditor";
 import { ContractHistory } from "./ContractHistory";
@@ -100,15 +101,11 @@ export function OrderContractSection({
           />
         ) : (
           <>
-            {contract?.status === "CANCELLED" && (
-              <Notice tone="info">
-                Hợp đồng đã huỷ
-                {contract.cancellationReason ? `: ${contract.cancellationReason}` : ""}. Khách muốn
-                sửa hợp đồng đã gửi → huỷ (ghi lý do) rồi lập lại.
-              </Notice>
-            )}
             {!contract && (
-              <p className="text-ink-tertiary text-[0.8125rem]">Đơn chưa có hợp đồng.</p>
+              <>
+                <p className="text-ink-tertiary text-[0.8125rem]">Đơn chưa có hợp đồng.</p>
+                <CancelledContractNotice orderId={order.orderId} />
+              </>
             )}
             {legalMissing && (
               <Notice tone="warning" live>

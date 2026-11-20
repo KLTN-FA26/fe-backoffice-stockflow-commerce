@@ -366,3 +366,101 @@ describe("WF-02 audit — gợi ý số tiền, gửi, file ký", () => {
     expect(await within(dialog).findByText("File quá lớn (tối đa 25 MB).")).toBeInTheDocument();
   });
 });
+
+describe("WF-02 BO-7 — hợp đồng: đợt đã qua, huỷ bởi người khác, loại file, mặc định ngày", () => {
+  const pastWindow = {
+    ...contractSent,
+    deliverySchedule: contractSent.deliverySchedule.map((batch, i) =>
+      i === 0 ? { ...batch, windowEnd: "2000-01-02" } : batch,
+    ),
+  };
+  const cancelledRow = {
+    ...contractSent,
+    status: "CANCELLED",
+    cancelledAt: "2026-11-18T03:00:00Z",
+    cancellationReason: "Khách đổi số lượng",
+  };
+
+  it("mục 10: đợt có windowEnd đã qua → cảnh báo, nút Ghi nhận đã ký vẫn dùng được", async () => {
+    renderSection(() => pastWindow);
+    await userEvent.click(await screen.findByRole("button", { name: /Ghi nhận đã ký/ }));
+    const dialog = await screen.findByRole("dialog");
+    expect(
+      within(dialog).getByText(/Đợt giao 1 đã qua — sau khi ký dùng 'Dời cửa sổ giao'/),
+    ).toBeInTheDocument();
+    const file = new File(["%PDF-1.4"], "scan.pdf", { type: "application/pdf" });
+    await userEvent.upload(within(dialog).getByLabelText(/File đã ký/), file);
+    expect(within(dialog).getByRole("button", { name: "Ghi nhận đã ký" })).toBeEnabled();
+  });
+
+  it("mục 10: đợt còn hạn → không cảnh báo", async () => {
+    renderSection(() => contractSent);
+    await userEvent.click(await screen.findByRole("button", { name: /Ghi nhận đã ký/ }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).queryByText(/đã qua/)).not.toBeInTheDocument();
+  });
+
+  it("mục 29: file .webp bị từ chối ngay trên form, nút khoá, không gọi BE", async () => {
+    renderSection(() => contractSent);
+    const post = vi.spyOn(api, "post");
+    await userEvent.click(await screen.findByRole("button", { name: /Ghi nhận đã ký/ }));
+    const dialog = await screen.findByRole("dialog");
+    const input = within(dialog).getByLabelText(/File đã ký/);
+    expect(input.getAttribute("accept")).not.toMatch(/webp/);
+    // applyAccept off: prove the check is ours, not the browser's.
+    const user = userEvent.setup({ applyAccept: false });
+    await user.upload(input, new File(["x"], "scan.webp", { type: "image/webp" }));
+    expect(
+      within(dialog).getByText("Chỉ nhận PDF, Word, Excel hoặc ảnh JPG/PNG."),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Ghi nhận đã ký" })).toBeDisabled();
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  it("mục 28 + N3-B: bấm ký khi hợp đồng đã bị huỷ → tải lại, hiện số hợp đồng và lý do huỷ", async () => {
+    let cancelled = false;
+    mockOrderApiGet(SALES, {
+      [PATH]: () => {
+        if (cancelled) throw new ApiError(404, "SALES_CONTRACT_NOT_FOUND", "Đơn chưa có hợp đồng.");
+        return contractSent;
+      },
+      [`${PATH}/history`]: () => (cancelled ? [cancelledRow] : [contractSent]),
+    });
+    const can = (code: PermissionCode) => SALES.includes(code);
+    renderOrderScreen(<OrderContractSection order={draftOrder} can={can} />);
+    vi.spyOn(api, "post").mockRejectedValue(
+      new ApiError(404, "SALES_CONTRACT_NOT_FOUND", "Đơn chưa có hợp đồng."),
+    );
+    await userEvent.click(await screen.findByRole("button", { name: /Ghi nhận đã ký/ }));
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.upload(
+      within(dialog).getByLabelText(/File đã ký/),
+      new File(["%PDF-1.4"], "scan.pdf", { type: "application/pdf" }),
+    );
+    cancelled = true;
+    await userEvent.click(within(dialog).getByRole("button", { name: "Ghi nhận đã ký" }));
+    // The contract is gone after the reload, so the dialog unmounts with it.
+    expect(await screen.findByText("Đơn chưa có hợp đồng.")).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        new RegExp(`Hợp đồng ${contractSent.contractNumber} đã huỷ: Khách đổi số lượng`),
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("N3-B: không có hợp đồng và lịch sử chưa từng huỷ → không có dòng 'đã huỷ'", async () => {
+    renderSection(() => {
+      throw new ApiError(404, "SALES_CONTRACT_NOT_FOUND", "Đơn chưa có hợp đồng.");
+    });
+    expect(await screen.findByText("Đơn chưa có hợp đồng.")).toBeInTheDocument();
+    expect(screen.queryByText(/đã huỷ/)).not.toBeInTheDocument();
+  });
+
+  it("N10: đổi mốc sang ON_SIGNING khi ô ngày trống → điền sẵn 3 và gửi dueDays 3", async () => {
+    renderSection(() => contractDraft);
+    await userEvent.click(await screen.findByRole("button", { name: /Sửa/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Thêm đợt thanh toán" }));
+    await userEvent.selectOptions(screen.getByLabelText("Đợt 4 — mốc"), "ON_SIGNING");
+    expect(screen.getByLabelText("Đợt 4 — số ngày")).toHaveValue("3");
+  });
+});

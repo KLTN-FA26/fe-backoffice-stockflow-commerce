@@ -20,9 +20,16 @@ import {
   signSalesContract,
 } from "./sales-contract-api";
 
+import { SIGNED_FILE_TYPE_MESSAGE } from "./sales-contract-rules";
+
 import type { SalesContract } from "./sales-contract-schemas";
 
-const STALE_CODES = ["SALES_CONTRACT_STATUS_INVALID", "SALES_CONTRACT_ORDER_NOT_DRAFT"] as const;
+// SALES_CONTRACT_NOT_FOUND: every write targets the live contract, so one cancelled by someone else is a 404.
+const STALE_CODES = [
+  "SALES_CONTRACT_STATUS_INVALID",
+  "SALES_CONTRACT_ORDER_NOT_DRAFT",
+  "SALES_CONTRACT_NOT_FOUND",
+] as const;
 
 function contractMutation<TInput>(
   fn: (input: TInput) => Promise<SalesContract>,
@@ -59,6 +66,8 @@ export const useCancelSalesContract = contractMutation(cancelSalesContract, "Đ�
 export function contractErrorMessage(error: unknown): string {
   return serverErrorMessage(error, {
     OPTIMISTIC_LOCK: "Dữ liệu vừa thay đổi, đã tải lại.",
+    SALES_CONTRACT_NOT_FOUND: "Hợp đồng vừa bị huỷ, đã tải lại.",
+    UNSUPPORTED_MEDIA_TYPE: SIGNED_FILE_TYPE_MESSAGE,
     PAYLOAD_TOO_LARGE: fileTooLargeMessage("signedContract"),
   });
 }
