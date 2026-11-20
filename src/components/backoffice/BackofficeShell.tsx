@@ -61,6 +61,7 @@ import {
   CUSTOMER_PERMISSIONS,
   CREDIT_HOLD_PERMISSIONS,
   CUSTOMER_PRICE_PERMISSIONS,
+  DESIGN_PERMISSIONS,
   CUSTOMER_PRICE_UI_LABELS,
   DELIVERY_FAILURE_LABELS,
   FULFILLMENT_CARRIER_EVENT_PERMISSIONS,
@@ -397,6 +398,13 @@ export const NAV_GROUPS: NavGroup[] = [
         href: ADMIN_ROUTES.quotes.list,
         icon: FileSignature,
         permission: QUOTE_PERMISSIONS.viewPage,
+      },
+      {
+        label: "Duyệt thiết kế",
+        href: ADMIN_ROUTES.designs.reviewQueue,
+        icon: ClipboardCheck,
+        // `design-designs:APPROVE` (SALES_MANAGER, SYSTEM_ADMIN) — không dùng VIEW_PAGE: SALES_STAFF cũng có, sẽ bị 403
+        permission: DESIGN_PERMISSIONS.approve,
       },
       {
         label: "Chat với khách",

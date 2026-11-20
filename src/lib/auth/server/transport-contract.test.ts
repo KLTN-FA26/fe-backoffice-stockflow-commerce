@@ -42,6 +42,55 @@ describe("transport timeouts stay at 15 seconds", () => {
   });
 });
 
+// WF-02 BO-3: an explicit list of long-running commands waits 120 s; everything else stays at 15 s.
+const LONG = [
+  ["POST", "designs/01a1f291-0000-7000-8000-000000000001/reviews"],
+  ["POST", "design-review-rounds/0r000000-0000-7000-8000-000000000001/approvals"],
+] as const;
+const SHORT = [
+  ["GET", "designs/01a1f291-0000-7000-8000-000000000001/reviews"],
+  ["GET", "designs/review-queue"],
+  ["GET", "designs/01a1f291-0000-7000-8000-000000000001"],
+  ["POST", "designs/01a1f291-0000-7000-8000-000000000001/submission"],
+  ["POST", "design-review-rounds/0r000000-0000-7000-8000-000000000001/approvals/extra"],
+  ["POST", "quotes/q-1/sending"],
+  ["PUT", "design-review-rounds/0r000000-0000-7000-8000-000000000001/approvals"],
+] as const;
+
+describe("long-running routes wait 120 seconds, every other route 15 seconds", () => {
+  it.each(LONG)("BFF %s %s → 120000 ms", async (method, path) => {
+    const timeout = vi.spyOn(AbortSignal, "timeout");
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+    await backendFetch(path, { method });
+    expect(timeout).toHaveBeenCalledExactlyOnceWith(120_000);
+  });
+  it.each(SHORT)("BFF %s %s → 15000 ms", async (method, path) => {
+    const timeout = vi.spyOn(AbortSignal, "timeout");
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+    await backendFetch(path, { method });
+    expect(timeout).toHaveBeenCalledExactlyOnceWith(15_000);
+  });
+
+  const sentTimeout = async (method: string, path: string) => {
+    let timeout: number | undefined;
+    await api.request({
+      method,
+      url: `/${path}`,
+      adapter: async (config) => {
+        timeout = config.timeout;
+        return { data: null, status: 204, statusText: "", headers: {}, config };
+      },
+    });
+    return timeout;
+  };
+  it.each(LONG)("axios %s /%s → 120000 ms", async (method, path) => {
+    expect(await sentTimeout(method, path)).toBe(120_000);
+  });
+  it.each(SHORT)("axios %s /%s → 15000 ms", async (method, path) => {
+    expect(await sentTimeout(method, path)).toBe(15_000);
+  });
+});
+
 describe("BFF error envelope and codes are unchanged", () => {
   it("cross-origin login: 403 CSRF_REJECTED with the generic transport message", async () => {
     const response = await loginHandler(

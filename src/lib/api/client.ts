@@ -7,6 +7,8 @@ import {
   AUTH_PATHS,
   BROWSER_API_BASE,
   BROWSER_API_TIMEOUT_MS,
+  isLongRunningRoute,
+  LONG_RUNNING_TIMEOUT_MS,
   PASSWORD_CHANGE_REQUIRED_CODE,
 } from "@/constants/auth";
 
@@ -32,6 +34,8 @@ api.interceptors.request.use((cfg) => {
   cfg.headers.delete("Authorization");
   const wh = useAppStore.getState().warehouseId;
   if (wh) cfg.headers.set("X-Warehouse-Id", wh);
+  // Lệnh chạy lâu (duyệt thiết kế…) chờ 120 s theo từng request; mọi route khác giữ 15 s mặc định.
+  if (isLongRunningRoute(cfg.method, cfg.url)) cfg.timeout = LONG_RUNNING_TIMEOUT_MS;
   return cfg;
 });
 

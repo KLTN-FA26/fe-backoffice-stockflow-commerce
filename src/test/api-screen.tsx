@@ -52,6 +52,27 @@ export const ROLE_PERMISSIONS = {
     "chat-conversations:READ",
     "chat-conversations:CREATE",
     "chat-conversations:UPDATE",
+    // V20261111000000 (baseline): đọc thiết kế của khách và hộp yêu cầu báo giá — KHÔNG có design-designs:APPROVE.
+    "design-designs:VIEW_PAGE",
+    "design-designs:READ",
+    "design-quote-requests:VIEW_PAGE",
+    "design-quote-requests:READ",
+    "design-quote-requests:UPDATE",
+  ],
+  // V20261111000000 (baseline): duyệt thiết kế (APPROVE chỉ Quản lý bán hàng / quản trị), yêu cầu báo giá, xem khách.
+  SALES_MANAGER: [
+    "customer-customers:VIEW_PAGE",
+    "customer-customers:READ",
+    "sales-quotes:VIEW_PAGE",
+    "sales-quotes:READ",
+    "design-designs:VIEW_PAGE",
+    "design-designs:READ",
+    "design-designs:APPROVE",
+    "design-quote-requests:VIEW_PAGE",
+    "design-quote-requests:READ",
+    "design-quote-requests:UPDATE",
+    "chat-conversations:VIEW_PAGE",
+    "chat-conversations:READ",
   ],
   ECOMMERCE_ADMIN: [
     "customer-customers:VIEW_PAGE",

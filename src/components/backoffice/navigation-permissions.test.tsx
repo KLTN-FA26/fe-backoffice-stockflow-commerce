@@ -33,6 +33,7 @@ import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { meKeys } from "@/lib/auth/me-permissions";
+import { ROLE_PERMISSIONS } from "@/test/api-screen";
 
 import {
   NAV_GROUPS,
@@ -567,5 +568,43 @@ describe("trả hàng (WF-05 BO-16) — theo seed BE sales-rmas / sales-rma-reso
     expect(findActiveNavHref(RETURN_ROUTES.receipts.detail("g-1"), items)).toBe(
       RETURN_ROUTES.receipts.list,
     );
+  });
+});
+
+// WF-02 BO-3: hàng đợi duyệt thiết kế cần design-designs:APPROVE — SALES_STAFF có VIEW_PAGE nhưng BE trả 403 ở hàng đợi.
+describe("Duyệt thiết kế theo design-designs:APPROVE, không theo VIEW_PAGE", () => {
+  function mountRole(role: "SALES_STAFF" | "SALES_MANAGER") {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: { roles: [role], permissions: [...ROLE_PERMISSIONS[role]], dataScope: "ALL" },
+    });
+    mount();
+  }
+
+  it("SALES_STAFF không thấy 'Duyệt thiết kế'", async () => {
+    mountRole("SALES_STAFF");
+    expect(await screen.findByRole("link", { name: "Báo giá" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Duyệt thiết kế" })).not.toBeInTheDocument();
+  });
+
+  it("SALES_MANAGER thấy 'Duyệt thiết kế' dẫn tới hàng đợi", async () => {
+    mountRole("SALES_MANAGER");
+    expect(await screen.findByRole("link", { name: "Duyệt thiết kế" })).toHaveAttribute(
+      "href",
+      ADMIN_ROUTES.designs.reviewQueue,
+    );
+  });
+
+  it("chi tiết thiết kế sáng mục 'Duyệt thiết kế' và có breadcrumb qua hàng đợi", () => {
+    const items = NAV_GROUPS.flatMap((group) => group.items);
+    expect(findActiveNavHref(ADMIN_ROUTES.designs.detail("d-1"), items)).toBe(
+      ADMIN_ROUTES.designs.reviewQueue,
+    );
+    expect(
+      buildBreadcrumbItems(
+        ADMIN_ROUTES.designs.detail("d-1"),
+        () => true,
+        () => "Ly giấy",
+      ).map((item) => item.label),
+    ).toEqual(["Back-office", "Duyệt thiết kế", "Ly giấy"]);
   });
 });

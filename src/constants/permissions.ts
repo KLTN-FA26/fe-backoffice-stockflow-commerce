@@ -555,6 +555,24 @@ export const DESIGN_SNAPSHOT_PERMISSIONS = {
 } as const;
 
 /**
+ * Thiết kế của khách — `design-designs` (BE `DesignReviewController`, `DesignWorkflowController`; seed
+ * V20261111000000). VIEW_PAGE / READ có cả SALES_STAFF; APPROVE (hàng đợi duyệt, duyệt / trả lại) chỉ SALES_MANAGER và
+ * SYSTEM_ADMIN — menu duyệt gate bằng `approve`, không bằng `viewPage`.
+ */
+export const DESIGN_PERMISSIONS = {
+  viewPage: "design-designs:VIEW_PAGE",
+  read: "design-designs:READ",
+  approve: "design-designs:APPROVE",
+} as const;
+
+/** Yêu cầu báo giá trên thiết kế — `design-quote-requests` (BE `DesignQuoteRequestController`; SALES_STAFF, SALES_MANAGER). */
+export const DESIGN_QUOTE_REQUEST_PERMISSIONS = {
+  viewPage: "design-quote-requests:VIEW_PAGE",
+  read: "design-quote-requests:READ",
+  update: "design-quote-requests:UPDATE",
+} as const;
+
+/**
  * Mã vai trò tài khoản cửa hàng (storefront) — BE `Role.CUSTOMER`. CHỈ dùng ở cổng back-office
  * (`lib/auth/back-office.ts`, gương BE `ScopeGuards` / `CurrentUser#isPortalCustomer`) để tách phạm vi dữ liệu
  * khách hàng khỏi back-office. Không phải mã quyền: quyền thao tác luôn theo mã quyền ở file này.

@@ -34,6 +34,26 @@ export const ADMIN_ROUTES = {
       `${ADMIN_BASE}/quotes?customerId=${encodeURIComponent(customerId)}`,
   },
   permissions: `${ADMIN_BASE}/permissions`,
+  /**
+   * Duyệt thiết kế của khách (WF-02 BO-3). Chi tiết lồng dưới hàng đợi để breadcrumb khớp tiền tố mục menu; BE gửi link
+   * thông báo `/admin/designs/review-queue`.
+   */
+  designs: {
+    reviewQueue: `${ADMIN_BASE}/designs/review-queue`,
+    detail: (id: string) => `${ADMIN_BASE}/designs/review-queue/${encodeURIComponent(id)}`,
+  },
+  /** Vòng duyệt cả bộ của dự án (BO-4) — link thông báo BE `/admin/design-review-rounds/{roundId}`. */
+  designReviewRounds: {
+    list: `${ADMIN_BASE}/design-review-rounds`,
+    detail: (id: string) => `${ADMIN_BASE}/design-review-rounds/${encodeURIComponent(id)}`,
+  },
+  /** Hộp yêu cầu báo giá thiết kế (BO-5) — link thông báo BE. */
+  designQuoteRequests: {
+    list: `${ADMIN_BASE}/design-quote-requests`,
+  },
+  designProjectQuoteRequests: {
+    list: `${ADMIN_BASE}/design-project-quote-requests`,
+  },
   /** Quản lý tài khoản nhân viên — BE `UserManagementController` (PR #72, SCRUM-458). */
   users: {
     list: `${ADMIN_BASE}/users`,
