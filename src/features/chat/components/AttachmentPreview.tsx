@@ -34,7 +34,7 @@ export function AttachmentPreview({
 }) {
   const [open, setOpen] = useState(false);
   const link = useAttachmentLink(conversationId, file.id, true);
-  if (link.isError) {
+  if (link.isError && !link.data) {
     return (
       <p role="alert" className="text-danger text-xs">
         {chatErrorMessage(link.error)}
@@ -53,20 +53,31 @@ export function AttachmentPreview({
   const refresh = () => void link.refetch();
   return (
     <>
-      <button
-        type="button"
-        aria-label={`Xem ảnh ${file.fileName}`}
-        className="focus-visible:ring-accent block min-h-11 rounded-[var(--r-sm)] focus-visible:ring-2 focus-visible:outline-none"
-        onClick={() => setOpen(true)}
-      >
-        <SignedFilePreview
-          url={link.data.url}
-          contentType={file.contentType}
-          alt={file.fileName}
-          size="thumb"
-          onRefresh={refresh}
-        />
-      </button>
+      {/* Not a <button> wrapper: a failed thumbnail renders its own "Lấy link mới" button inside. */}
+      <div className="space-y-1">
+        <div
+          className="cursor-zoom-in"
+          onClick={(event) => {
+            if (!(event.target as HTMLElement).closest("button, a")) setOpen(true);
+          }}
+        >
+          <SignedFilePreview
+            url={link.data.url}
+            contentType={file.contentType}
+            alt={file.fileName}
+            size="thumb"
+            onRefresh={refresh}
+          />
+        </div>
+        <button
+          type="button"
+          aria-label={`Xem ảnh ${file.fileName}`}
+          className="text-accent min-h-11 text-xs hover:underline"
+          onClick={() => setOpen(true)}
+        >
+          Xem ảnh lớn
+        </button>
+      </div>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-3xl">
           <DialogHeader>

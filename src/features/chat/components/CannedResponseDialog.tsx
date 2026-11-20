@@ -66,7 +66,8 @@ function CannedForm({
       ...(values.shortcut ? { shortcut: values.shortcut } : {}),
       ...(values.category ? { category: values.category } : {}),
       // Mẫu dùng chung chỉ người giám sát ghi; người khác không gửi cờ này.
-      ...(canShare ? { shared: values.shared } : {}),
+      // BE update ignores `shared` (ownerId is fixed at creation): only a create carries it.
+      ...(canShare && !editing ? { shared: values.shared } : {}),
     };
     const callbacks = {
       onSuccess: onClose,
@@ -140,7 +141,7 @@ function CannedForm({
           className={FORM_INPUT_CLASS}
         />
       </FormField>
-      {canShare && (
+      {canShare && !editing && (
         <CheckboxField
           control={form.control}
           name="shared"

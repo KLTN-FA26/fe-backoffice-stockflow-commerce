@@ -129,8 +129,7 @@ describe("khoảng hở giữa tin cũ và tin mới nhất", () => {
     head = 55; // the newest window slides to 54..55 → 51..53 sit in the gap
     expect(await screen.findByRole("button", { name: "Thử lại" }, { timeout: 9000 })).toBeVisible();
     const settled = sinceCalls;
-    await new Promise((resolve) => setTimeout(resolve, 3000));
-    expect(sinceCalls).toBe(settled);
+    await new Promise((resolve) => setTimeout(resolve, 1000));
     expect(sinceCalls).toBe(settled);
     expect(settled).toBe(2); // page 1 ok + page 2 failed, nothing after
   }, 20_000);

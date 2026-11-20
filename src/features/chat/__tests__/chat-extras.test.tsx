@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
@@ -112,6 +112,16 @@ describe("ảnh đính kèm trong tin", () => {
     await userEvent.click(screen.getByRole("button", { name: "Xem ảnh mau-in.png" }));
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByRole("img", { name: "mau-in.png" })).toBeInTheDocument();
+  });
+
+  it("ảnh lỗi tải → nút Lấy link mới không nằm trong nút khác và không mở ảnh lớn", async () => {
+    renderWithFiles([image]);
+    renderScreen(<ChatConversationScreen id={CONVERSATION_ID} />, "SALES_STAFF");
+    fireEvent.error(await screen.findByRole("img", { name: "mau-in.png" }));
+    const retry = await screen.findByRole("button", { name: "Lấy link mới" });
+    expect(retry.parentElement?.closest("button")).toBeNull();
+    await userEvent.click(retry);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("PDF → chỉ nút tải, không xin link xem trước", async () => {
@@ -372,6 +382,20 @@ describe("Câu trả lời mẫu", () => {
     await userEvent.click(screen.getByRole("button", { name: "Lưu" }));
     expect(await screen.findByText("Câu trả lời mẫu đã đổi, hãy tải lại.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Lưu" })).toBeInTheDocument();
+  });
+
+  it("giám sát sửa mẫu dùng chung → không có ô Dùng chung, PUT không mang shared", async () => {
+    grant(...CANNED_ALL, CHAT_PERMISSIONS.supervise);
+    const spy = mockApi("SALES_STAFF", {
+      get: { [CANNED]: () => [team, own] },
+      put: { [`${CANNED}/cr-team`]: () => team },
+    });
+    renderScreen(<CannedResponsesScreen />, "SALES_STAFF");
+    await userEvent.click(await screen.findByRole("button", { name: "Sửa Giờ làm việc" }));
+    expect(screen.queryByRole("checkbox", { name: /Dùng chung/ })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Lưu" }));
+    await waitFor(() => expect(spy.put).toHaveBeenCalled());
+    expect(spy.put.mock.calls[0]?.[1]).not.toHaveProperty("shared");
   });
 
   it("xoá → xác nhận rồi DELETE; người giám sát xoá được cả mẫu dùng chung", async () => {
