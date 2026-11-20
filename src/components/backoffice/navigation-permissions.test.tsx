@@ -433,6 +433,24 @@ describe("credit hold navigation — gate bằng quyền credit hold, không ph�
     );
   });
 
+  it("route anh em chia chung mục menu: tab Dự án và vòng duyệt sáng đúng mục, breadcrumb theo mục", () => {
+    const items = NAV_GROUPS.flatMap((group) => group.items);
+    expect(findActiveNavHref(ADMIN_ROUTES.designProjectQuoteRequests.list, items)).toBe(
+      ADMIN_ROUTES.designQuoteRequests.list,
+    );
+    expect(findActiveNavHref(ADMIN_ROUTES.designReviewRounds.detail("r-1"), items)).toBe(
+      ADMIN_ROUTES.designs.reviewQueue,
+    );
+    expect(buildBreadcrumbItems(ADMIN_ROUTES.designProjectQuoteRequests.list)).toEqual([
+      { label: "Back-office", href: ADMIN_ROUTES.home },
+      { label: "Yêu cầu báo giá thiết kế", href: undefined },
+    ]);
+    expect(buildBreadcrumbItems(ADMIN_ROUTES.designReviewRounds.list)).toEqual([
+      { label: "Back-office", href: ADMIN_ROUTES.home },
+      { label: "Duyệt thiết kế", href: undefined },
+    ]);
+  });
+
   it("breadcrumb hàng đợi cho ACCOUNTANT không dẫn qua 'Đơn hàng' (trang bị chặn)", () => {
     const accountantCanSee = (item: { permission?: PermissionCode }) =>
       !item.permission || item.permission === CREDIT_HOLD_PERMISSIONS.viewPage;

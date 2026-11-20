@@ -164,6 +164,7 @@ export const DESIGN_QUOTE_REQUEST_LABELS = {
   close: "Đóng",
   noConversation: "Khách chưa có hội thoại về thiết kế này",
   noConversationProject: "Khách chưa có hội thoại về dự án này",
+  quoteInChat: "Bấm 'Lập báo giá' trên thẻ yêu cầu trong hội thoại",
   quoteReminder: "Sau khi lập báo giá, bấm 'Đóng' yêu cầu này",
   closeTitle: "Đóng yêu cầu báo giá?",
   closeDescription:

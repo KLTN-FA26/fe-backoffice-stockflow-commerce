@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import { FolderKanban } from "lucide-react";
 
 import {
@@ -31,7 +30,7 @@ function ProjectQuoteRequestContent() {
     customerId: filters.customerId || undefined,
   });
   const close = useCloseProjectQuoteRequest();
-  const columns = useMemo(() => projectQuoteRequestColumns(close), [close]);
+  const columns = projectQuoteRequestColumns(close);
 
   return (
     <div className="surface-soft">

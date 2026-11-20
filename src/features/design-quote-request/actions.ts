@@ -43,6 +43,7 @@ export async function startQuoteFromRequest(row: QuoteRequest, navigate: Navigat
   const { kind, id } = chatSubject(row);
   const conversationId = await findConversationAbout(kind, id, { openOnly: true });
   if (conversationId) {
+    toast.info(COPY.quoteInChat);
     navigate(ADMIN_ROUTES.chat.detail(conversationId));
     return;
   }

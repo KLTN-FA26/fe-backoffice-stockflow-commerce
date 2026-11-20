@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import { FileText } from "lucide-react";
 
 import {
@@ -39,7 +38,7 @@ function DesignQuoteRequestContent() {
     customerId: filters.customerId || undefined,
   });
   const close = useCloseDesignQuoteRequest();
-  const columns = useMemo(() => designQuoteRequestColumns(close), [close]);
+  const columns = designQuoteRequestColumns(close);
 
   return (
     <div className="surface-soft">

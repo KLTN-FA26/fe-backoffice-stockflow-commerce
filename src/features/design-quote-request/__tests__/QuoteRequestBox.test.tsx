@@ -171,6 +171,7 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
   });
 
   it("Lập báo giá: có hội thoại đang mở → vào chat, chỉ tìm hội thoại chưa kết thúc", async () => {
+    const info = vi.spyOn(toast, "info").mockImplementation(() => undefined);
     const api = mockApi("SALES_STAFF", {
       get: {
         "/design-quote-requests": () => bePage([request()]),
@@ -180,6 +181,7 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
     renderScreen(<DesignQuoteRequestList />, "SALES_STAFF");
     await userEvent.setup().click(await screen.findByRole("button", { name: "Lập báo giá" }));
     await waitFor(() => expect(push).toHaveBeenCalledWith(`/admin/chat/${CONVERSATION_ID}`));
+    expect(info).toHaveBeenCalledWith("Bấm 'Lập báo giá' trên thẻ yêu cầu trong hội thoại");
     const query = (callsTo(api.get, CONVERSATIONS)[0]?.[1] as { params: URLSearchParams }).params;
     expect(query.getAll("status")).not.toContain("CLOSED");
     expect(query.getAll("status")).toContain("ACTIVE");
@@ -199,6 +201,46 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
       expect(push).toHaveBeenCalledWith(`/admin/quotes/create?customerId=${CUSTOMER_ID}`),
     );
     expect(info).toHaveBeenCalledWith("Sau khi lập báo giá, bấm 'Đóng' yêu cầu này");
+  });
+
+  it("?status=CLOSED gửi status=CLOSED; ?status=ALL bỏ status; ?page=2 gọi page=1", async () => {
+    const api = mockApi("SALES_STAFF", {
+      get: { "/design-quote-requests": () => bePage([request({ status: "CLOSED" })]) },
+    });
+    const sent = () =>
+      callsTo(api.get, "/design-quote-requests").map((c) => (c[1] as { params: Params }).params);
+    const closed = renderScreen(<DesignQuoteRequestList />, "SALES_STAFF", "?status=CLOSED");
+    await screen.findByText("Túi giấy kraft");
+    expect(sent()[0]).toMatchObject({ status: "CLOSED", page: 0 });
+    closed.unmount();
+    api.get.mockClear();
+    const all = renderScreen(<DesignQuoteRequestList />, "SALES_STAFF", "?status=ALL");
+    await screen.findByText("Túi giấy kraft");
+    expect(sent()[0]).not.toHaveProperty("status");
+    all.unmount();
+    api.get.mockClear();
+    renderScreen(<DesignQuoteRequestList />, "SALES_STAFF", "?page=2");
+    await screen.findByText("Túi giấy kraft");
+    expect(sent()[0]).toMatchObject({ status: "OPEN", page: 1 });
+  });
+
+  it("đổi trạng thái về trang đầu", async () => {
+    const api = mockApi("SALES_STAFF", {
+      get: { "/design-quote-requests": () => bePage([request()]) },
+    });
+    renderScreen(<DesignQuoteRequestList />, "SALES_STAFF", "?page=3");
+    await screen.findByText("Túi giấy kraft");
+    // Radix Select cần các hàm con trỏ mà jsdom không có.
+    Element.prototype.hasPointerCapture = () => false;
+    Element.prototype.releasePointerCapture = () => undefined;
+    Element.prototype.scrollIntoView = () => undefined;
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("combobox", { name: /Trạng thái/ }));
+    await user.click(await screen.findByRole("option", { name: "Đã đóng" }));
+    await waitFor(() => {
+      const last = callsTo(api.get, "/design-quote-requests").at(-1)?.[1] as { params: Params };
+      expect(last.params).toMatchObject({ status: "CLOSED", page: 0 });
+    });
   });
 
   it("API dự án không gửi status", async () => {
