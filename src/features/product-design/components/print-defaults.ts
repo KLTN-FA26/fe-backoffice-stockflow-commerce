@@ -17,6 +17,7 @@ import { DEFAULT_MODEL_DEFAULTS } from "../model3d/measure-types";
 import { bagModelSchema, cupModelSchema } from "../model3d/model-types";
 import { geometryFaults } from "../print-config-rules";
 import { formatMm } from "./format-mm";
+import { savedSafeMargins } from "./save-input";
 
 import type { BagModel, CupModel } from "../model3d/model-types";
 import type { PrintConfigDto } from "../types";
@@ -28,13 +29,40 @@ const figure = z.number({ error: V.number }).min(0, { error: V.notNegative });
 const upTo = (max: number) => figure.max(max, { error: V.atMost(max) });
 const { modelFigureMaxMm } = PRINT_CONFIG_LIMITS;
 
+const R = PRINT_CONFIG_SCREEN_LABELS.fileRules.validation;
+const wholeIn = ([min, max]: readonly [number, number]) =>
+  z
+    .number({ error: R.number })
+    .int({ error: R.integer })
+    .min(min, { error: R.between(min, max) })
+    .max(max, { error: R.between(min, max) });
+
+/**
+ * The file rules the customer's uploads are held to (BE `CustomizationTemplateRequest` / `PrintConfigRules`):
+ * `minDpi` 72–2400, `colorMode`, at least one known format, `maxFileSizeMb` 1–50, `maxColors` null (no limit) or
+ * 1–12, `allowedFontCodes` null (every font) or a non-empty list of codes of 1–64 characters.
+ */
+export const fileRulesSchema = z.object({
+  minDpi: wholeIn(PRINT_CONFIG_LIMITS.minDpiRange),
+  colorMode: z.enum(PRINT_CONFIG_LIMITS.colorModes),
+  allowedFileFormats: z.array(z.enum(PRINT_CONFIG_LIMITS.allowedFileFormats)).min(1, {
+    error: R.formatsNeeded,
+  }),
+  maxFileSizeMb: wholeIn(PRINT_CONFIG_LIMITS.maxFileSizeMbRange),
+  maxColors: wholeIn(PRINT_CONFIG_LIMITS.maxColorsRange).nullable(),
+  allowedFontCodes: z
+    .array(z.string().min(1).max(PRINT_CONFIG_LIMITS.fontCodeMaxLength))
+    .min(1, { error: R.fontsNeeded })
+    .nullable(),
+});
+
 /**
  * The limits of each value on its own (BE `PrintConfigRules`, origin/develop 3672ffb7): margins of an area
  * (`safeMarginMm` 0–500, `bleedMm` 0–20), a cup's seam (`MAX_SEAM_MM` 100) and rim, a bag's top fold
  * (`requireNonNegative`, at most 2000). The fold is added on top of the face height (see `withDefaults`): the height
  * that makes is checked with the model, by `printDefaultsSchemaFor`.
  */
-export const printDefaultsSchema = z.object({
+export const printDefaultsSchema = fileRulesSchema.extend({
   safeMarginMm: upTo(PRINT_CONFIG_LIMITS.safeMarginMaxMm),
   bleedMm: figure.max(PRINT_CONFIG_LIMITS.bleedMaxMm, {
     error: V.bleedMax(PRINT_CONFIG_LIMITS.bleedMaxMm),
@@ -61,11 +89,18 @@ export type PrintDefaultsValues = z.infer<typeof printDefaultsSchema>;
  * a bag's `bottomFoldMm ≤ gussetMm`, compared as sent, unrounded. `null` (no model yet) checks the values alone. Built
  * again on every render: react-hook-form validates with the latest resolver.
  */
-export function printDefaultsSchemaFor(model: CupModel | BagModel | null) {
+export function printDefaultsSchemaFor(
+  model: CupModel | BagModel | null,
+  stored: PrintConfigDto | null = null,
+) {
   if (!model) return printDefaultsSchema;
   const gussetMm = gussetOf(model);
   return printDefaultsSchema.superRefine((values, ctx) => {
-    for (const { field, message } of geometryFaults(model, values)) {
+    for (const { field, message } of geometryFaults(
+      model,
+      values,
+      savedSafeMargins(stored, model, values.safeMarginMm),
+    )) {
       ctx.addIssue({ code: "custom", path: [field], message });
     }
     if (gussetMm !== null && values.bottomFoldMm > gussetMm) {
@@ -78,6 +113,10 @@ export function printDefaultsSchemaFor(model: CupModel | BagModel | null) {
 /** The gusset the bottom fold is checked against: the measured model's, else the stored one's; `null` for a cup. */
 export const gussetOf = (model: CupModel | BagModel | null | undefined): number | null =>
   model?.kind === "parametric-bag" ? model.gussetMm : null;
+
+/** The stored formats the form knows (an unknown one cannot be ticked, so it would only block the save). */
+const narrowFormats = (formats: readonly string[]): PrintDefaultsValues["allowedFileFormats"] =>
+  PRINT_CONFIG_LIMITS.allowedFileFormats.filter((format) => formats.includes(format));
 
 /**
  * The values of the form for a kind: from the stored configuration if it is of that kind, else the constants. A bag
@@ -96,6 +135,15 @@ export function defaultsFor(
   const cup = model?.kind === "parametric-cup" ? model : null;
   const bag = model?.kind === "parametric-bag" ? model : null;
   return {
+    // The file rules belong to the configuration, not to a kind: a stored one keeps them whatever file is chosen.
+    minDpi: stored?.minDpi ?? PRINT_TEMPLATE_DEFAULTS.minDpi,
+    colorMode: stored?.colorMode ?? PRINT_TEMPLATE_DEFAULTS.colorMode,
+    allowedFileFormats: stored
+      ? narrowFormats(stored.allowedFileFormats)
+      : [...PRINT_TEMPLATE_DEFAULTS.allowedFileFormats],
+    maxFileSizeMb: stored?.maxFileSizeMb ?? PRINT_TEMPLATE_DEFAULTS.maxFileSizeMb,
+    maxColors: stored ? stored.maxColors : fallback.maxColors,
+    allowedFontCodes: stored?.allowedFontCodes ?? null,
     safeMarginMm: area?.safeMarginMm ?? fallback.safeMarginMm,
     bleedMm: area?.bleedMm ?? fallback.bleedMm,
     seamMm: cup?.seamMm ?? DEFAULT_MODEL_DEFAULTS.seamMm,

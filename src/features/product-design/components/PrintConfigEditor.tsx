@@ -3,9 +3,13 @@
 import { Box, FileBox } from "lucide-react";
 import { useId, useState } from "react";
 
-import { PRINT_CONFIG_SCREEN_LABELS } from "@/constants/labels-print-config";
+import {
+  PRINT_CONFIG_ACTION_LABELS,
+  PRINT_CONFIG_SCREEN_LABELS,
+} from "@/constants/labels-print-config";
 import { cn } from "cn";
 import { Alert } from "@/components/shared/Alert";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { DETAIL_CARD_CLASS, DetailSection } from "@/components/shared/DetailSection";
 
 import { BagSheetPreview } from "./BagSheetPreview";
@@ -15,6 +19,7 @@ import { ModelIssueList } from "./ModelIssueList";
 import { ModelReadReport } from "./ModelReadReport";
 import { ModelViewSlot } from "./ModelViewSlot";
 import { NominalInputs } from "./NominalInputs";
+import { FileRulesForm } from "./FileRulesForm";
 import { ModelFileChecklist } from "./PrintConfigEmpty";
 import { PrintConfigSaveAlerts, PrintConfigSaveButton } from "./PrintConfigSaveBar";
 import { PrintConfigSummary } from "./PrintConfigSummary";
@@ -127,6 +132,14 @@ export function PrintConfigEditor({ header, ...args }: PrintConfigEditorProps) {
   const rest = (
     <>
       {editor.kind && (
+        <FileRulesForm
+          register={form.register}
+          control={form.control}
+          errors={form.formState.errors}
+          disabled={saving}
+        />
+      )}
+      {editor.kind && (
         <PrintDefaultsForm
           kind={editor.kind}
           register={form.register}
@@ -165,6 +178,17 @@ export function PrintConfigEditor({ header, ...args }: PrintConfigEditorProps) {
           ) : null,
       })}
       <PrintConfigWorkbench file={file} view={view} rest={rest} />
+      <ConfirmDialog
+        open={editor.savePrompt !== null}
+        onOpenChange={(open) => !open && editor.savePrompt?.cancel()}
+        title={TEXT.save.confirmTitle}
+        description={TEXT.save.confirmDescription}
+        confirmLabel={PRINT_CONFIG_ACTION_LABELS.save}
+        variant="default"
+        onConfirm={() => editor.savePrompt?.confirm()}
+      >
+        {editor.savePrompt?.warning && <Alert tone="warning">{editor.savePrompt.warning}</Alert>}
+      </ConfirmDialog>
     </form>
   );
 }

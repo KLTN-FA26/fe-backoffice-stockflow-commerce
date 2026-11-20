@@ -23,8 +23,14 @@ export interface SaveErrorView {
 
 /** BE field path (`printAreas[0].safeMarginMm`, `model.seamMm`, …) → the form field it belongs to. */
 function formFieldOf(path: string, kind: ModelKind | null): keyof PrintDefaultsValues | null {
-  const name = path.split(".").pop() ?? path;
+  const name = (path.split(".").pop() ?? path).replace(/\[\d+\]$/, "");
   switch (name) {
+    case "minDpi":
+    case "colorMode":
+    case "allowedFileFormats":
+    case "maxFileSizeMb":
+    case "maxColors":
+    case "allowedFontCodes":
     case "safeMarginMm":
     case "bleedMm":
     case "seamMm":

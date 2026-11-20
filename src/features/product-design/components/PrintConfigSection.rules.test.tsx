@@ -12,7 +12,7 @@ import { resetProductMockStore } from "@/lib/api/mock-product-store";
 import { resetPrintConfigMockStore } from "@/lib/api/mock-routes-print-configs";
 import { resetVariantMockStore } from "@/lib/api/mock-routes-variants";
 
-import { DEFAULTS_TOGGLE, renderSection } from "./print-config-test-utils";
+import { DEFAULTS_TOGGLE, renderSection, saveStored } from "./print-config-test-utils";
 
 vi.setConfig({ testTimeout: 60_000 });
 configure({ asyncUtilTimeout: 45_000 });
@@ -53,7 +53,7 @@ describe("PrintConfigSection: BE PrintConfigRules before the save", () => {
     expect(put).not.toHaveBeenCalled();
 
     await typeInto(user, "Lề an toàn (mm)", "48.5");
-    await user.click(screen.getByRole("button", SAVE));
+    await saveStored(user);
     await waitFor(() => expect(put).toHaveBeenCalledTimes(1));
     expect(put.mock.calls[0]?.[1]).toMatchObject({
       printAreas: [expect.objectContaining({ code: "BODY", safeMarginMm: 48.5 })],

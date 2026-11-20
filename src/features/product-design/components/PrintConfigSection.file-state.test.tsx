@@ -26,6 +26,7 @@ import {
   loaderOf,
   renderSection,
   REPLACE_FILE,
+  saveStored,
 } from "./print-config-test-utils";
 
 vi.setConfig({ testTimeout: 60_000 });
@@ -62,7 +63,7 @@ describe("a template written before files were required (no file)", () => {
 
     await setSeam(user, "6");
     expect(screen.getByText(/Chỉ lưu các giá trị sửa được khi chưa có file/)).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: SAVE.name }));
+    await saveStored(user);
     await waitFor(() => expect(put).toHaveBeenCalledTimes(1));
     const body = put.mock.calls[0]?.[1];
     expect(body).not.toBeInstanceOf(FormData);
@@ -93,7 +94,7 @@ describe("a template written before files were required (no file)", () => {
       const margin = screen.getByLabelText("Lề an toàn (mm)");
       await user.clear(margin);
       await user.type(margin, "6");
-      await user.click(screen.getByRole("button", { name: SAVE.name }));
+      await saveStored(user);
       await waitFor(() => expect(put).toHaveBeenCalledTimes(1));
       const body = put.mock.calls[0]?.[1] as {
         printAreas: { code: string; safeMarginMm: number }[];
@@ -171,7 +172,7 @@ describe("a template with a file whose area ↔ mesh table the BE refuses", () =
     await screen.findByText("File 3D đang lưu không khớp các vùng in");
     await user.upload(screen.getByLabelText(REPLACE_FILE), glbFile("fixed.glb"));
     await screen.findByText("Nhận ra: Ly");
-    await user.click(screen.getByRole("button", { name: SAVE.name }));
+    await saveStored(user);
     await waitFor(() => expect(put).toHaveBeenCalledTimes(1));
     expect(put.mock.calls[0]?.[1]).toBeInstanceOf(FormData);
     await waitFor(() =>
@@ -191,7 +192,7 @@ describe("a stored file that is not the measured one", () => {
     await user.upload(screen.getByLabelText(REPLACE_FILE), glbFile("new.glb"));
     await screen.findByText("Nhận ra: Ly");
     const readsBefore = get.mock.calls.length;
-    await user.click(screen.getByRole("button", { name: SAVE.name }));
+    await saveStored(user);
     const alert = await screen.findByText(/Máy chủ đã lưu một file khác với file đã dùng để đo/);
     expect(alert).toBeInTheDocument();
     expect(screen.getByText("File: new.glb")).toBeInTheDocument();

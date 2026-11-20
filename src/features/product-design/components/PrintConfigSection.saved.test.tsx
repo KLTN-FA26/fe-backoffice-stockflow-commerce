@@ -28,6 +28,7 @@ import {
   readOnly,
   renderSection,
   REPLACE_FILE,
+  saveStored,
 } from "./print-config-test-utils";
 
 vi.setConfig({ testTimeout: 60_000 });
@@ -35,8 +36,17 @@ vi.setConfig({ testTimeout: 60_000 });
 configure({ asyncUtilTimeout: 45_000 });
 
 const SAVE = { name: "Lưu cấu hình in" };
+const FILE_RULES_TOGGLE = { name: "Ràng buộc file" };
 
-beforeAll(() => activateMockAdapter());
+beforeAll(() => {
+  activateMockAdapter();
+  // The checkboxes of the file rules (Radix) measure themselves; jsdom has no ResizeObserver.
+  globalThis.ResizeObserver ??= class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+});
 beforeEach(() => {
   // The mock adapter fails 5% of requests at random and logs each one.
   vi.spyOn(Math, "random").mockReturnValue(0.05);
@@ -214,7 +224,7 @@ describe("PrintConfigSection: a save that changes only a default", () => {
     expect(links).toHaveLength(1);
 
     await openAdvancedAndSetSeam(user, "6");
-    await user.click(screen.getByRole("button", { name: SAVE.name }));
+    await saveStored(user);
     await waitFor(() => expect(put).toHaveBeenCalledTimes(1));
     // The saved template has a new version, so a new link; the old version's link is not asked again and cut off.
     await waitFor(() => expect(links).toHaveLength(2));
@@ -228,7 +238,7 @@ describe("PrintConfigSection: a save that changes only a default", () => {
     const user = userEvent.setup();
     renderSection();
     await openAdvancedAndSetSeam(user, "6");
-    await user.click(screen.getByRole("button", { name: SAVE.name }));
+    await saveStored(user);
 
     await waitFor(() => expect(put).toHaveBeenCalledTimes(1));
     const [url, body] = put.mock.calls[0] ?? [];
@@ -253,12 +263,76 @@ describe("PrintConfigSection: a save that changes only a default", () => {
     });
   });
 
-  it("the next save carries the version the BE answered, not the old one plus one", async () => {
+  it("saving a stored configuration asks first, with the pending-designs warning; no is no request", async () => {
     const put = vi.spyOn(api, "put");
     const user = userEvent.setup();
     renderSection();
     await openAdvancedAndSetSeam(user, "6");
     await user.click(screen.getByRole("button", { name: SAVE.name }));
+    const dialog = within(await screen.findByRole("dialog", { name: "Lưu cấu hình in?" }));
+    expect(
+      dialog.getByText(/Thiết kế đang chờ duyệt dùng cấu hình này sẽ không duyệt được nữa/),
+    ).toBeInTheDocument();
+    expect(put).not.toHaveBeenCalled(); // asking is not doing
+    await user.click(dialog.getByRole("button", { name: "Quay lại" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(put).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: SAVE.name })).toBeEnabled(); // the edit is kept
+  });
+
+  it("lưu gửi giá trị ràng buộc vừa sửa: dpi, hệ màu, số màu, định dạng, font", async () => {
+    const put = vi.spyOn(api, "put");
+    const user = userEvent.setup();
+    renderSection();
+    await user.click(await screen.findByRole("button", FILE_RULES_TOGGLE));
+    const dpi = screen.getByLabelText("Độ phân giải tối thiểu (dpi)");
+    await user.clear(dpi);
+    await user.type(dpi, "450");
+    await user.click(screen.getByRole("checkbox", { name: "Không giới hạn" })); // limited again: 4
+    const colors = screen.getByLabelText("Số màu mực tối đa");
+    await waitFor(() => expect(colors).toBeEnabled());
+    await user.clear(colors);
+    await user.type(colors, "6");
+    await user.click(screen.getByRole("checkbox", { name: "WebP" }));
+    await user.click(screen.getByRole("radio", { name: "Chỉ các font được chọn" }));
+    await user.click(screen.getByRole("checkbox", { name: "Lobster" }));
+    await saveStored(user);
+
+    await waitFor(() => expect(put).toHaveBeenCalledTimes(1));
+    expect(put.mock.calls[0]?.[1]).toMatchObject({
+      minDpi: 450,
+      maxColors: 6,
+      allowedFileFormats: ["image/png", "image/jpeg", "image/webp"],
+      allowedFontCodes: ["be-vietnam-pro", "lobster"],
+    });
+    // Let the save finish (the form resets to the stored values) so it cannot write into the next test's store.
+    await waitFor(() => expect(screen.getByRole("button", { name: SAVE.name })).toBeDisabled());
+  });
+
+  it("maxColors 13 → lỗi dưới ô, không gửi gì", async () => {
+    const put = vi.spyOn(api, "put");
+    const user = userEvent.setup();
+    renderSection();
+    await user.click(await screen.findByRole("button", FILE_RULES_TOGGLE));
+    const noLimit = await screen.findByRole("checkbox", { name: "Không giới hạn" });
+    expect(noLimit).toBeChecked();
+    await user.click(noLimit);
+    const colors = screen.getByLabelText("Số màu mực tối đa");
+    await waitFor(() => expect(colors).toBeEnabled());
+    await user.clear(colors);
+    await user.type(colors, "13");
+    await user.click(screen.getByRole("button", { name: SAVE.name }));
+    expect(await screen.findByText("Từ 1 đến 12.")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(put).not.toHaveBeenCalled();
+  });
+
+  it("the next save carries the version the BE answered, not the old one plus one", async () => {
+    const put = vi.spyOn(api, "put");
+    const user = userEvent.setup();
+    renderSection();
+    await openAdvancedAndSetSeam(user, "6");
+    await saveStored(user);
     await waitFor(() => expect(put).toHaveBeenCalledTimes(1));
     const first = (await put.mock.results[0]?.value) as { data: { version: number } };
     expect(first.data.version).toBe(5); // the mock moved it by two, as the BE may
@@ -272,7 +346,7 @@ describe("PrintConfigSection: a save that changes only a default", () => {
     const seam = screen.getByLabelText("Mép dán (mm)");
     await user.clear(seam);
     await user.type(seam, "7");
-    await user.click(screen.getByRole("button", { name: SAVE.name }));
+    await saveStored(user);
     await waitFor(() => expect(put).toHaveBeenCalledTimes(2));
     expect(put.mock.calls[1]?.[1]).toMatchObject({ version: 5 });
   });
@@ -284,7 +358,7 @@ describe("PrintConfigSection: a save that changes only a default", () => {
     await openAdvancedAndSetSeam(user, "6");
     // From now on every read hangs: only the save's own answer can tell the screen the new version.
     const get = vi.spyOn(api, "get").mockReturnValue(new Promise(() => {}));
-    await user.click(screen.getByRole("button", { name: SAVE.name }));
+    await saveStored(user);
     await waitFor(() => expect(put).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(screen.getByRole("button", { name: SAVE.name })).toBeDisabled());
     if (!screen.queryByLabelText("Mép dán (mm)")) {
@@ -293,7 +367,7 @@ describe("PrintConfigSection: a save that changes only a default", () => {
     const seam = screen.getByLabelText("Mép dán (mm)");
     await user.clear(seam);
     await user.type(seam, "7");
-    await user.click(screen.getByRole("button", { name: SAVE.name }));
+    await saveStored(user);
     await waitFor(() => expect(put).toHaveBeenCalledTimes(2));
     expect(put.mock.calls[1]?.[1]).toMatchObject({ version: 5, model: { seamMm: 7 } });
     expect(get).toHaveBeenCalled(); // the refetch was asked for, and is still pending
@@ -306,7 +380,7 @@ describe("PrintConfigSection: a save that changes only a default", () => {
     const user = userEvent.setup();
     renderSection();
     await openAdvancedAndSetSeam(user, "6");
-    await user.click(screen.getByRole("button", { name: SAVE.name }));
+    await saveStored(user);
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("Số đo này lấy từ file 3D, hãy tải file mới cùng số đo");
     expect(alert).not.toHaveTextContent("model.heightMm");
@@ -317,7 +391,7 @@ describe("PrintConfigSection: a save that changes only a default", () => {
     const user = userEvent.setup();
     renderSection();
     const field = await openAdvancedAndSetSeam(user, "6");
-    await user.click(screen.getByRole("button", { name: SAVE.name }));
+    await saveStored(user);
     const saving = await screen.findByRole("button", { name: "Đang lưu…" });
     expect(saving).toBeDisabled();
     expect(field).toBeDisabled();
@@ -329,7 +403,7 @@ describe("PrintConfigSection: a save that changes only a default", () => {
     const user = userEvent.setup();
     renderSection();
     const field = await openAdvancedAndSetSeam(user, "6");
-    await user.click(screen.getByRole("button", { name: SAVE.name }));
+    await saveStored(user);
 
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("vừa được người khác sửa");
@@ -345,7 +419,7 @@ describe("PrintConfigSection: a save that changes only a default", () => {
     const user = userEvent.setup();
     renderSection();
     const field = await openAdvancedAndSetSeam(user, "6");
-    await user.click(screen.getByRole("button", { name: SAVE.name }));
+    await saveStored(user);
     await waitFor(() =>
       expect(field).toHaveAccessibleDescription("Máy chủ không chấp nhận giá trị này."),
     );

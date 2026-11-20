@@ -103,13 +103,21 @@ function lockOf(t: Target, templateId: string, version: number) {
 function limitsInvalid(fields: ReturnType<typeof fieldsOf>): MockResponseShape | null {
   const [minSize, maxSize] = LIMITS.maxFileSizeMbRange;
   const [minDpi, maxDpi] = LIMITS.minDpiRange;
+  const [minColors, maxColors] = LIMITS.maxColorsRange;
   const size = fields.maxFileSizeMb;
+  const formats: readonly string[] = LIMITS.allowedFileFormats;
   const valid =
     Number.isInteger(size) &&
     size >= minSize &&
     size <= maxSize &&
     fields.minDpi >= minDpi &&
-    fields.minDpi <= maxDpi;
+    fields.minDpi <= maxDpi &&
+    // `maxColors` null = no limit, else 1-12; at least one known format; fonts null = every font, else a non-empty list
+    (fields.maxColors === null ||
+      (fields.maxColors >= minColors && fields.maxColors <= maxColors)) &&
+    fields.allowedFileFormats.length > 0 &&
+    fields.allowedFileFormats.every((format) => formats.includes(format)) &&
+    (fields.allowedFontCodes === null || fields.allowedFontCodes.length > 0);
   return valid ? null : fail(400, "PRINT_CONFIG_INVALID", "Limits out of range");
 }
 

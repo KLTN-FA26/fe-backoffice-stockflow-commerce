@@ -246,6 +246,32 @@ export const PRINT_CONFIG_SCREEN_LABELS = {
       bottomFoldMax: (gusset: string) => `Không sâu hơn hông túi (${gusset}).`,
     },
   },
+  /** "Ràng buộc file": giới hạn file khách được tải lên (BE `PrintConfigRules`), sửa được cùng số mặc định. */
+  fileRules: {
+    title: "Ràng buộc file",
+    note: "Giới hạn file ảnh mà khách được tải lên khi thiết kế trên cấu hình in này. Studio nhắc khách theo các giá trị này.",
+    fields: {
+      minDpi: "Độ phân giải tối thiểu (dpi)",
+      colorMode: "Hệ màu",
+      allowedFileFormats: "Định dạng ảnh khách được tải lên",
+      maxFileSizeMb: "Dung lượng tối đa mỗi ảnh (MB)",
+      maxColors: "Số màu mực tối đa",
+      allowedFontCodes: "Font được dùng",
+    },
+    colorModes: { CMYK: "CMYK (in offset)", RGB: "RGB" },
+    formats: { "image/png": "PNG", "image/jpeg": "JPG", "image/webp": "WebP" },
+    noColorLimit: "Không giới hạn",
+    fontsAll: "Mọi font",
+    fontsOnly: "Chỉ các font được chọn",
+    fontsGroup: "Danh sách font",
+    validation: {
+      number: "Nhập một số.",
+      integer: "Nhập một số nguyên.",
+      between: (min: number, max: number) => `Từ ${min} đến ${max}.`,
+      formatsNeeded: "Chọn ít nhất một định dạng.",
+      fontsNeeded: "Chọn ít nhất một font, hoặc chọn Mọi font.",
+    },
+  },
   defaultRows: {
     safeMarginMm: "Lề an toàn",
     bleedMm: "Tràn lề",
@@ -278,17 +304,16 @@ export const PRINT_CONFIG_SCREEN_LABELS = {
   },
   readOnly: {
     permission: "Bạn không có quyền sửa cấu hình in, nên chỉ xem được.",
-    product: "Sản phẩm đang chờ duyệt hoặc đã ngừng kinh doanh nên chưa sửa được cấu hình in.",
+    product: "Sản phẩm đã ngừng kinh doanh nên chưa sửa được cấu hình in.",
     variant: "Biến thể này đã ngừng dùng nên không sửa được cấu hình in.",
   },
   status: {
     activateNote: "Kích hoạt: khách hàng của biến thể này bắt đầu thiết kế trên cấu hình in này.",
     activateTitle: "Kích hoạt cấu hình in?",
     activateDescription:
-      "Khách hàng của biến thể này sẽ bắt đầu thiết kế trên cấu hình in này. Cấu hình đang dùng trước đó (nếu có) sẽ ngừng dùng.",
+      "Khách hàng của biến thể này sẽ bắt đầu thiết kế trên cấu hình in này. Cấu hình đang dùng trước đó (nếu có) sẽ tự ngừng dùng.",
     deactivateTitle: "Ngừng dùng cấu hình in?",
-    deactivateDescription:
-      "Khách hàng sẽ không bắt đầu thiết kế mới trên cấu hình in này. Bản thiết kế đang làm dở vẫn giữ cấu hình này.",
+    deactivateDescription: "Khách hàng sẽ không bắt đầu thiết kế mới trên cấu hình in này.",
     /** Chưa kích hoạt được vì file 3D (BE 409 / 422 khi kích hoạt). */
     activateBlocked: {
       "no-model":
@@ -314,6 +339,8 @@ export const PRINT_CONFIG_SCREEN_LABELS = {
   unreadableTitle: "Không đọc được file",
   serverField: "Máy chủ không chấp nhận giá trị này.",
   save: {
+    confirmTitle: "Lưu cấu hình in?",
+    confirmDescription: "Cấu hình in này đang có sẵn, bản lưu sẽ thay các giá trị hiện tại.",
     saving: "Đang lưu…",
     nothingToSave: "Chưa có thay đổi để lưu.",
     newFile: (name: string) => `Sẽ lưu cùng file ${name}.`,
@@ -328,6 +355,48 @@ export const PRINT_CONFIG_SCREEN_LABELS = {
     bag: { code: "BAG-FACES", name: "Bốn mặt túi" },
   },
 } as const;
+
+/**
+ * Cảnh báo "thiết kế đang chờ duyệt sẽ không duyệt được nữa", và khi nào hiện: MỘT chỗ duy nhất.
+ *
+ * Gốc: mỗi lần BE ghi một cấu hình in thì `version` tăng (`PrintConfigService`: lưu, kích hoạt, ngừng dùng, gắn file khuôn
+ * tham chiếu; kích hoạt cấu hình mới còn làm tăng version của cấu hình cũ bị ngừng theo), mà lúc duyệt BE so
+ * `templateVersion` của file thiết kế với version hiện tại (409 `DESIGN_FILES_OUTDATED`). BE chưa đếm được số thiết kế
+ * đang chờ trên một cấu hình, nên câu là câu chung.
+ *
+ * ASSUMPTION: BE dự định chỉ tăng version khi đổi trường ảnh hưởng bản in. Khi đó: bỏ hai dòng `activate` và
+ * `deactivate` ở `PRINT_CONFIG_PENDING_WARNING.when`, và thu hẹp `save` về các trường in (số đo, vùng in, ràng buộc file).
+ */
+export const PRINT_CONFIG_PENDING_WARNING = {
+  base: "Thiết kế đang chờ duyệt dùng cấu hình này sẽ không duyệt được nữa (khách phải gửi lại).",
+  /** Hành động nào hiện cảnh báo, và câu nói thêm cho hành động đó (nối sau `base`). */
+  when: {
+    save: { extra: null },
+    activate: {
+      extra:
+        "Cấu hình đang dùng hiện tại sẽ bị ngừng, nên thiết kế đang chờ duyệt trên nó cũng vậy.",
+    },
+    deactivate: { extra: null },
+    attachReference: { extra: null },
+  },
+} as const;
+
+export type PendingWarningAction = keyof typeof PRINT_CONFIG_PENDING_WARNING.when;
+
+/**
+ * Câu cảnh báo của một hành động, hoặc `null` khi không cần. Lưu chỉ cảnh báo khi cấu hình đã có (`hasStored`): cấu
+ * hình mới chưa có thiết kế nào dùng.
+ */
+export function pendingDesignWarning(
+  action: PendingWarningAction,
+  { hasStored }: { hasStored: boolean },
+): string | null {
+  if (action === "save" && !hasStored) return null;
+  const { extra } = PRINT_CONFIG_PENDING_WARNING.when[action];
+  return extra
+    ? `${PRINT_CONFIG_PENDING_WARNING.base} ${extra}`
+    : PRINT_CONFIG_PENDING_WARNING.base;
+}
 
 /** Chữ của trang "Cấu hình in" của một biến thể (`/admin/products/[id]/variants/[variantId]/print-config`). */
 export const PRINT_CONFIG_PAGE_LABELS = {

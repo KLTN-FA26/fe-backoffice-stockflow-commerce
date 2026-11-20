@@ -2,7 +2,12 @@
 
 import Link from "next/link";
 
-import { ADMIN_ROUTES, CUSTOMIZATION_TEMPLATE_PERMISSIONS, PRODUCT_PERMISSIONS } from "@/constants";
+import {
+  ADMIN_ROUTES,
+  CUSTOMIZATION_TEMPLATE_PERMISSIONS,
+  PRODUCT_PERMISSIONS,
+  PRODUCT_STATUS,
+} from "@/constants";
 import {
   PRINT_CONFIG_PAGE_LABELS as TEXT,
   PRINT_CONFIG_SCREEN_LABELS,
@@ -11,13 +16,7 @@ import { PRINT_CONFIG_SEGMENT } from "@/constants/routes";
 import { usePermissionChecker } from "@/lib/auth/components/Can";
 import { useMyPermissions } from "@/lib/auth/me-permissions";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
-import {
-  isCartonCandidate,
-  productChangeGate,
-  useProduct,
-  useSkuUnits,
-  useVariants,
-} from "@/features/product";
+import { isCartonCandidate, useProduct, useSkuUnits, useVariants } from "@/features/product";
 import { PrintConfigSection } from "@/features/product-design";
 import { Alert } from "@/components/shared/Alert";
 import { DETAIL_CARD_CLASS } from "@/components/shared/DetailSection";
@@ -97,12 +96,12 @@ export function VariantPrintConfig({
   }
   if (!variant) return <VariantPrintConfigState kind="variant-missing" />;
 
-  // Cùng điều kiện panel biến thể dùng cho thông tin mua hàng: sản phẩm không chờ duyệt / ngừng kinh doanh
-  // (BE `Product.acceptsChanges`) và biến thể chưa ngừng dùng. UI-only — BE re-check (409 CONFLICT).
-  // Lý do chỉ đọc theo thứ tự: quyền, rồi sản phẩm, rồi biến thể (section hiện đúng một câu).
+  // Đúng điều kiện BE `PrintConfigService.requireWritable` (khác `acceptsChanges` của thông tin mua hàng): chỉ sản phẩm
+  // ngừng kinh doanh và biến thể ngừng dùng chặn ghi; sản phẩm đang chờ duyệt vẫn sửa được cấu hình in. UI-only — BE
+  // re-check (409 CONFLICT). Lý do chỉ đọc theo thứ tự: quyền, rồi sản phẩm, rồi biến thể (section hiện đúng một câu).
   const readOnlyReason = !can(CUSTOMIZATION_TEMPLATE_PERMISSIONS.update)
     ? "permission"
-    : !productChangeGate(product.status).acceptsChanges
+    : product.status === PRODUCT_STATUS.DISCONTINUED
       ? "product"
       : variant.status === "OBSOLETE"
         ? "variant"

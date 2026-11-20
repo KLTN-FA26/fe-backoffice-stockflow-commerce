@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 
-import { PRINT_CONFIG_SCREEN_LABELS } from "@/constants/labels-print-config";
+import { PRINT_CONFIG_SCREEN_LABELS, pendingDesignWarning } from "@/constants/labels-print-config";
+import { Alert } from "@/components/shared/Alert";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 
@@ -91,7 +92,11 @@ export function PrintConfigStatusActions({
         closeOnConfirm={false}
         loading={mutation.isPending}
         onConfirm={confirm}
-      />
+      >
+        {asking && (
+          <Alert tone="warning">{pendingDesignWarning(asking, { hasStored: true })}</Alert>
+        )}
+      </ConfirmDialog>
     </div>
   );
 }

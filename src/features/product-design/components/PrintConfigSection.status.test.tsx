@@ -37,10 +37,11 @@ describe("activating and stopping a saved configuration", () => {
     expect(screen.queryByRole("button", { name: "Ngừng dùng" })).not.toBeInTheDocument();
   });
 
-  it("a locked product offers neither", async () => {
+  it("a locked product still offers to stop an active configuration, and never to activate", async () => {
     renderSection({ writable: false, readOnlyReason: "product" });
     await findStatus("Đang dùng");
-    expect(screen.queryByRole("button", { name: "Ngừng dùng" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ngừng dùng" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Kích hoạt" })).not.toBeInTheDocument();
   });
 
   it("confirming calls the mutation and the badge changes, then the same the other way", async () => {
@@ -67,6 +68,25 @@ describe("activating and stopping a saved configuration", () => {
     await user.click(start.getByRole("button", { name: "Kích hoạt" }));
     expect(await findStatus("Đang dùng")).toBeInTheDocument();
     await waitFor(() => expect(post.mock.calls[1]?.[0]).toMatch(/\/activation$/));
+  });
+
+  it("hộp kích hoạt / ngừng có câu cảnh báo thiết kế chờ duyệt", async () => {
+    const user = userEvent.setup();
+    renderSection();
+    await user.click(await screen.findByRole("button", { name: "Ngừng dùng" }));
+    const stop = within(await screen.findByRole("dialog"));
+    expect(
+      stop.getByText(/Thiết kế đang chờ duyệt dùng cấu hình này sẽ không duyệt được nữa/),
+    ).toBeInTheDocument();
+    await user.click(stop.getByRole("button", { name: "Ngừng dùng" }));
+    await user.click(await screen.findByRole("button", { name: "Kích hoạt" }));
+    const start = within(await screen.findByRole("dialog"));
+    expect(
+      start.getByText(/Thiết kế đang chờ duyệt dùng cấu hình này sẽ không duyệt được nữa/),
+    ).toBeInTheDocument();
+    // Activating also retires the variant's active configuration: said in the warning and in the description.
+    expect(start.getByText(/Cấu hình đang dùng hiện tại sẽ bị ngừng/)).toBeInTheDocument();
+    expect(start.getByText(/tự ngừng dùng/)).toBeInTheDocument();
   });
 
   it("cancelling the confirmation changes nothing", async () => {

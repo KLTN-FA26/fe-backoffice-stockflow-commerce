@@ -25,6 +25,7 @@ import {
   loaderOf,
   readOnly,
   renderSection,
+  saveStored,
 } from "./print-config-test-utils";
 
 vi.setConfig({ testTimeout: 60_000 });
@@ -92,13 +93,13 @@ describe("a failed save", () => {
     await screen.findByText("Nhận ra: Ly");
     const seam = await setSeam(user, "6");
     const gets = get.mock.calls.length;
-    await user.click(screen.getByRole("button", { name: SAVE.name }));
+    await saveStored(user);
 
     await screen.findByText(/Cấu hình in chưa hợp lệ/);
     await waitFor(() => expect(get.mock.calls.length).toBeGreaterThan(gets));
     expectWorkKept(seam, "again.glb");
 
-    await user.click(screen.getByRole("button", { name: SAVE.name }));
+    await saveStored(user);
     await waitFor(() => expect(screen.queryByText("File: again.glb")).not.toBeInTheDocument());
     expect(screen.queryByText(/Cấu hình in chưa hợp lệ/)).not.toBeInTheDocument();
   });
@@ -120,7 +121,7 @@ describe("discarding a chosen file", () => {
     await user.clear(rim);
     await user.type(rim, "4");
     expect(screen.getByLabelText("Lề an toàn (mm)")).toHaveValue(3);
-    await user.click(screen.getByRole("button", { name: SAVE.name }));
+    await saveStored(user);
 
     await waitFor(() => expect(put).toHaveBeenCalledTimes(1));
     // One JSON request: the stored file stays.
@@ -137,9 +138,9 @@ describe("a read-only section says why", () => {
     expect(await screen.findByText(/Bạn không có quyền sửa cấu hình in/)).toBeInTheDocument();
   });
 
-  it("when the page says the product does not accept changes", async () => {
+  it("when the page says the product is discontinued", async () => {
     renderSection({ can: allowAll, writable: false, readOnlyReason: "product" });
-    expect(await screen.findByText(/đang chờ duyệt hoặc đã ngừng kinh doanh/)).toBeInTheDocument();
+    expect(await screen.findByText(/Sản phẩm đã ngừng kinh doanh/)).toBeInTheDocument();
   });
 
   it("when the page says the variant is no longer in use", async () => {

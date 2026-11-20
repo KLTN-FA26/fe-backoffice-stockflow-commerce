@@ -70,7 +70,8 @@ describe("buildSaveInput", () => {
       { code: "RIGHT", name: "Hông phải", safeMarginMm: 5, bleedMm: 3 },
     ]);
     expect(input?.config.surfaces.map((s) => s.meshName)).toEqual(FACES.map((f) => f.meshName));
-    expect(input?.config).toMatchObject({ code: "BAG-FACES", maxColors: 4 });
+    // No limit until the printer states one (a guessed 4 reached every storefront picture as a hint).
+    expect(input?.config).toMatchObject({ code: "BAG-FACES", maxColors: null });
     expect(printConfigSaveInputSchema.safeParse(input).success).toBe(true);
   });
 
@@ -123,15 +124,55 @@ describe("buildSaveInput", () => {
     expect(printConfigSaveInputSchema.safeParse(input).success).toBe(true);
   });
 
-  it("with a new file on a stored configuration it keeps the stored code and file rules", () => {
+  it("with a new file on a stored configuration it keeps the stored code and the form's file rules", () => {
+    const withRules = { ...stored, minDpi: 600, maxColors: 2 };
     const input = buildSaveInput({
       source: { model: CUP, printMeshes: BODY_MESH },
-      stored: { ...stored, minDpi: 600, maxColors: 2 },
-      defaults: defaultsFor("parametric-cup", stored),
+      stored: withRules,
+      defaults: defaultsFor("parametric-cup", withRules),
       file: savedFile(),
     });
     expect(input?.config).toMatchObject({ code: "CUP12-BODY", minDpi: 600, maxColors: 2 });
     expect(input).not.toHaveProperty("modelFileChecksum");
+  });
+
+  it("save sends the file rules just edited, not the stored ones", () => {
+    const edited = {
+      ...defaultsFor("parametric-cup", { ...stored, minDpi: 600, maxColors: 2 }),
+      minDpi: 450,
+      colorMode: "RGB" as const,
+      allowedFileFormats: ["image/webp" as const],
+      maxFileSizeMb: 20,
+      maxColors: 6,
+      allowedFontCodes: ["lobster", "oswald"],
+    };
+    const input = buildSaveInput({
+      source: null,
+      stored: { ...stored, minDpi: 600, maxColors: 2 },
+      defaults: edited,
+    });
+    expect(input?.config).toMatchObject({
+      minDpi: 450,
+      colorMode: "RGB",
+      allowedFileFormats: ["image/webp"],
+      maxFileSizeMb: 20,
+      maxColors: 6,
+      allowedFontCodes: ["lobster", "oswald"],
+    });
+    expect(printConfigSaveInputSchema.safeParse(input).success).toBe(true);
+  });
+
+  it("maxColors null and a null font list are sent as no limit", () => {
+    const input = buildSaveInput({
+      source: null,
+      stored: { ...stored, maxColors: 2, allowedFontCodes: ["lobster"] },
+      defaults: {
+        ...defaultsFor("parametric-cup", stored),
+        maxColors: null,
+        allowedFontCodes: null,
+      },
+    });
+    expect(input?.config).toMatchObject({ maxColors: null, allowedFontCodes: null });
   });
 
   it("gives nothing to save without a measurement and without a stored model", () => {

@@ -12,7 +12,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 
-import { PRINT_CONFIG_SCREEN_LABELS } from "@/constants/labels-print-config";
+import { PRINT_CONFIG_SCREEN_LABELS, pendingDesignWarning } from "@/constants/labels-print-config";
 
 import { printConfigErrorMessage } from "../errors";
 import { useSavePrintConfig } from "../mutations";
@@ -55,6 +55,8 @@ export function usePrintConfigEditor({
   const [formKind, setFormKind] = useState<ModelKind>(config?.model?.kind ?? "parametric-cup");
   const [nominalText, setNominalText] = useState<NominalText>({});
   const [serverError, setServerError] = useState<string | null>(null);
+  /** The save waiting for the person's yes: a save of a stored configuration bumps its version (BD-4). */
+  const [asked, setAsked] = useState<PrintConfigSaveInput | null>(null);
 
   // The kind in play: the file's when one is chosen, else the stored configuration's.
   const kind: ModelKind | null = result
@@ -63,7 +65,7 @@ export function usePrintConfigEditor({
   const storedKind: ModelKind = config?.model?.kind ?? "parametric-cup";
   const model = result ? result.model : (config?.model ?? null);
   const form = useForm<PrintDefaultsValues>({
-    resolver: zodResolver(printDefaultsSchemaFor(model)),
+    resolver: zodResolver(printDefaultsSchemaFor(model, config)),
     defaultValues: defaultsFor(formKind, config),
   });
   // `useWatch` types every field optional: complete it from the starting values.
@@ -152,14 +154,8 @@ export function usePrintConfigEditor({
     }
   }
 
-  const submit = form.handleSubmit((values) => {
-    if (!canSave) return; // Enter in a field submits the form, whatever the button says
-    const prepared = prepare(values);
-    if ("error" in prepared) {
-      setServerError(prepared.error);
-      return;
-    }
-    const { input } = prepared;
+  function runSave(input: PrintConfigSaveInput) {
+    setAsked(null);
     setServerError(null);
     save.mutate(
       { productId, variantId, input },
@@ -174,7 +170,29 @@ export function usePrintConfigEditor({
         },
       },
     );
+  }
+
+  const submit = form.handleSubmit((values) => {
+    if (!canSave) return; // Enter in a field submits the form, whatever the button says
+    const prepared = prepare(values);
+    if ("error" in prepared) {
+      setServerError(prepared.error);
+      return;
+    }
+    const { input } = prepared;
+    // A stored configuration is asked about first: its pending designs stop being approvable.
+    if (pendingDesignWarning("save", { hasStored: input.stored !== null })) {
+      setAsked(input);
+      return;
+    }
+    runSave(input);
   });
+
+  const savePrompt = asked && {
+    warning: pendingDesignWarning("save", { hasStored: asked.stored !== null }),
+    confirm: () => runSave(asked),
+    cancel: () => setAsked(null),
+  };
 
   return {
     reading: reading.phase,
@@ -190,6 +208,7 @@ export function usePrintConfigEditor({
     chooseFile,
     discard,
     submit,
+    savePrompt,
     saving,
     fileState,
     canSave,

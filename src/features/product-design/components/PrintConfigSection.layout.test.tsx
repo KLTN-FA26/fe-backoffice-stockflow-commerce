@@ -201,6 +201,12 @@ describe("the status card's save", () => {
     const seam = screen.getByLabelText("Mép dán (mm)");
     await user.clear(seam);
     await user.type(seam, "6{Enter}");
+    // The stored configuration asks before it saves: Enter opens the same dialog the button does.
+    await user.click(
+      within(await screen.findByRole("dialog", { name: "Lưu cấu hình in?" })).getByRole("button", {
+        name: "Lưu cấu hình in",
+      }),
+    );
     await waitFor(() => expect(put).toHaveBeenCalledTimes(1));
     expect(put.mock.calls[0]?.[1]).toMatchObject({ model: { seamMm: 6 } });
   });
