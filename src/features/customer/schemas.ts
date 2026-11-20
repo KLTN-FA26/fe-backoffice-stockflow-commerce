@@ -80,6 +80,26 @@ export const creditProfileDtoSchema = z.object({
   version: z.number().int(),
 });
 
+const bankAccountDtoSchema = z.object({
+  accountNumber: z.string(),
+  bankName: z.string(),
+  accountHolder: z.string(),
+});
+
+/** `GET /customers/{id}/legal-profile` — Jackson `non_null`: `taxCode`, `invoiceEmail`, `bankAccount` có thể vắng. */
+export const legalProfileDtoSchema = z.object({
+  customerId: z.string(),
+  /** Chỉ đọc: lấy từ hồ sơ khách. */
+  companyName: z.string(),
+  taxCode: z.string().nullish(),
+  registeredAddress: z.string(),
+  representativeName: z.string(),
+  representativeTitle: z.string(),
+  invoiceEmail: z.string().nullish(),
+  bankAccount: bankAccountDtoSchema.nullish(),
+  version: z.number().int(),
+});
+
 export const portalActivationDtoSchema = z.object({ email: z.string() });
 
 /* ── Input ───────────────────────────────────────────────────────────── */
@@ -161,3 +181,58 @@ export const portalActivationInputSchema = z
 
 /** Token mời: đúng 64 ký tự base64url (BE `PortalInvitationToken`). */
 export const invitationTokenSchema = z.string().regex(/^[A-Za-z0-9_-]{64}$/);
+
+/* ── Hồ sơ pháp lý (BE `CustomerLegalProfileService`: lỗi dữ liệu là 400 không kèm `fieldErrors`, nên FE chép đủ luật) ── */
+
+/** BE: số tài khoản sau khi bỏ khoảng trắng / `.` / `-` phải khớp `[0-9A-Za-z]{4,34}`. */
+const BANK_ACCOUNT_SEPARATORS = /[\s.-]/g;
+const BANK_ACCOUNT_NUMBER = /^[0-9A-Za-z]{4,34}$/;
+/** BE: `[^@\s]+@[^@\s]+\.[^@\s]+`. */
+const INVOICE_EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+const LEGAL_BANK_FIELDS = ["accountNumber", "bankName", "accountHolder"] as const;
+const LEGAL_BANK_REQUIRED = {
+  accountNumber: "Nhập số tài khoản",
+  bankName: "Nhập ngân hàng",
+  accountHolder: "Nhập chủ tài khoản",
+} as const;
+
+export const legalProfileInputSchema = z
+  .object({
+    registeredAddress: z
+      .string()
+      .trim()
+      .min(1, "Nhập địa chỉ đăng ký kinh doanh")
+      .max(500, "Tối đa 500 ký tự"),
+    representativeName: z
+      .string()
+      .trim()
+      .min(1, "Nhập người đại diện theo pháp luật")
+      .max(200, "Tối đa 200 ký tự"),
+    representativeTitle: z.string().trim().min(1, "Nhập chức vụ").max(100, "Tối đa 100 ký tự"),
+    invoiceEmail: z
+      .string()
+      .trim()
+      .max(320, "Tối đa 320 ký tự")
+      .refine((v) => v === "" || INVOICE_EMAIL.test(v), { message: "Email không hợp lệ" }),
+    accountNumber: z.string().trim(),
+    bankName: z.string().trim().max(200, "Tối đa 200 ký tự"),
+    accountHolder: z.string().trim().max(200, "Tối đa 200 ký tự"),
+  })
+  // BE: cả ba ô ngân hàng trống = không có tài khoản; có một ô thì phải đủ ba và số tài khoản đúng dạng.
+  .superRefine((v, ctx) => {
+    if (LEGAL_BANK_FIELDS.every((field) => v[field] === "")) return;
+    for (const field of LEGAL_BANK_FIELDS) {
+      if (v[field] === "")
+        ctx.addIssue({ code: "custom", path: [field], message: LEGAL_BANK_REQUIRED[field] });
+    }
+    if (
+      v.accountNumber !== "" &&
+      !BANK_ACCOUNT_NUMBER.test(v.accountNumber.replace(BANK_ACCOUNT_SEPARATORS, ""))
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["accountNumber"],
+        message: "Số tài khoản gồm 4–34 chữ hoặc số (bỏ qua khoảng trắng, dấu chấm, gạch ngang)",
+      });
+    }
+  });

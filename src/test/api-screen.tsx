@@ -27,6 +27,8 @@ export const ROLE_PERMISSIONS = {
     "customer-customers:APPROVE",
     "customer-credit-profiles:VIEW_PAGE",
     "customer-credit-profiles:READ",
+    "customer-legal-profiles:READ",
+    "customer-legal-profiles:UPDATE",
     "customer-addresses:READ",
     "sales-quotes:VIEW_PAGE",
     "sales-quotes:READ",

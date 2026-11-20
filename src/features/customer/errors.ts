@@ -17,12 +17,27 @@ export const CUSTOMER_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   PORTAL_INVITATION_UNAVAILABLE:
     "Hệ thống chưa cấu hình gửi lời mời kích hoạt. Vui lòng liên hệ quản trị viên.",
   CREDIT_PROFILE_INVALID: "Điều khoản thanh toán không hợp lệ.",
+  LEGAL_PROFILE_NOT_FOUND: "Khách chưa có thông tin pháp lý.",
   CONFLICT: "Khách hàng không còn ở trạng thái chờ kích hoạt.",
   RATE_LIMITED: "Vừa gửi lời mời. Vui lòng chờ khoảng 1 phút rồi gửi lại.",
 };
 
 export function customerErrorMessage(error: unknown): string {
   return apiErrorMessage(error, CUSTOMER_ERROR_MESSAGES);
+}
+
+/**
+ * Câu riêng cho màn hồ sơ pháp lý: `OPTIMISTIC_LOCK` / `VALIDATION_FAILED` ở đây nói về hồ sơ pháp lý, nên không
+ * đặt trong `CUSTOMER_ERROR_MESSAGES` (dùng chung với sửa khách, đổi trạng thái).
+ */
+const LEGAL_PROFILE_ERROR_MESSAGES: Readonly<Record<string, string>> = {
+  ...CUSTOMER_ERROR_MESSAGES,
+  OPTIMISTIC_LOCK: "Thông tin pháp lý vừa được người khác sửa, đã tải lại.",
+  VALIDATION_FAILED: "Thông tin pháp lý chưa hợp lệ, kiểm tra lại các ô.",
+};
+
+export function legalProfileErrorMessage(error: unknown): string {
+  return apiErrorMessage(error, LEGAL_PROFILE_ERROR_MESSAGES);
 }
 
 /** Lỗi kích hoạt mật khẩu yếu: BE trả VALIDATION_FAILED không kèm fieldErrors, link vẫn dùng được. */

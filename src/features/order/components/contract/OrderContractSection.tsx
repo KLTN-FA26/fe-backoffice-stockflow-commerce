@@ -1,13 +1,16 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { FileSignature } from "lucide-react";
 
 import {
+  ADMIN_ROUTES,
   SALES_CONTRACT_PERMISSIONS,
   SALES_CONTRACT_STATUS_LABELS,
   SALES_CONTRACT_STATUS_TONE_KEY,
 } from "@/constants";
+import { ApiError } from "@/lib/api/error";
 import { Card } from "@/components/shared/Card";
 import { Notice } from "@/components/shared/Notice";
 import { StatusDot } from "@/components/shared/StatusDot";
@@ -44,6 +47,7 @@ export function OrderContractSection({
   const [signed, setSigned] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [dialog, setDialog] = useState<ContractDialog>(null);
+  const [legalMissing, setLegalMissing] = useState<string | null>(null);
   if (!canRead) return null;
 
   const contract = query.data ?? null;
@@ -53,8 +57,16 @@ export function OrderContractSection({
     create.mutate(
       { orderId: order.orderId },
       {
-        onSuccess: () => setEditing(true),
-        onError: (error) => toast.error(contractErrorMessage(error)),
+        onSuccess: () => {
+          setLegalMissing(null);
+          setEditing(true);
+        },
+        onError: (error) => {
+          // Khách chưa có hồ sơ pháp lý: không chỉ toast, dẫn Sale tới nơi nhập (không import `features/customer`).
+          if (error instanceof ApiError && error.code === "CUSTOMER_LEGAL_PROFILE_MISSING")
+            setLegalMissing(contractErrorMessage(error));
+          else toast.error(contractErrorMessage(error));
+        },
       },
     );
 
@@ -98,6 +110,21 @@ export function OrderContractSection({
             )}
             {!contract && (
               <p className="text-ink-tertiary text-[0.8125rem]">Đơn chưa có hợp đồng.</p>
+            )}
+            {legalMissing && (
+              <Notice tone="warning" live>
+                <span>
+                  {legalMissing}{" "}
+                  {order.customerId && (
+                    <Link
+                      href={`${ADMIN_ROUTES.customers.detail(order.customerId)}?legalProfile=edit#legal-profile`}
+                      className="text-accent font-medium hover:underline"
+                    >
+                      Nhập thông tin pháp lý
+                    </Link>
+                  )}
+                </span>
+              </Notice>
             )}
             {actions.includes("create") && (
               <Button size="sm" disabled={create.isPending} onClick={startContract}>

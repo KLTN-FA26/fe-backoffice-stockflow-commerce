@@ -7,6 +7,7 @@ import {
   getCreditProfile,
   getCustomer,
   getCustomerStatusHistory,
+  getLegalProfile,
   getPortalInvitation,
   listCustomers,
 } from "./api";
@@ -47,6 +48,16 @@ export function useCreditProfile(id: string, enabled = true) {
   return useQuery({
     queryKey: sub(id, "credit-profile"),
     queryFn: ({ signal }) => getCreditProfile(id, signal),
+    enabled,
+    ...QUERY_TIMES.detail,
+  });
+}
+
+/** `null` = chưa có hồ sơ pháp lý. BE cần `customer-legal-profiles:READ`. */
+export function useLegalProfile(id: string, enabled = true) {
+  return useQuery({
+    queryKey: sub(id, "legal-profile"),
+    queryFn: ({ signal }) => getLegalProfile(id, signal),
     enabled,
     ...QUERY_TIMES.detail,
   });

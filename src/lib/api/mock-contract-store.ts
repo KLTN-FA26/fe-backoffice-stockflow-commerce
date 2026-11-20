@@ -14,6 +14,7 @@ import {
   orderTotal,
 } from "./mock-contract-orders";
 import { batchValues } from "./mock-contract-terms";
+import { resetLegalProfileMockStore } from "./mock-legal-profile-store";
 import { percentOf } from "./mock-quote-money";
 import {
   WF02_SELLER,
@@ -219,6 +220,7 @@ export const mockContracts = (): MockContract[] => (contracts ??= seed());
 
 export function resetContractMockStore(): void {
   contracts = null;
+  resetLegalProfileMockStore();
 }
 
 /** Hợp đồng còn hiệu lực của đơn (BE `findLiveByOrderId`: mọi trạng thái trừ CANCELLED). */

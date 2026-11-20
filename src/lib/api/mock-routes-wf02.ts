@@ -5,10 +5,12 @@
  */
 import { registerChatMockRoutes } from "./mock-routes-chat";
 import { registerContractMockRoutes } from "./mock-routes-contracts";
+import { registerLegalProfileMockRoutes } from "./mock-routes-legal-profile";
 import { registerQuoteMockRoutes } from "./mock-routes-quotes";
 
 export function registerWf02MockRoutes(): void {
   registerQuoteMockRoutes();
   registerContractMockRoutes();
+  registerLegalProfileMockRoutes();
   registerChatMockRoutes();
 }

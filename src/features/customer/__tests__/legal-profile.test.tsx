@@ -1,0 +1,116 @@
+import { screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { apiError, mockApi, renderScreen } from "@/test/api-screen";
+
+import { LegalProfileCard } from "../components/detail/LegalProfileCard";
+
+const CUSTOMER = "c-1";
+const PATH = `/customers/${CUSTOMER}/legal-profile`;
+
+const profile = {
+  customerId: CUSTOMER,
+  companyName: "Công ty Bao Bì Xanh",
+  taxCode: "0312345678",
+  registeredAddress: "12 Nguyễn Huệ, Quận 1",
+  representativeName: "Nguyễn Văn An",
+  representativeTitle: "Giám đốc",
+  version: 3,
+};
+
+function notFound() {
+  throw apiError(404, "LEGAL_PROFILE_NOT_FOUND");
+}
+
+function renderCard(searchParams = "") {
+  renderScreen(
+    <LegalProfileCard customerId={CUSTOMER} canRead canUpdate />,
+    "SALES_STAFF",
+    searchParams,
+  );
+}
+
+afterEach(() => vi.restoreAllMocks());
+
+describe("LegalProfileCard", () => {
+  it("GET 404 LEGAL_PROFILE_NOT_FOUND → Chưa có thông tin pháp lý + nút Nhập", async () => {
+    mockApi("SALES_STAFF", { get: { [PATH]: notFound } });
+    renderCard();
+    expect(await screen.findByText(/Chưa có thông tin pháp lý/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Nhập thông tin pháp lý" })).toBeInTheDocument();
+  });
+
+  it("shows the saved profile with a Sửa button", async () => {
+    mockApi("SALES_STAFF", { get: { [PATH]: () => profile } });
+    renderCard();
+    expect(await screen.findByText("12 Nguyễn Huệ, Quận 1")).toBeInTheDocument();
+    expect(screen.getByText("Dùng email liên hệ")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Sửa/ })).toBeInTheDocument();
+  });
+
+  it("opens the dialog by itself when the URL has ?legalProfile=edit", async () => {
+    mockApi("SALES_STAFF", { get: { [PATH]: notFound } });
+    renderCard("?legalProfile=edit");
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByLabelText(/Địa chỉ đăng ký kinh doanh/)).toBeInTheDocument();
+  });
+
+  it("lưu lần đầu gửi version null và đúng body (không có tài khoản ngân hàng)", async () => {
+    const api = mockApi("SALES_STAFF", {
+      get: { [PATH]: notFound },
+      put: { [PATH]: () => profile },
+    });
+    renderCard("?legalProfile=edit");
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.type(
+      within(dialog).getByLabelText(/Địa chỉ đăng ký kinh doanh/),
+      "12 Nguyễn Huệ, Quận 1",
+    );
+    await userEvent.type(
+      within(dialog).getByLabelText(/Người đại diện theo pháp luật/),
+      "Nguyễn Văn An",
+    );
+    await userEvent.type(within(dialog).getByLabelText(/Chức vụ/), "Giám đốc");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Lưu" }));
+    await waitFor(() => expect(api.put).toHaveBeenCalledTimes(1));
+    expect(api.put).toHaveBeenCalledWith(PATH, {
+      registeredAddress: "12 Nguyễn Huệ, Quận 1",
+      representativeName: "Nguyễn Văn An",
+      representativeTitle: "Giám đốc",
+      version: null,
+    });
+  });
+
+  it("có số tài khoản mà trống Ngân hàng → lỗi tại ô, không gọi PUT", async () => {
+    const api = mockApi("SALES_STAFF", { get: { [PATH]: () => profile }, put: {} });
+    renderCard("?legalProfile=edit");
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.type(within(dialog).getByLabelText("Số tài khoản"), "0123 456.789");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Lưu" }));
+    expect(await within(dialog).findByText("Nhập ngân hàng")).toBeInTheDocument();
+    expect(within(dialog).getByText("Nhập chủ tài khoản")).toBeInTheDocument();
+    expect(api.put).not.toHaveBeenCalled();
+  });
+
+  it("409 OPTIMISTIC_LOCK → đã tải lại: câu 'đã tải lại' và GET được gọi lại", async () => {
+    const api = mockApi("SALES_STAFF", {
+      get: { [PATH]: () => profile },
+      put: {
+        [PATH]: () => {
+          throw apiError(409, "OPTIMISTIC_LOCK");
+        },
+      },
+    });
+    renderCard("?legalProfile=edit");
+    const dialog = await screen.findByRole("dialog");
+    const gets = () => api.get.mock.calls.filter(([url]) => url === PATH).length;
+    expect(gets()).toBe(1);
+    await userEvent.click(within(dialog).getByRole("button", { name: "Lưu" }));
+    expect(
+      await within(dialog).findByText("Thông tin pháp lý vừa được người khác sửa, đã tải lại."),
+    ).toBeInTheDocument();
+    await waitFor(() => expect(gets()).toBe(2));
+    expect(api.put).toHaveBeenCalledWith(PATH, expect.objectContaining({ version: 3 }));
+  });
+});

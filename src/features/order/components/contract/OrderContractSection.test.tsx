@@ -68,6 +68,22 @@ describe("Hợp đồng — đọc (B1)", () => {
     await waitFor(() => expect(post).toHaveBeenCalledWith(PATH, {}));
   });
 
+  it("409 CUSTOMER_LEGAL_PROFILE_MISSING → link /admin/customers/{id}?legalProfile=edit#legal-profile", async () => {
+    renderSection(() => {
+      throw new ApiError(404, "SALES_CONTRACT_NOT_FOUND", "Đơn chưa có hợp đồng.");
+    });
+    const message = "Khách chưa có hồ sơ pháp lý: nhập địa chỉ và người đại diện trước.";
+    vi.spyOn(api, "post").mockRejectedValue(
+      new ApiError(409, "CUSTOMER_LEGAL_PROFILE_MISSING", message),
+    );
+    await userEvent.click(await screen.findByRole("button", { name: "Lập hợp đồng" }));
+    expect(await screen.findByText(new RegExp(message))).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Nhập thông tin pháp lý" })).toHaveAttribute(
+      "href",
+      `/admin/customers/${draftOrder.customerId}?legalProfile=edit#legal-profile`,
+    );
+  });
+
   it("hiện số hợp đồng, lịch giao, lịch thanh toán của BE", async () => {
     renderSection(() => contractSent);
     expect(await screen.findByText("HD-20261120-900001-1")).toBeInTheDocument();

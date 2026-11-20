@@ -10,6 +10,7 @@ import {
   CUSTOMIZATION_TEMPLATE_PERMISSIONS,
   CREDIT_HOLD_PERMISSIONS,
   CUSTOMER_CREDIT_PROFILE_PERMISSIONS,
+  CUSTOMER_LEGAL_PROFILE_PERMISSIONS,
   CUSTOMER_PERMISSIONS,
   CUSTOMER_PRICE_PERMISSIONS,
   FULFILLMENT_CARRIER_EVENT_PERMISSIONS,
@@ -269,7 +270,9 @@ const QUOTE_SALES = Object.values(QUOTE_PERMISSIONS).filter(
   (code) => code !== QUOTE_PERMISSIONS.approve,
 );
 const CONTRACT_SALES = [SALES_CONTRACT_PERMISSIONS.create, SALES_CONTRACT_PERMISSIONS.approve];
-const SALES_WF02 = [...QUOTE_SALES, ...CONTRACT_SALES];
+// Hồ sơ pháp lý của khách (seed V20261120000100): SALES_STAFF, SALES_MANAGER, ACCOUNTANT, SYSTEM_ADMIN đều READ + UPDATE.
+const LEGAL_PROFILE_ALL = Object.values(CUSTOMER_LEGAL_PROFILE_PERMISSIONS);
+const SALES_WF02 = [...QUOTE_SALES, ...CONTRACT_SALES, ...LEGAL_PROFILE_ALL];
 
 /** Explicit demo session responses keyed by existing staff IDs, never computed from roles. */
 export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
@@ -364,6 +367,7 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     // SCRUM-427: duyệt / từ chối vượt hạn mức công nợ
     ...CREDIT_ALL,
     CREDIT_PROFILE_READ,
+    ...LEGAL_PROFILE_ALL,
     ...PAY_ACCOUNTANT,
     CONTRACT_READ,
     DELIVERY_SCHEDULE_READ,

@@ -31,10 +31,11 @@ import {
   schedule,
   suggestTied,
 } from "./mock-contract-terms";
+import { legalBuyerOf } from "./mock-legal-profile-store";
 import { mockInstallments } from "./mock-payment-store";
 import { viDay, wholeNumber } from "./mock-quote-money";
 import { NOT_FOUND_MESSAGE, VALIDATION_MESSAGE, refuse, refuseInvalid } from "./mock-quote-refusal";
-import { WF02_SELLER, WF02_USERS, addDays, vnDay, wf02Customer } from "./mock-quote-seed";
+import { WF02_SELLER, WF02_USERS, addDays, vnDay } from "./mock-quote-seed";
 import { text } from "./mock-route-utils";
 import { backendStatus, findOrder } from "./mock-routes-orders-store";
 
@@ -255,7 +256,8 @@ export async function createContract(orderId: string, body: Record<string, unkno
       "SALES_CONTRACT_EXISTS",
       `Đơn ${order.orderNumber} đã có hợp đồng còn hiệu lực: huỷ hợp đồng đó rồi mới lập hợp đồng khác.`,
     );
-  const buyer = wf02Customer(order.customerId)?.buyer;
+  // Bên mua theo hồ sơ pháp lý đã lưu (khách mới: chưa có → 409 cho tới khi Sale nhập hồ sơ).
+  const buyer = legalBuyerOf(order.customerId);
   if (!buyer)
     conflict(
       "CUSTOMER_LEGAL_PROFILE_MISSING",
