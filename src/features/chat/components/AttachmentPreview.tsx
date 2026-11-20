@@ -71,7 +71,7 @@ export function AttachmentPreview({
         </div>
         <button
           type="button"
-          aria-label={`Xem ảnh ${file.fileName}`}
+          aria-label={`Xem ảnh lớn ${file.fileName}`}
           className="text-accent min-h-11 text-xs hover:underline"
           onClick={() => setOpen(true)}
         >

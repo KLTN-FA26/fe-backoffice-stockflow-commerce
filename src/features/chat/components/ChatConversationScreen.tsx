@@ -104,7 +104,12 @@ function ConversationContent({ id }: { id: string }) {
           ) : messages.data.items.length === 0 ? (
             <p className="text-ink-tertiary text-[0.8125rem]">Chưa có tin nhắn.</p>
           ) : (
-            <MessageList conversationId={id} latest={messages.data} quoteGate={quoteGate} />
+            <MessageList
+              key={id}
+              conversationId={id}
+              latest={messages.data}
+              quoteGate={quoteGate}
+            />
           )}
           <Composer
             conversationId={id}

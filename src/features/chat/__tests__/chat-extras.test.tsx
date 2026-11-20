@@ -109,7 +109,7 @@ describe("ảnh đính kèm trong tin", () => {
       true,
     );
     expect(screen.getByRole("button", { name: "mau-in.png" })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Xem ảnh mau-in.png" }));
+    await userEvent.click(screen.getByRole("button", { name: "Xem ảnh lớn mau-in.png" }));
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByRole("img", { name: "mau-in.png" })).toBeInTheDocument();
   });
