@@ -1,22 +1,13 @@
 "use client";
 
-import { CalendarRange, PackageX } from "lucide-react";
-
 import { PRODUCTION_LABELS, SHORT_BATCH_COLUMNS } from "@/constants";
 import { todayIso } from "@/lib/date-range";
 
-import {
-  byNeedByDate,
-  byWindowStart,
-  filterScheduledOrders,
-  filterShortBatches,
-  sortFlags,
-} from "@/features/production-order/schedule-selectors";
+import { sortFlags } from "@/features/production-order/schedule-selectors";
 
 import { DelayFlags } from "@/components/backoffice/DelayFlags";
-import { Alert } from "@/components/shared/Alert";
-import { DetailSection } from "@/components/shared/DetailSection";
-import { RefetchBar } from "@/components/shared/RefetchBar";
+import { PageTabPanel, PageTabs } from "@/components/shared/PageTabs";
+import { Skeleton } from "@/components/shared/Skeleton";
 
 import { ShortBatchTable } from "../draw-up/ShortBatchTable";
 import { ScheduledOrdersTable } from "./ScheduledOrdersTable";
@@ -24,13 +15,14 @@ import { ScheduledOrdersTable } from "./ScheduledOrdersTable";
 import type { ReactNode } from "react";
 import type { ColumnDef } from "@/components/shared/DataTable";
 import type {
-  ProductionSchedule,
+  ScheduledProductionOrder,
   ShortDeliveryBatch,
 } from "@/features/production-order/schedule-schemas";
-import type { ScheduleFiltersState } from "./useScheduleFilters";
+import type { ScheduleTab } from "./useScheduleTab";
 
 const L = PRODUCTION_LABELS.schedule;
 const D = PRODUCTION_LABELS.drawUp;
+const ID_PREFIX = "production-schedule";
 
 /** Cột cờ trễ của đợt còn thiếu (PO_NEEDED, DELIVERY_LATE — docs 17 §4.12 bước 48). */
 const BATCH_ALERTS: ColumnDef<ShortDeliveryBatch> = {
@@ -42,33 +34,58 @@ const BATCH_ALERTS: ColumnDef<ShortDeliveryBatch> = {
 type HeaderFilters = Partial<Record<string, ReactNode>>;
 
 /**
- * Hai bảng của lịch (docs 17 §4.12 bước 47): Đơn sản xuất đang mở theo ngày cần hàng, và đợt giao còn thiếu. Lọc
- * BE đã áp khi tải; search chính + search trong cột lọc tiếp trên dòng đã tải. Số trong tiêu đề = số dòng sau lọc.
+ * Thanh tab theo việc của lịch (docs 17 §4.12 bước 47), đặt đầu trang vì nó quyết định nội dung toolbar và bảng bên
+ * dưới: "Cần lập Đơn sản xuất" (đợt giao còn thiếu — việc phải làm) và "Đơn sản xuất đang mở" (theo dõi tiến độ, cờ
+ * trễ). Số trên tab = số dòng sau lọc; vắng khi đang tải. `tab` null (đang tải, URL chưa chọn) → giữ chỗ, không nhảy.
  */
+export function ScheduleTabBar({
+  tab,
+  onTabChange,
+  counts,
+}: {
+  tab: ScheduleTab | null;
+  onTabChange: (tab: ScheduleTab) => void;
+  counts?: { batches: number; orders: number };
+}) {
+  if (tab === null) return <Skeleton className="mb-3 h-9 w-[22rem] rounded-lg" />;
+  return (
+    <PageTabs<ScheduleTab>
+      // Nhịp 12px đều giữa tab / toolbar / Cấu hình / bảng
+      className="mb-3"
+      idPrefix={ID_PREFIX}
+      ariaLabel={L.pageTitle}
+      value={tab}
+      onChange={onTabChange}
+      tabs={[
+        { value: "batches", label: L.tabs.batches, count: counts?.batches },
+        { value: "orders", label: L.tabs.orders, count: counts?.orders },
+      ]}
+    />
+  );
+}
+
+/** Bảng của tab đang mở — mỗi lần một bảng full trang. */
 export function ScheduleSections({
-  data,
-  filters,
+  tab,
+  orders,
+  batches,
   headerFilters,
   empty,
   onDrawUp,
-  isFetching,
   visibleColumns,
 }: {
-  data: ProductionSchedule;
-  filters: ScheduleFiltersState;
+  tab: ScheduleTab;
+  /** Đã xếp + lọc. */
+  orders: ScheduledProductionOrder[];
+  batches: ShortDeliveryBatch[];
   headerFilters: { orders: HeaderFilters; batches: HeaderFilters };
   empty: (title: string, description: string) => ReactNode;
   onDrawUp?: (batch: ShortDeliveryBatch) => void;
-  isFetching: boolean;
   visibleColumns: readonly string[];
 }) {
-  const orders = filterScheduledOrders(byNeedByDate(data.productionOrders), filters.text);
-  const batches = filterShortBatches(byWindowStart(data.shortBatches), filters.text);
   return (
-    <>
-      <RefetchBar active={isFetching} label={L.pageTitle} />
-      {data.truncated && <Alert tone="warning">{D.truncated}</Alert>}
-      <DetailSection title={`${L.ordersTitle} (${orders.length})`} icon={CalendarRange}>
+    <PageTabPanel idPrefix={ID_PREFIX} value={tab}>
+      {tab === "orders" ? (
         <ScheduledOrdersTable
           rows={orders}
           today={todayIso()}
@@ -76,16 +93,16 @@ export function ScheduleSections({
           visibleColumns={visibleColumns}
           empty={empty(L.ordersEmptyTitle, L.ordersEmptyDescription)}
         />
-      </DetailSection>
-      <DetailSection title={`${D.title} (${batches.length})`} icon={PackageX}>
+      ) : (
         <ShortBatchTable
           batches={batches}
           onDrawUp={onDrawUp}
           extraColumns={[BATCH_ALERTS]}
           headerFilters={headerFilters.batches}
           empty={empty(L.batchesEmptyTitle, L.batchesEmptyDescription)}
+          stickyHeader
         />
-      </DetailSection>
-    </>
+      )}
+    </PageTabPanel>
   );
 }

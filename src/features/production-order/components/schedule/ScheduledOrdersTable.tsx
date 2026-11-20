@@ -43,6 +43,7 @@ export function ScheduledOrdersTable({
       caption={`${L.ordersTitle}: ${rows.length}`}
       flagRow={(row) => row.alerts.length > 0}
       emptyState={empty}
+      stickyHeader
     />
   );
 }

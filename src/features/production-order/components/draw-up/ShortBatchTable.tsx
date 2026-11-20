@@ -31,6 +31,7 @@ export function ShortBatchTable({
   extraColumns = [],
   empty,
   headerFilters,
+  stickyHeader,
 }: {
   batches: ShortDeliveryBatch[];
   onDrawUp?: (batch: ShortDeliveryBatch) => void;
@@ -38,6 +39,8 @@ export function ShortBatchTable({
   empty?: ReactNode;
   /** Nút lọc trên header theo key cột (`SHORT_BATCH_COLUMNS`). */
   headerFilters?: Partial<Record<string, ReactNode>>;
+  /** Bảng chính của trang (lịch) → header dính, thân cuộn trong khung. */
+  stickyHeader?: boolean;
 }) {
   if (batches.length === 0 && !headerFilters)
     return empty ?? <p className="text-ink-tertiary py-6 text-center text-sm">{L.empty}</p>;
@@ -113,6 +116,7 @@ export function ShortBatchTable({
       rowKey={batchKey}
       caption={L.title}
       emptyState={empty}
+      stickyHeader={stickyHeader}
     />
   );
 }

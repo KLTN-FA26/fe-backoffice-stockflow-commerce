@@ -96,8 +96,8 @@ export function ScheduleToolbar({
   warehouses,
 }: {
   state: ScheduleFiltersState;
-  /** Ẩn hiện cột của bảng Đơn sản xuất đang mở. */
-  columns: ScheduleColumnsState;
+  /** Ẩn hiện cột của bảng Đơn sản xuất đang mở — chỉ truyền khi đang ở tab đó. */
+  columns?: ScheduleColumnsState;
   producers: HeaderFilterOption[];
   warehouses: HeaderFilterOption[];
 }) {
@@ -106,20 +106,25 @@ export function ScheduleToolbar({
       search={state.filters.q}
       onSearchChange={(q) => state.set({ q })}
       searchPlaceholder={L.searchPlaceholder}
-      columnOptions={COLUMN_OPTIONS}
-      selectedColumns={columns.visible}
-      defaultColumns={[...SCHEDULE_COLUMNS]}
-      lockedColumns={LOCKED_SCHEDULE_COLUMNS}
-      visibleColumnCount={columns.visible.length}
-      onToggleColumn={columns.toggle}
-      onResetColumns={columns.reset}
-      hasColumnConfig={columns.hasColumnConfig}
-      summaryItems={[...summaryItems(state, producers, warehouses), columnsItem(columns)]}
+      {...(columns && {
+        columnOptions: COLUMN_OPTIONS,
+        selectedColumns: columns.visible,
+        defaultColumns: [...SCHEDULE_COLUMNS],
+        lockedColumns: LOCKED_SCHEDULE_COLUMNS,
+        visibleColumnCount: columns.visible.length,
+        onToggleColumn: columns.toggle,
+        onResetColumns: columns.reset,
+        hasColumnConfig: columns.hasColumnConfig,
+      })}
+      summaryItems={[
+        ...summaryItems(state, producers, warehouses),
+        ...(columns ? [columnsItem(columns)] : []),
+      ]}
       onResetAll={() => {
         state.reset();
-        columns.reset();
+        columns?.reset();
       }}
-      resetDisabled={!state.hasFilters && !columns.hasColumnConfig}
+      resetDisabled={!state.hasFilters && !columns?.hasColumnConfig}
     />
   );
 }

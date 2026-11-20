@@ -1,5 +1,8 @@
-import { ProductionOrderDrawUp } from "@/features/production-order/components/draw-up/ProductionOrderDrawUp";
+import { redirect } from "next/navigation";
 
+import { ADMIN_ROUTES } from "@/constants";
+
+/** Link cũ "Lập Đơn sản xuất": lập chỉ từ đợt giao còn thiếu (docs 17 §4.3 bước 6) → tab "Cần lập" của lịch. */
 export default function DrawUpProductionOrderPage() {
-  return <ProductionOrderDrawUp />;
+  redirect(ADMIN_ROUTES.productionScheduleDrawUp);
 }

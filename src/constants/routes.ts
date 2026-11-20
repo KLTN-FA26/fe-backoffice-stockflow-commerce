@@ -137,7 +137,7 @@ export const ADMIN_ROUTES = {
   producers: `${ADMIN_BASE}/producers`,
   /**
    * Đơn sản xuất (docs 17 §4.3, §5.3) — BE `ProductionOrderController`. Lập chỉ từ đợt giao còn thiếu (BR-05) nên
-   * `create` là trang chọn đợt, không phải form trắng.
+   * không có form trắng: `create` chỉ còn là link cũ, chuyển sang tab "Cần lập" của lịch (`productionScheduleDrawUp`).
    */
   productionOrders: {
     list: `${ADMIN_BASE}/production-orders`,
@@ -146,6 +146,8 @@ export const ADMIN_ROUTES = {
   },
   /** Lịch sản xuất & đợt giao còn thiếu (docs 17 §4.12) — BE `ProductionScheduleController`. */
   productionSchedule: `${ADMIN_BASE}/production-schedule`,
+  /** Tab "Cần lập Đơn sản xuất" của lịch — nơi duy nhất bắt đầu lập (docs 17 §4.3 bước 6). `tab` = `useScheduleTab`. */
+  productionScheduleDrawUp: `${ADMIN_BASE}/production-schedule?tab=batches`,
   /** Danh mục loại xe (container, xe tải, bán tải) — BE `VehicleTypeController`, PR #153. */
   vehicleTypes: `${ADMIN_BASE}/vehicle-types`,
   /** Kế hoạch xếp xe (SCRUM-287 PR F4): danh sách, lập mới, chi tiết — BE `LoadPlanController`, PR #161. */

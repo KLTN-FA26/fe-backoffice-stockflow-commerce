@@ -15,18 +15,26 @@ import { useProducerDirectory } from "@/lib/references/producer-options";
 import { useWarehouseDirectory } from "@/lib/references/warehouse-options";
 
 import { useProductionSchedule } from "@/features/production-order/queries";
+import {
+  byNeedByDate,
+  byWindowStart,
+  filterScheduledOrders,
+  filterShortBatches,
+} from "@/features/production-order/schedule-selectors";
 
 import { LoadErrorState } from "@/components/backoffice/LoadErrorState";
 import { Alert } from "@/components/shared/Alert";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
+import { RefetchBar } from "@/components/shared/RefetchBar";
 
 import { DrawUpDialog } from "../draw-up/DrawUpDialog";
 import { ScheduleEmpty } from "./ScheduleEmpty";
 import { scheduleHeaderFilters, withCurrent } from "./ScheduleHeaderFilters";
-import { ScheduleSections } from "./ScheduleSections";
+import { ScheduleSections, ScheduleTabBar } from "./ScheduleSections";
 import { ScheduleToolbar } from "./ScheduleToolbar";
 import { useScheduleColumns } from "./useScheduleColumns";
 import { useScheduleFilters } from "./useScheduleFilters";
+import { useScheduleTab } from "./useScheduleTab";
 
 import type { ShortDeliveryBatch } from "@/features/production-order/schedule-schemas";
 
@@ -43,6 +51,18 @@ function ScheduleContent() {
   const [batch, setBatch] = useState<ShortDeliveryBatch | null>(null);
   const canDrawUp = can(PRODUCTION_ORDER_PERMISSIONS.create);
 
+  const data = schedule.data;
+  const orders = data
+    ? filterScheduledOrders(byNeedByDate(data.productionOrders), filters.text)
+    : [];
+  const batches = data ? filterShortBatches(byWindowStart(data.shortBatches), filters.text) : [];
+  // Đếm theo dữ liệu BE trả về, không theo search chữ — gõ tìm không được làm nhảy tab mặc định. Lỗi tải → không
+  // còn chờ dữ liệu nữa, chọn luôn tab mặc định thay vì giữ chỗ mãi.
+  const { tab, setTab } = useScheduleTab(
+    canDrawUp,
+    schedule.isError ? 0 : data?.shortBatches.length,
+  );
+
   if (!canRead) return <LoadErrorState inline error={null} kind="no-read" copy={L.errorCopy} />;
   const options = {
     producers: withCurrent(
@@ -58,7 +78,6 @@ function ScheduleContent() {
     ),
   };
   const headerFilters = scheduleHeaderFilters(filters, options);
-  const data = schedule.data;
   const empty = (title: string, description: string) => (
     <ScheduleEmpty
       filtered={filters.hasFilters}
@@ -69,8 +88,17 @@ function ScheduleContent() {
   );
   return (
     <>
-      <ScheduleToolbar state={filters} columns={columns} {...options} />
-      <div className="flex flex-col gap-4">
+      <ScheduleTabBar
+        tab={tab}
+        onTabChange={setTab}
+        counts={data && { batches: batches.length, orders: orders.length }}
+      />
+      <ScheduleToolbar
+        state={filters}
+        columns={tab === "orders" ? columns : undefined}
+        {...options}
+      />
+      <div className="flex flex-col gap-3">
         {filters.rangeInvalid && <Alert tone="danger">{L.rangeInvalid}</Alert>}
         {schedule.isError ? (
           <LoadErrorState
@@ -79,18 +107,25 @@ function ScheduleContent() {
             copy={L.errorCopy}
             onRetry={() => void schedule.refetch()}
           />
-        ) : !data ? (
+        ) : !data || tab === null ? (
           <PageSkeleton variant="list" />
         ) : (
-          <ScheduleSections
-            data={data}
-            filters={filters}
-            headerFilters={headerFilters}
-            empty={empty}
-            onDrawUp={canDrawUp ? setBatch : undefined}
-            isFetching={schedule.isFetching}
-            visibleColumns={columns.visible}
-          />
+          <>
+            {data.truncated && <Alert tone="warning">{PRODUCTION_LABELS.drawUp.truncated}</Alert>}
+            <div>
+              {/* Thanh tải lại nằm trong khoảng 12px phía trên bảng — không tự chiếm thêm một khoảng */}
+              <RefetchBar active={schedule.isFetching} label={L.pageTitle} className="-mt-0.5" />
+              <ScheduleSections
+                tab={tab}
+                orders={orders}
+                batches={batches}
+                headerFilters={headerFilters}
+                empty={empty}
+                onDrawUp={canDrawUp ? setBatch : undefined}
+                visibleColumns={columns.visible}
+              />
+            </div>
+          </>
         )}
       </div>
       {batch && <DrawUpDialog batch={batch} onClose={() => setBatch(null)} />}
