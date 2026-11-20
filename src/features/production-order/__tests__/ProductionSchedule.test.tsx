@@ -2,12 +2,20 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { DELAY_ALERT_LABELS, PRODUCTION_LABELS } from "@/constants";
+import { DELAY_ALERT_LABELS, PRODUCTION_LABELS, STORAGE_KEYS } from "@/constants";
 import { mockProductionApi, renderProductionScreen } from "@/test/production-screen";
 
 import { ProductionSchedule } from "../components/schedule/ProductionSchedule";
-import { bePage, PRODUCTION_ACTORS, producerDto } from "../__fixtures__/production-order";
-import { schedule } from "../__fixtures__/schedule";
+import {
+  bePage,
+  PRODUCER_ID,
+  PRODUCTION_ACTORS,
+  producerDto,
+} from "../__fixtures__/production-order";
+import { schedule, scheduledOrder } from "../__fixtures__/schedule";
+
+import type { mockProductionApi as MockApi } from "@/test/production-screen";
+import type { ScheduledProductionOrder } from "../schedule-schemas";
 
 const L = PRODUCTION_LABELS.schedule;
 const D = PRODUCTION_LABELS.drawUp;
@@ -23,7 +31,31 @@ function setup(permissions = PRODUCTION_ACTORS.coordinator, searchParams = "") {
   return spies;
 }
 
-afterEach(() => vi.restoreAllMocks());
+function setupRows(productionOrders: ScheduledProductionOrder[]) {
+  const spies = mockProductionApi(PRODUCTION_ACTORS.coordinator, {
+    get: {
+      "/production-schedule": () => schedule({ productionOrders }),
+      "/producers": () => bePage([producerDto]),
+    },
+  });
+  renderProductionScreen(<ProductionSchedule />);
+  return spies;
+}
+
+type GetSpy = ReturnType<typeof MockApi>["get"];
+const OTHER = "PRD-20261121-0002";
+const scheduleCalls = (get: GetSpy) =>
+  get.mock.calls.filter(([url]) => url === "/production-schedule").length;
+const lastScheduleParams = (get: GetSpy) =>
+  (
+    get.mock.calls.filter(([url]) => url === "/production-schedule").at(-1)?.[1] as
+      { params?: unknown } | undefined
+  )?.params;
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  window.localStorage.clear();
+});
 
 describe("ProductionSchedule (docs 17 §4.12)", () => {
   it("hiện Đơn sản xuất đang mở kèm cờ trễ và đợt còn thiếu kèm PO_NEEDED", async () => {
@@ -64,10 +96,105 @@ describe("ProductionSchedule (docs 17 §4.12)", () => {
     expect(screen.queryByText(L.rangeInvalid)).not.toBeInTheDocument();
   });
 
-  it("lọc kho từ link khi không đọc được danh mục kho → vẫn hiện ô lọc kho", async () => {
-    setup(PRODUCTION_ACTORS.coordinator, "?warehouseId=wh-000000009");
+  it("lọc kho từ link khi không đọc được danh mục kho → nút lọc kho vẫn hiện, chip X bỏ lọc", async () => {
+    const user = userEvent.setup();
+    const { get } = setup(PRODUCTION_ACTORS.coordinator, "?warehouseId=wh-000000009");
+    const orders = await screen.findByRole("region", { name: new RegExp(L.ordersTitle) });
+    expect(
+      within(orders).getByRole("button", { name: `Lọc ${L.column.warehouse}` }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: `Xoá ${L.warehouseFilter}` }));
+    await waitFor(() => expect(lastScheduleParams(get)).toMatchObject({ warehouseId: undefined }));
+  });
+
+  it("search trong cột lọc dòng phía FE, hiện chip, không gọi lại BE", async () => {
+    const user = userEvent.setup();
+    const { get } = setupRows([scheduledOrder(), scheduledOrder({ id: "po-2", code: OTHER })]);
+    await screen.findByText(OTHER);
+    const calls = scheduleCalls(get);
+    const orders = screen.getByRole("region", { name: new RegExp(L.ordersTitle) });
+    await user.click(within(orders).getByRole("button", { name: `Lọc ${L.column.code}` }));
+    await user.type(screen.getByRole("textbox", { name: L.columnSearch(L.column.code) }), "0002");
+    expect(screen.queryByText("PRD-20261120-0001")).not.toBeInTheDocument();
+    expect(screen.getByText(OTHER)).toBeInTheDocument();
+    expect(
+      screen.getByText(`${L.summaryColumnSearch}: ${L.column.code} “0002”`),
+    ).toBeInTheDocument();
+    expect(scheduleCalls(get)).toBe(calls);
+  });
+
+  it("lọc đơn bán từ link không khớp → header vẫn hiện để chỉnh, chip X trả lại dòng", async () => {
+    const user = userEvent.setup();
+    setup(PRODUCTION_ACTORS.coordinator, "?order=SO-2026-0050");
+    const orders = await screen.findByRole("region", { name: new RegExp(L.ordersTitle) });
+    expect(within(orders).getByText(L.filteredTitle)).toBeInTheDocument();
+    expect(
+      within(orders).getByRole("button", { name: `Lọc ${L.column.order}` }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("SO-2026-0050")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: `Xoá ${L.summaryColumnSearch}` }));
+    expect(await screen.findByText("PRD-20261120-0001")).toBeInTheDocument();
+  });
+
+  it("search chính lọc cả đợt còn thiếu (theo SKU)", async () => {
+    const user = userEvent.setup();
+    setup();
     await screen.findByText("PRD-20261120-0001");
-    expect(screen.getByRole("combobox", { name: L.warehouseFilter })).toBeInTheDocument();
+    await user.type(screen.getByRole("textbox", { name: L.searchPlaceholder }), "CUS-BAG-009");
+    expect(screen.queryByText("PRD-20261120-0001")).not.toBeInTheDocument();
+    expect(screen.getByText("SO-2026-0050")).toBeInTheDocument();
+  });
+
+  it("chọn đơn vị sản xuất ở header → gửi producerId cho BE", async () => {
+    const user = userEvent.setup();
+    const { get } = setup();
+    const orders = await screen.findByRole("region", { name: new RegExp(L.ordersTitle) });
+    await user.click(within(orders).getByRole("button", { name: `Lọc ${L.column.producer}` }));
+    await user.type(screen.getByPlaceholderText(L.optionSearch), "Minh");
+    await user.click(screen.getByRole("option", { name: /IN-MINHPHAT · In Minh Phát/ }));
+    await waitFor(() => expect(lastScheduleParams(get)).toMatchObject({ producerId: PRODUCER_ID }));
+  });
+
+  it("bật Chỉ dòng có cảnh báo ở header cột Cờ trễ → gửi alertsOnly cho BE", async () => {
+    const user = userEvent.setup();
+    const { get } = setup();
+    const orders = await screen.findByRole("region", { name: new RegExp(L.ordersTitle) });
+    await user.click(within(orders).getByRole("button", { name: `Lọc ${L.column.alerts}` }));
+    await user.click(screen.getByRole("checkbox", { name: L.alertsOnly }));
+    await waitFor(() => expect(lastScheduleParams(get)).toMatchObject({ alertsOnly: true }));
+  });
+
+  it("ẩn hiện cột: tắt Kho nhận → cột biến mất, chip Cột hiển thị 9/10, X trả lại", async () => {
+    const user = userEvent.setup();
+    setup();
+    const orders = await screen.findByRole("region", { name: new RegExp(L.ordersTitle) });
+    await screen.findByText("PRD-20261120-0001");
+    const warehouseHeader = () =>
+      within(orders).queryByRole("columnheader", { name: new RegExp(`^${L.column.warehouse}`) });
+    expect(warehouseHeader()).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Ẩn hiện cột" }));
+    await user.click(screen.getByRole("option", { name: L.column.warehouse }));
+    expect(warehouseHeader()).not.toBeInTheDocument();
+    expect(screen.getByText(`${L.summaryColumns}: 9/10`)).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("button", { name: `Xoá ${L.summaryColumns}` }));
+    expect(warehouseHeader()).toBeInTheDocument();
+  });
+
+  it("cột đã lưu: bỏ key lạ, luôn giữ cột mã Đơn sản xuất", async () => {
+    window.localStorage.setItem(
+      STORAGE_KEYS.adminProductionScheduleConfig,
+      JSON.stringify({ visibleColumns: ["status", "bogus"] }),
+    );
+    setup();
+    const orders = await screen.findByRole("region", { name: new RegExp(L.ordersTitle) });
+    await waitFor(() =>
+      expect(
+        within(orders)
+          .getAllByRole("columnheader")
+          .map((th) => th.textContent),
+      ).toEqual([L.column.code, L.column.status]),
+    );
   });
 
   it("Điều phối sản xuất có nút Lập ở đợt còn thiếu", async () => {
@@ -86,7 +213,7 @@ describe("ProductionSchedule (docs 17 §4.12)", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("chưa có dữ liệu, không lọc → empty \"chưa có\", không có nút Bỏ bộ lọc", async () => {
+  it('chưa có dữ liệu, không lọc → empty "chưa có", không có nút Bỏ bộ lọc', async () => {
     mockProductionApi(PRODUCTION_ACTORS.coordinator, {
       get: {
         "/production-schedule": () => schedule({ productionOrders: [], shortBatches: [] }),

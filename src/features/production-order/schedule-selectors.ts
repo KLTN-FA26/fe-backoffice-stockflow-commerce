@@ -49,3 +49,58 @@ export function sortFlags(flags: readonly DelayFlag[]): DelayFlag[] {
     (a, b) => FLAG_ORDER[a.type] - FLAG_ORDER[b.type] || a.openedAt.localeCompare(b.openedAt),
   );
 }
+
+/**
+ * Lọc chữ của lịch (search chính + search trong cột). BE `/production-schedule` không có tham số tìm kiếm → lọc trên
+ * các dòng đã tải (tối đa `limit`; bị cắt thì màn đã báo `truncated`).
+ */
+export interface ScheduleTextFilters {
+  /** Search chính: mã Đơn sản xuất, đơn bán, đơn vị, kho, SKU. */
+  q: string;
+  /** Search trong cột "Đơn sản xuất". */
+  code: string;
+  /** Search trong cột "Đơn bán" — áp cho cả hai bảng. */
+  order: string;
+}
+
+const needle = (value: string) => value.trim().toLocaleLowerCase("vi");
+
+/** Ô lọc trống → khớp mọi dòng; không thì một trong các trường chứa chuỗi lọc (không phân biệt hoa thường). */
+function matches(filter: string, ...fields: (string | null | undefined)[]): boolean {
+  const n = needle(filter);
+  return !n || fields.some((field) => field?.toLocaleLowerCase("vi").includes(n));
+}
+
+export function filterScheduledOrders(
+  rows: readonly ScheduledProductionOrder[],
+  filters: ScheduleTextFilters,
+): ScheduledProductionOrder[] {
+  return rows.filter(
+    (row) =>
+      matches(
+        filters.q,
+        row.code,
+        row.orderNumber,
+        row.producerCode,
+        row.producerName,
+        row.receivingWarehouseCode,
+      ) &&
+      matches(filters.code, row.code) &&
+      matches(filters.order, row.orderNumber),
+  );
+}
+
+export function filterShortBatches(
+  batches: readonly ShortDeliveryBatch[],
+  filters: Pick<ScheduleTextFilters, "q" | "order">,
+): ShortDeliveryBatch[] {
+  return batches.filter(
+    (batch) =>
+      matches(
+        filters.q,
+        batch.orderNumber,
+        batch.shippingWarehouseCode,
+        ...batch.lines.map((line) => line.sku),
+      ) && matches(filters.order, batch.orderNumber),
+  );
+}
