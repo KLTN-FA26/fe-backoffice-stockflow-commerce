@@ -105,6 +105,7 @@ export const DESIGN_REVIEW_LABELS = {
   approved: "Đã duyệt — đã sinh SKU riêng",
   returned: "Đã trả lại thiết kế cho khách",
   slowOutcome: "Đang xử lý lâu — đã tải lại danh sách",
+  staleReload: "Đã tải lại thiết kế — xem lại bộ file rồi quyết định lại.",
   inProject: "Thuộc một dự án — duyệt trong vòng duyệt",
   preflightBlocked: "File in có lỗi chặn — nên trả lại",
 } as const;

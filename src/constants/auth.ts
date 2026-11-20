@@ -23,10 +23,13 @@ export const LONG_RUNNING_ROUTES: readonly { method: string; path: RegExp }[] = 
   // Duyệt tất cả thiết kế còn chờ của một vòng duyệt dự án (BE DesignReviewRoundController).
   { method: "POST", path: /^design-review-rounds\/[^/]+\/approvals$/ },
 ];
-/** `path` như axios (`/designs/…`) hoặc BFF (`designs/…`), có thể kèm query. */
+/**
+ * `path` như axios (`/designs/…`) hoặc BFF (`designs/…`), có thể kèm query. Khớp chính xác từng đoạn: có tiền tố hay dấu
+ * `/` cuối thì không phải lệnh dài (Spring 6 không khớp `/` cuối → lỗi ngay, không cần chờ 120 s).
+ */
 export function isLongRunningRoute(method: string | undefined, path: string | undefined): boolean {
   if (!method || !path) return false;
-  const normalized = path.split("?")[0]?.replace(/^\/+/, "").replace(/\/+$/, "") ?? "";
+  const normalized = path.split("?")[0]?.replace(/^\/+/, "") ?? "";
   const upper = method.toUpperCase();
   return LONG_RUNNING_ROUTES.some((route) => route.method === upper && route.path.test(normalized));
 }

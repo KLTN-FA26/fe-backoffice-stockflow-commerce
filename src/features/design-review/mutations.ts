@@ -2,9 +2,12 @@
  * Duyệt thiết kế — mutation + invalidation map (api-conventions §2.3).
  *
  * Sau khi quyết định, người duyệt mất quyền đọc thiết kế (APPROVED / DRAFT không còn "chờ duyệt", BE
- * `CustomerDesignRules.java:44-52` → 404). Vì vậy: bỏ chi tiết khỏi cache (`removeQueries`, không invalidate — invalidate sẽ
- * tải lại và nhận 404), tải lại hàng đợi và vòng duyệt, rồi về hàng đợi (hoặc vòng duyệt nếu đến từ đó).
- * Hết giờ / mất kết nối: BE có thể đã duyệt xong → không gửi lại, xử lý như đã rời trang và báo đã tải lại danh sách.
+ * `CustomerDesignRules.java:44-52` → 404). Vì vậy: bỏ mọi dữ liệu của thiết kế khỏi cache (`removeQueries`, không
+ * invalidate — invalidate sẽ tải lại và nhận 404), tải lại hàng đợi và vòng duyệt, rồi về hàng đợi (hoặc vòng duyệt nếu
+ * đến từ đó). Hết giờ / mất kết nối: BE có thể đã duyệt xong → không gửi lại, xử lý như đã quyết định.
+ *
+ * Cache được dọn ở mức hook (chạy cả khi người dùng đã rời trang); chuyển trang chỉ ở callback của lần `decide` — React
+ * Query bỏ callback đó khi trang chi tiết đã unmount, nên người đã sang trang khác không bị kéo về hàng đợi.
  */
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -33,30 +36,47 @@ export function useDecideDesign({ roundId }: { roundId?: string | null } = {}) {
   const queryClient = useQueryClient();
   const router = useRouter();
 
-  const leave = (id: string) => {
-    queryClient.removeQueries({ queryKey: designKeys.detail(id) });
+  const forget = (id: string) => {
+    queryClient.removeQueries({ queryKey: designKeys.design(id) });
     void queryClient.invalidateQueries({ queryKey: designKeys.queue() });
     void queryClient.invalidateQueries({ queryKey: roundKeys.all });
-    router.push(reviewReturnHref(roundId));
   };
 
-  return useMutation<Design, ApiError, DecideDesignInput>({
+  const mutation = useMutation<Design, ApiError, DecideDesignInput>({
     mutationFn: decideDesign,
     onSuccess: (_design, input) => {
-      leave(input.id);
+      forget(input.id);
       // SKU riêng chưa đọc được ở BO (DesignDraftResponse không có customerSku — chờ BE-2).
       toast.success(input.approved ? DESIGN_REVIEW_LABELS.approved : DESIGN_REVIEW_LABELS.returned);
     },
     onError: (error, input) => {
       if (isUncertainOutcome(error)) {
-        leave(input.id);
+        forget(input.id);
         toast.warning(DESIGN_REVIEW_LABELS.slowOutcome);
         return;
       }
+      // Dữ liệu đã cũ: tải lại MỌI dữ liệu của thiết kế (file, lịch sử…), không chỉ chi tiết.
       if (isDesignErrorCode(error, DESIGN_STALE_CODES)) {
-        void queryClient.invalidateQueries({ queryKey: designKeys.detail(input.id) });
+        void queryClient.invalidateQueries({ queryKey: designKeys.design(input.id) });
         void queryClient.invalidateQueries({ queryKey: designKeys.queue() });
       }
     },
   });
+
+  /** Gửi quyết định; về hàng đợi / vòng duyệt chỉ khi trang chi tiết còn mở. */
+  const decide = (
+    input: DecideDesignInput,
+    options: { onError?: (error: ApiError) => void } = {},
+  ) =>
+    mutation.mutate(input, {
+      onSuccess: () => router.push(reviewReturnHref(roundId)),
+      onError: (error) => {
+        if (isUncertainOutcome(error)) router.push(reviewReturnHref(roundId));
+        else options.onError?.(error);
+      },
+    });
+
+  return { ...mutation, decide };
 }
+
+export type DecideDesignMutation = ReturnType<typeof useDecideDesign>;

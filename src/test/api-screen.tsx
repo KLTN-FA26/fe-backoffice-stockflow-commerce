@@ -216,13 +216,15 @@ export function renderScreen(ui: React.ReactElement, role: TestRole, searchParam
     impersonatedRole: null,
   });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
+  const view = render(
     <QueryClientProvider client={client}>
       <NuqsTestingAdapter searchParams={searchParams} hasMemory>
         <Suspense fallback={<div>loading</div>}>{ui}</Suspense>
       </NuqsTestingAdapter>
     </QueryClientProvider>,
   );
+  /** `client` để test giả lập một lần tải lại nền (vd focus cửa sổ) khi đang mở hộp thoại. */
+  return Object.assign(view, { client });
 }
 
 /** PageResponse BE (trang từ 0). */

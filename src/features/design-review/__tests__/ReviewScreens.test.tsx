@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -6,6 +6,7 @@ import { toast } from "@/components/shared/Toast";
 import { apiError, bePage, mockApi, renderScreen } from "@/test/api-screen";
 
 import { DesignReviewDetail, ReviewQueueList } from "..";
+import { designKeys } from "../queries";
 import { ARTIFACTS, CUSTOMER, CUSTOMER_ID, DESIGN_ID, PENDING_DESIGN } from "./fixtures";
 
 import type { RouteTable, TestRole } from "@/test/api-screen";
@@ -47,8 +48,8 @@ function detailRoutes(design: unknown = PENDING_DESIGN): RouteTable {
 
 function openDetail(role: TestRole, post: RouteTable = {}, design?: unknown, search = "") {
   const api = mockApi(role, { get: detailRoutes(design), post });
-  renderScreen(<DesignReviewDetail id={DESIGN_ID} />, role, search);
-  return api;
+  const view = renderScreen(<DesignReviewDetail id={DESIGN_ID} />, role, search);
+  return Object.assign(api, { view });
 }
 
 const detailGets = (api: ReturnType<typeof mockApi>) =>
@@ -153,6 +154,7 @@ describe("Màn quyết định", () => {
   });
 
   it("409 CONFLICT → tải lại chi tiết", async () => {
+    const callsTo = (url: string) => api.get.mock.calls.filter((call) => call[0] === url).length;
     const api = openDetail("SALES_MANAGER", {
       [reviewUrl]: () => {
         throw apiError(
@@ -164,9 +166,57 @@ describe("Màn quyết định", () => {
       },
     });
     const user = userEvent.setup();
-    const dialog = await confirmApprove(user);
-    expect(await within(dialog).findByText(/Thiết kế vừa được thay đổi/)).toBeInTheDocument();
+    expect(await screen.findByText("print_ready.pdf")).toBeInTheDocument();
+    await confirmApprove(user);
+    // Hộp thoại đóng, nhắc xem lại; tải lại MỌI dữ liệu của thiết kế (file, lịch sử), không chỉ chi tiết.
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(await screen.findByText(/xem lại bộ file rồi quyết định lại/)).toBeInTheDocument();
     await waitFor(() => expect(detailGets(api)).toBe(2));
+    await waitFor(() => expect(callsTo(`${detailUrl}/artifacts`)).toBe(2));
+    expect(callsTo(`${detailUrl}/history`)).toBe(2);
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("12 BR-11: tải lại nền ra bản 8 khi hộp Duyệt đang mở → vẫn gửi version 7 đã xem", async () => {
+    let current: Record<string, unknown> = PENDING_DESIGN;
+    const api = mockApi("SALES_MANAGER", {
+      get: { ...detailRoutes(), [detailUrl]: () => current },
+      post: {
+        [reviewUrl]: () => {
+          throw apiError(
+            409,
+            "CONFLICT",
+            undefined,
+            "Thiết kế vừa được thay đổi: tải lại rồi thử lại.",
+          );
+        },
+      },
+    });
+    const { client } = renderScreen(<DesignReviewDetail id={DESIGN_ID} />, "SALES_MANAGER");
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Duyệt" }));
+    const dialog = await screen.findByRole("dialog");
+    current = { ...PENDING_DESIGN, version: 8 };
+    await act(() => client.invalidateQueries({ queryKey: designKeys.detail(DESIGN_ID) }));
+    await waitFor(() => expect(detailGets(api)).toBe(2));
+    await user.click(within(dialog).getByRole("button", { name: "Duyệt" }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
+    expect(api.post).toHaveBeenCalledWith(reviewUrl, { version: 7, approved: true });
+    expect(await screen.findByText(/xem lại bộ file rồi quyết định lại/)).toBeInTheDocument();
+  });
+
+  it("đã rời trang khi lệnh duyệt xong → không bị kéo về hàng đợi", async () => {
+    const success = vi.spyOn(toast, "success").mockImplementation(() => undefined);
+    let finish: (value: unknown) => void = () => undefined;
+    const api = openDetail("SALES_MANAGER", {
+      [reviewUrl]: () => new Promise((resolve) => (finish = resolve)),
+    });
+    const user = userEvent.setup();
+    await confirmApprove(user);
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
+    api.view.unmount();
+    await act(async () => finish({ ...PENDING_DESIGN, status: "APPROVED", version: 8 }));
+    await waitFor(() => expect(success).toHaveBeenCalledWith("Đã duyệt — đã sinh SKU riêng"));
     expect(push).not.toHaveBeenCalled();
   });
 

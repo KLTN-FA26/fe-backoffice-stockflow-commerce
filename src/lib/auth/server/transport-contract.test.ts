@@ -55,6 +55,10 @@ const SHORT = [
   ["POST", "design-review-rounds/0r000000-0000-7000-8000-000000000001/approvals/extra"],
   ["POST", "quotes/q-1/sending"],
   ["PUT", "design-review-rounds/0r000000-0000-7000-8000-000000000001/approvals"],
+  // Prefixed path and trailing slash are not the long commands (exact match per segment).
+  ["POST", "x/designs/01a1f291-0000-7000-8000-000000000001/reviews"],
+  ["POST", "designs/01a1f291-0000-7000-8000-000000000001/reviews/"],
+  ["POST", "x/design-review-rounds/0r000000-0000-7000-8000-000000000001/approvals"],
 ] as const;
 
 describe("long-running routes wait 120 seconds, every other route 15 seconds", () => {

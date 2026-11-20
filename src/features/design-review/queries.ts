@@ -21,13 +21,15 @@ export const designKeys = {
     params
       ? ([...designKeys.all, "queue", params] as const)
       : ([...designKeys.all, "queue"] as const),
-  detail: (id: string) => [...designKeys.all, "detail", id] as const,
-  history: (id: string) => [...designKeys.all, "history", id] as const,
-  artifacts: (id: string) => [...designKeys.all, "artifacts", id] as const,
-  quoteRequests: (id: string) => [...designKeys.all, "quote-requests", id] as const,
+  /** Mọi dữ liệu của một thiết kế (chi tiết, file, lịch sử, yêu cầu báo giá, preflight, link) — để tải lại / bỏ cùng lúc. */
+  design: (id: string) => [...designKeys.all, "design", id] as const,
+  detail: (id: string) => [...designKeys.design(id), "detail"] as const,
+  history: (id: string) => [...designKeys.design(id), "history"] as const,
+  artifacts: (id: string) => [...designKeys.design(id), "artifacts"] as const,
+  quoteRequests: (id: string) => [...designKeys.design(id), "quote-requests"] as const,
   preflight: (id: string, artifactId: string) =>
-    [...designKeys.all, "preflight", id, artifactId] as const,
-  link: (id: string, artifactId: string) => [...designKeys.all, "link", id, artifactId] as const,
+    [...designKeys.design(id), "preflight", artifactId] as const,
+  link: (id: string, artifactId: string) => [...designKeys.design(id), "link", artifactId] as const,
 };
 
 /** Vòng duyệt dự án — BO-4 bổ sung list / detail; ở đây chỉ cần gốc để invalidate sau khi quyết định. */
@@ -89,6 +91,8 @@ export function useArtifactPreflight(id: string, artifactId: string | undefined,
     queryKey: designKeys.preflight(id, artifactId ?? ""),
     queryFn: ({ signal }) => getArtifactPreflight(id, artifactId ?? "", signal),
     ...QUERY_TIMES.master,
+    // Mỗi lần gọi BE tải lại file in (tới 50 MB) để kiểm: không tự thử lại khi hết giờ; người duyệt bấm "Thử lại".
+    retry: false,
     enabled: enabled && !!artifactId,
   });
 }
