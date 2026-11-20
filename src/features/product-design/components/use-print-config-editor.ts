@@ -180,8 +180,8 @@ export function usePrintConfigEditor({
       return;
     }
     const { input } = prepared;
-    // A stored configuration is asked about first: its pending designs stop being approvable.
-    if (pendingDesignWarning("save", { hasStored: input.stored !== null })) {
+    // A stored configuration is asked about first (the dialog adds the pending-designs warning when it applies).
+    if (input.stored !== null) {
       setAsked(input);
       return;
     }

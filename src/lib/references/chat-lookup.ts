@@ -42,6 +42,14 @@ async function firstConversation(
   return lookupPageSchema.parse(data).items[0]?.id ?? null;
 }
 
+/** Query keys of the cached lookups (one `useQuery` today: the "Hội thoại liên quan" link). */
+export const chatLookupKeys = {
+  all: ["references", "chat-conversation-lookup"] as const,
+  /** The first conversation about an order / quote (`kind` + `id`) or of a customer (`kind: "CUSTOMER"`). */
+  about: (kind: ChatContextKind | "CUSTOMER", id: string) =>
+    [...chatLookupKeys.all, kind, id] as const,
+};
+
 /** @returns id hội thoại, hoặc `null` khi khách chưa có hội thoại nào về đối tượng này. */
 export function findConversationAbout(
   kind: ChatContextKind,

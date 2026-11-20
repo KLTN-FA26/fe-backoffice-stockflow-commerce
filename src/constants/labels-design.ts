@@ -113,7 +113,6 @@ export const DESIGN_REVIEW_LABELS = {
 /** Chữ trên màn vòng duyệt dự án (BO-4). */
 export const DESIGN_ROUND_LABELS = {
   listTitle: "Vòng duyệt dự án",
-  detailTitle: "Vòng duyệt",
   emptyTitle: "Không có vòng duyệt nào đang chờ",
   emptyDescription: "Dự án khách gửi duyệt cả bộ thiết kế sẽ hiện ở đây, chờ lâu nhất trước.",
   notFoundTitle: "Không tìm thấy vòng duyệt",
@@ -133,7 +132,8 @@ export const DESIGN_ROUND_LABELS = {
   resultNotApproved: "Không duyệt được",
   resultSkipped: "Bỏ qua — không còn chờ",
   slowOutcome: "Đang xử lý lâu — đã tải lại vòng duyệt, xem kết quả trên từng thiết kế.",
-  approvedSome: "Đã duyệt {n} thiết kế",
+  batchRest:
+    "Mỗi lần duyệt tối đa {max} thiết kế. Còn {rest} thiết kế nữa — bấm “Duyệt tất cả” lần nữa khi xong.",
 } as const;
 
 /** Số ký tự tối đa của lý do trả lại / ghi chú duyệt (BE `DesignReviewService.REASON_MAX`). */

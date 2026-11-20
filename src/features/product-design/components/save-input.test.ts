@@ -330,6 +330,17 @@ describe("buildSaveInput: bag top fold, kind change, per-area margins", () => {
     expect(input?.config).toMatchObject({ code: "BAG-FACES", name: "Bốn mặt túi" });
   });
 
+  it("a configuration saved before models existed keeps its stored name and code on an overwrite save", () => {
+    const old = { ...cupDto({ code: "OLD-CUP", name: "Ly giấy cũ" }), model: null };
+    const input = buildSaveInput({
+      source: { model: CUP, printMeshes: BODY_MESH },
+      stored: old,
+      defaults: defaultsFor("parametric-cup", null),
+      file: savedFile(),
+    });
+    expect(input?.config).toMatchObject({ code: "OLD-CUP", name: "Ly giấy cũ" });
+  });
+
   it("faces with their own margins keep them unless the person types a new value", () => {
     const stored = bagStored([
       { safe: 5, bleed: 3 },

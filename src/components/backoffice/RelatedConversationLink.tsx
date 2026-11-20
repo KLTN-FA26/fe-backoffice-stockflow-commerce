@@ -6,7 +6,11 @@ import { MessagesSquare } from "lucide-react";
 
 import { ADMIN_ROUTES, CHAT_PERMISSIONS } from "@/constants";
 import { useCan } from "@/lib/auth/components/Can";
-import { findConversationAbout, findConversationOfCustomer } from "@/lib/references/chat-lookup";
+import {
+  chatLookupKeys,
+  findConversationAbout,
+  findConversationOfCustomer,
+} from "@/lib/references/chat-lookup";
 
 import type { ChatContextKind } from "@/lib/references/chat-lookup";
 
@@ -22,7 +26,7 @@ export type RelatedConversationTarget =
 export function RelatedConversationLink({ target }: { target: RelatedConversationTarget }) {
   const canRead = useCan(CHAT_PERMISSIONS.read);
   const query = useQuery({
-    queryKey: ["references", "chat-conversation-about", target.kind, target.id],
+    queryKey: chatLookupKeys.about(target.kind, target.id),
     queryFn: ({ signal }) =>
       target.kind === "CUSTOMER"
         ? findConversationOfCustomer(target.id, { signal })

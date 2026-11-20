@@ -54,6 +54,7 @@ export function PrintConfigStatusActions({
   if (actions.length === 0 && !activateBlocked) return null;
 
   const mutation = asking === "activate" ? activate : deactivate;
+  const warning = asking ? pendingDesignWarning(asking, { hasStored: true }) : null;
   const confirm = () =>
     mutation.mutate(
       { productId, variantId, templateId: config.templateId, version: config.version },
@@ -93,9 +94,7 @@ export function PrintConfigStatusActions({
         loading={mutation.isPending}
         onConfirm={confirm}
       >
-        {asking && (
-          <Alert tone="warning">{pendingDesignWarning(asking, { hasStored: true })}</Alert>
-        )}
+        {warning && <Alert tone="warning">{warning}</Alert>}
       </ConfirmDialog>
     </div>
   );

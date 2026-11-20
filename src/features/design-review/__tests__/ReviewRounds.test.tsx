@@ -123,7 +123,6 @@ describe("Danh sách vòng duyệt", () => {
 
 describe("Chi tiết vòng duyệt", () => {
   it("Duyệt tất cả gửi đúng {designs:[{id,version}]} chỉ của thiết kế còn chờ", async () => {
-    vi.spyOn(toast, "success").mockImplementation(() => undefined);
     const api = open({
       [approvalsUrl]: () => ({
         outcomes: [
@@ -202,6 +201,49 @@ describe("Chi tiết vòng duyệt", () => {
     expect(cardB).not.toBeNull();
     expect(within(cardB as HTMLElement).getByText("Đang chờ")).toBeInTheDocument();
     expect(api.post).toHaveBeenCalledTimes(1);
+  });
+
+  it("hơn 20 thiết kế chờ → chỉ gửi 20 đầu và nói phải duyệt tiếp", async () => {
+    const ids = Array.from({ length: 22 }, (_, i) => `0d0000${String(i).padStart(2, "0")}`);
+    const api = open(
+      { [approvalsUrl]: () => ({ outcomes: [], round: round() }) },
+      round({ designs: ids.map((id) => ({ designId: id, design: design(id, `Ly ${id}`) })) }),
+    );
+    const user = userEvent.setup();
+    expect(await approveAllButton()).toHaveTextContent("Duyệt tất cả (22)");
+    await user.click(await approveAllButton());
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(/Còn 2 thiết kế nữa/)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Duyệt tất cả" }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
+    const body = api.post.mock.calls[0]?.[1] as { designs: { id: string }[] };
+    expect(body.designs.map((d) => d.id)).toEqual(ids.slice(0, 20));
+  });
+
+  it("kết quả lần duyệt trước biến mất khi lần sau hết giờ (vòng đã được tải lại)", async () => {
+    vi.spyOn(toast, "warning").mockImplementation(() => undefined);
+    let calls = 0;
+    open({
+      [approvalsUrl]: () => {
+        calls += 1;
+        if (calls > 1) throw apiError(0, "NETWORK_ERROR");
+        return {
+          outcomes: [
+            { designId: D1, outcome: "NOT_APPROVED", errorCode: "X", message: "File lỗi" },
+          ],
+          round: round(),
+        };
+      },
+    });
+    const user = userEvent.setup();
+    await runApproveAll(user);
+    expect(await screen.findByRole("region", { name: "Kết quả duyệt tất cả" })).toBeInTheDocument();
+    await runApproveAll(user);
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("region", { name: "Kết quả duyệt tất cả" }),
+      ).not.toBeInTheDocument(),
+    );
   });
 
   it("vòng đã đóng → không có nút Duyệt tất cả", async () => {

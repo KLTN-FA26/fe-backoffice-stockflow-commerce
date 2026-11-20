@@ -494,8 +494,8 @@ export const BAG_SHEET_LIMITS = {
 export const PRINT_CONFIG_LIMITS = {
   /** `name` tối đa 255 ký tự (template và vùng in). */
   nameMaxLength: 255,
-  /** `code` của template: 1–50 chữ in hoa, số hoặc dấu gạch. */
-  codePattern: /^[A-Z0-9-]{1,50}$/,
+  /** `code` của template: 1–50 chữ in hoa, số hoặc dấu gạch; ký tự đầu không là dấu gạch (BE `PrintConfigService`). */
+  codePattern: /^[A-Z0-9][A-Z0-9-]{0,49}$/,
   /** `minDpi` 72–2400. */
   minDpiRange: [72, 2400],
   /** `maxFileSizeMb` 1–50. */

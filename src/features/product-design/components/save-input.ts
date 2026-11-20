@@ -134,12 +134,15 @@ export function buildSaveInput({
   const fresh = model.kind === "parametric-cup" ? names.cup : names.bag;
   // A configuration of the other kind (a bag file over a cup) is a new thing: its code and name, not the old ones.
   const kept = stored?.model?.kind === model.kind ? stored : null;
+  // One saved before models existed has no kind to clash with: it keeps its own code and name (the BE ignores
+  // `code` on update and would take the new name, BD-13).
+  const identity = kept ?? (stored && !stored.model ? stored : null);
   const margin = (code: PrintAreaCode, field: "safeMarginMm" | "bleedMm", value: number) =>
     keptAreaMargin(kept, code, field, value);
   return {
     config: {
-      code: kept?.code ?? fresh.code,
-      name: kept?.name ?? fresh.name,
+      code: identity?.code ?? fresh.code,
+      name: identity?.name ?? fresh.name,
       minDpi: template.minDpi,
       colorMode: template.colorMode,
       allowedFileFormats: template.allowedFileFormats,

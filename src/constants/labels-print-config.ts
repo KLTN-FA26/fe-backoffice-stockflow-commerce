@@ -313,7 +313,8 @@ export const PRINT_CONFIG_SCREEN_LABELS = {
     activateDescription:
       "Khách hàng của biến thể này sẽ bắt đầu thiết kế trên cấu hình in này. Cấu hình đang dùng trước đó (nếu có) sẽ tự ngừng dùng.",
     deactivateTitle: "Ngừng dùng cấu hình in?",
-    deactivateDescription: "Khách hàng sẽ không bắt đầu thiết kế mới trên cấu hình in này.",
+    deactivateDescription:
+      "Khách hàng sẽ không bắt đầu thiết kế mới trên cấu hình in này. Bản thiết kế đang làm dở vẫn giữ cấu hình này.",
     /** Chưa kích hoạt được vì file 3D (BE 409 / 422 khi kích hoạt). */
     activateBlocked: {
       "no-model":
@@ -364,20 +365,22 @@ export const PRINT_CONFIG_SCREEN_LABELS = {
  * `templateVersion` của file thiết kế với version hiện tại (409 `DESIGN_FILES_OUTDATED`). BE chưa đếm được số thiết kế
  * đang chờ trên một cấu hình, nên câu là câu chung.
  *
- * ASSUMPTION: BE dự định chỉ tăng version khi đổi trường ảnh hưởng bản in. Khi đó: bỏ hai dòng `activate` và
- * `deactivate` ở `PRINT_CONFIG_PENDING_WARNING.when`, và thu hẹp `save` về các trường in (số đo, vùng in, ràng buộc file).
+ * ASSUMPTION: BE dự định chỉ tăng version khi đổi trường ảnh hưởng bản in. Khi đó: đặt `show: false` cho `activate` và
+ * `deactivate` ở `PRINT_CONFIG_PENDING_WARNING.when` (đừng xoá dòng: `PendingWarningAction` suy ra từ các khoá này), và
+ * thu hẹp `save` về các trường in (số đo, vùng in, ràng buộc file) ở chỗ gọi `pendingDesignWarning("save", …)`.
  */
 export const PRINT_CONFIG_PENDING_WARNING = {
   base: "Thiết kế đang chờ duyệt dùng cấu hình này sẽ không duyệt được nữa (khách phải gửi lại).",
   /** Hành động nào hiện cảnh báo, và câu nói thêm cho hành động đó (nối sau `base`). */
   when: {
-    save: { extra: null },
+    save: { show: true, extra: null },
     activate: {
+      show: true,
       extra:
         "Cấu hình đang dùng hiện tại sẽ bị ngừng, nên thiết kế đang chờ duyệt trên nó cũng vậy.",
     },
-    deactivate: { extra: null },
-    attachReference: { extra: null },
+    deactivate: { show: true, extra: null },
+    attachReference: { show: true, extra: null },
   },
 } as const;
 
@@ -392,7 +395,8 @@ export function pendingDesignWarning(
   { hasStored }: { hasStored: boolean },
 ): string | null {
   if (action === "save" && !hasStored) return null;
-  const { extra } = PRINT_CONFIG_PENDING_WARNING.when[action];
+  const { show, extra } = PRINT_CONFIG_PENDING_WARNING.when[action];
+  if (!show) return null;
   return extra
     ? `${PRINT_CONFIG_PENDING_WARNING.base} ${extra}`
     : PRINT_CONFIG_PENDING_WARNING.base;

@@ -21,6 +21,14 @@ describe("buildBreadcrumbItems", () => {
     expect(items[2]?.render).toBeDefined();
   });
 
+  it("route /admin chưa có mục menu → rơi về mục Tổng quan, rồi đoạn cuối URL", () => {
+    expect(buildBreadcrumbItems("/admin/not-a-screen")).toEqual([
+      { label: "Back-office", href: "/admin" },
+      { label: "Tổng quan", href: "/admin" },
+      { label: "not-a-screen" },
+    ]);
+  });
+
   it("đăng ký route Inventory trong điều hướng back-office", () => {
     expect(buildBreadcrumbItems(INVENTORY_ROUTES.overview)).toEqual([
       { label: "Back-office", href: "/admin" },

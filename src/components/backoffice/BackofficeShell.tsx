@@ -629,10 +629,6 @@ export function visibleNavGroups(canSeeItem: (item: NavItem) => boolean): NavGro
   );
 }
 
-/**
- * Mục menu đang mở: khớp dài nhất trong các mục được thấy — `/admin/orders/credit-holds` sáng
- * mục hàng đợi công nợ, không sáng kèm "Đơn hàng" (`/admin/orders`). `/admin` chỉ khớp đúng.
- */
 /** Độ dài tiền tố href (hoặc `matchPrefixes`) khớp `pathname`; 0 = không khớp. */
 function matchLength(item: Pick<NavItem, "href" | "matchPrefixes">, pathname: string): number {
   if (item.href === ADMIN_ROUTES.home) return pathname === item.href ? item.href.length : 0;
@@ -644,6 +640,10 @@ function matchLength(item: Pick<NavItem, "href" | "matchPrefixes">, pathname: st
   );
 }
 
+/**
+ * Mục menu đang mở: khớp dài nhất trong các mục được thấy — `/admin/orders/credit-holds` sáng
+ * mục hàng đợi công nợ, không sáng kèm "Đơn hàng" (`/admin/orders`). `/admin` chỉ khớp đúng.
+ */
 export function findActiveNavHref(
   pathname: string,
   items: readonly Pick<NavItem, "href" | "matchPrefixes">[],
@@ -654,11 +654,20 @@ export function findActiveNavHref(
     .sort((a, b) => b.length - a.length)[0]?.item.href;
 }
 
+/**
+ * Mục menu của breadcrumb. Route chưa có mục nào thì rơi về mục "Tổng quan" (`/admin`), như trước khi có
+ * `matchPrefixes`: breadcrumb vẫn dẫn về trang chủ thay vì chỉ có chữ "Back-office".
+ */
 function findNavItem(pathname: string): NavItem | undefined {
-  return NAV_GROUPS.flatMap((group) => group.items)
+  const items = NAV_GROUPS.flatMap((group) => group.items);
+  const best = items
     .map((item) => ({ item, length: matchLength(item, pathname) }))
     .filter((entry) => entry.length > 0)
     .sort((a, b) => b.length - a.length)[0]?.item;
+  if (best) return best;
+  return pathname.startsWith(`${ADMIN_ROUTES.home}/`)
+    ? items.find((item) => item.href === ADMIN_ROUTES.home)
+    : undefined;
 }
 
 export function buildBreadcrumbItems(

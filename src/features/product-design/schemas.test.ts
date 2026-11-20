@@ -90,6 +90,14 @@ describe("PrintConfigBody rules", () => {
     expect(printConfigBodySchema.safeParse(BAG_BODY).success).toBe(true);
   });
 
+  it("the code starts with a letter or digit, like the BE's (BD-12)", () => {
+    expect(printConfigBodySchema.safeParse({ ...CUP_BODY, code: "-AB" }).success).toBe(false);
+    expect(printConfigBodySchema.safeParse({ ...CUP_BODY, code: "A-B" }).success).toBe(true);
+    expect(printConfigBodySchema.safeParse({ ...CUP_BODY, code: "A".repeat(51) }).success).toBe(
+      false,
+    );
+  });
+
   it("no print area twice in the table (BE PrintAreaDuplicate)", () => {
     const [first] = CUP_BODY.surfaces;
     const result = printConfigBodySchema.safeParse({ ...CUP_BODY, surfaces: [first, first] });

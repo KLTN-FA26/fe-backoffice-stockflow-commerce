@@ -72,6 +72,9 @@ export function shortId(id: string | null): string {
   return id ? id.slice(0, 8) : "Hệ thống";
 }
 
+/** `ApproveRoundRequest.designs` @Size(min = 1, max = 20): một lần "Duyệt tất cả" gửi tối đa chừng này thiết kế. */
+export const ROUND_APPROVE_BATCH_MAX = 20;
+
 /** Thiết kế còn chờ trong vòng (chưa có outcome, đang `PENDING_REVIEW`) ở đúng `version` đang hiển thị — body "Duyệt tất cả". */
 export function pendingInRound(round: Pick<ReviewRound, "designs">): {
   id: string;

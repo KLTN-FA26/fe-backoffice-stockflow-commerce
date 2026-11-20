@@ -12,7 +12,7 @@ import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
 import { designReviewErrorMessage, isUncertainOutcome } from "@/features/design-review/errors";
 import { useApproveRound } from "@/features/design-review/mutations";
 import { useReviewRound } from "@/features/design-review/queries";
-import { pendingInRound } from "@/features/design-review/selectors";
+import { pendingInRound, ROUND_APPROVE_BATCH_MAX } from "@/features/design-review/selectors";
 
 import { CustomerName } from "@/components/backoffice/CustomerName";
 import { LoadErrorState } from "@/components/backoffice/LoadErrorState";
@@ -49,13 +49,16 @@ function ReviewRoundDetailContent({ roundId }: { roundId: string }) {
   if (query.isPending) return <PageSkeleton variant="detail" />;
   const round = query.data;
   const pending = pendingInRound(round);
+  // The BE takes 1-20 designs per request: the first 20 now, the rest on the next "Duyệt tất cả".
+  const batch = pending.slice(0, ROUND_APPROVE_BATCH_MAX);
+  const rest = pending.length - batch.length;
   const open = round.closedAt == null;
   const running = approve.isPending;
 
   const submit = () => {
     setDialogError(null);
     approve.mutate(
-      { roundId, designs: pending },
+      { roundId, designs: batch },
       {
         onSuccess: (result) => {
           setOutcomes(result.outcomes);
@@ -63,8 +66,11 @@ function ReviewRoundDetailContent({ roundId }: { roundId: string }) {
         },
         onError: (error) => {
           // Không rõ kết quả: không gửi lại; hook đã tải lại vòng.
-          if (isUncertainOutcome(error)) setConfirming(false);
-          else setDialogError(designReviewErrorMessage(error));
+          // The table of the earlier run would now be stale (the round was reloaded): drop it.
+          if (isUncertainOutcome(error)) {
+            setOutcomes(null);
+            setConfirming(false);
+          } else setDialogError(designReviewErrorMessage(error));
         },
       },
     );
@@ -108,7 +114,7 @@ function ReviewRoundDetailContent({ roundId }: { roundId: string }) {
         open={confirming}
         onOpenChange={(next) => !running && setConfirming(next)}
         title={DESIGN_ROUND_LABELS.confirmTitle}
-        description={`Duyệt lần lượt ${pending.length} thiết kế còn chờ. Thiết kế nào không duyệt được sẽ vẫn chờ.`}
+        description={`Duyệt lần lượt ${batch.length} thiết kế còn chờ. Thiết kế nào không duyệt được sẽ vẫn chờ.`}
         confirmLabel={DESIGN_ROUND_LABELS.approveAll}
         variant="default"
         loading={running}
@@ -118,7 +124,14 @@ function ReviewRoundDetailContent({ roundId }: { roundId: string }) {
       >
         {running && (
           <p role="status" className="text-ink-secondary text-[0.8125rem]">
-            {DESIGN_ROUND_LABELS.running.replace("{n}", String(pending.length))}
+            {DESIGN_ROUND_LABELS.running.replace("{n}", String(batch.length))}
+          </p>
+        )}
+        {rest > 0 && (
+          <p className="text-ink-secondary text-[0.8125rem]">
+            {DESIGN_ROUND_LABELS.batchRest
+              .replace("{max}", String(ROUND_APPROVE_BATCH_MAX))
+              .replace("{rest}", String(rest))}
           </p>
         )}
       </ConfirmDialog>

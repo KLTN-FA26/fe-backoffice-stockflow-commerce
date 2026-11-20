@@ -78,6 +78,8 @@ describe("activating and stopping a saved configuration", () => {
     expect(
       stop.getByText(/Thiết kế đang chờ duyệt dùng cấu hình này sẽ không duyệt được nữa/),
     ).toBeInTheDocument();
+    // The true half of the story: a draft already on this configuration keeps it.
+    expect(stop.getByText(/Bản thiết kế đang làm dở vẫn giữ cấu hình này/)).toBeInTheDocument();
     await user.click(stop.getByRole("button", { name: "Ngừng dùng" }));
     await user.click(await screen.findByRole("button", { name: "Kích hoạt" }));
     const start = within(await screen.findByRole("dialog"));
