@@ -62,7 +62,11 @@ function ConversationContent({ id }: { id: string }) {
   const hint = can(CHAT_PERMISSIONS.update) ? notInChargeHint(data, meId, can) : null;
   const quoteGate = {
     allowed: tools.createQuote,
-    hint: isEnded(data.status) ? "Hội thoại đã kết thúc." : hint,
+    hint: !can(CHAT_PERMISSIONS.update)
+      ? "Bạn chỉ có quyền xem hội thoại này."
+      : isEnded(data.status)
+        ? "Hội thoại đã kết thúc."
+        : hint,
   };
 
   return (

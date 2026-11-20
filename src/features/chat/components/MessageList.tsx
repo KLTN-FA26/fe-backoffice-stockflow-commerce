@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowDown } from "lucide-react";
 
 import { useAuthStore } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 
-import { useOlderMessages } from "../queries";
-import { mergeMessages } from "../selectors";
+import { chatErrorMessage } from "../mutations";
+import { useGapMessages, useOlderMessages } from "../queries";
+import { hasMessageGap, mergeMessages } from "../selectors";
 import { useChatScroll } from "../use-chat-scroll";
 
 import { MessageItem } from "./MessageItem";
@@ -31,10 +32,19 @@ export function MessageList({
   const meId = useAuthStore((state) => state.user?.userId ?? null);
   const [anchor, setAnchor] = useState<number | null>(null);
   const older = useOlderMessages(conversationId, anchor);
-  const items = mergeMessages(
-    latest.items,
-    (older.data?.pages ?? []).map((page) => page.items),
-  );
+  // Trang cũ đã tải kết thúc ngay dưới `anchor`. Tin mới đến làm cửa sổ mới nhất trượt đi (cũ nhất > anchor) →
+  // tin ở giữa không nằm trong query nào: đọc lấp khoảng hở bằng `since`.
+  const slid = anchor !== null && !!older.data && (latest.items[0]?.seq ?? 0) > anchor;
+  const gap = useGapMessages(conversationId, anchor === null ? null : anchor - 1, slid);
+  const items = mergeMessages(latest.items, [
+    ...(older.data?.pages ?? []).map((page) => page.items),
+    ...(gap.data?.pages ?? []).map((page) => page.items),
+  ]);
+  const holey = slid && hasMessageGap(items);
+  const { hasNextPage: gapHasMore, isFetching: gapFetching, fetchNextPage: gapMore } = gap;
+  useEffect(() => {
+    if (holey && gapHasMore && !gapFetching) void gapMore();
+  }, [holey, gapHasMore, gapFetching, gapMore]);
   const newest = items[items.length - 1];
   const { listRef, onScroll, unseen, jumpToBottom, rememberHeight } = useChatScroll(
     newest?.seq ?? 0,
@@ -58,7 +68,19 @@ export function MessageList({
         aria-label="Tin nhắn"
         className="max-h-[560px] space-y-2 overflow-y-auto"
       >
-        {hasOlder && (
+        {anchor !== null && (older.isError || gap.isError) && (
+          <li className="text-danger flex flex-wrap items-center justify-center gap-2 text-xs">
+            {chatErrorMessage(older.error ?? gap.error)}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => void (older.isError ? older.refetch() : gap.refetch())}
+            >
+              Thử lại
+            </Button>
+          </li>
+        )}
+        {hasOlder && !older.isError && (
           <li className="flex justify-center">
             <Button size="sm" variant="outline" disabled={loading} onClick={loadOlder}>
               {loading ? "Đang tải…" : "Tải tin cũ hơn"}

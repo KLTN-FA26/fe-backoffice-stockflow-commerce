@@ -122,6 +122,11 @@ export function mergeMessages(
   return chronological([...bySeq.values()]);
 }
 
+/** Có chỗ hở giữa hai `seq` liền nhau (seq của hội thoại liên tục) → thiếu tin giữa trang cũ và trang mới nhất. */
+export function hasMessageGap(messages: readonly Pick<ChatMessage, "seq">[]): boolean {
+  return messages.some((message, i) => i > 0 && message.seq - (messages[i - 1]?.seq ?? 0) > 1);
+}
+
 /** Cách đáy dưới ngưỡng này (px) vẫn coi là đang ở cuối — tin mới tự kéo xuống. */
 export const STICK_TO_BOTTOM_THRESHOLD = 48;
 

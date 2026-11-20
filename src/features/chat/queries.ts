@@ -4,7 +4,13 @@ import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 
 import { CHAT_BADGE_POLL_MS, CHAT_POLL_MS } from "@/constants";
 
-import { getConversation, getCustomerOverview, listConversations, listMessages } from "./api";
+import {
+  getConversation,
+  getCustomerOverview,
+  listConversations,
+  listMessages,
+  listMessagesSince,
+} from "./api";
 import { getStaffUnread, listAgents, listCannedResponses, searchMessages } from "./api-tools";
 
 import type { InboxParams } from "./api";
@@ -15,6 +21,7 @@ export const chatKeys = {
   conversation: (id: string) => [...chatKeys.all, "conversation", id] as const,
   messages: (id: string) => [...chatKeys.all, "conversation", id, "messages"] as const,
   older: (id: string) => [...chatKeys.messages(id), "older"] as const,
+  gap: (id: string) => [...chatKeys.messages(id), "gap"] as const,
   overview: (customerId: string) => [...chatKeys.all, "overview", customerId] as const,
   agents: () => [...chatKeys.all, "agents"] as const,
   search: (q: string, page: number) => [...chatKeys.all, "search", q, page] as const,
@@ -96,6 +103,20 @@ export function useOlderMessages(id: string, anchor: number | null) {
     initialPageParam: anchor ?? 0,
     getNextPageParam: (page) => page.nextBefore ?? undefined,
     enabled: anchor !== null,
+  });
+}
+
+/**
+ * Lấp khoảng hở: trang mới nhất (poll) trượt đi khi có tin mới nên tin giữa trang cũ đã tải và cửa sổ mới nhất không
+ * nằm ở đâu cả. Đọc ngược lên từ `since` (tin cuối của trang cũ) tới khi chạm cửa sổ mới nhất; chỉ chạy khi `enabled`.
+ */
+export function useGapMessages(id: string, since: number | null, enabled: boolean) {
+  return useInfiniteQuery({
+    queryKey: chatKeys.gap(id),
+    queryFn: ({ pageParam, signal }) => listMessagesSince(id, pageParam, signal),
+    initialPageParam: since ?? 0,
+    getNextPageParam: (page) => page.nextSince ?? undefined,
+    enabled: since !== null && enabled,
   });
 }
 

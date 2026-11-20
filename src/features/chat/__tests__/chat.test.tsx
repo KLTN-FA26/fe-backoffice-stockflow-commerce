@@ -93,6 +93,12 @@ describe("TC-F13 phía Sale — thẻ và ghi chú", () => {
     expect(screen.queryByText("Chờ duyệt thiết kế")).not.toBeInTheDocument();
   });
 
+  it("thiết kế DRAFT không có returnReason vẫn là 'Khách đang sửa thiết kế'", async () => {
+    renderConversation([quoteRequestCard([], "DRAFT")]);
+    expect(await screen.findByText("Khách đang sửa thiết kế")).toBeInTheDocument();
+    expect(screen.queryByText("Chờ duyệt thiết kế")).not.toBeInTheDocument();
+  });
+
   it("thiết kế đã xoá (ARCHIVED) → 'Thiết kế đã bị xoá', không còn 'Chờ duyệt thiết kế'", async () => {
     renderConversation([quoteRequestCard([], "ARCHIVED")]);
     expect(await screen.findByText("Thiết kế đã bị xoá")).toBeInTheDocument();

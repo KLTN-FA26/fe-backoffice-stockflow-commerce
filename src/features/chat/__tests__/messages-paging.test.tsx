@@ -2,7 +2,7 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { mockApi, renderScreen } from "@/test/api-screen";
+import { apiError, mockApi, renderScreen } from "@/test/api-screen";
 
 import { ChatConversationScreen } from "..";
 import {
@@ -66,6 +66,63 @@ describe("Tải tin cũ hơn", () => {
     renderPaged(undefined);
     expect(await screen.findByText("Tin số 52")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Tải tin cũ hơn" })).not.toBeInTheDocument();
+  });
+});
+
+describe("khoảng hở giữa tin cũ và tin mới nhất", () => {
+  it("tin mới làm trang mới nhất trượt đi → lấp bằng since, danh sách liền mạch", async () => {
+    let head = 52; // tin mới nhất hiện có; trang mới nhất = 2 tin cuối
+    const all = (from: number, to: number) =>
+      Array.from({ length: to - from + 1 }, (_, i) => text(from + i));
+    const api = mockApi("SALES_STAFF", {
+      get: {
+        [BASE]: () => ({ ...conversation, assignedAgentId: "u-test" }),
+        [`${BASE}/messages`]: (params) => {
+          const { before, since } = params as { before?: string; since?: string };
+          if (before) return { items: all(49, Number(before) - 1), lastSeq: head };
+          if (since) return { items: all(Number(since) + 1, head), lastSeq: head };
+          return { items: all(head - 1, head), nextBefore: head - 1, lastSeq: head };
+        },
+        [`/chat/customers/${CUSTOMER_ID}/overview`]: () => overview,
+      },
+    });
+    renderScreen(<ChatConversationScreen id={CONVERSATION_ID} />, "SALES_STAFF");
+    await userEvent.click(await screen.findByRole("button", { name: "Tải tin cũ hơn" }));
+    expect(await screen.findByText("Tin số 49")).toBeInTheDocument();
+    head = 54; // lần poll kế tiếp: cửa sổ mới nhất = 53..54, tin 51..52 không còn trong query nào
+    await waitFor(() => expect(screen.getByText("Tin số 54")).toBeInTheDocument(), {
+      timeout: 9000,
+    });
+    await waitFor(() => expect(screen.getByText("Tin số 51")).toBeInTheDocument());
+    expect(screen.getAllByText(/^Tin số/).map((el) => el.textContent)).toEqual(
+      [49, 50, 51, 52, 53, 54].map((n) => `Tin số ${n}`),
+    );
+    expect(
+      api.get.mock.calls.some((c) => (c[1] as { params?: { since?: string } }).params?.since),
+    ).toBe(true);
+  }, 20_000);
+
+  it("tải tin cũ lỗi → hiện lỗi và nút Thử lại (không im lặng)", async () => {
+    let fail = true;
+    mockApi("SALES_STAFF", {
+      get: {
+        [BASE]: () => ({ ...conversation, assignedAgentId: "u-test" }),
+        [`${BASE}/messages`]: (params) => {
+          if ((params as { before?: string }).before) {
+            if (fail) throw apiError(500, "INTERNAL_ERROR");
+            return { items: [text(49)], lastSeq: 52 };
+          }
+          return { items: [text(51), text(52)], nextBefore: 51, lastSeq: 52 };
+        },
+        [`/chat/customers/${CUSTOMER_ID}/overview`]: () => overview,
+      },
+    });
+    renderScreen(<ChatConversationScreen id={CONVERSATION_ID} />, "SALES_STAFF");
+    await userEvent.click(await screen.findByRole("button", { name: "Tải tin cũ hơn" }));
+    const retry = await screen.findByRole("button", { name: "Thử lại" });
+    fail = false;
+    await userEvent.click(retry);
+    expect(await screen.findByText("Tin số 49")).toBeInTheDocument();
   });
 });
 

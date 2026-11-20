@@ -51,6 +51,15 @@ export async function listMessages(id: string, before?: number, signal?: AbortSi
   return chatMessagePageSchema.parse(data);
 }
 
+/** Tin MỚI HƠN `since` (cũ nhất trước, `nextSince` khi còn): lấp khoảng hở giữa trang cũ đã tải và trang mới nhất. */
+export async function listMessagesSince(id: string, since: number, signal?: AbortSignal) {
+  const { data } = await api.get<unknown>(conv(id, "/messages"), {
+    params: { limit: "50", since: String(since) },
+    signal,
+  });
+  return chatMessagePageSchema.parse(data);
+}
+
 const parseMessage = (data: unknown) => chatMessageSchema.parse(data);
 const parseConversation = (data: unknown) => chatConversationSchema.parse(data);
 
