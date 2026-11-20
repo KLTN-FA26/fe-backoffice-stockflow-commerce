@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
+import { focusManager } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ORDER_PERMISSIONS, SALES_CONTRACT_PERMISSIONS } from "@/constants";
@@ -168,6 +169,59 @@ describe("TC-F04-02 — editor lịch giao / lịch thanh toán", () => {
       amount: 27_142_500,
       deliveryBatchSeq: 1,
     });
+  });
+});
+
+describe("WF-02 mục 7 — form cũ không ghi đè bản mới", () => {
+  const newer = { ...contractDraft, version: 1, freeSampleRounds: 7, returnWindowDays: 21 };
+  const refetchFocus = () => {
+    focusManager.setFocused(false);
+    focusManager.setFocused(true);
+  };
+
+  async function openWhileNewerArrives() {
+    let current: unknown = contractDraft;
+    renderSection(() => current);
+    await userEvent.click(await screen.findByRole("button", { name: /Sửa/ }));
+    const samples = await screen.findByLabelText("Số lần in mẫu miễn phí");
+    await userEvent.clear(samples);
+    await userEvent.type(samples, "3");
+    current = newer;
+    refetchFocus();
+    return samples;
+  }
+
+  it("bản mới về khi đang sửa → cảnh báo, nút Lưu khoá, không gọi PUT", async () => {
+    await openWhileNewerArrives();
+    expect(await screen.findByText(/vừa được người khác lưu/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Lưu hợp đồng" })).toBeDisabled();
+    expect(screen.getByLabelText("Số lần in mẫu miễn phí")).toHaveValue("3");
+  });
+
+  it("bấm Tải lại → form mang giá trị bản mới, Lưu gửi version mới", async () => {
+    await openWhileNewerArrives();
+    await userEvent.click(await screen.findByRole("button", { name: "Tải lại theo bản mới" }));
+    expect(screen.getByLabelText("Số lần in mẫu miễn phí")).toHaveValue("7");
+    expect(screen.queryByText(/vừa được người khác lưu/)).not.toBeInTheDocument();
+    const put = vi.spyOn(api, "put").mockResolvedValue({ data: newer });
+    await userEvent.click(screen.getByRole("button", { name: "Lưu hợp đồng" }));
+    await waitFor(() => expect(put).toHaveBeenCalledTimes(1));
+    expect((put.mock.calls[0]?.[1] as { version: number }).version).toBe(1);
+  });
+
+  it("PUT 409 OPTIMISTIC_LOCK → không tự gửi lại, cảnh báo hiện", async () => {
+    let current: unknown = contractDraft;
+    renderSection(() => current);
+    await userEvent.click(await screen.findByRole("button", { name: /Sửa/ }));
+    const put = vi.spyOn(api, "put").mockImplementation(async () => {
+      current = newer; // BE đã có bản mới: lần tải lại sau 409 mang version mới
+      throw new ApiError(409, "OPTIMISTIC_LOCK", "OPTIMISTIC_LOCK");
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Lưu hợp đồng" }));
+    expect(await screen.findByText(/vừa được người khác sửa/)).toBeInTheDocument();
+    expect(await screen.findByText(/vừa được người khác lưu/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Lưu hợp đồng" })).toBeDisabled();
+    expect(put).toHaveBeenCalledTimes(1);
   });
 });
 

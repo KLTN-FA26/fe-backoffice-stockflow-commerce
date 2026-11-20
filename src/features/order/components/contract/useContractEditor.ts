@@ -13,7 +13,11 @@ import {
   toContractForm,
   toInstallmentForm,
 } from "../../sales-contract-form";
-import { contractErrorMessage, useEditSalesContract } from "../../sales-contract-mutations";
+import {
+  CONTRACT_EDIT_LOCK_MESSAGE,
+  contractErrorMessage,
+  useEditSalesContract,
+} from "../../sales-contract-mutations";
 
 import type { Path } from "react-hook-form";
 import type { ContractFormOutput, ContractFormValues } from "../../sales-contract-form";
@@ -75,6 +79,19 @@ export function useContractEditor({
   }));
   const savedSchedule = useRef(initial.schedule);
   const untouchedPlan = useRef(initial.plan);
+  // Version của bản mà các ô đang hiển thị. `contract` là prop sống: đổi tab thì query tải lại và `contract.version` đổi,
+  // còn các ô vẫn là bản cũ. Gửi version sống kèm giá trị cũ sẽ ghi đè bản mới mà BE không báo 409 (WF-02 mục 7),
+  // nên chỉ gửi `baseVersion` và chờ Sale bấm "Tải lại theo bản mới".
+  const [baseVersion, setBaseVersion] = useState(contract.version);
+  const stale = contract.version !== baseVersion;
+
+  const reload = () => {
+    form.reset(toContractForm(contract, orderLineIds));
+    savedSchedule.current = structuredClone(form.getValues("deliverySchedule"));
+    untouchedPlan.current = structuredClone(form.getValues("paymentPlan"));
+    setBaseVersion(contract.version);
+    setFormError(null);
+  };
 
   const onError = (error: unknown) => {
     const values = form.getValues();
@@ -85,13 +102,17 @@ export function useContractEditor({
         message: entry.message,
       });
     const needsCredit = error instanceof ApiError && error.code === "PAYMENT_SCHEDULE_NEEDS_CREDIT";
+    if (error instanceof ApiError && error.code === "OPTIMISTIC_LOCK") {
+      setFormError(CONTRACT_EDIT_LOCK_MESSAGE);
+      return;
+    }
     setFormError(contractErrorMessage(error) + (needsCredit ? NEEDS_CREDIT_HINT : ""));
   };
 
   const submit = form.handleSubmit((values) => {
     setFormError(null);
     edit.mutate(
-      { orderId: contract.orderId, version: contract.version, body: toContractDraftBody(values) },
+      { orderId: contract.orderId, version: baseVersion, body: toContractDraftBody(values) },
       { onSuccess: onSaved, onError },
     );
   });
@@ -136,6 +157,8 @@ export function useContractEditor({
     form,
     submit,
     formError,
+    stale,
+    reload,
     pending: edit.isPending,
     suggest,
     suggesting,

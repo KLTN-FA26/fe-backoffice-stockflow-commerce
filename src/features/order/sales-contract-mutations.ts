@@ -62,3 +62,7 @@ export function contractErrorMessage(error: unknown): string {
     PAYLOAD_TOO_LARGE: fileTooLargeMessage("signedContract"),
   });
 }
+
+/** Khoá lạc quan khi LƯU trong form sửa: form có nút "Tải lại theo bản mới", các thao tác khác thì không có. */
+export const CONTRACT_EDIT_LOCK_MESSAGE =
+  "Hợp đồng vừa được người khác sửa — bấm 'Tải lại theo bản mới' rồi sửa lại.";
