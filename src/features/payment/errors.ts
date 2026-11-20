@@ -1,10 +1,17 @@
 /**
- * Lỗi BE của module thanh toán → câu tiếng Việt. BE trả message tiếng Anh cho lỗi nghiệp vụ nên FE
- * luôn chọn câu theo `errorCode` (ErrorCode.java, 4B-6 / 4B-9). Không bao giờ hiện chữ của BE.
+ * Lỗi BE của module thanh toán → câu tiếng Việt.
+ * - Phiếu thu (lập / huỷ): BE đã dịch (`messages_vi`, PR #365) và nêu số phiếu / đơn → `receiptErrorMessage` hiện
+ *   `message` của BE; câu FE theo `errorCode` chỉ là dự phòng khi BE không kèm câu.
+ * - Hoàn tiền, `EXPORT_TOO_LARGE`, `NOT_FOUND` của đơn: BE vẫn trả câu tiếng Anh tự viết (WF-02 N4) nên
+ *   `paymentErrorMessage` chọn câu FE theo `errorCode`. Đổi sang `message` khi BE dịch phần này.
  */
 
 import { ApiError } from "@/lib/api/error";
-import { apiErrorMessage } from "@/lib/api/error-message";
+import {
+  apiErrorMessage,
+  COMMON_API_ERROR_MESSAGES,
+  serverErrorMessage,
+} from "@/lib/api/error-message";
 import { formatMoney } from "@/lib/format/money";
 
 export const PAYMENT_ERROR_MESSAGES: Readonly<Record<string, string>> = {
@@ -37,6 +44,15 @@ export const PAYMENT_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   REFUND_REFERENCE_IN_USE: "Mã tham chiếu sao kê này đã được ghi cho một lần hoàn khác.",
   TRANSFER_INSTRUCTIONS_UNAVAILABLE: "Chưa hiển thị được thông tin chuyển khoản. Thử lại sau.",
   NOT_FOUND: "Không tìm thấy đơn hàng.",
+  // BE `PaymentReceiptExportService`: câu tiếng Anh tự viết (WF-02 N4), chưa có bản dịch
+  EXPORT_TOO_LARGE: "File xuất sẽ có hơn 50.000 dòng: hãy thu hẹp bộ lọc rồi xuất lại.",
+};
+
+/** Mã mà BE trả câu tiếng Anh hoặc câu không nói đúng việc FE làm: luôn dùng câu FE. */
+const RECEIPT_OVERRIDES: Readonly<Record<string, string>> = {
+  OPTIMISTIC_LOCK: COMMON_API_ERROR_MESSAGES.OPTIMISTIC_LOCK!,
+  NOT_FOUND: PAYMENT_ERROR_MESSAGES.NOT_FOUND!,
+  EXPORT_TOO_LARGE: PAYMENT_ERROR_MESSAGES.EXPORT_TOO_LARGE!,
 };
 
 /**
@@ -64,6 +80,11 @@ export function paymentErrorMessage(error: unknown): string {
   if (exceeds)
     return `Có dòng trả nhiều hơn số đợt đó còn phải thu (còn ${formatMoney(exceeds.outstanding, exceeds.currency)}). Dữ liệu đã được tải lại, kiểm tra lại số tiền.`;
   return apiErrorMessage(error, PAYMENT_ERROR_MESSAGES);
+}
+
+/** Lập / huỷ phiếu thu: `message` đã dịch của BE; không có thì câu FE theo mã (`paymentErrorMessage`). */
+export function receiptErrorMessage(error: unknown): string {
+  return serverErrorMessage(error, RECEIPT_OVERRIDES, paymentErrorMessage(error));
 }
 
 /**

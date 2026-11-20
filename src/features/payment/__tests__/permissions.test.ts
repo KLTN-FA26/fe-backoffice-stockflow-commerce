@@ -13,12 +13,13 @@ const paymentCodes = (userId: string) =>
   [...mockGrantsOf(userId)].filter((code) => code.startsWith("payment-")).sort();
 
 describe("payment grants of the demo accounts match the BE seed (V20261108002400, V20261108003000)", () => {
-  it("accountant: view installments; record + void receipts; record + void refunds", () => {
+  it("accountant: view installments; record + void + export receipts; record + void refunds", () => {
     expect(paymentCodes("USER-ACC-01")).toEqual(
       [
         "payment-installments:READ",
         "payment-installments:VIEW_PAGE",
         "payment-receipts:CREATE",
+        "payment-receipts:EXPORT",
         "payment-receipts:READ",
         "payment-receipts:UPDATE",
         "payment-receipts:VIEW_PAGE",

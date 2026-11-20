@@ -50,6 +50,11 @@ function OrderInstallmentsContent({ orderId }: { orderId: string }) {
     );
   if (query.isPending) return <PageSkeleton variant="detail" />;
   const order = query.data;
+  // BE: `paymentStatus` is null only when every installment is cancelled (WF-02 mục 26) — total / outstanding are 0 then.
+  const allCancelled =
+    !order.paymentStatus &&
+    order.installments.length > 0 &&
+    order.installments.every((row) => row.status === "CANCELLED");
   const columns = buildInstallmentColumns((row) =>
     allowedInstallmentActions(row, can).includes("recordReceipt") ? (
       <Button type="button" size="xs" variant="outline" onClick={() => setRecording(row)}>
@@ -84,27 +89,40 @@ function OrderInstallmentsContent({ orderId }: { orderId: string }) {
             <span className="text-ink-tertiary text-xs">{O.noPaymentStatus}</span>
           )}
         </div>
-        <dl className="grid grid-cols-[minmax(180px,auto)_1fr] gap-x-4 gap-y-2 text-[0.8125rem]">
-          <InfoRow label={O.total}>
-            <MoneyCell amount={order.total} currency={order.currency} />
-          </InfoRow>
-          <InfoRow label={O.paid}>
-            <MoneyCell amount={order.paid} currency={order.currency} />
-          </InfoRow>
-          <InfoRow label={O.outstanding}>
-            <MoneyCell amount={order.outstanding} currency={order.currency} />
-          </InfoRow>
-          <InfoRow label={O.onSigning}>
-            {order.onSigningPaid ? O.onSigningPaid : O.onSigningUnpaid}
-          </InfoRow>
-          <InfoRow label={O.beforeDeliveryUnpaid}>
-            <MoneyCell amount={order.beforeDeliveryUnpaid} currency={order.currency} />
-          </InfoRow>
-          <InfoRow label={O.dueBeforeHandover}>
-            <MoneyCell amount={order.dueBeforeHandover} currency={order.currency} />
-          </InfoRow>
-        </dl>
-        <p className="text-ink-tertiary text-xs">{O.handoverHint}</p>
+        {allCancelled ? (
+          <>
+            <dl className="grid grid-cols-[minmax(180px,auto)_1fr] gap-x-4 gap-y-2 text-[0.8125rem]">
+              <InfoRow label={O.paidWhenCancelled}>
+                <MoneyCell amount={order.paid} currency={order.currency} />
+              </InfoRow>
+            </dl>
+            <p className="text-ink-tertiary text-xs">{O.allCancelledHint}</p>
+          </>
+        ) : (
+          <>
+            <dl className="grid grid-cols-[minmax(180px,auto)_1fr] gap-x-4 gap-y-2 text-[0.8125rem]">
+              <InfoRow label={O.total}>
+                <MoneyCell amount={order.total} currency={order.currency} />
+              </InfoRow>
+              <InfoRow label={O.paid}>
+                <MoneyCell amount={order.paid} currency={order.currency} />
+              </InfoRow>
+              <InfoRow label={O.outstanding}>
+                <MoneyCell amount={order.outstanding} currency={order.currency} />
+              </InfoRow>
+              <InfoRow label={O.onSigning}>
+                {order.onSigningPaid ? O.onSigningPaid : O.onSigningUnpaid}
+              </InfoRow>
+              <InfoRow label={O.beforeDeliveryUnpaid}>
+                <MoneyCell amount={order.beforeDeliveryUnpaid} currency={order.currency} />
+              </InfoRow>
+              <InfoRow label={O.dueBeforeHandover}>
+                <MoneyCell amount={order.dueBeforeHandover} currency={order.currency} />
+              </InfoRow>
+            </dl>
+            <p className="text-ink-tertiary text-xs">{O.handoverHint}</p>
+          </>
+        )}
       </Card>
       <Card className="space-y-3">
         <h2 className="text-ink-primary text-sm font-semibold">{O.installmentsTitle}</h2>

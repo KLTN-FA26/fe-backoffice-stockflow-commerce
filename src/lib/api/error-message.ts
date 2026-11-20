@@ -1,8 +1,9 @@
 import { ApiError } from "./error";
 
 /**
- * Lỗi chung của BE (`common/error/ErrorCode.java`, bundle messages_vi). Lỗi nghiệp vụ 4xx BE trả
- * message TIẾNG ANH (handleBusiness dùng ex.getMessage()), nên FE luôn chọn câu theo `errorCode`.
+ * Lỗi chung của BE (`common/error/ErrorCode.java`, bundle messages_vi). Từ BE PR #365 phần lớn lỗi nghiệp vụ 4xx
+ * đã có `message` tiếng Việt: màn hình nào dùng `serverErrorMessage` thì hiện câu đó. Câu theo `errorCode` ở
+ * đây và trong map của từng module là dự phòng, và là câu chính cho lỗi BE còn trả tiếng Anh (WF-02 N4).
  */
 export const COMMON_API_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   NETWORK_ERROR: "Không kết nối được máy chủ. Vui lòng kiểm tra mạng.",
@@ -25,7 +26,7 @@ export const COMMON_API_ERROR_MESSAGES: Readonly<Record<string, string>> = {
 
 export const GENERIC_API_ERROR = "Không thực hiện được thao tác. Vui lòng thử lại.";
 
-/** Câu tiếng Việt cho lỗi: map của module → map chung → câu mặc định. Không bao giờ hiện message tiếng Anh của BE. */
+/** Câu tiếng Việt cho lỗi: map của module → map chung → câu mặc định. Không hiện `message` của BE (xem `serverErrorMessage`). */
 export function apiErrorMessage(
   error: unknown,
   messages: Readonly<Record<string, string>> = {},

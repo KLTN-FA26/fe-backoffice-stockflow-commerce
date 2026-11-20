@@ -424,6 +424,8 @@ export const ORDER_INSTALLMENTS_LABELS = {
   unknownStatus: "Không rõ",
   count: "Số đợt thanh toán",
   collected: "Đã thu / tổng",
+  /** Đơn huỷ mà mọi đợt đã huỷ: không còn "tổng / còn phải thu", chỉ số tiền khách đã trả. */
+  paidWhenCancelled: "Đã thanh toán",
   outstanding: "Còn phải thu",
   dueBeforeHandover: "Phải thu trước khi xuất",
   list: "Các đợt",

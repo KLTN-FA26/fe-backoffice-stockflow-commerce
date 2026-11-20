@@ -24,6 +24,8 @@ export const PAYMENT_RECEIPT_PERMISSIONS = {
   read: "payment-receipts:READ",
   create: "payment-receipts:CREATE",
   update: "payment-receipts:UPDATE",
+  /** `GET /payment-receipts/export` (Excel). Seed: Kế toán (V20261126000100). */
+  export: "payment-receipts:EXPORT",
 } as const;
 
 /**

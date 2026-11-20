@@ -16,6 +16,7 @@ import {
   SETTLEMENT_KINDS,
 } from "@/constants/payment";
 import { bePageSchema } from "@/lib/api/page-schema";
+import { omittedOrNull } from "@/lib/validation/primitives";
 
 /* ── DTO: đợt thanh toán ─────────────────────────────────────────────── */
 
@@ -110,6 +111,19 @@ export const receiptDtoSchema = z.object({
   lines: z.array(receiptLineDtoSchema),
 });
 export const receiptPageDtoSchema = bePageSchema(receiptDtoSchema);
+
+/**
+ * BE `PaymentReceiptSummaryResponse` (`GET /payment-receipts/summary`, cùng bộ lọc, không tính phiếu VOIDED).
+ * `totalAmount` / `currency` vắng khi các phiếu có nhiều loại tiền — lúc đó đọc `byCurrency`.
+ */
+export const receiptSummaryDtoSchema = z.object({
+  count: z.number().int(),
+  totalAmount: omittedOrNull(z.number()),
+  currency: omittedOrNull(z.string()),
+  byCurrency: z.array(
+    z.object({ currency: z.string(), count: z.number().int(), totalAmount: z.number() }),
+  ),
+});
 
 /* ── DTO: hoàn tiền ──────────────────────────────────────────────────── */
 

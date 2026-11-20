@@ -18,10 +18,12 @@ export async function getFile(
   path: string,
   fallbackName: string,
   signal?: AbortSignal,
+  /** `Accept` header; mặc định PDF (BE đặt Content-Type thật của file). */
+  accept = "application/pdf, application/json",
 ): Promise<DownloadedFile> {
   const response = await api.get<Blob>(path, {
     responseType: "blob",
-    headers: { Accept: "application/pdf, application/json" },
+    headers: { Accept: accept },
     signal,
   });
   const disposition: unknown = response.headers["content-disposition"];

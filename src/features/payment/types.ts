@@ -12,6 +12,7 @@ import type {
   orderInstallmentsDtoSchema,
   orderRefundDtoSchema,
   receiptDtoSchema,
+  receiptSummaryDtoSchema,
   refundRecordDtoSchema,
 } from "./schemas";
 
@@ -19,6 +20,7 @@ export type Installment = z.infer<typeof installmentDtoSchema>;
 export type InstallmentPage = z.infer<typeof installmentPageDtoSchema>;
 export type OrderInstallments = z.infer<typeof orderInstallmentsDtoSchema>;
 export type PaymentReceipt = z.infer<typeof receiptDtoSchema>;
+export type ReceiptSummary = z.infer<typeof receiptSummaryDtoSchema>;
 export type OrderRefund = z.infer<typeof orderRefundDtoSchema>;
 export type RefundRecord = z.infer<typeof refundRecordDtoSchema>;
 

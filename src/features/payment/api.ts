@@ -1,6 +1,7 @@
 /** Thanh toán theo hợp đồng — API layer (BE payment module). Parse tại biên. */
 
 import { api } from "@/lib/api/client";
+import { getFile } from "@/lib/api/file-download";
 
 import {
   installmentDtoSchema,
@@ -10,6 +11,7 @@ import {
   orderRefundPageDtoSchema,
   receiptDtoSchema,
   receiptPageDtoSchema,
+  receiptSummaryDtoSchema,
 } from "./schemas";
 
 import type {
@@ -24,6 +26,7 @@ import type {
   OrderRefund,
   PaymentReceipt,
   ReceiptInput,
+  ReceiptSummary,
   RefundRecordInput,
   VoidInput,
 } from "./types";
@@ -96,6 +99,9 @@ export interface ListReceiptParams extends ListQueryParams {
   status?: ReceiptApiStatus;
   /** Mã tham chiếu sao kê — BE khớp chính xác. */
   reference?: string;
+  /** `YYYY-MM-DD`, gồm cả hai đầu; từ > đến thì BE trả 400 `RangeInverted` nên FE chặn trước. */
+  receivedFrom?: string;
+  receivedTo?: string;
   /** `receivedOn|recordedAt|amount[,asc|desc]` — mặc định `recordedAt` giảm dần. */
   sort?: string;
 }
@@ -105,11 +111,49 @@ export async function listReceipts(
   signal?: AbortSignal,
 ): Promise<PaginatedResponse<PaymentReceipt>> {
   const query = pageQuery(params);
+  receiptFilterQuery(params, query);
+  const { data } = await api.get<unknown>(RECEIPTS, { params: query, signal });
+  return receiptPageDtoSchema.parse(data);
+}
+
+/** Bộ lọc chung của danh sách, `/summary` và `/export` (BE `ReceiptFilter`). */
+export type ReceiptFilterParams = Pick<
+  ListReceiptParams,
+  "customerId" | "status" | "reference" | "receivedFrom" | "receivedTo"
+>;
+
+function receiptFilterQuery(params: ReceiptFilterParams, query = new URLSearchParams()) {
   if (params.customerId) query.set("customerId", params.customerId);
   if (params.status) query.set("status", params.status);
   if (params.reference?.trim()) query.set("reference", params.reference.trim());
-  const { data } = await api.get<unknown>(RECEIPTS, { params: query, signal });
-  return receiptPageDtoSchema.parse(data);
+  if (params.receivedFrom) query.set("receivedFrom", params.receivedFrom);
+  if (params.receivedTo) query.set("receivedTo", params.receivedTo);
+  return query;
+}
+
+export async function getReceiptSummary(
+  filter: ReceiptFilterParams,
+  signal?: AbortSignal,
+): Promise<ReceiptSummary> {
+  const { data } = await api.get<unknown>(`${RECEIPTS}/summary`, {
+    params: receiptFilterQuery(filter),
+    signal,
+  });
+  return receiptSummaryDtoSchema.parse(data);
+}
+
+const XLSX_ACCEPT =
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/json";
+
+/** Excel các phiếu thu khớp bộ lọc (BE `payment-receipts:EXPORT`, tối đa 50.000 dòng). */
+export function exportReceipts(filter: ReceiptFilterParams, fallbackName: string) {
+  const query = receiptFilterQuery(filter).toString();
+  return getFile(
+    `${RECEIPTS}/export${query ? `?${query}` : ""}`,
+    fallbackName,
+    undefined,
+    XLSX_ACCEPT,
+  );
 }
 
 export async function getReceipt(id: string, signal?: AbortSignal): Promise<PaymentReceipt> {

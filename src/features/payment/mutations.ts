@@ -6,12 +6,14 @@
 
 import { SHARED_QUERY_ROOTS } from "@/constants";
 
+import { saveFile } from "@/lib/api/file-download";
 import { createMutation } from "@/lib/api/query-factory";
 import { QUERY_ROOTS } from "@/lib/api/query-roots";
 import { withStaleRefetch } from "@/lib/api/stale-refetch";
 
-import { recordReceipt, recordRefund, voidReceipt, voidRefundRecord } from "./api";
+import { exportReceipts, recordReceipt, recordRefund, voidReceipt, voidRefundRecord } from "./api";
 import { PAYMENT_STALE_CODES } from "./errors";
+import type { ReceiptFilterParams } from "./api";
 import { installmentKeys, receiptKeys, refundKeys } from "./queries";
 
 const ORDER_ROOT = QUERY_ROOTS.orders;
@@ -56,3 +58,10 @@ export const useVoidRefundRecord = paymentMutation(voidRefundRecord, "Đã huỷ
   refundKeys.all,
   ORDER_ROOT,
 ]);
+
+/** Xuất Excel phiếu thu: chỉ đọc nên không invalidate; lỗi hiện tại chỗ nút (`EXPORT_TOO_LARGE`), không toast. */
+export const useExportReceipts = createMutation(
+  (input: { filter: ReceiptFilterParams; fallbackName: string }) =>
+    exportReceipts(input.filter, input.fallbackName),
+  { onSuccess: saveFile, showErrorToast: false },
+);

@@ -43,20 +43,32 @@ function Row({
 /**
  * Tiến độ thu tiền của đơn trong khối "Thanh toán" (docs 15 §5.2; BE `GET /installments/orders/{id}`): tình trạng thanh
  * toán, đã thu / tổng, còn phải thu, phải thu trước khi xuất (chỉ khi > 0), rồi từng đợt (nhãn Việt qua `StatusDot`).
- * Chỉ gọi API và chỉ hiện khi có `payment-installments:READ`; chưa tải xong, lỗi (vd 404 đơn chưa có hợp đồng ký) hoặc
+ * Đơn đã huỷ mà mọi đợt đã huỷ chỉ hiện "Đã thanh toán {paid}". Chỉ gọi API và chỉ hiện khi có `payment-installments:READ`; chưa tải xong, lỗi (vd 404 đơn chưa có hợp đồng ký) hoặc
  * không có đợt thì không hiện gì — không dòng "—". Số BE vắng không hiện, không thành 0. UI-only — Backend phải re-check.
  */
 export function OrderInstallmentsSummary({
   orderId,
   can,
+  cancelled = false,
 }: {
   orderId: string;
   can: (code: PermissionCode) => boolean;
+  /** Đơn ở trạng thái Cancelled (WF-02 mục 26). */
+  cancelled?: boolean;
 }) {
   const allowed = can(PAYMENT_INSTALLMENT_PERMISSIONS.read);
   const { data } = useOrderInstallmentsSummary(orderId, { enabled: allowed });
   if (!allowed || !data || data.installments.length === 0) return null;
   const { currency } = data;
+  // BE `paymentStatus` is null only when every installment is cancelled. Then the total and "outstanding" are 0 by
+  // construction and mean nothing: show what the customer paid (refund is settled on the refund screen). A cancellation
+  // fee still owed keeps a live installment, so `paymentStatus` stays set and "Còn phải thu" stays.
+  if (cancelled && !data.paymentStatus)
+    return (
+      <Row label={L.paidWhenCancelled} className={MONEY}>
+        {formatMoney(data.paid, currency)}
+      </Row>
+    );
   return (
     <>
       {data.paymentStatus && (
