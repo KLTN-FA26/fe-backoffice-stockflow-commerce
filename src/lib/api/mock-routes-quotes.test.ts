@@ -54,8 +54,9 @@ async function errorOf(promise: Promise<unknown>): Promise<ApiError> {
   throw new Error("Expected request to fail");
 }
 
-function form(over: Partial<QuoteFormValues> = {}) {
-  const values: QuoteFormValues = {
+/** Giá trị form chưa qua zod — để mô phỏng thứ form FE đã chặn nhưng BE vẫn phải từ chối. */
+function rawForm(over: Partial<QuoteFormValues> = {}): QuoteFormValues {
+  return {
     customerId: WF02_DEMO_CUSTOMER_ID,
     validUntil: addDays(vnDay(), 10),
     requestedDeliveryDate: addDays(vnDay(), 21),
@@ -66,7 +67,10 @@ function form(over: Partial<QuoteFormValues> = {}) {
     hasShippingFee: false,
     ...over,
   };
-  return quoteFormSchema.parse(values);
+}
+
+function form(over: Partial<QuoteFormValues> = {}) {
+  return quoteFormSchema.parse(rawForm(over));
 }
 
 /** Báo giá DS-02a đã gửi: lập (bậc giá từ giá riêng) → nhập phí khuôn 1.500.000 → gửi. */
@@ -169,7 +173,9 @@ describe("POST /quotes", () => {
     expect(quote.fees).toEqual([
       expect.objectContaining({ kind: "PLATE_FEE", sku: XANH_SKU, amount: null, taxRate: 8 }),
     ]);
-    expect(quote.proposed).toBeNull();
+    // Như BE: chỉ còn phần đã có (`subtotal`), thiếu fees / tax / total.
+    expect(quote.proposed?.subtotal).toBeGreaterThan(0);
+    expect(quote.proposed?.total).toBeNull();
     expect(quote.proposedTotal).toBeNull();
   });
 
@@ -189,7 +195,7 @@ describe("POST /quotes", () => {
     const below = await errorOf(
       createQuote({
         requestId: crypto.randomUUID(),
-        values: form({
+        values: rawForm({
           lines: [
             {
               sku: XANH_SKU,

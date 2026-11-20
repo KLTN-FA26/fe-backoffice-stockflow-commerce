@@ -309,14 +309,17 @@ const add = (sum: number | null, part: number | null) =>
   sum === null || part === null ? null : sum + part;
 
 /**
- * Tổng đủ bốn số, hoặc null. BE gửi `{subtotal}` một mình khi phí khuôn chưa có tiền (các phần null bị bỏ), nhưng
- * `totalsDtoSchema` của FE đòi đủ bốn số — mock bỏ cả khối để màn hình parse được (xem báo cáo: lệch FE ↔ BE).
+ * Như BE `TotalsBuilder` + Jackson `non_null`: chỉ giữ phần đã có; `total` chỉ khi đủ ba phần. Dòng chưa giá cho
+ * `{fees: 0}` (không có `subtotal`, `tax`, `total`) — FE phải đọc được dạng này.
  */
 function complete(totals: Totals) {
   const { subtotal, fees, tax } = totals;
-  return subtotal === null || fees === null || tax === null
-    ? null
-    : { subtotal, fees, tax, total: subtotal + fees + tax };
+  return {
+    ...(subtotal === null ? {} : { subtotal }),
+    ...(fees === null ? {} : { fees }),
+    ...(tax === null ? {} : { tax }),
+    ...(subtotal === null || fees === null || tax === null ? {} : { total: subtotal + fees + tax }),
+  };
 }
 
 export function quoteView(quote: MockQuote) {

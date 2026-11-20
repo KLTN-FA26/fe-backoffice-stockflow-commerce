@@ -58,6 +58,7 @@ export function QuoteLineEditor({
   // 13 BR-05: có giá riêng thì được để trống bậc giá (BE tự lấy).
   useEffect(() => {
     setValue(`lines.${index}.hasCustomerPrice`, !!suggestion);
+    setValue(`lines.${index}.customerPriceMoq`, suggestion ? moqOf(suggestion.tiers) : null);
   }, [index, setValue, suggestion]);
 
   const tiers = toTiers(tierValues);
@@ -135,6 +136,7 @@ export function QuoteLineEditor({
       <SuggestionBar
         sku={sku}
         moq={moq}
+        cartons={cartons}
         suggestion={suggestion}
         loading={price.isFetching}
         failed={price.isError}

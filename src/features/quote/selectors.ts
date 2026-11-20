@@ -3,7 +3,7 @@
  * form và luôn ghi rõ "tạm tính"; số chốt luôn đọc lại từ `proposed` / `accepted` của BE.
  */
 
-import type { Quote, QuoteTier, QuoteTotals } from "./types";
+import type { Quote, QuoteLine, QuoteTier, QuoteTotals, QuoteTransition } from "./types";
 
 /**
  * Bậc giá theo số thùng: bậc có `minQuantity` lớn nhất ≤ số thùng. Dưới bậc thấp nhất (= MOQ) → `null`
@@ -48,12 +48,19 @@ export function previewTotals(
 }
 
 /**
- * Tổng hiển thị: đã chấp nhận → `accepted`; còn lại → `proposed`. Thiếu phí / thuế / tổng (còn khoản chưa giá, BE bỏ
+ * Tổng hiển thị: đã chấp nhận → `accepted`; còn lại → `proposed`. Thiếu tạm tính / phí / thuế / tổng (còn khoản chưa giá, BE bỏ
  * trường null) → null: màn hình báo "chưa đủ giá" thay vì in số thiếu.
  */
 export function displayTotals(quote: Pick<Quote, "accepted" | "proposed">): QuoteTotals | null {
   const totals = quote.accepted ?? quote.proposed;
-  if (!totals || totals.fees == null || totals.tax == null || totals.total == null) return null;
+  if (
+    !totals ||
+    totals.subtotal == null ||
+    totals.fees == null ||
+    totals.tax == null ||
+    totals.total == null
+  )
+    return null;
   return { subtotal: totals.subtotal, fees: totals.fees, tax: totals.tax, total: totals.total };
 }
 
@@ -66,12 +73,36 @@ export function unpricedPlateFees(quote: Pick<Quote, "fees">): number {
   return quote.fees.filter((fee) => fee.kind === "PLATE_FEE" && fee.amount == null).length;
 }
 
-/** Lý do chưa gửi được (BE QUOTE_PLATE_FEE_MISSING / QUOTE_NOT_PRICED / hạn đã qua) — báo ngay trên nút. */
+/**
+ * Lý do chưa gửi được (BE QUOTE_PLATE_FEE_MISSING / QUOTE_NOT_PRICED / QUOTE_TAX_CLASS_MISSING / hạn đã qua) —
+ * báo ngay trên nút.
+ */
 export function sendBlockReason(
-  quote: Pick<Quote, "fees" | "priced" | "validUntil">,
+  quote: Pick<Quote, "fees" | "priced" | "validUntil"> & {
+    lines: readonly Pick<QuoteLine, "lineNo" | "sku" | "taxRate">[];
+  },
 ): string | null {
   if (unpricedPlateFees(quote) > 0) return "Chưa nhập phí khuôn — sửa báo giá để nhập";
   if (!quote.priced) return "Còn dòng chưa có giá";
+  // BE `Quote.send`: dòng / phí chưa có thuế suất → 409 QUOTE_TAX_CLASS_MISSING.
+  const noTaxLine = quote.lines.find((line) => line.taxRate == null);
+  if (noTaxLine)
+    return `Dòng ${noTaxLine.lineNo} (${noTaxLine.sku}): sản phẩm chưa có nhóm thuế — nhờ quản lý sản phẩm khai báo trước khi gửi`;
+  // Chỉ phí khuôn (gắn SKU) lấy thuế từ sản phẩm; phí vận chuyển BE không đòi.
+  const noTaxFee = quote.fees.find((fee) => fee.kind === "PLATE_FEE" && fee.taxRate == null);
+  if (noTaxFee)
+    return `Phí khuôn ${noTaxFee.sku ?? ""}: sản phẩm chưa có nhóm thuế`.replace("  ", " ");
   if (isExpired(quote.validUntil)) return "Hạn hiệu lực đã qua — sửa ngày hết hiệu lực";
   return null;
+}
+
+/**
+ * Yêu cầu sửa gần nhất của khách: dòng lịch sử cuối có `toStatus === CHANGES_REQUESTED` (BE xoá `customerFeedback`
+ * khi mở bản sửa nên ý khách chỉ còn ở đây). Lịch sử xếp cũ nhất trước.
+ */
+export function lastChangeRequest(
+  history: readonly Pick<QuoteTransition, "revision" | "toStatus" | "reason" | "changedAt">[],
+): { feedback: string | null; at: string; revision: number } | null {
+  const row = history.findLast((entry) => entry.toStatus === "CHANGES_REQUESTED");
+  return row ? { feedback: row.reason, at: row.changedAt, revision: row.revision } : null;
 }

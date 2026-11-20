@@ -3,7 +3,14 @@ import { describe, expect, it } from "vitest";
 import { QUOTE_PERMISSIONS } from "@/constants";
 
 import { QUOTE_TRANSITIONS, allowedStaffQuoteActions } from "../lifecycle";
-import { isExpired, moqOf, unpricedPlateFees } from "../selectors";
+import {
+  isExpired,
+  lastChangeRequest,
+  moqOf,
+  sendBlockReason,
+  unpricedPlateFees,
+} from "../selectors";
+import type { QuoteTransition } from "../types";
 
 const all = () => true;
 const readOnly = (code: string) => code === QUOTE_PERMISSIONS.read;
@@ -74,5 +81,78 @@ describe("selectors", () => {
   });
   it("expired once validUntil has passed", () => {
     expect(isExpired("2000-01-01T00:00:00Z")).toBe(true);
+  });
+});
+
+describe("lastChangeRequest — ý khách ở dòng lịch sử cuối có toStatus CHANGES_REQUESTED", () => {
+  const at = (n: number) => `2099-11-1${n}T03:00:00Z`;
+  const row = (
+    revision: number,
+    toStatus: QuoteTransition["toStatus"],
+    day: number,
+    reason: string | null = null,
+  ): QuoteTransition => ({
+    revision,
+    fromStatus: null,
+    toStatus,
+    reason,
+    changedAt: at(day),
+    changedBy: null,
+  });
+  it("lấy dòng CHANGES_REQUESTED cuối cùng (lịch sử cũ nhất trước)", () => {
+    const history = [
+      row(1, "DRAFT", 1),
+      row(1, "CHANGES_REQUESTED", 2, "Giảm giá 3%"),
+      row(2, "DRAFT", 3),
+      row(2, "SENT", 4),
+      row(2, "CHANGES_REQUESTED", 5, "Giảm giá 5%"),
+      row(3, "DRAFT", 6),
+    ];
+    expect(lastChangeRequest(history)).toEqual({
+      feedback: "Giảm giá 5%",
+      at: at(5),
+      revision: 2,
+    });
+  });
+  it("chưa từng bị yêu cầu sửa → null", () => {
+    expect(lastChangeRequest([row(1, "DRAFT", 1)])).toBeNull();
+    expect(lastChangeRequest([])).toBeNull();
+  });
+});
+
+describe("sendBlockReason — nhóm thuế (BE QUOTE_TAX_CLASS_MISSING)", () => {
+  const base = { fees: [], priced: true, validUntil: "2099-01-01T00:00:00Z" };
+  it("dòng chưa có taxRate → chặn, nêu dòng và SKU", () => {
+    const reason = sendBlockReason({
+      ...base,
+      lines: [
+        { lineNo: 1, sku: "A", taxRate: 8 },
+        { lineNo: 2, sku: "SKU-X", taxRate: null },
+      ],
+    });
+    expect(reason).toContain("Dòng 2");
+    expect(reason).toContain("SKU-X");
+    expect(reason).toContain("chưa có nhóm thuế");
+  });
+  it("phí chưa có taxRate → chặn", () => {
+    const reason = sendBlockReason({
+      ...base,
+      lines: [{ lineNo: 1, sku: "A", taxRate: 8 }],
+      fees: [
+        {
+          id: "f",
+          kind: "PLATE_FEE",
+          sku: "A",
+          amount: 1000,
+          taxClass: null,
+          taxRate: null,
+          tax: null,
+        },
+      ],
+    });
+    expect(reason).toContain("chưa có nhóm thuế");
+  });
+  it("đủ thuế → không chặn", () => {
+    expect(sendBlockReason({ ...base, lines: [{ lineNo: 1, sku: "A", taxRate: 0 }] })).toBeNull();
   });
 });

@@ -15,6 +15,15 @@ describe("tổng báo giá — BE bỏ phần null khi còn khoản chưa giá",
     expect(displayTotals({ proposed, accepted: null })).toBeNull();
   });
 
+  it.each([{ fees: 0 }, {}, { fees: 1_500_000 }])(
+    "dòng chưa giá %j: subtotal vắng vẫn parse, displayTotals = null",
+    (raw) => {
+      const proposed = totalsDtoSchema.parse(raw);
+      expect(proposed.subtotal).toBeNull();
+      expect(displayTotals({ proposed, accepted: null })).toBeNull();
+    },
+  );
+
   it("đủ bốn số → hiện; đã chấp nhận thắng đề xuất", () => {
     const proposed = { subtotal: 69_000_000, fees: 1_500_000, tax: 5_640_000, total: 76_140_000 };
     const accepted = { subtotal: 23_000_000, fees: 1_500_000, tax: 1_960_000, total: 26_460_000 };

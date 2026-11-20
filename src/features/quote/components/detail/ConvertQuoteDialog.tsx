@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { ADMIN_ROUTES, CUSTOMER_PERMISSIONS } from "@/constants";
 import { useCan } from "@/lib/auth/components/Can";
 import { formatAddress, useCustomerAddressOptions } from "@/lib/references/customer-lookup";
-import { isQuoteErrorCode, quoteErrorMessage } from "@/features/quote/errors";
+import { quoteErrorMessage } from "@/features/quote/errors";
 import { useConvertQuote } from "@/features/quote/mutations";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { FORM_INPUT_CLASS, FormField } from "@/components/shared/FormField";
@@ -87,12 +87,7 @@ function ConvertForm({ quote, onClose }: { quote: Quote; onClose: () => void }) 
               if (saved.convertedOrder)
                 router.push(ADMIN_ROUTES.orders.contract(saved.convertedOrder.orderId));
             },
-            onError: (failure) =>
-              setError(
-                isQuoteErrorCode(failure, ["SKU_NOT_SELLABLE"])
-                  ? `${quoteErrorMessage(failure)} Huỷ báo giá (ghi lý do) rồi lập báo giá mới.`
-                  : quoteErrorMessage(failure),
-              ),
+            onError: (failure) => setError(quoteErrorMessage(failure)),
           },
         );
       }}

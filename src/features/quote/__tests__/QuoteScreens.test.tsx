@@ -37,6 +37,29 @@ const priced = {
   proposed: QUOTE_ACCEPTED.proposed,
 };
 
+const revisionDraft = {
+  ...QUOTE_DRAFT_PLATE_UNPRICED,
+  revision: 2,
+  sentAt: "2099-11-12T06:00:00Z",
+  history: [
+    { revision: 1, toStatus: "DRAFT", changedAt: "2099-11-12T03:00:00Z" },
+    { revision: 1, fromStatus: "DRAFT", toStatus: "SENT", changedAt: "2099-11-12T06:00:00Z" },
+    {
+      revision: 1,
+      fromStatus: "SENT",
+      toStatus: "CHANGES_REQUESTED",
+      reason: "Giảm giá 5%",
+      changedAt: "2099-11-13T03:00:00Z",
+    },
+    {
+      revision: 2,
+      fromStatus: "CHANGES_REQUESTED",
+      toStatus: "DRAFT",
+      changedAt: "2099-11-14T03:00:00Z",
+    },
+  ],
+};
+
 describe("Quote list", () => {
   it("real rows, Vietnamese status, status filter as repeated params (page 0-based)", async () => {
     const api = mockApi("SALES_STAFF", {
@@ -68,6 +91,21 @@ describe("Quote detail", () => {
     expect(screen.getAllByText(/1\.500\.000/)).not.toHaveLength(0);
     expect(screen.getByText(/77\.550\.000/)).toBeInTheDocument();
   });
+
+  it.each([{ fees: 0 }, {}])(
+    "báo giá có dòng chưa giá vẫn mở được (proposed %j)",
+    async (proposed) => {
+      mockApi("SALES_STAFF", {
+        get: {
+          [detailUrl]: () => ({ ...QUOTE_DRAFT_PLATE_UNPRICED, proposed }),
+          [`/customers/${CUSTOMER_ID}`]: () => CUSTOMER,
+        },
+      });
+      renderScreen(<QuoteDetail id={QUOTE_ID} />, "SALES_STAFF");
+      expect(await screen.findByText(/Chưa đủ giá/)).toBeInTheDocument();
+      expect(screen.queryByText(/Dữ liệu trả về không đúng định dạng/)).not.toBeInTheDocument();
+    },
+  );
 
   it("DRAFT with an unpriced plate fee: send is blocked with the reason", async () => {
     mockApi("SALES_STAFF", {
@@ -158,6 +196,51 @@ describe("Quote detail", () => {
       expect(api.post).toHaveBeenCalledWith(`${detailUrl}/conversion`, { version: 2 }),
     );
     await waitFor(() => expect(push).toHaveBeenCalledWith(`/admin/orders/${ORDER_ID}#contract`));
+  });
+  it("SKU_NOT_SELLABLE khi tạo đơn: câu BE hiện đúng một lần, không nối thêm câu của FE", async () => {
+    const message =
+      "Báo giá QT-20261120-9001 có SKU không còn bán (LY-X): huỷ báo giá kèm lý do rồi lập báo giá mới.";
+    mockApi("SALES_STAFF", {
+      get: {
+        [detailUrl]: () => QUOTE_ACCEPTED,
+        [`/customers/${CUSTOMER_ID}`]: () => CUSTOMER,
+        [`/customers/${CUSTOMER_ID}/addresses`]: () => [],
+      },
+      post: {
+        [`${detailUrl}/conversion`]: () => {
+          throw apiError(409, "SKU_NOT_SELLABLE", undefined, message);
+        },
+      },
+    });
+    renderScreen(<QuoteDetail id={QUOTE_ID} />, "SALES_STAFF");
+    await userEvent.click(await screen.findByRole("button", { name: "Tạo đơn" }));
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Tạo đơn" }));
+    await within(dialog).findByText(/lập báo giá mới/);
+    expect(within(dialog).getAllByText(/lập báo giá mới/)).toHaveLength(1);
+    expect(dialog.textContent).not.toContain("Huỷ báo giá (ghi lý do)");
+  });
+
+  it("DRAFT có dòng chưa có nhóm thuế: chặn gửi và nêu dòng", async () => {
+    const line = { ...priced.lines[0], taxClass: undefined, taxRate: undefined };
+    mockApi("SALES_STAFF", {
+      get: {
+        [detailUrl]: () => ({ ...priced, lines: [line] }),
+        [`/customers/${CUSTOMER_ID}`]: () => CUSTOMER,
+      },
+    });
+    renderScreen(<QuoteDetail id={QUOTE_ID} />, "SALES_STAFF");
+    expect(await screen.findByRole("button", { name: /Gửi khách/ })).toBeDisabled();
+    expect(screen.getByText(/Dòng 1 .*chưa có nhóm thuế/)).toBeInTheDocument();
+  });
+
+  it("bản nháp sửa hiện 'Khách yêu cầu sửa' lấy từ lịch sử (BE đã xoá customerFeedback)", async () => {
+    mockApi("SALES_STAFF", {
+      get: { [detailUrl]: () => revisionDraft, [`/customers/${CUSTOMER_ID}`]: () => CUSTOMER },
+    });
+    renderScreen(<QuoteDetail id={QUOTE_ID} />, "SALES_STAFF");
+    expect(await screen.findByText(/Khách yêu cầu sửa/)).toBeInTheDocument();
+    expect(screen.getByText(/Khách yêu cầu sửa/).parentElement).toHaveTextContent("Giảm giá 5%");
   });
 });
 
@@ -276,5 +359,52 @@ describe("Quote form", () => {
     // + 1.500.000 phí và 150.000 thuế của phí (thuế suất phí đã lưu).
     expect(await within(preview).findByText(/77\.550\.000/)).toBeInTheDocument();
     expect(within(preview).getByText(/7\.050\.000/)).toBeInTheDocument();
+  });
+  it("trang sửa bản nháp sửa hiện 'Khách yêu cầu sửa' và nội dung", async () => {
+    mockApi("SALES_STAFF", {
+      get: {
+        [detailUrl]: () => revisionDraft,
+        [`/customers/${CUSTOMER_ID}`]: () => CUSTOMER,
+        "/customer-skus": () => [],
+      },
+    });
+    renderScreen(<QuoteEdit id={QUOTE_ID} />, "SALES_STAFF");
+    expect(await screen.findByText(/Khách yêu cầu sửa/)).toBeInTheDocument();
+    expect(screen.getByText("Giảm giá 5%")).toBeInTheDocument();
+  });
+
+  it("dưới MOQ của giá riêng, để trống bậc giá → lỗi tại dòng, không gọi API", async () => {
+    const api = mockApi("SALES_STAFF", {
+      get: {
+        [`/customers/${CUSTOMER_ID}`]: () => CUSTOMER,
+        "/customer-skus": () => [
+          {
+            variantId: "v1",
+            productId: "p1",
+            sku: SKU,
+            name: "Ly 12oz xanh",
+            ownerCustomerId: CUSTOMER_ID,
+            status: "ACTIVE",
+          },
+        ],
+        [`/catalog/customer-prices/${CUSTOMER_ID}/${SKU}`]: () => ({
+          customerId: CUSTOMER_ID,
+          sku: SKU,
+          measure: "CARTON",
+          moq: 20,
+          tiers: QUOTE_ACCEPTED.lines[0]?.tiers ?? [],
+          version: 1,
+        }),
+      },
+    });
+    renderScreen(<QuoteCreate />, "SALES_STAFF");
+    const select = await screen.findByLabelText(/SKU riêng của khách/);
+    await within(select).findByRole("option", { name: new RegExp(SKU) });
+    await userEvent.selectOptions(select, SKU);
+    await userEvent.type(screen.getByLabelText(/Số thùng/), "5");
+    expect(await screen.findByText(/Dưới mức tối thiểu 20 thùng của bảng giá khách/)).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Lưu nháp" }));
+    expect(await screen.findAllByText(/nhập bậc giá/)).not.toHaveLength(0);
+    expect(api.post).not.toHaveBeenCalled();
   });
 });

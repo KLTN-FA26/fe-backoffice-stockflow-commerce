@@ -14,6 +14,7 @@ const NUM = "tabular-nums font-[family-name:var(--font-mono)]";
 export function SuggestionBar({
   sku,
   moq,
+  cartons,
   suggestion,
   loading,
   failed,
@@ -22,6 +23,7 @@ export function SuggestionBar({
 }: {
   sku: string | undefined;
   moq: number | null;
+  cartons: number;
   suggestion: CustomerPrice | null;
   loading: boolean;
   failed: boolean;
@@ -56,7 +58,14 @@ export function SuggestionBar({
         </Button>
       )}
       {suggestion && tiersEmpty && (
-        <span className="text-ink-tertiary">Để trống bậc giá = dùng giá riêng của khách.</span>
+        // BE chỉ tự lấy giá riêng khi số thùng đạt MOQ; dưới MOQ phải nhập bậc giá đã thoả thuận.
+        <span
+          className={moq && cartons > 0 && cartons < moq ? "text-warning" : "text-ink-tertiary"}
+        >
+          {moq && cartons > 0 && cartons < moq
+            ? `Dưới mức tối thiểu ${moq} thùng của bảng giá khách — cần nhập bậc giá.`
+            : "Để trống bậc giá = dùng giá riêng của khách."}
+        </span>
       )}
     </div>
   );
