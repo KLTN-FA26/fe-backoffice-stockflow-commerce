@@ -39,7 +39,7 @@ function ReceiptListContent() {
   );
   const [receivedTo, setReceivedTo] = useQueryState("receivedTo", parseAsString.withDefault(""));
   const debouncedReference = useDebouncedValue(reference, 300);
-  // BE answers a reversed range with 400 RangeInverted: flag it at the field and send nothing (ISO dates sort as text).
+  // BE answers a reversed range with 400 VALIDATION_FAILED: flag it at the field and send nothing (ISO dates sort as text).
   const rangeInverted = !!receivedFrom && !!receivedTo && receivedFrom > receivedTo;
   const filter = {
     status: status ?? undefined,

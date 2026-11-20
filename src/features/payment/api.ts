@@ -99,7 +99,7 @@ export interface ListReceiptParams extends ListQueryParams {
   status?: ReceiptApiStatus;
   /** Mã tham chiếu sao kê — BE khớp chính xác. */
   reference?: string;
-  /** `YYYY-MM-DD`, gồm cả hai đầu; từ > đến thì BE trả 400 `RangeInverted` nên FE chặn trước. */
+  /** `YYYY-MM-DD`, gồm cả hai đầu; từ > đến thì BE trả 400 `VALIDATION_FAILED` nên FE chặn trước. */
   receivedFrom?: string;
   receivedTo?: string;
   /** `receivedOn|recordedAt|amount[,asc|desc]` — mặc định `recordedAt` giảm dần. */
