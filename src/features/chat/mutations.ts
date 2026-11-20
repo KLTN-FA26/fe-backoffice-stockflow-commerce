@@ -14,13 +14,21 @@ import {
   changeStatus,
   claimConversation,
   markRead,
+  openConversation,
   sendAttachment,
   sendNote,
   sendText,
   sendTransferDetails,
   staffCardAction,
 } from "./api";
-import { assignConversation, attachContext, previewCannedResponse } from "./api-tools";
+import {
+  assignConversation,
+  attachContext,
+  createCannedResponse,
+  deleteCannedResponse,
+  previewCannedResponse,
+  updateCannedResponse,
+} from "./api-tools";
 import { chatKeys } from "./queries";
 
 const base = { invalidate: [chatKeys.all], showErrorToast: false } as const;
@@ -54,6 +62,23 @@ export const useAttachContext = createMutation(attachContext, {
   ...base,
   successMessage: "Đã gắn chứng từ vào hội thoại.",
 });
+/** Sale mở hội thoại với khách → tải lại hộp thư; màn gọi dùng `data.id` để chuyển tới hội thoại. */
+export const useOpenConversation = createMutation(openConversation, base);
+
+const cannedBase = { invalidate: [chatKeys.cannedAll()], showErrorToast: false } as const;
+export const useCreateCannedResponse = createMutation(createCannedResponse, {
+  ...cannedBase,
+  successMessage: "Đã thêm câu trả lời mẫu.",
+});
+export const useUpdateCannedResponse = createMutation(updateCannedResponse, {
+  ...cannedBase,
+  successMessage: "Đã lưu câu trả lời mẫu.",
+});
+export const useDeleteCannedResponse = createMutation(deleteCannedResponse, {
+  ...cannedBase,
+  successMessage: "Đã xoá câu trả lời mẫu.",
+});
+
 /** Chỉ đọc câu mẫu đã điền biến (BE không đổi gì) → không tải lại gì. */
 export const usePreviewCanned = createMutation(previewCannedResponse, {
   invalidate: [],

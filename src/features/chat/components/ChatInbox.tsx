@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { MessagesSquare } from "lucide-react";
+import { MessagesSquare, Plus } from "lucide-react";
 import { parseAsInteger, parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
 
 import {
@@ -26,6 +26,7 @@ import { useInbox } from "../queries";
 
 import { InboxFilters } from "./InboxFilters";
 import { InboxRow } from "./InboxRow";
+import { OpenConversationDialog } from "./OpenConversationDialog";
 import { SearchResults } from "./SearchResults";
 
 /** Tìm trong tin nhắn (S21): gõ → 300 ms → URL `q`; dưới 2 ký tự thì chưa tìm (BE trả 400). */
@@ -133,6 +134,8 @@ function Inbox({ canRead }: { canRead: boolean }) {
 
 function InboxContent() {
   const canRead = useCan(CHAT_PERMISSIONS.read);
+  const canCreate = useCan(CHAT_PERMISSIONS.create);
+  const [opening, setOpening] = useState(false);
   const search = useInboxSearch();
 
   return (
@@ -142,13 +145,21 @@ function InboxContent() {
         <Notice tone="warning">Bạn chưa có quyền xem hội thoại.</Notice>
       ) : (
         <>
-          <SearchBar
-            aria-label="Tìm trong tin nhắn"
-            placeholder="Tìm trong tin nhắn (từ 2 ký tự)…"
-            value={search.draft}
-            onChange={(value) => search.setDraft(value.slice(0, CHAT_SEARCH_MAX))}
-            className="max-w-md"
-          />
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <SearchBar
+              aria-label="Tìm trong tin nhắn"
+              placeholder="Tìm trong tin nhắn (từ 2 ký tự)…"
+              value={search.draft}
+              onChange={(value) => search.setDraft(value.slice(0, CHAT_SEARCH_MAX))}
+              className="max-w-md"
+            />
+            {canCreate && (
+              <Button size="sm" onClick={() => setOpening(true)}>
+                <Plus className="size-3.5" /> Mở hội thoại mới
+              </Button>
+            )}
+          </div>
+          {canCreate && <OpenConversationDialog open={opening} onOpenChange={setOpening} />}
           {search.active ? (
             <SearchResults
               q={search.q}

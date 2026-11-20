@@ -60,6 +60,19 @@ export async function listMessagesSince(id: string, since: number, signal?: Abor
   return chatMessagePageSchema.parse(data);
 }
 
+/** Sale mở hội thoại với khách (BE `StaffOpenConversation`, 201): về chứng từ của khách hoặc không, kèm tin đầu. */
+export async function openConversation(input: {
+  customerId: string;
+  subject?: string;
+  contextKind?: string;
+  contextId?: string;
+  text?: string;
+  clientMessageId?: string;
+}) {
+  const { data } = await api.post<unknown>(CONVERSATIONS, input);
+  return chatConversationSchema.parse(data);
+}
+
 const parseMessage = (data: unknown) => chatMessageSchema.parse(data);
 const parseConversation = (data: unknown) => chatConversationSchema.parse(data);
 

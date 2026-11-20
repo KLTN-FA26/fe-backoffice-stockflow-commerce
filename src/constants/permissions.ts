@@ -87,6 +87,13 @@ export const CHAT_PERMISSIONS = {
   supervise: "chat-supervision:UPDATE",
   /** Câu trả lời mẫu (S23, S24; seed: SALES_STAFF, SALES_MANAGER, SYSTEM_ADMIN). */
   cannedRead: "chat-canned-responses:READ",
+  /** Màn quản lý câu mẫu (BE `CannedResponseController`: VIEW_PAGE, READ, CREATE, UPDATE, DELETE). */
+  cannedViewPage: "chat-canned-responses:VIEW_PAGE",
+  cannedCreate: "chat-canned-responses:CREATE",
+  cannedUpdate: "chat-canned-responses:UPDATE",
+  cannedDelete: "chat-canned-responses:DELETE",
+  /** Báo cáo theo Sale (`GET /chat/reports/agents`, `ChatReportController`): chỉ người giám sát. */
+  superviseRead: "chat-supervision:READ",
 } as const;
 
 /**

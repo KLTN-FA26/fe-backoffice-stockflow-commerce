@@ -357,7 +357,7 @@ describe("S21 / S23 / S24 — tìm kiếm, câu trả lời mẫu", () => {
   it("mẫu dùng chung; xem trước điền {customerName} {agentName}", async () => {
     const list = await listCannedResponses();
     expect(list.map((r) => [r.title, r.shared])).toEqual([["Chào khách", true]]);
-    expect(await listCannedResponses("không có")).toEqual([]);
+    expect(await listCannedResponses({ q: "không có" })).toEqual([]);
     const preview = await previewCannedResponse({ id: S.tsm, cannedResponseId: S.cannedGreeting });
     expect(preview.text).toBe(
       "Chào Công ty CP Trà Sữa Mây, em là Trần Minh Quang bên StockFlow. Em có thể hỗ trợ gì cho anh/chị ạ?",

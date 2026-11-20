@@ -8,6 +8,8 @@ import { api } from "@/lib/api/client";
 
 import {
   cannedPreviewSchema,
+  cannedResponseSchema,
+  chatAgentsReportSchema,
   cannedResponseListSchema,
   chatAgentListSchema,
   chatConversationSchema,
@@ -68,13 +70,60 @@ export async function getStaffUnread(signal?: AbortSignal) {
   return chatStaffUnreadSchema.parse(data);
 }
 
-/** S24: câu trả lời mẫu (dùng chung trước). */
-export async function listCannedResponses(q?: string, signal?: AbortSignal) {
-  const { data } = await api.get<unknown>("/chat/canned-responses", {
-    params: q ? { q } : {},
+const CANNED = "/chat/canned-responses";
+
+/** S24: câu trả lời mẫu (dùng chung trước); `q` tìm tiêu đề, nội dung, phím tắt; `category` lọc nhóm. */
+export async function listCannedResponses(
+  filter: { q?: string; category?: string } = {},
+  signal?: AbortSignal,
+) {
+  const params: Record<string, string> = {};
+  if (filter.q) params.q = filter.q;
+  if (filter.category) params.category = filter.category;
+  const { data } = await api.get<unknown>(CANNED, { params, signal });
+  return cannedResponseListSchema.parse(data);
+}
+
+/** Nội dung ghi một câu mẫu (BE `ChatRequests.CannedResponse`); `version` = bản đã đọc, khi sửa. */
+export interface CannedResponseDraft {
+  title: string;
+  body: string;
+  shortcut?: string;
+  category?: string;
+  shared?: boolean;
+  version?: number;
+}
+
+export async function createCannedResponse(draft: CannedResponseDraft) {
+  const { data } = await api.post<unknown>(CANNED, draft);
+  return cannedResponseSchema.parse(data);
+}
+
+export async function updateCannedResponse(input: { id: string } & CannedResponseDraft) {
+  const { id, ...draft } = input;
+  const { data } = await api.put<unknown>(`${CANNED}/${encodeURIComponent(id)}`, draft);
+  return cannedResponseSchema.parse(data);
+}
+
+/** BE lưu trữ (không xoá hẳn), phím tắt được dùng lại. */
+export async function deleteCannedResponse(input: { id: string }) {
+  await api.delete<unknown>(`${CANNED}/${encodeURIComponent(input.id)}`);
+}
+
+/** Báo cáo theo Sale (`chat-supervision:READ`): hội thoại mở trong `from`..`to` (ngày, gồm cả hai đầu, tối đa 366). */
+export async function getAgentsReport(
+  params: { from: string; to: string; agentId?: string },
+  signal?: AbortSignal,
+) {
+  const { data } = await api.get<unknown>("/chat/reports/agents", {
+    params: {
+      from: params.from,
+      to: params.to,
+      ...(params.agentId ? { agentId: params.agentId } : {}),
+    },
     signal,
   });
-  return cannedResponseListSchema.parse(data);
+  return chatAgentsReportSchema.parse(data);
 }
 
 /** S23: câu mẫu đã điền biến theo hội thoại này, để Sale xem và sửa trước khi gửi. */

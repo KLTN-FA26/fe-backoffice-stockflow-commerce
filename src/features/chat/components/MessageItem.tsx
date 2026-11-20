@@ -10,6 +10,7 @@ import { attachmentLink } from "../api";
 import { chatErrorMessage } from "../mutations";
 import { isInternalNote } from "../selectors";
 
+import { AttachmentPreview, isImageAttachment } from "./AttachmentPreview";
 import { ChatCardView } from "./ChatCardView";
 
 import type { QuoteGate } from "./ChatCardView";
@@ -63,14 +64,18 @@ export function MessageItem({
               message.body && <p className="text-ink-primary whitespace-pre-line">{message.body}</p>
             )}
             {message.attachments.map((file) => (
-              <button
-                key={file.id}
-                type="button"
-                className="text-accent inline-flex items-center gap-1 hover:underline"
-                onClick={() => void download(file.id)}
-              >
-                <Paperclip className="size-3.5" /> {file.fileName}
-              </button>
+              <div key={file.id} className="space-y-1">
+                {isImageAttachment(file) && (
+                  <AttachmentPreview conversationId={message.conversationId} file={file} />
+                )}
+                <button
+                  type="button"
+                  className="text-accent inline-flex items-center gap-1 hover:underline"
+                  onClick={() => void download(file.id)}
+                >
+                  <Paperclip className="size-3.5" /> {file.fileName}
+                </button>
+              </div>
             ))}
           </>
         )}

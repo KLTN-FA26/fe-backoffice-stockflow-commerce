@@ -43,6 +43,8 @@ export const chatMessageSchema = z.object({
   contextId: omittedOrNull(z.string()),
   card: omittedOrNull(chatCardSchema),
   attachments: z.array(chatAttachmentSchema).default([]),
+  /** Nhân viên được nhắc trong ghi chú nội bộ (`ChatMessageView.mentions`); giữ lại, đừng để zod bỏ. */
+  mentions: z.array(z.string()).default([]),
   sentAt: z.string(),
   editedAt: omittedOrNull(z.string()),
   deleted: z.boolean().default(false),
@@ -175,14 +177,71 @@ export const cannedResponseSchema = z.object({
   shortcut: omittedOrNull(z.string()),
   category: omittedOrNull(z.string()),
   shared: z.boolean().default(false),
+  /** Chủ sở hữu (mẫu dùng chung thì không có). */
+  ownerId: omittedOrNull(z.string()),
+  /** Khoá lạc quan: gửi lại khi sửa. */
+  version: z.number().int().default(0),
 });
 export const cannedResponseListSchema = z.array(cannedResponseSchema);
+
+/**
+ * Form câu mẫu — luật của BE `CannedResponse`: tiêu đề ≤ 200, nội dung ≤ 4000 (cắt khoảng trắng đầu / cuối), phím tắt
+ * 1–32 ký tự a-z 0-9 `-` `_` bắt đầu bằng chữ hoặc số, nhóm ≤ 64.
+ */
+export const CANNED_TITLE_MAX = 200;
+export const CANNED_BODY_MAX = 4000;
+export const CANNED_CATEGORY_MAX = 64;
+export const cannedResponseInputSchema = z.object({
+  title: z
+    .string()
+    .trim()
+    .min(1, "Nhập tiêu đề.")
+    .max(CANNED_TITLE_MAX, `Tiêu đề tối đa ${CANNED_TITLE_MAX} ký tự.`),
+  body: z
+    .string()
+    .trim()
+    .min(1, "Nhập nội dung.")
+    .max(CANNED_BODY_MAX, `Nội dung tối đa ${CANNED_BODY_MAX} ký tự.`),
+  shortcut: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .regex(
+      /^([a-z0-9][a-z0-9_-]{0,31})?$/,
+      "Phím tắt gồm 1–32 chữ thường, số, '-' hoặc '_', bắt đầu bằng chữ hoặc số.",
+    ),
+  category: z.string().trim().max(CANNED_CATEGORY_MAX, `Nhóm tối đa ${CANNED_CATEGORY_MAX} ký tự.`),
+  shared: z.boolean(),
+});
+export type CannedResponseInput = z.infer<typeof cannedResponseInputSchema>;
 
 /** S23 `CannedResponses.Rendered`: câu mẫu đã điền biến của hội thoại ({customerName}, {quoteCode}…). */
 export const cannedPreviewSchema = z.object({
   cannedResponseId: z.string(),
   conversationId: z.string(),
   text: z.string(),
+});
+
+/** Một dòng báo cáo của Sale, hoặc dòng tổng (`ChatReports.AgentFigures`); trung bình null khi chưa có dữ liệu. */
+export const agentFiguresSchema = z.object({
+  agentId: omittedOrNull(z.string()),
+  agentName: omittedOrNull(z.string()),
+  conversations: z.number().int().default(0),
+  answered: z.number().int().default(0),
+  averageFirstResponseMinutes: omittedOrNull(z.number()),
+  firstResponsesOverdue: z.number().int().default(0),
+  resolved: z.number().int().default(0),
+  averageResolutionHours: omittedOrNull(z.number()),
+  csatCount: z.number().int().default(0),
+  csatAverage: omittedOrNull(z.number()),
+  /** Khoá "1".."5" → số đánh giá. */
+  csatDistribution: z.record(z.string(), z.number().int()).default({}),
+});
+export const chatAgentsReportSchema = z.object({
+  from: z.string(),
+  to: z.string(),
+  total: agentFiguresSchema,
+  agents: z.array(agentFiguresSchema).default([]),
 });
 
 export type ChatCard = z.infer<typeof chatCardSchema>;
@@ -194,3 +253,5 @@ export type ChatAgent = z.infer<typeof chatAgentSchema>;
 export type ChatSearchHit = z.infer<typeof chatSearchHitSchema>;
 export type ChatStaffUnread = z.infer<typeof chatStaffUnreadSchema>;
 export type CannedResponse = z.infer<typeof cannedResponseSchema>;
+export type AgentFigures = z.infer<typeof agentFiguresSchema>;
+export type ChatAgentsReport = z.infer<typeof chatAgentsReportSchema>;

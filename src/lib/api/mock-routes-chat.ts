@@ -34,6 +34,7 @@ import {
   messageView,
   postMessage,
 } from "./mock-chat-store";
+import { registerChatExtraRoutes } from "./mock-chat-extras";
 import { registerChatToolRoutes } from "./mock-chat-tools";
 import { bodyOf, ok, pageOf, queryOf, text } from "./mock-route-utils";
 
@@ -402,4 +403,5 @@ export function registerChatMockRoutes(): void {
   registerMockRoute("POST", `${CONV}/assignment`, assign);
   registerMockRoute("POST", `${CONV}/status`, changeStatus);
   registerChatToolRoutes();
+  registerChatExtraRoutes();
 }

@@ -176,3 +176,37 @@ export function attachableDocuments(
 export function isInternalNote(message: Pick<ChatMessage, "kind" | "visibility">): boolean {
   return message.kind === "INTERNAL_NOTE" || message.visibility === "STAFF";
 }
+
+/** BE `ChatReports.MAX_DAYS`: `to` không quá `from` + 366 ngày. */
+export const REPORT_MAX_DAYS = 366;
+const REPORT_DEFAULT_DAYS = 30;
+const DAY_MS = 86_400_000;
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+const dayNumber = (iso: string) => Date.parse(`${iso}T00:00:00Z`) / DAY_MS;
+const dayIso = (day: number) => new Date(day * DAY_MS).toISOString().slice(0, 10);
+
+/** Khoảng mặc định của báo cáo: 30 ngày gần nhất tính tới hôm nay (giờ Việt Nam), cả hai đầu. */
+export function defaultReportRange(now: Date = new Date()): { from: string; to: string } {
+  const today = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Ho_Chi_Minh" }).format(now);
+  return { from: dayIso(dayNumber(today) - (REPORT_DEFAULT_DAYS - 1)), to: today };
+}
+
+/** Câu lỗi cho khoảng ngày không hợp lệ (BE trả 400 `refusal.chat.reportPeriod`); `null` = gọi được. */
+export function reportRangeError(from: string, to: string): string | null {
+  if (!ISO_DAY.test(from) || !ISO_DAY.test(to)) return "Chọn đủ ngày bắt đầu và ngày kết thúc.";
+  if (dayNumber(to) < dayNumber(from)) return "Ngày kết thúc phải sau hoặc bằng ngày bắt đầu.";
+  if (dayNumber(to) - dayNumber(from) > REPORT_MAX_DAYS) {
+    return `Khoảng ngày tối đa ${REPORT_MAX_DAYS} ngày.`;
+  }
+  return null;
+}
+
+/** Tỉ lệ (0–1) từng mức sao 1–5 trong phân bố CSAT; không có đánh giá → toàn 0. */
+export function csatShares(
+  distribution: Record<string, number>,
+): { star: number; count: number; share: number }[] {
+  const counts = [1, 2, 3, 4, 5].map((star) => ({ star, count: distribution[String(star)] ?? 0 }));
+  const total = counts.reduce((sum, row) => sum + row.count, 0);
+  return counts.map((row) => ({ ...row, share: total === 0 ? 0 : row.count / total }));
+}
