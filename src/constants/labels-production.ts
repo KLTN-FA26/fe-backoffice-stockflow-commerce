@@ -119,7 +119,6 @@ export const PRODUCTION_LABELS = {
   },
   order: {
     pageTitle: "Đơn sản xuất",
-    createPageTitle: "Lập Đơn sản xuất",
     noun: "Đơn sản xuất",
     searchPlaceholder: "Tìm trong trang theo mã Đơn sản xuất hoặc SKU",
     drawUp: "Lập Đơn sản xuất",
@@ -292,8 +291,6 @@ export const PRODUCTION_LABELS = {
   },
   drawUp: {
     title: "Đợt giao còn thiếu",
-    description:
-      "Đợt giao của đơn bán đã ký hợp đồng còn thiếu thùng mà chưa có Đơn sản xuất phủ đủ. Chọn đợt để lập Đơn sản xuất — hệ thống tự điền dòng, kho nhận, ngày cần hàng và cờ duyệt mẫu.",
     empty: "Không có đợt giao nào còn thiếu.",
     truncated: "Danh sách đã bị cắt ở giới hạn — thu hẹp bộ lọc để xem phần còn lại.",
     orderNumber: "Đơn bán",
@@ -310,7 +307,6 @@ export const PRODUCTION_LABELS = {
     producer: "Đơn vị sản xuất",
     submit: "Lập đơn nháp",
     noProducers: "Chưa có đơn vị sản xuất đang dùng — thêm ở Danh mục đơn vị sản xuất.",
-    refresh: "Làm mới",
   },
   sample: {
     title: "Vòng mẫu in",
@@ -366,15 +362,23 @@ export const PRODUCTION_LABELS = {
   },
   schedule: {
     pageTitle: "Lịch sản xuất",
-    description:
-      "Đơn sản xuất đang mở xếp theo ngày cần hàng, kèm cờ trễ; bên dưới là đợt giao còn thiếu chưa có Đơn sản xuất (docs 17 §4.12).",
+    searchPlaceholder: "Tìm theo mã Đơn sản xuất, đơn bán, đơn vị, kho, SKU…",
+    summarySearch: "Search chính",
+    summaryColumnSearch: "Search trong cột",
+    summaryColumns: "Cột hiển thị",
+    // Hai tab theo việc của Điều phối sản xuất (docs 17 §4.12 bước 47): việc phải làm trước, việc theo dõi sau
+    tabs: { batches: "Cần lập Đơn sản xuất", orders: "Đơn sản xuất đang mở" },
     producerFilter: "Đơn vị sản xuất",
     warehouseFilter: "Kho",
+    dateRange: "Khoảng ngày",
+    alertsFilter: "Cảnh báo",
     from: "Từ ngày",
     to: "Đến ngày",
     alertsOnly: "Chỉ dòng có cảnh báo",
     all: "Tất cả",
-    reset: "Đặt lại",
+    optionSearch: "Gõ để tìm…",
+    optionEmpty: "Không có lựa chọn khớp",
+    columnSearch: (column: string) => `Lọc theo ${column.toLocaleLowerCase("vi")}…`,
     ordersTitle: "Đơn sản xuất đang mở",
     // Hai loại empty tách riêng (api-conventions §8): chưa có dữ liệu ≠ lọc không ra kết quả
     ordersEmptyTitle: "Chưa có Đơn sản xuất đang mở",

@@ -115,7 +115,7 @@ export function ProductionOrderToolbar({
       actions={
         canCreate && (
           <Button asChild size="sm" className={`${TOOLBAR_ACTION_CLASS} ${TOOLBAR_PRIMARY_CLASS}`}>
-            <Link href={ADMIN_ROUTES.productionOrders.create}>
+            <Link href={ADMIN_ROUTES.productionScheduleDrawUp}>
               <Plus className="size-3.5" /> {L.drawUp}
             </Link>
           </Button>

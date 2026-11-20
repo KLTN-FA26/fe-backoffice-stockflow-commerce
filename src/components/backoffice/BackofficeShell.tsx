@@ -586,7 +586,6 @@ const DETAIL_LABEL_BY_ROUTE: Record<string, string> = {
   "/admin/products/create": "Tạo sản phẩm",
   [ADMIN_ROUTES.customers.create]: "Tạo khách hàng",
   [ADMIN_ROUTES.quotes.create]: "Tạo báo giá",
-  [ADMIN_ROUTES.productionOrders.create]: PRODUCTION_LABELS.order.createPageTitle,
   [INVENTORY_ROUTES.createAdjustment]: INVENTORY_LABELS.createAdjustment,
   [ADMIN_ROUTES.loadPlans.create]: UI_LABELS.loadPlan.create,
   [ADMIN_ROUTES.loads.waybillImport]: UI_LABELS.shipping.waybill.import.title,

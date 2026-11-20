@@ -85,6 +85,8 @@ interface DataTableProps<T> {
    * ≤ 10 dòng (mặc định chỉ cuộn nội bộ khi > 10 dòng).
    */
   stickyHeader?: boolean;
+  /** Nội dung khi không có dòng (vd EmptyState "lọc không ra") — giữ header để còn chỉnh lọc trong cột. */
+  emptyState?: ReactNode;
 }
 
 type SortDir = "asc" | "desc";
@@ -105,6 +107,7 @@ export function DataTable<T>({
   serverSorting,
   className,
   stickyHeader = false,
+  emptyState,
 }: DataTableProps<T>) {
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
@@ -279,9 +282,9 @@ export function DataTable<T>({
               <TableRow>
                 <TableCell
                   colSpan={columns.length + (selectable ? 1 : 0)}
-                  className="text-ink-tertiary py-8 text-center"
+                  className={cn("text-ink-tertiary text-center", !emptyState && "py-8")}
                 >
-                  Không có dữ liệu
+                  {emptyState ?? "Không có dữ liệu"}
                 </TableCell>
               </TableRow>
             ) : (
