@@ -35,6 +35,12 @@ export const SHARED_QUERY_ROOTS = {
    * Stock) và phần "đơn sản xuất" trên trang đơn, nên feature `production-order` invalidate qua root này.
    */
   salesOrders: "orders",
+  /**
+   * Đơn sản xuất — feature `production-order` sở hữu (`createQueryKeys("production-orders")`). Phiếu nhập
+   * (`lib/references/production-orders`) đọc Đơn sản xuất dưới root này; xác nhận phiếu đổi số thùng đã nhận và trạng
+   * thái Đơn sản xuất (docs 03 §4.1 bước 6) nên invalidate root làm mới cả hai.
+   */
+  productionOrders: "production-orders",
   /** Lịch sản xuất + đợt giao còn thiếu — lập / gửi / huỷ Đơn sản xuất đổi cả hai danh sách (docs 17 §4.12). */
   productionSchedule: "production-schedule",
   /** Cảnh báo trễ của đơn (`GET /delay-alerts`) — tự đóng / mở khi Đơn sản xuất đổi ngày hoặc trạng thái. */

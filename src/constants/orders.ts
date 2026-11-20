@@ -81,6 +81,24 @@ export const PRODUCTION_ORDER_STATUSES = [
   "CLOSED",
 ] as const;
 
+/**
+ * BR-15 (docs 03 §6): trạng thái Đơn sản xuất nhận được hàng. `SENT` / `ACCEPTED` chỉ nhận khi Đơn sản xuất **không**
+ * bật cờ duyệt mẫu in (`sampleApprovalRequired`); `SAMPLE_PENDING` luôn bị chặn. BE kiểm lại
+ * (`PRODUCTION_ORDER_NOT_RECEIVABLE`).
+ */
+export const RECEIVABLE_PRODUCTION_ORDER_STATUSES = [
+  "IN_PRODUCTION",
+  "PARTIALLY_RECEIVED",
+  "SENT",
+  "ACCEPTED",
+] as const satisfies readonly ProductionOrderStatus[];
+
+/** BR-15: hai trạng thái chỉ nhận được khi Đơn sản xuất không chờ khách duyệt mẫu in. */
+export const SAMPLE_GATED_PRODUCTION_ORDER_STATUSES = [
+  "SENT",
+  "ACCEPTED",
+] as const satisfies readonly ProductionOrderStatus[];
+
 /** Chuỗi nguyên văn docs 17 §5.3 — tra tone ở `lib/status-map.ts`. */
 export const PRODUCTION_ORDER_STATUS_DISPLAY = {
   DRAFT: "Draft",

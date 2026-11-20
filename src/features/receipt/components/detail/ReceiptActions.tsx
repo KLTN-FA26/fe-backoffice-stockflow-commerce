@@ -34,13 +34,25 @@ const BUTTON_BASE =
  * Card thao tác cột phải: trạng thái + nút "Xác nhận nhập kho" / "Huỷ phiếu" theo `allowedReceiptActions`
  * (không rải if/else). Mọi thao tác qua ConfirmDialog; đang chạy → khoá nút, chặn bấm hai lần.
  */
-export function ReceiptActions({ receipt }: { receipt: GoodsReceipt }) {
+export function ReceiptActions({
+  receipt,
+  countDirty = false,
+}: {
+  receipt: GoodsReceipt;
+  /** Form kiểm đếm còn thay đổi chưa lưu → khoá "Xác nhận nhập kho". */
+  countDirty?: boolean;
+}) {
   const can = usePermissionChecker();
   const confirm = useConfirmGoodsReceipt();
   const cancel = useCancelGoodsReceipt();
   const [dialog, setDialog] = useState<ReceiptActionCode | null>(null);
   const actions = allowedReceiptActions(
-    { status: receipt.status, lineCount: receipt.lines.length, receiptType: receipt.receiptType },
+    {
+      status: receipt.status,
+      lineCount: receipt.lines.length,
+      receiptType: receipt.receiptType,
+      countDirty,
+    },
     can,
   );
   const pending = confirm.isPending || cancel.isPending;
@@ -59,7 +71,9 @@ export function ReceiptActions({ receipt }: { receipt: GoodsReceipt }) {
             <div key={action.code}>
               <Button
                 type="button"
-                variant="outline"
+                // Nút chính dùng variant default: `outline` có `dark:bg-input/30` đè `bg-brand` ở dark mode → chữ
+                // ink-inverse nằm trên nền tối mờ, gần như vô hình
+                variant={action.destructive ? "outline" : "default"}
                 size="sm"
                 disabled={pending || !!disabledReason}
                 onClick={() => setDialog(action.code)}

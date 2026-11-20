@@ -6,7 +6,14 @@
  * UI-only — Backend phải re-check (GoodsReceipt aggregate + @RequiresPermission).
  */
 
-import { GOODS_RECEIPT_PERMISSIONS, RECEIPT_STATUS, RECEIPT_TYPE, UI_LABELS } from "@/constants";
+import {
+  GOODS_RECEIPT_PERMISSIONS,
+  PRODUCTION_ORDER_PERMISSIONS,
+  RECEIPT_COUNT_LABELS,
+  RECEIPT_STATUS,
+  RECEIPT_TYPE,
+  UI_LABELS,
+} from "@/constants";
 import { RECEIPT_TRANSITIONS } from "@/lib/domain/lifecycle";
 
 import type { ReceiptStatus, ReceiptTypeApi } from "@/constants";
@@ -34,6 +41,8 @@ export interface ReceiptGateState {
   status: ReceiptStatus;
   lineCount: number;
   receiptType: ReceiptTypeApi;
+  /** Form kiểm đếm còn thay đổi chưa lưu — xác nhận lúc này sẽ chốt bản đếm cũ. */
+  countDirty?: boolean;
 }
 
 export interface AllowedReceiptAction {
@@ -81,11 +90,44 @@ export function allowedReceiptActions(
       action.fromStatuses.includes(receipt.status) &&
       RECEIPT_TRANSITIONS[receipt.status].includes(action.targetStatus) &&
       action.permissions.every(can),
-  ).map((action) =>
-    action.requiresLines && receipt.lineCount === 0
-      ? { action, disabledReason: UI_LABELS.receipt.disabledReason.noLines }
-      : { action },
-  );
+  ).map((action) => {
+    if (action.requiresLines && receipt.lineCount === 0)
+      return { action, disabledReason: UI_LABELS.receipt.disabledReason.noLines };
+    if (action.code === "confirm" && receipt.countDirty)
+      return { action, disabledReason: RECEIPT_COUNT_LABELS.count.dirtyBlocksConfirm };
+    return { action };
+  });
+}
+
+/** Kết quả gate của một thao tác: `null` = không hiện; có `disabledReason` = hiện nhưng khoá kèm lý do. */
+export type ReceiptGate = { disabledReason?: string } | null;
+
+/**
+ * Lập phiếu theo Đơn sản xuất (docs 03 §4.1 bước 1): cần `goods-receipts:CREATE`, và `production-orders:READ` để
+ * chọn Đơn sản xuất. Seed BE chưa cấp quyền đọc Đơn sản xuất cho NV kho → hiện nút khoá kèm lý do, không ẩn.
+ * UI-only — Backend phải re-check (BR-01, BR-15).
+ */
+export function productionReceiptCreateGate(can: (code: PermissionCode) => boolean): ReceiptGate {
+  if (!can(GOODS_RECEIPT_PERMISSIONS.create)) return null;
+  return can(PRODUCTION_ORDER_PERMISSIONS.read)
+    ? {}
+    : { disabledReason: RECEIPT_COUNT_LABELS.noProductionRead };
+}
+
+/**
+ * Kiểm đếm theo thùng (docs 03 §4.1 bước 2–5): chỉ phiếu theo Đơn sản xuất còn `Draft`, cần `goods-receipts:UPDATE`;
+ * dòng cần đếm lấy từ Đơn sản xuất nên cần thêm `production-orders:READ`. UI-only — Backend phải re-check (BR-02).
+ */
+export function receiptCountGate(
+  receipt: Pick<ReceiptGateState, "status" | "receiptType">,
+  can: (code: PermissionCode) => boolean,
+): ReceiptGate {
+  if (receipt.receiptType !== RECEIPT_TYPE.PRODUCTION) return null;
+  if (receipt.status !== RECEIPT_STATUS.DRAFT) return null;
+  if (!can(GOODS_RECEIPT_PERMISSIONS.update)) return null;
+  return can(PRODUCTION_ORDER_PERMISSIONS.read)
+    ? {}
+    : { disabledReason: RECEIPT_COUNT_LABELS.noProductionRead };
 }
 
 /** Closed / Cancelled (và mã cũ Pending Approval) — không còn chuyển tiếp, ẩn mọi nút thao tác. */

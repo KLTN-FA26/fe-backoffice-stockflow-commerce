@@ -421,6 +421,8 @@ export const TOAST_MESSAGES = {
     creditRejected: "Đã từ chối duyệt công nợ",
   },
   receipt: {
+    created: "Đã lập phiếu nhập",
+    counted: "Đã lưu kiểm đếm",
     confirmed: "Đã xác nhận nhập kho",
     cancelled: "Đã huỷ phiếu nhận",
   },

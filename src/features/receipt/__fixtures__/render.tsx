@@ -12,12 +12,23 @@ import { vi } from "vitest";
 import {
   GOODS_RECEIPT_PERMISSIONS,
   INVENTORY_ITEM_PERMISSIONS,
+  PRODUCTION_ORDER_PERMISSIONS,
   STOCK_PACKAGE_PERMISSIONS as SP,
 } from "@/constants";
 import { api } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/auth/auth-store";
 
 import type { PermissionCode } from "@/lib/auth";
+
+// jsdom thiếu ResizeObserver / scrollIntoView / pointer capture mà cmdk (InputCombobox) và Radix Select dùng.
+globalThis.ResizeObserver ??= class {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+};
+Element.prototype.scrollIntoView ??= () => {};
+Element.prototype.hasPointerCapture ??= () => false;
+Element.prototype.releasePointerCapture ??= () => {};
 
 const GR = GOODS_RECEIPT_PERMISSIONS;
 const GR_WORK = [GR.viewPage, GR.read, GR.create, GR.update];
@@ -29,15 +40,19 @@ export const RECEIPT_ROLE_PERMISSIONS = {
   // Seed BE: WAREHOUSE_STAFF — goods-receipts + inventory-inventory-items:READ (V20260928006000)
   // + seed V20261020000700: NV kho xem / in / in lại nhãn thùng (inventory-stock-packages VIEW_PAGE, READ, CREATE)
   warehouseStaff: [...GR_WORK, INVENTORY_ITEM_PERMISSIONS.read, SP.viewPage, SP.read, SP.create],
-  // Seed BE: WAREHOUSE_MANAGER — goods-receipts + thùng (cả UPDATE)
+  // Seed BE: WAREHOUSE_MANAGER — goods-receipts + thùng (cả UPDATE) + production-orders:READ (baseline
+  // V20261111000000) — chọn Đơn sản xuất khi lập phiếu, lấy dòng cần đếm (SCRUM-566)
   warehouseManager: [
     ...GR_WORK,
+    PRODUCTION_ORDER_PERMISSIONS.read,
     INVENTORY_ITEM_PERMISSIONS.read,
     SP.viewPage,
     SP.read,
     SP.create,
     SP.update,
   ],
+  // Seed BE: SALES_STAFF — đọc Đơn sản xuất nhưng không có goods-receipts (không lập / đếm phiếu)
+  salesStaff: [PRODUCTION_ORDER_PERMISSIONS.read],
   // Xem phiếu và thùng nhưng không in nhãn
   cartonViewer: [GR.viewPage, GR.read, SP.viewPage, SP.read],
 } satisfies Record<string, PermissionCode[]>;
