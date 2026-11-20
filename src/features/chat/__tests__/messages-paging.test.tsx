@@ -102,6 +102,39 @@ describe("khoảng hở giữa tin cũ và tin mới nhất", () => {
     ).toBe(true);
   }, 20_000);
 
+  it("trang 2 của khoảng hở lỗi → dừng tự tải, hiện lỗi + Thử lại (không lặp vô hạn)", async () => {
+    let head = 52;
+    const all = (from: number, to: number) =>
+      Array.from({ length: to - from + 1 }, (_, i) => text(from + i));
+    let sinceCalls = 0;
+    mockApi("SALES_STAFF", {
+      get: {
+        [BASE]: () => ({ ...conversation, assignedAgentId: "u-test" }),
+        [`${BASE}/messages`]: (params) => {
+          const { before, since } = params as { before?: string; since?: string };
+          if (before) return { items: all(49, 50), lastSeq: head };
+          if (since) {
+            sinceCalls += 1;
+            if (Number(since) === 50) return { items: all(51, 52), nextSince: 52, lastSeq: head };
+            throw apiError(500, "INTERNAL_ERROR");
+          }
+          return { items: all(head - 1, head), nextBefore: head - 1, lastSeq: head };
+        },
+        [`/chat/customers/${CUSTOMER_ID}/overview`]: () => overview,
+      },
+    });
+    renderScreen(<ChatConversationScreen id={CONVERSATION_ID} />, "SALES_STAFF");
+    await userEvent.click(await screen.findByRole("button", { name: "Tải tin cũ hơn" }));
+    expect(await screen.findByText("Tin số 49")).toBeInTheDocument();
+    head = 55; // the newest window slides to 54..55 → 51..53 sit in the gap
+    expect(await screen.findByRole("button", { name: "Thử lại" }, { timeout: 9000 })).toBeVisible();
+    const settled = sinceCalls;
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+    expect(sinceCalls).toBe(settled);
+    expect(sinceCalls).toBe(settled);
+    expect(settled).toBe(2); // page 1 ok + page 2 failed, nothing after
+  }, 20_000);
+
   it("tải tin cũ lỗi → hiện lỗi và nút Thử lại (không im lặng)", async () => {
     let fail = true;
     mockApi("SALES_STAFF", {

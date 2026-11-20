@@ -41,10 +41,17 @@ export function MessageList({
     ...(gap.data?.pages ?? []).map((page) => page.items),
   ]);
   const holey = slid && hasMessageGap(items);
-  const { hasNextPage: gapHasMore, isFetching: gapFetching, fetchNextPage: gapMore } = gap;
+  const {
+    hasNextPage: gapHasMore,
+    isFetching: gapFetching,
+    isError: gapFailed,
+    fetchNextPage: gapMore,
+  } = gap;
+  // A failing page 2+ keeps `hasNextPage` true and `isFetching` false: without `!gapFailed` this refires forever;
+  // the "Thử lại" button (refetch) is what retries.
   useEffect(() => {
-    if (holey && gapHasMore && !gapFetching) void gapMore();
-  }, [holey, gapHasMore, gapFetching, gapMore]);
+    if (holey && gapHasMore && !gapFetching && !gapFailed) void gapMore();
+  }, [holey, gapHasMore, gapFetching, gapFailed, gapMore]);
   const newest = items[items.length - 1];
   const { listRef, onScroll, unseen, jumpToBottom, rememberHeight } = useChatScroll(
     newest?.seq ?? 0,
