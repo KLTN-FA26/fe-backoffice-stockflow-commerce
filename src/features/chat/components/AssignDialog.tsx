@@ -6,7 +6,7 @@ import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { FORM_INPUT_CLASS, FormField } from "@/components/shared/FormField";
 import { Textarea } from "@/components/ui/textarea";
 
-import { chatErrorMessage, useAssignConversation } from "../mutations";
+import { chatErrorMessage, useAssignConversation, useChatFailure } from "../mutations";
 import { useAgents } from "../queries";
 
 /**
@@ -28,6 +28,7 @@ export function AssignDialog({
 }) {
   const agents = useAgents(open);
   const assign = useAssignConversation();
+  const describeError = useChatFailure();
   const [agentId, setAgentId] = useState("");
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -54,7 +55,7 @@ export function AssignDialog({
           onSubmit={() =>
             assign.mutate(
               { id: conversationId, agentId, note: note.trim() || undefined },
-              { onSuccess: close, onError: (failure) => setError(chatErrorMessage(failure)) },
+              { onSuccess: close, onError: (failure) => setError(describeError(failure)) },
             )
           }
         >

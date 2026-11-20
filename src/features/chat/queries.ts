@@ -1,6 +1,6 @@
 /** Chat — query key + hook. Chưa có STOMP: polling 5 giây (plan WF-02 §6). */
 
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 
 import { CHAT_BADGE_POLL_MS, CHAT_POLL_MS } from "@/constants";
 
@@ -14,6 +14,7 @@ export const chatKeys = {
   inbox: (params: InboxParams) => [...chatKeys.all, "inbox", params] as const,
   conversation: (id: string) => [...chatKeys.all, "conversation", id] as const,
   messages: (id: string) => [...chatKeys.all, "conversation", id, "messages"] as const,
+  older: (id: string) => [...chatKeys.messages(id), "older"] as const,
   overview: (customerId: string) => [...chatKeys.all, "overview", customerId] as const,
   agents: () => [...chatKeys.all, "agents"] as const,
   search: (q: string, page: number) => [...chatKeys.all, "search", q, page] as const,
@@ -80,6 +81,21 @@ export function useMessages(id: string, enabled: boolean) {
     queryFn: ({ signal }) => listMessages(id, undefined, signal),
     enabled,
     refetchInterval: CHAT_POLL_MS,
+  });
+}
+
+/**
+ * Tin cũ hơn trang mới nhất: không poll (tin cũ không đổi), chỉ chạy sau khi người dùng bấm "Tải tin cũ hơn".
+ * `anchor` = `nextBefore` của trang mới nhất lúc bấm (đóng băng, để trang mới nhất trôi tiếp không làm lệch);
+ * các trang sau theo `nextBefore` của trang trước.
+ */
+export function useOlderMessages(id: string, anchor: number | null) {
+  return useInfiniteQuery({
+    queryKey: chatKeys.older(id),
+    queryFn: ({ pageParam, signal }) => listMessages(id, pageParam, signal),
+    initialPageParam: anchor ?? 0,
+    getNextPageParam: (page) => page.nextBefore ?? undefined,
+    enabled: anchor !== null,
   });
 }
 

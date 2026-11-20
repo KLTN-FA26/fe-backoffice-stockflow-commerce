@@ -32,6 +32,9 @@ afterEach(() => {
 });
 
 const BASE = `/chat/conversations/${CONVERSATION_ID}`;
+/** `renderScreen` signs in as this user. */
+const ME = "u-test";
+const myConversation = { ...conversation, assignedAgentId: ME };
 
 function renderConversation(
   items: unknown[],
@@ -39,7 +42,7 @@ function renderConversation(
 ) {
   const api = mockApi("SALES_STAFF", {
     get: {
-      [BASE]: () => conversation,
+      [BASE]: () => myConversation,
       [`${BASE}/messages`]: () => messagePage(items),
       [`/chat/customers/${CUSTOMER_ID}/overview`]: () => overview,
     },
@@ -75,6 +78,25 @@ describe("TC-F13 phía Sale — thẻ và ghi chú", () => {
     renderConversation([quoteRequestCard([], "PENDING_REVIEW")]);
     expect(await screen.findByText("Chờ duyệt thiết kế")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Lập báo giá/ })).not.toBeInTheDocument();
+  });
+
+  it("thiết kế bị trả lại (DRAFT + returnReason) → 'Khách đang sửa thiết kế', không còn 'Chờ duyệt thiết kế'", async () => {
+    const card = quoteRequestCard([], "DRAFT");
+    renderConversation([
+      {
+        ...card,
+        card: { ...card.card, payload: { ...card.card.payload, returnReason: "Thiếu vùng cắt" } },
+      },
+    ]);
+    expect(await screen.findByText("Khách đang sửa thiết kế")).toBeInTheDocument();
+    expect(screen.getByText(/Thiếu vùng cắt/)).toBeInTheDocument();
+    expect(screen.queryByText("Chờ duyệt thiết kế")).not.toBeInTheDocument();
+  });
+
+  it("thiết kế đã xoá (ARCHIVED) → 'Thiết kế đã bị xoá', không còn 'Chờ duyệt thiết kế'", async () => {
+    renderConversation([quoteRequestCard([], "ARCHIVED")]);
+    expect(await screen.findByText("Thiết kế đã bị xoá")).toBeInTheDocument();
+    expect(screen.queryByText("Chờ duyệt thiết kế")).not.toBeInTheDocument();
   });
 
   it("ghi chú nội bộ hiện riêng, ghi rõ 'Khách không thấy'; gửi ghi chú đi /notes", async () => {
@@ -143,7 +165,7 @@ describe("vòng đời hội thoại (docs 16 §5) — 3 vai", () => {
     expect(CONVERSATION_TRANSITIONS.CLOSED).toEqual([]);
   });
   it("Sale (UPDATE): trả lời + đổi theo nextStatuses; chỉ đọc: không nút; hội thoại mới: nhận", () => {
-    const sale = staffConversationActions(parsed, () => true);
+    const sale = staffConversationActions(parsed, ME, () => true);
     expect(sale.reply).toBe(true);
     expect(sale.moves).toEqual([
       "WAITING_ON_CUSTOMER",
@@ -151,14 +173,22 @@ describe("vòng đời hội thoại (docs 16 §5) — 3 vai", () => {
       "ESCALATED",
       "RESOLVED",
     ]);
-    const viewer = staffConversationActions(parsed, (code) => code === CHAT_PERMISSIONS.read);
+    const viewer = staffConversationActions(parsed, ME, (code) => code === CHAT_PERMISSIONS.read);
     expect(viewer).toEqual({ claim: false, reply: false, note: false, moves: [] });
-    expect(staffConversationActions({ status: "QUEUED", nextStatuses: [] }, () => true).claim).toBe(
-      true,
-    );
+    expect(
+      staffConversationActions(
+        { status: "QUEUED", nextStatuses: [], assignedAgentId: null },
+        ME,
+        () => true,
+      ).claim,
+    ).toBe(true);
   });
   it("hội thoại đã kết thúc: không trả lời khách, vẫn ghi chú nội bộ (16 BR-07)", () => {
-    const closed = staffConversationActions({ status: "RESOLVED", nextStatuses: [] }, () => true);
+    const closed = staffConversationActions(
+      { status: "RESOLVED", nextStatuses: [], assignedAgentId: ME },
+      ME,
+      () => true,
+    );
     expect(closed.reply).toBe(false);
     expect(closed.note).toBe(true);
   });

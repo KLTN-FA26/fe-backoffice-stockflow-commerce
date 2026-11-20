@@ -7,7 +7,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
 
-import { chatErrorMessage, useChangeStatus, useClaimConversation } from "../mutations";
+import { useChangeStatus, useChatFailure, useClaimConversation } from "../mutations";
 
 import { AssignDialog } from "./AssignDialog";
 
@@ -23,18 +23,22 @@ export function ConversationActions({
   assignedAgentId,
   actions,
   tools,
+  blockedHint,
 }: {
   conversationId: string;
   assignedAgentId: string | null | undefined;
   actions: StaffConversationActions;
   tools: StaffConversationTools;
+  /** Không phải người phụ trách: giải thích vì sao các nút bị tắt (`notInChargeHint`). */
+  blockedHint: string | null;
 }) {
+  const failure = useChatFailure();
   const claim = useClaimConversation();
   const change = useChangeStatus();
   const [escalating, setEscalating] = useState(false);
   const [handing, setHanding] = useState(false);
   const handMode = tools.assign ? "assign" : "transfer";
-  const onError = (error: unknown) => toast.error(chatErrorMessage(error));
+  const onError = (error: unknown) => toast.error(failure(error));
   const move = (status: ChatConversationStatus, reason?: string) =>
     change.mutate(
       { id: conversationId, status, reason },
@@ -57,6 +61,11 @@ export function ConversationActions({
           {tools.assign ? "Phân công" : "Chuyển cho Sale khác"}
         </Button>
       )}
+      {blockedHint && assignedAgentId && (
+        <Button size="sm" variant="outline" disabled>
+          Chuyển cho Sale khác
+        </Button>
+      )}
       {actions.moves.map((status) => (
         <Button
           key={status}
@@ -68,6 +77,7 @@ export function ConversationActions({
           {CHAT_STATUS_LABELS[status]}
         </Button>
       ))}
+      {blockedHint && <p className="text-ink-tertiary w-full text-xs">{blockedHint}</p>}
       <ConfirmDialog
         open={escalating}
         onOpenChange={setEscalating}

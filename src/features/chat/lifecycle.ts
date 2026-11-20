@@ -39,6 +39,30 @@ export function isEnded(status: ChatConversationStatus): boolean {
   return (CHAT_ENDED_STATUSES as readonly string[]).includes(status);
 }
 
+/**
+ * Người phụ trách hội thoại hoặc người giám sát chat — BE `Conversation.requireInCharge` (409 `CHAT_NOT_ASSIGNEE`).
+ * Gate trả lời khách, đổi trạng thái, thẻ chuyển khoản, lập báo giá từ thẻ, chuyển hội thoại. UI-only.
+ */
+export function inCharge(
+  conversation: Pick<ChatConversation, "assignedAgentId">,
+  meId: string | null | undefined,
+  can: (code: PermissionCode) => boolean,
+): boolean {
+  return can(CHAT_PERMISSIONS.supervise) || (!!meId && conversation.assignedAgentId === meId);
+}
+
+/** Câu giải thích cho nút tắt vì không phải người phụ trách; `null` khi được làm. */
+export function notInChargeHint(
+  conversation: Pick<ChatConversation, "assignedAgentId" | "assignedAgentName">,
+  meId: string | null | undefined,
+  can: (code: PermissionCode) => boolean,
+): string | null {
+  if (inCharge(conversation, meId, can)) return null;
+  if (!conversation.assignedAgentId)
+    return "Hội thoại chưa có người phụ trách — hãy nhận hội thoại trước.";
+  return `Hội thoại do ${conversation.assignedAgentName ?? "người khác"} phụ trách — nhờ người giám sát chat chuyển cho bạn.`;
+}
+
 export interface StaffConversationActions {
   claim: boolean;
   reply: boolean;
@@ -47,18 +71,21 @@ export interface StaffConversationActions {
 }
 
 export function staffConversationActions(
-  conversation: Pick<ChatConversation, "status" | "nextStatuses">,
+  conversation: Pick<ChatConversation, "status" | "nextStatuses" | "assignedAgentId">,
+  meId: string | null | undefined,
   can: (code: PermissionCode) => boolean,
 ): StaffConversationActions {
   const update = can(CHAT_PERMISSIONS.update);
+  const mine = inCharge(conversation, meId, can);
   return {
     claim: update && (conversation.status === "NEW" || conversation.status === "QUEUED"),
-    reply: update && !isEnded(conversation.status),
+    reply: update && mine && !isEnded(conversation.status),
     // 16 BR-07: mọi nhân viên ghi chú nội bộ được bất kỳ lúc nào.
     note: update,
-    moves: update
-      ? conversation.nextStatuses.filter((status) => MANUAL_TARGETS.includes(status))
-      : [],
+    moves:
+      update && mine
+        ? conversation.nextStatuses.filter((status) => MANUAL_TARGETS.includes(status))
+        : [],
   };
 }
 
@@ -67,6 +94,8 @@ export interface StaffConversationTools {
   assign: boolean;
   /** Chuyển cho Sale khác: người phụ trách hoặc giám sát — BE kiểm `CHAT_NOT_ASSIGNEE`. */
   transfer: boolean;
+  /** Lập báo giá từ thẻ yêu cầu: người phụ trách hoặc giám sát, hội thoại chưa kết thúc (BE 409 `CHAT_NOT_ASSIGNEE`). */
+  createQuote: boolean;
   /** Gắn chứng từ của khách (S13): không kiểm người phụ trách, hội thoại đã đóng vẫn gắn được. */
   attach: boolean;
   /** Chèn câu trả lời mẫu vào ô trả lời khách (S23, S24). */
@@ -76,6 +105,7 @@ export interface StaffConversationTools {
 /** Công cụ quanh hội thoại — UI-only, BE kiểm lại từng lệnh. */
 export function staffConversationTools(
   conversation: Pick<ChatConversation, "status" | "assignedAgentId">,
+  meId: string | null | undefined,
   can: (code: PermissionCode) => boolean,
 ): StaffConversationTools {
   const update = can(CHAT_PERMISSIONS.update);
@@ -83,7 +113,8 @@ export function staffConversationTools(
   const assigned = !!conversation.assignedAgentId;
   return {
     assign: update && open && !assigned && can(CHAT_PERMISSIONS.supervise),
-    transfer: update && open && assigned,
+    transfer: update && open && assigned && inCharge(conversation, meId, can),
+    createQuote: update && open && inCharge(conversation, meId, can),
     attach: update,
     canned: update && open && can(CHAT_PERMISSIONS.cannedRead),
   };

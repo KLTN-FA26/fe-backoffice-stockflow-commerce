@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 
 import { CHAT_PERMISSIONS, CHAT_STATUS_LABELS, CHAT_STATUS_TONE_KEY } from "@/constants";
-import { usePermissionChecker } from "@/lib/auth";
+import { useAuthStore, usePermissionChecker } from "@/lib/auth";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
 import { Card } from "@/components/shared/Card";
@@ -12,18 +12,23 @@ import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { StatusDot } from "@/components/shared/StatusDot";
 import { Button } from "@/components/ui/button";
 
-import { staffConversationActions, staffConversationTools } from "../lifecycle";
+import {
+  isEnded,
+  notInChargeHint,
+  staffConversationActions,
+  staffConversationTools,
+} from "../lifecycle";
 import { chatErrorMessage, useMarkRead } from "../mutations";
 import { useConversation, useMessages } from "../queries";
-import { chronological } from "../selectors";
 
 import { Composer } from "./Composer";
 import { ConversationActions } from "./ConversationActions";
 import { CustomerPanel } from "./CustomerPanel";
-import { MessageItem } from "./MessageItem";
+import { MessageList } from "./MessageList";
 
 function ConversationContent({ id }: { id: string }) {
   const can = usePermissionChecker();
+  const meId = useAuthStore((state) => state.user?.userId ?? null);
   const canRead = can(CHAT_PERMISSIONS.read);
   const conversation = useConversation(id, canRead);
   const messages = useMessages(id, canRead);
@@ -52,8 +57,13 @@ function ConversationContent({ id }: { id: string }) {
       </Notice>
     );
   const data = conversation.data;
-  const actions = staffConversationActions(data, can);
-  const tools = staffConversationTools(data, can);
+  const actions = staffConversationActions(data, meId, can);
+  const tools = staffConversationTools(data, meId, can);
+  const hint = can(CHAT_PERMISSIONS.update) ? notInChargeHint(data, meId, can) : null;
+  const quoteGate = {
+    allowed: tools.createQuote,
+    hint: isEnded(data.status) ? "Hội thoại đã kết thúc." : hint,
+  };
 
   return (
     <div className="surface-soft surface-compact">
@@ -81,6 +91,7 @@ function ConversationContent({ id }: { id: string }) {
             assignedAgentId={data.assignedAgentId}
             actions={actions}
             tools={tools}
+            blockedHint={isEnded(data.status) ? null : hint}
           />
           {messages.isPending ? (
             <p className="text-ink-tertiary text-[0.8125rem]">Đang tải tin nhắn…</p>
@@ -89,17 +100,14 @@ function ConversationContent({ id }: { id: string }) {
           ) : messages.data.items.length === 0 ? (
             <p className="text-ink-tertiary text-[0.8125rem]">Chưa có tin nhắn.</p>
           ) : (
-            <ol aria-label="Tin nhắn" className="max-h-[560px] space-y-2 overflow-y-auto">
-              {chronological(messages.data.items).map((message) => (
-                <MessageItem key={message.id} message={message} />
-              ))}
-            </ol>
+            <MessageList conversationId={id} latest={messages.data} quoteGate={quoteGate} />
           )}
           <Composer
             conversationId={id}
             canReply={actions.reply}
             canNote={actions.note}
             canUseCanned={tools.canned}
+            replyBlockedHint={isEnded(data.status) ? null : hint}
           />
         </Card>
         <CustomerPanel conversation={data} canSend={actions.reply} canAttach={tools.attach} />

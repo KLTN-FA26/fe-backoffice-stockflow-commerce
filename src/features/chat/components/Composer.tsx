@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { fileTooLargeMessage, uploadFileMaxBytes } from "@/constants/upload-limits";
 
-import { chatErrorMessage, useSendAttachment, useSendNote, useSendText } from "../mutations";
+import { useChatFailure, useSendAttachment, useSendNote, useSendText } from "../mutations";
 
 import { CannedPicker } from "./CannedPicker";
 
@@ -25,13 +25,19 @@ export function Composer({
   canReply,
   canNote,
   canUseCanned = false,
+  replyBlockedHint = null,
 }: {
   conversationId: string;
   canReply: boolean;
   canNote: boolean;
   canUseCanned?: boolean;
+  /** Không phải người phụ trách: chỉ còn ghi chú nội bộ, kèm câu này. */
+  replyBlockedHint?: string | null;
 }) {
-  const [mode, setMode] = useState<Mode>(canReply ? "reply" : "note");
+  const describeError = useChatFailure();
+  const [chosen, setMode] = useState<Mode>(canReply ? "reply" : "note");
+  // Mất quyền trả lời (đổi người phụ trách) giữa chừng → rơi về ghi chú nội bộ.
+  const mode: Mode = chosen === "reply" && !canReply ? "note" : chosen;
   const [text, setText] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -50,7 +56,7 @@ export function Composer({
   };
   const options = {
     onSuccess: done,
-    onError: (failure: unknown) => setError(chatErrorMessage(failure)),
+    onError: (failure: unknown) => setError(describeError(failure)),
   };
   const submit = () => {
     const trimmed = text.trim();
@@ -104,6 +110,9 @@ export function Composer({
           />
         )}
       </div>
+      {!canReply && replyBlockedHint && (
+        <p className="text-ink-tertiary text-xs">{replyBlockedHint}</p>
+      )}
       {error && <Notice tone="danger">{error}</Notice>}
       <Textarea
         aria-label={mode === "note" ? "Ghi chú nội bộ" : "Tin nhắn cho khách"}

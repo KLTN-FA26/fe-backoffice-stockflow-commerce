@@ -12,10 +12,18 @@ import { isInternalNote } from "../selectors";
 
 import { ChatCardView } from "./ChatCardView";
 
+import type { QuoteGate } from "./ChatCardView";
+
 import type { ChatMessage } from "../schemas";
 
 /** Một tin: khách (trái), Sale / hệ thống (phải), ghi chú nội bộ nền vàng + "Khách không thấy" (16 BR-07). */
-export function MessageItem({ message }: { message: ChatMessage }) {
+export function MessageItem({
+  message,
+  quoteGate,
+}: {
+  message: ChatMessage;
+  quoteGate: QuoteGate;
+}) {
   const note = isInternalNote(message);
   const mine = message.senderType !== "CUSTOMER";
   const download = async (attachmentId: string) => {
@@ -50,7 +58,7 @@ export function MessageItem({ message }: { message: ChatMessage }) {
         ) : (
           <>
             {message.card ? (
-              <ChatCardView message={message} />
+              <ChatCardView message={message} quoteGate={quoteGate} />
             ) : (
               message.body && <p className="text-ink-primary whitespace-pre-line">{message.body}</p>
             )}

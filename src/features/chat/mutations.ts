@@ -3,8 +3,10 @@
  * (`CREATE_QUOTE`) còn tạo báo giá nháp → thêm root `quotes`. Toast lỗi do màn hình (message BE tiếng Việt).
  */
 
+import { useQueryClient } from "@tanstack/react-query";
+
 import { fileTooLargeMessage } from "@/constants/upload-limits";
-import { serverErrorMessage } from "@/lib/api/error-message";
+import { isStaleApiError, serverErrorMessage } from "@/lib/api/error-message";
 import { QUERY_ROOTS } from "@/lib/api/query-roots";
 import { createMutation } from "@/lib/api/query-factory";
 
@@ -63,5 +65,22 @@ export const usePreviewCanned = createMutation(previewCannedResponse, {
  * nói rõ giới hạn thay cho câu chung "Không thể hoàn tất yêu cầu." của BFF.
  */
 export function chatErrorMessage(error: unknown): string {
-  return serverErrorMessage(error, { PAYLOAD_TOO_LARGE: fileTooLargeMessage("chatAttachment") });
+  return serverErrorMessage(error, {
+    PAYLOAD_TOO_LARGE: fileTooLargeMessage("chatAttachment"),
+    CHAT_NOT_ASSIGNEE: "Chỉ người phụ trách hội thoại hoặc người giám sát chat làm được việc này.",
+  });
+}
+
+/** Lỗi cho biết hội thoại đã đổi người phụ trách → tải lại hội thoại (ngoài các mã chung OPTIMISTIC_LOCK, CONFLICT…). */
+export const CHAT_RELOAD_CODES = ["CHAT_NOT_ASSIGNEE"] as const;
+
+/** Lỗi của một thao tác chat → câu hiện cho người dùng; đồng thời tải lại hội thoại khi dữ liệu đã cũ. */
+export function useChatFailure(): (error: unknown) => string {
+  const queryClient = useQueryClient();
+  return (error) => {
+    if (isStaleApiError(error, CHAT_RELOAD_CODES)) {
+      void queryClient.invalidateQueries({ queryKey: chatKeys.all });
+    }
+    return chatErrorMessage(error);
+  };
 }
