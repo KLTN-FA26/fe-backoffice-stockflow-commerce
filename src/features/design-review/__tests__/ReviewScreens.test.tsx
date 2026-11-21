@@ -83,6 +83,23 @@ describe("Hàng đợi duyệt thiết kế", () => {
     expect(screen.getByRole("tab", { name: /Theo dự án/ })).toBeInTheDocument();
   });
 
+  it("cột khách hiện customerName của BE, không gọi tra khách; thiếu thì dùng tên tra theo id", async () => {
+    const api = mockApi("SALES_MANAGER", {
+      get: {
+        "/designs/review-queue": () =>
+          bePage([
+            { ...PENDING_DESIGN, customerName: "Tên từ BE" },
+            { ...PENDING_DESIGN, id: "0d-second", name: "Ly thứ hai" },
+          ]),
+        [`/customers/${CUSTOMER_ID}`]: () => ({ ...CUSTOMER, status: "ACTIVE" }),
+      },
+    });
+    renderScreen(<ReviewQueueList />, "SALES_MANAGER");
+    expect(await screen.findByText("Tên từ BE")).toBeInTheDocument();
+    expect(await screen.findByText("Cửa hàng Trà Sen")).toBeInTheDocument();
+    expect(api.get.mock.calls.filter((c) => c[0] === `/customers/${CUSTOMER_ID}`)).toHaveLength(1);
+  });
+
   it("hàng đợi trống: 'Không có thiết kế nào chờ duyệt'", async () => {
     mockApi("SALES_MANAGER", { get: { "/designs/review-queue": () => bePage([]) } });
     renderScreen(<ReviewQueueList />, "SALES_MANAGER");
@@ -108,14 +125,19 @@ describe("Màn quyết định", () => {
   it("duyệt gửi {version, approved:true} rồi về hàng đợi, không gọi lại GET /designs/{id}", async () => {
     const success = vi.spyOn(toast, "success").mockImplementation(() => undefined);
     const api = openDetail("SALES_MANAGER", {
-      [reviewUrl]: () => ({ ...PENDING_DESIGN, status: "APPROVED", version: 8 }),
+      [reviewUrl]: () => ({
+        ...PENDING_DESIGN,
+        status: "APPROVED",
+        version: 8,
+        customerSku: "KH-LY-0001",
+      }),
     });
     const user = userEvent.setup();
     expect(await screen.findByText("Màu in thật có thể khác màn hình.")).toBeInTheDocument();
     await confirmApprove(user);
     await waitFor(() => expect(push).toHaveBeenCalledWith("/admin/designs/review-queue"));
     expect(api.post).toHaveBeenCalledWith(reviewUrl, { version: 7, approved: true });
-    expect(success).toHaveBeenCalledWith("Đã duyệt — đã sinh SKU riêng");
+    expect(success).toHaveBeenCalledWith("Đã duyệt — SKU riêng KH-LY-0001");
     expect(detailGets(api)).toBe(1);
   });
 
@@ -220,16 +242,23 @@ describe("Màn quyết định", () => {
     expect(push).not.toHaveBeenCalled();
   });
 
-  it("409 DESIGN_FILES_OUTDATED → hiện gợi ý trả lại và mở hộp trả lại", async () => {
+  it("409 DESIGN_FILES_OUTDATED → hiện message của BE và mở hộp trả lại", async () => {
     openDetail("SALES_MANAGER", {
       [reviewUrl]: () => {
-        throw apiError(409, "DESIGN_FILES_OUTDATED", undefined, "Hãy xuất lại bộ file…");
+        throw apiError(
+          409,
+          "DESIGN_FILES_OUTDATED",
+          undefined,
+          "Bộ file in của thiết kế này được xuất theo cấu hình in cũ.",
+        );
       },
     });
     const user = userEvent.setup();
     await confirmApprove(user);
     const dialog = await screen.findByRole("dialog", { name: "Trả lại thiết kế cho khách" });
-    expect(within(dialog).getByText(/File khách gửi không còn khớp bố cục/)).toBeInTheDocument();
+    expect(
+      within(dialog).getByText("Bộ file in của thiết kế này được xuất theo cấu hình in cũ."),
+    ).toBeInTheDocument();
     expect(within(dialog).getByLabelText(/Lý do trả lại/)).toBeInTheDocument();
   });
 

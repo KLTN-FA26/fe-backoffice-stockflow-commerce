@@ -134,7 +134,7 @@ describe("Chi tiết vòng duyệt", () => {
           designs: [
             {
               designId: D1,
-              design: design(D1, "Ly A", { status: "APPROVED" }),
+              design: design(D1, "Ly A", { status: "APPROVED", customerSku: "KH-LY-A" }),
               outcome: "APPROVED",
             },
             {
@@ -163,7 +163,8 @@ describe("Chi tiết vòng duyệt", () => {
       expect(screen.queryByRole("button", { name: /Duyệt tất cả/ })).not.toBeInTheDocument(),
     );
     expect(api.get.mock.calls.filter((c) => c[0] === roundUrl)).toHaveLength(1);
-    expect(screen.getByRole("region", { name: "Kết quả duyệt tất cả" })).toBeInTheDocument();
+    const result = screen.getByRole("region", { name: "Kết quả duyệt tất cả" });
+    expect(within(result).getByText("Đã duyệt — SKU riêng KH-LY-A")).toBeInTheDocument();
   });
 
   it("một thiết kế NOT_APPROVED → dòng đó hiện message, thẻ vẫn 'Đang chờ', nút vẫn bật với 1 thiết kế", async () => {

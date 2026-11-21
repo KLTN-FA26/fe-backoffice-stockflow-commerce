@@ -44,10 +44,15 @@ export function useDecideDesign({ roundId }: { roundId?: string | null } = {}) {
 
   const mutation = useMutation<Design, ApiError, DecideDesignInput>({
     mutationFn: decideDesign,
-    onSuccess: (_design, input) => {
+    onSuccess: (design, input) => {
       forget(input.id);
-      // SKU riêng chưa đọc được ở BO (DesignDraftResponse không có customerSku — chờ BE-2).
-      toast.success(input.approved ? DESIGN_REVIEW_LABELS.approved : DESIGN_REVIEW_LABELS.returned);
+      if (!input.approved) toast.success(DESIGN_REVIEW_LABELS.returned);
+      else
+        toast.success(
+          design.customerSku
+            ? `${DESIGN_REVIEW_LABELS.approvedWithSku} ${design.customerSku}`
+            : DESIGN_REVIEW_LABELS.approved,
+        );
     },
     onError: (error, input) => {
       if (isUncertainOutcome(error)) {

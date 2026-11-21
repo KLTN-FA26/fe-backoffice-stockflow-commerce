@@ -56,7 +56,8 @@ export function reviewQueueColumns(now: Date, onRefreshPreview: () => void): Col
     {
       key: "customer",
       header: "Khách hàng",
-      cell: (row) => (row.customerId ? <CustomerName id={row.customerId} /> : DASH),
+      cell: (row) =>
+        row.customerId ? <CustomerName id={row.customerId} name={row.customerName} /> : DASH,
     },
     {
       key: "product",

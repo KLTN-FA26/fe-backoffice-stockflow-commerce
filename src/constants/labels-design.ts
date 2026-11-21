@@ -103,6 +103,7 @@ export const DESIGN_REVIEW_LABELS = {
   returnReasonLabel: "Lý do trả lại (khách sẽ thấy)",
   deciding: "Đang duyệt — có thể mất tới một phút",
   approved: "Đã duyệt — đã sinh SKU riêng",
+  approvedWithSku: "Đã duyệt — SKU riêng",
   returned: "Đã trả lại thiết kế cho khách",
   slowOutcome: "Đang xử lý lâu — đã tải lại danh sách",
   staleReload: "Đã tải lại thiết kế — xem lại bộ file rồi quyết định lại.",

@@ -12,7 +12,7 @@ import { omittedOrNull } from "@/lib/validation/primitives";
 
 /* ── DTO ─────────────────────────────────────────────────────────────── */
 
-/** `DesignDraftResponse.java:18-23`. Không có tên khách và SKU riêng (BE chưa trả). */
+/** `DesignDraftResponse.java`. `customerName` / `customerSku` (BE PR #390): SKU riêng chỉ có khi APPROVED. */
 export const designDtoSchema = z.object({
   id: z.string(),
   customerId: omittedOrNull(z.string()),
@@ -39,6 +39,8 @@ export const designDtoSchema = z.object({
   previewUrl: omittedOrNull(z.string()),
   variantName: omittedOrNull(z.string()),
   productName: omittedOrNull(z.string()),
+  customerName: omittedOrNull(z.string()),
+  customerSku: omittedOrNull(z.string()),
 });
 export const designPageSchema = bePageSchema(designDtoSchema);
 

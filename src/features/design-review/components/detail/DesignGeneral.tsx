@@ -29,7 +29,11 @@ export function DesignGeneral({ design, now }: { design: Design; now: Date }) {
           <span className="font-medium">{design.name}</span>
         </InfoRow>
         <InfoRow label="Khách hàng">
-          {design.customerId ? <CustomerName id={design.customerId} /> : "—"}
+          {design.customerId ? (
+            <CustomerName id={design.customerId} name={design.customerName} />
+          ) : (
+            "—"
+          )}
         </InfoRow>
         <InfoRow label="Sản phẩm · biến thể">
           {[design.productName, design.variantName].filter(Boolean).join(" · ") || "—"}

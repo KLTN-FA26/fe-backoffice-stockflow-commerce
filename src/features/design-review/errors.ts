@@ -1,7 +1,7 @@
 /**
  * Lỗi khi duyệt / trả lại thiết kế (BE `DesignReviewService.java:166-388`, `common/error/ErrorCode.java`). BE trả `message`
  * tiếng Việt → hiện nguyên văn (`DESIGN_PRINT_FILE_INVALID`, `CUSTOMER_SKU_SOURCE_UNAVAILABLE`, `PRINT_CONFIG_NOT_FOUND`,
- * `refusal.design.changed`); chỉ đổi câu khi câu BE viết cho khách hoặc khi FE đổi hành vi.
+ * `refusal.design.changed`); `DESIGN_FILES_OUTDATED` cũng hiện nguyên văn (BE viết cho người duyệt).
  */
 
 import { DESIGN_REVIEW_LABELS } from "@/constants";
@@ -10,9 +10,6 @@ import { ApiError } from "@/lib/api/error";
 import { serverErrorMessage } from "@/lib/api/error-message";
 
 export const DESIGN_REVIEW_ERROR_OVERRIDES: Readonly<Record<string, string>> = {
-  // Câu BE ("Hãy xuất lại bộ file…") viết cho khách.
-  DESIGN_FILES_OUTDATED:
-    "File khách gửi không còn khớp bố cục / cấu hình in hiện tại — hãy trả lại kèm lý do để khách gửi lại.",
   NOT_FOUND: `${DESIGN_REVIEW_LABELS.notFoundTitle} (đã được duyệt, trả lại hoặc khách đã xoá).`,
 };
 
