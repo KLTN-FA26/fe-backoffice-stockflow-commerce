@@ -12,6 +12,8 @@ import type { ScenePalette } from "./use-scene-palette";
 interface StockView {
   stock: ReadonlyMap<string, number | null>;
   stocked: ReadonlySet<string>;
+  /** LPN thật theo mã bin (chỉ kệ đang xem). */
+  lpns?: ReadonlyMap<string, readonly string[]> | null;
 }
 
 /**
@@ -50,7 +52,7 @@ export function ShelvesLayer({
       {shelf && (
         <>
           <Racks3D shelves={isolated} stocked={focus.stocked} {...common} />
-          <Cartons3D shelves={isolated} stock={focus.stock} palette={palette} />
+          <Cartons3D shelves={isolated} stock={focus.stock} lpns={focus.lpns} palette={palette} />
         </>
       )}
     </>

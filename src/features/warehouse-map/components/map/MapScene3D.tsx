@@ -105,7 +105,7 @@ export default function MapScene3D({
           zoneColors={colorsByZone}
           palette={palette}
           overview={focus.overviewStock}
-          focus={{ stock: focus.stock, stocked: focus.stocked }}
+          focus={{ stock: focus.stock, stocked: focus.stocked, lpns: focus.lpns }}
           onSelect={onSelect}
           onHover={setHoveredId}
         />

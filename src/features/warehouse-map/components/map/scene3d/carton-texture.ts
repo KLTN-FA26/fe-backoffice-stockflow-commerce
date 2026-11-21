@@ -135,7 +135,11 @@ function handlingMarks(ctx: CanvasRenderingContext2D, paint: Paint) {
  * keo gập xuống, nắp có đường ghép mép + băng keo, hai mặt dài in tem + ký hiệu, đáy trơn. Vẽ một lần
  * bằng canvas từ token màu; màu từng thùng (instance) nhân thêm để các thùng lệch sắc nhẹ.
  */
-export function cartonMaterials(paint: Paint): MeshStandardMaterial[] {
+export function cartonMaterials(
+  paint: Paint,
+  /** `false`: thùng sẽ dán tem LPN thật (LpnLabels3D) — bỏ tem in sẵn để không có hai tem. */
+  { shippingLabel: withLabel = true }: { shippingLabel?: boolean } = {},
+): MeshStandardMaterial[] {
   const plain = canvas((ctx) => kraft(ctx, paint));
   const end = canvas((ctx) => {
     kraft(ctx, paint);
@@ -153,7 +157,7 @@ export function cartonMaterials(paint: Paint): MeshStandardMaterial[] {
   });
   const side = canvas((ctx) => {
     kraft(ctx, paint);
-    shippingLabel(ctx, paint);
+    if (withLabel) shippingLabel(ctx, paint);
     handlingMarks(ctx, paint);
   });
   return [end, end, top, plain, side, side].map(
