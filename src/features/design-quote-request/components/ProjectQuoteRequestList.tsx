@@ -11,11 +11,12 @@ import {
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 
 import { CustomerPicker } from "@/components/backoffice/CustomerPicker";
+import { FilterSelect } from "@/components/backoffice/FilterSelect";
 import { ServerTableBody } from "@/components/backoffice/ServerTableBody";
 
 import { useCloseProjectQuoteRequest } from "../mutations";
 import { useProjectQuoteRequests } from "../queries";
-import { QUOTE_REQUEST_COPY } from "./copy";
+import { QUOTE_REQUEST_COPY, QUOTE_REQUEST_STATUS_OPTIONS } from "./copy";
 import { projectQuoteRequestColumns } from "./quote-request-columns";
 import { QuoteRequestTabs } from "./QuoteRequestTabs";
 import { useQuoteRequestFilters } from "./useQuoteRequestFilters";
@@ -23,10 +24,10 @@ import { useQuoteRequestFilters } from "./useQuoteRequestFilters";
 function ProjectQuoteRequestContent() {
   const filters = useQuoteRequestFilters(DESIGN_REVIEW_STORAGE_KEYS.projectQuoteRequestsConfig);
   const { list } = filters;
-  // BE chưa lọc được theo trạng thái (BE-3): hiện mọi trạng thái, không lọc phía client sau phân trang.
   const query = useProjectQuoteRequests({
     page: list.apiPage,
     size: list.pageSize,
+    status: filters.status,
     customerId: filters.customerId || undefined,
   });
   const close = useCloseProjectQuoteRequest();
@@ -36,7 +37,15 @@ function ProjectQuoteRequestContent() {
     <div className="surface-soft">
       <h1 className="sr-only">{COPY.title}</h1>
       <QuoteRequestTabs value="project" />
-      <div className="py-3">
+      <div className="flex flex-wrap items-end gap-4 py-3">
+        <FilterSelect
+          id="project-quote-request-status"
+          label={COPY.statusFilter}
+          allLabel={COPY.statusAll}
+          value={filters.status ?? null}
+          options={QUOTE_REQUEST_STATUS_OPTIONS}
+          onChange={filters.setStatus}
+        />
         <CustomerPicker
           idPrefix="project-quote-request"
           value={filters.customerId}
@@ -50,7 +59,7 @@ function ProjectQuoteRequestContent() {
         rowKey={(row) => row.id}
         noun="yêu cầu báo giá dự án"
         errorCopy={QUOTE_REQUEST_COPY}
-        hasFilters={filters.customerId !== ""}
+        hasFilters={filters.status !== "OPEN" || filters.customerId !== ""}
         onClearFilters={filters.clear}
         empty={{
           icon: <FolderKanban className="size-8" />,

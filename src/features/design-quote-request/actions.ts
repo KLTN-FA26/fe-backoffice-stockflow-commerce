@@ -4,6 +4,8 @@
 
 import { ADMIN_ROUTES, DESIGN_QUOTE_REQUEST_LABELS as COPY } from "@/constants";
 
+import { createQuoteFromDesignRequest, createQuoteFromProjectRequest } from "./api";
+
 import { findConversationAbout } from "@/lib/references/chat-lookup";
 
 import { toast } from "@/components/shared/Toast";
@@ -32,21 +34,13 @@ export async function openChatAbout(row: QuoteRequest, navigate: Navigate): Prom
 }
 
 /**
- * Lập báo giá từ một yêu cầu. Một thân hàm duy nhất để đổi sau: BE đã đồng ý thêm
- * `POST /design-quote-requests/{id}/quote` và `POST /design-project-quote-requests/{id}/quote` (trả báo giá nháp) —
- * khi có, thay thân hàm này bằng lời gọi đó rồi điều hướng tới báo giá vừa tạo.
- *
- * Hiện nay BE chỉ có thao tác thẻ chat `CREATE_QUOTE` (cần hội thoại chưa kết thúc): có hội thoại đang mở → vào chat
- * để bấm thẻ; không có → form báo giá tay, nhắc đóng yêu cầu sau đó.
+ * Lập báo giá từ một yêu cầu: BE tạo (hoặc trả lại) báo giá nháp và tự đóng yêu cầu → mở màn sửa báo giá đó. Không cần
+ * hội thoại chat. Một thân hàm duy nhất nên các nơi gọi không đổi.
  */
 export async function startQuoteFromRequest(row: QuoteRequest, navigate: Navigate): Promise<void> {
-  const { kind, id } = chatSubject(row);
-  const conversationId = await findConversationAbout(kind, id, { openOnly: true });
-  if (conversationId) {
-    toast.info(COPY.quoteInChat);
-    navigate(ADMIN_ROUTES.chat.detail(conversationId));
-    return;
-  }
-  toast.info(COPY.quoteReminder);
-  navigate(ADMIN_ROUTES.quotes.createForCustomer(row.customerId));
+  const quote =
+    "lines" in row
+      ? await createQuoteFromProjectRequest(row.id)
+      : await createQuoteFromDesignRequest(row.id);
+  navigate(ADMIN_ROUTES.quotes.edit(quote.id));
 }

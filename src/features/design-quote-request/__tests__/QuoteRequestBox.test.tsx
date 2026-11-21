@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { toast } from "@/components/shared/Toast";
-import { bePage, mockApi, renderScreen } from "@/test/api-screen";
+import { apiError, bePage, mockApi, renderScreen } from "@/test/api-screen";
 
 import { DesignQuoteRequestList, ProjectQuoteRequestList } from "..";
 import { quoteRequestActions } from "../lifecycle";
@@ -24,6 +24,8 @@ const DESIGN_ID = "0d000000-0000-7000-8000-000000000001";
 const PROJECT_ID = "0p000000-0000-7000-8000-000000000001";
 const CUSTOMER_ID = "0c000000-0000-7000-8000-000000000009";
 const CONVERSATION_ID = "0v000000-0000-7000-8000-000000000001";
+const QUOTE_ID = "0z000000-0000-7000-8000-000000000001";
+const PROJECT_REQUEST_ID = "0q000000-0000-7000-8000-000000000002";
 
 /** Yêu cầu của túi giấy 50 thùng; trường null đã bị BE bỏ. */
 function request(overrides: Record<string, unknown> = {}) {
@@ -170,37 +172,92 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
     expect(push).not.toHaveBeenCalled();
   });
 
-  it("Lập báo giá: có hội thoại đang mở → vào chat, chỉ tìm hội thoại chưa kết thúc", async () => {
-    const info = vi.spyOn(toast, "info").mockImplementation(() => undefined);
+  it("Lập báo giá (đơn lẻ): POST …/quote không body, mở màn sửa báo giá, tải lại danh sách", async () => {
+    const quoteUrl = `/design-quote-requests/${REQUEST_ID}/quote`;
     const api = mockApi("SALES_STAFF", {
-      get: {
-        "/design-quote-requests": () => bePage([request()]),
-        [CONVERSATIONS]: () => bePage([{ id: CONVERSATION_ID }]),
+      get: { "/design-quote-requests": () => bePage([request()]) },
+      post: { [quoteUrl]: () => ({ id: QUOTE_ID, quoteNumber: "Q-1" }) },
+    });
+    renderScreen(<DesignQuoteRequestList />, "SALES_STAFF");
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Lập báo giá" }));
+    await waitFor(() => expect(push).toHaveBeenCalledWith(`/admin/quotes/${QUOTE_ID}/edit`));
+    expect(api.post).toHaveBeenCalledWith(quoteUrl);
+    // Không còn tìm hội thoại chat để lập báo giá.
+    expect(callsTo(api.get, CONVERSATIONS)).toHaveLength(0);
+    await waitFor(() => expect(callsTo(api.get, "/design-quote-requests")).toHaveLength(2));
+  });
+
+  it("Lập báo giá (dự án): POST …/quote của API dự án rồi mở màn sửa báo giá", async () => {
+    const quoteUrl = `/design-project-quote-requests/${PROJECT_REQUEST_ID}/quote`;
+    const api = mockApi("SALES_STAFF", {
+      get: { "/design-project-quote-requests": () => bePage([projectRequest()]) },
+      post: { [quoteUrl]: () => ({ id: QUOTE_ID }) },
+    });
+    renderScreen(<ProjectQuoteRequestList />, "SALES_STAFF");
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Lập báo giá" }));
+    await waitFor(() => expect(push).toHaveBeenCalledWith(`/admin/quotes/${QUOTE_ID}/edit`));
+    expect(api.post).toHaveBeenCalledWith(quoteUrl);
+    await waitFor(() => expect(callsTo(api.get, "/design-project-quote-requests")).toHaveLength(2));
+  });
+
+  it("Lập báo giá: nút tắt trong lúc đang gọi", async () => {
+    let release: (value: { id: string }) => void = () => undefined;
+    mockApi("SALES_STAFF", {
+      get: { "/design-quote-requests": () => bePage([request()]) },
+      post: {
+        [`/design-quote-requests/${REQUEST_ID}/quote`]: () =>
+          new Promise((resolve) => {
+            release = resolve;
+          }),
       },
     });
     renderScreen(<DesignQuoteRequestList />, "SALES_STAFF");
     await userEvent.setup().click(await screen.findByRole("button", { name: "Lập báo giá" }));
-    await waitFor(() => expect(push).toHaveBeenCalledWith(`/admin/chat/${CONVERSATION_ID}`));
-    expect(info).toHaveBeenCalledWith("Bấm 'Lập báo giá' trên thẻ yêu cầu trong hội thoại");
-    const query = (callsTo(api.get, CONVERSATIONS)[0]?.[1] as { params: URLSearchParams }).params;
-    expect(query.getAll("status")).not.toContain("CLOSED");
-    expect(query.getAll("status")).toContain("ACTIVE");
+    await waitFor(() => expect(screen.getByRole("button", { name: "Lập báo giá" })).toBeDisabled());
+    release({ id: QUOTE_ID });
+    await waitFor(() => expect(push).toHaveBeenCalled());
   });
 
-  it("Lập báo giá: không có hội thoại đang mở → form báo giá tay kèm nhắc Đóng", async () => {
-    const info = vi.spyOn(toast, "info").mockImplementation(() => undefined);
+  it.each([
+    [
+      "DESIGN_NOT_APPROVED",
+      "Thiết kế chưa được duyệt hoặc chưa có SKU riêng — chưa lập báo giá được.",
+    ],
+    [
+      "DESIGN_QUOTE_REQUEST_CLOSED",
+      "Yêu cầu đã đóng. Nếu đã báo giá trong chat, mở báo giá từ hội thoại.",
+    ],
+  ])("Lập báo giá: 409 %s hiện câu riêng, không chuyển trang", async (code, message) => {
+    const error = vi.spyOn(toast, "error").mockImplementation(() => undefined);
     mockApi("SALES_STAFF", {
-      get: {
-        "/design-quote-requests": () => bePage([request()]),
-        [CONVERSATIONS]: () => bePage([]),
+      get: { "/design-quote-requests": () => bePage([request()]) },
+      post: {
+        [`/design-quote-requests/${REQUEST_ID}/quote`]: () => {
+          throw apiError(409, code, undefined, "Message tiếng Anh của BE");
+        },
+      },
+    });
+    renderScreen(<DesignQuoteRequestList />, "SALES_STAFF");
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Lập báo giá" }));
+    await waitFor(() => expect(error).toHaveBeenCalledWith(message));
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("Lập báo giá: 403 dùng câu quyền chung", async () => {
+    const error = vi.spyOn(toast, "error").mockImplementation(() => undefined);
+    mockApi("SALES_STAFF", {
+      get: { "/design-quote-requests": () => bePage([request()]) },
+      post: {
+        [`/design-quote-requests/${REQUEST_ID}/quote`]: () => {
+          throw apiError(403, "FORBIDDEN");
+        },
       },
     });
     renderScreen(<DesignQuoteRequestList />, "SALES_STAFF");
     await userEvent.setup().click(await screen.findByRole("button", { name: "Lập báo giá" }));
     await waitFor(() =>
-      expect(push).toHaveBeenCalledWith(`/admin/quotes/create?customerId=${CUSTOMER_ID}`),
+      expect(error).toHaveBeenCalledWith("Bạn không có quyền thực hiện thao tác này."),
     );
-    expect(info).toHaveBeenCalledWith("Sau khi lập báo giá, bấm 'Đóng' yêu cầu này");
   });
 
   it("?status=CLOSED gửi status=CLOSED; ?status=ALL bỏ status; ?page=2 gọi page=1", async () => {
@@ -243,15 +300,43 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
     });
   });
 
-  it("API dự án không gửi status", async () => {
+  it("API dự án gửi status=OPEN mặc định, bỏ status khi ?status=ALL", async () => {
     const api = mockApi("SALES_STAFF", {
       get: { "/design-project-quote-requests": () => bePage([projectRequest()]) },
     });
-    renderScreen(<ProjectQuoteRequestList />, "SALES_STAFF");
+    const sent = () =>
+      callsTo(api.get, "/design-project-quote-requests").map(
+        (c) => (c[1] as { params: Params }).params,
+      );
+    const open = renderScreen(<ProjectQuoteRequestList />, "SALES_STAFF");
     expect(await screen.findByText("Bộ ly Tết")).toBeInTheDocument();
-    const call = callsTo(api.get, "/design-project-quote-requests")[0]?.[1] as { params: Params };
-    expect(call.params).toEqual({ page: 0, size: expect.any(Number) });
+    expect(sent()[0]).toEqual({ page: 0, size: expect.any(Number), status: "OPEN" });
     expect(screen.getByText(/TRASEN-CUP-01/)).toBeInTheDocument();
+    open.unmount();
+    api.get.mockClear();
+    renderScreen(<ProjectQuoteRequestList />, "SALES_STAFF", "?status=ALL");
+    await screen.findByText("Bộ ly Tết");
+    expect(sent()[0]).toEqual({ page: 0, size: expect.any(Number) });
+  });
+
+  it("dự án: chọn 'Đã đóng' gửi status=CLOSED và về trang đầu", async () => {
+    const api = mockApi("SALES_STAFF", {
+      get: { "/design-project-quote-requests": () => bePage([projectRequest()]) },
+    });
+    renderScreen(<ProjectQuoteRequestList />, "SALES_STAFF", "?page=3");
+    await screen.findByText("Bộ ly Tết");
+    Element.prototype.hasPointerCapture = () => false;
+    Element.prototype.releasePointerCapture = () => undefined;
+    Element.prototype.scrollIntoView = () => undefined;
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("combobox", { name: /Trạng thái/ }));
+    await user.click(await screen.findByRole("option", { name: "Đã đóng" }));
+    await waitFor(() => {
+      const last = callsTo(api.get, "/design-project-quote-requests").at(-1)?.[1] as {
+        params: Params;
+      };
+      expect(last.params).toMatchObject({ status: "CLOSED", page: 0 });
+    });
   });
 
   it("dự án: một dòng chưa có SKU riêng thì Lập báo giá tắt", () => {

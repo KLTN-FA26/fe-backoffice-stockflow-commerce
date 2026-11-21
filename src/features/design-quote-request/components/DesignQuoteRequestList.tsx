@@ -16,17 +16,10 @@ import { ServerTableBody } from "@/components/backoffice/ServerTableBody";
 
 import { useCloseDesignQuoteRequest } from "../mutations";
 import { useDesignQuoteRequests } from "../queries";
-import { QUOTE_REQUEST_COPY } from "./copy";
+import { QUOTE_REQUEST_COPY, QUOTE_REQUEST_STATUS_OPTIONS } from "./copy";
 import { designQuoteRequestColumns } from "./quote-request-columns";
 import { QuoteRequestTabs } from "./QuoteRequestTabs";
 import { useQuoteRequestFilters } from "./useQuoteRequestFilters";
-
-import type { QuoteRequestStatus } from "../types";
-
-const STATUS_OPTIONS: readonly { value: QuoteRequestStatus; label: string }[] = [
-  { value: "OPEN", label: "Đang mở" },
-  { value: "CLOSED", label: "Đã đóng" },
-];
 
 function DesignQuoteRequestContent() {
   const filters = useQuoteRequestFilters(DESIGN_REVIEW_STORAGE_KEYS.quoteRequestsConfig);
@@ -50,7 +43,7 @@ function DesignQuoteRequestContent() {
           label={COPY.statusFilter}
           allLabel={COPY.statusAll}
           value={filters.status ?? null}
-          options={STATUS_OPTIONS}
+          options={QUOTE_REQUEST_STATUS_OPTIONS}
           onChange={filters.setStatus}
         />
         <CustomerPicker

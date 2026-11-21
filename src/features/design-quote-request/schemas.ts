@@ -59,3 +59,6 @@ export const projectQuoteRequestDtoSchema = z.object({
   lines: z.array(projectQuoteRequestLineSchema).default([]),
 });
 export const projectQuoteRequestPageSchema = bePageSchema(projectQuoteRequestDtoSchema);
+
+/** Báo giá nháp BE trả sau `…/quote` (cùng dạng `GET /quotes/{id}`); chỉ `id` cần ở đây, các trường khác bỏ qua. */
+export const createdQuoteSchema = z.object({ id: z.string() });

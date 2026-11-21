@@ -23,7 +23,7 @@ const mergeConfig = (stored: Partial<PageConfig>, fallback: PageConfig): PageCon
 
 /**
  * Bộ lọc trên URL (nuqs): `status` (mặc định `OPEN`; `ALL` = không gửi `status`), `customerId`, `page` (từ 1). Số dòng /
- * trang lưu theo trình duyệt. Đổi bộ lọc → về trang đầu. Danh sách dự án không dùng trạng thái vì BE chưa lọc được (BE-3).
+ * trang lưu theo trình duyệt. Đổi bộ lọc → về trang đầu.
  * Không dùng `useServerList`: nó đã đăng ký khoá `status` với bộ parse khác.
  */
 export function useQuoteRequestFilters(storageKey: string) {
