@@ -302,7 +302,9 @@ describe("PrintConfigSection: a save that changes only a default", () => {
     const user = userEvent.setup();
     renderSection();
     await user.click(await screen.findByRole("button", FILE_RULES_TOGGLE));
-    await user.click(screen.getByRole("radio", { name: "Chỉ các font được chọn" }));
+    const only = screen.getByRole("radio", { name: "Chỉ các font được chọn" });
+    await waitFor(() => expect(only).toBeEnabled());
+    await user.click(only);
     expect(await screen.findByRole("checkbox", { name: "Pacifico" })).toBeInTheDocument();
     const group = within(screen.getByRole("group", { name: "Danh sách font" }));
     expect(group.getAllByRole("checkbox")).toHaveLength(8);
@@ -314,7 +316,10 @@ describe("PrintConfigSection: a save that changes only a default", () => {
     const user = userEvent.setup();
     renderSection();
     await user.click(await screen.findByRole("button", FILE_RULES_TOGGLE));
-    await user.click(screen.getByRole("radio", { name: "Chỉ các font được chọn" }));
+    const only = screen.getByRole("radio", { name: "Chỉ các font được chọn" });
+    // Unavailable until GET /design-fonts answers: it starts with the list's first font.
+    await waitFor(() => expect(only).toBeEnabled());
+    await user.click(only);
     const first = await screen.findByRole("checkbox", { name: "Be Vietnam Pro" });
     expect(first).toBeChecked(); // starts with the first font, never an empty list
     await user.click(first); // untick everything

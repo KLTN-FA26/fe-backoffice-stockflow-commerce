@@ -141,7 +141,10 @@ function fontChoices(fonts: readonly { code: string; label: string }[], stored: 
   ];
 }
 
-/** "Font được dùng": every font (`null`), or only the ticked ones (never an empty list: the BE rejects it). */
+/**
+ * "Font được dùng": every font (`null`), or only the ticked ones (never an empty list: the BE rejects it). "Only" starts
+ * with the list's first font, so it stays unavailable until the list has loaded.
+ */
 function Fonts({
   control,
   disabled,
@@ -173,6 +176,7 @@ function Fonts({
                   name={name}
                   className="accent-accent size-4"
                   checked={limited === only}
+                  disabled={only && !limited && !firstFont}
                   onChange={() => field.onChange(only ? (firstFont ? [firstFont] : []) : null)}
                 />
                 {only ? TEXT.fontsOnly : TEXT.fontsAll}
@@ -191,12 +195,12 @@ function Fonts({
           error={error}
         />
       )}
-      {limited && list.isPending && (
+      {list.isPending && (
         <p role="status" className="text-ink-secondary text-xs">
           {TEXT.fontsLoading}
         </p>
       )}
-      {limited && list.isError && (
+      {list.isError && (
         <div role="alert" className="text-danger flex items-center gap-2 text-xs">
           {TEXT.fontsError}
           <Button type="button" variant="outline" size="sm" onClick={() => void list.refetch()}>
