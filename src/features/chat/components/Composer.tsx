@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { LoaderCircle, Paperclip, Send } from "lucide-react";
 
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
@@ -64,8 +64,12 @@ export function Composer({
   const [mentioned, setMentioned] = useState<Pick<ChatStaff, "id" | "name">[]>([]);
   const [items, setItems] = useState<ChatStaff[]>([]);
   const [activeId, setActiveId] = useState("");
+  const [activeDomId, setActiveDomId] = useState<string>();
   const area = useRef<HTMLTextAreaElement>(null);
-  const query = useDebouncedValue(token?.query ?? "", MENTION_DEBOUNCE_MS);
+  const picking = mode === "note" && token !== null;
+  // Reset while closed, so reopening never fetches the previous term.
+  const query = useDebouncedValue(picking ? token.query : "", MENTION_DEBOUNCE_MS);
+  const listId = `${useId()}-mentions`;
   const sendText = useSendText();
   const sendNote = useSendNote();
   const sendFile = useSendAttachment();
@@ -104,7 +108,7 @@ export function Composer({
       );
     sendText.mutate({ id: conversationId, text: trimmed, clientMessageId }, options);
   };
-  const picking = mode === "note" && token !== null;
+  const active = items.find((p) => p.id === activeId) ?? items[0];
   const pick = (person: ChatStaff) => {
     if (!token) return;
     const caret = token.at + 1 + token.query.length;
@@ -120,22 +124,24 @@ export function Composer({
       area.current?.setSelectionRange(next, next);
     });
   };
+  const syncToken = (el: HTMLTextAreaElement) => setToken(tokenAt(el.value, el.selectionStart));
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (!picking) return;
     if (event.key === "Escape") {
       event.preventDefault();
+      event.stopPropagation();
       setToken(null);
       return;
     }
     if (items.length === 0) return;
-    const index = items.findIndex((p) => p.id === activeId);
+    const index = Math.max(items.indexOf(active), 0);
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
       const step = event.key === "ArrowDown" ? 1 : -1;
-      setActiveId(items[(Math.max(index, 0) + step + items.length) % items.length].id);
+      setActiveId(items[(index + step + items.length) % items.length].id);
     } else if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
-      pick(items[Math.max(index, 0)]);
+      pick(items[index]);
     }
   };
   const canSend = !pending && (mode === "reply" ? !!text.trim() || !!file : !!text.trim());
@@ -191,6 +197,22 @@ export function Composer({
         maxLength={4000}
         rows={3}
         onKeyDown={onKeyDown}
+        // Caret moved or focus left: the "@word" under the caret may be gone.
+        onKeyUp={(event) => {
+          // Escape closed the picker on keydown: do not reopen it.
+          if (event.key !== "Escape") syncToken(event.currentTarget);
+        }}
+        onClick={(event) => syncToken(event.currentTarget)}
+        onBlur={() => setToken(null)}
+        {...(picking
+          ? {
+              role: "combobox",
+              "aria-expanded": true,
+              "aria-controls": listId,
+              "aria-autocomplete": "list" as const,
+              "aria-activedescendant": activeDomId,
+            }
+          : {})}
         onChange={(event) => {
           setText(event.target.value);
           setToken(tokenAt(event.target.value, event.target.selectionStart));
@@ -200,10 +222,12 @@ export function Composer({
       {picking && (
         <MentionPicker
           query={query}
-          activeId={activeId}
+          listId={listId}
+          activeId={active?.id ?? ""}
           onActiveChange={setActiveId}
           onPick={pick}
           onItems={setItems}
+          onActiveDomId={setActiveDomId}
         />
       )}
       <div className="flex items-center justify-between gap-2">

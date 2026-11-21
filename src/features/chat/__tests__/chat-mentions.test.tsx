@@ -42,13 +42,18 @@ const staff = [
   },
 ];
 
-function renderConversation(items: unknown[]) {
+const SECOND_ID = "22222222-2222-4222-8222-222222222222";
+const second = { ...staff[0], id: SECOND_ID, name: "Lê Thủ Kho", roleName: "Thủ kho" };
+const other = { ...staff[0], id: "33333333-3333-4333-8333-333333333333", name: "Phạm Giám Đốc" };
+
+function renderConversation(items: unknown[], directory: unknown[] = staff) {
   const api = mockApi("SALES_STAFF", {
     get: {
       [BASE]: () => ({ ...conversation, assignedAgentId: "u-test" }),
       [`${BASE}/messages`]: () => messagePage(items),
       [`/chat/customers/${conversation.customerId}/overview`]: () => overview,
-      "/chat/staff": () => staff,
+      "/chat/staff": (params: unknown) =>
+        (params as { q?: string } | undefined)?.q === "Ph" ? [other] : directory,
     },
     post: { [`${BASE}/notes`]: () => ({ ...internalNote, id: "m-new", seq: 9 }) },
   });
@@ -103,5 +108,59 @@ describe("BO-18 — @nhắc trong ghi chú nội bộ", () => {
     renderConversation([{ ...internalNote, mentions: [STAFF_ID, "u-2"] }, customerText]);
     expect(await screen.findByText("Nhắc 2 người")).toBeInTheDocument();
     expect(screen.getAllByText(/^Nhắc /)).toHaveLength(1);
+  });
+
+  it("ArrowDown một lần chọn dòng thứ hai, Enter lấy đúng dòng đó; đổi từ khoá thì Enter lấy dòng đầu đang hiện", async () => {
+    const api = renderConversation([customerText], [staff[0], second]);
+    await userEvent.click(await screen.findByRole("radio", { name: "Ghi chú nội bộ" }));
+    const box = screen.getByLabelText("Ghi chú nội bộ");
+    await userEvent.type(box, "@");
+    await screen.findByRole("option", { name: /Lê Thủ Kho/ });
+    await userEvent.keyboard("{ArrowDown}");
+    expect(screen.getByRole("option", { name: /Lê Thủ Kho/ })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    await userEvent.keyboard("{Enter}");
+    expect(box).toHaveValue("@Lê Thủ Kho ");
+    await userEvent.type(box, "và @Ph");
+    await screen.findByRole("option", { name: /Phạm Giám Đốc/ });
+    await userEvent.keyboard("{Enter}");
+    expect(box).toHaveValue("@Lê Thủ Kho và @Phạm Giám Đốc ");
+    await userEvent.type(box, "ok");
+    await userEvent.click(screen.getByRole("button", { name: /Gửi$/ }));
+    await waitFor(() =>
+      expect(api.post).toHaveBeenCalledWith(
+        `${BASE}/notes`,
+        expect.objectContaining({ mentions: [SECOND_ID, other.id] }),
+      ),
+    );
+  });
+
+  it("ô soạn có ngữ nghĩa combobox khi danh sách mở; Esc và rời ô đóng danh sách", async () => {
+    renderConversation([customerText], [staff[0], second]);
+    await userEvent.click(await screen.findByRole("radio", { name: "Ghi chú nội bộ" }));
+    const box = screen.getByLabelText("Ghi chú nội bộ");
+    expect(box).not.toHaveAttribute("role", "combobox");
+    await userEvent.type(box, "@");
+    const first = await screen.findByRole("option", { name: /Lê Kế Toán/ });
+    const list = screen.getByRole("listbox");
+    expect(box).toHaveAttribute("role", "combobox");
+    expect(box).toHaveAttribute("aria-expanded", "true");
+    expect(box).toHaveAttribute("aria-autocomplete", "list");
+    const controlled = document.getElementById(box.getAttribute("aria-controls") ?? "");
+    expect(controlled).toContainElement(list);
+    expect(box).toHaveAttribute("aria-activedescendant", first.id);
+    await userEvent.keyboard("{ArrowDown}");
+    expect(box).toHaveAttribute(
+      "aria-activedescendant",
+      screen.getByRole("option", { name: /Lê Thủ Kho/ }).id,
+    );
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    await userEvent.type(box, " @");
+    await screen.findByRole("listbox");
+    await userEvent.tab();
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
   });
 });
