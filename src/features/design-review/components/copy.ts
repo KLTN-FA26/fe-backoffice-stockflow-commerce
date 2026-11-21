@@ -2,11 +2,14 @@ import { DESIGN_REVIEW_LABELS, DESIGN_ROUND_LABELS } from "@/constants";
 
 import type { LoadErrorCopy } from "@/components/backoffice/LoadErrorState";
 
+/** BE V20261213000200: `design-designs:APPROVE` chuyển từ Quản lý bán hàng sang Điều phối sản xuất. */
+const REVIEWER_ONLY = "Chỉ Điều phối sản xuất được duyệt thiết kế của khách.";
+
 export const REVIEW_QUEUE_COPY: LoadErrorCopy = {
   pageTitle: DESIGN_REVIEW_LABELS.queueTitle,
   notFoundTitle: "Không tải được hàng đợi",
   notFoundDescription: "Hàng đợi duyệt thiết kế không tồn tại hoặc đường dẫn không hợp lệ.",
-  forbiddenDescription: "Chỉ Quản lý bán hàng được duyệt thiết kế của khách.",
+  forbiddenDescription: REVIEWER_ONLY,
   noReadDescription: "Tài khoản của bạn chưa có quyền duyệt thiết kế.",
 };
 
@@ -29,6 +32,6 @@ export const REVIEW_ROUNDS_COPY: LoadErrorCopy = {
   pageTitle: DESIGN_ROUND_LABELS.listTitle,
   notFoundTitle: DESIGN_ROUND_LABELS.notFoundTitle,
   notFoundDescription: DESIGN_ROUND_LABELS.notFoundDescription,
-  forbiddenDescription: "Chỉ Quản lý bán hàng được duyệt thiết kế của khách.",
+  forbiddenDescription: REVIEWER_ONLY,
   noReadDescription: "Tài khoản của bạn chưa có quyền duyệt thiết kế.",
 };
