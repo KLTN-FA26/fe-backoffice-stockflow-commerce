@@ -46,7 +46,8 @@ export default function MapScene3D({
   layout: WarehouseLayout;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
-  onOpenDetail: () => void;
+  /** Vắng khi xem 3D bản nháp ở chế độ sửa — thẻ tiêu điểm không có nút chi tiết. */
+  onOpenDetail?: () => void;
   controls: Omit<MapControlsProps, "zoom">;
 }) {
   const palette = useScenePalette();
