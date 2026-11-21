@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { apiError, bePage } from "@/test/api-screen";
 
@@ -121,6 +121,13 @@ describe("ReturnDetail — action gating by role", () => {
 });
 
 describe("OrderReturnsCard", () => {
+  // Giao 2026-11-14 → đồng hồ cố định trong hạn 7 ngày; không thì test hết hạn theo ngày chạy
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-16T03:00:00Z"));
+  });
+  afterEach(() => vi.useRealTimers());
+
   const card = (status: string) => (
     <OrderReturnsCard
       orderId="ord-1"
