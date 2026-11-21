@@ -36,6 +36,18 @@ describe("cartonParts — thùng carton chỉ ở bin có tồn (BR-05: theo t�
     expect(cartons(new Map([[BIN_A, null]]))).toHaveLength(6);
   });
 
+  it("có danh sách thùng thật của bin → vẽ đúng các thùng đó, mỗi thùng mang LPN của nó (tối đa vừa bin)", () => {
+    const stock = new Map([[BIN_A, 1]]);
+    const two = cartonParts(A01, stock, new Map([[BIN_A, ["LPN-1", "LPN-2"]]]));
+    expect(two.map((part) => part.lpn)).toEqual(["LPN-1", "LPN-2"]);
+    const many = Array.from({ length: 40 }, (_, i) => `LPN-${i}`);
+    expect(cartonParts(A01, stock, new Map([[BIN_A, many]]))).toHaveLength(12);
+    // Bin chưa có thùng LPN (hàng lẻ) → ước lượng theo số lượng, không gắn LPN bịa
+    const loose = cartonParts(A01, new Map([[BIN_A, 30]]), new Map([[BIN_A, []]]));
+    expect(loose).toHaveLength(3);
+    expect(loose.every((part) => part.lpn === undefined)).toBe(true);
+  });
+
   it("mặt in tem của thùng quay ra lối lấy hàng (mặt nam; kệ chỉ mở mặt bắc thì quay ngược)", () => {
     const stock = new Map([[BIN_A, 30]]);
     for (const { yaw } of cartonParts(A01, stock)) expect(Math.abs(yaw)).toBeLessThan(0.05);

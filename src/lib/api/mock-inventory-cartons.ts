@@ -17,7 +17,58 @@ export interface MockCarton {
   lotNumber: string | null;
 }
 
-const quarantined = new Set<string>();
+/**
+ * Thùng tồn đầu kỳ của seed BE (`V20261111000110` → `inventory.stock_package`): 75 thùng IN_STOCK, mỗi thùng 1 đơn
+ * vị, nằm đúng 4 vị trí có tồn của bản đồ (`stockedLocations` của mock bản đồ). Không đến từ phiếu nhận nên mock giữ
+ * riêng ở đây. Lô theo `inventory.stock_item` của seed (SOFA không theo lô → `null`); thùng ở HCM-QC01 mang tồn
+ * QUARANTINE.
+ */
+const OPENING_CARTONS = [
+  { sku: "SOFA-3S-GREY", lot: null, location: "HCM-A01-2-B", first: 1, count: 25 },
+  { sku: "SOFA-3S-GREY", lot: null, location: "HCM-A02-1-A", first: 26, count: 8 },
+  { sku: "TABLE-OAK-160", lot: "LOT-2026-03", location: "HCM-B01-1-A", first: 34, count: 12 },
+  {
+    sku: "TABLE-OAK-160",
+    lot: "LOT-2026-04",
+    location: "HCM-QC01",
+    first: 46,
+    count: 30,
+    quarantined: true,
+  },
+] as const;
+
+const openingLpn = (n: number) => `LPN-20261111-${String(n).padStart(6, "0")}`;
+
+function seedOpeningCartons(): MockCarton[] {
+  return OPENING_CARTONS.flatMap(({ sku, lot, location, first, count }) =>
+    Array.from({ length: count }, (_, i) => {
+      const lpn = openingLpn(first + i);
+      return {
+        sku,
+        lotNumber: lot,
+        pkg: {
+          id: `mock-opening-${lpn}`,
+          lpn,
+          quantity: 1,
+          receivedQty: 1,
+          nominalQty: 1,
+          status: "IN_STOCK" as const,
+          locationCode: location,
+        },
+      };
+    }),
+  );
+}
+
+const seedQuarantined = () =>
+  OPENING_CARTONS.flatMap((group) =>
+    "quarantined" in group
+      ? Array.from({ length: group.count }, (_, i) => openingLpn(group.first + i))
+      : [],
+  );
+
+let opening = seedOpeningCartons();
+const quarantined = new Set<string>(seedQuarantined());
 
 /** Nhiệm vụ cất hàng nguồn QUARANTINE_RELEASE đã mở cho một thùng (docs 20 §4.8 bước 3). */
 export interface MockReleaseTask {
@@ -29,7 +80,9 @@ export interface MockReleaseTask {
 const releases = new Map<string, MockReleaseTask>();
 
 export function resetMockCartonLedger(): void {
+  opening = seedOpeningCartons();
   quarantined.clear();
+  for (const lpn of seedQuarantined()) quarantined.add(lpn);
   releases.clear();
 }
 
@@ -62,7 +115,7 @@ export async function listMockCartons(): Promise<MockCarton[]> {
       }
     }
   }
-  return cartons;
+  return [...cartons, ...opening.filter((carton) => carton.pkg.status !== "VOID")];
 }
 
 /** BE `StockPackageRepository.findByLpn`: LPN không phân biệt hoa thường. */
