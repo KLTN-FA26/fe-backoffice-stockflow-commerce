@@ -1,7 +1,17 @@
 "use client";
 
-import { PUTAWAY_LABELS, UI_LABELS } from "@/constants";
-import { ListToolbar } from "@/components/shared/ListToolbar";
+import Link from "next/link";
+import { Route } from "lucide-react";
+
+import {
+  ADMIN_ROUTES,
+  PUTAWAY_LABELS,
+  PUTAWAY_TRIP_LABELS,
+  PUTAWAY_TRIP_PERMISSIONS,
+  UI_LABELS,
+} from "@/constants";
+import { useCan } from "@/lib/auth";
+import { ListToolbar, TOOLBAR_ACTION_CLASS } from "@/components/shared/ListToolbar";
 
 import { LOCKED_PUTAWAY_COLUMNS, PUTAWAY_DATA_COLUMNS } from "./usePutawayColumns";
 import { PutawayWarehouseSelect, warehouseLabel } from "./PutawayWarehouseSelect";
@@ -80,8 +90,24 @@ export function PutawayToolbar({
   columns: PutawayColumnsState;
   warehouses: readonly WarehouseOption[];
 }) {
+  const canTrip = useCan(PUTAWAY_TRIP_PERMISSIONS.viewPage);
+  const tripHref = state.warehouseId
+    ? `${ADMIN_ROUTES.putaway.myTrip}?warehouse=${encodeURIComponent(state.warehouseId)}`
+    : ADMIN_ROUTES.putaway.myTrip;
   return (
     <ListToolbar<string, string, PutawayColumn>
+      actions={
+        // Gom nhiều thùng lên một xe (docs 05 §4.5) — mang kho đang xem sang để mở chuyến
+        canTrip && (
+          <Link
+            href={tripHref}
+            className={`border-border-default bg-bg-surface text-ink-primary hover:bg-bg-muted inline-flex items-center border font-medium ${TOOLBAR_ACTION_CLASS}`}
+          >
+            <Route className="text-dot-info size-3.5" />
+            {PUTAWAY_TRIP_LABELS.openAction}
+          </Link>
+        )
+      }
       search={state.filters.q}
       onSearchChange={(q) => state.set({ q })}
       searchPlaceholder={L.searchPlaceholder}

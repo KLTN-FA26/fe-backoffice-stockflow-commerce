@@ -195,3 +195,112 @@ export const SLOTTING_LABELS = {
       "Không bin nào nhận → khu OVERFLOW của kho (BR-13). Cất vào bin khác gợi ý không cần lý do (BR-07).",
   },
 } as const;
+
+/** Chuyến cất hàng (docs 05 §4.5): gom nhiều thùng lên xe, đi theo lộ trình, đặt từng thùng vào bin. */
+export const PUTAWAY_TRIP_LABELS = {
+  title: "Chuyến cất hàng",
+  myTrip: "Chuyến của tôi",
+  openAction: "Chuyến cất hàng",
+  general: "Thông tin chuyến",
+  status: "Trạng thái",
+  cartonCount: "Số thùng",
+  progress: "Đã cất",
+  progressValue: (placed: number, total: number) => `${placed}/${total}`,
+  startedAt: "Bắt đầu đi",
+  lastActivity: "Hoạt động gần nhất",
+  startFrom: "Xuất phát",
+  notStarted: "Chưa đi",
+  start: {
+    title: "Mở chuyến cất hàng",
+    description:
+      "Gom nhiều thùng chờ cất lên một xe, hệ thống gán bin cho từng thùng và xếp lộ trình khi bắt đầu đi (docs 05 §4.5).",
+    warehouse: "Kho",
+    chooseWarehouse: "Chọn kho trước khi mở chuyến.",
+    submit: "Mở chuyến",
+    noPermission: "Bạn chỉ có quyền xem chuyến cất hàng.",
+  },
+  load: {
+    title: "Xếp thùng lên xe",
+    field: "Quét LPN",
+    placeholder: "Quét hoặc nhập LPN",
+    hint: "Enter để xếp thùng lên xe. Chỉ thùng chờ cất cùng kho; quét lại thùng đã có trên xe không đổi gì.",
+    depart: "Bắt đầu đi cất",
+    departHint: "Hệ thống gán bin cho từng thùng, giữ chỗ và xếp lộ trình.",
+    emptyCart: "Xếp ít nhất một thùng trước khi đi (docs 05 §5).",
+  },
+  cart: {
+    title: "Thùng trên xe",
+    empty: "Xe chưa có thùng nào — quét LPN để xếp lên.",
+    lpn: "LPN",
+    item: "SKU · lô",
+    bin: "Bin gán",
+    status: "Trạng thái",
+    unload: (lpn: string) => `Bỏ thùng ${lpn} khỏi xe`,
+    holding: "Đang giữ chỗ",
+    holdExpired: "Hết giữ chỗ — quét lại bin hoặc đổi bin",
+  },
+  route: {
+    title: "Lộ trình",
+    note: "Lộ trình chỉ để tham khảo — đi thứ tự khác vẫn được (docs 05 BR-17).",
+    stop: (sequence: number) => `Điểm ${sequence}`,
+    reassign: (lpn: string) => `Đổi bin cho ${lpn}`,
+    reassignShort: "Đổi bin",
+    noBin: "Chưa có bin",
+  },
+  place: {
+    title: "Đặt thùng vào bin",
+    bin: "Quét bin",
+    binPlaceholder: "Quét hoặc nhập mã bin",
+    binHint: "Quét bin đang đứng trước — bin khác bin gán cũng được nếu nhận được thùng.",
+    lpn: "Quét LPN",
+    lpnPlaceholder: "Quét hoặc nhập LPN",
+    lpnHint: "Quét thùng đặt vào bin vừa quét.",
+    submit: "Xác nhận đặt thùng",
+    placed: (lpn: string, bin: string) => `Đã đặt thùng ${lpn} vào ${bin}`,
+  },
+  close: {
+    action: "Đóng chuyến",
+    loadingAction: "Huỷ chuyến",
+    force: "Đóng chuyến hộ",
+    title: "Đóng chuyến cất hàng?",
+    description: (onCart: number) =>
+      onCart > 0
+        ? `${onCart} thùng còn trên xe sẽ trả về hàng chờ cất, chỗ giữ ở bin được nhả. Không hoàn tác được.`
+        : "Chuyến sẽ đóng. Không hoàn tác được.",
+    forceDescription: (onCart: number) =>
+      `Đóng chuyến bỏ dở của nhân viên khác (docs 05 §2). ${onCart} thùng còn trên xe trả về hàng chờ cất.`,
+  },
+  ended: {
+    COMPLETED: "Chuyến đã cất hết thùng.",
+    CLOSED: "Chuyến đã đóng — thùng chưa cất đã trả về hàng chờ.",
+    newTrip: "Mở chuyến mới",
+    backToList: "Về danh sách cất hàng",
+  },
+  notMine: "Chuyến của nhân viên khác — chỉ xem.",
+  readOnly: "Bạn chỉ có quyền xem chuyến cất hàng.",
+  refetching: "Đang tải lại chuyến",
+  errorCopy: {
+    pageTitle: "Chuyến cất hàng",
+    notFoundTitle: "Không tìm thấy chuyến cất hàng",
+    notFoundDescription: "Chuyến không tồn tại hoặc thuộc kho bạn không phụ trách.",
+    forbiddenDescription: "Tài khoản chưa có quyền xem chuyến cất hàng.",
+    noReadDescription:
+      "Tài khoản chưa có quyền xem chuyến cất hàng. Liên hệ quản trị để được cấp quyền.",
+  },
+} as const;
+
+/** Lỗi BE của chuyến cất hàng (`PutawayTripService`); lỗi đặt thùng dùng chung `PUTAWAY_ERROR_MESSAGES`. */
+export const PUTAWAY_TRIP_ERROR_MESSAGES = {
+  PUTAWAY_TRIP_ALREADY_OPEN:
+    "Bạn đang có một chuyến mở — mỗi người chỉ một chuyến (docs 05 BR-15).",
+  PUTAWAY_TRIP_NOT_FOUND: "Chuyến cất hàng không còn tồn tại.",
+  PUTAWAY_TRIP_NOT_YOURS: "Đây không phải chuyến của bạn.",
+  PUTAWAY_TRIP_INVALID_STATE: "Chuyến đã đổi trạng thái — đã tải lại.",
+  PUTAWAY_TRIP_EMPTY: "Xe chưa có thùng nào.",
+  PUTAWAY_TASK_ON_ANOTHER_TRIP: "Thùng đang ở trên xe của chuyến khác (docs 05 BR-15).",
+  PUTAWAY_CARTON_NOT_ON_TRIP: "Thùng không có trên xe của chuyến này.",
+  STOCK_PACKAGE_NOT_FOUND: "Không có thùng mang LPN này.",
+  PUTAWAY_TASK_NOT_FOUND: "Thùng không chờ cất (đã cất hoặc chưa ghi nhận).",
+  MOVE_ACROSS_WAREHOUSES: "Thùng thuộc kho khác kho của chuyến.",
+  LOCATION_NOT_FOUND: "Thùng chưa có vị trí trong kho.",
+} as const;

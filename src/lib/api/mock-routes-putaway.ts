@@ -20,6 +20,7 @@ import {
   suggestionsFor,
   takes,
 } from "./mock-putaway-store";
+import { tripCarrying } from "./mock-putaway-trips-store";
 import { currentActor, forbidden } from "./mock-routes-fulfillment-store";
 import { withIdempotency } from "./mock-routes-pick-lines-store";
 import {
@@ -42,7 +43,7 @@ import type { MockPutawayTask } from "./mock-putaway-store";
 const upper = (value: string | null | undefined) => (value ?? "").trim().toUpperCase();
 
 /** BE `PutawayTaskResponse` — `withSuggestions` chỉ ở chi tiết (danh sách luôn `[]`). */
-async function toResponse(task: MockPutawayTask, withSuggestions: boolean) {
+export async function toResponse(task: MockPutawayTask, withSuggestions: boolean) {
   const carton = await cartonOf(task);
   const sourceLocationCode = carton?.pkg.locationCode ?? "";
   const open = task.status === "PENDING";
@@ -130,7 +131,7 @@ function validate(lpn: string, locationCode: string): MockFieldError[] {
 }
 
 /** Luật cứng trên vị trí quét được, đúng thứ tự BE `PutawayService#putAway` (docs 05 §4.4 bước 8, BR-03/04/13). */
-async function checkTarget(task: MockPutawayTask, from: string, code: string) {
+export async function checkTarget(task: MockPutawayTask, from: string, code: string) {
   const warehouseCode = mockWarehouseCodeOf(from);
   const allBins = [...getWarehouseStore().warehouses.values()].flatMap((w) =>
     binsOfWarehouse(w.prefix),
@@ -204,6 +205,14 @@ function registerConfirm(): void {
       getWarehouseStore().stockedLocations.add(target.locationCode);
       task.status = "DONE";
       task.targetLocationCode = target.locationCode;
+      // BE: cất từ màn một thùng cũng gỡ thùng khỏi xe của chuyến đang chở nó (nhả chỗ giữ)
+      const carrying = tripCarrying(task.id);
+      if (carrying) {
+        carrying.cartons = carrying.cartons.filter((c) => c.putawayTaskId !== task.id);
+        carrying.stops = carrying.stops
+          .map((s) => ({ ...s, lpns: s.lpns.filter((l) => upper(l) !== upper(task.lpn)) }))
+          .filter((s) => s.lpns.length > 0);
+      }
       await closeReceiptIfDone(task.goodsReceiptId);
       return beOk(await toResponse(task, false));
     }),

@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "cn";
 import { Warehouse } from "lucide-react";
 
 import { PUTAWAY_LABELS } from "@/constants";
@@ -23,16 +24,25 @@ export function PutawayWarehouseSelect({
   value,
   warehouses,
   onChange,
+  widthClass = "w-56 xl:w-60",
 }: {
   value: string | null;
   warehouses: readonly WarehouseOption[];
   onChange: (warehouseId: string) => void;
+  /**
+   * Chiều rộng (mặc định cỡ ô công cụ toolbar). Truyền thay vì `className`: `cn` của dự án chỉ nối chuỗi, không gộp
+   * class Tailwind trùng thuộc tính, nên `w-full` đè `w-56` không chắc thắng.
+   */
+  widthClass?: string;
 }) {
   return (
     <FormSelect value={value ?? undefined} onValueChange={onChange}>
       <SelectTrigger
         aria-label={L.warehouse}
-        className="border-border-default bg-bg-surface text-ink-primary hover:bg-bg-muted w-60 rounded-(--control-radius) text-(length:--control-text) shadow-(--control-shadow) focus-visible:ring-0 data-[size=default]:h-(--control-h)"
+        className={cn(
+          "border-border-default bg-bg-surface text-ink-primary hover:bg-bg-muted w-56 rounded-(--control-radius) text-(length:--control-text) shadow-(--control-shadow) focus-visible:ring-0 data-[size=default]:h-(--control-h) xl:w-60",
+          widthClass,
+        )}
       >
         <Warehouse className="text-dot-info size-3.5" />
         <SelectValue placeholder={L.warehousePlaceholder} />
