@@ -157,7 +157,7 @@ describe("RefundDetail — record a refund paid outside the system (docs 15 §4.
     ).toBeInTheDocument();
   });
 
-  it("a refund refusal still uses the FE sentence when BE answers in English (WF-02 N4)", async () => {
+  it("BE-7: a refund refusal shows the BE's Vietnamese sentence; the FE one is the fallback", async () => {
     mockPaymentApi(
       ACCOUNTANT_GRANTS,
       routes(() => {
@@ -165,7 +165,7 @@ describe("RefundDetail — record a refund paid outside the system (docs 15 §4.
           409,
           "REFUND_EXCEEDS_REFUNDABLE",
           undefined,
-          "Order SO-15 has 5,000,000 still to refund",
+          "Đơn SO-15 còn 5.000.000 chưa hoàn.",
         );
       }),
     );
@@ -174,10 +174,7 @@ describe("RefundDetail — record a refund paid outside the system (docs 15 §4.
     const dialog = within(await screen.findByRole("dialog"));
     await userEvent.type(dialog.getByLabelText(/Mã tham chiếu sao kê/), "FT26313987654");
     await userEvent.click(dialog.getByRole("button", { name: "Ghi nhận đã hoàn" }));
-    expect(
-      await dialog.findByText("Số tiền vượt số còn phải hoàn của đơn. Dữ liệu đã được tải lại."),
-    ).toBeInTheDocument();
-    expect(dialog.queryByText(/still to refund/)).not.toBeInTheDocument();
+    expect(await dialog.findByText("Đơn SO-15 còn 5.000.000 chưa hoàn.")).toBeInTheDocument();
   });
 
   it("a record made wrong is voided with a reason", async () => {

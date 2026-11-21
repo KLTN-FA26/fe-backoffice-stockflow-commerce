@@ -329,18 +329,24 @@ describe("WF-02 mục 36 — ngày nhận, tổng, xuất Excel", () => {
     );
   });
 
-  it("EXPORT_TOO_LARGE hiện câu FE, không lộ câu tiếng Anh của BE", async () => {
+  it("EXPORT_TOO_LARGE shows the BE's Vietnamese sentence (BE-7); the FE sentence only when BE sends none", async () => {
     const spy = mockPaymentApi(ACCOUNTANT_GRANTS, routes());
     const base = spy.get.getMockImplementation()!;
+    let message: string | undefined = "File xuất vượt 50.000 dòng, hãy thu hẹp khoảng ngày.";
     spy.get.mockImplementation(async (path, config) => {
       if (String(path).startsWith("/payment-receipts/export"))
-        throw apiError(422, "EXPORT_TOO_LARGE", undefined, "Export has more than 50000 rows");
+        throw apiError(422, "EXPORT_TOO_LARGE", undefined, message);
       return base(path, config);
     });
     renderPaymentScreen(<ReceiptList />);
     await userEvent.click(await screen.findByRole("button", { name: "Xuất Excel" }));
+    expect(
+      await screen.findByText(/vượt 50\.000 dòng, hãy thu hẹp khoảng ngày/),
+    ).toBeInTheDocument();
+    // No message (or one that only repeats the code): fall back to the FE sentence.
+    message = undefined;
+    await userEvent.click(screen.getByRole("button", { name: "Xuất Excel" }));
     expect(await screen.findByText(/hơn 50\.000 dòng/)).toBeInTheDocument();
-    expect(screen.queryByText(/Export has more/)).not.toBeInTheDocument();
   });
 
   it("khoảng ngày ngược báo lỗi tại ô và không gọi BE", async () => {

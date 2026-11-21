@@ -1,7 +1,7 @@
 /**
  * Mock routes — đợt thanh toán và phiếu thu (BE `InstallmentController` + `PaymentReceiptController`,
  * payment module 4B-6, docs 15):
- *   GET  /installments?customerId&orderId&status&milestone&dueBefore&reached&page&size&sort
+ *   GET  /installments?customerId&orderId&status&milestone&dueBefore&reached&owing&page&size&sort
  *   GET  /installments/orders/{orderId}     đợt của một đơn + trạng thái thanh toán (§5.2)
  *   GET  /installments/{id}                 kèm các phiếu thu đã trả (cả phiếu đã huỷ)
  *   GET  /payment-receipts?…&receivedFrom&receivedTo, GET /payment-receipts/{id}
@@ -137,6 +137,7 @@ function listInstallments(config: AxiosRequestConfig) {
   const q = queryOf(config);
   const reached = q.get("reached");
   const overdue = q.get("overdue");
+  const owing = q.get("owing") === "true";
   const status = q.get("status");
   const rows = mockInstallments().filter(
     (i) =>
@@ -145,6 +146,8 @@ function listInstallments(config: AxiosRequestConfig) {
       (!status || statusOf(i) === status) &&
       (!q.get("milestone") || i.milestone === q.get("milestone")) &&
       (!q.get("dueBefore") || (i.dueDate !== null && i.dueDate < (q.get("dueBefore") ?? ""))) &&
+      // BE-5: owing = reached and still to pay (DUE / PARTIALLY_PAID).
+      (!owing || (i.reachedAt !== null && ["DUE", "PARTIALLY_PAID"].includes(statusOf(i)))) &&
       (reached === null || (i.reachedAt !== null) === (reached === "true")) &&
       (overdue === null || overdueOf(i) === (overdue === "true")),
   );

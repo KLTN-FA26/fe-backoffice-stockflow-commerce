@@ -74,12 +74,20 @@ export function serverErrorMessage(
   if (!(error instanceof ApiError)) return fallback;
   const override = overrides[error.code];
   if (override) return override;
+  return serverMessageOf(error) ?? COMMON_API_ERROR_MESSAGES[error.code] ?? fallback;
+}
+
+/**
+ * The BE's own (Vietnamese) `message` of a 4xx business error, or null when there is none worth showing: framework
+ * codes, 5xx, an empty message, or a message that only repeats the code. Callers fall back to their own sentence.
+ */
+export function serverMessageOf(error: unknown): string | null {
+  if (!(error instanceof ApiError)) return null;
   const fromServer =
     error.status >= 400 &&
     error.status < 500 &&
     !FRAMEWORK_CODES.has(error.code) &&
     error.message.trim() !== "" &&
     error.message !== error.code;
-  if (fromServer) return error.message;
-  return COMMON_API_ERROR_MESSAGES[error.code] ?? fallback;
+  return fromServer ? error.message : null;
 }

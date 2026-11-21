@@ -49,6 +49,8 @@ function pageQuery(params: ListQueryParams) {
 
 export interface ListInstallmentParams extends ListQueryParams {
   customerId?: string;
+  /** BE-16: tên khách chứa (không phân biệt hoa thường / dấu) hoặc mã số thuế chứa; > 1000 khách khớp → 400. */
+  search?: string;
   orderId?: string;
   /** BE nhận MỘT trạng thái (enum), không phải danh sách; quá hạn lọc bằng `overdue=true`. */
   status?: InstallmentApiStatus;
@@ -57,6 +59,8 @@ export interface ListInstallmentParams extends ListQueryParams {
   dueBefore?: string;
   /** true = mốc đã đến (đang đến hạn), false = còn chờ mốc. */
   reached?: boolean;
+  /** BE-5: true = đã đến mốc và còn nợ (DUE / PARTIALLY_PAID); không truyền = không lọc. */
+  owing?: boolean;
   /** true = chỉ đợt quá hạn (BE tính từ hạn trả; quá hạn không còn là trạng thái). */
   overdue?: boolean;
   /** `dueDate|seq|amount|status|createdAt[,asc|desc]` — mặc định `dueDate` tăng dần. */
@@ -69,11 +73,13 @@ export async function listInstallments(
 ): Promise<PaginatedResponse<Installment>> {
   const query = pageQuery(params);
   if (params.customerId) query.set("customerId", params.customerId);
+  if (params.search) query.set("search", params.search);
   if (params.orderId) query.set("orderId", params.orderId);
   if (params.status) query.set("status", params.status);
   if (params.milestone) query.set("milestone", params.milestone);
   if (params.dueBefore) query.set("dueBefore", params.dueBefore);
   if (params.reached !== undefined) query.set("reached", String(params.reached));
+  if (params.owing) query.set("owing", "true");
   if (params.overdue !== undefined) query.set("overdue", String(params.overdue));
   const { data } = await api.get<unknown>(INSTALLMENTS, { params: query, signal });
   return installmentPageDtoSchema.parse(data);

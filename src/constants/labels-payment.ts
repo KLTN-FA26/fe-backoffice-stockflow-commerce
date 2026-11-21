@@ -33,7 +33,10 @@ export const PAYMENT_LABELS = {
     navLabel: "Đợt thanh toán",
     pageTitle: "Đợt thanh toán",
     receivablesPreset: "Công nợ phải thu",
-    receivablesHint: "Đợt trả sau giao đã đến mốc (docs 15 §4.3)",
+    receivablesHint:
+      "Mọi đợt đã đến mốc mà chưa trả đủ: sau giao, trước giao, quá hạn, phí huỷ, phí giao thất bại",
+    customerSearch: "Tìm khách (tên hoặc mã số thuế)",
+    customerSearchTooMany: "Có quá nhiều khách khớp — gõ cụ thể hơn",
     reachedOnly: "Chỉ đợt đã đến mốc",
     overdueOnly: "Chỉ đợt quá hạn",
     dueBefore: "Hạn trả trước ngày",

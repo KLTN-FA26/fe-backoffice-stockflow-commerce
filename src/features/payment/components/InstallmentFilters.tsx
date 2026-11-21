@@ -2,10 +2,13 @@
 
 import { Landmark } from "lucide-react";
 
+import { ApiError } from "@/lib/api/error";
+
 import { INSTALLMENT_MILESTONE_LABELS, PAYMENT_LABELS } from "@/constants/labels-payment";
 import { INSTALLMENT_FILTER_STATUSES, INSTALLMENT_MILESTONES } from "@/constants/payment";
 import { CustomerName } from "@/components/backoffice/CustomerName";
 import { OrderPicker } from "@/components/backoffice/OrderPicker";
+import { SearchBar } from "@/components/shared/SearchBar";
 import { DatePicker } from "@/components/shared/DatePicker";
 import { TOOLBAR_ACTION_CLASS } from "@/components/shared/ListToolbar";
 import { Button } from "@/components/ui/button";
@@ -31,8 +34,9 @@ const MILESTONE_OPTIONS = INSTALLMENT_MILESTONES.map((value) => ({
 
 /**
  * Bộ lọc đợt thanh toán (BE `GET /installments`): trạng thái, mốc, đã đến mốc, hạn trả trước ngày;
- * đơn chọn qua ô tìm đơn (`GET /orders?search=`); khách chỉ lọc qua liên kết hoặc nút "Lọc theo khách của đơn" (kế toán
- * không có quyền tra danh bạ khách, WF-02 mục 35). Khách / đơn đang lọc hiện thành chip.
+ * đơn chọn qua ô tìm đơn (`GET /orders?search=`); khách tìm bằng ô `search=` của chính `GET /installments` (BE-16:
+ * tên hoặc mã số thuế) — không gọi danh bạ khách vì kế toán không có quyền (WF-02 mục 35). Khách / đơn đang lọc
+ * hiện thành chip.
  */
 export function InstallmentFilters({ s }: { s: InstallmentListState }) {
   // Tên khách lấy từ chính các dòng đang lọc (BE-15) — kế toán không tra được danh bạ khách.
@@ -41,8 +45,27 @@ export function InstallmentFilters({ s }: { s: InstallmentListState }) {
   const ofOrder = s.orderId
     ? s.query.data?.items.find((row) => row.orderId === s.orderId)
     : undefined;
+  // BE-16: more than 1000 customers match → 400 VALIDATION_FAILED with fieldErrors.search.
+  const searchTooBroad =
+    s.query.error instanceof ApiError &&
+    s.query.error.code === "VALIDATION_FAILED" &&
+    !!s.query.error.fieldErrors?.search;
   return (
     <div className="mb-3 flex flex-wrap items-center gap-3">
+      <div className="flex max-w-xs min-w-[200px] flex-1 flex-col gap-1">
+        <SearchBar
+          value={s.search}
+          onChange={(value) => void s.setSearch(value)}
+          placeholder={L.customerSearch}
+          aria-label={L.customerSearch}
+          className="max-w-xs"
+        />
+        {searchTooBroad && (
+          <p role="alert" className="text-danger text-[0.75rem]">
+            {L.customerSearchTooMany}
+          </p>
+        )}
+      </div>
       <Button
         type="button"
         size="sm"

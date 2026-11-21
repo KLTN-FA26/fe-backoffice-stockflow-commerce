@@ -94,10 +94,11 @@ describe("GET /installments", () => {
     const overdue = await listInstallments({ overdue: true });
     expect(overdue.items.map((i) => i.orderNumber)).toEqual(["ORD-2026-0016"]);
     expect(overdue.items.every((i) => i.overdue && (i.status as string) !== "OVERDUE")).toBe(true);
-    const receivables = await listInstallments({ milestone: "AFTER_DELIVERY", reached: true });
-    expect(receivables.items.every((i) => i.milestone === "AFTER_DELIVERY" && !!i.reachedAt)).toBe(
-      true,
-    );
+    const receivables = await listInstallments({ owing: true });
+    expect(receivables.items.length).toBeGreaterThan(0);
+    expect(
+      receivables.items.every((i) => !!i.reachedAt && ["DUE", "PARTIALLY_PAID"].includes(i.status)),
+    ).toBe(true);
     actAs(SALES);
     expect((await listInstallments({ orderId: undefined })).totalElements).toBe(all.totalElements);
   });

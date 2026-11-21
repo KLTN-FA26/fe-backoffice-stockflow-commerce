@@ -8,6 +8,8 @@ import {
   PAYMENT_STORAGE_KEYS,
 } from "@/constants/payment";
 
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
+
 import { useInstallments } from "../queries";
 import { usePagedList } from "@/hooks/use-paged-list";
 
@@ -27,6 +29,9 @@ export function useInstallmentListState(canRead: boolean) {
     "milestone",
     parseAsStringLiteral(INSTALLMENT_MILESTONES),
   );
+  const [owing, setOwing] = useQueryState("owing", parseAsBoolean);
+  const [search, setSearch] = useQueryState("search", parseAsString.withDefault(""));
+  const debouncedSearch = useDebouncedValue(search, 300);
   const [reached, setReached] = useQueryState("reached", parseAsBoolean);
   const [overdue, setOverdue] = useQueryState("overdue", parseAsBoolean);
   const [dueBefore, setDueBefore] = useQueryState("dueBefore", parseAsString.withDefault(""));
@@ -41,6 +46,8 @@ export function useInstallmentListState(canRead: boolean) {
       status: status ?? undefined,
       milestone: milestone ?? undefined,
       reached: reached ?? undefined,
+      owing: owing === true ? true : undefined,
+      search: debouncedSearch.trim() || undefined,
       overdue: overdue ?? undefined,
       dueBefore: dueBefore || undefined,
       customerId: customerId || undefined,
@@ -53,12 +60,14 @@ export function useInstallmentListState(canRead: boolean) {
     !!status ||
     !!milestone ||
     reached !== null ||
+    owing === true ||
+    !!search.trim() ||
     overdue !== null ||
     !!dueBefore ||
     !!customerId ||
     !!orderId;
-  /** Đang xem đúng công nợ phải thu: đợt trả sau giao đã đến mốc (docs 15 §4.3 bước 8). */
-  const receivablesOn = milestone === "AFTER_DELIVERY" && reached === true;
+  /** Đang xem đúng công nợ phải thu (BE-5 `owing=true`); bỏ lọc thì xoá hẳn tham số. */
+  const receivablesOn = owing === true;
 
   /** Đổi bộ lọc → về trang 1. */
   const filter =
@@ -74,6 +83,8 @@ export function useInstallmentListState(canRead: boolean) {
     status,
     milestone,
     reached,
+    owing,
+    search,
     overdue,
     dueBefore,
     customerId,
@@ -83,19 +94,21 @@ export function useInstallmentListState(canRead: boolean) {
     setStatus: filter(setStatus),
     setMilestone: filter(setMilestone),
     setReached: filter(setReached),
+    setSearch: filter(setSearch),
     setOverdue: filter(setOverdue),
     setDueBefore: filter(setDueBefore),
     setCustomerId: filter(setCustomerId),
     setOrderId: filter(setOrderId),
     toggleReceivables: () => {
-      void setMilestone(receivablesOn ? null : "AFTER_DELIVERY");
-      void setReached(receivablesOn ? null : true);
+      void setOwing(receivablesOn ? null : true);
       paged.resetPage();
     },
     clearFilters: () => {
       void setStatus(null);
       void setMilestone(null);
       void setReached(null);
+      void setOwing(null);
+      void setSearch("");
       void setOverdue(null);
       void setDueBefore("");
       void setCustomerId("");
