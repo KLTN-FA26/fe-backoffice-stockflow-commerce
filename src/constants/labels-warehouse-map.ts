@@ -195,6 +195,8 @@ export const WAREHOUSE_MAP_UI_LABELS = {
     loadFailedTitle: "Không tải được bản đồ kho",
     noReadDescription: "Bạn chưa được cấp quyền xem bản đồ kho (warehouse-locations:READ).",
     legend: "Chú giải",
+    // docs 06 BR-08: mặt kệ không mở để lấy hàng
+    closedFace: "Thanh chắn vàng (3D): mặt kệ không lấy hàng",
     stats: {
       shelves: "Kệ",
       bins: "Bin",

@@ -7,11 +7,13 @@
 
 import { WAREHOUSE_MAP_3D as R } from "@/constants";
 
+import { railBoxes } from "./rack-rails";
 import { levelSpan, planLevel, shelfHeight, shelfTransform } from "./selectors";
 
 import type { LayoutLevel, LayoutShelf } from "./types";
 
-export type RackPartKind = "upright" | "brace" | "beam" | "deck" | "pallet" | "tote" | "label";
+export type RackPartKind =
+  "upright" | "brace" | "beam" | "deck" | "rail" | "pallet" | "tote" | "label";
 
 export interface RackPart {
   shelfId: string;
@@ -107,6 +109,9 @@ export function rackParts(shelf: LayoutShelf, stocked?: ReadonlySet<string>): Ra
       });
     }
   }
+
+  // Mặt không lấy hàng: thanh chắn ngang mỗi tầng (BR-08)
+  for (const box of railBoxes(shelf)) add("rail", box);
 
   for (const level of shelf.levels) {
     const { bottom, height } = levelSpan(level);

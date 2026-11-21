@@ -67,6 +67,12 @@ export function MapLegend({ layout }: { layout: WarehouseLayout }) {
           </svg>
           {BOUNDARY_TYPE_LABELS.DOOR} ({DOOR_STATUS_LABELS.OPEN})
         </span>
+        <span className="text-ink-secondary flex items-center gap-1.5 text-[0.8125rem]">
+          <svg viewBox="0 0 16 4" className="h-1 w-4" aria-hidden>
+            <line x1={0} x2={16} y1={2} y2={2} className="stroke-(--scene-tape)" strokeWidth={4} />
+          </svg>
+          {M.closedFace}
+        </span>
       </div>
     </div>
   );
