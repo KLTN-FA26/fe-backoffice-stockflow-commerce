@@ -207,6 +207,15 @@ export const PUTAWAY_COLUMNS = {
   STATUS: "status",
 } as const;
 
+/** Cột bảng thùng trên xe của chuyến cất hàng (BE `PutawayTripResponse.Carton`, docs 05 §4.5). */
+export const PUTAWAY_TRIP_CART_COLUMNS = {
+  ACTION: "action",
+  BIN: "bin",
+  ITEM: "item",
+  LPN: "lpn",
+  STATUS: "status",
+} as const;
+
 /** Cột đợt giao còn thiếu (BE `ShortDeliveryBatch`, docs 17 §4.12 bước 47). */
 export const SHORT_BATCH_COLUMNS = {
   ACTION: "action",

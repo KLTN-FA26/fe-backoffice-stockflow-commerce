@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { cn } from "cn";
 import { parseAsString, useQueryState } from "nuqs";
 
 import {
@@ -17,7 +16,7 @@ import { usePutawayTask, usePutawayTasks } from "@/features/putaway/queries";
 import { sortByLpn } from "@/features/putaway/selectors";
 
 import { LoadErrorState } from "@/components/backoffice/LoadErrorState";
-import { DETAIL_ACTION_CLASS, DETAIL_CARD_CLASS } from "@/components/shared/DetailSection";
+import { DETAIL_CARD_CLASS } from "@/components/shared/DetailSection";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Skeleton } from "@/components/shared/Skeleton";
@@ -27,6 +26,9 @@ import { SlottingCartonList } from "./SlottingCartonList";
 import { SlottingRulesCard } from "./SlottingRulesCard";
 
 const L = SLOTTING_LABELS;
+/** Nút phụ cỡ hành động trang chi tiết, rộng theo chữ (không dùng `DETAIL_ACTION_CLASS` vì nó rộng hết thẻ). */
+const PUT_AWAY_LINK_CLASS =
+  "border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted hover:text-ink-primary inline-flex h-(--action-h) items-center rounded-(--action-radius) border px-3 text-[0.8125rem] font-medium";
 /** Cột trái cố định 340px: ở 1024px cột phải còn ≈ 390px — vừa bảng bin gợi ý bốn cột. */
 const GRID = "grid grid-cols-1 gap-5 lg:grid-cols-[340px_minmax(0,1fr)]";
 
@@ -60,10 +62,7 @@ function Suggestions({ taskId }: { taskId: string }) {
       footer={
         // Chỉ người cất được mới có lối sang màn cất — UI-only, BE re-check quyền khi xác nhận
         canPutAway ? (
-          <Link
-            href={ADMIN_ROUTES.putaway.detail(task.id)}
-            className={cn(DETAIL_ACTION_CLASS.outline, "inline-flex w-auto items-center")}
-          >
+          <Link href={ADMIN_ROUTES.putaway.detail(task.id)} className={PUT_AWAY_LINK_CLASS}>
             {L.putAway}
           </Link>
         ) : null
@@ -79,17 +78,19 @@ function SlottingContent({ prefix }: { prefix: string }) {
   const [taskParam, setTask] = useQueryState("task", parseAsString);
   if (directory.isPending || (warehouse && query.isPending))
     return <PageSkeleton variant="detail" />;
-  if (!warehouse) return <EmptyState title={L.warehouseUnknown} />;
-  if (query.isError) {
+  // Danh mục kho lỗi ≠ kho không tồn tại — báo lỗi kèm Thử lại
+  const failed = directory.isError ? directory : query.isError ? query : null;
+  if (failed) {
     return (
       <LoadErrorState
         inline
-        error={query.error}
+        error={failed.error}
         copy={PUTAWAY_LABELS.errorCopy}
-        onRetry={() => void query.refetch()}
+        onRetry={() => void failed.refetch()}
       />
     );
   }
+  if (!warehouse) return <EmptyState title={L.warehouseUnknown} />;
   const tasks = sortByLpn(query.data?.items ?? []);
   // Thùng trên URL không còn chờ cất (vừa cất xong) → về thùng đầu tiên
   const selectedId = tasks.find((t) => t.id === taskParam)?.id ?? tasks[0]?.id ?? null;

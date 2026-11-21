@@ -90,6 +90,9 @@ export const ADMIN_ROUTES = {
   putaway: {
     list: `${ADMIN_BASE}/putaway`,
     detail: (taskId: string) => `${ADMIN_BASE}/putaway/${encodeURIComponent(taskId)}`,
+    /** Chuyến cất hàng đang mở của người dùng (docs 05 §4.5) — `?warehouse=` là kho mở chuyến mới. */
+    myTrip: `${ADMIN_BASE}/putaway/trip`,
+    trip: (tripId: string) => `${ADMIN_BASE}/putaway/trips/${encodeURIComponent(tripId)}`,
     /** Mọi nhiệm vụ của một phiếu nhập (docs 05 §4.2 "theo phiếu"). */
     byReceipt: (receiptId: string) =>
       `${ADMIN_BASE}/putaway?receipt=${encodeURIComponent(receiptId)}`,
