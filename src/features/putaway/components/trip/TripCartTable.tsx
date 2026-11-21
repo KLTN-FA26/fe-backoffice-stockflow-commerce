@@ -2,7 +2,7 @@
 
 import { Package, X } from "lucide-react";
 
-import { PUTAWAY_TRIP_LABELS } from "@/constants";
+import { PUTAWAY_LIMITS, PUTAWAY_TRIP_CART_COLUMNS as C, PUTAWAY_TRIP_LABELS } from "@/constants";
 import { holdExpired } from "@/features/putaway/trip-selectors";
 
 import { CELL, EmptyCell, statusCell } from "@/components/shared/column-helpers";
@@ -15,18 +15,21 @@ import type { PutawayTripCarton } from "@/features/putaway/types";
 
 const L = PUTAWAY_TRIP_LABELS.cart;
 
-function columns(onUnload?: (lpn: string) => void): ColumnDef<PutawayTripCarton>[] {
+function columns(
+  onUnload: ((lpn: string) => void) | undefined,
+  unloadPending: boolean,
+): ColumnDef<PutawayTripCarton>[] {
   return [
-    { key: "lpn", header: L.lpn, cell: (c) => <span className={CELL.code}>{c.lpn}</span> },
+    { key: C.LPN, header: L.lpn, cell: (c) => <span className={CELL.code}>{c.lpn}</span> },
     {
-      key: "item",
+      key: C.ITEM,
       header: L.item,
       cell: (c) => (
         <span className={CELL.ref}>{c.lotNumber ? `${c.sku} · ${c.lotNumber}` : c.sku}</span>
       ),
     },
     {
-      key: "bin",
+      key: C.BIN,
       header: L.bin,
       cell: (c) =>
         c.assignedLocationCode ? (
@@ -38,11 +41,11 @@ function columns(onUnload?: (lpn: string) => void): ColumnDef<PutawayTripCarton>
           <EmptyCell />
         ),
     },
-    statusCell("status", L.status, (c) => c.status, "move"),
+    statusCell(C.STATUS, L.status, (c) => c.status, "move"),
     ...(onUnload
       ? [
           {
-            key: "action",
+            key: C.ACTION,
             header: "",
             align: "right" as const,
             cell: (c: PutawayTripCarton) => (
@@ -50,8 +53,9 @@ function columns(onUnload?: (lpn: string) => void): ColumnDef<PutawayTripCarton>
                 <button
                   type="button"
                   aria-label={L.unload(c.lpn)}
+                  disabled={unloadPending}
                   onClick={() => onUnload(c.lpn)}
-                  className={`${CELL.action} hover:text-danger`}
+                  className={`${CELL.action} hover:text-danger disabled:opacity-50`}
                 >
                   <X className="size-3.5" />
                 </button>
@@ -64,24 +68,26 @@ function columns(onUnload?: (lpn: string) => void): ColumnDef<PutawayTripCarton>
 }
 
 /**
- * Bảng thùng trên xe (LOADING) / thùng của chuyến đã kết thúc. `onUnload` chỉ có khi còn bỏ được (LOADING, chủ chuyến).
- * Rỗng → giữ header, nói cách xếp thùng.
+ * Bảng thùng trên xe (LOADING) / thùng của chuyến đã kết thúc. `onUnload` chỉ có khi còn bỏ được (LOADING, chủ chuyến);
+ * `unloadPending` khoá nút bỏ khi đang gửi để không bấm đúp. Rỗng → giữ header, nói cách xếp thùng.
  */
 export function TripCartTable({
   cartons,
   onUnload,
+  unloadPending = false,
 }: {
   cartons: readonly PutawayTripCarton[];
   onUnload?: (lpn: string) => void;
+  unloadPending?: boolean;
 }) {
   return (
     <DetailSection title={L.title} icon={Package}>
       <DataTable
         data={[...cartons]}
-        columns={columns(onUnload)}
+        columns={columns(onUnload, unloadPending)}
         rowKey={(c) => c.putawayTaskId}
         caption={L.title}
-        pageSize={20}
+        pageSize={PUTAWAY_LIMITS.cartPageSize}
         emptyState={<EmptyState className="py-8" title={L.empty} />}
       />
     </DetailSection>

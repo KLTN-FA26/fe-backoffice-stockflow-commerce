@@ -194,14 +194,18 @@ function registerRun(): void {
       const task = (await listPutawayTasks()).find((t) => t.id === item.putawayTaskId);
       if (!task) return beError(404, "PUTAWAY_TASK_NOT_FOUND", "No putaway task");
       const carton = await cartonOf(task);
-      // Chỗ giữ của chính thùng này không chặn nó (BR-16) — nhả trước khi kiểm bin
+      // Chỗ giữ của chính thùng này không chặn nó (BR-16) — nhả trước khi kiểm bin, bin bị từ chối thì giữ lại
+      const wasHolding = item.holding;
       item.holding = false;
       const target = await checkTarget(
         task,
         carton?.pkg.locationCode ?? "",
         readString(body.locationCode),
       );
-      if (!("locationCode" in target)) return target;
+      if (!("locationCode" in target)) {
+        item.holding = wasHolding;
+        return target;
+      }
       if (carton) carton.pkg.locationCode = target.locationCode;
       getWarehouseStore().stockedLocations.add(target.locationCode);
       task.status = "DONE";

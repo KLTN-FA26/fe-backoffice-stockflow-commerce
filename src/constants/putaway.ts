@@ -75,5 +75,7 @@ export const PUTAWAY_LIMITS = {
   codeMax: 64,
   // Docs 05 §4.3: tối đa 10 bin gợi ý
   maxSuggestions: 10,
+  // Bảng thùng trên xe của một chuyến (bảng phụ trong thẻ chi tiết)
+  cartPageSize: 20,
   searchDebounceMs: 300,
 } as const;

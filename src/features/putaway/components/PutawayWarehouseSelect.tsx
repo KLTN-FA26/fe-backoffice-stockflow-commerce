@@ -40,7 +40,8 @@ export function PutawayWarehouseSelect({
       <SelectTrigger
         aria-label={L.warehouse}
         className={cn(
-          "border-border-default bg-bg-surface text-ink-primary hover:bg-bg-muted w-56 rounded-(--control-radius) text-(length:--control-text) shadow-(--control-shadow) focus-visible:ring-0 data-[size=default]:h-(--control-h) xl:w-60",
+          // Không có class chiều rộng ở đây — chiều rộng chỉ đến từ `widthClass`
+          "border-border-default bg-bg-surface text-ink-primary hover:bg-bg-muted rounded-(--control-radius) text-(length:--control-text) shadow-(--control-shadow) focus-visible:ring-0 data-[size=default]:h-(--control-h)",
           widthClass,
         )}
       >

@@ -78,17 +78,19 @@ function SlottingContent({ prefix }: { prefix: string }) {
   const [taskParam, setTask] = useQueryState("task", parseAsString);
   if (directory.isPending || (warehouse && query.isPending))
     return <PageSkeleton variant="detail" />;
-  if (!warehouse) return <EmptyState title={L.warehouseUnknown} />;
-  if (query.isError) {
+  // Danh mục kho lỗi ≠ kho không tồn tại — báo lỗi kèm Thử lại
+  const failed = directory.isError ? directory : query.isError ? query : null;
+  if (failed) {
     return (
       <LoadErrorState
         inline
-        error={query.error}
+        error={failed.error}
         copy={PUTAWAY_LABELS.errorCopy}
-        onRetry={() => void query.refetch()}
+        onRetry={() => void failed.refetch()}
       />
     );
   }
+  if (!warehouse) return <EmptyState title={L.warehouseUnknown} />;
   const tasks = sortByLpn(query.data?.items ?? []);
   // Thùng trên URL không còn chờ cất (vừa cất xong) → về thùng đầu tiên
   const selectedId = tasks.find((t) => t.id === taskParam)?.id ?? tasks[0]?.id ?? null;

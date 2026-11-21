@@ -29,17 +29,29 @@ export function TripRouteSection({
   pendingLpn?: string | null;
 }) {
   const stops = stopsWithCartons(trip);
+  // Thùng còn trên xe mà không nằm ở điểm dừng nào (không bin nào nhận, không có OVERFLOW) — vẫn phải thấy để đổi bin
+  const routed = new Set(stops.flatMap((stop) => stop.cartons.map((c) => c.lpn.toUpperCase())));
+  const unrouted = trip.cartons.filter(
+    (c) => c.status === PUTAWAY_TRIP_ITEM_STATUS.ON_CART && !routed.has(c.lpn.toUpperCase()),
+  );
+  const groups = [
+    ...stops.map((stop) => ({ key: `stop-${stop.sequence}`, ...stop })),
+    ...(unrouted.length > 0
+      ? [{ key: "no-bin", sequence: null, locationCode: L.noBin, cartons: unrouted }]
+      : []),
+  ];
   return (
     <DetailSection title={L.title} icon={MapPinned}>
       <p className="text-ink-tertiary mb-3 text-xs">{L.note}</p>
       <ol className="border-border-default divide-y divide-(--table-line) rounded-(--section-radius) border">
-        {stops.map((stop) => (
-          <li key={stop.sequence} className="flex gap-3 px-3 py-2.5">
+        {groups.map((stop) => (
+          <li key={stop.key} className="flex gap-3 px-3 py-2.5">
             <span
               className={`bg-bg-muted text-ink-secondary flex size-6 shrink-0 items-center justify-center rounded-full text-xs ${MONO}`}
-              aria-label={L.stop(stop.sequence)}
+              aria-label={stop.sequence === null ? undefined : L.stop(stop.sequence)}
+              aria-hidden={stop.sequence === null || undefined}
             >
-              {stop.sequence}
+              {stop.sequence ?? "–"}
             </span>
             <div className="min-w-0 flex-1 space-y-1.5">
               <p className={`text-ink-primary text-[0.8125rem] font-semibold ${MONO}`}>

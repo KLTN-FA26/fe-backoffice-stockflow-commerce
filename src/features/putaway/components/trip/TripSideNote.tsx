@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Info } from "lucide-react";
 
-import { ADMIN_ROUTES, PUTAWAY_TRIP_LABELS } from "@/constants";
+import { ADMIN_ROUTES, PUTAWAY_TRIP_LABELS, PUTAWAY_TRIP_STATUS } from "@/constants";
 import {
   DETAIL_ACTION_CLASS,
   DETAIL_CARD_CLASS,
@@ -25,7 +25,8 @@ export function TripSideNote({
   text: string;
   children?: ReactNode;
 }) {
-  const ended = trip.status === "COMPLETED" || trip.status === "CLOSED";
+  const ended =
+    trip.status === PUTAWAY_TRIP_STATUS.COMPLETED || trip.status === PUTAWAY_TRIP_STATUS.CLOSED;
   return (
     <section className={DETAIL_CARD_CLASS}>
       <DetailCardTitle icon={Info}>{L.title}</DetailCardTitle>

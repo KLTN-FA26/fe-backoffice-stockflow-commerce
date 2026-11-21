@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { PUTAWAY_TRIP_LABELS } from "@/constants";
+import { PUTAWAY_TRIP_LABELS, PUTAWAY_TRIP_STATUS } from "@/constants";
 import { usePermissionChecker } from "@/lib/auth";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { tripActions } from "@/features/putaway/trip-lifecycle";
@@ -50,9 +50,9 @@ export function TripView({ trip, onStale }: { trip: PutawayTrip; onStale: () => 
     />
   );
   const endedText =
-    trip.status === "COMPLETED"
+    trip.status === PUTAWAY_TRIP_STATUS.COMPLETED
       ? L.ended.COMPLETED
-      : trip.status === "CLOSED"
+      : trip.status === PUTAWAY_TRIP_STATUS.CLOSED
         ? L.ended.CLOSED
         : null;
   const side = actions.load ? (
@@ -81,7 +81,7 @@ export function TripView({ trip, onStale }: { trip: PutawayTrip; onStale: () => 
     <div className={DETAIL_GRID_CLASS}>
       <div className="min-w-0 space-y-5">
         <TripInfoSection trip={trip} />
-        {trip.status === "IN_PROGRESS" ? (
+        {trip.status === PUTAWAY_TRIP_STATUS.IN_PROGRESS ? (
           <TripRouteSection
             trip={trip}
             pendingLpn={reassigning}
@@ -102,9 +102,14 @@ export function TripView({ trip, onStale }: { trip: PutawayTrip; onStale: () => 
             cartons={trip.cartons}
             onUnload={
               actions.load
-                ? (lpn) => unload.mutate({ tripId: trip.id, lpn }, tripCallbacks(onStale))
+                ? (lpn) => {
+                    // Chặn bấm đúp: lần thứ hai sẽ báo "thùng không có trên xe"
+                    if (!unload.isPending)
+                      unload.mutate({ tripId: trip.id, lpn }, tripCallbacks(onStale));
+                  }
                 : undefined
             }
+            unloadPending={unload.isPending}
           />
         )}
       </div>

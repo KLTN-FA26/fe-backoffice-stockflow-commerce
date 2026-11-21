@@ -2,7 +2,11 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { PUTAWAY_TRIP_ERROR_MESSAGES, PUTAWAY_TRIP_LABELS } from "@/constants";
+import {
+  PUTAWAY_ERROR_MESSAGES,
+  PUTAWAY_TRIP_ERROR_MESSAGES,
+  PUTAWAY_TRIP_LABELS,
+} from "@/constants";
 import { PERMISSION_UI } from "@/constants/permissions";
 import { apiError, mockApi, renderScreen } from "@/test/api-screen";
 
@@ -110,6 +114,38 @@ describe("MyTripPage (docs 05 §4.5)", () => {
     await user.type(screen.getByLabelText(L.place.lpn), "LPN-1{Enter}");
     await waitFor(() => expect(post).toHaveBeenCalled());
     expect(post.mock.calls[0]?.[1]).toEqual({ locationCode: "BIN-1", lpn: "LPN-1" });
+  });
+
+  it("đặt thùng vào bin kho khác → lỗi của bin dưới ô bin, không phải câu xếp xe", async () => {
+    const user = userEvent.setup();
+    setup("WAREHOUSE_STAFF", GOING, {
+      "/putaway-trips/trip-1/placements": () => {
+        throw apiError(409, "MOVE_ACROSS_WAREHOUSES");
+      },
+    });
+    renderScreen(<MyTripPage />, "WAREHOUSE_STAFF");
+    await user.type(await screen.findByLabelText(L.place.bin), "BD-A01{Enter}");
+    await user.type(screen.getByLabelText(L.place.lpn), "LPN-1{Enter}");
+    expect(
+      await screen.findByText(PUTAWAY_ERROR_MESSAGES.MOVE_ACROSS_WAREHOUSES),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText(L.place.bin)).toHaveAttribute("aria-invalid", "true");
+    expect(
+      screen.queryByText(PUTAWAY_TRIP_ERROR_MESSAGES.MOVE_ACROSS_WAREHOUSES),
+    ).not.toBeInTheDocument();
+  });
+
+  it("thùng trên xe chưa có bin (không ở điểm dừng nào) vẫn hiện để đổi bin", async () => {
+    setup(
+      "WAREHOUSE_STAFF",
+      trip({
+        ...GOING,
+        cartons: [...GOING.cartons, tripCarton({ putawayTaskId: "t-3", lpn: "LPN-3" })],
+      }),
+    );
+    renderScreen(<MyTripPage />, "WAREHOUSE_STAFF");
+    expect(await screen.findByText(L.route.noBin)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: L.route.reassign("LPN-3") })).toBeInTheDocument();
   });
 
   it("đóng chuyến cần xác nhận (thùng còn trên xe trả về hàng chờ)", async () => {

@@ -36,9 +36,23 @@ interface PlaceError {
   field?: "lpn" | "locationCode";
 }
 
+/**
+ * Mã riêng của chuyến khi đặt thùng. `PUTAWAY_TRIP_ERROR_MESSAGES` còn chứa câu của bước xếp xe (MOVE_ACROSS_WAREHOUSES,
+ * LOCATION_NOT_FOUND, PUTAWAY_TASK_NOT_FOUND nói về thùng) — khi đặt thùng các mã đó nói về bin quét được, nên đi qua
+ * `putawayConfirmError` để lỗi nằm dưới ô bin.
+ */
+const PLACE_TRIP_CODES: ReadonlySet<string> = new Set<keyof typeof PUTAWAY_TRIP_ERROR_MESSAGES>([
+  "PUTAWAY_TRIP_ALREADY_OPEN",
+  "PUTAWAY_TRIP_NOT_FOUND",
+  "PUTAWAY_TRIP_NOT_YOURS",
+  "PUTAWAY_TRIP_INVALID_STATE",
+  "PUTAWAY_TASK_ON_ANOTHER_TRIP",
+  "PUTAWAY_CARTON_NOT_ON_TRIP",
+]);
+
 /** Lỗi đặt thùng: mã của chuyến (không trên xe, chuyến đổi) trước, còn lại là luật cứng của bin như cất một thùng. */
 function placeError(error: unknown): PlaceError {
-  if (error instanceof ApiError && error.code in PUTAWAY_TRIP_ERROR_MESSAGES) {
+  if (error instanceof ApiError && PLACE_TRIP_CODES.has(error.code)) {
     const result = tripErrorMessage(error);
     return error.code === "PUTAWAY_CARTON_NOT_ON_TRIP" ? { ...result, field: "lpn" } : result;
   }

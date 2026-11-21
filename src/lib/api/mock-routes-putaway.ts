@@ -20,7 +20,7 @@ import {
   suggestionsFor,
   takes,
 } from "./mock-putaway-store";
-import { tripCarrying } from "./mock-putaway-trips-store";
+import { saveTrip, tripCarrying } from "./mock-putaway-trips-store";
 import { currentActor, forbidden } from "./mock-routes-fulfillment-store";
 import { withIdempotency } from "./mock-routes-pick-lines-store";
 import {
@@ -212,6 +212,14 @@ function registerConfirm(): void {
         carrying.stops = carrying.stops
           .map((s) => ({ ...s, lpns: s.lpns.filter((l) => upper(l) !== upper(task.lpn)) }))
           .filter((s) => s.lpns.length > 0);
+        // Thùng cuối trên xe đã cất → chuyến đang đi hoàn tất, như đặt thùng từ màn chuyến
+        if (
+          carrying.status === "IN_PROGRESS" &&
+          carrying.cartons.every((c) => c.status !== "ON_CART")
+        ) {
+          carrying.status = "COMPLETED";
+        }
+        saveTrip(carrying);
       }
       await closeReceiptIfDone(task.goodsReceiptId);
       return beOk(await toResponse(task, false));

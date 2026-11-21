@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { XCircle } from "lucide-react";
 
-import { PUTAWAY_TRIP_LABELS } from "@/constants";
+import { PUTAWAY_TRIP_LABELS, PUTAWAY_TRIP_STATUS } from "@/constants";
 import { tripProgress } from "@/features/putaway/trip-selectors";
 
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -31,7 +31,11 @@ export function TripCloseButton({
 }) {
   const [open, setOpen] = useState(false);
   const { onCart } = tripProgress(trip);
-  const label = force ? L.force : trip.status === "LOADING" ? L.loadingAction : L.action;
+  const label = force
+    ? L.force
+    : trip.status === PUTAWAY_TRIP_STATUS.LOADING
+      ? L.loadingAction
+      : L.action;
   return (
     <>
       <Button
