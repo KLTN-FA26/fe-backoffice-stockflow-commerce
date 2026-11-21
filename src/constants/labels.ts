@@ -121,6 +121,7 @@ export const UI_LABELS = {
     noActions: {
       viewOnly: "Bạn chỉ có quyền xem phiếu nhận.",
       inPutaway: "Đang chờ cất hàng lên vị trí lưu trữ (putaway).",
+      openPutaway: "Xem việc cất hàng của phiếu",
     },
     noCountLines: "Chưa có dòng kiểm đếm.",
     linesDraftTitle: "Dòng kiểm đếm",

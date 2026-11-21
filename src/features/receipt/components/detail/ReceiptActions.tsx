@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, XCircle } from "lucide-react";
+import Link from "next/link";
+import { CheckCircle2, PackageCheck, XCircle } from "lucide-react";
 
-import { RECEIPT_STATUS, UI_LABELS } from "@/constants";
+import { ADMIN_ROUTES, PUTAWAY_TASK_PERMISSIONS, RECEIPT_STATUS, UI_LABELS } from "@/constants";
 import { STATUS_LABEL_VI } from "@/lib/domain/status-map";
 import { usePermissionChecker } from "@/lib/auth";
 import { allowedReceiptActions, isReceiptTerminal } from "@/features/receipt/lifecycle";
@@ -93,6 +94,15 @@ export function ReceiptActions({
         })}
         {actions.length === 0 && (
           <p className="text-ink-tertiary text-center text-xs">{noActionText(receipt)}</p>
+        )}
+        {/* Docs 05 §4.2: xem nhiệm vụ cất hàng theo phiếu — chỉ khi phiếu đang chờ cất và người dùng vào được màn */}
+        {receipt.status === RECEIPT_STATUS.IN_PUTAWAY && can(PUTAWAY_TASK_PERMISSIONS.viewPage) && (
+          <Link
+            href={ADMIN_ROUTES.putaway.byReceipt(receipt.id)}
+            className={`border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted hover:text-ink-primary flex items-center justify-center gap-1.5 ${BUTTON_BASE}`}
+          >
+            <PackageCheck className="text-dot-positive size-3.5" /> {LABEL.noActions.openPutaway}
+          </Link>
         )}
       </div>
       <ConfirmDialog

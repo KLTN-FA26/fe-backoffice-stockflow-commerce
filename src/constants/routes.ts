@@ -90,6 +90,9 @@ export const ADMIN_ROUTES = {
   putaway: {
     list: `${ADMIN_BASE}/putaway`,
     detail: (taskId: string) => `${ADMIN_BASE}/putaway/${encodeURIComponent(taskId)}`,
+    /** Mọi nhiệm vụ của một phiếu nhập (docs 05 §4.2 "theo phiếu"). */
+    byReceipt: (receiptId: string) =>
+      `${ADMIN_BASE}/putaway?receipt=${encodeURIComponent(receiptId)}`,
   },
   /** Từ điển thuộc tính (BE PR #113) — thay màn "Thuộc tính biến thể" dựng từ dữ liệu mẫu. */
   attributes: `${ADMIN_BASE}/attributes`,
