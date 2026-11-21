@@ -6,6 +6,7 @@ import { rackParts } from "@/features/warehouse-map/rack-3d";
 
 import { locationTone, TONE_VAR } from "../tone";
 import { PartsMesh } from "./PartsMesh";
+import { useRackDetail } from "./use-rack-detail";
 
 import type { RackPart, RackPartKind } from "@/features/warehouse-map/rack-3d";
 import type { LayoutShelf } from "@/features/warehouse-map/types";
@@ -20,6 +21,7 @@ const MATERIAL: Record<RackPartKind, { metalness: number; roughness: number }> =
   brace: { metalness: 0.1, roughness: 0.4 },
   beam: { metalness: 0.05, roughness: 0.32 },
   deck: { metalness: 0.6, roughness: 0.5 },
+  rail: { metalness: 0.1, roughness: 0.38 },
   pallet: { metalness: 0, roughness: 0.9 },
   tote: { metalness: 0, roughness: 0.6 },
   label: { metalness: 0, roughness: 0.8 },
@@ -71,11 +73,15 @@ export function Racks3D({
     });
   }, [shelves, stocked, zoneColors, palette]);
 
+  const special = useRackDetail(palette);
+
   const baseColor: Record<RackPartKind, string> = {
     upright: palette.steel,
     brace: palette.steel,
     beam: "white",
     deck: palette.deck,
+    // Vàng an toàn: mặt kệ không lấy hàng (BR-08), khác hẳn beam theo màu zone
+    rail: palette.tape,
     pallet: palette.pallet,
     tote: palette.tote,
     label: "white",
@@ -92,6 +98,7 @@ export function Racks3D({
             color={baseColor[kind]}
             castShadow={kind !== "label"}
             {...MATERIAL[kind]}
+            {...special[kind]}
             onPick={
               interactive
                 ? (index) => {

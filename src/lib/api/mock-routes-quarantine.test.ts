@@ -30,7 +30,8 @@ vi.setConfig({ testTimeout: 30_000 });
 const originalAdapter = api.defaults.adapter;
 const LPN = "LPN-20261110-000001";
 const LPN_OUT = "LPN-20261110-000002";
-const QUARANTINE_AREA = "HCM-QC01";
+// Khu cách ly còn trống trong seed (HCM-QC01 đã giữ 30 thùng tồn đầu kỳ)
+const QUARANTINE_AREA = "HCM-RTV01";
 
 function actAs(userId: string) {
   useAuthStore.setState({
@@ -92,6 +93,20 @@ describe("looking a carton up", () => {
       reserved: 0,
     });
     expect(carton.contents?.[0]?.status).toBe("AVAILABLE");
+  });
+
+  it("seed BE: thùng tồn đầu kỳ ở HCM-QC01 đang cách ly, mang lô của seed; thùng ở kệ thì sẵn dùng", async () => {
+    const held = await getCarton("LPN-20261111-000046");
+    expect(held).toMatchObject({
+      sku: "TABLE-OAK-160",
+      lotNumber: "LOT-2026-04",
+      locationCode: "HCM-QC01",
+      onHand: 1,
+    });
+    expect(held.contents?.[0]?.status).toBe("QUARANTINE");
+    const shelved = await getCarton("LPN-20261111-000001");
+    expect(shelved).toMatchObject({ sku: "SOFA-3S-GREY", locationCode: "HCM-A01-2-B" });
+    expect(shelved.contents?.[0]?.status).toBe("AVAILABLE");
   });
 
   it("an unknown LPN is 404 STOCK_PACKAGE_NOT_FOUND", async () => {

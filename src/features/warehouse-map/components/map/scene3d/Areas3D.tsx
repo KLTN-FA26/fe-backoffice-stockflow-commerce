@@ -7,6 +7,7 @@ import { LOCATION_STATUS, WAREHOUSE_MAP_3D as R } from "@/constants";
 import { boxOf } from "@/features/warehouse-map/selectors";
 
 import { locationTone, TONE_VAR } from "../tone";
+import { AreaProps3D } from "./AreaProps3D";
 
 import type { ThreeEvent } from "@react-three/fiber";
 import type { LayoutArea } from "@/features/warehouse-map/types";
@@ -17,7 +18,8 @@ const OBSTACLE_HEIGHT = 1.2;
 
 /**
  * Khu vực kẻ trên sàn như kho thật: viền băng keo vàng + lớp phủ mờ; vị trí không ACTIVE thì băng keo
- * và lớp phủ theo tone `effectiveStatus`. Vật cản dựng thành khối. Nhãn tên luôn hiện (khu vực ít).
+ * và lớp phủ theo tone `effectiveStatus`. Vật cản dựng thành khối. Nhãn tên luôn hiện (khu vực ít). Mỗi loại khu
+ * có thiết bị đặc trưng (AreaProps3D) để nhận ra khu ngay trên cảnh.
  */
 export function Areas3D({
   areas,
@@ -92,6 +94,7 @@ export function Areas3D({
           </group>
         );
       })}
+      <AreaProps3D areas={areas} palette={palette} />
     </>
   );
 }

@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { apiError, bePage } from "@/test/api-screen";
 
@@ -121,12 +121,22 @@ describe("ReturnDetail — action gating by role", () => {
 });
 
 describe("OrderReturnsCard", () => {
+  // Giao 14/11 10:00 giờ VN, hạn mặc định 7 ngày → hết hạn 0 giờ 22/11 giờ VN (= 2026-11-21T17:00:00Z).
+  // Ghim đồng hồ để test không phụ thuộc ngày chạy; chỉ giả `Date`, giữ timer thật cho userEvent / waitFor.
+  const DELIVERED_AT = "2026-11-14T03:00:00Z";
+  const WINDOW_END = "2026-11-21T17:00:00Z";
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-18T03:00:00Z"));
+  });
+  afterEach(() => vi.useRealTimers());
+
   const card = (status: string) => (
     <OrderReturnsCard
       orderId="ord-1"
       orderNumber="SO-1"
       status={status}
-      deliveredAt="2026-11-14T03:00:00Z"
+      deliveredAt={DELIVERED_AT}
       lines={[{ lineId: "ol-1", sku: "SKU-CUP-01", deliveredQuantity: 24, customPrinted: true }]}
     />
   );
@@ -157,6 +167,34 @@ describe("OrderReturnsCard", () => {
           requestedResolution: "REFUND",
           lines: [{ orderLineId: "ol-1", quantity: 3 }],
         }),
+      ),
+    );
+  });
+
+  // BR-RMA-001 (docs 17 §4.10 bước 37, WF-05 TH-1): quá hạn đổi / trả, Sale nhận thay khách phải ghi lý do ngoài hạn
+  it("past the return window Sales must give a late-claim reason before the claim is sent", async () => {
+    vi.setSystemTime(new Date(WINDOW_END));
+    const open = vi.fn((_body: unknown) => returnJson());
+    mockReturnApi(SALES_GRANTS, {
+      get: { "/returns": () => bePage([]) },
+      post: { "/orders/ord-1/returns": (_p, body) => open(body) },
+    });
+    renderReturnScreen(card("Delivered"));
+    await userEvent.click(await screen.findByRole("button", { name: /Mở yêu cầu trả hàng/ }));
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.type(within(dialog).getByLabelText(/SL trả SKU-CUP-01/), "3");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Mở yêu cầu" }));
+    expect(await within(dialog).findByText(/ghi lý do nhận ngoài hạn/)).toBeInTheDocument();
+    expect(open).not.toHaveBeenCalled();
+
+    await userEvent.type(
+      within(dialog).getByLabelText(/Lý do nhận ngoài hạn/),
+      "Khách báo lỗi in qua điện thoại trong hạn",
+    );
+    await userEvent.click(within(dialog).getByRole("button", { name: "Mở yêu cầu" }));
+    await waitFor(() =>
+      expect(open).toHaveBeenCalledWith(
+        expect.objectContaining({ lateClaimReason: "Khách báo lỗi in qua điện thoại trong hạn" }),
       ),
     );
   });

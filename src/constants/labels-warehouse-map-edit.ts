@@ -5,6 +5,8 @@
 
 export const WAREHOUSE_MAP_EDIT_LABELS = {
   enter: "Chỉnh sửa bản đồ",
+  /** Xem 3D bản nháp đang sửa — chỉ xem, quay lại 2D để sửa tiếp. */
+  preview3dNote: "Đang xem 3D bản nháp chưa lưu — chuyển về 2D để sửa tiếp.",
   toolGroup: "Công cụ vẽ",
   tool: {
     select: "Chọn / di chuyển (V)",

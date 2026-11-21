@@ -382,6 +382,8 @@ export const WAREHOUSE_MAP_LIMITS = {
   stockProbeSize: 20,
   /** Số dòng tồn đọc cho một kệ khi xem hàng trên kệ ở 3D. */
   shelfStockSize: 100,
+  /** Thùng (LPN) đọc cho MỘT bin khi xem kệ ở 3D — đủ phủ số thùng vẽ được trong một bin. */
+  binCartonSize: 100,
   /** Tồn cả kho cho toàn cảnh 3D: đọc theo trang cỡ này, dừng ở trần dòng — kho lớn hơn thì báo một phần. */
   warehouseStockPageSize: 200,
   warehouseStockMaxRows: 2000,
@@ -408,6 +410,8 @@ export const WAREHOUSE_MAP_3D = {
   /** Tấm nhãn vị trí gắn trên beam. */
   labelWidth: 0.26,
   labelHeight: 0.07,
+  /** Thanh chắn ngang (tiết diện vuông) ở mặt kệ không lấy hàng (docs 06 BR-08). */
+  rail: 0.045,
   /** Tường cắt thấp để nhìn được vào trong kho. */
   wallCutaway: 1.1,
   wallThickness: 0.2,

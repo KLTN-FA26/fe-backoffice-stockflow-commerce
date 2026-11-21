@@ -20,6 +20,8 @@ export interface CartonPart {
   yaw: number;
   /** Sắc giấy kraft 0 / 1 / 2. */
   shade: number;
+  /** LPN thật của thùng (khi đã đọc danh sách thùng của bin) — để dán tem. */
+  lpn?: string;
 }
 
 /** Dòng tồn tối thiểu bản đồ đọc (BE `WarehouseStockItemResponse`). */
@@ -49,9 +51,14 @@ function noise(seed: string, index: number): number {
   return (hash >>> 0) / 4294967295;
 }
 
+/**
+ * `lpns`: LPN thật theo mã bin (danh sách thùng của kệ đang xem). Có thì vẽ ĐÚNG các thùng đó (tối đa vừa bin), mỗi
+ * thùng mang LPN của nó; không có thì quy số thùng từ số lượng tồn như trước, không dán tem.
+ */
 export function cartonParts(
   shelf: LayoutShelf,
   stock: ReadonlyMap<string, number | null>,
+  lpns?: ReadonlyMap<string, readonly string[]>,
 ): CartonPart[] {
   const { theta, toWorld, faceZ } = shelfFrame(shelf);
   const faceSign = faceZ === 0 ? -1 : 1;
@@ -72,10 +79,13 @@ export function cartonParts(
       const perLayer = cols * rows;
       const capacity = perLayer * Math.max(1, Math.floor(room / height));
       const units = stock.get(bin.locationCode);
+      const real = lpns?.get(bin.locationCode) ?? [];
       const count =
-        units == null
-          ? Math.ceil(capacity / 2)
-          : Math.min(capacity, Math.max(1, Math.ceil(units / R.cartonUnits)));
+        real.length > 0
+          ? Math.min(capacity, real.length)
+          : units == null
+            ? Math.ceil(capacity / 2)
+            : Math.min(capacity, Math.max(1, Math.ceil(units / R.cartonUnits)));
       for (let i = 0; i < count; i += 1) {
         const rand = (k: number) => noise(bin.locationCode, i * 5 + k);
         const [slot, layer] = [i % perLayer, Math.floor(i / perLayer)];
@@ -87,7 +97,14 @@ export function cartonParts(
         // Mặt in tem (+z cục bộ) hướng ra lối lấy hàng: kệ chỉ mở mặt bắc thì quay ngược thùng
         const yaw = -theta + (faceSign < 0 ? Math.PI : 0) + (rand(3) - 0.5) * 0.08;
         const y = base + layer * height + h / 2;
-        parts.push({ position: [x, y, z], size: [w, h, d], yaw, shade: Math.floor(rand(4) * 3) });
+        const lpn = real[i];
+        parts.push({
+          position: [x, y, z],
+          size: [w, h, d],
+          yaw,
+          shade: Math.floor(rand(4) * 3),
+          ...(lpn ? { lpn } : {}),
+        });
       }
     }
   return parts;

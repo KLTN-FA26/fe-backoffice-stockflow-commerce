@@ -2,13 +2,16 @@
 
 import { useMemo, useRef } from "react";
 
+import { STOCK_PACKAGE_PERMISSIONS } from "@/constants";
+import { useCan } from "@/lib/auth";
+
 import {
   areaFocusPose,
   overviewPose,
   shelfFocusPose,
   stockByLocation,
 } from "@/features/warehouse-map/cartons-3d";
-import { useShelfStock, useWarehouseStock } from "@/features/warehouse-map/queries";
+import { useBinCartons, useShelfStock, useWarehouseStock } from "@/features/warehouse-map/queries";
 import { findPlace } from "@/features/warehouse-map/selectors";
 
 import { useHotkeys } from "../../shared/use-hotkeys";
@@ -38,6 +41,10 @@ export function useSceneFocus(
   const rows = stockQuery.data;
   const stock = useMemo(() => stockByLocation(rows ?? []), [rows]);
   const stocked = useMemo(() => new Set(stock.keys()), [stock]);
+  // Tem LPN thật: đọc danh sách thùng từng bin có hàng của kệ đang xem (cần quyền đọc thùng — UI-only, BE re-check)
+  const canReadCartons = useCan(STOCK_PACKAGE_PERMISSIONS.read);
+  const stockedCodes = useMemo(() => [...stock.keys()], [stock]);
+  const lpns = useBinCartons(stockedCodes, shelf !== null && canReadCartons);
   // Toàn cảnh: tồn cả kho (một lần đọc theo trang) → thùng ở mọi bin có hàng, bin trống để trống
   const warehouseQuery = useWarehouseStock(layout.warehouse);
   const warehouse = warehouseQuery.data;
@@ -74,6 +81,7 @@ export function useSceneFocus(
     stock,
     stockState: { rows: rows ?? [], isLoading: stockQuery.isLoading, isError: stockQuery.isError },
     stocked,
+    lpns,
     overviewStock: {
       stock: allStock,
       stocked: allStocked,
