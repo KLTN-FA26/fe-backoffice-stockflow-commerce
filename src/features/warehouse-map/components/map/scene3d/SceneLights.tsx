@@ -1,8 +1,12 @@
 "use client";
 
+import { useMemo } from "react";
 import { Environment, Lightformer } from "@react-three/drei";
+import { Color } from "three";
 
 import { WAREHOUSE_MAP_3D as R } from "@/constants";
+
+import { toneCompensated } from "./scene-tone";
 
 import type { ScenePalette } from "./use-scene-palette";
 
@@ -23,15 +27,21 @@ export function SceneLights({
 }) {
   const span = Math.max(width, height);
   const shadow = span / 2 + 4;
+  // Nền đi qua tone mapping của hậu kỳ (SceneEffects) → bù để gần đúng token nền
+  const background = useMemo(() => {
+    const [r, g, b] = toneCompensated(new Color(palette.sky).toArray() as [number, number, number]);
+    return new Color().setRGB(r, g, b);
+  }, [palette.sky]);
   return (
     <>
-      <color attach="background" args={[palette.sky]} />
+      <primitive attach="background" object={background} />
       <hemisphereLight args={[palette.label, palette.ground, 0.7]} />
       <directionalLight
         position={[width / 2 + span * 0.35, span * 0.9, height / 2 + span * 0.5]}
         intensity={1.05}
         castShadow
         shadow-mapSize={[R.shadowMap, R.shadowMap]}
+        shadow-radius={4}
         shadow-bias={-0.0004}
         shadow-normalBias={0.02}
         shadow-camera-left={-shadow}

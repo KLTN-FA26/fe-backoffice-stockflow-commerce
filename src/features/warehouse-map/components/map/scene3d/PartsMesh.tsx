@@ -5,7 +5,9 @@ import { useThree } from "@react-three/fiber";
 import { Color, Euler, Matrix4, Quaternion, Vector3 } from "three";
 
 import type { ThreeEvent } from "@react-three/fiber";
-import type { InstancedMesh, Material } from "three";
+import type { BufferGeometry, InstancedMesh, Material } from "three";
+
+const UNIT = [1, 1, 1] as const;
 
 /** Một hộp: tâm, cỡ, góc [quanh trục dọc, nghiêng quanh trục X cục bộ] — Euler "YXZ". */
 export interface BoxPart {
@@ -27,6 +29,8 @@ export function PartsMesh({
   metalness,
   castShadow = true,
   materials,
+  geometry,
+  baseSize = UNIT,
   onPick,
   onHover,
 }: {
@@ -37,8 +41,12 @@ export function PartsMesh({
   roughness?: number;
   metalness?: number;
   castShadow?: boolean;
-  /** Vật liệu riêng từng mặt hộp (có texture) — thay vật liệu một màu `color` / `roughness`. */
-  materials?: Material[];
+  /** Vật liệu riêng (có texture / shader) hoặc riêng từng mặt hộp — thay vật liệu một màu `color` / `roughness`. */
+  materials?: Material | Material[];
+  /** Hình riêng thay hộp đơn vị (pallet có nan, beam bo cạnh) — chung cho mọi instance. */
+  geometry?: BufferGeometry;
+  /** Cỡ thật của `geometry` theo 3 trục: instance co theo `size / baseSize` (mặc định hình đơn vị 1 × 1 × 1). */
+  baseSize?: readonly [number, number, number];
   onPick?: (index: number) => void;
   onHover?: (index: number | null) => void;
 }) {
@@ -58,7 +66,7 @@ export function PartsMesh({
       rotation.set(part.rotation[1], part.rotation[0], 0, "YXZ");
       quaternion.setFromEuler(rotation);
       position.set(...part.position);
-      scale.set(...part.size);
+      scale.set(part.size[0] / baseSize[0], part.size[1] / baseSize[1], part.size[2] / baseSize[2]);
       mesh.setMatrixAt(index, matrix.compose(position, quaternion, scale));
       const instanceColor = colors?.[index];
       if (instanceColor) mesh.setColorAt(index, tint.set(instanceColor));
@@ -67,7 +75,7 @@ export function PartsMesh({
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     mesh.computeBoundingSphere();
     invalidate();
-  }, [parts, colors, invalidate]);
+  }, [parts, colors, baseSize, invalidate]);
 
   const interactive = Boolean(onPick ?? onHover);
   const indexOf = (event: ThreeEvent<PointerEvent | MouseEvent>) => {
@@ -83,6 +91,7 @@ export function PartsMesh({
       castShadow={castShadow}
       receiveShadow
       {...(materials ? { material: materials } : {})}
+      {...(geometry ? { geometry } : {})}
       // Không bắt chuột (thùng carton…) → bỏ raycast, trỏ / bấm xuyên qua tới kệ
       {...(interactive ? {} : { raycast: () => null })}
       onClick={(event) => {
@@ -92,7 +101,7 @@ export function PartsMesh({
       onPointerMove={(event) => onHover?.(indexOf(event))}
       onPointerOut={() => onHover?.(null)}
     >
-      <boxGeometry />
+      {!geometry && <boxGeometry />}
       {!materials && (
         <meshStandardMaterial color={color} roughness={roughness} metalness={metalness} />
       )}
