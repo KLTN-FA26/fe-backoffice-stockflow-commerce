@@ -10,6 +10,7 @@ import { toast } from "@/components/shared/Toast";
 
 import { MapEditMode } from "./MapEditMode";
 
+import type { WarehouseLayout } from "@/features/warehouse-map/types";
 import type { EditorCanvasProps } from "./canvas/EditorCanvas";
 
 /** jsdom không có canvas — thay Konva bằng nút giả gọi đúng callback của canvas. */
@@ -33,6 +34,13 @@ vi.mock("next/dynamic", () => ({
         </div>
       );
     },
+}));
+
+/** jsdom không có WebGL — cảnh 3D giả chỉ in bố cục nó nhận (để kiểm 3D vẽ đúng bản nháp). */
+vi.mock("../map/MapViewer3D", () => ({
+  MapViewer3D: ({ layout }: { layout: WarehouseLayout }) => (
+    <section aria-label="Cảnh 3D">{layout.shelves.map((shelf) => shelf.code).join(", ")}</section>
+  ),
 }));
 
 const stock = vi.fn(() => ({ data: false, isError: false }));
@@ -190,6 +198,23 @@ describe("chế độ sửa bản đồ", () => {
     expect(screen.getByRole("button", { name: /^Thông số/ })).toBeInTheDocument();
     await userEvent.click(screen.getByTestId("map-edit-viewport"));
     expect(screen.queryByRole("button", { name: /^Thông số/ })).not.toBeInTheDocument();
+  });
+
+  it("nút 3D xem bản nháp chưa lưu (có kệ vừa vẽ); phím sửa tắt; về 2D bản nháp còn nguyên", async () => {
+    renderWithProviders(<MapEditMode layout={LAYOUT} can={MANAGER} onExit={onExit} />);
+    await userEvent.click(screen.getByRole("button", { name: "vẽ kệ" }));
+    await userEvent.click(screen.getByRole("button", { name: "3D" }));
+    // Kệ ngừng dùng (Z99) không vẽ; kệ vừa vẽ (K01) có trong cảnh dù chưa lưu
+    expect(screen.getByRole("region", { name: "Cảnh 3D" })).toHaveTextContent("A01, K01");
+    expect(screen.queryByRole("toolbar", { name: "Thanh công cụ sửa" })).not.toBeInTheDocument();
+    expect(screen.getByRole("note")).toHaveTextContent(/bản nháp chưa lưu/);
+    // Delete / Ctrl+Z không tác động hình đang chọn khi người dùng không thấy trình sửa 2D
+    await userEvent.keyboard("{Delete}{Control>}z{/Control}");
+    expect(screen.getByRole("button", { name: "Lưu 1 thay đổi" })).toBeEnabled();
+    await userEvent.click(screen.getByRole("button", { name: "2D" }));
+    expect(screen.queryByRole("region", { name: "Cảnh 3D" })).not.toBeInTheDocument();
+    expect(screen.getByRole("toolbar", { name: "Thanh công cụ sửa" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Lưu 1 thay đổi" })).toBeEnabled();
   });
 
   it("thoát khi còn thay đổi chưa lưu → hỏi lại; không đổi gì → thoát ngay", async () => {

@@ -19,6 +19,8 @@ export function useEditMode(
   save: ReturnType<typeof useDraftSave>,
   zoom: ZoomControls,
   onExit: () => void,
+  /** `false` khi đang xem 3D bản nháp: tắt phím sửa (chỉ còn Ctrl+S lưu). */
+  active = true,
 ) {
   /** Dialog thêm zone; mở từ bảng thông số kệ thì zone mới gán luôn cho kệ đó. */
   const [zoneFor, setZoneFor] = useState<{ shelfKey: string | null } | null>(null);
@@ -38,7 +40,7 @@ export function useEditMode(
       zoom: (step) => (step === 0 ? zoom.onReset() : step === 1 ? zoom.onIn() : zoom.onOut()),
     },
     {
-      enabled: zoneFor === null && !confirmExit && !inspecting && idle,
+      enabled: active && zoneFor === null && !confirmExit && !inspecting && idle,
       // Ctrl+S chỉ lưu khi nút Lưu bấm được: có thay đổi, không hình nào sai luật
       canSave: idle && !confirmExit && editor.changes > 0 && editor.issues.size === 0,
     },

@@ -65,7 +65,8 @@ export function FocusCard({
   name: string;
   /** Chỉ kệ có danh sách hàng. */
   stock?: FocusStock;
-  onDetail: () => void;
+  /** Vắng (xem 3D bản nháp khi sửa) thì không có nút mở chi tiết. */
+  onDetail?: () => void;
   onOverview: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -86,9 +87,11 @@ export function FocusCard({
               {open ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
             </IconTool>
           )}
-          <IconTool label={S.openDetail} onClick={onDetail}>
-            <Info className="size-3.5" />
-          </IconTool>
+          {onDetail && (
+            <IconTool label={S.openDetail} onClick={onDetail}>
+              <Info className="size-3.5" />
+            </IconTool>
+          )}
           <IconTool label={S.overview} onClick={onOverview}>
             <Maximize2 className="size-3.5" />
           </IconTool>

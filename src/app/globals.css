@@ -45,14 +45,15 @@
   --dot-special: #8e4ec6;
   /* Vật liệu cảnh 3D bản đồ kho (three.js đọc lúc chạy) — màu vật thể thật, giống nhau ở sáng / tối:
      cột thép kệ, beam cam (kệ không thuộc zone), sàn lưới mạ kẽm, pallet gỗ, thùng nhựa, bê tông,
-     vạch sơn an toàn, tường, nhãn vị trí. */
-  --scene-steel: #1f7ae8;
-  --scene-beam: #ff6b12;
-  --scene-deck: #c4cdd6;
-  --scene-pallet: #e8c07e;
-  --scene-tote: #14b8a0;
+     vạch sơn an toàn, tường, nhãn vị trí. Độ bão hoà hạ ~15% so với màu sơn gốc: màu gắt trông như đồ
+     chơi nhựa; beam giữ đúng sắc cam (không ngả hồng). */
+  --scene-steel: #2f6fc2;
+  --scene-beam: #e8702e;
+  --scene-deck: #b9c0c7;
+  --scene-pallet: #ddb87e;
+  --scene-tote: #2a9f8c;
   --scene-ground: #c4c7cc;
-  --scene-tape: #ffc21a;
+  --scene-tape: #f2bb2a;
   --scene-wall: #1c1d20;
   --scene-label: #fbfbf9;
   --scene-carton: #c98a4b;

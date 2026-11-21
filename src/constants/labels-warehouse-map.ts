@@ -35,7 +35,8 @@ export const WAREHOUSE_STATUS_LABELS: Record<(typeof WAREHOUSE_STATUSES)[number]
 export const AREA_TYPE_LABELS: Record<(typeof AREA_TYPES)[number], string> = {
   RECEIVING: "Khu nhận hàng",
   QUARANTINE: "Khu cách ly",
-  DISPATCH: "Khu chờ giao",
+  // docs 06 §5, BR-22: khu xuất hàng — kiểm đủ thùng, dán nhãn giao tại chỗ, chờ xe
+  DISPATCH: "Khu xuất hàng",
   STAGING: "Khu chờ xuất",
   OVERFLOW: "Khu tràn",
   PRODUCTION: "Xưởng in",
@@ -194,6 +195,8 @@ export const WAREHOUSE_MAP_UI_LABELS = {
     loadFailedTitle: "Không tải được bản đồ kho",
     noReadDescription: "Bạn chưa được cấp quyền xem bản đồ kho (warehouse-locations:READ).",
     legend: "Chú giải",
+    // docs 06 BR-08: mặt kệ không mở để lấy hàng
+    closedFace: "Thanh chắn vàng (3D): mặt kệ không lấy hàng",
     stats: {
       shelves: "Kệ",
       bins: "Bin",
