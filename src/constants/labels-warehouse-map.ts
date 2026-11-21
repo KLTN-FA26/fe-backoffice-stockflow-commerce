@@ -35,7 +35,8 @@ export const WAREHOUSE_STATUS_LABELS: Record<(typeof WAREHOUSE_STATUSES)[number]
 export const AREA_TYPE_LABELS: Record<(typeof AREA_TYPES)[number], string> = {
   RECEIVING: "Khu nhận hàng",
   QUARANTINE: "Khu cách ly",
-  DISPATCH: "Khu chờ giao",
+  // docs 06 §5, BR-22: khu xuất hàng — kiểm đủ thùng, dán nhãn giao tại chỗ, chờ xe
+  DISPATCH: "Khu xuất hàng",
   STAGING: "Khu chờ xuất",
   OVERFLOW: "Khu tràn",
   PRODUCTION: "Xưởng in",
