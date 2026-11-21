@@ -243,6 +243,22 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
     expect(push).not.toHaveBeenCalled();
   });
 
+  it("Lập báo giá: 404 dùng câu không tìm thấy chung", async () => {
+    const error = vi.spyOn(toast, "error").mockImplementation(() => undefined);
+    mockApi("SALES_STAFF", {
+      get: { "/design-quote-requests": () => bePage([request()]) },
+      post: {
+        [`/design-quote-requests/${REQUEST_ID}/quote`]: () => {
+          throw apiError(404, "NOT_FOUND");
+        },
+      },
+    });
+    renderScreen(<DesignQuoteRequestList />, "SALES_STAFF");
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Lập báo giá" }));
+    await waitFor(() => expect(error).toHaveBeenCalledWith("Không tìm thấy bản ghi."));
+    expect(push).not.toHaveBeenCalled();
+  });
+
   it("Lập báo giá: 403 dùng câu quyền chung", async () => {
     const error = vi.spyOn(toast, "error").mockImplementation(() => undefined);
     mockApi("SALES_STAFF", {

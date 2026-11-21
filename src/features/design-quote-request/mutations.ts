@@ -20,6 +20,8 @@ import type { QuoteRequest } from "./types";
 
 /** Root query của chat (= `chatKeys.all` ở features/chat; feature không import chéo). */
 const CHAT_ROOT = ["chat"] as const;
+/** Root query của báo giá (= `quoteKeys.all` ở features/quote): danh sách có thêm báo giá nháp vừa lập. */
+const QUOTES_ROOT = ["quotes"] as const;
 
 function useCloseRequest(close: (id: string) => Promise<void>, listRoot: readonly string[]) {
   const queryClient = useQueryClient();
@@ -54,7 +56,10 @@ const START_QUOTE_ERRORS: Readonly<Record<string, string>> = {
   DESIGN_QUOTE_REQUEST_CLOSED: COPY.quoteRequestClosed,
 };
 
-/** Lập báo giá thành công: yêu cầu đã được BE đóng và thẻ chat đổi trạng thái → tải lại danh sách và chat. */
+/**
+ * Lập báo giá thành công: yêu cầu đã được BE đóng, thẻ chat đổi trạng thái, có thêm báo giá nháp → tải lại danh sách
+ * yêu cầu, chat và báo giá.
+ */
 export function useStartQuote(navigate: Navigate) {
   const queryClient = useQueryClient();
   return useMutation<void, Error, QuoteRequest>({
@@ -63,6 +68,7 @@ export function useStartQuote(navigate: Navigate) {
       void queryClient.invalidateQueries({ queryKey: designQuoteRequestKeys.all });
       void queryClient.invalidateQueries({ queryKey: projectQuoteRequestKeys.all });
       void queryClient.invalidateQueries({ queryKey: CHAT_ROOT });
+      void queryClient.invalidateQueries({ queryKey: QUOTES_ROOT });
     },
     onError: (error) => toast.error(serverErrorMessage(error, START_QUOTE_ERRORS)),
   });
