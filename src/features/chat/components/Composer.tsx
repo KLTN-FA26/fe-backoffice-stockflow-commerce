@@ -1,42 +1,25 @@
 "use client";
 
-import { useId, useRef, useState } from "react";
-import { LoaderCircle, Paperclip, Send } from "lucide-react";
+import { useRef, useState } from "react";
+import { LoaderCircle, Send } from "lucide-react";
 
-import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { Notice } from "@/components/shared/Notice";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { fileTooLargeMessage, uploadFileMaxBytes } from "@/constants/upload-limits";
 
 import { useChatFailure, useSendAttachment, useSendNote, useSendText } from "../mutations";
-
 import { CannedPicker } from "./CannedPicker";
+import { ComposerAttachment } from "./ComposerAttachment";
+import { ComposerModeToggle } from "./ComposerModeToggle";
 import { MentionPicker } from "./MentionPicker";
+import { useMentionComposer } from "./use-mention-composer";
 
-import type { KeyboardEvent } from "react";
-
-import type { ChatStaff } from "../schemas";
-
-const ACCEPT = "image/jpeg,image/png,image/webp,application/pdf";
-type Mode = "reply" | "note";
-const MENTION_DEBOUNCE_MS = 300;
-/** "@" opening a word, then the letters typed so far (no spaces): the mention being written at the caret. */
-const MENTION_TOKEN = /(^|\s)@([^\s@]*)$/;
-interface Token {
-  /** Index of the "@" in the text. */
-  at: number;
-  query: string;
-}
-function tokenAt(value: string, caret: number): Token | null {
-  const found = MENTION_TOKEN.exec(value.slice(0, caret));
-  return found ? { at: caret - found[2].length - 1, query: found[2] } : null;
-}
+import type { ComposerMode } from "./ComposerModeToggle";
 
 /**
- * Soạn tin: "Trả lời khách" (S5) hoặc "Ghi chú nội bộ" (S6, khách không thấy); kèm file (S7). Mỗi lần gửi một
- * `clientMessageId` mới; bấm lại sau lỗi dùng lại để BE không tạo tin trùng. Câu trả lời mẫu chèn vào ô trả lời
- * khách để sửa trước khi gửi.
+ * Soạn tin: "Trả lời khách" (S5) hoặc "Ghi chú nội bộ" (S6, khách không thấy, có @nhắc đồng nghiệp); kèm file (S7). Mỗi
+ * lần gửi một `clientMessageId` mới; bấm lại sau lỗi dùng lại để BE không tạo tin trùng. Câu trả lời mẫu chèn vào ô trả
+ * lời khách để sửa trước khi gửi.
  */
 export function Composer({
   conversationId,
@@ -53,54 +36,40 @@ export function Composer({
   replyBlockedHint?: string | null;
 }) {
   const describeError = useChatFailure();
-  const [chosen, setMode] = useState<Mode>(canReply ? "reply" : "note");
+  const [chosen, setMode] = useState<ComposerMode>(canReply ? "reply" : "note");
   // Mất quyền trả lời (đổi người phụ trách) giữa chừng → rơi về ghi chú nội bộ.
-  const mode: Mode = chosen === "reply" && !canReply ? "note" : chosen;
+  const mode: ComposerMode = chosen === "reply" && !canReply ? "note" : chosen;
   const [text, setText] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [clientMessageId, setClientMessageId] = useState(() => crypto.randomUUID());
-  const [token, setToken] = useState<Token | null>(null);
-  const [mentioned, setMentioned] = useState<Pick<ChatStaff, "id" | "name">[]>([]);
-  const [items, setItems] = useState<ChatStaff[]>([]);
-  const [activeId, setActiveId] = useState("");
-  const [activeDomId, setActiveDomId] = useState<string>();
   const area = useRef<HTMLTextAreaElement>(null);
-  const picking = mode === "note" && token !== null;
-  // Reset while closed, so reopening never fetches the previous term.
-  const query = useDebouncedValue(picking ? token.query : "", MENTION_DEBOUNCE_MS);
-  const listId = `${useId()}-mentions`;
+  const mention = useMentionComposer({ enabled: mode === "note", text, setText, area });
   const sendText = useSendText();
   const sendNote = useSendNote();
   const sendFile = useSendAttachment();
   const pending = sendText.isPending || sendNote.isPending || sendFile.isPending;
   if (!canReply && !canNote) return null;
 
-  const done = () => {
-    setText("");
-    setToken(null);
-    setMentioned([]);
-    setFile(null);
-    setError(null);
-    setClientMessageId(crypto.randomUUID());
-  };
   const options = {
-    onSuccess: done,
+    onSuccess: () => {
+      setText("");
+      mention.reset();
+      setFile(null);
+      setError(null);
+      setClientMessageId(crypto.randomUUID());
+    },
     onError: (failure: unknown) => setError(describeError(failure)),
   };
   const submit = () => {
     const trimmed = text.trim();
-    if (mode === "note")
+    if (mode === "note") {
+      const mentions = mention.mentionIds(trimmed);
       return sendNote.mutate(
-        {
-          id: conversationId,
-          text: trimmed,
-          clientMessageId,
-          // Only people whose "@name" is still in the note.
-          mentions: mentioned.filter((p) => trimmed.includes(`@${p.name}`)).map((p) => p.id),
-        },
+        { id: conversationId, text: trimmed, clientMessageId, mentions },
         options,
       );
+    }
     if (file)
       return sendFile.mutate(
         { id: conversationId, file, caption: trimmed || undefined, clientMessageId },
@@ -108,73 +77,12 @@ export function Composer({
       );
     sendText.mutate({ id: conversationId, text: trimmed, clientMessageId }, options);
   };
-  const active = items.find((p) => p.id === activeId) ?? items[0];
-  const pick = (person: ChatStaff) => {
-    if (!token) return;
-    const caret = token.at + 1 + token.query.length;
-    const inserted = `@${person.name} `;
-    setText(text.slice(0, token.at) + inserted + text.slice(caret));
-    setMentioned((list) =>
-      list.some((p) => p.id === person.id) ? list : [...list, { id: person.id, name: person.name }],
-    );
-    setToken(null);
-    const next = token.at + inserted.length;
-    requestAnimationFrame(() => {
-      area.current?.focus();
-      area.current?.setSelectionRange(next, next);
-    });
-  };
-  const syncToken = (el: HTMLTextAreaElement) => setToken(tokenAt(el.value, el.selectionStart));
-  const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (!picking) return;
-    if (event.key === "Escape") {
-      event.preventDefault();
-      event.stopPropagation();
-      setToken(null);
-      return;
-    }
-    if (items.length === 0) return;
-    const index = Math.max(items.indexOf(active), 0);
-    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-      event.preventDefault();
-      const step = event.key === "ArrowDown" ? 1 : -1;
-      setActiveId(items[(index + step + items.length) % items.length].id);
-    } else if (event.key === "Enter" && !event.shiftKey) {
-      event.preventDefault();
-      pick(items[index]);
-    }
-  };
   const canSend = !pending && (mode === "reply" ? !!text.trim() || !!file : !!text.trim());
 
   return (
     <div className="border-border-default space-y-2 border-t pt-3">
       <div className="flex flex-wrap items-center justify-between gap-1">
-        <div role="radiogroup" aria-label="Loại tin" className="flex gap-1">
-          {canReply && (
-            <Button
-              type="button"
-              size="sm"
-              variant={mode === "reply" ? "default" : "outline"}
-              role="radio"
-              aria-checked={mode === "reply"}
-              onClick={() => setMode("reply")}
-            >
-              Trả lời khách
-            </Button>
-          )}
-          {canNote && (
-            <Button
-              type="button"
-              size="sm"
-              variant={mode === "note" ? "default" : "outline"}
-              role="radio"
-              aria-checked={mode === "note"}
-              onClick={() => setMode("note")}
-            >
-              Ghi chú nội bộ
-            </Button>
-          )}
-        </div>
+        <ComposerModeToggle mode={mode} canReply={canReply} canNote={canNote} onChange={setMode} />
         {canUseCanned && canReply && mode === "reply" && (
           <CannedPicker
             conversationId={conversationId}
@@ -196,64 +104,17 @@ export function Composer({
         value={text}
         maxLength={4000}
         rows={3}
-        onKeyDown={onKeyDown}
-        // Caret moved or focus left: the "@word" under the caret may be gone.
-        onKeyUp={(event) => {
-          // Escape closed the picker on keydown: do not reopen it.
-          if (event.key !== "Escape") syncToken(event.currentTarget);
-        }}
-        onClick={(event) => syncToken(event.currentTarget)}
-        onBlur={() => setToken(null)}
-        {...(picking
-          ? {
-              role: "combobox",
-              "aria-expanded": true,
-              "aria-controls": listId,
-              "aria-autocomplete": "list" as const,
-              "aria-activedescendant": activeDomId,
-            }
-          : {})}
+        {...mention.textareaProps}
         onChange={(event) => {
           setText(event.target.value);
-          setToken(tokenAt(event.target.value, event.target.selectionStart));
+          mention.track(event.target.value, event.target.selectionStart);
         }}
         className={mode === "note" ? "bg-warning/10" : undefined}
       />
-      {picking && (
-        <MentionPicker
-          query={query}
-          listId={listId}
-          activeId={active?.id ?? ""}
-          onActiveChange={setActiveId}
-          onPick={pick}
-          onItems={setItems}
-          onActiveDomId={setActiveDomId}
-        />
-      )}
+      {mention.picking && <MentionPicker {...mention.pickerProps} />}
       <div className="flex items-center justify-between gap-2">
         {mode === "reply" ? (
-          <label className="text-ink-secondary inline-flex cursor-pointer items-center gap-1 text-xs">
-            <Paperclip className="size-3.5" />
-            {file ? file.name : "Đính kèm (JPEG/PNG/WebP/PDF ≤ 20 MB)"}
-            <input
-              type="file"
-              accept={ACCEPT}
-              className="sr-only"
-              aria-label="Đính kèm file"
-              onChange={(event) => {
-                const picked = event.target.files?.[0] ?? null;
-                // BE FileCategory.CHAT_ATTACHMENT = 20 MB: chặn ngay, không tải lên để nhận 413.
-                if (picked && picked.size > uploadFileMaxBytes("chatAttachment")) {
-                  setFile(null);
-                  setError(fileTooLargeMessage("chatAttachment"));
-                  event.target.value = "";
-                  return;
-                }
-                setError(null);
-                setFile(picked);
-              }}
-            />
-          </label>
+          <ComposerAttachment file={file} onFile={setFile} onError={setError} />
         ) : (
           <span />
         )}

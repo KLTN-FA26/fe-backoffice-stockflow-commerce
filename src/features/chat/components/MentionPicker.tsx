@@ -2,9 +2,11 @@
 
 import { useEffect, useMemo, useRef } from "react";
 
-import { useStaffSearch } from "../queries";
+import { CHAT_MENTION_LABELS as TEXT } from "@/constants";
 
 import { Command, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
+
+import { useStaffSearch } from "../queries";
 
 import type { ChatStaff } from "../schemas";
 
@@ -48,20 +50,20 @@ export function MentionPicker({
       shouldFilter={false}
       value={activeId}
       onValueChange={onActiveChange}
-      label="Chọn người được nhắc"
+      label={TEXT.pickerLabel}
       className="border-border-default bg-bg-surface max-h-48 rounded-[var(--r-sm)] border"
     >
       {/* cmdk owns the listbox id, so `aria-controls` points at this wrapper */}
       <div id={listId} ref={box}>
         <CommandList>
-          {search.isPending && <p className={`text-ink-tertiary ${ROW}`}>Đang tìm…</p>}
+          {search.isPending && <p className={`text-ink-tertiary ${ROW}`}>{TEXT.searching}</p>}
           {search.isError && (
             <p role="alert" className={`text-danger ${ROW}`}>
-              Không tải được danh sách nhân viên.
+              {TEXT.loadError}
             </p>
           )}
           {search.isSuccess && items.length === 0 && (
-            <p className={`text-ink-tertiary ${ROW}`}>Không có nhân viên khớp.</p>
+            <p className={`text-ink-tertiary ${ROW}`}>{TEXT.noMatch}</p>
           )}
           {items.length > 0 && (
             <CommandGroup>

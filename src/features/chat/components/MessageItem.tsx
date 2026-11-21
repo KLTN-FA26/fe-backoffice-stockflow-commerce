@@ -2,6 +2,8 @@
 
 import { Lock, Paperclip } from "lucide-react";
 
+import { CHAT_MENTION_LABELS } from "@/constants";
+
 import { openLink } from "@/lib/files/open-blob";
 import { formatDateTime } from "@/lib/format/date";
 import { toast } from "@/components/shared/Toast";
@@ -64,7 +66,9 @@ export function MessageItem({
               message.body && <p className="text-ink-primary whitespace-pre-line">{message.body}</p>
             )}
             {note && message.mentions.length > 0 && (
-              <p className="text-ink-secondary text-xs">Nhắc {message.mentions.length} người</p>
+              <p className="text-ink-secondary text-xs">
+                {CHAT_MENTION_LABELS.mentionedCount(message.mentions.length)}
+              </p>
             )}
             {message.attachments.map((file) => (
               <div key={file.id} className="space-y-1">
