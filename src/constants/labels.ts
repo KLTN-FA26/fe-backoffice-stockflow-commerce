@@ -121,6 +121,7 @@ export const UI_LABELS = {
     noActions: {
       viewOnly: "Bạn chỉ có quyền xem phiếu nhận.",
       inPutaway: "Đang chờ cất hàng lên vị trí lưu trữ (putaway).",
+      openPutaway: "Xem việc cất hàng của phiếu",
     },
     noCountLines: "Chưa có dòng kiểm đếm.",
     linesDraftTitle: "Dòng kiểm đếm",
@@ -405,6 +406,9 @@ export const RECEIPT_FIELD_MESSAGES = {
 } as const;
 
 export const TOAST_MESSAGES = {
+  putaway: {
+    confirmed: (lpn: string, locationCode: string) => `Đã cất thùng ${lpn} vào ${locationCode}`,
+  },
   form: {
     saveBlocked: "Chưa thể lưu",
     checkForm: "Kiểm tra lại biểu mẫu",

@@ -162,6 +162,28 @@ export const GOODS_RECEIPT_PERMISSIONS = {
 } as const;
 
 /**
+ * Nhiệm vụ cất hàng — resource `warehouse-putaway-tasks` (BE `PutawayController`, docs 05). Seed: WAREHOUSE_STAFF,
+ * WAREHOUSE_MANAGER, SYSTEM_ADMIN có cả ba. READ: danh sách + chi tiết kèm bin gợi ý; UPDATE: xác nhận cất một thùng.
+ */
+export const PUTAWAY_TASK_PERMISSIONS = {
+  viewPage: "warehouse-putaway-tasks:VIEW_PAGE",
+  read: "warehouse-putaway-tasks:READ",
+  update: "warehouse-putaway-tasks:UPDATE",
+} as const;
+
+/**
+ * Chuyến cất hàng — resource `warehouse-putaway-trips` (BE `PutawayTripController`, migration
+ * V20261124000100). WAREHOUSE_STAFF: VIEW_PAGE/READ/UPDATE; APPROVE (đóng chuyến bỏ dở của người khác, docs 05 §2)
+ * chỉ WAREHOUSE_MANAGER và SYSTEM_ADMIN.
+ */
+export const PUTAWAY_TRIP_PERMISSIONS = {
+  viewPage: "warehouse-putaway-trips:VIEW_PAGE",
+  read: "warehouse-putaway-trips:READ",
+  update: "warehouse-putaway-trips:UPDATE",
+  approve: "warehouse-putaway-trips:APPROVE",
+} as const;
+
+/**
  * Kết luận QC dòng nhận — resource `procurement-qc-tasks` (BE `POST …/lines/{id}/inspection`,
  * PR #62). Tách khỏi quyền phiếu nhận: NV QC kết luận, NV kho không (docs 03 §2).
  */

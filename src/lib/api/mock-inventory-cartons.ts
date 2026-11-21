@@ -99,6 +99,11 @@ export function openMockReleaseTask(carton: MockCarton): MockReleaseTask {
   return task;
 }
 
+/** Nhiệm vụ cất hàng đã mở do giải phóng cách ly — store cất hàng mock đọc để hiện trên màn Cất hàng. */
+export function listMockReleaseTasks(): MockReleaseTask[] {
+  return [...releases.values()];
+}
+
 export async function listMockCartons(): Promise<MockCarton[]> {
   const cartons: MockCarton[] = [];
   for (const receipt of (await getReceiptStore()).values()) {
