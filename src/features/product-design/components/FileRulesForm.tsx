@@ -6,15 +6,17 @@ import { Controller, useWatch } from "react-hook-form";
 
 import { PRINT_CONFIG_SCREEN_LABELS } from "@/constants/labels-print-config";
 import { PRINT_CONFIG_LIMITS } from "@/constants/numbers";
-import { STUDIO_FONTS } from "@/constants/studio-fonts";
 import { cn } from "cn";
 import { DetailSection } from "@/components/shared/DetailSection";
 import { FORM_INPUT_CLASS, FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
 import { FormSelect } from "@/components/shared/FormSelect";
 import { TextField } from "@/components/shared/TextField";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+import { useDesignFonts } from "../queries";
 
 import type { Control, FieldErrors, UseFormRegister } from "react-hook-form";
 import type { PrintDefaultsValues } from "./print-defaults";
@@ -125,7 +127,21 @@ function MaxColors({
   );
 }
 
-/** "Font được dùng": every font (`null`), or only the ticked ones. */
+/**
+ * The font choices: the BE's list (`GET /design-fonts`, BE-18), plus any stored code the list does not have, shown as
+ * "(mã lạ)" so it is seen and can be unticked rather than silently dropped.
+ */
+function fontChoices(fonts: readonly { code: string; label: string }[], stored: readonly string[]) {
+  const known = new Set(fonts.map(({ code }) => code));
+  return [
+    ...fonts.map(({ code, label }) => ({ value: code, label })),
+    ...stored
+      .filter((code) => !known.has(code))
+      .map((code) => ({ value: code, label: TEXT.fontUnknown(code) })),
+  ];
+}
+
+/** "Font được dùng": every font (`null`), or only the ticked ones (never an empty list: the BE rejects it). */
 function Fonts({
   control,
   disabled,
@@ -136,8 +152,10 @@ function Fonts({
   error?: string;
 }) {
   const fonts = useWatch({ control, name: "allowedFontCodes" });
+  const list = useDesignFonts();
   const limited = fonts !== null;
   const name = useId();
+  const firstFont = list.data?.[0]?.code;
   return (
     <div className="flex flex-col gap-2 @sm:col-span-2 @3xl:col-span-3">
       <Controller
@@ -155,7 +173,7 @@ function Fonts({
                   name={name}
                   className="accent-accent size-4"
                   checked={limited === only}
-                  onChange={() => field.onChange(only ? [STUDIO_FONTS[0].code] : null)}
+                  onChange={() => field.onChange(only ? (firstFont ? [firstFont] : []) : null)}
                 />
                 {only ? TEXT.fontsOnly : TEXT.fontsAll}
               </label>
@@ -163,16 +181,30 @@ function Fonts({
           </fieldset>
         )}
       />
-      {limited && (
+      {limited && list.data && (
         <Choices
           name="allowedFontCodes"
           legend={TEXT.fontsGroup}
           control={control}
-          choices={STUDIO_FONTS.map(({ code, label }) => ({ value: code, label }))}
+          choices={fontChoices(list.data, fonts)}
           disabled={disabled}
           error={error}
         />
       )}
+      {limited && list.isPending && (
+        <p role="status" className="text-ink-secondary text-xs">
+          {TEXT.fontsLoading}
+        </p>
+      )}
+      {limited && list.isError && (
+        <div role="alert" className="text-danger flex items-center gap-2 text-xs">
+          {TEXT.fontsError}
+          <Button type="button" variant="outline" size="sm" onClick={() => void list.refetch()}>
+            {TEXT.fontsRetry}
+          </Button>
+        </div>
+      )}
+      {limited && !list.data && error && <p className="text-danger text-xs">{error}</p>}
     </div>
   );
 }

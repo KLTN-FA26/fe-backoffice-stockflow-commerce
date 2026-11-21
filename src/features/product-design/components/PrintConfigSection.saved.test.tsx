@@ -12,7 +12,10 @@ import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 import { activateMockAdapter } from "@/lib/api/mock-adapter";
 import { resetProductMockStore } from "@/lib/api/mock-product-store";
-import { resetPrintConfigMockStore } from "@/lib/api/mock-routes-print-configs";
+import {
+  printConfigMockPending,
+  resetPrintConfigMockStore,
+} from "@/lib/api/mock-routes-print-configs";
 import { resetVariantMockStore } from "@/lib/api/mock-routes-variants";
 
 import { CUSTOMIZATION_TEMPLATE_PERMISSIONS as TEMPLATE } from "@/constants/permissions";
@@ -263,7 +266,8 @@ describe("PrintConfigSection: a save that changes only a default", () => {
     });
   });
 
-  it("saving a stored configuration asks first, with the pending-designs warning; no is no request", async () => {
+  it("saving a stored configuration asks first; a print change with 3 pending designs says so; no is no request", async () => {
+    printConfigMockPending.count = 3;
     const put = vi.spyOn(api, "put");
     const user = userEvent.setup();
     renderSection();
@@ -271,13 +275,55 @@ describe("PrintConfigSection: a save that changes only a default", () => {
     await user.click(screen.getByRole("button", { name: SAVE.name }));
     const dialog = within(await screen.findByRole("dialog", { name: "Lưu cấu hình in?" }));
     expect(
-      dialog.getByText(/Thiết kế đang chờ duyệt dùng cấu hình này sẽ không duyệt được nữa/),
+      dialog.getByText(
+        "3 thiết kế đang chờ duyệt dùng cấu hình này sẽ không duyệt được nữa (khách phải gửi lại).",
+      ),
     ).toBeInTheDocument();
     expect(put).not.toHaveBeenCalled(); // asking is not doing
     await user.click(dialog.getByRole("button", { name: "Quay lại" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(put).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: SAVE.name })).toBeEnabled(); // the edit is kept
+  });
+
+  it("with no pending design the save is still asked for, without the warning", async () => {
+    printConfigMockPending.count = 0;
+    const user = userEvent.setup();
+    renderSection();
+    await openAdvancedAndSetSeam(user, "6");
+    await user.click(screen.getByRole("button", { name: SAVE.name }));
+    const dialog = within(await screen.findByRole("dialog", { name: "Lưu cấu hình in?" }));
+    expect(dialog.queryByText(/không duyệt được nữa/)).not.toBeInTheDocument();
+    expect(dialog.getByRole("button", { name: "Quay lại" })).toBeInTheDocument();
+  });
+
+  it("font choices come from GET /design-fonts", async () => {
+    const get = vi.spyOn(api, "get");
+    const user = userEvent.setup();
+    renderSection();
+    await user.click(await screen.findByRole("button", FILE_RULES_TOGGLE));
+    await user.click(screen.getByRole("radio", { name: "Chỉ các font được chọn" }));
+    expect(await screen.findByRole("checkbox", { name: "Pacifico" })).toBeInTheDocument();
+    const group = within(screen.getByRole("group", { name: "Danh sách font" }));
+    expect(group.getAllByRole("checkbox")).toHaveLength(8);
+    expect(get.mock.calls.some(([url]) => url === "/design-fonts")).toBe(true);
+  });
+
+  it('"Chỉ các font được chọn" with none ticked blocks the save with a field error', async () => {
+    const put = vi.spyOn(api, "put");
+    const user = userEvent.setup();
+    renderSection();
+    await user.click(await screen.findByRole("button", FILE_RULES_TOGGLE));
+    await user.click(screen.getByRole("radio", { name: "Chỉ các font được chọn" }));
+    const first = await screen.findByRole("checkbox", { name: "Be Vietnam Pro" });
+    expect(first).toBeChecked(); // starts with the first font, never an empty list
+    await user.click(first); // untick everything
+    await user.click(screen.getByRole("button", { name: SAVE.name }));
+    expect(
+      await screen.findByText("Chọn ít nhất một font, hoặc chọn Mọi font."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(put).not.toHaveBeenCalled();
   });
 
   it("lưu gửi giá trị ràng buộc vừa sửa: dpi, hệ màu, số màu, định dạng, font", async () => {
@@ -295,7 +341,7 @@ describe("PrintConfigSection: a save that changes only a default", () => {
     await user.type(colors, "6");
     await user.click(screen.getByRole("checkbox", { name: "WebP" }));
     await user.click(screen.getByRole("radio", { name: "Chỉ các font được chọn" }));
-    await user.click(screen.getByRole("checkbox", { name: "Lobster" }));
+    await user.click(await screen.findByRole("checkbox", { name: "Lobster" }));
     await saveStored(user);
 
     await waitFor(() => expect(put).toHaveBeenCalledTimes(1));

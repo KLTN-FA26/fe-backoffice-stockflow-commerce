@@ -68,8 +68,19 @@ export const printConfigDtoSchema = z.object({
   printAreas: z.array(printAreaSchema),
   referenceFileName: nullable(z.string()),
   version: z.number().int().nonnegative(),
+  /**
+   * BE (WF-02 decision 1): the print version, compared when a design is reviewed; it moves only when a print-version
+   * field changes (not with `version`, the optimistic lock). Absent or null on an older BE.
+   */
+  printVersion: nullable(z.number().int().nonnegative()),
+  /** BE: the number of `PENDING_REVIEW` designs on this configuration, in the detail and the list alike. */
+  pendingReviewCount: nullable(z.number().int().nonnegative()),
   model3d: model3dSchema,
 });
+
+/** `GET /design-fonts` (BE-18): the fonts a print configuration may allow, by the code `allowedFontCodes` stores. */
+export const designFontSchema = z.object({ code: z.string().min(1), label: z.string().min(1) });
+export const designFontListSchema = z.array(designFontSchema);
 
 /** `GET …/model-file/download-url` (BE `DownloadLink`): a short-lived link to the stored `.glb`. */
 export const downloadLinkSchema = z.object({

@@ -31,6 +31,16 @@ describe("PrintConfigDto", () => {
     });
   });
 
+  it("printVersion and pendingReviewCount: read when sent, null when omitted", () => {
+    expect(printConfigDtoSchema.parse(cupWire)).toMatchObject({
+      printVersion: null,
+      pendingReviewCount: null,
+    });
+    expect(
+      printConfigDtoSchema.parse({ ...cupWire, printVersion: 2, pendingReviewCount: 5 }),
+    ).toMatchObject({ printVersion: 2, pendingReviewCount: 5 });
+  });
+
   it("a template with a file: name, checksum and surfaces, and no url", () => {
     const dto = printConfigDtoSchema.parse({ ...cupWire, model3d: model3dWithFile(SHA_A) });
     expect(dto.model3d).toEqual({

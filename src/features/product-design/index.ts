@@ -23,7 +23,13 @@ export { measuredChanged, measuredFigures } from "./measured";
 export type { MeasuredFigure, MeasuredKey } from "./measured";
 export { useActivatePrintConfig, useDeactivatePrintConfig, useSavePrintConfig } from "./mutations";
 export type { SavePrintConfigVariables } from "./mutations";
-export { printConfigKeys, useModelFileUrl, usePrintConfig } from "./queries";
+export {
+  designFontKeys,
+  printConfigKeys,
+  useDesignFonts,
+  useModelFileUrl,
+  usePrintConfig,
+} from "./queries";
 export {
   downloadLinkSchema,
   model3dSchema,

@@ -37,7 +37,11 @@ import type { AxiosRequestConfig } from "axios";
 import type { MockModelFile, MockPrintTemplate } from "./mock-print-config-store";
 import type { MockResponseShape } from "./mock-route-utils";
 
-export { printConfigMockFaults, resetPrintConfigMockStore } from "./mock-print-config-store";
+export {
+  printConfigMockFaults,
+  printConfigMockPending,
+  resetPrintConfigMockStore,
+} from "./mock-print-config-store";
 
 /**
  * Every BE handler answers `ApiResponse.ok(...)`: `{ success: true, data }` (null fields omitted, like the BE's
@@ -276,7 +280,21 @@ async function changeStatus(config: AxiosRequestConfig, activate: boolean) {
   return wrapped(responseOf(updated));
 }
 
+/** BE `PrintFont` (BE-18): the eight fonts of the storefront studio, in the BE's order. */
+const MOCK_DESIGN_FONTS = [
+  { code: "be-vietnam-pro", label: "Be Vietnam Pro" },
+  { code: "montserrat", label: "Montserrat" },
+  { code: "roboto-slab", label: "Roboto Slab" },
+  { code: "playfair-display", label: "Playfair Display" },
+  { code: "oswald", label: "Oswald" },
+  { code: "dancing-script", label: "Dancing Script" },
+  { code: "lobster", label: "Lobster" },
+  { code: "pacifico", label: "Pacifico" },
+];
+
 export function registerPrintConfigMockRoutes(): void {
+  registerMockRoute("GET", "/design-fonts", () => wrapped(MOCK_DESIGN_FONTS));
+
   const base = "/products/:id/variants/:variantId/customization-templates";
 
   registerMockRoute("GET", base, async (config) => {

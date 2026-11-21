@@ -264,6 +264,11 @@ export const PRINT_CONFIG_SCREEN_LABELS = {
     fontsAll: "Mọi font",
     fontsOnly: "Chỉ các font được chọn",
     fontsGroup: "Danh sách font",
+    /** Mã font đã lưu mà danh sách của BE không có (BE-18): hiện lại để người dùng thấy và bỏ chọn được. */
+    fontUnknown: (code: string) => `${code} (mã lạ)`,
+    fontsLoading: "Đang tải danh sách font…",
+    fontsError: "Không tải được danh sách font.",
+    fontsRetry: "Thử lại",
     validation: {
       number: "Nhập một số.",
       integer: "Nhập một số nguyên.",
@@ -358,48 +363,45 @@ export const PRINT_CONFIG_SCREEN_LABELS = {
 } as const;
 
 /**
- * Cảnh báo "thiết kế đang chờ duyệt sẽ không duyệt được nữa", và khi nào hiện: MỘT chỗ duy nhất.
+ * Cảnh báo "N thiết kế đang chờ duyệt sẽ không duyệt được nữa", và khi nào hiện: MỘT chỗ duy nhất.
  *
- * Gốc: mỗi lần BE ghi một cấu hình in thì `version` tăng (`PrintConfigService`: lưu, kích hoạt, ngừng dùng, gắn file khuôn
- * tham chiếu; kích hoạt cấu hình mới còn làm tăng version của cấu hình cũ bị ngừng theo), mà lúc duyệt BE so
- * `templateVersion` của file thiết kế với version hiện tại (409 `DESIGN_FILES_OUTDATED`). BE chưa đếm được số thiết kế
- * đang chờ trên một cấu hình, nên câu là câu chung.
- *
- * ASSUMPTION: BE dự định chỉ tăng version khi đổi trường ảnh hưởng bản in. Khi đó: đặt `show: false` cho `activate` và
- * `deactivate` ở `PRINT_CONFIG_PENDING_WARNING.when` (đừng xoá dòng: `PendingWarningAction` suy ra từ các khoá này), và
- * thu hẹp `save` về các trường in (số đo, vùng in, ràng buộc file) ở chỗ gọi `pendingDesignWarning("save", …)`.
+ * BE (phiên bản in, cần quyết 1): chỉ đổi trường thuộc phiên bản in mới làm thiết kế đang chờ không duyệt được; kích
+ * hoạt, ngừng và gắn file khuôn tham chiếu thì không. Nên chỉ `save` còn hiện, và chỉ khi form đổi một trường in
+ * (`changesPrintVersion`) và `pendingReviewCount > 0` của cấu hình. Các dòng khác giữ ở đây với `show: false` (đừng
+ * xoá: `PendingWarningAction` suy ra từ các khoá này).
  */
 export const PRINT_CONFIG_PENDING_WARNING = {
-  base: "Thiết kế đang chờ duyệt dùng cấu hình này sẽ không duyệt được nữa (khách phải gửi lại).",
-  /** Hành động nào hiện cảnh báo, và câu nói thêm cho hành động đó (nối sau `base`). */
+  /** Câu cảnh báo kèm số thiết kế đang chờ duyệt trên cấu hình. */
+  count: (pendingCount: number) =>
+    `${pendingCount} thiết kế đang chờ duyệt dùng cấu hình này sẽ không duyệt được nữa (khách phải gửi lại).`,
+  /** Hành động nào còn hiện cảnh báo. */
   when: {
-    save: { show: true, extra: null },
-    activate: {
-      show: true,
-      extra:
-        "Cấu hình đang dùng hiện tại sẽ bị ngừng, nên thiết kế đang chờ duyệt trên nó cũng vậy.",
-    },
-    deactivate: { show: true, extra: null },
-    attachReference: { show: true, extra: null },
+    save: { show: true },
+    activate: { show: false },
+    deactivate: { show: false },
+    attachReference: { show: false },
   },
 } as const;
 
 export type PendingWarningAction = keyof typeof PRINT_CONFIG_PENDING_WARNING.when;
 
 /**
- * Câu cảnh báo của một hành động, hoặc `null` khi không cần. Lưu chỉ cảnh báo khi cấu hình đã có (`hasStored`): cấu
- * hình mới chưa có thiết kế nào dùng.
+ * Câu cảnh báo của một hành động, hoặc `null` khi không cần. Lưu chỉ cảnh báo khi cấu hình đã có (`hasStored`: cấu
+ * hình mới chưa có thiết kế nào dùng), form đổi một trường thuộc phiên bản in (`printVersionChanged`) và có thiết kế
+ * đang chờ duyệt (`pendingReviewCount > 0`).
  */
 export function pendingDesignWarning(
   action: PendingWarningAction,
-  { hasStored }: { hasStored: boolean },
+  {
+    hasStored,
+    pendingReviewCount,
+    printVersionChanged = false,
+  }: { hasStored: boolean; pendingReviewCount: number | null; printVersionChanged?: boolean },
 ): string | null {
-  if (action === "save" && !hasStored) return null;
-  const { show, extra } = PRINT_CONFIG_PENDING_WARNING.when[action];
-  if (!show) return null;
-  return extra
-    ? `${PRINT_CONFIG_PENDING_WARNING.base} ${extra}`
-    : PRINT_CONFIG_PENDING_WARNING.base;
+  if (!PRINT_CONFIG_PENDING_WARNING.when[action].show) return null;
+  if (action === "save" && !(hasStored && printVersionChanged)) return null;
+  if (!pendingReviewCount || pendingReviewCount <= 0) return null;
+  return PRINT_CONFIG_PENDING_WARNING.count(pendingReviewCount);
 }
 
 /** Chữ của trang "Cấu hình in" của một biến thể (`/admin/products/[id]/variants/[variantId]/print-config`). */

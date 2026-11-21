@@ -15,6 +15,7 @@ import { useForm, useWatch } from "react-hook-form";
 import { PRINT_CONFIG_SCREEN_LABELS, pendingDesignWarning } from "@/constants/labels-print-config";
 
 import { printConfigErrorMessage } from "../errors";
+import { changesPrintVersion } from "../print-version";
 import { useSavePrintConfig } from "../mutations";
 import { printConfigSaveInputSchema } from "../schemas";
 import { editableWithoutFile, modelFileStateOf } from "../selectors";
@@ -180,7 +181,7 @@ export function usePrintConfigEditor({
       return;
     }
     const { input } = prepared;
-    // A stored configuration is asked about first (the dialog adds the pending-designs warning when it applies).
+    // A stored configuration is asked about first (the dialog adds the pending-designs warning when a print-version field changed and designs are waiting).
     if (input.stored !== null) {
       setAsked(input);
       return;
@@ -189,7 +190,13 @@ export function usePrintConfigEditor({
   });
 
   const savePrompt = asked && {
-    warning: pendingDesignWarning("save", { hasStored: asked.stored !== null }),
+    warning: pendingDesignWarning("save", {
+      hasStored: config !== null && asked.stored !== null,
+      pendingReviewCount: config?.pendingReviewCount ?? null,
+      // Only a change of a print-version field breaks a pending design (BE `printVersion`); a name does not.
+      printVersionChanged:
+        config !== null && changesPrintVersion(config, asked.config, asked.file !== undefined),
+    }),
     confirm: () => runSave(asked),
     cancel: () => setAsked(null),
   };

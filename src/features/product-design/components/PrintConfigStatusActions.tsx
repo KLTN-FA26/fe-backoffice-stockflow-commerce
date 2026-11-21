@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 
-import { PRINT_CONFIG_SCREEN_LABELS, pendingDesignWarning } from "@/constants/labels-print-config";
-import { Alert } from "@/components/shared/Alert";
+import { PRINT_CONFIG_SCREEN_LABELS } from "@/constants/labels-print-config";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 
@@ -54,7 +53,6 @@ export function PrintConfigStatusActions({
   if (actions.length === 0 && !activateBlocked) return null;
 
   const mutation = asking === "activate" ? activate : deactivate;
-  const warning = asking ? pendingDesignWarning(asking, { hasStored: true }) : null;
   const confirm = () =>
     mutation.mutate(
       { productId, variantId, templateId: config.templateId, version: config.version },
@@ -93,9 +91,7 @@ export function PrintConfigStatusActions({
         closeOnConfirm={false}
         loading={mutation.isPending}
         onConfirm={confirm}
-      >
-        {warning && <Alert tone="warning">{warning}</Alert>}
-      </ConfirmDialog>
+      />
     </div>
   );
 }

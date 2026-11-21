@@ -10,7 +10,12 @@ import { api } from "@/lib/api/client";
 import { sha256Hex } from "@/lib/crypto/sha256";
 
 import { ModelFileMismatchError } from "./errors";
-import { downloadLinkSchema, printConfigDtoSchema, printConfigSaveInputSchema } from "./schemas";
+import {
+  designFontListSchema,
+  downloadLinkSchema,
+  printConfigDtoSchema,
+  printConfigSaveInputSchema,
+} from "./schemas";
 
 import type { AxiosRequestConfig } from "axios";
 import type {
@@ -93,6 +98,12 @@ export async function getModelFileLink(
   const url = `${templatePath(productId, variantId, templateId)}/model-file/download-url`;
   const { data } = await api.get<unknown>(url, { signal });
   return downloadLinkSchema.parse(data);
+}
+
+/** `GET /design-fonts` (BE-18, permission `design-designs:READ`): the fonts a configuration may allow. */
+export async function getDesignFonts(signal?: AbortSignal) {
+  const { data } = await api.get<unknown>("/design-fonts", { signal });
+  return designFontListSchema.parse(data);
 }
 
 /** One request; which one depends on what is saved. */

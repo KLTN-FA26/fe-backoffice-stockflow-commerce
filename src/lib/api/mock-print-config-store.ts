@@ -69,7 +69,14 @@ let counter = 0;
  */
 export const printConfigMockFaults: { storeOtherBytes: boolean } = { storeOtherBytes: false };
 
+/**
+ * Test hook (the BE computes it): how many `PENDING_REVIEW` designs every template answers as `pendingReviewCount`.
+ * Cleared by `resetPrintConfigMockStore`.
+ */
+export const printConfigMockPending: { count: number } = { count: 0 };
+
 export function resetPrintConfigMockStore(): void {
+  printConfigMockPending.count = 0;
   byVariant.clear();
   seeded = false;
   counter = 0;
@@ -153,6 +160,9 @@ export function responseOf(t: MockPrintTemplate) {
       };
     }),
     version: t.version,
+    // ASSUMPTION: the mock has no separate print version; the lock's `version` stands in for it.
+    printVersion: t.version,
+    pendingReviewCount: printConfigMockPending.count,
     referenceFileName: null,
     model3d: {
       hasFile: t.file !== null,

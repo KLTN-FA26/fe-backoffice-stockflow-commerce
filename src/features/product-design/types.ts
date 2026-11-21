@@ -3,6 +3,7 @@ import type { z } from "zod";
 import type {
   printConfigBodySchema,
   printConfigDtoSchema,
+  designFontSchema,
   printConfigSaveInputSchema,
   storedPrintConfigSchema,
   surfaceSchema,
@@ -10,6 +11,7 @@ import type {
 
 /** What the back end returns for one print configuration (BE customization template). */
 export type PrintConfigDto = z.infer<typeof printConfigDtoSchema>;
+export type DesignFont = z.infer<typeof designFontSchema>;
 export type PrintConfigBody = z.infer<typeof printConfigBodySchema>;
 export type PrintSurface = z.infer<typeof surfaceSchema>;
 export type StoredPrintConfig = z.infer<typeof storedPrintConfigSchema>;

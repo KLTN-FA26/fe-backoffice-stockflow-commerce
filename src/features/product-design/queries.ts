@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { getModelFileLink, getPrintConfig } from "./api";
+import { getDesignFonts, getModelFileLink, getPrintConfig } from "./api";
 
 import type { PrintConfigDto } from "./types";
 
@@ -51,5 +51,20 @@ export function useModelFileUrl(config: PrintConfigDto | null | undefined) {
     enabled: Boolean(config?.model3d.hasFile),
     staleTime: LINK_STALE_MS,
     gcTime: LINK_STALE_MS,
+  });
+}
+
+/** Query key of the font list (BE-18): one list for the whole back office, no parameters. */
+export const designFontKeys = {
+  all: ["design-fonts"] as const,
+  list: () => [...designFontKeys.all, "list"] as const,
+};
+
+/** The fonts the storefront studio can offer (BE `GET /design-fonts`); the picker of a print configuration reads it. */
+export function useDesignFonts() {
+  return useQuery({
+    queryKey: designFontKeys.list(),
+    queryFn: ({ signal }) => getDesignFonts(signal),
+    staleTime: 5 * 60_000,
   });
 }

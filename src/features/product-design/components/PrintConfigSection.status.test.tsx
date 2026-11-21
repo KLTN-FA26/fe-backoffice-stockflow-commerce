@@ -6,7 +6,10 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 import { api } from "@/lib/api/client";
 import { activateMockAdapter } from "@/lib/api/mock-adapter";
 import { resetProductMockStore } from "@/lib/api/mock-product-store";
-import { resetPrintConfigMockStore } from "@/lib/api/mock-routes-print-configs";
+import {
+  printConfigMockPending,
+  resetPrintConfigMockStore,
+} from "@/lib/api/mock-routes-print-configs";
 import { resetVariantMockStore } from "@/lib/api/mock-routes-variants";
 
 import { findStatus, readOnly, renderSection, STATUS_CARD } from "./print-config-test-utils";
@@ -70,24 +73,19 @@ describe("activating and stopping a saved configuration", () => {
     await waitFor(() => expect(post.mock.calls[1]?.[0]).toMatch(/\/activation$/));
   });
 
-  it("hộp kích hoạt / ngừng có câu cảnh báo thiết kế chờ duyệt", async () => {
+  it("hộp kích hoạt / ngừng không còn cảnh báo thiết kế chờ duyệt, kể cả khi có thiết kế đang chờ", async () => {
+    printConfigMockPending.count = 4; // BE: activating or stopping never breaks a pending design
     const user = userEvent.setup();
     renderSection();
     await user.click(await screen.findByRole("button", { name: "Ngừng dùng" }));
     const stop = within(await screen.findByRole("dialog"));
-    expect(
-      stop.getByText(/Thiết kế đang chờ duyệt dùng cấu hình này sẽ không duyệt được nữa/),
-    ).toBeInTheDocument();
-    // The true half of the story: a draft already on this configuration keeps it.
+    expect(stop.queryByText(/không duyệt được nữa/)).not.toBeInTheDocument();
     expect(stop.getByText(/Bản thiết kế đang làm dở vẫn giữ cấu hình này/)).toBeInTheDocument();
     await user.click(stop.getByRole("button", { name: "Ngừng dùng" }));
     await user.click(await screen.findByRole("button", { name: "Kích hoạt" }));
     const start = within(await screen.findByRole("dialog"));
-    expect(
-      start.getByText(/Thiết kế đang chờ duyệt dùng cấu hình này sẽ không duyệt được nữa/),
-    ).toBeInTheDocument();
-    // Activating also retires the variant's active configuration: said in the warning and in the description.
-    expect(start.getByText(/Cấu hình đang dùng hiện tại sẽ bị ngừng/)).toBeInTheDocument();
+    expect(start.queryByText(/không duyệt được nữa/)).not.toBeInTheDocument();
+    // Activating still retires the variant's active configuration, and the description says so.
     expect(start.getByText(/tự ngừng dùng/)).toBeInTheDocument();
   });
 
