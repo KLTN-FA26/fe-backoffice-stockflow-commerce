@@ -5,6 +5,8 @@
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { PUTAWAY_SUGGESTION_REASONS } from "@/constants";
+
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 import { activateMockAdapter } from "@/lib/api/mock-adapter";
@@ -100,15 +102,22 @@ describe("putaway mock ↔ hợp đồng BE PutawayController", () => {
     expect(rows.every((t) => t.suggestions.length === 0 && t.source === "RECEIPT")).toBe(true);
   });
 
-  it("chi tiết: tối đa 10 bin gợi ý, kho trống → toàn bin EMPTY, hoà thì theo mã", async () => {
+  it("chi tiết: tối đa 10 bin gợi ý, xếp nhóm SAME_LOT → EMPTY → SAME_SKU → OTHER_SKU, vừa khít trước, hoà thì theo mã", async () => {
     const [first] = await pending();
     if (!first) throw new Error("no pending task in the mock seed");
-    const detail = await getPutawayTask(first.id);
-    expect(detail.suggestions.length).toBeGreaterThan(0);
-    expect(detail.suggestions.length).toBeLessThanOrEqual(10);
-    expect(detail.suggestions.every((s) => s.reason === "EMPTY")).toBe(true);
-    const codes = detail.suggestions.map((s) => s.locationCode);
-    expect(codes).toEqual([...codes].sort());
+    const { suggestions } = await getPutawayTask(first.id);
+    expect(suggestions.length).toBeGreaterThan(0);
+    expect(suggestions.length).toBeLessThanOrEqual(10);
+    const group = (reason: string) => PUTAWAY_SUGGESTION_REASONS.findIndex((r) => r === reason);
+    suggestions.slice(1).forEach((s, index) => {
+      const prev = suggestions[index];
+      if (!prev) return;
+      const order =
+        group(prev.reason) - group(s.reason) ||
+        (prev.freeVolumeM3 ?? 0) - (s.freeVolumeM3 ?? 0) ||
+        prev.locationCode.localeCompare(s.locationCode);
+      expect(order, `${prev.locationCode} trước ${s.locationCode}`).toBeLessThan(0);
+    });
   });
 
   it("xác nhận: sai thùng, vị trí lạ, khu không phải bin → lỗi đúng mã BE", async () => {
