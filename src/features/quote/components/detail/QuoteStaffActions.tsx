@@ -9,7 +9,7 @@ import { usePermissionChecker } from "@/lib/auth/components/Can";
 import { quoteErrorMessage } from "@/features/quote/errors";
 import { allowedStaffQuoteActions } from "@/features/quote/lifecycle";
 import { useReviseQuote } from "@/features/quote/mutations";
-import { sendBlockReason } from "@/features/quote/selectors";
+import { hasDiscontinuedLine, sendBlockReason } from "@/features/quote/selectors";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { DETAIL_ACTION_CLASS } from "@/components/shared/DetailSection";
 import { toast } from "@/components/shared/Toast";
@@ -26,14 +26,19 @@ type Dialog = "send" | "cancel" | "revise" | "convert" | null;
 
 /**
  * Nút back-office theo lifecycle (allowedStaffQuoteActions, plan WF-02 A4):
- * DRAFT → Sửa / Gửi khách / Huỷ; CHANGES_REQUESTED → Mở bản sửa; ACCEPTED → Tạo đơn (Huỷ chỉ khi BE cho).
+ * DRAFT → Sửa / Gửi khách / Huỷ; CHANGES_REQUESTED → Mở bản sửa; ACCEPTED → Tạo đơn (Huỷ chỉ khi có dòng SKU ngừng bán, BE-14).
  * Tải PDF luôn có cho người đọc được báo giá. Nút xếp dọc trong thẻ trạng thái cột phải (như thẻ hành động sản phẩm).
  */
 export function QuoteStaffActions({ quote }: { quote: Quote }) {
   const can = usePermissionChecker();
   const [dialog, setDialog] = useState<Dialog>(null);
   const revise = useReviseQuote();
-  const actions = allowedStaffQuoteActions(quote.status, can, quote.legacy);
+  const actions = allowedStaffQuoteActions(
+    quote.status,
+    can,
+    quote.legacy,
+    hasDiscontinuedLine(quote),
+  );
   const onError = (error: unknown) => toast.error(quoteErrorMessage(error));
   const close = () => setDialog(null);
   const sendBlocked = sendBlockReason(quote);

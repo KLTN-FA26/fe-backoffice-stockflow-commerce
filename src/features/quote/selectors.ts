@@ -6,6 +6,14 @@
 import type { Quote, QuoteLine, QuoteTier, QuoteTotals, QuoteTransition } from "./types";
 
 /**
+ * BE-14: an ACCEPTED quote may be cancelled only when a SKU on it can no longer be bought. A line counts when BE
+ * sent a `purchasability` that is not `PURCHASABLE`; a missing value (old lines) does not.
+ */
+export function hasDiscontinuedLine(quote: Pick<Quote, "lines">): boolean {
+  return quote.lines.some((line) => !!line.purchasability && line.purchasability !== "PURCHASABLE");
+}
+
+/**
  * Bậc giá theo số thùng: bậc có `minQuantity` lớn nhất ≤ số thùng. Dưới bậc thấp nhất (= MOQ) → `null`
  * (BE trả QUOTE_BELOW_MOQ, 14 BR-08).
  */

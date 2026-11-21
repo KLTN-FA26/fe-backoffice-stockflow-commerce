@@ -33,6 +33,8 @@ export const quoteLineDtoSchema = z.object({
   /** `CARTON` (báo giá theo thùng) hoặc `UNIT` (báo giá cũ trước rescope). */
   measure: z.string(),
   sku: z.string(),
+  /** BE-14: `PURCHASABLE`, `PRODUCT_INACTIVE`… ; null on old lines (null alone never counts as discontinued). */
+  purchasability: omittedOrNull(z.string()),
   cartons: omittedOrNull(z.number().int()),
   unitsPerCarton: omittedOrNull(z.number().int()),
   units: z.number().int(),

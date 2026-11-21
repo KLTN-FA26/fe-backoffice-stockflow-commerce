@@ -221,6 +221,31 @@ describe("Quote detail", () => {
     expect(dialog.textContent).not.toContain("Huỷ báo giá (ghi lý do)");
   });
 
+  it.each([
+    ["every line PURCHASABLE", ["PURCHASABLE"], false],
+    ["lines without purchasability (old data)", [undefined], false],
+    ["one line no longer sold", ["PURCHASABLE", "PRODUCT_INACTIVE"], true],
+  ])("BE-14: ACCEPTED shows the SKU cancel button only when %s", async (_name, values, shown) => {
+    const line = QUOTE_ACCEPTED.lines[0]!;
+    mockApi("SALES_STAFF", {
+      get: {
+        [detailUrl]: () => ({
+          ...QUOTE_ACCEPTED,
+          lines: values.map((purchasability, index) => ({
+            ...line,
+            id: `line-${index}`,
+            lineNo: index + 1,
+            purchasability,
+          })),
+        }),
+        [`/customers/${CUSTOMER_ID}`]: () => CUSTOMER,
+      },
+    });
+    renderScreen(<QuoteDetail id={QUOTE_ID} />, "SALES_STAFF");
+    await screen.findByRole("button", { name: "Tạo đơn" });
+    expect(screen.queryByRole("button", { name: "Huỷ (SKU ngừng bán)" }) !== null).toBe(shown);
+  });
+
   it("DRAFT có dòng chưa có nhóm thuế: chặn gửi và nêu dòng", async () => {
     const line = { ...priced.lines[0], taxClass: undefined, taxRate: undefined };
     mockApi("SALES_STAFF", {

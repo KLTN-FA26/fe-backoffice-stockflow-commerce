@@ -4,6 +4,7 @@ import { QUOTE_PERMISSIONS } from "@/constants";
 
 import { QUOTE_TRANSITIONS, allowedStaffQuoteActions } from "../lifecycle";
 import {
+  hasDiscontinuedLine,
   isExpired,
   lastChangeRequest,
   moqOf,
@@ -47,6 +48,19 @@ describe("allowedStaffQuoteActions — action gating (3 roles)", () => {
   it("read-only role sees nothing; coordinator only converts", () => {
     expect(allowedStaffQuoteActions("DRAFT", readOnly)).toEqual([]);
     expect(allowedStaffQuoteActions("ACCEPTED", coordinator)).toEqual(["convert"]);
+  });
+  it("BE-14: ACCEPTED can be cancelled only when a line has a purchasability other than PURCHASABLE", () => {
+    const lines = (...values: (string | null | undefined)[]) => ({
+      lines: values.map((purchasability) => ({ purchasability })) as never,
+    });
+    expect(hasDiscontinuedLine(lines("PURCHASABLE", "PRODUCT_INACTIVE"))).toBe(true);
+    expect(hasDiscontinuedLine(lines("PURCHASABLE"))).toBe(false);
+    // Old lines carry no value: null alone must not enable the button.
+    expect(hasDiscontinuedLine(lines(null, undefined))).toBe(false);
+    expect(allowedStaffQuoteActions("ACCEPTED", all, false, false)).toEqual(["convert"]);
+    expect(allowedStaffQuoteActions("ACCEPTED", all, false, true)).toEqual(["cancel", "convert"]);
+    // Drafts keep their cancel regardless of lines.
+    expect(allowedStaffQuoteActions("DRAFT", all)).toContain("cancel");
   });
   it("a legacy quote is view-only", () => {
     expect(allowedStaffQuoteActions("DRAFT", all, true)).toEqual([]);
