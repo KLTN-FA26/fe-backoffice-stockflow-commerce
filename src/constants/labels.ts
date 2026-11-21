@@ -405,6 +405,9 @@ export const RECEIPT_FIELD_MESSAGES = {
 } as const;
 
 export const TOAST_MESSAGES = {
+  putaway: {
+    confirmed: (lpn: string, locationCode: string) => `Đã cất thùng ${lpn} vào ${locationCode}`,
+  },
   form: {
     saveBlocked: "Chưa thể lưu",
     checkForm: "Kiểm tra lại biểu mẫu",

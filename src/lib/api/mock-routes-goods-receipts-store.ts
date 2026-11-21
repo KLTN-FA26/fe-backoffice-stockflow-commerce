@@ -9,7 +9,12 @@
  */
 
 import { beError, beOk, getPoStore, readRouteId } from "./mock-routes-purchase-orders-store";
-import { cartonLineView, resetMockCartons } from "./mock-receipt-cartons";
+import {
+  cartonLineView,
+  MOCK_CARTON_FACTOR,
+  nextLpn,
+  resetMockCartons,
+} from "./mock-receipt-cartons";
 
 import type { MockReceiptPackage } from "./mock-receipt-cartons";
 import type { MockBePo } from "./mock-routes-purchase-orders-store";
@@ -162,6 +167,30 @@ async function seedLine(
   };
 }
 
+/**
+ * Phiếu In Putaway: hàng đã ghi tồn và đang chờ cất ở khu nhận — như BE sau xác nhận, mỗi thùng IN_STOCK tại
+ * `HCM-RCV01` (docs 05 §4.1 bước 1). ASSUMPTION (mock): chia SL dòng thành thùng `MOCK_CARTON_FACTOR` cái, thùng cuối
+ * nhận phần dư — đủ để màn Cất hàng có thùng thật để cất.
+ */
+function waitingCartons(line: MockReceiptLine, receivedAt: string): MockReceiptLine {
+  const packages = [];
+  for (let left = line.quantity; left > 0; left -= MOCK_CARTON_FACTOR) {
+    const units = Math.min(left, MOCK_CARTON_FACTOR);
+    const lpn = nextLpn(new Date(receivedAt));
+    packages.push({
+      // Id theo LPN (LPN seed tất định): link tới nhiệm vụ cất hàng của thùng còn đúng sau khi tải lại trang
+      id: `mock-pkg-${lpn}`,
+      lpn,
+      quantity: units,
+      receivedQty: units,
+      nominalQty: MOCK_CARTON_FACTOR,
+      status: "IN_STOCK" as const,
+      locationCode: line.locationCode,
+    });
+  }
+  return { ...line, unitOfMeasure: "CARTON", packages };
+}
+
 interface SeedSpec {
   po: MockBePo;
   status: MockReceiptStatus;
@@ -173,9 +202,11 @@ interface SeedSpec {
 async function build(spec: SeedSpec): Promise<MockReceipt> {
   const receivedAt = daysAgo(spec.ageDays);
   const confirmed = !["DRAFT", "CANCELLED"].includes(spec.status);
-  const lines = await Promise.all(
+  const seeded = await Promise.all(
     spec.lines.map(([index, qty]) => seedLine(spec.po, index, qty, receivedAt)),
   );
+  const lines =
+    spec.status === "IN_PUTAWAY" ? seeded.map((line) => waitingCartons(line, receivedAt)) : seeded;
   return {
     id: crypto.randomUUID(),
     number: nextReceiptNumber(receivedAt),

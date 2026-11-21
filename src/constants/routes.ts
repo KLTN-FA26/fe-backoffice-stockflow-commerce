@@ -86,6 +86,11 @@ export const ADMIN_ROUTES = {
     detail: (id: string) => `${ADMIN_BASE}/receipts/${id}`,
     list: `${ADMIN_BASE}/receipts`,
   },
+  /** Cất hàng (docs 05) — danh sách nhiệm vụ theo kho / phiếu nhập và màn cất một thùng. */
+  putaway: {
+    list: `${ADMIN_BASE}/putaway`,
+    detail: (taskId: string) => `${ADMIN_BASE}/putaway/${encodeURIComponent(taskId)}`,
+  },
   /** Từ điển thuộc tính (BE PR #113) — thay màn "Thuộc tính biến thể" dựng từ dữ liệu mẫu. */
   attributes: `${ADMIN_BASE}/attributes`,
   /** Thương hiệu & danh mục — BE `ProductTaxonomyController` (gate product-products). */
