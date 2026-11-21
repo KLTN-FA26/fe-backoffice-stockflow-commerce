@@ -2,8 +2,9 @@
  * Store in-memory cho mock goods receipt (BE PR #62), chỉ dùng khi USE_MOCK=true.
  *
  * Phiếu seed sinh từ store PO mock — tức là phiếu mua hàng cũ (`receiptType = PURCHASE`) mà BE vẫn cho đọc sau
- * 4A-8; thùng của chúng là nguồn tồn kho mock (`mock-receipt-cartons`). Record giữ vài field nội bộ cũ (dòng PO,
- * cờ QC) để seed tồn kho; response đi qua `toReceiptView`. Không có phiếu nào nằm ở CONFIRMED: BE rời trạng thái
+ * 4A-8; thùng của chúng là nguồn tồn kho mock (`mock-receipt-cartons`). Record giữ field dòng PO cũ để seed tồn
+ * kho; response đi qua `toReceiptView`. Không còn QC ở kho (docs 03 BR-07, BE 0f076baf): dòng không mang cờ / tiến
+ * độ / kết luận QC. Không có phiếu nào nằm ở CONFIRMED: BE rời trạng thái
  * đó ngay trong transaction xác nhận (GoodsReceiptStatus javadoc).
  */
 
@@ -15,18 +16,6 @@ import type { MockBePo } from "./mock-routes-purchase-orders-store";
 
 export type MockReceiptStatus =
   "DRAFT" | "PENDING_APPROVAL" | "CONFIRMED" | "IN_PUTAWAY" | "CLOSED" | "CANCELLED";
-export type MockQcProgress = "NOT_REQUIRED" | "AWAITING_MOVE_TO_QC" | "IN_QC_AREA" | "INSPECTED";
-export type MockQcOutcome = "ACCEPTED" | "QUARANTINE" | "REJECTED";
-
-export interface MockInspection {
-  id: string;
-  outcome: MockQcOutcome;
-  quantity: number;
-  locationCode: string | null;
-  reason: string | null;
-  inspectedBy: string;
-  inspectedAt: string;
-}
 
 export interface MockReceiptLine {
   id: string;
@@ -40,12 +29,7 @@ export interface MockReceiptLine {
   expiryDate: string | null;
   locationCode: string;
   note: string | null;
-  qcRequired: boolean;
-  qcProgress: MockQcProgress;
-  qcLocationCode: string | null;
-  movedToQcAt: string | null;
   quantityForPutaway: number;
-  inspections: MockInspection[];
   warnings?: string[];
   /** SCRUM-473: đơn vị đóng gói của các thùng (null = dòng lẻ). */
   unitOfMeasure?: string | null;
@@ -92,12 +76,14 @@ export interface MockReceipt {
 export const MOCK_WAREHOUSE_ID = "d99123fd-2997-4751-6bb9-e10a2e6d9949";
 export const MOCK_RECEIPT_ACTOR = "mock-user";
 
-export type MockAreaType = "RECEIVING" | "QUALITY_CONTROL" | "QUARANTINE";
+export type MockAreaType = "RECEIVING" | "QUARANTINE";
 
-/** BE `warehouse.area` của kho HCM — mã vị trí (location_code) → loại khu. */
+/**
+ * BE `warehouse.area` của kho HCM — mã vị trí (location_code) → loại khu. Khu `HCM-QCA01` của thời QC đã thành
+ * QUARANTINE và INACTIVE trong seed BE (V20261114000200) nên không có ở đây.
+ */
 export const MOCK_AREAS: Readonly<Record<string, MockAreaType>> = {
   "HCM-RCV01": "RECEIVING",
-  "HCM-QCA01": "QUALITY_CONTROL",
   "HCM-QC01": "QUARANTINE",
   "HCM-RTV01": "QUARANTINE",
 };
@@ -108,14 +94,9 @@ export interface MockItemPolicy {
   inventoryItemId: string;
   lotTracked: boolean;
   expiryTracked: boolean;
-  qcRequired: boolean;
 }
 
-/**
- * Lấy cờ lô/hạn dùng từ catalog mock. ASSUMPTION (mock): `qcRequired` = SKU theo dõi lô —
- * mock-data không có cờ "Yêu cầu QC khi nhận" của docs 01 và không SKU nào theo dõi hạn dùng;
- * cần SKU 3 bước để demo luồng QC. BE thật đọc cờ `qc_required` của inventory item.
- */
+/** Lấy cờ lô/hạn dùng từ catalog mock. */
 export async function itemPolicy(sku: string): Promise<MockItemPolicy> {
   const { skus } = await import("@/lib/mock-data");
   const found = skus.find((s) => s.skuId === sku);
@@ -123,7 +104,6 @@ export async function itemPolicy(sku: string): Promise<MockItemPolicy> {
     inventoryItemId: `item-${sku}`,
     lotTracked: found?.lotTracking ?? false,
     expiryTracked: found?.expiryTracking ?? false,
-    qcRequired: found?.lotTracking ?? false,
   };
 }
 
@@ -163,14 +143,10 @@ async function seedLine(
   index: number,
   quantity: number,
   receivedAt: string,
-  progress: MockQcProgress | "auto",
 ): Promise<MockReceiptLine> {
   const poLine = po.lines[index];
   if (!poLine) throw new Error(`PO ${po.poNumber} has no line ${index}`);
   const policy = await itemPolicy(poLine.sku);
-  const qcProgress =
-    progress === "auto" ? (policy.qcRequired ? "INSPECTED" : "NOT_REQUIRED") : progress;
-  const inspected = qcProgress === "INSPECTED";
   return {
     id: crypto.randomUUID(),
     purchaseOrderLineId: poLine.lineId,
@@ -182,25 +158,7 @@ async function seedLine(
     expiryDate: policy.expiryTracked ? addDays(receivedAt, 365) : null,
     locationCode: "HCM-RCV01",
     note: null,
-    qcRequired: policy.qcRequired,
-    qcProgress: policy.qcRequired ? qcProgress : "NOT_REQUIRED",
-    qcLocationCode: policy.qcRequired && qcProgress !== "AWAITING_MOVE_TO_QC" ? "HCM-QCA01" : null,
-    movedToQcAt: policy.qcRequired && qcProgress !== "AWAITING_MOVE_TO_QC" ? receivedAt : null,
-    quantityForPutaway: policy.qcRequired && !inspected ? 0 : quantity,
-    inspections:
-      policy.qcRequired && inspected
-        ? [
-            {
-              id: crypto.randomUUID(),
-              outcome: "ACCEPTED",
-              quantity,
-              locationCode: null,
-              reason: null,
-              inspectedBy: MOCK_RECEIPT_ACTOR,
-              inspectedAt: receivedAt,
-            },
-          ]
-        : [],
+    quantityForPutaway: quantity,
   };
 }
 
@@ -208,15 +166,15 @@ interface SeedSpec {
   po: MockBePo;
   status: MockReceiptStatus;
   ageDays: number;
-  /** [chỉ số dòng PO, SL, tiến độ QC] */
-  lines: readonly (readonly [number, number, MockQcProgress | "auto"])[];
+  /** [chỉ số dòng PO, SL] */
+  lines: readonly (readonly [number, number])[];
 }
 
 async function build(spec: SeedSpec): Promise<MockReceipt> {
   const receivedAt = daysAgo(spec.ageDays);
   const confirmed = !["DRAFT", "CANCELLED"].includes(spec.status);
   const lines = await Promise.all(
-    spec.lines.map(([index, qty, progress]) => seedLine(spec.po, index, qty, receivedAt, progress)),
+    spec.lines.map(([index, qty]) => seedLine(spec.po, index, qty, receivedAt)),
   );
   return {
     id: crypto.randomUUID(),
@@ -263,7 +221,7 @@ async function seedSpecs(): Promise<SeedSpec[]> {
           status: wave < 2 || fullyReceived ? "CLOSED" : "IN_PUTAWAY",
           ageDays: 30 - wave * 7,
           lines: po.lines
-            .map((_, index) => [index, waves[index]?.[wave] ?? 0, "auto"] as const)
+            .map((_, index) => [index, waves[index]?.[wave] ?? 0] as const)
             .filter(([, qty]) => qty > 0),
         });
       });
@@ -273,7 +231,7 @@ async function seedSpecs(): Promise<SeedSpec[]> {
     specs.push({ po, status: "CANCELLED", ageDays: 6, lines: [] });
     specs.push({ po, status: "DRAFT", ageDays: 0, lines: [] });
     if (openIndex >= 0) {
-      specs.push({ po, status: "DRAFT", ageDays: 1, lines: [[openIndex, 1, "auto"]] });
+      specs.push({ po, status: "DRAFT", ageDays: 1, lines: [[openIndex, 1]] });
     }
   }
   return specs;

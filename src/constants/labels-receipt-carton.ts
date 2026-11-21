@@ -82,22 +82,6 @@ export const RECEIPT_CARTON_LABELS = {
   selectCarton: (lpn: string) => `Chọn thùng ${lpn} để in lại`,
   printLine: "In nhãn cả dòng",
   reprint: (count: number) => `In lại ${count} nhãn`,
-  // Dialog kết luận QC theo nguyên thùng
-  qcCartonsTitle: "Thùng — kết luận nguyên thùng, không mở thùng",
-  qcChoice: (outcome: string, lpn: string) => `${outcome} thùng ${lpn}`,
-  qcCartonAway: (location: string) => `Đang ở ${location}, không ở khu QC — tính là Đạt`,
-  qcLooseAccepted: "Đạt (lẻ)",
-  qcOutcome: { ACCEPTED: "Đạt", QUARANTINE: "Cách ly", REJECTED: "Không đạt" },
-  qcLooseTitle: (loose: number) => `Hàng lẻ: ${loose}`,
-  qcPartQuantity: (part: string, loose: boolean) => (loose ? `SL lẻ ${part}` : `SL ${part}`),
-  qcPartLocation: (part: string) => `Khu ${part}`,
-  qcPartReason: (part: string) => `Lý do ${part}`,
-  qcPartHint: {
-    quarantined: "Chờ kết luận lại — vào khu QUARANTINE",
-    rejected: "Trả NCC — vào khu QUARANTINE, tồn Blocked",
-  },
-  qcFields: { quantity: "SL", location: "Khu", reason: "Lý do" },
-  qcTotal: (total: number, moved: number) => `Tổng: ${total} / ${moved}`,
 } as const;
 
 /** Dialog in nhãn thùng (BE trả PDF — xem trước rồi in / tải xuống). */

@@ -402,11 +402,6 @@ export const RECEIPT_FIELD_MESSAGES = {
   warehouseRequired: "Chọn kho nhận",
   blindReasonRequired: "Nhập lý do không có PO",
   skuRequired: "Nhập SKU",
-  qcSum: "Tổng Đạt + Cách ly + Không đạt phải bằng SL đã chuyển sang khu QC",
-  qcQuantity: "Số lượng phải là số nguyên ≥ 0",
-  qcLocationRequired: "Nhập mã khu cách ly",
-  qcReasonRequired: "Nhập lý do",
-  qcSameLocation: "Hàng cách ly và hàng không đạt phải ở hai vị trí khác nhau",
 } as const;
 
 export const TOAST_MESSAGES = {
