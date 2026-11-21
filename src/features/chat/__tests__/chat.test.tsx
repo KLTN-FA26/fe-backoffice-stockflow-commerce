@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { CHAT_PERMISSIONS } from "@/constants";
+import { formatMoney } from "@/lib/format/money";
 import { bePage, mockApi, renderScreen } from "@/test/api-screen";
 
 import { ChatConversationScreen, ChatInbox } from "..";
@@ -39,12 +40,13 @@ const myConversation = { ...conversation, assignedAgentId: ME };
 function renderConversation(
   items: unknown[],
   post: Record<string, (params: unknown, body?: unknown) => unknown> = {},
+  customerOverview: unknown = overview,
 ) {
   const api = mockApi("SALES_STAFF", {
     get: {
       [BASE]: () => myConversation,
       [`${BASE}/messages`]: () => messagePage(items),
-      [`/chat/customers/${CUSTOMER_ID}/overview`]: () => overview,
+      [`/chat/customers/${CUSTOMER_ID}/overview`]: () => customerOverview,
     },
     post,
   });
@@ -139,6 +141,48 @@ describe("TC-F13 phía Sale — thẻ và ghi chú", () => {
         reminder: true,
       }),
     );
+  });
+});
+
+describe("hộp chuyển khoản — số còn phải thu (BE-6)", () => {
+  it("hiện outstanding của BE khi đợt có giảm; thiếu outstanding mới tự tính", async () => {
+    const [first] = overview.installments;
+    renderConversation(
+      [customerText],
+      {},
+      {
+        ...overview,
+        installments: [
+          {
+            ...first,
+            id: "i-1",
+            amount: 10_000_000,
+            paidAmount: 0,
+            reducedAmount: 2_000_000,
+            outstanding: 8_000_000,
+          },
+          {
+            ...first,
+            id: "i-2",
+            seq: 2,
+            amount: 5_000_000,
+            paidAmount: 1_000_000,
+            reducedAmount: undefined,
+            outstanding: undefined,
+          },
+        ],
+      },
+    );
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Gửi thông tin chuyển khoản" }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    expect(
+      within(dialog).getByRole("option", { name: new RegExp(formatMoney(8_000_000, "VND")) }),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("option", { name: new RegExp(formatMoney(4_000_000, "VND")) }),
+    ).toBeInTheDocument();
   });
 });
 

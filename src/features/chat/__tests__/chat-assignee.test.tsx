@@ -145,3 +145,71 @@ describe("màn hình hội thoại của Sale B", () => {
     ).not.toBeInTheDocument();
   });
 });
+
+describe("BE-19 viewer flags", () => {
+  const flagged = (flags: Record<string, boolean | null>, assignee: string | null = OTHER) => ({
+    ...active,
+    assignedAgentId: assignee,
+    ...flags,
+  });
+
+  it("canReply false: không trả lời, không lập báo giá, dù là người phụ trách", () => {
+    const conv = flagged({ canReply: false, canClaim: false, canAssign: false }, ME);
+    expect(staffConversationActions(conv, ME, can(supervisor)).reply).toBe(false);
+    expect(staffConversationTools(conv, ME, can(supervisor))).toMatchObject({
+      createQuote: false,
+      transfer: false,
+    });
+    expect(notInChargeHint({ ...conv, assignedAgentName: "Sale B" }, ME, can(sale))).not.toBeNull();
+  });
+
+  it("canReply true: bật trả lời + báo giá dù client không thấy mình phụ trách", () => {
+    const conv = flagged({ canReply: true, canClaim: false, canAssign: false });
+    expect(staffConversationActions(conv, ME, can(sale)).reply).toBe(true);
+    expect(staffConversationTools(conv, ME, can(sale)).createQuote).toBe(true);
+    expect(notInChargeHint({ ...conv, assignedAgentName: null }, ME, can(sale))).toBeNull();
+  });
+
+  it("canClaim và canAssign điều khiển nút nhận / phân công / chuyển", () => {
+    const queued = { status: "QUEUED" as const, nextStatuses: [], assignedAgentId: null };
+    expect(
+      staffConversationActions({ ...queued, canReply: false, canClaim: true }, ME, can(sale)).claim,
+    ).toBe(true);
+    expect(
+      staffConversationActions({ ...queued, canReply: false, canClaim: false }, ME, can(sale))
+        .claim,
+    ).toBe(false);
+    expect(staffConversationTools({ ...queued, canAssign: true }, ME, can(sale)).assign).toBe(true);
+    expect(
+      staffConversationTools(flagged({ canReply: false, canAssign: true }), ME, can(sale)).transfer,
+    ).toBe(true);
+  });
+
+  it("cờ null: giữ luật inCharge cũ", () => {
+    const conv = flagged({ canReply: null, canClaim: null, canAssign: null });
+    expect(staffConversationActions(conv, ME, can(sale)).reply).toBe(false);
+    expect(staffConversationActions(conv, ME, can(supervisor)).reply).toBe(true);
+  });
+
+  it("màn hình: canReply false → chỉ ghi chú, nút chuyển khoản vắng, thẻ báo giá tắt", async () => {
+    mockApi("SALES_STAFF", {
+      get: {
+        [BASE]: () => ({
+          ...conversation,
+          assignedAgentId: ME,
+          canReply: false,
+          canClaim: false,
+          canAssign: false,
+        }),
+        [`${BASE}/messages`]: () => messagePage([quoteRequestCard(["CREATE_QUOTE"]), customerText]),
+        [`/chat/customers/${CUSTOMER_ID}/overview`]: () => overview,
+      },
+    });
+    renderScreen(<ChatConversationScreen id={CONVERSATION_ID} />, "SALES_STAFF");
+    expect(await screen.findByRole("button", { name: /Lập báo giá/ })).toBeDisabled();
+    expect(screen.queryByRole("radio", { name: "Trả lời khách" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Gửi thông tin chuyển khoản" }),
+    ).not.toBeInTheDocument();
+  });
+});

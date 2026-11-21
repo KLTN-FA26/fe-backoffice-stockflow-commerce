@@ -71,6 +71,10 @@ export const chatConversationSchema = z.object({
   nextStatuses: z.array(statusSchema).default([]),
   assignedAgentId: omittedOrNull(z.string()),
   assignedAgentName: omittedOrNull(z.string()),
+  /** BE-19: cờ theo người xem (chỉ ở chi tiết nhân viên); null/vắng với khách và dòng hàng đợi realtime. */
+  canReply: z.boolean().nullish(),
+  canClaim: z.boolean().nullish(),
+  canAssign: z.boolean().nullish(),
   firstResponseOverdue: z.boolean().default(false),
   resolutionOverdue: z.boolean().default(false),
   createdAt: z.string(),
@@ -129,6 +133,9 @@ export const chatCustomerOverviewSchema = z.object({
         name: z.string(),
         amount: z.number(),
         paidAmount: z.number().default(0),
+        /** BE-6: phần đã giảm và số còn phải thu (amount − paidAmount − reducedAmount). */
+        reducedAmount: z.number().nullish(),
+        outstanding: z.number().nullish(),
         currency: z.string().default("VND"),
         dueDate: omittedOrNull(z.string()),
         status: z.string(),

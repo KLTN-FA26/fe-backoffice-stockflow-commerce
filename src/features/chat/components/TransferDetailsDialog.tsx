@@ -6,6 +6,7 @@ import { formatMoney } from "@/lib/format/money";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { FORM_INPUT_CLASS, FormField } from "@/components/shared/FormField";
 
+import { owedOf } from "../lifecycle";
 import { useChatFailure, useSendTransferDetails } from "../mutations";
 
 import type { ChatCustomerOverview } from "../schemas";
@@ -63,7 +64,7 @@ export function TransferDetailsDialog({
               {installments.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.contractNumber ?? item.orderNumber} — đợt {item.seq} {item.name}:{" "}
-                  {formatMoney(item.amount - item.paidAmount, item.currency)}
+                  {formatMoney(owedOf(item), item.currency)}
                 </option>
               ))}
             </select>

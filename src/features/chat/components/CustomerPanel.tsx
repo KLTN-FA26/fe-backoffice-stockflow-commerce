@@ -10,6 +10,7 @@ import { Card } from "@/components/shared/Card";
 import { Skeleton } from "@/components/shared/Skeleton";
 import { Button } from "@/components/ui/button";
 
+import { owedOf } from "../lifecycle";
 import { useCustomerOverview } from "../queries";
 import { contextStatusLabel } from "../selectors";
 
@@ -104,7 +105,7 @@ export function CustomerPanel({
         {owing.map((item) => (
           <div key={item.id} className={item.overdue ? "text-danger" : undefined}>
             {item.contractNumber ?? item.orderNumber} — đợt {item.seq}:{" "}
-            {formatMoney(item.amount - item.paidAmount, item.currency)}
+            {formatMoney(owedOf(item), item.currency)}
             {item.dueDate && ` · hạn ${formatDate(item.dueDate)}`}
             {item.overdue && " · quá hạn"}
           </div>
