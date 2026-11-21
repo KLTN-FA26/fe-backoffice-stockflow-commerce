@@ -3,7 +3,9 @@
  * nên FE chọn câu theo `errorCode`).
  */
 
-import { apiErrorMessage } from "@/lib/api/error-message";
+import { apiErrorMessage, apiFieldErrors } from "@/lib/api/error-message";
+
+import type { LegalProfileValues } from "./types";
 
 export const CUSTOMER_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   CUSTOMER_NOT_FOUND: "Không tìm thấy khách hàng.",
@@ -38,6 +40,30 @@ const LEGAL_PROFILE_ERROR_MESSAGES: Readonly<Record<string, string>> = {
 
 export function legalProfileErrorMessage(error: unknown): string {
   return apiErrorMessage(error, LEGAL_PROFILE_ERROR_MESSAGES);
+}
+
+/**
+ * BE-8: `PUT /legal-profile` answers 400 `VALIDATION_FAILED` with every wrong field at once
+ * (`fieldErrors[{ field, code, message }]`, Vietnamese). The three bank fields come back as `bankAccount.<name>`
+ * while the form keeps them flat, so the prefix is dropped. Unknown fields are ignored (caller falls back to the
+ * general sentence).
+ */
+export function legalProfileFieldErrors(
+  error: unknown,
+): { field: keyof LegalProfileValues; message: string }[] {
+  const known: ReadonlySet<string> = new Set<keyof LegalProfileValues>([
+    "registeredAddress",
+    "representativeName",
+    "representativeTitle",
+    "invoiceEmail",
+    "accountNumber",
+    "bankName",
+    "accountHolder",
+  ]);
+  return Object.entries(apiFieldErrors(error)).flatMap(([name, message]) => {
+    const field = name.replace(/^bankAccount\./, "");
+    return known.has(field) ? [{ field: field as keyof LegalProfileValues, message }] : [];
+  });
 }
 
 /** Lỗi kích hoạt mật khẩu yếu: BE trả VALIDATION_FAILED không kèm fieldErrors, link vẫn dùng được. */

@@ -93,6 +93,28 @@ describe("LegalProfileCard", () => {
     expect(api.put).not.toHaveBeenCalled();
   });
 
+  it("BE-8: 400 with fieldErrors marks every wrong field at once, bank fields come back as bankAccount.*", async () => {
+    mockApi("SALES_STAFF", {
+      get: { [PATH]: () => profile },
+      put: {
+        [PATH]: () => {
+          throw apiError(400, "VALIDATION_FAILED", {
+            registeredAddress: "Địa chỉ không được để trống.",
+            "bankAccount.bankName": "Ngân hàng không được để trống.",
+            invoiceEmail: "Email hoá đơn không đúng định dạng.",
+          });
+        },
+      },
+    });
+    renderCard("?legalProfile=edit");
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Lưu" }));
+    expect(await within(dialog).findByText("Địa chỉ không được để trống.")).toBeInTheDocument();
+    expect(within(dialog).getByText("Ngân hàng không được để trống.")).toBeInTheDocument();
+    expect(within(dialog).getByText("Email hoá đơn không đúng định dạng.")).toBeInTheDocument();
+    expect(within(dialog).getByLabelText("Ngân hàng")).toHaveAttribute("aria-invalid", "true");
+  });
+
   it("409 OPTIMISTIC_LOCK → đã tải lại: câu 'đã tải lại' và GET được gọi lại", async () => {
     const api = mockApi("SALES_STAFF", {
       get: { [PATH]: () => profile },

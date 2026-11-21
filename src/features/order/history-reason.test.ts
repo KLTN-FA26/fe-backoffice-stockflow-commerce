@@ -36,6 +36,12 @@ describe("formatHistoryReason", () => {
     expect(formatHistoryReason("CUSTOMER_ABSENT: Gọi 3 lần")).toBe("Khách vắng mặt — Gọi 3 lần");
   });
 
+  it("BE-4: a sent contract cancelled with a reason is written CONTRACT_CANCELLED: <reason> and shows the reason", () => {
+    expect(formatHistoryReason("CONTRACT_CANCELLED: Khách đổi điều khoản thanh toán")).toBe(
+      "Hợp đồng bị huỷ — đơn quay về nháp — Khách đổi điều khoản thanh toán",
+    );
+  });
+
   it("RETURN_REQUESTED <số RMA> (cách bằng dấu cách) → nhãn — số RMA", () => {
     expect(formatHistoryReason("RETURN_REQUESTED RMA-20261119-0001")).toBe(
       "Khách yêu cầu trả hàng — RMA-20261119-0001",

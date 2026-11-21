@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
-import { legalProfileErrorMessage } from "@/features/customer/errors";
+import { legalProfileErrorMessage, legalProfileFieldErrors } from "@/features/customer/errors";
 import { useSaveLegalProfile } from "@/features/customer/mutations";
 import { legalProfileInputSchema } from "@/features/customer/schemas";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
@@ -65,7 +65,17 @@ function LegalProfileForm({
     // Lần đầu gửi `version: null`; đã có hồ sơ thì gửi version đang xem (người khác vừa sửa → 409, đã tải lại).
     save.mutate(
       { id: customerId, version: openedVersion, values },
-      { onSuccess: onClose, onError: (failure) => setError(legalProfileErrorMessage(failure)) },
+      {
+        onSuccess: onClose,
+        onError: (failure) => {
+          // BE-8: every wrong field comes back at once → mark them on the form; the zod rules stay a pre-check.
+          const fields = legalProfileFieldErrors(failure);
+          fields.forEach(({ field, message }, index) =>
+            form.setError(field, { type: "server", message }, { shouldFocus: index === 0 }),
+          );
+          if (fields.length === 0) setError(legalProfileErrorMessage(failure));
+        },
+      },
     );
   });
 
