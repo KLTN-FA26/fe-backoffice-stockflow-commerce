@@ -1,8 +1,8 @@
 /**
  * Store in-memory cho mock module 06 (danh mục kho + bản đồ kho), dạng dữ liệu của BE
  * (`warehouse.warehouse` / `zone` / `shelf` / `shelf_level` / `bin` / `area` / `boundary`).
- * Seed = đúng seed demo BE `db/demo/V20260928009000__demo_master_data.sql` §4 (kho HCM 60 × 40 m, 2 zone,
- * 3 kệ × 2 tầng × 2 bin, 5 khu vực, 1 tường + 1 cửa) — không tự bịa số liệu. Chỉ dùng khi USE_MOCK=true.
+ * Seed = đúng seed demo BE `db/demo/V20261111000001__demo_seed.sql` (kho HCM 60 × 40 m, 2 zone, 3 kệ × 2 tầng
+ * × 2 bin, 10 khu vực gồm 1 khu INACTIVE, 1 tường + 1 cửa) — không tự bịa số liệu. Chỉ dùng khi USE_MOCK=true.
  */
 
 import { MOCK_WAREHOUSE_ID } from "./mock-routes-goods-receipts-store";
@@ -163,7 +163,13 @@ function seedShelf(code: string, zone: string, y: number): MockShelf {
   };
 }
 
-function seedArea(code: string, type: string, name: string, box: MockFootprint): MockArea {
+function seedArea(
+  code: string,
+  type: string,
+  name: string,
+  box: MockFootprint,
+  status: MockArea["status"] = "ACTIVE",
+): MockArea {
   const storage = type !== "NON_STORAGE";
   return {
     id: `mock-area-HCM-${code}`,
@@ -173,7 +179,7 @@ function seedArea(code: string, type: string, name: string, box: MockFootprint):
     name,
     footprint: box,
     obstacle: !storage,
-    status: "ACTIVE",
+    status,
     version: 0,
     location: storage
       ? {
@@ -219,6 +225,13 @@ function seed(): MockWarehouseStore {
       seedArea("PACK01", "DISPATCH", "Khu đóng gói", fp(40, 20, 10, 6)),
       seedArea("DSP01", "DISPATCH", "Khu chờ giao", fp(40, 28, 10, 6)),
       seedArea("OFFICE", "NON_STORAGE", "Văn phòng kho", fp(2, 30, 10, 8)),
+      // Các khu BE seed thêm sau (V20261111000001__demo_seed.sql trên develop): hàng lỗi chờ trả NCC, xưởng in,
+      // khu tràn (05 BR-13), khu chờ xuất (06 §4.5) và khu kiểm hàng cũ đã ngưng (QC gộp vào QUARANTINE, BR-22)
+      seedArea("RTV01", "QUARANTINE", "Khu hàng lỗi chờ trả NCC", fp(51, 20, 6, 6)),
+      seedArea("PRD01", "PRODUCTION", "Xưởng in", fp(26, 12, 12, 8)),
+      seedArea("OVF01", "OVERFLOW", "Khu tạm khi kho đầy", fp(30, 30, 8, 6)),
+      seedArea("STG01", "STAGING", "Khu chờ xuất", fp(26, 22, 12, 6)),
+      seedArea("QCA01", "QUARANTINE", "Khu kiểm tra chất lượng", fp(50, 12, 8, 6), "INACTIVE"),
     ],
     boundaries: [
       {

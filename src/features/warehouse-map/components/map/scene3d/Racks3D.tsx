@@ -6,6 +6,7 @@ import { rackParts } from "@/features/warehouse-map/rack-3d";
 
 import { locationTone, TONE_VAR } from "../tone";
 import { PartsMesh } from "./PartsMesh";
+import { useRackDetail } from "./use-rack-detail";
 
 import type { RackPart, RackPartKind } from "@/features/warehouse-map/rack-3d";
 import type { LayoutShelf } from "@/features/warehouse-map/types";
@@ -71,6 +72,8 @@ export function Racks3D({
     });
   }, [shelves, stocked, zoneColors, palette]);
 
+  const special = useRackDetail(palette);
+
   const baseColor: Record<RackPartKind, string> = {
     upright: palette.steel,
     brace: palette.steel,
@@ -92,6 +95,7 @@ export function Racks3D({
             color={baseColor[kind]}
             castShadow={kind !== "label"}
             {...MATERIAL[kind]}
+            {...special[kind]}
             onPick={
               interactive
                 ? (index) => {
