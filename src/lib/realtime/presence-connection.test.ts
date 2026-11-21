@@ -152,4 +152,77 @@ describe("PresenceConnection", () => {
     await vi.advanceTimersByTimeAsync(PRESENCE_HEARTBEAT_MS * 3);
     expect(socket?.publish).toHaveBeenCalledTimes(2);
   });
+  it("keeps backing off when a socket connects then drops at once", async () => {
+    const { connection, sockets, ticketFetcher } = setup();
+    connection.start();
+    await vi.advanceTimersByTimeAsync(0);
+    for (const [i, delay] of [
+      RECONNECT_BASE_MS,
+      RECONNECT_BASE_MS * 2,
+      RECONNECT_BASE_MS * 4,
+    ].entries()) {
+      sockets[i]?.handlers.onConnect();
+      sockets[i]?.handlers.onWebSocketClose();
+      await vi.advanceTimersByTimeAsync(delay - 1);
+      expect(ticketFetcher).toHaveBeenCalledTimes(i + 1);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(ticketFetcher).toHaveBeenCalledTimes(i + 2);
+    }
+    connection.stop();
+  });
+
+  it("resets the backoff once the socket has stayed up for a heartbeat", async () => {
+    const { connection, sockets, ticketFetcher } = setup();
+    connection.start();
+    await vi.advanceTimersByTimeAsync(0);
+    sockets[0]?.handlers.onWebSocketClose();
+    await vi.advanceTimersByTimeAsync(RECONNECT_BASE_MS);
+    sockets[1]?.handlers.onConnect();
+    await vi.advanceTimersByTimeAsync(PRESENCE_HEARTBEAT_MS);
+    sockets[1]?.handlers.onWebSocketClose();
+    await vi.advanceTimersByTimeAsync(RECONNECT_BASE_MS);
+    expect(ticketFetcher).toHaveBeenCalledTimes(3);
+    connection.stop();
+  });
+
+  it("treats a heartbeat that cannot be published as a drop", async () => {
+    const { connection, sockets, ticketFetcher } = setup();
+    connection.start();
+    await vi.advanceTimersByTimeAsync(0);
+    sockets[0]?.publish.mockImplementation(() => {
+      throw new TypeError("There is no underlying STOMP connection");
+    });
+    sockets[0]?.handlers.onConnect();
+    await vi.advanceTimersByTimeAsync(PRESENCE_HEARTBEAT_MS);
+    expect(sockets[0]?.deactivate).toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(RECONNECT_BASE_MS);
+    expect(ticketFetcher).toHaveBeenCalledTimes(2);
+    connection.stop();
+  });
+
+  it("opens no socket when stopped while the ticket is being fetched", async () => {
+    const { connection, ticketFetcher, socketFactory } = setup();
+    let release: (ticket: string) => void = () => undefined;
+    ticketFetcher.mockImplementationOnce(
+      () =>
+        new Promise<string>((resolve) => {
+          release = resolve;
+        }),
+    );
+    connection.start();
+    connection.stop();
+    release("late-ticket");
+    await vi.advanceTimersByTimeAsync(RECONNECT_MAX_MS);
+    expect(socketFactory).not.toHaveBeenCalled();
+  });
+
+  it("does not reconnect when stopped during a pending retry", async () => {
+    const { connection, sockets, ticketFetcher } = setup();
+    connection.start();
+    await vi.advanceTimersByTimeAsync(0);
+    sockets[0]?.handlers.onWebSocketClose();
+    connection.stop();
+    await vi.advanceTimersByTimeAsync(RECONNECT_MAX_MS * 2);
+    expect(ticketFetcher).toHaveBeenCalledTimes(1);
+  });
 });

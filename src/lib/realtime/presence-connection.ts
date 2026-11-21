@@ -48,6 +48,8 @@ export const createStompSocket: PresenceSocketFactory = (url, ticket, handlers) 
     heartbeatIncoming: STOMP_KEEPALIVE_MS,
     heartbeatOutgoing: STOMP_KEEPALIVE_MS,
     reconnectDelay: 0, // reconnects are ours: a new ticket for each, with backoff
+    // A lost STOMP heartbeat drops the socket at once instead of waiting for a close handshake on a dead network.
+    discardWebsocketOnCommFailure: true,
     onConnect: () => handlers.onConnect(),
     onStompError: (frame) => handlers.onStompError(frame),
     onWebSocketClose: () => handlers.onWebSocketClose(),
@@ -139,9 +141,10 @@ export class PresenceConnection {
     this.socket = this.socketFactory(this.url, ticket, {
       onConnect: () => {
         if (generation !== this.generation) return;
+        // The ticket worked. The backoff resets only once the socket has stayed up (first heartbeat below): a socket
+        // that connects then drops at once must keep backing off, or it spends the 30/min ticket budget.
         this.invalidStreak = 0;
-        this.transientFailures = 0;
-        this.startHeartbeat();
+        this.startHeartbeat(() => fail("transient"));
       },
       onStompError: (frame) =>
         fail(frame.headers.message === WS_TICKET_INVALID ? "invalid" : "transient"),
@@ -160,10 +163,17 @@ export class PresenceConnection {
     }, delay);
   }
 
-  private startHeartbeat(): void {
+  private startHeartbeat(onBroken: () => void): void {
     this.clearHeartbeat();
     this.heartbeat = setInterval(() => {
-      this.socket?.publish({ destination: PRESENCE_HEARTBEAT_DESTINATION });
+      try {
+        this.socket?.publish({ destination: PRESENCE_HEARTBEAT_DESTINATION });
+      } catch {
+        // stompjs throws when the connection is already gone: treat it as the drop it is.
+        onBroken();
+        return;
+      }
+      this.transientFailures = 0;
     }, PRESENCE_HEARTBEAT_MS);
   }
 
