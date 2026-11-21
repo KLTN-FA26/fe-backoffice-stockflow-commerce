@@ -158,3 +158,40 @@ export const PUTAWAY_ERROR_MESSAGES = {
   NETWORK_ERROR: "Mất kết nối — thùng chưa được cất, thử lại.",
   generic: "Không cất được thùng — thử lại.",
 } as const;
+
+/** Trang "Gợi ý vị trí" của một kho (docs 06 §4.4): slotting = bộ lọc + xếp hạng cố định của cất hàng. */
+export const SLOTTING_LABELS = {
+  title: "Gợi ý vị trí",
+  cartons: "Thùng chờ cất",
+  cartonCount: (count: number) => `${count} thùng`,
+  search: "Lọc LPN, SKU, lô…",
+  suggestionsFor: (lpn: string) => `Bin gợi ý cho ${lpn}`,
+  putAway: "Cất thùng này",
+  noCartons: {
+    title: "Kho không còn thùng chờ cất",
+    description:
+      "Gợi ý vị trí tính cho thùng đang chờ cất. Khi có phiếu nhập được xác nhận, thùng sẽ hiện ở đây.",
+  },
+  noMatch: "Không thùng nào khớp ô lọc.",
+  pickCarton: "Chọn một thùng ở danh sách bên trái để xem bin gợi ý.",
+  warehouseUnknown: "Không tìm thấy kho trong danh mục kho bạn được xem.",
+  rules: {
+    title: "Quy tắc xếp hạng",
+    // Docs 06 §1: bảng slotting_rule có trong CSDL nhưng chưa có chức năng — quy tắc cố định
+    fixed: "Quy tắc cố định theo docs 05 §4.3 — chưa cấu hình được (docs 06 §1).",
+    filterTitle: "Bin được xét",
+    filters: [
+      "Bin (không phải khu) cùng kho, bật “Cho phép cất hàng”, kho / kệ / bin đang hoạt động.",
+      "Thùng lọt bin theo từng chiều; còn đủ thể tích (đã trừ chỗ chuyến khác giữ) và trong giới hạn tải.",
+    ],
+    orderTitle: "Thứ tự ưu tiên",
+    order: ["Cùng lô — bin đã chứa đúng lô này.", "Bin trống.", "Cùng SKU, khác lô.", "SKU khác."],
+    tieTitle: "Trong cùng nhóm",
+    ties: [
+      "Ưu tiên bin vừa khít (còn ít chỗ nhất). Bin trống: bin nhỏ nhất chứa được phần còn lại của lô.",
+      "Hoà thì theo mã vị trí; bin chưa có thể tích xếp cuối. Tối đa 10 bin.",
+    ],
+    overflow:
+      "Không bin nào nhận → khu OVERFLOW của kho (BR-13). Cất vào bin khác gợi ý không cần lý do (BR-07).",
+  },
+} as const;

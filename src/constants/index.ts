@@ -591,4 +591,5 @@ export {
   PUTAWAY_ERROR_MESSAGES,
   PUTAWAY_FIELD_MESSAGES,
   PUTAWAY_LABELS,
+  SLOTTING_LABELS,
 } from "./labels-putaway";

@@ -1,18 +1,22 @@
-import { Lightbulb } from "lucide-react";
+import { Suspense } from "react";
 
-import { UI_LABELS } from "@/constants";
-
+import { SlottingView } from "@/features/putaway";
 import { WarehouseScope } from "@/features/warehouse-map/components/workspace/WarehouseScope";
 
-import { ComingSoonPage } from "@/components/shared/ComingSoonPage";
+import { PageSkeleton } from "@/components/shared/PageSkeleton";
 
-/** Gợi ý vị trí của một kho (docs 06 slotting) — chưa có API, giữ chỗ trong phạm vi kho. */
+/**
+ * Gợi ý vị trí của một kho (docs 06 §4.4) — trang chỉ ghép: `WarehouseScope` lo prefix / quyền đọc kho, `SlottingView`
+ * (feature cất hàng) hiện bin gợi ý của thùng chờ cất.
+ */
 export default async function SlottingPage({ params }: { params: Promise<{ prefix: string }> }) {
-  const { prefix } = await params;
+  const prefix = decodeURIComponent((await params).prefix);
   return (
     <div className="surface-soft surface-compact">
-      <WarehouseScope prefix={decodeURIComponent(prefix)}>
-        <ComingSoonPage title={UI_LABELS.warehouseMap.workspace.pages.slotting} icon={Lightbulb} />
+      <WarehouseScope prefix={prefix}>
+        <Suspense fallback={<PageSkeleton variant="detail" />}>
+          <SlottingView prefix={prefix} />
+        </Suspense>
       </WarehouseScope>
     </div>
   );
