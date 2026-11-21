@@ -63,6 +63,9 @@ export function MessageItem({
             ) : (
               message.body && <p className="text-ink-primary whitespace-pre-line">{message.body}</p>
             )}
+            {note && message.mentions.length > 0 && (
+              <p className="text-ink-secondary text-xs">Nhắc {message.mentions.length} người</p>
+            )}
             {message.attachments.map((file) => (
               <div key={file.id} className="space-y-1">
                 {isImageAttachment(file) && (

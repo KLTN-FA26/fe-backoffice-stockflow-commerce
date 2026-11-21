@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { LoaderCircle, Paperclip, Send } from "lucide-react";
 
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { Notice } from "@/components/shared/Notice";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,9 +12,26 @@ import { fileTooLargeMessage, uploadFileMaxBytes } from "@/constants/upload-limi
 import { useChatFailure, useSendAttachment, useSendNote, useSendText } from "../mutations";
 
 import { CannedPicker } from "./CannedPicker";
+import { MentionPicker } from "./MentionPicker";
+
+import type { KeyboardEvent } from "react";
+
+import type { ChatStaff } from "../schemas";
 
 const ACCEPT = "image/jpeg,image/png,image/webp,application/pdf";
 type Mode = "reply" | "note";
+const MENTION_DEBOUNCE_MS = 300;
+/** "@" opening a word, then the letters typed so far (no spaces): the mention being written at the caret. */
+const MENTION_TOKEN = /(^|\s)@([^\s@]*)$/;
+interface Token {
+  /** Index of the "@" in the text. */
+  at: number;
+  query: string;
+}
+function tokenAt(value: string, caret: number): Token | null {
+  const found = MENTION_TOKEN.exec(value.slice(0, caret));
+  return found ? { at: caret - found[2].length - 1, query: found[2] } : null;
+}
 
 /**
  * Soạn tin: "Trả lời khách" (S5) hoặc "Ghi chú nội bộ" (S6, khách không thấy); kèm file (S7). Mỗi lần gửi một
@@ -42,6 +60,12 @@ export function Composer({
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [clientMessageId, setClientMessageId] = useState(() => crypto.randomUUID());
+  const [token, setToken] = useState<Token | null>(null);
+  const [mentioned, setMentioned] = useState<Pick<ChatStaff, "id" | "name">[]>([]);
+  const [items, setItems] = useState<ChatStaff[]>([]);
+  const [activeId, setActiveId] = useState("");
+  const area = useRef<HTMLTextAreaElement>(null);
+  const query = useDebouncedValue(token?.query ?? "", MENTION_DEBOUNCE_MS);
   const sendText = useSendText();
   const sendNote = useSendNote();
   const sendFile = useSendAttachment();
@@ -50,6 +74,8 @@ export function Composer({
 
   const done = () => {
     setText("");
+    setToken(null);
+    setMentioned([]);
     setFile(null);
     setError(null);
     setClientMessageId(crypto.randomUUID());
@@ -61,13 +87,56 @@ export function Composer({
   const submit = () => {
     const trimmed = text.trim();
     if (mode === "note")
-      return sendNote.mutate({ id: conversationId, text: trimmed, clientMessageId }, options);
+      return sendNote.mutate(
+        {
+          id: conversationId,
+          text: trimmed,
+          clientMessageId,
+          // Only people whose "@name" is still in the note.
+          mentions: mentioned.filter((p) => trimmed.includes(`@${p.name}`)).map((p) => p.id),
+        },
+        options,
+      );
     if (file)
       return sendFile.mutate(
         { id: conversationId, file, caption: trimmed || undefined, clientMessageId },
         options,
       );
     sendText.mutate({ id: conversationId, text: trimmed, clientMessageId }, options);
+  };
+  const picking = mode === "note" && token !== null;
+  const pick = (person: ChatStaff) => {
+    if (!token) return;
+    const caret = token.at + 1 + token.query.length;
+    const inserted = `@${person.name} `;
+    setText(text.slice(0, token.at) + inserted + text.slice(caret));
+    setMentioned((list) =>
+      list.some((p) => p.id === person.id) ? list : [...list, { id: person.id, name: person.name }],
+    );
+    setToken(null);
+    const next = token.at + inserted.length;
+    requestAnimationFrame(() => {
+      area.current?.focus();
+      area.current?.setSelectionRange(next, next);
+    });
+  };
+  const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (!picking) return;
+    if (event.key === "Escape") {
+      event.preventDefault();
+      setToken(null);
+      return;
+    }
+    if (items.length === 0) return;
+    const index = items.findIndex((p) => p.id === activeId);
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      const step = event.key === "ArrowDown" ? 1 : -1;
+      setActiveId(items[(Math.max(index, 0) + step + items.length) % items.length].id);
+    } else if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      pick(items[Math.max(index, 0)]);
+    }
   };
   const canSend = !pending && (mode === "reply" ? !!text.trim() || !!file : !!text.trim());
 
@@ -115,14 +184,28 @@ export function Composer({
       )}
       {error && <Notice tone="danger">{error}</Notice>}
       <Textarea
+        ref={area}
         aria-label={mode === "note" ? "Ghi chú nội bộ" : "Tin nhắn cho khách"}
         placeholder={mode === "note" ? "Ghi chú nội bộ — khách không thấy" : "Nhập tin nhắn…"}
         value={text}
         maxLength={4000}
         rows={3}
-        onChange={(event) => setText(event.target.value)}
+        onKeyDown={onKeyDown}
+        onChange={(event) => {
+          setText(event.target.value);
+          setToken(tokenAt(event.target.value, event.target.selectionStart));
+        }}
         className={mode === "note" ? "bg-warning/10" : undefined}
       />
+      {picking && (
+        <MentionPicker
+          query={query}
+          activeId={activeId}
+          onActiveChange={setActiveId}
+          onPick={pick}
+          onItems={setItems}
+        />
+      )}
       <div className="flex items-center justify-between gap-2">
         {mode === "reply" ? (
           <label className="text-ink-secondary inline-flex cursor-pointer items-center gap-1 text-xs">

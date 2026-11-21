@@ -12,6 +12,7 @@ import {
   chatAgentsReportSchema,
   cannedResponseListSchema,
   chatAgentListSchema,
+  chatStaffListSchema,
   chatConversationSchema,
   chatSearchPageSchema,
   chatStaffUnreadSchema,
@@ -25,6 +26,12 @@ const conv = (id: string, suffix = "") => `/chat/conversations/${encodeURICompon
 export async function listAgents(signal?: AbortSignal) {
   const { data } = await api.get<unknown>("/chat/agents", { signal });
   return chatAgentListSchema.parse(data);
+}
+
+/** BE-11: đồng nghiệp để @nhắc trong ghi chú nội bộ; BE lọc theo tên (không phân biệt hoa thường, dấu). */
+export async function listStaff(q: string, signal?: AbortSignal) {
+  const { data } = await api.get<unknown>("/chat/staff", { params: { q, limit: 20 }, signal });
+  return chatStaffListSchema.parse(data);
 }
 
 /**

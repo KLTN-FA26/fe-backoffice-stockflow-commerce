@@ -158,6 +158,16 @@ export const chatAgentSchema = z.object({
 });
 export const chatAgentListSchema = z.array(chatAgentSchema);
 
+/** BE-11 `ChatStaffView`: colleague an internal note may mention (any active staff, any role). */
+export const chatStaffSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  role: omittedOrNull(z.string()),
+  roleName: omittedOrNull(z.string()),
+  roles: z.array(z.object({ code: z.string(), name: z.string() })).default([]),
+});
+export const chatStaffListSchema = z.array(chatStaffSchema);
+
 /** S21 `ChatSearch.Hit`: tin tìm thấy (gồm ghi chú nội bộ) kèm hội thoại chứa nó. */
 export const chatSearchHitSchema = z.object({
   message: chatMessageSchema,
@@ -251,6 +261,7 @@ export const chatAgentsReportSchema = z.object({
   agents: z.array(agentFiguresSchema).default([]),
 });
 
+export type ChatStaff = z.infer<typeof chatStaffSchema>;
 export type ChatCard = z.infer<typeof chatCardSchema>;
 export type ChatMessage = z.infer<typeof chatMessageSchema>;
 export type ChatConversation = z.infer<typeof chatConversationSchema>;

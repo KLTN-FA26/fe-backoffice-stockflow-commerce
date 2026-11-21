@@ -17,6 +17,7 @@ import {
   getStaffUnread,
   listAgents,
   listCannedResponses,
+  listStaff,
   searchMessages,
 } from "./api-tools";
 
@@ -30,6 +31,7 @@ export const chatKeys = {
   older: (id: string) => [...chatKeys.messages(id), "older"] as const,
   gap: (id: string) => [...chatKeys.messages(id), "gap"] as const,
   overview: (customerId: string) => [...chatKeys.all, "overview", customerId] as const,
+  staff: (q: string) => [...chatKeys.all, "staff", q] as const,
   agents: () => [...chatKeys.all, "agents"] as const,
   search: (q: string, page: number) => [...chatKeys.all, "search", q, page] as const,
   unread: () => [...chatKeys.all, "unread"] as const,
@@ -45,6 +47,15 @@ export function useAgents(enabled: boolean) {
   return useQuery({
     queryKey: chatKeys.agents(),
     queryFn: ({ signal }) => listAgents(signal),
+    enabled,
+  });
+}
+
+/** BE-11: ô chọn người được @nhắc; chỉ gọi khi đang gõ "@". */
+export function useStaffSearch(q: string, enabled: boolean) {
+  return useQuery({
+    queryKey: chatKeys.staff(q),
+    queryFn: ({ signal }) => listStaff(q, signal),
     enabled,
   });
 }

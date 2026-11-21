@@ -86,9 +86,16 @@ export async function sendText(input: { id: string; text: string; clientMessageI
 }
 
 /** S6: ghi chú nội bộ (16 BR-07) — khách không bao giờ thấy. */
-export async function sendNote(input: { id: string; text: string; clientMessageId: string }) {
+export async function sendNote(input: {
+  id: string;
+  text: string;
+  clientMessageId: string;
+  /** Staff ids from `GET /chat/staff` (BE `InternalNote.mentions`). */
+  mentions?: string[];
+}) {
   const { data } = await api.post<unknown>(conv(input.id, "/notes"), {
     text: input.text,
+    mentions: input.mentions ?? [],
     clientMessageId: input.clientMessageId,
   });
   return parseMessage(data);
