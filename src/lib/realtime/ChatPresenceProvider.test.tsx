@@ -5,8 +5,9 @@ import { useAuthStore } from "@/lib/auth/auth-store";
 
 import { ChatPresenceProvider } from "./ChatPresenceProvider";
 
-const access = vi.hoisted(() => ({ canChat: true }));
+const access = vi.hoisted(() => ({ canChat: true, isMock: false }));
 vi.mock("@/lib/auth/components/Can", () => ({ useCan: () => access.canChat }));
+vi.mock("@/providers/app-providers", () => ({ useIsMock: () => access.isMock }));
 
 const connections = vi.hoisted(
   () => [] as { url: string; start: ReturnType<typeof vi.fn>; stop: ReturnType<typeof vi.fn> }[],
@@ -51,6 +52,7 @@ describe("ChatPresenceProvider", () => {
   beforeEach(() => {
     connections.length = 0;
     access.canChat = true;
+    access.isMock = false;
     vi.stubEnv("NEXT_PUBLIC_WS_URL", "wss://api.test/ws");
     signIn("user-1");
   });
@@ -71,6 +73,12 @@ describe("ChatPresenceProvider", () => {
 
   it("does nothing without NEXT_PUBLIC_WS_URL", () => {
     vi.stubEnv("NEXT_PUBLIC_WS_URL", "");
+    renderProvider();
+    expect(connections).toHaveLength(0);
+  });
+
+  it("does nothing in mock mode", () => {
+    access.isMock = true;
     renderProvider();
     expect(connections).toHaveLength(0);
   });
