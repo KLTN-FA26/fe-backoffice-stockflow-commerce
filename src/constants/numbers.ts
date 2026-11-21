@@ -410,6 +410,8 @@ export const WAREHOUSE_MAP_3D = {
   /** Tấm nhãn vị trí gắn trên beam. */
   labelWidth: 0.26,
   labelHeight: 0.07,
+  /** Thanh chắn ngang (tiết diện vuông) ở mặt kệ không lấy hàng (docs 06 BR-08). */
+  rail: 0.045,
   /** Tường cắt thấp để nhìn được vào trong kho. */
   wallCutaway: 1.1,
   wallThickness: 0.2,
