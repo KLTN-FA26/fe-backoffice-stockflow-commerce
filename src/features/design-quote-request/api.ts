@@ -12,7 +12,12 @@ import {
 } from "./schemas";
 
 import type { PaginatedResponse } from "@/lib/api/query-factory";
-import type { DesignQuoteRequest, ProjectQuoteRequest, QuoteRequestStatus } from "./types";
+import type {
+  CreatedQuote,
+  DesignQuoteRequest,
+  ProjectQuoteRequest,
+  QuoteRequestStatus,
+} from "./types";
 
 const DESIGN_REQUESTS = "/design-quote-requests";
 const PROJECT_REQUESTS = "/design-project-quote-requests";
@@ -80,14 +85,14 @@ const quoteOf = (base: string, id: string) => `${base}/${encodeURIComponent(id)}
 
 /**
  * Lập báo giá nháp từ yêu cầu (BE `…/quote`, không body): 201 lần đầu, 200 khi đã có — cùng một báo giá. BE tự đóng
- * yêu cầu. Chỉ cần `id` để mở màn sửa; phần còn lại của báo giá do màn đó tải lại.
+ * yêu cầu. Chỉ cần `id` và `status` để chọn màn mở; phần còn lại của báo giá do màn đó tải lại.
  */
-export async function createQuoteFromDesignRequest(id: string): Promise<{ id: string }> {
+export async function createQuoteFromDesignRequest(id: string): Promise<CreatedQuote> {
   const { data } = await api.post<unknown>(quoteOf(DESIGN_REQUESTS, id));
   return createdQuoteSchema.parse(data);
 }
 
-export async function createQuoteFromProjectRequest(id: string): Promise<{ id: string }> {
+export async function createQuoteFromProjectRequest(id: string): Promise<CreatedQuote> {
   const { data } = await api.post<unknown>(quoteOf(PROJECT_REQUESTS, id));
   return createdQuoteSchema.parse(data);
 }

@@ -5,7 +5,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { DESIGN_QUOTE_REQUEST_LABELS as COPY } from "@/constants";
+import { DESIGN_QUOTE_REQUEST_LABELS as COPY, SHARED_QUERY_ROOTS } from "@/constants";
 
 import { serverErrorMessage } from "@/lib/api/error-message";
 
@@ -18,10 +18,9 @@ import { designQuoteRequestKeys, projectQuoteRequestKeys } from "./queries";
 import type { Navigate } from "./actions";
 import type { QuoteRequest } from "./types";
 
-/** Root query của chat (= `chatKeys.all` ở features/chat; feature không import chéo). */
-const CHAT_ROOT = ["chat"] as const;
-/** Root query của báo giá (= `quoteKeys.all` ở features/quote): danh sách có thêm báo giá nháp vừa lập. */
-const QUOTES_ROOT = ["quotes"] as const;
+/** Root query của chat và báo giá (feature không import chéo → qua `SHARED_QUERY_ROOTS`). */
+const CHAT_ROOT = [SHARED_QUERY_ROOTS.chat] as const;
+const QUOTES_ROOT = [SHARED_QUERY_ROOTS.salesQuotes] as const;
 
 function useCloseRequest(close: (id: string) => Promise<void>, listRoot: readonly string[]) {
   const queryClient = useQueryClient();

@@ -34,13 +34,17 @@ export async function openChatAbout(row: QuoteRequest, navigate: Navigate): Prom
 }
 
 /**
- * Lập báo giá từ một yêu cầu: BE tạo (hoặc trả lại) báo giá nháp và tự đóng yêu cầu → mở màn sửa báo giá đó. Không cần
- * hội thoại chat. Một thân hàm duy nhất nên các nơi gọi không đổi.
+ * Lập báo giá từ một yêu cầu: BE tạo (hoặc trả lại) báo giá và tự đóng yêu cầu → mở màn sửa khi còn nháp, ngược lại
+ * (đã gửi khách từ trước) mở trang chi tiết. Không cần hội thoại chat. Một thân hàm duy nhất nên các nơi gọi không đổi.
  */
 export async function startQuoteFromRequest(row: QuoteRequest, navigate: Navigate): Promise<void> {
   const quote =
     "lines" in row
       ? await createQuoteFromProjectRequest(row.id)
       : await createQuoteFromDesignRequest(row.id);
-  navigate(ADMIN_ROUTES.quotes.edit(quote.id));
+  navigate(
+    quote.status === "DRAFT"
+      ? ADMIN_ROUTES.quotes.edit(quote.id)
+      : ADMIN_ROUTES.quotes.detail(quote.id),
+  );
 }

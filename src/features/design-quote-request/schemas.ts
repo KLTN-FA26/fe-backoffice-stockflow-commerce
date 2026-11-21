@@ -5,7 +5,7 @@
 
 import { z } from "zod";
 
-import { DESIGN_STATUSES } from "@/constants";
+import { DESIGN_STATUSES, QUOTE_API_STATUSES } from "@/constants";
 
 import { bePageSchema } from "@/lib/api/page-schema";
 import { omittedOrNull } from "@/lib/validation/primitives";
@@ -60,5 +60,8 @@ export const projectQuoteRequestDtoSchema = z.object({
 });
 export const projectQuoteRequestPageSchema = bePageSchema(projectQuoteRequestDtoSchema);
 
-/** Báo giá nháp BE trả sau `…/quote` (cùng dạng `GET /quotes/{id}`); chỉ `id` cần ở đây, các trường khác bỏ qua. */
-export const createdQuoteSchema = z.object({ id: z.string() });
+/**
+ * Báo giá BE trả sau `…/quote` (cùng dạng `GET /quotes/{id}`); chỉ `id` và `status` cần ở đây. 200 = yêu cầu đã được trả
+ * lời trước đó (ở đây hoặc trong chat) → báo giá có thể không còn nháp.
+ */
+export const createdQuoteSchema = z.object({ id: z.string(), status: z.enum(QUOTE_API_STATUSES) });

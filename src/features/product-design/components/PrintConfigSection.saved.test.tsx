@@ -345,7 +345,9 @@ describe("PrintConfigSection: a save that changes only a default", () => {
     await user.clear(colors);
     await user.type(colors, "6");
     await user.click(screen.getByRole("checkbox", { name: "WebP" }));
-    await user.click(screen.getByRole("radio", { name: "Chỉ các font được chọn" }));
+    const onlyFonts = screen.getByRole("radio", { name: "Chỉ các font được chọn" });
+    await waitFor(() => expect(onlyFonts).toBeEnabled());
+    await user.click(onlyFonts);
     await user.click(await screen.findByRole("checkbox", { name: "Lobster" }));
     await saveStored(user);
 

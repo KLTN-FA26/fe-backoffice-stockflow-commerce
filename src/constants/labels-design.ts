@@ -166,7 +166,7 @@ export const DESIGN_QUOTE_REQUEST_LABELS = {
   noConversation: "Khách chưa có hội thoại về thiết kế này",
   noConversationProject: "Khách chưa có hội thoại về dự án này",
   quoteNotApproved: "Thiết kế chưa được duyệt hoặc chưa có SKU riêng — chưa lập báo giá được.",
-  quoteRequestClosed: "Yêu cầu đã đóng. Nếu đã báo giá trong chat, mở báo giá từ hội thoại.",
+  quoteRequestClosed: "Yêu cầu đã được đóng mà không lập báo giá.",
   closeTitle: "Đóng yêu cầu báo giá?",
   closeDescription:
     "Đóng yêu cầu này khi đã báo giá hoặc đã thống nhất với khách ngoài chat. Khách sẽ phải gửi yêu cầu mới cho lần sau.",

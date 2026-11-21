@@ -176,7 +176,7 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
     const quoteUrl = `/design-quote-requests/${REQUEST_ID}/quote`;
     const api = mockApi("SALES_STAFF", {
       get: { "/design-quote-requests": () => bePage([request()]) },
-      post: { [quoteUrl]: () => ({ id: QUOTE_ID, quoteNumber: "Q-1" }) },
+      post: { [quoteUrl]: () => ({ id: QUOTE_ID, quoteNumber: "Q-1", status: "DRAFT" }) },
     });
     renderScreen(<DesignQuoteRequestList />, "SALES_STAFF");
     await userEvent.setup().click(await screen.findByRole("button", { name: "Lập báo giá" }));
@@ -191,7 +191,7 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
     const quoteUrl = `/design-project-quote-requests/${PROJECT_REQUEST_ID}/quote`;
     const api = mockApi("SALES_STAFF", {
       get: { "/design-project-quote-requests": () => bePage([projectRequest()]) },
-      post: { [quoteUrl]: () => ({ id: QUOTE_ID }) },
+      post: { [quoteUrl]: () => ({ id: QUOTE_ID, status: "DRAFT" }) },
     });
     renderScreen(<ProjectQuoteRequestList />, "SALES_STAFF");
     await userEvent.setup().click(await screen.findByRole("button", { name: "Lập báo giá" }));
@@ -200,8 +200,20 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
     await waitFor(() => expect(callsTo(api.get, "/design-project-quote-requests")).toHaveLength(2));
   });
 
+  it("Lập báo giá: yêu cầu đã trả lời từ trước, báo giá không còn nháp → mở trang chi tiết", async () => {
+    mockApi("SALES_STAFF", {
+      get: { "/design-quote-requests": () => bePage([request()]) },
+      post: {
+        [`/design-quote-requests/${REQUEST_ID}/quote`]: () => ({ id: QUOTE_ID, status: "SENT" }),
+      },
+    });
+    renderScreen(<DesignQuoteRequestList />, "SALES_STAFF");
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Lập báo giá" }));
+    await waitFor(() => expect(push).toHaveBeenCalledWith(`/admin/quotes/${QUOTE_ID}`));
+  });
+
   it("Lập báo giá: nút tắt trong lúc đang gọi", async () => {
-    let release: (value: { id: string }) => void = () => undefined;
+    let release: (value: { id: string; status: string }) => void = () => undefined;
     mockApi("SALES_STAFF", {
       get: { "/design-quote-requests": () => bePage([request()]) },
       post: {
@@ -214,7 +226,7 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
     renderScreen(<DesignQuoteRequestList />, "SALES_STAFF");
     await userEvent.setup().click(await screen.findByRole("button", { name: "Lập báo giá" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "Lập báo giá" })).toBeDisabled());
-    release({ id: QUOTE_ID });
+    release({ id: QUOTE_ID, status: "DRAFT" });
     await waitFor(() => expect(push).toHaveBeenCalled());
   });
 
@@ -223,10 +235,7 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
       "DESIGN_NOT_APPROVED",
       "Thiết kế chưa được duyệt hoặc chưa có SKU riêng — chưa lập báo giá được.",
     ],
-    [
-      "DESIGN_QUOTE_REQUEST_CLOSED",
-      "Yêu cầu đã đóng. Nếu đã báo giá trong chat, mở báo giá từ hội thoại.",
-    ],
+    ["DESIGN_QUOTE_REQUEST_CLOSED", "Yêu cầu đã được đóng mà không lập báo giá."],
   ])("Lập báo giá: 409 %s hiện câu riêng, không chuyển trang", async (code, message) => {
     const error = vi.spyOn(toast, "error").mockImplementation(() => undefined);
     mockApi("SALES_STAFF", {

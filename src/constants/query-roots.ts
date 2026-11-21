@@ -39,4 +39,8 @@ export const SHARED_QUERY_ROOTS = {
   productionSchedule: "production-schedule",
   /** Cảnh báo trễ của đơn (`GET /delay-alerts`) — tự đóng / mở khi Đơn sản xuất đổi ngày hoặc trạng thái. */
   delayAlerts: "delay-alerts",
+  /** Báo giá — feature `quote` sở hữu (`quoteKeys.all`); lập báo giá từ yêu cầu thiết kế thêm một báo giá nháp. */
+  salesQuotes: "quotes",
+  /** Chat — feature `chat` sở hữu (`chatKeys.all`); đóng / trả lời yêu cầu báo giá đổi thẻ trong hội thoại. */
+  chat: "chat",
 } as const;

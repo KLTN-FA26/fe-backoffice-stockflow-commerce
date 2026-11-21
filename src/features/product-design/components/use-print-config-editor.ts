@@ -15,8 +15,8 @@ import { useForm, useWatch } from "react-hook-form";
 import { PRINT_CONFIG_SCREEN_LABELS, pendingDesignWarning } from "@/constants/labels-print-config";
 
 import { printConfigErrorMessage } from "../errors";
-import { changesPrintVersion } from "../print-version";
 import { useSavePrintConfig } from "../mutations";
+import { changesPrintVersion } from "../print-version";
 import { printConfigSaveInputSchema } from "../schemas";
 import { editableWithoutFile, modelFileStateOf } from "../selectors";
 import { buildSaveInput } from "./save-input";
