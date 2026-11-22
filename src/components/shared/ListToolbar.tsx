@@ -387,7 +387,8 @@ export function ListToolbar<Status extends string, Field extends string, Column 
             {tools}
           </div>
 
-          <div className="ml-auto flex items-center gap-2">
+          {/* Rỗng (trang không có nút xuất / hành động) → ẩn, để `gap` của hàng không chừa 8px thừa ở mép phải */}
+          <div className="ml-auto flex items-center gap-2 empty:hidden">
             {selectedCount > 0 && onBulkDelete && (
               <Button
                 type="button"

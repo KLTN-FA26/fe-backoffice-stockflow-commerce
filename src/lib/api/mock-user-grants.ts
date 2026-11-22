@@ -42,6 +42,8 @@ import {
   PO_PERMISSIONS,
   PRODUCT_PERMISSIONS,
   PRODUCTION_ORDER_PERMISSIONS,
+  PUTAWAY_TASK_PERMISSIONS,
+  PUTAWAY_TRIP_PERMISSIONS,
   QC_TASK_PERMISSIONS,
   QUOTE_PERMISSIONS,
   REPORTING_PERMISSIONS,
@@ -104,8 +106,26 @@ const LOAD_ESTIMATE = Object.values(LOAD_ESTIMATE_PERMISSIONS);
 const LP = LOAD_PLAN_PERMISSIONS;
 const LOAD_PLAN_READ = [LP.viewPage, LP.read];
 const LOAD_PLAN_ALL = Object.values(LP);
-// WAREHOUSE_STAFF: lấy hàng + đóng gói (READ/UPDATE) + xếp xe / bàn giao.
-const FLOOR_WORK = [...PICKING, ...PACKING_WORK, ...DISPATCH, ...WAYBILL_IMPORT, ...LOAD_PLAN_ALL];
+// Seed BE (baseline + V20261124000100): warehouse-putaway-tasks VIEW_PAGE/READ/UPDATE và warehouse-putaway-trips
+// VIEW_PAGE/READ/UPDATE cho WAREHOUSE_STAFF; APPROVE của chuyến (đóng chuyến người khác) chỉ WAREHOUSE_MANAGER /
+// SYSTEM_ADMIN (docs 05 §2).
+const PUTAWAY_TASKS = Object.values(PUTAWAY_TASK_PERMISSIONS);
+const PUTAWAY_FLOOR = [
+  ...PUTAWAY_TASKS,
+  PUTAWAY_TRIP_PERMISSIONS.viewPage,
+  PUTAWAY_TRIP_PERMISSIONS.read,
+  PUTAWAY_TRIP_PERMISSIONS.update,
+];
+const PUTAWAY_ALL = [...PUTAWAY_TASKS, ...Object.values(PUTAWAY_TRIP_PERMISSIONS)];
+// WAREHOUSE_STAFF: lấy hàng + đóng gói (READ/UPDATE) + xếp xe / bàn giao + cất hàng.
+const FLOOR_WORK = [
+  ...PICKING,
+  ...PACKING_WORK,
+  ...DISPATCH,
+  ...WAYBILL_IMPORT,
+  ...LOAD_PLAN_ALL,
+  ...PUTAWAY_FLOOR,
+];
 // WAREHOUSE_MANAGER: toàn bộ nhóm kho + gán / giám sát task, kiểm tra lại thiết kế, hãng, sửa mã vận đơn,
 // ghi nhận hàng hoàn (delivery-outcomes:UPDATE, không có APPROVE).
 const MANAGER_WORK = [
@@ -123,6 +143,7 @@ const MANAGER_WORK = [
   ...VEHICLE_TYPE_ALL,
   ...LOAD_ESTIMATE,
   ...LOAD_PLAN_ALL,
+  ...PUTAWAY_ALL,
   OUTCOME.update,
 ];
 // ORDER_COORDINATOR: gán / giám sát task + ghi nhận kết quả giao (đã giao / thất bại cần APPROVE).
