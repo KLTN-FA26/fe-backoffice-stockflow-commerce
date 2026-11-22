@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import Link from "next/link";
 import { Scale } from "lucide-react";
-import { parseAsStringLiteral, useQueryState } from "nuqs";
+import { parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
 
 import { useLegalProfile } from "@/features/customer/queries";
 import { DETAIL_ACTION_CLASS, DetailSection, InfoRow } from "@/components/shared/DetailSection";
+import { Notice } from "@/components/shared/Notice";
 import { Skeleton } from "@/components/shared/Skeleton";
 import { Button } from "@/components/ui/button";
 
@@ -65,6 +67,9 @@ export function LegalProfileCard({
 }) {
   const profile = useLegalProfile(customerId, canRead);
   const [mode, setMode] = useQueryState("legalProfile", parseAsStringLiteral(["edit"] as const));
+  // BO-UX-30: đến từ hợp đồng của đơn → link quay lại. Chỉ nhận đường dẫn trong back-office (không mở chuyển hướng ra ngoài).
+  const [returnParam] = useQueryState("returnTo", parseAsString);
+  const returnTo = returnParam && /^\/admin\/[^/]/.test(returnParam) ? returnParam : null;
   const anchor = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -87,6 +92,16 @@ export function LegalProfileCard({
   return (
     <div id={LEGAL_PROFILE_ANCHOR} ref={anchor} className="scroll-mt-20">
       <DetailSection title="Thông tin pháp lý" icon={Scale} actions={data ? edit : undefined}>
+        {returnTo && (
+          <Notice tone={data ? "positive" : "info"} className="mb-3">
+            {data
+              ? "Đã có thông tin pháp lý — có thể lập hợp đồng. "
+              : "Bạn đến từ hợp đồng của đơn. "}
+            <Link href={returnTo} className="text-accent font-medium hover:underline">
+              Quay lại hợp đồng
+            </Link>
+          </Notice>
+        )}
         {!canRead && (
           <p className="text-ink-tertiary text-[0.8125rem]">
             Bạn chưa có quyền xem thông tin pháp lý.

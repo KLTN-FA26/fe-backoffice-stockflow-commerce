@@ -15,6 +15,11 @@ export const ADMIN_ROUTES = {
   customers: {
     create: `${ADMIN_BASE}/customers/create`,
     detail: (id: string) => `${ADMIN_BASE}/customers/${id}`,
+    /**
+     * Mở thẳng hộp nhập thông tin pháp lý; `returnTo` (đường dẫn admin) cho link "Quay lại hợp đồng" (BO-UX-30).
+     */
+    legalProfile: (id: string, returnTo?: string) =>
+      `${ADMIN_BASE}/customers/${id}?legalProfile=edit${returnTo ? `&returnTo=${encodeURIComponent(returnTo)}` : ""}#legal-profile`,
     list: `${ADMIN_BASE}/customers`,
   },
   /** Hộp thư chat của Sale (WF-02 pha E2). */

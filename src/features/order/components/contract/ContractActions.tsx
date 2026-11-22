@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil, Send, Signature } from "lucide-react";
+import { Pencil, Send, Signature, XCircle } from "lucide-react";
 
 import { ApiError } from "@/lib/api/error";
 
@@ -78,27 +78,8 @@ export function ContractActions({
   const warning = contract.creditWarning;
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <ContractDownloads
-        contract={contract}
-        canPreview={actions.includes("preview")}
-        onError={onError}
-      />
-      {actions.includes("cancel") && (
-        <Button
-          size="sm"
-          variant="outline"
-          className="text-danger"
-          onClick={() => setDialog("cancel")}
-        >
-          Huỷ hợp đồng
-        </Button>
-      )}
-      {actions.includes("edit") && (
-        <Button size="sm" variant="outline" onClick={onEdit}>
-          <Pencil className="size-3.5" /> Sửa
-        </Button>
-      )}
+    <div className="flex w-full flex-wrap items-center gap-2">
+      {/* BO-UX-27: việc chính trước (Gửi / Ghi nhận đã ký), rồi Sửa, rồi tải PDF; Huỷ hợp đồng cuối, tách riêng. */}
       {actions.includes("send") && (
         <Button size="sm" onClick={() => setDialog("send")}>
           <Send className="size-3.5" /> Gửi hợp đồng
@@ -107,6 +88,26 @@ export function ContractActions({
       {actions.includes("sign") && (
         <Button size="sm" onClick={() => setDialog("sign")}>
           <Signature className="size-3.5" /> Ghi nhận đã ký
+        </Button>
+      )}
+      {actions.includes("edit") && (
+        <Button size="sm" variant="outline" onClick={onEdit}>
+          <Pencil className="size-3.5" /> Sửa
+        </Button>
+      )}
+      <ContractDownloads
+        contract={contract}
+        canPreview={actions.includes("preview")}
+        onError={onError}
+      />
+      {actions.includes("cancel") && (
+        <Button
+          size="sm"
+          variant="ghost"
+          className="text-danger hover:text-danger border-border-default ml-auto border-l pl-3"
+          onClick={() => setDialog("cancel")}
+        >
+          <XCircle className="size-3.5" /> Huỷ hợp đồng
         </Button>
       )}
 

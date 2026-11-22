@@ -1,15 +1,20 @@
 "use client";
 
+import Link from "next/link";
+
 import { ORDER_INSTALLMENTS_LABELS } from "@/constants";
 import {
   INSTALLMENT_STATUS_BY_API,
   ORDER_PAYMENT_STATUS_BY_API,
   PAYMENT_INSTALLMENT_PERMISSIONS,
+  PAYMENT_ROUTES,
 } from "@/constants/payment";
 import { formatMoney } from "@/lib/format";
+import { formatDate, toLocalIsoDate } from "@/lib/format/date";
 import { StatusDot } from "@/components/shared/StatusDot";
 
 import { useOrderInstallmentsSummary } from "../queries";
+import { installmentDue } from "../selectors";
 
 import type { ReactNode } from "react";
 import type { PermissionCode } from "@/lib/auth";
@@ -60,6 +65,7 @@ export function OrderInstallmentsSummary({
   const { data } = useOrderInstallmentsSummary(orderId, { enabled: allowed });
   if (!allowed || !data || data.installments.length === 0) return null;
   const { currency } = data;
+  const today = toLocalIsoDate(new Date().toISOString());
   // BE `paymentStatus` is null only when every installment is cancelled. Then the total and "outstanding" are 0 by
   // construction and mean nothing: show what the customer paid (refund is settled on the refund screen). A cancellation
   // fee still owed keeps a live installment, so `paymentStatus` stays set and "Còn phải thu" stays.
@@ -93,19 +99,42 @@ export function OrderInstallmentsSummary({
       <dt className="text-ink-secondary col-span-2 mt-1">{L.list}</dt>
       <dd className="col-span-2">
         <ul className="space-y-1">
-          {data.installments.map((installment) => (
-            <li key={installment.installmentId} className="flex items-center justify-between gap-3">
-              <span className="text-ink-primary min-w-0 truncate">
-                {installment.seq}. {installment.name}
-                <span className="text-ink-secondary ml-1.5 font-mono text-xs tabular-nums">
-                  {formatMoney(installment.paidAmount, currency)} /{" "}
-                  {formatMoney(installment.amount, currency)}
+          {data.installments.map((installment) => {
+            const due = installmentDue(installment, today);
+            return (
+              <li
+                key={installment.installmentId}
+                className="flex items-center justify-between gap-3"
+              >
+                <span className="text-ink-primary min-w-0">
+                  <span className="block truncate">
+                    {installment.seq}. {installment.name}
+                  </span>
+                  <span className="text-ink-secondary block font-mono text-xs tabular-nums">
+                    {formatMoney(installment.paidAmount, currency)} /{" "}
+                    {formatMoney(installment.amount, currency)}
+                    {due.dueOn && <> · {L.dueOn(formatDate(due.dueOn))}</>}
+                  </span>
+                  {due.daysOverdue > 0 && (
+                    <span className="text-danger block text-xs font-medium">
+                      {L.overdueDays(due.daysOverdue)}
+                    </span>
+                  )}
                 </span>
-              </span>
-              <StatusDot domain="payment" status={INSTALLMENT_STATUS_BY_API[installment.status]} />
-            </li>
-          ))}
+                <StatusDot
+                  domain="payment"
+                  status={INSTALLMENT_STATUS_BY_API[installment.status]}
+                />
+              </li>
+            );
+          })}
         </ul>
+        <Link
+          href={PAYMENT_ROUTES.installments.ofOrder(orderId)}
+          className="text-accent mt-1 inline-block text-xs font-medium hover:underline"
+        >
+          {L.viewAll}
+        </Link>
       </dd>
     </>
   );

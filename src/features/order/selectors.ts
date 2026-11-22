@@ -185,3 +185,26 @@ export function cancelConsequence(
       return null;
   }
 }
+
+/**
+ * Hạn trả và số ngày quá hạn của một đợt (BO-UX-24 / BO-UX-28): ưu tiên `dueOn` / `daysOverdue` của BE (R5-12), không
+ * có thì `dueDate` + `overdue` đang có, số ngày tính từ hôm nay (giờ Việt Nam, `today` = `YYYY-MM-DD`). Không đoán khi
+ * BE không cho hạn (đợt chưa tới mốc).
+ */
+export function installmentDue(
+  installment: {
+    dueOn?: string | null;
+    dueDate?: string | null;
+    daysOverdue?: number | null;
+    overdue?: boolean | null;
+    status?: string;
+  },
+  today: string,
+): { dueOn: string | null; daysOverdue: number } {
+  const dueOn = installment.dueOn ?? installment.dueDate ?? null;
+  if (installment.daysOverdue != null) return { dueOn, daysOverdue: installment.daysOverdue };
+  if (!dueOn || installment.overdue === false || installment.status === "PAID")
+    return { dueOn, daysOverdue: 0 };
+  const days = Math.round((Date.parse(today) - Date.parse(dueOn.slice(0, 10))) / 86_400_000);
+  return { dueOn, daysOverdue: Math.max(0, days) };
+}

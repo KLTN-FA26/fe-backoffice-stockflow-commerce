@@ -13,6 +13,8 @@ import { PaymentPlanRow } from "./PaymentPlanRow";
 import type { UseFormReturn } from "react-hook-form";
 import type { ContractFormValues } from "../../sales-contract-form";
 
+const TH = "px-1 pb-1 font-medium";
+
 /**
  * Lịch thanh toán: tên, mốc, số tiền hoặc %, số ngày (BEFORE_DELIVERY không có), đợt giao gắn kèm (ON_SIGNING
  * không gắn). F-04.2: hiện "Tổng các đợt / Tổng đơn có thuế" và chênh lệch trước khi lưu; % do BE quy ra tiền.
@@ -42,16 +44,55 @@ export function PaymentPlanEditor({
           {listError}
         </p>
       )}
-      {plan.fields.map((field, i) => (
-        <PaymentPlanRow
-          key={field.id}
-          form={form}
-          index={i}
-          batchCount={(batches ?? []).length}
-          canRemove={plan.fields.length > 1}
-          onRemove={() => plan.remove(i)}
-        />
-      ))}
+      {/* BO-UX-26: bảng có tiêu đề cột hiện rõ — các số này vào hợp đồng và quyết định mọi ngày đến hạn. */}
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[860px] text-[0.8125rem]">
+          <colgroup>
+            <col className="w-[22%]" />
+            <col className="w-[13%]" />
+            <col className="w-[14%]" />
+            <col className="w-[18%]" />
+            <col className="w-[13%]" />
+            <col className="w-[14%]" />
+            <col className="w-10" />
+          </colgroup>
+          <thead>
+            <tr className="text-ink-secondary text-left text-xs">
+              <th scope="col" className={TH}>
+                Tên đợt
+              </th>
+              <th scope="col" className={TH}>
+                Mốc
+              </th>
+              <th scope="col" className={TH}>
+                Tính theo
+              </th>
+              <th scope="col" className={TH}>
+                Giá trị (₫ / %)
+              </th>
+              <th scope="col" className={TH}>
+                Hạn (số ngày sau mốc)
+              </th>
+              <th scope="col" className={TH}>
+                Gắn đợt giao
+              </th>
+              <th scope="col" className={TH}>
+                <span className="sr-only">Xoá</span>
+              </th>
+            </tr>
+          </thead>
+          {plan.fields.map((field, i) => (
+            <PaymentPlanRow
+              key={field.id}
+              form={form}
+              index={i}
+              batchCount={(batches ?? []).length}
+              canRemove={plan.fields.length > 1}
+              onRemove={() => plan.remove(i)}
+            />
+          ))}
+        </table>
+      </div>
       <p
         className={`text-[0.8125rem] ${diff === 0 ? "text-ink-secondary" : "text-danger"}`}
         aria-live="polite"

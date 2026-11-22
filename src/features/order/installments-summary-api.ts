@@ -18,6 +18,15 @@ const installmentSchema = z.object({
   amount: z.number(),
   paidAmount: z.number(),
   status: z.enum(INSTALLMENT_API_STATUSES),
+  /** Còn phải thu của đợt (BE `InstallmentResponse.outstanding`). */
+  outstanding: z.number().nullish(),
+  /** Hạn trả; null tới khi tới mốc, và với đợt trả trước khi giao. */
+  dueDate: z.string().nullish(),
+  /** Quá hạn hôm nay (BE tính lúc đọc). */
+  overdue: z.boolean().nullish(),
+  /** R5-12 (optional): the same due day under its new name, and how many days overdue (0 when not). */
+  dueOn: z.string().nullish(),
+  daysOverdue: z.number().int().nullish(),
 });
 
 /** BE `OrderInstallmentsResponse.paymentStatus` — tính từ các đợt chưa huỷ; giá trị lạ → `UNKNOWN` ("Không rõ"). */

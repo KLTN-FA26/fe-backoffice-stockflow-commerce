@@ -439,6 +439,10 @@ export const ORDER_INSTALLMENTS_LABELS = {
   dueBeforeHandover: "Phải thu trước khi xuất",
   list: "Các đợt",
   countValue: (n: number) => `${n} đợt`,
+  /** BO-UX-24: hạn trả của đợt và số ngày quá hạn. */
+  dueOn: (date: string) => `hạn ${date}`,
+  overdueDays: (days: number) => `quá hạn ${days} ngày`,
+  viewAll: "Xem các đợt",
 } as const;
 
 /**
