@@ -670,10 +670,10 @@ describe("L-6: 'Đơn hàng' của Sale nằm ở nhóm Bán hàng, nhóm đúng
   }
 
   it("Sale (báo giá + đơn): 'Đơn hàng' chỉ ở Bán hàng; chi tiết đơn mở nhóm Bán hàng", async () => {
-    probe(
-      ADMIN_ROUTES.orders.detail("ord-1"),
-      ROLE_PERMISSIONS.SALES_STAFF.concat("sales-orders:VIEW_PAGE"),
-    );
+    probe(ADMIN_ROUTES.orders.detail("ord-1"), [
+      ...ROLE_PERMISSIONS.SALES_STAFF,
+      ORDER_PERMISSIONS.viewPage,
+    ]);
     await waitFor(() => expect(screen.getByLabelText("orders-in")).toHaveTextContent("Bán hàng"));
     expect(screen.getByLabelText("orders-in")).not.toHaveTextContent("Thực hiện đơn");
     expect(screen.getByLabelText("open")).toHaveTextContent("Bán hàng");
