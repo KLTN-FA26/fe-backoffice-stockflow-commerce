@@ -113,7 +113,7 @@ export function OrderInstallmentsSummary({
                   <span className="text-ink-secondary block font-mono text-xs tabular-nums">
                     {formatMoney(installment.paidAmount, currency)} /{" "}
                     {formatMoney(installment.amount, currency)}
-                    {due.dueOn && <> · {L.dueOn(formatDate(due.dueOn))}</>}
+                    {due.dueDate && <> · {L.dueOn(formatDate(due.dueDate))}</>}
                   </span>
                   {due.daysOverdue > 0 && (
                     <span className="text-danger block text-xs font-medium">

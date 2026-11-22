@@ -37,20 +37,20 @@ async function renderDetail(
 afterEach(() => vi.restoreAllMocks());
 
 describe("installmentDue", () => {
-  it("prefers the BE's dueOn / daysOverdue (R5-12), else counts from dueDate when overdue", () => {
-    expect(installmentDue({ dueOn: "2026-11-20", daysOverdue: 2 }, "2026-11-23")).toEqual({
-      dueOn: "2026-11-20",
+  it("reads the BE's dueDate, prefers its daysOverdue (R5-12), else counts from dueDate when overdue", () => {
+    expect(installmentDue({ dueDate: "2026-11-20", daysOverdue: 2 }, "2026-11-23")).toEqual({
+      dueDate: "2026-11-20",
       daysOverdue: 2,
     });
     expect(installmentDue({ dueDate: "2026-11-20", overdue: true }, "2026-11-23")).toEqual({
-      dueOn: "2026-11-20",
+      dueDate: "2026-11-20",
       daysOverdue: 3,
     });
     expect(installmentDue({ dueDate: "2026-11-30", overdue: false }, "2026-11-23")).toEqual({
-      dueOn: "2026-11-30",
+      dueDate: "2026-11-30",
       daysOverdue: 0,
     });
-    expect(installmentDue({}, "2026-11-23")).toEqual({ dueOn: null, daysOverdue: 0 });
+    expect(installmentDue({}, "2026-11-23")).toEqual({ dueDate: null, daysOverdue: 0 });
   });
 });
 
@@ -146,7 +146,6 @@ describe("Order detail — round 5", () => {
               paidAmount: 0,
               status: "DUE",
               dueDate: "2026-11-20",
-              dueOn: "2026-11-20",
               daysOverdue: 3,
               overdue: true,
             },

@@ -45,8 +45,11 @@ export const contractInstallmentViewSchema = z.object({
   amount: z.number(),
   dueDays: omittedOrNull(z.number().int()),
   deliveryBatchSeq: omittedOrNull(z.number().int()),
-  /** R5-12 (optional, signed contracts): the installment's due day and days overdue (0 when not). */
-  dueOn: omittedOrNull(z.string()),
+  /**
+   * R5-12 (optional, signed contracts): the installment's due day — BE `InstallmentView.dueDate`, the same name as on the
+   * installment itself — and days overdue (0 when not).
+   */
+  dueDate: omittedOrNull(z.string()),
   daysOverdue: omittedOrNull(z.number().int()),
 });
 

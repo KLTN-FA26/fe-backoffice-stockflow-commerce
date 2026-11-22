@@ -188,25 +188,24 @@ export function cancelConsequence(
 }
 
 /**
- * Hạn trả và số ngày quá hạn của một đợt (BO-UX-24 / BO-UX-28): ưu tiên `dueOn` / `daysOverdue` của BE (R5-12), không
- * có thì `dueDate` + `overdue` đang có, số ngày tính từ hôm nay (giờ Việt Nam, `today` = `YYYY-MM-DD`). Không đoán khi
- * BE không cho hạn (đợt chưa tới mốc).
+ * Hạn trả và số ngày quá hạn của một đợt (BO-UX-24 / BO-UX-28): hạn là `dueDate` của BE (đợt và kế hoạch thanh toán
+ * của hợp đồng đã ký, R5-12 giữ tên này); ưu tiên `daysOverdue` của BE, không có thì đếm từ `dueDate` khi `overdue`, tới
+ * hôm nay (giờ Việt Nam, `today` = `YYYY-MM-DD`). Không đoán khi BE không cho hạn (đợt chưa tới mốc).
  */
 export function installmentDue(
   installment: {
-    dueOn?: string | null;
     dueDate?: string | null;
     daysOverdue?: number | null;
     overdue?: boolean | null;
     status?: string;
   },
   today: string,
-): { dueOn: string | null; daysOverdue: number } {
-  const dueOn = installment.dueOn ?? installment.dueDate ?? null;
-  if (installment.daysOverdue != null) return { dueOn, daysOverdue: installment.daysOverdue };
-  if (!dueOn || installment.overdue === false || installment.status === "PAID")
-    return { dueOn, daysOverdue: 0 };
-  return { dueOn, daysOverdue: Math.max(0, daysBetween(dueOn.slice(0, 10), today)) };
+): { dueDate: string | null; daysOverdue: number } {
+  const dueDate = installment.dueDate ?? null;
+  if (installment.daysOverdue != null) return { dueDate, daysOverdue: installment.daysOverdue };
+  if (!dueDate || installment.overdue === false || installment.status === "PAID")
+    return { dueDate, daysOverdue: 0 };
+  return { dueDate, daysOverdue: Math.max(0, daysBetween(dueDate.slice(0, 10), today)) };
 }
 
 /**

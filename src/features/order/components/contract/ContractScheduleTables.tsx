@@ -102,7 +102,15 @@ export function ContractScheduleTables({
           {contract.paymentPlan.map((entry) => {
             const installment = bySeq.get(entry.seq);
             // BO-UX-28: đã ký → ngày đến hạn thật (của đợt, hoặc R5-12 trên hợp đồng); chưa ký → quy tắc ra hạn.
-            const due = installmentDue({ ...entry, ...installment }, today);
+            // The order's installment wins, but a field it leaves out keeps the contract's own value.
+            const due = installmentDue(
+              {
+                ...installment,
+                dueDate: installment?.dueDate ?? entry.dueDate,
+                daysOverdue: installment?.daysOverdue ?? entry.daysOverdue,
+              },
+              today,
+            );
             return (
               <tr key={entry.seq}>
                 <td className={`${TD} ${MONO}`}>{entry.seq}</td>
@@ -113,8 +121,8 @@ export function ContractScheduleTables({
                 </td>
                 <td className={`${TD} text-right ${MONO}`}>{money(entry.amount)}</td>
                 <td className={TD}>
-                  {due.dueOn ? (
-                    <span className={MONO}>{formatDate(due.dueOn)}</span>
+                  {due.dueDate ? (
+                    <span className={MONO}>{formatDate(due.dueDate)}</span>
                   ) : (
                     <span className="text-ink-secondary">{dueRuleText(entry)}</span>
                   )}

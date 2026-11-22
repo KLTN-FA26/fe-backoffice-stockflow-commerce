@@ -115,8 +115,8 @@ export function buildInstallmentColumns(
       sortable: true,
       align: "right",
       cell: (row) =>
-        (row.dueDate ?? row.dueOn) ? (
-          <DateCell iso={row.dueDate ?? row.dueOn} />
+        row.dueDate ? (
+          <DateCell iso={row.dueDate} />
         ) : (
           <span className="text-ink-tertiary">{L.noDueDate}</span>
         ),

@@ -24,8 +24,7 @@ const installmentSchema = z.object({
   dueDate: z.string().nullish(),
   /** Quá hạn hôm nay (BE tính lúc đọc). */
   overdue: z.boolean().nullish(),
-  /** R5-12 (optional): the same due day under its new name, and how many days overdue (0 when not). */
-  dueOn: z.string().nullish(),
+  /** R5-12 (optional): how many days past `dueDate` it is still owing (0 when not). */
   daysOverdue: z.number().int().nullish(),
 });
 

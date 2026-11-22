@@ -59,8 +59,7 @@ export const installmentDtoSchema = z.object({
   cancelledAt: z.string().nullish(),
   transferReference: z.string(),
   receipts: z.array(installmentReceiptDtoSchema).nullish(),
-  /** R5-12 (BE round 5, có thể chưa có): ngày hạn + số ngày quá hạn (0 khi chưa quá hạn). */
-  dueOn: z.string().nullish(),
+  /** R5-12 (BE round 5, có thể chưa có): số ngày quá `dueDate` mà vẫn còn nợ (0 khi chưa quá hạn). */
   daysOverdue: z.number().int().nullish(),
 });
 export const installmentPageDtoSchema = bePageSchema(installmentDtoSchema);

@@ -48,15 +48,12 @@ export function receiptStatusLabel(status: ReceiptApiStatus): string {
  * không có cờ `overdue` → 0.
  */
 export function daysOverdue(
-  installment: Pick<Installment, "overdue" | "dueDate"> & {
-    dueOn?: string | null;
-    daysOverdue?: number | null;
-  },
+  installment: Pick<Installment, "overdue" | "dueDate"> & { daysOverdue?: number | null },
   today: string = todayIso(),
 ): number {
   if (!installment.overdue) return 0;
   if (installment.daysOverdue != null) return installment.daysOverdue;
-  const due = installment.dueDate ?? installment.dueOn;
+  const due = installment.dueDate;
   return due ? Math.max(0, daysBetween(due.slice(0, 10), today)) : 0;
 }
 

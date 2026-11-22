@@ -168,7 +168,7 @@ describe("Contract summary and actions — round 5", () => {
           installment(1, {
             paidAmount: 10_000_000,
             outstanding: 13_265_000,
-            dueOn: "2026-11-20",
+            dueDate: "2026-11-20",
             daysOverdue: 3,
             status: "PARTIALLY_PAID",
           }),
@@ -178,6 +178,22 @@ describe("Contract summary and actions — round 5", () => {
     expect(await screen.findByRole("columnheader", { name: "Đã thu / Còn" })).toBeVisible();
     expect(screen.getByText("quá hạn 3 ngày")).toBeInTheDocument();
     expect(screen.getByText(/còn\s+13\.265\.000/)).toBeInTheDocument();
+  });
+
+  it("R5-12: a signed contract's own plan row carries dueDate (not dueOn) and daysOverdue", async () => {
+    const signed = {
+      ...contractSent,
+      status: "SIGNED",
+      signedOn: "2026-11-17",
+      version: 2,
+      paymentPlan: contractSent.paymentPlan.map((entry, index) =>
+        index === 0 ? { ...entry, dueDate: "2026-11-20", daysOverdue: 4 } : entry,
+      ),
+    };
+    // No installment permission: only the contract's plan says when the row falls due.
+    renderSection(() => signed);
+    expect(await screen.findByText("20 thg 11, 2026")).toBeInTheDocument();
+    expect(screen.getByText("quá hạn 4 ngày")).toBeInTheDocument();
   });
 
   it("BO-UX-31: the history toggle says whether it is open", async () => {
