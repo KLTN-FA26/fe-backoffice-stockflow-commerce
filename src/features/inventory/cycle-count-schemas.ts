@@ -74,6 +74,8 @@ export const cycleCountListInput = z.object({
   page: z.number().int().nonnegative(),
   size: z.number().int().positive(),
   status: z.enum(CYCLE_COUNT_STATUSES).optional(),
+  // BE `CycleCountController` nhận `warehouseId` — phiếu của kho trong tab theo kho (spec 2026-11-22)
+  warehouseId: z.string().optional(),
 });
 
 // CountLineRequest: the carton scanned at its bin (true) or not found there (false) — never a number of units

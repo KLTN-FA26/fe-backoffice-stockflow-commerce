@@ -8,7 +8,6 @@ import {
   CYCLE_COUNT_API,
   CYCLE_COUNT_ERROR_MESSAGES,
   CYCLE_COUNT_LABELS as L,
-  CYCLE_COUNT_ROUTES,
 } from "@/constants/cycle-count";
 import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
 import { CYCLE_COUNT_PERMISSIONS, INVENTORY_PERMISSIONS } from "@/constants/permissions";
@@ -387,7 +386,9 @@ describe("the manager's view (docs 20 §4.2 d–e, BR-07)", () => {
       expect(bodies).toHaveBeenCalledWith({ lineIds: [rejectedLine.id], note: "Nghi đếm sai" }),
     );
     await waitFor(() =>
-      expect(navigation.push).toHaveBeenCalledWith(CYCLE_COUNT_ROUTES.detail(next.id)),
+      expect(navigation.push).toHaveBeenCalledWith(
+        `/admin/warehouse-map/HCM/cycle-counts/${next.id}`,
+      ),
     );
   });
 

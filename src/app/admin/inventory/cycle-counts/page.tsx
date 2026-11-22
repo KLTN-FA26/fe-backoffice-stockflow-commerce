@@ -1,13 +1,18 @@
-import { Suspense } from "react";
+import { WORKSPACE_PATHS } from "@/constants";
+import { WorkspaceRedirect } from "@/lib/workspace";
 
-import { CycleCountList } from "@/features/inventory";
-
-import { PageSkeleton } from "@/components/shared/PageSkeleton";
-
-export default function Page() {
+/** Route cũ: Kiểm kê giờ nằm trong tab theo kho (spec §5.5) — `?warehouse=` → kho đó, không có thì về gốc tab. */
+export default async function LegacyCycleCountsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ warehouse?: string | string[] }>;
+}) {
+  const { warehouse } = await searchParams;
   return (
-    <Suspense fallback={<PageSkeleton variant="list" />}>
-      <CycleCountList />
-    </Suspense>
+    <WorkspaceRedirect
+      warehouseId={typeof warehouse === "string" ? warehouse : null}
+      path={WORKSPACE_PATHS.cycleCounts}
+      keepQuery
+    />
   );
 }

@@ -3,7 +3,7 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ADMIN_ROUTES, CANCELLATION_REQUEST_LABELS, UI_LABELS } from "@/constants";
-import { CYCLE_COUNT_LABELS, CYCLE_COUNT_ROUTES } from "@/constants/cycle-count";
+import { CYCLE_COUNT_LABELS } from "@/constants/cycle-count";
 import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
 import { QUARANTINE_LABELS } from "@/constants/quarantine";
 import { RETURN_LABELS, RETURN_RECEIPT_LABELS } from "@/constants/labels-return";
@@ -178,20 +178,25 @@ describe("declared navigation permissions", () => {
     ["cycle-counts:VIEW_PAGE", [CYCLE_COUNT_PERMISSIONS.viewPage], true],
     ["cycle-counts:READ alone", [CYCLE_COUNT_PERMISSIONS.read], false],
     ["cycle-counts:UPDATE alone", [CYCLE_COUNT_PERMISSIONS.update], false],
-  ] as const)("kiểm kê menu with %s → visible: %s", async (_, permissions, visible) => {
-    vi.spyOn(api, "get").mockResolvedValue({
-      data: {
-        roles: [],
-        permissions: [...permissions, IDENTITY_PERMISSIONS.rbacRead],
-        dataScope: "ALL",
-      },
-    });
-    mount();
-    expect(await screen.findByRole("link", { name: "Phân quyền" })).toBeInTheDocument();
-    const link = screen.queryByRole("link", { name: CYCLE_COUNT_LABELS.title });
-    expect(link !== null).toBe(visible);
-    if (link) expect(link).toHaveAttribute("href", CYCLE_COUNT_ROUTES.list);
-  });
+  ] as const)(
+    "kiểm kê (trong tab theo kho) with %s → tab Kho & bản đồ visible: %s",
+    async (_, permissions, visible) => {
+      vi.spyOn(api, "get").mockResolvedValue({
+        data: {
+          roles: [],
+          permissions: [...permissions, IDENTITY_PERMISSIONS.rbacRead],
+          dataScope: "ALL",
+        },
+      });
+      mount();
+      expect(await screen.findByRole("link", { name: "Phân quyền" })).toBeInTheDocument();
+      // Kiểm kê đã vào tab theo kho (spec 2026-11-22): không còn mục riêng ở nhóm Kho
+      expect(screen.queryByRole("link", { name: CYCLE_COUNT_LABELS.title })).toBeNull();
+      const tab = screen.queryByRole("link", { name: "Kho & bản đồ" });
+      expect(tab !== null).toBe(visible);
+      if (tab) expect(tab).toHaveAttribute("href", ADMIN_ROUTES.warehouseMap.root);
+    },
+  );
   it.each([
     ["stock-packages:UPDATE (warehouse manager)", [STOCK_PACKAGE_PERMISSIONS.update], true],
     [
