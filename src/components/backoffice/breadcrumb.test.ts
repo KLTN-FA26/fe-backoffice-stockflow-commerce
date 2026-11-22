@@ -35,6 +35,22 @@ describe("buildBreadcrumbItems", () => {
     expect(detail[3]?.href).toBe("/admin/warehouse-map/BD/putaway");
   });
 
+  it("chuyến cất hàng trong tab: chuyến của tôi, chuyến theo id (id → nhãn, không khớp nhầm /trip)", () => {
+    const labels = (path: string, labelFor?: (id: string) => string | undefined) =>
+      buildBreadcrumbItems(path, () => true, labelFor).map((item) => item.label);
+    expect(labels(ADMIN_ROUTES.warehouseMap.page("BD", WORKSPACE_PATHS.myTrip))).toEqual([
+      "Back-office",
+      "Kho & bản đồ",
+      "BD",
+      "Chuyến cất hàng",
+    ]);
+    expect(
+      labels(ADMIN_ROUTES.warehouseMap.page("BD", WORKSPACE_PATHS.trip("x")), (id) =>
+        id === "x" ? "Chuyến cất hàng" : undefined,
+      ),
+    ).toEqual(["Back-office", "Kho & bản đồ", "BD", "Cất hàng", "Chuyến cất hàng"]);
+  });
+
   it('trang của một kho: "Kho & bản đồ / <kho ⇅> / <trang>" theo prefix trên URL', () => {
     const items = buildBreadcrumbItems(ADMIN_ROUTES.warehouseMap.slotting("BD"));
     expect(items.map((item) => item.label)).toEqual([

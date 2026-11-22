@@ -105,7 +105,8 @@ export function warehouseBreadcrumbTail(
         : undefined,
   });
   if (tail.length > 0) {
-    const id = tail.join("/");
+    // Id bản ghi là đoạn cuối (`putaway/trips/{id}` → id chuyến)
+    const id = tail.at(-1) ?? "";
     crumbs.push({ label: labelFor(id) ?? decodeURIComponent(id) });
   }
   return crumbs;

@@ -1,23 +1,31 @@
 "use client";
 
-import { ADMIN_ROUTES, PUTAWAY_TRIP_LABELS, PUTAWAY_TRIP_PERMISSIONS } from "@/constants";
+import { PUTAWAY_TRIP_LABELS, PUTAWAY_TRIP_PERMISSIONS, WORKSPACE_PATHS } from "@/constants";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
+import { useWorkspaceHref, useWorkspaceWarehouse } from "@/lib/workspace";
 import { useCurrentTrip, useTrip } from "@/features/putaway/trip-queries";
 
 import { LoadErrorState } from "@/components/backoffice/LoadErrorState";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 
+import { TripElsewhere } from "./TripElsewhere";
 import { TripStart } from "./TripStart";
 import { TripView } from "./TripView";
 
 import type { TripRouteMapSlot } from "./TripView";
 
 const L = PUTAWAY_TRIP_LABELS;
-const back = { href: ADMIN_ROUTES.putaway.list };
+
+/** Về danh sách cất hàng của kho trong tab. */
+function useBack() {
+  return { href: useWorkspaceHref()(WORKSPACE_PATHS.putaway) };
+}
 
 function MyTripContent({ routeMap }: { routeMap?: TripRouteMapSlot }) {
   const query = useCurrentTrip();
+  const back = useBack();
+  const warehouse = useWorkspaceWarehouse();
   if (query.isPending) return <PageSkeleton variant="detail" />;
   if (query.isError) {
     return (
@@ -30,6 +38,8 @@ function MyTripContent({ routeMap }: { routeMap?: TripRouteMapSlot }) {
     );
   }
   const refetch = () => void query.refetch();
+  if (query.data && query.data.warehouseId !== warehouse.id)
+    return <TripElsewhere warehouseId={query.data.warehouseId} mine />;
   return query.data ? (
     <TripView trip={query.data} onStale={refetch} routeMap={routeMap} />
   ) : (
@@ -39,6 +49,8 @@ function MyTripContent({ routeMap }: { routeMap?: TripRouteMapSlot }) {
 
 function TripContent({ tripId, routeMap }: { tripId: string; routeMap?: TripRouteMapSlot }) {
   const query = useTrip(tripId);
+  const back = useBack();
+  const warehouse = useWorkspaceWarehouse();
   useBreadcrumbLabel(tripId, query.data ? L.title : undefined);
   if (query.isPending) return <PageSkeleton variant="detail" />;
   if (!query.data) {
@@ -51,6 +63,8 @@ function TripContent({ tripId, routeMap }: { tripId: string; routeMap?: TripRout
       />
     );
   }
+  if (query.data.warehouseId !== warehouse.id)
+    return <TripElsewhere warehouseId={query.data.warehouseId} tripId={tripId} mine={false} />;
   return <TripView trip={query.data} onStale={() => void query.refetch()} routeMap={routeMap} />;
 }
 

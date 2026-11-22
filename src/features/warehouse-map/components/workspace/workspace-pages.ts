@@ -1,8 +1,10 @@
-import { Lightbulb, Map as MapIcon, PackageCheck } from "lucide-react";
+import { Lightbulb, Map as MapIcon, PackageCheck, Route } from "lucide-react";
 
 import {
   PUTAWAY_LABELS,
   PUTAWAY_TASK_PERMISSIONS,
+  PUTAWAY_TRIP_LABELS,
+  PUTAWAY_TRIP_PERMISSIONS,
   UI_LABELS,
   WAREHOUSE_LOCATION_PERMISSIONS,
   WORKSPACE_PATHS,
@@ -34,6 +36,15 @@ export const WORKSPACE_PAGES: readonly WorkspacePage[] = [
     icon: PackageCheck,
     // BE `PutawayController`, resource warehouse-putaway-tasks (docs 05)
     permission: PUTAWAY_TASK_PERMISSIONS.viewPage,
+    assignedOnly: true,
+  },
+  {
+    path: WORKSPACE_PATHS.myTrip,
+    group: "operations",
+    label: PUTAWAY_TRIP_LABELS.title,
+    icon: Route,
+    // BE `PutawayTripController`, resource warehouse-putaway-trips (docs 05 §4.5)
+    permission: PUTAWAY_TRIP_PERMISSIONS.viewPage,
     assignedOnly: true,
   },
   {

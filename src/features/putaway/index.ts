@@ -21,4 +21,5 @@ export { PutawayTaskDetail } from "./components/detail/PutawayTaskDetail";
 export { PutawayTaskRedirect } from "./components/PutawayTaskRedirect";
 export { SlottingView } from "./components/slotting/SlottingView";
 export { MyTripPage, TripPage } from "./components/trip/TripPages";
+export { MyTripRedirect, TripRedirect } from "./components/trip/TripRedirect";
 export type { TripRouteMapSlot } from "./components/trip/TripView";

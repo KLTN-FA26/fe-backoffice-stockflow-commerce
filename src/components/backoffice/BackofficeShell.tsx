@@ -38,7 +38,6 @@ import {
   PanelLeftOpen,
   RadioTower,
   ReceiptText,
-  Route,
   Search as SearchIcon,
   ShieldCheck,
   ShieldAlert,
@@ -75,8 +74,6 @@ import {
   FULFILLMENT_PICK_PERMISSIONS,
   FULFILLMENT_PICKING_PERMISSIONS,
   GOODS_RECEIPT_PERMISSIONS,
-  PUTAWAY_TRIP_LABELS,
-  PUTAWAY_TRIP_PERMISSIONS,
   IDENTITY_PERMISSIONS,
   INVENTORY_ITEM_PERMISSIONS,
   INVENTORY_OVERVIEW_PERMISSIONS,
@@ -257,13 +254,6 @@ export const NAV_GROUPS: NavGroup[] = [
         permission: GOODS_RECEIPT_PERMISSIONS.viewPage,
       },
       // Cất hàng (docs 05) đã vào tab "Kho & bản đồ" — làm việc theo một kho (spec 2026-11-22)
-      // Chuyến cất hàng (docs 05 §4.5) — BE `PutawayTripController`, resource warehouse-putaway-trips
-      {
-        label: PUTAWAY_TRIP_LABELS.title,
-        href: ADMIN_ROUTES.putaway.myTrip,
-        icon: Route,
-        permission: PUTAWAY_TRIP_PERMISSIONS.viewPage,
-      },
     ],
   },
   {

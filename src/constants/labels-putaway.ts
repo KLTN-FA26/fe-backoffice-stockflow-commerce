@@ -197,6 +197,13 @@ export const SLOTTING_LABELS = {
 /** Chuyến cất hàng (docs 05 §4.5): gom nhiều thùng lên xe, đi theo lộ trình, đặt từng thùng vào bin. */
 export const PUTAWAY_TRIP_LABELS = {
   title: "Chuyến cất hàng",
+  // Mỗi NV chỉ một chuyến mở trên mọi kho (PUTAWAY_TRIP_ALREADY_OPEN) — chuyến ở kho khác thì không hiện trong tab này
+  elsewhere: {
+    mine: (prefix: string) => `Bạn đang có chuyến mở ở kho ${prefix}`,
+    other: (prefix: string) => `Chuyến này thuộc kho ${prefix}`,
+    description: "Chuyến cất hàng làm việc theo một kho. Mở chuyến ở kho của nó để tiếp tục.",
+    open: "Mở chuyến ở kho đó",
+  },
   myTrip: "Chuyến của tôi",
   openAction: "Chuyến cất hàng",
   general: "Thông tin chuyến",
@@ -212,8 +219,6 @@ export const PUTAWAY_TRIP_LABELS = {
     title: "Mở chuyến cất hàng",
     description:
       "Gom nhiều thùng chờ cất lên một xe, hệ thống gán bin cho từng thùng và xếp lộ trình khi bắt đầu đi.",
-    warehouse: "Kho",
-    chooseWarehouse: "Chọn kho trước khi mở chuyến.",
     submit: "Mở chuyến",
     noPermission: "Bạn chỉ có quyền xem chuyến cất hàng.",
   },
