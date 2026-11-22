@@ -1,1 +1,1 @@
-export { ChatPresenceProvider } from "./ChatPresenceProvider";
+export { ChatSocketProvider, useChatSocketStatus, useChatSubscription } from "./ChatSocketProvider";

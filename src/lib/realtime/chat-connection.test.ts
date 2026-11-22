@@ -3,47 +3,64 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/lib/api/error";
 
 import {
+  ChatConnection,
   PRESENCE_HEARTBEAT_DESTINATION,
   PRESENCE_HEARTBEAT_MS,
-  PresenceConnection,
   RECONNECT_BASE_MS,
   RECONNECT_MAX_MS,
   WS_TICKET_INVALID,
-} from "./presence-connection";
+} from "./chat-connection";
 
 import type { Mock } from "vitest";
-import type { PresenceSocket, PresenceSocketHandlers } from "./presence-connection";
+import type { StompSocket, StompSocketHandlers } from "./stomp-socket";
 
-interface FakeSocket extends PresenceSocket {
+interface FakeSocket extends StompSocket {
   ticket: string;
-  handlers: PresenceSocketHandlers;
-  publish: Mock<PresenceSocket["publish"]>;
-  deactivate: Mock<PresenceSocket["deactivate"]>;
+  handlers: StompSocketHandlers;
+  publish: Mock<StompSocket["publish"]>;
+  deactivate: Mock<StompSocket["deactivate"]>;
+  subscribe: Mock<StompSocket["subscribe"]>;
+  /** destination -> the frame callback of its live subscription. */
+  followed: Map<string, (body: string) => void>;
+  unsubscribed: string[];
 }
 
 function setup(url = "wss://api.test/ws") {
   const sockets: FakeSocket[] = [];
   let n = 0;
   const ticketFetcher = vi.fn(async () => `ticket-${++n}`);
-  const socketFactory = vi.fn((_url: string, ticket: string, handlers: PresenceSocketHandlers) => {
+  const socketFactory = vi.fn((_url: string, ticket: string, handlers: StompSocketHandlers) => {
+    const followed = new Map<string, (body: string) => void>();
+    const unsubscribed: string[] = [];
     const socket: FakeSocket = {
       ticket,
       handlers,
-      activate: vi.fn<PresenceSocket["activate"]>(),
-      deactivate: vi.fn<PresenceSocket["deactivate"]>(async () => undefined),
-      publish: vi.fn<PresenceSocket["publish"]>(),
+      followed,
+      unsubscribed,
+      activate: vi.fn<StompSocket["activate"]>(),
+      deactivate: vi.fn<StompSocket["deactivate"]>(async () => undefined),
+      publish: vi.fn<StompSocket["publish"]>(),
+      subscribe: vi.fn<StompSocket["subscribe"]>((destination, onMessage) => {
+        followed.set(destination, onMessage);
+        return {
+          unsubscribe: () => {
+            followed.delete(destination);
+            unsubscribed.push(destination);
+          },
+        };
+      }),
     };
     sockets.push(socket);
     return socket;
   });
-  const connection = new PresenceConnection({ url, socketFactory, ticketFetcher });
+  const connection = new ChatConnection({ url, socketFactory, ticketFetcher });
   return { connection, sockets, ticketFetcher, socketFactory };
 }
 
 const invalidFrame = { headers: { message: WS_TICKET_INVALID }, body: "" };
 const transientFrame = { headers: { message: "Authentication is not available" }, body: "" };
 
-describe("PresenceConnection", () => {
+describe("ChatConnection: presence and reconnects", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
@@ -224,5 +241,98 @@ describe("PresenceConnection", () => {
     connection.stop();
     await vi.advanceTimersByTimeAsync(RECONNECT_MAX_MS * 2);
     expect(ticketFetcher).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("ChatConnection: subscriptions on the one socket", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  const event = (type: string) => JSON.stringify({ type, conversationId: "c1", data: {} });
+
+  it("subscribes registered destinations once connected, and delivers parsed events to every listener", async () => {
+    const { connection, sockets } = setup();
+    const first = vi.fn();
+    const second = vi.fn();
+    connection.subscribe("/topic/chat.inbox", first);
+    connection.subscribe("/topic/chat.inbox", second);
+    connection.start();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(sockets[0]?.subscribe).not.toHaveBeenCalled(); // not before CONNECTED
+    sockets[0]?.handlers.onConnect();
+    expect(sockets[0]?.subscribe).toHaveBeenCalledTimes(1); // one STOMP subscription for both listeners
+    sockets[0]?.followed.get("/topic/chat.inbox")?.(event("conversation.updated"));
+    expect(first).toHaveBeenCalledWith(expect.objectContaining({ type: "conversation.updated" }));
+    expect(second).toHaveBeenCalledTimes(1);
+    sockets[0]?.followed.get("/topic/chat.inbox")?.("not json");
+    expect(first).toHaveBeenCalledTimes(1);
+    connection.stop();
+  });
+
+  it("subscribes at once when already connected, and unsubscribes when the last listener leaves", async () => {
+    const { connection, sockets } = setup();
+    connection.start();
+    await vi.advanceTimersByTimeAsync(0);
+    sockets[0]?.handlers.onConnect();
+    const offA = connection.subscribe("/topic/chat.conversations.c1", vi.fn());
+    const offB = connection.subscribe("/topic/chat.conversations.c1", vi.fn());
+    expect(sockets[0]?.subscribe).toHaveBeenCalledTimes(1);
+    offA();
+    expect(sockets[0]?.unsubscribed).toEqual([]);
+    offB();
+    expect(sockets[0]?.unsubscribed).toEqual(["/topic/chat.conversations.c1"]);
+    connection.stop();
+  });
+
+  it("resubscribes every destination on the next socket after a drop", async () => {
+    const { connection, sockets } = setup();
+    const listener = vi.fn();
+    connection.subscribe("/user/queue/chat", listener);
+    connection.start();
+    await vi.advanceTimersByTimeAsync(0);
+    sockets[0]?.handlers.onConnect();
+    sockets[0]?.handlers.onWebSocketClose();
+    await vi.advanceTimersByTimeAsync(RECONNECT_BASE_MS);
+    sockets[1]?.handlers.onConnect();
+    expect(sockets[1]?.subscribe).toHaveBeenCalledWith("/user/queue/chat", expect.any(Function));
+    sockets[1]?.followed.get("/user/queue/chat")?.(event("message.created"));
+    expect(listener).toHaveBeenCalledTimes(1);
+    connection.stop();
+  });
+
+  it("reports its status: up on CONNECTED, down on a drop and on stop", async () => {
+    const { connection, sockets } = setup();
+    const status = vi.fn();
+    connection.onStatus(status);
+    connection.start();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(connection.isConnected()).toBe(false);
+    sockets[0]?.handlers.onConnect();
+    expect(connection.isConnected()).toBe(true);
+    sockets[0]?.handlers.onWebSocketClose();
+    expect(connection.isConnected()).toBe(false);
+    await vi.advanceTimersByTimeAsync(RECONNECT_BASE_MS);
+    sockets[1]?.handlers.onConnect();
+    connection.stop();
+    expect(status.mock.calls.map(([up]) => up)).toEqual([true, false, true, false]);
+  });
+
+  it("drops a destination the BE refused, so the reconnect is not refused again", async () => {
+    const { connection, sockets } = setup();
+    connection.subscribe("/topic/chat.conversations.gone", vi.fn());
+    connection.subscribe("/topic/chat.inbox", vi.fn());
+    connection.start();
+    await vi.advanceTimersByTimeAsync(0);
+    sockets[0]?.handlers.onConnect();
+    sockets[0]?.handlers.onStompError({
+      headers: { message: "Not allowed to subscribe to /topic/chat.conversations.gone" },
+      body: "",
+    });
+    await vi.advanceTimersByTimeAsync(RECONNECT_BASE_MS);
+    sockets[1]?.handlers.onConnect();
+    expect(sockets[1]?.subscribe.mock.calls.map(([destination]) => destination)).toEqual([
+      "/topic/chat.inbox",
+    ]);
+    connection.stop();
   });
 });

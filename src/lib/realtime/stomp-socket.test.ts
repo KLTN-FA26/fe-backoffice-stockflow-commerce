@@ -1,12 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createStompSocket, STOMP_KEEPALIVE_MS } from "./presence-connection";
+import { createStompSocket, STOMP_KEEPALIVE_MS } from "./stomp-socket";
 
 const stomp = vi.hoisted(() => ({
   configs: [] as Record<string, unknown>[],
   activate: vi.fn(),
   deactivate: vi.fn(async () => undefined),
   publish: vi.fn(),
+  subscribe: vi.fn((_destination: string, callback: (message: { body: string }) => void) => {
+    callback({ body: '{"type":"typing"}' });
+    return { id: "sub-0", unsubscribe: vi.fn() };
+  }),
 }));
 
 vi.mock("@stomp/stompjs", () => ({
@@ -18,6 +22,7 @@ vi.mock("@stomp/stompjs", () => ({
     activate = stomp.activate;
     deactivate = stomp.deactivate;
     publish = stomp.publish;
+    subscribe = stomp.subscribe;
   },
 }));
 
@@ -64,5 +69,14 @@ describe("createStompSocket: the real stompjs client configuration", () => {
     expect(stomp.activate).toHaveBeenCalled();
     expect(stomp.publish).toHaveBeenCalledWith({ destination: "/app/chat.presence.heartbeat" });
     expect(stomp.deactivate).toHaveBeenCalled();
+  });
+
+  it("subscribes through the client and hands over the frame body", () => {
+    const socket = createStompSocket("wss://api.test/ws", "t", handlers);
+    const onMessage = vi.fn();
+    const subscription = socket.subscribe("/topic/chat.inbox", onMessage);
+    expect(stomp.subscribe).toHaveBeenCalledWith("/topic/chat.inbox", expect.any(Function));
+    expect(onMessage).toHaveBeenCalledWith('{"type":"typing"}');
+    expect(typeof subscription.unsubscribe).toBe("function");
   });
 });
