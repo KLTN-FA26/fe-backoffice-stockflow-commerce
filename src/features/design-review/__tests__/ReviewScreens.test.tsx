@@ -315,6 +315,67 @@ describe("Màn quyết định", () => {
     );
   });
 
+  it("Lịch sử: chỉ hiện chữ người gõ (lý do trả lại, ghi chú khi duyệt), không hiện ghi chú máy tiếng Anh của BE", async () => {
+    // Ghi chú BE (DesignReviewService.java:321, DesignSubmissionService.java:339, :369): APPROVED = "Snapshot …, SKU …,
+    // checksum …[. <ghi chú>]", RETURNED = lý do; QUOTE_REQUESTED / SUBMITTED / PREFLIGHT_FAILED là chuỗi máy.
+    const routes = detailRoutes();
+    routes[`${detailUrl}/history`] = () =>
+      bePage([
+        {
+          actorId: CUSTOMER_ID,
+          decision: "APPROVED",
+          version: 9,
+          at: "2026-11-18T05:00:00Z",
+          notes: "Snapshot s-1, SKU LY-TSM-01, checksum ab12cd. In đúng màu Pantone",
+        },
+        {
+          actorId: CUSTOMER_ID,
+          decision: "RETURNED",
+          version: 8,
+          at: "2026-11-18T04:00:00Z",
+          notes: "Logo bị mờ",
+        },
+        {
+          actorId: CUSTOMER_ID,
+          decision: "QUOTE_REQUESTED",
+          version: 7,
+          at: "2026-11-18T03:30:00Z",
+          notes: "10 carton(s)",
+        },
+        {
+          actorId: CUSTOMER_ID,
+          decision: "SUBMITTED_FOR_REVIEW",
+          version: 7,
+          at: "2026-11-18T03:00:00Z",
+          notes: "Layout f51c870fe49d",
+        },
+        {
+          actorId: CUSTOMER_ID,
+          decision: "PREFLIGHT_FAILED",
+          version: 6,
+          at: "2026-11-18T02:00:00Z",
+          notes: "OUTSIDE_PRINT_AREA BODY/e1",
+        },
+      ]);
+    mockApi("PRODUCTION_COORDINATOR", { get: routes });
+    renderScreen(<DesignReviewDetail id={DESIGN_ID} />, "PRODUCTION_COORDINATOR");
+
+    const history = (await screen.findByText("Lịch sử")).closest("section");
+    if (!history) throw new Error("history section not found");
+    const panel = within(history);
+    expect(await panel.findByText("In đúng màu Pantone")).toBeInTheDocument();
+    expect(panel.getByText("Logo bị mờ")).toBeInTheDocument();
+    for (const machine of [
+      "10 carton(s)",
+      "Layout f51c870fe49d",
+      "OUTSIDE_PRINT_AREA",
+      "Snapshot",
+      "checksum",
+    ]) {
+      expect(history).not.toHaveTextContent(machine);
+    }
+  });
+
   it("SALES_STAFF không thấy nút Duyệt/Trả lại", async () => {
     openDetail("SALES_STAFF");
     expect(await screen.findByText("Ly giấy Tết 2027")).toBeInTheDocument();

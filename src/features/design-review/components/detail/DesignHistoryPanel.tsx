@@ -8,11 +8,14 @@ import { formatDateTime } from "@/lib/format/date";
 
 import { designReviewErrorMessage } from "@/features/design-review/errors";
 import { useDesignHistory } from "@/features/design-review/queries";
-import { labelOf, shortId } from "@/features/design-review/selectors";
+import { historyNote, labelOf, shortId } from "@/features/design-review/selectors";
 
 import { DETAIL_CARD_CLASS, DetailCardTitle } from "@/components/shared/DetailSection";
 
-/** Lịch sử quyết định từ BE (mới nhất trước). Người làm hiện mã rút gọn — BE chỉ trả `actorId`. */
+/**
+ * Lịch sử quyết định từ BE (mới nhất trước). Người làm hiện mã rút gọn — BE chỉ trả `actorId`. Ghi chú chỉ hiện phần
+ * do người gõ (`historyNote`), không hiện chuỗi máy tiếng Anh của BE.
+ */
 export function DesignHistoryPanel({ designId }: { designId: string }) {
   const query = useDesignHistory(designId);
   return (
@@ -26,19 +29,25 @@ export function DesignHistoryPanel({ designId }: { designId: string }) {
         <p className="text-ink-tertiary text-[0.8125rem]">Chưa có lịch sử.</p>
       ) : (
         <ol className="border-border-default space-y-3 border-l pl-4">
-          {query.data.items.map((entry) => (
-            <li key={`${entry.at}-${entry.decision}-${entry.version}`} className="text-[0.8125rem]">
-              <div className="text-ink-primary font-medium">
-                {labelOf(DESIGN_DECISION_LABELS, entry.decision)}
-              </div>
-              <div className="text-ink-tertiary tabular-nums">
-                {formatDateTime(entry.at)} · {shortId(entry.actorId)}
-              </div>
-              {entry.notes && (
-                <div className="text-ink-secondary mt-0.5 whitespace-pre-line">{entry.notes}</div>
-              )}
-            </li>
-          ))}
+          {query.data.items.map((entry) => {
+            const note = historyNote(entry);
+            return (
+              <li
+                key={`${entry.at}-${entry.decision}-${entry.version}`}
+                className="text-[0.8125rem]"
+              >
+                <div className="text-ink-primary font-medium">
+                  {labelOf(DESIGN_DECISION_LABELS, entry.decision)}
+                </div>
+                <div className="text-ink-tertiary tabular-nums">
+                  {formatDateTime(entry.at)} · {shortId(entry.actorId)}
+                </div>
+                {note && (
+                  <div className="text-ink-secondary mt-0.5 whitespace-pre-line">{note}</div>
+                )}
+              </li>
+            );
+          })}
         </ol>
       )}
     </section>

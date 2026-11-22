@@ -67,6 +67,25 @@ export function fileSizeLabel(bytes: number): string {
   return bytes < MB ? `${formatFixed(bytes / KB, 1)} KB` : `${formatFixed(bytes / MB, 1)} MB`;
 }
 
+/**
+ * Phần do người gõ trong ghi chú một dòng lịch sử, hoặc `null`. BE ghi ghi chú máy bằng tiếng Anh cho mọi loại
+ * (DesignDecisionType.java): RETURNED là lý do Điều phối gõ; APPROVED là "Snapshot …, SKU …, checksum …" rồi
+ * ". <ghi chú>" nếu có (DesignReviewService.java:321); các loại khác (QUOTE_REQUESTED, SUBMITTED_FOR_REVIEW,
+ * PREFLIGHT_FAILED…) là chuỗi máy, không hiện.
+ */
+export function historyNote(entry: { decision: string; notes?: string | null }): string | null {
+  const notes = entry.notes?.trim();
+  if (!notes) return null;
+  if (entry.decision === "RETURNED") return notes;
+  if (entry.decision === "APPROVED") {
+    // Dòng duyệt cũ / seed demo (vd "Đạt: 300 DPI…") không có tiền tố máy: là chữ người gõ, hiện nguyên văn.
+    if (!notes.startsWith("Snapshot ")) return notes;
+    const typed = /\bchecksum \S+?\. ([\s\S]+)$/.exec(notes)?.[1]?.trim();
+    return typed || null;
+  }
+  return null;
+}
+
 /** Mã rút gọn của người làm (BE chỉ trả `actorId`, không có tên). */
 export function shortId(id: string | null): string {
   return id ? id.slice(0, 8) : "Hệ thống";

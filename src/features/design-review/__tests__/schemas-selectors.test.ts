@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { allowedReviewActions } from "../lifecycle";
 import { designArtifactListSchema, designDecisionInputSchema, designDtoSchema } from "../schemas";
-import { currentSubmission, isDecidable, labelOf, waitingSince } from "../selectors";
+import { currentSubmission, historyNote, isDecidable, labelOf, waitingSince } from "../selectors";
 import { ARTIFACTS, PENDING_DESIGN } from "./fixtures";
 
 import type { PermissionCode } from "@/lib/auth/me-permissions";
@@ -120,5 +120,30 @@ describe("selectors", () => {
   it("labelOf: mã lạ của lịch sử cũ hiện nguyên văn", () => {
     expect(labelOf({ APPROVED: "Duyệt" }, "APPROVED")).toBe("Duyệt");
     expect(labelOf({ APPROVED: "Duyệt" }, "SENT_TO_CUSTOMER")).toBe("SENT_TO_CUSTOMER");
+  });
+});
+
+describe("historyNote (DesignReviewService.java:321, DesignDecisionType.java)", () => {
+  it.each([
+    ["RETURNED: lý do người gõ", "RETURNED", "  Logo bị mờ ", "Logo bị mờ"],
+    [
+      "APPROVED kèm ghi chú",
+      "APPROVED",
+      "Snapshot s, SKU X-1, checksum ab12. In đúng màu",
+      "In đúng màu",
+    ],
+    ["APPROVED không ghi chú", "APPROVED", "Snapshot s, SKU X-1, checksum ab12", null],
+    // Seed demo BE (db/demo/V20261124000600__demo_wf02.sql:167): ghi chú duyệt không có tiền tố máy.
+    [
+      "APPROVED dạng cũ (seed demo)",
+      "APPROVED",
+      "Đạt: 300 DPI, CMYK, chừa lề an toàn 3 mm",
+      "Đạt: 300 DPI, CMYK, chừa lề an toàn 3 mm",
+    ],
+    ["QUOTE_REQUESTED: chuỗi máy", "QUOTE_REQUESTED", "10 carton(s)", null],
+    ["SUBMITTED_FOR_REVIEW: chuỗi máy", "SUBMITTED_FOR_REVIEW", "Layout f51c", null],
+    ["không có ghi chú", "RETURNED", null, null],
+  ])("%s", (_, decision, notes, expected) => {
+    expect(historyNote({ decision, notes })).toBe(expected);
   });
 });
