@@ -7,6 +7,7 @@ import { Gauge, Lightbulb, Map as MapIcon, Warehouse as WarehouseIcon } from "lu
 
 import {
   ADMIN_ROUTES,
+  PUTAWAY_TASK_PERMISSIONS,
   UI_LABELS,
   WAREHOUSE_CAPACITY_PERMISSIONS,
   WAREHOUSE_PERMISSIONS,
@@ -62,14 +63,20 @@ export function WarehouseNavPanel() {
   const prefix = prefixFromPath(pathname, ADMIN_ROUTES.warehouseMap.root);
   const canCatalog = useCan(WAREHOUSE_PERMISSIONS.viewPage);
   const canCapacity = useCan(WAREHOUSE_CAPACITY_PERMISSIONS.viewPage);
+  // Gợi ý vị trí đọc bin gợi ý của nhiệm vụ cất hàng (`GET /putaway-tasks/{id}`) — cần quyền màn cất hàng
+  const canSlotting = useCan(PUTAWAY_TASK_PERMISSIONS.viewPage);
   const pages = prefix
     ? [
         { href: ADMIN_ROUTES.warehouseMap.of(prefix), label: W.pages.map, icon: MapIcon },
-        {
-          href: ADMIN_ROUTES.warehouseMap.slotting(prefix),
-          label: W.pages.slotting,
-          icon: Lightbulb,
-        },
+        ...(canSlotting
+          ? [
+              {
+                href: ADMIN_ROUTES.warehouseMap.slotting(prefix),
+                label: W.pages.slotting,
+                icon: Lightbulb,
+              },
+            ]
+          : []),
       ]
     : [];
   return (

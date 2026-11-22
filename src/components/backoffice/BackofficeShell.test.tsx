@@ -8,6 +8,7 @@ import {
   ADMIN_ROUTES,
   IDENTITY_PERMISSIONS,
   INVENTORY_PERMISSIONS,
+  PUTAWAY_TASK_PERMISSIONS,
   WAREHOUSE_LOCATION_PERMISSIONS,
   WAREHOUSE_PERMISSIONS,
 } from "@/constants";
@@ -313,6 +314,7 @@ describe('tab "Kho & bản đồ" tách riêng', () => {
     WAREHOUSE_PERMISSIONS.viewPage,
     WAREHOUSE_PERMISSIONS.read,
     WAREHOUSE_LOCATION_PERMISSIONS.viewPage,
+    PUTAWAY_TASK_PERMISSIONS.viewPage,
   ];
 
   it("ở màn gốc sidebar, bấm tab là đi thẳng tới Danh mục kho", async () => {
@@ -342,6 +344,13 @@ describe('tab "Kho & bản đồ" tách riêng', () => {
     expect(within(crumbs).getByRole("link", { name: "Kho & bản đồ" })).toBeInTheDocument();
     expect(within(crumbs).getByRole("button", { name: /Đổi kho: HCM/ })).toBeInTheDocument();
     expect(crumbs).toHaveTextContent("Bản đồ kho");
+  });
+
+  it("trong một kho, không có quyền cất hàng → không có link Gợi ý vị trí", async () => {
+    navigation.pathname = ADMIN_ROUTES.warehouseMap.of("HCM");
+    await renderShell(PERMS.filter((code) => code !== PUTAWAY_TASK_PERMISSIONS.viewPage));
+    expect(navLink("Bản đồ kho")).toBeInTheDocument();
+    expect(navLink("Gợi ý vị trí")).not.toBeInTheDocument();
   });
 
   it('nhóm "Kho" không còn chứa trang của module bản đồ', async () => {

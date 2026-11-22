@@ -11,3 +11,4 @@ export * from "./selectors";
 export type * from "./types";
 export { PutawayList } from "./components/PutawayList";
 export { PutawayTaskDetail } from "./components/detail/PutawayTaskDetail";
+export { SlottingView } from "./components/slotting/SlottingView";
