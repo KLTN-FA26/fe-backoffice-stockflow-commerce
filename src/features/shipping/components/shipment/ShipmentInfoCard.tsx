@@ -10,6 +10,7 @@ import {
 } from "@/constants";
 import { formatDateTime } from "@/lib/format/date";
 import { useWarehouseDirectory } from "@/lib/references/warehouse-options";
+import { failureNoteIsCarrierWording } from "@/features/shipping/carrier-original-note";
 import { StatusDot } from "@/components/shared/StatusDot";
 
 import { InfoItem } from "../primitives";
@@ -17,6 +18,7 @@ import { InfoItem } from "../primitives";
 import type { Shipment } from "@/features/shipping/types";
 
 const L = UI_LABELS.shipping.shipment;
+const A = UI_LABELS.shipping.afterHandover;
 const F = UI_LABELS.shipping.field;
 const dt = (iso: string | null | undefined) => (iso ? formatDateTime(iso) : "—");
 
@@ -96,7 +98,8 @@ export function ShipmentInfoCard({
       </div>
       {data.failureNote && (
         <p className="text-ink-secondary mt-3 text-[0.8125rem]">
-          {L.failureNote}: {data.failureNote}
+          {failureNoteIsCarrierWording(data) ? A.carrierOriginalReason : L.failureNote}:{" "}
+          {data.failureNote}
         </p>
       )}
       {data.partialNote && (

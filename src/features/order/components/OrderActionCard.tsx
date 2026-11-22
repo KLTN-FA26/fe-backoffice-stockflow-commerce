@@ -157,10 +157,7 @@ export function OrderActionCard({ order, can, estimateSlot }: OrderActionCardPro
           <p className="text-ink-primary font-medium">{ORDER_RELEASE_BLOCKER_LABELS.title}</p>
           <ul className="text-ink-secondary mt-1 space-y-0.5">
             {blockers.map((blocker) => (
-              <li key={blocker.rule}>
-                <span className="font-[family-name:var(--font-mono)]">{blocker.rule}</span> ·{" "}
-                {blocker.message}
-              </li>
+              <li key={blocker.rule}>{blocker.message}</li>
             ))}
           </ul>
         </div>

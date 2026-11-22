@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Download, FileUp } from "lucide-react";
 
 import { ADMIN_ROUTES, UI_LABELS } from "@/constants";
+import { FilePickerField } from "@/components/shared/FilePickerField";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { WAYBILL_IMPORT_ACCEPT } from "@/features/shipping/waybill-import-file";
@@ -23,6 +24,7 @@ export function WaybillImportPicker({
   warehouseId,
   onWarehouse,
   input,
+  fileName,
   canPreview,
   previewing,
   onChoose,
@@ -34,6 +36,8 @@ export function WaybillImportPicker({
   warehouseId: string;
   onWarehouse: (warehouseId: string) => void;
   input: RefObject<HTMLInputElement | null>;
+  /** Tên file đang chọn (rỗng = chưa chọn). */
+  fileName: string | null;
   canPreview: boolean;
   previewing: boolean;
   onChoose: (file: File | null) => void;
@@ -75,14 +79,13 @@ export function WaybillImportPicker({
               >
                 {I.fileLabel}
               </Label>
-              <input
-                ref={input}
+              <FilePickerField
+                inputRef={input}
                 id="waybill-import-file"
-                type="file"
                 disabled={!warehouseId}
                 accept={WAYBILL_IMPORT_ACCEPT}
-                className="text-ink-primary text-[0.8125rem]"
-                onChange={(event) => onChoose(event.target.files?.[0] ?? null)}
+                fileName={fileName}
+                onChange={onChoose}
               />
             </div>
             <Button type="button" size="sm" disabled={!canPreview} onClick={onPreview}>

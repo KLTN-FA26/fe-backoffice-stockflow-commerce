@@ -141,10 +141,9 @@ describe("PutBackScreen — hàng đợi trả hàng về kệ (BE GET /fulfillm
     expect(heading).toHaveClass("sr-only");
     for (const header of [
       P.column.lpn,
-      P.column.sku,
-      P.column.lot,
+      P.column.skuLot,
       P.column.pickedQty,
-      P.column.fromLocation,
+      P.column.fromLocationAt,
     ]) {
       expect(screen.getByRole("columnheader", { name: header })).toBeInTheDocument();
     }

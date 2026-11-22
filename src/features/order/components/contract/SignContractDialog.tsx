@@ -6,6 +6,7 @@ import { fileTooLargeMessage, uploadFileMaxBytes } from "@/constants/upload-limi
 import { toLocalIsoDate } from "@/lib/format/date";
 import { Notice } from "@/components/shared/Notice";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
+import { FilePickerField } from "@/components/shared/FilePickerField";
 import { FORM_INPUT_CLASS, FormField, fieldA11y } from "@/components/shared/FormField";
 import { Input } from "@/components/ui/input";
 
@@ -103,12 +104,11 @@ function SignForm({
     >
       {passedText && <Notice tone="warning">{passedText}</Notice>}
       <FormField id="sign-file" label="File đã ký" required error={fileError}>
-        <Input
-          type="file"
+        <FilePickerField
           accept={SIGNED_FILE_ACCEPT}
-          onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+          fileName={file?.name}
+          onChange={setFile}
           {...fieldA11y("sign-file", fileError)}
-          className={FORM_INPUT_CLASS}
         />
       </FormField>
       <FormField id="sign-date" label="Ngày ký" required error={dateError}>

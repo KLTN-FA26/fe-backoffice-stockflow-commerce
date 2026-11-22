@@ -39,18 +39,8 @@ interface ButtonSpec {
 
 /** Thứ tự nút: hành động chính trước, huỷ / đóng cuối (docs 17 §5.3, brief BE §3.2). */
 const BUTTONS: ButtonSpec[] = [
-  {
-    key: "submit",
-    label: A.submit,
-    dialog: { kind: "confirm", action: "submit" },
-    tone: "primary",
-  },
-  {
-    key: "approve",
-    label: A.approve,
-    dialog: { kind: "confirm", action: "approve" },
-    tone: "primary",
-  },
+  // BR-23 (docs 17 §6, chốt lại 2026-11-20): gửi thẳng, không qua duyệt
+  { key: "send", label: A.send, dialog: { kind: "confirm", action: "send" }, tone: "primary" },
   { key: "accept", label: A.accept, dialog: { kind: "date", mode: "accept" }, tone: "primary" },
   {
     key: "startProduction",
@@ -59,12 +49,6 @@ const BUTTONS: ButtonSpec[] = [
     tone: "primary",
   },
   { key: "edit", label: A.edit, dialog: { kind: "edit" }, tone: "outline" },
-  {
-    key: "return",
-    label: A.return,
-    dialog: { kind: "confirm", action: "return" },
-    tone: "outline",
-  },
   {
     key: "changeExpected",
     label: A.changeExpected,
@@ -115,9 +99,6 @@ export function ActionsCard({
             </Button>
           ))}
         </div>
-      )}
-      {actions.selfApprovalBlocked && (
-        <p className="text-ink-secondary mt-2 text-xs">{A.selfApprovalHint}</p>
       )}
       {actions.startBlockedBySample && (
         <p className="text-ink-secondary mt-2 text-xs">{A.sampleBlocksStart}</p>

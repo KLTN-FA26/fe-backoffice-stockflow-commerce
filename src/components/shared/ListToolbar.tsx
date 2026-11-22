@@ -387,7 +387,8 @@ export function ListToolbar<Status extends string, Field extends string, Column 
             {tools}
           </div>
 
-          <div className="ml-auto flex items-center gap-2">
+          {/* Rỗng (trang không có nút xuất / hành động) → ẩn, để `gap` của hàng không chừa 8px thừa ở mép phải */}
+          <div className="ml-auto flex items-center gap-2 empty:hidden">
             {selectedCount > 0 && onBulkDelete && (
               <Button
                 type="button"
@@ -431,60 +432,5 @@ export function ListToolbar<Status extends string, Field extends string, Column 
         resetDisabled={resetDisabled}
       />
     </TooltipProvider>
-  );
-}
-
-interface ColumnFilterButtonProps {
-  value: string;
-  label: string;
-  placeholder: string;
-  onChange: (value: string) => void;
-}
-
-export function ColumnFilterButton({
-  value,
-  label,
-  placeholder,
-  onChange,
-}: ColumnFilterButtonProps) {
-  const active = Boolean(value.trim());
-
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-xs"
-          aria-label={`Lọc ${label}`}
-          className={cn(
-            "text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary size-6 rounded-[var(--r-sm)] focus-visible:ring-0",
-            active && "bg-info/10 text-info hover:bg-info/10 hover:text-info",
-          )}
-        >
-          <Filter className="size-3.5" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent align="start" className="w-64 p-3">
-        <div className="text-ink-primary mb-2 text-xs font-medium">Lọc {label}</div>
-        <Input
-          value={value}
-          placeholder={placeholder}
-          onChange={(event) => onChange(event.target.value)}
-          className="bg-bg-surface h-8 rounded-[var(--r-sm)] text-[0.75rem]"
-        />
-        <div className="mt-2 flex justify-end">
-          <Button
-            type="button"
-            variant="outline"
-            size="xs"
-            onClick={() => onChange("")}
-            disabled={!active}
-          >
-            Xoá
-          </Button>
-        </div>
-      </PopoverContent>
-    </Popover>
   );
 }

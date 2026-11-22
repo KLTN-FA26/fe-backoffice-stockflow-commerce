@@ -9,7 +9,7 @@ export const CONFIRM: Record<
   issue: {
     title: "Phát hành hoá đơn?",
     description:
-      "Hoá đơn được gửi tới nhà cung cấp để ký số, cấp số và nộp cơ quan thuế. Đã phát hành thì không sửa, không xoá — chỉ điều chỉnh hoặc thay thế (BR-03).",
+      "Hoá đơn được gửi tới nhà cung cấp để ký số, cấp số và nộp cơ quan thuế. Đã phát hành thì không sửa, không xoá — chỉ điều chỉnh hoặc thay thế.",
   },
   void: {
     title: "Huỷ hoá đơn nháp?",
@@ -20,7 +20,7 @@ export const CONFIRM: Record<
   resubmit: {
     title: "Gửi lại như giao dịch mới?",
     description:
-      "Chỉ làm khi nhà cung cấp đã xác nhận KHÔNG giữ hoá đơn này — gửi nhầm có thể thành hai hoá đơn (BR-04, BR-05).",
+      "Chỉ làm khi nhà cung cấp đã xác nhận KHÔNG giữ hoá đơn này — gửi nhầm có thể thành hai hoá đơn.",
     danger: true,
   },
   reopen: {

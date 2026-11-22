@@ -43,11 +43,6 @@ Run the same checks locally before pushing: `pnpm run validate`.
 Until both exist the job prints a notice and does nothing, and the PR stays green. The quality gate
 is not awaited, so Sonar never blocks a merge.
 
-**Dependabot** (`.github/dependabot.yml`) opens pull requests against `develop` every Monday at
-08:00 Vietnam time for npm (pnpm) and GitHub Actions. Minor and patch updates are grouped into one
-pull request per ecosystem, majors are separate, at most 5 open at a time, titled `chore(deps): ...`
-and labelled `dependencies`.
-
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

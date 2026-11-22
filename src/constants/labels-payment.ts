@@ -93,7 +93,7 @@ export const PAYMENT_LABELS = {
     beforeDeliveryUnpaid: "Đợt trước khi giao còn thiếu",
     dueBeforeHandover: "Phải thu trước khi bàn giao",
     handoverHint:
-      "Đợt trước khi giao chưa thu đủ thì chặn bàn giao cho đơn vị vận chuyển (docs 15 BR-08); đợt gắn đợt giao chỉ chặn đợt giao đó.",
+      "Đợt trước khi giao chưa thu đủ thì chặn bàn giao cho đơn vị vận chuyển; đợt gắn đợt giao chỉ chặn đợt giao đó.",
     installmentsTitle: "Các đợt thanh toán",
     noPaymentStatus: "Mọi đợt đã huỷ",
     paidWhenCancelled: "Đã thanh toán",
@@ -150,9 +150,9 @@ export const PAYMENT_LABELS = {
   recordDialog: {
     title: "Lập phiếu thu",
     description:
-      "Chỉ ghi phần tiền đã xác định được đợt thanh toán. Phiếu đã lập không sửa được — ghi sai thì huỷ phiếu và lập lại (docs 15 BR-04).",
+      "Chỉ ghi phần tiền đã xác định được đợt thanh toán. Phiếu đã lập không sửa được — ghi sai thì huỷ phiếu và lập lại.",
     reference: "Mã tham chiếu sao kê",
-    referenceHint: "Mỗi dòng sao kê chỉ ghi một phiếu còn hiệu lực (BR-03).",
+    referenceHint: "Mỗi dòng sao kê chỉ ghi một phiếu còn hiệu lực.",
     receivedOn: "Ngày nhận",
     note: "Ghi chú",
     linesTitle: "Các đợt được trả",
@@ -173,8 +173,7 @@ export const PAYMENT_LABELS = {
       "Phiếu chuyển sang Voided, giữ nguyên nội dung kèm người huỷ, thời điểm và lý do. Các đợt trong phiếu được tính lại; mã tham chiếu sao kê dùng lại được cho phiếu lập đúng.",
     reason: "Lý do huỷ phiếu thu",
     holdOrders: "Treo đơn nếu huỷ làm đơn đã xác nhận thiếu đợt khi ký",
-    holdHint:
-      "Không chọn mà huỷ làm đơn đã Confirmed thiếu đợt khi ký thì thao tác bị từ chối (docs 15 BR-13).",
+    holdHint: "Không chọn mà huỷ làm đơn đã Confirmed thiếu đợt khi ký thì thao tác bị từ chối.",
     submit: "Huỷ phiếu thu",
   },
   refunds: {
@@ -198,8 +197,7 @@ export const PAYMENT_LABELS = {
     noRecords: "Chưa ghi nhận lần hoàn nào.",
     recordAction: "Ghi nhận đã hoàn",
     voidAction: "Huỷ ghi nhận",
-    outsideNote:
-      "Chuyển khoản hoàn làm ngoài hệ thống; ở đây chỉ ghi nhận sau khi đã chuyển (docs 15 §4.5 bước 16).",
+    outsideNote: "Chuyển khoản hoàn làm ngoài hệ thống; ở đây chỉ ghi nhận sau khi đã chuyển.",
     collected: "Đã thu",
     closed: "Giá trị phần đóng",
     reduced: "Đã giảm",
@@ -219,7 +217,7 @@ export const PAYMENT_LABELS = {
   recordRefundDialog: {
     title: "Ghi nhận đã hoàn tiền",
     description:
-      "Nhập sau khi đã chuyển khoản hoàn cho khách. Số tiền không vượt số còn phải hoàn (docs 15 BR-14).",
+      "Nhập sau khi đã chuyển khoản hoàn cho khách. Số tiền không vượt số còn phải hoàn.",
     amount: "Số tiền đã hoàn (₫)",
     refundedOn: "Ngày chuyển",
     reference: "Mã tham chiếu sao kê (chiều chi)",

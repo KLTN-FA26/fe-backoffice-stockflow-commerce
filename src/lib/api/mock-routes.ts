@@ -323,33 +323,10 @@ export function registerAllMockRoutes(): void {
 
   // GET /categories, /brands (+ tạo / sửa): mock-routes-taxonomy.ts
 
-  /* ====================================================================
-   * Module 05 — Putaway Tasks
-   * ==================================================================*/
-
-  registerMockRoute("GET", "/putaway-tasks", async (config) => {
-    const { putawayTasks } = await import("@/lib/mock-data");
-    const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 1;
-    const pageSize = Number(params.get("pageSize")) || 15;
-    const status = params.getAll("status");
-
-    let filtered = [...putawayTasks];
-    if (status.length) filtered = filtered.filter((t) => status.includes(t.status));
-
-    return { status: 200, data: paginate(filtered, page, pageSize), headers: {} };
-  });
-
-  registerMockRoute("GET", "/putaway-tasks/:id", async (config) => {
-    const { putawayTasks } = await import("@/lib/mock-data");
-    const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
-    const task = putawayTasks.find((t) => t.taskId === id);
-    if (!task) return { status: 404, data: { message: "Putaway task not found" }, headers: {} };
-    return { status: 200, data: task, headers: {} };
-  });
+  // Module 05 — cất hàng: mock-routes-putaway.ts (hợp đồng BE PutawayController)
 
   /* ====================================================================
-   * Module 06 — Warehouses / Zones / Locations / Slotting
+   * Module 06 — Warehouses / Zones / Locations
    * ==================================================================*/
 
   registerMockRoute("GET", "/warehouses", async (config) => {
@@ -382,15 +359,6 @@ export function registerAllMockRoutes(): void {
     const pageSize = Number(params.get("pageSize")) || 50;
 
     return { status: 200, data: paginate(locations, page, pageSize), headers: {} };
-  });
-
-  registerMockRoute("GET", "/slotting-suggestions", async () => {
-    const { slottingSuggestions } = await import("@/lib/mock-data");
-    return {
-      status: 200,
-      data: { items: slottingSuggestions, total: slottingSuggestions.length },
-      headers: {},
-    };
   });
 
   registerMockRoute("GET", "/warehouse-kpis", async () => {

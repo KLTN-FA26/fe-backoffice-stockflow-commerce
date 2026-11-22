@@ -37,12 +37,15 @@ import {
   LOAD_PLAN_PERMISSIONS,
   ORDER_PERMISSIONS,
   ORDER_DELIVERY_BATCH_PERMISSIONS,
+  ORDER_SHIPPING_WAREHOUSE_PERMISSIONS,
   SALES_CONTRACT_PERMISSIONS,
   CANCELLATION_REQUEST_PERMISSIONS,
   PAYMENT_REFUND_PERMISSIONS,
   PO_PERMISSIONS,
   PRODUCT_PERMISSIONS,
   PRODUCTION_ORDER_PERMISSIONS,
+  PUTAWAY_TASK_PERMISSIONS,
+  PUTAWAY_TRIP_PERMISSIONS,
   QC_TASK_PERMISSIONS,
   QUOTE_PERMISSIONS,
   REPORTING_PERMISSIONS,
@@ -105,8 +108,26 @@ const LOAD_ESTIMATE = Object.values(LOAD_ESTIMATE_PERMISSIONS);
 const LP = LOAD_PLAN_PERMISSIONS;
 const LOAD_PLAN_READ = [LP.viewPage, LP.read];
 const LOAD_PLAN_ALL = Object.values(LP);
-// WAREHOUSE_STAFF: lấy hàng + đóng gói (READ/UPDATE) + xếp xe / bàn giao.
-const FLOOR_WORK = [...PICKING, ...PACKING_WORK, ...DISPATCH, ...WAYBILL_IMPORT, ...LOAD_PLAN_ALL];
+// Seed BE (baseline + V20261124000100): warehouse-putaway-tasks VIEW_PAGE/READ/UPDATE và warehouse-putaway-trips
+// VIEW_PAGE/READ/UPDATE cho WAREHOUSE_STAFF; APPROVE của chuyến (đóng chuyến người khác) chỉ WAREHOUSE_MANAGER /
+// SYSTEM_ADMIN (docs 05 §2).
+const PUTAWAY_TASKS = Object.values(PUTAWAY_TASK_PERMISSIONS);
+const PUTAWAY_FLOOR = [
+  ...PUTAWAY_TASKS,
+  PUTAWAY_TRIP_PERMISSIONS.viewPage,
+  PUTAWAY_TRIP_PERMISSIONS.read,
+  PUTAWAY_TRIP_PERMISSIONS.update,
+];
+const PUTAWAY_ALL = [...PUTAWAY_TASKS, ...Object.values(PUTAWAY_TRIP_PERMISSIONS)];
+// WAREHOUSE_STAFF: lấy hàng + đóng gói (READ/UPDATE) + xếp xe / bàn giao + cất hàng.
+const FLOOR_WORK = [
+  ...PICKING,
+  ...PACKING_WORK,
+  ...DISPATCH,
+  ...WAYBILL_IMPORT,
+  ...LOAD_PLAN_ALL,
+  ...PUTAWAY_FLOOR,
+];
 // WAREHOUSE_MANAGER: toàn bộ nhóm kho + gán / giám sát task, kiểm tra lại thiết kế, hãng, sửa mã vận đơn,
 // ghi nhận hàng hoàn (delivery-outcomes:UPDATE, không có APPROVE).
 const MANAGER_WORK = [
@@ -124,6 +145,7 @@ const MANAGER_WORK = [
   ...VEHICLE_TYPE_ALL,
   ...LOAD_ESTIMATE,
   ...LOAD_PLAN_ALL,
+  ...PUTAWAY_ALL,
   OUTCOME.update,
 ];
 // ORDER_COORDINATOR: gán / giám sát task + ghi nhận kết quả giao (đã giao / thất bại cần APPROVE).
@@ -233,7 +255,15 @@ const ORDER_SALES_EXTRA = [
 const CANCELLATION_QUEUE_READ = CANCELLATION_REQUEST_PERMISSIONS.read;
 const CONTRACT_UPDATE = SALES_CONTRACT_PERMISSIONS.update;
 const REFUND_READ = PAYMENT_REFUND_PERMISSIONS.read;
-const SALES_WF4_EXTRA = [CANCELLATION_QUEUE_READ, CONTRACT_UPDATE, REFUND_READ];
+// Seed BE (PermissionMatrixTest, 4B-7; docs 17 §4.2 bước 2): `sales-order-shipping-warehouses:UPDATE` (Sale chọn kho xuất và giữ
+// hàng) chỉ SALES_STAFF + SYSTEM_ADMIN; READ còn cho SALES_MANAGER / WAREHOUSE_MANAGER / PRODUCTION_COORDINATOR.
+const SHIPPING_WAREHOUSE_ALL = Object.values(ORDER_SHIPPING_WAREHOUSE_PERMISSIONS);
+const SALES_WF4_EXTRA = [
+  CANCELLATION_QUEUE_READ,
+  CONTRACT_UPDATE,
+  REFUND_READ,
+  ...SHIPPING_WAREHOUSE_ALL,
+];
 
 // Seed BE V20261108002400 + V20261108003000 (thanh toán theo hợp đồng, docs 15): ACCOUNTANT và SYSTEM_ADMIN —
 // đợt VIEW_PAGE + READ, phiếu thu và hoàn tiền đủ 4 action (lập / huỷ); SALES_STAFF — đợt và hoàn tiền chỉ
@@ -374,6 +404,9 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     REFUND_READ,
     ...EINVOICE_ALL,
     EINVOICE_SETTINGS_PERMISSIONS.read,
+    // BE V20261209000200 (docs 20 §3): Kế toán xem phiếu điều chỉnh tồn — chỉ đọc, không lập / duyệt
+    INVENTORY_PERMISSIONS.adjustmentViewPage,
+    INVENTORY_PERMISSIONS.adjustmentRead,
   ],
   // ECOMMERCE_ADMIN: duyệt / xuất bản nhưng không tạm ngưng / ngừng kinh doanh (product-lifecycle chỉ
   // System Admin, BE PR #123)

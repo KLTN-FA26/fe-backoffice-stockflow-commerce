@@ -71,7 +71,18 @@ describe("in nhãn vị trí — mock theo BE", () => {
       "HCM-A01-2-B",
       "HCM-A02-1-A",
     ]);
-    expect(codes.slice(-4)).toEqual(["HCM-DSP01", "HCM-PACK01", "HCM-QC01", "HCM-RCV01"]);
+    expect(codes.slice(-8)).toEqual([
+      "HCM-DSP01",
+      "HCM-OVF01",
+      "HCM-PACK01",
+      "HCM-PRD01",
+      "HCM-QC01",
+      "HCM-RCV01",
+      "HCM-RTV01",
+      "HCM-STG01",
+    ]);
+    // Khu ngừng dùng không in khi in rộng (BR-17)
+    expect(codes).not.toContain("HCM-QCA01");
     expect(codes).not.toContain("HCM-OFFICE");
   });
 

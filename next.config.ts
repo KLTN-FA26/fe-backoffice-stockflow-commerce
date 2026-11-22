@@ -19,6 +19,24 @@ const nextConfig: NextConfig = {
         destination: "/admin/quotes/:id",
         permanent: false,
       },
+      // BE production notifications (Đơn sản xuất đã gửi / sắp về kho, cảnh báo trễ) link their
+      // `@PermissionResource` routes `/production/...`; `toSafeNotificationPath` puts `/admin` in front.
+      {
+        source: "/admin/production/orders/:id",
+        destination: "/admin/production-orders/:id",
+        permanent: false,
+      },
+      {
+        source: "/admin/production/orders",
+        destination: "/admin/production-orders",
+        permanent: false,
+      },
+      {
+        source: "/admin/production/schedule",
+        destination: "/admin/production-schedule",
+        permanent: false,
+      },
+      { source: "/admin/production/producers", destination: "/admin/producers", permanent: false },
     ];
   },
 };

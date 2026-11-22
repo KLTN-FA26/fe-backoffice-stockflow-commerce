@@ -42,7 +42,7 @@ function DrawUpForm({ orderId, onClose }: { orderId: string; onClose: () => void
   return (
     <FormDialogBody
       title="Lập hoá đơn nháp"
-      description="Lập lại nháp cho một lần giao đã giao thành công mà nháp đã bị huỷ, hoặc để trống mã lần giao để lập hoá đơn cho phần phí vận chuyển còn lại sau khi đóng phần chưa giao (docs 21 §4.1, §4.5)."
+      description="Lập lại nháp cho một lần giao đã giao thành công mà nháp đã bị huỷ, hoặc để trống mã lần giao để lập hoá đơn cho phần phí vận chuyển còn lại sau khi đóng phần chưa giao."
       submitLabel="Lập nháp"
       canSubmit
       isPending={drawUp.isPending}

@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import { GOODS_RECEIPT_PERMISSIONS, RECEIPT_STATUS, UI_LABELS } from "@/constants";
 import { useCan } from "@/lib/auth";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
@@ -8,6 +10,7 @@ import { isLegacyPurchaseReceipt } from "@/features/receipt/selectors";
 import { Alert } from "@/components/shared/Alert";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 
+import { ReceiptCountSection } from "./count/ReceiptCountSection";
 import { ReceiptActions } from "./detail/ReceiptActions";
 import { ReceiptInfo, ReceiptOverviewCard } from "./detail/ReceiptInfo";
 import { ReceiptLinesTable } from "./detail/ReceiptLinesTable";
@@ -20,6 +23,7 @@ const LABEL = UI_LABELS.receipt;
 function ReceiptDetailBody({ id }: { id: string }) {
   const canRead = useCan(GOODS_RECEIPT_PERMISSIONS.read);
   const query = useGoodsReceipt(id, { enabled: canRead });
+  const [countDirty, setCountDirty] = useState(false);
   // Breadcrumb hiện số phiếu thay vì id (UUID của BE)
   useBreadcrumbLabel(id, query.data?.number);
 
@@ -45,6 +49,7 @@ function ReceiptDetailBody({ id }: { id: string }) {
               {LABEL.legacyPurchase.description}
             </Alert>
           )}
+          <ReceiptCountSection receipt={receipt} onDirtyChange={setCountDirty} />
           <Section
             title={draftLike ? LABEL.linesDraftTitle : LABEL.linesConfirmedTitle}
             description={
@@ -59,7 +64,7 @@ function ReceiptDetailBody({ id }: { id: string }) {
           </Section>
         </div>
         <div className="space-y-5">
-          <ReceiptActions receipt={receipt} />
+          <ReceiptActions receipt={receipt} countDirty={countDirty} />
           <ReceiptOverviewCard receipt={receipt} />
         </div>
       </div>

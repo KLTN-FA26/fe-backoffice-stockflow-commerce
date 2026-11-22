@@ -6,6 +6,8 @@ import {
   byWindowStart,
   daysUntil,
   expectedAfterNeedBy,
+  filterScheduledOrders,
+  filterShortBatches,
   sortFlags,
 } from "../schedule-selectors";
 import { schedule, scheduledOrder, shortBatch } from "../__fixtures__/schedule";
@@ -56,5 +58,47 @@ describe("lịch sản xuất (docs 17 §4.12 bước 47)", () => {
       { alertId: "2", type: "PRODUCTION_LATE", openedAt: "2026-11-05T00:00:00Z" },
     ]);
     expect(flags.map((f) => f.type)).toEqual(["PRODUCTION_LATE", "AT_RISK"]);
+  });
+
+  describe("lọc chữ phía FE (BE không có tham số tìm kiếm)", () => {
+    const none = { q: "", code: "", order: "" };
+    const rows = [
+      scheduledOrder(),
+      scheduledOrder({
+        id: "po-2",
+        code: "PRD-20261121-0002",
+        orderNumber: "SO-2026-0077",
+        producerCode: "TANPHU",
+        producerName: "Xưởng In Tân Phú",
+        receivingWarehouseCode: "BDG",
+      }),
+    ];
+    const ids = (list: { id: string }[]) => list.map((r) => r.id);
+
+    it("không lọc → giữ mọi dòng", () => {
+      expect(ids(filterScheduledOrders(rows, none))).toEqual(["po-1", "po-2"]);
+      expect(filterShortBatches([shortBatch()], none)).toHaveLength(1);
+    });
+
+    it("search chính khớp mã, đơn bán, đơn vị, kho — không phân biệt hoa thường, bỏ khoảng trắng", () => {
+      expect(ids(filterScheduledOrders(rows, { ...none, q: "  tân phú " }))).toEqual(["po-2"]);
+      expect(ids(filterScheduledOrders(rows, { ...none, q: "bdg" }))).toEqual(["po-2"]);
+      expect(ids(filterScheduledOrders(rows, { ...none, q: "so-2026-0042" }))).toEqual(["po-1"]);
+    });
+
+    it("search trong cột chỉ xét đúng cột đó, kết hợp AND với search chính", () => {
+      expect(ids(filterScheduledOrders(rows, { ...none, code: "0077" }))).toEqual([]);
+      expect(ids(filterScheduledOrders(rows, { ...none, order: "0077" }))).toEqual(["po-2"]);
+      expect(ids(filterScheduledOrders(rows, { q: "minh", code: "", order: "0077" }))).toEqual([]);
+    });
+
+    it("đợt còn thiếu: search chính khớp SKU / kho, lọc đơn bán theo số đơn", () => {
+      const batches = [
+        shortBatch(),
+        shortBatch({ deliveryBatchId: "b-2", orderNumber: "SO-X", lines: [] }),
+      ];
+      expect(filterShortBatches(batches, { q: "bag-009", order: "" })).toHaveLength(1);
+      expect(filterShortBatches(batches, { q: "", order: "so-x" })[0]?.deliveryBatchId).toBe("b-2");
+    });
   });
 });

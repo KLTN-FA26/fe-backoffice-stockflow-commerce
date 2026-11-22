@@ -23,10 +23,10 @@ import type { ProductionOrderStatus } from "@/constants";
 import type { ProductionOrderListState } from "./useProductionOrderListState";
 
 const L = PRODUCTION_LABELS.order;
-const STATUS_OPTIONS = PRODUCTION_ORDER_STATUSES.map((value) => ({
-  value,
-  label: PRODUCTION_ORDER_STATUS_LABELS[value],
-}));
+// Docs 17 §5.3 (chốt lại 2026-11-20): `Pending Approval` chỉ còn trong lịch sử — lọc theo nó luôn rỗng
+const STATUS_OPTIONS = PRODUCTION_ORDER_STATUSES.filter(
+  (value) => value !== "PENDING_APPROVAL",
+).map((value) => ({ value, label: PRODUCTION_ORDER_STATUS_LABELS[value] }));
 
 interface Option {
   value: string;
@@ -115,7 +115,7 @@ export function ProductionOrderToolbar({
       actions={
         canCreate && (
           <Button asChild size="sm" className={`${TOOLBAR_ACTION_CLASS} ${TOOLBAR_PRIMARY_CLASS}`}>
-            <Link href={ADMIN_ROUTES.productionOrders.create}>
+            <Link href={ADMIN_ROUTES.productionScheduleDrawUp}>
               <Plus className="size-3.5" /> {L.drawUp}
             </Link>
           </Button>

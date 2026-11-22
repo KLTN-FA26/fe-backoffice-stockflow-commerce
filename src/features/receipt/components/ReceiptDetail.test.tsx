@@ -2,7 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { UI_LABELS } from "@/constants";
+import { ADMIN_ROUTES, PUTAWAY_TASK_PERMISSIONS, UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 
 import { RECEIPT_ID, apiLine, apiPurchaseReceipt, apiReceipt } from "../__fixtures__/receipt";
@@ -63,6 +63,13 @@ describe("ReceiptDetail — phiếu theo Đơn sản xuất (docs 03 §4.1)", ()
     expect(screen.getByRole("button", { name: LABEL.action.cancel })).toBeEnabled();
   });
 
+  it("nút Xác nhận nhập kho giữ nền brand ở dark mode (không mang nền dark của variant outline)", async () => {
+    renderDetail(ROLES.warehouseManager, apiReceipt({ lines: [apiLine()] }));
+    const confirm = await screen.findByRole("button", { name: LABEL.action.confirm });
+    expect(confirm).toHaveClass("bg-brand", "text-ink-inverse");
+    expect(confirm).not.toHaveClass("dark:bg-input/30");
+  });
+
   it("Draft + chỉ đọc (thiếu UPDATE) → không nút thao tác, báo chỉ có quyền xem", async () => {
     renderDetail(ROLES.reader, apiReceipt({ lines: [apiLine()] }));
     expect(await screen.findByText(LABEL.noActions.viewOnly)).toBeInTheDocument();
@@ -101,6 +108,21 @@ describe("ReceiptDetail — phiếu theo Đơn sản xuất (docs 03 §4.1)", ()
     expect(await screen.findByText(LABEL.noActions.inPutaway)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: ACTION_BUTTONS })).not.toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Chờ cất" })).toBeInTheDocument();
+    // Không có quyền vào màn Cất hàng → không có lối sang
+    expect(
+      screen.queryByRole("link", { name: LABEL.noActions.openPutaway }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("In Putaway + quyền xem Cất hàng → link sang nhiệm vụ cất hàng của phiếu (docs 05 §4.2)", async () => {
+    renderDetail(
+      [...ROLES.warehouseManager, PUTAWAY_TASK_PERMISSIONS.viewPage],
+      apiReceipt({ status: "IN_PUTAWAY", lines: [apiLine()] }),
+    );
+    expect(await screen.findByRole("link", { name: LABEL.noActions.openPutaway })).toHaveAttribute(
+      "href",
+      ADMIN_ROUTES.putaway.byReceipt(RECEIPT_ID),
+    );
   });
 
   it("Closed: không còn nút thao tác nào", async () => {

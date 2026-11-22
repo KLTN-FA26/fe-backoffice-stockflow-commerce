@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { formatHistoryReason, historyReasonCodeLabel } from "./history-reason";
+import { formatClosureNote, formatHistoryReason, historyReasonCodeLabel } from "./history-reason";
 
 describe("formatHistoryReason", () => {
   it.each([
@@ -24,6 +24,24 @@ describe("formatHistoryReason", () => {
     ["DELIVERY_FAILED_SETTLED", "Đã tất toán tiền sau giao thất bại"],
   ])("mã %s → %s", (code, label) => {
     expect(formatHistoryReason(code)).toBe(label);
+  });
+
+  it("lô giao hoàn về kho: RETURNED / RETURNED_<lý do> → câu tiếng Việt, không lộ mã thô", () => {
+    expect(formatHistoryReason("RETURNED")).toBe("Lô giao đã hoàn về kho");
+    expect(formatHistoryReason("RETURNED_REFUSED")).toBe(
+      "Lô giao đã hoàn về kho (Khách từ chối nhận)",
+    );
+    expect(formatHistoryReason("RETURNED_CUSTOMER_ABSENT")).not.toMatch(/RETURNED|CUSTOMER_ABSENT/);
+    // mã cũ có sẵn trong bảng vẫn thắng tiền tố RETURNED_
+    expect(formatHistoryReason("RETURNED_TO_ORIGIN")).toBe("Hàng giao thất bại đã về lại kho");
+  });
+
+  it("ghi chú đóng phần còn lại cũ 'Returned shipment <UUID>' → câu tiếng Việt, ghi chú khác giữ nguyên", () => {
+    const legacy = "Returned shipment 3f2b8c1e-5a4d-4b7e-9c11-0d2e6a7f8b90";
+    const text = formatClosureNote(legacy);
+    expect(text).toBe("Lô giao bị hoàn về kho: phần hàng của lô không giao lại trên đơn này");
+    expect(text).not.toMatch(/Returned|3f2b8c1e/);
+    expect(formatClosureNote("Khách đổi ý")).toBe("Khách đổi ý");
   });
 
   it("CODE: ghi chú → nhãn — ghi chú (REFUND_VOIDED, lý do giữ, lý do giao thất bại)", () => {

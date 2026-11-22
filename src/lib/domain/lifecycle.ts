@@ -33,13 +33,7 @@ export function allowedTransitions<S extends string>(
 
 /* ── Types from mock-data ────────────────────────────────────────────── */
 
-import type {
-  ProductStatus,
-  SkuStatus,
-  QcStatus,
-  PutawayStatus,
-  MoveTaskStatus,
-} from "@/lib/mock-data";
+import type { ProductStatus, SkuStatus, QcStatus, MoveTaskStatus } from "@/lib/mock-data";
 // OrderStatus lấy từ constants/statuses.ts (không phải mock-data) — đúng 19 trạng thái BE
 // (OrderStatus.java, PR #133), dùng cho zod enum / lifecycle / filter UI; OrderReadStatus thêm
 // UNKNOWN (trạng thái BE FE chưa hiểu) — chỉ đọc, không chuyển tiếp được, không là đích.
@@ -100,19 +94,7 @@ export const QC_TRANSITIONS: Record<QcStatus, readonly QcStatus[]> = {
   Rejected: [],
 };
 
-/* ── Module 05: Putaway ──────────────────────────────────────────────── */
-
-// PutawayStatus = "Pending" | "Assigned" | "In Progress" | "Partially Completed" | "On Hold" | "Completed" | "Cancelled"
-// docs/warehouse/05-putaway §5
-export const PUTAWAY_TRANSITIONS: Record<PutawayStatus, readonly PutawayStatus[]> = {
-  Pending: ["Assigned"],
-  Assigned: ["In Progress"],
-  "In Progress": ["Completed", "Partially Completed", "On Hold"],
-  "Partially Completed": ["In Progress", "Completed"],
-  "On Hold": ["In Progress", "Cancelled"],
-  Completed: [],
-  Cancelled: [],
-};
+/* ── Module 05: Putaway — `features/putaway/lifecycle.ts` (BE PutawayStatus, docs 05 §5) ── */
 
 /* ── Module 07: Picking ──────────────────────────────────────────────── */
 
