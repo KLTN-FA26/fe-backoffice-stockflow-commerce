@@ -78,7 +78,7 @@ export function resetMockCartons(): void {
 }
 
 /** BE `LpnSequence`: `LPN-yyyyMMdd-nnnnnn`, ngày theo giờ VN. */
-function nextLpn(now: Date): string {
+export function nextLpn(now: Date): string {
   const day = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh" })
     .format(now)
     .replaceAll("-", "");

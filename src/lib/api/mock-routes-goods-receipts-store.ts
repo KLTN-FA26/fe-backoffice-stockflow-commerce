@@ -2,31 +2,25 @@
  * Store in-memory cho mock goods receipt (BE PR #62), chỉ dùng khi USE_MOCK=true.
  *
  * Phiếu seed sinh từ store PO mock — tức là phiếu mua hàng cũ (`receiptType = PURCHASE`) mà BE vẫn cho đọc sau
- * 4A-8; thùng của chúng là nguồn tồn kho mock (`mock-receipt-cartons`). Record giữ vài field nội bộ cũ (dòng PO,
- * cờ QC) để seed tồn kho; response đi qua `toReceiptView`. Không có phiếu nào nằm ở CONFIRMED: BE rời trạng thái
+ * 4A-8; thùng của chúng là nguồn tồn kho mock (`mock-receipt-cartons`). Record giữ field dòng PO cũ để seed tồn
+ * kho; response đi qua `toReceiptView`. Không còn QC ở kho (docs 03 BR-07, BE 0f076baf): dòng không mang cờ / tiến
+ * độ / kết luận QC. Không có phiếu nào nằm ở CONFIRMED: BE rời trạng thái
  * đó ngay trong transaction xác nhận (GoodsReceiptStatus javadoc).
  */
 
 import { beError, beOk, getPoStore, readRouteId } from "./mock-routes-purchase-orders-store";
-import { cartonLineView, resetMockCartons } from "./mock-receipt-cartons";
+import {
+  cartonLineView,
+  MOCK_CARTON_FACTOR,
+  nextLpn,
+  resetMockCartons,
+} from "./mock-receipt-cartons";
 
 import type { MockReceiptPackage } from "./mock-receipt-cartons";
 import type { MockBePo } from "./mock-routes-purchase-orders-store";
 
 export type MockReceiptStatus =
   "DRAFT" | "PENDING_APPROVAL" | "CONFIRMED" | "IN_PUTAWAY" | "CLOSED" | "CANCELLED";
-export type MockQcProgress = "NOT_REQUIRED" | "AWAITING_MOVE_TO_QC" | "IN_QC_AREA" | "INSPECTED";
-export type MockQcOutcome = "ACCEPTED" | "QUARANTINE" | "REJECTED";
-
-export interface MockInspection {
-  id: string;
-  outcome: MockQcOutcome;
-  quantity: number;
-  locationCode: string | null;
-  reason: string | null;
-  inspectedBy: string;
-  inspectedAt: string;
-}
 
 export interface MockReceiptLine {
   id: string;
@@ -40,17 +34,17 @@ export interface MockReceiptLine {
   expiryDate: string | null;
   locationCode: string;
   note: string | null;
-  qcRequired: boolean;
-  qcProgress: MockQcProgress;
-  qcLocationCode: string | null;
-  movedToQcAt: string | null;
   quantityForPutaway: number;
-  inspections: MockInspection[];
   warnings?: string[];
   /** SCRUM-473: đơn vị đóng gói của các thùng (null = dòng lẻ). */
   unitOfMeasure?: string | null;
   /** SCRUM-473: thùng của dòng, kể cả VOID (view lọc bỏ — `cartonLineView`). */
   packages?: MockReceiptPackage[];
+  /** SCRUM-566: dòng Đơn sản xuất của phiếu theo Đơn sản xuất (BE 4A-5). */
+  productionOrderLineId?: string | null;
+  /** SCRUM-566: số thùng đặt / số cái chuẩn mỗi thùng của dòng Đơn sản xuất — dựng `production` của view. */
+  orderedCartons?: number;
+  unitsPerCarton?: number;
 }
 
 export interface MockReceipt {
@@ -77,6 +71,9 @@ export interface MockReceipt {
   closedAt: string | null;
   lines: MockReceiptLine[];
   warnings?: string[];
+  /** SCRUM-566: phiếu theo Đơn sản xuất (`receiptType = PRODUCTION`); thiếu = phiếu mua hàng cũ. */
+  productionOrderId?: string | null;
+  productionOrderCode?: string | null;
 }
 
 /* ── Kho & khu (chép seed demo BE: db/demo V20260928009000 + V20260929000270) ─ */
@@ -84,12 +81,14 @@ export interface MockReceipt {
 export const MOCK_WAREHOUSE_ID = "d99123fd-2997-4751-6bb9-e10a2e6d9949";
 export const MOCK_RECEIPT_ACTOR = "mock-user";
 
-export type MockAreaType = "RECEIVING" | "QUALITY_CONTROL" | "QUARANTINE";
+export type MockAreaType = "RECEIVING" | "QUARANTINE";
 
-/** BE `warehouse.area` của kho HCM — mã vị trí (location_code) → loại khu. */
+/**
+ * BE `warehouse.area` của kho HCM — mã vị trí (location_code) → loại khu. Khu `HCM-QCA01` của thời QC đã thành
+ * QUARANTINE và INACTIVE trong seed BE (V20261114000200) nên không có ở đây.
+ */
 export const MOCK_AREAS: Readonly<Record<string, MockAreaType>> = {
   "HCM-RCV01": "RECEIVING",
-  "HCM-QCA01": "QUALITY_CONTROL",
   "HCM-QC01": "QUARANTINE",
   "HCM-RTV01": "QUARANTINE",
 };
@@ -100,14 +99,9 @@ export interface MockItemPolicy {
   inventoryItemId: string;
   lotTracked: boolean;
   expiryTracked: boolean;
-  qcRequired: boolean;
 }
 
-/**
- * Lấy cờ lô/hạn dùng từ catalog mock. ASSUMPTION (mock): `qcRequired` = SKU theo dõi lô —
- * mock-data không có cờ "Yêu cầu QC khi nhận" của docs 01 và không SKU nào theo dõi hạn dùng;
- * cần SKU 3 bước để demo luồng QC. BE thật đọc cờ `qc_required` của inventory item.
- */
+/** Lấy cờ lô/hạn dùng từ catalog mock. */
 export async function itemPolicy(sku: string): Promise<MockItemPolicy> {
   const { skus } = await import("@/lib/mock-data");
   const found = skus.find((s) => s.skuId === sku);
@@ -115,7 +109,6 @@ export async function itemPolicy(sku: string): Promise<MockItemPolicy> {
     inventoryItemId: `item-${sku}`,
     lotTracked: found?.lotTracking ?? false,
     expiryTracked: found?.expiryTracking ?? false,
-    qcRequired: found?.lotTracking ?? false,
   };
 }
 
@@ -155,14 +148,10 @@ async function seedLine(
   index: number,
   quantity: number,
   receivedAt: string,
-  progress: MockQcProgress | "auto",
 ): Promise<MockReceiptLine> {
   const poLine = po.lines[index];
   if (!poLine) throw new Error(`PO ${po.poNumber} has no line ${index}`);
   const policy = await itemPolicy(poLine.sku);
-  const qcProgress =
-    progress === "auto" ? (policy.qcRequired ? "INSPECTED" : "NOT_REQUIRED") : progress;
-  const inspected = qcProgress === "INSPECTED";
   return {
     id: crypto.randomUUID(),
     purchaseOrderLineId: poLine.lineId,
@@ -174,42 +163,50 @@ async function seedLine(
     expiryDate: policy.expiryTracked ? addDays(receivedAt, 365) : null,
     locationCode: "HCM-RCV01",
     note: null,
-    qcRequired: policy.qcRequired,
-    qcProgress: policy.qcRequired ? qcProgress : "NOT_REQUIRED",
-    qcLocationCode: policy.qcRequired && qcProgress !== "AWAITING_MOVE_TO_QC" ? "HCM-QCA01" : null,
-    movedToQcAt: policy.qcRequired && qcProgress !== "AWAITING_MOVE_TO_QC" ? receivedAt : null,
-    quantityForPutaway: policy.qcRequired && !inspected ? 0 : quantity,
-    inspections:
-      policy.qcRequired && inspected
-        ? [
-            {
-              id: crypto.randomUUID(),
-              outcome: "ACCEPTED",
-              quantity,
-              locationCode: null,
-              reason: null,
-              inspectedBy: MOCK_RECEIPT_ACTOR,
-              inspectedAt: receivedAt,
-            },
-          ]
-        : [],
+    quantityForPutaway: quantity,
   };
+}
+
+/**
+ * Phiếu In Putaway: hàng đã ghi tồn và đang chờ cất ở khu nhận — như BE sau xác nhận, mỗi thùng IN_STOCK tại
+ * `HCM-RCV01` (docs 05 §4.1 bước 1). ASSUMPTION (mock): chia SL dòng thành thùng `MOCK_CARTON_FACTOR` cái, thùng cuối
+ * nhận phần dư — đủ để màn Cất hàng có thùng thật để cất.
+ */
+function waitingCartons(line: MockReceiptLine, receivedAt: string): MockReceiptLine {
+  const packages = [];
+  for (let left = line.quantity; left > 0; left -= MOCK_CARTON_FACTOR) {
+    const units = Math.min(left, MOCK_CARTON_FACTOR);
+    const lpn = nextLpn(new Date(receivedAt));
+    packages.push({
+      // Id theo LPN (LPN seed tất định): link tới nhiệm vụ cất hàng của thùng còn đúng sau khi tải lại trang
+      id: `mock-pkg-${lpn}`,
+      lpn,
+      quantity: units,
+      receivedQty: units,
+      nominalQty: MOCK_CARTON_FACTOR,
+      status: "IN_STOCK" as const,
+      locationCode: line.locationCode,
+    });
+  }
+  return { ...line, unitOfMeasure: "CARTON", packages };
 }
 
 interface SeedSpec {
   po: MockBePo;
   status: MockReceiptStatus;
   ageDays: number;
-  /** [chỉ số dòng PO, SL, tiến độ QC] */
-  lines: readonly (readonly [number, number, MockQcProgress | "auto"])[];
+  /** [chỉ số dòng PO, SL] */
+  lines: readonly (readonly [number, number])[];
 }
 
 async function build(spec: SeedSpec): Promise<MockReceipt> {
   const receivedAt = daysAgo(spec.ageDays);
   const confirmed = !["DRAFT", "CANCELLED"].includes(spec.status);
-  const lines = await Promise.all(
-    spec.lines.map(([index, qty, progress]) => seedLine(spec.po, index, qty, receivedAt, progress)),
+  const seeded = await Promise.all(
+    spec.lines.map(([index, qty]) => seedLine(spec.po, index, qty, receivedAt)),
   );
+  const lines =
+    spec.status === "IN_PUTAWAY" ? seeded.map((line) => waitingCartons(line, receivedAt)) : seeded;
   return {
     id: crypto.randomUUID(),
     number: nextReceiptNumber(receivedAt),
@@ -255,7 +252,7 @@ async function seedSpecs(): Promise<SeedSpec[]> {
           status: wave < 2 || fullyReceived ? "CLOSED" : "IN_PUTAWAY",
           ageDays: 30 - wave * 7,
           lines: po.lines
-            .map((_, index) => [index, waves[index]?.[wave] ?? 0, "auto"] as const)
+            .map((_, index) => [index, waves[index]?.[wave] ?? 0] as const)
             .filter(([, qty]) => qty > 0),
         });
       });
@@ -265,7 +262,7 @@ async function seedSpecs(): Promise<SeedSpec[]> {
     specs.push({ po, status: "CANCELLED", ageDays: 6, lines: [] });
     specs.push({ po, status: "DRAFT", ageDays: 0, lines: [] });
     if (openIndex >= 0) {
-      specs.push({ po, status: "DRAFT", ageDays: 1, lines: [[openIndex, 1, "auto"]] });
+      specs.push({ po, status: "DRAFT", ageDays: 1, lines: [[openIndex, 1]] });
     }
   }
   return specs;
@@ -291,16 +288,67 @@ export function resetReceiptMockStore(): void {
 
 /* ── Helpers dùng chung cho routes phiếu ─────────────────────────────── */
 
+/** Phiếu đã xác nhận (đã ghi tồn) — tính vào số thùng Đơn sản xuất đã nhận. */
+const CONFIRMED_RECEIPT: readonly MockReceiptStatus[] = ["CONFIRMED", "IN_PUTAWAY", "CLOSED"];
+
+function liveCartonCount(line: MockReceiptLine): number {
+  return (line.packages ?? []).filter((p) => p.status !== "VOID").length;
+}
+
 /**
- * Như BE `GoodsReceiptWebMapper#toResponse` sau 4A-9: gắn field thùng của mọi dòng (SCRUM-473) và
- * `receiptType`. Phiếu seed sinh từ PO mock nên đều là phiếu mua hàng cũ (`PURCHASE`).
+ * Thùng của dòng Đơn sản xuất trên các phiếu thoả `include` (bỏ `exceptReceiptId`). Store chưa nạp → 0 (chưa phiếu
+ * theo Đơn sản xuất nào: seed chỉ có phiếu mua hàng cũ).
+ */
+export function productionCartonsOf(
+  productionOrderLineId: string,
+  include: (status: MockReceiptStatus) => boolean = (status) => CONFIRMED_RECEIPT.includes(status),
+  exceptReceiptId?: string,
+): number {
+  let total = 0;
+  for (const receipt of store?.values() ?? []) {
+    if (receipt.id === exceptReceiptId || !include(receipt.status)) continue;
+    for (const line of receipt.lines) {
+      if (line.productionOrderLineId === productionOrderLineId) total += liveCartonCount(line);
+    }
+  }
+  return total;
+}
+
+/** BE `GoodsReceiptResponse.ProductionLineProgress`: `remaining` = đặt − đã nhận (phiếu khác) − phiếu này. */
+function productionProgress(receipt: MockReceipt, line: MockReceiptLine) {
+  if (!receipt.productionOrderId || !line.productionOrderLineId) return null;
+  const perCarton = line.unitsPerCarton ?? 1;
+  const ordered = line.orderedCartons ?? 0;
+  const received = productionCartonsOf(line.productionOrderLineId, undefined, receipt.id);
+  const mine = liveCartonCount(line);
+  return {
+    unitsPerCarton: perCarton,
+    orderedCartons: ordered,
+    receivedCartons: received,
+    thisReceiptCartons: mine,
+    remainingCartons: ordered - received - mine,
+    orderedUnits: ordered * perCarton,
+    receivedUnits: received * perCarton,
+    thisReceiptUnits: mine * perCarton,
+    remainingUnits: (ordered - received - mine) * perCarton,
+  };
+}
+
+/**
+ * Như BE `GoodsReceiptWebMapper#toResponse` sau 4A-9: gắn field thùng của mọi dòng (SCRUM-473) và `receiptType`.
+ * Phiếu seed sinh từ PO mock là phiếu mua hàng cũ (`PURCHASE`); phiếu lập ở SCRUM-566 là `PRODUCTION`.
  */
 export function toReceiptView(receipt: MockReceipt) {
   return {
     ...receipt,
-    receiptType: "PURCHASE" as const,
+    receiptType: receipt.productionOrderId ? ("PRODUCTION" as const) : ("PURCHASE" as const),
     warnings: [],
-    lines: receipt.lines.map((line) => ({ ...line, ...cartonLineView(line), warnings: [] })),
+    lines: receipt.lines.map((line) => ({
+      ...line,
+      ...cartonLineView(line),
+      warnings: [],
+      production: productionProgress(receipt, line),
+    })),
   };
 }
 

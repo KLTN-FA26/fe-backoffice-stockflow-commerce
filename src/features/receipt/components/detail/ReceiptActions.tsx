@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, XCircle } from "lucide-react";
+import Link from "next/link";
+import { CheckCircle2, PackageCheck, XCircle } from "lucide-react";
 
-import { RECEIPT_STATUS, UI_LABELS } from "@/constants";
+import { ADMIN_ROUTES, PUTAWAY_TASK_PERMISSIONS, RECEIPT_STATUS, UI_LABELS } from "@/constants";
 import { STATUS_LABEL_VI } from "@/lib/domain/status-map";
 import { usePermissionChecker } from "@/lib/auth";
 import { allowedReceiptActions, isReceiptTerminal } from "@/features/receipt/lifecycle";
@@ -34,13 +35,25 @@ const BUTTON_BASE =
  * Card thao tác cột phải: trạng thái + nút "Xác nhận nhập kho" / "Huỷ phiếu" theo `allowedReceiptActions`
  * (không rải if/else). Mọi thao tác qua ConfirmDialog; đang chạy → khoá nút, chặn bấm hai lần.
  */
-export function ReceiptActions({ receipt }: { receipt: GoodsReceipt }) {
+export function ReceiptActions({
+  receipt,
+  countDirty = false,
+}: {
+  receipt: GoodsReceipt;
+  /** Form kiểm đếm còn thay đổi chưa lưu → khoá "Xác nhận nhập kho". */
+  countDirty?: boolean;
+}) {
   const can = usePermissionChecker();
   const confirm = useConfirmGoodsReceipt();
   const cancel = useCancelGoodsReceipt();
   const [dialog, setDialog] = useState<ReceiptActionCode | null>(null);
   const actions = allowedReceiptActions(
-    { status: receipt.status, lineCount: receipt.lines.length, receiptType: receipt.receiptType },
+    {
+      status: receipt.status,
+      lineCount: receipt.lines.length,
+      receiptType: receipt.receiptType,
+      countDirty,
+    },
     can,
   );
   const pending = confirm.isPending || cancel.isPending;
@@ -59,7 +72,9 @@ export function ReceiptActions({ receipt }: { receipt: GoodsReceipt }) {
             <div key={action.code}>
               <Button
                 type="button"
-                variant="outline"
+                // Nút chính dùng variant default: `outline` có `dark:bg-input/30` đè `bg-brand` ở dark mode → chữ
+                // ink-inverse nằm trên nền tối mờ, gần như vô hình
+                variant={action.destructive ? "outline" : "default"}
                 size="sm"
                 disabled={pending || !!disabledReason}
                 onClick={() => setDialog(action.code)}
@@ -79,6 +94,15 @@ export function ReceiptActions({ receipt }: { receipt: GoodsReceipt }) {
         })}
         {actions.length === 0 && (
           <p className="text-ink-tertiary text-center text-xs">{noActionText(receipt)}</p>
+        )}
+        {/* Docs 05 §4.2: xem nhiệm vụ cất hàng theo phiếu — chỉ khi phiếu đang chờ cất và người dùng vào được màn */}
+        {receipt.status === RECEIPT_STATUS.IN_PUTAWAY && can(PUTAWAY_TASK_PERMISSIONS.viewPage) && (
+          <Link
+            href={ADMIN_ROUTES.putaway.byReceipt(receipt.id)}
+            className={`border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted hover:text-ink-primary flex items-center justify-center gap-1.5 ${BUTTON_BASE}`}
+          >
+            <PackageCheck className="text-dot-positive size-3.5" /> {LABEL.noActions.openPutaway}
+          </Link>
         )}
       </div>
       <ConfirmDialog

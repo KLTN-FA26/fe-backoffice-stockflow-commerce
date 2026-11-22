@@ -19,6 +19,7 @@ import {
   INVENTORY_OVERVIEW_PERMISSIONS,
   INVENTORY_PERMISSIONS,
   ORDER_PERMISSIONS,
+  ORDER_SHIPPING_WAREHOUSE_PERMISSIONS,
   PERMISSION_QUERY,
   PRODUCT_PERMISSIONS,
   SHIPMENT_PERMISSIONS,
@@ -68,6 +69,8 @@ describe("explicit mock permission responses", () => {
     const queue = CANCELLATION_REQUEST_PERMISSIONS.read;
     // BE PR #317 (V20261124000650): lịch giao `sales-order-delivery-batches:READ` cho mọi vai đọc hợp đồng và vai release
     const schedule = ORDER_DELIVERY_BATCH_PERMISSIONS.read;
+    // 4B-7 (PermissionMatrixTest): `sales-order-shipping-warehouses` READ + UPDATE cho SALES_STAFF + SYSTEM_ADMIN
+    const shipping = Object.values(ORDER_SHIPPING_WAREHOUSE_PERMISSIONS);
     const sales = [
       ORDER.viewPage,
       ORDER.read,
@@ -79,6 +82,7 @@ describe("explicit mock permission responses", () => {
       CREDIT.read,
       queue,
       schedule,
+      ...shipping,
     ];
     const coordinator = [
       ...new Set([
@@ -99,7 +103,7 @@ describe("explicit mock permission responses", () => {
       schedule,
     ];
     const admin = [
-      ...new Set([...Object.values(ORDER), ...Object.values(CREDIT), queue, schedule]),
+      ...new Set([...Object.values(ORDER), ...Object.values(CREDIT), queue, schedule, ...shipping]),
     ];
 
     for (const id of ["USER-SALE-01", "USER-SALE-02", "USER-SALE-03"]) {

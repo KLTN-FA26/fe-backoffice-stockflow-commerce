@@ -18,6 +18,7 @@ import { findWf02Order, wf02OrderHistory, wf02OrderResponse } from "./mock-contr
 import { registerOrderCancellationRequestMockRoutes } from "./mock-routes-order-cancellation-requests";
 import { registerOrderCompletionHoldMockRoutes } from "./mock-routes-order-completion-holds";
 import { registerOrderReleaseMockRoutes } from "./mock-routes-order-release";
+import { registerOrderShippingWarehouseMockRoutes } from "./mock-routes-order-shipping-warehouse";
 import { registerOrderDeliveryFailureMockRoutes } from "./mock-routes-order-delivery-failures";
 import { registerOrderScheduleMockRoutes } from "./mock-routes-order-schedule";
 import { registerOrderActionMockRoutes } from "./mock-routes-orders-actions";
@@ -586,5 +587,6 @@ export function registerOrderMockRoutes(): void {
   registerLifecycleRoutes();
   // Release; lịch giao + dời cửa sổ giao (BR-28)
   registerOrderReleaseMockRoutes();
+  registerOrderShippingWarehouseMockRoutes();
   registerOrderScheduleMockRoutes();
 }

@@ -7,7 +7,12 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "@/lib/api/error";
 import { activateMockAdapter } from "@/lib/api/mock-adapter";
-import { resetReceiptMockStore } from "@/lib/api/mock-routes-goods-receipts-store";
+import {
+  getReceiptStore,
+  MOCK_AREAS,
+  resetReceiptMockStore,
+  toReceiptView,
+} from "@/lib/api/mock-routes-goods-receipts-store";
 
 import { cancelGoodsReceipt, confirmGoodsReceipt, getGoodsReceipt, listGoodsReceipts } from "./api";
 
@@ -99,6 +104,29 @@ describe("goods receipt mock ↔ hợp đồng BE sau 4A-9", () => {
     },
     FLOW_TIMEOUT_MS,
   );
+
+  it("BR-07 (docs 03): không còn QC ở kho — dòng không mang field QC, cả dòng đi cất hàng", async () => {
+    const views = [...(await getReceiptStore()).values()].map(toReceiptView);
+    const lines = views.flatMap((receipt) => receipt.lines);
+    expect(lines.length).toBeGreaterThan(0);
+    for (const line of lines) {
+      for (const gone of [
+        "qcRequired",
+        "qcProgress",
+        "qcLocationCode",
+        "movedToQcAt",
+        "inspections",
+      ]) {
+        expect(line).not.toHaveProperty(gone);
+      }
+      expect(line.quantityForPutaway).toBe(line.quantity);
+    }
+  });
+
+  it("khu QC cũ HCM-QCA01 không còn là khu dùng được (BE: QUARANTINE + INACTIVE)", () => {
+    expect(MOCK_AREAS).not.toHaveProperty("HCM-QCA01");
+    expect(Object.values(MOCK_AREAS)).not.toContain("QUALITY_CONTROL");
+  });
 
   it("phiếu không tồn tại → 404 GOODS_RECEIPT_NOT_FOUND", async () => {
     expect(await codeOf(getGoodsReceipt("missing"))).toBe("GOODS_RECEIPT_NOT_FOUND");

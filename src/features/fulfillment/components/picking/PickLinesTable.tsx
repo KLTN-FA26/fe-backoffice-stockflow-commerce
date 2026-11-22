@@ -14,8 +14,9 @@ import type { ReactNode } from "react";
 
 const L = PICK_LINE_LABELS;
 const COL = L.column;
-const TH = "text-ink-secondary px-3 py-2 text-left text-xs font-medium";
-const TD = "px-3 py-2 text-[0.8125rem]";
+// px-2: bảng nằm trong cột trái hẹp của màn lấy hàng; px-3 làm nút ở cột cuối ("Bù thùng") bị cắt mép ở 1280 px
+const TH = "text-ink-secondary px-2 py-2 text-left text-xs font-medium";
+const TD = "px-2 py-2 text-[0.8125rem]";
 
 /**
  * Bảng dòng lấy hàng theo lộ trình (mã vị trí rồi SKU — mỗi dòng một thùng LPN); dòng đang làm có `aria-current`,
@@ -54,10 +55,7 @@ export function PickLinesTable({
               {COL.lpn}
             </th>
             <th scope="col" className={TH}>
-              {COL.sku}
-            </th>
-            <th scope="col" className={TH}>
-              {COL.lot}
+              {COL.skuLot}
             </th>
             <th scope="col" className={`${TH} text-right`}>
               {COL.allocated}
@@ -91,8 +89,12 @@ export function PickLinesTable({
                 <td className={`${TD} text-ink-tertiary tabular-nums`}>{line.sequenceNo}</td>
                 <td className={`${TD} text-ink-primary ${MONO}`}>{line.locationCode}</td>
                 <td className={`${TD} text-ink-primary ${MONO}`}>{line.lpn ?? "—"}</td>
-                <td className={`${TD} text-ink-primary ${MONO}`}>{line.sku}</td>
-                <td className={`${TD} text-ink-secondary`}>{line.lotNumber ?? "—"}</td>
+                <td className={TD}>
+                  <span className={`text-ink-primary ${MONO}`}>{line.sku}</span>
+                  {line.lotNumber && (
+                    <span className="text-ink-tertiary block text-xs">{L.lot(line.lotNumber)}</span>
+                  )}
+                </td>
                 <td className={`${TD} text-ink-primary ${NUM}`}>{line.allocatedQty}</td>
                 <td className={`${TD} text-ink-primary ${NUM}`}>{line.pickedQty}</td>
                 {hasShort && (
@@ -122,7 +124,7 @@ export function PickLinesTable({
                   )}
                 </td>
                 {hasActionColumn && (
-                  <td className={`${TD} text-right`}>
+                  <td className={`${TD} text-right whitespace-nowrap`}>
                     {canSelect && isConfirmableLine(line) && (
                       <Button
                         type="button"

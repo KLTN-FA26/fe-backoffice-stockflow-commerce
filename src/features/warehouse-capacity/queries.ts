@@ -1,14 +1,18 @@
 import { useQuery } from "@tanstack/react-query";
 
+import { SHARED_QUERY_ROOTS } from "@/constants";
 import { QUERY_TIMES } from "@/lib/api/query-client";
 
 import { getCapacityBoard, getFactorWarehouse, listCapacityBoards } from "./api";
 
 import type { CapacityBoard } from "./types";
 
-/** Khoá gốc `warehouse-capacity` = mã resource BE. Đổi hệ số làm mới cả danh sách lẫn chi tiết qua `all`. */
+/**
+ * Khoá gốc `warehouse-capacity` = mã resource BE. Đổi hệ số làm mới cả danh sách lẫn chi tiết qua `all`; Đơn sản xuất
+ * (feature khác) invalidate qua `SHARED_QUERY_ROOTS.warehouseCapacity`.
+ */
 export const capacityKeys = {
-  all: ["warehouse-capacity"] as const,
+  all: [SHARED_QUERY_ROOTS.warehouseCapacity] as const,
   list: () => [...capacityKeys.all, "list"] as const,
   detail: (warehouseId: string) => [...capacityKeys.all, "detail", warehouseId] as const,
   warehouse: (warehouseId: string) => [...capacityKeys.all, "warehouse", warehouseId] as const,

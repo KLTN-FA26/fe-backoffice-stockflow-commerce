@@ -116,6 +116,13 @@ export const ROLE_PERMISSIONS = {
     "production-material-issues:CREATE",
     "warehouse-warehouses:READ",
     "warehouse-locations:READ",
+    // Cất hàng (docs 05): baseline + V20261124000100 — nhân viên kho xem và cất, không đóng chuyến hộ
+    "warehouse-putaway-tasks:VIEW_PAGE",
+    "warehouse-putaway-tasks:READ",
+    "warehouse-putaway-tasks:UPDATE",
+    "warehouse-putaway-trips:VIEW_PAGE",
+    "warehouse-putaway-trips:READ",
+    "warehouse-putaway-trips:UPDATE",
   ],
   WAREHOUSE_MANAGER: [
     "production-sample-requests:VIEW_PAGE",
@@ -124,7 +131,6 @@ export const ROLE_PERMISSIONS = {
     "production-orders:READ",
     "production-orders:CREATE",
     "production-orders:UPDATE",
-    "production-orders:APPROVE",
     "production-material-issues:READ",
     "production-material-issues:CREATE",
     "production-qc-results:READ",
@@ -133,6 +139,13 @@ export const ROLE_PERMISSIONS = {
     "warehouse-locations:READ",
     // V20261017000800 (PR #109): chọn nhà gia công in khi tách LSX.
     "procurement-suppliers:READ",
+    "warehouse-putaway-tasks:VIEW_PAGE",
+    "warehouse-putaway-tasks:READ",
+    "warehouse-putaway-tasks:UPDATE",
+    "warehouse-putaway-trips:VIEW_PAGE",
+    "warehouse-putaway-trips:READ",
+    "warehouse-putaway-trips:UPDATE",
+    "warehouse-putaway-trips:APPROVE",
   ],
   QC_STAFF: [
     "production-sample-requests:VIEW_PAGE",

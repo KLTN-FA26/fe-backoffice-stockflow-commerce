@@ -136,6 +136,7 @@ describe("đăng ký route — mỗi METHOD + PATH đúng một chủ", () => {
     "POST /orders/:id/credit-approval",
     "POST /orders/:id/credit-rejection",
     "GET /production-orders",
+    "GET /production-orders/:id",
     // Giao thất bại — hàng đợi + quyết định của Sale (`mock-routes-order-delivery-failures.ts`, WF-05 GH-1)
     "GET /orders/delivery-failures",
     "GET /orders/:id/delivery-failures",
@@ -146,6 +147,10 @@ describe("đăng ký route — mỗi METHOD + PATH đúng một chủ", () => {
     "GET /orders/:id/completion-hold",
     "POST /orders/:id/completion-hold",
     "POST /orders/:id/completion-hold/release",
+    // Kho xuất của đơn — Sale chọn kho và giữ hàng (`mock-routes-order-shipping-warehouse.ts`, docs 17 §4.2 bước 2-3)
+    "GET /orders/:id/shipping-warehouse/options",
+    "GET /orders/:id/stock-coverage",
+    "PUT /orders/:id/shipping-warehouse",
   ];
 
   it("không trùng, không mất endpoint nào của hai nhánh", () => {

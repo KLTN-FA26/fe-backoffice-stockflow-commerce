@@ -282,6 +282,8 @@ export function activateMockAdapter(): void {
     import("./mock-routes-returns"),
     import("./mock-routes-return-receipts"),
     import("./mock-routes-wf02"),
+    import("./mock-routes-putaway"),
+    import("./mock-routes-putaway-trips"),
   ]).then(
     ([
       { registerAllMockRoutes },
@@ -314,8 +316,12 @@ export function activateMockAdapter(): void {
       { registerReturnMockRoutes },
       { registerReturnReceiptMockRoutes },
       { registerWf02MockRoutes },
+      { registerPutawayMockRoutes },
+      { registerPutawayTripMockRoutes },
     ]) => {
       registerAllMockRoutes();
+      registerPutawayMockRoutes();
+      registerPutawayTripMockRoutes();
       // WF-02 (báo giá, hợp đồng của đơn, chat Sale) TRƯỚC đơn: `/orders/:id/contract…` phải khớp trước mọi
       // mẫu `/orders/:id/…` chung của module đơn (khớp theo thứ tự đăng ký).
       registerWf02MockRoutes();

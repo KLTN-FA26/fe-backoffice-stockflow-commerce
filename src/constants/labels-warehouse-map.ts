@@ -35,7 +35,8 @@ export const WAREHOUSE_STATUS_LABELS: Record<(typeof WAREHOUSE_STATUSES)[number]
 export const AREA_TYPE_LABELS: Record<(typeof AREA_TYPES)[number], string> = {
   RECEIVING: "Khu nhận hàng",
   QUARANTINE: "Khu cách ly",
-  DISPATCH: "Khu chờ giao",
+  // docs 06 §5, BR-22: khu xuất hàng — kiểm đủ thùng, dán nhãn giao tại chỗ, chờ xe
+  DISPATCH: "Khu xuất hàng",
   STAGING: "Khu chờ xuất",
   OVERFLOW: "Khu tràn",
   PRODUCTION: "Xưởng in",
@@ -66,17 +67,17 @@ export const BIN_NAMING_SCHEME_LABELS: Record<(typeof BIN_NAMING_SCHEMES)[number
 /** Mã lỗi BE → câu tiếng Việt (map về field ở form; mã lạ dùng message của BE). */
 export const WAREHOUSE_MAP_ERROR_MESSAGES: Record<string, string> = {
   WAREHOUSE_PREFIX_ALREADY_EXISTS: "Prefix này đã được kho khác dùng — chọn prefix khác.",
-  LAYOUT_OUT_OF_BOUNDS: "Vượt ra ngoài khung bản đồ kho (BR-06).",
-  LAYOUT_OVERLAP: "Chồng lấn kệ hoặc khu vực đang dùng (BR-07).",
-  PICK_FACE_REQUIRED: "Kệ có bin cho lấy hàng phải có ít nhất một mặt lấy hàng (BR-08).",
+  LAYOUT_OUT_OF_BOUNDS: "Vượt ra ngoài khung bản đồ kho.",
+  LAYOUT_OVERLAP: "Chồng lấn kệ hoặc khu vực đang dùng.",
+  PICK_FACE_REQUIRED: "Kệ có bin cho lấy hàng phải có ít nhất một mặt lấy hàng.",
   SHELF_CODE_ALREADY_EXISTS: "Mã kệ đã có trong kho này.",
   AREA_CODE_ALREADY_EXISTS: "Mã khu vực đã có trong kho này.",
   ZONE_NAME_ALREADY_EXISTS: "Tên zone đã có trong kho này.",
-  SHELF_LEVEL_HAS_BINS: "Tầng đã có bin — chỉ tự sinh cho tầng chưa có bin (BR-14).",
-  SHELF_CAPACITY_EXCEEDED: `Vượt giới hạn ${LIMITS.levelsPerShelfMax} tầng mỗi kệ hoặc ${LIMITS.binsPerLevelMax} bin mỗi tầng (BR-15).`,
+  SHELF_LEVEL_HAS_BINS: "Tầng đã có bin — chỉ tự sinh cho tầng chưa có bin.",
+  SHELF_CAPACITY_EXCEEDED: `Vượt giới hạn ${LIMITS.levelsPerShelfMax} tầng mỗi kệ hoặc ${LIMITS.binsPerLevelMax} bin mỗi tầng.`,
   OPTIMISTIC_LOCK:
     "Người khác vừa sửa bản đồ — thoát chế độ sửa để tải bản mới rồi làm lại phần chưa lưu.",
-  AREA_TYPE_CHANGE_NOT_ALLOWED: "Khu chứa hàng không đổi được thành khu không chứa hàng (BR-11).",
+  AREA_TYPE_CHANGE_NOT_ALLOWED: "Khu chứa hàng không đổi được thành khu không chứa hàng.",
   WAREHOUSE_NOT_FOUND: "Không tìm thấy kho.",
   // BR-04 — câu đầy đủ (kèm thùng) do `warehouseMapErrorMessage` dựng từ `details`; đây là câu khi thiếu details
   LOCATION_HOLDS_CARTONS: WAREHOUSE_HOLDS_CARTONS_LABELS.fallback,
@@ -143,9 +144,8 @@ export const WAREHOUSE_MAP_UI_LABELS = {
       "Không tải được danh sách tỉnh / xã — nhập tay tên tỉnh / thành và phường / xã.",
     streetPlaceholder: "12 Đường Demo",
     addressPreview: "Địa chỉ lưu",
-    mapUnitHint: "Chỉ hỗ trợ mét; không đổi được sau khi tạo (BR-13).",
-    mapHint:
-      "Gốc toạ độ ở góc trên-trái. Khung chỉ thu nhỏ được tới phạm vi bố cục hiện có (BR-06).",
+    mapUnitHint: "Chỉ hỗ trợ mét; không đổi được sau khi tạo.",
+    mapHint: "Gốc toạ độ ở góc trên-trái. Khung chỉ thu nhỏ được tới phạm vi bố cục hiện có.",
     previewTitle: "Xem trước khung",
     previewEmpty: "Nhập chiều rộng và chiều dài để xem khung.",
     locationExample: "Ví dụ mã bin",
@@ -169,8 +169,7 @@ export const WAREHOUSE_MAP_UI_LABELS = {
     clickHint: "Bấm vào kệ hoặc khu vực trên bản đồ để xem chi tiết.",
     fullscreen: "Xem toàn màn hình (F)",
     exitFullscreen: "Thoát toàn màn hình (Esc)",
-    disclaimer:
-      "Bản đồ chỉ mang tính trực quan — nguồn sự thật của tồn kho là tồn theo vị trí (BR-05).",
+    disclaimer: "Bản đồ chỉ mang tính trực quan — nguồn sự thật của tồn kho là tồn theo vị trí.",
     webglFallback: "Trình duyệt không hỗ trợ 3D (WebGL) — đang hiện bản đồ 2D.",
     loading3d: "Đang dựng cảnh 3D…",
     scene: {
@@ -181,7 +180,7 @@ export const WAREHOUSE_MAP_UI_LABELS = {
       stockEmpty: "Kệ chưa có hàng.",
       stockHidden: "đang kiểm kê",
       stockMore: (count: number) => `… và ${count} dòng khác`,
-      stockNote: "Thùng carton vẽ theo tồn hiện tại — chỉ mang tính trực quan (BR-05).",
+      stockNote: "Thùng carton vẽ theo tồn hiện tại — chỉ mang tính trực quan.",
       overviewStockPartial: (shown: string, total: string) =>
         `Kho có ${total} dòng tồn — đang vẽ thùng cho ${shown} dòng đầu (hiển thị một phần).`,
       overviewStockFailed: "Không tải được tồn cả kho — toàn cảnh chưa vẽ thùng hàng.",
@@ -194,6 +193,8 @@ export const WAREHOUSE_MAP_UI_LABELS = {
     loadFailedTitle: "Không tải được bản đồ kho",
     noReadDescription: "Bạn chưa được cấp quyền xem bản đồ kho (warehouse-locations:READ).",
     legend: "Chú giải",
+    // docs 06 BR-08: mặt kệ không mở để lấy hàng
+    closedFace: "Thanh chắn vàng (3D): mặt kệ không lấy hàng",
     stats: {
       shelves: "Kệ",
       bins: "Bin",
@@ -201,7 +202,21 @@ export const WAREHOUSE_MAP_UI_LABELS = {
       areas: "Khu vực",
     },
     canvasLabel: (name: string) => `Bản đồ 2D kho ${name}`,
-    inactiveWarehouse: "Kho đang ngưng — mọi vị trí đọc là Inactive (BR-16).",
+    inactiveWarehouse: "Kho đang ngưng — mọi vị trí đọc là Inactive.",
+  },
+  /** Lộ trình chuyến cất trên mặt bằng 2D (docs 05 §4.5 bước 14). */
+  route: {
+    label: "Lộ trình trên bản đồ kho",
+    start: (code: string | null) => (code ? `Xuất phát — ${code}` : "Xuất phát"),
+    stop: (sequence: number, code: string, state: "done" | "next" | "todo") =>
+      `Điểm ${sequence} — ${code}${state === "done" ? " — đã cất xong" : state === "next" ? " — nên tới tiếp" : ""}`,
+    legendStart: "Xuất phát",
+    legendNext: "Nên tới tiếp",
+    legendDone: "Đã cất xong",
+    // docs 05 §4.5 ⚠️ C46: khoảng cách trên mặt bằng, không tránh kệ / tường
+    note: "Đường thẳng nối các điểm đứng, không tránh kệ / tường — đi theo lối thực tế.",
+    noRead: "Cần quyền xem bản đồ kho (warehouse-locations:READ) để thấy lộ trình trên bản đồ.",
+    loadFailed: "Không tải được bản đồ kho — xem lộ trình theo danh sách điểm dừng.",
   },
   panel: {
     title: "Chi tiết",
@@ -243,7 +258,7 @@ export const WAREHOUSE_MAP_UI_LABELS = {
     zoneColor: "Màu hiển thị",
     shelfTitle: "Thêm kệ",
     shelfDescription:
-      "Tạo kệ, các tầng rồi tự sinh bin theo lưới hàng × cột. Mã kệ không đổi được sau khi tạo (BR-13).",
+      "Tạo kệ, các tầng rồi tự sinh bin theo lưới hàng × cột. Mã kệ không đổi được sau khi tạo.",
     areaTitle: "Thêm khu vực",
     boundaryTitle: "Thêm tường / cửa",
     code: "Mã",
@@ -259,7 +274,7 @@ export const WAREHOUSE_MAP_UI_LABELS = {
     pickFaces: "Mặt lấy hàng",
     levelCount: "Số tầng",
     levelHeight: "Chiều cao mỗi tầng (m)",
-    generateBins: "Tự sinh bin (BR-14)",
+    generateBins: "Tự sinh bin",
     rowCount: "Số hàng",
     columnCount: "Số cột",
     namingScheme: "Kiểu đặt mã",
@@ -289,18 +304,18 @@ export const WAREHOUSE_MAP_UI_LABELS = {
   holdsCartons: WAREHOUSE_HOLDS_CARTONS_LABELS,
   workspace: WAREHOUSE_WORKSPACE_LABELS,
   validation: {
-    codeFormat: `Chỉ gồm A–Z, 0–9, tối đa ${LIMITS.codeMax} ký tự, không có "-" (BR-10).`,
-    prefixFormat: `Chỉ gồm A–Z, 0–9, tối đa ${LIMITS.prefixMax} ký tự, không có "-" (BR-10).`,
+    codeFormat: `Chỉ gồm A–Z, 0–9, tối đa ${LIMITS.codeMax} ký tự, không có "-".`,
+    prefixFormat: `Chỉ gồm A–Z, 0–9, tối đa ${LIMITS.prefixMax} ký tự, không có "-".`,
     required: "Bắt buộc nhập.",
     positive: "Phải lớn hơn 0.",
     nonNegative: "Không được âm.",
     fraction: `Tối đa ${LIMITS.measureFractionDigits} chữ số thập phân — hệ thống không làm tròn.`,
     tooLong: (max: number) => `Tối đa ${max} ký tự.`,
-    outOfBounds: "Nằm ngoài khung bản đồ kho (BR-06).",
-    overlap: (code: string) => `Chồng lấn với ${code} đang dùng (BR-07).`,
-    pickFaceRequired: "Bin cho lấy hàng cần ít nhất một mặt lấy hàng (BR-08).",
-    levelsMax: `Tối đa ${LIMITS.levelsPerShelfMax} tầng mỗi kệ (BR-15).`,
-    binsMax: `Hàng × cột tối đa ${LIMITS.binsPerLevelMax} bin mỗi tầng (BR-14).`,
+    outOfBounds: "Nằm ngoài khung bản đồ kho.",
+    overlap: (code: string) => `Chồng lấn với ${code} đang dùng.`,
+    pickFaceRequired: "Bin cho lấy hàng cần ít nhất một mặt lấy hàng.",
+    levelsMax: `Tối đa ${LIMITS.levelsPerShelfMax} tầng mỗi kệ.`,
+    binsMax: `Hàng × cột tối đa ${LIMITS.binsPerLevelMax} bin mỗi tầng.`,
     letterRowsMax: `Kiểu chữ hàng tối đa ${LIMITS.letterRowsMax} hàng (A–Z).`,
     colorFormat: "Màu dạng #RRGGBB.",
     boundaryZero: "Điểm đầu và điểm cuối phải khác nhau.",

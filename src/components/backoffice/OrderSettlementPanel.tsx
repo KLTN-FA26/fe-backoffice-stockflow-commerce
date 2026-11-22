@@ -187,7 +187,7 @@ export function OrderSettlementPanel(props: OrderSettlementSlotProps) {
       {props.status === "Completed" && props.completedAt && (
         <p className="text-ink-secondary">
           Đơn đã hoàn tất; tự đóng ngày {formatDate(closingDate(props.completedAt).toISOString())}{" "}
-          nếu không còn nợ (docs 17 §4.6 bước 22).
+          nếu không còn nợ.
         </p>
       )}
     </Card>

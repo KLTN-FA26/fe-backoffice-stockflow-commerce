@@ -22,7 +22,7 @@ const L = PRODUCTION_LABELS.drawUp;
 /**
  * Lập Đơn sản xuất cho MỘT đợt giao còn thiếu (docs 17 §4.3 bước 6, BR-05): chỉ chọn đơn vị sản xuất đang dùng; BE tự
  * điền dòng thiếu, kho nhận = kho xuất, ngày cần hàng = ngày bắt đầu cửa sổ giao (BR-26), cờ duyệt mẫu (BR-24). Xong
- * → sang chi tiết đơn nháp để sửa / gửi duyệt.
+ * → sang chi tiết đơn nháp để sửa / gửi cho đơn vị sản xuất.
  */
 export function DrawUpDialog({
   batch,

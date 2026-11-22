@@ -16,6 +16,7 @@
 import { resetCancellationRequestMockStore } from "./mock-order-cancellation-requests";
 import { resetCompletionHoldMockStore } from "./mock-order-completion-holds";
 import { resetDeliveryScheduleMockStore } from "./mock-order-delivery-schedule";
+import { resetShippingWarehouseMockStore } from "./mock-order-shipping-warehouse";
 
 import type { AxiosRequestConfig } from "axios";
 import type { Order, OrderLine, OrderManagementStatus } from "@/lib/mock-data";
@@ -426,6 +427,7 @@ export function resetOrderMockStore(): void {
   resetCancellationRequestMockStore();
   resetDeliveryScheduleMockStore();
   resetCompletionHoldMockStore();
+  resetShippingWarehouseMockStore();
 }
 
 function stateById(orderId: string): MockOrderState {

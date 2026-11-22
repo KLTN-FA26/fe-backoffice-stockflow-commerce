@@ -48,7 +48,7 @@ describe("EInvoiceDetail — issuing (docs 21 §4.2)", () => {
     renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
     await userEvent.click(await screen.findByRole("button", { name: "Phát hành" }));
     const dialog = screen.getByRole("dialog", { name: "Phát hành hoá đơn?" });
-    expect(within(dialog).getByText(/BR-03/)).toBeInTheDocument();
+    expect(dialog).not.toHaveTextContent(/BR-\d/);
     await userEvent.click(within(dialog).getByRole("button", { name: "Phát hành" }));
     await waitFor(() =>
       expect(api.post).toHaveBeenCalledWith("/einvoices/einv-1/issuance", { version: 3 }),
@@ -102,7 +102,7 @@ describe("EInvoiceDetail — issuing (docs 21 §4.2)", () => {
     });
     renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent("BR-06");
+    expect(alert).not.toHaveTextContent(/BR-\d/);
     expect(alert).toHaveTextContent("HDDT-0007");
   });
 

@@ -18,8 +18,10 @@ import {
 
 import { Alert } from "@/components/shared/Alert";
 import { DatePicker } from "@/components/shared/DatePicker";
+import { FORM_TEXTAREA_CLASS } from "@/components/shared/form-control-classes";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
-import { FormField } from "@/components/shared/FormField";
+import { fieldA11y, FormField } from "@/components/shared/FormField";
+import { Textarea } from "@/components/ui/textarea";
 
 import type { ExpectedDateValues, ProductionOrder } from "@/features/production-order/types";
 
@@ -38,6 +40,7 @@ const prefill = (date: string | null | undefined) => (date && date >= todayIso()
 /**
  * Ghi ngày hoàn thành dự kiến (docs 17 §4.3 bước 8, 10): nhận đơn (bắt buộc), đổi ngày, bắt đầu sản xuất (tuỳ chọn —
  * trống = giữ ngày cũ). Ngày muộn hơn ngày cần hàng → báo trước sẽ có cảnh báo AT_RISK (§4.12), không chặn.
+ * Nhận đơn kèm ghi chú tuỳ chọn (bước 8, chốt lại 2026-11-20) — chỉ ở chế độ này, BE ghi một lần.
  */
 export function ExpectedDateDialog({
   mode,
@@ -56,17 +59,28 @@ export function ExpectedDateDialog({
   const form = useForm<ExpectedDateValues>({
     resolver: zodResolver(expectedDateInput(mode === "start")),
     mode: "onChange",
-    defaultValues: { date: mode === "accept" ? "" : prefill(order.expectedCompletionDate) },
+    defaultValues: {
+      date: mode === "accept" ? "" : prefill(order.expectedCompletionDate),
+      note: "",
+    },
   });
   const date = useWatch({ control: form.control, name: "date" });
   const fieldError = form.formState.errors.date?.message;
+  const noteError = form.formState.errors.note?.message;
 
   const submit = form.handleSubmit((values) => {
     setError(null);
-    mutation.mutate(
-      { id: order.id, version: order.version, expectedCompletionDate: values.date || null },
-      { onSuccess: onClose, onError: (failure) => setError(productionOrderErrorMessage(failure)) },
-    );
+    const input = {
+      id: order.id,
+      version: order.version,
+      expectedCompletionDate: values.date || null,
+    };
+    const handlers = {
+      onSuccess: onClose,
+      onError: (failure: unknown) => setError(productionOrderErrorMessage(failure)),
+    };
+    if (mode === "accept") accept.mutate({ ...input, note: values.note }, handlers);
+    else mutation.mutate(input, handlers);
   });
 
   return (
@@ -105,6 +119,22 @@ export function ExpectedDateDialog({
         </FormField>
         {date && date > order.needByDate && (
           <Alert tone="warning">{D.later(formatDate(order.needByDate))}</Alert>
+        )}
+        {mode === "accept" && (
+          <FormField
+            id="accept-note"
+            label={D.acceptNote}
+            hint={D.acceptNoteHint}
+            error={noteError}
+          >
+            <Textarea
+              {...fieldA11y("accept-note", noteError, true)}
+              rows={2}
+              placeholder={D.acceptNotePlaceholder}
+              className={FORM_TEXTAREA_CLASS}
+              {...form.register("note")}
+            />
+          </FormField>
         )}
       </FormDialogBody>
     </FormDialog>

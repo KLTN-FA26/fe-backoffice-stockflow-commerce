@@ -30,6 +30,12 @@ export const UI_LABELS = {
     /** Badge thanh Cấu hình khi ô search chưa có nội dung. */
     notEntered: "Chưa nhập",
   },
+  // Ô chọn tệp dùng chung (components/shared/FilePickerField)
+  filePicker: {
+    choose: "Chọn tệp",
+    change: "Đổi tệp",
+    none: "Chưa chọn tệp",
+  },
   // Ô chọn ngày dùng chung (components/shared/DatePicker)
   datePicker: {
     placeholder: "Chọn ngày",
@@ -121,13 +127,13 @@ export const UI_LABELS = {
     noActions: {
       viewOnly: "Bạn chỉ có quyền xem phiếu nhận.",
       inPutaway: "Đang chờ cất hàng lên vị trí lưu trữ (putaway).",
+      openPutaway: "Xem việc cất hàng của phiếu",
     },
     noCountLines: "Chưa có dòng kiểm đếm.",
     linesDraftTitle: "Dòng kiểm đếm",
     linesConfirmedTitle: "Dòng nhận",
     linesDraftDescription: "Số đang kiểm đếm của phiếu nháp — chưa ghi nhận tồn.",
-    linesConfirmedDescription:
-      "Phiếu đã xác nhận chỉ còn xem; sai sót xử lý bằng điều chỉnh tồn (BR-05).",
+    linesConfirmedDescription: "Phiếu đã xác nhận chỉ còn xem; sai sót xử lý bằng điều chỉnh tồn.",
     linesCancelledDescription: "Phiếu đã huỷ trước khi xác nhận — không nhập kho, chỉ còn xem.",
     // Nhãn trường dùng chung giữa thông tin phiếu và cột danh sách
     field: {
@@ -144,7 +150,7 @@ export const UI_LABELS = {
     confirmDialog: {
       cancelTitle: "Huỷ phiếu nhận",
       confirmDescription: (number: string) =>
-        `Chốt số của ${number}: các thùng thành tồn Inbound ở khu nhận hàng, Đơn sản xuất cập nhật SL đã nhận, phiếu chuyển sang cất hàng. Sau khi xác nhận phiếu chỉ còn xem, sai sót phải điều chỉnh tồn (BR-05).`,
+        `Chốt số của ${number}: các thùng thành tồn Inbound ở khu nhận hàng, Đơn sản xuất cập nhật SL đã nhận, phiếu chuyển sang cất hàng. Sau khi xác nhận phiếu chỉ còn xem, sai sót phải điều chỉnh tồn.`,
       cancelDescription: (number: string) =>
         `Huỷ ${number}? Chỉ phiếu nháp mới huỷ được; thùng đã cấp mã bị huỷ theo. Không thể khôi phục.`,
     },
@@ -402,14 +408,12 @@ export const RECEIPT_FIELD_MESSAGES = {
   warehouseRequired: "Chọn kho nhận",
   blindReasonRequired: "Nhập lý do không có PO",
   skuRequired: "Nhập SKU",
-  qcSum: "Tổng Đạt + Cách ly + Không đạt phải bằng SL đã chuyển sang khu QC",
-  qcQuantity: "Số lượng phải là số nguyên ≥ 0",
-  qcLocationRequired: "Nhập mã khu cách ly",
-  qcReasonRequired: "Nhập lý do",
-  qcSameLocation: "Hàng cách ly và hàng không đạt phải ở hai vị trí khác nhau",
 } as const;
 
 export const TOAST_MESSAGES = {
+  putaway: {
+    confirmed: (lpn: string, locationCode: string) => `Đã cất thùng ${lpn} vào ${locationCode}`,
+  },
   form: {
     saveBlocked: "Chưa thể lưu",
     checkForm: "Kiểm tra lại biểu mẫu",
@@ -421,6 +425,8 @@ export const TOAST_MESSAGES = {
     creditRejected: "Đã từ chối duyệt công nợ",
   },
   receipt: {
+    created: "Đã lập phiếu nhập",
+    counted: "Đã lưu kiểm đếm",
     confirmed: "Đã xác nhận nhập kho",
     cancelled: "Đã huỷ phiếu nhận",
   },

@@ -6,12 +6,10 @@ import { PRODUCTION_LABELS, PRODUCTION_LIMITS } from "@/constants";
 
 import { productionOrderErrorMessage } from "@/features/production-order/errors";
 import {
-  useApproveProductionOrder,
   useCancelProductionOrder,
   useCloseProductionOrder,
   useResendDispatch,
-  useReturnProductionOrder,
-  useSubmitProductionOrder,
+  useSendProductionOrder,
 } from "@/features/production-order/mutations";
 
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -21,22 +19,14 @@ import type { ProductionOrder } from "@/features/production-order/types";
 const D = PRODUCTION_LABELS.dialogs;
 const A = PRODUCTION_LABELS.actions;
 
-export type ConfirmActionKind = "submit" | "approve" | "return" | "cancel" | "close" | "resend";
+export type ConfirmActionKind = "send" | "cancel" | "close" | "resend";
 
 const COPY: Record<
   ConfirmActionKind,
   { title: string; description: string; confirm: string; reason?: string; danger?: boolean }
 > = {
-  submit: { title: D.submitTitle, description: D.submitDescription, confirm: A.submit },
-  approve: { title: D.approveTitle, description: D.approveDescription, confirm: A.approve },
-  // BR-23 (docs 17 §6): trả lại bắt buộc lý do
-  return: {
-    title: D.returnTitle,
-    description: D.returnDescription,
-    confirm: A.return,
-    reason: D.returnReason,
-    danger: true,
-  },
+  // Docs 17 §4.3 bước 7 (chốt lại 2026-11-20): Điều phối sản xuất gửi thẳng, kể cả đơn mình lập
+  send: { title: D.sendTitle, description: D.sendDescription, confirm: A.send },
   // BR-06 (docs 17 §6): huỷ / đóng bắt buộc lý do
   cancel: {
     title: D.cancelTitle,
@@ -60,8 +50,8 @@ const COPY: Record<
 };
 
 /**
- * Xác nhận thao tác một bước trên Đơn sản xuất: gửi duyệt, duyệt, trả lại, huỷ, đóng, gửi lại mail. Lý do (≤ 500) bắt
- * buộc với trả lại / huỷ / đóng. Dialog giữ nguyên tới khi thành công; lỗi hiện trong dialog.
+ * Xác nhận thao tác một bước trên Đơn sản xuất: gửi cho đơn vị sản xuất, huỷ, đóng, gửi lại mail. Lý do (≤ 500) bắt
+ * buộc với huỷ / đóng. Dialog giữ nguyên tới khi thành công; lỗi hiện trong dialog.
  */
 export function ConfirmActionDialog({
   kind,
@@ -73,9 +63,7 @@ export function ConfirmActionDialog({
   onClose: () => void;
 }) {
   const hooks = {
-    submit: useSubmitProductionOrder(),
-    approve: useApproveProductionOrder(),
-    return: useReturnProductionOrder(),
+    send: useSendProductionOrder(),
     cancel: useCancelProductionOrder(),
     close: useCloseProductionOrder(),
     resend: useResendDispatch(),
@@ -92,9 +80,7 @@ export function ConfirmActionDialog({
     setError(null);
     const version = { id: order.id, version: order.version };
     const text = reason?.trim() ?? "";
-    if (kind === "submit") hooks.submit.mutate(version, handlers);
-    else if (kind === "approve") hooks.approve.mutate(version, handlers);
-    else if (kind === "return") hooks.return.mutate({ ...version, reason: text }, handlers);
+    if (kind === "send") hooks.send.mutate(version, handlers);
     else if (kind === "cancel") hooks.cancel.mutate({ ...version, reason: text }, handlers);
     else if (kind === "close") hooks.close.mutate({ ...version, reason: text }, handlers);
     else hooks.resend.mutate(order.id, handlers);

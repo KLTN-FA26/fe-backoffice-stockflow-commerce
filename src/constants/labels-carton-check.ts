@@ -87,13 +87,13 @@ export const CARTON_CHECK_UI_LABELS = {
       "Bạn là quản lý kho nên vẫn thao tác được trong phiên này (người bắt đầu không đổi).",
     lockedTitle: "Đơn đã khoá",
     lockedDescription:
-      "Đã có thùng được dán nhãn giao hàng: đơn không huỷ được và không đổi được địa chỉ giao (BR-04).",
+      "Đã có thùng được dán nhãn giao hàng: đơn không huỷ được và không đổi được địa chỉ giao.",
     paymentTitle: "Đơn còn đợt thanh toán phải thu trước khi giao",
     paymentDescription: (amount: string) =>
       `Còn ${amount} phải thu trước khi bàn giao (đợt thu "Trước khi giao"). Vẫn kiểm thùng và hoàn tất bình thường; bước bàn giao sẽ bị từ chối cho tới khi đợt này đã thu.`,
     unmeasuredTitle: "SKU chưa có quy cách thùng",
     unmeasuredDescription: (skus: string) =>
-      `${skus} chưa khai báo kích thước hoặc khối lượng thùng nên thùng của SKU này chưa dán nhãn và chưa hoàn tất được. Quản lý kho bổ sung quy cách thùng ở màn sản phẩm rồi dán nhãn lại (BR-07).`,
+      `${skus} chưa khai báo kích thước hoặc khối lượng thùng nên thùng của SKU này chưa dán nhãn và chưa hoàn tất được. Quản lý kho bổ sung quy cách thùng ở màn sản phẩm rồi dán nhãn lại.`,
     removedTitle: "Có thùng đã bị loại",
     removedDescription: (lpns: string) =>
       `${lpns} nằm trong hàng chờ cất lại để vào khu cách ly (QUARANTINE). Phần thiếu xử lý như thiếu hàng ở bước lấy hàng, hoặc giao một phần nếu đơn cho phép.`,
@@ -127,7 +127,7 @@ export const CARTON_CHECK_UI_LABELS = {
   cartons: {
     title: "Thùng của đơn",
     description:
-      "Mỗi thùng là một kiện giao: To Check → Checked → Labeled. Kích thước và khối lượng lấy theo quy cách thùng của SKU, không nhập tay.",
+      "Mỗi thùng là một kiện giao: Chờ kiểm → Đã kiểm → Đã dán nhãn. Kích thước và khối lượng lấy theo quy cách thùng của SKU, không nhập tay.",
     empty: "Phần lấy hàng của task chưa có thùng nào.",
     colNo: "#",
     colLpn: "LPN",

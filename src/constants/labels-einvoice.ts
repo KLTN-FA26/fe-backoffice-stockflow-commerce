@@ -89,7 +89,7 @@ export const EINVOICE_LABELS = {
   },
   warnings: {
     BUYER_PROFILE_INCOMPLETE:
-      "Hồ sơ bên mua thiếu tên, mã số thuế hoặc địa chỉ — chưa phát hành được (BR-06).",
+      "Hồ sơ bên mua thiếu tên, mã số thuế hoặc địa chỉ — chưa phát hành được.",
     // BE HĐ-8: không chặn Kế toán phát hành tay, chỉ chặn tự phát hành
     BUYER_EMAIL_MISSING:
       "Bên mua chưa có email nhận hoá đơn — hệ thống không tự phát hành; phát hành tay thì nhà cung cấp không gửi được email, khách vẫn xem trên cổng.",

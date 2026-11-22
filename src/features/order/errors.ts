@@ -20,6 +20,7 @@ import {
   ORDER_PARTIAL_SHIPMENT_LABELS,
   ORDER_RELEASE_LABELS,
   ORDER_SHIPPING_ADDRESS_LABELS,
+  ORDER_SHIPPING_WAREHOUSE_LABELS,
   UI_LABELS,
 } from "@/constants";
 
@@ -113,6 +114,9 @@ export const ORDER_STALE_ERROR_CODES: readonly string[] = [
   "DELIVERY_MODE_LOCKED",
   // WF04 G2 (docs 08 BR-04): thùng đầu tiên vừa được dán nhãn / đơn đã sang bước khác — tải lại, nút đổi địa chỉ tự ẩn
   "ORDER_ADDRESS_LOCKED",
+  // Docs 17 §4.2 bước 2, BR-22: đơn đã đổi bước / đã giữ hàng ở kho hiện tại — tải lại, thẻ "Kho xuất" hiện đúng trạng thái
+  "ORDER_SHIPPING_WAREHOUSE_NOT_ALLOWED",
+  "ORDER_SHIPPING_WAREHOUSE_LOCKED",
 ];
 
 export type OrderErrorCategory =
@@ -381,7 +385,8 @@ export type OrderStatusActionKey =
   | "remainderClosure"
   | "partialShipment"
   | "release"
-  | "shippingAddress";
+  | "shippingAddress"
+  | "shippingWarehouse";
 
 /** Tiêu đề lỗi theo thao tác (giao một phần có bộ nhãn riêng — nút đổi theo bật / tắt). */
 const FAILED_TITLES: Readonly<Record<OrderStatusActionKey, string>> = {
@@ -392,6 +397,7 @@ const FAILED_TITLES: Readonly<Record<OrderStatusActionKey, string>> = {
   partialShipment: ORDER_PARTIAL_SHIPMENT_LABELS.failedTitle,
   release: ORDER_RELEASE_LABELS.failedTitle,
   shippingAddress: ORDER_SHIPPING_ADDRESS_LABELS.failedTitle,
+  shippingWarehouse: ORDER_SHIPPING_WAREHOUSE_LABELS.dialog.failedTitle,
 };
 
 /** Câu cho 400 VALIDATION_FAILED theo thao tác — BE trả fieldErrors / message tiếng Anh, không hiện thẳng. */
@@ -405,6 +411,7 @@ const VALIDATION_DETAIL: Readonly<Record<OrderStatusActionKey, string>> = {
   partialShipment: `Ghi chú tối đa ${ORDER_LIMITS.partialShipmentNoteMax} ký tự.`,
   release: "Hãy chọn kho xuất hàng hợp lệ.",
   shippingAddress: "Hãy chọn một địa chỉ giao trong sổ địa chỉ của khách.",
+  shippingWarehouse: "Hãy chọn một kho xuất trong danh sách.",
 };
 
 /** Động từ cho câu lỗi chung / dự phòng của từng thao tác ("Bạn không có quyền …", "Đã xảy ra lỗi khi …"). */
@@ -416,6 +423,7 @@ const STATUS_ACTION_VERB: Readonly<Record<OrderStatusActionKey, string>> = {
   partialShipment: "đổi cách giao một phần",
   release: "release đơn",
   shippingAddress: "đổi địa chỉ giao của đơn",
+  shippingWarehouse: "chọn kho xuất cho đơn",
 };
 
 function isOrderErrorCode(code: string): code is keyof typeof ORDER_ERROR_MESSAGES {

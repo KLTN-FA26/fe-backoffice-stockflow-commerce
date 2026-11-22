@@ -65,8 +65,9 @@ export const ORDER_CANCELLATION_REASON_LABELS = {
 
 /**
  * Đơn sản xuất — BE `order/internal/domain/ProductionOrderStatus.java` (`GET /production-orders`), vòng đời
- * docs 17 §5.3: Draft → Pending Approval → Sent → Accepted → Sample Pending → In Production → Partially Received /
- * Received; Cancelled (trước khi in hàng loạt) và Closed (đóng thiếu) là terminal.
+ * docs 17 §5.3: Draft → Sent → Accepted → Sample Pending → In Production → Partially Received / Received; Cancelled
+ * (trước khi in hàng loạt) và Closed (đóng thiếu) là terminal. `PENDING_APPROVAL` giữ để đọc lịch sử trạng thái đơn
+ * cũ — bỏ bước duyệt từ 2026-11-20 (docs 17 BR-23 chốt lại), BE không còn đơn nào ở trạng thái này.
  */
 export const PRODUCTION_ORDER_STATUSES = [
   "DRAFT",
@@ -80,6 +81,24 @@ export const PRODUCTION_ORDER_STATUSES = [
   "CANCELLED",
   "CLOSED",
 ] as const;
+
+/**
+ * BR-15 (docs 03 §6): trạng thái Đơn sản xuất nhận được hàng. `SENT` / `ACCEPTED` chỉ nhận khi Đơn sản xuất **không**
+ * bật cờ duyệt mẫu in (`sampleApprovalRequired`); `SAMPLE_PENDING` luôn bị chặn. BE kiểm lại
+ * (`PRODUCTION_ORDER_NOT_RECEIVABLE`).
+ */
+export const RECEIVABLE_PRODUCTION_ORDER_STATUSES = [
+  "IN_PRODUCTION",
+  "PARTIALLY_RECEIVED",
+  "SENT",
+  "ACCEPTED",
+] as const satisfies readonly ProductionOrderStatus[];
+
+/** BR-15: hai trạng thái chỉ nhận được khi Đơn sản xuất không chờ khách duyệt mẫu in. */
+export const SAMPLE_GATED_PRODUCTION_ORDER_STATUSES = [
+  "SENT",
+  "ACCEPTED",
+] as const satisfies readonly ProductionOrderStatus[];
 
 /** Chuỗi nguyên văn docs 17 §5.3 — tra tone ở `lib/status-map.ts`. */
 export const PRODUCTION_ORDER_STATUS_DISPLAY = {

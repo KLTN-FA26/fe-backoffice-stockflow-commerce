@@ -3,12 +3,17 @@
  * (`/api/v1/inventory/stock-packages`): tra thùng theo LPN, cách ly nguyên thùng, gỡ cách ly. Ghi giảm thùng lỗi đi
  * theo điều chỉnh `DAMAGED` có duyệt (màn Điều chỉnh tồn), không phải ở đây.
  */
+/** Danh sách thùng theo trang — dùng chung cho màn cách ly và tem LPN trên bản đồ 3D (đúng một mã `location`). */
+export const STOCK_PACKAGE_API = {
+  list: "/inventory/stock-packages",
+} as const;
+
 export const QUARANTINE_API = {
   /**
    * `GET /inventory/stock-packages?location&sku&status&page&size&sort` (`inventory-stock-packages:READ`): thùng theo trang.
    * Không có trạng thái QUARANTINE cho thùng — khu cách ly lọc bằng `location` = mã khu / bin cách ly (đúng một mã).
    */
-  list: "/inventory/stock-packages",
+  list: STOCK_PACKAGE_API.list,
   carton: (lpn: string) => `/inventory/stock-packages/${encodeURIComponent(lpn)}`,
   quarantine: (lpn: string) => `/inventory/stock-packages/${encodeURIComponent(lpn)}/quarantine`,
   release: (lpn: string) =>
@@ -61,7 +66,7 @@ export const QUARANTINE_LABELS = {
   quarantineReason: "Lý do cách ly",
   release: "Gỡ cách ly",
   releaseDescription:
-    "Mở nhiệm vụ cất hàng đưa thùng về bin. Thùng vẫn ở trạng thái cách ly tới khi cất xong, lúc đó mới thành Available.",
+    "Mở nhiệm vụ cất hàng đưa thùng về bin. Thùng vẫn ở trạng thái cách ly tới khi cất xong, lúc đó mới thành thùng bán được.",
   writeOff: "Ghi giảm thùng lỗi",
   heldForOrder:
     "Thùng đang được giữ cho một đơn hàng. Nhả hoặc phân bổ lại thùng cho đơn trước khi cách ly.",

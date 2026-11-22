@@ -60,7 +60,6 @@ export const ORDER_RELEASE_BLOCKER_LABELS = {
 
 /** Lý do máy chủ từ chối release — kèm mã quy tắc để quản lý kho đối chiếu docs. */
 export const ORDER_RELEASE_REFUSAL_LABELS = {
-  ruleLabel: "Quy tắc",
   /** 409 ORDER_SHIPPING_WAREHOUSE_MISMATCH (docs 17 BR-22): mỗi đơn đúng một kho xuất, chỉ release ở kho đó. */
   warehouseMismatch:
     "Đơn này xuất từ kho khác — chọn đúng kho xuất của đơn (kho đang giữ hàng cho đơn).",

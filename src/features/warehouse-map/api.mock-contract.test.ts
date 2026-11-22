@@ -70,8 +70,8 @@ beforeEach(() => {
   actAs(MANAGER);
 });
 
-describe("seed demo BE (V20260928009000 §4) — kho HCM", () => {
-  it("danh mục có kho HCM; bản đồ 3 kệ × 2 tầng × 2 bin, 5 khu vực, tường + cửa", async () => {
+describe("seed demo BE (V20261111000001__demo_seed) — kho HCM", () => {
+  it("danh mục có kho HCM; bản đồ 3 kệ × 2 tầng × 2 bin, 10 khu vực đủ loại BE, tường + cửa", async () => {
     const page = warehousePageDto.parse((await call("GET", "/warehouses")).data);
     const hcm = page.items.find((w) => w.prefix === "HCM");
     expect(hcm).toMatchObject({ mapWidth: 60, mapHeight: 40, status: "ACTIVE" });
@@ -81,7 +81,19 @@ describe("seed demo BE (V20260928009000 §4) — kho HCM", () => {
       "HCM-A01-2-A",
       "HCM-A01-2-B",
     ]);
-    expect(layout.areas).toHaveLength(5);
+    // Đủ các loại khu BE đang có (không còn PACKING / QUALITY_CONTROL — 06 BR-22); QCA01 là khu kiểm hàng cũ đã ngưng
+    expect(layout.areas.map((a) => [a.code, a.type, a.status])).toEqual([
+      ["RCV01", "RECEIVING", "ACTIVE"],
+      ["QC01", "QUARANTINE", "ACTIVE"],
+      ["PACK01", "DISPATCH", "ACTIVE"],
+      ["DSP01", "DISPATCH", "ACTIVE"],
+      ["OFFICE", "NON_STORAGE", "ACTIVE"],
+      ["RTV01", "QUARANTINE", "ACTIVE"],
+      ["PRD01", "PRODUCTION", "ACTIVE"],
+      ["OVF01", "OVERFLOW", "ACTIVE"],
+      ["STG01", "STAGING", "ACTIVE"],
+      ["QCA01", "QUARANTINE", "INACTIVE"],
+    ]);
     // BR-11: khu NON_STORAGE không có mã vị trí, không có `usable`
     const office = layout.areas.find((a) => a.type === "NON_STORAGE");
     expect(office?.locationCode).toBeUndefined();

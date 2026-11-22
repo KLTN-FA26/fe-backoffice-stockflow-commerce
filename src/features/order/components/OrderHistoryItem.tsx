@@ -10,7 +10,7 @@ import {
 import { formatDateTime } from "@/lib/format/date";
 import { StatusDot } from "@/components/shared/StatusDot";
 
-import { formatHistoryReason } from "../history-reason";
+import { formatClosureNote, formatHistoryReason } from "../history-reason";
 import {
   formatCancellationReason,
   formatRemainderClosedStatusReason,
@@ -48,7 +48,7 @@ function EntryNote({ entry }: { entry: OrderHistoryEntry }) {
       ? formatCancellationReason(entry.reason)
       : entry.kind === "status-change"
         ? (formatRemainderClosedStatusReason(entry.reason) ?? formatHistoryReason(entry.reason))
-        : entry.reason;
+        : formatClosureNote(entry.reason);
   return (
     <p className="text-ink-secondary mt-1 text-[0.8125rem] break-words whitespace-pre-wrap">
       <span className="text-ink-tertiary">{L.noteLabel}: </span>

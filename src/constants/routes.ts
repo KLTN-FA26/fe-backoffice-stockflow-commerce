@@ -106,6 +106,17 @@ export const ADMIN_ROUTES = {
     detail: (id: string) => `${ADMIN_BASE}/receipts/${id}`,
     list: `${ADMIN_BASE}/receipts`,
   },
+  /** Cất hàng (docs 05) — danh sách nhiệm vụ theo kho / phiếu nhập và màn cất một thùng. */
+  putaway: {
+    list: `${ADMIN_BASE}/putaway`,
+    detail: (taskId: string) => `${ADMIN_BASE}/putaway/${encodeURIComponent(taskId)}`,
+    /** Chuyến cất hàng đang mở của người dùng (docs 05 §4.5) — `?warehouse=` là kho mở chuyến mới. */
+    myTrip: `${ADMIN_BASE}/putaway/trip`,
+    trip: (tripId: string) => `${ADMIN_BASE}/putaway/trips/${encodeURIComponent(tripId)}`,
+    /** Mọi nhiệm vụ của một phiếu nhập (docs 05 §4.2 "theo phiếu"). */
+    byReceipt: (receiptId: string) =>
+      `${ADMIN_BASE}/putaway?receipt=${encodeURIComponent(receiptId)}`,
+  },
   /** Từ điển thuộc tính (BE PR #113) — thay màn "Thuộc tính biến thể" dựng từ dữ liệu mẫu. */
   attributes: `${ADMIN_BASE}/attributes`,
   /** Thương hiệu & danh mục — BE `ProductTaxonomyController` (gate product-products). */
@@ -157,7 +168,7 @@ export const ADMIN_ROUTES = {
   producers: `${ADMIN_BASE}/producers`,
   /**
    * Đơn sản xuất (docs 17 §4.3, §5.3) — BE `ProductionOrderController`. Lập chỉ từ đợt giao còn thiếu (BR-05) nên
-   * `create` là trang chọn đợt, không phải form trắng.
+   * không có form trắng: `create` chỉ còn là link cũ, chuyển sang tab "Cần lập" của lịch (`productionScheduleDrawUp`).
    */
   productionOrders: {
     list: `${ADMIN_BASE}/production-orders`,
@@ -166,6 +177,8 @@ export const ADMIN_ROUTES = {
   },
   /** Lịch sản xuất & đợt giao còn thiếu (docs 17 §4.12) — BE `ProductionScheduleController`. */
   productionSchedule: `${ADMIN_BASE}/production-schedule`,
+  /** Tab "Cần lập Đơn sản xuất" của lịch — nơi duy nhất bắt đầu lập (docs 17 §4.3 bước 6). `tab` = `useScheduleTab`. */
+  productionScheduleDrawUp: `${ADMIN_BASE}/production-schedule?tab=batches`,
   /** Danh mục loại xe (container, xe tải, bán tải) — BE `VehicleTypeController`, PR #153. */
   vehicleTypes: `${ADMIN_BASE}/vehicle-types`,
   /** Kế hoạch xếp xe (SCRUM-287 PR F4): danh sách, lập mới, chi tiết — BE `LoadPlanController`, PR #161. */

@@ -93,6 +93,64 @@ chữ đậm `--dot-info`, nền `--dot-info` ~10% để người dùng thấy n
 - **Sort chỉ gắn vào label/sort button**, không gắn lên cả `<TableHead>` — nếu không,
   filter popover và checkbox sẽ trigger sort ngoài ý muốn.
 
+### 4.1 Lọc trên header cột — component & quy tắc
+
+Mẫu: `features/production-order/components/schedule/` (Lịch sản xuất — mọi bộ lọc nằm trên header,
+toolbar chỉ còn search chính). **Không tự viết popover lọc** — dùng `components/shared/ColumnHeaderFilter.tsx`,
+gắn vào cột bằng `withHeaderFilters(columns, { [COLUMN_KEY]: <…/> })` (hoặc `ColumnDef.headerFilter`):
+
+| Loại lọc                          | Component                                   | Ví dụ                                                         |
+| --------------------------------- | ------------------------------------------- | ------------------------------------------------------------- |
+| Chữ (mã, số đơn, tên)             | `ColumnFilterButton` — ô input, gõ là lọc   | Mã Đơn sản xuất, Đơn bán                                      |
+| Chọn MỘT id (BE nhận một giá trị) | `HeaderOptionFilter` — ô gõ tìm + danh sách | Đơn vị sản xuất, Kho                                          |
+| Nội dung khác                     | `HeaderFilterPopover` + control bên trong   | Khoảng ngày (2 `DatePicker`), checkbox "Chỉ dòng có cảnh báo" |
+
+- **State trên URL (nuqs)** như mọi filter — kể cả lọc chữ trong cột. Gom vào một hook
+  `use<Page>Filters` trả `params` (gửi BE), `hasFilters`, `reset`.
+- **BE có tham số** → đưa vào `params` của query. **BE không có tham số tìm** → lọc phía FE trên dòng
+  đã tải, KHÔNG đưa vào `params` (gõ chữ không được gọi lại API — có test kiểm số lần gọi). Hàm lọc
+  thuần đặt ở `selectors.ts` (trim, không phân biệt hoa thường `toLocaleLowerCase("vi")`) + unit test.
+  Danh sách bị cắt (`truncated`) phải vẫn có cảnh báo — lọc FE chỉ thấy dòng đã tải.
+- `HeaderOptionFilter` chỉ hiện khi có lựa chọn (đọc được danh mục). URL đang lọc theo id mà danh mục
+  không có (thiếu quyền / đang tải) → **vẫn hiện**, thêm option mã rút gọn (`withCurrent`) — không để màn
+  bị lọc ngầm mà không chỗ bỏ.
+- **Header luôn hiện khi rỗng**: truyền EmptyState qua `<DataTable emptyState>` thay vì `return empty`,
+  nếu không lọc ra 0 dòng là mất luôn nút lọc để chỉnh lại.
+- `hasFilters` gồm **cả** lọc trong cột + search chính → đúng loại empty ("Không tìm thấy kết quả" +
+  "Bỏ bộ lọc", [api-conventions.md](api-conventions.md) §8); `reset` / "Bỏ bộ lọc" / "Đặt lại" xoá cả chúng.
+- Hai bảng trên một trang cùng chịu một bộ lọc BE (kho, khoảng ngày…) → nút lọc hiện ở cột tương ứng
+  của **cả hai** bảng, chung một state.
+- Mỗi bộ lọc đang bật có **chip** trong thanh `Cấu hình` (§3) với nút X bỏ riêng; lọc chữ trong cột gom
+  vào chip `Search trong cột` (vd `Đơn sản xuất “0002”, Đơn bán “SO-…”`). Ngày trên URL sai định dạng
+  → chip hiện nguyên chữ (`formatDate` ném lỗi với ngày không hợp lệ).
+- Nhãn, placeholder (`columnSearch(label)`) vào `constants/labels-*.ts`; key cột lấy từ `*_COLUMNS`.
+
+### 4.2 Ẩn hiện cột
+
+Mọi trang danh sách có > 5 cột dữ liệu phải có công cụ `Columns3` (`Ẩn hiện cột`) của `ListToolbar`.
+Mẫu: `schedule/useScheduleColumns.ts`, `receipt/.../ReceiptList.tsx`.
+
+- Truyền `ListToolbar` đủ bộ: `columnOptions` · `selectedColumns` · `defaultColumns` · `lockedColumns` ·
+  `visibleColumnCount` · `onToggleColumn` · `onResetColumns` · `hasColumnConfig`. Lọc `columns` theo
+  `visibleColumns` trước khi đưa vào `DataTable`.
+- **Lưu `usePageConfig`** (localStorage, key `STORAGE_KEYS.admin<Page>Config` = `stockflow:<route>:config`) —
+  sở thích cá nhân, **không** lên URL ([state-persistence.md](state-persistence.md)).
+- **Cột khoá** (`lockedColumns`): cột mã/link sang chi tiết và cột thao tác — luôn hiện, toggle bỏ qua.
+- Hàm `merge` của config: bỏ key cột lạ (cột đã gỡ), thêm lại cột khoá, rỗng → mặc định, giữ đúng
+  thứ tự cột gốc.
+- Chip `Cột hiển thị: x/y` (đếm không tính cột thao tác) có X về mặc định; `Đặt lại` reset cả cột;
+  `resetDisabled` chỉ khi **không** có filter **và** cột đang mặc định.
+- Ẩn cột đang có lọc → bộ lọc vẫn áp, vẫn còn chip để bỏ.
+
+### 4.3 Test bắt buộc khi thêm lọc cột / ẩn hiện cột
+
+- Lọc chữ trong cột thu hẹp dòng + hiện chip + **không** gọi lại API.
+- Lọc từ link (URL) không khớp → header vẫn hiện, chip X trả lại dòng.
+- `HeaderOptionFilter` chọn option → gửi đúng tham số BE.
+- Tắt một cột → `columnheader` biến mất, chip `x/y`, X trả lại; config đã lưu có key lạ → bỏ, giữ cột khoá.
+- Popover dùng `getByPlaceholderText` cho ô tìm của `HeaderOptionFilter` (cmdk ghi đè `aria-label`);
+  `afterEach` xoá `localStorage`.
+
 ## 5. Footer & pagination
 
 - Số dòng/caption đặt ở **footer**, không đặt trên table header.

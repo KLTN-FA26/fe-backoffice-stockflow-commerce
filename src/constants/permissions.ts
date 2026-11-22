@@ -55,12 +55,15 @@ export const ORDER_PERMISSIONS = {
 } as const;
 
 /**
- * Kho xuất của đơn — resource `sales-order-shipping-warehouses` (BE `ShippingWarehouseController`). FE chỉ ĐỌC kho Sale
- * đã chọn (`GET /orders/{id}/shipping-warehouse/options` → `chosenWarehouseId`) để chọn sẵn ở hộp thoại release. Seed BE
- * (PermissionMatrixTest): READ của SALES_STAFF, SALES_MANAGER, WAREHOUSE_MANAGER, PRODUCTION_COORDINATOR, SYSTEM_ADMIN.
+ * Kho xuất của đơn — resource `sales-order-shipping-warehouses` (BE `ShippingWarehouseController`, docs 17 §4.2 bước 2-3).
+ * `read` = xem kho đã chọn, tồn từng kho (`GET /orders/{id}/shipping-warehouse/options`) và tình trạng giữ hàng
+ * (`GET /orders/{id}/stock-coverage`); `update` = Sale chọn kho xuất và giữ hàng (`PUT /orders/{id}/shipping-warehouse`).
+ * Seed BE (PermissionMatrixTest): READ của SALES_STAFF, SALES_MANAGER, WAREHOUSE_MANAGER, PRODUCTION_COORDINATOR,
+ * SYSTEM_ADMIN; UPDATE chỉ SALES_STAFF + SYSTEM_ADMIN.
  */
 export const ORDER_SHIPPING_WAREHOUSE_PERMISSIONS = {
   read: "sales-order-shipping-warehouses:READ",
+  update: "sales-order-shipping-warehouses:UPDATE",
 } as const;
 
 /**
@@ -159,6 +162,28 @@ export const GOODS_RECEIPT_PERMISSIONS = {
   create: "procurement-goods-receipts:CREATE",
   update: "procurement-goods-receipts:UPDATE",
   approve: "procurement-goods-receipts:APPROVE",
+} as const;
+
+/**
+ * Nhiệm vụ cất hàng — resource `warehouse-putaway-tasks` (BE `PutawayController`, docs 05). Seed: WAREHOUSE_STAFF,
+ * WAREHOUSE_MANAGER, SYSTEM_ADMIN có cả ba. READ: danh sách + chi tiết kèm bin gợi ý; UPDATE: xác nhận cất một thùng.
+ */
+export const PUTAWAY_TASK_PERMISSIONS = {
+  viewPage: "warehouse-putaway-tasks:VIEW_PAGE",
+  read: "warehouse-putaway-tasks:READ",
+  update: "warehouse-putaway-tasks:UPDATE",
+} as const;
+
+/**
+ * Chuyến cất hàng — resource `warehouse-putaway-trips` (BE `PutawayTripController`, migration
+ * V20261124000100). WAREHOUSE_STAFF: VIEW_PAGE/READ/UPDATE; APPROVE (đóng chuyến bỏ dở của người khác, docs 05 §2)
+ * chỉ WAREHOUSE_MANAGER và SYSTEM_ADMIN.
+ */
+export const PUTAWAY_TRIP_PERMISSIONS = {
+  viewPage: "warehouse-putaway-trips:VIEW_PAGE",
+  read: "warehouse-putaway-trips:READ",
+  update: "warehouse-putaway-trips:UPDATE",
+  approve: "warehouse-putaway-trips:APPROVE",
 } as const;
 
 /**
@@ -492,16 +517,16 @@ export const QUOTE_PERMISSIONS = {
 
 /**
  * Đơn sản xuất — resource `production-orders` (BE `OrderResources.PRODUCTION_ORDERS`, PermissionMatrixTest; docs 17
- * §4.3, BR-23). CREATE / UPDATE: Điều phối sản xuất (lập, sửa nháp, gửi duyệt, ghi nhận nhận đơn, ngày dự kiến, bắt đầu
- * sản xuất, huỷ, đóng, gửi lại mail, vòng mẫu in). APPROVE: Sales Manager (duyệt = gửi, trả lại). READ: thêm Sale và Quản
- * lý kho (BE lọc theo kho).
+ * §4.3, BR-23). CREATE / UPDATE: Điều phối sản xuất (lập, sửa nháp, gửi cho đơn vị sản xuất, ghi nhận nhận đơn, ngày dự
+ * kiến, bắt đầu sản xuất, huỷ, đóng, gửi lại mail, vòng mẫu in). READ: Sales Manager, Sale, Quản lý kho (BE lọc theo kho).
+ * Chốt lại 2026-11-20 (BE V20261213000200): bỏ bước duyệt — `production-orders:APPROVE` đã xoá; Sales Manager chỉ xem và
+ * được báo khi một đơn được gửi (`production-order-sends:READ`, chỉ là đối tượng nhận thông báo, FE không gate theo nó).
  */
 export const PRODUCTION_ORDER_PERMISSIONS = {
   viewPage: "production-orders:VIEW_PAGE",
   read: "production-orders:READ",
   create: "production-orders:CREATE",
   update: "production-orders:UPDATE",
-  approve: "production-orders:APPROVE",
 } as const;
 
 /**
@@ -522,8 +547,9 @@ export const PRODUCTION_SCHEDULE_PERMISSIONS = {
 } as const;
 
 /**
- * Cờ trễ trên trang đơn — resource `delay-alerts` (docs 17 §4.12 bước 49): Sale, Sales Manager, Quản lý kho. Điều phối
- * sản xuất không có — họ xem cờ trên lịch sản xuất.
+ * Cờ trễ trên trang đơn — resource `delay-alerts` (docs 17 §4.12 bước 49): Sale, Sales Manager, Quản lý kho và (BE
+ * V20261209000400) Điều phối sản xuất. BE tự bỏ `DELIVERY_LATE` khỏi danh sách với ai thiếu `delivery-delay-alerts:READ`
+ * (Điều phối sản xuất — BR-30), nên FE không lọc lại.
  */
 export const DELAY_ALERT_PERMISSIONS = {
   read: "delay-alerts:READ",
