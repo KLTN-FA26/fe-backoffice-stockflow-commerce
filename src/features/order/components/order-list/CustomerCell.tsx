@@ -42,7 +42,8 @@ export function CustomerCell({
           variant="ghost"
           size="icon-xs"
           className="text-ink-tertiary hover:text-ink-primary"
-          aria-label={`Lọc đơn của khách ${customerName || customerCode || ""}`.trim()}
+          // Không tên / mã: "khách này" — không đọc UUID cho trình đọc màn hình (BO-UX-6)
+          aria-label={`Lọc đơn của khách ${customerName || customerCode || "này"}`}
           onClick={(event) => {
             event.stopPropagation();
             onFilter(customerId);

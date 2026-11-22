@@ -59,6 +59,8 @@ describe("sidebar group 'Thanh toán'", () => {
   it("lists installments, receipts, refunds and e-invoices for the accountant (docs 15, 21)", () => {
     expect(visibleFor("USER-ACC-01")?.items.map((item) => item.href)).toEqual([
       PAYMENT_ROUTES.installments.list,
+      // BO-UX-37: công nợ theo khách, cùng quyền xem đợt
+      PAYMENT_ROUTES.receivables,
       PAYMENT_ROUTES.receipts.list,
       PAYMENT_ROUTES.refunds.list,
       EINVOICE_ROUTES.list,
@@ -71,6 +73,7 @@ describe("sidebar group 'Thanh toán'", () => {
   it("shows sales installments and refunds only; hides the group from accounts without payment permissions", () => {
     expect(visibleFor("USER-SALE-01")?.items.map((item) => item.href)).toEqual([
       PAYMENT_ROUTES.installments.list,
+      PAYMENT_ROUTES.receivables,
       PAYMENT_ROUTES.refunds.list,
     ]);
     expect(visibleFor("USER-WH-01")).toBeUndefined();
