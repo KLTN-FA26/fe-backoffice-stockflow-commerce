@@ -166,6 +166,23 @@ describe("MyTripPage (docs 05 §4.5)", () => {
   });
 });
 
+describe("bản đồ lộ trình trang ghép vào (docs 05 §4.5 bước 14)", () => {
+  const routeMap = (t: PutawayTrip) => <p>{`MAP ${t.warehouseId} ${t.stops.length}`}</p>;
+
+  it("IN_PROGRESS → bản đồ nằm trong mục Lộ trình, nhận đúng chuyến", async () => {
+    setup("WAREHOUSE_STAFF", GOING);
+    renderScreen(<MyTripPage routeMap={routeMap} />, "WAREHOUSE_STAFF");
+    expect(await screen.findByText("MAP wh-1 1")).toBeVisible();
+  });
+
+  it("LOADING (chưa gán bin, chưa có lộ trình) → không có bản đồ", async () => {
+    setup("WAREHOUSE_STAFF", trip({ cartons: [tripCarton()] }));
+    renderScreen(<MyTripPage routeMap={routeMap} />, "WAREHOUSE_STAFF");
+    expect(await screen.findByText("LPN-1")).toBeVisible();
+    expect(screen.queryByText(/^MAP /)).not.toBeInTheDocument();
+  });
+});
+
 describe("TripPage — chuyến theo id", () => {
   it("quản lý kho xem chuyến người khác → chỉ có Đóng chuyến hộ", async () => {
     setup("WAREHOUSE_MANAGER", { ...GOING, operatorId: "someone" });

@@ -39,3 +39,45 @@ export function stopsWithCartons(trip: Pick<PutawayTrip, "stops" | "cartons">): 
       }),
     }));
 }
+
+/** Điểm dừng đã cất hết thùng · điểm nên tới tiếp · điểm còn lại. */
+export type TripRouteStopState = "done" | "next" | "todo";
+
+export interface TripRoutePath {
+  start: { locationCode: string | null; x: number; y: number } | null;
+  stops: {
+    sequence: number;
+    locationCode: string;
+    x: number;
+    y: number;
+    state: TripRouteStopState;
+  }[];
+}
+
+const hasPoint = <T extends { x?: number | null; y?: number | null }>(
+  point: T,
+): point is T & { x: number; y: number } => point.x != null && point.y != null;
+
+/**
+ * Đường nối các điểm dừng trên Kho Map 2D (docs 05 §4.5 bước 14): tâm khu nguồn → điểm dừng theo `sequence`, toạ độ
+ * điểm đứng do BE tính. Điểm không có toạ độ bị bỏ khỏi đường (danh sách vẫn hiện), số thứ tự giữ nguyên để khớp danh
+ * sách. `next` = điểm đầu tiên còn thùng trên xe — chỉ gợi ý, không bắt buộc đi đúng thứ tự (BR-17).
+ */
+export function tripRoutePath(
+  trip: Pick<PutawayTrip, "stops" | "cartons" | "startLocationCode" | "startX" | "startY">,
+): TripRoutePath {
+  const stops = stopsWithCartons(trip);
+  const done = (stop: StopWithCartons) => stop.cartons.every((c) => c.status !== I.ON_CART);
+  const next = stops.find((stop) => !done(stop));
+  const start = { locationCode: trip.startLocationCode ?? null, x: trip.startX, y: trip.startY };
+  return {
+    start: hasPoint(start) ? start : null,
+    stops: stops.filter(hasPoint).map((stop) => ({
+      sequence: stop.sequence,
+      locationCode: stop.locationCode,
+      x: stop.x,
+      y: stop.y,
+      state: stop === next ? "next" : done(stop) ? "done" : "todo",
+    })),
+  };
+}

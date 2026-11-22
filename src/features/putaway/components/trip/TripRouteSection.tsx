@@ -9,6 +9,7 @@ import { DetailSection } from "@/components/shared/DetailSection";
 import { StatusDot } from "@/components/shared/StatusDot";
 import { Button } from "@/components/ui/button";
 
+import type { ReactNode } from "react";
 import type { PutawayTrip } from "@/features/putaway/types";
 
 const L = PUTAWAY_TRIP_LABELS.route;
@@ -17,14 +18,17 @@ const MONO = "font-[family-name:var(--font-mono)] tabular-nums";
 
 /**
  * Lộ trình của chuyến đang đi (docs 05 §4.5 bước 14): điểm dừng theo thứ tự, mỗi điểm là một bin kèm thùng cần đặt.
- * Thứ tự chỉ để tham khảo (BR-17). `onReassign` vắng = chỉ xem. Đường đi trên bản đồ 2D chưa vẽ ở màn này.
+ * Thứ tự chỉ để tham khảo (BR-17). `onReassign` vắng = chỉ xem. `map`: đường nối điểm dừng trên Kho Map 2D — trang
+ * ghép từ feature bản đồ kho (feature này không import feature khác).
  */
 export function TripRouteSection({
   trip,
   onReassign,
   pendingLpn,
+  map,
 }: {
   trip: PutawayTrip;
+  map?: ReactNode;
   onReassign?: (lpn: string) => void;
   pendingLpn?: string | null;
 }) {
@@ -42,6 +46,7 @@ export function TripRouteSection({
   ];
   return (
     <DetailSection title={L.title} icon={MapPinned}>
+      {map && <div className="mb-4">{map}</div>}
       <p className="text-ink-tertiary mb-3 text-xs">{L.note}</p>
       <ol className="border-border-default divide-y divide-(--table-line) rounded-(--section-radius) border">
         {groups.map((stop) => (

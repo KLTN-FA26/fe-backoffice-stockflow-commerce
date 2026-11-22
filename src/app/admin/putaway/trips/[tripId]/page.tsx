@@ -1,4 +1,4 @@
-import { TripPage } from "@/features/putaway";
+import { TripRoutePage } from "../../_components/TripRoutePages";
 
 export default async function PutawayTripByIdRoute({
   params,
@@ -6,5 +6,5 @@ export default async function PutawayTripByIdRoute({
   params: Promise<{ tripId: string }>;
 }) {
   const { tripId } = await params;
-  return <TripPage tripId={decodeURIComponent(tripId)} />;
+  return <TripRoutePage tripId={decodeURIComponent(tripId)} />;
 }

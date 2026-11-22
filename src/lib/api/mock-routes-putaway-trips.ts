@@ -19,6 +19,7 @@ import {
   findTrip,
   isOpen,
   openTripOf,
+  pointOf,
   saveTrip,
   startTrip,
   toTripResponse,
@@ -240,11 +241,13 @@ function registerRun(): void {
     const stop = trip.stops.find((s) => s.locationCode === item.assignedLocationCode);
     if (stop) stop.lpns.push(item.lpn);
     else if (item.assignedLocationCode) {
+      // Điểm đứng của bin mới để đường lộ trình trên Kho Map không đứt (docs 05 §4.5 bước 14)
+      const point = pointOf(item.assignedLocationCode);
       trip.stops.push({
         sequence: trip.stops.length + 1,
         locationCode: item.assignedLocationCode,
-        x: null,
-        y: null,
+        x: point?.x ?? null,
+        y: point?.y ?? null,
         lpns: [item.lpn],
       });
     }

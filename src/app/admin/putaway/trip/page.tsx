@@ -1,13 +1,13 @@
 import { Suspense } from "react";
 
-import { MyTripPage } from "@/features/putaway";
-
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
+
+import { MyTripRoutePage } from "../_components/TripRoutePages";
 
 export default function PutawayTripRoute() {
   return (
     <Suspense fallback={<PageSkeleton variant="detail" />}>
-      <MyTripPage />
+      <MyTripRoutePage />
     </Suspense>
   );
 }

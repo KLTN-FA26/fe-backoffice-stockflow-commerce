@@ -206,6 +206,20 @@ export const WAREHOUSE_MAP_UI_LABELS = {
     canvasLabel: (name: string) => `Bản đồ 2D kho ${name}`,
     inactiveWarehouse: "Kho đang ngưng — mọi vị trí đọc là Inactive (BR-16).",
   },
+  /** Lộ trình chuyến cất trên mặt bằng 2D (docs 05 §4.5 bước 14). */
+  route: {
+    label: "Lộ trình trên bản đồ kho",
+    start: (code: string | null) => (code ? `Xuất phát — ${code}` : "Xuất phát"),
+    stop: (sequence: number, code: string, state: "done" | "next" | "todo") =>
+      `Điểm ${sequence} — ${code}${state === "done" ? " — đã cất xong" : state === "next" ? " — nên tới tiếp" : ""}`,
+    legendStart: "Xuất phát",
+    legendNext: "Nên tới tiếp",
+    legendDone: "Đã cất xong",
+    // docs 05 §4.5 ⚠️ C46: khoảng cách trên mặt bằng, không tránh kệ / tường
+    note: "Đường thẳng nối các điểm đứng, không tránh kệ / tường — đi theo lối thực tế.",
+    noRead: "Cần quyền xem bản đồ kho (warehouse-locations:READ) để thấy lộ trình trên bản đồ.",
+    loadFailed: "Không tải được bản đồ kho — xem lộ trình theo danh sách điểm dừng.",
+  },
   panel: {
     title: "Chi tiết",
     shelf: "Kệ",

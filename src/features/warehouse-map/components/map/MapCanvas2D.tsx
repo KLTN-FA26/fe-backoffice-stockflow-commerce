@@ -15,6 +15,7 @@ import { AreaShape, BoundaryLine } from "./AreaShapes";
 import { MapFloor } from "./MapFloor";
 import { ShelfShape } from "./ShelfShape";
 
+import type { ReactNode } from "react";
 import type { WarehouseLayout } from "@/features/warehouse-map/types";
 import type { MapControlsProps } from "../shared/MapControls";
 
@@ -32,12 +33,15 @@ export function MapCanvas2D({
   selectedId,
   onSelect,
   controls,
+  overlay,
 }: {
   layout: WarehouseLayout;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   /** Toàn màn hình + chú giải của thanh điều khiển nổi; zoom do bản đồ 2D tự giữ. */
   controls: Omit<MapControlsProps, "zoom">;
+  /** Lớp vẽ thêm trên cùng, cùng hệ toạ độ mét (vd lộ trình chuyến cất — docs 05 §4.5). */
+  overlay?: ReactNode;
 }) {
   const { mapWidth: width, mapHeight: height, name } = layout.warehouse;
   const colors = zoneColors(layout);
@@ -103,6 +107,7 @@ export function MapCanvas2D({
             {layout.boundaries.map((boundary) => (
               <BoundaryLine key={boundary.id} boundary={boundary} />
             ))}
+            {overlay}
           </svg>
         </div>
       </div>
