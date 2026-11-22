@@ -77,7 +77,7 @@ function OrderInstallmentsContent({ orderId }: { orderId: string }) {
             {O.summary} —{" "}
             <Link
               href={ADMIN_ROUTES.orders.detail(order.orderId)}
-              className="text-accent hover:underline"
+              className="text-accent-text hover:underline"
             >
               {order.orderNumber}
             </Link>{" "}

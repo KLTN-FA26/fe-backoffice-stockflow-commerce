@@ -39,7 +39,7 @@ export function TaskInfo({
             actor.can(ORDER_PERMISSIONS.viewPage) ? (
               <Link
                 href={ADMIN_ROUTES.orders.detail(task.orderId)}
-                className="text-accent hover:underline"
+                className="text-accent-text hover:underline"
                 title={task.orderId}
               >
                 {orderText}

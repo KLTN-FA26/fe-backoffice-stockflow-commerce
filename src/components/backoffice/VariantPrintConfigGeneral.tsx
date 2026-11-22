@@ -37,7 +37,7 @@ export function VariantPrintConfigGeneral({
         {`${TEXT.product}: `}
         <Link
           href={ADMIN_ROUTES.products.detail(product.productId)}
-          className="text-accent focus-visible:ring-ring rounded-sm underline-offset-2 hover:underline focus-visible:ring-2 focus-visible:outline-none"
+          className="text-accent-text focus-visible:ring-ring rounded-sm underline-offset-2 hover:underline focus-visible:ring-2 focus-visible:outline-none"
         >
           {product.name}
         </Link>

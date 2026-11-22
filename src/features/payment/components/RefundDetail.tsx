@@ -73,7 +73,7 @@ function RefundDetailContent({ orderId }: { orderId: string }) {
             {L.summary} —{" "}
             <Link
               href={ADMIN_ROUTES.orders.detail(refund.orderId)}
-              className="text-accent hover:underline"
+              className="text-accent-text hover:underline"
             >
               {refund.orderNumber}
             </Link>

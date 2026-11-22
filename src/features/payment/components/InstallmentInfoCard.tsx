@@ -45,7 +45,7 @@ export function InstallmentInfoCard({ installment: i }: { installment: Installme
         <InfoRow label={C.deliveryBatch}>
           {deliveryBatchLabel(i)}
           {blocksHandover(i) && (
-            <span className="text-warning ml-2 text-xs">
+            <span className="text-warning-ink ml-2 text-xs">
               {PAYMENT_LABELS.installments.handoverBlocked}
             </span>
           )}
@@ -78,13 +78,13 @@ export function InstallmentInfoCard({ installment: i }: { installment: Installme
       <div className="flex flex-wrap gap-4 text-[0.8125rem]">
         <Link
           href={PAYMENT_ROUTES.installments.ofOrder(i.orderId)}
-          className="text-accent hover:underline"
+          className="text-accent-text hover:underline"
         >
           {L.viewOrder}
         </Link>
         <Link
           href={PAYMENT_ROUTES.installments.byCustomer(i.customerId)}
-          className="text-accent hover:underline"
+          className="text-accent-text hover:underline"
         >
           {L.viewCustomer}
         </Link>

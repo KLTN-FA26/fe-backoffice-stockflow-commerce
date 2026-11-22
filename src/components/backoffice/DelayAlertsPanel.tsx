@@ -38,7 +38,7 @@ function Subject({ alert }: { alert: DelayAlert }) {
     return (
       <Link
         href={ADMIN_ROUTES.productionOrders.detail(alert.productionOrderId)}
-        className="text-accent font-[family-name:var(--font-mono)] hover:underline"
+        className="text-accent-text font-[family-name:var(--font-mono)] hover:underline"
       >
         {L.productionOrder(alert.productionOrderCode)}
       </Link>

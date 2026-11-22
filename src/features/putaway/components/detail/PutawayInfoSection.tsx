@@ -54,7 +54,7 @@ export function PutawayInfoSection({ task }: { task: PutawayTask }) {
           {fromReceipt ? (
             <Link
               href={ADMIN_ROUTES.receipts.detail(task.goodsReceiptId ?? "")}
-              className="text-accent hover:underline"
+              className="text-accent-text hover:underline"
             >
               {PUTAWAY_LABELS.source.RECEIPT}
             </Link>

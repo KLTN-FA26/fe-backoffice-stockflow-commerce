@@ -118,7 +118,7 @@ export function ReceiptFilters({
       )}
       <p className="text-ink-tertiary ml-auto text-xs">
         {L.createHint}{" "}
-        <Link href={PAYMENT_ROUTES.installments.list} className="text-accent hover:underline">
+        <Link href={PAYMENT_ROUTES.installments.list} className="text-accent-text hover:underline">
           {PAYMENT_LABELS.installments.pageTitle}
         </Link>
       </p>

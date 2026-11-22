@@ -35,7 +35,7 @@ export function MockWarehousePanel() {
         </div>
         <Link
           href="/admin/warehouse-map"
-          className="text-accent flex items-center gap-1 text-xs font-medium hover:underline"
+          className="text-accent-text flex items-center gap-1 text-xs font-medium hover:underline"
         >
           Xem chi tiết <ArrowRight className="size-3" />
         </Link>
@@ -65,8 +65,8 @@ export function MockWarehousePanel() {
                       wh.utilization > 80
                         ? "text-danger"
                         : wh.utilization > 60
-                          ? "text-warning"
-                          : "text-positive",
+                          ? "text-warning-ink"
+                          : "text-positive-ink",
                     )}
                   >
                     {wh.utilization}%
@@ -110,7 +110,7 @@ export function MockWarehousePanel() {
                   <span
                     className={cn(
                       "ml-1 font-semibold tabular-nums",
-                      wh.blocked > 0 ? "text-warning" : "text-ink-primary",
+                      wh.blocked > 0 ? "text-warning-ink" : "text-ink-primary",
                     )}
                   >
                     {wh.blocked}

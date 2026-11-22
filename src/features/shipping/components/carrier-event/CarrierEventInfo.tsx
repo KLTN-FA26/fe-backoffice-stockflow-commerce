@@ -14,7 +14,7 @@ import type { CarrierEventDetail } from "@/features/shipping/carrier-event-types
 
 const D = UI_LABELS.shipping.carrierEvents.detail;
 const E = UI_LABELS.shipping.carrierEvents;
-const LINK = "text-accent hover:underline";
+const LINK = "text-accent-text hover:underline";
 
 /** Chi tiết chỉ-đọc của một sự kiện: ai báo gì, ghép vào đâu, kết quả và nghĩa của nó, nội dung hãng gửi, người đã xử lý. */
 export function CarrierEventInfo({

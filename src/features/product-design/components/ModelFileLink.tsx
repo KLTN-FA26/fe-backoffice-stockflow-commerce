@@ -31,7 +31,7 @@ export function ModelFileLink({ config }: { config: PrintConfigDto }) {
           target="_blank"
           rel="noopener noreferrer"
           download={fileName ?? undefined}
-          className="text-accent focus-visible:ring-ring rounded-sm underline underline-offset-2 focus-visible:ring-2 focus-visible:outline-none"
+          className="text-accent-text focus-visible:ring-ring rounded-sm underline underline-offset-2 focus-visible:ring-2 focus-visible:outline-none"
         >
           {TEXT.fileLink(fileName ?? "model.glb")}
         </a>

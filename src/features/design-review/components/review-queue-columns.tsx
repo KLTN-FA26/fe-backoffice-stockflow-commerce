@@ -46,7 +46,7 @@ export function reviewQueueColumns(now: Date, onRefreshPreview: () => void): Col
       cell: (row) => (
         <Link
           href={ADMIN_ROUTES.designs.detail(row.id)}
-          className="text-accent font-medium hover:underline"
+          className="text-accent-text font-medium hover:underline"
           onClick={(event) => event.stopPropagation()}
         >
           {row.name}

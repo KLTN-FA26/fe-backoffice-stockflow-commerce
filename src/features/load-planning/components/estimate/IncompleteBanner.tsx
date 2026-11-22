@@ -37,7 +37,7 @@ export function IncompleteBanner({ missing }: { missing: readonly MissingLine[] 
                 <Link
                   href={ADMIN_ROUTES.inventoryItems.detail(line.inventoryItemId)}
                   aria-label={L.linkLabel(line.sku)}
-                  className="text-accent text-xs underline-offset-2 hover:underline"
+                  className="text-accent-text text-xs underline-offset-2 hover:underline"
                 >
                   {L.linkText}
                 </Link>

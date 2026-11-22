@@ -36,7 +36,7 @@ export const COLUMNS: ColumnDef<QuoteRow>[] = [
     cell: (row) => (
       <Link
         href={ADMIN_ROUTES.quotes.detail(row.id)}
-        className={`text-accent font-medium hover:underline ${MONO}`}
+        className={`text-accent-text font-medium hover:underline ${MONO}`}
         onClick={(event) => event.stopPropagation()}
       >
         {row.quoteNumber}
@@ -92,7 +92,7 @@ export const COLUMNS: ColumnDef<QuoteRow>[] = [
       row.convertedOrderId ? (
         <Link
           href={ADMIN_ROUTES.orders.detail(row.convertedOrderId)}
-          className="text-accent hover:underline"
+          className="text-accent-text hover:underline"
           onClick={(event) => event.stopPropagation()}
         >
           Mở đơn

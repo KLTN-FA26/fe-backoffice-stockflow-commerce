@@ -84,7 +84,7 @@ export function SignedFilePreview({
         href={safe}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-accent hover:underline"
+        className="text-accent-text hover:underline"
       >
         Mở file để xem
       </a>

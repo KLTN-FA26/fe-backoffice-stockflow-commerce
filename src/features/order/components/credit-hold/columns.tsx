@@ -40,7 +40,7 @@ export function buildCreditHoldColumns(
         canOpenOrder ? (
           <Link
             href={ADMIN_ROUTES.orders.detail(row.order.orderId)}
-            className="text-accent font-[family-name:var(--font-mono)] text-[0.8125rem] font-medium hover:underline"
+            className="text-accent-text font-[family-name:var(--font-mono)] text-[0.8125rem] font-medium hover:underline"
           >
             {row.order.orderNumber}
           </Link>

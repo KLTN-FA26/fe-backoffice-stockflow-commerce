@@ -52,7 +52,7 @@ export function CustomerPicker({
           {!locked && (
             <button
               type="button"
-              className="text-accent hover:underline"
+              className="text-accent-text hover:underline"
               onClick={() => onChange("")}
             >
               Đổi khách

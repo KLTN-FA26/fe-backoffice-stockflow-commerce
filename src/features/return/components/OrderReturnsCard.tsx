@@ -83,7 +83,7 @@ export function OrderReturnsCard(props: OrderReturnsCardProps) {
           {rows.length > 0 && (
             <Link
               href={`${RETURN_ROUTES.list}?tab=all&q=${encodeURIComponent(props.orderNumber)}`}
-              className="text-accent hover:underline"
+              className="text-accent-text hover:underline"
             >
               {L.viewAll}
             </Link>
