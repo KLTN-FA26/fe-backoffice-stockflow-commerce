@@ -8,7 +8,9 @@ import { useWarehouseDirectory } from "@/lib/references/warehouse-options";
 
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 
-import { withoutWarehouseParam } from "./context";
+import { useWorkspaceWarehouse, withoutWarehouseParam } from "./context";
+
+import type { ReactNode } from "react";
 
 /**
  * Trang của route cũ (`/admin/putaway`, `/admin/picking/{id}`…) chuyển sang route trong tab theo kho (spec §5.5).
@@ -45,4 +47,25 @@ export function WorkspaceRedirect({
   }, [router, target]);
 
   return <PageSkeleton variant="list" />;
+}
+
+/**
+ * Trang chi tiết trong tab theo kho: bản ghi thuộc kho khác kho trên URL (link dán tay, sửa tay) → không hiện bản ghi
+ * dưới kho sai, chuyển sang đúng kho của bản ghi (spec 2026-11-22 §2: màn trong tab không làm việc với kho khác).
+ * Bản ghi không có kho → hiện bình thường. UI-only — Backend phải re-check (WarehouseScope).
+ */
+export function InWorkspaceWarehouse({
+  warehouseId,
+  path,
+  children,
+}: {
+  warehouseId: string | null | undefined;
+  /** Đường dẫn của chính bản ghi trong tab (`WORKSPACE_PATHS.*`). */
+  path: string;
+  children: ReactNode;
+}) {
+  const workspace = useWorkspaceWarehouse();
+  if (warehouseId && warehouseId !== workspace.id)
+    return <WorkspaceRedirect warehouseId={warehouseId} path={path} />;
+  return children;
 }

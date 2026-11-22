@@ -8,6 +8,7 @@ import {
   prefixOfLocation,
   useWorkspaceHref,
   useWorkspaceWarehouse,
+  InWorkspaceWarehouse,
   withoutWarehouseParam,
   WorkspaceRedirect,
   WorkspaceWarehouseProvider,
@@ -107,5 +108,38 @@ describe("WorkspaceRedirect — link cũ sang route trong tab", () => {
   it("không có kho nào để tra → về gốc tab", async () => {
     renderWithProviders(<WorkspaceRedirect warehouseId={null} />);
     await waitFor(() => expect(replace).toHaveBeenCalledWith("/admin/warehouse-map"));
+  });
+});
+
+describe("InWorkspaceWarehouse — bản ghi của kho khác mở trong tab (spec §2 phản mục tiêu)", () => {
+  const inTab = (warehouseId: string | null | undefined) =>
+    renderWithProviders(
+      <WorkspaceWarehouseProvider value={BD}>
+        <InWorkspaceWarehouse warehouseId={warehouseId} path="picking/t-1">
+          <p>Chi tiết task</p>
+        </InWorkspaceWarehouse>
+      </WorkspaceWarehouseProvider>,
+    );
+
+  it("cùng kho với tab → hiện chi tiết", () => {
+    const view = inTab("wh-bd");
+    expect(view.getByText("Chi tiết task")).toBeInTheDocument();
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("kho khác → không hiện chi tiết, chuyển sang đúng kho của bản ghi", async () => {
+    directory.mockReturnValue({
+      data: [{ warehouseId: "wh-hcm", code: "HCM", name: "Kho HCM", active: true }],
+      isError: false,
+    });
+    const view = inTab("wh-hcm");
+    expect(view.queryByText("Chi tiết task")).toBeNull();
+    await waitFor(() =>
+      expect(replace).toHaveBeenCalledWith("/admin/warehouse-map/HCM/picking/t-1"),
+    );
+  });
+
+  it("bản ghi không có kho → hiện chi tiết (không đủ thông tin để chuyển)", () => {
+    expect(inTab(null).getByText("Chi tiết task")).toBeInTheDocument();
   });
 });

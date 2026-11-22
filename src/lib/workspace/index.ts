@@ -6,4 +6,4 @@ export {
   WorkspaceWarehouseProvider,
 } from "./context";
 export type { WorkspaceWarehouse } from "./context";
-export { WorkspaceRedirect } from "./redirect";
+export { InWorkspaceWarehouse, WorkspaceRedirect } from "./redirect";
