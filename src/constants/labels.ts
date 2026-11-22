@@ -48,6 +48,11 @@ export const UI_LABELS = {
     today: "Hôm nay",
     clear: "Xoá ngày",
   },
+  // Ô nhập tiền dùng chung (components/shared/MoneyInput)
+  moneyInput: {
+    /** Dán "1,500,000.50" / "1.500.000,50": phần lẻ khác 0 bị từ chối, không bị đọc thành 150.000.050. */
+    fractionRefused: "Số tiền VND không có phần lẻ",
+  },
   // Ô chọn dạng cây dùng chung (components/shared/TreeSelect)
   treeSelect: {
     expand: (label: string) => `Mở ${label}`,
