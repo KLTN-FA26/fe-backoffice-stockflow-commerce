@@ -1,5 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
+import { QUERY_TIMES } from "@/lib/api/query-client";
+
 import { getDesignFonts, getModelFileLink, getPrintConfig } from "./api";
 
 import type { PrintConfigDto } from "./types";
@@ -65,6 +67,7 @@ export function useDesignFonts() {
   return useQuery({
     queryKey: designFontKeys.list(),
     queryFn: ({ signal }) => getDesignFonts(signal),
-    staleTime: 5 * 60_000,
+    // BE `PrintFont`: changes only with a release — master data.
+    ...QUERY_TIMES.master,
   });
 }

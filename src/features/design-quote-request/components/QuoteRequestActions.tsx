@@ -20,6 +20,8 @@ export interface CloseRequestMutation {
   mutate: (id: string, options?: { onSuccess?: () => void }) => void;
   isPending: boolean;
   isError: boolean;
+  /** The request id of the last call: one hook serves every row, so a row reads only its own state. */
+  variables?: string;
   reset: () => void;
 }
 
@@ -38,6 +40,8 @@ export function QuoteRequestActions({
   const openChat = useOpenChat(navigate);
   const startQuote = useStartQuote(navigate);
   const actions = quoteRequestActions(row, can);
+  // One close hook for the whole list: only this row's close locks this row.
+  const closingThis = close.isPending && close.variables === row.id;
 
   const run = (id: string) => {
     if (id === "open-chat") openChat.mutate(row);
@@ -60,7 +64,8 @@ export function QuoteRequestActions({
             disabled={
               !action.enabled ||
               (action.id === "open-chat" && openChat.isPending) ||
-              (action.id === "create-quote" && startQuote.isPending)
+              (action.id === "create-quote" && startQuote.isPending) ||
+              (action.id === "close" && closingThis)
             }
             onClick={() => run(action.id)}
           >
@@ -83,8 +88,12 @@ export function QuoteRequestActions({
         confirmLabel={COPY.close}
         variant="default"
         closeOnConfirm={false}
-        loading={close.isPending}
-        error={close.isError ? "Không đóng được yêu cầu. Thử lại." : undefined}
+        loading={closingThis}
+        error={
+          close.isError && close.variables === row.id
+            ? "Không đóng được yêu cầu. Thử lại."
+            : undefined
+        }
         onConfirm={() => close.mutate(row.id, { onSuccess: () => setConfirming(false) })}
       />
     </div>

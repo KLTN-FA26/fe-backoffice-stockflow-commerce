@@ -90,6 +90,33 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
     expect(screen.getByText("50")).toBeInTheDocument();
   });
 
+  it("Đóng một dòng chỉ khoá dòng đó, các dòng khác vẫn đóng được", async () => {
+    const OTHER_ID = "0r000000-0000-7000-8000-000000000077";
+    mockApi("SALES_STAFF", {
+      get: {
+        "/design-quote-requests": () =>
+          bePage([request(), request({ id: OTHER_ID, designName: "Ly giấy" })]),
+      },
+      post: { [closureUrl]: () => new Promise(() => undefined) },
+    });
+    renderScreen(<DesignQuoteRequestList />, "SALES_STAFF");
+    const user = userEvent.setup();
+    const rowOf = (name: string) => {
+      const row = screen.getByText(name).closest("tr");
+      if (!row) throw new Error(`no row for ${name}`);
+      return within(row);
+    };
+    await screen.findByText("Ly giấy");
+    await user.click(rowOf("Túi giấy kraft").getByRole("button", { name: "Đóng" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Đóng" }));
+    // The open dialog hides the table from the accessibility tree (modal): look through it.
+    const closeOf = (name: string) =>
+      rowOf(name).getByRole("button", { name: "Đóng", hidden: true });
+    await waitFor(() => expect(closeOf("Túi giấy kraft")).toBeDisabled());
+    expect(closeOf("Ly giấy")).toBeEnabled();
+  });
+
   it("Đóng gọi POST …/closure rồi tải lại; nút ẩn khi CLOSED", async () => {
     vi.spyOn(toast, "success").mockImplementation(() => undefined);
     let rows = [request()];
@@ -123,7 +150,7 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
     expect(ids({ status: "CLOSED" }, all)).not.toContain("create-quote");
   });
 
-  it("Lập báo giá tắt khi PENDING_REVIEW với câu 'Chờ duyệt thiết kế'", async () => {
+  it("Lập báo giá tắt khi PENDING_REVIEW với câu 'Lập được sau khi duyệt' (không lặp nhãn trạng thái)", async () => {
     mockApi("SALES_STAFF", {
       get: {
         "/design-quote-requests": () =>
@@ -136,7 +163,9 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
       request({ designStatus: "PENDING_REVIEW" }) as never,
       () => true,
     );
-    expect(hints.find((action) => action.id === "create-quote")?.hint).toBe("Chờ duyệt thiết kế");
+    expect(hints.find((action) => action.id === "create-quote")?.hint).toBe(
+      "Lập được sau khi duyệt",
+    );
   });
 
   it("Lập báo giá tắt khi thiết kế đơn lẻ đã duyệt mà chưa có SKU riêng", async () => {

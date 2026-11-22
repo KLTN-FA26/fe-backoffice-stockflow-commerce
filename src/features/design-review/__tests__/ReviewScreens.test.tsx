@@ -141,6 +141,32 @@ describe("Màn quyết định", () => {
     expect(detailGets(api)).toBe(1);
   });
 
+  it("duyệt kèm ghi chú: gửi ghi chú đã bỏ khoảng trắng; đóng hộp rồi mở lại thì ô ghi chú trống", async () => {
+    const api = openDetail("PRODUCTION_COORDINATOR", {
+      [reviewUrl]: () => ({ ...PENDING_DESIGN, status: "APPROVED", version: 8 }),
+    });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Duyệt" }));
+    let dialog = await screen.findByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Ghi chú (tuỳ chọn)"), "Đã kiểm màu");
+    await user.click(within(dialog).getByRole("button", { name: "Quay lại" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
+    await user.click(screen.getByRole("button", { name: "Duyệt" }));
+    dialog = await screen.findByRole("dialog");
+    const notes = within(dialog).getByLabelText("Ghi chú (tuỳ chọn)");
+    expect(notes).toHaveValue("");
+    await user.type(notes, "  In đúng màu  ");
+    await user.click(within(dialog).getByRole("button", { name: "Duyệt" }));
+    await waitFor(() =>
+      expect(api.post).toHaveBeenCalledWith(reviewUrl, {
+        version: 7,
+        approved: true,
+        notes: "In đúng màu",
+      }),
+    );
+  });
+
   it("đến từ vòng duyệt (?round=) → về vòng duyệt sau khi trả lại", async () => {
     vi.spyOn(toast, "success").mockImplementation(() => undefined);
     const api = openDetail(

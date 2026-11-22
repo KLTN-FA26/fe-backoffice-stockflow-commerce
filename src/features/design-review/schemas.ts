@@ -128,6 +128,9 @@ export const designDecisionInputSchema = z.discriminatedUnion("approved", [
   }),
 ]);
 
+/** Form "Duyệt" (react-hook-form): ghi chú tuỳ chọn. */
+export const designApproveInputSchema = designDecisionInputSchema.options[0];
+
 /** Form "Trả lại" (react-hook-form). */
 export const designReturnInputSchema = designDecisionInputSchema.options[1];
 

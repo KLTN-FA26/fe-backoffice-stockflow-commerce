@@ -68,7 +68,7 @@ describe("changesPrintVersion", () => {
     expect(changesPrintVersion(stored(), change(unchanged()), false)).toBe(true);
   });
 
-  it("is false when the same fonts or formats come in another order", () => {
+  it("is true when the same fonts or formats come in another order (BE PrintFacts: List.equals)", () => {
     const base = stored({
       allowedFontCodes: ["lobster", "oswald"],
       allowedFileFormats: ["image/png", "image/jpeg"],
@@ -78,7 +78,15 @@ describe("changesPrintVersion", () => {
       allowedFontCodes: ["oswald", "lobster"],
       allowedFileFormats: ["image/jpeg", "image/png"],
     };
-    expect(changesPrintVersion(base, body, false)).toBe(false);
+    expect(changesPrintVersion(base, body, false)).toBe(true);
+    expect(
+      changesPrintVersion(
+        base,
+        { ...unchanged(base), allowedFontCodes: ["oswald", "lobster"] },
+        false,
+      ),
+    ).toBe(true);
+    expect(changesPrintVersion(base, unchanged(base), false)).toBe(false);
   });
 
   it("is true when a new model file is sent, whatever else", () => {

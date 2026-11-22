@@ -171,9 +171,10 @@ export const DESIGN_QUOTE_REQUEST_LABELS = {
   closeDescription:
     "Đóng yêu cầu này khi đã báo giá hoặc đã thống nhất với khách ngoài chat. Khách sẽ phải gửi yêu cầu mới cho lần sau.",
   closed: "Đã đóng yêu cầu báo giá",
-  blockedPending: "Chờ duyệt thiết kế",
-  blockedDraft: "Khách đang sửa thiết kế",
-  blockedArchived: "Thiết kế đã bị xoá",
+  // Why "Lập báo giá" is off, without repeating the design status shown beside it.
+  blockedPending: "Lập được sau khi duyệt",
+  blockedDraft: "Đợi khách gửi lại",
+  blockedArchived: "Thiết kế đã xoá — chỉ còn Đóng",
   blockedNoSku: "Thiết kế chưa có SKU riêng",
   blockedEmpty: "Dự án chưa có thiết kế",
 } as const;

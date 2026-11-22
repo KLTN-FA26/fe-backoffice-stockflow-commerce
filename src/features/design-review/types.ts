@@ -2,6 +2,7 @@ import type { z } from "zod";
 
 import type {
   artifactLinkSchema,
+  designApproveInputSchema,
   designArtifactDtoSchema,
   designDecisionDtoSchema,
   designDecisionInputSchema,
@@ -21,6 +22,8 @@ export type ArtifactLink = z.infer<typeof artifactLinkSchema>;
 export type DesignQuoteRequest = z.infer<typeof designQuoteRequestDtoSchema>;
 export type DesignDecisionInput = z.input<typeof designDecisionInputSchema>;
 export type DesignDecisionOutput = z.output<typeof designDecisionInputSchema>;
+export type DesignApproveFormValues = z.input<typeof designApproveInputSchema>;
+export type DesignApproveFormOutput = z.output<typeof designApproveInputSchema>;
 export type DesignReturnFormValues = z.input<typeof designReturnInputSchema>;
 export type DesignReturnFormOutput = z.output<typeof designReturnInputSchema>;
 export type ReviewRound = z.infer<typeof reviewRoundDtoSchema>;

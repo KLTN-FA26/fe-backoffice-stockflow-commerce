@@ -6,6 +6,10 @@
  * What belongs to it: the model and the print areas (position, size, safe margin, bleed, shape, mesh part), the minimum
  * dpi, colour mode, file formats, maximum file size, maximum colours, the allowed fonts, and the 3D model file with its
  * area ↔ mesh table. What does not: the configuration's name and the print areas' names.
+ *
+ * Lists compare in order, as the BE's `PrintFacts` record does (`List.equals`): the same formats, fonts, areas or mesh
+ * rows in another order are a change there, so they are one here (the pickers keep the canonical order, so an untouched
+ * list never warns).
  */
 import type { PrintConfigBody, PrintConfigDto } from "./types";
 
@@ -27,17 +31,12 @@ function sameJson(a: unknown, b: unknown): boolean {
   return [...keys].every((key) => sameJson(left[key], right[key]));
 }
 
-const sameSet = (a: readonly string[], b: readonly string[]) =>
-  a.length === b.length && a.every((item) => b.includes(item));
+const sameList = (a: readonly string[], b: readonly string[]) =>
+  a.length === b.length && a.every((item, i) => item === b[i]);
 
-/** A list of fonts or formats is a set; `null` (every font) differs from any list. */
-const sameOptionalSet = (a: readonly string[] | null, b: readonly string[] | null) =>
-  a === null || b === null ? a === b : sameSet(a, b);
-
-const byCode = <T extends { code?: string; printAreaCode?: string }>(rows: readonly T[]) =>
-  [...rows].sort((x, y) =>
-    (x.code ?? x.printAreaCode ?? "").localeCompare(y.code ?? y.printAreaCode ?? ""),
-  );
+/** `null` (every font) differs from any list. */
+const sameOptionalList = (a: readonly string[] | null, b: readonly string[] | null) =>
+  a === null || b === null ? a === b : sameList(a, b);
 
 /**
  * `true` when saving `values` over `stored` changes a print-version field. `newFile`: a `.glb` is sent with the save
@@ -54,15 +53,15 @@ export function changesPrintVersion(
     stored.colorMode !== values.colorMode ||
     stored.maxFileSizeMb !== values.maxFileSizeMb ||
     stored.maxColors !== values.maxColors ||
-    !sameSet(stored.allowedFileFormats, values.allowedFileFormats) ||
-    !sameOptionalSet(stored.allowedFontCodes, values.allowedFontCodes)
+    !sameList(stored.allowedFileFormats, values.allowedFileFormats) ||
+    !sameOptionalList(stored.allowedFontCodes, values.allowedFontCodes)
   ) {
     return true;
   }
   if (!sameJson(stored.model, values.model)) return true;
   // Print areas: the codes and the margins the form sends (position, size and shape follow from the model and margins).
-  const areas = byCode(stored.printAreas);
-  const sent = byCode(values.printAreas);
+  const areas = stored.printAreas;
+  const sent = values.printAreas;
   if (
     areas.length !== sent.length ||
     areas.some(
@@ -74,5 +73,5 @@ export function changesPrintVersion(
   ) {
     return true;
   }
-  return !sameJson(byCode(stored.model3d.surfaces), byCode(values.surfaces));
+  return !sameJson(stored.model3d.surfaces, values.surfaces);
 }
