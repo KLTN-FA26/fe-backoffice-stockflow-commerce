@@ -1,8 +1,16 @@
 "use client";
 
+import Link from "next/link";
 import { FilterX, Undo2 } from "lucide-react";
 
-import { PUT_BACK_ERROR_MESSAGES, PUT_BACK_LABELS, UI_LABELS } from "@/constants";
+import {
+  ADMIN_ROUTES,
+  PUT_BACK_ERROR_MESSAGES,
+  PUT_BACK_LABELS,
+  UI_LABELS,
+  WORKSPACE_PATHS,
+} from "@/constants";
+import { useWorkspaceHref } from "@/lib/workspace";
 import { isOutOfDataScope } from "@/features/fulfillment/errors";
 import { DataTable } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -36,17 +44,20 @@ export function PutBackTable({
   onPutBack: (row: PutBackRow) => void;
 }) {
   const { query } = s;
-  const clearWarehouse = (
-    <Button type="button" variant="outline" size="sm" onClick={() => s.setWarehouse(null)}>
-      {F.clearWarehouse}
-    </Button>
-  );
-  if (query.isError && s.warehouse && isOutOfDataScope(query.error)) {
+  const href = useWorkspaceHref();
+  // Kho của tab ngoài phạm vi → BE 403 — dẫn về chọn kho khác
+  if (query.isError && isOutOfDataScope(query.error)) {
     return (
       <EmptyState
         icon={<FilterX className="size-8" />}
         title={PUT_BACK_ERROR_MESSAGES.outOfScope}
-        action={clearWarehouse}
+        action={
+          <Button type="button" variant="outline" size="sm" asChild>
+            <Link href={ADMIN_ROUTES.warehouseMap.root}>
+              {UI_LABELS.warehouseMap.workspace.backToChooser}
+            </Link>
+          </Button>
+        }
       />
     );
   }
@@ -61,23 +72,8 @@ export function PutBackTable({
     );
   }
   if (query.isPending) return <PageSkeleton variant="list" />;
-  if (s.emptyState === "no-rows") {
-    return (
-      <EmptyState
-        icon={<Undo2 className="size-8" />}
-        title={P.empty}
-        description={P.emptyDescription}
-      />
-    );
-  }
   if (s.emptyState === "no-rows-in-warehouse") {
-    return (
-      <EmptyState
-        icon={<Undo2 className="size-8" />}
-        title={P.emptyInWarehouse}
-        action={clearWarehouse}
-      />
-    );
+    return <EmptyState icon={<Undo2 className="size-8" />} title={P.emptyInWarehouse} />;
   }
   if (s.emptyState === "no-match") {
     return (
@@ -98,7 +94,12 @@ export function PutBackTable({
       <RefetchBar active={query.isFetching} label={P.title} />
       <DataTable
         stickyHeader
-        columns={putBackColumns({ canAct, canOpenTask, onPutBack })}
+        columns={putBackColumns({
+          canAct,
+          canOpenTask,
+          onPutBack,
+          taskHref: (taskId) => href(WORKSPACE_PATHS.pickingTask(taskId)),
+        })}
         data={s.rows}
         rowKey={(row) => row.lineId}
         caption={`${P.title}: ${s.rows.length} dòng`}

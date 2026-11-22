@@ -71,7 +71,6 @@ import {
   CUSTOMER_PRICE_UI_LABELS,
   DELIVERY_FAILURE_LABELS,
   FULFILLMENT_CARRIER_EVENT_PERMISSIONS,
-  FULFILLMENT_PICKING_PERMISSIONS,
   GOODS_RECEIPT_PERMISSIONS,
   PUTAWAY_LABELS,
   PUTAWAY_TASK_PERMISSIONS,
@@ -88,7 +87,6 @@ import {
   PRODUCT_PERMISSIONS,
   QUOTE_PERMISSIONS,
   CHAT_PERMISSIONS,
-  PUT_BACK_LABELS,
   SHIPMENT_PERMISSIONS,
   STOCK_PACKAGE_PERMISSIONS,
   TRIAL_LABELS,
@@ -530,13 +528,7 @@ export const NAV_GROUPS: NavGroup[] = [
       },
       // Lấy hàng (docs 07) đã vào tab "Kho & bản đồ" — làm việc theo một kho (spec 2026-11-22)
       // Kiểm thùng (docs 08) cũng trong tab theo kho
-      {
-        label: PUT_BACK_LABELS.title,
-        href: ADMIN_ROUTES.putBacks.list,
-        icon: Undo2,
-        // BE `GET /fulfillment/put-backs` — fulfillment-picking:READ (resource không có VIEW_PAGE)
-        permission: FULFILLMENT_PICKING_PERMISSIONS.read,
-      },
+      // Cất lại (docs 07 §4.5) cũng trong tab theo kho
       {
         label: UI_LABELS.loadPlan.pageTitle,
         href: ADMIN_ROUTES.loadPlans.list,

@@ -1,8 +1,10 @@
-import { Lightbulb, Map as MapIcon, PackageCheck, PackageSearch } from "lucide-react";
+import { Lightbulb, Map as MapIcon, PackageCheck, PackageSearch, Undo2 } from "lucide-react";
 
 import {
   FULFILLMENT_PACKAGE_PERMISSIONS,
   FULFILLMENT_PICK_PERMISSIONS,
+  FULFILLMENT_PICKING_PERMISSIONS,
+  PUT_BACK_LABELS,
   PUTAWAY_TASK_PERMISSIONS,
   UI_LABELS,
   WAREHOUSE_LOCATION_PERMISSIONS,
@@ -44,6 +46,15 @@ export const WORKSPACE_PAGES: readonly WorkspacePage[] = [
     icon: PackageCheck,
     // BE fulfillment packages (docs 08) — trạm kiểm thùng
     permission: FULFILLMENT_PACKAGE_PERMISSIONS.viewPage,
+    assignedOnly: true,
+  },
+  {
+    path: WORKSPACE_PATHS.putBacks,
+    group: "operations",
+    label: PUT_BACK_LABELS.title,
+    icon: Undo2,
+    // BE `GET /fulfillment/put-backs` — fulfillment-picking:READ (resource không có VIEW_PAGE)
+    permission: FULFILLMENT_PICKING_PERMISSIONS.read,
     assignedOnly: true,
   },
   {
