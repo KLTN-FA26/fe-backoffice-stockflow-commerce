@@ -8,9 +8,9 @@ import { Landmark } from "lucide-react";
 
 import { PAYMENT_LIST_LABELS as LL, RECEIVABLES_LABELS as L } from "@/constants/labels-payment";
 import {
-  PAYMENT_INSTALLMENT_PERMISSIONS,
   PAYMENT_ROUTES,
   PAYMENT_STORAGE_KEYS,
+  RECEIVABLES_REPORT_PERMISSIONS,
 } from "@/constants/payment";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { usePagedList } from "@/hooks/use-paged-list";
@@ -77,6 +77,14 @@ const COLUMNS: ColumnDef<Receivable>[] = [
     cell: (row) => <Amount value={row.overdue} />,
   },
   {
+    // Đợt thu khi ký đã quá hạn: không nằm trong "Còn phải thu" / "Quá hạn" (docs 15 §4.3) nhưng kiểm tra tín dụng của
+    // hợp đồng mới tính là quá hạn — hiện riêng để khách đó không trông như sạch nợ.
+    key: "signingOverdue",
+    header: L.signingOverdue,
+    align: "right",
+    cell: (row) => <Amount value={row.signingOverdue} />,
+  },
+  {
     key: "oldestDueOn",
     header: L.oldestDue,
     align: "right",
@@ -108,14 +116,14 @@ const COLUMNS: ColumnDef<Receivable>[] = [
   },
 ];
 
-/** BE chưa có `GET /receivables` (R5-11) → 404 (hoặc 405). */
+/** BE chưa có `GET /reports/receivables` → 404 (hoặc 405). */
 function endpointMissing(error: unknown): boolean {
   return error instanceof ApiError && (error.status === 404 || error.status === 405);
 }
 
 function ReceivablesContent() {
   const router = useRouter();
-  const canRead = useCan(PAYMENT_INSTALLMENT_PERMISSIONS.read);
+  const canRead = useCan(RECEIVABLES_REPORT_PERMISSIONS.read);
   const paged = usePagedList(PAYMENT_STORAGE_KEYS.receivablesConfig, NO_SORT);
   const [search, setSearch] = useQueryState("search", parseAsString.withDefault(""));
   const debounced = useDebouncedValue(search, 300);
@@ -165,7 +173,8 @@ function ReceivablesContent() {
         onRowClick={(row) =>
           router.push(PAYMENT_ROUTES.installments.owingByCustomer(row.customerId))
         }
-        flagRow={(row) => row.overdue > 0}
+        // Như thứ tự của BE: quá hạn gồm cả đợt thu khi ký đã quá hạn
+        flagRow={(row) => row.overdue + row.signingOverdue > 0}
         noun="khách còn nợ"
         errorCopy={COPY}
         hasFilters={!!search.trim()}
@@ -185,13 +194,14 @@ function ReceivablesContent() {
 }
 
 /**
- * Công nợ phải thu theo khách (BO-UX-37, BE R5-11 `GET /receivables`): mỗi khách một dòng — còn nợ, quá hạn, hạn cũ
- * nhất, tuổi nợ 0–30 / 31–60 / > 60 ngày; quá hạn nhiều nhất trước (BE sắp). Bấm khách → các đợt còn nợ của khách.
- * Máy chủ chưa có endpoint → chuyển sang danh sách đợt `owing=true` như trước.
+ * Công nợ phải thu theo khách (BO-UX-37, BE `GET /reports/receivables`, quyền `reporting-receivables`): mỗi khách một
+ * dòng — còn nợ, quá hạn, đợt thu khi ký quá hạn, hạn cũ nhất, tuổi nợ 0–30 / 31–60 / > 60 ngày; quá hạn nhiều nhất
+ * trước (BE sắp theo quá hạn + đợt ký quá hạn). Bấm khách → các đợt còn nợ của khách. Máy chủ chưa có endpoint →
+ * chuyển sang danh sách đợt `owing=true` như trước.
  */
 export function ReceivablesList() {
   return (
-    <PermissionBoundary permissions={[PAYMENT_INSTALLMENT_PERMISSIONS.viewPage]} variant="list">
+    <PermissionBoundary permissions={[RECEIVABLES_REPORT_PERMISSIONS.viewPage]} variant="list">
       <ReceivablesContent />
     </PermissionBoundary>
   );

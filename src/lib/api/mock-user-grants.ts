@@ -57,7 +57,11 @@ import {
   WAREHOUSE_PERMISSIONS,
 } from "@/constants/permissions";
 import { EINVOICE_PERMISSIONS, EINVOICE_SETTINGS_PERMISSIONS } from "@/constants/einvoice";
-import { PAYMENT_INSTALLMENT_PERMISSIONS, PAYMENT_RECEIPT_PERMISSIONS } from "@/constants/payment";
+import {
+  PAYMENT_INSTALLMENT_PERMISSIONS,
+  PAYMENT_RECEIPT_PERMISSIONS,
+  RECEIVABLES_REPORT_PERMISSIONS,
+} from "@/constants/payment";
 
 import type { PermissionCode } from "@/lib/auth/me-permissions";
 
@@ -275,7 +279,15 @@ const PAY_ACCOUNTANT = [
   ...Object.values(PAYMENT_RECEIPT_PERMISSIONS),
   ...Object.values(PAYMENT_REFUND_PERMISSIONS),
 ];
-const PAY_SALES = [...PAY_INSTALLMENT_READ, ...PAY_REFUND_READ];
+// Seed BE V20261126000100 (`reporting-receivables`, công nợ theo khách): ACCOUNTANT đủ 3 action, SALES_STAFF VIEW_PAGE +
+// READ (không EXPORT: xuất là mang công nợ của mọi khách ra ngoài); SYSTEM_ADMIN giữ mọi quyền.
+const RECEIVABLES_ALL = Object.values(RECEIVABLES_REPORT_PERMISSIONS);
+const RECEIVABLES_READ = [
+  RECEIVABLES_REPORT_PERMISSIONS.viewPage,
+  RECEIVABLES_REPORT_PERMISSIONS.read,
+];
+const PAY_ACCOUNTANT_ALL = [...PAY_ACCOUNTANT, ...RECEIVABLES_ALL];
+const PAY_SALES = [...PAY_INSTALLMENT_READ, ...PAY_REFUND_READ, ...RECEIVABLES_READ];
 
 // Seed BE V20261120000300 (hoá đơn điện tử, docs 21): ACCOUNTANT và SYSTEM_ADMIN đủ 6 action `einvoices`;
 // cấu hình: ACCOUNTANT chỉ READ, SYSTEM_ADMIN READ + UPDATE; SALES_MANAGER chỉ VIEW_PAGE + READ hoá đơn.
@@ -336,7 +348,7 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...CUSTOMER_PRICE_ALL,
     CUSTOMER_LOOKUP,
     ...STOCK_PACKAGE_ALL,
-    ...PAY_ACCOUNTANT,
+    ...PAY_ACCOUNTANT_ALL,
     ...EINVOICE_ALL,
     ...EINVOICE_SETTINGS_ALL,
     ...CHAT_ALL,
@@ -394,7 +406,7 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...CREDIT_ALL,
     CREDIT_PROFILE_READ,
     ...LEGAL_PROFILE_ALL,
-    ...PAY_ACCOUNTANT,
+    ...PAY_ACCOUNTANT_ALL,
     CONTRACT_READ,
     DELIVERY_SCHEDULE_READ,
     REFUND_READ,

@@ -300,6 +300,8 @@ export const RECEIVABLES_LABELS = {
   taxCode: "MST",
   owed: "Còn phải thu",
   overdue: "Quá hạn",
+  /** BE `signingOverdue`: đợt thu khi ký đã quá hạn — không nằm trong "Còn phải thu" / "Quá hạn" (docs 15 §4.3). */
+  signingOverdue: "Quá hạn đợt ký",
   oldestDue: "Hạn cũ nhất",
   d0to30: "0–30 ngày",
   d31to60: "31–60 ngày",
@@ -314,7 +316,7 @@ export const RECEIVABLES_LABELS = {
   forbiddenDescription: "Tài khoản của bạn chưa được cấp quyền xem công nợ.",
   notFoundTitle: "Không tải được công nợ",
   notFoundDescription: "Trang công nợ không tồn tại hoặc đường dẫn không hợp lệ.",
-  /** BE chưa có `/receivables` (404): xem công nợ theo đợt như trước. */
+  /** BE chưa có `/reports/receivables` (404): xem công nợ theo đợt như trước. */
   fallbackNotice:
     "Chưa có bảng công nợ theo khách trên máy chủ này — đang hiện các đợt còn phải thu (lọc Công nợ phải thu).",
 } as const;

@@ -250,7 +250,7 @@ export interface ListReceivableParams extends ListQueryParams {
 
 /**
  * `GET /reports/receivables` (the BE receivables report; R5-11 added `search`): one row per customer — owed, overdue,
- * oldest due date, aging; most overdue first. Mapped onto the screen's `Receivable` model; a 404 (an older BE) still
+ * oldest due date, aging, overdue on-signing installments apart; most overdue first (overdue + signingOverdue). Mapped onto the screen's `Receivable` model; a 404 (an older BE) still
  * sends the page back to the installment list `owing=true`.
  */
 export async function listReceivables(
@@ -271,6 +271,7 @@ export async function listReceivables(
       taxCode: row.customerCode && TAX_CODE.test(row.customerCode) ? row.customerCode : null,
       owed: row.receivable,
       overdue: row.overdue,
+      signingOverdue: row.signingOverdue ?? 0,
       oldestDueOn: row.oldestDueDate ?? null,
       aging: {
         d0to30: row.overdue1To30 ?? 0,

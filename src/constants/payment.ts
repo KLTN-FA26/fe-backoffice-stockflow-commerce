@@ -35,6 +35,17 @@ export const PAYMENT_RECEIPT_PERMISSIONS = {
  */
 export { PAYMENT_REFUND_PERMISSIONS } from "./permissions";
 
+/**
+ * Công nợ phải thu theo khách — resource `reporting-receivables` (BE `ReceivablesReportController`,
+ * `GET /reports/receivables`; seed V20261126000100): VIEW_PAGE + READ cho Kế toán, Sales, Sales Manager; EXPORT cho Kế
+ * toán và Sales Manager. Không phải `payment-installments`: một tài khoản xem được đợt chưa chắc xem được báo cáo này.
+ */
+export const RECEIVABLES_REPORT_PERMISSIONS = {
+  viewPage: "reporting-receivables:VIEW_PAGE",
+  read: "reporting-receivables:READ",
+  export: "reporting-receivables:EXPORT",
+} as const;
+
 /* ── Route ───────────────────────────────────────────────────────────────────────────────── */
 
 const PAYMENT_BASE = "/admin/payment";
@@ -60,7 +71,7 @@ export const PAYMENT_ROUTES = {
     list: `${PAYMENT_BASE}/receipts`,
     detail: (id: string) => `${PAYMENT_BASE}/receipts/${encodeURIComponent(id)}`,
   },
-  /** Công nợ phải thu theo khách (BO-UX-37, BE R5-11 `GET /receivables`). */
+  /** Công nợ phải thu theo khách (BO-UX-37, BE `GET /reports/receivables`). */
   receivables: `${PAYMENT_BASE}/receivables`,
   refunds: {
     list: `${PAYMENT_BASE}/refunds`,

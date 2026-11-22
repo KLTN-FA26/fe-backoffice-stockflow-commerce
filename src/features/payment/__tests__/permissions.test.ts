@@ -59,7 +59,7 @@ describe("sidebar group 'Thanh toán'", () => {
   it("lists installments, receipts, refunds and e-invoices for the accountant (docs 15, 21)", () => {
     expect(visibleFor("USER-ACC-01")?.items.map((item) => item.href)).toEqual([
       PAYMENT_ROUTES.installments.list,
-      // BO-UX-37: công nợ theo khách, cùng quyền xem đợt
+      // BO-UX-37: công nợ theo khách (`reporting-receivables`, seed V20261126000100)
       PAYMENT_ROUTES.receivables,
       PAYMENT_ROUTES.receipts.list,
       PAYMENT_ROUTES.refunds.list,
@@ -77,6 +77,12 @@ describe("sidebar group 'Thanh toán'", () => {
       PAYMENT_ROUTES.refunds.list,
     ]);
     expect(visibleFor("USER-WH-01")).toBeUndefined();
+  });
+
+  it("the receivables page is gated by the BE report's own resource, not by the installments'", () => {
+    const group = NAV_GROUPS.find((g) => g.title === PAYMENT_LABELS.navGroup);
+    const receivables = group?.items.find((item) => item.href === PAYMENT_ROUTES.receivables);
+    expect(receivables?.permission).toBe("reporting-receivables:VIEW_PAGE");
   });
 
   it("every item is gated by a VIEW_PAGE permission code (never a role name)", () => {

@@ -199,6 +199,11 @@ export const receivableReportRowDtoSchema = z.object({
   overdue31To60: z.number().nullish(),
   overdue61To90: z.number().nullish(),
   overdueOver90: z.number().nullish(),
+  /**
+   * Installments due on signing past their due day, still owed: not receivable (15 §4.3), so in no other figure here,
+   * but the credit check of a new contract counts them as overdue — the BE ranks rows by `overdue + signingOverdue`.
+   */
+  signingOverdue: z.number().nullish(),
   oldestDueDate: z.string().nullish(),
   openItems: z.number().int().nullish(),
 });
@@ -215,6 +220,8 @@ export const receivableDtoSchema = z.object({
   taxCode: z.string().nullish(),
   owed: z.number(),
   overdue: z.number(),
+  /** Overdue on-signing installments (counted in no other column); 0 when the BE leaves it out. */
+  signingOverdue: z.number(),
   oldestDueOn: z.string().nullish(),
   aging: z.object({ d0to30: z.number(), d31to60: z.number(), over60: z.number() }).nullish(),
   installmentCount: z.number().int().nullish(),

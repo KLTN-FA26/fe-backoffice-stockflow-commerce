@@ -122,6 +122,7 @@ import {
   PAYMENT_RECEIPT_PERMISSIONS,
   PAYMENT_REFUND_PERMISSIONS,
   PAYMENT_ROUTES,
+  RECEIVABLES_REPORT_PERMISSIONS,
 } from "@/constants/payment";
 import { RETURN_ROUTES, RMA_PERMISSIONS } from "@/constants/returns";
 
@@ -471,11 +472,12 @@ export const NAV_GROUPS: NavGroup[] = [
         permission: PAYMENT_INSTALLMENT_PERMISSIONS.viewPage,
       },
       {
-        // Công nợ theo khách (BO-UX-37, BE R5-11); máy chủ chưa có endpoint thì trang tự chuyển sang đợt `owing=true`
+        // Công nợ theo khách (BO-UX-37, BE `GET /reports/receivables`, resource `reporting-receivables`); máy chủ chưa
+        // có endpoint thì trang tự chuyển sang đợt `owing=true`
         label: RECEIVABLES_LABELS.navLabel,
         href: PAYMENT_ROUTES.receivables,
         icon: Landmark,
-        permission: PAYMENT_INSTALLMENT_PERMISSIONS.viewPage,
+        permission: RECEIVABLES_REPORT_PERMISSIONS.viewPage,
       },
       {
         label: PAYMENT_LABELS.receipts.navLabel,
