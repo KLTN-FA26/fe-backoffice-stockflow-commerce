@@ -7,7 +7,7 @@
  * errors) is transient: reconnect with exponential backoff so the ticket endpoint (30/min) is never hammered.
  */
 
-import { Client } from "@stomp/stompjs";
+import { Client, TickerStrategy } from "@stomp/stompjs";
 
 import { ApiError } from "@/lib/api/error";
 
@@ -47,6 +47,9 @@ export const createStompSocket: PresenceSocketFactory = (url, ticket, handlers) 
     connectHeaders: { ticket },
     heartbeatIncoming: STOMP_KEEPALIVE_MS,
     heartbeatOutgoing: STOMP_KEEPALIVE_MS,
+    // Outgoing pings from a Web Worker: a hidden tab's throttled timers must not let Spring drop the session (stompjs
+    // falls back to setInterval where there is no Worker).
+    heartbeatStrategy: TickerStrategy.Worker,
     reconnectDelay: 0, // reconnects are ours: a new ticket for each, with backoff
     // A lost STOMP heartbeat drops the socket at once instead of waiting for a close handshake on a dead network.
     discardWebsocketOnCommFailure: true,
