@@ -21,6 +21,7 @@ import {
   listAgents,
   listCannedResponses,
   listStaff,
+  getTransferInstructions,
   searchMessages,
 } from "./api-tools";
 import { usePolling } from "./polling";
@@ -37,6 +38,7 @@ export const chatKeys = {
   older: (id: string) => [...chatKeys.messages(id), "older"] as const,
   gap: (id: string) => [...chatKeys.messages(id), "gap"] as const,
   overview: (customerId: string) => [...chatKeys.all, "overview", customerId] as const,
+  transfer: (installmentId: string) => [...chatKeys.all, "transfer", installmentId] as const,
   staff: (q: string) => [...chatKeys.all, "staff", q] as const,
   agents: () => [...chatKeys.all, "agents"] as const,
   search: (q: string, page: number) => [...chatKeys.all, "search", q, page] as const,
@@ -172,6 +174,15 @@ export function useGapMessages(id: string, since: number | null, enabled: boolea
     initialPageParam: since ?? 0,
     getNextPageParam: (page) => page.nextSince ?? undefined,
     enabled: since !== null && enabled,
+  });
+}
+
+/** BO-UX-45: bản xem trước thẻ chuyển khoản của đợt đang chọn. */
+export function useTransferInstructions(installmentId: string) {
+  return useQuery({
+    queryKey: chatKeys.transfer(installmentId),
+    queryFn: ({ signal }) => getTransferInstructions(installmentId, signal),
+    enabled: !!installmentId,
   });
 }
 

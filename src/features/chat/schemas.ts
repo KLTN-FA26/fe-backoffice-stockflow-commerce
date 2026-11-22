@@ -145,6 +145,26 @@ export const chatCustomerOverviewSchema = z.object({
     .default([]),
 });
 
+/**
+ * BO-UX-45: `GET /installments/{id}/transfer-instructions` (BE `InstallmentTransferResponse`, perm installments:READ):
+ * what the transfer card will carry, read before sending it. `vietQr` only from BE R5-9 on (optional).
+ */
+export const transferInstructionsSchema = z.object({
+  installmentId: z.string(),
+  contractNumber: omittedOrNull(z.string()),
+  orderNumber: omittedOrNull(z.string()),
+  seq: z.number().int(),
+  name: omittedOrNull(z.string()),
+  bankName: omittedOrNull(z.string()),
+  accountNumber: omittedOrNull(z.string()),
+  accountName: omittedOrNull(z.string()),
+  amountDue: z.number(),
+  currency: z.string().default("VND"),
+  reference: omittedOrNull(z.string()),
+  dueDate: omittedOrNull(z.string()),
+  vietQr: omittedOrNull(z.string()),
+});
+
 export const downloadLinkSchema = z.object({
   url: z.string(),
   expiresAt: omittedOrNull(z.string()),
@@ -267,6 +287,7 @@ export type ChatMessage = z.infer<typeof chatMessageSchema>;
 export type ChatConversation = z.infer<typeof chatConversationSchema>;
 export type ChatMessagePage = z.infer<typeof chatMessagePageSchema>;
 export type ChatCustomerOverview = z.infer<typeof chatCustomerOverviewSchema>;
+export type TransferInstructions = z.infer<typeof transferInstructionsSchema>;
 export type ChatAgent = z.infer<typeof chatAgentSchema>;
 export type ChatSearchHit = z.infer<typeof chatSearchHitSchema>;
 export type ChatStaffUnread = z.infer<typeof chatStaffUnreadSchema>;

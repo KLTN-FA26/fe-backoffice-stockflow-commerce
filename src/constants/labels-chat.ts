@@ -148,3 +148,100 @@ export const CHAT_REALTIME_LABELS = {
     sender ? `${sender} nhắc bạn trong ghi chú nội bộ` : "Bạn được nhắc trong một ghi chú nội bộ",
 } as const;
 
+/**
+ * BO-UX-44: đổi trạng thái bằng ĐỘNG TỪ (khác nhãn trạng thái ở chấm màu). Chỉ các đích Sale đổi tay (BE
+ * `Conversation.askedForByHand`); RESOLVED kết thúc hội thoại nên phải xác nhận.
+ */
+export const CHAT_STATUS_MOVE_LABELS = {
+  ACTIVE: "Tiếp tục trao đổi",
+  WAITING_ON_CUSTOMER: "Chuyển sang chờ khách",
+  WAITING_ON_INTERNAL: "Chuyển sang chờ nội bộ",
+  ESCALATED: "Chuyển cấp cho quản lý…",
+  RESOLVED: "Đánh dấu đã giải quyết…",
+} as const satisfies Partial<Record<ChatConversationStatus, string>>;
+export const CHAT_STATUS_MENU_LABELS = {
+  trigger: "Đổi trạng thái",
+  resolveTitle: "Đánh dấu hội thoại đã giải quyết?",
+  resolveDescription:
+    "Hội thoại sẽ kết thúc và khách được mời đánh giá. Khách vẫn mở lại được trong thời gian ngắn sau đó.",
+  resolveConfirm: "Đánh dấu đã giải quyết",
+} as const;
+
+/** BO-UX-43: ô soạn nói rõ tin đi đâu — bằng chữ và biểu tượng, không chỉ bằng màu. */
+export const CHAT_COMPOSER_LABELS = {
+  modeGroup: "Loại tin",
+  replyMode: "Trả lời khách",
+  noteMode: "Ghi chú nội bộ",
+  replyBanner: "Đang trả lời khách — khách sẽ đọc được tin này.",
+  noteBanner: "Ghi chú nội bộ — chỉ nhân viên thấy, khách không thấy.",
+  replyField: "Tin nhắn cho khách",
+  noteField: "Ghi chú nội bộ",
+  replyPlaceholder: "Nhập tin nhắn cho khách…",
+  notePlaceholder: "Ghi chú cho đồng nghiệp — gõ @ để nhắc tên",
+  sendReply: "Gửi cho khách",
+  sendNote: "Lưu ghi chú nội bộ",
+  mentionInReply:
+    "Tin này sẽ gửi cho khách nhưng có @nhắc đồng nghiệp. Bạn định viết ghi chú nội bộ?",
+  switchToNote: "Chuyển sang ghi chú nội bộ",
+} as const;
+
+/** BO-UX-6: không bao giờ hiện mã BE thô khi thiếu nhãn. */
+export const CHAT_UNKNOWN_LABELS = {
+  card: "Thẻ",
+  state: "Không rõ trạng thái",
+  designStatus: "Chưa rõ trạng thái thiết kế",
+} as const;
+
+/** BO-UX-48: khoá status-map cho chấm trạng thái của thẻ (BE `CardState`), lấy tone chứ không tự tô màu. */
+export const CHAT_CARD_STATE_TONE_KEY: Readonly<Record<string, string>> = {
+  OPEN: "Sent",
+  ACTED: "Completed",
+  SUPERSEDED: "Superseded",
+  EXPIRED: "Expired",
+  CANCELLED: "Cancelled",
+  CLOSED: "Closed",
+};
+
+/** "Đã xử lý" theo nghĩa của từng loại thẻ (BE `CardActions`): khách chấp nhận báo giá, ký hợp đồng, trả đợt… */
+export const CHAT_CARD_ACTED_LABELS: Readonly<Record<string, string>> = {
+  QUOTE_REQUEST: "Đã lập báo giá",
+  QUOTE: "Khách đã chấp nhận",
+  CONTRACT: "Đã ký",
+  PAYMENT_INFO: "Đã thanh toán",
+  PAYMENT_REMINDER: "Đã thanh toán",
+  SAMPLE_APPROVAL: "Khách đã trả lời",
+  CSAT_SURVEY: "Khách đã đánh giá",
+};
+
+/** BO-UX-45: thẻ chuyển khoản — cùng các trường ở hộp xem trước và ở thẻ trong hội thoại. */
+export const CHAT_TRANSFER_LABELS = {
+  bank: "Ngân hàng",
+  account: "Số tài khoản",
+  holder: "Chủ tài khoản",
+  amount: "Số tiền",
+  content: "Nội dung CK",
+  dueDate: "Hạn trả",
+  noBank: "Chưa cấu hình tài khoản ngân hàng của công ty.",
+  qrLabel: "Mã VietQR chuyển khoản",
+  qrCaption: "Quét bằng ứng dụng ngân hàng: tài khoản, số tiền và nội dung được điền sẵn.",
+  previewTitle: "Khách sẽ nhận thẻ này",
+  previewLoading: "Đang tải bản xem trước…",
+  previewError:
+    "Không tải được bản xem trước. Bạn vẫn gửi được: hệ thống tự điền thẻ từ đợt đã chọn.",
+  previewNoQr: "Mã VietQR được tạo khi gửi thẻ.",
+  pickFirst: "Chọn đợt để xem trước thẻ.",
+} as const;
+
+/** BO-UX-46 / BO-UX-47: trợ năng của khung tin và hộp thư. */
+export const CHAT_A11Y_LABELS = {
+  messageRegion: "Tin nhắn của hội thoại",
+  messageList: "Tin nhắn",
+  newMessagesLog: "Tin mới",
+  jumpToNew: "Có tin mới",
+  jumpToNewAria: "Có tin mới — cuộn xuống tin mới nhất",
+  customer: "Khách",
+  system: "Hệ thống",
+  attachment: "tệp đính kèm",
+  newMessage: (sender: string, preview: string) => `Tin mới từ ${sender}: ${preview}`,
+  unreadBadge: (count: number) => `${count} tin chưa đọc`,
+} as const;

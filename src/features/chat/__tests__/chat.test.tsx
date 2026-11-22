@@ -115,7 +115,7 @@ describe("TC-F13 phía Sale — thẻ và ghi chú", () => {
     expect(screen.getByText("Em cần 60 thùng ạ")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("radio", { name: "Ghi chú nội bộ" }));
     await userEvent.type(screen.getByLabelText("Ghi chú nội bộ"), "Gọi lại chiều nay");
-    await userEvent.click(screen.getByRole("button", { name: /Gửi$/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Lưu ghi chú nội bộ" }));
     await waitFor(() =>
       expect(api.post).toHaveBeenCalledWith(
         `${BASE}/notes`,
@@ -133,8 +133,8 @@ describe("TC-F13 phía Sale — thẻ và ghi chú", () => {
     );
     const dialog = await screen.findByRole("dialog");
     await userEvent.selectOptions(within(dialog).getByLabelText(/Đợt thanh toán/), "i-1");
-    await userEvent.click(within(dialog).getByLabelText("Nhắc công nợ"));
-    await userEvent.click(within(dialog).getByRole("button", { name: "Gửi thẻ" }));
+    await userEvent.click(within(dialog).getByLabelText(/Nhắc công nợ/));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Gửi thẻ cho khách" }));
     await waitFor(() =>
       expect(api.post).toHaveBeenCalledWith(`${BASE}/cards/transfer-details`, {
         installmentId: "i-1",
