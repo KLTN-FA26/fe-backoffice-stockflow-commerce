@@ -51,6 +51,13 @@ export interface ColumnDef<T> {
 const STICKY_RIGHT =
   "sticky right-0 shadow-[inset_1px_0_0_var(--table-line),-6px_0_8px_-6px_rgb(0_0_0/0.12)]";
 
+/**
+ * Nền đặc của ô ghim trong thân bảng: theo đúng nền của dòng (`TableRow`: hover, đang chọn, có menu mở → `bg-subtle`),
+ * nếu không ô ghim đứng trắng giữa một dòng đang sáng. Token nên dark mode tự theo.
+ */
+const STICKY_RIGHT_BODY_BG =
+  "bg-bg-surface transition-colors group-hover/row:bg-bg-subtle group-has-aria-expanded/row:bg-bg-subtle group-data-[state=selected]/row:bg-bg-subtle";
+
 /* -------------------------------------------------------------------------- */
 /*  DataTable                                                                */
 /* -------------------------------------------------------------------------- */
@@ -308,7 +315,7 @@ export function DataTable<T>({
                     data-flagged={isFlag || undefined}
                     onClick={() => onRowClick?.(row)}
                     className={cn(
-                      "border-(--table-line) transition-colors",
+                      "group/row border-(--table-line) transition-colors",
                       onRowClick && "cursor-pointer",
                     )}
                   >
@@ -328,7 +335,7 @@ export function DataTable<T>({
                         className={cn(
                           "text-[0.8125rem]",
                           col.align === "right" && "text-right tabular-nums",
-                          col.sticky === "right" && `${STICKY_RIGHT} bg-bg-surface`,
+                          col.sticky === "right" && `${STICKY_RIGHT} ${STICKY_RIGHT_BODY_BG}`,
                           col.className,
                         )}
                       >

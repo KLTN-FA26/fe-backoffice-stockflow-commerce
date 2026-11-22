@@ -104,4 +104,35 @@ describe("DataTable sticky column (BO-UX-10, BO-UX-38)", () => {
     expect(cell?.className).toContain("bg-bg-surface");
     expect(screen.getByRole("columnheader", { name: "ID" }).className).not.toContain("sticky");
   });
+
+  it("the pinned cell follows its row's hover and selected background instead of staying white", () => {
+    render(
+      <DataTable
+        data={[{ id: "a" }, { id: "b" }]}
+        columns={[
+          ...columns,
+          { key: "actions", header: "Thao tác", sticky: "right", cell: (row) => `act-${row.id}` },
+        ]}
+        rowKey={(row) => row.id}
+        selectable
+        selectedKeys={new Set(["a"])}
+        onSelectionChange={() => {}}
+      />,
+    );
+    const selectedRow = screen.getByText("act-a").closest("tr");
+    expect(selectedRow).toHaveAttribute("data-state", "selected");
+    // The row names itself as the group the pinned cell reads its state from.
+    expect(selectedRow?.className.split(" ")).toContain("group/row");
+    const cell = screen.getByText("act-a").closest("td");
+    const classes = cell?.className.split(" ") ?? [];
+    // Same background as the row (`TableRow`: hover / selected / open menu → bg-subtle).
+    expect(classes).toEqual(
+      expect.arrayContaining([
+        "bg-bg-surface",
+        "group-hover/row:bg-bg-subtle",
+        "group-data-[state=selected]/row:bg-bg-subtle",
+        "group-has-aria-expanded/row:bg-bg-subtle",
+      ]),
+    );
+  });
 });
