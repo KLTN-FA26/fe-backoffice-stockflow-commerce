@@ -17,13 +17,16 @@ import { ADMIN_ROUTES, DESIGN_REVIEW_LABELS, DESIGN_ROUND_LABELS } from "@/const
 
 import { toast } from "@/components/shared/Toast";
 
-import { approveRound, decideDesign } from "./api";
+import { approveRound, decideDesign, listReviewQueue } from "./api";
 import { DESIGN_STALE_CODES, isDesignErrorCode, isUncertainOutcome } from "./errors";
 import { designKeys, roundKeys } from "./queries";
 
 import type { ApiError } from "@/lib/api/error";
 import type { ApproveRoundInput, DecideDesignInput } from "./api";
 import type { Design, RoundApproval } from "./types";
+
+/** Hai dòng đầu của hàng đợi là đủ để tìm thiết kế kế tiếp (dòng đầu có thể là thiết kế vừa quyết định). */
+const NEXT_PAGE = { page: 0, size: 2 };
 
 /** Đích sau khi quyết định: vòng duyệt `?round=` nếu đến từ đó, không thì hàng đợi. */
 export function reviewReturnHref(roundId?: string | null): string {
@@ -68,20 +71,42 @@ export function useDecideDesign({ roundId }: { roundId?: string | null } = {}) {
     },
   });
 
-  /** Gửi quyết định; về hàng đợi / vòng duyệt chỉ khi trang chi tiết còn mở. */
+  /**
+   * Thiết kế kế tiếp của hàng đợi (BO-UX-9), đọc mới sau khi quyết định; không còn thì về hàng đợi. Lỗi đọc → về hàng
+   * đợi như cũ, không chặn gì.
+   */
+  const nextHref = async (decidedId: string) => {
+    try {
+      const page = await queryClient.fetchQuery({
+        queryKey: designKeys.queue(NEXT_PAGE),
+        queryFn: ({ signal }) => listReviewQueue(NEXT_PAGE, signal),
+        staleTime: 0,
+      });
+      const next = page.items.find((design) => design.id !== decidedId);
+      return next ? ADMIN_ROUTES.designs.detail(next.id) : reviewReturnHref(roundId);
+    } catch {
+      return reviewReturnHref(roundId);
+    }
+  };
+
+  /** Gửi quyết định; về hàng đợi / vòng duyệt (hoặc thiết kế kế tiếp) chỉ khi trang chi tiết còn mở. */
   const decide = (
     input: DecideDesignInput,
-    options: { onError?: (error: ApiError) => void } = {},
+    options: { onError?: (error: ApiError) => void; openNext?: boolean } = {},
   ) =>
     mutation.mutate(input, {
-      onSuccess: () => router.push(reviewReturnHref(roundId)),
+      onSuccess: () => {
+        if (options.openNext) void nextHref(input.id).then((href) => router.push(href));
+        else router.push(reviewReturnHref(roundId));
+      },
       onError: (error) => {
         if (isUncertainOutcome(error)) router.push(reviewReturnHref(roundId));
         else options.onError?.(error);
       },
     });
 
-  return { ...mutation, decide };
+  // Đến từ vòng duyệt thì về vòng duyệt; "thiết kế tiếp theo" chỉ có nghĩa với hàng đợi.
+  return { ...mutation, decide, fromQueue: !roundId };
 }
 
 export type DecideDesignMutation = ReturnType<typeof useDecideDesign>;

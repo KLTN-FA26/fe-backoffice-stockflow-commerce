@@ -48,6 +48,8 @@ interface ConfirmDialogProps {
   error?: React.ReactNode;
   /** Nội dung bổ sung dưới phần mô tả (vd danh sách chứng từ còn mở) — trước ô lý do. */
   children?: React.ReactNode;
+  /** Khoá nút xác nhận vì điều kiện của bên gọi (vd chưa đánh dấu đã xem lỗi chặn). */
+  confirmDisabled?: boolean;
 }
 
 export function ConfirmDialog({
@@ -67,6 +69,7 @@ export function ConfirmDialog({
   closeOnConfirm = true,
   error,
   children,
+  confirmDisabled = false,
 }: ConfirmDialogProps) {
   const [reason, setReason] = useState("");
   // Bên gọi đóng dialog qua prop `open` (không qua onOpenChange) → xoá lý do khi đóng.
@@ -76,7 +79,8 @@ export function ConfirmDialog({
     setPrevOpen(open);
     if (!open) setReason("");
   }
-  const canConfirm = (!requireReason || reasonLength(reason) >= reasonMinLength) && !loading;
+  const canConfirm =
+    (!requireReason || reasonLength(reason) >= reasonMinLength) && !loading && !confirmDisabled;
 
   const handleConfirm = () => {
     if (!canConfirm) return;

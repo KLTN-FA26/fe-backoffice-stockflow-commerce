@@ -109,6 +109,15 @@ export const DESIGN_REVIEW_LABELS = {
   staleReload: "Đã tải lại thiết kế — xem lại bộ file rồi quyết định lại.",
   inProject: "Thuộc một dự án — duyệt trong vòng duyệt",
   preflightBlocked: "File in có lỗi chặn — nên trả lại",
+  /** BO-UX-8: kết quả kiểm tra file in ngay trong hộp "Duyệt". */
+  preflightRunning: "Đang kiểm tra file in…",
+  preflightPassed: "Kiểm tra file in: đạt, không có lỗi chặn.",
+  preflightNoFile: "Chưa có file in để kiểm tra.",
+  preflightFailed: "Không chạy được kiểm tra file in — vẫn duyệt được, nên xem lại file trước.",
+  preflightBlockingTitle: "Kiểm tra file in có lỗi chặn:",
+  preflightAcknowledge: "Tôi đã xem lỗi chặn và vẫn duyệt",
+  /** BO-UX-9: sau khi quyết định, mở thiết kế kế tiếp của hàng đợi. */
+  openNext: "Sau khi quyết định, mở thiết kế tiếp theo trong hàng đợi",
 } as const;
 
 /** Chữ trên màn vòng duyệt dự án (BO-4). */

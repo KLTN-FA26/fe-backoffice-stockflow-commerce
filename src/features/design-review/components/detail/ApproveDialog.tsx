@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useId } from "react";
+import { useEffect, useId, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 
 import { DESIGN_REASON_MAX, DESIGN_REVIEW_LABELS } from "@/constants";
@@ -11,6 +11,8 @@ import { designApproveInputSchema } from "@/features/design-review/schemas";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+
+import { ApprovePreflight, usePreflightGate } from "./ApprovePreflight";
 
 import type {
   DesignApproveFormOutput,
@@ -22,12 +24,17 @@ import type {
  * "duyệt" của `designDecisionInputSchema`, kltn-docs 12 BR-11). Đóng hộp thì bỏ ghi chú đã gõ.
  */
 export function ApproveDialog({
+  designId,
+  printFileId,
   open,
   onOpenChange,
   pending,
   error,
   onConfirm,
 }: {
+  designId: string;
+  /** File in (`PRINT_READY`) đang chờ duyệt: hộp Duyệt chạy kiểm tra nó khi mở (BO-UX-8). */
+  printFileId: string | undefined;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   pending: boolean;
@@ -41,9 +48,14 @@ export function ApproveDialog({
   });
   const notes = useWatch({ control: form.control, name: "notes" }) ?? "";
   const message = form.formState.errors.notes?.message;
+  const gate = usePreflightGate(designId, printFileId, open);
+  const [acknowledged, setAcknowledged] = useState(false);
   // The parent closes the dialog itself after a decision: whatever closed it, the next opening starts empty.
   useEffect(() => {
-    if (!open) form.reset();
+    if (!open) {
+      form.reset();
+      setAcknowledged(false);
+    }
   }, [open, form]);
 
   return (
@@ -57,8 +69,15 @@ export function ApproveDialog({
       loading={pending}
       closeOnConfirm={false}
       error={error}
+      confirmDisabled={gate.blocking && !acknowledged}
       onConfirm={() => void form.handleSubmit((values) => onConfirm(values.notes ?? ""))()}
     >
+      <ApprovePreflight
+        printFileId={printFileId}
+        gate={gate}
+        acknowledged={acknowledged}
+        onAcknowledge={setAcknowledged}
+      />
       <div className="flex flex-col gap-1.5">
         <Label htmlFor={inputId} className="text-ink-secondary text-xs font-medium">
           {DESIGN_REVIEW_LABELS.approveNotesLabel}
