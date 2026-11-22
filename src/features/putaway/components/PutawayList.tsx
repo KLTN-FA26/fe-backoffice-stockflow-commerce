@@ -67,7 +67,15 @@ function PutawayContent() {
           copy={L.errorCopy}
           onRetry={() => void query.refetch()}
         />
-      ) : state.ready && !data ? (
+      ) : !state.ready && directory.isError ? (
+        // Danh mục kho lỗi: không có kho để chọn — báo lỗi kèm Thử lại thay vì "chọn kho"
+        <LoadErrorState
+          inline
+          error={directory.error}
+          copy={L.errorCopy}
+          onRetry={() => void directory.refetch()}
+        />
+      ) : (state.ready && !data) || (!state.ready && directory.isPending) ? (
         <PageSkeleton variant="list" />
       ) : (
         <div className="flex flex-col gap-3">
