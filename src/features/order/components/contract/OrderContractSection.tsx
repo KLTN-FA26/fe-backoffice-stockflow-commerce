@@ -1,13 +1,16 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { FileSignature } from "lucide-react";
 
 import {
+  ADMIN_ROUTES,
   SALES_CONTRACT_PERMISSIONS,
   SALES_CONTRACT_STATUS_LABELS,
   SALES_CONTRACT_STATUS_TONE_KEY,
 } from "@/constants";
+import { ApiError } from "@/lib/api/error";
 import { Card } from "@/components/shared/Card";
 import { Notice } from "@/components/shared/Notice";
 import { StatusDot } from "@/components/shared/StatusDot";
@@ -19,6 +22,7 @@ import { useSalesContract } from "../../sales-contract-queries";
 import { allowedContractActions, signOutcomeText } from "../../sales-contract-rules";
 
 import { ContractActions } from "./ContractActions";
+import { CancelledContractNotice } from "./CancelledContractNotice";
 import { ContractCreditWarning } from "./ContractCreditWarning";
 import { ContractEditor } from "./ContractEditor";
 import { ContractHistory } from "./ContractHistory";
@@ -44,19 +48,27 @@ export function OrderContractSection({
   const [signed, setSigned] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [dialog, setDialog] = useState<ContractDialog>(null);
+  const [legalMissing, setLegalMissing] = useState<string | null>(null);
   if (!canRead) return null;
 
   const contract = query.data ?? null;
   const actions = query.isSuccess ? allowedContractActions(contract, order.status, can) : [];
   const outcome = signed ? signOutcomeText(order) : null;
-  const startContract = () =>
+  const startContract = () => {
+    setLegalMissing(null);
     create.mutate(
       { orderId: order.orderId },
       {
         onSuccess: () => setEditing(true),
-        onError: (error) => toast.error(contractErrorMessage(error)),
+        onError: (error) => {
+          // Khách chưa có hồ sơ pháp lý: không chỉ toast, dẫn Sale tới nơi nhập (không import `features/customer`).
+          if (error instanceof ApiError && error.code === "CUSTOMER_LEGAL_PROFILE_MISSING")
+            setLegalMissing(contractErrorMessage(error));
+          else toast.error(contractErrorMessage(error));
+        },
       },
     );
+  };
 
   return (
     <Card className="scroll-mt-20 space-y-3">
@@ -89,15 +101,26 @@ export function OrderContractSection({
           />
         ) : (
           <>
-            {contract?.status === "CANCELLED" && (
-              <Notice tone="info">
-                Hợp đồng đã huỷ
-                {contract.cancellationReason ? `: ${contract.cancellationReason}` : ""}. Khách muốn
-                sửa hợp đồng đã gửi → huỷ (ghi lý do) rồi lập lại.
-              </Notice>
-            )}
             {!contract && (
-              <p className="text-ink-tertiary text-[0.8125rem]">Đơn chưa có hợp đồng.</p>
+              <>
+                <p className="text-ink-tertiary text-[0.8125rem]">Đơn chưa có hợp đồng.</p>
+                <CancelledContractNotice orderId={order.orderId} />
+              </>
+            )}
+            {legalMissing && (
+              <Notice tone="warning" live>
+                <span>
+                  {legalMissing}{" "}
+                  {order.customerId && (
+                    <Link
+                      href={`${ADMIN_ROUTES.customers.detail(order.customerId)}?legalProfile=edit#legal-profile`}
+                      className="text-accent font-medium hover:underline"
+                    >
+                      Nhập thông tin pháp lý
+                    </Link>
+                  )}
+                </span>
+              </Notice>
             )}
             {actions.includes("create") && (
               <Button size="sm" disabled={create.isPending} onClick={startContract}>

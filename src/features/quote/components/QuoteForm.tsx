@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
+import { ChangeRequestNotice } from "./detail/QuoteNotices";
 import { QuoteFeesEditor } from "./form/QuoteFeesEditor";
 import { QuoteLineEditor } from "./form/QuoteLineEditor";
 import { QuoteTotalsPreview } from "./form/QuoteTotalsPreview";
@@ -51,6 +52,23 @@ export function QuoteForm({
         noValidate
         className="max-w-5xl space-y-4 pb-24"
       >
+        {quote?.status === "DRAFT" && <ChangeRequestNotice history={quote.history} />}
+        {q.stale && (
+          <Notice tone="warning" live>
+            <span>
+              Báo giá vừa được người khác lưu (bản mới). Thay đổi của bạn chưa được lưu.{" "}
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                className="h-auto p-0"
+                onClick={q.reload}
+              >
+                Tải lại theo bản mới
+              </Button>
+            </span>
+          </Notice>
+        )}
         {q.formError && <Notice tone="danger">{q.formError}</Notice>}
         <Card className="grid gap-4 md:grid-cols-2">
           <h2 className="text-ink-primary text-sm font-semibold md:col-span-2">Thông tin chung</h2>
@@ -158,7 +176,7 @@ export function QuoteForm({
           <Button
             type="submit"
             size="sm"
-            disabled={q.pending}
+            disabled={q.pending || q.stale}
             className={FORM_BAR_ACTION_CLASS.primary}
           >
             {q.pending && <LoaderCircle className="size-3.5 animate-spin" aria-hidden="true" />}

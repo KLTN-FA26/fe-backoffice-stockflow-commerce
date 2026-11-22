@@ -78,7 +78,11 @@ export function OrderFinanceCard({ order, can }: OrderFinanceCardProps) {
             <Money value={order.effectiveTotal} currency={currency} />
           </Row>
         )}
-        <OrderInstallmentsSummary orderId={order.orderId} can={can} />
+        <OrderInstallmentsSummary
+          orderId={order.orderId}
+          can={can}
+          cancelled={order.status === "Cancelled"}
+        />
         {cancellation && (
           <>
             <Row label="Lý do huỷ">

@@ -5,6 +5,8 @@ import Link from "next/link";
 import { PAYMENT_LABELS } from "@/constants/labels-payment";
 import { PAYMENT_ROUTES, RECEIPT_API_STATUSES } from "@/constants/payment";
 import { CustomerName } from "@/components/backoffice/CustomerName";
+import { DatePicker } from "@/components/shared/DatePicker";
+import { Label } from "@/components/ui/label";
 import { SearchBar } from "@/components/shared/SearchBar";
 import { Button } from "@/components/ui/button";
 
@@ -20,12 +22,17 @@ const STATUS_OPTIONS = RECEIPT_API_STATUSES.map((value) => ({
   label: receiptStatusLabel(value),
 }));
 
-/** Lọc phiếu thu (BE `GET /payment-receipts`): mã tham chiếu sao kê (khớp chính xác), trạng thái, khách. */
+/** Lọc phiếu thu (BE `GET /payment-receipts`): mã tham chiếu sao kê (khớp chính xác), trạng thái, ngày nhận, khách. */
 export function ReceiptFilters({
   reference,
   onReferenceChange,
   status,
   onStatusChange,
+  receivedFrom,
+  receivedTo,
+  onReceivedFromChange,
+  onReceivedToChange,
+  rangeInverted,
   customerId,
   customerName,
   customerCode,
@@ -37,6 +44,12 @@ export function ReceiptFilters({
   onReferenceChange: (value: string) => void;
   status: ReceiptApiStatus | null;
   onStatusChange: (value: ReceiptApiStatus | null) => void;
+  /** `YYYY-MM-DD` hoặc "" — ngày nhận tiền (BE `receivedFrom` / `receivedTo`, gồm cả hai đầu). */
+  receivedFrom: string;
+  receivedTo: string;
+  onReceivedFromChange: (value: string) => void;
+  onReceivedToChange: (value: string) => void;
+  rangeInverted: boolean;
   customerId: string;
   /** Tên + mã khách lấy từ các dòng đang lọc (BE-15). */
   customerName?: string | null;
@@ -62,6 +75,37 @@ export function ReceiptFilters({
         options={STATUS_OPTIONS}
         onChange={onStatusChange}
       />
+      <div className="flex flex-wrap items-center gap-2">
+        <Label htmlFor="receipt-received-from" className="text-ink-secondary text-[0.8125rem]">
+          {L.receivedFrom}
+        </Label>
+        <DatePicker
+          id="receipt-received-from"
+          value={receivedFrom}
+          onChange={onReceivedFromChange}
+          clearable
+          aria-invalid={rangeInverted}
+          aria-describedby={rangeInverted ? "receipt-range-error" : undefined}
+          className="h-8 w-[10.5rem]"
+        />
+        <Label htmlFor="receipt-received-to" className="text-ink-secondary text-[0.8125rem]">
+          {L.receivedTo}
+        </Label>
+        <DatePicker
+          id="receipt-received-to"
+          value={receivedTo}
+          onChange={onReceivedToChange}
+          clearable
+          aria-invalid={rangeInverted}
+          aria-describedby={rangeInverted ? "receipt-range-error" : undefined}
+          className="h-8 w-[10.5rem]"
+        />
+        {rangeInverted && (
+          <p id="receipt-range-error" role="alert" className="text-danger text-xs">
+            {L.rangeInverted}
+          </p>
+        )}
+      </div>
       {customerId && (
         <FilterChip label={L.customerChip} onClear={onClearCustomer}>
           <CustomerName id={customerId} name={customerName} code={customerCode} link={false} />

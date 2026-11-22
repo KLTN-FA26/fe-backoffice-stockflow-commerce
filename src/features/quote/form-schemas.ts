@@ -41,11 +41,26 @@ export const quoteLineInputSchema = z
     ),
     /** Do form điền theo `GET /catalog/customer-prices/{customerId}/{sku}` (200 = có giá riêng). */
     hasCustomerPrice: z.boolean(),
+    /** MOQ (thùng) của giá riêng khách, do form điền cùng `hasCustomerPrice`; vắng = chưa biết. */
+    customerPriceMoq: z.number().nullish(),
     tiers: z.array(z.object({ minQuantity: z.string().trim(), unitPrice: z.string().trim() })),
   })
   .superRefine((line, ctx) => {
     // 13 BR-05: bỏ trống bậc giá = BE lấy giá riêng của khách; không có giá riêng thì phải nhập.
+    const cartons = INT.test(line.cartons) ? Number(line.cartons) : null;
     if (line.tiers.length === 0) {
+      // BE `defaultTiers`: dưới MOQ của giá riêng thì 400 `refusal.quote.belowOwnPriceMinimum`.
+      if (
+        line.hasCustomerPrice &&
+        cartons !== null &&
+        line.customerPriceMoq != null &&
+        cartons < line.customerPriceMoq
+      )
+        ctx.addIssue({
+          code: "custom",
+          path: ["tiers"],
+          message: `Dưới mức tối thiểu ${line.customerPriceMoq} thùng của bảng giá khách — nhập bậc giá đã thoả thuận`,
+        });
       if (!line.hasCustomerPrice)
         ctx.addIssue({
           code: "custom",
@@ -64,6 +79,18 @@ export const quoteLineInputSchema = z
           message: issue.message,
         });
     });
+    // BE `Quote.java` (QUOTE_BELOW_MOQ, 409): số thùng của SKU phải đạt bậc thấp nhất (= MOQ) của bậc giá nhập tay.
+    const minTier = Math.min(
+      ...line.tiers
+        .filter((tier) => INT.test(tier.minQuantity))
+        .map((tier) => Number(tier.minQuantity)),
+    );
+    if (cartons !== null && Number.isFinite(minTier) && cartons < minTier)
+      ctx.addIssue({
+        code: "custom",
+        path: ["cartons"],
+        message: `Thấp hơn MOQ ${minTier} thùng của bậc giá đã nhập`,
+      });
     const mins = line.tiers.map((tier) => tier.minQuantity);
     if (new Set(mins).size !== mins.length)
       ctx.addIssue({

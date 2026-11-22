@@ -104,10 +104,25 @@ describe("OrderInstallmentsView — an order's installments and handover blockin
     expect(screen.queryByRole("button", { name: "Lập phiếu thu" })).not.toBeInTheDocument();
   });
 
-  it("when every installment is cancelled the order has no payment status", async () => {
-    mockPaymentApi(ACCOUNTANT_GRANTS, routes(orderView({ paymentStatus: undefined })));
+  it("when every installment is cancelled: only what the customer paid, no total / outstanding (WF-02 26)", async () => {
+    const cancelled = [signing, batch1, batch2].map((row) => ({ ...row, status: "CANCELLED" }));
+    mockPaymentApi(
+      ACCOUNTANT_GRANTS,
+      routes(orderView({ paymentStatus: undefined, installments: cancelled, outstanding: 0 })),
+    );
     renderPaymentScreen(<OrderInstallmentsView orderId="ord-13" />);
     expect(await screen.findByText("Mọi đợt đã huỷ")).toBeInTheDocument();
+    expect(screen.getByText("Đã thanh toán")).toBeInTheDocument();
+    expect(screen.queryByText("Tổng các đợt")).not.toBeInTheDocument();
+    expect(screen.queryByText("Còn phải thu", { selector: "dt" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Phải thu trước khi bàn giao")).not.toBeInTheDocument();
+  });
+
+  it("a cancellation fee still owed keeps the total and outstanding", async () => {
+    mockPaymentApi(ACCOUNTANT_GRANTS, routes(orderView({ paymentStatus: "UNPAID" })));
+    renderPaymentScreen(<OrderInstallmentsView orderId="ord-13" />);
+    expect(await screen.findByText("Tổng các đợt")).toBeInTheDocument();
+    expect(screen.getByText("Còn phải thu", { selector: "dt" })).toBeInTheDocument();
   });
 
   it("a missing order explains that no installments exist for it", async () => {

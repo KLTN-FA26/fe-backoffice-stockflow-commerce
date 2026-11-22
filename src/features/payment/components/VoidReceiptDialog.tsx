@@ -13,7 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
-import { paymentErrorMessage } from "../errors";
+import { receiptErrorMessage } from "../errors";
 import { useVoidReceipt } from "../mutations";
 import { voidInputSchema } from "../input-schemas";
 
@@ -32,7 +32,7 @@ function VoidReceiptForm({ receipt, onClose }: { receipt: PaymentReceipt; onClos
   const submit = form.handleSubmit((values) =>
     voidReceipt.mutate(
       { id: receipt.receiptId, ...values },
-      { onSuccess: onClose, onError: (failure) => setError(paymentErrorMessage(failure)) },
+      { onSuccess: onClose, onError: (failure) => setError(receiptErrorMessage(failure)) },
     ),
   );
 

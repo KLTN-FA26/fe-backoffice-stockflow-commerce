@@ -35,6 +35,22 @@ export function ContractEditor({
 
   return (
     <form onSubmit={(event) => void editor.submit(event)} noValidate className="space-y-4">
+      {editor.stale && (
+        <Notice tone="warning" live>
+          <span>
+            Hợp đồng vừa được người khác lưu (bản mới). Thay đổi của bạn chưa được lưu.{" "}
+            <Button
+              type="button"
+              variant="link"
+              size="sm"
+              className="h-auto p-0"
+              onClick={editor.reload}
+            >
+              Tải lại theo bản mới
+            </Button>
+          </span>
+        </Notice>
+      )}
       {editor.formError && <Notice tone="danger">{editor.formError}</Notice>}
       <DeliveryScheduleEditor form={form} lines={order.lines} />
       <div className="flex justify-end">
@@ -99,7 +115,7 @@ export function ContractEditor({
         <Button type="button" variant="outline" onClick={onDone}>
           Đóng
         </Button>
-        <Button type="submit" disabled={editor.pending}>
+        <Button type="submit" disabled={editor.pending || editor.stale}>
           {editor.pending && <LoaderCircle className="size-4 animate-spin" />} Lưu hợp đồng
         </Button>
       </div>

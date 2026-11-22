@@ -17,11 +17,11 @@ import { omittedOrNull } from "@/lib/validation/primitives";
 export const tierDtoSchema = z.object({ minQuantity: z.number().int(), unitPrice: z.number() });
 
 /**
- * BE `TotalsBuilder`: báo giá nháp còn khoản chưa giá (vd phí khuôn chưa nhập) chỉ có `subtotal`, các phần khác null
- * nên bị bỏ khỏi JSON (`non_null`) — đọc lỏng, màn hình chỉ coi là "đủ" khi có cả bốn.
+ * BE `TotalsBuilder`: thiếu phần nào (dòng chưa giá, phí chưa nhập tiền) thì phần đó và `total` là null nên bị bỏ
+ * khỏi JSON (`non_null`) — vd dòng chưa giá cho `{"fees":0}` hoặc `{}`. Đọc lỏng, màn hình chỉ coi là "đủ" khi có cả bốn.
  */
 export const totalsDtoSchema = z.object({
-  subtotal: z.number(),
+  subtotal: omittedOrNull(z.number()),
   fees: omittedOrNull(z.number()),
   tax: omittedOrNull(z.number()),
   total: omittedOrNull(z.number()),
@@ -33,6 +33,8 @@ export const quoteLineDtoSchema = z.object({
   /** `CARTON` (báo giá theo thùng) hoặc `UNIT` (báo giá cũ trước rescope). */
   measure: z.string(),
   sku: z.string(),
+  /** BE-14: `PURCHASABLE`, `PRODUCT_INACTIVE`… ; null on old lines (null alone never counts as discontinued). */
+  purchasability: omittedOrNull(z.string()),
   cartons: omittedOrNull(z.number().int()),
   unitsPerCarton: omittedOrNull(z.number().int()),
   units: z.number().int(),

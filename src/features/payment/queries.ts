@@ -8,12 +8,18 @@ import {
   getOrderInstallments,
   getOrderRefund,
   getReceipt,
+  getReceiptSummary,
   listInstallments,
   listReceipts,
   listRefunds,
 } from "./api";
 
-import type { ListInstallmentParams, ListReceiptParams, ListRefundParams } from "./api";
+import type {
+  ListInstallmentParams,
+  ListReceiptParams,
+  ListRefundParams,
+  ReceiptFilterParams,
+} from "./api";
 import type { Installment, OrderInstallments, OrderRefund, PaymentReceipt } from "./types";
 
 export const installmentKeys = createQueryKeys<ListInstallmentParams>("payment-installments");
@@ -29,6 +35,14 @@ export const useReceipts = createListQuery<PaymentReceipt, ListReceiptParams>(
   receiptKeys,
   listReceipts,
 );
+/** Tổng theo bộ lọc; nằm dưới `receiptKeys.all` nên lập / huỷ phiếu làm mới luôn. */
+export const useReceiptSummary = (filter: ReceiptFilterParams, enabled = true) =>
+  useQuery({
+    queryKey: [...receiptKeys.all, "summary", filter],
+    queryFn: ({ signal }) => getReceiptSummary(filter, signal),
+    enabled,
+    ...QUERY_TIMES.list,
+  });
 export const useReceipt = createDetailQuery<PaymentReceipt>(receiptKeys, getReceipt);
 export const useRefunds = createListQuery<OrderRefund, ListRefundParams>(refundKeys, listRefunds);
 export const useOrderRefund = createDetailQuery<OrderRefund>(refundKeys, getOrderRefund);

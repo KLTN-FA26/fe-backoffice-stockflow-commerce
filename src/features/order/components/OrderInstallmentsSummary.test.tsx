@@ -89,6 +89,50 @@ describe("Khối Thanh toán — các đợt thanh toán của đơn", () => {
     expect(card.getAllByText(/60\.000\.000/).length).toBeGreaterThanOrEqual(2);
   });
 
+  it("đơn huỷ mà mọi đợt đã huỷ (paymentStatus vắng): chỉ 'Đã thanh toán X', không tổng / còn phải thu", async () => {
+    mockOrderApiGet([...ORDER_PERMISSION_SETS.readOnly, PAYMENT_INSTALLMENT_PERMISSIONS.read], {
+      [DETAIL_PATH]: () => apiOrderAt("CANCELLED"),
+      [HISTORY_PATH]: () => [],
+      [INSTALLMENTS_PATH]: () => ({
+        ...INSTALLMENTS,
+        total: 0,
+        paid: 40_000_000,
+        outstanding: 0,
+        installments: INSTALLMENTS.installments.map((row) => ({ ...row, status: "CANCELLED" })),
+      }),
+    });
+    await act(async () => {
+      renderOrderScreen(<OrderDetail params={Promise.resolve({ id: apiOrder.orderId })} />);
+    });
+    await screen.findByRole("heading", { name: apiOrder.orderNumber });
+    const card = within(block());
+    expect(await card.findByText("Đã thanh toán")).toBeInTheDocument();
+    expect(card.getByText(/40\.000\.000/)).toBeInTheDocument();
+    expect(card.queryByText("Đã thu / tổng")).not.toBeInTheDocument();
+    expect(card.queryByText("Còn phải thu")).not.toBeInTheDocument();
+  });
+
+  it("đơn huỷ còn phí huỷ chưa trả (paymentStatus UNPAID): vẫn hiện 'Còn phải thu'", async () => {
+    mockOrderApiGet([...ORDER_PERMISSION_SETS.readOnly, PAYMENT_INSTALLMENT_PERMISSIONS.read], {
+      [DETAIL_PATH]: () => apiOrderAt("CANCELLED"),
+      [HISTORY_PATH]: () => [],
+      [INSTALLMENTS_PATH]: () => ({
+        ...INSTALLMENTS,
+        paymentStatus: "UNPAID",
+        total: 5_000_000,
+        paid: 0,
+        outstanding: 5_000_000,
+      }),
+    });
+    await act(async () => {
+      renderOrderScreen(<OrderDetail params={Promise.resolve({ id: apiOrder.orderId })} />);
+    });
+    await screen.findByRole("heading", { name: apiOrder.orderNumber });
+    const card = within(block());
+    expect(await card.findByText("Còn phải thu")).toBeInTheDocument();
+    expect(card.queryByText("Đã thanh toán", { selector: "dt" })).not.toBeInTheDocument();
+  });
+
   it("trạng thái lạ → Không rõ; phải thu trước khi xuất = 0 → không hiện; field vắng → không dòng", async () => {
     await renderOrder([...ORDER_PERMISSION_SETS.readOnly, PAYMENT_INSTALLMENT_PERMISSIONS.read], {
       ...INSTALLMENTS,

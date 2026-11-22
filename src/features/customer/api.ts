@@ -5,6 +5,7 @@
 
 import { AUTH_API_BASE } from "@/constants/auth";
 import { api } from "@/lib/api/client";
+import { ApiError } from "@/lib/api/error";
 
 import {
   creditProfileDtoSchema,
@@ -12,6 +13,7 @@ import {
   customerPageDtoSchema,
   customerStatusHistoryDtoSchema,
   invitedCustomerDtoSchema,
+  legalProfileDtoSchema,
   normalizeTaxCode,
   portalActivationDtoSchema,
   portalInvitationDtoSchema,
@@ -26,6 +28,8 @@ import type {
   CustomerStatusEntry,
   CustomerUpdateValues,
   InvitedCustomer,
+  LegalProfile,
+  LegalProfileValues,
   PortalInvitation,
 } from "./types";
 
@@ -81,6 +85,53 @@ export async function getPortalInvitation(
 export async function getCreditProfile(id: string, signal?: AbortSignal): Promise<CreditProfile> {
   const { data } = await api.get<unknown>(`${byId(id)}/credit-profile`, { signal });
   return creditProfileDtoSchema.parse(data);
+}
+
+/** `null` = khách chưa có hồ sơ pháp lý (404 `LEGAL_PROFILE_NOT_FOUND`); khách không tồn tại vẫn ném lỗi. */
+export async function getLegalProfile(
+  id: string,
+  signal?: AbortSignal,
+): Promise<LegalProfile | null> {
+  try {
+    const { data } = await api.get<unknown>(`${byId(id)}/legal-profile`, { signal });
+    return legalProfileDtoSchema.parse(data);
+  } catch (error) {
+    if (error instanceof ApiError && error.code === "LEGAL_PROFILE_NOT_FOUND") return null;
+    throw error;
+  }
+}
+
+export interface SaveLegalProfileInput {
+  id: string;
+  /** `null` = lần lưu đầu (chưa có hồ sơ); đã có hồ sơ thì gửi version đang xem. */
+  version: number | null;
+  values: LegalProfileValues;
+}
+
+/** `PUT /customers/{id}/legal-profile` — lưu cả hồ sơ một lần; ba ô ngân hàng trống = không có tài khoản. */
+export async function saveLegalProfile({
+  id,
+  version,
+  values,
+}: SaveLegalProfileInput): Promise<LegalProfile> {
+  const body = {
+    registeredAddress: values.registeredAddress.trim(),
+    representativeName: values.representativeName.trim(),
+    representativeTitle: values.representativeTitle.trim(),
+    ...(values.invoiceEmail.trim() ? { invoiceEmail: values.invoiceEmail.trim() } : {}),
+    ...(values.accountNumber.trim()
+      ? {
+          bankAccount: {
+            accountNumber: values.accountNumber.trim(),
+            bankName: values.bankName.trim(),
+            accountHolder: values.accountHolder.trim(),
+          },
+        }
+      : {}),
+    version,
+  };
+  const { data } = await api.put<unknown>(`${byId(id)}/legal-profile`, body);
+  return legalProfileDtoSchema.parse(data);
 }
 
 /** `POST /customers` → 201 khách PENDING_ACTIVATION + lời mời (link KHÔNG bao giờ trả về). */

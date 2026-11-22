@@ -2,6 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { api } from "@/lib/api/client";
 import { apiError, bePage } from "@/test/api-screen";
 
 import { ReceiptDetail, ReceiptList } from "..";
@@ -13,6 +14,12 @@ import {
   receiptJson,
   renderPaymentScreen,
 } from "../__fixtures__/screen";
+
+const saveFile = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/api/file-download", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/api/file-download")>()),
+  saveFile,
+}));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
@@ -128,6 +135,35 @@ describe("ReceiptDetail — void a wrongly entered receipt (docs 15 §4.4, BR-04
     expect(api.post).not.toHaveBeenCalled();
   });
 
+  it.each([
+    [
+      "PAYMENT_RECEIPT_VOID_NOT_ALLOWED",
+      409,
+      "Phiếu thu PT-1 đã trả cho đơn SO-9, không huỷ được.",
+      /SO-9/,
+    ],
+    [
+      "VALIDATION_FAILED",
+      400,
+      "Huỷ phiếu thu cần nêu lý do (tối thiểu 3 ký tự).",
+      /Huỷ phiếu thu cần nêu lý do/,
+    ],
+  ])("a refused void shows the BE sentence (%s)", async (code, status, message, shown) => {
+    mockPaymentApi(
+      ACCOUNTANT_GRANTS,
+      routes(() => {
+        throw apiError(status, code, undefined, message);
+      }),
+    );
+    renderPaymentScreen(<ReceiptDetail id="rcp-1" />);
+    await userEvent.click(await screen.findByRole("button", { name: "Huỷ phiếu thu" }));
+    const dialog = within(await screen.findByRole("dialog"));
+    await userEvent.type(dialog.getByLabelText(/Lý do huỷ phiếu thu/), "Nhầm khách");
+    await userEvent.click(dialog.getByRole("button", { name: "Huỷ phiếu thu" }));
+    expect(await dialog.findByText(shown)).toBeInTheDocument();
+    expect(dialog.queryByText(/được đánh dấu/)).not.toBeInTheDocument();
+  });
+
   it("BR-13: when the void leaves a confirmed order short, BE asks for the hold; ticking 'Treo đơn' retries with holdOrders", async () => {
     const post = vi
       .fn()
@@ -197,5 +233,129 @@ describe("ReceiptDetail — void a wrongly entered receipt (docs 15 §4.4, BR-04
       "/admin/payment/installments/inst-2",
     );
     expect(installmentJson().installmentId).toBe("inst-2");
+  });
+});
+
+describe("WF-02 mục 36 — ngày nhận, tổng, xuất Excel", () => {
+  const listCalls = () =>
+    vi
+      .mocked(api.get)
+      .mock.calls.filter(([url]) => url === "/payment-receipts")
+      .map(([, config]) => config?.params as URLSearchParams);
+  const summary = { count: 3, totalAmount: 75_000_000, currency: "VND", byCurrency: [] };
+  const routes = (over: Record<string, () => unknown> = {}) => ({
+    get: {
+      "/payment-receipts": () => bePage([receiptJson()]),
+      "/payment-receipts/summary": () => summary,
+      ...over,
+    },
+  });
+
+  it("lọc ngày gửi receivedFrom/receivedTo và về trang 1 khi đổi ngày", async () => {
+    mockPaymentApi(ACCOUNTANT_GRANTS, routes());
+    renderPaymentScreen(<ReceiptList />, "?receivedFrom=2026-11-10&receivedTo=2026-11-30&page=3");
+    await waitFor(() => expect(listCalls().length).toBeGreaterThan(0));
+    const first = listCalls().at(-1)!;
+    expect(first.get("receivedFrom")).toBe("2026-11-10");
+    expect(first.get("receivedTo")).toBe("2026-11-30");
+    expect(first.get("page")).toBe("2");
+    await userEvent.click(screen.getByLabelText(/Nhận từ ngày/));
+    const day = await screen.findByRole("gridcell", { name: /15/ });
+    await userEvent.click(within(day).getByRole("button"));
+    await waitFor(() => expect(listCalls().at(-1)?.get("receivedFrom")).toBe("2026-11-15"));
+    expect(listCalls().at(-1)?.get("page")).toBe("0");
+  });
+
+  it("hiện số phiếu và tổng từ /summary, kèm bộ lọc", async () => {
+    const api = mockPaymentApi(ACCOUNTANT_GRANTS, routes());
+    renderPaymentScreen(<ReceiptList />, "?receivedFrom=2026-11-10");
+    expect(await screen.findByText("3 phiếu thu")).toBeInTheDocument();
+    expect(screen.getByText(/75\.000\.000/)).toBeInTheDocument();
+    expect(screen.getByText(/Không tính phiếu đã huỷ/)).toBeInTheDocument();
+    const call = api.get.mock.calls.find(([url]) => url === "/payment-receipts/summary");
+    expect((call?.[1] as { params: URLSearchParams }).params.get("receivedFrom")).toBe(
+      "2026-11-10",
+    );
+  });
+
+  it("nhiều loại tiền: không có totalAmount thì liệt kê từng loại", async () => {
+    mockPaymentApi(
+      ACCOUNTANT_GRANTS,
+      routes({
+        "/payment-receipts/summary": () => ({
+          count: 2,
+          byCurrency: [
+            { currency: "VND", count: 1, totalAmount: 10_000_000 },
+            { currency: "USD", count: 1, totalAmount: 500 },
+          ],
+        }),
+      }),
+    );
+    renderPaymentScreen(<ReceiptList />);
+    expect(await screen.findByText(/10\.000\.000/)).toBeInTheDocument();
+    expect(screen.getByText(/\$500/)).toBeInTheDocument();
+  });
+
+  it("không có payment-receipts:EXPORT thì không có nút Xuất Excel", async () => {
+    mockPaymentApi(
+      ACCOUNTANT_GRANTS.filter((code) => code !== "payment-receipts:EXPORT"),
+      routes(),
+    );
+    renderPaymentScreen(<ReceiptList />);
+    await screen.findByText("3 phiếu thu");
+    expect(screen.queryByRole("button", { name: "Xuất Excel" })).not.toBeInTheDocument();
+  });
+
+  it("Xuất Excel gọi /export với cùng bộ lọc rồi lưu file", async () => {
+    saveFile.mockClear();
+    const url = "/payment-receipts/export?receivedFrom=2026-11-10&receivedTo=2026-11-30";
+    const spy = mockPaymentApi(ACCOUNTANT_GRANTS, routes());
+    const base = spy.get.getMockImplementation()!;
+    spy.get.mockImplementation(async (path, config) =>
+      path === url
+        ? {
+            data: new Blob(["x"]),
+            headers: { "content-disposition": 'attachment; filename="payment-receipts-1.xlsx"' },
+          }
+        : base(path, config),
+    );
+    renderPaymentScreen(<ReceiptList />, "?receivedFrom=2026-11-10&receivedTo=2026-11-30");
+    await userEvent.click(await screen.findByRole("button", { name: "Xuất Excel" }));
+    await waitFor(() => expect(saveFile).toHaveBeenCalled());
+    expect(saveFile.mock.calls[0]?.[0]).toMatchObject({ fileName: "payment-receipts-1.xlsx" });
+    const call = spy.get.mock.calls.find(([path]) => path === url);
+    expect((call?.[1] as { headers: { Accept: string } }).headers.Accept).toContain(
+      "spreadsheetml.sheet",
+    );
+  });
+
+  it("EXPORT_TOO_LARGE shows the BE's Vietnamese sentence (BE-7); the FE sentence only when BE sends none", async () => {
+    const spy = mockPaymentApi(ACCOUNTANT_GRANTS, routes());
+    const base = spy.get.getMockImplementation()!;
+    let message: string | undefined = "File xuất vượt 50.000 dòng, hãy thu hẹp khoảng ngày.";
+    spy.get.mockImplementation(async (path, config) => {
+      if (String(path).startsWith("/payment-receipts/export"))
+        throw apiError(422, "EXPORT_TOO_LARGE", undefined, message);
+      return base(path, config);
+    });
+    renderPaymentScreen(<ReceiptList />);
+    await userEvent.click(await screen.findByRole("button", { name: "Xuất Excel" }));
+    expect(
+      await screen.findByText(/vượt 50\.000 dòng, hãy thu hẹp khoảng ngày/),
+    ).toBeInTheDocument();
+    // No message (or one that only repeats the code): fall back to the FE sentence.
+    message = undefined;
+    await userEvent.click(screen.getByRole("button", { name: "Xuất Excel" }));
+    expect(await screen.findByText(/hơn 50\.000 dòng/)).toBeInTheDocument();
+  });
+
+  it("khoảng ngày ngược báo lỗi tại ô và không gọi BE", async () => {
+    const spy = mockPaymentApi(ACCOUNTANT_GRANTS, routes());
+    renderPaymentScreen(<ReceiptList />, "?receivedFrom=2026-11-30&receivedTo=2026-11-10");
+    expect(await screen.findByText("Từ ngày phải trước hoặc bằng Đến ngày")).toBeInTheDocument();
+    expect(screen.getByLabelText(/Nhận từ ngày/)).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByRole("button", { name: "Xuất Excel" })).toBeDisabled();
+    const sent = spy.get.mock.calls.filter(([url]) => String(url).startsWith("/payment-receipts"));
+    expect(sent).toHaveLength(0);
   });
 });

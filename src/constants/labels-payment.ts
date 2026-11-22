@@ -33,7 +33,10 @@ export const PAYMENT_LABELS = {
     navLabel: "Đợt thanh toán",
     pageTitle: "Đợt thanh toán",
     receivablesPreset: "Công nợ phải thu",
-    receivablesHint: "Đợt trả sau giao đã đến mốc",
+    receivablesHint:
+      "Mọi đợt đã đến mốc mà chưa trả đủ: sau giao, trước giao, quá hạn, phí huỷ, phí giao thất bại",
+    customerSearch: "Tìm khách (tên hoặc mã số thuế)",
+    customerSearchTooMany: "Có quá nhiều khách khớp — gõ cụ thể hơn",
     reachedOnly: "Chỉ đợt đã đến mốc",
     overdueOnly: "Chỉ đợt quá hạn",
     dueBefore: "Hạn trả trước ngày",
@@ -42,6 +45,8 @@ export const PAYMENT_LABELS = {
     clearFilters: "Bỏ bộ lọc",
     customerChip: "Khách hàng",
     orderChip: "Đơn hàng",
+    orderSearch: "Tìm đơn (số đơn, tên liên hệ, SĐT)",
+    filterByOrderCustomer: "Lọc theo khách của đơn",
     emptyTitle: "Chưa có đợt thanh toán",
     emptyDescription:
       "Đợt thanh toán được hệ thống sinh khi hợp đồng chuyển sang Signed — chưa có hợp đồng nào được ký.",
@@ -91,6 +96,9 @@ export const PAYMENT_LABELS = {
       "Đợt trước khi giao chưa thu đủ thì chặn bàn giao cho đơn vị vận chuyển; đợt gắn đợt giao chỉ chặn đợt giao đó.",
     installmentsTitle: "Các đợt thanh toán",
     noPaymentStatus: "Mọi đợt đã huỷ",
+    paidWhenCancelled: "Đã thanh toán",
+    allCancelledHint:
+      "Mọi đợt của đơn đã huỷ nên không còn số phải thu. Tiền khách đã trả xử lý ở màn Hoàn tiền.",
   },
   detail: {
     transferReference: "Nội dung chuyển khoản",
@@ -128,6 +136,16 @@ export const PAYMENT_LABELS = {
     total: "Tổng phiếu",
     statusAll: "Mọi trạng thái",
     customerChip: "Khách hàng",
+    receivedFrom: "Nhận từ ngày",
+    receivedTo: "Đến ngày",
+    rangeInverted: "Từ ngày phải trước hoặc bằng Đến ngày",
+    exportAction: "Xuất Excel",
+    exporting: "Đang xuất…",
+    exportFallbackName: "phieu-thu.xlsx",
+    summaryTitle: "Tổng phiếu thu",
+    summaryCount: (count: number) => `${count} phiếu thu`,
+    summaryNote: "Không tính phiếu đã huỷ.",
+    summaryError: "Không tải được tổng phiếu thu.",
   },
   recordDialog: {
     title: "Lập phiếu thu",

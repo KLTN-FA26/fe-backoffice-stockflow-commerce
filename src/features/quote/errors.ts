@@ -11,6 +11,10 @@ export const QUOTE_ERROR_OVERRIDES: Readonly<Record<string, string>> = {
   OPTIMISTIC_LOCK: "Dữ liệu vừa thay đổi, đã tải lại.",
 };
 
+/** Khoá lạc quan khi LƯU trong form sửa: form có nút "Tải lại theo bản mới", các thao tác ở trang chi tiết thì không có. */
+export const QUOTE_EDIT_LOCK_MESSAGE =
+  "Báo giá vừa được người khác sửa — bấm 'Tải lại theo bản mới' rồi sửa lại.";
+
 export function quoteErrorMessage(error: unknown): string {
   return serverErrorMessage(error, QUOTE_ERROR_OVERRIDES);
 }

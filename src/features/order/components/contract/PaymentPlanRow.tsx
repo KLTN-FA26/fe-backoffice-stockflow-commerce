@@ -8,6 +8,8 @@ import { FORM_INPUT_CLASS } from "@/components/shared/FormField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+import { DEFAULT_ON_SIGNING_DUE_DAYS } from "../../sales-contract-form";
+
 import type { UseFormReturn } from "react-hook-form";
 import type { ContractFormValues } from "../../sales-contract-form";
 
@@ -32,7 +34,7 @@ export function PaymentPlanRow({
   canRemove: boolean;
   onRemove: () => void;
 }) {
-  const { register, formState, control } = form;
+  const { register, formState, control, getValues, setValue } = form;
   const e = formState.errors.paymentPlan?.[index];
   const milestone = useWatch({ control, name: `paymentPlan.${index}.milestone` });
   return (
@@ -47,7 +49,21 @@ export function PaymentPlanRow({
         <FieldError message={e?.name?.message} />
       </div>
       <select
-        {...register(`paymentPlan.${index}.milestone`)}
+        {...register(`paymentPlan.${index}.milestone`, {
+          // N10: an ON_SIGNING row left without a number of days defaults to the BE's 3 days. Moving
+          // away from ON_SIGNING drops that untouched default so AFTER_DELIVERY falls back to the credit term.
+          onChange: (event: { target: { value: string } }) => {
+            const path = `paymentPlan.${index}.dueDays` as const;
+            const current = getValues(path);
+            if (event.target.value === "ON_SIGNING" && !current)
+              setValue(path, String(DEFAULT_ON_SIGNING_DUE_DAYS));
+            else if (
+              event.target.value !== "ON_SIGNING" &&
+              current === String(DEFAULT_ON_SIGNING_DUE_DAYS)
+            )
+              setValue(path, "");
+          },
+        })}
         aria-label={`Đợt ${index + 1} — mốc`}
         className={SELECT}
       >
@@ -78,7 +94,7 @@ export function PaymentPlanRow({
         <Input
           {...register(`paymentPlan.${index}.dueDays`)}
           aria-label={`Đợt ${index + 1} — số ngày`}
-          placeholder="Ngày"
+          placeholder={milestone === "ON_SIGNING" ? String(DEFAULT_ON_SIGNING_DUE_DAYS) : "Ngày"}
           disabled={milestone === "BEFORE_DELIVERY"}
           inputMode="numeric"
           className={NUM}

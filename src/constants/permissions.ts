@@ -769,3 +769,14 @@ export const ORDER_DELIVERY_DOCUMENT_PERMISSIONS = {
 export const SHIPMENT_CANCELLATION_PERMISSIONS = {
   update: "fulfillment-shipment-cancellations:UPDATE",
 } as const;
+
+/**
+ * Hồ sơ pháp lý của khách (địa chỉ đăng ký, người đại diện, email hoá đơn, tài khoản ngân hàng) — resource riêng
+ * `customer-legal-profiles` của BE `CustomerLegalProfileController` (`GET` / `PUT /customers/{id}/legal-profile`). Seed
+ * V20261120000100: SALES_STAFF, SALES_MANAGER, ACCOUNTANT, SYSTEM_ADMIN đều READ + UPDATE. Hợp đồng không lập được khi
+ * khách chưa có hồ sơ này (409 `CUSTOMER_LEGAL_PROFILE_MISSING`).
+ */
+export const CUSTOMER_LEGAL_PROFILE_PERMISSIONS = {
+  read: "customer-legal-profiles:READ",
+  update: "customer-legal-profiles:UPDATE",
+} as const;

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { creditProfileDtoSchema, customerCreateInputSchema } from "../schemas";
+import {
+  creditProfileDtoSchema,
+  customerCreateInputSchema,
+  legalProfileInputSchema,
+} from "../schemas";
 
 const PROFILE = {
   customerId: "c-1",
@@ -56,5 +60,50 @@ describe("customerCreateInputSchema.depositPercent — required and checked only
         depositPercent: "100",
       }).success,
     ).toBe(true);
+  });
+});
+
+describe("legalProfileInputSchema — BE SaveLegalProfileRequest rules", () => {
+  const base = {
+    registeredAddress: "12 Nguyễn Huệ",
+    representativeName: "Nguyễn Văn An",
+    representativeTitle: "Giám đốc",
+    invoiceEmail: "",
+    accountNumber: "",
+    bankName: "",
+    accountHolder: "",
+  };
+  const issues = (patch: Record<string, string>) =>
+    legalProfileInputSchema.safeParse({ ...base, ...patch }).error?.issues ?? [];
+  const bank = { bankName: "Vietcombank", accountHolder: "Cty Bao Bì Xanh" };
+
+  it("a profile without a bank account is valid", () => {
+    expect(issues({})).toEqual([]);
+  });
+
+  it("account number: spaces, dots and dashes are ignored; '0123 456.789' ok, '12' rejected", () => {
+    expect(issues({ ...bank, accountNumber: "0123 456.789" })).toEqual([]);
+    expect(issues({ ...bank, accountNumber: "12" }).map((i) => i.path[0])).toEqual([
+      "accountNumber",
+    ]);
+  });
+
+  it("one bank field means all three are required", () => {
+    expect(issues({ bankName: "Vietcombank" }).map((i) => i.path[0])).toEqual([
+      "accountNumber",
+      "accountHolder",
+    ]);
+  });
+
+  it("invoice email: wrong shape rejected, blank allowed", () => {
+    expect(issues({ invoiceEmail: "ketoan@" }).map((i) => i.path[0])).toEqual(["invoiceEmail"]);
+    expect(issues({ invoiceEmail: "ketoan@xanh.vn" })).toEqual([]);
+  });
+
+  it("length limits: address 500, representative 200, title 100", () => {
+    expect(issues({ registeredAddress: "a".repeat(501) })).toHaveLength(1);
+    expect(issues({ representativeName: "a".repeat(201) })).toHaveLength(1);
+    expect(issues({ representativeTitle: "a".repeat(101) })).toHaveLength(1);
+    expect(issues({ registeredAddress: "a".repeat(500) })).toEqual([]);
   });
 });

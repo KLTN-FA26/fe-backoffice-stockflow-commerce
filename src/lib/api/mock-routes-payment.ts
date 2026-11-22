@@ -1,10 +1,11 @@
 /**
  * Mock routes — đợt thanh toán và phiếu thu (BE `InstallmentController` + `PaymentReceiptController`,
  * payment module 4B-6, docs 15):
- *   GET  /installments?customerId&orderId&status&milestone&dueBefore&reached&page&size&sort
+ *   GET  /installments?customerId&orderId&status&milestone&dueBefore&reached&owing&page&size&sort
  *   GET  /installments/orders/{orderId}     đợt của một đơn + trạng thái thanh toán (§5.2)
  *   GET  /installments/{id}                 kèm các phiếu thu đã trả (cả phiếu đã huỷ)
- *   GET  /payment-receipts, GET /payment-receipts/{id}
+ *   GET  /payment-receipts?…&receivedFrom&receivedTo, GET /payment-receipts/{id}
+ *   GET  /payment-receipts/summary, GET /payment-receipts/export   cùng bộ lọc (WF-02 mục 36)
  *   POST /payment-receipts                  lập phiếu thu (BR-02..BR-05)
  *   POST /payment-receipts/{id}/void        huỷ phiếu thu (BR-04, BR-13)
  * Thứ tự kiểm như BE: mã tham chiếu trùng → đợt (không thấy / khác khách / không nhận tiền) → vượt số còn phải thu.
@@ -136,6 +137,7 @@ function listInstallments(config: AxiosRequestConfig) {
   const q = queryOf(config);
   const reached = q.get("reached");
   const overdue = q.get("overdue");
+  const owing = q.get("owing") === "true";
   const status = q.get("status");
   const rows = mockInstallments().filter(
     (i) =>
@@ -144,6 +146,8 @@ function listInstallments(config: AxiosRequestConfig) {
       (!status || statusOf(i) === status) &&
       (!q.get("milestone") || i.milestone === q.get("milestone")) &&
       (!q.get("dueBefore") || (i.dueDate !== null && i.dueDate < (q.get("dueBefore") ?? ""))) &&
+      // BE-5: owing = reached and still to pay (DUE / PARTIALLY_PAID).
+      (!owing || (i.reachedAt !== null && ["DUE", "PARTIALLY_PAID"].includes(statusOf(i)))) &&
       (reached === null || (i.reachedAt !== null) === (reached === "true")) &&
       (overdue === null || overdueOf(i) === (overdue === "true")),
   );
@@ -297,6 +301,20 @@ async function voidReceipt(id: string, body: Record<string, unknown>) {
   return ok(receiptWire(found, true));
 }
 
+/** BE `ReceiptFilter`: khách, trạng thái, mã tham chiếu (khớp chính xác), ngày nhận (gồm cả hai đầu). */
+function filteredReceipts(q: URLSearchParams): MockReceipt[] {
+  const from = q.get("receivedFrom");
+  const to = q.get("receivedTo");
+  return mockReceipts().filter(
+    (r) =>
+      (!q.get("customerId") || r.customerId === q.get("customerId")) &&
+      (!q.get("status") || r.status === q.get("status")) &&
+      (!q.get("reference") || r.reference === q.get("reference")) &&
+      (!from || r.receivedOn >= from) &&
+      (!to || r.receivedOn <= to),
+  );
+}
+
 export function registerPaymentMockRoutes(): void {
   registerMockRoute("GET", "/installments", async (config) => {
     if (!(await can("payment-installments:READ"))) return forbidden();
@@ -324,12 +342,7 @@ export function registerPaymentMockRoutes(): void {
   registerMockRoute("GET", "/payment-receipts", async (config) => {
     if (!(await can("payment-receipts:READ"))) return forbidden();
     const q = queryOf(config);
-    const rows = mockReceipts().filter(
-      (r) =>
-        (!q.get("customerId") || r.customerId === q.get("customerId")) &&
-        (!q.get("status") || r.status === q.get("status")) &&
-        (!q.get("reference") || r.reference === q.get("reference")),
-    );
+    const rows = filteredReceipts(q);
     const keys = {
       receivedOn: (r: MockReceipt) => r.receivedOn,
       recordedAt: (r: MockReceipt) => r.recordedAt,
@@ -343,6 +356,44 @@ export function registerPaymentMockRoutes(): void {
         size,
       ),
     );
+  });
+  // Registered before `/payment-receipts/:id` so the static segments win.
+  registerMockRoute("GET", "/payment-receipts/summary", async (config) => {
+    if (!(await can("payment-receipts:READ"))) return forbidden();
+    const rows = filteredReceipts(queryOf(config)).filter((r) => r.status !== "VOIDED");
+    const byCurrency = [...new Set(rows.map((r) => r.currency))].map((currency) => {
+      const own = rows.filter((r) => r.currency === currency);
+      return {
+        currency,
+        count: own.length,
+        totalAmount: own.reduce((sum, r) => sum + r.amount, 0),
+      };
+    });
+    const single = byCurrency.length === 1 ? byCurrency[0] : undefined;
+    return ok({
+      count: rows.length,
+      ...(single ? { totalAmount: single.totalAmount, currency: single.currency } : {}),
+      byCurrency,
+    });
+  });
+  registerMockRoute("GET", "/payment-receipts/export", async (config) => {
+    if (!(await can("payment-receipts:EXPORT"))) return forbidden();
+    const rows = filteredReceipts(queryOf(config));
+    const csv = ["reference,receivedOn,amount,currency,status"]
+      .concat(
+        rows.map((r) => `${r.reference},${r.receivedOn},${r.amount},${r.currency},${r.status}`),
+      )
+      .join("\n");
+    return {
+      status: 200,
+      data: new Blob([csv], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      }),
+      headers: {
+        "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "content-disposition": 'attachment; filename="payment-receipts-mock.xlsx"',
+      },
+    };
   });
   registerMockRoute("GET", "/payment-receipts/:id", async (config) => {
     if (!(await can("payment-receipts:READ"))) return forbidden();

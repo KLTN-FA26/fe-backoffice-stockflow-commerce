@@ -4,7 +4,10 @@ import { Landmark } from "lucide-react";
 
 import { INSTALLMENT_MILESTONE_LABELS, PAYMENT_LABELS } from "@/constants/labels-payment";
 import { INSTALLMENT_FILTER_STATUSES, INSTALLMENT_MILESTONES } from "@/constants/payment";
+
 import { CustomerName } from "@/components/backoffice/CustomerName";
+import { FilterChip, FilterSelect } from "@/components/backoffice/FilterSelect";
+import { OrderPicker } from "@/components/backoffice/OrderPicker";
 import { DatePicker } from "@/components/shared/DatePicker";
 import { TOOLBAR_ACTION_CLASS } from "@/components/shared/ListToolbar";
 import { Button } from "@/components/ui/button";
@@ -12,8 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 
 import { installmentStatusLabel } from "../selectors";
-
-import { FilterChip, FilterSelect } from "@/components/backoffice/FilterSelect";
+import { InstallmentCustomerSearch } from "./InstallmentCustomerSearch";
 
 import type { InstallmentListState } from "./useInstallmentListState";
 
@@ -30,13 +32,20 @@ const MILESTONE_OPTIONS = INSTALLMENT_MILESTONES.map((value) => ({
 
 /**
  * Bộ lọc đợt thanh toán (BE `GET /installments`): trạng thái, mốc, đã đến mốc, hạn trả trước ngày;
- * khách / đơn chỉ lọc qua liên kết (kế toán không có quyền tra danh bạ khách) và hiện thành chip.
+ * đơn chọn qua ô tìm đơn (`GET /orders?search=`); khách tìm bằng ô `search=` của chính `GET /installments` (BE-16:
+ * tên hoặc mã số thuế) — không gọi danh bạ khách vì kế toán không có quyền (WF-02 mục 35). Khách / đơn đang lọc
+ * hiện thành chip.
  */
 export function InstallmentFilters({ s }: { s: InstallmentListState }) {
   // Tên khách lấy từ chính các dòng đang lọc (BE-15) — kế toán không tra được danh bạ khách.
   const named = s.query.data?.items.find((row) => row.customerId === s.customerId);
+  // The picked order's number and customer come from the rows already filtered by it (the URL only holds the id).
+  const ofOrder = s.orderId
+    ? s.query.data?.items.find((row) => row.orderId === s.orderId)
+    : undefined;
   return (
     <div className="mb-3 flex flex-wrap items-center gap-3">
+      <InstallmentCustomerSearch s={s} />
       <Button
         type="button"
         size="sm"
@@ -96,6 +105,12 @@ export function InstallmentFilters({ s }: { s: InstallmentListState }) {
           className="h-8 w-[10.5rem]"
         />
       </div>
+      <OrderPicker
+        id="installment-order-search"
+        label={L.orderSearch}
+        placeholder={L.orderSearch}
+        onSelect={(order) => void s.setOrderId(order.orderId)}
+      />
       {s.customerId && (
         <FilterChip label={L.customerChip} onClear={() => void s.setCustomerId("")}>
           <CustomerName
@@ -108,8 +123,18 @@ export function InstallmentFilters({ s }: { s: InstallmentListState }) {
       )}
       {s.orderId && (
         <FilterChip label={L.orderChip} onClear={() => void s.setOrderId("")}>
-          <span className="font-mono">{s.orderId.slice(0, 8)}</span>
+          <span className="font-mono">{ofOrder?.orderNumber ?? s.orderId.slice(0, 8)}</span>
         </FilterChip>
+      )}
+      {ofOrder && !s.customerId && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="xs"
+          onClick={() => void s.setCustomerId(ofOrder.customerId)}
+        >
+          {L.filterByOrderCustomer}
+        </Button>
       )}
       {s.hasFilters && (
         <Button type="button" variant="ghost" size="xs" onClick={s.clearFilters}>

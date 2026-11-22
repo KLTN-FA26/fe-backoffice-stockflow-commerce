@@ -125,20 +125,21 @@ describe("InstallmentList — what the accountant sees (docs 15 §5.1)", () => {
     expect(api.get.mock.calls.some(([url]) => url === "/installments")).toBe(false);
   });
 
-  it("sends the filters from the URL; 'Công nợ phải thu' is milestone AFTER_DELIVERY + reached (docs 15 §4.3)", async () => {
+  it("sends the filters from the URL; 'Công nợ phải thu' is owing=true (BE-5)", async () => {
     const api = mockPaymentApi(ACCOUNTANT_GRANTS, { get: listRoutes([overdue]) });
     renderPaymentScreen(
       <InstallmentList />,
-      "?milestone=AFTER_DELIVERY&reached=true&overdue=true&customerId=cust-9&dueBefore=2026-12-01",
+      "?owing=true&overdue=true&customerId=cust-9&dueBefore=2026-12-01",
     );
     await screen.findByText("Quá hạn");
     const params = api.get.mock.calls.find(([url]) => url === "/installments")?.[1] as {
       params: URLSearchParams;
     };
     expect(params.params.has("status")).toBe(false);
+    expect(params.params.has("milestone")).toBe(false);
+    expect(params.params.has("reached")).toBe(false);
     expect(Object.fromEntries(params.params)).toMatchObject({
-      milestone: "AFTER_DELIVERY",
-      reached: "true",
+      owing: "true",
       overdue: "true",
       customerId: "cust-9",
       dueBefore: "2026-12-01",
@@ -148,6 +149,93 @@ describe("InstallmentList — what the accountant sees (docs 15 §5.1)", () => {
       "aria-pressed",
       "true",
     );
+  });
+
+  it("BE-5: clearing the preset removes owing from the request", async () => {
+    const api = mockPaymentApi(ACCOUNTANT_GRANTS, { get: listRoutes([overdue]) });
+    renderPaymentScreen(<InstallmentList />, "?owing=true");
+    await userEvent.click(await screen.findByRole("button", { name: "Công nợ phải thu" }));
+    await waitFor(() => {
+      const calls = api.get.mock.calls.filter(([url]) => url === "/installments");
+      expect((calls.at(-1)?.[1] as { params: URLSearchParams }).params.has("owing")).toBe(false);
+    });
+    expect(screen.getByRole("button", { name: "Công nợ phải thu" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+  });
+
+  it("BE-16: the customer search box sends search= (debounced) and resets to page 1; /customers is never asked", async () => {
+    const api = mockPaymentApi(ACCOUNTANT_GRANTS, { get: listRoutes([due]) });
+    renderPaymentScreen(<InstallmentList />);
+    const calls = () => api.get.mock.calls.filter(([url]) => url === "/installments");
+    await userEvent.type(await screen.findByRole("searchbox", { name: /Tìm khách/ }), "an phat");
+    await waitFor(() =>
+      expect((calls().at(-1)?.[1] as { params: URLSearchParams }).params.get("search")).toBe(
+        "an phat",
+      ),
+    );
+    // Typed in one go: the debounce sends one request for the final text, not one per key.
+    const searches = calls().map(([, config]) =>
+      (config as { params: URLSearchParams }).params.get("search"),
+    );
+    expect(searches.filter((value) => value !== null && value !== "an phat")).toEqual([]);
+    expect((calls().at(-1)?.[1] as { params: URLSearchParams }).params.get("page")).toBe("0");
+    expect(api.get.mock.calls.some(([url]) => String(url).startsWith("/customers"))).toBe(false);
+  });
+
+  it("BE-16: more than 1000 matching customers (400 fieldErrors.search) says to type something more specific", async () => {
+    mockPaymentApi(ACCOUNTANT_GRANTS, {
+      get: {
+        "/installments": () => {
+          throw apiError(400, "VALIDATION_FAILED", { search: "Quá nhiều khách khớp" });
+        },
+      },
+    });
+    renderPaymentScreen(<InstallmentList />, "?search=a");
+    expect(await screen.findByText("Có quá nhiều khách khớp — gõ cụ thể hơn")).toBeInTheDocument();
+  });
+
+  it("WF-02 35: picking an order in the search box filters /installments by orderId; the accountant never asks /customers", async () => {
+    const api = mockPaymentApi(ACCOUNTANT_GRANTS, {
+      get: {
+        ...listRoutes([due]),
+        "/orders": () =>
+          bePage([
+            {
+              orderId: "ord-13",
+              orderNumber: "SO-20261108-000013",
+              customerId: "cust-9",
+              customerName: "Công ty Bao Bì An Phát",
+            },
+          ]),
+      },
+    });
+    renderPaymentScreen(<InstallmentList />);
+    await userEvent.type(await screen.findByRole("combobox", { name: /Tìm đơn/ }), "SO-2026");
+    await userEvent.click(await screen.findByRole("option", { name: /SO-20261108-000013/ }));
+    await waitFor(() => {
+      const calls = api.get.mock.calls.filter(([url]) => url === "/installments");
+      expect((calls.at(-1)?.[1] as { params: URLSearchParams }).params.get("orderId")).toBe(
+        "ord-13",
+      );
+    });
+    const search = api.get.mock.calls.find(([url]) => url === "/orders")?.[1] as {
+      params: URLSearchParams;
+    };
+    expect(search.params.get("search")).toBe("SO-2026");
+    // The chip names the order (from the filtered rows), then one click narrows to the order's customer.
+    expect(
+      await screen.findByText("SO-20261108-000013", { selector: "span.font-mono" }),
+    ).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Lọc theo khách của đơn" }));
+    await waitFor(() => {
+      const calls = api.get.mock.calls.filter(([url]) => url === "/installments");
+      expect((calls.at(-1)?.[1] as { params: URLSearchParams }).params.get("customerId")).toBe(
+        "cust-9",
+      );
+    });
+    expect(api.get.mock.calls.some(([url]) => url === "/customers")).toBe(false);
   });
 
   it("empty list vs filtered-out list are two different messages", async () => {

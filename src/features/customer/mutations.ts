@@ -15,13 +15,14 @@ import {
   changeCustomerStatus,
   createCustomer,
   resendPortalInvitation,
+  saveLegalProfile,
   updateCustomer,
 } from "./api";
 import { customerErrorMessage } from "./errors";
 import { customerKeys } from "./queries";
 
-import type { ChangeCustomerStatusInput, UpdateCustomerInput } from "./api";
-import type { Customer, CustomerCreateValues, InvitedCustomer } from "./types";
+import type { ChangeCustomerStatusInput, SaveLegalProfileInput, UpdateCustomerInput } from "./api";
+import type { Customer, CustomerCreateValues, InvitedCustomer, LegalProfile } from "./types";
 
 /**
  * Khách + bản tra cứu khách dùng ở báo giá / mẫu / LSX (`references/customers`: tên, ô chọn khách
@@ -61,6 +62,20 @@ export const useUpdateCustomer = withStaleRefetch(
   createMutation<UpdateCustomerInput, Customer>(updateCustomer, {
     invalidate: CUSTOMER_DATA,
     successMessage: "Đã lưu thông tin khách hàng.",
+    showErrorToast: false,
+  }),
+  [customerKeys.all],
+);
+
+/**
+ * Lưu hồ sơ pháp lý. Chỉ làm mới `customerKeys.all` (hồ sơ nằm dưới khoá chi tiết khách): `features/customer` không
+ * import được `features/order`, nên trang đơn tự tải lại hợp đồng khi Sale bấm lại "Lập hợp đồng".
+ * `OPTIMISTIC_LOCK` (mã mặc định): người khác vừa sửa → tải lại hồ sơ, màn hình báo "đã tải lại".
+ */
+export const useSaveLegalProfile = withStaleRefetch(
+  createMutation<SaveLegalProfileInput, LegalProfile>(saveLegalProfile, {
+    invalidate: [customerKeys.all],
+    successMessage: "Đã lưu thông tin pháp lý.",
     showErrorToast: false,
   }),
   [customerKeys.all],

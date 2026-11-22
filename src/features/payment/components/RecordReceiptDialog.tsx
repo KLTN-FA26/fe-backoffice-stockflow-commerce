@@ -11,7 +11,7 @@ import { FormField, fieldA11y } from "@/components/shared/FormField";
 import { FORM_INPUT_CLASS } from "@/components/shared/form-control-classes";
 import { Input } from "@/components/ui/input";
 
-import { paymentErrorMessage, receiptFieldError } from "../errors";
+import { receiptErrorMessage, receiptFieldError } from "../errors";
 import { useRecordReceipt } from "../mutations";
 import { todayInVietnam } from "../input-schemas";
 import { useReceiptForm } from "../useReceiptForm";
@@ -53,7 +53,7 @@ function RecordReceiptForm({
             return;
           }
         }
-        setError(paymentErrorMessage(failure));
+        setError(receiptErrorMessage(failure));
       },
     }),
   );

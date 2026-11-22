@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
+import { focusManager } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ORDER_PERMISSIONS, SALES_CONTRACT_PERMISSIONS } from "@/constants";
@@ -66,6 +67,22 @@ describe("Hợp đồng — đọc (B1)", () => {
     expect(await screen.findByText("Đơn chưa có hợp đồng.")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Lập hợp đồng" }));
     await waitFor(() => expect(post).toHaveBeenCalledWith(PATH, {}));
+  });
+
+  it("409 CUSTOMER_LEGAL_PROFILE_MISSING → link /admin/customers/{id}?legalProfile=edit#legal-profile", async () => {
+    renderSection(() => {
+      throw new ApiError(404, "SALES_CONTRACT_NOT_FOUND", "Đơn chưa có hợp đồng.");
+    });
+    const message = "Khách chưa có hồ sơ pháp lý: nhập địa chỉ và người đại diện trước.";
+    vi.spyOn(api, "post").mockRejectedValue(
+      new ApiError(409, "CUSTOMER_LEGAL_PROFILE_MISSING", message),
+    );
+    await userEvent.click(await screen.findByRole("button", { name: "Lập hợp đồng" }));
+    expect(await screen.findByText(new RegExp(message))).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Nhập thông tin pháp lý" })).toHaveAttribute(
+      "href",
+      `/admin/customers/${draftOrder.customerId}?legalProfile=edit#legal-profile`,
+    );
   });
 
   it("hiện số hợp đồng, lịch giao, lịch thanh toán của BE", async () => {
@@ -152,6 +169,76 @@ describe("TC-F04-02 — editor lịch giao / lịch thanh toán", () => {
       amount: 27_142_500,
       deliveryBatchSeq: 1,
     });
+  });
+});
+
+describe("WF-02 N10 — đổi mốc khỏi ON_SIGNING", () => {
+  it("số ngày mặc định 3 bị xoá; số ngày do người dùng nhập khác 3 được giữ", async () => {
+    renderSection(() => contractDraft);
+    await userEvent.click(await screen.findByRole("button", { name: /Sửa/ }));
+    const milestone = screen.getByRole("combobox", { name: "Đợt 1 — mốc" });
+    const days = screen.getByRole("textbox", { name: "Đợt 1 — số ngày" });
+    expect(days).toHaveValue("3");
+    await userEvent.selectOptions(milestone, "AFTER_DELIVERY");
+    expect(days).toHaveValue("");
+    await userEvent.type(days, "7");
+    await userEvent.selectOptions(milestone, "ON_SIGNING");
+    expect(days).toHaveValue("7");
+    await userEvent.selectOptions(milestone, "AFTER_DELIVERY");
+    expect(days).toHaveValue("7");
+  });
+});
+
+describe("WF-02 mục 7 — form cũ không ghi đè bản mới", () => {
+  const newer = { ...contractDraft, version: 1, freeSampleRounds: 7, returnWindowDays: 21 };
+  const refetchFocus = () => {
+    focusManager.setFocused(false);
+    focusManager.setFocused(true);
+  };
+
+  async function openWhileNewerArrives() {
+    let current: unknown = contractDraft;
+    renderSection(() => current);
+    await userEvent.click(await screen.findByRole("button", { name: /Sửa/ }));
+    const samples = await screen.findByLabelText("Số lần in mẫu miễn phí");
+    await userEvent.clear(samples);
+    await userEvent.type(samples, "3");
+    current = newer;
+    refetchFocus();
+    return samples;
+  }
+
+  it("bản mới về khi đang sửa → cảnh báo, nút Lưu khoá, không gọi PUT", async () => {
+    await openWhileNewerArrives();
+    expect(await screen.findByText(/vừa được người khác lưu/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Lưu hợp đồng" })).toBeDisabled();
+    expect(screen.getByLabelText("Số lần in mẫu miễn phí")).toHaveValue("3");
+  });
+
+  it("bấm Tải lại → form mang giá trị bản mới, Lưu gửi version mới", async () => {
+    await openWhileNewerArrives();
+    await userEvent.click(await screen.findByRole("button", { name: "Tải lại theo bản mới" }));
+    expect(screen.getByLabelText("Số lần in mẫu miễn phí")).toHaveValue("7");
+    expect(screen.queryByText(/vừa được người khác lưu/)).not.toBeInTheDocument();
+    const put = vi.spyOn(api, "put").mockResolvedValue({ data: newer });
+    await userEvent.click(screen.getByRole("button", { name: "Lưu hợp đồng" }));
+    await waitFor(() => expect(put).toHaveBeenCalledTimes(1));
+    expect((put.mock.calls[0]?.[1] as { version: number }).version).toBe(1);
+  });
+
+  it("PUT 409 OPTIMISTIC_LOCK → không tự gửi lại, cảnh báo hiện", async () => {
+    let current: unknown = contractDraft;
+    renderSection(() => current);
+    await userEvent.click(await screen.findByRole("button", { name: /Sửa/ }));
+    const put = vi.spyOn(api, "put").mockImplementation(async () => {
+      current = newer; // BE đã có bản mới: lần tải lại sau 409 mang version mới
+      throw new ApiError(409, "OPTIMISTIC_LOCK", "OPTIMISTIC_LOCK");
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Lưu hợp đồng" }));
+    expect(await screen.findByText(/vừa được người khác sửa/)).toBeInTheDocument();
+    expect(await screen.findByText(/vừa được người khác lưu/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Lưu hợp đồng" })).toBeDisabled();
+    expect(put).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -294,5 +381,103 @@ describe("WF-02 audit — gợi ý số tiền, gửi, file ký", () => {
     await userEvent.upload(within(dialog).getByLabelText(/File đã ký/), file);
     await userEvent.click(within(dialog).getByRole("button", { name: "Ghi nhận đã ký" }));
     expect(await within(dialog).findByText("File quá lớn (tối đa 25 MB).")).toBeInTheDocument();
+  });
+});
+
+describe("WF-02 BO-7 — hợp đồng: đợt đã qua, huỷ bởi người khác, loại file, mặc định ngày", () => {
+  const pastWindow = {
+    ...contractSent,
+    deliverySchedule: contractSent.deliverySchedule.map((batch, i) =>
+      i === 0 ? { ...batch, windowEnd: "2000-01-02" } : batch,
+    ),
+  };
+  const cancelledRow = {
+    ...contractSent,
+    status: "CANCELLED",
+    cancelledAt: "2026-11-18T03:00:00Z",
+    cancellationReason: "Khách đổi số lượng",
+  };
+
+  it("mục 10: đợt có windowEnd đã qua → cảnh báo, nút Ghi nhận đã ký vẫn dùng được", async () => {
+    renderSection(() => pastWindow);
+    await userEvent.click(await screen.findByRole("button", { name: /Ghi nhận đã ký/ }));
+    const dialog = await screen.findByRole("dialog");
+    expect(
+      within(dialog).getByText(/Đợt giao 1 đã qua — sau khi ký dùng 'Dời cửa sổ giao'/),
+    ).toBeInTheDocument();
+    const file = new File(["%PDF-1.4"], "scan.pdf", { type: "application/pdf" });
+    await userEvent.upload(within(dialog).getByLabelText(/File đã ký/), file);
+    expect(within(dialog).getByRole("button", { name: "Ghi nhận đã ký" })).toBeEnabled();
+  });
+
+  it("mục 10: đợt còn hạn → không cảnh báo", async () => {
+    renderSection(() => contractSent);
+    await userEvent.click(await screen.findByRole("button", { name: /Ghi nhận đã ký/ }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).queryByText(/đã qua/)).not.toBeInTheDocument();
+  });
+
+  it("mục 29: file .webp bị từ chối ngay trên form, nút khoá, không gọi BE", async () => {
+    renderSection(() => contractSent);
+    const post = vi.spyOn(api, "post");
+    await userEvent.click(await screen.findByRole("button", { name: /Ghi nhận đã ký/ }));
+    const dialog = await screen.findByRole("dialog");
+    const input = within(dialog).getByLabelText(/File đã ký/);
+    expect(input.getAttribute("accept")).not.toMatch(/webp/);
+    // applyAccept off: prove the check is ours, not the browser's.
+    const user = userEvent.setup({ applyAccept: false });
+    await user.upload(input, new File(["x"], "scan.webp", { type: "image/webp" }));
+    expect(
+      within(dialog).getByText("Chỉ nhận PDF, Word, Excel hoặc ảnh JPG/PNG."),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Ghi nhận đã ký" })).toBeDisabled();
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  it("mục 28 + N3-B: bấm ký khi hợp đồng đã bị huỷ → tải lại, hiện số hợp đồng và lý do huỷ", async () => {
+    let cancelled = false;
+    mockOrderApiGet(SALES, {
+      [PATH]: () => {
+        if (cancelled) throw new ApiError(404, "SALES_CONTRACT_NOT_FOUND", "Đơn chưa có hợp đồng.");
+        return contractSent;
+      },
+      [`${PATH}/history`]: () => (cancelled ? [cancelledRow] : [contractSent]),
+    });
+    const can = (code: PermissionCode) => SALES.includes(code);
+    renderOrderScreen(<OrderContractSection order={draftOrder} can={can} />);
+    vi.spyOn(api, "post").mockRejectedValue(
+      new ApiError(404, "SALES_CONTRACT_NOT_FOUND", "Đơn chưa có hợp đồng."),
+    );
+    await userEvent.click(await screen.findByRole("button", { name: /Ghi nhận đã ký/ }));
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.upload(
+      within(dialog).getByLabelText(/File đã ký/),
+      new File(["%PDF-1.4"], "scan.pdf", { type: "application/pdf" }),
+    );
+    cancelled = true;
+    await userEvent.click(within(dialog).getByRole("button", { name: "Ghi nhận đã ký" }));
+    // The contract is gone after the reload, so the dialog unmounts with it.
+    expect(await screen.findByText("Đơn chưa có hợp đồng.")).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        new RegExp(`Hợp đồng ${contractSent.contractNumber} đã huỷ: Khách đổi số lượng`),
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("N3-B: không có hợp đồng và lịch sử chưa từng huỷ → không có dòng 'đã huỷ'", async () => {
+    renderSection(() => {
+      throw new ApiError(404, "SALES_CONTRACT_NOT_FOUND", "Đơn chưa có hợp đồng.");
+    });
+    expect(await screen.findByText("Đơn chưa có hợp đồng.")).toBeInTheDocument();
+    expect(screen.queryByText(/đã huỷ/)).not.toBeInTheDocument();
+  });
+
+  it("N10: đổi mốc sang ON_SIGNING khi ô ngày trống → điền sẵn 3 và gửi dueDays 3", async () => {
+    renderSection(() => contractDraft);
+    await userEvent.click(await screen.findByRole("button", { name: /Sửa/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Thêm đợt thanh toán" }));
+    await userEvent.selectOptions(screen.getByLabelText("Đợt 4 — mốc"), "ON_SIGNING");
+    expect(screen.getByLabelText("Đợt 4 — số ngày")).toHaveValue("3");
   });
 });

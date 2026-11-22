@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Controller, useWatch } from "react-hook-form";
 import { Trash2 } from "lucide-react";
 
@@ -46,7 +46,7 @@ export function QuoteLineEditor({
   canRemove: boolean;
   onRemove: () => void;
 }) {
-  const { register, control, formState, setValue } = form;
+  const { register, control, formState, setValue, trigger } = form;
   const errors = formState.errors.lines?.[index];
   const [sku, cartonsText, tierValues] = useWatch({
     control,
@@ -55,10 +55,20 @@ export function QuoteLineEditor({
   const price = useCustomerPrice(customerId, sku);
   const suggestion = price.data ?? null;
 
-  // 13 BR-05: có giá riêng thì được để trống bậc giá (BE tự lấy).
+  // Read during render so the form subscribes to it.
+  const submitted = formState.isSubmitted;
+  /** The customer price this line last saw; `undefined` before its first run (a line just added). */
+  const seen = useRef<typeof suggestion | undefined>(undefined);
+  // 13 BR-05: có giá riêng thì được để trống bậc giá (BE tự lấy). Sau lần gửi đầu, khi giá riêng của dòng đổi (về sau
+  // khi chọn SKU), kiểm lại ô bậc giá ngay (lỗi dưới MOQ nằm ở `tiers`), không đợi lần gửi sau. Một dòng vừa thêm
+  // không bị kiểm khi mới hiện: nó chưa có gì để sai.
   useEffect(() => {
+    const changed = seen.current !== undefined && seen.current !== suggestion;
+    seen.current = suggestion;
     setValue(`lines.${index}.hasCustomerPrice`, !!suggestion);
-  }, [index, setValue, suggestion]);
+    setValue(`lines.${index}.customerPriceMoq`, suggestion ? moqOf(suggestion.tiers) : null);
+    if (submitted && changed) void trigger(`lines.${index}.tiers`);
+  }, [index, setValue, trigger, suggestion, submitted]);
 
   const tiers = toTiers(tierValues);
   const effective = tiers.length ? tiers : (suggestion?.tiers ?? []);
@@ -135,6 +145,7 @@ export function QuoteLineEditor({
       <SuggestionBar
         sku={sku}
         moq={moq}
+        cartons={cartons}
         suggestion={suggestion}
         loading={price.isFetching}
         failed={price.isError}

@@ -100,4 +100,36 @@ describe("quote form → BE body", () => {
     const paths = result.error?.issues.map((issue) => issue.path.join(".")) ?? [];
     expect(paths).toEqual(expect.arrayContaining(["lines.1.sku", "shippingFee"]));
   });
+  describe("MOQ (BE refusal.quote.belowOwnPriceMinimum / QUOTE_BELOW_MOQ)", () => {
+    const issuesOf = (line: object) =>
+      quoteFormSchema
+        .safeParse({ ...base, lines: [{ ...base.lines[0], ...line }] })
+        .error?.issues.map((issue) => [issue.path.join("."), issue.message] as const) ?? [];
+
+    it("dưới MOQ của giá riêng, để trống bậc giá → lỗi ở bậc giá", () => {
+      const issues = issuesOf({ cartons: "5", customerPriceMoq: 10 });
+      expect(issues).toEqual([["lines.0.tiers", expect.stringContaining("nhập bậc giá")]]);
+    });
+    it("đúng MOQ, bậc trống → hợp lệ", () => {
+      expect(issuesOf({ cartons: "10", customerPriceMoq: 10 })).toEqual([]);
+    });
+    it("minQuantity thấp nhất > số thùng → lỗi ở số thùng", () => {
+      const issues = issuesOf({
+        cartons: "10",
+        tiers: [{ minQuantity: "20", unitPrice: "1000" }],
+      });
+      expect(issues).toEqual([["lines.0.cartons", expect.stringContaining("MOQ 20")]]);
+    });
+    it("bậc thấp nhất ≤ số thùng → hợp lệ", () => {
+      expect(
+        issuesOf({
+          cartons: "25",
+          tiers: [
+            { minQuantity: "20", unitPrice: "1000" },
+            { minQuantity: "50", unitPrice: "900" },
+          ],
+        }),
+      ).toEqual([]);
+    });
+  });
 });

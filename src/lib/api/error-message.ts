@@ -1,8 +1,9 @@
 import { ApiError } from "./error";
 
 /**
- * Lỗi chung của BE (`common/error/ErrorCode.java`, bundle messages_vi). Lỗi nghiệp vụ 4xx BE trả
- * message TIẾNG ANH (handleBusiness dùng ex.getMessage()), nên FE luôn chọn câu theo `errorCode`.
+ * Lỗi chung của BE (`common/error/ErrorCode.java`, bundle messages_vi). Từ BE PR #365 phần lớn lỗi nghiệp vụ 4xx
+ * đã có `message` tiếng Việt: màn hình nào dùng `serverErrorMessage` thì hiện câu đó. Câu theo `errorCode` ở
+ * đây và trong map của từng module là dự phòng, và là câu chính cho lỗi BE còn trả tiếng Anh (WF-02 N4).
  */
 export const COMMON_API_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   NETWORK_ERROR: "Không kết nối được máy chủ. Vui lòng kiểm tra mạng.",
@@ -25,7 +26,7 @@ export const COMMON_API_ERROR_MESSAGES: Readonly<Record<string, string>> = {
 
 export const GENERIC_API_ERROR = "Không thực hiện được thao tác. Vui lòng thử lại.";
 
-/** Câu tiếng Việt cho lỗi: map của module → map chung → câu mặc định. Không bao giờ hiện message tiếng Anh của BE. */
+/** Câu tiếng Việt cho lỗi: map của module → map chung → câu mặc định. Không hiện `message` của BE (xem `serverErrorMessage`). */
 export function apiErrorMessage(
   error: unknown,
   messages: Readonly<Record<string, string>> = {},
@@ -73,12 +74,20 @@ export function serverErrorMessage(
   if (!(error instanceof ApiError)) return fallback;
   const override = overrides[error.code];
   if (override) return override;
+  return serverMessageOf(error) ?? COMMON_API_ERROR_MESSAGES[error.code] ?? fallback;
+}
+
+/**
+ * The BE's own (Vietnamese) `message` of a 4xx business error, or null when there is none worth showing: framework
+ * codes, 5xx, an empty message, or a message that only repeats the code. Callers fall back to their own sentence.
+ */
+export function serverMessageOf(error: unknown): string | null {
+  if (!(error instanceof ApiError)) return null;
   const fromServer =
     error.status >= 400 &&
     error.status < 500 &&
     !FRAMEWORK_CODES.has(error.code) &&
     error.message.trim() !== "" &&
     error.message !== error.code;
-  if (fromServer) return error.message;
-  return COMMON_API_ERROR_MESSAGES[error.code] ?? fallback;
+  return fromServer ? error.message : null;
 }

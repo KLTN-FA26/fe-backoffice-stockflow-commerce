@@ -24,6 +24,8 @@ export const PAYMENT_RECEIPT_PERMISSIONS = {
   read: "payment-receipts:READ",
   create: "payment-receipts:CREATE",
   update: "payment-receipts:UPDATE",
+  /** `GET /payment-receipts/export` (Excel). Seed: Kế toán (V20261126000100). */
+  export: "payment-receipts:EXPORT",
 } as const;
 
 /**
@@ -46,8 +48,8 @@ export const PAYMENT_ROUTES = {
       `${PAYMENT_BASE}/installments/orders/${encodeURIComponent(orderId)}`,
     byCustomer: (customerId: string) =>
       `${PAYMENT_BASE}/installments?customerId=${encodeURIComponent(customerId)}`,
-    /** Công nợ phải thu (docs 15 §4.3 bước 8): đợt `AFTER_DELIVERY` đã đến mốc. */
-    receivables: `${PAYMENT_BASE}/installments?milestone=AFTER_DELIVERY&reached=true`,
+    /** Công nợ phải thu (BE-5): đợt đã đến mốc và còn nợ (`owing=true`: DUE hoặc PARTIALLY_PAID). */
+    receivables: `${PAYMENT_BASE}/installments?owing=true`,
   },
   receipts: {
     list: `${PAYMENT_BASE}/receipts`,

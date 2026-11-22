@@ -5,6 +5,7 @@ import { useState } from "react";
 import {
   ADMIN_ROUTES,
   CREDIT_PROFILE_PERMISSIONS,
+  CUSTOMER_LEGAL_PROFILE_PERMISSIONS,
   CUSTOMER_PERMISSIONS,
   VARIANT_PERMISSIONS,
 } from "@/constants";
@@ -24,6 +25,7 @@ import { CustomerEditDialog } from "./detail/CustomerEditDialog";
 import { CustomerGeneralSection } from "./detail/CustomerGeneralSection";
 import { CustomerSkusCard } from "./detail/CustomerSkusCard";
 import { InvitationCard } from "./detail/InvitationCard";
+import { LegalProfileCard } from "./detail/LegalProfileCard";
 import { StatusHistoryCard } from "./detail/StatusHistoryCard";
 
 function CustomerDetailContent({ id }: { id: string }) {
@@ -57,6 +59,11 @@ function CustomerDetailContent({ id }: { id: string }) {
       <div className={DETAIL_GRID_CLASS}>
         <div className="min-w-0 space-y-5">
           <CustomerGeneralSection customer={customer} />
+          <LegalProfileCard
+            customerId={customer.customerId}
+            canRead={can(CUSTOMER_LEGAL_PROFILE_PERMISSIONS.read)}
+            canUpdate={can(CUSTOMER_LEGAL_PROFILE_PERMISSIONS.update)}
+          />
           <CreditProfileCard
             customerId={customer.customerId}
             canRead={can(CREDIT_PROFILE_PERMISSIONS.read)}

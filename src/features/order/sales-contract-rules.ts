@@ -133,3 +133,46 @@ export function signOutcomeText(order: Pick<Order, "status" | "holdReason">): st
     return "Đã ký. Đơn đang chờ Kế toán duyệt tín dụng.";
   return null;
 }
+
+/**
+ * Mục 10: các đợt giao có cửa sổ kết thúc trước HÔM NAY (không phải ngày ký — ngày ký luôn ≤ hôm nay).
+ * `today` là "YYYY-MM-DD" theo Asia/Ho_Chi_Minh. Chỉ để cảnh báo, không chặn ghi nhận đã ký.
+ */
+export function passedBatches(
+  contract: Pick<SalesContract, "deliverySchedule">,
+  today: string,
+): { seq: number; windowEnd: string }[] {
+  return contract.deliverySchedule.flatMap((batch) =>
+    batch.windowEnd && batch.windowEnd < today
+      ? [{ seq: batch.seq, windowEnd: batch.windowEnd }]
+      : [],
+  );
+}
+
+export function passedBatchesText(passed: readonly { seq: number }[]): string | null {
+  if (passed.length === 0) return null;
+  return `Đợt giao ${passed.map((batch) => batch.seq).join(", ")} đã qua — sau khi ký dùng 'Dời cửa sổ giao' ở khối Lịch giao để đặt lại.`;
+}
+
+/** Mục 29: BE `FileCategory.DOCUMENT` — pdf, docx, xlsx, jpeg, png (else 415). `.webp` is not accepted. */
+const SIGNED_FILE_TYPES: Record<string, string> = {
+  "application/pdf": ".pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx",
+  "image/jpeg": ".jpg,.jpeg",
+  "image/png": ".png",
+};
+export const SIGNED_FILE_ACCEPT = Object.keys(SIGNED_FILE_TYPES).join(",");
+export const SIGNED_FILE_TYPE_MESSAGE = "Chỉ nhận PDF, Word, Excel hoặc ảnh JPG/PNG.";
+
+/**
+ * MIME type first; some browsers leave it empty (or say `application/octet-stream`) for Office files, so fall
+ * back to the extension in both cases.
+ */
+export function isSignedFileTypeAllowed(file: Pick<File, "name" | "type">): boolean {
+  if (file.type && file.type !== "application/octet-stream") return file.type in SIGNED_FILE_TYPES;
+  const name = file.name.toLowerCase();
+  return Object.values(SIGNED_FILE_TYPES)
+    .flatMap((extensions) => extensions.split(","))
+    .some((extension) => name.endsWith(extension));
+}
