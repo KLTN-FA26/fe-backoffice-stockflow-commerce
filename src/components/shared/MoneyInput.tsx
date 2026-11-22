@@ -48,6 +48,7 @@ interface MoneyInputProps {
   name?: string;
   ref?: Ref<HTMLInputElement>;
   disabled?: boolean;
+  autoFocus?: boolean;
   placeholder?: string;
   /** Visible unit after the number; screen readers get it through the field's label. */
   suffix?: string;

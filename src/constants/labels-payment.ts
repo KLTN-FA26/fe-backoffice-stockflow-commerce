@@ -149,6 +149,11 @@ export const PAYMENT_LABELS = {
   },
   recordDialog: {
     title: "Lập phiếu thu",
+    /** BO-UX-39: khách đang trả — để khớp dòng sao kê với đúng khách. */
+    titleFor: (customer: string, code: string | null) =>
+      `Lập phiếu thu — ${customer}${code ? ` (MST ${code})` : ""}`,
+    optionDue: (date: string) => `hạn ${date}`,
+    optionOutstanding: (amount: string) => `còn ${amount}`,
     description:
       "Chỉ ghi phần tiền đã xác định được đợt thanh toán. Phiếu đã lập không sửa được — ghi sai thì huỷ phiếu và lập lại.",
     reference: "Mã tham chiếu sao kê",
@@ -170,10 +175,13 @@ export const PAYMENT_LABELS = {
   voidDialog: {
     title: "Huỷ phiếu thu?",
     description:
-      "Phiếu chuyển sang Voided, giữ nguyên nội dung kèm người huỷ, thời điểm và lý do. Các đợt trong phiếu được tính lại; mã tham chiếu sao kê dùng lại được cho phiếu lập đúng.",
+      "Phiếu chuyển sang Đã huỷ, giữ nguyên nội dung kèm người huỷ, thời điểm và lý do. Các đợt trong phiếu được tính lại; mã tham chiếu sao kê dùng lại được cho phiếu lập đúng.",
     reason: "Lý do huỷ phiếu thu",
     holdOrders: "Treo đơn nếu huỷ làm đơn đã xác nhận thiếu đợt khi ký",
-    holdHint: "Không chọn mà huỷ làm đơn đã Confirmed thiếu đợt khi ký thì thao tác bị từ chối.",
+    holdHint: "Không chọn mà huỷ làm đơn đã Đã xác nhận thiếu đợt khi ký thì thao tác bị từ chối.",
+    /** BO-UX-40: các đơn của phiếu — đơn nào có thể bị treo. */
+    ordersTitle: "Đơn có tiền trong phiếu này",
+    holdOrdersFor: (orders: string) => `Treo các đơn ${orders} nếu huỷ làm đơn thiếu đợt khi ký`,
     submit: "Huỷ phiếu thu",
   },
   refunds: {
@@ -223,6 +231,11 @@ export const PAYMENT_LABELS = {
     reference: "Mã tham chiếu sao kê (chiều chi)",
     note: "Ghi chú",
     submit: "Ghi nhận đã hoàn",
+    /** BO-UX-41: người nhận tiền hoàn. */
+    payee: "Người nhận tiền hoàn",
+    customer: "Khách hàng",
+    bankAccount: "Tài khoản nhận",
+    noBankAccount: "Chưa có tài khoản ngân hàng trong thông tin pháp lý của khách.",
   },
   voidRefundDialog: {
     title: "Huỷ ghi nhận hoàn tiền?",

@@ -5,11 +5,12 @@ import { Controller, useFieldArray } from "react-hook-form";
 
 import { PAYMENT_LABELS } from "@/constants/labels-payment";
 import { formatMoney } from "@/lib/format";
+import { formatDate } from "@/lib/format/date";
 import { FormField, fieldA11y } from "@/components/shared/FormField";
 import { FormSelect } from "@/components/shared/FormSelect";
-import { FORM_INPUT_CLASS, FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
+import { FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
+import { MoneyInput } from "@/components/shared/MoneyInput";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { installmentTitle, receiptFormTotal } from "../selectors";
@@ -58,7 +59,7 @@ export function ReceiptLinesEditor({
         return (
           <div
             key={field.id}
-            className="grid grid-cols-[minmax(0,1fr)_9rem_auto] items-start gap-2"
+            className="grid grid-cols-[minmax(0,1fr)_10rem_auto] items-start gap-2"
           >
             <FormField
               id={`line-${index}-installment`}
@@ -92,7 +93,15 @@ export function ReceiptLinesEditor({
                     <SelectContent>
                       {options.map((choice) => (
                         <SelectItem key={choice.installmentId} value={choice.installmentId}>
-                          {choice.contractNumber} · {installmentTitle(choice)}
+                          {/* BO-UX-39: hạn trả và số còn phải thu ngay trong lựa chọn. */}
+                          {[
+                            choice.contractNumber,
+                            installmentTitle(choice),
+                            choice.dueDate ? L.optionDue(formatDate(choice.dueDate)) : null,
+                            L.optionOutstanding(formatMoney(choice.outstanding, currency)),
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -106,11 +115,20 @@ export function ReceiptLinesEditor({
               required
               error={lineErrors?.amount?.message}
             >
-              <Input
-                inputMode="numeric"
-                className={`${FORM_INPUT_CLASS} text-right tabular-nums`}
-                {...fieldA11y(`line-${index}-amount`, lineErrors?.amount?.message)}
-                {...register(`lines.${index}.amount`)}
+              <Controller
+                control={control}
+                name={`lines.${index}.amount`}
+                render={({ field: amount }) => (
+                  <MoneyInput
+                    name={amount.name}
+                    ref={amount.ref}
+                    value={amount.value}
+                    onChange={amount.onChange}
+                    onBlur={amount.onBlur}
+                    suffix={currency === "VND" ? "₫" : currency}
+                    {...fieldA11y(`line-${index}-amount`, lineErrors?.amount?.message)}
+                  />
+                )}
               />
             </FormField>
             <Button

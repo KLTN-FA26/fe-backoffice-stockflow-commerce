@@ -267,7 +267,7 @@ describe("Record a receipt from a due installment (WF4 X03: pay BEFORE_DELIVERY 
       receiptRoutes(() => receiptJson()),
     );
     const dialog = await openDialog();
-    expect(dialog.getByLabelText(/Số tiền/)).toHaveValue("25000000");
+    expect(dialog.getByLabelText(/Số tiền/)).toHaveValue("25.000.000");
     await userEvent.type(dialog.getByLabelText(/Mã tham chiếu sao kê/), "FT26313123456");
     await userEvent.click(dialog.getByRole("button", { name: "Lập phiếu thu" }));
     await waitFor(() => expect(api.post).toHaveBeenCalled());
