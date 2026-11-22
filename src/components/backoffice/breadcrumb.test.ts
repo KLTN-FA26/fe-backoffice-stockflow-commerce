@@ -11,20 +11,20 @@ describe("buildBreadcrumbItems", () => {
   it("cất hàng: danh sách, màn cất một thùng, chuyến của tôi, chuyến theo id (không khớp nhầm /trip)", () => {
     const labels = (path: string, labelFor?: (id: string) => string | undefined) =>
       buildBreadcrumbItems(path, () => true, labelFor).map((item) => item.label);
-    expect(labels(ADMIN_ROUTES.putaway.list)).toEqual(["Back-office", "Cất hàng"]);
+    expect(labels(ADMIN_ROUTES.putaway.list)).toEqual(["Trang quản trị", "Cất hàng"]);
     expect(
       labels(ADMIN_ROUTES.putaway.detail("t-1"), (id) => (id === "t-1" ? "LPN-1" : undefined)),
-    ).toEqual(["Back-office", "Cất hàng", "LPN-1"]);
-    expect(labels(ADMIN_ROUTES.putaway.myTrip)).toEqual(["Back-office", "Chuyến cất hàng"]);
+    ).toEqual(["Trang quản trị", "Cất hàng", "LPN-1"]);
+    expect(labels(ADMIN_ROUTES.putaway.myTrip)).toEqual(["Trang quản trị", "Chuyến cất hàng"]);
     expect(
       labels(ADMIN_ROUTES.putaway.trip("x"), (id) => (id === "x" ? "Chuyến cất hàng" : undefined)),
-    ).toEqual(["Back-office", "Cất hàng", "Chuyến cất hàng"]);
+    ).toEqual(["Trang quản trị", "Cất hàng", "Chuyến cất hàng"]);
   });
 
   it('trang của một kho: "Kho & bản đồ / <kho ⇅> / <trang>" theo prefix trên URL', () => {
     const items = buildBreadcrumbItems(ADMIN_ROUTES.warehouseMap.slotting("BD"));
     expect(items.map((item) => item.label)).toEqual([
-      "Back-office",
+      "Trang quản trị",
       "Kho & bản đồ",
       "BD",
       "Gợi ý vị trí",
@@ -36,7 +36,7 @@ describe("buildBreadcrumbItems", () => {
 
   it("route /admin chưa có mục menu → rơi về mục Tổng quan, rồi đoạn cuối URL", () => {
     expect(buildBreadcrumbItems("/admin/not-a-screen")).toEqual([
-      { label: "Back-office", href: "/admin" },
+      { label: "Trang quản trị", href: "/admin" },
       { label: "Tổng quan", href: "/admin" },
       { label: "not-a-screen" },
     ]);
@@ -44,14 +44,14 @@ describe("buildBreadcrumbItems", () => {
 
   it("đăng ký route Inventory trong điều hướng back-office", () => {
     expect(buildBreadcrumbItems(INVENTORY_ROUTES.overview)).toEqual([
-      { label: "Back-office", href: "/admin" },
+      { label: "Trang quản trị", href: "/admin" },
       { label: INVENTORY_LABELS.overviewTitle, href: undefined },
     ]);
   });
 
   it("trang sửa hiện '… / <mã> / Chỉnh sửa', không hiện chữ 'edit'", () => {
     expect(buildBreadcrumbItems("/admin/customers/CUS-001/edit")).toEqual([
-      { label: "Back-office", href: "/admin" },
+      { label: "Trang quản trị", href: "/admin" },
       { label: "Khách hàng", href: "/admin/customers" },
       { label: "CUS-001", href: "/admin/customers/CUS-001" },
       { label: "Chỉnh sửa" },
@@ -110,7 +110,7 @@ describe("buildBreadcrumbItems", () => {
   });
 
   it("điều chỉnh tồn: danh sách, trang tạo và chi tiết đều nằm dưới menu Điều chỉnh tồn", () => {
-    const root = { label: "Back-office", href: "/admin" };
+    const root = { label: "Trang quản trị", href: "/admin" };
     const parent = { label: "Điều chỉnh tồn", href: INVENTORY_ROUTES.adjustments };
     expect(buildBreadcrumbItems(INVENTORY_ROUTES.adjustments)).toEqual([
       root,
@@ -130,7 +130,7 @@ describe("buildBreadcrumbItems", () => {
   });
 
   it("kiểm kê: danh sách và chi tiết phiếu nằm dưới menu Kiểm kê", () => {
-    const root = { label: "Back-office", href: "/admin" };
+    const root = { label: "Trang quản trị", href: "/admin" };
     expect(buildBreadcrumbItems(CYCLE_COUNT_ROUTES.list)).toEqual([
       root,
       { label: CYCLE_COUNT_LABELS.title, href: undefined },
@@ -145,14 +145,14 @@ describe("buildBreadcrumbItems", () => {
 
   it("cách ly thùng có breadcrumb riêng, không lẫn với Điều chỉnh tồn", () => {
     expect(buildBreadcrumbItems(INVENTORY_ROUTES.quarantine)).toEqual([
-      { label: "Back-office", href: "/admin" },
+      { label: "Trang quản trị", href: "/admin" },
       { label: QUARANTINE_LABELS.title, href: undefined },
     ]);
   });
 
   it("lịch sử biến động có breadcrumb riêng, không lẫn với Di chuyển nội bộ", () => {
     expect(buildBreadcrumbItems(INVENTORY_ROUTES.movements)).toEqual([
-      { label: "Back-office", href: "/admin" },
+      { label: "Trang quản trị", href: "/admin" },
       { label: "Lịch sử biến động", href: undefined },
     ]);
     expect(buildBreadcrumbItems("/admin/moves").at(-1)?.label).toBe("Di chuyển nội bộ");

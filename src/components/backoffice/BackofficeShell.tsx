@@ -23,6 +23,7 @@ import {
   Gauge,
   FolderTree,
   History as HistoryIcon,
+  Landmark,
   LayoutDashboard,
   ListChecks,
   Map as MapIcon,
@@ -114,7 +115,7 @@ import {
   EINVOICE_SETTINGS_PERMISSIONS,
 } from "@/constants/einvoice";
 import { EINVOICE_LABELS } from "@/constants/labels-einvoice";
-import { PAYMENT_LABELS } from "@/constants/labels-payment";
+import { PAYMENT_LABELS, RECEIVABLES_LABELS } from "@/constants/labels-payment";
 import { RETURN_LABELS, RETURN_RECEIPT_LABELS } from "@/constants/labels-return";
 import {
   PAYMENT_INSTALLMENT_PERMISSIONS,
@@ -164,6 +165,11 @@ export interface NavItem {
   permission?: PermissionCode;
   /** Thấy menu khi có ít nhất một mã trong danh sách (màn mở bằng nhiều quyền khác nhau). */
   anyPermission?: readonly PermissionCode[];
+  /**
+   * Ẩn mục khi người dùng CÓ mã này — mục được đặt ở nhóm khác cho họ (vd "Đơn hàng" của Sale nằm ở "Bán hàng", L-6),
+   * để một trang không hiện hai lần trong menu và nhóm đang mở luôn là nhóm của vai trò.
+   */
+  unlessPermission?: PermissionCode;
   /** Breadcrumb riêng cho các đoạn URL sau `href` (vd `[kho ⇅] / Bản đồ kho`) thay cách đọc id mặc định. */
   breadcrumbTail?: (rest: readonly string[]) => BreadcrumbItem[];
   /** Route anh em chia chung mục menu này (vd tab "Dự án"): sáng menu và breadcrumb theo mục. */
@@ -188,7 +194,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [{ label: "Tổng quan", href: "/admin", icon: LayoutDashboard }],
   },
   {
-    title: "Master data",
+    title: UI_LABELS.shell.navMasterData,
     icon: Database,
     items: [
       {
@@ -220,7 +226,7 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    title: "Platform",
+    title: UI_LABELS.shell.navPlatform,
     icon: ShieldCheck,
     items: [
       {
@@ -405,6 +411,15 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: FileSignature,
         permission: QUOTE_PERMISSIONS.viewPage,
       },
+      // L-6: Sale đi báo giá → hợp đồng → đơn trong cùng nhóm; mở chi tiết đơn (`/admin/orders/[id]`) vẫn sáng nhóm này
+      // thay vì nhảy sang "Thực hiện đơn". Gate: xem được đơn VÀ làm báo giá (vai trò bán hàng).
+      {
+        label: UI_LABELS.order.pageTitle,
+        href: ADMIN_ROUTES.orders.list,
+        icon: ClipboardList,
+        permission: ORDER_PERMISSIONS.viewPage,
+        anyPermission: [QUOTE_PERMISSIONS.viewPage],
+      },
       {
         label: "Duyệt thiết kế",
         href: ADMIN_ROUTES.designs.reviewQueue,
@@ -456,6 +471,13 @@ export const NAV_GROUPS: NavGroup[] = [
         permission: PAYMENT_INSTALLMENT_PERMISSIONS.viewPage,
       },
       {
+        // Công nợ theo khách (BO-UX-37, BE R5-11); máy chủ chưa có endpoint thì trang tự chuyển sang đợt `owing=true`
+        label: RECEIVABLES_LABELS.navLabel,
+        href: PAYMENT_ROUTES.receivables,
+        icon: Landmark,
+        permission: PAYMENT_INSTALLMENT_PERMISSIONS.viewPage,
+      },
+      {
         label: PAYMENT_LABELS.receipts.navLabel,
         href: PAYMENT_ROUTES.receipts.list,
         icon: ReceiptText,
@@ -495,10 +517,12 @@ export const NAV_GROUPS: NavGroup[] = [
     icon: ListChecks,
     items: [
       {
-        label: "Đơn hàng",
+        label: UI_LABELS.order.pageTitle,
         href: ADMIN_ROUTES.orders.list,
         icon: ClipboardList,
         permission: ORDER_PERMISSIONS.viewPage,
+        // Người làm báo giá thấy "Đơn hàng" ở nhóm "Bán hàng" (L-6) — không hiện lần hai ở đây
+        unlessPermission: QUOTE_PERMISSIONS.viewPage,
       },
       // Mục riêng, gate bằng quyền credit hold — ACCOUNTANT duyệt công nợ nhưng không có
       // sales-orders:VIEW_PAGE nên không đi qua được mục "Đơn hàng" (BE V20261013000400).
@@ -632,7 +656,8 @@ export function useCanSeeNavItem(): (item: NavItem) => boolean {
   const can = usePermissionChecker();
   return (item) =>
     (!item.permission || can(item.permission)) &&
-    (!item.anyPermission || item.anyPermission.some(can));
+    (!item.anyPermission || item.anyPermission.some(can)) &&
+    (!item.unlessPermission || !can(item.unlessPermission));
 }
 
 /** Mỗi mục tự gate theo quyền của chính nó; nhóm không còn mục nào thì bỏ (không hiện tiêu đề rỗng). */
@@ -689,7 +714,9 @@ export function buildBreadcrumbItems(
   /** Nhãn thay cho id trong URL (vd UUID → mã NCC). Không có → hiện id. */
   labelFor: (id: string) => string | undefined = () => undefined,
 ): BreadcrumbItem[] {
-  const items: BreadcrumbItem[] = [{ label: "Back-office", href: ADMIN_ROUTES.home }];
+  const items: BreadcrumbItem[] = [
+    { label: UI_LABELS.shell.breadcrumbRoot, href: ADMIN_ROUTES.home },
+  ];
   if (pathname === ADMIN_ROUTES.home) return items;
 
   const navItem = findNavItem(pathname);
