@@ -2,7 +2,7 @@
 
 import { FULFILLMENT_PICK_PERMISSIONS, WORKSPACE_PATHS } from "@/constants";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
-import { useWorkspaceHref } from "@/lib/workspace";
+import { InWorkspaceWarehouse, useWorkspaceHref } from "@/lib/workspace";
 import { useFulfillmentTask } from "@/features/fulfillment/queries";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 
@@ -41,19 +41,22 @@ function PickingDetailBody({ id }: { id: string }) {
   return (
     // Giao diện kiểu Vercel như chi tiết sản phẩm (globals.css `.surface-soft`). Không hiện tiêu đề —
     // breadcrumb topbar đã có mã task và link về danh sách; mã task + đơn nằm ở "Thông tin task".
-    <div className="surface-soft surface-compact">
-      <h1 className="sr-only">{`Task ${taskCode(task.taskId)}`}</h1>
-      <PickingWorkArea
-        task={task}
-        actor={actor}
-        info={
-          <>
-            <TaskInfo task={task} actor={actor} orderNumber={orderNumber} />
-            <OrderLinesSection lines={task.lines} />
-          </>
-        }
-      />
-    </div>
+    // Task của kho khác kho trên URL → chuyển sang đúng kho, không hiện dưới kho sai (spec 2026-11-22 §2)
+    <InWorkspaceWarehouse warehouseId={task.warehouseId} path={WORKSPACE_PATHS.pickingTask(id)}>
+      <div className="surface-soft surface-compact">
+        <h1 className="sr-only">{`Task ${taskCode(task.taskId)}`}</h1>
+        <PickingWorkArea
+          task={task}
+          actor={actor}
+          info={
+            <>
+              <TaskInfo task={task} actor={actor} orderNumber={orderNumber} />
+              <OrderLinesSection lines={task.lines} />
+            </>
+          }
+        />
+      </div>
+    </InWorkspaceWarehouse>
   );
 }
 

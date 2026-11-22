@@ -2,6 +2,7 @@ import { waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { IDENTITIES, mockFulfillmentApi, renderFulfillmentScreen } from "../__fixtures__/render";
+import { apiSession } from "../__fixtures__/carton-check";
 import { TASK_ID, WAREHOUSE_ID, apiTask, bePage } from "../__fixtures__/task";
 import { PickingTaskRedirect } from "./PickingTaskRedirect";
 
@@ -26,9 +27,13 @@ describe("link cũ /admin/picking/{id} → task trong tab theo kho (spec §5.5)"
     );
   });
 
-  it("link cũ /admin/packing/{id} → trạm kiểm thùng trong kho của task", async () => {
+  it("link cũ /admin/packing/{id} → trạm kiểm thùng, kho đọc từ phiên kiểm thùng (không cần quyền lấy hàng)", async () => {
     mockFulfillmentApi(IDENTITIES.warehouseManager, {
-      [`/fulfillment/tasks/${TASK_ID}`]: () => apiTask(),
+      // Chỉ có phiên kiểm thùng: role chỉ có fulfillment-packages vẫn đi được (CartonCheckSessionResponse.warehouseId)
+      [`/fulfillment/tasks/${TASK_ID}/packing-session`]: () => ({
+        ...apiSession(),
+        warehouseId: WAREHOUSE_ID,
+      }),
       "/warehouses": () =>
         bePage([{ id: WAREHOUSE_ID, prefix: "HCM", name: "Kho Hồ Chí Minh", status: "ACTIVE" }]),
     });

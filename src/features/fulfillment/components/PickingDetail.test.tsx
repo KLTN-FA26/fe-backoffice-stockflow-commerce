@@ -22,7 +22,8 @@ import {
 import { OTHER_PICKER_ID, TASK_ID, apiTask, apiTaskLines, pickedTask } from "../__fixtures__/task";
 import { PickingDetail } from "./PickingDetail";
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+const replace = vi.hoisted(() => vi.fn());
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace }) }));
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -470,5 +471,14 @@ describe("PickingDetail — xác nhận dòng lấy hàng: quét vị trí + LPN
     expect(screen.queryByText(L.confirmTitle(1))).toBeNull();
     expect(screen.queryByRole("button", { name: /Chọn dòng/ })).toBeNull();
     expect(screen.getByText(L.onlyAssignee)).toBeInTheDocument();
+  });
+});
+
+describe("PickingDetail — task của kho khác mở trong tab (spec §2)", () => {
+  it("không hiện task dưới kho sai, chuyển đi (danh mục không tra được → gốc tab)", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    renderDetail(IDENTITIES.warehouseStaff, apiTask({ warehouseId: "wh-khac" }));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/admin/warehouse-map"));
+    expect(screen.queryByRole("button", { name: action.startPicking })).toBeNull();
   });
 });

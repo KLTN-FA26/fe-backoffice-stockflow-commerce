@@ -6,6 +6,7 @@ import { useFulfillmentTask } from "@/features/fulfillment/queries";
 
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 
+import { CartonCheckRedirect } from "./carton-check/CartonCheckRedirect";
 import { FulfillmentLoadError } from "./FulfillmentLoadError";
 
 import type { FulfillmentScope } from "./primitives";
@@ -22,6 +23,12 @@ export function PickingTaskRedirect({
   /** Màn đích: lấy hàng hoặc trạm kiểm thùng của cùng task. */
   scope?: FulfillmentScope;
 }) {
+  // Trạm kiểm thùng đọc kho từ phiên (không cần quyền lấy hàng)
+  if (scope === "packing") return <CartonCheckRedirect id={id} />;
+  return <PickingRedirect id={id} />;
+}
+
+function PickingRedirect({ id }: { id: string }) {
   const query = useFulfillmentTask(id);
   if (query.isError)
     return (
@@ -35,7 +42,7 @@ export function PickingTaskRedirect({
   return (
     <WorkspaceRedirect
       warehouseId={query.data.warehouseId}
-      path={scope === "picking" ? WORKSPACE_PATHS.pickingTask(id) : WORKSPACE_PATHS.packingTask(id)}
+      path={WORKSPACE_PATHS.pickingTask(id)}
     />
   );
 }
