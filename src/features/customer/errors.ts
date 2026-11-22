@@ -45,12 +45,13 @@ export function legalProfileErrorMessage(error: unknown): string {
 /**
  * BE-8: `PUT /legal-profile` answers 400 `VALIDATION_FAILED` with every wrong field at once
  * (`fieldErrors[{ field, code, message }]`, Vietnamese). The three bank fields come back as `bankAccount.<name>`
- * while the form keeps them flat, so the prefix is dropped. Unknown fields are ignored (caller falls back to the
- * general sentence).
+ * while the form keeps them flat, so the prefix is dropped. A field the form does not have is returned apart
+ * (`others`, its message), so the dialog says it in its general line instead of dropping it.
  */
-export function legalProfileFieldErrors(
-  error: unknown,
-): { field: keyof LegalProfileValues; message: string }[] {
+export function legalProfileFieldErrors(error: unknown): {
+  fields: { field: keyof LegalProfileValues; message: string }[];
+  others: string[];
+} {
   const known: ReadonlySet<string> = new Set<keyof LegalProfileValues>([
     "registeredAddress",
     "representativeName",
@@ -60,10 +61,14 @@ export function legalProfileFieldErrors(
     "bankName",
     "accountHolder",
   ]);
-  return Object.entries(apiFieldErrors(error)).flatMap(([name, message]) => {
+  const fields: { field: keyof LegalProfileValues; message: string }[] = [];
+  const others: string[] = [];
+  for (const [name, message] of Object.entries(apiFieldErrors(error))) {
     const field = name.replace(/^bankAccount\./, "");
-    return known.has(field) ? [{ field: field as keyof LegalProfileValues, message }] : [];
-  });
+    if (known.has(field)) fields.push({ field: field as keyof LegalProfileValues, message });
+    else others.push(message);
+  }
+  return { fields, others };
 }
 
 /** Lỗi kích hoạt mật khẩu yếu: BE trả VALIDATION_FAILED không kèm fieldErrors, link vẫn dùng được. */

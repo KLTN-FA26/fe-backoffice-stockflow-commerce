@@ -115,6 +115,25 @@ describe("LegalProfileCard", () => {
     expect(within(dialog).getByLabelText("Ngân hàng")).toHaveAttribute("aria-invalid", "true");
   });
 
+  it("BE-8: a field the form does not have is said in the general line, beside the marked fields", async () => {
+    mockApi("SALES_STAFF", {
+      get: { [PATH]: () => profile },
+      put: {
+        [PATH]: () => {
+          throw apiError(400, "VALIDATION_FAILED", {
+            registeredAddress: "Địa chỉ không được để trống.",
+            taxCode: "Mã số thuế không hợp lệ.",
+          });
+        },
+      },
+    });
+    renderCard("?legalProfile=edit");
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Lưu" }));
+    expect(await within(dialog).findByText("Địa chỉ không được để trống.")).toBeInTheDocument();
+    expect(within(dialog).getByText("Mã số thuế không hợp lệ.")).toBeInTheDocument();
+  });
+
   it("409 OPTIMISTIC_LOCK → đã tải lại: câu 'đã tải lại' và GET được gọi lại", async () => {
     const api = mockApi("SALES_STAFF", {
       get: { [PATH]: () => profile },

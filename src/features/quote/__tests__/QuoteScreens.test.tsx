@@ -398,6 +398,46 @@ describe("Quote form", () => {
     expect(screen.getByText("Giảm giá 5%")).toBeInTheDocument();
   });
 
+  it("đã bấm lưu một lần, giá riêng về sau → lỗi dưới MOQ hiện ngay, không đợi lần lưu sau", async () => {
+    let releasePrice: (value: unknown) => void = () => undefined;
+    mockApi("SALES_STAFF", {
+      get: {
+        [`/customers/${CUSTOMER_ID}`]: () => CUSTOMER,
+        "/customer-skus": () => [
+          {
+            variantId: "v1",
+            productId: "p1",
+            sku: SKU,
+            name: "Ly 12oz xanh",
+            ownerCustomerId: CUSTOMER_ID,
+            status: "ACTIVE",
+          },
+        ],
+        [`/catalog/customer-prices/${CUSTOMER_ID}/${SKU}`]: () =>
+          new Promise((resolve) => {
+            releasePrice = resolve;
+          }),
+      },
+    });
+    renderScreen(<QuoteCreate />, "SALES_STAFF");
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Lưu nháp" })); // submitted once
+    const select = await screen.findByLabelText(/SKU riêng của khách/);
+    await within(select).findByRole("option", { name: new RegExp(SKU) });
+    await user.selectOptions(select, SKU);
+    await user.type(screen.getByLabelText(/Số thùng/), "5");
+    expect(screen.queryAllByText(/nhập bậc giá đã thoả thuận/)).toHaveLength(0);
+    releasePrice({
+      customerId: CUSTOMER_ID,
+      sku: SKU,
+      measure: "CARTON",
+      moq: 20,
+      tiers: QUOTE_ACCEPTED.lines[0]?.tiers ?? [],
+      version: 1,
+    });
+    expect(await screen.findAllByText(/nhập bậc giá đã thoả thuận/)).not.toHaveLength(0);
+  });
+
   it("dưới MOQ của giá riêng, để trống bậc giá → lỗi tại dòng, không gọi API", async () => {
     const api = mockApi("SALES_STAFF", {
       get: {

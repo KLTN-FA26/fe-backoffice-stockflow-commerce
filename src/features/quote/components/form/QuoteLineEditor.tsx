@@ -46,7 +46,7 @@ export function QuoteLineEditor({
   canRemove: boolean;
   onRemove: () => void;
 }) {
-  const { register, control, formState, setValue } = form;
+  const { register, control, formState, setValue, trigger } = form;
   const errors = formState.errors.lines?.[index];
   const [sku, cartonsText, tierValues] = useWatch({
     control,
@@ -55,11 +55,15 @@ export function QuoteLineEditor({
   const price = useCustomerPrice(customerId, sku);
   const suggestion = price.data ?? null;
 
-  // 13 BR-05: có giá riêng thì được để trống bậc giá (BE tự lấy).
+  // Read during render so the form subscribes to it.
+  const submitted = formState.isSubmitted;
+  // 13 BR-05: có giá riêng thì được để trống bậc giá (BE tự lấy). Sau lần gửi đầu, kiểm lại ô bậc giá ngay khi giá
+  // riêng về (lỗi dưới MOQ nằm ở `tiers`), không đợi lần gửi sau.
   useEffect(() => {
     setValue(`lines.${index}.hasCustomerPrice`, !!suggestion);
     setValue(`lines.${index}.customerPriceMoq`, suggestion ? moqOf(suggestion.tiers) : null);
-  }, [index, setValue, suggestion]);
+    if (submitted) void trigger(`lines.${index}.tiers`);
+  }, [index, setValue, trigger, suggestion, submitted]);
 
   const tiers = toTiers(tierValues);
   const effective = tiers.length ? tiers : (suggestion?.tiers ?? []);

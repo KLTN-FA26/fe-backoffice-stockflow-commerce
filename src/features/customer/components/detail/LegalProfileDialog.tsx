@@ -69,11 +69,13 @@ function LegalProfileForm({
         onSuccess: onClose,
         onError: (failure) => {
           // BE-8: every wrong field comes back at once → mark them on the form; the zod rules stay a pre-check.
-          const fields = legalProfileFieldErrors(failure);
+          const { fields, others } = legalProfileFieldErrors(failure);
           fields.forEach(({ field, message }, index) =>
             form.setError(field, { type: "server", message }, { shouldFocus: index === 0 }),
           );
+          // A field the form has no input for: its message in the general line, never dropped.
           if (fields.length === 0) setError(legalProfileErrorMessage(failure));
+          else if (others.length > 0) setError(others.join(" "));
         },
       },
     );
