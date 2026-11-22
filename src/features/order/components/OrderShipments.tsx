@@ -56,7 +56,7 @@ export function OrderShipments({ order }: OrderShipmentsProps) {
                 <Link
                   href={ADMIN_ROUTES.shipments.detail(shipment.shipmentId)}
                   aria-label={`${UI_LABELS.shipping.orderShipments.open} ${index + 1}`}
-                  className="text-accent font-semibold hover:underline"
+                  className="text-accent-text font-semibold hover:underline"
                 >
                   Lô {index + 1}
                 </Link>

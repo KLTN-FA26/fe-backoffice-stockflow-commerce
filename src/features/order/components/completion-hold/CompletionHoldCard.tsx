@@ -84,7 +84,7 @@ export function CompletionHoldCard({ order, can }: CompletionHoldCardProps) {
 function HoldDetails({ hold }: { hold: CompletionHold }) {
   return (
     <div className="space-y-2">
-      <p className="text-warning text-[0.8125rem] font-semibold">{L.held}</p>
+      <p className="text-warning-ink text-[0.8125rem] font-semibold">{L.held}</p>
       <p className="text-ink-secondary text-xs">{L.heldHint}</p>
       <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[0.8125rem]">
         <dt className="text-ink-secondary">{L.reason}</dt>

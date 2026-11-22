@@ -13,7 +13,7 @@ import { TransferDetails } from "./TransferDetails";
 
 import type { ChatCard } from "../schemas";
 
-const LINK = "text-accent hover:underline";
+const LINK = "text-accent-text hover:underline";
 
 const label = (labels: Readonly<Record<string, string>>, status: string | null) =>
   status ? labels[status] : undefined;

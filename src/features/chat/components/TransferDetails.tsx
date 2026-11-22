@@ -48,7 +48,7 @@ export function TransferDetails({
   return (
     <div className="space-y-2">
       {view.title && <div className="text-ink-primary font-medium">{view.title}</div>}
-      {!hasBank && <p className="text-warning">{L.noBank}</p>}
+      {!hasBank && <p className="text-warning-ink">{L.noBank}</p>}
       <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
         {hasBank && (
           <>

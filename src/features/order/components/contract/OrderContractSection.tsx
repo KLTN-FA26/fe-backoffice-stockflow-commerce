@@ -124,7 +124,7 @@ export function OrderContractSection({
                         order.customerId,
                         ADMIN_ROUTES.orders.contract(order.orderId),
                       )}
-                      className="text-accent font-medium hover:underline"
+                      className="text-accent-text font-medium hover:underline"
                     >
                       Nhập thông tin pháp lý
                     </Link>
@@ -170,7 +170,7 @@ export function OrderContractSection({
             )}
             <button
               type="button"
-              className="text-accent text-xs hover:underline"
+              className="text-accent-text text-xs hover:underline"
               aria-expanded={showHistory}
               aria-controls="contract-history"
               onClick={() => setShowHistory((v) => !v)}

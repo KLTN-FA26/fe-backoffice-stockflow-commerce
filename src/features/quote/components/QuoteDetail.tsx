@@ -37,7 +37,7 @@ function General({ quote }: { quote: Quote }) {
     <DetailSection title="Thông tin chung" icon={FileText}>
       <div className="divide-y divide-(--table-line)">
         <InfoRow label="Số báo giá">
-          <span className={`text-accent font-medium ${MONO}`}>{quote.quoteNumber}</span>
+          <span className={`text-accent-text font-medium ${MONO}`}>{quote.quoteNumber}</span>
         </InfoRow>
         <InfoRow label="Bản sửa số">
           <span className={MONO}>{quote.revision}</span>

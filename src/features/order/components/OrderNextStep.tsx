@@ -15,7 +15,7 @@ export function OrderNextStep({ status }: { status: OrderReadStatus }) {
   return (
     <p className="text-ink-secondary mb-3 text-center text-xs">
       {L.prefix}{" "}
-      <a href={step.anchor} className="text-accent font-medium hover:underline">
+      <a href={step.anchor} className="text-accent-text font-medium hover:underline">
         {step.text} <span aria-hidden="true">↓</span>
       </a>
     </p>

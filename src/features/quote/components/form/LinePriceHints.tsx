@@ -37,7 +37,9 @@ export function SuggestionBar({
       </span>
       {loading && <span className="text-ink-tertiary">Đang tải giá gợi ý…</span>}
       {sku && !loading && !suggestion && !failed && (
-        <span className="text-warning">Khách chưa có giá riêng cho SKU này — nhập bậc giá.</span>
+        <span className="text-warning-ink">
+          Khách chưa có giá riêng cho SKU này — nhập bậc giá.
+        </span>
       )}
       {failed && <span className="text-danger">Không tải được giá gợi ý.</span>}
       {suggestion && (
@@ -60,7 +62,7 @@ export function SuggestionBar({
       {suggestion && tiersEmpty && (
         // BE chỉ tự lấy giá riêng khi số thùng đạt MOQ; dưới MOQ phải nhập bậc giá đã thoả thuận.
         <span
-          className={moq && cartons > 0 && cartons < moq ? "text-warning" : "text-ink-tertiary"}
+          className={moq && cartons > 0 && cartons < moq ? "text-warning-ink" : "text-ink-tertiary"}
         >
           {moq && cartons > 0 && cartons < moq
             ? `Dưới mức tối thiểu ${moq} thùng của bảng giá khách — cần nhập bậc giá.`

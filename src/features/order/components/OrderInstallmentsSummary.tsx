@@ -131,7 +131,7 @@ export function OrderInstallmentsSummary({
         </ul>
         <Link
           href={PAYMENT_ROUTES.installments.ofOrder(orderId)}
-          className="text-accent mt-1 inline-block text-xs font-medium hover:underline"
+          className="text-accent-text mt-1 inline-block text-xs font-medium hover:underline"
         >
           {L.viewAll}
         </Link>

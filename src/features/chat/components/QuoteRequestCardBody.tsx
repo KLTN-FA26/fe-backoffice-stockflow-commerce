@@ -61,11 +61,13 @@ export function QuoteRequestCardBody({
           ))}
         </ul>
       )}
-      {view.returnReason && <div className="text-warning">Lý do trả lại: {view.returnReason}</div>}
+      {view.returnReason && (
+        <div className="text-warning-ink">Lý do trả lại: {view.returnReason}</div>
+      )}
       {view.quoteId && (
         <Link
           href={ADMIN_ROUTES.quotes.detail(view.quoteId)}
-          className="text-accent hover:underline"
+          className="text-accent-text hover:underline"
         >
           Báo giá {view.quoteNumber ?? ""}
         </Link>

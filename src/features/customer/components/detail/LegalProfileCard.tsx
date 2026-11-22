@@ -97,7 +97,7 @@ export function LegalProfileCard({
             {data
               ? "Đã có thông tin pháp lý — có thể lập hợp đồng. "
               : "Bạn đến từ hợp đồng của đơn. "}
-            <Link href={returnTo} className="text-accent font-medium hover:underline">
+            <Link href={returnTo} className="text-accent-text font-medium hover:underline">
               Quay lại hợp đồng
             </Link>
           </Notice>
