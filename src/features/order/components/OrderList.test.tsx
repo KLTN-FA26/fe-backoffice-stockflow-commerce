@@ -90,12 +90,13 @@ describe("OrderList — cột Khách hàng hiện tên, không hiện UUID (QA A
     expect(screen.queryByText(apiOrder.customerId as string)).not.toBeInTheDocument();
   });
 
-  it("BE không trả tên → mã khách rút gọn, không UUID đầy đủ", async () => {
+  it("BE không trả tên / mã → nhãn trung tính, không mảnh UUID (BO-UX-6)", async () => {
     renderList(() => apiOrderPage([apiOrder]));
 
-    expect(
-      await screen.findByText(`KH ${(apiOrder.customerId as string).slice(0, 8)}`),
-    ).toBeInTheDocument();
+    await screen.findByText(apiOrder.orderNumber);
+    expect(document.body.textContent).not.toContain(
+      `KH ${(apiOrder.customerId as string).slice(0, 8)}`,
+    );
     expect(screen.queryByText(apiOrder.customerId as string)).not.toBeInTheDocument();
   });
 });

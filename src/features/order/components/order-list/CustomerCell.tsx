@@ -2,6 +2,7 @@
 
 import { Filter } from "lucide-react";
 
+import { CUSTOMER_FALLBACK_LABEL } from "@/components/backoffice/CustomerName";
 import { Button } from "@/components/ui/button";
 
 import { isValidOrderCustomerId } from "../../schemas";
@@ -25,10 +26,12 @@ export function CustomerCell({
   onFilter,
 }: CustomerCellProps) {
   if (!customerId) return <span className="text-ink-tertiary text-xs">—</span>;
-  // Không tên, không mã: mã rút gọn của UUID; id không phải UUID (dữ liệu mock `CUS-…`) giữ nguyên.
-  const shortId = isValidOrderCustomerId(customerId) ? `KH ${customerId.slice(0, 8)}` : customerId;
-  const label = customerName || customerCode || shortId;
-  const title = [customerName, customerCode, customerId].filter(Boolean).join(" · ");
+  // Không tên, không mã: nhãn trung tính — mảnh UUID không phải mã khách ai đọc được (BO-UX-6); id không phải UUID
+  // (dữ liệu mock `CUS-…`) là mã đọc được nên giữ nguyên.
+  const fallback = isValidOrderCustomerId(customerId) ? CUSTOMER_FALLBACK_LABEL : customerId;
+  const label = customerName || customerCode || fallback;
+  // Tooltip chỉ mang tên / mã khách, không UUID
+  const title = [customerName, customerCode].filter(Boolean).join(" · ") || undefined;
   return (
     <span className="flex items-center gap-1">
       <span className="text-ink-secondary max-w-40 truncate text-[0.8125rem]" title={title}>
@@ -39,7 +42,7 @@ export function CustomerCell({
           variant="ghost"
           size="icon-xs"
           className="text-ink-tertiary hover:text-ink-primary"
-          aria-label={`Lọc đơn của khách ${customerName || customerCode || customerId}`}
+          aria-label={`Lọc đơn của khách ${customerName || customerCode || ""}`.trim()}
           onClick={(event) => {
             event.stopPropagation();
             onFilter(customerId);
