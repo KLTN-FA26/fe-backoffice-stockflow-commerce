@@ -101,10 +101,17 @@ export const CHAT_INBOX_SCOPE_LABELS = {
   overdue: "Quá hạn",
 } as const satisfies Record<ChatInboxScope, string>;
 
-/** Hội thoại cập nhật bằng polling 5 giây (plan WF-02 E: chưa có STOMP). */
+/** Socket chat chưa nối (hoặc không có `NEXT_PUBLIC_WS_URL`): hội thoại cập nhật bằng polling 5 giây. */
 export const CHAT_POLL_MS = 5_000;
 /** Số chưa đọc trên menu (S22) đọc thưa hơn: chỉ là huy hiệu. */
 export const CHAT_BADGE_POLL_MS = 30_000;
+/**
+ * Socket chat đang nối (FE fix list A.3): sự kiện STOMP cập nhật màn hình, polling chỉ còn là lưới an toàn (BE đẩy
+ * "best effort" — `ChatBroadcaster`), 30–60 giây và dừng khi tab ẩn.
+ */
+export const CHAT_LIVE_POLL_MS = 45_000;
+/** Gộp các lần tải lại do một loạt sự kiện socket gần nhau thành một. */
+export const CHAT_REALTIME_COALESCE_MS = 250;
 
 /** Tìm trong tin nhắn (S21): 2–200 ký tự sau khi bỏ khoảng trắng hai đầu, BE trả 400 nếu sai. */
 export const CHAT_SEARCH_MIN = 2;
@@ -134,3 +141,10 @@ export const CHAT_MENTION_LABELS = {
 } as const;
 /** Chờ người gõ dừng trước khi tìm người để @nhắc (api-conventions §9.6). */
 export const CHAT_MENTION_DEBOUNCE_MS = 300;
+
+/** Thông báo từ socket chat (A.3). */
+export const CHAT_REALTIME_LABELS = {
+  mentioned: (sender: string | null | undefined) =>
+    sender ? `${sender} nhắc bạn trong ghi chú nội bộ` : "Bạn được nhắc trong một ghi chú nội bộ",
+} as const;
+

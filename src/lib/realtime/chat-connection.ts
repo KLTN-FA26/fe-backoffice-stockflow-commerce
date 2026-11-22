@@ -1,72 +1,40 @@
 /**
- * Staff chat presence over STOMP `/ws` (BE `ChatStompController`): the socket being connected makes the agent
- * online; a heartbeat every 30 s keeps them so. Presence only - no subscriptions, messages stay on REST.
+ * The back office's ONE chat socket (STOMP over BE `/ws`): presence and the chat's events share it.
+ *
+ * - Presence (BE-12): being connected makes the agent online; a heartbeat every 30 s keeps them so.
+ * - Events (`ChatBroadcaster`, `ChatTopics`): screens `subscribe(destination, listener)` at any time. The connection
+ *   keeps the list and (re)subscribes each destination once per socket, however many listeners share it, so a
+ *   reconnect needs nothing from the screens.
+ * - `isConnected()` / `onStatus()` let screens slow their polling while events arrive, and catch up after a drop.
  *
  * Every CONNECT (first and each reconnect) carries a fresh ticket. `WS_TICKET_INVALID` earns one new ticket and one
  * retry, then we stop quietly. Any other failure (`Authentication is not available`, network, ticket endpoint
  * errors) is transient: reconnect with exponential backoff so the ticket endpoint (30/min) is never hammered.
+ * A SUBSCRIBE the BE refuses ends the whole session (Spring answers with an ERROR frame and closes it): that
+ * destination is dropped before reconnecting, or every reconnect would be refused again.
  */
-
-import { Client, TickerStrategy } from "@stomp/stompjs";
 
 import { ApiError } from "@/lib/api/error";
 
 import { fetchSocketTicket } from "./socket-ticket";
+import { createStompSocket } from "./stomp-socket";
 
-import type { IFrame } from "@stomp/stompjs";
+import type { SocketSubscription, StompSocket, StompSocketFactory } from "./stomp-socket";
 
 export const PRESENCE_HEARTBEAT_DESTINATION = "/app/chat.presence.heartbeat";
 export const PRESENCE_HEARTBEAT_MS = 30_000;
-export const STOMP_KEEPALIVE_MS = 10_000;
 export const WS_TICKET_INVALID = "WS_TICKET_INVALID";
+/** `StompAuthenticationInterceptor`: the ERROR frame's message when a SUBSCRIBE is refused. */
+export const SUBSCRIBE_REFUSED_PREFIX = "Not allowed to subscribe to ";
 export const RECONNECT_BASE_MS = 2_000;
 export const RECONNECT_MAX_MS = 60_000;
 
-/** The part of the stompjs `Client` this module drives (so tests can supply a stand-in). */
-export interface PresenceSocket {
-  activate(): void;
-  deactivate(): Promise<void>;
-  publish(params: { destination: string }): void;
-}
-
-export interface PresenceSocketHandlers {
-  onConnect(): void;
-  onStompError(frame: Pick<IFrame, "headers" | "body">): void;
-  onWebSocketClose(): void;
-}
-
-export type PresenceSocketFactory = (
-  url: string,
-  ticket: string,
-  handlers: PresenceSocketHandlers,
-) => PresenceSocket;
-
-export const createStompSocket: PresenceSocketFactory = (url, ticket, handlers) => {
-  const client = new Client({
-    brokerURL: url,
-    connectHeaders: { ticket },
-    heartbeatIncoming: STOMP_KEEPALIVE_MS,
-    heartbeatOutgoing: STOMP_KEEPALIVE_MS,
-    // Outgoing pings from a Web Worker: a hidden tab's throttled timers must not let Spring drop the session (stompjs
-    // falls back to setInterval where there is no Worker).
-    heartbeatStrategy: TickerStrategy.Worker,
-    reconnectDelay: 0, // reconnects are ours: a new ticket for each, with backoff
-    // A lost STOMP heartbeat drops the socket at once instead of waiting for a close handshake on a dead network.
-    discardWebsocketOnCommFailure: true,
-    onConnect: () => handlers.onConnect(),
-    onStompError: (frame) => handlers.onStompError(frame),
-    onWebSocketClose: () => handlers.onWebSocketClose(),
-  });
-  return {
-    activate: () => client.activate(),
-    deactivate: () => client.deactivate(),
-    publish: (params) => client.publish(params),
-  };
-};
+/** A chat event as it arrives: the parsed JSON body; the subscriber narrows it. */
+export type SocketListener = (event: unknown) => void;
 
 interface Options {
   url: string;
-  socketFactory?: PresenceSocketFactory;
+  socketFactory?: StompSocketFactory;
   ticketFetcher?: (signal?: AbortSignal) => Promise<string>;
 }
 
@@ -75,19 +43,32 @@ function isFinalTicketFailure(error: unknown): boolean {
   return error instanceof ApiError && (error.status === 401 || error.status === 403);
 }
 
-export class PresenceConnection {
+function parse(body: string): unknown {
+  try {
+    return JSON.parse(body) as unknown;
+  } catch {
+    return undefined;
+  }
+}
+
+export class ChatConnection {
   private readonly url: string;
-  private readonly socketFactory: PresenceSocketFactory;
+  private readonly socketFactory: StompSocketFactory;
   private readonly ticketFetcher: (signal?: AbortSignal) => Promise<string>;
 
   private stopped = true;
-  private socket: PresenceSocket | null = null;
+  private socket: StompSocket | null = null;
+  private connected = false;
   private heartbeat: ReturnType<typeof setInterval> | null = null;
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
   private abort: AbortController | null = null;
   private generation = 0;
   private invalidStreak = 0;
   private transientFailures = 0;
+  /** destination → its listeners; `live` = its STOMP subscription on the current socket. */
+  private readonly routes = new Map<string, Set<SocketListener>>();
+  private readonly live = new Map<string, SocketSubscription>();
+  private readonly statusListeners = new Set<(connected: boolean) => void>();
 
   constructor(options: Options) {
     this.url = options.url;
@@ -108,6 +89,61 @@ export class PresenceConnection {
     this.abort = null;
     this.clearTimers();
     this.closeSocket();
+  }
+
+  isConnected(): boolean {
+    return this.connected;
+  }
+
+  /** Called with the new state each time the socket comes up or goes down. Returns the unsubscribe. */
+  onStatus(listener: (connected: boolean) => void): () => void {
+    this.statusListeners.add(listener);
+    return () => this.statusListeners.delete(listener);
+  }
+
+  /** Listens to `destination` now and across reconnects, until the returned function is called. */
+  subscribe(destination: string, listener: SocketListener): () => void {
+    let listeners = this.routes.get(destination);
+    if (!listeners) {
+      listeners = new Set();
+      this.routes.set(destination, listeners);
+    }
+    listeners.add(listener);
+    if (this.connected) this.follow(destination);
+    return () => {
+      const current = this.routes.get(destination);
+      if (!current?.delete(listener) || current.size > 0) return;
+      this.routes.delete(destination);
+      const subscription = this.live.get(destination);
+      this.live.delete(destination);
+      try {
+        subscription?.unsubscribe();
+      } catch {
+        // The socket is already gone: nothing left to unsubscribe from.
+      }
+    };
+  }
+
+  private follow(destination: string): void {
+    if (!this.socket || this.live.has(destination)) return;
+    const subscription = this.socket.subscribe(destination, (body) => {
+      const event = parse(body);
+      if (event === undefined) return;
+      for (const listener of [...(this.routes.get(destination) ?? [])]) {
+        try {
+          listener(event);
+        } catch {
+          // One screen's failing handler must not keep the event from the others.
+        }
+      }
+    });
+    this.live.set(destination, subscription);
+  }
+
+  private setConnected(connected: boolean): void {
+    if (this.connected === connected) return;
+    this.connected = connected;
+    for (const listener of [...this.statusListeners]) listener(connected);
   }
 
   private async connect(): Promise<void> {
@@ -148,9 +184,16 @@ export class PresenceConnection {
         // that connects then drops at once must keep backing off, or it spends the 30/min ticket budget.
         this.invalidStreak = 0;
         this.startHeartbeat(() => fail("transient"));
+        for (const destination of this.routes.keys()) this.follow(destination);
+        this.setConnected(true);
       },
-      onStompError: (frame) =>
-        fail(frame.headers.message === WS_TICKET_INVALID ? "invalid" : "transient"),
+      onStompError: (frame) => {
+        const message = frame.headers.message ?? "";
+        if (message.startsWith(SUBSCRIBE_REFUSED_PREFIX)) {
+          this.routes.delete(message.slice(SUBSCRIBE_REFUSED_PREFIX.length).trim());
+        }
+        fail(message === WS_TICKET_INVALID ? "invalid" : "transient");
+      },
       onWebSocketClose: () => fail("transient"),
     });
     this.socket.activate();
@@ -191,9 +234,12 @@ export class PresenceConnection {
     this.retryTimer = null;
   }
 
+  /** The socket is gone with its subscriptions; the routes stay for the next one. */
   private closeSocket(): void {
     const socket = this.socket;
     this.socket = null;
+    this.live.clear();
+    this.setConnected(false);
     if (socket) void socket.deactivate().catch(() => undefined);
   }
 }
