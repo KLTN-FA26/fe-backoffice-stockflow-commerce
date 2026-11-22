@@ -55,6 +55,8 @@ export const SHIPPING_AFTER_HANDOVER_LABELS = {
   },
   /** Bước do hãng báo qua webhook (docs 09 BR-02: ghi nguồn webhook / tay). */
   webhookSource: "Hãng báo (webhook)",
+  /** Nguyên văn lý do thất bại của hãng, lưu kèm mã lý do nội bộ (docs 09 §4.1). */
+  carrierOriginalReason: "Lý do gốc của hãng",
   /** File vận đơn và POD của đơn — Sale gửi khách khi khách xin qua chat (docs 09 §2, §7). */
   documents: {
     title: "File vận đơn & biên bản giao nhận",

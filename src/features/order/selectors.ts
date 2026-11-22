@@ -178,9 +178,9 @@ export function cancelConsequence(
     case "In Production":
       return "Đơn đang sản xuất: lệnh sản xuất chưa in sẽ được huỷ; lệnh đang in hoặc gia công ngoài sẽ được treo để xưởng xử lý phôi và hàng đã in. Thao tác huỷ này không áp dụng phí huỷ.";
     case "Ready to Fulfill":
-      return "Đơn đã release cho kho nhưng chưa lấy hàng: huỷ sẽ nhả giữ chỗ tồn (docs 17 BR-03).";
+      return "Đơn đã release cho kho nhưng chưa lấy hàng: huỷ sẽ nhả giữ chỗ tồn.";
     case "Picking":
-      return "Kho đang lấy hàng: huỷ sẽ dừng lấy hàng và put-back hàng đã lấy về vị trí (docs 17 BR-03).";
+      return "Kho đang lấy hàng: huỷ sẽ dừng lấy hàng và put-back hàng đã lấy về vị trí.";
     default:
       return null;
   }

@@ -30,6 +30,12 @@ export const UI_LABELS = {
     /** Badge thanh Cấu hình khi ô search chưa có nội dung. */
     notEntered: "Chưa nhập",
   },
+  // Ô chọn tệp dùng chung (components/shared/FilePickerField)
+  filePicker: {
+    choose: "Chọn tệp",
+    change: "Đổi tệp",
+    none: "Chưa chọn tệp",
+  },
   // Ô chọn ngày dùng chung (components/shared/DatePicker)
   datePicker: {
     placeholder: "Chọn ngày",
@@ -127,8 +133,7 @@ export const UI_LABELS = {
     linesDraftTitle: "Dòng kiểm đếm",
     linesConfirmedTitle: "Dòng nhận",
     linesDraftDescription: "Số đang kiểm đếm của phiếu nháp — chưa ghi nhận tồn.",
-    linesConfirmedDescription:
-      "Phiếu đã xác nhận chỉ còn xem; sai sót xử lý bằng điều chỉnh tồn (BR-05).",
+    linesConfirmedDescription: "Phiếu đã xác nhận chỉ còn xem; sai sót xử lý bằng điều chỉnh tồn.",
     linesCancelledDescription: "Phiếu đã huỷ trước khi xác nhận — không nhập kho, chỉ còn xem.",
     // Nhãn trường dùng chung giữa thông tin phiếu và cột danh sách
     field: {
@@ -145,7 +150,7 @@ export const UI_LABELS = {
     confirmDialog: {
       cancelTitle: "Huỷ phiếu nhận",
       confirmDescription: (number: string) =>
-        `Chốt số của ${number}: các thùng thành tồn Inbound ở khu nhận hàng, Đơn sản xuất cập nhật SL đã nhận, phiếu chuyển sang cất hàng. Sau khi xác nhận phiếu chỉ còn xem, sai sót phải điều chỉnh tồn (BR-05).`,
+        `Chốt số của ${number}: các thùng thành tồn Inbound ở khu nhận hàng, Đơn sản xuất cập nhật SL đã nhận, phiếu chuyển sang cất hàng. Sau khi xác nhận phiếu chỉ còn xem, sai sót phải điều chỉnh tồn.`,
       cancelDescription: (number: string) =>
         `Huỷ ${number}? Chỉ phiếu nháp mới huỷ được; thùng đã cấp mã bị huỷ theo. Không thể khôi phục.`,
     },

@@ -40,13 +40,13 @@ export const DELIVERY_SCHEDULE_LABELS = {
   contractWindow: (range: string) => `Theo hợp đồng: ${range}`,
   moved: "Đã dời",
   late: "Trễ",
-  lateHint: "Đã qua ngày kết thúc cửa sổ giao mà chưa bàn giao hết (DELIVERY_LATE, docs 17 §4.12).",
+  lateHint: "Đã qua ngày kết thúc cửa sổ giao mà chưa bàn giao hết.",
   released: (when: string) => `Đã release ${when}`,
   notReleased: "Chưa release",
   cartonsHeader: "Thùng theo SKU",
   cartons: (held: number, total: number) => `${held}/${total} thùng đã giữ`,
   noLines: "Đợt không có dòng hàng.",
-  lockedHint: "Đợt đã có thùng bàn giao (hoặc đã đóng) — cửa sổ giao không dời được (BR-28).",
+  lockedHint: "Đợt đã có thùng bàn giao (hoặc đã đóng) — cửa sổ giao không dời được.",
   history: "Lịch sử dời cửa sổ",
   historyEntry: (oldRange: string, newRange: string) => `${oldRange} → ${newRange}`,
   evidenceMessage: (id: string) => `Tin nhắn chat của khách (${id})`,
@@ -76,7 +76,7 @@ export const WINDOW_CHANGE_LABELS = {
   evidenceKindMessage: "Tin nhắn chat của khách",
   evidenceMessageLabel: "Mã tin nhắn của khách trong chat",
   evidenceMessageHint:
-    "Tin nhắn do chính khách gửi, trong cuộc chat của khách (về đơn này hoặc chưa gắn đơn) — tin của nhân viên hoặc của khách khác không được nhận (BR-28).",
+    "Tin nhắn do chính khách gửi, trong cuộc chat của khách (về đơn này hoặc chưa gắn đơn) — tin của nhân viên hoặc của khách khác không được nhận.",
   evidenceMessagePlaceholder: "Dán mã tin nhắn (UUID)",
   /** Bằng chứng là tệp (BE: tải thẳng lên kho rồi gửi `evidenceUploadId`, docs 17 BR-28). */
   file: {
@@ -121,7 +121,7 @@ export const WINDOW_CHANGE_LABELS = {
   evidenceInvalid: "Mã tin nhắn phải là UUID hợp lệ",
   /** Thứ tự các đợt (BR-28): đợt sau không bắt đầu sớm hơn đợt trước. */
   orderViolation: (seq: number) =>
-    `Đợt ${seq} sẽ bắt đầu trước đợt đứng trước nó — hãy dời cả các đợt sau (BR-28).`,
+    `Đợt ${seq} sẽ bắt đầu trước đợt đứng trước nó — hãy dời cả các đợt sau.`,
   previousWindowHint: (range: string) => `Cửa sổ hiện hành: ${range}`,
   /** Lý do BE từ chối — câu Việt + mã quy tắc. */
   locked:

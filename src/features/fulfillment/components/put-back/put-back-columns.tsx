@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { Undo2 } from "lucide-react";
 
-import { ADMIN_ROUTES, PUT_BACK_LABELS } from "@/constants";
-import { CELL, dateCell, numberCell, refCell, textCell } from "@/components/shared/column-helpers";
+import { ADMIN_ROUTES, PICK_LINE_LABELS, PUT_BACK_LABELS } from "@/constants";
+import { formatDateTime } from "@/lib/format/date";
+import { CELL, numberCell } from "@/components/shared/column-helpers";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -49,7 +50,7 @@ export function putBackColumns({
       key: "lpn",
       header: COL.lpn,
       cell: (row) => (
-        <span className="inline-flex items-center gap-2">
+        <span className="flex flex-col items-start gap-0.5">
           <span className={CELL.code}>{row.lpn ?? "—"}</span>
           {row.quarantine && (
             <Badge variant="outline" className="text-[0.6875rem]">
@@ -59,11 +60,30 @@ export function putBackColumns({
         </span>
       ),
     },
-    refCell<PutBackRow>("sku", COL.sku, (row) => row.sku),
-    textCell<PutBackRow>("lot", COL.lot, (row) => row.lotNumber ?? ""),
+    // Ô hai dòng (SKU, dưới là lô) thay cho hai cột riêng: 8 cột không vừa khung ở 1280 px (cột Thao tác bị đẩy ra ngoài)
+    {
+      key: "sku",
+      header: COL.skuLot,
+      cell: (row) => (
+        <span className="flex flex-col">
+          <span className={CELL.ref}>{row.sku}</span>
+          {row.lotNumber && <span className={CELL.sub}>{PICK_LINE_LABELS.lot(row.lotNumber)}</span>}
+        </span>
+      ),
+    },
     numberCell<PutBackRow>("pickedQty", COL.pickedQty, (row) => row.pickedQty),
-    refCell<PutBackRow>("fromLocation", COL.fromLocation, (row) => row.fromLocationCode),
-    dateCell<PutBackRow>("pickedAt", COL.pickedAt, (row) => row.pickedAt, { withTime: true }),
+    {
+      key: "fromLocation",
+      header: COL.fromLocationAt,
+      cell: (row) => (
+        <span className="flex flex-col">
+          <span className={CELL.ref}>{row.fromLocationCode}</span>
+          <span className={`${CELL.sub} tabular-nums`}>
+            {row.pickedAt ? formatDateTime(row.pickedAt) : "—"}
+          </span>
+        </span>
+      ),
+    },
   ];
   if (!canAct) return base;
   return [

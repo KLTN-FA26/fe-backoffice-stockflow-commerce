@@ -177,7 +177,7 @@ describe("selectors", () => {
       warnings: ["BUYER_PROFILE_INCOMPLETE", "EARLIER_INVOICE_PENDING", "SOMETHING_NEW"],
       earlierPendingInvoice: "HDDT-0007",
     });
-    expect(lines[0]).toContain("BR-06");
+    expect(lines[0]).not.toMatch(/BR-\d/);
     expect(lines[1]).toContain("HDDT-0007");
     expect(lines[2]).toContain("cảnh báo mới");
   });

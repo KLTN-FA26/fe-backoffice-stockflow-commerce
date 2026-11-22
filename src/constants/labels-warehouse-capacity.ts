@@ -46,7 +46,7 @@ export const WAREHOUSE_CAPACITY_UI_LABELS = {
   refetching: "Đang tải lại bảng sức chứa",
   refetchFailed: "Không tải lại được số liệu mới nhất — đang hiện bản đã tải trước đó.",
   unitNote: "Đơn vị: m³.",
-  computedAtRead: "Số liệu tính tại lúc mở trang, không lưu (BR-20).",
+  computedAtRead: "Số liệu tính tại lúc mở trang, không lưu.",
   column: {
     warehouse: "Kho",
     capacity: METRIC.capacity,
@@ -86,7 +86,7 @@ export const WAREHOUSE_CAPACITY_UI_LABELS = {
   overCapacity: (m3: string) => `Vượt sức chứa ${m3} m³`,
   usageOf: (percent: string) => `${percent} sức chứa`,
   noCapacity: "Chưa có sức chứa",
-  areaNoCapacity: "Khu vực không có sức chứa — chỉ tính đang chiếm (BR-19).",
+  areaNoCapacity: "Khu vực không có sức chứa — chỉ tính đang chiếm.",
   groupsTitle: "Xem theo cấp",
   groupsAria: "Xem sức chứa theo zone, kệ hoặc khu",
   groupTab: { zones: "Zone", shelves: "Kệ", areas: "Khu vực" } satisfies Record<
@@ -103,7 +103,7 @@ export const WAREHOUSE_CAPACITY_UI_LABELS = {
   warning: {
     negativeTitle: "Còn trống dự kiến đang âm",
     negative: (m3: string) =>
-      `Hàng sắp về vượt chỗ trống ${m3} m³. Hàng về vẫn được nhận và cất vào khu tạm OVERFLOW (BR-21).`,
+      `Hàng sắp về vượt chỗ trống ${m3} m³. Hàng về vẫn được nhận và cất vào khu tạm OVERFLOW.`,
     negativeIfApprovedTitle: "Không đủ chỗ nếu duyệt hết",
     negativeIfApproved: (m3: string) =>
       `Nếu gửi hết các Đơn sản xuất nháp về kho này, kho thiếu ${m3} m³.`,

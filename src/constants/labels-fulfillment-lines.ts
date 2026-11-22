@@ -78,6 +78,8 @@ export const PICK_LINE_LABELS = {
     lpn: "LPN",
     sku: "SKU",
     lot: "Lô",
+    /** Cột gộp SKU + dòng phụ "Lô …" (ô hai dòng) — bảng hẹp ở 1280 px vẫn vừa khung. */
+    skuLot: "SKU / Lô",
     allocated: "SL/thùng",
     picked: "SL đã lấy",
     status: "Trạng thái",
@@ -153,9 +155,13 @@ export const PUT_BACK_LABELS = {
     lpn: "LPN",
     sku: "SKU",
     lot: "Lô",
+    /** Cột gộp SKU + dòng phụ "Lô …" (ô hai dòng) — bảng vừa khung ở 1280 px, không phải cuộn ngang. */
+    skuLot: "SKU / Lô",
     pickedQty: "SL đã lấy",
     fromLocation: "Vị trí lấy",
     pickedAt: "Lấy lúc",
+    /** Cột gộp vị trí lấy + dòng phụ giờ lấy (ô hai dòng). */
+    fromLocationAt: "Vị trí / lúc lấy",
     actions: "Thao tác",
   },
 } as const;

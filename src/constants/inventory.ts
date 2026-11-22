@@ -167,7 +167,7 @@ export const INVENTORY_LABELS = {
   carton: "Thùng",
   lpn: "LPN thùng",
   lpnPlaceholder: "Quét hoặc nhập LPN, ví dụ LPN-20261110-000001",
-  lpnHelp: "Mỗi phiếu điều chỉnh đúng một thùng — không điều chỉnh một phần thùng (docs 20 BR-14).",
+  lpnHelp: "Mỗi phiếu điều chỉnh đúng một thùng — không điều chỉnh một phần thùng.",
   direction: "Chiều điều chỉnh",
   chooseDirection: "Chọn chiều điều chỉnh",
   cartonWholeDelta: (delta: number) =>
