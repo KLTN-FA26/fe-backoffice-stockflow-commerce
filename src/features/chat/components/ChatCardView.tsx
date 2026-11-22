@@ -10,10 +10,10 @@ import { formatMoney } from "@/lib/format/money";
 import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
 
-import { chatErrorMessage, useStaffCardAction } from "../mutations";
+import { useChatFailure, useStaffCardAction } from "../mutations";
 import {
   DESIGN_STATUS_LABELS,
-  awaitsDesignApproval,
+  designWaitNote,
   payloadNumber,
   payloadText,
   quoteRequestView,
@@ -21,8 +21,24 @@ import {
 
 import type { ChatCard, ChatMessage } from "../schemas";
 
-function QuoteRequestBody({ message, card }: { message: ChatMessage; card: ChatCard }) {
+/** Ai lập được báo giá từ thẻ ở hội thoại này (người phụ trách / giám sát) và câu giải thích khi không. */
+export interface QuoteGate {
+  allowed: boolean;
+  hint: string | null;
+}
+
+function QuoteRequestBody({
+  message,
+  card,
+  quoteGate,
+}: {
+  message: ChatMessage;
+  card: ChatCard;
+  quoteGate: QuoteGate;
+}) {
   const view = quoteRequestView(card);
+  const failure = useChatFailure();
+  const waitNote = designWaitNote(view);
   const router = useRouter();
   const action = useStaffCardAction();
   // Nút vẽ đúng `card.staffActions` của BE (CardActions.quotable): chỉ khi thiết kế đã duyệt và chưa có báo giá.
@@ -56,13 +72,13 @@ function QuoteRequestBody({ message, card }: { message: ChatMessage; card: ChatC
           Báo giá {view.quoteNumber ?? ""}
         </Link>
       )}
-      {!canCreate && !view.quoteId && card.state === "OPEN" && awaitsDesignApproval(view) && (
-        <div className="text-ink-tertiary">Chờ duyệt thiết kế</div>
+      {!canCreate && !view.quoteId && card.state === "OPEN" && waitNote && (
+        <div className="text-ink-tertiary">{waitNote}</div>
       )}
       {canCreate && (
         <Button
           size="sm"
-          disabled={action.isPending}
+          disabled={action.isPending || !quoteGate.allowed}
           onClick={() =>
             action.mutate(
               { id: message.conversationId, messageId: message.id, action: "CREATE_QUOTE" },
@@ -71,7 +87,7 @@ function QuoteRequestBody({ message, card }: { message: ChatMessage; card: ChatC
                   const quoteId = acted.card ? payloadText(acted.card, "quoteId") : null;
                   if (quoteId) router.push(ADMIN_ROUTES.quotes.detail(quoteId));
                 },
-                onError: (error) => toast.error(chatErrorMessage(error)),
+                onError: (error) => toast.error(failure(error)),
               },
             )
           }
@@ -83,6 +99,9 @@ function QuoteRequestBody({ message, card }: { message: ChatMessage; card: ChatC
           )}{" "}
           Lập báo giá
         </Button>
+      )}
+      {canCreate && !quoteGate.allowed && quoteGate.hint && (
+        <div className="text-ink-tertiary">{quoteGate.hint}</div>
       )}
     </div>
   );
@@ -119,7 +138,13 @@ function DocumentBody({ card }: { card: ChatCard }) {
 }
 
 /** Thẻ trong hội thoại (render theo `card.kind` + `payload` + `state`). Sale không có nút thay khách. */
-export function ChatCardView({ message }: { message: ChatMessage }) {
+export function ChatCardView({
+  message,
+  quoteGate,
+}: {
+  message: ChatMessage;
+  quoteGate: QuoteGate;
+}) {
   const card = message.card;
   if (!card) return null;
   return (
@@ -133,7 +158,7 @@ export function ChatCardView({ message }: { message: ChatMessage }) {
         </span>
       </div>
       {card.kind === "QUOTE_REQUEST" ? (
-        <QuoteRequestBody message={message} card={card} />
+        <QuoteRequestBody message={message} card={card} quoteGate={quoteGate} />
       ) : (
         <DocumentBody card={card} />
       )}

@@ -1,61 +1,75 @@
 "use client";
 
-import { useState } from "react";
-import { LoaderCircle, Paperclip, Send } from "lucide-react";
+import { useRef, useState } from "react";
+import { LoaderCircle, Send } from "lucide-react";
 
 import { Notice } from "@/components/shared/Notice";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { fileTooLargeMessage, uploadFileMaxBytes } from "@/constants/upload-limits";
 
-import { chatErrorMessage, useSendAttachment, useSendNote, useSendText } from "../mutations";
-
+import { useChatFailure, useSendAttachment, useSendNote, useSendText } from "../mutations";
 import { CannedPicker } from "./CannedPicker";
+import { ComposerAttachment } from "./ComposerAttachment";
+import { ComposerModeToggle } from "./ComposerModeToggle";
+import { MentionPicker } from "./MentionPicker";
+import { useMentionComposer } from "./use-mention-composer";
 
-const ACCEPT = "image/jpeg,image/png,image/webp,application/pdf";
-type Mode = "reply" | "note";
+import type { ComposerMode } from "./ComposerModeToggle";
 
 /**
- * Soạn tin: "Trả lời khách" (S5) hoặc "Ghi chú nội bộ" (S6, khách không thấy); kèm file (S7). Mỗi lần gửi một
- * `clientMessageId` mới; bấm lại sau lỗi dùng lại để BE không tạo tin trùng. Câu trả lời mẫu chèn vào ô trả lời
- * khách để sửa trước khi gửi.
+ * Soạn tin: "Trả lời khách" (S5) hoặc "Ghi chú nội bộ" (S6, khách không thấy, có @nhắc đồng nghiệp); kèm file (S7). Mỗi
+ * lần gửi một `clientMessageId` mới; bấm lại sau lỗi dùng lại để BE không tạo tin trùng. Câu trả lời mẫu chèn vào ô trả
+ * lời khách để sửa trước khi gửi.
  */
 export function Composer({
   conversationId,
   canReply,
   canNote,
   canUseCanned = false,
+  replyBlockedHint = null,
 }: {
   conversationId: string;
   canReply: boolean;
   canNote: boolean;
   canUseCanned?: boolean;
+  /** Không phải người phụ trách: chỉ còn ghi chú nội bộ, kèm câu này. */
+  replyBlockedHint?: string | null;
 }) {
-  const [mode, setMode] = useState<Mode>(canReply ? "reply" : "note");
+  const describeError = useChatFailure();
+  const [chosen, setMode] = useState<ComposerMode>(canReply ? "reply" : "note");
+  // Mất quyền trả lời (đổi người phụ trách) giữa chừng → rơi về ghi chú nội bộ.
+  const mode: ComposerMode = chosen === "reply" && !canReply ? "note" : chosen;
   const [text, setText] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [clientMessageId, setClientMessageId] = useState(() => crypto.randomUUID());
+  const area = useRef<HTMLTextAreaElement>(null);
+  const mention = useMentionComposer({ enabled: mode === "note", text, setText, area });
   const sendText = useSendText();
   const sendNote = useSendNote();
   const sendFile = useSendAttachment();
   const pending = sendText.isPending || sendNote.isPending || sendFile.isPending;
   if (!canReply && !canNote) return null;
 
-  const done = () => {
-    setText("");
-    setFile(null);
-    setError(null);
-    setClientMessageId(crypto.randomUUID());
-  };
   const options = {
-    onSuccess: done,
-    onError: (failure: unknown) => setError(chatErrorMessage(failure)),
+    onSuccess: () => {
+      setText("");
+      mention.reset();
+      setFile(null);
+      setError(null);
+      setClientMessageId(crypto.randomUUID());
+    },
+    onError: (failure: unknown) => setError(describeError(failure)),
   };
   const submit = () => {
     const trimmed = text.trim();
-    if (mode === "note")
-      return sendNote.mutate({ id: conversationId, text: trimmed, clientMessageId }, options);
+    if (mode === "note") {
+      const mentions = mention.mentionIds(trimmed);
+      return sendNote.mutate(
+        { id: conversationId, text: trimmed, clientMessageId, mentions },
+        options,
+      );
+    }
     if (file)
       return sendFile.mutate(
         { id: conversationId, file, caption: trimmed || undefined, clientMessageId },
@@ -68,32 +82,7 @@ export function Composer({
   return (
     <div className="border-border-default space-y-2 border-t pt-3">
       <div className="flex flex-wrap items-center justify-between gap-1">
-        <div role="radiogroup" aria-label="Loại tin" className="flex gap-1">
-          {canReply && (
-            <Button
-              type="button"
-              size="sm"
-              variant={mode === "reply" ? "default" : "outline"}
-              role="radio"
-              aria-checked={mode === "reply"}
-              onClick={() => setMode("reply")}
-            >
-              Trả lời khách
-            </Button>
-          )}
-          {canNote && (
-            <Button
-              type="button"
-              size="sm"
-              variant={mode === "note" ? "default" : "outline"}
-              role="radio"
-              aria-checked={mode === "note"}
-              onClick={() => setMode("note")}
-            >
-              Ghi chú nội bộ
-            </Button>
-          )}
-        </div>
+        <ComposerModeToggle mode={mode} canReply={canReply} canNote={canNote} onChange={setMode} />
         {canUseCanned && canReply && mode === "reply" && (
           <CannedPicker
             conversationId={conversationId}
@@ -104,40 +93,28 @@ export function Composer({
           />
         )}
       </div>
+      {!canReply && replyBlockedHint && (
+        <p className="text-ink-tertiary text-xs">{replyBlockedHint}</p>
+      )}
       {error && <Notice tone="danger">{error}</Notice>}
       <Textarea
+        ref={area}
         aria-label={mode === "note" ? "Ghi chú nội bộ" : "Tin nhắn cho khách"}
         placeholder={mode === "note" ? "Ghi chú nội bộ — khách không thấy" : "Nhập tin nhắn…"}
         value={text}
         maxLength={4000}
         rows={3}
-        onChange={(event) => setText(event.target.value)}
+        {...mention.textareaProps}
+        onChange={(event) => {
+          setText(event.target.value);
+          mention.track(event.target.value, event.target.selectionStart);
+        }}
         className={mode === "note" ? "bg-warning/10" : undefined}
       />
+      {mention.picking && <MentionPicker {...mention.pickerProps} />}
       <div className="flex items-center justify-between gap-2">
         {mode === "reply" ? (
-          <label className="text-ink-secondary inline-flex cursor-pointer items-center gap-1 text-xs">
-            <Paperclip className="size-3.5" />
-            {file ? file.name : "Đính kèm (JPEG/PNG/WebP/PDF ≤ 20 MB)"}
-            <input
-              type="file"
-              accept={ACCEPT}
-              className="sr-only"
-              aria-label="Đính kèm file"
-              onChange={(event) => {
-                const picked = event.target.files?.[0] ?? null;
-                // BE FileCategory.CHAT_ATTACHMENT = 20 MB: chặn ngay, không tải lên để nhận 413.
-                if (picked && picked.size > uploadFileMaxBytes("chatAttachment")) {
-                  setFile(null);
-                  setError(fileTooLargeMessage("chatAttachment"));
-                  event.target.value = "";
-                  return;
-                }
-                setError(null);
-                setFile(picked);
-              }}
-            />
-          </label>
+          <ComposerAttachment file={file} onFile={setFile} onError={setError} />
         ) : (
           <span />
         )}

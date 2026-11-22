@@ -28,7 +28,8 @@ vi.mock("next/navigation", () => ({
 afterEach(() => vi.restoreAllMocks());
 
 const BASE = `/chat/conversations/${CONVERSATION_ID}`;
-const AGENT_ME = "a1a1a1a1-0000-4000-8000-000000000005";
+/** `renderScreen` signs in as this user. */
+const AGENT_ME = "u-test";
 const AGENT_OTHER = "a1a1a1a1-0000-4000-8000-000000000009";
 
 const overviewWithQuote = {
@@ -42,7 +43,7 @@ function renderConversation(
 ) {
   const api = mockApi("SALES_STAFF", {
     get: {
-      [BASE]: () => conversation,
+      [BASE]: () => ({ ...conversation, assignedAgentId: AGENT_ME }),
       [`${BASE}/messages`]: () => messagePage([customerText]),
       [`/chat/customers/${CUSTOMER_ID}/overview`]: () => overviewWithQuote,
       ...get,
@@ -60,33 +61,54 @@ describe("công cụ hội thoại — quyền (UI-only, BE kiểm lại)", () =
   it("hội thoại đã có người: Sale chuyển được, không phân công", () => {
     const tools = staffConversationTools(
       { status: "ACTIVE", assignedAgentId: AGENT_ME },
+      AGENT_ME,
       can(sale),
     );
-    expect(tools).toEqual({ assign: false, transfer: true, attach: true, canned: true });
+    expect(tools).toEqual({
+      assign: false,
+      transfer: true,
+      createQuote: true,
+      attach: true,
+      canned: true,
+    });
   });
 
   it("chưa ai nhận: chỉ người giám sát phân công (S11)", () => {
     const open = { status: "QUEUED" as const, assignedAgentId: null };
-    expect(staffConversationTools(open, can(sale)).assign).toBe(false);
-    expect(staffConversationTools(open, can([...sale, CHAT_PERMISSIONS.supervise])).assign).toBe(
-      true,
-    );
+    expect(staffConversationTools(open, AGENT_ME, can(sale)).assign).toBe(false);
+    expect(
+      staffConversationTools(open, AGENT_ME, can([...sale, CHAT_PERMISSIONS.supervise])).assign,
+    ).toBe(true);
   });
 
   it("đã kết thúc: không chuyển, không câu mẫu; vẫn gắn chứng từ (S13 không kiểm trạng thái)", () => {
     const tools = staffConversationTools(
       { status: "CLOSED", assignedAgentId: AGENT_ME },
+      AGENT_ME,
       can(sale),
     );
-    expect(tools).toEqual({ assign: false, transfer: false, attach: true, canned: false });
+    expect(tools).toEqual({
+      assign: false,
+      transfer: false,
+      createQuote: false,
+      attach: true,
+      canned: false,
+    });
   });
 
   it("chỉ đọc: không công cụ nào", () => {
     const tools = staffConversationTools(
       { status: "ACTIVE", assignedAgentId: AGENT_ME },
+      AGENT_ME,
       can([CHAT_PERMISSIONS.read]),
     );
-    expect(tools).toEqual({ assign: false, transfer: false, attach: false, canned: false });
+    expect(tools).toEqual({
+      assign: false,
+      transfer: false,
+      createQuote: false,
+      attach: false,
+      canned: false,
+    });
   });
 });
 

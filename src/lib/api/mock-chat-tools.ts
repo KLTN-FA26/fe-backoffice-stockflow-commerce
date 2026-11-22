@@ -100,6 +100,28 @@ async function agents(config: AxiosRequestConfig): Promise<MockResponseShape> {
   return ok(rows);
 }
 
+/** BE-11: active staff (any role) by name, accents and case ignored; limit default 20, max 50. */
+async function staff(config: AxiosRequestConfig): Promise<MockResponseShape> {
+  const req = await guard(config, READ);
+  if (isError(req)) return req;
+  const query = queryOf(config);
+  const needle = plain(query.get("q") ?? "");
+  const asked = Number(query.get("limit"));
+  const limit = Number.isInteger(asked) && asked > 0 ? Math.min(asked, 50) : 20;
+  const rows = [...(await chatPeople()).values()]
+    .filter((p) => plain(p.name).includes(needle))
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .slice(0, limit)
+    .map((p) => ({
+      id: p.id,
+      name: p.name,
+      role: "STAFF",
+      roleName: "Nhân viên",
+      roles: [{ code: "STAFF", name: "Nhân viên" }],
+    }));
+  return ok(rows);
+}
+
 const newestFirst = (a: MockChatDocument, b: MockChatDocument) =>
   (b.createdAt ? Date.parse(b.createdAt) : 0) - (a.createdAt ? Date.parse(a.createdAt) : 0);
 
@@ -328,6 +350,7 @@ async function cannedList(config: AxiosRequestConfig): Promise<MockResponseShape
 export function registerChatToolRoutes(): void {
   registerMockRoute("POST", `${CONV}/contexts`, attachContext);
   registerMockRoute("GET", "/chat/agents", agents);
+  registerMockRoute("GET", "/chat/staff", staff);
   registerMockRoute("GET", "/chat/customers/:customerId/overview", overview);
   registerMockRoute("POST", `${CONV}/cards/transfer-details`, transferDetails);
   registerMockRoute("POST", `${CONV}/cards/:messageId/actions`, cardAction);

@@ -122,3 +122,15 @@ export const CHAT_ATTACHABLE_CONTEXTS = [
   "DESIGN",
 ] as const;
 export type ChatAttachableContext = (typeof CHAT_ATTACHABLE_CONTEXTS)[number];
+
+/** @nhắc đồng nghiệp trong ghi chú nội bộ (BE-11 `GET /chat/staff`). */
+export const CHAT_MENTION_LABELS = {
+  pickerLabel: "Chọn người được nhắc",
+  searching: "Đang tìm…",
+  loadError: "Không tải được danh sách nhân viên.",
+  noMatch: "Không có nhân viên khớp.",
+  /** BE chỉ trả id người được nhắc, không trả tên. */
+  mentionedCount: (count: number) => `Nhắc ${count} người`,
+} as const;
+/** Chờ người gõ dừng trước khi tìm người để @nhắc (api-conventions §9.6). */
+export const CHAT_MENTION_DEBOUNCE_MS = 300;

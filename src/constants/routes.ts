@@ -21,6 +21,10 @@ export const ADMIN_ROUTES = {
   chat: {
     list: `${ADMIN_BASE}/chat`,
     detail: (id: string) => `${ADMIN_BASE}/chat/${id}`,
+    /** Câu trả lời mẫu của Sale (CRUD). */
+    canned: `${ADMIN_BASE}/chat/canned-responses`,
+    /** Báo cáo theo Sale: phản hồi đầu, giải quyết, CSAT (người giám sát). */
+    agentsReport: `${ADMIN_BASE}/chat/reports/agents`,
   },
   quotes: {
     create: `${ADMIN_BASE}/quotes/create`,

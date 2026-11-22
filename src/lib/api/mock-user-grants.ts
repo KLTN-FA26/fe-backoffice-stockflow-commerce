@@ -289,7 +289,7 @@ const EINVOICE_SETTINGS_ALL = Object.values(EINVOICE_SETTINGS_PERMISSIONS);
 // chat-canned-responses cho cả ba; chat-supervision (giao hội thoại chưa ai nhận, xử lý hội thoại đã chuyển cấp) chỉ
 // SALES_MANAGER / SYSTEM_ADMIN.
 const CHAT_AGENT = Object.values(CHAT_PERMISSIONS).filter(
-  (code) => code !== CHAT_PERMISSIONS.supervise,
+  (code) => code !== CHAT_PERMISSIONS.supervise && code !== CHAT_PERMISSIONS.superviseRead,
 );
 const CHAT_ALL = Object.values(CHAT_PERMISSIONS);
 

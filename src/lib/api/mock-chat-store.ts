@@ -355,5 +355,10 @@ export function openInstallmentsOf(customerId: string, now = Date.now()) {
   return state.installments
     .filter((i) => i.customerId === customerId && i.paidAmount < i.amount)
     .filter((i) => ["NOT_DUE", "DUE", "PARTIALLY_PAID"].includes(i.status))
-    .map((i) => ({ ...i, overdue: i.dueDate !== null && i.dueDate < today }));
+    .map((i) => ({
+      ...i,
+      reducedAmount: 0,
+      outstanding: i.amount - i.paidAmount,
+      overdue: i.dueDate !== null && i.dueDate < today,
+    }));
 }

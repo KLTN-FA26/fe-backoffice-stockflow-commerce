@@ -6,7 +6,8 @@ import { formatMoney } from "@/lib/format/money";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { FORM_INPUT_CLASS, FormField } from "@/components/shared/FormField";
 
-import { chatErrorMessage, useSendTransferDetails } from "../mutations";
+import { owedOf } from "../lifecycle";
+import { useChatFailure, useSendTransferDetails } from "../mutations";
 
 import type { ChatCustomerOverview } from "../schemas";
 
@@ -26,6 +27,7 @@ export function TransferDetailsDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const send = useSendTransferDetails();
+  const describeError = useChatFailure();
   const [installmentId, setInstallmentId] = useState("");
   const [reminder, setReminder] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +49,7 @@ export function TransferDetailsDialog({
           onSubmit={() =>
             send.mutate(
               { id: conversationId, installmentId, reminder },
-              { onSuccess: close, onError: (failure) => setError(chatErrorMessage(failure)) },
+              { onSuccess: close, onError: (failure) => setError(describeError(failure)) },
             )
           }
         >
@@ -62,7 +64,7 @@ export function TransferDetailsDialog({
               {installments.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.contractNumber ?? item.orderNumber} — đợt {item.seq} {item.name}:{" "}
-                  {formatMoney(item.amount - item.paidAmount, item.currency)}
+                  {formatMoney(owedOf(item), item.currency)}
                 </option>
               ))}
             </select>

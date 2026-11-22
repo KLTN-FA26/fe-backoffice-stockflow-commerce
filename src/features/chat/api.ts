@@ -51,6 +51,28 @@ export async function listMessages(id: string, before?: number, signal?: AbortSi
   return chatMessagePageSchema.parse(data);
 }
 
+/** Tin MỚI HƠN `since` (cũ nhất trước, `nextSince` khi còn): lấp khoảng hở giữa trang cũ đã tải và trang mới nhất. */
+export async function listMessagesSince(id: string, since: number, signal?: AbortSignal) {
+  const { data } = await api.get<unknown>(conv(id, "/messages"), {
+    params: { limit: "50", since: String(since) },
+    signal,
+  });
+  return chatMessagePageSchema.parse(data);
+}
+
+/** Sale mở hội thoại với khách (BE `StaffOpenConversation`, 201): về chứng từ của khách hoặc không, kèm tin đầu. */
+export async function openConversation(input: {
+  customerId: string;
+  subject?: string;
+  contextKind?: string;
+  contextId?: string;
+  text?: string;
+  clientMessageId?: string;
+}) {
+  const { data } = await api.post<unknown>(CONVERSATIONS, input);
+  return chatConversationSchema.parse(data);
+}
+
 const parseMessage = (data: unknown) => chatMessageSchema.parse(data);
 const parseConversation = (data: unknown) => chatConversationSchema.parse(data);
 
@@ -64,9 +86,16 @@ export async function sendText(input: { id: string; text: string; clientMessageI
 }
 
 /** S6: ghi chú nội bộ (16 BR-07) — khách không bao giờ thấy. */
-export async function sendNote(input: { id: string; text: string; clientMessageId: string }) {
+export async function sendNote(input: {
+  id: string;
+  text: string;
+  clientMessageId: string;
+  /** Staff ids from `GET /chat/staff` (BE `InternalNote.mentions`). */
+  mentions?: string[];
+}) {
   const { data } = await api.post<unknown>(conv(input.id, "/notes"), {
     text: input.text,
+    mentions: input.mentions ?? [],
     clientMessageId: input.clientMessageId,
   });
   return parseMessage(data);

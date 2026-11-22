@@ -2,6 +2,8 @@
 
 import { Lock, Paperclip } from "lucide-react";
 
+import { CHAT_MENTION_LABELS } from "@/constants";
+
 import { openLink } from "@/lib/files/open-blob";
 import { formatDateTime } from "@/lib/format/date";
 import { toast } from "@/components/shared/Toast";
@@ -10,12 +12,21 @@ import { attachmentLink } from "../api";
 import { chatErrorMessage } from "../mutations";
 import { isInternalNote } from "../selectors";
 
+import { AttachmentPreview, isImageAttachment } from "./AttachmentPreview";
 import { ChatCardView } from "./ChatCardView";
+
+import type { QuoteGate } from "./ChatCardView";
 
 import type { ChatMessage } from "../schemas";
 
 /** Một tin: khách (trái), Sale / hệ thống (phải), ghi chú nội bộ nền vàng + "Khách không thấy" (16 BR-07). */
-export function MessageItem({ message }: { message: ChatMessage }) {
+export function MessageItem({
+  message,
+  quoteGate,
+}: {
+  message: ChatMessage;
+  quoteGate: QuoteGate;
+}) {
   const note = isInternalNote(message);
   const mine = message.senderType !== "CUSTOMER";
   const download = async (attachmentId: string) => {
@@ -50,19 +61,28 @@ export function MessageItem({ message }: { message: ChatMessage }) {
         ) : (
           <>
             {message.card ? (
-              <ChatCardView message={message} />
+              <ChatCardView message={message} quoteGate={quoteGate} />
             ) : (
               message.body && <p className="text-ink-primary whitespace-pre-line">{message.body}</p>
             )}
+            {note && message.mentions.length > 0 && (
+              <p className="text-ink-secondary text-xs">
+                {CHAT_MENTION_LABELS.mentionedCount(message.mentions.length)}
+              </p>
+            )}
             {message.attachments.map((file) => (
-              <button
-                key={file.id}
-                type="button"
-                className="text-accent inline-flex items-center gap-1 hover:underline"
-                onClick={() => void download(file.id)}
-              >
-                <Paperclip className="size-3.5" /> {file.fileName}
-              </button>
+              <div key={file.id} className="space-y-1">
+                {isImageAttachment(file) && (
+                  <AttachmentPreview conversationId={message.conversationId} file={file} />
+                )}
+                <button
+                  type="button"
+                  className="text-accent inline-flex items-center gap-1 hover:underline"
+                  onClick={() => void download(file.id)}
+                >
+                  <Paperclip className="size-3.5" /> {file.fileName}
+                </button>
+              </div>
             ))}
           </>
         )}

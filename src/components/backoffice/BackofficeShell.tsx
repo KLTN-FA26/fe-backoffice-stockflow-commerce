@@ -14,6 +14,8 @@ import {
   Database,
   FileBox,
   FileSignature,
+  ChartColumn,
+  MessageSquareText,
   MessagesSquare,
   FileText,
   FlaskConical,
@@ -403,6 +405,19 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: MessagesSquare,
         // BE `chat-conversations:VIEW_PAGE` (seed: SALES_STAFF, SALES_MANAGER, SYSTEM_ADMIN)
         permission: CHAT_PERMISSIONS.viewPage,
+      },
+      {
+        label: "Câu trả lời mẫu",
+        href: ADMIN_ROUTES.chat.canned,
+        icon: MessageSquareText,
+        permission: CHAT_PERMISSIONS.cannedViewPage,
+      },
+      {
+        label: "Báo cáo chat",
+        href: ADMIN_ROUTES.chat.agentsReport,
+        icon: ChartColumn,
+        // Chỉ người giám sát chat (SALES_MANAGER, SYSTEM_ADMIN): BE `chat-supervision:READ`
+        permission: CHAT_PERMISSIONS.superviseRead,
       },
     ],
   },
