@@ -97,7 +97,10 @@ function ApproveForm({
         onSuccess: (saved) => {
           finishAttempt();
           toast.info(
-            `Đơn ${saved.orderNumber} chuyển sang: ${statusLabelVi(saved.status, "order") ?? saved.status}.`,
+            // Trạng thái chưa có nhãn → câu không nêu trạng thái, không lộ mã tiếng Anh (BO-UX-6)
+            statusLabelVi(saved.status, "order")
+              ? `Đơn ${saved.orderNumber} chuyển sang: ${statusLabelVi(saved.status, "order")}.`
+              : `Đơn ${saved.orderNumber} đã được duyệt công nợ.`,
           );
           onClose();
         },
