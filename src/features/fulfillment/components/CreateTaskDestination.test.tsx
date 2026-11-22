@@ -53,7 +53,7 @@ async function openDialog(options: {
     },
     { "/fulfillment/tasks": (_params, body) => (options.create ?? (() => apiTask()))(body) },
   );
-  renderFulfillmentScreen(<CreateTaskDialog onClose={vi.fn()} />);
+  renderFulfillmentScreen(<CreateTaskDialog warehouseId={WAREHOUSE_ID} onClose={vi.fn()} />);
   const user = userEvent.setup();
   const dialog = await screen.findByRole("dialog");
   await pickSelectOption(user, "Đơn hàng", /SO-20261010-000431/);

@@ -21,8 +21,9 @@ import {
 } from "@/constants";
 import { api } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/auth/auth-store";
+import { WorkspaceWarehouseProvider } from "@/lib/workspace";
 
-import { PICKER_ID } from "./task";
+import { PICKER_ID, WAREHOUSE_ID } from "./task";
 
 import type { PermissionCode } from "@/lib/auth";
 
@@ -116,6 +117,9 @@ export function mockFulfillmentApi(
 }
 
 /** `userId` mặc định là người được gán của fixture `apiTask()`; `searchParams` = URL ban đầu (nuqs). */
+/** Kho của tab theo kho trong test — trùng kho của task mẫu (`WAREHOUSE_ID`). */
+export const TAB_WAREHOUSE = { id: WAREHOUSE_ID, prefix: "HCM", name: "Kho Hồ Chí Minh" };
+
 export function renderFulfillmentScreen(
   ui: React.ReactElement,
   userId: string = PICKER_ID,
@@ -140,7 +144,10 @@ export function renderFulfillmentScreen(
   return render(
     <QueryClientProvider client={client}>
       <NuqsTestingAdapter searchParams={searchParams} hasMemory>
-        <Suspense fallback={<div>loading</div>}>{ui}</Suspense>
+        <Suspense fallback={<div>loading</div>}>
+          {/* Màn lấy hàng / kiểm thùng / cất lại nằm trong tab theo kho (spec 2026-11-22) */}
+          <WorkspaceWarehouseProvider value={TAB_WAREHOUSE}>{ui}</WorkspaceWarehouseProvider>
+        </Suspense>
       </NuqsTestingAdapter>
     </QueryClientProvider>,
   );

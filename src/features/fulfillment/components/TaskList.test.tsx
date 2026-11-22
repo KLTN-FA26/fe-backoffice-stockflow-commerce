@@ -106,11 +106,16 @@ describe("PickingList — danh sách task theo BE (phân trang + lọc)", () => 
     expect(get.mock.calls.some(([url]) => url === "/orders")).toBe(false);
   });
 
-  it("không có ô tìm kiếm (BE không có search); có lọc kho + trạng thái", async () => {
-    renderList(<PickingList />, IDENTITIES.warehouseManager);
+  it("không có ô tìm kiếm (BE không có search), không có lọc kho (kho của tab); có lọc trạng thái", async () => {
+    const { get } = renderList(<PickingList />, IDENTITIES.warehouseManager);
     await screen.findByRole("link", { name: "3F4A5B6C" });
     expect(screen.queryByRole("textbox")).toBeNull();
-    expect(screen.getByRole("combobox", { name: FILTER.warehouse })).toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: FILTER.warehouse })).toBeNull();
+    expect(lastListParams(get)).toMatchObject({ warehouseId: WAREHOUSE_ID });
+    expect(screen.getByRole("link", { name: "3F4A5B6C" })).toHaveAttribute(
+      "href",
+      `/admin/warehouse-map/HCM/picking/${TASK_ID}`,
+    );
     expect(screen.getByRole("combobox", { name: FILTER.status })).toBeInTheDocument();
     expect(screen.getByText(/Phạm vi: mọi task/)).toBeInTheDocument();
   });
@@ -256,8 +261,6 @@ describe("Tạo task lấy hàng", () => {
 
     await user.click(await screen.findByRole("button", { name: fulfillment.action.create }));
     const dialog = await screen.findByRole("dialog");
-    // Chưa chọn đơn → chưa biết kho → chưa gọi danh sách người nhận
-    expect(spies.get.mock.calls.some(([url]) => url === "/fulfillment/assignees")).toBe(false);
     // Mỗi lựa chọn: số đơn, tên khách, số dòng / số lượng, ngày đặt
     await user.click(await screen.findByRole("combobox", { name: "Đơn hàng" }));
     const option = await screen.findByRole("option", { name: /SO-20261010-000431/ });
@@ -290,7 +293,10 @@ describe("Tạo task lấy hàng", () => {
     expect(urls).not.toContain("/orders");
     expect(get).toHaveBeenCalledWith(
       "/fulfillment/task-candidates",
-      expect.objectContaining({ params: expect.objectContaining({ page: 0, size: 200 }) }),
+      expect.objectContaining({
+        // Chỉ đơn xuất từ kho của tab (BE lọc theo warehouseId)
+        params: expect.objectContaining({ page: 0, size: 200, warehouseId: WAREHOUSE_ID }),
+      }),
     );
   });
 
@@ -386,7 +392,7 @@ describe("Tạo task lấy hàng — danh sách đơn chờ xuất kho", () => {
       },
       { "/fulfillment/task-candidates": () => bePage([taskCandidate]) },
     ).get;
-    renderFulfillmentScreen(<CreateTaskDialog onClose={vi.fn()} />);
+    renderFulfillmentScreen(<CreateTaskDialog warehouseId={WAREHOUSE_ID} onClose={vi.fn()} />);
     expect(await screen.findByText(fulfillment.noCreateTitle)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: fulfillment.action.create })).toBeDisabled();
     expect(get.mock.calls.some(([url]) => url === "/fulfillment/task-candidates")).toBe(false);
@@ -394,32 +400,17 @@ describe("Tạo task lấy hàng — danh sách đơn chờ xuất kho", () => {
 });
 
 describe("PickingList — lọc trạng thái / kho / người được gán (URL, BE SCRUM-466)", () => {
-  it("?status=PICKING&warehouse=… → gửi params; badge Trạng thái + Kho", async () => {
+  it("?status=PICKING → gửi status + kho của tab; badge Trạng thái, không có badge Kho", async () => {
     const { get } = renderList(<PickingList />, IDENTITIES.warehouseManager, [apiTask()], {
-      searchParams: `?status=PICKING&warehouse=${WAREHOUSE_ID}`,
+      searchParams: "?status=PICKING",
     });
     await screen.findByRole("link", { name: "3F4A5B6C" });
     expect(lastListParams(get)).toMatchObject({ status: "PICKING", warehouseId: WAREHOUSE_ID });
     expect(await screen.findByText(`${FILTER.status}: Đang lấy hàng`)).toBeInTheDocument();
-    expect(await screen.findByText(`${FILTER.warehouse}: Kho Hồ Chí Minh`)).toBeInTheDocument();
+    expect(screen.queryByText(new RegExp(`^${FILTER.warehouse}: `))).toBeNull();
   });
 
-  it("đổi kho xoá người gán và về trang 1", async () => {
-    const user = userEvent.setup();
-    const { get } = renderList(<PickingList />, IDENTITIES.warehouseManager, [apiTask()], {
-      searchParams: `?warehouse=${WAREHOUSE_ID}&assignee=${OTHER_PICKER_ID}&page=2`,
-    });
-    await waitFor(() =>
-      expect(lastListParams(get)).toMatchObject({ assignedUserId: OTHER_PICKER_ID, page: 1 }),
-    );
-    await pickSelectOption(user, FILTER.warehouse, /Kho Hà Nội/);
-    await waitFor(() =>
-      expect(lastListParams(get)).toMatchObject({ warehouseId: OTHER_WAREHOUSE_ID, page: 0 }),
-    );
-    expect(lastListParams(get)).not.toHaveProperty("assignedUserId");
-  });
-
-  it("?assignee= mà chưa chọn kho → ô người được gán vẫn bật, hiện tên lấy từ task đang lọc, chọn Tất cả người bỏ lọc", async () => {
+  it("?assignee= → ô người được gán bật, hiện tên từ danh sách người của kho, chọn Tất cả người bỏ lọc", async () => {
     const user = userEvent.setup();
     const task = apiTask({ assignedUserId: OTHER_PICKER_ID, assignedUserName: "Lê Thị Hoa" });
     const { get } = renderList(<PickingList />, IDENTITIES.warehouseManager, [task], {
@@ -430,14 +421,15 @@ describe("PickingList — lọc trạng thái / kho / người được gán (UR
     );
     const select = screen.getByRole("combobox", { name: FILTER.assignee });
     expect(select).toBeEnabled();
-    await waitFor(() => expect(select).toHaveTextContent("Lê Thị Hoa"));
+    // Kho của tab đã biết → tên lấy từ danh sách người của kho (không cần tên trên task)
+    await waitFor(() => expect(select).toHaveTextContent("Nguyễn Văn Đạt"));
     // Không lộ id người dùng ở ô chọn lẫn badge "Cấu hình"
     expect(screen.queryByText(OTHER_PICKER_ID, { exact: false })).not.toBeInTheDocument();
     await pickSelectOption(user, FILTER.assignee, FILTER.allAssignees);
     await waitFor(() => expect(lastListParams(get)).not.toHaveProperty("assignedUserId"));
   });
 
-  it("?assignee= không kho và không còn task nào → hiện nhãn người đang lọc, không hiện id", async () => {
+  it("?assignee= và không còn task nào → hiện nhãn người đang lọc, không hiện id", async () => {
     renderList(<PickingList />, IDENTITIES.warehouseManager, [], {
       searchParams: `?assignee=${OTHER_PICKER_ID}`,
     });
@@ -452,11 +444,9 @@ describe("PickingList — lọc trạng thái / kho / người được gán (UR
     expect(screen.queryByRole("combobox", { name: FILTER.assignee })).toBeNull();
   });
 
-  it("quản lý kho: lọc người được gán khoá tới khi chọn kho, rồi lấy danh sách theo kho", async () => {
+  it("quản lý kho: lọc người được gán bật ngay, lấy người của kho của tab", async () => {
     const user = userEvent.setup();
     const { get } = renderList(<PickingList />, IDENTITIES.warehouseManager);
-    expect(await screen.findByRole("combobox", { name: FILTER.assignee })).toBeDisabled();
-    await pickSelectOption(user, FILTER.warehouse, /Kho Hồ Chí Minh/);
     await waitFor(() =>
       expect(screen.getByRole("combobox", { name: FILTER.assignee })).toBeEnabled(),
     );
@@ -464,7 +454,8 @@ describe("PickingList — lọc trạng thái / kho / người được gán (UR
     await waitFor(() =>
       expect(lastListParams(get)).toMatchObject({ assignedUserId: assignees[0]?.userId }),
     );
-    expect(get.mock.calls.some(([url]) => url === "/fulfillment/assignees")).toBe(true);
+    const assigneeCall = get.mock.calls.find(([url]) => url === "/fulfillment/assignees");
+    expect(assigneeCall?.[1]).toMatchObject({ params: { warehouseId: WAREHOUSE_ID } });
   });
 
   it("lọc ra 0 dòng → 'Không có task khớp bộ lọc' + Bỏ lọc, khác trạng thái chưa có task", async () => {
@@ -487,21 +478,17 @@ describe("PickingList — lọc trạng thái / kho / người được gán (UR
     expect(screen.queryByText(new RegExp(`^${FILTER.status}: `))).toBeNull();
   });
 
-  it("lọc kho ngoài phạm vi → 403 OUT_OF_DATA_SCOPE: câu báo + Bỏ lọc kho", async () => {
+  it("kho của tab ngoài phạm vi → 403 OUT_OF_DATA_SCOPE: câu báo + đường chọn kho khác", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const user = userEvent.setup();
-    const { get } = renderList(<PickingList />, IDENTITIES.warehouseManager, [], {
-      searchParams: `?warehouse=${OTHER_WAREHOUSE_ID}`,
-      list: (params) => {
-        if ((params as { warehouseId?: string }).warehouseId) {
-          throw new ApiError(403, "OUT_OF_DATA_SCOPE", "Not authorised for this data");
-        }
-        return bePage([apiTask()]);
+    renderList(<PickingList />, IDENTITIES.warehouseManager, [], {
+      list: () => {
+        throw new ApiError(403, "OUT_OF_DATA_SCOPE", "Not authorised for this data");
       },
     });
     expect(await screen.findByText(FILTER.outOfScope)).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: FILTER.clearWarehouse }));
-    expect(await screen.findByRole("link", { name: "3F4A5B6C" })).toBeInTheDocument();
-    expect(lastListParams(get)).not.toHaveProperty("warehouseId");
+    expect(screen.getByRole("link", { name: "Chọn kho khác" })).toHaveAttribute(
+      "href",
+      "/admin/warehouse-map",
+    );
   });
 });

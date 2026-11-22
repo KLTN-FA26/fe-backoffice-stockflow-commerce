@@ -1,6 +1,11 @@
-import { PickingDetail } from "@/features/fulfillment/components/PickingDetail";
+import { PickingTaskRedirect } from "@/features/fulfillment/components/PickingTaskRedirect";
 
-export default async function PickingDetailPage({ params }: { params: Promise<{ id: string }> }) {
+/** Route cũ: task lấy hàng giờ nằm trong tab theo kho của task (spec §5.5). */
+export default async function LegacyPickingTaskPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
-  return <PickingDetail id={id} />;
+  return <PickingTaskRedirect id={id} />;
 }

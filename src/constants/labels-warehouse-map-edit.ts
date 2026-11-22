@@ -99,7 +99,7 @@ export const WAREHOUSE_WORKSPACE_LABELS = {
   backToChooser: "Chọn kho khác",
   loadFailed: "Không tải được danh sách kho.",
   retry: "Thử lại",
-  pages: { map: "Bản đồ kho", slotting: "Gợi ý vị trí" },
+  pages: { map: "Bản đồ kho", slotting: "Gợi ý vị trí", picking: "Lấy hàng" },
   // Tab làm việc theo kho (spec 2026-11-22): màn vận hành chỉ mở ở kho được gán; bản đồ thì không giới hạn (06)
   notAssignedTitle: "Bạn không được gán kho này",
   notAssignedDescription:

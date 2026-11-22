@@ -72,7 +72,6 @@ import {
   DELIVERY_FAILURE_LABELS,
   FULFILLMENT_CARRIER_EVENT_PERMISSIONS,
   FULFILLMENT_PACKAGE_PERMISSIONS,
-  FULFILLMENT_PICK_PERMISSIONS,
   FULFILLMENT_PICKING_PERMISSIONS,
   GOODS_RECEIPT_PERMISSIONS,
   PUTAWAY_LABELS,
@@ -530,12 +529,7 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: Undo2,
         permission: RMA_PERMISSIONS.viewPage,
       },
-      {
-        label: "Lấy hàng",
-        href: ADMIN_ROUTES.picking.list,
-        icon: WarehouseIcon,
-        permission: FULFILLMENT_PICK_PERMISSIONS.viewPage,
-      },
+      // Lấy hàng (docs 07) đã vào tab "Kho & bản đồ" — làm việc theo một kho (spec 2026-11-22)
       {
         label: UI_LABELS.cartonCheck.navTitle,
         href: ADMIN_ROUTES.packing.list,
