@@ -47,9 +47,8 @@ export const WAREHOUSE_MAP_EDIT_LABELS = {
     changedBadge: "Đã sửa — chưa lưu",
     remove: "Xoá",
     removeSaved: "Ngừng dùng",
-    removeSavedHint:
-      "Kệ / khu vực đã lưu không xoá hẳn: lưu sẽ chuyển sang Inactive, mã giữ lại (BR-04).",
-    codeLocked: "Mã không đổi được sau khi lưu (BR-13).",
+    removeSavedHint: "Kệ / khu vực đã lưu không xoá hẳn: lưu sẽ chuyển sang Inactive, mã giữ lại.",
+    codeLocked: "Mã không đổi được sau khi lưu.",
     placement: "Vị trí · kích thước",
     build: "Tầng & bin (tạo cùng kệ)",
     location: "Vị trí tồn kho",
@@ -59,9 +58,9 @@ export const WAREHOUSE_MAP_EDIT_LABELS = {
   stock: {
     checking: "Đang kiểm tra tồn ở vị trí này…",
     stocked:
-      "Vị trí đang có hàng — chỉ sửa được tên, mô tả và zone. Chuyển hết hàng đi trước khi dời, đổi kích thước hoặc ngừng dùng (BR-04).",
+      "Vị trí đang có hàng — chỉ sửa được tên, mô tả và zone. Chuyển hết hàng đi trước khi dời, đổi kích thước hoặc ngừng dùng.",
     unknown:
-      "Không kiểm tra được tồn — hãy chắc chắn vị trí không còn hàng trước khi dời hoặc ngừng dùng (BR-04).",
+      "Không kiểm tra được tồn — hãy chắc chắn vị trí không còn hàng trước khi dời hoặc ngừng dùng.",
   },
   op: {
     zoneCreate: (name: string) => `Tạo zone ${name}`,
@@ -82,9 +81,9 @@ export const WAREHOUSE_MAP_EDIT_LABELS = {
     areaName: (code: string) => `Khu vực ${code}`,
   },
   validation: {
-    shrinkBelowBins: "Kệ không thu nhỏ được quá phạm vi bin đang có (BR-07).",
+    shrinkBelowBins: "Kệ không thu nhỏ được quá phạm vi bin đang có.",
     zoneMissing: "Zone không còn trong bản nháp.",
-    storageToNonStorage: "Khu chứa hàng không đổi được thành khu không chứa hàng (BR-11).",
+    storageToNonStorage: "Khu chứa hàng không đổi được thành khu không chứa hàng.",
   },
 } as const;
 
@@ -166,7 +165,7 @@ export const WAREHOUSE_MAP_EDIT_TOASTS = {
   /** Thử dời / xoay / đổi cỡ hình bị khoá (`moveBlock`) — báo lý do thay vì im lặng. */
   moveBlocked: {
     stocked: (code: string) =>
-      `${code} đang có hàng — không được di chuyển. Chuyển hết hàng đi trước (BR-04).`,
+      `${code} đang có hàng — không được di chuyển. Chuyển hết hàng đi trước.`,
     checking: "Đang kiểm tra tồn ở vị trí này — thử lại sau giây lát.",
     noUpdate: "Bạn không có quyền sửa hình đã lưu (warehouse-locations:UPDATE).",
   },

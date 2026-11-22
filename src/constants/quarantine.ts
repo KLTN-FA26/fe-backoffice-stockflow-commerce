@@ -66,7 +66,7 @@ export const QUARANTINE_LABELS = {
   quarantineReason: "Lý do cách ly",
   release: "Gỡ cách ly",
   releaseDescription:
-    "Mở nhiệm vụ cất hàng đưa thùng về bin. Thùng vẫn ở trạng thái cách ly tới khi cất xong, lúc đó mới thành Available.",
+    "Mở nhiệm vụ cất hàng đưa thùng về bin. Thùng vẫn ở trạng thái cách ly tới khi cất xong, lúc đó mới thành thùng bán được.",
   writeOff: "Ghi giảm thùng lỗi",
   heldForOrder:
     "Thùng đang được giữ cho một đơn hàng. Nhả hoặc phân bổ lại thùng cho đơn trước khi cách ly.",

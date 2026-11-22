@@ -32,7 +32,9 @@ describe("luật bản nháp bản đồ (docs 06 §6)", () => {
 
   it("BR-06: kệ ra ngoài khung bản đồ bị báo ở vị trí", () => {
     const [draft, key] = draw(draftFromLayout(LAYOUT), shelfAt(58, 20, 4, 1));
-    expect(issuesOf(draft, key).placement).toMatch(/BR-06/);
+    expect(issuesOf(draft, key).placement).toBeTruthy();
+    // mã quy tắc BR-xx không hiện cho người dùng
+    expect(issuesOf(draft, key).placement).not.toMatch(/BR-\d/);
   });
 
   it("BR-07: chồng lấn kệ khác trong bản nháp bị báo; chạm cạnh thì không", () => {
@@ -54,14 +56,14 @@ describe("luật bản nháp bản đồ (docs 06 §6)", () => {
     const draft = update(draftFromLayout(LAYOUT), "shelf-a01", (item) =>
       item.kind === "shelf" ? { ...item, footprint: { ...item.footprint, width: 8 } } : item,
     );
-    expect(issuesOf(draft, "shelf-a01").placement).toMatch(/BR-07/);
+    expect(issuesOf(draft, "shelf-a01").placement).toBeTruthy();
   });
 
   it("BR-10 / BR-13: mã sai định dạng, trùng kệ khác, hoặc trùng mã INACTIVE đều bị chặn", () => {
     const [draft, key] = draw(draftFromLayout(LAYOUT), shelfAt(20, 20));
     const withCode = (code: string) =>
       update(draft, key, (item) => (item.kind === "shelf" ? { ...item, code } : item));
-    expect(issuesOf(withCode("K-1"), key).code).toMatch(/BR-10/);
+    expect(issuesOf(withCode("K-1"), key).code).toBeTruthy();
     expect(issuesOf(withCode("a01"), key).code).toBeDefined();
     expect(issuesOf(withCode("Z99"), key).code).toBeDefined();
     expect(issuesOf(withCode("K02"), key).code).toBeUndefined();
@@ -74,7 +76,7 @@ describe("luật bản nháp bản đồ (docs 06 §6)", () => {
         ? { ...item, pickFaces: { north: false, east: false, south: false, west: false } }
         : item,
     );
-    expect(issuesOf(noFace, key).pickFaces).toMatch(/BR-08/);
+    expect(issuesOf(noFace, key).pickFaces).toBeTruthy();
   });
 
   it("BR-14 / BR-15: hàng × cột ≤ 200, ≤ 20 tầng, kiểu chữ hàng ≤ 26 hàng", () => {
@@ -85,8 +87,8 @@ describe("luật bản nháp bản đồ (docs 06 §6)", () => {
           ? { ...item, build: { ...item.build, ...patch } }
           : item,
       );
-    expect(issuesOf(withBuild({ rowCount: 15, columnCount: 14 }), key).build).toMatch(/BR-14/);
-    expect(issuesOf(withBuild({ levelCount: 21 }), key).build).toMatch(/BR-15/);
+    expect(issuesOf(withBuild({ rowCount: 15, columnCount: 14 }), key).build).toBeTruthy();
+    expect(issuesOf(withBuild({ levelCount: 21 }), key).build).toBeTruthy();
     expect(
       issuesOf(withBuild({ namingScheme: "ROW_LETTER_COLUMN", rowCount: 27, columnCount: 1 }), key)
         .build,
@@ -97,7 +99,7 @@ describe("luật bản nháp bản đồ (docs 06 §6)", () => {
     const draft = update(draftFromLayout(LAYOUT), "area-rcv", (item) =>
       item.kind === "area" ? { ...item, type: "NON_STORAGE" } : item,
     );
-    expect(issuesOf(draft, "area-rcv").type).toMatch(/BR-11/);
+    expect(issuesOf(draft, "area-rcv").type).toBeTruthy();
   });
 
   it("BR-06: tường có đầu mút ngoài khung, hoặc hai đầu trùng nhau, bị chặn", () => {
@@ -105,7 +107,7 @@ describe("luật bản nháp bản đồ (docs 06 §6)", () => {
       kind: "wall",
       line: { startX: 0, startY: 10, endX: 70, endY: 10 },
     });
-    expect(issuesOf(outside, a).line).toMatch(/BR-06/);
+    expect(issuesOf(outside, a).line).toBeTruthy();
     const zero = update(outside, a, (item) =>
       item.kind === "boundary" ? { ...item, endX: 0, endY: 10 } : item,
     );

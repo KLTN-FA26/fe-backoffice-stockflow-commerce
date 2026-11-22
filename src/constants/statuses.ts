@@ -210,8 +210,19 @@ export const CARTON_STATUS = {
 // lại khi thùng chưa dán nhãn (17 §4.8 bước 33)
 export const CARTON_REMOVAL_REASONS = ["DAMAGED", "ORDER_CANCELLED", "REMAINDER_CLOSED"] as const;
 
-/** BE `fulfillment/internal/domain/PackageStatus.java` (PR #136) — kiện ở trạm đóng gói. */
-export const PACKAGE_API_STATUSES = ["OPEN", "SEALED", "VOIDED"] as const;
+/**
+ * BE `fulfillment/internal/domain/PackageStatus.java` — mọi giá trị BE có thể trả cho một kiện/thùng trong lô giao:
+ * kiện trạm đóng gói cũ (PR #136) và thùng giao ở trạm kiểm thùng (4C-6, docs 08 §5.2). Lô giao chở thùng `LABELED`.
+ */
+export const PACKAGE_API_STATUSES = [
+  "OPEN",
+  "SEALED",
+  "VOIDED",
+  "TO_CHECK",
+  "CHECKED",
+  "LABELED",
+  "REMOVED",
+] as const;
 
 /** BE `PackageType.java` (PR #136) — loại kiện; mặc định CARTON khi không gửi. */
 export const PACKAGE_TYPES = ["CARTON", "BAG", "PALLET", "CRATE", "OTHER"] as const;
@@ -245,6 +256,10 @@ export const PACKAGE_STATUS_DISPLAY = {
   OPEN: "Package Open",
   SEALED: "Sealed",
   VOIDED: "Voided",
+  TO_CHECK: CARTON_STATUS.TO_CHECK,
+  CHECKED: CARTON_STATUS.CHECKED,
+  LABELED: CARTON_STATUS.LABELED,
+  REMOVED: CARTON_STATUS.REMOVED,
   UNKNOWN: "UNKNOWN",
 } as const;
 

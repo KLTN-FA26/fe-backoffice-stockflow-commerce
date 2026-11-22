@@ -29,7 +29,7 @@ export const RECEIPT_COUNT_LABELS = {
   count: {
     title: "Kiểm đếm theo thùng",
     description:
-      "Mỗi dòng Đơn sản xuất: chọn khu nhận, liệt kê các thùng đúng số cái chuẩn. Thùng lệch số chuẩn hoặc lỗi thì trả lại đơn vị sản xuất, không nhận (BR-13). Lô tự gán theo mã Đơn sản xuất (BR-03).",
+      "Mỗi dòng Đơn sản xuất: chọn khu nhận, liệt kê các thùng đúng số cái chuẩn. Thùng lệch số chuẩn hoặc lỗi thì trả lại đơn vị sản xuất, không nhận. Lô tự gán theo mã Đơn sản xuất.",
     caption: "Kiểm đếm theo dòng Đơn sản xuất",
     headers: {
       sku: "SKU",

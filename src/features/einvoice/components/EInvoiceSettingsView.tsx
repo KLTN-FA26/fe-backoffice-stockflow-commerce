@@ -76,7 +76,7 @@ export function EInvoiceSettingsView() {
             }
           />
           <Label htmlFor="einvoice-auto-issue" className="text-[0.8125rem]">
-            Tự phát hành nháp đủ thông tin (mặc định tắt: Kế toán bấm phát hành — docs 21 BR-02)
+            Tự phát hành nháp đủ thông tin (mặc định tắt: Kế toán bấm phát hành)
           </Label>
         </div>
         {error && (

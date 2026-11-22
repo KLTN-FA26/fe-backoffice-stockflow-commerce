@@ -108,8 +108,7 @@ export const LOAD_PLAN_UI_LABELS = {
     warehouse: "Kho",
     warehousePlaceholder: "Chọn kho",
     shipmentsTitle: "Lô giao nguyên xe chờ xuất",
-    shipmentsHint:
-      "Chọn nguyên lô: kế hoạch lấy mọi kiện của lô mà chưa kế hoạch nào khác giữ (LP-5).",
+    shipmentsHint: "Chọn nguyên lô: kế hoạch lấy mọi kiện của lô mà chưa kế hoạch nào khác giữ.",
     shipmentsEmpty: "Kho này chưa có lô giao nguyên xe nào đang chờ xuất.",
     pickWarehouseFirst: "Chọn kho để xem các lô giao nguyên xe đang chờ xuất.",
     candidatesFailed: "Không tải được danh sách lô giao.",
@@ -202,7 +201,7 @@ export const LOAD_PLAN_UI_LABELS = {
       title: "Kiện chưa xếp",
       empty: "Mọi kiện đã được xếp lên xe.",
       acknowledged: "Đã xác nhận để lại các kiện này ở khu chờ xuất.",
-      pending: "Cần xác nhận để lại các kiện này trước khi chốt (BR-13).",
+      pending: "Cần xác nhận để lại các kiện này trước khi chốt.",
       parcel: "Kiện",
       dimensions: "D×R×C (cm)",
       weight: "Khối lượng (kg)",
@@ -256,7 +255,7 @@ export const LOAD_PLAN_UI_LABELS = {
     acknowledge: {
       title: "Để lại các kiện chưa xếp",
       description:
-        "Các kiện chưa xếp sẽ ở lại khu chờ xuất và trở về danh sách lô giao khi chốt kế hoạch (BR-13). Đơn không cho giao một phần sẽ bị từ chối (LP-4).",
+        "Các kiện chưa xếp sẽ ở lại khu chờ xuất và trở về danh sách lô giao khi chốt kế hoạch. Đơn không cho giao một phần sẽ bị từ chối.",
       confirm: "Xác nhận để lại",
     },
     confirm: {
@@ -268,14 +267,14 @@ export const LOAD_PLAN_UI_LABELS = {
     reopen: {
       title: "Mở lại kế hoạch",
       description:
-        "Đưa kế hoạch về trạng thái đã tính xếp và huỷ các chuyến xe đã tạo cho nó (kể cả chuyến đã đặt xe). Chỉ làm được khi chưa xe nào bắt đầu xếp hàng (BR-14).",
+        "Đưa kế hoạch về trạng thái đã tính xếp và huỷ các chuyến xe đã tạo cho nó (kể cả chuyến đã đặt xe). Chỉ làm được khi chưa xe nào bắt đầu xếp hàng.",
       confirm: "Mở lại",
       reason: "Lý do mở lại",
     },
     cancel: {
       title: "Huỷ kế hoạch",
       description:
-        "Các kiện trở về khu chờ xuất và các chuyến xe đã tạo bị huỷ. Chỉ làm được khi chưa xe nào bắt đầu xếp hàng (BR-14).",
+        "Các kiện trở về khu chờ xuất và các chuyến xe đã tạo bị huỷ. Chỉ làm được khi chưa xe nào bắt đầu xếp hàng.",
       confirm: "Huỷ kế hoạch",
       reason: "Lý do huỷ",
     },
@@ -360,7 +359,7 @@ export const LOAD_PLAN_ERROR_MESSAGES = {
   SHIPMENT_STATE_CONFLICT: "Có lô giao không còn chờ xuất. Tải lại danh sách lô rồi chọn lại.",
   SHIPMENT_NOT_FOR_LOAD: "Có lô giao không phải lô giao nguyên xe, hoặc thuộc kho khác.",
   ORDER_PARTIAL_SHIPMENT_NOT_ALLOWED:
-    "Đơn không cho giao một phần mà kế hoạch để lại một phần kiện của đơn: xếp đủ hoặc nhờ Sales cho phép giao một phần (LP-4).",
+    "Đơn không cho giao một phần mà kế hoạch để lại một phần kiện của đơn: xếp đủ hoặc nhờ Sales cho phép giao một phần.",
   WAREHOUSE_NOT_FOUND: "Không tìm thấy kho đã chọn. Chọn lại kho.",
   VEHICLE_TYPE_NOT_FOUND: "Có loại xe không còn trong danh mục: bỏ chọn loại đó rồi thử lại.",
   SHIPMENT_NOT_FOUND: "Có lô giao không còn tồn tại: tải lại danh sách lô rồi chọn lại.",
@@ -376,7 +375,7 @@ export const LOAD_PLAN_ERROR_MESSAGES = {
 
 /** Câu LP-4 nêu MỌI đơn vi phạm BE báo ở `fieldErrors[].orderNumber`. */
 export const LOAD_PLAN_PARTIAL_SHIPMENT_ORDER = (orders: readonly string[]) =>
-  `${orders.length > 1 ? "Các đơn" : "Đơn"} ${orders.join(", ")} không cho giao một phần mà kế hoạch để lại một phần kiện của ${orders.length > 1 ? "từng đơn" : "đơn"}: xếp đủ hoặc nhờ Sales cho phép giao một phần (LP-4).`;
+  `${orders.length > 1 ? "Các đơn" : "Đơn"} ${orders.join(", ")} không cho giao một phần mà kế hoạch để lại một phần kiện của ${orders.length > 1 ? "từng đơn" : "đơn"}: xếp đủ hoặc nhờ Sales cho phép giao một phần.`;
 
 /** Lỗi nhập ở form lập kế hoạch / lý do (zod). */
 export const LOAD_PLAN_FIELD_MESSAGES = {

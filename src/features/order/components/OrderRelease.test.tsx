@@ -350,27 +350,27 @@ describe("Release đơn — chọn đợt giao (docs 17 §4.5, BR-29; cần sale
   });
 });
 
-describe("Release đơn — lý do BE từ chối hiện trong hộp thoại (tiếng Việt, kèm mã quy tắc)", () => {
+describe("Release đơn — lý do BE từ chối hiện trong hộp thoại (tiếng Việt, không hiện mã quy tắc BR-xx)", () => {
   it.each([
-    ["ORDER_STOCK_NOT_HELD", /chưa được giữ đủ thùng/, "BR-21"],
-    ["ORDER_SHIPPING_WAREHOUSE_MISMATCH", /xuất từ kho khác/, "BR-22"],
-    ["DELIVERY_BATCH_NOT_NEXT", /không phải đợt giao kế tiếp/, "BR-29"],
+    ["ORDER_STOCK_NOT_HELD", /chưa được giữ đủ thùng/],
+    ["ORDER_SHIPPING_WAREHOUSE_MISMATCH", /xuất từ kho khác/],
+    ["DELIVERY_BATCH_NOT_NEXT", /không phải đợt giao kế tiếp/],
   ])(
-    "409 %s → giữ dialog, câu tiếng Việt + mã %s, không lộ message tiếng Anh",
-    async (code, text, rule) => {
+    "409 %s → giữ dialog, câu tiếng Việt, không lộ mã quy tắc và message tiếng Anh",
+    async (code, text) => {
       const { user, dialog } = await renderConfirmed(ORDER_PERMISSION_SETS.warehouseManager);
       vi.spyOn(api, "post").mockRejectedValue(new ApiError(409, code, "English server message"));
       await pickSelectOption(user, /Kho xuất hàng/, "HN01 — Kho Hà Nội");
       await user.click(within(dialog).getByRole("button", { name: "Release đơn" }));
       const alert = await within(dialog).findByRole("alert");
       expect(alert).toHaveTextContent(text);
-      expect(alert).toHaveTextContent(rule);
+      expect(alert).not.toHaveTextContent(/BR-\d/);
       expect(screen.queryByText("English server message")).not.toBeInTheDocument();
       expect(screen.getByRole("dialog")).toBeInTheDocument();
     },
   );
 
-  it("403 OUT_OF_DATA_SCOPE (kho không thuộc phạm vi quản lý kho) → câu BR-03, không lộ message tiếng Anh", async () => {
+  it("403 OUT_OF_DATA_SCOPE (kho không thuộc phạm vi quản lý kho) → câu tiếng Việt, không lộ mã quy tắc / message tiếng Anh", async () => {
     const { user, dialog } = await renderConfirmed(ORDER_PERMISSION_SETS.warehouseManager);
     vi.spyOn(api, "post").mockRejectedValue(
       new ApiError(403, "OUT_OF_DATA_SCOPE", "English server message"),
@@ -379,7 +379,7 @@ describe("Release đơn — lý do BE từ chối hiện trong hộp thoại (ti
     await user.click(within(dialog).getByRole("button", { name: "Release đơn" }));
     const alert = await within(dialog).findByRole("alert");
     expect(alert).toHaveTextContent(/ngoài phạm vi kho bạn phụ trách/);
-    expect(alert).toHaveTextContent("BR-03");
+    expect(alert).not.toHaveTextContent(/BR-\d/);
   });
 });
 

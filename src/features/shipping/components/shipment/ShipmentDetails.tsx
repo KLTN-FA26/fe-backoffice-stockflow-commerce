@@ -1,6 +1,10 @@
 import { PACKAGE_STATUS_DISPLAY, PACK_SHIPMENT_STATUS_DISPLAY, UI_LABELS } from "@/constants";
 import { formatDateTime } from "@/lib/format/date";
 import { formatNumber } from "@/lib/format/number";
+import {
+  WEBHOOK_SOURCE,
+  isCarrierOriginalWording,
+} from "@/features/shipping/carrier-original-note";
 import { StatusDot } from "@/components/shared/StatusDot";
 
 import { MONO, NUM, Section } from "../primitives";
@@ -10,8 +14,6 @@ import type { Shipment } from "@/features/shipping/types";
 
 const L = UI_LABELS.shipping.shipment;
 const A = UI_LABELS.shipping.afterHandover;
-/** BE `ShipmentEventJpaEntity.source` của bước hãng báo qua webhook (docs 09 BR-02). */
-const WEBHOOK_SOURCE = "CARRIER_WEBHOOK";
 
 /** Kiện trong lô + lịch sử các bước (ai ghi nhận hay hãng báo qua webhook, lúc nào — docs 09 BR-02). */
 export function ShipmentDetails({ data }: { data: Shipment }) {
@@ -75,7 +77,12 @@ export function ShipmentDetails({ data }: { data: Shipment }) {
                     </span>
                   )
                 )}
-                {step.note && <span className="text-ink-tertiary">— {step.note}</span>}
+                {step.note && (
+                  <span className="text-ink-tertiary">
+                    — {isCarrierOriginalWording(step) ? `${A.carrierOriginalReason}: ` : ""}
+                    {step.note}
+                  </span>
+                )}
               </li>
             ))}
           </ol>

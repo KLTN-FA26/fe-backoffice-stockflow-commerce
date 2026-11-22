@@ -108,7 +108,7 @@ export const PUTAWAY_DETAIL_LABELS = {
   chosen: "Đang chọn",
   best: "Gợi ý số 1",
   noSuggestion: "Không bin nào nhận được thùng này",
-  overflowHint: "Cất tạm vào khu OVERFLOW của kho (docs 05 BR-13):",
+  overflowHint: "Cất tạm vào khu OVERFLOW của kho:",
   noOverflow: "Kho chưa có khu OVERFLOW — báo Quản lý kho mở thêm bin hoặc khu tạm.",
   suggestionsDone: "Thùng đã được cất — không còn gợi ý.",
   confirmTitle: "Xác nhận cất hàng",
@@ -121,8 +121,7 @@ export const PUTAWAY_DETAIL_LABELS = {
   locationHint: "Cất vào bin khác gợi ý cũng được, miễn bin đó nhận được thùng.",
   submit: "Xác nhận cất hàng",
   doneTitle: "Đã cất xong",
-  doneNote:
-    "Nhiệm vụ đã xong không sửa được. Cất nhầm bin thì làm phiếu chuyển vị trí (docs 05 BR-06).",
+  doneNote: "Nhiệm vụ đã xong không sửa được. Cất nhầm bin thì làm phiếu chuyển vị trí.",
   cancelledNote: "Nhiệm vụ đã huỷ — không còn thao tác.",
   readOnly: "Bạn chỉ có quyền xem nhiệm vụ cất hàng.",
   takeAlternative: (code: string) => `Dùng ${code}`,
@@ -178,7 +177,7 @@ export const SLOTTING_LABELS = {
   rules: {
     title: "Quy tắc xếp hạng",
     // Docs 06 §1: bảng slotting_rule có trong CSDL nhưng chưa có chức năng — quy tắc cố định
-    fixed: "Quy tắc cố định theo docs 05 §4.3 — chưa cấu hình được (docs 06 §1).",
+    fixed: "Quy tắc cố định của hệ thống — chưa cấu hình được.",
     filterTitle: "Bin được xét",
     filters: [
       "Bin (không phải khu) cùng kho, bật “Cho phép cất hàng”, kho / kệ / bin đang hoạt động.",
@@ -191,8 +190,7 @@ export const SLOTTING_LABELS = {
       "Ưu tiên bin vừa khít (còn ít chỗ nhất). Bin trống: bin nhỏ nhất chứa được phần còn lại của lô.",
       "Hoà thì theo mã vị trí; bin chưa có thể tích xếp cuối. Tối đa 10 bin.",
     ],
-    overflow:
-      "Không bin nào nhận → khu OVERFLOW của kho (BR-13). Cất vào bin khác gợi ý không cần lý do (BR-07).",
+    overflow: "Không bin nào nhận → khu OVERFLOW của kho. Cất vào bin khác gợi ý không cần lý do.",
   },
 } as const;
 
@@ -213,7 +211,7 @@ export const PUTAWAY_TRIP_LABELS = {
   start: {
     title: "Mở chuyến cất hàng",
     description:
-      "Gom nhiều thùng chờ cất lên một xe, hệ thống gán bin cho từng thùng và xếp lộ trình khi bắt đầu đi (docs 05 §4.5).",
+      "Gom nhiều thùng chờ cất lên một xe, hệ thống gán bin cho từng thùng và xếp lộ trình khi bắt đầu đi.",
     warehouse: "Kho",
     chooseWarehouse: "Chọn kho trước khi mở chuyến.",
     submit: "Mở chuyến",
@@ -226,7 +224,7 @@ export const PUTAWAY_TRIP_LABELS = {
     hint: "Enter để xếp thùng lên xe. Chỉ thùng chờ cất cùng kho; quét lại thùng đã có trên xe không đổi gì.",
     depart: "Bắt đầu đi cất",
     departHint: "Hệ thống gán bin cho từng thùng, giữ chỗ và xếp lộ trình.",
-    emptyCart: "Xếp ít nhất một thùng trước khi đi (docs 05 §5).",
+    emptyCart: "Xếp ít nhất một thùng trước khi đi.",
   },
   cart: {
     title: "Thùng trên xe",
@@ -241,7 +239,7 @@ export const PUTAWAY_TRIP_LABELS = {
   },
   route: {
     title: "Lộ trình",
-    note: "Lộ trình chỉ để tham khảo — đi thứ tự khác vẫn được (docs 05 BR-17).",
+    note: "Lộ trình chỉ để tham khảo — đi thứ tự khác vẫn được.",
     stop: (sequence: number) => `Điểm ${sequence}`,
     reassign: (lpn: string) => `Đổi bin cho ${lpn}`,
     reassignShort: "Đổi bin",
@@ -268,7 +266,7 @@ export const PUTAWAY_TRIP_LABELS = {
         ? `${onCart} thùng còn trên xe sẽ trả về hàng chờ cất, chỗ giữ ở bin được nhả. Không hoàn tác được.`
         : "Chuyến sẽ đóng. Không hoàn tác được.",
     forceDescription: (onCart: number) =>
-      `Đóng chuyến bỏ dở của nhân viên khác (docs 05 §2). ${onCart} thùng còn trên xe trả về hàng chờ cất.`,
+      `Đóng chuyến bỏ dở của nhân viên khác. ${onCart} thùng còn trên xe trả về hàng chờ cất.`,
   },
   ended: {
     COMPLETED: "Chuyến đã cất hết thùng.",
@@ -291,13 +289,12 @@ export const PUTAWAY_TRIP_LABELS = {
 
 /** Lỗi BE của chuyến cất hàng (`PutawayTripService`); lỗi đặt thùng dùng chung `PUTAWAY_ERROR_MESSAGES`. */
 export const PUTAWAY_TRIP_ERROR_MESSAGES = {
-  PUTAWAY_TRIP_ALREADY_OPEN:
-    "Bạn đang có một chuyến mở — mỗi người chỉ một chuyến (docs 05 BR-15).",
+  PUTAWAY_TRIP_ALREADY_OPEN: "Bạn đang có một chuyến mở — mỗi người chỉ một chuyến.",
   PUTAWAY_TRIP_NOT_FOUND: "Chuyến cất hàng không còn tồn tại.",
   PUTAWAY_TRIP_NOT_YOURS: "Đây không phải chuyến của bạn.",
   PUTAWAY_TRIP_INVALID_STATE: "Chuyến đã đổi trạng thái — đã tải lại.",
   PUTAWAY_TRIP_EMPTY: "Xe chưa có thùng nào.",
-  PUTAWAY_TASK_ON_ANOTHER_TRIP: "Thùng đang ở trên xe của chuyến khác (docs 05 BR-15).",
+  PUTAWAY_TASK_ON_ANOTHER_TRIP: "Thùng đang ở trên xe của chuyến khác.",
   PUTAWAY_CARTON_NOT_ON_TRIP: "Thùng không có trên xe của chuyến này.",
   STOCK_PACKAGE_NOT_FOUND: "Không có thùng mang LPN này.",
   PUTAWAY_TASK_NOT_FOUND: "Thùng không chờ cất (đã cất hoặc chưa ghi nhận).",
