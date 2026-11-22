@@ -24,6 +24,7 @@ export function CustomerPicker({
   error,
   locked,
   idPrefix = "picker",
+  optional = false,
 }: {
   value: string;
   onChange: (customerId: string) => void;
@@ -31,6 +32,11 @@ export function CustomerPicker({
   /** Sửa báo giá / làm mẫu từ báo giá: không đổi khách (BE không cho). */
   locked?: boolean;
   idPrefix?: string;
+  /**
+   * Bộ lọc của trang danh sách (L-5): không dấu `*`, không câu "Chỉ khách đã kích hoạt portal…" — câu đó là luật của
+   * form báo giá / làm mẫu, không phải của việc lọc.
+   */
+  optional?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -42,10 +48,15 @@ export function CustomerPicker({
     return (
       <div className="flex min-w-0 flex-col gap-1">
         <span className="text-ink-secondary text-xs font-medium">
-          Khách hàng{" "}
-          <span className="text-danger" aria-hidden="true">
-            *
-          </span>
+          Khách hàng
+          {!optional && (
+            <>
+              {" "}
+              <span className="text-danger" aria-hidden="true">
+                *
+              </span>
+            </>
+          )}
         </span>
         <div className="flex items-center gap-3 text-[0.8125rem]">
           <CustomerName id={value} />
@@ -63,14 +74,18 @@ export function CustomerPicker({
     );
 
   const items = search.data ?? [];
-  const a11y = fieldA11y(searchId, error, true);
+  const a11y = fieldA11y(searchId, error, !optional);
   return (
     <FormField
       id={searchId}
       label="Khách hàng"
-      required
+      required={!optional}
       error={error}
-      hint="Chỉ khách đã kích hoạt portal (Hoạt động) mới nhận báo giá / làm mẫu."
+      hint={
+        optional
+          ? undefined
+          : "Chỉ khách đã kích hoạt portal (Hoạt động) mới nhận báo giá / làm mẫu."
+      }
     >
       <InputCombobox
         id={searchId}

@@ -39,9 +39,13 @@ export interface ListToolbarProps<
   Field extends string,
   Column extends string,
 > {
-  search: string;
-  onSearchChange: (value: string) => void;
-  searchPlaceholder: string;
+  /**
+   * Search chính. Bỏ cả ba khi BE không có tham số tìm cho danh sách phân trang phía server (lọc FE chỉ thấy trang
+   * đang tải — gây hiểu sai): toolbar khi đó chỉ còn công cụ lọc / cột / hành động.
+   */
+  search?: string;
+  onSearchChange?: (value: string) => void;
+  searchPlaceholder?: string;
   statusOptions?: ListOption<Status>[];
   selectedStatuses?: Status[];
   onToggleStatus?: (status: Status) => void;
@@ -170,16 +174,18 @@ export function ListToolbar<Status extends string, Field extends string, Column 
     <TooltipProvider>
       <div className="mb-3 rounded-(--section-radius) border border-(--toolbar-frame-border) bg-(--toolbar-bg) px-(--toolbar-pad-x) py-(--toolbar-pad-y) shadow-(--toolbar-frame-shadow)">
         <div className="flex flex-wrap items-center gap-2">
-          <div className="relative min-w-[280px] flex-1 lg:max-w-(--toolbar-search-max)">
-            <Search className="text-accent pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2" />
-            <Input
-              value={search}
-              onChange={(event) => onSearchChange(event.target.value)}
-              placeholder={searchPlaceholder}
-              aria-label={searchPlaceholder}
-              className="border-border-default bg-bg-surface focus-visible:border-brand focus-visible:ring-brand/20 h-(--control-h) rounded-(--control-radius) pl-9 text-(length:--control-text) shadow-(--control-shadow)"
-            />
-          </div>
+          {onSearchChange && searchPlaceholder && (
+            <div className="relative min-w-[280px] flex-1 lg:max-w-(--toolbar-search-max)">
+              <Search className="text-accent pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2" />
+              <Input
+                value={search ?? ""}
+                onChange={(event) => onSearchChange(event.target.value)}
+                placeholder={searchPlaceholder}
+                aria-label={searchPlaceholder}
+                className="border-border-default bg-bg-surface focus-visible:border-brand focus-visible:ring-brand/20 h-(--control-h) rounded-(--control-radius) pl-9 text-(length:--control-text) shadow-(--control-shadow)"
+              />
+            </div>
+          )}
 
           <div className="flex items-center gap-2">
             {canUseStatus && (
