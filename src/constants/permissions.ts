@@ -55,12 +55,15 @@ export const ORDER_PERMISSIONS = {
 } as const;
 
 /**
- * Kho xuất của đơn — resource `sales-order-shipping-warehouses` (BE `ShippingWarehouseController`). FE chỉ ĐỌC kho Sale
- * đã chọn (`GET /orders/{id}/shipping-warehouse/options` → `chosenWarehouseId`) để chọn sẵn ở hộp thoại release. Seed BE
- * (PermissionMatrixTest): READ của SALES_STAFF, SALES_MANAGER, WAREHOUSE_MANAGER, PRODUCTION_COORDINATOR, SYSTEM_ADMIN.
+ * Kho xuất của đơn — resource `sales-order-shipping-warehouses` (BE `ShippingWarehouseController`, docs 17 §4.2 bước 2-3).
+ * `read` = xem kho đã chọn, tồn từng kho (`GET /orders/{id}/shipping-warehouse/options`) và tình trạng giữ hàng
+ * (`GET /orders/{id}/stock-coverage`); `update` = Sale chọn kho xuất và giữ hàng (`PUT /orders/{id}/shipping-warehouse`).
+ * Seed BE (PermissionMatrixTest): READ của SALES_STAFF, SALES_MANAGER, WAREHOUSE_MANAGER, PRODUCTION_COORDINATOR,
+ * SYSTEM_ADMIN; UPDATE chỉ SALES_STAFF + SYSTEM_ADMIN.
  */
 export const ORDER_SHIPPING_WAREHOUSE_PERMISSIONS = {
   read: "sales-order-shipping-warehouses:READ",
+  update: "sales-order-shipping-warehouses:UPDATE",
 } as const;
 
 /**

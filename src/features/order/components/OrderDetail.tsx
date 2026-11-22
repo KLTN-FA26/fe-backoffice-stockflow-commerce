@@ -35,6 +35,7 @@ import { OrderLines } from "./OrderLines";
 import { OrderLoadError } from "./OrderLoadError";
 import { OrderPartialShipmentCard } from "./OrderPartialShipmentCard";
 import { OrderPermissionGate } from "./OrderPermissionGate";
+import { OrderShippingWarehouseCard } from "./OrderShippingWarehouseCard";
 import { LineProductionOrdersView, ProductionStatusNotice } from "./OrderProductionOrders";
 import { OrderDeliveryDocuments } from "./OrderDeliveryDocuments";
 import { OrderShipments } from "./OrderShipments";
@@ -206,6 +207,7 @@ function OrderDetailContent({
 
         <div className="space-y-5">
           <OrderActionCard order={order} can={can} estimateSlot={estimateSlot} />
+          <OrderShippingWarehouseCard order={order} can={can} />
           <CancellationRequestCard order={order} can={can} />
           <CompletionHoldCard order={order} can={can} />
           <OrderEstimateCard order={order} estimateSlot={estimateSlot} />
