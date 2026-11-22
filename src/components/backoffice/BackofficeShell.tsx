@@ -37,6 +37,7 @@ import {
   PanelLeftOpen,
   RadioTower,
   ReceiptText,
+  Route,
   Search as SearchIcon,
   ShieldCheck,
   ShieldAlert,
@@ -70,6 +71,10 @@ import {
   FULFILLMENT_PICK_PERMISSIONS,
   FULFILLMENT_PICKING_PERMISSIONS,
   GOODS_RECEIPT_PERMISSIONS,
+  PUTAWAY_LABELS,
+  PUTAWAY_TASK_PERMISSIONS,
+  PUTAWAY_TRIP_LABELS,
+  PUTAWAY_TRIP_PERMISSIONS,
   IDENTITY_PERMISSIONS,
   INVENTORY_ITEM_PERMISSIONS,
   INVENTORY_OVERVIEW_PERMISSIONS,
@@ -123,8 +128,6 @@ import { WarehouseNavPanel } from "@/features/warehouse-map/components/workspace
 import { usePermissionChecker } from "@/lib/auth/components/Can";
 import { useAppStore } from "@/lib/store/use-app-store";
 import { useBreadcrumbLabelStore } from "@/lib/store/use-breadcrumb-labels";
-import { putawayTasks } from "@/lib/mock-data";
-import { useIsMock } from "@/providers/app-providers";
 
 import { SearchBar } from "@/components/shared/SearchBar";
 import { Button } from "@/components/ui/button";
@@ -145,23 +148,6 @@ import { SidebarNav } from "./SidebarNav";
 import type { LucideIcon } from "lucide-react";
 import type { ComponentType } from "react";
 import type { PermissionCode } from "@/lib/auth/me-permissions";
-/* -------------------------------------------------------------------------- */
-/*  Warning dot counts — computed from mock data (mock mode only: the BE has */
-/*  no cross-module "needs attention" counts, so real mode shows no badge)    */
-/* -------------------------------------------------------------------------- */
-
-const WARNING_STATUSES: Record<string, string[]> = {
-  "/admin/putaway": ["On Hold"],
-};
-
-function computeWarningCounts(): Record<string, number> {
-  const counts: Record<string, number> = {};
-  counts["/admin/putaway"] = putawayTasks.filter((pt) =>
-    WARNING_STATUSES["/admin/putaway"]!.includes(pt.status),
-  ).length;
-  return counts;
-}
-
 /* -------------------------------------------------------------------------- */
 /*  Sidebar nav config                                                       */
 /* -------------------------------------------------------------------------- */
@@ -263,7 +249,20 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: PackageOpen,
         permission: GOODS_RECEIPT_PERMISSIONS.viewPage,
       },
-      { label: "Cất hàng", href: "/admin/putaway", icon: PackageCheck },
+      // Cất hàng (docs 05) — BE `PutawayController`, resource warehouse-putaway-tasks
+      {
+        label: PUTAWAY_LABELS.title,
+        href: ADMIN_ROUTES.putaway.list,
+        icon: PackageCheck,
+        permission: PUTAWAY_TASK_PERMISSIONS.viewPage,
+      },
+      // Chuyến cất hàng (docs 05 §4.5) — BE `PutawayTripController`, resource warehouse-putaway-trips
+      {
+        label: PUTAWAY_TRIP_LABELS.title,
+        href: ADMIN_ROUTES.putaway.myTrip,
+        icon: Route,
+        permission: PUTAWAY_TRIP_PERMISSIONS.viewPage,
+      },
     ],
   },
   {
@@ -601,7 +600,6 @@ const DETAIL_LABEL_BY_ROUTE: Record<string, string> = {
   "/admin/products/create": "Tạo sản phẩm",
   [ADMIN_ROUTES.customers.create]: "Tạo khách hàng",
   [ADMIN_ROUTES.quotes.create]: "Tạo báo giá",
-  [ADMIN_ROUTES.productionOrders.create]: PRODUCTION_LABELS.order.createPageTitle,
   [INVENTORY_ROUTES.createAdjustment]: INVENTORY_LABELS.createAdjustment,
   [ADMIN_ROUTES.loadPlans.create]: UI_LABELS.loadPlan.create,
   [ADMIN_ROUTES.loads.waybillImport]: UI_LABELS.shipping.waybill.import.title,
@@ -770,15 +768,11 @@ function BackofficeSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
 
-  const isMock = useIsMock();
   const chatBadge = useStaffChatBadge();
-  // Số đếm lấy từ dữ liệu mẫu: không hiện khi nối BE thật (không bịa số liệu). Riêng chat đọc số thật của BE (S22).
+  // Chỉ chat có số đếm thật của BE (S22) — không bịa số "cần chú ý" cho module khác.
   const warningCounts = useMemo<Record<string, number>>(
-    () => ({
-      ...(isMock ? computeWarningCounts() : {}),
-      ...(chatBadge > 0 ? { [ADMIN_ROUTES.chat.list]: chatBadge } : {}),
-    }),
-    [isMock, chatBadge],
+    (): Record<string, number> => (chatBadge > 0 ? { [ADMIN_ROUTES.chat.list]: chatBadge } : {}),
+    [chatBadge],
   );
   const canSeeItem = useCanSeeNavItem();
   const visibleGroups = visibleNavGroups(canSeeItem);

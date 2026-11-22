@@ -62,7 +62,7 @@ interface MapViewerProps {
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   /** Mở modal chi tiết vị trí đang xem (3D chọn kệ = bay camera tới, không tự mở modal). */
-  onOpenDetail: () => void;
+  onOpenDetail?: () => void;
   controls: Omit<MapControlsProps, "zoom">;
 }
 

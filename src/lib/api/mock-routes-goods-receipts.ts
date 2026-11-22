@@ -4,8 +4,8 @@
  *
  * BE đã bỏ mua hàng: không còn tạo phiếu theo PO / không chứng từ, không duyệt vượt dung sai, không QC ở kho.
  * Dữ liệu seed ở đây đều là phiếu mua hàng cũ (`receiptType = PURCHASE`) — BE chỉ cho đọc và huỷ phiếu chưa ghi
- * nhận; xác nhận trả `INVALID_RECEIPT_TRANSITION`. Phiếu theo Đơn sản xuất (`POST /goods-receipts/production`)
- * thêm cùng màn nhập ở SCRUM-566.
+ * nhận; xác nhận trả `INVALID_RECEIPT_TRANSITION`. Phiếu theo Đơn sản xuất (SCRUM-566) lập / đếm / xác nhận ở
+ * `mock-routes-production-receipts.ts`.
  *
  * Trả đúng hợp đồng: PageResponse trang từ 0, lỗi `{ errorCode, message, fieldErrors[] }`, cùng mã lỗi và HTTP
  * status như BE. Message lỗi giữ tiếng Anh như BE — FE tự dịch theo `errorCode`.
@@ -13,6 +13,10 @@
 
 import { registerMockRoute } from "./mock-adapter";
 import { cartonsVoided } from "./mock-receipt-cartons";
+import {
+  confirmProductionReceipt,
+  registerProductionReceiptMockRoutes,
+} from "./mock-routes-production-receipts";
 import {
   getReceiptStore,
   invalidReceiptTransition,
@@ -75,8 +79,11 @@ export function registerGoodsReceiptMockRoutes(): void {
       .filter(
         (r) => !readString(params.warehouseId) || r.warehouseId === readString(params.warehouseId),
       )
-      // Phiếu seed đều là phiếu mua hàng cũ: lọc theo Đơn sản xuất không ra dòng nào
-      .filter(() => !readString(params.productionOrderId))
+      .filter(
+        (r) =>
+          !readString(params.productionOrderId) ||
+          r.productionOrderId === readString(params.productionOrderId),
+      )
       .filter((r) => !search || r.number.toLowerCase().includes(search))
       // BE receivedBetween: from ≤ receivedAt < to
       .filter(
@@ -96,10 +103,11 @@ export function registerGoodsReceiptMockRoutes(): void {
     return receipt ? beOk(toReceiptView(receipt)) : receiptNotFound(id);
   });
 
-  // BE 4A-9: phiếu mua hàng cũ không xác nhận được nữa — chỉ còn huỷ
+  // BE 4A-9: phiếu mua hàng cũ không xác nhận được nữa — chỉ còn huỷ; phiếu theo Đơn sản xuất → IN_PUTAWAY
   registerMockRoute("POST", `${PATH}/:id/confirmation`, async (config) => {
     const { id, receipt } = await loadReceipt(config);
     if (!receipt) return receiptNotFound(id);
+    if (receipt.productionOrderId) return confirmProductionReceipt(receipt);
     return invalidReceiptTransition(
       `Receipt ${receipt.number} is a purchase receipt: it is only read and cancelled`,
     );
@@ -121,4 +129,5 @@ export function registerGoodsReceiptMockRoutes(): void {
   });
 
   registerStockPackageMockRoutes();
+  registerProductionReceiptMockRoutes();
 }

@@ -92,7 +92,7 @@ export const CANCELLATION_REQUEST_LABELS = {
     feeReason: "Lý do giữ phí",
     feeDetail: "Chi tiết thoả thuận",
     accountantNote:
-      "Kế toán chuyển hoàn ngoài hệ thống rồi ghi nhận đã hoàn (docs 15 §4.5); khoản phí còn thiếu thành khoản phí huỷ (docs 15 §4.6).",
+      "Kế toán chuyển hoàn ngoài hệ thống rồi ghi nhận đã hoàn; khoản phí còn thiếu thành khoản phí huỷ.",
   },
 } as const;
 

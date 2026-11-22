@@ -50,6 +50,7 @@ function ImportBody() {
           warehouseId={warehouseId}
           onWarehouse={chooseWarehouse}
           input={input}
+          fileName={file?.name ?? null}
           canPreview={!!file && !previewing && !importing}
           previewing={previewing}
           onChoose={choose}

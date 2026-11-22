@@ -27,7 +27,7 @@ interface ListConfigSummaryProps {
  */
 export function ListConfigSummary({ items, onResetAll, resetDisabled }: ListConfigSummaryProps) {
   return (
-    <div className="border-border-default mb-4 flex flex-wrap items-center gap-2 rounded-(--section-radius) border bg-(--summary-bg) px-3 py-2 text-[0.8125rem] shadow-(--card-shadow)">
+    <div className="border-border-default mb-3 flex flex-wrap items-center gap-2 rounded-(--section-radius) border bg-(--summary-bg) px-3 py-2 text-[0.8125rem] shadow-(--card-shadow)">
       <div className="text-ink-primary mr-1 flex items-center gap-2 font-medium">
         <Settings2 className="text-accent size-3.5" />
         Cấu hình

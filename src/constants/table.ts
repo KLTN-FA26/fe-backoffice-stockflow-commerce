@@ -195,6 +195,27 @@ export const PRODUCTION_SCHEDULE_COLUMNS = {
   WINDOW: "window",
 } as const;
 
+/** Cột danh sách cất hàng (BE `PutawayTaskResponse`, docs 05 §4.2). */
+export const PUTAWAY_COLUMNS = {
+  ACTION: "action",
+  LOT: "lot",
+  LPN: "lpn",
+  QUANTITY: "quantity",
+  SKU: "sku",
+  SOURCE: "source",
+  SOURCE_LOCATION: "sourceLocation",
+  STATUS: "status",
+} as const;
+
+/** Cột bảng thùng trên xe của chuyến cất hàng (BE `PutawayTripResponse.Carton`, docs 05 §4.5). */
+export const PUTAWAY_TRIP_CART_COLUMNS = {
+  ACTION: "action",
+  BIN: "bin",
+  ITEM: "item",
+  LPN: "lpn",
+  STATUS: "status",
+} as const;
+
 /** Cột đợt giao còn thiếu (BE `ShortDeliveryBatch`, docs 17 §4.12 bước 47). */
 export const SHORT_BATCH_COLUMNS = {
   ACTION: "action",

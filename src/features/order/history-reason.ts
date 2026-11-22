@@ -18,6 +18,10 @@ import {
 const CODED_REASON = /^([A-Z][A-Z0-9_]*)(?:: ([\s\S]*))?$/;
 const RETURN_REQUESTED_WITH_RMA = /^RETURN_REQUESTED (\S+)$/;
 const HOLD_RESOLVED = "HOLD_RESOLVED_";
+const SHIPMENT_RETURNED = "RETURNED";
+const SHIPMENT_RETURNED_WITH_REASON = "RETURNED_";
+/** Ghi chú cũ BE từng ghi cho phần đóng khi lô hoàn về ("Returned shipment <UUID>") — không hiện mã lô cho người dùng. */
+const LEGACY_RETURNED_CLOSURE_NOTE = /^Returned shipment [0-9a-f-]{36}$/i;
 
 function lookup(table: Readonly<Record<string, string>>, code: string): string | null {
   return Object.hasOwn(table, code) ? (table[code] ?? null) : null;
@@ -31,11 +35,28 @@ export function historyReasonCodeLabel(code: string): string | null {
       ? ORDER_HISTORY_LABELS.holdResolvedWithReason(hold)
       : ORDER_HISTORY_LABELS.holdResolved;
   }
-  return (
+  const known =
     lookup(ORDER_HISTORY_REASON_LABELS, code) ??
     lookup(ORDER_HOLD_REASON_LABELS, code) ??
-    lookup(ORDER_DELIVERY_FAILURE_LABELS, code)
-  );
+    lookup(ORDER_DELIVERY_FAILURE_LABELS, code);
+  if (known) return known;
+  // Lô giao hoàn về kho (BE `Order#recordShipmentReturned`): `RETURNED` hoặc `RETURNED_<lý do giao thất bại>`
+  if (code === SHIPMENT_RETURNED) return ORDER_HISTORY_LABELS.shipmentReturned;
+  if (code.startsWith(SHIPMENT_RETURNED_WITH_REASON)) {
+    const failure = lookup(
+      ORDER_DELIVERY_FAILURE_LABELS,
+      code.slice(SHIPMENT_RETURNED_WITH_REASON.length),
+    );
+    if (failure) return ORDER_HISTORY_LABELS.shipmentReturnedWithReason(failure);
+  }
+  return null;
+}
+
+/** Ghi chú của mục "Đóng phần còn lại": ghi chú cũ tiếng Anh kèm UUID của lô hoàn → câu tiếng Việt; còn lại giữ nguyên. */
+export function formatClosureNote(note: string): string {
+  return LEGACY_RETURNED_CLOSURE_NOTE.test(note.trim())
+    ? ORDER_HISTORY_LABELS.shipmentReturnedClosureNote
+    : note;
 }
 
 const withNote = (label: string, note: string | null | undefined) => {

@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { EINVOICE_LIMITS } from "@/constants/einvoice";
+import { FilePickerField } from "@/components/shared/FilePickerField";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { FormField } from "@/components/shared/FormField";
 import { DatePicker } from "@/components/shared/DatePicker";
@@ -61,11 +62,11 @@ function AgreementForm({ invoice, onClose }: { invoice: EInvoice; onClose: () =>
         <DatePicker id="agreement-date" value={date} onChange={setDate} />
       </FormField>
       <FormField id="agreement-file" label="Tệp PDF đã ký" required>
-        <Input
+        <FilePickerField
           id="agreement-file"
-          type="file"
           accept="application/pdf"
-          onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+          fileName={file?.name}
+          onChange={setFile}
         />
       </FormField>
     </FormDialogBody>

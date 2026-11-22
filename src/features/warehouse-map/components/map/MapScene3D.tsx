@@ -14,7 +14,9 @@ import { Areas3D } from "./scene3d/Areas3D";
 import { CameraRig } from "./scene3d/CameraRig";
 import { Floor3D } from "./scene3d/Floor3D";
 import { FocusCard } from "./scene3d/FocusCard";
+import { SceneEffects } from "./scene3d/SceneEffects";
 import { SceneLights } from "./scene3d/SceneLights";
+import { SCENE_EXPOSURE } from "./scene3d/scene-tone";
 import { ShelfFocus3D } from "./scene3d/ShelfFocus3D";
 import { ShelvesLayer } from "./scene3d/ShelvesLayer";
 import { StaticShadows } from "./scene3d/StaticShadows";
@@ -46,7 +48,8 @@ export default function MapScene3D({
   layout: WarehouseLayout;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
-  onOpenDetail: () => void;
+  /** Vắng khi xem 3D bản nháp ở chế độ sửa — thẻ tiêu điểm không có nút chi tiết. */
+  onOpenDetail?: () => void;
   controls: Omit<MapControlsProps, "zoom">;
 }) {
   const palette = useScenePalette();
@@ -69,7 +72,8 @@ export default function MapScene3D({
     <div className="relative h-full">
       <Canvas
         key={glGeneration}
-        shadows
+        // PCF có bán kính lọc → bóng mềm mép (PCFSoft mặc định bỏ qua `shadow-radius`)
+        shadows="percentage"
         frameloop="demand"
         dpr={[1, 1.5]}
         camera={{ position: focus.overview.position, fov: 40, near: 0.1, far: span * 12 }}
@@ -77,7 +81,7 @@ export default function MapScene3D({
         onCreated={({ gl }) => {
           gl.toneMapping = NeutralToneMapping;
           // Phơi sáng thấp hơn mặc định một chút: sàn trắng không loá, màu sơn rõ
-          gl.toneMappingExposure = 0.85;
+          gl.toneMappingExposure = SCENE_EXPOSURE;
           gl.domElement.addEventListener("webglcontextlost", () => setGlGeneration((n) => n + 1), {
             once: true,
           });
@@ -101,7 +105,7 @@ export default function MapScene3D({
           zoneColors={colorsByZone}
           palette={palette}
           overview={focus.overviewStock}
-          focus={{ stock: focus.stock, stocked: focus.stocked }}
+          focus={{ stock: focus.stock, stocked: focus.stocked, lpns: focus.lpns }}
           onSelect={onSelect}
           onHover={setHoveredId}
         />
@@ -116,6 +120,7 @@ export default function MapScene3D({
           focusId={selectedId}
           stock={shelf ? focus.stock : focus.overviewStock.stock}
         />
+        <SceneEffects />
         <CameraRig
           controlsRef={focus.cameraRef}
           overview={focus.overview}

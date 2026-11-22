@@ -243,7 +243,7 @@ describe("Dời cửa sổ giao — action-gating theo mã quyền BE (≥ 3 vai
     );
     const card = await panel();
     expect(within(card).queryByRole("button", { name: "Dời cửa sổ giao" })).not.toBeInTheDocument();
-    expect(within(card).getAllByText(/không dời được \(BR-28\)/)).toHaveLength(4);
+    expect(within(card).getAllByText(/không dời được/)).toHaveLength(4);
     expect(within(card).getByText("Không rõ")).toBeInTheDocument();
   });
 });

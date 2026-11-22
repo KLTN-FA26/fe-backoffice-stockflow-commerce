@@ -5,6 +5,7 @@ import { Plus } from "lucide-react";
 import { PRODUCTION_LABELS, SHORT_BATCH_COLUMNS as C } from "@/constants";
 import { formatNumber } from "@/lib/format";
 
+import { withHeaderFilters } from "@/components/shared/ColumnHeaderFilter";
 import { CELL, StackText } from "@/components/shared/column-helpers";
 import { DataTable } from "@/components/shared/DataTable";
 import { Button } from "@/components/ui/button";
@@ -22,20 +23,26 @@ const batchKey = (batch: ShortDeliveryBatch) => batch.deliveryBatchId;
 /**
  * Đợt giao còn thiếu chưa có Đơn sản xuất phủ (docs 17 §4.12 bước 47) — nơi Điều phối sản xuất bắt đầu lập Đơn sản
  * xuất (§4.3 bước 6). `onDrawUp` vắng khi không có quyền lập → không có cột thao tác. `extraColumns` cho lịch thêm cột
- * cờ trễ.
+ * cờ trễ; `headerFilters` cho lịch gắn nút lọc trên header — khi có, header luôn hiện (cả khi rỗng) để còn chỉnh lọc.
  */
 export function ShortBatchTable({
   batches,
   onDrawUp,
   extraColumns = [],
   empty,
+  headerFilters,
+  stickyHeader,
 }: {
   batches: ShortDeliveryBatch[];
   onDrawUp?: (batch: ShortDeliveryBatch) => void;
   extraColumns?: ColumnDef<ShortDeliveryBatch>[];
   empty?: ReactNode;
+  /** Nút lọc trên header theo key cột (`SHORT_BATCH_COLUMNS`). */
+  headerFilters?: Partial<Record<string, ReactNode>>;
+  /** Bảng chính của trang (lịch) → header dính, thân cuộn trong khung. */
+  stickyHeader?: boolean;
 }) {
-  if (batches.length === 0)
+  if (batches.length === 0 && !headerFilters)
     return empty ?? <p className="text-ink-tertiary py-6 text-center text-sm">{L.empty}</p>;
   const columns: ColumnDef<ShortDeliveryBatch>[] = [
     {
@@ -102,5 +109,14 @@ export function ShortBatchTable({
         </div>
       ),
     });
-  return <DataTable columns={columns} data={batches} rowKey={batchKey} caption={L.title} />;
+  return (
+    <DataTable
+      columns={withHeaderFilters(columns, headerFilters)}
+      data={batches}
+      rowKey={batchKey}
+      caption={L.title}
+      emptyState={empty}
+      stickyHeader={stickyHeader}
+    />
+  );
 }

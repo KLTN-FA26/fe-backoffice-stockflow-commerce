@@ -1,6 +1,13 @@
-import { PackageCheck } from "lucide-react";
-import { ComingSoonPage } from "@/components/shared/ComingSoonPage";
+import { Suspense } from "react";
+
+import { PutawayList } from "@/features/putaway";
+
+import { PageSkeleton } from "@/components/shared/PageSkeleton";
 
 export default function PutawayPage() {
-  return <ComingSoonPage title="Cất hàng" icon={PackageCheck} />;
+  return (
+    <Suspense fallback={<PageSkeleton variant="list" />}>
+      <PutawayList />
+    </Suspense>
+  );
 }

@@ -15,8 +15,9 @@ const m3 = (value: number | null | undefined) =>
   value === null || value === undefined ? "—" : formatDecimal(value, 3);
 
 /**
- * BR-25 (docs 17 §6): thể tích Đơn sản xuất vượt còn trống dự kiến, hoặc vượt nếu duyệt hết các đơn đang chờ về cùng kho
- * → cảnh báo, KHÔNG chặn nút nào. Hiện lúc nháp lẫn lúc Sales Manager duyệt (BE tính lại mỗi lần đọc).
+ * BR-25 (docs 17 §6): thể tích Đơn sản xuất vượt còn trống dự kiến, hoặc vượt nếu gửi hết các Đơn sản xuất nháp khác về
+ * cùng kho → cảnh báo, KHÔNG chặn nút nào. Hiện lúc nháp, ngay trước khi Điều phối sản xuất gửi (BE tính lại mỗi lần đọc —
+ * docs 06 §4.6 bước 6, chốt lại 2026-11-20).
  */
 export function CapacityWarning({ order }: { order: ProductionOrder }) {
   const capacity = order.capacity;

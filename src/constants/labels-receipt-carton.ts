@@ -18,8 +18,9 @@ export const CARTON_LABEL_FORMAT_LABELS = {
  */
 export const RECEIPT_CARTON_ERROR_MESSAGES = {
   RECEIPT_PACKAGES_EXCEED_LINE: "Các thùng chứa nhiều hơn số lượng nhận của dòng",
+  // Docs 03 §4.1 bước 5: dòng đã từng có thùng (kể cả Void) không bỏ được, không đổi đơn vị thùng khi còn thùng cũ
   RECEIPT_LINE_HAS_PACKAGES:
-    "Dòng đã từng có thùng dán nhãn: giữ nguyên dòng PO và số lô, không bỏ khỏi phiếu được, và chỉ đổi đơn vị khi bỏ hết thùng cũ. Muốn sửa lô — huỷ phiếu rồi đếm lại",
+    "Dòng đã từng có thùng dán nhãn không bỏ khỏi phiếu được, cũng không đổi quy cách thùng khi còn thùng cũ. Muốn làm lại — huỷ phiếu rồi đếm lại",
   RECEIPT_LINE_UNIT_INVALID:
     "Đơn vị không hợp lệ cho thùng: thùng phải theo một đơn vị đóng gói đang dùng; dòng không có thùng thì đếm theo đơn vị cơ sở",
   UOM_CONVERSION_NOT_FOUND: "Mặt hàng không có đơn vị này",
@@ -81,22 +82,6 @@ export const RECEIPT_CARTON_LABELS = {
   selectCarton: (lpn: string) => `Chọn thùng ${lpn} để in lại`,
   printLine: "In nhãn cả dòng",
   reprint: (count: number) => `In lại ${count} nhãn`,
-  // Dialog kết luận QC theo nguyên thùng
-  qcCartonsTitle: "Thùng — kết luận nguyên thùng, không mở thùng",
-  qcChoice: (outcome: string, lpn: string) => `${outcome} thùng ${lpn}`,
-  qcCartonAway: (location: string) => `Đang ở ${location}, không ở khu QC — tính là Đạt`,
-  qcLooseAccepted: "Đạt (lẻ)",
-  qcOutcome: { ACCEPTED: "Đạt", QUARANTINE: "Cách ly", REJECTED: "Không đạt" },
-  qcLooseTitle: (loose: number) => `Hàng lẻ: ${loose}`,
-  qcPartQuantity: (part: string, loose: boolean) => (loose ? `SL lẻ ${part}` : `SL ${part}`),
-  qcPartLocation: (part: string) => `Khu ${part}`,
-  qcPartReason: (part: string) => `Lý do ${part}`,
-  qcPartHint: {
-    quarantined: "Chờ kết luận lại — vào khu QUARANTINE",
-    rejected: "Trả NCC — vào khu QUARANTINE, tồn Blocked",
-  },
-  qcFields: { quantity: "SL", location: "Khu", reason: "Lý do" },
-  qcTotal: (total: number, moved: number) => `Tổng: ${total} / ${moved}`,
 } as const;
 
 /** Dialog in nhãn thùng (BE trả PDF — xem trước rồi in / tải xuống). */

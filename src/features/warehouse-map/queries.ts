@@ -1,12 +1,15 @@
-import { useQuery } from "@tanstack/react-query";
+import { useCallback } from "react";
+import { useQueries, useQuery } from "@tanstack/react-query";
 
 import { QUERY_TIMES } from "@/lib/api/query-client";
 import { createListQuery, createQueryKeys } from "@/lib/api/query-factory";
 
 import { getWarehouseLayout, listWarehouses } from "./api";
+import { listLocationCartons } from "./api-cartons";
 import { hasStockAt, listShelfStock, listWarehouseStock } from "./api-draft";
 
 import type { ListWarehouseParams } from "./api";
+import type { LocationCarton } from "./api-cartons";
 import type { Warehouse } from "./types";
 
 /** Khoá gốc `warehouse-warehouses` = mã resource BE: tạo kho làm mới danh sách qua `all`. */
@@ -82,5 +85,34 @@ export function useWarehouseStock(warehouse: { id: string; prefix: string }) {
     queryFn: ({ signal }) =>
       listWarehouseStock({ warehouseId: warehouse.id, prefix: warehouse.prefix }, signal),
     ...QUERY_TIMES.detail,
+  });
+}
+
+/** Thùng (LPN) theo từng bin của kệ đang xem ở 3D — một request mỗi bin có hàng (API lọc đúng một mã). */
+export const binCartonKeys = createQueryKeys("warehouse-map-bin-cartons");
+
+/**
+ * LPN theo mã bin; `null` khi chưa đọc xong / lỗi / không được đọc (`enabled` false) — khi đó cảnh vẽ thùng ước
+ * lượng từ số lượng tồn, không dán tem.
+ */
+export function useBinCartons(locationCodes: readonly string[], enabled: boolean) {
+  // `combine` ổn định: React Query chỉ tính lại Map khi kết quả đổi — cảnh 3D dựng lại thùng theo tham chiếu Map
+  const combine = useCallback(
+    (results: { isSuccess: boolean; data?: LocationCarton[] }[]) =>
+      enabled && results.every((result) => result.isSuccess)
+        ? new Map(
+            locationCodes.map((code, i) => [code, (results[i]?.data ?? []).map((c) => c.lpn)]),
+          )
+        : null,
+    [locationCodes, enabled],
+  );
+  return useQueries({
+    queries: locationCodes.map((code) => ({
+      queryKey: binCartonKeys.detail(code),
+      queryFn: ({ signal }: { signal: AbortSignal }) => listLocationCartons(code, signal),
+      enabled,
+      ...QUERY_TIMES.detail,
+    })),
+    combine,
   });
 }

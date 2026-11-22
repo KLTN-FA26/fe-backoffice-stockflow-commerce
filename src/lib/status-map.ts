@@ -25,6 +25,10 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Labeled",
     // Thùng đã vào kho, chưa mở (BE StockPackageStatus.IN_STOCK, SCRUM-473)
     "In Stock",
+    // Nhiệm vụ cất hàng đã cất xong (BE PutawayStatus.DONE, docs 05 §5)
+    "DONE",
+    // Thùng của chuyến cất hàng đã đặt vào bin (BE PutawayTripItemStatus.PLACED)
+    "PLACED",
     // Dòng báo giá đã có mẫu khách duyệt (BE QuoteLine.sample.satisfied)
     "Sample Approved",
     // Stock adjustment (BE StockAdjustmentStatus, SCRUM-424)
@@ -132,6 +136,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     // Chuyến xe: đã đặt xe / đang xếp hàng lên xe
     "VEHICLE_BOOKED",
     "LOADING",
+    // Thùng còn trên xe cất hàng (BE PutawayTripItemStatus.ON_CART)
+    "ON_CART",
   ],
   warning: [
     // Sự kiện hãng vận chuyển (BE CarrierEventResult, docs 09 §4.5)
@@ -246,6 +252,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Not Due",
   ],
   muted: [
+    // Thùng trả về hàng chờ cất khi chuyến cất hàng đóng sớm (BE PutawayTripItemStatus.RETURNED)
+    "RETURNED",
     // Sự kiện hãng vận chuyển (BE CarrierEventResult, docs 09 §4.5)
     "DUPLICATE",
     "STALE",
@@ -571,6 +579,26 @@ const STATUS_LABEL_VI_BY_DOMAIN: Partial<Record<StatusDomain, Record<string, str
     PLANNED: "Đã lập phiếu",
     IN_PROGRESS: "Đang đếm",
     COMPLETED: "Đã nộp",
+  },
+  // Nhiệm vụ cất hàng (BE PutawayStatus, docs 05 §5): PENDING mang nghĩa "chờ cất", IN_PROGRESS chỉ còn trên
+  // nhiệm vụ lẻ cũ — nhãn chung "Đang chờ" / "Đang xử lý" không nói đúng việc của kho
+  putaway: {
+    PENDING: "Chờ cất",
+    IN_PROGRESS: "Đang cất (cũ)",
+    DONE: "Đã cất",
+    CANCELLED: "Đã huỷ",
+  },
+  // Chuyến cất hàng + thùng trên xe (BE PutawayTripStatus / PutawayTripItemStatus, docs 05 §5). Dùng domain `move`
+  // (di chuyển hàng trong kho): StatusDomain nằm trong mock-data (bị khoá) nên không thêm domain mới, và domain
+  // `putaway` đã gắn IN_PROGRESS = nhiệm vụ lẻ cũ.
+  move: {
+    LOADING: "Đang xếp lên xe",
+    IN_PROGRESS: "Đang đi cất",
+    COMPLETED: "Đã cất hết",
+    CLOSED: "Đã đóng",
+    ON_CART: "Trên xe",
+    PLACED: "Đã cất",
+    RETURNED: "Trả về chờ cất",
   },
   // Khách hàng (BE CustomerStatus). Domain `customer` còn dùng cho trạng thái tài khoản người dùng
   // (ACTIVE / LOCKED / DISABLED, `UserStatusBadge`) → không ghi đè ACTIVE; INACTIVE giữ tone mặc định

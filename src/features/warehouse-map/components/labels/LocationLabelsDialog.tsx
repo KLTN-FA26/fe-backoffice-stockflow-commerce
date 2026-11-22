@@ -104,13 +104,8 @@ function LocationLabelsForm({
       <div className="max-h-[calc(100vh-15rem)] space-y-3 overflow-y-auto pr-1">
         <LabelScopeFields form={form} layout={layout} disabled={print.isPending} />
         {pdf && (
+          // Nút In / Tải xuống đứng trên khung xem trước: màn thấp thì khung bị cuộn, nút vẫn thấy ngay
           <div className="space-y-2">
-            <iframe
-              ref={frame}
-              title={P.preview}
-              src={pdf.url}
-              className="border-border-default h-[360px] w-full rounded-[var(--r-sm)] border"
-            />
             <div className="flex justify-end gap-2">
               <Button asChild variant="outline" size="sm">
                 <a href={pdf.url} download={pdf.fileName}>
@@ -121,6 +116,12 @@ function LocationLabelsForm({
                 <Printer className="size-3.5" /> {P.printNow}
               </Button>
             </div>
+            <iframe
+              ref={frame}
+              title={P.preview}
+              src={pdf.url}
+              className="border-border-default h-[360px] w-full rounded-[var(--r-sm)] border"
+            />
           </div>
         )}
       </div>
