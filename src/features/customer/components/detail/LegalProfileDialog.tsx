@@ -73,9 +73,10 @@ function LegalProfileForm({
           fields.forEach(({ field, message }, index) =>
             form.setError(field, { type: "server", message }, { shouldFocus: index === 0 }),
           );
-          // A field the form has no input for: its message in the general line, never dropped.
-          if (fields.length === 0) setError(legalProfileErrorMessage(failure));
-          else if (others.length > 0) setError(others.join(" "));
+          // A field the form has no input for: its message in the general line, never dropped — also when no field of
+          // the form is named (then "check the fields" would point at nothing).
+          if (others.length > 0) setError(others.join(" "));
+          else if (fields.length === 0) setError(legalProfileErrorMessage(failure));
         },
       },
     );

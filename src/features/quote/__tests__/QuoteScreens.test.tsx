@@ -438,6 +438,34 @@ describe("Quote form", () => {
     expect(await screen.findAllByText(/nhập bậc giá đã thoả thuận/)).not.toHaveLength(0);
   });
 
+  it("một dòng thêm sau lần bấm lưu đầu không bị báo lỗi khi vừa hiện", async () => {
+    mockApi("SALES_STAFF", {
+      get: {
+        [`/customers/${CUSTOMER_ID}`]: () => CUSTOMER,
+        "/customer-skus": () => [
+          {
+            variantId: "v1",
+            productId: "p1",
+            sku: SKU,
+            name: "Ly 12oz xanh",
+            ownerCustomerId: CUSTOMER_ID,
+            status: "ACTIVE",
+          },
+        ],
+      },
+    });
+    renderScreen(<QuoteCreate />, "SALES_STAFF");
+    const user = userEvent.setup();
+    const select = await screen.findByLabelText(/SKU riêng của khách/); // the customer is chosen
+    await within(select).findByRole("option", { name: new RegExp(SKU) });
+    await user.click(screen.getByRole("button", { name: "Lưu nháp" })); // submitted once
+    const before = screen.queryAllByText(/nhập ít nhất một bậc giá|nhập bậc giá/).length;
+    await user.click(screen.getByRole("button", { name: /Thêm dòng/ }));
+    expect(await screen.findByText("Dòng 2")).toBeInTheDocument();
+    // The new line adds no tiers error of its own.
+    expect(screen.queryAllByText(/nhập ít nhất một bậc giá|nhập bậc giá/)).toHaveLength(before);
+  });
+
   it("dưới MOQ của giá riêng, để trống bậc giá → lỗi tại dòng, không gọi API", async () => {
     const api = mockApi("SALES_STAFF", {
       get: {

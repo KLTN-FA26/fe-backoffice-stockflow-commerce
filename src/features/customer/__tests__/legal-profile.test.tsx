@@ -134,6 +134,22 @@ describe("LegalProfileCard", () => {
     expect(within(dialog).getByText("Mã số thuế không hợp lệ.")).toBeInTheDocument();
   });
 
+  it("BE-8: only fields the form does not have → their messages, not 'check the fields'", async () => {
+    mockApi("SALES_STAFF", {
+      get: { [PATH]: () => profile },
+      put: {
+        [PATH]: () => {
+          throw apiError(400, "VALIDATION_FAILED", { taxCode: "Mã số thuế không hợp lệ." });
+        },
+      },
+    });
+    renderCard("?legalProfile=edit");
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Lưu" }));
+    expect(await within(dialog).findByText("Mã số thuế không hợp lệ.")).toBeInTheDocument();
+    expect(within(dialog).queryByText(/kiểm tra lại các ô/)).not.toBeInTheDocument();
+  });
+
   it("409 OPTIMISTIC_LOCK → đã tải lại: câu 'đã tải lại' và GET được gọi lại", async () => {
     const api = mockApi("SALES_STAFF", {
       get: { [PATH]: () => profile },
