@@ -123,6 +123,8 @@ export const DESIGN_REVIEW_LABELS = {
 /** Chữ trên màn vòng duyệt dự án (BO-4). */
 export const DESIGN_ROUND_LABELS = {
   listTitle: "Vòng duyệt dự án",
+  /** Kết quả "Duyệt tất cả" cho thiết kế BE không gửi tên (thay cho mảnh UUID). */
+  unnamedDesign: "Thiết kế chưa đặt tên",
   emptyTitle: "Không có vòng duyệt nào đang chờ",
   emptyDescription: "Dự án khách gửi duyệt cả bộ thiết kế sẽ hiện ở đây, chờ lâu nhất trước.",
   notFoundTitle: "Không tìm thấy vòng duyệt",
