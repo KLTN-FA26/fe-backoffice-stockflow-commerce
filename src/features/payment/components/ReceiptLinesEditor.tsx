@@ -15,7 +15,7 @@ import { SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/compone
 
 import { installmentTitle, receiptFormTotal } from "../selectors";
 
-import type { Control, FieldErrors, UseFormRegister, UseFormSetValue } from "react-hook-form";
+import type { Control, FieldErrors, UseFormSetValue } from "react-hook-form";
 import type { Installment, ReceiptFormValues } from "../types";
 
 const L = PAYMENT_LABELS.recordDialog;
@@ -26,7 +26,6 @@ const L = PAYMENT_LABELS.recordDialog;
  */
 export function ReceiptLinesEditor({
   control,
-  register,
   setValue,
   errors,
   choices,
@@ -34,7 +33,6 @@ export function ReceiptLinesEditor({
   currency,
 }: {
   control: Control<ReceiptFormValues>;
-  register: UseFormRegister<ReceiptFormValues>;
   setValue: UseFormSetValue<ReceiptFormValues>;
   errors: FieldErrors<ReceiptFormValues>;
   choices: readonly Installment[];

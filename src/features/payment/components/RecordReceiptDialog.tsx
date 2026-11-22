@@ -112,7 +112,6 @@ function RecordReceiptForm({
       </div>
       <ReceiptLinesEditor
         control={form.control}
-        register={form.register}
         setValue={form.setValue}
         errors={errors}
         choices={choices}
