@@ -208,3 +208,11 @@ export function installmentDue(
   const days = Math.round((Date.parse(today) - Date.parse(dueOn.slice(0, 10))) / 86_400_000);
   return { dueOn, daysOverdue: Math.max(0, days) };
 }
+
+/**
+ * BO-UX-22: đơn Nháp / Chờ ký hợp đồng chưa có việc kho, giao hàng, chứng từ giao — thẻ của các việc đó chưa có nghĩa.
+ * Trạng thái lạ (UNKNOWN) không bị ẩn gì: không đoán.
+ */
+export function isPastContract(status: OrderReadStatus): boolean {
+  return status !== "Draft" && status !== "Pending Contract";
+}

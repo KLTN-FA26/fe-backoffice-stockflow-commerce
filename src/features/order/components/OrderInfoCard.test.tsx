@@ -91,7 +91,7 @@ describe("OrderInfoCard — Kho xuất theo quyền warehouse-warehouses:READ", 
     expect(params.get("status")).toBeNull();
   });
 
-  it("đơn chưa release → 'Chưa release', không tra kho", async () => {
+  it("đơn chưa chọn kho → 'Chưa chọn kho xuất', không tra kho", async () => {
     const get = mockOrderApiGet(
       [...ORDER_PERMISSION_SETS.coordinator, WAREHOUSE_PERMISSIONS.read],
       {
@@ -102,7 +102,7 @@ describe("OrderInfoCard — Kho xuất theo quyền warehouse-warehouses:READ", 
     await act(async () => {
       renderOrderScreen(<OrderDetail params={Promise.resolve({ id: apiOrder.orderId })} />);
     });
-    expect(await screen.findByText("Chưa release")).toBeInTheDocument();
+    expect(await screen.findByText("Chưa chọn kho xuất")).toBeInTheDocument();
     expect(warehouseCalls(get)).toHaveLength(0);
   });
 });

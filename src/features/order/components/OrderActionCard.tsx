@@ -16,6 +16,7 @@ import { CreditApproveAction } from "./credit-hold/CreditApproveAction";
 import { CreditRejectAction } from "./credit-hold/CreditRejectAction";
 import { OrderCancelAction } from "./OrderCancelAction";
 import { OrderHoldNotice } from "./OrderHoldNotice";
+import { OrderNextStep } from "./OrderNextStep";
 import { OrderReleaseAction } from "./OrderReleaseAction";
 import { OrderRemainderClosureAction } from "./OrderRemainderClosureAction";
 import {
@@ -135,6 +136,7 @@ export function OrderActionCard({ order, can, estimateSlot }: OrderActionCardPro
       <div className="mb-4 flex justify-center">
         <StatusDot domain="order" status={order.status} size="md" withIcon />
       </div>
+      <OrderNextStep status={order.status} />
       {onHold && <OrderHoldNotice order={order} />}
       {actions.length > 0 ? (
         <div className="space-y-2">

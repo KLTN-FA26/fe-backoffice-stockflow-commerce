@@ -462,3 +462,14 @@ export const ORDER_FINANCE_LABELS = {
   },
   feeOfSku: (label: string, sku: string) => `${label} · ${sku}`,
 } as const;
+
+/**
+ * BO-UX-22: "Bước tiếp theo" trong thẻ trạng thái của đơn, cho các trạng thái mà việc tiếp theo nằm ở khối khác của
+ * trang (hợp đồng, các đợt). `anchor` = neo cuộn tới trên trang chi tiết.
+ */
+export const ORDER_NEXT_STEP_LABELS = {
+  prefix: "Bước tiếp theo:",
+  Draft: { text: "Lập hợp đồng", anchor: "#contract" },
+  "Pending Contract": { text: "Ghi nhận hợp đồng khách đã ký", anchor: "#contract" },
+  "Pending Payment": { text: "Chờ khách trả đợt khi ký", anchor: "#contract" },
+} as const;

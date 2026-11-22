@@ -1,4 +1,4 @@
-import { Box, Package, Palette } from "lucide-react";
+import { Package, Palette } from "lucide-react";
 
 import { formatMoney } from "@/lib/format";
 
@@ -34,14 +34,20 @@ function LineKindBadge({ line }: { line: OrderLine }) {
 }
 
 /**
- * Phiếu giữ hàng của dòng — BE chỉ trả mã nội bộ (`reservationIds`, UUID), chưa trả mã thùng LPN; người dùng không cần
- * đọc UUID nên chỉ hiện số phiếu giữ (thùng cụ thể xem ở màn lấy hàng của kho).
+ * Giữ hàng của dòng — BE chỉ trả mã nội bộ (`reservationIds`), một phiếu không phải một thùng, nên không đếm phiếu ra
+ * thành "x/y thùng" (BO-UX-23: số phiếu giữ vô nghĩa với Sale). Đủ / thiếu theo đợt giao xem ở thẻ kho xuất.
  */
 function Reservations({ ids }: { ids: readonly string[] }) {
   if (ids.length === 0) {
-    return <span className="text-ink-tertiary">Chưa giữ hàng</span>;
+    return <span className="text-ink-secondary">Chưa giữ hàng</span>;
   }
-  return <span className="text-ink-secondary">Đã giữ hàng: {ids.length} phiếu giữ</span>;
+  return <span className="text-ink-secondary">Đã giữ hàng ở kho xuất</span>;
+}
+
+/** "x thùng (y cái)" khi dòng đặt theo thùng, không thì "y cái" — không để "×50" thiếu đơn vị. */
+function quantityText(line: OrderLine): string {
+  const units = `${line.quantity.toLocaleString("vi-VN")} cái`;
+  return line.cartons != null ? `${line.cartons.toLocaleString("vi-VN")} thùng (${units})` : units;
 }
 
 /**
@@ -99,10 +105,6 @@ export function OrderLines({
             className="border-border-default rounded-[var(--r-sm)] border p-3"
           >
             <div className="flex gap-3">
-              {/* BE OrderResponse.Line không có ảnh sản phẩm — icon giữ chỗ, chỉ trang trí */}
-              <div className="bg-bg-subtle text-ink-tertiary flex size-10 shrink-0 items-center justify-center rounded-[var(--r-sm)]">
-                <Box className="size-4" aria-hidden="true" />
-              </div>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-ink-primary truncate font-[family-name:var(--font-mono)] text-[0.875rem] font-semibold">
@@ -110,10 +112,13 @@ export function OrderLines({
                   </span>
                   <LineKindBadge line={line} />
                 </div>
+                {line.designName && (
+                  <p className="text-ink-secondary mt-0.5 truncate text-xs">{line.designName}</p>
+                )}
                 <div className="text-ink-secondary mt-1 flex items-center gap-3 text-xs">
-                  <span className="tabular-nums">×{line.quantity}</span>
+                  <span className="text-ink-primary tabular-nums">{quantityText(line)}</span>
                   <span className="font-mono tabular-nums">
-                    {formatMoney(line.unitPrice, currency)}
+                    {formatMoney(line.unitPrice, currency)}/cái
                   </span>
                   <span className="text-ink-primary ml-auto font-mono font-medium tabular-nums">
                     {formatMoney(line.lineTotal, currency)}

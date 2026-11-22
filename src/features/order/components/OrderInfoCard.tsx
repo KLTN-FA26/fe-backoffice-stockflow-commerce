@@ -1,6 +1,7 @@
 import { Fragment } from "react";
+import Link from "next/link";
 
-import { ORDER_DELIVERY_FAILURE_LABELS, WAREHOUSE_PERMISSIONS } from "@/constants";
+import { ADMIN_ROUTES, ORDER_DELIVERY_FAILURE_LABELS, WAREHOUSE_PERMISSIONS } from "@/constants";
 import { usePermissionChecker } from "@/lib/auth";
 import { formatDate, formatDateTime } from "@/lib/format/date";
 import { useWarehouseDirectory } from "@/lib/references/warehouse-options";
@@ -64,21 +65,34 @@ export function OrderInfoCard({ order, can }: OrderInfoCardProps) {
           {order.orderNumber}
         </dd>
         <dt className="text-ink-secondary">Khách hàng</dt>
-        <dd
-          className="text-ink-primary truncate"
-          title={[order.customerName, order.customerCode, order.customerId]
-            .filter(Boolean)
-            .join(" · ")}
-        >
-          {order.customerId
-            ? order.customerName || order.customerCode || `KH ${order.customerId.slice(0, 8)}`
-            : EMPTY}
+        <dd className="text-ink-primary min-w-0">
+          {/* L-4: tên và mã khách trên hai dòng — không còn "Khách hàng demo0399990001". */}
+          <span className="block truncate">
+            {order.customerId ? order.customerName || order.customerCode || "Khách hàng" : EMPTY}
+          </span>
           {order.customerName && order.customerCode && (
-            <span className="text-ink-tertiary ml-1.5 font-[family-name:var(--font-mono)] text-xs">
+            <span className="text-ink-secondary block font-[family-name:var(--font-mono)] text-xs">
               {order.customerCode}
             </span>
           )}
         </dd>
+        {order.sourceQuoteId && (
+          <>
+            <dt className="text-ink-secondary">Báo giá</dt>
+            <dd className="text-ink-primary">
+              {/* BO-UX-25: quay về báo giá nguồn để so giá đã chốt (R5-7). */}
+              <Link
+                href={ADMIN_ROUTES.quotes.detail(order.sourceQuoteId)}
+                className="text-accent hover:underline"
+              >
+                Từ báo giá{" "}
+                <span className="font-[family-name:var(--font-mono)]">
+                  {order.sourceQuoteNumber ?? ""}
+                </span>
+              </Link>
+            </dd>
+          </>
+        )}
         <dt className="text-ink-secondary">Ngày đặt</dt>
         <dd className="text-ink-primary tabular-nums">{formatDate(order.placedAt)}</dd>
         <dt className="text-ink-secondary">Người nhận</dt>
@@ -100,7 +114,11 @@ export function OrderInfoCard({ order, can }: OrderInfoCardProps) {
         </dd>
         <dt className="text-ink-secondary">Kho xuất</dt>
         <dd className="text-ink-primary">
-          {order.warehouseId ? <WarehouseName warehouseId={order.warehouseId} /> : "Chưa release"}
+          {order.warehouseId ? (
+            <WarehouseName warehouseId={order.warehouseId} />
+          ) : (
+            "Chưa chọn kho xuất"
+          )}
         </dd>
         {order.releasedAt && (
           <>

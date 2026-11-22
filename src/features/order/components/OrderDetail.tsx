@@ -19,7 +19,7 @@ import { BackLink } from "@/components/shared/BackLink";
 import { useCompletionHold } from "../completion-hold-queries";
 import { useOrder, useOrderProductionOrders } from "../queries";
 import { useSalesContract } from "../sales-contract-queries";
-import { customLineCount, groupProductionOrdersByLine } from "../selectors";
+import { customLineCount, groupProductionOrdersByLine, isPastContract } from "../selectors";
 
 import { CancellationRequestCard } from "./cancellation/CancellationRequestCard";
 import { CompletionHoldCard } from "./completion-hold/CompletionHoldCard";
@@ -133,9 +133,12 @@ function OrderDetailContent({
       : production.isPending
         ? "loading"
         : "ready";
-  const subtitle = [order.recipientName, formatDateTime(order.placedAt)]
+  // BO-UX-22: công ty khách ở phần đầu trang (người nhận hàng nằm ở thẻ Thông tin).
+  const subtitle = [order.customerName ?? order.recipientName, formatDateTime(order.placedAt)]
     .filter(Boolean)
     .join(" · ");
+  // Trước khi có hợp đồng ký, đơn chưa có việc kho / giao: không hiện các thẻ đó (giữ hoàn tất, giao một phần, vận đơn).
+  const fulfilmentStage = isPastContract(order.status);
 
   return (
     <>
@@ -206,16 +209,21 @@ function OrderDetailContent({
         </div>
 
         <div className="space-y-5">
+          {/* BO-UX-22: trạng thái + việc tiếp theo, rồi khách và tiền, rồi kho / giao hàng / chứng từ. */}
           <OrderActionCard order={order} can={can} estimateSlot={estimateSlot} />
-          <OrderShippingWarehouseCard order={order} can={can} />
           <CancellationRequestCard order={order} can={can} />
-          <CompletionHoldCard order={order} can={can} />
-          <OrderEstimateCard order={order} estimateSlot={estimateSlot} />
-          <OrderPartialShipmentCard order={order} can={can} />
-          <OrderShipments order={order} />
-          <OrderDeliveryDocuments orderId={order.orderId} />
           <OrderInfoCard order={order} can={can} />
           <OrderFinanceCard order={order} can={can} />
+          <OrderShippingWarehouseCard order={order} can={can} />
+          {fulfilmentStage && (
+            <>
+              <CompletionHoldCard order={order} can={can} />
+              <OrderEstimateCard order={order} estimateSlot={estimateSlot} />
+              <OrderPartialShipmentCard order={order} can={can} />
+              <OrderShipments order={order} />
+              <OrderDeliveryDocuments orderId={order.orderId} />
+            </>
+          )}
         </div>
       </div>
     </>
