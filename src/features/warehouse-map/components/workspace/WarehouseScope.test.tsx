@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { renderWithProviders } from "@/test/render";
 
+import { useWorkspaceWarehouse } from "@/lib/workspace";
+
 import { prefixFromPath } from "@/features/warehouse-map/workspace";
 
 import { WarehouseScope } from "./WarehouseScope";
@@ -31,14 +33,22 @@ vi.mock("@/features/warehouse-map/queries", () => ({
   useWarehouses: () => ({ data: { items: LIST }, isError: false, refetch: vi.fn() }),
 }));
 
-const page = (w: Warehouse) => <p>Bản đồ của {w.name}</p>;
+function Page() {
+  const w = useWorkspaceWarehouse();
+  return (
+    <p>
+      Bản đồ của {w.name} ({w.id} · {w.prefix})
+    </p>
+  );
+}
+const page = <Page />;
 
 beforeEach(() => canRead.mockReturnValue(true));
 
 describe("trang của một kho theo prefix trên URL", () => {
-  it("prefix → đúng kho (không phân biệt hoa thường)", () => {
+  it("prefix chữ thường → cấp đúng kho, prefix chuẩn của danh mục, qua context", () => {
     renderWithProviders(<WarehouseScope prefix="bd">{page}</WarehouseScope>);
-    expect(screen.getByText("Bản đồ của Kho Bình Dương")).toBeInTheDocument();
+    expect(screen.getByText("Bản đồ của Kho Bình Dương (wh-bd · BD)")).toBeInTheDocument();
   });
 
   it("prefix không có trong danh mục → báo và dẫn về Danh mục kho để chọn kho", () => {

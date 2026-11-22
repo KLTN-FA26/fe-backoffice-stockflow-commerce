@@ -101,6 +101,14 @@ export const WAREHOUSE_WORKSPACE_LABELS = {
   loadFailed: "Không tải được danh sách kho.",
   retry: "Thử lại",
   pages: { map: "Bản đồ kho", slotting: "Gợi ý vị trí" },
+  // Tab làm việc theo kho (spec 2026-11-22): màn vận hành chỉ mở ở kho được gán; bản đồ thì không giới hạn (06)
+  notAssignedTitle: "Bạn không được gán kho này",
+  notAssignedDescription:
+    "Màn vận hành chỉ mở ở kho bạn được gán. Bạn vẫn xem được bản đồ của kho này.",
+  openMap: "Mở bản đồ kho",
+  noAssignmentTitle: "Bạn chưa được gán kho nào — liên hệ quản trị viên",
+  notAssignedBadge: "Không được gán",
+  groups: { operations: "Vận hành", map: "Bản đồ" },
 } as const;
 
 /** Một dòng trong bảng phím tắt — `keys` là các phím bấm cùng lúc (hoặc lựa chọn, nối bằng "/"). */

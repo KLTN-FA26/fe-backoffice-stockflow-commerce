@@ -8,6 +8,7 @@ import { useCan, usePermissionChecker } from "@/lib/auth";
 
 import { placeStatusTargets, warehouseMapActions } from "@/features/warehouse-map/lifecycle";
 import { useWarehouseLayout } from "@/features/warehouse-map/queries";
+import { useWarehouseByPrefix } from "@/features/warehouse-map/workspace";
 import {
   findPlace,
   inactiveCount,
@@ -23,7 +24,6 @@ import { LocationLabelsDialog } from "../labels/LocationLabelsDialog";
 import { MapFrame } from "../shared/MapFrame";
 import { useHotkeys } from "../shared/use-hotkeys";
 import { MAP_PAGE_CLASS } from "../shared/use-map-fullscreen";
-import { WarehouseScope } from "../workspace/WarehouseScope";
 import { MapLayoutError } from "./MapLayoutError";
 import { MapToolbar } from "./MapToolbar";
 import { MapCanvas2D } from "./MapCanvas2D";
@@ -176,6 +176,15 @@ function WarehouseMapContent({ warehouse }: { warehouse: Warehouse }) {
 }
 
 /**
+ * Kho của prefix trên URL — layout `[prefix]` đã tra và báo prefix lạ / thiếu quyền; ở đây chỉ lấy bản ghi đầy đủ (khung
+ * bản đồ). Key theo kho để đổi kho là dựng lại trang (bỏ bản nháp cũ).
+ */
+function MapOfPrefix({ prefix }: { prefix: string }) {
+  const { warehouse } = useWarehouseByPrefix(prefix);
+  return warehouse ? <WarehouseMapContent key={warehouse.id} warehouse={warehouse} /> : null;
+}
+
+/**
  * Bản đồ kho 2D / 3D (docs 06 §1, §4) của kho có prefix trên URL, xem mặt bằng hoặc 3D theo cao độ tầng, chọn kệ / khu
  * vực để xem tầng × bin và đổi trạng thái; Quản lý kho vào chế độ sửa để vẽ / dời / xoá rồi lưu một lần. Trang
  * cần `warehouse-locations:VIEW_PAGE`, dữ liệu cần `:READ` (UI-only — Backend phải re-check).
@@ -184,10 +193,7 @@ export function WarehouseMapView({ prefix }: { prefix: string }) {
   return (
     <PermissionBoundary permissions={[WAREHOUSE_LOCATION_PERMISSIONS.viewPage]} variant="detail">
       <div className="surface-soft surface-compact">
-        {/* Kho lấy từ prefix trên URL — key theo kho để đổi kho là dựng lại trang (bỏ bản nháp cũ) */}
-        <WarehouseScope prefix={prefix}>
-          {(warehouse) => <WarehouseMapContent key={warehouse.id} warehouse={warehouse} />}
-        </WarehouseScope>
+        <MapOfPrefix prefix={prefix} />
       </div>
     </PermissionBoundary>
   );

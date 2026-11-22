@@ -3,6 +3,7 @@
 import Link from "next/link";
 
 import { ADMIN_ROUTES, UI_LABELS } from "@/constants";
+import { WorkspaceWarehouseProvider } from "@/lib/workspace";
 
 import { useWarehouseByPrefix } from "@/features/warehouse-map/workspace";
 
@@ -11,7 +12,6 @@ import { Button } from "@/components/ui/button";
 
 import type { ReactNode } from "react";
 import type { useWorkspaceWarehouses } from "@/features/warehouse-map/workspace";
-import type { Warehouse } from "@/features/warehouse-map/types";
 
 const W = UI_LABELS.warehouseMap.workspace;
 
@@ -54,17 +54,11 @@ export function WarehouseListStatus({
 }
 
 /**
- * Phạm vi một kho của tab "Kho & bản đồ": đổi prefix trên URL ra kho rồi render trang với kho đó;
- * prefix không có trong danh mục (gõ sai, kho bị ẩn quyền) → báo và dẫn về Danh mục kho để chọn kho.
+ * Phạm vi một kho của tab "Kho & bản đồ" (layout `[prefix]`): đổi prefix trên URL ra kho rồi cấp kho cho trang con qua
+ * `lib/workspace`; prefix không có trong danh mục (gõ sai, kho bị ẩn quyền) → báo và dẫn về Danh mục kho để chọn kho.
+ * KHÔNG kiểm kho được gán — bản đồ không giới hạn theo kho được gán (06); màn vận hành do `AssignedOnly` chặn.
  */
-export function WarehouseScope({
-  prefix,
-  children,
-}: {
-  prefix: string;
-  /** Hàm nhận kho, hoặc nội dung tĩnh (trang server chỉ truyền được ReactNode). */
-  children: ReactNode | ((warehouse: Warehouse) => ReactNode);
-}) {
+export function WarehouseScope({ prefix, children }: { prefix: string; children: ReactNode }) {
   const workspace = useWarehouseByPrefix(prefix);
   const status = <WarehouseListStatus workspace={workspace} />;
   // Kiểm quyền trước: danh sách kho có thể còn trong cache dù quyền đọc đã bị gỡ
@@ -81,5 +75,10 @@ export function WarehouseScope({
         }
       />
     );
-  return typeof children === "function" ? children(workspace.warehouse) : children;
+  const { id, name } = workspace.warehouse;
+  return (
+    <WorkspaceWarehouseProvider value={{ id, prefix: workspace.warehouse.prefix, name }}>
+      {children}
+    </WorkspaceWarehouseProvider>
+  );
 }
