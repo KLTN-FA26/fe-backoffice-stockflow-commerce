@@ -53,7 +53,8 @@ export function cycleCountFixture(overrides: Partial<CycleCount> = {}) {
   return cycleCountDto.parse({
     id: crypto.randomUUID(),
     countNumber: "CC-20261112-0001",
-    warehouseId: crypto.randomUUID(),
+    // Phiếu mẫu thuộc kho của tab theo kho trong test
+    warehouseId: INVENTORY_TAB_WAREHOUSE.id,
     triggerType: "SHORT_PICK",
     status: "PLANNED",
     blind: true,
@@ -68,7 +69,8 @@ export function cycleCountSummaryFixture(overrides: Partial<CycleCountSummary> =
   return cycleCountSummaryDto.parse({
     id: crypto.randomUUID(),
     countNumber: "CC-20261112-0001",
-    warehouseId: crypto.randomUUID(),
+    // Phiếu mẫu thuộc kho của tab theo kho trong test
+    warehouseId: INVENTORY_TAB_WAREHOUSE.id,
     triggerType: "SHORT_PICK",
     status: "PLANNED",
     blind: true,

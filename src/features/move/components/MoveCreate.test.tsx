@@ -255,6 +255,8 @@ describe("move form — stock aids (optional, separately permissioned)", () => {
       movePermissions([stockUpdate, INVENTORY_PERMISSIONS.stockRead]),
       http.get(stockUrl, ({ request }) => {
         expect(new URL(request.url).searchParams.get("sku")).toBe("CUP-PP-500");
+        // Chỉ tồn AVAILABLE — như `/inventory/stock-items` cũ (findAvailableBySku); tồn khác không chuyển được
+        expect(new URL(request.url).searchParams.get("status")).toBe("AVAILABLE");
         return stockPage([row]);
       }),
     );

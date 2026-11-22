@@ -1,4 +1,4 @@
-import { MOVE_API, MOVE_LIMITS, MOVE_MESSAGES } from "@/constants/move";
+import { MOVE_API, MOVE_LIMITS, MOVE_MESSAGES, MOVE_SOURCE_STOCK_STATUS } from "@/constants/move";
 
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
@@ -50,7 +50,7 @@ export async function listStockRows(
   signal?: AbortSignal,
 ): Promise<StockRow[]> {
   const { data } = await api.get<unknown>(MOVE_API.stockItems(warehouseId), {
-    params: { sku, page: 0, size: MOVE_LIMITS.stockRowsSize },
+    params: { sku, status: MOVE_SOURCE_STOCK_STATUS, page: 0, size: MOVE_LIMITS.stockRowsSize },
     signal,
   });
   return parseContract(warehouseStockRowPageDto, data).items;

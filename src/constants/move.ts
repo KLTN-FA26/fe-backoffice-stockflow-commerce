@@ -1,5 +1,7 @@
 import { INVENTORY_API, INVENTORY_LIMITS, INVENTORY_QUERY_KEYS } from "./inventory";
 
+import type { STOCK_STATUSES } from "./inventory";
+
 // Wire contract: backend develop — StockOperationsController `POST /inventory/movements`
 // (MoveStockRequest / StockMoveResponse), InventoryController `GET /inventory/stock-items?sku=`,
 // LayoutController `GET /warehouses/{id}/layout` và `GET /locations/{code}`.
@@ -9,6 +11,10 @@ export const MOVE_API = {
   stockItems: INVENTORY_API.warehouseStockItems,
   layout: (warehouseId: string) => `/warehouses/${encodeURIComponent(warehouseId)}/layout`,
 } as const;
+
+// Nguồn chuyển chỉ lấy tồn AVAILABLE — như `/inventory/stock-items` cũ (BE `findAvailableBySku`): tồn đang nhập,
+// cách ly, hư, hết hạn không chuyển vị trí được (docs 11 §6).
+export const MOVE_SOURCE_STOCK_STATUS: (typeof STOCK_STATUSES)[number] = "AVAILABLE";
 
 export const MOVE_QUERY_KEYS = {
   layout: "move-warehouse-layout",
