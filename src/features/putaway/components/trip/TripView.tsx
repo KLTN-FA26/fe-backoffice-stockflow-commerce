@@ -24,7 +24,11 @@ import { TripRouteSection } from "./TripRouteSection";
 import { TripSideNote } from "./TripSideNote";
 import { tripCallbacks } from "./useTripAction";
 
+import type { ReactNode } from "react";
 import type { PutawayTrip } from "@/features/putaway/types";
+
+/** Bản đồ lộ trình do trang ghép vào (feature bản đồ kho) — vắng thì chỉ có danh sách điểm dừng. */
+export type TripRouteMapSlot = (trip: PutawayTrip) => ReactNode;
 
 const L = PUTAWAY_TRIP_LABELS;
 
@@ -32,7 +36,15 @@ const L = PUTAWAY_TRIP_LABELS;
  * Màn một chuyến cất hàng (docs 05 §4.5, trang chi tiết style Vercel). Trái: thông tin chuyến + thùng trên xe (LOADING
  * / đã kết thúc) hoặc lộ trình (IN_PROGRESS). Phải (góc trên): thẻ thao tác theo trạng thái — gate qua `tripActions`.
  */
-export function TripView({ trip, onStale }: { trip: PutawayTrip; onStale: () => void }) {
+export function TripView({
+  trip,
+  onStale,
+  routeMap,
+}: {
+  trip: PutawayTrip;
+  onStale: () => void;
+  routeMap?: TripRouteMapSlot;
+}) {
   const can = usePermissionChecker();
   const me = useAuthStore((state) => state.user?.userId);
   const actions = tripActions(trip, me, can);
@@ -85,6 +97,7 @@ export function TripView({ trip, onStale }: { trip: PutawayTrip; onStale: () => 
           <TripRouteSection
             trip={trip}
             pendingLpn={reassigning}
+            map={routeMap?.(trip)}
             onReassign={
               actions.place
                 ? (lpn) => {

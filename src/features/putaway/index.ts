@@ -20,3 +20,4 @@ export { PutawayList } from "./components/PutawayList";
 export { PutawayTaskDetail } from "./components/detail/PutawayTaskDetail";
 export { SlottingView } from "./components/slotting/SlottingView";
 export { MyTripPage, TripPage } from "./components/trip/TripPages";
+export type { TripRouteMapSlot } from "./components/trip/TripView";

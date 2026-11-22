@@ -96,7 +96,7 @@ registerHoldSource((locationCode) => {
 });
 
 /** Điểm đứng trước bin (mặt lấy hàng phía nam của kệ, docs 06 §4.4 bước 6) hoặc tâm khu. */
-function pointOf(code: string): { x: number; y: number } | null {
+export function pointOf(code: string): { x: number; y: number } | null {
   const store = getWarehouseStore();
   for (const shelf of store.shelves) {
     for (const level of shelf.levels) {
