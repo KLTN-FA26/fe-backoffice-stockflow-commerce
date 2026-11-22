@@ -64,13 +64,13 @@ async function confirmApprove(user: ReturnType<typeof userEvent.setup>) {
 
 describe("Hàng đợi duyệt thiết kế", () => {
   it("hàng đợi gọi GET /designs/review-queue?page=0, hiện tên, link chi tiết", async () => {
-    const api = mockApi("SALES_MANAGER", {
+    const api = mockApi("PRODUCTION_COORDINATOR", {
       get: {
         "/designs/review-queue": () => bePage([PENDING_DESIGN]),
         [`/customers/${CUSTOMER_ID}`]: () => CUSTOMER,
       },
     });
-    renderScreen(<ReviewQueueList />, "SALES_MANAGER");
+    renderScreen(<ReviewQueueList />, "PRODUCTION_COORDINATOR");
     expect(await screen.findByRole("link", { name: "Ly giấy Tết 2027" })).toHaveAttribute(
       "href",
       `/admin/designs/review-queue/${DESIGN_ID}`,
@@ -83,32 +83,32 @@ describe("Hàng đợi duyệt thiết kế", () => {
     expect(screen.getByRole("tab", { name: /Theo dự án/ })).toBeInTheDocument();
   });
 
-  it("cột khách hiện customerName của BE, không gọi tra khách; thiếu thì dùng tên tra theo id", async () => {
-    const api = mockApi("SALES_MANAGER", {
+  it("cột khách hiện customerName của BE; thiếu thì mã rút gọn — Điều phối không có quyền xem khách nên không tra", async () => {
+    const api = mockApi("PRODUCTION_COORDINATOR", {
       get: {
         "/designs/review-queue": () =>
           bePage([
             { ...PENDING_DESIGN, customerName: "Tên từ BE" },
             { ...PENDING_DESIGN, id: "0d-second", name: "Ly thứ hai" },
           ]),
-        [`/customers/${CUSTOMER_ID}`]: () => ({ ...CUSTOMER, status: "ACTIVE" }),
       },
     });
-    renderScreen(<ReviewQueueList />, "SALES_MANAGER");
+    renderScreen(<ReviewQueueList />, "PRODUCTION_COORDINATOR");
     expect(await screen.findByText("Tên từ BE")).toBeInTheDocument();
-    expect(await screen.findByText("Cửa hàng Trà Sen")).toBeInTheDocument();
-    expect(api.get.mock.calls.filter((c) => c[0] === `/customers/${CUSTOMER_ID}`)).toHaveLength(1);
+    expect(screen.getByText(`KH ${CUSTOMER_ID.slice(0, 8)}`)).toBeInTheDocument();
+    // V20261213000200 gives the coordinator no customer-customers:READ: no lookup by id.
+    expect(api.get.mock.calls.filter((c) => c[0] === `/customers/${CUSTOMER_ID}`)).toHaveLength(0);
   });
 
   it("hàng đợi trống: 'Không có thiết kế nào chờ duyệt'", async () => {
-    mockApi("SALES_MANAGER", { get: { "/designs/review-queue": () => bePage([]) } });
-    renderScreen(<ReviewQueueList />, "SALES_MANAGER");
+    mockApi("PRODUCTION_COORDINATOR", { get: { "/designs/review-queue": () => bePage([]) } });
+    renderScreen(<ReviewQueueList />, "PRODUCTION_COORDINATOR");
     expect(await screen.findByText("Không có thiết kế nào chờ duyệt")).toBeInTheDocument();
   });
 
   it("tab 'Theo dự án' dẫn tới vòng duyệt", async () => {
-    mockApi("SALES_MANAGER", { get: { "/designs/review-queue": () => bePage([]) } });
-    renderScreen(<ReviewQueueList />, "SALES_MANAGER");
+    mockApi("PRODUCTION_COORDINATOR", { get: { "/designs/review-queue": () => bePage([]) } });
+    renderScreen(<ReviewQueueList />, "PRODUCTION_COORDINATOR");
     await userEvent.setup().click(await screen.findByRole("tab", { name: /Theo dự án/ }));
     expect(push).toHaveBeenCalledWith("/admin/design-review-rounds");
   });
@@ -124,7 +124,7 @@ describe("Hàng đợi duyệt thiết kế", () => {
 describe("Màn quyết định", () => {
   it("duyệt gửi {version, approved:true} rồi về hàng đợi, không gọi lại GET /designs/{id}", async () => {
     const success = vi.spyOn(toast, "success").mockImplementation(() => undefined);
-    const api = openDetail("SALES_MANAGER", {
+    const api = openDetail("PRODUCTION_COORDINATOR", {
       [reviewUrl]: () => ({
         ...PENDING_DESIGN,
         status: "APPROVED",
@@ -144,7 +144,7 @@ describe("Màn quyết định", () => {
   it("đến từ vòng duyệt (?round=) → về vòng duyệt sau khi trả lại", async () => {
     vi.spyOn(toast, "success").mockImplementation(() => undefined);
     const api = openDetail(
-      "SALES_MANAGER",
+      "PRODUCTION_COORDINATOR",
       { [reviewUrl]: () => ({ ...PENDING_DESIGN, status: "DRAFT", version: 8 }) },
       undefined,
       "?round=R-1",
@@ -165,7 +165,7 @@ describe("Màn quyết định", () => {
   });
 
   it("trả lại thiếu lý do không gọi API", async () => {
-    const api = openDetail("SALES_MANAGER", { [reviewUrl]: () => PENDING_DESIGN });
+    const api = openDetail("PRODUCTION_COORDINATOR", { [reviewUrl]: () => PENDING_DESIGN });
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: "Trả lại" }));
     const dialog = await screen.findByRole("dialog");
@@ -177,7 +177,7 @@ describe("Màn quyết định", () => {
 
   it("409 CONFLICT → tải lại chi tiết", async () => {
     const callsTo = (url: string) => api.get.mock.calls.filter((call) => call[0] === url).length;
-    const api = openDetail("SALES_MANAGER", {
+    const api = openDetail("PRODUCTION_COORDINATOR", {
       [reviewUrl]: () => {
         throw apiError(
           409,
@@ -201,7 +201,7 @@ describe("Màn quyết định", () => {
 
   it("12 BR-11: tải lại nền ra bản 8 khi hộp Duyệt đang mở → vẫn gửi version 7 đã xem", async () => {
     let current: Record<string, unknown> = PENDING_DESIGN;
-    const api = mockApi("SALES_MANAGER", {
+    const api = mockApi("PRODUCTION_COORDINATOR", {
       get: { ...detailRoutes(), [detailUrl]: () => current },
       post: {
         [reviewUrl]: () => {
@@ -214,7 +214,10 @@ describe("Màn quyết định", () => {
         },
       },
     });
-    const { client } = renderScreen(<DesignReviewDetail id={DESIGN_ID} />, "SALES_MANAGER");
+    const { client } = renderScreen(
+      <DesignReviewDetail id={DESIGN_ID} />,
+      "PRODUCTION_COORDINATOR",
+    );
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: "Duyệt" }));
     const dialog = await screen.findByRole("dialog");
@@ -230,7 +233,7 @@ describe("Màn quyết định", () => {
   it("đã rời trang khi lệnh duyệt xong → không bị kéo về hàng đợi", async () => {
     const success = vi.spyOn(toast, "success").mockImplementation(() => undefined);
     let finish: (value: unknown) => void = () => undefined;
-    const api = openDetail("SALES_MANAGER", {
+    const api = openDetail("PRODUCTION_COORDINATOR", {
       [reviewUrl]: () => new Promise((resolve) => (finish = resolve)),
     });
     const user = userEvent.setup();
@@ -243,7 +246,7 @@ describe("Màn quyết định", () => {
   });
 
   it("409 DESIGN_FILES_OUTDATED → hiện message của BE và mở hộp trả lại", async () => {
-    openDetail("SALES_MANAGER", {
+    openDetail("PRODUCTION_COORDINATOR", {
       [reviewUrl]: () => {
         throw apiError(
           409,
@@ -264,7 +267,7 @@ describe("Màn quyết định", () => {
 
   it("hết giờ (không rõ kết quả) → không gửi lại, tải lại hàng đợi và về hàng đợi", async () => {
     const warning = vi.spyOn(toast, "warning").mockImplementation(() => undefined);
-    const api = openDetail("SALES_MANAGER", {
+    const api = openDetail("PRODUCTION_COORDINATOR", {
       [reviewUrl]: () => {
         throw apiError(0, "NETWORK_ERROR");
       },
@@ -278,7 +281,7 @@ describe("Màn quyết định", () => {
   });
 
   it("404 khi mở chi tiết → 'không còn chờ duyệt'", async () => {
-    openDetail("SALES_MANAGER", {}, apiError(404, "NOT_FOUND"));
+    openDetail("PRODUCTION_COORDINATOR", {}, apiError(404, "NOT_FOUND"));
     expect(await screen.findByText("Thiết kế không còn chờ duyệt")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Về hàng đợi" })).toHaveAttribute(
       "href",
@@ -295,7 +298,7 @@ describe("Màn quyết định", () => {
   });
 
   it("file đã gửi: bản mới nhất mỗi loại, lần gửi trước thu gọn; kiểm tra file chỉ chạy khi bấm", async () => {
-    const api = mockApi("SALES_MANAGER", {
+    const api = mockApi("PRODUCTION_COORDINATOR", {
       get: {
         ...detailRoutes(),
         [`${detailUrl}/artifacts/0a000000-0000-7000-8000-000000000004/preflight`]: () => ({
@@ -304,7 +307,7 @@ describe("Màn quyết định", () => {
         }),
       },
     });
-    renderScreen(<DesignReviewDetail id={DESIGN_ID} />, "SALES_MANAGER");
+    renderScreen(<DesignReviewDetail id={DESIGN_ID} />, "PRODUCTION_COORDINATOR");
     const user = userEvent.setup();
     expect(await screen.findByText("print_ready.pdf")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Các lần gửi trước (2)" })).toHaveAttribute(

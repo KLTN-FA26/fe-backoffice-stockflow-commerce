@@ -40,7 +40,8 @@ export function quoteBlocker(row: QuoteRequest): string | null {
     }
     return row.lines.every((line) => line.customerSku) ? null : COPY.blockedNoSku;
   }
-  return BLOCKED_BY_STATUS[row.designStatus] ?? null;
+  // BE `QuoteFromRequestService` refuses a design without its customer SKU (409 DESIGN_NOT_APPROVED), as for a project.
+  return BLOCKED_BY_STATUS[row.designStatus] ?? (row.customerSku ? null : COPY.blockedNoSku);
 }
 
 export function quoteRequestActions(

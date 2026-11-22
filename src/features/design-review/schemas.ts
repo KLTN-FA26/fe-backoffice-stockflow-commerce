@@ -104,7 +104,7 @@ export const designQuoteRequestListSchema = z.array(designQuoteRequestDtoSchema)
 const reasonTooLong = `Tối đa ${DESIGN_REASON_MAX} ký tự`;
 
 /**
- * Quyết định của Quản lý bán hàng — kltn-docs 12 BR-06 / BR-11; BE `DesignReviewService.java:170-182`,
+ * Quyết định của người duyệt (Điều phối sản xuất, V20261213000200) — kltn-docs 12 BR-06 / BR-11; BE `DesignReviewService.java:170-182`,
  * `DesignReviewController.DecisionRequest`: trả lại thì lý do sau khi bỏ khoảng trắng dài 1–2000; duyệt thì ghi chú tuỳ
  * chọn, ≤ 2000. Gửi bản đã bỏ khoảng trắng (BE kiểm `@Size(max = 2000)` trên chuỗi thô).
  */

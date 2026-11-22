@@ -139,6 +139,15 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
     expect(hints.find((action) => action.id === "create-quote")?.hint).toBe("Chờ duyệt thiết kế");
   });
 
+  it("Lập báo giá tắt khi thiết kế đơn lẻ đã duyệt mà chưa có SKU riêng", async () => {
+    mockApi("SALES_STAFF", {
+      get: { "/design-quote-requests": () => bePage([request({ customerSku: undefined })]) },
+    });
+    renderScreen(<DesignQuoteRequestList />, "SALES_STAFF");
+    expect(await screen.findByRole("button", { name: "Lập báo giá" })).toBeDisabled();
+    expect(screen.getByText("Thiết kế chưa có SKU riêng")).toBeInTheDocument();
+  });
+
   it("Mở chat: tìm GET /chat/conversations?contextKind=DESIGN&contextId=… rồi chuyển /admin/chat/{id}", async () => {
     const api = mockApi("SALES_STAFF", {
       get: {
@@ -236,21 +245,26 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
       "Thiết kế chưa được duyệt hoặc chưa có SKU riêng — chưa lập báo giá được.",
     ],
     ["DESIGN_QUOTE_REQUEST_CLOSED", "Yêu cầu đã được đóng mà không lập báo giá."],
-  ])("Lập báo giá: 409 %s hiện câu riêng, không chuyển trang", async (code, message) => {
-    const error = vi.spyOn(toast, "error").mockImplementation(() => undefined);
-    mockApi("SALES_STAFF", {
-      get: { "/design-quote-requests": () => bePage([request()]) },
-      post: {
-        [`/design-quote-requests/${REQUEST_ID}/quote`]: () => {
-          throw apiError(409, code, undefined, "Message tiếng Anh của BE");
+  ])(
+    "Lập báo giá: 409 %s hiện câu riêng, không chuyển trang, tải lại danh sách",
+    async (code, message) => {
+      const error = vi.spyOn(toast, "error").mockImplementation(() => undefined);
+      const api = mockApi("SALES_STAFF", {
+        get: { "/design-quote-requests": () => bePage([request()]) },
+        post: {
+          [`/design-quote-requests/${REQUEST_ID}/quote`]: () => {
+            throw apiError(409, code, undefined, "Message tiếng Anh của BE");
+          },
         },
-      },
-    });
-    renderScreen(<DesignQuoteRequestList />, "SALES_STAFF");
-    await userEvent.setup().click(await screen.findByRole("button", { name: "Lập báo giá" }));
-    await waitFor(() => expect(error).toHaveBeenCalledWith(message));
-    expect(push).not.toHaveBeenCalled();
-  });
+      });
+      renderScreen(<DesignQuoteRequestList />, "SALES_STAFF");
+      await userEvent.setup().click(await screen.findByRole("button", { name: "Lập báo giá" }));
+      await waitFor(() => expect(error).toHaveBeenCalledWith(message));
+      expect(push).not.toHaveBeenCalled();
+      // The row was stale (the button shows only on an OPEN, ready row): reload it.
+      await waitFor(() => expect(callsTo(api.get, "/design-quote-requests")).toHaveLength(2));
+    },
+  );
 
   it("Lập báo giá: 404 dùng câu không tìm thấy chung", async () => {
     const error = vi.spyOn(toast, "error").mockImplementation(() => undefined);

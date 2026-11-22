@@ -13,7 +13,7 @@ import { labelOf } from "@/features/design-review/selectors";
 
 import { DetailSection } from "@/components/shared/DetailSection";
 
-/** Yêu cầu báo giá đi kèm — cho Quản lý biết duyệt xong sẽ có báo giá cần lập. */
+/** Yêu cầu báo giá đi kèm — cho người duyệt (Điều phối sản xuất) biết duyệt xong sẽ có báo giá cần lập. */
 export function QuoteRequestsPanel({ designId }: { designId: string }) {
   const query = useDesignQuoteRequests(designId);
   return (

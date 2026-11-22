@@ -5,7 +5,7 @@
 
 import { z } from "zod";
 
-import { DESIGN_STATUSES, QUOTE_API_STATUSES } from "@/constants";
+import { DESIGN_STATUSES } from "@/constants";
 
 import { bePageSchema } from "@/lib/api/page-schema";
 import { omittedOrNull } from "@/lib/validation/primitives";
@@ -64,4 +64,6 @@ export const projectQuoteRequestPageSchema = bePageSchema(projectQuoteRequestDto
  * Báo giá BE trả sau `…/quote` (cùng dạng `GET /quotes/{id}`); chỉ `id` và `status` cần ở đây. 200 = yêu cầu đã được trả
  * lời trước đó (ở đây hoặc trong chat) → báo giá có thể không còn nháp.
  */
-export const createdQuoteSchema = z.object({ id: z.string(), status: z.enum(QUOTE_API_STATUSES) });
+// `status` stays a plain string: the BE has already drawn the quote and closed the request, so a status this screen
+// does not know yet must not fail the parse (it opens the detail page; only "DRAFT" opens the editor).
+export const createdQuoteSchema = z.object({ id: z.string(), status: z.string() });

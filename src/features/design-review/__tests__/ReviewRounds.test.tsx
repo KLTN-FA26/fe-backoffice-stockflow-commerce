@@ -57,11 +57,11 @@ function round(overrides: Record<string, unknown> = {}) {
 }
 
 function open(post: Record<string, () => unknown> = {}, data: unknown = round()) {
-  const api = mockApi("SALES_MANAGER", {
+  const api = mockApi("PRODUCTION_COORDINATOR", {
     get: { [roundUrl]: () => data, [`/customers/${CUSTOMER_ID}`]: () => CUSTOMER },
     post,
   });
-  renderScreen(<ReviewRoundDetail roundId={ROUND_ID} />, "SALES_MANAGER");
+  renderScreen(<ReviewRoundDetail roundId={ROUND_ID} />, "PRODUCTION_COORDINATOR");
   return api;
 }
 
@@ -97,10 +97,10 @@ describe("selector vòng duyệt", () => {
 
 describe("Danh sách vòng duyệt", () => {
   it("hiện dự án, khách, số thiết kế, còn chờ / đã quyết", async () => {
-    const api = mockApi("SALES_MANAGER", {
+    const api = mockApi("PRODUCTION_COORDINATOR", {
       get: { "/design-review-rounds": () => bePage([round()]) },
     });
-    renderScreen(<ReviewRoundList />, "SALES_MANAGER");
+    renderScreen(<ReviewRoundList />, "PRODUCTION_COORDINATOR");
     expect(await screen.findByRole("link", { name: "Bộ ly Tết" })).toHaveAttribute(
       "href",
       `/admin/design-review-rounds/${ROUND_ID}`,
@@ -115,8 +115,8 @@ describe("Danh sách vòng duyệt", () => {
   });
 
   it("trống: 'Không có vòng duyệt nào đang chờ'", async () => {
-    mockApi("SALES_MANAGER", { get: { "/design-review-rounds": () => bePage([]) } });
-    renderScreen(<ReviewRoundList />, "SALES_MANAGER");
+    mockApi("PRODUCTION_COORDINATOR", { get: { "/design-review-rounds": () => bePage([]) } });
+    renderScreen(<ReviewRoundList />, "PRODUCTION_COORDINATOR");
     expect(await screen.findByText("Không có vòng duyệt nào đang chờ")).toBeInTheDocument();
   });
 });

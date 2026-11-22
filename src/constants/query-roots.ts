@@ -13,10 +13,6 @@ export const SHARED_QUERY_ROOTS = {
   inventoryStock: "inventory-stock-items",
   /** Phiếu giữ hàng (reservation) — trạng thái + hạn giữ chỗ. */
   inventoryReservations: "inventory-stock-reservations",
-  /** Báo giá — feature `quote` sở hữu (`quoteKeys.all`); lập báo giá từ yêu cầu thiết kế thêm một báo giá nháp. */
-  salesQuotes: "quotes",
-  /** Chat — feature `chat` sở hữu (`chatKeys.all`); đóng / trả lời yêu cầu báo giá đổi thẻ trong hội thoại. */
-  chat: "chat",
   /**
    * Task xuất kho — gồm cả hàng chờ và phiên kiểm thùng (`cartonCheckKeys` nằm dưới root này). Đổi cách giao của đơn
    * (Sales cho phép / dừng giao một phần) đổi việc kho được phép làm, nên Order invalidate qua root này.

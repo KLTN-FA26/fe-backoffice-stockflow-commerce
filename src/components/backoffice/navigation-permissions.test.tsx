@@ -591,7 +591,7 @@ describe("trả hàng (WF-05 BO-16) — theo seed BE sales-rmas / sales-rma-reso
 
 // WF-02 BO-3: hàng đợi duyệt thiết kế cần design-designs:APPROVE — SALES_STAFF có VIEW_PAGE nhưng BE trả 403 ở hàng đợi.
 describe("Duyệt thiết kế theo design-designs:APPROVE, không theo VIEW_PAGE", () => {
-  function mountRole(role: "SALES_STAFF" | "SALES_MANAGER") {
+  function mountRole(role: "SALES_STAFF" | "SALES_MANAGER" | "PRODUCTION_COORDINATOR") {
     vi.spyOn(api, "get").mockResolvedValue({
       data: { roles: [role], permissions: [...ROLE_PERMISSIONS[role]], dataScope: "ALL" },
     });
@@ -604,12 +604,20 @@ describe("Duyệt thiết kế theo design-designs:APPROVE, không theo VIEW_PAG
     expect(screen.queryByRole("link", { name: "Duyệt thiết kế" })).not.toBeInTheDocument();
   });
 
-  it("SALES_MANAGER thấy 'Duyệt thiết kế' dẫn tới hàng đợi", async () => {
-    mountRole("SALES_MANAGER");
+  it("PRODUCTION_COORDINATOR thấy 'Duyệt thiết kế' dẫn tới hàng đợi (V20261213000200)", async () => {
+    mountRole("PRODUCTION_COORDINATOR");
     expect(await screen.findByRole("link", { name: "Duyệt thiết kế" })).toHaveAttribute(
       "href",
       ADMIN_ROUTES.designs.reviewQueue,
     );
+  });
+
+  it("SALES_MANAGER không còn 'Duyệt thiết kế' nhưng vẫn có 'Yêu cầu báo giá thiết kế'", async () => {
+    mountRole("SALES_MANAGER");
+    expect(
+      await screen.findByRole("link", { name: "Yêu cầu báo giá thiết kế" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Duyệt thiết kế" })).not.toBeInTheDocument();
   });
 
   it("chi tiết thiết kế sáng mục 'Duyệt thiết kế' và có breadcrumb qua hàng đợi", () => {

@@ -408,7 +408,7 @@ export const NAV_GROUPS: NavGroup[] = [
         label: "Duyệt thiết kế",
         href: ADMIN_ROUTES.designs.reviewQueue,
         icon: ClipboardCheck,
-        // `design-designs:APPROVE` (SALES_MANAGER, SYSTEM_ADMIN) — không dùng VIEW_PAGE: SALES_STAFF cũng có, sẽ bị 403
+        // `design-designs:APPROVE` (PRODUCTION_COORDINATOR, SYSTEM_ADMIN; V20261213000200) — không dùng VIEW_PAGE: SALES_STAFF cũng có, sẽ bị 403
         permission: DESIGN_PERMISSIONS.approve,
         matchPrefixes: [ADMIN_ROUTES.designReviewRounds.list],
       },

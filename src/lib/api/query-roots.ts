@@ -9,6 +9,8 @@ import { INVENTORY_QUERY_KEYS } from "@/constants/inventory";
 export const QUERY_ROOTS = {
   customers: ["customers"],
   quotes: ["quotes"],
+  /** = `chatKeys.all` (features/chat) — đóng / lập báo giá từ yêu cầu thiết kế đổi thẻ trong hội thoại. */
+  chat: ["chat"],
   /** = `orderKeys.all` (features/order). */
   orders: ["orders"],
   /** = `einvoiceKeys.all` (features/einvoice) — hoá đơn điện tử theo lần giao (docs 21). */

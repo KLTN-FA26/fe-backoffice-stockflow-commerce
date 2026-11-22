@@ -2,8 +2,8 @@
  * Vòng đời thiết kế của khách — BE `DesignStatus` / `DesignReviewService` (origin/develop 5fe7b9a16), kltn-docs 12 BR-06,
  * BR-09, BR-11:
  *   DRAFT → PENDING_REVIEW (khách gửi duyệt)
- *   PENDING_REVIEW → APPROVED (Quản lý duyệt: đóng dấu file in, sinh SKU riêng, khoá thiết kế)
- *                  | DRAFT (Quản lý trả lại, lý do bắt buộc) | DRAFT (khách rút lại)
+ *   PENDING_REVIEW → APPROVED (Điều phối sản xuất duyệt: đóng dấu file in, sinh SKU riêng, khoá thiết kế)
+ *                  | DRAFT (Điều phối trả lại, lý do bắt buộc) | DRAFT (khách rút lại)
  *   APPROVED → ARCHIVED ; ARCHIVED: trạng thái cuối.
  * UI-only — Backend phải re-check (`@RequiresPermission design-designs:APPROVE`, `requirePending`).
  */

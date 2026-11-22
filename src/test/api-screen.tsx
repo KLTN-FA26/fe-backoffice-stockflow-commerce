@@ -59,7 +59,8 @@ export const ROLE_PERMISSIONS = {
     "design-quote-requests:READ",
     "design-quote-requests:UPDATE",
   ],
-  // V20261111000000 (baseline): duyệt thiết kế (APPROVE chỉ Quản lý bán hàng / quản trị), yêu cầu báo giá, xem khách.
+  // V20261111000000 (baseline) + V20261213000200: yêu cầu báo giá, xem khách; đọc thiết kế qua yêu cầu báo giá đang mở.
+  // design-designs:APPROVE đã chuyển sang PRODUCTION_COORDINATOR.
   SALES_MANAGER: [
     "customer-customers:VIEW_PAGE",
     "customer-customers:READ",
@@ -67,12 +68,17 @@ export const ROLE_PERMISSIONS = {
     "sales-quotes:READ",
     "design-designs:VIEW_PAGE",
     "design-designs:READ",
-    "design-designs:APPROVE",
     "design-quote-requests:VIEW_PAGE",
     "design-quote-requests:READ",
     "design-quote-requests:UPDATE",
     "chat-conversations:VIEW_PAGE",
     "chat-conversations:READ",
+  ],
+  // V20261213000200: Điều phối sản xuất duyệt thiết kế của khách (kltn-docs 12 §4.4, §4.10).
+  PRODUCTION_COORDINATOR: [
+    "design-designs:VIEW_PAGE",
+    "design-designs:READ",
+    "design-designs:APPROVE",
   ],
   ECOMMERCE_ADMIN: [
     "customer-customers:VIEW_PAGE",

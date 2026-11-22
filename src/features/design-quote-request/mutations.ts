@@ -5,9 +5,11 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { DESIGN_QUOTE_REQUEST_LABELS as COPY, SHARED_QUERY_ROOTS } from "@/constants";
+import { DESIGN_QUOTE_REQUEST_LABELS as COPY } from "@/constants";
 
+import { ApiError } from "@/lib/api/error";
 import { serverErrorMessage } from "@/lib/api/error-message";
+import { QUERY_ROOTS } from "@/lib/api/query-roots";
 
 import { toast } from "@/components/shared/Toast";
 
@@ -18,9 +20,9 @@ import { designQuoteRequestKeys, projectQuoteRequestKeys } from "./queries";
 import type { Navigate } from "./actions";
 import type { QuoteRequest } from "./types";
 
-/** Root query của chat và báo giá (feature không import chéo → qua `SHARED_QUERY_ROOTS`). */
-const CHAT_ROOT = [SHARED_QUERY_ROOTS.chat] as const;
-const QUOTES_ROOT = [SHARED_QUERY_ROOTS.salesQuotes] as const;
+/** Root query của chat và báo giá (feature không import chéo → `QUERY_ROOTS`, có test đối chiếu key factory). */
+const CHAT_ROOT = QUERY_ROOTS.chat;
+const QUOTES_ROOT = QUERY_ROOTS.quotes;
 
 function useCloseRequest(close: (id: string) => Promise<void>, listRoot: readonly string[]) {
   const queryClient = useQueryClient();
@@ -49,6 +51,7 @@ export function useOpenChat(navigate: Navigate) {
 
 /**
  * Lỗi lập báo giá (BE `QuoteFromRequestController`): câu riêng cho hai mã 409, còn lại (403/404…) câu chung / của BE.
+ * Hai mã 409 chỉ xảy ra khi danh sách đã cũ (nút chỉ bật ở dòng OPEN, đủ điều kiện) → tải lại để dòng đổi theo.
  */
 const START_QUOTE_ERRORS: Readonly<Record<string, string>> = {
   DESIGN_NOT_APPROVED: COPY.quoteNotApproved,
@@ -69,6 +72,12 @@ export function useStartQuote(navigate: Navigate) {
       void queryClient.invalidateQueries({ queryKey: CHAT_ROOT });
       void queryClient.invalidateQueries({ queryKey: QUOTES_ROOT });
     },
-    onError: (error) => toast.error(serverErrorMessage(error, START_QUOTE_ERRORS)),
+    onError: (error) => {
+      toast.error(serverErrorMessage(error, START_QUOTE_ERRORS));
+      if (error instanceof ApiError && error.code in START_QUOTE_ERRORS) {
+        void queryClient.invalidateQueries({ queryKey: designQuoteRequestKeys.all });
+        void queryClient.invalidateQueries({ queryKey: projectQuoteRequestKeys.all });
+      }
+    },
   });
 }
