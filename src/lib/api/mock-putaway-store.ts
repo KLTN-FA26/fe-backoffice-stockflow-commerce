@@ -54,7 +54,7 @@ export function resetPutawayMockStore(): void {
 }
 
 const upper = (value: string | null | undefined) => (value ?? "").trim().toUpperCase();
-const cartonWeight = (quantity: number) => quantity * MOCK_KG_PER_UNIT;
+export const cartonWeight = (quantity: number) => quantity * MOCK_KG_PER_UNIT;
 
 /** Đồng bộ nhiệm vụ với thùng hiện có — mở nhiệm vụ cho thùng mới, không mở trùng (docs 05 §4.1 bước 1). */
 async function syncTasks(): Promise<Map<string, MockPutawayTask>> {
@@ -168,16 +168,28 @@ export function areasOfWarehouse(warehouseCode: string) {
     }));
 }
 
-/** Chỗ còn trống của một bin: trừ thùng đang nằm trong bin (docs 05 BR-03). */
+/** Chỗ đang giữ ở một bin bởi chuyến cất hàng (BR-16) — store chuyến đăng ký nguồn này, tránh import vòng. */
+export interface MockHeld {
+  cartons: number;
+  weightKg: number;
+}
+let heldAt: (locationCode: string) => MockHeld = () => ({ cartons: 0, weightKg: 0 });
+export function registerHoldSource(source: (locationCode: string) => MockHeld): void {
+  heldAt = source;
+}
+
+/** Chỗ còn trống của một bin: trừ thùng đang nằm trong bin và chỗ chuyến đang giữ (docs 05 BR-03, BR-16). */
 export async function freeOf(bin: MockBinPlace) {
   const inside = (await listMockCartons()).filter(
     (c) => c.pkg.status === "IN_STOCK" && upper(c.pkg.locationCode) === upper(bin.locationCode),
   );
-  const usedWeight = inside.reduce((sum, c) => sum + cartonWeight(c.pkg.receivedQty), 0);
+  const held = heldAt(bin.locationCode);
+  const usedWeight =
+    inside.reduce((sum, c) => sum + cartonWeight(c.pkg.receivedQty), 0) + held.weightKg;
+  const usedCartons = inside.length + held.cartons;
   return {
     inside,
-    freeVolumeM3:
-      bin.volumeM3 == null ? null : bin.volumeM3 - inside.length * MOCK_CARTON_VOLUME_M3,
+    freeVolumeM3: bin.volumeM3 == null ? null : bin.volumeM3 - usedCartons * MOCK_CARTON_VOLUME_M3,
     freeWeightKg: bin.maxWeightKg == null ? null : bin.maxWeightKg - usedWeight,
   };
 }

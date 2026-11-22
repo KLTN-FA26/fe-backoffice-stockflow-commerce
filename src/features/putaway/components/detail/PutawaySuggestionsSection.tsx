@@ -10,6 +10,7 @@ import { Alert } from "@/components/shared/Alert";
 import { DetailSection } from "@/components/shared/DetailSection";
 import { Button } from "@/components/ui/button";
 
+import type { ReactNode } from "react";
 import type { SlottingSuggestionLabels } from "@/components/backoffice/SlottingSuggestionList";
 import type { PutawaySuggestion, PutawayTask } from "@/features/putaway/types";
 
@@ -48,14 +49,22 @@ export function PutawaySuggestionsSection({
   task,
   selected,
   onChoose,
+  title = L.suggestions,
+  footer,
 }: {
   task: PutawayTask;
   selected: string | null;
   onChoose?: (locationCode: string) => void;
+  title?: string;
+  /**
+   * Dòng cuối mục, căn phải (vd "Cất thùng này" ở trang Gợi ý vị trí). Không đặt trên dòng tiêu đề: tiêu đề có LPN
+   * dài, ở 1024px nút bị đẩy tràn khỏi thẻ.
+   */
+  footer?: ReactNode;
 }) {
   const done = task.status === PUTAWAY_TASK_STATUS.DONE;
   return (
-    <DetailSection title={L.suggestions} icon={MapPin}>
+    <DetailSection title={title} icon={MapPin}>
       {done ? (
         <p className="text-ink-secondary text-[0.8125rem]">{L.suggestionsDone}</p>
       ) : task.suggestions.length > 0 ? (
@@ -100,6 +109,7 @@ export function PutawaySuggestionsSection({
           )}
         </Alert>
       )}
+      {footer && <div className="mt-3 flex justify-end">{footer}</div>}
     </DetailSection>
   );
 }

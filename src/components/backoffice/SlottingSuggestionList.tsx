@@ -8,6 +8,10 @@ import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/compon
 const MONO = "font-[family-name:var(--font-mono)] tabular-nums";
 const HEAD = "text-ink-secondary h-9 px-3 text-xs font-semibold";
 const CELL = "px-3 py-2 align-middle";
+const CHOOSE_BASE = "h-7 min-w-16 rounded-[var(--r-sm)] px-2.5 text-xs";
+// Hai bộ class tách hẳn: `cn` chỉ nối chuỗi, không gộp class trùng thuộc tính (viền / nền)
+const CHOOSE_CLASS = `border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted hover:text-ink-primary ${CHOOSE_BASE}`;
+const CHOSEN_CLASS = `border-brand bg-bg-muted text-ink-primary hover:bg-bg-muted ${CHOOSE_BASE}`;
 
 export interface SlottingSuggestionItem {
   locationCode: string;
@@ -108,10 +112,7 @@ export function SlottingSuggestionList({
                         aria-label={labels.chooseBin(item.locationCode)}
                         aria-pressed={isSelected}
                         onClick={() => onChoose(item.locationCode)}
-                        className={cn(
-                          "border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted hover:text-ink-primary h-7 min-w-16 rounded-[var(--r-sm)] px-2.5 text-xs",
-                          isSelected && "border-brand text-ink-primary bg-bg-muted",
-                        )}
+                        className={isSelected ? CHOSEN_CLASS : CHOOSE_CLASS}
                       >
                         {isSelected ? labels.chosen : labels.choose}
                       </Button>
