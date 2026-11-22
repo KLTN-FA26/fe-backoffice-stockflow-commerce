@@ -100,6 +100,32 @@ export async function getModelFileLink(
   return downloadLinkSchema.parse(data);
 }
 
+/**
+ * `PUT …/{templateId}/reference-file?version=N`, multipart part `file` (BD-7, BE `attachReference`): attaches or replaces
+ * the reference die-line (PDF or PNG, `FileCategory.PRINT_TEMPLATE` ≤ 20 MiB). Returns the template with its new
+ * `version` and `referenceFileName`. Errors: 409 OPTIMISTIC_LOCK, 409 CONFLICT (product / variant no longer sold), 413,
+ * 415, 400 VALIDATION_FAILED (scan, a PDF with actions / JavaScript / files / encryption), 404 PRINT_CONFIG_NOT_FOUND.
+ */
+export async function attachReferenceFile(target: PrintConfigTarget & { file: File }) {
+  const { productId, variantId, templateId, version, file } = target;
+  const form = new FormData();
+  form.append("file", file);
+  const url = `${templatePath(productId, variantId, templateId)}/reference-file`;
+  const { data } = await api.put<unknown>(url, form, { ...MULTIPART, params: { version } });
+  return printConfigDtoSchema.parse(data);
+}
+
+/** `GET …/{templateId}/reference-file/download-url` (BE `DownloadLink`): asked on each click; 404 when none is attached. */
+export async function getReferenceFileLink(
+  productId: string,
+  variantId: string,
+  templateId: string,
+) {
+  const url = `${templatePath(productId, variantId, templateId)}/reference-file/download-url`;
+  const { data } = await api.get<unknown>(url);
+  return downloadLinkSchema.parse(data);
+}
+
 /** `GET /design-fonts` (BE-18, permission `design-designs:READ`): the fonts a configuration may allow. */
 export async function getDesignFonts(signal?: AbortSignal) {
   const { data } = await api.get<unknown>("/design-fonts", { signal });

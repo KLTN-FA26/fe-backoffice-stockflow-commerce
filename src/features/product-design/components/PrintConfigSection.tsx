@@ -14,6 +14,7 @@ import { PrintConfigHeader } from "./PrintConfigHeader";
 import { PrintConfigSkeleton } from "./PrintConfigSkeleton";
 import { PrintConfigStatusActions } from "./PrintConfigStatusActions";
 import { PrintConfigSummary } from "./PrintConfigSummary";
+import { ReferenceFileSection } from "./ReferenceFileSection";
 
 import type { ReactNode } from "react";
 import type { PermissionCode } from "@/lib/auth/me-permissions";
@@ -104,22 +105,28 @@ export function PrintConfigSection({
     />
   );
 
+  // BD-7: a saved configuration's reference die-line; attaching follows the save's gate (UPDATE, product still sold).
+  const reference = config && <ReferenceFileSection config={config} canAttach={canEdit} />;
   if (canEdit) {
     return (
-      <PrintConfigEditor
-        key={variantId} // never the template: a refetch after a save must not remount (and lose the file)
-        productId={productId}
-        variantId={variantId}
-        config={config}
-        loadModel={loadModel}
-        header={header}
-      />
+      <div className="space-y-5">
+        <PrintConfigEditor
+          key={variantId} // never the template: a refetch after a save must not remount (and lose the file)
+          productId={productId}
+          variantId={variantId}
+          config={config}
+          loadModel={loadModel}
+          header={header}
+        />
+        {reference}
+      </div>
     );
   }
   return (
     <div className="space-y-5">
       {header()}
       {config ? <PrintConfigSummary config={config} /> : <PrintConfigEmpty />}
+      {reference}
     </div>
   );
 }

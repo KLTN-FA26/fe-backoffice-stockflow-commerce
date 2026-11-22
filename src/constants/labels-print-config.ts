@@ -69,6 +69,15 @@ export const PRINT_CONFIG_CONTEXT_ERROR_MESSAGES = {
     PRINT_CONFIG_MODEL_FILE_REQUIRED:
       "Cấu hình in mới phải tạo cùng file 3D (.glb): hãy chọn file rồi lưu.",
   },
+  /** Gắn file khuôn tham chiếu (BD-7, BE `FileCategory.PRINT_TEMPLATE`: PDF hoặc PNG, tối đa 20 MB). */
+  reference: {
+    PAYLOAD_TOO_LARGE: "File khuôn quá lớn (tối đa 20 MB).",
+    UNSUPPORTED_MEDIA_TYPE: "File khuôn phải là PDF hoặc PNG.",
+    VALIDATION_FAILED:
+      "File khuôn bị từ chối: không qua bước quét virus, hoặc là PDF có JavaScript, hành động tự chạy, file đính kèm hay bị mã hoá.",
+    RATE_LIMITED: "Hệ thống đang bận kiểm tra file. Hãy thử gắn lại sau ít phút.",
+    NOT_FOUND: "Cấu hình in này chưa có file khuôn tham chiếu.",
+  },
   activate: {
     /** Chưa có file 3D, hoặc cấu hình cũ chưa có số đo của model: BE trả cùng 409 (8c63a729). */
     PRINT_CONFIG_MODEL_FILE_REQUIRED:
@@ -93,6 +102,20 @@ export const PRINT_CONFIG_TOAST_MESSAGES = {
   saved: "Đã lưu cấu hình in",
   activated: "Đã kích hoạt cấu hình in",
   deactivated: "Đã ngừng dùng cấu hình in",
+  referenceAttached: "Đã gắn file khuôn tham chiếu",
+} as const;
+
+/** Khối "File khuôn tham chiếu" của cấu hình in (BD-7): file PDF / PNG để khách so khuôn, không thuộc phiên bản in. */
+export const PRINT_CONFIG_REFERENCE_LABELS = {
+  title: "File khuôn tham chiếu",
+  hint: "PDF hoặc PNG, tối đa 20 MB. Khách dùng để so khuôn; gắn hoặc thay file không ảnh hưởng thiết kế đang chờ duyệt.",
+  none: "Chưa gắn file khuôn.",
+  download: "Tải về",
+  attach: "Gắn file khuôn",
+  replace: "Thay file khuôn",
+  inputLabel: "Chọn file khuôn tham chiếu (PDF hoặc PNG)",
+  uploading: "Đang gắn file…",
+  wrongType: "File khuôn phải là PDF hoặc PNG.",
 } as const;
 
 export const PRINT_CONFIG_ACTION_LABELS = {

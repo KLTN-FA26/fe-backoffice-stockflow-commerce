@@ -25,7 +25,7 @@ export class ModelFileMismatchError extends Error {
 }
 
 /** What the person was doing: one code can need other words (a file is required to create, or to activate). */
-export type PrintConfigErrorContext = "create" | "update" | "activate";
+export type PrintConfigErrorContext = "create" | "update" | "activate" | "reference";
 
 const BY_STATUS: Readonly<Record<number, string>> = {
   403: MESSAGES.FORBIDDEN,

@@ -29,6 +29,13 @@ export const PRODUCT_IMAGE_UPLOAD_LIMIT_BYTES = uploadRequestMaxBytes("productIm
 export const PRINT_MODEL_UPLOAD_LIMIT_BYTES = uploadRequestMaxBytes("printModel");
 
 /**
+ * A print configuration's reference die-line: PUT products/{id}/variants/{id}/customization-templates/{templateId}/
+ * reference-file?version=N (BE CustomizationTemplateController.attachReference, multipart `file`).
+ * FileCategory.PRINT_TEMPLATE = 20 MiB, PDF or PNG.
+ */
+export const PRINT_REFERENCE_UPLOAD_LIMIT_BYTES = uploadRequestMaxBytes("printReference");
+
+/**
  * The signed contract scan: POST orders/{id}/contract/signature (BE SalesContractController, multipart `file`,
  * `version`, `signedOn`). Stored as FileCategory.DOCUMENT = 25 MiB; a phone or office scan is 1-5 MB, far above
  * the JSON default (WF-02 audit, item 2).
@@ -67,6 +74,15 @@ const UPLOAD_ROUTES: ReadonlyArray<{
       paths[4] === "customization-templates" &&
       ((method === "POST" && paths.length === 5) || (method === "PUT" && paths.length === 6)),
     limit: PRINT_MODEL_UPLOAD_LIMIT_BYTES,
+  },
+  {
+    matches: (method, paths) =>
+      method === "PUT" &&
+      paths.length === 7 &&
+      isVariantPath(paths) &&
+      paths[4] === "customization-templates" &&
+      paths[6] === "reference-file",
+    limit: PRINT_REFERENCE_UPLOAD_LIMIT_BYTES,
   },
   {
     matches: (method, paths) =>

@@ -56,6 +56,8 @@ export interface MockPrintTemplate {
   areas: MockAreaInput[];
   surfaces: PrintSurface[];
   file: MockModelFile | null;
+  /** BD-7: the reference die-line (PDF / PNG); absent until one is attached. */
+  reference?: { name: string; url: string } | null;
   version: number;
 }
 
@@ -163,7 +165,7 @@ export function responseOf(t: MockPrintTemplate) {
     // ASSUMPTION: the mock has no separate print version; the lock's `version` stands in for it.
     printVersion: t.version,
     pendingReviewCount: printConfigMockPending.count,
-    referenceFileName: null,
+    referenceFileName: t.reference?.name ?? null,
     model3d: {
       hasFile: t.file !== null,
       fileName: t.file?.name ?? null,

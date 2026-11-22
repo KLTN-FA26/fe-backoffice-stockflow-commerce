@@ -8,7 +8,9 @@
  *    có file (đã lưu hoặc gửi kèm) thì mỗi vùng in đúng một dòng ghép, mesh `print:<mã>` (422);
  *  - `PUT …/{templateId}/model-file`: đã bỏ → 404 NOT_FOUND, như BE;
  *  - `GET …/{templateId}/model-file/download-url` → `{ url, expiresAt }`;
- *  - `POST …/{templateId}/activation|deactivation` (body `{ version }`); kích hoạt cần file (409) và bảng ghép đủ (422).
+ *  - `POST …/{templateId}/activation|deactivation` (body `{ version }`); kích hoạt cần file (409) và bảng ghép đủ (422);
+ *  - `PUT …/{templateId}/reference-file?version=N` (multipart `file`, PDF / PNG ≤ 20 MiB) và
+ *    `GET …/{templateId}/reference-file/download-url` (404 khi chưa gắn) — file khuôn tham chiếu (BD-7).
  * Một lần lưu là một transaction: hỏng thì kho không đổi. `version` có thể tăng hơn 1 (BE khoá
  * `PESSIMISTIC_FORCE_INCREMENT` rồi ghi dòng template). Mọi thành công bọc `{ success: true, data }`, mọi lỗi theo
  * `ApiResponse` của BE, để interceptor của client chạy thật.
@@ -30,7 +32,7 @@ import {
 } from "./mock-print-config-parse";
 import { nextTemplateId, responseOf, saveTemplate, templatesOf } from "./mock-print-config-store";
 import { findMockProduct } from "./mock-product-store";
-import { bodyOf, fail, ok, pathParams, validationFailed } from "./mock-route-utils";
+import { bodyOf, fail, ok, pathParams, queryOf, validationFailed } from "./mock-route-utils";
 import { findMockVariant } from "./mock-routes-variants";
 
 import type { AxiosRequestConfig } from "axios";
@@ -280,6 +282,32 @@ async function changeStatus(config: AxiosRequestConfig, activate: boolean) {
   return wrapped(responseOf(updated));
 }
 
+/** BE `FileCategory.PRINT_TEMPLATE`: PDF or PNG, 20 MiB. */
+const REFERENCE_TYPES = ["application/pdf", "image/png"];
+const REFERENCE_MAX_BYTES = 20 * 1024 * 1024;
+
+/** BE `attachReference`: still-sold product, the lock's `version` (query), one `file` part; the version moves. */
+async function attachReference(config: AxiosRequestConfig) {
+  const t = await writableTarget(config);
+  if (isResponse(t)) return t;
+  const version = Number(queryOf(config).get("version"));
+  if (!Number.isInteger(version)) return validationFailed("version", "version is required");
+  const file = config.data instanceof FormData ? config.data.get("file") : null;
+  if (!(file instanceof File)) return validationFailed("file", "file is required");
+  if (!REFERENCE_TYPES.includes(file.type))
+    return fail(415, "UNSUPPORTED_MEDIA_TYPE", "A reference file is a PDF or a PNG");
+  if (file.size > REFERENCE_MAX_BYTES) return fail(413, "PAYLOAD_TOO_LARGE", "File too large");
+  const stored = lockOf(t, pathParams(config).templateId ?? "", version);
+  if (isResponse(stored)) return stored;
+  const updated: MockPrintTemplate = {
+    ...stored,
+    reference: { name: file.name, url: `/mock/references/${encodeURIComponent(file.name)}` },
+    version: stored.version + 1,
+  };
+  saveTemplate(updated);
+  return wrapped(responseOf(updated));
+}
+
 /** BE `PrintFont` (BE-18): the eight fonts of the storefront studio, in the BE's order. */
 const MOCK_DESIGN_FONTS = [
   { code: "be-vietnam-pro", label: "Be Vietnam Pro" },
@@ -325,6 +353,19 @@ export function registerPrintConfigMockRoutes(): void {
     if (!found.file) return fail(404, "NOT_FOUND", "The template has no 3D model file");
     return wrapped({
       url: found.file.url,
+      expiresAt: new Date(Date.now() + LINK_LIFETIME_MS).toISOString(),
+    });
+  });
+
+  registerMockRoute("PUT", `${base}/:templateId/reference-file`, attachReference);
+  registerMockRoute("GET", `${base}/:templateId/reference-file/download-url`, async (config) => {
+    const t = await targetOf(config, false);
+    if (isResponse(t)) return t;
+    const found = findTemplate(t, pathParams(config).templateId ?? "");
+    if (isResponse(found)) return found;
+    if (!found.reference) return fail(404, "NOT_FOUND", "The template has no reference file");
+    return wrapped({
+      url: found.reference.url,
       expiresAt: new Date(Date.now() + LINK_LIFETIME_MS).toISOString(),
     });
   });
