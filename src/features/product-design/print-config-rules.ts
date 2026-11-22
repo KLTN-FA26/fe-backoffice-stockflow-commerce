@@ -19,9 +19,9 @@ import { formatFixed } from "@/lib/format";
 
 import { bagHeightFor } from "./measured";
 import { cupSector, cupSlantMm, isCylindricalCup, trimBoundsOf } from "./model3d/cup-sector";
-import { round2 } from "./model3d/measure-types";
+import { BAG_CODES, round2 } from "./model3d/measure-types";
 
-import type { BagModel, CupModel } from "./model3d/model-types";
+import type { BagModel, CupModel, PrintAreaCode } from "./model3d/model-types";
 import type { MeasuredKey } from "./measured";
 
 const V = PRINT_CONFIG_SCREEN_LABELS.advanced.validation;
@@ -38,6 +38,9 @@ export interface GeometryInput {
   safeMarginMm: number;
   bleedMm: number;
 }
+
+/** The safe margin each print area is saved with, when it is not the typed one (a bag's faces may differ). */
+export type AreaMargins = Partial<Record<PrintAreaCode, number>>;
 
 export interface GeometryFault {
   field: "seamMm" | "topFoldMm" | "safeMarginMm" | "bleedMm";
@@ -140,7 +143,7 @@ function cupGeometry(cup: CupModel, d: GeometryInput): GeometryFault[] {
   return faults;
 }
 
-function bagGeometry(bag: BagModel, d: GeometryInput): GeometryFault[] {
+function bagGeometry(bag: BagModel, d: GeometryInput, areaMargins: AreaMargins): GeometryFault[] {
   const faults: GeometryFault[] = [];
   // The sent height is the face plus the typed fold (`bagHeightFor`); BE `requirePositive` caps it at 2000 mm.
   const height = bagHeightFor(bag, d.topFoldMm);
@@ -150,16 +153,32 @@ function bagGeometry(bag: BagModel, d: GeometryInput): GeometryFault[] {
   }
   // BE `bagAreas`: FRONT/BACK as wide as the bag, LEFT/RIGHT as its gusset, all as tall as the bag less its fold.
   const printable = round2(height - d.topFoldMm);
-  const room = roomFault(d.safeMarginMm, [round2(bag.widthMm), round2(bag.gussetMm), printable]);
-  if (room) faults.push(room);
+  // BE `requireRoom` per area, with that area's own margin (BD-6): FRONT/BACK against the width, LEFT/RIGHT against the
+  // gusset, each against the printable height. The first area that has no room is the one reported.
+  for (const code of BAG_CODES) {
+    const wide = code === "FRONT" || code === "BACK";
+    const sides = [round2(wide ? bag.widthMm : bag.gussetMm), printable];
+    const room = roomFault(areaMargins[code] ?? d.safeMarginMm, sides);
+    if (room) {
+      faults.push(room);
+      break;
+    }
+  }
   return faults;
 }
 
 /**
- * What the typed values do to `model` (the file's, or the stored one): `[]` when the BE would take them. Nothing is
+ * What the typed values do to `model` (the file's, or the stored one; `areaMargins`: the margins the save sends for
+ * areas that keep their own): `[]` when the BE would take them. Nothing is
  * checked on a model the BE refuses for its own figures (`measuredFaults`): it never reaches these rules.
  */
-export function geometryFaults(model: CupModel | BagModel, d: GeometryInput): GeometryFault[] {
+export function geometryFaults(
+  model: CupModel | BagModel,
+  d: GeometryInput,
+  areaMargins: AreaMargins = {},
+): GeometryFault[] {
   if (measuredFaults(model).length > 0) return [];
-  return model.kind === "parametric-cup" ? cupGeometry(model, d) : bagGeometry(model, d);
+  return model.kind === "parametric-cup"
+    ? cupGeometry(model, d)
+    : bagGeometry(model, d, areaMargins);
 }

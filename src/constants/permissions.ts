@@ -274,7 +274,6 @@ export const CUSTOMIZATION_TEMPLATE_PERMISSIONS = {
   read: "product-customization-templates:READ",
   create: "product-customization-templates:CREATE",
   update: "product-customization-templates:UPDATE",
-  delete: "product-customization-templates:DELETE",
 } as const;
 
 /**
@@ -459,7 +458,7 @@ export const FULFILLMENT_PICKING_PERMISSIONS = {
  * Hàng chờ / phiên đóng gói và tải artifact thiết kế — resource `fulfillment-packages`
  * (BE FulfillmentResources.PACKAGES). READ: `GET /packing-queue`, `GET /tasks/{id}/packing-session`,
  * tải artifact. `fulfillment-packages:CREATE` không còn bảo vệ endpoint nào (BE PR #148): thao tác đóng
- * gói là `fulfillment-packing:UPDATE`, kiểm tra lại thiết kế là `fulfillment-design-reverification:UPDATE`.
+ * gói là `fulfillment-packing:UPDATE`. BE đã bỏ bước kiểm tra thiết kế lúc đóng gói.
  */
 export const FULFILLMENT_PACKAGE_PERMISSIONS = {
   viewPage: "fulfillment-packages:VIEW_PAGE",
@@ -476,17 +475,6 @@ export const FULFILLMENT_PACKING_PERMISSIONS = {
   read: "fulfillment-packing:READ",
   update: "fulfillment-packing:UPDATE",
   approve: "fulfillment-packing:APPROVE",
-} as const;
-
-/**
- * Kiểm tra lại thiết kế — resource `fulfillment-design-reverification` (BE PR #148). UPDATE:
- * `POST /tasks/{id}/design-integrity-reverification`. READ: task đang giữ do lệch thiết kế hiện cho
- * người này (không cần là người được gán) và tải được file thiết kế. Seed: QC_STAFF,
- * WAREHOUSE_MANAGER, SYSTEM_ADMIN.
- */
-export const FULFILLMENT_DESIGN_REVERIFICATION_PERMISSIONS = {
-  read: "fulfillment-design-reverification:READ",
-  update: "fulfillment-design-reverification:UPDATE",
 } as const;
 
 /**
@@ -585,6 +573,24 @@ export const CATALOG_CUSTOMER_PRICE_PERMISSIONS = {
  */
 export const DESIGN_SNAPSHOT_PERMISSIONS = {
   read: "design-snapshots:READ",
+} as const;
+
+/**
+ * Thiết kế của khách — `design-designs` (BE `DesignReviewController`, `DesignWorkflowController`; seed
+ * V20261111000000, V20261213000200). VIEW_PAGE / READ có cả SALES_STAFF, SALES_MANAGER; APPROVE (hàng đợi duyệt, duyệt /
+ * trả lại) chỉ PRODUCTION_COORDINATOR và SYSTEM_ADMIN — menu duyệt gate bằng `approve`, không bằng `viewPage`.
+ */
+export const DESIGN_PERMISSIONS = {
+  viewPage: "design-designs:VIEW_PAGE",
+  read: "design-designs:READ",
+  approve: "design-designs:APPROVE",
+} as const;
+
+/** Yêu cầu báo giá trên thiết kế — `design-quote-requests` (BE `DesignQuoteRequestController`; SALES_STAFF, SALES_MANAGER). */
+export const DESIGN_QUOTE_REQUEST_PERMISSIONS = {
+  viewPage: "design-quote-requests:VIEW_PAGE",
+  read: "design-quote-requests:READ",
+  update: "design-quote-requests:UPDATE",
 } as const;
 
 /**

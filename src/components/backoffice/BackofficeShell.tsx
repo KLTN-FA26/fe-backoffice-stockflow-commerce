@@ -13,6 +13,7 @@ import {
   Factory,
   Database,
   FileBox,
+  FileInput,
   FileSignature,
   ChartColumn,
   MessageSquareText,
@@ -64,6 +65,9 @@ import {
   CUSTOMER_PERMISSIONS,
   CREDIT_HOLD_PERMISSIONS,
   CUSTOMER_PRICE_PERMISSIONS,
+  DESIGN_PERMISSIONS,
+  DESIGN_QUOTE_REQUEST_LABELS,
+  DESIGN_QUOTE_REQUEST_PERMISSIONS,
   CUSTOMER_PRICE_UI_LABELS,
   DELIVERY_FAILURE_LABELS,
   FULFILLMENT_CARRIER_EVENT_PERMISSIONS,
@@ -162,6 +166,8 @@ export interface NavItem {
   anyPermission?: readonly PermissionCode[];
   /** Breadcrumb riêng cho các đoạn URL sau `href` (vd `[kho ⇅] / Bản đồ kho`) thay cách đọc id mặc định. */
   breadcrumbTail?: (rest: readonly string[]) => BreadcrumbItem[];
+  /** Route anh em chia chung mục menu này (vd tab "Dự án"): sáng menu và breadcrumb theo mục. */
+  matchPrefixes?: readonly string[];
 }
 
 export interface NavGroup {
@@ -400,6 +406,22 @@ export const NAV_GROUPS: NavGroup[] = [
         permission: QUOTE_PERMISSIONS.viewPage,
       },
       {
+        label: "Duyệt thiết kế",
+        href: ADMIN_ROUTES.designs.reviewQueue,
+        icon: ClipboardCheck,
+        // `design-designs:APPROVE` (PRODUCTION_COORDINATOR, SYSTEM_ADMIN; V20261213000200) — không dùng VIEW_PAGE: SALES_STAFF cũng có, sẽ bị 403
+        permission: DESIGN_PERMISSIONS.approve,
+        matchPrefixes: [ADMIN_ROUTES.designReviewRounds.list],
+      },
+      {
+        label: DESIGN_QUOTE_REQUEST_LABELS.navLabel,
+        href: ADMIN_ROUTES.designQuoteRequests.list,
+        icon: FileInput,
+        // BE `design-quote-requests:VIEW_PAGE` (SALES_STAFF, SALES_MANAGER); hai route (đơn lẻ / dự án) chia mục này
+        permission: DESIGN_QUOTE_REQUEST_PERMISSIONS.viewPage,
+        matchPrefixes: [ADMIN_ROUTES.designProjectQuoteRequests.list],
+      },
+      {
         label: "Chat với khách",
         href: ADMIN_ROUTES.chat.list,
         icon: MessagesSquare,
@@ -620,27 +642,45 @@ export function visibleNavGroups(canSeeItem: (item: NavItem) => boolean): NavGro
   );
 }
 
+/** Độ dài tiền tố href (hoặc `matchPrefixes`) khớp `pathname`; 0 = không khớp. */
+function matchLength(item: Pick<NavItem, "href" | "matchPrefixes">, pathname: string): number {
+  if (item.href === ADMIN_ROUTES.home) return pathname === item.href ? item.href.length : 0;
+  return Math.max(
+    0,
+    ...[item.href, ...(item.matchPrefixes ?? [])]
+      .filter((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
+      .map((prefix) => prefix.length),
+  );
+}
+
 /**
  * Mục menu đang mở: khớp dài nhất trong các mục được thấy — `/admin/orders/credit-holds` sáng
  * mục hàng đợi công nợ, không sáng kèm "Đơn hàng" (`/admin/orders`). `/admin` chỉ khớp đúng.
  */
 export function findActiveNavHref(
   pathname: string,
-  items: readonly Pick<NavItem, "href">[],
+  items: readonly Pick<NavItem, "href" | "matchPrefixes">[],
 ): string | undefined {
   return items
-    .filter((item) =>
-      item.href === ADMIN_ROUTES.home
-        ? pathname === item.href
-        : pathname === item.href || pathname.startsWith(`${item.href}/`),
-    )
-    .sort((a, b) => b.href.length - a.href.length)[0]?.href;
+    .map((item) => ({ item, length: matchLength(item, pathname) }))
+    .filter((entry) => entry.length > 0)
+    .sort((a, b) => b.length - a.length)[0]?.item.href;
 }
 
+/**
+ * Mục menu của breadcrumb. Route chưa có mục nào thì rơi về mục "Tổng quan" (`/admin`), như trước khi có
+ * `matchPrefixes`: breadcrumb vẫn dẫn về trang chủ thay vì chỉ có chữ "Back-office".
+ */
 function findNavItem(pathname: string): NavItem | undefined {
-  return NAV_GROUPS.flatMap((group) => group.items)
-    .filter((item) => pathname === item.href || pathname.startsWith(`${item.href}/`))
-    .sort((a, b) => b.href.length - a.href.length)[0];
+  const items = NAV_GROUPS.flatMap((group) => group.items);
+  const best = items
+    .map((item) => ({ item, length: matchLength(item, pathname) }))
+    .filter((entry) => entry.length > 0)
+    .sort((a, b) => b.length - a.length)[0]?.item;
+  if (best) return best;
+  return pathname.startsWith(`${ADMIN_ROUTES.home}/`)
+    ? items.find((item) => item.href === ADMIN_ROUTES.home)
+    : undefined;
 }
 
 export function buildBreadcrumbItems(
@@ -655,7 +695,9 @@ export function buildBreadcrumbItems(
   const navItem = findNavItem(pathname);
   if (!navItem) return items;
 
-  const isListPage = pathname === navItem.href;
+  // Route anh em (`matchPrefixes`) là trang gốc của chính nó: chỉ hiện tên mục menu.
+  const sibling = navItem.matchPrefixes?.some((prefix) => pathname === prefix) ?? false;
+  const isListPage = pathname === navItem.href || sibling;
   // Thiếu quyền vào menu này → chỉ hiện chữ, không dẫn tới trang sẽ bị chặn
   const linkable = canSeeItem(navItem);
   items.push({ label: navItem.label, href: isListPage || !linkable ? undefined : navItem.href });

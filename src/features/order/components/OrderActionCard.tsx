@@ -91,8 +91,6 @@ function holdGuidanceFor(
   switch (order.holdReason) {
     case "CREDIT":
       return ORDER_HOLD_GUIDANCE.CREDIT;
-    case "DESIGN_MISMATCH":
-      return ORDER_HOLD_GUIDANCE.DESIGN_MISMATCH;
     // WF-05 GH-1: BE ORDER_DELIVERY_FAILURE_USE_DECISION — gỡ bằng quyết định hồ sơ giao thất bại
     case "DELIVERY_FAILED":
       return ORDER_HOLD_GUIDANCE.DELIVERY_FAILED;

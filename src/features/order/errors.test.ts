@@ -229,7 +229,6 @@ describe("orderActionErrorView — mọi mã ORDER_* mới đều có câu tiế
     "ORDER_INVALID_TRANSITION",
     "ORDER_NOT_ON_HOLD",
     "ORDER_CREDIT_HOLD_USE_APPROVAL",
-    "ORDER_DESIGN_HOLD_USE_REVERIFICATION",
     "ORDER_DELIVERY_VIA_SHIPMENT",
     "ORDER_BALANCE_NOT_PAID",
     "ORDER_SHIPMENT_NOT_FOUND",
@@ -249,14 +248,10 @@ describe("orderActionErrorView — mọi mã ORDER_* mới đều có câu tiế
     expect(view.traceId).toBe("corr-123");
   });
 
-  it("gỡ giữ CREDIT / DESIGN_MISMATCH → chỉ dẫn xử lý ở màn khác", () => {
+  it("gỡ giữ CREDIT → chỉ dẫn xử lý ở màn khác", () => {
     expect(
       orderActionErrorView(apiError(409, "ORDER_CREDIT_HOLD_USE_APPROVAL"), "resolveHold").detail,
     ).toContain("duyệt công nợ");
-    expect(
-      orderActionErrorView(apiError(409, "ORDER_DESIGN_HOLD_USE_REVERIFICATION"), "resolveHold")
-        .detail,
-    ).toContain("bàn đóng gói");
   });
 
   it("tiêu đề theo thao tác", () => {

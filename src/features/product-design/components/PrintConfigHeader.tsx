@@ -41,7 +41,9 @@ export function PrintConfigHeader({
   return (
     <section aria-label={TEXT.header} className={cn(DETAIL_CARD_CLASS, "space-y-3")}>
       <div className="flex flex-wrap items-start gap-x-10 gap-y-4">
-        <div className="min-w-0 flex-1">{identity}</div>
+        {/* A floor on the name column: narrower than this, the status and the actions wrap below it instead of
+            squeezing the product name to one word a line (seen at ~970px with the activate hint showing). */}
+        <div className="min-w-56 flex-1">{identity}</div>
         <div className="space-y-1">
           <p className="text-ink-tertiary text-xs font-medium">{TEXT.configStatus}</p>
           {status === undefined ? (

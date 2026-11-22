@@ -11,6 +11,29 @@ export const BROWSER_API_TIMEOUT_MS = 15_000;
 /** Next BFF → Spring (server-side fetch abort). */
 export const BFF_UPSTREAM_TIMEOUT_MS = 15_000;
 /**
+ * Lệnh chạy lâu được chờ 120 s ở cả hai lớp (axios và BFF) thay vì 15 s. Duyệt thiết kế tải file in tới 50 MB, đóng dấu,
+ * lưu bản mới và vẽ phiếu sản xuất (BE `DesignReviewService.java:183-199`); "Duyệt tất cả" duyệt tối đa 20 thiết kế tuần
+ * tự. Mọi route khác giữ 15 s.
+ */
+export const LONG_RUNNING_TIMEOUT_MS = 120_000;
+/** Danh sách rõ ràng — thêm route mới vào đây kèm lý do, không nới timeout chung. Đường dẫn tương đối `/api/v1`. */
+export const LONG_RUNNING_ROUTES: readonly { method: string; path: RegExp }[] = [
+  // Duyệt / trả lại một thiết kế (BE DesignReviewController).
+  { method: "POST", path: /^designs\/[^/]+\/reviews$/ },
+  // Duyệt tất cả thiết kế còn chờ của một vòng duyệt dự án (BE DesignReviewRoundController).
+  { method: "POST", path: /^design-review-rounds\/[^/]+\/approvals$/ },
+];
+/**
+ * `path` như axios (`/designs/…`) hoặc BFF (`designs/…`), có thể kèm query. Khớp chính xác từng đoạn: có tiền tố hay dấu
+ * `/` cuối thì không phải lệnh dài (Spring 6 không khớp `/` cuối → lỗi ngay, không cần chờ 120 s).
+ */
+export function isLongRunningRoute(method: string | undefined, path: string | undefined): boolean {
+  if (!method || !path) return false;
+  const normalized = path.split("?")[0]?.replace(/^\/+/, "") ?? "";
+  const upper = method.toUpperCase();
+  return LONG_RUNNING_ROUTES.some((route) => route.method === upper && route.path.test(normalized));
+}
+/**
  * Transport text of every BFF error body. Deliberately generic: browsers branch on `code`, and
  * user-facing copy (e.g. LOGIN_ERROR_MESSAGES) is chosen by code, never from this sentence.
  */

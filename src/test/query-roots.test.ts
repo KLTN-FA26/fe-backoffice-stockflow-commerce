@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { chatKeys } from "@/features/chat/queries";
 import { customerKeys } from "@/features/customer/queries";
 import { myOrderKeys } from "@/features/customer-order/queries";
 import { fulfillmentKeys } from "@/features/fulfillment/queries";
@@ -14,6 +15,7 @@ describe("QUERY_ROOTS match the owning features' key factories (cross-feature in
   it.each([
     ["customers", customerKeys.all],
     ["quotes", quoteKeys.all],
+    ["chat", chatKeys.all],
     ["orders", orderKeys.all],
     ["myOrders", myOrderKeys.all],
     ["fulfillmentTasks", fulfillmentKeys.all],

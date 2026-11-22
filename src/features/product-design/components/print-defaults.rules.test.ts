@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { BAG_BODY, CUP } from "../test-fixtures";
+import { BAG_BODY, CUP, cupDto } from "../test-fixtures";
 import { defaultsFor, printDefaultsSchema, printDefaultsSchemaFor } from "./print-defaults";
 
 import type { BagModel } from "../model3d";
@@ -67,5 +67,84 @@ describe("printDefaultsSchemaFor: with the model in play", () => {
       safeMarginMm: 60,
     }).map(([path]) => path);
     expect(fields).toEqual(["seamMm"]);
+  });
+});
+
+describe("printDefaultsSchema: the file rules (BE PrintConfigRules)", () => {
+  const rules = (patch: Partial<PrintDefaultsValues>) => ({ ...CUP_FORM, ...patch });
+
+  it.each([
+    ["minDpi", 72, 71],
+    ["minDpi", 2400, 2401],
+    ["maxFileSizeMb", 1, 0],
+    ["maxFileSizeMb", 50, 51],
+    ["maxColors", 1, 0],
+    ["maxColors", 12, 13],
+  ] as const)("%s: %d passes, %d is refused on that field", (field, ok, over) => {
+    expect(refused(printDefaultsSchema, rules({ [field]: ok }))).toEqual([]);
+    expect(refused(printDefaultsSchema, rules({ [field]: over })).map(([path]) => path)).toEqual([
+      field,
+    ]);
+  });
+
+  it("maxColors 13 → Từ 1 đến 12", () => {
+    expect(refused(printDefaultsSchema, rules({ maxColors: 13 }))).toEqual([
+      ["maxColors", "Từ 1 đến 12."],
+    ]);
+  });
+
+  it("maxColors null is no limit; a half-typed number is refused", () => {
+    expect(refused(printDefaultsSchema, rules({ maxColors: null }))).toEqual([]);
+    expect(refused(printDefaultsSchema, rules({ maxColors: Number.NaN }))).toEqual([
+      ["maxColors", "Nhập một số."],
+    ]);
+  });
+
+  it("a fractional dpi is refused (the BE takes an integer)", () => {
+    expect(refused(printDefaultsSchema, rules({ minDpi: 300.5 })).map(([p]) => p)).toEqual([
+      "minDpi",
+    ]);
+  });
+
+  it("no format ticked, an empty font list or an unknown colour mode is refused on its field", () => {
+    expect(refused(printDefaultsSchema, rules({ allowedFileFormats: [] }))).toEqual([
+      ["allowedFileFormats", "Chọn ít nhất một định dạng."],
+    ]);
+    expect(refused(printDefaultsSchema, rules({ allowedFontCodes: [] }))).toEqual([
+      ["allowedFontCodes", "Chọn ít nhất một font, hoặc chọn Mọi font."],
+    ]);
+    expect(refused(printDefaultsSchema, rules({ allowedFontCodes: null }))).toEqual([]);
+    expect(refused(printDefaultsSchema, rules({ allowedFontCodes: ["lobster"] }))).toEqual([]);
+  });
+});
+
+describe("printDefaultsSchemaFor: a bag's margin per area (BD-6)", () => {
+  /** A stored bag whose LEFT face keeps a margin of its own, the form showing the first face's (5 mm). */
+  const stored = cupDto({
+    model: BAG,
+    printAreas: (["FRONT", "BACK", "LEFT", "RIGHT"] as const).map((code) => ({
+      code,
+      name: code,
+      xMm: 0,
+      yMm: 0,
+      widthMm: code === "FRONT" || code === "BACK" ? BAG.widthMm : BAG.gussetMm,
+      heightMm: BAG.heightMm - BAG.topFoldMm,
+      safeMarginMm: code === "LEFT" ? 60 : 5, // 2 × 60 = 120 ≥ the 110 mm gusset
+      bleedMm: 3,
+      shape: { type: "rect" as const },
+      uvMapping: { meshPart: `print:${code}` },
+    })),
+  });
+  const form = defaultsFor("parametric-bag", stored);
+
+  it("the form shows the first face's margin, and the one the save keeps for LEFT is refused", () => {
+    expect(form.safeMarginMm).toBe(5);
+    expect(refused(printDefaultsSchemaFor(BAG), form)).toEqual([]); // one margin: nothing wrong
+    const fields = refused(printDefaultsSchemaFor(BAG, stored), form).map(([path]) => path);
+    expect(fields).toEqual(["safeMarginMm"]);
+  });
+
+  it("a margin the person typed replaces the kept ones, so the same stored bag passes with 5 → 6", () => {
+    expect(refused(printDefaultsSchemaFor(BAG, stored), { ...form, safeMarginMm: 6 })).toEqual([]);
   });
 });

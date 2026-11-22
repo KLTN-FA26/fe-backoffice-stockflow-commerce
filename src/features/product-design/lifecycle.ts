@@ -74,7 +74,8 @@ export const canViewPrintConfig = (can: (permission: PermissionCode) => boolean)
 export interface AllowedActionOptions {
   /**
    * False when the product is discontinued or the variant obsolete (BE `requireWritable`: 409 CONFLICT, templates kept
-   * as they are); the screen knows it from the product feature.
+   * as they are); the screen knows it from the product feature. Stopping is the one action it leaves: BE `deactivate`
+   * does not call `requireWritable`.
    */
   writable?: boolean;
   /** False when the stored `.glb` or its area ↔ mesh table does not allow activation (BE 409 / 422). */
@@ -87,9 +88,10 @@ export function allowedActions(
   can: (permission: PermissionCode) => boolean,
   options: AllowedActionOptions = {},
 ): readonly PrintConfigAction[] {
-  if (!canViewPrintConfig(can) || options.writable === false) return [];
+  if (!canViewPrintConfig(can)) return [];
   return PRINT_CONFIG_ACTIONS.filter(
     (action) =>
+      (options.writable !== false || action.code === "deactivate") &&
       action.fromStatuses.includes(status) &&
       can(status === null ? (action.createPermission ?? action.permission) : action.permission) &&
       !(action.code === "activate" && options.activatable === false),

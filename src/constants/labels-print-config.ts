@@ -3,6 +3,10 @@
  * Không import gì từ phần còn lại của `src/`.
  */
 
+import { UPLOAD_FILE_MAX_MB } from "./upload-limits";
+
+const REFERENCE_MAX_MB = UPLOAD_FILE_MAX_MB.printReference;
+
 export const PRINT_CONFIG_FIGURE_LABELS = {
   topDiameterMm: "Đường kính miệng",
   bottomDiameterMm: "Đường kính đáy",
@@ -69,6 +73,15 @@ export const PRINT_CONFIG_CONTEXT_ERROR_MESSAGES = {
     PRINT_CONFIG_MODEL_FILE_REQUIRED:
       "Cấu hình in mới phải tạo cùng file 3D (.glb): hãy chọn file rồi lưu.",
   },
+  /** Gắn file khuôn tham chiếu (BD-7, BE `FileCategory.PRINT_TEMPLATE`: PDF hoặc PNG, tối đa 20 MB). */
+  reference: {
+    PAYLOAD_TOO_LARGE: `File khuôn quá lớn (tối đa ${REFERENCE_MAX_MB} MB).`,
+    UNSUPPORTED_MEDIA_TYPE: "File khuôn phải là PDF hoặc PNG.",
+    VALIDATION_FAILED:
+      "File khuôn bị từ chối: không qua bước quét virus, hoặc là PDF có JavaScript, hành động tự chạy, file đính kèm hay bị mã hoá.",
+    RATE_LIMITED: "Hệ thống đang bận kiểm tra file. Hãy thử gắn lại sau ít phút.",
+    NOT_FOUND: "Cấu hình in này chưa có file khuôn tham chiếu.",
+  },
   activate: {
     /** Chưa có file 3D, hoặc cấu hình cũ chưa có số đo của model: BE trả cùng 409 (8c63a729). */
     PRINT_CONFIG_MODEL_FILE_REQUIRED:
@@ -93,6 +106,23 @@ export const PRINT_CONFIG_TOAST_MESSAGES = {
   saved: "Đã lưu cấu hình in",
   activated: "Đã kích hoạt cấu hình in",
   deactivated: "Đã ngừng dùng cấu hình in",
+  referenceAttached: "Đã gắn file khuôn tham chiếu",
+} as const;
+
+/** Khối "File khuôn tham chiếu" của cấu hình in (BD-7): file PDF / PNG để khách so khuôn, không thuộc phiên bản in. */
+export const PRINT_CONFIG_REFERENCE_LABELS = {
+  title: "File khuôn tham chiếu",
+  hint: `PDF hoặc PNG, tối đa ${REFERENCE_MAX_MB} MB. Khách dùng để so khuôn; gắn hoặc thay file không ảnh hưởng thiết kế đang chờ duyệt.`,
+  none: "Chưa gắn file khuôn.",
+  download: "Tải về",
+  attach: "Gắn file khuôn",
+  replace: "Thay file khuôn",
+  inputLabel: "Chọn file khuôn tham chiếu (PDF hoặc PNG)",
+  uploading: "Đang gắn file…",
+  downloadForbidden: "Tài khoản của bạn chưa có quyền xem file khuôn của cấu hình in này.",
+  /** 404 trên link tải: file đã bị gỡ hoặc cấu hình đã đổi — màn tải lại cấu hình. */
+  downloadGone: "File khuôn hoặc cấu hình in không còn như trước. Dữ liệu đã được tải lại.",
+  wrongType: "File khuôn phải là PDF hoặc PNG.",
 } as const;
 
 export const PRINT_CONFIG_ACTION_LABELS = {
@@ -246,6 +276,37 @@ export const PRINT_CONFIG_SCREEN_LABELS = {
       bottomFoldMax: (gusset: string) => `Không sâu hơn hông túi (${gusset}).`,
     },
   },
+  /** "Ràng buộc file": giới hạn file khách được tải lên (BE `PrintConfigRules`), sửa được cùng số mặc định. */
+  fileRules: {
+    title: "Ràng buộc file",
+    note: "Giới hạn file ảnh mà khách được tải lên khi thiết kế trên cấu hình in này. Studio nhắc khách theo các giá trị này.",
+    fields: {
+      minDpi: "Độ phân giải tối thiểu (dpi)",
+      colorMode: "Hệ màu",
+      allowedFileFormats: "Định dạng ảnh khách được tải lên",
+      maxFileSizeMb: "Dung lượng tối đa mỗi ảnh (MB)",
+      maxColors: "Số màu mực tối đa",
+      allowedFontCodes: "Font được dùng",
+    },
+    colorModes: { CMYK: "CMYK (in offset)", RGB: "RGB" },
+    formats: { "image/png": "PNG", "image/jpeg": "JPG", "image/webp": "WebP" },
+    noColorLimit: "Không giới hạn",
+    fontsAll: "Mọi font",
+    fontsOnly: "Chỉ các font được chọn",
+    fontsGroup: "Danh sách font",
+    /** Mã font đã lưu mà danh sách của BE không có (BE-18): hiện lại để người dùng thấy và bỏ chọn được. */
+    fontUnknown: (code: string) => `${code} (mã lạ)`,
+    fontsLoading: "Đang tải danh sách font…",
+    fontsError: "Không tải được danh sách font.",
+    fontsRetry: "Thử lại",
+    validation: {
+      number: "Nhập một số.",
+      integer: "Nhập một số nguyên.",
+      between: (min: number, max: number) => `Từ ${min} đến ${max}.`,
+      formatsNeeded: "Chọn ít nhất một định dạng.",
+      fontsNeeded: "Chọn ít nhất một font, hoặc chọn Mọi font.",
+    },
+  },
   defaultRows: {
     safeMarginMm: "Lề an toàn",
     bleedMm: "Tràn lề",
@@ -278,14 +339,14 @@ export const PRINT_CONFIG_SCREEN_LABELS = {
   },
   readOnly: {
     permission: "Bạn không có quyền sửa cấu hình in, nên chỉ xem được.",
-    product: "Sản phẩm đang chờ duyệt hoặc đã ngừng kinh doanh nên chưa sửa được cấu hình in.",
+    product: "Sản phẩm đã ngừng kinh doanh nên chưa sửa được cấu hình in.",
     variant: "Biến thể này đã ngừng dùng nên không sửa được cấu hình in.",
   },
   status: {
     activateNote: "Kích hoạt: khách hàng của biến thể này bắt đầu thiết kế trên cấu hình in này.",
     activateTitle: "Kích hoạt cấu hình in?",
     activateDescription:
-      "Khách hàng của biến thể này sẽ bắt đầu thiết kế trên cấu hình in này. Cấu hình đang dùng trước đó (nếu có) sẽ ngừng dùng.",
+      "Khách hàng của biến thể này sẽ bắt đầu thiết kế trên cấu hình in này. Cấu hình đang dùng trước đó (nếu có) sẽ tự ngừng dùng.",
     deactivateTitle: "Ngừng dùng cấu hình in?",
     deactivateDescription:
       "Khách hàng sẽ không bắt đầu thiết kế mới trên cấu hình in này. Bản thiết kế đang làm dở vẫn giữ cấu hình này.",
@@ -314,6 +375,8 @@ export const PRINT_CONFIG_SCREEN_LABELS = {
   unreadableTitle: "Không đọc được file",
   serverField: "Máy chủ không chấp nhận giá trị này.",
   save: {
+    confirmTitle: "Lưu cấu hình in?",
+    confirmDescription: "Cấu hình in này đang có sẵn, bản lưu sẽ thay các giá trị hiện tại.",
     saving: "Đang lưu…",
     nothingToSave: "Chưa có thay đổi để lưu.",
     newFile: (name: string) => `Sẽ lưu cùng file ${name}.`,
@@ -328,6 +391,48 @@ export const PRINT_CONFIG_SCREEN_LABELS = {
     bag: { code: "BAG-FACES", name: "Bốn mặt túi" },
   },
 } as const;
+
+/**
+ * Cảnh báo "N thiết kế đang chờ duyệt sẽ không duyệt được nữa", và khi nào hiện: MỘT chỗ duy nhất.
+ *
+ * BE (phiên bản in, cần quyết 1): chỉ đổi trường thuộc phiên bản in mới làm thiết kế đang chờ không duyệt được; kích
+ * hoạt, ngừng và gắn file khuôn tham chiếu thì không. Nên chỉ `save` còn hiện, và chỉ khi form đổi một trường in
+ * (`changesPrintVersion`) và `pendingReviewCount > 0` của cấu hình. Các dòng khác giữ ở đây với `show: false` (đừng
+ * xoá: `PendingWarningAction` suy ra từ các khoá này).
+ */
+export const PRINT_CONFIG_PENDING_WARNING = {
+  /** Câu cảnh báo kèm số thiết kế đang chờ duyệt trên cấu hình. */
+  count: (pendingCount: number) =>
+    `${pendingCount} thiết kế đang chờ duyệt dùng cấu hình này sẽ không duyệt được nữa (khách phải gửi lại).`,
+  /** Hành động nào còn hiện cảnh báo. */
+  when: {
+    save: { show: true },
+    activate: { show: false },
+    deactivate: { show: false },
+    attachReference: { show: false },
+  },
+} as const;
+
+export type PendingWarningAction = keyof typeof PRINT_CONFIG_PENDING_WARNING.when;
+
+/**
+ * Câu cảnh báo của một hành động, hoặc `null` khi không cần. Lưu chỉ cảnh báo khi cấu hình đã có (`hasStored`: cấu
+ * hình mới chưa có thiết kế nào dùng), form đổi một trường thuộc phiên bản in (`printVersionChanged`) và có thiết kế
+ * đang chờ duyệt (`pendingReviewCount > 0`).
+ */
+export function pendingDesignWarning(
+  action: PendingWarningAction,
+  {
+    hasStored,
+    pendingReviewCount,
+    printVersionChanged = false,
+  }: { hasStored: boolean; pendingReviewCount: number | null; printVersionChanged?: boolean },
+): string | null {
+  if (!PRINT_CONFIG_PENDING_WARNING.when[action].show) return null;
+  if (action === "save" && !(hasStored && printVersionChanged)) return null;
+  if (!pendingReviewCount || pendingReviewCount <= 0) return null;
+  return PRINT_CONFIG_PENDING_WARNING.count(pendingReviewCount);
+}
 
 /** Chữ của trang "Cấu hình in" của một biến thể (`/admin/products/[id]/variants/[variantId]/print-config`). */
 export const PRINT_CONFIG_PAGE_LABELS = {

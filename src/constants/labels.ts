@@ -447,7 +447,6 @@ export const TOAST_MESSAGES = {
     destinationChanged: "Đã đổi đích lấy hàng",
     pickingStarted: "Đã bắt đầu lấy hàng",
     pickingCompleted: "Đã hoàn tất lấy hàng",
-    held: "Lệch checksum thiết kế — kiện bị giữ, chờ kiểm tra lại thiết kế",
     // Chuyển cả tác vụ từ khu chờ xuất sang khu xuất hàng (BE `POST …/dispatch-transfer`, docs 07 §4.3 bước 8)
     movedToDispatch: "Đã chuyển task sang khu xuất hàng — tồn đã được trừ",
     // Lấy bổ sung (BE `POST …/top-up`, docs 07 §4.3 bước 7): thùng còn thiếu đã về kho thêm vào cùng task

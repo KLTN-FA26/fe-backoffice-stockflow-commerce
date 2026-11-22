@@ -479,9 +479,13 @@ export const MODEL3D_MODEL_DEFAULTS = { seamMm: 8, rimMm: 3 } as const;
 
 export const PRINT_TEMPLATE_DEFAULTS = {
   cup: { safeMarginMm: 3, bleedMm: 2, maxColors: null },
-  bag: { safeMarginMm: 5, bleedMm: 3, maxColors: 4 },
+  // The bag used to default to 4 ink colours: a guess nobody confirmed, and the storefront shows the limit as a hint on
+  // every picture. No limit (null, as the BE reads it) until the printer states one; the field offers "Không giới hạn".
+  bag: { safeMarginMm: 5, bleedMm: 3, maxColors: null },
   minDpi: 300,
   maxFileSizeMb: 50,
+  colorMode: "CMYK",
+  allowedFileFormats: ["image/png", "image/jpeg"],
 } as const;
 
 /**
@@ -507,12 +511,22 @@ export const BAG_SHEET_LIMITS = {
 export const PRINT_CONFIG_LIMITS = {
   /** `name` tối đa 255 ký tự (template và vùng in). */
   nameMaxLength: 255,
-  /** `code` của template: 1–50 chữ in hoa, số hoặc dấu gạch. */
-  codePattern: /^[A-Z0-9-]{1,50}$/,
+  /** `code` của template: 1–50 chữ in hoa, số hoặc dấu gạch; ký tự đầu không là dấu gạch (BE `PrintConfigService`). */
+  codePattern: /^[A-Z0-9][A-Z0-9-]{0,49}$/,
   /** `minDpi` 72–2400. */
   minDpiRange: [72, 2400],
   /** `maxFileSizeMb` 1–50. */
   maxFileSizeMbRange: [1, 50],
+  /** `maxColors` null (no limit) or 1–12 (BE `PrintConfigRules`). */
+  maxColorsRange: [1, 12],
+  /** The number a "limited" switch starts at when the person turns the limit on. */
+  maxColorsStart: 4,
+  /** `allowedFileFormats`: not empty, each one of these (BE `PrintConfigRules`). */
+  allowedFileFormats: ["image/png", "image/jpeg", "image/webp"],
+  /** `colorMode` (BE `PrintConfigRules.COLOR_MODES`). */
+  colorModes: ["CMYK", "RGB"],
+  /** `allowedFontCodes` entries are 1–64 characters. */
+  fontCodeMaxLength: 64,
   /** `bleedMm` 0–20. */
   bleedMaxMm: 20,
   /** `safeMarginMm` của mỗi vùng in 0–500 (BE `PrintConfigRules.areas`). */

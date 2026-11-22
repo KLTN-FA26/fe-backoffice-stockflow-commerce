@@ -54,6 +54,33 @@ export const ROLE_PERMISSIONS = {
     "chat-conversations:READ",
     "chat-conversations:CREATE",
     "chat-conversations:UPDATE",
+    // V20261111000000 (baseline): đọc thiết kế của khách và hộp yêu cầu báo giá — KHÔNG có design-designs:APPROVE.
+    "design-designs:VIEW_PAGE",
+    "design-designs:READ",
+    "design-quote-requests:VIEW_PAGE",
+    "design-quote-requests:READ",
+    "design-quote-requests:UPDATE",
+  ],
+  // V20261111000000 (baseline) + V20261213000200: yêu cầu báo giá, xem khách; đọc thiết kế qua yêu cầu báo giá đang mở.
+  // design-designs:APPROVE đã chuyển sang PRODUCTION_COORDINATOR.
+  SALES_MANAGER: [
+    "customer-customers:VIEW_PAGE",
+    "customer-customers:READ",
+    "sales-quotes:VIEW_PAGE",
+    "sales-quotes:READ",
+    "design-designs:VIEW_PAGE",
+    "design-designs:READ",
+    "design-quote-requests:VIEW_PAGE",
+    "design-quote-requests:READ",
+    "design-quote-requests:UPDATE",
+    "chat-conversations:VIEW_PAGE",
+    "chat-conversations:READ",
+  ],
+  // V20261213000200: Điều phối sản xuất duyệt thiết kế của khách (kltn-docs 12 §4.4, §4.10).
+  PRODUCTION_COORDINATOR: [
+    "design-designs:VIEW_PAGE",
+    "design-designs:READ",
+    "design-designs:APPROVE",
   ],
   ECOMMERCE_ADMIN: [
     "customer-customers:VIEW_PAGE",
@@ -210,13 +237,15 @@ export function renderScreen(ui: React.ReactElement, role: TestRole, searchParam
     impersonatedRole: null,
   });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
+  const view = render(
     <QueryClientProvider client={client}>
       <NuqsTestingAdapter searchParams={searchParams} hasMemory>
         <Suspense fallback={<div>loading</div>}>{ui}</Suspense>
       </NuqsTestingAdapter>
     </QueryClientProvider>,
   );
+  /** `client` để test giả lập một lần tải lại nền (vd focus cửa sổ) khi đang mở hộp thoại. */
+  return Object.assign(view, { client });
 }
 
 /** PageResponse BE (trang từ 0). */

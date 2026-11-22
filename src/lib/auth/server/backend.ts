@@ -2,7 +2,11 @@ import "server-only";
 
 import { z } from "zod";
 
-import { BFF_UPSTREAM_TIMEOUT_MS } from "@/constants/auth";
+import {
+  BFF_UPSTREAM_TIMEOUT_MS,
+  isLongRunningRoute,
+  LONG_RUNNING_TIMEOUT_MS,
+} from "@/constants/auth";
 
 import { IS_MOCK } from "@/lib/config";
 
@@ -56,7 +60,10 @@ export async function backendFetch(path: string, init: RequestInit, query = ""):
     headers,
     cache: "no-store",
     redirect: "manual",
-    signal: AbortSignal.timeout(BFF_UPSTREAM_TIMEOUT_MS),
+    // Danh sách lệnh chạy lâu ở `LONG_RUNNING_ROUTES`; mọi route khác 15 s.
+    signal: AbortSignal.timeout(
+      isLongRunningRoute(init.method, path) ? LONG_RUNNING_TIMEOUT_MS : BFF_UPSTREAM_TIMEOUT_MS,
+    ),
   });
 }
 export async function unwrapBackend(response: Response): Promise<unknown> {

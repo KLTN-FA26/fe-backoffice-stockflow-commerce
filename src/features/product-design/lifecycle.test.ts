@@ -68,8 +68,12 @@ describe("print configuration lifecycle", () => {
     expect(allowedActions("ACTIVE", role(TEMPLATE.update))).toEqual([]);
   });
 
-  it("a discontinued product or obsolete variant (writable: false) gets no action", () => {
-    expect(allowedActions("ACTIVE", EDITOR, { writable: false })).toEqual([]);
+  it("a discontinued product or obsolete variant (writable: false) keeps only the stop (BE deactivate skips requireWritable)", () => {
+    expect(codes(allowedActions("ACTIVE", EDITOR, { writable: false }))).toEqual(["deactivate"]);
+    expect(allowedActions("INACTIVE", EDITOR, { writable: false })).toEqual([]);
+    expect(allowedActions(null, EDITOR, { writable: false })).toEqual([]);
+    // Still needs the permission.
+    expect(allowedActions("ACTIVE", role(TEMPLATE.read), { writable: false })).toEqual([]);
   });
 
   it("a configuration whose file or area table does not allow it is not offered activation; the rest stays", () => {

@@ -56,6 +56,8 @@ export interface MockPrintTemplate {
   areas: MockAreaInput[];
   surfaces: PrintSurface[];
   file: MockModelFile | null;
+  /** BD-7: the reference die-line (PDF / PNG); absent until one is attached. */
+  reference?: { name: string; url: string } | null;
   version: number;
 }
 
@@ -69,7 +71,14 @@ let counter = 0;
  */
 export const printConfigMockFaults: { storeOtherBytes: boolean } = { storeOtherBytes: false };
 
+/**
+ * Test hook (the BE computes it): how many `PENDING_REVIEW` designs every template answers as `pendingReviewCount`.
+ * Cleared by `resetPrintConfigMockStore`.
+ */
+export const printConfigMockPending: { count: number } = { count: 0 };
+
 export function resetPrintConfigMockStore(): void {
+  printConfigMockPending.count = 0;
   byVariant.clear();
   seeded = false;
   counter = 0;
@@ -153,7 +162,10 @@ export function responseOf(t: MockPrintTemplate) {
       };
     }),
     version: t.version,
-    referenceFileName: null,
+    // ASSUMPTION: the mock has no separate print version; the lock's `version` stands in for it.
+    printVersion: t.version,
+    pendingReviewCount: printConfigMockPending.count,
+    referenceFileName: t.reference?.name ?? null,
     model3d: {
       hasFile: t.file !== null,
       fileName: t.file?.name ?? null,

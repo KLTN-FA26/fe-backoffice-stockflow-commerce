@@ -1,7 +1,7 @@
 /**
  * From what the screen holds (a measurement of a chosen file, or the stored configuration; the defaults the person
  * confirmed) to the input of `savePrintConfig`. Pure. The measured figures are never changed here: only the defaults
- * (seam, rim, material, top fold, glue flap, bottom fold, handle, margins) are applied on top of them.
+ * (seam, rim, material, top fold, glue flap, bottom fold, handle, margins) and the file rules are applied on top of them.
  */
 import { PRINT_CONFIG_SCREEN_LABELS } from "@/constants/labels-print-config";
 
@@ -78,20 +78,46 @@ export function templateOfSource({ source, stored, defaults }: Omit<BuildSaveArg
     ? source.printMeshes
     : (stored?.printAreas ?? []).map((area) => ({ printAreaCode: area.code }));
   if (model.kind === "parametric-bag" && areas.length === 0) return null; // no face to build a bag from
+  // The file rules are the form's (what the person typed, prefilled from the stored configuration or the defaults),
+  // never the stored values again: a save sends what the screen shows.
   const template = templateFromModel(model, areas, {
-    // A stored configuration keeps its file rules; a new one takes the convention's defaults.
-    ...(stored
-      ? {
-          minDpi: stored.minDpi,
-          colorMode: stored.colorMode,
-          allowedFileFormats: stored.allowedFileFormats,
-          maxFileSizeMb: stored.maxFileSizeMb,
-        }
-      : {}),
-    cup: { ...margins, maxColors: stored ? stored.maxColors : null },
-    bag: { ...margins, maxColors: stored ? stored.maxColors : 4 },
+    minDpi: defaults.minDpi,
+    colorMode: defaults.colorMode,
+    allowedFileFormats: defaults.allowedFileFormats,
+    maxFileSizeMb: defaults.maxFileSizeMb,
+    cup: { ...margins, maxColors: defaults.maxColors },
+    bag: { ...margins, maxColors: defaults.maxColors },
   });
   return { base, model, template };
+}
+
+/**
+ * The margin an area is saved with. Faces with their own margins keep them, unless the person typed a value of their own
+ * (one that is not the first area's, which is what the form shows). `kept`: the stored configuration of the same kind.
+ */
+export function keptAreaMargin(
+  kept: PrintConfigDto | null,
+  code: PrintAreaCode,
+  field: "safeMarginMm" | "bleedMm",
+  value: number,
+): number {
+  const areas = kept?.printAreas;
+  if (!areas || areas[0]?.[field] !== value) return value;
+  return areas.find((area) => area.code === code)?.[field] ?? value;
+}
+
+/** The safe margin each stored area is saved with, for the geometry check (BD-6: the BE checks each area's own). */
+export function savedSafeMargins(
+  stored: PrintConfigDto | null,
+  model: CupModel | BagModel,
+  typedMm: number,
+): Partial<Record<PrintAreaCode, number>> {
+  const kept = stored?.model?.kind === model.kind ? stored : null;
+  const margins: Partial<Record<PrintAreaCode, number>> = {};
+  for (const { code } of kept?.printAreas ?? []) {
+    margins[code] = keptAreaMargin(kept, code, "safeMarginMm", typedMm);
+  }
+  return margins;
 }
 
 /** `null` when there is nothing to save: no measurement and no stored file. */
@@ -108,23 +134,21 @@ export function buildSaveInput({
   const fresh = model.kind === "parametric-cup" ? names.cup : names.bag;
   // A configuration of the other kind (a bag file over a cup) is a new thing: its code and name, not the old ones.
   const kept = stored?.model?.kind === model.kind ? stored : null;
-  // Faces with their own margins keep them, unless the person typed a value of their own (one that is not the first
-  // area's, which is what the form shows).
-  const margin = (code: PrintAreaCode, field: "safeMarginMm" | "bleedMm", value: number) => {
-    const areas = kept?.printAreas;
-    if (!areas || areas[0]?.[field] !== value) return value;
-    return areas.find((area) => area.code === code)?.[field] ?? value;
-  };
+  // One saved before models existed has no kind to clash with: it keeps its own code and name (the BE ignores
+  // `code` on update and would take the new name, BD-13).
+  const identity = kept ?? (stored && !stored.model ? stored : null);
+  const margin = (code: PrintAreaCode, field: "safeMarginMm" | "bleedMm", value: number) =>
+    keptAreaMargin(kept, code, field, value);
   return {
     config: {
-      code: kept?.code ?? fresh.code,
-      name: kept?.name ?? fresh.name,
+      code: identity?.code ?? fresh.code,
+      name: identity?.name ?? fresh.name,
       minDpi: template.minDpi,
       colorMode: template.colorMode,
       allowedFileFormats: template.allowedFileFormats,
       maxFileSizeMb: template.maxFileSizeMb,
       maxColors: template.maxColors,
-      allowedFontCodes: stored?.allowedFontCodes ?? null,
+      allowedFontCodes: defaults.allowedFontCodes,
       model,
       printAreas: template.printAreas.map(({ code, name, safeMarginMm, bleedMm }) => ({
         code,

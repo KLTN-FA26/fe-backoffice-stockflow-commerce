@@ -73,7 +73,10 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 /** Mock products of the seed carry the legacy status "Active"; the BE statuses are what the gate knows. */
-async function setStatus(productId: string, status: "Approved" | "Discontinued") {
+async function setStatus(
+  productId: string,
+  status: "Approved" | "Discontinued" | "Pending Approval",
+) {
   const product = await findMockProduct(productId);
   if (!product) throw new Error(`mock product ${productId} missing`);
   saveMockProduct({ ...product, status });
@@ -265,7 +268,15 @@ describe("VariantPrintConfig", () => {
       expect(lastReason()).toBe("permission");
     });
 
-    it("passes `product` for a product that does not accept changes", async () => {
+    it("a product pending approval still edits its print configuration (BE only refuses a discontinued one)", async () => {
+      await setStatus(SEED.productId, "Pending Approval");
+      open(SEED);
+      await screen.findByLabelText(UPLOAD);
+      expect(lastWritable()).toBe(true);
+      expect(lastReason()).toBeUndefined();
+    });
+
+    it("passes `product` for a discontinued product", async () => {
       await setStatus(SEED.productId, "Discontinued");
       open(SEED);
       await measured();

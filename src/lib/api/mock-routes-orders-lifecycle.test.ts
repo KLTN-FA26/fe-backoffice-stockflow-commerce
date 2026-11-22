@@ -14,7 +14,6 @@ import {
   BE_ORDER_STATUSES,
   backendOrderStatusOf,
   mockOrderCancellations,
-  putMockOrderOnDesignHold,
   putMockOrderOnInventoryHold,
   resetOrderMockStore,
   resolveMockInventoryHold,
@@ -212,27 +211,6 @@ describe("vòng đời 19 trạng thái (BE PR #133)", () => {
 });
 
 describe("giữ đơn", () => {
-  it("lệch thiết kế → ON_HOLD DESIGN_MISMATCH, nhớ trạng thái trước; gỡ tay bị từ chối; kiểm lại đạt → PACKED", async () => {
-    await putMockOrderOnDesignHold(PICKING);
-    expect(await order(PICKING)).toMatchObject({
-      status: "ON_HOLD",
-      holdReason: "DESIGN_MISMATCH",
-      statusBeforeHold: "PICKING",
-      holdReasonPublic: "UNDER_REVIEW",
-    });
-    // Giữ lần hai không ghi đè trạng thái trước
-    await putMockOrderOnDesignHold(PICKING);
-    expect((await order(PICKING)).statusBeforeHold).toBe("PICKING");
-    expect(await errorCode("POST", `/orders/${PICKING}/hold/resolution`, { note: "đã xem" })).toBe(
-      "ORDER_DESIGN_HOLD_USE_REVERIFICATION",
-    );
-    setMockOrderStatus(PICKING, "PACKED");
-    const packed = await order(PICKING);
-    expect(packed).toMatchObject({ status: "PACKED", packedAt: expect.any(String) });
-    expect(packed).not.toHaveProperty("holdReason");
-    expect(packed).not.toHaveProperty("statusBeforeHold");
-  });
-
   it("giữ tay rồi gỡ → về đúng trạng thái cũ; lịch sử mang lý do BE", async () => {
     await data("POST", `/orders/${READY}/hold`, { reasonCode: "ADDRESS", note: "Sai phường" });
     expect(await order(READY)).toMatchObject({
@@ -597,7 +575,6 @@ describe("resetOrderMockStore", () => {
     await data("POST", `/orders/${CREDIT_ON_HOLD}/credit-approval`, { note: "ok" });
     await data("POST", `/orders/${READY}/hold`, { reasonCode: "ADDRESS", note: "" });
     await data("POST", `/orders/${PARTIAL}/remainder-closure`, { reasonCode: "OUT_OF_STOCK" });
-    await putMockOrderOnDesignHold(PICKING);
 
     resetOrderMockStore();
     expect(await Promise.all(ids.map(order))).toEqual(fresh);

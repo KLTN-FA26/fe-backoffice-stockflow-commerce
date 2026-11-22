@@ -11,6 +11,7 @@ import {
   DEFAULT_PROXY_BODY_LIMIT_BYTES as DEFAULT,
   EINVOICE_AGREEMENT_UPLOAD_LIMIT_BYTES as AGREEMENT,
   PRINT_MODEL_UPLOAD_LIMIT_BYTES as MODEL,
+  PRINT_REFERENCE_UPLOAD_LIMIT_BYTES as REFERENCE,
   SIGNED_CONTRACT_UPLOAD_LIMIT_BYTES as SIGNED,
   WAYBILL_IMPORT_UPLOAD_LIMIT_BYTES as WAYBILL,
   PRODUCT_IMAGE_UPLOAD_LIMIT_BYTES as UPLOAD,
@@ -112,6 +113,15 @@ describe("limit resolution uses only method + path", () => {
     ["POST", [...TEMPLATES, "t-1"], DEFAULT],
     ["POST", [...TEMPLATES, "t-1", "activation"], DEFAULT],
     ["PUT", [...TEMPLATES, "t-1", "model-file"], DEFAULT],
+    // BD-7: the reference die-line (PDF / PNG up to 20 MiB) goes to its own 7-segment route.
+    ["PUT", [...TEMPLATES, "t-1", "reference-file"], REFERENCE],
+    ["POST", [...TEMPLATES, "t-1", "reference-file"], DEFAULT],
+    ["GET", [...TEMPLATES, "t-1", "reference-file", "download-url"], DEFAULT],
+    [
+      "PUT",
+      ["orders", "p-1", "variants", "v-1", "customization-templates", "t-1", "reference-file"],
+      DEFAULT,
+    ],
     ["PUT", ["orders", "p-1", "variants", "v-1", "customization-templates", "t-1"], DEFAULT],
     // WF-02 audit item 2: a signed contract scan (1-5 MB) and a chat file used to stop at the 1 MiB default.
     ["POST", SIGNATURE, SIGNED],
@@ -133,6 +143,8 @@ describe("limit resolution uses only method + path", () => {
     expect(DEFAULT).toBe(1_048_576);
     expect(UPLOAD).toBe(10 * 1024 * 1024 + 64 * 1024);
     expect(MODEL).toBe(10 * 1024 * 1024 + 64 * 1024);
+    // BE FileCategory.PRINT_TEMPLATE: 20 MiB.
+    expect(REFERENCE).toBe(20 * 1024 * 1024 + 64 * 1024);
     // BE FileCategory: DOCUMENT 25 MiB, CHAT_ATTACHMENT 20 MiB, EINVOICE 10 MiB, WAYBILL_IMPORT 2 MiB.
     expect(SIGNED).toBe(25 * 1024 * 1024 + 64 * 1024);
     expect(CHAT).toBe(20 * 1024 * 1024 + 64 * 1024);

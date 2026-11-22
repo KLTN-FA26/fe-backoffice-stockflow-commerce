@@ -58,8 +58,8 @@ export interface ListFulfillmentTaskParams extends ListQueryParams {
 }
 
 /**
- * Phạm vi theo mã quyền (BE `listTasks`): task-oversight:READ thấy mọi task; design-reverification:READ
- * chỉ kiện đang giữ; còn lại chỉ task gán cho mình. Lọc chỉ thu hẹp trong phạm vi đó. Mới nhất trước.
+ * Phạm vi theo mã quyền (BE `listTasks`): task-oversight:READ thấy mọi task; còn lại chỉ task
+ * gán cho mình. Lọc chỉ thu hẹp trong phạm vi đó. Mới nhất trước.
  */
 export async function listFulfillmentTasks(
   params: ListFulfillmentTaskParams,

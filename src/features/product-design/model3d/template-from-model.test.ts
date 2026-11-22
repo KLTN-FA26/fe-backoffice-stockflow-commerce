@@ -124,7 +124,8 @@ describe("templateFromModel: bag", () => {
       face("LEFT", "Hông trái", 120),
       face("RIGHT", "Hông phải", 120),
     ]);
-    expect(template.maxColors).toBe(4);
+    // No ink limit by default (the BE's null): a guessed 4 used to show on every storefront picture.
+    expect(template.maxColors).toBeNull();
     expect(customizationTemplateSchema.safeParse(template).success).toBe(true);
   });
 

@@ -1,6 +1,7 @@
 /** Helpers of the print-configuration screen tests: a render with providers, `.glb` files, and in-memory trees. */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { BufferAttribute, BufferGeometry, Group, Mesh } from "three";
@@ -215,4 +216,14 @@ export function loaderOf(...trees: Group[]): GlbLoader & { calls: () => number }
     return tree;
   };
   return Object.assign(load, { calls: () => n });
+}
+
+/**
+ * Press "Lưu cấu hình in" of a stored configuration and confirm the dialog it opens (a save bumps the version of what
+ * is stored, so it asks first; a first save of a new configuration does not).
+ */
+export async function saveStored(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole("button", { name: "Lưu cấu hình in" }));
+  const dialog = within(await screen.findByRole("dialog", { name: "Lưu cấu hình in?" }));
+  await user.click(dialog.getByRole("button", { name: "Lưu cấu hình in" }));
 }

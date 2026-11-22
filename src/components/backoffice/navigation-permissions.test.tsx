@@ -33,6 +33,7 @@ import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { meKeys } from "@/lib/auth/me-permissions";
+import { ROLE_PERMISSIONS } from "@/test/api-screen";
 
 import {
   NAV_GROUPS,
@@ -432,6 +433,24 @@ describe("credit hold navigation — gate bằng quyền credit hold, không ph�
     );
   });
 
+  it("route anh em chia chung mục menu: tab Dự án và vòng duyệt sáng đúng mục, breadcrumb theo mục", () => {
+    const items = NAV_GROUPS.flatMap((group) => group.items);
+    expect(findActiveNavHref(ADMIN_ROUTES.designProjectQuoteRequests.list, items)).toBe(
+      ADMIN_ROUTES.designQuoteRequests.list,
+    );
+    expect(findActiveNavHref(ADMIN_ROUTES.designReviewRounds.detail("r-1"), items)).toBe(
+      ADMIN_ROUTES.designs.reviewQueue,
+    );
+    expect(buildBreadcrumbItems(ADMIN_ROUTES.designProjectQuoteRequests.list)).toEqual([
+      { label: "Back-office", href: ADMIN_ROUTES.home },
+      { label: "Yêu cầu báo giá thiết kế", href: undefined },
+    ]);
+    expect(buildBreadcrumbItems(ADMIN_ROUTES.designReviewRounds.list)).toEqual([
+      { label: "Back-office", href: ADMIN_ROUTES.home },
+      { label: "Duyệt thiết kế", href: undefined },
+    ]);
+  });
+
   it("breadcrumb hàng đợi cho ACCOUNTANT không dẫn qua 'Đơn hàng' (trang bị chặn)", () => {
     const accountantCanSee = (item: { permission?: PermissionCode }) =>
       !item.permission || item.permission === CREDIT_HOLD_PERMISSIONS.viewPage;
@@ -567,5 +586,51 @@ describe("trả hàng (WF-05 BO-16) — theo seed BE sales-rmas / sales-rma-reso
     expect(findActiveNavHref(RETURN_ROUTES.receipts.detail("g-1"), items)).toBe(
       RETURN_ROUTES.receipts.list,
     );
+  });
+});
+
+// WF-02 BO-3: hàng đợi duyệt thiết kế cần design-designs:APPROVE — SALES_STAFF có VIEW_PAGE nhưng BE trả 403 ở hàng đợi.
+describe("Duyệt thiết kế theo design-designs:APPROVE, không theo VIEW_PAGE", () => {
+  function mountRole(role: "SALES_STAFF" | "SALES_MANAGER" | "PRODUCTION_COORDINATOR") {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: { roles: [role], permissions: [...ROLE_PERMISSIONS[role]], dataScope: "ALL" },
+    });
+    mount();
+  }
+
+  it("SALES_STAFF không thấy 'Duyệt thiết kế'", async () => {
+    mountRole("SALES_STAFF");
+    expect(await screen.findByRole("link", { name: "Báo giá" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Duyệt thiết kế" })).not.toBeInTheDocument();
+  });
+
+  it("PRODUCTION_COORDINATOR thấy 'Duyệt thiết kế' dẫn tới hàng đợi (V20261213000200)", async () => {
+    mountRole("PRODUCTION_COORDINATOR");
+    expect(await screen.findByRole("link", { name: "Duyệt thiết kế" })).toHaveAttribute(
+      "href",
+      ADMIN_ROUTES.designs.reviewQueue,
+    );
+  });
+
+  it("SALES_MANAGER không còn 'Duyệt thiết kế' nhưng vẫn có 'Yêu cầu báo giá thiết kế'", async () => {
+    mountRole("SALES_MANAGER");
+    expect(
+      await screen.findByRole("link", { name: "Yêu cầu báo giá thiết kế" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Duyệt thiết kế" })).not.toBeInTheDocument();
+  });
+
+  it("chi tiết thiết kế sáng mục 'Duyệt thiết kế' và có breadcrumb qua hàng đợi", () => {
+    const items = NAV_GROUPS.flatMap((group) => group.items);
+    expect(findActiveNavHref(ADMIN_ROUTES.designs.detail("d-1"), items)).toBe(
+      ADMIN_ROUTES.designs.reviewQueue,
+    );
+    expect(
+      buildBreadcrumbItems(
+        ADMIN_ROUTES.designs.detail("d-1"),
+        () => true,
+        () => "Ly giấy",
+      ).map((item) => item.label),
+    ).toEqual(["Back-office", "Duyệt thiết kế", "Ly giấy"]);
   });
 });

@@ -7,6 +7,7 @@ export const MULTIPART_ENVELOPE_BYTES = 64 * 1024;
  * Dung lượng tối đa của MỘT file theo loại, đúng BE `common/storage/FileCategory` (MB = MiB, như BE tính) — cũng là
  * số hiện cho người dùng ("File quá lớn (tối đa … MB)"):
  * - `productImage` — PRODUCT_IMAGE (ảnh biến thể), `printModel` — PRINT_MODEL (`.glb` của cấu hình in);
+ * - `printReference` — PRINT_TEMPLATE (file khuôn tham chiếu PDF / PNG của cấu hình in, BD-7);
  * - `signedContract` — DOCUMENT (bản scan hợp đồng đã ký, `POST /orders/{id}/contract/signature`);
  * - `chatAttachment` — CHAT_ATTACHMENT (file gửi trong chat);
  * - `einvoiceAgreement` — EINVOICE (biên bản thoả thuận khi điều chỉnh hoá đơn);
@@ -15,6 +16,7 @@ export const MULTIPART_ENVELOPE_BYTES = 64 * 1024;
 export const UPLOAD_FILE_MAX_MB = {
   productImage: 10,
   printModel: 10,
+  printReference: 20,
   signedContract: 25,
   chatAttachment: 20,
   einvoiceAgreement: 10,
@@ -22,6 +24,9 @@ export const UPLOAD_FILE_MAX_MB = {
 } as const;
 
 export type UploadKind = keyof typeof UPLOAD_FILE_MAX_MB;
+
+/** BE `FileCategory.PRINT_TEMPLATE`: the types a print configuration's reference die-line may have (BD-7). */
+export const PRINT_REFERENCE_TYPES = ["application/pdf", "image/png"] as const;
 
 /** Byte tối đa của một file loại `kind` — để chặn ngay trên form trước khi gửi. */
 export const uploadFileMaxBytes = (kind: UploadKind) => UPLOAD_FILE_MAX_MB[kind] * MIB;

@@ -5,7 +5,12 @@ import { toast } from "@/components/shared/Toast";
 import { createMutation } from "@/lib/api/query-factory";
 import { withStaleRefetch } from "@/lib/api/stale-refetch";
 
-import { activatePrintConfig, deactivatePrintConfig, savePrintConfig } from "./api";
+import {
+  activatePrintConfig,
+  attachReferenceFile,
+  deactivatePrintConfig,
+  savePrintConfig,
+} from "./api";
 import { printConfigErrorMessage } from "./errors";
 import { printConfigKeys } from "./queries";
 
@@ -15,6 +20,22 @@ export interface SavePrintConfigVariables {
   productId: string;
   variantId: string;
   input: PrintConfigSaveInput;
+}
+
+/**
+ * The template a write returned, written into the variant's entry at once: the next save starts from the `version` the
+ * BE answered without waiting for the refetch (no OPTIMISTIC_LOCK on a quick second write). The entry holds the
+ * template the screen shows (`pickPrintConfig`), so it is replaced only when it is that template or the variant had none.
+ */
+function writeBack(
+  queryClient: ReturnType<typeof useQueryClient>,
+  saved: PrintConfigDto,
+  { productId, variantId }: { productId: string; variantId: string },
+) {
+  queryClient.setQueryData<PrintConfigDto | null>(
+    printConfigKeys.variant(productId, variantId),
+    (current) => (!current || current.templateId === saved.templateId ? saved : current),
+  );
 }
 
 const save = ({ productId, variantId, input }: SavePrintConfigVariables) =>
@@ -52,11 +73,7 @@ export const useSavePrintConfig: typeof useSaveRequest = (options) => {
   return useSaveRequest({
     ...options,
     onSuccess: (...args) => {
-      const [saved, { productId, variantId }] = args;
-      queryClient.setQueryData<PrintConfigDto | null>(
-        printConfigKeys.variant(productId, variantId),
-        (current) => (!current || current.templateId === saved.templateId ? saved : current),
-      );
+      writeBack(queryClient, args[0], args[1]);
       options?.onSuccess?.(...args);
     },
   });
@@ -89,3 +106,32 @@ export const useDeactivatePrintConfig = withStaleRefetch(
   staleKeys,
   () => true,
 );
+
+export type AttachReferenceVariables = PrintConfigTarget & { file: File };
+
+const useAttachReferenceRequest = withStaleRefetch(
+  createMutation<AttachReferenceVariables, PrintConfigDto>(attachReferenceFile, {
+    invalidate: [printConfigKeys.all],
+    showErrorToast: false,
+    successMessage: PRINT_CONFIG_TOAST_MESSAGES.referenceAttached,
+    onError: (error: unknown) => toast.error(printConfigErrorMessage(error, "reference")),
+  }),
+  staleKeys,
+  () => true,
+);
+
+/**
+ * Attaching the reference die-line (BD-7) bumps the template's `version` but not its print version, so it warns about no
+ * pending design (`PRINT_CONFIG_PENDING_WARNING.attachReference`). The returned template goes into the variant's entry at
+ * once, as a save does, so an edit open beside it saves on the new `version`; any failure refetches the variant.
+ */
+export const useAttachReferenceFile: typeof useAttachReferenceRequest = (options) => {
+  const queryClient = useQueryClient();
+  return useAttachReferenceRequest({
+    ...options,
+    onSuccess: (...args) => {
+      writeBack(queryClient, args[0], args[1]);
+      options?.onSuccess?.(...args);
+    },
+  });
+};

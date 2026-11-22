@@ -124,6 +124,8 @@ export const cupDto = (extra: Partial<PrintConfigDto> = {}): PrintConfigDto => (
   maxColors: null,
   allowedFontCodes: null,
   referenceFileName: null,
+  printVersion: null,
+  pendingReviewCount: null,
   model3d: noModel3d,
   printAreas: [
     {
