@@ -22,6 +22,22 @@ export interface SavePrintConfigVariables {
   input: PrintConfigSaveInput;
 }
 
+/**
+ * The template a write returned, written into the variant's entry at once: the next save starts from the `version` the
+ * BE answered without waiting for the refetch (no OPTIMISTIC_LOCK on a quick second write). The entry holds the
+ * template the screen shows (`pickPrintConfig`), so it is replaced only when it is that template or the variant had none.
+ */
+function writeBack(
+  queryClient: ReturnType<typeof useQueryClient>,
+  saved: PrintConfigDto,
+  { productId, variantId }: { productId: string; variantId: string },
+) {
+  queryClient.setQueryData<PrintConfigDto | null>(
+    printConfigKeys.variant(productId, variantId),
+    (current) => (!current || current.templateId === saved.templateId ? saved : current),
+  );
+}
+
 const save = ({ productId, variantId, input }: SavePrintConfigVariables) =>
   savePrintConfig(productId, variantId, input);
 
@@ -57,11 +73,7 @@ export const useSavePrintConfig: typeof useSaveRequest = (options) => {
   return useSaveRequest({
     ...options,
     onSuccess: (...args) => {
-      const [saved, { productId, variantId }] = args;
-      queryClient.setQueryData<PrintConfigDto | null>(
-        printConfigKeys.variant(productId, variantId),
-        (current) => (!current || current.templateId === saved.templateId ? saved : current),
-      );
+      writeBack(queryClient, args[0], args[1]);
       options?.onSuccess?.(...args);
     },
   });
@@ -118,11 +130,7 @@ export const useAttachReferenceFile: typeof useAttachReferenceRequest = (options
   return useAttachReferenceRequest({
     ...options,
     onSuccess: (...args) => {
-      const [saved, { productId, variantId }] = args;
-      queryClient.setQueryData<PrintConfigDto | null>(
-        printConfigKeys.variant(productId, variantId),
-        (current) => (!current || current.templateId === saved.templateId ? saved : current),
-      );
+      writeBack(queryClient, args[0], args[1]);
       options?.onSuccess?.(...args);
     },
   });

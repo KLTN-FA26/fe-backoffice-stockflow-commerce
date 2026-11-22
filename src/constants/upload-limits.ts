@@ -25,6 +25,9 @@ export const UPLOAD_FILE_MAX_MB = {
 
 export type UploadKind = keyof typeof UPLOAD_FILE_MAX_MB;
 
+/** BE `FileCategory.PRINT_TEMPLATE`: the types a print configuration's reference die-line may have (BD-7). */
+export const PRINT_REFERENCE_TYPES = ["application/pdf", "image/png"] as const;
+
 /** Byte tối đa của một file loại `kind` — để chặn ngay trên form trước khi gửi. */
 export const uploadFileMaxBytes = (kind: UploadKind) => UPLOAD_FILE_MAX_MB[kind] * MIB;
 

@@ -3,6 +3,10 @@
  * Không import gì từ phần còn lại của `src/`.
  */
 
+import { UPLOAD_FILE_MAX_MB } from "./upload-limits";
+
+const REFERENCE_MAX_MB = UPLOAD_FILE_MAX_MB.printReference;
+
 export const PRINT_CONFIG_FIGURE_LABELS = {
   topDiameterMm: "Đường kính miệng",
   bottomDiameterMm: "Đường kính đáy",
@@ -71,7 +75,7 @@ export const PRINT_CONFIG_CONTEXT_ERROR_MESSAGES = {
   },
   /** Gắn file khuôn tham chiếu (BD-7, BE `FileCategory.PRINT_TEMPLATE`: PDF hoặc PNG, tối đa 20 MB). */
   reference: {
-    PAYLOAD_TOO_LARGE: "File khuôn quá lớn (tối đa 20 MB).",
+    PAYLOAD_TOO_LARGE: `File khuôn quá lớn (tối đa ${REFERENCE_MAX_MB} MB).`,
     UNSUPPORTED_MEDIA_TYPE: "File khuôn phải là PDF hoặc PNG.",
     VALIDATION_FAILED:
       "File khuôn bị từ chối: không qua bước quét virus, hoặc là PDF có JavaScript, hành động tự chạy, file đính kèm hay bị mã hoá.",
@@ -108,7 +112,7 @@ export const PRINT_CONFIG_TOAST_MESSAGES = {
 /** Khối "File khuôn tham chiếu" của cấu hình in (BD-7): file PDF / PNG để khách so khuôn, không thuộc phiên bản in. */
 export const PRINT_CONFIG_REFERENCE_LABELS = {
   title: "File khuôn tham chiếu",
-  hint: "PDF hoặc PNG, tối đa 20 MB. Khách dùng để so khuôn; gắn hoặc thay file không ảnh hưởng thiết kế đang chờ duyệt.",
+  hint: `PDF hoặc PNG, tối đa ${REFERENCE_MAX_MB} MB. Khách dùng để so khuôn; gắn hoặc thay file không ảnh hưởng thiết kế đang chờ duyệt.`,
   none: "Chưa gắn file khuôn.",
   download: "Tải về",
   attach: "Gắn file khuôn",

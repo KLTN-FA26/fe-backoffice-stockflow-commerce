@@ -16,6 +16,7 @@
  * `ApiResponse` của BE, để interceptor của client chạy thật.
  */
 import { PRINT_CONFIG_LIMITS as LIMITS } from "@/constants/numbers";
+import { PRINT_REFERENCE_TYPES, uploadFileMaxBytes } from "@/constants/upload-limits";
 
 import { registerMockRoute } from "./mock-adapter";
 import { storedFile } from "./mock-print-config-file";
@@ -283,8 +284,8 @@ async function changeStatus(config: AxiosRequestConfig, activate: boolean) {
 }
 
 /** BE `FileCategory.PRINT_TEMPLATE`: PDF or PNG, 20 MiB. */
-const REFERENCE_TYPES = ["application/pdf", "image/png"];
-const REFERENCE_MAX_BYTES = 20 * 1024 * 1024;
+const REFERENCE_TYPES: readonly string[] = PRINT_REFERENCE_TYPES;
+const REFERENCE_MAX_BYTES = uploadFileMaxBytes("printReference");
 
 /** BE `attachReference`: still-sold product, the lock's `version` (query), one `file` part; the version moves. */
 async function attachReference(config: AxiosRequestConfig) {

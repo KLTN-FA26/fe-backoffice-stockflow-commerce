@@ -1,10 +1,14 @@
 "use client";
 
+import { FileDown, FileText, FileUp } from "lucide-react";
 import { useId, useState } from "react";
-import { FileDown, FileUp, FileText } from "lucide-react";
 
 import { PRINT_CONFIG_REFERENCE_LABELS as TEXT } from "@/constants/labels-print-config";
-import { fileTooLargeMessage, uploadFileMaxBytes } from "@/constants/upload-limits";
+import {
+  fileTooLargeMessage,
+  PRINT_REFERENCE_TYPES,
+  uploadFileMaxBytes,
+} from "@/constants/upload-limits";
 
 import { openLink } from "@/lib/files/open-blob";
 
@@ -17,11 +21,10 @@ import { useAttachReferenceFile } from "../mutations";
 
 import type { PrintConfigDto } from "../types";
 
-/** BE `FileCategory.PRINT_TEMPLATE`: the types the reference die-line may have. */
-const REFERENCE_TYPES = ["application/pdf", "image/png"] as const;
-const ACCEPT = ".pdf,.png,application/pdf,image/png";
+const ACCEPT = [".pdf", ".png", ...PRINT_REFERENCE_TYPES].join(",");
 
-const isReferenceType = (file: File) => (REFERENCE_TYPES as readonly string[]).includes(file.type);
+const isReferenceType = (file: File) =>
+  (PRINT_REFERENCE_TYPES as readonly string[]).includes(file.type);
 
 /**
  * "File khuôn tham chiếu" of a saved print configuration (BD-7, kltn-docs WF-02 item 51): the attached file's name, a
