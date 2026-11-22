@@ -295,6 +295,37 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
     },
   );
 
+  it("Lập báo giá (dự án): 409 tải lại danh sách yêu cầu dự án", async () => {
+    vi.spyOn(toast, "error").mockImplementation(() => undefined);
+    const api = mockApi("SALES_STAFF", {
+      get: { "/design-project-quote-requests": () => bePage([projectRequest()]) },
+      post: {
+        [`/design-project-quote-requests/${PROJECT_REQUEST_ID}/quote`]: () => {
+          throw apiError(409, "DESIGN_QUOTE_REQUEST_CLOSED");
+        },
+      },
+    });
+    renderScreen(<ProjectQuoteRequestList />, "SALES_STAFF");
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Lập báo giá" }));
+    await waitFor(() => expect(callsTo(api.get, "/design-project-quote-requests")).toHaveLength(2));
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("Lập báo giá: trạng thái báo giá FE chưa biết vẫn mở trang chi tiết (F3)", async () => {
+    mockApi("SALES_STAFF", {
+      get: { "/design-quote-requests": () => bePage([request()]) },
+      post: {
+        [`/design-quote-requests/${REQUEST_ID}/quote`]: () => ({
+          id: QUOTE_ID,
+          status: "UNDER_LEGAL_REVIEW",
+        }),
+      },
+    });
+    renderScreen(<DesignQuoteRequestList />, "SALES_STAFF");
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Lập báo giá" }));
+    await waitFor(() => expect(push).toHaveBeenCalledWith(`/admin/quotes/${QUOTE_ID}`));
+  });
+
   it("Lập báo giá: 404 dùng câu không tìm thấy chung", async () => {
     const error = vi.spyOn(toast, "error").mockImplementation(() => undefined);
     mockApi("SALES_STAFF", {

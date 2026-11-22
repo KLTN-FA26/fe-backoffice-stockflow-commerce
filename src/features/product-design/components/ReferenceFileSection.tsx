@@ -1,5 +1,6 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { FileDown, FileText, FileUp } from "lucide-react";
 import { useId, useState } from "react";
 
@@ -10,6 +11,7 @@ import {
   uploadFileMaxBytes,
 } from "@/constants/upload-limits";
 
+import { ApiError } from "@/lib/api/error";
 import { openLink } from "@/lib/files/open-blob";
 
 import { DetailSection } from "@/components/shared/DetailSection";
@@ -18,10 +20,18 @@ import { Button } from "@/components/ui/button";
 import { getReferenceFileLink } from "../api";
 import { printConfigErrorMessage } from "../errors";
 import { useAttachReferenceFile } from "../mutations";
+import { printConfigKeys } from "../queries";
 
 import type { PrintConfigDto } from "../types";
 
 const ACCEPT = [".pdf", ".png", ...PRINT_REFERENCE_TYPES].join(",");
+
+/** A failed download link in the words of reading the file (403 is not "may not edit"; 404 reloads the screen). */
+function downloadErrorMessage(failure: unknown): string {
+  if (failure instanceof ApiError && failure.status === 403) return TEXT.downloadForbidden;
+  if (failure instanceof ApiError && failure.status === 404) return TEXT.downloadGone;
+  return printConfigErrorMessage(failure, "reference");
+}
 
 const isReferenceType = (file: File) =>
   (PRINT_REFERENCE_TYPES as readonly string[]).includes(file.type);
@@ -43,6 +53,7 @@ export function ReferenceFileSection({
   const [error, setError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
   const attach = useAttachReferenceFile();
+  const queryClient = useQueryClient();
   const { productId, variantId, templateId, version, referenceFileName } = config;
 
   const pick = (file: File | null) => {
@@ -60,7 +71,12 @@ export function ReferenceFileSection({
     try {
       openLink((await getReferenceFileLink(productId, variantId, templateId)).url);
     } catch (failure) {
-      setError(printConfigErrorMessage(failure, "reference"));
+      setError(downloadErrorMessage(failure));
+      // 404: the file or the configuration moved on — read the configuration again, as the sentence says.
+      if (failure instanceof ApiError && failure.status === 404)
+        void queryClient.invalidateQueries({
+          queryKey: printConfigKeys.variant(productId, variantId),
+        });
     } finally {
       setDownloading(false);
     }

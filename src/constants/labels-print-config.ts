@@ -119,6 +119,9 @@ export const PRINT_CONFIG_REFERENCE_LABELS = {
   replace: "Thay file khuôn",
   inputLabel: "Chọn file khuôn tham chiếu (PDF hoặc PNG)",
   uploading: "Đang gắn file…",
+  downloadForbidden: "Tài khoản của bạn chưa có quyền xem file khuôn của cấu hình in này.",
+  /** 404 trên link tải: file đã bị gỡ hoặc cấu hình đã đổi — màn tải lại cấu hình. */
+  downloadGone: "File khuôn hoặc cấu hình in không còn như trước. Dữ liệu đã được tải lại.",
   wrongType: "File khuôn phải là PDF hoặc PNG.",
 } as const;
 
