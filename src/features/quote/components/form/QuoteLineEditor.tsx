@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Controller, useWatch } from "react-hook-form";
 import { Trash2 } from "lucide-react";
 
@@ -57,12 +57,17 @@ export function QuoteLineEditor({
 
   // Read during render so the form subscribes to it.
   const submitted = formState.isSubmitted;
-  // 13 BR-05: có giá riêng thì được để trống bậc giá (BE tự lấy). Sau lần gửi đầu, kiểm lại ô bậc giá ngay khi giá
-  // riêng về (lỗi dưới MOQ nằm ở `tiers`), không đợi lần gửi sau.
+  /** The customer price this line last saw; `undefined` before its first run (a line just added). */
+  const seen = useRef<typeof suggestion | undefined>(undefined);
+  // 13 BR-05: có giá riêng thì được để trống bậc giá (BE tự lấy). Sau lần gửi đầu, khi giá riêng của dòng đổi (về sau
+  // khi chọn SKU), kiểm lại ô bậc giá ngay (lỗi dưới MOQ nằm ở `tiers`), không đợi lần gửi sau. Một dòng vừa thêm
+  // không bị kiểm khi mới hiện: nó chưa có gì để sai.
   useEffect(() => {
+    const changed = seen.current !== undefined && seen.current !== suggestion;
+    seen.current = suggestion;
     setValue(`lines.${index}.hasCustomerPrice`, !!suggestion);
     setValue(`lines.${index}.customerPriceMoq`, suggestion ? moqOf(suggestion.tiers) : null);
-    if (submitted) void trigger(`lines.${index}.tiers`);
+    if (submitted && changed) void trigger(`lines.${index}.tiers`);
   }, [index, setValue, trigger, suggestion, submitted]);
 
   const tiers = toTiers(tierValues);
