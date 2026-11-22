@@ -24,9 +24,15 @@ import { CancellationFeeFields } from "./CancellationFeeFields";
 import { useCancellationFee } from "./useCancellationFee";
 
 import type { CustomOrderAction } from "../useOrderActionDialog";
+import type { CancellationFeeFacts } from "./CancellationFeeFields";
 
 interface DecisionProps {
   orderId: string;
+  /**
+   * BO-UX-35: số đã thu và đã in hàng loạt chưa (R5-6 trên dòng yêu cầu huỷ). Vắng → hộp thoại không đoán, BE quyết
+   * (409 CANCELLATION_FEE_BEFORE_PRINTING).
+   */
+  facts?: CancellationFeeFacts;
   /** Mã đơn để ghi vào mô tả hộp thoại; hàng đợi chưa biết thì để null (không đoán). */
   orderNumber: string | null;
   requestId: string;
@@ -60,6 +66,7 @@ export function CancellationApproveAction({
   orderNumber,
   requestId,
   compact,
+  facts,
 }: DecisionProps) {
   const L = CANCELLATION_REQUEST_LABELS.approve;
   const dialog = useOrderActionDialog(APPROVE);
@@ -86,7 +93,7 @@ export function CancellationApproveAction({
           schema={approveCancellationSchema}
           extra={{
             values: fee.values,
-            render: (errors) => <CancellationFeeFields fee={fee} errors={errors} />,
+            render: (errors) => <CancellationFeeFields fee={fee} errors={errors} facts={facts} />,
           }}
           isPending={isPending}
           error={dialog.error}

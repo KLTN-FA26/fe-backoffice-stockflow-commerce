@@ -67,6 +67,7 @@ export function CancellationRequestCard({ order, can }: CancellationRequestCardP
                   orderId={order.orderId}
                   orderNumber={order.orderNumber}
                   requestId={request.requestId}
+                  facts={{ ...request, currency: order.currency }}
                 />
                 <CancellationRejectAction
                   orderId={order.orderId}

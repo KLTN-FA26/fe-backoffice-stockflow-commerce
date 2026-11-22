@@ -65,6 +65,12 @@ export const CANCELLATION_REQUEST_LABELS = {
     amountLabel: "Số tiền phí (VND)",
     reasonLabel: "Lý do giữ phí",
     detailLabel: "Chi tiết đã thoả thuận với khách",
+    /** BO-UX-35: điều cần biết trước khi chọn phí (R5-6, khi BE trả). */
+    paid: "Khách đã trả",
+    production: "Sản xuất",
+    printed: "Đã in hàng loạt",
+    notPrinted: "Chưa in hàng loạt",
+    notPrintedHint: "Chưa in hàng loạt nên không giữ phí được — hoàn toàn bộ số đã thu.",
   },
   reject: {
     button: "Từ chối",

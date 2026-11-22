@@ -64,8 +64,9 @@ export function RequestRowActions({
       <CancellationApproveAction
         compact
         orderId={row.orderId}
-        orderNumber={orderNumber}
+        orderNumber={row.orderNumber ?? orderNumber}
         requestId={row.requestId}
+        facts={{ ...row, currency: order.data?.currency ?? "VND" }}
       />
       <CancellationRejectAction
         compact

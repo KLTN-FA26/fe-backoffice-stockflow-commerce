@@ -36,6 +36,13 @@ describe("DTO BE → model FE", () => {
       decidedAt: null,
       decisionNote: null,
       retainedPercent: null,
+      // R5-6: absent until the BE ships them — null, never a guessed 0 / false.
+      orderNumber: null,
+      customerName: null,
+      orderTotal: null,
+      paidTotal: null,
+      orderStatus: null,
+      printingStarted: null,
     });
   });
 
