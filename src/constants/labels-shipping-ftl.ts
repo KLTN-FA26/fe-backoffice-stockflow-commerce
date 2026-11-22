@@ -63,7 +63,7 @@ export const SHIPPING_FTL_LABELS = {
   startDialog: {
     title: "Bắt đầu xếp hàng",
     description:
-      "Xe đã tới kho. Từ lúc này kế hoạch xếp xe không mở lại hoặc huỷ được nữa (BR-14), và lô còn kiện bị bỏ lại sẽ tách thành lô mới. Đơn chưa được phép đi (chưa thu đợt thanh toán trước khi giao, chưa tới cửa sổ giao) sẽ được cảnh báo — vẫn xếp hàng được, nhưng ký bàn giao sẽ bị chặn.",
+      "Xe đã tới kho. Từ lúc này kế hoạch xếp xe không mở lại hoặc huỷ được nữa, và lô còn kiện bị bỏ lại sẽ tách thành lô mới. Đơn chưa được phép đi (chưa thu đợt thanh toán trước khi giao, chưa tới cửa sổ giao) sẽ được cảnh báo — vẫn xếp hàng được, nhưng ký bàn giao sẽ bị chặn.",
     confirm: "Bắt đầu xếp hàng",
   },
   /* ── Xe bị huỷ khi đã đặt ───────────────────────────────────────── */

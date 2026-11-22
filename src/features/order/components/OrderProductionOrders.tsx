@@ -108,8 +108,7 @@ export function LineProductionOrdersView({ entry, state }: LineProductionProps) 
   if (!entry || entry.length === 0) {
     return (
       <p className="text-ink-tertiary mt-2 text-xs">
-        Chưa có đơn sản xuất — Điều phối sản xuất lập cho phần thiếu của từng đợt giao (docs 17
-        §4.3).
+        Chưa có đơn sản xuất — Điều phối sản xuất lập cho phần thiếu của từng đợt giao.
       </p>
     );
   }

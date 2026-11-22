@@ -301,7 +301,7 @@ export const RETURN_RECEIPT_LABELS = {
     remove: "Gỡ",
     noCartons: "Chưa quét thùng nào.",
     progress: (scanned: number, expected: number) => `Đã quét ${scanned} / ${expected} thùng`,
-    shortNote: "Quét ít hơn số thùng của nguồn vẫn xác nhận được (docs 03 §4.2 bước 11).",
+    shortNote: "Quét ít hơn số thùng của nguồn vẫn xác nhận được.",
     confirm: "Xác nhận nhập",
     confirmTitle: "Xác nhận phiếu nhập hàng hoàn",
     confirmDescription:

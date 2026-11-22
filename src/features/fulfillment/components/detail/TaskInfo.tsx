@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ADMIN_ROUTES, ORDER_PERMISSIONS, PICK_DESTINATION, UI_LABELS } from "@/constants";
 import { formatDateTime } from "@/lib/format/date";
 
-import { InfoItem, Section, assigneeLabel } from "../primitives";
+import { InfoItem, Section, assigneeLabel, orderLabel } from "../primitives";
 
 import type { FulfillmentActor } from "@/features/fulfillment/lifecycle";
 import type { FulfillmentTask } from "@/features/fulfillment/types";
@@ -14,7 +14,10 @@ const FIELD = UI_LABELS.fulfillment.field;
 const DESTINATION = UI_LABELS.fulfillment.destination;
 const dt = (iso: string | null | undefined) => (iso ? formatDateTime(iso) : "—");
 
-/** Thông tin task — chỉ field BE trả; số đơn tra thêm nếu đủ quyền. */
+/**
+ * Thông tin task — chỉ field BE trả; số đơn tra thêm nếu đủ quyền. Không hiện dòng "Mã task": BE chưa có mã task đọc
+ * được (chỉ UUID), nên không bịa mã và không để lộ UUID cho người dùng.
+ */
 export function TaskInfo({
   task,
   actor,
@@ -22,14 +25,13 @@ export function TaskInfo({
 }: {
   task: FulfillmentTask;
   actor: FulfillmentActor;
-  /** Số đơn đã tra được; thiếu → hiện id. */
+  /** Số đơn đã tra được; thiếu → id rút gọn. */
   orderNumber: string | undefined;
 }) {
-  const orderText = orderNumber ?? task.orderId;
+  const orderText = orderLabel(task.orderId, orderNumber);
   return (
     <Section title="Thông tin task">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-        <InfoItem label={FIELD.task} value={<span title={task.taskId}>{task.taskId}</span>} mono />
         <InfoItem
           label={FIELD.order}
           mono

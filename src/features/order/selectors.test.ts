@@ -133,12 +133,13 @@ describe("cancelConsequence — hệ quả huỷ theo trạng thái (19 trạng 
   });
   it("Ready to Fulfill → đã release, chưa lấy hàng: nhả giữ chỗ, KHÔNG nói put-back", () => {
     const text = cancelConsequence("Ready to Fulfill");
-    expect(text).toContain("BR-03");
+    expect(text).not.toMatch(/BR-\d|docs/);
     expect(text).toContain("chưa lấy hàng");
     expect(text).not.toContain("put-back");
   });
   it("Picking → dừng lấy hàng + put-back (docs 17 BR-03)", () => {
     expect(cancelConsequence("Picking")).toContain("put-back");
+    expect(cancelConsequence("Picking")).not.toMatch(/BR-\d|docs/);
   });
   it("Packed / Partially Fulfilled trở đi (BE không cho huỷ) → không có câu nào gợi ý huỷ được", () => {
     for (const status of ["Packed", "Partially Fulfilled", "Shipped", "Delivered"] as const) {

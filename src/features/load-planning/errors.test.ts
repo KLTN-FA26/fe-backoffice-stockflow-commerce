@@ -47,7 +47,7 @@ describe("loadPlanErrorMessage", () => {
       api("ORDER_PARTIAL_SHIPMENT_NOT_ALLOWED", 409, { orderNumber: "SO-20261004-000001" }),
     );
     expect(text).toContain("SO-20261004-000001");
-    expect(text).toContain("LP-4");
+    expect(text).not.toMatch(/LP-\d/);
   });
 
   it("LP-4 names EVERY order when the BE sends one fieldError per order", () => {

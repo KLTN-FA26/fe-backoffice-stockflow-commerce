@@ -41,11 +41,11 @@ async function submitRelease(error?: ApiError) {
 describe("thẻ 'Chưa release được' (đơn cọc chưa nhận cọc) — không chỉ ẩn nút", () => {
   const awaiting = { paymentTerm: "DEPOSIT", depositRequired: 105_000 };
 
-  it("đơn cọc chưa nhận cọc (Pending Payment), người có quyền release → thẻ nêu lý do + mã quy tắc, không có nút", async () => {
+  it("đơn cọc chưa nhận cọc (Pending Payment), người có quyền release → thẻ nêu lý do (không hiện mã quy tắc), không có nút", async () => {
     await renderConfirmedScreen("PENDING_PAYMENT", awaiting);
     const card = await screen.findByText("Chưa release được");
     const block = card.closest("div") as HTMLElement;
-    expect(within(block).getByText("BR-PRD-09")).toBeInTheDocument();
+    expect(block).not.toHaveTextContent(/BR-/);
     expect(within(block).getByText(/chưa nhận đủ tiền cọc/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Release đơn" })).not.toBeInTheDocument();
   });

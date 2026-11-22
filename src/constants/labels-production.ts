@@ -128,8 +128,7 @@ export const PRODUCTION_LABELS = {
     warehouseFilter: "Kho nhận",
     summarySearch: "Search trong trang",
     emptyTitle: "Chưa có Đơn sản xuất",
-    emptyDescription:
-      "Đơn sản xuất được lập từ đợt giao còn thiếu của đơn bán đã ký hợp đồng (docs 17 BR-05).",
+    emptyDescription: "Đơn sản xuất được lập từ đợt giao còn thiếu của đơn bán đã ký hợp đồng.",
     errorCopy: errorCopy("Đơn sản xuất", "Đơn sản xuất"),
     column: {
       code: "Mã",
@@ -156,7 +155,7 @@ export const PRODUCTION_LABELS = {
     sample: "Duyệt mẫu in",
     sampleOn: "Cần khách duyệt mẫu in",
     sampleOff: "Không cần duyệt mẫu",
-    sampleDefaultHint: "Mặc định bật vì đơn có SKU sản xuất lần đầu (BR-24)",
+    sampleDefaultHint: "Mặc định bật vì đơn có SKU sản xuất lần đầu",
     waiverReason: "Lý do tắt duyệt mẫu",
     note: "Ghi chú",
     drawnUpBy: "Người lập",
@@ -185,13 +184,13 @@ export const PRODUCTION_LABELS = {
     system: "Hệ thống",
     you: "Bạn",
     userShort: (id: string) => `NV ${id.slice(0, 8)}`,
-    capacityTitle: "Cảnh báo sức chứa kho nhận (BR-25)",
+    capacityTitle: "Cảnh báo sức chứa kho nhận",
     capacityProjected: (code: string) =>
       `Thể tích Đơn sản xuất vượt còn trống dự kiến của kho ${code}.`,
     capacityIfAllApproved: (code: string) =>
       `Nếu gửi hết các Đơn sản xuất nháp khác về kho ${code}, kho không còn đủ chỗ.`,
     capacityShortfall: (m3: string) => `Thiếu khoảng ${m3} m³.`,
-    capacityNotBlocking: "Chỉ là cảnh báo — không chặn gửi (BR-25).",
+    capacityNotBlocking: "Chỉ là cảnh báo — không chặn gửi.",
     capacityFigures: "Thể tích đơn / còn trống dự kiến / còn trống nếu gửi hết đơn nháp",
     loadingRefs: "Đang tải…",
   },
@@ -234,7 +233,7 @@ export const PRODUCTION_LABELS = {
     cancel: "Huỷ đơn",
     close: "Đóng đơn",
     sampleBlocksStart:
-      "Đơn cần duyệt mẫu in: chỉ sang Đang sản xuất khi khách duyệt mẫu (BR-24). Tải mẫu vòng 1 ở mục Vòng mẫu in.",
+      "Đơn cần duyệt mẫu in: chỉ sang Đang sản xuất khi khách duyệt mẫu. Tải mẫu vòng 1 ở mục Vòng mẫu in.",
   },
   dialogs: {
     sendTitle: "Gửi Đơn sản xuất cho đơn vị sản xuất?",
@@ -242,11 +241,11 @@ export const PRODUCTION_LABELS = {
       "Chỉ gửi khi đã thoả thuận với đơn vị sản xuất. Hệ thống kiểm lại file in, xuất phiếu PDF và gửi qua kênh của đơn vị; đơn bán chuyển Chờ hàng, Quản lý kho của kho nhận và Sales Manager được báo. Gửi rồi không rút lại — đơn vị rút lui thì huỷ và lập đơn mới.",
     cancelTitle: "Huỷ Đơn sản xuất",
     cancelDescription:
-      "Chỉ huỷ được khi chưa in hàng loạt (BR-06). Đơn đã gửi thì hệ thống báo đơn vị sản xuất dừng.",
+      "Chỉ huỷ được khi chưa in hàng loạt. Đơn đã gửi thì hệ thống báo đơn vị sản xuất dừng.",
     cancelReason: "Lý do huỷ",
     closeTitle: "Đóng Đơn sản xuất",
     closeDescription:
-      "Đóng khi đơn vị sản xuất dừng hẳn hoặc không giao nốt (BR-06). Phần còn thiếu của đợt giao sẽ cần Đơn sản xuất mới.",
+      "Đóng khi đơn vị sản xuất dừng hẳn hoặc không giao nốt. Phần còn thiếu của đợt giao sẽ cần Đơn sản xuất mới.",
     closeReason: "Lý do đóng",
     acceptTitle: "Ghi nhận đơn vị sản xuất đã nhận đơn",
     acceptDescription:
@@ -273,11 +272,11 @@ export const PRODUCTION_LABELS = {
     producer: "Đơn vị sản xuất",
     producerPlaceholder: "Chọn đơn vị sản xuất đang dùng",
     needBy: "Ngày cần hàng",
-    needByHint: "Mặc định = ngày bắt đầu cửa sổ giao (BR-26)",
+    needByHint: "Mặc định = ngày bắt đầu cửa sổ giao",
     note: "Ghi chú",
     sample: "Cần khách duyệt mẫu in",
     waiverReason: "Lý do tắt duyệt mẫu",
-    waiverHint: "Bắt buộc vì đơn có SKU sản xuất lần đầu (BR-24)",
+    waiverHint: "Bắt buộc vì đơn có SKU sản xuất lần đầu",
     cartons: "Số thùng",
     packing: "Yêu cầu đóng gói / dán nhãn",
     validation: {
@@ -285,7 +284,7 @@ export const PRODUCTION_LABELS = {
       needByRequired: "Chọn ngày cần hàng",
       cartonsMin: "Số thùng nguyên, ít nhất 1",
       textMax: `Tối đa ${LIMITS.textMax} ký tự`,
-      waiverRequired: "Nhập lý do tắt duyệt mẫu in (BR-24)",
+      waiverRequired: "Nhập lý do tắt duyệt mẫu in",
       exceedsShortage: "Vượt phần còn thiếu của đợt giao",
     },
   },
@@ -314,7 +313,7 @@ export const PRODUCTION_LABELS = {
     freeRounds: (counted: number, free: number | null) =>
       free === null ? `${counted} vòng tính phí mẫu` : `${counted} / ${free} vòng miễn phí đã dùng`,
     freeExceeded:
-      "Số vòng mẫu đã vượt số lần in mẫu miễn phí của hợp đồng — báo Sale; phí phát sinh xử lý ngoài hệ thống (BR-24).",
+      "Số vòng mẫu đã vượt số lần in mẫu miễn phí của hợp đồng — báo Sale; phí phát sinh xử lý ngoài hệ thống.",
     empty: "Chưa có vòng mẫu nào.",
     round: (n: number) => `Vòng ${n}`,
     waiting: "Chờ khách duyệt",
@@ -411,7 +410,7 @@ export const PRODUCTION_LABELS = {
     since: (date: string) => `từ ${date}`,
     orderTitle: "Cảnh báo trễ của đơn",
     orderDescription:
-      "Hệ thống tự mở và tự đóng cảnh báo khi điều kiện thay đổi (docs 17 §4.12). Không chặn thao tác nào; khách không thấy.",
+      "Hệ thống tự mở và tự đóng cảnh báo khi điều kiện thay đổi. Không chặn thao tác nào; khách không thấy.",
     batch: (seq: number) => `Đợt ${seq}`,
     productionOrder: (code: string) => `Đơn sản xuất ${code}`,
     loadFailed: "Không tải được cảnh báo trễ.",
@@ -450,7 +449,7 @@ export const PRODUCTION_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   PRODUCTION_ORDER_HAS_DRAFT_RECEIPTS:
     "Còn phiếu nhập kho nháp theo Đơn sản xuất này — xử lý phiếu nháp trước.",
   PRODUCTION_ORDER_SAMPLE_REQUIRED:
-    "Đơn cần khách duyệt mẫu in — chỉ sang Đang sản xuất khi khách duyệt mẫu (BR-24).",
+    "Đơn cần khách duyệt mẫu in — chỉ sang Đang sản xuất khi khách duyệt mẫu.",
   PRINT_FILE_MISMATCH:
     "File in không còn khớp bản thiết kế đã duyệt — không gửi được. Kiểm tra lại thiết kế của SKU.",
   PRODUCTION_ORDER_SLIP_NOT_FOUND: "Chưa có phiếu Đơn sản xuất.",

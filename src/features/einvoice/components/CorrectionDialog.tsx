@@ -33,7 +33,7 @@ const INTRO: Record<Mode, string> = {
   adjust:
     "Lập nháp hoá đơn điều chỉnh tham chiếu hoá đơn gốc (TT 91/2026 Điều 10). Trả hàng và chiết khấu chỉ điều chỉnh giảm (số âm). Điều chỉnh vì sai sót cần văn bản thoả thuận với bên mua trước khi phát hành.",
   replace:
-    "Lập nháp hoá đơn thay thế ghi lại toàn bộ nội dung; hoá đơn gốc hết hiệu lực khi hoá đơn thay thế được phát hành. Mỗi hoá đơn chỉ thay thế một lần và không thay thế được hoá đơn đã điều chỉnh (BR-08).",
+    "Lập nháp hoá đơn thay thế ghi lại toàn bộ nội dung; hoá đơn gốc hết hiệu lực khi hoá đơn thay thế được phát hành. Mỗi hoá đơn chỉ thay thế một lần và không thay thế được hoá đơn đã điều chỉnh.",
 };
 
 function CorrectionForm({

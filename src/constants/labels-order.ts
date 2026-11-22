@@ -284,6 +284,12 @@ export const ORDER_HISTORY_LABELS = {
   /** Bước gỡ giữ: BE ghi `HOLD_RESOLVED_<lý do giữ>[: ghi chú]`. */
   holdResolved: "Gỡ giữ đơn",
   holdResolvedWithReason: (reason: string) => `Gỡ giữ đơn (${reason})`,
+  /** Bước đơn đổi trạng thái vì lô giao hoàn về kho: BE ghi `RETURNED` hoặc `RETURNED_<lý do giao thất bại>` (`Order#recordShipmentReturned`). */
+  shipmentReturned: "Lô giao đã hoàn về kho",
+  shipmentReturnedWithReason: (reason: string) => `Lô giao đã hoàn về kho (${reason})`,
+  /** Ghi chú cũ của mục "Đóng phần còn lại" khi lô hoàn về kho: tiếng Anh kèm mã lô — thay bằng câu tiếng Việt. */
+  shipmentReturnedClosureNote:
+    "Lô giao bị hoàn về kho: phần hàng của lô không giao lại trên đơn này",
   /** Mục "Đổi địa chỉ giao" (`ADDRESS_CHANGE`, docs 17 BR-16): địa chỉ cũ → mới. */
   addressChanged: "Đổi địa chỉ giao",
   addressFrom: "Từ",
