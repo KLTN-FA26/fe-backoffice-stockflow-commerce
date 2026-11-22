@@ -394,6 +394,11 @@ export const ORDER_ERROR_MESSAGES = {
   ORDER_ADDRESS_LOCKED:
     "Không đổi được địa chỉ giao nữa: thùng đầu tiên của đơn đã được dán nhãn giao hàng, hoặc đơn đang ở bước không cho đổi địa chỉ (hợp đồng đã gửi chờ ký thì huỷ hợp đồng để sửa).",
   ADDRESS_NOT_FOUND: "Địa chỉ đã chọn không còn trong sổ địa chỉ của khách. Chọn lại địa chỉ.",
+  // Sale chọn kho xuất (docs 17 §4.2 bước 2-3, BR-22; BE `ShippingWarehouseService` / `Order#chooseShippingWarehouse`)
+  ORDER_SHIPPING_WAREHOUSE_NOT_ALLOWED:
+    "Chỉ chọn được kho xuất cho đơn của hợp đồng đã ký, khi đơn đã xác nhận hoặc đang chờ hàng. Dữ liệu đã được tải lại.",
+  ORDER_SHIPPING_WAREHOUSE_LOCKED:
+    "Không đổi được kho xuất nữa: đơn đã giữ hàng ở kho hiện tại, hoặc đã có Đơn sản xuất gửi về kho đó. Dữ liệu đã được tải lại.",
   // BE PR #150 — thu phần còn lại ghi công nợ; huỷ / đóng phần còn lại có phí
   BALANCE_CREDIT_LIMIT_EXCEEDED:
     "Phần còn lại ghi công nợ làm công nợ của khách vượt hạn mức. Chọn cách thu khác hoặc nhờ Kế toán nâng hạn mức.",

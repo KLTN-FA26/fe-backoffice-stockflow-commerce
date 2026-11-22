@@ -138,6 +138,10 @@ export {
   WINDOW_CHANGE_REASONS,
 } from "./labels-order-delivery-window";
 export {
+  ORDER_SHIPPING_WAREHOUSE_LABELS,
+  ORDER_SHIPPING_WAREHOUSE_OUTCOMES,
+} from "./labels-order-shipping-warehouse";
+export {
   ORDER_ESTIMATE_CARD_LABELS,
   ORDER_RELEASE_BLOCKER_LABELS,
   ORDER_RELEASE_LABELS,
