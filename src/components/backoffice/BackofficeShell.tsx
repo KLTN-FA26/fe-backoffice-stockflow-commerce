@@ -324,8 +324,8 @@ export const NAV_GROUPS: NavGroup[] = [
     // Module 06 tách tab riêng: luôn chọn kho làm việc trước (panel riêng), trang theo kho dưới prefix
     title: UI_LABELS.warehouseMap.workspace.navGroup,
     icon: MapPin,
-    // Vào tab là tới thẳng Danh mục kho — nơi chọn kho làm việc
-    href: ADMIN_ROUTES.warehouses.list,
+    // Gốc tab: được gán đúng một kho → vào thẳng kho đó; còn lại → Danh mục kho (spec 2026-11-22 §5.3)
+    href: ADMIN_ROUTES.warehouseMap.root,
     panel: WarehouseNavPanel,
     items: [
       {

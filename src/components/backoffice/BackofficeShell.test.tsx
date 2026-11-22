@@ -317,10 +317,10 @@ describe('tab "Kho & bản đồ" tách riêng', () => {
     PUTAWAY_TASK_PERMISSIONS.viewPage,
   ];
 
-  it("ở màn gốc sidebar, bấm tab là đi thẳng tới Danh mục kho", async () => {
+  it("ở màn gốc sidebar, bấm tab là tới gốc tab (vào thẳng kho được gán duy nhất, hoặc Danh mục kho)", async () => {
     navigation.pathname = ADMIN_ROUTES.home;
     await renderShell(PERMS);
-    expect(navLink("Kho & bản đồ")).toHaveAttribute("href", ADMIN_ROUTES.warehouses.list);
+    expect(navLink("Kho & bản đồ")).toHaveAttribute("href", ADMIN_ROUTES.warehouseMap.root);
   });
 
   it("chưa vào kho nào → panel chỉ có Danh mục kho (chọn kho ở đó), không liệt kê kho", async () => {

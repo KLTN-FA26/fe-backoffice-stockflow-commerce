@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { ChevronsUpDown } from "lucide-react";
 
 import { ADMIN_ROUTES, UI_LABELS } from "@/constants";
+import { canEnterWarehouse, useAssignedWarehouses } from "@/lib/auth";
 
 import {
   prefixFromPath,
@@ -12,6 +13,7 @@ import {
   useWorkspaceWarehouses,
 } from "@/features/warehouse-map/workspace";
 
+import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const W = UI_LABELS.warehouseMap.workspace;
@@ -29,6 +31,7 @@ export function WarehouseCrumb() {
   const pathname = usePathname();
   const prefix = prefixFromPath(pathname, ROOT) ?? "";
   const { warehouses } = useWorkspaceWarehouses();
+  const assigned = useAssignedWarehouses();
   const current = warehouses?.find((w) => samePrefix(w.prefix, prefix));
   return (
     <Popover>
@@ -56,6 +59,12 @@ export function WarehouseCrumb() {
                     {warehouse.prefix}
                   </span>
                   <span className="truncate">{warehouse.name}</span>
+                  {/* Vẫn mở được (bản đồ không giới hạn theo kho được gán — 06); màn vận hành sẽ báo */}
+                  {!canEnterWarehouse(assigned, warehouse.prefix) && (
+                    <Badge variant="outline" className="ml-auto shrink-0">
+                      {W.notAssignedBadge}
+                    </Badge>
+                  )}
                 </Link>
               </li>
             );
