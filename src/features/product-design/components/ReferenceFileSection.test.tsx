@@ -5,10 +5,10 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 import { z } from "zod";
 
 import { api } from "@/lib/api/client";
-import { activateMockAdapter } from "@/lib/api/mock-adapter";
-import { resetProductMockStore } from "@/lib/api/mock-product-store";
 import { ApiError } from "@/lib/api/error";
+import { activateMockAdapter } from "@/lib/api/mock-adapter";
 import { templatesOf } from "@/lib/api/mock-print-config-store";
+import { resetProductMockStore } from "@/lib/api/mock-product-store";
 import { resetPrintConfigMockStore } from "@/lib/api/mock-routes-print-configs";
 import { resetVariantMockStore } from "@/lib/api/mock-routes-variants";
 import * as openBlob from "@/lib/files/open-blob";
