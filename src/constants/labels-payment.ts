@@ -232,3 +232,76 @@ export const PAYMENT_LABELS = {
   },
   empty: "—",
 } as const;
+
+/**
+ * Nhãn của các trang danh sách thanh toán sau khi chuyển sang `ListToolbar` (BO-UX-2/7/38) và trang công nợ theo khách
+ * (BO-UX-37). Export riêng để không chạm các khối nhãn hộp thoại đang được sửa song song.
+ */
+export const PAYMENT_LIST_LABELS = {
+  filters: "Bộ lọc",
+  status: "Trạng thái",
+  milestone: "Mốc",
+  reached: "Đã đến mốc",
+  overdue: "Quá hạn",
+  dueBefore: "Hạn trả trước",
+  owing: "Công nợ phải thu",
+  order: "Đơn hàng",
+  pickedOrder: "Đơn đã chọn",
+  searchMain: "Search chính",
+  notUsed: "Chưa dùng",
+  all: "Tất cả",
+  yes: "Có",
+  overdueDays: (days: number) => (days > 0 ? `Quá hạn ${days} ngày` : "Quá hạn"),
+  unknownStatus: "Không rõ",
+  receivedRange: "Ngày nhận",
+  outstandingOnly: "Còn phải hoàn",
+  recordedBy: "Người lập",
+  voidedBy: "Người huỷ",
+  orderStatusTitle: "Tình hình thanh toán",
+  generalTitle: "Thông tin chung",
+  statusTitle: "Trạng thái",
+  receiptLinesTitle: "Các đợt được trả",
+  unknownContract: "Hợp đồng",
+  installmentColumns: {
+    contract: "Hợp đồng",
+    customer: "Khách hàng",
+    installment: "Đợt",
+    dueDate: "Hạn trả",
+    outstanding: "Còn phải thu",
+    status: "Trạng thái",
+    amount: "Số tiền",
+    paid: "Đã thu",
+    order: "Đơn hàng",
+    milestone: "Mốc",
+    batch: "Đợt giao",
+    actions: "Thao tác",
+  },
+} as const;
+
+/** Công nợ phải thu theo khách (BO-UX-37, BE R5-11 `GET /receivables`). */
+export const RECEIVABLES_LABELS = {
+  navLabel: "Công nợ phải thu",
+  pageTitle: "Công nợ phải thu",
+  searchPlaceholder: "Tìm khách (tên, mã khách hoặc mã số thuế)",
+  customer: "Khách hàng",
+  taxCode: "MST",
+  owed: "Còn phải thu",
+  overdue: "Quá hạn",
+  oldestDue: "Hạn cũ nhất",
+  d0to30: "0–30 ngày",
+  d31to60: "31–60 ngày",
+  over60: "> 60 ngày",
+  installmentCount: "Số đợt",
+  viewInstallments: "Xem các đợt",
+  actions: "Thao tác",
+  emptyTitle: "Không có khách nào còn nợ",
+  emptyDescription: "Khi đợt thanh toán đến mốc mà khách chưa trả đủ, khách sẽ hiện ở đây.",
+  noReadDescription:
+    "Bạn được mở trang nhưng chưa có quyền xem công nợ. Liên hệ quản trị để được cấp.",
+  forbiddenDescription: "Tài khoản của bạn chưa được cấp quyền xem công nợ.",
+  notFoundTitle: "Không tải được công nợ",
+  notFoundDescription: "Trang công nợ không tồn tại hoặc đường dẫn không hợp lệ.",
+  /** BE chưa có `/receivables` (404): xem công nợ theo đợt như trước. */
+  fallbackNotice:
+    "Chưa có bảng công nợ theo khách trên máy chủ này — đang hiện các đợt còn phải thu (lọc Công nợ phải thu).",
+} as const;

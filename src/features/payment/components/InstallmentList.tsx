@@ -5,7 +5,12 @@ import { useRouter } from "next/navigation";
 import { CalendarClock, ReceiptText } from "lucide-react";
 
 import { PAYMENT_LABELS } from "@/constants/labels-payment";
-import { PAYMENT_INSTALLMENT_PERMISSIONS, PAYMENT_ROUTES } from "@/constants/payment";
+import {
+  PAYMENT_INSTALLMENT_PERMISSIONS,
+  PAYMENT_ROUTES,
+  PAYMENT_STORAGE_KEYS,
+} from "@/constants/payment";
+import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { useCan, usePermissionChecker } from "@/lib/auth/components/Can";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 import { ServerTableBody } from "@/components/backoffice/ServerTableBody";
@@ -15,7 +20,12 @@ import { Button } from "@/components/ui/button";
 import { allowedInstallmentActions } from "../lifecycle";
 
 import { INSTALLMENT_COPY } from "./copy";
-import { buildInstallmentColumns } from "./installment-columns";
+import {
+  buildInstallmentColumns,
+  INSTALLMENT_COLUMNS,
+  INSTALLMENT_DEFAULT_COLUMNS,
+  INSTALLMENT_LOCKED_COLUMNS,
+} from "./installment-columns";
 import { InstallmentFilters } from "./InstallmentFilters";
 import { RecordReceiptDialog } from "./RecordReceiptDialog";
 import { useInstallmentListState } from "./useInstallmentListState";
@@ -30,6 +40,11 @@ function InstallmentListContent() {
   const canRead = useCan(PAYMENT_INSTALLMENT_PERMISSIONS.read);
   const s = useInstallmentListState(canRead);
   const [recording, setRecording] = useState<Installment | null>(null);
+  const columnState = useColumnVisibility(
+    PAYMENT_STORAGE_KEYS.installmentsColumns,
+    INSTALLMENT_COLUMNS,
+    { defaults: INSTALLMENT_DEFAULT_COLUMNS, locked: INSTALLMENT_LOCKED_COLUMNS },
+  );
   const columns = buildInstallmentColumns((row) =>
     allowedInstallmentActions(row, can).includes("recordReceipt") ? (
       <Button
@@ -37,20 +52,23 @@ function InstallmentListContent() {
         size="xs"
         variant="outline"
         className={TOOLBAR_ACTION_CLASS}
+        // Tên truy cập mang hợp đồng + đợt: mỗi dòng một nút "Lập phiếu thu" phân biệt được (BO-UX-11)
+        aria-label={`${PAYMENT_LABELS.receipts.createAction} — ${row.contractNumber} đợt ${row.seq}`}
         onClick={(event) => {
           event.stopPropagation();
           setRecording(row);
         }}
       >
-        <ReceiptText className="size-3.5" /> {PAYMENT_LABELS.receipts.createAction}
+        <ReceiptText className="size-3.5" aria-hidden="true" />{" "}
+        {PAYMENT_LABELS.receipts.createAction}
       </Button>
     ) : null,
-  );
+  ).filter((column) => columnState.visible.some((key) => key === column.key));
 
   return (
     <div className="surface-soft">
       <h1 className="sr-only">{L.pageTitle}</h1>
-      {canRead && <InstallmentFilters s={s} />}
+      {canRead && <InstallmentFilters s={s} columns={columnState} />}
       <ServerTableBody
         query={s.query}
         canRead={canRead}
@@ -71,6 +89,7 @@ function InstallmentListContent() {
         onPageChange={s.goToPage}
         onPageSizeChange={s.changePageSize}
         sorting={s.sorting}
+        stickyHeader
       />
       <RecordReceiptDialog installment={recording} onClose={() => setRecording(null)} />
     </div>

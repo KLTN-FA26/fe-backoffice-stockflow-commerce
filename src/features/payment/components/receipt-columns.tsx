@@ -14,6 +14,28 @@ const C = PAYMENT_LABELS.columns;
 /** Cột có thể sắp xếp theo BE (`PaymentReceiptService.SORT`). */
 export const RECEIPT_SORTABLE = new Set(["receivedOn", "recordedAt", "amount"]);
 
+/** Thứ tự cột; mã tham chiếu (link chi tiết) khoá (data-table-mode-a §4.2). */
+export const RECEIPT_COLUMN_KEYS = [
+  "reference",
+  "customer",
+  "lines",
+  "receivedOn",
+  "amount",
+  "recordedAt",
+  "status",
+] as const;
+export type ReceiptColumn = (typeof RECEIPT_COLUMN_KEYS)[number];
+export const RECEIPT_LOCKED_COLUMNS: readonly ReceiptColumn[] = ["reference"];
+export const RECEIPT_COLUMN_LABELS: Record<ReceiptColumn, string> = {
+  reference: C.reference,
+  customer: C.customer,
+  lines: PAYMENT_LABELS.receipts.lines,
+  receivedOn: C.receivedOn,
+  amount: C.amount,
+  recordedAt: C.recordedAt,
+  status: C.status,
+};
+
 export const RECEIPT_COLUMNS: ColumnDef<PaymentReceipt>[] = [
   {
     key: "reference",

@@ -1,23 +1,16 @@
 "use client";
 
-import Link from "next/link";
+import { AlertTriangle, FileText } from "lucide-react";
 
 import { ADMIN_ROUTES } from "@/constants";
-import { PAYMENT_LABELS } from "@/constants/labels-payment";
-import { PAYMENT_ROUTES } from "@/constants/payment";
+import { PAYMENT_LABELS, PAYMENT_LIST_LABELS } from "@/constants/labels-payment";
 import { formatDateTime } from "@/lib/format/date";
 import { CustomerName } from "@/components/backoffice/CustomerName";
-import { Card } from "@/components/shared/Card";
+import { DetailSection } from "@/components/shared/DetailSection";
 
-import {
-  blocksHandover,
-  deliveryBatchLabel,
-  displayStatus,
-  installmentTitle,
-  milestoneLabel,
-} from "../selectors";
+import { blocksHandover, deliveryBatchLabel, installmentTitle, milestoneLabel } from "../selectors";
 
-import { CodeLink, DateCell, InfoRow, InstallmentStatusDot, MoneyCell } from "./primitives";
+import { CodeLink, DateCell, InfoRow, MoneyCell } from "./primitives";
 
 import type { Installment } from "../types";
 
@@ -25,15 +18,17 @@ const L = PAYMENT_LABELS.detail;
 const C = PAYMENT_LABELS.columns;
 const EMPTY = PAYMENT_LABELS.empty;
 
-/** Thông tin một đợt thanh toán: mốc, đợt giao gắn kèm, tiền, hạn trả, nội dung chuyển khoản (docs 15 §4.1, §5.1). */
+/**
+ * "Thông tin chung" của một đợt thanh toán (cột trái của trang chi tiết hai cột — BO-UX-2): tên đợt, mốc, đợt giao gắn
+ * kèm, tiền, hạn trả, nội dung chuyển khoản (docs 15 §4.1, §5.1). Trạng thái và thao tác nằm ở thẻ bên phải.
+ */
 export function InstallmentInfoCard({ installment: i }: { installment: Installment }) {
   return (
-    <Card className="space-y-3">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="text-ink-primary text-sm font-semibold">{installmentTitle(i)}</h2>
-        <InstallmentStatusDot status={displayStatus(i)} />
-      </div>
+    <DetailSection title={PAYMENT_LIST_LABELS.generalTitle} icon={FileText}>
       <dl className="grid grid-cols-[minmax(140px,auto)_1fr] gap-x-4 gap-y-2 text-[0.8125rem]">
+        <InfoRow label={C.installment}>
+          <span className="text-ink-primary font-medium">{installmentTitle(i)}</span>
+        </InfoRow>
         <InfoRow label={C.contract}>{i.contractNumber}</InfoRow>
         <InfoRow label={C.order}>
           <CodeLink href={ADMIN_ROUTES.orders.detail(i.orderId)}>{i.orderNumber}</CodeLink>
@@ -45,7 +40,8 @@ export function InstallmentInfoCard({ installment: i }: { installment: Installme
         <InfoRow label={C.deliveryBatch}>
           {deliveryBatchLabel(i)}
           {blocksHandover(i) && (
-            <span className="text-warning-ink ml-2 text-xs">
+            <span className="text-ink-primary ml-2 inline-flex items-center gap-1 text-xs">
+              <AlertTriangle className="text-dot-warning size-3.5" aria-hidden="true" />
               {PAYMENT_LABELS.installments.handoverBlocked}
             </span>
           )}
@@ -75,20 +71,6 @@ export function InstallmentInfoCard({ installment: i }: { installment: Installme
         {i.paidAt && <InfoRow label={L.paidAt}>{formatDateTime(i.paidAt)}</InfoRow>}
         {i.cancelledAt && <InfoRow label={L.cancelledAt}>{formatDateTime(i.cancelledAt)}</InfoRow>}
       </dl>
-      <div className="flex flex-wrap gap-4 text-[0.8125rem]">
-        <Link
-          href={PAYMENT_ROUTES.installments.ofOrder(i.orderId)}
-          className="text-accent-text hover:underline"
-        >
-          {L.viewOrder}
-        </Link>
-        <Link
-          href={PAYMENT_ROUTES.installments.byCustomer(i.customerId)}
-          className="text-accent-text hover:underline"
-        >
-          {L.viewCustomer}
-        </Link>
-      </div>
-    </Card>
+    </DetailSection>
   );
 }

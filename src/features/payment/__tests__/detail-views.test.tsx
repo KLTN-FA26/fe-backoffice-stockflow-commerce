@@ -94,14 +94,14 @@ describe("OrderInstallmentsView — an order's installments and handover blockin
     const view = renderPaymentScreen(<OrderInstallmentsView orderId="ord-13" />);
     await screen.findByText("Đợt giao 2");
     // Due (batch 1) and Not Due (batch 2, paid early allowed) take money; the paid deposit does not
-    expect(screen.getAllByRole("button", { name: "Lập phiếu thu" })).toHaveLength(2);
-    await userEvent.click(screen.getAllByRole("button", { name: "Lập phiếu thu" })[0]!);
+    expect(screen.getAllByRole("button", { name: /^Lập phiếu thu — đợt / })).toHaveLength(2);
+    await userEvent.click(screen.getAllByRole("button", { name: /^Lập phiếu thu — đợt / })[0]!);
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
     view.unmount();
     mockPaymentApi(SALES_GRANTS, routes());
     renderPaymentScreen(<OrderInstallmentsView orderId="ord-13" />);
     await screen.findByText("Đợt giao 2");
-    expect(screen.queryByRole("button", { name: "Lập phiếu thu" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Lập phiếu thu/ })).not.toBeInTheDocument();
   });
 
   it("when every installment is cancelled: only what the customer paid, no total / outstanding (WF-02 26)", async () => {
@@ -123,6 +123,24 @@ describe("OrderInstallmentsView — an order's installments and handover blockin
     renderPaymentScreen(<OrderInstallmentsView orderId="ord-13" />);
     expect(await screen.findByText("Tổng các đợt")).toBeInTheDocument();
     expect(screen.getByText("Còn phải thu", { selector: "dt" })).toBeInTheDocument();
+  });
+
+  it("BO-UX-42: one order — contract, order and customer are not repeated on every row; they sit in the side card", async () => {
+    mockPaymentApi(ACCOUNTANT_GRANTS, routes());
+    renderPaymentScreen(<OrderInstallmentsView orderId="ord-13" />);
+    await screen.findByText("Đợt giao 2");
+    const headers = screen.getAllByRole("columnheader").map((cell) => cell.textContent);
+    expect(headers).not.toContain("Hợp đồng");
+    expect(headers).not.toContain("Đơn hàng");
+    expect(headers).not.toContain("Khách hàng");
+    // Đơn và hợp đồng chỉ còn một lần, ở thẻ tình hình thanh toán
+    expect(screen.getAllByText("HD-20261108-000013-1")).toHaveLength(1);
+    expect(screen.getByRole("link", { name: "SO-20261108-000013" })).toBeInTheDocument();
+    // Tên đợt dẫn tới chi tiết đợt (thay link ở cột hợp đồng đã bỏ)
+    expect(screen.getByRole("link", { name: /Đặt cọc/ })).toHaveAttribute(
+      "href",
+      "/admin/payment/installments/inst-1",
+    );
   });
 
   it("a missing order explains that no installments exist for it", async () => {

@@ -50,11 +50,18 @@ export const PAYMENT_ROUTES = {
       `${PAYMENT_BASE}/installments?customerId=${encodeURIComponent(customerId)}`,
     /** Công nợ phải thu (BE-5): đợt đã đến mốc và còn nợ (`owing=true`: DUE hoặc PARTIALLY_PAID). */
     receivables: `${PAYMENT_BASE}/installments?owing=true`,
+    /** Đợt đã quá hạn (cờ `overdue`, WF-05 fix plan §8). */
+    overdue: `${PAYMENT_BASE}/installments?owing=true&overdue=true`,
+    /** Các đợt còn nợ của một khách — đích drill-down của trang công nợ theo khách (BO-UX-37). */
+    owingByCustomer: (customerId: string) =>
+      `${PAYMENT_BASE}/installments?owing=true&customerId=${encodeURIComponent(customerId)}`,
   },
   receipts: {
     list: `${PAYMENT_BASE}/receipts`,
     detail: (id: string) => `${PAYMENT_BASE}/receipts/${encodeURIComponent(id)}`,
   },
+  /** Công nợ phải thu theo khách (BO-UX-37, BE R5-11 `GET /receivables`). */
+  receivables: `${PAYMENT_BASE}/receivables`,
   refunds: {
     list: `${PAYMENT_BASE}/refunds`,
     ofOrder: (orderId: string) => `${PAYMENT_BASE}/refunds/${encodeURIComponent(orderId)}`,
@@ -174,4 +181,7 @@ export const PAYMENT_STORAGE_KEYS = {
   installmentsConfig: "stockflow:admin:payment:installments:config",
   receiptsConfig: "stockflow:admin:payment:receipts:config",
   refundsConfig: "stockflow:admin:payment:refunds:config",
+  installmentsColumns: "stockflow:admin:payment:installments:columns",
+  receiptsColumns: "stockflow:admin:payment:receipts:columns",
+  receivablesConfig: "stockflow:admin:payment:receivables:config",
 } as const;

@@ -11,6 +11,7 @@ import {
   PAYMENT_STORAGE_KEYS,
   RECEIPT_API_STATUSES,
 } from "@/constants/payment";
+import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useCan } from "@/lib/auth/components/Can";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
@@ -22,7 +23,12 @@ import { usePagedList } from "@/hooks/use-paged-list";
 import { RECEIPT_COPY } from "./copy";
 import { ReceiptFilters } from "./ReceiptFilters";
 import { ReceiptSummaryBar } from "./ReceiptSummaryBar";
-import { RECEIPT_COLUMNS, RECEIPT_SORTABLE } from "./receipt-columns";
+import {
+  RECEIPT_COLUMN_KEYS,
+  RECEIPT_COLUMNS,
+  RECEIPT_LOCKED_COLUMNS,
+  RECEIPT_SORTABLE,
+} from "./receipt-columns";
 
 const L = PAYMENT_LABELS.receipts;
 
@@ -55,6 +61,14 @@ function ReceiptListContent() {
   const hasFilters =
     !!status || !!reference.trim() || !!customerId || !!receivedFrom || !!receivedTo;
   const named = query.data?.items.find((row) => row.customerId === customerId);
+  const columnState = useColumnVisibility(
+    PAYMENT_STORAGE_KEYS.receiptsColumns,
+    RECEIPT_COLUMN_KEYS,
+    { locked: RECEIPT_LOCKED_COLUMNS },
+  );
+  const columns = RECEIPT_COLUMNS.filter((column) =>
+    columnState.visible.some((key) => key === column.key),
+  );
   const clearAll = () => {
     void setStatus(null);
     void setReference("");
@@ -97,6 +111,7 @@ function ReceiptListContent() {
           onClearCustomer={() => void setCustomerId("")}
           hasFilters={hasFilters}
           onClear={clearAll}
+          columns={columnState}
         />
       )}
       {canRead && <ReceiptSummaryBar filter={filter} disabled={rangeInverted} />}
@@ -104,7 +119,7 @@ function ReceiptListContent() {
         <ServerTableBody
           query={query}
           canRead={canRead}
-          columns={RECEIPT_COLUMNS}
+          columns={columns}
           rowKey={(row) => row.receiptId}
           onRowClick={(row) => router.push(PAYMENT_ROUTES.receipts.detail(row.receiptId))}
           noun="phiếu thu"
@@ -120,6 +135,7 @@ function ReceiptListContent() {
           onPageChange={paged.goToPage}
           onPageSizeChange={paged.changePageSize}
           sorting={paged.sorting}
+          stickyHeader
         />
       )}
     </div>
