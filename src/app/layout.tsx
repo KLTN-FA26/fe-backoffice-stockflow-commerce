@@ -1,6 +1,6 @@
 import { Inter, Inter_Tight, JetBrains_Mono } from "next/font/google";
 
-import { BRAND } from "@/constants";
+import { BRAND, UI_LABELS } from "@/constants";
 
 import { IS_MOCK } from "@/lib/config";
 
@@ -33,7 +33,7 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: `${BRAND.name} — Back-office`,
+    default: `${BRAND.name} — ${UI_LABELS.shell.breadcrumbRoot}`,
     template: `%s — ${BRAND.name}`,
   },
   description: "Hệ thống quản lý kho vận StockFlowCommerce",

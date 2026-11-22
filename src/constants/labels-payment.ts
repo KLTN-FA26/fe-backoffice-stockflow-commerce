@@ -178,7 +178,7 @@ export const PAYMENT_LABELS = {
       "Phiếu chuyển sang Đã huỷ, giữ nguyên nội dung kèm người huỷ, thời điểm và lý do. Các đợt trong phiếu được tính lại; mã tham chiếu sao kê dùng lại được cho phiếu lập đúng.",
     reason: "Lý do huỷ phiếu thu",
     holdOrders: "Treo đơn nếu huỷ làm đơn đã xác nhận thiếu đợt khi ký",
-    holdHint: "Không chọn mà huỷ làm đơn đã Đã xác nhận thiếu đợt khi ký thì thao tác bị từ chối.",
+    holdHint: "Không chọn mà huỷ làm đơn đã xác nhận thiếu đợt khi ký thì thao tác bị từ chối.",
     /** BO-UX-40: các đơn của phiếu — đơn nào có thể bị treo. */
     ordersTitle: "Đơn có tiền trong phiếu này",
     holdOrdersFor: (orders: string) => `Treo các đơn ${orders} nếu huỷ làm đơn thiếu đợt khi ký`,

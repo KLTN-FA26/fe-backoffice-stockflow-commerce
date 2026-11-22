@@ -218,7 +218,7 @@ export function ListToolbar<Status extends string, Field extends string, Column 
                 <PopoverContent align="end" className="w-80 p-0">
                   <PopoverHeader className="border-border-default border-b p-3">
                     <PopoverTitle>Lọc trạng thái</PopoverTitle>
-                    <PopoverDescription>Search và chọn trạng thái cần hiển thị.</PopoverDescription>
+                    <PopoverDescription>Tìm và chọn trạng thái cần hiển thị.</PopoverDescription>
                   </PopoverHeader>
                   <Command>
                     <CommandInput placeholder="Tìm trạng thái..." />
