@@ -8,6 +8,7 @@ import {
   ORDER_HISTORY_LABELS,
   ORDER_REMAINDER_CLOSURE_HISTORY_REASON_LABELS,
 } from "@/constants";
+import { daysBetween } from "@/lib/date-range";
 import { currencyFractionDigits } from "@/lib/format";
 
 import type { OrderCancellationReasonCode } from "@/constants";
@@ -205,8 +206,7 @@ export function installmentDue(
   if (installment.daysOverdue != null) return { dueOn, daysOverdue: installment.daysOverdue };
   if (!dueOn || installment.overdue === false || installment.status === "PAID")
     return { dueOn, daysOverdue: 0 };
-  const days = Math.round((Date.parse(today) - Date.parse(dueOn.slice(0, 10))) / 86_400_000);
-  return { dueOn, daysOverdue: Math.max(0, days) };
+  return { dueOn, daysOverdue: Math.max(0, daysBetween(dueOn.slice(0, 10), today)) };
 }
 
 /**

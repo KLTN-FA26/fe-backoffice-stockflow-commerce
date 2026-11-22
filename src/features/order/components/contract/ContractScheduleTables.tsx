@@ -1,6 +1,10 @@
 "use client";
 
-import { CONTRACT_MILESTONE_LABELS, CONTRACT_MILESTONES } from "@/constants";
+import {
+  CONTRACT_MILESTONE_LABELS,
+  CONTRACT_MILESTONES,
+  ORDER_INSTALLMENTS_LABELS,
+} from "@/constants";
 import { formatDate, toLocalIsoDate } from "@/lib/format/date";
 
 import { dueRuleText } from "../../sales-contract-rules";
@@ -116,7 +120,7 @@ export function ContractScheduleTables({
                   )}
                   {due.daysOverdue > 0 && (
                     <span className="text-danger block text-xs font-medium">
-                      quá hạn {due.daysOverdue} ngày
+                      {ORDER_INSTALLMENTS_LABELS.overdueDays(due.daysOverdue)}
                     </span>
                   )}
                 </td>
