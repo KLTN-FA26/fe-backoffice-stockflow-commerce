@@ -152,7 +152,10 @@ function ReasonCell({ row }: { row: CancellationRequest }) {
   );
 }
 
-/** Nút Duyệt / Từ chối của một hàng: tên truy cập mang số đơn; "Duyệt huỷ" tông nguy hiểm vì nó huỷ đơn (BO-UX-36). */
+/**
+ * Nút Duyệt / Từ chối của một hàng: tên truy cập mang số đơn; "Duyệt huỷ" tông nguy hiểm vì nó huỷ đơn (BO-UX-36).
+ * Hộp thoại duyệt nhận số đã thu và giai đoạn in (BO-UX-35) từ cùng nguồn với các cột.
+ */
 export function RequestRowActions({
   row,
   canOpenOrder,
@@ -160,21 +163,21 @@ export function RequestRowActions({
   row: CancellationRequest;
   canOpenOrder: boolean;
 }) {
-  const { orderNumber } = useRequestOrderFacts(row, canOpenOrder);
+  const { orderNumber, paid, currency } = useRequestOrderFacts(row, canOpenOrder);
   return (
     <div className="flex justify-end gap-1.5" onClick={(event) => event.stopPropagation()}>
       <CancellationRejectAction
         compact
         orderId={row.orderId}
-        orderNumber={row.orderNumber ?? orderNumber}
+        orderNumber={orderNumber}
         requestId={row.requestId}
-        facts={{ ...row, currency: order.data?.currency ?? "VND" }}
       />
       <CancellationApproveAction
         compact
         orderId={row.orderId}
         orderNumber={orderNumber}
         requestId={row.requestId}
+        facts={{ paidTotal: paid, printingStarted: row.printingStarted, currency }}
       />
     </div>
   );

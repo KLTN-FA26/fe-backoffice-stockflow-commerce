@@ -188,4 +188,25 @@ describe("Hàng đợi yêu cầu huỷ — duyệt / từ chối từ hàng", (
       ),
     );
   });
+
+  it("BO-UX-35: hộp thoại duyệt từ hàng nhận số đã thu và giai đoạn in của chính hàng đó (không phải nút Từ chối)", async () => {
+    await renderQueue(WF4_PERMISSION_SETS.sales, () =>
+      requestPage([
+        apiCancellationRequest({
+          orderNumber: apiOrder.orderNumber,
+          paidTotal: 8_586_000,
+          printingStarted: false,
+        }),
+      ]),
+    );
+    const user = userEvent.setup();
+    await user.click(
+      await screen.findByRole("button", { name: `Duyệt huỷ — ${apiOrder.orderNumber}` }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("Khách đã trả")).toBeInTheDocument();
+    expect(within(dialog).getByText(/8\.586\.000/)).toBeInTheDocument();
+    expect(within(dialog).getByText("Chưa in hàng loạt")).toBeInTheDocument();
+    expect(within(dialog).getByRole("radio", { name: "Giữ theo % số tiền đã thu" })).toBeDisabled();
+  });
 });
