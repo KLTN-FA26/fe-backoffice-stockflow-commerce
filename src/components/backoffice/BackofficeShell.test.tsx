@@ -11,6 +11,7 @@ import {
   PUTAWAY_TASK_PERMISSIONS,
   WAREHOUSE_LOCATION_PERMISSIONS,
   WAREHOUSE_PERMISSIONS,
+  WORKSPACE_PATHS,
 } from "@/constants";
 import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
 
@@ -174,26 +175,27 @@ describe("Inventory sidebar entries follow backend permission codes", () => {
     ]);
     expect(navLink(MOVEMENTS)).toHaveAttribute("data-active", "true");
     expect(navLink(ADJUSTMENTS)).not.toHaveAttribute("data-active", "true");
-    expect(navLink(MOVES)).not.toHaveAttribute("data-active", "true");
+    // Di chuyển nội bộ đã vào tab theo kho (spec 2026-11-22) — không còn ở nhóm Kho
+    expect(navLink(MOVES)).not.toBeInTheDocument();
   });
 
-  it("Di chuyển nội bộ follows the backend guard of POST /inventory/movements (stock UPDATE)", async () => {
-    await renderShell([
-      INVENTORY_PERMISSIONS.movementViewPage,
-      INVENTORY_PERMISSIONS.adjustmentViewPage,
-    ]);
-    expect(navLink(ADJUSTMENTS)).toBeInTheDocument();
+  it("Di chuyển nội bộ (trong tab theo kho) follows the backend guard of POST /inventory/movements (stock UPDATE)", async () => {
+    navigation.pathname = ADMIN_ROUTES.warehouseMap.of("HCM");
+    // Danh mục kho để nhóm tab có ≥ 2 mục (mở panel) — như NV kho thật
+    await renderShell([WAREHOUSE_PERMISSIONS.viewPage, INVENTORY_PERMISSIONS.movementViewPage]);
     expect(navLink(MOVES)).not.toBeInTheDocument();
     cleanup();
-    await renderShell([INVENTORY_PERMISSIONS.stockUpdate]);
-    expect(navLink(MOVES)).toHaveAttribute("href", "/admin/moves");
+    await renderShell([WAREHOUSE_PERMISSIONS.viewPage, INVENTORY_PERMISSIONS.stockUpdate]);
+    expect(await screen.findByRole("link", { name: MOVES })).toHaveAttribute(
+      "href",
+      "/admin/warehouse-map/HCM/moves",
+    );
   });
 
-  it("marks only Di chuyển nội bộ active on /admin/moves", async () => {
-    navigation.pathname = "/admin/moves";
-    await renderShell([INVENTORY_PERMISSIONS.stockUpdate, INVENTORY_PERMISSIONS.movementViewPage]);
-    expect(navLink(MOVES)).toHaveAttribute("data-active", "true");
-    expect(navLink(MOVEMENTS)).not.toHaveAttribute("data-active", "true");
+  it("marks Di chuyển nội bộ active on its page in the tab", async () => {
+    navigation.pathname = ADMIN_ROUTES.warehouseMap.page("HCM", WORKSPACE_PATHS.moves);
+    await renderShell([WAREHOUSE_PERMISSIONS.viewPage, INVENTORY_PERMISSIONS.stockUpdate]);
+    expect(await screen.findByRole("link", { name: MOVES })).toHaveAttribute("data-active", "true");
   });
 });
 

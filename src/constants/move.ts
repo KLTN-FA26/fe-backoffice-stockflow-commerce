@@ -5,7 +5,8 @@ import { INVENTORY_API, INVENTORY_LIMITS, INVENTORY_QUERY_KEYS } from "./invento
 // LayoutController `GET /warehouses/{id}/layout` và `GET /locations/{code}`.
 export const MOVE_API = {
   move: INVENTORY_API.movements,
-  stockItems: "/inventory/stock-items",
+  // Tồn theo kho của tab theo kho (InventoryController `GET /inventory/warehouses/{id}/stock-items`, trang)
+  stockItems: INVENTORY_API.warehouseStockItems,
   layout: (warehouseId: string) => `/warehouses/${encodeURIComponent(warehouseId)}/layout`,
 } as const;
 
@@ -23,6 +24,8 @@ export const MOVE_LIMITS = {
   locationLength: INVENTORY_LIMITS.locationLength,
   lotLength: INVENTORY_LIMITS.lotLength,
   recentSize: 10,
+  // Một trang tồn của SKU trong kho (BE PageResponse) — đủ cho mọi vị trí của một SKU
+  stockRowsSize: 200,
   // Tên kho = đoạn mã vị trí trước dấu gạch đầu tiên (BE `LocationId.warehouseCode()`).
   warehouseSeparator: "-",
 } as const;
@@ -85,6 +88,8 @@ export const MOVE_MESSAGES = {
   sameLocation: "Vị trí đích phải khác vị trí nguồn.",
   // Docs 11 §6 BR-01: khác kho → dùng lệnh chuyển kho (docs 10); BE MOVE_ACROSS_WAREHOUSES.
   crossWarehouse: "Hai vị trí phải thuộc cùng một kho. Chuyển giữa các kho dùng Lệnh chuyển kho.",
+  // Tab theo kho (spec 2026-11-22): màn chỉ làm việc trong kho đang chọn; docs 11 BR-01 — BE vẫn re-check
+  otherWarehouse: (prefix: string) => `Vị trí không thuộc kho ${prefix} đang làm việc.`,
   exceedsMovable: "Vượt số lượng chưa giữ chỗ tại vị trí nguồn.",
   sourceUnderCount:
     "Vị trí nguồn đang được kiểm kê — không thể chuyển hàng ra khỏi vị trí này cho đến khi kiểm kê xong.",

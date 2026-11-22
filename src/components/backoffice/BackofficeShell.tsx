@@ -24,7 +24,6 @@ import {
   ListChecks,
   Map as MapIcon,
   MapPin,
-  Move,
   Package,
   PackageCheck,
   PackageOpen,
@@ -285,13 +284,7 @@ export const NAV_GROUPS: NavGroup[] = [
         // Route BE khai báo cho resource inventory-inventory-items (PR #119)
         permission: INVENTORY_ITEM_PERMISSIONS.viewPage,
       },
-      {
-        label: "Di chuyển nội bộ",
-        href: "/admin/moves",
-        icon: Move,
-        // BE StockOperationsController: POST /inventory/movements là inventory-stock-items:UPDATE
-        permission: INVENTORY_PERMISSIONS.stockUpdate,
-      },
+      // Di chuyển nội bộ (docs 11) đã vào tab "Kho & bản đồ" — làm việc theo một kho (spec 2026-11-22)
       {
         label: CYCLE_COUNT_LABELS.title,
         href: CYCLE_COUNT_ROUTES.list,

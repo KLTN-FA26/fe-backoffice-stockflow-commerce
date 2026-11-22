@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { ADMIN_ROUTES } from "@/constants";
+import { ADMIN_ROUTES, WORKSPACE_PATHS } from "@/constants";
 import { CYCLE_COUNT_LABELS, CYCLE_COUNT_ROUTES } from "@/constants/cycle-count";
 import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
 import { QUARANTINE_LABELS } from "@/constants/quarantine";
@@ -147,6 +147,9 @@ describe("buildBreadcrumbItems", () => {
       { label: "Back-office", href: "/admin" },
       { label: "Lịch sử biến động", href: undefined },
     ]);
-    expect(buildBreadcrumbItems("/admin/moves").at(-1)?.label).toBe("Di chuyển nội bộ");
+    expect(
+      buildBreadcrumbItems(ADMIN_ROUTES.warehouseMap.page("HCM", WORKSPACE_PATHS.moves)).at(-1)
+        ?.label,
+    ).toBe("Di chuyển nội bộ");
   });
 });
