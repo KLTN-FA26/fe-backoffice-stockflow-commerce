@@ -41,6 +41,8 @@ export const myPermissionsSchema = z.object({
   roles: z.array(z.string()),
   permissions: z.array(permissionCodeSchema),
   dataScope: z.enum(["OWN", "TEAM", "WAREHOUSE", "ALL"]),
+  // Kho được gán của người gọi (BE #394, docs 00 phạm vi WAREHOUSE). Optional: BE cũ chưa trả trường này.
+  warehouses: z.array(z.object({ id: z.string().min(1), prefix: z.string().min(1) })).optional(),
 });
 
 export type MyPermissions = z.infer<typeof myPermissionsSchema>;
