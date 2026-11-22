@@ -1,6 +1,7 @@
-import { Lightbulb, Map as MapIcon, PackageSearch } from "lucide-react";
+import { Lightbulb, Map as MapIcon, PackageCheck, PackageSearch } from "lucide-react";
 
 import {
+  FULFILLMENT_PACKAGE_PERMISSIONS,
   FULFILLMENT_PICK_PERMISSIONS,
   PUTAWAY_TASK_PERMISSIONS,
   UI_LABELS,
@@ -34,6 +35,15 @@ export const WORKSPACE_PAGES: readonly WorkspacePage[] = [
     icon: PackageSearch,
     // BE fulfillment pick lists (docs 07) — NV kho lấy hàng, quản lý kho giao task
     permission: FULFILLMENT_PICK_PERMISSIONS.viewPage,
+    assignedOnly: true,
+  },
+  {
+    path: WORKSPACE_PATHS.packing,
+    group: "operations",
+    label: UI_LABELS.cartonCheck.navTitle,
+    icon: PackageCheck,
+    // BE fulfillment packages (docs 08) — trạm kiểm thùng
+    permission: FULFILLMENT_PACKAGE_PERMISSIONS.viewPage,
     assignedOnly: true,
   },
   {

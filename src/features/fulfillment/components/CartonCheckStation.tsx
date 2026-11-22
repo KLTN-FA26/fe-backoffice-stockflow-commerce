@@ -5,8 +5,10 @@ import {
   FULFILLMENT_PICK_PERMISSIONS,
   PICK_STATUS,
   UI_LABELS,
+  WORKSPACE_PATHS,
 } from "@/constants";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
+import { useWorkspaceHref } from "@/lib/workspace";
 import { cartonCheckAccess } from "@/features/fulfillment/carton-check-lifecycle";
 import { useCartonCheckSession } from "@/features/fulfillment/carton-check-queries";
 import { useFulfillmentTask } from "@/features/fulfillment/queries";
@@ -44,9 +46,11 @@ function CartonCheckStationBody({
     enabled: canRead && actor.can(FULFILLMENT_PICK_PERMISSIONS.read),
   });
   const session = sessionQuery.data;
+  const listHref = useWorkspaceHref()(WORKSPACE_PATHS.packing);
   useBreadcrumbLabel(id, session ? (session.orderNumber ?? taskCode(session.taskId)) : undefined);
 
-  if (!canRead) return <FulfillmentLoadError scope="packing" error={null} kind="no-read" />;
+  if (!canRead)
+    return <FulfillmentLoadError scope="packing" error={null} kind="no-read" listHref={listHref} />;
   if (sessionQuery.isPending) return <PageSkeleton variant="detail" />;
   if (sessionQuery.isError && !session) {
     return (
@@ -54,6 +58,7 @@ function CartonCheckStationBody({
         scope="packing"
         error={sessionQuery.error}
         onRetry={() => void sessionQuery.refetch()}
+        listHref={listHref}
       />
     );
   }

@@ -70,6 +70,15 @@ describe("CartonCheckStation — phiên chưa bắt đầu (Pending)", () => {
     expect(screen.getByRole("button", { name: L.action.start })).toBeEnabled();
   });
 
+  it("lối sang màn lấy hàng của task ở lại trong kho của tab", async () => {
+    renderCartonCheckStation();
+    expect(
+      await screen.findByRole("link", {
+        name: new RegExp(UI_LABELS.fulfillment.action.openPicking),
+      }),
+    ).toHaveAttribute("href", expect.stringMatching(/^\/admin\/warehouse-map\/HCM\/picking\//));
+  });
+
   it("Bắt đầu kiểm thùng → POST packing-start; phiên chuyển In Progress, hiện ô quét và nút hoàn tất", async () => {
     const user = userEvent.setup();
     const { post } = renderCartonCheckStation({

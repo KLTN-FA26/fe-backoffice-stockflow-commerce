@@ -211,7 +211,7 @@ describe("PickingDetail — action-gating theo trạng thái + quyền + vai tr�
     renderDetail(IDENTITIES.warehouseStaff, pickedTask());
     expect(
       await screen.findByRole("link", { name: new RegExp(action.openPacking) }),
-    ).toHaveAttribute("href", `/admin/packing/${TASK_ID}`);
+    ).toHaveAttribute("href", `/admin/warehouse-map/HCM/packing/${TASK_ID}`);
     expect(screen.queryByRole("button", { name: action.completePicking })).toBeNull();
   });
 });

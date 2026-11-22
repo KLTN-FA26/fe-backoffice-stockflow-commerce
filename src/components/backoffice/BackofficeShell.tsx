@@ -71,7 +71,6 @@ import {
   CUSTOMER_PRICE_UI_LABELS,
   DELIVERY_FAILURE_LABELS,
   FULFILLMENT_CARRIER_EVENT_PERMISSIONS,
-  FULFILLMENT_PACKAGE_PERMISSIONS,
   FULFILLMENT_PICKING_PERMISSIONS,
   GOODS_RECEIPT_PERMISSIONS,
   PUTAWAY_LABELS,
@@ -530,12 +529,7 @@ export const NAV_GROUPS: NavGroup[] = [
         permission: RMA_PERMISSIONS.viewPage,
       },
       // Lấy hàng (docs 07) đã vào tab "Kho & bản đồ" — làm việc theo một kho (spec 2026-11-22)
-      {
-        label: UI_LABELS.cartonCheck.navTitle,
-        href: ADMIN_ROUTES.packing.list,
-        icon: PackageCheck,
-        permission: FULFILLMENT_PACKAGE_PERMISSIONS.viewPage,
-      },
+      // Kiểm thùng (docs 08) cũng trong tab theo kho
       {
         label: PUT_BACK_LABELS.title,
         href: ADMIN_ROUTES.putBacks.list,

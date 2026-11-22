@@ -25,4 +25,16 @@ describe("link cũ /admin/picking/{id} → task trong tab theo kho (spec §5.5)"
       expect(replace).toHaveBeenCalledWith(`/admin/warehouse-map/HCM/picking/${TASK_ID}`),
     );
   });
+
+  it("link cũ /admin/packing/{id} → trạm kiểm thùng trong kho của task", async () => {
+    mockFulfillmentApi(IDENTITIES.warehouseManager, {
+      [`/fulfillment/tasks/${TASK_ID}`]: () => apiTask(),
+      "/warehouses": () =>
+        bePage([{ id: WAREHOUSE_ID, prefix: "HCM", name: "Kho Hồ Chí Minh", status: "ACTIVE" }]),
+    });
+    renderFulfillmentScreen(<PickingTaskRedirect id={TASK_ID} scope="packing" />);
+    await waitFor(() =>
+      expect(replace).toHaveBeenCalledWith(`/admin/warehouse-map/HCM/packing/${TASK_ID}`),
+    );
+  });
 });
