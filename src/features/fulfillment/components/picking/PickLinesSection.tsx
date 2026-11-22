@@ -90,7 +90,7 @@ export function PickLinesSection({
             {canOpenPutBacks && task.warehouseId ? (
               <Link
                 href={ADMIN_ROUTES.putBacks.listInWarehouse(task.warehouseId)}
-                className="text-accent font-medium hover:underline"
+                className="text-accent-text font-medium hover:underline"
               >
                 {PUT_BACK_LABELS.openQueue}
               </Link>

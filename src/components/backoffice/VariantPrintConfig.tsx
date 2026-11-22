@@ -120,7 +120,7 @@ export function VariantPrintConfig({
               {TEXT.cartonMissing.description}{" "}
               <Link
                 href={ADMIN_ROUTES.products.detail(productId)}
-                className="text-accent underline-offset-2 hover:underline"
+                className="text-accent-text underline-offset-2 hover:underline"
               >
                 {TEXT.cartonMissing.link}
               </Link>

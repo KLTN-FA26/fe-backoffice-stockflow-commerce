@@ -47,8 +47,10 @@ export default function SalesDailyChart({ rows }: { rows: readonly SalesDaily[] 
             tickLine={false}
             minTickGap={16}
           />
+          {/* Trục bắt đầu ở 0: doanh thu / số đơn không âm */}
           <YAxis
             yAxisId="revenue"
+            domain={[0, "auto"]}
             tick={TICK}
             axisLine={false}
             tickLine={false}
@@ -58,6 +60,7 @@ export default function SalesDailyChart({ rows }: { rows: readonly SalesDaily[] 
           <YAxis
             yAxisId="orders"
             orientation="right"
+            domain={[0, "auto"]}
             allowDecimals={false}
             tick={TICK}
             axisLine={false}
@@ -100,7 +103,9 @@ export default function SalesDailyChart({ rows }: { rows: readonly SalesDaily[] 
             stroke="var(--dot-info)"
             strokeWidth={2}
             dot={false}
-            type="monotone"
+            // Đường thẳng giữa các điểm (L-12): đường cong "monotone" vẽ vòng xuống dưới 0 giữa hai ngày có đơn và
+            // một ngày không đơn, đọc thành số đơn âm
+            type="linear"
           />
         </ComposedChart>
       </ResponsiveContainer>

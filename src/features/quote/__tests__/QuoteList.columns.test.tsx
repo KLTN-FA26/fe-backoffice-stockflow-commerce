@@ -1,0 +1,83 @@
+import { screen, within } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { bePage, mockApi, renderScreen } from "@/test/api-screen";
+
+import { QuoteList } from "..";
+import { CUSTOMER, CUSTOMER_ID, QUOTE_ROW } from "../__fixtures__/quote-ds02";
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+}));
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  localStorage.clear();
+});
+
+const headers = () => screen.getAllByRole("columnheader").map((cell) => cell.textContent);
+const customer = { [`/customers/${CUSTOMER_ID}`]: () => CUSTOMER };
+
+describe("Danh sách báo giá — giá trị và hiệu lực (BO-UX-12, BO-UX-13)", () => {
+  it("R5-2: có `total` → cột 'Tổng có thuế' căn phải; dòng chưa đủ giá ghi 'Chưa đủ giá'", async () => {
+    mockApi("SALES_STAFF", {
+      get: {
+        "/quotes": () =>
+          bePage([
+            { ...QUOTE_ROW, total: 28_620_000, lineCount: 3, firstItemName: "Ly giấy 12oz" },
+            { ...QUOTE_ROW, id: "q-2", quoteNumber: "QT-20261120-9002", status: "DRAFT" },
+          ]),
+        ...customer,
+      },
+    });
+    renderScreen(<QuoteList />, "SALES_STAFF");
+    await screen.findByText("QT-20261120-9002");
+    expect(headers()).toContain("Tổng có thuế");
+    expect(headers()).not.toContain("Bản");
+    expect(screen.getByText(/28\.620\.000/)).toBeInTheDocument();
+    expect(screen.getByText("Chưa đủ giá")).toBeInTheDocument();
+    expect(screen.getByText("Ly giấy 12oz +2 dòng")).toBeInTheDocument();
+  });
+
+  it("BE chưa trả `total` → không có cột 'Tổng có thuế'; bản > 1 gộp vào số báo giá", async () => {
+    mockApi("SALES_STAFF", {
+      get: { "/quotes": () => bePage([{ ...QUOTE_ROW, revision: 2 }]), ...customer },
+    });
+    renderScreen(<QuoteList />, "SALES_STAFF");
+    const link = await screen.findByRole("link", { name: /QT-20261120-9001/ });
+    expect(link).toHaveTextContent("QT-20261120-9001 · b2");
+    expect(headers()).not.toContain("Tổng có thuế");
+  });
+
+  it("đã gửi mà quá hạn hiệu lực ghi chữ 'Hết hiệu lực' (không chỉ đổi màu)", async () => {
+    mockApi("SALES_STAFF", {
+      get: {
+        "/quotes": () =>
+          bePage([
+            {
+              ...QUOTE_ROW,
+              status: "SENT",
+              convertedOrderId: undefined,
+              validUntil: "2020-01-01T00:00:00Z",
+            },
+            {
+              ...QUOTE_ROW,
+              id: "q-2",
+              quoteNumber: "QT-20261120-9002",
+              status: "SENT",
+              convertedOrderId: undefined,
+            },
+          ]),
+        ...customer,
+      },
+    });
+    renderScreen(<QuoteList />, "SALES_STAFF");
+    const expiredRow = (await screen.findByRole("link", { name: /QT-20261120-9001/ })).closest(
+      "tr",
+    );
+    expect(within(expiredRow as HTMLElement).getByText("Hết hiệu lực")).toBeInTheDocument();
+    const validRow = screen.getByRole("link", { name: /QT-20261120-9002/ }).closest("tr");
+    expect(within(validRow as HTMLElement).queryByText("Hết hiệu lực")).toBeNull();
+  });
+});

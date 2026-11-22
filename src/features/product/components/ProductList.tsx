@@ -250,7 +250,7 @@ export function ProductList() {
         <Link
           href={ADMIN_ROUTES.products.detail(row.productId)}
           onClick={(e) => e.stopPropagation()}
-          className={`${CELL.name} hover:text-accent hover:underline`}
+          className={`${CELL.name} hover:text-accent-text hover:underline`}
         >
           {row.name}
         </Link>

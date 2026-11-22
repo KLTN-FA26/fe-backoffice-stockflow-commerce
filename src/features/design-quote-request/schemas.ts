@@ -13,6 +13,19 @@ import { omittedOrNull } from "@/lib/validation/primitives";
 export const QUOTE_REQUEST_STATUSES = ["OPEN", "CLOSED"] as const;
 const requestStatusSchema = z.enum(QUOTE_REQUEST_STATUSES);
 
+/**
+ * R5-5 (BE round 5, có thể chưa có): yêu cầu đóng vì đã lập báo giá (`QUOTED` + số báo giá) hay Sale đóng tay. Đọc lỏng
+ * — giá trị lạ / vắng → null, màn hình chỉ hiện "Đã đóng" như trước.
+ */
+const closedOutcomeFields = {
+  closedOutcome: z
+    .string()
+    .nullish()
+    .transform((value) => (value === "QUOTED" || value === "CLOSED_BY_STAFF" ? value : null)),
+  quoteId: omittedOrNull(z.string()),
+  quoteNumber: omittedOrNull(z.string()),
+};
+
 export const designQuoteRequestDtoSchema = z.object({
   id: z.string(),
   designId: z.string(),
@@ -33,6 +46,7 @@ export const designQuoteRequestDtoSchema = z.object({
   closedAt: omittedOrNull(z.string()),
   /** Vắng khi đóng vì khách xoá nháp. */
   closedBy: omittedOrNull(z.string()),
+  ...closedOutcomeFields,
 });
 export const designQuoteRequestPageSchema = bePageSchema(designQuoteRequestDtoSchema);
 
@@ -56,6 +70,7 @@ export const projectQuoteRequestDtoSchema = z.object({
   status: requestStatusSchema,
   closedAt: omittedOrNull(z.string()),
   closedBy: omittedOrNull(z.string()),
+  ...closedOutcomeFields,
   lines: z.array(projectQuoteRequestLineSchema).default([]),
 });
 export const projectQuoteRequestPageSchema = bePageSchema(projectQuoteRequestDtoSchema);

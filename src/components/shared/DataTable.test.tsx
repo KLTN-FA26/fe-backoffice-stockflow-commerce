@@ -83,3 +83,25 @@ describe("DataTable pagination", () => {
     expect(screen.queryByRole("button", { name: /^Trang / })).not.toBeInTheDocument();
   });
 });
+
+describe("DataTable sticky column (BO-UX-10, BO-UX-38)", () => {
+  it("pins a `sticky: 'right'` column to the right edge with an opaque background, header and cells", () => {
+    render(
+      <DataTable
+        data={[{ id: "a" }]}
+        columns={[
+          ...columns,
+          { key: "actions", header: "Thao tác", sticky: "right", cell: () => "x" },
+        ]}
+        rowKey={(row) => row.id}
+      />,
+    );
+    const header = screen.getByRole("columnheader", { name: "Thao tác" });
+    expect(header.className).toMatch(/sticky right-0/);
+    expect(header.className).toContain("bg-bg-subtle");
+    const cell = screen.getByText("x").closest("td");
+    expect(cell?.className).toMatch(/sticky right-0/);
+    expect(cell?.className).toContain("bg-bg-surface");
+    expect(screen.getByRole("columnheader", { name: "ID" }).className).not.toContain("sticky");
+  });
+});

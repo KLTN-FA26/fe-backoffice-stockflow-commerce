@@ -1,11 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { ArrowLeft, Ban } from "lucide-react";
+import { Ban, FileText, ListOrdered } from "lucide-react";
 
 import { ADMIN_ROUTES } from "@/constants";
-import { PAYMENT_LABELS } from "@/constants/labels-payment";
+import { PAYMENT_LABELS, PAYMENT_LIST_LABELS } from "@/constants/labels-payment";
 import { PAYMENT_RECEIPT_PERMISSIONS, PAYMENT_ROUTES } from "@/constants/payment";
 import { useCan, usePermissionChecker } from "@/lib/auth/components/Can";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
@@ -13,7 +12,12 @@ import { formatDateTime } from "@/lib/format/date";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
 import { CustomerName } from "@/components/backoffice/CustomerName";
 import { LoadErrorState } from "@/components/backoffice/LoadErrorState";
-import { Card } from "@/components/shared/Card";
+import {
+  DETAIL_ACTION_CLASS,
+  DETAIL_CARD_CLASS,
+  DETAIL_GRID_CLASS,
+  DetailSection,
+} from "@/components/shared/DetailSection";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Button } from "@/components/ui/button";
 
@@ -51,92 +55,106 @@ function ReceiptDetailContent({ id }: { id: string }) {
   const canVoid = allowedReceiptActions(receipt, can).includes("voidReceipt");
 
   return (
-    <div className="surface-soft surface-compact space-y-4">
+    // Trang chi tiết hai cột như báo giá (BO-UX-2): thông tin + các dòng bên trái; trạng thái, thông tin huỷ và nút huỷ
+    // phiếu (cuối, tông nguy hiểm) bên phải. Không nút quay lại — breadcrumb.
+    <div className="surface-soft surface-compact">
       <h1 className="sr-only">{`${R.pageTitle} ${receipt.reference}`}</h1>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <Button asChild variant="outline" size="sm">
-          <Link href={PAYMENT_ROUTES.receipts.list}>
-            <ArrowLeft className="size-3.5" /> {R.pageTitle}
-          </Link>
-        </Button>
-        {canVoid && (
-          <Button
-            size="sm"
-            variant="outline"
-            className="text-danger"
-            onClick={() => setVoiding(true)}
-          >
-            <Ban className="size-3.5" /> {R.voidAction}
-          </Button>
-        )}
-      </div>
-      <Card className="space-y-3">
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="text-ink-primary font-mono text-sm font-semibold">{receipt.reference}</h2>
-          <ReceiptStatusDot status={receipt.status} />
+      <div className={DETAIL_GRID_CLASS}>
+        <div className="min-w-0 space-y-5">
+          <DetailSection title={PAYMENT_LIST_LABELS.generalTitle} icon={FileText}>
+            <dl className="grid grid-cols-[minmax(140px,auto)_1fr] gap-x-4 gap-y-2 text-[0.8125rem]">
+              <InfoRow label={C.reference}>
+                <span className="text-ink-primary font-mono font-medium">{receipt.reference}</span>
+              </InfoRow>
+              <InfoRow label={C.customer}>
+                <CustomerName
+                  id={receipt.customerId}
+                  name={receipt.customerName}
+                  code={receipt.customerCode}
+                />
+              </InfoRow>
+              <InfoRow label={C.receivedOn}>
+                <DateCell iso={receipt.receivedOn} />
+              </InfoRow>
+              <InfoRow label={R.total}>
+                <MoneyCell amount={receipt.amount} currency={receipt.currency} />
+              </InfoRow>
+              <InfoRow label={C.recordedAt}>{formatDateTime(receipt.recordedAt)}</InfoRow>
+              {/* R5-8: tên người lập khi BE gửi — không hiện id người dùng */}
+              {receipt.recordedByName && (
+                <InfoRow label={PAYMENT_LIST_LABELS.recordedBy}>{receipt.recordedByName}</InfoRow>
+              )}
+              {receipt.note && <InfoRow label={R.note}>{receipt.note}</InfoRow>}
+            </dl>
+          </DetailSection>
+          <DetailSection title={R.lines} icon={ListOrdered}>
+            <ul className="divide-y divide-(--table-line) text-[0.8125rem]">
+              {receipt.lines.map((line) => (
+                <li
+                  key={line.installmentId}
+                  className="flex flex-wrap items-center gap-x-4 gap-y-1 py-2"
+                >
+                  <CodeLink href={PAYMENT_ROUTES.installments.detail(line.installmentId)}>
+                    {/* Không có số hợp đồng → nhãn trung tính, không mảnh UUID (BO-UX-6) */}
+                    {line.contractNumber ?? PAYMENT_LIST_LABELS.unknownContract}
+                  </CodeLink>
+                  {line.seq != null && (
+                    <span>{`Đợt ${line.seq}${line.name ? ` — ${line.name}` : ""}`}</span>
+                  )}
+                  {line.milestone && (
+                    <span className="text-ink-secondary">{milestoneLabel(line.milestone)}</span>
+                  )}
+                  {line.orderId && line.orderNumber && (
+                    <CodeLink href={ADMIN_ROUTES.orders.detail(line.orderId)}>
+                      {line.orderNumber}
+                    </CodeLink>
+                  )}
+                  <span className="ml-auto">
+                    <MoneyCell amount={line.amount} currency={receipt.currency} />
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </DetailSection>
         </div>
-        <dl className="grid grid-cols-[minmax(140px,auto)_1fr] gap-x-4 gap-y-2 text-[0.8125rem]">
-          <InfoRow label={C.customer}>
-            <CustomerName
-              id={receipt.customerId}
-              name={receipt.customerName}
-              code={receipt.customerCode}
-            />
-          </InfoRow>
-          <InfoRow label={C.receivedOn}>
-            <DateCell iso={receipt.receivedOn} />
-          </InfoRow>
-          <InfoRow label={R.total}>
-            <MoneyCell amount={receipt.amount} currency={receipt.currency} />
-          </InfoRow>
-          <InfoRow label={C.recordedAt}>{formatDateTime(receipt.recordedAt)}</InfoRow>
-          {receipt.note && <InfoRow label={R.note}>{receipt.note}</InfoRow>}
-        </dl>
-        {receipt.status === "VOIDED" && (
-          <div className="border-border-default space-y-1 border-t pt-3 text-[0.8125rem]">
-            <h3 className="text-ink-primary font-semibold">{R.voidInfo}</h3>
-            {receipt.voidedAt && (
-              <p className="text-ink-secondary">
-                {R.voidedAt}: {formatDateTime(receipt.voidedAt)}
-              </p>
+        <div className="space-y-5">
+          <section className={DETAIL_CARD_CLASS} aria-label={PAYMENT_LIST_LABELS.statusTitle}>
+            <div className="mb-4 flex justify-center">
+              <ReceiptStatusDot status={receipt.status} />
+            </div>
+            {receipt.status === "VOIDED" && (
+              <div className="space-y-1 text-[0.8125rem]">
+                <h2 className="text-ink-primary font-semibold">{R.voidInfo}</h2>
+                {/* R5-8: người huỷ khi BE gửi tên */}
+                {receipt.voidedByName && (
+                  <p className="text-ink-secondary">
+                    {R.voidedBy}: {receipt.voidedByName}
+                  </p>
+                )}
+                {receipt.voidedAt && (
+                  <p className="text-ink-secondary">
+                    {R.voidedAt}: {formatDateTime(receipt.voidedAt)}
+                  </p>
+                )}
+                {receipt.voidReason && (
+                  <p className="text-ink-secondary whitespace-pre-line">
+                    {R.voidReason}: {receipt.voidReason}
+                  </p>
+                )}
+              </div>
             )}
-            {receipt.voidReason && (
-              <p className="text-ink-secondary whitespace-pre-line">
-                {R.voidReason}: {receipt.voidReason}
-              </p>
+            {canVoid && (
+              <Button
+                variant="ghost"
+                className={DETAIL_ACTION_CLASS.danger}
+                onClick={() => setVoiding(true)}
+              >
+                <Ban className="size-3.5" aria-hidden="true" /> {R.voidAction}
+              </Button>
             )}
-          </div>
-        )}
-      </Card>
-      <Card className="space-y-3">
-        <h2 className="text-ink-primary text-sm font-semibold">{R.lines}</h2>
-        <ul className="divide-border-default divide-y text-[0.8125rem]">
-          {receipt.lines.map((line) => (
-            <li
-              key={line.installmentId}
-              className="flex flex-wrap items-center gap-x-4 gap-y-1 py-2"
-            >
-              <CodeLink href={PAYMENT_ROUTES.installments.detail(line.installmentId)}>
-                {line.contractNumber ?? line.installmentId.slice(0, 8)}
-              </CodeLink>
-              {line.seq != null && (
-                <span>{`Đợt ${line.seq}${line.name ? ` — ${line.name}` : ""}`}</span>
-              )}
-              {line.milestone && (
-                <span className="text-ink-secondary">{milestoneLabel(line.milestone)}</span>
-              )}
-              {line.orderId && line.orderNumber && (
-                <CodeLink href={ADMIN_ROUTES.orders.detail(line.orderId)}>
-                  {line.orderNumber}
-                </CodeLink>
-              )}
-              <span className="ml-auto">
-                <MoneyCell amount={line.amount} currency={receipt.currency} />
-              </span>
-            </li>
-          ))}
-        </ul>
-      </Card>
+          </section>
+        </div>
+      </div>
       <VoidReceiptDialog receipt={voiding ? receipt : null} onClose={() => setVoiding(false)} />
     </div>
   );

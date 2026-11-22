@@ -40,7 +40,16 @@ export interface ColumnDef<T> {
   headerSearch?: ReactNode;
   headerFilter?: ReactNode;
   hasHeaderFilter?: boolean;
+  /**
+   * Ghim cột vào mép phải khung cuộn ngang (cột thao tác): nút chính của dòng luôn thấy được ở 1366px dù bảng
+   * rộng hơn màn hình (BO-UX-10, BO-UX-38).
+   */
+  sticky?: "right";
 }
+
+/** Cột ghim phải: nền đặc (không lộ chữ cột cuộn dưới nó) + vạch đổ bóng trái báo còn nội dung phía sau. */
+const STICKY_RIGHT =
+  "sticky right-0 shadow-[inset_1px_0_0_var(--table-line),-6px_0_8px_-6px_rgb(0_0_0/0.12)]";
 
 /* -------------------------------------------------------------------------- */
 /*  DataTable                                                                */
@@ -234,6 +243,7 @@ export function DataTable<T>({
                   className={cn(
                     "text-ink-secondary text-xs font-semibold",
                     col.align === "right" && "text-right",
+                    col.sticky === "right" && `${STICKY_RIGHT} bg-bg-subtle`,
                     col.headerClassName,
                   )}
                 >
@@ -318,6 +328,7 @@ export function DataTable<T>({
                         className={cn(
                           "text-[0.8125rem]",
                           col.align === "right" && "text-right tabular-nums",
+                          col.sticky === "right" && `${STICKY_RIGHT} bg-bg-surface`,
                           col.className,
                         )}
                       >

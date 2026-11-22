@@ -24,8 +24,8 @@ const MONO = "font-[family-name:var(--font-mono)]";
  * này thay vì tự đặt cỡ / màu — nguồn duy nhất để các bảng không lệch nhau.
  */
 export const CELL = {
-  /** Mã chứng từ chính: mono 500 accent. */
-  code: `text-accent ${MONO} text-[0.8125rem] font-medium`,
+  /** Mã chứng từ chính: mono 500 màu chữ link (`accent-text`, ≥ 4.5:1). */
+  code: `text-accent-text ${MONO} text-[0.8125rem] font-medium`,
   /** Tên / đối tượng chính: 500 ink-primary. */
   name: "text-ink-primary text-[0.8125rem] font-medium",
   /** Chữ phụ (danh mục, loại, kho…): 400 ink-secondary. */

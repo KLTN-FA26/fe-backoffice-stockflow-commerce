@@ -27,7 +27,7 @@ export function ControlledCancelNotice({ load }: { load: Load }) {
           {N.replacement}{" "}
           <Link
             href={ADMIN_ROUTES.loads.detail(load.replacementLoadId)}
-            className="text-accent hover:underline"
+            className="text-accent-text hover:underline"
           >
             {load.replacementLoadCode ?? load.replacementLoadId}
           </Link>
@@ -37,7 +37,7 @@ export function ControlledCancelNotice({ load }: { load: Load }) {
               {" · "}
               <Link
                 href={ADMIN_ROUTES.loadPlans.print(load.loadPlanId, load.vehicleSeq)}
-                className="text-accent hover:underline"
+                className="text-accent-text hover:underline"
               >
                 {A.reprintLayout}
               </Link>

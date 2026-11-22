@@ -15,7 +15,7 @@ export function ShipmentIdentity({ shipment }: { shipment: LoadShipment }) {
     <>
       <Link
         href={ADMIN_ROUTES.shipments.detail(shipment.shipmentId)}
-        className={`text-accent text-[0.875rem] font-semibold hover:underline ${MONO}`}
+        className={`text-accent-text text-[0.875rem] font-semibold hover:underline ${MONO}`}
       >
         {shipment.code}
       </Link>

@@ -17,3 +17,19 @@ export function quoteStatusLabel(status: QuoteApiStatus): string {
 }
 
 export const MONO = "font-[family-name:var(--font-mono)] text-[0.8125rem] tabular-nums";
+
+/** Nhãn của danh sách báo giá. */
+export const QUOTE_LIST_LABELS = {
+  number: "Số báo giá",
+  customer: "Khách hàng",
+  status: "Trạng thái",
+  total: "Tổng có thuế",
+  validUntil: "Hiệu lực đến",
+  sentAt: "Ngày gửi",
+  order: "Đơn đã tạo",
+  openOrder: "Mở đơn",
+  notPriced: "Chưa đủ giá",
+  expired: "Hết hiệu lực",
+  revision: (revision: number) => `b${revision}`,
+  moreLines: (count: number) => `+${count} dòng`,
+} as const;

@@ -58,3 +58,31 @@ export const DASHBOARD_LABELS = {
   retry: "Thử lại",
   permissionsError: "Không tải được quyền truy cập nên chưa hiện được số liệu.",
 } as const;
+
+/**
+ * Bảng điều khiển theo vai trò (L-12): ô "việc của bạn" của Sale và Kế toán, đọc API danh sách sẵn có. Mỗi ô gate theo
+ * quyền của chính endpoint (+ quyền xác định vai trò nếu cần) — không bịa số khi thiếu API.
+ */
+export const ROLE_DASHBOARD_API = {
+  designQuoteRequests: "/design-quote-requests",
+  projectQuoteRequests: "/design-project-quote-requests",
+  quotes: "/quotes",
+  installments: "/installments",
+} as const;
+
+export const ROLE_DASHBOARD_LIMITS = {
+  /** "Sắp hết hạn" = hiệu lực còn ≤ chừng này ngày (L-12). */
+  expiringWithinDays: 3,
+  /** Số báo giá SENT đọc (sắp theo hạn hiệu lực tăng dần) để đếm cái sắp hết hạn — đủ cho mọi trang đầu thực tế. */
+  expiringScanSize: 100,
+} as const;
+
+export const ROLE_DASHBOARD_LABELS = {
+  title: "Việc của bạn",
+  newQuoteRequests: "Yêu cầu báo giá mới",
+  expiringQuotes: "Báo giá sắp hết hạn (≤ 3 ngày)",
+  expiringQuotesTruncated: "Chỉ đếm trong 100 báo giá đã gửi có hạn gần nhất",
+  unreadChats: "Tin chat chưa đọc",
+  installmentsOwing: "Đợt đến hạn chưa thu",
+  installmentsOverdue: "Đợt quá hạn",
+} as const;

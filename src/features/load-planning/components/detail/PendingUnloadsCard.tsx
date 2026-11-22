@@ -63,7 +63,7 @@ export function PendingUnloadsCard({ plan }: { plan: PlanDetail }) {
                 <td className="px-3 py-2">
                   <Link
                     href={ADMIN_ROUTES.loads.detail(item.loadId)}
-                    className="text-accent hover:underline"
+                    className="text-accent-text hover:underline"
                   >
                     {P.pendingOpen} {item.loadCode}
                   </Link>

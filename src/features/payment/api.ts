@@ -12,6 +12,7 @@ import {
   receiptDtoSchema,
   receiptPageDtoSchema,
   receiptSummaryDtoSchema,
+  receivablePageDtoSchema,
 } from "./schemas";
 
 import type {
@@ -27,6 +28,7 @@ import type {
   PaymentReceipt,
   ReceiptInput,
   ReceiptSummary,
+  Receivable,
   RefundRecordInput,
   VoidInput,
 } from "./types";
@@ -34,6 +36,7 @@ import type {
 const INSTALLMENTS = "/installments";
 const RECEIPTS = "/payment-receipts";
 const REFUNDS = "/refunds";
+const RECEIVABLES = "/receivables";
 const seg = encodeURIComponent;
 
 function pageQuery(params: ListQueryParams) {
@@ -234,4 +237,25 @@ export async function voidRefundRecord(input: {
     reason: input.reason,
   });
   return orderRefundDtoSchema.parse(data);
+}
+
+/* ── Công nợ phải thu theo khách (R5-11) ─────────────────────────────── */
+
+export interface ListReceivableParams extends ListQueryParams {
+  /** Tên / mã khách / mã số thuế. */
+  search?: string;
+}
+
+/**
+ * `GET /receivables` (BE round 5, R5-11): mỗi khách một dòng — còn nợ, quá hạn, hạn cũ nhất, tuổi nợ; quá hạn nhiều
+ * nhất trước. BE chưa có endpoint → 404 (`ApiError`), trang tự lùi về danh sách đợt `owing=true`.
+ */
+export async function listReceivables(
+  params: ListReceivableParams,
+  signal?: AbortSignal,
+): Promise<PaginatedResponse<Receivable>> {
+  const query = pageQuery(params);
+  if (params.search) query.set("search", params.search);
+  const { data } = await api.get<unknown>(RECEIVABLES, { params: query, signal });
+  return receivablePageDtoSchema.parse(data);
 }

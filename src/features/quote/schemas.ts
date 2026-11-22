@@ -131,6 +131,13 @@ export const quoteRowDtoSchema = z.object({
   convertedOrderId: omittedOrNull(z.string()),
   createdAt: z.string(),
   version: z.number().int(),
+  /**
+   * R5-2 (BE round 5, có thể chưa có): tổng có VAT — đã chấp nhận / đã lên đơn thì số chấp nhận, còn lại số đề xuất;
+   * null (bị bỏ khỏi JSON) khi chưa đủ giá. Cùng `lineCount`, `firstItemName` (tên thiết kế dòng 1, không có thì SKU).
+   */
+  total: omittedOrNull(z.number()),
+  lineCount: omittedOrNull(z.number().int()),
+  firstItemName: omittedOrNull(z.string()),
 });
 export const quotePageDtoSchema = bePageSchema(quoteRowDtoSchema);
 

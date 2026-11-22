@@ -10,7 +10,7 @@ export function VariantPrintConfigLink({ href }: { href: string }) {
   return (
     <Link
       href={href}
-      className="text-accent focus-visible:ring-brand/30 inline-flex items-center gap-1.5 rounded-[var(--r-sm)] text-sm font-semibold hover:underline focus-visible:ring-[3px] focus-visible:outline-none"
+      className="text-accent-text focus-visible:ring-brand/30 inline-flex items-center gap-1.5 rounded-[var(--r-sm)] text-sm font-semibold hover:underline focus-visible:ring-[3px] focus-visible:outline-none"
     >
       {UI_LABELS.product.variants.printConfigLink}
       <ArrowRight className="size-3.5" aria-hidden />

@@ -39,7 +39,7 @@ export function RelatedConversationLink({ target }: { target: RelatedConversatio
     <div className="flex justify-end pb-2">
       <Link
         href={ADMIN_ROUTES.chat.detail(query.data)}
-        className="text-accent focus-visible:ring-ring inline-flex min-h-9 items-center gap-1.5 rounded-md text-sm hover:underline focus-visible:ring-2 focus-visible:outline-none"
+        className="text-accent-text focus-visible:ring-ring inline-flex min-h-9 items-center gap-1.5 rounded-md text-sm hover:underline focus-visible:ring-2 focus-visible:outline-none"
       >
         <MessagesSquare className="size-4" aria-hidden="true" />
         Hội thoại liên quan

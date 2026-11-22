@@ -59,6 +59,9 @@ export const installmentDtoSchema = z.object({
   cancelledAt: z.string().nullish(),
   transferReference: z.string(),
   receipts: z.array(installmentReceiptDtoSchema).nullish(),
+  /** R5-12 (BE round 5, có thể chưa có): ngày hạn + số ngày quá hạn (0 khi chưa quá hạn). */
+  dueOn: z.string().nullish(),
+  daysOverdue: z.number().int().nullish(),
 });
 export const installmentPageDtoSchema = bePageSchema(installmentDtoSchema);
 
@@ -109,6 +112,9 @@ export const receiptDtoSchema = z.object({
   voidedAt: z.string().nullish(),
   voidReason: z.string().nullish(),
   lines: z.array(receiptLineDtoSchema),
+  /** R5-8 (BE round 5, có thể chưa có): tên người lập / người huỷ — không có thì không hiện dòng đó. */
+  recordedByName: z.string().nullish(),
+  voidedByName: z.string().nullish(),
 });
 export const receiptPageDtoSchema = bePageSchema(receiptDtoSchema);
 
@@ -176,3 +182,18 @@ export const orderRefundDtoSchema = z.object({
   records: z.array(refundRecordDtoSchema).nullish(),
 });
 export const orderRefundPageDtoSchema = bePageSchema(orderRefundDtoSchema);
+
+/* ── DTO: công nợ phải thu theo khách (R5-11, BE round 5 — có thể chưa có: 404) ── */
+
+export const receivableDtoSchema = z.object({
+  customerId: z.string(),
+  customerName: z.string().nullish(),
+  customerCode: z.string().nullish(),
+  taxCode: z.string().nullish(),
+  owed: z.number(),
+  overdue: z.number(),
+  oldestDueOn: z.string().nullish(),
+  aging: z.object({ d0to30: z.number(), d31to60: z.number(), over60: z.number() }).nullish(),
+  installmentCount: z.number().int().nullish(),
+});
+export const receivablePageDtoSchema = bePageSchema(receivableDtoSchema);

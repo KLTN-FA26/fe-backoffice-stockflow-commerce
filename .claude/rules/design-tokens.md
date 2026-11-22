@@ -43,8 +43,14 @@ Tailwind class sinh ra từ đó. Không khai báo màu ở nơi khác.
 | --------------- | --------- | --------- | ------------------- |
 | `ink.primary`   | `#1A1B18` | `#F4F4F1` | chữ chính, heading  |
 | `ink.secondary` | `#5C5E58` | `#A8AAA3` | mô tả, phụ đề       |
-| `ink.tertiary`  | `#8A8C85` | `#76786F` | placeholder, meta   |
+| `ink.tertiary`  | `#6B6E68` | `#9A9C95` | placeholder, meta   |
 | `ink.inverse`   | `#FFFFFF` | `#1A1B18` | chữ trên nền accent |
+| `accent.text`   | `#1565C0` | `#4EA6F0` | chữ link (`text-accent-text`) |
+
+Mọi màu chữ ≥ 4.5:1 (WCAG 1.4.3, BO-UX-1): `ink.tertiary` 5.18:1 trên trắng / 4.54:1 trên `bg.muted`
+(dark 6.39 / 5.04); `accent.text` 5.75:1 (dark 6.79). `text-accent` (#1E88E5, 3.68:1) chỉ cho icon / viền,
+**không** cho chữ link. `text-warning` / `text-positive` (2.94 / 3.49:1) **không** dùng cho chữ: tông nằm ở
+chấm / icon, chữ màu ink. Buộc phải tô chữ theo tông → `text-warning-ink` / `text-positive-ink` (5.4:1).
 
 ## Semantic — dùng chung cả hai mode, KHÔNG đổi
 

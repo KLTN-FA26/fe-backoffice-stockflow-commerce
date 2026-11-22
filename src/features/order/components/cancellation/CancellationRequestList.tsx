@@ -1,6 +1,7 @@
 "use client";
 
-import { ArrowLeft, Ban } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Ban } from "lucide-react";
 import { parseAsInteger, useQueryState } from "nuqs";
 
 import {
@@ -11,22 +12,32 @@ import {
   PAGE_SIZE,
   STORAGE_KEYS,
 } from "@/constants";
+import {
+  columnSummaryItem,
+  columnToolbarProps,
+  useColumnVisibility,
+} from "@/hooks/use-column-visibility";
 import { usePageConfig } from "@/hooks/use-page-config";
 import { usePermissionChecker } from "@/lib/auth";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
 import { DataTable } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { PageHeader } from "@/components/shared/PageHeader";
+import { ListToolbar } from "@/components/shared/ListToolbar";
 import { RefetchBar } from "@/components/shared/RefetchBar";
 
 import { allowedCancellationRequestActions } from "../../cancellation-request-lifecycle";
 import { useCancellationRequests } from "../../queries";
-import { HeaderLink } from "../HeaderLink";
 import { OrderLoadError } from "../OrderLoadError";
 import { OrderPermissionGate } from "../OrderPermissionGate";
 import { OrderTableSkeleton } from "../OrderSkeletons";
 
-import { buildCancellationRequestColumns, RequestRowActions } from "./columns";
+import {
+  buildCancellationRequestColumns,
+  CANCELLATION_QUEUE_COLUMNS,
+  CANCELLATION_QUEUE_LABELS,
+  CANCELLATION_QUEUE_LOCKED,
+  RequestRowActions,
+} from "./columns";
 
 const L = CANCELLATION_REQUEST_LABELS;
 const PAGE_SIZE_OPTIONS: number[] = [PAGE_SIZE.sm, PAGE_SIZE.md, PAGE_SIZE.lg, PAGE_SIZE.xl];
@@ -63,6 +74,7 @@ export function CancellationRequestList() {
 }
 
 function CancellationRequestListContent() {
+  const router = useRouter();
   const can = usePermissionChecker();
   // UI-only — Backend phải re-check (CancellationRequestController @RequiresPermission READ / UPDATE)
   const canOpenOrder = can(ORDER_PERMISSIONS.read);
@@ -84,19 +96,25 @@ function CancellationRequestListContent() {
       ) : null,
     canOpenOrder,
   );
+  const columnState = useColumnVisibility(
+    STORAGE_KEYS.adminCancellationRequestsColumns,
+    CANCELLATION_QUEUE_COLUMNS,
+    { locked: CANCELLATION_QUEUE_LOCKED },
+  );
+  const visibleColumns = columns.filter((column) =>
+    columnState.visible.some((key) => key === column.key),
+  );
 
   return (
-    <>
-      <PageHeader
-        title={L.title}
-        subtitle={L.subtitle}
-        actions={
-          canOpenOrder && (
-            <HeaderLink href={ADMIN_ROUTES.orders.list}>
-              <ArrowLeft className="size-3.5" /> {L.backToOrders}
-            </HeaderLink>
-          )
-        }
+    <div className="surface-soft">
+      {/* Trang danh sách kiểu Vercel (data-table-mode-a §1): không tiêu đề / nút quay lại — breadcrumb là tên trang. */}
+      <h1 className="sr-only">{L.title}</h1>
+      {/* BE chỉ lọc theo trạng thái / đơn (hàng đợi luôn PENDING): không có search — toolbar còn Ẩn hiện cột. */}
+      <ListToolbar
+        {...columnToolbarProps(columnState, CANCELLATION_QUEUE_LABELS, CANCELLATION_QUEUE_COLUMNS)}
+        summaryItems={[columnSummaryItem(columnState)]}
+        onResetAll={columnState.reset}
+        resetDisabled={!columnState.hasColumnConfig}
       />
       {query.isError ? (
         <OrderLoadError inline error={query.error} onRetry={() => void query.refetch()} />
@@ -112,9 +130,16 @@ function CancellationRequestListContent() {
         <>
           <RefetchBar active={query.isFetching} label="Đang tải lại danh sách" />
           <DataTable
-            columns={columns}
+            columns={visibleColumns}
             data={query.data.items}
             rowKey={(row) => row.requestId}
+            stickyHeader
+            // Mở dòng = tới thẻ yêu cầu huỷ trên chi tiết đơn (đủ bối cảnh: tiền, sản xuất, lịch sử) — BO-UX-34
+            onRowClick={
+              canOpenOrder
+                ? (row) => router.push(ADMIN_ROUTES.orders.cancellationRequest(row.orderId))
+                : undefined
+            }
             flagRow={() => true}
             caption={L.caption(query.data.items.length, query.data.totalElements)}
             pageSize={config.pageSize}
@@ -135,6 +160,6 @@ function CancellationRequestListContent() {
           />
         </>
       )}
-    </>
+    </div>
   );
 }

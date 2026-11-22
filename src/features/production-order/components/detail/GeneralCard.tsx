@@ -80,7 +80,7 @@ export function GeneralCard({
         <InfoRow label={L.salesOrder}>
           <Link
             href={ADMIN_ROUTES.orders.detail(order.salesOrderId)}
-            className="text-accent font-[family-name:var(--font-mono)] hover:underline"
+            className="text-accent-text font-[family-name:var(--font-mono)] hover:underline"
           >
             {batches.data?.orderNumber ?? shortId(order.salesOrderId)}
           </Link>

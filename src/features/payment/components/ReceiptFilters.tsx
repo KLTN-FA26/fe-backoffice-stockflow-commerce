@@ -2,19 +2,25 @@
 
 import Link from "next/link";
 
-import { PAYMENT_LABELS } from "@/constants/labels-payment";
+import { PAYMENT_LABELS, PAYMENT_LIST_LABELS as LL } from "@/constants/labels-payment";
 import { PAYMENT_ROUTES, RECEIPT_API_STATUSES } from "@/constants/payment";
+import { columnSummaryItem, columnToolbarProps } from "@/hooks/use-column-visibility";
+import { formatDate } from "@/lib/format/date";
 import { CustomerName } from "@/components/backoffice/CustomerName";
+import { FilterSelect } from "@/components/backoffice/FilterSelect";
 import { DatePicker } from "@/components/shared/DatePicker";
+import { ListToolbar } from "@/components/shared/ListToolbar";
+import { ToolbarFilterPopover } from "@/components/shared/ToolbarFilterPopover";
 import { Label } from "@/components/ui/label";
-import { SearchBar } from "@/components/shared/SearchBar";
-import { Button } from "@/components/ui/button";
 
 import { receiptStatusLabel } from "../selectors";
 
-import { FilterChip, FilterSelect } from "@/components/backoffice/FilterSelect";
+import { RECEIPT_COLUMN_LABELS, RECEIPT_COLUMN_KEYS } from "./receipt-columns";
 
 import type { ReceiptApiStatus } from "@/constants/payment";
+import type { ListSummaryItem } from "@/components/shared/ListToolbar";
+import type { ColumnVisibility } from "@/hooks/use-column-visibility";
+import type { ReceiptColumn } from "./receipt-columns";
 
 const L = PAYMENT_LABELS.receipts;
 const STATUS_OPTIONS = RECEIPT_API_STATUSES.map((value) => ({
@@ -22,7 +28,19 @@ const STATUS_OPTIONS = RECEIPT_API_STATUSES.map((value) => ({
   label: receiptStatusLabel(value),
 }));
 
-/** Lọc phiếu thu (BE `GET /payment-receipts`): mã tham chiếu sao kê (khớp chính xác), trạng thái, ngày nhận, khách. */
+function dayLabel(iso: string): string {
+  try {
+    return formatDate(iso);
+  } catch {
+    return iso;
+  }
+}
+
+/**
+ * Toolbar phiếu thu (BE `GET /payment-receipts`, BO-UX-2/7): search chính là mã tham chiếu sao kê (khớp chính xác);
+ * nút Lọc — trạng thái (BE nhận một giá trị); hàng facet — khoảng ngày nhận (lỗi khoảng ngược báo tại ô); Ẩn hiện cột;
+ * chip Cấu hình cho từng bộ lọc, kể cả khách đến từ link.
+ */
 export function ReceiptFilters({
   reference,
   onReferenceChange,
@@ -39,6 +57,7 @@ export function ReceiptFilters({
   onClearCustomer,
   hasFilters,
   onClear,
+  columns,
 }: {
   reference: string;
   onReferenceChange: (value: string) => void;
@@ -57,71 +76,113 @@ export function ReceiptFilters({
   onClearCustomer: () => void;
   hasFilters: boolean;
   onClear: () => void;
+  columns: ColumnVisibility<ReceiptColumn>;
 }) {
+  const summary: ListSummaryItem[] = [
+    {
+      label: LL.searchMain,
+      value: reference.trim() ? `“${reference}”` : LL.notUsed,
+      active: reference.trim() !== "",
+      onClear: () => onReferenceChange(""),
+    },
+    {
+      label: LL.status,
+      value: status ? receiptStatusLabel(status) : LL.all,
+      active: !!status,
+      onClear: () => onStatusChange(null),
+    },
+  ];
+  if (receivedFrom || receivedTo)
+    summary.push({
+      label: LL.receivedRange,
+      value: `${receivedFrom ? dayLabel(receivedFrom) : "…"} – ${receivedTo ? dayLabel(receivedTo) : "…"}`,
+      active: true,
+      onClear: () => {
+        onReceivedFromChange("");
+        onReceivedToChange("");
+      },
+    });
+  if (customerId)
+    summary.push({
+      label: L.customerChip,
+      value: <CustomerName id={customerId} name={customerName} code={customerCode} link={false} />,
+      active: true,
+      onClear: onClearCustomer,
+    });
+  summary.push(columnSummaryItem(columns));
+
   return (
-    <div className="mb-3 flex flex-wrap items-center gap-3">
-      <SearchBar
-        value={reference}
-        onChange={onReferenceChange}
-        placeholder={L.searchPlaceholder}
-        aria-label={L.searchPlaceholder}
-        className="max-w-xs"
-      />
-      <FilterSelect
-        id="receipt-status"
-        label={PAYMENT_LABELS.columns.status}
-        allLabel={L.statusAll}
-        value={status}
-        options={STATUS_OPTIONS}
-        onChange={onStatusChange}
-      />
-      <div className="flex flex-wrap items-center gap-2">
-        <Label htmlFor="receipt-received-from" className="text-ink-secondary text-[0.8125rem]">
-          {L.receivedFrom}
-        </Label>
-        <DatePicker
-          id="receipt-received-from"
-          value={receivedFrom}
-          onChange={onReceivedFromChange}
-          clearable
-          aria-invalid={rangeInverted}
-          aria-describedby={rangeInverted ? "receipt-range-error" : undefined}
-          className="h-8 w-[10.5rem]"
-        />
-        <Label htmlFor="receipt-received-to" className="text-ink-secondary text-[0.8125rem]">
-          {L.receivedTo}
-        </Label>
-        <DatePicker
-          id="receipt-received-to"
-          value={receivedTo}
-          onChange={onReceivedToChange}
-          clearable
-          aria-invalid={rangeInverted}
-          aria-describedby={rangeInverted ? "receipt-range-error" : undefined}
-          className="h-8 w-[10.5rem]"
-        />
-        {rangeInverted && (
-          <p id="receipt-range-error" role="alert" className="text-danger text-xs">
-            {L.rangeInverted}
+    <ListToolbar
+      search={reference}
+      onSearchChange={onReferenceChange}
+      searchPlaceholder={L.searchPlaceholder}
+      {...columnToolbarProps(columns, RECEIPT_COLUMN_LABELS, RECEIPT_COLUMN_KEYS)}
+      tools={
+        <ToolbarFilterPopover
+          label={LL.filters}
+          active={!!status}
+          onClear={() => onStatusChange(null)}
+        >
+          <FilterSelect
+            id="receipt-status"
+            label={LL.status}
+            allLabel={L.statusAll}
+            value={status}
+            options={STATUS_OPTIONS}
+            onChange={onStatusChange}
+          />
+        </ToolbarFilterPopover>
+      }
+      facets={
+        <>
+          <div className="flex flex-wrap items-center gap-2">
+            <Label htmlFor="receipt-received-from" className="text-ink-secondary text-[0.8125rem]">
+              {L.receivedFrom}
+            </Label>
+            <DatePicker
+              id="receipt-received-from"
+              value={receivedFrom}
+              onChange={onReceivedFromChange}
+              clearable
+              aria-invalid={rangeInverted}
+              aria-describedby={rangeInverted ? "receipt-range-error" : undefined}
+              className="h-8 w-[10.5rem]"
+            />
+            <Label htmlFor="receipt-received-to" className="text-ink-secondary text-[0.8125rem]">
+              {L.receivedTo}
+            </Label>
+            <DatePicker
+              id="receipt-received-to"
+              value={receivedTo}
+              onChange={onReceivedToChange}
+              clearable
+              aria-invalid={rangeInverted}
+              aria-describedby={rangeInverted ? "receipt-range-error" : undefined}
+              className="h-8 w-[10.5rem]"
+            />
+            {rangeInverted && (
+              <p id="receipt-range-error" role="alert" className="text-danger text-xs">
+                {L.rangeInverted}
+              </p>
+            )}
+          </div>
+          <p className="text-ink-secondary ml-auto text-xs">
+            {L.createHint}{" "}
+            <Link
+              href={PAYMENT_ROUTES.installments.list}
+              className="text-accent-text hover:underline"
+            >
+              {PAYMENT_LABELS.installments.pageTitle}
+            </Link>
           </p>
-        )}
-      </div>
-      {customerId && (
-        <FilterChip label={L.customerChip} onClear={onClearCustomer}>
-          <CustomerName id={customerId} name={customerName} code={customerCode} link={false} />
-        </FilterChip>
-      )}
-      {hasFilters && (
-        <Button type="button" variant="ghost" size="xs" onClick={onClear}>
-          {PAYMENT_LABELS.installments.clearFilters}
-        </Button>
-      )}
-      <p className="text-ink-tertiary ml-auto text-xs">
-        {L.createHint}{" "}
-        <Link href={PAYMENT_ROUTES.installments.list} className="text-accent hover:underline">
-          {PAYMENT_LABELS.installments.pageTitle}
-        </Link>
-      </p>
-    </div>
+        </>
+      }
+      summaryItems={summary}
+      onResetAll={() => {
+        onClear();
+        columns.reset();
+      }}
+      resetDisabled={!hasFilters && !columns.hasColumnConfig}
+    />
   );
 }

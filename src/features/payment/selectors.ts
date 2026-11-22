@@ -1,7 +1,12 @@
 /** Selector thuần cho thanh toán theo hợp đồng (docs 15). */
 
 import { INSTALLMENT_STATUS_BY_API, RECEIPT_STATUS_BY_API } from "@/constants/payment";
-import { INSTALLMENT_MILESTONE_LABELS, PAYMENT_LABELS } from "@/constants/labels-payment";
+import {
+  INSTALLMENT_MILESTONE_LABELS,
+  PAYMENT_LABELS,
+  PAYMENT_LIST_LABELS,
+} from "@/constants/labels-payment";
+import { daysBetween, todayIso } from "@/lib/date-range";
 import { statusLabelVi } from "@/lib/status-map";
 
 import { installmentTakesMoney } from "./lifecycle";
@@ -15,9 +20,11 @@ import type { Installment, ReceiptFormValues } from "./types";
 
 const L = PAYMENT_LABELS.installments;
 
+/** Nhãn tiếng Việt; trạng thái chưa có nhãn → "Không rõ", không lộ mã tiếng Anh ("Partially Paid") — BO-UX-6. */
 export function installmentStatusLabel(status: InstallmentApiStatus): string {
-  const key = INSTALLMENT_STATUS_BY_API[status];
-  return statusLabelVi(key, "payment") ?? key;
+  return (
+    statusLabelVi(INSTALLMENT_STATUS_BY_API[status], "payment") ?? PAYMENT_LIST_LABELS.unknownStatus
+  );
 }
 
 /**
@@ -31,8 +38,26 @@ export function displayStatus(
 }
 
 export function receiptStatusLabel(status: ReceiptApiStatus): string {
-  const key = RECEIPT_STATUS_BY_API[status];
-  return statusLabelVi(key, "payment") ?? key;
+  return (
+    statusLabelVi(RECEIPT_STATUS_BY_API[status], "payment") ?? PAYMENT_LIST_LABELS.unknownStatus
+  );
+}
+
+/**
+ * Số ngày quá hạn của đợt: R5-12 `daysOverdue` khi BE gửi, không thì tính từ hạn trả tới hôm nay (giờ Việt Nam). Đợt
+ * không có cờ `overdue` → 0.
+ */
+export function daysOverdue(
+  installment: Pick<Installment, "overdue" | "dueDate"> & {
+    dueOn?: string | null;
+    daysOverdue?: number | null;
+  },
+  today: string = todayIso(),
+): number {
+  if (!installment.overdue) return 0;
+  if (installment.daysOverdue != null) return installment.daysOverdue;
+  const due = installment.dueDate ?? installment.dueOn;
+  return due ? Math.max(0, daysBetween(due.slice(0, 10), today)) : 0;
 }
 
 export function milestoneLabel(milestone: Installment["milestone"]): string {

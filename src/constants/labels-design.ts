@@ -155,6 +155,8 @@ export const DESIGN_REVIEW_STORAGE_KEYS = {
   roundsConfig: "stockflow:admin:design-review-rounds:config",
   quoteRequestsConfig: "stockflow:admin:design-quote-requests:config",
   projectQuoteRequestsConfig: "stockflow:admin:design-project-quote-requests:config",
+  quoteRequestsColumns: "stockflow:admin:design-quote-requests:columns",
+  projectQuoteRequestsColumns: "stockflow:admin:design-project-quote-requests:columns",
 } as const;
 
 /** Hộp yêu cầu báo giá thiết kế (đơn lẻ + dự án). */
@@ -186,4 +188,26 @@ export const DESIGN_QUOTE_REQUEST_LABELS = {
   blockedArchived: "Thiết kế đã xoá — chỉ còn Đóng",
   blockedNoSku: "Thiết kế chưa có SKU riêng",
   blockedEmpty: "Dự án chưa có thiết kế",
+  moreActions: "Thao tác khác",
+  returnReason: "Lý do trả lại",
+  /** R5-5: yêu cầu đóng vì đã có báo giá. */
+  quotedAs: "Đã báo giá",
+  closedByStaff: "Đóng không báo giá",
+  columns: {
+    design: "Thiết kế",
+    designStatus: "Trạng thái thiết kế",
+    customer: "Khách hàng",
+    sku: "SKU phôi",
+    customerSku: "SKU riêng",
+    cartons: "Số thùng",
+    delivery: "Giao mong muốn",
+    requestedAt: "Yêu cầu lúc",
+    status: "Trạng thái",
+    returnReason: "Lý do trả lại",
+    actions: "Hành động",
+    project: "Dự án",
+    designs: "Số thiết kế",
+    totalCartons: "Tổng số thùng",
+    lines: "Các dòng",
+  },
 } as const;

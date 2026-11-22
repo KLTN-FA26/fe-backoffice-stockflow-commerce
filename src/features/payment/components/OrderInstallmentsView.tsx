@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ReceiptText } from "lucide-react";
+import { CalendarClock, ReceiptText, Wallet } from "lucide-react";
 
 import { ADMIN_ROUTES } from "@/constants";
 import { PAYMENT_LABELS } from "@/constants/labels-payment";
@@ -10,9 +10,15 @@ import { PAYMENT_INSTALLMENT_PERMISSIONS, PAYMENT_ROUTES } from "@/constants/pay
 import { useCan, usePermissionChecker } from "@/lib/auth/components/Can";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
+import { CustomerName } from "@/components/backoffice/CustomerName";
 import { LoadErrorState } from "@/components/backoffice/LoadErrorState";
-import { Card } from "@/components/shared/Card";
 import { DataTable } from "@/components/shared/DataTable";
+import {
+  DETAIL_CARD_CLASS,
+  DETAIL_GRID_CLASS,
+  DetailCardTitle,
+  DetailSection,
+} from "@/components/shared/DetailSection";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Button } from "@/components/ui/button";
 
@@ -55,85 +61,106 @@ function OrderInstallmentsContent({ orderId }: { orderId: string }) {
     !order.paymentStatus &&
     order.installments.length > 0 &&
     order.installments.every((row) => row.status === "CANCELLED");
-  const columns = buildInstallmentColumns((row) =>
-    allowedInstallmentActions(row, can).includes("recordReceipt") ? (
-      <Button type="button" size="xs" variant="outline" onClick={() => setRecording(row)}>
-        <ReceiptText className="size-3.5" /> {PAYMENT_LABELS.receipts.createAction}
-      </Button>
-    ) : null,
+  // BO-UX-42: một đơn → hợp đồng, đơn, khách giống nhau ở mọi dòng — bỏ ba cột đó (đã ở thẻ bên phải)
+  const columns = buildInstallmentColumns(
+    (row) =>
+      allowedInstallmentActions(row, can).includes("recordReceipt") ? (
+        <Button
+          type="button"
+          size="xs"
+          variant="outline"
+          aria-label={`${PAYMENT_LABELS.receipts.createAction} — đợt ${row.seq}`}
+          onClick={() => setRecording(row)}
+        >
+          <ReceiptText className="size-3.5" aria-hidden="true" />{" "}
+          {PAYMENT_LABELS.receipts.createAction}
+        </Button>
+      ) : null,
+    ["contract", "order", "customer"],
   ).map((column) => ({ ...column, sortable: false }));
+  const customer = order.installments[0];
 
   return (
-    <div className="surface-soft surface-compact space-y-4">
+    // Trang chi tiết kiểu Vercel (BO-UX-2): không nút quay lại — breadcrumb; bảng đợt bên trái, thẻ tình hình thanh toán
+    // (trạng thái, đơn, hợp đồng, khách, số tiền) bên phải.
+    <div className="surface-soft surface-compact">
       <h1 className="sr-only">{`${O.summary} ${order.orderNumber}`}</h1>
-      <Button asChild variant="outline" size="sm">
-        <Link href={PAYMENT_ROUTES.installments.list}>
-          <ArrowLeft className="size-3.5" /> {PAYMENT_LABELS.installments.pageTitle}
-        </Link>
-      </Button>
-      <Card className="space-y-3">
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="text-ink-primary text-sm font-semibold">
-            {O.summary} —{" "}
-            <Link
-              href={ADMIN_ROUTES.orders.detail(order.orderId)}
-              className="text-accent hover:underline"
-            >
-              {order.orderNumber}
-            </Link>{" "}
-            · {order.contractNumber}
-          </h2>
-          {order.paymentStatus ? (
-            <OrderPaymentStatusDot status={order.paymentStatus} />
-          ) : (
-            <span className="text-ink-tertiary text-xs">{O.noPaymentStatus}</span>
-          )}
+      <div className={DETAIL_GRID_CLASS}>
+        <div className="min-w-0 space-y-5">
+          <DetailSection title={O.installmentsTitle} icon={CalendarClock}>
+            <DataTable
+              columns={columns}
+              data={order.installments}
+              rowKey={(row) => row.installmentId}
+              pageSize={50}
+              caption={`${order.installments.length} ${PAYMENT_LABELS.installments.pageTitle.toLowerCase()}`}
+            />
+          </DetailSection>
         </div>
-        {allCancelled ? (
-          <>
-            <dl className="grid grid-cols-[minmax(180px,auto)_1fr] gap-x-4 gap-y-2 text-[0.8125rem]">
-              <InfoRow label={O.paidWhenCancelled}>
-                <MoneyCell amount={order.paid} currency={order.currency} />
+        <div className="space-y-5">
+          <section className={DETAIL_CARD_CLASS}>
+            <DetailCardTitle icon={Wallet}>{O.summary}</DetailCardTitle>
+            <div className="mb-3">
+              {order.paymentStatus ? (
+                <OrderPaymentStatusDot status={order.paymentStatus} />
+              ) : (
+                <span className="text-ink-tertiary text-xs">{O.noPaymentStatus}</span>
+              )}
+            </div>
+            <dl className="grid grid-cols-[minmax(110px,auto)_1fr] gap-x-3 gap-y-2 text-[0.8125rem]">
+              <InfoRow label={PAYMENT_LABELS.columns.order}>
+                <Link
+                  href={ADMIN_ROUTES.orders.detail(order.orderId)}
+                  className="text-accent-text font-mono hover:underline"
+                >
+                  {order.orderNumber}
+                </Link>
               </InfoRow>
+              <InfoRow label={PAYMENT_LABELS.columns.contract}>
+                <span className="font-mono">{order.contractNumber}</span>
+              </InfoRow>
+              {customer && (
+                <InfoRow label={PAYMENT_LABELS.columns.customer}>
+                  <CustomerName
+                    id={customer.customerId}
+                    name={customer.customerName}
+                    code={customer.customerCode}
+                  />
+                </InfoRow>
+              )}
+              {allCancelled ? (
+                <InfoRow label={O.paidWhenCancelled}>
+                  <MoneyCell amount={order.paid} currency={order.currency} />
+                </InfoRow>
+              ) : (
+                <>
+                  <InfoRow label={O.total}>
+                    <MoneyCell amount={order.total} currency={order.currency} />
+                  </InfoRow>
+                  <InfoRow label={O.paid}>
+                    <MoneyCell amount={order.paid} currency={order.currency} />
+                  </InfoRow>
+                  <InfoRow label={O.outstanding}>
+                    <MoneyCell amount={order.outstanding} currency={order.currency} />
+                  </InfoRow>
+                  <InfoRow label={O.onSigning}>
+                    {order.onSigningPaid ? O.onSigningPaid : O.onSigningUnpaid}
+                  </InfoRow>
+                  <InfoRow label={O.beforeDeliveryUnpaid}>
+                    <MoneyCell amount={order.beforeDeliveryUnpaid} currency={order.currency} />
+                  </InfoRow>
+                  <InfoRow label={O.dueBeforeHandover}>
+                    <MoneyCell amount={order.dueBeforeHandover} currency={order.currency} />
+                  </InfoRow>
+                </>
+              )}
             </dl>
-            <p className="text-ink-tertiary text-xs">{O.allCancelledHint}</p>
-          </>
-        ) : (
-          <>
-            <dl className="grid grid-cols-[minmax(180px,auto)_1fr] gap-x-4 gap-y-2 text-[0.8125rem]">
-              <InfoRow label={O.total}>
-                <MoneyCell amount={order.total} currency={order.currency} />
-              </InfoRow>
-              <InfoRow label={O.paid}>
-                <MoneyCell amount={order.paid} currency={order.currency} />
-              </InfoRow>
-              <InfoRow label={O.outstanding}>
-                <MoneyCell amount={order.outstanding} currency={order.currency} />
-              </InfoRow>
-              <InfoRow label={O.onSigning}>
-                {order.onSigningPaid ? O.onSigningPaid : O.onSigningUnpaid}
-              </InfoRow>
-              <InfoRow label={O.beforeDeliveryUnpaid}>
-                <MoneyCell amount={order.beforeDeliveryUnpaid} currency={order.currency} />
-              </InfoRow>
-              <InfoRow label={O.dueBeforeHandover}>
-                <MoneyCell amount={order.dueBeforeHandover} currency={order.currency} />
-              </InfoRow>
-            </dl>
-            <p className="text-ink-tertiary text-xs">{O.handoverHint}</p>
-          </>
-        )}
-      </Card>
-      <Card className="space-y-3">
-        <h2 className="text-ink-primary text-sm font-semibold">{O.installmentsTitle}</h2>
-        <DataTable
-          columns={columns}
-          data={order.installments}
-          rowKey={(row) => row.installmentId}
-          pageSize={50}
-          caption={`${order.installments.length} ${PAYMENT_LABELS.installments.pageTitle.toLowerCase()}`}
-        />
-      </Card>
+            <p className="text-ink-tertiary mt-3 text-xs">
+              {allCancelled ? O.allCancelledHint : O.handoverHint}
+            </p>
+          </section>
+        </div>
+      </div>
       <RecordReceiptDialog installment={recording} onClose={() => setRecording(null)} />
     </div>
   );

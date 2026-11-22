@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { apiError, bePage } from "@/test/api-screen";
+import "@/test/jsdom-popover";
 
 import { InstallmentList } from "..";
 import {
@@ -62,7 +63,7 @@ describe("InstallmentList — the customer is named, not an id (QA A5, BE-15)", 
     expect(api.get.mock.calls.some(([url]) => String(url).startsWith("/customers"))).toBe(false);
   });
 
-  it("falls back to the short code the BE sends, then to a short id, when there is no name", async () => {
+  it("falls back to the short code the BE sends, then to a neutral label (never a UUID piece) when there is no name", async () => {
     mockPaymentApi(ACCOUNTANT_GRANTS, {
       get: listRoutes([
         installmentJson({ customerCode: "KH0A1B2C3D" }),
@@ -71,7 +72,8 @@ describe("InstallmentList — the customer is named, not an id (QA A5, BE-15)", 
     });
     renderPaymentScreen(<InstallmentList />);
     expect(await screen.findByText("KH0A1B2C3D")).toBeInTheDocument();
-    expect(screen.getByText("KH cust-9")).toBeInTheDocument();
+    expect(screen.queryByText("KH cust-9")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Khách hàng", { selector: "span" }).length).toBeGreaterThan(0);
   });
 });
 
@@ -81,41 +83,65 @@ describe("InstallmentList — what the accountant sees (docs 15 §5.1)", () => {
     renderPaymentScreen(<InstallmentList />);
     const row = (await screen.findAllByText("HD-20261108-000013-1"))[0]!.closest("tr")!;
     expect(within(row).getByText("Trước khi giao")).toBeInTheDocument();
-    expect(within(row).getByText("Đợt giao 1")).toBeInTheDocument();
-    expect(within(row).getByText("Đang chặn bàn giao")).toBeInTheDocument();
     expect(within(row).getByText("Đến hạn")).toBeInTheDocument();
     expect(screen.getByText("Đã thanh toán")).toBeInTheDocument();
-    expect(screen.getByText("Quá hạn")).toBeInTheDocument();
+    expect(screen.getByText(/^Quá hạn \d+ ngày$/)).toBeInTheDocument();
+    // BO-UX-38: "Đợt giao" ẩn mặc định — bật lại qua Ẩn hiện cột thì thấy đợt giao + chặn bàn giao
+    expect(within(row).queryByText("Đợt giao 1")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Ẩn hiện cột" }));
+    await userEvent.click(await screen.findByRole("option", { name: "Đợt giao" }));
+    expect(await within(row).findByText("Đợt giao 1")).toBeInTheDocument();
+    expect(within(row).getByText("Đang chặn bàn giao")).toBeInTheDocument();
+    localStorage.clear();
   });
 
-  it("flags an overdue installment from the BE's overdue flag and shows it as 'Quá hạn'", async () => {
+  it("BO-UX-38: 'Hạn trả' and 'Còn phải thu' come before the order and milestone; actions pinned right", async () => {
     mockPaymentApi(ACCOUNTANT_GRANTS, { get: listRoutes() });
     renderPaymentScreen(<InstallmentList />);
-    const row = (await screen.findByText("Quá hạn")).closest("tr")!;
+    await screen.findAllByText("HD-20261108-000013-1");
+    const headers = screen.getAllByRole("columnheader").map((cell) => cell.textContent ?? "");
+    const at = (name: string) => headers.findIndex((text) => text.startsWith(name));
+    expect(at("Hạn trả")).toBeLessThan(at("Đơn hàng"));
+    expect(at("Còn phải thu")).toBeLessThan(at("Mốc"));
+    expect(screen.getByRole("columnheader", { name: "Thao tác" }).className).toContain("sticky");
+  });
+
+  it("flags an overdue installment from the BE's overdue flag: real status kept, 'Quá hạn N ngày' next to it", async () => {
+    mockPaymentApi(ACCOUNTANT_GRANTS, {
+      get: listRoutes([installmentJson({ ...overdue, status: "PARTIALLY_PAID", daysOverdue: 12 })]),
+    });
+    renderPaymentScreen(<InstallmentList />);
+    const row = (await screen.findByText("Quá hạn 12 ngày")).closest("tr")!;
     expect(within(row).getByText("HD-20261108-000013-1")).toBeInTheDocument();
+    // BO-UX-37: "Thanh toán một phần" không bị "Quá hạn" che mất
+    expect(within(row).getByText("Thanh toán một phần")).toBeInTheDocument();
     expect(row).toHaveAttribute("data-flagged", "true");
   });
 
   it("does not offer 'Quá hạn' as a status filter: the BE refuses status=OVERDUE", async () => {
     mockPaymentApi(ACCOUNTANT_GRANTS, { get: listRoutes() });
     renderPaymentScreen(<InstallmentList />);
-    await screen.findByText("Đến hạn");
-    expect(screen.getByRole("checkbox", { name: "Chỉ đợt quá hạn" })).toBeInTheDocument();
+    await screen.findAllByText("Đến hạn");
+    await userEvent.click(screen.getByRole("button", { name: "Bộ lọc" }));
+    expect(await screen.findByRole("checkbox", { name: "Chỉ đợt quá hạn" })).toBeInTheDocument();
   });
 
   it("offers 'Lập phiếu thu' only on installments that still take money", async () => {
     mockPaymentApi(ACCOUNTANT_GRANTS, { get: listRoutes() });
     renderPaymentScreen(<InstallmentList />);
-    await screen.findByText("Đến hạn");
-    // Due + Overdue take money; the Paid one does not
-    expect(screen.getAllByRole("button", { name: "Lập phiếu thu" })).toHaveLength(2);
+    await screen.findAllByText("Đến hạn");
+    // Due + Overdue take money; the Paid one does not — each button names its contract and installment (BO-UX-11)
+    expect(screen.getAllByRole("button", { name: /^Lập phiếu thu — / })).toHaveLength(2);
+    expect(
+      screen.getByRole("button", { name: "Lập phiếu thu — HD-20261108-000013-1 đợt 4" }),
+    ).toBeInTheDocument();
   });
 
   it("sales can read the installments but gets no receipt button", async () => {
     mockPaymentApi(SALES_GRANTS, { get: listRoutes() });
     renderPaymentScreen(<InstallmentList />);
-    await screen.findByText("Đến hạn");
-    expect(screen.queryByRole("button", { name: "Lập phiếu thu" })).not.toBeInTheDocument();
+    await screen.findAllByText("Đến hạn");
+    expect(screen.queryByRole("button", { name: /^Lập phiếu thu/ })).not.toBeInTheDocument();
   });
 
   it("a user who may open the page but not read data is told so, and no list is requested", async () => {
@@ -131,7 +157,7 @@ describe("InstallmentList — what the accountant sees (docs 15 §5.1)", () => {
       <InstallmentList />,
       "?owing=true&overdue=true&customerId=cust-9&dueBefore=2026-12-01",
     );
-    await screen.findByText("Quá hạn");
+    await screen.findByText(/^Quá hạn/);
     const params = api.get.mock.calls.find(([url]) => url === "/installments")?.[1] as {
       params: URLSearchParams;
     };
@@ -169,7 +195,7 @@ describe("InstallmentList — what the accountant sees (docs 15 §5.1)", () => {
     const api = mockPaymentApi(ACCOUNTANT_GRANTS, { get: listRoutes([due]) });
     renderPaymentScreen(<InstallmentList />);
     const calls = () => api.get.mock.calls.filter(([url]) => url === "/installments");
-    await userEvent.type(await screen.findByRole("searchbox", { name: /Tìm khách/ }), "an phat");
+    await userEvent.type(await screen.findByRole("textbox", { name: /Tìm khách/ }), "an phat");
     await waitFor(() =>
       expect((calls().at(-1)?.[1] as { params: URLSearchParams }).params.get("search")).toBe(
         "an phat",
@@ -257,7 +283,7 @@ describe("Record a receipt from a due installment (WF4 X03: pay BEFORE_DELIVERY 
 
   async function openDialog() {
     renderPaymentScreen(<InstallmentList />);
-    await userEvent.click(await screen.findByRole("button", { name: "Lập phiếu thu" }));
+    await userEvent.click(await screen.findByRole("button", { name: /^Lập phiếu thu — / }));
     return within(await screen.findByRole("dialog"));
   }
 
