@@ -33,8 +33,7 @@ function SourceCell({ row }: { row: PutawayTask }) {
 }
 
 /** Cất được → icon cất thùng; đã xong / không còn thao tác → icon xem. Cùng một đích: màn cất một thùng. */
-function ActionCell({ row }: { row: PutawayTask }) {
-  const href = ADMIN_ROUTES.putaway.detail(row.id);
+function ActionCell({ row, href }: { row: PutawayTask; href: string }) {
   const lpn = row.lpn ?? row.id;
   // Nút là `flex` nên `text-right` của ô không đẩy được — bọc `justify-end` để thẳng mép với tiêu đề cột
   if (isPutawayTaskClosed(row.status)) {
@@ -54,7 +53,11 @@ function ActionCell({ row }: { row: PutawayTask }) {
 }
 
 /** Cột danh sách cất hàng (docs 05 §4.2) — dữ liệu theo `visible`, cột thao tác luôn ở cuối. */
-export function putawayColumns(visible: readonly PutawayColumn[]): ColumnDef<PutawayTask>[] {
+export function putawayColumns(
+  visible: readonly PutawayColumn[],
+  /** Link màn cất một thùng — trong tab theo kho (`WORKSPACE_PATHS.putawayTask`). */
+  taskHref: (taskId: string) => string,
+): ColumnDef<PutawayTask>[] {
   const col = L.column;
   const all: Record<PutawayColumn, ColumnDef<PutawayTask>> = {
     [C.LPN]: {
@@ -64,10 +67,7 @@ export function putawayColumns(visible: readonly PutawayColumn[]): ColumnDef<Put
       compare: byText((row) => row.lpn),
       cell: (row) =>
         row.lpn ? (
-          <Link
-            href={ADMIN_ROUTES.putaway.detail(row.id)}
-            className={`${CELL.code} hover:underline`}
-          >
+          <Link href={taskHref(row.id)} className={`${CELL.code} hover:underline`}>
             {row.lpn}
           </Link>
         ) : (
@@ -112,7 +112,7 @@ export function putawayColumns(visible: readonly PutawayColumn[]): ColumnDef<Put
       key: C.ACTION,
       header: col.action,
       align: "right",
-      cell: (row) => <ActionCell row={row} />,
+      cell: (row) => <ActionCell row={row} href={taskHref(row.id)} />,
     },
   };
   return [...visible.map((key) => all[key]), all[C.ACTION]];

@@ -98,7 +98,7 @@ export function ReceiptActions({
         {/* Docs 05 §4.2: xem nhiệm vụ cất hàng theo phiếu — chỉ khi phiếu đang chờ cất và người dùng vào được màn */}
         {receipt.status === RECEIPT_STATUS.IN_PUTAWAY && can(PUTAWAY_TASK_PERMISSIONS.viewPage) && (
           <Link
-            href={ADMIN_ROUTES.putaway.byReceipt(receipt.id)}
+            href={ADMIN_ROUTES.putaway.byReceipt(receipt.warehouseId, receipt.id)}
             className={`border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted hover:text-ink-primary flex items-center justify-center gap-1.5 ${BUTTON_BASE}`}
           >
             <PackageCheck className="text-dot-positive size-3.5" /> {LABEL.noActions.openPutaway}

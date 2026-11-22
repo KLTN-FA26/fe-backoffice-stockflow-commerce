@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { PUTAWAY_LABELS, STORAGE_KEYS } from "@/constants";
 import { PERMISSION_UI } from "@/constants/permissions";
+import { WorkspaceWarehouseProvider } from "@/lib/workspace";
 import { mockApi, renderScreen } from "@/test/api-screen";
 
 import { PutawayList } from "../components/PutawayList";
@@ -13,8 +14,7 @@ import type { TestRole } from "@/test/api-screen";
 import type { PutawayTask } from "../types";
 
 const L = PUTAWAY_LABELS;
-const W1 = { id: "wh-1", prefix: "HCM", name: "Kho Hồ Chí Minh", status: "ACTIVE" };
-const W2 = { id: "wh-2", prefix: "HN", name: "Kho Hà Nội", status: "ACTIVE" };
+const HCM = { id: "wh-1", prefix: "HCM", name: "Kho Hồ Chí Minh" };
 
 const page = <T,>(items: T[]) => ({
   items,
@@ -42,13 +42,16 @@ const ROWS = [
 function setup({
   role = "WAREHOUSE_STAFF" as TestRole,
   search = "",
-  warehouses = [W1, W2],
   rows = ROWS,
-}: { role?: TestRole; search?: string; warehouses?: object[]; rows?: PutawayTask[] } = {}) {
-  const spies = mockApi(role, {
-    get: { "/warehouses": () => page(warehouses), "/putaway-tasks": () => page(rows) },
-  });
-  renderScreen(<PutawayList />, role, search);
+}: { role?: TestRole; search?: string; rows?: PutawayTask[] } = {}) {
+  const spies = mockApi(role, { get: { "/putaway-tasks": () => page(rows) } });
+  renderScreen(
+    <WorkspaceWarehouseProvider value={HCM}>
+      <PutawayList />
+    </WorkspaceWarehouseProvider>,
+    role,
+    search,
+  );
   return spies;
 }
 
@@ -66,30 +69,37 @@ afterEach(() => {
 });
 
 describe("PutawayList (docs 05 §4.2)", () => {
-  it("?warehouse= gửi warehouseId, một trang 200 dòng; dòng sắp theo LPN", async () => {
-    const spies = setup({ search: "?warehouse=wh-2" });
+  it("kho của tab → gửi warehouseId, một trang 200 dòng; dòng sắp theo LPN", async () => {
+    const spies = setup();
     expect(await screen.findByText("LPN-1")).toBeInTheDocument();
     expect(taskCalls(spies).at(-1)?.[1]).toMatchObject({
-      params: { page: 0, size: 200, warehouseId: "wh-2" },
+      params: { page: 0, size: 200, warehouseId: "wh-1" },
     });
     expect(lpnCells()).toEqual(["LPN-1", "LPN-2", "LPN-3"]);
   });
 
-  it("chỉ thấy một kho → tự dùng kho đó", async () => {
-    const spies = setup({ warehouses: [W1] });
-    expect(await screen.findByText("LPN-1")).toBeInTheDocument();
-    expect(taskCalls(spies).at(-1)?.[1]).toMatchObject({ params: { warehouseId: "wh-1" } });
+  it("không còn ô chọn kho trong màn (kho chọn một lần ở tab)", async () => {
+    setup();
+    await screen.findByText("LPN-1");
+    expect(screen.queryByRole("combobox", { name: L.warehouse })).not.toBeInTheDocument();
+    expect(screen.queryByText(L.warehouse)).not.toBeInTheDocument();
   });
 
-  it("nhiều kho mà chưa chọn → EmptyState chọn kho, không gọi danh sách (BE bắt buộc kho / phiếu)", async () => {
-    const spies = setup();
-    expect(await screen.findByText(L.empty.chooseWarehouse.title)).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: /LPN/ })).toBeInTheDocument();
-    expect(taskCalls(spies)).toHaveLength(0);
+  it("link thùng và nút chuyến cất hàng ở lại trong kho của tab", async () => {
+    setup();
+    await screen.findByText("LPN-1");
+    expect(screen.getByRole("link", { name: "LPN-1" })).toHaveAttribute(
+      "href",
+      "/admin/warehouse-map/HCM/putaway/t-1",
+    );
+    expect(screen.getByRole("link", { name: /Chuyến cất hàng|Mở chuyến/ })).toHaveAttribute(
+      "href",
+      "/admin/warehouse-map/HCM/putaway/trip",
+    );
   });
 
-  it("?receipt= thắng kho: gửi receiptId", async () => {
-    const spies = setup({ search: "?warehouse=wh-1&receipt=gr-9" });
+  it("?receipt= (từ phiếu nhận) gửi receiptId thay kho", async () => {
+    const spies = setup({ search: "?receipt=gr-9" });
     await screen.findByText("LPN-1");
     const config = taskCalls(spies).at(-1)?.[1];
     expect(config).toMatchObject({ params: { page: 0, size: 200, receiptId: "gr-9" } });
@@ -97,13 +107,13 @@ describe("PutawayList (docs 05 §4.2)", () => {
   });
 
   it("kho không còn thùng chờ cất → EmptyState riêng (khác lọc không ra)", async () => {
-    setup({ search: "?warehouse=wh-1", rows: [] });
+    setup({ rows: [] });
     expect(await screen.findByText(L.empty.none.title)).toBeInTheDocument();
   });
 
   it("search chính lọc trên dòng đã tải, không gọi lại API; không ra → Bỏ bộ lọc", async () => {
     const user = userEvent.setup();
-    const spies = setup({ search: "?warehouse=wh-1" });
+    const spies = setup();
     await screen.findByText("LPN-1");
     const calls = taskCalls(spies).length;
     await user.type(screen.getByRole("textbox", { name: L.searchPlaceholder }), "sku-red");
@@ -117,7 +127,7 @@ describe("PutawayList (docs 05 §4.2)", () => {
 
   it("lọc trong cột từ URL hiện chip Search trong cột, X trả lại dòng", async () => {
     const user = userEvent.setup();
-    setup({ search: "?warehouse=wh-1&sku=blue" });
+    setup({ search: "?sku=blue" });
     await screen.findByText("LPN-1");
     expect(lpnCells()).toEqual(["LPN-1"]);
     expect(screen.getByText(/SKU “blue”/)).toBeInTheDocument();
@@ -126,7 +136,7 @@ describe("PutawayList (docs 05 §4.2)", () => {
   });
 
   it("nguồn phiếu nhập là link sang phiếu; giải phóng cách ly là chữ", async () => {
-    setup({ search: "?warehouse=wh-1" });
+    setup();
     await screen.findByText("LPN-1");
     expect(screen.getAllByRole("link", { name: L.source.RECEIPT })[0]).toHaveAttribute(
       "href",
@@ -140,7 +150,7 @@ describe("PutawayList (docs 05 §4.2)", () => {
       STORAGE_KEYS.adminPutawayConfig,
       JSON.stringify({ visibleColumns: ["sku", "ghost"] }),
     );
-    setup({ search: "?warehouse=wh-1" });
+    setup();
     await screen.findByText("LPN-1");
     expect(screen.getByRole("columnheader", { name: /LPN/ })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: /SKU/ })).toBeInTheDocument();
@@ -149,7 +159,7 @@ describe("PutawayList (docs 05 §4.2)", () => {
   });
 
   it("vai trò không có quyền cất hàng → báo không có quyền, không gọi API", async () => {
-    const spies = setup({ role: "QC_STAFF", search: "?warehouse=wh-1" });
+    const spies = setup({ role: "QC_STAFF" });
     expect(await screen.findByText(PERMISSION_UI.deniedTitle)).toBeInTheDocument();
     expect(taskCalls(spies)).toHaveLength(0);
   });

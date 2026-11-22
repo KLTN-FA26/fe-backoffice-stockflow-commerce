@@ -85,7 +85,11 @@ export function WarehouseCrumb() {
  * `NavItem.breadcrumbTail` với các đoạn URL sau `/admin/warehouse-map`. Trang tra theo `WORKSPACE_PAGES`; còn đoạn sau
  * (trang chi tiết) thì tên trang là link về trang list.
  */
-export function warehouseBreadcrumbTail(rest: readonly string[]) {
+export function warehouseBreadcrumbTail(
+  rest: readonly string[],
+  /** Nhãn thay id trong URL (vd id nhiệm vụ → LPN, trang chi tiết đăng ký qua `useBreadcrumbLabel`). */
+  labelFor: (id: string) => string | undefined = () => undefined,
+) {
   const [prefix = "", ...after] = rest;
   const page = matchWorkspacePage(after);
   const crumbs: { label: string; href?: string; render?: typeof WarehouseCrumb }[] = [
@@ -100,6 +104,9 @@ export function warehouseBreadcrumbTail(rest: readonly string[]) {
         ? ADMIN_ROUTES.warehouseMap.page(decodeURIComponent(prefix), page.path)
         : undefined,
   });
-  if (tail.length > 0) crumbs.push({ label: decodeURIComponent(tail.join("/")) });
+  if (tail.length > 0) {
+    const id = tail.join("/");
+    crumbs.push({ label: labelFor(id) ?? decodeURIComponent(id) });
+  }
   return crumbs;
 }

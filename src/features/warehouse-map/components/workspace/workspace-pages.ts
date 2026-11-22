@@ -1,6 +1,7 @@
-import { Lightbulb, Map as MapIcon } from "lucide-react";
+import { Lightbulb, Map as MapIcon, PackageCheck } from "lucide-react";
 
 import {
+  PUTAWAY_LABELS,
   PUTAWAY_TASK_PERMISSIONS,
   UI_LABELS,
   WAREHOUSE_LOCATION_PERMISSIONS,
@@ -26,6 +27,15 @@ export interface WorkspacePage {
 
 /** Thứ tự = thứ tự hiện trên panel (Vận hành theo spec §5.6, rồi Bản đồ). Mỗi màn chuyển vào tab thêm một dòng. */
 export const WORKSPACE_PAGES: readonly WorkspacePage[] = [
+  {
+    path: WORKSPACE_PATHS.putaway,
+    group: "operations",
+    label: PUTAWAY_LABELS.title,
+    icon: PackageCheck,
+    // BE `PutawayController`, resource warehouse-putaway-tasks (docs 05)
+    permission: PUTAWAY_TASK_PERMISSIONS.viewPage,
+    assignedOnly: true,
+  },
   {
     path: "",
     group: "map",

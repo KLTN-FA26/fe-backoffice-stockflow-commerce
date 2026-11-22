@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { PUTAWAY_DETAIL_LABELS, PUTAWAY_ERROR_MESSAGES } from "@/constants";
 import { PERMISSION_UI } from "@/constants/permissions";
+import { WorkspaceWarehouseProvider } from "@/lib/workspace";
 import { apiError, mockApi, renderScreen } from "@/test/api-screen";
 
 import { PutawayTaskDetail } from "../components/detail/PutawayTaskDetail";
@@ -34,7 +35,12 @@ function setup(
           : { ...data, status: "DONE", left: 0, targetLocationCode: "HCM-A01-1-A" },
     },
   });
-  renderScreen(<PutawayTaskDetail taskId="t-1" />, role);
+  renderScreen(
+    <WorkspaceWarehouseProvider value={{ id: "wh-1", prefix: "HCM", name: "Kho Hồ Chí Minh" }}>
+      <PutawayTaskDetail taskId="t-1" />
+    </WorkspaceWarehouseProvider>,
+    role,
+  );
   return spies;
 }
 

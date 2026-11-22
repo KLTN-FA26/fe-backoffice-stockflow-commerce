@@ -2,10 +2,16 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ADMIN_ROUTES, PUTAWAY_TASK_PERMISSIONS, UI_LABELS } from "@/constants";
+import { PUTAWAY_TASK_PERMISSIONS, UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 
-import { RECEIPT_ID, apiLine, apiPurchaseReceipt, apiReceipt } from "../__fixtures__/receipt";
+import {
+  HCM_ID,
+  RECEIPT_ID,
+  apiLine,
+  apiPurchaseReceipt,
+  apiReceipt,
+} from "../__fixtures__/receipt";
 import {
   RECEIPT_ROLE_PERMISSIONS as ROLES,
   mockReceiptApi,
@@ -119,9 +125,10 @@ describe("ReceiptDetail — phiếu theo Đơn sản xuất (docs 03 §4.1)", ()
       [...ROLES.warehouseManager, PUTAWAY_TASK_PERMISSIONS.viewPage],
       apiReceipt({ status: "IN_PUTAWAY", lines: [apiLine()] }),
     );
+    // Route cũ mang kho của phiếu → trang chuyển hướng vào tab theo kho, giữ ?receipt= (spec §5.5)
     expect(await screen.findByRole("link", { name: LABEL.noActions.openPutaway })).toHaveAttribute(
       "href",
-      ADMIN_ROUTES.putaway.byReceipt(RECEIPT_ID),
+      `/admin/putaway?warehouse=${HCM_ID}&receipt=${RECEIPT_ID}`,
     );
   });
 

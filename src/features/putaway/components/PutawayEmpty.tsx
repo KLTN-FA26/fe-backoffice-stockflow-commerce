@@ -14,7 +14,7 @@ export function PutawayEmpty({
   kind,
   onClearFilters,
 }: {
-  kind: "chooseWarehouse" | "none" | "noMatch";
+  kind: "none" | "noMatch";
   onClearFilters: () => void;
 }) {
   if (kind !== "noMatch") {

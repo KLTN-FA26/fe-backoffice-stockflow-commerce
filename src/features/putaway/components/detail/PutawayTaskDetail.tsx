@@ -1,9 +1,10 @@
 "use client";
 
-import { ADMIN_ROUTES, PUTAWAY_LABELS, PUTAWAY_TASK_PERMISSIONS } from "@/constants";
+import { PUTAWAY_LABELS, PUTAWAY_TASK_PERMISSIONS, WORKSPACE_PATHS } from "@/constants";
 import { usePermissionChecker } from "@/lib/auth";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
+import { useWorkspaceHref } from "@/lib/workspace";
 import { putawayTaskGate } from "@/features/putaway/lifecycle";
 import { usePutawayTask } from "@/features/putaway/queries";
 
@@ -58,6 +59,7 @@ function ConfirmLayout({ task, onStale }: { task: PutawayTask; onStale: () => vo
 function DetailContent({ taskId }: { taskId: string }) {
   const can = usePermissionChecker();
   const query = usePutawayTask(taskId);
+  const listHref = useWorkspaceHref()(WORKSPACE_PATHS.putaway);
   const task = query.data;
   useBreadcrumbLabel(taskId, task?.lpn ?? undefined);
 
@@ -68,7 +70,7 @@ function DetailContent({ taskId }: { taskId: string }) {
         error={query.error}
         copy={L.errorCopy}
         onRetry={() => void query.refetch()}
-        back={{ href: ADMIN_ROUTES.putaway.list }}
+        back={{ href: listHref }}
       />
     );
   }

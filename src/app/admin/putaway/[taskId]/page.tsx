@@ -1,6 +1,11 @@
-import { PutawayTaskDetail } from "@/features/putaway";
+import { PutawayTaskRedirect } from "@/features/putaway";
 
-export default async function PutawayTaskPage({ params }: { params: Promise<{ taskId: string }> }) {
+/** Route cũ: nhiệm vụ cất hàng giờ nằm trong tab theo kho của nhiệm vụ (spec §5.5). */
+export default async function LegacyPutawayTaskPage({
+  params,
+}: {
+  params: Promise<{ taskId: string }>;
+}) {
   const { taskId } = await params;
-  return <PutawayTaskDetail taskId={decodeURIComponent(taskId)} />;
+  return <PutawayTaskRedirect taskId={decodeURIComponent(taskId)} />;
 }
