@@ -47,6 +47,14 @@ export const UI_LABELS = {
     expand: (label: string) => `Mở ${label}`,
     collapse: (label: string) => `Thu gọn ${label}`,
   },
+  // Nút rời form khi còn thay đổi chưa lưu (components/shared/DiscardChangesButton, BO-UX-5)
+  discardChanges: {
+    button: "Bỏ thay đổi",
+    title: "Bỏ các thay đổi chưa lưu?",
+    description: "Những gì bạn vừa sửa trên form này sẽ mất. Thao tác này không huỷ chứng từ.",
+    confirm: "Bỏ thay đổi",
+    keepEditing: "Tiếp tục sửa",
+  },
   // Khung back-office (sidebar / topbar)
   shell: {
     appName: "StockFlowCommerce",

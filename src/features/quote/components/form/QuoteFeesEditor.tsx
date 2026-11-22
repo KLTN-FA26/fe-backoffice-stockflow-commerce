@@ -1,18 +1,16 @@
 "use client";
 
-import { useWatch } from "react-hook-form";
+import { Controller, useWatch } from "react-hook-form";
 import { Plus, Trash2 } from "lucide-react";
 
 import { QUOTE_FEE_LABELS } from "@/constants";
 import { Card } from "@/components/shared/Card";
-import { FORM_INPUT_CLASS, FormField, fieldA11y } from "@/components/shared/FormField";
+import { FormField, fieldA11y } from "@/components/shared/FormField";
+import { MoneyInput } from "@/components/shared/MoneyInput";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 
 import type { UseFormReturn } from "react-hook-form";
 import type { QuoteFormValues } from "@/features/quote/types";
-
-const NUM = `${FORM_INPUT_CLASS} text-right font-[family-name:var(--font-mono)] tabular-nums`;
 
 /**
  * Phí của báo giá (14 BR-17, BR-20):
@@ -21,7 +19,7 @@ const NUM = `${FORM_INPUT_CLASS} text-right font-[family-name:var(--font-mono)] 
  * - Phí vận chuyển: tối đa một dòng, số tiền > 0.
  */
 export function QuoteFeesEditor({ form }: { form: UseFormReturn<QuoteFormValues> }) {
-  const { register, control, formState, setValue } = form;
+  const { control, formState, setValue } = form;
   const [plateFees, hasShippingFee] = useWatch({ control, name: ["plateFees", "hasShippingFee"] });
   const errors = formState.errors;
 
@@ -46,18 +44,26 @@ export function QuoteFeesEditor({ form }: { form: UseFormReturn<QuoteFormValues>
               fee.amount === "" ? "Bắt buộc nhập trước khi gửi khách (0 = miễn phí)." : undefined
             }
           >
-            <Input
-              {...register(`plateFees.${index}.amount`)}
-              {...fieldA11y(id, error, true)}
-              inputMode="numeric"
-              placeholder="VND"
-              className={NUM}
+            <Controller
+              control={control}
+              name={`plateFees.${index}.amount`}
+              render={({ field }) => (
+                <MoneyInput
+                  name={field.name}
+                  ref={field.ref}
+                  value={field.value}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  echo
+                  {...fieldA11y(id, error, fee.amount === "")}
+                />
+              )}
             />
           </FormField>
         );
       })}
       {hasShippingFee ? (
-        <div className="flex items-end gap-2">
+        <div className="flex items-start gap-2">
           <FormField
             id="shipping-fee"
             label={QUOTE_FEE_LABELS.SHIPPING_FEE}
@@ -65,18 +71,27 @@ export function QuoteFeesEditor({ form }: { form: UseFormReturn<QuoteFormValues>
             error={errors.shippingFee?.message}
             className="flex-1"
           >
-            <Input
-              {...register("shippingFee")}
-              {...fieldA11y("shipping-fee", errors.shippingFee?.message, true)}
-              inputMode="numeric"
-              placeholder="VND"
-              className={NUM}
+            <Controller
+              control={control}
+              name="shippingFee"
+              render={({ field }) => (
+                <MoneyInput
+                  name={field.name}
+                  ref={field.ref}
+                  value={field.value}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  echo
+                  {...fieldA11y("shipping-fee", errors.shippingFee?.message)}
+                />
+              )}
             />
           </FormField>
           <Button
             type="button"
             variant="ghost"
             size="icon"
+            className="mt-5"
             aria-label="Bỏ phí vận chuyển"
             onClick={() => {
               setValue("hasShippingFee", false, { shouldDirty: true });
