@@ -183,8 +183,31 @@ export const orderRefundDtoSchema = z.object({
 });
 export const orderRefundPageDtoSchema = bePageSchema(orderRefundDtoSchema);
 
-/* ── DTO: công nợ phải thu theo khách (R5-11, BE round 5 — có thể chưa có: 404) ── */
+/* ── Công nợ phải thu theo khách (R5-11) ──────────────────────────────── */
 
+/**
+ * One row of the BE receivables report `GET /reports/receivables` (`reporting` module, already there before round 5;
+ * round 5 added `search`). The BE leaves null fields out of the JSON.
+ */
+export const receivableReportRowDtoSchema = z.object({
+  customerId: z.string(),
+  customerCode: z.string().nullish(),
+  customerName: z.string().nullish(),
+  receivable: z.number(),
+  overdue: z.number(),
+  overdue1To30: z.number().nullish(),
+  overdue31To60: z.number().nullish(),
+  overdue61To90: z.number().nullish(),
+  overdueOver90: z.number().nullish(),
+  oldestDueDate: z.string().nullish(),
+  openItems: z.number().int().nullish(),
+});
+export const receivableReportDtoSchema = z.object({
+  asOf: z.string().nullish(),
+  rows: bePageSchema(receivableReportRowDtoSchema),
+});
+
+/** The screen's model of a receivable row (what `ReceivablesList` renders). */
 export const receivableDtoSchema = z.object({
   customerId: z.string(),
   customerName: z.string().nullish(),

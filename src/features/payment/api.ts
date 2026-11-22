@@ -13,6 +13,7 @@ import {
   receiptPageDtoSchema,
   receiptSummaryDtoSchema,
   receivablePageDtoSchema,
+  receivableReportDtoSchema,
 } from "./schemas";
 
 import type {
@@ -36,7 +37,8 @@ import type {
 const INSTALLMENTS = "/installments";
 const RECEIPTS = "/payment-receipts";
 const REFUNDS = "/refunds";
-const RECEIVABLES = "/receivables";
+const RECEIVABLES = "/reports/receivables";
+const TAX_CODE = /^(\d{10}(-\d{3})?|\d{12})$/;
 const seg = encodeURIComponent;
 
 function pageQuery(params: ListQueryParams) {
@@ -247,8 +249,9 @@ export interface ListReceivableParams extends ListQueryParams {
 }
 
 /**
- * `GET /receivables` (BE round 5, R5-11): mỗi khách một dòng — còn nợ, quá hạn, hạn cũ nhất, tuổi nợ; quá hạn nhiều
- * nhất trước. BE chưa có endpoint → 404 (`ApiError`), trang tự lùi về danh sách đợt `owing=true`.
+ * `GET /reports/receivables` (the BE receivables report; R5-11 added `search`): one row per customer — owed, overdue,
+ * oldest due date, aging; most overdue first. Mapped onto the screen's `Receivable` model; a 404 (an older BE) still
+ * sends the page back to the installment list `owing=true`.
  */
 export async function listReceivables(
   params: ListReceivableParams,
@@ -257,5 +260,24 @@ export async function listReceivables(
   const query = pageQuery(params);
   if (params.search) query.set("search", params.search);
   const { data } = await api.get<unknown>(RECEIVABLES, { params: query, signal });
-  return receivablePageDtoSchema.parse(data);
+  const report = receivableReportDtoSchema.parse(data);
+  return receivablePageDtoSchema.parse({
+    ...report.rows,
+    items: report.rows.items.map((row) => ({
+      customerId: row.customerId,
+      customerName: row.customerName ?? null,
+      customerCode: row.customerCode ?? null,
+      // The report's code is the tax code when the customer has one (10, 10-3 or 12 digits).
+      taxCode: row.customerCode && TAX_CODE.test(row.customerCode) ? row.customerCode : null,
+      owed: row.receivable,
+      overdue: row.overdue,
+      oldestDueOn: row.oldestDueDate ?? null,
+      aging: {
+        d0to30: row.overdue1To30 ?? 0,
+        d31to60: row.overdue31To60 ?? 0,
+        over60: (row.overdue61To90 ?? 0) + (row.overdueOver90 ?? 0),
+      },
+      installmentCount: row.openItems ?? null,
+    })),
+  });
 }

@@ -19,21 +19,27 @@ afterEach(() => {
   nav.replace.mockReset();
 });
 
+/** A row as `GET /reports/receivables` sends it (the code is the tax code; null fields left out). */
 const anPhat = {
   customerId: "cust-9",
   customerName: "Công ty Bao Bì An Phát",
-  customerCode: "KH0A1B2C3D",
-  taxCode: "0312345678",
-  owed: 50_000_000,
+  customerCode: "0312345678",
+  currency: "VND",
+  receivable: 50_000_000,
+  notYetDue: 0,
   overdue: 20_000_000,
-  oldestDueOn: "2026-10-01",
-  aging: { d0to30: 30_000_000, d31to60: 15_000_000, over60: 5_000_000 },
-  installmentCount: 3,
+  overdue1To30: 30_000_000,
+  overdue31To60: 15_000_000,
+  overdue61To90: 3_000_000,
+  overdueOver90: 2_000_000,
+  oldestDueDate: "2026-10-01",
+  openItems: 3,
 };
+const report = (rows: unknown[]) => ({ asOf: "2026-11-23", rows: bePage(rows), totals: [] });
 
 describe("Công nợ phải thu theo khách (BO-UX-37, R5-11)", () => {
   it("một dòng mỗi khách: còn nợ, quá hạn, hạn cũ nhất, tuổi nợ; bấm khách → các đợt còn nợ của khách", async () => {
-    mockPaymentApi(ACCOUNTANT_GRANTS, { get: { "/receivables": () => bePage([anPhat]) } });
+    mockPaymentApi(ACCOUNTANT_GRANTS, { get: { "/reports/receivables": () => report([anPhat]) } });
     renderPaymentScreen(<ReceivablesList />);
     const link = await screen.findByRole("link", { name: /Công ty Bao Bì An Phát/ });
     expect(link).toHaveAttribute(
@@ -55,24 +61,24 @@ describe("Công nợ phải thu theo khách (BO-UX-37, R5-11)", () => {
     );
   });
 
-  it("ô tìm gửi search= tới /receivables", async () => {
+  it("ô tìm gửi search= tới /reports/receivables", async () => {
     const api = mockPaymentApi(ACCOUNTANT_GRANTS, {
-      get: { "/receivables": () => bePage([anPhat]) },
+      get: { "/reports/receivables": () => report([anPhat]) },
     });
     renderPaymentScreen(<ReceivablesList />);
     await userEvent.type(await screen.findByRole("textbox", { name: /Tìm khách/ }), "an phat");
     await waitFor(() => {
-      const calls = api.get.mock.calls.filter(([url]) => url === "/receivables");
+      const calls = api.get.mock.calls.filter(([url]) => url === "/reports/receivables");
       expect((calls.at(-1)?.[1] as { params: URLSearchParams }).params.get("search")).toBe(
         "an phat",
       );
     });
   });
 
-  it("máy chủ chưa có /receivables (404) → chuyển sang danh sách đợt 'Công nợ phải thu' (owing=true)", async () => {
+  it("máy chủ cũ không có /reports/receivables (404) → chuyển sang danh sách đợt 'Công nợ phải thu' (owing=true)", async () => {
     mockPaymentApi(ACCOUNTANT_GRANTS, {
       get: {
-        "/receivables": () => {
+        "/reports/receivables": () => {
           throw apiError(404, "NOT_FOUND");
         },
       },
