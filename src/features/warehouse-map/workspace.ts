@@ -8,15 +8,17 @@
  */
 
 import { ADMIN_ROUTES, PAGE_SIZE, WAREHOUSE_PERMISSIONS } from "@/constants";
-import { useCan } from "@/lib/auth";
+import { useCan, useMyPermissions } from "@/lib/auth";
 
 import { useWarehouses } from "./queries";
 
 /** Danh mục kho cho ô đổi kho / tên kho trên breadcrumb — cần `warehouse-warehouses:READ` (BE re-check). */
 export function useWorkspaceWarehouses() {
   const canRead = useCan(WAREHOUSE_PERMISSIONS.read);
+  // `useCan` là false khi quyền còn đang tải — phân biệt để không nháy "chưa được cấp quyền" mỗi lần tải lại trang
+  const permissionsPending = useMyPermissions().isPending;
   const list = useWarehouses({ page: 0, size: PAGE_SIZE.masterData }, { enabled: canRead });
-  return { canRead, list, warehouses: list.data?.items };
+  return { canRead, permissionsPending, list, warehouses: list.data?.items };
 }
 
 /** Prefix trong URL → kho (so khớp không phân biệt hoa thường, BE lưu chữ hoa). */
