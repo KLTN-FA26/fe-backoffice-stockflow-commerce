@@ -391,7 +391,7 @@ export {
   SAMPLE_ROUND_RESULT_LABELS,
 } from "./labels-production";
 export { SHARED_QUERY_ROOTS } from "./query-roots";
-export { ADMIN_ROUTES, APP_ROUTES, PORTAL_ROUTES } from "./routes";
+export { ADMIN_ROUTES, APP_ROUTES, PORTAL_ROUTES, WORKSPACE_PATHS } from "./routes";
 export { STORAGE_KEYS } from "./storage-keys";
 export {
   FULFILLMENT_COLUMNS,

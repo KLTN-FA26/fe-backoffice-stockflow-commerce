@@ -10,6 +10,33 @@ export const APP_ROUTES = {
   changePassword: "/change-password",
 } as const;
 
+const WAREHOUSE_MAP_ROOT = `${ADMIN_BASE}/warehouse-map`;
+
+const workspacePage = (prefix: string, path?: string) =>
+  `${WAREHOUSE_MAP_ROOT}/${encodeURIComponent(prefix)}${path ? `/${path}` : ""}`;
+
+const id = (value: string) => encodeURIComponent(value);
+
+/**
+ * Đoạn đường dẫn sau `/admin/warehouse-map/{prefix}` của các trang làm việc theo một kho (spec 2026-11-22 §5.4).
+ * Màn vận hành nằm trong route group `(operations)` — URL không có đoạn group.
+ */
+export const WORKSPACE_PATHS = {
+  slotting: "slotting",
+  putaway: "putaway",
+  putawayTask: (taskId: string) => `putaway/${id(taskId)}`,
+  myTrip: "putaway/trip",
+  trip: (tripId: string) => `putaway/trips/${id(tripId)}`,
+  picking: "picking",
+  pickingTask: (taskId: string) => `picking/${id(taskId)}`,
+  packing: "packing",
+  packingTask: (taskId: string) => `packing/${id(taskId)}`,
+  putBacks: "put-backs",
+  moves: "moves",
+  cycleCounts: "cycle-counts",
+  cycleCount: (countId: string) => `cycle-counts/${id(countId)}`,
+} as const;
+
 export const ADMIN_ROUTES = {
   home: ADMIN_BASE,
   customers: {
@@ -131,10 +158,11 @@ export const ADMIN_ROUTES = {
    * resource `warehouse-locations` (`LayoutController`).
    */
   warehouseMap: {
-    root: `${ADMIN_BASE}/warehouse-map`,
-    of: (prefix: string) => `${ADMIN_BASE}/warehouse-map/${encodeURIComponent(prefix)}`,
-    slotting: (prefix: string) =>
-      `${ADMIN_BASE}/warehouse-map/${encodeURIComponent(prefix)}/slotting`,
+    root: WAREHOUSE_MAP_ROOT,
+    /** Trang của một kho trong tab: `path` là đoạn sau prefix (xem `WORKSPACE_PATHS`), bỏ trống = bản đồ. */
+    page: workspacePage,
+    of: (prefix: string) => workspacePage(prefix),
+    slotting: (prefix: string) => workspacePage(prefix, WORKSPACE_PATHS.slotting),
   },
   /**
    * Bảng sức chứa kho (docs 06 §4.6, BE `WarehouseCapacityController`): danh sách mọi kho, chi tiết theo prefix kho
