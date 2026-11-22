@@ -459,11 +459,14 @@ describe("Quote form", () => {
     const select = await screen.findByLabelText(/SKU riêng của khách/); // the customer is chosen
     await within(select).findByRole("option", { name: new RegExp(SKU) });
     await user.click(screen.getByRole("button", { name: "Lưu nháp" })); // submitted once
-    const before = screen.queryAllByText(/nhập ít nhất một bậc giá|nhập bậc giá/).length;
+    // The tiers error of the form schema (no customer price → at least one tier), on line 1 after the save.
+    const TIERS_ERROR = "Khách chưa có giá riêng cho SKU này — nhập ít nhất một bậc giá";
+    const before = screen.queryAllByText(TIERS_ERROR).length;
+    expect(before).toBeGreaterThan(0);
     await user.click(screen.getByRole("button", { name: /Thêm dòng/ }));
     expect(await screen.findByText("Dòng 2")).toBeInTheDocument();
     // The new line adds no tiers error of its own.
-    expect(screen.queryAllByText(/nhập ít nhất một bậc giá|nhập bậc giá/)).toHaveLength(before);
+    expect(screen.queryAllByText(TIERS_ERROR)).toHaveLength(before);
   });
 
   it("dưới MOQ của giá riêng, để trống bậc giá → lỗi tại dòng, không gọi API", async () => {
