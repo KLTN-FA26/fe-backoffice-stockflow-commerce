@@ -266,8 +266,8 @@ export async function listReceivables(
     items: report.rows.items.map((row) => ({
       customerId: row.customerId,
       customerName: row.customerName ?? null,
-      customerCode: row.customerCode ?? null,
-      // The report's code is the tax code when the customer has one (10, 10-3 or 12 digits).
+      // The report's code is the tax code when the customer has one (10, 10-3 or 12 digits): shown once, as "MST …".
+      customerCode: row.customerCode && !TAX_CODE.test(row.customerCode) ? row.customerCode : null,
       taxCode: row.customerCode && TAX_CODE.test(row.customerCode) ? row.customerCode : null,
       owed: row.receivable,
       overdue: row.overdue,

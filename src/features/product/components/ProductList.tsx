@@ -321,7 +321,7 @@ export function ProductList() {
         onClear: () => changeFacet(setBrandFilter)(null),
       },
       {
-        label: "Search chính",
+        label: "Tìm kiếm chính",
         value: hasGlobalSearch ? `“${pageConfig.globalSearch.query}”` : "Chưa dùng",
         active: hasGlobalSearch,
         onClear: () => productFilters.setQ(""),

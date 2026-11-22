@@ -133,7 +133,8 @@ function RequestStatus({ row }: { row: QuoteRequest }) {
   const quoted = row.status === "CLOSED" && row.closedOutcome === "QUOTED" && row.quoteId;
   const returnReason = "returnReason" in row ? row.returnReason : null;
   return (
-    <span className="inline-flex items-center gap-1.5">
+    // Stacked, not side by side: the quote link must not run under the pinned actions column at 1366 px.
+    <span className="inline-flex flex-col items-start gap-0.5">
       <StatusDot
         domain="order"
         status={row.status === "OPEN" ? "PENDING_APPROVAL" : "CLOSED"}

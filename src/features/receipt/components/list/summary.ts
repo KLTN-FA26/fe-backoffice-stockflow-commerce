@@ -20,7 +20,7 @@ export function buildReceiptSummary(s: ReceiptListState): ListSummaryItem[] {
       : "Tất cả";
   return [
     {
-      label: "Search chính",
+      label: "Tìm kiếm chính",
       value: filters.q.trim() ? `“${filters.q}”` : "Chưa dùng",
       active: filters.q.trim() !== "",
       onClear: () => void filters.setQ(""),

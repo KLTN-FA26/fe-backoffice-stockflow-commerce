@@ -11,7 +11,7 @@ export const PUTAWAY_LABELS = {
   title: "Cất hàng",
   detailTitle: (lpn: string) => `Cất thùng ${lpn}`,
   searchPlaceholder: "Tìm LPN, SKU, lô, vị trí đang ở…",
-  summarySearch: "Search chính",
+  summarySearch: "Tìm kiếm chính",
   summaryColumnSearch: "Search trong cột",
   summaryColumns: "Cột hiển thị",
   warehouse: "Kho",

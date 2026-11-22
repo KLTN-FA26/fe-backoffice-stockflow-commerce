@@ -40,7 +40,7 @@ export interface ListToolbarProps<
   Column extends string,
 > {
   /**
-   * Search chính. Bỏ cả ba khi BE không có tham số tìm cho danh sách phân trang phía server (lọc FE chỉ thấy trang
+   * Tìm kiếm chính. Bỏ cả ba khi BE không có tham số tìm cho danh sách phân trang phía server (lọc FE chỉ thấy trang
    * đang tải — gây hiểu sai): toolbar khi đó chỉ còn công cụ lọc / cột / hành động.
    */
   search?: string;

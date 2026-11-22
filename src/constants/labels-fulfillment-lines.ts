@@ -112,8 +112,8 @@ export const PICK_LINE_ERROR_MESSAGES = {
 export const PUT_BACK_LABELS = {
   title: "Trả hàng về kệ",
   searchPlaceholder: "Tìm số đơn, SKU hoặc vị trí lấy",
-  // Badge thanh "Cấu hình" — tách "Search chính" khỏi bộ lọc (data-table-mode-a §3)
-  searchSummary: "Search chính",
+  // Badge thanh "Cấu hình" — tách "Tìm kiếm chính" khỏi bộ lọc (data-table-mode-a §3)
+  searchSummary: "Tìm kiếm chính",
   searchUnused: "Chưa dùng",
   action: "Trả về kệ",
   actionFor: (sku: string, orderNumber: string) => `Trả ${sku} của đơn ${orderNumber} về kệ`,

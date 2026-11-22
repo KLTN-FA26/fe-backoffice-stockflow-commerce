@@ -260,7 +260,7 @@ export const PAYMENT_LIST_LABELS = {
   owing: "Công nợ phải thu",
   order: "Đơn hàng",
   pickedOrder: "Đơn đã chọn",
-  searchMain: "Search chính",
+  searchMain: "Tìm kiếm chính",
   notUsed: "Chưa dùng",
   all: "Tất cả",
   yes: "Có",

@@ -101,7 +101,7 @@ function QuoteListContent() {
           {...columnToolbarProps(columnState, QUOTE_COLUMN_LABELS, QUOTE_COLUMNS)}
           summaryItems={[
             {
-              label: "Search chính",
+              label: "Tìm kiếm chính",
               value: filters.q.trim() ? `“${filters.q}”` : "Chưa dùng",
               active: filters.q.trim() !== "",
               onClear: () => void filters.setQ(""),

@@ -66,7 +66,7 @@ export const PRODUCTION_LABELS = {
     noun: "đơn vị sản xuất",
     all: "Tất cả",
     statusFilter: "Trạng thái",
-    summarySearch: "Search chính",
+    summarySearch: "Tìm kiếm chính",
     emptyTitle: "Chưa có đơn vị sản xuất",
     emptyDescription: "Thêm xưởng hoặc đối tác in để lập Đơn sản xuất cho phần thiếu của đơn bán.",
     errorCopy: errorCopy("Đơn vị sản xuất", "đơn vị sản xuất"),
@@ -362,7 +362,7 @@ export const PRODUCTION_LABELS = {
   schedule: {
     pageTitle: "Lịch sản xuất",
     searchPlaceholder: "Tìm theo mã Đơn sản xuất, đơn bán, đơn vị, kho, SKU…",
-    summarySearch: "Search chính",
+    summarySearch: "Tìm kiếm chính",
     summaryColumnSearch: "Search trong cột",
     summaryColumns: "Cột hiển thị",
     // Hai tab theo việc của Điều phối sản xuất (docs 17 §4.12 bước 47): việc phải làm trước, việc theo dõi sau

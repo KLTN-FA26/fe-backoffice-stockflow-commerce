@@ -149,7 +149,7 @@ describe("PutBackScreen — hàng đợi trả hàng về kệ (BE GET /fulfillm
     }
   });
 
-  it("tìm 'TEE' lọc client theo SKU; badge Search chính có X", async () => {
+  it("tìm 'TEE' lọc client theo SKU; badge Tìm kiếm chính có X", async () => {
     const user = userEvent.setup();
     const { get } = renderScreen(IDENTITIES.warehouseStaff, {
       rows: [
@@ -163,7 +163,7 @@ describe("PutBackScreen — hàng đợi trả hàng về kệ (BE GET /fulfillm
     expect(screen.getByText("TEE-BLK-M")).toBeInTheDocument();
     // Lọc ở client: không gọi lại BE theo từ khoá
     expect(listCalls(get)).toHaveLength(1);
-    await user.click(screen.getByRole("button", { name: "Xoá Search chính" }));
+    await user.click(screen.getByRole("button", { name: "Xoá Tìm kiếm chính" }));
     expect(await screen.findByText("MUG-WHT")).toBeInTheDocument();
   });
 

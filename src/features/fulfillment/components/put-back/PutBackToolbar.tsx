@@ -15,7 +15,7 @@ const F = UI_LABELS.fulfillment.filter;
 
 /**
  * Toolbar hàng đợi trả về kệ (style Vercel, `ListToolbar`): ô tìm (lọc client), hàng facet chọn kho, thanh
- * "Cấu hình" có badge Search chính + Kho xoá riêng được, "Đặt lại" xoá cả hai.
+ * "Cấu hình" có badge Tìm kiếm chính + Kho xoá riêng được, "Đặt lại" xoá cả hai.
  */
 export function PutBackToolbar({ s }: { s: PutBackListState }) {
   const { data: warehouses = [] } = useWarehouseDirectory();

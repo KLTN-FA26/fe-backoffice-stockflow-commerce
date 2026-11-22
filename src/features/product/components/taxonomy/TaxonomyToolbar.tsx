@@ -60,7 +60,7 @@ export function TaxonomyToolbar({
       actions={actions}
       summaryItems={[
         {
-          label: "Search chính",
+          label: "Tìm kiếm chính",
           value: s.q || "—",
           active: Boolean(s.q),
           onClear: () => s.setQ(""),
