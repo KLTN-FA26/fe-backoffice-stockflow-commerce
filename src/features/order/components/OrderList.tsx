@@ -1,16 +1,17 @@
 "use client";
 
+import Link from "next/link";
+import { cn } from "cn";
 import { ShieldAlert } from "lucide-react";
 
 import { ADMIN_ROUTES, CREDIT_HOLD_PERMISSIONS, ORDER_PERMISSIONS, UI_LABELS } from "@/constants";
 import { useCan } from "@/lib/auth";
 
-import { ListToolbar } from "@/components/shared/ListToolbar";
-import { PageHeader } from "@/components/shared/PageHeader";
+import { ListToolbar, TOOLBAR_ACTION_CLASS } from "@/components/shared/ListToolbar";
+import { Button } from "@/components/ui/button";
 
 import { buildOrderColumns } from "./order-list/columns";
 import { COLUMN_LABELS, DEFAULT_COLUMNS, STATUS_OPTIONS } from "./order-list/constants";
-import { HeaderLink } from "./HeaderLink";
 import { OrderListBody } from "./order-list/OrderListBody";
 import { OrderListFilters } from "./order-list/OrderListFilters";
 import { buildSummaryItems } from "./order-list/summary";
@@ -43,21 +44,27 @@ function OrderListContent() {
   const columns = buildOrderColumns(s.extra.setCustomerId);
   const visibleColumns = columns.filter((c) => s.config.visibleColumns.includes(c.key));
   const { filters } = s;
+  const creditHoldsLink = canSeeCreditHolds ? (
+    <Button
+      asChild
+      variant="outline"
+      size="sm"
+      className={cn(
+        "border-border-default bg-bg-surface text-ink-primary hover:bg-bg-muted",
+        TOOLBAR_ACTION_CLASS,
+      )}
+    >
+      <Link href={ADMIN_ROUTES.orders.creditHolds}>
+        <ShieldAlert className="text-dot-warning size-3.5" aria-hidden="true" />
+        {UI_LABELS.order.creditHoldsTitle}
+      </Link>
+    </Button>
+  ) : undefined;
 
   return (
-    <>
-      <PageHeader
-        title="Đơn hàng"
-        subtitle="Theo dõi đơn bán, trạng thái xử lý và các ngoại lệ cần thao tác."
-        actions={
-          canSeeCreditHolds && (
-            <HeaderLink href={ADMIN_ROUTES.orders.creditHolds}>
-              <ShieldAlert className="text-warning size-3.5" aria-hidden="true" />
-              {UI_LABELS.order.creditHoldsTitle}
-            </HeaderLink>
-          )
-        }
-      />
+    <div className="surface-soft">
+      {/* Trang danh sách kiểu Vercel (data-table-mode-a §1): không tiêu đề hiển thị — breadcrumb là tên trang. */}
+      <h1 className="sr-only">{UI_LABELS.order.pageTitle}</h1>
       {/* Thiếu READ: không có dữ liệu để tìm/lọc → ẩn toolbar + thanh Cấu hình */}
       {canRead && (
         <ListToolbar
@@ -80,10 +87,14 @@ function OrderListContent() {
           summaryItems={buildSummaryItems(s)}
           onResetAll={s.resetAll}
           resetDisabled={!s.hasFilters && !s.hasColumnConfig && s.sort.key === null}
+          actions={creditHoldsLink}
         />
       )}
       {canRead && <OrderListFilters s={s} />}
+      {!canRead && creditHoldsLink && (
+        <div className="mb-3 flex justify-end">{creditHoldsLink}</div>
+      )}
       <OrderListBody s={s} columns={visibleColumns} />
-    </>
+    </div>
   );
 }

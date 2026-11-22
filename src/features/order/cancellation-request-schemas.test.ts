@@ -36,6 +36,12 @@ describe("DTO BE → model FE", () => {
       decidedAt: null,
       decisionNote: null,
       retainedPercent: null,
+      orderNumber: null,
+      customerName: null,
+      orderTotal: null,
+      paidTotal: null,
+      orderStatus: null,
+      printingStarted: null,
     });
   });
 

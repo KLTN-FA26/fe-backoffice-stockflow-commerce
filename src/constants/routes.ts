@@ -90,6 +90,8 @@ export const ADMIN_ROUTES = {
     detail: (id: string) => `${ADMIN_BASE}/orders/${id}`,
     /** Khối "Hợp đồng" trong chi tiết đơn (WF-02 pha B). */
     contract: (id: string) => `${ADMIN_BASE}/orders/${id}#contract`,
+    /** Thẻ "Yêu cầu huỷ của khách" trên chi tiết đơn (hàng đợi yêu cầu huỷ mở thẳng tới đây — BO-UX-34). */
+    cancellationRequest: (id: string) => `${ADMIN_BASE}/orders/${id}#cancellation-request`,
     list: `${ADMIN_BASE}/orders`,
   },
   packing: {

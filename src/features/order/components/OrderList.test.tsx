@@ -37,6 +37,22 @@ function lastListQuery(): URLSearchParams {
 
 afterEach(() => vi.restoreAllMocks());
 
+describe("OrderList — bố cục trang danh sách (BO-UX-2)", () => {
+  it("không tiêu đề / phụ đề hiển thị; h1 sr-only; link hàng đợi công nợ nằm trong toolbar", async () => {
+    mockOrderApiGet([...ORDER_PERMISSION_SETS.salesStaff, "sales-order-credit-holds:VIEW_PAGE"], {
+      "/orders": () => apiOrderPage([apiOrder]),
+    });
+    renderOrderScreen(<OrderList />);
+    await screen.findByText(apiOrder.orderNumber);
+    expect(screen.getByRole("heading", { level: 1, name: "Đơn hàng" })).toHaveClass("sr-only");
+    expect(screen.queryByText(/Theo dõi đơn bán/)).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: UI_LABELS.order.creditHoldsTitle })).toHaveAttribute(
+      "href",
+      "/admin/orders/credit-holds",
+    );
+  });
+});
+
 describe("OrderList — phân trang/lọc phía server", () => {
   it("mặc định gửi page=0&size=15, render đơn với nhãn trạng thái tiếng Việt", async () => {
     renderList(() => apiOrderPage([apiOrder, secondOrder]));

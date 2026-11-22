@@ -24,7 +24,10 @@ export function RefundDueNotice({
   const canRead = can(PAYMENT_REFUND_PERMISSIONS.read);
   const refund = useOrderRefundDue(orderId, canRead);
   const link = (
-    <Link href={PAYMENT_ROUTES.refunds.ofOrder(orderId)} className="text-accent-text hover:underline">
+    <Link
+      href={PAYMENT_ROUTES.refunds.ofOrder(orderId)}
+      className="text-accent-text hover:underline"
+    >
       Mở màn hoàn tiền
     </Link>
   );

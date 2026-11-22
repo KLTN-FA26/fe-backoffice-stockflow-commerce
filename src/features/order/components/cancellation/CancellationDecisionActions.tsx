@@ -44,10 +44,22 @@ const REJECT: CustomOrderAction = {
 };
 
 const orderLabel = (orderNumber: string | null) => orderNumber ?? "này";
-const BUTTON = (compact: boolean | undefined) =>
+const COMPACT = "bg-bg-surface rounded-[var(--r-sm)] border px-2.5 py-1 text-xs font-medium";
+/**
+ * Nút gọn trong hàng đợi (BO-UX-36): "Duyệt huỷ" tông nguy hiểm vì nó huỷ đơn ngay, "Từ chối" trung tính — hai nút
+ * không còn trông như nhau.
+ */
+const BUTTON = (compact: boolean | undefined, danger = false) =>
   compact
-    ? "border-border-default bg-bg-surface text-ink-primary hover:bg-bg-muted rounded-[var(--r-sm)] border px-2.5 py-1 text-xs font-medium"
+    ? `${COMPACT} ${
+        danger
+          ? "border-danger/40 text-danger hover:bg-danger/10 hover:text-danger"
+          : "border-border-default text-ink-primary hover:bg-bg-muted"
+      }`
     : ORDER_ACTION_BUTTON;
+/** Tên truy cập kèm số đơn khi biết: mười dòng không còn là mười nút "Duyệt huỷ" giống hệt nhau. */
+const rowLabel = (label: string, orderNumber: string | null, compact: boolean | undefined) =>
+  compact && orderNumber ? `${label} — ${orderNumber}` : undefined;
 
 /**
  * Duyệt yêu cầu huỷ (`POST …/cancellation-requests/{id}/approval`, docs 17 §4.8 bước 28, 30): huỷ đơn ngay, kèm phí nếu
@@ -72,9 +84,10 @@ export function CancellationApproveAction({
         variant="outline"
         size="sm"
         onClick={dialog.show}
-        className={BUTTON(compact)}
+        aria-label={rowLabel(L.button, orderNumber, compact)}
+        className={BUTTON(compact, true)}
       >
-        <CircleCheck className="size-3.5" /> {L.button}
+        <CircleCheck className="size-3.5" aria-hidden="true" /> {L.button}
       </Button>
       {dialog.open && (
         <OrderReasonDialog
@@ -115,9 +128,10 @@ export function CancellationRejectAction({
         variant="outline"
         size="sm"
         onClick={dialog.show}
+        aria-label={rowLabel(L.button, orderNumber, compact)}
         className={BUTTON(compact)}
       >
-        <CircleX className="size-3.5" /> {L.button}
+        <CircleX className="size-3.5" aria-hidden="true" /> {L.button}
       </Button>
       {dialog.open && (
         <OrderReasonDialog
