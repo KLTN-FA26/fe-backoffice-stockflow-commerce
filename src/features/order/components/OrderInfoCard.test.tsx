@@ -66,6 +66,22 @@ describe("OrderInfoCard — Khách hàng hiện tên, không UUID (QA A5, BE-15)
     expect(screen.queryByText(apiOrder.customerId as string)).not.toBeInTheDocument();
     expect(get).toBeDefined();
   });
+
+  it("BE không trả tên lẫn mã khách → nhãn trung tính, không mảnh UUID 'KH …' (BO-UX-6)", async () => {
+    mockOrderApiGet(ORDER_PERMISSION_SETS.coordinator, {
+      [DETAIL_PATH]: () => apiOrderWith({ customerName: null, customerCode: null }),
+      [`${DETAIL_PATH}/history`]: () => [],
+    });
+    await act(async () => {
+      renderOrderScreen(<OrderDetail params={Promise.resolve({ id: apiOrder.orderId })} />);
+    });
+    await screen.findByRole("heading", { name: apiOrder.orderNumber });
+
+    const customerId = apiOrder.customerId as string;
+    expect(screen.queryByText(new RegExp(`KH ${customerId.slice(0, 8)}`))).not.toBeInTheDocument();
+    expect(document.querySelector(`[title*="${customerId}"]`)).toBeNull();
+    expect(screen.getAllByText("Khách hàng").length).toBeGreaterThanOrEqual(2);
+  });
 });
 
 describe("OrderInfoCard — Kho xuất theo quyền warehouse-warehouses:READ", () => {
@@ -73,7 +89,8 @@ describe("OrderInfoCard — Kho xuất theo quyền warehouse-warehouses:READ", 
     const get = await renderDetail(ORDER_PERMISSION_SETS.coordinator);
 
     const fallback = await screen.findByText(/tài khoản chưa có quyền xem tên kho/);
-    expect(fallback).toHaveAttribute("title", WAREHOUSE_ID);
+    // BO-UX-6: không UUID kho, kể cả trong tooltip
+    expect(fallback).not.toHaveAttribute("title");
     expect(screen.queryByText(WAREHOUSE_ID)).not.toBeInTheDocument();
     expect(warehouseCalls(get)).toHaveLength(0);
   });
@@ -89,6 +106,22 @@ describe("OrderInfoCard — Kho xuất theo quyền warehouse-warehouses:READ", 
     const [call] = warehouseCalls(get);
     const params = (call?.[1] as { params: URLSearchParams }).params;
     expect(params.get("status")).toBeNull();
+  });
+
+  it("có quyền nhưng kho không có trong danh mục → nhãn trung tính, không UUID kho (BO-UX-6)", async () => {
+    mockOrderApiGet([...ORDER_PERMISSION_SETS.coordinator, WAREHOUSE_PERMISSIONS.read], {
+      [DETAIL_PATH]: () => released,
+      [`${DETAIL_PATH}/history`]: () => [],
+      "/warehouses": () => ({ items: [] }),
+    });
+    await act(async () => {
+      renderOrderScreen(<OrderDetail params={Promise.resolve({ id: apiOrder.orderId })} />);
+    });
+    await screen.findByRole("heading", { name: apiOrder.orderNumber });
+
+    expect(await screen.findByText("Đã chọn kho xuất")).not.toHaveAttribute("title");
+    expect(screen.queryByText(WAREHOUSE_ID)).not.toBeInTheDocument();
+    expect(document.querySelector(`[title*="${WAREHOUSE_ID}"]`)).toBeNull();
   });
 
   it("đơn chưa chọn kho → 'Chưa chọn kho xuất', không tra kho", async () => {

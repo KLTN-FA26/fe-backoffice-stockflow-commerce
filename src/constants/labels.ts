@@ -18,6 +18,12 @@ import {
 } from "./labels-warehouse-capacity";
 import { WAREHOUSE_MAP_TOAST_MESSAGES, WAREHOUSE_MAP_UI_LABELS } from "./labels-warehouse-map";
 
+/**
+ * Nhãn khách khi không biết tên lẫn mã khách — thay cho mảnh UUID `KH 0c0000…` (BO-UX-6). Một nguồn cho mọi chỗ hiện
+ * khách: `CustomerName`, ô khách của danh sách đơn / đơn treo tín dụng, thẻ thông tin đơn.
+ */
+export const CUSTOMER_FALLBACK_LABEL = "Khách hàng";
+
 export const UI_LABELS = {
   common: {
     retry: "Thử lại",

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 
-import { ADMIN_ROUTES, CUSTOMER_PERMISSIONS } from "@/constants";
+import { ADMIN_ROUTES, CUSTOMER_FALLBACK_LABEL, CUSTOMER_PERMISSIONS } from "@/constants";
 import { useCan } from "@/lib/auth/components/Can";
 import { useCustomerRef } from "@/lib/references/customer-lookup";
 
@@ -13,9 +13,6 @@ import { useCustomerRef } from "@/lib/references/customer-lookup";
  * hiện mã khách BE trả (`code`), không có mã thì nhãn trung tính "Khách hàng" — không mảnh UUID, không UUID trong
  * tooltip (BO-UX-6), không đoán tên.
  */
-/** Nhãn khi không biết tên lẫn mã khách (thay cho mảnh UUID `KH 0c0000…`). */
-export const CUSTOMER_FALLBACK_LABEL = "Khách hàng";
-
 export function CustomerName({
   id,
   name,

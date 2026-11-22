@@ -2,7 +2,7 @@
 
 import { Filter } from "lucide-react";
 
-import { CUSTOMER_FALLBACK_LABEL } from "@/components/backoffice/CustomerName";
+import { CUSTOMER_FALLBACK_LABEL } from "@/constants";
 import { Button } from "@/components/ui/button";
 
 import { isValidOrderCustomerId } from "../../schemas";
