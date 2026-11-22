@@ -50,12 +50,16 @@ export function ApproveDialog({
   const message = form.formState.errors.notes?.message;
   const gate = usePreflightGate(designId, printFileId, open);
   const [acknowledged, setAcknowledged] = useState(false);
+  // A new opening asks again: reset the tick while rendering on the open → closed change (react.dev "adjusting state
+  // when a prop changes"), not in an effect.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (!open) setAcknowledged(false);
+  }
   // The parent closes the dialog itself after a decision: whatever closed it, the next opening starts empty.
   useEffect(() => {
-    if (!open) {
-      form.reset();
-      setAcknowledged(false);
-    }
+    if (!open) form.reset();
   }, [open, form]);
 
   return (
