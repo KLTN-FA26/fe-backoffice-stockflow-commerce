@@ -90,7 +90,11 @@ export function SidebarNav({
                 className={cn(ROW, "text-ink-primary hover:bg-bg-muted font-semibold")}
               >
                 <ChevronLeft className="text-ink-tertiary size-3.5 shrink-0" />
-                <span className="truncate">{current.title}</span>
+                {current.panelTitle ? (
+                  <current.panelTitle />
+                ) : (
+                  <span className="truncate">{current.title}</span>
+                )}
               </SidebarMenuButton>
             </SidebarMenuItem>
             {current.panel ? (

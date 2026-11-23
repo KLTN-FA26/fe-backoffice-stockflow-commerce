@@ -118,6 +118,7 @@ import { useStaffChatBadge } from "@/features/chat";
 import { NotificationBell } from "@/features/notification";
 import { warehouseBreadcrumbTail } from "@/features/warehouse-map/components/workspace/WarehouseCrumb";
 import { WarehouseNavPanel } from "@/features/warehouse-map/components/workspace/WarehouseNavPanel";
+import { WarehouseNavTitle } from "@/features/warehouse-map/components/workspace/WarehouseNavParts";
 import { WORKSPACE_PERMISSIONS } from "@/features/warehouse-map/components/workspace/workspace-pages";
 
 import { usePermissionChecker } from "@/lib/auth/components/Can";
@@ -177,6 +178,8 @@ export interface NavGroup {
   items: NavItem[];
   /** Màn con riêng thay danh sách item mặc định (vd tab "Kho": chọn kho → trang của kho). */
   panel?: ComponentType;
+  /** Nội dung dòng tiêu đề (nút quay lại) của màn con — mặc định là `title` (vd tab "Kho": tên + prefix kho đang làm việc). */
+  panelTitle?: ComponentType;
   /** Bấm item cha thì đi thẳng tới trang này (thay vì chỉ mở màn con). */
   href?: string;
 }
@@ -393,6 +396,7 @@ export const NAV_GROUPS: NavGroup[] = [
     // Gốc tab: được gán đúng một kho → vào thẳng kho đó; còn lại → Danh mục kho (spec 2026-11-22 §5.3)
     href: ADMIN_ROUTES.warehouseMap.root,
     panel: WarehouseNavPanel,
+    panelTitle: WarehouseNavTitle,
     items: [
       {
         label: UI_LABELS.warehouseMap.listTitle,

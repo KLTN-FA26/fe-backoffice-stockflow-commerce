@@ -14,6 +14,12 @@ export interface AppState {
   /* ── Warehouse ─────────────────────────────────────────────────────── */
   warehouseId: WarehouseId | null;
   setWarehouseId: (id: WarehouseId | null) => void;
+  /**
+   * Prefix kho mở gần nhất trong tab "Kho" — để panel sidebar giữ các trang của kho đó khi sang Danh mục kho / Sức chứa
+   * kho (URL không còn prefix). Chỉ cho điều hướng, KHÔNG gắn `X-Warehouse-Id` (khác `warehouseId`).
+   */
+  workspacePrefix: string | null;
+  setWorkspacePrefix: (prefix: string | null) => void;
 
   /* ── Sidebar ───────────────────────────────────────────────────────── */
   sidebarCollapsed: boolean;
@@ -40,6 +46,8 @@ export const useAppStore = create<AppState>()(
     (set) => ({
       warehouseId: null,
       setWarehouseId: (id) => set({ warehouseId: id }),
+      workspacePrefix: null,
+      setWorkspacePrefix: (workspacePrefix) => set({ workspacePrefix }),
 
       sidebarCollapsed: false,
       toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
@@ -68,6 +76,7 @@ export const useAppStore = create<AppState>()(
       ),
       partialize: (state) => ({
         warehouseId: state.warehouseId,
+        workspacePrefix: state.workspacePrefix,
         sidebarCollapsed: state.sidebarCollapsed,
         theme: state.theme,
         locale: state.locale,
