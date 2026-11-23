@@ -37,6 +37,16 @@ export const stockPackageDetailDto = z.object({
    */
   openedOnReturn: z.boolean().nullish(),
   returnOpenedAt: z.string().nullish(),
+  /**
+   * Audit r3 RAD-4 (BE r3c): hàng của ai sau lần cuối thùng về trên một yêu cầu trả hàng. PENDING: hoàn tiền của yêu cầu
+   * chưa quyết — gỡ cách ly / ghi giảm bị BE từ chối (409 STOCK_PACKAGE_DECISION_PENDING); COMPANY: quyết như thùng cách
+   * ly thường; CUSTOMER_HELD / CUSTOMER_SENT_BACK / CUSTOMER_DESTROYED: hàng của khách, ngoài sổ. Null / vắng: chưa từng
+   * về trên yêu cầu trả hàng (hoặc BE cũ). Chuỗi mở.
+   */
+  returnOwnership: z.string().nullish(),
+  /** Yêu cầu trả hàng thùng về lần cuối; null cùng `returnOwnership`. */
+  returnRequestId: z.string().nullish(),
+  returnRmaNumber: z.string().nullish(),
 });
 
 // Source: backend develop `StockPackageResponse` (GET /inventory/stock-packages, page by page). `status` is open
@@ -56,6 +66,10 @@ export const stockPackageDto = z.object({
   /** WF-05 BE-24 (F-22): như ở chi tiết thùng. */
   openedOnReturn: z.boolean().nullish(),
   returnOpenedAt: z.string().nullish(),
+  /** Audit r3 RAD-4: như ở chi tiết thùng. */
+  returnOwnership: z.string().nullish(),
+  returnRequestId: z.string().nullish(),
+  returnRmaNumber: z.string().nullish(),
 });
 
 export const stockPackagePageDto = inventoryPageDto(stockPackageDto);

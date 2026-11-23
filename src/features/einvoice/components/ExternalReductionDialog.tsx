@@ -69,7 +69,8 @@ function zodFieldErrors(issues: readonly { path: readonly PropertyKey[]; message
 function ExternalReductionForm({ invoice, onClose }: { invoice: EInvoice; onClose: () => void }) {
   const router = useRouter();
   // Audit r2 M-10: chỉ những căn cứ BE nói nhận lúc này (`externalReductionBases`); trả hàng chỉ chọn trong các yêu cầu
-  // BE nêu (`externalReductionReturns` — hàng đã hoàn tiền đang chờ giảm trên hoá đơn thay thế này, gửi đúng `id`)
+  // BE nêu (`externalReductionReturns` — hàng đã hoàn tiền đang chờ giảm trên hoá đơn này, gửi đúng `id`; audit r3 EINV-2:
+  // cả hoá đơn gốc của NCC cũ mà bản điều chỉnh trả hàng nháp đã bị huỷ)
   const bases = invoice.externalReductionBases;
   const returns = invoice.externalReductionReturns;
   const [symbol, setSymbol] = useState("");

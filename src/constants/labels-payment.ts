@@ -12,11 +12,35 @@ export const INSTALLMENT_MILESTONE_LABELS = {
   ON_SIGNING: "Khi ký hợp đồng",
   BEFORE_DELIVERY: "Trước khi giao",
   AFTER_DELIVERY: "Sau khi giao",
-  CANCELLATION_FEE: "Phí huỷ đơn",
+  // Khoản phí lập khi huỷ đơn hoặc khi đóng phần còn lại (kể cả phần phí của các đợt giao đóng cả lô chuyển sang — audit r3
+  // LM-3); nhãn của từng khoản theo tên BE: `installmentMilestoneLabel`
+  CANCELLATION_FEE: "Phí huỷ đơn / đóng phần còn lại",
   // Dữ liệu cũ: WF-05 Q-19 bỏ phí chuyến hỏng khỏi code BE (cột DB giữ), không lập khoản mới
   FAILED_TRIP_FEE: "Phí chuyến giao không thành",
   UNKNOWN: UNKNOWN_LABEL,
 } as const satisfies Record<InstallmentReadMilestone, string>;
+
+/**
+ * Tên khoản phí BE đặt (tiếng Anh, `payment` `OrderSettlement`) → tên tiếng Việt. Audit r3 LM-3: khi đóng phần còn lại cả
+ * lô, phần các đợt "trước khi giao" của lô đó còn phải trả trên giá trị hàng đã đóng (phần phí khuôn, phí vận chuyển của
+ * lô) chuyển sang khoản phí của lần đóng — không phải phí huỷ đơn. Tên lạ hiện nguyên văn.
+ */
+export const FEE_ITEM_NAME_LABELS: Readonly<Record<string, string>> = {
+  "Cancellation fee": "Phí huỷ đơn",
+  "Fee for the rest closed": "Phí đóng phần còn lại",
+  "Fee lines of the batches closed": "Phí khuôn, phí vận chuyển của các đợt giao đã đóng",
+  "Fee for the rest closed, with the fee lines of the batches closed":
+    "Phí đóng phần còn lại, kèm phí khuôn, phí vận chuyển của các đợt giao đã đóng",
+};
+
+/** Tên BE của khoản phí huỷ đơn — mọi tên khoản phí khác ở `FEE_ITEM_NAME_LABELS` là khoản lập khi đóng phần còn lại. */
+export const CANCELLATION_FEE_ITEM_NAME = "Cancellation fee";
+
+/** Mốc của một khoản phí theo tên BE: khoản huỷ đơn khác khoản lập khi đóng phần còn lại (audit r3 LM-3). */
+export const FEE_ITEM_MILESTONE_LABELS = {
+  cancellation: "Phí huỷ đơn",
+  remainderClosure: "Khoản phải trả khi đóng phần còn lại",
+} as const;
 
 /** Tình trạng hoàn tiền (docs 15 §5.3: "Chờ hoàn" / "Hoàn một phần" / "Đã hoàn"). */
 export const REFUND_STATUS_LABELS = {
@@ -251,7 +275,12 @@ export const PAYMENT_LABELS = {
     shipment: "Lô giao",
     openShipment: "Mở lô giao",
     confirmationPdf: "Phiếu hoàn tiền",
-    feeItem: "Xem khoản phí huỷ",
+    feeItem: "Xem khoản phí",
+    // Audit r3 LM-3 (BE `carriedToFee`): phần các đợt "trước khi giao" của lô bị đóng cả lô còn phải trả (phí khuôn, phí
+    // vận chuyển của lô) — nằm trong "Đã giảm", chuyển sang khoản phí của lần đóng, đến hạn từ ngày đóng
+    carriedToFee: "Chuyển sang khoản phí",
+    carriedToFeeHint:
+      "Phần phí khuôn, phí vận chuyển của các đợt giao đóng cả lô mà đợt trả trước khi giao còn phải trả: đã giảm khỏi đợt đó, khách trả trên khoản phí của lần đóng, đến hạn từ ngày đóng.",
     settledAt: "Tính lúc",
     refundedOn: "Ngày chuyển",
     recordedAt: "Ghi nhận lúc",

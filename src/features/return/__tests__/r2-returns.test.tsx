@@ -31,14 +31,6 @@ vi.mock("next/navigation", () => ({
 afterEach(() => vi.restoreAllMocks());
 
 const CUSTODY = "/inventory/stock-packages/customer-custody";
-const refused = (over: Record<string, unknown> = {}) =>
-  returnJson({
-    status: "RESOLVED",
-    outcome: "REFUSED",
-    refusalReason: "CUSTOMER_DAMAGE",
-    version: 7,
-    ...over,
-  });
 const heldCarton = (over: Record<string, unknown> = {}) => ({
   lpn: "LPN-0001",
   sku: "SKU-CUP-01",
@@ -49,6 +41,16 @@ const heldCarton = (over: Record<string, unknown> = {}) => ({
   heldAt: "2026-11-20T00:00:00Z",
   ...over,
 });
+/** Audit r3 RAD-3: BE r3c gửi các thùng giữ hộ trên chi tiết (`custodyCartons`, dạng `HeldCarton`). */
+const refused = (over: Record<string, unknown> = {}) =>
+  returnJson({
+    status: "RESOLVED",
+    outcome: "REFUSED",
+    refusalReason: "CUSTOMER_DAMAGE",
+    version: 7,
+    custodyCartons: [heldCarton({ returnRequestId: undefined })],
+    ...over,
+  });
 const page = (items: unknown[]) => ({
   items,
   page: 0,
@@ -99,7 +101,7 @@ describe("audit r2 returns H1: the customer's choice for goods held for them", (
     expect(api.post).not.toHaveBeenCalled();
   });
 
-  it("no card on a return that refunded units (the goods are the company's)", async () => {
+  it("no card when the BE lists no held carton (refunded in full: the goods are the company's)", async () => {
     mockReturnApi(SALES_GRANTS, {
       get: {
         "/returns/ret-1": () =>
@@ -134,8 +136,11 @@ describe("audit r2 returns H1: the customer's choice for goods held for them", (
     const api = mockReturnApi(grants, {
       get: {
         "/returns/ret-1": () =>
-          refused({ custodyChoice: "DESTROY_ON_BEHALF", custodyChoiceNote: "BB-07/2026" }),
-        [CUSTODY]: () => page([heldCarton({ choice: "DESTROY_ON_BEHALF" })]),
+          refused({
+            custodyChoice: "DESTROY_ON_BEHALF",
+            custodyChoiceNote: "BB-07/2026",
+            custodyCartons: [heldCarton({ choice: "DESTROY_ON_BEHALF" })],
+          }),
       },
       post: {
         "/inventory/stock-packages/LPN-0001/customer-custody/end": () =>
@@ -157,10 +162,8 @@ describe("audit r2 returns H1: the customer's choice for goods held for them", (
         { note: "BB huỷ 12/11" },
       ),
     );
-    const call = api.get.mock.calls.find(([url]) => url === CUSTODY);
-    const params = (call?.[1] as { params?: URLSearchParams } | undefined)?.params;
-    expect(params?.get("returnRequestId")).toBe("ret-1");
-    expect(params?.get("ended")).toBe("false");
+    // Audit r3 RAD-3: the cartons come with the return (`custodyCartons`), not from the warehouse-wide list
+    expect(api.get.mock.calls.some(([url]) => url === CUSTODY)).toBe(false);
   });
 
   it("a carton waiting for the customer's choice cannot be carried out yet", async () => {
@@ -171,7 +174,7 @@ describe("audit r2 returns H1: the customer's choice for goods held for them", (
       STOCK_PACKAGE_PERMISSIONS.update,
     ];
     mockReturnApi(grants, {
-      get: { "/returns/ret-1": () => refused(), [CUSTODY]: () => page([heldCarton()]) },
+      get: { "/returns/ret-1": () => refused() },
     });
     renderReturnScreen(<ReturnDetail id="ret-1" />);
     const card = await choiceCard();

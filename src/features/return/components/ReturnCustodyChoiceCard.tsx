@@ -21,7 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { custodyChoiceErrorMessage } from "../errors";
 import { useRecordCustodyChoice } from "../mutations";
 
-import { CustomerCustodyCartons } from "./CustomerCustodyCartons";
+import { HeldCartonList } from "./CustomerCustodyCartons";
 import { InfoList, InfoRow, When } from "./primitives";
 
 import type { ReturnCustodyChoice } from "@/constants/returns";
@@ -99,9 +99,10 @@ function ChoiceForm({ ret, onClose }: { ret: ReturnRequest; onClose: () => void 
 }
 
 /**
- * Hàng của khách giữ hộ sau một yêu cầu không hoàn tiền (WF-05 Q-4, audit r2 returns H1): lựa chọn của khách Sale đã ghi
- * (`custodyChoice`), nút ghi / đổi lựa chọn (`canRecord`, chỉ khi kho chưa thực hiện — BE từ chối sau đó), và các thùng
- * đang giữ hộ của yêu cầu. Chỉ hiện với yêu cầu đã ghi lựa chọn hoặc có thể ghi.
+ * Thùng của khách giữ hộ (WF-05 Q-4, audit r2 returns H1): lựa chọn của khách Sale đã ghi (`custodyChoice`), nút ghi / đổi
+ * lựa chọn (`canRecord`, chỉ khi còn thùng đang giữ — BE từ chối sau đó), và các thùng của yêu cầu từ `custodyCartons` của
+ * BE (audit r3 RAD-1/RAD-3: tính theo SKU, nên yêu cầu có hoàn tiền cũng có thể có; Sale đọc được không cần quyền kho). Chỉ
+ * hiện khi có thùng, đã ghi lựa chọn, hoặc có thể ghi.
  */
 export function ReturnCustodyChoiceCard({
   ret,
@@ -111,7 +112,8 @@ export function ReturnCustodyChoiceCard({
   canRecord: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  if (!canRecord && !ret.custodyChoice) return null;
+  const cartons = ret.custodyCartons ?? [];
+  if (!canRecord && !ret.custodyChoice && cartons.length === 0) return null;
   return (
     <Card className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -136,7 +138,10 @@ export function ReturnCustodyChoiceCard({
       ) : (
         <p className="text-ink-tertiary text-[0.8125rem]">{C.none}</p>
       )}
-      <CustomerCustodyCartons returnRequestId={ret.id} />
+      <section aria-label={C.cartons} className="space-y-2">
+        <h3 className="text-ink-primary text-[0.8125rem] font-semibold">{C.cartons}</h3>
+        <HeldCartonList cartons={cartons} />
+      </section>
       <FormDialog open={open} onOpenChange={setOpen} className="sm:max-w-[560px]">
         {open && <ChoiceForm ret={ret} onClose={() => setOpen(false)} />}
       </FormDialog>

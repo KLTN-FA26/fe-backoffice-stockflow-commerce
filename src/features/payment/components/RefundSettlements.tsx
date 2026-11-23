@@ -93,6 +93,20 @@ export function RefundSettlements({ refund }: { refund: OrderRefund }) {
                 )}
               </InfoRow>
             )}
+            {/* Audit r3 LM-3: phần phí của các đợt giao đóng cả lô chuyển sang khoản phí của lần đóng (nằm trong "Đã giảm") */}
+            {(s.carriedToFee ?? 0) > 0 && (
+              <InfoRow label={L.carriedToFee}>
+                <MoneyCell amount={s.carriedToFee ?? 0} currency={refund.currency} />
+                {s.feeItemId && s.feeOwed <= 0 && (
+                  <span className="ml-3">
+                    <CodeLink href={PAYMENT_ROUTES.installments.detail(s.feeItemId)}>
+                      {L.feeItem}
+                    </CodeLink>
+                  </span>
+                )}
+                <p className="text-ink-tertiary text-xs">{L.carriedToFeeHint}</p>
+              </InfoRow>
+            )}
           </dl>
         </div>
       ))}

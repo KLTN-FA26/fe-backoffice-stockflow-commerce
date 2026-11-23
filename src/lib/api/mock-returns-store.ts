@@ -49,6 +49,19 @@ export interface MockCustody {
   note: string | null;
 }
 
+/** Audit r3 RAD-3: kết cục của hàng trên một biên nhận giữ hộ (BE `CustodyOutcome`). */
+export interface MockCustodyOutcome {
+  choice: string;
+  choiceNote: string | null;
+  takenByReturnId: string | null;
+  takenByRmaNumber: string | null;
+  chosenBy: string;
+  chosenAt: string;
+  endedAt: string | null;
+  endedBy: string | null;
+  endedNote: string | null;
+}
+
 export interface MockReturn {
   id: string;
   rmaNumber: string;
@@ -267,10 +280,14 @@ const reviewed = (deadline = "2026-11-25T17:00:00Z") => ({
 /** Thùng giữ hộ khách đã thực hiện (WF-05 Q-4): LPN → lúc / biên bản / kết quả — route ở `mock-customer-custody.ts`. */
 const endedCustody = new Map<string, { endedAt: string; note: string; ownership: string }>();
 export const mockEndedCustody = () => endedCustody;
+/** Audit r3 RAD-3: kết cục của biên nhận giữ hộ theo `evidenceId` — route ở `mock-customer-custody.ts`. */
+const custodyOutcomes = new Map<string, MockCustodyOutcome>();
+export const mockCustodyOutcomes = () => custodyOutcomes;
 
 export function resetReturnMockStore(): void {
   counter = 0;
   endedCustody.clear();
+  custodyOutcomes.clear();
   const o16: [string, string] = ["ORD-2026-0016", "CUS-0007"];
   const o4: [string, string] = ["ORD-2026-0004", "CUS-0002"];
   const o2: [string, string] = ["ORD-2026-0002", "CUS-0001"];

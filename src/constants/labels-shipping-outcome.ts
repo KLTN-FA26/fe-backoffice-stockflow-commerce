@@ -39,6 +39,14 @@ export const SHIPPING_CORRECTION_LABELS = {
   reasonPlaceholder: "Ví dụ: khách xác nhận đã nhận hàng lúc 10 giờ",
   invoiceNote:
     "Hoá đơn nháp của lô sẽ bị huỷ; nếu hoá đơn đã phát hành, hệ thống tạo nháp điều chỉnh giảm toàn bộ cho Kế toán.",
+  // Audit r3 EINV-1 (BE `undoneDeliveredAt`): sửa ngược một lần "giao thất bại" vốn sửa từ "đã giao"
+  deliveredAtUndoneHint:
+    "Điền sẵn thời điểm giao cũ (trước khi bị sửa thành giao thất bại); để nguyên thì hệ thống lấy lại đúng thời điểm đó và giữ hoá đơn cũ.",
+  // Không biết lần giao cũ: BE vẫn tự lấy lại thời điểm giao cũ nếu lần thất bại là do sửa từ "đã giao"
+  deliveredAtCorrectionHint:
+    "Giờ hãng báo đã giao (giờ Việt Nam). Để nguyên: nếu lần giao thất bại là do sửa từ “đã giao”, hệ thống lấy lại thời điểm giao cũ; nếu không, lấy lúc ghi nhận.",
+  otherDayWarning:
+    "Ngày khác ngày giao cũ → hoá đơn cũ bị giảm về 0 và lập hoá đơn mới theo ngày này. Chỉ chọn ngày khác khi hàng thật sự được giao lại vào ngày đó.",
   submit: "Lưu thay đổi",
 } as const;
 

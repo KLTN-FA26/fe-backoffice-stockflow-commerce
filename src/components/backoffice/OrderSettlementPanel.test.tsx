@@ -1,19 +1,31 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { SETTLEMENT_READINESS_LABELS } from "@/constants";
 
 import { EINVOICE_PERMISSIONS } from "@/constants/einvoice";
 import { PAYMENT_INSTALLMENT_PERMISSIONS, PAYMENT_REFUND_PERMISSIONS } from "@/constants/payment";
 import { ApiError } from "@/lib/api/error";
 import {
   bePage,
+  detailJson,
   listItemJson,
   mockEInvoiceApi,
   renderEInvoiceScreen,
 } from "@/features/einvoice/__fixtures__/screen";
 
+import { settlementReadinessDtoSchema } from "@/features/order/schemas";
+
 import { OrderSettlementPanel } from "./OrderSettlementPanel";
 
 import type { SettlementReadiness } from "@/features/order/types";
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => "/admin/orders/ord-13",
+  useSearchParams: () => new URLSearchParams(),
+}));
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -67,6 +79,7 @@ const readiness = (over: Partial<SettlementReadiness> = {}): SettlementReadiness
   blockers: [],
   returnAdjustmentUnissued: false,
   completionHoldable: false,
+  deliveryReductionUnissued: false,
   ...over,
 });
 const routes = (outstanding: number, invoices: unknown[]) => ({
@@ -348,5 +361,78 @@ describe("OrderSettlementPanel (WF-05 BO-10)", () => {
       expect(within(checks).queryByText(/sau hoàn tiền/)).not.toBeInTheDocument();
       expect(within(checks).getByText(/vận chuyển, phí khuôn/)).toBeInTheDocument();
     });
+  });
+});
+
+describe("audit r3 (BE r3b): EINV-7 information line, LM-2 fee-rest draw-up", () => {
+  it("EINV-7: an unissued failed-delivery reduction is an information line, never a blocker", async () => {
+    mockEInvoiceApi(ALL, routes(0, []));
+    renderEInvoiceScreen(
+      <OrderSettlementPanel
+        {...props}
+        status="Returned"
+        settlementReadiness={readiness({ branch: "REFUND_CLOSE", deliveryReductionUnissued: true })}
+      />,
+    );
+    const checks = await screen.findByRole("region", { name: "Điều kiện hoàn tất" });
+    expect(
+      within(checks).getByText(SETTLEMENT_READINESS_LABELS.deliveryReductionUnissued),
+    ).toBeInTheDocument();
+    expect(within(checks).getByText("Đủ điều kiện.")).toBeInTheDocument();
+  });
+
+  it("an older BE without the flag shows no such line", () => {
+    const parsed = settlementReadinessDtoSchema.parse({ branch: "REFUND_CLOSE" });
+    expect(parsed.deliveryReductionUnissued).toBe(false);
+  });
+
+  it("SHIPPING_FEE_UNINVOICED offers the fee-rest draw-up to whoever may create invoices, posting the order only", async () => {
+    const user = userEvent.setup();
+    const api = mockEInvoiceApi(ALL, {
+      ...routes(0, []),
+      post: {
+        "/einvoices": () => detailJson({ id: "e-rest", type: "ADJUSTMENT", status: "DRAFT" }),
+      },
+    });
+    renderEInvoiceScreen(
+      <OrderSettlementPanel
+        {...props}
+        status="Returned"
+        settlementReadiness={readiness({
+          branch: "REFUND_CLOSE",
+          shippingFeeUninvoiced: true,
+          blockers: [{ code: "SHIPPING_FEE_UNINVOICED", known: true }],
+        })}
+      />,
+    );
+    await user.click(
+      await screen.findByRole("button", { name: SETTLEMENT_READINESS_LABELS.drawUpFeeRest }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: /Lập/ }));
+    await waitFor(() =>
+      expect(api.post).toHaveBeenCalledWith(
+        "/einvoices",
+        expect.objectContaining({ orderId: "ord-13", shipmentId: undefined }),
+      ),
+    );
+  });
+
+  it("without einvoices:CREATE the blocker has no button", async () => {
+    mockEInvoiceApi([EINVOICE_PERMISSIONS.read], routes(0, []));
+    renderEInvoiceScreen(
+      <OrderSettlementPanel
+        {...props}
+        status="Returned"
+        settlementReadiness={readiness({
+          branch: "REFUND_CLOSE",
+          blockers: [{ code: "SHIPPING_FEE_UNINVOICED", known: true }],
+        })}
+      />,
+    );
+    await screen.findByRole("region", { name: "Điều kiện hoàn tất" });
+    expect(
+      screen.queryByRole("button", { name: SETTLEMENT_READINESS_LABELS.drawUpFeeRest }),
+    ).not.toBeInTheDocument();
   });
 });

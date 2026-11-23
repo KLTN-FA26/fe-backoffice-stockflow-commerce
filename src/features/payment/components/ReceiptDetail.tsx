@@ -25,7 +25,7 @@ import { Button } from "@/components/ui/button";
 
 import { allowedReceiptActions, receiptVoidBlock } from "../lifecycle";
 import { useReceipt } from "../queries";
-import { milestoneLabel } from "../selectors";
+import { installmentMilestoneLabel, installmentName } from "../selectors";
 
 import { RECEIPT_COPY } from "./copy";
 import { CodeLink, DateCell, InfoRow, MoneyCell, ReceiptStatusDot } from "./primitives";
@@ -103,10 +103,12 @@ function ReceiptDetailContent({ id }: { id: string }) {
                     {line.contractNumber ?? PAYMENT_LIST_LABELS.unknownContract}
                   </CodeLink>
                   {line.seq != null && (
-                    <span>{`Đợt ${line.seq}${line.name ? ` — ${line.name}` : ""}`}</span>
+                    <span>{`Đợt ${line.seq}${line.name ? ` — ${installmentName(line.name)}` : ""}`}</span>
                   )}
                   {line.milestone && (
-                    <span className="text-ink-secondary">{milestoneLabel(line.milestone)}</span>
+                    <span className="text-ink-secondary">
+                      {installmentMilestoneLabel({ milestone: line.milestone, name: line.name })}
+                    </span>
                   )}
                   {line.orderId && line.orderNumber && (
                     <CodeLink href={ADMIN_ROUTES.orders.detail(line.orderId)}>

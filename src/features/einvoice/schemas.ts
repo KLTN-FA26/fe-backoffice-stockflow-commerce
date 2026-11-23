@@ -170,11 +170,22 @@ export const einvoiceDtoSchema = z.object({
         (EXTERNAL_REDUCTION_BASES as readonly string[]).includes(basis),
       ),
     ),
-  /** Các yêu cầu trả hàng có hàng đã hoàn tiền đang chờ giảm trên hoá đơn thay thế này — nguồn duy nhất của ô chọn. */
+  /**
+   * Các yêu cầu trả hàng có hàng đã hoàn tiền đang chờ giảm trên hoá đơn này — hoá đơn thay thế, hoặc (audit r3 EINV-2) hoá
+   * đơn gốc mà NCC của nó không còn dùng được và bản điều chỉnh trả hàng đã bị huỷ. Nguồn duy nhất của ô chọn.
+   */
   externalReductionReturns: z
     .array(z.object({ returnRequestId: z.string(), rmaNumber: z.string().nullish() }))
     .nullish()
     .transform((rows) => rows ?? []),
+  /**
+   * Audit r3 EINV-3 (QĐ HĐ-1 bước 3, BE r3b): giao dịch gần nhất bị buông của hoá đơn (rút, hoặc từ chối chỉ theo báo cáo xử lý
+   * của NCC) được tra lại mỗi ngày tới mốc này, phòng NCC vẫn phát hành; null khi không có giao dịch nào bị buông. Giữ cả sau
+   * khi hoá đơn được mở lại và gửi lại.
+   */
+  watchUntil: z.string().nullish(),
+  /** Lúc tra lại thấy NCC đã phát hành giao dịch cũ (Kế toán đã được báo, `DUPLICATE_RISK`); null khi chưa thấy. */
+  watchFoundAt: z.string().nullish(),
 });
 
 /** BE `EInvoiceListItemResponse`. */

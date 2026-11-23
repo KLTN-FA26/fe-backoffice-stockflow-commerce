@@ -49,6 +49,12 @@ export interface OrderActionContext {
    * không — hàng có sẵn đóng trước hàng in vẫn huỷ được (BE PR #150, `Order#packedOnlyAheadOfPrints`).
    */
   readonly statusBeforeHold: Order["statusBeforeHold"] | undefined;
+  /**
+   * Nhánh hoàn tất / đóng BE tính (`settlementReadiness.branch`, F-1); null khi BE không trả khối (đơn chưa tới bước đó).
+   * Audit r3 LM-4: đơn PARTIALLY_FULFILLED mà hãng chở hàng về hết phần còn lại (BE `Order.endedByCarrier`) có nhánh
+   * REFUND_CLOSE — không còn gì để đóng, BE `Order.closeRemainder` trả 409. `undefined` (chưa biết) ẩn "Đóng phần còn lại".
+   */
+  readonly settlementBranch: NonNullable<Order["settlementReadiness"]>["branch"] | null | undefined;
 }
 
 /** Ngữ cảnh khi FE không biết gì ngoài trạng thái — action phụ thuộc dữ kiện đều bị ẩn. */
@@ -58,6 +64,7 @@ export const UNKNOWN_CONTEXT: OrderActionContext = {
   packedAt: undefined,
   firstLabeledAt: undefined,
   statusBeforeHold: undefined,
+  settlementBranch: undefined,
 };
 
 export type OrderActionCode =
@@ -233,6 +240,9 @@ export const ORDER_ACTIONS: readonly OrderAction[] = [
   // `Order#closeRemainder`: chỉ từ PARTIALLY_FULFILLED (đơn ON_HOLD phải gỡ giữ trước); đơn chuyển theo
   // các lô giao (Shipped / Delivery Failed / Delivered / Returned, hoặc giữ nguyên khi chưa có lô).
   // POST /orders/{id}/remainder-closure, sales-order-cancellations:UPDATE.
+  // Audit r3 LM-4: đơn hãng đã kết thúc (lô còn lại bị chở về, nhập xong, không còn gì để giao — BE
+  // `Order.endedByCarrier` → nhánh REFUND_CLOSE) nằm ở PARTIALLY_FULFILLED tới khi tự đóng (~30 ngày, BE-45) nhưng không
+  // còn phần nào để đóng: BE trả 409. Ẩn nút theo đúng nhánh BE tính; chưa biết nhánh → ẩn.
   {
     code: "remainder-closure",
     label: ORDER_ACTION_LABELS.remainderClosure.button,
@@ -242,5 +252,7 @@ export const ORDER_ACTIONS: readonly OrderAction[] = [
       kind: "follow-shipments",
       possible: ["Shipped", "Delivery Failed", "Delivered", "Returned"],
     },
+    requires: ({ settlementBranch }) =>
+      settlementBranch !== undefined && settlementBranch !== "REFUND_CLOSE",
   },
 ] as const;

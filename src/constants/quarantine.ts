@@ -39,6 +39,10 @@ export const QUARANTINE_ACTION = {
   RELEASE: "release",
 } as const;
 
+/** Audit r3 RAD-4: `returnOwnership` của thùng về trên yêu cầu trả hàng — chờ quyết hoàn tiền / hàng của khách (tiền tố). */
+export const RETURN_OWNERSHIP_PENDING = "PENDING";
+export const RETURN_OWNERSHIP_CUSTOMER = "CUSTOMER_";
+
 export const QUARANTINE_LIMITS = { locationLength: 64, reasonLength: 500, lpnLength: 30 } as const;
 
 export const QUARANTINE_LABELS = {
@@ -79,6 +83,14 @@ export const QUARANTINE_LABELS = {
   // WF-05 Q-18: từ nay thùng về đã mở không nhập lại tồn
   openedOnReturnConsumed:
     "Thùng hàng trả về đã bị mở hoặc rỗng: không nhập lại tồn, hàng đã huỷ theo số đếm thật trên phiếu nhập hàng hoàn.",
+  // Audit r3 RAD-4: thùng về trên yêu cầu trả hàng chưa quyết hoàn tiền / hàng của khách — kho không gỡ cách ly, không ghi giảm
+  returnOwnership: "Yêu cầu trả hàng",
+  refundPending: (rma: string | null) => `Chờ duyệt hoàn tiền${rma ? ` — ${rma}` : ""}`,
+  customerOwned: (rma: string | null) => `Hàng của khách (giữ hộ)${rma ? ` — ${rma}` : ""}`,
+  refundPendingNotice:
+    "Thùng này về trên một yêu cầu trả hàng mà Kế toán chưa duyệt hoàn tiền: chưa gỡ cách ly, chưa ghi giảm được. Hoàn tiền lấy lại thùng thì thùng thành hàng của công ty; không lấy lại thì là hàng của khách, giữ hộ.",
+  customerOwnedNotice:
+    "Thùng này là hàng của khách (khoản hoàn tiền không lấy lại): không gỡ cách ly, không ghi giảm. Làm theo lựa chọn của khách ở danh sách hàng giữ hộ.",
   back: "Quay lại",
   loadError: "Không tra cứu được thùng",
   backToList: "Về danh sách khu cách ly",
@@ -112,6 +124,7 @@ export const QUARANTINE_LIST_LABELS = {
     reserved: "Đang giữ cho đơn",
     status: "Trạng thái thùng",
     openedOnReturn: "Hàng trả về",
+    returnOwnership: "Quyết định hoàn tiền",
   },
   caption: "Thùng trong khu cách ly",
 } as const;
@@ -128,6 +141,9 @@ export const QUARANTINE_ERROR_MESSAGES = {
   underCount: "Thùng đang nằm trên một phiếu kiểm kê nên chưa chuyển được.",
   decisionPending:
     "Thùng này đang chờ một quyết định khác (nhiệm vụ cất hàng hoặc phiếu ghi giảm chờ duyệt).",
+  // Audit r3 RAD-4: cùng mã 409 nhưng `details.returnOwnership` — thùng chờ quyết hoàn tiền của yêu cầu trả hàng
+  refundDecisionPending: (rma: string | null) =>
+    `Thùng này đang chờ Kế toán duyệt hoàn tiền của yêu cầu trả ${rma ?? "hàng"} — chưa gỡ cách ly, chưa ghi giảm được.`,
   notInStock: "Thùng không còn trong kho nên không thao tác được.",
   // BE `CartonQuarantineService#release` (WF-05 TH-4): thùng khách trả về đã mở, thiếu so với nhãn — chỉ ghi giảm
   returnCartonOpened: "Thùng hàng trả về đã bị mở, chỉ được huỷ/ghi giảm, không nhả ra kệ được.",

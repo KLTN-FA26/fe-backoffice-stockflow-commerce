@@ -75,6 +75,10 @@ export interface MockEInvoice {
   pendingReturns?: { returnRequestId: string; rmaNumber: string }[];
   /** Audit r2 H-2: NCC đã từng nói đang giữ giao dịch (BE `providerHeld`) — không bao giờ rút. */
   providerHeld?: boolean;
+  /** Audit r3 EINV-3: tra lại giao dịch cũ tới mốc này sau khi rút / cơ quan thuế từ chối (BE `watchUntil`). */
+  watchUntil?: string | null;
+  /** Audit r3 EINV-3: lúc thấy NCC vẫn phát hành giao dịch cũ (BE `watchFoundAt`). */
+  watchFoundAt?: string | null;
 }
 
 export interface MockErrorNotice {

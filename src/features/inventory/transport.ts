@@ -13,6 +13,9 @@ const failureEnvelope = z.object({
   message: z.string().optional(),
   correlationId: z.string().optional(),
   fieldErrors: z.array(z.object({ field: z.string(), message: z.string() })).optional(),
+  // Audit r3 RAD-4: machine-readable facts of a refusal (e.g. STOCK_PACKAGE_DECISION_PENDING's returnOwnership /
+  // returnRequestId). Dropped here before, so the screen could not tell a pending refund from another decision.
+  details: z.record(z.string(), z.unknown()).optional().catch(undefined),
 });
 
 // The shared client unwraps successful responses; validate the Inventory DTO here.
@@ -39,6 +42,9 @@ export async function inventoryRequest<T extends z.ZodType>(
             )
           : undefined,
         failure.data.correlationId,
+        undefined,
+        undefined,
+        failure.data.details,
       );
     }
     throw new ApiError(

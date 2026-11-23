@@ -14,7 +14,7 @@ import {
   WITHDRAWAL_BLOCK_LABELS,
   lateIssueLabel,
 } from "@/constants/labels-einvoice";
-import { formatDateTime, toLocalIsoDate } from "@/lib/format/date";
+import { formatDate, formatDateTime, toLocalIsoDate } from "@/lib/format/date";
 import { statusLabelVi } from "@/lib/status-map";
 
 import type { EInvoiceStatusRead } from "@/constants/einvoice";
@@ -108,6 +108,32 @@ export function withdrawalBlockedText(
   return blocked === "TOO_RECENT" && invoice.withdrawableFrom
     ? `${base} Rút được từ ${formatDateTime(invoice.withdrawableFrom)}.`
     : base;
+}
+
+/**
+ * Dòng tra lại giao dịch cũ sau khi rút / sau khi cơ quan thuế từ chối (audit r3 EINV-3, QĐ HĐ-1 bước 3: "sau khi rút có
+ * dòng 'đang tra lại tới ngày …'"): NCC vẫn phát hành (`watchFoundAt`) → cảnh báo trùng; còn trong hạn → "đang tra lại tới
+ * ngày"; đã qua hạn → đã tra xong. `tone` "warning" chỉ khi thấy NCC phát hành. Null khi BE không gửi mốc (không có giao
+ * dịch nào bị buông, hoặc BE cũ).
+ */
+export function transactionWatchText(
+  invoice: Partial<Pick<EInvoice, "watchUntil" | "watchFoundAt">>,
+  now: Date = new Date(),
+): { text: string; tone: "info" | "warning" } | null {
+  if (invoice.watchFoundAt)
+    return {
+      text: EINVOICE_LABELS.watch.found(formatDateTime(invoice.watchFoundAt)),
+      tone: "warning",
+    };
+  if (!invoice.watchUntil) return null;
+  const until = Date.parse(invoice.watchUntil);
+  if (Number.isNaN(until)) return null;
+  const day = formatDate(invoice.watchUntil);
+  return {
+    text:
+      until > now.getTime() ? EINVOICE_LABELS.watch.until(day) : EINVOICE_LABELS.watch.ended(day),
+    tone: "info",
+  };
 }
 
 /** Câu tiếng Việt cho từng cảnh báo BE; cảnh báo lạ → câu chung (BE có thể thêm loại mới). */

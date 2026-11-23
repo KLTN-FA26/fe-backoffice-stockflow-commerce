@@ -6,6 +6,7 @@
 import type {
   ReturnReadChannel,
   ReturnReadCustodyChoice,
+  ReturnReadCustodyNoteChoice,
   ReturnReadOutcome,
   ReturnReadReason,
   ReturnReadRefusalReason,
@@ -49,6 +50,14 @@ export const RETURN_CUSTODY_CHOICE_LABELS = {
   DESTROY_ON_BEHALF: "Công ty huỷ hộ (khách đồng ý, có biên bản)",
   UNKNOWN: UNKNOWN_LABEL,
 } as const satisfies Record<ReturnReadCustodyChoice, string>;
+
+/** Lựa chọn của khách cho hàng trên một biên nhận giữ hộ (audit r3 RAD-3, BE `ReturnCustodyNoteChoice`). */
+export const RETURN_CUSTODY_NOTE_CHOICE_LABELS = {
+  SEND_BACK: "Gửi trả khách (khách chịu phí)",
+  DESTROY_ON_BEHALF: "Công ty huỷ hộ (khách đồng ý, có biên bản)",
+  TAKEN_BY_RETURN: "Nhận trên yêu cầu trả hàng bổ sung",
+  UNKNOWN: UNKNOWN_LABEL,
+} as const satisfies Record<ReturnReadCustodyNoteChoice, string>;
 
 /** Thùng giữ hộ khách (BE `ownership`). */
 export const CUSTOMER_CUSTODY_OWNERSHIP_LABELS: Readonly<Record<string, string>> = {
@@ -174,6 +183,41 @@ export const RETURN_LABELS = {
       uploading: "Đang tải ảnh…",
       full: (max: number) => `Đã đủ ${max} biên nhận giữ hộ.`,
       receivedAt: "Ghi lúc",
+      // Audit r3 RAD-3 (Q-11 hỏi thêm): mỗi biên nhận có kết cục — Sale ghi lựa chọn của khách, Quản lý kho ghi đã rời kho
+      outcome: "Kết cục",
+      waitChoice: "Chờ Sale ghi lựa chọn của khách",
+      takenBy: (rma: string) => `Nhận trên ${rma}`,
+      chosenAt: (when: string) => `ghi lúc ${when}`,
+      endedAt: (when: string) => `Đã rời kho lúc ${when}`,
+      choose: "Ghi lựa chọn",
+      changeChoice: "Đổi lựa chọn",
+      end: "Đã rời kho",
+      choiceTitle: "Lựa chọn của khách cho hàng giữ hộ",
+      choiceHint:
+        "Hàng trên biên nhận này là của khách, không nhập kho. Ghi đúng điều khách chọn; Quản lý kho làm theo rồi ghi hàng đã rời kho.",
+      choice: "Khách chọn",
+      choiceNote: "Biên bản / ghi chú",
+      choiceNoteRequired: "Huỷ hộ phải nêu biên bản khách đồng ý.",
+      takenByReturn: "Yêu cầu trả hàng bổ sung",
+      takenByReturnHint: "Yêu cầu khác của cùng khách, chưa bị từ chối / rút / hết hạn.",
+      takenByReturnRequired: "Chọn yêu cầu trả hàng bổ sung nhận hàng này.",
+      noOtherReturn:
+        "Khách chưa có yêu cầu trả hàng nào khác còn nhận hàng — mở yêu cầu bổ sung trước.",
+      endTitle: "Ghi hàng giữ hộ đã rời kho",
+      endDescription: (what: string, choice: string) =>
+        `${what}: ${choice}. Không có bút toán kho — hàng giữ hộ chưa bao giờ nhập kho. Ghi số biên bản giao trả / biên bản huỷ / phiếu nhập của yêu cầu bổ sung. Ghi xong không sửa được.`,
+      endNote: "Biên bản",
+    },
+    // Audit r3 RAD-3 (TH-6): danh sách hàng giữ hộ trên biên nhận, cạnh thùng giữ hộ sau hoàn tiền
+    custodyNotes: {
+      title: "Hàng giữ hộ trên biên nhận (khác SKU, vượt số duyệt, về sau khi chốt tiền)",
+      none: "Không có hàng giữ hộ nào đang chờ.",
+      error: "Không tải được danh sách hàng giữ hộ.",
+      what: "Hàng",
+      quantity: "Số lượng",
+      returnRequest: "Yêu cầu",
+      keptAt: "Nhận giữ lúc",
+      outcome: "Kết cục",
     },
     review: "Quyết định của Sale",
     decidedAt: "Quyết định lúc",
@@ -212,7 +256,8 @@ export const RETURN_LABELS = {
     // WF-05 Q-4 (audit r2 returns H1): lựa chọn của khách cho hàng giữ hộ, Sale ghi; Quản lý kho thực hiện
     custodyChoice: {
       title: "Hàng của khách giữ hộ",
-      hint: "Yêu cầu kết thúc không hoàn tiền nên hàng về nguyên thùng vẫn là của khách: không nhập kho, giữ ở khu cách ly. Sale hỏi khách rồi ghi một trong hai lựa chọn; Quản lý kho thực hiện đúng lựa chọn đó.",
+      // Audit r3 RAD-1: tính theo từng SKU — thùng mà khoản hoàn không lấy lại (SKU không hoàn, thùng nguyên vượt số hoàn)
+      hint: "Thùng nguyên mà khoản hoàn tiền không lấy lại (SKU không được hoàn, hoặc thùng nguyên vượt số đơn vị được hoàn) vẫn là của khách: không nhập kho, giữ ở khu cách ly. Sale hỏi khách rồi ghi một trong hai lựa chọn; Quản lý kho thực hiện đúng lựa chọn đó.",
       choice: "Khách chọn",
       none: "Chưa ghi lựa chọn của khách — kho giữ nguyên hàng chờ.",
       note: "Biên bản / ghi chú",
@@ -221,7 +266,7 @@ export const RETURN_LABELS = {
       record: "Ghi lựa chọn của khách",
       change: "Đổi lựa chọn",
       submit: "Ghi lựa chọn",
-      cartons: "Thùng đang giữ hộ",
+      cartons: "Thùng giữ hộ",
       noCartons: "Không có thùng nào đang giữ hộ cho yêu cầu này.",
       cartonsError: "Không tải được danh sách thùng giữ hộ.",
       end: "Đã thực hiện",
@@ -362,6 +407,7 @@ export const RETURN_LABELS = {
     custodyAdded: "Đã ghi biên nhận giữ hộ",
     custodyChoiceRecorded: "Đã ghi lựa chọn của khách cho hàng giữ hộ",
     custodyEnded: "Đã ghi thực hiện lựa chọn của khách",
+    custodyNoteEnded: "Đã ghi hàng giữ hộ rời kho",
   },
 } as const;
 

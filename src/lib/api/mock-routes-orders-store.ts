@@ -731,6 +731,7 @@ function mockSettlementReadiness(order: Order, status: BeOrderStatus) {
     refundOutstanding: false,
     completionHeld: held,
     returnAdjustmentUnissued: false,
+    deliveryReductionUnissued: false,
     completesAt: branch === "COMPLETION" ? windowEnds : null,
     closesAt: null,
     blockers,

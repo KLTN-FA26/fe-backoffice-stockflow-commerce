@@ -1,7 +1,10 @@
 import {
   QUARANTINE_ACTION,
+  QUARANTINE_LABELS,
   QUARANTINE_PACKAGE_STATUS_IN_STOCK,
   QUARANTINE_STOCK_STATUS,
+  RETURN_OWNERSHIP_CUSTOMER,
+  RETURN_OWNERSHIP_PENDING,
 } from "@/constants/quarantine";
 import { INVENTORY_PERMISSIONS, STOCK_PACKAGE_PERMISSIONS } from "@/constants/permissions";
 import { STOCK_PACKAGE_API_STATUSES, STOCK_PACKAGE_STATUS_BY_API } from "@/constants/statuses";
@@ -50,6 +53,32 @@ export function openedOnReturnNotice(
 }
 
 /**
+ * Audit r3 RAD-4 (BE `StockPackageDetailResponse.returnOwnership`): the carton came back on a return request whose refund is
+ * not decided yet (PENDING), or it is the customer's (CUSTOMER_*: held for them, sent back, destroyed on their behalf). The
+ * warehouse cannot decide it: release and write-off answer 409 STOCK_PACKAGE_DECISION_PENDING. Before r3 the screen offered
+ * both and then explained the 409 as "another decision under way". COMPANY / null decide like any quarantined carton.
+ */
+export function awaitsReturnDecision(carton: Pick<StockPackageDetail, "returnOwnership">): boolean {
+  const ownership = carton.returnOwnership;
+  return (
+    ownership === RETURN_OWNERSHIP_PENDING || !!ownership?.startsWith(RETURN_OWNERSHIP_CUSTOMER)
+  );
+}
+
+/**
+ * Badge of such a carton: "Chờ duyệt hoàn tiền — RMA-…" while PENDING, "Hàng của khách (giữ hộ) — RMA-…" when it is the
+ * customer's; null otherwise.
+ */
+export function returnOwnershipBadge(
+  carton: Pick<StockPackageDetail, "returnOwnership" | "returnRmaNumber">,
+): string | null {
+  if (!awaitsReturnDecision(carton)) return null;
+  return carton.returnOwnership === RETURN_OWNERSHIP_PENDING
+    ? QUARANTINE_LABELS.refundPending(carton.returnRmaNumber ?? null)
+    : QUARANTINE_LABELS.customerOwned(carton.returnRmaNumber ?? null);
+}
+
+/**
  * Docs 20 §4.8, BR-21: only the warehouse manager quarantines / releases (`inventory-stock-packages:UPDATE`),
  * and only a carton that is still `In Stock`. A carton opened on return is never released (write-off only).
  * UI-only — StockPackageController re-checks all of it.
@@ -60,7 +89,10 @@ export function allowedQuarantineActions(
 ): QuarantineAction[] {
   if (carton.status !== QUARANTINE_PACKAGE_STATUS_IN_STOCK) return [];
   if (!can(STOCK_PACKAGE_PERMISSIONS.update)) return [];
-  if (isQuarantined(carton)) return isOpenedOnReturn(carton) ? [] : [QUARANTINE_ACTION.RELEASE];
+  if (isQuarantined(carton))
+    return isOpenedOnReturn(carton) || awaitsReturnDecision(carton)
+      ? []
+      : [QUARANTINE_ACTION.RELEASE];
   return isHeldForOrder(carton) ? [] : [QUARANTINE_ACTION.QUARANTINE];
 }
 
@@ -72,6 +104,7 @@ export function canWriteOffCarton(
   return (
     carton.status === QUARANTINE_PACKAGE_STATUS_IN_STOCK &&
     isQuarantined(carton) &&
+    !awaitsReturnDecision(carton) &&
     can(INVENTORY_PERMISSIONS.stockUpdate)
   );
 }

@@ -164,6 +164,8 @@ function detail(i: MockEInvoice) {
     issuedVia: i.issuedVia ?? (i.issuedAt ? "PROVIDER" : null),
     ...withdrawability(i),
     ...externalReductions(i),
+    watchUntil: i.watchUntil ?? null,
+    watchFoundAt: i.watchFoundAt ?? null,
   };
 }
 
@@ -481,6 +483,8 @@ export function registerEInvoiceMockRoutes(): void {
         rejectionCode: "WITHDRAWN_NO_PROVIDER_RECORD",
         rejectionMessage: text(body.reason),
         warnings: i.warnings.filter((w) => w !== "UNKNOWN_TO_PROVIDER"),
+        // Audit r3 EINV-3: BE tra lại giao dịch vừa buông mỗi ngày trong 30 ngày
+        watchUntil: new Date(Date.now() + EINVOICE_TIMING.watchMs).toISOString(),
       });
       return touch(i);
     }),
@@ -505,6 +509,7 @@ export function registerEInvoiceMockRoutes(): void {
           status: "REJECTED",
           rejectionCode: "REFUSED_BY_TAX_AUTHORITY",
           rejectionMessage: String(form?.get("note") ?? ""),
+          watchUntil: new Date(Date.now() + EINVOICE_TIMING.watchMs).toISOString(),
         });
       }
       return touch(i);

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { ADMIN_ROUTES } from "@/constants";
+
 import { toSafeNotificationPath } from "./link";
 
 // Exact link BE InstallmentOverdueNotificationListener builds (order detail).
@@ -55,5 +57,24 @@ describe("toSafeNotificationPath — strict root-relative /admin policy (SCRUM-1
     ["oversized", `/admin/${"a".repeat(2100)}`],
   ])("rejects %s", (_, raw) => {
     expect(toSafeNotificationPath(raw)).toBeNull();
+  });
+});
+
+// Audit r3 EINV-6 (BE r3b): the e-invoice notices now name the back-office customer page, or the invoice's own page when
+// there is no customer; the old "/customers/{id}" led nowhere and still does.
+describe("toSafeNotificationPath — e-invoice notices (audit r3 EINV-6)", () => {
+  const customer = "0193a1b2-0000-7000-8000-000000000001";
+  const invoice = "0193a1b2-0000-7000-8000-000000000002";
+  it("opens the customer's page and the invoice's page as the BE writes them", () => {
+    expect(toSafeNotificationPath(`/admin/customers/${customer}`)).toBe(
+      ADMIN_ROUTES.customers.detail(customer),
+    );
+    expect(toSafeNotificationPath(`/invoicing/einvoices/${invoice}`)).toBe(
+      `${ADMIN_ROUTES.home}/invoicing/einvoices/${invoice}`,
+    );
+  });
+
+  it("the old link shape is still refused (it is not a back-office path)", () => {
+    expect(toSafeNotificationPath(`/customers/${customer}`)).toBeNull();
   });
 });

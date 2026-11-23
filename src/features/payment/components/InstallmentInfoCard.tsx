@@ -8,7 +8,12 @@ import { formatDateTime } from "@/lib/format/date";
 import { CustomerName } from "@/components/backoffice/CustomerName";
 import { DetailSection } from "@/components/shared/DetailSection";
 
-import { blocksHandover, deliveryBatchLabel, installmentTitle, milestoneLabel } from "../selectors";
+import {
+  blocksHandover,
+  deliveryBatchLabel,
+  installmentMilestoneLabel,
+  installmentTitle,
+} from "../selectors";
 
 import { CodeLink, DateCell, InfoRow, MoneyCell } from "./primitives";
 
@@ -36,7 +41,7 @@ export function InstallmentInfoCard({ installment: i }: { installment: Installme
         <InfoRow label={C.customer}>
           <CustomerName id={i.customerId} name={i.customerName} code={i.customerCode} />
         </InfoRow>
-        <InfoRow label={C.milestone}>{milestoneLabel(i.milestone)}</InfoRow>
+        <InfoRow label={C.milestone}>{installmentMilestoneLabel(i)}</InfoRow>
         <InfoRow label={C.deliveryBatch}>
           {deliveryBatchLabel(i)}
           {blocksHandover(i) && (

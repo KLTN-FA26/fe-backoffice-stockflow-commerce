@@ -472,6 +472,64 @@ describe("ShipmentScreen — sửa tay kết quả giao (docs 09 §4.3 bước 5
     );
   });
 
+  // Audit r3 EINV-1: X giao ngày D1 (hoá đơn gốc D1); D1 QLK sửa thành thất bại; D2 biết khách đã nhận → sửa ngược. Trước
+  // đây ô mặc định "bây giờ" (D2) → BE coi là lần giao mới: hoá đơn D1 bị giảm về 0 và lập hoá đơn D2 sai ngày.
+  describe("audit r3 EINV-1 — sửa ngược một lần thất bại vốn sửa từ đã giao", () => {
+    // D1 = 2026-10-22 10:00 giờ Việt Nam
+    const undone = () => ({ ...failed(), undoneDeliveredAt: "2026-10-22T03:00:00Z" });
+
+    it("ô điền sẵn thời điểm giao cũ; để nguyên thì không gửi deliveredAt (BE lấy lại đúng lần giao cũ), không cảnh báo", async () => {
+      const user = userEvent.setup();
+      const { post } = renderShipment(ACTORS.warehouseManagerFull, undone());
+      await user.click(await screen.findByRole("button", { name: C.action }));
+      const dialog = screen.getByRole("dialog");
+      expect(within(dialog).getByLabelText(O.deliveredAt)).toHaveValue("2026-10-22T10:00");
+      expect(within(dialog).getByText(C.deliveredAtUndoneHint)).toBeInTheDocument();
+      expect(within(dialog).queryByText(C.otherDayWarning)).not.toBeInTheDocument();
+      await user.type(
+        within(dialog).getByLabelText(new RegExp(C.reason)),
+        "Khách xác nhận đã nhận",
+      );
+      await user.click(within(dialog).getByRole("button", { name: C.submit }));
+      await waitFor(() =>
+        expect(post).toHaveBeenCalledWith(
+          `${PATH}/delivery-outcome-correction`,
+          expect.objectContaining({ outcome: "DELIVERED", deliveredAt: undefined }),
+        ),
+      );
+    });
+
+    it("đổi giờ cùng ngày: gửi giờ mới, không cảnh báo; đổi sang ngày khác: cảnh báo hoá đơn cũ bị giảm về 0", async () => {
+      const user = userEvent.setup();
+      const { post } = renderShipment(ACTORS.warehouseManagerFull, undone());
+      await user.click(await screen.findByRole("button", { name: C.action }));
+      const dialog = screen.getByRole("dialog");
+      const field = within(dialog).getByLabelText(O.deliveredAt);
+      fireEvent.change(field, { target: { value: "2026-10-22T15:30" } });
+      expect(within(dialog).queryByText(C.otherDayWarning)).not.toBeInTheDocument();
+      fireEvent.change(field, { target: { value: "2026-10-23T09:00" } });
+      expect(within(dialog).getByText(C.otherDayWarning)).toBeInTheDocument();
+      expect(C.otherDayWarning).toContain("hoá đơn cũ bị giảm về 0 và lập hoá đơn mới");
+      await user.type(within(dialog).getByLabelText(new RegExp(C.reason)), "Giao lại hôm sau");
+      await user.click(within(dialog).getByRole("button", { name: C.submit }));
+      await waitFor(() =>
+        expect(post).toHaveBeenCalledWith(
+          `${PATH}/delivery-outcome-correction`,
+          expect.objectContaining({ deliveredAt: "2026-10-23T02:00:00.000Z" }),
+        ),
+      );
+    });
+
+    it("không có lần giao bị sửa (BE cũ / thất bại do hãng): ô mặc định bây giờ, câu nói rõ BE tự lấy lại nếu có", async () => {
+      const user = userEvent.setup();
+      renderShipment(ACTORS.warehouseManagerFull, failed());
+      await user.click(await screen.findByRole("button", { name: C.action }));
+      const dialog = screen.getByRole("dialog");
+      expect(within(dialog).getByText(C.deliveredAtCorrectionHint)).toBeInTheDocument();
+      expect(within(dialog).queryByText(C.otherDayWarning)).not.toBeInTheDocument();
+    });
+  });
+
   it("hộp thoại cao cuộn được, nút Lưu nằm ngoài vùng cuộn (màn thấp vẫn bấm được)", async () => {
     const user = userEvent.setup();
     renderShipment(ACTORS.warehouseManagerFull, delivered());

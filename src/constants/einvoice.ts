@@ -322,6 +322,8 @@ export const EINVOICE_TIMING = {
   withdrawAfterMs: 3 * 60 * 60 * 1000,
   /** `withdraw-unknown-after` (1 ngày): NCC "không trả lời được" (UNKNOWN) thì phải chờ lâu hơn. */
   withdrawUnknownAfterMs: 24 * 60 * 60 * 1000,
+  /** QĐ HĐ-1 bước 3: giao dịch bị buông được tra lại mỗi ngày trong 30 ngày (BE `watchUntil`) — chỉ mock dùng. */
+  watchMs: 30 * 24 * 60 * 60 * 1000,
 } as const;
 
 export const EINVOICE_STORAGE_KEYS = {

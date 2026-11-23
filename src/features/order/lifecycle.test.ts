@@ -225,6 +225,7 @@ const BASE_CONTEXT: OrderActionContext = {
   packedAt: null,
   firstLabeledAt: null,
   statusBeforeHold: null,
+  settlementBranch: null,
 };
 
 const codes = (status: OrderReadStatus, role: Role, context?: Partial<OrderActionContext>) =>
@@ -562,6 +563,25 @@ describe("allowedOrderActions — Đóng phần còn lại (sales-order-cancella
     expect(codes("Shipped", "ORDER_COORDINATOR")).not.toContain("remainder-closure");
   });
 
+  // Audit r3 LM-4: S1 giao, S2 hãng chở về và nhập xong, không còn gì để giao — đơn nằm PARTIALLY_FULFILLED ~30 ngày chờ
+  // tự đóng (BE-45). BE nói nhánh REFUND_CLOSE (`Order.endedByCarrier`); `closeRemainder` không còn gì để đóng → 409.
+  it("đơn PF hãng đã kết thúc (nhánh REFUND_CLOSE) → không có Đóng phần còn lại; nhánh khác / không có khối vẫn có", () => {
+    const pf = { hasShipments: true, packedAt: PACKED_AT } as const;
+    expect(
+      codes("Partially Fulfilled", "SALES_STAFF", { ...pf, settlementBranch: "REFUND_CLOSE" }),
+    ).not.toContain("remainder-closure");
+    expect(
+      codes("Partially Fulfilled", "SALES_STAFF", { ...pf, settlementBranch: "NONE" }),
+    ).toContain("remainder-closure");
+    expect(
+      codes("Partially Fulfilled", "SALES_STAFF", { ...pf, settlementBranch: null }),
+    ).toContain("remainder-closure");
+    // Chưa biết nhánh (dòng danh sách không mang khối) → ẩn, không đoán
+    expect(
+      codes("Partially Fulfilled", "SALES_STAFF", { ...pf, settlementBranch: undefined }),
+    ).not.toContain("remainder-closure");
+  });
+
   it("đích theo các lô giao — không ép một trạng thái", () => {
     const closure = ORDER_ACTIONS.find((action) => action.code === "remainder-closure");
     expect(closure?.outcome).toEqual({
@@ -628,6 +648,7 @@ describe("allowedOrderActions — trạng thái lạ + định nghĩa action", (
         packedAt: null,
         firstLabeledAt: "2026-11-10T02:00:00Z",
         statusBeforeHold: null,
+        settlementReadiness: null,
       }),
     ).toEqual({
       holdReason: "CREDIT",
@@ -635,6 +656,7 @@ describe("allowedOrderActions — trạng thái lạ + định nghĩa action", (
       packedAt: null,
       firstLabeledAt: "2026-11-10T02:00:00Z",
       statusBeforeHold: null,
+      settlementBranch: null,
     });
   });
 });

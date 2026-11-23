@@ -195,6 +195,12 @@ const settlementDtoSchema = z.object({
    * REMAINDER_CLOSED: phần còn lại khi lần đóng đó kết thúc đơn mà không giao được gì; 0 / vắng với loại khác, BE cũ.
    */
   shippingFeeWaived: z.number().nullish(),
+  /**
+   * Audit r3 LM-3 (BE r3a `carriedToFee`): REMAINDER_CLOSED — phần các đợt trả trước khi giao của lô bị đóng cả lô còn phải
+   * trả trên giá trị hàng đã đóng (phần phí khuôn, phí vận chuyển), chuyển sang khoản phí `feeItemId`, đến hạn từ ngày đóng.
+   * Nằm trong `reduced`, phải trả cạnh `feeOwed`. 0 / vắng với loại khác, BE cũ.
+   */
+  carriedToFee: z.number().nullish(),
 });
 
 /** BE `OrderRefundResponse`; `settlements` / `records` vắng ở danh sách. */

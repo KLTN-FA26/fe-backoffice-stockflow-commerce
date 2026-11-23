@@ -1,3 +1,4 @@
+export { DrawUpDialog } from "./components/DrawUpDialog";
 export { EInvoiceDetail } from "./components/EInvoiceDetail";
 export { EInvoiceList } from "./components/EInvoiceList";
 export { EInvoiceRegister } from "./components/EInvoiceRegister";

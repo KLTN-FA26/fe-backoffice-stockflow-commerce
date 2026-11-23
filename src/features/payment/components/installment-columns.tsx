@@ -8,7 +8,13 @@ import { PAYMENT_LABELS, PAYMENT_LIST_LABELS } from "@/constants/labels-payment"
 import { PAYMENT_ROUTES } from "@/constants/payment";
 import { CustomerName } from "@/components/backoffice/CustomerName";
 
-import { blocksHandover, daysOverdue, deliveryBatchLabel, milestoneLabel } from "../selectors";
+import {
+  blocksHandover,
+  daysOverdue,
+  deliveryBatchLabel,
+  installmentMilestoneLabel,
+  installmentName,
+} from "../selectors";
 
 import { MONO } from "./copy";
 import { CodeLink, DateCell, InstallmentStatusDot, MoneyCell } from "./primitives";
@@ -101,11 +107,11 @@ export function buildInstallmentColumns(
             href={PAYMENT_ROUTES.installments.detail(row.installmentId)}
             className="text-accent-text font-medium hover:underline"
           >
-            <span className={MONO}>{row.seq}</span> — {row.name}
+            <span className={MONO}>{row.seq}</span> — {installmentName(row.name)}
           </Link>
         ) : (
           <span className="text-ink-primary">
-            <span className={MONO}>{row.seq}</span> — {row.name}
+            <span className={MONO}>{row.seq}</span> — {installmentName(row.name)}
           </span>
         ),
     },
@@ -153,7 +159,7 @@ export function buildInstallmentColumns(
         <CodeLink href={ADMIN_ROUTES.orders.detail(row.orderId)}>{row.orderNumber}</CodeLink>
       ),
     },
-    { key: "milestone", header: C.milestone, cell: (row) => milestoneLabel(row.milestone) },
+    { key: "milestone", header: C.milestone, cell: (row) => installmentMilestoneLabel(row) },
     {
       key: "batch",
       header: C.batch,

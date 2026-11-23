@@ -60,6 +60,14 @@ export const SETTLEMENT_READINESS_LABELS = {
   /** Q-16: điều chỉnh trả hàng chưa phát hành KHÔNG chặn đóng, chỉ là dòng thông tin. */
   returnAdjustmentUnissued:
     "Còn hoá đơn điều chỉnh trả hàng chưa phát hành — không chặn đóng đơn; Kế toán vẫn phát hành được sau khi đóng.",
+  /**
+   * Audit r3 EINV-7 (QĐ HĐ-3, Q-16): bản giảm do giao không thành công (hoá đơn của lô giảm về 0, phí vận chuyển được miễn
+   * giảm trên hoá đơn phần phí còn lại) chưa phát hành — thông tin, không chặn đóng.
+   */
+  deliveryReductionUnissued:
+    "Còn bản giảm (giao không thành công) chưa phát hành — không chặn đóng đơn; Kế toán phát hành ở màn hoá đơn.",
+  /** Blocker SHIPPING_FEE_UNINVOICED: lập hoá đơn phần phí còn lại (BE `POST /einvoices {orderId}`, không lần giao). */
+  drawUpFeeRest: "Lập hoá đơn phần phí còn lại",
   /** Hàng "Hoàn tiền" khi không có tiền phải hoàn nhưng có phí được miễn / còn thiếu (Q-19). */
   nothingToRefund: "Không có tiền phải hoàn",
   /** Audit r2 M-6: đơn "Hoàn tiền một phần" mà chưa hoàn đồng nào (dữ liệu trước bản sửa BE-45). */

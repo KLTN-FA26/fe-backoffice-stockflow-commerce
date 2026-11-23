@@ -99,9 +99,7 @@ describe("audit r2 M-10: recording a portal reduction follows the BE's options",
     // Căn cứ duy nhất BE nhận lúc này: trả hàng; căn cứ lạ bị bỏ
     await userEvent.click(within(dialog).getByRole("combobox", { name: /Căn cứ giảm/ }));
     const options = await screen.findAllByRole("option");
-    expect(options.map((option) => option.textContent)).toEqual([
-      "Trả hàng (giảm trên hoá đơn thay thế)",
-    ]);
+    expect(options.map((option) => option.textContent)).toEqual(["Trả hàng (hàng đã hoàn tiền)"]);
     await userEvent.keyboard("{Escape}");
     // Một yêu cầu chờ giảm → chọn sẵn
     expect(within(dialog).getByRole("combobox", { name: /Yêu cầu trả hàng/ })).toHaveTextContent(

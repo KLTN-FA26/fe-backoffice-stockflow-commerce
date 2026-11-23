@@ -22,6 +22,7 @@ import { custodyInputSchema } from "../input-schemas";
 import { useAddCustody } from "../mutations";
 import { custodyEvidence, evidenceFileProblem } from "../selectors";
 
+import { CustodyNoteActions, CustodyOutcomeText } from "./CustodyNoteActions";
 import { EMPTY, MONO, When } from "./primitives";
 
 import type { CustodyFormValues, ReturnRequest } from "../types";
@@ -148,6 +149,14 @@ function CustodyForm({ ret }: { ret: ReturnRequest }) {
   );
 }
 
+/** "SKU × 4" / "LPN × 4" — hàng trên biên nhận, cho câu xác nhận ghi rời kho. */
+export function custodyWhat(
+  custody: { sku?: string | null; lpn?: string | null; quantity: number } | null | undefined,
+): string {
+  if (!custody) return EMPTY;
+  return `${custody.lpn ?? custody.sku ?? EMPTY} × ${custody.quantity.toLocaleString("vi-VN")}`;
+}
+
 /**
  * Biên nhận giữ hộ của yêu cầu (WF-05 Q-11; BE G4 `/returns/{id}/custody`, stage CUSTODY): hàng về mà phiếu nhập hàng
  * hoàn không nhận — SKU không được duyệt (`RETURN_CARTON_NOT_CLAIMED`), vượt số duyệt (`RETURN_LOOSE_EXCEEDS_APPROVED`),
@@ -201,6 +210,9 @@ export function ReturnCustodyCard({ ret, canAdd }: { ret: ReturnRequest; canAdd:
                 <th scope="col" className={TH}>
                   {C.receivedAt}
                 </th>
+                <th scope="col" className={TH}>
+                  {C.outcome}
+                </th>
                 <th scope="col" className={TH} aria-label={D.openPhoto} />
               </tr>
             </thead>
@@ -216,7 +228,21 @@ export function ReturnCustodyCard({ ret, canAdd }: { ret: ReturnRequest; canAdd:
                   <td className="py-1.5 pr-3">
                     <When iso={photo.uploadedAt} />
                   </td>
-                  <td className="py-1.5 text-right">
+                  {/* Audit r3 RAD-3: kết cục của hàng giữ hộ — lựa chọn của khách, đã rời kho */}
+                  <td className="py-1.5 pr-3">
+                    <CustodyOutcomeText outcome={photo.custody?.outcome} />
+                  </td>
+                  <td className="space-x-1.5 py-1.5 text-right whitespace-nowrap">
+                    <CustodyNoteActions
+                      target={{
+                        returnId: ret.id,
+                        rmaNumber: ret.rmaNumber,
+                        customerId: ret.customerId,
+                        evidenceId: photo.id,
+                        outcome: photo.custody?.outcome,
+                        what: custodyWhat(photo.custody),
+                      }}
+                    />
                     <Button
                       type="button"
                       variant="outline"

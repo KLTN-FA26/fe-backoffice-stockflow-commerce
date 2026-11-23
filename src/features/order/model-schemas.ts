@@ -83,6 +83,8 @@ export const settlementReadinessSchema = z.object({
   returnAdjustmentUnissued: z.boolean(),
   /** Sale giữ hoàn tất được ngay (BE `completionHoldable`). */
   completionHoldable: z.boolean(),
+  /** Audit r3 EINV-7: còn bản giảm do giao không thành công chưa phát hành — dòng thông tin, không chặn. */
+  deliveryReductionUnissued: z.boolean(),
 });
 
 /** Dòng phí của đơn (4B-3); field BE vắng → null. */

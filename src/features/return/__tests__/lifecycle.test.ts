@@ -17,6 +17,8 @@ import {
   allowedReturnReceiptActions,
   canAddCustody,
   canAddReturnEvidence,
+  canChooseForCustodyNote,
+  canEndCustodyNote,
   canRecordCustodyChoice,
   isReturnOpen,
   needsManagerConfirmation,
@@ -332,25 +334,46 @@ describe("WF-05 decisions on the return screen", () => {
     expect(allowedReturnActions(pending, approver, "u-other")).toContain("approveSettlement");
   });
 
-  it("audit r2 returns H1: Sales record the customer's custody choice only on a return that refunded nothing", () => {
-    const resolved = {
-      status: "RESOLVED" as const,
-      outcome: "REFUSED" as const,
-      lines: [{ ...line(2, 2), refundQuantity: 0 }],
+  // Audit r3 RAD-1: cartons are settled per SKU — a return that refunded one SKU can still hold another SKU's cartons (or
+  // whole cartons beyond the units refunded) for the customer. The gate is the BE's `custodyCartons`, not "nothing refunded".
+  it("audit r3 RAD-1: Sales record the custody choice on a RESOLVED return with a carton still held, refunded or not", () => {
+    const held = {
+      lpn: "L-16OZ",
+      quantity: 50,
+      ownership: "CUSTOMER_HELD",
+      endedAt: null,
     };
+    const resolved = { status: "RESOLVED" as const, custodyCartons: [held] };
     expect(canRecordCustodyChoice(resolved, as(SALES))).toBe(true);
-    expect(canRecordCustodyChoice({ ...resolved, outcome: "NOTHING_TO_REFUND" }, as(SALES))).toBe(
-      true,
-    );
-    expect(canRecordCustodyChoice({ ...resolved, outcome: "REFUNDED" }, as(SALES))).toBe(false);
+    // carried out already, or no held carton, or not known (older BE) → no button
     expect(
       canRecordCustodyChoice(
-        { ...resolved, lines: [{ ...line(2, 2), refundQuantity: 1 }] },
+        {
+          ...resolved,
+          custodyCartons: [
+            { ...held, ownership: "CUSTOMER_SENT_BACK", endedAt: "2026-11-24T00:00:00Z" },
+          ],
+        },
         as(SALES),
       ),
     ).toBe(false);
+    expect(canRecordCustodyChoice({ ...resolved, custodyCartons: [] }, as(SALES))).toBe(false);
+    expect(canRecordCustodyChoice({ ...resolved, custodyCartons: null }, as(SALES))).toBe(false);
     expect(canRecordCustodyChoice({ ...resolved, status: "RECEIVED" }, as(SALES))).toBe(false);
     expect(canRecordCustodyChoice(resolved, as(WAREHOUSE))).toBe(false);
+  });
+
+  it("audit r3 RAD-3: Sales choose for a custody note until it ended; the warehouse manager ends it once chosen", () => {
+    const chosen = { endedAt: null };
+    expect(canChooseForCustodyNote(null, as(SALES))).toBe(true);
+    expect(canChooseForCustodyNote(chosen, as(SALES))).toBe(true);
+    expect(canChooseForCustodyNote({ endedAt: "2026-11-24T00:00:00Z" }, as(SALES))).toBe(false);
+    expect(canChooseForCustodyNote(null, as(WAREHOUSE))).toBe(false);
+    const manager = as([...WAREHOUSE, RMA_CUSTODY_PERMISSIONS.update]);
+    expect(canEndCustodyNote(null, manager)).toBe(false);
+    expect(canEndCustodyNote(chosen, manager)).toBe(true);
+    expect(canEndCustodyNote({ endedAt: "2026-11-24T00:00:00Z" }, manager)).toBe(false);
+    expect(canEndCustodyNote(chosen, as(SALES))).toBe(false);
   });
 });
 

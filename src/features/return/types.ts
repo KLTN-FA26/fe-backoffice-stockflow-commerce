@@ -12,7 +12,10 @@ import type {
   scanInputSchema,
 } from "./input-schemas";
 import type {
+  custodyNoteDtoSchema,
+  custodyOutcomeDtoSchema,
   customerCustodyDtoSchema,
+  heldCartonDtoSchema,
   expectedCartonDtoSchema,
   returnedShipmentDtoSchema,
   returnEvidenceDtoSchema,
@@ -39,6 +42,9 @@ export type ReturnLooseLine = z.infer<typeof returnLooseLineDtoSchema>;
 export type ReturnParcel = z.infer<typeof returnParcelDtoSchema>;
 export type ExpectedCarton = z.infer<typeof expectedCartonDtoSchema>;
 export type CustomerCustodyCarton = z.infer<typeof customerCustodyDtoSchema>;
+export type HeldCarton = z.infer<typeof heldCartonDtoSchema>;
+export type CustodyOutcome = z.infer<typeof custodyOutcomeDtoSchema>;
+export type CustodyNote = z.infer<typeof custodyNoteDtoSchema>;
 export type ReturnedShipment = z.infer<typeof returnedShipmentDtoSchema>;
 
 export type ApproveFormValues = z.input<typeof approveInputSchema>;

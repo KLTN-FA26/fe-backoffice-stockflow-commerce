@@ -17,7 +17,12 @@
 import { RETURN_LIMITS, RETURN_REFUSAL_REASONS } from "@/constants/returns";
 
 import { registerMockRoute } from "./mock-adapter";
-import { custodyChoiceRefusal, registerCustomerCustodyMockRoutes } from "./mock-customer-custody";
+import {
+  custodyChoiceRefusal,
+  mockCustodyCartons,
+  mockCustodyOutcome,
+  registerCustomerCustodyMockRoutes,
+} from "./mock-customer-custody";
 import {
   mockReceiptDraftOpen,
   mockReceiptOpenable,
@@ -73,6 +78,16 @@ function wire(ret: MockReturn) {
     custodyChoiceNote: ret.custodyChoiceNote ?? null,
     custodyChoiceBy: ret.custodyChoiceBy ?? null,
     custodyChoiceAt: ret.custodyChoiceAt ?? null,
+    // Audit r3 RAD-1 / RAD-3: thùng giữ hộ theo SKU, kết cục của từng biên nhận giữ hộ
+    custodyCartons: mockCustodyCartons(ret),
+    evidence: ret.evidence.map((evidence) =>
+      evidence.custody
+        ? {
+            ...evidence,
+            custody: { ...evidence.custody, outcome: mockCustodyOutcome(evidence.id) },
+          }
+        : evidence,
+    ),
   };
 }
 
@@ -99,6 +114,8 @@ function row(ret: MockReturn) {
     receiptOpenable: mockReceiptOpenable(ret),
     receiptDraftOpen: mockReceiptDraftOpen(ret),
     outcome: outcomeOf(ret),
+    // Audit r2 money L-6 (BE r3c): mã lý do không hoàn ở dòng danh sách
+    refusalReason: ret.refusalReason ?? null,
     version: ret.version,
   };
 }
@@ -517,6 +534,8 @@ async function open(orderId: string, body: Record<string, unknown>) {
 }
 
 export function registerReturnMockRoutes(): void {
+  // Trước `/returns/:id`: khớp theo thứ tự đăng ký, `/returns/custody-notes` (audit r3 RAD-3) không được đọc thành một id
+  registerCustomerCustodyMockRoutes(wire);
   registerMockRoute("GET", "/returns", (config) => list(queryOf(config)));
   registerMockRoute("GET", "/returns/:id", (config) => {
     const ret = byId(pathParams(config).id ?? "");
@@ -542,7 +561,6 @@ export function registerReturnMockRoutes(): void {
   registerMockRoute("POST", "/returns/:id/goods-complete", step(goodsComplete));
   registerMockRoute("POST", "/returns/:id/closure-without-refund", step(closeWithoutRefund));
   registerMockRoute("POST", "/returns/:id/custody-choice", step(recordCustodyChoice));
-  registerCustomerCustodyMockRoutes();
   // `/evidence/uploads` trước `/evidence` không cần (khác số đoạn) — giữ cạnh nhau cho dễ đọc
   registerMockRoute("POST", "/returns/:id/evidence/uploads", step(beginEvidenceUpload));
   registerMockRoute("POST", "/returns/:id/evidence", step(attachEvidence));

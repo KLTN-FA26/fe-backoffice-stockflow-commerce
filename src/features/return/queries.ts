@@ -5,11 +5,11 @@ import { QUERY_TIMES } from "@/lib/api/query-client";
 import { createDetailQuery, createListQuery, createQueryKeys } from "@/lib/api/query-factory";
 
 import { getReturn, listReturns } from "./api";
-import { listCustomerCustody } from "./custody-api";
+import { listCustodyNotes, listCustomerCustody } from "./custody-api";
 import { getReturnReceipt, listReturnedShipments, listReturnReceipts } from "./receipt-api";
 
 import type { ListReturnParams } from "./api";
-import type { CustomerCustodyParams } from "./custody-api";
+import type { CustodyNoteParams, CustomerCustodyParams } from "./custody-api";
 import type { ListReturnReceiptParams } from "./receipt-api";
 import type { ReturnReceipt, ReturnReceiptRow, ReturnRequest, ReturnRow } from "./types";
 
@@ -17,6 +17,17 @@ export const returnKeys = createQueryKeys<ListReturnParams>("returns");
 export const returnReceiptKeys = createQueryKeys<ListReturnReceiptParams>("return-receipts");
 /** Thùng giữ hộ khách (WF-05 Q-4) — khoá riêng: kho đọc, Sale đổi lựa chọn, Quản lý kho thực hiện. */
 export const customerCustodyKeys = { all: ["customer-custody"] as const };
+/** Hàng giữ hộ trên biên nhận (audit r3 RAD-3): Sale ghi lựa chọn, Quản lý kho ghi đã rời kho. */
+export const custodyNoteKeys = { all: ["custody-notes"] as const };
+
+/** Hàng giữ hộ trên biên nhận (`GET /returns/custody-notes`), theo yêu cầu hoặc toàn kho. */
+export const useCustodyNotes = (params: CustodyNoteParams, enabled = true) =>
+  useQuery({
+    queryKey: [...custodyNoteKeys.all, params],
+    queryFn: ({ signal }) => listCustodyNotes(params, signal),
+    enabled,
+    ...QUERY_TIMES.list,
+  });
 
 /** Thùng giữ hộ khách (`GET /inventory/stock-packages/customer-custody`), theo yêu cầu hoặc toàn kho. */
 export const useCustomerCustody = (params: CustomerCustodyParams, enabled = true) =>

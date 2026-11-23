@@ -12,6 +12,7 @@ import {
   INVENTORY_LABELS,
   INVENTORY_MESSAGES,
 } from "@/constants/inventory";
+import { QUARANTINE_ERROR_MESSAGES } from "@/constants/quarantine";
 
 import { ApiError } from "@/lib/api/error";
 
@@ -129,6 +130,18 @@ function kindOfStatus(status: number): InventoryErrorKind {
 export function inventoryErrorView(error: unknown): InventoryErrorView {
   if (!(error instanceof ApiError)) {
     return { kind: "server", title: TITLES.server, detail: FALLBACK.server };
+  }
+  // Audit r3 RAD-4: same code, but the carton waits for its return's refund decision (`details.returnOwnership`)
+  if (
+    error.code === "STOCK_PACKAGE_DECISION_PENDING" &&
+    typeof error.details?.returnOwnership === "string"
+  ) {
+    return {
+      kind: "conflict",
+      title: TITLES.conflict,
+      detail: QUARANTINE_ERROR_MESSAGES.refundDecisionPending(null),
+      traceId: error.traceId,
+    };
   }
   const view = known(error.code);
   if (view) return { ...view, traceId: error.traceId };

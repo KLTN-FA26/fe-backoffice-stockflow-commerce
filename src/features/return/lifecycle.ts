@@ -24,7 +24,10 @@ import type {
   ReturnReceiptReadStatus,
 } from "@/constants/returns";
 import type { PermissionCode } from "@/lib/auth/me-permissions";
-import type { ReturnReceipt, ReturnRequest } from "./types";
+import type { CustodyOutcome, ReturnReceipt, ReturnRequest } from "./types";
+
+/** Thùng đang giữ hộ khách (BE `ReturnedCartonOwnership.CUSTOMER_HELD`). */
+const CUSTOMER_HELD_OWNERSHIP = "CUSTOMER_HELD";
 
 /**
  * BE `ReturnStatus.canTransitionTo`. Phiếu nhập mở trước khi hết hạn / bị rút vẫn đưa hàng về (EXPIRED / CANCELLED →
@@ -222,21 +225,44 @@ export function canAddCustody(_ret: Pick<ReturnRequest, "status">, can: Can): bo
 }
 
 /**
- * Sale ghi lựa chọn của khách cho hàng giữ hộ (WF-05 Q-4, audit r2 returns H1; BE `ReturnRequest.recordCustodyChoice`): yêu
- * cầu RESOLVED mà không đơn vị nào được hoàn (`outcome` REFUSED / NOTHING_TO_REFUND) — hàng về nguyên thùng vẫn là của khách.
- * Quyền `sales-rmas:UPDATE`. BE còn từ chối khi không có thùng nào đang giữ hộ hoặc kho đã thực hiện — màn nói lý do theo
- * mã lỗi. UI-only — BE kiểm lại.
+ * Sale ghi lựa chọn của khách cho thùng giữ hộ (WF-05 Q-4; BE `ReturnRequest.recordCustodyChoice`): yêu cầu RESOLVED có ít
+ * nhất một thùng đang giữ hộ chưa xử lý (`custodyCartons`, BE r3c). Audit r3 RAD-1: thùng tính theo từng SKU — một yêu cầu
+ * CÓ hoàn tiền vẫn có thể giữ hộ thùng của SKU không hoàn, hay thùng nguyên vượt số đơn vị được hoàn; điều kiện cũ "không
+ * đơn vị nào được hoàn" đã bỏ. `custodyCartons` vắng (BE cũ) → không mở. Quyền `sales-rmas:UPDATE`. UI-only — BE kiểm lại.
  */
 export function canRecordCustodyChoice(
-  ret: Pick<ReturnRequest, "status" | "outcome" | "lines">,
+  ret: Pick<ReturnRequest, "status" | "custodyCartons">,
   can: Can,
 ): boolean {
   return (
     ret.status === "RESOLVED" &&
-    (ret.outcome === "REFUSED" || ret.outcome === "NOTHING_TO_REFUND") &&
-    ret.lines.every((line) => line.refundQuantity === 0) &&
+    (ret.custodyCartons ?? []).some(
+      (carton) => carton.ownership === CUSTOMER_HELD_OWNERSHIP && !carton.endedAt,
+    ) &&
     can(RMA_PERMISSIONS.update)
   );
+}
+
+/**
+ * Audit r3 RAD-3 (Q-11 hỏi thêm; BE `ReturnRequest.chooseForCustody`): Sale ghi / đổi lựa chọn của khách cho hàng trên một
+ * biên nhận giữ hộ — ở mọi trạng thái của yêu cầu, khi hàng chưa rời kho. `sales-rmas:UPDATE` (chỉ back office). UI-only.
+ */
+export function canChooseForCustodyNote(
+  outcome: Pick<CustodyOutcome, "endedAt"> | null | undefined,
+  can: Can,
+): boolean {
+  return !outcome?.endedAt && can(RMA_PERMISSIONS.update);
+}
+
+/**
+ * Audit r3 RAD-3 (TH-6; BE `ReturnRequest.endCustody`): Quản lý kho ghi hàng trên biên nhận đã rời kho — chỉ khi Sale đã ghi
+ * lựa chọn (không có → BE 409 RETURN_CUSTODY_CHOICE_REQUIRED) và chưa ghi rời kho. `sales-rma-custody:UPDATE`. UI-only.
+ */
+export function canEndCustodyNote(
+  outcome: Pick<CustodyOutcome, "endedAt"> | null | undefined,
+  can: Can,
+): boolean {
+  return !!outcome && !outcome.endedAt && can(RMA_CUSTODY_PERMISSIONS.update);
 }
 
 /** BE `ReturnStatus.isOpen`. Trạng thái lạ (UNKNOWN) không coi là đang mở — BE vẫn kiểm lại mọi thao tác. */

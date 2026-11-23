@@ -218,6 +218,12 @@ export const settlementReadinessDtoSchema = z
      * đúng luật BE áp khi giữ, false khi đang giữ. Vắng (BE cũ) → false: không đoán bằng luật riêng của FE.
      */
     completionHoldable: flag,
+    /**
+     * Audit r3 EINV-7 (BE r3b): còn bản giảm do giao không thành công của đơn (hoá đơn của lô giảm về 0, hoặc phần phí vận
+     * chuyển được miễn giảm trên hoá đơn phần phí còn lại) là nháp / bị từ chối / đang ở NCC — dòng thông tin như Q-16,
+     * không chặn đóng. Vắng (BE cũ) → false.
+     */
+    deliveryReductionUnissued: flag,
   })
   .transform((dto) => ({
     branch: dto.branch ?? ORDER_STATUS_UNKNOWN,
@@ -238,6 +244,7 @@ export const settlementReadinessDtoSchema = z
     ),
     returnAdjustmentUnissued: dto.returnAdjustmentUnissued,
     completionHoldable: dto.completionHoldable,
+    deliveryReductionUnissued: dto.deliveryReductionUnissued,
   }));
 
 /** BE `OrderResponse.Fee` (4B-3, 14 BR-17/BR-20/BR-21): dòng phí của đơn kèm VAT; `kind` lạ → `UNKNOWN`. */

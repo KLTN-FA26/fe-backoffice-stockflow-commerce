@@ -23,9 +23,9 @@ import {
   rejectReturn,
   rejectSettlement,
 } from "./api";
-import { endCustomerCustody } from "./custody-api";
+import { chooseForCustodyNote, endCustodyNote, endCustomerCustody } from "./custody-api";
 import { RETURN_STALE_CODES } from "./errors";
-import { customerCustodyKeys, returnKeys, returnReceiptKeys } from "./queries";
+import { custodyNoteKeys, customerCustodyKeys, returnKeys, returnReceiptKeys } from "./queries";
 import {
   cancelReturnReceipt,
   confirmReturnReceipt,
@@ -112,6 +112,19 @@ export const useRecordCustodyChoice = returnMutation(recordCustodyChoice, S.cust
 /** Quản lý kho đã giao trả / huỷ hộ một thùng giữ hộ — thùng ngoài sổ, không đổi tồn. */
 export const useEndCustomerCustody = returnMutation(endCustomerCustody, S.custodyEnded, [
   customerCustodyKeys.all,
+  // Audit r3 RAD-3: chi tiết yêu cầu liệt kê thùng giữ hộ (`custodyCartons`) — làm mới cả nó
+  returnKeys.all,
+]);
+/** Audit r3 RAD-3: Sale ghi lựa chọn của khách cho hàng trên một biên nhận giữ hộ. */
+export const useChooseForCustodyNote = returnMutation(
+  chooseForCustodyNote,
+  S.custodyChoiceRecorded,
+  [returnKeys.all, custodyNoteKeys.all],
+);
+/** Audit r3 RAD-3: Quản lý kho ghi hàng trên biên nhận đã rời kho — không bút toán kho (hàng chưa từng nhập). */
+export const useEndCustodyNote = returnMutation(endCustodyNote, S.custodyNoteEnded, [
+  returnKeys.all,
+  custodyNoteKeys.all,
 ]);
 /** Biên nhận giữ hộ (WF-05 Q-11): chỉ ghi trên yêu cầu — không tồn kho, không tiền. */
 export const useAddCustody = returnMutation(addCustody, S.custodyAdded, [returnKeys.all]);

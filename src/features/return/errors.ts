@@ -96,6 +96,9 @@ export const RETURN_ERROR_MESSAGES: Readonly<Record<string, string>> = {
     "Thùng này về bị mở (ít hơn số trên nhãn) nên không gỡ cách ly để bán lại được — chỉ ghi giảm.",
   ORDER_DELIVERY_HAS_RETURN:
     "Lô giao này đã có yêu cầu trả hàng nên không sửa thành giao thất bại được.",
+  // Audit r3 RAD-3 (BE r3c, 409): Quản lý kho ghi hàng giữ hộ đã rời kho khi Sale chưa ghi lựa chọn của khách
+  RETURN_CUSTODY_CHOICE_REQUIRED:
+    "Sale chưa ghi lựa chọn của khách cho hàng giữ hộ này — kho giữ nguyên hàng, chưa ghi rời kho được.",
 };
 
 export function returnErrorMessage(error: unknown): string {
@@ -116,7 +119,7 @@ export function cancelReturnErrorMessage(error: unknown): string {
 export function custodyChoiceErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.code === "RETURN_INVALID_TRANSITION")
-      return "Yêu cầu này không có hàng giữ hộ để ghi lựa chọn (đã hoàn tiền một phần, chưa kết thúc, hoặc không có thùng nguyên nào về). Dữ liệu đã được tải lại.";
+      return "Yêu cầu này không có thùng nào đang giữ hộ để ghi lựa chọn (chưa kết thúc, hoặc khoản hoàn tiền đã lấy lại mọi thùng). Dữ liệu đã được tải lại.";
     if (error.code === "INVALID_STOCK_PACKAGE_TRANSITION")
       return "Kho đã thực hiện lựa chọn trước của khách cho thùng này — không đổi được nữa. Dữ liệu đã được tải lại.";
     if (error.code === "STOCK_PACKAGE_DECISION_PENDING")
@@ -125,6 +128,22 @@ export function custodyChoiceErrorMessage(error: unknown): string {
       return "Thùng này không còn trong danh sách giữ hộ khách. Dữ liệu đã được tải lại.";
     if (error.code === "VALIDATION_FAILED")
       return "Dữ liệu chưa hợp lệ: huỷ hộ phải nêu biên bản khách đồng ý; ghi chú tối đa 500 ký tự.";
+  }
+  return returnErrorMessage(error);
+}
+
+/**
+ * Hàng giữ hộ trên biên nhận (audit r3 RAD-3): Sale ghi lựa chọn / Quản lý kho ghi đã rời kho. RETURN_INVALID_TRANSITION ở
+ * đây nghĩa là hàng đã rời kho, hoặc yêu cầu bổ sung đã chọn không còn nhận hàng.
+ */
+export function custodyNoteErrorMessage(error: unknown): string {
+  if (error instanceof ApiError) {
+    if (error.code === "RETURN_INVALID_TRANSITION")
+      return "Hàng này đã được ghi rời kho, hoặc yêu cầu trả hàng bổ sung đã bị từ chối / rút / hết hạn nên không nhận hàng — Sale ghi lại lựa chọn của khách. Dữ liệu đã được tải lại.";
+    if (error.code === "NOT_FOUND")
+      return "Không tìm thấy biên nhận giữ hộ này trên yêu cầu. Dữ liệu đã được tải lại.";
+    if (error.code === "VALIDATION_FAILED")
+      return "Dữ liệu chưa hợp lệ: huỷ hộ phải nêu biên bản khách đồng ý; nhận trên yêu cầu bổ sung phải chọn một yêu cầu khác của cùng khách; ghi chú tối đa 500 ký tự.";
   }
   return returnErrorMessage(error);
 }

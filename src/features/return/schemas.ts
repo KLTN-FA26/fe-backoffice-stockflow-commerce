@@ -10,6 +10,7 @@ import {
   RETURN_API_STATUSES,
   RETURN_CHANNELS,
   RETURN_CUSTODY_CHOICES,
+  RETURN_CUSTODY_NOTE_CHOICES,
   RETURN_OUTCOMES,
   RETURN_REASONS,
   RETURN_RECEIPT_API_STATUSES,
@@ -45,6 +46,26 @@ export const returnLineDtoSchema = z.object({
   refundAmount: z.number().nullish(),
 });
 
+/**
+ * Audit r3 RAD-3 (BE `ReturnRequestResponse.CustodyOutcome`, Q-11 hỏi thêm): kết cục của hàng trên một biên nhận giữ hộ —
+ * lựa chọn của khách Sale ghi, và khi Quản lý kho đã làm: ai, lúc nào, biên bản. Null cho tới khi Sale ghi lựa chọn.
+ */
+export const custodyOutcomeDtoSchema = z.object({
+  choice: tolerantEnum(RETURN_CUSTODY_NOTE_CHOICES),
+  /** Biên bản lựa chọn dựa vào: huỷ hộ phải có biên bản khách đồng ý. */
+  choiceNote: z.string().nullish(),
+  /** TAKEN_BY_RETURN: yêu cầu trả hàng bổ sung nhận hàng này. */
+  takenByReturnId: z.string().nullish(),
+  takenByRmaNumber: z.string().nullish(),
+  chosenBy: z.string().nullish(),
+  chosenAt: z.string().nullish(),
+  /** Lúc hàng đã rời kho đúng lựa chọn; null khi còn giữ. */
+  endedAt: z.string().nullish(),
+  endedBy: z.string().nullish(),
+  /** Biên bản của việc rời kho (giao trả, huỷ, phiếu nhập của yêu cầu bổ sung). */
+  endedNote: z.string().nullish(),
+});
+
 export const returnEvidenceDtoSchema = z.object({
   id: z.string(),
   stage: z.string(),
@@ -65,8 +86,26 @@ export const returnEvidenceDtoSchema = z.object({
       lpn: z.string().nullish(),
       quantity: z.number().int(),
       note: z.string().nullish(),
+      /** Audit r3 RAD-3: kết cục của hàng giữ hộ; null / vắng (BE cũ) = chưa có lựa chọn. */
+      outcome: custodyOutcomeDtoSchema.nullish(),
     })
     .nullish(),
+});
+
+/**
+ * Thùng của yêu cầu giữ hộ khách (BE `ReturnRequestResponse.HeldCarton`, WF-05 Q-4; audit r3 RAD-1): khoản hoàn tiền không
+ * lấy lại thùng này (SKU không hoàn, hoặc thùng nguyên vượt số được hoàn). `ownership` CUSTOMER_HELD khi đang giữ,
+ * CUSTOMER_SENT_BACK / CUSTOMER_DESTROYED khi kho đã làm theo lựa chọn; chuỗi mở.
+ */
+export const heldCartonDtoSchema = z.object({
+  lpn: z.string(),
+  sku: z.string().nullish(),
+  quantity: z.number().int(),
+  locationCode: z.string().nullish(),
+  ownership: z.string(),
+  choice: tolerantEnum(RETURN_CUSTODY_CHOICES).nullish(),
+  heldAt: z.string().nullish(),
+  endedAt: z.string().nullish(),
 });
 
 export const returnReviewDtoSchema = z.object({
@@ -179,6 +218,12 @@ export const returnRequestDtoSchema = z.object({
   custodyChoiceNote: z.string().nullish(),
   custodyChoiceBy: z.string().nullish(),
   custodyChoiceAt: z.string().nullish(),
+  /**
+   * Audit r3 RAD-1 / RAD-3: các thùng của yêu cầu giữ hộ khách (đang giữ hoặc đã xử lý) — điều `custodyChoice` nói tới. BE
+   * gửi ở `GET /returns/{id}` và câu trả lời của custody-choice (rỗng khi không có); vắng ở câu trả lời khác / BE cũ = null
+   * (không biết → không mở "Ghi lựa chọn").
+   */
+  custodyCartons: z.array(heldCartonDtoSchema).nullish(),
   version: z.number().int(),
 });
 
@@ -210,6 +255,8 @@ export const returnRowDtoSchema = z.object({
    */
   receiptDraftOpen: z.boolean().nullish(),
   outcome: tolerantEnum(RETURN_OUTCOMES).nullish(),
+  /** Audit r2 money L-6 (BE r3c): mã lý do không hoàn (danh sách cố định), như ở chi tiết; null khi không giữ lại gì. */
+  refusalReason: tolerantEnum(RETURN_REFUSAL_REASONS).nullish(),
   version: z.number().int(),
 });
 export const returnPageDtoSchema = bePageSchema(returnRowDtoSchema);
@@ -333,6 +380,36 @@ export const customerCustodyDtoSchema = z.object({
   note: z.string().nullish(),
 });
 export const customerCustodyPageDtoSchema = bePageSchema(customerCustodyDtoSchema);
+
+/**
+ * Hàng giữ hộ trên một biên nhận (BE `CustodyNoteResponse`, `GET /returns/custody-notes`; audit r3 RAD-3, TH-6): hàng gì,
+ * trên yêu cầu nào, kết cục ra sao. `choice` null = chờ Sale; `endedAt` có = đã rời kho.
+ */
+export const custodyNoteDtoSchema = z.object({
+  evidenceId: z.string(),
+  returnRequestId: z.string(),
+  rmaNumber: z.string().nullish(),
+  orderId: z.string().nullish(),
+  orderNumber: z.string().nullish(),
+  customerId: z.string().nullish(),
+  warehouseId: z.string().nullish(),
+  sku: z.string().nullish(),
+  lpn: z.string().nullish(),
+  quantity: z.number().int(),
+  note: z.string().nullish(),
+  keptBy: z.string().nullish(),
+  keptAt: z.string().nullish(),
+  choice: tolerantEnum(RETURN_CUSTODY_NOTE_CHOICES).nullish(),
+  choiceNote: z.string().nullish(),
+  takenByReturnId: z.string().nullish(),
+  takenByRmaNumber: z.string().nullish(),
+  chosenBy: z.string().nullish(),
+  chosenAt: z.string().nullish(),
+  endedAt: z.string().nullish(),
+  endedBy: z.string().nullish(),
+  endedNote: z.string().nullish(),
+});
+export const custodyNotePageDtoSchema = bePageSchema(custodyNoteDtoSchema);
 
 /** Chuyến hãng hoàn về — chỉ những trường màn lập phiếu cần (BE `ShipmentRowResponse`, `status=RETURNED`). */
 export const returnedShipmentDtoSchema = z

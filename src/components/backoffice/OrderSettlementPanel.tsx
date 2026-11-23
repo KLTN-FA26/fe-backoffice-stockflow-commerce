@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { CheckCircle2, Circle, Info } from "lucide-react";
 
@@ -19,10 +20,11 @@ import { useCan } from "@/lib/auth/components/Can";
 import { closingDate, completionChecks } from "@/lib/domain/order-completion";
 import { formatMoney } from "@/lib/format";
 import { formatDate } from "@/lib/format/date";
-import { useEInvoices, invoiceReference } from "@/features/einvoice";
+import { DrawUpDialog, useEInvoices, invoiceReference } from "@/features/einvoice";
 import { useOrderInstallments, useOrderRefund } from "@/features/payment";
 import { Card } from "@/components/shared/Card";
 import { StatusDot } from "@/components/shared/StatusDot";
+import { Button } from "@/components/ui/button";
 
 import type { ReactNode } from "react";
 import type { CompletionCheck } from "@/lib/domain/order-completion";
@@ -191,7 +193,7 @@ export function OrderSettlementPanel(props: OrderSettlementSlotProps) {
         )}
 
       {readiness ? (
-        <ReadinessSection readiness={readiness} status={props.status} />
+        <ReadinessSection readiness={readiness} status={props.status} orderId={props.orderId} />
       ) : (
         <>
           {checks.length > 0 && <FallbackChecks checks={checks} />}
@@ -285,7 +287,19 @@ function blockerDetail(code: string, readiness: Readiness): string | undefined {
  * Khối điều kiện của BE (WF-05 BO-02, F-1): đúng các điều kiện BE còn chặn, các mốc BE tính, và dòng thông tin Q-16
  * (điều chỉnh trả hàng chưa phát hành không chặn đóng). BO không tính thêm, không bớt.
  */
-function ReadinessSection({ readiness, status }: { readiness: Readiness; status: string }) {
+function ReadinessSection({
+  readiness,
+  status,
+  orderId,
+}: {
+  readiness: Readiness;
+  status: string;
+  orderId: string;
+}) {
+  // Audit r3 LM-2 / BE-62: phần phí còn lại chưa có hoá đơn → Kế toán lập ngay tại đây (BE tự đo lại phần còn thiếu; câu trả
+  // lời có thể là hoá đơn mới, hay bản giảm của hoá đơn phần phí đã phát hành — mở đúng hoá đơn BE trả)
+  const canDrawUp = useCan(EINVOICE_PERMISSIONS.create);
+  const [drawingFor, setDrawingFor] = useState<string | null>(null);
   // BE-45 (settlement 9e98660b): REFUND_CLOSE còn là nhánh đóng của đơn RETURNED / PARTIALLY_FULFILLED mà hãng chở hàng
   // về hoặc làm thất lạc — đơn đó đóng khi không còn gì phải hoàn, không phải "sau hoàn tiền"
   const carrierEnded =
@@ -314,6 +328,17 @@ function ReadinessSection({ readiness, status }: { readiness: Readiness; status:
                 <CheckRow key={blocker.code} met={false}>
                   {blocker.known ? R.blockers[blocker.code] : R.unknownBlocker(blocker.code)}
                   {detail ? <span className="text-ink-tertiary"> — {detail}</span> : null}
+                  {blocker.code === "SHIPPING_FEE_UNINVOICED" && canDrawUp && (
+                    <Button
+                      type="button"
+                      size="xs"
+                      variant="outline"
+                      className="ml-2"
+                      onClick={() => setDrawingFor(orderId)}
+                    >
+                      {R.drawUpFeeRest}
+                    </Button>
+                  )}
                 </CheckRow>
               );
             })
@@ -332,6 +357,13 @@ function ReadinessSection({ readiness, status }: { readiness: Readiness; status:
           {R.returnAdjustmentUnissued}
         </p>
       )}
+      {readiness.deliveryReductionUnissued && (
+        <p className="text-ink-secondary flex gap-1.5">
+          <Info className="text-ink-tertiary mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+          {R.deliveryReductionUnissued}
+        </p>
+      )}
+      <DrawUpDialog orderId={drawingFor} onClose={() => setDrawingFor(null)} />
     </section>
   );
 }

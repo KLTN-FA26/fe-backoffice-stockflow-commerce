@@ -34,6 +34,12 @@ export const RMA_RESOLUTION_PERMISSIONS = {
  */
 export const RMA_CUSTODY_PERMISSIONS = {
   create: "sales-rma-custody:CREATE",
+  /**
+   * Audit r3 RAD-3 (BE V20261224000310): READ = danh sách hàng giữ hộ trên biên nhận (`GET /returns/custody-notes`) — Nhân
+   * viên / Quản lý kho, Sale, Quản trị; UPDATE = ghi hàng đã rời kho đúng lựa chọn của khách — Quản lý kho, Quản trị.
+   */
+  read: "sales-rma-custody:READ",
+  update: "sales-rma-custody:UPDATE",
 } as const;
 
 /**
@@ -43,6 +49,31 @@ export const RMA_CUSTODY_PERMISSIONS = {
 export const RETURN_CUSTODY_CHOICES = ["SEND_BACK", "DESTROY_ON_BEHALF"] as const;
 export type ReturnCustodyChoice = (typeof RETURN_CUSTODY_CHOICES)[number];
 export type ReturnReadCustodyChoice = ReturnCustodyChoice | typeof RETURN_UNKNOWN;
+
+/**
+ * Lựa chọn của khách cho hàng trên MỘT biên nhận giữ hộ (audit r3 RAD-3; BE `ReturnCustodyNoteChoice`, Q-11 hỏi thêm):
+ * gửi trả (khách chịu phí), huỷ hộ (biên bản khách đồng ý — bắt buộc), hoặc hàng được nhận trên một yêu cầu trả hàng bổ
+ * sung của cùng khách (`takenByReturnId`). Sale ghi; Quản lý kho ghi hàng đã rời kho.
+ */
+export const RETURN_CUSTODY_NOTE_CHOICES = [
+  "SEND_BACK",
+  "DESTROY_ON_BEHALF",
+  "TAKEN_BY_RETURN",
+] as const;
+export type ReturnCustodyNoteChoice = (typeof RETURN_CUSTODY_NOTE_CHOICES)[number];
+export type ReturnReadCustodyNoteChoice = ReturnCustodyNoteChoice | typeof RETURN_UNKNOWN;
+
+/** Yêu cầu bổ sung ở trạng thái này không nhận hàng nữa (BE `ReturnRequest.takesNothing`). */
+export const RETURN_TAKES_NOTHING_STATUSES = ["REJECTED", "CANCELLED", "EXPIRED"] as const;
+
+/** Biên nhận giữ hộ: danh sách hàng đang giữ (TH-6), ghi lựa chọn, ghi đã rời kho (BE `ReturnRequestController`, RAD-3). */
+export const RETURN_CUSTODY_NOTE_API = {
+  list: "/returns/custody-notes",
+  choice: (returnId: string, evidenceId: string) =>
+    `/returns/${encodeURIComponent(returnId)}/custody/${encodeURIComponent(evidenceId)}/choice`,
+  end: (returnId: string, evidenceId: string) =>
+    `/returns/${encodeURIComponent(returnId)}/custody/${encodeURIComponent(evidenceId)}/end`,
+} as const;
 
 /**
  * Thùng giữ hộ khách (BE `CustomerCustodyResponse.ownership`): đang giữ / đã gửi trả / đã huỷ hộ.

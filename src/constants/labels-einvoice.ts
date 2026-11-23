@@ -92,7 +92,8 @@ export const CORRECTION_BASIS_LABELS = {
 /** Căn cứ của hoá đơn giảm ghi từ cổng NCC (`EXTERNAL_REDUCTION_BASES`). */
 export const EXTERNAL_REDUCTION_BASIS_LABELS = {
   DELIVERY_FAILED: "Giao hàng thất bại",
-  RETURN: "Trả hàng (giảm trên hoá đơn thay thế)",
+  // Audit r3 EINV-2: cả hoá đơn gốc của NCC cũ (bản điều chỉnh trả hàng đã huỷ vì không gửi được), không chỉ hoá đơn thay thế
+  RETURN: "Trả hàng (hàng đã hoàn tiền)",
 } as const;
 
 export const EINVOICE_LABELS = {
@@ -198,6 +199,14 @@ export const EINVOICE_LABELS = {
     unknown: "Hoá đơn có cảnh báo mới từ hệ thống — xem lại trước khi phát hành.",
   } satisfies Record<EInvoiceWarning | "unknown", string>,
   /** `rejectionCode` hệ thống tự ghi (không phải NCC từ chối) — câu thay cho "Nhà cung cấp từ chối". */
+  /** Audit r3 EINV-3 (QĐ HĐ-1 bước 3): tra lại giao dịch cũ sau khi rút (BE `watchUntil` / `watchFoundAt`). */
+  watch: {
+    until: (day: string) => `Đang tra lại giao dịch cũ tới ngày ${day}.`,
+    ended: (day: string) =>
+      `Đã tra lại giao dịch cũ tới ngày ${day}: nhà cung cấp không phát hành giao dịch đó.`,
+    found: (at: string) =>
+      `Nhà cung cấp vẫn phát hành giao dịch cũ (phát hiện lúc ${at}) — kiểm tra trùng hoá đơn trên cổng nhà cung cấp trước khi phát hành lại.`,
+  },
   rejections: {
     UNKNOWN_TO_PROVIDER: "Nhà cung cấp xác nhận không giữ hoá đơn này",
     // BE HĐ-1: Kế toán rút hoá đơn kẹt ở NCC; rejectionMessage = điều Kế toán đã kiểm tra

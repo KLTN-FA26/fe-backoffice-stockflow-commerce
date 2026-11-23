@@ -20,12 +20,15 @@ export function DeliveryTimeField({
   handedOverAt,
   now,
   error,
+  hint = D.deliveredAtHint,
 }: {
   value: string;
   onChange: (value: string) => void;
   handedOverAt?: string | null;
   now: Date;
   error?: string | null;
+  /** Câu dưới ô; mặc định: để nguyên là lúc ghi nhận. */
+  hint?: string;
 }) {
   return (
     <div>
@@ -47,7 +50,7 @@ export function DeliveryTimeField({
         className={fieldClass(!!error)}
       />
       <p id="outcome-delivered-at-hint" className="text-ink-tertiary mt-1 text-xs">
-        {D.deliveredAtHint}
+        {hint}
       </p>
       <FieldError>{error ?? undefined}</FieldError>
     </div>

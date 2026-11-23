@@ -18,7 +18,12 @@ import { StatusDot } from "@/components/shared/StatusDot";
 import { Button } from "@/components/ui/button";
 
 import { quarantineActionError } from "../quarantine-errors";
-import { cartonStatusLabel, isOpenedOnReturn, isQuarantined } from "../quarantine-lifecycle";
+import {
+  cartonStatusLabel,
+  isOpenedOnReturn,
+  isQuarantined,
+  returnOwnershipBadge,
+} from "../quarantine-lifecycle";
 import { useCarton } from "../quarantine-queries";
 import { cartonLookupInput } from "../quarantine-schemas";
 import { useQuarantineFilters } from "../use-quarantine-filters";
@@ -118,6 +123,10 @@ function CartonCard({ carton }: { carton: StockPackageDetail }) {
             carton.returnOpenedAt ? formatDateTime(carton.returnOpenedAt) : L.openedOnReturnYes,
           ],
         ] as const)
+      : []),
+    // Audit r3 RAD-4: "Chờ duyệt hoàn tiền — RMA-…" / "Hàng của khách (giữ hộ) — RMA-…"
+    ...(returnOwnershipBadge(carton)
+      ? ([[L.returnOwnership, returnOwnershipBadge(carton)]] as const)
       : []),
   ];
   return (
