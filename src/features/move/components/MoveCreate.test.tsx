@@ -8,6 +8,8 @@ import { INVENTORY_LABELS } from "@/constants/inventory";
 import { MOVE_API, MOVE_ERROR_MESSAGES, MOVE_LABELS, MOVE_MESSAGES } from "@/constants/move";
 import { INVENTORY_PERMISSIONS, WAREHOUSE_LOCATION_PERMISSIONS } from "@/constants/permissions";
 
+import { useMyPermissions } from "@/lib/auth";
+
 import {
   failure,
   MOVE_TAB_WAREHOUSE,
@@ -70,11 +72,28 @@ async function fill(quantity = "5", to = "HCM-PACK01") {
 
 const submit = () => screen.getByRole("button", { name: MOVE_LABELS.submit });
 
+/** Trang Di chuyển nội bộ: form nằm trong modal mở từ nút "Tạo lệnh di chuyển" của toolbar. */
+async function openMove() {
+  renderMove(<MoveCreate />);
+  await userEvent.click(await screen.findByRole("button", { name: MOVE_LABELS.formTitle }));
+}
+
+function PermissionsReady() {
+  return useMyPermissions().isPending ? null : <p>permissions-ready</p>;
+}
+
 describe("move form — permission gate", () => {
-  it("is denied without the BE guard permission (inventory-stock-items:UPDATE) and sends nothing", async () => {
+  it("has no create button without the BE guard permission (inventory-stock-items:UPDATE) and sends nothing", async () => {
     server.use(movePermissions([INVENTORY_PERMISSIONS.movementRead]));
-    renderMove(<MoveCreate />);
-    expect(await screen.findByText(MOVE_LABELS.denied)).toBeInTheDocument();
+    renderMove(
+      <>
+        <MoveCreate />
+        <PermissionsReady />
+      </>,
+    );
+    // Quyền đã tải xong mà vẫn không có nút tạo lệnh — không mở được form, không gửi gì
+    expect(await screen.findByText("permissions-ready")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: MOVE_LABELS.formTitle })).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/^SKU/)).not.toBeInTheDocument();
   });
 });
@@ -89,7 +108,7 @@ describe("move form — submit", () => {
         return created(body);
       }),
     );
-    renderMove(<MoveCreate />);
+    await openMove();
     await fill();
     await waitFor(() => expect(submit()).toBeEnabled());
     await userEvent.click(submit());
@@ -112,7 +131,7 @@ describe("move form — submit", () => {
   });
 
   it("keeps the submit disabled for an invalid move: same location, other warehouse, quantity 0", async () => {
-    renderMove(<MoveCreate />);
+    await openMove();
     await fill("5", "hcm-a01-1-a");
     expect(await screen.findByText(MOVE_MESSAGES.sameLocation)).toBeInTheDocument();
     expect(submit()).toBeDisabled();
@@ -138,7 +157,7 @@ describe("move form — submit", () => {
         return failure(500, "UNEXPECTED");
       }),
     );
-    renderMove(<MoveCreate />);
+    await openMove();
     await userEvent.type(await screen.findByLabelText(/^SKU/), "CUP-PP-500");
     await userEvent.type(screen.getByLabelText(/Từ vị trí/), "HN-A01-1-A");
     await userEvent.type(screen.getByLabelText(/Đến vị trí/), "HN-PACK01");
@@ -157,7 +176,7 @@ describe("move form — submit", () => {
         return created(body);
       }),
     );
-    renderMove(<MoveCreate />);
+    await openMove();
     await fill();
     await userEvent.type(screen.getByLabelText(/^Lô/), "LOT-7");
     await waitFor(() => expect(submit()).toBeEnabled());
@@ -180,7 +199,7 @@ describe("move form — BE errors in Vietnamese", () => {
     ["OUT_OF_DATA_SCOPE", 403, MOVE_ERROR_MESSAGES.outOfScope],
   ])("%s", async (code, status, message) => {
     server.use(http.post(moveUrl, () => failure(status, code)));
-    renderMove(<MoveCreate />);
+    await openMove();
     await fill();
     await waitFor(() => expect(submit()).toBeEnabled());
     await userEvent.click(submit());
@@ -199,7 +218,7 @@ describe("move form — BE errors in Vietnamese", () => {
         ]),
       ),
     );
-    renderMove(<MoveCreate />);
+    await openMove();
     await fill();
     await waitFor(() => expect(submit()).toBeEnabled());
     await userEvent.click(submit());
@@ -219,7 +238,7 @@ describe("move form — idempotency key", () => {
         return attempt < 3 ? failure(500, "INTERNAL_ERROR") : created(body);
       }),
     );
-    renderMove(<MoveCreate />);
+    await openMove();
     await fill();
     await waitFor(() => expect(submit()).toBeEnabled());
     await userEvent.click(submit());
@@ -260,7 +279,7 @@ describe("move form — stock aids (optional, separately permissioned)", () => {
         return stockPage([row]);
       }),
     );
-    renderMove(<MoveCreate />);
+    await openMove();
     await userEvent.type(await screen.findByLabelText(/^SKU/), "CUP-PP-500");
     const section = await screen.findByRole("region", { name: MOVE_LABELS.stockTitle });
     await userEvent.click(within(section).getByRole("button", { name: MOVE_LABELS.stockPick }));
@@ -272,7 +291,7 @@ describe("move form — stock aids (optional, separately permissioned)", () => {
   });
 
   it("without stock READ it makes no stock request and the form still works by typing", async () => {
-    renderMove(<MoveCreate />);
+    await openMove();
     await fill();
     expect(screen.queryByRole("region", { name: MOVE_LABELS.stockTitle })).not.toBeInTheDocument();
     await waitFor(() => expect(submit()).toBeEnabled());
@@ -302,7 +321,7 @@ describe("move form — stock aids (optional, separately permissioned)", () => {
         }),
       ),
     );
-    renderMove(<MoveCreate />);
+    await openMove();
     await userEvent.type(await screen.findByLabelText(/Từ vị trí/), "HCM-A01-1-A");
     await waitFor(() =>
       expect(document.querySelectorAll("#move-toLocation-options option")).toHaveLength(2),
@@ -335,7 +354,7 @@ describe("move form — source slot under a cycle count (SCRUM-146)", () => {
         return failure(500, "UNEXPECTED");
       }),
     );
-    renderMove(<MoveCreate />);
+    await openMove();
     await fill();
     expect(await screen.findByText(MOVE_MESSAGES.sourceUnderCount)).toBeInTheDocument();
     expect(await screen.findByText(INVENTORY_LABELS.hiddenDuringCount)).toBeInTheDocument();

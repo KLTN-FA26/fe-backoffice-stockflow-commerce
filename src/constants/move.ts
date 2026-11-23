@@ -78,6 +78,10 @@ export const MOVE_LABELS = {
   recentTitle: "Các lần chuyển gần đây",
   recentEmpty: "Chưa có lần chuyển vị trí nào.",
   recentAll: "Xem sổ kho",
+  // Chip của thanh Cấu hình trên trang Di chuyển nội bộ (danh sách = các lần chuyển gần nhất của kho)
+  recentShown: "Hiển thị",
+  recentShownValue: (count: number) => `${count} lần gần nhất`,
+  recentFetching: "Đang tải lại các lần chuyển",
   recentUnavailable: "Bạn không có quyền xem sổ kho nên không hiện các lần chuyển gần đây.",
   retry: "Thử lại",
   trace: "Mã tra cứu",
