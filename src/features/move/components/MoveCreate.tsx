@@ -11,6 +11,7 @@ import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { ApiError } from "@/lib/api/error";
 import { useCan } from "@/lib/auth";
 import { SKU_INPUT_PATTERN } from "@/lib/validation/sku";
+import { useWorkspaceWarehouse } from "@/lib/workspace";
 
 import { Alert } from "@/components/shared/Alert";
 import { Button } from "@/components/ui/button";
@@ -18,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { moveErrorView, moveFieldErrors } from "../errors";
 import { useCreateMove } from "../mutations";
 import { useDestinationCodes, useStockRows } from "../queries";
-import { moveCreateInput } from "../schemas";
+import { moveInWarehouseInput } from "../schemas";
 import { findSourceRow, isCountHidden, movableQuantity } from "../selectors";
 import { useMoveRequestId } from "../use-move-request-id";
 import { MoveFields } from "./MoveFields";
@@ -46,8 +47,9 @@ function MoveCreateContent() {
   // Kept outside the form's error state: `setError` would mark the form invalid and block a retry
   // of an unchanged, still valid move (e.g. after a lost response).
   const [failure, setFailure] = useState<string | null>(null);
+  const warehouse = useWorkspaceWarehouse();
   const form = useForm<MoveCreateInput>({
-    resolver: zodResolver(moveCreateInput),
+    resolver: zodResolver(moveInWarehouseInput(warehouse.prefix)),
     mode: "onChange",
     defaultValues: EMPTY_MOVE,
   });
@@ -63,10 +65,14 @@ function MoveCreateContent() {
   // Optional aids — each needs its own BE permission and degrades to plain typing without it.
   const skuCode = useDebouncedValue(sku.trim().toUpperCase(), 400);
   const rows = useStockRows(
+    warehouse.id,
     SKU_INPUT_PATTERN.test(skuCode) ? skuCode : "",
     useCan(INVENTORY_PERMISSIONS.stockRead),
   );
-  const destinations = useDestinationCodes(from, useCan(WAREHOUSE_LOCATION_PERMISSIONS.read));
+  const destinations = useDestinationCodes(
+    warehouse.id,
+    useCan(WAREHOUSE_LOCATION_PERMISSIONS.read),
+  );
   const source = findSourceRow(rows.data, from, lot);
   const sourceHidden = source ? isCountHidden(source) : false;
   const movable = source && !sourceHidden ? movableQuantity(source) : undefined;

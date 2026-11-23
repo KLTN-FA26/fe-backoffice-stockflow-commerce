@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 
+import { WORKSPACE_PATHS } from "@/constants";
 import { CYCLE_COUNT_PERMISSIONS } from "@/constants/permissions";
 
 import { usePermissionChecker } from "@/lib/auth";
+import { InWorkspaceWarehouse } from "@/lib/workspace";
 
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 
@@ -36,7 +38,15 @@ function CycleCountDetailContent({ id }: { id: string }) {
   if (query.isError)
     return <InventoryError error={query.error} retry={() => void query.refetch()} />;
   if (!query.data) return null;
-  return <CycleCountSheet count={query.data} busy={query.isFetching} />;
+  // Phiếu của kho khác kho trên URL → chuyển sang đúng kho (spec 2026-11-22 §2)
+  return (
+    <InWorkspaceWarehouse
+      warehouseId={query.data.warehouseId}
+      path={WORKSPACE_PATHS.cycleCount(id)}
+    >
+      <CycleCountSheet count={query.data} busy={query.isFetching} />
+    </InWorkspaceWarehouse>
+  );
 }
 
 function CycleCountSheet({ count, busy }: { count: CycleCount; busy: boolean }) {
