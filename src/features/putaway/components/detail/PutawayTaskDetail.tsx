@@ -1,9 +1,10 @@
 "use client";
 
-import { ADMIN_ROUTES, PUTAWAY_LABELS, PUTAWAY_TASK_PERMISSIONS } from "@/constants";
+import { PUTAWAY_LABELS, PUTAWAY_TASK_PERMISSIONS, WORKSPACE_PATHS } from "@/constants";
 import { usePermissionChecker } from "@/lib/auth";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
+import { InWorkspaceWarehouse, useWorkspaceHref } from "@/lib/workspace";
 import { putawayTaskGate } from "@/features/putaway/lifecycle";
 import { usePutawayTask } from "@/features/putaway/queries";
 
@@ -58,6 +59,7 @@ function ConfirmLayout({ task, onStale }: { task: PutawayTask; onStale: () => vo
 function DetailContent({ taskId }: { taskId: string }) {
   const can = usePermissionChecker();
   const query = usePutawayTask(taskId);
+  const listHref = useWorkspaceHref()(WORKSPACE_PATHS.putaway);
   const task = query.data;
   useBreadcrumbLabel(taskId, task?.lpn ?? undefined);
 
@@ -68,13 +70,15 @@ function DetailContent({ taskId }: { taskId: string }) {
         error={query.error}
         copy={L.errorCopy}
         onRetry={() => void query.refetch()}
-        back={{ href: ADMIN_ROUTES.putaway.list }}
+        back={{ href: listHref }}
       />
     );
   }
   const gate = putawayTaskGate(task, can);
   return (
-    <>
+    // Nhiệm vụ của kho khác kho trên URL → chuyển sang đúng kho, không cất dưới kho sai (spec 2026-11-22 §2).
+    // BE cũ chưa trả `warehouseId` (BE #394) thì hiện bình thường.
+    <InWorkspaceWarehouse warehouseId={task.warehouseId} path={WORKSPACE_PATHS.putawayTask(taskId)}>
       <h1 className="sr-only">{L.detailTitle(task.lpn ?? task.sku)}</h1>
       {gate.canConfirm ? (
         // `key` theo nhiệm vụ: đổi thùng (điều hướng) thì form + key idempotency làm lại từ đầu
@@ -90,7 +94,7 @@ function DetailContent({ taskId }: { taskId: string }) {
           </div>
         </div>
       )}
-    </>
+    </InWorkspaceWarehouse>
   );
 }
 

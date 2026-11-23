@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { Info } from "lucide-react";
 
-import { ADMIN_ROUTES, PUTAWAY_TRIP_LABELS, PUTAWAY_TRIP_STATUS } from "@/constants";
+import { PUTAWAY_TRIP_LABELS, PUTAWAY_TRIP_STATUS, WORKSPACE_PATHS } from "@/constants";
+import { useWorkspaceHref } from "@/lib/workspace";
 import {
   DETAIL_ACTION_CLASS,
   DETAIL_CARD_CLASS,
@@ -25,6 +26,7 @@ export function TripSideNote({
   text: string;
   children?: ReactNode;
 }) {
+  const listHref = useWorkspaceHref()(WORKSPACE_PATHS.putaway);
   const ended =
     trip.status === PUTAWAY_TRIP_STATUS.COMPLETED || trip.status === PUTAWAY_TRIP_STATUS.CLOSED;
   return (
@@ -35,7 +37,7 @@ export function TripSideNote({
         {children}
         {ended && (
           <Link
-            href={ADMIN_ROUTES.putaway.list}
+            href={listHref}
             className={`${DETAIL_ACTION_CLASS.outline} flex items-center justify-center`}
           >
             {L.ended.backToList}

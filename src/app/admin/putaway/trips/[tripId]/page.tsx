@@ -1,10 +1,7 @@
-import { TripRoutePage } from "../../_components/TripRoutePages";
+import { TripRedirect } from "@/features/putaway";
 
-export default async function PutawayTripByIdRoute({
-  params,
-}: {
-  params: Promise<{ tripId: string }>;
-}) {
+/** Route cũ: chuyến theo id giờ nằm trong tab theo kho của chuyến (spec §5.5). */
+export default async function LegacyTripPage({ params }: { params: Promise<{ tripId: string }> }) {
   const { tripId } = await params;
-  return <TripRoutePage tripId={decodeURIComponent(tripId)} />;
+  return <TripRedirect tripId={decodeURIComponent(tripId)} />;
 }

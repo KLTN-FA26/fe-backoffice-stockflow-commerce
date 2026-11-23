@@ -4,14 +4,14 @@ import Link from "next/link";
 import { parseAsString, useQueryState } from "nuqs";
 
 import {
-  ADMIN_ROUTES,
   PUTAWAY_LABELS,
   PUTAWAY_TASK_PERMISSIONS,
   SLOTTING_LABELS,
+  WORKSPACE_PATHS,
 } from "@/constants";
 import { useCan } from "@/lib/auth";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
-import { useWorkspaceWarehouse } from "@/lib/workspace";
+import { useWorkspaceHref, useWorkspaceWarehouse } from "@/lib/workspace";
 import { usePutawayTask, usePutawayTasks } from "@/features/putaway/queries";
 import { sortByLpn } from "@/features/putaway/selectors";
 
@@ -34,6 +34,7 @@ const GRID = "grid grid-cols-1 gap-5 lg:grid-cols-[340px_minmax(0,1fr)]";
 
 function Suggestions({ taskId }: { taskId: string }) {
   const canPutAway = useCan(PUTAWAY_TASK_PERMISSIONS.update);
+  const href = useWorkspaceHref();
   const query = usePutawayTask(taskId);
   const task = query.data;
   if (query.isError) {
@@ -62,7 +63,7 @@ function Suggestions({ taskId }: { taskId: string }) {
       footer={
         // Chỉ người cất được mới có lối sang màn cất — UI-only, BE re-check quyền khi xác nhận
         canPutAway ? (
-          <Link href={ADMIN_ROUTES.putaway.detail(task.id)} className={PUT_AWAY_LINK_CLASS}>
+          <Link href={href(WORKSPACE_PATHS.putawayTask(task.id))} className={PUT_AWAY_LINK_CLASS}>
             {L.putAway}
           </Link>
         ) : null

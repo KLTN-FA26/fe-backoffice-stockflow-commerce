@@ -28,7 +28,6 @@ import {
   Map as MapIcon,
   MapPin,
   Package,
-  PackageCheck,
   PackageOpen,
   PackagePlus,
   Palette,
@@ -37,7 +36,6 @@ import {
   PanelLeftOpen,
   RadioTower,
   ReceiptText,
-  Route,
   Search as SearchIcon,
   ShieldCheck,
   ShieldAlert,
@@ -72,10 +70,6 @@ import {
   DELIVERY_FAILURE_LABELS,
   FULFILLMENT_CARRIER_EVENT_PERMISSIONS,
   GOODS_RECEIPT_PERMISSIONS,
-  PUTAWAY_LABELS,
-  PUTAWAY_TASK_PERMISSIONS,
-  PUTAWAY_TRIP_LABELS,
-  PUTAWAY_TRIP_PERMISSIONS,
   IDENTITY_PERMISSIONS,
   INVENTORY_ITEM_PERMISSIONS,
   INVENTORY_OVERVIEW_PERMISSIONS,
@@ -160,7 +154,10 @@ export interface NavItem {
   /** Thấy menu khi có ít nhất một mã trong danh sách (màn mở bằng nhiều quyền khác nhau). */
   anyPermission?: readonly PermissionCode[];
   /** Breadcrumb riêng cho các đoạn URL sau `href` (vd `[kho ⇅] / Bản đồ kho`) thay cách đọc id mặc định. */
-  breadcrumbTail?: (rest: readonly string[]) => BreadcrumbItem[];
+  breadcrumbTail?: (
+    rest: readonly string[],
+    labelFor: (id: string) => string | undefined,
+  ) => BreadcrumbItem[];
   /** Route anh em chia chung mục menu này (vd tab "Dự án"): sáng menu và breadcrumb theo mục. */
   matchPrefixes?: readonly string[];
 }
@@ -250,20 +247,7 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: PackageOpen,
         permission: GOODS_RECEIPT_PERMISSIONS.viewPage,
       },
-      // Cất hàng (docs 05) — BE `PutawayController`, resource warehouse-putaway-tasks
-      {
-        label: PUTAWAY_LABELS.title,
-        href: ADMIN_ROUTES.putaway.list,
-        icon: PackageCheck,
-        permission: PUTAWAY_TASK_PERMISSIONS.viewPage,
-      },
-      // Chuyến cất hàng (docs 05 §4.5) — BE `PutawayTripController`, resource warehouse-putaway-trips
-      {
-        label: PUTAWAY_TRIP_LABELS.title,
-        href: ADMIN_ROUTES.putaway.myTrip,
-        icon: Route,
-        permission: PUTAWAY_TRIP_PERMISSIONS.viewPage,
-      },
+      // Cất hàng (docs 05) đã vào tab "Kho & bản đồ" — làm việc theo một kho (spec 2026-11-22)
     ],
   },
   {
@@ -674,7 +658,7 @@ export function buildBreadcrumbItems(
       .slice(navItem.href.length + 1)
       .split("/")
       .filter(Boolean);
-    return [...items, ...navItem.breadcrumbTail(rest)];
+    return [...items, ...navItem.breadcrumbTail(rest, labelFor)];
   }
   if (!isListPage) {
     const rest = pathname

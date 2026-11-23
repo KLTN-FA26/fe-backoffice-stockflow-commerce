@@ -6,13 +6,16 @@ import {
   PUTAWAY_ERROR_MESSAGES,
   PUTAWAY_TRIP_ERROR_MESSAGES,
   PUTAWAY_TRIP_LABELS,
+  UI_LABELS,
 } from "@/constants";
 import { PERMISSION_UI } from "@/constants/permissions";
+import { WorkspaceWarehouseProvider } from "@/lib/workspace";
 import { apiError, mockApi, renderScreen } from "@/test/api-screen";
 
 import { MyTripPage, TripPage } from "../components/trip/TripPages";
 import { trip, tripCarton } from "./trip-fixtures";
 
+import type { ReactElement } from "react";
 import type { TestRole } from "@/test/api-screen";
 import type { PutawayTrip } from "../types";
 
@@ -60,17 +63,35 @@ function setup(
   return spies;
 }
 
+const HCM = { id: "wh-1", prefix: "HCM", name: "Kho Hồ Chí Minh" };
+const BD = { id: "wh-bd", prefix: "BD", name: "Kho Bình Dương" };
+const inTab = (ui: ReactElement, warehouse = HCM) => (
+  <WorkspaceWarehouseProvider value={warehouse}>{ui}</WorkspaceWarehouseProvider>
+);
+
 afterEach(() => vi.restoreAllMocks());
 
 describe("MyTripPage (docs 05 §4.5)", () => {
-  it("chưa có chuyến → thẻ mở chuyến, kho duy nhất chọn sẵn; Mở chuyến gửi warehouseId", async () => {
+  it("chưa có chuyến → thẻ mở chuyến cho kho của tab, không có ô chọn kho; Mở chuyến gửi warehouseId", async () => {
     const user = userEvent.setup();
     const { post } = setup("WAREHOUSE_STAFF", null, { "/putaway-trips": () => trip() });
-    renderScreen(<MyTripPage />, "WAREHOUSE_STAFF");
+    renderScreen(inTab(<MyTripPage />), "WAREHOUSE_STAFF");
     await user.click(await screen.findByRole("button", { name: L.start.submit }));
     await waitFor(() => expect(post).toHaveBeenCalled());
     expect(post.mock.calls[0]?.[0]).toBe("/putaway-trips");
     expect(post.mock.calls[0]?.[1]).toEqual({ warehouseId: "wh-1" });
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+  });
+
+  it("chuyến đang mở ở kho khác → báo kèm link sang kho đó, không hiện thao tác chuyến", async () => {
+    setup("WAREHOUSE_STAFF", { ...GOING, warehouseId: "wh-1" });
+    renderScreen(inTab(<MyTripPage />, BD), "WAREHOUSE_STAFF");
+    expect(await screen.findByText("Bạn đang có chuyến mở ở kho HCM")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: L.elsewhere.open })).toHaveAttribute(
+      "href",
+      "/admin/warehouse-map/HCM/putaway/trip",
+    );
+    expect(screen.queryByLabelText(L.place.bin)).not.toBeInTheDocument();
   });
 
   it("LOADING của mình: quét LPN + Enter → xếp lên xe; xe rỗng khoá Bắt đầu đi", async () => {
@@ -78,7 +99,7 @@ describe("MyTripPage (docs 05 §4.5)", () => {
     const { post } = setup("WAREHOUSE_STAFF", trip(), {
       "/putaway-trips/trip-1/cartons": () => trip({ cartons: [tripCarton()] }),
     });
-    renderScreen(<MyTripPage />, "WAREHOUSE_STAFF");
+    renderScreen(inTab(<MyTripPage />), "WAREHOUSE_STAFF");
     expect(await screen.findByRole("button", { name: L.load.depart })).toBeDisabled();
     expect(screen.getByText(L.load.emptyCart)).toBeInTheDocument();
     await user.type(screen.getByLabelText(L.load.field), "LPN-1{Enter}");
@@ -93,7 +114,7 @@ describe("MyTripPage (docs 05 §4.5)", () => {
         throw apiError(409, "PUTAWAY_TASK_ON_ANOTHER_TRIP");
       },
     });
-    renderScreen(<MyTripPage />, "WAREHOUSE_STAFF");
+    renderScreen(inTab(<MyTripPage />), "WAREHOUSE_STAFF");
     await user.type(await screen.findByLabelText(L.load.field), "LPN-9{Enter}");
     expect(
       await screen.findByText(PUTAWAY_TRIP_ERROR_MESSAGES.PUTAWAY_TASK_ON_ANOTHER_TRIP),
@@ -105,7 +126,7 @@ describe("MyTripPage (docs 05 §4.5)", () => {
     const { post } = setup("WAREHOUSE_STAFF", GOING, {
       "/putaway-trips/trip-1/placements": () => GOING,
     });
-    renderScreen(<MyTripPage />, "WAREHOUSE_STAFF");
+    renderScreen(inTab(<MyTripPage />), "WAREHOUSE_STAFF");
     expect(await screen.findByText(L.route.note)).toBeInTheDocument();
     expect(screen.getByText(L.cart.holdExpired)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: L.route.reassign("LPN-1") })).toBeInTheDocument();
@@ -123,7 +144,7 @@ describe("MyTripPage (docs 05 §4.5)", () => {
         throw apiError(409, "MOVE_ACROSS_WAREHOUSES");
       },
     });
-    renderScreen(<MyTripPage />, "WAREHOUSE_STAFF");
+    renderScreen(inTab(<MyTripPage />), "WAREHOUSE_STAFF");
     await user.type(await screen.findByLabelText(L.place.bin), "BD-A01{Enter}");
     await user.type(screen.getByLabelText(L.place.lpn), "LPN-1{Enter}");
     expect(
@@ -143,7 +164,7 @@ describe("MyTripPage (docs 05 §4.5)", () => {
         cartons: [...GOING.cartons, tripCarton({ putawayTaskId: "t-3", lpn: "LPN-3" })],
       }),
     );
-    renderScreen(<MyTripPage />, "WAREHOUSE_STAFF");
+    renderScreen(inTab(<MyTripPage />), "WAREHOUSE_STAFF");
     expect(await screen.findByText(L.route.noBin)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: L.route.reassign("LPN-3") })).toBeInTheDocument();
   });
@@ -153,7 +174,7 @@ describe("MyTripPage (docs 05 §4.5)", () => {
     const { post } = setup("WAREHOUSE_STAFF", GOING, {
       "/putaway-trips/trip-1/closure": () => ({ ...GOING, status: "CLOSED" }),
     });
-    renderScreen(<MyTripPage />, "WAREHOUSE_STAFF");
+    renderScreen(inTab(<MyTripPage />), "WAREHOUSE_STAFF");
     await user.click(await screen.findByRole("button", { name: L.close.action }));
     expect(screen.getByText(L.close.description(2))).toBeInTheDocument();
     expect(post).not.toHaveBeenCalled();
@@ -161,7 +182,7 @@ describe("MyTripPage (docs 05 §4.5)", () => {
 
   it("vai trò không có quyền chuyến → báo không có quyền", async () => {
     setup("QC_STAFF", null);
-    renderScreen(<MyTripPage />, "QC_STAFF");
+    renderScreen(inTab(<MyTripPage />), "QC_STAFF");
     expect(await screen.findByText(PERMISSION_UI.deniedTitle)).toBeInTheDocument();
   });
 });
@@ -171,13 +192,13 @@ describe("bản đồ lộ trình trang ghép vào (docs 05 §4.5 bước 14)", 
 
   it("IN_PROGRESS → bản đồ nằm trong mục Lộ trình, nhận đúng chuyến", async () => {
     setup("WAREHOUSE_STAFF", GOING);
-    renderScreen(<MyTripPage routeMap={routeMap} />, "WAREHOUSE_STAFF");
+    renderScreen(inTab(<MyTripPage routeMap={routeMap} />), "WAREHOUSE_STAFF");
     expect(await screen.findByText("MAP wh-1 1")).toBeVisible();
   });
 
   it("LOADING (chưa gán bin, chưa có lộ trình) → không có bản đồ", async () => {
     setup("WAREHOUSE_STAFF", trip({ cartons: [tripCarton()] }));
-    renderScreen(<MyTripPage routeMap={routeMap} />, "WAREHOUSE_STAFF");
+    renderScreen(inTab(<MyTripPage routeMap={routeMap} />), "WAREHOUSE_STAFF");
     expect(await screen.findByText("LPN-1")).toBeVisible();
     expect(screen.queryByText(/^MAP /)).not.toBeInTheDocument();
   });
@@ -186,7 +207,7 @@ describe("bản đồ lộ trình trang ghép vào (docs 05 §4.5 bước 14)", 
 describe("TripPage — chuyến theo id", () => {
   it("quản lý kho xem chuyến người khác → chỉ có Đóng chuyến hộ", async () => {
     setup("WAREHOUSE_MANAGER", { ...GOING, operatorId: "someone" });
-    renderScreen(<TripPage tripId="trip-1" />, "WAREHOUSE_MANAGER");
+    renderScreen(inTab(<TripPage tripId="trip-1" />), "WAREHOUSE_MANAGER");
     expect(await screen.findByRole("button", { name: L.close.force })).toBeInTheDocument();
     expect(screen.queryByLabelText(L.place.bin)).not.toBeInTheDocument();
     expect(
@@ -196,9 +217,41 @@ describe("TripPage — chuyến theo id", () => {
 
   it("nhân viên kho xem chuyến người khác → chỉ xem", async () => {
     setup("WAREHOUSE_STAFF", { ...GOING, operatorId: "someone" });
-    renderScreen(<TripPage tripId="trip-1" />, "WAREHOUSE_STAFF");
+    renderScreen(inTab(<TripPage tripId="trip-1" />), "WAREHOUSE_STAFF");
     expect(await screen.findByText(L.notMine)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: L.close.force })).not.toBeInTheDocument();
+  });
+
+  it("chuyến theo id thuộc kho khác kho của tab → báo, không render chuyến", async () => {
+    setup("WAREHOUSE_MANAGER", { ...GOING, operatorId: "someone" });
+    renderScreen(inTab(<TripPage tripId="trip-1" />, BD), "WAREHOUSE_MANAGER");
+    expect(await screen.findByText("Chuyến này thuộc kho HCM")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: L.close.force })).not.toBeInTheDocument();
+  });
+
+  it("kho của chuyến không có trong danh mục → vẫn báo, dẫn về bước chọn kho (không để màn trống)", async () => {
+    setup("WAREHOUSE_MANAGER", { ...GOING, warehouseId: "wh-gone", operatorId: "someone" });
+    renderScreen(inTab(<TripPage tripId="trip-1" />, BD), "WAREHOUSE_MANAGER");
+    expect(await screen.findByText(L.elsewhere.otherUnknown)).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: UI_LABELS.warehouseMap.workspace.backToChooser }),
+    ).toHaveAttribute("href", "/admin/warehouse-map");
+  });
+
+  it("danh mục kho lỗi khi chuyến ở kho khác → báo lỗi kèm Thử lại (không để màn trống)", async () => {
+    mockApi("WAREHOUSE_STAFF", {
+      get: {
+        "/putaway-trips/current": () => ({ ...GOING, warehouseId: "wh-1" }),
+        "/warehouses": () => {
+          throw apiError(500, "INTERNAL_ERROR");
+        },
+      },
+    });
+    renderScreen(inTab(<MyTripPage />, BD), "WAREHOUSE_STAFF");
+    expect(
+      await screen.findByRole("button", { name: new RegExp(UI_LABELS.common.retry) }),
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText(L.place.bin)).not.toBeInTheDocument();
   });
 
   it("chuyến đã đóng → không nút ghi nào, có đường về danh sách", async () => {
@@ -206,11 +259,14 @@ describe("TripPage — chuyến theo id", () => {
       "WAREHOUSE_MANAGER",
       trip({ status: "CLOSED", cartons: [tripCarton({ status: "RETURNED" })] }),
     );
-    renderScreen(<TripPage tripId="trip-1" />, "WAREHOUSE_MANAGER");
+    renderScreen(inTab(<TripPage tripId="trip-1" />), "WAREHOUSE_MANAGER");
     expect(await screen.findByText(L.ended.CLOSED)).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: new RegExp(L.close.force) }),
     ).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: L.ended.backToList })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: L.ended.backToList })).toHaveAttribute(
+      "href",
+      "/admin/warehouse-map/HCM/putaway",
+    );
   });
 });

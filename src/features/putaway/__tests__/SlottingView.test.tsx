@@ -62,7 +62,7 @@ describe("SlottingView — Gợi ý vị trí theo kho (docs 06 §4.4)", () => {
     expect(screen.getByText("BIN-LPN-A")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: L.putAway })).toHaveAttribute(
       "href",
-      "/admin/putaway/t-a",
+      "/admin/warehouse-map/HCM/putaway/t-a",
     );
     // Trang chỉ đọc: không có nút chọn bin như màn cất
     expect(

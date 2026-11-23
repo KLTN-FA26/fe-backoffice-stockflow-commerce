@@ -143,8 +143,9 @@ export const ADMIN_ROUTES = {
     myTrip: `${ADMIN_BASE}/putaway/trip`,
     trip: (tripId: string) => `${ADMIN_BASE}/putaway/trips/${encodeURIComponent(tripId)}`,
     /** Mọi nhiệm vụ của một phiếu nhập (docs 05 §4.2 "theo phiếu"). */
-    byReceipt: (receiptId: string) =>
-      `${ADMIN_BASE}/putaway?receipt=${encodeURIComponent(receiptId)}`,
+    /** Nhiệm vụ cất của một phiếu — route cũ mang kho của phiếu, trang chuyển hướng đưa vào tab theo kho. */
+    byReceipt: (warehouseId: string, receiptId: string) =>
+      `${ADMIN_BASE}/putaway?warehouse=${encodeURIComponent(warehouseId)}&receipt=${encodeURIComponent(receiptId)}`,
   },
   /** Từ điển thuộc tính (BE PR #113) — thay màn "Thuộc tính biến thể" dựng từ dữ liệu mẫu. */
   attributes: `${ADMIN_BASE}/attributes`,

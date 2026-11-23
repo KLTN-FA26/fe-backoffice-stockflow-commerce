@@ -8,17 +8,47 @@ import { QUARANTINE_LABELS } from "@/constants/quarantine";
 import { buildBreadcrumbItems } from "./BackofficeShell";
 
 describe("buildBreadcrumbItems", () => {
-  it("cất hàng: danh sách, màn cất một thùng, chuyến của tôi, chuyến theo id (không khớp nhầm /trip)", () => {
+  it("cất hàng trong tab theo kho: danh sách, màn cất một thùng (id → LPN, tên trang là link về danh sách)", () => {
+    const labelFor = (id: string) => (id === "t-1" ? "LPN-1" : undefined);
+    const list = buildBreadcrumbItems(
+      ADMIN_ROUTES.warehouseMap.page("BD", WORKSPACE_PATHS.putaway),
+    );
+    expect(list.map((item) => item.label)).toEqual([
+      "Back-office",
+      "Kho & bản đồ",
+      "BD",
+      "Cất hàng",
+    ]);
+    expect(list.at(-1)?.href).toBeUndefined();
+    const detail = buildBreadcrumbItems(
+      ADMIN_ROUTES.warehouseMap.page("BD", WORKSPACE_PATHS.putawayTask("t-1")),
+      () => true,
+      labelFor,
+    );
+    expect(detail.map((item) => item.label)).toEqual([
+      "Back-office",
+      "Kho & bản đồ",
+      "BD",
+      "Cất hàng",
+      "LPN-1",
+    ]);
+    expect(detail[3]?.href).toBe("/admin/warehouse-map/BD/putaway");
+  });
+
+  it("chuyến cất hàng trong tab: chuyến của tôi, chuyến theo id (id → nhãn, không khớp nhầm /trip)", () => {
     const labels = (path: string, labelFor?: (id: string) => string | undefined) =>
       buildBreadcrumbItems(path, () => true, labelFor).map((item) => item.label);
-    expect(labels(ADMIN_ROUTES.putaway.list)).toEqual(["Back-office", "Cất hàng"]);
+    expect(labels(ADMIN_ROUTES.warehouseMap.page("BD", WORKSPACE_PATHS.myTrip))).toEqual([
+      "Back-office",
+      "Kho & bản đồ",
+      "BD",
+      "Chuyến cất hàng",
+    ]);
     expect(
-      labels(ADMIN_ROUTES.putaway.detail("t-1"), (id) => (id === "t-1" ? "LPN-1" : undefined)),
-    ).toEqual(["Back-office", "Cất hàng", "LPN-1"]);
-    expect(labels(ADMIN_ROUTES.putaway.myTrip)).toEqual(["Back-office", "Chuyến cất hàng"]);
-    expect(
-      labels(ADMIN_ROUTES.putaway.trip("x"), (id) => (id === "x" ? "Chuyến cất hàng" : undefined)),
-    ).toEqual(["Back-office", "Cất hàng", "Chuyến cất hàng"]);
+      labels(ADMIN_ROUTES.warehouseMap.page("BD", WORKSPACE_PATHS.trip("x")), (id) =>
+        id === "x" ? "Chuyến cất hàng" : undefined,
+      ),
+    ).toEqual(["Back-office", "Kho & bản đồ", "BD", "Cất hàng", "Chuyến cất hàng"]);
   });
 
   it('trang của một kho: "Kho & bản đồ / <kho ⇅> / <trang>" theo prefix trên URL', () => {

@@ -361,11 +361,21 @@ describe('tab "Kho & bản đồ" tách riêng', () => {
 
   it('trong một kho → panel có tiêu đề nhóm "Bản đồ"; nhóm "Vận hành" rỗng thì không hiện', async () => {
     navigation.pathname = ADMIN_ROUTES.warehouseMap.of("HCM");
-    await renderShell(PERMS);
+    // Không có quyền màn vận hành nào → nhóm "Vận hành" rỗng
+    await renderShell(PERMS.filter((code) => code !== PUTAWAY_TASK_PERMISSIONS.viewPage));
     const panel = document.querySelector<HTMLElement>('[data-sidebar="content"]');
     if (!panel) throw new Error("Sidebar not rendered");
     expect(within(panel).getByText("Bản đồ")).toBeInTheDocument();
     expect(within(panel).queryByText("Vận hành")).not.toBeInTheDocument();
+  });
+
+  it('trong một kho, có quyền cất hàng → nhóm "Vận hành" có Cất hàng của kho đó', async () => {
+    navigation.pathname = ADMIN_ROUTES.warehouseMap.of("HCM");
+    await renderShell(PERMS);
+    const panel = document.querySelector<HTMLElement>('[data-sidebar="content"]');
+    if (!panel) throw new Error("Sidebar not rendered");
+    expect(within(panel).getByText("Vận hành")).toBeInTheDocument();
+    expect(navLink("Cất hàng")).toHaveAttribute("href", "/admin/warehouse-map/HCM/putaway");
   });
 
   it("chỉ có quyền một trang trong kho (không có quyền bản đồ) → tab vẫn hiện", async () => {
