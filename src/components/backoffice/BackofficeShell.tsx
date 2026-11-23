@@ -59,6 +59,7 @@ import { useMemo, useState } from "react";
 import {
   ADMIN_ROUTES,
   ATTRIBUTE_PERMISSIONS,
+  BRAND,
   CANCELLATION_REQUEST_LABELS,
   CANCELLATION_REQUEST_PERMISSIONS,
   CUSTOMER_PERMISSIONS,
@@ -126,6 +127,7 @@ import { usePermissionChecker } from "@/lib/auth/components/Can";
 import { useAppStore } from "@/lib/store/use-app-store";
 import { useBreadcrumbLabelStore } from "@/lib/store/use-breadcrumb-labels";
 
+import { Logo } from "@/components/shared/Logo";
 import { SearchBar } from "@/components/shared/SearchBar";
 import { Button } from "@/components/ui/button";
 import {
@@ -796,14 +798,22 @@ function BackofficeSidebar() {
       <SidebarHeader
         className={cn("shrink-0 gap-2", collapsed ? "items-center px-0 py-2" : "px-2 py-2")}
       >
-        {/* Tên app ở đầu sidebar; thu gọn chỉ còn chữ cái đầu */}
+        {/* Logo + tên app ở đầu sidebar; thu gọn chỉ còn logo (alt = tên thương hiệu) */}
         <div
           className={cn(
-            "text-ink-primary flex h-9 items-center text-lg font-bold tracking-tight",
-            collapsed ? "justify-center" : "px-2",
+            "text-ink-primary flex h-9 items-center gap-2 text-base font-bold tracking-tight",
+            collapsed ? "justify-center" : "px-1",
           )}
         >
-          {collapsed ? UI_LABELS.shell.appName.charAt(0) : UI_LABELS.shell.appName}
+          <Logo variant="mark" height={28} decorative={!collapsed} />
+          {/* "Commerce" nhạt hơn để tên dài không lấn logo — chữ lấy từ BRAND.wordmark */}
+          {!collapsed && (
+            <span className="truncate">
+              {BRAND.wordmark.primary}
+              {BRAND.wordmark.accent}
+              <span className="text-ink-secondary font-medium">{BRAND.wordmark.suffix}</span>
+            </span>
+          )}
         </div>
         {collapsed ? (
           <SidebarSearchIcon />
