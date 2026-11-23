@@ -4,6 +4,7 @@
  */
 
 import { screen, waitFor, within } from "@testing-library/react";
+import { expect } from "vitest";
 
 import type { UserEvent } from "@testing-library/user-event";
 
@@ -12,13 +13,17 @@ export async function pickDate(user: UserEvent, trigger: HTMLElement, iso: strin
   await user.click(trigger);
   await user.selectOptions(await screen.findByRole("combobox", { name: "Chọn năm" }), String(year));
   await user.selectOptions(screen.getByRole("combobox", { name: "Chọn tháng" }), String(month - 1));
-  // Lịch vẽ lại sau khi đổi tháng; máy CI chậm có thể vẫn còn tháng cũ.
-  const cell = await waitFor(() => {
+  // Đúng ô của ngày đó (data-day của gridcell là yyyy-MM-dd), khi tháng mới đã vẽ và ô bấm được: máy CI chậm có
+  // thể vẫn còn tháng cũ, bấm vào đó không chọn được gì.
+  const button = await waitFor(() => {
     const found = within(screen.getByRole("grid"))
       .getAllByRole("gridcell")
-      .find((c) => c.textContent === String(day) && !c.hasAttribute("data-outside"));
-    if (!found) throw new Error(`Không thấy ngày ${iso} trên lịch`);
+      .find((c) => c.getAttribute("data-day") === iso && !c.hasAttribute("data-outside"))
+      ?.querySelector("button");
+    if (!found || found.disabled) throw new Error(`Không thấy ngày ${iso} trên lịch`);
     return found;
   });
-  await user.click(within(cell).getByRole("button"));
+  await user.click(button);
+  const shown = `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}/${year}`;
+  await waitFor(() => expect(trigger).toHaveTextContent(shown));
 }
