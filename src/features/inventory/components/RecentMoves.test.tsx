@@ -3,7 +3,12 @@ import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { INVENTORY_API, INVENTORY_ROUTES } from "@/constants/inventory";
+import {
+  INVENTORY_API,
+  INVENTORY_LABELS,
+  INVENTORY_ROUTES,
+  STOCK_MOVEMENT_LABELS,
+} from "@/constants/inventory";
 import { MOVE_LABELS } from "@/constants/move";
 import { INVENTORY_PERMISSIONS } from "@/constants/permissions";
 
@@ -71,6 +76,12 @@ describe("RecentMoves", () => {
       "href",
       INVENTORY_ROUTES.movements,
     );
+    // Danh sách chỉ có MOVE: chip "Loại biến động" thay cho cột loại (bỏ để bảng gọn)
+    expect(screen.getByText(new RegExp(STOCK_MOVEMENT_LABELS.MOVE))).toBeInTheDocument();
+    expect(
+      screen.queryByRole("columnheader", { name: INVENTORY_LABELS.movementType }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: INVENTORY_LABELS.sku })).toBeInTheDocument();
   });
 
   it("says so when there is no move yet", async () => {
@@ -97,10 +108,13 @@ describe("RecentMoves", () => {
 
   it("without inventory-stock-movements:READ it only explains, and never calls the ledger", async () => {
     server.use(inventoryPermissions([INVENTORY_PERMISSIONS.stockUpdate]));
-    renderInventory(<RecentMoves warehouseId="wh-1" />);
+    renderInventory(<RecentMoves warehouseId="wh-1" actions={<button>Tạo lệnh</button>} />);
     await waitFor(() =>
       expect(screen.getByText(MOVE_LABELS.recentUnavailable)).toBeInTheDocument(),
     );
+    // Vẫn tạo được lệnh (nút của trang nằm ở toolbar); link sang sổ kho thì không
+    expect(screen.getByRole("button", { name: "Tạo lệnh" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: MOVE_LABELS.recentAll })).not.toBeInTheDocument();
     // Give a stray request time to surface (onUnhandledRequest: "error" would fail the test).
     await new Promise((resolve) => setTimeout(resolve, 100));
   });

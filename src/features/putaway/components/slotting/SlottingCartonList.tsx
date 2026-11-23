@@ -8,6 +8,7 @@ import { SLOTTING_LABELS } from "@/constants";
 import { filterPutawayTasks } from "@/features/putaway/selectors";
 
 import { DETAIL_CARD_CLASS, DetailCardTitle } from "@/components/shared/DetailSection";
+import { FORM_INPUT_CLASS } from "@/components/shared/form-control-classes";
 import { Input } from "@/components/ui/input";
 
 import type { PutawayTask } from "@/features/putaway/types";
@@ -43,7 +44,7 @@ export function SlottingCartonList({
         onChange={(event) => setQ(event.target.value)}
         placeholder={L.search}
         aria-label={L.search}
-        className="bg-bg-surface mb-2 h-9 rounded-[var(--r-sm)] text-[0.8125rem]"
+        className={cn(FORM_INPUT_CLASS, "mb-2")}
       />
       {rows.length === 0 ? (
         <p className="text-ink-tertiary py-6 text-center text-[0.8125rem]">{L.noMatch}</p>

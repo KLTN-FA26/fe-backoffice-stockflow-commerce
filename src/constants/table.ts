@@ -124,6 +124,7 @@ export const WAREHOUSE_COLUMNS = {
 
 /** Cột Bảng sức chứa kho — một dòng mỗi kho (BE `WarehouseCapacityBoard`, docs 06 §4.6 bước 3). */
 export const WAREHOUSE_CAPACITY_COLUMNS = {
+  ACTIONS: "actions",
   WAREHOUSE: "warehouse",
   CAPACITY: "capacity",
   OCCUPIED: "occupied",

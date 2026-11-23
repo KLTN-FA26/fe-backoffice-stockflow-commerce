@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { renderWithProviders } from "@/test/render";
 
+import { useAppStore } from "@/lib/store/use-app-store";
 import { useWorkspaceWarehouse } from "@/lib/workspace";
 
 import { prefixFromPath } from "@/features/warehouse-map/workspace";
@@ -57,12 +58,24 @@ beforeEach(() => {
   permissionsPending.mockReturnValue(false);
   navigation.replace.mockReset();
   navigation.pathname = "/admin/warehouse-map/bd";
+  useAppStore.setState({ workspacePrefix: null });
 });
 
 describe("trang của một kho theo prefix trên URL", () => {
   it("prefix chữ thường → cấp đúng kho, prefix chuẩn của danh mục, qua context", () => {
     renderWithProviders(<WarehouseScope prefix="bd">{page}</WarehouseScope>);
     expect(screen.getByText("Bản đồ của Kho Bình Dương (wh-bd · BD)")).toBeInTheDocument();
+  });
+
+  it("vào kho → nhớ prefix chuẩn để panel sidebar giữ kho khi sang Danh mục kho / Sức chứa kho", () => {
+    renderWithProviders(<WarehouseScope prefix="bd">{page}</WarehouseScope>);
+    expect(useAppStore.getState().workspacePrefix).toBe("BD");
+  });
+
+  it("prefix không có trong danh mục → không ghi đè kho đang nhớ", () => {
+    useAppStore.setState({ workspacePrefix: "HCM" });
+    renderWithProviders(<WarehouseScope prefix="XYZ">{page}</WarehouseScope>);
+    expect(useAppStore.getState().workspacePrefix).toBe("HCM");
   });
 
   it("prefix không có trong danh mục → báo và dẫn về Danh mục kho để chọn kho", () => {

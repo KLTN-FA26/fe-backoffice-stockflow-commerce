@@ -15,9 +15,9 @@ import { Button } from "@/components/ui/button";
 import { tripCallbacks } from "./useTripAction";
 
 const L = PUTAWAY_TRIP_LABELS.start;
-/** Nút chính cao 40px như ô điều khiển của Mode A. */
+/** Nút chính của thẻ chi tiết — cỡ nút hành động chung (`--action-*`, skill vercel-restyle). */
 const OPEN_BUTTON_CLASS =
-  "border-border-default bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse h-(--control-h) rounded-(--action-radius) border px-4 text-[0.8125rem] font-medium";
+  "border-border-default bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse h-(--action-h) rounded-(--action-radius) border px-(--action-px) text-[0.8125rem] font-medium";
 
 /** Chưa có chuyến mở: mở chuyến (LOADING) ở kho của tab theo kho — không có ô chọn kho (spec 2026-11-22 §5.8). */
 export function TripStart({ onStale }: { onStale: () => void }) {

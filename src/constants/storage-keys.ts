@@ -3,6 +3,8 @@ export const STORAGE_KEYS = {
   adminReceiptsConfig: "stockflow:admin:receipts:config",
   /** Màn Nhận hàng trong tab theo kho — chỉ số dòng / trang. */
   adminReceivingConfig: "stockflow:admin:warehouse-map:receiving:config",
+  /** Màn Nhận hàng — cột đang hiện (khoá riêng: `usePagedList` ghi cả object vào khoá `…:config`). */
+  adminReceivingColumns: "stockflow:admin:warehouse-map:receiving:columns",
   adminInventoryItemsConfig: "stockflow:admin:inventory-items:config",
   adminVariantsConfig: "stockflow:admin:variants:config",
   adminOrdersConfig: "stockflow:admin:orders:config",
@@ -27,6 +29,8 @@ export const STORAGE_KEYS = {
   adminLoadsConfig: "stockflow:admin:loads:config",
   adminVehicleTypesConfig: "stockflow:admin:vehicle-types:config",
   adminWarehousesConfig: "stockflow:admin:warehouses:config",
+  /** Bảng sức chứa kho — cột đang hiện. */
+  adminWarehouseCapacityConfig: "stockflow:admin:warehouse-capacity:config",
   adminLoadPlansConfig: "stockflow:admin:load-plans:config",
   /** sessionStorage — `requestId` của lần lập kế hoạch xếp xe (BE trả lại kế hoạch cũ khi gửi lại cùng id). */
   loadPlanRequest: "stockflow:admin:load-plans:create-request",

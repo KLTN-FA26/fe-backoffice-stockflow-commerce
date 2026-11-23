@@ -9,6 +9,8 @@ import {
   canViewPutBacks,
 } from "@/features/fulfillment/pick-line-lifecycle";
 
+import { Alert } from "@/components/shared/Alert";
+
 import { FulfillmentPermissionGate } from "../FulfillmentPermissionGate";
 import { useFulfillmentActor } from "../useFulfillmentActor";
 import { PutBackDialog } from "./PutBackDialog";
@@ -27,9 +29,10 @@ function PutBackContent() {
     <>
       <PutBackToolbar s={s} />
       {s.truncated && s.query.data && (
-        <p className="text-ink-tertiary mb-3 text-xs">
+        // Cùng dạng cảnh báo bị cắt của Cất hàng — lọc phía FE chỉ thấy dòng đã tải
+        <Alert tone="warning" className="mb-3">
           {PUT_BACK_LABELS.truncated(s.query.data.items.length, s.query.data.totalElements)}
-        </p>
+        </Alert>
       )}
       <PutBackTable
         s={s}

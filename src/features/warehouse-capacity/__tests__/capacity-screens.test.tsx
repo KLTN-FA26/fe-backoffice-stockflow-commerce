@@ -6,7 +6,7 @@ import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { PERMISSION_QUERY } from "@/constants/permissions";
-import { UI_LABELS } from "@/constants";
+import { STORAGE_KEYS, UI_LABELS } from "@/constants";
 import { api } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/auth/auth-store";
 
@@ -18,6 +18,14 @@ const { push } = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push, replace: vi.fn() }) }));
 
 const L = UI_LABELS.warehouseCapacity;
+
+// jsdom thiếu ResizeObserver / scrollIntoView mà cmdk (popover Ẩn hiện cột) dùng.
+globalThis.ResizeObserver ??= class {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+};
+Element.prototype.scrollIntoView ??= () => {};
 
 /** Quyền theo seed BE V20261125000100 — Quản lý kho có thêm sửa kho; Sale chỉ xem. */
 const PERMISSIONS = {
@@ -78,6 +86,7 @@ afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
   push.mockReset();
+  window.localStorage.clear();
 });
 
 describe("Bảng sức chứa — danh sách kho (docs 06 §4.6 bước 3)", () => {
@@ -107,6 +116,48 @@ describe("Bảng sức chứa — danh sách kho (docs 06 §4.6 bước 3)", () 
     renderAs("WAREHOUSE_STAFF", <WarehouseCapacityList />);
     expect(await screen.findByText(L.noReadTitle)).toBeInTheDocument();
     expect(get).not.toHaveBeenCalledWith("/warehouse-capacity", expect.anything());
+  });
+
+  it("ẩn hiện cột: tắt Sắp về → mất cột, chip 7/8; cột Kho khoá; X trả lại", async () => {
+    const user = userEvent.setup();
+    mockApi("SALES_STAFF");
+    renderAs("SALES_STAFF", <WarehouseCapacityList />);
+    await screen.findByRole("table");
+    const header = () => screen.queryByRole("columnheader", { name: L.column.incoming });
+    expect(header()).toBeInTheDocument();
+    expect(screen.getByText("Cột hiển thị: 8/8")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Ẩn hiện cột" }));
+    expect(screen.getByRole("option", { name: L.column.warehouse })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+    await user.click(screen.getByRole("option", { name: L.column.incoming }));
+    expect(header()).not.toBeInTheDocument();
+    expect(screen.getByText("Cột hiển thị: 7/8")).toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("button", { name: "Xoá Cột hiển thị" }));
+    expect(header()).toBeInTheDocument();
+  });
+
+  it("cột đã lưu có key lạ / thiếu cột Kho → bỏ key lạ, luôn giữ cột Kho", async () => {
+    window.localStorage.setItem(
+      STORAGE_KEYS.adminWarehouseCapacityConfig,
+      JSON.stringify({ visibleColumns: ["occupied", "bogus"] }),
+    );
+    mockApi("SALES_STAFF");
+    renderAs("SALES_STAFF", <WarehouseCapacityList />);
+    const table = await screen.findByRole("table");
+    await waitFor(() =>
+      expect(
+        within(table)
+          .getAllByRole("columnheader")
+          .map((cell) => cell.textContent?.trim())
+          .filter(Boolean),
+      ).toEqual([L.column.warehouse, L.column.occupied]),
+    );
+    expect(screen.getByText("Cột hiển thị: 2/8")).toBeInTheDocument();
   });
 });
 

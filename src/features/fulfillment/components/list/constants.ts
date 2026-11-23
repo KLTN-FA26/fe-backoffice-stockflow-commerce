@@ -21,7 +21,7 @@ export const COLUMN_LABELS: Record<string, string> = {
   [C.STARTED_AT]: "Bắt đầu lấy",
   [C.PICKED_AT]: "Lấy xong",
   [C.PACKED_AT]: FIELD.packedAt,
-  [C.ACTIONS]: "Thao tác",
+  [C.ACTIONS]: UI_LABELS.fulfillment.filter.actions,
 };
 
 /** Mọi cột có thể bật ở cả hai màn; mặc định mỗi màn bật nhóm cột của công đoạn mình. */
@@ -37,6 +37,12 @@ export const ALL_COLUMNS: string[] = [
   C.PACKED_AT,
   C.ACTIONS,
 ];
+
+/** Mã task (link sang chi tiết) và cột thao tác — luôn hiện, công cụ ẩn hiện cột bỏ qua (data-table-mode-a §4.2). */
+export const LOCKED_COLUMNS: string[] = [C.TASK, C.ACTIONS];
+
+/** Cột hiện trong công cụ "Ẩn hiện cột" và chip `x/y` — không tính cột thao tác. */
+export const DATA_COLUMNS: string[] = ALL_COLUMNS.filter((c) => c !== C.ACTIONS);
 
 const DEFAULT_COLUMNS: Record<FulfillmentScope, string[]> = {
   picking: [
@@ -77,13 +83,21 @@ export function defaultConfig(scope: FulfillmentScope): TaskPageConfig {
   return { visibleColumns: DEFAULT_COLUMNS[scope], pageSize: PAGE_SIZE.md };
 }
 
+/**
+ * Bản lưu cũ có cột đã gỡ / thiếu cột khoá / rỗng → không làm vỡ bảng: bỏ key lạ, thêm lại cột khoá, giữ thứ tự cột
+ * gốc; rỗng → mặc định của màn.
+ */
 export function mergeStoredConfig(
   stored: Partial<TaskPageConfig>,
   fallback: TaskPageConfig,
 ): TaskPageConfig {
-  const visibleColumns = (stored.visibleColumns ?? []).filter((c) => ALL_COLUMNS.includes(c));
+  const kept = Array.isArray(stored.visibleColumns)
+    ? stored.visibleColumns.filter((c) => ALL_COLUMNS.includes(c))
+    : [];
   return {
-    visibleColumns: visibleColumns.length ? visibleColumns : fallback.visibleColumns,
+    visibleColumns: kept.length
+      ? ALL_COLUMNS.filter((c) => kept.includes(c) || LOCKED_COLUMNS.includes(c))
+      : fallback.visibleColumns,
     pageSize:
       stored.pageSize && PAGE_SIZE_OPTIONS.includes(stored.pageSize)
         ? stored.pageSize

@@ -15,13 +15,13 @@ import { filterBoards } from "@/features/warehouse-capacity/selectors";
 import { Alert } from "@/components/shared/Alert";
 import { DataTable } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { ListToolbar } from "@/components/shared/ListToolbar";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { RefetchBar } from "@/components/shared/RefetchBar";
 import { Button } from "@/components/ui/button";
 
 import { CapacityLoadFailed } from "./CapacityLoadFailed";
 import { buildCapacityColumns } from "./list/columns";
+import { CapacityToolbar, useCapacityColumns } from "./list/CapacityToolbar";
 
 const L = UI_LABELS.warehouseCapacity;
 const E = UI_LABELS.emptyList;
@@ -33,6 +33,7 @@ function CapacityListContent() {
   // Search là thứ người khác mở link cũng thấy → URL (state-persistence.md); lọc tại chỗ vì BE trả đủ mọi kho
   const [q, setQ] = useQueryState("q", parseAsString.withDefault(""));
   const query = useCapacityBoards(actions.read);
+  const columnState = useCapacityColumns();
   const clearSearch = () => void setQ(null);
 
   let body;
@@ -82,7 +83,9 @@ function CapacityListContent() {
           )}
           <RefetchBar active={query.isFetching} label={L.refetching} />
           <DataTable
-            columns={buildCapacityColumns()}
+            columns={buildCapacityColumns().filter((column) =>
+              columnState.visible.some((key) => key === column.key),
+            )}
             data={rows}
             rowKey={(row) => row.warehouseId}
             caption={`${UI_LABELS.common.showing} ${rows.length} / ${query.data.length} ${L.listCaption}`}
@@ -106,20 +109,10 @@ function CapacityListContent() {
     <div className="surface-soft">
       <h1 className="sr-only">{L.pageTitle}</h1>
       {actions.read && (
-        <ListToolbar<string, string, string>
-          search={q}
+        <CapacityToolbar
+          q={q}
           onSearchChange={(value) => void setQ(value || null)}
-          searchPlaceholder={L.searchPlaceholder}
-          summaryItems={[
-            {
-              label: L.summarySearch,
-              value: q || UI_LABELS.common.notEntered,
-              active: q !== "",
-              onClear: clearSearch,
-            },
-          ]}
-          onResetAll={clearSearch}
-          resetDisabled={q === ""}
+          columns={columnState}
         />
       )}
       {body}

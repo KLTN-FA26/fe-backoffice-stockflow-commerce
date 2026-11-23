@@ -91,9 +91,12 @@ export function buildCapacityColumns(): ColumnDef<CapacityBoard>[] {
       title: L.hint.outgoing,
       muted: true,
     }),
-    viewColumn((row) => ({
-      label: `${L.detailTitle} ${row.warehouseCode}`,
-      href: ADMIN_ROUTES.warehouseCapacity.detail(row.warehouseCode),
-    })),
+    viewColumn(
+      (row) => ({
+        label: `${L.detailTitle} ${row.warehouseCode}`,
+        href: ADMIN_ROUTES.warehouseCapacity.detail(row.warehouseCode),
+      }),
+      C.ACTIONS,
+    ),
   ];
 }

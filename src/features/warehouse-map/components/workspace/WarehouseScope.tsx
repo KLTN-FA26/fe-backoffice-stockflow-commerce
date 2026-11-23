@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
 import { ADMIN_ROUTES, UI_LABELS } from "@/constants";
+import { useAppStore } from "@/lib/store/use-app-store";
 import { WorkspaceWarehouseProvider } from "@/lib/workspace";
 
 import { useWarehouseByPrefix } from "@/features/warehouse-map/workspace";
@@ -67,6 +68,11 @@ export function WarehouseScope({ prefix, children }: { prefix: string; children:
   const canonical = workspace.warehouse?.prefix;
   const pathname = usePathname();
   const router = useRouter();
+  const setWorkspacePrefix = useAppStore((state) => state.setWorkspacePrefix);
+  // Nhớ kho vừa vào (đã khớp danh mục) → panel sidebar giữ trang của kho này khi sang Danh mục kho / Sức chứa kho
+  useEffect(() => {
+    if (canonical) setWorkspacePrefix(canonical);
+  }, [canonical, setWorkspacePrefix]);
   // Prefix gõ chữ thường (`/bd/…`) → URL về prefix chuẩn của danh mục: link trong tab, panel và breadcrumb cùng một
   // dạng, đổi qua lại không dựng lại layout (mất bản nháp bản đồ…)
   useEffect(() => {

@@ -4,7 +4,9 @@
  */
 export const RECEIVING_LABELS = {
   title: "Nhận hàng",
+  /** Lọc trạng thái chọn một trên toolbar (`?tab=`): mặc định chỉ phiếu đang nhận (DRAFT). */
   tabs: { draft: "Đang nhận", all: "Tất cả" },
+  summaryStatus: "Trạng thái",
   noun: "phiếu nhận",
   emptyDraftTitle: "Kho chưa có phiếu đang nhận",
   emptyAllTitle: "Kho chưa có phiếu nhận",

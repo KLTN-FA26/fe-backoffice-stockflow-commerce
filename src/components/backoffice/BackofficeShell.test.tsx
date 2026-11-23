@@ -10,6 +10,7 @@ import {
   IDENTITY_PERMISSIONS,
   INVENTORY_PERMISSIONS,
   PUTAWAY_TASK_PERMISSIONS,
+  WAREHOUSE_CAPACITY_PERMISSIONS,
   WAREHOUSE_LOCATION_PERMISSIONS,
   WAREHOUSE_PERMISSIONS,
   WORKSPACE_PATHS,
@@ -40,8 +41,25 @@ afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
   navigation.pathname = "/admin";
-  useAppStore.setState({ focusMode: false });
+  useAppStore.setState({ focusMode: false, workspacePrefix: null });
 });
+
+// Danh mục kho cho panel tab "Kho" (tên kho, kiểm kho nhớ lại còn tồn tại)
+const warehouse = (id: string, prefix: string, name: string) => ({
+  id,
+  prefix,
+  name,
+  address: "12 Đường Demo",
+  mapUnit: "M",
+  mapWidth: 60,
+  mapHeight: 40,
+  status: "ACTIVE",
+  version: 0,
+});
+const WAREHOUSES = [
+  warehouse("wh-hcm", "HCM", "Kho Hồ Chí Minh"),
+  warehouse("wh-bd", "BD", "Kho Bình Dương"),
+];
 
 async function renderShell(
   permissions: readonly PermissionCode[],
@@ -54,6 +72,16 @@ async function renderShell(
   vi.spyOn(api, "get").mockImplementation(async (url: string) => {
     if (url === "/identity/me/permissions") {
       return { data: { roles: [role], permissions: [...permissions], ...scope } };
+    }
+    if (url === "/warehouses") {
+      const size = WAREHOUSES.length;
+      return {
+        data: {
+          items: WAREHOUSES,
+          ...{ page: 0, size, totalElements: size, totalPages: 1 },
+          ...{ hasNext: false, hasPrevious: false },
+        },
+      };
     }
     throw new Error(`Unexpected GET ${url}`);
   });
@@ -334,9 +362,49 @@ describe('tab "Kho" tách riêng', () => {
     navigation.pathname = ADMIN_ROUTES.warehouses.list;
     await renderShell(PERMS);
     expect(screen.getByRole("button", { name: /^Quay lại Kho/ })).toBeInTheDocument();
-    expect(screen.getByText(/Chọn một kho ở Danh mục kho/)).toBeInTheDocument();
+    expect(screen.getByText(/bấm một kho ở Danh mục kho/)).toBeInTheDocument();
     expect(navLink("Danh mục kho")).toHaveAttribute("aria-current", "page");
     expect(navLink("Bản đồ kho")).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["Danh mục kho", ADMIN_ROUTES.warehouses.list],
+    ["Sức chứa kho", ADMIN_ROUTES.warehouseCapacity.list],
+  ])(
+    "đã vào kho rồi sang %s → panel giữ kho đó, không văng về bước chọn kho",
+    async (label, path) => {
+      useAppStore.setState({ workspacePrefix: "BD" });
+      navigation.pathname = path;
+      await renderShell([...PERMS, WAREHOUSE_CAPACITY_PERMISSIONS.viewPage]);
+      // Link của kho vẫn trỏ về BD, nhưng không dòng nào của kho sáng — trang đang mở là trang xem mọi kho
+      const map = await screen.findByRole("link", { name: "Bản đồ kho" });
+      expect(map).toHaveAttribute("href", ADMIN_ROUTES.warehouseMap.of("BD"));
+      expect(map).not.toHaveAttribute("aria-current");
+      // Dòng tiêu đề panel (nút quay lại) đổi từ "Kho" thành tên + prefix kho đang làm việc
+      const back = screen.getByRole("button", { name: /^Quay lại Kho/ });
+      await waitFor(() => expect(back).toHaveTextContent("Kho Bình Dương"));
+      expect(back).toHaveTextContent("BD");
+      expect(navLink(label)).toHaveAttribute("aria-current", "page");
+      expect(screen.queryByText(/bấm một kho ở Danh mục kho/)).not.toBeInTheDocument();
+    },
+  );
+
+  it("kho nhớ lại không còn trong danh mục → về gợi ý chọn kho", async () => {
+    useAppStore.setState({ workspacePrefix: "XX" });
+    navigation.pathname = ADMIN_ROUTES.warehouses.list;
+    await renderShell(PERMS);
+    await waitFor(() => expect(screen.getByText(/bấm một kho ở Danh mục kho/)).toBeVisible());
+    expect(screen.getByRole("button", { name: /^Quay lại Kho/ })).toHaveTextContent(/^Kho$/);
+    expect(navLink("Bản đồ kho")).not.toBeInTheDocument();
+  });
+
+  it("URL trong kho thắng kho nhớ lại — panel theo prefix trên URL", async () => {
+    useAppStore.setState({ workspacePrefix: "BD" });
+    navigation.pathname = ADMIN_ROUTES.warehouseMap.of("HCM");
+    await renderShell(PERMS);
+    expect(navLink("Bản đồ kho")).toHaveAttribute("href", ADMIN_ROUTES.warehouseMap.of("HCM"));
+    expect(navLink("Bản đồ kho")).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("button", { name: /^Quay lại Kho/ })).toHaveTextContent("HCM");
   });
 
   it("trong một kho → panel là các trang của kho đó; breadcrumb có kho + nút đổi kho", async () => {

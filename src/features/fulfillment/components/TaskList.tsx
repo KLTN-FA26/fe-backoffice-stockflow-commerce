@@ -5,6 +5,7 @@ import { cn } from "cn";
 import { Plus } from "lucide-react";
 
 import {
+  FULFILLMENT_COLUMNS,
   FULFILLMENT_PICK_PERMISSIONS,
   FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS,
   FULFILLMENT_TASK_OVERSIGHT_PERMISSIONS,
@@ -13,7 +14,8 @@ import {
 } from "@/constants";
 import { useWorkspaceHref } from "@/lib/workspace";
 import { canCreateTask } from "@/features/fulfillment/lifecycle";
-import { TOOLBAR_ACTION_CLASS } from "@/components/shared/ListToolbar";
+import { withHeaderFilters } from "@/components/shared/ColumnHeaderFilter";
+import { TOOLBAR_ACTION_CLASS, TOOLBAR_PRIMARY_CLASS } from "@/components/shared/ListToolbar";
 import { Button } from "@/components/ui/button";
 
 import { AssignDialog } from "./assign/AssignDialog";
@@ -21,8 +23,8 @@ import { CreateTaskDialog } from "./assign/CreateTaskDialog";
 import { FulfillmentPermissionGate } from "./FulfillmentPermissionGate";
 import { buildTaskColumns } from "./list/columns";
 import { TaskListBody } from "./list/TaskListBody";
-import { TaskListFilters } from "./list/TaskListFilters";
 import { TaskListToolbar } from "./list/TaskListToolbar";
+import { useAssigneeHeaderFilter } from "./list/useAssigneeHeaderFilter";
 import { useTaskFilterLabels } from "./list/useTaskFilterLabels";
 import { useTaskListState } from "./list/useTaskListState";
 import { useFulfillmentActor } from "./useFulfillmentActor";
@@ -32,6 +34,7 @@ import type { FulfillmentTask } from "@/features/fulfillment/types";
 import type { FulfillmentScope } from "./primitives";
 
 const { fulfillment } = UI_LABELS;
+const F = fulfillment.filter;
 
 const SCOPE_COPY = {
   picking: { title: fulfillment.pickingTitle, subtitle: fulfillment.pickingSubtitle },
@@ -43,8 +46,8 @@ const SCOPE_COPY = {
  * còn lại → task được gán cho mình.
  */
 function scopeNote(actor: FulfillmentActor): string {
-  if (actor.can(FULFILLMENT_TASK_OVERSIGHT_PERMISSIONS.read)) return "mọi task";
-  return "task được gán cho bạn";
+  if (actor.can(FULFILLMENT_TASK_OVERSIGHT_PERMISSIONS.read)) return F.scopeAll;
+  return F.scopeOwn;
 }
 
 function TaskListContent({ scope }: { scope: FulfillmentScope }) {
@@ -58,6 +61,7 @@ function TaskListContent({ scope }: { scope: FulfillmentScope }) {
     actor.can(FULFILLMENT_TASK_OVERSIGHT_PERMISSIONS.read) &&
     actor.can(FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS.update);
   const labels = useTaskFilterLabels(s, canFilterAssignee);
+  const assigneeFilter = useAssigneeHeaderFilter(s, canFilterAssignee, labels.assignee);
   const [assigning, setAssigning] = useState<FulfillmentTask | null>(null);
   const [creating, setCreating] = useState(false);
   const canCreate = scope === "picking" && canCreateTask(actor);
@@ -67,39 +71,40 @@ function TaskListContent({ scope }: { scope: FulfillmentScope }) {
     actor,
     onAssign: setAssigning,
     detailHref: (taskId) => href(WORKSPACE_PATHS.pickingTask(taskId)),
-  });
-  const visibleColumns = columns.filter((c) => s.config.visibleColumns.includes(c.key));
+  }).filter((c) => s.config.visibleColumns.includes(c.key));
   const createAction = canCreate ? (
     <Button
       type="button"
       size="sm"
       onClick={() => setCreating(true)}
-      className={cn("bg-brand hover:bg-brand-hover", TOOLBAR_ACTION_CLASS)}
+      className={cn(TOOLBAR_ACTION_CLASS, TOOLBAR_PRIMARY_CLASS)}
     >
       <Plus className="size-3.5" /> {fulfillment.action.create}
     </Button>
   ) : undefined;
 
   return (
-    // Giao diện kiểu Vercel như danh sách sản phẩm (globals.css `.surface-soft`): không tiêu đề hiển
-    // thị — breadcrumb là tên trang. BE không có tìm kiếm task → hàng lọc đứng đầu (thay ô tìm), nút
-    // tạo ở cuối hàng; thanh "Cấu hình" ngay dưới.
+    // Trang danh sách style Vercel (`.surface-soft`): không tiêu đề hiển thị — breadcrumb là tên trang
     <div className="surface-soft">
       <h1 className="sr-only">{SCOPE_COPY[scope].title}</h1>
       {canRead ? (
-        <>
-          <TaskListFilters
-            s={s}
-            canFilterAssignee={canFilterAssignee}
-            assigneeLabel={labels.assignee}
-            actions={createAction}
-          />
-          <TaskListToolbar s={s} scopeNote={scopeNote(actor)} labels={labels} />
-        </>
+        <TaskListToolbar
+          s={s}
+          scopeNote={scopeNote(actor)}
+          labels={labels}
+          showAssignee={canFilterAssignee}
+          actions={createAction}
+        />
       ) : (
+        // Không đọc được task → không có gì để lọc, chỉ còn nút tạo (nếu có quyền)
         createAction && <div className="mb-3 flex justify-end">{createAction}</div>
       )}
-      <TaskListBody s={s} columns={visibleColumns} />
+      <TaskListBody
+        s={s}
+        columns={withHeaderFilters(columns, {
+          [FULFILLMENT_COLUMNS.ASSIGNEE]: assigneeFilter,
+        })}
+      />
       {assigning && <AssignDialog task={assigning} onClose={() => setAssigning(null)} />}
       {creating && (
         <CreateTaskDialog warehouseId={s.warehouse} onClose={() => setCreating(false)} />
