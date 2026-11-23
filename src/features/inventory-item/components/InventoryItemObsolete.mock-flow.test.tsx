@@ -55,7 +55,7 @@ describe("mock = BE: hồ sơ của SKU đã ngừng", () => {
 
   it("PUT logistics → 409 VARIANT_OBSOLETE (hỏi trước version: version sai vẫn ra VARIANT_OBSOLETE), không đổi gì", async () => {
     const before = await getInventoryItem(OBSOLETE_ITEM);
-    const values = { ...logisticsToForm(before.logistics), weightKg: "0.9" };
+    const values = { ...logisticsToForm(before.logistics), barcode: "8939999999909" };
     for (const version of [before.version, before.version + 7]) {
       const e = await apiError(saveItemLogistics({ id: OBSOLETE_ITEM, version, values }));
       expect([e.status, e.code]).toEqual([409, "VARIANT_OBSOLETE"]);
@@ -68,10 +68,10 @@ describe("mock = BE: hồ sơ của SKU đã ngừng", () => {
     const saved = await saveItemLogistics({
       id: ACTIVE_ITEM,
       version: before.version,
-      values: { ...logisticsToForm(before.logistics), weightKg: "0.9", rotatable: false },
+      values: { ...logisticsToForm(before.logistics), barcode: "8939999999909", rotatable: false },
     });
     expect(saved.version).toBe(before.version + 1);
-    expect(saved.logistics).toMatchObject({ weightKg: 0.9, rotatable: false });
+    expect(saved.logistics).toMatchObject({ barcode: "8939999999909", rotatable: false });
   });
 });
 
@@ -96,10 +96,10 @@ describe("form logistics gặp VARIANT_OBSOLETE", () => {
   const logisticsPuts = (put: ReturnType<typeof signIn>["put"]) =>
     put.mock.calls.filter(([url]) => String(url).endsWith("/logistics"));
 
-  async function editWeight(value: string, user = userEvent.setup()) {
-    const weight = screen.getByLabelText(L.field.weightKg);
-    await user.clear(weight);
-    await user.type(weight, value);
+  async function editBarcode(value: string, user = userEvent.setup()) {
+    const barcode = screen.getByLabelText(L.field.barcode);
+    await user.clear(barcode);
+    await user.type(barcode, value);
     await user.click(screen.getByRole("button", { name: L.saveLogistics }));
   }
 
@@ -108,11 +108,11 @@ describe("form logistics gặp VARIANT_OBSOLETE", () => {
     renderInventoryScreen(<InventoryItemDetail id={OBSOLETE_ITEM} />);
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: L.editLogistics }, WAIT));
-    await editWeight("0.9", user);
+    await editBarcode("8939999999909", user);
 
     expect(await screen.findByText(E.VARIANT_OBSOLETE, {}, WAIT)).toBeInTheDocument();
     expect(screen.queryByText(E.OPTIMISTIC_LOCK)).toBeNull();
-    expect(screen.getByLabelText(L.field.weightKg)).toHaveValue(0.9);
+    expect(screen.getByLabelText(L.field.barcode)).toHaveValue("8939999999909");
     expect(screen.getByRole("button", { name: L.saveLogistics })).toBeInTheDocument();
     expect(logisticsPuts(put)).toHaveLength(1);
     expect(success).not.toHaveBeenCalled();
@@ -128,11 +128,11 @@ describe("form logistics gặp VARIANT_OBSOLETE", () => {
     const itemGets = () =>
       get.mock.calls.filter(([url]) => url === `/inventory/items/${ACTIVE_ITEM}`).length;
     const getsBefore = itemGets();
-    await editWeight("0.8", user);
+    await editBarcode("8939999999908", user);
 
     expect(await screen.findByText(E.VARIANT_OBSOLETE, {}, WAIT)).toBeInTheDocument();
     expect(screen.queryByText(E.OPTIMISTIC_LOCK)).toBeNull();
-    expect(screen.getByLabelText(L.field.weightKg)).toHaveValue(0.8);
+    expect(screen.getByLabelText(L.field.barcode)).toHaveValue("8939999999908");
     expect(logisticsPuts(put)).toHaveLength(1);
     expect(success).not.toHaveBeenCalled();
     // không phải lỗi "dữ liệu cũ": không tự tải lại hồ sơ để nạp đè bản nháp

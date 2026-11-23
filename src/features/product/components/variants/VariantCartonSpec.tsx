@@ -23,8 +23,9 @@ const WARN = "text-warning text-xs";
 /**
  * Logistics & quy cách thùng của SKU (docs 01 §3, BR-03; BE `GET .../uom-conversions`,
  * `product-products:READ`). Thùng chọn theo đúng luật BE `UomConversion.cartonOf`; khai báo / sửa qua
- * `CartonSpecDialog` khi `canEdit`. Mã vạch, cỡ / khối lượng một cái và cờ cho phép xoay là logistics của
- * hồ sơ hàng tồn (`inventory-inventory-items`) — chỉ có lối mở trang đó. UI-only — Backend re-check.
+ * `CartonSpecDialog` khi `canEdit`. Đây là nơi duy nhất khai kích thước / khối lượng (BE #396: hồ sơ hàng tồn
+ * không còn số đo riêng). Đơn vị tính, mã vạch và cờ cho phép xoay là logistics của hồ sơ hàng tồn
+ * (`inventory-inventory-items`) — chỉ có lối mở trang đó. UI-only — Backend re-check.
  */
 export function VariantCartonSpec({
   productId,

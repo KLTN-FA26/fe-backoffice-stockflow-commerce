@@ -93,6 +93,14 @@ describe("GET /inventory/items/{id}", () => {
     expect(item.logistics.unitOfMeasure).toBeTruthy();
   });
 
+  it("BE #396: logistics chỉ còn đơn vị tính, mã vạch, cờ xoay — không trả số đo", async () => {
+    const item = await firstItem();
+    const { data } = await api.get<{ logistics: Record<string, unknown> }>(
+      `/inventory/items/${item.id}`,
+    );
+    expect(Object.keys(data.logistics).sort()).toEqual(["barcode", "rotatable", "unitOfMeasure"]);
+  });
+
   it("id lạ → INVENTORY_ITEM_NOT_FOUND", async () => {
     expect((await apiError(getInventoryItem("khong-co"))).code).toBe("INVENTORY_ITEM_NOT_FOUND");
   });
@@ -104,10 +112,31 @@ describe("PUT /inventory/items/{id}/logistics", () => {
     const saved = await saveItemLogistics({
       id: item.id,
       version: item.version,
-      values: { ...logisticsToForm(item.logistics), weightKg: "1.25", rotatable: false },
+      values: { ...logisticsToForm(item.logistics), barcode: "8939999999901", rotatable: false },
     });
-    expect(saved).toMatchObject({ version: 1, logistics: { weightKg: 1.25, rotatable: false } });
+    expect(saved).toMatchObject({
+      version: 1,
+      logistics: { barcode: "8939999999901", rotatable: false },
+    });
     expect((await getInventoryItem(item.id)).logistics.rotatable).toBe(false);
+  });
+
+  it("client cũ còn gửi số đo (kể cả giá trị BE cũ từ chối) → bỏ qua như BE #396, không lỗi", async () => {
+    const item = await firstItem();
+    const { data } = await api.put<{ version: number; logistics: Record<string, unknown> }>(
+      `/inventory/items/${item.id}/logistics`,
+      {
+        version: item.version,
+        unitOfMeasure: item.logistics.unitOfMeasure,
+        weightKg: -1,
+        packageCount: 0,
+        packSize: 0,
+      },
+    );
+    expect(data.version).toBe(item.version + 1);
+    for (const gone of ["weightKg", "packageCount", "packSize"]) {
+      expect(data.logistics).not.toHaveProperty(gone);
+    }
   });
 
   it("version cũ → OPTIMISTIC_LOCK", async () => {

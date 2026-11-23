@@ -3,33 +3,16 @@ import { describe, expect, it } from "vitest";
 import { logisticsToForm } from "./selectors";
 
 describe("logisticsToForm", () => {
-  it("null / vắng thành chuỗi rỗng, số thành chuỗi, giữ cờ xoay", () => {
-    expect(
-      logisticsToForm({
-        unitOfMeasure: "EACH",
-        barcode: null,
-        weightKg: 0.02,
-        lengthCm: undefined,
-        widthCm: null,
-        heightCm: 12.5,
-        packageCount: 1,
-        packSize: 50,
-        rotatable: false,
-      }),
-    ).toEqual({
+  it("mã vạch null / vắng thành chuỗi rỗng, giữ đơn vị tính và cờ xoay", () => {
+    expect(logisticsToForm({ unitOfMeasure: "EACH", barcode: null, rotatable: false })).toEqual({
       unitOfMeasure: "EACH",
       barcode: "",
-      weightKg: "0.02",
-      lengthCm: "",
-      widthCm: "",
-      heightCm: "12.5",
-      packageWeightKg: "",
-      packageLengthCm: "",
-      packageWidthCm: "",
-      packageHeightCm: "",
-      packageCount: "1",
-      packSize: "50",
       rotatable: false,
+    });
+    expect(logisticsToForm({ unitOfMeasure: "PCS", barcode: "893", rotatable: true })).toEqual({
+      unitOfMeasure: "PCS",
+      barcode: "893",
+      rotatable: true,
     });
   });
 });

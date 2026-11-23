@@ -62,23 +62,16 @@ interface MockVariant {
   options: MockOption[];
 }
 
-/** Logistics của hồ sơ hàng tồn (BE PR #119), khoá theo id biến thể — nguồn của mock `/inventory/items`. */
+/**
+ * Logistics của hồ sơ hàng tồn (BE PR #119), khoá theo id biến thể — nguồn của mock `/inventory/items`. Không có số
+ * đo: BE #396 bỏ khỏi hồ sơ, số đo là của thùng (docs 01 BR-03, `mock-routes-uom-conversions.ts`).
+ */
 export interface MockLogistics {
   skuId: string;
   sku: string;
   version: number;
   unitOfMeasure: string;
   barcode: string | null;
-  weightKg: number | null;
-  lengthCm: number | null;
-  widthCm: number | null;
-  heightCm: number | null;
-  packageWeightKg: number | null;
-  packageLengthCm: number | null;
-  packageWidthCm: number | null;
-  packageHeightCm: number | null;
-  packageCount: number;
-  packSize: number;
   /** BE #121 — kiện được xoay 6 hướng khi xếp xe (docs 01 E13); mặc định true. */
   rotatable: boolean;
 }
@@ -159,7 +152,6 @@ async function buildStore(): Promise<MockVariant[]> {
       ...defaultLogistics(sku.skuId, sku.skuId),
       unitOfMeasure: sku.uom.toUpperCase(),
       barcode: sku.barcode || null,
-      weightKg: sku.weightKg,
     });
     media.set(
       sku.skuId,
@@ -221,16 +213,6 @@ function defaultLogistics(skuId: string, sku: string): MockLogistics {
     version: 0,
     unitOfMeasure: "EACH",
     barcode: null,
-    weightKg: null,
-    lengthCm: null,
-    widthCm: null,
-    heightCm: null,
-    packageWeightKg: null,
-    packageLengthCm: null,
-    packageWidthCm: null,
-    packageHeightCm: null,
-    packageCount: 1,
-    packSize: 1,
     rotatable: true,
   };
 }

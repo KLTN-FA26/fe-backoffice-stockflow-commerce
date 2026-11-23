@@ -161,6 +161,21 @@ describe("countFieldErrors — lỗi BE lines[i] về đúng dòng form", () => 
     ]);
   });
 
+  it("BE #396: thùng chưa đủ kích thước / khối lượng → RECEIPT_LINE_UNIT_INVALID ở lines[i].unitOfMeasure, hiện ở ô thùng của đúng dòng", () => {
+    const error = new ApiError(
+      422,
+      "RECEIPT_LINE_UNIT_INVALID",
+      "The carton has no size or weight yet",
+      { "lines[1].unitOfMeasure": "The carton of LID, CARTON, has no size or weight yet" },
+      undefined,
+      { "lines[1].unitOfMeasure": "RECEIPT_LINE_UNIT_INVALID" },
+    );
+    expect(countFieldErrors(error, [0, 1])).toEqual([
+      { row: 1, field: "newCartons", message: RECEIPT_ERROR_MESSAGES.RECEIPT_LINE_UNIT_INVALID },
+    ]);
+    expect(RECEIPT_ERROR_MESSAGES.RECEIPT_LINE_UNIT_INVALID).toMatch(/kích thước, khối lượng/);
+  });
+
   it("lỗi không thuộc dòng nào / không phải ApiError → không map (form hiện lỗi chung)", () => {
     expect(countFieldErrors(new ApiError(409, "X", "x", { lines: "empty" }), [0])).toEqual([]);
     expect(countFieldErrors(new Error("boom"), [0])).toEqual([]);

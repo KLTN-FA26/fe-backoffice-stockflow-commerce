@@ -16,16 +16,6 @@ vi.mock("./api", () => ({
 const values: LogisticsFormValues = {
   unitOfMeasure: "EACH",
   barcode: "",
-  weightKg: "",
-  lengthCm: "",
-  widthCm: "",
-  heightCm: "",
-  packageWeightKg: "",
-  packageLengthCm: "",
-  packageWidthCm: "",
-  packageHeightCm: "",
-  packageCount: "1",
-  packSize: "1",
   rotatable: true,
 };
 
