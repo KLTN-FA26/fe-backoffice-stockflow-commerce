@@ -156,6 +156,8 @@ export const EINVOICE_SYSTEM_REJECTION_CODES = [
   "WITHDRAWN_NO_PROVIDER_RECORD",
   // WF-05 Q-5: rút hoá đơn không xác nhận được kết quả, có văn bản trả lời của hỗ trợ NCC (`rejectionMessage`)
   "WITHDRAWN_RESULT_UNCONFIRMED",
+  // WF-05 Q-8 (F-13): Kế toán ghi "cơ quan thuế từ chối" từ cổng NCC (BE `EInvoice.REFUSED_BY_TAX_AUTHORITY_CODE`)
+  "REFUSED_BY_TAX_AUTHORITY",
 ] as const;
 export type EInvoiceSystemRejectionCode = (typeof EINVOICE_SYSTEM_REJECTION_CODES)[number];
 export type EInvoiceWarning = (typeof EINVOICE_WARNINGS)[number];
@@ -209,6 +211,9 @@ export const WITHDRAWAL_PROVIDER_STATES = [
   "UNKNOWN",
   "NOT_FOUND",
   "UNCONFIRMED",
+  // BE `EInvoiceIssuance.withdraw`: `ResultState.name()` khi NCC không nói "không có bản ghi"
+  "ISSUED",
+  "REJECTED",
 ] as const;
 export type WithdrawalProviderState = (typeof WITHDRAWAL_PROVIDER_STATES)[number];
 

@@ -5,8 +5,13 @@ import { CORRECTION_BASIS_LABELS, SIGNATURE_STATUS_LABELS } from "@/constants/la
 import { ApiError } from "@/lib/api/error";
 
 import { detailJson, listItemJson } from "../__fixtures__/screen";
-import { EINVOICE_ERROR_MESSAGES, einvoiceErrorMessage, withdrawalRefusal } from "../errors";
-import { externalReductionInputSchema } from "../input-schemas";
+import {
+  EINVOICE_ERROR_MESSAGES,
+  einvoiceErrorMessage,
+  portalResultErrorMessage,
+  withdrawalRefusal,
+} from "../errors";
+import { externalReductionInputSchema, portalResultInputSchema } from "../input-schemas";
 import { agreementDraftAvailable } from "../lifecycle";
 import {
   einvoiceDtoSchema,
@@ -235,5 +240,119 @@ describe("agreementDraftAvailable — documents #7 only on a live correction", (
     ["ORIGINAL", "ISSUED", false],
   ] as const)("%s %s → %s", (type, status, expected) => {
     expect(agreementDraftAvailable({ type, status })).toBe(expected);
+  });
+});
+
+describe("portal result (audit r2 M-2, Low 10)", () => {
+  const files = {
+    xml: new File(["<HDon/>"], "hd.xml", { type: "text/xml" }),
+    pdf: new File(["%PDF"], "hd.pdf", { type: "application/pdf" }),
+  };
+
+  it("ISSUED needs number, tax authority code, look-up code, XML and PDF — one issue per missing field", () => {
+    const parsed = portalResultInputSchema.safeParse({
+      outcome: "ISSUED",
+      invoiceNumber: "",
+      taxAuthorityCode: " ",
+      lookupCode: "",
+      xml: null,
+      pdf: null,
+      note: "Đã kiểm",
+    });
+    expect(parsed.success).toBe(false);
+    expect(parsed.error?.issues.map((issue) => issue.path[0])).toEqual([
+      "invoiceNumber",
+      "taxAuthorityCode",
+      "lookupCode",
+      "xml",
+      "pdf",
+    ]);
+    const ok = portalResultInputSchema.parse({
+      outcome: "ISSUED",
+      invoiceNumber: "77",
+      taxAuthorityCode: "M1-26",
+      lookupCode: "TC77",
+      ...files,
+      note: "Đã kiểm",
+    });
+    expect(ok).toMatchObject({ invoiceNumber: 77, taxAuthorityCode: "M1-26", lookupCode: "TC77" });
+  });
+
+  it("a refusal drops whatever was typed for ISSUED", () => {
+    expect(
+      portalResultInputSchema.parse({
+        outcome: "REFUSED_BY_TAX_AUTHORITY",
+        invoiceNumber: "77",
+        taxAuthorityCode: "M1-26",
+        lookupCode: "",
+        ...files,
+        note: "CQT từ chối",
+      }),
+    ).toEqual({
+      outcome: "REFUSED_BY_TAX_AUTHORITY",
+      invoiceNumber: undefined,
+      taxAuthorityCode: undefined,
+      lookupCode: undefined,
+      xml: undefined,
+      pdf: undefined,
+      note: "CQT từ chối",
+    });
+  });
+
+  it("the portal dialog words the shared codes for itself, not for a withdrawal", () => {
+    const busy = portalResultErrorMessage(
+      new ApiError(409, "EINVOICE_WITHDRAWAL_REFUSED", "x"),
+      "ISSUED",
+    );
+    expect(busy).toMatch(/đang hỏi nhà cung cấp/);
+    expect(busy).not.toBe(EINVOICE_ERROR_MESSAGES.EINVOICE_WITHDRAWAL_REFUSED);
+    const early = portalResultErrorMessage(
+      new ApiError(
+        409,
+        "EINVOICE_WITHDRAWAL_REFUSED",
+        "x",
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        {
+          withdrawableFrom: "2026-11-20T03:00:00Z",
+        },
+      ),
+      "REFUSED_BY_TAX_AUTHORITY",
+    );
+    expect(early).toMatch(/Ghi được từ/);
+    expect(
+      portalResultErrorMessage(new ApiError(409, "EINVOICE_PORTAL_RECORD_MISMATCH", "x"), "ISSUED"),
+    ).toMatch(/số \/ ký hiệu đã nhập/);
+    expect(
+      portalResultErrorMessage(
+        new ApiError(409, "EINVOICE_PORTAL_RECORD_MISMATCH", "x"),
+        "REFUSED_BY_TAX_AUTHORITY",
+      ),
+    ).toMatch(/đã phát hành hoặc đang xử lý/);
+  });
+
+  it("audit r2 Low 13: seller profile, customer and storage codes have their own sentence", () => {
+    for (const code of ["SELLER_PROFILE_UNAVAILABLE", "CUSTOMER_NOT_FOUND", "STORAGE_ERROR"]) {
+      expect(EINVOICE_ERROR_MESSAGES).toHaveProperty(code);
+      expect(einvoiceErrorMessage(new ApiError(409, code, "English"))).not.toMatch(/English/);
+    }
+    // withdraw refusal: the provider says ISSUED / REJECTED — said in Vietnamese, not dropped
+    const refusal = einvoiceErrorMessage(
+      new ApiError(
+        409,
+        "EINVOICE_WITHDRAWAL_REFUSED",
+        "x",
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        {
+          providerState: "ISSUED",
+        },
+      ),
+    );
+    expect(refusal).toMatch(/đã phát hành — không rút/);
   });
 });

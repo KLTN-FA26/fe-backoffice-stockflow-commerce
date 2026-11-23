@@ -10,6 +10,7 @@ import {
   einvoicePageDtoSchema,
   errorNoticeDtoSchema,
   fileLinkDtoSchema,
+  orderReturnChoicePageDtoSchema,
   providerCallDtoSchema,
   registerEntryDtoSchema,
   signatureDtoSchema,
@@ -34,6 +35,7 @@ import type {
   ErrorNotice,
   ErrorNoticeInput,
   FileLink,
+  OrderReturnChoice,
   ProviderCall,
   RegisterEntry,
   RegisterRange,
@@ -240,6 +242,12 @@ export interface ExternalReductionInput {
   invoiceNumber: number;
   /** `YYYY-MM-DD` — ngày của hoá đơn giảm trên cổng NCC. */
   issueDate: string;
+  /**
+   * Mã của cơ quan thuế / mã tra cứu in trên hoá đơn giảm (tuỳ chọn): vắng thì BE lấy MCCQT trong XML
+   * (`EInvoiceIssuance.recordExternalReduction`) — XML không mang mã thì 422, nên Kế toán nhập ở đây.
+   */
+  taxAuthorityCode?: string;
+  lookupCode?: string;
   pdf: File;
   /** BE G3: bắt buộc — XML là hoá đơn theo luật, số / ký hiệu / ngày đã nhập được đối chiếu với nó. */
   xml: File;
@@ -261,6 +269,8 @@ export async function recordExternalReduction(input: ExternalReductionInput): Pr
   form.append("templateCode", input.templateCode);
   form.append("invoiceNumber", String(input.invoiceNumber));
   form.append("issueDate", input.issueDate);
+  if (input.taxAuthorityCode) form.append("taxAuthorityCode", input.taxAuthorityCode);
+  if (input.lookupCode) form.append("lookupCode", input.lookupCode);
   form.append("pdf", input.pdf);
   form.append("xml", input.xml);
   form.append("note", input.note);
@@ -354,6 +364,20 @@ export async function sendErrorNotice(input: {
     {},
   );
   return errorNoticeDtoSchema.parse(data);
+}
+
+/**
+ * Các yêu cầu trả hàng của đơn (BE `GET /returns?orderId=`, `sales-rmas:READ` — Kế toán có) để chọn khi điều chỉnh /
+ * ghi hoá đơn giảm vì trả hàng: BE nhận `returnRequestId` là UUID và đòi yêu cầu thuộc đúng đơn của hoá đơn
+ * (`EInvoiceCorrections.requireReturnOf`). Mới nhất trước; một đơn không có quá 50 yêu cầu trả hàng trong thực tế.
+ */
+export async function listOrderReturnChoices(
+  orderId: string,
+  signal?: AbortSignal,
+): Promise<OrderReturnChoice[]> {
+  const params = new URLSearchParams({ orderId, page: "0", size: "50", sort: "requestedAt,desc" });
+  const { data } = await api.get<unknown>("/returns", { params, signal });
+  return orderReturnChoicePageDtoSchema.parse(data).items;
 }
 
 /* ── Bảng kê ─────────────────────────────────────────────────────────────────────── */

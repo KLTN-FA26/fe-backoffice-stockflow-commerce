@@ -97,6 +97,8 @@ describe("allowedEInvoiceActions — three roles (docs 21 BR-02)", () => {
       "issue",
       "voidUnsendable",
     ]);
+    // audit r2 Low 8: BE còn đòi einvoices:APPROVE cho mã UNSENDABLE_REVERSAL — chỉ UPDATE thì không có nút
+    expect(allowedEInvoiceActions(system, has([P.read, P.update]))).not.toContain("voidUnsendable");
     const manual = gate({ type: "ADJUSTMENT", correctionBasis: "RETURN" });
     expect(allowedEInvoiceActions(manual, ACCOUNTANT)).toContain("void");
     expect(allowedEInvoiceActions(manual, ACCOUNTANT)).not.toContain("attachAgreement");
@@ -375,6 +377,15 @@ describe("selectors", () => {
         rejectionMessage: "Phiếu hỗ trợ SP-123",
       }),
     ).toMatch(/không xác nhận được kết quả.*30 ngày.*SP-123/);
+    // audit r2 Low 11: Kế toán ghi "cơ quan thuế từ chối" từ cổng — không đọc thành "Nhà cung cấp từ chối"
+    expect(
+      rejectionText({
+        rejectionCode: "REFUSED_BY_TAX_AUTHORITY",
+        rejectionMessage: "CQT trả mã lỗi trên cổng",
+      }),
+    ).toBe(
+      "Cơ quan thuế từ chối (Kế toán ghi lại từ cổng nhà cung cấp): CQT trả mã lỗi trên cổng.",
+    );
   });
 
   it("Q-10: an invoice issued after the delivery day reads “Lập trễ N ngày”", () => {

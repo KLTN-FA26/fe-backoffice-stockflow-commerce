@@ -179,6 +179,18 @@ export const einvoiceListItemDtoSchema = z.object({
 });
 export const einvoicePageDtoSchema = bePageSchema(einvoiceListItemDtoSchema);
 
+/**
+ * Một yêu cầu trả hàng của đơn để chọn khi điều chỉnh / ghi hoá đơn giảm vì trả hàng (BE `GET /returns?orderId=`, dòng
+ * `ReturnRequestRowResponse`) — chỉ những trường ô chọn cần; trạng thái đọc như chuỗi (mã lạ vẫn hiện được).
+ */
+export const orderReturnChoiceDtoSchema = z.object({
+  id: z.string(),
+  rmaNumber: z.string(),
+  status: z.string(),
+  requestedAt: z.string().nullish(),
+});
+export const orderReturnChoicePageDtoSchema = bePageSchema(orderReturnChoiceDtoSchema);
+
 /** BE `ProviderCallResponse` — nhật ký gọi nhà cung cấp (docs 21 §3 Output). */
 export const providerCallDtoSchema = z.object({
   provider: z.string(),

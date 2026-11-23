@@ -33,6 +33,14 @@ export function formatPercent(n: number, decimals = 1): string {
   }).format(n);
 }
 
+/**
+ * Thuế suất BE gửi dưới dạng phần trăm (8 = 8%, BE `EInvoiceLine.taxRate`: 0 tới dưới 100, tối đa 2 số lẻ):
+ * 8 → "8%", 5.25 → "5,25%". Khác `formatPercent`, hàm đó nhận phân số (0.08).
+ */
+export function formatRatePercent(ratePercent: number): string {
+  return `${formatDecimal(ratePercent, 2)}%`;
+}
+
 /** Số đo có phần lẻ, bỏ số 0 thừa: (12.5, 3) → "12,5"; (1234.5678, 2) → "1.234,57" (vi-VN). */
 export function formatDecimal(n: number, maxFractionDigits: number): string {
   return n.toLocaleString("vi-VN", { maximumFractionDigits: maxFractionDigits });

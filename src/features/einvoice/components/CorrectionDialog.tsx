@@ -8,7 +8,6 @@ import { CORRECTION_BASIS_LABELS } from "@/constants/labels-einvoice";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { FormField } from "@/components/shared/FormField";
 import { FORM_TEXTAREA_CLASS } from "@/components/shared/form-control-classes";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -23,6 +22,7 @@ import { adjustInputSchema, replaceInputSchema } from "../input-schemas";
 import { useAdjustEInvoice, useReplaceEInvoice } from "../mutations";
 
 import { CorrectionLinesEditor, draftLinesOf, toCorrectionLines } from "./CorrectionLinesEditor";
+import { ReturnRequestPicker } from "./ReturnRequestPicker";
 
 import type { ManualCorrectionBasis } from "@/constants/einvoice";
 import type { EInvoice } from "../types";
@@ -112,13 +112,12 @@ function CorrectionForm({
         </FormField>
       )}
       {mode === "adjust" && basis === "RETURN" && (
-        <FormField id="correction-return" label="Mã yêu cầu trả hàng" required>
-          <Input
-            id="correction-return"
-            value={returnRequestId}
-            onChange={(event) => setReturnRequestId(event.target.value)}
-          />
-        </FormField>
+        <ReturnRequestPicker
+          id="correction-return"
+          orderId={invoice.orderId}
+          value={returnRequestId}
+          onChange={setReturnRequestId}
+        />
       )}
       <FormField id="correction-reason" label="Lý do" required>
         <Textarea

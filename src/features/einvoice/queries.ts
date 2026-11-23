@@ -10,6 +10,7 @@ import {
   listCorrections,
   listEInvoices,
   listErrorNotices,
+  listOrderReturnChoices,
   listProviderCalls,
 } from "./api";
 import { getEInvoiceSettings, listProviders } from "./settings-api";
@@ -94,4 +95,13 @@ export const useEInvoiceProviders = (enabled = true) =>
     queryFn: ({ signal }) => listProviders(signal),
     enabled,
     ...QUERY_TIMES.detail,
+  });
+
+/** Yêu cầu trả hàng của đơn — ô chọn "Yêu cầu trả hàng" khi điều chỉnh / ghi hoá đơn giảm vì trả hàng. */
+export const useOrderReturnChoices = (orderId: string | null | undefined, enabled = true) =>
+  useQuery({
+    queryKey: [...einvoiceKeys.all, "order-returns", orderId ?? ""],
+    queryFn: ({ signal }) => listOrderReturnChoices(orderId ?? "", signal),
+    enabled: enabled && !!orderId,
+    ...QUERY_TIMES.list,
   });

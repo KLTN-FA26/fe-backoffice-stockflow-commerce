@@ -118,7 +118,9 @@ export const nextNoticeId = () => `NOTICE-${String(++sequence).padStart(4, "0")}
 
 /** Thành tiền dòng = số lượng × đơn giá; thuế làm tròn tới đồng (docs 21 §4.1 bước 2). */
 export const lineAmount = (line: MockEInvoiceLine) => line.quantity * line.unitPrice;
-export const lineTax = (line: MockEInvoiceLine) => Math.round(lineAmount(line) * line.taxRate);
+/** Thuế suất dạng phần trăm như BE (8 = 8%, `EInvoiceLine.vat`). */
+export const lineTax = (line: MockEInvoiceLine) =>
+  Math.round((lineAmount(line) * line.taxRate) / 100);
 
 const goods = (
   no: number,
@@ -137,7 +139,7 @@ const goods = (
   quantity: cartons * perCarton,
   unitsPerCarton: perCarton,
   unitPrice: price,
-  taxRate: 0.08,
+  taxRate: 8,
 });
 
 const BUYER_9 = {

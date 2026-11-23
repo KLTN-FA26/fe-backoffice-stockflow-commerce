@@ -98,6 +98,11 @@ export const EINVOICE_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   // BE HĐ-6: SePay / Viettel không gửi được mẫu 04/SS-HĐĐT
   EINVOICE_ERROR_NOTICE_NOT_SUPPORTED:
     "Nhà cung cấp của hoá đơn này không gửi được thông báo sai sót. Lập mẫu 04/SS-HĐĐT trên cổng của nhà cung cấp hoặc cổng cơ quan thuế.",
+  // BE `EInvoiceDrafts`: máy chủ chưa cấu hình thông tin bên bán (stockflow.seller.*)
+  SELLER_PROFILE_UNAVAILABLE:
+    "Máy chủ chưa cấu hình thông tin bên bán (tên, mã số thuế, địa chỉ) nên chưa lập được hoá đơn. Nhờ quản trị máy chủ cấu hình.",
+  CUSTOMER_NOT_FOUND: "Không tìm thấy khách hàng của đơn để ghi bên mua trên hoá đơn.",
+  STORAGE_ERROR: "Không lưu / đọc được tệp trên kho lưu trữ. Thử lại sau ít phút.",
   UNSUPPORTED_MEDIA_TYPE: "Văn bản thoả thuận phải là tệp PDF.",
   OPTIMISTIC_LOCK: "Hoá đơn vừa được người khác cập nhật. Dữ liệu đã được tải lại.",
 };
@@ -156,6 +161,29 @@ export function einvoiceErrorMessage(error: unknown): string {
   const warnings = outOfDateWarnings(error);
   if (warnings.length > 0) return `${base} ${warnings.map(warningLabel).join(" ")}`;
   return base;
+}
+
+/**
+ * "Ghi kết quả từ cổng" (BE `EInvoiceIssuance.recordPortalResult`) dùng lại hai mã của việc rút / đối chiếu số với
+ * nghĩa riêng — câu chung của hai mã đó nói về rút hoá đơn và số nhập sai nên không hợp với hộp thoại này:
+ * - `EINVOICE_WITHDRAWAL_REFUSED`: nhà cung cấp đang được hỏi về hoá đơn ngay lúc này, hoặc (cơ quan thuế từ chối) lần
+ *   gửi cuối chưa đủ thời gian chờ — kèm "Ghi được từ <giờ>" khi BE gửi `details.withdrawableFrom`.
+ * - `EINVOICE_PORTAL_RECORD_MISMATCH`: nhà cung cấp, hỏi lại ngay lúc ghi, nói khác điều Kế toán ghi.
+ */
+export function portalResultErrorMessage(error: unknown, outcome: string): string {
+  if (!(error instanceof ApiError)) return einvoiceErrorMessage(error);
+  if (error.code === "EINVOICE_WITHDRAWAL_REFUSED") {
+    const from = withdrawalRefusal(error)?.withdrawableFrom;
+    return from
+      ? `Chưa ghi được: lần gửi cuối tới nhà cung cấp còn quá gần, nhà cung cấp có thể vẫn đang xử lý. Ghi được từ ${formatDateTime(from)}.`
+      : "Chưa ghi được: hệ thống đang hỏi nhà cung cấp về hoá đơn này. Chờ một lát rồi thử lại.";
+  }
+  if (error.code === "EINVOICE_PORTAL_RECORD_MISMATCH") {
+    return outcome === "ISSUED"
+      ? "Nhà cung cấp, vừa được hỏi lại, không ghi hoá đơn này với số / ký hiệu đã nhập (chưa có, bị từ chối, hoặc mang số khác). Kiểm tra lại trên cổng nhà cung cấp rồi nhập đúng."
+      : "Nhà cung cấp, vừa được hỏi lại, cho thấy hoá đơn đã phát hành hoặc đang xử lý — không ghi “cơ quan thuế từ chối” được. Bấm “Kiểm tra lại” để hệ thống nhận kết quả của nhà cung cấp.";
+  }
+  return einvoiceErrorMessage(error);
 }
 
 /**

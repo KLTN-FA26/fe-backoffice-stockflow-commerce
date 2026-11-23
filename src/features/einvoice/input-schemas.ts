@@ -74,7 +74,16 @@ const correctionLine = z.object({
   originalLineId: z.string().min(1),
   quantity: z.number().int().optional(),
   unitPrice: z.number().min(0).optional(),
-  taxRate: z.number().min(0).optional(),
+  // BE `EInvoiceLine`: thuế suất là phần trăm, 0 tới dưới 100, tối đa 2 số lẻ
+  taxRate: z
+    .number({ message: "Thuế suất là số phần trăm, ví dụ 8" })
+    .min(0, "Thuế suất từ 0 tới dưới 100 (%)")
+    .lt(100, "Thuế suất từ 0 tới dưới 100 (%)")
+    .refine(
+      (value) => Math.abs(value * 100 - Math.round(value * 100)) < 1e-6,
+      "Thuế suất tối đa 2 số lẻ",
+    )
+    .optional(),
   itemName: optionalText(L.lineNameMax).optional(),
 });
 
@@ -229,8 +238,9 @@ const invoiceNumberText = z
   .refine((value) => value > 0, "Số hoá đơn là số nguyên dương");
 
 /**
- * Kết quả đã kiểm trên cổng NCC cho hoá đơn kẹt "đang gửi" (BE F-13): đã phát hành → bắt buộc số hoá đơn; cơ quan thuế
- * từ chối → chỉ ghi chú. Tệp XML / PDF tuỳ chọn; BE đối chiếu với bản ghi tra lại từ NCC.
+ * Kết quả đã kiểm trên cổng NCC cho hoá đơn kẹt "đang gửi" (BE F-13, WF-05 Q-8). Đã phát hành → bắt buộc số hoá đơn, mã
+ * của cơ quan thuế, mã tra cứu, tệp XML và bản PDF — đúng như BE kiểm (`EInvoiceIssuance.recordPortalResult`: thiếu một
+ * trong năm là 400 VALIDATION_FAILED; XML là hoá đơn theo luật). Cơ quan thuế từ chối → chỉ ghi chú, không gửi tệp.
  */
 export const portalResultInputSchema = z
   .object({
@@ -247,18 +257,33 @@ export const portalResultInputSchema = z
       .max(L.noteMax, `Tối đa ${L.noteMax} ký tự`),
   })
   .transform((value, ctx) => {
-    if (value.outcome !== "ISSUED") return { ...value, invoiceNumber: undefined };
-    const number = invoiceNumberText.safeParse(value.invoiceNumber);
-    if (!number.success) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["invoiceNumber"],
-        message: "Nhập số hoá đơn đã phát hành trên cổng",
-      });
-      return z.NEVER;
+    if (value.outcome !== "ISSUED") {
+      return {
+        ...value,
+        invoiceNumber: undefined,
+        taxAuthorityCode: undefined,
+        lookupCode: undefined,
+        xml: undefined,
+        pdf: undefined,
+      };
     }
+    const number = invoiceNumberText.safeParse(value.invoiceNumber);
+    const missing = (path: string, message: string) =>
+      ctx.addIssue({ code: "custom", path: [path], message });
+    if (!number.success) missing("invoiceNumber", "Nhập số hoá đơn đã phát hành trên cổng");
+    if (!value.taxAuthorityCode)
+      missing("taxAuthorityCode", "Nhập mã của cơ quan thuế in trên hoá đơn");
+    if (!value.lookupCode) missing("lookupCode", "Nhập mã tra cứu hoá đơn trên cổng");
+    if (!value.xml) missing("xml", "Chọn tệp XML của hoá đơn tải từ cổng");
+    if (!value.pdf) missing("pdf", "Chọn bản PDF của hoá đơn tải từ cổng");
+    if (!number.success || !value.taxAuthorityCode || !value.lookupCode || !value.xml || !value.pdf)
+      return z.NEVER;
     return { ...value, invoiceNumber: number.data };
   });
+
+/** Trường của form "Ghi kết quả từ cổng" có thể báo lỗi riêng (path của `portalResultInputSchema`). */
+export type PortalResultField =
+  "invoiceNumber" | "taxAuthorityCode" | "lookupCode" | "xml" | "pdf" | "note";
 
 /**
  * Hoá đơn giảm Kế toán đã lập trên cổng NCC (BE G3 `external-reductions`): ký hiệu, mẫu số, số, ngày (không ở tương
@@ -278,6 +303,8 @@ export const externalReductionInputSchema = z
       .regex(/^[0-9A-Za-z/]{1,20}$/, "Nhập mẫu số (tối đa 20 ký tự chữ, số, /)"),
     invoiceNumber: invoiceNumberText,
     issueDate: isoDate.refine((d) => d <= todayInVietnam(), "Ngày hoá đơn không được ở tương lai"),
+    taxAuthorityCode: optionalText(L.providerCodeMax).optional(),
+    lookupCode: optionalText(L.providerCodeMax).optional(),
     pdf: z
       .instanceof(File, { message: "Chọn tệp PDF của hoá đơn giảm" })
       .refine(isPdf, "Bản xem phải là tệp PDF"),

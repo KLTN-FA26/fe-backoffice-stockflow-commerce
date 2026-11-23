@@ -1,7 +1,7 @@
 "use client";
 
 import { EINVOICE_LABELS } from "@/constants/labels-einvoice";
-import { formatNumber, formatPercent } from "@/lib/format";
+import { formatNumber, formatRatePercent } from "@/lib/format";
 import { Card } from "@/components/shared/Card";
 
 import { MONO } from "./copy";
@@ -10,8 +10,9 @@ import { MoneyCell } from "./primitives";
 import type { EInvoice } from "../types";
 
 const D = EINVOICE_LABELS.detail;
+/** BE gửi thuế suất dạng phần trăm (8 = 8%, `EInvoiceLine.taxRate`), không phải phân số. */
 const rate = (value: number | null | undefined) =>
-  value == null ? "KCT" : formatPercent(value, 0);
+  value == null ? "KCT" : formatRatePercent(value);
 
 /**
  * Dòng hàng / dòng phí (docs 21 §4.1 bước 2): số lượng = số thùng × số cái / thùng, đơn giá / cái,

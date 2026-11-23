@@ -122,7 +122,9 @@ export function allowedEInvoiceActions(
       if (can(P.approve)) actions.push("issue");
       // BE `EInvoice.voidDraft`: nháp hệ thống lập (DELIVERY_FAILED) không huỷ thường — chỉ huỷ với mã
       // UNSENDABLE_REVERSAL khi không gửi được qua NCC (WF-05 Q-8, F-14; BE quyết: 409 EINVOICE_REVERSAL_STILL_SENDABLE)
-      if (can(P.update)) actions.push(systemDrawn ? "voidUnsendable" : "void");
+      // Huỷ bản giảm không gửi được: BE còn đòi einvoices:APPROVE (`EInvoiceController.voidDraft`, reasonCode)
+      if (systemDrawn ? can(P.update) && can(P.approve) : can(P.update))
+        actions.push(systemDrawn ? "voidUnsendable" : "void");
       break;
     case "SUBMITTING":
       // docs 21 BR-05: chưa xác nhận được kết quả thì không gửi lại — chỉ kiểm tra lại;

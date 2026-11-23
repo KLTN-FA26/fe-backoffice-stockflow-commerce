@@ -6,7 +6,7 @@ import { EINVOICE_LIMITS, PORTAL_RESULT_OUTCOMES } from "@/constants/einvoice";
 import { PORTAL_RESULT_OUTCOME_LABELS } from "@/constants/labels-einvoice";
 import { FilePickerField } from "@/components/shared/FilePickerField";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
-import { FormField } from "@/components/shared/FormField";
+import { FormField, fieldA11y } from "@/components/shared/FormField";
 import { FORM_TEXTAREA_CLASS } from "@/components/shared/form-control-classes";
 import { Input } from "@/components/ui/input";
 import {
@@ -18,12 +18,29 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
-import { einvoiceErrorMessage } from "../errors";
+import { portalResultErrorMessage } from "../errors";
 import { portalResultInputSchema } from "../input-schemas";
 import { useRecordPortalResult } from "../mutations";
 
 import type { PortalResultOutcome } from "@/constants/einvoice";
+import type { PortalResultField } from "../input-schemas";
 import type { EInvoice } from "../types";
+
+type FieldErrors = Partial<Record<PortalResultField, string>>;
+
+/** Lỗi zod → lỗi từng ô (ô đầu tiên của mỗi trường); lỗi không gắn ô nào trả về `rest`. */
+function fieldErrorsOf(issues: readonly { path: readonly PropertyKey[]; message: string }[]) {
+  const fields: FieldErrors = {};
+  let rest: string | null = null;
+  for (const issue of issues) {
+    const key = issue.path[0];
+    if (typeof key === "string" && key !== "outcome") {
+      const field = key as PortalResultField;
+      fields[field] ??= issue.message;
+    } else rest ??= issue.message;
+  }
+  return { fields, rest };
+}
 
 function PortalResultForm({ invoice, onClose }: { invoice: EInvoice; onClose: () => void }) {
   const [outcome, setOutcome] = useState<PortalResultOutcome>("ISSUED");
@@ -34,6 +51,7 @@ function PortalResultForm({ invoice, onClose }: { invoice: EInvoice; onClose: ()
   const [pdf, setPdf] = useState<File | null>(null);
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const record = useRecordPortalResult();
   const issued = outcome === "ISSUED";
 
@@ -48,13 +66,19 @@ function PortalResultForm({ invoice, onClose }: { invoice: EInvoice; onClose: ()
       note,
     });
     if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? "Dữ liệu chưa hợp lệ");
+      const { fields, rest } = fieldErrorsOf(parsed.error.issues);
+      setFieldErrors(fields);
+      setError(rest);
       return;
     }
+    setFieldErrors({});
     setError(null);
     record.mutate(
       { id: invoice.id, version: invoice.version, ...parsed.data },
-      { onSuccess: onClose, onError: (failure) => setError(einvoiceErrorMessage(failure)) },
+      {
+        onSuccess: onClose,
+        onError: (failure) => setError(portalResultErrorMessage(failure, outcome)),
+      },
     );
   };
 
@@ -85,25 +109,35 @@ function PortalResultForm({ invoice, onClose }: { invoice: EInvoice; onClose: ()
       </FormField>
       {issued && (
         <div className="grid gap-3 md:grid-cols-3">
-          <FormField id="portal-number" label="Số hoá đơn" required>
+          <FormField
+            id="portal-number"
+            label="Số hoá đơn"
+            required
+            error={fieldErrors.invoiceNumber}
+          >
             <Input
-              id="portal-number"
+              {...fieldA11y("portal-number", fieldErrors.invoiceNumber)}
               inputMode="numeric"
               value={invoiceNumber}
               onChange={(event) => setInvoiceNumber(event.target.value)}
             />
           </FormField>
-          <FormField id="portal-tax-code" label="Mã cơ quan thuế">
+          <FormField
+            id="portal-tax-code"
+            label="Mã cơ quan thuế"
+            required
+            error={fieldErrors.taxAuthorityCode}
+          >
             <Input
-              id="portal-tax-code"
+              {...fieldA11y("portal-tax-code", fieldErrors.taxAuthorityCode)}
               maxLength={EINVOICE_LIMITS.providerCodeMax}
               value={taxAuthorityCode}
               onChange={(event) => setTaxAuthorityCode(event.target.value)}
             />
           </FormField>
-          <FormField id="portal-lookup" label="Mã tra cứu">
+          <FormField id="portal-lookup" label="Mã tra cứu" required error={fieldErrors.lookupCode}>
             <Input
-              id="portal-lookup"
+              {...fieldA11y("portal-lookup", fieldErrors.lookupCode)}
               maxLength={EINVOICE_LIMITS.providerCodeMax}
               value={lookupCode}
               onChange={(event) => setLookupCode(event.target.value)}
@@ -113,17 +147,17 @@ function PortalResultForm({ invoice, onClose }: { invoice: EInvoice; onClose: ()
       )}
       {issued && (
         <div className="grid gap-3 md:grid-cols-2">
-          <FormField id="portal-xml" label="Tệp XML của hoá đơn">
+          <FormField id="portal-xml" label="Tệp XML của hoá đơn" required error={fieldErrors.xml}>
             <FilePickerField
-              id="portal-xml"
+              {...fieldA11y("portal-xml", fieldErrors.xml)}
               accept=".xml,application/xml,text/xml"
               fileName={xml?.name}
               onChange={setXml}
             />
           </FormField>
-          <FormField id="portal-pdf" label="Bản PDF">
+          <FormField id="portal-pdf" label="Bản PDF" required error={fieldErrors.pdf}>
             <FilePickerField
-              id="portal-pdf"
+              {...fieldA11y("portal-pdf", fieldErrors.pdf)}
               accept="application/pdf"
               fileName={pdf?.name}
               onChange={setPdf}
@@ -131,9 +165,14 @@ function PortalResultForm({ invoice, onClose }: { invoice: EInvoice; onClose: ()
           </FormField>
         </div>
       )}
-      <FormField id="portal-note" label="Đã kiểm gì trên cổng nhà cung cấp" required>
+      <FormField
+        id="portal-note"
+        label="Đã kiểm gì trên cổng nhà cung cấp"
+        required
+        error={fieldErrors.note}
+      >
         <Textarea
-          id="portal-note"
+          {...fieldA11y("portal-note", fieldErrors.note)}
           rows={2}
           maxLength={EINVOICE_LIMITS.noteMax}
           className={FORM_TEXTAREA_CLASS}

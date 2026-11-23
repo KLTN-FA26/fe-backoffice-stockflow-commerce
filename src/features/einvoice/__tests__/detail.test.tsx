@@ -548,6 +548,25 @@ describe("EInvoiceDetail — corrections the BE refuses are not offered (BO-03, 
     await userEvent.click(within(dialog).getByRole("button", { name: "Ghi kết quả" }));
     expect(await within(dialog).findByText(/Nhập số hoá đơn đã phát hành/)).toBeInTheDocument();
     await userEvent.type(within(dialog).getByLabelText(/Số hoá đơn/), "77");
+    // M-2: BE `recordPortalResult` từ chối ISSUED thiếu mã CQT, mã tra cứu, XML hoặc PDF — FE chặn trước, báo từng ô
+    await userEvent.click(within(dialog).getByRole("button", { name: "Ghi kết quả" }));
+    expect(
+      await within(dialog).findByText("Nhập mã của cơ quan thuế in trên hoá đơn"),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByText("Nhập mã tra cứu hoá đơn trên cổng")).toBeInTheDocument();
+    expect(within(dialog).getByText("Chọn tệp XML của hoá đơn tải từ cổng")).toBeInTheDocument();
+    expect(within(dialog).getByText("Chọn bản PDF của hoá đơn tải từ cổng")).toBeInTheDocument();
+    expect(within(dialog).getByLabelText(/Mã cơ quan thuế/)).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    expect(api.post).not.toHaveBeenCalled();
+    await userEvent.type(within(dialog).getByLabelText(/Mã cơ quan thuế/), "M1-26-ABCDE");
+    await userEvent.type(within(dialog).getByLabelText(/Mã tra cứu/), "TRACUU77");
+    const xml = new File(["<HDon/>"], "hd77.xml", { type: "text/xml" });
+    const pdf = new File(["%PDF"], "hd77.pdf", { type: "application/pdf" });
+    await userEvent.upload(within(dialog).getByLabelText(/Tệp XML/), xml);
+    await userEvent.upload(within(dialog).getByLabelText(/Bản PDF/), pdf);
     await userEvent.click(within(dialog).getByRole("button", { name: "Ghi kết quả" }));
     await waitFor(() =>
       expect(api.post).toHaveBeenCalledWith(
@@ -559,7 +578,32 @@ describe("EInvoiceDetail — corrections the BE refuses are not offered (BO-03, 
     const form = api.post.mock.calls.at(-1)?.[1] as FormData;
     expect(form.get("outcome")).toBe("ISSUED");
     expect(form.get("invoiceNumber")).toBe("77");
+    expect(form.get("taxAuthorityCode")).toBe("M1-26-ABCDE");
+    expect(form.get("lookupCode")).toBe("TRACUU77");
+    expect(form.get("xml")).toBe(xml);
+    expect(form.get("pdf")).toBe(pdf);
     expect(form.get("version")).toBe("3");
+  });
+
+  it("M-2: a tax-authority refusal needs only the note and sends no files", async () => {
+    const api = mockEInvoiceApi(ACCOUNTANT_GRANTS, {
+      get: get(detailJson({ status: "SUBMITTING", provider: "SEPAY_EINVOICE" })),
+      post: {
+        "/einvoices/einv-1/portal-result": () => detailJson({ status: "REJECTED" }),
+      },
+    });
+    renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
+    await userEvent.click(await screen.findByRole("button", { name: "Ghi kết quả từ cổng NCC" }));
+    const dialog = screen.getByRole("dialog");
+    await userEvent.click(within(dialog).getByRole("combobox", { name: /Kết quả trên cổng/ }));
+    await userEvent.click(await screen.findByRole("option", { name: "Cơ quan thuế từ chối" }));
+    await userEvent.type(within(dialog).getByLabelText(/Đã kiểm gì/), "CQT từ chối trên cổng");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Ghi kết quả" }));
+    await waitFor(() => expect(api.post).toHaveBeenCalled());
+    const form = api.post.mock.calls.at(-1)?.[1] as FormData;
+    expect(form.get("outcome")).toBe("REFUSED_BY_TAX_AUTHORITY");
+    expect(form.get("xml")).toBeNull();
+    expect(form.get("taxAuthorityCode")).toBeNull();
   });
 
   it("shows the portal-recorded origin of an issued invoice", async () => {

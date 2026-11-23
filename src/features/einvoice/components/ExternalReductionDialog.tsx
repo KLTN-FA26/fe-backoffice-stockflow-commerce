@@ -24,6 +24,8 @@ import { einvoiceErrorMessage } from "../errors";
 import { externalReductionInputSchema } from "../input-schemas";
 import { useRecordExternalReduction } from "../mutations";
 
+import { ReturnRequestPicker } from "./ReturnRequestPicker";
+
 import type { ExternalReductionBasis } from "@/constants/einvoice";
 import type { EInvoice } from "../types";
 
@@ -33,6 +35,8 @@ function ExternalReductionForm({ invoice, onClose }: { invoice: EInvoice; onClos
   const [templateCode, setTemplateCode] = useState(invoice.templateCode ?? "1");
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [issueDate, setIssueDate] = useState("");
+  const [taxAuthorityCode, setTaxAuthorityCode] = useState("");
+  const [lookupCode, setLookupCode] = useState("");
   const [pdf, setPdf] = useState<File | null>(null);
   const [xml, setXml] = useState<File | null>(null);
   const [note, setNote] = useState("");
@@ -48,6 +52,8 @@ function ExternalReductionForm({ invoice, onClose }: { invoice: EInvoice; onClos
       templateCode,
       invoiceNumber,
       issueDate,
+      taxAuthorityCode,
+      lookupCode,
       pdf,
       xml,
       note,
@@ -102,13 +108,12 @@ function ExternalReductionForm({ invoice, onClose }: { invoice: EInvoice; onClos
         </Select>
       </FormField>
       {basis === "RETURN" && (
-        <FormField id="reduction-return" label="Mã yêu cầu trả hàng" required>
-          <Input
-            id="reduction-return"
-            value={returnRequestId}
-            onChange={(event) => setReturnRequestId(event.target.value)}
-          />
-        </FormField>
+        <ReturnRequestPicker
+          id="reduction-return"
+          orderId={invoice.orderId}
+          value={returnRequestId}
+          onChange={setReturnRequestId}
+        />
       )}
       <div className="grid gap-3 md:grid-cols-3">
         <FormField id="reduction-template" label="Mẫu số" required>
@@ -136,9 +141,27 @@ function ExternalReductionForm({ invoice, onClose }: { invoice: EInvoice; onClos
           />
         </FormField>
       </div>
-      <FormField id="reduction-date" label="Ngày hoá đơn" required>
-        <DatePicker id="reduction-date" value={issueDate} onChange={setIssueDate} />
-      </FormField>
+      <div className="grid gap-3 md:grid-cols-3">
+        <FormField id="reduction-date" label="Ngày hoá đơn" required>
+          <DatePicker id="reduction-date" value={issueDate} onChange={setIssueDate} />
+        </FormField>
+        <FormField id="reduction-tax-code" label="Mã cơ quan thuế">
+          <Input
+            id="reduction-tax-code"
+            maxLength={EINVOICE_LIMITS.providerCodeMax}
+            value={taxAuthorityCode}
+            onChange={(event) => setTaxAuthorityCode(event.target.value)}
+          />
+        </FormField>
+        <FormField id="reduction-lookup" label="Mã tra cứu">
+          <Input
+            id="reduction-lookup"
+            maxLength={EINVOICE_LIMITS.providerCodeMax}
+            value={lookupCode}
+            onChange={(event) => setLookupCode(event.target.value)}
+          />
+        </FormField>
+      </div>
       <div className="grid gap-3 md:grid-cols-2">
         <FormField id="reduction-pdf" label="Bản PDF" required>
           <FilePickerField

@@ -41,6 +41,10 @@ export const WITHDRAWAL_PROVIDER_STATE_LABELS = {
   NOT_FOUND: "Nhà cung cấp chưa có bản ghi của hoá đơn này.",
   UNCONFIRMED:
     "Không xác nhận được kết quả với nhà cung cấp — chỉ rút khi có văn bản trả lời của bộ phận hỗ trợ nhà cung cấp: nhập số phiếu hoặc nội dung trả lời.",
+  ISSUED:
+    "Nhà cung cấp cho biết hoá đơn đã phát hành — không rút. Bấm “Kiểm tra lại” để nhận số hoá đơn.",
+  REJECTED:
+    "Nhà cung cấp cho biết hoá đơn đã bị từ chối — bấm “Kiểm tra lại” để hệ thống ghi kết quả đó.",
 } as const satisfies Record<WithdrawalProviderState, string>;
 
 /** Điều BE thấy khi kiểm lại nháp lúc phát hành tay, không phải cảnh báo lưu trên hoá đơn (WF-05 F-16). */
@@ -185,6 +189,8 @@ export const EINVOICE_LABELS = {
     // WF-05 Q-5: rejectionMessage = số phiếu / nội dung trả lời của hỗ trợ NCC; BE tự tra lại giao dịch cũ 30 ngày
     WITHDRAWN_RESULT_UNCONFIRMED:
       "Đã rút khỏi nhà cung cấp khi không xác nhận được kết quả (hệ thống tự tra lại giao dịch cũ trong 30 ngày) — văn bản của bộ phận hỗ trợ",
+    // WF-05 Q-8: rejectionMessage = điều Kế toán đã kiểm trên cổng NCC
+    REFUSED_BY_TAX_AUTHORITY: "Cơ quan thuế từ chối (Kế toán ghi lại từ cổng nhà cung cấp)",
   } satisfies Record<EInvoiceSystemRejectionCode, string>,
 } as const;
 
