@@ -415,6 +415,10 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     // BE V20261209000200 (docs 20 §3): Kế toán xem phiếu điều chỉnh tồn — chỉ đọc, không lập / duyệt
     INVENTORY_PERMISSIONS.adjustmentViewPage,
     INVENTORY_PERMISSIONS.adjustmentRead,
+    // Owner 2026-11-23 (WF-05 giấy tờ #3): Kế toán xem và in phiếu nhập kho 01-VT của phiếu hàng hoàn — chỉ đọc; mọi
+    // thao tác sửa phiếu cần UPDATE nên không hiện
+    GOODS_RECEIPT_PERMISSIONS.viewPage,
+    GOODS_RECEIPT_PERMISSIONS.read,
   ],
   // ECOMMERCE_ADMIN: duyệt / xuất bản nhưng không tạm ngưng / ngừng kinh doanh (product-lifecycle chỉ
   // System Admin, BE PR #123)

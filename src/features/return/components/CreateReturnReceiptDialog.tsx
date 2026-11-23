@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -20,7 +21,7 @@ import { FormField, fieldA11y } from "@/components/shared/FormField";
 import { FORM_TEXTAREA_CLASS } from "@/components/shared/form-control-classes";
 import { Textarea } from "@/components/ui/textarea";
 
-import { returnErrorMessage } from "../errors";
+import { openDraftReceiptOf, returnErrorMessage } from "../errors";
 import { createReceiptInputSchema } from "../input-schemas";
 import { useCreateReturnReceipt } from "../mutations";
 import { receiptOpenable } from "../lifecycle";
@@ -41,6 +42,9 @@ function CreateForm({
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  // 409 RETURN_RECEIPT_ALREADY_OPEN: dòng của hàng đợi không mang `receiptDraftOpen`, nên nguồn đang có phiếu nháp vẫn
+  // chọn được — BE từ chối và nêu phiếu nháp (`details.receiptId`); màn đưa người dùng tới phiếu đó.
+  const [openDraftId, setOpenDraftId] = useState<string | null>(null);
   const canReadShipments = useCan(SHIPMENT_PERMISSIONS.read);
   const sources = useReceiptSourceReturns();
   // Mở từ màn yêu cầu (`?returnRequestId=`): yêu cầu đó luôn có trong danh sách chọn, kể cả khi nằm ngoài trang đầu
@@ -84,7 +88,10 @@ function CreateForm({
           onClose();
           router.push(RETURN_ROUTES.receipts.detail(receipt.id));
         },
-        onError: (failure) => setError(returnErrorMessage(failure)),
+        onError: (failure) => {
+          setError(returnErrorMessage(failure));
+          setOpenDraftId(openDraftReceiptOf(failure));
+        },
       },
     ),
   );
@@ -197,6 +204,17 @@ function CreateForm({
           />
         )}
       />
+      {openDraftId && (
+        <p className="text-[0.8125rem]">
+          <Link
+            href={RETURN_ROUTES.receipts.detail(openDraftId)}
+            className="text-accent-text font-medium hover:underline"
+            onClick={onClose}
+          >
+            {L.openDraft}
+          </Link>
+        </p>
+      )}
       <FormField id="rr-note" label={L.note} error={errors.note?.message}>
         <Textarea
           rows={2}

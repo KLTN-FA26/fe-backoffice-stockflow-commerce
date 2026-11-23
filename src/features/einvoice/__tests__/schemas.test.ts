@@ -6,6 +6,8 @@ import { ApiError } from "@/lib/api/error";
 
 import { detailJson, listItemJson } from "../__fixtures__/screen";
 import { EINVOICE_ERROR_MESSAGES, einvoiceErrorMessage, withdrawalRefusal } from "../errors";
+import { externalReductionInputSchema } from "../input-schemas";
+import { agreementDraftAvailable } from "../lifecycle";
 import {
   einvoiceDtoSchema,
   einvoiceListItemDtoSchema,
@@ -188,5 +190,50 @@ describe("BO-10: every WF-05 error code the e-invoice screens can receive has Vi
     );
     expect(message).toMatch(/mức cao nhất 10%/);
     expect(message).toMatch(/cảnh báo mới/);
+  });
+});
+
+describe("externalReductionInputSchema — BE G3 requires the XML and takes basis + returnRequestId", () => {
+  const valid = {
+    symbol: "c26taa",
+    templateCode: "1",
+    invoiceNumber: "12",
+    issueDate: "2026-11-01",
+    pdf: new File(["%PDF"], "giam.pdf", { type: "application/pdf" }),
+    xml: new File(["<x/>"], "giam.xml", { type: "text/xml" }),
+    note: "Giảm trên cổng",
+    basis: "DELIVERY_FAILED",
+  };
+
+  it("an XML is required now", () => {
+    const parsed = externalReductionInputSchema.safeParse({ ...valid, xml: null });
+    expect(parsed.success).toBe(false);
+    expect(parsed.error?.issues[0]?.message).toBe("Chọn tệp XML của hoá đơn giảm");
+  });
+
+  it("RETURN needs the return request; DELIVERY_FAILED drops a stray one", () => {
+    expect(externalReductionInputSchema.safeParse({ ...valid, basis: "RETURN" }).success).toBe(
+      false,
+    );
+    const ret = externalReductionInputSchema.parse({
+      ...valid,
+      basis: "RETURN",
+      returnRequestId: "rr-1",
+    });
+    expect(ret).toMatchObject({ basis: "RETURN", returnRequestId: "rr-1", symbol: "C26TAA" });
+    expect(
+      externalReductionInputSchema.parse({ ...valid, returnRequestId: "rr-1" }).returnRequestId,
+    ).toBeUndefined();
+  });
+});
+
+describe("agreementDraftAvailable — documents #7 only on a live correction", () => {
+  it.each([
+    ["ADJUSTMENT", "DRAFT", true],
+    ["REPLACEMENT", "ISSUED", true],
+    ["ADJUSTMENT", "VOIDED_DRAFT", false],
+    ["ORIGINAL", "ISSUED", false],
+  ] as const)("%s %s → %s", (type, status, expected) => {
+    expect(agreementDraftAvailable({ type, status })).toBe(expected);
   });
 });

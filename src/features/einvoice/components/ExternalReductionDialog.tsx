@@ -3,19 +3,28 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { EINVOICE_LIMITS, EINVOICE_ROUTES } from "@/constants/einvoice";
+import { EINVOICE_LIMITS, EINVOICE_ROUTES, EXTERNAL_REDUCTION_BASES } from "@/constants/einvoice";
+import { EXTERNAL_REDUCTION_BASIS_LABELS } from "@/constants/labels-einvoice";
 import { DatePicker } from "@/components/shared/DatePicker";
 import { FilePickerField } from "@/components/shared/FilePickerField";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { FormField } from "@/components/shared/FormField";
 import { FORM_TEXTAREA_CLASS } from "@/components/shared/form-control-classes";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
 import { einvoiceErrorMessage } from "../errors";
 import { externalReductionInputSchema } from "../input-schemas";
 import { useRecordExternalReduction } from "../mutations";
 
+import type { ExternalReductionBasis } from "@/constants/einvoice";
 import type { EInvoice } from "../types";
 
 function ExternalReductionForm({ invoice, onClose }: { invoice: EInvoice; onClose: () => void }) {
@@ -27,6 +36,9 @@ function ExternalReductionForm({ invoice, onClose }: { invoice: EInvoice; onClos
   const [pdf, setPdf] = useState<File | null>(null);
   const [xml, setXml] = useState<File | null>(null);
   const [note, setNote] = useState("");
+  // Mặc định như BE (`basis` vắng = DELIVERY_FAILED); hoá đơn thay thế có yêu cầu trả hàng gắn sẵn thì gợi ý RETURN
+  const [basis, setBasis] = useState<ExternalReductionBasis>("DELIVERY_FAILED");
+  const [returnRequestId, setReturnRequestId] = useState(invoice.returnRequestId ?? "");
   const [error, setError] = useState<string | null>(null);
   const record = useRecordExternalReduction();
 
@@ -39,6 +51,8 @@ function ExternalReductionForm({ invoice, onClose }: { invoice: EInvoice; onClos
       pdf,
       xml,
       note,
+      basis,
+      returnRequestId: returnRequestId.trim() || undefined,
     });
     if (!parsed.success) {
       setError(parsed.error.issues[0]?.message ?? "Dữ liệu chưa hợp lệ");
@@ -60,7 +74,7 @@ function ExternalReductionForm({ invoice, onClose }: { invoice: EInvoice; onClos
   return (
     <FormDialogBody
       title={`Ghi hoá đơn giảm làm trên cổng nhà cung cấp cho ${invoice.code}`}
-      description="Hoá đơn giảm không gửi được qua hệ thống (nhà cung cấp cũ, hoặc trả hàng / giao thất bại trên hoá đơn thay thế): Kế toán lập trên cổng nhà cung cấp rồi ghi số, ngày và tệp vào đây. Hệ thống đối chiếu với nhà cung cấp và đọc tệp XML trước khi ghi."
+      description="Hoá đơn giảm không gửi được qua hệ thống (nhà cung cấp cũ, hoặc trả hàng / giao thất bại trên hoá đơn thay thế): Kế toán lập trên cổng nhà cung cấp rồi ghi số, ngày và tệp vào đây. Hệ thống đọc tệp XML và đối chiếu mẫu số, ký hiệu, số, ngày đã nhập với tệp trước khi ghi."
       submitLabel="Ghi hoá đơn giảm"
       canSubmit
       isPending={record.isPending}
@@ -68,6 +82,34 @@ function ExternalReductionForm({ invoice, onClose }: { invoice: EInvoice; onClos
       onCancel={onClose}
       onSubmit={submit}
     >
+      <FormField id="reduction-basis" label="Căn cứ giảm" required>
+        <Select
+          value={basis}
+          onValueChange={(value) =>
+            setBasis(EXTERNAL_REDUCTION_BASES.find((entry) => entry === value) ?? "DELIVERY_FAILED")
+          }
+        >
+          <SelectTrigger id="reduction-basis">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {EXTERNAL_REDUCTION_BASES.map((value) => (
+              <SelectItem key={value} value={value}>
+                {EXTERNAL_REDUCTION_BASIS_LABELS[value]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </FormField>
+      {basis === "RETURN" && (
+        <FormField id="reduction-return" label="Mã yêu cầu trả hàng" required>
+          <Input
+            id="reduction-return"
+            value={returnRequestId}
+            onChange={(event) => setReturnRequestId(event.target.value)}
+          />
+        </FormField>
+      )}
       <div className="grid gap-3 md:grid-cols-3">
         <FormField id="reduction-template" label="Mẫu số" required>
           <Input
@@ -106,7 +148,7 @@ function ExternalReductionForm({ invoice, onClose }: { invoice: EInvoice; onClos
             onChange={setPdf}
           />
         </FormField>
-        <FormField id="reduction-xml" label="Tệp XML">
+        <FormField id="reduction-xml" label="Tệp XML" required>
           <FilePickerField
             id="reduction-xml"
             accept=".xml,application/xml,text/xml"

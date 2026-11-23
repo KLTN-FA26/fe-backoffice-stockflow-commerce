@@ -18,6 +18,7 @@ import {
   allowedRefundActions,
   allowedRefundRecordActions,
   installmentTakesMoney,
+  receiptVoidBlock,
 } from "../lifecycle";
 import { blocksHandover, deliveryBatchLabel, payableInstallments } from "../selectors";
 
@@ -183,5 +184,45 @@ describe("selectors", () => {
       installment({ installmentId: "d", status: "CANCELLED" }),
     ];
     expect(payableInstallments(rows).map((r) => r.installmentId)).toEqual(["a", "c"]);
+  });
+});
+
+describe("WF-05 Q-20 — BE voidable / voidBlockedBy on the receipt detail (G2 follow-up)", () => {
+  const can = has(ACCOUNTANT_CAN);
+
+  it("voidable=false locks the void button and names the blocker", () => {
+    const receipt = {
+      status: "RECORDED",
+      voidable: false,
+      voidBlockedBy: "PAYMENT_RECEIPT_VOID_AFTER_HANDOVER",
+    } as const;
+    expect(allowedReceiptActions(receipt, can)).toEqual([]);
+    expect(receiptVoidBlock(receipt, can)).toBe("PAYMENT_RECEIPT_VOID_AFTER_HANDOVER");
+  });
+
+  it("voidable=true or absent (the list) keeps the status rule; no blocker shown", () => {
+    expect(allowedReceiptActions({ status: "RECORDED", voidable: true }, can)).toEqual([
+      "voidReceipt",
+    ]);
+    expect(allowedReceiptActions({ status: "RECORDED", voidable: null }, can)).toEqual([
+      "voidReceipt",
+    ]);
+    expect(receiptVoidBlock({ status: "RECORDED", voidable: true }, can)).toBeNull();
+  });
+
+  it("no blocker for a voided receipt, a reader without the void grant, or an unnamed code", () => {
+    expect(
+      receiptVoidBlock(
+        { status: "VOIDED", voidable: false, voidBlockedBy: "PAYMENT_RECEIPT_ALREADY_VOIDED" },
+        can,
+      ),
+    ).toBeNull();
+    expect(
+      receiptVoidBlock(
+        { status: "RECORDED", voidable: false, voidBlockedBy: "PAYMENT_RECEIPT_VOID_NOT_ALLOWED" },
+        has(SALES_CAN),
+      ),
+    ).toBeNull();
+    expect(receiptVoidBlock({ status: "RECORDED", voidable: false }, can)).toBe("UNKNOWN");
   });
 });

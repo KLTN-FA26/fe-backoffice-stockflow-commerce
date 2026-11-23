@@ -67,13 +67,32 @@ export function allowedInstallmentActions(
     : [];
 }
 
+/**
+ * Huỷ phiếu thu: RECORDED + quyền UPDATE, và BE không báo chặn (WF-05 Q-20, G2 `voidable`). `voidable === false` → khoá
+ * (lý do ở `voidBlockedBy`, `receiptVoidBlock`); vắng (danh sách, BE cũ) → theo trạng thái, BE vẫn kiểm lại khi bấm.
+ */
 export function allowedReceiptActions(
-  receipt: { status: ReceiptReadStatus },
+  receipt: { status: ReceiptReadStatus; voidable?: boolean | null },
   can: Can,
 ): PaymentAction[] {
-  return RECEIPT_TRANSITIONS[receipt.status].includes("VOIDED") && can(NEEDS.voidReceipt)
+  return RECEIPT_TRANSITIONS[receipt.status].includes("VOIDED") &&
+    receipt.voidable !== false &&
+    can(NEEDS.voidReceipt)
     ? ["voidReceipt"]
     : [];
+}
+
+/**
+ * Lý do BE không cho huỷ phiếu (G2 `voidBlockedBy`) — chỉ khi phiếu còn RECORDED, người xem có quyền huỷ và BE nói
+ * `voidable: false`; null khi không có gì để nói. Mã lạ vẫn trả về (màn hiện câu "máy chủ không cho huỷ").
+ */
+export function receiptVoidBlock(
+  receipt: { status: ReceiptReadStatus; voidable?: boolean | null; voidBlockedBy?: string | null },
+  can: Can,
+): string | null {
+  if (receipt.status !== "RECORDED" || receipt.voidable !== false || !can(NEEDS.voidReceipt))
+    return null;
+  return receipt.voidBlockedBy ?? "UNKNOWN";
 }
 
 /** Ghi nhận hoàn khi còn số phải hoàn (BR-14: tổng ghi nhận không vượt số phải hoàn). */

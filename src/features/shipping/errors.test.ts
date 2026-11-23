@@ -255,3 +255,9 @@ describe("chuyến là một xe của kế hoạch", () => {
     expect(handoverRefusalOf(err("LOAD_UNLOAD_PENDING"))).toBeUndefined();
   });
 });
+
+describe("WF-05 G1 — recording an outcome on a shipment closed as lost", () => {
+  it("ORDER_SHIPMENT_INVALID_TRANSITION has its Vietnamese sentence", () => {
+    expect(SHIPPING_ERROR_MESSAGES.ORDER_SHIPMENT_INVALID_TRANSITION).toMatch(/đóng phần thất lạc/);
+  });
+});

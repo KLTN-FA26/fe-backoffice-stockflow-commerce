@@ -469,13 +469,20 @@ export function registerEInvoiceMockRoutes(): void {
       return fail(409, "EINVOICE_EXTERNAL_REDUCTION_NOT_APPLICABLE", "Not applicable");
     const raw: unknown = config.data;
     const form = raw instanceof FormData ? raw : null;
-    const reduction = correctionOf(
-      original,
-      "ADJUSTMENT",
-      "DELIVERY_FAILED",
-      text(form?.get("note")),
-    );
+    // BE G3 `recordExternalReduction`: XML bắt buộc (hoá đơn theo luật); căn cứ RETURN cần yêu cầu trả hàng
+    if (!form?.get("xml") || !form.get("pdf") || !text(form.get("note")))
+      return fail(
+        400,
+        "VALIDATION_FAILED",
+        "templateCode, symbol, issueDate, xml, pdf, note required",
+      );
+    const basis = text(form.get("basis")) === "RETURN" ? "RETURN" : "DELIVERY_FAILED";
+    const returnRequestId = text(form.get("returnRequestId")) || null;
+    if (basis === "RETURN" && !returnRequestId)
+      return fail(400, "VALIDATION_FAILED", "returnRequestId is required for basis RETURN");
+    const reduction = correctionOf(original, "ADJUSTMENT", basis, text(form.get("note")));
     Object.assign(reduction, {
+      returnRequestId,
       status: "ISSUED",
       symbol: text(form?.get("symbol")) || null,
       invoiceNumber: Number(form?.get("invoiceNumber") ?? 0) || null,

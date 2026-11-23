@@ -22,7 +22,11 @@ import { Button } from "@/components/ui/button";
 import { useOrderInstallmentsSummary } from "../../queries";
 import { contractErrorMessage, useCreateSalesContract } from "../../sales-contract-mutations";
 import { useSalesContract } from "../../sales-contract-queries";
-import { allowedContractActions, signOutcomeText } from "../../sales-contract-rules";
+import {
+  allowedContractActions,
+  contractPapers,
+  signOutcomeText,
+} from "../../sales-contract-rules";
 
 import { ContractActions } from "./ContractActions";
 import { CancelledContractNotice } from "./CancelledContractNotice";
@@ -155,6 +159,7 @@ export function OrderContractSection({
                   onSigned={() => setSigned(true)}
                   dialog={dialog}
                   setDialog={setDialog}
+                  papers={contractPapers(contract, order.status)}
                 />
                 {editing && contract.status === "DRAFT" ? (
                   <ContractEditor

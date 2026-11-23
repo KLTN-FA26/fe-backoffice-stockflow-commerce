@@ -168,7 +168,8 @@ function invoice(
     originalEInvoiceId: null,
     buyer: BUYER_9,
     issueDate: "2026-11-10",
-    issueDueAt: "2026-11-11T16:59:59Z",
+    // NĐ 254 / WF-05 G3: hạn phát hành = hết chính ngày lập (23:59:59 giờ VN), không còn "ngày làm việc kế tiếp"
+    issueDueAt: "2026-11-10T16:59:59Z",
     lines: [goods(1, "CUP-PAPER-8OZ-WHT", "Ly giấy 8oz in logo", 20, 1000, 780)],
     warnings: [],
     invoiceNumber: null,
@@ -203,7 +204,7 @@ export function resetEInvoiceMockStore(): void {
       id: "EINV-0001",
       orderId: "ORD-2026-0013",
       status: "DRAFT",
-      issueDueAt: "2026-11-11T16:59:59Z",
+      issueDueAt: "2026-11-10T16:59:59Z",
     }),
     // Nháp thiếu mã số thuế / email → chặn phát hành (BR-06)
     invoice({
@@ -214,7 +215,7 @@ export function resetEInvoiceMockStore(): void {
       buyer: { ...BUYER_12, taxCode: null },
       warnings: ["BUYER_PROFILE_INCOMPLETE"],
       issueDate: "2026-11-13",
-      issueDueAt: "2099-11-14T16:59:59Z",
+      issueDueAt: "2099-11-13T16:59:59Z",
     }),
     // Đang gửi NCC, NCC báo không biết giao dịch (BR-05)
     invoice({
@@ -297,7 +298,7 @@ export function resetEInvoiceMockStore(): void {
       correctionBasis: "DELIVERY_FAILED",
       correctionReason: "Lần giao bị sửa thành giao không thành công",
       issueDate: "2026-11-09",
-      issueDueAt: "2099-11-10T16:59:59Z",
+      issueDueAt: "2099-11-09T16:59:59Z",
       lines: [
         {
           ...goods(1, "CUP-PAPER-8OZ-WHT", "Ly giấy 8oz in logo", 20, 1000, 780),

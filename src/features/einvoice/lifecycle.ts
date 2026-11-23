@@ -208,5 +208,18 @@ function correctionActions(
   return actions;
 }
 
+/**
+ * Bản nháp "Biên bản thoả thuận điều chỉnh / thay thế hoá đơn" (BE `feat/business-documents` #7,
+ * `GET /einvoices/{id}/agreement/draft`): chỉ trên chính bản điều chỉnh / thay thế, trừ nháp đã huỷ (BE 409
+ * `EINVOICE_CORRECTION_NOT_APPLICABLE` với hoá đơn gốc / nháp đã huỷ). In, ký, rồi tải bản scan qua "Đính kèm biên bản".
+ * Quyền `einvoices:READ` do nút kiểm.
+ */
+export function agreementDraftAvailable(invoice: Pick<EInvoice, "type" | "status">): boolean {
+  return (
+    (invoice.type === "ADJUSTMENT" || invoice.type === "REPLACEMENT") &&
+    invoice.status !== "VOIDED_DRAFT"
+  );
+}
+
 export const isTerminalEInvoice = (status: EInvoiceStatusRead) =>
   EINVOICE_TRANSITIONS[status].length === 0;

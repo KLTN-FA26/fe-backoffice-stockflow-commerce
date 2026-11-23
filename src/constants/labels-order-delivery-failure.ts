@@ -161,7 +161,7 @@ export const LOST_SHIPMENT_CLOSURE_LABELS = {
   button: "Đóng phần thất lạc",
   title: "Đóng phần thất lạc",
   description: (shipmentLabel: string) =>
-    `${shipmentLabel} bị hãng báo thất lạc. Phần hàng của lô bị đóng khỏi đơn và tiền được tính ngay: trừ đợt của lô này trước, rồi nợ cũ, phần thừa thành số phải hoàn. Muốn gửi hàng mới thì tạo đơn mới. Không hoàn tác được.`,
+    `${shipmentLabel} bị hãng báo thất lạc, hoặc hãng báo đã hoàn về nhưng hàng không về tới kho. Phần hàng của lô bị đóng khỏi đơn và tiền được tính ngay: trừ đợt của lô này trước, rồi nợ cũ, phần thừa thành số phải hoàn; phần phí vận chuyển tương ứng lô này được miễn. Muốn gửi hàng mới thì tạo đơn mới. Không hoàn tác được.`,
   note: "Ghi chú",
   notePlaceholder: "VD: GHN xác nhận mất kiện ngày 20/11, mã khiếu nại 12345",
   evidence: "Xác nhận thất lạc của hãng",

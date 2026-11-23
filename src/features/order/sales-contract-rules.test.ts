@@ -15,6 +15,7 @@ import {
   CONTRACT_TRANSITIONS,
   allowedContractActions,
   cartonGaps,
+  contractPapers,
   isSignedFileTypeAllowed,
   passedBatches,
   passedBatchesText,
@@ -205,5 +206,34 @@ describe("WF-02 N10 — đợt ON_SIGNING để trống số ngày", () => {
     expect(withPlan("ON_SIGNING", "5")).toHaveProperty("dueDays", 5);
     expect(withPlan("ON_SIGNING", "0")).toHaveProperty("dueDays", 0);
     expect(withPlan("AFTER_DELIVERY", "")).not.toHaveProperty("dueDays");
+  });
+});
+
+describe("contractPapers — phụ lục / biên bản thanh lý (BE feat/business-documents #1, #2)", () => {
+  it("chưa ký (nháp / đã gửi / đã huỷ) → không giấy tờ nào", () => {
+    for (const status of ["DRAFT", "SENT", "CANCELLED", "UNKNOWN"] as const)
+      expect(contractPapers({ status }, "Completed")).toEqual({
+        appendix: false,
+        liquidation: false,
+      });
+  });
+
+  it("đã ký, đơn đang thực hiện → phụ lục, chưa thanh lý", () => {
+    expect(contractPapers({ status: "SIGNED" }, "Shipped")).toEqual({
+      appendix: true,
+      liquidation: false,
+    });
+  });
+
+  it.each(["Completed", "Cancelled", "Closed", "Refunded", "Partially Refunded"] as const)(
+    "đã ký, đơn %s (BE ContractPaperService.ended) → thanh lý được",
+    (orderStatus) => {
+      expect(contractPapers({ status: "SIGNED" }, orderStatus).liquidation).toBe(true);
+    },
+  );
+
+  it("hợp đồng Hoàn tất / Thanh lý → thanh lý được bất kể trạng thái đơn hiển thị", () => {
+    expect(contractPapers({ status: "COMPLETED" }, "Delivered").liquidation).toBe(true);
+    expect(contractPapers({ status: "LIQUIDATED" }, "Returned").liquidation).toBe(true);
   });
 });

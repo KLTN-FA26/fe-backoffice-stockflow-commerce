@@ -57,6 +57,7 @@ export function ContractActions({
   onSigned,
   dialog,
   setDialog,
+  papers = { appendix: false, liquidation: false },
 }: {
   contract: SalesContract;
   actions: readonly ContractAction[];
@@ -65,6 +66,8 @@ export function ContractActions({
   /** Hộp thoại đang mở — do khối cha giữ để banner cảnh báo mở được "Vẫn gửi". */
   dialog: ContractDialog;
   setDialog: (dialog: ContractDialog) => void;
+  /** Phụ lục / biên bản thanh lý mở được chưa (`contractPapers`). */
+  papers?: { appendix: boolean; liquidation: boolean };
 }) {
   const send = useSendSalesContract();
   const cancel = useCancelSalesContract();
@@ -99,6 +102,7 @@ export function ContractActions({
         contract={contract}
         canPreview={actions.includes("preview")}
         onError={onError}
+        papers={papers}
       />
       {actions.includes("cancel") && (
         <Button

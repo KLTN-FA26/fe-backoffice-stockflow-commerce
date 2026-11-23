@@ -216,10 +216,24 @@ describe("canCloseLostShipment — đóng phần thất lạc (Q-12, F-5)", () =
     ).toBe(false);
   });
 
+  it("G1: lô hãng báo đã hoàn (RETURNED) mà hàng không về kho — BE lostClosable=true → được", () => {
+    const returnedNeverArrived = {
+      status: "RETURNED",
+      failureReason: null,
+      lostClosable: true,
+    } as const;
+    expect(canCloseLostShipment(order, returnedNeverArrived, SALES)).toBe(true);
+    expect(canCloseLostShipment(order, returnedNeverArrived, COORDINATOR)).toBe(false);
+    expect(
+      canCloseLostShipment(order, { ...returnedNeverArrived, lostClosable: false }, SALES),
+    ).toBe(false);
+  });
+
   it.each(["Cancelled", "Completed", "Closed", "UNKNOWN"] as const)(
     "đơn %s → không (không còn nợ hàng / trạng thái lạ)",
     (status) => {
       expect(canCloseLostShipment({ status }, lost, SALES)).toBe(false);
+      expect(canCloseLostShipment({ status }, { ...lost, lostClosable: true }, SALES)).toBe(false);
     },
   );
 });

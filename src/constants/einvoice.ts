@@ -103,6 +103,13 @@ export const MANUAL_CORRECTION_BASES = ["ERROR", "RETURN", "TRADE_DISCOUNT"] as 
 export type ManualCorrectionBasis = (typeof MANUAL_CORRECTION_BASES)[number];
 
 /**
+ * Căn cứ của hoá đơn giảm Kế toán làm trên cổng NCC rồi ghi vào hệ thống (BE G3 `external-reductions` `basis`, mặc
+ * định DELIVERY_FAILED): giao thất bại, hoặc trả hàng trên hoá đơn thay thế (kèm `returnRequestId`).
+ */
+export const EXTERNAL_REDUCTION_BASES = ["DELIVERY_FAILED", "RETURN"] as const;
+export type ExternalReductionBasis = (typeof EXTERNAL_REDUCTION_BASES)[number];
+
+/**
  * Căn cứ của chứng từ do hệ thống tự lập (BE `CorrectionBasis.systemOnly()`): không lập tay, không huỷ
  * nháp tay (BE `EInvoice.voidDraft` → 409 `EINVOICE_CORRECTION_NOT_APPLICABLE`); văn bản chứng minh
  * giao thất bại được gắn kèm nhưng không bắt buộc (`acceptsAgreement()`).

@@ -2,6 +2,8 @@
 
 import { RETURN_LABELS } from "@/constants/labels-return";
 import { RETURN_ROUTES } from "@/constants/returns";
+import { BUSINESS_DOCUMENT_PATHS } from "@/lib/api/business-documents";
+import { DocumentDownloadButton } from "@/components/backoffice/DocumentDownloadButton";
 
 import { CodeLink, EMPTY, MONO, When } from "./primitives";
 
@@ -11,7 +13,8 @@ const D = RETURN_LABELS.detail;
 
 /**
  * Các lần hàng về của yêu cầu (WF-05 TH-3; BE `ReturnRequestResponse.receipt.parcels`, lần đầu trước): mỗi lần là một
- * phiếu nhập hàng hoàn đã xác nhận — số phiếu (mở chi tiết phiếu), lúc nhận, người nhận.
+ * phiếu nhập hàng hoàn đã xác nhận — số phiếu (mở chi tiết phiếu), lúc nhận, người nhận, và phiếu nhập kho 01-VT của nó
+ * (BE `feat/business-documents` #3; vai có `procurement-goods-receipts:READ`, kể cả Kế toán — owner 2026-11-23).
  */
 export function ReturnParcelList({ parcels }: { parcels: readonly ReturnParcel[] }) {
   if (parcels.length === 0) return null;
@@ -39,6 +42,16 @@ export function ReturnParcelList({ parcels }: { parcels: readonly ReturnParcel[]
                 <span className={MONO} title={parcel.receivedBy}>
                   {parcel.receivedBy.slice(0, 8)}
                 </span>
+              </span>
+            )}
+            {parcel.goodsReceiptId && (
+              <span className="ml-auto">
+                <DocumentDownloadButton
+                  kind="returnReceiptVoucher"
+                  size="xs"
+                  label={D.parcelVoucher}
+                  path={BUSINESS_DOCUMENT_PATHS.returnReceiptVoucher(parcel.goodsReceiptId)}
+                />
               </span>
             )}
           </li>

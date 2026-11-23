@@ -285,6 +285,12 @@ describe("WF-05 additions (Q-8, BE-11, BO-04, BO-09, BO-10)", () => {
     expect(voided.status).toBe("VOIDED_DRAFT");
   });
 
+  it("NĐ 254 (G3): the issue deadline is the end of the invoice's own date, Vietnam time", async () => {
+    const draft = await getEInvoice("EINV-0001");
+    expect(draft.issueDate).toBe("2026-11-10");
+    expect(draft.issueDueAt).toBe("2026-11-10T16:59:59Z");
+  });
+
   it("Q-10: the list filters invoices issued late", async () => {
     const draft = await getEInvoice("EINV-0001");
     await issueEInvoice({ id: draft.id, version: draft.version, lateReason: "Trễ" });

@@ -646,3 +646,5 @@ export {
   PUTAWAY_TRIP_LABELS,
   SLOTTING_LABELS,
 } from "./labels-putaway";
+export { BUSINESS_DOCUMENT_LABELS, BUSINESS_DOCUMENTS } from "./labels-business-documents";
+export type { BusinessDocumentKind, BusinessDocumentSpec } from "./labels-business-documents";

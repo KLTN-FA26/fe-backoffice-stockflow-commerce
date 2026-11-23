@@ -132,18 +132,20 @@ const LOST_CLOSURE_BLOCKED_ORDER_STATUSES: readonly Order["status"][] = [
 ];
 
 /**
- * "Đóng phần thất lạc" (Q-12, F-5): lô giao thất bại mà hãng báo thất lạc (`LOST`), quyền
- * `sales-lost-shipment-closures:APPROVE`. Lô đã đóng vẫn giữ DELIVERY_FAILED + LOST, nên khi BE trả `lostClosable` thì
- * FE theo đúng cờ đó (không tự tính "còn nợ đơn vị"); vắng (BE chưa ship) → luật dự phòng theo trạng thái + lý do, BE vẫn
- * từ chối lần đóng thứ hai (409 ORDER_SHIPMENT_NOT_LOST_CLOSABLE, hộp thoại báo và tải lại). UI-only — Backend re-check.
+ * "Đóng phần thất lạc" (Q-12, F-5), quyền `sales-lost-shipment-closures:APPROVE`. BE G1 trả `lostClosable` trên mỗi lô
+ * của chi tiết đơn: lô giao thất bại vì thất lạc (`LOST`), HOẶC lô hãng báo đã hoàn (RETURNED) mà hàng chưa về kho
+ * (chưa có phiếu nhập hàng hoàn), và đơn còn nợ đơn vị của lô; false khi đã đóng. Có cờ thì FE theo đúng cờ (không tự
+ * tính); vắng (BE cũ) → luật dự phòng DELIVERY_FAILED + LOST, BE vẫn từ chối khi không đúng (409
+ * ORDER_SHIPMENT_NOT_LOST_CLOSABLE, hộp thoại báo và tải lại). UI-only — Backend re-check.
  */
 export function canCloseLostShipment(
   order: Pick<Order, "status">,
   shipment: Pick<OrderShipment, "status" | "failureReason" | "lostClosable">,
   can: (code: PermissionCode) => boolean,
 ): boolean {
-  if (shipment.lostClosable === false) return false;
-  if (shipment.status !== "DELIVERY_FAILED" || shipment.failureReason !== "LOST") return false;
   if (LOST_CLOSURE_BLOCKED_ORDER_STATUSES.includes(order.status)) return false;
-  return can(ORDER_PERMISSIONS.lostShipmentClosure);
+  const closable =
+    shipment.lostClosable ??
+    (shipment.status === "DELIVERY_FAILED" && shipment.failureReason === "LOST");
+  return closable && can(ORDER_PERMISSIONS.lostShipmentClosure);
 }

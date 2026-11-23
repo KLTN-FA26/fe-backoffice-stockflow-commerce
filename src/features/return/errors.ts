@@ -4,6 +4,7 @@
  */
 
 import { DirectUploadError } from "@/lib/api/direct-upload";
+import { ApiError } from "@/lib/api/error";
 import { apiErrorMessage } from "@/lib/api/error-message";
 
 export const RETURN_ERROR_MESSAGES: Readonly<Record<string, string>> = {
@@ -125,3 +126,13 @@ export const RETURN_STALE_CODES = [
   "RETURN_GOODS_PARTLY_RECEIVED",
   "RETURN_RECEIPT_DRAFT_OPEN",
 ] as const;
+
+/**
+ * 409 `RETURN_RECEIPT_ALREADY_OPEN` (BE G4: một phiếu NHÁP mỗi lúc cho mỗi chuyến / mỗi yêu cầu) kèm `details.receiptId`
+ * = phiếu nháp đang mở → id đó để màn mở phiếu; lỗi khác → null.
+ */
+export function openDraftReceiptOf(error: unknown): string | null {
+  if (!(error instanceof ApiError) || error.code !== "RETURN_RECEIPT_ALREADY_OPEN") return null;
+  const id = error.details?.receiptId;
+  return typeof id === "string" && id !== "" ? id : null;
+}

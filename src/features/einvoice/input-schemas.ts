@@ -7,6 +7,7 @@ import { z } from "zod";
 
 import {
   EINVOICE_LIMITS,
+  EXTERNAL_REDUCTION_BASES,
   MANUAL_CORRECTION_BASES,
   PORTAL_RESULT_OUTCOMES,
   PROVIDER_ENVIRONMENTS,
@@ -260,24 +261,43 @@ export const portalResultInputSchema = z
   });
 
 /**
- * Hoá đơn giảm Kế toán đã lập trên cổng NCC (BE F-13 `external-reductions`): ký hiệu, mẫu số, số, ngày (không ở tương
- * lai), tệp PDF bắt buộc, XML tuỳ chọn, ghi chú bắt buộc.
+ * Hoá đơn giảm Kế toán đã lập trên cổng NCC (BE G3 `external-reductions`): ký hiệu, mẫu số, số, ngày (không ở tương
+ * lai), tệp PDF và tệp XML BẮT BUỘC (BE G3: XML là hoá đơn theo luật, số đã nhập được đối chiếu với nó — thiếu thì 400),
+ * ghi chú bắt buộc ≤ 500. Căn cứ: giao thất bại (mặc định) hoặc trả hàng — trả hàng phải nêu yêu cầu trả hàng.
  */
-export const externalReductionInputSchema = z.object({
-  symbol: z
-    .string()
-    .trim()
-    .toUpperCase()
-    .regex(L.symbolPattern, "Ký hiệu dạng C26TAA: C/K, 2 số năm, loại hoá đơn, 2 chữ"),
-  templateCode: z
-    .string()
-    .trim()
-    .regex(/^[0-9A-Za-z/]{1,20}$/, "Nhập mẫu số (tối đa 20 ký tự chữ, số, /)"),
-  invoiceNumber: invoiceNumberText,
-  issueDate: isoDate.refine((d) => d <= todayInVietnam(), "Ngày hoá đơn không được ở tương lai"),
-  pdf: z
-    .instanceof(File, { message: "Chọn tệp PDF của hoá đơn giảm" })
-    .refine(isPdf, "Bản xem phải là tệp PDF"),
-  xml: optionalFile(isXml, "Tệp hoá đơn phải là XML"),
-  note: z.string().trim().min(1, "Nhập ghi chú").max(L.noteMax, `Tối đa ${L.noteMax} ký tự`),
-});
+export const externalReductionInputSchema = z
+  .object({
+    symbol: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .regex(L.symbolPattern, "Ký hiệu dạng C26TAA: C/K, 2 số năm, loại hoá đơn, 2 chữ"),
+    templateCode: z
+      .string()
+      .trim()
+      .regex(/^[0-9A-Za-z/]{1,20}$/, "Nhập mẫu số (tối đa 20 ký tự chữ, số, /)"),
+    invoiceNumber: invoiceNumberText,
+    issueDate: isoDate.refine((d) => d <= todayInVietnam(), "Ngày hoá đơn không được ở tương lai"),
+    pdf: z
+      .instanceof(File, { message: "Chọn tệp PDF của hoá đơn giảm" })
+      .refine(isPdf, "Bản xem phải là tệp PDF"),
+    xml: z
+      .instanceof(File, { message: "Chọn tệp XML của hoá đơn giảm" })
+      .refine(isXml, "Tệp hoá đơn phải là XML"),
+    note: z.string().trim().min(1, "Nhập ghi chú").max(L.noteMax, `Tối đa ${L.noteMax} ký tự`),
+    basis: z.enum(EXTERNAL_REDUCTION_BASES),
+    returnRequestId: z.string().trim().optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.basis === "RETURN" && !value.returnRequestId) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["returnRequestId"],
+        message: "Hoá đơn giảm vì trả hàng phải nêu yêu cầu trả hàng",
+      });
+    }
+  })
+  .transform(({ returnRequestId, ...value }) => ({
+    ...value,
+    returnRequestId: value.basis === "RETURN" ? returnRequestId : undefined,
+  }));

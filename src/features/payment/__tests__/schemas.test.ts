@@ -350,3 +350,36 @@ describe("WF-05 BO-11 / F-9: tolerant enums and the carrier-return settlement", 
     expect(order.paymentStatus).toBe("UNKNOWN");
   });
 });
+
+describe("receiptDtoSchema — WF-05 Q-20 voidable / voidBlockedBy (G2, detail only)", () => {
+  const base = {
+    receiptId: "r-1",
+    customerId: "cu-1",
+    reference: "FT1",
+    receivedOn: "2026-11-09",
+    amount: 100,
+    currency: "VND",
+    status: "RECORDED",
+    recordedAt: "2026-11-09T03:00:00Z",
+    lines: [{ installmentId: "i-1", amount: 100 }],
+  };
+
+  it("keeps the flag and the blocker code as sent (an unknown code stays a string)", () => {
+    expect(
+      receiptDtoSchema.parse({
+        ...base,
+        voidable: false,
+        voidBlockedBy: "PAYMENT_RECEIPT_VOID_AFTER_HANDOVER",
+      }),
+    ).toMatchObject({ voidable: false, voidBlockedBy: "PAYMENT_RECEIPT_VOID_AFTER_HANDOVER" });
+    expect(
+      receiptDtoSchema.parse({ ...base, voidable: false, voidBlockedBy: "NEW" }).voidBlockedBy,
+    ).toBe("NEW");
+  });
+
+  it("the list sends neither (null / absent) and still parses", () => {
+    const row = receiptDtoSchema.parse({ ...base, voidable: null, voidBlockedBy: null });
+    expect(row.voidable).toBeNull();
+    expect(receiptDtoSchema.parse(base).voidable).toBeUndefined();
+  });
+});

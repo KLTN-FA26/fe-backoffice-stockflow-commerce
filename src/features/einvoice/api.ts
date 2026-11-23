@@ -20,6 +20,7 @@ import type {
   EInvoiceFileKind,
   EInvoiceStatus,
   EInvoiceType,
+  ExternalReductionBasis,
   PortalResultOutcome,
 } from "@/constants/einvoice";
 import type { ListQueryParams, PaginatedResponse } from "@/lib/api/query-factory";
@@ -56,9 +57,8 @@ export interface ListEInvoiceParams extends ListQueryParams {
   /** ISO instant: chưa phát hành và hạn phát hành trước mốc này. */
   dueBefore?: string;
   /**
-   * Chỉ hoá đơn mang cảnh báo này (bộ lọc "Hoá đơn lập trễ" = `ISSUED_LATE`, WF-05 Q-10).
-   * HỢP ĐỒNG GIẢ ĐỊNH: BE `GET /einvoices` chưa có tham số `warning` — BE bỏ qua tham số lạ, nên `listEInvoices` lọc
-   * lại các dòng của trang (đúng dòng, nhưng tổng số / số trang là của danh sách chưa lọc cho tới khi BE nhận tham số).
+   * Chỉ hoá đơn mang cảnh báo này (bộ lọc "Hoá đơn lập trễ" = `ISSUED_LATE`, WF-05 Q-10) — BE G3 `GET /einvoices
+   * ?warning=` (enum `EInvoice.Warning`) lọc ở máy chủ nên tổng số / số trang đúng.
    */
   warning?: string;
 }
@@ -85,11 +85,7 @@ export async function listEInvoices(
     if (value) query.set(key, value);
   }
   const { data } = await api.get<unknown>(BASE, { params: query, signal });
-  const page = einvoicePageDtoSchema.parse(data);
-  const warning = params.warning;
-  // BE chưa lọc theo cảnh báo thì bộ lọc không được hiện hoá đơn không mang cảnh báo đó
-  if (!warning) return page;
-  return { ...page, items: page.items.filter((row) => row.warnings.includes(warning)) };
+  return einvoicePageDtoSchema.parse(data);
 }
 
 export async function getEInvoice(id: string, signal?: AbortSignal): Promise<EInvoice> {
@@ -149,8 +145,8 @@ export interface IssueInput extends VersionedInput {
   /** Cảnh báo Kế toán đã xem lúc bấm phát hành (WF-05 F-16, BE-25); BE kiểm lại, có cảnh báo mới → 409. */
   acknowledgedWarnings?: string[];
   /**
-   * Lý do phát hành trễ (sau ngày giao) — BE ghi vào nhật ký audit (WF-05 Q-10, §1.5 bước 6).
-   * HỢP ĐỒNG GIẢ ĐỊNH: tên trường `lateReason` chưa có trong hợp đồng của BE.
+   * Lý do phát hành trễ (sau ngày giao) — BE G3 `IssueEInvoiceRequest.lateReason` (≤ 500), ghi nhật ký audit (WF-05
+   * Q-10). Bắt buộc với hoá đơn gốc phát hành sau ngày giao (400 `EINVOICE_LATE_ISSUE_REASON_REQUIRED`), bỏ qua khi khác.
    */
   lateReason?: string;
 }
@@ -245,13 +241,19 @@ export interface ExternalReductionInput {
   /** `YYYY-MM-DD` — ngày của hoá đơn giảm trên cổng NCC. */
   issueDate: string;
   pdf: File;
-  xml?: File;
+  /** BE G3: bắt buộc — XML là hoá đơn theo luật, số / ký hiệu / ngày đã nhập được đối chiếu với nó. */
+  xml: File;
   note: string;
+  /** Căn cứ (BE `CorrectionBasis`): DELIVERY_FAILED (mặc định của BE) hoặc RETURN kèm `returnRequestId`. */
+  basis: ExternalReductionBasis;
+  returnRequestId?: string;
 }
 
 /**
  * Ghi hoá đơn giảm Kế toán đã làm trên cổng NCC (WF-05 Q-8 / Q-9, BE-10, F-13): sau khi bản giảm không gửi được bị
- * huỷ, hoặc với hoá đơn thay thế cần giảm. Trả về hoá đơn điều chỉnh mới (`issuedVia` PORTAL_RECORD).
+ * huỷ, hoặc với hoá đơn thay thế cần giảm (giao thất bại, hoặc trả hàng — `basis` RETURN + `returnRequestId`). BE đọc
+ * tệp XML và đối chiếu với số đã nhập (422 `EINVOICE_PORTAL_FILE_INVALID`); không hỏi lại NCC. Trả về hoá đơn điều chỉnh
+ * mới (`issuedVia` PORTAL_RECORD).
  */
 export async function recordExternalReduction(input: ExternalReductionInput): Promise<EInvoice> {
   const form = new FormData();
@@ -260,8 +262,11 @@ export async function recordExternalReduction(input: ExternalReductionInput): Pr
   form.append("invoiceNumber", String(input.invoiceNumber));
   form.append("issueDate", input.issueDate);
   form.append("pdf", input.pdf);
-  if (input.xml) form.append("xml", input.xml);
+  form.append("xml", input.xml);
   form.append("note", input.note);
+  form.append("basis", input.basis);
+  if (input.basis === "RETURN" && input.returnRequestId)
+    form.append("returnRequestId", input.returnRequestId);
   const { data } = await api.post<unknown>(`${one(input.id)}/external-reductions`, form, MULTIPART);
   return parse(data);
 }

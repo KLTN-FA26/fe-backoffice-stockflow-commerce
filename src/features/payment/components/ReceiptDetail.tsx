@@ -6,11 +6,13 @@ import { Ban, FileText, ListOrdered } from "lucide-react";
 import { ADMIN_ROUTES } from "@/constants";
 import { PAYMENT_LABELS, PAYMENT_LIST_LABELS } from "@/constants/labels-payment";
 import { PAYMENT_RECEIPT_PERMISSIONS, PAYMENT_ROUTES } from "@/constants/payment";
+import { BUSINESS_DOCUMENT_PATHS } from "@/lib/api/business-documents";
 import { useCan, usePermissionChecker } from "@/lib/auth/components/Can";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 import { formatDateTime } from "@/lib/format/date";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
 import { CustomerName } from "@/components/backoffice/CustomerName";
+import { DocumentDownloadButton } from "@/components/backoffice/DocumentDownloadButton";
 import { LoadErrorState } from "@/components/backoffice/LoadErrorState";
 import {
   DETAIL_ACTION_CLASS,
@@ -21,7 +23,7 @@ import {
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Button } from "@/components/ui/button";
 
-import { allowedReceiptActions } from "../lifecycle";
+import { allowedReceiptActions, receiptVoidBlock } from "../lifecycle";
 import { useReceipt } from "../queries";
 import { milestoneLabel } from "../selectors";
 
@@ -53,6 +55,8 @@ function ReceiptDetailContent({ id }: { id: string }) {
   if (query.isPending) return <PageSkeleton variant="detail" />;
   const receipt = query.data;
   const canVoid = allowedReceiptActions(receipt, can).includes("voidReceipt");
+  // WF-05 Q-20: BE nói trước phiếu không huỷ được → không hiện nút, nói lý do bằng tiếng Việt
+  const voidBlock = receiptVoidBlock(receipt, can);
 
   return (
     // Trang chi tiết hai cột như báo giá (BO-UX-2): thông tin + các dòng bên trái; trạng thái, thông tin huỷ và nút huỷ
@@ -112,6 +116,18 @@ function ReceiptDetailContent({ id }: { id: string }) {
                   <span className="ml-auto">
                     <MoneyCell amount={line.amount} currency={receipt.currency} />
                   </span>
+                  {/* BE feat/business-documents #5: một phiếu xác nhận cho mỗi đợt phiếu trả */}
+                  {receipt.status === "RECORDED" && (
+                    <DocumentDownloadButton
+                      kind="paymentConfirmation"
+                      size="xs"
+                      label={R.confirmationPdf}
+                      path={BUSINESS_DOCUMENT_PATHS.paymentConfirmation(
+                        line.installmentId,
+                        receipt.receiptId,
+                      )}
+                    />
+                  )}
                 </li>
               ))}
             </ul>
@@ -141,6 +157,14 @@ function ReceiptDetailContent({ id }: { id: string }) {
                     {R.voidReason}: {receipt.voidReason}
                   </p>
                 )}
+              </div>
+            )}
+            {voidBlock && (
+              <div role="note" className="space-y-1 text-[0.8125rem]">
+                <h2 className="text-ink-primary font-semibold">{R.voidBlockedTitle}</h2>
+                <p className="text-ink-secondary">
+                  {R.voidBlockedBy[voidBlock] ?? R.voidBlockedUnknown(voidBlock)}
+                </p>
               </div>
             )}
             {canVoid && (

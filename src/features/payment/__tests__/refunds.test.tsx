@@ -13,6 +13,12 @@ import {
   renderPaymentScreen,
 } from "../__fixtures__/screen";
 
+const saveFile = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/api/file-download", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/api/file-download")>()),
+  saveFile,
+}));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
   useSearchParams: () => new URLSearchParams(),
@@ -132,7 +138,7 @@ describe("RefundDetail — record a refund paid outside the system (docs 15 §4.
     );
     renderPaymentScreen(<RefundDetail orderId="ord-15" />);
     expect(await screen.findByText("Lô hãng hoàn về")).toBeInTheDocument();
-    expect(screen.getByText("Phí vận chuyển được miễn (lô hoàn về)")).toBeInTheDocument();
+    expect(screen.getByText("Phí vận chuyển được miễn")).toBeInTheDocument();
     expect(screen.getByText("Phí khách còn nợ")).toBeInTheDocument();
   });
 
@@ -240,5 +246,76 @@ describe("RefundDetail — record a refund paid outside the system (docs 15 §4.
     renderPaymentScreen(<RefundDetail orderId="ord-15" />);
     await screen.findByText("Huỷ đơn");
     expect(screen.queryByRole("button", { name: "Ghi nhận đã hoàn" })).not.toBeInTheDocument();
+  });
+});
+
+describe("RefundDetail — WF-05 F-9 / Q-19 and the refund confirmation (documents #4)", () => {
+  it("a SHIPMENT_RETURNED settlement shows the waived shipping fee by share, and the shipment to whoever may open it", async () => {
+    mockPaymentApi([...SALES_GRANTS, "fulfillment-shipments:READ"], {
+      get: {
+        "/refunds/orders/ord-15": () =>
+          detail({
+            settlements: [
+              {
+                ...settlement,
+                kind: "SHIPMENT_RETURNED",
+                closed: 4_400_000,
+                shipmentId: "shp-7",
+                shippingFeeWaived: 400_000,
+              },
+            ],
+          }),
+      },
+    });
+    renderPaymentScreen(<RefundDetail orderId="ord-15" />);
+    expect(await screen.findByText("Phí vận chuyển được miễn")).toBeInTheDocument();
+    expect(screen.getByText(/theo tỷ lệ giá trị hàng của lô hoàn về/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Mở lô giao" })).toHaveAttribute(
+      "href",
+      expect.stringContaining("/shipments/shp-7"),
+    );
+  });
+
+  it("without the shipment grant the shipment row is left out", async () => {
+    mockPaymentApi(SALES_GRANTS, {
+      get: {
+        "/refunds/orders/ord-15": () =>
+          detail({
+            settlements: [{ ...settlement, kind: "SHIPMENT_RETURNED", shipmentId: "shp-7" }],
+          }),
+      },
+    });
+    renderPaymentScreen(<RefundDetail orderId="ord-15" />);
+    await screen.findByText(/Tính lúc/);
+    expect(screen.queryByRole("link", { name: "Mở lô giao" })).not.toBeInTheDocument();
+  });
+
+  it("a recorded refund prints its confirmation; a voided one does not", async () => {
+    const pdf = new Blob(["%PDF"]);
+    const api = mockPaymentApi(SALES_GRANTS, {
+      get: {
+        "/refunds/orders/ord-15": () =>
+          detail({
+            records: [
+              record,
+              { ...record, refundRecordId: "rfd-2", reference: "FT2", status: "VOIDED" },
+            ],
+          }),
+      },
+    });
+    const fallback = api.get.getMockImplementation();
+    if (!fallback) throw new Error("mockPaymentApi chưa cài GET");
+    api.get.mockImplementation(async (url, config) =>
+      url === "/refunds/records/rfd-1/confirmation"
+        ? { data: pdf, headers: {} }
+        : fallback(url, config),
+    );
+    renderPaymentScreen(<RefundDetail orderId="ord-15" />);
+    const buttons = await screen.findAllByRole("button", { name: /Phiếu hoàn tiền/ });
+    expect(buttons).toHaveLength(1);
+    await userEvent.click(screen.getByRole("button", { name: /Phiếu hoàn tiền/ }));
+    await waitFor(() =>
+      expect(saveFile).toHaveBeenCalledWith({ blob: pdf, fileName: "Phiếu hoàn tiền.pdf" }),
+    );
   });
 });

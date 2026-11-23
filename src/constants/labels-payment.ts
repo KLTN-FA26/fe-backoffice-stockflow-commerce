@@ -138,6 +138,18 @@ export const PAYMENT_LABELS = {
     notFoundDescription: "Phiếu thu không tồn tại hoặc đường dẫn không hợp lệ.",
     lines: "Các dòng của phiếu thu",
     voidAction: "Huỷ phiếu thu",
+    // WF-05 Q-20 (G2 `voidable` / `voidBlockedBy` trên chi tiết phiếu): khoá nút huỷ và nói lý do
+    voidBlockedTitle: "Không huỷ được phiếu thu này",
+    voidBlockedBy: {
+      PAYMENT_RECEIPT_ALREADY_VOIDED: "Phiếu thu đã được huỷ.",
+      PAYMENT_RECEIPT_VOID_NOT_ALLOWED:
+        "Tiền của đơn đã được tất toán (đơn đã huỷ, hoàn tất, đóng, đang trả hàng hoặc đã ghi nhận hoàn tiền).",
+      PAYMENT_RECEIPT_VOID_AFTER_HANDOVER:
+        "Phiếu trả khoản “khi ký” / “trước khi giao” và hàng mà khoản đó cho xuất đã bàn giao cho hãng vận chuyển. Ghi nhầm thì sửa bằng chứng từ điều chỉnh ở phần mềm kế toán.",
+    } as Readonly<Record<string, string>>,
+    voidBlockedUnknown: (code: string) => `Máy chủ không cho huỷ phiếu này (${code}).`,
+    // BE `feat/business-documents` #5: phiếu xác nhận thanh toán của một phiếu thu cho một đợt
+    confirmationPdf: "Phiếu xác nhận thanh toán",
     voidInfo: "Thông tin huỷ",
     voidedBy: "Người huỷ",
     voidedAt: "Huỷ lúc",
@@ -229,8 +241,16 @@ export const PAYMENT_LABELS = {
     feeReason: "Lý do phí",
     feeCovered: "Phí đã được tiền thu bù",
     feeOwed: "Phí còn thiếu (khách trả)",
-    // WF-05 Q-19: đơn bị hãng hoàn về toàn bộ — miễn phí vận chuyển của chuyến hỏng (phí khuôn vẫn giữ)
-    shippingFeeWaived: "Phí vận chuyển được miễn (lô hoàn về)",
+    // WF-05 Q-19 (G2 follow-up): lô hãng hoàn về / thất lạc được miễn phần phí vận chuyển tương ứng giá trị hàng của lô
+    // trên giá trị hàng của đơn; đơn kết thúc mà không giao được gì thì miễn toàn bộ phần phí vận chuyển còn lại.
+    // Phí khuôn không bao giờ được miễn.
+    shippingFeeWaived: "Phí vận chuyển được miễn",
+    shippingFeeWaivedHint:
+      "Phần phí vận chuyển theo tỷ lệ giá trị hàng của lô hoàn về trên giá trị hàng của đơn; đơn không giao được gì thì miễn toàn bộ phần còn lại. Phí khuôn không được miễn.",
+    // F-9: lô hãng hoàn về / thất lạc mà lần tính SHIPMENT_RETURNED đóng
+    shipment: "Lô giao",
+    openShipment: "Mở lô giao",
+    confirmationPdf: "Phiếu hoàn tiền",
     feeItem: "Xem khoản phí huỷ",
     settledAt: "Tính lúc",
     refundedOn: "Ngày chuyển",
@@ -313,6 +333,7 @@ export const RECEIVABLES_LABELS = {
   pageTitle: "Công nợ phải thu",
   searchPlaceholder: "Tìm khách (tên, mã khách hoặc mã số thuế)",
   customer: "Khách hàng",
+  reconciliation: "Đối chiếu công nợ",
   taxCode: "MST",
   owed: "Còn phải thu",
   overdue: "Quá hạn",

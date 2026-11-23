@@ -10,15 +10,17 @@ import {
   EINVOICE_ROUTES,
   UNSENDABLE_REVERSAL_REASON_CODE,
 } from "@/constants/einvoice";
+import { BUSINESS_DOCUMENT_PATHS } from "@/lib/api/business-documents";
 import { ApiError } from "@/lib/api/error";
 import { usePermissionChecker } from "@/lib/auth/components/Can";
+import { DocumentDownloadButton } from "@/components/backoffice/DocumentDownloadButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { FormField, fieldA11y } from "@/components/shared/FormField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 import { einvoiceErrorMessage, outOfDateWarnings, withdrawalRefusal } from "../errors";
-import { allowedEInvoiceActions } from "../lifecycle";
+import { agreementDraftAvailable, allowedEInvoiceActions } from "../lifecycle";
 import {
   useIssueEInvoice,
   useReconcileEInvoice,
@@ -253,6 +255,12 @@ export function EInvoiceActions({
             <FileCode2 className="size-3.5" /> {A.downloadXml}
           </Button>
         </>
+      )}
+      {agreementDraftAvailable(invoice) && (
+        <DocumentDownloadButton
+          kind="einvoiceAgreementDraft"
+          path={BUSINESS_DOCUMENT_PATHS.einvoiceAgreementDraft(invoice.id)}
+        />
       )}
       {button("attachAgreement", A.attachAgreement, () => setAgreeing(true))}
       {button("adjust", A.adjust, () => setCorrecting("adjust"))}

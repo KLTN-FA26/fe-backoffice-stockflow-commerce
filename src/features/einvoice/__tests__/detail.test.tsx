@@ -613,3 +613,25 @@ describe("EInvoiceDetail — signature and provider handle (BO-09)", () => {
     expect(await screen.findByText(/create\/TRK-42/)).toBeInTheDocument();
   });
 });
+
+describe("EInvoiceDetail — agreement draft (BE feat/business-documents #7)", () => {
+  it("a correction offers the agreement draft PDF; the original does not", async () => {
+    mockEInvoiceApi(ACCOUNTANT_GRANTS, {
+      get: get(
+        detailJson({ type: "ADJUSTMENT", correctionBasis: "ERROR", agreementRequired: true }),
+      ),
+    });
+    const view = renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
+    expect(
+      await screen.findByRole("button", { name: /Tải biên bản thoả thuận \(bản nháp\)/ }),
+    ).toBeInTheDocument();
+    view.unmount();
+    vi.restoreAllMocks();
+    mockEInvoiceApi(ACCOUNTANT_GRANTS, { get: get(detailJson()) });
+    renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
+    expect(await screen.findByText("Ly giấy 8oz in logo")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Tải biên bản thoả thuận/ }),
+    ).not.toBeInTheDocument();
+  });
+});

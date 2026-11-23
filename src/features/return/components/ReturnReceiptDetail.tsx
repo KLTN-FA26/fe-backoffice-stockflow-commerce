@@ -8,10 +8,12 @@ import { ADMIN_ROUTES } from "@/constants";
 import { RETURN_RECEIPT_LABELS } from "@/constants/labels-return";
 import { GOODS_RECEIPT_PERMISSIONS } from "@/constants/permissions";
 import { RETURN_ROUTES } from "@/constants/returns";
+import { BUSINESS_DOCUMENT_PATHS } from "@/lib/api/business-documents";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useCan, usePermissionChecker } from "@/lib/auth/components/Can";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
+import { DocumentDownloadButton } from "@/components/backoffice/DocumentDownloadButton";
 import { LoadErrorState } from "@/components/backoffice/LoadErrorState";
 import { Card } from "@/components/shared/Card";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -19,7 +21,11 @@ import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Button } from "@/components/ui/button";
 
 import { returnErrorMessage } from "../errors";
-import { allowedReturnReceiptActions, returnReceiptConfirmBlock } from "../lifecycle";
+import {
+  allowedReturnReceiptActions,
+  returnReceiptConfirmBlock,
+  returnReceiptVoucherReady,
+} from "../lifecycle";
 import {
   useCancelReturnReceipt,
   useConfirmReturnReceipt,
@@ -89,6 +95,12 @@ function Content({ id }: { id: string }) {
           </Link>
         </Button>
         <div className="flex flex-wrap gap-2">
+          {returnReceiptVoucherReady(receipt) && (
+            <DocumentDownloadButton
+              kind="returnReceiptVoucher"
+              path={BUSINESS_DOCUMENT_PATHS.returnReceiptVoucher(receipt.id)}
+            />
+          )}
           {actions.includes("confirm") && (
             <Button
               size="sm"

@@ -6,12 +6,19 @@ import { PAYMENT_INSTALLMENT_PERMISSIONS } from "@/constants/payment";
 import { apiError, bePage } from "@/test/api-screen";
 
 import { ReceivablesList } from "..";
+import { reconciliationPeriodError } from "../components/DebtReconciliationAction";
 import {
   ACCOUNTANT_GRANTS,
   PAGE_ONLY_GRANTS,
   mockPaymentApi,
   renderPaymentScreen,
 } from "../__fixtures__/screen";
+
+const saveFile = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/api/file-download", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/api/file-download")>()),
+  saveFile,
+}));
 
 const nav = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
 vi.mock("next/navigation", () => ({
@@ -151,5 +158,63 @@ describe("Công nợ phải thu theo khách (BO-UX-37, R5-11)", () => {
     await waitFor(() =>
       expect(nav.replace).toHaveBeenCalledWith("/admin/payment/installments?owing=true"),
     );
+  });
+});
+
+describe("Đối chiếu công nợ (BE feat/business-documents #6)", () => {
+  it("reconciliationPeriodError: đủ ngày, đến ≥ từ, đến không sau hôm nay", () => {
+    expect(reconciliationPeriodError("", "2026-11-20", "2026-11-23")).toMatch(/Chọn đủ/);
+    expect(reconciliationPeriodError("2026-11-20", "2026-11-10", "2026-11-23")).toMatch(
+      /Ngày đến phải/,
+    );
+    expect(reconciliationPeriodError("2026-11-01", "2026-11-24", "2026-11-23")).toMatch(
+      /không sau hôm nay/,
+    );
+    expect(reconciliationPeriodError("2026-11-01", "2026-11-23", "2026-11-23")).toBeNull();
+  });
+
+  it("nút trên dòng khách mở hộp thoại chọn kỳ (không mở drill-down), tải biên bản theo customerId + kỳ", async () => {
+    const pdf = new Blob(["%PDF"]);
+    const api = mockPaymentApi(ACCOUNTANT_GRANTS, {
+      get: { "/reports/receivables": () => report([anPhat]) },
+    });
+    const fallback = api.get.getMockImplementation();
+    if (!fallback) throw new Error("mockPaymentApi chưa cài GET");
+    api.get.mockImplementation(async (url, config) =>
+      url.startsWith("/installments/debt-reconciliation?")
+        ? { data: pdf, headers: {} }
+        : fallback(url, config),
+    );
+    renderPaymentScreen(<ReceivablesList />);
+    const row = (await screen.findByRole("link", { name: /Công ty Bao Bì An Phát/ })).closest(
+      "tr",
+    ) as HTMLElement;
+    await userEvent.click(within(row).getByRole("button", { name: /Đối chiếu công nợ/ }));
+    const dialog = await screen.findByRole("dialog");
+    expect(nav.push).not.toHaveBeenCalled();
+    expect(dialog).toHaveTextContent(/Công ty Bao Bì An Phát/);
+    await userEvent.click(within(dialog).getByRole("button", { name: "Tải biên bản" }));
+    await waitFor(() => expect(saveFile).toHaveBeenCalled());
+    const url = String(
+      api.get.mock.calls.find(([u]) => String(u).includes("debt-reconciliation"))?.[0],
+    );
+    expect(url).toMatch(
+      /^\/installments\/debt-reconciliation\?customerId=cust-9&from=\d{4}-\d{2}-01&to=\d{4}-\d{2}-\d{2}$/,
+    );
+    expect(nav.push).not.toHaveBeenCalled();
+  });
+
+  it("vai không có payment-installments:READ không thấy nút", async () => {
+    mockPaymentApi(
+      ACCOUNTANT_GRANTS.filter((code) => code !== PAYMENT_INSTALLMENT_PERMISSIONS.read),
+      { get: { "/reports/receivables": () => report([anPhat]) } },
+    );
+    renderPaymentScreen(<ReceivablesList />);
+    const row = (await screen.findByRole("link", { name: /Công ty Bao Bì An Phát/ })).closest(
+      "tr",
+    ) as HTMLElement;
+    expect(
+      within(row).queryByRole("button", { name: /Đối chiếu công nợ/ }),
+    ).not.toBeInTheDocument();
   });
 });

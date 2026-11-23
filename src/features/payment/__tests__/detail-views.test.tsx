@@ -200,6 +200,21 @@ describe("InstallmentDetail — the receipts that paid an installment, voided on
     expect(within(voided).getByText("Đã huỷ")).toBeInTheDocument();
   });
 
+  it("documents #5: only the recorded receipt row offers its payment confirmation, sales included", async () => {
+    mockPaymentApi(SALES_GRANTS, routes);
+    renderPaymentScreen(<InstallmentDetail id="inst-2" />);
+    const recorded = (await screen.findByRole("link", { name: "FT26313123456" })).closest(
+      "li",
+    ) as HTMLElement;
+    expect(
+      within(recorded).getByRole("button", { name: /Phiếu xác nhận thanh toán/ }),
+    ).toBeInTheDocument();
+    const voided = screen.getByRole("link", { name: "FT26311999333" }).closest("li") as HTMLElement;
+    expect(
+      within(voided).queryByRole("button", { name: /Phiếu xác nhận thanh toán/ }),
+    ).not.toBeInTheDocument();
+  });
+
   it("a Paid installment offers no receipt button; a payable one does for the accountant only", async () => {
     mockPaymentApi(ACCOUNTANT_GRANTS, routes);
     const view = renderPaymentScreen(<InstallmentDetail id="inst-2" />);

@@ -269,7 +269,7 @@ export const SHIPPING_UI_LABELS = {
       RETURNED: {
         title: "Ghi nhận hàng hoàn về kho",
         description:
-          "Hãng đã trả kiện về kho. Phần hàng của lô này bị đóng khỏi đơn, không giao lại trên đơn này — muốn gửi lại hàng phải tạo đơn mới. Tiền được tính khi Quản lý kho xác nhận phiếu nhận hàng hoàn: trừ đợt của lô này trước, rồi nợ cũ, phần đã thu vượt thành số phải hoàn; phí vận chuyển của chuyến hỏng được miễn. Ghi nhận này không sửa lại được.",
+          "Hãng đã trả kiện về kho. Phần hàng của lô này bị đóng khỏi đơn, không giao lại trên đơn này — muốn gửi lại hàng phải tạo đơn mới. Tiền được tính khi Quản lý kho xác nhận phiếu nhận hàng hoàn: trừ đợt của lô này trước, rồi nợ cũ, phần đã thu vượt thành số phải hoàn; phần phí vận chuyển tương ứng giá trị hàng của lô được miễn (đơn không giao được gì thì miễn toàn bộ phí vận chuyển). Ghi nhận này không sửa lại được.",
       },
       reason: "Lý do",
       reasonPlaceholder: "Chọn lý do",

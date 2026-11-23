@@ -49,6 +49,9 @@ export const SHIPPING_OUTCOME_ERROR_MESSAGES = {
     "Thời điểm giao không được trước lúc bàn giao lô cho hãng.",
   ORDER_DELIVERY_NOT_CORRECTABLE:
     "Không sửa được kết quả giao này nữa: đơn đã hoàn tất hoặc đã sang bước xử lý khác.",
+  // WF-05 G1 (Q-12): lô đã được Sale đóng như thất lạc — phần hàng đã rời đơn và đã tính tiền, không ghi kết quả giao nữa
+  ORDER_SHIPMENT_INVALID_TRANSITION:
+    "Lô này không ghi kết quả được nữa: Sale đã đóng phần thất lạc của lô (hàng đã rời đơn và đã tính tiền), hoặc lô đã sang bước khác. Tải lại trang để xem trạng thái mới.",
 } as const;
 
 /** Lỗi ô thời điểm giao trong form. */

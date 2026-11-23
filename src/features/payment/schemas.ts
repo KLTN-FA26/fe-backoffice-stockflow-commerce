@@ -127,6 +127,14 @@ export const receiptDtoSchema = z.object({
   /** R5-8 (BE round 5, có thể chưa có): tên người lập / người huỷ — không có thì không hiện dòng đó. */
   recordedByName: z.string().nullish(),
   voidedByName: z.string().nullish(),
+  /**
+   * WF-05 Q-20 (BE G2 `PaymentReceiptService.voidRefusal`): huỷ phiếu bây giờ có được nhận không — cùng luật lệnh
+   * `/void` kiểm. Có ở CHI TIẾT và ở câu trả lời của lập / huỷ phiếu; null ở danh sách (BE không tính từng dòng).
+   * `voidBlockedBy` = mã lỗi lệnh huỷ sẽ trả (PAYMENT_RECEIPT_ALREADY_VOIDED / _VOID_NOT_ALLOWED / _VOID_AFTER_HANDOVER;
+   * mã lạ giữ nguyên chuỗi). Phiếu làm đơn thiếu đợt khi ký vẫn `voidable` — lệnh huỷ hỏi "Treo đơn" (409 _NEEDS_HOLD).
+   */
+  voidable: z.boolean().nullish(),
+  voidBlockedBy: z.string().nullish(),
 });
 export const receiptPageDtoSchema = bePageSchema(receiptDtoSchema);
 
@@ -182,8 +190,9 @@ const settlementDtoSchema = z.object({
   /** WF-05 Q-2 (BE G2): lô hãng hoàn về / thất lạc mà lần tính này đóng (`SHIPMENT_RETURNED`); null với loại khác. */
   shipmentId: z.string().nullish(),
   /**
-   * WF-05 Q-19 (BE G2): phần của `closed` là phí vận chuyển của đơn được miễn vì đơn kết thúc không giao được gì; 0 / vắng
-   * với loại khác hoặc BE cũ.
+   * WF-05 Q-19 (BE G2 follow-up): phần của `closed` là phí vận chuyển được miễn, đồng nguyên. SHIPMENT_RETURNED: phí theo
+   * tỷ lệ giá trị hàng của lô trên giá trị hàng của đơn, hoặc toàn bộ phần còn lại khi đơn kết thúc không giao được gì;
+   * REMAINDER_CLOSED: phần còn lại khi lần đóng đó kết thúc đơn mà không giao được gì; 0 / vắng với loại khác, BE cũ.
    */
   shippingFeeWaived: z.number().nullish(),
 });

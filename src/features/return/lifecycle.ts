@@ -199,6 +199,17 @@ export const RETURN_RECEIPT_TRANSITIONS: Readonly<
 /** `loose` = ghi / gỡ hàng lẻ không nhãn (WF-05 TH-4). */
 export type ReturnReceiptAction = "scan" | "remove" | "loose" | "confirm" | "cancel";
 
+/**
+ * Phiếu nhập kho 01-VT của phiếu hàng hoàn (BE `feat/business-documents` #3): chỉ khi phiếu đã xác nhận (BE 409
+ * `INVALID_RECEIPT_TRANSITION` trước đó). Quyền đọc (`procurement-goods-receipts:READ`) do nút kiểm — owner 2026-11-23:
+ * Kế toán xem và in được, nhưng không có thao tác sửa nào (các thao tác trên cần UPDATE).
+ */
+export function returnReceiptVoucherReady(receipt: { status: ReturnReceiptReadStatus }): boolean {
+  return (
+    receipt.status === "CONFIRMED" || receipt.status === "IN_PUTAWAY" || receipt.status === "CLOSED"
+  );
+}
+
 export function allowedReturnReceiptActions(
   receipt: {
     status: ReturnReceiptReadStatus;

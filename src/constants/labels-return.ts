@@ -137,6 +137,7 @@ export const RETURN_LABELS = {
     parcels: "Các lần hàng về",
     parcel: (n: number) => `Lần ${n}`,
     parcelReceiver: "Người nhận",
+    parcelVoucher: "Phiếu nhập kho 01-VT",
     discrepancies: "Chênh lệch khi nhận",
     resolution: "Hoàn tiền",
     settlementAmount: "Giá trị hoàn (gồm VAT)",
@@ -335,6 +336,7 @@ export const RETURN_RECEIPT_LABELS = {
     note: "Ghi chú",
     submit: "Lập phiếu",
     noSource: "Chưa có yêu cầu / chuyến nào chờ nhập.",
+    openDraft: "Mở phiếu nháp đang đếm",
   },
   detail: {
     general: "Thông tin chung",

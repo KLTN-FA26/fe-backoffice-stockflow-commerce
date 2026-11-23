@@ -110,7 +110,7 @@ export const listItemJson = (over: Record<string, unknown> = {}) => ({
   buyerName: "CÔNG TY TNHH CÀ PHÊ SÀI GÒN XƯA",
   buyerTaxCode: "0315987654",
   issueDate: "2026-11-10",
-  issueDueAt: "2026-11-11T16:59:59Z",
+  issueDueAt: "2026-11-10T16:59:59Z",
   overdue: false,
   subtotal: 15_600_000,
   taxTotal: 1_248_000,

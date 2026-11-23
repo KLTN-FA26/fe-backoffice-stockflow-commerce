@@ -6,7 +6,7 @@
  * UI-only — Backend phải re-check (quyền sales-contracts CREATE / UPDATE / APPROVE).
  */
 
-import { SALES_CONTRACT_PERMISSIONS } from "@/constants";
+import { SALES_CONTRACT_PERMISSIONS, SALES_CONTRACT_SIGNED_STATUSES } from "@/constants";
 
 import { DEFAULT_ON_SIGNING_DUE_DAYS } from "./sales-contract-form";
 
@@ -47,6 +47,33 @@ export function allowedContractActions(
   if (status === "SENT" && can(SALES_CONTRACT_PERMISSIONS.approve)) actions.push("sign");
   if (status === "SENT" && can(SALES_CONTRACT_PERMISSIONS.update)) actions.push("cancel");
   return actions;
+}
+
+/** Đơn không còn giao / thu gì thêm — BE `ContractPaperService.ended` (COMPLETED, CANCELLED, CLOSED, REFUNDED, PARTIALLY_REFUNDED). */
+const CONTRACT_ENDED_ORDER_STATUSES: readonly Order["status"][] = [
+  "Completed",
+  "Cancelled",
+  "Closed",
+  "Refunded",
+  "Partially Refunded",
+];
+
+/**
+ * Giấy tờ sau ký (BE `feat/business-documents`, endpoints #1, #2): phụ lục khi hợp đồng đã ký (BE 404 khi chưa dời lịch
+ * giao nào — nút vẫn hiện, bấm thì báo "chưa có phụ lục"); biên bản thanh lý khi đã ký VÀ hợp đồng đã kết thúc (Hoàn tất
+ * / Thanh lý) hoặc đơn đã kết thúc. BE còn từ chối khi số "Còn lại" khác 0 (owner 2026-11-23) — FE không tính lại, hiện
+ * câu lỗi. Quyền `sales-contracts:READ` do nút kiểm. UI-only — Backend re-check.
+ */
+export function contractPapers(
+  contract: Pick<SalesContract, "status">,
+  orderStatus: Order["status"],
+): { appendix: boolean; liquidation: boolean } {
+  const signed = (SALES_CONTRACT_SIGNED_STATUSES as readonly string[]).includes(contract.status);
+  const ended =
+    contract.status === "COMPLETED" ||
+    contract.status === "LIQUIDATED" ||
+    CONTRACT_ENDED_ORDER_STATUSES.includes(orderStatus);
+  return { appendix: signed, liquidation: signed && ended };
 }
 
 export interface CartonGap {

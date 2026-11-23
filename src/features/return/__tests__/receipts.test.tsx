@@ -2,7 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { bePage } from "@/test/api-screen";
+import { apiError, bePage } from "@/test/api-screen";
 
 import { ReturnDetail, ReturnReceiptDetail, ReturnReceiptList } from "..";
 import {
@@ -94,6 +94,51 @@ describe("RMA → return receipt", () => {
       }),
     );
     await waitFor(() => expect(push).toHaveBeenCalledWith("/admin/receipts/returns/gr-1"));
+  });
+
+  it("G4: a source with a draft already open (rows carry no receiptDraftOpen) → 409 explained, link to that draft", async () => {
+    mockReturnApi(WAREHOUSE_GRANTS, {
+      get: {
+        "/goods-receipts/returns": () => bePage([]),
+        "/returns": () =>
+          bePage([returnRowJson({ status: "AWAITING_RETURN", receiptOpenable: true })]),
+        "/fulfillment/shipments": () => bePage([]),
+        "/warehouses": () => bePage([{ id: "wh-1", prefix: "WH1", name: "Kho Bình Dương" }]),
+        "/warehouses/wh-1/layout": () => ({
+          areas: [
+            {
+              code: "QC01",
+              type: "QUARANTINE",
+              name: "Cách ly",
+              usable: true,
+              locationCode: "WH1-QC01",
+            },
+          ],
+        }),
+      },
+      post: {
+        "/goods-receipts/returns": () => {
+          throw apiError(409, "RETURN_RECEIPT_ALREADY_OPEN", undefined, "Already open", {
+            receiptId: "gr-7",
+          });
+        },
+      },
+    });
+    const user = userEvent.setup();
+    renderReturnScreen(<ReturnReceiptList />, "?create=true&returnRequestId=ret-1");
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("combobox", { name: /Kho nhận/ }));
+    await user.click(await screen.findByRole("option", { name: "Kho Bình Dương" }));
+    await user.click(within(dialog).getByRole("combobox", { name: /Khu cách ly/ }));
+    await user.click(await screen.findByRole("option", { name: /WH1-QC01/ }));
+    await user.click(within(dialog).getByRole("button", { name: "Lập phiếu" }));
+    expect(
+      await within(dialog).findByText(/đang có một phiếu nhập hàng hoàn nháp/),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByRole("link", { name: "Mở phiếu nháp đang đếm" })).toHaveAttribute(
+      "href",
+      "/admin/receipts/returns/gr-7",
+    );
   });
 
   it("Sales (no goods-receipt permission) cannot open a receipt", async () => {

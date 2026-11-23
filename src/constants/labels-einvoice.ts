@@ -70,6 +70,12 @@ export const CORRECTION_BASIS_LABELS = {
   UNKNOWN: "Căn cứ chưa hỗ trợ hiển thị",
 } as const satisfies Record<CorrectionBasisRead, string>;
 
+/** Căn cứ của hoá đơn giảm ghi từ cổng NCC (`EXTERNAL_REDUCTION_BASES`). */
+export const EXTERNAL_REDUCTION_BASIS_LABELS = {
+  DELIVERY_FAILED: "Giao hàng thất bại",
+  RETURN: "Trả hàng (giảm trên hoá đơn thay thế)",
+} as const;
+
 export const EINVOICE_LABELS = {
   navGroup: "Hoá đơn",
   list: {

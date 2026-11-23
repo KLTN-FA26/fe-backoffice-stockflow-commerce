@@ -4,7 +4,9 @@ import { useState } from "react";
 import { FileDown, LoaderCircle } from "lucide-react";
 
 import { SALES_CONTRACT_SIGNED_STATUSES } from "@/constants";
+import { BUSINESS_DOCUMENT_PATHS } from "@/lib/api/business-documents";
 import { openBlob, openLink } from "@/lib/files/open-blob";
+import { DocumentDownloadButton } from "@/components/backoffice/DocumentDownloadButton";
 import { Button } from "@/components/ui/button";
 
 import { getContractLink, getContractPreview } from "../../sales-contract-api";
@@ -15,16 +17,19 @@ type Download = "preview" | "document" | "signed";
 
 /**
  * Xem trước PDF nháp (`/preview`), tải bản đã gửi (`/document`), tải bản đã ký (`/signed-file`). Trong lúc BE dựng
- * PDF, nút đang chạy quay vòng và cả nhóm khoá lại — không bấm chồng nhiều lần (BO-UX-31).
+ * PDF, nút đang chạy quay vòng và cả nhóm khoá lại — không bấm chồng nhiều lần (BO-UX-31). Sau khi ký: phụ lục hợp đồng
+ * và biên bản thanh lý (BE `feat/business-documents` #1, #2; quyền `sales-contracts:READ`, tên file của BE).
  */
 export function ContractDownloads({
   contract,
   canPreview,
   onError,
+  papers = { appendix: false, liquidation: false },
 }: {
   contract: SalesContract;
   canPreview: boolean;
   onError: (error: unknown) => void;
+  papers?: { appendix: boolean; liquidation: boolean };
 }) {
   const [busy, setBusy] = useState<Download | null>(null);
   const run = async (kind: Download, load: () => Promise<void>) => {
@@ -95,6 +100,18 @@ export function ContractDownloads({
         >
           {icon("signed")} Tải bản đã ký
         </Button>
+      )}
+      {papers.appendix && (
+        <DocumentDownloadButton
+          kind="contractAppendix"
+          path={BUSINESS_DOCUMENT_PATHS.contractAppendix(contract.orderId)}
+        />
+      )}
+      {papers.liquidation && (
+        <DocumentDownloadButton
+          kind="contractLiquidation"
+          path={BUSINESS_DOCUMENT_PATHS.contractLiquidation(contract.orderId)}
+        />
       )}
     </>
   );
