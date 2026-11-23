@@ -1,6 +1,11 @@
-import { CartonCheckStationWithLpnLabels } from "@/components/backoffice/CartonCheckStationWithLpnLabels";
+import { PickingTaskRedirect } from "@/features/fulfillment/components/PickingTaskRedirect";
 
-export default async function PackingDetailPage({ params }: { params: Promise<{ id: string }> }) {
+/** Route cũ: trạm kiểm thùng giờ nằm trong tab theo kho của task (spec §5.5). */
+export default async function LegacyPackingTaskPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
-  return <CartonCheckStationWithLpnLabels id={id} />;
+  return <PickingTaskRedirect id={id} scope="packing" />;
 }

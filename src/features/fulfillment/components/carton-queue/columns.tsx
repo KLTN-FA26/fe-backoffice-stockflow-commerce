@@ -1,6 +1,6 @@
 "use client";
 
-import { ADMIN_ROUTES, UI_LABELS } from "@/constants";
+import { UI_LABELS } from "@/constants";
 import { CELL, dateCell, statusCell, ViewAction } from "@/components/shared/column-helpers";
 
 import { orderLabel } from "../primitives";
@@ -12,14 +12,15 @@ const L = UI_LABELS.cartonCheck;
 const COLUMNS = L.queueColumns;
 
 export interface QueueColumnContext {
-  warehouseName: (warehouseId: string | null | undefined) => string;
   selfId: string | null;
+  /** Link trạm kiểm thùng — trong tab theo kho (`WORKSPACE_PATHS.packingTask`). */
+  detailHref: (taskId: string) => string;
 }
 
 /** Cột hàng chờ kiểm thùng — đúng field BE `CartonCheckQueueRowResponse`. */
 export function buildQueueColumns({
-  warehouseName,
   selfId,
+  detailHref,
 }: QueueColumnContext): ColumnDef<CartonCheckQueueRow>[] {
   return [
     {
@@ -30,11 +31,6 @@ export function buildQueueColumns({
           {row.orderNumber ?? orderLabel(row.orderId, undefined)}
         </span>
       ),
-    },
-    {
-      key: "warehouse",
-      header: COLUMNS.warehouse,
-      cell: (row) => <span className={CELL.name}>{warehouseName(row.warehouseId)}</span>,
     },
     dateCell<CartonCheckQueueRow>("pickedAt", COLUMNS.pickedAt, (row) => row.pickedAt, {
       withTime: true,
@@ -79,7 +75,7 @@ export function buildQueueColumns({
       cell: (row) => (
         <ViewAction
           label={`${L.openStation} ${row.orderNumber ?? orderLabel(row.orderId, undefined)}`}
-          href={ADMIN_ROUTES.packing.detail(row.taskId)}
+          href={detailHref(row.taskId)}
         />
       ),
     },

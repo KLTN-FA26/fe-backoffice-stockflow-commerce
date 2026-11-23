@@ -130,8 +130,6 @@ export const ADMIN_ROUTES = {
   /** Hàng đợi trả hàng về kệ (BE `GET /fulfillment/put-backs`, SCRUM-275) — lọc kho trên URL. */
   putBacks: {
     list: `${ADMIN_BASE}/put-backs`,
-    listInWarehouse: (warehouseId: string) =>
-      `${ADMIN_BASE}/put-backs?warehouse=${encodeURIComponent(warehouseId)}`,
   },
   receipts: {
     detail: (id: string) => `${ADMIN_BASE}/receipts/${id}`,

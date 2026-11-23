@@ -1,13 +1,18 @@
-import { Suspense } from "react";
+import { WORKSPACE_PATHS } from "@/constants";
+import { WorkspaceRedirect } from "@/lib/workspace";
 
-import { CartonCheckQueue } from "@/features/fulfillment/components/CartonCheckQueue";
-
-import { PageSkeleton } from "@/components/shared/PageSkeleton";
-
-export default function PackingPage() {
+/** Route cũ: Kiểm thùng giờ nằm trong tab theo kho — `?warehouse=` → `/admin/warehouse-map/{prefix}/packing` (spec §5.5). */
+export default async function LegacyPackingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ warehouse?: string | string[] }>;
+}) {
+  const { warehouse } = await searchParams;
   return (
-    <Suspense fallback={<PageSkeleton variant="list" />}>
-      <CartonCheckQueue />
-    </Suspense>
+    <WorkspaceRedirect
+      warehouseId={typeof warehouse === "string" ? warehouse : null}
+      path={WORKSPACE_PATHS.packing}
+      keepQuery
+    />
   );
 }

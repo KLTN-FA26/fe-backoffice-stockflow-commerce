@@ -4,7 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight, CheckCircle2, PlayCircle } from "lucide-react";
 
-import { ADMIN_ROUTES, FULFILLMENT_PICK_PERMISSIONS, PACK_STATUS, UI_LABELS } from "@/constants";
+import { FULFILLMENT_PICK_PERMISSIONS, PACK_STATUS, UI_LABELS, WORKSPACE_PATHS } from "@/constants";
+import { useWorkspaceHref } from "@/lib/workspace";
 import { formatDateTime } from "@/lib/format/date";
 import { cartonCheckErrorMessage } from "@/features/fulfillment/carton-check-errors";
 import { useStartCartonCheck } from "@/features/fulfillment/carton-check-mutations";
@@ -47,6 +48,7 @@ export function CartonCheckStatusCard({
   waitingPick: boolean;
 }) {
   const start = useStartCartonCheck();
+  const href = useWorkspaceHref();
   const [dialog, setDialog] = useState<"complete" | null>(null);
   const idle = waitingPick ? N.waitingPick : noActionText(session, access);
   const starter = access.isOwner ? S.you : (session.startedByName ?? S.waiting);
@@ -119,7 +121,7 @@ export function CartonCheckStatusCard({
         )}
         {actor.can(FULFILLMENT_PICK_PERMISSIONS.viewPage) && (
           <Button variant="ghost" size="sm" asChild className="text-accent w-full">
-            <Link href={ADMIN_ROUTES.picking.detail(session.taskId)}>
+            <Link href={href(WORKSPACE_PATHS.pickingTask(session.taskId))}>
               {UI_LABELS.fulfillment.action.openPicking} <ArrowRight className="size-3.5" />
             </Link>
           </Button>

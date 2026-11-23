@@ -43,6 +43,8 @@ interface FulfillmentLoadErrorProps {
   onRetry?: () => void;
   /** Hiện trong vùng nội dung: không vẽ PageHeader, không có nút quay lại. */
   inline?: boolean;
+  /** Danh sách để quay lại — trong tab theo kho là danh sách của kho đó; bỏ trống = route cũ (chuyển hướng). */
+  listHref?: string;
 }
 
 /** Trạng thái lỗi dùng chung cho hai màn xuất kho — 403 / 404 / 5xx / mất mạng tách riêng (§8). */
@@ -52,6 +54,7 @@ export function FulfillmentLoadError({
   kind: forcedKind,
   onRetry,
   inline = false,
+  listHref,
 }: FulfillmentLoadErrorProps) {
   const kind = forcedKind ?? (error ? classifyLoadError(error) : "not-found");
   const copy = COPY[kind];
@@ -62,7 +65,7 @@ export function FulfillmentLoadError({
   const back =
     isPermissionKind && !canReadList
       ? { href: ADMIN_ROUTES.home, label: common.backToHome }
-      : { href: SCOPE[scope].list, label: common.backToList };
+      : { href: listHref ?? SCOPE[scope].list, label: common.backToList };
 
   const body = (
     <>

@@ -28,6 +28,9 @@ import { apiTask, stagedTask } from "../__fixtures__/task";
 
 import type { CartonCheckSessionDto } from "../carton-check-types";
 
+const replaceSpy = vi.hoisted(() => vi.fn());
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: replaceSpy }) }));
+
 const L = UI_LABELS.cartonCheck;
 const START = `${CARTON_CHECK_PATH}/packing-start`;
 const CHECKS = `${CARTON_CHECK_PATH}/carton-checks`;
@@ -68,6 +71,15 @@ describe("CartonCheckStation — phiên chưa bắt đầu (Pending)", () => {
     expect(screen.queryByLabelText(L.scan.label)).toBeNull();
     expect(screen.queryByRole("button", { name: L.action.complete })).toBeNull();
     expect(screen.getByRole("button", { name: L.action.start })).toBeEnabled();
+  });
+
+  it("lối sang màn lấy hàng của task ở lại trong kho của tab", async () => {
+    renderCartonCheckStation();
+    expect(
+      await screen.findByRole("link", {
+        name: new RegExp(UI_LABELS.fulfillment.action.openPicking),
+      }),
+    ).toHaveAttribute("href", expect.stringMatching(/^\/admin\/warehouse-map\/HCM\/picking\//));
   });
 
   it("Bắt đầu kiểm thùng → POST packing-start; phiên chuyển In Progress, hiện ô quét và nút hoàn tất", async () => {
@@ -663,3 +675,12 @@ async function waitForRow(lpn: string): Promise<HTMLElement> {
   await screen.findByText(lpn);
   return rowOf(lpn);
 }
+
+describe("CartonCheckStation — phiên của kho khác mở trong tab (spec §2)", () => {
+  it("không hiện trạm dưới kho sai", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    renderCartonCheckStation({ session: { ...apiSession(), warehouseId: "wh-khac" } });
+    await waitFor(() => expect(replaceSpy).toHaveBeenCalledWith("/admin/warehouse-map"));
+    expect(screen.queryByRole("button", { name: L.action.start })).toBeNull();
+  });
+});

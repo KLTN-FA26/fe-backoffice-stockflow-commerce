@@ -3,7 +3,6 @@
 import { PackageSearch } from "lucide-react";
 
 import { UI_LABELS } from "@/constants";
-import { useWarehouseDirectory } from "@/lib/references/warehouse-options";
 import { DataTable } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
@@ -11,7 +10,6 @@ import { RefetchBar } from "@/components/shared/RefetchBar";
 import { Button } from "@/components/ui/button";
 
 import { FulfillmentLoadError } from "../FulfillmentLoadError";
-import { shortId } from "../../selectors";
 import { buildQueueColumns } from "./columns";
 import { PAGE_SIZE_OPTIONS } from "./constants";
 
@@ -25,10 +23,7 @@ const L = UI_LABELS.cartonCheck;
  * kết quả, trang vượt quá dữ liệu.
  */
 export function QueueBody({ s, selfId }: { s: CartonCheckQueueState; selfId: string | null }) {
-  const { data: warehouses } = useWarehouseDirectory();
   const { query } = s;
-  const warehouseName = (id: string | null | undefined) =>
-    id ? (warehouses?.find((w) => w.warehouseId === id)?.name ?? shortId(id)) : "—";
 
   if (!s.canRead)
     return <FulfillmentLoadError inline scope="packing" error={null} kind="no-read" />;
@@ -88,7 +83,7 @@ export function QueueBody({ s, selfId }: { s: CartonCheckQueueState; selfId: str
   }
 
   const page = query.data;
-  const columns = buildQueueColumns({ warehouseName, selfId });
+  const columns = buildQueueColumns({ selfId, detailHref: s.detailHref });
   return (
     <>
       <RefetchBar active={query.isFetching} label={L.refetching} />

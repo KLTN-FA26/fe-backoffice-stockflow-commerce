@@ -154,27 +154,34 @@ describe("declared navigation permissions", () => {
       true,
     ],
     [
+      // Không có fulfillment-picking nhưng có Lấy hàng → vẫn thấy tab (Lấy hàng cũng trong tab theo kho)
       "điều phối (pick-lists + task-assignment, không có fulfillment-picking)",
       [
         ...Object.values(FULFILLMENT_PICK_PERMISSIONS),
         FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS.update,
       ],
-      false,
+      true,
     ],
-  ] as const)("menu Trả hàng về kệ với %s → hiện: %s", async (_, permissions, visible) => {
-    vi.spyOn(api, "get").mockResolvedValue({
-      data: {
-        roles: [],
-        permissions: [...permissions, IDENTITY_PERMISSIONS.rbacRead],
-        dataScope: "ALL",
-      },
-    });
-    mount();
-    expect(await screen.findByRole("link", { name: "Phân quyền" })).toBeInTheDocument();
-    const link = screen.queryByRole("link", { name: "Trả hàng về kệ" });
-    expect(link !== null).toBe(visible);
-    if (link) expect(link).toHaveAttribute("href", "/admin/put-backs");
-  });
+    ["không có quyền màn nào trong kho", [], false],
+  ] as const)(
+    "Trả hàng về kệ (trong tab theo kho) với %s → tab Kho & bản đồ hiện: %s",
+    async (_, permissions, visible) => {
+      vi.spyOn(api, "get").mockResolvedValue({
+        data: {
+          roles: [],
+          permissions: [...permissions, IDENTITY_PERMISSIONS.rbacRead],
+          dataScope: "ALL",
+        },
+      });
+      mount();
+      expect(await screen.findByRole("link", { name: "Phân quyền" })).toBeInTheDocument();
+      // Màn đã vào tab theo kho (spec 2026-11-22): không còn item riêng ngoài tab
+      expect(screen.queryByRole("link", { name: "Trả hàng về kệ" })).toBeNull();
+      const tab = screen.queryByRole("link", { name: "Kho & bản đồ" });
+      expect(tab !== null).toBe(visible);
+      if (tab) expect(tab).toHaveAttribute("href", ADMIN_ROUTES.warehouseMap.root);
+    },
+  );
   it.each([
     ["cycle-counts:VIEW_PAGE", [CYCLE_COUNT_PERMISSIONS.viewPage], true],
     ["cycle-counts:READ alone", [CYCLE_COUNT_PERMISSIONS.read], false],
