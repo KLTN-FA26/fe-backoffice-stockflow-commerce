@@ -18,7 +18,7 @@ vi.mock("@/lib/auth", async (importOriginal) => ({
 
 afterEach(() => replace.mockReset());
 
-describe("vào tab Kho & bản đồ theo kho được gán (spec §5.3)", () => {
+describe("vào tab Kho theo kho được gán (spec §5.3)", () => {
   it("được gán đúng một kho → vào thẳng kho đó", async () => {
     assigned.mockReturnValue({
       scope: "restricted",

@@ -41,7 +41,13 @@ import { ReturnLooseLines } from "./ReturnLooseLines";
 const L = RETURN_RECEIPT_LABELS;
 const D = L.detail;
 
-function Content({ id }: { id: string }) {
+interface BackLink {
+  href: string;
+  /** Nhãn nút quay lại; mặc định là tên danh sách Phiếu nhập hàng hoàn. */
+  label?: string;
+}
+
+function Content({ id, back: backLink }: { id: string; back?: BackLink }) {
   const canRead = useCan(GOODS_RECEIPT_PERMISSIONS.read);
   const can = usePermissionChecker();
   const query = useReturnReceipt(id, { enabled: canRead });
@@ -51,7 +57,7 @@ function Content({ id }: { id: string }) {
   const confirm = useConfirmReturnReceipt();
   const cancel = useCancelReturnReceipt();
   const remove = useRemoveReturnCarton();
-  const back = { href: RETURN_ROUTES.receipts.list };
+  const back = { href: backLink?.href ?? RETURN_ROUTES.receipts.list };
   if (!canRead)
     return <LoadErrorState error={null} kind="no-read" copy={RETURN_RECEIPT_COPY} back={back} />;
   if (query.isError)
@@ -78,8 +84,8 @@ function Content({ id }: { id: string }) {
       <h1 className="sr-only">{`${L.pageTitle} ${receipt.number}`}</h1>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Button asChild variant="outline" size="sm">
-          <Link href={RETURN_ROUTES.receipts.list}>
-            <ArrowLeft className="size-3.5" /> {L.pageTitle}
+          <Link href={back.href}>
+            <ArrowLeft className="size-3.5" /> {backLink?.label ?? L.pageTitle}
           </Link>
         </Button>
         <div className="flex flex-wrap gap-2">
@@ -183,10 +189,10 @@ function Content({ id }: { id: string }) {
  * Xác nhận: thùng về tồn cách ly; yêu cầu trả hàng sang RECEIVED khi đã về đủ số đã duyệt, về một phần thì vẫn
  * AWAITING_RETURN (một lần hàng về) để Sale bấm "Đã nhận đủ hàng" (WF-05 TH-3, TH-4).
  */
-export function ReturnReceiptDetail({ id }: { id: string }) {
+export function ReturnReceiptDetail({ id, back }: { id: string; back?: BackLink }) {
   return (
     <PermissionBoundary permissions={[GOODS_RECEIPT_PERMISSIONS.viewPage]}>
-      <Content id={id} />
+      <Content id={id} back={back} />
     </PermissionBoundary>
   );
 }

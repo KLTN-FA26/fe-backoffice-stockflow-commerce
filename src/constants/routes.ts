@@ -23,6 +23,10 @@ const id = (value: string) => encodeURIComponent(value);
  */
 export const WORKSPACE_PATHS = {
   slotting: "slotting",
+  /** Nhận hàng (docs 03): phiếu nhận của kho — chi tiết theo loại phiếu (Đơn sản xuất / hàng hoàn). */
+  receiving: "receiving",
+  receivingReceipt: (receiptId: string) => `receiving/${id(receiptId)}`,
+  receivingReturn: (receiptId: string) => `receiving/returns/${id(receiptId)}`,
   putaway: "putaway",
   putawayTask: (taskId: string) => `putaway/${id(taskId)}`,
   myTrip: "putaway/trip",
@@ -183,7 +187,7 @@ export const ADMIN_ROUTES = {
     list: `${ADMIN_BASE}/warehouses`,
   },
   /**
-   * Tab "Kho & bản đồ" (module 06) — `root` là bước chọn kho; trang làm việc theo một kho nằm dưới prefix
+   * Tab "Kho" (module 06 + màn vận hành theo kho) — `root` là bước chọn kho; trang làm việc theo một kho nằm dưới prefix
    * kho (duy nhất, không đổi — BR-10 / BR-13). Tiền tố `/admin/warehouse-map` = route BE khai báo cho
    * resource `warehouse-locations` (`LayoutController`).
    */

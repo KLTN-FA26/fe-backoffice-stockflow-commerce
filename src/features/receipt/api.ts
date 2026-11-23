@@ -60,6 +60,8 @@ export interface ListGoodsReceiptParams extends ListQueryParams {
   size?: number;
   status?: ReceiptStatus[];
   productionOrderId?: string;
+  /** Kho của phiếu — màn Nhận hàng trong tab theo kho luôn gửi kho trên URL (BE `GoodsReceiptSearch.Criteria`). */
+  warehouseId?: string;
   /** Bỏ trống: mọi loại. Phiếu hàng hoàn có màn riêng (`features/return`). */
   receiptType?: ReceiptTypeApi;
   /** BE so khớp số phiếu (`GoodsReceiptSearch.Criteria.number`). */
@@ -81,6 +83,7 @@ export async function listGoodsReceipts(
       size: params.size ?? PAGE_SIZE.md,
       status: params.status?.map((status) => RECEIPT_API_STATUS_BY_STATUS[status]),
       productionOrderId: params.productionOrderId || undefined,
+      warehouseId: params.warehouseId || undefined,
       receiptType: params.receiptType,
       search: params.search?.trim() || undefined,
       receivedFrom: params.receivedFrom ? dayStartInstant(params.receivedFrom) : undefined,

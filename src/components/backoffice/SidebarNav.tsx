@@ -132,7 +132,7 @@ export function SidebarNav({
               return (
                 <SidebarMenuItem key={group.title}>
                   {group.href ? (
-                    // Nhóm có trang vào thẳng (vd "Kho & bản đồ" → Danh mục kho): đi tới trang đó, màn
+                    // Nhóm có trang vào thẳng (vd "Kho" → Danh mục kho): đi tới trang đó, màn
                     // con của nhóm tự mở theo trang đang đứng
                     <SidebarMenuButton asChild className={rowClass}>
                       <Link href={group.href} onClick={() => setPanel(group.title)}>

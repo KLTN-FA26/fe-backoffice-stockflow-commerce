@@ -1,6 +1,8 @@
 export const STORAGE_KEYS = {
   adminProductsConfig: "stockflow:admin:products:config",
   adminReceiptsConfig: "stockflow:admin:receipts:config",
+  /** Màn Nhận hàng trong tab theo kho — chỉ số dòng / trang. */
+  adminReceivingConfig: "stockflow:admin:warehouse-map:receiving:config",
   adminInventoryItemsConfig: "stockflow:admin:inventory-items:config",
   adminVariantsConfig: "stockflow:admin:variants:config",
   adminOrdersConfig: "stockflow:admin:orders:config",

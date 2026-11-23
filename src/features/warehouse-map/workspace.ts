@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Tab "Kho & bản đồ": trang làm việc theo một kho nằm dưới prefix kho trên URL
+ * Tab "Kho": trang làm việc theo một kho nằm dưới prefix kho trên URL
  * (`/admin/warehouse-map/{prefix}`) — prefix duy nhất toàn hệ thống và không đổi (BR-10 / BR-13) nên
  * link luôn đúng. BE chỉ đọc kho theo id → đổi prefix ra kho qua danh mục kho (đã cache cho bước chọn).
  * Kho dùng gần nhất nhớ trên máy này để tô sẵn ở bước chọn kho. KHÔNG gắn `X-Warehouse-Id` cho cả app.

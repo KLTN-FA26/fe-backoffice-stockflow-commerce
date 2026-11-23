@@ -46,17 +46,21 @@ Mode A dùng `brand.ink` cho CTA, count badge của tab đang chọn và focus b
   một item thấy được → link thẳng. Thu gọn → danh sách icon phẳng.
 - **Nhóm (tab) sidebar** chia theo module của docs 00 §3, thứ tự theo luồng end-to-end: Tổng quan ·
   Sản phẩm (01) · Thiết kế (12) · Bán hàng (13/14/16/18) · Đơn hàng (17) · Sản xuất · Nhập kho (03) ·
-  Kho & bản đồ (06 + màn vận hành theo kho) · Tồn kho (20) · Vận chuyển (09) · Thanh toán & hoá đơn
+  Kho (06 + màn vận hành theo kho) · Tồn kho (20) · Vận chuyển (09) · Thanh toán & hoá đơn
   (15/21) · Hệ thống. Trang mới vào nhóm của **module sở hữu nó** (mục Actor của docs), tên nhóm ở
   `NAV_GROUP_LABELS`; test `components/backoffice/nav-groups.test.ts` khoá cách chia.
 - **Header sidebar**: logo app (`Logo variant="mark"`) + chữ `StockFlow` đậm + `Commerce` `ink.secondary` (thu gọn: chỉ logo) + ô tìm nhanh. Không có chọn kho.
-- **Tab "Kho & bản đồ"** (module 06, tách khỏi nhóm "Tồn kho"): **chọn kho ở trang Danh mục kho** (bấm dòng
-  kho), không chọn trong sidebar. Trang làm việc theo một kho nằm dưới prefix kho:
+- **Tab "Kho"** (module 06 + màn vận hành theo kho, tách khỏi nhóm "Tồn kho"): **chọn kho ở trang Danh mục kho**
+  (bấm dòng kho), không chọn trong sidebar. Trang làm việc theo một kho nằm dưới prefix kho:
   `/admin/warehouse-map/{prefix}` (bản đồ), `…/{prefix}/slotting` (gợi ý vị trí) — prefix duy nhất,
   không đổi (BR-10/13). Panel sidebar của tab (`NavGroup.panel` = `WarehouseNavPanel`): chưa vào kho →
-  Danh mục kho + gợi ý; trong kho → các trang của kho. Breadcrumb `Kho & bản đồ / [kho ⇅] / <trang>`
+  Danh mục kho + gợi ý; trong kho → nhóm **Vận hành** theo luồng kho (Nhận hàng → Cất hàng → … → Kiểm kê)
+  và nhóm **Bản đồ**. Breadcrumb `Kho / [kho ⇅] / <trang>`
   (`NavItem.breadcrumbTail`), đoạn kho là nút đổi kho kiểu Vercel. Kho của tab **không** gắn
   `X-Warehouse-Id` cho cả app.
+- **Chứng từ vs thao tác**: màn quản lý / tra cứu nhiều kho (Phiếu nhận, Phiếu nhập hàng hoàn, tồn tổng quan…)
+  ở nhóm của module; thao tác tại một kho (kiểm đếm, quét, cất, lấy…) ở tab Kho, dùng lại màn chi tiết của
+  feature với link theo `WORKSPACE_PATHS`. Màn mới làm theo kho → thêm vào `WORKSPACE_PAGES`, không thêm ô chọn kho.
 - **Footer sidebar**: avatar + tên người dùng (không hiện role) + nút 3 chấm; avatar hoặc 3 chấm
   mở cùng menu tài khoản (hồ sơ, cài đặt, đổi sáng/tối, đăng xuất).
 - **Topbar** nền `bg.base`, breadcrumb **căn giữa** 14px — breadcrumb là tiêu đề của trang.

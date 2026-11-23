@@ -87,12 +87,15 @@ export const WAREHOUSE_MAP_EDIT_LABELS = {
   },
 } as const;
 
-/** Tab "Kho & bản đồ" — chọn kho ở Danh mục kho, rồi mới vào các trang của kho đó. */
+/**
+ * Tab "Kho" — chọn kho ở Danh mục kho, rồi mới vào các trang của kho đó (vận hành + bản đồ). Đổi từ "Kho & bản đồ"
+ * khi Nhận hàng vào tab: bản đồ chỉ còn là một nhóm trong tab.
+ */
 export const WAREHOUSE_WORKSPACE_LABELS = {
-  navGroup: "Kho & bản đồ",
+  navGroup: "Kho",
   choose: "Đang tải danh sách kho",
   change: "Đổi kho",
-  pickHint: "Chọn một kho ở Danh mục kho để mở bản đồ và gợi ý vị trí của kho đó.",
+  pickHint: "Chọn một kho ở Danh mục kho để mở các trang vận hành và bản đồ của kho đó.",
   notFoundTitle: (prefix: string) => `Không có kho ${prefix}`,
   notFoundDescription:
     "Kho không còn trong danh mục hoặc bạn chưa được cấp quyền xem — chọn kho khác.",
