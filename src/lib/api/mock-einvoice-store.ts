@@ -73,6 +73,13 @@ export interface MockEInvoice {
    * `findPendingReturnsOfShipment`, chưa có điều chỉnh cho yêu cầu đó) — nguồn `externalReductionReturns`.
    */
   pendingReturns?: { returnRequestId: string; rmaNumber: string }[];
+  /**
+   * Audit r3 EINV-2 (mock thay cho BE `EInvoiceDrafts.correctionSendable` = false): NCC đã phát hành hoá đơn gốc này không
+   * còn dùng được / không điều chỉnh được — điều chỉnh của nó chỉ làm được trên cổng.
+   */
+  providerCannotCorrect?: boolean;
+  /** Audit r3 EINV-2: hoá đơn giảm ghi từ cổng thay cho bản điều chỉnh sai sót đã huỷ này (BE `einvoice_portal_record`). */
+  voidedAdjustmentId?: string | null;
   /** Audit r2 H-2: NCC đã từng nói đang giữ giao dịch (BE `providerHeld`) — không bao giờ rút. */
   providerHeld?: boolean;
   /** Audit r3 EINV-3: tra lại giao dịch cũ tới mốc này sau khi rút / cơ quan thuế từ chối (BE `watchUntil`). */
@@ -317,6 +324,32 @@ export function resetEInvoiceMockStore(): void {
           ...goods(1, "CUP-PAPER-8OZ-WHT", "Ly giấy 8oz in logo", 20, 1000, 780),
           quantity: -20000,
         },
+      ],
+    }),
+    // Audit r3 EINV-2: hoá đơn gốc của NCC không còn điều chỉnh được; điều chỉnh sai sót (đã thoả thuận, giảm 2 thùng) không
+    // gửi được nên Kế toán đã huỷ để làm trên cổng → "Ghi hoá đơn giảm" căn cứ sai sót
+    invoice({
+      id: "EINV-0013",
+      orderId: "ORD-2026-0019",
+      status: "ISSUED",
+      providerCannotCorrect: true,
+      ...issued(34),
+    }),
+    invoice({
+      id: "EINV-0014",
+      orderId: "ORD-2026-0019",
+      type: "ADJUSTMENT",
+      status: "VOIDED_DRAFT",
+      originalEInvoiceId: "EINV-0013",
+      correctionBasis: "ERROR",
+      correctionReason: "Ghi thừa 2 thùng so với số giao",
+      agreement: { number: "TT-0019/2026", date: "2026-11-12" },
+      voidedAt: "2026-11-12T04:00:00Z",
+      voidReason: "Nhà cung cấp của hoá đơn gốc không còn dùng được — làm trên cổng",
+      issueDate: "2026-11-12",
+      issueDueAt: "2099-11-12T16:59:59Z",
+      lines: [
+        { ...goods(1, "CUP-PAPER-8OZ-WHT", "Ly giấy 8oz in logo", 2, 1000, 780), quantity: -2000 },
       ],
     }),
   ];

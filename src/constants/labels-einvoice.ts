@@ -94,6 +94,8 @@ export const EXTERNAL_REDUCTION_BASIS_LABELS = {
   DELIVERY_FAILED: "Giao hàng thất bại",
   // Audit r3 EINV-2: cả hoá đơn gốc của NCC cũ (bản điều chỉnh trả hàng đã huỷ vì không gửi được), không chỉ hoá đơn thay thế
   RETURN: "Trả hàng (hàng đã hoàn tiền)",
+  // Audit r3 EINV-2: điều chỉnh sai sót đã thoả thuận, lập trong hệ thống nhưng không gửi được nên đã huỷ để làm trên cổng
+  ERROR: "Điều chỉnh sai sót (bản nháp đã huỷ để làm trên cổng)",
 } as const;
 
 export const EINVOICE_LABELS = {

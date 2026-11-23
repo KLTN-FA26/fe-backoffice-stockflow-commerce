@@ -249,6 +249,8 @@ const BE_FIELD_MESSAGES: Readonly<Record<string, string>> = {
   note: "Nhập ghi chú (tối đa 500 ký tự).",
   issueDate: "Ngày hoá đơn không được ở tương lai.",
   returnRequestId: "Chọn yêu cầu trả hàng.",
+  // Audit r3 EINV-2: căn cứ sai sót phải nêu bản điều chỉnh sai sót đã huỷ
+  voidedAdjustmentId: "Chọn bản điều chỉnh sai sót đã huỷ mà hoá đơn trên cổng thay cho.",
   templateCode: "Nhập mẫu số.",
   symbol: "Nhập ký hiệu.",
 };
@@ -268,6 +270,25 @@ export function beFieldErrors<TField extends string>(
     if (field && message) out[field] = message;
   }
   return out;
+}
+
+/**
+ * "Ghi hoá đơn giảm" (BE `EInvoicePortalReductions.record`): hai mã có nghĩa riêng theo căn cứ đã chọn. BE không gửi
+ * `details` phân biệt các lý do, nên câu nêu đủ các lý do của căn cứ đó (FE không đọc câu tiếng Anh của BE):
+ * - 409 `EINVOICE_EXTERNAL_REDUCTION_NOT_APPLICABLE` với ERROR (audit r3 EINV-2): bản nháp đã được ghi rồi, không còn trong
+ *   danh sách BE nhận (NCC gửi được lại, hoá đơn gốc đã bị giảm toàn bộ), hoặc hoá đơn gốc không còn đủ số hàng mà bản điều
+ *   chỉnh giảm — BE từ chối chứ không cắt bớt một điều chỉnh đã thoả thuận bằng văn bản.
+ * - 400 `VALIDATION_FAILED` không kèm ô nào: ngày hoá đơn giảm trước ngày của hoá đơn bị giảm, hoặc căn cứ và id đi kèm
+ *   không khớp (`voidedAdjustmentId` chỉ đi với ERROR) — câu chung "kiểm tra các trường được đánh dấu" không đánh dấu gì.
+ */
+export function externalReductionErrorMessage(error: unknown, basis: string): string {
+  if (error instanceof ApiError) {
+    if (error.code === "EINVOICE_EXTERNAL_REDUCTION_NOT_APPLICABLE" && basis === "ERROR")
+      return "Không ghi được bản điều chỉnh sai sót đã chọn: bản này đã được ghi rồi, hoá đơn gốc không còn nhận (đã bị giảm toàn bộ, hoặc nhà cung cấp của nó gửi được lại — khi đó lập và phát hành điều chỉnh qua hệ thống), hoặc hoá đơn gốc không còn đủ số hàng mà bản điều chỉnh giảm. Dữ liệu đã được tải lại — kiểm tra rồi chọn lại.";
+    if (error.code === "VALIDATION_FAILED" && Object.keys(apiFieldErrors(error)).length === 0)
+      return "Dữ liệu chưa hợp lệ: ngày hoá đơn giảm không được trước ngày của hoá đơn bị giảm, và căn cứ phải đi kèm đúng yêu cầu trả hàng / bản điều chỉnh sai sót đã chọn. Kiểm tra lại rồi ghi.";
+  }
+  return einvoiceErrorMessage(error);
 }
 
 /** Lỗi "dữ liệu đã đổi": tải lại hoá đơn trước khi cho thao tác tiếp. */

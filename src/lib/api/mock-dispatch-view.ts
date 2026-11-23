@@ -88,6 +88,10 @@ export function shipmentDetailView(state: DispatchState, shipment: MockShipment)
       recordedByName: step.recordedByName,
       note: step.note,
     })),
+    reasonCorrections: [],
+    // Audit r3 EINV-1 (BE `ShipmentResponse.undoneDeliveredAt`): chỉ khi lô đang "giao thất bại" do sửa từ "đã giao"
+    undoneDeliveredAt:
+      shipment.status === "DELIVERY_FAILED" ? (shipment.undoneDeliveredAt ?? null) : null,
   };
 }
 

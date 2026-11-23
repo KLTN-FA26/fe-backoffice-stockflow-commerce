@@ -115,6 +115,10 @@ export function withdrawalBlockedText(
  * dòng 'đang tra lại tới ngày …'"): NCC vẫn phát hành (`watchFoundAt`) → cảnh báo trùng; còn trong hạn → "đang tra lại tới
  * ngày"; đã qua hạn → đã tra xong. `tone` "warning" chỉ khi thấy NCC phát hành. Null khi BE không gửi mốc (không có giao
  * dịch nào bị buông, hoặc BE cũ).
+ *
+ * Audit r3 CF-9: một hoá đơn có thể có nhiều lượt tra lại (rút giao dịch A, mở lại, gửi B rồi B cũng bị buông). BE gửi
+ * `watchFoundAt` khi BẤT KỲ lượt nào thấy NCC vẫn phát hành, kể cả khi `watchUntil` là của lượt mới hơn còn đang tra — nên
+ * cảnh báo trùng luôn thắng dòng "đang tra lại tới ngày", dù hai mốc đến từ hai lượt khác nhau.
  */
 export function transactionWatchText(
   invoice: Partial<Pick<EInvoice, "watchUntil" | "watchFoundAt">>,

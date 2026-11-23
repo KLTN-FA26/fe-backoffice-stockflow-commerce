@@ -254,14 +254,19 @@ export interface ExternalReductionInput {
   /** BE G3: bắt buộc — XML là hoá đơn theo luật, số / ký hiệu / ngày đã nhập được đối chiếu với nó. */
   xml: File;
   note: string;
-  /** Căn cứ (BE `CorrectionBasis`): DELIVERY_FAILED (mặc định của BE) hoặc RETURN kèm `returnRequestId`. */
+  /**
+   * Căn cứ (BE `CorrectionBasis`): DELIVERY_FAILED (mặc định của BE), RETURN kèm `returnRequestId`, hoặc ERROR kèm
+   * `voidedAdjustmentId` (audit r3 EINV-2 — một dòng của `externalReductionErrors`).
+   */
   basis: ExternalReductionBasis;
   returnRequestId?: string;
+  voidedAdjustmentId?: string;
 }
 
 /**
  * Ghi hoá đơn giảm Kế toán đã làm trên cổng NCC (WF-05 Q-8 / Q-9, BE-10, F-13): sau khi bản giảm không gửi được bị
- * huỷ, hoặc với hoá đơn thay thế cần giảm (giao thất bại, hoặc trả hàng — `basis` RETURN + `returnRequestId`). BE đọc
+ * huỷ, hoặc với hoá đơn thay thế cần giảm (giao thất bại, hoặc trả hàng — `basis` RETURN + `returnRequestId`), hoặc điều
+ * chỉnh sai sót đã huỷ vì NCC không gửi được (`basis` ERROR + `voidedAdjustmentId`, audit r3 EINV-2). BE đọc
  * tệp XML và đối chiếu với số đã nhập (422 `EINVOICE_PORTAL_FILE_INVALID`); không hỏi lại NCC. Trả về hoá đơn điều chỉnh
  * mới (`issuedVia` PORTAL_RECORD).
  */
@@ -279,6 +284,8 @@ export async function recordExternalReduction(input: ExternalReductionInput): Pr
   form.append("basis", input.basis);
   if (input.basis === "RETURN" && input.returnRequestId)
     form.append("returnRequestId", input.returnRequestId);
+  if (input.basis === "ERROR" && input.voidedAdjustmentId)
+    form.append("voidedAdjustmentId", input.voidedAdjustmentId);
   const { data } = await api.post<unknown>(`${one(input.id)}/external-reductions`, form, MULTIPART);
   return parse(data);
 }

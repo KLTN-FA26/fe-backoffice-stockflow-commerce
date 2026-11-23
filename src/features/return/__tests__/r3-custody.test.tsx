@@ -221,6 +221,42 @@ describe("RAD-3 (TH-6): the list of goods kept on custody notes", () => {
     expect(params?.get("ended")).toBe("false");
   });
 
+  it("audit r3 CF-7: a warehouse manager without sales-rmas:READ sees the RMA number, not a link that answers 403", async () => {
+    mockReturnApi(
+      MANAGER.filter((code) => code !== RMA_PERMISSIONS.read),
+      {
+        get: {
+          "/returns/custody-notes": () => ({
+            items: [
+              {
+                evidenceId: "ev-2",
+                returnRequestId: "ret-1",
+                rmaNumber: "RMA-0001",
+                customerId: "cus-1",
+                sku: "CUP-16OZ",
+                quantity: 50,
+                keptAt: "2026-11-20T03:00:00Z",
+                choice: "DESTROY_ON_BEHALF",
+                choiceNote: "BB-01",
+              },
+            ],
+            page: 0,
+            size: 50,
+            totalElements: 1,
+            totalPages: 1,
+            hasNext: false,
+            hasPrevious: false,
+          }),
+        },
+      },
+    );
+    renderReturnScreen(<CustodyNotesList />);
+    expect(await screen.findByText("RMA-0001")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "RMA-0001" })).toBeNull();
+    // Việc của Quản lý kho vẫn làm được ngay trên dòng
+    expect(screen.getByRole("button", { name: C.end })).toBeInTheDocument();
+  });
+
   it("is not shown without the read permission", async () => {
     const api = mockReturnApi(SALES_GRANTS, {});
     renderReturnScreen(<CustodyNotesList />);

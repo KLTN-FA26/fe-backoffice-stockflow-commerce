@@ -161,7 +161,7 @@ export const einvoiceDtoSchema = z.object({
    * Vắng (BE cũ) = null → không hiện nút.
    */
   externalReductionAllowed: z.boolean().nullish(),
-  /** Căn cứ nhận được lúc này: DELIVERY_FAILED và / hoặc RETURN. Căn cứ lạ bị bỏ (không có ô nhập cho nó). */
+  /** Căn cứ nhận được lúc này: DELIVERY_FAILED, RETURN, ERROR. Căn cứ lạ bị bỏ (không có ô nhập cho nó). */
   externalReductionBases: z
     .array(z.string())
     .nullish()
@@ -176,6 +176,23 @@ export const einvoiceDtoSchema = z.object({
    */
   externalReductionReturns: z
     .array(z.object({ returnRequestId: z.string(), rmaNumber: z.string().nullish() }))
+    .nullish()
+    .transform((rows) => rows ?? []),
+  /**
+   * Audit r3 EINV-2, nửa sai sót (BE `EInvoiceResponse.ExternalReductionError`): các bản điều chỉnh sai sót của hoá đơn gốc
+   * này — đã thoả thuận bằng văn bản với bên mua, chỉ giảm — mà NCC không gửi được nên Kế toán đã huỷ để làm trên cổng, chưa
+   * được ghi. Nguồn duy nhất của ô chọn khi căn cứ là ERROR; `voidedAdjustmentId` là id gửi lên, `grandTotal` âm (tổng
+   * bản nháp giảm). Vắng (BE cũ) → [].
+   */
+  externalReductionErrors: z
+    .array(
+      z.object({
+        voidedAdjustmentId: z.string(),
+        code: z.string().nullish(),
+        reason: z.string().nullish(),
+        grandTotal: z.number(),
+      }),
+    )
     .nullish()
     .transform((rows) => rows ?? []),
   /**

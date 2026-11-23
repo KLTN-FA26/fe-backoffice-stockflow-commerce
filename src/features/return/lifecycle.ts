@@ -225,10 +225,13 @@ export function canAddCustody(_ret: Pick<ReturnRequest, "status">, can: Can): bo
 }
 
 /**
- * Sale ghi lựa chọn của khách cho thùng giữ hộ (WF-05 Q-4; BE `ReturnRequest.recordCustodyChoice`): yêu cầu RESOLVED có ít
- * nhất một thùng đang giữ hộ chưa xử lý (`custodyCartons`, BE r3c). Audit r3 RAD-1: thùng tính theo từng SKU — một yêu cầu
- * CÓ hoàn tiền vẫn có thể giữ hộ thùng của SKU không hoàn, hay thùng nguyên vượt số đơn vị được hoàn; điều kiện cũ "không
- * đơn vị nào được hoàn" đã bỏ. `custodyCartons` vắng (BE cũ) → không mở. Quyền `sales-rmas:UPDATE`. UI-only — BE kiểm lại.
+ * Sale ghi lựa chọn của khách cho thùng giữ hộ (WF-05 Q-4; BE `ReturnRequest.recordCustodyChoice`): yêu cầu RESOLVED có
+ * thùng giữ hộ (`custodyCartons`, BE r3c) và MỌI thùng vẫn đang giữ hộ chưa xử lý. Audit r3 CF-6: BE
+ * `CartonReturnService.instructCustody` từ chối (409 `INVALID_STOCK_PACKAGE_TRANSITION`) ngay khi một thùng của yêu cầu đã
+ * được xử lý theo lựa chọn trước (gửi trả, huỷ…) — lựa chọn ghi cho cả yêu cầu, không cho từng thùng; điều kiện cũ "còn ít
+ * nhất một thùng giữ hộ" mở nút mà BE luôn từ chối. Audit r3 RAD-1: thùng tính theo từng SKU — một yêu cầu CÓ hoàn tiền vẫn
+ * có thể giữ hộ thùng của SKU không hoàn, hay thùng nguyên vượt số đơn vị được hoàn. `custodyCartons` vắng (BE cũ) → không
+ * mở. Quyền `sales-rmas:UPDATE`. UI-only — BE kiểm lại.
  */
 export function canRecordCustodyChoice(
   ret: Pick<ReturnRequest, "status" | "custodyCartons">,
@@ -236,7 +239,8 @@ export function canRecordCustodyChoice(
 ): boolean {
   return (
     ret.status === "RESOLVED" &&
-    (ret.custodyCartons ?? []).some(
+    (ret.custodyCartons ?? []).length > 0 &&
+    (ret.custodyCartons ?? []).every(
       (carton) => carton.ownership === CUSTOMER_HELD_OWNERSHIP && !carton.endedAt,
     ) &&
     can(RMA_PERMISSIONS.update)

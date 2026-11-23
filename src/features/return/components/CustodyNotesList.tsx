@@ -3,7 +3,7 @@
 import Link from "next/link";
 
 import { RETURN_LABELS } from "@/constants/labels-return";
-import { RETURN_ROUTES, RMA_CUSTODY_PERMISSIONS } from "@/constants/returns";
+import { RETURN_ROUTES, RMA_CUSTODY_PERMISSIONS, RMA_PERMISSIONS } from "@/constants/returns";
 import { usePermissionChecker } from "@/lib/auth/components/Can";
 
 import { useCustodyNotes } from "../queries";
@@ -38,10 +38,13 @@ function outcomeOf(note: CustodyNote) {
  * mà phiếu nhập hàng hoàn không nhận (khác SKU, vượt số duyệt, về sau khi chốt tiền), cũ nhất trước, trong kho của người
  * xem (BE `GET /returns/custody-notes`, `sales-rma-custody:READ`). Nửa còn lại của danh sách TH-6, cạnh thùng giữ hộ sau
  * hoàn tiền (`CustomerCustodyCartons`). Sale ghi lựa chọn, Quản lý kho ghi đã rời kho — cùng thao tác như trên chi tiết.
+ * Audit r3 CF-7: số RMA chỉ là liên kết tới chi tiết yêu cầu khi người xem có `sales-rmas:READ` — Quản lý kho (người ghi đã
+ * rời kho) có `sales-rma-custody:READ/UPDATE` mà không có quyền đọc yêu cầu, liên kết sẽ mở ra 403.
  */
 export function CustodyNotesList() {
   const can = usePermissionChecker();
   const canRead = can(RMA_CUSTODY_PERMISSIONS.read);
+  const canOpenReturn = can(RMA_PERMISSIONS.read);
   const query = useCustodyNotes({ ended: false }, canRead);
   if (!canRead) return null;
   const items = query.data?.items ?? [];
@@ -78,12 +81,16 @@ export function CustodyNotesList() {
               {items.map((note) => (
                 <tr key={note.evidenceId} className="border-border-default border-t">
                   <td className={`py-1.5 pr-3 ${MONO}`}>
-                    <Link
-                      className="text-accent-text hover:underline"
-                      href={RETURN_ROUTES.detail(note.returnRequestId)}
-                    >
-                      {note.rmaNumber ?? note.returnRequestId}
-                    </Link>
+                    {canOpenReturn ? (
+                      <Link
+                        className="text-accent-text hover:underline"
+                        href={RETURN_ROUTES.detail(note.returnRequestId)}
+                      >
+                        {note.rmaNumber ?? note.returnRequestId}
+                      </Link>
+                    ) : (
+                      (note.rmaNumber ?? note.returnRequestId)
+                    )}
                   </td>
                   <td className={`py-1.5 pr-3 ${MONO}`}>{custodyWhat(note)}</td>
                   <td className="py-1.5 pr-3">{note.keptAt && <When iso={note.keptAt} />}</td>

@@ -111,9 +111,10 @@ export type ManualCorrectionBasis = (typeof MANUAL_CORRECTION_BASES)[number];
 
 /**
  * Căn cứ của hoá đơn giảm Kế toán làm trên cổng NCC rồi ghi vào hệ thống (BE G3 `external-reductions` `basis`, mặc
- * định DELIVERY_FAILED): giao thất bại, hoặc trả hàng trên hoá đơn thay thế (kèm `returnRequestId`).
+ * định DELIVERY_FAILED): giao thất bại, trả hàng (kèm `returnRequestId`), hoặc (audit r3 EINV-2) điều chỉnh sai sót của
+ * hoá đơn gốc mà NCC không còn điều chỉnh được — kèm `voidedAdjustmentId`, bản nháp đã huỷ trong `externalReductionErrors`.
  */
-export const EXTERNAL_REDUCTION_BASES = ["DELIVERY_FAILED", "RETURN"] as const;
+export const EXTERNAL_REDUCTION_BASES = ["DELIVERY_FAILED", "RETURN", "ERROR"] as const;
 export type ExternalReductionBasis = (typeof EXTERNAL_REDUCTION_BASES)[number];
 
 /**

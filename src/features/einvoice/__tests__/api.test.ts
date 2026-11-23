@@ -89,4 +89,25 @@ describe("recordExternalReduction — BE G3 `external-reductions` multipart", ()
     expect(form.get("basis")).toBe("RETURN");
     expect(form.get("returnRequestId")).toBe("rr-1");
   });
+
+  it("audit r3 EINV-2: ERROR names the voided draft and nothing else; other bases never send it", async () => {
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: {} });
+    await recordExternalReduction({
+      ...base,
+      basis: "ERROR",
+      voidedAdjustmentId: "adj-1",
+      returnRequestId: "rr-1",
+    }).catch(() => undefined);
+    const error = post.mock.calls[0]?.[1] as FormData;
+    expect(error.get("basis")).toBe("ERROR");
+    expect(error.get("voidedAdjustmentId")).toBe("adj-1");
+    expect(error.has("returnRequestId")).toBe(false);
+    await recordExternalReduction({
+      ...base,
+      basis: "RETURN",
+      returnRequestId: "rr-1",
+      voidedAdjustmentId: "adj-1",
+    }).catch(() => undefined);
+    expect((post.mock.calls[1]?.[1] as FormData).has("voidedAdjustmentId")).toBe(false);
+  });
 });

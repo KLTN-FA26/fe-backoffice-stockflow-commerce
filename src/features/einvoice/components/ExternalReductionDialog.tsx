@@ -19,8 +19,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { formatMoney } from "@/lib/format";
+import { formatDate } from "@/lib/format/date";
 
-import { beFieldErrors, einvoiceErrorMessage } from "../errors";
+import { beFieldErrors, externalReductionErrorMessage } from "../errors";
 import { externalReductionInputSchema } from "../input-schemas";
 import { useRecordExternalReduction } from "../mutations";
 
@@ -30,6 +32,7 @@ import type { EInvoice } from "../types";
 type ReductionField =
   | "basis"
   | "returnRequestId"
+  | "voidedAdjustmentId"
   | "templateCode"
   | "symbol"
   | "invoiceNumber"
@@ -42,6 +45,7 @@ type ReductionField =
 const REDUCTION_FIELDS: readonly ReductionField[] = [
   "basis",
   "returnRequestId",
+  "voidedAdjustmentId",
   "templateCode",
   "symbol",
   "invoiceNumber",
@@ -71,8 +75,11 @@ function ExternalReductionForm({ invoice, onClose }: { invoice: EInvoice; onClos
   // Audit r2 M-10: chỉ những căn cứ BE nói nhận lúc này (`externalReductionBases`); trả hàng chỉ chọn trong các yêu cầu
   // BE nêu (`externalReductionReturns` — hàng đã hoàn tiền đang chờ giảm trên hoá đơn này, gửi đúng `id`; audit r3 EINV-2:
   // cả hoá đơn gốc của NCC cũ mà bản điều chỉnh trả hàng nháp đã bị huỷ)
+  // Audit r3 EINV-2, nửa sai sót: căn cứ ERROR chỉ chọn trong các bản điều chỉnh sai sót đã huỷ BE nêu
+  // (`externalReductionErrors`), gửi đúng `voidedAdjustmentId`
   const bases = invoice.externalReductionBases;
   const returns = invoice.externalReductionReturns;
+  const errorDrafts = invoice.externalReductionErrors;
   const [symbol, setSymbol] = useState("");
   const [templateCode, setTemplateCode] = useState(invoice.templateCode ?? "1");
   const [invoiceNumber, setInvoiceNumber] = useState("");
@@ -86,6 +93,13 @@ function ExternalReductionForm({ invoice, onClose }: { invoice: EInvoice; onClos
   const [returnRequestId, setReturnRequestId] = useState(
     returns.length === 1 ? (returns[0]?.returnRequestId ?? "") : "",
   );
+  const [pickedDraft, setPickedDraft] = useState(
+    errorDrafts.length === 1 ? (errorDrafts[0]?.voidedAdjustmentId ?? "") : "",
+  );
+  // Sau 409 dữ liệu được tải lại: bản đã chọn mà BE không còn nêu (đã ghi, hết nhận) thì coi như chưa chọn, không gửi lại
+  const voidedAdjustmentId = errorDrafts.some((row) => row.voidedAdjustmentId === pickedDraft)
+    ? pickedDraft
+    : "";
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const record = useRecordExternalReduction();
@@ -103,11 +117,20 @@ function ExternalReductionForm({ invoice, onClose }: { invoice: EInvoice; onClos
       note,
       basis,
       returnRequestId: returnRequestId.trim() || undefined,
+      voidedAdjustmentId: voidedAdjustmentId || undefined,
     });
     if (!parsed.success) {
       const { fields, rest } = zodFieldErrors(parsed.error.issues);
       setFieldErrors(fields);
       setError(rest);
+      return;
+    }
+    // BE `requireSameSeller`: hoá đơn giảm không mang ngày trước hoá đơn nó giảm (400 không kèm ô nào — chặn ở đây)
+    if (invoice.issueDate && parsed.data.issueDate < invoice.issueDate) {
+      setFieldErrors({
+        issueDate: `Ngày hoá đơn giảm không được trước ngày của hoá đơn bị giảm (${formatDate(invoice.issueDate)}).`,
+      });
+      setError(null);
       return;
     }
     setFieldErrors({});
@@ -122,7 +145,7 @@ function ExternalReductionForm({ invoice, onClose }: { invoice: EInvoice; onClos
         onError: (failure) => {
           // BE nêu ô sai (`fieldErrors`: invoiceNumber, issueDate…) → gắn vào ô, câu tiếng Việt của FE
           setFieldErrors(beFieldErrors(failure, REDUCTION_FIELDS));
-          setError(einvoiceErrorMessage(failure));
+          setError(externalReductionErrorMessage(failure, parsed.data.basis));
         },
       },
     );
@@ -131,7 +154,7 @@ function ExternalReductionForm({ invoice, onClose }: { invoice: EInvoice; onClos
   return (
     <FormDialogBody
       title={`Ghi hoá đơn giảm làm trên cổng nhà cung cấp cho ${invoice.code}`}
-      description="Hoá đơn giảm không gửi được qua hệ thống (nhà cung cấp cũ, hoặc trả hàng / giao thất bại trên hoá đơn thay thế): Kế toán lập trên cổng nhà cung cấp rồi ghi số, ngày và tệp vào đây. Hệ thống đọc tệp XML và đối chiếu mẫu số, ký hiệu, số, ngày đã nhập với tệp trước khi ghi."
+      description="Hoá đơn giảm không gửi được qua hệ thống (nhà cung cấp cũ hoặc không điều chỉnh được, hoặc trả hàng / giao thất bại trên hoá đơn thay thế): Kế toán lập trên cổng nhà cung cấp rồi ghi số, ngày và tệp vào đây. Hệ thống đọc tệp XML và đối chiếu mẫu số, ký hiệu, số, ngày đã nhập với tệp trước khi ghi."
       submitLabel="Ghi hoá đơn giảm"
       canSubmit
       isPending={record.isPending}
@@ -183,6 +206,45 @@ function ExternalReductionForm({ invoice, onClose }: { invoice: EInvoice; onClos
               {returns.map((row) => (
                 <SelectItem key={row.returnRequestId} value={row.returnRequestId}>
                   {row.rmaNumber ?? row.returnRequestId}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FormField>
+      )}
+      {basis === "ERROR" && (
+        <FormField
+          id="reduction-error"
+          label="Bản điều chỉnh sai sót đã huỷ"
+          required
+          error={fieldErrors.voidedAdjustmentId}
+          hint={
+            errorDrafts.length === 0
+              ? "Không có bản điều chỉnh sai sót nào chờ ghi trên hoá đơn này."
+              : "Hệ thống ghi đúng các dòng và văn bản thoả thuận của bản nháp đã huỷ — hoá đơn làm trên cổng phải giảm đúng như vậy."
+          }
+        >
+          <Select
+            value={voidedAdjustmentId}
+            onValueChange={setPickedDraft}
+            disabled={errorDrafts.length === 0}
+          >
+            <SelectTrigger
+              id="reduction-error"
+              aria-invalid={fieldErrors.voidedAdjustmentId ? true : undefined}
+            >
+              <SelectValue placeholder="Chọn bản điều chỉnh sai sót" />
+            </SelectTrigger>
+            <SelectContent>
+              {errorDrafts.map((row) => (
+                <SelectItem key={row.voidedAdjustmentId} value={row.voidedAdjustmentId}>
+                  {[
+                    row.code ?? row.voidedAdjustmentId,
+                    row.reason,
+                    formatMoney(row.grandTotal, invoice.currency),
+                  ]
+                    .filter((part): part is string => !!part)
+                    .join(" · ")}
                 </SelectItem>
               ))}
             </SelectContent>

@@ -196,13 +196,15 @@ function withdrawability(i: MockEInvoice) {
  * Audit r2 M-10 — như BE `EInvoicePortalReductions.applicability`: hoá đơn đã phát hành của một lần giao (không phải
  * điều chỉnh), chưa có bản giảm giao thất bại còn sống; DELIVERY_FAILED khi bản giảm không gửi được đã bị huỷ (hoá đơn
  * gốc vẫn `reversedAt`) hoặc hoá đơn thay thế còn hiệu lực mà lần giao đã thất bại; RETURN khi hoá đơn thay thế còn hiệu
- * lực có yêu cầu trả hàng chờ giảm.
+ * lực có yêu cầu trả hàng chờ giảm; ERROR (audit r3 EINV-2) khi hoá đơn gốc còn hiệu lực của NCC không điều chỉnh được có
+ * điều chỉnh sai sót đã huỷ — chỉ giảm, có văn bản thoả thuận, chưa được ghi (`errorRecordable`).
  */
 function externalReductions(i: MockEInvoice) {
   const none = {
     externalReductionAllowed: false,
     externalReductionBases: [] as string[],
     externalReductionReturns: [] as { returnRequestId: string; rmaNumber: string }[],
+    externalReductionErrors: [] as ReturnType<typeof errorOption>[],
   };
   if (i.status !== "ISSUED" || i.type === "ADJUSTMENT" || !i.shipmentId) return none;
   const corrections = mockEInvoices().filter((o) => o.originalEInvoiceId === i.id);
@@ -222,14 +224,70 @@ function externalReductions(i: MockEInvoice) {
           ),
       )
     : [];
+  const errors = errorRecordable(i).map(errorOption);
   return {
-    externalReductionAllowed: deliveryFailed || returns.length > 0,
+    externalReductionAllowed: deliveryFailed || returns.length > 0 || errors.length > 0,
     externalReductionBases: [
       ...(deliveryFailed ? ["DELIVERY_FAILED"] : []),
       ...(returns.length > 0 ? ["RETURN"] : []),
+      ...(errors.length > 0 ? ["ERROR"] : []),
     ],
     externalReductionReturns: returns,
+    externalReductionErrors: errors,
   };
+}
+
+const draftTotal = (draft: MockEInvoice) =>
+  draft.lines.reduce((sum, line) => sum + lineAmount(line) + lineTax(line), 0);
+
+/**
+ * Như BE `EInvoicePortalReductions.errorRecordable`: điều chỉnh sai sót đã huỷ của hoá đơn GỐC còn hiệu lực mà NCC không
+ * điều chỉnh được nữa (`providerCannotCorrect`), có văn bản thoả thuận, chỉ giảm (`EInvoice.reducesOnly`: không dòng nào
+ * tăng, tổng âm), chưa được ghi từ cổng.
+ */
+function errorRecordable(i: MockEInvoice): MockEInvoice[] {
+  if (i.type !== "ORIGINAL" || i.reversedAt || !i.providerCannotCorrect) return [];
+  return mockEInvoices().filter(
+    (o) =>
+      o.originalEInvoiceId === i.id &&
+      o.type === "ADJUSTMENT" &&
+      o.correctionBasis === "ERROR" &&
+      o.status === "VOIDED_DRAFT" &&
+      o.agreement !== null &&
+      o.lines.every((line) => lineAmount(line) <= 0 && lineTax(line) <= 0) &&
+      draftTotal(o) < 0 &&
+      !mockEInvoices().some((r) => r.voidedAdjustmentId === o.id),
+  );
+}
+
+/** BE `EInvoiceResponse.ExternalReductionError`: `grandTotal` âm. */
+function errorOption(draft: MockEInvoice) {
+  return {
+    voidedAdjustmentId: draft.id,
+    code: draft.code,
+    reason: draft.correctionReason,
+    grandTotal: draftTotal(draft),
+  };
+}
+
+/**
+ * BE `recordError`: số hàng bản sai sót giảm phải còn trên hoá đơn gốc (dòng gốc trừ các điều chỉnh đã phát hành) — không cắt
+ * bớt cho vừa, từ chối.
+ */
+function holdsWhatErrorTakesOff(original: MockEInvoice, draft: MockEInvoice): boolean {
+  const issued = mockEInvoices().filter(
+    (o) => o.originalEInvoiceId === original.id && o.type === "ADJUSTMENT" && o.status === "ISSUED",
+  );
+  return draft.lines.every((line) => {
+    const held = original.lines
+      .filter((own) => own.id === line.id)
+      .reduce((sum, own) => sum + own.quantity, 0);
+    const taken = issued
+      .flatMap((o) => o.lines)
+      .filter((own) => own.id === line.id)
+      .reduce((sum, own) => sum - own.quantity, 0);
+    return line.quantity >= 0 || -line.quantity <= held - taken;
+  });
 }
 
 function list(config: AxiosRequestConfig) {
@@ -534,39 +592,75 @@ export function registerEInvoiceMockRoutes(): void {
     if (!(await can(P.approve))) return forbidden();
     const original = byId(pathParams(config).id ?? "");
     if (!original) return notFound();
-    // Audit r2 M-10: cùng luật cờ `externalReductionAllowed` trên chi tiết (`externalReductions`)
-    const options = externalReductions(original);
-    if (!options.externalReductionAllowed)
-      return fail(409, "EINVOICE_EXTERNAL_REDUCTION_NOT_APPLICABLE", "Not applicable");
     const raw: unknown = config.data;
     const form = raw instanceof FormData ? raw : null;
-    // BE G3 `recordExternalReduction`: XML bắt buộc (hoá đơn theo luật); căn cứ RETURN cần yêu cầu trả hàng
+    // BE G3 `recordExternalReduction`: các ô bắt buộc trước mọi thứ (XML là hoá đơn theo luật)
     if (!form?.get("xml") || !form.get("pdf") || !text(form.get("note")))
       return fail(
         400,
         "VALIDATION_FAILED",
         "templateCode, symbol, issueDate, xml, pdf, note required",
       );
-    const basis = text(form.get("basis")) === "RETURN" ? "RETURN" : "DELIVERY_FAILED";
+    // Audit r2 M-10: cùng luật cờ `externalReductionAllowed` trên chi tiết (`externalReductions`)
+    const options = externalReductions(original);
+    if (!options.externalReductionAllowed)
+      return fail(409, "EINVOICE_EXTERNAL_REDUCTION_NOT_APPLICABLE", "Not applicable");
+    const rawBasis = text(form.get("basis"));
+    const basis = rawBasis === "RETURN" || rawBasis === "ERROR" ? rawBasis : "DELIVERY_FAILED";
     const returnRequestId = text(form.get("returnRequestId")) || null;
+    const voidedAdjustmentId = text(form.get("voidedAdjustmentId")) || null;
+    // BE `EInvoicePortalReductions.record`: `voidedAdjustmentId` chỉ đi với ERROR; ERROR đòi nó, không kèm returnRequestId
+    if (basis === "ERROR" && (!voidedAdjustmentId || returnRequestId))
+      return fail(
+        400,
+        "VALIDATION_FAILED",
+        "voidedAdjustmentId: required for an error, and no returnRequestId",
+      );
+    if (basis !== "ERROR" && voidedAdjustmentId)
+      return fail(400, "VALIDATION_FAILED", "voidedAdjustmentId: only with basis ERROR");
     if (basis === "RETURN" && !returnRequestId)
       return fail(400, "VALIDATION_FAILED", "returnRequestId is required for basis RETURN");
+    const draft =
+      basis === "ERROR"
+        ? errorRecordable(original).find((o) => o.id === voidedAdjustmentId)
+        : undefined;
     if (
       !options.externalReductionBases.includes(basis) ||
       (basis === "RETURN" &&
-        !options.externalReductionReturns.some((row) => row.returnRequestId === returnRequestId))
+        !options.externalReductionReturns.some((row) => row.returnRequestId === returnRequestId)) ||
+      (basis === "ERROR" && !draft)
     )
       return fail(409, "EINVOICE_EXTERNAL_REDUCTION_NOT_APPLICABLE", "Not applicable");
-    const reduction = correctionOf(original, "ADJUSTMENT", basis, text(form.get("note")));
+    const issueDate = text(form.get("issueDate")) || nowIso().slice(0, 10);
+    // BE `requireSameSeller`: không trước ngày của hoá đơn bị giảm (400 không kèm ô)
+    if (issueDate < original.issueDate)
+      return fail(
+        400,
+        "VALIDATION_FAILED",
+        `issueDate: not before the invoice it reduces (${original.issueDate})`,
+      );
+    if (draft && !holdsWhatErrorTakesOff(original, draft))
+      return fail(409, "EINVOICE_EXTERNAL_REDUCTION_NOT_APPLICABLE", "Holds fewer of those goods");
+    const reduction = correctionOf(
+      original,
+      "ADJUSTMENT",
+      basis,
+      draft?.correctionReason ?? text(form.get("note")),
+    );
     Object.assign(reduction, {
       returnRequestId,
+      voidedAdjustmentId,
       status: "ISSUED",
-      symbol: text(form?.get("symbol")) || null,
-      invoiceNumber: Number(form?.get("invoiceNumber") ?? 0) || null,
-      issueDate: text(form?.get("issueDate")) || nowIso().slice(0, 10),
+      symbol: text(form.get("symbol")) || null,
+      invoiceNumber: Number(form.get("invoiceNumber") ?? 0) || null,
+      issueDate,
       issuedAt: nowIso(),
       issuedVia: EINVOICE_ISSUED_VIA_PORTAL,
-      lines: original.lines.map((line) => ({ ...line, quantity: -line.quantity })),
+      // BE `recordedErrorReduction`: đúng các dòng và văn bản thoả thuận của bản nháp đã huỷ
+      agreement: draft?.agreement ?? null,
+      lines: draft
+        ? draft.lines.map((line) => ({ ...line }))
+        : original.lines.map((line) => ({ ...line, quantity: -line.quantity })),
     });
     return ok(detail(reduction));
   });

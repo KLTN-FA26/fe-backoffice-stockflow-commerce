@@ -357,6 +357,30 @@ describe("WF-05 decisions on the return screen", () => {
         as(SALES),
       ),
     ).toBe(false);
+    // Audit r3 CF-6: hai thùng giữ hộ, thùng 1 đã gửi trả → BE từ chối mọi lựa chọn mới (409) → không có nút
+    expect(
+      canRecordCustodyChoice(
+        {
+          ...resolved,
+          custodyCartons: [
+            {
+              ...held,
+              lpn: "L-1",
+              ownership: "CUSTOMER_SENT_BACK",
+              endedAt: "2026-11-24T00:00:00Z",
+            },
+            { ...held, lpn: "L-2" },
+          ],
+        },
+        as(SALES),
+      ),
+    ).toBe(false);
+    expect(
+      canRecordCustodyChoice(
+        { ...resolved, custodyCartons: [held, { ...held, lpn: "L-2" }] },
+        as(SALES),
+      ),
+    ).toBe(true);
     expect(canRecordCustodyChoice({ ...resolved, custodyCartons: [] }, as(SALES))).toBe(false);
     expect(canRecordCustodyChoice({ ...resolved, custodyCartons: null }, as(SALES))).toBe(false);
     expect(canRecordCustodyChoice({ ...resolved, status: "RECEIVED" }, as(SALES))).toBe(false);

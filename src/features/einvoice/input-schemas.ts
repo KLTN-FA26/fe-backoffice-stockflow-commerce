@@ -288,7 +288,9 @@ export type PortalResultField =
 /**
  * Hoá đơn giảm Kế toán đã lập trên cổng NCC (BE G3 `external-reductions`): ký hiệu, mẫu số, số, ngày (không ở tương
  * lai), tệp PDF và tệp XML BẮT BUỘC (BE G3: XML là hoá đơn theo luật, số đã nhập được đối chiếu với nó — thiếu thì 400),
- * ghi chú bắt buộc ≤ 500. Căn cứ: giao thất bại (mặc định) hoặc trả hàng — trả hàng phải nêu yêu cầu trả hàng.
+ * ghi chú bắt buộc ≤ 500. Căn cứ: giao thất bại (mặc định), trả hàng — phải nêu yêu cầu trả hàng — hoặc (audit r3 EINV-2)
+ * sai sót — phải nêu bản điều chỉnh sai sót đã huỷ (`voidedAdjustmentId`). BE: `voidedAdjustmentId` chỉ đi với ERROR và
+ * ERROR không kèm `returnRequestId` (400) — nên mỗi id chỉ được gửi với căn cứ của nó.
  */
 export const externalReductionInputSchema = z
   .object({
@@ -314,6 +316,7 @@ export const externalReductionInputSchema = z
     note: z.string().trim().min(1, "Nhập ghi chú").max(L.noteMax, `Tối đa ${L.noteMax} ký tự`),
     basis: z.enum(EXTERNAL_REDUCTION_BASES),
     returnRequestId: z.string().trim().optional(),
+    voidedAdjustmentId: z.string().trim().optional(),
   })
   .superRefine((value, ctx) => {
     if (value.basis === "RETURN" && !value.returnRequestId) {
@@ -323,8 +326,16 @@ export const externalReductionInputSchema = z
         message: "Hoá đơn giảm vì trả hàng phải nêu yêu cầu trả hàng",
       });
     }
+    if (value.basis === "ERROR" && !value.voidedAdjustmentId) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["voidedAdjustmentId"],
+        message: "Chọn bản điều chỉnh sai sót đã huỷ mà hoá đơn trên cổng thay cho",
+      });
+    }
   })
-  .transform(({ returnRequestId, ...value }) => ({
+  .transform(({ returnRequestId, voidedAdjustmentId, ...value }) => ({
     ...value,
     returnRequestId: value.basis === "RETURN" ? returnRequestId : undefined,
+    voidedAdjustmentId: value.basis === "ERROR" ? voidedAdjustmentId : undefined,
   }));

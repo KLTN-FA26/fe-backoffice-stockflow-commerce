@@ -17,6 +17,7 @@ import {
   listEInvoices,
   reconcileEInvoice,
   recordErrorNotice,
+  recordExternalReduction,
   recordPortalResult,
   reopenEInvoice,
   replaceEInvoice,
@@ -84,7 +85,7 @@ afterAll(() => {
 describe("GET /einvoices", () => {
   it("lists what is still to issue first and filters by status and order", async () => {
     const all = await listEInvoices({ page: 0, size: 50 });
-    expect(all.totalElements).toBe(12);
+    expect(all.totalElements).toBe(14);
     expect(all.items[0]?.issuedAt).toBeFalsy();
     const drafts = await listEInvoices({ status: "DRAFT" });
     expect(drafts.items.every((i) => i.status === "DRAFT")).toBe(true);
@@ -322,5 +323,73 @@ describe("WF-05 additions (Q-8, BE-11, BO-04, BO-09, BO-10)", () => {
         }),
       ),
     ).toMatchObject({ fieldErrors: { providerTemplateCode: expect.any(String) } });
+  });
+});
+
+describe("audit r3 EINV-2: an error's correction made on the portal (basis ERROR)", () => {
+  const portal = (over: Partial<Parameters<typeof recordExternalReduction>[0]> = {}) =>
+    recordExternalReduction({
+      id: "EINV-0013",
+      symbol: "C26TAA",
+      templateCode: "1",
+      invoiceNumber: 61,
+      issueDate: "2026-11-20",
+      pdf: new File(["%PDF"], "g.pdf", { type: "application/pdf" }),
+      xml: new File(["<HDon/>"], "g.xml", { type: "text/xml" }),
+      note: "Điều chỉnh sai sót làm trên cổng",
+      basis: "ERROR",
+      voidedAdjustmentId: "EINV-0014",
+      ...over,
+    });
+
+  it("offers the voided draft as BE `externalReductionErrors` (grandTotal below zero) and ERROR in the bases", async () => {
+    const original = await getEInvoice("EINV-0013");
+    expect(original.externalReductionAllowed).toBe(true);
+    expect(original.externalReductionBases).toEqual(["ERROR"]);
+    expect(original.externalReductionErrors).toEqual([
+      {
+        voidedAdjustmentId: "EINV-0014",
+        code: "HDDT-0014",
+        reason: "Ghi thừa 2 thùng so với số giao",
+        grandTotal: -1_684_800,
+      },
+    ]);
+  });
+
+  it("records the draft's own lines and agreement once; then the invoice offers it no more (409 again)", async () => {
+    const recorded = await portal();
+    expect(recorded).toMatchObject({
+      type: "ADJUSTMENT",
+      status: "ISSUED",
+      issuedVia: "PORTAL_RECORD",
+      correctionBasis: "ERROR",
+      originalEInvoiceId: "EINV-0013",
+      agreement: { number: "TT-0019/2026" },
+    });
+    expect(recorded.lines.map((line) => line.quantity)).toEqual([-2000]);
+    const after = await getEInvoice("EINV-0013");
+    expect(after.externalReductionErrors).toEqual([]);
+    expect(after.externalReductionAllowed).toBe(false);
+    expect(await errorOf(portal())).toMatchObject({
+      status: 409,
+      code: "EINVOICE_EXTERNAL_REDUCTION_NOT_APPLICABLE",
+    });
+  });
+
+  it("ERROR needs the voided draft (400); a draft not offered is 409; a date before the original is 400", async () => {
+    expect(await errorOf(portal({ voidedAdjustmentId: undefined }))).toMatchObject({
+      status: 400,
+      code: "VALIDATION_FAILED",
+    });
+    expect(await errorOf(portal({ voidedAdjustmentId: "EINV-0012" }))).toMatchObject({
+      status: 409,
+      code: "EINVOICE_EXTERNAL_REDUCTION_NOT_APPLICABLE",
+    });
+    expect(await errorOf(portal({ issueDate: "2026-11-01" }))).toMatchObject({
+      status: 400,
+      code: "VALIDATION_FAILED",
+    });
+    // Không có hoá đơn sai sót nào để ghi trên hoá đơn đã sạch → nút không có, gửi vẫn 409
+    expect(await errorOf(portal({ id: "EINV-0007" }))).toMatchObject({ status: 409 });
   });
 });
