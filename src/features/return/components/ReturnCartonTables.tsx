@@ -15,13 +15,19 @@ const D = RETURN_RECEIPT_LABELS.detail;
 const TH = "py-1 pr-3 font-medium";
 
 /**
- * WF-05 TH-4 / Q-18: thùng mở (đếm ít hơn nhãn) hiện "Đã mở · đếm 7/10" và không nhập tồn — sau khi xác nhận BE ghi
- * `stockEntered = false` ("Không nhập tồn — huỷ"), trước đó "Sẽ không nhập tồn". Thiếu dữ liệu = nguyên thùng.
+ * WF-05 TH-4 / Q-18: thùng mở (đếm ít hơn nhãn) hiện "Đã mở · đếm 7/10" và không nhập tồn — phiếu NHÁP: "Sẽ không nhập
+ * tồn"; đã xác nhận: "Không nhập tồn — huỷ". BE gửi `stockEntered` cả trên phiếu nháp (audit r2 L16: trước đây nháp đã
+ * đọc là "huỷ"), nên nháp quyết theo `draft` trước. Q-4 (audit r2 returns H1): thùng nguyên của yêu cầu không hoàn tiền là
+ * hàng giữ hộ khách (`heldForCustomer`), không phải tồn kho. Thiếu dữ liệu = nguyên thùng.
  */
 function CountCell({ carton, draft }: { carton: ReturnReceiptCarton; draft: boolean }) {
-  if (!cartonOpened(carton) && carton.stockEntered !== false)
-    return <span className="text-ink-tertiary">{D.sealed}</span>;
-  const stock = carton.stockEntered === false ? D.notStocked : draft ? D.willNotStock : null;
+  if (!cartonOpened(carton) && (draft || carton.stockEntered !== false))
+    return carton.heldForCustomer && !draft ? (
+      <span className="text-warning">{D.heldForCustomer}</span>
+    ) : (
+      <span className="text-ink-tertiary">{D.sealed}</span>
+    );
+  const stock = draft ? D.willNotStock : carton.stockEntered === false ? D.notStocked : null;
   return (
     <span className="text-warning tabular-nums">
       {D.openedState(carton.countedQuantity ?? 0, carton.quantity)}

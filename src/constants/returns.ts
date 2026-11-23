@@ -28,6 +28,39 @@ export const RMA_RESOLUTION_PERMISSIONS = {
 } as const;
 
 /**
+ * Resource `sales-rma-custody` (audit r2 returns M4; BE V20261223000330): CREATE ghi biên nhận giữ hộ trên yêu cầu trả hàng
+ * — và chỉ thế. Nhân viên / Quản lý kho (người nhận hàng ở cửa kho) và Sale; khách không có. Trước đây cần
+ * `sales-rmas:CREATE`, mọi vai kho bị 403.
+ */
+export const RMA_CUSTODY_PERMISSIONS = {
+  create: "sales-rma-custody:CREATE",
+} as const;
+
+/**
+ * Lựa chọn của khách cho hàng giữ hộ sau một yêu cầu không hoàn tiền (BE `ReturnCustodyChoice`, WF-05 Q-4): gửi trả (khách
+ * chịu phí) hoặc khách đồng ý để công ty huỷ hộ (có biên bản — ghi chú bắt buộc). Sale ghi, Quản lý kho thực hiện.
+ */
+export const RETURN_CUSTODY_CHOICES = ["SEND_BACK", "DESTROY_ON_BEHALF"] as const;
+export type ReturnCustodyChoice = (typeof RETURN_CUSTODY_CHOICES)[number];
+export type ReturnReadCustodyChoice = ReturnCustodyChoice | typeof RETURN_UNKNOWN;
+
+/**
+ * Thùng giữ hộ khách (BE `CustomerCustodyResponse.ownership`): đang giữ / đã gửi trả / đã huỷ hộ.
+ */
+export const CUSTOMER_CUSTODY_OWNERSHIPS = [
+  "CUSTOMER_HELD",
+  "CUSTOMER_SENT_BACK",
+  "CUSTOMER_DESTROYED",
+] as const;
+export type CustomerCustodyOwnership = (typeof CUSTOMER_CUSTODY_OWNERSHIPS)[number];
+
+/** Danh sách / kết thúc giữ hộ (BE `StockPackageController`, `inventory-stock-packages` READ / UPDATE). */
+export const CUSTOMER_CUSTODY_API = {
+  list: "/inventory/stock-packages/customer-custody",
+  end: (lpn: string) => `/inventory/stock-packages/${encodeURIComponent(lpn)}/customer-custody/end`,
+} as const;
+
+/**
  * Resource `procurement-return-receipt-approvals` (WF-05 Q-18, BE PR-0 `GoodsReceiptResources.RETURN_RECEIPT_APPROVALS`):
  * Quản lý kho xác nhận phiếu nhập hàng hoàn có thùng về đã mở hoặc hàng lẻ (`RETURN_RECEIPT_MANAGER_CONFIRMATION_REQUIRED`),
  * và không phải người đã quét / ghi hàng trên phiếu (`RETURN_RECEIPT_SELF_CONFIRMATION`).

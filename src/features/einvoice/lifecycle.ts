@@ -5,6 +5,7 @@
 
 import {
   EINVOICE_PERMISSIONS,
+  EINVOICE_RESEND_EMAIL_PERMISSION,
   ERROR_NOTICE_PROVIDERS,
   SYSTEM_CORRECTION_BASES,
 } from "@/constants/einvoice";
@@ -46,6 +47,7 @@ export type EInvoiceAction =
   | "reduceFailedDelivery"
   | "recordExternalReduction"
   | "notifyError"
+  | "resendEmail"
   | "downloadFiles";
 
 type Gate = Pick<
@@ -60,7 +62,16 @@ type Gate = Pick<
   | "correctionBasis"
   | "grandTotal"
 > &
-  Partial<Pick<EInvoice, "reversedAt" | "errorNoticeSupported" | "deliveryFailedAt">>;
+  Partial<
+    Pick<
+      EInvoice,
+      | "reversedAt"
+      | "errorNoticeSupported"
+      | "deliveryFailedAt"
+      | "withdrawable"
+      | "externalReductionAllowed"
+    >
+  >;
 
 /** Một điều chỉnh / thay thế của hoá đơn (BE `GET /einvoices/{id}/corrections`). */
 export type CorrectionRow = Pick<
@@ -131,9 +142,11 @@ export function allowedEInvoiceActions(
       // gửi như giao dịch mới chỉ khi NCC báo không biết giao dịch (UNKNOWN_TO_PROVIDER)
       if (can(P.approve)) actions.push("reconcile");
       if (can(P.approve) && unknownToProvider) actions.push("resubmit");
-      // BE HĐ-1 / WF-05 Q-5: rút về REJECTED để phát hành lại. Câu trả lời của NCC và mốc thời gian do BE quyết lúc rút
-      // (409 EINVOICE_WITHDRAWAL_REFUSED + details) — FE không tự tính đồng hồ, không tự đoán "đã phát hành chưa có số".
-      if (can(P.approve) && invoice.provider) actions.push("withdraw");
+      // BE HĐ-1 / WF-05 Q-5: rút về REJECTED để phát hành lại — chỉ khi BE nói rút được NGAY (`withdrawable`, audit r2
+      // H-2: cùng luật `WithdrawalRule` BE áp lúc rút, theo câu trả lời gần nhất của NCC). NCC đang giữ ("đã phát hành,
+      // chưa có số"), vừa gửi, hay chưa nói không có bản ghi → không có nút; màn nói lý do (`withdrawalBlockedBy`). FE không
+      // tự tính đồng hồ, không tự đoán. Cờ vắng (BE cũ) → không có nút. BE vẫn hỏi lại NCC lúc rút (409 + details).
+      if (can(P.approve) && invoice.withdrawable === true) actions.push("withdraw");
       // WF-05 Q-8 (F-13): hoá đơn kẹt "đang gửi" không lối ra — Kế toán ghi kết quả đã kiểm trên cổng NCC
       if (can(P.approve) && invoice.provider) actions.push("recordPortalResult");
       break;
@@ -143,11 +156,19 @@ export function allowedEInvoiceActions(
     case "ISSUED":
       if (invoice.hasFiles && can(P.read)) actions.push("downloadFiles");
       if (corrections) actions.push(...correctionActions(invoice, can, corrections));
+      // Q-8 / Q-9 (F-13), audit r2 M-10: "Ghi hoá đơn giảm" làm trên cổng NCC — chỉ khi BE nói nhận
+      // (`externalReductionAllowed`, cùng luật `/external-reductions` áp: bản giảm không gửi được đã huỷ, hoá đơn thay thế
+      // của lần giao thất bại, hoặc hoá đơn thay thế có hàng trả đã hoàn tiền chờ giảm). Không đoán từ danh sách điều
+      // chỉnh: hoá đơn thay thế còn hiệu lực mà không có gì chờ giảm thì BE luôn 409. Cờ vắng (BE cũ) → không có nút.
+      if (can(P.approve) && invoice.externalReductionAllowed === true)
+        actions.push("recordExternalReduction");
       // BE HĐ-6: chỉ NCC gửi được mẫu 04/SS-HĐĐT; SePay / Viettel luôn 409 NOT_SUPPORTED
       if (can(P.approve) && sendsErrorNotices(invoice)) actions.push("notifyError");
+      if (canResendEmail(invoice, can)) actions.push("resendEmail");
       break;
     case "REPLACED":
       if (invoice.hasFiles && can(P.read)) actions.push("downloadFiles");
+      if (canResendEmail(invoice, can)) actions.push("resendEmail");
       break;
     case "VOIDED_DRAFT":
     case "UNKNOWN":
@@ -193,21 +214,24 @@ function correctionActions(
     !liveReduction
   )
     actions.push("reduceFailedDelivery");
-  // Q-8 / Q-9 (F-13): bản giảm không gửi được qua NCC đã bị huỷ (UNSENDABLE_REVERSAL), hoặc hoá đơn thay thế cần giảm
-  // (trả hàng / giao thất bại) — Kế toán làm trên cổng NCC rồi ghi số và tệp vào đây. BE kiểm lại
-  // (409 EINVOICE_EXTERNAL_REDUCTION_NOT_APPLICABLE).
-  // Bản giảm DELIVERY_FAILED bị huỷ còn có lý do thứ hai: lần giao được sửa lại thành "đã giao" (BE-29,
-  // DELIVERY_CORRECTED_BACK) — khi đó BE gỡ `reversedAt` của hoá đơn gốc. Chỉ khi hoá đơn gốc VẪN đã giảm toàn bộ
-  // (`reversedAt`) thì bản bị huỷ là bản "không gửi được" (BE V20261219000300).
-  const voidedReduction =
-    !!invoice.reversedAt &&
-    corrections.some(
-      (row) => row.correctionBasis === "DELIVERY_FAILED" && row.status === "VOIDED_DRAFT",
-    );
-  const replacementToReduce = invoice.type === "REPLACEMENT" && inForce;
-  if (can(P.approve) && ((voidedReduction && !liveReduction) || replacementToReduce))
-    actions.push("recordExternalReduction");
   return actions;
+}
+
+/**
+ * "Gửi lại hoá đơn qua e-mail" (BE `EInvoiceMails.resend`, audit r2 einvoice M-1): hoá đơn đã phát hành (còn hiệu lực
+ * hoặc đã bị thay thế — `wasIssued`) mà chữ ký số của bên bán hợp lệ (cảnh báo SIGNATURE_INVALID → BE 409, hoá đơn đó
+ * được thay thế, không gửi). Quyền `customer-legal-profiles:UPDATE`, không phải `einvoices`. Khách chưa có e-mail → BE
+ * 409 `details.missing` EMAIL, màn nói ghi e-mail trước.
+ */
+export function canResendEmail(
+  invoice: Pick<EInvoice, "status" | "warnings">,
+  can: (permission: PermissionCode) => boolean,
+): boolean {
+  return (
+    (invoice.status === "ISSUED" || invoice.status === "REPLACED") &&
+    !invoice.warnings.includes("SIGNATURE_INVALID") &&
+    can(EINVOICE_RESEND_EMAIL_PERMISSION)
+  );
 }
 
 /**

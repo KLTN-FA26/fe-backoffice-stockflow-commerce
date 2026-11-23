@@ -213,6 +213,11 @@ export const settlementReadinessDtoSchema = z
     closesAt: z.string().nullish(),
     blockers: z.array(z.string()).nullish(),
     returnAdjustmentUnissued: flag,
+    /**
+     * Audit r2 lifecycle M-4 (BE `Order.completionHoldable`, settlement 9e98660b): Sale "Giữ hoàn tất" được ngay lúc này —
+     * đúng luật BE áp khi giữ, false khi đang giữ. Vắng (BE cũ) → false: không đoán bằng luật riêng của FE.
+     */
+    completionHoldable: flag,
   })
   .transform((dto) => ({
     branch: dto.branch ?? ORDER_STATUS_UNKNOWN,
@@ -232,6 +237,7 @@ export const settlementReadinessDtoSchema = z
         : { code, known: false as const },
     ),
     returnAdjustmentUnissued: dto.returnAdjustmentUnissued,
+    completionHoldable: dto.completionHoldable,
   }));
 
 /** BE `OrderResponse.Fee` (4B-3, 14 BR-17/BR-20/BR-21): dòng phí của đơn kèm VAT; `kind` lạ → `UNKNOWN`. */

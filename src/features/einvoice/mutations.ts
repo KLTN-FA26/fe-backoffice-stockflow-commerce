@@ -22,6 +22,7 @@ import {
   refreshBuyer,
   reopenEInvoice,
   replaceEInvoice,
+  resendEInvoiceEmail,
   resubmitEInvoice,
   reviseDraft,
   sendErrorNotice,
@@ -89,6 +90,15 @@ export const useRecordExternalReduction = einvoiceMutation(
 export const useReduceFailedDelivery = einvoiceMutation(
   reduceFailedDelivery,
   "Đã lập bản giảm do giao thất bại.",
+);
+/**
+ * Gửi lại hoá đơn qua e-mail (audit r2 einvoice M-1): không đổi hoá đơn nên không làm mới dữ liệu nào; BE nhận ngay, thư
+ * đi sau và được gửi lại như thư đầu nếu lỗi.
+ */
+export const useResendEInvoiceEmail = einvoiceMutation(
+  resendEInvoiceEmail,
+  "Đã yêu cầu gửi lại hoá đơn qua e-mail.",
+  [],
 );
 /** Kiểm chữ ký một tệp XML (BO-09) — không ghi gì nên không làm mới dữ liệu nào. */
 export const useCheckSignature = einvoiceMutation(checkSignature, "Đã kiểm chữ ký số.", []);

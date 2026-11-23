@@ -4,6 +4,7 @@ import { formatDateTime } from "@/lib/format/date";
 
 import { Badge } from "@/components/ui/badge";
 
+import type { ReactNode } from "react";
 import type { Notification } from "../types";
 
 const SEVERITY_STYLE: Record<Notification["severity"], string> = {
@@ -15,9 +16,15 @@ const SEVERITY_STYLE: Record<Notification["severity"], string> = {
 export function NotificationItems({
   items,
   onSelect,
+  itemAction,
 }: {
   items: Notification[];
   onSelect: (item: Notification) => void;
+  /**
+   * Thao tác ngay trên một thông báo (vd "Gửi lại hoá đơn" trên thông báo hoá đơn chưa gửi được thư — audit r2 einvoice
+   * M-1), do màn bọc cung cấp: feature thông báo không biết feature khác. Đặt NGOÀI nút mở thông báo (không lồng nút).
+   */
+  itemAction?: (item: Notification) => ReactNode;
 }) {
   return (
     <ul aria-label={NOTIFICATION_LABELS.title} className="divide-border-default divide-y">
@@ -46,6 +53,7 @@ export function NotificationItems({
               <span className="text-ink-secondary line-clamp-2 text-xs">{item.body}</span>
             )}
           </button>
+          {itemAction?.(item)}
         </li>
       ))}
     </ul>

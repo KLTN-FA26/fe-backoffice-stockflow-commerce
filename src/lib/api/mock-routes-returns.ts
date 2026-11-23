@@ -17,6 +17,7 @@
 import { RETURN_LIMITS, RETURN_REFUSAL_REASONS } from "@/constants/returns";
 
 import { registerMockRoute } from "./mock-adapter";
+import { custodyChoiceRefusal, registerCustomerCustodyMockRoutes } from "./mock-customer-custody";
 import {
   mockReceiptDraftOpen,
   mockReceiptOpenable,
@@ -68,6 +69,10 @@ function wire(ret: MockReturn) {
     outcome: outcomeOf(ret),
     receiptOpenable: mockReceiptOpenable(ret),
     receiptDraftOpen: mockReceiptDraftOpen(ret),
+    custodyChoice: ret.custodyChoice ?? null,
+    custodyChoiceNote: ret.custodyChoiceNote ?? null,
+    custodyChoiceBy: ret.custodyChoiceBy ?? null,
+    custodyChoiceAt: ret.custodyChoiceAt ?? null,
   };
 }
 
@@ -175,9 +180,33 @@ function cancel(ret: MockReturn, body: Record<string, unknown>) {
   // WF-05 TH-3: rút sẽ bỏ hàng đã về trong kho mà không hoàn gì
   if (anyParcel(ret))
     return fail(409, "RETURN_GOODS_PARTLY_RECEIVED", "A parcel came back: mark the goods complete");
+  // BE-23 / audit r2 M-3: kho đang đếm một kiện trên phiếu nháp
+  const counting = draftCounting(ret);
+  if (counting) return counting;
   ret.cancellationReason = text(body.reason) || null;
   ret.closedAt = now();
   move(ret, "CANCELLED", ret.cancellationReason);
+  return ok(wire(ret));
+}
+
+/** WF-05 Q-4 (audit r2 returns H1): Sale ghi lựa chọn của khách cho hàng giữ hộ. */
+function recordCustodyChoice(ret: MockReturn, body: Record<string, unknown>) {
+  if (stale(ret, body)) return optimisticLock();
+  const refusal = custodyChoiceRefusal(ret);
+  if (refusal) return refusal;
+  const choice = text(body.choice);
+  if (choice !== "SEND_BACK" && choice !== "DESTROY_ON_BEHALF")
+    return validationFailed("choice", "choice is required");
+  const note = text(body.note) || null;
+  if (choice === "DESTROY_ON_BEHALF" && !note)
+    return validationFailed("note", "A destruction names the customer's consent");
+  Object.assign(ret, {
+    custodyChoice: choice,
+    custodyChoiceNote: note,
+    custodyChoiceBy: "mock-current-user",
+    custodyChoiceAt: now(),
+    version: ret.version + 1,
+  });
   return ok(wire(ret));
 }
 
@@ -512,6 +541,8 @@ export function registerReturnMockRoutes(): void {
   registerMockRoute("POST", "/returns/:id/resolution", step(propose));
   registerMockRoute("POST", "/returns/:id/goods-complete", step(goodsComplete));
   registerMockRoute("POST", "/returns/:id/closure-without-refund", step(closeWithoutRefund));
+  registerMockRoute("POST", "/returns/:id/custody-choice", step(recordCustodyChoice));
+  registerCustomerCustodyMockRoutes();
   // `/evidence/uploads` trước `/evidence` không cần (khác số đoạn) — giữ cạnh nhau cho dễ đọc
   registerMockRoute("POST", "/returns/:id/evidence/uploads", step(beginEvidenceUpload));
   registerMockRoute("POST", "/returns/:id/evidence", step(attachEvidence));

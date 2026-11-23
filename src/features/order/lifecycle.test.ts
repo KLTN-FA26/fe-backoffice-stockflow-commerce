@@ -42,6 +42,7 @@ describe("ORDER_TRANSITIONS (BE OrderStatus#canTransitionTo)", () => {
         "Returned",
         "On Hold",
         "Partially Refunded",
+        "Closed",
       ],
     ],
     ["Packed", ["Shipped", "Partially Fulfilled", "On Hold"]],
@@ -62,8 +63,30 @@ describe("ORDER_TRANSITIONS (BE OrderStatus#canTransitionTo)", () => {
     ["Shipped", ["Delivered", "Delivery Failed", "Partially Fulfilled", "On Hold"]],
     ["Delivery Failed", ["Delivered", "Returned", "Partially Fulfilled", "On Hold"]],
     ["Delivered", ["Completed", "Return Requested", "Delivery Failed"]],
-    ["Return Requested", ["Returned", "Delivered", "Completed", "Refunded", "Partially Refunded"]],
-    ["Returned", ["Refunded", "Partially Refunded", "Delivered", "Completed"]],
+    [
+      "Return Requested",
+      [
+        "Returned",
+        "Delivered",
+        "Completed",
+        "Refunded",
+        "Partially Refunded",
+        "Delivery Failed",
+        "Partially Fulfilled",
+      ],
+    ],
+    [
+      "Returned",
+      [
+        "Refunded",
+        "Partially Refunded",
+        "Delivered",
+        "Completed",
+        "Delivery Failed",
+        "Partially Fulfilled",
+        "Closed",
+      ],
+    ],
     ["Refunded", ["Closed", "Return Requested", "Returned"]],
     ["Partially Refunded", ["Closed", "Return Requested", "Returned", "Partially Fulfilled"]],
     ["Completed", ["Closed", "Return Requested"]],
@@ -86,6 +109,15 @@ describe("ORDER_TRANSITIONS (BE OrderStatus#canTransitionTo)", () => {
       expect.arrayContaining(["Returned", "Partially Fulfilled"]),
     );
     expect(nextOrderStatuses("Partially Fulfilled")).toContain("Partially Refunded");
+  });
+
+  it("audit r2 M-6 (BE-45, settlement V20261223000100): hãng chở về / thất lạc, không gì phải hoàn → đóng thẳng, không qua “hoàn một phần”", () => {
+    expect(nextOrderStatuses("Returned")).toContain("Closed");
+    expect(nextOrderStatuses("Partially Fulfilled")).toContain("Closed");
+    // BE-46: khiếu nại kết thúc không hoàn gì trên đơn giao thất bại / giao một phần → về đường giao
+    expect(nextOrderStatuses("Return Requested")).toEqual(
+      expect.arrayContaining(["Delivery Failed", "Partially Fulfilled"]),
+    );
   });
 
   it("docs 15 BR-02: Pending Payment không đi thẳng sang sản xuất / kho", () => {

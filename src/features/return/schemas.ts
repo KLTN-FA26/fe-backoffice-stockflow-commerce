@@ -9,6 +9,7 @@ import { z } from "zod";
 import {
   RETURN_API_STATUSES,
   RETURN_CHANNELS,
+  RETURN_CUSTODY_CHOICES,
   RETURN_OUTCOMES,
   RETURN_REASONS,
   RETURN_RECEIPT_API_STATUSES,
@@ -170,6 +171,14 @@ export const returnRequestDtoSchema = z.object({
   receiptOpenable: z.boolean().nullish(),
   /** BE-23: đang có phiếu nhập hàng hoàn NHÁP của yêu cầu — chưa chốt "Đã nhận đủ hàng" được. */
   receiptDraftOpen: z.boolean().nullish(),
+  /**
+   * WF-05 Q-4 (audit r2 returns H1): lựa chọn của khách cho hàng giữ hộ sau một yêu cầu không hoàn tiền, Sale ghi
+   * (`POST /returns/{id}/custody-choice`); null khi chưa ghi. Mã lạ → UNKNOWN.
+   */
+  custodyChoice: tolerantEnum(RETURN_CUSTODY_CHOICES).nullish(),
+  custodyChoiceNote: z.string().nullish(),
+  custodyChoiceBy: z.string().nullish(),
+  custodyChoiceAt: z.string().nullish(),
   version: z.number().int(),
 });
 
@@ -229,6 +238,11 @@ export const returnReceiptCartonDtoSchema = z.object({
   stockEntered: z.boolean().nullish(),
   /** WF-05 Q-18: người ghi số đếm (quét hoặc đếm lại) — người xác nhận phiếu phải là người khác. */
   countedBy: z.string().nullish(),
+  /**
+   * WF-05 Q-4 (audit r2 returns H1): yêu cầu không hoàn tiền — thùng đã nhập rồi bị đảo bút toán, hàng của khách giữ hộ,
+   * không phải tồn kho dù `stockEntered` nói gì. Vắng = BE cũ.
+   */
+  heldForCustomer: z.boolean().nullish(),
 });
 
 /** Hàng về không nhãn thùng (WF-05 TH-4): ghi trên phiếu, không nhập tồn, vẫn tính là đã về cho RMA. */
@@ -299,6 +313,26 @@ export const returnReceiptRowDtoSchema = z.object({
   cartonCount: z.number().int(),
 });
 export const returnReceiptPageDtoSchema = bePageSchema(returnReceiptRowDtoSchema);
+
+/**
+ * Thùng giữ hộ khách (BE `CustomerCustodyResponse`, WF-05 Q-4 / TH-6): ngoài sổ kho, đứng ở khu cách ly, chờ thực hiện
+ * lựa chọn của khách (`choice`; null = chờ Sale ghi).
+ */
+export const customerCustodyDtoSchema = z.object({
+  lpn: z.string(),
+  sku: z.string().nullish(),
+  lotNumber: z.string().nullish(),
+  quantity: z.number().int(),
+  locationCode: z.string().nullish(),
+  returnRequestId: z.string().nullish(),
+  ownership: z.string(),
+  heldAt: z.string().nullish(),
+  choice: tolerantEnum(RETURN_CUSTODY_CHOICES).nullish(),
+  endedAt: z.string().nullish(),
+  endedBy: z.string().nullish(),
+  note: z.string().nullish(),
+});
+export const customerCustodyPageDtoSchema = bePageSchema(customerCustodyDtoSchema);
 
 /** Chuyến hãng hoàn về — chỉ những trường màn lập phiếu cần (BE `ShipmentRowResponse`, `status=RETURNED`). */
 export const returnedShipmentDtoSchema = z

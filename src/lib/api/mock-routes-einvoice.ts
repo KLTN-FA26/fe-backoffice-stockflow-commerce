@@ -18,6 +18,7 @@ import {
   EINVOICE_ISSUED_VIA_PORTAL,
   EINVOICE_LATE_WARNING,
   EINVOICE_PERMISSIONS,
+  EINVOICE_RESEND_EMAIL_PERMISSION,
   EINVOICE_SETTINGS_PERMISSIONS,
   EINVOICE_TIMING,
   UNSENDABLE_REVERSAL_REASON_CODE,
@@ -161,6 +162,71 @@ function detail(i: MockEInvoice) {
     deliveryFailedAt: i.deliveryFailedAt,
     errorNoticeSupported: mockEInvoiceSettings().provider === "SANDBOX",
     issuedVia: i.issuedVia ?? (i.issuedAt ? "PROVIDER" : null),
+    ...withdrawability(i),
+    ...externalReductions(i),
+  };
+}
+
+/**
+ * Audit r2 H-2 — như BE `WithdrawalRule.decide` trên câu trả lời gần nhất của NCC: mock coi NCC trả NOT_FOUND, trừ hoá
+ * đơn mock đánh `providerHeld` (PROVIDER_HOLDS). Vừa gửi (< `withdraw-after`) → TOO_RECENT kèm mốc.
+ */
+function withdrawability(i: MockEInvoice) {
+  const blocked = (by: string, from: string | null = null) => ({
+    withdrawable: false,
+    withdrawalBlockedBy: by,
+    withdrawableFrom: from,
+    withdrawalEvidenceRequired: false,
+  });
+  if (i.status !== "SUBMITTING") return blocked("NOT_AT_PROVIDER");
+  if (i.providerHeld) return blocked("PROVIDER_HOLDS");
+  const from = Date.parse(i.submittedAt ?? nowIso()) + EINVOICE_TIMING.withdrawAfterMs;
+  if (Date.now() < from) return blocked("TOO_RECENT", new Date(from).toISOString());
+  return {
+    withdrawable: true,
+    withdrawalBlockedBy: null,
+    withdrawableFrom: null,
+    withdrawalEvidenceRequired: false,
+  };
+}
+
+/**
+ * Audit r2 M-10 — như BE `EInvoicePortalReductions.applicability`: hoá đơn đã phát hành của một lần giao (không phải
+ * điều chỉnh), chưa có bản giảm giao thất bại còn sống; DELIVERY_FAILED khi bản giảm không gửi được đã bị huỷ (hoá đơn
+ * gốc vẫn `reversedAt`) hoặc hoá đơn thay thế còn hiệu lực mà lần giao đã thất bại; RETURN khi hoá đơn thay thế còn hiệu
+ * lực có yêu cầu trả hàng chờ giảm.
+ */
+function externalReductions(i: MockEInvoice) {
+  const none = {
+    externalReductionAllowed: false,
+    externalReductionBases: [] as string[],
+    externalReductionReturns: [] as { returnRequestId: string; rmaNumber: string }[],
+  };
+  if (i.status !== "ISSUED" || i.type === "ADJUSTMENT" || !i.shipmentId) return none;
+  const corrections = mockEInvoices().filter((o) => o.originalEInvoiceId === i.id);
+  const liveReduction = corrections.some(
+    (o) => o.correctionBasis === "DELIVERY_FAILED" && o.status !== "VOIDED_DRAFT",
+  );
+  if (liveReduction) return none;
+  const replacementInForce = i.type === "REPLACEMENT" && !i.reversedAt;
+  const unsendableVoided =
+    !!i.reversedAt && corrections.some((o) => o.voidReasonCode === UNSENDABLE_REVERSAL_REASON_CODE);
+  const deliveryFailed = unsendableVoided || (replacementInForce && !!i.deliveryFailedAt);
+  const returns = replacementInForce
+    ? (i.pendingReturns ?? []).filter(
+        (pending) =>
+          !mockEInvoices().some(
+            (o) => o.type === "ADJUSTMENT" && o.returnRequestId === pending.returnRequestId,
+          ),
+      )
+    : [];
+  return {
+    externalReductionAllowed: deliveryFailed || returns.length > 0,
+    externalReductionBases: [
+      ...(deliveryFailed ? ["DELIVERY_FAILED"] : []),
+      ...(returns.length > 0 ? ["RETURN"] : []),
+    ],
+    externalReductionReturns: returns,
   };
 }
 
@@ -403,10 +469,13 @@ export function registerEInvoiceMockRoutes(): void {
       if (i.status !== "SUBMITTING") return transition();
       if (!text(body.reason))
         return fail(400, "VALIDATION_FAILED", "reason", [{ field: "reason", message: "required" }]);
-      // BE HĐ-1: lần gửi cuối quá `withdraw-after`; mock coi NCC luôn trả NOT_FOUND
-      const sent = Date.parse(i.submittedAt ?? nowIso());
-      if (Date.now() - sent < EINVOICE_TIMING.withdrawAfterMs)
-        return fail(409, "EINVOICE_WITHDRAWAL_REFUSED", "Too recent");
+      // BE HĐ-1 / audit r2 H-2: cùng luật cờ `withdrawable` trên chi tiết (`withdrawability`)
+      const rule = withdrawability(i);
+      if (!rule.withdrawable)
+        return fail(409, "EINVOICE_WITHDRAWAL_REFUSED", "Not withdrawable now", undefined, {
+          withdrawableFrom: rule.withdrawableFrom,
+          providerState: i.providerHeld ? "PENDING" : null,
+        });
       Object.assign(i, {
         status: "REJECTED",
         rejectionCode: "WITHDRAWN_NO_PROVIDER_RECORD",
@@ -460,12 +529,9 @@ export function registerEInvoiceMockRoutes(): void {
     if (!(await can(P.approve))) return forbidden();
     const original = byId(pathParams(config).id ?? "");
     if (!original) return notFound();
-    const voided = mockEInvoices().some(
-      (o) =>
-        o.originalEInvoiceId === original.id &&
-        o.voidReasonCode === UNSENDABLE_REVERSAL_REASON_CODE,
-    );
-    if (original.status !== "ISSUED" || (!voided && original.type !== "REPLACEMENT"))
+    // Audit r2 M-10: cùng luật cờ `externalReductionAllowed` trên chi tiết (`externalReductions`)
+    const options = externalReductions(original);
+    if (!options.externalReductionAllowed)
       return fail(409, "EINVOICE_EXTERNAL_REDUCTION_NOT_APPLICABLE", "Not applicable");
     const raw: unknown = config.data;
     const form = raw instanceof FormData ? raw : null;
@@ -480,6 +546,12 @@ export function registerEInvoiceMockRoutes(): void {
     const returnRequestId = text(form.get("returnRequestId")) || null;
     if (basis === "RETURN" && !returnRequestId)
       return fail(400, "VALIDATION_FAILED", "returnRequestId is required for basis RETURN");
+    if (
+      !options.externalReductionBases.includes(basis) ||
+      (basis === "RETURN" &&
+        !options.externalReductionReturns.some((row) => row.returnRequestId === returnRequestId))
+    )
+      return fail(409, "EINVOICE_EXTERNAL_REDUCTION_NOT_APPLICABLE", "Not applicable");
     const reduction = correctionOf(original, "ADJUSTMENT", basis, text(form.get("note")));
     Object.assign(reduction, {
       returnRequestId,
@@ -492,6 +564,23 @@ export function registerEInvoiceMockRoutes(): void {
       lines: original.lines.map((line) => ({ ...line, quantity: -line.quantity })),
     });
     return ok(detail(reduction));
+  });
+  // Audit r2 einvoice M-1: gửi lại hoá đơn qua e-mail — quyền `customer-legal-profiles:UPDATE` (không phải `einvoices`)
+  registerMockRoute("POST", "/einvoices/:id/email", async (config) => {
+    if (!(await can(EINVOICE_RESEND_EMAIL_PERMISSION as PermissionCode))) return forbidden();
+    const invoice = byId(pathParams(config).id ?? "");
+    if (!invoice) return notFound();
+    if (invoice.status !== "ISSUED" && invoice.status !== "REPLACED")
+      return fail(409, "EINVOICE_NOT_ISSUED", "Not issued");
+    if (invoice.warnings.includes("SIGNATURE_INVALID"))
+      return fail(409, "EINVOICE_INVALID_TRANSITION", "Signature invalid", undefined, {
+        reason: "SIGNATURE_INVALID",
+      });
+    if (!invoice.buyer.email)
+      return fail(409, "EINVOICE_BUYER_PROFILE_INCOMPLETE", "No invoice e-mail", undefined, {
+        missing: ["EMAIL"],
+      });
+    return ok({ einvoiceId: invoice.id, recipient: invoice.buyer.email, requestedAt: nowIso() });
   });
   // BO-09: chữ ký số — mock coi mọi hoá đơn đã phát hành ký hợp lệ; tệp tải lên → SHA1_UNCHECKED
   registerMockRoute("GET", "/einvoices/:id/signature", async (config) => {

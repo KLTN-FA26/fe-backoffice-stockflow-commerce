@@ -5,6 +5,7 @@
 
 import type {
   ReturnReadChannel,
+  ReturnReadCustodyChoice,
   ReturnReadOutcome,
   ReturnReadReason,
   ReturnReadRefusalReason,
@@ -41,6 +42,51 @@ export const RETURN_REFUSAL_REASON_LABELS = {
   OTHER: "Lý do khác",
   UNKNOWN: UNKNOWN_LABEL,
 } as const satisfies Record<ReturnReadRefusalReason, string>;
+
+/** Lựa chọn của khách cho hàng giữ hộ (WF-05 Q-4, BE `custodyChoice`). */
+export const RETURN_CUSTODY_CHOICE_LABELS = {
+  SEND_BACK: "Gửi trả khách (khách chịu phí)",
+  DESTROY_ON_BEHALF: "Công ty huỷ hộ (khách đồng ý, có biên bản)",
+  UNKNOWN: UNKNOWN_LABEL,
+} as const satisfies Record<ReturnReadCustodyChoice, string>;
+
+/** Thùng giữ hộ khách (BE `ownership`). */
+export const CUSTOMER_CUSTODY_OWNERSHIP_LABELS: Readonly<Record<string, string>> = {
+  CUSTOMER_HELD: "Đang giữ hộ",
+  CUSTOMER_SENT_BACK: "Đã gửi trả khách",
+  CUSTOMER_DESTROYED: "Đã huỷ hộ",
+};
+
+/** Chênh lệch kho ghi khi nhận hàng trả (BE `ReturnDiscrepancy.Kind`); mã lạ → "chênh lệch", không đoán (audit r2 L14). */
+export const RETURN_DISCREPANCY_KIND_LABELS: Readonly<Record<string, string>> = {
+  SHORT: "Thiếu",
+  EXCESS: "Thừa",
+  UNEXPECTED_ITEM: "Ngoài yêu cầu",
+  WRONG_ITEM: "Sai mã hàng",
+};
+export const RETURN_DISCREPANCY_KIND_UNKNOWN = "Chênh lệch";
+
+/**
+ * Lý do BE ghi ở lịch sử yêu cầu (BE `ReturnRequest.transitionTo` — mã + số phiếu / số tiền; audit r2 L14): câu tiếng Việt.
+ * Lý do người dùng gõ (từ chối, rút) hiện nguyên văn.
+ */
+export const RETURN_HISTORY_REASON_LABELS = {
+  APPROVED: "Đã duyệt",
+  GOODS_DEADLINE_PASSED: "Hết hạn gửi hàng — chốt theo số đã về",
+  RETURN_DEADLINE_PASSED: "Hết hạn gửi hàng, chưa có hàng về",
+  RECEIVED: (receipt: string) => `Đã về đủ — phiếu ${receipt}`,
+  RECEIVED_WITH_DISCREPANCY: (receipt: string) => `Đã về, có chênh lệch — phiếu ${receipt}`,
+  RECEIVED_AFTER_DEADLINE: (receipt: string) => `Hàng về sau hạn — phiếu ${receipt}`,
+  RECEIVED_AFTER_WITHDRAWAL: (receipt: string) => `Hàng về sau khi đã rút — phiếu ${receipt}`,
+  GOODS_COMPLETE: "Sale chốt đã nhận đủ hàng theo số đã về",
+  REFUND_SENT_BACK: "Đề xuất hoàn tiền bị trả lại",
+  REFUND_PROPOSED: (amount: string) => `Đề xuất hoàn ${amount}`,
+  NOTHING_PAID: "đơn chưa thanh toán",
+  REFUSED: (reason: string) => `không hoàn: ${reason}`,
+  RESOLVED_REFUND: (amount: string) => `Đã duyệt hoàn ${amount}`,
+  RESOLVED_REFUSED: (reason: string) => `Kết thúc không hoàn tiền: ${reason}`,
+  RESOLVED_NOTHING_USABLE: "Kết thúc không hoàn tiền — không có đơn vị đã duyệt về dùng được",
+} as const;
 
 /** Kết quả của yêu cầu đã xử lý xong (BE `outcome`): 0 đồng không bao giờ đọc là "Đã hoàn tiền". */
 export const RETURN_OUTCOME_LABELS = {
@@ -163,6 +209,29 @@ export const RETURN_LABELS = {
     // WF-05 BE-23: còn phiếu nhập đang đếm thì chưa chốt "Đã nhận đủ hàng", chưa đề xuất / duyệt hoàn tiền
     receiptDraftOpen:
       "Kho đang đếm một phiếu nhập hàng hoàn của yêu cầu này. Chờ kho xác nhận hoặc huỷ phiếu đó rồi mới chốt “Đã nhận đủ hàng”, đề xuất hoặc duyệt hoàn tiền.",
+    // WF-05 Q-4 (audit r2 returns H1): lựa chọn của khách cho hàng giữ hộ, Sale ghi; Quản lý kho thực hiện
+    custodyChoice: {
+      title: "Hàng của khách giữ hộ",
+      hint: "Yêu cầu kết thúc không hoàn tiền nên hàng về nguyên thùng vẫn là của khách: không nhập kho, giữ ở khu cách ly. Sale hỏi khách rồi ghi một trong hai lựa chọn; Quản lý kho thực hiện đúng lựa chọn đó.",
+      choice: "Khách chọn",
+      none: "Chưa ghi lựa chọn của khách — kho giữ nguyên hàng chờ.",
+      note: "Biên bản / ghi chú",
+      noteRequired: "Huỷ hộ phải nêu biên bản khách đồng ý.",
+      recordedAt: "Ghi lúc",
+      record: "Ghi lựa chọn của khách",
+      change: "Đổi lựa chọn",
+      submit: "Ghi lựa chọn",
+      cartons: "Thùng đang giữ hộ",
+      noCartons: "Không có thùng nào đang giữ hộ cho yêu cầu này.",
+      cartonsError: "Không tải được danh sách thùng giữ hộ.",
+      end: "Đã thực hiện",
+      endTitle: "Ghi đã thực hiện lựa chọn của khách",
+      endDescription: (lpn: string, choice: string) =>
+        `Thùng ${lpn}: ${choice}. Không có bút toán kho — thùng đã ngoài sổ. Ghi số biên bản giao trả / biên bản huỷ.`,
+      endNote: "Biên bản",
+      waitChoice: "Chờ Sale ghi lựa chọn của khách",
+      ended: (when: string) => `Xong lúc ${when}`,
+    },
     cancelled: "Đã rút",
     cancellationReason: "Lý do rút",
     history: "Lịch sử",
@@ -291,6 +360,8 @@ export const RETURN_LABELS = {
     closedWithoutRefund: "Đã kết thúc yêu cầu không hoàn tiền",
     evidenceAdded: "Đã thêm ảnh bằng chứng",
     custodyAdded: "Đã ghi biên nhận giữ hộ",
+    custodyChoiceRecorded: "Đã ghi lựa chọn của khách cho hàng giữ hộ",
+    custodyEnded: "Đã ghi thực hiện lựa chọn của khách",
   },
 } as const;
 
@@ -362,6 +433,8 @@ export const RETURN_RECEIPT_LABELS = {
     countedAboveLabel: "Số đếm thực tế không được vượt số trên nhãn thùng.",
     countColumn: "Kiểm đếm",
     sealed: "Nguyên thùng",
+    // WF-05 Q-4 (audit r2 returns H1): yêu cầu không hoàn tiền — thùng nguyên vẫn là của khách, giữ hộ, không phải tồn kho
+    heldForCustomer: "Giữ hộ khách — không nhập kho",
     openedState: (counted: number, label: number) => `Đã mở · đếm ${counted}/${label}`,
     add: "Thêm",
     scanned: "Thùng đã quét",

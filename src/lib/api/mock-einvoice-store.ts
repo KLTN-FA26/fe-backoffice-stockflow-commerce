@@ -68,6 +68,13 @@ export interface MockEInvoice {
   deliveredOn?: string | null;
   /** WF-05 F-14: mã lý do huỷ (`UNSENDABLE_REVERSAL`). */
   voidReasonCode?: string | null;
+  /**
+   * Audit r2 M-10: các yêu cầu trả hàng có hàng đã hoàn tiền đang chờ giảm trên hoá đơn thay thế này (BE
+   * `findPendingReturnsOfShipment`, chưa có điều chỉnh cho yêu cầu đó) — nguồn `externalReductionReturns`.
+   */
+  pendingReturns?: { returnRequestId: string; rmaNumber: string }[];
+  /** Audit r2 H-2: NCC đã từng nói đang giữ giao dịch (BE `providerHeld`) — không bao giờ rút. */
+  providerHeld?: boolean;
 }
 
 export interface MockErrorNotice {

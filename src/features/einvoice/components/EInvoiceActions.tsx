@@ -7,6 +7,7 @@ import { FileCode2, FileDown } from "lucide-react";
 import { EINVOICE_LABELS } from "@/constants/labels-einvoice";
 import {
   EINVOICE_LIMITS,
+  EINVOICE_PERMISSIONS,
   EINVOICE_ROUTES,
   UNSENDABLE_REVERSAL_REASON_CODE,
 } from "@/constants/einvoice";
@@ -32,7 +33,7 @@ import {
   useWithdrawEInvoice,
 } from "../mutations";
 import { useCorrections } from "../queries";
-import { issueLooksLate, warningMessages } from "../selectors";
+import { issueLooksLate, warningMessages, withdrawalBlockedText } from "../selectors";
 
 import { AgreementDialog } from "./AgreementDialog";
 import { CorrectionDialog } from "./CorrectionDialog";
@@ -40,6 +41,7 @@ import { ErrorNoticeDialog } from "./ErrorNoticeDialog";
 import { ExternalReductionDialog } from "./ExternalReductionDialog";
 import { CONFIRM, LATE_REASON_LABEL, SUPPORT_REFERENCE_LABEL } from "./confirm-copy";
 import { PortalResultDialog } from "./PortalResultDialog";
+import { ResendEmailButton } from "./ResendEmailButton";
 import { ReviseDraftDialog } from "./ReviseDraftDialog";
 import { useFileDownload } from "./useFileDownload";
 
@@ -109,6 +111,8 @@ export function EInvoiceActions({
   const pending = [issue, voidDraft, resubmit, reopen, withdraw, reduce].some((m) => m.isPending);
 
   const lateRequired = confirming === "issue" && (issueLooksLate(invoice) || lateAsked);
+  // Audit r2 H-2: hoá đơn đang gửi mà BE nói chưa rút được — nói vì sao thay cho nút (chỉ với người có quyền rút)
+  const withdrawBlocked = can(EINVOICE_PERMISSIONS.approve) ? withdrawalBlockedText(invoice) : null;
   const supportMissing =
     confirming === "withdraw" && evidenceAsked && supportReference.trim() === "";
 
@@ -231,7 +235,11 @@ export function EInvoiceActions({
         reconcile.isPending,
       )}
       {button("resubmit", A.resubmit, () => setConfirming("resubmit"))}
-      {button("withdraw", A.withdraw, () => setConfirming("withdraw"))}
+      {button("withdraw", A.withdraw, () => {
+        // BE đã biết NCC không xác nhận được kết quả (`withdrawalEvidenceRequired`) → đòi văn bản của hỗ trợ NCC ngay
+        setEvidenceAsked(invoice.withdrawalEvidenceRequired === true);
+        setConfirming("withdraw");
+      })}
       {button("recordPortalResult", A.recordPortalResult, () => setRecordingPortal(true))}
       {button("reopen", A.reopen, () => setConfirming("reopen"))}
       {button("void", A.void, () => setConfirming("void"))}
@@ -272,8 +280,14 @@ export function EInvoiceActions({
         setRecordingReduction(true),
       )}
       {button("notifyError", A.notifyError, () => setNoticing(true))}
+      {actions.includes("resendEmail") && (
+        <ResendEmailButton einvoiceId={invoice.id} invoiceLabel={invoice.code} />
+      )}
       {actions.map((action) => extra?.(action))}
       {button("issue", A.issue, () => setConfirming("issue"))}
+      {withdrawBlocked && (
+        <p className="text-ink-secondary w-full text-[0.8125rem]">{withdrawBlocked}</p>
+      )}
       {(error ?? files.error) && !confirming && (
         <p role="alert" className="text-danger w-full text-[0.8125rem]">
           {error ?? files.error}

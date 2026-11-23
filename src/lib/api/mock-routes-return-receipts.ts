@@ -19,6 +19,7 @@
 import { RETURN_LIMITS } from "@/constants/returns";
 
 import { registerMockRoute } from "./mock-adapter";
+import { mockHeldForCustomer } from "./mock-customer-custody";
 import {
   mockReceiptOpenable,
   mockReturnReceipts,
@@ -51,6 +52,11 @@ function wire(receipt: MockReturnReceipt) {
   const scanned = new Set(receipt.cartons.map((c) => c.lpn));
   return {
     ...rest,
+    // WF-05 Q-4 (audit r2 returns H1): thùng nguyên của yêu cầu không hoàn tiền là hàng giữ hộ khách
+    cartons: rest.cartons.map((carton) => ({
+      ...carton,
+      heldForCustomer: mockHeldForCustomer(receipt, carton.lpn),
+    })),
     receiptType: "RETURN",
     expectedCartons: source.map((c) => ({ ...c, scanned: scanned.has(c.lpn) })),
     // WF-05 Q-18 (BE G4 `ReturnReceipt.needsManagerConfirmation`): chỉ phiếu nháp

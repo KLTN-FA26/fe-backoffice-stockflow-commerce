@@ -24,6 +24,13 @@ export const EINVOICE_PERMISSIONS = {
 } as const;
 
 /**
+ * Gửi lại hoá đơn đã phát hành qua e-mail (BE `POST /einvoices/{id}/email`, audit r2 einvoice M-1): KHÔNG phải quyền
+ * `einvoices` mà `customer-legal-profiles:UPDATE` — người ghi e-mail nhận hoá đơn của khách (Sale, Sales Manager, Kế
+ * toán) là người gửi lại (BE `InvoicingResources.LEGAL_PROFILES`).
+ */
+export const EINVOICE_RESEND_EMAIL_PERMISSION = "customer-legal-profiles:UPDATE";
+
+/**
  * Resource `einvoice-settings` (không có VIEW_PAGE): Quản trị READ + UPDATE — nhà cung cấp, tài khoản,
  * ký hiệu, tự phát hành; Kế toán chỉ READ.
  */
@@ -216,6 +223,37 @@ export const WITHDRAWAL_PROVIDER_STATES = [
   "REJECTED",
 ] as const;
 export type WithdrawalProviderState = (typeof WITHDRAWAL_PROVIDER_STATES)[number];
+
+/**
+ * Vì sao hoá đơn chưa rút được lúc này (BE `EInvoiceResponse.withdrawalBlockedBy`, `WithdrawalRule.Blocked`; audit r2
+ * H-2): NOT_AT_PROVIDER (không đang gửi), PROVIDER_HOLDS (NCC đang giữ — "đã phát hành, chưa có số" hoặc đang xử lý; Q-5:
+ * không bao giờ rút, chỉ "Kiểm tra lại"), TOO_RECENT (rút được từ `withdrawableFrom`), PROVIDER_STATE_UNCLEAR (NCC chưa
+ * nói không có bản ghi). Giá trị lạ đọc là UNKNOWN.
+ */
+export const WITHDRAWAL_BLOCKS = [
+  "NOT_AT_PROVIDER",
+  "PROVIDER_HOLDS",
+  "TOO_RECENT",
+  "PROVIDER_STATE_UNCLEAR",
+] as const;
+export type WithdrawalBlock = (typeof WITHDRAWAL_BLOCKS)[number];
+
+/**
+ * NCC chỉ nhận ngày lập là hôm nay (BE `EInvoiceProvider.datesOnlyToday()`: SePay) — chỉ dưới NCC này hoá đơn GỐC phát
+ * hành sau ngày giao mới là "lập trễ" và BE đòi lý do (`EInvoiceIssuanceSteps`, 400 EINVOICE_LATE_ISSUE_REASON_REQUIRED;
+ * audit r2 contract L12). NCC khác ghi đúng ngày giao, không đòi. BE không gửi cờ này trên hoá đơn — bảng chép theo code.
+ */
+export const DATES_ONLY_TODAY_PROVIDERS: readonly string[] = [EINVOICE_PROVIDER_CODES.sepay];
+
+/**
+ * Hộp thư của Sale khi hoá đơn phát hành mà khách chưa có e-mail nhận hoá đơn (BE `EInvoiceIssuedNotificationListener`
+ * `EMAIL_MISSING_CATEGORY`, `sourceType` EINVOICE, `sourceId` = mã hoá đơn; audit r2 einvoice M-1): Sale không có quyền
+ * xem hoá đơn, nên nút "Gửi lại hoá đơn" nằm ngay trên thông báo này.
+ */
+export const EINVOICE_EMAIL_MISSING_NOTICE = {
+  category: "EINVOICE_BUYER_EMAIL_MISSING",
+  sourceType: "EINVOICE",
+} as const;
 
 /** Kết quả Kế toán ghi lại từ cổng NCC cho hoá đơn kẹt "đang gửi" (WF-05 Q-8, F-13). */
 export const PORTAL_RESULT_OUTCOMES = ["ISSUED", "REFUSED_BY_TAX_AUTHORITY"] as const;

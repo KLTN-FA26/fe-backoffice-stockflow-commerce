@@ -8,7 +8,12 @@ import { ApiError } from "@/lib/api/error";
 import { apiErrorMessage, apiFieldErrors } from "@/lib/api/error-message";
 import { formatDateTime } from "@/lib/format/date";
 
-import { draftOutOfDateDetailsSchema, withdrawalRefusalDetailsSchema } from "./schemas";
+import {
+  draftOutOfDateDetailsSchema,
+  profileMissingDetailsSchema,
+  transitionReasonDetailsSchema,
+  withdrawalRefusalDetailsSchema,
+} from "./schemas";
 import { warningLabel } from "./selectors";
 
 export const EINVOICE_ERROR_MESSAGES: Readonly<Record<string, string>> = {
@@ -50,8 +55,10 @@ export const EINVOICE_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   // WF-05 Q-8 (F-14)
   EINVOICE_REVERSAL_STILL_SENDABLE:
     "Bản giảm này vẫn gửi được qua nhà cung cấp — hãy phát hành nó. Chỉ huỷ khi nhà cung cấp không còn dùng được, không điều chỉnh được, hoặc đã từ chối nhiều lần.",
+  // Audit r2 M-10: nút chỉ hiện khi BE nói nhận (`externalReductionAllowed`) — 409 nghĩa là đã đổi từ lúc tải, hoặc căn
+  // cứ / yêu cầu trả hàng đã chọn không còn chờ giảm
   EINVOICE_EXTERNAL_REDUCTION_NOT_APPLICABLE:
-    "Hoá đơn này không cần ghi hoá đơn giảm làm ngoài hệ thống: chưa có bản giảm không gửi được bị huỷ, và đây không phải hoá đơn thay thế cần giảm.",
+    "Hoá đơn này không còn nhận hoá đơn giảm với căn cứ đã chọn (đã có bản giảm, lần giao đã giao lại, hoặc yêu cầu trả hàng đã được ghi). Dữ liệu đã được tải lại — kiểm tra rồi chọn lại.",
   // WF-05 BE-11 (F-15)
   EINVOICE_REVERSAL_NOT_APPLICABLE:
     "Không lập bản giảm do giao thất bại được: hoá đơn không còn hiệu lực, lần giao hiện đang là “đã giao”, hoặc hoá đơn đã được giảm.",
@@ -206,6 +213,63 @@ export function applyEInvoiceFieldErrors<TField extends string>(
   return mapped;
 }
 
+/**
+ * "Gửi lại hoá đơn qua e-mail" (BE `EInvoiceMails.resend`, audit r2 einvoice M-1): ba mã có nghĩa riêng ở thao tác này —
+ * khách chưa có e-mail (`details.missing` EMAIL), chữ ký số không hợp lệ (`details.reason` SIGNATURE_INVALID), hoá đơn
+ * chưa phát hành. Mã khác → câu chung của module.
+ */
+export function resendEmailErrorMessage(error: unknown): string {
+  if (!(error instanceof ApiError)) return einvoiceErrorMessage(error);
+  if (error.code === "EINVOICE_BUYER_PROFILE_INCOMPLETE") {
+    const parsed = profileMissingDetailsSchema.safeParse(error.details ?? {});
+    const missing = parsed.success ? parsed.data.missing : [];
+    if (missing.length === 0 || missing.includes("EMAIL"))
+      return "Khách chưa có e-mail nhận hoá đơn. Ghi e-mail vào hồ sơ pháp lý của khách rồi bấm gửi lại.";
+  }
+  if (error.code === "EINVOICE_INVALID_TRANSITION") {
+    const parsed = transitionReasonDetailsSchema.safeParse(error.details ?? {});
+    if (parsed.success && parsed.data.reason === "SIGNATURE_INVALID")
+      return "Chữ ký số của bên bán trên hoá đơn không hợp lệ nên hoá đơn không được gửi cho khách. Kế toán lập hoá đơn thay thế.";
+  }
+  if (error.code === "EINVOICE_NOT_ISSUED")
+    return "Hoá đơn chưa phát hành nên chưa gửi được cho khách.";
+  return einvoiceErrorMessage(error);
+}
+
+/**
+ * Câu tiếng Việt cho lỗi từng ô BE trả (`fieldErrors`, audit r2 M-2 / M-10): câu gốc của BE là tiếng Anh nên không hiện —
+ * chỉ lấy TÊN ô, câu do FE chọn. Ô lạ → không gắn (câu chung của form).
+ */
+const BE_FIELD_MESSAGES: Readonly<Record<string, string>> = {
+  invoiceNumber: "Nhập số hoá đơn (số nguyên dương, tối đa 8 chữ số).",
+  taxAuthorityCode: "Nhập mã của cơ quan thuế in trên hoá đơn.",
+  lookupCode: "Nhập mã tra cứu hoá đơn trên cổng.",
+  xml: "Chọn tệp XML của hoá đơn tải từ cổng.",
+  pdf: "Chọn bản PDF của hoá đơn tải từ cổng.",
+  note: "Nhập ghi chú (tối đa 500 ký tự).",
+  issueDate: "Ngày hoá đơn không được ở tương lai.",
+  returnRequestId: "Chọn yêu cầu trả hàng.",
+  templateCode: "Nhập mẫu số.",
+  symbol: "Nhập ký hiệu.",
+};
+
+/**
+ * Đặt `fieldErrors` của BE vào các ô của form bằng câu tiếng Việt (`BE_FIELD_MESSAGES`); trả các ô đã gắn. Dùng cho "Ghi
+ * kết quả từ cổng" (BE nêu từng ô còn thiếu) và "Ghi hoá đơn giảm".
+ */
+export function beFieldErrors<TField extends string>(
+  error: unknown,
+  fields: readonly TField[],
+): Partial<Record<TField, string>> {
+  const out: Partial<Record<TField, string>> = {};
+  for (const name of Object.keys(apiFieldErrors(error))) {
+    const field = fields.find((known) => known === name);
+    const message = BE_FIELD_MESSAGES[name];
+    if (field && message) out[field] = message;
+  }
+  return out;
+}
+
 /** Lỗi "dữ liệu đã đổi": tải lại hoá đơn trước khi cho thao tác tiếp. */
 export const EINVOICE_STALE_CODES = [
   "EINVOICE_NOT_DRAFT",
@@ -213,4 +277,7 @@ export const EINVOICE_STALE_CODES = [
   "OPTIMISTIC_LOCK",
   // F-16: BE vừa kiểm lại nháp và có cảnh báo mới — tải lại để thẻ thông tin hiện chúng
   "EINVOICE_DRAFT_OUT_OF_DATE",
+  // Audit r2 H-2 / M-10: cờ rút / ghi hoá đơn giảm trên màn đã cũ — tải lại để nút theo cờ mới
+  "EINVOICE_WITHDRAWAL_REFUSED",
+  "EINVOICE_EXTERNAL_REDUCTION_NOT_APPLICABLE",
 ] as const;

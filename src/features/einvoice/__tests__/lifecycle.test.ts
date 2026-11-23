@@ -9,7 +9,12 @@ import {
 
 import type { PermissionCode } from "@/lib/auth";
 
-import { allowedEInvoiceActions, EINVOICE_TRANSITIONS, isTerminalEInvoice } from "../lifecycle";
+import {
+  allowedEInvoiceActions,
+  canResendEmail,
+  EINVOICE_TRANSITIONS,
+  isTerminalEInvoice,
+} from "../lifecycle";
 import {
   einvoiceStatusLabel,
   invoiceReference,
@@ -18,6 +23,7 @@ import {
   needsAttention,
   rejectionText,
   warningMessages,
+  withdrawalBlockedText,
 } from "../selectors";
 
 const P = EINVOICE_PERMISSIONS;
@@ -121,28 +127,72 @@ describe("allowedEInvoiceActions — three roles (docs 21 BR-02)", () => {
     );
     expect(
       allowedEInvoiceActions(
-        gate({ status: "SUBMITTING", warnings: ["UNKNOWN_TO_PROVIDER"] }),
+        gate({ status: "SUBMITTING", warnings: ["UNKNOWN_TO_PROVIDER"], withdrawable: true }),
         ACCOUNTANT,
       ),
     ).toEqual(["reconcile", "resubmit", "withdraw", "recordPortalResult"]);
   });
 
-  it("HĐ-1: withdraw is offered on any submitting invoice with a provider, to approvers only — BE decides the timing", () => {
-    // Mốc 3 giờ / 1 ngày từ lần gửi cuối và câu trả lời của NCC do BE kiểm lúc rút (EINVOICE_WITHDRAWAL_REFUSED)
-    const submitting = gate({ status: "SUBMITTING" });
+  it("audit r2 H-2: withdraw only where the BE says it is taken now (`withdrawable`), to approvers only", () => {
+    const submitting = gate({ status: "SUBMITTING", withdrawable: true });
     expect(allowedEInvoiceActions(submitting, ACCOUNTANT)).toEqual([
       "reconcile",
       "withdraw",
       "recordPortalResult",
     ]);
     expect(allowedEInvoiceActions(submitting, SALES_MANAGER)).toEqual([]);
-    const noProvider = allowedEInvoiceActions(
-      gate({ status: "SUBMITTING", provider: null }),
+    // Demo HĐ-1 bước 2: hoá đơn SePay "đang chờ" (đã phát hành, chưa có số) — "Kiểm tra lại" có, "Rút" không (Q-5)
+    const held = allowedEInvoiceActions(
+      gate({ status: "SUBMITTING", withdrawable: false }),
       ACCOUNTANT,
     );
-    expect(noProvider).not.toContain("withdraw");
-    expect(noProvider).not.toContain("recordPortalResult");
-    expect(allowedEInvoiceActions(gate({ status: "DRAFT" }), ACCOUNTANT)).not.toContain("withdraw");
+    expect(held).toContain("reconcile");
+    expect(held).not.toContain("withdraw");
+    // BE cũ không gửi cờ → không đoán: không có nút
+    expect(allowedEInvoiceActions(gate({ status: "SUBMITTING" }), ACCOUNTANT)).not.toContain(
+      "withdraw",
+    );
+    expect(
+      allowedEInvoiceActions(gate({ status: "DRAFT", withdrawable: true }), ACCOUNTANT),
+    ).not.toContain("withdraw");
+  });
+
+  it("audit r2 H-2: says why withdrawing is not offered, and from when when it is only too recent", () => {
+    expect(
+      withdrawalBlockedText({ status: "SUBMITTING", withdrawalBlockedBy: "PROVIDER_HOLDS" }),
+    ).toContain("không bao giờ rút");
+    const tooRecent = withdrawalBlockedText({
+      status: "SUBMITTING",
+      withdrawalBlockedBy: "TOO_RECENT",
+      withdrawableFrom: "2026-11-12T05:00:00Z",
+    });
+    expect(tooRecent).toContain("Rút được từ");
+    expect(withdrawalBlockedText({ status: "SUBMITTING", withdrawalBlockedBy: "UNKNOWN" })).toBe(
+      "Hiện chưa rút được hoá đơn này.",
+    );
+    expect(withdrawalBlockedText({ status: "SUBMITTING", withdrawable: true })).toBeNull();
+    expect(
+      withdrawalBlockedText({ status: "ISSUED", withdrawalBlockedBy: "NOT_AT_PROVIDER" }),
+    ).toBeNull();
+  });
+
+  it("audit r2 einvoice M-1: resend e-mail on an issued or replaced invoice whose signature holds, with customer-legal-profiles:UPDATE", () => {
+    const LEGAL = has(["customer-legal-profiles:UPDATE"]);
+    expect(canResendEmail({ status: "ISSUED", warnings: [] }, LEGAL)).toBe(true);
+    expect(canResendEmail({ status: "REPLACED", warnings: [] }, LEGAL)).toBe(true);
+    expect(canResendEmail({ status: "SUBMITTING", warnings: [] }, LEGAL)).toBe(false);
+    expect(canResendEmail({ status: "ISSUED", warnings: ["SIGNATURE_INVALID"] }, LEGAL)).toBe(
+      false,
+    );
+    // Kế toán chỉ có quyền `einvoices` → không đủ: quyền gửi lại là của người ghi e-mail của khách
+    expect(canResendEmail({ status: "ISSUED", warnings: [] }, has(Object.values(P)))).toBe(false);
+    expect(
+      allowedEInvoiceActions(
+        gate({ status: "ISSUED", hasFiles: true }),
+        has([...Object.values(P), "customer-legal-profiles:UPDATE"]),
+        NO_CORRECTIONS,
+      ),
+    ).toContain("resendEmail");
   });
 
   it("BR-08: an adjusted invoice may be adjusted again but not replaced", () => {
@@ -215,10 +265,38 @@ describe("allowedEInvoiceActions — corrections the BE would refuse are hidden 
   });
 
   it("Q-9: a REPLACEMENT is not adjusted (an error → replace again); a reduction goes the portal way", () => {
-    const actions = issued({ type: "REPLACEMENT", correctionBasis: "ERROR" }, NO_CORRECTIONS);
+    const actions = issued(
+      { type: "REPLACEMENT", correctionBasis: "ERROR", externalReductionAllowed: true },
+      NO_CORRECTIONS,
+    );
     expect(actions).not.toContain("adjust");
     expect(actions).toContain("replace");
     expect(actions).toContain("recordExternalReduction");
+  });
+
+  it("audit r2 M-10: a replacement in force with nothing waiting to be reduced offers no portal reduction", () => {
+    // Demo: hoá đơn thay thế của lần giao đã giao, không có trả hàng — BE luôn 409 NOT_APPLICABLE
+    const actions = issued(
+      { type: "REPLACEMENT", correctionBasis: "ERROR", externalReductionAllowed: false },
+      NO_CORRECTIONS,
+    );
+    expect(actions).not.toContain("recordExternalReduction");
+    // BE cũ không gửi cờ → không có nút
+    expect(issued({ type: "REPLACEMENT" }, NO_CORRECTIONS)).not.toContain(
+      "recordExternalReduction",
+    );
+    // Cờ không phụ thuộc danh sách điều chỉnh đã tải
+    expect(issued({ externalReductionAllowed: true }, undefined)).toContain(
+      "recordExternalReduction",
+    );
+    // Chỉ người có quyền APPROVE
+    expect(
+      allowedEInvoiceActions(
+        gate({ status: "ISSUED", externalReductionAllowed: true }),
+        SALES_MANAGER,
+        NO_CORRECTIONS,
+      ),
+    ).not.toContain("recordExternalReduction");
   });
 
   it("BR-08: a live correction (even a system draft) blocks replace; a live replacement blocks adjust", () => {
@@ -264,15 +342,21 @@ describe("allowedEInvoiceActions — corrections the BE would refuse are hidden 
     ).not.toContain("reduceFailedDelivery");
   });
 
-  it("Q-8 (F-13): after an unsendable reduction is voided, the portal reduction is recorded on the original", () => {
+  it("Q-8 (F-13): after an unsendable reduction is voided, the portal reduction is recorded on the original — as the BE says", () => {
     const voided = row({ correctionBasis: "DELIVERY_FAILED", status: "VOIDED_DRAFT" });
-    const actions = issued({ reversedAt: "2026-11-09T08:00:00Z" }, [voided]);
+    const actions = issued({ reversedAt: "2026-11-09T08:00:00Z", externalReductionAllowed: true }, [
+      voided,
+    ]);
     expect(actions).toContain("recordExternalReduction");
     expect(actions).not.toContain("adjust");
+    // Đã ghi bản giảm: BE thôi gửi cờ
     const recorded = row({ correctionBasis: "DELIVERY_FAILED", status: "ISSUED" });
-    expect(issued({ reversedAt: "2026-11-09T08:00:00Z" }, [voided, recorded])).not.toContain(
-      "recordExternalReduction",
-    );
+    expect(
+      issued({ reversedAt: "2026-11-09T08:00:00Z", externalReductionAllowed: false }, [
+        voided,
+        recorded,
+      ]),
+    ).not.toContain("recordExternalReduction");
     expect(issued({}, NO_CORRECTIONS)).not.toContain("recordExternalReduction");
   });
 
@@ -294,7 +378,11 @@ describe("allowedEInvoiceActions — corrections the BE would refuse are hidden 
 
   it("Q-9: a REPLACEMENT whose delivery failed is never reduced through the API — only recorded from the portal", () => {
     const actions = issued(
-      { type: "REPLACEMENT", deliveryFailedAt: "2026-11-09T07:00:00Z" },
+      {
+        type: "REPLACEMENT",
+        deliveryFailedAt: "2026-11-09T07:00:00Z",
+        externalReductionAllowed: true,
+      },
       NO_CORRECTIONS,
     );
     expect(actions).not.toContain("reduceFailedDelivery");
@@ -407,14 +495,38 @@ describe("selectors", () => {
     const now = new Date("2026-11-12T03:00:00Z");
     expect(issueLooksLate({ type: "ORIGINAL", issueDate: "2026-11-11" }, now)).toBe(true);
     expect(issueLooksLate({ type: "ORIGINAL", issueDate: "2026-11-12" }, now)).toBe(false);
-    // Điều chỉnh: ngày lập của nháp không phải ngày giao — chỉ BE biết (deliveredOn)
+    expect(
+      issueLooksLate({ type: "ORIGINAL", issueDate: "2026-11-12", deliveredOn: "2026-11-10" }, now),
+    ).toBe(true);
+    expect(
+      issueLooksLate(
+        { type: "ORIGINAL", issueDate: "2026-11-11", provider: "SEPAY_EINVOICE" },
+        now,
+      ),
+    ).toBe(true);
+  });
+
+  it("audit r2 L12: the late reason is asked only where the BE asks it — originals, under a today-only provider", () => {
+    const now = new Date("2026-11-12T03:00:00Z");
+    // BE `lateIfIssuedOn`: điều chỉnh / thay thế không bao giờ bị đòi lý do lập trễ
     expect(issueLooksLate({ type: "ADJUSTMENT", issueDate: "2026-11-01" }, now)).toBe(false);
     expect(
       issueLooksLate(
         { type: "ADJUSTMENT", issueDate: "2026-11-12", deliveredOn: "2026-11-01" },
         now,
       ),
-    ).toBe(true);
+    ).toBe(false);
+    expect(
+      issueLooksLate(
+        { type: "REPLACEMENT", issueDate: "2026-11-12", deliveredOn: "2026-11-01" },
+        now,
+      ),
+    ).toBe(false);
+    // NCC ghi đúng ngày giao (sandbox, Viettel) → không đòi
+    for (const provider of ["SANDBOX", "VIETTEL_SINVOICE"])
+      expect(issueLooksLate({ type: "ORIGINAL", issueDate: "2026-11-01", provider }, now)).toBe(
+        false,
+      );
   });
 
   it("needs the accountant: drafts, rejected, overdue or unknown to the provider", () => {

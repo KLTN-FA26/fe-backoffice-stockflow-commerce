@@ -11,11 +11,12 @@ import {
   RETURN_OPEN_STATUSES,
   RETURN_RECEIPT_APPROVAL_PERMISSIONS,
   RETURN_RECEIPT_FALLBACK_STATUSES,
+  RMA_CUSTODY_PERMISSIONS,
   RMA_PERMISSIONS,
   RMA_RESOLUTION_PERMISSIONS,
 } from "@/constants/returns";
 
-import { hasGoodsBack, totalRefundableUnits } from "./selectors";
+import { claimEvidence, hasGoodsBack, totalRefundableUnits } from "./selectors";
 
 import type {
   ReturnApiStatus,
@@ -63,13 +64,28 @@ type Can = (code: PermissionCode) => boolean;
  * vị nào hoàn được; cờ vắng mặt = BE cũ (dùng quy tắc dự phòng).
  */
 export type ReturnGateInput = Pick<ReturnRequest, "status"> &
-  Partial<Pick<ReturnRequest, "receipt" | "lines" | "receiptOpenable" | "receiptDraftOpen">>;
+  Partial<
+    Pick<
+      ReturnRequest,
+      | "receipt"
+      | "lines"
+      | "receiptOpenable"
+      | "receiptDraftOpen"
+      | "evidence"
+      | "channel"
+      | "requestedBy"
+      | "resolution"
+    >
+  >;
 
 interface ReturnRule {
   from: readonly ReturnApiStatus[];
   needs: PermissionCode;
-  /** Điều kiện thêm trên dữ liệu của yêu cầu (ngoài trạng thái + quyền). */
-  when?: (ret: ReturnGateInput) => boolean;
+  /**
+   * Điều kiện thêm trên dữ liệu của yêu cầu (ngoài trạng thái + quyền). `userId` = người đang xem (null = chưa biết — không
+   * chặn theo bốn mắt; BE vẫn kiểm).
+   */
+  when?: (ret: ReturnGateInput, userId: string | null) => boolean;
 }
 
 const refundable = (ret: ReturnGateInput) => totalRefundableUnits(ret.lines ?? []);
@@ -99,15 +115,29 @@ export function receiptCreatableNow(ret: ReturnGateInput): boolean {
 }
 
 /** Mỗi hành động: trạng thái nguồn + quyền cần (+ điều kiện thêm). */
+/**
+ * Audit r2 L15 — BE `ReturnRequest.approve`: cần ít nhất một ảnh khiếu nại (`RETURN_EVIDENCE_REQUIRED`; `evidence` vắng = BE
+ * cũ, không chặn), và yêu cầu Sale mở thay khách không do chính người đó duyệt (`RETURN_SELF_APPROVAL`, bốn mắt).
+ */
+const approvable = (ret: ReturnGateInput, userId: string | null) =>
+  (ret.evidence == null || claimEvidence({ evidence: ret.evidence }).length > 0) &&
+  !(userId !== null && ret.channel === "BACK_OFFICE" && ret.requestedBy === userId);
+
+/** Audit r2 L15 — BE `requireSettlementApprover`: người đề xuất hoàn tiền không tự duyệt (`RETURN_SELF_APPROVAL`). */
+const notProposer = (ret: ReturnGateInput, userId: string | null) =>
+  !(userId !== null && ret.resolution?.proposedBy === userId);
+
 const RULES: Readonly<Record<ReturnAction, ReturnRule>> = {
-  approve: { from: ["REQUESTED"], needs: RMA_PERMISSIONS.approve },
+  approve: { from: ["REQUESTED"], needs: RMA_PERMISSIONS.approve, when: approvable },
   reject: { from: ["REQUESTED"], needs: RMA_PERMISSIONS.approve },
   // Rút trước khi hàng về (BE `POST /returns/{id}/cancellation`). WF-05 TH-3: đã có kiện về thì không rút được nữa
-  // (`RETURN_GOODS_PARTLY_RECEIVED`) — Sale chốt bằng "Đã nhận đủ hàng"
+  // (`RETURN_GOODS_PARTLY_RECEIVED`) — Sale chốt bằng "Đã nhận đủ hàng". Audit r2 M-3 (BE-23): kho đang đếm một kiện trên
+  // phiếu NHÁP thì cũng chưa rút được (`RETURN_RECEIPT_DRAFT_OPEN`) — rút lúc đó, đơn về DELIVERED trước khi phiếu mở lại yêu
+  // cầu
   cancel: {
     from: ["REQUESTED", "AWAITING_RETURN"],
     needs: RMA_PERMISSIONS.update,
-    when: (ret) => !hasGoodsBack(ret.receipt),
+    when: (ret) => !hasGoodsBack(ret.receipt) && noDraftCounting(ret),
   },
   // 17 BR-18: hàng của yêu cầu đã duyệt luôn về qua phiếu nhập hàng hoàn. WF-05 Q-11: BE quyết trạng thái nào mở được
   // (`receiptOpenable`); trạng thái lạ (UNKNOWN) không bao giờ mở
@@ -139,7 +169,7 @@ const RULES: Readonly<Record<ReturnAction, ReturnRule>> = {
   approveSettlement: {
     from: ["SETTLEMENT_PENDING"],
     needs: RMA_RESOLUTION_PERMISSIONS.approve,
-    when: noDraftCounting,
+    when: (ret, userId) => noDraftCounting(ret) && notProposer(ret, userId),
   },
   rejectSettlement: { from: ["SETTLEMENT_PENDING"], needs: RMA_RESOLUTION_PERMISSIONS.approve },
 };
@@ -156,13 +186,17 @@ const ORDER: readonly ReturnAction[] = [
   "cancel",
 ];
 
-export function allowedReturnActions(ret: ReturnGateInput, can: Can): ReturnAction[] {
+export function allowedReturnActions(
+  ret: ReturnGateInput,
+  can: Can,
+  userId: string | null = null,
+): ReturnAction[] {
   return ORDER.filter((action) => {
     const rule = RULES[action];
     return (
       (rule.from as readonly string[]).includes(ret.status) &&
       can(rule.needs) &&
-      (rule.when?.(ret) ?? true)
+      (rule.when?.(ret, userId) ?? true)
     );
   });
 }
@@ -179,11 +213,30 @@ export function canAddReturnEvidence(ret: Pick<ReturnRequest, "status">, can: Ca
 
 /**
  * Biên nhận giữ hộ (WF-05 Q-11; BE G4 `ReturnRequest.requireEvidenceAllowed` CUSTODY): ghi được ở MỌI trạng thái — hàng
- * không được nhận có thể về bất cứ lúc nào (kèm khiếu nại, vượt số duyệt, sau khi đã chốt tiền hay bị từ chối). Chỉ cần
- * `sales-rmas:CREATE` (Sale). UI-only — BE kiểm lại.
+ * không được nhận có thể về bất cứ lúc nào (kèm khiếu nại, vượt số duyệt, sau khi đã chốt tiền hay bị từ chối). Quyền riêng
+ * `sales-rma-custody:CREATE` (audit r2 returns M4: kho ở cửa nhận hàng và Sale; trước đây `sales-rmas:CREATE` — mọi vai kho
+ * bị 403). UI-only — BE kiểm lại.
  */
 export function canAddCustody(_ret: Pick<ReturnRequest, "status">, can: Can): boolean {
-  return can(RMA_PERMISSIONS.create);
+  return can(RMA_CUSTODY_PERMISSIONS.create);
+}
+
+/**
+ * Sale ghi lựa chọn của khách cho hàng giữ hộ (WF-05 Q-4, audit r2 returns H1; BE `ReturnRequest.recordCustodyChoice`): yêu
+ * cầu RESOLVED mà không đơn vị nào được hoàn (`outcome` REFUSED / NOTHING_TO_REFUND) — hàng về nguyên thùng vẫn là của khách.
+ * Quyền `sales-rmas:UPDATE`. BE còn từ chối khi không có thùng nào đang giữ hộ hoặc kho đã thực hiện — màn nói lý do theo
+ * mã lỗi. UI-only — BE kiểm lại.
+ */
+export function canRecordCustodyChoice(
+  ret: Pick<ReturnRequest, "status" | "outcome" | "lines">,
+  can: Can,
+): boolean {
+  return (
+    ret.status === "RESOLVED" &&
+    (ret.outcome === "REFUSED" || ret.outcome === "NOTHING_TO_REFUND") &&
+    ret.lines.every((line) => line.refundQuantity === 0) &&
+    can(RMA_PERMISSIONS.update)
+  );
 }
 
 /** BE `ReturnStatus.isOpen`. Trạng thái lạ (UNKNOWN) không coi là đang mở — BE vẫn kiểm lại mọi thao tác. */

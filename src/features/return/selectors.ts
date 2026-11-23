@@ -3,8 +3,16 @@
  * của phiếu nhập hàng hoàn. Không side effect.
  */
 
-import { RETURN_LABELS, RETURN_RECEIPT_LABELS } from "@/constants/labels-return";
+import {
+  RETURN_DISCREPANCY_KIND_LABELS,
+  RETURN_DISCREPANCY_KIND_UNKNOWN,
+  RETURN_HISTORY_REASON_LABELS,
+  RETURN_LABELS,
+  RETURN_RECEIPT_LABELS,
+  RETURN_REFUSAL_REASON_LABELS,
+} from "@/constants/labels-return";
 import { RETURN_EVIDENCE_STAGES, RETURN_LIMITS } from "@/constants/returns";
+import { formatMoney } from "@/lib/format";
 
 import type { ReturnReadStatus } from "@/constants/returns";
 import type { ExpectedCarton, ReturnLine, ReturnReceipt, ReturnRequest } from "./types";
@@ -246,4 +254,61 @@ export function returnOutcome(
   const refundedUnits = ret.lines.some((line) => line.refundQuantity > 0);
   if (refundedUnits || (ret.resolution?.settlementAmount ?? 0) > 0) return "REFUNDED";
   return ret.refusalReason != null ? "REFUSED" : "NOTHING_TO_REFUND";
+}
+
+/** Loại chênh lệch khi nhận hàng trả (BE `ReturnDiscrepancy.Kind`); mã lạ → "Chênh lệch" (audit r2 L14). */
+export const discrepancyKindLabel = (kind: string): string =>
+  RETURN_DISCREPANCY_KIND_LABELS[kind] ?? RETURN_DISCREPANCY_KIND_UNKNOWN;
+
+const H = RETURN_HISTORY_REASON_LABELS;
+const refusalText = (code: string | undefined) =>
+  code && code in RETURN_REFUSAL_REASON_LABELS
+    ? RETURN_REFUSAL_REASON_LABELS[code as keyof typeof RETURN_REFUSAL_REASON_LABELS]
+    : (code ?? "");
+/** "123456.00 VND" của BE (`plain(value) + currency`) → tiền đọc được; không phải số → nguyên văn. */
+const amountText = (value: string | undefined, currency: string | undefined) => {
+  const amount = Number(value);
+  return value !== undefined && Number.isFinite(amount)
+    ? formatMoney(amount, currency || "VND")
+    : [value, currency].filter(Boolean).join(" ");
+};
+
+/**
+ * Lý do một bước trong lịch sử yêu cầu (BE `ReturnRequest.transitionTo`: mã + số phiếu / số tiền / lý do không hoàn) →
+ * câu tiếng Việt (audit r2 L14). Lý do người dùng gõ (từ chối, rút thay khách) và mã lạ hiện nguyên văn.
+ */
+export function historyReasonText(reason: string): string {
+  const [head = "", ...rest] = reason.trim().split(/\s+/);
+  const code = head.replace(/:$/, "");
+  switch (code) {
+    case "APPROVED":
+    case "GOODS_DEADLINE_PASSED":
+    case "RETURN_DEADLINE_PASSED":
+    case "RESOLVED_NOTHING_USABLE":
+      return rest.length === 0 ? H[code] : reason;
+    case "RECEIVED":
+    case "RECEIVED_WITH_DISCREPANCY":
+    case "RECEIVED_AFTER_DEADLINE":
+    case "RECEIVED_AFTER_WITHDRAWAL":
+      return rest.length === 1 ? H[code](rest[0] ?? "") : reason;
+    case "GOODS_COMPLETE":
+    case "REFUND_SENT_BACK": {
+      const note = reason.slice(reason.indexOf(head) + head.length).trim();
+      return note ? `${H[code]}: ${note}` : H[code];
+    }
+    case "REFUND_PROPOSED": {
+      const [value, currency, ...flags] = rest;
+      const parts: string[] = [H.REFUND_PROPOSED(amountText(value, currency))];
+      if (flags.includes("NOTHING_PAID")) parts.push(H.NOTHING_PAID);
+      const refused = flags.indexOf("REFUSED");
+      if (refused >= 0) parts.push(H.REFUSED(refusalText(flags[refused + 1])));
+      return parts.join(", ");
+    }
+    case "RESOLVED_REFUND":
+      return H.RESOLVED_REFUND(amountText(rest[0], rest[1]));
+    case "RESOLVED_REFUSED":
+      return H.RESOLVED_REFUSED(refusalText(rest[0]));
+    default:
+      return reason;
+  }
 }

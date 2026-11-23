@@ -200,10 +200,12 @@ describe("EInvoiceDetail — system-drawn reduction of a failed delivery (WF-05 
 });
 
 describe("EInvoiceDetail — withdrawing an invoice stuck at the provider (BE HĐ-1)", () => {
+  // Audit r2 H-2: BE nói rút được ngay (`withdrawable`) — luật `WithdrawalRule` trên câu trả lời gần nhất của NCC
   const stuck = detailJson({
     status: "SUBMITTING",
     provider: "SEPAY_EINVOICE",
     submittedAt: "2026-11-01T00:00:00Z",
+    withdrawable: true,
   });
 
   it("asks what was checked with the provider and sends it with the version", async () => {
@@ -247,7 +249,37 @@ describe("EInvoiceDetail — withdrawing an invoice stuck at the provider (BE H�
     expect(await within(dialog).findByText(/Chưa rút được hoá đơn/)).toBeInTheDocument();
   });
 
-  it("offered right after sending too — BE decides; its withdrawableFrom reads “Rút được từ <giờ>” (BE-59)", async () => {
+  it("audit r2 H-2 / demo HĐ-1 step 2: an invoice the provider holds has “Kiểm tra lại” and no “Rút”, and says why", async () => {
+    mockEInvoiceApi(ACCOUNTANT_GRANTS, {
+      get: get({
+        ...stuck,
+        withdrawable: false,
+        withdrawalBlockedBy: "PROVIDER_HOLDS",
+      }),
+    });
+    renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
+    expect(await screen.findByRole("button", { name: "Kiểm tra lại" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Rút hoá đơn" })).not.toBeInTheDocument();
+    expect(screen.getByText(/Nhà cung cấp đang giữ hoá đơn/)).toBeInTheDocument();
+  });
+
+  it("audit r2 H-2: sent too recently — no “Rút”, and the screen says from when (BE withdrawableFrom)", async () => {
+    const from = "2026-11-23T08:30:00Z";
+    mockEInvoiceApi(ACCOUNTANT_GRANTS, {
+      get: get({
+        ...stuck,
+        withdrawable: false,
+        withdrawalBlockedBy: "TOO_RECENT",
+        withdrawableFrom: from,
+      }),
+    });
+    renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
+    expect(await screen.findByRole("button", { name: "Kiểm tra lại" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Rút hoá đơn" })).not.toBeInTheDocument();
+    expect(screen.getByText(new RegExp(`Rút được từ ${formatDateTime(from)}`))).toBeInTheDocument();
+  });
+
+  it("a refusal raced in after the screen loaded still reads “Rút được từ <giờ>” (BE-59)", async () => {
     const from = "2026-11-23T08:30:00Z";
     mockEInvoiceApi(ACCOUNTANT_GRANTS, {
       get: get({ ...stuck, submittedAt: new Date().toISOString() }),
@@ -302,6 +334,19 @@ describe("EInvoiceDetail — withdrawing an invoice stuck at the provider (BE H�
     await userEvent.type(within(dialog).getByLabelText(/Đã kiểm tra gì/), "Đã kiểm tra");
     await userEvent.click(within(dialog).getByRole("button", { name: "Rút hoá đơn" }));
     expect(await within(dialog).findByRole("alert")).toHaveTextContent(/không bao giờ rút/);
+  });
+
+  it("audit r2 H-2: when the BE already knows the result is unconfirmed, the support's answer is asked up front", async () => {
+    mockEInvoiceApi(ACCOUNTANT_GRANTS, {
+      get: get({ ...stuck, withdrawalEvidenceRequired: true }),
+    });
+    renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
+    await userEvent.click(await screen.findByRole("button", { name: "Rút hoá đơn" }));
+    const dialog = screen.getByRole("dialog");
+    await userEvent.type(within(dialog).getByLabelText(/Đã kiểm tra gì/), "SePay không trả lời");
+    expect(within(dialog).getByRole("button", { name: "Rút hoá đơn" })).toBeDisabled();
+    await userEvent.type(within(dialog).getByLabelText(/hỗ trợ nhà cung cấp/), "Phiếu SP-9");
+    expect(within(dialog).getByRole("button", { name: "Rút hoá đơn" })).toBeEnabled();
   });
 
   it("Q-5 (F-12): an unconfirmed result needs the provider support's written answer before it is withdrawn", async () => {
@@ -450,7 +495,13 @@ describe("EInvoiceDetail — corrections the BE refuses are not offered (BO-03, 
   it("Q-9: a replacement is never adjusted; replace again and the portal reduction stay", async () => {
     mockEInvoiceApi(ACCOUNTANT_GRANTS, {
       get: get(
-        issued({ type: "REPLACEMENT", originalEInvoiceId: "einv-0", correctionBasis: "ERROR" }),
+        issued({
+          type: "REPLACEMENT",
+          originalEInvoiceId: "einv-0",
+          correctionBasis: "ERROR",
+          externalReductionAllowed: true,
+          externalReductionBases: ["DELIVERY_FAILED"],
+        }),
       ),
     });
     renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);

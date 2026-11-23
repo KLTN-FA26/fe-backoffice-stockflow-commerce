@@ -73,6 +73,11 @@ export interface MockReturn {
   /** WF-05 Q-4: lý do không hoàn (đề xuất 0 đồng) + ghi chú công khai. */
   refusalReason?: string | null;
   refusalNote?: string | null;
+  /** WF-05 Q-4 (audit r2 returns H1): lựa chọn của khách cho hàng giữ hộ, Sale ghi. */
+  custodyChoice?: string | null;
+  custodyChoiceNote?: string | null;
+  custodyChoiceBy?: string | null;
+  custodyChoiceAt?: string | null;
   evidence: {
     id: string;
     stage: string;
@@ -259,8 +264,13 @@ const reviewed = (deadline = "2026-11-25T17:00:00Z") => ({
   returnDeadline: deadline,
 });
 
+/** Thùng giữ hộ khách đã thực hiện (WF-05 Q-4): LPN → lúc / biên bản / kết quả — route ở `mock-customer-custody.ts`. */
+const endedCustody = new Map<string, { endedAt: string; note: string; ownership: string }>();
+export const mockEndedCustody = () => endedCustody;
+
 export function resetReturnMockStore(): void {
   counter = 0;
+  endedCustody.clear();
   const o16: [string, string] = ["ORD-2026-0016", "CUS-0007"];
   const o4: [string, string] = ["ORD-2026-0004", "CUS-0002"];
   const o2: [string, string] = ["ORD-2026-0002", "CUS-0001"];

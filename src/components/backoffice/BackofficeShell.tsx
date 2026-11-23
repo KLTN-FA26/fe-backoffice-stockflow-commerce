@@ -124,6 +124,7 @@ import { usePermissionChecker } from "@/lib/auth/components/Can";
 import { useAppStore } from "@/lib/store/use-app-store";
 import { useBreadcrumbLabelStore } from "@/lib/store/use-breadcrumb-labels";
 
+import { notificationItemAction } from "@/components/backoffice/notification-item-action";
 import { Logo } from "@/components/shared/Logo";
 import { SearchBar } from "@/components/shared/SearchBar";
 import { Button } from "@/components/ui/button";
@@ -953,7 +954,7 @@ export function BackofficeShell({ children }: { children: React.ReactNode }) {
                 ))}
               </nav>
             </div>
-            <NotificationBell />
+            <NotificationBell itemAction={notificationItemAction} />
           </header>
 
           {/* Content */}

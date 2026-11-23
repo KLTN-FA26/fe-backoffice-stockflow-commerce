@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { EINVOICE_LIMITS, EINVOICE_ROUTES, EXTERNAL_REDUCTION_BASES } from "@/constants/einvoice";
+import { EINVOICE_LIMITS, EINVOICE_ROUTES } from "@/constants/einvoice";
 import { EXTERNAL_REDUCTION_BASIS_LABELS } from "@/constants/labels-einvoice";
 import { DatePicker } from "@/components/shared/DatePicker";
 import { FilePickerField } from "@/components/shared/FilePickerField";
@@ -20,17 +20,58 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
-import { einvoiceErrorMessage } from "../errors";
+import { beFieldErrors, einvoiceErrorMessage } from "../errors";
 import { externalReductionInputSchema } from "../input-schemas";
 import { useRecordExternalReduction } from "../mutations";
-
-import { ReturnRequestPicker } from "./ReturnRequestPicker";
 
 import type { ExternalReductionBasis } from "@/constants/einvoice";
 import type { EInvoice } from "../types";
 
+type ReductionField =
+  | "basis"
+  | "returnRequestId"
+  | "templateCode"
+  | "symbol"
+  | "invoiceNumber"
+  | "issueDate"
+  | "taxAuthorityCode"
+  | "lookupCode"
+  | "pdf"
+  | "xml"
+  | "note";
+const REDUCTION_FIELDS: readonly ReductionField[] = [
+  "basis",
+  "returnRequestId",
+  "templateCode",
+  "symbol",
+  "invoiceNumber",
+  "issueDate",
+  "taxAuthorityCode",
+  "lookupCode",
+  "pdf",
+  "xml",
+  "note",
+];
+type FieldErrors = Partial<Record<ReductionField, string>>;
+
+/** Lỗi zod → lỗi từng ô (ô đầu tiên của mỗi trường); lỗi không gắn ô nào trả về `rest`. */
+function zodFieldErrors(issues: readonly { path: readonly PropertyKey[]; message: string }[]) {
+  const fields: FieldErrors = {};
+  let rest: string | null = null;
+  for (const issue of issues) {
+    const field = REDUCTION_FIELDS.find((known) => known === issue.path[0]);
+    if (field) fields[field] ??= issue.message;
+    else rest ??= issue.message;
+  }
+  return { fields, rest };
+}
+
 function ExternalReductionForm({ invoice, onClose }: { invoice: EInvoice; onClose: () => void }) {
   const router = useRouter();
+  // Audit r2 M-10: chỉ những căn cứ BE nói nhận lúc này (`externalReductionBases`); trả hàng chỉ chọn trong các yêu cầu
+  // BE nêu (`externalReductionReturns` — hàng đã hoàn tiền đang chờ giảm trên hoá đơn thay thế này, gửi đúng `id`)
+  const bases = invoice.externalReductionBases;
+  const returns = invoice.externalReductionReturns;
   const [symbol, setSymbol] = useState("");
   const [templateCode, setTemplateCode] = useState(invoice.templateCode ?? "1");
   const [invoiceNumber, setInvoiceNumber] = useState("");
@@ -40,10 +81,12 @@ function ExternalReductionForm({ invoice, onClose }: { invoice: EInvoice; onClos
   const [pdf, setPdf] = useState<File | null>(null);
   const [xml, setXml] = useState<File | null>(null);
   const [note, setNote] = useState("");
-  // Mặc định như BE (`basis` vắng = DELIVERY_FAILED); hoá đơn thay thế có yêu cầu trả hàng gắn sẵn thì gợi ý RETURN
-  const [basis, setBasis] = useState<ExternalReductionBasis>("DELIVERY_FAILED");
-  const [returnRequestId, setReturnRequestId] = useState(invoice.returnRequestId ?? "");
+  const [basis, setBasis] = useState<ExternalReductionBasis>(bases[0] ?? "DELIVERY_FAILED");
+  const [returnRequestId, setReturnRequestId] = useState(
+    returns.length === 1 ? (returns[0]?.returnRequestId ?? "") : "",
+  );
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const record = useRecordExternalReduction();
 
   const submit = () => {
@@ -61,9 +104,12 @@ function ExternalReductionForm({ invoice, onClose }: { invoice: EInvoice; onClos
       returnRequestId: returnRequestId.trim() || undefined,
     });
     if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? "Dữ liệu chưa hợp lệ");
+      const { fields, rest } = zodFieldErrors(parsed.error.issues);
+      setFieldErrors(fields);
+      setError(rest);
       return;
     }
+    setFieldErrors({});
     setError(null);
     record.mutate(
       { id: invoice.id, ...parsed.data },
@@ -72,7 +118,11 @@ function ExternalReductionForm({ invoice, onClose }: { invoice: EInvoice; onClos
           onClose();
           router.push(EINVOICE_ROUTES.detail(reduction.id));
         },
-        onError: (failure) => setError(einvoiceErrorMessage(failure)),
+        onError: (failure) => {
+          // BE nêu ô sai (`fieldErrors`: invoiceNumber, issueDate…) → gắn vào ô, câu tiếng Việt của FE
+          setFieldErrors(beFieldErrors(failure, REDUCTION_FIELDS));
+          setError(einvoiceErrorMessage(failure));
+        },
       },
     );
   };
@@ -88,18 +138,16 @@ function ExternalReductionForm({ invoice, onClose }: { invoice: EInvoice; onClos
       onCancel={onClose}
       onSubmit={submit}
     >
-      <FormField id="reduction-basis" label="Căn cứ giảm" required>
+      <FormField id="reduction-basis" label="Căn cứ giảm" required error={fieldErrors.basis}>
         <Select
           value={basis}
-          onValueChange={(value) =>
-            setBasis(EXTERNAL_REDUCTION_BASES.find((entry) => entry === value) ?? "DELIVERY_FAILED")
-          }
+          onValueChange={(value) => setBasis(bases.find((entry) => entry === value) ?? basis)}
         >
           <SelectTrigger id="reduction-basis">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {EXTERNAL_REDUCTION_BASES.map((value) => (
+            {bases.map((value) => (
               <SelectItem key={value} value={value}>
                 {EXTERNAL_REDUCTION_BASIS_LABELS[value]}
               </SelectItem>
@@ -108,22 +156,47 @@ function ExternalReductionForm({ invoice, onClose }: { invoice: EInvoice; onClos
         </Select>
       </FormField>
       {basis === "RETURN" && (
-        <ReturnRequestPicker
+        <FormField
           id="reduction-return"
-          orderId={invoice.orderId}
-          value={returnRequestId}
-          onChange={setReturnRequestId}
-        />
+          label="Yêu cầu trả hàng"
+          required
+          error={fieldErrors.returnRequestId}
+          hint={
+            returns.length === 0
+              ? "Không có yêu cầu trả hàng nào chờ giảm trên hoá đơn này."
+              : undefined
+          }
+        >
+          <Select
+            value={returnRequestId}
+            onValueChange={setReturnRequestId}
+            disabled={returns.length === 0}
+          >
+            <SelectTrigger
+              id="reduction-return"
+              aria-invalid={fieldErrors.returnRequestId ? true : undefined}
+            >
+              <SelectValue placeholder="Chọn yêu cầu trả hàng" />
+            </SelectTrigger>
+            <SelectContent>
+              {returns.map((row) => (
+                <SelectItem key={row.returnRequestId} value={row.returnRequestId}>
+                  {row.rmaNumber ?? row.returnRequestId}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FormField>
       )}
       <div className="grid gap-3 md:grid-cols-3">
-        <FormField id="reduction-template" label="Mẫu số" required>
+        <FormField id="reduction-template" label="Mẫu số" required error={fieldErrors.templateCode}>
           <Input
             id="reduction-template"
             value={templateCode}
             onChange={(event) => setTemplateCode(event.target.value)}
           />
         </FormField>
-        <FormField id="reduction-symbol" label="Ký hiệu" required>
+        <FormField id="reduction-symbol" label="Ký hiệu" required error={fieldErrors.symbol}>
           <Input
             id="reduction-symbol"
             placeholder="C26TAA"
@@ -132,7 +205,12 @@ function ExternalReductionForm({ invoice, onClose }: { invoice: EInvoice; onClos
             onChange={(event) => setSymbol(event.target.value)}
           />
         </FormField>
-        <FormField id="reduction-number" label="Số hoá đơn" required>
+        <FormField
+          id="reduction-number"
+          label="Số hoá đơn"
+          required
+          error={fieldErrors.invoiceNumber}
+        >
           <Input
             id="reduction-number"
             inputMode="numeric"
@@ -142,10 +220,14 @@ function ExternalReductionForm({ invoice, onClose }: { invoice: EInvoice; onClos
         </FormField>
       </div>
       <div className="grid gap-3 md:grid-cols-3">
-        <FormField id="reduction-date" label="Ngày hoá đơn" required>
+        <FormField id="reduction-date" label="Ngày hoá đơn" required error={fieldErrors.issueDate}>
           <DatePicker id="reduction-date" value={issueDate} onChange={setIssueDate} />
         </FormField>
-        <FormField id="reduction-tax-code" label="Mã cơ quan thuế">
+        <FormField
+          id="reduction-tax-code"
+          label="Mã cơ quan thuế"
+          error={fieldErrors.taxAuthorityCode}
+        >
           <Input
             id="reduction-tax-code"
             maxLength={EINVOICE_LIMITS.providerCodeMax}
@@ -153,7 +235,7 @@ function ExternalReductionForm({ invoice, onClose }: { invoice: EInvoice; onClos
             onChange={(event) => setTaxAuthorityCode(event.target.value)}
           />
         </FormField>
-        <FormField id="reduction-lookup" label="Mã tra cứu">
+        <FormField id="reduction-lookup" label="Mã tra cứu" error={fieldErrors.lookupCode}>
           <Input
             id="reduction-lookup"
             maxLength={EINVOICE_LIMITS.providerCodeMax}
@@ -163,7 +245,7 @@ function ExternalReductionForm({ invoice, onClose }: { invoice: EInvoice; onClos
         </FormField>
       </div>
       <div className="grid gap-3 md:grid-cols-2">
-        <FormField id="reduction-pdf" label="Bản PDF" required>
+        <FormField id="reduction-pdf" label="Bản PDF" required error={fieldErrors.pdf}>
           <FilePickerField
             id="reduction-pdf"
             accept="application/pdf"
@@ -171,7 +253,7 @@ function ExternalReductionForm({ invoice, onClose }: { invoice: EInvoice; onClos
             onChange={setPdf}
           />
         </FormField>
-        <FormField id="reduction-xml" label="Tệp XML" required>
+        <FormField id="reduction-xml" label="Tệp XML" required error={fieldErrors.xml}>
           <FilePickerField
             id="reduction-xml"
             accept=".xml,application/xml,text/xml"
@@ -180,7 +262,7 @@ function ExternalReductionForm({ invoice, onClose }: { invoice: EInvoice; onClos
           />
         </FormField>
       </div>
-      <FormField id="reduction-note" label="Ghi chú" required>
+      <FormField id="reduction-note" label="Ghi chú" required error={fieldErrors.note}>
         <Textarea
           id="reduction-note"
           rows={2}

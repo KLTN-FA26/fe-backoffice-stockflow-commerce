@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
-import { portalResultErrorMessage } from "../errors";
+import { beFieldErrors, portalResultErrorMessage } from "../errors";
 import { portalResultInputSchema } from "../input-schemas";
 import { useRecordPortalResult } from "../mutations";
 
@@ -27,6 +27,14 @@ import type { PortalResultField } from "../input-schemas";
 import type { EInvoice } from "../types";
 
 type FieldErrors = Partial<Record<PortalResultField, string>>;
+const PORTAL_RESULT_FIELDS: readonly PortalResultField[] = [
+  "invoiceNumber",
+  "taxAuthorityCode",
+  "lookupCode",
+  "xml",
+  "pdf",
+  "note",
+];
 
 /** Lỗi zod → lỗi từng ô (ô đầu tiên của mỗi trường); lỗi không gắn ô nào trả về `rest`. */
 function fieldErrorsOf(issues: readonly { path: readonly PropertyKey[]; message: string }[]) {
@@ -77,7 +85,11 @@ function PortalResultForm({ invoice, onClose }: { invoice: EInvoice; onClose: ()
       { id: invoice.id, version: invoice.version, ...parsed.data },
       {
         onSuccess: onClose,
-        onError: (failure) => setError(portalResultErrorMessage(failure, outcome)),
+        onError: (failure) => {
+          // Audit r2 M-2: BE nêu từng ô còn thiếu (`fieldErrors`) — đánh dấu đúng ô, câu tiếng Việt của FE
+          setFieldErrors(beFieldErrors(failure, PORTAL_RESULT_FIELDS));
+          setError(portalResultErrorMessage(failure, outcome));
+        },
       },
     );
   };

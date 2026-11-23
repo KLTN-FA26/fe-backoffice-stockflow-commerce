@@ -39,8 +39,12 @@ async function renderWith(
   permissions: readonly PermissionCode[],
   hold: unknown,
   status: Parameters<typeof apiOrderAt>[0] = "DELIVERED",
-  // BE `OrderCompletionHolds.hold`: chỉ đơn đã có lần giao tới khách (ck_order_delivered_at: DELIVERED có deliveredAt)
-  patch: Record<string, unknown> = { deliveredAt: "2026-11-17T03:00:00Z" },
+  // BE `OrderCompletionHolds.hold`: chỉ đơn đã có lần giao tới khách (ck_order_delivered_at: DELIVERED có deliveredAt);
+  // nút theo cờ BE `settlementReadiness.completionHoldable` (audit r2 lifecycle M-4)
+  patch: Record<string, unknown> = {
+    deliveredAt: "2026-11-17T03:00:00Z",
+    settlementReadiness: { branch: "COMPLETION", completionHoldable: true },
+  },
 ) {
   mockOrderApiGet(permissions, {
     [DETAIL_PATH]: () => apiOrderAt(status, patch),
@@ -133,6 +137,7 @@ describe("OrderDetail — Giữ hoàn tất (WF-05 GH-2)", () => {
   it("audit r2 M-4: đơn Hoàn tiền một phần (lô A đã giao) → vẫn có nút Giữ hoàn tất", async () => {
     await renderWith(ORDER_PERMISSION_SETS.salesStaff, null, "PARTIALLY_REFUNDED", {
       deliveredAt: null,
+      settlementReadiness: { branch: "REFUND_CLOSE", completionHoldable: true },
       shipments: [
         { shipmentId: "s-a", status: "DELIVERED", outcomeAt: "2026-11-17T03:00:00Z" },
         { shipmentId: "s-b", status: "RETURNED", outcomeAt: "2026-11-17T05:00:00Z" },
@@ -148,8 +153,21 @@ describe("OrderDetail — Giữ hoàn tất (WF-05 GH-2)", () => {
     expect(screen.queryByRole("region", { name: "Giữ hoàn tất" })).not.toBeInTheDocument();
   });
 
+  it("audit r2 M-4: BE nói không giữ được (completionHoldable false) → không hiện thẻ, dù đơn đã giao", async () => {
+    await renderWith(ORDER_PERMISSION_SETS.salesStaff, null, "DELIVERED", {
+      deliveredAt: "2026-11-17T03:00:00Z",
+      settlementReadiness: { branch: "COMPLETION", completionHoldable: false },
+    });
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith(HOLD_PATH, expect.anything()));
+    expect(screen.queryByRole("region", { name: "Giữ hoàn tất" })).not.toBeInTheDocument();
+  });
+
   it("đơn đã hoàn tất, không có lần giữ mở → không hiện thẻ", async () => {
-    await renderWith(ORDER_PERMISSION_SETS.salesStaff, null, "COMPLETED");
+    await renderWith(ORDER_PERMISSION_SETS.salesStaff, null, "COMPLETED", {
+      deliveredAt: "2026-11-17T03:00:00Z",
+      completedAt: "2026-11-20T03:00:00Z",
+      settlementReadiness: { branch: "NONE", completionHoldable: false },
+    });
     await waitFor(() => expect(api.get).toHaveBeenCalledWith(HOLD_PATH, expect.anything()));
     expect(screen.queryByRole("region", { name: "Giữ hoàn tất" })).not.toBeInTheDocument();
   });

@@ -5,6 +5,7 @@ import {
   RETURN_API_STATUSES,
   RETURN_RECEIPT_API_STATUSES,
   RETURN_RECEIPT_APPROVAL_PERMISSIONS,
+  RMA_CUSTODY_PERMISSIONS,
   RMA_PERMISSIONS,
   RMA_RESOLUTION_PERMISSIONS,
 } from "@/constants/returns";
@@ -16,6 +17,7 @@ import {
   allowedReturnReceiptActions,
   canAddCustody,
   canAddReturnEvidence,
+  canRecordCustodyChoice,
   isReturnOpen,
   needsManagerConfirmation,
   returnReceiptConfirmBlock,
@@ -278,11 +280,77 @@ describe("WF-05 decisions on the return screen", () => {
     );
   });
 
-  it("Q-11: custody notes are taken in any status, by whoever opens returns", () => {
+  it("Q-11 / audit r2 M4: custody notes are taken in any status, by sales-rma-custody:CREATE (warehouse and Sales)", () => {
     for (const status of ["REQUESTED", "RESOLVED", "REJECTED", "UNKNOWN"] as const) {
-      expect(canAddCustody({ status }, as(SALES))).toBe(true);
+      expect(canAddCustody({ status }, as([...SALES, RMA_CUSTODY_PERMISSIONS.create]))).toBe(true);
+      expect(canAddCustody({ status }, as([...WAREHOUSE, RMA_CUSTODY_PERMISSIONS.create]))).toBe(
+        true,
+      );
+      // sales-rmas:CREATE (mở yêu cầu — khách cũng có) không còn đủ
+      expect(canAddCustody({ status }, as(SALES))).toBe(false);
       expect(canAddCustody({ status }, as(WAREHOUSE))).toBe(false);
     }
+  });
+
+  it("audit r2 M-3: “Rút thay khách” is hidden while a parcel is counted on a draft receipt", () => {
+    const awaiting = { status: "AWAITING_RETURN" as const, receipt: null };
+    expect(allowedReturnActions(awaiting, as(SALES))).toContain("cancel");
+    expect(allowedReturnActions({ ...awaiting, receiptDraftOpen: true }, as(SALES))).not.toContain(
+      "cancel",
+    );
+    expect(
+      allowedReturnActions({ status: "REQUESTED", receiptDraftOpen: true }, as(SALES)),
+    ).not.toContain("cancel");
+  });
+
+  it("audit r2 L15: approve needs a claim photo and someone other than the Sales person who opened it", () => {
+    const photo = { id: "e1", stage: "CLAIM", uploadedAt: "2026-11-20T00:00:00Z" };
+    const requested = {
+      status: "REQUESTED" as const,
+      channel: "BACK_OFFICE" as const,
+      requestedBy: "u-sale",
+      evidence: [photo],
+    };
+    expect(allowedReturnActions(requested, as(SALES), "u-other")).toContain("approve");
+    expect(allowedReturnActions(requested, as(SALES), "u-sale")).not.toContain("approve");
+    expect(
+      allowedReturnActions({ ...requested, evidence: [] }, as(SALES), "u-other"),
+    ).not.toContain("approve");
+    // Khách mở trên cổng: không có bốn mắt theo người mở
+    expect(
+      allowedReturnActions({ ...requested, channel: "PORTAL" }, as(SALES), "u-sale"),
+    ).toContain("approve");
+  });
+
+  it("audit r2 L15: the refund's proposer does not approve it", () => {
+    const pending = {
+      status: "SETTLEMENT_PENDING" as const,
+      resolution: { proposedBy: "u-acc" },
+    };
+    const approver = as([...ACCOUNTANT]);
+    expect(allowedReturnActions(pending, approver, "u-acc")).not.toContain("approveSettlement");
+    expect(allowedReturnActions(pending, approver, "u-other")).toContain("approveSettlement");
+  });
+
+  it("audit r2 returns H1: Sales record the customer's custody choice only on a return that refunded nothing", () => {
+    const resolved = {
+      status: "RESOLVED" as const,
+      outcome: "REFUSED" as const,
+      lines: [{ ...line(2, 2), refundQuantity: 0 }],
+    };
+    expect(canRecordCustodyChoice(resolved, as(SALES))).toBe(true);
+    expect(canRecordCustodyChoice({ ...resolved, outcome: "NOTHING_TO_REFUND" }, as(SALES))).toBe(
+      true,
+    );
+    expect(canRecordCustodyChoice({ ...resolved, outcome: "REFUNDED" }, as(SALES))).toBe(false);
+    expect(
+      canRecordCustodyChoice(
+        { ...resolved, lines: [{ ...line(2, 2), refundQuantity: 1 }] },
+        as(SALES),
+      ),
+    ).toBe(false);
+    expect(canRecordCustodyChoice({ ...resolved, status: "RECEIVED" }, as(SALES))).toBe(false);
+    expect(canRecordCustodyChoice(resolved, as(WAREHOUSE))).toBe(false);
   });
 });
 

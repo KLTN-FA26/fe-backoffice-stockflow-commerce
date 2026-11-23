@@ -12,6 +12,7 @@ import type {
   EInvoiceWarning,
   PortalResultOutcome,
   SignatureStatus,
+  WithdrawalBlock,
   WithdrawalProviderState,
 } from "./einvoice";
 
@@ -46,6 +47,20 @@ export const WITHDRAWAL_PROVIDER_STATE_LABELS = {
   REJECTED:
     "Nhà cung cấp cho biết hoá đơn đã bị từ chối — bấm “Kiểm tra lại” để hệ thống ghi kết quả đó.",
 } as const satisfies Record<WithdrawalProviderState, string>;
+
+/**
+ * Vì sao chưa có nút "Rút hoá đơn" (BE `withdrawalBlockedBy`, audit r2 H-2) — hiện thay cho nút trên hoá đơn đang gửi.
+ * TOO_RECENT ghép thêm "Rút được từ <giờ>" theo `withdrawableFrom`. NOT_AT_PROVIDER không hiện (hoá đơn không đang gửi).
+ */
+export const WITHDRAWAL_BLOCK_LABELS = {
+  NOT_AT_PROVIDER: "Hoá đơn không đang chờ nhà cung cấp nên không rút được.",
+  PROVIDER_HOLDS:
+    "Nhà cung cấp đang giữ hoá đơn (đã phát hành chưa có số, hoặc đang xử lý) — hoá đơn đang chờ, không bao giờ rút. Bấm “Kiểm tra lại” để nhận kết quả.",
+  TOO_RECENT: "Hoá đơn vừa gửi, nhà cung cấp có thể vẫn đang xử lý nên chưa rút được.",
+  PROVIDER_STATE_UNCLEAR:
+    "Nhà cung cấp chưa xác nhận là không có bản ghi của hoá đơn nên chưa rút được. Bấm “Kiểm tra lại”, hoặc ghi kết quả đã kiểm trên cổng nhà cung cấp.",
+  UNKNOWN: "Hiện chưa rút được hoá đơn này.",
+} as const satisfies Record<WithdrawalBlock | EInvoiceUnknown, string>;
 
 /** Điều BE thấy khi kiểm lại nháp lúc phát hành tay, không phải cảnh báo lưu trên hoá đơn (WF-05 F-16). */
 export const EINVOICE_ISSUE_CHECK_LABELS = {
@@ -149,6 +164,7 @@ export const EINVOICE_LABELS = {
     recordExternalReduction: "Ghi hoá đơn giảm làm trên cổng NCC",
     voidUnsendable: "Huỷ bản không gửi được",
     reduceFailedDelivery: "Lập bản giảm do giao thất bại",
+    resendEmail: "Gửi lại hoá đơn qua e-mail",
     downloadXml: "Tải XML",
     downloadPdf: "Tải PDF",
   },

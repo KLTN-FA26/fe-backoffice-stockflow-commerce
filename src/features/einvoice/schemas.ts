@@ -13,7 +13,9 @@ import {
   ERROR_NOTICE_STATUSES,
   ERROR_NOTICE_SUBJECTS,
   EINVOICE_UNKNOWN,
+  EXTERNAL_REDUCTION_BASES,
   SIGNATURE_STATUSES,
+  WITHDRAWAL_BLOCKS,
   WITHDRAWAL_PROVIDER_STATES,
 } from "@/constants/einvoice";
 import { bePageSchema } from "@/lib/api/page-schema";
@@ -142,6 +144,37 @@ export const einvoiceDtoSchema = z.object({
    * HỢP ĐỒNG GIẢ ĐỊNH: BE chưa có trường này trên DTO; vắng → nhãn "Lập trễ" không số ngày.
    */
   deliveredOn: z.string().nullish(),
+  /**
+   * Audit r2 H-2 (BE `WithdrawalRule`): "Rút" (`/withdrawal`) được nhận ngay lúc này, xét theo câu trả lời gần nhất của
+   * NCC — cùng luật BE áp khi rút. Vắng (BE cũ) = null → KHÔNG hiện nút (Q-5: hoá đơn NCC đang giữ không bao giờ rút; BE
+   * cũ không cho FE biết điều đó).
+   */
+  withdrawable: z.boolean().nullish(),
+  /** Vì sao chưa rút được (`WITHDRAWAL_BLOCKS`); null khi rút được. Mã lạ → UNKNOWN. */
+  withdrawalBlockedBy: tolerantEnum(WITHDRAWAL_BLOCKS).nullish(),
+  /** TOO_RECENT: rút được từ mốc này (instant). */
+  withdrawableFrom: z.string().nullish(),
+  /** NCC không xác nhận được kết quả → rút phải kèm `supportReference` (văn bản của hỗ trợ NCC, Q-5). */
+  withdrawalEvidenceRequired: z.boolean().nullish(),
+  /**
+   * Audit r2 M-10 (BE `EInvoicePortalReductions.applicability`): "Ghi hoá đơn giảm" (`/external-reductions`) được nhận.
+   * Vắng (BE cũ) = null → không hiện nút.
+   */
+  externalReductionAllowed: z.boolean().nullish(),
+  /** Căn cứ nhận được lúc này: DELIVERY_FAILED và / hoặc RETURN. Căn cứ lạ bị bỏ (không có ô nhập cho nó). */
+  externalReductionBases: z
+    .array(z.string())
+    .nullish()
+    .transform((bases) =>
+      (bases ?? []).filter((basis): basis is (typeof EXTERNAL_REDUCTION_BASES)[number] =>
+        (EXTERNAL_REDUCTION_BASES as readonly string[]).includes(basis),
+      ),
+    ),
+  /** Các yêu cầu trả hàng có hàng đã hoàn tiền đang chờ giảm trên hoá đơn thay thế này — nguồn duy nhất của ô chọn. */
+  externalReductionReturns: z
+    .array(z.object({ returnRequestId: z.string(), rmaNumber: z.string().nullish() }))
+    .nullish()
+    .transform((rows) => rows ?? []),
 });
 
 /** BE `EInvoiceListItemResponse`. */
@@ -234,6 +267,24 @@ export const withdrawalRefusalDetailsSchema = z.object({
 /** `details` của 409 `EINVOICE_DRAFT_OUT_OF_DATE` (WF-05 F-16, BE-25): cảnh báo mới chưa được xác nhận. */
 export const draftOutOfDateDetailsSchema = z.object({
   warnings: z.array(z.string()).catch([]),
+});
+
+/** BE `EInvoiceMailResendResponse` — gửi lại hoá đơn qua e-mail đã được nhận (audit r2 einvoice M-1). */
+export const mailResendDtoSchema = z.object({
+  einvoiceId: z.string(),
+  /** E-mail nhận hoá đơn của khách lúc này — thư đi tới đây. */
+  recipient: z.string().nullish(),
+  requestedAt: z.string().nullish(),
+});
+
+/** `details` của 409 `EINVOICE_BUYER_PROFILE_INCOMPLETE` khi gửi lại e-mail: `missing` = ["EMAIL"]. */
+export const profileMissingDetailsSchema = z.object({
+  missing: z.array(z.string()).catch([]),
+});
+
+/** `details` của 409 `EINVOICE_INVALID_TRANSITION` khi gửi lại e-mail: `reason` = SIGNATURE_INVALID. */
+export const transitionReasonDetailsSchema = z.object({
+  reason: z.string().nullish().catch(null),
 });
 
 export const fileLinkDtoSchema = z.object({ url: z.string(), expiresAt: z.string() });

@@ -202,7 +202,9 @@ export const ORDER_TRANSITIONS: Record<OrderReadStatus, readonly OrderStatus[]> 
   "Ready to Fulfill": ["Picking", "Packed", "Partially Fulfilled", "On Hold", "Cancelled"],
   Picking: ["Packed", "Partially Fulfilled", "On Hold", "Cancelled"],
   // Giao một phần (G4-Q3): phần còn lại đóng gói / bàn giao / đóng bởi nhân viên → đơn theo các lô giao.
-  // Partially Refunded: một lô hoàn về trong khi lô khác đã giao, phần đó được hoàn tiền (RTM-RETURNED-PARTIAL)
+  // Partially Refunded: một lô hoàn về trong khi lô khác đã giao, phần đó được hoàn tiền (RTM-RETURNED-PARTIAL).
+  // Closed: như thế nhưng không có gì phải hoàn — không hoàn đồng nào thì không phải "hoàn một phần" (WF-05 BE-45, audit r2
+  // M-6; BE `Order.closeWithoutRefund`, V20261223000100)
   "Partially Fulfilled": [
     "Packed",
     "Shipped",
@@ -211,6 +213,7 @@ export const ORDER_TRANSITIONS: Record<OrderReadStatus, readonly OrderStatus[]> 
     "Returned",
     "On Hold",
     "Partially Refunded",
+    "Closed",
   ],
   // Không còn Cancelled: kiện đã đóng xong thì đi luồng trả hàng (quyết định 17/10, BR-ORD-004)
   Packed: ["Shipped", "Partially Fulfilled", "On Hold"],
@@ -233,9 +236,30 @@ export const ORDER_TRANSITIONS: Record<OrderReadStatus, readonly OrderStatus[]> 
   Delivered: ["Completed", "Return Requested", "Delivery Failed"],
   // Từ chối → về Delivered (quyết định 21/10). F-8 / BE-40: rút yêu cầu trả về đúng trạng thái gốc (Completed /
   // Refunded / Partially Refunded của một khiếu nại thêm)
-  "Return Requested": ["Returned", "Delivered", "Completed", "Refunded", "Partially Refunded"],
-  // X-8: trả hàng kết thúc không hoàn đồng nào (Q-4) → Completed nếu đơn đã hoàn tất trước đó, ngược lại Delivered
-  Returned: ["Refunded", "Partially Refunded", "Delivered", "Completed"],
+  // Delivery Failed / Partially Fulfilled: khiếu nại kết thúc không hoàn gì trên đơn có lô giao thất bại / giao một phần —
+  // đơn về lại đường giao (BE-46, BE `OrderStatus.canTransitionTo`)
+  "Return Requested": [
+    "Returned",
+    "Delivered",
+    "Completed",
+    "Refunded",
+    "Partially Refunded",
+    "Delivery Failed",
+    "Partially Fulfilled",
+  ],
+  // X-8: trả hàng kết thúc không hoàn đồng nào (Q-4) → Completed nếu đơn đã hoàn tất trước đó, ngược lại Delivered.
+  // Delivery Failed / Partially Fulfilled: khiếu nại kết thúc không hoàn gì, đơn về đường giao (BE-46).
+  // Closed: hãng chở mọi lô về / thất lạc và không có gì phải hoàn (WF-05 BE-45, audit r2 M-6; BE `Order.closeWithoutRefund`)
+  // — không bao giờ với đơn RETURNED do khách trả hàng
+  Returned: [
+    "Refunded",
+    "Partially Refunded",
+    "Delivered",
+    "Completed",
+    "Delivery Failed",
+    "Partially Fulfilled",
+    "Closed",
+  ],
   // Khiếu nại thêm sau hoàn tiền / sau hoàn tất vẫn mở được cho tới khi đơn đóng hẳn (BE `canTransitionTo`).
   // Returned: một lần ghi hoàn tiền bị huỷ — đơn chờ hoàn lại (TT-4)
   Refunded: ["Closed", "Return Requested", "Returned"],

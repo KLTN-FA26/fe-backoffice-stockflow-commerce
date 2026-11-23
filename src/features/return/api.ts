@@ -8,7 +8,12 @@ import { uploadSlotSchema } from "@/lib/api/direct-upload";
 
 import { evidenceLinkDtoSchema, returnPageDtoSchema, returnRequestDtoSchema } from "./schemas";
 
-import type { ReturnApiStatus, ReturnReason, ReturnRefusalReason } from "@/constants/returns";
+import type {
+  ReturnApiStatus,
+  ReturnCustodyChoice,
+  ReturnReason,
+  ReturnRefusalReason,
+} from "@/constants/returns";
 import type { UploadDeclaration, UploadSlot } from "@/lib/api/direct-upload";
 import type { ListQueryParams, PaginatedResponse } from "@/lib/api/query-factory";
 import type { ReturnRequest, ReturnRow } from "./types";
@@ -206,6 +211,24 @@ export const addCustody = (input: {
     ...optional("sku", input.sku),
     ...optional("lpn", input.lpn),
     quantity: input.quantity,
+    ...optional("note", input.note),
+  });
+
+/**
+ * Sale ghi lựa chọn của khách cho hàng giữ hộ (WF-05 Q-4, audit r2 returns H1; BE `POST /returns/{id}/custody-choice`,
+ * `sales-rmas:UPDATE`): chỉ yêu cầu RESOLVED không hoàn đơn vị nào và có thùng đang giữ hộ. Huỷ hộ bắt buộc ghi chú (biên
+ * bản khách đồng ý). Ghi lại thay lựa chọn cũ khi kho chưa thực hiện. 409 RETURN_INVALID_TRANSITION /
+ * INVALID_STOCK_PACKAGE_TRANSITION (đã thực hiện) / OPTIMISTIC_LOCK; 400 VALIDATION_FAILED.
+ */
+export const recordCustodyChoice = (input: {
+  id: string;
+  version: number;
+  choice: ReturnCustodyChoice;
+  note?: string;
+}) =>
+  post(`${RETURNS}/${seg(input.id)}/custody-choice`, {
+    choice: input.choice,
+    version: input.version,
     ...optional("note", input.note),
   });
 

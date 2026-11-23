@@ -17,10 +17,16 @@ import { useNotificationInbox, useNotificationUnreadCount } from "../queries";
 import { NotificationItems } from "./NotificationItems";
 import { NotificationPager } from "./NotificationPager";
 
+import type { ReactNode } from "react";
 import type { Notification } from "../types";
 
 const L = NOTIFICATION_LABELS;
-export function NotificationBell() {
+/** `itemAction`: thao tác gắn trên từng thông báo, do màn bọc cung cấp (xem `NotificationItems`). */
+export function NotificationBell({
+  itemAction,
+}: {
+  itemAction?: (item: Notification) => ReactNode;
+} = {}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [unreadOnly, setUnreadOnly] = useState(false);
@@ -127,7 +133,11 @@ export function NotificationBell() {
               {unreadOnly ? L.emptyUnread : L.empty}
             </p>
           ) : (
-            <NotificationItems items={inbox.data?.items ?? []} onSelect={openNotification} />
+            <NotificationItems
+              items={inbox.data?.items ?? []}
+              onSelect={openNotification}
+              itemAction={itemAction}
+            />
           )}
         </div>
         {inbox.data && <NotificationPager page={page} data={inbox.data} onPageChange={setPage} />}

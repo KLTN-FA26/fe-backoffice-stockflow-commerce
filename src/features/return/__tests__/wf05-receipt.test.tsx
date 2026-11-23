@@ -351,6 +351,27 @@ describe("confirming a receipt with an opened carton or loose units (WF-05 Q-18)
     expect(await confirmButton()).toBeEnabled();
   });
 
+  it("audit r2 L16: a DRAFT opened carton the BE already marks stockEntered=false still reads 'Sẽ không nhập tồn'", async () => {
+    mockReturnApi(WAREHOUSE_GRANTS, {
+      get: { [BASE]: () => receiptJson({ cartons: [{ ...openedCarton, stockEntered: false }] }) },
+    });
+    renderReturnScreen(<ReturnReceiptDetail id="gr-1" />);
+    expect(await screen.findByText("Sẽ không nhập tồn (thùng đã mở)")).toBeInTheDocument();
+    expect(screen.queryByText("Không nhập tồn — huỷ")).toBeNull();
+  });
+
+  it("audit r2 returns H1: a confirmed sealed carton of a return that refunded nothing reads as held for the customer", async () => {
+    const sealed = { ...openedCarton, countedQuantity: 10, opened: false, stockEntered: true };
+    mockReturnApi(WAREHOUSE_GRANTS, {
+      get: {
+        [BASE]: () =>
+          receiptJson({ status: "CLOSED", cartons: [{ ...sealed, heldForCustomer: true }] }),
+      },
+    });
+    renderReturnScreen(<ReturnReceiptDetail id="gr-1" />);
+    expect(await screen.findByText("Giữ hộ khách — không nhập kho")).toBeInTheDocument();
+  });
+
   it("a confirmed opened carton reads 'Không nhập tồn — huỷ'", async () => {
     mockReturnApi(WAREHOUSE_GRANTS, {
       get: {

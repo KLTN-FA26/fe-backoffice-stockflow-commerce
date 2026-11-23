@@ -19,11 +19,13 @@ import {
   markGoodsComplete,
   openReturnForCustomer,
   proposeRefund,
+  recordCustodyChoice,
   rejectReturn,
   rejectSettlement,
 } from "./api";
+import { endCustomerCustody } from "./custody-api";
 import { RETURN_STALE_CODES } from "./errors";
-import { returnKeys, returnReceiptKeys } from "./queries";
+import { customerCustodyKeys, returnKeys, returnReceiptKeys } from "./queries";
 import {
   cancelReturnReceipt,
   confirmReturnReceipt,
@@ -98,6 +100,18 @@ export const useCloseWithoutRefund = returnMutation(
 /** Ảnh bằng chứng chỉ thuộc yêu cầu. */
 export const useAttachReturnEvidence = returnMutation(attachReturnEvidence, S.evidenceAdded, [
   returnKeys.all,
+]);
+/**
+ * Lựa chọn của khách cho hàng giữ hộ (WF-05 Q-4): ghi trên yêu cầu và chuyển xuống các thùng đang giữ hộ — làm mới cả
+ * danh sách thùng giữ hộ.
+ */
+export const useRecordCustodyChoice = returnMutation(recordCustodyChoice, S.custodyChoiceRecorded, [
+  returnKeys.all,
+  customerCustodyKeys.all,
+]);
+/** Quản lý kho đã giao trả / huỷ hộ một thùng giữ hộ — thùng ngoài sổ, không đổi tồn. */
+export const useEndCustomerCustody = returnMutation(endCustomerCustody, S.custodyEnded, [
+  customerCustodyKeys.all,
 ]);
 /** Biên nhận giữ hộ (WF-05 Q-11): chỉ ghi trên yêu cầu — không tồn kho, không tiền. */
 export const useAddCustody = returnMutation(addCustody, S.custodyAdded, [returnKeys.all]);

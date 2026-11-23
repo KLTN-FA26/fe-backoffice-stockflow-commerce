@@ -10,6 +10,7 @@ import {
   einvoicePageDtoSchema,
   errorNoticeDtoSchema,
   fileLinkDtoSchema,
+  mailResendDtoSchema,
   orderReturnChoicePageDtoSchema,
   providerCallDtoSchema,
   registerEntryDtoSchema,
@@ -35,6 +36,7 @@ import type {
   ErrorNotice,
   ErrorNoticeInput,
   FileLink,
+  MailResend,
   OrderReturnChoice,
   ProviderCall,
   RegisterEntry,
@@ -279,6 +281,17 @@ export async function recordExternalReduction(input: ExternalReductionInput): Pr
     form.append("returnRequestId", input.returnRequestId);
   const { data } = await api.post<unknown>(`${one(input.id)}/external-reductions`, form, MULTIPART);
   return parse(data);
+}
+
+/**
+ * Gửi lại hoá đơn đã phát hành qua e-mail, kèm PDF và XML, tới e-mail nhận hoá đơn HIỆN TẠI của khách (audit r2 einvoice
+ * M-1; HĐ-8: hoá đơn phát hành lúc khách chưa có e-mail, Sale ghi e-mail rồi gửi lại). Không body. Quyền
+ * `customer-legal-profiles:UPDATE`. 409 `EINVOICE_NOT_ISSUED`; 409 `EINVOICE_INVALID_TRANSITION` (`details.reason`
+ * SIGNATURE_INVALID); 409 `EINVOICE_BUYER_PROFILE_INCOMPLETE` (`details.missing` ["EMAIL"]) khi khách chưa có e-mail.
+ */
+export async function resendEInvoiceEmail(input: { id: string }): Promise<MailResend> {
+  const { data } = await api.post<unknown>(`${one(input.id)}/email`);
+  return mailResendDtoSchema.parse(data);
 }
 
 /**

@@ -102,6 +102,33 @@ export function returnErrorMessage(error: unknown): string {
   return apiErrorMessage(error, RETURN_ERROR_MESSAGES);
 }
 
+/**
+ * "Rút thay khách" (audit r2 M-3): `RETURN_RECEIPT_DRAFT_OPEN` ở đây nghĩa là chưa rút được vì kho đang đếm — câu chung của
+ * mã đó nói về chốt hàng / hoàn tiền nên không hợp.
+ */
+export function cancelReturnErrorMessage(error: unknown): string {
+  if (error instanceof ApiError && error.code === "RETURN_RECEIPT_DRAFT_OPEN")
+    return "Kho đang đếm một kiện của yêu cầu này trên phiếu nhập hàng hoàn nháp nên chưa rút được. Chờ kho xác nhận (hàng đã về — không rút nữa) hoặc huỷ phiếu đó rồi rút lại. Dữ liệu đã được tải lại.";
+  return returnErrorMessage(error);
+}
+
+/** Ghi lựa chọn của khách cho hàng giữ hộ / Quản lý kho ghi đã thực hiện (WF-05 Q-4, audit r2 returns H1). */
+export function custodyChoiceErrorMessage(error: unknown): string {
+  if (error instanceof ApiError) {
+    if (error.code === "RETURN_INVALID_TRANSITION")
+      return "Yêu cầu này không có hàng giữ hộ để ghi lựa chọn (đã hoàn tiền một phần, chưa kết thúc, hoặc không có thùng nguyên nào về). Dữ liệu đã được tải lại.";
+    if (error.code === "INVALID_STOCK_PACKAGE_TRANSITION")
+      return "Kho đã thực hiện lựa chọn trước của khách cho thùng này — không đổi được nữa. Dữ liệu đã được tải lại.";
+    if (error.code === "STOCK_PACKAGE_DECISION_PENDING")
+      return "Sale chưa ghi lựa chọn của khách cho thùng này — kho giữ nguyên, chưa thực hiện được.";
+    if (error.code === "STOCK_PACKAGE_NOT_FOUND")
+      return "Thùng này không còn trong danh sách giữ hộ khách. Dữ liệu đã được tải lại.";
+    if (error.code === "VALIDATION_FAILED")
+      return "Dữ liệu chưa hợp lệ: huỷ hộ phải nêu biên bản khách đồng ý; ghi chú tối đa 500 ký tự.";
+  }
+  return returnErrorMessage(error);
+}
+
 /** Lỗi của bước PUT lên kho lưu trữ (tải ảnh bằng chứng). */
 const STORAGE_ERROR_MESSAGES: Readonly<Record<DirectUploadError["kind"], string>> = {
   refused: "Kho lưu trữ từ chối ảnh (đường tải đã hết hạn hoặc tệp đã đổi). Chọn lại ảnh.",
@@ -125,6 +152,7 @@ export const RETURN_STALE_CODES = [
   "RETURN_SHIPMENT_NOT_DELIVERED",
   "RETURN_GOODS_PARTLY_RECEIVED",
   "RETURN_RECEIPT_DRAFT_OPEN",
+  "STOCK_PACKAGE_NOT_FOUND",
 ] as const;
 
 /**

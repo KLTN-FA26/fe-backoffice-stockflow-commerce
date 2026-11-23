@@ -1,6 +1,7 @@
 /** Selector thuần của hoá đơn điện tử (docs 21). */
 
 import {
+  DATES_ONLY_TODAY_PROVIDERS,
   DEPLOYMENT_ACCOUNT_PROVIDERS,
   EINVOICE_LATE_WARNING,
   EINVOICE_PROVIDER_CODES,
@@ -10,9 +11,10 @@ import {
 import {
   EINVOICE_ISSUE_CHECK_LABELS,
   EINVOICE_LABELS,
+  WITHDRAWAL_BLOCK_LABELS,
   lateIssueLabel,
 } from "@/constants/labels-einvoice";
-import { toLocalIsoDate } from "@/lib/format/date";
+import { formatDateTime, toLocalIsoDate } from "@/lib/format/date";
 import { statusLabelVi } from "@/lib/status-map";
 
 import type { EInvoiceStatusRead } from "@/constants/einvoice";
@@ -71,17 +73,41 @@ export function lateIssueBadge(
 }
 
 /**
- * Gợi ý trước khi phát hành tay: nháp này sẽ thành "lập trễ" (ngày giao trước hôm nay, giờ Việt Nam) → hộp xác nhận
- * đòi lý do ngay (WF-05 Q-10, §1.5 bước 6). Chỉ là gợi ý: BE quyết (400 EINVOICE_LATE_ISSUE_REASON_REQUIRED). Với hoá
- * đơn gốc chưa gửi, ngày lập của nháp = ngày giao; hoá đơn khác chỉ dùng `deliveredOn` của BE.
+ * Gợi ý trước khi phát hành tay: nháp này sẽ thành "lập trễ" → hộp xác nhận đòi lý do ngay (WF-05 Q-10, §1.5 bước 6).
+ * Đúng điều BE đòi (`EInvoice.lateIfIssuedOn`, 400 EINVOICE_LATE_ISSUE_REASON_REQUIRED; audit r2 contract L12):
+ * - chỉ hoá đơn GỐC — điều chỉnh / thay thế không bao giờ bị đòi lý do;
+ * - chỉ dưới NCC chỉ nhận ngày lập hôm nay (`DATES_ONLY_TODAY_PROVIDERS`, SePay) — NCC khác ghi đúng ngày giao. NCC của
+ *   nháp chưa biết (BE chỉ ghi NCC lúc gửi) → vẫn hỏi lý do: SePay là NCC triển khai, và lý do thừa không hại;
+ * - ngày giao (`deliveredOn`, nháp gốc chưa gửi: ngày lập) trước hôm nay, giờ Việt Nam.
+ * Chỉ là gợi ý: BE quyết; BE đòi mà FE không đoán ra thì ô lý do hiện sau 400.
  */
 export function issueLooksLate(
-  invoice: Pick<EInvoice, "type" | "issueDate"> & Partial<Pick<EInvoice, "deliveredOn">>,
+  invoice: Pick<EInvoice, "type" | "issueDate"> &
+    Partial<Pick<EInvoice, "deliveredOn" | "provider">>,
   now: Date = new Date(),
 ): boolean {
-  const delivered = invoice.deliveredOn ?? (invoice.type === "ORIGINAL" ? invoice.issueDate : null);
+  if (invoice.type !== "ORIGINAL") return false;
+  if (invoice.provider && !DATES_ONLY_TODAY_PROVIDERS.includes(invoice.provider)) return false;
+  const delivered = invoice.deliveredOn ?? invoice.issueDate;
   if (!delivered) return false;
   return delivered.slice(0, 10) < toLocalIsoDate(now.toISOString());
+}
+
+/**
+ * Vì sao hoá đơn đang gửi chưa có nút "Rút" (audit r2 H-2, BE `withdrawalBlockedBy`) — câu hiện thay cho nút; null khi rút
+ * được, khi hoá đơn không đang gửi, hoặc BE cũ không gửi lý do. TOO_RECENT kèm "Rút được từ <giờ>" (`withdrawableFrom`).
+ */
+export function withdrawalBlockedText(
+  invoice: Pick<EInvoice, "status"> &
+    Partial<Pick<EInvoice, "withdrawable" | "withdrawalBlockedBy" | "withdrawableFrom">>,
+): string | null {
+  if (invoice.status !== "SUBMITTING" || invoice.withdrawable === true) return null;
+  const blocked = invoice.withdrawalBlockedBy;
+  if (!blocked || blocked === "NOT_AT_PROVIDER") return null;
+  const base = WITHDRAWAL_BLOCK_LABELS[blocked];
+  return blocked === "TOO_RECENT" && invoice.withdrawableFrom
+    ? `${base} Rút được từ ${formatDateTime(invoice.withdrawableFrom)}.`
+    : base;
 }
 
 /** Câu tiếng Việt cho từng cảnh báo BE; cảnh báo lạ → câu chung (BE có thể thêm loại mới). */

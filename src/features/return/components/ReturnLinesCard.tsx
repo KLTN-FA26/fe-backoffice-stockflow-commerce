@@ -3,6 +3,8 @@
 import { RETURN_LABELS } from "@/constants/labels-return";
 import { Card } from "@/components/shared/Card";
 
+import { discrepancyKindLabel } from "../selectors";
+
 import { EMPTY, MONO, Money } from "./primitives";
 
 import type { ReturnRequest } from "../types";
@@ -72,7 +74,7 @@ export function ReturnLinesCard({ ret }: { ret: ReturnRequest }) {
         <p className="text-ink-secondary text-xs">
           {D.discrepancies}:{" "}
           {(ret.discrepancies ?? [])
-            .map((d) => `${d.kind} ${d.sku ?? ""} × ${d.quantity}`)
+            .map((d) => `${discrepancyKindLabel(d.kind)} ${d.sku ?? ""} × ${d.quantity}`)
             .join(" · ")}
         </p>
       )}

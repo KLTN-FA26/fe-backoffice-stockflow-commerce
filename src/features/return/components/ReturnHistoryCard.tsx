@@ -4,6 +4,8 @@ import { RETURN_LABELS } from "@/constants/labels-return";
 import { RETURN_API_STATUSES } from "@/constants/returns";
 import { Card } from "@/components/shared/Card";
 
+import { historyReasonText } from "../selectors";
+
 import { ReturnStatusDot, When } from "./primitives";
 
 import type { ReturnApiStatus } from "@/constants/returns";
@@ -29,7 +31,9 @@ export function ReturnHistoryCard({ history }: { history: readonly ReturnHistory
             >
               <When iso={entry.occurredAt} />
               {isStatus(entry.to) ? <ReturnStatusDot status={entry.to} /> : <span>{entry.to}</span>}
-              {entry.reason && <span className="text-ink-secondary">{entry.reason}</span>}
+              {entry.reason && (
+                <span className="text-ink-secondary">{historyReasonText(entry.reason)}</span>
+              )}
             </li>
           ))}
         </ol>

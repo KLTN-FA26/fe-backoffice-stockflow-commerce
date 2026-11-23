@@ -66,6 +66,7 @@ const readiness = (over: Partial<SettlementReadiness> = {}): SettlementReadiness
   closesAt: null,
   blockers: [],
   returnAdjustmentUnissued: false,
+  completionHoldable: false,
   ...over,
 });
 const routes = (outstanding: number, invoices: unknown[]) => ({
@@ -269,5 +270,83 @@ describe("OrderSettlementPanel (WF-05 BO-10)", () => {
           .closest("li"),
       ).toHaveAttribute("data-met", "true"),
     );
+  });
+
+  describe("audit r2 FE pass 2", () => {
+    const refundJson = (over: Record<string, unknown> = {}) => ({
+      orderId: "ord-13",
+      orderNumber: "SO-13",
+      currency: "VND",
+      refundStatus: "NONE",
+      refundable: 0,
+      refunded: 0,
+      remaining: 0,
+      feeOwed: 0,
+      settlements: [],
+      ...over,
+    });
+    const settlement = (shippingFeeWaived: number) => ({
+      settlementId: "stl-1",
+      kind: "SHIPMENT_RETURNED",
+      collected: 0,
+      closed: 0,
+      reduced: 0,
+      surplus: 0,
+      fee: 0,
+      feeCovered: 0,
+      refundable: 0,
+      feeOwed: 0,
+      settledAt: "2026-11-20T00:00:00Z",
+      shippingFeeWaived,
+    });
+    const withRefund = (refund: unknown) => ({
+      get: { ...routes(0, []).get, "/refunds/orders/ord-13": () => refund },
+    });
+
+    it("money M-4 (BO): nothing refundable but a waived shipping fee → the Hoàn tiền row still shows, with the fee", async () => {
+      mockEInvoiceApi(ALL, withRefund(refundJson({ settlements: [settlement(300_000)] })));
+      renderEInvoiceScreen(<OrderSettlementPanel {...props} status="Returned" />);
+      const row = await screen.findByRole("region", { name: "Hoàn tiền" });
+      expect(row).toHaveTextContent("Không có tiền phải hoàn");
+      expect(row).toHaveTextContent(/phí vận chuyển được miễn 300\.000/);
+      expect(row).not.toHaveTextContent("Đã hoàn");
+    });
+
+    it("nothing refundable, waived or owed → no Hoàn tiền row", async () => {
+      mockEInvoiceApi(ALL, withRefund(refundJson()));
+      renderEInvoiceScreen(<OrderSettlementPanel {...props} />);
+      expect(await screen.findByRole("region", { name: "Hoá đơn điện tử" })).toBeInTheDocument();
+      await screen.findByText(/Chưa có hoá đơn/);
+      expect(screen.queryByRole("region", { name: "Hoàn tiền" })).not.toBeInTheDocument();
+    });
+
+    it("M-6: a PARTIALLY_REFUNDED order with 0 refunded says nothing was refunded", async () => {
+      mockEInvoiceApi(ALL, withRefund(refundJson({ feeOwed: 50_000 })));
+      renderEInvoiceScreen(<OrderSettlementPanel {...props} status="Partially Refunded" />);
+      expect(await screen.findByText(/Đơn chưa hoàn đồng nào cho khách/)).toBeInTheDocument();
+      expect(screen.getByRole("region", { name: "Hoàn tiền" })).toHaveTextContent(
+        /phí khách còn thiếu 50\.000/,
+      );
+    });
+
+    it("BE-45: REFUND_CLOSE of an order the carrier ended is not called “after a refund”; the fee rest includes the plate fee", async () => {
+      mockEInvoiceApi(ALL, routes(0, []));
+      renderEInvoiceScreen(
+        <OrderSettlementPanel
+          {...props}
+          status="Returned"
+          deliveredAt={null}
+          settlementReadiness={readiness({
+            branch: "REFUND_CLOSE",
+            blockers: [{ code: "SHIPPING_FEE_UNINVOICED", known: true }],
+            shippingFeeUninvoiced: true,
+          })}
+        />,
+      );
+      const checks = await screen.findByRole("region", { name: "Điều kiện hoàn tất" });
+      expect(within(checks).getByText(/hàng không giao được/)).toBeInTheDocument();
+      expect(within(checks).queryByText(/sau hoàn tiền/)).not.toBeInTheDocument();
+      expect(within(checks).getByText(/vận chuyển, phí khuôn/)).toBeInTheDocument();
+    });
   });
 });

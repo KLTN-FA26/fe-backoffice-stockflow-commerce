@@ -40,6 +40,24 @@ const dayOf = (iso: string) => (Number.isNaN(Date.parse(iso)) ? iso : formatDate
 /** Đơn KHÔNG có lịch thanh toán: BE trả 404 cho `GET /installments/orders/{id}` — BE coi là không nợ (C-7). */
 const isNoPlan = (error: unknown) => error instanceof ApiError && error.status === 404;
 
+type RefundView = NonNullable<ReturnType<typeof useOrderRefund>["data"]>;
+
+/** Phí vận chuyển được miễn trên mọi khoản quyết toán của đơn (Q-19); âm / vắng tính 0. */
+const waivedOf = (refund: RefundView) =>
+  (refund.settlements ?? []).reduce(
+    (sum, settlement) => sum + Math.max(settlement.shippingFeeWaived ?? 0, 0),
+    0,
+  );
+
+/**
+ * Hàng "Hoàn tiền" có gì để xem: tiền phải hoàn, phí vận chuyển được miễn (Q-19) hoặc phí khách còn thiếu (`feeOwed`) — như
+ * thẻ Hoàn tiền của cổng khách (SF money M-4). Khách trả sau chưa trả đồng nào mà lô bị hoàn: `refundable` = 0 nhưng vẫn
+ * được miễn phí vận chuyển, Sale / Kế toán phải thấy điều đó (audit r2 money M-4, BO).
+ */
+function hasRefundRow(refund: RefundView): boolean {
+  return refund.refundable > 0 || (refund.feeOwed ?? 0) > 0 || waivedOf(refund) > 0;
+}
+
 /** Lần giao có hoá đơn gốc / thay thế đã phát hành (docs 21 BR-01). */
 const invoicedShipments = (
   rows: readonly { status: string; type: string; shipmentId?: string | null }[],
@@ -157,26 +175,23 @@ export function OrderSettlementPanel(props: OrderSettlementSlotProps) {
         </section>
       )}
 
-      {canRefunds && refund.data && refund.data.refundable > 0 && (
-        <section aria-label="Hoàn tiền" className={ROW}>
-          <h3 className="text-ink-primary font-semibold">Hoàn tiền</h3>
-          <span className="text-ink-secondary">
-            Đã hoàn{" "}
-            <span className={MONO}>{formatMoney(refund.data.refunded, refund.data.currency)}</span>{" "}
-            · còn{" "}
-            <span className={MONO}>{formatMoney(refund.data.remaining, refund.data.currency)}</span>
-          </span>
-          <Link
-            className="text-accent-text hover:underline"
-            href={PAYMENT_ROUTES.refunds.ofOrder(props.orderId)}
-          >
-            Xem
-          </Link>
-        </section>
+      {canRefunds && refund.data && hasRefundRow(refund.data) && (
+        <RefundRow refund={refund.data} orderId={props.orderId} />
       )}
+      {canRefunds &&
+        refund.data &&
+        props.status === "Partially Refunded" &&
+        refund.data.refunded === 0 && (
+          // Audit r2 M-6 (BE-45): đơn ghi "Hoàn tiền một phần" mà chưa hoàn đồng nào (dữ liệu trước bản sửa — BE nay đóng
+          // thẳng đơn không có gì phải hoàn) — nói rõ, không để người xem tưởng khách đã nhận tiền
+          <p className="text-ink-secondary flex gap-1.5">
+            <Info className="text-ink-tertiary mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+            {R.noRefundDespiteStatus}
+          </p>
+        )}
 
       {readiness ? (
-        <ReadinessSection readiness={readiness} />
+        <ReadinessSection readiness={readiness} status={props.status} />
       ) : (
         <>
           {checks.length > 0 && <FallbackChecks checks={checks} />}
@@ -189,6 +204,37 @@ export function OrderSettlementPanel(props: OrderSettlementSlotProps) {
         </>
       )}
     </Card>
+  );
+}
+
+/** Hàng "Hoàn tiền": có tiền phải hoàn → đã hoàn / còn; không có → phí được miễn / phí còn thiếu (Q-19). */
+function RefundRow({ refund, orderId }: { refund: RefundView; orderId: string }) {
+  const money = (amount: number) => (
+    <span className={MONO}>{formatMoney(amount, refund.currency)}</span>
+  );
+  const waived = waivedOf(refund);
+  const owed = refund.feeOwed ?? 0;
+  return (
+    <section aria-label="Hoàn tiền" className={ROW}>
+      <h3 className="text-ink-primary font-semibold">Hoàn tiền</h3>
+      <span className="text-ink-secondary">
+        {refund.refundable > 0 ? (
+          <>
+            Đã hoàn {money(refund.refunded)} · còn {money(refund.remaining)}
+          </>
+        ) : (
+          R.nothingToRefund
+        )}
+        {waived > 0 && <> · phí vận chuyển được miễn {money(waived)}</>}
+        {owed > 0 && <> · phí khách còn thiếu {money(owed)}</>}
+      </span>
+      <Link
+        className="text-accent-text hover:underline"
+        href={PAYMENT_ROUTES.refunds.ofOrder(orderId)}
+      >
+        Xem
+      </Link>
+    </section>
   );
 }
 
@@ -239,9 +285,15 @@ function blockerDetail(code: string, readiness: Readiness): string | undefined {
  * Khối điều kiện của BE (WF-05 BO-02, F-1): đúng các điều kiện BE còn chặn, các mốc BE tính, và dòng thông tin Q-16
  * (điều chỉnh trả hàng chưa phát hành không chặn đóng). BO không tính thêm, không bớt.
  */
-function ReadinessSection({ readiness }: { readiness: Readiness }) {
-  const heading =
-    readiness.branch === "COMPLETION" || readiness.branch === "REFUND_CLOSE"
+function ReadinessSection({ readiness, status }: { readiness: Readiness; status: string }) {
+  // BE-45 (settlement 9e98660b): REFUND_CLOSE còn là nhánh đóng của đơn RETURNED / PARTIALLY_FULFILLED mà hãng chở hàng
+  // về hoặc làm thất lạc — đơn đó đóng khi không còn gì phải hoàn, không phải "sau hoàn tiền"
+  const carrierEnded =
+    readiness.branch === "REFUND_CLOSE" &&
+    (status === "Returned" || status === "Partially Fulfilled");
+  const heading = carrierEnded
+    ? R.headingCarrierEnded
+    : readiness.branch === "COMPLETION" || readiness.branch === "REFUND_CLOSE"
       ? R.heading[readiness.branch]
       : R.section;
   // Nhánh NONE (đơn đã hoàn tất, BE `SettlementReadiness` waitsAs COMPLETED) vẫn có thể còn điều kiện chặn đóng
