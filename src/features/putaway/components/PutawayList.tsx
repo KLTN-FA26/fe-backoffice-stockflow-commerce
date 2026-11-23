@@ -54,7 +54,8 @@ function PutawayContent() {
   const query = usePutawayTasks(state.params);
   const data = query.data;
   const rows = data ? sortByLpn(filterPutawayTasks(data.items, state.text)) : [];
-  const emptyKind = data?.items.length === 0 ? "none" : "noMatch";
+  // Lọc theo phiếu nhập mà phiếu không còn nhiệm vụ → vẫn là "lọc không ra" (kèm Bỏ bộ lọc), không phải kho trống
+  const emptyKind = data?.items.length === 0 && !state.filters.receipt ? "none" : "noMatch";
 
   return (
     <>

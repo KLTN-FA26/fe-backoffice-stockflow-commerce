@@ -81,8 +81,8 @@ describe("PutawayList (docs 05 §4.2)", () => {
   it("không còn ô chọn kho trong màn (kho chọn một lần ở tab)", async () => {
     setup();
     await screen.findByText("LPN-1");
-    expect(screen.queryByRole("combobox", { name: L.warehouse })).not.toBeInTheDocument();
-    expect(screen.queryByText(L.warehouse)).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Kho" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Kho")).not.toBeInTheDocument();
   });
 
   it("link thùng và nút chuyến cất hàng ở lại trong kho của tab", async () => {
@@ -109,6 +109,13 @@ describe("PutawayList (docs 05 §4.2)", () => {
   it("kho không còn thùng chờ cất → EmptyState riêng (khác lọc không ra)", async () => {
     setup({ rows: [] });
     expect(await screen.findByText(L.empty.none.title)).toBeInTheDocument();
+  });
+
+  it('?receipt= mà phiếu không còn nhiệm vụ → "lọc không ra" kèm Bỏ bộ lọc (không phải kho trống)', async () => {
+    setup({ search: "?receipt=gr-9", rows: [] });
+    expect(await screen.findByText(L.empty.noMatch.title)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: L.empty.noMatch.clear })).toBeInTheDocument();
+    expect(screen.queryByText(L.empty.none.title)).not.toBeInTheDocument();
   });
 
   it("search chính lọc trên dòng đã tải, không gọi lại API; không ra → Bỏ bộ lọc", async () => {

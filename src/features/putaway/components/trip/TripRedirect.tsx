@@ -31,6 +31,15 @@ export function TripRedirect({ tripId }: { tripId: string }) {
 export function MyTripRedirect({ warehouseId }: { warehouseId: string | null }) {
   const query = useCurrentTrip();
   if (query.isPending) return <PageSkeleton variant="detail" />;
+  // Không đọc được chuyến đang mở → báo lỗi kèm Thử lại, không lặng lẽ đưa về bước chọn kho
+  if (query.isError)
+    return (
+      <LoadErrorState
+        error={query.error}
+        copy={PUTAWAY_TRIP_LABELS.errorCopy}
+        onRetry={() => void query.refetch()}
+      />
+    );
   return (
     <WorkspaceRedirect
       warehouseId={query.data?.warehouseId ?? warehouseId}

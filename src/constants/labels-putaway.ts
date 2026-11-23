@@ -14,12 +14,8 @@ export const PUTAWAY_LABELS = {
   summarySearch: "Search chính",
   summaryColumnSearch: "Search trong cột",
   summaryColumns: "Cột hiển thị",
-  warehouse: "Kho",
-  warehousePlaceholder: "Chọn kho",
-  warehouseTitle: "Kho cất hàng",
   receipt: "Phiếu nhập",
   receiptFilter: "Theo phiếu nhập",
-  notChosen: "Chưa chọn",
   column: {
     [C.LPN]: "LPN",
     [C.SKU]: "SKU",
@@ -41,10 +37,6 @@ export const PUTAWAY_LABELS = {
   truncated: (shown: number, total: number) =>
     `Đang hiện ${shown} / ${total} nhiệm vụ — lọc theo phiếu nhập để thu hẹp.`,
   empty: {
-    chooseWarehouse: {
-      title: "Chọn kho để xem việc cất hàng",
-      description: "Việc cất hàng tính theo từng kho. Chọn kho ở ô Kho trên thanh công cụ.",
-    },
     none: {
       title: "Không còn thùng chờ cất",
       description:

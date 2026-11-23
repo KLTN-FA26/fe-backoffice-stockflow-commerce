@@ -1,7 +1,8 @@
-import { waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { mockApi, renderScreen } from "@/test/api-screen";
+import { UI_LABELS } from "@/constants";
+import { apiError, mockApi, renderScreen } from "@/test/api-screen";
 
 import { MyTripRedirect, TripRedirect } from "../components/trip/TripRedirect";
 import { trip } from "./trip-fixtures";
@@ -54,5 +55,20 @@ describe("link cũ của chuyến cất hàng → tab theo kho (spec §5.5)", ()
     await waitFor(() =>
       expect(replace).toHaveBeenCalledWith("/admin/warehouse-map/HCM/putaway/trip"),
     );
+  });
+
+  it("/admin/putaway/trip, không đọc được chuyến đang mở → báo lỗi kèm Thử lại, không chuyển trang", async () => {
+    mockApi("WAREHOUSE_STAFF", {
+      get: {
+        "/putaway-trips/current": () => {
+          throw apiError(500, "INTERNAL_ERROR");
+        },
+      },
+    });
+    renderScreen(<MyTripRedirect warehouseId={null} />, "WAREHOUSE_STAFF");
+    expect(
+      await screen.findByRole("button", { name: new RegExp(UI_LABELS.common.retry) }),
+    ).toBeInTheDocument();
+    expect(replace).not.toHaveBeenCalled();
   });
 });

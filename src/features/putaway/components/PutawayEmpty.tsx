@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 const E = PUTAWAY_LABELS.empty;
 
 /**
- * Ba trạng thái rỗng khác nhau (api-conventions §8): chưa chọn kho, kho không còn thùng chờ cất, bộ lọc không ra kết
- * quả (kèm "Bỏ bộ lọc"). Đặt trong `DataTable emptyState` để header — và nút lọc trên cột — vẫn hiện.
+ * Hai trạng thái rỗng khác nhau (api-conventions §8): kho không còn thùng chờ cất, bộ lọc không ra kết quả (kèm
+ * "Bỏ bộ lọc" — gồm cả lọc theo phiếu nhập). Đặt trong `DataTable emptyState` để header — và nút lọc trên cột — vẫn hiện.
  */
 export function PutawayEmpty({
   kind,
