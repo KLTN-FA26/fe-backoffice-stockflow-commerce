@@ -82,9 +82,7 @@ describe("Công nợ phải thu theo khách (BO-UX-37, R5-11)", () => {
       get: { "/reports/receivables": () => report([binhMinh, anPhat]) },
     });
     renderPaymentScreen(<ReceivablesList />);
-    expect(
-      await screen.findByRole("columnheader", { name: /Quá hạn đợt ký/ }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("columnheader", { name: /Quá hạn đợt ký/ })).toBeInTheDocument();
     const row = (await screen.findByRole("link", { name: /Công ty Bình Minh/ })).closest(
       "tr",
     ) as HTMLElement;

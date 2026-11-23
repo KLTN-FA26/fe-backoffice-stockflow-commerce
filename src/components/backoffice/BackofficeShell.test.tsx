@@ -91,9 +91,9 @@ async function renderShell(
         .some((query) => query.state.status === "success"),
     ).toBe(true),
   );
-  // Sidebar drill-down: mục kho nằm trong màn con của item cha "Kho" — mở nó nếu đang ở màn gốc
+  // Sidebar drill-down: mục kho nằm trong màn con của item cha "Tồn kho" — mở nó nếu đang ở màn gốc
   const sidebar = document.querySelector<HTMLElement>('[data-sidebar="content"]');
-  const inventoryGroup = sidebar && within(sidebar).queryByRole("button", { name: /^Kho/ });
+  const inventoryGroup = sidebar && within(sidebar).queryByRole("button", { name: /^Tồn kho/ });
   if (inventoryGroup) await userEvent.click(inventoryGroup);
 }
 
@@ -175,7 +175,7 @@ describe("Inventory sidebar entries follow backend permission codes", () => {
     ]);
     expect(navLink(MOVEMENTS)).toHaveAttribute("data-active", "true");
     expect(navLink(ADJUSTMENTS)).not.toHaveAttribute("data-active", "true");
-    // Di chuyển nội bộ đã vào tab theo kho (spec 2026-11-22) — không còn ở nhóm Kho
+    // Di chuyển nội bộ đã vào tab theo kho (spec 2026-11-22) — không còn ở nhóm Tồn kho
     expect(navLink(MOVES)).not.toBeInTheDocument();
   });
 
@@ -212,7 +212,7 @@ describe("shell shows no demo data against the real backend", () => {
 
 describe("sidebar drill-down kiểu Vercel", () => {
   it("bấm item cha → thay bằng item con; tên item cha ở đầu là nút quay lại danh sách item cha", async () => {
-    // renderShell tự mở màn con "Kho" khi đang ở màn gốc
+    // renderShell tự mở màn con "Tồn kho" khi đang ở màn gốc
     await renderShell([
       INVENTORY_PERMISSIONS.adjustmentViewPage,
       INVENTORY_PERMISSIONS.movementViewPage,
@@ -220,11 +220,11 @@ describe("sidebar drill-down kiểu Vercel", () => {
     const sidebar = document.querySelector<HTMLElement>('[data-sidebar="content"]');
     if (!sidebar) throw new Error("Sidebar content not rendered");
     expect(navLink(ADJUSTMENTS)).toBeInTheDocument();
-    expect(within(sidebar).queryByRole("button", { name: /^Kho/ })).not.toBeInTheDocument();
+    expect(within(sidebar).queryByRole("button", { name: /^Tồn kho/ })).not.toBeInTheDocument();
 
-    await userEvent.click(within(sidebar).getByRole("button", { name: /^Quay lại Kho/ }));
+    await userEvent.click(within(sidebar).getByRole("button", { name: /^Quay lại Tồn kho/ }));
     expect(navLink(ADJUSTMENTS)).not.toBeInTheDocument();
-    expect(within(sidebar).getByRole("button", { name: /^Kho/ })).toBeInTheDocument();
+    expect(within(sidebar).getByRole("button", { name: /^Tồn kho/ })).toBeInTheDocument();
   });
 
   it("đang ở trang thuộc nhóm → mở sẵn màn con của nhóm đó", async () => {
@@ -234,7 +234,7 @@ describe("sidebar drill-down kiểu Vercel", () => {
       INVENTORY_PERMISSIONS.movementViewPage,
     ]);
     expect(navLink(MOVEMENTS)).toHaveAttribute("data-active", "true");
-    expect(screen.getByRole("button", { name: /^Quay lại Kho/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Quay lại Tồn kho/ })).toBeInTheDocument();
   });
 });
 
@@ -275,7 +275,7 @@ describe("sidebar parent entries follow their visible items", () => {
   }
   const parent = (title: string) =>
     within(sidebar()).queryByRole("button", { name: new RegExp(`^${title}`) });
-  // renderShell mở màn con "Kho" — quay về màn gốc để thấy các item cha
+  // renderShell mở màn con "Tồn kho" — quay về màn gốc để thấy các item cha
   async function showRoot() {
     const back = within(sidebar()).queryByRole("button", { name: /^Quay lại/ });
     if (back) await userEvent.click(back);
@@ -408,7 +408,7 @@ describe('tab "Kho & bản đồ" tách riêng', () => {
     );
   });
 
-  it('nhóm "Kho" không còn chứa trang của module bản đồ', async () => {
+  it('nhóm "Tồn kho" không còn chứa trang của module bản đồ', async () => {
     navigation.pathname = INVENTORY_ROUTES.movements;
     await renderShell([
       INVENTORY_PERMISSIONS.movementViewPage,

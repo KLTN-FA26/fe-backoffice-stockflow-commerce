@@ -2,7 +2,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ADMIN_ROUTES, CANCELLATION_REQUEST_LABELS, UI_LABELS } from "@/constants";
+import {
+  ADMIN_ROUTES,
+  CANCELLATION_REQUEST_LABELS,
+  NAV_GROUP_LABELS,
+  UI_LABELS,
+} from "@/constants";
 import { CYCLE_COUNT_LABELS } from "@/constants/cycle-count";
 import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
 import { QUARANTINE_LABELS } from "@/constants/quarantine";
@@ -198,7 +203,7 @@ describe("declared navigation permissions", () => {
       });
       mount();
       expect(await screen.findByRole("link", { name: "Phân quyền" })).toBeInTheDocument();
-      // Kiểm kê đã vào tab theo kho (spec 2026-11-22): không còn mục riêng ở nhóm Kho
+      // Kiểm kê đã vào tab theo kho (spec 2026-11-22): không còn mục riêng ở nhóm Tồn kho
       expect(screen.queryByRole("link", { name: CYCLE_COUNT_LABELS.title })).toBeNull();
       const tab = screen.queryByRole("link", { name: "Kho & bản đồ" });
       expect(tab !== null).toBe(visible);
@@ -687,21 +692,21 @@ describe("L-6: 'Đơn hàng' của Sale nằm ở nhóm Bán hàng, nhóm đúng
       ORDER_PERMISSIONS.viewPage,
     ]);
     await waitFor(() => expect(screen.getByLabelText("orders-in")).toHaveTextContent("Bán hàng"));
-    expect(screen.getByLabelText("orders-in")).not.toHaveTextContent("Thực hiện đơn");
+    expect(screen.getByLabelText("orders-in")).not.toHaveTextContent(NAV_GROUP_LABELS.order);
     expect(screen.getByLabelText("open")).toHaveTextContent("Bán hàng");
   });
 
-  it("Điều phối (đơn, không báo giá): 'Đơn hàng' vẫn ở Thực hiện đơn", async () => {
+  it("Điều phối (đơn, không báo giá): 'Đơn hàng' ở nhóm Đơn hàng", async () => {
     probe(ADMIN_ROUTES.orders.detail("ord-1"), [
       ORDER_PERMISSIONS.viewPage,
       ORDER_PERMISSIONS.read,
       CREDIT_HOLD_PERMISSIONS.viewPage,
     ]);
     await waitFor(() =>
-      expect(screen.getByLabelText("orders-in")).toHaveTextContent("Thực hiện đơn"),
+      expect(screen.getByLabelText("orders-in")).toHaveTextContent(NAV_GROUP_LABELS.order),
     );
     expect(screen.getByLabelText("orders-in")).not.toHaveTextContent("Bán hàng");
-    expect(screen.getByLabelText("open")).toHaveTextContent("Thực hiện đơn");
+    expect(screen.getByLabelText("open")).toHaveTextContent(NAV_GROUP_LABELS.order);
   });
 
   it("menu và breadcrumb tiếng Việt: không còn 'Master data', 'Platform', 'Back-office'", () => {

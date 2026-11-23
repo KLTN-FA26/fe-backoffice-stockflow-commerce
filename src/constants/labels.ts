@@ -75,10 +75,7 @@ export const UI_LABELS = {
     quickSearchHint: "Tìm nhanh (⌘K)",
     /** Gốc breadcrumb (trước là chữ "Back-office"). */
     breadcrumbRoot: "Trang quản trị",
-    /** Nhóm menu sản phẩm / danh mục / giá riêng (trước là "Master data"). */
-    navMasterData: "Dữ liệu gốc",
-    /** Nhóm menu phân quyền / người dùng (trước là "Platform"). */
-    navPlatform: "Hệ thống",
+    /* Tên nhóm (tab) sidebar: `NAV_GROUP_LABELS` trong labels-nav.ts */
   },
   // Trạng thái lỗi khi tải dữ liệu (§8 PRODUCTION-FRONTEND-RULES)
   emptyList: {

@@ -22,7 +22,10 @@ const TRAILING_FRACTION = /^(.*\d)[.,](\d{1,2})[^\d.,]*$/;
 
 /** Digits only, without leading zeros ("0" stays "0" — a free fee), at most 15 of them. */
 function onlyDigits(text: string): string {
-  return text.replace(/\D/g, "").replace(/^0+(?=\d)/, "").slice(0, MAX_DIGITS);
+  return text
+    .replace(/\D/g, "")
+    .replace(/^0+(?=\d)/, "")
+    .slice(0, MAX_DIGITS);
 }
 
 /** What a pasted or typed amount says: its whole VND as digits, and whether it carried a decimal part. */
