@@ -95,6 +95,11 @@ export const salesContractDtoSchema = z.object({
   version: z.number().int(),
   creditWarning: omittedOrNull(contractCreditWarningSchema),
   returnWindowDays: omittedOrNull(z.number().int()),
+  /**
+   * WF-05 (BE `SalesContracts.ContractView.appendixAvailable`, 81214e74): GET …/contract/appendix trả 200 đúng khi cờ
+   * này true — đã ký và có đợt giao đang hiệu lực khác cửa sổ đã ký. Thiếu (BE cũ) → false: không hiện nút.
+   */
+  appendixAvailable: z.boolean().default(false),
 });
 
 export const salesContractHistoryDtoSchema = z.array(salesContractDtoSchema);

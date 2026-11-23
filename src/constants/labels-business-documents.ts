@@ -124,6 +124,24 @@ export const BUSINESS_DOCUMENT_LABELS = {
   forbidden: (noun: string) => `Bạn không có quyền tải ${noun}.`,
   notFound: (noun: string) => `Không tìm thấy ${noun}.`,
   generic: (noun: string) => `Chưa tạo được ${noun}. Vui lòng thử lại sau.`,
+  /**
+   * 409 `SALES_CONTRACT_STATUS_INVALID` của biên bản thanh lý theo `details.reason` (BE 15cd13cf,
+   * `ContractPaperService.liquidation`); số tiền đã định dạng VND. Không có `reason` (hợp đồng chưa ký) → câu chung ở
+   * `BUSINESS_DOCUMENTS.contractLiquidation.errors`.
+   */
+  liquidationRefusal: {
+    stillPerformed:
+      "Hợp đồng còn đang thực hiện: chỉ lập biên bản thanh lý khi đơn đã hoàn tất, đã huỷ, đã hoàn tiền hoặc đã đóng.",
+    notSettled: (owed: string | null, toRefund: string | null) =>
+      `Chưa thanh lý được hợp đồng: ${
+        [
+          owed ? `khách còn phải thanh toán ${owed}` : null,
+          toRefund ? `bên bán còn phải hoàn cho khách ${toRefund}` : null,
+        ]
+          .filter(Boolean)
+          .join(" và ") || "số tiền hai bên chưa khớp"
+      }. Biên bản thanh lý chỉ lập khi số “Còn lại” bằng 0.`,
+  },
   reconciliation: {
     dialogTitle: "Biên bản đối chiếu công nợ",
     description: (customer: string) =>

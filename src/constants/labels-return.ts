@@ -79,6 +79,11 @@ export const RETURN_LABELS = {
     invoice: "Hoá đơn",
   },
   openInvoices: "Mở hoá đơn của đơn",
+  /** WF-05 BE-23 trên dòng hàng đợi (`receiptDraftOpen`): kho đang đếm một kiện trên phiếu nháp. */
+  draftReceipt: {
+    counting: "Kho đang đếm trên phiếu nháp",
+    open: "Mở phiếu nháp đang đếm",
+  },
   detail: {
     general: "Thông tin chung",
     order: "Đơn hàng",

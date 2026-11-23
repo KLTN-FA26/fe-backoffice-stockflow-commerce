@@ -90,6 +90,7 @@ export function toOrder(dto: OrderDto): Order {
     closedAt: dto.closedAt ?? null,
     refundedAt: dto.refundedAt ?? null,
     settlementReadiness: dto.settlementReadiness ?? null,
+    version: dto.version ?? null,
     effectiveTotal: dto.effectiveTotal ?? null,
     amountDueBeforeHandover: dto.amountDueBeforeHandover ?? null,
     netAmount: dto.netAmount ?? null,

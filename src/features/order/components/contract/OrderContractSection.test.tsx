@@ -485,7 +485,13 @@ describe("WF-02 BO-7 — hợp đồng: đợt đã qua, huỷ bởi người kh
 });
 
 describe("Giấy tờ sau ký — phụ lục, biên bản thanh lý (BE feat/business-documents #1, #2)", () => {
-  const signed = { ...contractSent, status: "SIGNED", version: 2, signedOn: "2026-11-10" };
+  const signed = {
+    ...contractSent,
+    status: "SIGNED",
+    version: 2,
+    signedOn: "2026-11-10",
+    appendixAvailable: true,
+  };
   const routes = (extra: Record<string, () => unknown> = {}) => ({
     [PATH]: () => signed,
     [`/installments/orders/${CONTRACT_ORDER_ID}`]: () => ({ installments: [] }),
@@ -510,7 +516,20 @@ describe("Giấy tờ sau ký — phụ lục, biên bản thanh lý (BE feat/bu
     expect(screen.queryByRole("button", { name: "Tải biên bản thanh lý" })).not.toBeInTheDocument();
   });
 
-  it("đơn đã kết thúc: có biên bản thanh lý; BE từ chối vì “Còn lại” ≠ 0 → câu tiếng Việt", async () => {
+  it("appendixAvailable=false (chưa dời lịch giao) → không có nút phụ lục", async () => {
+    mockOrderApiGet(SALES, {
+      ...routes(),
+      [PATH]: () => ({ ...signed, appendixAvailable: false }),
+    });
+    const can = (code: PermissionCode) => SALES.includes(code);
+    renderOrderScreen(
+      <OrderContractSection order={{ ...draftOrder, status: "Shipped" }} can={can} />,
+    );
+    expect(await screen.findByText("Bên mua")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Tải phụ lục hợp đồng" })).not.toBeInTheDocument();
+  });
+
+  it("đơn đã kết thúc: có biên bản thanh lý; BE từ chối NOT_SETTLED → câu tiếng Việt có số tiền", async () => {
     mockOrderApiGet(
       SALES,
       routes({
@@ -518,7 +537,12 @@ describe("Giấy tờ sau ký — phụ lục, biên bản thanh lý (BE feat/bu
           throw new ApiError(
             409,
             "SALES_CONTRACT_STATUS_INVALID",
-            "Contract is still being performed",
+            "Contract is not settled",
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            { reason: "NOT_SETTLED", outstanding: 75600000, toRefund: 0 },
           );
         },
       }),
@@ -528,7 +552,9 @@ describe("Giấy tờ sau ký — phụ lục, biên bản thanh lý (BE feat/bu
       <OrderContractSection order={{ ...draftOrder, status: "Completed" }} can={can} />,
     );
     await userEvent.click(await screen.findByRole("button", { name: "Tải biên bản thanh lý" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent(/“Còn lại” chưa về 0/);
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(/khách còn phải thanh toán 75\.600\.000/);
+    expect(alert).toHaveTextContent(/“Còn lại” bằng 0/);
   });
 
   it("không có sales-contracts:READ thì không thấy nút giấy tờ", async () => {

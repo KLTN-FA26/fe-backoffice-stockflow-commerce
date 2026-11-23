@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { BUSINESS_DOCUMENTS } from "@/constants/labels-business-documents";
 
+import { formatVND } from "@/lib/format/money";
+
 import { BUSINESS_DOCUMENT_PATHS as P, businessDocumentErrorMessage } from "./business-documents";
 import { ApiError } from "./error";
 import { resolveMockRoute } from "./mock-adapter";
@@ -77,6 +79,64 @@ describe("businessDocumentErrorMessage — mọi lỗi ra câu tiếng Việt", 
         err(409, "SALES_CONTRACT_STATUS_INVALID"),
       ),
     ).toMatch(/“Còn lại” chưa về 0/);
+  });
+
+  it("BE 15cd13cf: details.reason STILL_PERFORMED → câu đơn còn đang thực hiện", () => {
+    const error = new ApiError(
+      409,
+      "SALES_CONTRACT_STATUS_INVALID",
+      "x",
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      {
+        reason: "STILL_PERFORMED",
+      },
+    );
+    expect(businessDocumentErrorMessage("contractLiquidation", error)).toMatch(
+      /^Hợp đồng còn đang thực hiện/,
+    );
+  });
+
+  it("BE 15cd13cf: NOT_SETTLED → số khách còn nợ và số phải hoàn, định dạng VND; số 0 không nêu", () => {
+    const refusal = (details: Record<string, unknown>) =>
+      businessDocumentErrorMessage(
+        "contractLiquidation",
+        new ApiError(
+          409,
+          "SALES_CONTRACT_STATUS_INVALID",
+          "x",
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          details,
+        ),
+      );
+    const both = refusal({ reason: "NOT_SETTLED", outstanding: 75600000, toRefund: 1200000 });
+    expect(both).toContain(`khách còn phải thanh toán ${formatVND(75600000)}`);
+    expect(both).toContain(`bên bán còn phải hoàn cho khách ${formatVND(1200000)}`);
+    expect(both).toMatch(/“Còn lại” bằng 0/);
+    const owedOnly = refusal({ reason: "NOT_SETTLED", outstanding: "32400000", toRefund: 0 });
+    expect(owedOnly).toContain(formatVND(32400000));
+    expect(owedOnly).not.toContain("hoàn cho khách");
+  });
+
+  it("thanh lý: lý do lạ hoặc thiếu details → câu chung cũ", () => {
+    const error = new ApiError(
+      409,
+      "SALES_CONTRACT_STATUS_INVALID",
+      "x",
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      {
+        reason: "SOMETHING_ELSE",
+      },
+    );
+    expect(businessDocumentErrorMessage("contractLiquidation", error)).toMatch(/hợp đồng chưa ký/);
   });
 
   it("mã lạ: câu tiếng Việt BE kèm, không có thì câu dự phòng", () => {

@@ -59,13 +59,14 @@ const CONTRACT_ENDED_ORDER_STATUSES: readonly Order["status"][] = [
 ];
 
 /**
- * Giấy tờ sau ký (BE `feat/business-documents`, endpoints #1, #2): phụ lục khi hợp đồng đã ký (BE 404 khi chưa dời lịch
- * giao nào — nút vẫn hiện, bấm thì báo "chưa có phụ lục"); biên bản thanh lý khi đã ký VÀ hợp đồng đã kết thúc (Hoàn tất
- * / Thanh lý) hoặc đơn đã kết thúc. BE còn từ chối khi số "Còn lại" khác 0 (owner 2026-11-23) — FE không tính lại, hiện
- * câu lỗi. Quyền `sales-contracts:READ` do nút kiểm. UI-only — Backend re-check.
+ * Giấy tờ sau ký (BE `feat/business-documents`, endpoints #1, #2): phụ lục chỉ khi BE báo `appendixAvailable` (đã ký và
+ * có đợt giao đang hiệu lực khác cửa sổ đã ký — đúng điều kiện GET …/appendix trả 200); biên bản thanh lý khi đã ký VÀ
+ * hợp đồng đã kết thúc (Hoàn tất / Thanh lý) hoặc đơn đã kết thúc. BE còn từ chối khi số "Còn lại" khác 0 (owner
+ * 2026-11-23, `details.reason` NOT_SETTLED) — FE không tính lại, hiện câu lỗi có số tiền. Quyền `sales-contracts:READ` do
+ * nút kiểm. UI-only — Backend re-check.
  */
 export function contractPapers(
-  contract: Pick<SalesContract, "status">,
+  contract: Pick<SalesContract, "status" | "appendixAvailable">,
   orderStatus: Order["status"],
 ): { appendix: boolean; liquidation: boolean } {
   const signed = (SALES_CONTRACT_SIGNED_STATUSES as readonly string[]).includes(contract.status);
@@ -73,7 +74,7 @@ export function contractPapers(
     contract.status === "COMPLETED" ||
     contract.status === "LIQUIDATED" ||
     CONTRACT_ENDED_ORDER_STATUSES.includes(orderStatus);
-  return { appendix: signed, liquidation: signed && ended };
+  return { appendix: signed && contract.appendixAvailable, liquidation: signed && ended };
 }
 
 export interface CartonGap {

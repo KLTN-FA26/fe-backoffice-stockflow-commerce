@@ -155,6 +155,11 @@ export const orderSchema = z.object({
   refundedAt: z.string().nullable(),
   /** F-1: khối điều kiện hoàn tất / đóng của BE; null khi BE không trả (chưa giao gì, dòng danh sách, BE cũ). */
   settlementReadiness: settlementReadinessSchema.nullable(),
+  /**
+   * WF-05 Q-12 (BE 6bbfa15b `OrderResponse.version`): phiên bản khoá lạc quan của đơn — gửi lại làm `version` khi đóng
+   * phần thất lạc (409 OPTIMISTIC_LOCK khi đơn đã đổi). null khi BE không trả (cổng khách, BE cũ).
+   */
+  version: z.number().int().nullable(),
   effectiveTotal: z.number().nullable(),
   amountDueBeforeHandover: z.number().nullable(),
   /** 4B-3: tổng trước thuế / VAT; null khi BE không trả (dòng danh sách, đơn cũ). */

@@ -105,6 +105,25 @@ export function recordWindowChange(orderId: string, change: MockWindowChange): v
   changes.set(orderId, [...windowChangesOf(orderId), change]);
 }
 
+/**
+ * Có đợt giao nào đang hiệu lực khác cửa sổ đã ký không — BE `SalesContractService.appendixAvailable` (81214e74): dời đi
+ * rồi dời về cửa sổ cũ thì không có phụ lục. So lần dời đầu (cửa sổ cũ = đã ký) với lần dời cuối của từng đợt.
+ */
+export function windowMovedFromSigned(orderId: string): boolean {
+  const byBatch = new Map<string, MockWindowChange[]>();
+  for (const change of windowChangesOf(orderId))
+    byBatch.set(change.batchId, [...(byBatch.get(change.batchId) ?? []), change]);
+  return [...byBatch.values()].some((list) => {
+    const first = list[0];
+    const last = list.at(-1);
+    return (
+      first !== undefined &&
+      last !== undefined &&
+      (first.oldStart !== last.newStart || first.oldEnd !== last.newEnd)
+    );
+  });
+}
+
 /** Xoá mọi lần dời cửa sổ của phiên — test gọi giữa các ca (cùng `resetOrderMockStore`). */
 export function resetDeliveryScheduleMockStore(): void {
   changes.clear();

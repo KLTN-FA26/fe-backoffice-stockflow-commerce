@@ -5,6 +5,8 @@
  * seed của khách, cộng phần trả sau giao chưa trả của các hợp đồng ký trong phiên (mock thanh toán).
  */
 
+import { SALES_CONTRACT_SIGNED_STATUSES } from "@/constants";
+
 import {
   WF02_SEED_ORDER_LINES,
   WF02_SEED_ORDERS,
@@ -24,6 +26,7 @@ import {
   wf02Customer,
   WF02_USERS,
 } from "./mock-quote-seed";
+import { windowMovedFromSigned } from "./mock-order-delivery-schedule";
 import { mockInstallments, outstandingOf, overdueOf } from "./mock-payment-store";
 
 import type { SalesContractStatus } from "@/constants";
@@ -343,5 +346,8 @@ export function contractView(
     version: contract.version,
     creditWarning: warning,
     returnWindowDays: contract.returnWindowDays,
+    appendixAvailable:
+      (SALES_CONTRACT_SIGNED_STATUSES as readonly string[]).includes(contract.status) &&
+      windowMovedFromSigned(contract.orderId),
   };
 }

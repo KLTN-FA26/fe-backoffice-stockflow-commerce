@@ -918,6 +918,8 @@ export function toOrderResponse(order: Order) {
       cancelledQuantity: state.closedUnits[line.lineId] ?? 0,
     })),
     placedAt: order.placedAt,
+    // WF-05 Q-12 (BE 6bbfa15b): phiên bản khoá lạc quan — mock tăng theo mỗi bước ghi của phiên (lịch sử phiên)
+    version: state.history.length,
     createdBy: order.createdById ?? null,
     lastModifiedAt: null,
     lastModifiedBy: null,

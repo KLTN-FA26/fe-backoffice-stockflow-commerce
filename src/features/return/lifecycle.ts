@@ -90,6 +90,14 @@ export function receiptOpenable(ret: ReturnGateInput): boolean {
   return (RETURN_RECEIPT_FALLBACK_STATUSES as readonly string[]).includes(ret.status);
 }
 
+/**
+ * Chọn được làm nguồn lập phiếu nhập hàng hoàn ngay bây giờ: BE cho mở (`receiptOpenable`) và không có phiếu NHÁP nào
+ * đang đếm (`receiptDraftOpen`, BE-23 — có thì BE trả 409 RETURN_RECEIPT_ALREADY_OPEN; màn đưa tới phiếu nháp đó).
+ */
+export function receiptCreatableNow(ret: ReturnGateInput): boolean {
+  return receiptOpenable(ret) && noDraftCounting(ret);
+}
+
 /** Mỗi hành động: trạng thái nguồn + quyền cần (+ điều kiện thêm). */
 const RULES: Readonly<Record<ReturnAction, ReturnRule>> = {
   approve: { from: ["REQUESTED"], needs: RMA_PERMISSIONS.approve },
@@ -106,7 +114,7 @@ const RULES: Readonly<Record<ReturnAction, ReturnRule>> = {
   createReceipt: {
     from: RETURN_API_STATUSES,
     needs: GOODS_RECEIPT_PERMISSIONS.create,
-    when: (ret) => receiptOpenable(ret) && noDraftCounting(ret),
+    when: receiptCreatableNow,
   },
   // WF-05 TH-3 (BE `POST /returns/{id}/goods-complete`): về thiếu, khách không gửi thêm — chỉ khi đã có ≥ 1 kiện về.
   // BE-23: còn phiếu nháp đang đếm thì chưa chốt được (`RETURN_RECEIPT_DRAFT_OPEN`)

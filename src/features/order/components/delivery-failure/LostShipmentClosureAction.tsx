@@ -38,6 +38,11 @@ interface LostTarget {
   shipmentId: string;
   /** "Lô 2" — tên lô như trên thẻ lô giao. */
   shipmentLabel: string;
+  /**
+   * `Order.version` đơn đang hiển thị (BE 6bbfa15b) — gửi kèm để BE từ chối 409 OPTIMISTIC_LOCK khi đơn đã đổi; khi đó
+   * đơn được tải lại, hộp thoại giữ nguyên, bấm lại gửi phiên bản mới.
+   */
+  version: number | null;
 }
 
 /**
@@ -110,7 +115,12 @@ function LostClosureForm({
   const submit = form.handleSubmit((values) => {
     if (!errors.beginSubmit()) return;
     errors.clearRefusal();
-    const variables = { orderId: target.orderId, shipmentId: target.shipmentId, ...values };
+    const variables = {
+      orderId: target.orderId,
+      shipmentId: target.shipmentId,
+      version: target.version,
+      ...values,
+    };
     mutation.mutate(
       { ...variables, idempotencyKey: errors.idempotencyKeyFor(variables) },
       {

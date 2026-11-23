@@ -19,7 +19,7 @@ import { LostShipmentClosureAction } from "./delivery-failure/LostShipmentClosur
 import type { Order, OrderShipment } from "../types";
 
 interface OrderShipmentsProps {
-  order: Pick<Order, "orderId" | "orderNumber" | "status" | "shipments" | "lines">;
+  order: Pick<Order, "orderId" | "orderNumber" | "status" | "shipments" | "lines" | "version">;
 }
 
 /** Lý do BE lạ (`UNKNOWN`) → câu trung tính, không đoán thành một lý do cụ thể. */
@@ -118,6 +118,7 @@ export function OrderShipments({ order }: OrderShipmentsProps) {
                     orderNumber: order.orderNumber,
                     shipmentId: shipment.shipmentId,
                     shipmentLabel: `Lô ${index + 1}`,
+                    version: order.version,
                   }}
                 />
               </div>

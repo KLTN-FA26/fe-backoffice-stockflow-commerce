@@ -3,8 +3,9 @@
  *
  *   POST /orders/{orderId}/shipments/{shipmentId}/lost-closure/evidence/uploads
  *        {fileName, contentType, sizeBytes, sha256} → `UploadSlot` (tải thẳng lên kho, `lib/api/direct-upload.ts`)
- *   POST /orders/{orderId}/shipments/{shipmentId}/lost-closure  {note, evidenceUploadId} → `OrderResponse`
- *        409 ORDER_SHIPMENT_NOT_LOST_CLOSABLE · 400 ORDER_SHIPMENT_LOSS_EVIDENCE_REQUIRED · 403 FORBIDDEN
+ *   POST /orders/{orderId}/shipments/{shipmentId}/lost-closure  {note, evidenceUploadId, version} → `OrderResponse`
+ *        409 ORDER_SHIPMENT_NOT_LOST_CLOSABLE · 409 OPTIMISTIC_LOCK (`version` khác phiên bản đơn hiện tại, BE
+ *        `LostShipmentClosures.closeLocked`) · 400 ORDER_SHIPMENT_LOSS_EVIDENCE_REQUIRED · 403 FORBIDDEN
  *
  * Tệp xác nhận đi theo đúng mẫu tải tệp bằng chứng sẵn có (slot → PUT → `…UploadId` trong request của lệnh). Đường slot và
  * field `evidenceUploadId` là hợp đồng FE đề nghị G1 (PR-0 chỉ nói "tệp lưu qua common storage").
@@ -42,15 +43,17 @@ export async function beginLostEvidenceUpload(
 export type LostClosureInput = LostClosureValues & {
   orderId: string;
   shipmentId: string;
+  /** `Order.version` lúc đọc (BE 6bbfa15b); null = BE không trả → không gửi, BE không kiểm. */
+  version: number | null;
   idempotencyKey?: string;
 };
 
 /** Đóng phần hàng của lô thất lạc; tiền tính ngay (Q-2/Q-12). Trả đơn sau khi đóng. */
 export async function closeLostShipment(input: LostClosureInput): Promise<Order> {
-  const { orderId, shipmentId, idempotencyKey, note, evidenceUploadId } = input;
+  const { orderId, shipmentId, idempotencyKey, note, evidenceUploadId, version } = input;
   const { data } = await api.post<unknown>(
     lostClosurePath(orderId, shipmentId),
-    { note, evidenceUploadId },
+    { note, evidenceUploadId, ...(version == null ? {} : { version }) },
     idempotencyRequestConfig(idempotencyKey),
   );
   return toOrder(orderDtoSchema.parse(data));

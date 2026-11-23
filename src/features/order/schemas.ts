@@ -310,6 +310,8 @@ export const orderDtoSchema = z.object({
   refundedAt: z.string().nullish(),
   /** WF-05 F-1 (BE-34): khối điều kiện hoàn tất / đóng do BE tính; null / vắng trước khi giao gì (hoặc BE cũ). */
   settlementReadiness: settlementReadinessDtoSchema.nullish(),
+  /** WF-05 Q-12: phiên bản khoá lạc quan của đơn (danh sách, chi tiết, câu trả của lệnh ghi); vắng ở BE cũ. */
+  version: z.number().int().nullish(),
   // ── Tiền của đơn giao một phần. Đã thu / còn nợ / công nợ / COD BE bỏ khỏi đơn (4B-10): đọc từ các đợt (BO-08)
   /** Tổng trừ số đơn vị đã đóng ở đơn giao một phần. */
   effectiveTotal: z.number().nullish(),

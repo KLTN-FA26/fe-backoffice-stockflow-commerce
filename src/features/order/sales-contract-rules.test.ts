@@ -210,30 +210,39 @@ describe("WF-02 N10 — đợt ON_SIGNING để trống số ngày", () => {
 });
 
 describe("contractPapers — phụ lục / biên bản thanh lý (BE feat/business-documents #1, #2)", () => {
-  it("chưa ký (nháp / đã gửi / đã huỷ) → không giấy tờ nào", () => {
+  const moved = { appendixAvailable: true };
+  it("chưa ký (nháp / đã gửi / đã huỷ) → không giấy tờ nào, kể cả khi cờ phụ lục lỡ true", () => {
     for (const status of ["DRAFT", "SENT", "CANCELLED", "UNKNOWN"] as const)
-      expect(contractPapers({ status }, "Completed")).toEqual({
+      expect(contractPapers({ status, ...moved }, "Completed")).toEqual({
         appendix: false,
         liquidation: false,
       });
   });
 
-  it("đã ký, đơn đang thực hiện → phụ lục, chưa thanh lý", () => {
-    expect(contractPapers({ status: "SIGNED" }, "Shipped")).toEqual({
+  it("đã ký, đơn đang thực hiện, BE báo có phụ lục → phụ lục, chưa thanh lý", () => {
+    expect(contractPapers({ status: "SIGNED", ...moved }, "Shipped")).toEqual({
       appendix: true,
       liquidation: false,
     });
   });
 
+  it("đã ký nhưng appendixAvailable=false (chưa dời lịch giao) → không có nút phụ lục", () => {
+    expect(contractPapers({ status: "SIGNED", appendixAvailable: false }, "Shipped").appendix).toBe(
+      false,
+    );
+  });
+
   it.each(["Completed", "Cancelled", "Closed", "Refunded", "Partially Refunded"] as const)(
     "đã ký, đơn %s (BE ContractPaperService.ended) → thanh lý được",
     (orderStatus) => {
-      expect(contractPapers({ status: "SIGNED" }, orderStatus).liquidation).toBe(true);
+      expect(
+        contractPapers({ status: "SIGNED", appendixAvailable: false }, orderStatus).liquidation,
+      ).toBe(true);
     },
   );
 
   it("hợp đồng Hoàn tất / Thanh lý → thanh lý được bất kể trạng thái đơn hiển thị", () => {
-    expect(contractPapers({ status: "COMPLETED" }, "Delivered").liquidation).toBe(true);
-    expect(contractPapers({ status: "LIQUIDATED" }, "Returned").liquidation).toBe(true);
+    expect(contractPapers({ status: "COMPLETED", ...moved }, "Delivered").liquidation).toBe(true);
+    expect(contractPapers({ status: "LIQUIDATED", ...moved }, "Returned").liquidation).toBe(true);
   });
 });

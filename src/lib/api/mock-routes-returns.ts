@@ -92,6 +92,7 @@ function row(ret: MockReturn) {
     vatAdjustmentRequired: ret.status === "RESOLVED" && resolution.vatAdjustmentRequired === true,
     closedAt: ret.closedAt,
     receiptOpenable: mockReceiptOpenable(ret),
+    receiptDraftOpen: mockReceiptDraftOpen(ret),
     outcome: outcomeOf(ret),
     version: ret.version,
   };

@@ -24,7 +24,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { openDraftReceiptOf, returnErrorMessage } from "../errors";
 import { createReceiptInputSchema } from "../input-schemas";
 import { useCreateReturnReceipt } from "../mutations";
-import { receiptOpenable } from "../lifecycle";
+import { receiptCreatableNow } from "../lifecycle";
 import { useReceiptSourceReturns, useReturn, useReturnedShipments } from "../queries";
 
 import { PickField } from "./PickField";
@@ -42,8 +42,8 @@ function CreateForm({
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
-  // 409 RETURN_RECEIPT_ALREADY_OPEN: dòng của hàng đợi không mang `receiptDraftOpen`, nên nguồn đang có phiếu nháp vẫn
-  // chọn được — BE từ chối và nêu phiếu nháp (`details.receiptId`); màn đưa người dùng tới phiếu đó.
+  // 409 RETURN_RECEIPT_ALREADY_OPEN: nguồn có `receiptDraftOpen` đã bị loại khỏi danh sách chọn; còn lọt (phiếu nháp
+  // vừa mở ở nơi khác) thì BE từ chối và nêu phiếu nháp (`details.receiptId`) — màn đưa người dùng tới phiếu đó.
   const [openDraftId, setOpenDraftId] = useState<string | null>(null);
   const canReadShipments = useCan(SHIPMENT_PERMISSIONS.read);
   const sources = useReceiptSourceReturns();
@@ -230,7 +230,8 @@ function CreateForm({
 
 /**
  * Yêu cầu chọn được làm nguồn: BE nói mở phiếu được (`receiptOpenable`, WF-05 Q-11 — kể cả hàng về muộn, nhiều phiếu một
- * yêu cầu); BE cũ thì chỉ yêu cầu chờ hàng về. Yêu cầu đang mở từ màn chi tiết đứng đầu nếu mở được.
+ * yêu cầu) và chưa có phiếu nháp đang đếm (`receiptDraftOpen`, BE-23 — không mở phiếu thứ hai); BE cũ thì chỉ yêu cầu
+ * chờ hàng về. Yêu cầu đang mở từ màn chi tiết đứng đầu nếu mở được.
  */
 function rmaSourceOptions(
   rows: readonly ReturnRow[],
@@ -240,10 +241,10 @@ function rmaSourceOptions(
     value: ret.id,
     label: `${ret.rmaNumber} · ${ret.orderNumber}`,
   });
-  const options = rows.filter((row) => receiptOpenable(row)).map(option);
+  const options = rows.filter((row) => receiptCreatableNow(row)).map(option);
   if (
     preselected &&
-    receiptOpenable(preselected) &&
+    receiptCreatableNow(preselected) &&
     !options.some((o) => o.value === preselected.id)
   )
     options.unshift(option(preselected));

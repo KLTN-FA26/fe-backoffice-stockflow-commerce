@@ -195,6 +195,11 @@ export const returnRowDtoSchema = z.object({
   closedAt: z.string().nullish(),
   /** Như `ReturnRequestResponse` khi BE kèm ở dòng (nguồn lập phiếu); vắng = dùng trạng thái dự phòng. */
   receiptOpenable: z.boolean().nullish(),
+  /**
+   * WF-05 BE-23 (BE fc931ff9): một kiện của yêu cầu đang được đếm trên phiếu nhập hàng hoàn NHÁP — không lập phiếu thứ
+   * hai, chưa chốt "Đã nhận đủ" / đề xuất / duyệt hoàn tiền tới khi kho xác nhận hoặc huỷ phiếu đó. Vắng = BE cũ.
+   */
+  receiptDraftOpen: z.boolean().nullish(),
   outcome: tolerantEnum(RETURN_OUTCOMES).nullish(),
   version: z.number().int(),
 });

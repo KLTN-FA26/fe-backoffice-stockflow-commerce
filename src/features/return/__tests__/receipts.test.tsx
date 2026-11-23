@@ -96,7 +96,40 @@ describe("RMA → return receipt", () => {
     await waitFor(() => expect(push).toHaveBeenCalledWith("/admin/receipts/returns/gr-1"));
   });
 
-  it("G4: a source with a draft already open (rows carry no receiptDraftOpen) → 409 explained, link to that draft", async () => {
+  it("BE-23: a source with receiptDraftOpen is not offered — no second receipt while one is counted", async () => {
+    mockReturnApi(WAREHOUSE_GRANTS, {
+      get: {
+        "/goods-receipts/returns": () => bePage([]),
+        "/returns/ret-1": () =>
+          returnJson({ status: "AWAITING_RETURN", receiptOpenable: true, receiptDraftOpen: true }),
+        "/returns": () =>
+          bePage([
+            returnRowJson({
+              status: "AWAITING_RETURN",
+              receiptOpenable: true,
+              receiptDraftOpen: true,
+            }),
+            returnRowJson({
+              id: "ret-2",
+              rmaNumber: "RMA-20261110-0002",
+              status: "AWAITING_RETURN",
+              receiptOpenable: true,
+              receiptDraftOpen: false,
+            }),
+          ]),
+        "/fulfillment/shipments": () => bePage([]),
+        "/warehouses": () => bePage([]),
+      },
+    });
+    const user = userEvent.setup();
+    renderReturnScreen(<ReturnReceiptList />, "?create=true&returnRequestId=ret-1");
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("combobox", { name: /^Yêu cầu trả hàng/ }));
+    expect(await screen.findByRole("option", { name: /RMA-20261110-0002/ })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /RMA-20261110-0001/ })).toBeNull();
+  });
+
+  it("G4: a source with a draft already open (row flag missing or stale) → 409 explained, link to that draft", async () => {
     mockReturnApi(WAREHOUSE_GRANTS, {
       get: {
         "/goods-receipts/returns": () => bePage([]),

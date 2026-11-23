@@ -40,6 +40,48 @@ describe("ReturnList", () => {
     ]);
   });
 
+  it("BE-23: a row with receiptDraftOpen links the warehouse to the draft being counted", async () => {
+    const drafts = vi.fn((_params: unknown) =>
+      bePage([
+        {
+          id: "gr-7",
+          number: "GR-RET-0007",
+          status: "DRAFT",
+          warehouseId: "wh-1",
+          returnRequestId: "ret-1",
+          cartonCount: 1,
+        },
+      ]),
+    );
+    mockReturnApi(WAREHOUSE_GRANTS, {
+      get: {
+        "/returns": () =>
+          bePage([returnRowJson({ status: "AWAITING_RETURN", receiptDraftOpen: true })]),
+        "/goods-receipts/returns": (params) => drafts(params),
+      },
+    });
+    renderReturnScreen(<ReturnList />);
+    expect(await screen.findByRole("link", { name: /Mở phiếu nháp đang đếm/ })).toHaveAttribute(
+      "href",
+      "/admin/receipts/returns/gr-7",
+    );
+    const params = drafts.mock.calls[0]?.[0] as URLSearchParams;
+    expect(params.get("returnRequestId")).toBe("ret-1");
+    expect(params.getAll("status")).toEqual(["DRAFT"]);
+  });
+
+  it("BE-23: without goods-receipt read the row only says the warehouse is counting", async () => {
+    mockReturnApi(SALES_GRANTS, {
+      get: {
+        "/returns": () =>
+          bePage([returnRowJson({ status: "AWAITING_RETURN", receiptDraftOpen: true })]),
+      },
+    });
+    renderReturnScreen(<ReturnList />);
+    expect(await screen.findByText("Kho đang đếm trên phiếu nháp")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Mở phiếu nháp đang đếm/ })).toBeNull();
+  });
+
   it("vatAdjustment=true lists resolved returns with a link to the order's e-invoices (docs 21 §4.4)", async () => {
     const list = vi.fn((_params: unknown) =>
       bePage([returnRowJson({ status: "RESOLVED", vatAdjustmentRequired: true })]),
