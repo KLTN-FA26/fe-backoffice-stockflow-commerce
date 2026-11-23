@@ -4,7 +4,7 @@ import { PUTAWAY_LABELS, PUTAWAY_TASK_PERMISSIONS, WORKSPACE_PATHS } from "@/con
 import { usePermissionChecker } from "@/lib/auth";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
-import { useWorkspaceHref } from "@/lib/workspace";
+import { InWorkspaceWarehouse, useWorkspaceHref } from "@/lib/workspace";
 import { putawayTaskGate } from "@/features/putaway/lifecycle";
 import { usePutawayTask } from "@/features/putaway/queries";
 
@@ -76,7 +76,9 @@ function DetailContent({ taskId }: { taskId: string }) {
   }
   const gate = putawayTaskGate(task, can);
   return (
-    <>
+    // Nhiệm vụ của kho khác kho trên URL → chuyển sang đúng kho, không cất dưới kho sai (spec 2026-11-22 §2).
+    // BE cũ chưa trả `warehouseId` (BE #394) thì hiện bình thường.
+    <InWorkspaceWarehouse warehouseId={task.warehouseId} path={WORKSPACE_PATHS.putawayTask(taskId)}>
       <h1 className="sr-only">{L.detailTitle(task.lpn ?? task.sku)}</h1>
       {gate.canConfirm ? (
         // `key` theo nhiệm vụ: đổi thùng (điều hướng) thì form + key idempotency làm lại từ đầu
@@ -92,7 +94,7 @@ function DetailContent({ taskId }: { taskId: string }) {
           </div>
         </div>
       )}
-    </>
+    </InWorkspaceWarehouse>
   );
 }
 

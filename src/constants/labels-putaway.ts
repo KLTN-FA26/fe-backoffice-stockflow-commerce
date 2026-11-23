@@ -201,6 +201,9 @@ export const PUTAWAY_TRIP_LABELS = {
   elsewhere: {
     mine: (prefix: string) => `Bạn đang có chuyến mở ở kho ${prefix}`,
     other: (prefix: string) => `Chuyến này thuộc kho ${prefix}`,
+    // Danh mục kho không có kho của chuyến → không dựng được link, dẫn về bước chọn kho
+    mineUnknown: "Bạn đang có chuyến mở ở một kho khác",
+    otherUnknown: "Chuyến này thuộc một kho khác",
     description: "Chuyến cất hàng làm việc theo một kho. Mở chuyến ở kho của nó để tiếp tục.",
     open: "Mở chuyến ở kho đó",
   },

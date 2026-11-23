@@ -6,6 +6,7 @@ import {
   PUTAWAY_ERROR_MESSAGES,
   PUTAWAY_TRIP_ERROR_MESSAGES,
   PUTAWAY_TRIP_LABELS,
+  UI_LABELS,
 } from "@/constants";
 import { PERMISSION_UI } from "@/constants/permissions";
 import { WorkspaceWarehouseProvider } from "@/lib/workspace";
@@ -226,6 +227,31 @@ describe("TripPage — chuyến theo id", () => {
     renderScreen(inTab(<TripPage tripId="trip-1" />, BD), "WAREHOUSE_MANAGER");
     expect(await screen.findByText("Chuyến này thuộc kho HCM")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: L.close.force })).not.toBeInTheDocument();
+  });
+
+  it("kho của chuyến không có trong danh mục → vẫn báo, dẫn về bước chọn kho (không để màn trống)", async () => {
+    setup("WAREHOUSE_MANAGER", { ...GOING, warehouseId: "wh-gone", operatorId: "someone" });
+    renderScreen(inTab(<TripPage tripId="trip-1" />, BD), "WAREHOUSE_MANAGER");
+    expect(await screen.findByText(L.elsewhere.otherUnknown)).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: UI_LABELS.warehouseMap.workspace.backToChooser }),
+    ).toHaveAttribute("href", "/admin/warehouse-map");
+  });
+
+  it("danh mục kho lỗi khi chuyến ở kho khác → báo lỗi kèm Thử lại (không để màn trống)", async () => {
+    mockApi("WAREHOUSE_STAFF", {
+      get: {
+        "/putaway-trips/current": () => ({ ...GOING, warehouseId: "wh-1" }),
+        "/warehouses": () => {
+          throw apiError(500, "INTERNAL_ERROR");
+        },
+      },
+    });
+    renderScreen(inTab(<MyTripPage />, BD), "WAREHOUSE_STAFF");
+    expect(
+      await screen.findByRole("button", { name: new RegExp(UI_LABELS.common.retry) }),
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText(L.place.bin)).not.toBeInTheDocument();
   });
 
   it("chuyến đã đóng → không nút ghi nào, có đường về danh sách", async () => {

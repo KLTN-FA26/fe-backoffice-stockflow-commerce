@@ -13,6 +13,12 @@ import { task } from "./fixtures";
 import type { TestRole } from "@/test/api-screen";
 import type { PutawayTask } from "../types";
 
+const replace = vi.fn();
+vi.mock("next/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/navigation")>()),
+  useRouter: () => ({ replace, push: vi.fn(), prefetch: vi.fn() }),
+}));
+
 const L = PUTAWAY_DETAIL_LABELS;
 const SUGGESTED = task({
   suggestions: [
@@ -46,7 +52,10 @@ function setup(
 
 const submitButton = () => screen.queryByRole("button", { name: L.submit });
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  replace.mockReset();
+});
 
 describe("PutawayTaskDetail — action-gating (≥ 3 vai trò)", () => {
   it("Nhân viên kho + Pending → thẻ xác nhận, con trỏ ở ô LPN", async () => {
@@ -140,5 +149,42 @@ describe("PutawayTaskDetail — bin gợi ý + xác nhận (docs 05 §4.3–4.4)
     expect(await screen.findByText(L.noSuggestion)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: L.chooseBin("HCM-OVF01") }));
     expect(screen.getByLabelText(L.locationField)).toHaveValue("HCM-OVF01");
+  });
+});
+
+describe("PutawayTaskDetail — kho của nhiệm vụ khác kho của tab (spec 2026-11-22 §2)", () => {
+  const BD_WAREHOUSES = {
+    items: [{ id: "wh-bd", prefix: "BD", name: "Kho Bình Dương", status: "ACTIVE" }],
+    page: 0,
+    size: 200,
+    totalElements: 1,
+    totalPages: 1,
+    hasNext: false,
+    hasPrevious: false,
+  };
+
+  it("nhiệm vụ của kho BD mở dưới tab HCM → không hiện thẻ cất, chuyển sang tab BD", async () => {
+    mockApi("WAREHOUSE_STAFF", {
+      get: {
+        "/putaway-tasks/t-1": () => ({ ...SUGGESTED, warehouseId: "wh-bd" }),
+        "/warehouses": () => BD_WAREHOUSES,
+      },
+    });
+    renderScreen(
+      <WorkspaceWarehouseProvider value={{ id: "wh-1", prefix: "HCM", name: "Kho Hồ Chí Minh" }}>
+        <PutawayTaskDetail taskId="t-1" />
+      </WorkspaceWarehouseProvider>,
+      "WAREHOUSE_STAFF",
+    );
+    await waitFor(() =>
+      expect(replace).toHaveBeenCalledWith("/admin/warehouse-map/BD/putaway/t-1"),
+    );
+    expect(submitButton()).not.toBeInTheDocument();
+  });
+
+  it("nhiệm vụ cùng kho với tab → cất bình thường, không chuyển trang", async () => {
+    setup("WAREHOUSE_STAFF", { ...SUGGESTED, warehouseId: "wh-1" });
+    expect(await screen.findByRole("button", { name: L.submit })).toBeInTheDocument();
+    expect(replace).not.toHaveBeenCalled();
   });
 });
