@@ -9,9 +9,6 @@ import { z } from "zod";
 import { UI_LABELS } from "@/constants";
 import { bePageSchema } from "@/lib/api/page-schema";
 
-/** BE serialise BigDecimal thành số JSON; nhận cả chuỗi số, chặn NaN. */
-const beDecimal = z.union([z.number(), z.string()]).transform(Number).pipe(z.number());
-
 /* ── DTO ─────────────────────────────────────────────────────────────── */
 
 /** BE `InventoryItemSummaryResponse` — dòng danh sách. */
@@ -24,20 +21,14 @@ export const inventoryItemSummaryDtoSchema = z.object({
 
 export const inventoryItemPageSchema = bePageSchema(inventoryItemSummaryDtoSchema);
 
-/** BE `InventoryItemResponse.Logistics` — kích thước / khối lượng là `null` (vắng) khi chưa biết. */
+/**
+ * BE `InventoryItemResponse.Logistics`. Hồ sơ không còn số đo riêng (BE #396, V20261215000100; docs 01 §3, BR-03,
+ * C21 chốt 2026-11-22): kích thước và khối lượng là của thùng, nằm ở quy cách thùng (đơn vị quy đổi).
+ * Không `.strict()` — BE cũ còn trả 10 trường số đo thì zod bỏ qua, một bản FE chạy với cả hai bản BE.
+ */
 export const itemLogisticsDtoSchema = z.object({
   unitOfMeasure: z.string(),
   barcode: z.string().nullish(),
-  weightKg: beDecimal.nullish(),
-  lengthCm: beDecimal.nullish(),
-  widthCm: beDecimal.nullish(),
-  heightCm: beDecimal.nullish(),
-  packageWeightKg: beDecimal.nullish(),
-  packageLengthCm: beDecimal.nullish(),
-  packageWidthCm: beDecimal.nullish(),
-  packageHeightCm: beDecimal.nullish(),
-  packageCount: z.number().int(),
-  packSize: z.number().int(),
   // Kiện được xoay 6 hướng khi xếp xe (docs 01 E13), thùng xoay ngang cho vừa bin (06 BR-01)
   rotatable: z.boolean().default(true),
 });
@@ -54,15 +45,6 @@ export const inventoryItemDtoSchema = z.object({
 
 const V = UI_LABELS.inventoryItem.validation;
 
-const optionalPositive = z
-  .string()
-  .trim()
-  .refine((v) => v === "" || Number(v) > 0, V.mustBePositive);
-const optionalCount = z
-  .string()
-  .trim()
-  .refine((v) => v === "" || (Number.isInteger(Number(v)) && Number(v) >= 1), V.integerAtLeast1);
-
 /** Form logistics — chuỗi người dùng gõ; chuyển sang `UpdateItemLogisticsRequest` khi gửi. */
 export const logisticsFormSchema = z.object({
   // BE `UpdateItemLogisticsRequest.unitOfMeasure` @Pattern
@@ -72,15 +54,5 @@ export const logisticsFormSchema = z.object({
     .regex(/^[A-Z0-9_]{1,16}$/, V.uomFormat),
   // BE @Size(min = 1, max = 64); trống → gửi null
   barcode: z.string().trim().max(64, V.barcodeMax),
-  weightKg: optionalPositive,
-  lengthCm: optionalPositive,
-  widthCm: optionalPositive,
-  heightCm: optionalPositive,
-  packageWeightKg: optionalPositive,
-  packageLengthCm: optionalPositive,
-  packageWidthCm: optionalPositive,
-  packageHeightCm: optionalPositive,
-  packageCount: optionalCount,
-  packSize: optionalCount,
   rotatable: z.boolean(),
 });

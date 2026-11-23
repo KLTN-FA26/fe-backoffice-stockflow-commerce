@@ -22,7 +22,10 @@ export const EstimateLineSchema = z.object({
   sku: z.string(),
   inventoryItemId: z.string(),
   quantity: z.number().int(),
-  /** Tầng quy tắc đóng gói đã dùng (LP2-2): DEFAULT_SHIPPING_UNIT, LARGEST_PACKING_UNIT, ITEM_BOX, ITEM_UNIT. */
+  /**
+   * Tầng quy tắc đóng gói đã dùng (LP2-2): DEFAULT_SHIPPING_UNIT, LARGEST_PACKING_UNIT. ITEM_BOX / ITEM_UNIT đã bỏ
+   * ở BE #396 (docs 01 BR-03) nhưng ước tính cũ có thể còn — giữ chuỗi tự do, nhãn ở `LOAD_ESTIMATE_RULE_LABELS`.
+   */
   rule: z.string(),
   uom: z.string(),
   /** Đơn vị cơ sở trong một thùng. */

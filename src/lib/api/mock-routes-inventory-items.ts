@@ -24,17 +24,6 @@ const retired = (sku: string) =>
     `SKU ${sku} is obsolete: its inventory settings are kept as they are`,
   );
 
-const MEASURES = [
-  "weightKg",
-  "lengthCm",
-  "widthCm",
-  "heightCm",
-  "packageWeightKg",
-  "packageLengthCm",
-  "packageWidthCm",
-  "packageHeightCm",
-] as const;
-
 async function findItem(config: AxiosRequestConfig) {
   const { id = "" } = pathParams(config);
   const row = (await mockInventoryItemRows()).find((r) => r.id === id)?.row;
@@ -86,26 +75,11 @@ function readLogistics(b: Record<string, unknown>, row: MockLogistics) {
   if (barcode !== null && (barcode.length < 1 || barcode.length > 64)) {
     return { error: invalid("barcode", "barcode must be 1-64 characters") };
   }
-  const measures: Partial<Record<(typeof MEASURES)[number], number | null>> = {};
-  for (const key of MEASURES) {
-    const value = typeof b[key] === "number" ? (b[key] as number) : null;
-    if (value !== null && value <= 0) return { error: invalid(key, `${key} must be positive`) };
-    measures[key] = value;
-  }
-  const count = (key: "packageCount" | "packSize") => {
-    const value = b[key];
-    return typeof value === "number" ? value : 1; // BE: 1 khi vắng
-  };
-  for (const key of ["packageCount", "packSize"] as const) {
-    if (count(key) < 1) return { error: invalid(key, `${key} must be at least 1`) };
-  }
+  // BE #396: không còn số đo trên hồ sơ — client cũ còn gửi thì bỏ qua, không báo lỗi
   const next: MockLogistics = {
     ...row,
-    ...measures,
     unitOfMeasure,
     barcode,
-    packageCount: count("packageCount"),
-    packSize: count("packSize"),
     // BE `InventoryItemWebMapper.toLogistics`: `!Boolean.FALSE.equals(rotatable)` — thiếu = true
     rotatable: b.rotatable !== false,
     version: row.version + 1,

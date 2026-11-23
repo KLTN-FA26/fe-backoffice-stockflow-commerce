@@ -17,8 +17,9 @@ afterEach(() => vi.restoreAllMocks());
 const L = UI_LABELS.inventoryItem;
 const R = L.stockRules;
 const ITEM_URL = "/inventory/items/item-1";
+const NEWER_BARCODE = "8930000000075";
 
-/** BE `InventoryItemResponse` hiện tại — chỉ logistics; số đo chưa biết bị BE bỏ khỏi JSON. */
+/** BE `InventoryItemResponse` sau BE #396 — logistics chỉ còn đơn vị tính, mã vạch, cờ xoay (docs 01 BR-03). */
 const item = (over: Record<string, unknown> = {}, logistics: Record<string, unknown> = {}) => ({
   id: "item-1",
   sku: "TSHIRT-RED-M",
@@ -26,9 +27,6 @@ const item = (over: Record<string, unknown> = {}, logistics: Record<string, unkn
   logistics: {
     unitOfMeasure: "PCS",
     barcode: "8930000000011",
-    weightKg: 0.25,
-    packageCount: 1,
-    packSize: 1,
     rotatable: true,
     ...logistics,
   },
@@ -43,10 +41,10 @@ const itemGets = (get: ReturnType<typeof mockApiGet>) =>
 async function openLogisticsForm() {
   await userEvent.click(await screen.findByRole("button", { name: L.editLogistics }));
 }
-const weightInput = () => screen.getByLabelText(L.field.weightKg);
-async function typeWeight(value: string) {
-  await userEvent.clear(weightInput());
-  await userEvent.type(weightInput(), value);
+const barcodeInput = () => screen.getByLabelText(L.field.barcode);
+async function typeBarcode(value: string) {
+  await userEvent.clear(barcodeInput());
+  await userEvent.type(barcodeInput(), value);
 }
 
 describe("InventoryItemDetail", () => {
@@ -56,7 +54,8 @@ describe("InventoryItemDetail", () => {
 
     expect(await screen.findByText("PCS")).toBeInTheDocument();
     expect(screen.getByText("8930000000011")).toBeInTheDocument();
-    expect(screen.getByText("0.25 kg")).toBeInTheDocument();
+    // BE #396: hồ sơ không còn khối lượng / kích thước / kiện — số đo ở quy cách thùng
+    expect(screen.queryByText(/\d kg|\d cm/)).toBeNull();
     for (const value of [R.trackingValue, R.removalValue]) {
       expect(screen.getByText(value)).toBeInTheDocument();
     }
@@ -88,36 +87,27 @@ describe("InventoryItemDetail", () => {
     expect(itemGets(get)).toHaveLength(0);
   });
 
-  it("sửa logistics: form không còn điều kiện lưu kho / QC / ký nhận; đổi khối lượng → PUT kèm version, form đóng", async () => {
+  it("sửa logistics: form không còn số đo / điều kiện lưu kho / QC; đổi mã vạch → PUT đúng 4 trường, form đóng", async () => {
     mockGet();
     const put = vi.spyOn(api, "put").mockResolvedValue({ data: item({ version: 4 }) });
     renderInventoryScreen(<InventoryItemDetail id="item-1" />);
     await openLogisticsForm();
     expect(screen.queryByText("Điều kiện lưu kho")).toBeNull();
     expect(screen.queryByText("Nhập kho đi qua khu QC")).toBeNull();
+    expect(screen.queryAllByRole("spinbutton")).toHaveLength(0);
 
-    await typeWeight("0.5");
+    await typeBarcode("8930000000099");
     await userEvent.click(screen.getByRole("button", { name: L.saveLogistics }));
 
     await vi.waitFor(() =>
       expect(put).toHaveBeenCalledWith(`${ITEM_URL}/logistics`, {
         version: 3,
         unitOfMeasure: "PCS",
-        barcode: "8930000000011",
-        weightKg: 0.5,
-        lengthCm: null,
-        widthCm: null,
-        heightCm: null,
-        packageWeightKg: null,
-        packageLengthCm: null,
-        packageWidthCm: null,
-        packageHeightCm: null,
-        packageCount: 1,
-        packSize: 1,
+        barcode: "8930000000099",
         rotatable: true,
       }),
     );
-    await vi.waitFor(() => expect(screen.queryByLabelText(L.field.weightKg)).toBeNull());
+    await vi.waitFor(() => expect(screen.queryByLabelText(L.field.barcode)).toBeNull());
   });
 
   it("item không cho xoay kiện → xem hiện Không; lưu logistics gửi rotatable false", async () => {
@@ -129,7 +119,7 @@ describe("InventoryItemDetail", () => {
     await openLogisticsForm();
 
     expect(screen.getByLabelText(L.field.rotatable)).not.toBeChecked();
-    await typeWeight("0.5");
+    await typeBarcode("8930000000099");
     await userEvent.click(screen.getByRole("button", { name: L.saveLogistics }));
 
     await vi.waitFor(() =>
@@ -168,7 +158,7 @@ describe("InventoryItemDetail", () => {
 
     expect(await screen.findByText(INVENTORY_ITEM_ERROR_MESSAGES.CONFLICT)).toBeInTheDocument();
     expect(screen.queryByRole("alert")).toBeNull();
-    expect(weightInput()).toBeInTheDocument();
+    expect(barcodeInput()).toBeInTheDocument();
   });
 
   it("409 VARIANT_OBSOLETE (SKU ngừng dùng) → alert chỉ còn xem", async () => {
@@ -197,12 +187,12 @@ describe("InventoryItemDetail", () => {
     );
   });
 
-  /** GET đầu trả version 3; mọi GET sau trả version 4 với khối lượng 0.75 (người khác vừa sửa). */
+  /** GET đầu trả version 3; mọi GET sau trả version 4 với mã vạch khác (người khác vừa sửa). */
   const newerAfterFirst = () => {
     let calls = 0;
     return mockGet(ITEM_PERMISSION_SETS.editor, () => {
       calls += 1;
-      return calls === 1 ? item() : item({ version: 4 }, { weightKg: 0.75 });
+      return calls === 1 ? item() : item({ version: 4 }, { barcode: NEWER_BARCODE });
     });
   };
 
@@ -211,12 +201,12 @@ describe("InventoryItemDetail", () => {
     vi.spyOn(api, "put").mockRejectedValue(new ApiError(409, "OPTIMISTIC_LOCK", "stale"));
     renderInventoryScreen(<InventoryItemDetail id="item-1" />);
     await openLogisticsForm();
-    await typeWeight("0.5");
+    await typeBarcode("8930000000050");
 
     await userEvent.click(screen.getByRole("button", { name: L.saveLogistics }));
 
     await vi.waitFor(() => expect(itemGets(get).length).toBeGreaterThan(1));
-    await vi.waitFor(() => expect(weightInput()).toHaveValue(0.75));
+    await vi.waitFor(() => expect(barcodeInput()).toHaveValue(NEWER_BARCODE));
     expect(screen.getByText(INVENTORY_ITEM_ERROR_MESSAGES.OPTIMISTIC_LOCK)).toBeInTheDocument();
   });
 
@@ -225,22 +215,22 @@ describe("InventoryItemDetail", () => {
     const put = vi.spyOn(api, "put").mockRejectedValue(new ApiError(409, "OPTIMISTIC_LOCK", "x"));
     const { client } = renderInventoryScreen(<InventoryItemDetail id="item-1" />);
     await openLogisticsForm();
-    await typeWeight("0.5");
+    await typeBarcode("8930000000050");
 
     await act(() => client.invalidateQueries());
     await vi.waitFor(() => expect(itemGets(get)).toHaveLength(2));
 
     expect(await screen.findByText(L.outdatedNotice)).toBeInTheDocument();
-    expect(weightInput()).toHaveValue(0.5);
+    expect(barcodeInput()).toHaveValue("8930000000050");
     await userEvent.click(screen.getByRole("button", { name: L.saveLogistics }));
     await vi.waitFor(() =>
       expect(put).toHaveBeenCalledWith(
         `${ITEM_URL}/logistics`,
-        expect.objectContaining({ version: 3, weightKg: 0.5 }),
+        expect.objectContaining({ version: 3, barcode: "8930000000050" }),
       ),
     );
     // 409 → nạp lại theo dữ liệu mới, bỏ thông báo
-    await vi.waitFor(() => expect(weightInput()).toHaveValue(0.75));
+    await vi.waitFor(() => expect(barcodeInput()).toHaveValue(NEWER_BARCODE));
     expect(screen.queryByText(L.outdatedNotice)).toBeNull();
   });
 
@@ -252,7 +242,7 @@ describe("InventoryItemDetail", () => {
     await act(() => client.invalidateQueries());
     await vi.waitFor(() => expect(itemGets(get)).toHaveLength(2));
 
-    await vi.waitFor(() => expect(weightInput()).toHaveValue(0.75));
+    await vi.waitFor(() => expect(barcodeInput()).toHaveValue(NEWER_BARCODE));
     expect(screen.queryByText(L.outdatedNotice)).toBeNull();
   });
 });

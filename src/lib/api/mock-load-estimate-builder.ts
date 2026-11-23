@@ -35,7 +35,8 @@ function linesOf(layouts: readonly Layout[]) {
       sku: first.label,
       inventoryItemId: `item-${first.label}`,
       quantity: boxes.length,
-      rule: "ITEM_BOX",
+      // BE #396 bỏ tầng ITEM_BOX / ITEM_UNIT: chỉ còn thùng (docs 01 BR-03)
+      rule: "DEFAULT_SHIPPING_UNIT",
       uom: "CTN",
       factor: 1,
       cartons: boxes.length,

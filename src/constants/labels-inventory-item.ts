@@ -40,16 +40,6 @@ export const INVENTORY_ITEM_UI_LABELS = {
     sku: "SKU",
     unitOfMeasure: "Đơn vị tính",
     barcode: "Mã vạch",
-    weightKg: "Khối lượng (kg)",
-    lengthCm: "Dài (cm)",
-    widthCm: "Rộng (cm)",
-    heightCm: "Cao (cm)",
-    packageWeightKg: "Kiện: khối lượng (kg)",
-    packageLengthCm: "Kiện: dài (cm)",
-    packageWidthCm: "Kiện: rộng (cm)",
-    packageHeightCm: "Kiện: cao (cm)",
-    packageCount: "Số kiện / đơn vị",
-    packSize: "Đơn vị / gói",
     rotatable: "Cho phép xoay kiện khi xếp xe",
   },
   /** Docs 01 §3 "Chính sách tồn", BR-17 (chốt 2026-11-05) — cố định, không cấu hình. */
@@ -78,12 +68,12 @@ export const INVENTORY_ITEM_UI_LABELS = {
   logisticsTitle: "Logistics",
   saveLogistics: "Lưu logistics",
   saving: "Đang lưu…",
+  // BE #396 (docs 01 BR-03): kích thước, khối lượng là của thùng — khai ở quy cách thùng của SKU
   logisticsDialogDescription:
-    "Đơn vị tính, mã vạch, khối lượng và kích thước một đơn vị, kiện giao, cho phép xoay kiện.",
+    "Đơn vị tính, mã vạch, cho phép xoay kiện. Kích thước và khối lượng khai ở quy cách thùng của SKU.",
   outdatedNotice:
     "Hồ sơ vừa được người khác cập nhật — kiểm tra lại trước khi lưu; lưu bây giờ sẽ bị từ chối (409) và tải lại.",
   notProvided: "Chưa có",
-  weightView: "Khối lượng",
   listRefetching: "Đang tải lại danh sách hồ sơ hàng tồn",
   listCaption: (shown: number, total: number) => `Hiển thị ${shown} / ${total} hồ sơ hàng tồn`,
   summary: {
@@ -93,17 +83,11 @@ export const INVENTORY_ITEM_UI_LABELS = {
     none: "Chưa dùng",
   },
   validation: {
-    mustBePositive: "Phải lớn hơn 0",
-    integerAtLeast1: "Số nguyên ≥ 1",
     uomFormat: "Đơn vị tính 1–16 ký tự in hoa, số hoặc _",
     barcodeMax: "Mã vạch tối đa 64 ký tự",
   },
   yes: "Có",
   no: "Không",
-  dimensions: "Kích thước",
-  packageDimensions: "Kiện giao",
-  countAndPack: "Số kiện / đơn vị · Quy cách",
-  packSuffix: "/gói",
 } as const;
 
 export const INVENTORY_ITEM_TOAST_MESSAGES = {
