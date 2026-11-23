@@ -6,7 +6,7 @@ import { RETURN_CUSTODY_NOTE_CHOICE_LABELS, RETURN_LABELS } from "@/constants/la
 import {
   RETURN_CUSTODY_NOTE_CHOICES,
   RETURN_LIMITS,
-  RETURN_TAKES_NOTHING_STATUSES,
+  RETURN_CUSTODY_TAKER_STATUSES,
 } from "@/constants/returns";
 import { usePermissionChecker } from "@/lib/auth/components/Can";
 import { formatDateTime } from "@/lib/format/date";
@@ -47,7 +47,7 @@ export interface CustodyNoteTarget {
   what: string;
 }
 
-/** Yêu cầu bổ sung chọn được: cùng khách, không phải chính yêu cầu này, còn nhận hàng (BE `takesNothing`). */
+/** Yêu cầu bổ sung chọn được: cùng khách, không phải chính yêu cầu này, còn nhận hàng (CF-5: chỉ bốn trạng thái BE nhận). */
 function useSupplementaryReturns(target: CustodyNoteTarget, enabled: boolean) {
   const query = useReturns(
     { page: 0, size: 50, customerId: target.customerId ?? undefined },
@@ -56,7 +56,7 @@ function useSupplementaryReturns(target: CustodyNoteTarget, enabled: boolean) {
   const options = (query.data?.items ?? []).filter(
     (row) =>
       row.id !== target.returnId &&
-      !(RETURN_TAKES_NOTHING_STATUSES as readonly string[]).includes(row.status),
+      (RETURN_CUSTODY_TAKER_STATUSES as readonly string[]).includes(row.status),
   );
   return { options, isPending: query.isPending && !!target.customerId };
 }
@@ -86,7 +86,10 @@ function ChoiceForm({ target, onClose }: { target: CustodyNoteTarget; onClose: (
         note,
         takenByReturnId: choice === "TAKEN_BY_RETURN" ? takenBy : undefined,
       },
-      { onSuccess: onClose, onError: (failure) => setError(custodyNoteErrorMessage(failure)) },
+      {
+        onSuccess: onClose,
+        onError: (failure) => setError(custodyNoteErrorMessage(failure, "choose")),
+      },
     );
   };
   return (
@@ -219,7 +222,7 @@ export function CustodyNoteActions({ target }: { target: CustodyNoteTarget }) {
               { returnId: target.returnId, evidenceId: target.evidenceId, note: note ?? "" },
               {
                 onSuccess: closeEnd,
-                onError: (failure) => setError(custodyNoteErrorMessage(failure)),
+                onError: (failure) => setError(custodyNoteErrorMessage(failure, "end")),
               },
             )
           }

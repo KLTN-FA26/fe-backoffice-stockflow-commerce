@@ -78,6 +78,8 @@ function ExternalReductionForm({ invoice, onClose }: { invoice: EInvoice; onClos
   // Audit r3 EINV-2, nửa sai sót: căn cứ ERROR chỉ chọn trong các bản điều chỉnh sai sót đã huỷ BE nêu
   // (`externalReductionErrors`), gửi đúng `voidedAdjustmentId`
   const bases = invoice.externalReductionBases;
+  // CF-4 / CF-10: hoá đơn phần còn lại của đơn (không thuộc lần giao nào) — chỉ giảm phí vận chuyển đã miễn, BE tự tính số tiền
+  const isRest = !invoice.shipmentId;
   const returns = invoice.externalReductionReturns;
   const errorDrafts = invoice.externalReductionErrors;
   const [symbol, setSymbol] = useState("");
@@ -162,7 +164,17 @@ function ExternalReductionForm({ invoice, onClose }: { invoice: EInvoice; onClos
       onCancel={onClose}
       onSubmit={submit}
     >
-      <FormField id="reduction-basis" label="Căn cứ giảm" required error={fieldErrors.basis}>
+      <FormField
+        id="reduction-basis"
+        label="Căn cứ giảm"
+        required
+        error={fieldErrors.basis}
+        hint={
+          isRest
+            ? "Hoá đơn này không thuộc lần giao nào: hoá đơn giảm chỉ lấy lại phí vận chuyển đã miễn (hệ thống tự tính số tiền, không lấy phí khuôn) — hoá đơn giảm làm trên cổng phải đúng số đó."
+            : undefined
+        }
+      >
         <Select
           value={basis}
           onValueChange={(value) => setBasis(bases.find((entry) => entry === value) ?? basis)}
@@ -173,7 +185,9 @@ function ExternalReductionForm({ invoice, onClose }: { invoice: EInvoice; onClos
           <SelectContent>
             {bases.map((value) => (
               <SelectItem key={value} value={value}>
-                {EXTERNAL_REDUCTION_BASIS_LABELS[value]}
+                {isRest && value === "DELIVERY_FAILED"
+                  ? "Giao hàng thất bại — phí vận chuyển đã miễn"
+                  : EXTERNAL_REDUCTION_BASIS_LABELS[value]}
               </SelectItem>
             ))}
           </SelectContent>

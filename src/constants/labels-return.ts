@@ -199,7 +199,8 @@ export const RETURN_LABELS = {
       choiceNote: "Biên bản / ghi chú",
       choiceNoteRequired: "Huỷ hộ phải nêu biên bản khách đồng ý.",
       takenByReturn: "Yêu cầu trả hàng bổ sung",
-      takenByReturnHint: "Yêu cầu khác của cùng khách, chưa bị từ chối / rút / hết hạn.",
+      takenByReturnHint:
+        "Yêu cầu khác của cùng khách, đang chờ duyệt, chờ hàng, đã nhận hàng hoặc chờ quyết toán.",
       takenByReturnRequired: "Chọn yêu cầu trả hàng bổ sung nhận hàng này.",
       noOtherReturn:
         "Khách chưa có yêu cầu trả hàng nào khác còn nhận hàng — mở yêu cầu bổ sung trước.",

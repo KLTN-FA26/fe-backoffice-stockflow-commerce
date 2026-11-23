@@ -120,6 +120,37 @@ describe("audit r2 M-10: recording a portal reduction follows the BE's options",
     expect(api.get.mock.calls.some(([url]) => url === "/returns")).toBe(false);
   });
 
+  it("CF-4/CF-10: a rest invoice (no shipment) records DELIVERY_FAILED with no amount and no ids, when the BE offers it", async () => {
+    const rest = (over: Record<string, unknown> = {}) =>
+      issuedReplacement({ shipmentId: null, type: "ORIGINAL", correctionBasis: null, ...over });
+    const api = mockEInvoiceApi(ACCOUNTANT_GRANTS, {
+      get: get(
+        rest({ externalReductionAllowed: true, externalReductionBases: ["DELIVERY_FAILED"] }),
+      ),
+      post: {
+        "/einvoices/einv-1/external-reductions": () =>
+          detailJson({ id: "einv-7", type: "ADJUSTMENT", status: "ISSUED" }),
+      },
+    });
+    renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Ghi hoá đơn giảm làm trên cổng NCC" }),
+    );
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByRole("combobox", { name: /Căn cứ giảm/ })).toHaveTextContent(
+      "phí vận chuyển đã miễn",
+    );
+    expect(dialog).toHaveTextContent("hệ thống tự tính số tiền");
+    await fillReduction(dialog);
+    await userEvent.click(within(dialog).getByRole("button", { name: "Ghi hoá đơn giảm" }));
+    await waitFor(() => expect(api.post).toHaveBeenCalled());
+    const form = api.post.mock.calls.at(-1)?.[1] as FormData;
+    expect(form.get("basis")).toBe("DELIVERY_FAILED");
+    expect(form.has("returnRequestId")).toBe(false);
+    expect(form.has("voidedAdjustmentId")).toBe(false);
+    expect(form.has("amount")).toBe(false);
+  });
+
   it("marks the box the BE names in fieldErrors, in Vietnamese (never the BE's English)", async () => {
     mockEInvoiceApi(ACCOUNTANT_GRANTS, {
       get: get(

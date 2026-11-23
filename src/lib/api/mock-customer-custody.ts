@@ -33,7 +33,14 @@ const ended = mockEndedCustody();
 /** Kết cục của biên nhận giữ hộ theo `evidenceId` (xoá cùng `resetReturnMockStore`). */
 const outcomes = mockCustodyOutcomes();
 const NOTE_MAX = 500;
-const TAKES_NOTHING = ["REJECTED", "CANCELLED", "EXPIRED"];
+/** BE CF-5: yêu cầu còn nhận được hàng giữ hộ. */
+const TAKER_STATUSES = ["REQUESTED", "AWAITING_RETURN", "RECEIVED", "SETTLEMENT_PENDING"];
+
+/** BE CF-5: kết thúc biên nhận cần yêu cầu nhận đã có phiếu nhập hàng hoàn không còn nháp. */
+const tookTheGoods = (taker: MockReturn) =>
+  mockReturnReceipts().some(
+    (receipt) => receipt.returnRequestId === taker.id && receipt.status !== "DRAFT",
+  );
 
 /** Thùng nguyên giữ hộ khách của một yêu cầu RESOLVED — chia theo từng SKU như BE (audit r3 RAD-1). */
 function heldCartonsOf(ret: MockReturn) {
@@ -191,8 +198,12 @@ function choiceRefusal(ret: MockReturn, body: Record<string, unknown>, takenBy: 
     return fail(400, "VALIDATION_FAILED", "Name the supplementary return when it takes the goods");
   if (takenBy && (takenBy.id === ret.id || takenBy.customerId !== ret.customerId))
     return fail(400, "VALIDATION_FAILED", "Another return of the same customer");
-  if (takenBy && TAKES_NOTHING.includes(takenBy.status))
-    return fail(409, "RETURN_INVALID_TRANSITION", `Return ${takenBy.rmaNumber} takes no goods`);
+  if (takenBy && !TAKER_STATUSES.includes(takenBy.status))
+    return fail(
+      409,
+      "RETURN_INVALID_TRANSITION",
+      `Return ${takenBy.rmaNumber} cannot take goods now`,
+    );
   return null;
 }
 
@@ -251,8 +262,12 @@ function registerCustodyNoteMockRoutes(wire: (ret: MockReturn) => Record<string,
     const takenBy = chosen.takenByReturnId
       ? mockReturns().find((r) => r.id === chosen.takenByReturnId)
       : null;
-    if (chosen.choice === "TAKEN_BY_RETURN" && (!takenBy || TAKES_NOTHING.includes(takenBy.status)))
-      return fail(409, "RETURN_INVALID_TRANSITION", "The supplementary return took no goods");
+    if (chosen.choice === "TAKEN_BY_RETURN" && (!takenBy || !tookTheGoods(takenBy)))
+      return fail(
+        409,
+        "RETURN_INVALID_TRANSITION",
+        "The supplementary return has not received the goods",
+      );
     const note = text(bodyOf(config).note);
     if (!note || note.length > NOTE_MAX) return fail(400, "VALIDATION_FAILED", "note is required");
     const done = { ...chosen, endedAt: now(), endedBy: "mock-current-user", endedNote: note };

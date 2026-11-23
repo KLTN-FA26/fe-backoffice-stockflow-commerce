@@ -206,12 +206,20 @@ function externalReductions(i: MockEInvoice) {
     externalReductionReturns: [] as { returnRequestId: string; rmaNumber: string }[],
     externalReductionErrors: [] as ReturnType<typeof errorOption>[],
   };
-  if (i.status !== "ISSUED" || i.type === "ADJUSTMENT" || !i.shipmentId) return none;
+  if (i.status !== "ISSUED" || i.type === "ADJUSTMENT") return none;
   const corrections = mockEInvoices().filter((o) => o.originalEInvoiceId === i.id);
   const liveReduction = corrections.some(
     (o) => o.correctionBasis === "DELIVERY_FAILED" && o.status !== "VOIDED_DRAFT",
   );
   if (liveReduction) return none;
+  // CF-4 / CF-10: hoá đơn phần còn lại của đơn (không thuộc lần giao nào) — chỉ DELIVERY_FAILED, chỉ phí vận chuyển
+  // đã miễn; BE tính số tiền nên không nhận returnRequestId / voidedAdjustmentId
+  if (!i.shipmentId) {
+    const offered = !i.reversedAt && (i.waivedShippingShare ?? 0) > 0;
+    return offered
+      ? { ...none, externalReductionAllowed: true, externalReductionBases: ["DELIVERY_FAILED"] }
+      : none;
+  }
   const replacementInForce = i.type === "REPLACEMENT" && !i.reversedAt;
   const unsendableVoided =
     !!i.reversedAt && corrections.some((o) => o.voidReasonCode === UNSENDABLE_REVERSAL_REASON_CODE);
@@ -235,6 +243,12 @@ function externalReductions(i: MockEInvoice) {
     externalReductionReturns: returns,
     externalReductionErrors: errors,
   };
+}
+
+/** BE `recordRest`: chỉ dòng phí vận chuyển, đúng phần đã miễn (`waivedShippingShare`), không đụng phí khuôn. */
+function restShippingReduction(original: MockEInvoice): MockEInvoice["lines"] {
+  const line = original.lines.find((candidate) => candidate.feeKind === "SHIPPING_FEE");
+  return line ? [{ ...line, quantity: -1, unitPrice: original.waivedShippingShare ?? 0 }] : [];
 }
 
 const draftTotal = (draft: MockEInvoice) =>
@@ -618,6 +632,12 @@ export function registerEInvoiceMockRoutes(): void {
       );
     if (basis !== "ERROR" && voidedAdjustmentId)
       return fail(400, "VALIDATION_FAILED", "voidedAdjustmentId: only with basis ERROR");
+    // CF-4 / CF-10 `recordRest`: hoá đơn phần còn lại chỉ DELIVERY_FAILED, không kèm id nào
+    if (
+      !original.shipmentId &&
+      (basis !== "DELIVERY_FAILED" || returnRequestId || voidedAdjustmentId)
+    )
+      return fail(400, "VALIDATION_FAILED", "basis: DELIVERY_FAILED for the shipping fee waived");
     if (basis === "RETURN" && !returnRequestId)
       return fail(400, "VALIDATION_FAILED", "returnRequestId is required for basis RETURN");
     const draft =
@@ -660,7 +680,9 @@ export function registerEInvoiceMockRoutes(): void {
       agreement: draft?.agreement ?? null,
       lines: draft
         ? draft.lines.map((line) => ({ ...line }))
-        : original.lines.map((line) => ({ ...line, quantity: -line.quantity })),
+        : original.shipmentId
+          ? original.lines.map((line) => ({ ...line, quantity: -line.quantity }))
+          : restShippingReduction(original),
     });
     return ok(detail(reduction));
   });

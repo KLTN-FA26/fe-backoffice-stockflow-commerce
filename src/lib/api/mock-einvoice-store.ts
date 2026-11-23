@@ -80,6 +80,11 @@ export interface MockEInvoice {
   providerCannotCorrect?: boolean;
   /** Audit r3 EINV-2: hoá đơn giảm ghi từ cổng thay cho bản điều chỉnh sai sót đã huỷ này (BE `einvoice_portal_record`). */
   voidedAdjustmentId?: string | null;
+  /**
+   * Confirmation audit CF-4 / CF-10 (mock thay cho BE `EInvoiceDrafts.portalShareOf`): phí vận chuyển đã miễn mà hoá đơn
+   * phần còn lại (không thuộc lần giao nào) còn tính — phần chỉ giảm được trên cổng NCC. 0 / vắng = không còn gì để giảm.
+   */
+  waivedShippingShare?: number;
   /** Audit r2 H-2: NCC đã từng nói đang giữ giao dịch (BE `providerHeld`) — không bao giờ rút. */
   providerHeld?: boolean;
   /** Audit r3 EINV-3: tra lại giao dịch cũ tới mốc này sau khi rút / cơ quan thuế từ chối (BE `watchUntil`). */

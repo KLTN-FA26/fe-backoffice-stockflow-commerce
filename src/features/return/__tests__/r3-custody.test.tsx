@@ -99,10 +99,15 @@ describe("RAD-3: goods on a custody note have an ending", () => {
             { ...row("ret-1", "RMA-0001", "RESOLVED") },
             { ...row("ret-2", "RMA-0002", "AWAITING_RETURN") },
             { ...row("ret-3", "RMA-0003", "REJECTED") },
+            { ...row("ret-4", "RMA-0004", "REQUESTED") },
+            { ...row("ret-5", "RMA-0005", "RESOLVED") },
+            { ...row("ret-6", "RMA-0006", "INSPECTED") },
+            { ...row("ret-7", "RMA-0007", "EXPIRED") },
+            { ...row("ret-8", "RMA-0008", "SETTLEMENT_PENDING") },
           ],
           page: 0,
           size: 50,
-          totalElements: 3,
+          totalElements: 8,
           totalPages: 1,
           hasNext: false,
           hasPrevious: false,
@@ -124,8 +129,12 @@ describe("RAD-3: goods on a custody note have an ending", () => {
       within(dialog).getByRole("combobox", { name: new RegExp(C.takenByReturn) }),
     );
     const options = await screen.findAllByRole("option");
-    // Itself and a rejected return are not offered
-    expect(options.map((option) => option.textContent)).toEqual(["RMA-0002"]);
+    // CF-5: only REQUESTED, AWAITING_RETURN, RECEIVED, SETTLEMENT_PENDING; itself and the rest are not offered
+    expect(options.map((option) => option.textContent)).toEqual([
+      "RMA-0002",
+      "RMA-0004",
+      "RMA-0008",
+    ]);
     await userEvent.click(options[0]!);
     await userEvent.click(within(dialog).getByRole("button", { name: C.choose }));
     await waitFor(() =>
@@ -163,6 +172,26 @@ describe("RAD-3: goods on a custody note have an ending", () => {
     expect(
       await within(dialog).findByText(RETURN_ERROR_MESSAGES.RETURN_CUSTODY_CHOICE_REQUIRED!),
     ).toBeInTheDocument();
+  });
+
+  it("CF-5: ending a note before its goods arrived on the taker shows a clear Vietnamese message", async () => {
+    mockReturnApi(MANAGER, {
+      get: {
+        "/returns/ret-1": () =>
+          withNote({ choice: "TAKEN_BY_RETURN", chosenAt: "2026-11-21T02:00:00Z", endedAt: null }),
+      },
+      post: {
+        [END]: () => {
+          throw apiError(409, "RETURN_INVALID_TRANSITION");
+        },
+      },
+    });
+    renderReturnScreen(<ReturnDetail id="ret-1" />);
+    await userEvent.click(within(await custodyCard()).getByRole("button", { name: C.end }));
+    const dialog = screen.getByRole("dialog");
+    await userEvent.type(within(dialog).getByRole("textbox"), "BB 21/11");
+    await userEvent.click(within(dialog).getByRole("button", { name: C.end }));
+    expect(await within(dialog).findByText(/chưa về kho trên yêu cầu bổ sung/)).toBeInTheDocument();
   });
 
   it("an ended note shows when it left and offers nothing more", async () => {

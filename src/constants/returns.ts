@@ -63,8 +63,16 @@ export const RETURN_CUSTODY_NOTE_CHOICES = [
 export type ReturnCustodyNoteChoice = (typeof RETURN_CUSTODY_NOTE_CHOICES)[number];
 export type ReturnReadCustodyNoteChoice = ReturnCustodyNoteChoice | typeof RETURN_UNKNOWN;
 
-/** Yêu cầu bổ sung ở trạng thái này không nhận hàng nữa (BE `ReturnRequest.takesNothing`). */
-export const RETURN_TAKES_NOTHING_STATUSES = ["REJECTED", "CANCELLED", "EXPIRED"] as const;
+/**
+ * Yêu cầu bổ sung còn nhận được hàng giữ hộ — chỉ những yêu cầu này được chọn làm nơi "nhận trên yêu cầu bổ sung"
+ * (confirmation audit CF-5; BE `ReturnCustodyNotes`): chưa bị từ chối / rút / hết hạn và chưa RESOLVED / INSPECTED.
+ */
+export const RETURN_CUSTODY_TAKER_STATUSES = [
+  "REQUESTED",
+  "AWAITING_RETURN",
+  "RECEIVED",
+  "SETTLEMENT_PENDING",
+] as const;
 
 /** Biên nhận giữ hộ: danh sách hàng đang giữ (TH-6), ghi lựa chọn, ghi đã rời kho (BE `ReturnRequestController`, RAD-3). */
 export const RETURN_CUSTODY_NOTE_API = {

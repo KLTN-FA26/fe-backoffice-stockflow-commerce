@@ -136,10 +136,16 @@ export function custodyChoiceErrorMessage(error: unknown): string {
  * Hàng giữ hộ trên biên nhận (audit r3 RAD-3): Sale ghi lựa chọn / Quản lý kho ghi đã rời kho. RETURN_INVALID_TRANSITION ở
  * đây nghĩa là hàng đã rời kho, hoặc yêu cầu bổ sung đã chọn không còn nhận hàng.
  */
-export function custodyNoteErrorMessage(error: unknown): string {
+export function custodyNoteErrorMessage(
+  error: unknown,
+  action: "choose" | "end" = "choose",
+): string {
   if (error instanceof ApiError) {
+    // CF-5: kết thúc biên nhận "nhận trên yêu cầu bổ sung" khi yêu cầu đó chưa nhận hàng thật — BE từ chối, biên nhận vẫn mở
+    if (error.code === "RETURN_INVALID_TRANSITION" && action === "end")
+      return "Chưa kết thúc được: hàng này chưa về kho trên yêu cầu bổ sung đã chọn (kho chưa xác nhận nhận hàng trên phiếu nhập hàng hoàn của yêu cầu đó). Chờ kho nhận hàng rồi ghi lại, hoặc để Sale chọn lại cách xử lý. Nếu hàng đã được ghi rời kho rồi thì không ghi lại được. Dữ liệu đã được tải lại.";
     if (error.code === "RETURN_INVALID_TRANSITION")
-      return "Hàng này đã được ghi rời kho, hoặc yêu cầu trả hàng bổ sung đã bị từ chối / rút / hết hạn nên không nhận hàng — Sale ghi lại lựa chọn của khách. Dữ liệu đã được tải lại.";
+      return "Hàng này đã được ghi rời kho, hoặc yêu cầu trả hàng bổ sung không còn nhận hàng (đã bị từ chối / rút / hết hạn, hoặc đã xong) — Sale ghi lại lựa chọn của khách. Dữ liệu đã được tải lại.";
     if (error.code === "NOT_FOUND")
       return "Không tìm thấy biên nhận giữ hộ này trên yêu cầu. Dữ liệu đã được tải lại.";
     if (error.code === "VALIDATION_FAILED")
