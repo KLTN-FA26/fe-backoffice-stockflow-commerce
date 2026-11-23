@@ -11,7 +11,6 @@ import {
   ClipboardCheck,
   ClipboardList,
   Factory,
-  Database,
   FileBox,
   FileInput,
   FileSignature,
@@ -34,6 +33,7 @@ import {
   Handshake,
   PanelLeftClose,
   PanelLeftOpen,
+  PenTool,
   RadioTower,
   ReceiptText,
   Search as SearchIcon,
@@ -77,6 +77,7 @@ import {
   LOAD_ESTIMATE_PERMISSIONS,
   LOAD_PLAN_PERMISSIONS,
   LOAD_PLAN_PRINT_LABELS,
+  NAV_GROUP_LABELS,
   ORDER_PERMISSIONS,
   PRODUCT_PERMISSIONS,
   QUOTE_PERMISSIONS,
@@ -174,18 +175,20 @@ export interface NavGroup {
 }
 
 export const NAV_GROUPS: NavGroup[] = [
+  // Thứ tự theo luồng end-to-end của docs 00 §4: sản phẩm → thiết kế → bán → đơn → sản xuất → nhập → kho → giao → thu tiền
   {
-    title: "Tổng quan",
+    title: NAV_GROUP_LABELS.overview,
     icon: LayoutDashboard,
-    items: [{ label: "Tổng quan", href: "/admin", icon: LayoutDashboard }],
+    items: [{ label: NAV_GROUP_LABELS.overview, href: ADMIN_ROUTES.home, icon: LayoutDashboard }],
   },
   {
-    title: "Master data",
-    icon: Database,
+    // Dữ liệu sản phẩm (docs 01)
+    title: NAV_GROUP_LABELS.product,
+    icon: Package,
     items: [
       {
         label: "Sản phẩm & SKU",
-        href: "/admin/products",
+        href: ADMIN_ROUTES.products.list,
         icon: Package,
         permission: PRODUCT_PERMISSIONS.viewPage,
       },
@@ -203,35 +206,151 @@ export const NAV_GROUPS: NavGroup[] = [
         permission: PRODUCT_PERMISSIONS.viewPage,
       },
       {
+        label: "Hồ sơ hàng tồn",
+        href: ADMIN_ROUTES.inventoryItems.list,
+        // Hồ sơ cấu hình SKU — khác icon Boxes của "Tổng quan tồn kho" (số lượng tồn)
+        icon: FileBox,
+        // Quy cách thùng & logistics của SKU — dữ liệu sản phẩm (docs 01 §4.7), Quản lý kho khai báo
+        // Route BE khai báo cho resource inventory-inventory-items (PR #119)
+        permission: INVENTORY_ITEM_PERMISSIONS.viewPage,
+      },
+    ],
+  },
+  {
+    // Quản lý thiết kế (docs 12): duyệt bản khách gửi, yêu cầu báo giá từ bản thiết kế (§4.8)
+    title: NAV_GROUP_LABELS.design,
+    icon: PenTool,
+    items: [
+      {
+        label: "Duyệt thiết kế",
+        href: ADMIN_ROUTES.designs.reviewQueue,
+        icon: ClipboardCheck,
+        // `design-designs:APPROVE` (PRODUCTION_COORDINATOR, SYSTEM_ADMIN; V20261213000200) — không dùng VIEW_PAGE: SALES_STAFF cũng có, sẽ bị 403
+        permission: DESIGN_PERMISSIONS.approve,
+        matchPrefixes: [ADMIN_ROUTES.designReviewRounds.list],
+      },
+      {
+        label: DESIGN_QUOTE_REQUEST_LABELS.navLabel,
+        href: ADMIN_ROUTES.designQuoteRequests.list,
+        icon: FileInput,
+        // BE `design-quote-requests:VIEW_PAGE` (SALES_STAFF, SALES_MANAGER); hai route (đơn lẻ / dự án) chia mục này
+        permission: DESIGN_QUOTE_REQUEST_PERMISSIONS.viewPage,
+        matchPrefixes: [ADMIN_ROUTES.designProjectQuoteRequests.list],
+      },
+    ],
+  },
+  {
+    // Bán hàng sỉ: khách (18), bảng giá nội bộ (13 §4.2), báo giá (14), chat (16)
+    title: NAV_GROUP_LABELS.sales,
+    icon: Building2,
+    items: [
+      {
+        label: "Khách hàng",
+        href: ADMIN_ROUTES.customers.list,
+        icon: Building2,
+        permission: CUSTOMER_PERMISSIONS.viewPage,
+      },
+      {
         label: CUSTOMER_PRICE_UI_LABELS.navLabel,
         href: ADMIN_ROUTES.customerPrices.list,
         icon: Tags,
         // BE `@PermissionResource(catalog-customer-prices)`: VIEW_PAGE mở trang (seed: ECOMMERCE_ADMIN, SALES_STAFF)
         permission: CUSTOMER_PRICE_PERMISSIONS.viewPage,
       },
+      {
+        label: "Báo giá",
+        href: ADMIN_ROUTES.quotes.list,
+        icon: FileSignature,
+        permission: QUOTE_PERMISSIONS.viewPage,
+      },
+      {
+        label: "Chat với khách",
+        href: ADMIN_ROUTES.chat.list,
+        icon: MessagesSquare,
+        // BE `chat-conversations:VIEW_PAGE` (seed: SALES_STAFF, SALES_MANAGER, SYSTEM_ADMIN)
+        permission: CHAT_PERMISSIONS.viewPage,
+      },
+      {
+        label: "Câu trả lời mẫu",
+        href: ADMIN_ROUTES.chat.canned,
+        icon: MessageSquareText,
+        permission: CHAT_PERMISSIONS.cannedViewPage,
+      },
+      {
+        label: "Báo cáo chat",
+        href: ADMIN_ROUTES.chat.agentsReport,
+        icon: ChartColumn,
+        // Chỉ người giám sát chat (SALES_MANAGER, SYSTEM_ADMIN): BE `chat-supervision:READ`
+        permission: CHAT_PERMISSIONS.superviseRead,
+      },
     ],
   },
   {
-    title: "Platform",
-    icon: ShieldCheck,
+    // Quản lý đơn hàng (docs 17): đơn, yêu cầu huỷ (§4.8), giao thất bại, trả hàng (§4.10)
+    title: NAV_GROUP_LABELS.order,
+    icon: ListChecks,
     items: [
       {
-        label: "Phân quyền",
-        href: ADMIN_ROUTES.permissions,
-        icon: ShieldCheck,
-        permission: IDENTITY_PERMISSIONS.rbacRead,
+        label: "Đơn hàng",
+        href: ADMIN_ROUTES.orders.list,
+        icon: ClipboardList,
+        permission: ORDER_PERMISSIONS.viewPage,
       },
+      // Hàng đợi yêu cầu huỷ của khách: resource `sales-order-cancellations` không có VIEW_PAGE (chỉ READ / UPDATE) nên
+      // gate bằng READ — seed BE: SALES_STAFF + SYSTEM_ADMIN.
       {
-        label: "Người dùng",
-        href: ADMIN_ROUTES.users.list,
-        icon: UserCog,
-        // Cổng theo READ (BE `identity-users:READ`), cùng kiểu menu "Phân quyền" ngay trên
-        permission: IDENTITY_PERMISSIONS.usersRead,
+        label: CANCELLATION_REQUEST_LABELS.title,
+        href: ADMIN_ROUTES.orders.cancellationRequests,
+        icon: Ban,
+        permission: CANCELLATION_REQUEST_PERMISSIONS.read,
+      },
+      // Giao thất bại (WF-05 GH-1): lô hãng mang về chờ Sale quyết — BE `GET /orders/delivery-failures` đòi sales-orders:READ
+      {
+        label: DELIVERY_FAILURE_LABELS.title,
+        href: ADMIN_ROUTES.orders.deliveryFailures,
+        icon: PackageX,
+        permission: ORDER_PERMISSIONS.read,
+      },
+      // Yêu cầu trả hàng (docs 17 §4.10) — `sales-rmas:VIEW_PAGE`: Sale, Kế toán, Kho, Quản trị (WF-05 BO-16)
+      {
+        label: RETURN_LABELS.navLabel,
+        href: RETURN_ROUTES.list,
+        icon: Undo2,
+        permission: RMA_PERMISSIONS.viewPage,
       },
     ],
   },
   {
-    title: "Nhập hàng",
+    // Sản xuất theo đơn bán (docs 17 §4.3, §4.12): lịch → lập Đơn sản xuất từ đợt còn thiếu → theo dõi tới nhập kho
+    title: PRODUCTION_LABELS.navGroup,
+    icon: Factory,
+    items: [
+      {
+        label: PRODUCTION_LABELS.schedule.pageTitle,
+        href: ADMIN_ROUTES.productionSchedule,
+        icon: CalendarRange,
+        // BE ProductionScheduleController route `/production/schedule`: Điều phối SX, Sale, QLKD, Quản lý kho
+        permission: PRODUCTION_SCHEDULE_PERMISSIONS.viewPage,
+      },
+      {
+        label: PRODUCTION_LABELS.order.pageTitle,
+        href: ADMIN_ROUTES.productionOrders.list,
+        icon: ClipboardList,
+        // BE ProductionOrderController route `/production/orders`
+        permission: PRODUCTION_ORDER_PERMISSIONS.viewPage,
+      },
+      {
+        label: PRODUCTION_LABELS.producer.pageTitle,
+        href: ADMIN_ROUTES.producers,
+        icon: Handshake,
+        // BE ProducerController route `/production/producers`
+        permission: PRODUCER_PERMISSIONS.viewPage,
+      },
+    ],
+  },
+  {
+    // Nhập kho thành phẩm (docs 03): phiếu theo Đơn sản xuất (§4.1) và phiếu hàng hoàn (§4.2)
+    title: NAV_GROUP_LABELS.receiving,
     icon: PackagePlus,
     items: [
       {
@@ -246,52 +365,6 @@ export const NAV_GROUPS: NavGroup[] = [
         href: RETURN_ROUTES.receipts.list,
         icon: PackageOpen,
         permission: GOODS_RECEIPT_PERMISSIONS.viewPage,
-      },
-      // Cất hàng (docs 05) đã vào tab "Kho & bản đồ" — làm việc theo một kho (spec 2026-11-22)
-    ],
-  },
-  {
-    title: "Kho",
-    icon: WarehouseIcon,
-    items: [
-      {
-        label: INVENTORY_LABELS.overviewTitle,
-        href: INVENTORY_ROUTES.overview,
-        icon: Boxes,
-        // Same rule as the page gate: stock READ or reservation READ.
-        anyPermission: [
-          INVENTORY_OVERVIEW_PERMISSIONS.stockRead,
-          INVENTORY_OVERVIEW_PERMISSIONS.reservationRead,
-        ],
-      },
-      {
-        label: "Hồ sơ hàng tồn",
-        href: ADMIN_ROUTES.inventoryItems.list,
-        // Hồ sơ cấu hình SKU — khác icon Boxes của "Tổng quan tồn kho" (số lượng tồn)
-        icon: FileBox,
-        // Route BE khai báo cho resource inventory-inventory-items (PR #119)
-        permission: INVENTORY_ITEM_PERMISSIONS.viewPage,
-      },
-      // Di chuyển nội bộ (docs 11) đã vào tab "Kho & bản đồ" — làm việc theo một kho (spec 2026-11-22)
-      // Kiểm kê (docs 20) đã vào tab "Kho & bản đồ" — làm việc theo một kho (spec 2026-11-22)
-      {
-        label: "Điều chỉnh tồn",
-        href: INVENTORY_ROUTES.adjustments,
-        icon: SlidersHorizontal,
-        permission: INVENTORY_PERMISSIONS.adjustmentViewPage,
-      },
-      {
-        label: QUARANTINE_LABELS.title,
-        href: INVENTORY_ROUTES.quarantine,
-        icon: PackageX,
-        // Chỉ Quản lý kho cách ly / gỡ cách ly (docs 20 BR-21): StockPackageController UPDATE
-        permission: STOCK_PACKAGE_PERMISSIONS.update,
-      },
-      {
-        label: "Lịch sử biến động",
-        href: INVENTORY_ROUTES.movements,
-        icon: HistoryIcon,
-        permission: INVENTORY_PERMISSIONS.movementViewPage,
       },
     ],
   },
@@ -328,90 +401,98 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    // Sản xuất theo đơn bán (docs 17 §4.3, §4.12): lịch → lập Đơn sản xuất từ đợt còn thiếu → theo dõi tới nhập kho
-    title: PRODUCTION_LABELS.navGroup,
-    icon: Factory,
+    // Kiểm soát tồn (docs 20) — kiểm kê, di chuyển nội bộ (11) nằm trong tab theo kho
+    title: NAV_GROUP_LABELS.inventory,
+    icon: Boxes,
     items: [
       {
-        label: PRODUCTION_LABELS.schedule.pageTitle,
-        href: ADMIN_ROUTES.productionSchedule,
-        icon: CalendarRange,
-        // BE ProductionScheduleController route `/production/schedule`: Điều phối SX, Sale, QLKD, Quản lý kho
-        permission: PRODUCTION_SCHEDULE_PERMISSIONS.viewPage,
+        label: INVENTORY_LABELS.overviewTitle,
+        href: INVENTORY_ROUTES.overview,
+        icon: Boxes,
+        // Same rule as the page gate: stock READ or reservation READ.
+        anyPermission: [
+          INVENTORY_OVERVIEW_PERMISSIONS.stockRead,
+          INVENTORY_OVERVIEW_PERMISSIONS.reservationRead,
+        ],
+      },
+      // Di chuyển nội bộ (docs 11) đã vào tab "Kho & bản đồ" — làm việc theo một kho (spec 2026-11-22)
+      // Kiểm kê (docs 20) đã vào tab "Kho & bản đồ" — làm việc theo một kho (spec 2026-11-22)
+      {
+        label: "Điều chỉnh tồn",
+        href: INVENTORY_ROUTES.adjustments,
+        icon: SlidersHorizontal,
+        permission: INVENTORY_PERMISSIONS.adjustmentViewPage,
       },
       {
-        label: PRODUCTION_LABELS.order.pageTitle,
-        href: ADMIN_ROUTES.productionOrders.list,
-        icon: ClipboardList,
-        // BE ProductionOrderController route `/production/orders`
-        permission: PRODUCTION_ORDER_PERMISSIONS.viewPage,
+        label: QUARANTINE_LABELS.title,
+        href: INVENTORY_ROUTES.quarantine,
+        icon: PackageX,
+        // Chỉ Quản lý kho cách ly / gỡ cách ly (docs 20 BR-21): StockPackageController UPDATE
+        permission: STOCK_PACKAGE_PERMISSIONS.update,
       },
       {
-        label: PRODUCTION_LABELS.producer.pageTitle,
-        href: ADMIN_ROUTES.producers,
+        label: "Lịch sử biến động",
+        href: INVENTORY_ROUTES.movements,
+        icon: HistoryIcon,
+        permission: INVENTORY_PERMISSIONS.movementViewPage,
+      },
+    ],
+  },
+  {
+    // Giao hàng (docs 09) — lấy hàng, kiểm thùng, cất lại (07, 08) nằm trong tab theo kho
+    title: NAV_GROUP_LABELS.shipping,
+    icon: Truck,
+    items: [
+      {
+        label: TRIAL_LABELS.pageTitle,
+        href: ADMIN_ROUTES.loadEstimateTrial,
+        icon: FlaskConical,
+        // SCRUM-474 TRIAL-FLOW (LP2-9): chạy thử không lưu, quyền của BE `POST /load-estimates/trial`
+        permission: LOAD_ESTIMATE_PERMISSIONS.create,
+      },
+      {
+        label: UI_LABELS.loadPlan.pageTitle,
+        href: ADMIN_ROUTES.loadPlans.list,
+        icon: CalendarClock,
+        // Resource riêng `fulfillment-load-plans` (BE PR #161)
+        permission: LOAD_PLAN_PERMISSIONS.viewPage,
+      },
+      {
+        label: UI_LABELS.shipping.shipments.title,
+        href: ADMIN_ROUTES.shipments.list,
+        icon: PackageOpen,
+        permission: SHIPMENT_PERMISSIONS.viewPage,
+      },
+      {
+        label: UI_LABELS.shipping.loads.title,
+        href: ADMIN_ROUTES.loads.list,
+        icon: Truck,
+        permission: SHIPMENT_PERMISSIONS.viewPage,
+      },
+      {
+        label: UI_LABELS.vehicleType.pageTitle,
+        href: ADMIN_ROUTES.vehicleTypes,
+        icon: TruckElectric,
+        permission: VEHICLE_TYPE_PERMISSIONS.viewPage,
+      },
+      {
+        label: UI_LABELS.shipping.waybill.carriers.title,
+        href: ADMIN_ROUTES.carriers,
         icon: Handshake,
-        // BE ProducerController route `/production/producers`
-        permission: PRODUCER_PERMISSIONS.viewPage,
+        // Danh mục hãng: xem là `fulfillment-shipments:READ`, thêm / sửa là `fulfillment-carriers:UPDATE` (resource này không có VIEW_PAGE)
+        permission: SHIPMENT_PERMISSIONS.viewPage,
+      },
+      {
+        label: UI_LABELS.shipping.carrierEvents.title,
+        href: ADMIN_ROUTES.carrierEvents,
+        icon: RadioTower,
+        // Nhật ký sự kiện webhook và danh sách lỗi: resource `fulfillment-carrier-events` chỉ có READ / UPDATE (không VIEW_PAGE)
+        permission: FULFILLMENT_CARRIER_EVENT_PERMISSIONS.read,
       },
     ],
   },
   {
-    // Luồng B2B: khách → báo giá → khách chấp nhận → đơn / mẫu (SCRUM-449/451/404)
-    title: "Bán hàng",
-    icon: Building2,
-    items: [
-      {
-        label: "Khách hàng",
-        href: ADMIN_ROUTES.customers.list,
-        icon: Building2,
-        permission: CUSTOMER_PERMISSIONS.viewPage,
-      },
-      {
-        label: "Báo giá",
-        href: ADMIN_ROUTES.quotes.list,
-        icon: FileSignature,
-        permission: QUOTE_PERMISSIONS.viewPage,
-      },
-      {
-        label: "Duyệt thiết kế",
-        href: ADMIN_ROUTES.designs.reviewQueue,
-        icon: ClipboardCheck,
-        // `design-designs:APPROVE` (PRODUCTION_COORDINATOR, SYSTEM_ADMIN; V20261213000200) — không dùng VIEW_PAGE: SALES_STAFF cũng có, sẽ bị 403
-        permission: DESIGN_PERMISSIONS.approve,
-        matchPrefixes: [ADMIN_ROUTES.designReviewRounds.list],
-      },
-      {
-        label: DESIGN_QUOTE_REQUEST_LABELS.navLabel,
-        href: ADMIN_ROUTES.designQuoteRequests.list,
-        icon: FileInput,
-        // BE `design-quote-requests:VIEW_PAGE` (SALES_STAFF, SALES_MANAGER); hai route (đơn lẻ / dự án) chia mục này
-        permission: DESIGN_QUOTE_REQUEST_PERMISSIONS.viewPage,
-        matchPrefixes: [ADMIN_ROUTES.designProjectQuoteRequests.list],
-      },
-      {
-        label: "Chat với khách",
-        href: ADMIN_ROUTES.chat.list,
-        icon: MessagesSquare,
-        // BE `chat-conversations:VIEW_PAGE` (seed: SALES_STAFF, SALES_MANAGER, SYSTEM_ADMIN)
-        permission: CHAT_PERMISSIONS.viewPage,
-      },
-      {
-        label: "Câu trả lời mẫu",
-        href: ADMIN_ROUTES.chat.canned,
-        icon: MessageSquareText,
-        permission: CHAT_PERMISSIONS.cannedViewPage,
-      },
-      {
-        label: "Báo cáo chat",
-        href: ADMIN_ROUTES.chat.agentsReport,
-        icon: ChartColumn,
-        // Chỉ người giám sát chat (SALES_MANAGER, SYSTEM_ADMIN): BE `chat-supervision:READ`
-        permission: CHAT_PERMISSIONS.superviseRead,
-      },
-    ],
-  },
-  {
-    // Kế toán: đợt thanh toán của hợp đồng đã ký → phiếu thu theo sao kê → hoàn tiền (docs 15)
+    // Thanh toán theo hợp đồng & công nợ (docs 15), hoá đơn điện tử (docs 21) — việc của Kế toán
     title: PAYMENT_LABELS.navGroup,
     icon: Banknote,
     items: [
@@ -433,6 +514,14 @@ export const NAV_GROUPS: NavGroup[] = [
         href: PAYMENT_ROUTES.refunds.list,
         icon: Undo2,
         permission: PAYMENT_REFUND_PERMISSIONS.viewPage,
+      },
+      // Đơn treo vì tín dụng — Kế toán duyệt / từ chối (docs 15 §4.3 bước 10). Mục riêng, gate bằng quyền
+      // credit hold: ACCOUNTANT không có sales-orders:VIEW_PAGE (BE V20261013000400).
+      {
+        label: UI_LABELS.order.creditHoldsTitle,
+        href: ADMIN_ROUTES.orders.creditHolds,
+        icon: ShieldAlert,
+        permission: CREDIT_HOLD_PERMISSIONS.viewPage,
       },
       {
         // Hoá đơn VAT điện tử theo lần giao (docs 21) — BE `einvoices` (route `/invoicing/einvoices`)
@@ -458,93 +547,21 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    title: "Thực hiện đơn",
-    icon: ListChecks,
+    title: NAV_GROUP_LABELS.system,
+    icon: ShieldCheck,
     items: [
       {
-        label: "Đơn hàng",
-        href: ADMIN_ROUTES.orders.list,
-        icon: ClipboardList,
-        permission: ORDER_PERMISSIONS.viewPage,
-      },
-      // Mục riêng, gate bằng quyền credit hold — ACCOUNTANT duyệt công nợ nhưng không có
-      // sales-orders:VIEW_PAGE nên không đi qua được mục "Đơn hàng" (BE V20261013000400).
-      {
-        label: UI_LABELS.order.creditHoldsTitle,
-        href: ADMIN_ROUTES.orders.creditHolds,
-        icon: ShieldAlert,
-        permission: CREDIT_HOLD_PERMISSIONS.viewPage,
-      },
-      // Hàng đợi yêu cầu huỷ của khách: resource `sales-order-cancellations` không có VIEW_PAGE (chỉ READ / UPDATE) nên
-      // gate bằng READ — seed BE: SALES_STAFF + SYSTEM_ADMIN.
-      {
-        label: CANCELLATION_REQUEST_LABELS.title,
-        href: ADMIN_ROUTES.orders.cancellationRequests,
-        icon: Ban,
-        permission: CANCELLATION_REQUEST_PERMISSIONS.read,
-      },
-      // Giao thất bại (WF-05 GH-1): lô hãng mang về chờ Sale quyết — BE `GET /orders/delivery-failures` đòi sales-orders:READ
-      {
-        label: DELIVERY_FAILURE_LABELS.title,
-        href: ADMIN_ROUTES.orders.deliveryFailures,
-        icon: PackageX,
-        permission: ORDER_PERMISSIONS.read,
-      },
-      // Yêu cầu trả hàng (docs 17 §4.10) — `sales-rmas:VIEW_PAGE`: Sale, Kế toán, Kho, Quản trị (WF-05 BO-16)
-      {
-        label: RETURN_LABELS.navLabel,
-        href: RETURN_ROUTES.list,
-        icon: Undo2,
-        permission: RMA_PERMISSIONS.viewPage,
-      },
-      // Lấy hàng (docs 07) đã vào tab "Kho & bản đồ" — làm việc theo một kho (spec 2026-11-22)
-      // Kiểm thùng (docs 08) cũng trong tab theo kho
-      // Cất lại (docs 07 §4.5) cũng trong tab theo kho
-      {
-        label: UI_LABELS.loadPlan.pageTitle,
-        href: ADMIN_ROUTES.loadPlans.list,
-        icon: CalendarClock,
-        // Resource riêng `fulfillment-load-plans` (BE PR #161)
-        permission: LOAD_PLAN_PERMISSIONS.viewPage,
+        label: "Người dùng",
+        href: ADMIN_ROUTES.users.list,
+        icon: UserCog,
+        // Cổng theo READ (BE `identity-users:READ`), cùng kiểu menu "Phân quyền" ngay dưới
+        permission: IDENTITY_PERMISSIONS.usersRead,
       },
       {
-        label: TRIAL_LABELS.pageTitle,
-        href: ADMIN_ROUTES.loadEstimateTrial,
-        icon: FlaskConical,
-        // SCRUM-474 TRIAL-FLOW (LP2-9): chạy thử không lưu, quyền của BE `POST /load-estimates/trial`
-        permission: LOAD_ESTIMATE_PERMISSIONS.create,
-      },
-      {
-        label: UI_LABELS.vehicleType.pageTitle,
-        href: ADMIN_ROUTES.vehicleTypes,
-        icon: TruckElectric,
-        permission: VEHICLE_TYPE_PERMISSIONS.viewPage,
-      },
-      {
-        label: UI_LABELS.shipping.shipments.title,
-        href: ADMIN_ROUTES.shipments.list,
-        icon: PackageOpen,
-        permission: SHIPMENT_PERMISSIONS.viewPage,
-      },
-      {
-        label: UI_LABELS.shipping.loads.title,
-        href: ADMIN_ROUTES.loads.list,
-        icon: Truck,
-        permission: SHIPMENT_PERMISSIONS.viewPage,
-      },
-      {
-        label: UI_LABELS.shipping.waybill.carriers.title,
-        href: ADMIN_ROUTES.carriers,
-        icon: Handshake,
-        // Danh mục hãng: xem là `fulfillment-shipments:READ`, thêm / sửa là `fulfillment-carriers:UPDATE` (resource này không có VIEW_PAGE)
-        permission: SHIPMENT_PERMISSIONS.viewPage,
-      },
-      {
-        label: UI_LABELS.shipping.carrierEvents.title,
-        href: ADMIN_ROUTES.carrierEvents,
-        icon: RadioTower,
-        // Nhật ký sự kiện webhook và danh sách lỗi: resource `fulfillment-carrier-events` chỉ có READ / UPDATE (không VIEW_PAGE)
-        permission: FULFILLMENT_CARRIER_EVENT_PERMISSIONS.read,
+        label: "Phân quyền",
+        href: ADMIN_ROUTES.permissions,
+        icon: ShieldCheck,
+        permission: IDENTITY_PERMISSIONS.rbacRead,
       },
     ],
   },

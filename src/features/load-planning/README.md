@@ -279,7 +279,7 @@ lưu PDF từ đó) — không jsPDF. WF4-PDF-PRINT-1118: thêm nút "Tải PDF"
 
 ## Ước tính thử từ file Excel EasyCargo (SCRUM-474 TRIAL-FLOW, LP2-9)
 
-Màn `/admin/load-estimates/trial` ("Ước tính thử", menu Thực hiện đơn): tải file .xlsx theo mẫu EasyCargo, xem trước,
+Màn `/admin/load-estimates/trial` ("Ước tính thử", menu Vận chuyển): tải file .xlsx theo mẫu EasyCargo, xem trước,
 chọn loại xe rồi **chạy thử** — BE `POST /fulfillment/load-estimates/trial` KHÔNG lưu gì (không bản ghi ước tính, audit,
 event). Cần `fulfillment-load-estimates:CREATE` (cổng trang + mục menu theo mã quyền). Kết quả vẽ bằng khung 3D có sẵn
 kèm huy hiệu "Chạy thử — không lưu"; không có kiểm tra tải trọng (file không có khối lượng) nên ô khối lượng bị ẩn.

@@ -28,7 +28,8 @@ export const SETTLEMENT_KIND_LABELS = {
 } as const satisfies Record<SettlementKind, string>;
 
 export const PAYMENT_LABELS = {
-  navGroup: "Thanh toán",
+  /** Tên nhóm sidebar: thanh toán theo hợp đồng, công nợ (docs 15) và hoá đơn điện tử (docs 21). */
+  navGroup: "Thanh toán & hoá đơn",
   installments: {
     navLabel: "Đợt thanh toán",
     pageTitle: "Đợt thanh toán",

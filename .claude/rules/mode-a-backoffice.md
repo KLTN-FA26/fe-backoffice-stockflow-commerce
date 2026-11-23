@@ -44,8 +44,13 @@ Mode A dùng `brand.ink` cho CTA, count badge của tab đang chọn và focus b
   Menu dạng **drill-down** (`SidebarNav`): màn gốc là item cha; bấm item cha → danh sách item con,
   tên item cha ở đầu là nút quay lại; đang ở trang thuộc nhóm nào thì mở sẵn nhóm đó; nhóm chỉ có
   một item thấy được → link thẳng. Thu gọn → danh sách icon phẳng.
+- **Nhóm (tab) sidebar** chia theo module của docs 00 §3, thứ tự theo luồng end-to-end: Tổng quan ·
+  Sản phẩm (01) · Thiết kế (12) · Bán hàng (13/14/16/18) · Đơn hàng (17) · Sản xuất · Nhập kho (03) ·
+  Kho & bản đồ (06 + màn vận hành theo kho) · Tồn kho (20) · Vận chuyển (09) · Thanh toán & hoá đơn
+  (15/21) · Hệ thống. Trang mới vào nhóm của **module sở hữu nó** (mục Actor của docs), tên nhóm ở
+  `NAV_GROUP_LABELS`; test `components/backoffice/nav-groups.test.ts` khoá cách chia.
 - **Header sidebar**: logo app (`Logo variant="mark"`) + chữ `StockFlow` đậm + `Commerce` `ink.secondary` (thu gọn: chỉ logo) + ô tìm nhanh. Không có chọn kho.
-- **Tab "Kho & bản đồ"** (module 06, tách khỏi nhóm "Kho"): **chọn kho ở trang Danh mục kho** (bấm dòng
+- **Tab "Kho & bản đồ"** (module 06, tách khỏi nhóm "Tồn kho"): **chọn kho ở trang Danh mục kho** (bấm dòng
   kho), không chọn trong sidebar. Trang làm việc theo một kho nằm dưới prefix kho:
   `/admin/warehouse-map/{prefix}` (bản đồ), `…/{prefix}/slotting` (gợi ý vị trí) — prefix duy nhất,
   không đổi (BR-10/13). Panel sidebar của tab (`NavGroup.panel` = `WarehouseNavPanel`): chưa vào kho →

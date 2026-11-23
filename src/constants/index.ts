@@ -1,4 +1,5 @@
 export { BRAND, BRAND_ASPECT } from "./brand";
+export { NAV_GROUP_LABELS } from "./labels-nav";
 export {
   FULFILLMENT_ERROR_MESSAGES,
   FULFILLMENT_FIELD_MESSAGES,

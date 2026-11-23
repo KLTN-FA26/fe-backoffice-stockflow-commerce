@@ -198,7 +198,7 @@ describe("declared navigation permissions", () => {
       });
       mount();
       expect(await screen.findByRole("link", { name: "Phân quyền" })).toBeInTheDocument();
-      // Kiểm kê đã vào tab theo kho (spec 2026-11-22): không còn mục riêng ở nhóm Kho
+      // Kiểm kê đã vào tab theo kho (spec 2026-11-22): không còn mục riêng ở nhóm Tồn kho
       expect(screen.queryByRole("link", { name: CYCLE_COUNT_LABELS.title })).toBeNull();
       const tab = screen.queryByRole("link", { name: "Kho & bản đồ" });
       expect(tab !== null).toBe(visible);
