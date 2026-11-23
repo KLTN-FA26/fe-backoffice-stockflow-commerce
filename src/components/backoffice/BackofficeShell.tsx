@@ -27,7 +27,6 @@ import {
   ListChecks,
   Map as MapIcon,
   MapPin,
-  Move,
   Package,
   PackageCheck,
   PackageOpen,
@@ -99,9 +98,7 @@ import {
   PRODUCTION_SCHEDULE_PERMISSIONS,
   WAREHOUSE_PERMISSIONS,
 } from "@/constants";
-import { CYCLE_COUNT_LABELS, CYCLE_COUNT_ROUTES } from "@/constants/cycle-count";
 import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
-import { CYCLE_COUNT_PERMISSIONS } from "@/constants/permissions";
 import { QUARANTINE_LABELS } from "@/constants/quarantine";
 import {
   EINVOICE_PERMISSIONS,
@@ -289,20 +286,8 @@ export const NAV_GROUPS: NavGroup[] = [
         // Route BE khai báo cho resource inventory-inventory-items (PR #119)
         permission: INVENTORY_ITEM_PERMISSIONS.viewPage,
       },
-      {
-        label: "Di chuyển nội bộ",
-        href: "/admin/moves",
-        icon: Move,
-        // BE StockOperationsController: POST /inventory/movements là inventory-stock-items:UPDATE
-        permission: INVENTORY_PERMISSIONS.stockUpdate,
-      },
-      {
-        label: CYCLE_COUNT_LABELS.title,
-        href: CYCLE_COUNT_ROUTES.list,
-        icon: ClipboardCheck,
-        // BE CycleCountController: resource inventory-cycle-counts (NV kho đếm, quản lý kho duyệt / đếm lại)
-        permission: CYCLE_COUNT_PERMISSIONS.viewPage,
-      },
+      // Di chuyển nội bộ (docs 11) đã vào tab "Kho & bản đồ" — làm việc theo một kho (spec 2026-11-22)
+      // Kiểm kê (docs 20) đã vào tab "Kho & bản đồ" — làm việc theo một kho (spec 2026-11-22)
       {
         label: "Điều chỉnh tồn",
         href: INVENTORY_ROUTES.adjustments,

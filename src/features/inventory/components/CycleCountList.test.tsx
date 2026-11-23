@@ -8,7 +8,6 @@ import {
   CYCLE_COUNT_API,
   CYCLE_COUNT_CREATE_LABELS as C,
   CYCLE_COUNT_LABELS,
-  CYCLE_COUNT_ROUTES,
 } from "@/constants/cycle-count";
 import { INVENTORY_LABELS } from "@/constants/inventory";
 import { CYCLE_COUNT_PERMISSIONS } from "@/constants/permissions";
@@ -16,6 +15,7 @@ import { CYCLE_COUNT_PERMISSIONS } from "@/constants/permissions";
 import {
   cycleCountFixture,
   cycleCountSummaryFixture,
+  INVENTORY_TAB_WAREHOUSE,
   inventoryEndpoint,
   inventoryPermissions,
   renderInventory,
@@ -85,7 +85,7 @@ describe("cycle count list (docs 20 §4.2, §5.2)", () => {
     );
     renderInventory(<CycleCountList />);
     const link = await screen.findByRole("link", { name: "CC-SP-1" });
-    expect(link).toHaveAttribute("href", CYCLE_COUNT_ROUTES.detail(shortPick.id));
+    expect(link).toHaveAttribute("href", `/admin/warehouse-map/HCM/cycle-counts/${shortPick.id}`);
     const shortRow = link.closest("tr");
     const manualRow = screen.getByRole("link", { name: "CC-MAN-1" }).closest("tr");
     if (!shortRow || !manualRow) throw new Error("rows not rendered");
@@ -132,16 +132,21 @@ describe("cycle count list (docs 20 §4.2, §5.2)", () => {
 
   it("sends only the wire status of the filter and keeps it on the URL", async () => {
     const statuses = vi.fn();
+    const warehouses = vi.fn();
     server.use(
       inventoryPermissions([viewPage, read]),
       http.get(endpoint, ({ request }) => {
-        statuses(new URL(request.url).searchParams.get("status"));
+        const query = new URL(request.url).searchParams;
+        statuses(query.get("status"));
+        warehouses(query.get("warehouseId"));
         return HttpResponse.json({ success: true, data: page([]) });
       }),
     );
     renderInventory(<CycleCountList />, "?status=IN_PROGRESS");
     await screen.findByText(INVENTORY_LABELS.noResults);
     expect(statuses).toHaveBeenLastCalledWith("IN_PROGRESS");
+    // Chỉ phiếu của kho trong tab theo kho
+    expect(warehouses).toHaveBeenLastCalledWith(INVENTORY_TAB_WAREHOUSE.id);
     // The toolbar reset and the empty state offer the same way out.
     const [reset] = screen.getAllByRole("button", { name: INVENTORY_LABELS.reset });
     if (!reset) throw new Error("reset not rendered");
@@ -202,7 +207,7 @@ describe("cycle count list (docs 20 §4.2, §5.2)", () => {
 });
 
 describe("planning a count by hand (docs 20 §4.2 a, BR-12)", () => {
-  const WAREHOUSE = "d0000001-0000-4000-8000-0000000000a1";
+  const WAREHOUSE = INVENTORY_TAB_WAREHOUSE.id;
   const ZONE = "d0000001-0000-4000-8000-0000000000a2";
   const COUNTER = "d0000001-0000-4000-8000-0000000000a3";
   const ok = (data: unknown) => HttpResponse.json({ success: true, data });
@@ -212,18 +217,15 @@ describe("planning a count by hand (docs 20 §4.2 a, BR-12)", () => {
     CYCLE_COUNT_PERMISSIONS.create,
   ];
 
-  async function chooseWarehouse(user: ReturnType<typeof userEvent.setup>, dialog: HTMLElement) {
-    await user.click(within(dialog).getByRole("combobox", { name: new RegExp(C.warehouse) }));
-    await user.click(await screen.findByRole("option", { name: "Kho Hồ Chí Minh" }));
+  /** Kho cố định = kho của tab: không có ô chọn kho trong dialog (spec 2026-11-22 §5.8). */
+  function expectNoWarehousePicker(dialog: HTMLElement) {
+    expect(within(dialog).queryByRole("combobox", { name: new RegExp(C.warehouse) })).toBeNull();
   }
 
   function handlers(onPlan: (body: unknown) => Response) {
     server.use(
       inventoryPermissions(manager),
       http.get(endpoint, () => ok(page([]))),
-      http.get(inventoryEndpoint("/warehouses"), () =>
-        ok(page([{ id: WAREHOUSE, prefix: "HCM", name: "Kho Hồ Chí Minh", status: "ACTIVE" }])),
-      ),
       http.get(inventoryEndpoint(`/warehouses/${WAREHOUSE}/layout`), () =>
         ok({ zones: [{ id: ZONE, name: "Khu A" }], shelves: [], areas: [] }),
       ),
@@ -260,7 +262,7 @@ describe("planning a count by hand (docs 20 §4.2 a, BR-12)", () => {
     expect(
       within(dialog).getByRole("button", { name: C.action }).closest(".overflow-y-auto"),
     ).toBeNull();
-    await chooseWarehouse(user, dialog);
+    expectNoWarehousePicker(dialog);
     await user.click(within(dialog).getByRole("button", { name: C.action }));
     expect(await within(dialog).findByText(C.anyScope)).toBeInTheDocument();
     expect(plan).not.toHaveBeenCalled();
@@ -277,14 +279,16 @@ describe("planning a count by hand (docs 20 §4.2 a, BR-12)", () => {
     renderInventory(<CycleCountList />);
     await user.click(await screen.findByRole("button", { name: C.action }));
     const dialog = await screen.findByRole("dialog");
-    await chooseWarehouse(user, dialog);
+    expectNoWarehousePicker(dialog);
     await user.click(await within(dialog).findByRole("checkbox", { name: "Khu A" }));
     await user.type(within(dialog).getByLabelText(C.shelves), "A01, A02");
     await user.type(within(dialog).getByLabelText(C.skus), "MUG-RED\nMUG-BLUE");
     await user.type(within(dialog).getByLabelText(C.note), "  Kiểm kê cuối tháng ");
     await user.click(within(dialog).getByRole("button", { name: C.action }));
     await waitFor(() =>
-      expect(navigation.push).toHaveBeenCalledWith(CYCLE_COUNT_ROUTES.detail(planned.id)),
+      expect(navigation.push).toHaveBeenCalledWith(
+        `/admin/warehouse-map/HCM/cycle-counts/${planned.id}`,
+      ),
     );
     expect(bodies).toEqual([
       {
@@ -313,7 +317,7 @@ describe("planning a count by hand (docs 20 §4.2 a, BR-12)", () => {
     renderInventory(<CycleCountList />);
     await user.click(await screen.findByRole("button", { name: C.action }));
     const dialog = await screen.findByRole("dialog");
-    await chooseWarehouse(user, dialog);
+    expectNoWarehousePicker(dialog);
     await user.type(within(dialog).getByLabelText(C.skus), "MUG-RED");
     await user.click(within(dialog).getByRole("button", { name: C.action }));
     expect(await within(dialog).findByText(C.tooLarge)).toBeInTheDocument();

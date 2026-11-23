@@ -8,7 +8,6 @@ import {
   CYCLE_COUNT_API,
   CYCLE_COUNT_ERROR_MESSAGES,
   CYCLE_COUNT_LABELS as L,
-  CYCLE_COUNT_ROUTES,
 } from "@/constants/cycle-count";
 import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
 import { CYCLE_COUNT_PERMISSIONS, INVENTORY_PERMISSIONS } from "@/constants/permissions";
@@ -25,7 +24,7 @@ import { CycleCountDetail } from "./CycleCountDetail";
 
 import type { CycleCount } from "../cycle-count-types";
 
-const navigation = vi.hoisted(() => ({ push: vi.fn() }));
+const navigation = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => navigation }));
 
 const server = setupServer();
@@ -95,6 +94,15 @@ describe("blind count by a counter (docs 20 §4.2 b, BR-07)", () => {
       blind: true,
       lines: [cycleCountLineFixture({ lpn: LPN, locationCode: BIN })],
     });
+
+  it("phiếu của kho khác mở trong tab → không hiện dưới kho sai, chuyển đi (spec §2)", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const count = { ...sheet(), warehouseId: "d0000001-0000-4000-8000-0000000000ff" };
+    serveSheet(count, COUNTER);
+    renderInventory(<CycleCountDetail id={count.id} />);
+    await waitFor(() => expect(navigation.replace).toHaveBeenCalledWith("/admin/warehouse-map"));
+    expect(screen.queryByRole("heading", { name: count.countNumber })).toBeNull();
+  });
 
   it("lists the cartons to find without the books, the note or any variance", async () => {
     const count = sheet();
@@ -387,7 +395,9 @@ describe("the manager's view (docs 20 §4.2 d–e, BR-07)", () => {
       expect(bodies).toHaveBeenCalledWith({ lineIds: [rejectedLine.id], note: "Nghi đếm sai" }),
     );
     await waitFor(() =>
-      expect(navigation.push).toHaveBeenCalledWith(CYCLE_COUNT_ROUTES.detail(next.id)),
+      expect(navigation.push).toHaveBeenCalledWith(
+        `/admin/warehouse-map/HCM/cycle-counts/${next.id}`,
+      ),
     );
   });
 

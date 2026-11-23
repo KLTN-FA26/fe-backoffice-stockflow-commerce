@@ -58,9 +58,15 @@ describe("RecentMoves", () => {
         });
       }),
     );
-    renderInventory(<RecentMoves />);
+    renderInventory(<RecentMoves warehouseId="wh-1" />);
     expect(await screen.findByText("HCM-PACK01")).toBeInTheDocument();
-    expect(asked).toHaveBeenCalledWith({ page: "0", size: "10", type: "MOVE" });
+    // Chỉ sổ kho của kho trong tab theo kho
+    expect(asked).toHaveBeenCalledWith({
+      page: "0",
+      size: "10",
+      type: "MOVE",
+      warehouseId: "wh-1",
+    });
     expect(screen.getByRole("link", { name: MOVE_LABELS.recentAll })).toHaveAttribute(
       "href",
       INVENTORY_ROUTES.movements,
@@ -85,13 +91,13 @@ describe("RecentMoves", () => {
         }),
       ),
     );
-    renderInventory(<RecentMoves />);
+    renderInventory(<RecentMoves warehouseId="wh-1" />);
     expect(await screen.findByText(MOVE_LABELS.recentEmpty)).toBeInTheDocument();
   });
 
   it("without inventory-stock-movements:READ it only explains, and never calls the ledger", async () => {
     server.use(inventoryPermissions([INVENTORY_PERMISSIONS.stockUpdate]));
-    renderInventory(<RecentMoves />);
+    renderInventory(<RecentMoves warehouseId="wh-1" />);
     await waitFor(() =>
       expect(screen.getByText(MOVE_LABELS.recentUnavailable)).toBeInTheDocument(),
     );

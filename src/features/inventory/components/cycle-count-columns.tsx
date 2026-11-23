@@ -4,7 +4,6 @@ import Link from "next/link";
 
 import {
   CYCLE_COUNT_LABELS,
-  CYCLE_COUNT_ROUTES,
   CYCLE_COUNT_STATUS,
   CYCLE_COUNT_TRIGGER_LABELS,
   CYCLE_COUNT_TRIGGERS,
@@ -34,14 +33,17 @@ export const isOpenCycleCount = (row: CycleCountSummary) =>
   row.status === CYCLE_COUNT_STATUS.PLANNED || row.status === CYCLE_COUNT_STATUS.IN_PROGRESS;
 
 /** Cột bảng phiếu kiểm kê — chuẩn ô bảng Mode A (column-helpers). */
-export function buildCycleCountColumns(): ColumnDef<CycleCountSummary>[] {
+export function buildCycleCountColumns(
+  /** Link chi tiết phiếu — trong tab theo kho (`WORKSPACE_PATHS.cycleCount`). */
+  detailHref: (countId: string) => string,
+): ColumnDef<CycleCountSummary>[] {
   return [
     {
       key: "countNumber",
       header: L.number,
       cell: (row) => (
         <Link
-          href={CYCLE_COUNT_ROUTES.detail(row.id)}
+          href={detailHref(row.id)}
           className={`${CELL.code} hover:underline`}
           onClick={(event) => event.stopPropagation()}
         >
@@ -71,7 +73,7 @@ export function buildCycleCountColumns(): ColumnDef<CycleCountSummary>[] {
     dateCell<CycleCountSummary>("plannedDate", L.plannedDate, (row) => row.plannedDate ?? null),
     viewColumn<CycleCountSummary>((row) => ({
       label: `${L.open} ${row.countNumber}`,
-      href: CYCLE_COUNT_ROUTES.detail(row.id),
+      href: detailHref(row.id),
     })),
   ];
 }
