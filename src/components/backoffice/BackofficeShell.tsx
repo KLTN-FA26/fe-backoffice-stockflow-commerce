@@ -8,6 +8,7 @@ import {
   Boxes,
   CalendarClock,
   CalendarRange,
+  ClipboardCheck,
   ClipboardList,
   Factory,
   Database,
