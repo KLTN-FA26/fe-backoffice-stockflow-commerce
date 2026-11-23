@@ -1,7 +1,20 @@
-import { ClipboardCheck, Lightbulb, Map as MapIcon, Move, PackageCheck, Route } from "lucide-react";
+import {
+  ClipboardCheck,
+  Lightbulb,
+  Map as MapIcon,
+  Move,
+  PackageCheck,
+  PackageSearch,
+  Route,
+  Undo2,
+} from "lucide-react";
 
 import {
+  FULFILLMENT_PACKAGE_PERMISSIONS,
+  FULFILLMENT_PICK_PERMISSIONS,
+  FULFILLMENT_PICKING_PERMISSIONS,
   INVENTORY_PERMISSIONS,
+  PUT_BACK_LABELS,
   PUTAWAY_LABELS,
   PUTAWAY_TASK_PERMISSIONS,
   PUTAWAY_TRIP_LABELS,
@@ -49,6 +62,33 @@ export const WORKSPACE_PAGES: readonly WorkspacePage[] = [
     icon: Route,
     // BE `PutawayTripController`, resource warehouse-putaway-trips (docs 05 §4.5)
     permission: PUTAWAY_TRIP_PERMISSIONS.viewPage,
+    assignedOnly: true,
+  },
+  {
+    path: WORKSPACE_PATHS.picking,
+    group: "operations",
+    label: W.pages.picking,
+    icon: PackageSearch,
+    // BE fulfillment pick lists (docs 07) — NV kho lấy hàng, quản lý kho giao task
+    permission: FULFILLMENT_PICK_PERMISSIONS.viewPage,
+    assignedOnly: true,
+  },
+  {
+    path: WORKSPACE_PATHS.packing,
+    group: "operations",
+    label: UI_LABELS.cartonCheck.navTitle,
+    icon: PackageCheck,
+    // BE fulfillment packages (docs 08) — trạm kiểm thùng
+    permission: FULFILLMENT_PACKAGE_PERMISSIONS.viewPage,
+    assignedOnly: true,
+  },
+  {
+    path: WORKSPACE_PATHS.putBacks,
+    group: "operations",
+    label: PUT_BACK_LABELS.title,
+    icon: Undo2,
+    // BE `GET /fulfillment/put-backs` — fulfillment-picking:READ (resource không có VIEW_PAGE)
+    permission: FULFILLMENT_PICKING_PERMISSIONS.read,
     assignedOnly: true,
   },
   {

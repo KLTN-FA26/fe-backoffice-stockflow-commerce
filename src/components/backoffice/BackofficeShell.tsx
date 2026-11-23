@@ -28,7 +28,6 @@ import {
   Map as MapIcon,
   MapPin,
   Package,
-  PackageCheck,
   PackageOpen,
   PackagePlus,
   Palette,
@@ -69,9 +68,6 @@ import {
   CUSTOMER_PRICE_UI_LABELS,
   DELIVERY_FAILURE_LABELS,
   FULFILLMENT_CARRIER_EVENT_PERMISSIONS,
-  FULFILLMENT_PACKAGE_PERMISSIONS,
-  FULFILLMENT_PICK_PERMISSIONS,
-  FULFILLMENT_PICKING_PERMISSIONS,
   GOODS_RECEIPT_PERMISSIONS,
   IDENTITY_PERMISSIONS,
   INVENTORY_ITEM_PERMISSIONS,
@@ -84,7 +80,6 @@ import {
   PRODUCT_PERMISSIONS,
   QUOTE_PERMISSIONS,
   CHAT_PERMISSIONS,
-  PUT_BACK_LABELS,
   SHIPMENT_PERMISSIONS,
   STOCK_PACKAGE_PERMISSIONS,
   TRIAL_LABELS,
@@ -500,25 +495,9 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: Undo2,
         permission: RMA_PERMISSIONS.viewPage,
       },
-      {
-        label: "Lấy hàng",
-        href: ADMIN_ROUTES.picking.list,
-        icon: WarehouseIcon,
-        permission: FULFILLMENT_PICK_PERMISSIONS.viewPage,
-      },
-      {
-        label: UI_LABELS.cartonCheck.navTitle,
-        href: ADMIN_ROUTES.packing.list,
-        icon: PackageCheck,
-        permission: FULFILLMENT_PACKAGE_PERMISSIONS.viewPage,
-      },
-      {
-        label: PUT_BACK_LABELS.title,
-        href: ADMIN_ROUTES.putBacks.list,
-        icon: Undo2,
-        // BE `GET /fulfillment/put-backs` — fulfillment-picking:READ (resource không có VIEW_PAGE)
-        permission: FULFILLMENT_PICKING_PERMISSIONS.read,
-      },
+      // Lấy hàng (docs 07) đã vào tab "Kho & bản đồ" — làm việc theo một kho (spec 2026-11-22)
+      // Kiểm thùng (docs 08) cũng trong tab theo kho
+      // Cất lại (docs 07 §4.5) cũng trong tab theo kho
       {
         label: UI_LABELS.loadPlan.pageTitle,
         href: ADMIN_ROUTES.loadPlans.list,

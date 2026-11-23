@@ -32,10 +32,17 @@ type FieldErrors = Partial<Record<"orderId" | "assignedUserId" | "stagingLocatio
  * thay cho `GET /orders` (cần `sales-orders:READ` — quản lý kho không có). Người nhận vẫn lấy từ
  * `GET /fulfillment/assignees` (cần `fulfillment-task-assignment:UPDATE`).
  */
-export function CreateTaskDialog({ onClose }: { onClose: () => void }) {
+export function CreateTaskDialog({
+  onClose,
+  warehouseId: tabWarehouseId,
+}: {
+  onClose: () => void;
+  /** Kho của tab theo kho — chỉ đơn xuất từ kho này (BE `task-candidates?warehouseId=` lọc). */
+  warehouseId: string;
+}) {
   const canCreate = useCan(FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS.create);
   const canAssign = useCan(FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS.update);
-  const candidates = useTaskCandidates(canCreate);
+  const candidates = useTaskCandidates(canCreate, tabWarehouseId);
   const create = useCreateFulfillmentTask();
   const [orderId, setOrderId] = useState("");
   const [assignedUserId, setAssignedUserId] = useState("");

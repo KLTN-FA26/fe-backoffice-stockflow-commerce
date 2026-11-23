@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Undo2 } from "lucide-react";
 
-import { ADMIN_ROUTES, PICK_LINE_LABELS, PUT_BACK_LABELS } from "@/constants";
+import { PICK_LINE_LABELS, PUT_BACK_LABELS } from "@/constants";
 import { formatDateTime } from "@/lib/format/date";
 import { CELL, numberCell } from "@/components/shared/column-helpers";
 import { Badge } from "@/components/ui/badge";
@@ -25,10 +25,13 @@ export function putBackColumns({
   canAct,
   canOpenTask,
   onPutBack,
+  taskHref,
 }: {
   canAct: boolean;
   canOpenTask: boolean;
   onPutBack: (row: PutBackRow) => void;
+  /** Link chi tiết lấy hàng — trong tab theo kho. */
+  taskHref: (taskId: string) => string;
 }): ColumnDef<PutBackRow>[] {
   const base: ColumnDef<PutBackRow>[] = [
     {
@@ -36,10 +39,7 @@ export function putBackColumns({
       header: COL.order,
       cell: (row) =>
         canOpenTask ? (
-          <Link
-            href={ADMIN_ROUTES.picking.detail(row.taskId)}
-            className={`${CELL.code} hover:underline`}
-          >
+          <Link href={taskHref(row.taskId)} className={`${CELL.code} hover:underline`}>
             {row.orderNumber}
           </Link>
         ) : (

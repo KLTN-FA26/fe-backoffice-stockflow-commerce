@@ -51,7 +51,7 @@ async function openDialog(candidate: object, create?: () => unknown) {
     },
     { "/fulfillment/tasks": () => (create ?? (() => apiTask()))() },
   );
-  renderFulfillmentScreen(<CreateTaskDialog onClose={vi.fn()} />);
+  renderFulfillmentScreen(<CreateTaskDialog warehouseId={WAREHOUSE_ID} onClose={vi.fn()} />);
   const user = userEvent.setup();
   const dialog = await screen.findByRole("dialog");
   return { ...spies, user, dialog };

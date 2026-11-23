@@ -9,7 +9,9 @@ import {
   FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS,
   FULFILLMENT_TASK_OVERSIGHT_PERMISSIONS,
   UI_LABELS,
+  WORKSPACE_PATHS,
 } from "@/constants";
+import { useWorkspaceHref } from "@/lib/workspace";
 import { canCreateTask } from "@/features/fulfillment/lifecycle";
 import { TOOLBAR_ACTION_CLASS } from "@/components/shared/ListToolbar";
 import { Button } from "@/components/ui/button";
@@ -59,7 +61,13 @@ function TaskListContent({ scope }: { scope: FulfillmentScope }) {
   const [assigning, setAssigning] = useState<FulfillmentTask | null>(null);
   const [creating, setCreating] = useState(false);
   const canCreate = scope === "picking" && canCreateTask(actor);
-  const columns = buildTaskColumns({ scope, actor, onAssign: setAssigning });
+  const href = useWorkspaceHref();
+  const columns = buildTaskColumns({
+    scope,
+    actor,
+    onAssign: setAssigning,
+    detailHref: (taskId) => href(WORKSPACE_PATHS.pickingTask(taskId)),
+  });
   const visibleColumns = columns.filter((c) => s.config.visibleColumns.includes(c.key));
   const createAction = canCreate ? (
     <Button
@@ -93,7 +101,9 @@ function TaskListContent({ scope }: { scope: FulfillmentScope }) {
       )}
       <TaskListBody s={s} columns={visibleColumns} />
       {assigning && <AssignDialog task={assigning} onClose={() => setAssigning(null)} />}
-      {creating && <CreateTaskDialog onClose={() => setCreating(false)} />}
+      {creating && (
+        <CreateTaskDialog warehouseId={s.warehouse} onClose={() => setCreating(false)} />
+      )}
     </div>
   );
 }

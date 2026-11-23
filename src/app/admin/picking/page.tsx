@@ -1,13 +1,18 @@
-import { Suspense } from "react";
+import { WORKSPACE_PATHS } from "@/constants";
+import { WorkspaceRedirect } from "@/lib/workspace";
 
-import { PickingList } from "@/features/fulfillment/components/TaskList";
-
-import { PageSkeleton } from "@/components/shared/PageSkeleton";
-
-export default function PickingPage() {
+/** Route cũ: Lấy hàng giờ nằm trong tab theo kho — `?warehouse=` → `/admin/warehouse-map/{prefix}/picking` (spec §5.5). */
+export default async function LegacyPickingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ warehouse?: string | string[] }>;
+}) {
+  const { warehouse } = await searchParams;
   return (
-    <Suspense fallback={<PageSkeleton variant="list" />}>
-      <PickingList />
-    </Suspense>
+    <WorkspaceRedirect
+      warehouseId={typeof warehouse === "string" ? warehouse : null}
+      path={WORKSPACE_PATHS.picking}
+      keepQuery
+    />
   );
 }

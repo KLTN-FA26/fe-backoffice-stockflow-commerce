@@ -1,13 +1,18 @@
-import { Suspense } from "react";
+import { WORKSPACE_PATHS } from "@/constants";
+import { WorkspaceRedirect } from "@/lib/workspace";
 
-import { PutBackScreen } from "@/features/fulfillment/components/put-back/PutBackScreen";
-
-import { PageSkeleton } from "@/components/shared/PageSkeleton";
-
-export default function PutBacksPage() {
+/** Route cũ: Cất lại giờ nằm trong tab theo kho — `?warehouse=` → `/admin/warehouse-map/{prefix}/put-backs` (spec §5.5). */
+export default async function LegacyPutBacksPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ warehouse?: string | string[] }>;
+}) {
+  const { warehouse } = await searchParams;
   return (
-    <Suspense fallback={<PageSkeleton variant="list" />}>
-      <PutBackScreen />
-    </Suspense>
+    <WorkspaceRedirect
+      warehouseId={typeof warehouse === "string" ? warehouse : null}
+      path={WORKSPACE_PATHS.putBacks}
+      keepQuery
+    />
   );
 }
