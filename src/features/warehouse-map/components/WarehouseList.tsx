@@ -15,7 +15,7 @@ import { canEnterWarehouse, useAssignedWarehouses, useCan, usePermissionChecker 
 
 import { warehouseMapActions } from "@/features/warehouse-map/lifecycle";
 
-import { TOOLBAR_ACTION_CLASS } from "@/components/shared/ListToolbar";
+import { TOOLBAR_ACTION_CLASS, TOOLBAR_PRIMARY_CLASS } from "@/components/shared/ListToolbar";
 import { Button } from "@/components/ui/button";
 
 import { WarehouseCreateDialog } from "./create/WarehouseCreateDialog";
@@ -46,7 +46,7 @@ function WarehouseListContent() {
             actions.createWarehouse && (
               <Button
                 size="sm"
-                className={`${TOOLBAR_ACTION_CLASS} bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse`}
+                className={`${TOOLBAR_ACTION_CLASS} ${TOOLBAR_PRIMARY_CLASS}`}
                 onClick={() => setCreating(true)}
               >
                 <Plus className="size-3.5" /> {L.create}

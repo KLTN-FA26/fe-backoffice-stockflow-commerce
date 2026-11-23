@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { PAGE_SIZE, UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
@@ -9,7 +9,7 @@ import { OTHER_STARTER_ID, QUEUE_PATH, STARTER_ID, queueRow } from "../__fixture
 import {
   IDENTITIES,
   mockFulfillmentApi,
-  pickSelectOption,
+  patchCmdk,
   renderFulfillmentScreen,
 } from "../__fixtures__/render";
 import { PICKER_ID, WAREHOUSE_ID, bePage } from "../__fixtures__/task";
@@ -21,6 +21,8 @@ import type { CartonCheckQueueRowDto } from "../carton-check-types";
 const { push } = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 
+beforeAll(patchCmdk);
+
 afterEach(() => {
   vi.restoreAllMocks();
   localStorage.clear();
@@ -28,6 +30,14 @@ afterEach(() => {
 });
 
 const L = UI_LABELS.cartonCheck;
+const STATUS_TOOL = "Lọc trạng thái";
+
+/** Chọn một trạng thái qua công cụ "Lọc trạng thái" của toolbar chuẩn rồi đóng popover. */
+async function pickStatus(user: ReturnType<typeof userEvent.setup>, label: string) {
+  await user.click(screen.getByRole("button", { name: STATUS_TOOL }));
+  await user.click(await screen.findByRole("option", { name: label }));
+  await user.keyboard("{Escape}");
+}
 const WAREHOUSES = bePage([
   { id: "wh-1", prefix: "HN01", name: "Kho Hà Nội", status: "ACTIVE" },
   { id: "wh-2", prefix: "HCM01", name: "Kho TP.HCM", status: "ACTIVE" },
@@ -41,8 +51,11 @@ function renderQueue(
     [QUEUE_PATH]: typeof rows === "function" ? rows : () => bePage(rows),
     "/warehouses": () => WAREHOUSES,
   });
-  renderFulfillmentScreen(<CartonCheckQueue />);
-  return spies;
+  const urls: string[] = [];
+  renderFulfillmentScreen(<CartonCheckQueue />, undefined, "", ({ queryString }) => {
+    urls.push(queryString);
+  });
+  return { ...spies, urls };
 }
 
 const queueCalls = (get: ReturnType<typeof renderQueue>["get"]) =>
@@ -109,12 +122,16 @@ describe("CartonCheckQueue — hàng chờ kiểm thùng", () => {
     );
   });
 
-  it("không có lọc kho (kho của tab); lọc trạng thái → gửi status + kho của tab, về trang đầu", async () => {
+  it("không có ô tìm kiếm / lọc kho; lọc trạng thái qua toolbar → gửi status + kho của tab, ghi URL, về trang đầu; Đặt lại bỏ lọc", async () => {
     const user = userEvent.setup();
-    const { get } = renderQueue([queueRow()]);
+    const { get, urls } = renderQueue([queueRow()]);
     await screen.findByText("SO-20261010-000431");
+    expect(screen.queryByRole("textbox")).toBeNull();
     expect(screen.queryByRole("combobox", { name: L.filters.warehouse })).toBeNull();
-    await pickSelectOption(user, L.filters.status, L.statusFilter.IN_PROGRESS);
+    expect(screen.getByText(`${L.filters.status}: ${L.filters.allWaiting}`)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Đặt lại" })).toBeDisabled();
+
+    await pickStatus(user, L.statusFilter.IN_PROGRESS);
     await waitFor(() =>
       expect(queueCalls(get).at(-1)).toMatchObject({
         warehouseId: WAREHOUSE_ID,
@@ -122,23 +139,37 @@ describe("CartonCheckQueue — hàng chờ kiểm thùng", () => {
         page: 0,
       }),
     );
-    await user.click(screen.getByRole("button", { name: L.clearFilters }));
-    await waitFor(() => expect(screen.queryByRole("button", { name: L.clearFilters })).toBeNull());
-    expect(screen.getByRole("combobox", { name: L.filters.status })).toHaveTextContent(
-      L.filters.allWaiting,
-    );
+    expect(urls.at(-1)).toContain("status=IN_PROGRESS");
+    expect(
+      screen.getByText(`${L.filters.status}: ${L.statusFilter.IN_PROGRESS}`),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Đặt lại" }));
+    await waitFor(() => expect(urls.at(-1)).not.toContain("status="));
+    expect(screen.getByText(`${L.filters.status}: ${L.filters.allWaiting}`)).toBeInTheDocument();
+  });
+
+  it("BE nhận một trạng thái: chọn mục khác thay mục cũ; X trên chip bỏ lọc", async () => {
+    const user = userEvent.setup();
+    const { get, urls } = renderQueue([queueRow()]);
+    await screen.findByText("SO-20261010-000431");
+    await user.click(screen.getByRole("button", { name: STATUS_TOOL }));
+    await user.click(await screen.findByRole("option", { name: L.statusFilter.PENDING }));
+    await user.click(screen.getByRole("option", { name: L.statusFilter.IN_PROGRESS }));
+    await waitFor(() => expect(queueCalls(get).at(-1)).toMatchObject({ status: "IN_PROGRESS" }));
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("button", { name: `Xoá ${L.filters.status}` }));
+    await waitFor(() => expect(urls.at(-1)).not.toContain("status="));
   });
 
   it("chưa có đơn nào → EmptyState; lọc không ra → EmptyState khác kèm nút Bỏ bộ lọc", async () => {
     const user = userEvent.setup();
     renderQueue([]);
     expect(await screen.findByText(L.emptyTitle)).toBeInTheDocument();
-    await pickSelectOption(user, L.filters.status, L.statusFilter.IN_PROGRESS);
+    await pickStatus(user, L.statusFilter.IN_PROGRESS);
     expect(await screen.findByText(UI_LABELS.emptyList.noResultsTitle)).toBeInTheDocument();
-    // Một nút ở thanh lọc, một nút trong EmptyState — bấm nút trong vùng nội dung
-    const clear = screen.getAllByRole("button", { name: L.clearFilters });
-    expect(clear).toHaveLength(2);
-    await user.click(clear[1] as HTMLElement);
+    // Thanh lọc dùng "Đặt lại" — nút "Bỏ bộ lọc" chỉ còn trong EmptyState
+    await user.click(screen.getByRole("button", { name: L.clearFilters }));
     expect(await screen.findByText(L.emptyTitle)).toBeInTheDocument();
   });
 

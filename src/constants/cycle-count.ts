@@ -69,7 +69,21 @@ export const CYCLE_COUNT_ROUTES = {
 } as const;
 
 export const CYCLE_COUNT_STORAGE_KEYS = {
+  /** Số dòng / trang (`use-cycle-count-filters`). */
   list: "stockflow:admin:inventory:cycle-counts:config",
+  /** Cột đang hiện của danh sách — khoá riêng để không ghi đè cấu hình số dòng / trang. */
+  columns: "stockflow:admin:inventory:cycle-counts:columns",
+} as const;
+
+/** Khoá cột bảng danh sách phiếu kiểm kê (ẩn hiện cột, data-table-mode-a §4.2). */
+export const CYCLE_COUNT_COLUMNS = {
+  NUMBER: "countNumber",
+  TRIGGER: "trigger",
+  STATUS: "status",
+  BLIND: "blind",
+  PROGRESS: "progress",
+  VARIANCES: "variances",
+  PLANNED_DATE: "plannedDate",
 } as const;
 
 export const CYCLE_COUNT_ACTION = {
@@ -106,7 +120,7 @@ export const CYCLE_COUNT_LABELS = {
   noCountsDescription:
     "Phiếu kiểm kê do quản lý kho lập, hoặc hệ thống tự mở khi nhân viên báo thiếu thùng lúc lấy hàng.",
   all: "Tất cả",
-  statusFilter: "Trạng thái",
+  summaryColumns: "Cột hiển thị",
   open: "Mở phiếu",
   fetching: "Đang cập nhật dữ liệu",
   trace: "Mã tra cứu",
