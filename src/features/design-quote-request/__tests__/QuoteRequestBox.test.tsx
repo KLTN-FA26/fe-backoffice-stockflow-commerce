@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { toast } from "@/components/shared/Toast";
 import { apiError, bePage, mockApi, renderScreen } from "@/test/api-screen";
+import "@/test/jsdom-popover";
 
 import { DesignQuoteRequestList, ProjectQuoteRequestList } from "..";
 import { quoteRequestActions } from "../lifecycle";

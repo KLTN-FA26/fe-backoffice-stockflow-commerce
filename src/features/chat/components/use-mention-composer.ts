@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useId, useLayoutEffect, useRef, useState } from "react";
 
 import { CHAT_MENTION_DEBOUNCE_MS } from "@/constants";
 
@@ -58,6 +58,16 @@ export function useMentionComposer({
   const listId = `${useId()}-mentions`;
   const active = items.find((p) => p.id === activeId) ?? items[0];
   const syncToken = (el: HTMLTextAreaElement) => setToken(tokenAt(el.value, el.selectionStart));
+  // Where the caret goes once the picked name is in the textarea. Placed in the commit that writes the text, not a
+  // frame later: a key typed in between would land before the caret is moved and end up in the wrong place.
+  const caretAfterPick = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    const at = caretAfterPick.current;
+    if (at === null || !area.current) return;
+    caretAfterPick.current = null;
+    area.current.focus();
+    area.current.setSelectionRange(at, at);
+  });
 
   const pick = (person: ChatStaff) => {
     if (!token) return;
@@ -68,11 +78,7 @@ export function useMentionComposer({
       list.some((p) => p.id === person.id) ? list : [...list, { id: person.id, name: person.name }],
     );
     setToken(null);
-    const next = token.at + inserted.length;
-    requestAnimationFrame(() => {
-      area.current?.focus();
-      area.current?.setSelectionRange(next, next);
-    });
+    caretAfterPick.current = token.at + inserted.length;
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
