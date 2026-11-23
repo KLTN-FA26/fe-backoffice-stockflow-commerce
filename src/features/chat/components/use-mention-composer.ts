@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useId, useLayoutEffect, useRef, useState } from "react";
 
 import { CHAT_MENTION_DEBOUNCE_MS } from "@/constants";
 
@@ -50,6 +50,17 @@ export function useMentionComposer({
   const listId = `${useId()}-mentions`;
   const active = items.find((p) => p.id === activeId) ?? items[0];
   const syncToken = (el: HTMLTextAreaElement) => setToken(tokenAt(el.value, el.selectionStart));
+  // Caret to put right after "@Tên " once the new text is in the textarea. A layout effect runs before the browser
+  // takes the next key — `requestAnimationFrame` ran a frame later and pulled the caret back over what was typed.
+  const pendingCaret = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    const caret = pendingCaret.current;
+    const el = area.current;
+    if (caret === null || !el) return;
+    pendingCaret.current = null;
+    el.focus();
+    el.setSelectionRange(caret, caret);
+  });
 
   const pick = (person: ChatStaff) => {
     if (!token) return;
@@ -60,11 +71,7 @@ export function useMentionComposer({
       list.some((p) => p.id === person.id) ? list : [...list, { id: person.id, name: person.name }],
     );
     setToken(null);
-    const next = token.at + inserted.length;
-    requestAnimationFrame(() => {
-      area.current?.focus();
-      area.current?.setSelectionRange(next, next);
-    });
+    pendingCaret.current = token.at + inserted.length;
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
