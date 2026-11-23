@@ -6,6 +6,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import {
   ADMIN_ROUTES,
+  GOODS_RECEIPT_PERMISSIONS,
   IDENTITY_PERMISSIONS,
   INVENTORY_PERMISSIONS,
   PUTAWAY_TASK_PERMISSIONS,
@@ -315,7 +316,7 @@ describe("sidebar parent entries follow their visible items", () => {
   });
 });
 
-describe('tab "Kho & bản đồ" tách riêng', () => {
+describe('tab "Kho" tách riêng', () => {
   const PERMS = [
     WAREHOUSE_PERMISSIONS.viewPage,
     WAREHOUSE_PERMISSIONS.read,
@@ -326,13 +327,13 @@ describe('tab "Kho & bản đồ" tách riêng', () => {
   it("ở màn gốc sidebar, bấm tab là tới gốc tab (vào thẳng kho được gán duy nhất, hoặc Danh mục kho)", async () => {
     navigation.pathname = ADMIN_ROUTES.home;
     await renderShell(PERMS);
-    expect(navLink("Kho & bản đồ")).toHaveAttribute("href", ADMIN_ROUTES.warehouseMap.root);
+    expect(navLink("Kho")).toHaveAttribute("href", ADMIN_ROUTES.warehouseMap.root);
   });
 
   it("chưa vào kho nào → panel chỉ có Danh mục kho (chọn kho ở đó), không liệt kê kho", async () => {
     navigation.pathname = ADMIN_ROUTES.warehouses.list;
     await renderShell(PERMS);
-    expect(screen.getByRole("button", { name: /^Quay lại Kho & bản đồ/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Quay lại Kho/ })).toBeInTheDocument();
     expect(screen.getByText(/Chọn một kho ở Danh mục kho/)).toBeInTheDocument();
     expect(navLink("Danh mục kho")).toHaveAttribute("aria-current", "page");
     expect(navLink("Bản đồ kho")).not.toBeInTheDocument();
@@ -347,7 +348,7 @@ describe('tab "Kho & bản đồ" tách riêng', () => {
       ADMIN_ROUTES.warehouseMap.slotting("HCM"),
     );
     const crumbs = screen.getByRole("navigation", { name: "Breadcrumb" });
-    expect(within(crumbs).getByRole("link", { name: "Kho & bản đồ" })).toBeInTheDocument();
+    expect(within(crumbs).getByRole("link", { name: "Kho" })).toBeInTheDocument();
     expect(within(crumbs).getByRole("button", { name: /Đổi kho: HCM/ })).toBeInTheDocument();
     expect(crumbs).toHaveTextContent("Bản đồ kho");
   });
@@ -378,10 +379,48 @@ describe('tab "Kho & bản đồ" tách riêng', () => {
     expect(navLink("Cất hàng")).toHaveAttribute("href", "/admin/warehouse-map/HCM/putaway");
   });
 
+  it('trong một kho, có quyền phiếu nhận → "Nhận hàng" đứng đầu nhóm Vận hành, trước Cất hàng', async () => {
+    navigation.pathname = ADMIN_ROUTES.warehouseMap.of("HCM");
+    await renderShell([...PERMS, GOODS_RECEIPT_PERMISSIONS.viewPage]);
+    const receiving = navLink("Nhận hàng");
+    const putaway = navLink("Cất hàng");
+    expect(receiving).toHaveAttribute(
+      "href",
+      ADMIN_ROUTES.warehouseMap.page("HCM", WORKSPACE_PATHS.receiving),
+    );
+    if (!receiving || !putaway) throw new Error("Thiếu link Nhận hàng / Cất hàng");
+    // Thứ tự theo luồng kho (docs 03 → 05): nhận trước, cất sau
+    expect(
+      receiving.compareDocumentPosition(putaway) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it('không có quyền phiếu nhận → panel trong kho không có "Nhận hàng"', async () => {
+    navigation.pathname = ADMIN_ROUTES.warehouseMap.of("HCM");
+    await renderShell(PERMS);
+    expect(navLink("Nhận hàng")).not.toBeInTheDocument();
+  });
+
+  it("breadcrumb phiếu trong Nhận hàng: Kho / kho / Nhận hàng (link) / id", () => {
+    const items = buildBreadcrumbItems(
+      ADMIN_ROUTES.warehouseMap.page("HCM", WORKSPACE_PATHS.receivingReturn("gr-9")),
+    );
+    expect(items.map((item) => item.label)).toEqual([
+      "Trang quản trị",
+      "Kho",
+      "HCM",
+      "Nhận hàng",
+      "gr-9",
+    ]);
+    expect(items.at(-2)?.href).toBe(
+      ADMIN_ROUTES.warehouseMap.page("HCM", WORKSPACE_PATHS.receiving),
+    );
+  });
+
   it("chỉ có quyền một trang trong kho (không có quyền bản đồ) → tab vẫn hiện", async () => {
     navigation.pathname = ADMIN_ROUTES.home;
     await renderShell([PUTAWAY_TASK_PERMISSIONS.viewPage]);
-    expect(navLink("Kho & bản đồ")).toBeInTheDocument();
+    expect(navLink("Kho")).toBeInTheDocument();
   });
 
   it("không có quyền bản đồ → panel trong kho không có dòng Bản đồ, vẫn có trang được phép", async () => {

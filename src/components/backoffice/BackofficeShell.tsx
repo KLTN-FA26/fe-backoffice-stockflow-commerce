@@ -175,7 +175,7 @@ export interface NavGroup {
   title: string;
   icon: LucideIcon;
   items: NavItem[];
-  /** Màn con riêng thay danh sách item mặc định (vd tab "Kho & bản đồ": chọn kho → trang của kho). */
+  /** Màn con riêng thay danh sách item mặc định (vd tab "Kho": chọn kho → trang của kho). */
   panel?: ComponentType;
   /** Bấm item cha thì đi thẳng tới trang này (thay vì chỉ mở màn con). */
   href?: string;
@@ -433,8 +433,8 @@ export const NAV_GROUPS: NavGroup[] = [
           INVENTORY_OVERVIEW_PERMISSIONS.reservationRead,
         ],
       },
-      // Di chuyển nội bộ (docs 11) đã vào tab "Kho & bản đồ" — làm việc theo một kho (spec 2026-11-22)
-      // Kiểm kê (docs 20) đã vào tab "Kho & bản đồ" — làm việc theo một kho (spec 2026-11-22)
+      // Di chuyển nội bộ (docs 11) đã vào tab "Kho" — làm việc theo một kho (spec 2026-11-22)
+      // Kiểm kê (docs 20) đã vào tab "Kho" — làm việc theo một kho (spec 2026-11-22)
       {
         label: "Điều chỉnh tồn",
         href: INVENTORY_ROUTES.adjustments,

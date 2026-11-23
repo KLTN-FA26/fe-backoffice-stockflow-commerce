@@ -13,12 +13,7 @@ describe("buildBreadcrumbItems", () => {
     const list = buildBreadcrumbItems(
       ADMIN_ROUTES.warehouseMap.page("BD", WORKSPACE_PATHS.putaway),
     );
-    expect(list.map((item) => item.label)).toEqual([
-      "Trang quản trị",
-      "Kho & bản đồ",
-      "BD",
-      "Cất hàng",
-    ]);
+    expect(list.map((item) => item.label)).toEqual(["Trang quản trị", "Kho", "BD", "Cất hàng"]);
     expect(list.at(-1)?.href).toBeUndefined();
     const detail = buildBreadcrumbItems(
       ADMIN_ROUTES.warehouseMap.page("BD", WORKSPACE_PATHS.putawayTask("t-1")),
@@ -27,7 +22,7 @@ describe("buildBreadcrumbItems", () => {
     );
     expect(detail.map((item) => item.label)).toEqual([
       "Trang quản trị",
-      "Kho & bản đồ",
+      "Kho",
       "BD",
       "Cất hàng",
       "LPN-1",
@@ -40,7 +35,7 @@ describe("buildBreadcrumbItems", () => {
       buildBreadcrumbItems(path, () => true, labelFor).map((item) => item.label);
     expect(labels(ADMIN_ROUTES.warehouseMap.page("BD", WORKSPACE_PATHS.myTrip))).toEqual([
       "Trang quản trị",
-      "Kho & bản đồ",
+      "Kho",
       "BD",
       "Chuyến cất hàng",
     ]);
@@ -48,14 +43,14 @@ describe("buildBreadcrumbItems", () => {
       labels(ADMIN_ROUTES.warehouseMap.page("BD", WORKSPACE_PATHS.trip("x")), (id) =>
         id === "x" ? "Chuyến cất hàng" : undefined,
       ),
-    ).toEqual(["Trang quản trị", "Kho & bản đồ", "BD", "Cất hàng", "Chuyến cất hàng"]);
+    ).toEqual(["Trang quản trị", "Kho", "BD", "Cất hàng", "Chuyến cất hàng"]);
   });
 
-  it('trang của một kho: "Kho & bản đồ / <kho ⇅> / <trang>" theo prefix trên URL', () => {
+  it('trang của một kho: "Kho / <kho ⇅> / <trang>" theo prefix trên URL', () => {
     const items = buildBreadcrumbItems(ADMIN_ROUTES.warehouseMap.slotting("BD"));
     expect(items.map((item) => item.label)).toEqual([
       "Trang quản trị",
-      "Kho & bản đồ",
+      "Kho",
       "BD",
       "Gợi ý vị trí",
     ]);
@@ -163,7 +158,7 @@ describe("buildBreadcrumbItems", () => {
     const labels = (path: string) => buildBreadcrumbItems(path).map((item) => item.label);
     expect(labels(ADMIN_ROUTES.warehouseMap.page("HCM", WORKSPACE_PATHS.cycleCounts))).toEqual([
       "Trang quản trị",
-      "Kho & bản đồ",
+      "Kho",
       "HCM",
       CYCLE_COUNT_LABELS.title,
     ]);
@@ -173,7 +168,7 @@ describe("buildBreadcrumbItems", () => {
     );
     expect(detail.map((item) => item.label)).toEqual([
       "Trang quản trị",
-      "Kho & bản đồ",
+      "Kho",
       "HCM",
       CYCLE_COUNT_LABELS.title,
       id,

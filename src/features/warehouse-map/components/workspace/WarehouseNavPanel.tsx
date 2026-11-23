@@ -64,7 +64,7 @@ function GroupTitle({ children }: { children: ReactNode }) {
 }
 
 /**
- * Màn con của tab "Kho & bản đồ" trên sidebar (thay danh sách item mặc định). Chọn kho ở trang Danh mục kho, không ở
+ * Màn con của tab "Kho" trên sidebar (thay danh sách item mặc định). Chọn kho ở trang Danh mục kho, không ở
  * sidebar: chưa vào kho nào → chỉ Danh mục kho, Bảng sức chứa + gợi ý; đang ở `/admin/warehouse-map/{prefix}/…` → các
  * trang của kho đó theo `WORKSPACE_PAGES`, chia nhóm Vận hành / Bản đồ (spec 2026-11-22 §5.6). Kho không được gán → bỏ
  * các trang `assignedOnly`, chỉ còn bản đồ (06: bản đồ không giới hạn theo kho được gán).

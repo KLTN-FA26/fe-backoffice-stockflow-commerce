@@ -70,6 +70,16 @@ describe("goods receipt API — hợp đồng BE sau 4A-9", () => {
     expect(params).not.toHaveProperty("withoutPo");
   });
 
+  it("lọc theo kho: gửi warehouseId khi có, bỏ hẳn khi rỗng", async () => {
+    const get = vi.spyOn(api, "get").mockResolvedValue({ data: apiReceiptPage() });
+
+    await listGoodsReceipts({ warehouseId: "wh-hni" });
+    await listGoodsReceipts({ warehouseId: "" });
+
+    expect(get.mock.calls[0]?.[1]?.params).toMatchObject({ warehouseId: "wh-hni" });
+    expect(get.mock.calls[1]?.[1]?.params).toMatchObject({ warehouseId: undefined });
+  });
+
   it("đầu ngày VN → Instant UTC; receivedTo loại trừ nên lấy 00:00 hôm sau", () => {
     expect(dayStartInstant("2026-10-09")).toBe("2026-10-08T17:00:00.000Z");
     expect(dayAfterStartInstant("2026-10-09")).toBe("2026-10-09T17:00:00.000Z");

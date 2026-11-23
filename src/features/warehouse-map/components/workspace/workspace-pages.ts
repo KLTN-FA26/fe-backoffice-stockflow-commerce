@@ -1,6 +1,7 @@
 import {
   Archive,
   ClipboardCheck,
+  Inbox,
   Lightbulb,
   Map as MapIcon,
   Move,
@@ -14,12 +15,14 @@ import {
   FULFILLMENT_PACKAGE_PERMISSIONS,
   FULFILLMENT_PICK_PERMISSIONS,
   FULFILLMENT_PICKING_PERMISSIONS,
+  GOODS_RECEIPT_PERMISSIONS,
   INVENTORY_PERMISSIONS,
   PUT_BACK_LABELS,
   PUTAWAY_LABELS,
   PUTAWAY_TASK_PERMISSIONS,
   PUTAWAY_TRIP_LABELS,
   PUTAWAY_TRIP_PERMISSIONS,
+  RECEIVING_LABELS,
   UI_LABELS,
   WAREHOUSE_LOCATION_PERMISSIONS,
   WORKSPACE_PATHS,
@@ -41,12 +44,24 @@ export interface WorkspacePage {
   label: string;
   icon: LucideIcon;
   permission: PermissionCode;
-  /** Trang nằm trong route group `(operations)` — chỉ mở ở kho được gán (docs 05/07/08/11/20). */
+  /** Trang nằm trong route group `(operations)` — chỉ mở ở kho được gán (docs 03/05/07/08/11/20). */
   assignedOnly: boolean;
 }
 
 /** Thứ tự = thứ tự hiện trên panel (Vận hành theo spec §5.6, rồi Bản đồ). Mỗi màn chuyển vào tab thêm một dòng. */
 export const WORKSPACE_PAGES: readonly WorkspacePage[] = [
+  {
+    // Đầu luồng kho: nhận → cất → lấy → kiểm thùng. Docs 03 §2: NV kho kiểm đếm, quét thùng hàng hoàn, xác nhận
+    // trong phạm vi kho được gán. Lập phiếu và tra cứu nhiều kho vẫn ở nhóm Nhập kho.
+    path: WORKSPACE_PATHS.receiving,
+    group: "operations",
+    label: RECEIVING_LABELS.title,
+    // Icon riêng: PackagePlus / PackageOpen đã dùng ở nhóm Nhập kho, sidebar thu gọn chỉ còn icon
+    icon: Inbox,
+    // BE `GoodsReceiptController` + `ReturnReceiptController`, resource procurement-goods-receipts
+    permission: GOODS_RECEIPT_PERMISSIONS.viewPage,
+    assignedOnly: true,
+  },
   {
     path: WORKSPACE_PATHS.putaway,
     group: "operations",
