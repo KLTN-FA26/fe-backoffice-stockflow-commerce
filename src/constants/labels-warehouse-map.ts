@@ -213,8 +213,9 @@ export const WAREHOUSE_MAP_UI_LABELS = {
     legendStart: "Xuất phát",
     legendNext: "Nên tới tiếp",
     legendDone: "Đã cất xong",
-    // docs 05 §4.5 ⚠️ C46: khoảng cách trên mặt bằng, không tránh kệ / tường
-    note: "Đường thẳng nối các điểm đứng, không tránh kệ / tường — đi theo lối thực tế.",
+    // docs 05 §4.5 ⚠️ C46: thứ tự điểm dừng vẫn theo khoảng cách Manhattan (BR-17, BE sắp); đường vẽ do FE ước lượng
+    // vòng qua kệ / tường từ bản đồ — kho chưa khai báo lối đi
+    note: "Thứ tự điểm dừng tính theo khoảng cách thẳng; đường vẽ vòng qua kệ, tường và cửa đóng theo bản đồ — chỉ là ước lượng, chặng không tìm được lối thì nối thẳng. Đi theo lối thực tế.",
     noRead: "Cần quyền xem bản đồ kho (warehouse-locations:READ) để thấy lộ trình trên bản đồ.",
     loadFailed: "Không tải được bản đồ kho — xem lộ trình theo danh sách điểm dừng.",
   },

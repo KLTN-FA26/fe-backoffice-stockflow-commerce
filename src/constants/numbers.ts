@@ -387,6 +387,14 @@ export const WAREHOUSE_MAP_LIMITS = {
   /** Tồn cả kho cho toàn cảnh 3D: đọc theo trang cỡ này, dừng ở trần dòng — kho lớn hơn thì báo một phần. */
   warehouseStockPageSize: 200,
   warehouseStockMaxRows: 2000,
+  /**
+   * Vẽ lộ trình chuyến cất vòng qua kệ / tường (docs 05 §4.5 bước 14, ⚠️ C46 — FE ước lượng, BE chỉ trả điểm đứng):
+   * lưới tìm đường bước 0,5 m; kho quá lớn thì giãn bước để không quá `routeGridMaxCells` ô; điểm đứng nằm sát kệ
+   * thì nối tới ô trống gần nhất trong `routeSnapRadius` m.
+   */
+  routeGridStep: 0.5,
+  routeGridMaxCells: 200_000,
+  routeSnapRadius: 3,
 } as const;
 
 /**

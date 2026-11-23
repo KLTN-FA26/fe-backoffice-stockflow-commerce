@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { UI_LABELS, WAREHOUSE_LOCATION_PERMISSIONS } from "@/constants";
 import { useCan } from "@/lib/auth";
@@ -9,6 +9,7 @@ import { useWarehouseLayout } from "@/features/warehouse-map/queries";
 
 import { Skeleton } from "@/components/ui/skeleton";
 
+import { buildWalkGrid } from "../../walk-grid";
 import { MapFrame } from "../shared/MapFrame";
 import { MapCanvas2D } from "./MapCanvas2D";
 import { RouteOverlay } from "./RouteOverlay";
@@ -51,6 +52,8 @@ export function WarehouseRouteMap({
   const canRead = useCan(WAREHOUSE_LOCATION_PERMISSIONS.read);
   const layout = useWarehouseLayout(warehouseId, canRead);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Mặt bằng đi được dựng một lần cho mỗi bản layout (quét mọi ô × vật cản), dùng lại qua mọi lần vẽ lộ trình
+  const grid = useMemo(() => (layout.data ? buildWalkGrid(layout.data) : null), [layout.data]);
   if (!canRead) return <p className={NOTE_CLASS}>{R.noRead}</p>;
   if (layout.isPending) return <Skeleton className="h-105 w-full rounded-(--card-radius)" />;
   if (!layout.data) return <p className={NOTE_CLASS}>{R.loadFailed}</p>;
@@ -67,6 +70,7 @@ export function WarehouseRouteMap({
               overlay={
                 <RouteOverlay
                   path={path}
+                  grid={grid}
                   mapExtent={Math.max(
                     layout.data.warehouse.mapWidth,
                     layout.data.warehouse.mapHeight,

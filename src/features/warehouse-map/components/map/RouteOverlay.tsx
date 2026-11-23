@@ -1,6 +1,12 @@
 "use client";
 
+import { useMemo } from "react";
+
 import { UI_LABELS } from "@/constants";
+
+import { walkRoute } from "../../walk-path";
+
+import type { WalkGrid } from "../../walk-grid";
 
 const R = UI_LABELS.warehouseMap.route;
 /**
@@ -43,18 +49,33 @@ function spread<T extends { x: number; y: number }>(
 }
 
 /**
- * Lộ trình chuyến cất vẽ chồng lên mặt bằng 2D (docs 05 §4.5 bước 14): đường thẳng từ khu nguồn qua các điểm dừng theo
- * thứ tự, chấm đánh số khớp danh sách điểm dừng. Không tránh kệ / tường (⚠️ C46) — chỉ để định hướng (BR-17). Không
- * nhận chuột: bấm kệ / khu bên dưới vẫn được.
+ * Lộ trình chuyến cất vẽ chồng lên mặt bằng 2D (docs 05 §4.5 bước 14): đường từ khu nguồn qua các điểm dừng theo đúng
+ * thứ tự BE sắp (BR-17), chấm đánh số khớp danh sách điểm dừng. Có `grid` thì mỗi chặng vòng qua kệ / tường / cửa đóng
+ * (FE ước lượng từ bản đồ — ⚠️ C46: kho chưa khai báo lối đi), chặng không tìm được lối vẽ thẳng. Chỉ để định hướng.
+ * Không nhận chuột: bấm kệ / khu bên dưới vẫn được.
  */
-export function RouteOverlay({ path, mapExtent }: { path: RouteMapPath; mapExtent: number }) {
+export function RouteOverlay({
+  path,
+  mapExtent,
+  grid,
+}: {
+  path: RouteMapPath;
+  mapExtent: number;
+  /** Mặt bằng đi được (`buildWalkGrid`); vắng → nối thẳng các điểm. */
+  grid?: WalkGrid | null;
+}) {
   const dot = dotFor(mapExtent);
   // Hai điểm dừng trùng điểm đứng (bin khác tầng cùng cột) → dời ngang để không che nhau
   const stops = spread(path.stops, dot * 2.2);
-  const points = [
-    ...(path.start ? [{ x: path.start.x, y: path.start.y, dx: 0 }] : []),
-    ...stops,
-  ].map((p) => `${p.x + p.dx},${p.y}`);
+  // Tìm đường cho cả lộ trình (A* từng chặng) — nhớ theo lưới + lộ trình để zoom / dời bản đồ không tính lại
+  const points = useMemo(() => {
+    // Đi giữa các điểm đứng thật, không phải vị trí chấm đã dời (chấm dời có thể rơi vào trong kệ)
+    const route = [...(path.start ? [path.start] : []), ...path.stops].map(({ x, y }) => ({
+      x,
+      y,
+    }));
+    return (grid ? walkRoute(grid, route) : route).map((p) => `${p.x},${p.y}`);
+  }, [grid, path]);
   return (
     <g className="pointer-events-none">
       {points.length > 1 && (
