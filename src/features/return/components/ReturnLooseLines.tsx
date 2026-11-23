@@ -38,6 +38,7 @@ function looseErrorMessage(failure: unknown): string {
     if (failure.code === "VALIDATION_FAILED") return D.invalid;
     if (failure.code === "UNSUPPORTED_MEDIA_TYPE") return D.photoWrongType;
     if (failure.code === "PAYLOAD_TOO_LARGE") return D.photoTooLarge;
+    if (failure.code === "GOODS_RECEIPT_PHOTO_LIMIT_REACHED") return D.photoLimit;
   }
   return returnEvidenceErrorMessage(failure);
 }

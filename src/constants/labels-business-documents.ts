@@ -64,6 +64,9 @@ export const BUSINESS_DOCUMENTS: Readonly<Record<BusinessDocumentKind, BusinessD
       GOODS_RECEIPT_NOT_FOUND: "Không tìm thấy phiếu nhập hàng hoàn.",
       INVALID_RECEIPT_TRANSITION:
         "Phiếu chưa được xác nhận nhập kho nên chưa in phiếu nhập kho 01-VT.",
+      // BE `WarehouseScope.requireWarehouse` trả OUT_OF_DATA_SCOPE (không phải FORBIDDEN) — giữ cả hai
+      OUT_OF_DATA_SCOPE:
+        "Phiếu này thuộc kho bạn không được phân công, nên bạn không tải được phiếu nhập kho.",
       FORBIDDEN:
         "Phiếu này thuộc kho bạn không được phân công, nên bạn không tải được phiếu nhập kho.",
     },

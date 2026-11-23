@@ -667,6 +667,16 @@ export function shipmentsOf(order: Order): readonly MockShipment[] {
   return stateOf(order).shipments;
 }
 
+/**
+ * Đơn đã có lần giao tới khách (BE `OrderCompletionHolds.hold`: `deliveredAt` có, hoặc một lô DELIVERED) — cùng nguồn
+ * với `deliveredAt` / `shipments` của câu trả lời đơn mock.
+ */
+export function deliveredSomething(order: Order): boolean {
+  const state = stateOf(order);
+  const deliveredAt = state.deliveredAt ?? order.deliveredAt;
+  return !!deliveredAt || state.shipments.some((shipment) => shipment.status === "DELIVERED");
+}
+
 /** Lịch sử phát sinh trong phiên, `from` nối tiếp từ trạng thái seed; bỏ bước không đổi trạng thái. */
 export function sessionHistory(order: Order): MockHistoryEntry[] {
   let from: BeOrderStatus = MOCK_TO_BACKEND_STATUS[order.status];

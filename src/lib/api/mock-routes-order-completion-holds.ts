@@ -4,7 +4,8 @@
  *
  * - GET  /orders/:id/completion-hold — `sales-orders:READ`; data null khi không giữ.
  * - POST /orders/:id/completion-hold {reasonCode, note?} — `sales-order-holds:UPDATE`. Thứ tự kiểm như BE: body (lý do,
- *   ghi chú ≤ 1000, OTHER cần ghi chú) → 404 → đơn đã qua hoàn tất (409 ORDER_COMPLETION_HOLD_NOT_APPLICABLE) → đang giữ
+ *   ghi chú ≤ 1000, OTHER cần ghi chú) → 404 → đơn đã qua hoàn tất, chưa giao gì hoặc từng hoàn tất (409
+ *   ORDER_COMPLETION_HOLD_NOT_APPLICABLE) → đang giữ
  *   (409 ORDER_COMPLETION_ALREADY_HELD).
  * - POST /orders/:id/completion-hold/release {note} — ghi chú bắt buộc ≤ 1000; không có lần giữ mở → 409
  *   ORDER_COMPLETION_NOT_HELD.
@@ -17,20 +18,13 @@ import { registerMockRoute } from "./mock-adapter";
 import { addCompletionHold, openCompletionHoldOf } from "./mock-order-completion-holds";
 import { bodyOf, fail, ok, pathParams, text } from "./mock-route-utils";
 import { hasMockPermission } from "./mock-routes-order-schedule";
-import { backendStatus, findOrder } from "./mock-routes-orders-store";
+import { backendStatus, deliveredSomething, findOrder } from "./mock-routes-orders-store";
 
 import type { MockCompletionHold } from "./mock-order-completion-holds";
 
 const NOTE_MAX = 1000;
-/** BE `OrderCompletionHolds.PAST_COMPLETION`. */
-const PAST_COMPLETION = [
-  "COMPLETED",
-  "CLOSED",
-  "CANCELLED",
-  "RETURNED",
-  "REFUNDED",
-  "PARTIALLY_REFUNDED",
-];
+/** BE `OrderCompletionHolds.PAST_COMPLETION` (fix/wf05-full 18d4cf88). */
+const PAST_COMPLETION = ["COMPLETED", "CLOSED", "CANCELLED"];
 
 const forbidden = () => fail(403, "FORBIDDEN", "Access denied");
 const notFound = () => fail(404, "NOT_FOUND", "Resource not found");
@@ -67,6 +61,13 @@ export function registerOrderCompletionHoldMockRoutes(): void {
         409,
         "ORDER_COMPLETION_HOLD_NOT_APPLICABLE",
         `Order ${order.orderId} is ${status}: it will not be completed`,
+      );
+    // BE: không có gì đã giao để xác minh, hoặc đơn từng hoàn tất (khiếu nại muộn)
+    if (!deliveredSomething(order) || order.completedAt)
+      return fail(
+        409,
+        "ORDER_COMPLETION_HOLD_NOT_APPLICABLE",
+        `Order ${order.orderId} has no delivery to verify`,
       );
     if (openCompletionHoldOf(order.orderId))
       return fail(409, "ORDER_COMPLETION_ALREADY_HELD", "The order's completion is already held");

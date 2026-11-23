@@ -47,6 +47,9 @@ export const SHIPPING_OUTCOME_ERROR_MESSAGES = {
   SHIPMENT_DELIVERY_TIME_IN_FUTURE: "Thời điểm giao không được ở tương lai.",
   SHIPMENT_DELIVERY_TIME_BEFORE_HANDOVER:
     "Thời điểm giao không được trước lúc bàn giao lô cho hãng.",
+  // WF-05 GH-3 (BE `Shipment.requireDeliveryTime`): ghi "đã giao" sau một lần giao thất bại
+  SHIPMENT_DELIVERY_TIME_BEFORE_FAILURE:
+    "Thời điểm giao không được trước lần giao thất bại đã ghi của lô. Nhập thời điểm khách nhận hàng thật, sau lần giao thất bại.",
   ORDER_DELIVERY_NOT_CORRECTABLE:
     "Không sửa được kết quả giao này nữa: đơn đã hoàn tất hoặc đã sang bước xử lý khác.",
   // WF-05 G1 (Q-12): lô đã được Sale đóng như thất lạc — phần hàng đã rời đơn và đã tính tiền, không ghi kết quả giao nữa

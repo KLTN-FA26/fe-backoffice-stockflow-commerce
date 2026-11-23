@@ -404,6 +404,9 @@ export const RETURN_RECEIPT_LABELS = {
       photoRequired: "Chụp hoặc chọn ảnh hàng lẻ (JPEG hoặc PNG, tối đa 20 MB).",
       photoWrongType: "Chỉ nhận ảnh JPEG hoặc PNG.",
       photoTooLarge: "Ảnh vượt 20 MB.",
+      // BE `GoodsReceiptPhotoService.MAX_PHOTOS_PER_SUBJECT` = 10 ảnh hàng lẻ mỗi phiếu
+      photoLimit:
+        "Phiếu đã đủ 10 ảnh hàng lẻ — mức tối đa của một phiếu nhập, không thêm ảnh hàng lẻ được nữa.",
       photoUploading: "Đang tải ảnh…",
       hasPhoto: "Có ảnh",
       noPhoto: "Chưa có ảnh",

@@ -11,7 +11,7 @@ describe("bộ lọc trạng thái danh sách đơn (BE PR #133)", () => {
       Packed: "Đã đóng gói",
       "Partially Fulfilled": "Giao một phần",
       "Delivery Failed": "Giao thất bại",
-      "Return Requested": "Yêu cầu trả hàng",
+      "Return Requested": "Đang yêu cầu trả hàng",
       Refunded: "Đã hoàn tiền",
       "Partially Refunded": "Hoàn tiền một phần",
       Closed: "Đã đóng",

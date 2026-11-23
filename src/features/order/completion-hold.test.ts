@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { ORDER_PERMISSIONS, ORDER_STATUSES } from "@/constants";
+import { ORDER_PERMISSIONS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 
 import {
@@ -20,6 +20,7 @@ import {
 import { COMPLETION_HOLD_STALE_CODES, completionHoldErrorView } from "./errors";
 
 import type { PermissionCode } from "@/lib/auth";
+import type { CompletionHoldGate } from "./completion-hold-lifecycle";
 
 const has =
   (codes: readonly string[]) =>
@@ -35,36 +36,101 @@ const WAREHOUSE_MANAGER = has([ORDER_PERMISSIONS.read, ORDER_PERMISSIONS.release
 
 const openHold = { releasedAt: null };
 
-describe("allowedCompletionHoldActions (BE OrderCompletionHolds)", () => {
-  it("Sale, đơn chưa giữ, còn tự hoàn tất được → chỉ hold", () => {
-    expect(allowedCompletionHoldActions("Delivered", null, SALES)).toEqual(["hold"]);
-    expect(allowedCompletionHoldActions("Shipped", null, SALES)).toEqual(["hold"]);
+/** Đơn đã giao (lô DELIVERED), chưa từng hoàn tất — đúng chỗ BE nhận giữ hoàn tất. */
+const order = (
+  status: CompletionHoldGate["status"],
+  over: Partial<CompletionHoldGate> = {},
+): CompletionHoldGate => ({
+  status,
+  deliveredAt: "2026-11-18T03:00:00Z",
+  completedAt: null,
+  shipments: [{ status: "DELIVERED" }],
+  ...over,
+});
+
+describe("allowedCompletionHoldActions (BE OrderCompletionHolds @ 18d4cf88)", () => {
+  it("Sale, đơn đã giao chưa giữ, còn tự hoàn tất được → chỉ hold", () => {
+    expect(allowedCompletionHoldActions(order("Delivered"), null, SALES)).toEqual(["hold"]);
+    // một lô đã giao, lô sau còn trên đường
+    expect(
+      allowedCompletionHoldActions(
+        order("Partially Fulfilled", { deliveredAt: null }),
+        null,
+        SALES,
+      ),
+    ).toEqual(["hold"]);
   });
 
   it("Sale, đơn đang giữ → chỉ release (kể cả khi đơn đã đóng — BE release chỉ kiểm có giữ hay không)", () => {
-    expect(allowedCompletionHoldActions("Delivered", openHold, SALES)).toEqual(["release"]);
-    expect(allowedCompletionHoldActions("Closed", openHold, SALES)).toEqual(["release"]);
+    expect(allowedCompletionHoldActions(order("Delivered"), openHold, SALES)).toEqual(["release"]);
+    expect(allowedCompletionHoldActions(order("Closed"), openHold, SALES)).toEqual(["release"]);
   });
 
   it("lần giữ đã gỡ (releasedAt có) không tính là đang giữ", () => {
     expect(
-      allowedCompletionHoldActions("Delivered", { releasedAt: "2026-11-19T01:00:00Z" }, SALES),
+      allowedCompletionHoldActions(
+        order("Delivered"),
+        { releasedAt: "2026-11-19T01:00:00Z" },
+        SALES,
+      ),
     ).toEqual(["hold"]);
   });
 
-  it("PAST_COMPLETION (COMPLETED/CLOSED/CANCELLED/RETURNED/REFUNDED/PARTIALLY_REFUNDED) và UNKNOWN → không nút", () => {
-    for (const status of PAST_COMPLETION_STATUSES) {
-      expect(isCompletionHoldApplicable(status)).toBe(false);
-      expect(allowedCompletionHoldActions(status, null, SALES)).toEqual([]);
+  it("audit r2 M-4: RETURNED / REFUNDED / PARTIALLY_REFUNDED vẫn giữ được (Q-17: chặn cả đóng đơn)", () => {
+    for (const status of [
+      "Returned",
+      "Refunded",
+      "Partially Refunded",
+      "Return Requested",
+    ] as const) {
+      expect(isCompletionHoldApplicable(order(status))).toBe(true);
+      expect(allowedCompletionHoldActions(order(status), null, SALES)).toEqual(["hold"]);
     }
-    expect(allowedCompletionHoldActions("UNKNOWN", null, SALES)).toEqual([]);
-    const live = ORDER_STATUSES.filter((status) => !PAST_COMPLETION_STATUSES.includes(status));
-    expect(live.every(isCompletionHoldApplicable)).toBe(true);
+  });
+
+  it("audit r2 M-4: chưa giao gì (CONFIRMED, PICKING, SHIPPED, lô chỉ thất bại / hoàn) → không nút", () => {
+    const nothing = { deliveredAt: null, shipments: [] };
+    for (const status of ["Confirmed", "Picking", "Packed", "Shipped"] as const) {
+      expect(allowedCompletionHoldActions(order(status, nothing), null, SALES)).toEqual([]);
+    }
+    expect(
+      allowedCompletionHoldActions(
+        order("Partially Fulfilled", {
+          deliveredAt: null,
+          shipments: [
+            { status: "DELIVERY_FAILED" },
+            { status: "RETURNED" },
+            { status: "HANDED_OVER" },
+          ],
+        }),
+        null,
+        SALES,
+      ),
+    ).toEqual([]);
+  });
+
+  it("PAST_COMPLETION (COMPLETED/CLOSED/CANCELLED), đơn từng hoàn tất, và UNKNOWN → không nút", () => {
+    expect(PAST_COMPLETION_STATUSES).toEqual(["Completed", "Closed", "Cancelled"]);
+    for (const status of PAST_COMPLETION_STATUSES) {
+      expect(isCompletionHoldApplicable(order(status))).toBe(false);
+      expect(allowedCompletionHoldActions(order(status), null, SALES)).toEqual([]);
+    }
+    // khiếu nại muộn trên đơn đã hoàn tất: RETURN_REQUESTED nhưng completedAt có → BE từ chối
+    expect(
+      allowedCompletionHoldActions(
+        order("Return Requested", { completedAt: "2026-11-10T17:30:00Z" }),
+        null,
+        SALES,
+      ),
+    ).toEqual([]);
+    expect(allowedCompletionHoldActions(order("UNKNOWN"), null, SALES)).toEqual([]);
   });
 
   it("Điều phối / Quản lý kho (không có sales-order-holds:UPDATE) → không nút nào", () => {
-    expect(allowedCompletionHoldActions("Delivered", null, COORDINATOR)).toEqual([]);
-    expect(allowedCompletionHoldActions("Delivered", openHold, WAREHOUSE_MANAGER)).toEqual([]);
+    expect(allowedCompletionHoldActions(order("Delivered"), null, COORDINATOR)).toEqual([]);
+    expect(allowedCompletionHoldActions(order("Delivered"), openHold, WAREHOUSE_MANAGER)).toEqual(
+      [],
+    );
   });
 });
 

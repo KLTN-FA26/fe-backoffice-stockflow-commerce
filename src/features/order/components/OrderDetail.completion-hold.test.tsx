@@ -39,9 +39,11 @@ async function renderWith(
   permissions: readonly PermissionCode[],
   hold: unknown,
   status: Parameters<typeof apiOrderAt>[0] = "DELIVERED",
+  // BE `OrderCompletionHolds.hold`: chỉ đơn đã có lần giao tới khách (ck_order_delivered_at: DELIVERED có deliveredAt)
+  patch: Record<string, unknown> = { deliveredAt: "2026-11-17T03:00:00Z" },
 ) {
   mockOrderApiGet(permissions, {
-    [DETAIL_PATH]: () => apiOrderAt(status),
+    [DETAIL_PATH]: () => apiOrderAt(status, patch),
     [HOLD_PATH]: () => hold,
   });
   await act(async () => {
@@ -126,6 +128,24 @@ describe("OrderDetail — Giữ hoàn tất (WF-05 GH-2)", () => {
     const region = within(await card());
     expect(region.getByText("Đang giữ hoàn tất")).toBeInTheDocument();
     expect(region.queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("audit r2 M-4: đơn Hoàn tiền một phần (lô A đã giao) → vẫn có nút Giữ hoàn tất", async () => {
+    await renderWith(ORDER_PERMISSION_SETS.salesStaff, null, "PARTIALLY_REFUNDED", {
+      deliveredAt: null,
+      shipments: [
+        { shipmentId: "s-a", status: "DELIVERED", outcomeAt: "2026-11-17T03:00:00Z" },
+        { shipmentId: "s-b", status: "RETURNED", outcomeAt: "2026-11-17T05:00:00Z" },
+      ],
+    });
+    const region = within(await card());
+    expect(region.getByRole("button", { name: /Giữ hoàn tất/ })).toBeInTheDocument();
+  });
+
+  it("audit r2 M-4: đơn chưa giao gì → không hiện thẻ (BE 409 ORDER_COMPLETION_HOLD_NOT_APPLICABLE)", async () => {
+    await renderWith(ORDER_PERMISSION_SETS.salesStaff, null, "CONFIRMED", {});
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith(HOLD_PATH, expect.anything()));
+    expect(screen.queryByRole("region", { name: "Giữ hoàn tất" })).not.toBeInTheDocument();
   });
 
   it("đơn đã hoàn tất, không có lần giữ mở → không hiện thẻ", async () => {

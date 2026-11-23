@@ -1,6 +1,6 @@
 "use client";
 
-import { Scissors, Split, Truck } from "lucide-react";
+import { ReceiptText, Scissors, Split, Truck } from "lucide-react";
 
 import {
   ORDER_DELIVERY_MODE_LABELS,
@@ -111,6 +111,14 @@ function EntryHead({ entry }: { entry: OrderHistoryEntry }) {
           <StatusDot domain="order" status={entry.to} />
         </span>
       );
+    case "refund-voided":
+      // WF-05 TT-3: phiếu hoàn bị huỷ phải thấy được cùng lý do (ghi chú bên dưới)
+      return (
+        <span className="text-ink-primary inline-flex items-center gap-1.5 font-semibold">
+          <ReceiptText className="text-accent size-3.5" aria-hidden="true" />
+          {L.refundVoided}
+        </span>
+      );
     case "unknown":
       return <span className="text-ink-secondary">{L.unknownEntry}</span>;
   }
@@ -122,6 +130,7 @@ const HIGHLIGHTED_KINDS: readonly OrderHistoryEntry["kind"][] = [
   "remainder-closure",
   "delivery-mode",
   "address-change",
+  "refund-voided",
 ];
 
 /** Một mục của lịch sử đơn: đầu mục theo loại, ai / khi nào, ghi chú. */

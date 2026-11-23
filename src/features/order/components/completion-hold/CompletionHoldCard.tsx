@@ -19,6 +19,7 @@ import { HoldCompletionAction } from "./HoldCompletionAction";
 import { ReleaseCompletionHoldAction } from "./ReleaseCompletionHoldAction";
 
 import type { PermissionCode } from "@/lib/auth";
+import type { CompletionHoldGate } from "../../completion-hold-lifecycle";
 import type { CompletionHold } from "../../completion-hold-schemas";
 import type { Order } from "../../types";
 
@@ -27,7 +28,7 @@ const SECTION =
   "border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]";
 
 interface CompletionHoldCardProps {
-  order: Pick<Order, "orderId" | "orderNumber" | "status">;
+  order: Pick<Order, "orderId" | "orderNumber"> & CompletionHoldGate;
   can: (code: PermissionCode) => boolean;
 }
 
@@ -41,7 +42,7 @@ export function CompletionHoldCard({ order, can }: CompletionHoldCardProps) {
   const query = useCompletionHold(order.orderId, { enabled: canRead });
   if (!canRead || query.isPending) return null;
   if (query.isError) {
-    if (!isCompletionHoldApplicable(order.status)) return null;
+    if (!isCompletionHoldApplicable(order)) return null;
     return (
       <section aria-label={L.title} className={SECTION}>
         <h2 className="text-ink-primary mb-2 text-[0.9375rem] font-semibold">{L.title}</h2>
@@ -52,7 +53,7 @@ export function CompletionHoldCard({ order, can }: CompletionHoldCardProps) {
     );
   }
   const hold = query.data;
-  const actions = allowedCompletionHoldActions(order.status, hold, can);
+  const actions = allowedCompletionHoldActions(order, hold, can);
   if (!hold && actions.length === 0) return null;
   return (
     <section aria-label={L.title} className={SECTION}>

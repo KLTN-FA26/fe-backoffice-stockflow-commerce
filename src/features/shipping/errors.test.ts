@@ -59,6 +59,8 @@ describe("shippingErrorMessage — mọi mã lỗi BE có câu tiếng Việt", 
       // Ghi tay kết quả giao: thời điểm giao + sửa tay (docs 09 §4.3 bước 2, 5)
       "SHIPMENT_DELIVERY_TIME_IN_FUTURE",
       "SHIPMENT_DELIVERY_TIME_BEFORE_HANDOVER",
+      // WF-05 audit r2 M-8: giao lại sau lần giao thất bại, thời điểm trước lần thất bại
+      "SHIPMENT_DELIVERY_TIME_BEFORE_FAILURE",
       "ORDER_DELIVERY_NOT_CORRECTABLE",
       "SHIPMENT_STATE_CONFLICT",
     ];

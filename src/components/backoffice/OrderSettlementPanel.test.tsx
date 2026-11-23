@@ -188,6 +188,40 @@ describe("OrderSettlementPanel (WF-05 BO-10)", () => {
     expect(within(checks).getByText(/không chặn đóng đơn/)).toBeInTheDocument();
   });
 
+  it("audit r2 M-4 / money L-2: a completed order (branch NONE) still lists its blockers and promises no closing day", async () => {
+    mockEInvoiceApi(ALL, routes(0, []));
+    renderEInvoiceScreen(
+      <OrderSettlementPanel
+        {...props}
+        status="Return Requested"
+        completedAt="2026-11-10T17:30:00Z"
+        settlementReadiness={readiness({
+          branch: "NONE",
+          closesAt: "2026-12-10T17:30:00Z",
+          blockers: [{ code: "OPEN_RETURN", known: true }],
+        })}
+      />,
+    );
+    const checks = await screen.findByRole("region", { name: "Điều kiện hoàn tất" });
+    expect(within(checks).getByText("Còn yêu cầu trả hàng đang mở")).toBeInTheDocument();
+    expect(within(checks).queryByText(/tự đóng trong lần chạy đêm/)).not.toBeInTheDocument();
+  });
+
+  it("branch NONE with no blocker keeps the BE's closing day", async () => {
+    mockEInvoiceApi(ALL, routes(0, []));
+    renderEInvoiceScreen(
+      <OrderSettlementPanel
+        {...props}
+        status="Completed"
+        completedAt="2026-11-10T17:30:00Z"
+        settlementReadiness={readiness({ branch: "NONE", closesAt: "2026-12-10T17:30:00Z" })}
+      />,
+    );
+    const checks = await screen.findByRole("region", { name: "Điều kiện hoàn tất" });
+    expect(within(checks).getByText(/tự đóng trong lần chạy đêm/)).toBeInTheDocument();
+    expect(within(checks).queryByRole("list")).not.toBeInTheDocument();
+  });
+
   it("BO-02: no blocker → met line and the BE's completion day", async () => {
     mockEInvoiceApi(ALL, routes(0, []));
     renderEInvoiceScreen(

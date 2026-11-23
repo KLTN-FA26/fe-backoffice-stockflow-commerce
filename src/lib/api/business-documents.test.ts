@@ -61,6 +61,10 @@ describe("businessDocumentErrorMessage — mọi lỗi ra câu tiếng Việt", 
     expect(businessDocumentErrorMessage("returnReceiptVoucher", err(403, "FORBIDDEN"))).toMatch(
       /kho bạn không được phân công/,
     );
+    // audit r2 Low 1: BE `WarehouseScope` trả OUT_OF_DATA_SCOPE cho kho khác
+    expect(
+      businessDocumentErrorMessage("returnReceiptVoucher", err(403, "OUT_OF_DATA_SCOPE")),
+    ).toMatch(/kho bạn không được phân công/);
     expect(
       businessDocumentErrorMessage("paymentConfirmation", err(404, "PAYMENT_RECEIPT_NOT_FOUND")),
     ).toMatch(/đã bị huỷ/);

@@ -234,6 +234,8 @@ export const ORDER_HISTORY_ENTRY_TYPES = [
   "DELIVERY_MODE_CHANGE",
   "REMAINDER_CLOSURE",
   "ADDRESS_CHANGE",
+  // WF-05 BE-52: phiếu hoàn tiền bị huỷ khi đơn còn yêu cầu trả hàng mở — trạng thái không đổi, `reason` = lý do huỷ
+  "REFUND_VOIDED",
 ] as const;
 
 /**
@@ -267,6 +269,12 @@ export const ORDER_HISTORY_REASON_LABELS: Readonly<Record<string, string>> = {
   REFUND_VOIDED: "Huỷ phiếu hoàn tiền",
   // Giao thất bại đã tất toán tiền (BE `DeliveryFailureService`)
   DELIVERY_FAILED_SETTLED: "Đã tất toán tiền sau giao thất bại",
+  // WF-05 Q-2 / Q-7: kho xác nhận phiếu nhập hàng hãng hoàn về — tiền của lô tính lúc này (BE `Order#goodsReceived`)
+  RETURN_RECEIVED: "Kho đã nhận lại hàng hoàn của lô giao — đã tính lại tiền của lô",
+  // WF-05 Q-12: Sale đóng lô thất lạc có xác nhận của hãng (BE `Order#closeLostShipment`)
+  LOST_CLOSED: "Đóng lô giao thất lạc — đã tính lại tiền của lô",
+  // WF-05 Q-4 / BE-45: yêu cầu trả hàng xử lý xong mà không hoàn đồng nào (BE `Order#returnSettledWithoutRefund`)
+  RETURN_SETTLED_WITHOUT_REFUND: "Đã xử lý yêu cầu trả hàng — không hoàn tiền",
 };
 
 export const ORDER_HISTORY_LABELS = {
@@ -294,6 +302,8 @@ export const ORDER_HISTORY_LABELS = {
   addressChanged: "Đổi địa chỉ giao",
   addressFrom: "Từ",
   addressTo: "Thành",
+  /** Mục "Huỷ phiếu hoàn tiền" (`REFUND_VOIDED`, WF-05 BE-52 / TT-3): ghi chú là lý do huỷ của Kế toán. */
+  refundVoided: "Huỷ phiếu hoàn tiền",
   unknownEntry: "Thay đổi không rõ",
   by: "Bởi",
   noteLabel: "Ghi chú",

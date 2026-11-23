@@ -244,7 +244,10 @@ function ReadinessSection({ readiness }: { readiness: Readiness }) {
     readiness.branch === "COMPLETION" || readiness.branch === "REFUND_CLOSE"
       ? R.heading[readiness.branch]
       : R.section;
-  const waiting = readiness.branch !== "NONE";
+  // Nhánh NONE (đơn đã hoàn tất, BE `SettlementReadiness` waitsAs COMPLETED) vẫn có thể còn điều kiện chặn đóng
+  // (OWING / OPEN_RETURN / COMPLETION_HELD — audit r2 M-4 / money L-2): hiện chúng, và không hứa ngày tự đóng khi còn chặn
+  const waiting = readiness.branch !== "NONE" || readiness.blockers.length > 0;
+  const blockedAtRest = readiness.branch === "NONE" && readiness.blockers.length > 0;
   return (
     <section aria-label="Điều kiện hoàn tất" className="space-y-1">
       <h3 className="text-ink-primary font-semibold">{heading}</h3>
@@ -268,7 +271,7 @@ function ReadinessSection({ readiness }: { readiness: Readiness }) {
       {readiness.completesAt && (
         <p className="text-ink-secondary">{R.completesAt(dayOf(readiness.completesAt))}</p>
       )}
-      {readiness.closesAt && (
+      {readiness.closesAt && !blockedAtRest && (
         <p className="text-ink-secondary">{R.closesAt(dayOf(readiness.closesAt))}</p>
       )}
       {readiness.returnAdjustmentUnissued && (
