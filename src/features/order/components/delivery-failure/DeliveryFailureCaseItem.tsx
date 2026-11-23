@@ -2,28 +2,31 @@ import { DELIVERY_FAILURE_LABELS } from "@/constants";
 import { formatMoney } from "@/lib/format";
 import { formatDateTime } from "@/lib/format/date";
 
-import { allowedDeliveryFailureActions } from "../../delivery-failure-lifecycle";
+import { allowedDeliveryFailureActions, showsDecisionNote } from "../../delivery-failure-lifecycle";
 
 import { CancelUndeliveredAction } from "./CancelUndeliveredAction";
 import { DeliveryFailureStatus, failureReasonLabel } from "./DeliveryFailureStatus";
-import { RedeliverAction } from "./RedeliverAction";
 
 import type { PermissionCode } from "@/lib/auth";
 import type { DeliveryFailureCase } from "../../delivery-failure-schemas";
+import type { Order } from "../../types";
 
 const L = DELIVERY_FAILURE_LABELS.section;
 
-/** Một hồ sơ giao thất bại trong khối của chi tiết đơn: phiếu nhận hàng hoàn, lý do, số hàng về, quyết định + nút. */
+/**
+ * Một hồ sơ hàng hoàn về trong khối của chi tiết đơn: phiếu nhận hàng hoàn, lý do, số hàng về, quyết định; nút "Huỷ phần
+ * chưa giao" chỉ cho đơn cũ còn giữ vì giao thất bại (`allowedDeliveryFailureActions`).
+ */
 export function DeliveryFailureCaseItem({
   failure,
-  currency,
+  order,
   can,
 }: {
   failure: DeliveryFailureCase;
-  currency: string;
+  order: Pick<Order, "status" | "holdReason" | "currency">;
   can: (code: PermissionCode) => boolean;
 }) {
-  const actions = allowedDeliveryFailureActions(failure, can);
+  const actions = allowedDeliveryFailureActions(failure, order, can);
   const units = failure.lines.reduce((sum, line) => sum + line.units, 0);
   const held = failure.lines.reduce((sum, line) => sum + line.heldUnits, 0);
   return (
@@ -32,7 +35,7 @@ export function DeliveryFailureCaseItem({
         <span className="text-ink-primary font-[family-name:var(--font-mono)] text-[0.8125rem] font-medium">
           {failure.receiptNumber ? L.receipt(failure.receiptNumber) : "—"}
         </span>
-        <DeliveryFailureStatus status={failure.status} />
+        <DeliveryFailureStatus failure={failure} />
       </div>
       <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-[0.8125rem]">
         <dt className="text-ink-secondary">{DELIVERY_FAILURE_LABELS.columns.reason}</dt>
@@ -51,7 +54,7 @@ export function DeliveryFailureCaseItem({
             <dd className="text-ink-primary tabular-nums">{L.units(units, held)}</dd>
           </>
         )}
-        {failure.decisionNote && (
+        {showsDecisionNote(failure) && (
           <>
             <dt className="text-ink-secondary">{L.decisionNote}</dt>
             <dd className="text-ink-primary break-words">{failure.decisionNote}</dd>
@@ -61,7 +64,7 @@ export function DeliveryFailureCaseItem({
           <>
             <dt className="text-ink-secondary">{L.failedTripFee}</dt>
             <dd className="text-ink-primary font-mono tabular-nums">
-              {formatMoney(failure.failedTripFee, currency)}
+              {formatMoney(failure.failedTripFee, order.currency)}
             </dd>
           </>
         )}
@@ -70,7 +73,6 @@ export function DeliveryFailureCaseItem({
       {failure.readyForRelease && <p className="text-ink-secondary text-xs">{L.readyForRelease}</p>}
       {actions.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          {actions.includes("redeliver") && <RedeliverAction failure={failure} compact />}
           {actions.includes("cancel-undelivered") && (
             <CancelUndeliveredAction
               compact

@@ -3,7 +3,13 @@
  * `errorCode`, ErrorCode.java). Không hiện chữ của BE.
  */
 
-import { apiErrorMessage } from "@/lib/api/error-message";
+import { WITHDRAWAL_PROVIDER_STATE_LABELS } from "@/constants/labels-einvoice";
+import { ApiError } from "@/lib/api/error";
+import { apiErrorMessage, apiFieldErrors } from "@/lib/api/error-message";
+import { formatDateTime } from "@/lib/format/date";
+
+import { draftOutOfDateDetailsSchema, withdrawalRefusalDetailsSchema } from "./schemas";
+import { warningLabel } from "./selectors";
 
 export const EINVOICE_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   EINVOICE_NOT_FOUND: "Không tìm thấy hoá đơn điện tử.",
@@ -29,10 +35,43 @@ export const EINVOICE_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   // docs 21 BR-04 / BR-05: chống phát hành trùng
   EINVOICE_RESUBMISSION_REFUSED:
     "Không gửi lại được: nhà cung cấp có thể đang giữ hoá đơn này. Liên hệ nhà cung cấp rồi bấm “Kiểm tra lại”.",
-  // BE HĐ-1 (PR #369): rút hoá đơn kẹt ở NCC. Lỗi không mang mốc thời gian máy đọc được → câu cố định nêu cả hai mốc
-  // (`withdraw-after` 3 giờ khi NCC báo không tìm thấy, `withdraw-unknown-after` 1 ngày khi NCC chưa trả lời rõ).
+  // BE HĐ-1 / WF-05 Q-5, BE-59: câu chung; `einvoiceErrorMessage` ghép thêm câu trả lời của NCC và "Rút được từ
+  // <giờ>" từ `details` (FE không tự tính mốc).
   EINVOICE_WITHDRAWAL_REFUSED:
-    "Chưa rút được hoá đơn. Hệ thống chỉ cho rút 3 giờ sau lần gửi cuối khi nhà cung cấp báo không tìm thấy hoá đơn, hoặc 1 ngày sau lần gửi cuối khi nhà cung cấp chưa trả lời rõ. Bấm “Kiểm tra lại” rồi thử rút sau.",
+    "Chưa rút được hoá đơn. Bấm “Kiểm tra lại” để hỏi lại nhà cung cấp rồi thử rút sau.",
+  // WF-05 Q-5 (F-12): không xác nhận được kết quả → phải có văn bản của bộ phận hỗ trợ NCC
+  EINVOICE_WITHDRAWAL_EVIDENCE_REQUIRED:
+    "Không xác nhận được kết quả với nhà cung cấp: chỉ rút được khi có văn bản trả lời của bộ phận hỗ trợ nhà cung cấp. Nhập số phiếu hoặc nội dung trả lời rồi rút lại.",
+  // WF-05 Q-8 (F-13): số / ký hiệu / ngày nhập khác bản ghi tra lại từ NCC
+  EINVOICE_PORTAL_RECORD_MISMATCH:
+    "Số, ký hiệu hoặc ngày vừa nhập không khớp với bản ghi tra lại từ nhà cung cấp. Kiểm tra lại trên cổng nhà cung cấp rồi nhập đúng.",
+  EINVOICE_PORTAL_FILE_INVALID:
+    "Tệp XML / PDF không đọc được, hoặc XML là của hoá đơn khác (số, ký hiệu, mã số thuế bên bán). Tải đúng tệp của hoá đơn này từ cổng nhà cung cấp.",
+  // WF-05 Q-8 (F-14)
+  EINVOICE_REVERSAL_STILL_SENDABLE:
+    "Bản giảm này vẫn gửi được qua nhà cung cấp — hãy phát hành nó. Chỉ huỷ khi nhà cung cấp không còn dùng được, không điều chỉnh được, hoặc đã từ chối nhiều lần.",
+  EINVOICE_EXTERNAL_REDUCTION_NOT_APPLICABLE:
+    "Hoá đơn này không cần ghi hoá đơn giảm làm ngoài hệ thống: chưa có bản giảm không gửi được bị huỷ, và đây không phải hoá đơn thay thế cần giảm.",
+  // WF-05 BE-11 (F-15)
+  EINVOICE_REVERSAL_NOT_APPLICABLE:
+    "Không lập bản giảm do giao thất bại được: hoá đơn không còn hiệu lực, lần giao hiện đang là “đã giao”, hoặc hoá đơn đã được giảm.",
+  // WF-05 BE-25 (F-16): `einvoiceErrorMessage` ghép thêm các cảnh báo mới từ `details.warnings`
+  EINVOICE_DRAFT_OUT_OF_DATE:
+    "Nháp vừa được kiểm lại và có cảnh báo mới. Xem các cảnh báo rồi bấm phát hành lại nếu vẫn đúng.",
+  // WF-05 Q-10, Q-1 §1.5 bước 6
+  EINVOICE_LATE_ISSUE_REASON_REQUIRED:
+    "Hoá đơn phát hành sau ngày giao (lập trễ): nhập lý do phát hành trễ rồi phát hành lại.",
+  // WF-05 Q-9: trả hàng / chiết khấu / giao thất bại trên hoá đơn thay thế
+  EINVOICE_REPLACEMENT_NOT_ADJUSTABLE:
+    "Không điều chỉnh được hoá đơn thay thế. Trả hàng hoặc giao thất bại trên hoá đơn thay thế: Kế toán làm trên cổng nhà cung cấp rồi ghi lại số và tệp vào hệ thống (không dùng “Thay thế” cho trả hàng).",
+  // WF-05 Q-22 BR-09
+  EINVOICE_QUOTA_EXHAUSTED:
+    "Nhà cung cấp đã hết lượt phát hành hoá đơn. Hoá đơn vẫn là nháp, không gửi đi; nạp thêm lượt xong hệ thống tự phát hành tiếp.",
+  // BO-10: thiếu khoá mã hoá bí mật của máy chủ (BE `EInvoiceProviderAccountService.storeAccount`)
+  SECRETS_UNAVAILABLE:
+    "Máy chủ chưa cấu hình khoá mã hoá bí mật nên chưa lưu được mật khẩu. Nhờ quản trị máy chủ cấu hình rồi thử lại.",
+  // BO-10: điều chỉnh vì trả hàng nêu mã yêu cầu trả hàng không có (BE `EInvoiceCorrections`)
+  RETURN_REQUEST_NOT_FOUND: "Không tìm thấy yêu cầu trả hàng với mã đã nhập.",
   // BE HĐ-5: điều chỉnh / thay thế chỉ đi qua NCC đã phát hành hoá đơn gốc
   EINVOICE_ORIGINAL_PROVIDER_UNAVAILABLE:
     "Nhà cung cấp đã phát hành hoá đơn gốc không còn dùng được (chưa có tài khoản hoặc ký hiệu cho năm). Không gửi điều chỉnh / thay thế qua nhà cung cấp khác — nhờ Quản trị hệ thống cấu hình lại.",
@@ -46,8 +85,9 @@ export const EINVOICE_ERROR_MESSAGES: Readonly<Record<string, string>> = {
     "Nhà cung cấp đang dùng chưa hỗ trợ điều chỉnh / thay thế. Chứng từ được giữ ở dạng nháp.",
   EINVOICE_NOT_IN_FORCE: "Chỉ điều chỉnh / thay thế được hoá đơn đã phát hành còn hiệu lực.",
   // docs 21 BR-08: đã điều chỉnh thì không thay thế và ngược lại
+  // WF-05 Q-9: sai sót trên hoá đơn thay thế → lập thay thế tiếp
   EINVOICE_CORRECTION_FORM_FIXED:
-    "Hoá đơn đang được chỉnh theo hình thức kia (điều chỉnh / thay thế) — giữ hình thức đã dùng trước.",
+    "Hoá đơn đang được chỉnh theo hình thức kia (điều chỉnh / thay thế) — giữ hình thức đã dùng trước. Sai sót trên hoá đơn thay thế thì lập hoá đơn thay thế mới.",
   EINVOICE_CORRECTION_NOT_APPLICABLE: "Cách chỉnh này không áp dụng cho hoá đơn này.",
   EINVOICE_AGREEMENT_REQUIRED:
     "Cần gắn văn bản thoả thuận với bên mua (tệp, số, ngày) trước khi phát hành điều chỉnh vì sai sót.",
@@ -62,8 +102,80 @@ export const EINVOICE_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   OPTIMISTIC_LOCK: "Hoá đơn vừa được người khác cập nhật. Dữ liệu đã được tải lại.",
 };
 
+/** Cảnh báo mới BE vừa thấy khi kiểm lại nháp lúc phát hành tay (`details.warnings`, WF-05 F-16). */
+export function outOfDateWarnings(error: unknown): string[] {
+  if (!(error instanceof ApiError) || error.code !== "EINVOICE_DRAFT_OUT_OF_DATE") return [];
+  const parsed = draftOutOfDateDetailsSchema.safeParse(error.details ?? {});
+  return parsed.success ? parsed.data.warnings : [];
+}
+
+export interface WithdrawalRefusal {
+  providerState: string | null;
+  withdrawableFrom: string | null;
+  /** Q-5: lần rút sau phải kèm văn bản của bộ phận hỗ trợ NCC. */
+  evidenceRequired: boolean;
+}
+
+/** `details` của lần rút bị từ chối (WF-05 F-12, BE-59); lỗi khác → null. */
+export function withdrawalRefusal(error: unknown): WithdrawalRefusal | null {
+  if (
+    !(error instanceof ApiError) ||
+    (error.code !== "EINVOICE_WITHDRAWAL_REFUSED" &&
+      error.code !== "EINVOICE_WITHDRAWAL_EVIDENCE_REQUIRED")
+  )
+    return null;
+  const parsed = withdrawalRefusalDetailsSchema.safeParse(error.details ?? {});
+  const providerState = parsed.success ? (parsed.data.providerState ?? null) : null;
+  return {
+    providerState,
+    withdrawableFrom: parsed.success ? (parsed.data.withdrawableFrom ?? null) : null,
+    evidenceRequired:
+      error.code === "EINVOICE_WITHDRAWAL_EVIDENCE_REQUIRED" || providerState === "UNCONFIRMED",
+  };
+}
+
+const stateLabel = (state: string | null): string | null =>
+  state != null && state in WITHDRAWAL_PROVIDER_STATE_LABELS
+    ? WITHDRAWAL_PROVIDER_STATE_LABELS[state as keyof typeof WITHDRAWAL_PROVIDER_STATE_LABELS]
+    : null;
+
+/**
+ * Câu tiếng Việt cho lỗi BE. Lỗi mang `details` máy đọc được thì ghép thêm dữ kiện: rút bị từ chối → câu trả lời của
+ * NCC và "Rút được từ <giờ>" (F-12); nháp lỗi thời → các cảnh báo mới (F-16).
+ */
 export function einvoiceErrorMessage(error: unknown): string {
-  return apiErrorMessage(error, EINVOICE_ERROR_MESSAGES);
+  const base = apiErrorMessage(error, EINVOICE_ERROR_MESSAGES);
+  const refusal = withdrawalRefusal(error);
+  if (refusal) {
+    const from = refusal.withdrawableFrom
+      ? `Rút được từ ${formatDateTime(refusal.withdrawableFrom)}.`
+      : null;
+    const state = refusal.evidenceRequired ? null : stateLabel(refusal.providerState);
+    return [base, state, from].filter((part): part is string => !!part).join(" ");
+  }
+  const warnings = outOfDateWarnings(error);
+  if (warnings.length > 0) return `${base} ${warnings.map(warningLabel).join(" ")}`;
+  return base;
+}
+
+/**
+ * BO-10: đặt `fieldErrors` của BE vào các ô của form; trả `true` khi có ít nhất một ô nhận lỗi. Chỉ nhận tên trường
+ * form biết (`fields`) — trường lạ để câu chung của form.
+ */
+export function applyEInvoiceFieldErrors<TField extends string>(
+  error: unknown,
+  fields: readonly TField[],
+  setFieldError: (field: TField, message: string) => void,
+): boolean {
+  let mapped = false;
+  for (const [name, message] of Object.entries(apiFieldErrors(error))) {
+    const field = fields.find((known) => known === name);
+    if (field) {
+      setFieldError(field, message);
+      mapped = true;
+    }
+  }
+  return mapped;
 }
 
 /** Lỗi "dữ liệu đã đổi": tải lại hoá đơn trước khi cho thao tác tiếp. */
@@ -71,4 +183,6 @@ export const EINVOICE_STALE_CODES = [
   "EINVOICE_NOT_DRAFT",
   "EINVOICE_INVALID_TRANSITION",
   "OPTIMISTIC_LOCK",
+  // F-16: BE vừa kiểm lại nháp và có cảnh báo mới — tải lại để thẻ thông tin hiện chúng
+  "EINVOICE_DRAFT_OUT_OF_DATE",
 ] as const;

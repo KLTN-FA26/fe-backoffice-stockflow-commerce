@@ -164,6 +164,21 @@ describe("ReceiptDetail — void a wrongly entered receipt (docs 15 §4.4, BR-04
     expect(dialog.queryByText(/được đánh dấu/)).not.toBeInTheDocument();
   });
 
+  it("WF-05 Q-20 (BE-33): a receipt paying goods already handed over cannot be voided — said in Vietnamese", async () => {
+    mockPaymentApi(
+      ACCOUNTANT_GRANTS,
+      routes(() => {
+        throw apiError(409, "PAYMENT_RECEIPT_VOID_AFTER_HANDOVER");
+      }),
+    );
+    renderPaymentScreen(<ReceiptDetail id="rcp-1" />);
+    await userEvent.click(await screen.findByRole("button", { name: "Huỷ phiếu thu" }));
+    const dialog = within(await screen.findByRole("dialog"));
+    await userEvent.type(dialog.getByLabelText(/Lý do huỷ phiếu thu/), "Nhầm khách");
+    await userEvent.click(dialog.getByRole("button", { name: "Huỷ phiếu thu" }));
+    expect(await dialog.findByText(/căn cứ cho hàng đã bàn giao/)).toBeInTheDocument();
+  });
+
   it("BR-13: when the void leaves a confirmed order short, BE asks for the hold; ticking 'Treo đơn' retries with holdOrders", async () => {
     const post = vi
       .fn()

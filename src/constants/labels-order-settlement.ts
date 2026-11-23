@@ -1,0 +1,59 @@
+/**
+ * Khối điều kiện hoàn tất / đóng đơn (WF-05 BO-02; contract F-1 `OrderResponse.settlementReadiness`, BE-34).
+ *
+ * BE tính và trả lý do đơn chưa tự hoàn tất / chưa tự đóng (`OrderSettlementService`, job 00:30). BO chỉ hiển thị — không
+ * tự tính lại hạn đổi trả, nợ, hoá đơn (invariant G5). Enum lấy nguyên văn từ contract F-1.
+ */
+
+/** `settlementReadiness.branch`: đang chờ hoàn tất, chờ đóng nhánh hoàn tiền, hay không chờ gì. */
+export const SETTLEMENT_BRANCHES = ["COMPLETION", "REFUND_CLOSE", "NONE"] as const;
+
+/** `settlementReadiness.blockers` — điều kiện còn chặn. */
+export const SETTLEMENT_BLOCKERS = [
+  "NOT_DELIVERED",
+  "RETURN_WINDOW_OPEN",
+  "OWING",
+  "OPEN_RETURN",
+  "SHIPMENT_UNINVOICED",
+  "SHIPPING_FEE_UNINVOICED",
+  "REFUND_OUTSTANDING",
+  "COMPLETION_HELD",
+] as const;
+
+export const SETTLEMENT_READINESS_LABELS = {
+  section: "Điều kiện hoàn tất / đóng đơn",
+  heading: {
+    COMPLETION: "Điều kiện tự hoàn tất (00:30 mỗi đêm)",
+    REFUND_CLOSE: "Điều kiện tự đóng đơn sau hoàn tiền (00:30 mỗi đêm)",
+  },
+  /** Fallback khi BE chưa trả khối điều kiện (BE cũ): tính tạm ở FE, ghi rõ là ước tính. */
+  estimateNote: "Ước tính trên màn hình — máy chủ chưa trả khối điều kiện của đơn.",
+  blockers: {
+    NOT_DELIVERED: "Còn lần giao chưa xong (đang giao, giao thất bại hoặc chưa giao)",
+    RETURN_WINDOW_OPEN: "Chưa hết hạn đổi / trả",
+    OWING: "Còn đợt thanh toán chưa trả đủ",
+    OPEN_RETURN: "Còn yêu cầu trả hàng đang mở",
+    SHIPMENT_UNINVOICED: "Còn lần giao chưa có hoá đơn điện tử phát hành",
+    SHIPPING_FEE_UNINVOICED: "Phí vận chuyển còn lại chưa có hoá đơn phát hành",
+    REFUND_OUTSTANDING: "Còn tiền phải hoàn cho khách",
+    COMPLETION_HELD: "Sale đang giữ hoàn tất",
+  },
+  /** Mã chặn máy chủ thêm sau — không đoán nghĩa. */
+  unknownBlocker: (code: string) => `Điều kiện khác chưa đạt (${code})`,
+  detail: {
+    windowEndsAt: (when: string, days: number | null) =>
+      days === null
+        ? `Hết hạn lúc 0 giờ ngày ${when}`
+        : `Hết hạn lúc 0 giờ ngày ${when} (${days} ngày theo hợp đồng)`,
+    uninvoiced: (count: number) => `${count} lần giao chưa có hoá đơn phát hành`,
+    held: "Gỡ giữ ở thẻ “Giữ hoàn tất”",
+  },
+  none: "Đủ điều kiện.",
+  completesAt: (when: string) => `Đơn tự hoàn tất trong lần chạy đêm ngày ${when}.`,
+  closesAt: (when: string) => `Đơn tự đóng trong lần chạy đêm ngày ${when}.`,
+  /** Q-16: điều chỉnh trả hàng chưa phát hành KHÔNG chặn đóng, chỉ là dòng thông tin. */
+  returnAdjustmentUnissued:
+    "Còn hoá đơn điều chỉnh trả hàng chưa phát hành — không chặn đóng đơn; Kế toán vẫn phát hành được sau khi đóng.",
+  met: "Đạt",
+  unmet: "Chưa đạt",
+} as const;

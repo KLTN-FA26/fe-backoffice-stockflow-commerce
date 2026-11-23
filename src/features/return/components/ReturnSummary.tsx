@@ -7,10 +7,14 @@ import { PAYMENT_ROUTES } from "@/constants/payment";
 import {
   RETURN_CHANNEL_LABELS,
   RETURN_LABELS,
+  RETURN_OUTCOME_LABELS,
   RETURN_REASON_LABELS,
+  RETURN_REFUSAL_REASON_LABELS,
 } from "@/constants/labels-return";
 import { RETURN_ROUTES } from "@/constants/returns";
 import { Card } from "@/components/shared/Card";
+
+import { returnOutcome } from "../selectors";
 
 import { CodeLink, InfoList, InfoRow, Money, ReturnStatusDot, When } from "./primitives";
 import { ReturnParcelList } from "./ReturnParcelList";
@@ -21,6 +25,7 @@ const D = RETURN_LABELS.detail;
 
 /** Thông tin chung của yêu cầu: đơn, khách, lý do, nguồn, mô tả của khách. */
 export function ReturnGeneralCard({ ret }: { ret: ReturnRequest }) {
+  const outcome = returnOutcome(ret);
   return (
     <Card className="space-y-3">
       <div className="flex items-center justify-between gap-2">
@@ -41,6 +46,8 @@ export function ReturnGeneralCard({ ret }: { ret: ReturnRequest }) {
             {D.viewCustomer}
           </Link>
         </InfoRow>
+        {/* WF-05 F-20: yêu cầu xử lý xong 0 đồng không bao giờ đọc là "Đã hoàn tiền" */}
+        {outcome && <InfoRow label={D.outcome}>{RETURN_OUTCOME_LABELS[outcome]}</InfoRow>}
         <InfoRow label={D.reason}>{RETURN_REASON_LABELS[ret.reasonCode]}</InfoRow>
         <InfoRow label={D.channel}>{RETURN_CHANNEL_LABELS[ret.channel]}</InfoRow>
         <InfoRow label={D.requestedAt}>
@@ -59,7 +66,10 @@ export function ReturnGeneralCard({ ret }: { ret: ReturnRequest }) {
 /** Các bước đã xảy ra: quyết định của Sale, hàng về kho, hoàn tiền — mỗi phần chỉ hiện khi đã có. */
 export function ReturnProgressCard({ ret }: { ret: ReturnRequest }) {
   const { review, receipt, resolution } = ret;
-  if (!review && !receipt && !resolution) return null;
+  // BE-23: phiếu nháp đang đếm — giải thích vì sao chưa chốt nhận đủ / đề xuất / duyệt hoàn tiền được
+  const draftOpen = ret.receiptDraftOpen === true;
+  if (!review && !receipt && !resolution && !draftOpen) return null;
+  const outcome = returnOutcome(ret);
   return (
     <Card className="space-y-4 text-[0.8125rem]">
       {review && (
@@ -104,6 +114,7 @@ export function ReturnProgressCard({ ret }: { ret: ReturnRequest }) {
           <ReturnParcelList parcels={receipt.parcels ?? []} />
         </section>
       )}
+      {draftOpen && <p className="text-ink-secondary">{D.receiptDraftOpen}</p>}
       {resolution && (
         <section aria-label={D.resolution} className="space-y-2">
           <h3 className="text-ink-primary font-semibold">{D.resolution}</h3>
@@ -115,6 +126,14 @@ export function ReturnProgressCard({ ret }: { ret: ReturnRequest }) {
               <When iso={resolution.proposedAt} />
             </InfoRow>
             {resolution.note && <InfoRow label={D.reviewNote}>{resolution.note}</InfoRow>}
+            {ret.refusalReason && (
+              <InfoRow label={D.refusalReason}>
+                {RETURN_REFUSAL_REASON_LABELS[ret.refusalReason]}
+              </InfoRow>
+            )}
+            {ret.refusalReason && ret.refusalNote && (
+              <InfoRow label={D.refusalNote}>{ret.refusalNote}</InfoRow>
+            )}
             {resolution.settledAt && (
               <>
                 <InfoRow label={D.settledAt}>
@@ -129,11 +148,12 @@ export function ReturnProgressCard({ ret }: { ret: ReturnRequest }) {
               </>
             )}
           </InfoList>
-          {/* WF-05 TH-4: kết thúc không hoàn tiền — giá trị 0, không có gì ở màn hoàn tiền */}
-          {resolution.settledAt && resolution.settlementAmount === 0 && (
+          {/* WF-05 Q-4 / TH-4: kết thúc không hoàn tiền — giá trị 0, không có gì ở màn hoàn tiền */}
+          {outcome === "REFUSED" && <p className="text-ink-secondary">{D.refusedNote}</p>}
+          {outcome === "NOTHING_TO_REFUND" && (
             <p className="text-ink-secondary">{D.closedWithoutRefund}</p>
           )}
-          {resolution.settledAt && resolution.settlementAmount !== 0 && (
+          {resolution.settledAt && outcome === "REFUNDED" && (
             <div className="flex flex-wrap gap-3">
               <Link
                 href={PAYMENT_ROUTES.refunds.ofOrder(ret.orderId)}

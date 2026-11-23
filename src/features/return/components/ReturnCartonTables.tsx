@@ -4,6 +4,7 @@ import { RETURN_RECEIPT_LABELS } from "@/constants/labels-return";
 import { Card } from "@/components/shared/Card";
 import { Button } from "@/components/ui/button";
 
+import { cartonOpened } from "../lifecycle";
 import { scanProgress } from "../selectors";
 
 import { EMPTY, MONO } from "./primitives";
@@ -13,12 +14,18 @@ import type { ReturnReceipt, ReturnReceiptCarton } from "../types";
 const D = RETURN_RECEIPT_LABELS.detail;
 const TH = "py-1 pr-3 font-medium";
 
-/** WF-05 TH-4: thùng mở (đếm ít hơn nhãn) chỉ ghi giảm — hiện "Đã mở · đếm 7/10"; thiếu dữ liệu = nguyên thùng. */
-function CountCell({ carton }: { carton: ReturnReceiptCarton }) {
-  if (!carton.opened) return <span className="text-ink-tertiary">{D.sealed}</span>;
+/**
+ * WF-05 TH-4 / Q-18: thùng mở (đếm ít hơn nhãn) hiện "Đã mở · đếm 7/10" và không nhập tồn — sau khi xác nhận BE ghi
+ * `stockEntered = false` ("Không nhập tồn — huỷ"), trước đó "Sẽ không nhập tồn". Thiếu dữ liệu = nguyên thùng.
+ */
+function CountCell({ carton, draft }: { carton: ReturnReceiptCarton; draft: boolean }) {
+  if (!cartonOpened(carton) && carton.stockEntered !== false)
+    return <span className="text-ink-tertiary">{D.sealed}</span>;
+  const stock = carton.stockEntered === false ? D.notStocked : draft ? D.willNotStock : null;
   return (
     <span className="text-warning tabular-nums">
       {D.openedState(carton.countedQuantity ?? 0, carton.quantity)}
+      {stock && <span className="block text-xs">{stock}</span>}
     </span>
   );
 }
@@ -80,7 +87,7 @@ export function ReturnCartonTables({
                   <td className={`py-1.5 pr-3 ${MONO}`}>{carton.lotNumber ?? EMPTY}</td>
                   <td className={`py-1.5 pr-3 text-right ${MONO}`}>{carton.quantity}</td>
                   <td className="py-1.5 pr-3">
-                    <CountCell carton={carton} />
+                    <CountCell carton={carton} draft={receipt.status === "DRAFT"} />
                   </td>
                   <td className="py-1.5 pr-3">{carton.condition ?? EMPTY}</td>
                   {onRemove && (

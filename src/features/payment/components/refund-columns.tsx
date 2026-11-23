@@ -8,6 +8,8 @@ import { CodeLink, MoneyCell, RefundStateDot } from "./primitives";
 import type { ColumnDef } from "@/components/shared/DataTable";
 import type { OrderRefund } from "../types";
 
+const EMPTY = PAYMENT_LABELS.empty;
+
 const L = PAYMENT_LABELS.refunds;
 
 /** Cột bảng đơn có số tiền phải hoàn (docs 15 §5.3: chờ hoàn / hoàn một phần / đã hoàn). */
@@ -41,5 +43,17 @@ export const REFUND_COLUMNS: ColumnDef<OrderRefund>[] = [
     header: L.remaining,
     align: "right",
     cell: (row) => <MoneyCell amount={row.remaining} currency={row.currency} />,
+  },
+  // WF-05 BE-51 (F-9): phí khách còn nợ cạnh số còn phải hoàn; BE cũ không gửi → "—"
+  {
+    key: "feeOwed",
+    header: L.orderFeeOwed,
+    align: "right",
+    cell: (row) =>
+      row.feeOwed != null && row.feeOwed > 0 ? (
+        <MoneyCell amount={row.feeOwed} currency={row.currency} />
+      ) : (
+        <span className="text-ink-tertiary">{EMPTY}</span>
+      ),
   },
 ];

@@ -1,12 +1,14 @@
 /**
- * Giao thất bại (WF-05 GH-1; docs 09 §4.3, 17 §4.8) — BE `DeliveryFailureController` / `DeliveryFailureService`.
+ * Lô hàng hoàn về (WF-05 GH-1; docs 09 §4.3, 17 §4.8) — BE `DeliveryFailureController` / `DeliveryFailureService`.
  *
- * Hãng mang lô về, kho nhận lại hàng trên phiếu nhận hàng hoàn → BE mở một "hồ sơ giao thất bại" (`OPEN`) và giữ đơn
- * (`ON_HOLD`, lý do `DELIVERY_FAILED`). Sale quyết: giao lại (`REDELIVERY` → `REDELIVERED` khi bàn giao lại) hoặc huỷ phần
- * chưa giao (`CANCELLED`). Enum lấy nguyên văn từ BE `DeliveryFailureCase.Status`.
+ * Từ BE PR #377 không còn "giao lại" trên đơn cũ (gửi lại = đơn mới, quyết định Q-12): hãng mang lô về, Quản lý kho ghi
+ * "hàng hoàn về" (cần APPROVE, Q-7), kho lập và xác nhận phiếu nhận hàng hoàn → BE mở hồ sơ và đóng ngay
+ * (`closure = RECORDED_ON_RETURN`), lúc xác nhận phiếu mới tính tiền. Màn này vì vậy là LỊCH SỬ chỉ đọc. Hồ sơ `OPEN` /
+ * `REDELIVERY` chỉ còn ở đơn cũ trước #377 (Q-13): Sale chỉ còn "Huỷ phần chưa giao" khi đơn cũ đang giữ vì giao thất bại.
+ * Enum lấy nguyên văn từ BE `DeliveryFailureCase.Status`.
  */
 
-/** BE `DeliveryFailureCase.Status`. */
+/** BE `DeliveryFailureCase.Status` (REDELIVERY / REDELIVERED chỉ còn ở hồ sơ cũ). */
 export const DELIVERY_FAILURE_CASE_STATUSES = [
   "OPEN",
   "REDELIVERY",
@@ -14,8 +16,11 @@ export const DELIVERY_FAILURE_CASE_STATUSES = [
   "CANCELLED",
 ] as const;
 
-/** Hồ sơ đã đóng (BE `Status#isClosed`): không quyết định lại. */
-export const DELIVERY_FAILURE_CLOSED_STATUSES = ["REDELIVERED", "CANCELLED"] as const;
+/** Hồ sơ chưa đóng (BE `Status#isClosed` = false): đơn cũ còn huỷ phần chưa giao được. */
+export const DELIVERY_FAILURE_UNDECIDED_STATUSES = ["OPEN", "REDELIVERY"] as const;
+
+/** BE `DeliveryFailureCaseResponse.closure` (contract F-4): ai đóng hồ sơ CANCELLED. */
+export const DELIVERY_FAILURE_CLOSURES = ["RECORDED_ON_RETURN", "CANCELLED_BY_SALES"] as const;
 
 /** Trạng thái hồ sơ → chuỗi status sẵn có của `StatusDot` (chỉ để lấy tone); nhãn Việt ở `statusLabels`. */
 export const DELIVERY_FAILURE_CASE_STATUS_DISPLAY = {
@@ -23,11 +28,9 @@ export const DELIVERY_FAILURE_CASE_STATUS_DISPLAY = {
   REDELIVERY: "In Progress",
   REDELIVERED: "Delivered",
   CANCELLED: "Cancelled",
+  RECORDED_ON_RETURN: "Returned",
   UNKNOWN: "UNKNOWN",
 } as const;
-
-/** Lý do giao thất bại khách gây ra (BE `customerPaysFailedTrip`): giao lại phải tính phí chuyến hỏng. */
-export const DELIVERY_FAILURE_CUSTOMER_PAID_REASONS = ["REFUSED", "WRONG_ADDRESS"] as const;
 
 /** Giới hạn ô nhập — BE `DeliveryFailureCaseRequests` / `CancellationFeeRequest`. */
 export const DELIVERY_FAILURE_LIMITS = {
@@ -39,74 +42,62 @@ export const DELIVERY_FAILURE_LIMITS = {
 } as const;
 
 export const DELIVERY_FAILURE_LABELS = {
-  /** Mục menu + tiêu đề (ẩn) của trang hàng đợi. */
-  title: "Giao thất bại",
+  /** Mục menu + tiêu đề (ẩn) của trang. */
+  title: "Lô hàng hoàn về",
   subtitle:
-    "Lô hãng mang về và kho đã nhận lại hàng. Sale quyết định giao lại hoặc huỷ phần chưa giao; đơn bị giữ tới khi quyết định.",
+    "Lịch sử các lô hãng mang về và kho đã nhận lại trên phiếu nhận hàng hoàn. Tiền của lô được tính khi Quản lý kho xác nhận phiếu; muốn gửi lại hàng thì tạo đơn mới.",
   statusLabels: {
-    OPEN: "Chờ Sale quyết định",
-    REDELIVERY: "Đang giao lại",
-    REDELIVERED: "Đã giao lại",
-    CANCELLED: "Đã huỷ phần chưa giao",
+    OPEN: "Chờ xử lý (đơn cũ)",
+    REDELIVERY: "Đang giao lại (đơn cũ)",
+    REDELIVERED: "Đã giao lại (đơn cũ)",
+    /** CANCELLED khi BE chưa trả `closure` (BE cũ) — không đoán ai đóng. */
+    CANCELLED: "Đã đóng",
     UNKNOWN: "Không rõ",
   },
-  filter: {
-    label: "Trạng thái hồ sơ",
-    open: "Chờ quyết định",
-    all: "Tất cả",
+  /** CANCELLED theo `closure` (F-4). */
+  closureLabels: {
+    RECORDED_ON_RETURN: "Đã ghi nhận hàng hoàn về",
+    CANCELLED_BY_SALES: "Đã huỷ phần chưa giao",
   },
   columns: {
     order: "Đơn hàng",
     receipt: "Phiếu nhận hàng hoàn",
     reason: "Lý do giao thất bại",
-    openedAt: "Mở lúc",
+    openedAt: "Nhận về lúc",
     status: "Trạng thái",
     actions: "Thao tác",
   },
-  empty: {
-    title: "Không có hồ sơ giao thất bại nào chờ quyết định",
-    description:
-      "Khi kho nhận lại hàng của một lô giao không thành công, hồ sơ sẽ hiện ở đây để Sale quyết định.",
-  },
   emptyAll: {
-    title: "Chưa có hồ sơ giao thất bại",
+    title: "Chưa có lô hàng hoàn về",
     description: "Chưa có lô nào bị hãng mang về và được kho nhận lại.",
   },
-  loadFailed: "Không tải được danh sách giao thất bại.",
-  caption: (shown: number) => `${shown} hồ sơ`,
-  /** Khối "Giao thất bại" trong chi tiết đơn. */
+  loadFailed: "Không tải được danh sách lô hàng hoàn về.",
+  caption: (shown: number) => `${shown} hồ sơ, mới nhất trước`,
+  /** Máy chủ trả tối đa `listLimit` hồ sơ, cũ nhất trước — chạm trần thì các hồ sơ mới nhất có thể bị thiếu. */
+  truncated: (limit: number) =>
+    `Đang hiện ${limit} hồ sơ đầu tiên máy chủ trả về; hồ sơ mới hơn có thể chưa hiện. Mở chi tiết đơn để xem hồ sơ của một đơn.`,
+  /** Khối "Lô hàng hoàn về" trong chi tiết đơn. */
   section: {
-    title: "Giao thất bại",
-    loading: "Đang tải hồ sơ giao thất bại…",
-    failed: "Không tải được hồ sơ giao thất bại của đơn.",
-    none: "Đơn chưa có lô nào giao thất bại.",
+    title: "Lô hàng hoàn về",
+    loading: "Đang tải hồ sơ hàng hoàn về…",
+    failed: "Không tải được hồ sơ hàng hoàn về của đơn.",
+    none: "Đơn chưa có lô nào được kho nhận lại.",
+    /** Đơn cũ (trước #377) giữ vì giao thất bại, lô về chưa có hồ sơ. */
     uncased:
-      "Có lô hãng đã mang về nhưng kho chưa lập phiếu nhận hàng hoàn. Có thể huỷ phần chưa giao ngay mà không chờ hàng về.",
+      "Đơn cũ đang giữ vì giao thất bại: có lô hãng đã mang về nhưng kho chưa lập phiếu nhận hàng hoàn. Có thể huỷ phần chưa giao ngay mà không chờ hàng về.",
+    /** Đơn cũ còn hồ sơ chưa đóng. */
+    legacy:
+      "Đơn cũ (trước khi bỏ “Giao lại”): không giao lại trên đơn này nữa. Huỷ phần chưa giao để tính tiền; muốn gửi lại hàng thì tạo đơn mới.",
     receipt: (number: string) => `Phiếu ${number}`,
-    openedAt: (when: string) => `Mở lúc ${when}`,
+    openedAt: (when: string) => `Nhận về lúc ${when}`,
     decidedAt: (when: string) => `Quyết định lúc ${when}`,
     decisionNote: "Ghi chú quyết định",
     failureNote: "Ghi chú của hãng / kho",
-    failedTripFee: "Phí chuyến giao hỏng",
+    failedTripFee: "Phí chuyến giao hỏng (đơn cũ)",
     carrierClaim: "Không thu khách — đòi hãng vận chuyển",
     readyForRelease: "Đã giữ đủ hàng — chờ Quản lý kho release để giao lại",
     units: (units: number, held: number) => `${units} sp về kho · đã giữ lại ${held}`,
     cartons: (count: number) => `${count} thùng`,
-  },
-  redeliver: {
-    button: "Giao lại",
-    title: "Giao lại hàng",
-    description: (receipt: string) =>
-      `Hàng của phiếu ${receipt} được giữ lại cho đơn; Quản lý kho release để giao lại thành lô mới. Đơn ra khỏi trạng thái giữ khi không còn hồ sơ nào chờ.`,
-    note: "Ghi chú quyết định",
-    notePlaceholder: "VD: Khách xác nhận nhận hàng thứ Sáu, địa chỉ đã sửa",
-    fee: "Phí chuyến giao hỏng (VND)",
-    feeHint:
-      "Khách từ chối nhận / sai địa chỉ nên chịu phí chuyến hỏng — ghi thành một khoản phí trên hợp đồng.",
-    noFeeHint: "Lý do không do khách — không thu phí, chi phí đòi hãng vận chuyển.",
-    submit: "Giao lại",
-    success: "Đã quyết định giao lại",
-    failedTitle: "Không giao lại được",
   },
   cancel: {
     button: "Huỷ phần chưa giao",
@@ -130,7 +121,6 @@ export const DELIVERY_FAILURE_LABELS = {
   validation: {
     noteRequired: "Nhập ghi chú quyết định.",
     noteTooLong: `Ghi chú tối đa 1000 ký tự.`,
-    feeRequired: "Nhập phí chuyến giao hỏng (số nguyên VND lớn hơn 0).",
     feeInvalid: "Phí phải là số nguyên VND lớn hơn 0.",
     feeReasonRequired: "Nhập lý do giữ phí (tối đa 500 ký tự).",
     feeDetailRequired: "Nhập nội dung đã thoả thuận (tối đa 2000 ký tự).",
@@ -149,11 +139,40 @@ export const DELIVERY_FAILURE_ERROR_MESSAGES = {
   DELIVERY_FAILURE_REST_NOT_CLOSABLE:
     "Chưa huỷ được phần chưa giao: đơn đang bị giữ vì lý do khác hoặc còn hàng đã đóng gói chưa rời kho. Gỡ giữ / chờ hàng đi trước.",
   ORDER_DELIVERY_FAILURE_USE_DECISION:
-    "Đơn bị giữ vì giao thất bại — không gỡ giữ tại đây. Quyết định giao lại hoặc huỷ phần chưa giao ở khối “Giao thất bại”.",
+    "Đơn cũ bị giữ vì giao thất bại — không gỡ giữ tại đây. Huỷ phần chưa giao ở khối “Lô hàng hoàn về”; muốn gửi lại hàng thì tạo đơn mới.",
   ORDER_DELIVERY_NOT_CORRECTABLE:
     "Không sửa được kết quả giao này nữa: đơn đã hoàn tất, hoặc lần giao đã ghi công nợ cho khách.",
   ORDER_DELIVERY_HAS_RETURN:
     "Lô này đang có yêu cầu trả hàng (đang mở hoặc đã xử lý) — không sửa thành giao thất bại được.",
   SHIPMENT_STATE_CONFLICT:
     "Lô giao không ở trạng thái cho phép thao tác này (chỉ sửa lô đã giao / giao thất bại). Dữ liệu đã được tải lại.",
+  // WF-05 Q-12 (BE-17): đóng phần thất lạc
+  ORDER_SHIPMENT_NOT_LOST_CLOSABLE:
+    "Không đóng phần thất lạc được cho lô này: chỉ lô giao thất bại do hãng báo thất lạc, hàng còn nợ khách, mới đóng theo cách này. Dữ liệu đã được tải lại.",
+  ORDER_SHIPMENT_LOSS_EVIDENCE_REQUIRED: "Đính kèm xác nhận thất lạc của hãng vận chuyển.",
+} as const;
+
+/**
+ * "Đóng phần thất lạc" (WF-05 Q-12, BE-17; contract F-5 + PR-0): lô giao thất bại vì hãng báo thất lạc (`LOST`) không
+ * bao giờ về kho nên không có phiếu nhận hàng hoàn. Sale (quyền `sales-lost-shipment-closures:APPROVE`) đóng phần hàng
+ * của lô kèm tệp xác nhận thất lạc của hãng; tiền tính như hàng hoàn về (Q-2), NGAY lúc duyệt. Gửi hàng mới = đơn mới.
+ */
+export const LOST_SHIPMENT_CLOSURE_LABELS = {
+  button: "Đóng phần thất lạc",
+  title: "Đóng phần thất lạc",
+  description: (shipmentLabel: string) =>
+    `${shipmentLabel} bị hãng báo thất lạc. Phần hàng của lô bị đóng khỏi đơn và tiền được tính ngay: trừ đợt của lô này trước, rồi nợ cũ, phần thừa thành số phải hoàn. Muốn gửi hàng mới thì tạo đơn mới. Không hoàn tác được.`,
+  note: "Ghi chú",
+  notePlaceholder: "VD: GHN xác nhận mất kiện ngày 20/11, mã khiếu nại 12345",
+  evidence: "Xác nhận thất lạc của hãng",
+  evidenceHint:
+    "Văn bản hãng xác nhận kiện thất lạc: PDF, Word, Excel hoặc ảnh JPEG / PNG, tối đa 25 MB.",
+  evidenceRequired: "Đính kèm xác nhận thất lạc của hãng vận chuyển.",
+  noteRequired: "Nhập ghi chú.",
+  noteTooLong: "Ghi chú tối đa 1000 ký tự.",
+  submit: "Đóng phần thất lạc",
+  success: "Đã đóng phần thất lạc của lô",
+  failedTitle: "Không đóng được phần thất lạc",
+  forbidden:
+    "Bạn không có quyền đóng phần thất lạc (sales-lost-shipment-closures:APPROVE). Nhờ người có quyền duyệt.",
 } as const;

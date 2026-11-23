@@ -10,6 +10,7 @@ import { QUERY_ROOTS } from "@/lib/api/query-roots";
 import { withStaleRefetch } from "@/lib/api/stale-refetch";
 
 import {
+  addCustody,
   approveReturn,
   approveSettlement,
   attachReturnEvidence,
@@ -98,6 +99,8 @@ export const useCloseWithoutRefund = returnMutation(
 export const useAttachReturnEvidence = returnMutation(attachReturnEvidence, S.evidenceAdded, [
   returnKeys.all,
 ]);
+/** Biên nhận giữ hộ (WF-05 Q-11): chỉ ghi trên yêu cầu — không tồn kho, không tiền. */
+export const useAddCustody = returnMutation(addCustody, S.custodyAdded, [returnKeys.all]);
 
 export const useCreateReturnReceipt = returnMutation(
   createReturnReceipt,

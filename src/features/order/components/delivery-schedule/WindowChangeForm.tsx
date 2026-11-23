@@ -8,6 +8,7 @@ import { WINDOW_CHANGE_LABELS as L } from "@/constants";
 import { toLocalIsoDate } from "@/lib/format/date";
 import { FormDialogBody } from "@/components/shared/FormDialog";
 
+import { beginWindowEvidenceUpload } from "../../delivery-window-api";
 import {
   WINDOW_CHANGE_FIELD_ERRORS,
   WINDOW_CHANGE_STALE_CODES,
@@ -89,7 +90,11 @@ export function WindowChangeForm({
     (uploadId: string) => setValue("evidenceUploadId", uploadId, { shouldValidate: true }),
     [setValue],
   );
-  const upload = useEvidenceUpload(order.orderId, batch.batchId, setUploadId);
+  const upload = useEvidenceUpload(
+    (declaration, signal) =>
+      beginWindowEvidenceUpload(order.orderId, batch.batchId, declaration, signal),
+    setUploadId,
+  );
 
   const submit = form.handleSubmit((values) => {
     if (!beginSubmit()) return;

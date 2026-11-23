@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { FileDown, LoaderCircle } from "lucide-react";
 
+import { SALES_CONTRACT_SIGNED_STATUSES } from "@/constants";
 import { openBlob, openLink } from "@/lib/files/open-blob";
 import { Button } from "@/components/ui/button";
 
@@ -37,7 +38,8 @@ export function ContractDownloads({
     }
   };
   const sent =
-    contract.status === "SENT" || contract.status === "SIGNED" || contract.status === "COMPLETED";
+    contract.status === "SENT" ||
+    (SALES_CONTRACT_SIGNED_STATUSES as readonly string[]).includes(contract.status);
   const icon = (kind: Download) =>
     busy === kind ? (
       <LoaderCircle className="size-3.5 animate-spin" aria-hidden="true" />

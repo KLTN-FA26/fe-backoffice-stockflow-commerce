@@ -9,13 +9,25 @@ import { z } from "zod";
 import {
   RETURN_API_STATUSES,
   RETURN_CHANNELS,
+  RETURN_OUTCOMES,
   RETURN_REASONS,
   RETURN_RECEIPT_API_STATUSES,
+  RETURN_REFUSAL_REASONS,
+  RETURN_UNKNOWN,
 } from "@/constants/returns";
 import { bePageSchema } from "@/lib/api/page-schema";
 
-const status = z.enum(RETURN_API_STATUSES);
-const reason = z.enum(RETURN_REASONS);
+/**
+ * Enum của BE đọc khoan dung (WF-05 BO-11, audit C-32): BE gửi chuỗi, giá trị mới tiếp tục được thêm — một giá trị FE chưa
+ * biết đọc thành `UNKNOWN` (hiển thị "Không rõ", không mở thao tác nào) thay vì làm hỏng cả màn.
+ */
+function tolerantEnum<const T extends readonly [string, ...string[]]>(values: T) {
+  return z.enum([...values, RETURN_UNKNOWN]).catch(RETURN_UNKNOWN);
+}
+
+const status = tolerantEnum(RETURN_API_STATUSES);
+const reason = tolerantEnum(RETURN_REASONS);
+const channel = tolerantEnum(RETURN_CHANNELS);
 
 /* ── Yêu cầu trả hàng: bản của back-office (BE `ReturnRequestResponse`) ─────────────────── */
 
@@ -42,6 +54,18 @@ export const returnEvidenceDtoSchema = z.object({
   uploadedAt: z.string(),
   /** Link ảnh nhỏ có hạn ngắn, chỉ có ở chi tiết. */
   thumbnailUrl: z.string().nullish(),
+  /**
+   * WF-05 Q-11 (BE G4, stage `CUSTODY`): biên nhận giữ hộ — hàng về mà phiếu nhập không nhận (SKU không duyệt, vượt số
+   * duyệt, kiện về sau khi đã chốt tiền). Không nhập tồn, không hoàn, không điều chỉnh hoá đơn.
+   */
+  custody: z
+    .object({
+      sku: z.string().nullish(),
+      lpn: z.string().nullish(),
+      quantity: z.number().int(),
+      note: z.string().nullish(),
+    })
+    .nullish(),
 });
 
 export const returnReviewDtoSchema = z.object({
@@ -116,7 +140,7 @@ export const returnRequestDtoSchema = z.object({
   reasonCode: reason,
   description: z.string().nullish(),
   requestedResolution: z.string().nullish(),
-  channel: z.enum(RETURN_CHANNELS),
+  channel,
   requestedBy: z.string().nullish(),
   requestedAt: z.string(),
   lateClaimReason: z.string().nullish(),
@@ -131,6 +155,21 @@ export const returnRequestDtoSchema = z.object({
   evidence: z.array(returnEvidenceDtoSchema).nullish(),
   discrepancies: z.array(returnDiscrepancyDtoSchema).nullish(),
   history: z.array(returnHistoryDtoSchema).nullish(),
+  /**
+   * WF-05 F-20 (BE G4): kết quả khi đã xử lý xong — REFUNDED / REFUSED (0 đồng có lý do, Q-4) / NOTHING_TO_REFUND (TH-4);
+   * null khi chưa xong hoặc BE cũ.
+   */
+  outcome: tolerantEnum(RETURN_OUTCOMES).nullish(),
+  /**
+   * Lý do giữ lại đơn vị đã về (danh sách cố định, Q-4): bắt buộc khi đề xuất 0 đơn vị, tuỳ chọn khi giữ lại một phần.
+   */
+  refusalReason: tolerantEnum(RETURN_REFUSAL_REASONS).nullish(),
+  /** Ghi chú công khai kèm lý do không hoàn — khách đọc được (BE G4 `refusalNote`). */
+  refusalNote: z.string().nullish(),
+  /** BE-13 / Q-11: kho lập được phiếu nhập hàng hoàn cho yêu cầu này (BE tự tính — FE không suy lại). */
+  receiptOpenable: z.boolean().nullish(),
+  /** BE-23: đang có phiếu nhập hàng hoàn NHÁP của yêu cầu — chưa chốt "Đã nhận đủ hàng" được. */
+  receiptDraftOpen: z.boolean().nullish(),
   version: z.number().int(),
 });
 
@@ -145,7 +184,7 @@ export const returnRowDtoSchema = z.object({
   status,
   reasonCode: reason,
   requestedResolution: z.string().nullish(),
-  channel: z.enum(RETURN_CHANNELS),
+  channel,
   requestedAt: z.string(),
   returnDeadline: z.string().nullish(),
   settlementAmount: z.number().nullish(),
@@ -154,6 +193,9 @@ export const returnRowDtoSchema = z.object({
   currency: z.string(),
   vatAdjustmentRequired: z.boolean(),
   closedAt: z.string().nullish(),
+  /** Như `ReturnRequestResponse` khi BE kèm ở dòng (nguồn lập phiếu); vắng = dùng trạng thái dự phòng. */
+  receiptOpenable: z.boolean().nullish(),
+  outcome: tolerantEnum(RETURN_OUTCOMES).nullish(),
   version: z.number().int(),
 });
 export const returnPageDtoSchema = bePageSchema(returnRowDtoSchema);
@@ -162,7 +204,7 @@ export const evidenceLinkDtoSchema = z.object({ url: z.string() });
 
 /* ── Phiếu nhập hàng hoàn (BE `ReturnReceiptService.ReturnReceiptView` / `ReturnReceiptRow`) ── */
 
-const receiptStatus = z.enum(RETURN_RECEIPT_API_STATUSES);
+const receiptStatus = tolerantEnum(RETURN_RECEIPT_API_STATUSES);
 
 export const returnReceiptCartonDtoSchema = z.object({
   lpn: z.string(),
@@ -175,6 +217,13 @@ export const returnReceiptCartonDtoSchema = z.object({
   /** WF-05 TH-4: số đếm thực trong thùng; `opened` khi ít hơn nhãn (`quantity`) — chỉ ghi giảm. */
   countedQuantity: z.number().int().nullish(),
   opened: z.boolean().nullish(),
+  /**
+   * WF-05 Q-18 / BE-20 (F-21): false = thùng về đã mở / rỗng, không nhập tồn (huỷ theo số đếm thật); null = phiếu chưa
+   * xác nhận hoặc BE cũ.
+   */
+  stockEntered: z.boolean().nullish(),
+  /** WF-05 Q-18: người ghi số đếm (quét hoặc đếm lại) — người xác nhận phiếu phải là người khác. */
+  countedBy: z.string().nullish(),
 });
 
 /** Hàng về không nhãn thùng (WF-05 TH-4): ghi trên phiếu, không nhập tồn, vẫn tính là đã về cho RMA. */
@@ -184,6 +233,11 @@ export const returnLooseLineDtoSchema = z.object({
   lotNumber: z.string().nullish(),
   quantity: z.number().int(),
   recordedBy: z.string().nullish(),
+  /**
+   * WF-05 Q-18 (BE G4 `LooseLineView.photoId`): ảnh hàng lẻ — một ảnh nhận hàng của chính phiếu
+   * (`/goods-receipts/{id}/photos`); null ở dòng ghi trước Q-18.
+   */
+  photoId: z.string().nullish(),
 });
 
 export const expectedCartonDtoSchema = z.object({
@@ -217,6 +271,11 @@ export const returnReceiptDtoSchema = z.object({
   cartons: z.array(returnReceiptCartonDtoSchema),
   expectedCartons: z.array(expectedCartonDtoSchema),
   looseLines: z.array(returnLooseLineDtoSchema).nullish(),
+  /**
+   * WF-05 Q-18 (BE G4): phiếu nháp có thùng mở hoặc hàng lẻ — chỉ Quản lý kho (khác người đếm) xác nhận được. Vắng = BE
+   * cũ (FE suy từ thùng / hàng lẻ).
+   */
+  managerConfirmationRequired: z.boolean().nullish(),
   version: z.number().int(),
 });
 

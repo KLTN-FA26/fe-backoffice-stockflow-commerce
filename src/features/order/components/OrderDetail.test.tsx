@@ -8,6 +8,7 @@ import {
   SHIPMENT_PERMISSIONS,
   UI_LABELS,
 } from "@/constants";
+import { PAYMENT_INSTALLMENT_PERMISSIONS } from "@/constants/payment";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 import { useBreadcrumbLabelStore } from "@/lib/store/use-breadcrumb-labels";
@@ -38,6 +39,26 @@ const CANCEL_ONLY = [
 
 const DETAIL_PATH = `/orders/${apiOrder.orderId}`;
 const CANCEL_PATH = `${DETAIL_PATH}/admin-cancellation`;
+const INSTALLMENTS_PATH = `/installments/orders/${apiOrder.orderId}`;
+
+/** BE `OrderInstallmentsResponse` tối thiểu: một đợt khi ký đã thu `paid`. */
+const installmentsSummary = (paid: number) => ({
+  paymentStatus: "PARTIALLY_PAID",
+  total: 350_000,
+  paid,
+  outstanding: 350_000 - paid,
+  currency: "VND",
+  installments: [
+    {
+      installmentId: "i-1",
+      seq: 1,
+      name: "Khi ký",
+      amount: 350_000,
+      paidAmount: paid,
+      status: "PARTIALLY_PAID",
+    },
+  ],
+});
 
 async function renderDetail(permissions: readonly PermissionCode[], handler: () => unknown) {
   mockOrderApiGet(permissions, { [DETAIL_PATH]: handler });
@@ -247,10 +268,17 @@ describe(
 
     it("đơn đã thu tiền đang sản xuất → cảnh báo hệ quả với lệnh sản xuất, KHÔNG hứa phí, KHÔNG có ô giữ phí, báo tạo yêu cầu hoàn tiền chờ kế toán; body không có retainedPercent", async () => {
       const user = userEvent.setup();
-      await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => ({
-        ...withStatus("IN_PRODUCTION"),
-        paidAmount: 200_000,
-      }));
+      // "Đã thu" từ các đợt thanh toán (WF-05 BO-08) — `OrderResponse` không còn `paidAmount`
+      mockOrderApiGet(
+        [...ORDER_PERMISSION_SETS.coordinator, PAYMENT_INSTALLMENT_PERMISSIONS.read],
+        {
+          [DETAIL_PATH]: () => withStatus("IN_PRODUCTION"),
+          [INSTALLMENTS_PATH]: () => installmentsSummary(200_000),
+        },
+      );
+      await act(async () => {
+        renderOrderScreen(<OrderDetail params={Promise.resolve({ id: apiOrder.orderId })} />);
+      });
       const post = vi.spyOn(api, "post").mockResolvedValue({ data: withStatus("CANCELLED") });
 
       await user.click(await screen.findByRole("button", { name: "Huỷ đơn" }));
@@ -264,7 +292,8 @@ describe(
       // OrderResponse không có mốc bắt đầu in → FE không mở ô giữ phí (BE CANCELLATION_FEE_BEFORE_PRINTING)
       expect(within(dialog).queryByLabelText(/Giữ lại/)).not.toBeInTheDocument();
       // BE chỉ tạo refund PENDING; kế toán chi trả → không được hứa tiền đã/sẽ hoàn đủ
-      const refundNote = within(dialog).getByText(/tạo yêu cầu hoàn tiền/);
+      const refundNote = await within(dialog).findByText(/tạo yêu cầu hoàn tiền/);
+      expect(refundNote).toHaveTextContent(/200\.000/);
       expect(refundNote).toHaveTextContent(/cần kế toán xử lý/);
       expect(refundNote).toHaveTextContent(/không đồng nghĩa tiền đã được hoàn/);
       expect(within(dialog).queryByText(/hoàn đủ/)).not.toBeInTheDocument();
@@ -278,6 +307,18 @@ describe(
           WITH_IDEMPOTENCY_KEY,
         ),
       );
+    });
+
+    it("WF-05 BO-08: BE cũ còn gửi paidAmount trên đơn, nhưng không đọc được các đợt → không nói số đã thu", async () => {
+      const user = userEvent.setup();
+      await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => ({
+        ...withStatus("IN_PRODUCTION"),
+        paidAmount: 200_000,
+      }));
+
+      await user.click(await screen.findByRole("button", { name: "Huỷ đơn" }));
+      const dialog = screen.getByRole("dialog");
+      expect(within(dialog).queryByText(/tạo yêu cầu hoàn tiền/)).not.toBeInTheDocument();
     });
 
     it("đơn ON_HOLD giữ từ PICKING → cảnh báo theo bước đã bị giữ (dừng lấy hàng + put-back)", async () => {

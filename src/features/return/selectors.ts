@@ -3,23 +3,41 @@
  * của phiếu nhập hàng hoàn. Không side effect.
  */
 
-import { RETURN_LABELS } from "@/constants/labels-return";
-import { RETURN_LIMITS } from "@/constants/returns";
+import { RETURN_LABELS, RETURN_RECEIPT_LABELS } from "@/constants/labels-return";
+import { RETURN_EVIDENCE_STAGES, RETURN_LIMITS } from "@/constants/returns";
 
-import type { ReturnApiStatus } from "@/constants/returns";
+import type { ReturnReadStatus } from "@/constants/returns";
 import type { ExpectedCarton, ReturnLine, ReturnReceipt, ReturnRequest } from "./types";
 
-/** Số một dòng của yêu cầu đang "giữ" trên dòng đơn (BE `ReturnLine.claimedUnits`). */
-export function claimedUnits(line: ReturnLine, status: ReturnApiStatus): number {
+/**
+ * Số một dòng của yêu cầu đang "giữ" trên dòng đơn — chép BE G4 `ReturnLine.claimedUnits`. WF-05 BE-21: hàng đã về kho luôn tính
+ * là đã khiếu nại — kể cả khi hoàn 0 đồng (Q-4) hay yêu cầu đã hết hạn / bị rút sau khi hàng về — để không trả hai lần
+ * cùng một đơn vị. Trạng thái lạ (UNKNOWN): lấy số lớn nhất đã biết của dòng, trần mở yêu cầu mới chỉ chặt hơn (BE kiểm
+ * lại).
+ */
+export function claimedUnits(line: ReturnLine, status: ReturnReadStatus): number {
+  const received = line.receivedQuantity ?? 0;
   switch (status) {
     case "REQUESTED":
-      return line.requestedQuantity;
+      return Math.max(line.requestedQuantity, received);
     case "AWAITING_RETURN":
     case "RECEIVED":
     case "SETTLEMENT_PENDING":
-      return line.approvedQuantity ?? 0;
+      return Math.max(line.approvedQuantity ?? 0, received);
     case "RESOLVED":
-      return line.refundQuantity;
+      return Math.max(line.refundQuantity, received);
+    case "INSPECTED":
+    case "REJECTED":
+    case "EXPIRED":
+    case "CANCELLED":
+      return received;
+    case "UNKNOWN":
+      return Math.max(
+        line.requestedQuantity,
+        line.approvedQuantity ?? 0,
+        received,
+        line.refundQuantity,
+      );
     default:
       return 0;
   }
@@ -44,7 +62,7 @@ const add = (map: Map<string, number>, key: string, n: number) =>
 export function openCaps(
   orderLines: readonly { lineId: string; deliveredQuantity: number }[],
   returns: readonly (Pick<ReturnRequest, "status" | "lines"> & { shipmentId?: string | null })[],
-  isOpen: (status: ReturnApiStatus) => boolean,
+  isOpen: (status: ReturnReadStatus) => boolean,
   shipment: DeliveredShipment | null = null,
 ): Map<string, number> {
   const claimed = new Map<string, number>();
@@ -104,6 +122,27 @@ export function evidenceFileProblem(file: { type: string; size: number }): strin
     return RETURN_LABELS.detail.photoWrongType;
   if (file.size <= 0 || file.size > RETURN_LIMITS.evidenceMaxBytes)
     return RETURN_LABELS.detail.photoTooLarge;
+  return null;
+}
+
+/**
+ * Ảnh khiếu nại của khách (stage CLAIM, và ảnh cũ không rõ bước) — tách khỏi biên nhận giữ hộ (WF-05 Q-11): BE đếm trần
+ * `evidenceMax` theo từng bước, và "cần ít nhất một ảnh trước khi duyệt" chỉ nói về ảnh khiếu nại.
+ */
+export const claimEvidence = (ret: Pick<ReturnRequest, "evidence">) =>
+  (ret.evidence ?? []).filter((photo) => photo.stage !== RETURN_EVIDENCE_STAGES.custody);
+
+/** Biên nhận giữ hộ (WF-05 Q-11, stage CUSTODY): hàng về mà phiếu nhập không nhận. */
+export const custodyEvidence = (ret: Pick<ReturnRequest, "evidence">) =>
+  (ret.evidence ?? []).filter((photo) => photo.stage === RETURN_EVIDENCE_STAGES.custody);
+
+/** Ảnh hàng lẻ (WF-05 Q-18): JPEG / PNG ≤ 20 MB như ảnh nhận hàng của phiếu nhập — null là hợp lệ. */
+export function loosePhotoProblem(file: { type: string; size: number } | null): string | null {
+  const D = RETURN_RECEIPT_LABELS.detail.loose;
+  if (!file) return D.photoRequired;
+  if (!(RETURN_LIMITS.loosePhotoTypes as readonly string[]).includes(file.type))
+    return D.photoWrongType;
+  if (file.size <= 0 || file.size > RETURN_LIMITS.loosePhotoMaxBytes) return D.photoTooLarge;
   return null;
 }
 
@@ -171,7 +210,7 @@ export function openLines(
     customPrinted: boolean;
   }[],
   returns: Parameters<typeof openCaps>[1],
-  isOpen: (status: ReturnApiStatus) => boolean,
+  isOpen: (status: ReturnReadStatus) => boolean,
   shipment: DeliveredShipment | null,
 ): OpenLine[] {
   const caps = openCaps(orderLines, returns, isOpen, shipment);
@@ -181,4 +220,30 @@ export function openLines(
     customPrinted: line.customPrinted,
     cap: caps.get(line.lineId) ?? 0,
   }));
+}
+
+/**
+ * Đề xuất đang chờ duyệt là "không hoàn tiền" (WF-05 Q-4): không dòng nào hoàn đơn vị nào (BE G4 ghi số đề xuất vào
+ * `refundQuantity` của dòng). Theo SỐ ĐƠN VỊ, không theo số tiền: đơn chưa thu đồng nào vẫn "hoàn" đơn vị với giá trị 0,
+ * và một đề xuất giữ lại một phần có thể kèm lý do mà vẫn hoàn tiền. Nút duyệt vẫn là "Duyệt hoàn tiền" sẵn có, chỉ câu
+ * chữ trong hộp thoại đổi theo.
+ */
+export function proposesNoRefund(ret: Pick<ReturnRequest, "lines" | "resolution">): boolean {
+  if ((ret.resolution?.settlementAmount ?? 0) > 0) return false;
+  return ret.lines.every((line) => line.refundQuantity === 0);
+}
+
+/**
+ * Kết quả của yêu cầu đã xử lý xong: `outcome` của BE khi có (F-20); BE cũ thì suy như BE G4 `ReturnRequest.outcomeOf` —
+ * có đơn vị được hoàn (hoặc giá trị hoàn > 0) → REFUNDED, không có mà có lý do → REFUSED, còn lại NOTHING_TO_REFUND. Một yêu cầu không hoàn đơn
+ * vị nào không bao giờ đọc là "Đã hoàn tiền". `null` = chưa xử lý xong.
+ */
+export function returnOutcome(
+  ret: Pick<ReturnRequest, "status" | "outcome" | "refusalReason" | "lines" | "resolution">,
+): NonNullable<ReturnRequest["outcome"]> | null {
+  if (ret.outcome) return ret.outcome;
+  if (ret.status !== "RESOLVED") return null;
+  const refundedUnits = ret.lines.some((line) => line.refundQuantity > 0);
+  if (refundedUnits || (ret.resolution?.settlementAmount ?? 0) > 0) return "REFUNDED";
+  return ret.refusalReason != null ? "REFUSED" : "NOTHING_TO_REFUND";
 }

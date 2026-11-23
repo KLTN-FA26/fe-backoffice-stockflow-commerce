@@ -186,8 +186,10 @@ export const MOVE_TRANSITIONS: Record<MoveTaskStatus, readonly MoveTaskStatus[]>
 // Chép nguyên BE `order/api/OrderStatus.java#canTransitionTo` (21 trạng thái; docs 17 §5.1 — bảng chuyển
 // cũng nằm ở DB `ordering.order_status_transition`, trigger chặn mọi nhảy cóc). FE khớp BE, không dựng
 // theo docs 17. Mã wire ↔ nhãn FE: features/order/status-map.ts (PENDING_PAYMENT ↔ "Pending Payment"…).
+// WF-05 BO-06 (C-11): chép lại từ BE develop + các cạnh mới của G1 (fix plan §6.1 X-8, §6.2 F-8, BE-40).
 export const ORDER_TRANSITIONS: Record<OrderReadStatus, readonly OrderStatus[]> = {
-  Draft: ["Pending Contract", "Pending Payment", "Confirmed", "On Hold", "Cancelled"],
+  // 14 §5.3: chỉ đi qua hợp đồng — cạnh checkout cũ sang Pending Payment / Confirmed / On Hold đã bỏ (4B-10)
+  Draft: ["Pending Contract", "Cancelled"],
   // Hợp đồng đã gửi, chờ ký (14 §5.3): ký → chờ đợt ON_SIGNING / xác nhận / treo tín dụng; huỷ hợp đồng → Draft
   "Pending Contract": ["Draft", "Pending Payment", "Confirmed", "On Hold", "Cancelled"],
   "Pending Payment": ["Confirmed", "Cancelled"],
@@ -199,7 +201,8 @@ export const ORDER_TRANSITIONS: Record<OrderReadStatus, readonly OrderStatus[]> 
   // PACKED trực tiếp: đơn chỉ có hàng in (17 §4.2.6)
   "Ready to Fulfill": ["Picking", "Packed", "Partially Fulfilled", "On Hold", "Cancelled"],
   Picking: ["Packed", "Partially Fulfilled", "On Hold", "Cancelled"],
-  // Giao một phần (G4-Q3): phần còn lại đóng gói / bàn giao / đóng bởi nhân viên → đơn theo các lô giao
+  // Giao một phần (G4-Q3): phần còn lại đóng gói / bàn giao / đóng bởi nhân viên → đơn theo các lô giao.
+  // Partially Refunded: một lô hoàn về trong khi lô khác đã giao, phần đó được hoàn tiền (RTM-RETURNED-PARTIAL)
   "Partially Fulfilled": [
     "Packed",
     "Shipped",
@@ -207,6 +210,7 @@ export const ORDER_TRANSITIONS: Record<OrderReadStatus, readonly OrderStatus[]> 
     "Delivered",
     "Returned",
     "On Hold",
+    "Partially Refunded",
   ],
   // Không còn Cancelled: kiện đã đóng xong thì đi luồng trả hàng (quyết định 17/10, BR-ORD-004)
   Packed: ["Shipped", "Partially Fulfilled", "On Hold"],
@@ -222,16 +226,21 @@ export const ORDER_TRANSITIONS: Record<OrderReadStatus, readonly OrderStatus[]> 
     "Packed",
     "Cancelled",
   ],
-  Shipped: ["Delivered", "Delivery Failed", "Partially Fulfilled"],
-  "Delivery Failed": ["Delivered", "Returned", "Partially Fulfilled"],
+  // On Hold: chỉ còn trên đơn cũ (lô hoàn về giữ đơn chờ Sale, trước BE #377)
+  Shipped: ["Delivered", "Delivery Failed", "Partially Fulfilled", "On Hold"],
+  "Delivery Failed": ["Delivered", "Returned", "Partially Fulfilled", "On Hold"],
   // Delivery Failed: chỉ khi Quản lý kho sửa tay vì hãng báo sai, đơn chưa hoàn tất (17 BR-27)
   Delivered: ["Completed", "Return Requested", "Delivery Failed"],
-  // Yêu cầu trả bị từ chối → về Delivered (quyết định 21/10)
-  "Return Requested": ["Returned", "Delivered"],
-  Returned: ["Refunded", "Partially Refunded"],
-  // Khiếu nại thêm sau hoàn tiền / sau hoàn tất vẫn mở được cho tới khi đơn đóng hẳn (BE `canTransitionTo`)
-  Refunded: ["Closed", "Return Requested"],
-  "Partially Refunded": ["Closed", "Return Requested"],
+  // Từ chối → về Delivered (quyết định 21/10). F-8 / BE-40: rút yêu cầu trả về đúng trạng thái gốc (Completed /
+  // Refunded / Partially Refunded của một khiếu nại thêm)
+  "Return Requested": ["Returned", "Delivered", "Completed", "Refunded", "Partially Refunded"],
+  // X-8: trả hàng kết thúc không hoàn đồng nào (Q-4) → Completed nếu đơn đã hoàn tất trước đó, ngược lại Delivered
+  Returned: ["Refunded", "Partially Refunded", "Delivered", "Completed"],
+  // Khiếu nại thêm sau hoàn tiền / sau hoàn tất vẫn mở được cho tới khi đơn đóng hẳn (BE `canTransitionTo`).
+  // Returned: một lần ghi hoàn tiền bị huỷ — đơn chờ hoàn lại (TT-4)
+  Refunded: ["Closed", "Return Requested", "Returned"],
+  // Partially Fulfilled: lần hoàn bị huỷ là của lô hoàn về, phần còn lại đã giao (RTM-RETURNED-PARTIAL)
+  "Partially Refunded": ["Closed", "Return Requested", "Returned", "Partially Fulfilled"],
   Completed: ["Closed", "Return Requested"],
   // Terminal (OrderStatus#isTerminal)
   Cancelled: [],

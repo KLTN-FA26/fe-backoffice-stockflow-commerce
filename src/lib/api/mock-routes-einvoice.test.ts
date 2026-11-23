@@ -8,20 +8,28 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 
 import {
   adjustEInvoice,
+  checkSignature,
   getEInvoice,
   getFileLink,
+  getSignature,
   issueEInvoice,
   listCorrections,
   listEInvoices,
   reconcileEInvoice,
   recordErrorNotice,
+  recordPortalResult,
   reopenEInvoice,
   replaceEInvoice,
   resubmitEInvoice,
   reviseDraft,
   voidDraft,
 } from "@/features/einvoice/api";
-import { changeAutoIssue, getEInvoiceSettings } from "@/features/einvoice/settings-api";
+import {
+  changeAutoIssue,
+  getEInvoiceSettings,
+  selectSeries,
+  storeProviderAccount,
+} from "@/features/einvoice/settings-api";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 import { useAuthStore } from "@/lib/auth/auth-store";
@@ -93,8 +101,16 @@ describe("GET /einvoices", () => {
 describe("issuing (docs 21 §4.2)", () => {
   it("answers SUBMITTING at once, then ISSUED with a number once the provider answered", async () => {
     const draft = await getEInvoice("EINV-0001");
-    const sent = await issueEInvoice({ id: draft.id, version: draft.version });
+    // Seed giao ngày 10/11 — phát hành hôm nay là lập trễ: BE đòi lý do (WF-05 Q-10)
+    const noReason = await errorOf(issueEInvoice({ id: draft.id, version: draft.version }));
+    expect(noReason).toMatchObject({ status: 400, code: "EINVOICE_LATE_ISSUE_REASON_REQUIRED" });
+    const sent = await issueEInvoice({
+      id: draft.id,
+      version: draft.version,
+      lateReason: "Hãng báo giao trễ",
+    });
     expect(sent.status).toBe("SUBMITTING");
+    expect(sent.warnings).toContain("ISSUED_LATE");
     expect(sent.invoiceNumber).toBeFalsy();
     const issued = await reconcileEInvoice({ id: draft.id });
     expect(issued).toMatchObject({ status: "ISSUED", hasFiles: true });
@@ -113,9 +129,25 @@ describe("issuing (docs 21 §4.2)", () => {
       buyerTaxCode: "0109876543",
     });
     expect(fixed.warnings).not.toContain("BUYER_PROFILE_INCOMPLETE");
-    expect((await issueEInvoice({ id: fixed.id, version: fixed.version })).status).toBe(
-      "SUBMITTING",
-    );
+    // F-16: cảnh báo chưa xác nhận → 409 kèm danh sách; xác nhận rồi thì gửi được
+    const unacknowledged = fixed.warnings.filter((w) => w !== "EARLIER_INVOICE_PENDING");
+    if (unacknowledged.length > 0) {
+      const outOfDate = await errorOf(
+        issueEInvoice({ id: fixed.id, version: fixed.version, lateReason: "Trễ" }),
+      );
+      expect(outOfDate).toMatchObject({ code: "EINVOICE_DRAFT_OUT_OF_DATE" });
+      expect(outOfDate.details).toMatchObject({ warnings: unacknowledged });
+    }
+    expect(
+      (
+        await issueEInvoice({
+          id: fixed.id,
+          version: fixed.version,
+          acknowledgedWarnings: fixed.warnings,
+          lateReason: "Trễ",
+        })
+      ).status,
+    ).toBe("SUBMITTING");
   });
 
   it("refuses a stale version with 409 OPTIMISTIC_LOCK", async () => {
@@ -201,5 +233,88 @@ describe("settings (docs 21 BR-10)", () => {
     expect((await changeAutoIssue({ autoIssue: true, version: current.version })).autoIssue).toBe(
       true,
     );
+  });
+});
+
+describe("WF-05 additions (Q-8, BE-11, BO-04, BO-09, BO-10)", () => {
+  it("BO-09: an issued invoice's signature is checked; an XML handed in too", async () => {
+    const draft = await getEInvoice("EINV-0001");
+    await issueEInvoice({ id: draft.id, version: draft.version, lateReason: "Trễ" });
+    await reconcileEInvoice({ id: draft.id });
+    expect((await getSignature(draft.id)).status).toBe("VALID");
+    const checked = await checkSignature(new File(["<x/>"], "hd.xml", { type: "text/xml" }));
+    expect(checked).toMatchObject({ status: "SHA1_UNCHECKED", valid: false });
+    expect(await errorOf(getSignature("EINV-0002"))).toMatchObject({
+      code: "EINVOICE_NOT_ISSUED",
+    });
+  });
+
+  it("Q-8: a SUBMITTING invoice is recorded as issued from the provider's portal", async () => {
+    const draft = await getEInvoice("EINV-0001");
+    const sent = await issueEInvoice({ id: draft.id, version: draft.version, lateReason: "Trễ" });
+    const recorded = await recordPortalResult({
+      id: sent.id,
+      version: sent.version,
+      outcome: "ISSUED",
+      invoiceNumber: 77,
+      note: "Cổng SePay có số 77",
+    });
+    expect(recorded).toMatchObject({
+      status: "ISSUED",
+      invoiceNumber: 77,
+      issuedVia: "PORTAL_RECORD",
+    });
+  });
+
+  it("Q-8 (F-14): a system reduction is voided only as unsendable", async () => {
+    const reduction = (await listEInvoices({ size: 100 })).items.find(
+      (row) => row.correctionBasis === "DELIVERY_FAILED" && row.status === "DRAFT",
+    );
+    expect(reduction).toBeDefined();
+    if (!reduction) return;
+    const detail = await getEInvoice(reduction.id);
+    expect(
+      await errorOf(voidDraft({ id: detail.id, version: detail.version, reason: "x" })),
+    ).toMatchObject({ code: "EINVOICE_CORRECTION_NOT_APPLICABLE" });
+    const voided = await voidDraft({
+      id: detail.id,
+      version: detail.version,
+      reason: "NCC cũ không dùng được",
+      reasonCode: "UNSENDABLE_REVERSAL",
+    });
+    expect(voided.status).toBe("VOIDED_DRAFT");
+  });
+
+  it("Q-10: the list filters invoices issued late", async () => {
+    const draft = await getEInvoice("EINV-0001");
+    await issueEInvoice({ id: draft.id, version: draft.version, lateReason: "Trễ" });
+    const late = await listEInvoices({ warning: "ISSUED_LATE" });
+    expect(late.items.map((row) => row.id)).toEqual(["EINV-0001"]);
+  });
+
+  it("BO-04: the sandbox has no account to store; BO-10: the sandbox takes no template code", async () => {
+    actAs("USER-ADMIN-01");
+    expect(
+      await errorOf(
+        storeProviderAccount({
+          provider: "SANDBOX",
+          version: 0,
+          environment: "SANDBOX",
+          username: "u",
+          secret: undefined,
+        }),
+      ),
+    ).toMatchObject({ status: 400, fieldErrors: { provider: expect.any(String) } });
+    expect(
+      await errorOf(
+        selectSeries({
+          provider: "SANDBOX",
+          templateCode: "1",
+          symbol: "C26TAB",
+          year: 2026,
+          providerTemplateCode: "1/001",
+        }),
+      ),
+    ).toMatchObject({ fieldErrors: { providerTemplateCode: expect.any(String) } });
   });
 });

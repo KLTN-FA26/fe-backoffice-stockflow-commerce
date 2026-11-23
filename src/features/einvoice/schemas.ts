@@ -13,6 +13,8 @@ import {
   ERROR_NOTICE_STATUSES,
   ERROR_NOTICE_SUBJECTS,
   EINVOICE_UNKNOWN,
+  SIGNATURE_STATUSES,
+  WITHDRAWAL_PROVIDER_STATES,
 } from "@/constants/einvoice";
 import { bePageSchema } from "@/lib/api/page-schema";
 
@@ -126,6 +128,20 @@ export const einvoiceDtoSchema = z.object({
    * (căn cứ DELIVERY_FAILED), bị từ chối thì huỷ thay vì gửi lại. Vắng khi chưa bị đánh dấu / đã gỡ đánh dấu.
    */
   deliveryFailedAt: z.string().nullish(),
+  /**
+   * WF-05 F-11 (BE-36): hoá đơn gốc đã bị giảm toàn bộ (giao thất bại) — không còn hiệu lực để điều chỉnh / thay thế.
+   * Vắng với BE cũ.
+   */
+  reversedAt: z.string().nullish(),
+  /** WF-05 F-11: NCC của hoá đơn gửi được 04/SS-HĐĐT. Vắng với BE cũ → dự phòng theo `ERROR_NOTICE_PROVIDERS`. */
+  errorNoticeSupported: z.boolean().nullish(),
+  /** WF-05 F-13: `PROVIDER` (qua API) hoặc `PORTAL_RECORD` (Kế toán ghi lại từ cổng NCC). Chuỗi mở. */
+  issuedVia: openString.nullish(),
+  /**
+   * Ngày giao (Asia/Ho_Chi_Minh, `YYYY-MM-DD`) của lần giao hoá đơn này — để tính "Lập trễ N ngày" (WF-05 Q-10).
+   * HỢP ĐỒNG GIẢ ĐỊNH: BE chưa có trường này trên DTO; vắng → nhãn "Lập trễ" không số ngày.
+   */
+  deliveredOn: z.string().nullish(),
 });
 
 /** BE `EInvoiceListItemResponse`. */
@@ -154,6 +170,12 @@ export const einvoiceListItemDtoSchema = z.object({
   warnings: z.array(openString),
   rejectionCode: z.string().nullish(),
   issuedAt: z.string().nullish(),
+  /** WF-05 F-11: như chi tiết. */
+  reversedAt: z.string().nullish(),
+  /** WF-05 F-11: căn cứ của điều chỉnh (danh sách điều chỉnh / thay thế của một hoá đơn gốc). */
+  correctionBasis: tolerantEnum(CORRECTION_BASES).nullish(),
+  /** HỢP ĐỒNG GIẢ ĐỊNH (như chi tiết). */
+  deliveredOn: z.string().nullish(),
 });
 export const einvoicePageDtoSchema = bePageSchema(einvoiceListItemDtoSchema);
 
@@ -167,6 +189,39 @@ export const providerCallDtoSchema = z.object({
   errorCode: z.string().nullish(),
   calledAt: z.string(),
   durationMs: z.number(),
+  /** Mã theo dõi của NCC (SePay: `<create|adjust|replace>/<tracking_code>`) — bộ phận hỗ trợ NCC hỏi mã này. */
+  providerReference: z.string().nullish(),
+});
+
+/** BE `EInvoiceSignatureResponse` — chữ ký số của bên bán trên XML, kiểm lúc hỏi (WF-05 BO-09). */
+export const signatureDtoSchema = z.object({
+  status: tolerantEnum(SIGNATURE_STATUSES),
+  valid: z.boolean(),
+  signer: z.string().nullish(),
+  signerTaxCode: z.string().nullish(),
+  signerOrganization: z.string().nullish(),
+  issuer: z.string().nullish(),
+  signingTime: z.string().nullish(),
+  certificateValidFrom: z.string().nullish(),
+  certificateValidTo: z.string().nullish(),
+  certificateValidAtSigning: z.boolean().nullish(),
+  buyerSigned: z.boolean().nullish(),
+  chainChecked: z.boolean().nullish(),
+});
+
+/**
+ * `details` của 409 `EINVOICE_WITHDRAWAL_REFUSED` / `EINVOICE_WITHDRAWAL_EVIDENCE_REQUIRED` (WF-05 F-12, BE-59):
+ * mốc rút được (instant | null) và câu trả lời của NCC. Đọc khoan dung — sai hình thì coi như không có.
+ */
+export const withdrawalRefusalDetailsSchema = z.object({
+  withdrawableFrom: z.string().nullish().catch(null),
+  // `UNKNOWN` là một câu trả lời thật của NCC ("chưa trả lời rõ") — giá trị lạ đọc là null, không lẫn với nó
+  providerState: z.enum(WITHDRAWAL_PROVIDER_STATES).nullish().catch(null),
+});
+
+/** `details` của 409 `EINVOICE_DRAFT_OUT_OF_DATE` (WF-05 F-16, BE-25): cảnh báo mới chưa được xác nhận. */
+export const draftOutOfDateDetailsSchema = z.object({
+  warnings: z.array(z.string()).catch([]),
 });
 
 export const fileLinkDtoSchema = z.object({ url: z.string(), expiresAt: z.string() });
@@ -228,6 +283,10 @@ export const einvoiceSettingsDtoSchema = z.object({
   version: z.number().int(),
 });
 
+/**
+ * BE `EInvoiceProviderResponse`. Cờ khả năng (WF-05 F-11, BE-58) vắng với BE cũ → FE dùng bảng dự phòng trong
+ * `@/constants/einvoice` (`DEPLOYMENT_ACCOUNT_PROVIDERS`, `ERROR_NOTICE_PROVIDERS`).
+ */
 export const einvoiceProviderDtoSchema = z.object({
   provider: z.string(),
   environment: z.string().nullish(),
@@ -236,4 +295,11 @@ export const einvoiceProviderDtoSchema = z.object({
   active: z.boolean(),
   autoIssue: z.boolean(),
   version: z.number().int(),
+  /** Tài khoản đọc từ biến môi trường máy chủ (SePay) — không lưu qua màn này. */
+  accountInDeployment: z.boolean().nullish(),
+  /** Biến môi trường đủ để gọi NCC. */
+  deploymentAccountReady: z.boolean().nullish(),
+  issuesCorrections: z.boolean().nullish(),
+  adjustsReplacements: z.boolean().nullish(),
+  sendsErrorNotices: z.boolean().nullish(),
 });

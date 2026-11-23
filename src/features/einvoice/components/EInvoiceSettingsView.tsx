@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { EINVOICE_SETTINGS_PERMISSIONS } from "@/constants/einvoice";
+import { EINVOICE_PROVIDER_LABELS } from "@/constants/labels-einvoice";
 import { useCan } from "@/lib/auth/components/Can";
 import { LoadErrorState } from "@/components/backoffice/LoadErrorState";
 import { Card } from "@/components/shared/Card";
@@ -14,22 +15,44 @@ import { Label } from "@/components/ui/label";
 import { einvoiceErrorMessage } from "../errors";
 import { useActivateProvider, useChangeAutoIssue } from "../mutations";
 import { useEInvoiceProviders, useEInvoiceSettings } from "../queries";
+import { accountSource } from "../selectors";
 
 import { EINVOICE_COPY } from "./copy";
 import { InfoRow } from "./primitives";
 import { ProviderAccountForm } from "./ProviderAccountForm";
 import { SeriesForm } from "./SeriesForm";
 
-const PROVIDER_NAME: Record<string, string> = {
-  SANDBOX: "Sandbox (thử nghiệm, không có giá trị pháp lý)",
-  VIETTEL_SINVOICE: "Viettel SInvoice",
-};
+import type { EInvoiceProvider } from "../types";
+
 const COPY = { ...EINVOICE_COPY, pageTitle: "Cấu hình hoá đơn điện tử" };
+const providerName = (code: string) => EINVOICE_PROVIDER_LABELS[code] ?? code;
+
+const deploymentText = (ready: boolean | null | undefined) =>
+  ready === true
+    ? "Tài khoản cấu hình trên máy chủ — đã sẵn sàng"
+    : ready === false
+      ? "Tài khoản cấu hình trên máy chủ — máy chủ chưa đủ thông tin, nhờ quản trị máy chủ kiểm tra"
+      : "Tài khoản cấu hình trên máy chủ";
+
+/** Phần tài khoản của một NCC khi không sửa được ở đây (sandbox / tài khoản máy chủ) hoặc người xem không có quyền. */
+function AccountNote({ provider, canUpdate }: { provider: EInvoiceProvider; canUpdate: boolean }) {
+  const source = accountSource(provider);
+  const text =
+    source === "none"
+      ? "Sandbox không cần tài khoản."
+      : source === "deployment"
+        ? `${deploymentText(provider.deploymentAccountReady)} (không sửa ở màn này).`
+        : canUpdate
+          ? null
+          : "Chỉ Quản trị hệ thống sửa được tài khoản.";
+  return text ? <p className="text-ink-tertiary text-[0.8125rem]">{text}</p> : null;
+}
 
 /**
- * Cấu hình kết nối nhà cung cấp hoá đơn điện tử (docs 21 §2, BR-07, BR-09, BR-10): nhà cung cấp đang
- * dùng, tự phát hành nháp đủ thông tin (mặc định tắt — Kế toán bấm phát hành, BR-02), ký hiệu theo
- * năm, tài khoản từng nhà cung cấp. Kế toán chỉ xem; Quản trị hệ thống sửa.
+ * Cấu hình kết nối nhà cung cấp hoá đơn điện tử (docs 21 §2, BR-07, BR-09, BR-10): nhà cung cấp đang dùng, tự phát hành
+ * (WF-05 Q-1 §1.5: bật mặc định cho SePay, Quản trị chỉ tắt khi có sự cố), ký hiệu theo năm, tài khoản từng nhà cung cấp
+ * — sandbox không có tài khoản, SePay đọc tài khoản từ biến môi trường của máy chủ, nên hai NCC này không có form
+ * (BE `storeAccount` từ chối; Q-22 "§2 tài khoản NCC", BO-04). Kế toán chỉ xem; Quản trị hệ thống sửa.
  */
 export function EInvoiceSettingsView() {
   const canRead = useCan(EINVOICE_SETTINGS_PERMISSIONS.read);
@@ -48,6 +71,8 @@ export function EInvoiceSettingsView() {
     );
   if (settings.isPending) return <PageSkeleton variant="detail" />;
   const s = settings.data;
+  const inUse = (providers.data ?? []).find((p) => p.provider === s.provider);
+  const source = accountSource(inUse ?? { provider: s.provider });
 
   return (
     <div className="surface-soft surface-compact space-y-4">
@@ -55,11 +80,23 @@ export function EInvoiceSettingsView() {
       <Card className="space-y-3">
         <h2 className="text-ink-primary text-sm font-semibold">Nhà cung cấp đang dùng</h2>
         <dl className="grid grid-cols-[minmax(140px,auto)_1fr] gap-x-4 gap-y-2 text-[0.8125rem]">
-          <InfoRow label="Nhà cung cấp">{PROVIDER_NAME[s.provider] ?? s.provider}</InfoRow>
+          <InfoRow label="Nhà cung cấp">{providerName(s.provider)}</InfoRow>
           <InfoRow label="Môi trường">{s.environment ?? "—"}</InfoRow>
           {s.endpoint && <InfoRow label="Địa chỉ API">{s.endpoint}</InfoRow>}
-          <InfoRow label="Tài khoản">{s.username ?? "Chưa lưu"}</InfoRow>
-          <InfoRow label="Mật khẩu">{s.secretSet ? "Đã lưu (không hiển thị)" : "Chưa lưu"}</InfoRow>
+          {source === "stored" ? (
+            <>
+              <InfoRow label="Tài khoản">{s.username ?? "Chưa lưu"}</InfoRow>
+              <InfoRow label="Mật khẩu">
+                {s.secretSet ? "Đã lưu (không hiển thị)" : "Chưa lưu"}
+              </InfoRow>
+            </>
+          ) : (
+            <InfoRow label="Tài khoản">
+              {source === "none"
+                ? "Sandbox không cần tài khoản"
+                : deploymentText(inUse?.deploymentAccountReady)}
+            </InfoRow>
+          )}
           <InfoRow label="Ký hiệu">
             {s.series.length === 0
               ? "Chưa cấu hình — chưa phát hành được"
@@ -76,7 +113,8 @@ export function EInvoiceSettingsView() {
             }
           />
           <Label htmlFor="einvoice-auto-issue" className="text-[0.8125rem]">
-            Tự phát hành nháp đủ thông tin (mặc định tắt: Kế toán bấm phát hành)
+            Tự phát hành ngay khi giao thành công (nháp có cảnh báo về thuế vẫn chờ Kế toán) — chỉ
+            tắt khi có sự cố
           </Label>
         </div>
         {error && (
@@ -95,7 +133,7 @@ export function EInvoiceSettingsView() {
         <Card key={provider.provider} className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-ink-primary text-sm font-semibold">
-              {PROVIDER_NAME[provider.provider] ?? provider.provider}
+              {providerName(provider.provider)}
               {provider.active ? " — đang dùng" : ""}
             </h2>
             {canUpdate && !provider.active && (
@@ -114,12 +152,10 @@ export function EInvoiceSettingsView() {
               </Button>
             )}
           </div>
-          {canUpdate ? (
+          {canUpdate && accountSource(provider) === "stored" ? (
             <ProviderAccountForm provider={provider} />
           ) : (
-            <p className="text-ink-tertiary text-[0.8125rem]">
-              Chỉ Quản trị hệ thống sửa được tài khoản.
-            </p>
+            <AccountNote provider={provider} canUpdate={canUpdate} />
           )}
         </Card>
       ))}

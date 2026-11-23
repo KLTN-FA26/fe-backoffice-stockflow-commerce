@@ -322,7 +322,7 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: Ban,
         permission: CANCELLATION_REQUEST_PERMISSIONS.read,
       },
-      // Giao thất bại (WF-05 GH-1): lô hãng mang về chờ Sale quyết — BE `GET /orders/delivery-failures` đòi sales-orders:READ
+      // Lô hàng hoàn về (WF-05 BO-01): lịch sử lô hãng mang về — BE `GET /orders/delivery-failures` đòi sales-orders:READ
       {
         label: DELIVERY_FAILURE_LABELS.title,
         href: ADMIN_ROUTES.orders.deliveryFailures,

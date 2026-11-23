@@ -12,16 +12,16 @@ import { statusLabelVi } from "@/lib/status-map";
 import { installmentTakesMoney } from "./lifecycle";
 
 import type {
-  InstallmentApiStatus,
   InstallmentDisplayStatus,
-  ReceiptApiStatus,
+  InstallmentReadStatus,
+  ReceiptReadStatus,
 } from "@/constants/payment";
 import type { Installment, ReceiptFormValues } from "./types";
 
 const L = PAYMENT_LABELS.installments;
 
 /** Nhãn tiếng Việt; trạng thái chưa có nhãn → "Không rõ", không lộ mã tiếng Anh ("Partially Paid") — BO-UX-6. */
-export function installmentStatusLabel(status: InstallmentApiStatus): string {
+export function installmentStatusLabel(status: InstallmentReadStatus): string {
   return (
     statusLabelVi(INSTALLMENT_STATUS_BY_API[status], "payment") ?? PAYMENT_LIST_LABELS.unknownStatus
   );
@@ -37,7 +37,7 @@ export function displayStatus(
   return installment.overdue ? "OVERDUE" : installment.status;
 }
 
-export function receiptStatusLabel(status: ReceiptApiStatus): string {
+export function receiptStatusLabel(status: ReceiptReadStatus): string {
   return (
     statusLabelVi(RECEIPT_STATUS_BY_API[status], "payment") ?? PAYMENT_LIST_LABELS.unknownStatus
   );

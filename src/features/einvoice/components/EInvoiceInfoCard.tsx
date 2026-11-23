@@ -2,15 +2,15 @@
 
 import { AlertTriangle, Ban, XCircle } from "lucide-react";
 
-import { EINVOICE_ROUTES } from "@/constants/einvoice";
+import { EINVOICE_ISSUED_VIA_PORTAL, EINVOICE_ROUTES } from "@/constants/einvoice";
 import { CORRECTION_BASIS_LABELS, EINVOICE_LABELS } from "@/constants/labels-einvoice";
 import { ADMIN_ROUTES } from "@/constants";
 import { formatDateTime } from "@/lib/format/date";
 import { Card } from "@/components/shared/Card";
 
-import { invoiceReference, rejectionText, warningMessages } from "../selectors";
+import { invoiceReference, lateIssueBadge, rejectionText, warningMessages } from "../selectors";
 
-import { CodeLink, DateCell, EInvoiceStatusDot, InfoRow, TypeText } from "./primitives";
+import { CodeLink, DateCell, EInvoiceStatusDot, InfoRow, LateBadge, TypeText } from "./primitives";
 
 import type { EInvoice } from "../types";
 
@@ -41,13 +41,17 @@ function Party({ title, party }: { title: string; party: EInvoice["buyer"] }) {
  */
 export function EInvoiceInfoCard({ invoice }: { invoice: EInvoice }) {
   const warnings = warningMessages(invoice);
+  const late = lateIssueBadge(invoice);
   return (
     <Card className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-ink-primary font-mono text-sm font-semibold">
           {invoiceReference(invoice)}
         </h2>
-        <EInvoiceStatusDot status={invoice.status} />
+        <span className="flex items-center gap-2">
+          {late && <LateBadge label={late} />}
+          <EInvoiceStatusDot status={invoice.status} />
+        </span>
       </div>
       {warnings.length > 0 && (
         <ul
@@ -103,7 +107,9 @@ export function EInvoiceInfoCard({ invoice }: { invoice: EInvoice }) {
         </InfoRow>
         {invoice.contractNumber && <InfoRow label="Hợp đồng">{invoice.contractNumber}</InfoRow>}
         <InfoRow label={C.shipment}>
-          <span className="font-mono">{invoice.shipmentCode ?? "Phần phí vận chuyển còn lại"}</span>
+          <span className="font-mono">
+            {invoice.shipmentCode ?? "Phần phí còn lại (vận chuyển, phí khuôn)"}
+          </span>
         </InfoRow>
         <InfoRow label={C.issueDate}>
           <DateCell iso={invoice.issueDate} />
@@ -117,7 +123,20 @@ export function EInvoiceInfoCard({ invoice }: { invoice: EInvoice }) {
           </InfoRow>
         )}
         {invoice.issuedAt && (
-          <InfoRow label="Phát hành lúc">{formatDateTime(invoice.issuedAt)}</InfoRow>
+          <InfoRow label="Phát hành lúc">
+            {formatDateTime(invoice.issuedAt)}
+            {invoice.issuedVia === EINVOICE_ISSUED_VIA_PORTAL ? ` — ${D.issuedViaPortal}` : ""}
+          </InfoRow>
+        )}
+        {invoice.deliveredOn && (
+          <InfoRow label="Ngày giao">
+            <DateCell iso={invoice.deliveredOn} />
+          </InfoRow>
+        )}
+        {invoice.reversedAt && (
+          <InfoRow label="Đã giảm toàn bộ lúc">
+            <span className="text-danger">{formatDateTime(invoice.reversedAt)}</span>
+          </InfoRow>
         )}
         {invoice.deliveryFailedAt && (
           <InfoRow label={D.deliveryFailedAt}>

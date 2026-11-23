@@ -22,6 +22,7 @@ import { ErrorNoticesCard } from "./ErrorNoticesCard";
 import { EInvoiceInfoCard } from "./EInvoiceInfoCard";
 import { EInvoiceLinesCard } from "./EInvoiceLinesCard";
 import { ProviderCallsCard } from "./ProviderCallsCard";
+import { SignatureCard } from "./SignatureCard";
 
 import type { ReactNode } from "react";
 import type { EInvoiceAction } from "../lifecycle";
@@ -76,7 +77,14 @@ function EInvoiceDetailContent({
         <CorrectionsCard id={invoice.id} />
       )}
       {invoice.status === "ISSUED" && (
-        <ErrorNoticesCard id={invoice.id} provider={invoice.provider} />
+        <ErrorNoticesCard
+          id={invoice.id}
+          provider={invoice.provider}
+          errorNoticeSupported={invoice.errorNoticeSupported}
+        />
+      )}
+      {invoice.hasFiles && (invoice.status === "ISSUED" || invoice.status === "REPLACED") && (
+        <SignatureCard id={invoice.id} />
       )}
       {sections?.(invoice)}
       <ProviderCallsCard id={invoice.id} />

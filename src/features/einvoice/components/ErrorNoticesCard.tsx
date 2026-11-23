@@ -29,9 +29,19 @@ const STATUS: Record<ErrorNotice["status"], string> = {
  * đang chờ có nút gửi lại hoặc hỏi kết quả (BE `/error-notices/{id}/sending`) — chỉ khi NCC của hoá
  * đơn gửi được mẫu này (BE HĐ-6).
  */
-export function ErrorNoticesCard({ id, provider }: { id: string; provider?: string | null }) {
+export function ErrorNoticesCard({
+  id,
+  provider,
+  errorNoticeSupported,
+}: {
+  id: string;
+  provider?: string | null;
+  /** Cờ BE (WF-05 F-11); vắng → dự phòng theo NCC. */
+  errorNoticeSupported?: boolean | null;
+}) {
   const query = useErrorNotices(id);
-  const canSend = useCan(EINVOICE_PERMISSIONS.approve) && sendsErrorNotices(provider);
+  const canSend =
+    useCan(EINVOICE_PERMISSIONS.approve) && sendsErrorNotices({ provider, errorNoticeSupported });
   const send = useSendErrorNotice();
   const [error, setError] = useState<string | null>(null);
   const notices = query.data ?? [];

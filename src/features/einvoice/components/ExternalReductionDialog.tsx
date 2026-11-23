@@ -1,0 +1,152 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+
+import { EINVOICE_LIMITS, EINVOICE_ROUTES } from "@/constants/einvoice";
+import { DatePicker } from "@/components/shared/DatePicker";
+import { FilePickerField } from "@/components/shared/FilePickerField";
+import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
+import { FormField } from "@/components/shared/FormField";
+import { FORM_TEXTAREA_CLASS } from "@/components/shared/form-control-classes";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+
+import { einvoiceErrorMessage } from "../errors";
+import { externalReductionInputSchema } from "../input-schemas";
+import { useRecordExternalReduction } from "../mutations";
+
+import type { EInvoice } from "../types";
+
+function ExternalReductionForm({ invoice, onClose }: { invoice: EInvoice; onClose: () => void }) {
+  const router = useRouter();
+  const [symbol, setSymbol] = useState("");
+  const [templateCode, setTemplateCode] = useState(invoice.templateCode ?? "1");
+  const [invoiceNumber, setInvoiceNumber] = useState("");
+  const [issueDate, setIssueDate] = useState("");
+  const [pdf, setPdf] = useState<File | null>(null);
+  const [xml, setXml] = useState<File | null>(null);
+  const [note, setNote] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const record = useRecordExternalReduction();
+
+  const submit = () => {
+    const parsed = externalReductionInputSchema.safeParse({
+      symbol,
+      templateCode,
+      invoiceNumber,
+      issueDate,
+      pdf,
+      xml,
+      note,
+    });
+    if (!parsed.success) {
+      setError(parsed.error.issues[0]?.message ?? "Dữ liệu chưa hợp lệ");
+      return;
+    }
+    setError(null);
+    record.mutate(
+      { id: invoice.id, ...parsed.data },
+      {
+        onSuccess: (reduction) => {
+          onClose();
+          router.push(EINVOICE_ROUTES.detail(reduction.id));
+        },
+        onError: (failure) => setError(einvoiceErrorMessage(failure)),
+      },
+    );
+  };
+
+  return (
+    <FormDialogBody
+      title={`Ghi hoá đơn giảm làm trên cổng nhà cung cấp cho ${invoice.code}`}
+      description="Hoá đơn giảm không gửi được qua hệ thống (nhà cung cấp cũ, hoặc trả hàng / giao thất bại trên hoá đơn thay thế): Kế toán lập trên cổng nhà cung cấp rồi ghi số, ngày và tệp vào đây. Hệ thống đối chiếu với nhà cung cấp và đọc tệp XML trước khi ghi."
+      submitLabel="Ghi hoá đơn giảm"
+      canSubmit
+      isPending={record.isPending}
+      error={error}
+      onCancel={onClose}
+      onSubmit={submit}
+    >
+      <div className="grid gap-3 md:grid-cols-3">
+        <FormField id="reduction-template" label="Mẫu số" required>
+          <Input
+            id="reduction-template"
+            value={templateCode}
+            onChange={(event) => setTemplateCode(event.target.value)}
+          />
+        </FormField>
+        <FormField id="reduction-symbol" label="Ký hiệu" required>
+          <Input
+            id="reduction-symbol"
+            placeholder="C26TAA"
+            className="font-mono uppercase"
+            value={symbol}
+            onChange={(event) => setSymbol(event.target.value)}
+          />
+        </FormField>
+        <FormField id="reduction-number" label="Số hoá đơn" required>
+          <Input
+            id="reduction-number"
+            inputMode="numeric"
+            value={invoiceNumber}
+            onChange={(event) => setInvoiceNumber(event.target.value)}
+          />
+        </FormField>
+      </div>
+      <FormField id="reduction-date" label="Ngày hoá đơn" required>
+        <DatePicker id="reduction-date" value={issueDate} onChange={setIssueDate} />
+      </FormField>
+      <div className="grid gap-3 md:grid-cols-2">
+        <FormField id="reduction-pdf" label="Bản PDF" required>
+          <FilePickerField
+            id="reduction-pdf"
+            accept="application/pdf"
+            fileName={pdf?.name}
+            onChange={setPdf}
+          />
+        </FormField>
+        <FormField id="reduction-xml" label="Tệp XML">
+          <FilePickerField
+            id="reduction-xml"
+            accept=".xml,application/xml,text/xml"
+            fileName={xml?.name}
+            onChange={setXml}
+          />
+        </FormField>
+      </div>
+      <FormField id="reduction-note" label="Ghi chú" required>
+        <Textarea
+          id="reduction-note"
+          rows={2}
+          maxLength={EINVOICE_LIMITS.noteMax}
+          className={FORM_TEXTAREA_CLASS}
+          value={note}
+          onChange={(event) => setNote(event.target.value)}
+        />
+      </FormField>
+    </FormDialogBody>
+  );
+}
+
+/**
+ * Ghi hoá đơn giảm làm trên cổng NCC (WF-05 Q-8 / Q-9, BE-10; BE `POST /einvoices/{originalId}/external-reductions`)
+ * — lối ra cho bản giảm không gửi được qua hệ thống.
+ */
+export function ExternalReductionDialog({
+  invoice,
+  onClose,
+}: {
+  invoice: EInvoice | null;
+  onClose: () => void;
+}) {
+  return (
+    <FormDialog
+      open={invoice !== null}
+      onOpenChange={(open) => !open && onClose()}
+      className="sm:max-w-[640px]"
+    >
+      {invoice && <ExternalReductionForm invoice={invoice} onClose={onClose} />}
+    </FormDialog>
+  );
+}

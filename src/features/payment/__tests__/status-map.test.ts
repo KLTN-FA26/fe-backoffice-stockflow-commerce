@@ -22,7 +22,10 @@ describe("installment and receipt statuses render in the shared status map", () 
       Paid: "positive",
       Overdue: "danger",
       Cancelled: "danger",
+      // WF-05 BO-11: trạng thái BE thêm sau — "Không rõ", tone trung tính tắt
+      UNKNOWN: "muted",
     });
+    expect(statusLabelVi(INSTALLMENT_STATUS_BY_API.UNKNOWN, "payment")).toBe("Không rõ");
     for (const status of INSTALLMENT_API_STATUSES)
       expect(statusLabelVi(INSTALLMENT_STATUS_BY_API[status], "payment")).toBeTruthy();
   });

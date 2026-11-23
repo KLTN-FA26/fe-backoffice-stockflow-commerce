@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { beginReturnEvidenceUpload } from "../api";
 import { returnEvidenceErrorMessage } from "../errors";
 import { useAttachReturnEvidence } from "../mutations";
-import { evidenceFileProblem } from "../selectors";
+import { claimEvidence, evidenceFileProblem } from "../selectors";
 
 import type { ReturnRequest } from "../types";
 
@@ -31,7 +31,8 @@ export function ReturnEvidenceUpload({ ret }: { ret: ReturnRequest }) {
   const [uploading, setUploading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const attach = useAttachReturnEvidence();
-  const full = (ret.evidence?.length ?? 0) >= MAX;
+  // BE đếm trần theo bước: biên nhận giữ hộ không làm đầy ảnh khiếu nại
+  const full = claimEvidence(ret).length >= MAX;
 
   useEffect(() => () => controller.current?.abort(), []);
 

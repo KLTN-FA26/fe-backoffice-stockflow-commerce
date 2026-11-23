@@ -132,29 +132,46 @@ export type OrderPaymentTerm = (typeof ORDER_PAYMENT_TERMS)[number];
 export type OrderPaymentStatus = (typeof ORDER_PAYMENT_STATUSES)[number];
 export type OrderPaymentReadStatus = (typeof ORDER_PAYMENT_READ_STATUSES)[number];
 /** Hợp đồng mua bán — BE `SalesContractStatus` (docs 14 §5, origin/develop 438fe6fb). */
+/**
+ * BE `SalesContractStatus`. LIQUIDATED (WF-05 Q-6, BE-06, F-3): đơn kết thúc mà không giao được gì (hãng hoàn toàn bộ,
+ * thất lạc toàn bộ, huỷ sau khi ký) và đã xong tiền — hợp đồng "Thanh lý", không bao giờ "Hoàn tất".
+ */
 export const SALES_CONTRACT_STATUSES = [
   "DRAFT",
   "SENT",
   "SIGNED",
   "COMPLETED",
+  "LIQUIDATED",
   "CANCELLED",
 ] as const;
 export type SalesContractStatus = (typeof SALES_CONTRACT_STATUSES)[number];
+/** Trạng thái hợp đồng sau khi đọc: giá trị BE thêm sau → "UNKNOWN" ("Không rõ", không thao tác) — WF-05 BO-11. */
+export type SalesContractReadStatus = SalesContractStatus | "UNKNOWN";
 export const SALES_CONTRACT_STATUS_LABELS = {
   DRAFT: "Nháp",
   SENT: "Đã gửi",
   SIGNED: "Đã ký",
   COMPLETED: "Hoàn tất",
+  LIQUIDATED: "Thanh lý",
   CANCELLED: "Đã huỷ",
-} as const satisfies Record<SalesContractStatus, string>;
+  UNKNOWN: "Không rõ",
+} as const satisfies Record<SalesContractReadStatus, string>;
 /** Tone (status-map) cho chấm trạng thái hợp đồng. */
 export const SALES_CONTRACT_STATUS_TONE_KEY = {
   DRAFT: "Draft",
   SENT: "Sent",
   SIGNED: "Confirmed",
   COMPLETED: "Completed",
+  LIQUIDATED: "Closed",
   CANCELLED: "Cancelled",
-} as const satisfies Record<SalesContractStatus, string>;
+  UNKNOWN: "UNKNOWN",
+} as const satisfies Record<SalesContractReadStatus, string>;
+/** Hợp đồng đã ký (còn hiệu lực hoặc đã kết thúc sau khi ký) — có bản đã ký, có đợt thanh toán thật. */
+export const SALES_CONTRACT_SIGNED_STATUSES = [
+  "SIGNED",
+  "COMPLETED",
+  "LIQUIDATED",
+] as const satisfies readonly SalesContractStatus[];
 /** Mốc đợt thanh toán của hợp đồng — BE `PaymentMilestone` (không gồm phí huỷ). */
 export const CONTRACT_MILESTONES = ["ON_SIGNING", "BEFORE_DELIVERY", "AFTER_DELIVERY"] as const;
 export type ContractMilestone = (typeof CONTRACT_MILESTONES)[number];

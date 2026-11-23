@@ -22,6 +22,7 @@ import {
   ORDER_PAYMENT_STATUSES,
   ORDER_PAYMENT_TERMS,
 } from "@/constants/orders";
+import { SETTLEMENT_BLOCKERS, SETTLEMENT_BRANCHES } from "@/constants/labels-order-settlement";
 import { ORDER_STATUS_UNKNOWN, QUOTE_FEE_KINDS } from "@/constants/statuses";
 
 import { uuid } from "@/lib/validation/primitives";
@@ -167,21 +168,71 @@ export const orderShipmentLineDtoSchema = z.object({
   quantity: z.number().int(),
 });
 
-/** BE `OrderResponse.Shipment` — lô giao của đơn (split shipments, G4-Q3). */
+/**
+ * BE `OrderResponse.Shipment` — lô giao của đơn (split shipments, G4-Q3). Không có tiền: giá trị / công nợ / COD của lô
+ * BE đã bỏ (4B-10) — tiền ở các đợt thanh toán (WF-05 BO-08).
+ */
 export const orderShipmentDtoSchema = z.object({
   shipmentId: z.string(),
   status: orderShipmentStatusDtoSchema,
-  /** Giá trị hàng của lô theo giá đơn. */
-  amount: z.number().nullish(),
-  /** Số tiền giao lô này đã ghi nhận công nợ (đơn công nợ). */
-  billedAmount: z.number().nullish(),
   handedOverAt: z.string().nullish(),
   outcomeAt: z.string().nullish(),
   failureReason: orderDeliveryFailureReasonDtoSchema.nullish(),
   lines: z.array(orderShipmentLineDtoSchema).nullish(),
-  /** Tiền hãng vận chuyển thu khi giao lô (đơn cọc ON_DELIVERY), chốt lúc bàn giao. */
-  codAmount: z.number().nullish(),
+  /**
+   * WF-05 Q-12 (F-5, đề nghị G1): BE cho "đóng phần thất lạc" lô này không (giao thất bại vì LOST VÀ đơn còn nợ đơn vị
+   * của lô). Lô đã đóng vẫn giữ DELIVERY_FAILED + LOST, nên FE không tự biết — vắng thì FE dùng luật dự phòng.
+   */
+  lostClosable: z.boolean().nullish(),
 });
+
+/** Boolean của khối điều kiện: vắng (BE bỏ field) → false. */
+const flag = z
+  .boolean()
+  .nullish()
+  .transform((value) => value ?? false);
+
+/**
+ * BE `OrderResponse.settlementReadiness` (WF-05 contract F-1, BE-34): vì sao đơn chưa tự hoàn tất / chưa tự đóng, do BE
+ * tính (`OrderSettlementService`). Mọi field tuỳ chọn ở FE (BE G1 có thể chưa ship); `branch` / mã chặn lạ không làm hỏng
+ * màn: nhánh lạ → `UNKNOWN`, mã chặn lạ giữ nguyên chuỗi để hiện "điều kiện khác". `returnAdjustmentUnissued` (Q-16,
+ * X-6): dòng thông tin, không chặn.
+ */
+export const settlementReadinessDtoSchema = z
+  .object({
+    branch: tolerantEnum(SETTLEMENT_BRANCHES, ORDER_STATUS_UNKNOWN).nullish(),
+    returnWindowDays: z.number().int().nullish(),
+    returnWindowEndsAt: z.string().nullish(),
+    owing: flag,
+    openReturn: flag,
+    uninvoicedShipmentIds: z.array(z.string()).nullish(),
+    shippingFeeUninvoiced: flag,
+    refundOutstanding: flag,
+    completionHeld: flag,
+    completesAt: z.string().nullish(),
+    closesAt: z.string().nullish(),
+    blockers: z.array(z.string()).nullish(),
+    returnAdjustmentUnissued: flag,
+  })
+  .transform((dto) => ({
+    branch: dto.branch ?? ORDER_STATUS_UNKNOWN,
+    returnWindowDays: dto.returnWindowDays ?? null,
+    returnWindowEndsAt: dto.returnWindowEndsAt ?? null,
+    owing: dto.owing,
+    openReturn: dto.openReturn,
+    uninvoicedShipmentIds: dto.uninvoicedShipmentIds ?? [],
+    shippingFeeUninvoiced: dto.shippingFeeUninvoiced,
+    refundOutstanding: dto.refundOutstanding,
+    completionHeld: dto.completionHeld,
+    completesAt: dto.completesAt ?? null,
+    closesAt: dto.closesAt ?? null,
+    blockers: (dto.blockers ?? []).map((code) =>
+      (SETTLEMENT_BLOCKERS as readonly string[]).includes(code)
+        ? { code: code as (typeof SETTLEMENT_BLOCKERS)[number], known: true as const }
+        : { code, known: false as const },
+    ),
+    returnAdjustmentUnissued: dto.returnAdjustmentUnissued,
+  }));
 
 /** BE `OrderResponse.Fee` (4B-3, 14 BR-17/BR-20/BR-21): dòng phí của đơn kèm VAT; `kind` lạ → `UNKNOWN`. */
 export const orderFeeDtoSchema = z.object({
@@ -235,9 +286,6 @@ export const orderDtoSchema = z.object({
   /** Kho xuất — null tới khi release (SCRUM-423). */
   warehouseId: z.string().nullish(),
   releasedAt: z.string().nullish(),
-  paidAmount: z.number().nullish(),
-  paidInFullAt: z.string().nullish(),
-  paymentStatus: orderPaymentStatusDtoSchema.nullish(),
   creditTermDays: z.number().int().nullish(),
   balancePolicy: orderBalancePolicyDtoSchema.nullish(),
   cancellation: orderCancellationDtoSchema.nullish(),
@@ -258,17 +306,15 @@ export const orderDtoSchema = z.object({
   deliveryFailureReason: orderDeliveryFailureReasonDtoSchema.nullish(),
   completedAt: z.string().nullish(),
   closedAt: z.string().nullish(),
-  // ── Tiền của đơn giao một phần
-  /** Các lô giao đã ghi công nợ (đơn công nợ). */
-  billedAmount: z.number().nullish(),
+  /** WF-05 F-1: lúc tiền hoàn của đơn đã chi xong (mốc đếm ngày đóng của nhánh hoàn tiền). */
+  refundedAt: z.string().nullish(),
+  /** WF-05 F-1 (BE-34): khối điều kiện hoàn tất / đóng do BE tính; null / vắng trước khi giao gì (hoặc BE cũ). */
+  settlementReadiness: settlementReadinessDtoSchema.nullish(),
+  // ── Tiền của đơn giao một phần. Đã thu / còn nợ / công nợ / COD BE bỏ khỏi đơn (4B-10): đọc từ các đợt (BO-08)
   /** Tổng trừ số đơn vị đã đóng ở đơn giao một phần. */
   effectiveTotal: z.number().nullish(),
-  /** Khách còn nợ (effectiveTotal − paidAmount, không âm). */
-  amountDue: z.number().nullish(),
   /** Phải trả trước khi hàng rời kho (G3-Q4): > 0 thì bàn giao bị từ chối. */
   amountDueBeforeHandover: z.number().nullish(),
-  /** Hãng vận chuyển thu khi giao (đơn cọc ON_DELIVERY), 0 với đơn khác. */
-  amountDueOnDelivery: z.number().nullish(),
   // ── Thuế + dòng phí (4B-3): totalAmount = netAmount + taxAmount
   /** Tổng trước thuế — hàng + dòng phí. */
   netAmount: z.number().nullish(),

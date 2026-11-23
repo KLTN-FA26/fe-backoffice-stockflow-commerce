@@ -102,7 +102,15 @@ function RefundDetailContent({ orderId }: { orderId: string }) {
               <InfoRow label={L.remaining}>
                 <MoneyCell amount={refund.remaining} currency={refund.currency} />
               </InfoRow>
+              {refund.feeOwed != null && refund.feeOwed > 0 && (
+                <InfoRow label={L.orderFeeOwed}>
+                  <MoneyCell amount={refund.feeOwed} currency={refund.currency} />
+                </InfoRow>
+              )}
             </dl>
+            {refund.feeOwed != null && refund.feeOwed > 0 && (
+              <p className="text-warning-ink mt-3 text-xs">{L.orderFeeOwedHint}</p>
+            )}
             <p className="text-ink-tertiary mt-3 text-xs">{L.outsideNote}</p>
             {canRecord && (
               <Button

@@ -2,8 +2,9 @@
  * Shipping — action-gating lô giao (feature-architecture §6).
  *
  * Bảng `SHIPMENT_TRANSITIONS` (lib/domain, docs 09 §5). Hãng gắn vào xe khi ghi nhận đặt xe, không còn chọn hãng
- * cho từng lô. Kết quả giao (BE PR #148, docs 09 BR-02): endpoint cần `fulfillment-delivery-outcomes:UPDATE`; ĐÃ GIAO / GIAO THẤT BẠI cần thêm
- * `fulfillment-delivery-outcomes:APPROVE`, HÀNG HOÀN VỀ KHO chỉ cần UPDATE.
+ * cho từng lô. Kết quả giao (BE PR #148, docs 09 BR-02): endpoint cần `fulfillment-delivery-outcomes:UPDATE`, và MỌI kết quả
+ * cần thêm `fulfillment-delivery-outcomes:APPROVE` — kể cả HÀNG HOÀN VỀ KHO (WF-05 Q-7, BE-14, F-6): ghi hàng hoàn về
+ * đóng hẳn phần hàng của lô khỏi đơn và dẫn tới tính tiền, không sửa lại được, nên là việc của người có quyền phê duyệt.
  * UI-only — Backend phải re-check (quyền + cạnh trạng thái → 409 SHIPMENT_STATE_CONFLICT).
  */
 
@@ -24,10 +25,9 @@ import type { ShipmentRow } from "./types";
 const N = UI_LABELS.shipping.shipment.noActions;
 const OUTCOME = FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS;
 
-/** Ghi nhận được kết quả này? RETURNED chỉ cần UPDATE; các kết quả còn lại cần thêm APPROVE. */
-function canRecord(outcome: DeliveryOutcome, actor: ShippingActor): boolean {
-  if (!actor.can(OUTCOME.update)) return false;
-  return outcome === "RETURNED" || actor.can(OUTCOME.approve);
+/** Ghi nhận được kết quả này? Mọi kết quả (gồm RETURNED, Q-7) cần UPDATE + APPROVE — BE 403 nếu thiếu APPROVE. */
+function canRecord(_outcome: DeliveryOutcome, actor: ShippingActor): boolean {
+  return actor.can(OUTCOME.update) && actor.can(OUTCOME.approve);
 }
 
 /** Kết quả ghi nhận được từ trạng thái hiện tại, theo bảng chuyển trạng thái và quyền của người dùng. */

@@ -10,26 +10,36 @@ import {
   PAYMENT_REFUND_PERMISSIONS,
 } from "@/constants/payment";
 
-import type { InstallmentApiStatus, ReceiptApiStatus } from "@/constants/payment";
+import type {
+  InstallmentApiStatus,
+  InstallmentReadStatus,
+  ReceiptApiStatus,
+  ReceiptReadStatus,
+} from "@/constants/payment";
 import type { PermissionCode } from "@/lib/auth/me-permissions";
 import type { OrderRefund, RefundRecord } from "./types";
 
-/** docs 15 §5.1 — `Paid` và `Cancelled` là cuối (huỷ phiếu thu thì tính lại, không phải chuyển tiếp). */
+/**
+ * docs 15 §5.1 — `Paid` và `Cancelled` là cuối (huỷ phiếu thu thì tính lại, không phải chuyển tiếp). Trạng thái BE thêm sau
+ * (UNKNOWN, WF-05 BO-11): FE không đoán — không thao tác.
+ */
 export const INSTALLMENT_TRANSITIONS: Readonly<
-  Record<InstallmentApiStatus, readonly InstallmentApiStatus[]>
+  Record<InstallmentReadStatus, readonly InstallmentApiStatus[]>
 > = {
   NOT_DUE: ["DUE", "PARTIALLY_PAID", "PAID", "CANCELLED"],
   DUE: ["PARTIALLY_PAID", "PAID", "CANCELLED"],
   PARTIALLY_PAID: ["PAID", "CANCELLED"],
   PAID: [],
   CANCELLED: [],
+  UNKNOWN: [],
 };
 
 /** docs 15 §5.3 — phiếu thu `Recorded` chỉ chuyển được sang `Voided` (BR-04: không sửa). */
-export const RECEIPT_TRANSITIONS: Readonly<Record<ReceiptApiStatus, readonly ReceiptApiStatus[]>> =
+export const RECEIPT_TRANSITIONS: Readonly<Record<ReceiptReadStatus, readonly ReceiptApiStatus[]>> =
   {
     RECORDED: ["VOIDED"],
     VOIDED: [],
+    UNKNOWN: [],
   };
 
 export type PaymentAction = "recordReceipt" | "voidReceipt" | "recordRefund" | "voidRefundRecord";
@@ -44,12 +54,12 @@ const NEEDS: Readonly<Record<PaymentAction, PermissionCode>> = {
 type Can = (code: PermissionCode) => boolean;
 
 /** Đợt còn nhận tiền: chưa `Paid` / `Cancelled` (docs 15 BR-05; kể cả `Not Due` — khách trả sớm). */
-export function installmentTakesMoney(status: InstallmentApiStatus): boolean {
-  return (INSTALLMENT_PAYABLE_STATUSES as readonly InstallmentApiStatus[]).includes(status);
+export function installmentTakesMoney(status: InstallmentReadStatus): boolean {
+  return (INSTALLMENT_PAYABLE_STATUSES as readonly string[]).includes(status);
 }
 
 export function allowedInstallmentActions(
-  installment: { status: InstallmentApiStatus },
+  installment: { status: InstallmentReadStatus },
   can: Can,
 ): PaymentAction[] {
   return installmentTakesMoney(installment.status) && can(NEEDS.recordReceipt)
@@ -58,7 +68,7 @@ export function allowedInstallmentActions(
 }
 
 export function allowedReceiptActions(
-  receipt: { status: ReceiptApiStatus },
+  receipt: { status: ReceiptReadStatus },
   can: Can,
 ): PaymentAction[] {
   return RECEIPT_TRANSITIONS[receipt.status].includes("VOIDED") && can(NEEDS.voidReceipt)

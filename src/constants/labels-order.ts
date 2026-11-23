@@ -17,7 +17,8 @@ export const ORDER_HOLD_REASONS = [
   "CUSTOMER",
   "FRAUD",
   "OTHER",
-  // WF-05 GH-1: lô hãng mang về → đơn giữ tới khi Sale quyết hồ sơ giao thất bại (không gỡ tay — HoldReason#resolvedByNote)
+  // Đơn cũ trước BE PR #377: lô hãng mang về giữ đơn tới khi Sale quyết hồ sơ (không gỡ tay — HoldReason#resolvedByNote).
+  // Từ #377 lô hoàn về không giữ đơn nữa; mã còn trên đơn cũ (WF-05 Q-13).
   "DELIVERY_FAILED",
 ] as const;
 
@@ -46,7 +47,7 @@ export const ORDER_HOLD_REASON_LABELS = {
   CUSTOMER: "Chờ khách xác nhận thay đổi",
   FRAUD: "Nghi ngờ gian lận",
   OTHER: "Lý do khác",
-  DELIVERY_FAILED: "Giao thất bại — chờ Sale quyết định giao lại hoặc huỷ phần chưa giao",
+  DELIVERY_FAILED: "Giao thất bại (đơn cũ) — chờ Sale huỷ phần chưa giao",
 } as const satisfies Record<(typeof ORDER_HOLD_REASONS)[number], string>;
 
 /**
@@ -57,7 +58,7 @@ export const ORDER_HOLD_GUIDANCE = {
   CREDIT:
     "Đơn bị giữ chờ duyệt công nợ (khách quá hạn hoặc vượt hạn mức) — không gỡ giữ tại đây. Duyệt hoặc từ chối ở màn duyệt công nợ.",
   DELIVERY_FAILED:
-    "Đơn bị giữ vì giao thất bại — không gỡ giữ tại đây. Quyết định giao lại hoặc huỷ phần chưa giao ở khối “Giao thất bại”.",
+    "Đơn cũ bị giữ vì giao thất bại — không gỡ giữ tại đây. Huỷ phần chưa giao ở khối “Lô hàng hoàn về”; muốn gửi lại hàng thì tạo đơn mới.",
   UNRESOLVABLE: "Không xác định được lý do giữ — chưa thể gỡ giữ từ màn này. Tải lại trang.",
 } as const;
 

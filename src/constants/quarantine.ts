@@ -71,6 +71,14 @@ export const QUARANTINE_LABELS = {
   heldForOrder:
     "Thùng đang được giữ cho một đơn hàng. Nhả hoặc phân bổ lại thùng cho đơn trước khi cách ly.",
   released: "Đã mở nhiệm vụ cất hàng cho thùng này.",
+  // WF-05 BE-24 / Q-18: thùng hàng trả về đã mở — không gỡ cách ly, chỉ ghi giảm
+  openedOnReturn: "Thùng hàng trả về đã mở",
+  openedOnReturnYes: "Đã mở khi về",
+  openedOnReturnNotice:
+    "Thùng hàng trả về đã bị mở (ít hơn số trên nhãn): hàng in riêng không bán lại được, chỉ ghi giảm — không gỡ cách ly.",
+  // WF-05 Q-18: từ nay thùng về đã mở không nhập lại tồn
+  openedOnReturnConsumed:
+    "Thùng hàng trả về đã bị mở hoặc rỗng: không nhập lại tồn, hàng đã huỷ theo số đếm thật trên phiếu nhập hàng hoàn.",
   back: "Quay lại",
   loadError: "Không tra cứu được thùng",
   backToList: "Về danh sách khu cách ly",
@@ -103,6 +111,7 @@ export const QUARANTINE_LIST_LABELS = {
     onHand: "Còn trong thùng",
     reserved: "Đang giữ cho đơn",
     status: "Trạng thái thùng",
+    openedOnReturn: "Hàng trả về",
   },
   caption: "Thùng trong khu cách ly",
 } as const;

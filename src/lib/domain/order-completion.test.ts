@@ -72,3 +72,25 @@ describe("closingDate (BE Order.close)", () => {
     expect(closingDate("2026-11-10T17:30:00Z").toISOString()).toBe("2026-12-10T17:30:00.000Z");
   });
 });
+
+describe("completionChecks — dự phòng WF-05 BO-02 (C-7)", () => {
+  it("hạn đổi trả theo hợp đồng, không cố định 7 ngày", () => {
+    // Giao 1/11, 7 ngày đã qua ngày 9/11 nhưng hợp đồng ghi 14 → chưa hết hạn
+    const checks = completionChecks(
+      facts({ returnWindowDays: 14 }),
+      new Date("2026-11-10T00:00:00Z"),
+    );
+    expect(met(checks).returnWindow).toBe(false);
+    expect(checks[0]?.label).toBe("Hết hạn đổi / trả 14 ngày");
+    expect(
+      met(completionChecks(facts({ returnWindowDays: 14 }), new Date("2026-11-16T00:00:00Z")))
+        .returnWindow,
+    ).toBe(true);
+  });
+
+  it("hợp đồng không ghi hạn → mặc định 7", () => {
+    expect(completionChecks(facts({ returnWindowDays: null }))[0]?.label).toBe(
+      "Hết hạn đổi / trả 7 ngày",
+    );
+  });
+});

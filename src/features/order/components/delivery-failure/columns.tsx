@@ -3,45 +3,19 @@ import Link from "next/link";
 import { ADMIN_ROUTES, DELIVERY_FAILURE_LABELS } from "@/constants";
 import { formatDateTime } from "@/lib/format/date";
 
-import { allowedDeliveryFailureActions } from "../../delivery-failure-lifecycle";
-
-import { CancelUndeliveredAction } from "./CancelUndeliveredAction";
 import { DeliveryFailureStatus, failureReasonLabel } from "./DeliveryFailureStatus";
-import { RedeliverAction } from "./RedeliverAction";
 
 import type { ColumnDef } from "@/components/shared/DataTable";
-import type { PermissionCode } from "@/lib/auth";
 import type { DeliveryFailureCase } from "../../delivery-failure-schemas";
 
 const C = DELIVERY_FAILURE_LABELS.columns;
 const MONO = "font-[family-name:var(--font-mono)] text-[0.8125rem]";
 
-/** Nút quyết định của một hồ sơ — gate qua `allowedDeliveryFailureActions` (không if/else rải trong JSX). */
-function CaseActions({
-  row,
-  can,
-}: {
-  row: DeliveryFailureCase;
-  can: (code: PermissionCode) => boolean;
-}) {
-  const actions = allowedDeliveryFailureActions(row, can);
-  if (actions.length === 0) return null;
-  return (
-    <div className="flex justify-end gap-1.5">
-      {actions.includes("redeliver") && <RedeliverAction failure={row} compact />}
-      {actions.includes("cancel-undelivered") && (
-        <CancelUndeliveredAction
-          compact
-          target={{ orderId: row.orderId, orderNumber: row.orderNumber, caseId: row.caseId }}
-        />
-      )}
-    </div>
-  );
-}
-
-/** Cột hàng đợi giao thất bại — cũ nhất trước (BE trả `openedAt` ASC). */
+/**
+ * Cột lịch sử lô hàng hoàn về (WF-05 BO-01) — chỉ đọc: không còn "Giao lại"; "Huỷ phần chưa giao" của đơn cũ nằm trong
+ * chi tiết đơn (cần lý do giữ của đơn, dòng ở đây không có).
+ */
 export function buildDeliveryFailureColumns(
-  can: (code: PermissionCode) => boolean,
   canOpenOrder: boolean,
 ): ColumnDef<DeliveryFailureCase>[] {
   return [
@@ -91,13 +65,7 @@ export function buildDeliveryFailureColumns(
     {
       key: "status",
       header: C.status,
-      cell: (row) => <DeliveryFailureStatus status={row.status} />,
-    },
-    {
-      key: "actions",
-      header: C.actions,
-      align: "right",
-      cell: (row) => <CaseActions row={row} can={can} />,
+      cell: (row) => <DeliveryFailureStatus failure={row} />,
     },
   ];
 }

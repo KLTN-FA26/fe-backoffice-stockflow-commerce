@@ -112,6 +112,30 @@ describe("RefundDetail — record a refund paid outside the system (docs 15 §4.
     expect(screen.getByText("Chưa ghi nhận lần hoàn nào.")).toBeInTheDocument();
   });
 
+  it("WF-05 Q-2 / BE-51: a carrier return reads 'Lô hãng hoàn về', with the waived shipping fee and the fees still owed", async () => {
+    mockPaymentApi(
+      ACCOUNTANT_GRANTS,
+      routes(
+        undefined,
+        detail({
+          feeOwed: 300_000,
+          settlements: [
+            {
+              ...settlement,
+              kind: "SHIPMENT_RETURNED",
+              shipmentId: "sh-1",
+              shippingFeeWaived: 50_000,
+            },
+          ],
+        }),
+      ),
+    );
+    renderPaymentScreen(<RefundDetail orderId="ord-15" />);
+    expect(await screen.findByText("Lô hãng hoàn về")).toBeInTheDocument();
+    expect(screen.getByText("Phí vận chuyển được miễn (lô hoàn về)")).toBeInTheDocument();
+    expect(screen.getByText("Phí khách còn nợ")).toBeInTheDocument();
+  });
+
   it("records an amount, date and outgoing statement reference — amount prefilled with what is left", async () => {
     const api = mockPaymentApi(ACCOUNTANT_GRANTS, routes());
     renderPaymentScreen(<RefundDetail orderId="ord-15" />);

@@ -129,8 +129,9 @@ describe("order API contract (BE OrderResponse)", () => {
     );
     expect(order.lines[0]?.isCustom).toBe(true);
     expect(order.paymentTerm).toBeNull();
-    expect(order.paymentStatus).toBeNull();
     expect(order.cancellation).toBeNull();
+    expect(order.settlementReadiness).toBeNull();
+    expect(order.refundedAt).toBeNull();
   });
 
   it("map field thanh toán / release / huỷ (SCRUM-423/427/460)", () => {
@@ -139,8 +140,6 @@ describe("order API contract (BE OrderResponse)", () => {
         ...beOrder,
         status: "CANCELLED",
         paymentTerm: "DEPOSIT",
-        paymentStatus: "PARTIALLY_PAID",
-        paidAmount: 100000,
         depositRequired: 105000,
         warehouseId: "8f8f8f8f-0000-4000-8000-000000000001",
         cancellation: { reasonCode: "CUSTOMER_REQUEST", retainedAmount: 0 },
@@ -148,8 +147,6 @@ describe("order API contract (BE OrderResponse)", () => {
     );
     expect(order).toMatchObject({
       paymentTerm: "DEPOSIT",
-      paymentStatus: "PARTIALLY_PAID",
-      paidAmount: 100000,
       depositRequired: 105000,
       depositReceivedAt: null,
       warehouseId: "8f8f8f8f-0000-4000-8000-000000000001",
@@ -246,7 +243,6 @@ describe("order API contract (BE OrderResponse)", () => {
       { holdReason: 1 },
       { deliveryFailureReason: false },
       { statusBeforeHold: 2 },
-      { paymentStatus: true },
       { paymentTerm: 1 },
       { shipments: [{ shipmentId: "s-1", status: 7 }] },
     ]) {
@@ -322,13 +318,37 @@ describe("order API — trạng thái BE mới FE chưa hỗ trợ (forward-comp
     expect(history[0]).toMatchObject({ actorName: null, reason: null });
   });
 
-  it("paymentStatus lạ → UNKNOWN; paymentTerm lạ → null (không thành lựa chọn mới)", async () => {
-    vi.spyOn(api, "get").mockResolvedValue({
-      data: { ...beOrder, paymentTerm: "INSTALLMENT", paymentStatus: "REFUNDED" },
-    });
+  it("paymentTerm lạ → null (không thành lựa chọn mới)", async () => {
+    vi.spyOn(api, "get").mockResolvedValue({ data: { ...beOrder, paymentTerm: "INSTALLMENT" } });
     const order = await getOrder(beOrder.orderId);
-    expect(order.paymentStatus).toBe("UNKNOWN");
     expect(order.paymentTerm).toBeNull();
+  });
+
+  it("WF-05 BO-08: field tiền BE đã bỏ (đã thu, trạng thái TT, công nợ, COD) không còn trên model dù BE cũ gửi", () => {
+    const order = toOrder(
+      orderDtoSchema.parse({
+        ...beOrder,
+        paymentStatus: "PAID",
+        paidAmount: 100000,
+        paidInFullAt: "2026-09-08T00:00:00Z",
+        billedAmount: 100000,
+        amountDue: 0,
+        amountDueOnDelivery: 0,
+        shipments: [{ shipmentId: "s-1", status: "DELIVERED", amount: 1, codAmount: 1 }],
+      }),
+    );
+    for (const key of [
+      "paymentStatus",
+      "paidAmount",
+      "paidInFullAt",
+      "billedAmount",
+      "amountDue",
+      "amountDueOnDelivery",
+    ]) {
+      expect(order, key).not.toHaveProperty(key);
+    }
+    expect(order.shipments[0]).not.toHaveProperty("amount");
+    expect(order.shipments[0]).not.toHaveProperty("codAmount");
   });
 
   it("paymentTerm vắng key / null → model null; đã biết giữ nguyên", () => {
@@ -404,9 +424,7 @@ describe("OrderResponse vòng đời + tiền (BE PR #133)", () => {
         deliveryFailureReason: "CUSTOMER_ABSENT",
         completedAt: "2026-09-16T02:00:00Z",
         closedAt: "2026-10-16T02:00:00Z",
-        billedAmount: 100000,
         effectiveTotal: 250000,
-        amountDue: 50000,
         amountDueBeforeHandover: 0,
         lines: [
           { ...beOrder.lines[0], shippedQuantity: 1, deliveredQuantity: 0, cancelledQuantity: 1 },
@@ -415,7 +433,6 @@ describe("OrderResponse vòng đời + tiền (BE PR #133)", () => {
           {
             shipmentId: "s-1",
             status: "HANDED_OVER",
-            amount: 175000,
             handedOverAt: "2026-09-08T02:00:00Z",
             lines: [{ lineId: beOrder.lines[0]?.lineId, quantity: 1 }],
           },
@@ -432,9 +449,7 @@ describe("OrderResponse vòng đời + tiền (BE PR #133)", () => {
       packedAt: "2026-09-08T01:00:00Z",
       deliveryFailureReason: "CUSTOMER_ABSENT",
       closedAt: "2026-10-16T02:00:00Z",
-      billedAmount: 100000,
       effectiveTotal: 250000,
-      amountDue: 50000,
       amountDueBeforeHandover: 0,
     });
     expect(order.lines[0]).toMatchObject({
@@ -445,8 +460,7 @@ describe("OrderResponse vòng đời + tiền (BE PR #133)", () => {
     expect(order.shipments).toHaveLength(2);
     expect(order.shipments[0]).toMatchObject({
       status: "HANDED_OVER",
-      billedAmount: null,
-      amount: 175000,
+      handedOverAt: "2026-09-08T02:00:00Z",
     });
     // Trạng thái lô lạ → UNKNOWN, lô không có `lines` → []
     expect(order.shipments[1]).toMatchObject({ status: "UNKNOWN", lines: [] });
@@ -472,22 +486,17 @@ describe("OrderResponse vòng đời + tiền (BE PR #133)", () => {
       {
         shipmentId: "6c5e0a10-1111-4222-8333-444455556666",
         status: "HANDED_OVER",
-        amount: 175000,
-        billedAmount: null,
         handedOverAt: "2026-09-08T02:00:00Z",
         outcomeAt: null,
         failureReason: null,
         lines: [{ lineId: "9f0e1d2c-aaaa-4bbb-8ccc-dddd00001111", quantity: 1 }],
-        codAmount: null,
+        lostClosable: null,
       },
     ]);
     // Mapper không tự tính tiền: số nào BE gửi thì giữ nguyên, vắng → null
     expect(order).toMatchObject({
       effectiveTotal: 350000,
-      amountDue: 100000,
       amountDueBeforeHandover: 0,
-      billedAmount: 0,
-      amountDueOnDelivery: null,
       packedAt: "2026-09-08T01:00:00Z",
     });
   });
@@ -497,7 +506,6 @@ describe("OrderResponse vòng đời + tiền (BE PR #133)", () => {
     expect(order).toMatchObject({
       status: "Cancelled",
       paymentTerm: "DEPOSIT",
-      paymentStatus: "PARTIALLY_PAID",
       depositReceivedAt: "2026-09-07T04:00:00Z",
       releasedAt: "2026-09-07T05:00:00Z",
       cancellation: {
@@ -513,16 +521,11 @@ describe("OrderResponse vòng đời + tiền (BE PR #133)", () => {
   });
 
   // Giá trị policy lạ → "UNKNOWN" ("Không rõ"), theo BE PR #150 của develop (PR #74 dựa vào để chặn FTL + COD)
-  it("đơn cọc thu khi giao (G2-3): balancePolicy + amountDueOnDelivery; giá trị policy lạ → UNKNOWN", () => {
+  it("đơn cọc thu khi giao (G2-3): balancePolicy; giá trị policy lạ → UNKNOWN", () => {
     const order = toOrder(
-      orderDtoSchema.parse({
-        ...beOrder,
-        paymentTerm: "DEPOSIT",
-        balancePolicy: "ON_DELIVERY",
-        amountDueOnDelivery: 245000,
-      }),
+      orderDtoSchema.parse({ ...beOrder, paymentTerm: "DEPOSIT", balancePolicy: "ON_DELIVERY" }),
     );
-    expect(order).toMatchObject({ balancePolicy: "ON_DELIVERY", amountDueOnDelivery: 245000 });
+    expect(order).toMatchObject({ balancePolicy: "ON_DELIVERY" });
     expect(
       toOrder(orderDtoSchema.parse({ ...beOrder, balancePolicy: "LATER" })).balancePolicy,
     ).toBe("UNKNOWN");
@@ -793,5 +796,68 @@ describe("thao tác trạng thái đơn (BE PR #133) — mỗi endpoint trả Or
     expect(config).toEqual({ headers: { "Idempotency-Key": key } });
     expect(JSON.stringify(body)).not.toContain(key);
     expect(body).not.toHaveProperty("id");
+  });
+});
+
+describe("OrderResponse.settlementReadiness (WF-05 F-1, BO-02)", () => {
+  const ready = {
+    branch: "REFUND_CLOSE",
+    returnWindowDays: 14,
+    returnWindowEndsAt: "2026-11-15T17:00:00Z",
+    owing: false,
+    openReturn: false,
+    uninvoicedShipmentIds: ["s-2"],
+    shippingFeeUninvoiced: false,
+    refundOutstanding: true,
+    completionHeld: false,
+    completesAt: null,
+    closesAt: "2026-12-15T17:30:00Z",
+    blockers: ["REFUND_OUTSTANDING", "SHIPMENT_UNINVOICED"],
+  };
+
+  it("map nguyên số BE, kèm refundedAt", () => {
+    const order = toOrder(
+      orderDtoSchema.parse({
+        ...beOrder,
+        refundedAt: "2026-11-10T03:00:00Z",
+        settlementReadiness: ready,
+      }),
+    );
+    expect(order.refundedAt).toBe("2026-11-10T03:00:00Z");
+    expect(order.settlementReadiness).toMatchObject({
+      branch: "REFUND_CLOSE",
+      returnWindowDays: 14,
+      uninvoicedShipmentIds: ["s-2"],
+      refundOutstanding: true,
+      closesAt: "2026-12-15T17:30:00Z",
+      returnAdjustmentUnissued: false,
+      blockers: [
+        { code: "REFUND_OUTSTANDING", known: true },
+        { code: "SHIPMENT_UNINVOICED", known: true },
+      ],
+    });
+  });
+
+  it("nhánh / mã chặn BE thêm sau không làm hỏng đơn; field vắng → mặc định không chặn", () => {
+    const order = toOrder(
+      orderDtoSchema.parse({
+        ...beOrder,
+        settlementReadiness: { branch: "ARCHIVE", blockers: ["NEW_RULE"] },
+      }),
+    );
+    expect(order.settlementReadiness).toMatchObject({
+      branch: "UNKNOWN",
+      blockers: [{ code: "NEW_RULE", known: false }],
+      owing: false,
+      uninvoicedShipmentIds: [],
+      returnWindowEndsAt: null,
+    });
+  });
+
+  it("BE cũ / chưa giao gì (vắng hoặc null) → null", () => {
+    expect(toOrder(orderDtoSchema.parse(beOrder)).settlementReadiness).toBeNull();
+    expect(
+      toOrder(orderDtoSchema.parse({ ...beOrder, settlementReadiness: null })).settlementReadiness,
+    ).toBeNull();
   });
 });

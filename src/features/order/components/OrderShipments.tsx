@@ -8,15 +8,18 @@ import {
   SHIPMENT_PERMISSIONS,
   UI_LABELS,
 } from "@/constants";
-import { useCan } from "@/lib/auth";
+import { useCan, usePermissionChecker } from "@/lib/auth";
 import { formatDateTime } from "@/lib/format/date";
-import { formatMoney } from "@/lib/format";
 import { StatusDot } from "@/components/shared/StatusDot";
+
+import { canCloseLostShipment } from "../delivery-failure-lifecycle";
+
+import { LostShipmentClosureAction } from "./delivery-failure/LostShipmentClosureAction";
 
 import type { Order, OrderShipment } from "../types";
 
 interface OrderShipmentsProps {
-  order: Pick<Order, "shipments" | "lines" | "currency">;
+  order: Pick<Order, "orderId" | "orderNumber" | "status" | "shipments" | "lines">;
 }
 
 /** Lý do BE lạ (`UNKNOWN`) → câu trung tính, không đoán thành một lý do cụ thể. */
@@ -26,13 +29,16 @@ function failureLabel(reason: NonNullable<OrderShipment["failureReason"]>): stri
 
 /**
  * Các lô giao đã bàn giao cho hãng vận chuyển (split shipments, G4-Q3), cũ nhất trước.
- * Mỗi lô có trạng thái riêng; đơn không chia lô thì không hiện card này.
+ * Mỗi lô có trạng thái riêng; đơn không chia lô thì không hiện card này. Tiền của lô không nằm ở đây: `OrderResponse.
+ * Shipment` không có giá trị / công nợ / COD (BE 4B-10) — tiền ở các đợt thanh toán (WF-05 BO-08). Lô hãng báo thất lạc
+ * có "Đóng phần thất lạc" (Q-12).
  */
 export function OrderShipments({ order }: OrderShipmentsProps) {
   // Lô giao của đơn CHÍNH là lô giao của kho (`fk_order_shipment_shipment`, BE PR #137): cùng id. Mở
   // chi tiết lô cần quyền đọc `fulfillment-shipments` — thiếu thì chỉ hiện chữ, không dẫn tới trang 403.
   // UI-only — Backend phải re-check (GET /fulfillment/shipments/{id}).
   const canOpenShipment = useCan(SHIPMENT_PERMISSIONS.read);
+  const can = usePermissionChecker();
   if (order.shipments.length === 0) return null;
   const skuOf = new Map(order.lines.map((line) => [line.lineId, line.sku]));
 
@@ -91,31 +97,6 @@ export function OrderShipments({ order }: OrderShipmentsProps) {
                   <dd className="text-ink-primary">{failureLabel(shipment.failureReason)}</dd>
                 </>
               )}
-              {shipment.amount !== null && (
-                <>
-                  <dt>Giá trị hàng</dt>
-                  <dd className="text-ink-primary font-mono tabular-nums">
-                    {formatMoney(shipment.amount, order.currency)}
-                  </dd>
-                </>
-              )}
-              {/* BE `codAmount`: tiền hãng thu khi giao lô này (đơn cọc ON_DELIVERY), 0 với đơn khác */}
-              {shipment.codAmount !== null && shipment.codAmount > 0 && (
-                <>
-                  <dt>Hãng thu khi giao</dt>
-                  <dd className="text-ink-primary font-mono tabular-nums">
-                    {formatMoney(shipment.codAmount, order.currency)}
-                  </dd>
-                </>
-              )}
-              {shipment.billedAmount !== null && (
-                <>
-                  <dt>Đã ghi công nợ</dt>
-                  <dd className="text-ink-primary font-mono tabular-nums">
-                    {formatMoney(shipment.billedAmount, order.currency)}
-                  </dd>
-                </>
-              )}
             </dl>
             {shipment.lines.length > 0 && (
               <ul className="text-ink-secondary mt-2 space-y-0.5 text-xs">
@@ -128,6 +109,18 @@ export function OrderShipments({ order }: OrderShipmentsProps) {
                   </li>
                 ))}
               </ul>
+            )}
+            {canCloseLostShipment(order, shipment, can) && (
+              <div className="mt-2">
+                <LostShipmentClosureAction
+                  target={{
+                    orderId: order.orderId,
+                    orderNumber: order.orderNumber,
+                    shipmentId: shipment.shipmentId,
+                    shipmentLabel: `Lô ${index + 1}`,
+                  }}
+                />
+              </div>
             )}
           </li>
         ))}

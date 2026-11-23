@@ -11,10 +11,14 @@ import { withStaleRefetch } from "@/lib/api/stale-refetch";
 import {
   adjustEInvoice,
   attachAgreement,
+  checkSignature,
   drawUpEInvoice,
   issueEInvoice,
   reconcileEInvoice,
   recordErrorNotice,
+  recordExternalReduction,
+  recordPortalResult,
+  reduceFailedDelivery,
   refreshBuyer,
   reopenEInvoice,
   replaceEInvoice,
@@ -73,6 +77,21 @@ export const useRecordErrorNotice = einvoiceMutation(
   "Đã lập thông báo sai sót.",
 );
 export const useSendErrorNotice = einvoiceMutation(sendErrorNotice, "Đã gửi thông báo sai sót.");
+// WF-05 Q-8 (F-13), BE-11 (F-15)
+export const useRecordPortalResult = einvoiceMutation(
+  recordPortalResult,
+  "Đã ghi kết quả từ cổng nhà cung cấp.",
+);
+export const useRecordExternalReduction = einvoiceMutation(
+  recordExternalReduction,
+  "Đã ghi hoá đơn giảm làm trên cổng nhà cung cấp.",
+);
+export const useReduceFailedDelivery = einvoiceMutation(
+  reduceFailedDelivery,
+  "Đã lập bản giảm do giao thất bại.",
+);
+/** Kiểm chữ ký một tệp XML (BO-09) — không ghi gì nên không làm mới dữ liệu nào. */
+export const useCheckSignature = einvoiceMutation(checkSignature, "Đã kiểm chữ ký số.", []);
 
 const SETTINGS_INVALIDATION = [einvoiceSettingsKeys.all] as const;
 export const useChangeAutoIssue = einvoiceMutation(

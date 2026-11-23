@@ -21,7 +21,7 @@ export async function getEInvoiceSettings(signal?: AbortSignal): Promise<EInvoic
   return einvoiceSettingsDtoSchema.parse(data);
 }
 
-/** Bật / tắt tự phát hành nháp đủ thông tin (docs 21 BR-02 mặc định tắt: Kế toán bấm phát hành). */
+/** Bật / tắt tự phát hành (WF-05 Q-1 §1.5: bật mặc định cho SePay; Quản trị chỉ tắt khi có sự cố). */
 export async function changeAutoIssue(input: {
   autoIssue: boolean;
   version: number;

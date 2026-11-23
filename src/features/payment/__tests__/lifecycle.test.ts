@@ -46,17 +46,24 @@ describe("status strings (docs 15 §5.1, §5.3 — verbatim)", () => {
       PARTIALLY_PAID: "Partially Paid",
       PAID: "Paid",
       CANCELLED: "Cancelled",
+      // WF-05 BO-11: giá trị BE thêm sau đọc thành UNKNOWN ("Không rõ" ở status-map)
+      UNKNOWN: "UNKNOWN",
     });
-    expect(RECEIPT_STATUS_BY_API).toEqual({ RECORDED: "Recorded", VOIDED: "Voided" });
+    expect(RECEIPT_STATUS_BY_API).toEqual({
+      RECORDED: "Recorded",
+      VOIDED: "Voided",
+      UNKNOWN: "UNKNOWN",
+    });
   });
 });
 
 describe("INSTALLMENT_TRANSITIONS (docs 15 §5.1)", () => {
   it("covers every status; Paid and Cancelled are terminal", () => {
     expect(Object.keys(INSTALLMENT_TRANSITIONS).sort()).toEqual(
-      [...INSTALLMENT_API_STATUSES].sort(),
+      [...INSTALLMENT_API_STATUSES, "UNKNOWN"].sort(),
     );
     expect(INSTALLMENT_TRANSITIONS.PAID).toEqual([]);
+    expect(INSTALLMENT_TRANSITIONS.UNKNOWN).toEqual([]);
     expect(INSTALLMENT_TRANSITIONS.CANCELLED).toEqual([]);
   });
 
@@ -79,8 +86,11 @@ describe("INSTALLMENT_TRANSITIONS (docs 15 §5.1)", () => {
 
 describe("RECEIPT_TRANSITIONS (docs 15 §5.3, BR-04)", () => {
   it("Recorded only goes to Voided; Voided is terminal (a receipt is never edited)", () => {
-    expect(Object.keys(RECEIPT_TRANSITIONS).sort()).toEqual([...RECEIPT_API_STATUSES].sort());
+    expect(Object.keys(RECEIPT_TRANSITIONS).sort()).toEqual(
+      [...RECEIPT_API_STATUSES, "UNKNOWN"].sort(),
+    );
     expect(RECEIPT_TRANSITIONS.RECORDED).toEqual(["VOIDED"]);
+    expect(RECEIPT_TRANSITIONS.UNKNOWN).toEqual([]);
     expect(RECEIPT_TRANSITIONS.VOIDED).toEqual([]);
   });
 });
@@ -114,6 +124,13 @@ describe("action gating by permission code (three roles' worth of grants)", () =
     expect(allowedInstallmentActions({ status: "CANCELLED" }, can)).toEqual([]);
     expect(allowedReceiptActions({ status: "VOIDED" }, can)).toEqual([]);
     expect(allowedRefundRecordActions({ status: "VOIDED" }, can)).toEqual([]);
+  });
+
+  it("WF-05 BO-11: a status the FE does not know (UNKNOWN) offers no action", () => {
+    const can = has(ACCOUNTANT_CAN);
+    expect(allowedInstallmentActions({ status: "UNKNOWN" }, can)).toEqual([]);
+    expect(allowedReceiptActions({ status: "UNKNOWN" }, can)).toEqual([]);
+    expect(allowedRefundRecordActions({ status: "UNKNOWN" }, can)).toEqual([]);
   });
 
   it("BR-14: recording a refund needs something left to refund", () => {

@@ -23,11 +23,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { returnErrorMessage } from "../errors";
 import { createReceiptInputSchema } from "../input-schemas";
 import { useCreateReturnReceipt } from "../mutations";
-import { useAwaitingReturns, useReturnedShipments } from "../queries";
+import { receiptOpenable } from "../lifecycle";
+import { useReceiptSourceReturns, useReturn, useReturnedShipments } from "../queries";
 
 import { PickField } from "./PickField";
 
-import type { CreateReceiptFormValues } from "../types";
+import type { CreateReceiptFormValues, ReturnRequest, ReturnRow } from "../types";
 
 const L = RETURN_RECEIPT_LABELS.createDialog;
 
@@ -41,7 +42,10 @@ function CreateForm({
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const canReadShipments = useCan(SHIPMENT_PERMISSIONS.read);
-  const awaiting = useAwaitingReturns();
+  const sources = useReceiptSourceReturns();
+  // Mở từ màn yêu cầu (`?returnRequestId=`): yêu cầu đó luôn có trong danh sách chọn, kể cả khi nằm ngoài trang đầu
+  const preselected = useReturn(returnRequestId);
+  const rmaOptions = rmaSourceOptions(sources.data?.items ?? [], preselected.data ?? null);
   const shipments = useReturnedShipments(canReadShipments);
   const warehouses = useWarehouseOptions(useCan(WAREHOUSE_PERMISSIONS.read));
   const create = useCreateReturnReceipt();
@@ -126,10 +130,7 @@ function CreateForm({
               value={field.value}
               onChange={field.onChange}
               empty={L.noSource}
-              options={(awaiting.data?.items ?? []).map((row) => ({
-                value: row.id,
-                label: `${row.rmaNumber} · ${row.orderNumber}`,
-              }))}
+              options={rmaOptions}
             />
           )}
         />
@@ -210,8 +211,31 @@ function CreateForm({
 }
 
 /**
+ * Yêu cầu chọn được làm nguồn: BE nói mở phiếu được (`receiptOpenable`, WF-05 Q-11 — kể cả hàng về muộn, nhiều phiếu một
+ * yêu cầu); BE cũ thì chỉ yêu cầu chờ hàng về. Yêu cầu đang mở từ màn chi tiết đứng đầu nếu mở được.
+ */
+function rmaSourceOptions(
+  rows: readonly ReturnRow[],
+  preselected: ReturnRequest | null,
+): { value: string; label: string }[] {
+  const option = (ret: Pick<ReturnRow, "id" | "rmaNumber" | "orderNumber">) => ({
+    value: ret.id,
+    label: `${ret.rmaNumber} · ${ret.orderNumber}`,
+  });
+  const options = rows.filter((row) => receiptOpenable(row)).map(option);
+  if (
+    preselected &&
+    receiptOpenable(preselected) &&
+    !options.some((o) => o.value === preselected.id)
+  )
+    options.unshift(option(preselected));
+  return options;
+}
+
+/**
  * Lập phiếu nhập hàng hoàn (docs 03 §4.2 bước 9; BE `POST /goods-receipts/returns`): nguồn là yêu cầu trả hàng đã
- * duyệt (AWAITING_RETURN) hoặc chuyến hãng hoàn về (RETURNED), vào một khu QUARANTINE của kho xuất đơn (BR-14).
+ * duyệt mà kho còn nhận được hàng (WF-05 Q-11: chờ hàng về, hoặc kiện về muộn — một yêu cầu có thể có nhiều phiếu, chỉ một
+ * phiếu nháp mỗi lúc) hoặc chuyến hãng hoàn về (RETURNED), vào một khu QUARANTINE của kho xuất đơn (BR-14).
  */
 export function CreateReturnReceiptDialog({
   open,

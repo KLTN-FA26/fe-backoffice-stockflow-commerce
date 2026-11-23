@@ -1,11 +1,13 @@
 /**
- * Giao thất bại — API (BE `DeliveryFailureController`, WF-05 GH-1; docs 09 §4.3, 17 §4.8):
+ * Lô hàng hoàn về — API (BE `DeliveryFailureController`, WF-05 GH-1; docs 09 §4.3, 17 §4.8):
  *
  *   GET  /orders/delivery-failures?status&limit            — sales-orders:READ (back office; WM chỉ thấy kho mình)
  *   GET  /orders/{orderId}/delivery-failures               — sales-orders:READ
- *   POST /orders/{orderId}/delivery-failures/{caseId}/redelivery   {note, failedTripFee?} — sales-order-holds:UPDATE
  *   POST /orders/{orderId}/delivery-failures/{caseId}/cancellation {note, agreedFee?}     — sales-order-cancellations:UPDATE
  *   POST /orders/{orderId}/delivery-failures/cancellation  {note, agreedFee?}  (chưa có hồ sơ) — sales-order-cancellations:UPDATE
+ *
+ * "Giao lại" (`…/redelivery`) BE đã xoá ở PR #377 (gửi lại = đơn mới, Q-12) — FE không gọi nữa (WF-05 BO-01). Hai lệnh
+ * huỷ chỉ còn cho đơn cũ đang giữ vì giao thất bại (Q-13).
  *
  * Danh sách KHÔNG phân trang (BE trả `List`, `limit` ≤ 200). Mọi thao tác ghi gửi kèm Idempotency-Key.
  */
@@ -20,11 +22,7 @@ import {
   deliveryFailureCaseSchema,
 } from "./delivery-failure-schemas";
 
-import type {
-  CancelUndeliveredValues,
-  DeliveryFailureCase,
-  RedeliveryValues,
-} from "./delivery-failure-schemas";
+import type { CancelUndeliveredValues, DeliveryFailureCase } from "./delivery-failure-schemas";
 
 export interface ListDeliveryFailureParams {
   /** BE `DeliveryFailureCase.Status`; vắng = mọi trạng thái. */
@@ -52,23 +50,6 @@ export async function listOrderDeliveryFailures(
 
 const casePath = (orderId: string, caseId: string, step: string) =>
   orderPath(orderId, `/delivery-failures/${encodeURIComponent(caseId)}/${step}`);
-
-export type RedeliverInput = RedeliveryValues & {
-  orderId: string;
-  caseId: string;
-  idempotencyKey?: string;
-};
-
-/** Giao lại: hồ sơ → REDELIVERY, đơn rời trạng thái giữ khi không còn hồ sơ chờ. */
-export async function redeliverFailedShipment(input: RedeliverInput): Promise<DeliveryFailureCase> {
-  const { orderId, caseId, idempotencyKey, note, failedTripFee } = input;
-  const { data } = await api.post<unknown>(
-    casePath(orderId, caseId, "redelivery"),
-    failedTripFee === undefined ? { note } : { note, failedTripFee },
-    idempotencyRequestConfig(idempotencyKey),
-  );
-  return deliveryFailureCaseSchema.parse(data);
-}
 
 export type CancelUndeliveredInput = CancelUndeliveredValues & {
   orderId: string;

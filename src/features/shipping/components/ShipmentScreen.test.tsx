@@ -117,16 +117,38 @@ describe("ShipmentScreen — ghi nhận kết quả giao (BR-02)", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("giao thất bại rồi: giao lại / hoàn hàng; quản lý kho chỉ thấy hoàn hàng", async () => {
+  it("giao thất bại rồi: quản lý kho (UPDATE + APPROVE, seed BE) thấy giao lại / hoàn hàng", async () => {
+    renderShipment(
+      ACTORS.warehouseManagerFull,
+      shipment({ status: "DELIVERY_FAILED", failureReason: "REFUSED" }),
+    );
+    await screen.findByRole("button", { name: L.outcomeAction.RETURNED });
+    expect(screen.getByRole("button", { name: L.outcomeAction.DELIVERED })).toBeInTheDocument();
+    expect(screen.getByText("Khách từ chối nhận")).toBeInTheDocument();
+  });
+
+  it("WF-05 BO-05 (C-5): hộp thoại hàng hoàn về nói rõ phần hàng bị đóng, tiền tính lúc xác nhận phiếu, gửi lại = đơn mới", async () => {
+    renderShipment(
+      ACTORS.warehouseManagerFull,
+      shipment({ status: "DELIVERY_FAILED", failureReason: "REFUSED" }),
+    );
+    await userEvent.click(await screen.findByRole("button", { name: L.outcomeAction.RETURNED }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(/bị đóng khỏi đơn/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/xác nhận phiếu nhận hàng hoàn/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/tạo đơn mới/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/không sửa lại được/)).toBeInTheDocument();
+  });
+
+  it("WF-05 BO-05 (Q-7, F-6): chỉ có delivery-outcomes:UPDATE → KHÔNG ghi được hàng hoàn về, nói cần quyền phê duyệt", async () => {
     renderShipment(
       ACTORS.warehouseManager,
       shipment({ status: "DELIVERY_FAILED", failureReason: "REFUSED" }),
     );
-    await screen.findByRole("button", { name: L.outcomeAction.RETURNED });
+    expect(await screen.findByText(L.noActions.needsApproval)).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: L.outcomeAction.DELIVERED }),
+      screen.queryByRole("button", { name: L.outcomeAction.RETURNED }),
     ).not.toBeInTheDocument();
-    expect(screen.getByText("Khách từ chối nhận")).toBeInTheDocument();
   });
 
   it("nhân viên kho / chỉ xem / lô chưa bàn giao / lô đã kết thúc → không nút kết quả, kèm lý do", async () => {

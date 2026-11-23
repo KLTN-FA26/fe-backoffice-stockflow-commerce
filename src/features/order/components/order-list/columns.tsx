@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 
-import { ADMIN_ROUTES, ORDER_PAYMENT_STATUS_DISPLAY, ORDER_PAYMENT_TERM_LABELS } from "@/constants";
+import { ADMIN_ROUTES } from "@/constants";
 import { formatMoney } from "@/lib/format";
 import {
   CELL,
@@ -11,7 +11,6 @@ import {
   statusCell,
   viewColumn,
 } from "@/components/shared/column-helpers";
-import { StatusDot } from "@/components/shared/StatusDot";
 
 import { COLUMN_LABELS } from "./constants";
 import { CustomerCell } from "./CustomerCell";
@@ -61,25 +60,7 @@ export function buildOrderColumns(onFilterCustomer: (customerId: string) => void
       (row) => row.recipientPhone,
     ),
     dateCell<Order>("placedAt", COLUMN_LABELS.placedAt, (row) => row.placedAt, { sortable: true }),
-    {
-      key: "paymentTerm",
-      header: COLUMN_LABELS.paymentTerm,
-      cell: (row) => (
-        <span className="text-ink-secondary text-[0.8125rem]">
-          {row.paymentTerm ? ORDER_PAYMENT_TERM_LABELS[row.paymentTerm] : "—"}
-        </span>
-      ),
-    },
-    {
-      key: "paymentStatus",
-      header: COLUMN_LABELS.paymentStatus,
-      cell: (row) =>
-        row.paymentStatus ? (
-          <StatusDot domain="payment" status={ORDER_PAYMENT_STATUS_DISPLAY[row.paymentStatus]} />
-        ) : (
-          <span className="text-ink-tertiary text-xs">—</span>
-        ),
-    },
+    // "Phương thức TT" / "Thanh toán" đã bỏ (WF-05 BO-08): BE không còn trả trên đơn (4B-10), tiền ở các đợt thanh toán
     // Không dùng moneyCell: tiền tệ lấy từ `currency` của từng đơn (api-conventions §10).
     {
       key: "totalAmount",

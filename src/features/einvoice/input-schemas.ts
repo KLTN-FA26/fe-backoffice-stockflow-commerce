@@ -8,6 +8,7 @@ import { z } from "zod";
 import {
   EINVOICE_LIMITS,
   MANUAL_CORRECTION_BASES,
+  PORTAL_RESULT_OUTCOMES,
   PROVIDER_ENVIRONMENTS,
 } from "@/constants/einvoice";
 import { toLocalIsoDate } from "@/lib/format/date";
@@ -153,7 +154,7 @@ export const errorNoticeInputSchema = z
     message: "Nêu tên hoặc địa chỉ đúng của bên mua",
   });
 
-/** Lập nháp thủ công cho shipment đã giao (BE `DrawUpEInvoiceRequest`); không shipment = phần phí vận chuyển còn lại. */
+/** Lập nháp thủ công cho shipment đã giao (BE `DrawUpEInvoiceRequest`); không shipment = phần phí còn lại (vận chuyển, phí khuôn — BE-62). */
 export const drawUpInputSchema = z.object({
   orderId: z.string().min(1, "Chọn đơn hàng"),
   shipmentId: z.string().optional(),
@@ -186,6 +187,97 @@ export const seriesInputSchema = z.object({
     .transform((v) => (v === "" ? undefined : v)),
 });
 
+/**
+ * Ký hiệu theo NCC (BO-10, BE `useSeries`): NCC thật bắt buộc mã mẫu của NCC (SInvoice `1/001`, SePay); sandbox không
+ * có mã mẫu riêng — ô bị ẩn và không gửi.
+ */
+export function seriesInputSchemaFor(sandbox: boolean) {
+  return seriesInputSchema
+    .transform((value) => (sandbox ? { ...value, providerTemplateCode: undefined } : value))
+    .superRefine((value, ctx) => {
+      if (!sandbox && value.providerTemplateCode === undefined)
+        ctx.addIssue({
+          code: "custom",
+          path: ["providerTemplateCode"],
+          message: "Nhập mã mẫu của nhà cung cấp",
+        });
+    });
+}
+
 export const registerRangeInputSchema = z
   .object({ from: isoDate, to: isoDate })
   .refine((v) => v.from <= v.to, { path: ["to"], message: "Đến ngày phải sau từ ngày" });
+
+/* ── Ghi lại từ cổng NCC (WF-05 Q-8: F-13) ─────────────────────────────────────────────── */
+
+const isXml = (file: File) => /\.xml$/i.test(file.name) || /xml/.test(file.type);
+const isPdf = (file: File) => /\.pdf$/i.test(file.name) || file.type === "application/pdf";
+
+const optionalFile = (check: (file: File) => boolean, message: string) =>
+  z
+    .instanceof(File)
+    .nullable()
+    .refine((file) => file === null || check(file), message)
+    .transform((file) => file ?? undefined);
+
+const invoiceNumberText = z
+  .string()
+  .trim()
+  .regex(/^\d{1,8}$/, "Số hoá đơn là số nguyên dương")
+  .transform(Number)
+  .refine((value) => value > 0, "Số hoá đơn là số nguyên dương");
+
+/**
+ * Kết quả đã kiểm trên cổng NCC cho hoá đơn kẹt "đang gửi" (BE F-13): đã phát hành → bắt buộc số hoá đơn; cơ quan thuế
+ * từ chối → chỉ ghi chú. Tệp XML / PDF tuỳ chọn; BE đối chiếu với bản ghi tra lại từ NCC.
+ */
+export const portalResultInputSchema = z
+  .object({
+    outcome: z.enum(PORTAL_RESULT_OUTCOMES),
+    invoiceNumber: z.string(),
+    taxAuthorityCode: optionalText(L.providerCodeMax),
+    lookupCode: optionalText(L.providerCodeMax),
+    xml: optionalFile(isXml, "Tệp hoá đơn phải là XML"),
+    pdf: optionalFile(isPdf, "Bản xem phải là tệp PDF"),
+    note: z
+      .string()
+      .trim()
+      .min(1, "Nhập ghi chú: đã kiểm gì trên cổng nhà cung cấp")
+      .max(L.noteMax, `Tối đa ${L.noteMax} ký tự`),
+  })
+  .transform((value, ctx) => {
+    if (value.outcome !== "ISSUED") return { ...value, invoiceNumber: undefined };
+    const number = invoiceNumberText.safeParse(value.invoiceNumber);
+    if (!number.success) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["invoiceNumber"],
+        message: "Nhập số hoá đơn đã phát hành trên cổng",
+      });
+      return z.NEVER;
+    }
+    return { ...value, invoiceNumber: number.data };
+  });
+
+/**
+ * Hoá đơn giảm Kế toán đã lập trên cổng NCC (BE F-13 `external-reductions`): ký hiệu, mẫu số, số, ngày (không ở tương
+ * lai), tệp PDF bắt buộc, XML tuỳ chọn, ghi chú bắt buộc.
+ */
+export const externalReductionInputSchema = z.object({
+  symbol: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(L.symbolPattern, "Ký hiệu dạng C26TAA: C/K, 2 số năm, loại hoá đơn, 2 chữ"),
+  templateCode: z
+    .string()
+    .trim()
+    .regex(/^[0-9A-Za-z/]{1,20}$/, "Nhập mẫu số (tối đa 20 ký tự chữ, số, /)"),
+  invoiceNumber: invoiceNumberText,
+  issueDate: isoDate.refine((d) => d <= todayInVietnam(), "Ngày hoá đơn không được ở tương lai"),
+  pdf: z
+    .instanceof(File, { message: "Chọn tệp PDF của hoá đơn giảm" })
+    .refine(isPdf, "Bản xem phải là tệp PDF"),
+  xml: optionalFile(isXml, "Tệp hoá đơn phải là XML"),
+  note: z.string().trim().min(1, "Nhập ghi chú").max(L.noteMax, `Tối đa ${L.noteMax} ký tự`),
+});

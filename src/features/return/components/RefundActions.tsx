@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { BadgeCheck, CornerUpLeft, HandCoins } from "lucide-react";
 
-import { RETURN_LABELS } from "@/constants/labels-return";
+import { RETURN_LABELS, RETURN_REFUSAL_REASON_LABELS } from "@/constants/labels-return";
 import { RETURN_LIMITS } from "@/constants/returns";
 import { formatMoney } from "@/lib/format";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 
 import { returnErrorMessage } from "../errors";
 import { useApproveSettlement, useRejectSettlement } from "../mutations";
+import { proposesNoRefund } from "../selectors";
 
 import { ProposeRefundDialog } from "./ProposeRefundDialog";
 
@@ -18,11 +19,13 @@ import type { ReturnAction } from "../lifecycle";
 import type { ReturnRequest } from "../types";
 
 const A = RETURN_LABELS.actions;
+const AS = RETURN_LABELS.approveSettlementDialog;
 type Open = "propose" | "approve" | "reject" | null;
 
 /**
  * Hoàn tiền của yêu cầu trả hàng (docs 17 §4.10 bước 40, 15 §4.5): Sale đề xuất khi hàng đã về (RECEIVED); Kế toán duyệt
- * hoặc trả lại đề xuất (SETTLEMENT_PENDING) — không phải người đề xuất (BE `RETURN_SELF_APPROVAL`). Duyệt xong số phải
+ * hoặc trả lại đề xuất (SETTLEMENT_PENDING) — không phải người đề xuất (BE `RETURN_SELF_APPROVAL`). WF-05 Q-4: đề xuất
+ * không hoàn tiền (0 đồng, có lý do) duyệt bằng cùng nút, cùng quyền `sales-rma-resolutions:APPROVE`. Duyệt xong số phải
  * chuyển trả hiện ở màn Hoàn tiền để Kế toán ghi nhận. Backend phải re-check (`sales-rma-resolutions`).
  */
 export function RefundActions({
@@ -42,6 +45,14 @@ export function RefundActions({
   };
   const onError = (failure: unknown) => setError(returnErrorMessage(failure));
   const amount = ret.resolution?.settlementAmount;
+  // WF-05 Q-4: đề xuất 0 đồng duyệt bằng cùng nút "Duyệt hoàn tiền" — chỉ câu chữ đổi
+  const refusal = proposesNoRefund(ret);
+  const approveTitle = refusal
+    ? AS.refusalTitle
+    : `${AS.title}${amount != null ? ` ${formatMoney(amount, ret.currency)}` : ""}`;
+  const approveDescription = refusal
+    ? AS.refusalDescription(RETURN_REFUSAL_REASON_LABELS[ret.refusalReason ?? "UNKNOWN"])
+    : AS.description;
 
   return (
     <>
@@ -66,11 +77,9 @@ export function RefundActions({
       <ConfirmDialog
         open={open === "approve"}
         onOpenChange={(next) => !next && close()}
-        title={`${RETURN_LABELS.approveSettlementDialog.title}${
-          amount != null ? ` ${formatMoney(amount, ret.currency)}` : ""
-        }`}
-        description={RETURN_LABELS.approveSettlementDialog.description}
-        confirmLabel={RETURN_LABELS.approveSettlementDialog.submit}
+        title={approveTitle}
+        description={approveDescription}
+        confirmLabel={AS.submit}
         closeOnConfirm={false}
         loading={approve.isPending}
         error={error}

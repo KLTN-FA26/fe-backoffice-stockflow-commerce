@@ -1,6 +1,6 @@
 "use client";
 
-import { QUARANTINE_LIST_LABELS } from "@/constants/quarantine";
+import { QUARANTINE_LABELS, QUARANTINE_LIST_LABELS } from "@/constants/quarantine";
 import {
   CELL,
   EmptyCell,
@@ -46,5 +46,16 @@ export function buildQuarantineColumns(open: (lpn: string) => void): ColumnDef<S
         ),
     },
     statusCell<StockPackage>("status", C.status, (row) => cartonStatusLabel(row.status), "stock"),
+    // WF-05 BE-24: thùng hàng trả về đã mở — chỉ ghi giảm
+    {
+      key: "openedOnReturn",
+      header: C.openedOnReturn,
+      cell: (row) =>
+        row.openedOnReturn ? (
+          <span className="text-warning">{QUARANTINE_LABELS.openedOnReturnYes}</span>
+        ) : (
+          <EmptyCell />
+        ),
+    },
   ];
 }

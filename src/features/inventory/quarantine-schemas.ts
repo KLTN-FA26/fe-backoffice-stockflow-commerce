@@ -31,6 +31,12 @@ export const stockPackageDetailDto = z.object({
   goodsReceiptLineId: beUuid.nullish(),
   closedAt: z.iso.datetime().nullish(),
   contents: z.array(stockPackageContentDto).nullish(),
+  /**
+   * WF-05 BE-24 (F-22): thùng hàng trả / hàng hoàn về đã bị mở (đếm ít hơn nhãn) — không gỡ cách ly để bán lại được, chỉ ghi
+   * giảm (BE `RETURN_CARTON_OPENED`). Vắng = BE cũ.
+   */
+  openedOnReturn: z.boolean().nullish(),
+  returnOpenedAt: z.string().nullish(),
 });
 
 // Source: backend develop `StockPackageResponse` (GET /inventory/stock-packages, page by page). `status` is open
@@ -47,6 +53,9 @@ export const stockPackageDto = z.object({
   status: z.string(),
   locationCode: z.string().nullish(),
   goodsReceiptLineId: beUuid.nullish(),
+  /** WF-05 BE-24 (F-22): như ở chi tiết thùng. */
+  openedOnReturn: z.boolean().nullish(),
+  returnOpenedAt: z.string().nullish(),
 });
 
 export const stockPackagePageDto = inventoryPageDto(stockPackageDto);

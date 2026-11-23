@@ -27,6 +27,21 @@ export const RMA_RESOLUTION_PERMISSIONS = {
   approve: "sales-rma-resolutions:APPROVE",
 } as const;
 
+/**
+ * Resource `procurement-return-receipt-approvals` (WF-05 Q-18, BE PR-0 `GoodsReceiptResources.RETURN_RECEIPT_APPROVALS`):
+ * Quản lý kho xác nhận phiếu nhập hàng hoàn có thùng về đã mở hoặc hàng lẻ (`RETURN_RECEIPT_MANAGER_CONFIRMATION_REQUIRED`),
+ * và không phải người đã quét / ghi hàng trên phiếu (`RETURN_RECEIPT_SELF_CONFIRMATION`).
+ */
+export const RETURN_RECEIPT_APPROVAL_PERMISSIONS = {
+  approve: "procurement-return-receipt-approvals:APPROVE",
+} as const;
+
+/**
+ * Ảnh trên yêu cầu trả hàng theo bước (BE G4 `ReturnEvidence.Stage`): CLAIM = ảnh khiếu nại của khách; CUSTODY = biên nhận
+ * giữ hộ (WF-05 Q-11) — hàng về mà phiếu nhập không nhận. Mỗi bước tối đa `RETURN_LIMITS.evidenceMax` ảnh.
+ */
+export const RETURN_EVIDENCE_STAGES = { claim: "CLAIM", custody: "CUSTODY" } as const;
+
 /* ── Route ──────────────────────────────────────────────────────────────────────────────── */
 
 const ORDERS_BASE = "/admin/orders";
@@ -63,6 +78,13 @@ export const RETURN_API_STATUSES = [
 ] as const;
 export type ReturnApiStatus = (typeof RETURN_API_STATUSES)[number];
 
+/**
+ * Giá trị BE thêm sau mà FE chưa biết (trạng thái, lý do, nguồn…) đọc về thành `UNKNOWN` (WF-05 BO-11): hiển thị
+ * "Không rõ", không mở thao tác nào. KHÔNG bao giờ gửi lên BE.
+ */
+export const RETURN_UNKNOWN = "UNKNOWN" as const;
+export type ReturnReadStatus = ReturnApiStatus | typeof RETURN_UNKNOWN;
+
 /** Trạng thái lọc được (bỏ `INSPECTED` — chỉ còn trong lịch sử, BE 4D-3). */
 export const RETURN_FILTER_STATUSES = RETURN_API_STATUSES.filter((s) => s !== "INSPECTED");
 
@@ -77,7 +99,9 @@ export const RETURN_STATUS_BY_API = {
   REJECTED: "Rejected",
   CANCELLED: "Cancelled",
   EXPIRED: "Expired",
-} as const satisfies Record<ReturnApiStatus, string>;
+  // status-map: "UNKNOWN" → "Không rõ"
+  UNKNOWN: "UNKNOWN",
+} as const satisfies Record<ReturnReadStatus, string>;
 
 /** Còn đang xử lý: giữ đơn không hoàn tất (BE `ReturnStatus.isOpen`, BR-ORD-005). */
 export const RETURN_OPEN_STATUSES = [
@@ -98,6 +122,7 @@ export const RETURN_REASONS = [
   "OTHER",
 ] as const;
 export type ReturnReason = (typeof RETURN_REASONS)[number];
+export type ReturnReadReason = ReturnReason | typeof RETURN_UNKNOWN;
 
 /**
  * Lý do mở được: bỏ giao thiếu (sửa kết quả giao, không phải trả hàng — BE `RETURN_REASON_NOT_ACCEPTED`) và đổi ý
@@ -120,6 +145,51 @@ export const RETURN_NAMED_FAULTS = [
 ] as const satisfies readonly ReturnReason[];
 
 export const RETURN_CHANNELS = ["PORTAL", "BACK_OFFICE"] as const;
+export type ReturnChannel = (typeof RETURN_CHANNELS)[number];
+export type ReturnReadChannel = ReturnChannel | typeof RETURN_UNKNOWN;
+
+/**
+ * Kết quả của một yêu cầu đã xử lý xong (BE `ReturnRequestResponse.outcome`, WF-05 F-20): REFUNDED = có hoàn tiền;
+ * REFUSED = Sale đề xuất 0 đồng có lý do, Kế toán duyệt (Q-4); NOTHING_TO_REFUND = không đơn vị nào đã duyệt về dùng được
+ * (TH-4). Một yêu cầu 0 đồng không bao giờ đọc là "Đã hoàn tiền".
+ */
+export const RETURN_OUTCOMES = ["REFUNDED", "REFUSED", "NOTHING_TO_REFUND"] as const;
+export type ReturnOutcome = (typeof RETURN_OUTCOMES)[number];
+export type ReturnReadOutcome = ReturnOutcome | typeof RETURN_UNKNOWN;
+
+/**
+ * Lý do từ chối hoàn (WF-05 Q-4, BE `Refund.refusalReason`): danh sách cố định — khách đọc nhãn tiếng Việt trên cổng
+ * (văn bản trả lời khiếu nại, Luật Thương mại Điều 318). Bắt buộc khi mọi dòng đề xuất = 0 mà vẫn còn đơn vị hoàn được
+ * (`RETURN_REFUSAL_REASON_REQUIRED`).
+ */
+export const RETURN_REFUSAL_REASONS = [
+  "CUSTOMER_DAMAGE",
+  "NOT_DEFECTIVE",
+  "OUT_OF_POLICY",
+  "OTHER",
+] as const;
+export type ReturnRefusalReason = (typeof RETURN_REFUSAL_REASONS)[number];
+export type ReturnReadRefusalReason = ReturnRefusalReason | typeof RETURN_UNKNOWN;
+
+/**
+ * Trạng thái của yêu cầu mà kho lập được phiếu nhập hàng hoàn khi BE chưa gửi `receiptOpenable` (dự phòng, BE cũ chỉ nhận
+ * AWAITING_RETURN). WF-05 Q-11: BE mới tự tính `receiptOpenable` (cả hàng về muộn sau "Đã nhận đủ" / hết hạn / rút sau
+ * duyệt) — FE đọc cờ đó, không tự suy.
+ */
+export const RETURN_RECEIPT_FALLBACK_STATUSES = [
+  "AWAITING_RETURN",
+] as const satisfies readonly ReturnApiStatus[];
+/**
+ * Trạng thái liệt kê làm nguồn khi lập phiếu (WF-05 Q-11, BE-13): mọi trạng thái BE có thể cho mở phiếu; dòng nào BE nói
+ * `receiptOpenable = false` thì bỏ, dòng thiếu cờ (BE cũ) chỉ giữ trạng thái dự phòng.
+ */
+export const RETURN_RECEIPT_SOURCE_STATUSES = [
+  "AWAITING_RETURN",
+  "RECEIVED",
+  "SETTLEMENT_PENDING",
+  "EXPIRED",
+  "CANCELLED",
+] as const satisfies readonly ReturnApiStatus[];
 
 /**
  * Trạng thái hiển thị của đơn mà Sale mở được yêu cầu trả hàng (BE `ReturnRequest.requireReturnable`): đã giao / đang
@@ -159,6 +229,7 @@ export const RETURN_RECEIPT_API_STATUSES = [
   "CANCELLED",
 ] as const;
 export type ReturnReceiptApiStatus = (typeof RETURN_RECEIPT_API_STATUSES)[number];
+export type ReturnReceiptReadStatus = ReturnReceiptApiStatus | typeof RETURN_UNKNOWN;
 
 /** Chuỗi hiển thị (domain `receipt`). Phiếu hàng hoàn chỉ đi DRAFT → CLOSED / CANCELLED. */
 export const RETURN_RECEIPT_STATUS_BY_API = {
@@ -168,7 +239,8 @@ export const RETURN_RECEIPT_STATUS_BY_API = {
   IN_PUTAWAY: "In Putaway",
   CLOSED: "Closed",
   CANCELLED: "Cancelled",
-} as const satisfies Record<ReturnReceiptApiStatus, string>;
+  UNKNOWN: "UNKNOWN",
+} as const satisfies Record<ReturnReceiptReadStatus, string>;
 
 /* ── Giới hạn (BE `ReturnRequests`, `CreateReturnReceiptRequest`, `ScanReturnCartonRequest`) ─ */
 
@@ -186,11 +258,23 @@ export const RETURN_LIMITS = {
   lotMax: 64,
   /** Ghi chú khi Sale bấm "Đã nhận đủ hàng" (BE `ReturnRequests.GoodsComplete`). */
   goodsCompleteNoteMax: 500,
+  /** Ghi chú gửi khách kèm lý do không hoàn (WF-05 Q-4; BE G4 `ReturnRequests.Refund.refusalNote` ≤ 500). */
+  refusalNoteMax: 500,
+  /** Ảnh hàng lẻ (WF-05 Q-18): như ảnh nhận hàng của phiếu nhập — JPEG / PNG ≤ 20 MB (BE `GoodsReceiptPhotoService`). */
+  loosePhotoMaxBytes: 20 * 1024 * 1024,
+  loosePhotoTypes: ["image/jpeg", "image/png"],
   locationCodeMax: 64,
   /** Ảnh bằng chứng: JPEG / PNG / WebP ≤ 15 MB, tối đa 10 ảnh (BE `ReturnPolicy.maxEvidence`). */
   evidenceMaxBytes: 15 * 1024 * 1024,
   evidenceMax: 10,
   evidenceTypes: ["image/jpeg", "image/png", "image/webp"],
+  /**
+   * Biên nhận giữ hộ (WF-05 Q-11, BE G4 `ReturnEvidence.Custody`): SKU ≤ 64 hoặc LPN ≤ 40 (ít nhất một), ≥ 1 đơn vị, ghi
+   * chú ≤ 1000; ảnh như ảnh bằng chứng, tối đa `evidenceMax` ảnh giữ hộ.
+   */
+  custodySkuMax: 64,
+  custodyLpnMax: 40,
+  custodyNoteMax: 1000,
   /**
    * Hạn đổi / trả mặc định 7 ngày sau giao (hợp đồng có `returnWindowDays` thì theo hợp đồng — BE `policyOf`), hạn gửi
    * hàng về 14 ngày sau duyệt (BE `ReturnPolicy.defaults`).

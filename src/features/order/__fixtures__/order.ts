@@ -45,11 +45,9 @@ export const apiOrder: OrderDto = {
     postalCode: null,
   },
   billingAddress: null,
-  // BE luôn gửi các số tiền (billedAmount bắt đầu từ 0; amountDue tính từ tổng đơn)
+  // Đã thu / còn nợ / công nợ không còn trên đơn (BE 4B-10, WF-05 BO-08) — chỉ tổng sau khi đóng và phải trả trước bàn giao
   paymentTerm: "PREPAID",
-  billedAmount: 0,
   effectiveTotal: 350000,
-  amountDue: 350000,
   amountDueBeforeHandover: 350000,
 };
 
@@ -150,13 +148,11 @@ export const apiPartialOrder: OrderDto = {
   ],
   packedAt: "2026-09-08T01:00:00Z",
   effectiveTotal: 350000,
-  amountDue: 100000,
   amountDueBeforeHandover: 0,
   shipments: [
     {
       shipmentId: "6c5e0a10-1111-4222-8333-444455556666",
       status: "HANDED_OVER",
-      amount: 175000,
       handedOverAt: "2026-09-08T02:00:00Z",
       lines: [{ lineId: PARTIAL_LINE_ID, quantity: 1 }],
     },
@@ -168,8 +164,6 @@ export const apiCancelledOrder: OrderDto = {
   ...apiOrder,
   status: "CANCELLED",
   paymentTerm: "DEPOSIT",
-  paymentStatus: "PARTIALLY_PAID",
-  paidAmount: 105000,
   depositRequired: 105000,
   depositReceivedAt: "2026-09-07T04:00:00Z",
   warehouseId: "8f8f8f8f-0000-4000-8000-000000000001",
@@ -197,7 +191,6 @@ export const apiCancelledOrder: OrderDto = {
     feeDetail: "Thoả thuận giữ 50.000 ₫ tiền in",
     feeAmount: 50000,
   },
-  amountDue: 245000,
   amountDueBeforeHandover: 245000,
 };
 

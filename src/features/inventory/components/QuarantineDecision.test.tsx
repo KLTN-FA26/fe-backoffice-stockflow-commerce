@@ -194,6 +194,25 @@ describe("quarantine decisions on one carton (docs 20 §4.8)", () => {
     expect(releases).toBe(1);
   });
 
+  it("WF-05 BE-24: a carton flagged opened on return offers only the write-off, never the release", async () => {
+    server.use(
+      inventoryPermissions(MANAGER),
+      http.get(cartonEndpoint, () =>
+        ok(
+          cartonBody("QUARANTINE", {
+            openedOnReturn: true,
+            returnOpenedAt: "2026-11-24T03:00:00Z",
+          }),
+        ),
+      ),
+    );
+    renderInventory(<QuarantineDecision />, `?lpn=${LPN}`);
+    expect(await screen.findByRole("link", { name: L.writeOff })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: L.release })).toBeNull();
+    expect(screen.getByText(L.openedOnReturnNotice)).toBeInTheDocument();
+    expect(screen.getByText(L.openedOnReturn)).toBeInTheDocument();
+  });
+
   it("writes a damaged quarantined carton off through the four-eyes adjustment, not directly", async () => {
     server.use(
       inventoryPermissions(MANAGER),

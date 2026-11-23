@@ -13,6 +13,8 @@ import { allowedEInvoiceActions, EINVOICE_TRANSITIONS, isTerminalEInvoice } from
 import {
   einvoiceStatusLabel,
   invoiceReference,
+  issueLooksLate,
+  lateIssueBadge,
   needsAttention,
   rejectionText,
   warningMessages,
@@ -36,8 +38,19 @@ const gate = (over: Partial<Parameters<typeof allowedEInvoiceActions>[0]> = {}) 
   hasFiles: false,
   provider: "SANDBOX" as string | null,
   correctionBasis: null as Parameters<typeof allowedEInvoiceActions>[0]["correctionBasis"],
+  grandTotal: 16_848_000,
   ...over,
 });
+
+type Row = NonNullable<Parameters<typeof allowedEInvoiceActions>[2]>[number];
+const row = (over: Partial<Row> = {}): Row => ({
+  type: "ADJUSTMENT",
+  status: "DRAFT",
+  grandTotal: -1_000_000,
+  correctionBasis: "RETURN",
+  ...over,
+});
+const NO_CORRECTIONS: Row[] = [];
 
 describe("EINVOICE_TRANSITIONS (docs 21 §5.1; BE EInvoiceStatus.next)", () => {
   it("covers every BE status (+ UNKNOWN); VOIDED_DRAFT and REPLACED are final", () => {
@@ -75,13 +88,14 @@ describe("allowedEInvoiceActions — three roles (docs 21 BR-02)", () => {
     );
   });
 
-  it("HĐ-3: a system-drawn reduction (DELIVERY_FAILED) is never voided by hand; evidence optional", () => {
+  it("HĐ-3 / Q-8: a system-drawn reduction (DELIVERY_FAILED) is not voided as usual — only as unsendable", () => {
     const system = gate({ type: "ADJUSTMENT", correctionBasis: "DELIVERY_FAILED" });
     expect(allowedEInvoiceActions(system, ACCOUNTANT)).toEqual([
       "revise",
       "refreshBuyer",
       "attachAgreement",
       "issue",
+      "voidUnsendable",
     ]);
     const manual = gate({ type: "ADJUSTMENT", correctionBasis: "RETURN" });
     expect(allowedEInvoiceActions(manual, ACCOUNTANT)).toContain("void");
@@ -108,26 +122,38 @@ describe("allowedEInvoiceActions — three roles (docs 21 BR-02)", () => {
         gate({ status: "SUBMITTING", warnings: ["UNKNOWN_TO_PROVIDER"] }),
         ACCOUNTANT,
       ),
-    ).toEqual(["reconcile", "resubmit", "withdraw"]);
+    ).toEqual(["reconcile", "resubmit", "withdraw", "recordPortalResult"]);
   });
 
   it("HĐ-1: withdraw is offered on any submitting invoice with a provider, to approvers only — BE decides the timing", () => {
     // Mốc 3 giờ / 1 ngày từ lần gửi cuối và câu trả lời của NCC do BE kiểm lúc rút (EINVOICE_WITHDRAWAL_REFUSED)
     const submitting = gate({ status: "SUBMITTING" });
-    expect(allowedEInvoiceActions(submitting, ACCOUNTANT)).toEqual(["reconcile", "withdraw"]);
+    expect(allowedEInvoiceActions(submitting, ACCOUNTANT)).toEqual([
+      "reconcile",
+      "withdraw",
+      "recordPortalResult",
+    ]);
     expect(allowedEInvoiceActions(submitting, SALES_MANAGER)).toEqual([]);
-    expect(
-      allowedEInvoiceActions(gate({ status: "SUBMITTING", provider: null }), ACCOUNTANT),
-    ).not.toContain("withdraw");
+    const noProvider = allowedEInvoiceActions(
+      gate({ status: "SUBMITTING", provider: null }),
+      ACCOUNTANT,
+    );
+    expect(noProvider).not.toContain("withdraw");
+    expect(noProvider).not.toContain("recordPortalResult");
     expect(allowedEInvoiceActions(gate({ status: "DRAFT" }), ACCOUNTANT)).not.toContain("withdraw");
   });
 
   it("BR-08: an adjusted invoice may be adjusted again but not replaced", () => {
-    const issued = allowedEInvoiceActions(gate({ status: "ISSUED", hasFiles: true }), ACCOUNTANT);
+    const issued = allowedEInvoiceActions(
+      gate({ status: "ISSUED", hasFiles: true }),
+      ACCOUNTANT,
+      NO_CORRECTIONS,
+    );
     expect(issued).toEqual(["downloadFiles", "adjust", "replace", "notifyError"]);
     const adjusted = allowedEInvoiceActions(
       gate({ status: "ISSUED", hasFiles: true, adjusted: true }),
       ACCOUNTANT,
+      NO_CORRECTIONS,
     );
     expect(adjusted).toContain("adjust");
     expect(adjusted).not.toContain("replace");
@@ -143,10 +169,23 @@ describe("allowedEInvoiceActions — three roles (docs 21 BR-02)", () => {
       const actions = allowedEInvoiceActions(
         gate({ status: "ISSUED", hasFiles: true, provider }),
         ACCOUNTANT,
+        NO_CORRECTIONS,
       );
       expect(actions).not.toContain("notifyError");
       expect(actions).toContain("adjust");
     }
+  });
+
+  it("F-11: the BE's errorNoticeSupported flag wins over the provider fallback", () => {
+    const issued = (over: Parameters<typeof gate>[0]) =>
+      allowedEInvoiceActions(gate({ status: "ISSUED", ...over }), ACCOUNTANT, NO_CORRECTIONS);
+    expect(issued({ provider: "SEPAY_EINVOICE", errorNoticeSupported: true })).toContain(
+      "notifyError",
+    );
+    expect(issued({ provider: "SANDBOX", errorNoticeSupported: false })).not.toContain(
+      "notifyError",
+    );
+    expect(issued({ provider: "SANDBOX", errorNoticeSupported: null })).toContain("notifyError");
   });
 
   it("final statuses offer no mutating action", () => {
@@ -154,6 +193,111 @@ describe("allowedEInvoiceActions — three roles (docs 21 BR-02)", () => {
     expect(
       allowedEInvoiceActions(gate({ status: "REPLACED", hasFiles: true }), ACCOUNTANT),
     ).toEqual(["downloadFiles"]);
+  });
+});
+
+describe("allowedEInvoiceActions — corrections the BE would refuse are hidden (BO-03, Q-8, Q-9)", () => {
+  const issued = (over: Parameters<typeof gate>[0] = {}, corrections?: Row[]) =>
+    allowedEInvoiceActions(gate({ status: "ISSUED", ...over }), ACCOUNTANT, corrections);
+
+  it("until the corrections are loaded, no correction action is offered", () => {
+    const actions = issued({}, undefined);
+    for (const action of ["adjust", "replace", "recordExternalReduction"] as const)
+      expect(actions).not.toContain(action);
+  });
+
+  it("an ADJUSTMENT is never adjusted or replaced", () => {
+    const actions = issued({ type: "ADJUSTMENT", correctionBasis: "ERROR" }, NO_CORRECTIONS);
+    expect(actions).not.toContain("adjust");
+    expect(actions).not.toContain("replace");
+  });
+
+  it("Q-9: a REPLACEMENT is not adjusted (an error → replace again); a reduction goes the portal way", () => {
+    const actions = issued({ type: "REPLACEMENT", correctionBasis: "ERROR" }, NO_CORRECTIONS);
+    expect(actions).not.toContain("adjust");
+    expect(actions).toContain("replace");
+    expect(actions).toContain("recordExternalReduction");
+  });
+
+  it("BR-08: a live correction (even a system draft) blocks replace; a live replacement blocks adjust", () => {
+    const withDraft = issued({}, [row({ correctionBasis: "DELIVERY_FAILED" })]);
+    expect(withDraft).toContain("adjust");
+    expect(withDraft).not.toContain("replace");
+    const withReplacement = issued({}, [
+      row({ type: "REPLACEMENT", grandTotal: 16_848_000, correctionBasis: "ERROR" }),
+    ]);
+    expect(withReplacement).not.toContain("adjust");
+    expect(withReplacement).not.toContain("replace");
+    const onlyVoided = issued({}, [row({ status: "VOIDED_DRAFT" })]);
+    expect(onlyVoided).toContain("adjust");
+    expect(onlyVoided).toContain("replace");
+  });
+
+  it("C-16 / BE-36: a reversed original, or one reduced to a net total of 0, offers neither", () => {
+    const reversed = issued({ reversedAt: "2026-11-10T03:00:00Z" }, NO_CORRECTIONS);
+    expect(reversed).not.toContain("adjust");
+    expect(reversed).not.toContain("replace");
+    const reducedToZero = issued({ adjusted: true }, [
+      row({ status: "ISSUED", grandTotal: -16_848_000 }),
+    ]);
+    expect(reducedToZero).not.toContain("adjust");
+    const partlyReduced = issued({ adjusted: true }, [
+      row({ status: "ISSUED", grandTotal: -1_000_000 }),
+    ]);
+    expect(partlyReduced).toContain("adjust");
+  });
+
+  it("BE-11 (F-15): reduce for a failed delivery only on a marked, unreduced original", () => {
+    const marked = { deliveryFailedAt: "2026-11-09T07:00:00Z" };
+    expect(issued(marked, NO_CORRECTIONS)).toContain("reduceFailedDelivery");
+    expect(issued({ ...marked, reversedAt: "2026-11-09T08:00:00Z" }, NO_CORRECTIONS)).not.toContain(
+      "reduceFailedDelivery",
+    );
+    expect(issued(marked, [row({ correctionBasis: "DELIVERY_FAILED" })])).not.toContain(
+      "reduceFailedDelivery",
+    );
+    expect(issued({}, NO_CORRECTIONS)).not.toContain("reduceFailedDelivery");
+    expect(
+      allowedEInvoiceActions(gate({ status: "ISSUED", ...marked }), SALES_MANAGER, NO_CORRECTIONS),
+    ).not.toContain("reduceFailedDelivery");
+  });
+
+  it("Q-8 (F-13): after an unsendable reduction is voided, the portal reduction is recorded on the original", () => {
+    const voided = row({ correctionBasis: "DELIVERY_FAILED", status: "VOIDED_DRAFT" });
+    const actions = issued({ reversedAt: "2026-11-09T08:00:00Z" }, [voided]);
+    expect(actions).toContain("recordExternalReduction");
+    expect(actions).not.toContain("adjust");
+    const recorded = row({ correctionBasis: "DELIVERY_FAILED", status: "ISSUED" });
+    expect(issued({ reversedAt: "2026-11-09T08:00:00Z" }, [voided, recorded])).not.toContain(
+      "recordExternalReduction",
+    );
+    expect(issued({}, NO_CORRECTIONS)).not.toContain("recordExternalReduction");
+  });
+
+  it("BE-29: a reduction voided because the delivery was corrected back (reversedAt taken back) opens no portal path", () => {
+    const voided = row({ correctionBasis: "DELIVERY_FAILED", status: "VOIDED_DRAFT" });
+    // DELIVERY_CORRECTED_BACK: BE gỡ reversedAt và dấu giao thất bại — hoá đơn gốc lại còn hiệu lực bình thường
+    const actions = issued({}, [voided]);
+    expect(actions).not.toContain("recordExternalReduction");
+    expect(actions).not.toContain("reduceFailedDelivery");
+    expect(actions).toContain("adjust");
+  });
+
+  it("BE-11: an original already reduced to a net 0 by returns is not offered a failed-delivery reduction", () => {
+    const actions = issued({ deliveryFailedAt: "2026-11-09T07:00:00Z", adjusted: true }, [
+      row({ status: "ISSUED", grandTotal: -16_848_000 }),
+    ]);
+    expect(actions).not.toContain("reduceFailedDelivery");
+  });
+
+  it("Q-9: a REPLACEMENT whose delivery failed is never reduced through the API — only recorded from the portal", () => {
+    const actions = issued(
+      { type: "REPLACEMENT", deliveryFailedAt: "2026-11-09T07:00:00Z" },
+      NO_CORRECTIONS,
+    );
+    expect(actions).not.toContain("reduceFailedDelivery");
+    expect(actions).not.toContain("adjust");
+    expect(actions).toContain("recordExternalReduction");
   });
 });
 
@@ -170,6 +314,15 @@ describe("selectors", () => {
     expect(
       invoiceReference({ templateCode: null, symbol: null, invoiceNumber: null, code: "HDDT-1" }),
     ).toBe("HDDT-1");
+  });
+
+  it("F-16: the BE's issue-time check BUYER_PROFILE_CHANGED (not a stored warning) has its own line", () => {
+    const lines = warningMessages({
+      warnings: ["BUYER_PROFILE_CHANGED"],
+      earlierPendingInvoice: null,
+    });
+    expect(lines[0]).toContain("Làm mới bên mua");
+    expect(lines[0]).not.toBe(warningMessages({ warnings: ["X"], earlierPendingInvoice: null })[0]);
   });
 
   it("explains each warning; an unknown one gets a generic line", () => {
@@ -215,6 +368,42 @@ describe("selectors", () => {
     expect(rejectionText({ rejectionCode: "INVALID_SERIES", rejectionMessage: null })).toBe(
       "Nhà cung cấp từ chối (INVALID_SERIES): không nêu lý do.",
     );
+    // Q-5: rút khi không xác nhận được kết quả — kèm văn bản của hỗ trợ NCC
+    expect(
+      rejectionText({
+        rejectionCode: "WITHDRAWN_RESULT_UNCONFIRMED",
+        rejectionMessage: "Phiếu hỗ trợ SP-123",
+      }),
+    ).toMatch(/không xác nhận được kết quả.*30 ngày.*SP-123/);
+  });
+
+  it("Q-10: an invoice issued after the delivery day reads “Lập trễ N ngày”", () => {
+    expect(
+      lateIssueBadge({
+        warnings: ["ISSUED_LATE"],
+        issueDate: "2026-11-12",
+        deliveredOn: "2026-11-10",
+      }),
+    ).toBe("Lập trễ 2 ngày");
+    expect(lateIssueBadge({ warnings: ["ISSUED_LATE"], issueDate: "2026-11-12" })).toBe("Lập trễ");
+    expect(lateIssueBadge({ warnings: [], issueDate: "2026-11-12" })).toBeNull();
+    expect(
+      warningMessages({ warnings: ["ISSUED_LATE"], earlierPendingInvoice: null }).join(),
+    ).toContain("Lập trễ");
+  });
+
+  it("Q-10: a draft whose delivery day is past asks for a late reason before it is issued", () => {
+    const now = new Date("2026-11-12T03:00:00Z");
+    expect(issueLooksLate({ type: "ORIGINAL", issueDate: "2026-11-11" }, now)).toBe(true);
+    expect(issueLooksLate({ type: "ORIGINAL", issueDate: "2026-11-12" }, now)).toBe(false);
+    // Điều chỉnh: ngày lập của nháp không phải ngày giao — chỉ BE biết (deliveredOn)
+    expect(issueLooksLate({ type: "ADJUSTMENT", issueDate: "2026-11-01" }, now)).toBe(false);
+    expect(
+      issueLooksLate(
+        { type: "ADJUSTMENT", issueDate: "2026-11-12", deliveredOn: "2026-11-01" },
+        now,
+      ),
+    ).toBe(true);
   });
 
   it("needs the accountant: drafts, rejected, overdue or unknown to the provider", () => {

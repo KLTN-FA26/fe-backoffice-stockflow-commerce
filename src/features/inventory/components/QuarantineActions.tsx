@@ -19,6 +19,7 @@ import {
   canWriteOffCarton,
   isHeldForOrder,
   isQuarantined,
+  openedOnReturnNotice,
 } from "../quarantine-lifecycle";
 import { useQuarantineCarton, useReleaseCarton } from "../quarantine-mutations";
 import { quarantineInput } from "../quarantine-schemas";
@@ -35,6 +36,7 @@ const L = QUARANTINE_LABELS;
 export function QuarantineActions({ carton }: { carton: StockPackageDetail }) {
   const can = usePermissionChecker();
   const actions = allowedQuarantineActions(carton, can);
+  const openedNotice = openedOnReturnNotice(carton);
   const quarantine = useQuarantineCarton(carton.lpn);
   const release = useReleaseCarton(carton.lpn);
   const [action, setAction] = useState<QuarantineAction | null>(null);
@@ -98,6 +100,7 @@ export function QuarantineActions({ carton }: { carton: StockPackageDetail }) {
           </Button>
         )}
       </div>
+      {openedNotice && <Alert tone="warning">{L[openedNotice]}</Alert>}
       {isHeldForOrder(carton) && !isQuarantined(carton) && (
         <Alert tone="warning">{L.heldForOrder}</Alert>
       )}

@@ -2,9 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   CANCEL_UNDELIVERED_DEFAULTS,
+  LOST_CLOSURE_DEFAULTS,
   cancelUndeliveredInputSchema,
   deliveryFailureCaseSchema,
-  redeliveryInputSchema,
+  lostClosureInputSchema,
 } from "./delivery-failure-schemas";
 
 /** Fixture theo BE `DeliveryFailureCaseResponse` (Jackson non_null: field null bị bỏ). */
@@ -47,31 +48,44 @@ describe("deliveryFailureCaseSchema (contract BE DeliveryFailureCaseResponse)", 
     expect(parsed.status).toBe("UNKNOWN");
     expect(parsed.failureReason).toBe("UNKNOWN");
   });
+
+  it("F-4 closure: đã biết giữ nguyên; vắng (BE cũ) / lạ → null, không làm hỏng trang", () => {
+    expect(
+      deliveryFailureCaseSchema.parse({
+        ...beCase,
+        status: "CANCELLED",
+        closure: "RECORDED_ON_RETURN",
+      }).closure,
+    ).toBe("RECORDED_ON_RETURN");
+    expect(deliveryFailureCaseSchema.parse(beCase).closure).toBeNull();
+    expect(deliveryFailureCaseSchema.parse({ ...beCase, closure: "BY_ROBOT" }).closure).toBeNull();
+  });
 });
 
-describe("redeliveryInputSchema (BE Redelivery, docs 09 §4.3)", () => {
-  it("khách gây ra (REFUSED / WRONG_ADDRESS) → bắt buộc phí > 0 nguyên VND", () => {
-    const schema = redeliveryInputSchema(true);
-    expect(schema.safeParse({ note: "Khách hẹn lại", failedTripFee: "" }).success).toBe(false);
-    expect(schema.safeParse({ note: "Khách hẹn lại", failedTripFee: "0" }).success).toBe(false);
-    expect(schema.safeParse({ note: "Khách hẹn lại", failedTripFee: "1.5" }).success).toBe(false);
-    expect(schema.parse({ note: "Khách hẹn lại", failedTripFee: "850000" })).toEqual({
-      note: "Khách hẹn lại",
-      failedTripFee: 850000,
-    });
+describe("lostClosureInputSchema (Q-12, F-5 + PR-0 ORDER_SHIPMENT_LOSS_EVIDENCE_REQUIRED)", () => {
+  it("ghi chú bắt buộc, tối đa 1000", () => {
+    expect(
+      lostClosureInputSchema.safeParse({ ...LOST_CLOSURE_DEFAULTS, evidenceUploadId: "u-1" })
+        .success,
+    ).toBe(false);
+    expect(
+      lostClosureInputSchema.safeParse({ note: "x".repeat(1001), evidenceUploadId: "u-1" }).success,
+    ).toBe(false);
   });
 
-  it("lý do khác → KHÔNG gửi phí (BE từ chối phí với lý do của hãng)", () => {
-    expect(redeliveryInputSchema(false).parse({ note: "Giao lại", failedTripFee: "500" })).toEqual({
-      note: "Giao lại",
-      failedTripFee: undefined,
+  it("thiếu tệp xác nhận của hãng → không gửi được", () => {
+    const result = lostClosureInputSchema.safeParse({
+      note: "GHN xác nhận mất",
+      evidenceUploadId: "",
     });
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]?.path).toEqual(["evidenceUploadId"]);
   });
 
-  it("ghi chú bắt buộc", () => {
-    expect(redeliveryInputSchema(false).safeParse({ note: "  ", failedTripFee: "" }).success).toBe(
-      false,
-    );
+  it("đủ → trim ghi chú", () => {
+    expect(
+      lostClosureInputSchema.parse({ note: "  GHN xác nhận mất ", evidenceUploadId: "u-1" }),
+    ).toEqual({ note: "GHN xác nhận mất", evidenceUploadId: "u-1" });
   });
 });
 

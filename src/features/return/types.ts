@@ -4,6 +4,7 @@ import type {
   approveInputSchema,
   cancelInputSchema,
   createReceiptInputSchema,
+  custodyInputSchema,
   looseLineInputSchema,
   openInputSchema,
   proposeInputSchema,
@@ -46,3 +47,4 @@ export type OpenFormValues = z.input<typeof openInputSchema>;
 export type CreateReceiptFormValues = z.input<typeof createReceiptInputSchema>;
 export type ScanFormValues = z.input<typeof scanInputSchema>;
 export type LooseLineFormValues = z.input<typeof looseLineInputSchema>;
+export type CustodyFormValues = z.input<typeof custodyInputSchema>;

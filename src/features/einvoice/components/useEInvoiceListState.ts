@@ -2,7 +2,12 @@
 
 import { parseAsBoolean, parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
 
-import { EINVOICE_STATUSES, EINVOICE_STORAGE_KEYS, EINVOICE_TYPES } from "@/constants/einvoice";
+import {
+  EINVOICE_LATE_WARNING,
+  EINVOICE_STATUSES,
+  EINVOICE_STORAGE_KEYS,
+  EINVOICE_TYPES,
+} from "@/constants/einvoice";
 import { usePagedList } from "@/hooks/use-paged-list";
 
 import { useEInvoices } from "../queries";
@@ -20,6 +25,8 @@ export function useEInvoiceListState(canRead: boolean) {
   const [issuedFrom, setIssuedFrom] = useQueryState("issuedFrom", parseAsString.withDefault(""));
   const [issuedTo, setIssuedTo] = useQueryState("issuedTo", parseAsString.withDefault(""));
   const [overdue, setOverdue] = useQueryState("overdue", parseAsBoolean);
+  // WF-05 Q-10: "Hoá đơn lập trễ" — Kế toán đếm được hoá đơn phát hành sau ngày giao
+  const [late, setLate] = useQueryState("late", parseAsBoolean);
   const [orderId, setOrderId] = useQueryState("orderId", parseAsString.withDefault(""));
   const [customerId, setCustomerId] = useQueryState("customerId", parseAsString.withDefault(""));
 
@@ -35,12 +42,20 @@ export function useEInvoiceListState(canRead: boolean) {
       dueBefore: overdue ? new Date().toISOString().slice(0, 16) + ":00Z" : undefined,
       orderId: orderId || undefined,
       customerId: customerId || undefined,
+      warning: late ? EINVOICE_LATE_WARNING : undefined,
     },
     { enabled: canRead },
   );
 
   const hasFilters =
-    !!status || !!type || !!issuedFrom || !!issuedTo || !!overdue || !!orderId || !!customerId;
+    !!status ||
+    !!type ||
+    !!issuedFrom ||
+    !!issuedTo ||
+    !!overdue ||
+    !!late ||
+    !!orderId ||
+    !!customerId;
   const filter =
     <T>(setter: (value: T) => unknown) =>
     (value: T) => {
@@ -56,6 +71,7 @@ export function useEInvoiceListState(canRead: boolean) {
     issuedFrom,
     issuedTo,
     overdue,
+    late,
     orderId,
     customerId,
     hasFilters,
@@ -65,10 +81,11 @@ export function useEInvoiceListState(canRead: boolean) {
     setIssuedFrom: filter(setIssuedFrom),
     setIssuedTo: filter(setIssuedTo),
     setOverdue: filter(setOverdue),
+    setLate: filter(setLate),
     setOrderId: filter(setOrderId),
     setCustomerId: filter(setCustomerId),
     clearFilters: () => {
-      for (const clear of [setStatus, setType, setOverdue]) void clear(null);
+      for (const clear of [setStatus, setType, setOverdue, setLate]) void clear(null);
       for (const clear of [setIssuedFrom, setIssuedTo, setOrderId, setCustomerId]) void clear("");
       paged.resetPage();
     },

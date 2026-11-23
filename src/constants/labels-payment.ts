@@ -3,15 +3,20 @@
  * toán", "phiếu thu", "mã tham chiếu sao kê", "công nợ phải thu", "số tiền phải hoàn".
  */
 
-import type { InstallmentMilestone, RefundApiStatus, SettlementKind } from "./payment";
+import type { InstallmentReadMilestone, RefundReadStatus, SettlementReadKind } from "./payment";
+
+/** Giá trị BE thêm sau, FE chưa có nhãn (WF-05 BO-11). */
+const UNKNOWN_LABEL = "Không rõ";
 
 export const INSTALLMENT_MILESTONE_LABELS = {
   ON_SIGNING: "Khi ký hợp đồng",
   BEFORE_DELIVERY: "Trước khi giao",
   AFTER_DELIVERY: "Sau khi giao",
   CANCELLATION_FEE: "Phí huỷ đơn",
+  // Dữ liệu cũ: WF-05 Q-19 bỏ phí chuyến hỏng khỏi code BE (cột DB giữ), không lập khoản mới
   FAILED_TRIP_FEE: "Phí chuyến giao không thành",
-} as const satisfies Record<InstallmentMilestone, string>;
+  UNKNOWN: UNKNOWN_LABEL,
+} as const satisfies Record<InstallmentReadMilestone, string>;
 
 /** Tình trạng hoàn tiền (docs 15 §5.3: "Chờ hoàn" / "Hoàn một phần" / "Đã hoàn"). */
 export const REFUND_STATUS_LABELS = {
@@ -19,13 +24,17 @@ export const REFUND_STATUS_LABELS = {
   PENDING: "Chờ hoàn",
   PARTIALLY_REFUNDED: "Hoàn một phần",
   REFUNDED: "Đã hoàn",
-} as const satisfies Record<RefundApiStatus, string>;
+  UNKNOWN: UNKNOWN_LABEL,
+} as const satisfies Record<RefundReadStatus, string>;
 
 export const SETTLEMENT_KIND_LABELS = {
   ORDER_CANCELLED: "Huỷ đơn",
   REMAINDER_CLOSED: "Đóng phần còn lại",
   GOODS_RETURNED: "Trả hàng",
-} as const satisfies Record<SettlementKind, string>;
+  // WF-05 Q-2 (BE-03): khách từ chối / vắng, hãng chở hàng về (hoặc thất lạc) — tính lúc kho xác nhận phiếu nhập hàng hoàn
+  SHIPMENT_RETURNED: "Lô hãng hoàn về",
+  UNKNOWN: UNKNOWN_LABEL,
+} as const satisfies Record<SettlementReadKind, string>;
 
 export const PAYMENT_LABELS = {
   /** Tên nhóm sidebar: thanh toán theo hợp đồng, công nợ (docs 15) và hoá đơn điện tử (docs 21). */
@@ -176,7 +185,7 @@ export const PAYMENT_LABELS = {
   voidDialog: {
     title: "Huỷ phiếu thu?",
     description:
-      "Phiếu chuyển sang Đã huỷ, giữ nguyên nội dung kèm người huỷ, thời điểm và lý do. Các đợt trong phiếu được tính lại; mã tham chiếu sao kê dùng lại được cho phiếu lập đúng.",
+      "Phiếu chuyển sang Đã huỷ, giữ nguyên nội dung kèm người huỷ, thời điểm và lý do. Các đợt trong phiếu được tính lại; mã tham chiếu sao kê dùng lại được cho phiếu lập đúng. Phiếu trả khoản “khi ký” / “trước khi giao” của hàng đã bàn giao thì không huỷ được — sửa bằng chứng từ điều chỉnh ở phần mềm kế toán.",
     reason: "Lý do huỷ phiếu thu",
     holdOrders: "Treo đơn nếu huỷ làm đơn đã xác nhận thiếu đợt khi ký",
     holdHint: "Không chọn mà huỷ làm đơn đã xác nhận thiếu đợt khi ký thì thao tác bị từ chối.",
@@ -201,6 +210,10 @@ export const PAYMENT_LABELS = {
     refundable: "Phải hoàn",
     refunded: "Đã hoàn",
     remaining: "Còn phải hoàn",
+    // WF-05 BE-51 (F-9): phí khách còn nợ trên đơn — đọc cạnh số còn phải hoàn
+    orderFeeOwed: "Phí khách còn nợ",
+    orderFeeOwedHint:
+      "Khách còn nợ phí trên đơn này (khoản phí chưa trả, xem ở Đợt thanh toán của đơn).",
     settlements: "Các lần tính",
     records: "Các lần ghi nhận đã hoàn",
     noRecords: "Chưa ghi nhận lần hoàn nào.",
@@ -216,6 +229,8 @@ export const PAYMENT_LABELS = {
     feeReason: "Lý do phí",
     feeCovered: "Phí đã được tiền thu bù",
     feeOwed: "Phí còn thiếu (khách trả)",
+    // WF-05 Q-19: đơn bị hãng hoàn về toàn bộ — miễn phí vận chuyển của chuyến hỏng (phí khuôn vẫn giữ)
+    shippingFeeWaived: "Phí vận chuyển được miễn (lô hoàn về)",
     feeItem: "Xem khoản phí huỷ",
     settledAt: "Tính lúc",
     refundedOn: "Ngày chuyển",

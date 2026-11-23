@@ -246,7 +246,7 @@ export const SHIPPING_UI_LABELS = {
       readyToDispatch: "Lô chưa bàn giao — kết quả giao chỉ ghi nhận sau khi hãng đã nhận hàng.",
       terminal: "Lô đã có kết quả cuối — không còn thao tác.",
       needsApproval:
-        'Bạn chỉ ghi nhận được hàng hoàn về kho — "đã giao" / "giao thất bại" cần quyền phê duyệt kết quả giao.',
+        'Ghi kết quả giao ("đã giao", "giao thất bại", "hàng hoàn về kho") cần quyền phê duyệt kết quả giao.',
     },
     deliveryNote: { button: "Tải biên bản giao nhận", downloading: "Đang tạo biên bản…" },
     outcomeAction: {
@@ -265,9 +265,11 @@ export const SHIPPING_UI_LABELS = {
         description:
           "Hãng báo không giao được. Chọn lý do; hãng có thể giao lại, hoặc hàng hoàn về kho.",
       },
+      // WF-05 BO-05 (Q-7, Q-2, Q-19, C-5): nói rõ hậu quả cho đơn và tiền — không sửa lại được
       RETURNED: {
         title: "Ghi nhận hàng hoàn về kho",
-        description: "Hãng đã trả kiện về kho. Nhập lại tồn qua luồng Nhận hàng (hàng hoàn).",
+        description:
+          "Hãng đã trả kiện về kho. Phần hàng của lô này bị đóng khỏi đơn, không giao lại trên đơn này — muốn gửi lại hàng phải tạo đơn mới. Tiền được tính khi Quản lý kho xác nhận phiếu nhận hàng hoàn: trừ đợt của lô này trước, rồi nợ cũ, phần đã thu vượt thành số phải hoàn; phí vận chuyển của chuyến hỏng được miễn. Ghi nhận này không sửa lại được.",
       },
       reason: "Lý do",
       reasonPlaceholder: "Chọn lý do",

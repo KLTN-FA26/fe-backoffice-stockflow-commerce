@@ -15,7 +15,11 @@ import {
   WAREHOUSE_LOCATION_PERMISSIONS,
   WAREHOUSE_PERMISSIONS,
 } from "@/constants/permissions";
-import { RMA_PERMISSIONS, RMA_RESOLUTION_PERMISSIONS } from "@/constants/returns";
+import {
+  RETURN_RECEIPT_APPROVAL_PERMISSIONS,
+  RMA_PERMISSIONS,
+  RMA_RESOLUTION_PERMISSIONS,
+} from "@/constants/returns";
 import { api } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/auth/auth-store";
 
@@ -47,6 +51,11 @@ export const WAREHOUSE_GRANTS: PermissionCode[] = [
   WAREHOUSE_PERMISSIONS.read,
   WAREHOUSE_LOCATION_PERMISSIONS.read,
   SHIPMENT_PERMISSIONS.read,
+];
+/** Quản lý kho: thêm quyền xác nhận phiếu có thùng mở / hàng lẻ (WF-05 Q-18). */
+export const WAREHOUSE_MANAGER_GRANTS: PermissionCode[] = [
+  ...WAREHOUSE_GRANTS,
+  RETURN_RECEIPT_APPROVAL_PERMISSIONS.approve,
 ];
 
 type Handler = (params: unknown, body?: unknown) => unknown;

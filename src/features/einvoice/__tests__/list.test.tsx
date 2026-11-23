@@ -79,6 +79,23 @@ describe("EInvoiceList (docs 21 §4.1–4.2)", () => {
     );
   });
 
+  it("Q-10: “Hoá đơn lập trễ” sends warning=ISSUED_LATE; a late row reads “Lập trễ N ngày”", async () => {
+    const lateRow = listItemJson({
+      ...issued,
+      warnings: ["ISSUED_LATE"],
+      issueDate: "2026-11-12",
+      deliveredOn: "2026-11-10",
+    });
+    const api = mockEInvoiceApi(ACCOUNTANT_GRANTS, routes([lateRow]));
+    renderEInvoiceScreen(<EInvoiceList />, "?late=true");
+    expect(await screen.findByText("Lập trễ 2 ngày")).toBeInTheDocument();
+    const params = api.get.mock.calls.find(([url]) => url === "/einvoices")?.[1] as {
+      params: URLSearchParams;
+    };
+    expect(params.params.get("warning")).toBe("ISSUED_LATE");
+    expect(screen.getByRole("checkbox", { name: "Hoá đơn lập trễ" })).toBeChecked();
+  });
+
   it("offers drawing a draft up only for an order, and only to who may create", async () => {
     mockEInvoiceApi(ACCOUNTANT_GRANTS, routes());
     const { unmount } = renderEInvoiceScreen(<EInvoiceList />, "?orderId=ord-13");

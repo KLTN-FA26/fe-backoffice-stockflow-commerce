@@ -17,7 +17,11 @@ const installmentSchema = z.object({
   name: z.string(),
   amount: z.number(),
   paidAmount: z.number(),
-  status: z.enum(INSTALLMENT_API_STATUSES),
+  /** Trạng thái lạ (BE thêm sau) → `UNKNOWN` ("Không rõ"), không làm hỏng khối (WF-05 BO-11). */
+  status: z.union([
+    z.enum(INSTALLMENT_API_STATUSES),
+    z.string().transform((): typeof ORDER_STATUS_UNKNOWN => ORDER_STATUS_UNKNOWN),
+  ]),
   /** Còn phải thu của đợt (BE `InstallmentResponse.outstanding`). */
   outstanding: z.number().nullish(),
   /** Hạn trả; null tới khi tới mốc, và với đợt trả trước khi giao. */

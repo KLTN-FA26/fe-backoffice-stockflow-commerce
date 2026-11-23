@@ -14,10 +14,16 @@
  * Kiểm `version` như BE (409 OPTIMISTIC_LOCK), trạng thái nguồn (409 RETURN_INVALID_TRANSITION) và trần số lượng.
  */
 
-import { RETURN_LIMITS } from "@/constants/returns";
+import { RETURN_LIMITS, RETURN_REFUSAL_REASONS } from "@/constants/returns";
 
 import { registerMockRoute } from "./mock-adapter";
-import { mockReturns, nextMockReturnId, MOCK_RETURN_WAREHOUSE } from "./mock-returns-store";
+import {
+  mockReceiptDraftOpen,
+  mockReceiptOpenable,
+  mockReturns,
+  nextMockReturnId,
+  MOCK_RETURN_WAREHOUSE,
+} from "./mock-returns-store";
 import { mockCustomerUuid } from "./mock-routes-orders-store";
 import {
   bodyOf,
@@ -32,7 +38,7 @@ import {
 } from "./mock-route-utils";
 
 import type { ReturnApiStatus, ReturnReason } from "@/constants/returns";
-import type { MockReturn } from "./mock-returns-store";
+import type { MockCustody, MockReturn } from "./mock-returns-store";
 
 const now = () => new Date().toISOString();
 const byId = (id: string) => mockReturns().find((r) => r.id === id);
@@ -42,10 +48,27 @@ const invalid = (status: string) =>
 
 const VAT = 0.08;
 
+/**
+ * WF-05 F-20 (mock, như BE G4 `ReturnRequest.outcomeOf`): kết quả của yêu cầu đã xử lý xong — theo đơn vị được hoàn, không
+ * theo số tiền; không hoàn đơn vị nào thì không bao giờ là REFUNDED.
+ */
+function outcomeOf(ret: MockReturn): string | null {
+  if (ret.status !== "RESOLVED") return null;
+  if (ret.lines.some((l) => l.refundQuantity > 0)) return "REFUNDED";
+  return ret.refusalReason ? "REFUSED" : "NOTHING_TO_REFUND";
+}
+
 function wire(ret: MockReturn) {
   const { warehouseId: _warehouse, ...rest } = ret;
   void _warehouse;
-  return { ...rest, discrepancies: [], history: ret.history.map((h) => ({ ...h, actorId: null })) };
+  return {
+    ...rest,
+    discrepancies: [],
+    history: ret.history.map((h) => ({ ...h, actorId: null })),
+    outcome: outcomeOf(ret),
+    receiptOpenable: mockReceiptOpenable(ret),
+    receiptDraftOpen: mockReceiptDraftOpen(ret),
+  };
 }
 
 function row(ret: MockReturn) {
@@ -68,6 +91,8 @@ function row(ret: MockReturn) {
     currency: ret.currency,
     vatAdjustmentRequired: ret.status === "RESOLVED" && resolution.vatAdjustmentRequired === true,
     closedAt: ret.closedAt,
+    receiptOpenable: mockReceiptOpenable(ret),
+    outcome: outcomeOf(ret),
     version: ret.version,
   };
 }
@@ -155,42 +180,82 @@ function cancel(ret: MockReturn, body: Record<string, unknown>) {
   return ok(wire(ret));
 }
 
+/** Số đơn vị hoàn được (BE `ReturnLine.refundableUnits`). */
+const refundable = (ret: MockReturn) =>
+  ret.lines.reduce((sum, l) => sum + Math.min(l.approvedQuantity ?? 0, l.receivedQuantity ?? 0), 0);
+
+/** WF-05 BE-23 (mock): kho đang đếm một kiện của yêu cầu trên phiếu nháp. */
+const draftCounting = (ret: MockReturn) =>
+  mockReceiptDraftOpen(ret)
+    ? fail(409, "RETURN_RECEIPT_DRAFT_OPEN", "A draft return receipt is open")
+    : null;
+
 function propose(ret: MockReturn, body: Record<string, unknown>) {
   if (stale(ret, body)) return optimisticLock();
   if (ret.status !== "RECEIVED") return invalid(ret.status);
+  const counting = draftCounting(ret);
+  if (counting) return counting;
   const lines = Array.isArray(body.lines)
     ? (body.lines as { lineId?: string; quantity?: number }[])
     : [];
+  // Không còn đơn vị nào hoàn được: kết thúc không hoàn tiền, không phải đề xuất (TH-4)
+  if (refundable(ret) === 0)
+    return fail(400, "RETURN_QUANTITIES_INVALID", "Nothing refundable: close without refund");
+  const quantities = new Map<string, number>();
   for (const l of ret.lines) {
     const cap = Math.min(l.approvedQuantity ?? 0, l.receivedQuantity ?? 0);
     const qty = lines.find((x) => x.lineId === l.id)?.quantity ?? cap;
     if (qty < 0 || qty > cap)
       return fail(400, "RETURN_QUANTITIES_INVALID", "Refund at most approved and back");
+    quantities.set(l.id, qty);
+  }
+  // WF-05 Q-4 (BE-12, như BE G4 `ReturnRequest.proposeRefund`): không hoàn đơn vị nào → lý do bắt buộc; giữ lại một phần →
+  // lý do tuỳ chọn; hoàn đủ → không lý do; OTHER → ghi chú gửi khách bắt buộc; ghi chú chỉ đi kèm lý do
+  const total = [...quantities.values()].reduce((sum, qty) => sum + qty, 0);
+  const reason = text(body.refusalReason);
+  if (total === 0 && !reason)
+    return fail(400, "RETURN_REFUSAL_REASON_REQUIRED", "Name why nothing is refunded");
+  if (reason && !(RETURN_REFUSAL_REASONS as readonly string[]).includes(reason))
+    return validationFailed("refusalReason", "Unknown refusal reason");
+  const refusalNote = text(body.refusalNote);
+  if (refusalNote.length > RETURN_LIMITS.refusalNoteMax)
+    return validationFailed("refusalNote", "refusalNote is at most 500 characters");
+  if (!reason && refusalNote)
+    return validationFailed("refusalNote", "A note for the customer goes with a refusal reason");
+  if (reason && total === refundable(ret))
+    return validationFailed(
+      "refusalReason",
+      "Every unit is refunded: nothing to give a reason for",
+    );
+  if (reason === "OTHER" && !refusalNote)
+    return validationFailed("refusalNote", "A refusal for another reason says what it is");
+  for (const l of ret.lines) {
+    const qty = quantities.get(l.id) ?? 0;
     l.refundQuantity = qty;
     l.refundAmount = Math.round(qty * l.unitPrice * (1 + VAT));
   }
   const amount = ret.lines.reduce((sum, l) => sum + (l.refundAmount ?? 0), 0);
-  if (amount <= 0) return fail(400, "RETURN_QUANTITIES_INVALID", "Refund at least one unit");
+  ret.refusalReason = reason || null;
+  ret.refusalNote = reason ? refusalNote || null : null;
   ret.resolution = {
-    moneyMode: "REFUND",
+    moneyMode: amount > 0 ? "REFUND" : null,
     settlementAmount: amount,
     proposedBy: "mock-current-user",
     proposedAt: now(),
     note: text(body.note) || null,
-    vatAdjustmentRequired: true,
+    vatAdjustmentRequired: amount > 0,
   };
   move(ret, "SETTLEMENT_PENDING");
   return ok(wire(ret));
 }
 
-/** Số đơn vị hoàn được (BE `ReturnLine.refundableUnits`). */
-const refundable = (ret: MockReturn) =>
-  ret.lines.reduce((sum, l) => sum + Math.min(l.approvedQuantity ?? 0, l.receivedQuantity ?? 0), 0);
-
 /** WF-05 TH-3 (BE `ReturnRequest.markGoodsComplete`): AWAITING_RETURN có ≥ 1 kiện về → RECEIVED. */
 function goodsComplete(ret: MockReturn, body: Record<string, unknown>) {
   if (stale(ret, body)) return optimisticLock();
   if (ret.status !== "AWAITING_RETURN" || !anyParcel(ret)) return invalid(ret.status);
+  // WF-05 BE-23: còn phiếu nháp đang đếm thì chưa chốt
+  if (mockReceiptDraftOpen(ret))
+    return fail(409, "RETURN_RECEIPT_DRAFT_OPEN", "A draft return receipt is open");
   const note = text(body.note);
   if (note.length > RETURN_LIMITS.goodsCompleteNoteMax)
     return validationFailed("note", "note is at most 500 characters");
@@ -202,6 +267,8 @@ function goodsComplete(ret: MockReturn, body: Record<string, unknown>) {
 function closeWithoutRefund(ret: MockReturn, body: Record<string, unknown>) {
   if (stale(ret, body)) return optimisticLock();
   if (ret.status !== "RECEIVED") return invalid(ret.status);
+  const counting = draftCounting(ret);
+  if (counting) return counting;
   if (refundable(ret) > 0)
     return fail(400, "RETURN_QUANTITIES_INVALID", "Units approved came back: propose their refund");
   const note = text(body.note);
@@ -232,21 +299,27 @@ function closeWithoutRefund(ret: MockReturn, body: Record<string, unknown>) {
 
 interface MockEvidenceUpload {
   returnId: string;
+  /** CLAIM (ảnh khiếu nại) hoặc CUSTODY (biên nhận giữ hộ, WF-05 Q-11). */
+  stage: string;
   fileName: string;
   received: boolean;
   evidenceId: string | null;
 }
 const evidenceUploads = new Map<string, MockEvidenceUpload>();
 
-/** Ảnh của khiếu nại chỉ nhận khi còn chờ duyệt / chờ hàng về, tối đa 10 ảnh (BE `requireEvidenceAllowed`). */
-function evidenceRefusal(ret: MockReturn) {
-  if (ret.status !== "REQUESTED" && ret.status !== "AWAITING_RETURN") return invalid(ret.status);
-  if (ret.evidence.length >= RETURN_LIMITS.evidenceMax)
+/**
+ * BE G4 `requireEvidenceAllowed`: ảnh khiếu nại chỉ khi còn chờ duyệt / chờ hàng về; biên nhận giữ hộ (WF-05 Q-11) ở mọi
+ * trạng thái; tối đa 10 ảnh MỖI bước.
+ */
+function evidenceRefusal(ret: MockReturn, stage: string) {
+  if (stage === "CLAIM" && ret.status !== "REQUESTED" && ret.status !== "AWAITING_RETURN")
+    return invalid(ret.status);
+  if (ret.evidence.filter((e) => e.stage === stage).length >= RETURN_LIMITS.evidenceMax)
     return fail(409, "RETURN_EVIDENCE_LIMIT_REACHED", "The return holds its photos already");
   return null;
 }
 
-function beginEvidenceUpload(ret: MockReturn, body: Record<string, unknown>) {
+function beginEvidenceUpload(ret: MockReturn, body: Record<string, unknown>, stage = "CLAIM") {
   const fileName = text(body.fileName);
   const contentType = text(body.contentType);
   const sizeBytes = typeof body.sizeBytes === "number" ? body.sizeBytes : 0;
@@ -258,14 +331,20 @@ function beginEvidenceUpload(ret: MockReturn, body: Record<string, unknown>) {
   if (!(sizeBytes > 0)) return validationFailed("sizeBytes", "sizeBytes must be positive");
   if (!/^[0-9a-f]{64}$/.test(text(body.sha256)))
     return validationFailed("sha256", "must be a lower-case hex SHA-256");
-  const refused = evidenceRefusal(ret);
+  const refused = evidenceRefusal(ret, stage);
   if (refused) return refused;
   if (!(RETURN_LIMITS.evidenceTypes as readonly string[]).includes(contentType))
     return fail(415, "UNSUPPORTED_MEDIA_TYPE", "This file type is not accepted");
   if (sizeBytes > RETURN_LIMITS.evidenceMaxBytes)
     return fail(413, "PAYLOAD_TOO_LARGE", "The uploaded file is too large");
   const uploadId = crypto.randomUUID();
-  evidenceUploads.set(uploadId, { returnId: ret.id, fileName, received: false, evidenceId: null });
+  evidenceUploads.set(uploadId, {
+    returnId: ret.id,
+    stage,
+    fileName,
+    received: false,
+    evidenceId: null,
+  });
   return ok(
     {
       uploadId,
@@ -278,22 +357,34 @@ function beginEvidenceUpload(ret: MockReturn, body: Record<string, unknown>) {
   );
 }
 
-function attachEvidence(ret: MockReturn, body: Record<string, unknown>) {
+function attachEvidence(ret: MockReturn, body: Record<string, unknown>, stage = "CLAIM") {
   const uploadId = text(body.uploadId);
   const upload = evidenceUploads.get(uploadId);
-  if (!upload || upload.returnId !== ret.id)
+  if (!upload || upload.returnId !== ret.id || upload.stage !== stage)
     return validationFailed("uploadId", "No such upload for this return");
   // Gửi lại cùng uploadId → trả yêu cầu như đã gắn
   if (upload.evidenceId) return ok(wire(ret), 201);
   if (!upload.received) return validationFailed("uploadId", "The file was never uploaded");
-  const refused = evidenceRefusal(ret);
+  // Biên nhận giữ hộ (BE G4 `ReturnEvidence.Custody`): SKU hoặc LPN, ≥ 1 đơn vị
+  let custody: MockCustody | undefined;
+  if (stage === "CUSTODY") {
+    const sku = text(body.sku);
+    const lpn = text(body.lpn);
+    const quantity = typeof body.quantity === "number" ? body.quantity : 0;
+    if (!sku && !lpn) return validationFailed("sku", "Name the goods by their SKU or their LPN");
+    if (!Number.isInteger(quantity) || quantity < 1)
+      return validationFailed("quantity", "At least one unit");
+    custody = { sku: sku || null, lpn: lpn || null, quantity, note: text(body.note) || null };
+  }
+  const refused = evidenceRefusal(ret, stage);
   if (refused) return refused;
   const evidenceId = nextMockReturnId("EV");
   ret.evidence.push({
     id: evidenceId,
-    stage: "CLAIM",
+    stage,
     originalName: upload.fileName,
     uploadedAt: now(),
+    ...(custody ? { custody } : {}),
   });
   upload.evidenceId = evidenceId;
   ret.version += 1;
@@ -305,6 +396,8 @@ function settle(ret: MockReturn, body: Record<string, unknown>, approved: boolea
   if (ret.status !== "SETTLEMENT_PENDING") return invalid(ret.status);
   if (ret.resolution?.proposedBy === "mock-current-user")
     return fail(409, "RETURN_SELF_APPROVAL", "The proposer cannot approve");
+  const counting = approved ? draftCounting(ret) : null;
+  if (counting) return counting;
   if (!approved) {
     const reason = text(body.reason);
     if (!reason)
@@ -421,6 +514,17 @@ export function registerReturnMockRoutes(): void {
   // `/evidence/uploads` trước `/evidence` không cần (khác số đoạn) — giữ cạnh nhau cho dễ đọc
   registerMockRoute("POST", "/returns/:id/evidence/uploads", step(beginEvidenceUpload));
   registerMockRoute("POST", "/returns/:id/evidence", step(attachEvidence));
+  // WF-05 Q-11: biên nhận giữ hộ — cùng kho ảnh, stage CUSTODY
+  registerMockRoute(
+    "POST",
+    "/returns/:id/custody/uploads",
+    step((r, b) => beginEvidenceUpload(r, b, "CUSTODY")),
+  );
+  registerMockRoute(
+    "POST",
+    "/returns/:id/custody",
+    step((r, b) => attachEvidence(r, b, "CUSTODY")),
+  );
   // Kho đối tượng của ảnh trả hàng: nhận byte rồi đánh dấu đã tới (URL ký sẵn, không xác thực)
   registerMockRoute("PUT", "/__mock-storage/returns/:uploadId", (config) => {
     const upload = evidenceUploads.get(pathParams(config).uploadId ?? "");

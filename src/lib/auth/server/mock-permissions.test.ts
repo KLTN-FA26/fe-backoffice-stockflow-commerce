@@ -58,8 +58,8 @@ describe("explicit mock permission responses", () => {
   // (sales-order-credit-holds APPROVE chỉ ACCOUNTANT; Sales/Coordinator chỉ VIEW_PAGE/READ).
   it("order / cancellation / credit-hold grants match the BE seed exactly, per role", () => {
     const orderScope = (userId: string) =>
-      mockSessionPermissions(userId, []).permissions.filter((code) =>
-        code.startsWith("sales-order"),
+      mockSessionPermissions(userId, []).permissions.filter(
+        (code) => code.startsWith("sales-order") || code === ORDER_PERMISSIONS.lostShipmentClosure,
       );
     const ORDER = ORDER_PERMISSIONS;
     const CREDIT = CREDIT_HOLD_PERMISSIONS;
@@ -78,6 +78,8 @@ describe("explicit mock permission responses", () => {
       // BE: SALES_STAFF + SYSTEM_ADMIN giữ / gỡ giữ đơn (sales-order-holds:UPDATE)
       ORDER.hold,
       ORDER.partialShipment,
+      // PR-0 V20261216000050 (WF-05 Q-12): đóng phần thất lạc
+      ORDER.lostShipmentClosure,
       CREDIT.viewPage,
       CREDIT.read,
       queue,
@@ -87,7 +89,11 @@ describe("explicit mock permission responses", () => {
     const coordinator = [
       ...new Set([
         ...Object.values(ORDER).filter(
-          (code) => code !== ORDER.partialShipment && code !== ORDER.hold,
+          // Đóng phần thất lạc (PR-0 V20261216000050): chỉ SALES_STAFF + SYSTEM_ADMIN
+          (code) =>
+            code !== ORDER.partialShipment &&
+            code !== ORDER.hold &&
+            code !== ORDER.lostShipmentClosure,
         ),
         CREDIT.viewPage,
         CREDIT.read,

@@ -6,9 +6,54 @@
 import type {
   CorrectionBasisRead,
   EInvoiceSystemRejectionCode,
+  EInvoiceIssueCheck,
   EInvoiceTypeRead,
+  EInvoiceUnknown,
   EInvoiceWarning,
+  PortalResultOutcome,
+  SignatureStatus,
+  WithdrawalProviderState,
 } from "./einvoice";
+
+/** Tên hiển thị của nhà cung cấp (BE `EInvoiceProvider.code()`); mã lạ hiện nguyên văn. */
+export const EINVOICE_PROVIDER_LABELS: Readonly<Record<string, string>> = {
+  SANDBOX: "Sandbox (thử nghiệm, không có giá trị pháp lý)",
+  SEPAY_EINVOICE: "SePay eInvoice",
+  VIETTEL_SINVOICE: "Viettel SInvoice",
+};
+
+/** Chữ ký số trên XML (BE `EInvoiceSignatureResponse.status`, WF-05 F-18). */
+export const SIGNATURE_STATUS_LABELS = {
+  VALID: "Hợp lệ — nội dung đúng như lúc ký",
+  CONTENT_CHANGED: "Nội dung đã bị sửa sau khi ký",
+  SIGNATURE_INVALID: "Chữ ký không hợp lệ",
+  NOT_SIGNED: "Không có chữ ký của bên bán",
+  UNREADABLE: "Tệp không đọc được (không phải XML hoá đơn)",
+  SHA1_UNCHECKED: "Ký bằng SHA-1 — hệ thống chưa kiểm được (không phải chữ ký sai)",
+  UNKNOWN: "Kết quả kiểm chưa hỗ trợ hiển thị",
+} as const satisfies Record<SignatureStatus | EInvoiceUnknown, string>;
+
+/** Câu trả lời của NCC khi BE từ chối rút hoá đơn (`details.providerState`, WF-05 F-12, Q-5). */
+export const WITHDRAWAL_PROVIDER_STATE_LABELS = {
+  PENDING:
+    "Nhà cung cấp đã nhận và đang xử lý hoá đơn (kể cả “đã phát hành nhưng chưa có số”) — hoá đơn đang chờ, không bao giờ rút. Bấm “Kiểm tra lại” sau.",
+  UNKNOWN: "Nhà cung cấp chưa trả lời rõ về hoá đơn này.",
+  NOT_FOUND: "Nhà cung cấp chưa có bản ghi của hoá đơn này.",
+  UNCONFIRMED:
+    "Không xác nhận được kết quả với nhà cung cấp — chỉ rút khi có văn bản trả lời của bộ phận hỗ trợ nhà cung cấp: nhập số phiếu hoặc nội dung trả lời.",
+} as const satisfies Record<WithdrawalProviderState, string>;
+
+/** Điều BE thấy khi kiểm lại nháp lúc phát hành tay, không phải cảnh báo lưu trên hoá đơn (WF-05 F-16). */
+export const EINVOICE_ISSUE_CHECK_LABELS = {
+  BUYER_PROFILE_CHANGED:
+    "Hồ sơ pháp lý của khách đang ghi bên mua khác với nháp (tên, mã số thuế hoặc địa chỉ). Bấm “Làm mới bên mua” để chép lại, hoặc phát hành nếu nháp đã đúng.",
+} as const satisfies Record<EInvoiceIssueCheck, string>;
+
+/** Kết quả ghi lại từ cổng NCC (WF-05 F-13). */
+export const PORTAL_RESULT_OUTCOME_LABELS = {
+  ISSUED: "Đã phát hành trên cổng nhà cung cấp",
+  REFUSED_BY_TAX_AUTHORITY: "Cơ quan thuế từ chối",
+} as const satisfies Record<PortalResultOutcome, string>;
 
 export const EINVOICE_TYPE_LABELS = {
   ORIGINAL: "Hoá đơn gốc",
@@ -32,6 +77,8 @@ export const EINVOICE_LABELS = {
     pageTitle: "Hoá đơn điện tử",
     pendingPreset: "Chờ phát hành",
     overdueOnly: "Quá hạn phát hành",
+    /** WF-05 Q-10: hoá đơn phát hành sau ngày giao (cảnh báo ISSUED_LATE). */
+    lateOnly: "Hoá đơn lập trễ",
     statusAll: "Mọi trạng thái",
     typeAll: "Mọi loại",
     issuedFrom: "Ngày lập từ",
@@ -68,6 +115,9 @@ export const EINVOICE_LABELS = {
     providerCalls: "Nhật ký gọi nhà cung cấp",
     corrections: "Điều chỉnh / thay thế",
     errorNotices: "Thông báo sai sót",
+    signature: "Chữ ký số",
+    /** WF-05 F-13: hoá đơn ghi lại từ cổng NCC, không phát hành qua API. */
+    issuedViaPortal: "Ghi lại từ cổng nhà cung cấp",
     notFoundTitle: "Không tìm thấy hoá đơn điện tử",
     notFoundDescription: "Hoá đơn không tồn tại hoặc đường dẫn không hợp lệ.",
   },
@@ -84,6 +134,11 @@ export const EINVOICE_LABELS = {
     adjust: "Lập điều chỉnh",
     replace: "Lập thay thế",
     notifyError: "Thông báo sai sót",
+    // WF-05 Q-8 (F-13, F-14), BE-11 (F-15)
+    recordPortalResult: "Ghi kết quả từ cổng NCC",
+    recordExternalReduction: "Ghi hoá đơn giảm làm trên cổng NCC",
+    voidUnsendable: "Huỷ bản không gửi được",
+    reduceFailedDelivery: "Lập bản giảm do giao thất bại",
     downloadXml: "Tải XML",
     downloadPdf: "Tải PDF",
   },
@@ -91,8 +146,9 @@ export const EINVOICE_LABELS = {
     BUYER_PROFILE_INCOMPLETE:
       "Hồ sơ bên mua thiếu tên, mã số thuế hoặc địa chỉ — chưa phát hành được.",
     // BE HĐ-8: không chặn Kế toán phát hành tay, chỉ chặn tự phát hành
+    // WF-05 Q-14 + Q-22 BR-06: email không phải nội dung bắt buộc của hoá đơn — không chặn cả tự phát hành; BE gửi thư
     BUYER_EMAIL_MISSING:
-      "Bên mua chưa có email nhận hoá đơn — hệ thống không tự phát hành; phát hành tay thì nhà cung cấp không gửi được email, khách vẫn xem trên cổng.",
+      "Bên mua chưa có email nhận hoá đơn — hoá đơn vẫn phát hành đúng ngày (kể cả tự phát hành), nhưng hệ thống chưa gửi được email cho khách. Nhờ Sale bổ sung email rồi gửi lại; khách vẫn xem trên cổng.",
     TAX_RATE_DIFFERS_FROM_CONTRACT: "Thuế suất trên hoá đơn khác thuế suất đã chốt trên hợp đồng.",
     TAX_RATE_NOT_ON_CONTRACT:
       "Dòng đơn chưa chốt thuế suất — hệ thống tra theo ngày giao, Kế toán cần kiểm tra.",
@@ -108,6 +164,11 @@ export const EINVOICE_LABELS = {
     SIGNATURE_INVALID:
       "Chữ ký số của bên bán trên tệp XML không hợp lệ — hoá đơn chưa được gửi cho khách. Kiểm tra trên cổng nhà cung cấp và lập hoá đơn thay thế.",
     EARLIER_INVOICE_PENDING: "Còn hoá đơn ngày lập sớm hơn chưa phát hành",
+    // WF-05 Q-21 (Luật GTGT 48/2024 Điều 9 khoản 4): không xác định được mức thì tính mức cao nhất
+    TAX_CLASS_UNKNOWN:
+      "Có sản phẩm chưa xác định nhóm thuế — tính mức cao nhất 10% và không tự phát hành. Gán nhóm thuế cho sản phẩm, huỷ nháp rồi lập lại; hoặc kiểm tra rồi phát hành như hiện tại.",
+    // WF-05 Q-10: hoá đơn mang ngày phát hành, sau ngày giao
+    ISSUED_LATE: "Hoá đơn phát hành sau ngày giao (lập trễ).",
     unknown: "Hoá đơn có cảnh báo mới từ hệ thống — xem lại trước khi phát hành.",
   } satisfies Record<EInvoiceWarning | "unknown", string>,
   /** `rejectionCode` hệ thống tự ghi (không phải NCC từ chối) — câu thay cho "Nhà cung cấp từ chối". */
@@ -115,5 +176,13 @@ export const EINVOICE_LABELS = {
     UNKNOWN_TO_PROVIDER: "Nhà cung cấp xác nhận không giữ hoá đơn này",
     // BE HĐ-1: Kế toán rút hoá đơn kẹt ở NCC; rejectionMessage = điều Kế toán đã kiểm tra
     WITHDRAWN_NO_PROVIDER_RECORD: "Đã rút khỏi nhà cung cấp (nhà cung cấp không có bản ghi)",
+    // WF-05 Q-5: rejectionMessage = số phiếu / nội dung trả lời của hỗ trợ NCC; BE tự tra lại giao dịch cũ 30 ngày
+    WITHDRAWN_RESULT_UNCONFIRMED:
+      "Đã rút khỏi nhà cung cấp khi không xác nhận được kết quả (hệ thống tự tra lại giao dịch cũ trong 30 ngày) — văn bản của bộ phận hỗ trợ",
   } satisfies Record<EInvoiceSystemRejectionCode, string>,
 } as const;
+
+/** Nhãn "Lập trễ N ngày" (WF-05 Q-1 / Q-10); không biết ngày giao → "Lập trễ". */
+export function lateIssueLabel(days: number | null): string {
+  return days != null && days > 0 ? `Lập trễ ${days} ngày` : "Lập trễ";
+}

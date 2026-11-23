@@ -8,6 +8,7 @@ import { ADMIN_ROUTES } from "@/constants";
 import { RETURN_RECEIPT_LABELS } from "@/constants/labels-return";
 import { GOODS_RECEIPT_PERMISSIONS } from "@/constants/permissions";
 import { RETURN_ROUTES } from "@/constants/returns";
+import { useAuthStore } from "@/lib/auth/auth-store";
 import { useCan, usePermissionChecker } from "@/lib/auth/components/Can";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
@@ -18,7 +19,7 @@ import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Button } from "@/components/ui/button";
 
 import { returnErrorMessage } from "../errors";
-import { allowedReturnReceiptActions } from "../lifecycle";
+import { allowedReturnReceiptActions, returnReceiptConfirmBlock } from "../lifecycle";
 import {
   useCancelReturnReceipt,
   useConfirmReturnReceipt,
@@ -44,6 +45,7 @@ const D = L.detail;
 function Content({ id }: { id: string }) {
   const canRead = useCan(GOODS_RECEIPT_PERMISSIONS.read);
   const can = usePermissionChecker();
+  const userId = useAuthStore((state) => state.user?.userId ?? null);
   const query = useReturnReceipt(id, { enabled: canRead });
   useBreadcrumbLabel(id, query.data?.number);
   const [open, setOpen] = useState<"confirm" | "cancel" | null>(null);
@@ -67,6 +69,10 @@ function Content({ id }: { id: string }) {
   const receipt = query.data;
   // UI-only — Backend phải re-check (`procurement-goods-receipts:UPDATE`, phiếu DRAFT)
   const actions = allowedReturnReceiptActions(receipt, can);
+  // WF-05 Q-18: phiếu có thùng mở / hàng lẻ — chỉ Quản lý kho, khác người đếm (BE kiểm lại)
+  const confirmBlock = actions.includes("confirm")
+    ? returnReceiptConfirmBlock(receipt, can, userId)
+    : null;
   const close = () => {
     setOpen(null);
     setError(null);
@@ -84,7 +90,12 @@ function Content({ id }: { id: string }) {
         </Button>
         <div className="flex flex-wrap gap-2">
           {actions.includes("confirm") && (
-            <Button size="sm" onClick={() => setOpen("confirm")}>
+            <Button
+              size="sm"
+              disabled={confirmBlock !== null}
+              aria-describedby={confirmBlock ? "rr-confirm-block" : undefined}
+              onClick={() => setOpen("confirm")}
+            >
               <CheckCheck className="size-3.5" /> {D.confirm}
             </Button>
           )}
@@ -95,6 +106,11 @@ function Content({ id }: { id: string }) {
           )}
         </div>
       </div>
+      {confirmBlock && (
+        <p id="rr-confirm-block" className="text-ink-secondary text-[0.8125rem]">
+          {D[confirmBlock]}
+        </p>
+      )}
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0 space-y-4">
           {actions.includes("scan") && (
@@ -180,6 +196,7 @@ function Content({ id }: { id: string }) {
 /**
  * Một phiếu nhập hàng hoàn: quét LPN vào phiếu nháp (thùng đã mở kèm số đếm thực tế), ghi hàng lẻ không nhãn (phiếu
  * của yêu cầu trả hàng), đối chiếu với thùng của nguồn, xác nhận hoặc huỷ (docs 03 §4.2 bước 10–12, BR-05, BR-14).
+ * WF-05 Q-18: thùng đã mở và hàng lẻ không nhập tồn; phiếu có chúng do Quản lý kho xác nhận, khác người đếm.
  * Xác nhận: thùng về tồn cách ly; yêu cầu trả hàng sang RECEIVED khi đã về đủ số đã duyệt, về một phần thì vẫn
  * AWAITING_RETURN (một lần hàng về) để Sale bấm "Đã nhận đủ hàng" (WF-05 TH-3, TH-4).
  */

@@ -149,13 +149,13 @@ export const ORDER_ACTIONS: readonly OrderAction[] = [
     outcome: { kind: "to", statuses: ["Confirmed"] },
     requires: isCreditHold,
   },
-  // docs 15 §4.3: từ chối → huỷ, hoặc chuyển sang trả trước / đặt cọc (về Pending Payment).
+  // WF-05 BO-07 (C-12): BE `CreditHoldService#refuse` LUÔN huỷ đơn (CREDIT_REJECTED) — không có nhánh về Pending Payment.
   {
     code: "credit-reject",
     label: UI_LABELS.order.actions.creditReject,
     permission: CREDIT_HOLD_PERMISSIONS.approve,
     fromStatuses: ["On Hold"],
-    outcome: { kind: "to", statuses: ["Cancelled", "Pending Payment"] },
+    outcome: { kind: "to", statuses: ["Cancelled"] },
     requires: isCreditHold,
     destructive: true,
   },

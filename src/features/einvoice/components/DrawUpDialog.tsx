@@ -10,13 +10,14 @@ import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { FormField, fieldA11y } from "@/components/shared/FormField";
 import { Input } from "@/components/ui/input";
 
-import { einvoiceErrorMessage } from "../errors";
+import { applyEInvoiceFieldErrors, einvoiceErrorMessage } from "../errors";
 import { drawUpInputSchema } from "../input-schemas";
 import { useDrawUpEInvoice } from "../mutations";
 
 import type { z } from "zod";
 
 type Values = z.input<typeof drawUpInputSchema>;
+const DRAW_UP_FIELDS = ["shipmentId"] as const;
 
 function DrawUpForm({ orderId, onClose }: { orderId: string; onClose: () => void }) {
   const router = useRouter();
@@ -34,7 +35,13 @@ function DrawUpForm({ orderId, onClose }: { orderId: string; onClose: () => void
           onClose();
           router.push(EINVOICE_ROUTES.detail(invoice.id));
         },
-        onError: (failure) => setError(einvoiceErrorMessage(failure)),
+        // BO-10: lỗi từng ô của BE hiện dưới ô đó
+        onError: (failure) => {
+          const mapped = applyEInvoiceFieldErrors(failure, DRAW_UP_FIELDS, (field, message) =>
+            form.setError(field, { type: "server", message }),
+          );
+          if (!mapped) setError(einvoiceErrorMessage(failure));
+        },
       },
     ),
   );
@@ -42,7 +49,7 @@ function DrawUpForm({ orderId, onClose }: { orderId: string; onClose: () => void
   return (
     <FormDialogBody
       title="Lập hoá đơn nháp"
-      description="Lập lại nháp cho một lần giao đã giao thành công mà nháp đã bị huỷ, hoặc để trống mã lần giao để lập hoá đơn cho phần phí vận chuyển còn lại sau khi đóng phần chưa giao."
+      description="Lập lại nháp cho một lần giao đã giao thành công mà nháp đã bị huỷ, hoặc để trống mã lần giao để lập hoá đơn cho phần phí còn lại (phí vận chuyển, phí khuôn chưa lên hoá đơn nào) sau khi đóng phần chưa giao."
       submitLabel="Lập nháp"
       canSubmit
       isPending={drawUp.isPending}
@@ -50,11 +57,15 @@ function DrawUpForm({ orderId, onClose }: { orderId: string; onClose: () => void
       onCancel={onClose}
       onSubmit={() => void submit()}
     >
-      <FormField id="drawup-shipment" label="Mã lần giao (shipment ID)">
+      <FormField
+        id="drawup-shipment"
+        label="Mã lần giao (shipment ID)"
+        error={form.formState.errors.shipmentId?.message}
+      >
         <Input
           autoFocus
-          placeholder="Để trống = phần phí vận chuyển còn lại"
-          {...fieldA11y("drawup-shipment", undefined)}
+          placeholder="Để trống = phần phí còn lại"
+          {...fieldA11y("drawup-shipment", form.formState.errors.shipmentId?.message)}
           {...form.register("shipmentId")}
         />
       </FormField>

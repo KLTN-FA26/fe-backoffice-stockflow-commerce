@@ -35,6 +35,7 @@ import { ApiError } from "@/lib/api/error";
 
 import { activateMockAdapter } from "./mock-adapter";
 import { resetReturnMockStore } from "./mock-returns-store";
+import { mockLoosePhotoReceived } from "./mock-routes-return-receipts";
 
 const originalAdapter = api.defaults.adapter;
 
@@ -204,12 +205,51 @@ describe("WF-05 — goods back in several parcels (TH-3) and opened cartons / lo
     expect((await errorOf(scanReturnCarton({ id: second.id, lpn }))).code).toBe(
       "RETURN_CARTON_IN_WAREHOUSE",
     );
+    const photo = () => mockLoosePhotoReceived(second.id);
     expect(
-      (await errorOf(recordLooseLine({ id: second.id, sku: "SKU-NOT-OURS", quantity: 1 }))).code,
+      (
+        await errorOf(
+          recordLooseLine({
+            id: second.id,
+            sku: "SKU-NOT-OURS",
+            quantity: 1,
+            photoId: photo(),
+          }),
+        )
+      ).code,
     ).toBe("VALIDATION_FAILED");
     const sku = partly.lines[0]?.sku ?? "";
-    await recordLooseLine({ id: second.id, sku, lotNumber: "L1", quantity: 5 });
-    const replaced = await recordLooseLine({ id: second.id, sku, lotNumber: "L1", quantity: 1 });
+    // WF-05 Q-18: hàng lẻ bắt buộc ảnh, và không vượt số đã duyệt còn lại (duyệt 2, đã về 1)
+    expect(
+      (await errorOf(recordLooseLine({ id: second.id, sku, quantity: 1, photoId: "none" }))).code,
+    ).toBe("RETURN_LOOSE_PHOTO_REQUIRED");
+    expect(
+      (
+        await errorOf(
+          recordLooseLine({
+            id: second.id,
+            sku,
+            lotNumber: "L1",
+            quantity: 5,
+            photoId: photo(),
+          }),
+        )
+      ).code,
+    ).toBe("RETURN_LOOSE_EXCEEDS_APPROVED");
+    await recordLooseLine({
+      id: second.id,
+      sku,
+      lotNumber: "L1",
+      quantity: 1,
+      photoId: photo(),
+    });
+    const replaced = await recordLooseLine({
+      id: second.id,
+      sku,
+      lotNumber: "L1",
+      quantity: 1,
+      photoId: photo(),
+    });
     expect(replaced.looseLines).toEqual([
       expect.objectContaining({ sku, lotNumber: "L1", quantity: 1 }),
     ]);
@@ -218,8 +258,13 @@ describe("WF-05 — goods back in several parcels (TH-3) and opened cartons / lo
       lineId: replaced.looseLines?.[0]?.id ?? "",
     });
     expect(removed.looseLines).toEqual([]);
-    await recordLooseLine({ id: second.id, sku, quantity: 1 });
-    expect((await confirmReturnReceipt({ id: second.id })).status).toBe("CLOSED");
+    const withLoose = await recordLooseLine({ id: second.id, sku, quantity: 1, photoId: photo() });
+    // WF-05 Q-18: phiếu nháp có hàng lẻ — chỉ Quản lý kho (khác người đếm) xác nhận
+    expect(withLoose.managerConfirmationRequired).toBe(true);
+    const closed = await confirmReturnReceipt({ id: second.id });
+    expect(closed.status).toBe("CLOSED");
+    expect(closed.looseLines?.[0]?.photoId).toBeTruthy();
+    expect(closed.managerConfirmationRequired).toBe(false);
 
     const complete = await getReturn(approved.id);
     expect(complete.status).toBe("RECEIVED");
@@ -235,7 +280,16 @@ describe("WF-05 — goods back in several parcels (TH-3) and opened cartons / lo
     const seeded = await getReturnReceipt("RRC-SEED-9");
     expect(seeded.status).toBe("CLOSED");
     expect(
-      (await errorOf(recordLooseLine({ id: seeded.id, sku: "SKU-002-WHT", quantity: 1 }))).code,
+      (
+        await errorOf(
+          recordLooseLine({
+            id: seeded.id,
+            sku: "SKU-002-WHT",
+            quantity: 1,
+            photoId: mockLoosePhotoReceived(seeded.id),
+          }),
+        )
+      ).code,
     ).toBe("INVALID_RECEIPT_TRANSITION");
   });
 
@@ -317,5 +371,45 @@ describe("claim photos uploaded straight to storage", () => {
         )
       ).code,
     ).toBe("RETURN_INVALID_TRANSITION");
+  });
+});
+
+describe("WF-05 Q-4 / Q-11 / BE-23 in the mock", () => {
+  it("a 0 proposal needs a fixed reason (lines untouched when refused); with it the return reads REFUSED", async () => {
+    const before = await getReturn("RMA-0003");
+    const zero = [{ lineId: before.lines[0]?.id ?? "", quantity: 0 }];
+    expect(
+      (await errorOf(proposeRefund({ id: before.id, version: before.version, lines: zero }))).code,
+    ).toBe("RETURN_REFUSAL_REASON_REQUIRED");
+    expect((await getReturn(before.id)).lines[0]?.refundQuantity).toBe(
+      before.lines[0]?.refundQuantity,
+    );
+    const proposed = await proposeRefund({
+      id: before.id,
+      version: before.version,
+      lines: zero,
+      refusalReason: "NOT_DEFECTIVE",
+      refusalNote: "Đã kiểm, không phát hiện lỗi in",
+    });
+    expect(proposed).toMatchObject({
+      status: "SETTLEMENT_PENDING",
+      refusalReason: "NOT_DEFECTIVE",
+      refusalNote: "Đã kiểm, không phát hiện lỗi in",
+      resolution: expect.objectContaining({ settlementAmount: 0, vatAdjustmentRequired: false }),
+    });
+    expect(proposed.outcome ?? null).toBeNull();
+  });
+
+  it("the return says whether a receipt can be opened and whether a draft is being counted", async () => {
+    const awaiting = await getReturn("RMA-0002");
+    expect(awaiting).toMatchObject({ receiptOpenable: true, receiptDraftOpen: false });
+    const receipt = await createReturnReceipt({
+      returnRequestId: awaiting.id,
+      quarantineLocationCode: "WH-HCM-01-QUARANTINE",
+    });
+    expect((await getReturn(awaiting.id)).receiptDraftOpen).toBe(true);
+    expect((await getReturnReceipt(receipt.id)).status).toBe("DRAFT");
+    const rejected = await getReturn("RMA-0006");
+    expect(rejected.receiptOpenable).toBe(false);
   });
 });

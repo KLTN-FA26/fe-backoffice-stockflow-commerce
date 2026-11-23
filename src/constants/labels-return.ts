@@ -3,7 +3,15 @@
  * docs: "yêu cầu trả hàng", "RMA", "phiếu nhập Hàng hoàn", "khu cách ly", "hoàn tiền", "hoá đơn điều chỉnh giảm".
  */
 
-import type { ReturnReason } from "./returns";
+import type {
+  ReturnReadChannel,
+  ReturnReadOutcome,
+  ReturnReadReason,
+  ReturnReadRefusalReason,
+} from "./returns";
+
+/** Giá trị BE thêm sau, FE chưa có nhãn (WF-05 BO-11). */
+const UNKNOWN_LABEL = "Không rõ";
 
 export const RETURN_REASON_LABELS = {
   PRINT_DEFECT: "Lỗi in",
@@ -13,12 +21,34 @@ export const RETURN_REASON_LABELS = {
   SHORT_DELIVERY: "Giao thiếu",
   CHANGED_MIND: "Đổi ý",
   OTHER: "Khác",
-} as const satisfies Record<ReturnReason, string>;
+  UNKNOWN: UNKNOWN_LABEL,
+} as const satisfies Record<ReturnReadReason, string>;
 
 export const RETURN_CHANNEL_LABELS = {
   PORTAL: "Khách gửi trên cổng",
   BACK_OFFICE: "Sale mở thay khách",
-} as const;
+  UNKNOWN: UNKNOWN_LABEL,
+} as const satisfies Record<ReturnReadChannel, string>;
+
+/**
+ * Lý do từ chối hoàn (WF-05 Q-4) — trùng nhãn `label.ReturnRefusalReason.*` của bundle `_vi` BE (khách đọc cùng chữ trên
+ * cổng).
+ */
+export const RETURN_REFUSAL_REASON_LABELS = {
+  CUSTOMER_DAMAGE: "Hư hỏng do bảo quản/sử dụng",
+  NOT_DEFECTIVE: "Không phát hiện lỗi",
+  OUT_OF_POLICY: "Ngoài chính sách đổi trả",
+  OTHER: "Lý do khác",
+  UNKNOWN: UNKNOWN_LABEL,
+} as const satisfies Record<ReturnReadRefusalReason, string>;
+
+/** Kết quả của yêu cầu đã xử lý xong (BE `outcome`): 0 đồng không bao giờ đọc là "Đã hoàn tiền". */
+export const RETURN_OUTCOME_LABELS = {
+  REFUNDED: "Đã hoàn tiền",
+  REFUSED: "Đã xử lý — không hoàn tiền",
+  NOTHING_TO_REFUND: "Đã xử lý — không có gì để hoàn",
+  UNKNOWN: UNKNOWN_LABEL,
+} as const satisfies Record<ReturnReadOutcome, string>;
 
 export const RETURN_LABELS = {
   navLabel: "Trả hàng",
@@ -78,6 +108,22 @@ export const RETURN_LABELS = {
     photoWrongType: "Chỉ nhận ảnh JPEG, PNG hoặc WebP.",
     photoTooLarge: "Ảnh vượt 15 MB.",
     photoLimit: (max: number) => `Yêu cầu đã đủ ${max} ảnh.`,
+    // WF-05 Q-11: biên nhận giữ hộ — hàng về mà phiếu nhập không nhận, ghi trên yêu cầu (không nhập tồn, không hoàn)
+    custody: {
+      title: "Hàng giữ hộ khách",
+      hint: "Hàng về mà phiếu nhập hàng hoàn không nhận (SKU không được duyệt, vượt số duyệt, kiện về sau khi đã chốt tiền) vẫn là của khách: không nhập tồn, không hoàn tiền, không điều chỉnh hoá đơn. Ghi SKU hoặc LPN, số lượng, ảnh và lựa chọn của khách (gửi trả, mở yêu cầu bổ sung, hoặc huỷ hộ có biên bản).",
+      none: "Chưa ghi hàng giữ hộ nào.",
+      sku: "SKU",
+      lpn: "LPN",
+      quantity: "Số lượng",
+      note: "Ghi chú (lựa chọn của khách)",
+      photo: "Ảnh hàng giữ hộ",
+      photoRequired: "Chụp hoặc chọn ảnh hàng giữ hộ (JPEG, PNG hoặc WebP, tối đa 15 MB).",
+      add: "Ghi biên nhận",
+      uploading: "Đang tải ảnh…",
+      full: (max: number) => `Đã đủ ${max} biên nhận giữ hộ.`,
+      receivedAt: "Ghi lúc",
+    },
     review: "Quyết định của Sale",
     decidedAt: "Quyết định lúc",
     reviewNote: "Ghi chú",
@@ -102,6 +148,15 @@ export const RETURN_LABELS = {
     openRefunds: "Mở màn hoàn tiền",
     closedWithoutRefund:
       "Đã kết thúc không hoàn tiền — không có đơn vị nào đã duyệt về kho dùng được.",
+    // WF-05 Q-4: đề xuất / kết quả 0 đồng có lý do cố định (khách đọc lý do + ghi chú công khai)
+    outcome: "Kết quả",
+    refusalReason: "Lý do không hoàn",
+    refusalNote: "Ghi chú gửi khách",
+    refusedNote:
+      "Không hoàn tiền, không lập hoá đơn điều chỉnh. Hàng đã về vẫn là của khách: Sale ghi lựa chọn của khách (gửi trả hoặc huỷ hộ có biên bản), Quản lý kho xử lý từ khu cách ly.",
+    // WF-05 BE-23: còn phiếu nhập đang đếm thì chưa chốt "Đã nhận đủ hàng", chưa đề xuất / duyệt hoàn tiền
+    receiptDraftOpen:
+      "Kho đang đếm một phiếu nhập hàng hoàn của yêu cầu này. Chờ kho xác nhận hoặc huỷ phiếu đó rồi mới chốt “Đã nhận đủ hàng”, đề xuất hoặc duyệt hoàn tiền.",
     cancelled: "Đã rút",
     cancellationReason: "Lý do rút",
     history: "Lịch sử",
@@ -143,12 +198,20 @@ export const RETURN_LABELS = {
   proposeDialog: {
     title: "Đề xuất hoàn tiền",
     description:
-      "Hoàn theo đơn giá của dòng đơn (gồm VAT), tối đa số đã duyệt và đã về. Một người khác (Kế toán) duyệt đề xuất.",
+      "Hoàn theo đơn giá của dòng đơn (gồm VAT), tối đa số đã duyệt và đã về. Để 0 mọi dòng nếu không hoàn theo chính sách — khi đó chọn lý do (khách đọc được). Một người khác (Kế toán) duyệt đề xuất.",
     quantity: "SL hoàn",
     max: (n: number) => `tối đa ${n}`,
-    note: "Ghi chú",
+    note: "Ghi chú (nội bộ)",
     submit: "Gửi đề xuất",
-    noneRefunded: "Hoàn ít nhất một đơn vị.",
+    // WF-05 Q-4: hoàn 0 đồng — lý do cố định bắt buộc; giữ lại một phần — lý do tuỳ chọn. "Khác" phải ghi rõ cho khách
+    refusalReason: "Lý do không hoàn",
+    refusalReasonPlaceholder: "Chọn lý do",
+    refusalHint:
+      "Đề xuất không hoàn tiền: Kế toán duyệt như đề xuất hoàn tiền. Không lập hoá đơn điều chỉnh; hàng đã về vẫn là của khách.",
+    withholdHint:
+      "Hoàn ít hơn số đã duyệt và đã về: có thể nêu lý do không hoàn phần còn lại (khách đọc được).",
+    refusalNote: "Ghi chú gửi khách (không bắt buộc)",
+    refusalNoteRequired: "Ghi chú gửi khách",
     estimate: "Ước tính trước thuế:",
     estimateNote: "(hệ thống tính lại theo đơn giá và VAT của dòng đơn)",
   },
@@ -157,6 +220,10 @@ export const RETURN_LABELS = {
     description:
       "Giá trị hoàn được cấn trừ vào các đợt còn nợ của đơn; phần khách đã trả sẽ chờ Kế toán ghi nhận chuyển khoản ở màn Hoàn tiền.",
     submit: "Duyệt hoàn tiền",
+    // WF-05 Q-4: cùng nút, đề xuất 0 đồng — duyệt là kết thúc yêu cầu không hoàn tiền
+    refusalTitle: "Duyệt kết quả: không hoàn tiền",
+    refusalDescription: (reason: string) =>
+      `Sale đề xuất không hoàn tiền, lý do “${reason}”. Duyệt thì yêu cầu kết thúc: không hoàn tiền, không lập hoá đơn điều chỉnh; khách đọc được lý do.`,
   },
   goodsCompleteDialog: {
     title: "Xác nhận đã nhận đủ hàng",
@@ -217,6 +284,7 @@ export const RETURN_LABELS = {
     goodsComplete: "Đã ghi nhận đủ hàng",
     closedWithoutRefund: "Đã kết thúc yêu cầu không hoàn tiền",
     evidenceAdded: "Đã thêm ảnh bằng chứng",
+    custodyAdded: "Đã ghi biên nhận giữ hộ",
   },
 } as const;
 
@@ -305,17 +373,33 @@ export const RETURN_RECEIPT_LABELS = {
     confirm: "Xác nhận nhập",
     confirmTitle: "Xác nhận phiếu nhập hàng hoàn",
     confirmDescription:
-      'Các thùng đã quét vào lại tồn ở khu cách ly (không bán được). Yêu cầu trả hàng chuyển sang "Hàng đã về" khi đã về đủ số đã duyệt; nếu mới về một phần, yêu cầu vẫn "Chờ hàng về" và Sale có thể bấm "Đã nhận đủ hàng".',
+      'Thùng nguyên vào lại tồn ở khu cách ly (không bán được); thùng đã mở và hàng lẻ không nhập tồn, ghi kết quả "huỷ" theo số đếm thật. Yêu cầu trả hàng chuyển sang "Hàng đã về" khi đã về đủ số đã duyệt; nếu mới về một phần, yêu cầu vẫn "Chờ hàng về" và Sale có thể bấm "Đã nhận đủ hàng".',
+    // WF-05 Q-18: phiếu có thùng mở / hàng lẻ — Quản lý kho xác nhận, khác người đếm
+    managerRequired:
+      "Phiếu có thùng đã mở hoặc hàng lẻ: chỉ Quản lý kho xác nhận được (cần quyền duyệt phiếu nhập hàng hoàn).",
+    selfConfirmation:
+      "Bạn đã quét thùng hoặc ghi hàng lẻ trên phiếu này. Phiếu có thùng mở / hàng lẻ phải do một Quản lý kho khác xác nhận.",
+    // WF-05 Q-18 / BE-20: thùng về đã mở không nhập tồn
+    notStocked: "Không nhập tồn — huỷ",
+    willNotStock: "Sẽ không nhập tồn (thùng đã mở)",
     cancel: "Huỷ phiếu",
     cancelTitle: "Huỷ phiếu nhập hàng hoàn",
     cancelDescription: "Không nhận gì trên phiếu này. Có thể lập phiếu khác sau.",
     // WF-05 TH-4: hàng về không nhãn thùng — ghi nhận cho yêu cầu trả hàng, không nhập tồn
     loose: {
       title: "Hàng lẻ không nhãn",
-      hint: "Hàng về không có nhãn thùng: ghi SKU, lô (nếu đọc được) và số lượng. Không nhập tồn (hàng bị huỷ) nhưng được tính là đã về cho yêu cầu trả hàng. Ghi lại cùng SKU và lô thì thay số cũ.",
+      hint: "Hàng về không có nhãn thùng: ghi SKU, lô (nếu đọc được), số lượng đếm thật và ảnh (bắt buộc). Không nhập tồn (hàng bị huỷ) nhưng được tính là đã về cho yêu cầu trả hàng, tối đa số đã duyệt còn lại. Hàng vượt số duyệt hoặc không được duyệt không ghi ở đây: giữ hộ khách, ghi biên nhận trên yêu cầu trả hàng. Ghi lại cùng SKU và lô thì thay số cũ.",
       sku: "SKU",
       lot: "Lô (nếu có)",
       quantity: "Số lượng",
+      photo: "Ảnh hàng lẻ",
+      photoColumn: "Ảnh",
+      photoRequired: "Chụp hoặc chọn ảnh hàng lẻ (JPEG hoặc PNG, tối đa 20 MB).",
+      photoWrongType: "Chỉ nhận ảnh JPEG hoặc PNG.",
+      photoTooLarge: "Ảnh vượt 20 MB.",
+      photoUploading: "Đang tải ảnh…",
+      hasPhoto: "Có ảnh",
+      noPhoto: "Chưa có ảnh",
       add: "Ghi nhận",
       remove: "Gỡ",
       none: "Chưa ghi hàng lẻ nào.",

@@ -433,6 +433,8 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ORDER_PERMISSIONS.hold,
     // Seed BE: SALES_STAFF + SYSTEM_ADMIN (không phải ORDER_COORDINATOR) quyết đơn có giao một phần không
     ORDER_PERMISSIONS.partialShipment,
+    // PR-0 V20261216000050 (WF-05 Q-12): SALES_STAFF + SYSTEM_ADMIN đóng phần thất lạc
+    ORDER_PERMISSIONS.lostShipmentClosure,
     ...ORDER_SALES_EXTRA,
     ...SALES_WF4_EXTRA,
     WAREHOUSE_READ,
@@ -450,6 +452,8 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ORDER_PERMISSIONS.hold,
     // Seed BE: SALES_STAFF + SYSTEM_ADMIN (không phải ORDER_COORDINATOR) quyết đơn có giao một phần không
     ORDER_PERMISSIONS.partialShipment,
+    // PR-0 V20261216000050 (WF-05 Q-12): SALES_STAFF + SYSTEM_ADMIN đóng phần thất lạc
+    ORDER_PERMISSIONS.lostShipmentClosure,
     ...ORDER_SALES_EXTRA,
     ...SALES_WF4_EXTRA,
     WAREHOUSE_READ,
@@ -467,6 +471,8 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ORDER_PERMISSIONS.hold,
     // Seed BE: SALES_STAFF + SYSTEM_ADMIN (không phải ORDER_COORDINATOR) quyết đơn có giao một phần không
     ORDER_PERMISSIONS.partialShipment,
+    // PR-0 V20261216000050 (WF-05 Q-12): SALES_STAFF + SYSTEM_ADMIN đóng phần thất lạc
+    ORDER_PERMISSIONS.lostShipmentClosure,
     ...ORDER_SALES_EXTRA,
     ...SALES_WF4_EXTRA,
     WAREHOUSE_READ,
@@ -481,7 +487,10 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
   // Order Coordinator + Warehouse Staff → thêm quyền kho xuất của WAREHOUSE_STAFF
   "USER-COORD-01": [
     ...Object.values(ORDER_PERMISSIONS).filter(
-      (code) => code !== ORDER_PERMISSIONS.partialShipment && code !== ORDER_PERMISSIONS.hold,
+      (code) =>
+        code !== ORDER_PERMISSIONS.partialShipment &&
+        code !== ORDER_PERMISSIONS.hold &&
+        code !== ORDER_PERMISSIONS.lostShipmentClosure,
     ),
     ...ORDER_SALES_EXTRA,
     ...FULFILLMENT_READ,

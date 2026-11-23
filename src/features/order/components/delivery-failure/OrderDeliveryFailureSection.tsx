@@ -4,7 +4,11 @@ import { PackageX } from "lucide-react";
 
 import { DELIVERY_FAILURE_LABELS, ORDER_PERMISSIONS } from "@/constants";
 
-import { canCancelWithoutCase } from "../../delivery-failure-lifecycle";
+import {
+  canCancelWithoutCase,
+  isLegacyDeliveryFailureHold,
+  isUndecidedCase,
+} from "../../delivery-failure-lifecycle";
 import { useOrderDeliveryFailures } from "../../delivery-failure-queries";
 
 import { CancelUndeliveredAction } from "./CancelUndeliveredAction";
@@ -15,7 +19,7 @@ import type { Order } from "../../types";
 
 const L = DELIVERY_FAILURE_LABELS.section;
 
-/** Đơn có thể có hồ sơ giao thất bại: đã có lô giao (lô hãng mang về), hoặc đang giữ vì giao thất bại. */
+/** Đơn có thể có hồ sơ hàng hoàn về: có lô hãng mang về (RETURNED), hoặc là đơn cũ đang giữ vì giao thất bại. */
 function mayHaveFailures(order: Pick<Order, "shipments" | "holdReason">): boolean {
   return (
     order.holdReason === "DELIVERY_FAILED" ||
@@ -24,9 +28,9 @@ function mayHaveFailures(order: Pick<Order, "shipments" | "holdReason">): boolea
 }
 
 /**
- * Khối "Giao thất bại" trong chi tiết đơn (WF-05 GH-1; BE `GET /orders/{id}/delivery-failures`): mỗi hồ sơ với nút Giao lại
- * / Huỷ phần chưa giao, và — khi lô đã về mà kho chưa lập phiếu nhận hàng hoàn — nút huỷ phần chưa giao không cần hồ sơ.
- * Chỉ hiện khi đơn có lô hãng mang về / đang giữ vì giao thất bại. UI-only — Backend phải re-check (sales-orders:READ).
+ * Khối "Lô hàng hoàn về" trong chi tiết đơn (WF-05 BO-01; BE `GET /orders/{id}/delivery-failures`): lịch sử các hồ sơ.
+ * Đơn cũ (trước #377) còn giữ vì giao thất bại thì có thêm "Huỷ phần chưa giao" (trên hồ sơ chưa đóng, hoặc không cần hồ
+ * sơ khi lô đã về mà kho chưa lập phiếu) — không còn "Giao lại". UI-only — Backend phải re-check (sales-orders:READ).
  */
 export function OrderDeliveryFailureSection({
   order,
@@ -42,6 +46,7 @@ export function OrderDeliveryFailureSection({
   if (!relevant || !can(ORDER_PERMISSIONS.read)) return null;
   const cases = query.data ?? [];
   const withoutCase = query.isSuccess && canCancelWithoutCase(order, cases, can);
+  const legacy = isLegacyDeliveryFailureHold(order) && cases.some(isUndecidedCase);
 
   return (
     <section
@@ -60,16 +65,19 @@ export function OrderDeliveryFailureSection({
       ) : cases.length === 0 && !withoutCase ? (
         <p className="text-ink-tertiary text-xs">{L.none}</p>
       ) : (
-        <ul className="divide-y divide-[var(--table-line)]">
-          {cases.map((failure) => (
-            <DeliveryFailureCaseItem
-              key={failure.caseId}
-              failure={failure}
-              currency={order.currency}
-              can={can}
-            />
-          ))}
-        </ul>
+        <>
+          {legacy && <p className="text-ink-secondary mb-2 text-xs">{L.legacy}</p>}
+          <ul className="divide-y divide-[var(--table-line)]">
+            {cases.map((failure) => (
+              <DeliveryFailureCaseItem
+                key={failure.caseId}
+                failure={failure}
+                order={order}
+                can={can}
+              />
+            ))}
+          </ul>
+        </>
       )}
       {withoutCase && (
         <div className="border-border-default mt-3 space-y-2 border-t pt-3">

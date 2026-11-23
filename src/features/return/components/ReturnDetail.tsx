@@ -12,11 +12,12 @@ import { LoadErrorState } from "@/components/backoffice/LoadErrorState";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Button } from "@/components/ui/button";
 
-import { allowedReturnActions, canAddReturnEvidence } from "../lifecycle";
+import { allowedReturnActions, canAddCustody, canAddReturnEvidence } from "../lifecycle";
 import { useReturn } from "../queries";
 
 import { RETURN_COPY } from "./primitives";
 import { ReturnActions } from "./ReturnActions";
+import { ReturnCustodyCard } from "./ReturnCustodyCard";
 import { ReturnEvidenceCard } from "./ReturnEvidenceCard";
 import { ReturnGoodsActions } from "./ReturnGoodsActions";
 import { ReturnHistoryCard } from "./ReturnHistoryCard";
@@ -74,6 +75,7 @@ function ReturnDetailContent({ id }: { id: string }) {
         <div className="min-w-0 space-y-4">
           <ReturnLinesCard ret={ret} />
           <ReturnEvidenceCard ret={ret} canUpload={canAddReturnEvidence(ret, can)} />
+          <ReturnCustodyCard ret={ret} canAdd={canAddCustody(ret, can)} />
           <ReturnHistoryCard history={ret.history ?? []} />
         </div>
         <div className="space-y-4">

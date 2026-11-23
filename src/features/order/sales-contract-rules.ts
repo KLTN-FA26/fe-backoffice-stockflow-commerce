@@ -1,7 +1,8 @@
 /**
  * Hợp đồng — vòng đời + kiểm tra thuần (docs 14 §4.3, §5; BE `SalesContractStatus`, origin/develop 438fe6fb):
  *   (chưa có / CANCELLED) + đơn DRAFT → lập; DRAFT → sửa, gửi, huỷ; SENT → ghi nhận đã ký, huỷ;
- *   SIGNED / COMPLETED: chỉ xem, tải bản đã gửi / đã ký. Huỷ đưa đơn về DRAFT để lập lại.
+ *   SIGNED / COMPLETED / LIQUIDATED (thanh lý, WF-05 Q-6): chỉ xem, tải bản đã gửi / đã ký. Huỷ đưa đơn về DRAFT để
+ *   lập lại. Trạng thái lạ (UNKNOWN): không thao tác.
  * UI-only — Backend phải re-check (quyền sales-contracts CREATE / UPDATE / APPROVE).
  */
 
@@ -19,9 +20,12 @@ export type ContractAction = "create" | "edit" | "send" | "sign" | "cancel" | "p
 export const CONTRACT_TRANSITIONS = {
   DRAFT: ["SENT", "CANCELLED"],
   SENT: ["SIGNED", "CANCELLED"],
-  SIGNED: ["COMPLETED"],
+  // LIQUIDATED: đơn kết thúc mà không giao được gì, đã xong tiền (Q-6, BE-06)
+  SIGNED: ["COMPLETED", "LIQUIDATED"],
   COMPLETED: [],
+  LIQUIDATED: [],
   CANCELLED: [],
+  UNKNOWN: [],
 } as const satisfies Record<SalesContract["status"], readonly SalesContract["status"][]>;
 
 export function allowedContractActions(

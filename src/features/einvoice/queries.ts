@@ -6,6 +6,7 @@ import { createDetailQuery, createListQuery, createQueryKeys } from "@/lib/api/q
 import {
   getEInvoice,
   getRegister,
+  getSignature,
   listCorrections,
   listEInvoices,
   listErrorNotices,
@@ -58,6 +59,15 @@ export const useErrorNotices = (id: string | null | undefined, enabled = true) =
   useQuery({
     queryKey: sub(id, "error-notices"),
     queryFn: ({ signal }) => listErrorNotices(id ?? "", signal),
+    enabled: enabled && !!id,
+    ...QUERY_TIMES.detail,
+  });
+
+/** Chữ ký số trên XML (BO-09) — kiểm lúc Kế toán bấm (`enabled`), không tự gọi mỗi lần mở trang. */
+export const useSignature = (id: string | null | undefined, enabled: boolean) =>
+  useQuery({
+    queryKey: sub(id, "signature"),
+    queryFn: ({ signal }) => getSignature(id ?? "", signal),
     enabled: enabled && !!id,
     ...QUERY_TIMES.detail,
   });

@@ -6,9 +6,16 @@ import { EINVOICE_ROUTES } from "@/constants/einvoice";
 import { EINVOICE_LABELS } from "@/constants/labels-einvoice";
 import { ADMIN_ROUTES } from "@/constants";
 
-import { invoiceReference } from "../selectors";
+import { invoiceReference, lateIssueBadge } from "../selectors";
 
-import { CodeLink, DateCell, EInvoiceStatusDot, MoneyCell, TypeText } from "./primitives";
+import {
+  CodeLink,
+  DateCell,
+  EInvoiceStatusDot,
+  LateBadge,
+  MoneyCell,
+  TypeText,
+} from "./primitives";
 
 import type { ColumnDef } from "@/components/shared/DataTable";
 import type { EInvoiceListItem } from "../types";
@@ -59,7 +66,15 @@ export const EINVOICE_COLUMNS: ColumnDef<EInvoiceListItem>[] = [
     key: "issueDate",
     header: C.issueDate,
     align: "right",
-    cell: (row) => <DateCell iso={row.issueDate} />,
+    cell: (row) => {
+      const late = lateIssueBadge(row);
+      return (
+        <span className="inline-flex items-center gap-1.5">
+          {late && <LateBadge label={late} />}
+          <DateCell iso={row.issueDate} />
+        </span>
+      );
+    },
   },
   {
     key: "dueAt",

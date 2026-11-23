@@ -60,6 +60,14 @@ export interface MockEInvoice {
   returnRequestId: string | null;
   /** WF-05 HĐ-3: lần giao của hoá đơn bị sửa thành thất bại lúc nào (BE `deliveryFailedAt`); null khi chưa bị đánh dấu. */
   deliveryFailedAt: string | null;
+  /** WF-05 F-11: hoá đơn gốc đã bị giảm toàn bộ (BE `reversedAt`). */
+  reversedAt?: string | null;
+  /** WF-05 F-13: `PORTAL_RECORD` khi Kế toán ghi lại từ cổng NCC. */
+  issuedVia?: string | null;
+  /** Ngày giao (hợp đồng giả định `deliveredOn`, WF-05 Q-10). */
+  deliveredOn?: string | null;
+  /** WF-05 F-14: mã lý do huỷ (`UNSENDABLE_REVERSAL`). */
+  voidReasonCode?: string | null;
 }
 
 export interface MockErrorNotice {

@@ -66,7 +66,11 @@ export const salesContractDtoSchema = z.object({
   contractNumber: z.string(),
   orderId: z.string(),
   orderNumber: z.string(),
-  status: z.enum(SALES_CONTRACT_STATUSES),
+  // Giá trị BE thêm sau → UNKNOWN: thẻ hợp đồng vẫn hiện ("Không rõ"), không mở thao tác nào (WF-05 BO-11)
+  status: z.union([
+    z.enum(SALES_CONTRACT_STATUSES),
+    z.string().transform((): "UNKNOWN" => "UNKNOWN"),
+  ]),
   seller: contractPartySchema,
   buyer: contractPartySchema,
   freeSampleRounds: z.number().int(),

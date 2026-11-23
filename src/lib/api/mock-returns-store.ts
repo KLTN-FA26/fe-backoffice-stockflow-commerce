@@ -41,6 +41,14 @@ export interface MockReturnReceiptRef {
   parcels: MockReturnParcel[];
 }
 
+/** Biên nhận giữ hộ (WF-05 Q-11, BE G4 `ReturnEvidence.Custody`). */
+export interface MockCustody {
+  sku: string | null;
+  lpn: string | null;
+  quantity: number;
+  note: string | null;
+}
+
 export interface MockReturn {
   id: string;
   rmaNumber: string;
@@ -62,7 +70,16 @@ export interface MockReturn {
   cancellationReason: string | null;
   closedAt: string | null;
   lines: MockReturnLine[];
-  evidence: { id: string; stage: string; originalName: string; uploadedAt: string }[];
+  /** WF-05 Q-4: lý do không hoàn (đề xuất 0 đồng) + ghi chú công khai. */
+  refusalReason?: string | null;
+  refusalNote?: string | null;
+  evidence: {
+    id: string;
+    stage: string;
+    originalName: string;
+    uploadedAt: string;
+    custody?: MockCustody;
+  }[];
   history: { from: string | null; to: string; reason: string | null; occurredAt: string }[];
   version: number;
 }
@@ -92,9 +109,18 @@ export interface MockReturnReceipt {
     /** WF-05 TH-4: số đếm thực; `opened` khi ít hơn nhãn. */
     countedQuantity: number;
     opened: boolean;
+    /** WF-05 Q-18: false = thùng mở không nhập tồn (đặt lúc xác nhận). */
+    stockEntered?: boolean | null;
   }[];
-  /** Hàng lẻ không nhãn (WF-05 TH-4) — chỉ phiếu của yêu cầu trả hàng. */
-  looseLines: { id: string; sku: string; lotNumber: string | null; quantity: number }[];
+  /** Hàng lẻ không nhãn (WF-05 TH-4) — chỉ phiếu của yêu cầu trả hàng; Q-18: ảnh bắt buộc. */
+  looseLines: {
+    id: string;
+    sku: string;
+    lotNumber: string | null;
+    quantity: number;
+    /** Ảnh của phiếu (BE G4 `photoId`). */
+    photoId?: string | null;
+  }[];
   /** Thùng của nguồn (shipment / đơn) — ASSUMPTION mock: LPN sinh theo dòng đơn. */
   source: { lpn: string; sku: string; lotNumber: string; quantity: number }[];
   version: number;
@@ -113,6 +139,29 @@ export const nextMockReturnId = (prefix: string) =>
   `${prefix}-${String(++counter).padStart(4, "0")}`;
 export const mockReturns = () => returns;
 export const mockReturnReceipts = () => receipts;
+
+/**
+ * WF-05 Q-11 (BE-13, mock): kho lập được phiếu khi yêu cầu đã duyệt và chưa chốt tiền — chờ hàng về, đã về (kiện muộn),
+ * chờ duyệt hoàn tiền, hết hạn, rút sau khi duyệt.
+ */
+export function mockReceiptOpenable(ret: MockReturn): boolean {
+  const approved = ret.lines.some((l) => (l.approvedQuantity ?? 0) > 0);
+  switch (ret.status) {
+    case "AWAITING_RETURN":
+    case "RECEIVED":
+    case "SETTLEMENT_PENDING":
+    case "EXPIRED":
+      return true;
+    case "CANCELLED":
+      return approved;
+    default:
+      return false;
+  }
+}
+
+/** BE-23 (mock): yêu cầu đang có phiếu nhập hàng hoàn NHÁP. */
+export const mockReceiptDraftOpen = (ret: MockReturn): boolean =>
+  receipts.some((r) => r.returnRequestId === ret.id && r.status === "DRAFT");
 
 const line = (
   orderLineId: string,

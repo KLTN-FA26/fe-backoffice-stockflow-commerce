@@ -24,7 +24,7 @@ import type { OrderReadStatus, OrderStatus } from "./types";
  */
 describe("ORDER_TRANSITIONS (BE OrderStatus#canTransitionTo)", () => {
   it.each<[OrderStatus, OrderStatus[]]>([
-    ["Draft", ["Pending Contract", "Pending Payment", "Confirmed", "On Hold", "Cancelled"]],
+    ["Draft", ["Pending Contract", "Cancelled"]],
     ["Pending Contract", ["Draft", "Pending Payment", "Confirmed", "On Hold", "Cancelled"]],
     ["Pending Payment", ["Confirmed", "Cancelled"]],
     ["Confirmed", ["Awaiting Stock", "In Production", "Ready to Fulfill", "On Hold", "Cancelled"]],
@@ -34,7 +34,15 @@ describe("ORDER_TRANSITIONS (BE OrderStatus#canTransitionTo)", () => {
     ["Picking", ["Packed", "Partially Fulfilled", "On Hold", "Cancelled"]],
     [
       "Partially Fulfilled",
-      ["Packed", "Shipped", "Delivery Failed", "Delivered", "Returned", "On Hold"],
+      [
+        "Packed",
+        "Shipped",
+        "Delivery Failed",
+        "Delivered",
+        "Returned",
+        "On Hold",
+        "Partially Refunded",
+      ],
     ],
     ["Packed", ["Shipped", "Partially Fulfilled", "On Hold"]],
     [
@@ -51,18 +59,33 @@ describe("ORDER_TRANSITIONS (BE OrderStatus#canTransitionTo)", () => {
         "Cancelled",
       ],
     ],
-    ["Shipped", ["Delivered", "Delivery Failed", "Partially Fulfilled"]],
-    ["Delivery Failed", ["Delivered", "Returned", "Partially Fulfilled"]],
+    ["Shipped", ["Delivered", "Delivery Failed", "Partially Fulfilled", "On Hold"]],
+    ["Delivery Failed", ["Delivered", "Returned", "Partially Fulfilled", "On Hold"]],
     ["Delivered", ["Completed", "Return Requested", "Delivery Failed"]],
-    ["Return Requested", ["Returned", "Delivered"]],
-    ["Returned", ["Refunded", "Partially Refunded"]],
-    ["Refunded", ["Closed", "Return Requested"]],
-    ["Partially Refunded", ["Closed", "Return Requested"]],
+    ["Return Requested", ["Returned", "Delivered", "Completed", "Refunded", "Partially Refunded"]],
+    ["Returned", ["Refunded", "Partially Refunded", "Delivered", "Completed"]],
+    ["Refunded", ["Closed", "Return Requested", "Returned"]],
+    ["Partially Refunded", ["Closed", "Return Requested", "Returned", "Partially Fulfilled"]],
     ["Completed", ["Closed", "Return Requested"]],
     ["Cancelled", []],
     ["Closed", []],
   ])("%s → %j", (from, to) => {
     expect(nextOrderStatuses(from)).toEqual(to);
+  });
+
+  it("WF-05 BO-06: cạnh mới của G1 — trả hàng kết thúc không hoàn tiền (X-8), rút yêu cầu về trạng thái gốc (F-8, BE-40)", () => {
+    expect(nextOrderStatuses("Returned")).toEqual(
+      expect.arrayContaining(["Delivered", "Completed"]),
+    );
+    expect(nextOrderStatuses("Return Requested")).toEqual(
+      expect.arrayContaining(["Completed", "Refunded", "Partially Refunded"]),
+    );
+    // Hoàn tiền bị huỷ (TT-4) và lô hoàn về một phần (RTM-RETURNED-PARTIAL)
+    expect(nextOrderStatuses("Refunded")).toContain("Returned");
+    expect(nextOrderStatuses("Partially Refunded")).toEqual(
+      expect.arrayContaining(["Returned", "Partially Fulfilled"]),
+    );
+    expect(nextOrderStatuses("Partially Fulfilled")).toContain("Partially Refunded");
   });
 
   it("docs 15 BR-02: Pending Payment không đi thẳng sang sản xuất / kho", () => {
@@ -521,6 +544,11 @@ describe("allowedOrderActions — trạng thái lạ + định nghĩa action", (
     const all = () => true;
     expect(allowedOrderActions("UNKNOWN", all, BASE_CONTEXT)).toEqual([]);
     expect(allowedOrderActions("UNKNOWN", all, { ...BASE_CONTEXT, ...CREDIT_HOLD })).toEqual([]);
+  });
+
+  it("WF-05 BO-07 (C-12): Từ chối công nợ chỉ dẫn tới Cancelled (BE CreditHoldService#refuse luôn huỷ)", () => {
+    const reject = ORDER_ACTIONS.find((action) => action.code === "credit-reject");
+    expect(reject?.outcome).toEqual({ kind: "to", statuses: ["Cancelled"] });
   });
 
   it("đủ 8 action; mọi trạng thái nguồn / đích là trạng thái đã biết (không Paid / In Fulfilment)", () => {

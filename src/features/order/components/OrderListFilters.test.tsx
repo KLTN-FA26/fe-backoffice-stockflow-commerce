@@ -237,11 +237,12 @@ describe("OrderList — KHÔNG có bộ lọc phương thức thanh toán (BE GE
     expect(neverSent("term")).toBe(true);
   });
 
-  it("cột phương thức + trạng thái thanh toán hiển thị nhãn tiếng Việt", async () => {
+  it("WF-05 BO-08: không còn cột Phương thức TT / Thanh toán (BE không trả trên đơn, luôn '—')", async () => {
     renderList(() => apiOrderPage([creditOrder]));
 
-    // Phương thức (Công nợ) khác trạng thái thanh toán (Ghi công nợ) — không trùng nhãn
-    expect(await screen.findByText("Công nợ")).toBeInTheDocument();
-    expect(screen.getByText("Ghi công nợ")).toBeInTheDocument();
+    expect(await screen.findByText(creditOrder.orderNumber)).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: /Phương thức TT/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: /^Thanh toán$/ })).not.toBeInTheDocument();
+    expect(screen.queryByText("Ghi công nợ")).not.toBeInTheDocument();
   });
 });

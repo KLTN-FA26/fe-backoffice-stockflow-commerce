@@ -39,6 +39,11 @@ export function RefundSettlements({ refund }: { refund: OrderRefund }) {
                 <MoneyCell amount={s.reduced} currency={refund.currency} />
               </InfoRow>
             )}
+            {s.shippingFeeWaived != null && s.shippingFeeWaived > 0 && (
+              <InfoRow label={L.shippingFeeWaived}>
+                <MoneyCell amount={s.shippingFeeWaived} currency={refund.currency} />
+              </InfoRow>
+            )}
             <InfoRow label={L.surplus}>
               <MoneyCell amount={s.surplus} currency={refund.currency} />
             </InfoRow>

@@ -9,12 +9,18 @@
  *   GET  /einvoices/register?from&to · /register/export
  *   GET|PUT /einvoice-settings · GET /providers · PUT /providers/{p}/account|series · POST /activation
  * Phát hành là bất đồng bộ: `issuance` trả SUBMITTING; lần đọc sau ≥ 2 giây (hoặc `reconciliation`) ra ISSUED.
+ * WF-05: `GET /{id}/signature`, `POST /signature-checks` (BO-09); `POST /{id}/portal-result`,
+ * `/{id}/external-reductions`, `/{id}/delivery-failure-reduction` (Q-8, BE-11); `issuance` nhận
+ * `acknowledgedWarnings` / `lateReason`, `withdrawal` nhận `supportReference`, `void` nhận `reasonCode`.
  */
 
 import {
+  EINVOICE_ISSUED_VIA_PORTAL,
+  EINVOICE_LATE_WARNING,
   EINVOICE_PERMISSIONS,
   EINVOICE_SETTINGS_PERMISSIONS,
   EINVOICE_TIMING,
+  UNSENDABLE_REVERSAL_REASON_CODE,
 } from "@/constants/einvoice";
 
 import { registerMockRoute } from "./mock-adapter";
@@ -110,6 +116,9 @@ function listItem(i: MockEInvoice) {
     warnings: i.warnings,
     rejectionCode: i.rejectionCode,
     issuedAt: i.issuedAt,
+    reversedAt: i.reversedAt ?? null,
+    correctionBasis: i.correctionBasis,
+    deliveredOn: i.deliveredOn ?? null,
   };
 }
 
@@ -150,6 +159,8 @@ function detail(i: MockEInvoice) {
     returnRequestId: i.returnRequestId,
     earlierPendingInvoice: earlier?.code ?? null,
     deliveryFailedAt: i.deliveryFailedAt,
+    errorNoticeSupported: mockEInvoiceSettings().provider === "SANDBOX",
+    issuedVia: i.issuedVia ?? (i.issuedAt ? "PROVIDER" : null),
   };
 }
 
@@ -166,6 +177,7 @@ function list(config: AxiosRequestConfig) {
         (!q.get("customerId") || i.customerId === q.get("customerId")) &&
         (!q.get("issuedFrom") || i.issueDate >= (q.get("issuedFrom") ?? "")) &&
         (!q.get("issuedTo") || i.issueDate <= (q.get("issuedTo") ?? "")) &&
+        (!q.get("warning") || i.warnings.includes(q.get("warning") ?? "")) &&
         (!due || (!i.issuedAt && i.status !== "VOIDED_DRAFT" && i.issueDueAt < due)),
     )
     // Còn phải phát hành trước, hạn gần nhất trước (BE EInvoiceQueries)
@@ -246,6 +258,7 @@ export function registerEInvoiceMockRoutes(): void {
             httpStatus: 200,
             calledAt: invoice.submittedAt,
             durationMs: 420,
+            providerReference: `create/TRK-${invoice.code}`,
           },
         ]
       : [];
@@ -315,9 +328,16 @@ export function registerEInvoiceMockRoutes(): void {
       if (i.status !== "DRAFT") return transition();
       if (!text(body.reason))
         return fail(400, "VALIDATION_FAILED", "reason", [{ field: "reason", message: "required" }]);
+      const unsendable = text(body.reasonCode) === UNSENDABLE_REVERSAL_REASON_CODE;
+      // BE `voidDraft`: bản giảm hệ thống lập chỉ huỷ với mã UNSENDABLE_REVERSAL (WF-05 Q-8, F-14)
+      if (i.correctionBasis === "DELIVERY_FAILED" && !unsendable)
+        return fail(409, "EINVOICE_CORRECTION_NOT_APPLICABLE", "Issued, not voided");
+      if (unsendable && i.correctionBasis !== "DELIVERY_FAILED")
+        return fail(409, "EINVOICE_CORRECTION_NOT_APPLICABLE", "Not a reversal");
       Object.assign(i, {
         status: "VOIDED_DRAFT",
         voidReason: text(body.reason),
+        voidReasonCode: unsendable ? UNSENDABLE_REVERSAL_REASON_CODE : null,
         voidedAt: nowIso(),
       });
       return touch(i);
@@ -335,14 +355,33 @@ export function registerEInvoiceMockRoutes(): void {
   registerMockRoute(
     "POST",
     "/einvoices/:id/issuance",
-    versioned(P.approve, (i) => {
+    versioned(P.approve, (i, body) => {
       if (i.status !== "DRAFT") return transition();
       // docs 21 BR-06: bên mua đủ tên, mã số thuế, địa chỉ
       if (!i.buyer.name || !i.buyer.taxCode || !i.buyer.address)
         return fail(409, "EINVOICE_BUYER_PROFILE_INCOMPLETE", "Buyer profile incomplete");
       if (i.correctionBasis === "ERROR" && !i.agreement)
         return fail(409, "EINVOICE_AGREEMENT_REQUIRED", "Agreement required");
-      Object.assign(i, { status: "SUBMITTING", submittedAt: nowIso() });
+      // WF-05 F-16: cảnh báo chưa được xác nhận → 409 kèm danh sách
+      const acknowledged = Array.isArray(body.acknowledgedWarnings)
+        ? body.acknowledgedWarnings.map(String)
+        : [];
+      const unseen = i.warnings.filter((w) => !acknowledged.includes(w));
+      if (unseen.length > 0)
+        return fail(409, "EINVOICE_DRAFT_OUT_OF_DATE", "New warnings", [], { warnings: unseen });
+      // WF-05 Q-10: nháp có ngày giao trước hôm nay → bắt buộc lý do, hoá đơn mang ngày hôm nay + ISSUED_LATE
+      const today = nowIso().slice(0, 10);
+      const delivered = i.deliveredOn ?? (i.type === "ORIGINAL" ? i.issueDate : null);
+      const late = delivered !== null && delivered < today;
+      if (late && !text(body.lateReason))
+        return fail(400, "EINVOICE_LATE_ISSUE_REASON_REQUIRED", "Late reason required");
+      Object.assign(i, {
+        status: "SUBMITTING",
+        submittedAt: nowIso(),
+        deliveredOn: delivered,
+        issueDate: today,
+        warnings: late ? [...i.warnings, EINVOICE_LATE_WARNING] : i.warnings,
+      });
       return touch(i);
     }),
   );
@@ -376,6 +415,87 @@ export function registerEInvoiceMockRoutes(): void {
       });
       return touch(i);
     }),
+  );
+  // WF-05 Q-8 (F-13): Kế toán ghi kết quả đã kiểm trên cổng NCC
+  registerMockRoute(
+    "POST",
+    "/einvoices/:id/portal-result",
+    versioned(P.approve, (i, body) => {
+      if (i.status !== "SUBMITTING") return transition();
+      const form = body instanceof FormData ? body : null;
+      if (form?.get("outcome") === "ISSUED") {
+        Object.assign(i, {
+          status: "ISSUED",
+          invoiceNumber: Number(form.get("invoiceNumber") ?? 0) || nextInvoiceNumber(),
+          symbol: mockEInvoiceSettings().series[0]?.symbol ?? null,
+          issuedAt: nowIso(),
+          issuedVia: EINVOICE_ISSUED_VIA_PORTAL,
+        });
+      } else {
+        Object.assign(i, {
+          status: "REJECTED",
+          rejectionCode: "REFUSED_BY_TAX_AUTHORITY",
+          rejectionMessage: String(form?.get("note") ?? ""),
+        });
+      }
+      return touch(i);
+    }),
+  );
+  // WF-05 BE-11 (F-15): bản giảm do giao thất bại cho hoá đơn gốc đã bị đánh dấu
+  registerMockRoute(
+    "POST",
+    "/einvoices/:id/delivery-failure-reduction",
+    versioned(P.create, (i) => {
+      if (i.status !== "ISSUED" || !i.deliveryFailedAt || i.reversedAt)
+        return fail(409, "EINVOICE_REVERSAL_NOT_APPLICABLE", "Not applicable");
+      const reduction = correctionOf(i, "ADJUSTMENT", "DELIVERY_FAILED", "Giao không thành công");
+      reduction.lines = i.lines.map((line) => ({ ...line, quantity: -line.quantity }));
+      i.reversedAt = nowIso();
+      i.version += 1;
+      return ok(detail(reduction));
+    }),
+  );
+  // WF-05 Q-8 (F-13): hoá đơn giảm Kế toán làm trên cổng NCC
+  registerMockRoute("POST", "/einvoices/:id/external-reductions", async (config) => {
+    if (!(await can(P.approve))) return forbidden();
+    const original = byId(pathParams(config).id ?? "");
+    if (!original) return notFound();
+    const voided = mockEInvoices().some(
+      (o) =>
+        o.originalEInvoiceId === original.id &&
+        o.voidReasonCode === UNSENDABLE_REVERSAL_REASON_CODE,
+    );
+    if (original.status !== "ISSUED" || (!voided && original.type !== "REPLACEMENT"))
+      return fail(409, "EINVOICE_EXTERNAL_REDUCTION_NOT_APPLICABLE", "Not applicable");
+    const raw: unknown = config.data;
+    const form = raw instanceof FormData ? raw : null;
+    const reduction = correctionOf(
+      original,
+      "ADJUSTMENT",
+      "DELIVERY_FAILED",
+      text(form?.get("note")),
+    );
+    Object.assign(reduction, {
+      status: "ISSUED",
+      symbol: text(form?.get("symbol")) || null,
+      invoiceNumber: Number(form?.get("invoiceNumber") ?? 0) || null,
+      issueDate: text(form?.get("issueDate")) || nowIso().slice(0, 10),
+      issuedAt: nowIso(),
+      issuedVia: EINVOICE_ISSUED_VIA_PORTAL,
+      lines: original.lines.map((line) => ({ ...line, quantity: -line.quantity })),
+    });
+    return ok(detail(reduction));
+  });
+  // BO-09: chữ ký số — mock coi mọi hoá đơn đã phát hành ký hợp lệ; tệp tải lên → SHA1_UNCHECKED
+  registerMockRoute("GET", "/einvoices/:id/signature", async (config) => {
+    if (!(await can(P.read))) return forbidden();
+    const invoice = byId(pathParams(config).id ?? "");
+    if (!invoice) return notFound();
+    if (!invoice.issuedAt) return fail(409, "EINVOICE_NOT_ISSUED", "Not issued");
+    return ok(signatureOf("VALID", invoice.issuedAt));
+  });
+  registerMockRoute("POST", "/einvoices/signature-checks", async () =>
+    (await can(P.read)) ? ok(signatureOf("SHA1_UNCHECKED", nowIso())) : forbidden(),
   );
   registerMockRoute(
     "POST",
@@ -515,6 +635,53 @@ export function registerEInvoiceMockRoutes(): void {
   registerSettingsRoutes();
 }
 
+/** Một điều chỉnh / thay thế mới của hoá đơn `original`, đã đưa vào kho mock. */
+function correctionOf(
+  original: MockEInvoice,
+  type: MockEInvoice["type"],
+  basis: MockEInvoice["correctionBasis"],
+  reason: string,
+): MockEInvoice {
+  const correction: MockEInvoice = {
+    ...original,
+    id: nextEInvoiceId(),
+    type,
+    status: "DRAFT",
+    adjusted: false,
+    originalEInvoiceId: original.id,
+    invoiceNumber: null,
+    symbol: null,
+    issuedAt: null,
+    submittedAt: null,
+    version: 0,
+    warnings: [],
+    correctionBasis: basis,
+    correctionReason: reason,
+    agreement: null,
+    reversedAt: null,
+    issuedVia: null,
+    issueDate: nowIso().slice(0, 10),
+  };
+  correction.code = `HDDT-${correction.id.replace("EINV-", "")}`;
+  mockEInvoices().push(correction);
+  return correction;
+}
+
+const signatureOf = (status: string, at: string) => ({
+  status,
+  valid: status === "VALID",
+  signer: MOCK_SELLER.name,
+  signerTaxCode: MOCK_SELLER.taxCode,
+  signerOrganization: MOCK_SELLER.name,
+  issuer: "CA thử nghiệm",
+  signingTime: at,
+  certificateValidFrom: "2026-01-01T00:00:00Z",
+  certificateValidTo: "2027-12-31T00:00:00Z",
+  certificateValidAtSigning: true,
+  buyerSigned: false,
+  chainChecked: false,
+});
+
 const noticeWire = (n: ReturnType<typeof mockErrorNotices>[number]) => ({
   ...n,
   formCode: "04/SS-HDDT",
@@ -536,6 +703,12 @@ function registerSettingsRoutes() {
       active: true,
       autoIssue: s.autoIssue,
       version: s.version,
+      // WF-05 F-11: cờ khả năng của NCC
+      accountInDeployment: s.provider === "SEPAY_EINVOICE",
+      deploymentAccountReady: s.provider === "SEPAY_EINVOICE" ? true : null,
+      issuesCorrections: true,
+      adjustsReplacements: s.provider !== "SEPAY_EINVOICE",
+      sendsErrorNotices: s.provider === "SANDBOX",
     };
   };
   const bump = (patch: Partial<ReturnType<typeof mockEInvoiceSettings>>) =>
@@ -559,6 +732,12 @@ function registerSettingsRoutes() {
   );
   registerMockRoute("PUT", "/einvoice-settings/providers/:provider/account", async (config) => {
     if (!(await can(S.update))) return forbidden();
+    // BE `storeAccount`: sandbox không có tài khoản; SePay đọc tài khoản từ biến môi trường (BO-04)
+    const code = pathParams(config).provider;
+    if (code === "SANDBOX" || code === "SEPAY_EINVOICE")
+      return fail(400, "VALIDATION_FAILED", "provider", [
+        { field: "provider", message: "This provider's account is not stored here" },
+      ]);
     const body = bodyOf(config);
     bump({
       environment: body.environment === "PRODUCTION" ? "PRODUCTION" : "SANDBOX",
@@ -570,6 +749,15 @@ function registerSettingsRoutes() {
   registerMockRoute("PUT", "/einvoice-settings/providers/:provider/series", async (config) => {
     if (!(await can(S.update))) return forbidden();
     const body = bodyOf(config);
+    // BE `useSeries`: NCC thật bắt buộc mã mẫu của NCC, sandbox không có (BO-10)
+    const sandbox = pathParams(config).provider === "SANDBOX";
+    if (sandbox === !!text(body.providerTemplateCode))
+      return fail(400, "VALIDATION_FAILED", "providerTemplateCode", [
+        {
+          field: "providerTemplateCode",
+          message: sandbox ? "Sandbox không có mã mẫu riêng" : "Nhập mã mẫu của nhà cung cấp",
+        },
+      ]);
     const series = { templateCode: "1", symbol: text(body.symbol), year: Number(body.year) };
     bump({
       series: [series, ...mockEInvoiceSettings().series.filter((s) => s.year !== series.year)],

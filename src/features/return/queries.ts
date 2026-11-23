@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { RETURN_LIMITS } from "@/constants/returns";
+import { RETURN_LIMITS, RETURN_RECEIPT_SOURCE_STATUSES } from "@/constants/returns";
 import { QUERY_TIMES } from "@/lib/api/query-client";
 import { createDetailQuery, createListQuery, createQueryKeys } from "@/lib/api/query-factory";
 
@@ -32,10 +32,13 @@ export const useOrderReturns = (orderId: string | null | undefined, enabled = tr
     { enabled: enabled && !!orderId },
   );
 
-/** Yêu cầu đang chờ hàng về — nguồn chọn khi lập phiếu nhập hàng hoàn. */
-export const useAwaitingReturns = (enabled = true) =>
+/**
+ * Yêu cầu có thể nhận phiếu nhập hàng hoàn — nguồn chọn khi lập phiếu (WF-05 Q-11, BE-13: cả hàng về muộn). Tải mọi
+ * trạng thái BE có thể cho mở phiếu; màn lọc bằng `receiptOpenableRow` (cờ của BE, dự phòng theo trạng thái).
+ */
+export const useReceiptSourceReturns = (enabled = true) =>
   useReturns(
-    { statuses: ["AWAITING_RETURN"], page: 0, size: RETURN_LIMITS.pageSizeMax },
+    { statuses: RETURN_RECEIPT_SOURCE_STATUSES, page: 0, size: RETURN_LIMITS.pageSizeMax },
     { enabled },
   );
 

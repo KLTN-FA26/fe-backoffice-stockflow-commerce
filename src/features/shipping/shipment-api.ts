@@ -4,7 +4,8 @@
  *   GET /fulfillment/shipments?warehouseId&status&carrierId&orderId&search&page&size
  *   GET /fulfillment/shipments/{id}                 → Shipment (kiện + lịch sử)
  *   POST /fulfillment/shipments/{id}/delivery-outcome {outcome, failureReason?, note?}
- *        (fulfillment-delivery-outcomes:UPDATE; ĐÃ GIAO / GIAO THẤT BẠI cần thêm :APPROVE); ĐÃ GIAO nhận thêm
+ *        (fulfillment-delivery-outcomes:UPDATE + :APPROVE cho mọi kết quả, kể cả HÀNG HOÀN VỀ — WF-05 Q-7 / F-6:
+ *        thiếu APPROVE → 403; tiền của lô hoàn về tính khi xác nhận phiếu nhận hàng hoàn); ĐÃ GIAO nhận thêm
  *        `deliveredAt` (Instant ISO, mặc định lúc ghi nhận; không ở tương lai, không trước lúc bàn giao)
  *   POST /fulfillment/shipments/{id}/delivery-outcome-correction {outcome, failureReason?, note?, reason, deliveredAt?}
  *        (fulfillment-delivery-corrections:UPDATE) — sửa ĐÃ GIAO ↔ GIAO THẤT BẠI, lý do bắt buộc

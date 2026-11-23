@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { SALES_CONTRACT_PERMISSIONS } from "@/constants";
+import { SALES_CONTRACT_PERMISSIONS, SALES_CONTRACT_STATUS_LABELS } from "@/constants";
 
 import { contractDraft } from "./__fixtures__/contract";
 import { contractFieldPath } from "./components/contract/useContractEditor";
@@ -30,10 +30,29 @@ const accountant = (code: string) => code === SALES_CONTRACT_PERMISSIONS.read;
 const signerOnly = (code: string) => code === SALES_CONTRACT_PERMISSIONS.approve;
 
 describe("CONTRACT_TRANSITIONS (docs 14 §5)", () => {
-  it("SIGNED → COMPLETED; COMPLETED / CANCELLED là trạng thái cuối", () => {
-    expect(CONTRACT_TRANSITIONS.SIGNED).toEqual(["COMPLETED"]);
+  it("SIGNED → COMPLETED / LIQUIDATED (WF-05 Q-6); COMPLETED / LIQUIDATED / CANCELLED / UNKNOWN là trạng thái cuối", () => {
+    expect(CONTRACT_TRANSITIONS.SIGNED).toEqual(["COMPLETED", "LIQUIDATED"]);
     expect(CONTRACT_TRANSITIONS.COMPLETED).toEqual([]);
+    expect(CONTRACT_TRANSITIONS.LIQUIDATED).toEqual([]);
     expect(CONTRACT_TRANSITIONS.CANCELLED).toEqual([]);
+    expect(CONTRACT_TRANSITIONS.UNKNOWN).toEqual([]);
+  });
+});
+
+describe("trạng thái hợp đồng mới / lạ (WF-05 F-3, BO-11)", () => {
+  it("LIQUIDATED parse được, nhãn 'Thanh lý'; giá trị lạ → UNKNOWN thay vì làm hỏng thẻ hợp đồng", () => {
+    expect(salesContractDtoSchema.parse({ ...contractDraft, status: "LIQUIDATED" }).status).toBe(
+      "LIQUIDATED",
+    );
+    expect(SALES_CONTRACT_STATUS_LABELS.LIQUIDATED).toBe("Thanh lý");
+    expect(salesContractDtoSchema.parse({ ...contractDraft, status: "ARCHIVED" }).status).toBe(
+      "UNKNOWN",
+    );
+  });
+
+  it("LIQUIDATED / UNKNOWN → không nút mutating, không 'lập hợp đồng mới'", () => {
+    expect(allowedContractActions({ status: "LIQUIDATED" }, "Closed", sales)).toEqual([]);
+    expect(allowedContractActions({ status: "UNKNOWN" }, "Draft", sales)).toEqual([]);
   });
 });
 
