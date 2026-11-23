@@ -193,9 +193,7 @@ describe(FILTER_SUITE, { timeout: FILTER_FLOW_TIMEOUT_MS }, () => {
   it("nút lọc ở cột Khách hàng (UUID của BE) → lọc theo khách của dòng", async () => {
     renderList(() => apiOrderPage([apiOrder]));
 
-    await userEvent.click(
-      await screen.findByRole("button", { name: `Lọc đơn của khách ${apiOrder.customerId}` }),
-    );
+    await userEvent.click(await screen.findByRole("button", { name: "Lọc đơn của khách này" }));
 
     await waitFor(() => expect(lastListQuery().get("customerId")).toBe(apiOrder.customerId));
   });

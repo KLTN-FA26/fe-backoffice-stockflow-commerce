@@ -250,7 +250,7 @@ export function ProductList() {
         <Link
           href={ADMIN_ROUTES.products.detail(row.productId)}
           onClick={(e) => e.stopPropagation()}
-          className={`${CELL.name} hover:text-accent hover:underline`}
+          className={`${CELL.name} hover:text-accent-text hover:underline`}
         >
           {row.name}
         </Link>
@@ -321,7 +321,7 @@ export function ProductList() {
         onClear: () => changeFacet(setBrandFilter)(null),
       },
       {
-        label: "Search chính",
+        label: "Tìm kiếm chính",
         value: hasGlobalSearch ? `“${pageConfig.globalSearch.query}”` : "Chưa dùng",
         active: hasGlobalSearch,
         onClear: () => productFilters.setQ(""),

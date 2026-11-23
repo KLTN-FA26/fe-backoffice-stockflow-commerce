@@ -42,6 +42,11 @@ export const ADMIN_ROUTES = {
   customers: {
     create: `${ADMIN_BASE}/customers/create`,
     detail: (id: string) => `${ADMIN_BASE}/customers/${id}`,
+    /**
+     * Mở thẳng hộp nhập thông tin pháp lý; `returnTo` (đường dẫn admin) cho link "Quay lại hợp đồng" (BO-UX-30).
+     */
+    legalProfile: (id: string, returnTo?: string) =>
+      `${ADMIN_BASE}/customers/${id}?legalProfile=edit${returnTo ? `&returnTo=${encodeURIComponent(returnTo)}` : ""}#legal-profile`,
     list: `${ADMIN_BASE}/customers`,
   },
   /** Hộp thư chat của Sale (WF-02 pha E2). */
@@ -117,6 +122,8 @@ export const ADMIN_ROUTES = {
     detail: (id: string) => `${ADMIN_BASE}/orders/${id}`,
     /** Khối "Hợp đồng" trong chi tiết đơn (WF-02 pha B). */
     contract: (id: string) => `${ADMIN_BASE}/orders/${id}#contract`,
+    /** Thẻ "Yêu cầu huỷ của khách" trên chi tiết đơn (hàng đợi yêu cầu huỷ mở thẳng tới đây — BO-UX-34). */
+    cancellationRequest: (id: string) => `${ADMIN_BASE}/orders/${id}#cancellation-request`,
     list: `${ADMIN_BASE}/orders`,
   },
   packing: {

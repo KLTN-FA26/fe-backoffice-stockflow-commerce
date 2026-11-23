@@ -37,7 +37,7 @@ export function MockWarningTable() {
         <div className="flex items-center gap-2">
           <AlertTriangle className="text-warning size-4" />
           <h2 className="text-ink-primary text-[0.875rem] font-semibold">Cần xử lý ngay</h2>
-          <span className="bg-warning/12 text-warning rounded-full px-2 py-0.5 text-[0.625rem] font-bold tabular-nums">
+          <span className="bg-warning/12 text-warning-ink rounded-full px-2 py-0.5 text-[0.625rem] font-bold tabular-nums">
             {warningItems.length}
           </span>
         </div>

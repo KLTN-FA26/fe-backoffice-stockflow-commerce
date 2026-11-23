@@ -161,7 +161,7 @@ export function AttributeDictionary() {
             <ListConfigSummary
               items={[
                 {
-                  label: "Search chính",
+                  label: "Tìm kiếm chính",
                   value: q || UI_LABELS.common.notEntered,
                   active: q !== "",
                   onClear: () => void setQ(null),

@@ -57,7 +57,7 @@ export function QuoteNotices({ quote }: { quote: Quote }) {
           <span className={MONO}>{formatMoney(quote.convertedOrder.total, "VND")}</span>.{" "}
           <Link
             href={ADMIN_ROUTES.orders.detail(quote.convertedOrder.orderId)}
-            className="text-accent hover:underline"
+            className="text-accent-text hover:underline"
           >
             Mở đơn
           </Link>

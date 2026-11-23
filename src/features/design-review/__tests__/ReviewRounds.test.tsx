@@ -204,6 +204,32 @@ describe("Chi tiết vòng duyệt", () => {
     expect(api.post).toHaveBeenCalledTimes(1);
   });
 
+  it("BO-UX-6: kết quả cho thiết kế BE không gửi kèm → nhãn trung tính, không mảnh UUID", async () => {
+    open({
+      [approvalsUrl]: () => ({
+        outcomes: [
+          { designId: D1, outcome: "APPROVED" },
+          { designId: D2, outcome: "SKIPPED" },
+        ],
+        round: round({
+          designs: [
+            {
+              designId: D1,
+              design: design(D1, "Ly A", { status: "APPROVED" }),
+              outcome: "APPROVED",
+            },
+            { designId: D2, outcome: "RETURNED" },
+          ],
+        }),
+      }),
+    });
+    const user = userEvent.setup();
+    await runApproveAll(user);
+    const result = await screen.findByRole("region", { name: "Kết quả duyệt tất cả" });
+    expect(within(result).getByText("Thiết kế chưa đặt tên")).toBeInTheDocument();
+    expect(result).not.toHaveTextContent(D2.slice(0, 8));
+  });
+
   it("hơn 20 thiết kế chờ → chỉ gửi 20 đầu và nói phải duyệt tiếp", async () => {
     const ids = Array.from({ length: 22 }, (_, i) => `0d0000${String(i).padStart(2, "0")}`);
     const api = open(

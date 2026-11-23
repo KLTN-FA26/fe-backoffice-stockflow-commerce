@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ShieldAlert } from "lucide-react";
+import { ShieldAlert } from "lucide-react";
 import { parseAsInteger, useQueryState } from "nuqs";
 import { useState } from "react";
 
@@ -12,12 +12,17 @@ import {
   STORAGE_KEYS,
   UI_LABELS,
 } from "@/constants";
+import {
+  columnSummaryItem,
+  columnToolbarProps,
+  useColumnVisibility,
+} from "@/hooks/use-column-visibility";
 import { usePageConfig } from "@/hooks/use-page-config";
 import { usePermissionChecker } from "@/lib/auth";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
 import { DataTable } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { PageHeader } from "@/components/shared/PageHeader";
+import { ListToolbar } from "@/components/shared/ListToolbar";
 import { RefetchBar } from "@/components/shared/RefetchBar";
 
 import { allowedOrderActions, orderActionContextOf } from "../../lifecycle";
@@ -25,9 +30,13 @@ import { useCreditHolds } from "../../queries";
 import { OrderLoadError } from "../OrderLoadError";
 import { OrderPermissionGate } from "../OrderPermissionGate";
 import { OrderTableSkeleton } from "../OrderSkeletons";
-import { HeaderLink } from "../HeaderLink";
 
-import { buildCreditHoldColumns } from "./columns";
+import {
+  buildCreditHoldColumns,
+  CREDIT_HOLD_COLUMN_LABELS,
+  CREDIT_HOLD_COLUMNS,
+  CREDIT_HOLD_LOCKED_COLUMNS,
+} from "./columns";
 import { CreditApproveAction } from "./CreditApproveAction";
 import { CreditRejectAction } from "./CreditRejectAction";
 import { RefundDueNotice } from "./RefundDueNotice";
@@ -101,20 +110,28 @@ function CreditHoldListContent() {
       </div>
     );
   }, canOpenOrders);
+  const columnState = useColumnVisibility(
+    STORAGE_KEYS.adminCreditHoldsColumns,
+    CREDIT_HOLD_COLUMNS,
+    { locked: CREDIT_HOLD_LOCKED_COLUMNS },
+  );
+  const visibleColumns = columns.filter((column) =>
+    columnState.visible.some((key) => key === column.key),
+  );
 
   return (
-    <>
-      <PageHeader
-        title={TITLE}
-        subtitle="Đơn bị giữ khi ký vì khách có khoản quá hạn, hoặc dư nợ cộng phần trả sau giao vượt hạn mức; chờ Kế toán duyệt hoặc từ chối."
-        actions={
-          canOpenOrders && (
-            <HeaderLink href={ADMIN_ROUTES.orders.list}>
-              <ArrowLeft className="size-3.5" /> {UI_LABELS.order.pageTitle}
-            </HeaderLink>
-          )
-        }
-      />
+    <div className="surface-soft">
+      {/* Trang danh sách kiểu Vercel (data-table-mode-a §1): không tiêu đề / nút quay lại — breadcrumb là tên trang. */}
+      <h1 className="sr-only">{TITLE}</h1>
+      {canRead && (
+        // BE `GET /orders/credit-holds` chỉ nhận trang: không có search / lọc — toolbar còn Ẩn hiện cột + Cấu hình.
+        <ListToolbar
+          {...columnToolbarProps(columnState, CREDIT_HOLD_COLUMN_LABELS, CREDIT_HOLD_COLUMNS)}
+          summaryItems={[columnSummaryItem(columnState)]}
+          onResetAll={columnState.reset}
+          resetDisabled={!columnState.hasColumnConfig}
+        />
+      )}
       {rejected && (
         <RefundDueNotice orderId={rejected.orderId} orderNumber={rejected.orderNumber} />
       )}
@@ -134,8 +151,9 @@ function CreditHoldListContent() {
         <>
           <RefetchBar active={query.isFetching} label="Đang tải lại danh sách" />
           <DataTable
-            columns={columns}
+            columns={visibleColumns}
             data={query.data.items}
+            stickyHeader
             rowKey={(row) => row.order.orderId}
             // Mọi đơn trong hàng đợi đều On Hold — viền cảnh báo như danh sách đơn (data-table-mode-a)
             flagRow={() => true}
@@ -158,6 +176,6 @@ function CreditHoldListContent() {
           />
         </>
       )}
-    </>
+    </div>
   );
 }

@@ -32,7 +32,7 @@ export function QuoteFeesTotals({ quote }: { quote: Quote }) {
                   {fee.amount != null ? (
                     formatMoney(fee.amount, "VND")
                   ) : (
-                    <span className="text-warning">Chưa nhập</span>
+                    <span className="text-warning-ink">Chưa nhập</span>
                   )}
                 </td>
                 <td className={`text-ink-tertiary py-1.5 pl-3 text-right ${MONO}`}>

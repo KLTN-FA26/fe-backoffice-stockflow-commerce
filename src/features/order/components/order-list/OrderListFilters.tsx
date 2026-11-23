@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { DatePicker } from "@/components/shared/DatePicker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -71,12 +72,13 @@ export function OrderListFilters({ s }: { s: OrderListState }) {
           <Label htmlFor="order-filter-from" className={LABEL}>
             {FILTER_LABELS.from}
           </Label>
-          <Input
+          {/* dd/MM/yyyy dùng chung (B1): ô `type="date"` theo locale trình duyệt đọc 03/12 thành 12/3 */}
+          <DatePicker
             id="order-filter-from"
-            type="date"
             value={extra.placedFrom}
             max={extra.placedTo || undefined}
-            onChange={(event) => extra.setPlacedFrom(event.target.value)}
+            onChange={extra.setPlacedFrom}
+            clearable
             aria-invalid={extra.invalidRange || undefined}
             className={`${CONTROL} w-40 tabular-nums`}
           />
@@ -85,12 +87,12 @@ export function OrderListFilters({ s }: { s: OrderListState }) {
           <Label htmlFor="order-filter-to" className={LABEL}>
             {FILTER_LABELS.to}
           </Label>
-          <Input
+          <DatePicker
             id="order-filter-to"
-            type="date"
             value={extra.placedTo}
             min={extra.placedFrom || undefined}
-            onChange={(event) => extra.setPlacedTo(event.target.value)}
+            onChange={extra.setPlacedTo}
+            clearable
             aria-invalid={extra.invalidRange || undefined}
             aria-describedby={extra.invalidRange ? "order-filter-range-error" : undefined}
             className={`${CONTROL} w-40 tabular-nums`}

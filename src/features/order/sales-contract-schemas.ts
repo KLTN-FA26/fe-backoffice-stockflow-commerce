@@ -28,6 +28,8 @@ export const contractBatchViewSchema = z.object({
     z.object({
       orderLineId: z.string(),
       sku: omittedOrNull(z.string()),
+      /** R5-3 (optional): the line's design name. */
+      designName: omittedOrNull(z.string()),
       cartons: z.number().int(),
       units: z.number().int(),
     }),
@@ -43,6 +45,12 @@ export const contractInstallmentViewSchema = z.object({
   amount: z.number(),
   dueDays: omittedOrNull(z.number().int()),
   deliveryBatchSeq: omittedOrNull(z.number().int()),
+  /**
+   * R5-12 (optional, signed contracts): the installment's due day — BE `InstallmentView.dueDate`, the same name as on the
+   * installment itself — and days overdue (0 when not).
+   */
+  dueDate: omittedOrNull(z.string()),
+  daysOverdue: omittedOrNull(z.number().int()),
 });
 
 /** 15 BR-11: gửi hợp đồng có phần trả sau giao → cảnh báo tín dụng, không chặn. */

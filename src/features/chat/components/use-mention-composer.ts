@@ -18,6 +18,14 @@ interface Token {
   query: string;
 }
 
+/** "@" opening a word followed by a letter or digit: text that reads like a mention (BO-UX-43 warning). */
+const MENTION_LIKE = /(^|\s)@[\p{L}\p{N}]/u;
+
+/** Whether `text` holds what reads like an @mention — in a reply to the customer, likely meant as a note. */
+export function looksLikeMention(text: string): boolean {
+  return MENTION_LIKE.test(text);
+}
+
 function tokenAt(value: string, caret: number): Token | null {
   const found = MENTION_TOKEN.exec(value.slice(0, caret));
   return found ? { at: caret - found[2].length - 1, query: found[2] } : null;

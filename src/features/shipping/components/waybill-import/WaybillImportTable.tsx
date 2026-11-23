@@ -77,7 +77,7 @@ export function WaybillImportTable({
                   {line.loadId ? (
                     <Link
                       href={ADMIN_ROUTES.loads.detail(line.loadId)}
-                      className="text-accent hover:underline"
+                      className="text-accent-text hover:underline"
                     >
                       {line.loadCode ?? line.loadId}
                     </Link>

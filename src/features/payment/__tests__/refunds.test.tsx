@@ -117,7 +117,7 @@ describe("RefundDetail — record a refund paid outside the system (docs 15 §4.
     renderPaymentScreen(<RefundDetail orderId="ord-15" />);
     await userEvent.click(await screen.findByRole("button", { name: "Ghi nhận đã hoàn" }));
     const dialog = within(await screen.findByRole("dialog"));
-    expect(dialog.getByLabelText(/Số tiền đã hoàn/)).toHaveValue("12000000");
+    expect(dialog.getByLabelText(/Số tiền đã hoàn/)).toHaveValue("12.000.000");
     await userEvent.type(dialog.getByLabelText(/Mã tham chiếu sao kê/), "FT26313987654");
     await userEvent.click(dialog.getByRole("button", { name: "Ghi nhận đã hoàn" }));
     await waitFor(() => expect(api.post).toHaveBeenCalled());

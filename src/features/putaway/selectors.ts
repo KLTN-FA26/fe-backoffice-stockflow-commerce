@@ -7,7 +7,7 @@ import { formatDecimal } from "@/lib/format/number";
 import type { PutawayTask } from "./types";
 
 export interface PutawayTextFilters {
-  /** Search chính: LPN, SKU, lô, vị trí đang ở. */
+  /** Tìm kiếm chính: LPN, SKU, lô, vị trí đang ở. */
   q: string;
   /** Search trong cột. */
   lpn: string;

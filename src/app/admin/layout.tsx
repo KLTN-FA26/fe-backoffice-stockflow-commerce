@@ -3,7 +3,7 @@ import { AuthGuard } from "@/lib/auth/components/AuthGuard";
 import { BackOfficeGuard } from "@/lib/auth/components/BackOfficeGuard";
 import { PasswordChangeGuard } from "@/lib/auth/components/PasswordChangeGuard";
 import { RoleSwitcher } from "@/lib/auth/components/RoleSwitcher";
-import { ChatPresenceProvider } from "@/lib/realtime";
+import { ChatSocketProvider } from "@/lib/realtime";
 
 import { BackofficeShell } from "@/components/backoffice/BackofficeShell";
 
@@ -15,12 +15,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <PasswordChangeGuard>
         <AreaGate area="admin">
           <BackOfficeGuard>
-            <ChatPresenceProvider>
+            <ChatSocketProvider>
               <BackofficeShell>
                 {children}
                 <RoleSwitcher />
               </BackofficeShell>
-            </ChatPresenceProvider>
+            </ChatSocketProvider>
           </BackOfficeGuard>
         </AreaGate>
       </PasswordChangeGuard>

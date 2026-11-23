@@ -76,7 +76,7 @@ describe("BO-18 — @nhắc trong ghi chú nội bộ", () => {
     await userEvent.click(await screen.findByRole("option", { name: /Lê Kế Toán/ }));
     expect(box).toHaveValue("Nhờ @Lê Kế Toán ");
     await userEvent.type(box, "xem giúp");
-    await userEvent.click(screen.getByRole("button", { name: /Gửi$/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Lưu ghi chú nội bộ" }));
     await waitFor(() =>
       expect(api.post).toHaveBeenCalledWith(
         `${BASE}/notes`,
@@ -95,7 +95,7 @@ describe("BO-18 — @nhắc trong ghi chú nội bộ", () => {
     expect(box).toHaveValue("@Lê Kế Toán ");
     await userEvent.clear(box);
     await userEvent.type(box, "Không nhắc ai");
-    await userEvent.click(screen.getByRole("button", { name: /Gửi$/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Lưu ghi chú nội bộ" }));
     await waitFor(() =>
       expect(api.post).toHaveBeenCalledWith(
         `${BASE}/notes`,
@@ -128,7 +128,7 @@ describe("BO-18 — @nhắc trong ghi chú nội bộ", () => {
     await userEvent.keyboard("{Enter}");
     expect(box).toHaveValue("@Lê Thủ Kho và @Phạm Giám Đốc ");
     await userEvent.type(box, "ok");
-    await userEvent.click(screen.getByRole("button", { name: /Gửi$/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Lưu ghi chú nội bộ" }));
     await waitFor(() =>
       expect(api.post).toHaveBeenCalledWith(
         `${BASE}/notes`,

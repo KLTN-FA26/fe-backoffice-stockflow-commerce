@@ -109,11 +109,22 @@ export const DESIGN_REVIEW_LABELS = {
   staleReload: "Đã tải lại thiết kế — xem lại bộ file rồi quyết định lại.",
   inProject: "Thuộc một dự án — duyệt trong vòng duyệt",
   preflightBlocked: "File in có lỗi chặn — nên trả lại",
+  /** BO-UX-8: kết quả kiểm tra file in ngay trong hộp "Duyệt". */
+  preflightRunning: "Đang kiểm tra file in…",
+  preflightPassed: "Kiểm tra file in: đạt, không có lỗi chặn.",
+  preflightNoFile: "Chưa có file in để kiểm tra.",
+  preflightFailed: "Không chạy được kiểm tra file in — vẫn duyệt được, nên xem lại file trước.",
+  preflightBlockingTitle: "Kiểm tra file in có lỗi chặn:",
+  preflightAcknowledge: "Tôi đã xem lỗi chặn và vẫn duyệt",
+  /** BO-UX-9: sau khi quyết định, mở thiết kế kế tiếp của hàng đợi. */
+  openNext: "Sau khi quyết định, mở thiết kế tiếp theo trong hàng đợi",
 } as const;
 
 /** Chữ trên màn vòng duyệt dự án (BO-4). */
 export const DESIGN_ROUND_LABELS = {
   listTitle: "Vòng duyệt dự án",
+  /** Kết quả "Duyệt tất cả" cho thiết kế BE không gửi tên (thay cho mảnh UUID). */
+  unnamedDesign: "Thiết kế chưa đặt tên",
   emptyTitle: "Không có vòng duyệt nào đang chờ",
   emptyDescription: "Dự án khách gửi duyệt cả bộ thiết kế sẽ hiện ở đây, chờ lâu nhất trước.",
   notFoundTitle: "Không tìm thấy vòng duyệt",
@@ -146,6 +157,8 @@ export const DESIGN_REVIEW_STORAGE_KEYS = {
   roundsConfig: "stockflow:admin:design-review-rounds:config",
   quoteRequestsConfig: "stockflow:admin:design-quote-requests:config",
   projectQuoteRequestsConfig: "stockflow:admin:design-project-quote-requests:config",
+  quoteRequestsColumns: "stockflow:admin:design-quote-requests:columns",
+  projectQuoteRequestsColumns: "stockflow:admin:design-project-quote-requests:columns",
 } as const;
 
 /** Hộp yêu cầu báo giá thiết kế (đơn lẻ + dự án). */
@@ -177,4 +190,26 @@ export const DESIGN_QUOTE_REQUEST_LABELS = {
   blockedArchived: "Thiết kế đã xoá — chỉ còn Đóng",
   blockedNoSku: "Thiết kế chưa có SKU riêng",
   blockedEmpty: "Dự án chưa có thiết kế",
+  moreActions: "Thao tác khác",
+  returnReason: "Lý do trả lại",
+  /** R5-5: yêu cầu đóng vì đã có báo giá. */
+  quotedAs: "Đã báo giá",
+  closedByStaff: "Đóng không báo giá",
+  columns: {
+    design: "Thiết kế",
+    designStatus: "Trạng thái thiết kế",
+    customer: "Khách hàng",
+    sku: "SKU phôi",
+    customerSku: "SKU riêng",
+    cartons: "Số thùng",
+    delivery: "Giao mong muốn",
+    requestedAt: "Yêu cầu lúc",
+    status: "Trạng thái",
+    returnReason: "Lý do trả lại",
+    actions: "Hành động",
+    project: "Dự án",
+    designs: "Số thiết kế",
+    totalCartons: "Tổng số thùng",
+    lines: "Các dòng",
+  },
 } as const;

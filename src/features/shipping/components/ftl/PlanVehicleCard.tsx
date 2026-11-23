@@ -25,7 +25,7 @@ export function PlanVehicleCard({ load }: { load: Load }) {
             load.loadPlanId && load.loadPlanCode ? (
               <Link
                 href={ADMIN_ROUTES.loadPlans.detail(load.loadPlanId)}
-                className="text-accent hover:underline"
+                className="text-accent-text hover:underline"
               >
                 {load.loadPlanCode}
               </Link>

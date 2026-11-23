@@ -69,7 +69,7 @@ describe("Hợp đồng — đọc (B1)", () => {
     await waitFor(() => expect(post).toHaveBeenCalledWith(PATH, {}));
   });
 
-  it("409 CUSTOMER_LEGAL_PROFILE_MISSING → link /admin/customers/{id}?legalProfile=edit#legal-profile", async () => {
+  it("409 CUSTOMER_LEGAL_PROFILE_MISSING → link to the legal profile that comes back to the contract (BO-UX-30)", async () => {
     renderSection(() => {
       throw new ApiError(404, "SALES_CONTRACT_NOT_FOUND", "Đơn chưa có hợp đồng.");
     });
@@ -81,7 +81,9 @@ describe("Hợp đồng — đọc (B1)", () => {
     expect(await screen.findByText(new RegExp(message))).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Nhập thông tin pháp lý" })).toHaveAttribute(
       "href",
-      `/admin/customers/${draftOrder.customerId}?legalProfile=edit#legal-profile`,
+      `/admin/customers/${draftOrder.customerId}?legalProfile=edit&returnTo=${encodeURIComponent(
+        `/admin/orders/${draftOrder.orderId}#contract`,
+      )}#legal-profile`,
     );
   });
 
@@ -304,7 +306,7 @@ describe("WF-02 audit — gợi ý số tiền, gửi, file ký", () => {
     await userEvent.click(await screen.findByRole("button", { name: /Sửa/ }));
     // Lần 1: chưa sửa gì → gợi ý điền ngay, không hỏi.
     await userEvent.click(screen.getByRole("button", { name: /Gợi ý số tiền theo đợt giao/ }));
-    await waitFor(() => expect(screen.getByLabelText("Đợt 1 — giá trị")).toHaveValue("23265000"));
+    await waitFor(() => expect(screen.getByLabelText("Đợt 1 — giá trị")).toHaveValue("23.265.000"));
     expect(screen.queryByText("Thay lịch thanh toán đang sửa?")).not.toBeInTheDocument();
     // Sale sửa số tiền gợi ý.
     const value = screen.getByLabelText("Đợt 1 — giá trị");
@@ -317,7 +319,7 @@ describe("WF-02 audit — gợi ý số tiền, gửi, file ký", () => {
     expect(within(dialog).getByText("Thay lịch thanh toán đang sửa?")).toBeInTheDocument();
     expect(get.mock.calls.filter(([url]) => url === SUGGESTION)).toHaveLength(calls);
     await userEvent.click(within(dialog).getByRole("button", { name: "Quay lại" }));
-    expect(screen.getByLabelText("Đợt 1 — giá trị")).toHaveValue("20000000");
+    expect(screen.getByLabelText("Đợt 1 — giá trị")).toHaveValue("20.000.000");
   });
 
   it("mục 7: lịch giao đang sửa chưa lưu → nhắc lưu trước, không gợi ý", async () => {

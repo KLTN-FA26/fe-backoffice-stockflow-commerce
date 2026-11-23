@@ -16,11 +16,21 @@ import {
   chatConversationSchema,
   chatSearchPageSchema,
   chatStaffUnreadSchema,
+  transferInstructionsSchema,
 } from "./schemas";
 
 import type { ChatAttachableContext } from "@/constants";
 
 const conv = (id: string, suffix = "") => `/chat/conversations/${encodeURIComponent(id)}${suffix}`;
+
+/** BO-UX-45: nội dung thẻ chuyển khoản của một đợt, để Sale xem trước khi gửi (S18 vẽ thẻ từ đúng nguồn này). */
+export async function getTransferInstructions(installmentId: string, signal?: AbortSignal) {
+  const { data } = await api.get<unknown>(
+    `/installments/${encodeURIComponent(installmentId)}/transfer-instructions`,
+    { signal },
+  );
+  return transferInstructionsSchema.parse(data);
+}
 
 /** S15: người trả lời khách được, đang trực tuyến trước rồi theo tên. */
 export async function listAgents(signal?: AbortSignal) {

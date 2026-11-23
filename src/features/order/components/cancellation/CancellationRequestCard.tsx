@@ -53,8 +53,10 @@ export function CancellationRequestCard({ order, can }: CancellationRequestCardP
   const approved = requests.some((r) => r.status === "APPROVED");
   return (
     <section
+      // Đích của `ADMIN_ROUTES.orders.cancellationRequest` (hàng đợi yêu cầu huỷ mở dòng → thẻ này)
+      id="cancellation-request"
       aria-label={L.title}
-      className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]"
+      className="border-border-default bg-bg-surface scroll-mt-4 rounded-[var(--card-radius)] border p-[var(--card-pad)]"
     >
       <h2 className="text-ink-primary mb-3 text-[0.9375rem] font-semibold">{L.title}</h2>
       <ul className="divide-border-default divide-y">
@@ -67,6 +69,7 @@ export function CancellationRequestCard({ order, can }: CancellationRequestCardP
                   orderId={order.orderId}
                   orderNumber={order.orderNumber}
                   requestId={request.requestId}
+                  facts={{ ...request, currency: order.currency }}
                 />
                 <CancellationRejectAction
                   orderId={order.orderId}

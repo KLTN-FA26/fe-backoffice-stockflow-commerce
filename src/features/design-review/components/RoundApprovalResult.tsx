@@ -1,7 +1,5 @@
 import { DESIGN_REVIEW_LABELS, DESIGN_ROUND_LABELS } from "@/constants";
 
-import { MONO } from "./copy";
-
 import type { ReviewRound, RoundApproval } from "@/features/design-review/types";
 
 const OUTCOME_LABEL = {
@@ -27,9 +25,8 @@ export function RoundApprovalResult({
           {result.map((row) => (
             <tr key={row.designId} className="border-border-default border-t">
               <td className="p-2">
-                {designs.get(row.designId)?.name ?? (
-                  <span className={MONO}>{row.designId.slice(0, 8)}</span>
-                )}
+                {/* Không có tên → nhãn trung tính, không mảnh UUID (BO-UX-6) */}
+                {designs.get(row.designId)?.name ?? DESIGN_ROUND_LABELS.unnamedDesign}
               </td>
               <td className="p-2 font-medium">{OUTCOME_LABEL[row.outcome]}</td>
               <td className="text-ink-secondary p-2">

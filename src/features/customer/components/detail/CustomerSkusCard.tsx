@@ -104,7 +104,7 @@ export function CustomerSkusCard({
               <div className="min-w-0">
                 <Link
                   href={ADMIN_ROUTES.products.detail(sku.productId)}
-                  className="text-accent font-[family-name:var(--font-mono)] hover:underline"
+                  className="text-accent-text font-[family-name:var(--font-mono)] hover:underline"
                 >
                   {sku.sku}
                 </Link>

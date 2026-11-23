@@ -190,6 +190,32 @@ describe("ReceiptDetail — void a wrongly entered receipt (docs 15 §4.4, BR-04
     );
   });
 
+  it("BO-UX-42 / R5-8: names who recorded and who voided when the BE sends them; no back button (breadcrumb)", async () => {
+    mockPaymentApi(ACCOUNTANT_GRANTS, {
+      get: {
+        "/payment-receipts/rcp-1": () =>
+          detail({
+            status: "VOIDED",
+            voidedAt: "2026-11-11T03:00:00Z",
+            voidReason: "Nhầm khách",
+            recordedByName: "Lê Kế Toán",
+            voidedByName: "Trần Trưởng Phòng",
+          }),
+      },
+    });
+    renderPaymentScreen(<ReceiptDetail id="rcp-1" />);
+    expect(await screen.findByText("Lê Kế Toán")).toBeInTheDocument();
+    expect(screen.getByText(/Người huỷ: Trần Trưởng Phòng/)).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /^Phiếu thu$/ })).not.toBeInTheDocument();
+  });
+
+  it("without the R5-8 names no 'Người lập' row is shown (never a user id)", async () => {
+    mockPaymentApi(ACCOUNTANT_GRANTS, { get: { "/payment-receipts/rcp-1": () => detail() } });
+    renderPaymentScreen(<ReceiptDetail id="rcp-1" />);
+    await screen.findAllByText(/FT/);
+    expect(screen.queryByText("Người lập")).not.toBeInTheDocument();
+  });
+
   it("a voided receipt keeps its history and shows no void button", async () => {
     mockPaymentApi(ACCOUNTANT_GRANTS, {
       get: {

@@ -102,6 +102,9 @@ export function DatePicker({
           // Mặc định vi in "Th 2…" (dạng short) — tràn ô 28px, dính nhau; dạng narrow "T2…CN" vừa ô.
           formatters={{ formatWeekdayName: (date) => format(date, "EEEEE", { locale: vi }) }}
           selected={selected}
+          // "Hôm nay" của lịch mặc định là ngày theo giờ máy; min / max và nút Hôm nay theo giờ Việt Nam.
+          // Máy ngoài UTC+7 sẽ lệch một ngày trong một phần ngày và ô hôm nay bị khoá.
+          today={toDate(today)}
           defaultMonth={selected ?? minDate}
           startMonth={new Date(year - DATE_PICKER_YEAR_SPAN.back, 0)}
           endMonth={new Date(year + DATE_PICKER_YEAR_SPAN.ahead, 11)}

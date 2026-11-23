@@ -3,6 +3,8 @@
  * Mọi lệnh ghi gửi `version` đang hiển thị → BE 409 OPTIMISTIC_LOCK nếu đã cũ (plan WF-02 §1.4).
  */
 
+import { z } from "zod";
+
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 
@@ -140,4 +142,28 @@ export async function getCustomerPrice(
     if (error instanceof ApiError && error.status === 404) return null;
     throw error;
   }
+}
+
+const conversationRefSchema = z.object({ items: z.array(z.object({ id: z.string() })) });
+
+/**
+ * BO-UX-19: the chat conversation where the customer answers this quote — the one about the quote
+ * (`contextKind=QUOTE`), else the customer's latest open one (BE `GET /chat/conversations`, `chat-conversations:READ`).
+ * `null` when the customer has none.
+ */
+export async function findQuoteConversationId(
+  quote: Pick<Quote, "id" | "customerId">,
+  signal?: AbortSignal,
+): Promise<string | null> {
+  const first = async (params: Record<string, string>) => {
+    const { data } = await api.get<unknown>("/chat/conversations", {
+      params: { ...params, size: "1" },
+      signal,
+    });
+    return conversationRefSchema.parse(data).items[0]?.id ?? null;
+  };
+  return (
+    (await first({ contextKind: "QUOTE", contextId: quote.id })) ??
+    (await first({ customerId: quote.customerId }))
+  );
 }

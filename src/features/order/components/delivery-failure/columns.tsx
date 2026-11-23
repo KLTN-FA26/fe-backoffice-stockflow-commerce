@@ -52,7 +52,7 @@ export function buildDeliveryFailureColumns(
         canOpenOrder ? (
           <Link
             href={ADMIN_ROUTES.orders.detail(row.orderId)}
-            className={`text-accent font-medium hover:underline ${MONO}`}
+            className={`text-accent-text font-medium hover:underline ${MONO}`}
           >
             {row.orderNumber}
           </Link>

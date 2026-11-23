@@ -7,8 +7,8 @@ import { toLocalIsoDate } from "@/lib/format/date";
 import { Notice } from "@/components/shared/Notice";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { FilePickerField } from "@/components/shared/FilePickerField";
-import { FORM_INPUT_CLASS, FormField, fieldA11y } from "@/components/shared/FormField";
-import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/shared/DatePicker";
+import { FormField, fieldA11y } from "@/components/shared/FormField";
 
 import { contractErrorMessage, useSignSalesContract } from "../../sales-contract-mutations";
 import {
@@ -18,6 +18,8 @@ import {
   SIGNED_FILE_ACCEPT,
   SIGNED_FILE_TYPE_MESSAGE,
 } from "../../sales-contract-rules";
+
+import { ChatFilePicker } from "./ChatFilePicker";
 
 import type { SalesContract } from "../../sales-contract-schemas";
 
@@ -111,15 +113,14 @@ function SignForm({
           {...fieldA11y("sign-file", fileError)}
         />
       </FormField>
+      <ChatFilePicker contract={contract} current={file} onPick={setFile} />
       <FormField id="sign-date" label="Ngày ký" required error={dateError}>
-        <Input
-          type="date"
+        <DatePicker
           value={signedOn}
           max={today}
           min={sentOn}
-          onChange={(event) => setSignedOn(event.target.value)}
+          onChange={setSignedOn}
           {...fieldA11y("sign-date", dateError)}
-          className={FORM_INPUT_CLASS}
         />
       </FormField>
     </FormDialogBody>

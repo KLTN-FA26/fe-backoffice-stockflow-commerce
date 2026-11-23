@@ -51,7 +51,7 @@ export function MessageItem({
           <span>{message.senderName ?? (message.senderType === "SYSTEM" ? "Hệ thống" : "")}</span>
           <span className="tabular-nums">{formatDateTime(message.sentAt)}</span>
           {note && (
-            <span className="text-warning inline-flex items-center gap-1 font-medium">
+            <span className="text-warning-ink inline-flex items-center gap-1 font-medium">
               <Lock className="size-3" /> Ghi chú nội bộ — Khách không thấy
             </span>
           )}
@@ -77,7 +77,7 @@ export function MessageItem({
                 )}
                 <button
                   type="button"
-                  className="text-accent inline-flex items-center gap-1 hover:underline"
+                  className="text-accent-text inline-flex items-center gap-1 hover:underline"
                   onClick={() => void download(file.id)}
                 >
                   <Paperclip className="size-3.5" /> {file.fileName}

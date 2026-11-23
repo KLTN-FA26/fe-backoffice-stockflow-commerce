@@ -91,7 +91,7 @@ export function PickLinesSection({
           <Alert tone="warning" title={L.awaitingPutBack(awaiting)}>
             {canOpenPutBacks ? (
               // Hàng đợi trả về kệ của cùng kho trong tab theo kho
-              <Link href={putBacksHref} className="text-accent font-medium hover:underline">
+              <Link href={putBacksHref} className="text-accent-text font-medium hover:underline">
                 {PUT_BACK_LABELS.openQueue}
               </Link>
             ) : null}

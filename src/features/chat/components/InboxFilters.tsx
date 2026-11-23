@@ -30,13 +30,14 @@ export function InboxFilters({
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <div role="tablist" aria-label="Phạm vi" className="flex gap-1">
+      {/* BO-UX-47: a toggle group (aria-pressed) — it filters this list in place, it does not switch tab panels. */}
+      <div role="group" aria-label="Phạm vi" className="flex gap-1">
         {CHAT_INBOX_SCOPES.map((value) => (
           <Button
             key={value}
+            type="button"
             size="sm"
-            role="tab"
-            aria-selected={scope === value}
+            aria-pressed={scope === value}
             variant={scope === value ? "default" : "outline"}
             onClick={() => onScope(value)}
           >

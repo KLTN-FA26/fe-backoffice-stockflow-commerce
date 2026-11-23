@@ -20,6 +20,7 @@ import {
 } from "../lifecycle";
 import { chatErrorMessage, useMarkRead } from "../mutations";
 import { useConversation, useMessages } from "../queries";
+import { useConversationRealtime } from "../realtime";
 
 import { Composer } from "./Composer";
 import { ConversationActions } from "./ConversationActions";
@@ -32,6 +33,8 @@ function ConversationContent({ id }: { id: string }) {
   const canRead = can(CHAT_PERMISSIONS.read);
   const conversation = useConversation(id, canRead);
   const messages = useMessages(id, canRead);
+  // Socket events of this conversation, once the GET found it (A.3).
+  useConversationRealtime(id, conversation.isSuccess);
   const read = useMarkRead();
   const lastSeq = conversation.data?.lastSeq ?? 0;
   const unread = conversation.data?.unread ?? 0;

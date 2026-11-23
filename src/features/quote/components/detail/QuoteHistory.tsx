@@ -26,8 +26,10 @@ export function QuoteHistory({ history }: { history: QuoteTransition[] }) {
                 {quoteStatusLabel(entry.toStatus)}
                 <span className="text-ink-tertiary ml-2 font-normal">bản {entry.revision}</span>
               </div>
-              <div className="text-ink-tertiary tabular-nums">
+              <div className="text-ink-secondary tabular-nums">
                 {formatDateTime(entry.changedAt)}
+                {/* BO-UX-20: ai đổi (R5-8, khi BE trả) — Sale hay khách. */}
+                {entry.changedByName && <span> · {entry.changedByName}</span>}
               </div>
               {entry.reason && (
                 <div className="text-ink-secondary mt-0.5 whitespace-pre-line">{entry.reason}</div>

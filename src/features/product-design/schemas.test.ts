@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { printConfigBody } from "./api";
 import {
   downloadLinkSchema,
   printConfigBodySchema,
@@ -320,5 +321,15 @@ describe("printConfigBodySchema: BE PrintConfigRules before the save is sent", (
       });
     expect(area(500).success).toBe(true);
     expect(paths(area(500.01))).toEqual(["printAreas.0.safeMarginMm"]);
+  });
+});
+
+describe("printConfigBody — BE-18 fonts", () => {
+  it("no font chosen is sent as an explicit null, a chosen list as it is", () => {
+    const none = printConfigBody({ ...CUP_BODY, allowedFontCodes: null }, { version: 3 });
+    expect(none).toHaveProperty("allowedFontCodes", null);
+    expect(JSON.stringify(none)).toContain('"allowedFontCodes":null');
+    const some = printConfigBody({ ...CUP_BODY, allowedFontCodes: ["montserrat"] }, null);
+    expect(some.allowedFontCodes).toEqual(["montserrat"]);
   });
 });

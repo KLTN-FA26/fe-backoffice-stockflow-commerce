@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { parseAsBoolean, parseAsString, useQueryState } from "nuqs";
 import { Undo2 } from "lucide-react";
 
-import { PAYMENT_LABELS } from "@/constants/labels-payment";
+import { PAYMENT_LABELS, PAYMENT_LIST_LABELS as LL } from "@/constants/labels-payment";
 import {
   PAYMENT_REFUND_PERMISSIONS,
   PAYMENT_ROUTES,
@@ -13,9 +13,11 @@ import {
 import { useCan } from "@/lib/auth/components/Can";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 import { ServerTableBody } from "@/components/backoffice/ServerTableBody";
-import { Button } from "@/components/ui/button";
+import { CustomerName } from "@/components/backoffice/CustomerName";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { ListToolbar } from "@/components/shared/ListToolbar";
+import { ToolbarFilterPopover } from "@/components/shared/ToolbarFilterPopover";
 
 import { useRefunds } from "../queries";
 import { usePagedList } from "@/hooks/use-paged-list";
@@ -52,26 +54,60 @@ function RefundListContent() {
     <div className="surface-soft">
       <h1 className="sr-only">{L.pageTitle}</h1>
       {canRead && (
-        <div className="mb-3 flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="refund-outstanding"
-              checked={outstanding === true}
-              onCheckedChange={(checked) => {
-                void setOutstanding(checked === true ? true : null);
+        // BO-UX-2: toolbar chung. BE `GET /refunds` không có tham số tìm → không có search chính; bảng 5 cột nên không cần
+        // Ẩn hiện cột (data-table-mode-a §4.2: > 5 cột). Lọc "còn phải hoàn" trong popover Lọc, có chip.
+        <ListToolbar
+          tools={
+            <ToolbarFilterPopover
+              label={LL.filters}
+              active={outstanding !== null}
+              onClear={() => {
+                void setOutstanding(null);
                 paged.resetPage();
               }}
-            />
-            <Label htmlFor="refund-outstanding" className="text-ink-secondary text-[0.8125rem]">
-              {L.outstandingOnly}
-            </Label>
-          </div>
-          {hasFilters && (
-            <Button type="button" variant="ghost" size="xs" onClick={clearAll}>
-              {PAYMENT_LABELS.installments.clearFilters}
-            </Button>
-          )}
-        </div>
+            >
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="refund-outstanding"
+                  checked={outstanding === true}
+                  onCheckedChange={(checked) => {
+                    void setOutstanding(checked === true ? true : null);
+                    paged.resetPage();
+                  }}
+                />
+                <Label htmlFor="refund-outstanding" className="text-ink-secondary text-[0.8125rem]">
+                  {L.outstandingOnly}
+                </Label>
+              </div>
+            </ToolbarFilterPopover>
+          }
+          summaryItems={[
+            {
+              label: LL.outstandingOnly,
+              value: outstanding ? LL.yes : LL.all,
+              active: outstanding !== null,
+              onClear: () => {
+                void setOutstanding(null);
+                paged.resetPage();
+              },
+            },
+            ...(customerId
+              ? [
+                  {
+                    label: PAYMENT_LABELS.receipts.customerChip,
+                    value: <CustomerName id={customerId} link={false} />,
+                    active: true,
+                    onClear: () => {
+                      void setCustomerId("");
+                      paged.resetPage();
+                    },
+                  },
+                ]
+              : []),
+          ]}
+          onResetAll={clearAll}
+          resetDisabled={!hasFilters}
+        />
       )}
       <ServerTableBody
         query={query}
@@ -91,6 +127,7 @@ function RefundListContent() {
         pageSize={paged.pageSize}
         onPageChange={paged.goToPage}
         onPageSizeChange={paged.changePageSize}
+        stickyHeader
       />
     </div>
   );

@@ -284,7 +284,7 @@ describe("sidebar parent entries follow their visible items", () => {
   it("drops a parent entry when every item in it is denied", async () => {
     await renderShell([]);
     await showRoot();
-    expect(parent("Platform")).not.toBeInTheDocument();
+    expect(parent("Hệ thống")).not.toBeInTheDocument();
     expect(navLink("Phân quyền")).not.toBeInTheDocument();
     expect(navLink("Tổng quan")).toBeInTheDocument();
   });
@@ -293,13 +293,13 @@ describe("sidebar parent entries follow their visible items", () => {
     await renderShell([IDENTITY_PERMISSIONS.rbacRead]);
     await showRoot();
     expect(navLink("Phân quyền")).toBeInTheDocument();
-    expect(parent("Platform")).not.toBeInTheDocument();
+    expect(parent("Hệ thống")).not.toBeInTheDocument();
   });
 
   it("keeps the parent entry when several of its items are allowed", async () => {
     await renderShell([IDENTITY_PERMISSIONS.rbacRead, IDENTITY_PERMISSIONS.usersRead]);
     await showRoot();
-    expect(parent("Platform")).toBeInTheDocument();
+    expect(parent("Hệ thống")).toBeInTheDocument();
   });
 
   it("collapsed sidebar renders no separator for a group with no visible item", async () => {

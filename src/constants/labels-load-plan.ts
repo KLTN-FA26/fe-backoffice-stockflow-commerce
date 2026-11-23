@@ -73,7 +73,7 @@ export const LOAD_PLAN_UI_LABELS = {
   searchPlaceholder: "Tìm theo mã kế hoạch",
   statusFilter: "Trạng thái",
   warehouseFilter: "Kho",
-  summarySearch: "Search chính",
+  summarySearch: "Tìm kiếm chính",
   all: "Tất cả",
   clearFilters: "Bỏ bộ lọc",
   listCaption: "kế hoạch",

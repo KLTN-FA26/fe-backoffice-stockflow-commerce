@@ -45,7 +45,7 @@ export function ProductDuplicateList({ matches }: { matches: readonly ProductMat
           <li key={m.productId} className="flex flex-wrap items-baseline gap-2">
             <Link
               href={ADMIN_ROUTES.products.detail(m.productId)}
-              className="text-accent font-[family-name:var(--font-mono)] hover:underline"
+              className="text-accent-text font-[family-name:var(--font-mono)] hover:underline"
               target="_blank"
             >
               {m.code}

@@ -8,16 +8,21 @@ import {
   DESIGN_REVIEW_STORAGE_KEYS,
 } from "@/constants";
 
+import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 
-import { CustomerPicker } from "@/components/backoffice/CustomerPicker";
-import { FilterSelect } from "@/components/backoffice/FilterSelect";
 import { ServerTableBody } from "@/components/backoffice/ServerTableBody";
 
 import { useCloseProjectQuoteRequest } from "../mutations";
 import { useProjectQuoteRequests } from "../queries";
-import { QUOTE_REQUEST_COPY, QUOTE_REQUEST_STATUS_OPTIONS } from "./copy";
-import { projectQuoteRequestColumns } from "./quote-request-columns";
+import { QUOTE_REQUEST_COPY } from "./copy";
+import { QuoteRequestToolbar } from "./QuoteRequestToolbar";
+import {
+  PROJECT_REQUEST_COLUMN_LABELS,
+  PROJECT_REQUEST_COLUMNS,
+  PROJECT_REQUEST_LOCKED_COLUMNS,
+  projectQuoteRequestColumns,
+} from "./quote-request-columns";
 import { QuoteRequestTabs } from "./QuoteRequestTabs";
 import { useQuoteRequestFilters } from "./useQuoteRequestFilters";
 
@@ -31,27 +36,26 @@ function ProjectQuoteRequestContent() {
     customerId: filters.customerId || undefined,
   });
   const close = useCloseProjectQuoteRequest();
-  const columns = projectQuoteRequestColumns(close);
+  const columnState = useColumnVisibility(
+    DESIGN_REVIEW_STORAGE_KEYS.projectQuoteRequestsColumns,
+    PROJECT_REQUEST_COLUMNS,
+    { locked: PROJECT_REQUEST_LOCKED_COLUMNS },
+  );
+  const columns = projectQuoteRequestColumns(close).filter((column) =>
+    columnState.visible.some((key) => key === column.key),
+  );
 
   return (
     <div className="surface-soft">
       <h1 className="sr-only">{COPY.title}</h1>
       <QuoteRequestTabs value="project" />
-      <div className="flex flex-wrap items-end gap-4 py-3">
-        <FilterSelect
-          id="project-quote-request-status"
-          label={COPY.statusFilter}
-          allLabel={COPY.statusAll}
-          value={filters.status ?? null}
-          options={QUOTE_REQUEST_STATUS_OPTIONS}
-          onChange={filters.setStatus}
-        />
-        <CustomerPicker
-          idPrefix="project-quote-request"
-          value={filters.customerId}
-          onChange={filters.setCustomerId}
-        />
-      </div>
+      <QuoteRequestToolbar
+        idPrefix="project-quote-request"
+        filters={filters}
+        columns={columnState}
+        columnLabels={PROJECT_REQUEST_COLUMN_LABELS}
+        allColumns={PROJECT_REQUEST_COLUMNS}
+      />
       <ServerTableBody
         query={query}
         canRead

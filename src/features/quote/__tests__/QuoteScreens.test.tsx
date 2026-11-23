@@ -307,7 +307,7 @@ describe("Quote form", () => {
     await within(select).findByRole("option", { name: new RegExp(SKU) });
     await userEvent.selectOptions(select, SKU);
     await userEvent.click(await screen.findByRole("button", { name: /Dùng giá gợi ý/ }));
-    expect(screen.getByLabelText("Đơn giá (bậc 2)")).toHaveValue("1150");
+    expect(screen.getByLabelText("Đơn giá ₫ một cái (bậc 2)")).toHaveValue("1.150");
     expect(
       screen.getByText((_, el) => el?.tagName === "SPAN" && el.textContent === "MOQ: 20 thùng"),
     ).toBeInTheDocument();

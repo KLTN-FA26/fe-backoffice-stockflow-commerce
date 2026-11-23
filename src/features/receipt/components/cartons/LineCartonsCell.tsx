@@ -23,7 +23,7 @@ export function LineCartonsCell({ line }: { line: ReceiptLineDto }) {
         type="button"
         aria-label={L.openCartons(line.sku ?? "")}
         onClick={() => setOpen(true)}
-        className="text-accent focus-visible:ring-border-strong rounded-[var(--r-sm)] font-medium tabular-nums hover:underline focus-visible:ring-2 focus-visible:outline-none"
+        className="text-accent-text focus-visible:ring-border-strong rounded-[var(--r-sm)] font-medium tabular-nums hover:underline focus-visible:ring-2 focus-visible:outline-none"
       >
         {L.cellSummary(line.packages.length, line.looseQuantity)}
       </button>

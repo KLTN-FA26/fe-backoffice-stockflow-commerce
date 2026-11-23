@@ -22,11 +22,15 @@
   --border-strong: #c5cad1;
   --ink-primary: #1a1b18;
   --ink-secondary: #5c5e58;
-  --ink-tertiary: #8a8c85;
+  /* WCAG 1.4.3: ≥ 4.5:1 cho chữ — #6b6e68 = 5.18 trên trắng, 4.79 trên bg.base, 4.54 trên bg.muted
+     (giá trị cũ #8a8c85 chỉ 3.40 / 3.15 / 2.98). */
+  --ink-tertiary: #6b6e68;
   --ink-inverse: #ffffff;
   --brand: #1a1b18;
   --brand-hover: #000000;
+  /* --accent (#1e88e5, 3.68:1) chỉ cho icon / tiến trình / viền; chữ link dùng --accent-text (5.75:1). */
   --accent: #1e88e5;
+  --accent-text: #1565c0;
   --scene-accent: #0891b2;
   --positive: #1f9d55;
   --info: #2b7fc4;
@@ -35,6 +39,10 @@
   --neutral: #6b6e68;
   --muted: #9a9c95;
   --special: #7c5cbf;
+  /* Sắc đậm của tông cho CHỮ khi buộc phải tô màu chữ (warning 2.94:1, positive 3.49:1 không đủ cho chữ):
+     warning-ink 5.43:1, positive-ink 5.40:1 trên trắng. Ưu tiên chữ màu ink + chấm/icon mang tông. */
+  --warning-ink: #9a5b00;
+  --positive-ink: #157a40;
   /* Chấm trạng thái (StatusDot): cùng tông với status ở trên nhưng tươi hơn (thang step-9 kiểu
      Radix/Vercel). Chỉ dùng cho chấm — chữ/viền/nền badge vẫn theo status gốc cho đủ tương phản.
      Warning dùng cam thay vàng #FFC53D: chấm vàng trên nền trắng chỉ ~1.6:1, dưới mức 3:1 cho UI. */
@@ -120,11 +128,16 @@
   --border-strong: #3d4045;
   --ink-primary: #f4f4f1;
   --ink-secondary: #a8aaa3;
-  --ink-tertiary: #76786f;
+  /* #9a9c95: 6.39:1 trên bg.surface, 5.04:1 trên bg.muted (cũ #76786f: 3.96 / 3.12). */
+  --ink-tertiary: #9a9c95;
   --ink-inverse: #1a1b18;
   --brand: #f4f4f1;
   --brand-hover: #ffffff;
   --accent: #4ea6f0;
+  /* 6.79:1 trên bg.surface, 5.35:1 trên bg.muted. */
+  --accent-text: #4ea6f0;
+  --warning-ink: #f5a524;
+  --positive-ink: #3cc47a;
   --scene-accent: #22d3ee;
 }
 
@@ -144,6 +157,8 @@
   --ink-inverse: #ffffff;
   --brand: #a9682f;
   --brand-hover: #8c5526;
+  /* Link chữ trong Mode B theo caramel đậm, không lọt blue Mode A. */
+  --accent-text: #8c5526;
   --card-pad: 24px;
   --card-radius: var(--r-lg);
   --el-gap: 12px;
@@ -203,6 +218,7 @@
   --ink-inverse: #17130f;
   --brand: #c98d4e;
   --brand-hover: #d89e60;
+  --accent-text: #d89e60;
 }
 
 /* In (biên bản bàn giao…): luôn in bảng màu sáng — trình duyệt bỏ nền khi in, giữ token tối sẽ ra chữ
@@ -223,11 +239,14 @@
     --border-strong: #c5cad1;
     --ink-primary: #1a1b18;
     --ink-secondary: #5c5e58;
-    --ink-tertiary: #8a8c85;
+    --ink-tertiary: #6b6e68;
     --ink-inverse: #ffffff;
     --brand: #1a1b18;
     --brand-hover: #000000;
     --accent: #1e88e5;
+    --accent-text: #1565c0;
+    --warning-ink: #9a5b00;
+    --positive-ink: #157a40;
   }
   [data-sonner-toaster] {
     display: none;
@@ -270,12 +289,15 @@
   --color-brand: var(--brand);
   --color-brand-hover: var(--brand-hover);
   --color-accent: var(--accent);
+  --color-accent-text: var(--accent-text);
   --color-home-accent: var(--scene-accent);
 
   /* Colors — 7 semantic status tones */
   --color-positive: var(--positive);
   --color-info: var(--info);
   --color-warning: var(--warning);
+  --color-warning-ink: var(--warning-ink);
+  --color-positive-ink: var(--positive-ink);
   --color-danger: var(--danger);
   --color-neutral: var(--neutral);
   --color-muted-tone: var(--muted);

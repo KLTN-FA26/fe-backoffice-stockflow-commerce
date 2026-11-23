@@ -4,20 +4,28 @@ import { FileText } from "lucide-react";
 
 import {
   DESIGN_QUOTE_REQUEST_LABELS as COPY,
+  DESIGN_PERMISSIONS,
   DESIGN_QUOTE_REQUEST_PERMISSIONS,
   DESIGN_REVIEW_STORAGE_KEYS,
 } from "@/constants";
 
+import { useColumnVisibility } from "@/hooks/use-column-visibility";
+import { useCan } from "@/lib/auth";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 
-import { CustomerPicker } from "@/components/backoffice/CustomerPicker";
-import { FilterSelect } from "@/components/backoffice/FilterSelect";
 import { ServerTableBody } from "@/components/backoffice/ServerTableBody";
 
 import { useCloseDesignQuoteRequest } from "../mutations";
 import { useDesignQuoteRequests } from "../queries";
-import { QUOTE_REQUEST_COPY, QUOTE_REQUEST_STATUS_OPTIONS } from "./copy";
-import { designQuoteRequestColumns } from "./quote-request-columns";
+import { QUOTE_REQUEST_COPY } from "./copy";
+import { QuoteRequestToolbar } from "./QuoteRequestToolbar";
+import {
+  DESIGN_REQUEST_COLUMN_LABELS,
+  DESIGN_REQUEST_COLUMNS,
+  DESIGN_REQUEST_DEFAULT_COLUMNS,
+  DESIGN_REQUEST_LOCKED_COLUMNS,
+  designQuoteRequestColumns,
+} from "./quote-request-columns";
 import { QuoteRequestTabs } from "./QuoteRequestTabs";
 import { useQuoteRequestFilters } from "./useQuoteRequestFilters";
 
@@ -31,27 +39,27 @@ function DesignQuoteRequestContent() {
     customerId: filters.customerId || undefined,
   });
   const close = useCloseDesignQuoteRequest();
-  const columns = designQuoteRequestColumns(close);
+  const canOpenDesign = useCan(DESIGN_PERMISSIONS.viewPage);
+  const columnState = useColumnVisibility(
+    DESIGN_REVIEW_STORAGE_KEYS.quoteRequestsColumns,
+    DESIGN_REQUEST_COLUMNS,
+    { defaults: DESIGN_REQUEST_DEFAULT_COLUMNS, locked: DESIGN_REQUEST_LOCKED_COLUMNS },
+  );
+  const columns = designQuoteRequestColumns(close, canOpenDesign).filter((column) =>
+    columnState.visible.some((key) => key === column.key),
+  );
 
   return (
     <div className="surface-soft">
       <h1 className="sr-only">{COPY.title}</h1>
       <QuoteRequestTabs value="single" />
-      <div className="flex flex-wrap items-end gap-4 py-3">
-        <FilterSelect
-          id="quote-request-status"
-          label={COPY.statusFilter}
-          allLabel={COPY.statusAll}
-          value={filters.status ?? null}
-          options={QUOTE_REQUEST_STATUS_OPTIONS}
-          onChange={filters.setStatus}
-        />
-        <CustomerPicker
-          idPrefix="quote-request"
-          value={filters.customerId}
-          onChange={filters.setCustomerId}
-        />
-      </div>
+      <QuoteRequestToolbar
+        idPrefix="quote-request"
+        filters={filters}
+        columns={columnState}
+        columnLabels={DESIGN_REQUEST_COLUMN_LABELS}
+        allColumns={DESIGN_REQUEST_COLUMNS}
+      />
       <ServerTableBody
         query={query}
         canRead

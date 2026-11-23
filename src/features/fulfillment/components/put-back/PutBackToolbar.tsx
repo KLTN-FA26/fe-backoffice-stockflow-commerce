@@ -9,8 +9,8 @@ import type { PutBackListState } from "./usePutBackListState";
 const P = PUT_BACK_LABELS;
 
 /**
- * Toolbar hàng đợi trả về kệ (style Vercel, `ListToolbar`): ô tìm (lọc client), thanh "Cấu hình" có badge Search
- * chính. Kho là kho của tab theo kho — không có ô chọn kho.
+ * Toolbar hàng đợi trả về kệ (style Vercel, `ListToolbar`): ô tìm (lọc client), thanh "Cấu hình" có badge Tìm
+ * kiếm chính. Kho là kho của tab theo kho — không có ô chọn kho.
  */
 export function PutBackToolbar({ s }: { s: PutBackListState }) {
   const summaryItems: ListSummaryItem[] = [

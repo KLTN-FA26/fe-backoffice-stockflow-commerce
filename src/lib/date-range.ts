@@ -32,6 +32,11 @@ export function inclusiveDays(range: DateRange): number {
   return Math.round((toUtcMs(range.to) - toUtcMs(range.from)) / DAY_MS) + 1;
 }
 
+/** Calendar days from `from` to `to` (yyyy-MM-dd): 2026-10-01 → 2026-10-04 is 3; negative when `to` is earlier. */
+export function daysBetween(from: string, to: string): number {
+  return Math.round((toUtcMs(to) - toUtcMs(from)) / DAY_MS);
+}
+
 /** Today in Asia/Ho_Chi_Minh (the BE's reporting zone), not the browser's. */
 export function todayIso(now: Date = new Date()): string {
   return toLocalIsoDate(now.toISOString());

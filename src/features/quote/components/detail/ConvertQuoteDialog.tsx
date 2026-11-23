@@ -19,23 +19,32 @@ function AddressSelect({
   label,
   value,
   onChange,
+  defaultLabel,
   options,
 }: {
   id: string;
   label: string;
   value: string;
   onChange: (value: string) => void;
+  /** Địa chỉ mặc định viết đủ (BO-UX-21), hoặc null khi chưa tải được sổ địa chỉ. */
+  defaultLabel: string | null;
   options: { id: string; label: string }[];
 }) {
+  const chosen = value
+    ? options.find((option) => option.id === value)?.label
+    : (defaultLabel ?? undefined);
   return (
-    <FormField id={id} label={label}>
+    <FormField id={id} label={label} hint={chosen}>
       <select
         id={id}
         value={value}
         onChange={(event) => onChange(event.target.value)}
+        aria-describedby={chosen ? `${id}-hint` : undefined}
         className={`${FORM_INPUT_CLASS} border px-2`}
       >
-        <option value="">Địa chỉ mặc định của khách</option>
+        <option value="">
+          {defaultLabel ? `Mặc định — ${defaultLabel}` : "Địa chỉ mặc định của khách"}
+        </option>
         {options.map((option) => (
           <option key={option.id} value={option.id}>
             {option.label}
@@ -54,13 +63,17 @@ function ConvertForm({ quote, onClose }: { quote: Quote; onClose: () => void }) 
   const [error, setError] = useState<string | null>(null);
   const convert = useConvertQuote();
   const router = useRouter();
+  // "" = địa chỉ mặc định (BE tự lấy): viết nó ra đủ ở lựa chọn đầu, không lặp lại trong danh sách, không dùng ★.
+  const ofType = (type: "SHIPPING" | "BILLING") =>
+    (addresses.data ?? []).filter((address) => address.type === type);
+  const defaultLabel = (type: "SHIPPING" | "BILLING") => {
+    const fallback = ofType(type).find((address) => address.defaultAddress);
+    return fallback ? formatAddress(fallback) : null;
+  };
   const options = (type: "SHIPPING" | "BILLING") =>
-    (addresses.data ?? [])
-      .filter((address) => address.type === type)
-      .map((address) => ({
-        id: address.addressId,
-        label: `${address.defaultAddress ? "★ " : ""}${formatAddress(address)}`,
-      }));
+    ofType(type)
+      .filter((address) => !address.defaultAddress)
+      .map((address) => ({ id: address.addressId, label: formatAddress(address) }));
 
   return (
     <FormDialogBody
@@ -102,6 +115,7 @@ function ConvertForm({ quote, onClose }: { quote: Quote; onClose: () => void }) 
         label="Địa chỉ giao hàng"
         value={shipping}
         onChange={setShipping}
+        defaultLabel={defaultLabel("SHIPPING")}
         options={options("SHIPPING")}
       />
       <AddressSelect
@@ -109,6 +123,7 @@ function ConvertForm({ quote, onClose }: { quote: Quote; onClose: () => void }) 
         label="Địa chỉ xuất hoá đơn"
         value={billing}
         onChange={setBilling}
+        defaultLabel={defaultLabel("BILLING")}
         options={options("BILLING")}
       />
     </FormDialogBody>

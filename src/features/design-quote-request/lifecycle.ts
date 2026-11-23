@@ -65,3 +65,20 @@ export function quoteRequestActions(
     actions.push({ id: "close", label: COPY.close, enabled: true });
   return actions;
 }
+
+/** Tên của dòng (thiết kế hoặc dự án) — ghép vào tên truy cập của nút để mỗi dòng nói nút của ai (BO-UX-11). */
+export function quoteRequestName(row: QuoteRequest): string {
+  return "lines" in row ? row.projectName : row.designName;
+}
+
+/**
+ * Nút chính của dòng (BO-UX-10, L-2): "Lập báo giá" khi lập được; chưa lập được (hoặc thiếu quyền tạo) → "Mở chat"
+ * để hỏi khách; không có cả hai → hành động đầu tiên còn lại. Mọi hành động khác vào menu `…`.
+ */
+export function primaryQuoteRequestAction(
+  actions: readonly QuoteRequestAction[],
+): QuoteRequestAction | undefined {
+  const create = actions.find((action) => action.id === "create-quote");
+  if (create?.enabled) return create;
+  return actions.find((action) => action.id === "open-chat") ?? actions[0];
+}

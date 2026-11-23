@@ -113,6 +113,7 @@ describe("order API contract (BE OrderResponse)", () => {
         // 4B-2: dòng không đặt theo thùng → BE bỏ hai field này
         cartons: null,
         unitsPerCarton: null,
+        designName: null,
       },
     ]);
     // BE non_null: field vòng đời vắng → null / mảng rỗng, không parse fail

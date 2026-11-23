@@ -91,7 +91,7 @@ export const WAREHOUSE_MAP_UI_LABELS = {
   create: "Tạo kho",
   openMap: "Mở bản đồ",
   searchPlaceholder: "Tìm theo prefix hoặc tên kho",
-  summarySearch: "Search chính",
+  summarySearch: "Tìm kiếm chính",
   statusFilter: "Trạng thái",
   all: "Tất cả",
   listCaption: "kho",

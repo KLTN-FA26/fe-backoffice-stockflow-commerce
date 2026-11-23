@@ -86,9 +86,12 @@ export function historyNote(entry: { decision: string; notes?: string | null }):
   return null;
 }
 
-/** Mã rút gọn của người làm (BE chỉ trả `actorId`, không có tên). */
-export function shortId(id: string | null): string {
-  return id ? id.slice(0, 8) : "Hệ thống";
+/**
+ * Người làm của một mốc lịch sử. BE chỉ trả `actorId` (không tên, có thể là khách hoặc nhân viên) → không hiện mảnh
+ * UUID (BO-UX-6): mốc do hệ thống ghi (không `actorId`) ghi "Hệ thống", còn lại bỏ trống.
+ */
+export function historyActor(id: string | null): string | null {
+  return id ? null : "Hệ thống";
 }
 
 /** `ApproveRoundRequest.designs` @Size(min = 1, max = 20): một lần "Duyệt tất cả" gửi tối đa chừng này thiết kế. */

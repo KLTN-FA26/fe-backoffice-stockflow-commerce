@@ -61,8 +61,8 @@ export function ListConfigSummary({ items, onResetAll, resetDisabled }: ListConf
         size="xs"
         onClick={onResetAll}
         disabled={resetDisabled}
-        // Bấm được (có cấu hình khác mặc định) → xanh tươi + nền nhạt để người dùng thấy ngay
-        className="text-ink-tertiary enabled:bg-dot-info/10 enabled:text-dot-info enabled:hover:bg-dot-info/15 enabled:hover:text-dot-info ml-auto rounded-[var(--r-sm)] enabled:font-semibold"
+        // Bấm được (có cấu hình khác mặc định) → chữ xanh link (accent-text, ≥ 4.5:1) + nền xanh tươi nhạt
+        className="text-ink-tertiary enabled:bg-dot-info/10 enabled:text-accent-text enabled:hover:bg-dot-info/15 enabled:hover:text-accent-text ml-auto rounded-[var(--r-sm)] enabled:font-semibold"
       >
         <RotateCcw className="size-3" />
         Đặt lại

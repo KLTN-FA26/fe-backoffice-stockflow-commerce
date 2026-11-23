@@ -41,6 +41,8 @@ export const orderLineSchema = z.object({
   /** Số thùng / cái mỗi thùng (đơn từ báo giá theo thùng); null với dòng theo cái. */
   cartons: z.number().int().nullable(),
   unitsPerCarton: z.number().int().nullable(),
+  /** R5-3: tên thiết kế của dòng; vắng khi BE chưa trả. */
+  designName: z.string().nullish(),
 });
 
 export const orderShipmentSchema = z.object({
@@ -86,6 +88,9 @@ export const orderSchema = z.object({
   /** Tên khách BE kèm sẵn (BE-15); null khi BE không trả (khách tự xem đơn, đơn trả từ thao tác). */
   customerName: z.string().nullable(),
   customerCode: z.string().nullable(),
+  /** R5-7: báo giá nguồn của đơn; vắng khi BE chưa trả / đơn không từ báo giá. */
+  sourceQuoteId: z.string().nullish(),
+  sourceQuoteNumber: z.string().nullish(),
   status: z.enum(ORDER_READ_STATUSES),
   totalAmount: z.number(),
   currency: currencyCode,
