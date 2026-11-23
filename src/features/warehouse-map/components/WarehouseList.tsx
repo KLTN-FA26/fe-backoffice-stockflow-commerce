@@ -11,7 +11,7 @@ import {
   WAREHOUSE_PERMISSIONS,
 } from "@/constants";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
-import { useCan, usePermissionChecker } from "@/lib/auth";
+import { canEnterWarehouse, useAssignedWarehouses, useCan, usePermissionChecker } from "@/lib/auth";
 
 import { warehouseMapActions } from "@/features/warehouse-map/lifecycle";
 
@@ -30,6 +30,7 @@ function WarehouseListContent() {
   const router = useRouter();
   const canRead = useCan(WAREHOUSE_PERMISSIONS.read);
   const canOpenMap = useCan(WAREHOUSE_LOCATION_PERMISSIONS.read);
+  const assigned = useAssignedWarehouses();
   const actions = warehouseMapActions({ can: usePermissionChecker() });
   const s = useWarehouseListState(canRead);
   const [creating, setCreating] = useState(false);
@@ -56,7 +57,10 @@ function WarehouseListContent() {
       )}
       <WarehouseListBody
         s={s}
-        columns={buildWarehouseColumns({ canOpenMap })}
+        columns={buildWarehouseColumns({
+          canOpenMap,
+          isAssigned: (prefix) => canEnterWarehouse(assigned, prefix),
+        })}
         onRowClick={
           canOpenMap ? (row) => router.push(ADMIN_ROUTES.warehouseMap.of(row.prefix)) : undefined
         }

@@ -5,21 +5,22 @@ import { usePathname } from "next/navigation";
 import { ChevronsUpDown } from "lucide-react";
 
 import { ADMIN_ROUTES, UI_LABELS } from "@/constants";
+import { canEnterWarehouse, useAssignedWarehouses } from "@/lib/auth";
 
 import {
   prefixFromPath,
   samePrefix,
+  switchWarehouseHref,
   useWorkspaceWarehouses,
 } from "@/features/warehouse-map/workspace";
 
+import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+
+import { matchWorkspacePage, WORKSPACE_PAGES } from "./workspace-pages";
 
 const W = UI_LABELS.warehouseMap.workspace;
 const ROOT = ADMIN_ROUTES.warehouseMap.root;
-
-/** Đổi prefix trong đường dẫn hiện tại — đổi kho mà vẫn ở đúng trang (bản đồ / gợi ý vị trí). */
-const swapPrefix = (pathname: string, from: string, to: string) =>
-  `${ROOT}/${encodeURIComponent(to)}${pathname.slice(`${ROOT}/${encodeURIComponent(from)}`.length)}`;
 
 /**
  * Đoạn breadcrumb "kho đang làm việc" kiểu Vercel: `BD · Kho Bình Dương ⇅` — bấm xổ danh sách kho để
@@ -29,6 +30,7 @@ export function WarehouseCrumb() {
   const pathname = usePathname();
   const prefix = prefixFromPath(pathname, ROOT) ?? "";
   const { warehouses } = useWorkspaceWarehouses();
+  const assigned = useAssignedWarehouses();
   const current = warehouses?.find((w) => samePrefix(w.prefix, prefix));
   return (
     <Popover>
@@ -48,7 +50,7 @@ export function WarehouseCrumb() {
             return (
               <li key={warehouse.id}>
                 <Link
-                  href={swapPrefix(pathname, prefix, warehouse.prefix)}
+                  href={switchWarehouseHref(pathname, warehouse.prefix, WORKSPACE_PAGES)}
                   aria-current={active ? "page" : undefined}
                   className="hover:bg-bg-muted aria-[current=page]:bg-bg-muted text-ink-primary flex items-center gap-2 rounded-(--r-sm) px-2 py-1.5 text-sm"
                 >
@@ -56,6 +58,12 @@ export function WarehouseCrumb() {
                     {warehouse.prefix}
                   </span>
                   <span className="truncate">{warehouse.name}</span>
+                  {/* Vẫn mở được (bản đồ không giới hạn theo kho được gán — 06); màn vận hành sẽ báo */}
+                  {!canEnterWarehouse(assigned, warehouse.prefix) && (
+                    <Badge variant="outline" className="ml-auto shrink-0">
+                      {W.notAssignedBadge}
+                    </Badge>
+                  )}
                 </Link>
               </li>
             );
@@ -73,13 +81,25 @@ export function WarehouseCrumb() {
 }
 
 /**
- * Phần breadcrumb sau "Kho & bản đồ" cho trang của một kho: `[kho ⇅] / <trang>`. Shell gọi qua
- * `NavItem.breadcrumbTail` với các đoạn URL sau `/admin/warehouse-map`.
+ * Phần breadcrumb sau "Kho & bản đồ" cho trang của một kho: `[kho ⇅] / <trang> / <id>`. Shell gọi qua
+ * `NavItem.breadcrumbTail` với các đoạn URL sau `/admin/warehouse-map`. Trang tra theo `WORKSPACE_PAGES`; còn đoạn sau
+ * (trang chi tiết) thì tên trang là link về trang list.
  */
 export function warehouseBreadcrumbTail(rest: readonly string[]) {
-  const [prefix = "", page] = rest;
-  return [
+  const [prefix = "", ...after] = rest;
+  const page = matchWorkspacePage(after);
+  const crumbs: { label: string; href?: string; render?: typeof WarehouseCrumb }[] = [
     { label: decodeURIComponent(prefix), render: WarehouseCrumb },
-    { label: page === "slotting" ? W.pages.slotting : W.pages.map },
   ];
+  if (!page) return [...crumbs, { label: W.pages.map }];
+  const tail = after.slice(page.path.split("/").length);
+  crumbs.push({
+    label: page.label,
+    href:
+      tail.length > 0
+        ? ADMIN_ROUTES.warehouseMap.page(decodeURIComponent(prefix), page.path)
+        : undefined,
+  });
+  if (tail.length > 0) crumbs.push({ label: decodeURIComponent(tail.join("/")) });
+  return crumbs;
 }

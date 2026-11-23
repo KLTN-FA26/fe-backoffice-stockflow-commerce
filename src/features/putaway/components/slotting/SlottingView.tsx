@@ -11,7 +11,7 @@ import {
 } from "@/constants";
 import { useCan } from "@/lib/auth";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
-import { useWarehouseDirectory } from "@/lib/references/warehouse-options";
+import { useWorkspaceWarehouse } from "@/lib/workspace";
 import { usePutawayTask, usePutawayTasks } from "@/features/putaway/queries";
 import { sortByLpn } from "@/features/putaway/selectors";
 
@@ -71,26 +71,21 @@ function Suggestions({ taskId }: { taskId: string }) {
   );
 }
 
-function SlottingContent({ prefix }: { prefix: string }) {
-  const directory = useWarehouseDirectory();
-  const warehouse = directory.data?.find((w) => w.code.toUpperCase() === prefix.toUpperCase());
-  const query = usePutawayTasks({ warehouseId: warehouse?.warehouseId }, { enabled: !!warehouse });
+function SlottingContent() {
+  const warehouse = useWorkspaceWarehouse();
+  const query = usePutawayTasks({ warehouseId: warehouse.id });
   const [taskParam, setTask] = useQueryState("task", parseAsString);
-  if (directory.isPending || (warehouse && query.isPending))
-    return <PageSkeleton variant="detail" />;
-  // Danh mục kho lỗi ≠ kho không tồn tại — báo lỗi kèm Thử lại
-  const failed = directory.isError ? directory : query.isError ? query : null;
-  if (failed) {
+  if (query.isPending) return <PageSkeleton variant="detail" />;
+  if (query.isError) {
     return (
       <LoadErrorState
         inline
-        error={failed.error}
+        error={query.error}
         copy={PUTAWAY_LABELS.errorCopy}
-        onRetry={() => void failed.refetch()}
+        onRetry={() => void query.refetch()}
       />
     );
   }
-  if (!warehouse) return <EmptyState title={L.warehouseUnknown} />;
   const tasks = sortByLpn(query.data?.items ?? []);
   // Thùng trên URL không còn chờ cất (vừa cất xong) → về thùng đầu tiên
   const selectedId = tasks.find((t) => t.id === taskParam)?.id ?? tasks[0]?.id ?? null;
@@ -128,14 +123,14 @@ function SlottingContent({ prefix }: { prefix: string }) {
 /**
  * Trang "Gợi ý vị trí" của một kho (docs 06 §4.4): chọn thùng chờ cất → bin gợi ý xếp hạng kèm lý do + chỗ trống,
  * cùng nguồn với màn cất hàng (`GET /putaway-tasks/{id}`). Chỉ đọc — quy tắc cố định, không cấu hình (docs 06 §1).
- * Kho lấy từ prefix trên URL qua danh mục kho (`lib/references`); trang ngoài lo phạm vi kho (`WarehouseScope`).
+ * Kho lấy từ tab theo kho (`lib/workspace`); layout `[prefix]` lo prefix lạ, `(operations)` lo kho được gán.
  */
-export function SlottingView({ prefix }: { prefix: string }) {
+export function SlottingView() {
   return (
     <>
       <h1 className="sr-only">{L.title}</h1>
       <PermissionBoundary permissions={[PUTAWAY_TASK_PERMISSIONS.read]} variant="detail">
-        <SlottingContent prefix={prefix} />
+        <SlottingContent />
       </PermissionBoundary>
     </>
   );

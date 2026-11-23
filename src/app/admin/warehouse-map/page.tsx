@@ -1,8 +1,6 @@
-import { redirect } from "next/navigation";
+import { WorkspaceEntry } from "@/features/warehouse-map/components/workspace/WorkspaceEntry";
 
-import { ADMIN_ROUTES } from "@/constants";
-
-/** Tab "Kho & bản đồ" chọn kho ở trang Danh mục kho — vào gốc tab thì chuyển về đó. */
+/** Gốc tab "Kho & bản đồ": vào thẳng kho được gán duy nhất, hoặc về Danh mục kho để chọn kho. */
 export default function WarehouseWorkspacePage() {
-  redirect(ADMIN_ROUTES.warehouses.list);
+  return <WorkspaceEntry />;
 }

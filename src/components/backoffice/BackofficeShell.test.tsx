@@ -20,7 +20,7 @@ import { useAppStore } from "@/lib/store/use-app-store";
 
 import { ThemeProvider } from "@/components/theme-provider";
 
-import { BackofficeShell } from "./BackofficeShell";
+import { BackofficeShell, buildBreadcrumbItems } from "./BackofficeShell";
 
 import type { PermissionCode } from "@/lib/auth/me-permissions";
 import type { RoleName } from "@/lib/auth/roles";
@@ -44,10 +44,14 @@ afterEach(() => {
 async function renderShell(
   permissions: readonly PermissionCode[],
   role: RoleName = "Warehouse Staff",
+  /** Phạm vi + kho được gán ở `/me/permissions` (BE #394). Mặc định `ALL`. */
+  scope: { dataScope: "ALL" | "WAREHOUSE"; warehouses?: { id: string; prefix: string }[] } = {
+    dataScope: "ALL",
+  },
 ) {
   vi.spyOn(api, "get").mockImplementation(async (url: string) => {
     if (url === "/identity/me/permissions") {
-      return { data: { roles: [role], permissions: [...permissions], dataScope: "ALL" } };
+      return { data: { roles: [role], permissions: [...permissions], ...scope } };
     }
     throw new Error(`Unexpected GET ${url}`);
   });
@@ -317,10 +321,10 @@ describe('tab "Kho & bản đồ" tách riêng', () => {
     PUTAWAY_TASK_PERMISSIONS.viewPage,
   ];
 
-  it("ở màn gốc sidebar, bấm tab là đi thẳng tới Danh mục kho", async () => {
+  it("ở màn gốc sidebar, bấm tab là tới gốc tab (vào thẳng kho được gán duy nhất, hoặc Danh mục kho)", async () => {
     navigation.pathname = ADMIN_ROUTES.home;
     await renderShell(PERMS);
-    expect(navLink("Kho & bản đồ")).toHaveAttribute("href", ADMIN_ROUTES.warehouses.list);
+    expect(navLink("Kho & bản đồ")).toHaveAttribute("href", ADMIN_ROUTES.warehouseMap.root);
   });
 
   it("chưa vào kho nào → panel chỉ có Danh mục kho (chọn kho ở đó), không liệt kê kho", async () => {
@@ -351,6 +355,45 @@ describe('tab "Kho & bản đồ" tách riêng', () => {
     await renderShell(PERMS.filter((code) => code !== PUTAWAY_TASK_PERMISSIONS.viewPage));
     expect(navLink("Bản đồ kho")).toBeInTheDocument();
     expect(navLink("Gợi ý vị trí")).not.toBeInTheDocument();
+  });
+
+  it('trong một kho → panel có tiêu đề nhóm "Bản đồ"; nhóm "Vận hành" rỗng thì không hiện', async () => {
+    navigation.pathname = ADMIN_ROUTES.warehouseMap.of("HCM");
+    await renderShell(PERMS);
+    const panel = document.querySelector<HTMLElement>('[data-sidebar="content"]');
+    if (!panel) throw new Error("Sidebar not rendered");
+    expect(within(panel).getByText("Bản đồ")).toBeInTheDocument();
+    expect(within(panel).queryByText("Vận hành")).not.toBeInTheDocument();
+  });
+
+  it("chỉ có quyền một trang trong kho (không có quyền bản đồ) → tab vẫn hiện", async () => {
+    navigation.pathname = ADMIN_ROUTES.home;
+    await renderShell([PUTAWAY_TASK_PERMISSIONS.viewPage]);
+    expect(navLink("Kho & bản đồ")).toBeInTheDocument();
+  });
+
+  it("không có quyền bản đồ → panel trong kho không có dòng Bản đồ, vẫn có trang được phép", async () => {
+    navigation.pathname = ADMIN_ROUTES.warehouseMap.slotting("HCM");
+    // Danh mục kho để nhóm có ≥ 2 mục (nhóm một mục thì sidebar link thẳng, không mở panel) — như NV kho thật
+    await renderShell([WAREHOUSE_PERMISSIONS.viewPage, PUTAWAY_TASK_PERMISSIONS.viewPage]);
+    expect(await screen.findByRole("link", { name: "Gợi ý vị trí" })).toBeInTheDocument();
+    expect(navLink("Bản đồ kho")).not.toBeInTheDocument();
+  });
+
+  it("kho không được gán → panel chỉ còn Bản đồ (bản đồ không giới hạn theo kho được gán — 06)", async () => {
+    navigation.pathname = ADMIN_ROUTES.warehouseMap.of("HCM");
+    await renderShell(PERMS, "Warehouse Staff", {
+      dataScope: "WAREHOUSE",
+      warehouses: [{ id: "wh-bd", prefix: "BD" }],
+    });
+    expect(await screen.findByRole("link", { name: "Bản đồ kho" })).toBeInTheDocument();
+    expect(navLink("Gợi ý vị trí")).not.toBeInTheDocument();
+  });
+
+  it("breadcrumb trang Gợi ý vị trí: nhãn cuối là tên trang", () => {
+    expect(buildBreadcrumbItems(ADMIN_ROUTES.warehouseMap.slotting("BD")).at(-1)?.label).toBe(
+      "Gợi ý vị trí",
+    );
   });
 
   it('nhóm "Kho" không còn chứa trang của module bản đồ', async () => {

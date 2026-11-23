@@ -101,7 +101,6 @@ import {
   PRODUCTION_LABELS,
   PRODUCTION_ORDER_PERMISSIONS,
   PRODUCTION_SCHEDULE_PERMISSIONS,
-  WAREHOUSE_LOCATION_PERMISSIONS,
   WAREHOUSE_PERMISSIONS,
 } from "@/constants";
 import { CYCLE_COUNT_LABELS, CYCLE_COUNT_ROUTES } from "@/constants/cycle-count";
@@ -128,6 +127,7 @@ import { useStaffChatBadge } from "@/features/chat";
 import { NotificationBell } from "@/features/notification";
 import { warehouseBreadcrumbTail } from "@/features/warehouse-map/components/workspace/WarehouseCrumb";
 import { WarehouseNavPanel } from "@/features/warehouse-map/components/workspace/WarehouseNavPanel";
+import { WORKSPACE_PERMISSIONS } from "@/features/warehouse-map/components/workspace/workspace-pages";
 
 import { usePermissionChecker } from "@/lib/auth/components/Can";
 import { useAppStore } from "@/lib/store/use-app-store";
@@ -332,8 +332,8 @@ export const NAV_GROUPS: NavGroup[] = [
     // Module 06 tách tab riêng: luôn chọn kho làm việc trước (panel riêng), trang theo kho dưới prefix
     title: UI_LABELS.warehouseMap.workspace.navGroup,
     icon: MapPin,
-    // Vào tab là tới thẳng Danh mục kho — nơi chọn kho làm việc
-    href: ADMIN_ROUTES.warehouses.list,
+    // Gốc tab: được gán đúng một kho → vào thẳng kho đó; còn lại → Danh mục kho (spec 2026-11-22 §5.3)
+    href: ADMIN_ROUTES.warehouseMap.root,
     panel: WarehouseNavPanel,
     items: [
       {
@@ -347,8 +347,8 @@ export const NAV_GROUPS: NavGroup[] = [
         label: UI_LABELS.warehouseMap.workspace.navGroup,
         href: ADMIN_ROUTES.warehouseMap.root,
         icon: MapIcon,
-        // BE WarehouseLocationResourceDeclaration route `/admin/warehouse-map`
-        permission: WAREHOUSE_LOCATION_PERMISSIONS.viewPage,
+        // Thấy tab khi được vào ít nhất một trang của kho (bản đồ, gợi ý vị trí, màn vận hành — spec 2026-11-22 §5.6)
+        anyPermission: WORKSPACE_PERMISSIONS,
         breadcrumbTail: warehouseBreadcrumbTail,
       },
       {

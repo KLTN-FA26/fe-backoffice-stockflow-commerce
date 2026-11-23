@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { PUTAWAY_DETAIL_LABELS, SLOTTING_LABELS } from "@/constants";
 import { PERMISSION_UI } from "@/constants/permissions";
+import { WorkspaceWarehouseProvider } from "@/lib/workspace";
 import { mockApi, renderScreen } from "@/test/api-screen";
 
 import { SlottingView } from "../components/slotting/SlottingView";
@@ -22,7 +23,6 @@ const page = <T,>(items: T[]) => ({
   hasNext: false,
   hasPrevious: false,
 });
-const WAREHOUSES = [{ id: "wh-1", prefix: "HCM", name: "Kho Hồ Chí Minh", status: "ACTIVE" }];
 const A = task({ id: "t-a", lpn: "LPN-A" });
 const B = task({ id: "t-b", lpn: "LPN-B", lotNumber: "LOT-B" });
 const detail = (t: PutawayTask): PutawayTask => ({
@@ -32,28 +32,28 @@ const detail = (t: PutawayTask): PutawayTask => ({
   ],
 });
 
-function setup({
-  role = "WAREHOUSE_STAFF" as TestRole,
-  rows = [B, A],
-  search = "",
-  prefix = "HCM",
-} = {}) {
+function setup({ role = "WAREHOUSE_STAFF" as TestRole, rows = [B, A], search = "" } = {}) {
   const spies = mockApi(role, {
     get: {
-      "/warehouses": () => page(WAREHOUSES),
       "/putaway-tasks": () => page(rows),
       "/putaway-tasks/t-a": () => detail(A),
       "/putaway-tasks/t-b": () => detail(B),
     },
   });
-  renderScreen(<SlottingView prefix={prefix} />, role, search);
+  renderScreen(
+    <WorkspaceWarehouseProvider value={{ id: "wh-1", prefix: "HCM", name: "Kho Hồ Chí Minh" }}>
+      <SlottingView />
+    </WorkspaceWarehouseProvider>,
+    role,
+    search,
+  );
   return spies;
 }
 
 afterEach(() => vi.restoreAllMocks());
 
 describe("SlottingView — Gợi ý vị trí theo kho (docs 06 §4.4)", () => {
-  it("prefix → id kho; thùng đầu (theo LPN) được chọn sẵn, bin gợi ý + lối sang màn cất", async () => {
+  it("kho của tab → id kho; thùng đầu (theo LPN) được chọn sẵn, bin gợi ý + lối sang màn cất", async () => {
     const { get } = setup();
     expect(await screen.findByText(L.suggestionsFor("LPN-A"))).toBeInTheDocument();
     expect(get.mock.calls.find(([url]) => url === "/putaway-tasks")?.[1]).toMatchObject({
@@ -99,11 +99,6 @@ describe("SlottingView — Gợi ý vị trí theo kho (docs 06 §4.4)", () => {
       expect(screen.queryByRole("button", { name: /^LPN-A/ })).not.toBeInTheDocument(),
     );
     expect(screen.getByRole("button", { name: /^LPN-B/ })).toBeInTheDocument();
-  });
-
-  it("prefix không có trong danh mục kho → báo không tìm thấy kho", async () => {
-    setup({ prefix: "XYZ" });
-    expect(await screen.findByText(L.warehouseUnknown)).toBeInTheDocument();
   });
 
   it("vai trò không có quyền cất hàng → báo không có quyền", async () => {
