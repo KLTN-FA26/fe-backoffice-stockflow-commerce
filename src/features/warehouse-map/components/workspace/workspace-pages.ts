@@ -1,4 +1,5 @@
 import {
+  Archive,
   ClipboardCheck,
   Lightbulb,
   Map as MapIcon,
@@ -50,7 +51,8 @@ export const WORKSPACE_PAGES: readonly WorkspacePage[] = [
     path: WORKSPACE_PATHS.putaway,
     group: "operations",
     label: PUTAWAY_LABELS.title,
-    icon: PackageCheck,
+    // Icon riêng: Kiểm thùng đã dùng PackageCheck, sidebar thu gọn chỉ còn icon
+    icon: Archive,
     // BE `PutawayController`, resource warehouse-putaway-tasks (docs 05)
     permission: PUTAWAY_TASK_PERMISSIONS.viewPage,
     assignedOnly: true,
