@@ -38,7 +38,7 @@ export function OpenReferencesList({
       {truncated && (
         <p className="text-ink-tertiary text-xs">
           Còn nhiều chứng từ nữa — chỉ hiện tối đa 20. Xem đầy đủ ở{" "}
-          <a href={ADMIN_ROUTES.orders.list} className="text-accent hover:underline">
+          <a href={ADMIN_ROUTES.orders.list} className="text-accent-text hover:underline">
             Đơn hàng
           </a>
           .

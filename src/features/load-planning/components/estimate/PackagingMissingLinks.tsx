@@ -28,7 +28,7 @@ export function PackagingMissingLinks({ itemIds }: { itemIds: readonly string[] 
                 <Link
                   href={ADMIN_ROUTES.inventoryItems.detail(id)}
                   aria-label={L.itemLinkLabel(short)}
-                  className="text-accent underline-offset-2 hover:underline"
+                  className="text-accent-text underline-offset-2 hover:underline"
                 >
                   {short}
                 </Link>

@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 
-import { CHAT_STATUS_LABELS } from "@/constants";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
@@ -10,13 +9,14 @@ import { Button } from "@/components/ui/button";
 import { useChangeStatus, useChatFailure, useClaimConversation } from "../mutations";
 
 import { AssignDialog } from "./AssignDialog";
+import { StatusMoveMenu } from "./StatusMoveMenu";
 
 import type { ChatConversationStatus } from "@/constants";
 import type { StaffConversationActions, StaffConversationTools } from "../lifecycle";
 
 /**
- * Nhận hội thoại, giao / chuyển cho Sale khác (S11), đổi trạng thái theo `nextStatuses` của BE; chuyển cấp
- * (ESCALATED) bắt buộc lý do.
+ * Nhận hội thoại, giao / chuyển cho Sale khác (S11), đổi trạng thái theo `nextStatuses` của BE trong menu "Đổi trạng
+ * thái" (BO-UX-44, `StatusMoveMenu`); chuyển cấp (ESCALATED) bắt buộc lý do.
  */
 export function ConversationActions({
   conversationId,
@@ -66,17 +66,12 @@ export function ConversationActions({
           Chuyển cho Sale khác
         </Button>
       )}
-      {actions.moves.map((status) => (
-        <Button
-          key={status}
-          size="sm"
-          variant="outline"
-          disabled={change.isPending}
-          onClick={() => (status === "ESCALATED" ? setEscalating(true) : move(status))}
-        >
-          {CHAT_STATUS_LABELS[status]}
-        </Button>
-      ))}
+      <StatusMoveMenu
+        moves={actions.moves}
+        pending={change.isPending}
+        onMove={(status) => move(status)}
+        onEscalate={() => setEscalating(true)}
+      />
       {blockedHint && <p className="text-ink-tertiary w-full text-xs">{blockedHint}</p>}
       <ConfirmDialog
         open={escalating}

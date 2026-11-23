@@ -23,7 +23,7 @@ export function buildSummaryItems(s: OrderListState): ListSummaryItem[] {
     .join(", ");
   return [
     {
-      label: "Search chính",
+      label: "Tìm kiếm chính",
       value: filters.q.trim() ? `“${filters.q}”` : "Chưa dùng",
       active: filters.q.trim() !== "",
       onClear: () => void filters.setQ(""),

@@ -56,6 +56,23 @@ describe("LegalProfileCard", () => {
     expect(within(dialog).getByLabelText(/Địa chỉ đăng ký kinh doanh/)).toBeInTheDocument();
   });
 
+  it("BO-UX-30: coming from a contract, the card links back to it once the profile exists", async () => {
+    mockApi("SALES_STAFF", { get: { [PATH]: () => profile } });
+    renderCard(`?returnTo=${encodeURIComponent("/admin/orders/o-1#contract")}`);
+    expect(await screen.findByRole("link", { name: "Quay lại hợp đồng" })).toHaveAttribute(
+      "href",
+      "/admin/orders/o-1#contract",
+    );
+    expect(await screen.findByText(/Đã có thông tin pháp lý/)).toBeInTheDocument();
+  });
+
+  it("BO-UX-30: a returnTo outside the back office is ignored", async () => {
+    mockApi("SALES_STAFF", { get: { [PATH]: () => profile } });
+    renderCard(`?returnTo=${encodeURIComponent("https://evil.example/admin/x")}`);
+    await screen.findByText("12 Nguyễn Huệ, Quận 1");
+    expect(screen.queryByRole("link", { name: "Quay lại hợp đồng" })).not.toBeInTheDocument();
+  });
+
   it("lưu lần đầu gửi version null và đúng body (không có tài khoản ngân hàng)", async () => {
     const api = mockApi("SALES_STAFF", {
       get: { [PATH]: notFound },

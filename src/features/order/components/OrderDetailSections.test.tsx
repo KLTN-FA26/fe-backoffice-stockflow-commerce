@@ -43,13 +43,14 @@ describe("OrderDetail — dòng hàng sẵn / dòng in + giữ hàng", () => {
     expect(screen.getByText(/1 dòng in, 1 dòng hàng sẵn/)).toBeInTheDocument();
   });
 
-  it("hiện số phiếu giữ hàng của dòng (không lộ UUID); dòng chưa giữ → 'Chưa giữ hàng'", async () => {
+  it("BO-UX-23: says the line is held without counting internal holds (no UUID); none → 'Chưa giữ hàng'", async () => {
     await renderDetail({
       ...apiOrder,
       lines: [customLine, { ...customLine, lineId: "x", sku: "B", reservationIds: [] }],
     });
 
-    expect(await screen.findByText("Đã giữ hàng: 1 phiếu giữ")).toBeInTheDocument();
+    expect(await screen.findByText("Đã giữ hàng ở kho xuất")).toBeInTheDocument();
+    expect(screen.queryByText(/phiếu giữ/)).not.toBeInTheDocument();
     expect(screen.queryByText(customLine.reservationIds[0] ?? "")).not.toBeInTheDocument();
     expect(document.body.textContent).not.toContain(customLine.reservationIds[0]);
     expect(screen.getByText("Chưa giữ hàng")).toBeInTheDocument();
@@ -168,9 +169,10 @@ describe("OrderDetail — thanh toán / cọc / công nợ / huỷ", () => {
     expect(screen.getByText("kiểm tra lại")).toBeInTheDocument();
   });
 
-  it("chưa release → kho xuất 'Chưa release'", async () => {
+  it("L-5: chưa chọn kho → 'Chưa chọn kho xuất' (không còn chữ 'release')", async () => {
     await renderDetail(apiOrder);
-    expect(await screen.findByText("Chưa release")).toBeInTheDocument();
+    expect(await screen.findByText("Chưa chọn kho xuất")).toBeInTheDocument();
+    expect(screen.queryByText("Chưa release")).not.toBeInTheDocument();
   });
 });
 

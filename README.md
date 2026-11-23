@@ -20,6 +20,14 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Chat socket (`NEXT_PUBLIC_WS_URL`)
+
+The Sales chat receives messages, internal notes, inbox changes and @mentions over one STOMP socket to the
+backend's `/ws` (`src/lib/realtime`). `NEXT_PUBLIC_WS_URL` (e.g. `wss://api.example.com/ws`) is **inlined at
+build time**: set it where the app is built (Vercel / CI) and rebuild after changing it. The back-office origin
+must also be in the backend's `CORS_ALLOWED_ORIGIN_PATTERNS`. Without it the chat still works by polling every
+5 s and agents show as offline. See `.env.example`.
+
 ## CI & quality checks
 
 Workflows live in `.github/workflows/`; every pull request runs them.

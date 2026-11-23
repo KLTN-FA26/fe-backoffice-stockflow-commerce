@@ -25,6 +25,7 @@ import { QuoteFeesTotals } from "./detail/QuoteFeesTotals";
 import { QuoteHistory } from "./detail/QuoteHistory";
 import { QuoteNotices } from "./detail/QuoteNotices";
 import { QuoteLinesTable } from "./detail/QuoteLinesTable";
+import { QuoteNextStep } from "./detail/QuoteNextStep";
 import { QuoteStaffActions } from "./detail/QuoteStaffActions";
 
 import type { Quote } from "@/features/quote/types";
@@ -36,7 +37,7 @@ function General({ quote }: { quote: Quote }) {
     <DetailSection title="Thông tin chung" icon={FileText}>
       <div className="divide-y divide-(--table-line)">
         <InfoRow label="Số báo giá">
-          <span className={`text-accent font-medium ${MONO}`}>{quote.quoteNumber}</span>
+          <span className={`text-accent-text font-medium ${MONO}`}>{quote.quoteNumber}</span>
         </InfoRow>
         <InfoRow label="Bản sửa số">
           <span className={MONO}>{quote.revision}</span>
@@ -112,7 +113,10 @@ function QuoteDetailContent({ id }: { id: string }) {
                 size="md"
               />
             </div>
-            <QuoteStaffActions quote={quote} />
+            <div className="space-y-3">
+              <QuoteNextStep quote={quote} />
+              <QuoteStaffActions quote={quote} />
+            </div>
           </section>
           <QuoteHistory history={quote.history} />
         </div>

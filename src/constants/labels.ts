@@ -18,6 +18,12 @@ import {
 } from "./labels-warehouse-capacity";
 import { WAREHOUSE_MAP_TOAST_MESSAGES, WAREHOUSE_MAP_UI_LABELS } from "./labels-warehouse-map";
 
+/**
+ * Nhãn khách khi không biết tên lẫn mã khách — thay cho mảnh UUID `KH 0c0000…` (BO-UX-6). Một nguồn cho mọi chỗ hiện
+ * khách: `CustomerName`, ô khách của danh sách đơn / đơn treo tín dụng, thẻ thông tin đơn.
+ */
+export const CUSTOMER_FALLBACK_LABEL = "Khách hàng";
+
 export const UI_LABELS = {
   common: {
     retry: "Thử lại",
@@ -42,10 +48,23 @@ export const UI_LABELS = {
     today: "Hôm nay",
     clear: "Xoá ngày",
   },
+  // Ô nhập tiền dùng chung (components/shared/MoneyInput)
+  moneyInput: {
+    /** Dán "1,500,000.50" / "1.500.000,50": phần lẻ khác 0 bị từ chối, không bị đọc thành 150.000.050. */
+    fractionRefused: "Số tiền VND không có phần lẻ",
+  },
   // Ô chọn dạng cây dùng chung (components/shared/TreeSelect)
   treeSelect: {
     expand: (label: string) => `Mở ${label}`,
     collapse: (label: string) => `Thu gọn ${label}`,
+  },
+  // Nút rời form khi còn thay đổi chưa lưu (components/shared/DiscardChangesButton, BO-UX-5)
+  discardChanges: {
+    button: "Bỏ thay đổi",
+    title: "Bỏ các thay đổi chưa lưu?",
+    description: "Những gì bạn vừa sửa trên form này sẽ mất. Thao tác này không huỷ chứng từ.",
+    confirm: "Bỏ thay đổi",
+    keepEditing: "Tiếp tục sửa",
   },
   // Khung back-office (sidebar / topbar)
   shell: {
@@ -54,6 +73,9 @@ export const UI_LABELS = {
     globalSearch: "Tìm toàn cục",
     quickSearch: "Tìm nhanh",
     quickSearchHint: "Tìm nhanh (⌘K)",
+    /** Gốc breadcrumb (trước là chữ "Back-office"). */
+    breadcrumbRoot: "Trang quản trị",
+    /* Tên nhóm (tab) sidebar: `NAV_GROUP_LABELS` trong labels-nav.ts */
   },
   // Trạng thái lỗi khi tải dữ liệu (§8 PRODUCTION-FRONTEND-RULES)
   emptyList: {

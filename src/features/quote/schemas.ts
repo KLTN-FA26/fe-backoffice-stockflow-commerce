@@ -33,6 +33,9 @@ export const quoteLineDtoSchema = z.object({
   /** `CARTON` (báo giá theo thùng) hoặc `UNIT` (báo giá cũ trước rescope). */
   measure: z.string(),
   sku: z.string(),
+  /** R5-3 (optional until the BE ships it): the line's design name, a short-lived preview URL. */
+  designName: omittedOrNull(z.string()),
+  previewUrl: omittedOrNull(z.string()),
   /** BE-14: `PURCHASABLE`, `PRODUCT_INACTIVE`… ; null on old lines (null alone never counts as discontinued). */
   purchasability: omittedOrNull(z.string()),
   cartons: omittedOrNull(z.number().int()),
@@ -73,6 +76,8 @@ export const quoteTransitionDtoSchema = z.object({
   reason: omittedOrNull(z.string()),
   changedAt: z.string(),
   changedBy: omittedOrNull(z.string()),
+  /** R5-8 (optional): who made the change, as a name — staff name, or the customer's. */
+  changedByName: omittedOrNull(z.string()),
 });
 
 export const quoteDtoSchema = z.object({
@@ -126,6 +131,13 @@ export const quoteRowDtoSchema = z.object({
   convertedOrderId: omittedOrNull(z.string()),
   createdAt: z.string(),
   version: z.number().int(),
+  /**
+   * R5-2 (BE round 5, có thể chưa có): tổng có VAT — đã chấp nhận / đã lên đơn thì số chấp nhận, còn lại số đề xuất;
+   * null (bị bỏ khỏi JSON) khi chưa đủ giá. Cùng `lineCount`, `firstItemName` (tên thiết kế dòng 1, không có thì SKU).
+   */
+  total: omittedOrNull(z.number()),
+  lineCount: omittedOrNull(z.number().int()),
+  firstItemName: omittedOrNull(z.string()),
 });
 export const quotePageDtoSchema = bePageSchema(quoteRowDtoSchema);
 
@@ -140,6 +152,9 @@ export const customerSkuDtoSchema = z.object({
   sourceSku: omittedOrNull(z.string()),
   /** `ACTIVE`, `BLOCKED` hoặc `OBSOLETE` — chỉ `ACTIVE` được báo giá (14 BR-04). */
   status: z.string(),
+  /** R5-4 (optional until the BE ships it): lets the editor preview cups and tax before the first save (BO-UX-16). */
+  unitsPerCarton: omittedOrNull(z.number().int()),
+  taxRate: omittedOrNull(z.number()),
 });
 export const customerSkuListDtoSchema = z.array(customerSkuDtoSchema);
 

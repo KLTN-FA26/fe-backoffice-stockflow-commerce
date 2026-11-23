@@ -87,7 +87,7 @@ export const INVENTORY_ITEM_UI_LABELS = {
   listRefetching: "Đang tải lại danh sách hồ sơ hàng tồn",
   listCaption: (shown: number, total: number) => `Hiển thị ${shown} / ${total} hồ sơ hàng tồn`,
   summary: {
-    search: "Search chính",
+    search: "Tìm kiếm chính",
     scope: "Trường search",
     columns: "Cột hiển thị",
     none: "Chưa dùng",

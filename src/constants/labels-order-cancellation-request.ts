@@ -24,9 +24,25 @@ export const CANCELLATION_REQUEST_LABELS = {
   },
   columns: {
     order: "Đơn hàng",
+    customer: "Khách hàng",
+    orderTotal: "Tổng đơn",
+    paid: "Đã thu",
+    orderStatus: "Trạng thái đơn",
+    printing: "In hàng loạt",
     reason: "Lý do khách nêu",
     requestedAt: "Gửi lúc",
     status: "Trạng thái",
+    actions: "Quyết định",
+  },
+  /** Hàng đợi yêu cầu huỷ (BO-UX-34/36). */
+  queue: {
+    unknownOrder: "Đơn hàng",
+    printingStarted: "Đã in",
+    printingNotStarted: "Chưa in",
+    noteMore: "Xem thêm",
+    noteLess: "Thu gọn",
+    /** Ghi chú dài hơn chừng này ký tự mới có nút "Xem thêm" (2 dòng ~ 120 ký tự ở cột 20rem). */
+    noteClampChars: 120,
   },
   caption: (shown: number, total: number) => `Hiển thị ${shown} / ${total} yêu cầu`,
   /** Thẻ "Yêu cầu huỷ" trên trang chi tiết đơn. */
@@ -65,6 +81,12 @@ export const CANCELLATION_REQUEST_LABELS = {
     amountLabel: "Số tiền phí (VND)",
     reasonLabel: "Lý do giữ phí",
     detailLabel: "Chi tiết đã thoả thuận với khách",
+    /** BO-UX-35: điều cần biết trước khi chọn phí (R5-6, khi BE trả). */
+    paid: "Khách đã trả",
+    production: "Sản xuất",
+    printed: "Đã in hàng loạt",
+    notPrinted: "Chưa in hàng loạt",
+    notPrintedHint: "Chưa in hàng loạt nên không giữ phí được — hoàn toàn bộ số đã thu.",
   },
   reject: {
     button: "Từ chối",

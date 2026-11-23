@@ -70,3 +70,5 @@ export function useQuoteRequestFilters(storageKey: string) {
     },
   };
 }
+
+export type QuoteRequestFilters = ReturnType<typeof useQuoteRequestFilters>;

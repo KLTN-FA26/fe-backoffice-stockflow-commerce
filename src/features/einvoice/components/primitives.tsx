@@ -41,7 +41,7 @@ export function CodeLink({ href, children }: { href: string; children: ReactNode
   return (
     <Link
       href={href}
-      className={`text-accent font-medium hover:underline ${MONO}`}
+      className={`text-accent-text font-medium hover:underline ${MONO}`}
       onClick={(event) => event.stopPropagation()}
     >
       {children}

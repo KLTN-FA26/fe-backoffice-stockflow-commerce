@@ -45,6 +45,10 @@ và "Kho & bản đồ" dễ nhầm; "Platform" là tiếng Anh.
   docs 00 §3 có nhóm "Quản lý thiết kế" riêng (module 12). Người dùng chưa duyệt nhóm này.
 - **Câu trả lời mẫu, Báo cáo chat** (mới trên `develop`) để ở Bán hàng cùng Chat (module 16).
 
+Giữ quy tắc **L-6** của `develop` (PR #247): người làm báo giá thấy "Đơn hàng" trong nhóm Bán hàng,
+bản ở nhóm Đơn hàng ẩn với họ (`unlessPermission`). Mục **Công nợ** (BO-UX-37) của `develop` nằm ở
+Thanh toán & hoá đơn ngay sau Đợt thanh toán.
+
 "Giao thất bại" để ở Đơn hàng vì Sale quyết định (WF-05 GH-1), dù luồng thuộc 09 §4.3.
 
 ## Kiểm chứng

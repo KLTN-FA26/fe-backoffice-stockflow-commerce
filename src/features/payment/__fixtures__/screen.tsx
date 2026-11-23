@@ -14,6 +14,7 @@ import {
   PAYMENT_INSTALLMENT_PERMISSIONS,
   PAYMENT_RECEIPT_PERMISSIONS,
   PAYMENT_REFUND_PERMISSIONS,
+  RECEIVABLES_REPORT_PERMISSIONS,
 } from "@/constants/payment";
 import { api } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/auth/auth-store";
@@ -39,6 +40,7 @@ export const ACCOUNTANT_GRANTS: PermissionCode[] = [
   ...Object.values(PAYMENT_INSTALLMENT_PERMISSIONS),
   ...Object.values(PAYMENT_RECEIPT_PERMISSIONS),
   ...Object.values(PAYMENT_REFUND_PERMISSIONS),
+  ...Object.values(RECEIVABLES_REPORT_PERMISSIONS),
 ];
 /** Sales: đợt và hoàn tiền chỉ xem; không có quyền phiếu thu. */
 export const SALES_GRANTS: PermissionCode[] = [
@@ -46,12 +48,15 @@ export const SALES_GRANTS: PermissionCode[] = [
   PAYMENT_INSTALLMENT_PERMISSIONS.read,
   PAYMENT_REFUND_PERMISSIONS.viewPage,
   PAYMENT_REFUND_PERMISSIONS.read,
+  RECEIVABLES_REPORT_PERMISSIONS.viewPage,
+  RECEIVABLES_REPORT_PERMISSIONS.read,
 ];
 /** Mở được trang nhưng thiếu quyền đọc dữ liệu. */
 export const PAGE_ONLY_GRANTS: PermissionCode[] = [
   PAYMENT_INSTALLMENT_PERMISSIONS.viewPage,
   PAYMENT_RECEIPT_PERMISSIONS.viewPage,
   PAYMENT_REFUND_PERMISSIONS.viewPage,
+  RECEIVABLES_REPORT_PERMISSIONS.viewPage,
 ];
 
 export function mockPaymentApi(

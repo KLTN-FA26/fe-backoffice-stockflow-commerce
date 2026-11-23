@@ -156,6 +156,9 @@ export const orderLineDtoSchema = z.object({
   /** 4B-2: số thùng đặt; `quantity` = thùng × `unitsPerCarton`. Vắng với dòng không đặt theo thùng. */
   cartons: z.number().int().nullish(),
   unitsPerCarton: z.number().int().nullish(),
+  /** R5-3 (optional until the BE ships it): the line's design name and a short-lived preview URL. */
+  designName: z.string().nullish(),
+  previewUrl: z.string().nullish(),
 });
 
 /** BE `OrderResponse.ShipmentLine`. */
@@ -210,6 +213,9 @@ export const orderDtoSchema = z.object({
   /** Tên + mã khách BE kèm sẵn ở danh sách / chi tiết đơn nội bộ (BE-15). */
   customerName: z.string().nullish(),
   customerCode: z.string().nullish(),
+  /** R5-7 (optional): the quote the order was converted from. */
+  sourceQuoteId: z.string().nullish(),
+  sourceQuoteNumber: z.string().nullish(),
   status: orderStatusDtoSchema,
   totalAmount: z.number(),
   currency: currencyCode,

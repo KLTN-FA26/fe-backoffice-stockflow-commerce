@@ -36,7 +36,7 @@ export function ReturnGeneralCard({ ret }: { ret: ReturnRequest }) {
         <InfoRow label={D.customer}>
           <Link
             href={ADMIN_ROUTES.customers.detail(ret.customerId)}
-            className="text-accent hover:underline"
+            className="text-accent-text hover:underline"
           >
             {D.viewCustomer}
           </Link>
@@ -137,7 +137,7 @@ export function ReturnProgressCard({ ret }: { ret: ReturnRequest }) {
             <div className="flex flex-wrap gap-3">
               <Link
                 href={PAYMENT_ROUTES.refunds.ofOrder(ret.orderId)}
-                className="text-accent hover:underline"
+                className="text-accent-text hover:underline"
               >
                 {D.openRefunds}
               </Link>

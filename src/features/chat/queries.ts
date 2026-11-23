@@ -1,8 +1,11 @@
-/** Chat — query key + hook. Chưa có STOMP: polling 5 giây (plan WF-02 §6). */
+/**
+ * Chat — query key + hook. Socket chat nối (FE fix list A.3, `realtime.ts`) → sự kiện cập nhật cache, polling chỉ là
+ * lưới an toàn 45 giây; socket rớt hoặc không cấu hình → polling 5 giây như trước. Tab ẩn thì không poll.
+ */
 
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 
-import { CHAT_BADGE_POLL_MS, CHAT_POLL_MS } from "@/constants";
+import { CHAT_BADGE_POLL_MS } from "@/constants";
 
 import {
   attachmentLink,
@@ -18,19 +21,24 @@ import {
   listAgents,
   listCannedResponses,
   listStaff,
+  getTransferInstructions,
   searchMessages,
 } from "./api-tools";
+import { usePolling } from "./polling";
 
 import type { InboxParams } from "./api";
 
 export const chatKeys = {
   all: ["chat"] as const,
-  inbox: (params: InboxParams) => [...chatKeys.all, "inbox", params] as const,
+  /** Gốc của mọi trang hộp thư (mọi bộ lọc) — sự kiện hàng đợi tải lại đúng nhánh này. */
+  inboxes: () => [...chatKeys.all, "inbox"] as const,
+  inbox: (params: InboxParams) => [...chatKeys.inboxes(), params] as const,
   conversation: (id: string) => [...chatKeys.all, "conversation", id] as const,
   messages: (id: string) => [...chatKeys.all, "conversation", id, "messages"] as const,
   older: (id: string) => [...chatKeys.messages(id), "older"] as const,
   gap: (id: string) => [...chatKeys.messages(id), "gap"] as const,
   overview: (customerId: string) => [...chatKeys.all, "overview", customerId] as const,
+  transfer: (installmentId: string) => [...chatKeys.all, "transfer", installmentId] as const,
   staff: (q: string) => [...chatKeys.all, "staff", q] as const,
   agents: () => [...chatKeys.all, "agents"] as const,
   search: (q: string, page: number) => [...chatKeys.all, "search", q, page] as const,
@@ -74,7 +82,7 @@ export function useStaffUnread(enabled: boolean) {
     queryKey: chatKeys.unread(),
     queryFn: ({ signal }) => getStaffUnread(signal),
     enabled,
-    refetchInterval: CHAT_BADGE_POLL_MS,
+    ...usePolling(CHAT_BADGE_POLL_MS),
   });
 }
 
@@ -117,7 +125,7 @@ export function useInbox(params: InboxParams, enabled: boolean) {
     queryKey: chatKeys.inbox(params),
     queryFn: ({ signal }) => listConversations(params, signal),
     enabled,
-    refetchInterval: CHAT_POLL_MS,
+    ...usePolling(),
   });
 }
 
@@ -126,7 +134,7 @@ export function useConversation(id: string, enabled: boolean) {
     queryKey: chatKeys.conversation(id),
     queryFn: ({ signal }) => getConversation(id, signal),
     enabled,
-    refetchInterval: CHAT_POLL_MS,
+    ...usePolling(),
   });
 }
 
@@ -136,7 +144,7 @@ export function useMessages(id: string, enabled: boolean) {
     queryKey: chatKeys.messages(id),
     queryFn: ({ signal }) => listMessages(id, undefined, signal),
     enabled,
-    refetchInterval: CHAT_POLL_MS,
+    ...usePolling(),
   });
 }
 
@@ -166,6 +174,15 @@ export function useGapMessages(id: string, since: number | null, enabled: boolea
     initialPageParam: since ?? 0,
     getNextPageParam: (page) => page.nextSince ?? undefined,
     enabled: since !== null && enabled,
+  });
+}
+
+/** BO-UX-45: bản xem trước thẻ chuyển khoản của đợt đang chọn. */
+export function useTransferInstructions(installmentId: string) {
+  return useQuery({
+    queryKey: chatKeys.transfer(installmentId),
+    queryFn: ({ signal }) => getTransferInstructions(installmentId, signal),
+    enabled: !!installmentId,
   });
 }
 

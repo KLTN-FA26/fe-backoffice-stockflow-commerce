@@ -14,7 +14,7 @@ describe("buildBreadcrumbItems", () => {
       ADMIN_ROUTES.warehouseMap.page("BD", WORKSPACE_PATHS.putaway),
     );
     expect(list.map((item) => item.label)).toEqual([
-      "Back-office",
+      "Trang quản trị",
       "Kho & bản đồ",
       "BD",
       "Cất hàng",
@@ -26,7 +26,7 @@ describe("buildBreadcrumbItems", () => {
       labelFor,
     );
     expect(detail.map((item) => item.label)).toEqual([
-      "Back-office",
+      "Trang quản trị",
       "Kho & bản đồ",
       "BD",
       "Cất hàng",
@@ -39,7 +39,7 @@ describe("buildBreadcrumbItems", () => {
     const labels = (path: string, labelFor?: (id: string) => string | undefined) =>
       buildBreadcrumbItems(path, () => true, labelFor).map((item) => item.label);
     expect(labels(ADMIN_ROUTES.warehouseMap.page("BD", WORKSPACE_PATHS.myTrip))).toEqual([
-      "Back-office",
+      "Trang quản trị",
       "Kho & bản đồ",
       "BD",
       "Chuyến cất hàng",
@@ -48,13 +48,13 @@ describe("buildBreadcrumbItems", () => {
       labels(ADMIN_ROUTES.warehouseMap.page("BD", WORKSPACE_PATHS.trip("x")), (id) =>
         id === "x" ? "Chuyến cất hàng" : undefined,
       ),
-    ).toEqual(["Back-office", "Kho & bản đồ", "BD", "Cất hàng", "Chuyến cất hàng"]);
+    ).toEqual(["Trang quản trị", "Kho & bản đồ", "BD", "Cất hàng", "Chuyến cất hàng"]);
   });
 
   it('trang của một kho: "Kho & bản đồ / <kho ⇅> / <trang>" theo prefix trên URL', () => {
     const items = buildBreadcrumbItems(ADMIN_ROUTES.warehouseMap.slotting("BD"));
     expect(items.map((item) => item.label)).toEqual([
-      "Back-office",
+      "Trang quản trị",
       "Kho & bản đồ",
       "BD",
       "Gợi ý vị trí",
@@ -66,7 +66,7 @@ describe("buildBreadcrumbItems", () => {
 
   it("route /admin chưa có mục menu → rơi về mục Tổng quan, rồi đoạn cuối URL", () => {
     expect(buildBreadcrumbItems("/admin/not-a-screen")).toEqual([
-      { label: "Back-office", href: "/admin" },
+      { label: "Trang quản trị", href: "/admin" },
       { label: "Tổng quan", href: "/admin" },
       { label: "not-a-screen" },
     ]);
@@ -74,14 +74,14 @@ describe("buildBreadcrumbItems", () => {
 
   it("đăng ký route Inventory trong điều hướng back-office", () => {
     expect(buildBreadcrumbItems(INVENTORY_ROUTES.overview)).toEqual([
-      { label: "Back-office", href: "/admin" },
+      { label: "Trang quản trị", href: "/admin" },
       { label: INVENTORY_LABELS.overviewTitle, href: undefined },
     ]);
   });
 
   it("trang sửa hiện '… / <mã> / Chỉnh sửa', không hiện chữ 'edit'", () => {
     expect(buildBreadcrumbItems("/admin/customers/CUS-001/edit")).toEqual([
-      { label: "Back-office", href: "/admin" },
+      { label: "Trang quản trị", href: "/admin" },
       { label: "Khách hàng", href: "/admin/customers" },
       { label: "CUS-001", href: "/admin/customers/CUS-001" },
       { label: "Chỉnh sửa" },
@@ -140,7 +140,7 @@ describe("buildBreadcrumbItems", () => {
   });
 
   it("điều chỉnh tồn: danh sách, trang tạo và chi tiết đều nằm dưới menu Điều chỉnh tồn", () => {
-    const root = { label: "Back-office", href: "/admin" };
+    const root = { label: "Trang quản trị", href: "/admin" };
     const parent = { label: "Điều chỉnh tồn", href: INVENTORY_ROUTES.adjustments };
     expect(buildBreadcrumbItems(INVENTORY_ROUTES.adjustments)).toEqual([
       root,
@@ -162,7 +162,7 @@ describe("buildBreadcrumbItems", () => {
   it("kiểm kê trong tab theo kho: danh sách và chi tiết phiếu nằm dưới trang Kiểm kê của kho", () => {
     const labels = (path: string) => buildBreadcrumbItems(path).map((item) => item.label);
     expect(labels(ADMIN_ROUTES.warehouseMap.page("HCM", WORKSPACE_PATHS.cycleCounts))).toEqual([
-      "Back-office",
+      "Trang quản trị",
       "Kho & bản đồ",
       "HCM",
       CYCLE_COUNT_LABELS.title,
@@ -172,7 +172,7 @@ describe("buildBreadcrumbItems", () => {
       ADMIN_ROUTES.warehouseMap.page("HCM", WORKSPACE_PATHS.cycleCount(id)),
     );
     expect(detail.map((item) => item.label)).toEqual([
-      "Back-office",
+      "Trang quản trị",
       "Kho & bản đồ",
       "HCM",
       CYCLE_COUNT_LABELS.title,
@@ -183,14 +183,14 @@ describe("buildBreadcrumbItems", () => {
 
   it("cách ly thùng có breadcrumb riêng, không lẫn với Điều chỉnh tồn", () => {
     expect(buildBreadcrumbItems(INVENTORY_ROUTES.quarantine)).toEqual([
-      { label: "Back-office", href: "/admin" },
+      { label: "Trang quản trị", href: "/admin" },
       { label: QUARANTINE_LABELS.title, href: undefined },
     ]);
   });
 
   it("lịch sử biến động có breadcrumb riêng, không lẫn với Di chuyển nội bộ", () => {
     expect(buildBreadcrumbItems(INVENTORY_ROUTES.movements)).toEqual([
-      { label: "Back-office", href: "/admin" },
+      { label: "Trang quản trị", href: "/admin" },
       { label: "Lịch sử biến động", href: undefined },
     ]);
     expect(

@@ -55,7 +55,7 @@ export function sortFlags(flags: readonly DelayFlag[]): DelayFlag[] {
  * các dòng đã tải (tối đa `limit`; bị cắt thì màn đã báo `truncated`).
  */
 export interface ScheduleTextFilters {
-  /** Search chính: mã Đơn sản xuất, đơn bán, đơn vị, kho, SKU. */
+  /** Tìm kiếm chính: mã Đơn sản xuất, đơn bán, đơn vị, kho, SKU. */
   q: string;
   /** Search trong cột "Đơn sản xuất". */
   code: string;

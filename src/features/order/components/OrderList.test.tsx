@@ -37,6 +37,22 @@ function lastListQuery(): URLSearchParams {
 
 afterEach(() => vi.restoreAllMocks());
 
+describe("OrderList — bố cục trang danh sách (BO-UX-2)", () => {
+  it("không tiêu đề / phụ đề hiển thị; h1 sr-only; link hàng đợi công nợ nằm trong toolbar", async () => {
+    mockOrderApiGet([...ORDER_PERMISSION_SETS.salesStaff, "sales-order-credit-holds:VIEW_PAGE"], {
+      "/orders": () => apiOrderPage([apiOrder]),
+    });
+    renderOrderScreen(<OrderList />);
+    await screen.findByText(apiOrder.orderNumber);
+    expect(screen.getByRole("heading", { level: 1, name: "Đơn hàng" })).toHaveClass("sr-only");
+    expect(screen.queryByText(/Theo dõi đơn bán/)).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: UI_LABELS.order.creditHoldsTitle })).toHaveAttribute(
+      "href",
+      "/admin/orders/credit-holds",
+    );
+  });
+});
+
 describe("OrderList — phân trang/lọc phía server", () => {
   it("mặc định gửi page=0&size=15, render đơn với nhãn trạng thái tiếng Việt", async () => {
     renderList(() => apiOrderPage([apiOrder, secondOrder]));
@@ -74,12 +90,13 @@ describe("OrderList — cột Khách hàng hiện tên, không hiện UUID (QA A
     expect(screen.queryByText(apiOrder.customerId as string)).not.toBeInTheDocument();
   });
 
-  it("BE không trả tên → mã khách rút gọn, không UUID đầy đủ", async () => {
+  it("BE không trả tên / mã → nhãn trung tính, không mảnh UUID (BO-UX-6)", async () => {
     renderList(() => apiOrderPage([apiOrder]));
 
-    expect(
-      await screen.findByText(`KH ${(apiOrder.customerId as string).slice(0, 8)}`),
-    ).toBeInTheDocument();
+    await screen.findByText(apiOrder.orderNumber);
+    expect(document.body.textContent).not.toContain(
+      `KH ${(apiOrder.customerId as string).slice(0, 8)}`,
+    );
     expect(screen.queryByText(apiOrder.customerId as string)).not.toBeInTheDocument();
   });
 });

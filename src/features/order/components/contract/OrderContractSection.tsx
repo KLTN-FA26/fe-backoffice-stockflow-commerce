@@ -10,6 +10,7 @@ import {
   SALES_CONTRACT_STATUS_LABELS,
   SALES_CONTRACT_STATUS_TONE_KEY,
 } from "@/constants";
+import { PAYMENT_INSTALLMENT_PERMISSIONS } from "@/constants/payment";
 import { ApiError } from "@/lib/api/error";
 import { Card } from "@/components/shared/Card";
 import { Notice } from "@/components/shared/Notice";
@@ -17,6 +18,7 @@ import { StatusDot } from "@/components/shared/StatusDot";
 import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
 
+import { useOrderInstallmentsSummary } from "../../queries";
 import { contractErrorMessage, useCreateSalesContract } from "../../sales-contract-mutations";
 import { useSalesContract } from "../../sales-contract-queries";
 import { allowedContractActions, signOutcomeText } from "../../sales-contract-rules";
@@ -49,9 +51,14 @@ export function OrderContractSection({
   const [showHistory, setShowHistory] = useState(false);
   const [dialog, setDialog] = useState<ContractDialog>(null);
   const [legalMissing, setLegalMissing] = useState<string | null>(null);
+  const contract = query.data ?? null;
+  // BO-UX-28: hợp đồng đã ký → đợt thật (hạn, đã thu / còn), khi người xem đọc được các đợt.
+  const signedContract = contract?.status === "SIGNED" || contract?.status === "COMPLETED";
+  const installments = useOrderInstallmentsSummary(order.orderId, {
+    enabled: canRead && signedContract && can(PAYMENT_INSTALLMENT_PERMISSIONS.read),
+  });
   if (!canRead) return null;
 
-  const contract = query.data ?? null;
   const actions = query.isSuccess ? allowedContractActions(contract, order.status, can) : [];
   const outcome = signed ? signOutcomeText(order) : null;
   const startContract = () => {
@@ -113,8 +120,11 @@ export function OrderContractSection({
                   {legalMissing}{" "}
                   {order.customerId && (
                     <Link
-                      href={`${ADMIN_ROUTES.customers.detail(order.customerId)}?legalProfile=edit#legal-profile`}
-                      className="text-accent font-medium hover:underline"
+                      href={ADMIN_ROUTES.customers.legalProfile(
+                        order.customerId,
+                        ADMIN_ROUTES.orders.contract(order.orderId),
+                      )}
+                      className="text-accent-text font-medium hover:underline"
                     >
                       Nhập thông tin pháp lý
                     </Link>
@@ -151,18 +161,25 @@ export function OrderContractSection({
                     onDone={() => setEditing(false)}
                   />
                 ) : (
-                  <ContractSummary contract={contract} />
+                  <ContractSummary
+                    contract={contract}
+                    installments={installments.data?.installments}
+                  />
                 )}
               </>
             )}
             <button
               type="button"
-              className="text-accent text-xs hover:underline"
+              className="text-accent-text text-xs hover:underline"
+              aria-expanded={showHistory}
+              aria-controls="contract-history"
               onClick={() => setShowHistory((v) => !v)}
             >
               {showHistory ? "Ẩn lịch sử hợp đồng" : "Xem lịch sử hợp đồng"}
             </button>
-            {showHistory && <ContractHistory orderId={order.orderId} />}
+            <div id="contract-history">
+              {showHistory && <ContractHistory orderId={order.orderId} />}
+            </div>
           </>
         )}
       </section>

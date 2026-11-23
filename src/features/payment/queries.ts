@@ -11,20 +11,29 @@ import {
   getReceiptSummary,
   listInstallments,
   listReceipts,
+  listReceivables,
   listRefunds,
 } from "./api";
 
 import type {
   ListInstallmentParams,
   ListReceiptParams,
+  ListReceivableParams,
   ListRefundParams,
   ReceiptFilterParams,
 } from "./api";
-import type { Installment, OrderInstallments, OrderRefund, PaymentReceipt } from "./types";
+import type {
+  Installment,
+  OrderInstallments,
+  OrderRefund,
+  PaymentReceipt,
+  Receivable,
+} from "./types";
 
 export const installmentKeys = createQueryKeys<ListInstallmentParams>("payment-installments");
 export const receiptKeys = createQueryKeys<ListReceiptParams>("payment-receipts");
 export const refundKeys = createQueryKeys<ListRefundParams>("payment-refunds");
+export const receivableKeys = createQueryKeys<ListReceivableParams>("payment-receivables");
 
 export const useInstallments = createListQuery<Installment, ListInstallmentParams>(
   installmentKeys,
@@ -71,3 +80,9 @@ export const usePayableInstallmentsOf = (customerId: string | null | undefined, 
     enabled: !!customerId,
     ...QUERY_TIMES.list,
   });
+
+/** Công nợ theo khách (R5-11). Không thử lại khi 404: BE chưa có endpoint là trạng thái ổn định, trang lùi về đợt. */
+export const useReceivables = createListQuery<Receivable, ListReceivableParams>(
+  receivableKeys,
+  listReceivables,
+);

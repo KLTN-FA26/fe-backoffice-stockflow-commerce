@@ -41,7 +41,7 @@ export const WAREHOUSE_CAPACITY_UI_LABELS = {
   unitM3: "m³",
   unitKg: "kg",
   searchPlaceholder: "Tìm theo mã hoặc tên kho",
-  summarySearch: "Search chính",
+  summarySearch: "Tìm kiếm chính",
   listCaption: "kho",
   refetching: "Đang tải lại bảng sức chứa",
   refetchFailed: "Không tải lại được số liệu mới nhất — đang hiện bản đã tải trước đó.",

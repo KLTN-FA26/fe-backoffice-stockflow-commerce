@@ -7,6 +7,8 @@
 
 import { SALES_CONTRACT_PERMISSIONS } from "@/constants";
 
+import { DEFAULT_ON_SIGNING_DUE_DAYS } from "./sales-contract-form";
+
 import type { PermissionCode } from "@/lib/auth/me-permissions";
 import type { ContractFormValues } from "./sales-contract-form";
 import type { SalesContract } from "./sales-contract-schemas";
@@ -73,6 +75,36 @@ export function cartonGaps(
       diff: scheduled - ordered,
     };
   });
+}
+
+/**
+ * Quy tắc ra hạn của một đợt thanh toán, viết thành câu (BO-UX-26 / BO-UX-28): số ngày là số ngày SAU MỐC, không phải
+ * một ngày trong tháng. ON_SIGNING trống số ngày → 3 ngày (BE-13); AFTER_DELIVERY trống → theo hạn tín dụng của khách;
+ * BEFORE_DELIVERY không có số ngày (phải trả trước khi hàng rời kho, 15 BR-08).
+ */
+export function dueRuleText(entry: {
+  milestone: string;
+  dueDays?: string | number | null;
+  deliveryBatchSeq?: string | number | null;
+}): string {
+  const days = entry.dueDays === "" || entry.dueDays == null ? null : Number(entry.dueDays);
+  const batch =
+    entry.deliveryBatchSeq === "" || entry.deliveryBatchSeq == null
+      ? null
+      : Number(entry.deliveryBatchSeq);
+  const delivery = batch ? `ngày giao đợt ${batch}` : "ngày giao";
+  switch (entry.milestone) {
+    case "ON_SIGNING":
+      return `Hạn = ngày ký + ${days ?? DEFAULT_ON_SIGNING_DUE_DAYS} ngày`;
+    case "BEFORE_DELIVERY":
+      return batch ? `Hạn = trước khi xuất hàng đợt ${batch}` : "Hạn = trước khi xuất hàng";
+    case "AFTER_DELIVERY":
+      return days != null
+        ? `Hạn = ${delivery} + ${days} ngày`
+        : `Hạn = ${delivery} + hạn tín dụng của khách`;
+    default:
+      return days != null ? `Hạn = mốc + ${days} ngày` : "";
+  }
 }
 
 /** Tổng các đợt thanh toán quy ra tiền (xem trước; % quy theo tổng có thuế, phần lẻ BE dồn đợt cuối). */

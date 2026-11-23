@@ -52,7 +52,7 @@ export function HandoverDone({ load, onClose }: { load: Load; onClose: () => voi
             <li key={shipment.shipmentId} className="flex items-center gap-3">
               <Link
                 href={ADMIN_ROUTES.shipments.detail(shipment.shipmentId)}
-                className={`text-accent hover:underline ${MONO}`}
+                className={`text-accent-text hover:underline ${MONO}`}
               >
                 {shipment.code}
               </Link>
@@ -65,7 +65,7 @@ export function HandoverDone({ load, onClose }: { load: Load; onClose: () => voi
         </ul>
         <Link
           href={ADMIN_ROUTES.loads.manifest(load.loadId)}
-          className="text-accent text-[0.8125rem] underline"
+          className="text-accent-text text-[0.8125rem] underline"
         >
           {H.manifest}
         </Link>

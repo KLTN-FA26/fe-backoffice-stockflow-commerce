@@ -2,7 +2,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ADMIN_ROUTES, CANCELLATION_REQUEST_LABELS, UI_LABELS } from "@/constants";
+import {
+  ADMIN_ROUTES,
+  CANCELLATION_REQUEST_LABELS,
+  NAV_GROUP_LABELS,
+  UI_LABELS,
+} from "@/constants";
 import { CYCLE_COUNT_LABELS } from "@/constants/cycle-count";
 import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
 import { QUARANTINE_LABELS } from "@/constants/quarantine";
@@ -454,11 +459,11 @@ describe("credit hold navigation — gate bằng quyền credit hold, không ph�
       ADMIN_ROUTES.designs.reviewQueue,
     );
     expect(buildBreadcrumbItems(ADMIN_ROUTES.designProjectQuoteRequests.list)).toEqual([
-      { label: "Back-office", href: ADMIN_ROUTES.home },
+      { label: "Trang quản trị", href: ADMIN_ROUTES.home },
       { label: "Yêu cầu báo giá thiết kế", href: undefined },
     ]);
     expect(buildBreadcrumbItems(ADMIN_ROUTES.designReviewRounds.list)).toEqual([
-      { label: "Back-office", href: ADMIN_ROUTES.home },
+      { label: "Trang quản trị", href: ADMIN_ROUTES.home },
       { label: "Duyệt thiết kế", href: undefined },
     ]);
   });
@@ -467,7 +472,7 @@ describe("credit hold navigation — gate bằng quyền credit hold, không ph�
     const accountantCanSee = (item: { permission?: PermissionCode }) =>
       !item.permission || item.permission === CREDIT_HOLD_PERMISSIONS.viewPage;
     expect(buildBreadcrumbItems(ADMIN_ROUTES.orders.creditHolds, accountantCanSee)).toEqual([
-      { label: "Back-office", href: ADMIN_ROUTES.home },
+      { label: "Trang quản trị", href: ADMIN_ROUTES.home },
       { label: CREDIT_LABEL, href: undefined },
     ]);
   });
@@ -643,6 +648,71 @@ describe("Duyệt thiết kế theo design-designs:APPROVE, không theo VIEW_PAG
         () => true,
         () => "Ly giấy",
       ).map((item) => item.label),
-    ).toEqual(["Back-office", "Duyệt thiết kế", "Ly giấy"]);
+    ).toEqual(["Trang quản trị", "Duyệt thiết kế", "Ly giấy"]);
+  });
+});
+
+describe("L-6: 'Đơn hàng' của Sale nằm ở nhóm Bán hàng, nhóm đúng khi mở chi tiết đơn", () => {
+  function GroupProbe({ pathname }: { pathname: string }) {
+    const canSee = useCanSeeNavItem();
+    const groups = visibleNavGroups(canSee);
+    const active = findActiveNavHref(
+      pathname,
+      groups.flatMap((group) => group.items),
+    );
+    // Cùng quy tắc mở nhóm của SidebarNav: nhóm (> 1 mục) đầu tiên chứa mục đang sáng
+    const open = groups.find(
+      (group) => group.items.length > 1 && group.items.some((item) => item.href === active),
+    );
+    const ordersIn = groups
+      .filter((group) => group.items.some((item) => item.href === ADMIN_ROUTES.orders.list))
+      .map((group) => group.title);
+    return (
+      <>
+        <output aria-label="open">{open?.title ?? "none"}</output>
+        <output aria-label="orders-in">{ordersIn.join("|")}</output>
+      </>
+    );
+  }
+
+  function probe(pathname: string, permissions: readonly string[]) {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: { roles: [], permissions, dataScope: "ALL" },
+    });
+    render(
+      <QueryClientProvider client={client}>
+        <GroupProbe pathname={pathname} />
+      </QueryClientProvider>,
+    );
+  }
+
+  it("Sale (báo giá + đơn): 'Đơn hàng' chỉ ở Bán hàng; chi tiết đơn mở nhóm Bán hàng", async () => {
+    probe(ADMIN_ROUTES.orders.detail("ord-1"), [
+      ...ROLE_PERMISSIONS.SALES_STAFF,
+      ORDER_PERMISSIONS.viewPage,
+    ]);
+    await waitFor(() => expect(screen.getByLabelText("orders-in")).toHaveTextContent("Bán hàng"));
+    expect(screen.getByLabelText("orders-in")).not.toHaveTextContent(NAV_GROUP_LABELS.order);
+    expect(screen.getByLabelText("open")).toHaveTextContent("Bán hàng");
+  });
+
+  it("Điều phối (đơn, không báo giá): 'Đơn hàng' ở nhóm Đơn hàng", async () => {
+    probe(ADMIN_ROUTES.orders.detail("ord-1"), [
+      ORDER_PERMISSIONS.viewPage,
+      ORDER_PERMISSIONS.read,
+      CREDIT_HOLD_PERMISSIONS.viewPage,
+    ]);
+    await waitFor(() =>
+      expect(screen.getByLabelText("orders-in")).toHaveTextContent(NAV_GROUP_LABELS.order),
+    );
+    expect(screen.getByLabelText("orders-in")).not.toHaveTextContent("Bán hàng");
+    expect(screen.getByLabelText("open")).toHaveTextContent(NAV_GROUP_LABELS.order);
+  });
+
+  it("menu và breadcrumb tiếng Việt: không còn 'Master data', 'Platform', 'Back-office'", () => {
+    const titles = NAV_GROUPS.map((group) => group.title);
+    expect(titles).not.toContain("Master data");
+    expect(titles).not.toContain("Platform");
+    expect(buildBreadcrumbItems(ADMIN_ROUTES.orders.list)[0]?.label).toBe("Trang quản trị");
   });
 });

@@ -3,9 +3,12 @@
 import { formatDate, formatDateTime } from "@/lib/format/date";
 import { formatMoney } from "@/lib/format/money";
 
+import { DEFAULT_RETURN_WINDOW_DAYS } from "../../sales-contract-form";
+
 import { ContractScheduleTables } from "./ContractScheduleTables";
 
 import type { ReactNode } from "react";
+import type { ContractInstallmentFigures } from "./ContractScheduleTables";
 import type { SalesContract } from "../../sales-contract-schemas";
 
 const MONO = "font-[family-name:var(--font-mono)] tabular-nums";
@@ -28,7 +31,13 @@ function Party({ title, party }: { title: string; party: SalesContract["seller"]
 }
 
 /** Nội dung hợp đồng (đọc nguyên từ BE): bên bán / mua, tổng, lịch giao, lịch thanh toán, mốc thời gian. */
-export function ContractSummary({ contract }: { contract: SalesContract }) {
+export function ContractSummary({
+  contract,
+  installments,
+}: {
+  contract: SalesContract;
+  installments?: readonly ContractInstallmentFigures[];
+}) {
   const money = (amount: number) => formatMoney(amount, contract.totals.currency);
   const facts: [string, ReactNode][] = [
     [
@@ -52,7 +61,9 @@ export function ContractSummary({ contract }: { contract: SalesContract }) {
     ["Số lần in mẫu miễn phí", contract.freeSampleRounds],
     [
       "Thời hạn khiếu nại",
-      contract.returnWindowDays != null ? `${contract.returnWindowDays} ngày` : "Mặc định",
+      contract.returnWindowDays != null
+        ? `${contract.returnWindowDays} ngày`
+        : `${DEFAULT_RETURN_WINDOW_DAYS} ngày (mặc định)`,
     ],
     ...(contract.sentAt
       ? [["Ngày gửi", formatDateTime(contract.sentAt)] as [string, ReactNode]]
@@ -81,7 +92,7 @@ export function ContractSummary({ contract }: { contract: SalesContract }) {
           </div>
         ))}
       </dl>
-      <ContractScheduleTables contract={contract} money={money} />
+      <ContractScheduleTables contract={contract} money={money} installments={installments} />
     </div>
   );
 }

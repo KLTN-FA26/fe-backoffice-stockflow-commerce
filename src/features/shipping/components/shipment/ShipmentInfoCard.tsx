@@ -61,7 +61,7 @@ export function ShipmentInfoCard({
           value={
             <Link
               href={ADMIN_ROUTES.orders.detail(shipment.orderId)}
-              className="text-accent hover:underline"
+              className="text-accent-text hover:underline"
             >
               {shipment.orderNumber ?? shipment.orderId}
             </Link>
@@ -79,7 +79,7 @@ export function ShipmentInfoCard({
             shipment.loadId ? (
               <Link
                 href={ADMIN_ROUTES.loads.detail(shipment.loadId)}
-                className="text-accent hover:underline"
+                className="text-accent-text hover:underline"
               >
                 {shipment.loadCode ?? shipment.loadId}
               </Link>

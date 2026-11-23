@@ -2,7 +2,10 @@
 
 import { LoaderCircle, WandSparkles } from "lucide-react";
 
+import { useUnsavedChangesWarning } from "@/hooks/use-unsaved-changes";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { DiscardChangesButton } from "@/components/shared/DiscardChangesButton";
+import { FormErrorNotice } from "@/components/shared/FormErrorNotice";
 import { FORM_INPUT_CLASS, FormField, fieldA11y } from "@/components/shared/FormField";
 import { Notice } from "@/components/shared/Notice";
 import { Button } from "@/components/ui/button";
@@ -32,6 +35,8 @@ export function ContractEditor({
   });
   const { form } = editor;
   const errors = form.formState.errors;
+  // BO-UX-5: đóng tab / tải lại trang khi còn sửa dở thì trình duyệt hỏi lại.
+  useUnsavedChangesWarning(form.formState.isDirty && !editor.pending);
 
   return (
     <form onSubmit={(event) => void editor.submit(event)} noValidate className="space-y-4">
@@ -51,7 +56,7 @@ export function ContractEditor({
           </span>
         </Notice>
       )}
-      {editor.formError && <Notice tone="danger">{editor.formError}</Notice>}
+      <FormErrorNotice message={editor.formError} />
       <DeliveryScheduleEditor form={form} lines={order.lines} />
       <div className="flex justify-end">
         <Button
@@ -112,9 +117,7 @@ export function ContractEditor({
         </FormField>
       </div>
       <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" onClick={onDone}>
-          Đóng
-        </Button>
+        <DiscardChangesButton dirty={form.formState.isDirty} onDiscard={onDone} />
         <Button type="submit" disabled={editor.pending || editor.stale}>
           {editor.pending && <LoaderCircle className="size-4 animate-spin" />} Lưu hợp đồng
         </Button>

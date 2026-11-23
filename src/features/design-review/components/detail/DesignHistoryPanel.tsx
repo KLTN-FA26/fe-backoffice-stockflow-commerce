@@ -8,7 +8,7 @@ import { formatDateTime } from "@/lib/format/date";
 
 import { designReviewErrorMessage } from "@/features/design-review/errors";
 import { useDesignHistory } from "@/features/design-review/queries";
-import { historyNote, labelOf, shortId } from "@/features/design-review/selectors";
+import { historyActor, historyNote, labelOf } from "@/features/design-review/selectors";
 
 import { DETAIL_CARD_CLASS, DetailCardTitle } from "@/components/shared/DetailSection";
 
@@ -40,7 +40,9 @@ export function DesignHistoryPanel({ designId }: { designId: string }) {
                   {labelOf(DESIGN_DECISION_LABELS, entry.decision)}
                 </div>
                 <div className="text-ink-tertiary tabular-nums">
-                  {formatDateTime(entry.at)} · {shortId(entry.actorId)}
+                  {[formatDateTime(entry.at), historyActor(entry.actorId)]
+                    .filter(Boolean)
+                    .join(" · ")}
                 </div>
                 {note && (
                   <div className="text-ink-secondary mt-0.5 whitespace-pre-line">{note}</div>

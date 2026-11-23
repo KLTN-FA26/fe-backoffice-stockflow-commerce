@@ -125,11 +125,51 @@ describe("Credit hold — danh sách (SCRUM-427)", () => {
       ADMIN_ROUTES.orders.detail(apiOrder.orderId),
     );
     expect(screen.queryByRole("button", { name: /Duyệt công nợ/ })).not.toBeInTheDocument();
-    // F. có sales-orders:VIEW_PAGE → link "Đơn hàng" ở header về đúng danh sách đơn
-    expect(screen.getByRole("link", { name: /Đơn hàng/ })).toHaveAttribute(
-      "href",
-      ADMIN_ROUTES.orders.list,
+    // F. trang danh sách kiểu Vercel: không tiêu đề / nút "← Đơn hàng" — breadcrumb và sidebar dẫn về đơn (BO-UX-2)
+    expect(screen.queryByRole("link", { name: /Đơn hàng/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Đơn chờ duyệt công nợ" })).toHaveClass(
+      "sr-only",
     );
+  });
+
+  it("BO-UX-32: dòng giữ vì nợ quá hạn có số quá hạn hiện tại + số ngày; cột Chờ duyệt; thao tác ghim phải", async () => {
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-11-12T03:00:00Z") });
+    try {
+      renderList(ORDER_PERMISSION_SETS.accountant, [{ ...hold, exposure: 200_000 }], {
+        [POSITION_PATH]: () => ({
+          ...apiCreditPosition,
+          hasOverdue: true,
+          overdueAmount: 41_195_000,
+          oldestOverdueDueDate: "2026-11-02",
+        }),
+      });
+      const row = (await screen.findByText(apiOrder.orderNumber)).closest("tr") as HTMLElement;
+      expect(await within(row).findByText(/41\.195\.000/)).toBeInTheDocument();
+      expect(within(row).getByText("quá hạn 10 ngày")).toBeInTheDocument();
+      // checkedAt 2026-09-07 → 66 ngày chờ
+      expect(within(row).getByText("66 ngày")).toBeInTheDocument();
+      expect(screen.getByRole("columnheader", { name: "Quá hạn hiện tại" })).toBeInTheDocument();
+      expect(screen.getByRole("columnheader", { name: "Thao tác" }).className).toContain("sticky");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("không có tên / mã khách → nhãn trung tính, không hiện mảnh UUID 'KH …' (BO-UX-6)", async () => {
+    renderList(ORDER_PERMISSION_SETS.accountant, [
+      {
+        ...hold,
+        order: {
+          ...heldOrder,
+          customerName: undefined,
+          customerCode: undefined,
+          shippingAddress: { ...heldOrder.shippingAddress, recipientName: "" },
+        },
+      },
+    ]);
+    const row = (await screen.findByText(apiOrder.orderNumber)).closest("tr") as HTMLElement;
+    expect(within(row).getByText("Khách hàng")).toBeInTheDocument();
+    expect(row.textContent).not.toMatch(/KH [0-9a-f]{8}/);
   });
 
   it("I. chỉ quyền credit hold VIEW_PAGE + READ (không có sales-orders) → vào được hàng đợi", async () => {

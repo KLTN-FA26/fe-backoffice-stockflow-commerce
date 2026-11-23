@@ -3,13 +3,14 @@
 import { useEffect, useState } from "react";
 import { ArrowDown } from "lucide-react";
 
+import { CHAT_A11Y_LABELS } from "@/constants";
 import { useAuthStore } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 
 import { chatErrorMessage } from "../mutations";
 import { useGapMessages, useOlderMessages } from "../queries";
 import { hasMessageGap, mergeMessages } from "../selectors";
-import { useChatScroll } from "../use-chat-scroll";
+import { useChatScroll, useNewMessageAnnouncer } from "../use-chat-scroll";
 
 import { MessageItem } from "./MessageItem";
 
@@ -17,8 +18,10 @@ import type { ChatMessagePage } from "../schemas";
 import type { QuoteGate } from "./ChatCardView";
 
 /**
- * Tin của hội thoại: trang mới nhất (poll 5 giây, từ màn hình) + tin cũ tải theo yêu cầu ("Tải tin cũ hơn" gọi
+ * Tin của hội thoại: trang mới nhất (socket / poll, từ màn hình) + tin cũ tải theo yêu cầu ("Tải tin cũ hơn" gọi
  * `before = nextBefore`), gộp theo `seq`. Tự cuộn xuống khi đang ở cuối; giữ vị trí khi tải tin cũ.
+ * BO-UX-46: vùng cuộn nhận focus bàn phím (có nhãn); tin mới của người khác được đọc qua một log `aria-live` ẩn —
+ * chỉ tin mới, không đọc lại lịch sử hay trang cũ vừa tải.
  */
 export function MessageList({
   conversationId,
@@ -53,7 +56,8 @@ export function MessageList({
     if (holey && gapHasMore && !gapFetching && !gapFailed) void gapMore();
   }, [holey, gapHasMore, gapFetching, gapFailed, gapMore]);
   const newest = items[items.length - 1];
-  const { listRef, onScroll, unseen, jumpToBottom, rememberHeight } = useChatScroll(
+  const announcements = useNewMessageAnnouncer(newest, meId);
+  const { listRef, onScroll, unseen, jumpToBottom, rememberHeight } = useChatScroll<HTMLDivElement>(
     newest?.seq ?? 0,
     items[0]?.seq ?? 0,
     !!meId && newest?.senderId === meId,
@@ -69,42 +73,57 @@ export function MessageList({
 
   return (
     <div className="relative">
-      <ol
+      <div
+        role="log"
+        aria-live="polite"
+        aria-label={CHAT_A11Y_LABELS.newMessagesLog}
+        className="sr-only"
+      >
+        {announcements.map((line, i) => (
+          <p key={i}>{line}</p>
+        ))}
+      </div>
+      <div
         ref={listRef}
         onScroll={onScroll}
-        aria-label="Tin nhắn"
-        className="max-h-[560px] space-y-2 overflow-y-auto"
+        role="region"
+        aria-label={CHAT_A11Y_LABELS.messageRegion}
+        tabIndex={0}
+        className="max-h-[560px] overflow-y-auto rounded-[var(--r-sm)]"
       >
-        {anchor !== null && (older.isError || gap.isError) && (
-          <li className="text-danger flex flex-wrap items-center justify-center gap-2 text-xs">
-            {chatErrorMessage(older.error ?? gap.error)}
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => void (older.isError ? older.refetch() : gap.refetch())}
-            >
-              Thử lại
-            </Button>
-          </li>
-        )}
-        {hasOlder && !older.isError && (
-          <li className="flex justify-center">
-            <Button size="sm" variant="outline" disabled={loading} onClick={loadOlder}>
-              {loading ? "Đang tải…" : "Tải tin cũ hơn"}
-            </Button>
-          </li>
-        )}
-        {items.map((message) => (
-          <MessageItem key={message.id} message={message} quoteGate={quoteGate} />
-        ))}
-      </ol>
+        <ol aria-label={CHAT_A11Y_LABELS.messageList} className="space-y-2">
+          {anchor !== null && (older.isError || gap.isError) && (
+            <li className="text-danger flex flex-wrap items-center justify-center gap-2 text-xs">
+              {chatErrorMessage(older.error ?? gap.error)}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => void (older.isError ? older.refetch() : gap.refetch())}
+              >
+                Thử lại
+              </Button>
+            </li>
+          )}
+          {hasOlder && !older.isError && (
+            <li className="flex justify-center">
+              <Button size="sm" variant="outline" disabled={loading} onClick={loadOlder}>
+                {loading ? "Đang tải…" : "Tải tin cũ hơn"}
+              </Button>
+            </li>
+          )}
+          {items.map((message) => (
+            <MessageItem key={message.id} message={message} quoteGate={quoteGate} />
+          ))}
+        </ol>
+      </div>
       {unseen && (
         <Button
           size="sm"
           className="absolute bottom-2 left-1/2 -translate-x-1/2 shadow-md"
+          aria-label={CHAT_A11Y_LABELS.jumpToNewAria}
           onClick={jumpToBottom}
         >
-          Có tin mới <ArrowDown className="size-3.5" />
+          {CHAT_A11Y_LABELS.jumpToNew} <ArrowDown aria-hidden className="size-3.5" />
         </Button>
       )}
     </div>

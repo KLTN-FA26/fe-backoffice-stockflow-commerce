@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 
 import { ADMIN_ROUTES } from "@/constants";
+import { formatMoney } from "@/lib/format/money";
 import { QUOTE_PRICE_MISSING_CODES, isQuoteErrorCode } from "@/features/quote/errors";
 import { useSendQuote } from "@/features/quote/mutations";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -23,12 +24,14 @@ export function SendQuoteDialog({
 }) {
   const router = useRouter();
   const send = useSendQuote();
+  // Tổng BE đã tính cho bản nháp: Sale thấy con số khách sẽ thấy trước khi gửi.
+  const total = quote.proposed?.total ?? quote.proposedTotal ?? null;
   return (
     <ConfirmDialog
       open={open}
       onOpenChange={(next) => !next && onClose()}
       title="Gửi báo giá cho khách?"
-      description="Khách thấy báo giá trong chat / trang báo giá và có thể chấp nhận hoặc yêu cầu sửa. Sau khi gửi không sửa được nội dung."
+      description={`${total != null ? `Tổng có thuế ${formatMoney(total, "VND")}. ` : ""}Khách thấy báo giá trong chat / trang báo giá và có thể chấp nhận hoặc yêu cầu sửa. Sau khi gửi không sửa được nội dung.`}
       confirmLabel="Gửi khách"
       variant="default"
       loading={send.isPending}

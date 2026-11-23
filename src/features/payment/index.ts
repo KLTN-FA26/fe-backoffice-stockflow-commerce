@@ -6,3 +6,4 @@ export { ReceiptList } from "./components/ReceiptList";
 export { RefundDetail } from "./components/RefundDetail";
 export { RefundList } from "./components/RefundList";
 export { useOrderInstallments, useOrderRefund } from "./queries";
+export { ReceivablesList } from "./components/ReceivablesList";

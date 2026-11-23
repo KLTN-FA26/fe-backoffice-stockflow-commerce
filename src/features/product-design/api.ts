@@ -60,7 +60,8 @@ export function printConfigBody(config: PrintConfigBody, stored: { version: numb
     allowedFileFormats: config.allowedFileFormats,
     maxFileSizeMb: config.maxFileSizeMb,
     maxColors: config.maxColors ?? undefined,
-    allowedFontCodes: config.allowedFontCodes ?? undefined,
+    // BE-18: no font chosen is `null` (no limit), sent as such — never left out, never `[]` (the BE refuses that).
+    allowedFontCodes: config.allowedFontCodes ?? null,
     model: config.model,
     printAreas: config.printAreas,
     model3d: { surfaces: config.surfaces },

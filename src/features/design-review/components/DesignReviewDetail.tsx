@@ -82,8 +82,9 @@ function DesignReviewDetailContent({ id }: { id: string }) {
       <h1 className="sr-only">Thiết kế {design.name}</h1>
       <div className={DETAIL_GRID_CLASS}>
         <div className="min-w-0 space-y-5">
-          <DesignGeneral design={design} now={now} />
+          {/* BO-UX-9: thứ đang duyệt lên trước, thông tin chung ngay dưới. */}
           <DesignPreview design={design} onRefresh={() => void query.refetch()} />
+          <DesignGeneral design={design} now={now} />
           <FilesBlocks design={design} />
           <QuoteRequestsPanel designId={design.id} />
         </div>

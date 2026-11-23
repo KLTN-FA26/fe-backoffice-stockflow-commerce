@@ -76,7 +76,7 @@ export function OrderSettlementPanel(props: OrderSettlementSlotProps) {
           <div className={ROW}>
             <h3 className="text-ink-primary font-semibold">Đợt thanh toán</h3>
             <Link
-              className="text-accent hover:underline"
+              className="text-accent-text hover:underline"
               href={PAYMENT_ROUTES.installments.ofOrder(props.orderId)}
             >
               Xem các đợt
@@ -104,7 +104,7 @@ export function OrderSettlementPanel(props: OrderSettlementSlotProps) {
           <div className={ROW}>
             <h3 className="text-ink-primary font-semibold">Hoá đơn điện tử</h3>
             <Link
-              className="text-accent hover:underline"
+              className="text-accent-text hover:underline"
               href={EINVOICE_ROUTES.ofOrder(props.orderId)}
             >
               Xem / lập hoá đơn
@@ -121,7 +121,7 @@ export function OrderSettlementPanel(props: OrderSettlementSlotProps) {
               {rows.map((row) => (
                 <li key={row.id} className={`${ROW} py-1`}>
                   <Link
-                    className={`text-accent hover:underline ${MONO}`}
+                    className={`text-accent-text hover:underline ${MONO}`}
                     href={EINVOICE_ROUTES.detail(row.id)}
                   >
                     {invoiceReference(row)}
@@ -148,7 +148,7 @@ export function OrderSettlementPanel(props: OrderSettlementSlotProps) {
             <span className={MONO}>{formatMoney(refund.data.remaining, refund.data.currency)}</span>
           </span>
           <Link
-            className="text-accent hover:underline"
+            className="text-accent-text hover:underline"
             href={PAYMENT_ROUTES.refunds.ofOrder(props.orderId)}
           >
             Xem

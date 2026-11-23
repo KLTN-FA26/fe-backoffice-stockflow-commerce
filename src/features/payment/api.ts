@@ -12,6 +12,8 @@ import {
   receiptDtoSchema,
   receiptPageDtoSchema,
   receiptSummaryDtoSchema,
+  receivablePageDtoSchema,
+  receivableReportDtoSchema,
 } from "./schemas";
 
 import type {
@@ -27,6 +29,7 @@ import type {
   PaymentReceipt,
   ReceiptInput,
   ReceiptSummary,
+  Receivable,
   RefundRecordInput,
   VoidInput,
 } from "./types";
@@ -34,6 +37,8 @@ import type {
 const INSTALLMENTS = "/installments";
 const RECEIPTS = "/payment-receipts";
 const REFUNDS = "/refunds";
+const RECEIVABLES = "/reports/receivables";
+const TAX_CODE = /^(\d{10}(-\d{3})?|\d{12})$/;
 const seg = encodeURIComponent;
 
 function pageQuery(params: ListQueryParams) {
@@ -234,4 +239,46 @@ export async function voidRefundRecord(input: {
     reason: input.reason,
   });
   return orderRefundDtoSchema.parse(data);
+}
+
+/* ── Công nợ phải thu theo khách (R5-11) ─────────────────────────────── */
+
+export interface ListReceivableParams extends ListQueryParams {
+  /** Tên / mã khách / mã số thuế. */
+  search?: string;
+}
+
+/**
+ * `GET /reports/receivables` (the BE receivables report; R5-11 added `search`): one row per customer — owed, overdue,
+ * oldest due date, aging, overdue on-signing installments apart; most overdue first (overdue + signingOverdue). Mapped onto the screen's `Receivable` model; a 404 (an older BE) still
+ * sends the page back to the installment list `owing=true`.
+ */
+export async function listReceivables(
+  params: ListReceivableParams,
+  signal?: AbortSignal,
+): Promise<PaginatedResponse<Receivable>> {
+  const query = pageQuery(params);
+  if (params.search) query.set("search", params.search);
+  const { data } = await api.get<unknown>(RECEIVABLES, { params: query, signal });
+  const report = receivableReportDtoSchema.parse(data);
+  return receivablePageDtoSchema.parse({
+    ...report.rows,
+    items: report.rows.items.map((row) => ({
+      customerId: row.customerId,
+      customerName: row.customerName ?? null,
+      // The report's code is the tax code when the customer has one (10, 10-3 or 12 digits): shown once, as "MST …".
+      customerCode: row.customerCode && !TAX_CODE.test(row.customerCode) ? row.customerCode : null,
+      taxCode: row.customerCode && TAX_CODE.test(row.customerCode) ? row.customerCode : null,
+      owed: row.receivable,
+      overdue: row.overdue,
+      signingOverdue: row.signingOverdue ?? 0,
+      oldestDueOn: row.oldestDueDate ?? null,
+      aging: {
+        d0to30: row.overdue1To30 ?? 0,
+        d31to60: row.overdue31To60 ?? 0,
+        over60: (row.overdue61To90 ?? 0) + (row.overdueOver90 ?? 0),
+      },
+      installmentCount: row.openItems ?? null,
+    })),
+  });
 }

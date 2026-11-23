@@ -112,6 +112,7 @@ describe("lastChangeRequest — ý khách ở dòng lịch sử cuối có toSta
     reason,
     changedAt: at(day),
     changedBy: null,
+    changedByName: null,
   });
   it("lấy dòng CHANGES_REQUESTED cuối cùng (lịch sử cũ nhất trước)", () => {
     const history = [

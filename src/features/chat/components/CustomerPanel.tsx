@@ -78,7 +78,7 @@ export function CustomerPanel({
           return (
             <div key={context.id}>
               {href ? (
-                <Link href={href} className="text-accent hover:underline">
+                <Link href={href} className="text-accent-text hover:underline">
                   {label}
                 </Link>
               ) : (

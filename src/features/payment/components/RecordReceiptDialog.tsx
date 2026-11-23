@@ -60,7 +60,11 @@ function RecordReceiptForm({
 
   return (
     <FormDialogBody
-      title={L.title}
+      title={
+        initial.customerName
+          ? L.titleFor(initial.customerName, initial.customerCode ?? null)
+          : L.title
+      }
       description={L.description}
       submitLabel={L.submit}
       canSubmit
@@ -108,7 +112,6 @@ function RecordReceiptForm({
       </div>
       <ReceiptLinesEditor
         control={form.control}
-        register={form.register}
         setValue={form.setValue}
         errors={errors}
         choices={choices}

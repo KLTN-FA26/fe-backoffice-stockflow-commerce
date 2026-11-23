@@ -55,6 +55,8 @@ describe("NAV_GROUPS — chia tab theo docs 00 §3", () => {
       ADMIN_ROUTES.customers.list,
       ADMIN_ROUTES.customerPrices.list,
       ADMIN_ROUTES.quotes.list,
+      // L-6: người làm báo giá thấy "Đơn hàng" ở đây (bản ở nhóm Đơn hàng ẩn với họ — `unlessPermission`)
+      ADMIN_ROUTES.orders.list,
       ADMIN_ROUTES.chat.list,
       ADMIN_ROUTES.chat.canned,
       ADMIN_ROUTES.chat.agentsReport,
@@ -101,6 +103,7 @@ describe("NAV_GROUPS — chia tab theo docs 00 §3", () => {
   it("đơn treo công nợ nằm ở Thanh toán & hoá đơn — Kế toán duyệt (15 §4.3)", () => {
     expect(hrefsOf(PAYMENT_LABELS.navGroup)).toEqual([
       PAYMENT_ROUTES.installments.list,
+      PAYMENT_ROUTES.receivables,
       PAYMENT_ROUTES.receipts.list,
       PAYMENT_ROUTES.refunds.list,
       ADMIN_ROUTES.orders.creditHolds,
@@ -110,9 +113,20 @@ describe("NAV_GROUPS — chia tab theo docs 00 §3", () => {
     ]);
   });
 
-  it("mỗi trang chỉ thuộc đúng một nhóm", () => {
-    const hrefs = NAV_GROUPS.flatMap((group) => group.items.map((item) => item.href));
+  it("mỗi trang chỉ thuộc đúng một nhóm — trừ bản ẩn bằng `unlessPermission` (L-6)", () => {
+    const items = NAV_GROUPS.flatMap((group) => group.items);
+    const hrefs = items.filter((item) => !item.unlessPermission).map((item) => item.href);
     expect(new Set(hrefs).size).toBe(hrefs.length);
+    // Bản ẩn phải có bản thay thế mở bằng đúng mã đó — một người dùng không bao giờ thấy hai lần, cũng không mất mục
+    for (const hidden of items) {
+      const code = hidden.unlessPermission;
+      if (!code) continue;
+      const twin = items.find(
+        (item) =>
+          item !== hidden && item.href === hidden.href && item.anyPermission?.includes(code),
+      );
+      expect(twin).toBeDefined();
+    }
   });
 
   it("tên nhóm không trùng nhau (drill-down mở màn con theo tên nhóm)", () => {

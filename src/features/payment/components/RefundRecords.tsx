@@ -1,10 +1,10 @@
 "use client";
 
-import { Ban } from "lucide-react";
+import { Ban, History } from "lucide-react";
 
 import { PAYMENT_LABELS } from "@/constants/labels-payment";
 import { formatDateTime } from "@/lib/format/date";
-import { Card } from "@/components/shared/Card";
+import { DetailSection } from "@/components/shared/DetailSection";
 import { Button } from "@/components/ui/button";
 
 import { DateCell, MoneyCell, ReceiptStatusDot } from "./primitives";
@@ -24,12 +24,11 @@ export function RefundRecords({
   onVoid: (record: RefundRecord) => void;
 }) {
   return (
-    <Card className="space-y-3">
-      <h2 className="text-ink-primary text-sm font-semibold">{L.records}</h2>
+    <DetailSection title={L.records} icon={History}>
       {records.length === 0 ? (
         <p className="text-ink-tertiary text-[0.8125rem]">{L.noRecords}</p>
       ) : (
-        <ul className="divide-border-default divide-y text-[0.8125rem]">
+        <ul className="divide-y divide-(--table-line) text-[0.8125rem]">
           {records.map((record) => (
             <li key={record.refundRecordId} className="space-y-1 py-2">
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
@@ -60,6 +59,6 @@ export function RefundRecords({
           ))}
         </ul>
       )}
-    </Card>
+    </DetailSection>
   );
 }

@@ -11,11 +11,14 @@ import { DatePicker } from "@/components/shared/DatePicker";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { FormField, fieldA11y } from "@/components/shared/FormField";
 import { FORM_INPUT_CLASS } from "@/components/shared/form-control-classes";
+import { MoneyInput } from "@/components/shared/MoneyInput";
 import { Input } from "@/components/ui/input";
 
 import { paymentErrorMessage } from "../errors";
 import { useRecordRefund } from "../mutations";
 import { buildRefundRecordInputSchema, todayInVietnam } from "../input-schemas";
+
+import { RefundPayee } from "./RefundPayee";
 
 import type { OrderRefund, RefundRecordFormValues, RefundRecordInput } from "../types";
 
@@ -53,6 +56,7 @@ function RecordRefundForm({ refund, onClose }: { refund: OrderRefund; onClose: (
       onCancel={onClose}
       onSubmit={() => void submit()}
     >
+      <RefundPayee orderId={refund.orderId} />
       <div className="grid gap-3 sm:grid-cols-2">
         <FormField
           id="refund-amount"
@@ -63,12 +67,22 @@ function RecordRefundForm({ refund, onClose }: { refund: OrderRefund; onClose: (
             PAYMENT_LABELS.refunds.remaining + ": " + formatMoney(refund.remaining, refund.currency)
           }
         >
-          <Input
-            autoFocus
-            inputMode="numeric"
-            className={`${FORM_INPUT_CLASS} text-right tabular-nums`}
-            {...fieldA11y("refund-amount", errors.amount?.message, true)}
-            {...form.register("amount")}
+          <Controller
+            control={form.control}
+            name="amount"
+            render={({ field }) => (
+              <MoneyInput
+                name={field.name}
+                ref={field.ref}
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                suffix={refund.currency === "VND" ? "₫" : refund.currency}
+                autoFocus
+                echo
+                {...fieldA11y("refund-amount", errors.amount?.message, true)}
+              />
+            )}
           />
         </FormField>
         <FormField

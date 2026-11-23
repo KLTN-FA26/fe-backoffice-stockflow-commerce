@@ -1,9 +1,10 @@
 "use client";
 
-import { useFieldArray, useWatch } from "react-hook-form";
+import { Controller, useFieldArray, useWatch } from "react-hook-form";
 import { Plus, Trash2 } from "lucide-react";
 
-import { FORM_INPUT_CLASS } from "@/components/shared/FormField";
+import { DatePicker } from "@/components/shared/DatePicker";
+import { FORM_INPUT_CLASS, fieldA11y } from "@/components/shared/FormField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -15,8 +16,12 @@ import type { Order } from "../../types";
 
 const NUM = `${FORM_INPUT_CLASS} w-24 text-right font-[family-name:var(--font-mono)] tabular-nums`;
 
-function FieldError({ message }: { message?: string }) {
-  return message ? <p className="text-danger mt-1 text-xs">{message}</p> : null;
+function FieldError({ id, message }: { id?: string; message?: string }) {
+  return message ? (
+    <p id={id ? `${id}-error` : undefined} className="text-danger mt-1 text-xs">
+      {message}
+    </p>
+  ) : null;
 }
 
 /**
@@ -52,33 +57,42 @@ export function DeliveryScheduleEditor({
             key={field.id}
             className="border-border-default space-y-2 rounded-[var(--r-sm)] border p-3"
           >
-            <div className="flex flex-wrap items-end gap-2">
-              <span className="text-ink-secondary text-xs font-medium">Đợt {i + 1}</span>
-              <label className="text-ink-secondary text-xs">
-                Từ ngày
-                <Input
-                  type="date"
-                  {...register(`deliverySchedule.${i}.windowStart`)}
-                  aria-label={`Đợt ${i + 1} từ ngày`}
-                  className={FORM_INPUT_CLASS}
-                />
-                <FieldError message={batchErrors?.windowStart?.message} />
-              </label>
-              <label className="text-ink-secondary text-xs">
-                Đến ngày
-                <Input
-                  type="date"
-                  {...register(`deliverySchedule.${i}.windowEnd`)}
-                  aria-label={`Đợt ${i + 1} đến ngày`}
-                  className={FORM_INPUT_CLASS}
-                />
-                <FieldError message={batchErrors?.windowEnd?.message} />
-              </label>
+            <div className="flex flex-wrap items-start gap-3">
+              <span className="text-ink-secondary pt-6 text-xs font-medium">Đợt {i + 1}</span>
+              {(["windowStart", "windowEnd"] as const).map((key) => {
+                const id = `batch-${i}-${key}`;
+                const message = batchErrors?.[key]?.message;
+                const label = key === "windowStart" ? "Từ ngày" : "Đến ngày";
+                return (
+                  <div key={key} className="w-44">
+                    <label htmlFor={id} className="text-ink-secondary text-xs">
+                      {label}
+                    </label>
+                    <Controller
+                      control={control}
+                      name={`deliverySchedule.${i}.${key}`}
+                      render={({ field: date }) => (
+                        <DatePicker
+                          ref={date.ref}
+                          value={date.value ?? ""}
+                          onChange={date.onChange}
+                          onBlur={date.onBlur}
+                          clearable
+                          {...fieldA11y(id, message)}
+                          aria-label={`Đợt ${i + 1} ${label.toLowerCase()}`}
+                        />
+                      )}
+                    />
+                    <FieldError id={id} message={message} />
+                  </div>
+                );
+              })}
               {batches.fields.length > 1 && (
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
+                  className="mt-5"
                   aria-label={`Xoá đợt giao ${i + 1}`}
                   onClick={() => batches.remove(i)}
                 >
@@ -86,24 +100,36 @@ export function DeliveryScheduleEditor({
                 </Button>
               )}
             </div>
-            {lines.map((line, j) => (
-              <label
-                key={line.lineId}
-                className="text-ink-secondary flex items-center gap-2 text-[0.8125rem]"
-              >
-                <span className="w-56 truncate font-[family-name:var(--font-mono)]">
-                  {line.sku}
-                </span>
-                <Input
-                  {...register(`deliverySchedule.${i}.lines.${j}.cartons`)}
-                  aria-label={`Đợt ${i + 1} — ${line.sku} (thùng)`}
-                  inputMode="numeric"
-                  className={NUM}
-                />
-                thùng
-                <FieldError message={batchErrors?.lines?.[j]?.cartons?.message} />
-              </label>
-            ))}
+            {lines.map((line, j) => {
+              const id = `batch-${i}-line-${j}`;
+              const message = batchErrors?.lines?.[j]?.cartons?.message;
+              return (
+                <div key={line.lineId} className="text-[0.8125rem]">
+                  <div className="text-ink-secondary flex items-center gap-2">
+                    <label htmlFor={id} className="w-56 truncate">
+                      <span className="font-[family-name:var(--font-mono)]">{line.sku}</span>
+                      {line.designName && (
+                        <span className="text-ink-secondary block truncate text-xs">
+                          {line.designName}
+                        </span>
+                      )}
+                    </label>
+                    <Input
+                      {...register(`deliverySchedule.${i}.lines.${j}.cartons`)}
+                      {...fieldA11y(id, message, true)}
+                      aria-label={`Đợt ${i + 1} — ${line.sku} (thùng)`}
+                      inputMode="numeric"
+                      className={NUM}
+                    />
+                    {/* BO-UX-29: số thùng đặt của dòng ngay cạnh ô, không phải kéo xuống bảng đối chiếu. */}
+                    <span id={`${id}-hint`}>
+                      / {(line.cartons ?? 0).toLocaleString("vi-VN")} thùng
+                    </span>
+                  </div>
+                  <FieldError id={id} message={message} />
+                </div>
+              );
+            })}
             <FieldError
               message={batchErrors?.lines?.message ?? batchErrors?.lines?.root?.message}
             />

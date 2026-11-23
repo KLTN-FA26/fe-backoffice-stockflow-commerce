@@ -288,7 +288,7 @@ Các page danh sách quản trị dùng cùng cấu trúc UI sau để đồng b
    - Bên dưới toolbar có một thanh compact `Cấu hình`, không dùng card lớn nhiều khoảng trống.
    - Dùng shadcn `<Badge variant="outline">` cho từng nhóm config.
    - Summary phải tách rõ loại search:
-     - `Search chính`: query của search bar mặc định.
+     - `Tìm kiếm chính`: query của search bar mặc định.
      - `Trường search`: danh sách field mà search chính đang quét.
      - `Search trong cột`: filter nhập từ header từng cột.
      - `Cột hiển thị`: số cột đang bật / tổng cột cấu hình được.
@@ -297,8 +297,8 @@ Các page danh sách quản trị dùng cùng cấu trúc UI sau để đồng b
    - Nút `Reset` bên phải reset toàn bộ config của page.
    - Config tạm thời lưu `localStorage` theo từng page; key theo format `stockflow:<route>:config`. Khi đọc localStorage phải merge với `DEFAULT_CONFIG` để không lỗi khi schema config thay đổi.
 
-4. **Search chính vs search trong cột**
-   - Search chính là input ở toolbar, lọc rộng theo các field được chọn trong `Trường search`.
+4. **Tìm kiếm chính vs search trong cột**
+   - Tìm kiếm chính là input ở toolbar, lọc rộng theo các field được chọn trong `Trường search`.
    - `Trường search` chỉ là scope của search chính; không gọi nó là `Global search` trong UI vì dễ nhầm với search trong cột.
    - Search trong cột không render input thường trực trong header. Header chỉ hiển thị label + sort + icon filter nhỏ.
    - Click icon filter cột mở shadcn `<Popover>` chứa `<Input>` nền trắng và nút `Xoá`.

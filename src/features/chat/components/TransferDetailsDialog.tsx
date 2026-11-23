@@ -2,18 +2,52 @@
 
 import { useState } from "react";
 
+import { CHAT_TRANSFER_LABELS } from "@/constants";
 import { formatMoney } from "@/lib/format/money";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { FORM_INPUT_CLASS, FormField } from "@/components/shared/FormField";
+import { Notice } from "@/components/shared/Notice";
 
+import { transferViewFromInstructions } from "../card-view";
 import { owedOf } from "../lifecycle";
 import { useChatFailure, useSendTransferDetails } from "../mutations";
+import { useTransferInstructions } from "../queries";
+
+import { TransferDetails } from "./TransferDetails";
 
 import type { ChatCustomerOverview } from "../schemas";
 
+/** Bản xem trước: đúng các trường thẻ sẽ mang (BO-UX-45), đọc từ nguồn BE vẽ thẻ (`transfer-instructions`). */
+function TransferPreview({ installmentId }: { installmentId: string }) {
+  const preview = useTransferInstructions(installmentId);
+  const L = CHAT_TRANSFER_LABELS;
+  return (
+    <section
+      aria-label={L.previewTitle}
+      aria-busy={preview.isFetching}
+      className="border-border-default bg-bg-subtle space-y-2 rounded-[var(--r-sm)] border p-3 text-[0.8125rem]"
+    >
+      <h3 className="text-ink-secondary text-xs font-medium">{L.previewTitle}</h3>
+      {!installmentId ? (
+        <p className="text-ink-tertiary">{L.pickFirst}</p>
+      ) : preview.isPending ? (
+        <p className="text-ink-tertiary">{L.previewLoading}</p>
+      ) : preview.isError ? (
+        <Notice tone="warning">{L.previewError}</Notice>
+      ) : (
+        <TransferDetails
+          view={transferViewFromInstructions(preview.data)}
+          noQrNote={L.previewNoQr}
+        />
+      )}
+    </section>
+  );
+}
+
 /**
- * Thẻ thông tin chuyển khoản (S18, 16 BR-06 — cách duy nhất số tài khoản tới khách): chọn một đợt chưa trả,
- * tuỳ chọn "nhắc công nợ" (PAYMENT_REMINDER).
+ * Thẻ thông tin chuyển khoản (S18, 16 BR-06 — cách duy nhất số tài khoản tới khách): chọn một đợt chưa trả, xem trước
+ * đúng thẻ khách sẽ nhận (BO-UX-45), tuỳ chọn "nhắc công nợ" (PAYMENT_REMINDER). Số còn phải thu của đợt là
+ * `outstanding` của BE (BE-6, đã trừ phần giảm), không phải `amount − paidAmount`.
  */
 export function TransferDetailsDialog({
   conversationId,
@@ -40,8 +74,8 @@ export function TransferDetailsDialog({
       {open && (
         <FormDialogBody
           title="Gửi thông tin chuyển khoản"
-          description="Hệ thống đăng thẻ có ngân hàng, số tài khoản, số tiền còn phải trả và nội dung chuyển khoản."
-          submitLabel="Gửi thẻ"
+          description="Kiểm tra thẻ bên dưới trước khi gửi: khách sẽ chuyển khoản theo đúng các thông tin này."
+          submitLabel="Gửi thẻ cho khách"
           canSubmit={!!installmentId}
           isPending={send.isPending}
           error={error}
@@ -75,8 +109,9 @@ export function TransferDetailsDialog({
               checked={reminder}
               onChange={(event) => setReminder(event.target.checked)}
             />
-            Nhắc công nợ
+            Nhắc công nợ (gửi dạng thẻ nhắc thanh toán)
           </label>
+          <TransferPreview installmentId={installmentId} />
         </FormDialogBody>
       )}
     </FormDialog>

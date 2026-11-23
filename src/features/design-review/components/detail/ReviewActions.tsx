@@ -14,11 +14,15 @@ import {
   isDesignErrorCode,
 } from "@/features/design-review/errors";
 import { allowedReviewActions } from "@/features/design-review/lifecycle";
+import { useDesignArtifacts } from "@/features/design-review/queries";
 import { designDecisionInputSchema } from "@/features/design-review/schemas";
+import { currentSubmission } from "@/features/design-review/selectors";
 
 import { DETAIL_ACTION_CLASS } from "@/components/shared/DetailSection";
 import { Notice } from "@/components/shared/Notice";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 
 import { ApproveDialog } from "./ApproveDialog";
 import { ReturnDialog } from "./ReturnDialog";
@@ -49,6 +53,12 @@ export function ReviewActions({
   const [returnHint, setReturnHint] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [staleNotice, setStaleNotice] = useState<string | null>(null);
+  const [openNext, setOpenNext] = useState(true);
+  // Cùng khoá với khối "File đã gửi": không gọi thêm.
+  const artifacts = useDesignArtifacts(design.id);
+  const printFileId = currentSubmission(artifacts.data ?? []).current.find(
+    (artifact) => artifact.role === "PRINT_READY",
+  )?.artifactId;
   const actions = allowedReviewActions(design, can);
   if (actions.length === 0) return null;
 
@@ -70,6 +80,7 @@ export function ReviewActions({
     decide.decide(
       { id: design.id, version: reviewedVersion, ...parsed.data },
       {
+        openNext: decide.fromQueue && openNext,
         onError: (failure) => {
           const message = designReviewErrorMessage(failure);
           if (isDesignErrorCode(failure, DESIGN_STALE_CODES)) {
@@ -120,7 +131,22 @@ export function ReviewActions({
           {staleNotice}
         </Notice>
       )}
+      {decide.fromQueue && (
+        // BO-UX-9: duyệt liền tay — sau quyết định sang thẳng thiết kế kế tiếp của hàng đợi.
+        <div className="flex items-start gap-2 pt-1">
+          <Checkbox
+            id="review-open-next"
+            checked={openNext}
+            onCheckedChange={(checked) => setOpenNext(checked === true)}
+          />
+          <Label htmlFor="review-open-next" className="text-ink-secondary text-xs leading-snug">
+            {DESIGN_REVIEW_LABELS.openNext}
+          </Label>
+        </div>
+      )}
       <ApproveDialog
+        designId={design.id}
+        printFileId={printFileId}
         open={dialog === "approve"}
         onOpenChange={(next) => !next && setDialog(null)}
         pending={decide.isPending}

@@ -35,6 +35,13 @@ export const cancellationRequestDtoSchema = z.object({
   /** Phần trăm tiền đã thu giữ lại khi duyệt (BigDecimal → số). */
   retainedPercent: z.number().nullish(),
   version: z.number().int().nullish(),
+  /** R5-6 (optional until the BE ships it): what the decision needs to know about the order. */
+  orderNumber: z.string().nullish(),
+  customerName: z.string().nullish(),
+  orderTotal: z.number().nullish(),
+  paidTotal: z.number().nullish(),
+  orderStatus: z.string().nullish(),
+  printingStarted: z.boolean().nullish(),
 });
 
 export const cancellationRequestPageDtoSchema = bePageSchema(cancellationRequestDtoSchema);
@@ -52,6 +59,13 @@ export const cancellationRequestSchema = z.object({
   decidedAt: z.string().nullable(),
   decisionNote: z.string().nullable(),
   retainedPercent: z.number().nullable(),
+  /** R5-6, null khi BE chưa gửi. */
+  orderNumber: z.string().nullable(),
+  customerName: z.string().nullable(),
+  orderTotal: z.number().nullable(),
+  paidTotal: z.number().nullable(),
+  orderStatus: z.string().nullable(),
+  printingStarted: z.boolean().nullable(),
 });
 
 export type CancellationRequestDto = z.infer<typeof cancellationRequestDtoSchema>;

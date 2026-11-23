@@ -71,7 +71,7 @@ function ProductionRow({ po }: { po: ProductionOrder }) {
       <Factory className="text-ink-tertiary size-3.5" aria-hidden="true" />
       <Link
         href={ADMIN_ROUTES.productionOrders.detail(po.productionOrderId)}
-        className="text-accent font-[family-name:var(--font-mono)] font-medium hover:underline"
+        className="text-accent-text font-[family-name:var(--font-mono)] font-medium hover:underline"
       >
         {po.code}
       </Link>

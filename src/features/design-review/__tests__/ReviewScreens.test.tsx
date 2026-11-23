@@ -95,7 +95,9 @@ describe("Hàng đợi duyệt thiết kế", () => {
     });
     renderScreen(<ReviewQueueList />, "PRODUCTION_COORDINATOR");
     expect(await screen.findByText("Tên từ BE")).toBeInTheDocument();
-    expect(screen.getByText(`KH ${CUSTOMER_ID.slice(0, 8)}`)).toBeInTheDocument();
+    // Không tên, không mã: nhãn trung tính, không mảnh UUID (BO-UX-6)
+    expect(screen.getAllByText("Khách hàng", { selector: "span" }).length).toBeGreaterThan(0);
+    expect(document.body.textContent).not.toContain(`KH ${CUSTOMER_ID.slice(0, 8)}`);
     // V20261213000200 gives the coordinator no customer-customers:READ: no lookup by id.
     expect(api.get.mock.calls.filter((c) => c[0] === `/customers/${CUSTOMER_ID}`)).toHaveLength(0);
   });

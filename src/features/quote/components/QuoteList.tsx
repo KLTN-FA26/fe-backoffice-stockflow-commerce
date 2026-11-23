@@ -8,6 +8,11 @@ import { FileSignature, Plus } from "lucide-react";
 
 import { ADMIN_ROUTES, QUOTE_API_STATUSES, QUOTE_PERMISSIONS, STORAGE_KEYS } from "@/constants";
 
+import {
+  columnSummaryItem,
+  columnToolbarProps,
+  useColumnVisibility,
+} from "@/hooks/use-column-visibility";
 import { useServerList } from "@/hooks/use-server-list";
 import { useCan } from "@/lib/auth";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
@@ -24,7 +29,14 @@ import {
 import { Button } from "@/components/ui/button";
 
 import { QUOTE_COPY, quoteStatusLabel } from "./copy";
-import { STATUS_OPTIONS, SORTABLE, COLUMNS } from "./list-columns";
+import {
+  buildQuoteColumns,
+  QUOTE_COLUMN_LABELS,
+  QUOTE_COLUMNS,
+  QUOTE_LOCKED_COLUMNS,
+  SORTABLE,
+  STATUS_OPTIONS,
+} from "./list-columns";
 
 function QuoteListContent() {
   const router = useRouter();
@@ -46,6 +58,14 @@ function QuoteListContent() {
       sort: sortActive ? `${sortKey},${direction}` : undefined,
     },
     { enabled: canRead },
+  );
+  const columnState = useColumnVisibility(STORAGE_KEYS.adminQuotesColumns, QUOTE_COLUMNS, {
+    locked: QUOTE_LOCKED_COLUMNS,
+  });
+  // R5-2: BE chưa trả `total` cho dòng nào của trang → không có cột "Tổng có thuế" (không hiện cột toàn "—").
+  const showTotal = query.data?.items.some((row) => row.total != null) ?? false;
+  const columns = buildQuoteColumns(showTotal).filter((column) =>
+    columnState.visible.some((key) => key === column.key),
   );
   const hasFilters = list.hasBaseFilters || !!customerId;
   const clearAll = () => {
@@ -78,9 +98,10 @@ function QuoteListContent() {
           onToggleStatus={list.toggleStatus}
           onClearStatuses={() => void filters.setStatus([])}
           hasStatusFilter={filters.status.length > 0}
+          {...columnToolbarProps(columnState, QUOTE_COLUMN_LABELS, QUOTE_COLUMNS)}
           summaryItems={[
             {
-              label: "Search chính",
+              label: "Tìm kiếm chính",
               value: filters.q.trim() ? `“${filters.q}”` : "Chưa dùng",
               active: filters.q.trim() !== "",
               onClear: () => void filters.setQ(""),
@@ -101,9 +122,13 @@ function QuoteListContent() {
                 void filters.setPage(1);
               },
             },
+            columnSummaryItem(columnState),
           ]}
-          onResetAll={clearAll}
-          resetDisabled={!hasFilters && !filters.sort}
+          onResetAll={() => {
+            clearAll();
+            columnState.reset();
+          }}
+          resetDisabled={!hasFilters && !filters.sort && !columnState.hasColumnConfig}
           actions={createButton}
         />
       ) : (
@@ -112,7 +137,7 @@ function QuoteListContent() {
       <ServerTableBody
         query={query}
         canRead={canRead}
-        columns={COLUMNS}
+        columns={columns}
         rowKey={(row) => row.id}
         onRowClick={(row) => router.push(ADMIN_ROUTES.quotes.detail(row.id))}
         flagRow={(row) => row.status === "CHANGES_REQUESTED" || row.status === "ACCEPTED"}

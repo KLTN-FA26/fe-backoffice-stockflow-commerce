@@ -12,7 +12,7 @@ import { lineAmount, previewTotals, tierPrice } from "@/features/quote/selectors
 
 import type { UseFormReturn } from "react-hook-form";
 import type { PreviewItem } from "@/features/quote/selectors";
-import type { Quote, QuoteFormValues, QuoteTier } from "@/features/quote/types";
+import type { CustomerSku, Quote, QuoteFormValues, QuoteTier } from "@/features/quote/types";
 
 const NUM = "tabular-nums font-[family-name:var(--font-mono)]";
 
@@ -32,10 +32,13 @@ export function QuoteTotalsPreview({
   form,
   customerId,
   quote,
+  customerSkus = [],
 }: {
   form: UseFormReturn<QuoteFormValues>;
   customerId: string;
   quote?: Quote;
+  /** SKU riêng của khách: `unitsPerCarton` / `taxRate` (R5-4, khi BE trả) cho dòng chưa lưu (BO-UX-16). */
+  customerSkus?: readonly CustomerSku[];
 }) {
   const [lines, plateFees, hasShippingFee, shippingFee] = useWatch({
     control: form.control,
@@ -53,15 +56,20 @@ export function QuoteTotalsPreview({
   });
 
   const saved = new Map(quote?.lines.map((line) => [line.sku, line]) ?? []);
+  const bySku = new Map(customerSkus.map((sku) => [sku.sku.trim().toUpperCase(), sku]));
   const items: (PreviewItem | null)[] = (lines ?? []).map((line, index) => {
     const known = saved.get(skus[index] ?? "");
     const own = toTiers(line.tiers);
     const tiers = own.length ? own : (prices[index]?.data?.tiers ?? []);
     const cartons = Number(line.cartons);
     const unitPrice = tierPrice(tiers, cartons);
-    const perCarton = known?.unitsPerCarton ?? null;
+    const customerSku = bySku.get(skus[index] ?? "");
+    const perCarton = known?.unitsPerCarton ?? customerSku?.unitsPerCarton ?? null;
     if (unitPrice === null || !perCarton) return null;
-    return { amount: lineAmount(cartons, perCarton, unitPrice), taxRate: known?.taxRate ?? null };
+    return {
+      amount: lineAmount(cartons, perCarton, unitPrice),
+      taxRate: known?.taxRate ?? customerSku?.taxRate ?? null,
+    };
   });
 
   const feeRate = (kind: "PLATE_FEE" | "SHIPPING_FEE", sku?: string) =>

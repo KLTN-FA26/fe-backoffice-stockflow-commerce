@@ -2,7 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import { allowedReviewActions } from "../lifecycle";
 import { designArtifactListSchema, designDecisionInputSchema, designDtoSchema } from "../schemas";
-import { currentSubmission, historyNote, isDecidable, labelOf, waitingSince } from "../selectors";
+import {
+  currentSubmission,
+  historyActor,
+  historyNote,
+  isDecidable,
+  labelOf,
+  waitingSince,
+} from "../selectors";
 import { ARTIFACTS, PENDING_DESIGN } from "./fixtures";
 
 import type { PermissionCode } from "@/lib/auth/me-permissions";
@@ -145,5 +152,12 @@ describe("historyNote (DesignReviewService.java:321, DesignDecisionType.java)", 
     ["không có ghi chú", "RETURNED", null, null],
   ])("%s", (_, decision, notes, expected) => {
     expect(historyNote({ decision, notes })).toBe(expected);
+  });
+});
+
+describe("historyActor (BO-UX-6)", () => {
+  it("no actor → 'Hệ thống'; an actor id is never shown as a UUID piece", () => {
+    expect(historyActor(null)).toBe("Hệ thống");
+    expect(historyActor("0c000000-0000-4000-8000-000000000001")).toBeNull();
   });
 });

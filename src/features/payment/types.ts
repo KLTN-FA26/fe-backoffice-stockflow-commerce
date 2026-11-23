@@ -13,6 +13,7 @@ import type {
   orderRefundDtoSchema,
   receiptDtoSchema,
   receiptSummaryDtoSchema,
+  receivableDtoSchema,
   refundRecordDtoSchema,
 } from "./schemas";
 
@@ -23,6 +24,7 @@ export type PaymentReceipt = z.infer<typeof receiptDtoSchema>;
 export type ReceiptSummary = z.infer<typeof receiptSummaryDtoSchema>;
 export type OrderRefund = z.infer<typeof orderRefundDtoSchema>;
 export type RefundRecord = z.infer<typeof refundRecordDtoSchema>;
+export type Receivable = z.infer<typeof receivableDtoSchema>;
 
 export type ReceiptInputSchema = ReturnType<typeof buildReceiptInputSchema>;
 export type ReceiptFormValues = z.input<ReceiptInputSchema>;

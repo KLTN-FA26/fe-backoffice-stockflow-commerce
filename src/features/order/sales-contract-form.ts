@@ -7,6 +7,7 @@
 import { z } from "zod";
 
 import { CONTRACT_MILESTONES } from "@/constants";
+import { RETURN_LIMITS } from "@/constants/returns";
 
 import type { SalesContract } from "./sales-contract-schemas";
 
@@ -131,6 +132,9 @@ export type InstallmentFormValues = ContractFormValues["paymentPlan"][number];
  * BE as 0 days (due the next morning), so default it to 3 here.
  */
 export const DEFAULT_ON_SIGNING_DUE_DAYS = 3;
+
+/** Thời hạn khiếu nại khi hợp đồng không ghi số ngày: hạn đổi / trả mặc định của BE (`ReturnPolicy`). */
+export const DEFAULT_RETURN_WINDOW_DAYS = RETURN_LIMITS.windowDays;
 const onSigningDefault = (entry: { milestone: string; dueDays: string }) =>
   entry.milestone === "ON_SIGNING" && !entry.dueDays;
 
@@ -194,7 +198,7 @@ export function toContractForm(
 ): ContractFormValues {
   return {
     freeSampleRounds: String(contract.freeSampleRounds),
-    returnWindowDays: String(contract.returnWindowDays ?? 7),
+    returnWindowDays: String(contract.returnWindowDays ?? DEFAULT_RETURN_WINDOW_DAYS),
     deliverySchedule: contract.deliverySchedule.map((batch) => ({
       windowStart: batch.windowStart ?? "",
       windowEnd: batch.windowEnd ?? "",

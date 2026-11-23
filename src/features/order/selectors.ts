@@ -8,6 +8,7 @@ import {
   ORDER_HISTORY_LABELS,
   ORDER_REMAINDER_CLOSURE_HISTORY_REASON_LABELS,
 } from "@/constants";
+import { daysBetween } from "@/lib/date-range";
 import { currencyFractionDigits } from "@/lib/format";
 
 import type { OrderCancellationReasonCode } from "@/constants";
@@ -184,4 +185,33 @@ export function cancelConsequence(
     default:
       return null;
   }
+}
+
+/**
+ * Hạn trả và số ngày quá hạn của một đợt (BO-UX-24 / BO-UX-28): hạn là `dueDate` của BE (đợt và kế hoạch thanh toán
+ * của hợp đồng đã ký, R5-12 giữ tên này); ưu tiên `daysOverdue` của BE, không có thì đếm từ `dueDate` khi `overdue`, tới
+ * hôm nay (giờ Việt Nam, `today` = `YYYY-MM-DD`). Không đoán khi BE không cho hạn (đợt chưa tới mốc).
+ */
+export function installmentDue(
+  installment: {
+    dueDate?: string | null;
+    daysOverdue?: number | null;
+    overdue?: boolean | null;
+    status?: string;
+  },
+  today: string,
+): { dueDate: string | null; daysOverdue: number } {
+  const dueDate = installment.dueDate ?? null;
+  if (installment.daysOverdue != null) return { dueDate, daysOverdue: installment.daysOverdue };
+  if (!dueDate || installment.overdue === false || installment.status === "PAID")
+    return { dueDate, daysOverdue: 0 };
+  return { dueDate, daysOverdue: Math.max(0, daysBetween(dueDate.slice(0, 10), today)) };
+}
+
+/**
+ * BO-UX-22: đơn Nháp / Chờ ký hợp đồng chưa có việc kho, giao hàng, chứng từ giao — thẻ của các việc đó chưa có nghĩa.
+ * Trạng thái lạ (UNKNOWN) không bị ẩn gì: không đoán.
+ */
+export function isPastContract(status: OrderReadStatus): boolean {
+  return status !== "Draft" && status !== "Pending Contract";
 }

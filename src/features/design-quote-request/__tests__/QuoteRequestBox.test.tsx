@@ -1,9 +1,10 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { toast } from "@/components/shared/Toast";
 import { apiError, bePage, mockApi, renderScreen } from "@/test/api-screen";
+import "@/test/jsdom-popover";
 
 import { DesignQuoteRequestList, ProjectQuoteRequestList } from "..";
 import { quoteRequestActions } from "../lifecycle";
@@ -71,6 +72,20 @@ function projectRequest(overrides: Record<string, unknown> = {}) {
 }
 
 const CONVERSATIONS = "/chat/conversations";
+/** Nút của dòng mang tên dòng (BO-UX-11): "Lập báo giá — Túi giấy kraft". */
+const CREATE = /^Lập báo giá — /;
+/** Mở menu "…" của dòng rồi trả về các nút trong menu (popover, ngoài bảng). */
+async function openMenu(user: ReturnType<typeof userEvent.setup>, name = "Túi giấy kraft") {
+  await user.click(await screen.findByRole("button", { name: `Thao tác khác — ${name}` }));
+  return screen.findByRole("dialog");
+}
+/** Mở popover Bộ lọc của toolbar (Radix Select bên trong cần các hàm con trỏ jsdom không có). */
+async function openFilters(user: ReturnType<typeof userEvent.setup>) {
+  Element.prototype.hasPointerCapture = () => false;
+  Element.prototype.releasePointerCapture = () => undefined;
+  Element.prototype.scrollIntoView = () => undefined;
+  await user.click(screen.getByRole("button", { name: "Bộ lọc" }));
+}
 const closureUrl = `/design-quote-requests/${REQUEST_ID}/closure`;
 
 type Params = Record<string, unknown> | undefined;
@@ -107,14 +122,21 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
       return within(row);
     };
     await screen.findByText("Ly giấy");
-    await user.click(rowOf("Túi giấy kraft").getByRole("button", { name: "Đóng" }));
+    // Nút chính của dòng là "Lập báo giá"; "Đóng" nằm trong menu "…" — tên mang tên dòng.
+    expect(rowOf("Túi giấy kraft").getByRole("button", { name: "Lập báo giá — Túi giấy kraft" }));
+    const menu = await openMenu(user);
+    await user.click(within(menu).getByRole("button", { name: "Đóng — Túi giấy kraft" }));
     const dialog = await screen.findByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: "Đóng" }));
-    // The open dialog hides the table from the accessibility tree (modal): look through it.
-    const closeOf = (name: string) =>
-      rowOf(name).getByRole("button", { name: "Đóng", hidden: true });
-    await waitFor(() => expect(closeOf("Túi giấy kraft")).toBeDisabled());
-    expect(closeOf("Ly giấy")).toBeEnabled();
+    // The modal confirm stays open while pending: open each row's menu through it (fireEvent ignores pointer-events).
+    const closeOf = async (name: string) => {
+      fireEvent.click(
+        rowOf(name).getByRole("button", { name: `Thao tác khác — ${name}`, hidden: true }),
+      );
+      return screen.findByRole("button", { name: `Đóng — ${name}`, hidden: true });
+    };
+    await waitFor(async () => expect(await closeOf("Túi giấy kraft")).toBeDisabled());
+    expect(await closeOf("Ly giấy")).toBeEnabled();
   });
 
   it("Đóng gọi POST …/closure rồi tải lại; nút ẩn khi CLOSED", async () => {
@@ -131,12 +153,17 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
     });
     renderScreen(<DesignQuoteRequestList />, "SALES_STAFF");
     const user = userEvent.setup();
-    await user.click(await screen.findByRole("button", { name: "Đóng" }));
+    const menu = await openMenu(user);
+    await user.click(within(menu).getByRole("button", { name: "Đóng — Túi giấy kraft" }));
     const dialog = await screen.findByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: "Đóng" }));
     await waitFor(() => expect(api.post).toHaveBeenCalledWith(closureUrl));
     await waitFor(() => expect(callsTo(api.get, "/design-quote-requests")).toHaveLength(2));
-    await waitFor(() => expect(screen.queryByRole("button", { name: "Đóng" })).toBeNull());
+    // CLOSED: chỉ còn "Mở chat" làm nút chính, không còn menu "…" (không còn gì khác để làm).
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: /^Thao tác khác/ })).toBeNull(),
+    );
+    expect(screen.getByRole("button", { name: "Mở chat — Túi giấy kraft" })).toBeEnabled();
   });
 
   it("thiếu quyền UPDATE hoặc đã CLOSED thì không có hành động Đóng", () => {
@@ -158,7 +185,18 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
       },
     });
     renderScreen(<DesignQuoteRequestList />, "SALES_STAFF");
-    expect(await screen.findByRole("button", { name: "Lập báo giá" })).toBeDisabled();
+    const user = userEvent.setup();
+    // Chưa lập được: nút chính là "Mở chat"; "Lập báo giá" tắt nằm trong menu kèm lý do, lý do cũng ở icon cạnh nút.
+    expect(await screen.findByRole("button", { name: "Mở chat — Túi giấy kraft" })).toBeEnabled();
+    expect(
+      screen.getByRole("button", {
+        name: "Lập báo giá chưa được — Túi giấy kraft: Lập được sau khi duyệt",
+      }),
+    ).toBeInTheDocument();
+    const menu = await openMenu(user);
+    expect(
+      within(menu).getByRole("button", { name: "Lập báo giá — Túi giấy kraft" }),
+    ).toBeDisabled();
     const hints = quoteRequestActions(
       request({ designStatus: "PENDING_REVIEW" }) as never,
       () => true,
@@ -173,8 +211,9 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
       get: { "/design-quote-requests": () => bePage([request({ customerSku: undefined })]) },
     });
     renderScreen(<DesignQuoteRequestList />, "SALES_STAFF");
-    expect(await screen.findByRole("button", { name: "Lập báo giá" })).toBeDisabled();
-    expect(screen.getByText("Thiết kế chưa có SKU riêng")).toBeInTheDocument();
+    const menu = await openMenu(userEvent.setup());
+    expect(within(menu).getByRole("button", { name: CREATE })).toBeDisabled();
+    expect(within(menu).getByText("Thiết kế chưa có SKU riêng")).toBeInTheDocument();
   });
 
   it("Mở chat: tìm GET /chat/conversations?contextKind=DESIGN&contextId=… rồi chuyển /admin/chat/{id}", async () => {
@@ -185,7 +224,9 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
       },
     });
     renderScreen(<DesignQuoteRequestList />, "SALES_STAFF");
-    await userEvent.setup().click(await screen.findByRole("button", { name: "Mở chat" }));
+    const user = userEvent.setup();
+    const menu = await openMenu(user);
+    await user.click(within(menu).getByRole("button", { name: "Mở chat — Túi giấy kraft" }));
     await waitFor(() => expect(push).toHaveBeenCalledWith(`/admin/chat/${CONVERSATION_ID}`));
     const query = (callsTo(api.get, CONVERSATIONS)[0]?.[1] as { params: URLSearchParams }).params;
     expect(query.get("contextKind")).toBe("DESIGN");
@@ -203,7 +244,9 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
       },
     });
     renderScreen(<DesignQuoteRequestList />, "SALES_STAFF");
-    await userEvent.setup().click(await screen.findByRole("button", { name: "Mở chat" }));
+    const user = userEvent.setup();
+    const menu = await openMenu(user);
+    await user.click(within(menu).getByRole("button", { name: "Mở chat — Túi giấy kraft" }));
     await waitFor(() =>
       expect(info).toHaveBeenCalledWith("Khách chưa có hội thoại về thiết kế này"),
     );
@@ -217,7 +260,7 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
       post: { [quoteUrl]: () => ({ id: QUOTE_ID, quoteNumber: "Q-1", status: "DRAFT" }) },
     });
     renderScreen(<DesignQuoteRequestList />, "SALES_STAFF");
-    await userEvent.setup().click(await screen.findByRole("button", { name: "Lập báo giá" }));
+    await userEvent.setup().click(await screen.findByRole("button", { name: CREATE }));
     await waitFor(() => expect(push).toHaveBeenCalledWith(`/admin/quotes/${QUOTE_ID}/edit`));
     expect(api.post).toHaveBeenCalledWith(quoteUrl);
     // Không còn tìm hội thoại chat để lập báo giá.
@@ -232,7 +275,7 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
       post: { [quoteUrl]: () => ({ id: QUOTE_ID, status: "DRAFT" }) },
     });
     renderScreen(<ProjectQuoteRequestList />, "SALES_STAFF");
-    await userEvent.setup().click(await screen.findByRole("button", { name: "Lập báo giá" }));
+    await userEvent.setup().click(await screen.findByRole("button", { name: CREATE }));
     await waitFor(() => expect(push).toHaveBeenCalledWith(`/admin/quotes/${QUOTE_ID}/edit`));
     expect(api.post).toHaveBeenCalledWith(quoteUrl);
     await waitFor(() => expect(callsTo(api.get, "/design-project-quote-requests")).toHaveLength(2));
@@ -246,7 +289,7 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
       },
     });
     renderScreen(<DesignQuoteRequestList />, "SALES_STAFF");
-    await userEvent.setup().click(await screen.findByRole("button", { name: "Lập báo giá" }));
+    await userEvent.setup().click(await screen.findByRole("button", { name: CREATE }));
     await waitFor(() => expect(push).toHaveBeenCalledWith(`/admin/quotes/${QUOTE_ID}`));
   });
 
@@ -262,8 +305,8 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
       },
     });
     renderScreen(<DesignQuoteRequestList />, "SALES_STAFF");
-    await userEvent.setup().click(await screen.findByRole("button", { name: "Lập báo giá" }));
-    await waitFor(() => expect(screen.getByRole("button", { name: "Lập báo giá" })).toBeDisabled());
+    await userEvent.setup().click(await screen.findByRole("button", { name: CREATE }));
+    await waitFor(() => expect(screen.getByRole("button", { name: CREATE })).toBeDisabled());
     release({ id: QUOTE_ID, status: "DRAFT" });
     await waitFor(() => expect(push).toHaveBeenCalled());
   });
@@ -287,7 +330,7 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
         },
       });
       renderScreen(<DesignQuoteRequestList />, "SALES_STAFF");
-      await userEvent.setup().click(await screen.findByRole("button", { name: "Lập báo giá" }));
+      await userEvent.setup().click(await screen.findByRole("button", { name: CREATE }));
       await waitFor(() => expect(error).toHaveBeenCalledWith(message));
       expect(push).not.toHaveBeenCalled();
       // The row was stale (the button shows only on an OPEN, ready row): reload it.
@@ -306,7 +349,7 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
       },
     });
     renderScreen(<ProjectQuoteRequestList />, "SALES_STAFF");
-    await userEvent.setup().click(await screen.findByRole("button", { name: "Lập báo giá" }));
+    await userEvent.setup().click(await screen.findByRole("button", { name: CREATE }));
     await waitFor(() => expect(callsTo(api.get, "/design-project-quote-requests")).toHaveLength(2));
     expect(push).not.toHaveBeenCalled();
   });
@@ -322,7 +365,7 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
       },
     });
     renderScreen(<DesignQuoteRequestList />, "SALES_STAFF");
-    await userEvent.setup().click(await screen.findByRole("button", { name: "Lập báo giá" }));
+    await userEvent.setup().click(await screen.findByRole("button", { name: CREATE }));
     await waitFor(() => expect(push).toHaveBeenCalledWith(`/admin/quotes/${QUOTE_ID}`));
   });
 
@@ -337,7 +380,7 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
       },
     });
     renderScreen(<DesignQuoteRequestList />, "SALES_STAFF");
-    await userEvent.setup().click(await screen.findByRole("button", { name: "Lập báo giá" }));
+    await userEvent.setup().click(await screen.findByRole("button", { name: CREATE }));
     await waitFor(() => expect(error).toHaveBeenCalledWith("Không tìm thấy bản ghi."));
     expect(push).not.toHaveBeenCalled();
   });
@@ -353,7 +396,7 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
       },
     });
     renderScreen(<DesignQuoteRequestList />, "SALES_STAFF");
-    await userEvent.setup().click(await screen.findByRole("button", { name: "Lập báo giá" }));
+    await userEvent.setup().click(await screen.findByRole("button", { name: CREATE }));
     await waitFor(() =>
       expect(error).toHaveBeenCalledWith("Bạn không có quyền thực hiện thao tác này."),
     );
@@ -386,11 +429,8 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
     });
     renderScreen(<DesignQuoteRequestList />, "SALES_STAFF", "?page=3");
     await screen.findByText("Túi giấy kraft");
-    // Radix Select cần các hàm con trỏ mà jsdom không có.
-    Element.prototype.hasPointerCapture = () => false;
-    Element.prototype.releasePointerCapture = () => undefined;
-    Element.prototype.scrollIntoView = () => undefined;
     const user = userEvent.setup();
+    await openFilters(user);
     await user.click(screen.getByRole("combobox", { name: /Trạng thái/ }));
     await user.click(await screen.findByRole("option", { name: "Đã đóng" }));
     await waitFor(() => {
@@ -424,10 +464,8 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
     });
     renderScreen(<ProjectQuoteRequestList />, "SALES_STAFF", "?page=3");
     await screen.findByText("Bộ ly Tết");
-    Element.prototype.hasPointerCapture = () => false;
-    Element.prototype.releasePointerCapture = () => undefined;
-    Element.prototype.scrollIntoView = () => undefined;
     const user = userEvent.setup();
+    await openFilters(user);
     await user.click(screen.getByRole("combobox", { name: /Trạng thái/ }));
     await user.click(await screen.findByRole("option", { name: "Đã đóng" }));
     await waitFor(() => {

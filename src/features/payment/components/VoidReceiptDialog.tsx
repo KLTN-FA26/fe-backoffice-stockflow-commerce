@@ -19,6 +19,19 @@ import { voidInputSchema } from "../input-schemas";
 
 import type { PaymentReceipt, VoidFormValues, VoidInput } from "../types";
 
+/** Các đơn có tiền trong phiếu (theo dòng phiếu), kèm có đợt khi ký hay không. */
+function receiptOrders(receipt: PaymentReceipt): { orderNumber: string; onSigning: boolean }[] {
+  const byOrder = new Map<string, boolean>();
+  for (const line of receipt.lines) {
+    if (!line.orderNumber) continue;
+    byOrder.set(
+      line.orderNumber,
+      (byOrder.get(line.orderNumber) ?? false) || line.milestone === "ON_SIGNING",
+    );
+  }
+  return [...byOrder].map(([orderNumber, onSigning]) => ({ orderNumber, onSigning }));
+}
+
 const L = PAYMENT_LABELS.voidDialog;
 
 function VoidReceiptForm({ receipt, onClose }: { receipt: PaymentReceipt; onClose: () => void }) {
@@ -29,6 +42,9 @@ function VoidReceiptForm({ receipt, onClose }: { receipt: PaymentReceipt; onClos
     defaultValues: { reason: "", holdOrders: false },
   });
   const { errors } = form.formState;
+  const orders = receiptOrders(receipt);
+  // Chỉ đợt khi ký làm đơn đã xác nhận quay lại thiếu tiền (15 BR-13): đó là các đơn có thể bị treo.
+  const heldOrders = orders.filter((order) => order.onSigning).map((order) => order.orderNumber);
   const submit = form.handleSubmit((values) =>
     voidReceipt.mutate(
       { id: receipt.receiptId, ...values },
@@ -48,6 +64,22 @@ function VoidReceiptForm({ receipt, onClose }: { receipt: PaymentReceipt; onClos
       onCancel={onClose}
       onSubmit={() => void submit()}
     >
+      {orders.length > 0 && (
+        // BO-UX-40: các đơn có tiền trong phiếu — biết trước đơn nào có thể bị treo, không đợi BE từ chối.
+        <div className="text-[0.8125rem]">
+          <p className="text-ink-secondary text-xs font-medium">{L.ordersTitle}</p>
+          <ul className="text-ink-primary mt-1 space-y-0.5">
+            {orders.map((order) => (
+              <li key={order.orderNumber}>
+                <span className="font-mono">{order.orderNumber}</span>
+                {order.onSigning && (
+                  <span className="text-ink-secondary"> · có đợt thanh toán khi ký</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <FormField id="void-reason" label={L.reason} required error={errors.reason?.message}>
         <Textarea
           autoFocus
@@ -72,10 +104,10 @@ function VoidReceiptForm({ receipt, onClose }: { receipt: PaymentReceipt; onClos
             )}
           />
           <Label htmlFor="void-hold-orders" className="text-[0.8125rem]">
-            {L.holdOrders}
+            {heldOrders.length > 0 ? L.holdOrdersFor(heldOrders.join(", ")) : L.holdOrders}
           </Label>
         </div>
-        <p className="text-ink-tertiary text-xs">{L.holdHint}</p>
+        <p className="text-ink-secondary text-xs">{L.holdHint}</p>
       </div>
     </FormDialogBody>
   );
