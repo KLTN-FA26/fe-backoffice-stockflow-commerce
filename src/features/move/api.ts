@@ -1,9 +1,14 @@
-import { MOVE_API, MOVE_MESSAGES } from "@/constants/move";
+import { MOVE_API, MOVE_LIMITS, MOVE_MESSAGES, MOVE_SOURCE_STOCK_STATUS } from "@/constants/move";
 
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 
-import { moveCreateInput, stockMoveDto, stockRowListDto, warehouseLayoutDto } from "./schemas";
+import {
+  moveCreateInput,
+  stockMoveDto,
+  warehouseLayoutDto,
+  warehouseStockRowPageDto,
+} from "./schemas";
 
 import type { z } from "zod";
 import type { MoveCreateInput, StockMove, StockRow, WarehouseLayout } from "./types";
@@ -35,10 +40,20 @@ export async function createMove(input: MoveCreateInput, requestId: string): Pro
   return parseContract(stockMoveDto, data);
 }
 
-/** `GET /inventory/stock-items?sku=` — rows of one SKU by location (inventory-stock-items:READ). */
-export async function listStockRows(sku: string, signal?: AbortSignal): Promise<StockRow[]> {
-  const { data } = await api.get<unknown>(MOVE_API.stockItems, { params: { sku }, signal });
-  return parseContract(stockRowListDto, data);
+/**
+ * `GET /inventory/warehouses/{id}/stock-items?sku=` — rows of one SKU by location in the tab warehouse
+ * (inventory-stock-items:READ, one page). Spec 2026-11-22 §5.8: the move screen works in one warehouse.
+ */
+export async function listStockRows(
+  warehouseId: string,
+  sku: string,
+  signal?: AbortSignal,
+): Promise<StockRow[]> {
+  const { data } = await api.get<unknown>(MOVE_API.stockItems(warehouseId), {
+    params: { sku, status: MOVE_SOURCE_STOCK_STATUS, page: 0, size: MOVE_LIMITS.stockRowsSize },
+    signal,
+  });
+  return parseContract(warehouseStockRowPageDto, data).items;
 }
 
 /** `GET /warehouses/{id}/layout` — the whole map (warehouse-locations:READ). */

@@ -5,7 +5,7 @@ import { MOVE_LIMITS, MOVE_MESSAGES } from "@/constants/move";
 import { beUuid, requiredString } from "@/lib/validation/primitives";
 import { skuSchema } from "@/lib/validation/sku";
 
-import { sameLocation, sameWarehouse } from "./selectors";
+import { sameLocation, sameWarehouse, warehouseOf } from "./selectors";
 
 // Source: backend develop `MoveStockRequest` (sku @ValidSku, lotNumber @Size(64), from/to @NotBlank
 // @Size(64), quantity @Min(1) @Max(1_000_000)). `requestId` is the idempotency key and is added by
@@ -42,6 +42,24 @@ export const moveCreateInput = z
     }
   });
 
+/**
+ * Form trong tab theo kho (spec 2026-11-22 §5.8): cả hai vị trí phải thuộc kho đang làm việc — prefix kho là đoạn mã
+ * vị trí trước dấu gạch (06 BR-10). Docs 11 BR-01; UI-only — Backend phải re-check (WarehouseScope.requireLocation).
+ */
+export const moveInWarehouseInput = (prefix: string) =>
+  moveCreateInput.superRefine((value, context) => {
+    for (const field of ["fromLocation", "toLocation"] as const) {
+      const code = value[field];
+      if (code && warehouseOf(code) !== prefix.toUpperCase()) {
+        context.addIssue({
+          code: "custom",
+          path: [field],
+          message: MOVE_MESSAGES.otherWarehouse(prefix),
+        });
+      }
+    }
+  });
+
 // BE `StockMoveResponse`; lotNumber is omitted when null (Jackson NON_NULL).
 export const stockMoveDto = z.object({
   movementId: beUuid,
@@ -70,6 +88,31 @@ export const stockRowDto = z.object({
   status: z.string(),
 });
 export const stockRowListDto = z.array(stockRowDto);
+
+// BE `WarehouseStockItemResponse` (GET /inventory/warehouses/{id}/stock-items?sku=, SCRUM-462): một trang, id là
+// `stockItemId`, không có expiryDate — chuẩn hoá về `StockRow` của form.
+const warehouseStockRowDto = z
+  .object({
+    stockItemId: beUuid,
+    sku: z.string(),
+    locationCode: z.string(),
+    lotNumber: z.string().nullish(),
+    onHand: z.number().int().nonnegative().nullish(),
+    reserved: z.number().int().nonnegative().nullish(),
+    available: z.number().int().nonnegative().nullish(),
+    hiddenDuringCount: z.boolean().default(false),
+    status: z.string(),
+  })
+  .transform(({ stockItemId, onHand, reserved, available, ...row }) =>
+    stockRowDto.parse({
+      ...row,
+      id: stockItemId,
+      onHand: onHand ?? undefined,
+      reserved: reserved ?? undefined,
+      available: available ?? undefined,
+    }),
+  );
+export const warehouseStockRowPageDto = z.object({ items: z.array(warehouseStockRowDto) });
 
 // BE `WarehouseLayoutResponse`: only what the destination suggestions need. A NON_STORAGE area has
 // no locationCode / usable (omitted), so both stay optional.

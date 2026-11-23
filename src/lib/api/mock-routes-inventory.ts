@@ -727,6 +727,7 @@ export function registerInventoryMockRoutes(): void {
   registerCycleCountMockRoutes();
   registerQuarantineMockRoutes();
   registerMockRoute("POST", MOVE_API.move, createMove);
-  // Mock không có tồn theo vị trí: danh sách rỗng (BE trả mảng rỗng khi SKU chưa có tồn).
-  registerMockRoute("GET", MOVE_API.stockItems, () => ok([]));
+  // `GET /inventory/stock-items?sku=` (mọi kho): mock không có tồn theo vị trí → danh sách rỗng. Màn Di chuyển giờ đọc
+  // tồn theo kho của tab (`/inventory/warehouses/{id}/stock-items`, registerInventoryStockMockRoutes).
+  registerMockRoute("GET", "/inventory/stock-items", () => ok([]));
 }

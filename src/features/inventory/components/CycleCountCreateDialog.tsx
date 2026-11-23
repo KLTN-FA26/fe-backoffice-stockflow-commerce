@@ -3,20 +3,16 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { CYCLE_COUNT_CREATE_LABELS, CYCLE_COUNT_ROUTES } from "@/constants/cycle-count";
+import { WORKSPACE_PATHS } from "@/constants";
+import { CYCLE_COUNT_CREATE_LABELS } from "@/constants/cycle-count";
 import { CYCLE_COUNT_PERMISSIONS } from "@/constants/permissions";
 
 import { useCan } from "@/lib/auth";
 import { useWarehouseZones } from "@/lib/references/warehouse-layout";
-import { useWarehouseOptions } from "@/lib/references/warehouse-options";
-import { useAppStore } from "@/lib/store/use-app-store";
+import { useWorkspaceHref, useWorkspaceWarehouse } from "@/lib/workspace";
 
 import { DialogScrollArea } from "@/components/shared/DialogScrollArea";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
-import { FormField, fieldA11y } from "@/components/shared/FormField";
-import { FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
-import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
-import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { initialPlanForm, toPlanInput } from "../cycle-count-plan-form";
 import { planCycleCountError } from "../cycle-count-errors";
@@ -39,9 +35,10 @@ export function CycleCountCreateDialog({ onClose }: { onClose: () => void }) {
   const router = useRouter();
   const canCreate = useCan(CYCLE_COUNT_PERMISSIONS.create);
   const plan = usePlanCycleCount();
-  const current = useAppStore((state) => state.warehouseId);
-  const warehouses = useWarehouseOptions();
-  const [values, setValues] = useState<PlanFormValues>(() => initialPlanForm(current ?? ""));
+  // Kho cố định = kho của tab theo kho (spec 2026-11-22 §5.8) — không cho chọn kho khác
+  const warehouse = useWorkspaceWarehouse();
+  const href = useWorkspaceHref();
+  const [values, setValues] = useState<PlanFormValues>(() => initialPlanForm(warehouse.id));
   const [error, setError] = useState<string | undefined>();
   const [serverError, setServerError] = useState<string | null>(null);
   const zones = useWarehouseZones(values.warehouseId);
@@ -63,7 +60,7 @@ export function CycleCountCreateDialog({ onClose }: { onClose: () => void }) {
     plan.mutate(toPlanInput(values), {
       onSuccess: ({ count }) => {
         onClose();
-        router.push(CYCLE_COUNT_ROUTES.detail(count.id));
+        router.push(href(WORKSPACE_PATHS.cycleCount(count.id)));
       },
       onError: (failure) => setServerError(planCycleCountError(failure).detail),
     });
@@ -82,25 +79,12 @@ export function CycleCountCreateDialog({ onClose }: { onClose: () => void }) {
         onCancel={onClose}
       >
         <DialogScrollArea>
-          <FormField id="plan-warehouse" label={C.warehouse} required>
-            <Select
-              value={values.warehouseId}
-              onValueChange={(warehouseId) =>
-                edit({ warehouseId, zoneIds: [], assignedUserId: "" })
-              }
-            >
-              <SelectTrigger {...fieldA11y("plan-warehouse")} className={FORM_SELECT_CLASS}>
-                <SelectValue placeholder={C.warehousePlaceholder} />
-              </SelectTrigger>
-              <TitledSelectContent title={C.warehouse}>
-                {(warehouses.data ?? []).map((warehouse) => (
-                  <SelectItem key={warehouse.warehouseId} value={warehouse.warehouseId}>
-                    {warehouse.name}
-                  </SelectItem>
-                ))}
-              </TitledSelectContent>
-            </Select>
-          </FormField>
+          <p className="text-ink-secondary text-[0.8125rem]">
+            {C.warehouse}:{" "}
+            <span className="text-ink-primary font-medium">
+              {warehouse.prefix} · {warehouse.name}
+            </span>
+          </p>
           <CycleCountScopeFields
             values={values}
             zones={zones.data ?? []}

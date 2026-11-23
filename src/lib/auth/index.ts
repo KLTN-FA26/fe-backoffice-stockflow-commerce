@@ -13,4 +13,6 @@ export {
   useMyPermissions,
 } from "./me-permissions";
 export type { MyPermissions, PermissionAction, PermissionCode } from "./me-permissions";
+export { assignedScopeOf, canEnterWarehouse, useAssignedWarehouses } from "./assigned-warehouses";
+export type { AssignedScope, AssignedWarehouse, AssignedWarehouses } from "./assigned-warehouses";
 export { RoleSwitcher } from "./components/RoleSwitcher";

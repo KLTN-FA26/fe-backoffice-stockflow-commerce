@@ -10,6 +10,7 @@ import { INVENTORY_PERMISSIONS, WAREHOUSE_LOCATION_PERMISSIONS } from "@/constan
 
 import {
   failure,
+  MOVE_TAB_WAREHOUSE,
   moveEndpoint,
   movePermissions,
   renderMove,
@@ -21,6 +22,13 @@ const server = setupServer();
 const moveUrl = moveEndpoint(MOVE_API.move);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const stockUpdate = INVENTORY_PERMISSIONS.stockUpdate;
+// Tồn theo kho của tab (BE InventoryController `GET /inventory/warehouses/{id}/stock-items`, trang)
+const stockUrl = moveEndpoint(MOVE_API.stockItems(MOVE_TAB_WAREHOUSE.id));
+const stockPage = (items: unknown[]) =>
+  HttpResponse.json({
+    success: true,
+    data: { items, page: 0, size: 200, totalElements: items.length, totalPages: 1 },
+  });
 
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
 beforeEach(() => {
@@ -122,6 +130,24 @@ describe("move form — submit", () => {
     expect(submit()).toBeDisabled();
   });
 
+  it("chặn vị trí thuộc kho khác kho của tab (docs 11 BR-01), không gửi lệnh", async () => {
+    const sent = vi.fn();
+    server.use(
+      http.post(moveUrl, async ({ request }) => {
+        sent(await request.json());
+        return failure(500, "UNEXPECTED");
+      }),
+    );
+    renderMove(<MoveCreate />);
+    await userEvent.type(await screen.findByLabelText(/^SKU/), "CUP-PP-500");
+    await userEvent.type(screen.getByLabelText(/Từ vị trí/), "HN-A01-1-A");
+    await userEvent.type(screen.getByLabelText(/Đến vị trí/), "HN-PACK01");
+    await userEvent.type(screen.getByLabelText(/Số lượng/), "1");
+    expect(await screen.findAllByText(MOVE_MESSAGES.otherWarehouse("HCM"))).not.toHaveLength(0);
+    expect(submit()).toBeDisabled();
+    expect(sent).not.toHaveBeenCalled();
+  });
+
   it("includes the lot when one is entered", async () => {
     const sent = vi.fn();
     server.use(
@@ -214,7 +240,7 @@ describe("move form — idempotency key", () => {
 
 describe("move form — stock aids (optional, separately permissioned)", () => {
   const row = {
-    id: crypto.randomUUID(),
+    stockItemId: crypto.randomUUID(),
     sku: "CUP-PP-500",
     locationCode: "HCM-A01-1-A",
     lotNumber: "LOT-7",
@@ -227,9 +253,11 @@ describe("move form — stock aids (optional, separately permissioned)", () => {
   it("lists the SKU's stock and fills source + lot from the chosen row; warns above the movable quantity", async () => {
     server.use(
       movePermissions([stockUpdate, INVENTORY_PERMISSIONS.stockRead]),
-      http.get(moveEndpoint(MOVE_API.stockItems), ({ request }) => {
+      http.get(stockUrl, ({ request }) => {
         expect(new URL(request.url).searchParams.get("sku")).toBe("CUP-PP-500");
-        return HttpResponse.json({ success: true, data: [row] });
+        // Chỉ tồn AVAILABLE — như `/inventory/stock-items` cũ (findAvailableBySku); tồn khác không chuyển được
+        expect(new URL(request.url).searchParams.get("status")).toBe("AVAILABLE");
+        return stockPage([row]);
       }),
     );
     renderMove(<MoveCreate />);
@@ -250,17 +278,9 @@ describe("move form — stock aids (optional, separately permissioned)", () => {
     await waitFor(() => expect(submit()).toBeEnabled());
   });
 
-  it("suggests usable locations of the source's warehouse from the layout", async () => {
+  it("suggests usable locations of the tab warehouse from its layout (no warehouse lookup)", async () => {
     server.use(
       movePermissions([stockUpdate, WAREHOUSE_LOCATION_PERMISSIONS.read]),
-      http.get(moveEndpoint("/warehouses"), () =>
-        HttpResponse.json({
-          success: true,
-          data: {
-            items: [{ id: "11111111-1111-4111-8111-111111111111", prefix: "HCM", name: "Kho HCM" }],
-          },
-        }),
-      ),
       http.get(moveEndpoint("/warehouses/11111111-1111-4111-8111-111111111111/layout"), () =>
         HttpResponse.json({
           success: true,
@@ -299,19 +319,16 @@ describe("move form — source slot under a cycle count (SCRUM-146)", () => {
     const sent = vi.fn();
     server.use(
       movePermissions([stockUpdate, INVENTORY_PERMISSIONS.stockRead]),
-      http.get(moveEndpoint(MOVE_API.stockItems), () =>
-        HttpResponse.json({
-          success: true,
-          data: [
-            {
-              id: crypto.randomUUID(),
-              sku: "CUP-PP-500",
-              locationCode: "HCM-A01-1-A",
-              status: "AVAILABLE",
-              hiddenDuringCount: true,
-            },
-          ],
-        }),
+      http.get(stockUrl, () =>
+        stockPage([
+          {
+            stockItemId: crypto.randomUUID(),
+            sku: "CUP-PP-500",
+            locationCode: "HCM-A01-1-A",
+            status: "AVAILABLE",
+            hiddenDuringCount: true,
+          },
+        ]),
       ),
       http.post(moveUrl, async ({ request }) => {
         sent(await request.json());

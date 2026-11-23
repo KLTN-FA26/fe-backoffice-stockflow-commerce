@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { ADMIN_ROUTES } from "@/constants";
-import { CYCLE_COUNT_LABELS, CYCLE_COUNT_ROUTES } from "@/constants/cycle-count";
+import { ADMIN_ROUTES, WORKSPACE_PATHS } from "@/constants";
+import { CYCLE_COUNT_LABELS } from "@/constants/cycle-count";
 import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
 import { QUARANTINE_LABELS } from "@/constants/quarantine";
 
@@ -129,18 +129,26 @@ describe("buildBreadcrumbItems", () => {
     ]);
   });
 
-  it("kiểm kê: danh sách và chi tiết phiếu nằm dưới menu Kiểm kê", () => {
-    const root = { label: "Trang quản trị", href: "/admin" };
-    expect(buildBreadcrumbItems(CYCLE_COUNT_ROUTES.list)).toEqual([
-      root,
-      { label: CYCLE_COUNT_LABELS.title, href: undefined },
+  it("kiểm kê trong tab theo kho: danh sách và chi tiết phiếu nằm dưới trang Kiểm kê của kho", () => {
+    const labels = (path: string) => buildBreadcrumbItems(path).map((item) => item.label);
+    expect(labels(ADMIN_ROUTES.warehouseMap.page("HCM", WORKSPACE_PATHS.cycleCounts))).toEqual([
+      "Trang quản trị",
+      "Kho & bản đồ",
+      "HCM",
+      CYCLE_COUNT_LABELS.title,
     ]);
     const id = "d0000001-0000-4000-8000-00000000000a";
-    expect(buildBreadcrumbItems(CYCLE_COUNT_ROUTES.detail(id))).toEqual([
-      root,
-      { label: CYCLE_COUNT_LABELS.title, href: CYCLE_COUNT_ROUTES.list },
-      { label: id },
+    const detail = buildBreadcrumbItems(
+      ADMIN_ROUTES.warehouseMap.page("HCM", WORKSPACE_PATHS.cycleCount(id)),
+    );
+    expect(detail.map((item) => item.label)).toEqual([
+      "Trang quản trị",
+      "Kho & bản đồ",
+      "HCM",
+      CYCLE_COUNT_LABELS.title,
+      id,
     ]);
+    expect(detail[3]?.href).toBe("/admin/warehouse-map/HCM/cycle-counts");
   });
 
   it("cách ly thùng có breadcrumb riêng, không lẫn với Điều chỉnh tồn", () => {
@@ -155,6 +163,9 @@ describe("buildBreadcrumbItems", () => {
       { label: "Trang quản trị", href: "/admin" },
       { label: "Lịch sử biến động", href: undefined },
     ]);
-    expect(buildBreadcrumbItems("/admin/moves").at(-1)?.label).toBe("Di chuyển nội bộ");
+    expect(
+      buildBreadcrumbItems(ADMIN_ROUTES.warehouseMap.page("HCM", WORKSPACE_PATHS.moves)).at(-1)
+        ?.label,
+    ).toBe("Di chuyển nội bộ");
   });
 });

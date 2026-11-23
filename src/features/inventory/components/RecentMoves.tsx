@@ -18,25 +18,25 @@ import { buildMovementColumns } from "./inventory-columns";
 const MOVEMENT_COLUMNS = buildMovementColumns();
 
 /**
- * Các lần chuyển vị trí gần đây — sổ kho lọc `type=MOVE` (BE `GET /inventory/movements`,
+ * Các lần chuyển vị trí gần đây của một kho — sổ kho lọc `type=MOVE` + `warehouseId` (BE `GET /inventory/movements`,
  * inventory-stock-movements:READ). Không có quyền đọc sổ kho thì chỉ hiện ghi chú, không gọi API.
  */
-export function RecentMoves() {
+export function RecentMoves({ warehouseId }: { warehouseId: string }) {
   const permissions = useMyPermissions();
   // Nothing while the permissions load: a user who may read the ledger must not see "no access".
   if (permissions.isPending) return null;
   if (!hasPermission(permissions.data, INVENTORY_PERMISSIONS.movementRead)) {
     return <RecentMovesUnavailable />;
   }
-  return <RecentMovesList />;
+  return <RecentMovesList warehouseId={warehouseId} />;
 }
 
 function RecentMovesUnavailable() {
   return <p className="text-ink-secondary text-sm">{MOVE_LABELS.recentUnavailable}</p>;
 }
 
-function RecentMovesList() {
-  const query = useMovements({ page: 0, size: MOVE_LIMITS.recentSize, type: "MOVE" });
+function RecentMovesList({ warehouseId }: { warehouseId: string }) {
+  const query = useMovements({ page: 0, size: MOVE_LIMITS.recentSize, type: "MOVE", warehouseId });
   return (
     <section
       aria-label={MOVE_LABELS.recentTitle}

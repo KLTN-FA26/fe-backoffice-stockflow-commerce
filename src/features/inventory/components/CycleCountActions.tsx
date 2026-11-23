@@ -7,14 +7,15 @@ import { useRef, useState } from "react";
 import {
   CYCLE_COUNT_ACTION,
   CYCLE_COUNT_LABELS,
-  CYCLE_COUNT_ROUTES,
   CYCLE_COUNT_STATUS,
 } from "@/constants/cycle-count";
+import { WORKSPACE_PATHS } from "@/constants";
 import { INVENTORY_ROUTES } from "@/constants/inventory";
 import { INVENTORY_PERMISSIONS } from "@/constants/permissions";
 import { STOCK_ADJUSTMENT_STATUS } from "@/constants/statuses";
 
 import { usePermissionChecker } from "@/lib/auth";
+import { useWorkspaceHref } from "@/lib/workspace";
 
 import { Button } from "@/components/ui/button";
 
@@ -46,6 +47,7 @@ export function CycleCountActions({
   recountLineIds: readonly string[];
 }) {
   const router = useRouter();
+  const href = useWorkspaceHref();
   const can = usePermissionChecker();
   const actions = allowedCycleCountActions(count.status, can);
   const submit = useSubmitCycleCount(count.id);
@@ -72,7 +74,7 @@ export function CycleCountActions({
       if (action === CYCLE_COUNT_ACTION.RECOUNT) {
         // Phiếu cũ giữ nguyên; người quản lý được đưa sang phiếu kiểm mù mới.
         const next = await recount.mutateAsync({ lineIds: [...recountLineIds], note });
-        router.push(CYCLE_COUNT_ROUTES.detail(next.id));
+        router.push(href(WORKSPACE_PATHS.cycleCount(next.id)));
       }
       close();
     } catch (failure: unknown) {

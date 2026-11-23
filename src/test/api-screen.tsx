@@ -15,7 +15,7 @@ import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 import { useAuthStore } from "@/lib/auth/auth-store";
 
-import type { PermissionCode } from "@/lib/auth";
+import type { AssignedWarehouse, MyPermissions, PermissionCode } from "@/lib/auth";
 
 /** Quyền theo resource BE liên quan đến các màn trong bộ test. */
 export const ROLE_PERMISSIONS = {
@@ -196,13 +196,20 @@ export function apiError(
 export function mockApi(
   role: TestRole,
   routes: { get?: RouteTable; post?: RouteTable; put?: RouteTable } = {},
+  /** Phạm vi dữ liệu + kho được gán trả về ở `/identity/me/permissions` (BE #394). Mặc định `ALL`. */
+  me: { dataScope?: MyPermissions["dataScope"]; warehouses?: AssignedWarehouse[] } = {},
 ) {
   const wrap =
     (table: RouteTable | undefined, method: string) =>
     async (url: string, bodyOrConfig?: unknown, config?: { params?: unknown }) => {
       if (method === "GET" && url === "/identity/me/permissions") {
         return {
-          data: { roles: [role], permissions: [...ROLE_PERMISSIONS[role]], dataScope: "ALL" },
+          data: {
+            roles: [role],
+            permissions: [...ROLE_PERMISSIONS[role]],
+            dataScope: me.dataScope ?? "ALL",
+            ...(me.warehouses ? { warehouses: me.warehouses } : {}),
+          },
         };
       }
       const handler = table?.[url];

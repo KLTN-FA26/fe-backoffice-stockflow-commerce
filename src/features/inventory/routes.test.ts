@@ -24,4 +24,12 @@ describe("Inventory routes exist in the App Router tree", () => {
   ])("%s → %s", (_screen, route) => {
     expect(existsSync(pageFile(route))).toBe(true);
   });
+
+  // Kiểm kê trong tab theo kho (spec 2026-11-22) — route group `(operations)` không có trên URL
+  it.each([
+    ["cycle count list in the workspace", "cycle-counts"],
+    ["cycle count detail in the workspace", "cycle-counts/[id]"],
+  ])("%s → /admin/warehouse-map/[prefix]/%s", (_screen, rest) => {
+    expect(existsSync(pageFile(`admin/warehouse-map/[prefix]/(operations)/${rest}`))).toBe(true);
+  });
 });

@@ -3,24 +3,26 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "cn";
-import { Gauge, Lightbulb, Map as MapIcon, Warehouse as WarehouseIcon } from "lucide-react";
+import { Gauge, Warehouse as WarehouseIcon } from "lucide-react";
 
 import {
   ADMIN_ROUTES,
-  PUTAWAY_TASK_PERMISSIONS,
   UI_LABELS,
   WAREHOUSE_CAPACITY_PERMISSIONS,
   WAREHOUSE_PERMISSIONS,
 } from "@/constants";
-import { useCan } from "@/lib/auth";
+import { canEnterWarehouse, useAssignedWarehouses, usePermissionChecker } from "@/lib/auth";
 
 import { prefixFromPath } from "@/features/warehouse-map/workspace";
 
 import { ITEM_ACTIVE, ITEM_IDLE, NAV_ROW } from "@/components/backoffice/SidebarNavCollapsed";
 import { SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 
+import { matchWorkspacePage, WORKSPACE_PAGES } from "./workspace-pages";
+
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
+import type { WorkspacePage } from "./workspace-pages";
 
 const W = UI_LABELS.warehouseMap.workspace;
 const CATALOG = ADMIN_ROUTES.warehouses.list;
@@ -53,32 +55,55 @@ function Row({
   );
 }
 
+function GroupTitle({ children }: { children: ReactNode }) {
+  return (
+    <SidebarMenuItem className="px-3 pt-2 pb-0.5">
+      <p className="text-ink-tertiary text-[0.6875rem] font-medium">{children}</p>
+    </SidebarMenuItem>
+  );
+}
+
 /**
- * Màn con của tab "Kho & bản đồ" trên sidebar (thay danh sách item mặc định). Chọn kho ở trang Danh mục
- * kho, không ở sidebar: chưa vào kho nào → chỉ Danh mục kho, Bảng sức chứa + gợi ý; đang ở `/admin/warehouse-map/
- * {prefix}/…` → các trang của kho đó (tên kho + đổi kho nằm trên breadcrumb).
+ * Màn con của tab "Kho & bản đồ" trên sidebar (thay danh sách item mặc định). Chọn kho ở trang Danh mục kho, không ở
+ * sidebar: chưa vào kho nào → chỉ Danh mục kho, Bảng sức chứa + gợi ý; đang ở `/admin/warehouse-map/{prefix}/…` → các
+ * trang của kho đó theo `WORKSPACE_PAGES`, chia nhóm Vận hành / Bản đồ (spec 2026-11-22 §5.6). Kho không được gán → bỏ
+ * các trang `assignedOnly`, chỉ còn bản đồ (06: bản đồ không giới hạn theo kho được gán).
  */
 export function WarehouseNavPanel() {
   const pathname = usePathname();
   const prefix = prefixFromPath(pathname, ADMIN_ROUTES.warehouseMap.root);
-  const canCatalog = useCan(WAREHOUSE_PERMISSIONS.viewPage);
-  const canCapacity = useCan(WAREHOUSE_CAPACITY_PERMISSIONS.viewPage);
-  // Gợi ý vị trí đọc bin gợi ý của nhiệm vụ cất hàng (`GET /putaway-tasks/{id}`) — cần quyền màn cất hàng
-  const canSlotting = useCan(PUTAWAY_TASK_PERMISSIONS.viewPage);
+  const can = usePermissionChecker();
+  const assigned = useAssignedWarehouses();
+  const canCatalog = can(WAREHOUSE_PERMISSIONS.viewPage);
+  const canCapacity = can(WAREHOUSE_CAPACITY_PERMISSIONS.viewPage);
   const pages = prefix
-    ? [
-        { href: ADMIN_ROUTES.warehouseMap.of(prefix), label: W.pages.map, icon: MapIcon },
-        ...(canSlotting
-          ? [
-              {
-                href: ADMIN_ROUTES.warehouseMap.slotting(prefix),
-                label: W.pages.slotting,
-                icon: Lightbulb,
-              },
-            ]
-          : []),
-      ]
+    ? WORKSPACE_PAGES.filter(
+        (page) =>
+          can(page.permission) && (!page.assignedOnly || canEnterWarehouse(assigned, prefix)),
+      )
     : [];
+  const rest = prefix ? pathname.split("/").slice(4) : [];
+  const activePath = matchWorkspacePage(rest)?.path ?? (rest.length === 0 ? "" : null);
+  const group = (key: WorkspacePage["group"]) => pages.filter((page) => page.group === key);
+  const renderGroup = (key: WorkspacePage["group"]) => {
+    const rows = group(key);
+    if (!prefix || rows.length === 0) return null;
+    return (
+      <>
+        <GroupTitle>{W.groups[key]}</GroupTitle>
+        {rows.map((page) => (
+          <Row
+            key={page.path}
+            href={ADMIN_ROUTES.warehouseMap.page(prefix, page.path)}
+            active={activePath === page.path}
+            icon={page.icon}
+          >
+            {page.label}
+          </Row>
+        ))}
+      </>
+    );
+  };
   return (
     <>
       {!prefix && (
@@ -86,11 +111,8 @@ export function WarehouseNavPanel() {
           <p className="text-ink-tertiary text-[0.6875rem] leading-snug">{W.pickHint}</p>
         </SidebarMenuItem>
       )}
-      {pages.map((page) => (
-        <Row key={page.href} href={page.href} active={pathname === page.href} icon={page.icon}>
-          {page.label}
-        </Row>
-      ))}
+      {renderGroup("operations")}
+      {renderGroup("map")}
       {canCatalog && (
         <Row href={CATALOG} active={pathname.startsWith(CATALOG)} icon={WarehouseIcon}>
           {UI_LABELS.warehouseMap.listTitle}

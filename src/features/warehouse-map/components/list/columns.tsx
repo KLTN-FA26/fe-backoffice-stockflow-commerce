@@ -13,6 +13,7 @@ import {
 import { formatNumber } from "@/lib/format";
 
 import { CELL, codeCell, ToneDot, textCell } from "@/components/shared/column-helpers";
+import { Badge } from "@/components/ui/badge";
 
 import type { ColumnDef } from "@/components/shared/DataTable";
 import type { Warehouse } from "@/features/warehouse-map/types";
@@ -23,12 +24,34 @@ const L = UI_LABELS.warehouseMap;
 export const formatMapSize = (row: Pick<Warehouse, "mapWidth" | "mapHeight">) =>
   `${formatNumber(row.mapWidth)} × ${formatNumber(row.mapHeight)} m`;
 
-/** Cột danh mục kho; nút "Mở bản đồ" chỉ khi được xem bản đồ (`warehouse-locations:READ`). */
-export function buildWarehouseColumns({ canOpenMap }: { canOpenMap: boolean }) {
+/**
+ * Cột danh mục kho; nút "Mở bản đồ" chỉ khi được xem bản đồ (`warehouse-locations:READ`). Kho không được gán có nhãn
+ * "Không được gán" (spec 2026-11-22 §5.3) — vẫn mở được bản đồ, vì bản đồ không giới hạn theo kho được gán (06).
+ */
+export function buildWarehouseColumns({
+  canOpenMap,
+  isAssigned = () => true,
+}: {
+  canOpenMap: boolean;
+  isAssigned?: (prefix: string) => boolean;
+}) {
   const col = L.column;
   const columns: ColumnDef<Warehouse>[] = [
     codeCell<Warehouse>(C.PREFIX, col.prefix, (row) => row.prefix),
-    textCell<Warehouse>(C.NAME, col.name, (row) => row.name, { color: "primary" }),
+    {
+      key: C.NAME,
+      header: col.name,
+      cell: (row) => (
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="text-ink-primary truncate">{row.name}</span>
+          {!isAssigned(row.prefix) && (
+            <Badge variant="outline" className="shrink-0">
+              {L.workspace.notAssignedBadge}
+            </Badge>
+          )}
+        </span>
+      ),
+    },
     textCell<Warehouse>(C.ADDRESS, col.address, (row) => row.address),
     {
       key: C.MAP_SIZE,

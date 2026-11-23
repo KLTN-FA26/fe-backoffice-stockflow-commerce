@@ -87,12 +87,16 @@ export const movementListInput = z.object({
   sku: z.string().optional(),
   location: z.string().optional(),
   type: z.enum(STOCK_MOVEMENT_TYPES).optional(),
+  // BE `GET /inventory/movements?warehouseId=` — lịch sử gần đây của kho trong tab theo kho (spec 2026-11-22)
+  warehouseId: z.string().optional(),
 });
 
-export const adjustmentListInput = movementListInput.omit({ type: true }).extend({
-  status: z.enum(STOCK_ADJUSTMENT_STATUSES).optional(),
-  sort: z.string().optional(),
-});
+export const adjustmentListInput = movementListInput
+  .omit({ type: true, warehouseId: true })
+  .extend({
+    status: z.enum(STOCK_ADJUSTMENT_STATUSES).optional(),
+    sort: z.string().optional(),
+  });
 
 export function inventoryPageDto<T extends z.ZodType>(item: T) {
   return z.object({
