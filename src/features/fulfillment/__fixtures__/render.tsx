@@ -30,6 +30,10 @@ import type { PermissionCode } from "@/lib/auth";
 /** Người đăng nhập trong test = một bộ mã quyền (FE không đọc tên vai trò để quyết định quyền). */
 export interface TestIdentity {
   permissions: readonly PermissionCode[];
+  /** Phạm vi dữ liệu của `GET /identity/me/permissions` (mặc định ALL — không giới hạn kho). */
+  dataScope?: "WAREHOUSE" | "ALL";
+  /** Kho được gán khi `dataScope` = WAREHOUSE. */
+  warehouses?: readonly { id: string; prefix: string }[];
 }
 
 /** Đọc task + hàng chờ / phiên đóng gói (seed: nhân viên kho, quản lý kho). */
@@ -85,7 +89,8 @@ export function mockFulfillmentApi(
           data: {
             roles: ["TEST"],
             permissions: [...identity.permissions],
-            dataScope: "ALL",
+            dataScope: identity.dataScope ?? "ALL",
+            ...(identity.warehouses ? { warehouses: [...identity.warehouses] } : {}),
           },
         };
       }

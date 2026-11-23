@@ -1,12 +1,12 @@
 "use client";
 
 import { WORKSPACE_PATHS } from "@/constants";
-import { WorkspaceRedirect } from "@/lib/workspace";
 import { useCartonCheckSession } from "@/features/fulfillment/carton-check-queries";
 
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 
 import { FulfillmentLoadError } from "../FulfillmentLoadError";
+import { TaskWorkspaceRedirect } from "../TaskWorkspaceRedirect";
 
 /**
  * Link cũ `/admin/packing/{id}` → trạm kiểm thùng trong tab theo kho (spec 2026-11-22 §5.5). Kho đọc từ phiên kiểm thùng
@@ -24,7 +24,7 @@ export function CartonCheckRedirect({ id }: { id: string }) {
     );
   if (!query.data) return <PageSkeleton variant="detail" />;
   return (
-    <WorkspaceRedirect
+    <TaskWorkspaceRedirect
       warehouseId={query.data.warehouseId}
       path={WORKSPACE_PATHS.packingTask(id)}
     />

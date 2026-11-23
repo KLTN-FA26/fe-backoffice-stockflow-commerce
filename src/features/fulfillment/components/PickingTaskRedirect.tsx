@@ -1,13 +1,13 @@
 "use client";
 
 import { WORKSPACE_PATHS } from "@/constants";
-import { WorkspaceRedirect } from "@/lib/workspace";
 import { useFulfillmentTask } from "@/features/fulfillment/queries";
 
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 
 import { CartonCheckRedirect } from "./carton-check/CartonCheckRedirect";
 import { FulfillmentLoadError } from "./FulfillmentLoadError";
+import { TaskWorkspaceRedirect } from "./TaskWorkspaceRedirect";
 
 import type { FulfillmentScope } from "./primitives";
 
@@ -40,8 +40,9 @@ function PickingRedirect({ id }: { id: string }) {
     );
   if (!query.data) return <PageSkeleton variant="detail" />;
   return (
-    <WorkspaceRedirect
+    <TaskWorkspaceRedirect
       warehouseId={query.data.warehouseId}
+      locationCode={query.data.stagingLocationCode}
       path={WORKSPACE_PATHS.pickingTask(id)}
     />
   );

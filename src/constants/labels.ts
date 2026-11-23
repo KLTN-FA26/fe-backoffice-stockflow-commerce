@@ -175,6 +175,10 @@ export const UI_LABELS = {
     notFoundTitle: "Không tìm thấy task xuất kho",
     // BE trả 404 (không phải 403) khi task không được gán cho người gọi
     notFoundDescription: "Task không tồn tại, hoặc không được gán cho bạn nên bạn không xem được.",
+    // Link cũ tới task mà BE không trả kho (`warehouseId` null) — không biết mở trong tab của kho nào
+    noWarehouseTitle: "Task chưa gắn kho",
+    noWarehouseDescription:
+      "Không xác định được kho của task nên không mở được trong tab theo kho. Chọn kho đang làm việc để mở task.",
     forbiddenDescription: "Tài khoản của bạn chưa được cấp quyền mở màn hình này.",
     noReadDescription:
       "Bạn được mở trang nhưng chưa được cấp quyền xem task xuất kho. Liên hệ quản trị để được cấp.",
