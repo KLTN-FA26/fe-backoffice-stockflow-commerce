@@ -3,7 +3,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CYCLE_COUNT_CREATE_LABELS, CYCLE_COUNT_QUERY_KEYS } from "@/constants/cycle-count";
 
 import { createMutation } from "@/lib/api/query-factory";
-import { useAppStore } from "@/lib/store/use-app-store";
 
 import { toast } from "@/components/shared/Toast";
 
@@ -33,16 +32,15 @@ import type {
 // scans) and refresh the list, whose counted / variance figures moved.
 function useCycleCountWrite() {
   const client = useQueryClient();
-  const warehouseId = useAppStore((state) => state.warehouseId);
   return {
     applied: async (count: CycleCount) => {
-      client.setQueryData(cycleCountKeys.detail(count.id, warehouseId), count);
+      client.setQueryData(cycleCountKeys.detail(count.id), count);
       await client.invalidateQueries({ queryKey: cycleCountKeys.lists() });
     },
     // The sheet changed under the screen (closed, line counted elsewhere, stock moved): reload it.
     refreshOnStale: async (error: unknown, id: string) => {
       if (isStaleCycleCountError(error)) {
-        await client.invalidateQueries({ queryKey: cycleCountKeys.detail(id, warehouseId) });
+        await client.invalidateQueries({ queryKey: cycleCountKeys.detail(id) });
       }
     },
     client,

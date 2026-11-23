@@ -1,11 +1,15 @@
-import { Lightbulb, Map as MapIcon } from "lucide-react";
+import { ClipboardCheck, Lightbulb, Map as MapIcon, Move } from "lucide-react";
 
 import {
+  INVENTORY_PERMISSIONS,
   PUTAWAY_TASK_PERMISSIONS,
   UI_LABELS,
   WAREHOUSE_LOCATION_PERMISSIONS,
   WORKSPACE_PATHS,
 } from "@/constants";
+
+import { CYCLE_COUNT_LABELS } from "@/constants/cycle-count";
+import { CYCLE_COUNT_PERMISSIONS } from "@/constants/permissions";
 
 import type { LucideIcon } from "lucide-react";
 import type { PermissionCode } from "@/lib/auth";
@@ -26,6 +30,24 @@ export interface WorkspacePage {
 
 /** Thứ tự = thứ tự hiện trên panel (Vận hành theo spec §5.6, rồi Bản đồ). Mỗi màn chuyển vào tab thêm một dòng. */
 export const WORKSPACE_PAGES: readonly WorkspacePage[] = [
+  {
+    path: WORKSPACE_PATHS.moves,
+    group: "operations",
+    label: W.pages.moves,
+    icon: Move,
+    // BE StockOperationsController: POST /inventory/movements là inventory-stock-items:UPDATE (docs 11)
+    permission: INVENTORY_PERMISSIONS.stockUpdate,
+    assignedOnly: true,
+  },
+  {
+    path: WORKSPACE_PATHS.cycleCounts,
+    group: "operations",
+    label: CYCLE_COUNT_LABELS.title,
+    icon: ClipboardCheck,
+    // BE CycleCountController: resource inventory-cycle-counts (NV kho đếm, quản lý kho duyệt / đếm lại)
+    permission: CYCLE_COUNT_PERMISSIONS.viewPage,
+    assignedOnly: true,
+  },
   {
     path: "",
     group: "map",

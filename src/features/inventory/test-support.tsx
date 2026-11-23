@@ -5,6 +5,7 @@ import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 
 import { api } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/auth/auth-store";
+import { WorkspaceWarehouseProvider } from "@/lib/workspace";
 
 import { cycleCountDto, cycleCountLineDto, cycleCountSummaryDto } from "./cycle-count-schemas";
 import { stockAdjustmentDto } from "./schemas";
@@ -52,7 +53,8 @@ export function cycleCountFixture(overrides: Partial<CycleCount> = {}) {
   return cycleCountDto.parse({
     id: crypto.randomUUID(),
     countNumber: "CC-20261112-0001",
-    warehouseId: crypto.randomUUID(),
+    // Phiếu mẫu thuộc kho của tab theo kho trong test
+    warehouseId: INVENTORY_TAB_WAREHOUSE.id,
     triggerType: "SHORT_PICK",
     status: "PLANNED",
     blind: true,
@@ -67,7 +69,8 @@ export function cycleCountSummaryFixture(overrides: Partial<CycleCountSummary> =
   return cycleCountSummaryDto.parse({
     id: crypto.randomUUID(),
     countNumber: "CC-20261112-0001",
-    warehouseId: crypto.randomUUID(),
+    // Phiếu mẫu thuộc kho của tab theo kho trong test
+    warehouseId: INVENTORY_TAB_WAREHOUSE.id,
     triggerType: "SHORT_PICK",
     status: "PLANNED",
     blind: true,
@@ -119,13 +122,24 @@ export function setInventoryTestActor(role: RoleName, userId = crypto.randomUUID
   return userId;
 }
 
+/** Kho của tab theo kho trong test (spec 2026-11-22) — Kiểm kê làm việc trong kho này. */
+export const INVENTORY_TAB_WAREHOUSE = {
+  id: "d0000001-0000-4000-8000-0000000000a1",
+  prefix: "HCM",
+  name: "Kho Hồ Chí Minh",
+};
+
 export function renderInventory(ui: ReactNode, searchParams = "") {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   return render(
     <NuqsTestingAdapter searchParams={searchParams} hasMemory>
-      <QueryClientProvider client={client}>{ui}</QueryClientProvider>
+      <QueryClientProvider client={client}>
+        <WorkspaceWarehouseProvider value={INVENTORY_TAB_WAREHOUSE}>
+          {ui}
+        </WorkspaceWarehouseProvider>
+      </QueryClientProvider>
     </NuqsTestingAdapter>,
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { WORKSPACE_PATHS } from "@/constants";
 
 import {
   CYCLE_COUNT_CREATE_LABELS,
@@ -12,6 +13,7 @@ import { CYCLE_COUNT_PERMISSIONS } from "@/constants/permissions";
 
 import { useCan } from "@/lib/auth";
 import { statusLabelVi } from "@/lib/status-map";
+import { useWorkspaceHref, useWorkspaceWarehouse } from "@/lib/workspace";
 
 import { DataTable } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -37,7 +39,6 @@ import { InventoryPermissionGate } from "./InventoryPermissionGate";
 
 const L = CYCLE_COUNT_LABELS;
 const ALL = "all";
-const COLUMNS = buildCycleCountColumns();
 
 export function CycleCountList() {
   return (
@@ -55,10 +56,14 @@ function CycleCountListContent() {
   // UI-only — Backend phải re-check (inventory-cycle-counts:CREATE, docs 20 §4.2 a)
   const canPlan = useCan(CYCLE_COUNT_PERMISSIONS.create);
   const [planning, setPlanning] = useState(false);
+  const warehouse = useWorkspaceWarehouse();
+  const href = useWorkspaceHref();
+  const columns = buildCycleCountColumns((id) => href(WORKSPACE_PATHS.cycleCount(id)));
   const query = useCycleCounts({
     page: state.page - 1,
     size: state.size,
     status: state.status ?? undefined,
+    warehouseId: warehouse.id,
   });
   return (
     // Giao diện kiểu Vercel như danh sách điều chỉnh tồn (`.surface-soft`): không tiêu đề hiển thị — breadcrumb là
@@ -113,7 +118,7 @@ function CycleCountListContent() {
             {query.data.items.length ? (
               <DataTable
                 stickyHeader
-                columns={COLUMNS}
+                columns={columns}
                 data={query.data.items}
                 rowKey={(row) => row.id}
                 flagRow={isOpenCycleCount}

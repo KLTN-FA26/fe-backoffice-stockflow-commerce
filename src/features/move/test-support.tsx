@@ -4,6 +4,7 @@ import { http, HttpResponse } from "msw";
 
 import { api } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/auth/auth-store";
+import { WorkspaceWarehouseProvider } from "@/lib/workspace";
 
 import type { ReactNode } from "react";
 import type { PermissionCode } from "@/lib/auth";
@@ -41,11 +42,22 @@ export function setMoveTestActor() {
   });
 }
 
+/** Kho của tab theo kho trong test (spec 2026-11-22) — màn di chuyển chỉ làm việc trong kho này. */
+export const MOVE_TAB_WAREHOUSE = {
+  id: "11111111-1111-4111-8111-111111111111",
+  prefix: "HCM",
+  name: "Kho HCM",
+};
+
 export function renderMove(ui: ReactNode) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
+  return render(
+    <QueryClientProvider client={client}>
+      <WorkspaceWarehouseProvider value={MOVE_TAB_WAREHOUSE}>{ui}</WorkspaceWarehouseProvider>
+    </QueryClientProvider>,
+  );
 }
 
 export function failure(status: number, errorCode: string, fieldErrors: unknown[] = []) {

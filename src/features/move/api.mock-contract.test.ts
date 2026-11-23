@@ -160,7 +160,13 @@ describe("POST /inventory/movements (mock)", () => {
     expect(error.status).toBe(401);
   });
 
-  it("GET /inventory/stock-items is an empty list: the mock holds no stock", async () => {
-    expect(await listStockRows("CUP-PP-500")).toEqual([]);
+  it("tồn của SKU trong kho của tab (GET /inventory/warehouses/{id}/stock-items) parse đúng hợp đồng", async () => {
+    const rows = await listStockRows("WH-HN-01", "CUP-PP-500");
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(row.sku).toBe("CUP-PP-500");
+      expect(row.locationCode.startsWith("HN01")).toBe(true);
+      expect(row.id).toBeTruthy();
+    }
   });
 });

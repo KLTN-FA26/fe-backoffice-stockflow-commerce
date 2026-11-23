@@ -15,5 +15,6 @@ export { AdjustmentList } from "./components/AdjustmentList";
 export { InventoryOverview } from "./components/InventoryOverview";
 export { RecentMoves } from "./components/RecentMoves";
 export { CycleCountDetail } from "./components/CycleCountDetail";
+export { CycleCountRedirect } from "./components/CycleCountRedirect";
 export { CycleCountList } from "./components/CycleCountList";
 export { QuarantineDecision } from "./components/QuarantineDecision";
