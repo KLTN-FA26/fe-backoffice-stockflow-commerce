@@ -4,20 +4,19 @@ import Link from "next/link";
 import { Route } from "lucide-react";
 
 import {
-  ADMIN_ROUTES,
   PUTAWAY_LABELS,
   PUTAWAY_TRIP_LABELS,
   PUTAWAY_TRIP_PERMISSIONS,
   UI_LABELS,
+  WORKSPACE_PATHS,
 } from "@/constants";
 import { useCan } from "@/lib/auth";
+import { useWorkspaceHref } from "@/lib/workspace";
 import { ListToolbar, TOOLBAR_ACTION_CLASS } from "@/components/shared/ListToolbar";
 
 import { LOCKED_PUTAWAY_COLUMNS, PUTAWAY_DATA_COLUMNS } from "./usePutawayColumns";
-import { PutawayWarehouseSelect, warehouseLabel } from "./PutawayWarehouseSelect";
 
 import type { ListSummaryItem } from "@/components/shared/ListToolbar";
-import type { WarehouseOption } from "@/lib/references/warehouse-options";
 import type { PutawayColumn, PutawayColumnsState } from "./usePutawayColumns";
 import type { PutawayFiltersState } from "./usePutawayFilters";
 
@@ -26,11 +25,7 @@ const COLUMN_OPTIONS = PUTAWAY_DATA_COLUMNS.map((value) => ({ value, label: L.co
 const quoted = (label: string, value: string) => (value.trim() ? `${label} “${value}”` : null);
 
 /** Chip thanh `Cấu hình` (data-table-mode-a §3): mỗi nhóm một chip, X bỏ riêng nhóm đó. */
-function summaryItems(
-  state: PutawayFiltersState,
-  columns: PutawayColumnsState,
-  warehouses: readonly WarehouseOption[],
-): ListSummaryItem[] {
+function summaryItems(state: PutawayFiltersState, columns: PutawayColumnsState): ListSummaryItem[] {
   const { filters, set } = state;
   const col = L.column;
   const columnSearch = [
@@ -38,7 +33,6 @@ function summaryItems(
     quoted(col.sku, filters.sku),
     quoted(col.sourceLocation, filters.location),
   ].filter((part): part is string => part !== null);
-  const warehouse = warehouses.find((w) => w.warehouseId === state.warehouseId);
   return [
     {
       label: L.summarySearch,
@@ -51,12 +45,6 @@ function summaryItems(
       value: columnSearch.length > 0 ? columnSearch.join(", ") : UI_LABELS.common.notEntered,
       active: state.hasColumnSearch,
       onClear: () => set({ lpn: "", sku: "", location: "" }),
-    },
-    {
-      label: L.warehouse,
-      value: warehouse ? warehouseLabel(warehouse) : (state.warehouseId ?? L.notChosen),
-      active: filters.warehouse !== null,
-      onClear: () => set({ warehouse: null }),
     },
     ...(filters.receipt
       ? [
@@ -78,26 +66,22 @@ function summaryItems(
 }
 
 /**
- * Toolbar danh sách cất hàng (Mode A, style Vercel): search chính (lọc client — BE không có tìm kiếm), ô chọn kho
- * cùng cỡ nút công cụ, ẩn hiện cột, thanh `Cấu hình`. Lọc theo LPN / SKU / vị trí nằm trên header cột.
+ * Toolbar danh sách cất hàng (Mode A, style Vercel): search chính (lọc client — BE không có tìm kiếm), ẩn hiện cột,
+ * thanh `Cấu hình`. Kho là kho của tab — không có ô chọn kho. Lọc theo LPN / SKU / vị trí nằm trên header cột.
  */
 export function PutawayToolbar({
   state,
   columns,
-  warehouses,
 }: {
   state: PutawayFiltersState;
   columns: PutawayColumnsState;
-  warehouses: readonly WarehouseOption[];
 }) {
   const canTrip = useCan(PUTAWAY_TRIP_PERMISSIONS.viewPage);
-  const tripHref = state.warehouseId
-    ? `${ADMIN_ROUTES.putaway.myTrip}?warehouse=${encodeURIComponent(state.warehouseId)}`
-    : ADMIN_ROUTES.putaway.myTrip;
+  const tripHref = useWorkspaceHref()(WORKSPACE_PATHS.myTrip);
   return (
     <ListToolbar<string, string, PutawayColumn>
       actions={
-        // Gom nhiều thùng lên một xe (docs 05 §4.5) — mang kho đang xem sang để mở chuyến
+        // Gom nhiều thùng lên một xe (docs 05 §4.5) — chuyến mở ở kho của tab
         canTrip && (
           <Link
             href={tripHref}
@@ -119,14 +103,7 @@ export function PutawayToolbar({
       onToggleColumn={columns.toggle}
       onResetColumns={columns.reset}
       hasColumnConfig={columns.hasColumnConfig}
-      tools={
-        <PutawayWarehouseSelect
-          value={state.warehouseId}
-          warehouses={warehouses}
-          onChange={(warehouse) => state.set({ warehouse, receipt: null })}
-        />
-      }
-      summaryItems={summaryItems(state, columns, warehouses)}
+      summaryItems={summaryItems(state, columns)}
       onResetAll={() => {
         state.reset();
         columns.reset();

@@ -1,8 +1,13 @@
 "use client";
 
-import { PUTAWAY_COLUMNS as C, PUTAWAY_LABELS, PUTAWAY_TASK_PERMISSIONS } from "@/constants";
+import {
+  PUTAWAY_COLUMNS as C,
+  PUTAWAY_LABELS,
+  PUTAWAY_TASK_PERMISSIONS,
+  WORKSPACE_PATHS,
+} from "@/constants";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
-import { useWarehouseDirectory } from "@/lib/references/warehouse-options";
+import { useWorkspaceHref } from "@/lib/workspace";
 import { usePutawayTasks } from "@/features/putaway/queries";
 import { filterPutawayTasks, sortByLpn } from "@/features/putaway/selectors";
 
@@ -43,23 +48,18 @@ function headerFilters({ filters, set }: PutawayFiltersState) {
 }
 
 function PutawayContent() {
-  const directory = useWarehouseDirectory();
-  const warehouses = directory.data ?? [];
-  const only = warehouses.length === 1 ? (warehouses[0]?.warehouseId ?? null) : null;
-  const state = usePutawayFilters(only);
+  const state = usePutawayFilters();
   const columns = usePutawayColumns();
-  const query = usePutawayTasks(state.params, { enabled: state.ready });
+  const href = useWorkspaceHref();
+  const query = usePutawayTasks(state.params);
   const data = query.data;
   const rows = data ? sortByLpn(filterPutawayTasks(data.items, state.text)) : [];
-  const emptyKind = !state.ready
-    ? "chooseWarehouse"
-    : data?.items.length === 0
-      ? "none"
-      : "noMatch";
+  // Lọc theo phiếu nhập mà phiếu không còn nhiệm vụ → vẫn là "lọc không ra" (kèm Bỏ bộ lọc), không phải kho trống
+  const emptyKind = data?.items.length === 0 && !state.filters.receipt ? "none" : "noMatch";
 
   return (
     <>
-      <PutawayToolbar state={state} columns={columns} warehouses={warehouses} />
+      <PutawayToolbar state={state} columns={columns} />
       {query.isError ? (
         <LoadErrorState
           inline
@@ -67,15 +67,7 @@ function PutawayContent() {
           copy={L.errorCopy}
           onRetry={() => void query.refetch()}
         />
-      ) : !state.ready && directory.isError ? (
-        // Danh mục kho lỗi: không có kho để chọn — báo lỗi kèm Thử lại thay vì "chọn kho"
-        <LoadErrorState
-          inline
-          error={directory.error}
-          copy={L.errorCopy}
-          onRetry={() => void directory.refetch()}
-        />
-      ) : (state.ready && !data) || (!state.ready && directory.isPending) ? (
+      ) : !data ? (
         <PageSkeleton variant="list" />
       ) : (
         <div className="flex flex-col gap-3">
@@ -90,7 +82,10 @@ function PutawayContent() {
             />
             <DataTable
               data={rows}
-              columns={withHeaderFilters(putawayColumns(columns.visible), headerFilters(state))}
+              columns={withHeaderFilters(
+                putawayColumns(columns.visible, (id) => href(WORKSPACE_PATHS.putawayTask(id))),
+                headerFilters(state),
+              )}
               rowKey={(row) => row.id}
               caption={L.title}
               stickyHeader
@@ -112,7 +107,7 @@ function PutawayContent() {
 }
 
 /**
- * Màn "Cất hàng" (docs 05 §4.2, trang danh sách style Vercel): thùng chờ cất của một kho — nhân viên kho thấy mọi
+ * Màn "Cất hàng" (docs 05 §4.2, trang danh sách style Vercel): thùng chờ cất của kho đang làm việc (tab theo kho) — nhân viên kho thấy mọi
  * nhiệm vụ của kho, không giao theo người (§2). Bấm LPN / nút cất để sang màn cất một thùng có bin gợi ý.
  */
 export function PutawayList() {

@@ -1,10 +1,12 @@
 import {
+  Archive,
   ClipboardCheck,
   Lightbulb,
   Map as MapIcon,
   Move,
   PackageCheck,
   PackageSearch,
+  Route,
   Undo2,
 } from "lucide-react";
 
@@ -14,7 +16,10 @@ import {
   FULFILLMENT_PICKING_PERMISSIONS,
   INVENTORY_PERMISSIONS,
   PUT_BACK_LABELS,
+  PUTAWAY_LABELS,
   PUTAWAY_TASK_PERMISSIONS,
+  PUTAWAY_TRIP_LABELS,
+  PUTAWAY_TRIP_PERMISSIONS,
   UI_LABELS,
   WAREHOUSE_LOCATION_PERMISSIONS,
   WORKSPACE_PATHS,
@@ -42,6 +47,25 @@ export interface WorkspacePage {
 
 /** Thứ tự = thứ tự hiện trên panel (Vận hành theo spec §5.6, rồi Bản đồ). Mỗi màn chuyển vào tab thêm một dòng. */
 export const WORKSPACE_PAGES: readonly WorkspacePage[] = [
+  {
+    path: WORKSPACE_PATHS.putaway,
+    group: "operations",
+    label: PUTAWAY_LABELS.title,
+    // Icon riêng: Kiểm thùng đã dùng PackageCheck, sidebar thu gọn chỉ còn icon
+    icon: Archive,
+    // BE `PutawayController`, resource warehouse-putaway-tasks (docs 05)
+    permission: PUTAWAY_TASK_PERMISSIONS.viewPage,
+    assignedOnly: true,
+  },
+  {
+    path: WORKSPACE_PATHS.myTrip,
+    group: "operations",
+    label: PUTAWAY_TRIP_LABELS.title,
+    icon: Route,
+    // BE `PutawayTripController`, resource warehouse-putaway-trips (docs 05 §4.5)
+    permission: PUTAWAY_TRIP_PERMISSIONS.viewPage,
+    assignedOnly: true,
+  },
   {
     path: WORKSPACE_PATHS.picking,
     group: "operations",

@@ -1,13 +1,11 @@
-import { Suspense } from "react";
+import { MyTripRedirect } from "@/features/putaway";
 
-import { PageSkeleton } from "@/components/shared/PageSkeleton";
-
-import { MyTripRoutePage } from "../_components/TripRoutePages";
-
-export default function PutawayTripRoute() {
-  return (
-    <Suspense fallback={<PageSkeleton variant="detail" />}>
-      <MyTripRoutePage />
-    </Suspense>
-  );
+/** Route cũ: chuyến cất hàng giờ nằm trong tab theo kho (spec §5.5). */
+export default async function LegacyMyTripPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ warehouse?: string | string[] }>;
+}) {
+  const { warehouse } = await searchParams;
+  return <MyTripRedirect warehouseId={typeof warehouse === "string" ? warehouse : null} />;
 }

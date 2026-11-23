@@ -29,7 +29,6 @@ import {
   Map as MapIcon,
   MapPin,
   Package,
-  PackageCheck,
   PackageOpen,
   PackagePlus,
   Palette,
@@ -38,7 +37,6 @@ import {
   PanelLeftOpen,
   RadioTower,
   ReceiptText,
-  Route,
   Search as SearchIcon,
   ShieldCheck,
   ShieldAlert,
@@ -60,6 +58,7 @@ import { useMemo, useState } from "react";
 import {
   ADMIN_ROUTES,
   ATTRIBUTE_PERMISSIONS,
+  BRAND,
   CANCELLATION_REQUEST_LABELS,
   CANCELLATION_REQUEST_PERMISSIONS,
   CUSTOMER_PERMISSIONS,
@@ -72,10 +71,6 @@ import {
   DELIVERY_FAILURE_LABELS,
   FULFILLMENT_CARRIER_EVENT_PERMISSIONS,
   GOODS_RECEIPT_PERMISSIONS,
-  PUTAWAY_LABELS,
-  PUTAWAY_TASK_PERMISSIONS,
-  PUTAWAY_TRIP_LABELS,
-  PUTAWAY_TRIP_PERMISSIONS,
   IDENTITY_PERMISSIONS,
   INVENTORY_ITEM_PERMISSIONS,
   INVENTORY_OVERVIEW_PERMISSIONS,
@@ -128,6 +123,7 @@ import { usePermissionChecker } from "@/lib/auth/components/Can";
 import { useAppStore } from "@/lib/store/use-app-store";
 import { useBreadcrumbLabelStore } from "@/lib/store/use-breadcrumb-labels";
 
+import { Logo } from "@/components/shared/Logo";
 import { SearchBar } from "@/components/shared/SearchBar";
 import { Button } from "@/components/ui/button";
 import {
@@ -165,7 +161,10 @@ export interface NavItem {
    */
   unlessPermission?: PermissionCode;
   /** Breadcrumb riêng cho các đoạn URL sau `href` (vd `[kho ⇅] / Bản đồ kho`) thay cách đọc id mặc định. */
-  breadcrumbTail?: (rest: readonly string[]) => BreadcrumbItem[];
+  breadcrumbTail?: (
+    rest: readonly string[],
+    labelFor: (id: string) => string | undefined,
+  ) => BreadcrumbItem[];
   /** Route anh em chia chung mục menu này (vd tab "Dự án"): sáng menu và breadcrumb theo mục. */
   matchPrefixes?: readonly string[];
 }
@@ -255,20 +254,7 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: PackageOpen,
         permission: GOODS_RECEIPT_PERMISSIONS.viewPage,
       },
-      // Cất hàng (docs 05) — BE `PutawayController`, resource warehouse-putaway-tasks
-      {
-        label: PUTAWAY_LABELS.title,
-        href: ADMIN_ROUTES.putaway.list,
-        icon: PackageCheck,
-        permission: PUTAWAY_TASK_PERMISSIONS.viewPage,
-      },
-      // Chuyến cất hàng (docs 05 §4.5) — BE `PutawayTripController`, resource warehouse-putaway-trips
-      {
-        label: PUTAWAY_TRIP_LABELS.title,
-        href: ADMIN_ROUTES.putaway.myTrip,
-        icon: Route,
-        permission: PUTAWAY_TRIP_PERMISSIONS.viewPage,
-      },
+      // Cất hàng (docs 05) đã vào tab "Kho & bản đồ" — làm việc theo một kho (spec 2026-11-22)
     ],
   },
   {
@@ -701,7 +687,7 @@ export function buildBreadcrumbItems(
       .slice(navItem.href.length + 1)
       .split("/")
       .filter(Boolean);
-    return [...items, ...navItem.breadcrumbTail(rest)];
+    return [...items, ...navItem.breadcrumbTail(rest, labelFor)];
   }
   if (!isListPage) {
     const rest = pathname
@@ -825,14 +811,22 @@ function BackofficeSidebar() {
       <SidebarHeader
         className={cn("shrink-0 gap-2", collapsed ? "items-center px-0 py-2" : "px-2 py-2")}
       >
-        {/* Tên app ở đầu sidebar; thu gọn chỉ còn chữ cái đầu */}
+        {/* Logo + tên app ở đầu sidebar; thu gọn chỉ còn logo (alt = tên thương hiệu) */}
         <div
           className={cn(
-            "text-ink-primary flex h-9 items-center text-lg font-bold tracking-tight",
-            collapsed ? "justify-center" : "px-2",
+            "text-ink-primary flex h-9 items-center gap-2 text-base font-bold tracking-tight",
+            collapsed ? "justify-center" : "px-1",
           )}
         >
-          {collapsed ? UI_LABELS.shell.appName.charAt(0) : UI_LABELS.shell.appName}
+          <Logo variant="mark" height={28} decorative={!collapsed} />
+          {/* "Commerce" nhạt hơn để tên dài không lấn logo — chữ lấy từ BRAND.wordmark */}
+          {!collapsed && (
+            <span className="truncate">
+              {BRAND.wordmark.primary}
+              {BRAND.wordmark.accent}
+              <span className="text-ink-secondary font-medium">{BRAND.wordmark.suffix}</span>
+            </span>
+          )}
         </div>
         {collapsed ? (
           <SidebarSearchIcon />

@@ -44,7 +44,7 @@ Mode A dùng `brand.ink` cho CTA, count badge của tab đang chọn và focus b
   Menu dạng **drill-down** (`SidebarNav`): màn gốc là item cha; bấm item cha → danh sách item con,
   tên item cha ở đầu là nút quay lại; đang ở trang thuộc nhóm nào thì mở sẵn nhóm đó; nhóm chỉ có
   một item thấy được → link thẳng. Thu gọn → danh sách icon phẳng.
-- **Header sidebar**: chữ `StockFlowCommerce` (thu gọn: chữ `S`) + ô tìm nhanh. Không có chọn kho.
+- **Header sidebar**: logo app (`Logo variant="mark"`) + chữ `StockFlow` đậm + `Commerce` `ink.secondary` (thu gọn: chỉ logo) + ô tìm nhanh. Không có chọn kho.
 - **Tab "Kho & bản đồ"** (module 06, tách khỏi nhóm "Kho"): **chọn kho ở trang Danh mục kho** (bấm dòng
   kho), không chọn trong sidebar. Trang làm việc theo một kho nằm dưới prefix kho:
   `/admin/warehouse-map/{prefix}` (bản đồ), `…/{prefix}/slotting` (gợi ý vị trí) — prefix duy nhất,
