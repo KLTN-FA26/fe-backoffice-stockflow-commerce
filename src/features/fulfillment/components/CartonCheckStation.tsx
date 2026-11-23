@@ -5,8 +5,10 @@ import {
   FULFILLMENT_PICK_PERMISSIONS,
   PICK_STATUS,
   UI_LABELS,
+  WORKSPACE_PATHS,
 } from "@/constants";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
+import { InWorkspaceWarehouse, useWorkspaceHref } from "@/lib/workspace";
 import { cartonCheckAccess } from "@/features/fulfillment/carton-check-lifecycle";
 import { useCartonCheckSession } from "@/features/fulfillment/carton-check-queries";
 import { useFulfillmentTask } from "@/features/fulfillment/queries";
@@ -44,9 +46,11 @@ function CartonCheckStationBody({
     enabled: canRead && actor.can(FULFILLMENT_PICK_PERMISSIONS.read),
   });
   const session = sessionQuery.data;
+  const listHref = useWorkspaceHref()(WORKSPACE_PATHS.packing);
   useBreadcrumbLabel(id, session ? (session.orderNumber ?? taskCode(session.taskId)) : undefined);
 
-  if (!canRead) return <FulfillmentLoadError scope="packing" error={null} kind="no-read" />;
+  if (!canRead)
+    return <FulfillmentLoadError scope="packing" error={null} kind="no-read" listHref={listHref} />;
   if (sessionQuery.isPending) return <PageSkeleton variant="detail" />;
   if (sessionQuery.isError && !session) {
     return (
@@ -54,6 +58,7 @@ function CartonCheckStationBody({
         scope="packing"
         error={sessionQuery.error}
         onRetry={() => void sessionQuery.refetch()}
+        listHref={listHref}
       />
     );
   }
@@ -67,39 +72,42 @@ function CartonCheckStationBody({
   return (
     // Giao diện kiểu Vercel như chi tiết sản phẩm (globals.css `.surface-soft`). Không hiện tiêu đề —
     // breadcrumb topbar đã có số đơn và link về hàng chờ; số đơn nằm ở đầu thẻ trạng thái.
-    <div className="surface-soft surface-compact">
-      <h1 className="sr-only">{`${cartonCheck.stationTitle} — ${session.orderNumber ?? taskCode(session.taskId)}`}</h1>
-      {sessionQuery.isError && (
-        <Alert tone="warning" className="mb-3 print:hidden">
-          {cartonCheck.notice.refetchFailed}{" "}
-          <Button
-            variant="link"
-            size="sm"
-            className="h-auto p-0"
-            onClick={() => void sessionQuery.refetch()}
-          >
-            {common.retry}
-          </Button>
-        </Alert>
-      )}
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="min-w-0 space-y-5">
-          <CartonCheckNotices session={session} access={access} waitingPick={waitingPick} />
-          <CartonLinesSection session={session} />
-          {access.canWork && <CartonScanSection session={session} />}
-          <CartonsSection session={session} access={access} lpnLabelSlot={lpnLabelSlot} />
-          <ShipmentsSection session={session} />
-        </div>
-        <div className="space-y-5">
-          <CartonCheckStatusCard
-            session={session}
-            access={access}
-            actor={actor}
-            waitingPick={waitingPick}
-          />
+    // Phiên của kho khác kho trên URL → chuyển sang đúng kho (spec 2026-11-22 §2)
+    <InWorkspaceWarehouse warehouseId={session.warehouseId} path={WORKSPACE_PATHS.packingTask(id)}>
+      <div className="surface-soft surface-compact">
+        <h1 className="sr-only">{`${cartonCheck.stationTitle} — ${session.orderNumber ?? taskCode(session.taskId)}`}</h1>
+        {sessionQuery.isError && (
+          <Alert tone="warning" className="mb-3 print:hidden">
+            {cartonCheck.notice.refetchFailed}{" "}
+            <Button
+              variant="link"
+              size="sm"
+              className="h-auto p-0"
+              onClick={() => void sessionQuery.refetch()}
+            >
+              {common.retry}
+            </Button>
+          </Alert>
+        )}
+        <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="min-w-0 space-y-5">
+            <CartonCheckNotices session={session} access={access} waitingPick={waitingPick} />
+            <CartonLinesSection session={session} />
+            {access.canWork && <CartonScanSection session={session} />}
+            <CartonsSection session={session} access={access} lpnLabelSlot={lpnLabelSlot} />
+            <ShipmentsSection session={session} />
+          </div>
+          <div className="space-y-5">
+            <CartonCheckStatusCard
+              session={session}
+              access={access}
+              actor={actor}
+              waitingPick={waitingPick}
+            />
+          </div>
         </div>
       </div>
-    </div>
+    </InWorkspaceWarehouse>
   );
 }
 

@@ -21,14 +21,19 @@ import {
 } from "@/constants";
 import { api } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/auth/auth-store";
+import { WorkspaceWarehouseProvider } from "@/lib/workspace";
 
-import { PICKER_ID } from "./task";
+import { PICKER_ID, WAREHOUSE_ID } from "./task";
 
 import type { PermissionCode } from "@/lib/auth";
 
 /** Người đăng nhập trong test = một bộ mã quyền (FE không đọc tên vai trò để quyết định quyền). */
 export interface TestIdentity {
   permissions: readonly PermissionCode[];
+  /** Phạm vi dữ liệu của `GET /identity/me/permissions` (mặc định ALL — không giới hạn kho). */
+  dataScope?: "WAREHOUSE" | "ALL";
+  /** Kho được gán khi `dataScope` = WAREHOUSE. */
+  warehouses?: readonly { id: string; prefix: string }[];
 }
 
 /** Đọc task + hàng chờ / phiên đóng gói (seed: nhân viên kho, quản lý kho). */
@@ -84,7 +89,8 @@ export function mockFulfillmentApi(
           data: {
             roles: ["TEST"],
             permissions: [...identity.permissions],
-            dataScope: "ALL",
+            dataScope: identity.dataScope ?? "ALL",
+            ...(identity.warehouses ? { warehouses: [...identity.warehouses] } : {}),
           },
         };
       }
@@ -116,6 +122,9 @@ export function mockFulfillmentApi(
 }
 
 /** `userId` mặc định là người được gán của fixture `apiTask()`; `searchParams` = URL ban đầu (nuqs). */
+/** Kho của tab theo kho trong test — trùng kho của task mẫu (`WAREHOUSE_ID`). */
+export const TAB_WAREHOUSE = { id: WAREHOUSE_ID, prefix: "HCM", name: "Kho Hồ Chí Minh" };
+
 export function renderFulfillmentScreen(
   ui: React.ReactElement,
   userId: string = PICKER_ID,
@@ -140,7 +149,10 @@ export function renderFulfillmentScreen(
   return render(
     <QueryClientProvider client={client}>
       <NuqsTestingAdapter searchParams={searchParams} hasMemory>
-        <Suspense fallback={<div>loading</div>}>{ui}</Suspense>
+        <Suspense fallback={<div>loading</div>}>
+          {/* Màn lấy hàng / kiểm thùng / cất lại nằm trong tab theo kho (spec 2026-11-22) */}
+          <WorkspaceWarehouseProvider value={TAB_WAREHOUSE}>{ui}</WorkspaceWarehouseProvider>
+        </Suspense>
       </NuqsTestingAdapter>
     </QueryClientProvider>,
   );

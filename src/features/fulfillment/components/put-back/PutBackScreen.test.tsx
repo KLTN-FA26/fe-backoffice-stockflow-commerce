@@ -3,7 +3,6 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import {
-  ADMIN_ROUTES,
   FULFILLMENT_PICKING_PERMISSIONS,
   PUT_BACK_ERROR_MESSAGES as PE,
   PUT_BACK_LABELS as P,
@@ -177,19 +176,12 @@ describe("PutBackScreen — hàng đợi trả hàng về kệ (BE GET /fulfillm
     expect(await screen.findByText("TEE-BLK-M")).toBeInTheDocument();
   });
 
-  it("?warehouse=WH gửi warehouseId; kho không có hàng → EmptyState riêng + Bỏ lọc kho", async () => {
-    const user = userEvent.setup();
-    const { get } = renderScreen(IDENTITIES.warehouseManager, {
-      rows: [],
-      searchParams: `?warehouse=${WAREHOUSE_ID}`,
-    });
+  it("gửi kho của tab, không có ô chọn kho; kho không có hàng → EmptyState của kho", async () => {
+    const { get } = renderScreen(IDENTITIES.warehouseManager, { rows: [] });
     expect(await screen.findByText(P.emptyInWarehouse)).toBeInTheDocument();
     expect(listCalls(get).at(-1)?.[1]).toMatchObject({ params: { warehouseId: WAREHOUSE_ID } });
-    await user.click(screen.getByRole("button", { name: F.clearWarehouse }));
-    await waitFor(() =>
-      expect(listCalls(get).at(-1)?.[1]).not.toHaveProperty("params.warehouseId"),
-    );
-    expect(await screen.findByText(P.empty)).toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: F.warehouse })).toBeNull();
+    expect(screen.queryByRole("button", { name: F.clearWarehouse })).toBeNull();
   });
 
   it("totalElements > 200 → câu 'Đang hiện 200/N'", async () => {
@@ -199,21 +191,18 @@ describe("PutBackScreen — hàng đợi trả hàng về kệ (BE GET /fulfillm
     expect(await screen.findByText(P.truncated(1, 250))).toBeInTheDocument();
   });
 
-  it("?warehouse= ngoài phạm vi → 403 OUT_OF_DATA_SCOPE → câu báo + Bỏ lọc kho", async () => {
+  it("kho của tab ngoài phạm vi → 403 OUT_OF_DATA_SCOPE → câu báo + đường chọn kho khác", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const user = userEvent.setup();
     renderScreen(IDENTITIES.warehouseStaff, {
-      searchParams: "?warehouse=WH-KHAC",
-      list: (params) => {
-        if (typeof params === "object" && params !== null && "warehouseId" in params) {
-          throw new ApiError(403, "OUT_OF_DATA_SCOPE", "Not authorised for this data");
-        }
-        return bePage([apiPutBackRow()], 0, 200);
+      list: () => {
+        throw new ApiError(403, "OUT_OF_DATA_SCOPE", "Not authorised for this data");
       },
     });
     expect(await screen.findByText(PE.outOfScope)).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: F.clearWarehouse }));
-    expect(await screen.findByText(ORDER)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Chọn kho khác" })).toHaveAttribute(
+      "href",
+      "/admin/warehouse-map",
+    );
   });
 });
 
@@ -228,7 +217,7 @@ describe("PutBackScreen — link số đơn theo quyền xem task (BE TaskAccess
     renderScreen(IDENTITIES.warehouseManager);
     expect(await screen.findByRole("link", { name: ORDER })).toHaveAttribute(
       "href",
-      ADMIN_ROUTES.picking.detail(TASK_ID),
+      `/admin/warehouse-map/HCM/picking/${TASK_ID}`,
     );
   });
 });
@@ -276,7 +265,8 @@ describe("PutBackDialog — trả một dòng về kệ (BE POST …/put-back)",
         { headers: { "Idempotency-Key": expect.any(String) } },
       ),
     );
-    expect(await screen.findByText(P.empty)).toBeInTheDocument();
+    // Luôn có kho của tab → hết dòng là "kho này không còn hàng chờ"
+    expect(await screen.findByText(P.emptyInWarehouse)).toBeInTheDocument();
   });
 
   it("chưa quét LPN → lỗi dưới ô LPN, không gửi (BE @NotBlank lpn)", async () => {

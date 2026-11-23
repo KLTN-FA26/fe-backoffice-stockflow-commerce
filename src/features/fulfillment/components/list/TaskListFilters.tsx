@@ -8,7 +8,6 @@ import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { Label } from "@/components/ui/label";
 import { SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-import { WarehouseFilterSelect } from "../WarehouseFilterSelect";
 import { pickStatusLabel } from "./useTaskFilterLabels";
 
 import type { PickApiStatus } from "@/constants";
@@ -24,8 +23,8 @@ const isPickStatus = (value: string): value is PickApiStatus =>
   (PICK_API_STATUSES as readonly string[]).includes(value);
 
 /**
- * Hàng lọc dưới thanh cấu hình (cùng kiểu hàng đợi đóng gói / danh sách chuyển kho): kho, một trạng thái pick
- * và — với người giám sát + gán được task — người được gán của kho đã chọn (`/fulfillment/assignees` bắt kho).
+ * Hàng lọc dưới thanh cấu hình: một trạng thái pick và — với người giám sát + gán được task — người được gán của kho
+ * của tab (`/fulfillment/assignees` bắt kho). Không có lọc kho: kho chọn một lần ở tab theo kho (spec 2026-11-22).
  */
 export function TaskListFilters({
   s,
@@ -44,18 +43,6 @@ export function TaskListFilters({
   const assignees = useAssignees(s.warehouse, canFilterAssignee);
   return (
     <div className="mb-3 flex flex-wrap items-center gap-3">
-      <div className="flex items-center gap-2">
-        <Label htmlFor="task-filter-warehouse" className={LABEL}>
-          {F.warehouse}
-        </Label>
-        <WarehouseFilterSelect
-          id="task-filter-warehouse"
-          title={F.warehouse}
-          value={s.warehouse}
-          onChange={s.setWarehouse}
-          allLabel={F.allWarehouses}
-        />
-      </div>
       <div className="flex items-center gap-2">
         <Label htmlFor="task-filter-status" className={LABEL}>
           {F.status}
@@ -85,16 +72,12 @@ export function TaskListFilters({
           <FormSelect
             value={s.assignee ?? ALL}
             onValueChange={(next) => s.setAssignee(next === ALL ? null : next)}
-            // Đang lọc người từ URL mà chưa chọn kho → vẫn cho bỏ lọc
-            disabled={!s.warehouse && !s.assignee}
           >
             <SelectTrigger id="task-filter-assignee" className={TRIGGER}>
-              <SelectValue placeholder={F.pickWarehouseFirst} />
+              <SelectValue />
             </SelectTrigger>
             <TitledSelectContent title={F.assignee}>
-              <SelectItem value={ALL}>
-                {s.warehouse || s.assignee ? F.allAssignees : F.pickWarehouseFirst}
-              </SelectItem>
+              <SelectItem value={ALL}>{F.allAssignees}</SelectItem>
               {s.assignee && !assignees.data?.some((user) => user.userId === s.assignee) && (
                 <SelectItem value={s.assignee}>{assigneeLabel}</SelectItem>
               )}

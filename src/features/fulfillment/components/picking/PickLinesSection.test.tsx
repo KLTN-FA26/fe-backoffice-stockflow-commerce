@@ -3,9 +3,11 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { PICK_LINE_LABELS as L, PUT_BACK_LABELS } from "@/constants";
+import { WorkspaceWarehouseProvider } from "@/lib/workspace";
 
 import { PICK_LINE_2, PICK_LINE_3, apiPickLines } from "../../__fixtures__/pick-lines";
-import { WAREHOUSE_ID, apiTask, apiTaskLines } from "../../__fixtures__/task";
+import { TAB_WAREHOUSE } from "../../__fixtures__/render";
+import { apiTask, apiTaskLines } from "../../__fixtures__/task";
 import { toFulfillmentTask } from "../../api";
 import { toPickLine } from "../../pick-line-api";
 import { PickLinesSection } from "./PickLinesSection";
@@ -22,17 +24,19 @@ const lines = (statuses: PickLine["status"][]) =>
 function renderSection(props: Partial<React.ComponentProps<typeof PickLinesSection>> = {}) {
   const onSelect = vi.fn();
   render(
-    <PickLinesSection
-      task={task("PICKING")}
-      lines={lines(["Picked", "Open", "Open"])}
-      isPending={false}
-      error={null}
-      onRetry={() => {}}
-      activeLineId={PICK_LINE_2}
-      onSelect={onSelect}
-      canSelect
-      {...props}
-    />,
+    <WorkspaceWarehouseProvider value={TAB_WAREHOUSE}>
+      <PickLinesSection
+        task={task("PICKING")}
+        lines={lines(["Picked", "Open", "Open"])}
+        isPending={false}
+        error={null}
+        onRetry={() => {}}
+        activeLineId={PICK_LINE_2}
+        onSelect={onSelect}
+        canSelect
+        {...props}
+      />
+    </WorkspaceWarehouseProvider>,
   );
   return { onSelect };
 }
@@ -130,10 +134,10 @@ describe("PickLinesSection — bảng dòng lấy hàng theo lộ trình", () =>
       canOpenPutBacks: true,
     });
     expect(screen.getByText(L.awaitingPutBack(2))).toBeInTheDocument();
-    // Nối sang hàng đợi trả về kệ, lọc sẵn kho của task
+    // Nối sang hàng đợi trả về kệ của cùng kho trong tab
     expect(screen.getByRole("link", { name: PUT_BACK_LABELS.openQueue })).toHaveAttribute(
       "href",
-      `/admin/put-backs?warehouse=${WAREHOUSE_ID}`,
+      "/admin/warehouse-map/HCM/put-backs",
     );
   });
 

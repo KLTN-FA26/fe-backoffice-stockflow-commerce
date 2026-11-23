@@ -1,8 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { FilterX, PackageSearch } from "lucide-react";
 
-import { UI_LABELS } from "@/constants";
+import { ADMIN_ROUTES, UI_LABELS } from "@/constants";
 import { isOutOfDataScope } from "@/features/fulfillment/errors";
 import { DataTable } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -36,15 +37,17 @@ export function TaskListBody({
   const title = scope === "picking" ? fulfillment.pickingTitle : fulfillment.packingTitle;
 
   if (!s.canRead) return <FulfillmentLoadError inline scope={scope} error={null} kind="no-read" />;
-  // Lọc theo kho ngoài phạm vi → BE 403 (SCRUM-466), không phải lỗi tải chung
-  if (query.isError && s.warehouse && isOutOfDataScope(query.error)) {
+  // Kho của tab ngoài phạm vi → BE 403 (SCRUM-466), không phải lỗi tải chung — dẫn về chọn kho khác
+  if (query.isError && isOutOfDataScope(query.error)) {
     return (
       <EmptyState
         icon={<FilterX className="size-8" />}
         title={F.outOfScope}
         action={
-          <Button type="button" variant="outline" size="sm" onClick={() => s.setWarehouse(null)}>
-            {F.clearWarehouse}
+          <Button type="button" variant="outline" size="sm" asChild>
+            <Link href={ADMIN_ROUTES.warehouseMap.root}>
+              {UI_LABELS.warehouseMap.workspace.backToChooser}
+            </Link>
           </Button>
         }
       />

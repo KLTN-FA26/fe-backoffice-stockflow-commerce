@@ -65,13 +65,6 @@ export function TaskListToolbar({
         {labels.status && (
           <FilterBadge label={F.status} value={labels.status} onClear={() => s.setStatus(null)} />
         )}
-        {labels.warehouse && (
-          <FilterBadge
-            label={F.warehouse}
-            value={labels.warehouse}
-            onClear={() => s.setWarehouse(null)}
-          />
-        )}
         {labels.assignee && (
           <FilterBadge
             label={F.assignee}

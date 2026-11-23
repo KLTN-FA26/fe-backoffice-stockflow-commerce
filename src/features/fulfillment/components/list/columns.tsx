@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { UserCog } from "lucide-react";
 
-import { ADMIN_ROUTES, FULFILLMENT_COLUMNS, UI_LABELS } from "@/constants";
+import { FULFILLMENT_COLUMNS, UI_LABELS } from "@/constants";
 import { allowedFulfillmentActions } from "@/features/fulfillment/lifecycle";
 import { CELL, dateCell, statusCell, ViewAction } from "@/components/shared/column-helpers";
 
@@ -28,6 +28,8 @@ export interface TaskColumnContext {
   scope: FulfillmentScope;
   actor: FulfillmentActor;
   onAssign: (task: FulfillmentTask) => void;
+  /** Link chi tiết task — trong tab theo kho (`WORKSPACE_PATHS.pickingTask`). */
+  detailHref: (taskId: string) => string;
 }
 
 /** Cột bảng task — chỉ field có trong BE `FulfillmentTaskResponse` (số đơn, tên người gán đi kèm task). */
@@ -35,6 +37,7 @@ export function buildTaskColumns({
   scope,
   actor,
   onAssign,
+  detailHref,
 }: TaskColumnContext): ColumnDef<FulfillmentTask>[] {
   return [
     {
@@ -42,7 +45,7 @@ export function buildTaskColumns({
       header: COLUMN_LABELS[C.TASK] ?? C.TASK,
       cell: (row) => (
         <Link
-          href={ADMIN_ROUTES[scope].detail(row.taskId)}
+          href={detailHref(row.taskId)}
           title={row.taskId}
           className={`${CELL.code} hover:underline`}
           onClick={(event) => event.stopPropagation()}
@@ -95,10 +98,7 @@ export function buildTaskColumns({
           allowedFulfillmentActions(row, actor).some((a) => a.code === "assign");
         return (
           <div className="flex items-center gap-1.5">
-            <ViewAction
-              label={`Xem task ${taskCode(row.taskId)}`}
-              href={ADMIN_ROUTES[scope].detail(row.taskId)}
-            />
+            <ViewAction label={`Xem task ${taskCode(row.taskId)}`} href={detailHref(row.taskId)} />
             {canAssign && (
               <button
                 type="button"

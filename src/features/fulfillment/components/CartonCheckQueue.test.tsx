@@ -12,7 +12,7 @@ import {
   pickSelectOption,
   renderFulfillmentScreen,
 } from "../__fixtures__/render";
-import { PICKER_ID, bePage } from "../__fixtures__/task";
+import { PICKER_ID, WAREHOUSE_ID, bePage } from "../__fixtures__/task";
 import { CartonCheckQueue } from "./CartonCheckQueue";
 
 import type { TestIdentity } from "../__fixtures__/render";
@@ -51,7 +51,7 @@ const queueCalls = (get: ReturnType<typeof renderQueue>["get"]) =>
     .map(([, config]) => (config as { params: unknown }).params);
 
 describe("CartonCheckQueue — hàng chờ kiểm thùng", () => {
-  it("hiện đơn chờ: số đơn, kho, người lấy, người kiểm, trạng thái, tiến độ thùng, số shipment", async () => {
+  it("hiện đơn chờ của kho của tab: số đơn, người lấy, người kiểm, trạng thái, tiến độ thùng, số shipment", async () => {
     const { get } = renderQueue([
       queueRow(),
       queueRow({
@@ -71,17 +71,17 @@ describe("CartonCheckQueue — hàng chờ kiểm thùng", () => {
     const first = (await screen.findByText("SO-20261010-000431")).closest("tr") as HTMLElement;
     expect(within(first).getByText(L.noStarter)).toBeInTheDocument();
     expect(within(first).getByText("Chờ xử lý")).toBeInTheDocument();
-    expect(within(first).getByText("Kho Hà Nội")).toBeInTheDocument();
     const second = screen.getByText("SO-20261010-000432").closest("tr") as HTMLElement;
     expect(within(second).getByText("Nguyễn Văn Đạt")).toBeInTheDocument();
     expect(within(second).getByText("Đang xử lý")).toBeInTheDocument();
     expect(within(second).getByText(L.cartonsCell(3, 2, 4))).toBeInTheDocument();
-    expect(within(second).getByText("Kho TP.HCM")).toBeInTheDocument();
-    // Phân trang BE: trang 0, mặc định PAGE_SIZE.md; chưa lọc thì không gửi warehouseId / status
+    // Mọi dòng cùng kho của tab → không còn cột Kho
+    expect(screen.queryByRole("columnheader", { name: L.queueColumns.warehouse })).toBeNull();
+    // Phân trang BE: trang 0, mặc định PAGE_SIZE.md; luôn gửi kho của tab, chưa lọc trạng thái
     expect(queueCalls(get)[0]).toEqual({
       page: 0,
       size: PAGE_SIZE.md,
-      warehouseId: undefined,
+      warehouseId: WAREHOUSE_ID,
       status: undefined,
     });
   });
@@ -99,21 +99,25 @@ describe("CartonCheckQueue — hàng chờ kiểm thùng", () => {
     const user = userEvent.setup();
     renderQueue([queueRow()]);
     const open = await screen.findByRole("link", { name: new RegExp(L.openStation) });
-    expect(open).toHaveAttribute("href", "/admin/packing/3f2c9a10-7b1d-4e55-9c0a-1d2e3f4a5b6c");
+    expect(open).toHaveAttribute(
+      "href",
+      "/admin/warehouse-map/HCM/packing/3f2c9a10-7b1d-4e55-9c0a-1d2e3f4a5b6c",
+    );
     await user.click(screen.getByText("SO-20261010-000431"));
-    expect(push).toHaveBeenCalledWith("/admin/packing/3f2c9a10-7b1d-4e55-9c0a-1d2e3f4a5b6c");
+    expect(push).toHaveBeenCalledWith(
+      "/admin/warehouse-map/HCM/packing/3f2c9a10-7b1d-4e55-9c0a-1d2e3f4a5b6c",
+    );
   });
 
-  it("lọc theo kho và trạng thái → gửi warehouseId / status, về trang đầu", async () => {
+  it("không có lọc kho (kho của tab); lọc trạng thái → gửi status + kho của tab, về trang đầu", async () => {
     const user = userEvent.setup();
     const { get } = renderQueue([queueRow()]);
     await screen.findByText("SO-20261010-000431");
-    await pickSelectOption(user, L.filters.warehouse, /HCM01 · Kho TP\.HCM/);
-    await waitFor(() => expect(queueCalls(get).at(-1)).toMatchObject({ warehouseId: "wh-2" }));
+    expect(screen.queryByRole("combobox", { name: L.filters.warehouse })).toBeNull();
     await pickSelectOption(user, L.filters.status, L.statusFilter.IN_PROGRESS);
     await waitFor(() =>
       expect(queueCalls(get).at(-1)).toMatchObject({
-        warehouseId: "wh-2",
+        warehouseId: WAREHOUSE_ID,
         status: "IN_PROGRESS",
         page: 0,
       }),

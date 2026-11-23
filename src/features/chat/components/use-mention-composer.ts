@@ -58,15 +58,16 @@ export function useMentionComposer({
   const listId = `${useId()}-mentions`;
   const active = items.find((p) => p.id === activeId) ?? items[0];
   const syncToken = (el: HTMLTextAreaElement) => setToken(tokenAt(el.value, el.selectionStart));
-  // Where the caret goes once the picked name is in the textarea. Placed in the commit that writes the text, not a
-  // frame later: a key typed in between would land before the caret is moved and end up in the wrong place.
-  const caretAfterPick = useRef<number | null>(null);
+  // Caret to put right after "@Tên " once the new text is in the textarea. A layout effect runs before the browser
+  // takes the next key — `requestAnimationFrame` ran a frame later and pulled the caret back over what was typed.
+  const pendingCaret = useRef<number | null>(null);
   useLayoutEffect(() => {
-    const at = caretAfterPick.current;
-    if (at === null || !area.current) return;
-    caretAfterPick.current = null;
-    area.current.focus();
-    area.current.setSelectionRange(at, at);
+    const caret = pendingCaret.current;
+    const el = area.current;
+    if (caret === null || !el) return;
+    pendingCaret.current = null;
+    el.focus();
+    el.setSelectionRange(caret, caret);
   });
 
   const pick = (person: ChatStaff) => {
@@ -78,7 +79,7 @@ export function useMentionComposer({
       list.some((p) => p.id === person.id) ? list : [...list, { id: person.id, name: person.name }],
     );
     setToken(null);
-    caretAfterPick.current = token.at + inserted.length;
+    pendingCaret.current = token.at + inserted.length;
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {

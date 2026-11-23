@@ -3,12 +3,13 @@
 import Link from "next/link";
 
 import {
-  ADMIN_ROUTES,
   PICK_LINE_LABELS,
   PICK_STATUS,
   PUT_BACK_LABELS,
   UI_LABELS,
+  WORKSPACE_PATHS,
 } from "@/constants";
+import { useWorkspaceHref } from "@/lib/workspace";
 import {
   awaitingPutBackCount,
   needsLinePlanning,
@@ -50,6 +51,7 @@ export function PickLinesSection({
   /** Người xem có `fulfillment-picking:READ` → hiện link sang hàng đợi trả về kệ. */
   canOpenPutBacks?: boolean;
 } & Omit<ComponentProps<typeof PickLinesTable>, "lines">) {
+  const putBacksHref = useWorkspaceHref()(WORKSPACE_PATHS.putBacks);
   function body() {
     if (error) {
       return (
@@ -87,11 +89,9 @@ export function PickLinesSection({
       <div className="space-y-3">
         {awaiting > 0 && (
           <Alert tone="warning" title={L.awaitingPutBack(awaiting)}>
-            {canOpenPutBacks && task.warehouseId ? (
-              <Link
-                href={ADMIN_ROUTES.putBacks.listInWarehouse(task.warehouseId)}
-                className="text-accent-text font-medium hover:underline"
-              >
+            {canOpenPutBacks ? (
+              // Hàng đợi trả về kệ của cùng kho trong tab theo kho
+              <Link href={putBacksHref} className="text-accent-text font-medium hover:underline">
                 {PUT_BACK_LABELS.openQueue}
               </Link>
             ) : null}

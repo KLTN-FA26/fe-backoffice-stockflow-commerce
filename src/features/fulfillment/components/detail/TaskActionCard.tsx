@@ -5,12 +5,13 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
 import {
-  ADMIN_ROUTES,
   FULFILLMENT_PACKAGE_PERMISSIONS,
   FULFILLMENT_PICK_PERMISSIONS,
   PICK_STATUS,
   UI_LABELS,
+  WORKSPACE_PATHS,
 } from "@/constants";
+import { useWorkspaceHref } from "@/lib/workspace";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { StatusDot } from "@/components/shared/StatusDot";
 import { Button } from "@/components/ui/button";
@@ -55,6 +56,7 @@ export function TaskActionCard({
   incompleteReason?: string;
 }) {
   const mutations = useTaskActionMutations();
+  const href = useWorkspaceHref();
   const [dialog, setDialog] = useState<FulfillmentActionCode | null>(null);
   const actions = scopeActions(task, actor, scope, linesComplete);
   const pending = Object.values(mutations).some((mutation) => mutation.isPending);
@@ -67,12 +69,12 @@ export function TaskActionCard({
           show:
             task.pickStatus === PICK_STATUS.PICKED &&
             actor.can(FULFILLMENT_PACKAGE_PERMISSIONS.viewPage),
-          href: ADMIN_ROUTES.packing.detail(task.taskId),
+          href: href(WORKSPACE_PATHS.packingTask(task.taskId)),
           label: fulfillment.action.openPacking,
         }
       : {
           show: actor.can(FULFILLMENT_PICK_PERMISSIONS.viewPage),
-          href: ADMIN_ROUTES.picking.detail(task.taskId),
+          href: href(WORKSPACE_PATHS.pickingTask(task.taskId)),
           label: fulfillment.action.openPicking,
         };
 
