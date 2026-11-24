@@ -142,6 +142,21 @@ describe("Quote detail", () => {
     await waitFor(() => expect(toastError).toHaveBeenCalledWith(message));
   });
 
+  it("LC-3: cancelling a draft warns that a quote request it came from will close", async () => {
+    mockApi("SALES_STAFF", {
+      get: { [detailUrl]: () => priced, [`/customers/${CUSTOMER_ID}`]: () => CUSTOMER },
+    });
+    renderScreen(<QuoteDetail id={QUOTE_ID} />, "SALES_STAFF");
+    await userEvent.click(await screen.findByRole("button", { name: "Huỷ báo giá" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(
+      within(dialog).getByText(
+        /Nếu nháp này lập từ yêu cầu báo giá của khách, huỷ sẽ đóng yêu cầu đó\. Chỉ sai giá hay số thùng thì sửa nháp thay vì huỷ\./,
+      ),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Huỷ báo giá" })).toBeDisabled();
+  });
+
   it("stale version (409 OPTIMISTIC_LOCK) → 'đã tải lại' and refetch", async () => {
     const api = mockApi("SALES_STAFF", {
       get: { [detailUrl]: () => priced, [`/customers/${CUSTOMER_ID}`]: () => CUSTOMER },
