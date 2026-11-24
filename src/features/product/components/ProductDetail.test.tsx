@@ -408,14 +408,17 @@ describe("ProductDetail — từ chối duyệt qua hộp thoại có lý do, kh
 });
 
 describe("ProductDetail — mục Mô tả", () => {
+  // Mục Mô tả mở sẵn khi vào trang (không phải bấm mới thấy).
   async function openDescription() {
-    const user = userEvent.setup();
     renderWithProviders(
       <Suspense fallback={null}>
         <ProductDetail params={resolvedParams} />
       </Suspense>,
     );
-    await user.click(await screen.findByRole("button", { name: "Mô tả" }));
+    expect(await screen.findByRole("button", { name: "Mô tả" })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
   }
 
   it("mô tả rỗng (BE không trả / chuỗi trắng): hiện 'Chưa có mô tả', không để mục trống", async () => {

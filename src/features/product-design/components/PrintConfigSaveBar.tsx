@@ -9,36 +9,37 @@ import { Button } from "@/components/ui/button";
 
 const TEXT = PRINT_CONFIG_SCREEN_LABELS;
 
+/** `id` of the band's next-step sentence (`PrintConfigHeader` `hint`), which describes the save button. */
+export const PRINT_CONFIG_SAVE_HINT_ID = "print-config-save-hint";
+
 /**
- * The save in the page band: the submit button of the editor's form (the band is inside it; `form` names it as well),
- * with what the save will do, or why there is nothing to save, under it.
+ * The save in the page band: the submit button of the editor's form (the band is inside it; `form` names it as well).
+ * What the save will do, or why there is nothing to save, is the band's status strip (`PrintConfigHeader` `hint`).
  */
 export function PrintConfigSaveButton({
   formId,
   canSave,
   saving,
-  hint,
+  hasHint = false,
 }: {
   /** The `id` of the editor's `<form>`: the button submits it, as Enter in one of its fields does. */
   formId: string;
   canSave: boolean;
   saving: boolean;
-  /** What the save will do (new file, defaults only) or why there is nothing to save. */
-  hint: string | null;
+  /** Whether the band shows a next-step sentence: it then describes the button for screen readers. */
+  hasHint?: boolean;
 }) {
   return (
-    <div className="flex max-w-64 flex-col items-end gap-1.5">
-      <Button
-        type="submit"
-        form={formId}
-        disabled={!canSave}
-        className="h-(--action-h) rounded-(--action-radius) px-(--action-px) text-[0.8125rem] font-medium"
-      >
-        <Save aria-hidden className="size-3.5" />
-        {saving ? TEXT.save.saving : PRINT_CONFIG_ACTION_LABELS.save}
-      </Button>
-      {hint && <p className="text-ink-tertiary text-right text-xs">{hint}</p>}
-    </div>
+    <Button
+      type="submit"
+      form={formId}
+      disabled={!canSave}
+      aria-describedby={hasHint ? PRINT_CONFIG_SAVE_HINT_ID : undefined}
+      className="h-(--action-h) rounded-(--action-radius) px-(--action-px) text-[0.8125rem] font-medium"
+    >
+      <Save aria-hidden className="size-3.5" />
+      {saving ? TEXT.save.saving : PRINT_CONFIG_ACTION_LABELS.save}
+    </Button>
   );
 }
 

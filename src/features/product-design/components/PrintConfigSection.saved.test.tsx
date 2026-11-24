@@ -122,13 +122,11 @@ describe("PrintConfigSection: the saved configuration", () => {
     expect(container.querySelector("[aria-busy='true']")).not.toBeNull();
   });
 
-  it("a variant with no configuration shows what to upload and the 7-line checklist", async () => {
+  it("a variant with no configuration shows what to upload, without the file-building checklist", async () => {
     renderSection(EMPTY_VARIANT);
     expect(await findStatus("Chưa có cấu hình in")).toBeInTheDocument();
     const file = within(screen.getByRole("region", { name: "File 3D (.glb)" }));
-    expect(file.getByText("File .glb cần dựng như sau")).toBeInTheDocument();
-    const list = file.getByRole("list", { name: "" });
-    expect(within(list).getAllByRole("listitem")).toHaveLength(7);
+    expect(file.queryByText("File .glb cần dựng như sau")).not.toBeInTheDocument();
     expect(file.getByLabelText(NEW_FILE)).toBeInTheDocument();
   });
 

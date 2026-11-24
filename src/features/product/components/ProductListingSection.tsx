@@ -7,12 +7,11 @@ import { PRODUCT_PERMISSIONS, PRODUCT_STATUS } from "@/constants";
 import { usePermissionChecker } from "@/lib/auth";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 
 import { listingErrorMessage } from "../listing-errors";
 import { useListing, useRefreshOnConflict, useSaveListing } from "../listing-queries";
 import { listingFormSchema, normalizeSlug } from "../listing-schemas";
+import { ProductInput, ProductTextarea } from "./form-controls";
 import { Field } from "./variants/Field";
 
 import type { Listing, ListingFormValues } from "../listing-schemas";
@@ -135,7 +134,7 @@ function ListingForm({
         hint={normalized ? `Sẽ lưu là: ${normalized}` : undefined}
         error={values.slug ? issueOf("slug") : undefined}
       >
-        <Input
+        <ProductInput
           id="listing-slug"
           value={values.slug}
           onChange={(e) => setValues((v) => ({ ...v, slug: e.target.value }))}
@@ -144,14 +143,14 @@ function ListingForm({
         />
       </Field>
       <Field label="Tiêu đề SEO" id="listing-seo-title" error={issueOf("seoTitle")}>
-        <Input
+        <ProductInput
           id="listing-seo-title"
           value={values.seoTitle}
           onChange={(e) => setValues((v) => ({ ...v, seoTitle: e.target.value }))}
         />
       </Field>
       <Field label="Mô tả SEO" id="listing-seo-description" error={issueOf("seoDescription")}>
-        <Textarea
+        <ProductTextarea
           id="listing-seo-description"
           rows={3}
           value={values.seoDescription}

@@ -147,6 +147,9 @@ export const MODEL3D_GRID_LABELS = {
 /** Chữ của khung xem model 3D có lưới đánh số và của khuôn phẳng đặt cạnh nó (cấu hình in, module 12). */
 export const MODEL3D_VIEW_LABELS = {
   title: "Xem thử model với lưới đánh số",
+  modelTitle: "Model 3D",
+  expand: "Phóng to",
+  collapse: "Thu nhỏ",
   intro:
     "Kiểm bằng mắt trước khi lưu: hình in có nằm đúng chỗ, đúng chiều, và đường nối của ly có ở mặt sau không. Số ở ô nào trên model thì tìm đúng số đó trên khuôn phẳng bên dưới.",
   noViewErrors: "Chưa hiện model 3D vì file còn lỗi: sửa trong Blender rồi chọn lại file.",

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Box3 } from "three";
 
 import { MODEL3D_TEMPLATE_LABELS, MODEL3D_VIEW_LABELS as LABELS } from "@/constants/labels-model3d";
+import { cn } from "cn";
 import { Alert } from "@/components/shared/Alert";
 import { Button } from "@/components/ui/button";
 
@@ -33,7 +34,7 @@ export const stoppedAlert = (
  * (built by an effect), the canvas and the turn controls. A lost context ends the view: nothing is built any more and
  * what was added is taken away (`usePrintView`), until another file (a new `root`) mounts a new scene.
  */
-export function StageScene({ root, parts, template, model, stamp }: ModelStageProps) {
+export function StageScene({ root, parts, template, model, stamp, fill = false }: ModelStageProps) {
   const [lost, setLost] = useState(false);
   const [request, setRequest] = useState<TurnRequest | null>(null);
   const view = usePrintView({ root, parts, template, model, enabled: !lost, stamp });
@@ -55,19 +56,41 @@ export function StageScene({ root, parts, template, model, stamp }: ModelStagePr
 
   if (lost) return stoppedAlert;
   return (
-    <div className="space-y-3">
+    <div className={cn("flex flex-col gap-3", fill && "h-full")}>
+      {/* The turn controls sit inside the stage, over its bottom edge, so they read as part of the 3D view. */}
       <div
-        role="group"
-        aria-label={LABELS.canvas}
-        className="border-border-default bg-bg-subtle h-112 overflow-hidden rounded-[var(--card-radius)] border"
+        className={cn(
+          "border-border-default bg-bg-subtle relative overflow-hidden rounded-[var(--card-radius)] border",
+          fill ? "min-h-96 flex-1" : "h-112",
+        )}
       >
-        <PrintModelCanvas
-          root={root}
-          view={view}
-          framing={framing}
-          request={request}
-          onLost={() => setLost(true)}
-        />
+        <div role="group" aria-label={LABELS.canvas} className="absolute inset-0">
+          <PrintModelCanvas
+            root={root}
+            view={view}
+            framing={framing}
+            request={request}
+            onLost={() => setLost(true)}
+          />
+        </div>
+        <div
+          role="group"
+          aria-label={LABELS.turnGroup}
+          className="absolute inset-x-2 bottom-2 flex flex-wrap justify-center gap-2"
+        >
+          {targets.map((target) => (
+            <Button
+              key={target.id}
+              type="button"
+              variant="outline"
+              size="sm"
+              className="bg-bg-surface/90 backdrop-blur-sm"
+              onClick={() => turn(target)}
+            >
+              {target.label}
+            </Button>
+          ))}
+        </div>
       </div>
       {failures?.map(({ code, name }) => (
         <div role="alert" key={code}>
@@ -76,19 +99,6 @@ export function StageScene({ root, parts, template, model, stamp }: ModelStagePr
           </Alert>
         </div>
       ))}
-      <div role="group" aria-label={LABELS.turnGroup} className="flex flex-wrap gap-2">
-        {targets.map((target) => (
-          <Button
-            key={target.id}
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => turn(target)}
-          >
-            {target.label}
-          </Button>
-        ))}
-      </div>
     </div>
   );
 }

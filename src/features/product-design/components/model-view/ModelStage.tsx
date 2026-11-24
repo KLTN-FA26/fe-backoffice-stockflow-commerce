@@ -31,6 +31,8 @@ export interface ModelStageProps {
   template: CustomizationTemplate;
   model: CupModel | BagModel;
   stamp: string;
+  /** Fill the panel's height (the panel is expanded over the page) instead of the fixed stage height. */
+  fill?: boolean;
 }
 
 /**

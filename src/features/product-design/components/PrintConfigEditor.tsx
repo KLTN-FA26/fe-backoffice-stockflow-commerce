@@ -36,8 +36,8 @@ import type { ReadPhase } from "./use-glb-reading";
 const TEXT = PRINT_CONFIG_SCREEN_LABELS;
 
 export interface PrintConfigEditorProps extends PrintConfigEditorArgs {
-  /** The page band (`PrintConfigHeader`), given the save button and the save's alerts to show in it. */
-  header: (save: { button: ReactNode; alerts: ReactNode }) => ReactNode;
+  /** The page band (`PrintConfigHeader`), given the save button, its next-step sentence and its alerts to show in it. */
+  header: (save: { button: ReactNode; hint: string | null; alerts: ReactNode }) => ReactNode;
   /** Back to viewing the stored configuration, dropping what was not saved; absent while nothing is stored yet. */
   onCancel?: () => void;
 }
@@ -180,10 +180,11 @@ export function PrintConfigEditor({ header, onCancel, ...args }: PrintConfigEdit
               formId={formId}
               canSave={editor.canSave}
               saving={saving}
-              hint={editor.hint}
+              hasHint={!!editor.hint}
             />
           </>
         ),
+        hint: editor.hint,
         // Only when there is something to say: an empty row would still add the band's gap.
         alerts:
           editor.blockedReason || editor.serverError ? (

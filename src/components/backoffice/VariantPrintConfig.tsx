@@ -57,7 +57,9 @@ export function VariantPrintConfig({
   );
   const cartonMissing = units.data !== undefined && !units.data.some(isCartonCandidate);
 
-  // Breadcrumb của topbar: đoạn cuối URL là `print-config`, nhãn lấy theo đoạn đó
+  // Breadcrumb của topbar: "Sản phẩm & SKU / <mã sản phẩm> / Cấu hình in" — mã sản phẩm (như trang chi tiết sản
+  // phẩm đặt) thay UUID, là link quay về sản phẩm; đoạn cuối URL `print-config` mang tên trang.
+  useBreadcrumbLabel(productId, product?.code);
   useBreadcrumbLabel(PRINT_CONFIG_SEGMENT, TEXT.pageTitle);
 
   if (productQuery.isLoading || variantsQuery.isLoading || permissions.isPending)
