@@ -56,3 +56,6 @@ CLAUDE.local.md
 
 # ngữ cảnh docs + BE do workflow Claude checkout về — xem .github/workflows/claude.yml
 .review-context/
+
+
+graphify-out/
