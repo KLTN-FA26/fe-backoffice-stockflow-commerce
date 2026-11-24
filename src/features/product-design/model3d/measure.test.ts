@@ -7,7 +7,6 @@ import { describe, expect, it } from "vitest";
 
 import { MODEL3D_LIMITS } from "@/constants/numbers";
 
-import { compareWithNominal } from "./issues";
 import { loadGlb } from "./load";
 import { measureModel } from "./measure";
 import { DEFAULT_MODEL_DEFAULTS } from "./measure-types";
@@ -823,32 +822,6 @@ describe("measureModel: size limits", () => {
     expect(issue?.level).toBe("error");
     expect(issue?.message).toMatch(/print:BODY/);
     expect(issue?.message).toMatch(/[ạảãàáâấầẩẫậăắằẳẵặẹẻẽêếềểễệịọỏôốồổỗộơớờởỡợụủưứừửữựỳýỷỹđ]/i);
-  });
-});
-
-describe("compareWithNominal", () => {
-  const cup = measure(rootOf(cupBody())).model;
-  if (!cup || cup.kind !== "parametric-cup") throw new Error("fixture cup failed");
-
-  it("warns for each figure off by more than 1 mm", () => {
-    const issues = compareWithNominal(cup, {
-      topDiameterMm: 91.5,
-      bottomDiameterMm: 60,
-      heightMm: 78,
-    });
-    expect(issues.map((i) => i.code)).toEqual(["NOMINAL_MISMATCH", "NOMINAL_MISMATCH"]);
-    expect(issues.every((i) => i.level === "warning")).toBe(true);
-  });
-
-  it("stays quiet for 0.5 mm, 1 mm and absent numbers", () => {
-    expect(compareWithNominal(cup, { topDiameterMm: 90.5, heightMm: 81 })).toEqual([]);
-    expect(compareWithNominal(cup, {})).toEqual([]);
-  });
-
-  it("compares bag figures", () => {
-    const bag = measure(rootOf(...allBag())).model;
-    if (!bag || bag.kind !== "parametric-bag") throw new Error("fixture bag failed");
-    expect(compareWithNominal(bag, { widthMm: 121.5, gussetMm: 80 })).toHaveLength(1);
   });
 });
 

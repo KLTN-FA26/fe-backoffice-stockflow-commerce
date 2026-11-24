@@ -15,6 +15,7 @@ import {
   bagTree,
   CHOSEN_FILE,
   DEFAULTS_TOGGLE,
+  editStored,
   EMPTY_VARIANT,
   FILE_INPUT,
   findStatus,
@@ -129,6 +130,7 @@ describe("the name of the file, and what the screen never shows", () => {
   it("while a file is being read the defaults of the stored file cannot be saved", async () => {
     renderSection({ loadModel: () => new Promise(() => {}) });
     const user = userEvent.setup();
+    await editStored(user);
     await user.click(await screen.findByRole("button", DEFAULTS_TOGGLE));
     const seam = screen.getByLabelText("Mép dán (mm)");
     await user.clear(seam);

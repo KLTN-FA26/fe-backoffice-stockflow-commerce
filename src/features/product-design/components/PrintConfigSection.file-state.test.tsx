@@ -21,6 +21,8 @@ import { BAG_BODY } from "../test-fixtures";
 import {
   cupTree,
   DEFAULTS_TOGGLE,
+  EDIT_BUTTON,
+  editStored,
   EMPTY_VARIANT,
   glbFile,
   loaderOf,
@@ -58,6 +60,7 @@ describe("a template written before files were required (no file)", () => {
     const put = vi.spyOn(api, "put");
     const user = userEvent.setup();
     renderSection(EMPTY_VARIANT);
+    await editStored(user);
     expect(await screen.findByText("Cấu hình cũ chưa có file 3D")).toBeInTheDocument();
     expect(screen.getByText(/chỉ sửa được tên, giới hạn tải lên/)).toBeInTheDocument();
 
@@ -71,7 +74,7 @@ describe("a template written before files were required (no file)", () => {
       version: 4,
       model: { seamMm: 6, topDiameterMm: 90.123456, heightMm: 110 },
     });
-    const defaults = within(await screen.findByRole("table", { name: /Số mặc định/ }));
+    const defaults = within(await screen.findByRole("table", { name: "Số không lấy từ file 3D" }));
     await waitFor(() =>
       expect(defaults.getByRole("row", { name: /Mép dán.*6,0 mm/ })).toBeInTheDocument(),
     );
@@ -89,6 +92,7 @@ describe("a template written before files were required (no file)", () => {
       const put = vi.spyOn(api, "put");
       const user = userEvent.setup();
       renderSection(EMPTY_VARIANT);
+      await editStored(user);
       expect(await screen.findByText("Cấu hình cũ chưa có file 3D")).toBeInTheDocument();
       await user.click(await screen.findByRole("button", DEFAULTS_TOGGLE));
       const margin = screen.getByLabelText("Lề an toàn (mm)");
@@ -110,7 +114,7 @@ describe("a template written before files were required (no file)", () => {
       expect(body.model3d).toEqual({ surfaces: table });
       expect(body.model).toMatchObject({ widthMm: bag.widthMm, heightMm: bag.heightMm });
       // the BE (mock) took it: the saved margin shows, no error
-      await waitFor(() => expect(screen.getByRole("button", { name: SAVE.name })).toBeDisabled());
+      await screen.findByRole("button", EDIT_BUTTON); // the save went back to the view mode
       expect(screen.queryByText("Không lưu được cấu hình in")).not.toBeInTheDocument();
     },
   );
@@ -149,6 +153,7 @@ describe("a template with a file whose area ↔ mesh table the BE refuses", () =
     const put = vi.spyOn(api, "put");
     const user = userEvent.setup();
     renderSection(EMPTY_VARIANT);
+    await editStored(user);
     const notice = await screen.findByRole("alert");
     expect(notice).toHaveTextContent("File 3D đang lưu không khớp các vùng in");
     expect(notice).toHaveTextContent("Mesh của vùng in BODY phải tên là print:BODY.");
@@ -169,6 +174,7 @@ describe("a template with a file whose area ↔ mesh table the BE refuses", () =
     const put = vi.spyOn(api, "put");
     const user = userEvent.setup({ applyAccept: true });
     renderSection({ ...EMPTY_VARIANT, loadModel: loaderOf(cupTree()) });
+    await editStored(user);
     await screen.findByText("File 3D đang lưu không khớp các vùng in");
     await user.upload(screen.getByLabelText(REPLACE_FILE), glbFile("fixed.glb"));
     await screen.findByText("Nhận ra: Ly");
@@ -188,6 +194,7 @@ describe("a stored file that is not the measured one", () => {
     const get = vi.spyOn(api, "get");
     const user = userEvent.setup({ applyAccept: true });
     renderSection({ loadModel: loaderOf(cupTree()) });
+    await editStored(user);
     await screen.findByRole("table", { name: "Số đo lấy từ file 3D" });
     await user.upload(screen.getByLabelText(REPLACE_FILE), glbFile("new.glb"));
     await screen.findByText("Nhận ra: Ly");

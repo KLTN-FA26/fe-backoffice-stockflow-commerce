@@ -127,6 +127,9 @@ export const PRINT_CONFIG_REFERENCE_LABELS = {
 
 export const PRINT_CONFIG_ACTION_LABELS = {
   save: "Lưu cấu hình in",
+  /** Chế độ xem → chế độ sửa của cấu hình đã lưu, và ngược lại (bỏ mọi thay đổi chưa lưu). */
+  edit: "Sửa cấu hình",
+  cancelEdit: "Huỷ sửa",
   activate: "Kích hoạt",
   deactivate: "Ngừng dùng",
 } as const;
@@ -166,7 +169,20 @@ export const PRINT_CONFIG_SCREEN_LABELS = {
   summary: {
     kind: "Loại sản phẩm",
     measuredTitle: "Số đo lấy từ file 3D",
-    defaultsTitle: "Số mặc định (cần xác nhận với nhà sản xuất hoặc nhà in)",
+    /** Số file 3D không cho biết (mép dán, vành, chất liệu, lề): sau khi lưu là số đã chọn, không còn là "mặc định". */
+    defaultsTitle: "Số không lấy từ file 3D",
+    rulesTitle: "Ràng buộc file",
+    rules: {
+      minDpi: "Độ phân giải tối thiểu",
+      maxFileSizeMb: "Dung lượng tối đa mỗi ảnh",
+      colorMode: "Hệ màu",
+      maxColors: "Số màu mực tối đa",
+      allowedFileFormats: "Định dạng ảnh",
+      allowedFontCodes: "Font được dùng",
+    },
+    dpi: (value: number) => `${value} dpi`,
+    megabytes: (value: number) => `${value} MB`,
+    fontCount: (count: number) => `${count} font`,
     areasTitle: "Vùng in",
     areaColumns: {
       area: "Vùng in",
@@ -207,9 +223,6 @@ export const PRINT_CONFIG_SCREEN_LABELS = {
     unknownKind: "Chưa nhận ra loại sản phẩm",
     fileName: (name: string) => `File: ${name}`,
     measuredTitle: "Số đo đọc được từ file",
-    defaultsTitle: "Số hệ thống tự điền (mặc định)",
-    defaultsNote:
-      "Các số dưới đây không đọc được từ file: hệ thống tự điền số mặc định, hãy xác nhận lại với nhà sản xuất hoặc nhà in.",
     partsTitle: "Từng phần in trong file",
     partColumns: { part: "Phần in", name: "Tên trong file", size: "Số đo" },
     unreadSize: "Chưa đọc được số đo",
@@ -227,14 +240,8 @@ export const PRINT_CONFIG_SCREEN_LABELS = {
     bagIncomplete:
       "Chưa đủ mặt để dựng cấu hình của cả túi từ file này nên chưa lưu được. Kích thước từng mặt vẫn hiển thị ở trên.",
   },
-  nominal: {
-    legend: "Số trong bảng thông số của nhà sản xuất (không bắt buộc)",
-    hint: "Gõ vào để so với số đo đọc được. Ô để trống thì bỏ qua. Lệch quá 1 mm sẽ có cảnh báo, không chặn việc lưu.",
-    invalid: "Nhập một số lớn hơn 0.",
-    unit: (label: string) => `${label} (mm)`,
-  },
   advanced: {
-    title: "Số mặc định (cần xác nhận với nhà in)",
+    title: "Số không lấy từ file 3D (cần xác nhận với nhà in)",
     note: "File 3D không cho biết mép dán, vành miệng, chất liệu và lề in. Hệ thống điền sẵn số thường dùng; hãy kiểm lại với nhà sản xuất hoặc nhà in trước khi lưu.",
     fields: {
       safeMarginMm: "Lề an toàn (mm)",
@@ -277,6 +284,8 @@ export const PRINT_CONFIG_SCREEN_LABELS = {
     },
   },
   /** "Ràng buộc file": giới hạn file khách được tải lên (BE `PrintConfigRules`), sửa được cùng số mặc định. */
+  /** Dòng nhỏ dưới ô đã sửa ở chế độ sửa: giá trị đang lưu, để so mà không cần khung thứ hai. */
+  savedValue: (value: string) => `Đang lưu: ${value}`,
   fileRules: {
     title: "Ràng buộc file",
     note: "Giới hạn file ảnh mà khách được tải lên khi thiết kế trên cấu hình in này. Studio nhắc khách theo các giá trị này.",

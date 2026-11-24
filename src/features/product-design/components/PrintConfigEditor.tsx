@@ -11,6 +11,7 @@ import { cn } from "cn";
 import { Alert } from "@/components/shared/Alert";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { DETAIL_CARD_CLASS, DetailSection } from "@/components/shared/DetailSection";
+import { Button } from "@/components/ui/button";
 
 import { BagSheetPreview } from "./BagSheetPreview";
 import { ModelFilePicker } from "./ModelFilePicker";
@@ -18,12 +19,12 @@ import { ModelFileStateNotice } from "./ModelFileStateNotice";
 import { ModelIssueList } from "./ModelIssueList";
 import { ModelReadReport } from "./ModelReadReport";
 import { ModelViewSlot } from "./ModelViewSlot";
-import { NominalInputs } from "./NominalInputs";
 import { FileRulesForm } from "./FileRulesForm";
 import { ModelFileChecklist } from "./PrintConfigEmpty";
 import { PrintConfigSaveAlerts, PrintConfigSaveButton } from "./PrintConfigSaveBar";
 import { PrintConfigSummary } from "./PrintConfigSummary";
 import { PrintConfigWorkbench } from "./PrintConfigWorkbench";
+import { defaultsFor } from "./print-defaults";
 import { PrintDefaultsForm } from "./PrintDefaultsForm";
 import { usePrintConfigEditor } from "./use-print-config-editor";
 
@@ -37,6 +38,8 @@ const TEXT = PRINT_CONFIG_SCREEN_LABELS;
 export interface PrintConfigEditorProps extends PrintConfigEditorArgs {
   /** The page band (`PrintConfigHeader`), given the save button and the save's alerts to show in it. */
   header: (save: { button: ReactNode; alerts: ReactNode }) => ReactNode;
+  /** Back to viewing the stored configuration, dropping what was not saved; absent while nothing is stored yet. */
+  onCancel?: () => void;
 }
 
 /** The file of the row: the reading phase, with the size the browser gave when it was chosen. */
@@ -65,18 +68,23 @@ function ViewWaiting() {
 }
 
 /**
- * Choose a `.glb`, see what was read and what is wrong next to the model, confirm the defaults, save. Mounted only for
- * who may edit. It lays out the page under the band: the file work on the left, the model on the right (the saved
- * configuration takes that place while no file is chosen), the defaults and the saved configuration under the work.
- * The band and the work are one `<form>`: the save in the band is its submit button.
+ * The edit mode: choose a `.glb`, see what was read and what is wrong next to the model, confirm the values the file
+ * cannot tell and the file rules, save. Mounted only for who may edit, while editing (or while nothing is stored). It
+ * lays out the page under the band: the file work and the forms on the left, the model on the right (the stored file,
+ * its measures and print areas take that place while no file is chosen). Each changed field says its stored value
+ * under it, so nothing is shown twice. The band and the work are one `<form>`: the save in the band is its submit
+ * button, beside "Huỷ sửa" when something is stored to go back to.
  */
-export function PrintConfigEditor({ header, ...args }: PrintConfigEditorProps) {
+export function PrintConfigEditor({ header, onCancel, ...args }: PrintConfigEditorProps) {
   const editor = usePrintConfigEditor(args);
   const formId = useId();
   const [chosenSize, setChosenSize] = useState<number | null>(null);
   const { reading, result, form, saving } = editor;
   const busy = reading.status === "reading" || saving;
   const saved = args.config;
+  // What the forms compare with: the stored file rules always, the values the file cannot tell only for the same kind.
+  const storedRules = saved && editor.kind ? defaultsFor(editor.kind, saved) : null;
+  const storedDefaults = saved?.model?.kind === editor.kind ? storedRules : null;
 
   const file = (
     <DetailSection title={TEXT.cards.file} icon={FileBox}>
@@ -103,16 +111,7 @@ export function PrintConfigEditor({ header, ...args }: PrintConfigEditorProps) {
         {result && (
           <>
             <ModelIssueList issues={editor.issues} />
-            <ModelReadReport result={result} defaults={editor.defaults} />
-            {result.model && (
-              <NominalInputs
-                kind={result.kind === "bag" ? "bag" : "cup"}
-                values={editor.nominalText}
-                invalid={editor.nominalInvalid}
-                disabled={saving}
-                onChange={editor.setNominal}
-              />
-            )}
+            <ModelReadReport result={result} />
           </>
         )}
       </div>
@@ -124,7 +123,7 @@ export function PrintConfigEditor({ header, ...args }: PrintConfigEditorProps) {
       <ModelViewSlot result={result} issues={editor.issues} defaults={editor.defaults} />
     </DetailSection>
   ) : saved ? (
-    <PrintConfigSummary config={saved} />
+    <PrintConfigSummary config={saved} editing />
   ) : (
     <ViewWaiting />
   );
@@ -137,6 +136,7 @@ export function PrintConfigEditor({ header, ...args }: PrintConfigEditorProps) {
           control={form.control}
           errors={form.formState.errors}
           disabled={saving}
+          saved={storedRules}
         />
       )}
       {editor.kind && (
@@ -146,12 +146,12 @@ export function PrintConfigEditor({ header, ...args }: PrintConfigEditorProps) {
           control={form.control}
           errors={form.formState.errors}
           disabled={saving}
+          saved={storedDefaults}
           preview={
             editor.kind === "parametric-bag" ? <BagSheetPreview sheet={editor.sheet} /> : undefined
           }
         />
       )}
-      {result && saved && <PrintConfigSummary config={saved} defaultOpen={false} />}
     </>
   );
 
@@ -161,12 +161,28 @@ export function PrintConfigEditor({ header, ...args }: PrintConfigEditorProps) {
     <form id={formId} className="space-y-5" noValidate onSubmit={editor.submit}>
       {header({
         button: (
-          <PrintConfigSaveButton
-            formId={formId}
-            canSave={editor.canSave}
-            saving={saving}
-            hint={editor.hint}
-          />
+          <>
+            {onCancel && (
+              <Button
+                type="button"
+                variant="outline"
+                className="h-(--action-h) rounded-(--action-radius) px-(--action-px) text-[0.8125rem] font-medium"
+                disabled={saving}
+                onClick={() => {
+                  editor.discard();
+                  onCancel();
+                }}
+              >
+                {PRINT_CONFIG_ACTION_LABELS.cancelEdit}
+              </Button>
+            )}
+            <PrintConfigSaveButton
+              formId={formId}
+              canSave={editor.canSave}
+              saving={saving}
+              hint={editor.hint}
+            />
+          </>
         ),
         // Only when there is something to say: an empty row would still add the band's gap.
         alerts:

@@ -63,20 +63,6 @@ export const MODEL3D_MEASURE_DETAILS = {
   badCoordinates: "có toạ độ không hợp lệ (NaN hoặc vô hạn)",
 } as const;
 
-/** Nhãn từng số khi so với số của nhà sản xuất. */
-export const MODEL3D_NOMINAL_LABELS = {
-  topDiameterMm: "Đường kính miệng",
-  bottomDiameterMm: "Đường kính đáy",
-  heightMm: "Chiều cao",
-  widthMm: "Chiều rộng",
-  gussetMm: "Độ sâu hông",
-} as const;
-
-export const MODEL3D_NOMINAL_MESSAGES = {
-  mismatch: (label: string, actualMm: number, offMm: number, wantedMm: number, allowedMm: number) =>
-    `${label} đo được ${mm(actualMm)}, lệch ${mm(offMm)} so với số danh nghĩa ${mm(wantedMm)} (cho phép ${allowedMm} mm).`,
-} as const;
-
 /** Câu khi so một mesh in của file với mẫu (`templateDifferences`). */
 export const MODEL3D_DIFFERENCE_MESSAGES = {
   value: (label: string, fileMm: number, templateMm: number) =>

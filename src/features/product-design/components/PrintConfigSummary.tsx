@@ -16,6 +16,7 @@ import { defaultRows } from "./default-rows";
 import { formatMm } from "./format-mm";
 import { ModelFileLink } from "./ModelFileLink";
 import { defaultsFor } from "./print-defaults";
+import { ruleRows } from "./saved-values";
 import { ValueTable } from "./ValueTable";
 
 import type { PrintConfigDto } from "../types";
@@ -24,22 +25,24 @@ const TEXT = PRINT_CONFIG_SCREEN_LABELS.summary;
 
 /**
  * "Cấu hình đang lưu": the saved print configuration, read-only: kind, the stored file (link and SHA-256: after a save,
- * the proof it was uploaded), measured figures, defaults, print areas.
+ * the proof it was uploaded), measured figures, the values the file cannot tell, the file rules, print areas. In the
+ * edit mode (`editing`) the values that are being edited (the ones the file cannot tell, the file rules) are left out:
+ * each field of the form says its stored value under it when changed, so the page never shows them twice.
  */
 export function PrintConfigSummary({
   config,
-  defaultOpen = true,
+  editing = false,
 }: {
   config: PrintConfigDto;
-  /** Closed while a new file is being checked: the model takes the view, the saved one waits below for comparison. */
-  defaultOpen?: boolean;
+  /** Shown beside the edit form: only what the form does not edit (the file, its measures, the print areas). */
+  editing?: boolean;
 }) {
   const { model } = config;
+  const stored = model ? defaultsFor(model.kind, config) : null;
   return (
     <DetailSection
       title={PRINT_CONFIG_SCREEN_LABELS.cards.saved}
       icon={Save}
-      defaultOpen={defaultOpen}
     >
       {/* Sized by its column, not by the screen: the card sits in the wide view column or under the narrow work one. */}
       <div className="@container space-y-4">
@@ -57,7 +60,7 @@ export function PrintConfigSummary({
           </dd>
         </dl>
 
-        {model && (
+        {model && stored && (
           <div className="grid gap-3 @xl:grid-cols-2">
             <ValueTable
               caption={TEXT.measuredTitle}
@@ -66,10 +69,10 @@ export function PrintConfigSummary({
                 value: formatMm(value),
               }))}
             />
-            <ValueTable
-              caption={TEXT.defaultsTitle}
-              rows={defaultRows(model.kind, defaultsFor(model.kind, config))}
-            />
+            {!editing && (
+              <ValueTable caption={TEXT.defaultsTitle} rows={defaultRows(model.kind, stored)} />
+            )}
+            {!editing && <ValueTable caption={TEXT.rulesTitle} rows={ruleRows(stored)} />}
           </div>
         )}
 

@@ -144,6 +144,9 @@ describe("VariantPrintConfig — quy cách thùng (preflight CARTON_SPEC_MISSING
   });
 });
 
+/** The view-mode switch of a stored configuration: present means the person may edit. */
+const EDIT = { name: "Sửa cấu hình" };
+
 describe("VariantPrintConfig", () => {
   it("shows the SKU and name of the variant, the way back, and the saved figures of the seeded variant", async () => {
     await setStatus(SEED.productId, "Approved");
@@ -167,8 +170,8 @@ describe("VariantPrintConfig", () => {
       "href",
       ADMIN_ROUTES.products.detail(SEED.productId),
     );
-    // may edit: the box for another file is there
-    expect(await screen.findByLabelText(UPLOAD)).toBeInTheDocument();
+    // may edit: a stored configuration opens read-only, with the switch to the edit mode
+    expect(await screen.findByRole("button", EDIT)).toBeInTheDocument();
   });
 
   it("product access without the templates' READ says there is no access, not an empty screen", async () => {
@@ -256,7 +259,7 @@ describe("VariantPrintConfig", () => {
     it("passes none when the person may edit", async () => {
       await setStatus(SEED.productId, "Approved");
       open(SEED);
-      await screen.findByLabelText(UPLOAD);
+      await screen.findByRole("button", EDIT);
       expect(lastWritable()).toBe(true);
       expect(lastReason()).toBeUndefined();
     });
@@ -271,7 +274,7 @@ describe("VariantPrintConfig", () => {
     it("a product pending approval still edits its print configuration (BE only refuses a discontinued one)", async () => {
       await setStatus(SEED.productId, "Pending Approval");
       open(SEED);
-      await screen.findByLabelText(UPLOAD);
+      await screen.findByRole("button", EDIT);
       expect(lastWritable()).toBe(true);
       expect(lastReason()).toBeUndefined();
     });

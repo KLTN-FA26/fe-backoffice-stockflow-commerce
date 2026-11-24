@@ -2,7 +2,7 @@
 
 import { SlidersHorizontal } from "lucide-react";
 import { useId } from "react";
-import { Controller } from "react-hook-form";
+import { Controller, useWatch } from "react-hook-form";
 
 import { PRINT_CONFIG_SCREEN_LABELS } from "@/constants/labels-print-config";
 import { cn } from "cn";
@@ -13,14 +13,14 @@ import { TextField } from "@/components/shared/TextField";
 import { Label } from "@/components/ui/label";
 import { SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
+import { savedHint } from "./saved-values";
+
 import type { ReactNode } from "react";
 import type { Control, UseFormRegister, FieldErrors } from "react-hook-form";
 import type { ModelKind, PrintDefaultsValues } from "./print-defaults";
+import type { ChoiceField as Choice, FigureField } from "./saved-values";
 
 const TEXT = PRINT_CONFIG_SCREEN_LABELS.advanced;
-type Choice = "cupMaterial" | "bagMaterial" | "handle";
-type FigureField =
-  "safeMarginMm" | "bleedMm" | "seamMm" | "rimMm" | "topFoldMm" | "glueFlapMm" | "bottomFoldMm";
 
 const FIGURES: Record<ModelKind, readonly FigureField[]> = {
   "parametric-cup": ["safeMarginMm", "bleedMm", "seamMm", "rimMm"],
@@ -40,10 +40,13 @@ function ChoiceField({
   name,
   control,
   disabled,
+  hint,
 }: {
   name: Choice;
   control: Control<PrintDefaultsValues>;
   disabled: boolean;
+  /** "Đang lưu: …" when the choice differs from the stored one. */
+  hint?: string;
 }) {
   const id = useId();
   return (
@@ -69,6 +72,7 @@ function ChoiceField({
           </FormSelect>
         )}
       />
+      {hint && <p className="text-ink-tertiary text-xs">{hint}</p>}
     </div>
   );
 }
@@ -78,7 +82,8 @@ function ChoiceField({
  * handle). Prefilled, editable, validated by zod through react-hook-form; the person confirms them with the
  * manufacturer or the printer. A card of the page like the others, closed until opened, and kept open while a field
  * of the kind has an error so the refused value is seen on its input. `preview` (a bag's flat sheet) is shown under
- * the fields.
+ * the fields. With `saved` (the stored configuration's values, same kind), a changed field says what is stored under
+ * it, so the edit needs no second card to compare with.
  */
 export function PrintDefaultsForm({
   kind,
@@ -87,6 +92,7 @@ export function PrintDefaultsForm({
   errors,
   disabled,
   preview,
+  saved = null,
 }: {
   kind: ModelKind;
   register: UseFormRegister<PrintDefaultsValues>;
@@ -94,7 +100,9 @@ export function PrintDefaultsForm({
   errors: FieldErrors<PrintDefaultsValues>;
   disabled: boolean;
   preview?: ReactNode;
+  saved?: PrintDefaultsValues | null;
 }) {
+  const current = useWatch({ control });
   // A refused value is shown on its input: the card stays open while a field of the kind has an error.
   const hasError = FIGURES[kind].some((name) => errors[name] !== undefined);
   return (
@@ -117,11 +125,18 @@ export function PrintDefaultsForm({
               step="any"
               className={cn(FORM_INPUT_CLASS, "tabular-nums")}
               error={errors[name]?.message}
+              hint={savedHint(name, current, saved)}
               {...register(name, { valueAsNumber: true })}
             />
           ))}
           {CHOICES[kind].map((name) => (
-            <ChoiceField key={name} name={name} control={control} disabled={disabled} />
+            <ChoiceField
+              key={name}
+              name={name}
+              control={control}
+              disabled={disabled}
+              hint={savedHint(name, current, saved)}
+            />
           ))}
         </fieldset>
         {preview}
