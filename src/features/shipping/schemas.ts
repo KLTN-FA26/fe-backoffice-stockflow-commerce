@@ -144,4 +144,10 @@ export const beShipmentSchema = z.object({
   packages: z.array(beShipmentParcelSchema),
   timeline: z.array(beShipmentStepSchema),
   reasonCorrections: z.array(beReasonCorrectionSchema).default([]),
+  /**
+   * Audit r3 EINV-1 (BE r3b `ShipmentDetail.undoneDeliveredAt`): lô đang "giao thất bại" do Quản lý kho sửa từ "đã giao" —
+   * thời điểm của lần giao bị sửa đó. Sửa ngược về "đã giao" mà không gửi `deliveredAt` thì BE lấy lại đúng thời điểm này;
+   * ngày khác ngày này là một lần giao mới (hoá đơn cũ bị giảm về 0, lập hoá đơn mới). Null / vắng (BE cũ) với lô khác.
+   */
+  undoneDeliveredAt: isoInstant.nullish(),
 });

@@ -125,6 +125,7 @@ import { usePermissionChecker } from "@/lib/auth/components/Can";
 import { useAppStore } from "@/lib/store/use-app-store";
 import { useBreadcrumbLabelStore } from "@/lib/store/use-breadcrumb-labels";
 
+import { notificationItemAction } from "@/components/backoffice/notification-item-action";
 import { Logo } from "@/components/shared/Logo";
 import { SearchBar } from "@/components/shared/SearchBar";
 import { Button } from "@/components/ui/button";
@@ -325,7 +326,7 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: Ban,
         permission: CANCELLATION_REQUEST_PERMISSIONS.read,
       },
-      // Giao thất bại (WF-05 GH-1): lô hãng mang về chờ Sale quyết — BE `GET /orders/delivery-failures` đòi sales-orders:READ
+      // Lô hàng hoàn về (WF-05 BO-01): lịch sử lô hãng mang về — BE `GET /orders/delivery-failures` đòi sales-orders:READ
       {
         label: DELIVERY_FAILURE_LABELS.title,
         href: ADMIN_ROUTES.orders.deliveryFailures,
@@ -957,7 +958,7 @@ export function BackofficeShell({ children }: { children: React.ReactNode }) {
                 ))}
               </nav>
             </div>
-            <NotificationBell />
+            <NotificationBell itemAction={notificationItemAction} />
           </header>
 
           {/* Content */}

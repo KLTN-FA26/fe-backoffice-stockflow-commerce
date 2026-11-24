@@ -7,9 +7,11 @@ import {
   allowedQuarantineActions,
   canWriteOffCarton,
   isHeldForOrder,
+  isOpenedOnReturn,
   isQuarantined,
+  openedOnReturnNotice,
 } from "./quarantine-lifecycle";
-import { stockPackageDetailDto } from "./quarantine-schemas";
+import { stockPackageDetailDto, stockPackageDto } from "./quarantine-schemas";
 
 import type { PermissionCode } from "@/lib/auth";
 
@@ -84,5 +86,46 @@ describe("quarantine decisions (docs 20 §4.8, BR-21)", () => {
     expect(canWriteOffCarton(held, staff)).toBe(true);
     expect(canWriteOffCarton(held, readOnly)).toBe(false);
     expect(canWriteOffCarton(carton(), manager)).toBe(false);
+  });
+});
+
+describe("WF-05 BE-24 / Q-18: a returned carton that came back opened", () => {
+  it("is never released for sale — write-off only", () => {
+    const opened = carton(
+      { openedOnReturn: true, returnOpenedAt: "2026-11-24T03:00:00Z", onHand: 80 },
+      "QUARANTINE",
+    );
+    expect(isOpenedOnReturn(opened)).toBe(true);
+    expect(allowedQuarantineActions(opened, manager)).toEqual([]);
+    expect(canWriteOffCarton(opened, manager)).toBe(true);
+  });
+
+  it("says why: an old opened carton in quarantine is written off; since Q-18 one stays consumed, destroyed", () => {
+    const inQuarantine = carton({ openedOnReturn: true }, "QUARANTINE");
+    expect(openedOnReturnNotice(inQuarantine)).toBe("openedOnReturnNotice");
+    expect(openedOnReturnNotice({ ...inQuarantine, status: "CONSUMED" })).toBe(
+      "openedOnReturnConsumed",
+    );
+    expect(openedOnReturnNotice(carton({}, "QUARANTINE"))).toBeNull();
+  });
+
+  it("an old BE without the flag keeps the release (the BE still refuses RETURN_CARTON_OPENED)", () => {
+    const held = carton({}, "QUARANTINE");
+    expect(isOpenedOnReturn(held)).toBe(false);
+    expect(allowedQuarantineActions(held, manager)).toEqual([QUARANTINE_ACTION.RELEASE]);
+  });
+
+  it("the list row reads the flag too", () => {
+    const row = stockPackageDto.parse({
+      lpn: "LPN-1",
+      sku: "CUP",
+      nominalQty: 100,
+      onHand: 80,
+      reserved: 0,
+      status: "IN_STOCK",
+      openedOnReturn: true,
+      returnOpenedAt: "2026-11-24T03:00:00Z",
+    });
+    expect(row.openedOnReturn).toBe(true);
   });
 });

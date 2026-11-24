@@ -1,14 +1,13 @@
 /**
- * Giữ hoàn tất đơn (WF-05 GH-2; BE `OrderCompletionHolds`): action-gating theo trạng thái + quyền, schema DTO / input, và
+ * Giữ hoàn tất đơn (WF-05 GH-2; BE `OrderCompletionHolds`): action-gating theo cờ BE + quyền, schema DTO / input, và
  * lỗi BE → câu tiếng Việt (không hiện message tiếng Anh).
  */
 import { describe, expect, it } from "vitest";
 
-import { ORDER_PERMISSIONS, ORDER_STATUSES } from "@/constants";
+import { ORDER_PERMISSIONS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 
 import {
-  PAST_COMPLETION_STATUSES,
   allowedCompletionHoldActions,
   isCompletionHoldApplicable,
 } from "./completion-hold-lifecycle";
@@ -18,8 +17,10 @@ import {
   releaseCompletionHoldInputSchema,
 } from "./completion-hold-schemas";
 import { COMPLETION_HOLD_STALE_CODES, completionHoldErrorView } from "./errors";
+import { settlementReadinessDtoSchema } from "./schemas";
 
 import type { PermissionCode } from "@/lib/auth";
+import type { CompletionHoldGate } from "./completion-hold-lifecycle";
 
 const has =
   (codes: readonly string[]) =>
@@ -35,36 +36,48 @@ const WAREHOUSE_MANAGER = has([ORDER_PERMISSIONS.read, ORDER_PERMISSIONS.release
 
 const openHold = { releasedAt: null };
 
-describe("allowedCompletionHoldActions (BE OrderCompletionHolds)", () => {
-  it("Sale, đơn chưa giữ, còn tự hoàn tất được → chỉ hold", () => {
-    expect(allowedCompletionHoldActions("Delivered", null, SALES)).toEqual(["hold"]);
-    expect(allowedCompletionHoldActions("Shipped", null, SALES)).toEqual(["hold"]);
+/** Đơn mà BE nói giữ hoàn tất được / không được (`settlementReadiness.completionHoldable`). */
+const holdable = (value: boolean): CompletionHoldGate => ({
+  settlementReadiness: { completionHoldable: value },
+});
+
+describe("allowedCompletionHoldActions (audit r2 M-4: BE settlementReadiness.completionHoldable)", () => {
+  it("Sale, BE nói giữ được, chưa giữ → chỉ hold", () => {
+    expect(isCompletionHoldApplicable(holdable(true))).toBe(true);
+    expect(allowedCompletionHoldActions(holdable(true), null, SALES)).toEqual(["hold"]);
   });
 
-  it("Sale, đơn đang giữ → chỉ release (kể cả khi đơn đã đóng — BE release chỉ kiểm có giữ hay không)", () => {
-    expect(allowedCompletionHoldActions("Delivered", openHold, SALES)).toEqual(["release"]);
-    expect(allowedCompletionHoldActions("Closed", openHold, SALES)).toEqual(["release"]);
+  it("BE nói không giữ được (đơn đã hoàn tất, chưa giao gì, trạng thái BE đổi luật…) → không nút; FE không tự đoán", () => {
+    expect(allowedCompletionHoldActions(holdable(false), null, SALES)).toEqual([]);
+    // Chưa giao gì: BE không gửi khối điều kiện
+    expect(allowedCompletionHoldActions({ settlementReadiness: null }, null, SALES)).toEqual([]);
+  });
+
+  it("Sale, đơn đang giữ → chỉ release, bất kể cờ (BE release chỉ kiểm có giữ hay không)", () => {
+    expect(allowedCompletionHoldActions(holdable(false), openHold, SALES)).toEqual(["release"]);
+    expect(allowedCompletionHoldActions({ settlementReadiness: null }, openHold, SALES)).toEqual([
+      "release",
+    ]);
   });
 
   it("lần giữ đã gỡ (releasedAt có) không tính là đang giữ", () => {
     expect(
-      allowedCompletionHoldActions("Delivered", { releasedAt: "2026-11-19T01:00:00Z" }, SALES),
+      allowedCompletionHoldActions(holdable(true), { releasedAt: "2026-11-19T01:00:00Z" }, SALES),
     ).toEqual(["hold"]);
   });
 
-  it("PAST_COMPLETION (COMPLETED/CLOSED/CANCELLED/RETURNED/REFUNDED/PARTIALLY_REFUNDED) và UNKNOWN → không nút", () => {
-    for (const status of PAST_COMPLETION_STATUSES) {
-      expect(isCompletionHoldApplicable(status)).toBe(false);
-      expect(allowedCompletionHoldActions(status, null, SALES)).toEqual([]);
-    }
-    expect(allowedCompletionHoldActions("UNKNOWN", null, SALES)).toEqual([]);
-    const live = ORDER_STATUSES.filter((status) => !PAST_COMPLETION_STATUSES.includes(status));
-    expect(live.every(isCompletionHoldApplicable)).toBe(true);
+  it("schema: cờ BE vắng (BE cũ) → false, không mở nút", () => {
+    const parsed = settlementReadinessDtoSchema.parse({ branch: "COMPLETION" });
+    expect(parsed.completionHoldable).toBe(false);
+    expect(
+      settlementReadinessDtoSchema.parse({ branch: "NONE", completionHoldable: true })
+        .completionHoldable,
+    ).toBe(true);
   });
 
   it("Điều phối / Quản lý kho (không có sales-order-holds:UPDATE) → không nút nào", () => {
-    expect(allowedCompletionHoldActions("Delivered", null, COORDINATOR)).toEqual([]);
-    expect(allowedCompletionHoldActions("Delivered", openHold, WAREHOUSE_MANAGER)).toEqual([]);
+    expect(allowedCompletionHoldActions(holdable(true), null, COORDINATOR)).toEqual([]);
+    expect(allowedCompletionHoldActions(holdable(true), openHold, WAREHOUSE_MANAGER)).toEqual([]);
   });
 });
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { SALES_CONTRACT_PERMISSIONS } from "@/constants";
+import { SALES_CONTRACT_PERMISSIONS, SALES_CONTRACT_STATUS_LABELS } from "@/constants";
 
 import { contractDraft } from "./__fixtures__/contract";
 import { contractFieldPath } from "./components/contract/useContractEditor";
@@ -15,6 +15,7 @@ import {
   CONTRACT_TRANSITIONS,
   allowedContractActions,
   cartonGaps,
+  contractPapers,
   isSignedFileTypeAllowed,
   passedBatches,
   passedBatchesText,
@@ -30,10 +31,29 @@ const accountant = (code: string) => code === SALES_CONTRACT_PERMISSIONS.read;
 const signerOnly = (code: string) => code === SALES_CONTRACT_PERMISSIONS.approve;
 
 describe("CONTRACT_TRANSITIONS (docs 14 §5)", () => {
-  it("SIGNED → COMPLETED; COMPLETED / CANCELLED là trạng thái cuối", () => {
-    expect(CONTRACT_TRANSITIONS.SIGNED).toEqual(["COMPLETED"]);
+  it("SIGNED → COMPLETED / LIQUIDATED (WF-05 Q-6); COMPLETED / LIQUIDATED / CANCELLED / UNKNOWN là trạng thái cuối", () => {
+    expect(CONTRACT_TRANSITIONS.SIGNED).toEqual(["COMPLETED", "LIQUIDATED"]);
     expect(CONTRACT_TRANSITIONS.COMPLETED).toEqual([]);
+    expect(CONTRACT_TRANSITIONS.LIQUIDATED).toEqual([]);
     expect(CONTRACT_TRANSITIONS.CANCELLED).toEqual([]);
+    expect(CONTRACT_TRANSITIONS.UNKNOWN).toEqual([]);
+  });
+});
+
+describe("trạng thái hợp đồng mới / lạ (WF-05 F-3, BO-11)", () => {
+  it("LIQUIDATED parse được, nhãn 'Thanh lý'; giá trị lạ → UNKNOWN thay vì làm hỏng thẻ hợp đồng", () => {
+    expect(salesContractDtoSchema.parse({ ...contractDraft, status: "LIQUIDATED" }).status).toBe(
+      "LIQUIDATED",
+    );
+    expect(SALES_CONTRACT_STATUS_LABELS.LIQUIDATED).toBe("Thanh lý");
+    expect(salesContractDtoSchema.parse({ ...contractDraft, status: "ARCHIVED" }).status).toBe(
+      "UNKNOWN",
+    );
+  });
+
+  it("LIQUIDATED / UNKNOWN → không nút mutating, không 'lập hợp đồng mới'", () => {
+    expect(allowedContractActions({ status: "LIQUIDATED" }, "Closed", sales)).toEqual([]);
+    expect(allowedContractActions({ status: "UNKNOWN" }, "Draft", sales)).toEqual([]);
   });
 });
 
@@ -186,5 +206,43 @@ describe("WF-02 N10 — đợt ON_SIGNING để trống số ngày", () => {
     expect(withPlan("ON_SIGNING", "5")).toHaveProperty("dueDays", 5);
     expect(withPlan("ON_SIGNING", "0")).toHaveProperty("dueDays", 0);
     expect(withPlan("AFTER_DELIVERY", "")).not.toHaveProperty("dueDays");
+  });
+});
+
+describe("contractPapers — phụ lục / biên bản thanh lý (BE feat/business-documents #1, #2)", () => {
+  const moved = { appendixAvailable: true };
+  it("chưa ký (nháp / đã gửi / đã huỷ) → không giấy tờ nào, kể cả khi cờ phụ lục lỡ true", () => {
+    for (const status of ["DRAFT", "SENT", "CANCELLED", "UNKNOWN"] as const)
+      expect(contractPapers({ status, ...moved }, "Completed")).toEqual({
+        appendix: false,
+        liquidation: false,
+      });
+  });
+
+  it("đã ký, đơn đang thực hiện, BE báo có phụ lục → phụ lục, chưa thanh lý", () => {
+    expect(contractPapers({ status: "SIGNED", ...moved }, "Shipped")).toEqual({
+      appendix: true,
+      liquidation: false,
+    });
+  });
+
+  it("đã ký nhưng appendixAvailable=false (chưa dời lịch giao) → không có nút phụ lục", () => {
+    expect(contractPapers({ status: "SIGNED", appendixAvailable: false }, "Shipped").appendix).toBe(
+      false,
+    );
+  });
+
+  it.each(["Completed", "Cancelled", "Closed", "Refunded", "Partially Refunded"] as const)(
+    "đã ký, đơn %s (BE ContractPaperService.ended) → thanh lý được",
+    (orderStatus) => {
+      expect(
+        contractPapers({ status: "SIGNED", appendixAvailable: false }, orderStatus).liquidation,
+      ).toBe(true);
+    },
+  );
+
+  it("hợp đồng Hoàn tất / Thanh lý → thanh lý được bất kể trạng thái đơn hiển thị", () => {
+    expect(contractPapers({ status: "COMPLETED", ...moved }, "Delivered").liquidation).toBe(true);
+    expect(contractPapers({ status: "LIQUIDATED", ...moved }, "Returned").liquidation).toBe(true);
   });
 });

@@ -9,7 +9,7 @@ import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { FormField, fieldA11y } from "@/components/shared/FormField";
 import { Input } from "@/components/ui/input";
 
-import { einvoiceErrorMessage } from "../errors";
+import { applyEInvoiceFieldErrors, einvoiceErrorMessage } from "../errors";
 import { reviseDraftInputSchema } from "../input-schemas";
 import { useReviseDraft } from "../mutations";
 
@@ -39,7 +39,18 @@ function ReviseForm({ invoice, onClose }: { invoice: EInvoice; onClose: () => vo
   const submit = form.handleSubmit((values) =>
     revise.mutate(
       { id: invoice.id, version: invoice.version, ...values },
-      { onSuccess: onClose, onError: (failure) => setError(einvoiceErrorMessage(failure)) },
+      {
+        onSuccess: onClose,
+        // BO-10: lỗi từng ô của BE hiện dưới ô đó
+        onError: (failure) => {
+          const mapped = applyEInvoiceFieldErrors(
+            failure,
+            FIELDS.map((field) => field.name),
+            (field, message) => form.setError(field, { type: "server", message }),
+          );
+          if (!mapped) setError(einvoiceErrorMessage(failure));
+        },
+      },
     ),
   );
 

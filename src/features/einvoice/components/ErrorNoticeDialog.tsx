@@ -11,13 +11,14 @@ import { FORM_TEXTAREA_CLASS } from "@/components/shared/form-control-classes";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
-import { einvoiceErrorMessage } from "../errors";
+import { applyEInvoiceFieldErrors, einvoiceErrorMessage } from "../errors";
 import { errorNoticeInputSchema } from "../input-schemas";
 import { useRecordErrorNotice } from "../mutations";
 
 import type { EInvoice, ErrorNoticeFormValues, ErrorNoticeInput } from "../types";
 
 const L = EINVOICE_LIMITS;
+const NOTICE_FIELDS = ["reason", "correctBuyerName", "correctBuyerAddress"] as const;
 
 function ErrorNoticeForm({ invoice, onClose }: { invoice: EInvoice; onClose: () => void }) {
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +31,16 @@ function ErrorNoticeForm({ invoice, onClose }: { invoice: EInvoice; onClose: () 
   const submit = form.handleSubmit((values) =>
     record.mutate(
       { id: invoice.id, ...values },
-      { onSuccess: onClose, onError: (failure) => setError(einvoiceErrorMessage(failure)) },
+      {
+        onSuccess: onClose,
+        // BO-10: lỗi từng ô của BE hiện dưới ô đó
+        onError: (failure) => {
+          const mapped = applyEInvoiceFieldErrors(failure, NOTICE_FIELDS, (field, message) =>
+            form.setError(field, { type: "server", message }),
+          );
+          if (!mapped) setError(einvoiceErrorMessage(failure));
+        },
+      },
     ),
   );
 

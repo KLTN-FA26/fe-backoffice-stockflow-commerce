@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -20,14 +21,15 @@ import { FormField, fieldA11y } from "@/components/shared/FormField";
 import { FORM_TEXTAREA_CLASS } from "@/components/shared/form-control-classes";
 import { Textarea } from "@/components/ui/textarea";
 
-import { returnErrorMessage } from "../errors";
+import { openDraftReceiptOf, returnErrorMessage } from "../errors";
 import { createReceiptInputSchema } from "../input-schemas";
 import { useCreateReturnReceipt } from "../mutations";
-import { useAwaitingReturns, useReturnedShipments } from "../queries";
+import { receiptCreatableNow } from "../lifecycle";
+import { useReceiptSourceReturns, useReturn, useReturnedShipments } from "../queries";
 
 import { PickField } from "./PickField";
 
-import type { CreateReceiptFormValues } from "../types";
+import type { CreateReceiptFormValues, ReturnRequest, ReturnRow } from "../types";
 
 const L = RETURN_RECEIPT_LABELS.createDialog;
 
@@ -40,8 +42,14 @@ function CreateForm({
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  // 409 RETURN_RECEIPT_ALREADY_OPEN: nguồn có `receiptDraftOpen` đã bị loại khỏi danh sách chọn; còn lọt (phiếu nháp
+  // vừa mở ở nơi khác) thì BE từ chối và nêu phiếu nháp (`details.receiptId`) — màn đưa người dùng tới phiếu đó.
+  const [openDraftId, setOpenDraftId] = useState<string | null>(null);
   const canReadShipments = useCan(SHIPMENT_PERMISSIONS.read);
-  const awaiting = useAwaitingReturns();
+  const sources = useReceiptSourceReturns();
+  // Mở từ màn yêu cầu (`?returnRequestId=`): yêu cầu đó luôn có trong danh sách chọn, kể cả khi nằm ngoài trang đầu
+  const preselected = useReturn(returnRequestId);
+  const rmaOptions = rmaSourceOptions(sources.data?.items ?? [], preselected.data ?? null);
   const shipments = useReturnedShipments(canReadShipments);
   const warehouses = useWarehouseOptions(useCan(WAREHOUSE_PERMISSIONS.read));
   const create = useCreateReturnReceipt();
@@ -80,7 +88,10 @@ function CreateForm({
           onClose();
           router.push(RETURN_ROUTES.receipts.detail(receipt.id));
         },
-        onError: (failure) => setError(returnErrorMessage(failure)),
+        onError: (failure) => {
+          setError(returnErrorMessage(failure));
+          setOpenDraftId(openDraftReceiptOf(failure));
+        },
       },
     ),
   );
@@ -126,10 +137,7 @@ function CreateForm({
               value={field.value}
               onChange={field.onChange}
               empty={L.noSource}
-              options={(awaiting.data?.items ?? []).map((row) => ({
-                value: row.id,
-                label: `${row.rmaNumber} · ${row.orderNumber}`,
-              }))}
+              options={rmaOptions}
             />
           )}
         />
@@ -196,6 +204,17 @@ function CreateForm({
           />
         )}
       />
+      {openDraftId && (
+        <p className="text-[0.8125rem]">
+          <Link
+            href={RETURN_ROUTES.receipts.detail(openDraftId)}
+            className="text-accent-text font-medium hover:underline"
+            onClick={onClose}
+          >
+            {L.openDraft}
+          </Link>
+        </p>
+      )}
       <FormField id="rr-note" label={L.note} error={errors.note?.message}>
         <Textarea
           rows={2}
@@ -210,8 +229,32 @@ function CreateForm({
 }
 
 /**
+ * Yêu cầu chọn được làm nguồn: BE nói mở phiếu được (`receiptOpenable`, WF-05 Q-11 — kể cả hàng về muộn, nhiều phiếu một
+ * yêu cầu) và chưa có phiếu nháp đang đếm (`receiptDraftOpen`, BE-23 — không mở phiếu thứ hai); BE cũ thì chỉ yêu cầu
+ * chờ hàng về. Yêu cầu đang mở từ màn chi tiết đứng đầu nếu mở được.
+ */
+function rmaSourceOptions(
+  rows: readonly ReturnRow[],
+  preselected: ReturnRequest | null,
+): { value: string; label: string }[] {
+  const option = (ret: Pick<ReturnRow, "id" | "rmaNumber" | "orderNumber">) => ({
+    value: ret.id,
+    label: `${ret.rmaNumber} · ${ret.orderNumber}`,
+  });
+  const options = rows.filter((row) => receiptCreatableNow(row)).map(option);
+  if (
+    preselected &&
+    receiptCreatableNow(preselected) &&
+    !options.some((o) => o.value === preselected.id)
+  )
+    options.unshift(option(preselected));
+  return options;
+}
+
+/**
  * Lập phiếu nhập hàng hoàn (docs 03 §4.2 bước 9; BE `POST /goods-receipts/returns`): nguồn là yêu cầu trả hàng đã
- * duyệt (AWAITING_RETURN) hoặc chuyến hãng hoàn về (RETURNED), vào một khu QUARANTINE của kho xuất đơn (BR-14).
+ * duyệt mà kho còn nhận được hàng (WF-05 Q-11: chờ hàng về, hoặc kiện về muộn — một yêu cầu có thể có nhiều phiếu, chỉ một
+ * phiếu nháp mỗi lúc) hoặc chuyến hãng hoàn về (RETURNED), vào một khu QUARANTINE của kho xuất đơn (BR-14).
  */
 export function CreateReturnReceiptDialog({
   open,

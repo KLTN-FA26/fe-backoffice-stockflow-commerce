@@ -24,7 +24,7 @@ import type { OrderReadStatus, OrderStatus } from "./types";
  */
 describe("ORDER_TRANSITIONS (BE OrderStatus#canTransitionTo)", () => {
   it.each<[OrderStatus, OrderStatus[]]>([
-    ["Draft", ["Pending Contract", "Pending Payment", "Confirmed", "On Hold", "Cancelled"]],
+    ["Draft", ["Pending Contract", "Cancelled"]],
     ["Pending Contract", ["Draft", "Pending Payment", "Confirmed", "On Hold", "Cancelled"]],
     ["Pending Payment", ["Confirmed", "Cancelled"]],
     ["Confirmed", ["Awaiting Stock", "In Production", "Ready to Fulfill", "On Hold", "Cancelled"]],
@@ -34,7 +34,16 @@ describe("ORDER_TRANSITIONS (BE OrderStatus#canTransitionTo)", () => {
     ["Picking", ["Packed", "Partially Fulfilled", "On Hold", "Cancelled"]],
     [
       "Partially Fulfilled",
-      ["Packed", "Shipped", "Delivery Failed", "Delivered", "Returned", "On Hold"],
+      [
+        "Packed",
+        "Shipped",
+        "Delivery Failed",
+        "Delivered",
+        "Returned",
+        "On Hold",
+        "Partially Refunded",
+        "Closed",
+      ],
     ],
     ["Packed", ["Shipped", "Partially Fulfilled", "On Hold"]],
     [
@@ -51,18 +60,64 @@ describe("ORDER_TRANSITIONS (BE OrderStatus#canTransitionTo)", () => {
         "Cancelled",
       ],
     ],
-    ["Shipped", ["Delivered", "Delivery Failed", "Partially Fulfilled"]],
-    ["Delivery Failed", ["Delivered", "Returned", "Partially Fulfilled"]],
+    ["Shipped", ["Delivered", "Delivery Failed", "Partially Fulfilled", "On Hold"]],
+    ["Delivery Failed", ["Delivered", "Returned", "Partially Fulfilled", "On Hold"]],
     ["Delivered", ["Completed", "Return Requested", "Delivery Failed"]],
-    ["Return Requested", ["Returned", "Delivered"]],
-    ["Returned", ["Refunded", "Partially Refunded"]],
-    ["Refunded", ["Closed", "Return Requested"]],
-    ["Partially Refunded", ["Closed", "Return Requested"]],
+    [
+      "Return Requested",
+      [
+        "Returned",
+        "Delivered",
+        "Completed",
+        "Refunded",
+        "Partially Refunded",
+        "Delivery Failed",
+        "Partially Fulfilled",
+      ],
+    ],
+    [
+      "Returned",
+      [
+        "Refunded",
+        "Partially Refunded",
+        "Delivered",
+        "Completed",
+        "Delivery Failed",
+        "Partially Fulfilled",
+        "Closed",
+      ],
+    ],
+    ["Refunded", ["Closed", "Return Requested", "Returned"]],
+    ["Partially Refunded", ["Closed", "Return Requested", "Returned", "Partially Fulfilled"]],
     ["Completed", ["Closed", "Return Requested"]],
     ["Cancelled", []],
     ["Closed", []],
   ])("%s → %j", (from, to) => {
     expect(nextOrderStatuses(from)).toEqual(to);
+  });
+
+  it("WF-05 BO-06: cạnh mới của G1 — trả hàng kết thúc không hoàn tiền (X-8), rút yêu cầu về trạng thái gốc (F-8, BE-40)", () => {
+    expect(nextOrderStatuses("Returned")).toEqual(
+      expect.arrayContaining(["Delivered", "Completed"]),
+    );
+    expect(nextOrderStatuses("Return Requested")).toEqual(
+      expect.arrayContaining(["Completed", "Refunded", "Partially Refunded"]),
+    );
+    // Hoàn tiền bị huỷ (TT-4) và lô hoàn về một phần (RTM-RETURNED-PARTIAL)
+    expect(nextOrderStatuses("Refunded")).toContain("Returned");
+    expect(nextOrderStatuses("Partially Refunded")).toEqual(
+      expect.arrayContaining(["Returned", "Partially Fulfilled"]),
+    );
+    expect(nextOrderStatuses("Partially Fulfilled")).toContain("Partially Refunded");
+  });
+
+  it("audit r2 M-6 (BE-45, settlement V20261223000100): hãng chở về / thất lạc, không gì phải hoàn → đóng thẳng, không qua “hoàn một phần”", () => {
+    expect(nextOrderStatuses("Returned")).toContain("Closed");
+    expect(nextOrderStatuses("Partially Fulfilled")).toContain("Closed");
+    // BE-46: khiếu nại kết thúc không hoàn gì trên đơn giao thất bại / giao một phần → về đường giao
+    expect(nextOrderStatuses("Return Requested")).toEqual(
+      expect.arrayContaining(["Delivery Failed", "Partially Fulfilled"]),
+    );
   });
 
   it("docs 15 BR-02: Pending Payment không đi thẳng sang sản xuất / kho", () => {
@@ -170,6 +225,7 @@ const BASE_CONTEXT: OrderActionContext = {
   packedAt: null,
   firstLabeledAt: null,
   statusBeforeHold: null,
+  settlementBranch: null,
 };
 
 const codes = (status: OrderReadStatus, role: Role, context?: Partial<OrderActionContext>) =>
@@ -507,6 +563,25 @@ describe("allowedOrderActions — Đóng phần còn lại (sales-order-cancella
     expect(codes("Shipped", "ORDER_COORDINATOR")).not.toContain("remainder-closure");
   });
 
+  // Audit r3 LM-4: S1 giao, S2 hãng chở về và nhập xong, không còn gì để giao — đơn nằm PARTIALLY_FULFILLED ~30 ngày chờ
+  // tự đóng (BE-45). BE nói nhánh REFUND_CLOSE (`Order.endedByCarrier`); `closeRemainder` không còn gì để đóng → 409.
+  it("đơn PF hãng đã kết thúc (nhánh REFUND_CLOSE) → không có Đóng phần còn lại; nhánh khác / không có khối vẫn có", () => {
+    const pf = { hasShipments: true, packedAt: PACKED_AT } as const;
+    expect(
+      codes("Partially Fulfilled", "SALES_STAFF", { ...pf, settlementBranch: "REFUND_CLOSE" }),
+    ).not.toContain("remainder-closure");
+    expect(
+      codes("Partially Fulfilled", "SALES_STAFF", { ...pf, settlementBranch: "NONE" }),
+    ).toContain("remainder-closure");
+    expect(
+      codes("Partially Fulfilled", "SALES_STAFF", { ...pf, settlementBranch: null }),
+    ).toContain("remainder-closure");
+    // Chưa biết nhánh (dòng danh sách không mang khối) → ẩn, không đoán
+    expect(
+      codes("Partially Fulfilled", "SALES_STAFF", { ...pf, settlementBranch: undefined }),
+    ).not.toContain("remainder-closure");
+  });
+
   it("đích theo các lô giao — không ép một trạng thái", () => {
     const closure = ORDER_ACTIONS.find((action) => action.code === "remainder-closure");
     expect(closure?.outcome).toEqual({
@@ -521,6 +596,11 @@ describe("allowedOrderActions — trạng thái lạ + định nghĩa action", (
     const all = () => true;
     expect(allowedOrderActions("UNKNOWN", all, BASE_CONTEXT)).toEqual([]);
     expect(allowedOrderActions("UNKNOWN", all, { ...BASE_CONTEXT, ...CREDIT_HOLD })).toEqual([]);
+  });
+
+  it("WF-05 BO-07 (C-12): Từ chối công nợ chỉ dẫn tới Cancelled (BE CreditHoldService#refuse luôn huỷ)", () => {
+    const reject = ORDER_ACTIONS.find((action) => action.code === "credit-reject");
+    expect(reject?.outcome).toEqual({ kind: "to", statuses: ["Cancelled"] });
   });
 
   it("đủ 8 action; mọi trạng thái nguồn / đích là trạng thái đã biết (không Paid / In Fulfilment)", () => {
@@ -568,6 +648,7 @@ describe("allowedOrderActions — trạng thái lạ + định nghĩa action", (
         packedAt: null,
         firstLabeledAt: "2026-11-10T02:00:00Z",
         statusBeforeHold: null,
+        settlementReadiness: null,
       }),
     ).toEqual({
       holdReason: "CREDIT",
@@ -575,6 +656,7 @@ describe("allowedOrderActions — trạng thái lạ + định nghĩa action", (
       packedAt: null,
       firstLabeledAt: "2026-11-10T02:00:00Z",
       statusBeforeHold: null,
+      settlementBranch: null,
     });
   });
 });

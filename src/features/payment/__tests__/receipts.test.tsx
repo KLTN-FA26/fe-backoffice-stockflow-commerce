@@ -101,6 +101,68 @@ describe("ReceiptList (docs 15 §5.3)", () => {
   });
 });
 
+describe("ReceiptDetail — WF-05 Q-20 voidable from the BE, payment confirmation (documents #5)", () => {
+  it("voidable=false: no void button, the Vietnamese reason per blocker code", async () => {
+    mockPaymentApi(ACCOUNTANT_GRANTS, {
+      get: {
+        "/payment-receipts/rcp-1": () =>
+          detail({ voidable: false, voidBlockedBy: "PAYMENT_RECEIPT_VOID_AFTER_HANDOVER" }),
+      },
+    });
+    renderPaymentScreen(<ReceiptDetail id="rcp-1" />);
+    expect(await screen.findByText("Không huỷ được phiếu thu này")).toBeInTheDocument();
+    expect(screen.getByText(/đã bàn giao cho hãng vận chuyển/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Huỷ phiếu thu" })).not.toBeInTheDocument();
+  });
+
+  it("an unknown blocker still locks the button and shows the code", async () => {
+    mockPaymentApi(ACCOUNTANT_GRANTS, {
+      get: {
+        "/payment-receipts/rcp-1": () => detail({ voidable: false, voidBlockedBy: "NEW_RULE" }),
+      },
+    });
+    renderPaymentScreen(<ReceiptDetail id="rcp-1" />);
+    expect(
+      await screen.findByText(/Máy chủ không cho huỷ phiếu này \(NEW_RULE\)/),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Huỷ phiếu thu" })).not.toBeInTheDocument();
+  });
+
+  it("each line of a recorded receipt downloads its payment confirmation under the BE file name", async () => {
+    const pdf = new Blob(["%PDF"]);
+    const name = "Phiếu xác nhận thanh toán XNTT-261123-a1b2c3-2.pdf";
+    const api = mockPaymentApi(ACCOUNTANT_GRANTS, {
+      get: { "/payment-receipts/rcp-1": () => detail({ voidable: true }) },
+    });
+    const fallback = api.get.getMockImplementation();
+    if (!fallback) throw new Error("mockPaymentApi chưa cài GET");
+    api.get.mockImplementation(async (url, config) =>
+      url === "/installments/inst-2/receipts/rcp-1/confirmation"
+        ? {
+            data: pdf,
+            headers: {
+              "content-disposition": `inline; filename*=UTF-8''${encodeURIComponent(name)}`,
+            },
+          }
+        : fallback(url, config),
+    );
+    renderPaymentScreen(<ReceiptDetail id="rcp-1" />);
+    await userEvent.click(await screen.findByRole("button", { name: /Phiếu xác nhận thanh toán/ }));
+    await waitFor(() => expect(saveFile).toHaveBeenCalledWith({ blob: pdf, fileName: name }));
+  });
+
+  it("a voided receipt has no payment confirmation", async () => {
+    mockPaymentApi(ACCOUNTANT_GRANTS, {
+      get: { "/payment-receipts/rcp-1": () => detail({ status: "VOIDED", voidable: false }) },
+    });
+    renderPaymentScreen(<ReceiptDetail id="rcp-1" />);
+    expect(await screen.findByText("FT26313123456")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Phiếu xác nhận thanh toán/ }),
+    ).not.toBeInTheDocument();
+  });
+});
+
 describe("ReceiptDetail — void a wrongly entered receipt (docs 15 §4.4, BR-04)", () => {
   const routes = (post?: () => unknown) => ({
     get: { "/payment-receipts/rcp-1": () => detail() },
@@ -162,6 +224,21 @@ describe("ReceiptDetail — void a wrongly entered receipt (docs 15 §4.4, BR-04
     await userEvent.click(dialog.getByRole("button", { name: "Huỷ phiếu thu" }));
     expect(await dialog.findByText(shown)).toBeInTheDocument();
     expect(dialog.queryByText(/được đánh dấu/)).not.toBeInTheDocument();
+  });
+
+  it("WF-05 Q-20 (BE-33): a receipt paying goods already handed over cannot be voided — said in Vietnamese", async () => {
+    mockPaymentApi(
+      ACCOUNTANT_GRANTS,
+      routes(() => {
+        throw apiError(409, "PAYMENT_RECEIPT_VOID_AFTER_HANDOVER");
+      }),
+    );
+    renderPaymentScreen(<ReceiptDetail id="rcp-1" />);
+    await userEvent.click(await screen.findByRole("button", { name: "Huỷ phiếu thu" }));
+    const dialog = within(await screen.findByRole("dialog"));
+    await userEvent.type(dialog.getByLabelText(/Lý do huỷ phiếu thu/), "Nhầm khách");
+    await userEvent.click(dialog.getByRole("button", { name: "Huỷ phiếu thu" }));
+    expect(await dialog.findByText(/căn cứ cho hàng đã bàn giao/)).toBeInTheDocument();
   });
 
   it("BR-13: when the void leaves a confirmed order short, BE asks for the hold; ticking 'Treo đơn' retries with holdOrders", async () => {

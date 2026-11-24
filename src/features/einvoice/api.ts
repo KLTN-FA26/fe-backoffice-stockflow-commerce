@@ -10,8 +10,11 @@ import {
   einvoicePageDtoSchema,
   errorNoticeDtoSchema,
   fileLinkDtoSchema,
+  mailResendDtoSchema,
+  orderReturnChoicePageDtoSchema,
   providerCallDtoSchema,
   registerEntryDtoSchema,
+  signatureDtoSchema,
 } from "./schemas";
 
 import type {
@@ -19,6 +22,8 @@ import type {
   EInvoiceFileKind,
   EInvoiceStatus,
   EInvoiceType,
+  ExternalReductionBasis,
+  PortalResultOutcome,
 } from "@/constants/einvoice";
 import type { ListQueryParams, PaginatedResponse } from "@/lib/api/query-factory";
 import type {
@@ -27,9 +32,12 @@ import type {
   DrawUpInput,
   EInvoice,
   EInvoiceListItem,
+  EInvoiceSignature,
   ErrorNotice,
   ErrorNoticeInput,
   FileLink,
+  MailResend,
+  OrderReturnChoice,
   ProviderCall,
   RegisterEntry,
   RegisterRange,
@@ -52,6 +60,11 @@ export interface ListEInvoiceParams extends ListQueryParams {
   issuedTo?: string;
   /** ISO instant: chưa phát hành và hạn phát hành trước mốc này. */
   dueBefore?: string;
+  /**
+   * Chỉ hoá đơn mang cảnh báo này (bộ lọc "Hoá đơn lập trễ" = `ISSUED_LATE`, WF-05 Q-10) — BE G3 `GET /einvoices
+   * ?warning=` (enum `EInvoice.Warning`) lọc ở máy chủ nên tổng số / số trang đúng.
+   */
+  warning?: string;
 }
 
 export async function listEInvoices(
@@ -70,6 +83,7 @@ export async function listEInvoices(
     "issuedFrom",
     "issuedTo",
     "dueBefore",
+    "warning",
   ] as const) {
     const value = params[key];
     if (value) query.set(key, value);
@@ -131,29 +145,180 @@ const versioned =
 
 /** Chép lại bên mua từ hồ sơ pháp lý của khách (docs 21 §4.2 bước 4). */
 export const refreshBuyer = versioned("buyer-refresh");
-/** Phát hành — trả về `SUBMITTING` ngay; kết quả về sau (docs 21 §4.2 bước 5–6). */
-export const issueEInvoice = versioned("issuance");
+export interface IssueInput extends VersionedInput {
+  /** Cảnh báo Kế toán đã xem lúc bấm phát hành (WF-05 F-16, BE-25); BE kiểm lại, có cảnh báo mới → 409. */
+  acknowledgedWarnings?: string[];
+  /**
+   * Lý do phát hành trễ (sau ngày giao) — BE G3 `IssueEInvoiceRequest.lateReason` (≤ 500), ghi nhật ký audit (WF-05
+   * Q-10). Bắt buộc với hoá đơn gốc phát hành sau ngày giao (400 `EINVOICE_LATE_ISSUE_REASON_REQUIRED`), bỏ qua khi khác.
+   */
+  lateReason?: string;
+}
+
+/**
+ * Phát hành — trả về `SUBMITTING` ngay; kết quả về sau (docs 21 §4.2 bước 5–6). Chỉ gửi `acknowledgedWarnings` /
+ * `lateReason` khi có (BE cũ chỉ nhận `{version}`).
+ */
+export async function issueEInvoice(input: IssueInput): Promise<EInvoice> {
+  const { id, version, acknowledgedWarnings, lateReason } = input;
+  const body: Record<string, unknown> = { version };
+  if (acknowledgedWarnings && acknowledgedWarnings.length > 0)
+    body.acknowledgedWarnings = acknowledgedWarnings;
+  const reason = lateReason?.trim();
+  if (reason) body.lateReason = reason;
+  const { data } = await api.post<unknown>(`${one(id)}/issuance`, body);
+  return parse(data);
+}
 /** Mở lại hoá đơn bị từ chối thành nháp để sửa (docs 21 §4.2 bước 7). */
 export const reopenEInvoice = versioned("reopening");
 /** Gửi như giao dịch mới khi NCC xác nhận không giữ hoá đơn (cảnh báo UNKNOWN_TO_PROVIDER, BR-04). */
 export const resubmitEInvoice = versioned("resubmission");
 
-export async function voidDraft(input: VersionedInput & { reason: string }): Promise<EInvoice> {
-  const { id, ...body } = input;
-  const { data } = await api.post<unknown>(`${one(id)}/void`, body);
+/**
+ * Huỷ nháp. `reasonCode: "UNSENDABLE_REVERSAL"` = huỷ bản giảm do giao thất bại không gửi được qua NCC (WF-05 Q-8,
+ * F-14); BE 409 `EINVOICE_REVERSAL_STILL_SENDABLE` khi nó vẫn gửi được.
+ */
+export async function voidDraft(
+  input: VersionedInput & { reason: string; reasonCode?: string },
+): Promise<EInvoice> {
+  const { id, reasonCode, ...body } = input;
+  const { data } = await api.post<unknown>(
+    `${one(id)}/void`,
+    reasonCode ? { ...body, reasonCode } : body,
+  );
   return parse(data);
 }
 
 /**
- * Rút hoá đơn kẹt ở NCC (SUBMITTING → REJECTED mã `WITHDRAWN_NO_PROVIDER_RECORD`, lý do = điều Kế toán đã
- * kiểm trên cổng NCC) để mở lại và phát hành như giao dịch mới (BE HĐ-1). 409 `EINVOICE_WITHDRAWAL_REFUSED`.
+ * Rút hoá đơn kẹt ở NCC (SUBMITTING → REJECTED, lý do = điều Kế toán đã kiểm trên cổng NCC) để mở lại và phát hành
+ * như giao dịch mới (BE HĐ-1). WF-05 Q-5 / F-12: `supportReference` (≤ 200) = số phiếu / nội dung trả lời của hỗ trợ
+ * NCC — bắt buộc khi NCC không xác nhận được kết quả (409 `EINVOICE_WITHDRAWAL_EVIDENCE_REQUIRED`); từ chối khác:
+ * 409 `EINVOICE_WITHDRAWAL_REFUSED` + `details`.
  */
 export async function withdrawEInvoice(
-  input: VersionedInput & { reason: string },
+  input: VersionedInput & { reason: string; supportReference?: string },
 ): Promise<EInvoice> {
-  const { id, ...body } = input;
-  const { data } = await api.post<unknown>(`${one(id)}/withdrawal`, body);
+  const { id, supportReference, ...body } = input;
+  const reference = supportReference?.trim();
+  const { data } = await api.post<unknown>(
+    `${one(id)}/withdrawal`,
+    reference ? { ...body, supportReference: reference } : body,
+  );
   return parse(data);
+}
+
+const MULTIPART = { headers: { "Content-Type": "multipart/form-data" } };
+
+export interface PortalResultInput extends VersionedInput {
+  outcome: PortalResultOutcome;
+  invoiceNumber?: number;
+  taxAuthorityCode?: string;
+  lookupCode?: string;
+  xml?: File;
+  pdf?: File;
+  note: string;
+}
+
+/**
+ * Ghi kết quả Kế toán đã kiểm trên cổng NCC cho hoá đơn kẹt "đang gửi" (WF-05 Q-8, BE-08, F-13; `einvoices:APPROVE`).
+ * BE tra lại NCC: khác → 409 `EINVOICE_PORTAL_RECORD_MISMATCH`; tệp sai → 422 `EINVOICE_PORTAL_FILE_INVALID`.
+ */
+export async function recordPortalResult(input: PortalResultInput): Promise<EInvoice> {
+  const form = new FormData();
+  form.append("outcome", input.outcome);
+  if (input.invoiceNumber !== undefined) form.append("invoiceNumber", String(input.invoiceNumber));
+  if (input.taxAuthorityCode) form.append("taxAuthorityCode", input.taxAuthorityCode);
+  if (input.lookupCode) form.append("lookupCode", input.lookupCode);
+  if (input.xml) form.append("xml", input.xml);
+  if (input.pdf) form.append("pdf", input.pdf);
+  form.append("note", input.note);
+  form.append("version", String(input.version));
+  const { data } = await api.post<unknown>(`${one(input.id)}/portal-result`, form, MULTIPART);
+  return parse(data);
+}
+
+export interface ExternalReductionInput {
+  id: string;
+  symbol: string;
+  templateCode: string;
+  invoiceNumber: number;
+  /** `YYYY-MM-DD` — ngày của hoá đơn giảm trên cổng NCC. */
+  issueDate: string;
+  /**
+   * Mã của cơ quan thuế / mã tra cứu in trên hoá đơn giảm (tuỳ chọn): vắng thì BE lấy MCCQT trong XML
+   * (`EInvoiceIssuance.recordExternalReduction`) — XML không mang mã thì 422, nên Kế toán nhập ở đây.
+   */
+  taxAuthorityCode?: string;
+  lookupCode?: string;
+  pdf: File;
+  /** BE G3: bắt buộc — XML là hoá đơn theo luật, số / ký hiệu / ngày đã nhập được đối chiếu với nó. */
+  xml: File;
+  note: string;
+  /**
+   * Căn cứ (BE `CorrectionBasis`): DELIVERY_FAILED (mặc định của BE), RETURN kèm `returnRequestId`, hoặc ERROR kèm
+   * `voidedAdjustmentId` (audit r3 EINV-2 — một dòng của `externalReductionErrors`).
+   */
+  basis: ExternalReductionBasis;
+  returnRequestId?: string;
+  voidedAdjustmentId?: string;
+}
+
+/**
+ * Ghi hoá đơn giảm Kế toán đã làm trên cổng NCC (WF-05 Q-8 / Q-9, BE-10, F-13): sau khi bản giảm không gửi được bị
+ * huỷ, hoặc với hoá đơn thay thế cần giảm (giao thất bại, hoặc trả hàng — `basis` RETURN + `returnRequestId`), hoặc điều
+ * chỉnh sai sót đã huỷ vì NCC không gửi được (`basis` ERROR + `voidedAdjustmentId`, audit r3 EINV-2). BE đọc
+ * tệp XML và đối chiếu với số đã nhập (422 `EINVOICE_PORTAL_FILE_INVALID`); không hỏi lại NCC. Trả về hoá đơn điều chỉnh
+ * mới (`issuedVia` PORTAL_RECORD).
+ */
+export async function recordExternalReduction(input: ExternalReductionInput): Promise<EInvoice> {
+  const form = new FormData();
+  form.append("symbol", input.symbol);
+  form.append("templateCode", input.templateCode);
+  form.append("invoiceNumber", String(input.invoiceNumber));
+  form.append("issueDate", input.issueDate);
+  if (input.taxAuthorityCode) form.append("taxAuthorityCode", input.taxAuthorityCode);
+  if (input.lookupCode) form.append("lookupCode", input.lookupCode);
+  form.append("pdf", input.pdf);
+  form.append("xml", input.xml);
+  form.append("note", input.note);
+  form.append("basis", input.basis);
+  if (input.basis === "RETURN" && input.returnRequestId)
+    form.append("returnRequestId", input.returnRequestId);
+  if (input.basis === "ERROR" && input.voidedAdjustmentId)
+    form.append("voidedAdjustmentId", input.voidedAdjustmentId);
+  const { data } = await api.post<unknown>(`${one(input.id)}/external-reductions`, form, MULTIPART);
+  return parse(data);
+}
+
+/**
+ * Gửi lại hoá đơn đã phát hành qua e-mail, kèm PDF và XML, tới e-mail nhận hoá đơn HIỆN TẠI của khách (audit r2 einvoice
+ * M-1; HĐ-8: hoá đơn phát hành lúc khách chưa có e-mail, Sale ghi e-mail rồi gửi lại). Không body. Quyền
+ * `customer-legal-profiles:UPDATE`. 409 `EINVOICE_NOT_ISSUED`; 409 `EINVOICE_INVALID_TRANSITION` (`details.reason`
+ * SIGNATURE_INVALID); 409 `EINVOICE_BUYER_PROFILE_INCOMPLETE` (`details.missing` ["EMAIL"]) khi khách chưa có e-mail.
+ */
+export async function resendEInvoiceEmail(input: { id: string }): Promise<MailResend> {
+  const { data } = await api.post<unknown>(`${one(input.id)}/email`);
+  return mailResendDtoSchema.parse(data);
+}
+
+/**
+ * Lập bản giảm do giao thất bại cho hoá đơn gốc mà lần giao không còn "đã giao" (WF-05 BE-11, F-15). 409
+ * `EINVOICE_REVERSAL_NOT_APPLICABLE` khi không áp dụng.
+ */
+export const reduceFailedDelivery = versioned("delivery-failure-reduction");
+
+/** Chữ ký số trên XML của hoá đơn đã phát hành, kiểm lúc hỏi (BO-09). 409 `EINVOICE_NOT_ISSUED` trước khi phát hành. */
+export async function getSignature(id: string, signal?: AbortSignal): Promise<EInvoiceSignature> {
+  const { data } = await api.get<unknown>(`${one(id)}/signature`, { signal });
+  return signatureDtoSchema.parse(data);
+}
+
+/** Kiểm chữ ký một tệp XML bất kỳ (bản của khách, bản nghi bị sửa) — không lưu gì; > 5 MB → 413. */
+export async function checkSignature(file: File): Promise<EInvoiceSignature> {
+  const form = new FormData();
+  form.append("file", file);
+  const { data } = await api.post<unknown>(`${BASE}/signature-checks`, form, MULTIPART);
+  return signatureDtoSchema.parse(data);
 }
 
 /** Kiểm tra lại kết quả theo mã giao dịch (docs 21 §4.2 bước 8). */
@@ -183,9 +348,7 @@ export async function attachAgreement(input: VersionedInput & AgreementInput): P
   form.append("date", input.date);
   form.append("version", String(input.version));
   // Client mặc định gửi JSON: phải nói rõ multipart, nếu không axios đổi FormData thành JSON
-  const { data } = await api.put<unknown>(`${one(input.id)}/agreement`, form, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
+  const { data } = await api.put<unknown>(`${one(input.id)}/agreement`, form, MULTIPART);
   return parse(data);
 }
 
@@ -221,6 +384,20 @@ export async function sendErrorNotice(input: {
     {},
   );
   return errorNoticeDtoSchema.parse(data);
+}
+
+/**
+ * Các yêu cầu trả hàng của đơn (BE `GET /returns?orderId=`, `sales-rmas:READ` — Kế toán có) để chọn khi điều chỉnh /
+ * ghi hoá đơn giảm vì trả hàng: BE nhận `returnRequestId` là UUID và đòi yêu cầu thuộc đúng đơn của hoá đơn
+ * (`EInvoiceCorrections.requireReturnOf`). Mới nhất trước; một đơn không có quá 50 yêu cầu trả hàng trong thực tế.
+ */
+export async function listOrderReturnChoices(
+  orderId: string,
+  signal?: AbortSignal,
+): Promise<OrderReturnChoice[]> {
+  const params = new URLSearchParams({ orderId, page: "0", size: "50", sort: "requestedAt,desc" });
+  const { data } = await api.get<unknown>("/returns", { params, signal });
+  return orderReturnChoicePageDtoSchema.parse(data).items;
 }
 
 /* ── Bảng kê ─────────────────────────────────────────────────────────────────────── */

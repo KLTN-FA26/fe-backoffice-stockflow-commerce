@@ -1,16 +1,22 @@
 "use client";
 
 import { PackageX } from "lucide-react";
-import { parseAsStringLiteral, useQueryState } from "nuqs";
+import { useMemo } from "react";
 
-import { ADMIN_ROUTES, DELIVERY_FAILURE_LABELS, ORDER_PERMISSIONS, PAGE_SIZE } from "@/constants";
-import { usePermissionChecker } from "@/lib/auth";
+import {
+  ADMIN_ROUTES,
+  DELIVERY_FAILURE_LABELS,
+  DELIVERY_FAILURE_LIMITS,
+  ORDER_PERMISSIONS,
+  PAGE_SIZE,
+} from "@/constants";
+import { useCan } from "@/lib/auth";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
 import { DataTable } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { RefetchBar } from "@/components/shared/RefetchBar";
-import { Button } from "@/components/ui/button";
 
+import { isUndecidedCase, newestFirst } from "../../delivery-failure-lifecycle";
 import { useDeliveryFailures } from "../../delivery-failure-queries";
 import { OrderLoadError } from "../OrderLoadError";
 import { OrderPermissionGate } from "../OrderPermissionGate";
@@ -19,13 +25,12 @@ import { OrderTableSkeleton } from "../OrderSkeletons";
 import { buildDeliveryFailureColumns } from "./columns";
 
 const L = DELIVERY_FAILURE_LABELS;
-/** `?scope=all` hiện cả hồ sơ đã quyết; mặc định chỉ hồ sơ chờ Sale (OPEN). */
-const SCOPES = ["open", "all"] as const;
 const ROUTE_SEGMENT = ADMIN_ROUTES.orders.deliveryFailures.split("/").at(-1);
 
 /**
- * Hàng đợi "Giao thất bại" (WF-05 GH-1; BE `GET /orders/delivery-failures`): lô hãng mang về đã được kho nhận lại, chờ
- * Sale giao lại hoặc huỷ phần chưa giao. Đọc cần `sales-orders:READ`; nút theo `allowedDeliveryFailureActions`.
+ * "Lô hàng hoàn về" (WF-05 BO-01; BE `GET /orders/delivery-failures`): lịch sử CHỈ ĐỌC các lô hãng mang về đã được kho
+ * nhận lại, mọi trạng thái. Từ BE #377 không còn hồ sơ chờ Sale quyết (hàng đợi OPEN luôn rỗng) và không còn "Giao lại";
+ * "Huỷ phần chưa giao" của đơn cũ ở chi tiết đơn. Đọc cần `sales-orders:READ`.
  */
 export function DeliveryFailureList() {
   useBreadcrumbLabel(ROUTE_SEGMENT, L.title);
@@ -37,56 +42,43 @@ export function DeliveryFailureList() {
 }
 
 function DeliveryFailureListContent() {
-  const can = usePermissionChecker();
-  const [scope, setScope] = useQueryState(
-    "scope",
-    parseAsStringLiteral(SCOPES).withDefault("open"),
-  );
-  const query = useDeliveryFailures(scope === "open" ? { status: "OPEN" } : {});
+  const canOpenOrder = useCan(ORDER_PERMISSIONS.read);
+  const query = useDeliveryFailures({});
   // UI-only — Backend phải re-check (DeliveryFailureController @RequiresPermission sales-orders:READ)
-  const columns = buildDeliveryFailureColumns(can, can(ORDER_PERMISSIONS.read));
-  const empty = scope === "open" ? L.empty : L.emptyAll;
+  const columns = buildDeliveryFailureColumns(canOpenOrder);
+  const rows = useMemo(() => (query.data ? newestFirst(query.data) : []), [query.data]);
+  // BE trả cũ nhất trước và cắt ở `limit`: chạm trần thì hồ sơ mới nhất có thể không có trong danh sách
+  const truncated = rows.length >= DELIVERY_FAILURE_LIMITS.listLimit;
 
   return (
     <div className="surface-soft space-y-4">
       <h1 className="sr-only">{L.title}</h1>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-ink-secondary max-w-[68ch] text-[0.8125rem]">{L.subtitle}</p>
-        <div role="group" aria-label={L.filter.label} className="flex gap-1.5">
-          {SCOPES.map((value) => (
-            <Button
-              key={value}
-              type="button"
-              size="sm"
-              variant={scope === value ? "default" : "outline"}
-              aria-pressed={scope === value}
-              onClick={() => void setScope(value)}
-            >
-              {value === "open" ? L.filter.open : L.filter.all}
-            </Button>
-          ))}
-        </div>
-      </div>
+      <p className="text-ink-secondary max-w-[68ch] text-[0.8125rem]">{L.subtitle}</p>
       {query.isError ? (
         <OrderLoadError inline error={query.error} onRetry={() => void query.refetch()} />
       ) : query.isPending ? (
         <OrderTableSkeleton />
-      ) : query.data.length === 0 ? (
+      ) : rows.length === 0 ? (
         <EmptyState
           icon={<PackageX className="size-8" />}
-          title={empty.title}
-          description={empty.description}
+          title={L.emptyAll.title}
+          description={L.emptyAll.description}
         />
       ) : (
         <>
           <RefetchBar active={query.isFetching} label="Đang tải lại danh sách" />
+          {truncated && (
+            <p role="status" className="text-warning-ink text-xs">
+              {L.truncated(DELIVERY_FAILURE_LIMITS.listLimit)}
+            </p>
+          )}
           <DataTable
             stickyHeader
             columns={columns}
-            data={query.data}
+            data={rows}
             rowKey={(row) => row.caseId}
-            flagRow={(row) => row.status === "OPEN"}
-            caption={L.caption(query.data.length)}
+            flagRow={isUndecidedCase}
+            caption={L.caption(rows.length)}
             pageSize={PAGE_SIZE.md}
           />
         </>

@@ -13,8 +13,10 @@
  * GÁN THUỘC TÍNH cho đơn có sẵn theo quy tắc, không thêm bản ghi đơn mới.
  */
 
+import { RETURN_WINDOW_DAYS, endOfDays } from "@/lib/domain/order-completion";
+
 import { resetCancellationRequestMockStore } from "./mock-order-cancellation-requests";
-import { resetCompletionHoldMockStore } from "./mock-order-completion-holds";
+import { openCompletionHoldOf, resetCompletionHoldMockStore } from "./mock-order-completion-holds";
 import { resetDeliveryScheduleMockStore } from "./mock-order-delivery-schedule";
 import { resetShippingWarehouseMockStore } from "./mock-order-shipping-warehouse";
 
@@ -667,6 +669,76 @@ export function shipmentsOf(order: Order): readonly MockShipment[] {
   return stateOf(order).shipments;
 }
 
+/**
+ * Đơn đã có lần giao tới khách (BE `OrderCompletionHolds.hold`: `deliveredAt` có, hoặc một lô DELIVERED) — cùng nguồn
+ * với `deliveredAt` / `shipments` của câu trả lời đơn mock.
+ */
+export function deliveredSomething(order: Order): boolean {
+  const state = stateOf(order);
+  const deliveredAt = state.deliveredAt ?? order.deliveredAt;
+  return !!deliveredAt || state.shipments.some((shipment) => shipment.status === "DELIVERED");
+}
+
+/** BE `OrderCompletionHolds.PAST_COMPLETION`: đơn không bao giờ tự hoàn tất / đóng nữa. */
+const PAST_COMPLETION: readonly BeOrderStatus[] = ["COMPLETED", "CLOSED", "CANCELLED"];
+
+/**
+ * Như BE `Order.completionHoldable` (settlement 9e98660b, audit r2 lifecycle M-4) trên dữ liệu mock: chưa qua hoàn tất, đã
+ * giao gì đó để xác minh, chưa từng hoàn tất, và chưa đang giữ. Một luật cho cờ trên chi tiết đơn VÀ route giữ hoàn tất.
+ */
+export function completionHoldableInMock(order: Order): boolean {
+  return (
+    !PAST_COMPLETION.includes(backendStatus(order)) &&
+    deliveredSomething(order) &&
+    !order.completedAt &&
+    !openCompletionHoldOf(order.orderId)
+  );
+}
+
+/**
+ * Khối điều kiện của BE (`settlementReadiness`, F-1) — bản mock thu gọn: null khi chưa giao gì và không ở nhánh hoàn tiền
+ * (BE `SettlementReadiness.view`); nhánh theo trạng thái; điều kiện chặn mock tính được: hạn đổi trả (mặc định 7 ngày từ
+ * ngày giao), còn nợ (đã trả < tổng), đang giữ hoàn tất. Mock không tính hoá đơn / hoàn tiền / trả hàng.
+ */
+function mockSettlementReadiness(order: Order, status: BeOrderStatus) {
+  const refundBranch = status === "REFUNDED" || status === "PARTIALLY_REFUNDED";
+  if (!deliveredSomething(order) && !refundBranch) return null;
+  const branch =
+    status === "DELIVERED" || status === "RETURN_REQUESTED"
+      ? "COMPLETION"
+      : refundBranch
+        ? "REFUND_CLOSE"
+        : "NONE";
+  const deliveredAt = stateOf(order).deliveredAt ?? order.deliveredAt ?? null;
+  const windowEnds = deliveredAt ? endOfDays(deliveredAt, RETURN_WINDOW_DAYS).toISOString() : null;
+  const held = !!openCompletionHoldOf(order.orderId);
+  const owing = order.amountPaid < order.grandTotal;
+  const blockers = [
+    ...(branch !== "NONE" && windowEnds && Date.parse(windowEnds) > Date.now()
+      ? ["RETURN_WINDOW_OPEN"]
+      : []),
+    ...(owing ? ["OWING"] : []),
+    ...(held ? ["COMPLETION_HELD"] : []),
+  ];
+  return {
+    branch,
+    returnWindowDays: RETURN_WINDOW_DAYS,
+    returnWindowEndsAt: windowEnds,
+    owing,
+    openReturn: false,
+    uninvoicedShipmentIds: [],
+    shippingFeeUninvoiced: false,
+    refundOutstanding: false,
+    completionHeld: held,
+    returnAdjustmentUnissued: false,
+    deliveryReductionUnissued: false,
+    completesAt: branch === "COMPLETION" ? windowEnds : null,
+    closesAt: null,
+    blockers,
+    completionHoldable: completionHoldableInMock(order),
+  };
+}
+
 /** Lịch sử phát sinh trong phiên, `from` nối tiếp từ trạng thái seed; bỏ bước không đổi trạng thái. */
 export function sessionHistory(order: Order): MockHistoryEntry[] {
   let from: BeOrderStatus = MOCK_TO_BACKEND_STATUS[order.status];
@@ -918,6 +990,8 @@ export function toOrderResponse(order: Order) {
       cancelledQuantity: state.closedUnits[line.lineId] ?? 0,
     })),
     placedAt: order.placedAt,
+    // WF-05 Q-12 (BE 6bbfa15b): phiên bản khoá lạc quan — mock tăng theo mỗi bước ghi của phiên (lịch sử phiên)
+    version: state.history.length,
     createdBy: order.createdById ?? null,
     lastModifiedAt: null,
     lastModifiedBy: null,
@@ -968,6 +1042,7 @@ export function toOrderResponse(order: Order) {
       status === "DELIVERY_FAILED" ? (state.deliveryFailureReason ?? null) : null,
     completedAt: order.completedAt ?? null,
     closedAt: null,
+    settlementReadiness: mockSettlementReadiness(order, status),
     // ASSUMPTION (mock-only): mock không ghi công nợ theo lô giao → billedAmount 0 (BE bắt đầu từ 0)
     billedAmount: 0,
     effectiveTotal,

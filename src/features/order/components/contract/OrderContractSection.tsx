@@ -7,6 +7,7 @@ import { FileSignature } from "lucide-react";
 import {
   ADMIN_ROUTES,
   SALES_CONTRACT_PERMISSIONS,
+  SALES_CONTRACT_SIGNED_STATUSES,
   SALES_CONTRACT_STATUS_LABELS,
   SALES_CONTRACT_STATUS_TONE_KEY,
 } from "@/constants";
@@ -21,7 +22,11 @@ import { Button } from "@/components/ui/button";
 import { useOrderInstallmentsSummary } from "../../queries";
 import { contractErrorMessage, useCreateSalesContract } from "../../sales-contract-mutations";
 import { useSalesContract } from "../../sales-contract-queries";
-import { allowedContractActions, signOutcomeText } from "../../sales-contract-rules";
+import {
+  allowedContractActions,
+  contractPapers,
+  signOutcomeText,
+} from "../../sales-contract-rules";
 
 import { ContractActions } from "./ContractActions";
 import { CancelledContractNotice } from "./CancelledContractNotice";
@@ -53,7 +58,8 @@ export function OrderContractSection({
   const [legalMissing, setLegalMissing] = useState<string | null>(null);
   const contract = query.data ?? null;
   // BO-UX-28: hợp đồng đã ký → đợt thật (hạn, đã thu / còn), khi người xem đọc được các đợt.
-  const signedContract = contract?.status === "SIGNED" || contract?.status === "COMPLETED";
+  const signedContract =
+    !!contract && (SALES_CONTRACT_SIGNED_STATUSES as readonly string[]).includes(contract.status);
   const installments = useOrderInstallmentsSummary(order.orderId, {
     enabled: canRead && signedContract && can(PAYMENT_INSTALLMENT_PERMISSIONS.read),
   });
@@ -153,6 +159,7 @@ export function OrderContractSection({
                   onSigned={() => setSigned(true)}
                   dialog={dialog}
                   setDialog={setDialog}
+                  papers={contractPapers(contract, order.status)}
                 />
                 {editing && contract.status === "DRAFT" ? (
                   <ContractEditor

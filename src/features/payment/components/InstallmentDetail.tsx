@@ -6,9 +6,11 @@ import { ReceiptText } from "lucide-react";
 
 import { PAYMENT_LABELS, PAYMENT_LIST_LABELS } from "@/constants/labels-payment";
 import { PAYMENT_INSTALLMENT_PERMISSIONS, PAYMENT_ROUTES } from "@/constants/payment";
+import { BUSINESS_DOCUMENT_PATHS } from "@/lib/api/business-documents";
 import { useCan, usePermissionChecker } from "@/lib/auth/components/Can";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
+import { DocumentDownloadButton } from "@/components/backoffice/DocumentDownloadButton";
 import { LoadErrorState } from "@/components/backoffice/LoadErrorState";
 import {
   DETAIL_ACTION_CLASS,
@@ -75,6 +77,20 @@ function InstallmentDetailContent({ id }: { id: string }) {
                     <DateCell iso={receipt.receivedOn} />
                     <MoneyCell amount={receipt.amount} currency={i.currency} />
                     <ReceiptStatusDot status={receipt.status} />
+                    {/* BE feat/business-documents #5 — phiếu đã huỷ không có phiếu xác nhận (404) */}
+                    {receipt.status === "RECORDED" && (
+                      <span className="ml-auto">
+                        <DocumentDownloadButton
+                          kind="paymentConfirmation"
+                          size="xs"
+                          label={PAYMENT_LABELS.receipts.confirmationPdf}
+                          path={BUSINESS_DOCUMENT_PATHS.paymentConfirmation(
+                            i.installmentId,
+                            receipt.receiptId,
+                          )}
+                        />
+                      </span>
+                    )}
                   </li>
                 ))}
               </ul>

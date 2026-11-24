@@ -60,6 +60,37 @@ export interface MockEInvoice {
   returnRequestId: string | null;
   /** WF-05 HĐ-3: lần giao của hoá đơn bị sửa thành thất bại lúc nào (BE `deliveryFailedAt`); null khi chưa bị đánh dấu. */
   deliveryFailedAt: string | null;
+  /** WF-05 F-11: hoá đơn gốc đã bị giảm toàn bộ (BE `reversedAt`). */
+  reversedAt?: string | null;
+  /** WF-05 F-13: `PORTAL_RECORD` khi Kế toán ghi lại từ cổng NCC. */
+  issuedVia?: string | null;
+  /** Ngày giao (hợp đồng giả định `deliveredOn`, WF-05 Q-10). */
+  deliveredOn?: string | null;
+  /** WF-05 F-14: mã lý do huỷ (`UNSENDABLE_REVERSAL`). */
+  voidReasonCode?: string | null;
+  /**
+   * Audit r2 M-10: các yêu cầu trả hàng có hàng đã hoàn tiền đang chờ giảm trên hoá đơn thay thế này (BE
+   * `findPendingReturnsOfShipment`, chưa có điều chỉnh cho yêu cầu đó) — nguồn `externalReductionReturns`.
+   */
+  pendingReturns?: { returnRequestId: string; rmaNumber: string }[];
+  /**
+   * Audit r3 EINV-2 (mock thay cho BE `EInvoiceDrafts.correctionSendable` = false): NCC đã phát hành hoá đơn gốc này không
+   * còn dùng được / không điều chỉnh được — điều chỉnh của nó chỉ làm được trên cổng.
+   */
+  providerCannotCorrect?: boolean;
+  /** Audit r3 EINV-2: hoá đơn giảm ghi từ cổng thay cho bản điều chỉnh sai sót đã huỷ này (BE `einvoice_portal_record`). */
+  voidedAdjustmentId?: string | null;
+  /**
+   * Confirmation audit CF-4 / CF-10 (mock thay cho BE `EInvoiceDrafts.portalShareOf`): phí vận chuyển đã miễn mà hoá đơn
+   * phần còn lại (không thuộc lần giao nào) còn tính — phần chỉ giảm được trên cổng NCC. 0 / vắng = không còn gì để giảm.
+   */
+  waivedShippingShare?: number;
+  /** Audit r2 H-2: NCC đã từng nói đang giữ giao dịch (BE `providerHeld`) — không bao giờ rút. */
+  providerHeld?: boolean;
+  /** Audit r3 EINV-3: tra lại giao dịch cũ tới mốc này sau khi rút / cơ quan thuế từ chối (BE `watchUntil`). */
+  watchUntil?: string | null;
+  /** Audit r3 EINV-3: lúc thấy NCC vẫn phát hành giao dịch cũ (BE `watchFoundAt`). */
+  watchFoundAt?: string | null;
 }
 
 export interface MockErrorNotice {
@@ -110,7 +141,9 @@ export const nextNoticeId = () => `NOTICE-${String(++sequence).padStart(4, "0")}
 
 /** Thành tiền dòng = số lượng × đơn giá; thuế làm tròn tới đồng (docs 21 §4.1 bước 2). */
 export const lineAmount = (line: MockEInvoiceLine) => line.quantity * line.unitPrice;
-export const lineTax = (line: MockEInvoiceLine) => Math.round(lineAmount(line) * line.taxRate);
+/** Thuế suất dạng phần trăm như BE (8 = 8%, `EInvoiceLine.vat`). */
+export const lineTax = (line: MockEInvoiceLine) =>
+  Math.round((lineAmount(line) * line.taxRate) / 100);
 
 const goods = (
   no: number,
@@ -129,7 +162,7 @@ const goods = (
   quantity: cartons * perCarton,
   unitsPerCarton: perCarton,
   unitPrice: price,
-  taxRate: 0.08,
+  taxRate: 8,
 });
 
 const BUYER_9 = {
@@ -160,7 +193,8 @@ function invoice(
     originalEInvoiceId: null,
     buyer: BUYER_9,
     issueDate: "2026-11-10",
-    issueDueAt: "2026-11-11T16:59:59Z",
+    // NĐ 254 / WF-05 G3: hạn phát hành = hết chính ngày lập (23:59:59 giờ VN), không còn "ngày làm việc kế tiếp"
+    issueDueAt: "2026-11-10T16:59:59Z",
     lines: [goods(1, "CUP-PAPER-8OZ-WHT", "Ly giấy 8oz in logo", 20, 1000, 780)],
     warnings: [],
     invoiceNumber: null,
@@ -195,7 +229,7 @@ export function resetEInvoiceMockStore(): void {
       id: "EINV-0001",
       orderId: "ORD-2026-0013",
       status: "DRAFT",
-      issueDueAt: "2026-11-11T16:59:59Z",
+      issueDueAt: "2026-11-10T16:59:59Z",
     }),
     // Nháp thiếu mã số thuế / email → chặn phát hành (BR-06)
     invoice({
@@ -206,7 +240,7 @@ export function resetEInvoiceMockStore(): void {
       buyer: { ...BUYER_12, taxCode: null },
       warnings: ["BUYER_PROFILE_INCOMPLETE"],
       issueDate: "2026-11-13",
-      issueDueAt: "2099-11-14T16:59:59Z",
+      issueDueAt: "2099-11-13T16:59:59Z",
     }),
     // Đang gửi NCC, NCC báo không biết giao dịch (BR-05)
     invoice({
@@ -289,12 +323,38 @@ export function resetEInvoiceMockStore(): void {
       correctionBasis: "DELIVERY_FAILED",
       correctionReason: "Lần giao bị sửa thành giao không thành công",
       issueDate: "2026-11-09",
-      issueDueAt: "2099-11-10T16:59:59Z",
+      issueDueAt: "2099-11-09T16:59:59Z",
       lines: [
         {
           ...goods(1, "CUP-PAPER-8OZ-WHT", "Ly giấy 8oz in logo", 20, 1000, 780),
           quantity: -20000,
         },
+      ],
+    }),
+    // Audit r3 EINV-2: hoá đơn gốc của NCC không còn điều chỉnh được; điều chỉnh sai sót (đã thoả thuận, giảm 2 thùng) không
+    // gửi được nên Kế toán đã huỷ để làm trên cổng → "Ghi hoá đơn giảm" căn cứ sai sót
+    invoice({
+      id: "EINV-0013",
+      orderId: "ORD-2026-0019",
+      status: "ISSUED",
+      providerCannotCorrect: true,
+      ...issued(34),
+    }),
+    invoice({
+      id: "EINV-0014",
+      orderId: "ORD-2026-0019",
+      type: "ADJUSTMENT",
+      status: "VOIDED_DRAFT",
+      originalEInvoiceId: "EINV-0013",
+      correctionBasis: "ERROR",
+      correctionReason: "Ghi thừa 2 thùng so với số giao",
+      agreement: { number: "TT-0019/2026", date: "2026-11-12" },
+      voidedAt: "2026-11-12T04:00:00Z",
+      voidReason: "Nhà cung cấp của hoá đơn gốc không còn dùng được — làm trên cổng",
+      issueDate: "2026-11-12",
+      issueDueAt: "2099-11-12T16:59:59Z",
+      lines: [
+        { ...goods(1, "CUP-PAPER-8OZ-WHT", "Ly giấy 8oz in logo", 2, 1000, 780), quantity: -2000 },
       ],
     }),
   ];

@@ -74,6 +74,16 @@ describe("formatHistoryReason", () => {
     expect(historyReasonCodeLabel("HOLD_RESOLVED_DELIVERY_FAILED")).toContain("Gỡ giữ đơn (");
   });
 
+  it("M-7: every WF-05 code the BE writes on a status step has a Vietnamese label", () => {
+    // BE `Order#goodsReceived`, `#closeLostShipment`, `#returnSettledWithoutRefund` (fix/wf05-full 18d4cf88)
+    for (const code of ["RETURN_RECEIVED", "LOST_CLOSED", "RETURN_SETTLED_WITHOUT_REFUND"]) {
+      expect(historyReasonCodeLabel(code)).toMatch(/[à-ỹ]/);
+    }
+    expect(formatHistoryReason("LOST_CLOSED")).toBe(
+      "Đóng lô giao thất lạc — đã tính lại tiền của lô",
+    );
+  });
+
   it("mã lạ / ghi chú tự do → nguyên văn (không bỏ trống, không đoán)", () => {
     expect(formatHistoryReason("BRAND_NEW_CODE: x")).toBe("BRAND_NEW_CODE: x");
     expect(formatHistoryReason("Khách gọi lại xin đổi ngày")).toBe("Khách gọi lại xin đổi ngày");

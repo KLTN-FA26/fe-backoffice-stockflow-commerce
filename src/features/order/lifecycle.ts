@@ -90,7 +90,12 @@ export function allowedOrderActions(
 export function orderActionContextOf(
   order: Pick<
     Order,
-    "holdReason" | "shipments" | "packedAt" | "firstLabeledAt" | "statusBeforeHold"
+    | "holdReason"
+    | "shipments"
+    | "packedAt"
+    | "firstLabeledAt"
+    | "statusBeforeHold"
+    | "settlementReadiness"
   >,
 ): OrderActionContext {
   return {
@@ -99,6 +104,7 @@ export function orderActionContextOf(
     packedAt: order.packedAt,
     firstLabeledAt: order.firstLabeledAt,
     statusBeforeHold: order.statusBeforeHold,
+    settlementBranch: order.settlementReadiness?.branch ?? null,
   };
 }
 

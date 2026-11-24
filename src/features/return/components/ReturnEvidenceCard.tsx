@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 
 import { getEvidenceLink } from "../api";
 import { returnErrorMessage } from "../errors";
+import { claimEvidence } from "../selectors";
 
 import { When } from "./primitives";
 import { ReturnEvidenceUpload } from "./ReturnEvidenceUpload";
@@ -26,7 +27,8 @@ const D = RETURN_LABELS.detail;
 export function ReturnEvidenceCard({ ret, canUpload }: { ret: ReturnRequest; canUpload: boolean }) {
   const [error, setError] = useState<string | null>(null);
   const [opening, setOpening] = useState<string | null>(null);
-  const photos = ret.evidence ?? [];
+  // Biên nhận giữ hộ (CUSTODY) có thẻ riêng — `ReturnCustodyCard`
+  const photos = claimEvidence(ret);
 
   const open = async (evidenceId: string) => {
     setError(null);

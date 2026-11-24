@@ -10,6 +10,7 @@ import { QUERY_ROOTS } from "@/lib/api/query-roots";
 import { withStaleRefetch } from "@/lib/api/stale-refetch";
 
 import {
+  addCustody,
   approveReturn,
   approveSettlement,
   attachReturnEvidence,
@@ -18,11 +19,13 @@ import {
   markGoodsComplete,
   openReturnForCustomer,
   proposeRefund,
+  recordCustodyChoice,
   rejectReturn,
   rejectSettlement,
 } from "./api";
+import { chooseForCustodyNote, endCustodyNote, endCustomerCustody } from "./custody-api";
 import { RETURN_STALE_CODES } from "./errors";
-import { returnKeys, returnReceiptKeys } from "./queries";
+import { custodyNoteKeys, customerCustodyKeys, returnKeys, returnReceiptKeys } from "./queries";
 import {
   cancelReturnReceipt,
   confirmReturnReceipt,
@@ -98,6 +101,33 @@ export const useCloseWithoutRefund = returnMutation(
 export const useAttachReturnEvidence = returnMutation(attachReturnEvidence, S.evidenceAdded, [
   returnKeys.all,
 ]);
+/**
+ * Lựa chọn của khách cho hàng giữ hộ (WF-05 Q-4): ghi trên yêu cầu và chuyển xuống các thùng đang giữ hộ — làm mới cả
+ * danh sách thùng giữ hộ.
+ */
+export const useRecordCustodyChoice = returnMutation(recordCustodyChoice, S.custodyChoiceRecorded, [
+  returnKeys.all,
+  customerCustodyKeys.all,
+]);
+/** Quản lý kho đã giao trả / huỷ hộ một thùng giữ hộ — thùng ngoài sổ, không đổi tồn. */
+export const useEndCustomerCustody = returnMutation(endCustomerCustody, S.custodyEnded, [
+  customerCustodyKeys.all,
+  // Audit r3 RAD-3: chi tiết yêu cầu liệt kê thùng giữ hộ (`custodyCartons`) — làm mới cả nó
+  returnKeys.all,
+]);
+/** Audit r3 RAD-3: Sale ghi lựa chọn của khách cho hàng trên một biên nhận giữ hộ. */
+export const useChooseForCustodyNote = returnMutation(
+  chooseForCustodyNote,
+  S.custodyChoiceRecorded,
+  [returnKeys.all, custodyNoteKeys.all],
+);
+/** Audit r3 RAD-3: Quản lý kho ghi hàng trên biên nhận đã rời kho — không bút toán kho (hàng chưa từng nhập). */
+export const useEndCustodyNote = returnMutation(endCustodyNote, S.custodyNoteEnded, [
+  returnKeys.all,
+  custodyNoteKeys.all,
+]);
+/** Biên nhận giữ hộ (WF-05 Q-11): chỉ ghi trên yêu cầu — không tồn kho, không tiền. */
+export const useAddCustody = returnMutation(addCustody, S.custodyAdded, [returnKeys.all]);
 
 export const useCreateReturnReceipt = returnMutation(
   createReturnReceipt,

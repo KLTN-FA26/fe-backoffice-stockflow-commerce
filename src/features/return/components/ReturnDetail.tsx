@@ -5,6 +5,7 @@ import { ArrowLeft, PackageOpen } from "lucide-react";
 
 import { RETURN_LABELS } from "@/constants/labels-return";
 import { RETURN_ROUTES, RMA_PERMISSIONS } from "@/constants/returns";
+import { useAuthStore } from "@/lib/auth/auth-store";
 import { useCan, usePermissionChecker } from "@/lib/auth/components/Can";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
@@ -12,11 +13,18 @@ import { LoadErrorState } from "@/components/backoffice/LoadErrorState";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Button } from "@/components/ui/button";
 
-import { allowedReturnActions, canAddReturnEvidence } from "../lifecycle";
+import {
+  allowedReturnActions,
+  canAddCustody,
+  canAddReturnEvidence,
+  canRecordCustodyChoice,
+} from "../lifecycle";
 import { useReturn } from "../queries";
 
 import { RETURN_COPY } from "./primitives";
 import { ReturnActions } from "./ReturnActions";
+import { ReturnCustodyCard } from "./ReturnCustodyCard";
+import { ReturnCustodyChoiceCard } from "./ReturnCustodyChoiceCard";
 import { ReturnEvidenceCard } from "./ReturnEvidenceCard";
 import { ReturnGoodsActions } from "./ReturnGoodsActions";
 import { ReturnHistoryCard } from "./ReturnHistoryCard";
@@ -29,6 +37,8 @@ const L = RETURN_LABELS;
 function ReturnDetailContent({ id }: { id: string }) {
   const canRead = useCan(RMA_PERMISSIONS.read);
   const can = usePermissionChecker();
+  // Bốn mắt (audit r2 L15): người mở thay khách / người đề xuất hoàn tiền không thấy nút duyệt của chính mình
+  const userId = useAuthStore((state) => state.user?.userId ?? null);
   const query = useReturn(id, { enabled: canRead });
   useBreadcrumbLabel(id, query.data?.rmaNumber);
   const back = { href: RETURN_ROUTES.list };
@@ -46,7 +56,7 @@ function ReturnDetailContent({ id }: { id: string }) {
   if (query.isPending) return <PageSkeleton variant="detail" />;
   const ret = query.data;
   // UI-only — Backend phải re-check (sales-rmas / sales-rma-resolutions / procurement-goods-receipts)
-  const actions = allowedReturnActions(ret, can);
+  const actions = allowedReturnActions(ret, can, userId);
 
   return (
     <div className="surface-soft surface-compact space-y-4">
@@ -74,6 +84,8 @@ function ReturnDetailContent({ id }: { id: string }) {
         <div className="min-w-0 space-y-4">
           <ReturnLinesCard ret={ret} />
           <ReturnEvidenceCard ret={ret} canUpload={canAddReturnEvidence(ret, can)} />
+          <ReturnCustodyChoiceCard ret={ret} canRecord={canRecordCustodyChoice(ret, can)} />
+          <ReturnCustodyCard ret={ret} canAdd={canAddCustody(ret, can)} />
           <ReturnHistoryCard history={ret.history ?? []} />
         </div>
         <div className="space-y-4">

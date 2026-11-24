@@ -4,11 +4,16 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { DirectUploadError, uploadFileDirect } from "@/lib/api/direct-upload";
 
-import { beginWindowEvidenceUpload } from "../../delivery-window-api";
 import { evidenceUploadErrorMessage } from "../../delivery-window-errors";
 import { evidenceFileProblem } from "../../delivery-window-rules";
 
-import type { DirectUploadStage } from "@/lib/api/direct-upload";
+import type { DirectUploadStage, UploadDeclaration, UploadSlot } from "@/lib/api/direct-upload";
+
+/** Bước 1 của tải tệp: endpoint "slot" của chức năng sở hữu tệp (BE `StagedUploads`). */
+export type EvidenceDeclare = (
+  declaration: UploadDeclaration,
+  signal?: AbortSignal,
+) => Promise<UploadSlot>;
 
 export type EvidenceUploadState =
   | { status: "idle" }
@@ -17,17 +22,24 @@ export type EvidenceUploadState =
   | { status: "error"; fileName: string; message: string };
 
 /**
- * Tải tệp bằng chứng khách đồng ý lên kho ngay khi chọn (docs 17 BR-28; BE `…/window-change/evidence/uploads` → PUT →
- * `evidenceUploadId`). `onUploadId` nhận id khi xong và `""` khi bắt đầu tệp mới / bỏ tệp / lỗi — form chỉ coi bằng chứng
- * là có khi id khác rỗng. Chọn tệp khác giữa chừng thì huỷ tệp cũ; đóng hộp thoại thì huỷ tải (cleanup khi unmount).
+ * Tải tệp bằng chứng lên kho ngay khi chọn (slot `declare` → PUT → `uploadId`): bằng chứng khách đồng ý dời cửa sổ giao
+ * (docs 17 BR-28, `…/window-change/evidence/uploads`), xác nhận thất lạc của hãng (WF-05 Q-12, `…/lost-closure/evidence/
+ * uploads`). `onUploadId` nhận id khi xong và `""` khi bắt đầu tệp mới / bỏ tệp / lỗi — form chỉ coi bằng chứng là có khi
+ * id khác rỗng. Chọn tệp khác giữa chừng thì huỷ tệp cũ; đóng hộp thoại thì huỷ tải (cleanup khi unmount).
+ * `describeError` đổi lỗi xin slot thành câu Việt của chức năng (mặc định: câu của dời cửa sổ giao).
  */
 export function useEvidenceUpload(
-  orderId: string,
-  batchId: string,
+  declare: EvidenceDeclare,
   onUploadId: (uploadId: string) => void,
+  describeError: (error: unknown) => string = evidenceUploadErrorMessage,
 ) {
   const [state, setState] = useState<EvidenceUploadState>({ status: "idle" });
   const controller = useRef<AbortController | null>(null);
+  // Hàm mới mỗi lần render — đọc qua ref để `start` không đổi danh tính (và không tải lại) theo render
+  const latest = useRef({ declare, describeError });
+  useEffect(() => {
+    latest.current = { declare, describeError };
+  });
 
   useEffect(() => () => controller.current?.abort(), []);
 
@@ -54,8 +66,7 @@ export function useEvidenceUpload(
         const uploadId = await uploadFileDirect({
           file,
           signal: current.signal,
-          declare: (declaration, signal) =>
-            beginWindowEvidenceUpload(orderId, batchId, declaration, signal),
+          declare: (declaration, signal) => latest.current.declare(declaration, signal),
           onProgress: ({ stage, percent }) =>
             setState({ status: "running", fileName: file.name, stage, percent }),
         });
@@ -72,11 +83,11 @@ export function useEvidenceUpload(
         setState({
           status: "error",
           fileName: file.name,
-          message: evidenceUploadErrorMessage(error),
+          message: latest.current.describeError(error),
         });
       }
     },
-    [orderId, batchId, onUploadId],
+    [onUploadId],
   );
 
   return { state, start, cancel };

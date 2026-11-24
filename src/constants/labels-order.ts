@@ -17,7 +17,8 @@ export const ORDER_HOLD_REASONS = [
   "CUSTOMER",
   "FRAUD",
   "OTHER",
-  // WF-05 GH-1: lô hãng mang về → đơn giữ tới khi Sale quyết hồ sơ giao thất bại (không gỡ tay — HoldReason#resolvedByNote)
+  // Đơn cũ trước BE PR #377: lô hãng mang về giữ đơn tới khi Sale quyết hồ sơ (không gỡ tay — HoldReason#resolvedByNote).
+  // Từ #377 lô hoàn về không giữ đơn nữa; mã còn trên đơn cũ (WF-05 Q-13).
   "DELIVERY_FAILED",
 ] as const;
 
@@ -46,7 +47,7 @@ export const ORDER_HOLD_REASON_LABELS = {
   CUSTOMER: "Chờ khách xác nhận thay đổi",
   FRAUD: "Nghi ngờ gian lận",
   OTHER: "Lý do khác",
-  DELIVERY_FAILED: "Giao thất bại — chờ Sale quyết định giao lại hoặc huỷ phần chưa giao",
+  DELIVERY_FAILED: "Giao thất bại (đơn cũ) — chờ Sale huỷ phần chưa giao",
 } as const satisfies Record<(typeof ORDER_HOLD_REASONS)[number], string>;
 
 /**
@@ -57,7 +58,7 @@ export const ORDER_HOLD_GUIDANCE = {
   CREDIT:
     "Đơn bị giữ chờ duyệt công nợ (khách quá hạn hoặc vượt hạn mức) — không gỡ giữ tại đây. Duyệt hoặc từ chối ở màn duyệt công nợ.",
   DELIVERY_FAILED:
-    "Đơn bị giữ vì giao thất bại — không gỡ giữ tại đây. Quyết định giao lại hoặc huỷ phần chưa giao ở khối “Giao thất bại”.",
+    "Đơn cũ bị giữ vì giao thất bại — không gỡ giữ tại đây. Huỷ phần chưa giao ở khối “Lô hàng hoàn về”; muốn gửi lại hàng thì tạo đơn mới.",
   UNRESOLVABLE: "Không xác định được lý do giữ — chưa thể gỡ giữ từ màn này. Tải lại trang.",
 } as const;
 
@@ -233,6 +234,8 @@ export const ORDER_HISTORY_ENTRY_TYPES = [
   "DELIVERY_MODE_CHANGE",
   "REMAINDER_CLOSURE",
   "ADDRESS_CHANGE",
+  // WF-05 BE-52: phiếu hoàn tiền bị huỷ khi đơn còn yêu cầu trả hàng mở — trạng thái không đổi, `reason` = lý do huỷ
+  "REFUND_VOIDED",
 ] as const;
 
 /**
@@ -266,6 +269,12 @@ export const ORDER_HISTORY_REASON_LABELS: Readonly<Record<string, string>> = {
   REFUND_VOIDED: "Huỷ phiếu hoàn tiền",
   // Giao thất bại đã tất toán tiền (BE `DeliveryFailureService`)
   DELIVERY_FAILED_SETTLED: "Đã tất toán tiền sau giao thất bại",
+  // WF-05 Q-2 / Q-7: kho xác nhận phiếu nhập hàng hãng hoàn về — tiền của lô tính lúc này (BE `Order#goodsReceived`)
+  RETURN_RECEIVED: "Kho đã nhận lại hàng hoàn của lô giao — đã tính lại tiền của lô",
+  // WF-05 Q-12: Sale đóng lô thất lạc có xác nhận của hãng (BE `Order#closeLostShipment`)
+  LOST_CLOSED: "Đóng lô giao thất lạc — đã tính lại tiền của lô",
+  // WF-05 Q-4 / BE-45: yêu cầu trả hàng xử lý xong mà không hoàn đồng nào (BE `Order#returnSettledWithoutRefund`)
+  RETURN_SETTLED_WITHOUT_REFUND: "Đã xử lý yêu cầu trả hàng — không hoàn tiền",
 };
 
 export const ORDER_HISTORY_LABELS = {
@@ -293,6 +302,8 @@ export const ORDER_HISTORY_LABELS = {
   addressChanged: "Đổi địa chỉ giao",
   addressFrom: "Từ",
   addressTo: "Thành",
+  /** Mục "Huỷ phiếu hoàn tiền" (`REFUND_VOIDED`, WF-05 BE-52 / TT-3): ghi chú là lý do huỷ của Kế toán. */
+  refundVoided: "Huỷ phiếu hoàn tiền",
   unknownEntry: "Thay đổi không rõ",
   by: "Bởi",
   noteLabel: "Ghi chú",

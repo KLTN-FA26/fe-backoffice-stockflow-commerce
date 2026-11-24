@@ -5,7 +5,10 @@
  *   POST   /goods-receipts/returns                 lập phiếu DRAFT từ RMA AWAITING_RETURN (mock chưa có chuyến RTO)
  *   POST   /goods-receipts/returns/{id}/cartons    quét LPN (+ tình trạng, + số đếm thực của thùng mở — WF-05 TH-4)
  *   DELETE /goods-receipts/returns/{id}/cartons/{lpn}
- *   POST   /goods-receipts/returns/{id}/loose-lines           hàng lẻ không nhãn (phiếu của RMA, WF-05 TH-4)
+ *   POST   /goods-receipts/returns/{id}/loose-lines           hàng lẻ không nhãn (phiếu của RMA, WF-05 TH-4; Q-18: ảnh
+ *                                                       bắt buộc `photoId`, tối đa số đã duyệt còn lại)
+ *   POST   /goods-receipts/{id}/photos/uploads → PUT /__mock-storage/return-receipts/{uploadId}
+ *          → POST /goods-receipts/{id}/photos {uploadId}   ảnh hàng lẻ = ảnh nhận hàng của phiếu (Q-18)
  *   DELETE /goods-receipts/returns/{id}/loose-lines/{lineId}
  *   POST   /goods-receipts/returns/{id}/confirmation   CLOSED; một lần hàng về của RMA — đủ số đã duyệt thì RECEIVED,
  *                                                       về một phần thì vẫn AWAITING_RETURN (WF-05 TH-3)
@@ -13,8 +16,12 @@
  * Phải đăng ký TRƯỚC `/goods-receipts/:id` (mock adapter khớp route đăng ký trước).
  */
 
+import { RETURN_LIMITS } from "@/constants/returns";
+
 import { registerMockRoute } from "./mock-adapter";
+import { mockHeldForCustomer } from "./mock-customer-custody";
 import {
+  mockReceiptOpenable,
   mockReturnReceipts,
   mockReturns,
   nextMockReturnId,
@@ -45,8 +52,17 @@ function wire(receipt: MockReturnReceipt) {
   const scanned = new Set(receipt.cartons.map((c) => c.lpn));
   return {
     ...rest,
+    // WF-05 Q-4 (audit r2 returns H1): thùng nguyên của yêu cầu không hoàn tiền là hàng giữ hộ khách
+    cartons: rest.cartons.map((carton) => ({
+      ...carton,
+      heldForCustomer: mockHeldForCustomer(receipt, carton.lpn),
+    })),
     receiptType: "RETURN",
     expectedCartons: source.map((c) => ({ ...c, scanned: scanned.has(c.lpn) })),
+    // WF-05 Q-18 (BE G4 `ReturnReceipt.needsManagerConfirmation`): chỉ phiếu nháp
+    managerConfirmationRequired:
+      receipt.status === "DRAFT" &&
+      (receipt.looseLines.length > 0 || receipt.cartons.some((c) => c.opened)),
   };
 }
 
@@ -74,7 +90,8 @@ async function create(body: Record<string, unknown>) {
   if (shipmentId) return fail(404, "SHIPMENT_NOT_FOUND", "Mock has no returned shipment");
   const ret = mockReturns().find((r) => r.id === returnRequestId);
   if (!ret) return fail(404, "RETURN_REQUEST_NOT_FOUND", "No return request");
-  if (ret.status !== "AWAITING_RETURN")
+  // WF-05 Q-11 (BE-13): cả kiện về muộn — sau "Đã nhận đủ", hết hạn, rút sau khi duyệt
+  if (!mockReceiptOpenable(ret))
     return fail(409, "RETURN_NOT_AWAITING_GOODS", "Not awaiting its goods");
   // WF-05 TH-3: mỗi kiện về một phiếu riêng — chỉ một phiếu NHÁP mỗi lúc (BE `findDraftForReturnRequest`)
   const open = mockReturnReceipts().find(
@@ -164,9 +181,35 @@ function recordLoose(receipt: MockReturnReceipt, body: Record<string, unknown>) 
     return validationFailed("quantity", "quantity must be at least 1");
   if (!receipt.source.some((c) => c.sku === sku))
     return validationFailed("sku", `${sku} is not a SKU of the order`);
+  // WF-05 Q-18 (BE-43): ảnh bắt buộc; tổng đã về của SKU không vượt số đã duyệt
+  const photoId = text(body.photoId);
+  if (!receiptPhotos.has(`${receipt.id}:${photoId}`))
+    return fail(400, "RETURN_LOOSE_PHOTO_REQUIRED", "A loose line needs a photo of this receipt");
   const held = receipt.looseLines.find((l) => l.sku === sku && l.lotNumber === lotNumber);
-  if (held) held.quantity = quantity;
-  else receipt.looseLines.push({ id: nextMockReturnId("RLL"), sku, lotNumber, quantity });
+  const ret = mockReturns().find((r) => r.id === receipt.returnRequestId);
+  if (ret) {
+    const ofSku = ret.lines.filter((l) => l.sku === sku);
+    const approved = ofSku.reduce((sum, l) => sum + (l.approvedQuantity ?? 0), 0);
+    const already = ofSku.reduce((sum, l) => sum + (l.receivedQuantity ?? 0), 0);
+    const onReceipt =
+      receipt.cartons.filter((c) => c.sku === sku).reduce((sum, c) => sum + c.countedQuantity, 0) +
+      receipt.looseLines
+        .filter((l) => l.sku === sku && l !== held)
+        .reduce((sum, l) => sum + l.quantity, 0);
+    if (already + onReceipt + quantity > approved)
+      return fail(409, "RETURN_LOOSE_EXCEEDS_APPROVED", "More than approved");
+  }
+  if (held) {
+    held.quantity = quantity;
+    held.photoId = photoId;
+  } else
+    receipt.looseLines.push({
+      id: nextMockReturnId("RLL"),
+      sku,
+      lotNumber,
+      quantity,
+      photoId,
+    });
   receipt.version += 1;
   return ok(wire(receipt));
 }
@@ -208,7 +251,9 @@ function takeParcel(ret: MockReturn, receipt: MockReturnReceipt) {
     parcels: [...parcels, parcel],
   };
   const complete = ret.lines.every((l) => (l.receivedQuantity ?? 0) >= (l.approvedQuantity ?? 0));
-  if (ret.status === "EXPIRED" || complete) {
+  // Kiện muộn trên yêu cầu đã RECEIVED / chờ duyệt hoàn: chỉ cộng số đã về, không đổi trạng thái
+  const reopens = ret.status === "EXPIRED" || ret.status === "CANCELLED";
+  if (reopens || (ret.status === "AWAITING_RETURN" && complete)) {
     ret.history.push({
       from: ret.status,
       to: "RECEIVED",
@@ -226,12 +271,65 @@ function confirm(receipt: MockReturnReceipt) {
   if (receipt.status !== "DRAFT" || (!receipt.cartons.length && !receipt.looseLines.length))
     return notDraft();
   receipt.status = "CLOSED";
-  receipt.closedAt = now();
+  const closedAt = now();
+  receipt.closedAt = closedAt;
   receipt.version += 1;
+  // WF-05 Q-18: thùng mở không nhập tồn
+  for (const carton of receipt.cartons) carton.stockEntered = !carton.opened;
   const ret = mockReturns().find((r) => r.id === receipt.returnRequestId);
-  if (ret && (ret.status === "AWAITING_RETURN" || ret.status === "EXPIRED"))
-    takeParcel(ret, receipt);
+  if (ret && mockReceiptOpenable(ret)) takeParcel(ret, receipt);
   return ok(wire(receipt));
+}
+
+/* ── Ảnh hàng lẻ tải thẳng lên kho (WF-05 Q-18; BE ảnh nhận hàng của phiếu nhập) ──────────────── */
+
+const loosePhotos = new Map<string, { receiptId: string; received: boolean }>();
+
+function beginLoosePhoto(receipt: MockReturnReceipt, body: Record<string, unknown>) {
+  if (receipt.status !== "DRAFT") return notDraft();
+  const contentType = text(body.contentType);
+  const sizeBytes = typeof body.sizeBytes === "number" ? body.sizeBytes : 0;
+  if (!text(body.fileName)) return validationFailed("fileName", "fileName is required");
+  if (!(sizeBytes > 0)) return validationFailed("sizeBytes", "sizeBytes must be positive");
+  if (!/^[0-9a-f]{64}$/.test(text(body.sha256)))
+    return validationFailed("sha256", "must be a lower-case hex SHA-256");
+  if (!(RETURN_LIMITS.loosePhotoTypes as readonly string[]).includes(contentType))
+    return fail(415, "UNSUPPORTED_MEDIA_TYPE", "This file type is not accepted");
+  if (sizeBytes > RETURN_LIMITS.loosePhotoMaxBytes)
+    return fail(413, "PAYLOAD_TOO_LARGE", "The uploaded file is too large");
+  const uploadId = crypto.randomUUID();
+  loosePhotos.set(uploadId, { receiptId: receipt.id, received: false });
+  return ok(
+    {
+      uploadId,
+      method: "PUT",
+      url: `/__mock-storage/return-receipts/${uploadId}`,
+      headers: { "Content-Type": contentType },
+      expiresAt: new Date(Date.now() + 15 * 60_000).toISOString(),
+    },
+    201,
+  );
+}
+
+/** Ảnh nhận hàng đã giữ của phiếu (`${receiptId}:${photoId}`) — `photoId` của dòng hàng lẻ phải là một trong số này. */
+const receiptPhotos = new Set<string>();
+
+/** BE `POST /goods-receipts/{id}/photos` `{uploadId}`: ảnh đã PUT thành ảnh của phiếu; cùng `uploadId` = cùng ảnh. */
+function attachLoosePhoto(receipt: MockReturnReceipt, body: Record<string, unknown>) {
+  const uploadId = text(body.uploadId);
+  const photo = loosePhotos.get(uploadId);
+  if (!photo || photo.receiptId !== receipt.id || !photo.received)
+    return validationFailed("uploadId", "No uploaded file with this id");
+  receiptPhotos.add(`${receipt.id}:${uploadId}`);
+  return ok({ id: uploadId, receiptId: receipt.id, stage: "RECEIPT" }, 201);
+}
+
+/** Test-only: một ảnh của phiếu đã giữ mà không qua PUT (môi trường test không có `crypto.subtle`); trả `photoId`. */
+export function mockLoosePhotoReceived(receiptId: string): string {
+  const photoId = crypto.randomUUID();
+  loosePhotos.set(photoId, { receiptId, received: true });
+  receiptPhotos.add(`${receiptId}:${photoId}`);
+  return photoId;
 }
 
 export function registerReturnReceiptMockRoutes(): void {
@@ -286,6 +384,22 @@ export function registerReturnReceiptMockRoutes(): void {
     `${BASE}/:id/loose-lines`,
     withReceipt((r, c) => recordLoose(r, bodyOf(c))),
   );
+  registerMockRoute(
+    "POST",
+    "/goods-receipts/:id/photos/uploads",
+    withReceipt((r, c) => beginLoosePhoto(r, bodyOf(c))),
+  );
+  registerMockRoute(
+    "POST",
+    "/goods-receipts/:id/photos",
+    withReceipt((r, c) => attachLoosePhoto(r, bodyOf(c))),
+  );
+  registerMockRoute("PUT", "/__mock-storage/return-receipts/:uploadId", (config) => {
+    const photo = loosePhotos.get(pathParams(config).uploadId ?? "");
+    if (!photo) return fail(404, "NOT_FOUND", "No such upload");
+    photo.received = true;
+    return ok(null);
+  });
   registerMockRoute(
     "DELETE",
     `${BASE}/:id/loose-lines/:lineId`,

@@ -4,6 +4,7 @@ import { RETURN_RECEIPT_LABELS } from "@/constants/labels-return";
 import { Card } from "@/components/shared/Card";
 import { Button } from "@/components/ui/button";
 
+import { cartonOpened } from "../lifecycle";
 import { scanProgress } from "../selectors";
 
 import { EMPTY, MONO } from "./primitives";
@@ -13,12 +14,24 @@ import type { ReturnReceipt, ReturnReceiptCarton } from "../types";
 const D = RETURN_RECEIPT_LABELS.detail;
 const TH = "py-1 pr-3 font-medium";
 
-/** WF-05 TH-4: thùng mở (đếm ít hơn nhãn) chỉ ghi giảm — hiện "Đã mở · đếm 7/10"; thiếu dữ liệu = nguyên thùng. */
-function CountCell({ carton }: { carton: ReturnReceiptCarton }) {
-  if (!carton.opened) return <span className="text-ink-tertiary">{D.sealed}</span>;
+/**
+ * WF-05 TH-4 / Q-18: thùng mở (đếm ít hơn nhãn) hiện "Đã mở · đếm 7/10" và không nhập tồn — phiếu NHÁP: "Sẽ không nhập
+ * tồn"; đã xác nhận: "Không nhập tồn — huỷ". BE gửi `stockEntered` cả trên phiếu nháp (audit r2 L16: trước đây nháp đã
+ * đọc là "huỷ"), nên nháp quyết theo `draft` trước. Q-4 (audit r2 returns H1): thùng nguyên của yêu cầu không hoàn tiền là
+ * hàng giữ hộ khách (`heldForCustomer`), không phải tồn kho. Thiếu dữ liệu = nguyên thùng.
+ */
+function CountCell({ carton, draft }: { carton: ReturnReceiptCarton; draft: boolean }) {
+  if (!cartonOpened(carton) && (draft || carton.stockEntered !== false))
+    return carton.heldForCustomer && !draft ? (
+      <span className="text-warning">{D.heldForCustomer}</span>
+    ) : (
+      <span className="text-ink-tertiary">{D.sealed}</span>
+    );
+  const stock = draft ? D.willNotStock : carton.stockEntered === false ? D.notStocked : null;
   return (
     <span className="text-warning tabular-nums">
       {D.openedState(carton.countedQuantity ?? 0, carton.quantity)}
+      {stock && <span className="block text-xs">{stock}</span>}
     </span>
   );
 }
@@ -80,7 +93,7 @@ export function ReturnCartonTables({
                   <td className={`py-1.5 pr-3 ${MONO}`}>{carton.lotNumber ?? EMPTY}</td>
                   <td className={`py-1.5 pr-3 text-right ${MONO}`}>{carton.quantity}</td>
                   <td className="py-1.5 pr-3">
-                    <CountCell carton={carton} />
+                    <CountCell carton={carton} draft={receipt.status === "DRAFT"} />
                   </td>
                   <td className="py-1.5 pr-3">{carton.condition ?? EMPTY}</td>
                   {onRemove && (

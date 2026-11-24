@@ -5,12 +5,14 @@
  * `@RequiresPermission`: fulfillment-dispatch:UPDATE cho đặt xe / mã vận đơn / quét / bàn giao,
  * fulfillment-controlled-cancellations:UPDATE cho huỷ có kiểm soát, fulfillment-waybill-corrections:UPDATE cho sửa mã sau khi
  * rời kho, fulfillment-waybill-imports:READ / CREATE cho file nhập, fulfillment-carriers:UPDATE cho danh mục hãng,
- * fulfillment-delivery-outcomes:UPDATE (+ APPROVE cho ĐÃ GIAO / GIAO THẤT BẠI) cho kết quả giao.
+ * fulfillment-delivery-outcomes:UPDATE (+ APPROVE cho ĐÃ GIAO / GIAO THẤT BẠI) cho kết quả giao,
+ * fulfillment-delivery-corrections:UPDATE cho sửa tay kết quả giao.
  */
 
 import {
   FULFILLMENT_CARRIER_PERMISSIONS,
   FULFILLMENT_CONTROLLED_CANCELLATION_PERMISSIONS,
+  FULFILLMENT_DELIVERY_CORRECTION_PERMISSIONS,
   FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS as OUTCOME,
   FULFILLMENT_DISPATCH_PERMISSIONS,
   FULFILLMENT_WAYBILL_CORRECTION_PERMISSIONS,
@@ -22,6 +24,7 @@ import { registerCarrierEventMockRoutes } from "./mock-routes-carrier-events";
 import { createCarrier, updateCarrier } from "./mock-dispatch-carriers";
 import { book, cancelBooking, recordDriver, startLoading } from "./mock-dispatch-booking";
 import { cancelControlled, dropFromPlan, overrideUnload, unload } from "./mock-dispatch-ftl-rules";
+import { correctOutcome } from "./mock-dispatch-correction";
 import { handover, recordOutcome } from "./mock-dispatch-handover";
 import { scan, unscan } from "./mock-dispatch-rules";
 import { registerAttachedFilesMockRoutes } from "./mock-routes-dispatch-files";
@@ -181,6 +184,14 @@ function registerShipmentRoutes(): void {
     if (!actor.can(OUTCOME.update)) return forbidden();
     if (body.outcome !== "RETURNED" && !actor.can(OUTCOME.approve)) return forbidden();
     return withShipment(config, (state, shipment) => recordOutcome(state, shipment, body));
+  });
+
+  // Docs 09 §4.3 bước 5 (E17): sửa tay ĐÃ GIAO ↔ GIAO THẤT BẠI; audit r3 EINV-1 `undoneDeliveredAt`
+  registerMockRoute("POST", `${SHIPMENTS}/:id/delivery-outcome-correction`, async (config) => {
+    const body = parseJsonBody(config.data);
+    if (!(await currentActor()).can(FULFILLMENT_DELIVERY_CORRECTION_PERMISSIONS.update))
+      return forbidden();
+    return withShipment(config, (state, shipment) => correctOutcome(state, shipment, body));
   });
 }
 

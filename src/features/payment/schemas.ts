@@ -11,12 +11,25 @@ import {
   INSTALLMENT_API_STATUSES,
   INSTALLMENT_MILESTONES,
   ORDER_PAYMENT_API_STATUSES,
+  PAYMENT_UNKNOWN,
   RECEIPT_API_STATUSES,
   REFUND_API_STATUSES,
   SETTLEMENT_KINDS,
 } from "@/constants/payment";
 import { bePageSchema } from "@/lib/api/page-schema";
 import { omittedOrNull } from "@/lib/validation/primitives";
+
+/**
+ * Enum của BE đọc khoan dung (WF-05 BO-11, audit C-32; cùng cách `features/order/installments-summary-api.ts`): BE gửi
+ * chuỗi và vẫn thêm giá trị mới (vd. loại tính hoàn `SHIPMENT_RETURNED`) — giá trị FE chưa biết đọc thành `UNKNOWN`
+ * ("Không rõ", không thao tác) thay vì làm hỏng cả màn.
+ */
+function tolerantEnum<const T extends readonly [string, ...string[]]>(values: T) {
+  return z.enum([...values, PAYMENT_UNKNOWN]).catch(PAYMENT_UNKNOWN);
+}
+
+const receiptStatus = tolerantEnum(RECEIPT_API_STATUSES);
+const milestone = tolerantEnum(INSTALLMENT_MILESTONES);
 
 /* ── DTO: đợt thanh toán ─────────────────────────────────────────────── */
 
@@ -25,7 +38,7 @@ export const installmentReceiptDtoSchema = z.object({
   reference: z.string(),
   receivedOn: z.string(),
   amount: z.number(),
-  status: z.enum(RECEIPT_API_STATUSES),
+  status: receiptStatus,
   recordedAt: z.string(),
 });
 
@@ -42,7 +55,7 @@ export const installmentDtoSchema = z.object({
   customerCode: z.string().nullish(),
   seq: z.number().int(),
   name: z.string(),
-  milestone: z.enum(INSTALLMENT_MILESTONES),
+  milestone,
   deliveryBatchSeq: z.number().int().nullish(),
   amount: z.number(),
   paidAmount: z.number(),
@@ -52,7 +65,7 @@ export const installmentDtoSchema = z.object({
   dueDays: z.number().int().nullish(),
   reachedAt: z.string().nullish(),
   dueDate: z.string().nullish(),
-  status: z.enum(INSTALLMENT_API_STATUSES),
+  status: tolerantEnum(INSTALLMENT_API_STATUSES),
   /** Đã qua hạn trả mà chưa trả đủ — CỜ tính khi đọc, không phải trạng thái (WF-05 fix plan §8). */
   overdue: z.boolean(),
   paidAt: z.string().nullish(),
@@ -69,7 +82,7 @@ export const orderInstallmentsDtoSchema = z.object({
   orderId: z.string(),
   orderNumber: z.string(),
   contractNumber: z.string(),
-  paymentStatus: z.enum(ORDER_PAYMENT_API_STATUSES).nullish(),
+  paymentStatus: tolerantEnum(ORDER_PAYMENT_API_STATUSES).nullish(),
   total: z.number(),
   paid: z.number(),
   outstanding: z.number(),
@@ -90,7 +103,7 @@ export const receiptLineDtoSchema = z.object({
   orderNumber: z.string().nullish(),
   seq: z.number().int().nullish(),
   name: z.string().nullish(),
-  milestone: z.enum(INSTALLMENT_MILESTONES).nullish(),
+  milestone: milestone.nullish(),
 });
 
 /** BE `PaymentReceiptResponse`; `lines` có cả ở danh sách (mỗi dòng không kèm thông tin đợt). */
@@ -104,7 +117,7 @@ export const receiptDtoSchema = z.object({
   amount: z.number(),
   currency: z.string(),
   note: z.string().nullish(),
-  status: z.enum(RECEIPT_API_STATUSES),
+  status: receiptStatus,
   recordedBy: z.string().nullish(),
   recordedAt: z.string(),
   voidedBy: z.string().nullish(),
@@ -114,6 +127,14 @@ export const receiptDtoSchema = z.object({
   /** R5-8 (BE round 5, có thể chưa có): tên người lập / người huỷ — không có thì không hiện dòng đó. */
   recordedByName: z.string().nullish(),
   voidedByName: z.string().nullish(),
+  /**
+   * WF-05 Q-20 (BE G2 `PaymentReceiptService.voidRefusal`): huỷ phiếu bây giờ có được nhận không — cùng luật lệnh
+   * `/void` kiểm. Có ở CHI TIẾT và ở câu trả lời của lập / huỷ phiếu; null ở danh sách (BE không tính từng dòng).
+   * `voidBlockedBy` = mã lỗi lệnh huỷ sẽ trả (PAYMENT_RECEIPT_ALREADY_VOIDED / _VOID_NOT_ALLOWED / _VOID_AFTER_HANDOVER;
+   * mã lạ giữ nguyên chuỗi). Phiếu làm đơn thiếu đợt khi ký vẫn `voidable` — lệnh huỷ hỏi "Treo đơn" (409 _NEEDS_HOLD).
+   */
+  voidable: z.boolean().nullish(),
+  voidBlockedBy: z.string().nullish(),
 });
 export const receiptPageDtoSchema = bePageSchema(receiptDtoSchema);
 
@@ -142,7 +163,7 @@ export const refundRecordDtoSchema = z.object({
   refundedOn: z.string(),
   reference: z.string(),
   note: z.string().nullish(),
-  status: z.enum(RECEIPT_API_STATUSES),
+  status: receiptStatus,
   recordedBy: z.string().nullish(),
   recordedAt: z.string(),
   voidedBy: z.string().nullish(),
@@ -152,7 +173,7 @@ export const refundRecordDtoSchema = z.object({
 
 const settlementDtoSchema = z.object({
   settlementId: z.string(),
-  kind: z.enum(SETTLEMENT_KINDS),
+  kind: tolerantEnum(SETTLEMENT_KINDS),
   collected: z.number(),
   closed: z.number(),
   reduced: z.number(),
@@ -166,6 +187,20 @@ const settlementDtoSchema = z.object({
   feeOwed: z.number(),
   feeItemId: z.string().nullish(),
   settledAt: z.string(),
+  /** WF-05 Q-2 (BE G2): lô hãng hoàn về / thất lạc mà lần tính này đóng (`SHIPMENT_RETURNED`); null với loại khác. */
+  shipmentId: z.string().nullish(),
+  /**
+   * WF-05 Q-19 (BE G2 follow-up): phần của `closed` là phí vận chuyển được miễn, đồng nguyên. SHIPMENT_RETURNED: phí theo
+   * tỷ lệ giá trị hàng của lô trên giá trị hàng của đơn, hoặc toàn bộ phần còn lại khi đơn kết thúc không giao được gì;
+   * REMAINDER_CLOSED: phần còn lại khi lần đóng đó kết thúc đơn mà không giao được gì; 0 / vắng với loại khác, BE cũ.
+   */
+  shippingFeeWaived: z.number().nullish(),
+  /**
+   * Audit r3 LM-3 (BE r3a `carriedToFee`): REMAINDER_CLOSED — phần các đợt trả trước khi giao của lô bị đóng cả lô còn phải
+   * trả trên giá trị hàng đã đóng (phần phí khuôn, phí vận chuyển), chuyển sang khoản phí `feeItemId`, đến hạn từ ngày đóng.
+   * Nằm trong `reduced`, phải trả cạnh `feeOwed`. 0 / vắng với loại khác, BE cũ.
+   */
+  carriedToFee: z.number().nullish(),
 });
 
 /** BE `OrderRefundResponse`; `settlements` / `records` vắng ở danh sách. */
@@ -173,10 +208,15 @@ export const orderRefundDtoSchema = z.object({
   orderId: z.string(),
   orderNumber: z.string(),
   currency: z.string(),
-  refundStatus: z.enum(REFUND_API_STATUSES),
+  refundStatus: tolerantEnum(REFUND_API_STATUSES),
   refundable: z.number(),
   refunded: z.number(),
   remaining: z.number(),
+  /**
+   * WF-05 BE-51 (F-9): phí của đơn khách còn nợ (các khoản phí chưa trả) — hiện cạnh số còn phải hoàn để Kế toán không
+   * chuyển hoàn khi khách vẫn còn nợ phí. Vắng = BE cũ.
+   */
+  feeOwed: z.number().nullish(),
   settlements: z.array(settlementDtoSchema).nullish(),
   records: z.array(refundRecordDtoSchema).nullish(),
 });

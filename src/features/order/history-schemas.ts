@@ -83,5 +83,7 @@ export const orderHistoryEntrySchema = z.discriminatedUnion("kind", [
     from: z.string().nullable(),
     to: z.string(),
   }),
+  /** WF-05 BE-52 / TT-3: Kế toán huỷ một phiếu hoàn tiền của đơn — trạng thái không đổi, `reason` = lý do huỷ. */
+  z.object({ ...historyEntryBase, kind: z.literal("refund-voided") }),
   z.object({ ...historyEntryBase, kind: z.literal("unknown") }),
 ]);

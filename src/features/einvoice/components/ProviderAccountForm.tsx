@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import { einvoiceErrorMessage } from "../errors";
+import { applyEInvoiceFieldErrors, einvoiceErrorMessage } from "../errors";
 import { providerAccountInputSchema } from "../input-schemas";
 import { useStoreProviderAccount } from "../mutations";
 
@@ -25,6 +25,7 @@ import type { EInvoiceProvider, ProviderAccountInput } from "../types";
 
 type Values = z.input<typeof providerAccountInputSchema>;
 const ENV_LABEL = { SANDBOX: "Thử nghiệm (sandbox)", PRODUCTION: "Thật (production)" } as const;
+const ACCOUNT_FIELDS = ["environment", "username", "secret"] as const;
 
 /**
  * Tài khoản gọi nhà cung cấp (docs 21 BR-10): môi trường, tên đăng nhập, mật khẩu. Mật khẩu chỉ gửi đi,
@@ -48,7 +49,13 @@ export function ProviderAccountForm({ provider }: { provider: EInvoiceProvider }
       { provider: provider.provider, version: provider.version, ...values },
       {
         onSuccess: () => form.resetField("secret"),
-        onError: (failure) => setError(einvoiceErrorMessage(failure)),
+        // BO-10: lỗi từng ô của BE (`fieldErrors`) hiện ngay dưới ô; còn lại là câu chung
+        onError: (failure) => {
+          const mapped = applyEInvoiceFieldErrors(failure, ACCOUNT_FIELDS, (field, message) =>
+            form.setError(field, { type: "server", message }),
+          );
+          if (!mapped) setError(einvoiceErrorMessage(failure));
+        },
       },
     );
   });
@@ -56,7 +63,7 @@ export function ProviderAccountForm({ provider }: { provider: EInvoiceProvider }
 
   return (
     <form className="grid gap-3 md:grid-cols-3" onSubmit={(event) => void submit(event)}>
-      <FormField id={id("env")} label="Môi trường" required>
+      <FormField id={id("env")} label="Môi trường" required error={errors.environment?.message}>
         <Controller
           control={form.control}
           name="environment"
@@ -86,11 +93,12 @@ export function ProviderAccountForm({ provider }: { provider: EInvoiceProvider }
       <FormField
         id={id("secret")}
         label={provider.secretSet ? "Mật khẩu mới (bỏ trống = giữ)" : "Mật khẩu"}
+        error={errors.secret?.message}
       >
         <Input
           type="password"
           autoComplete="new-password"
-          {...fieldA11y(id("secret"), undefined)}
+          {...fieldA11y(id("secret"), errors.secret?.message)}
           {...form.register("secret")}
         />
       </FormField>

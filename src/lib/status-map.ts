@@ -465,7 +465,8 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   "Pending Contract": "Chờ ký hợp đồng",
   "Awaiting Stock": "Đang chờ hàng",
   "Ready to Fulfill": "Sẵn sàng thực hiện",
-  "Return Requested": "Yêu cầu trả hàng",
+  // Quyết định WF-05 §3 HT-1: "Đang yêu cầu trả hàng" (như BE `CustomerOrders` và SF) — không đọc thành "đã trả"
+  "Return Requested": "Đang yêu cầu trả hàng",
   "Awaiting Return": "Chờ hàng về",
   "Settlement Pending": "Chờ duyệt hoàn tiền",
   Inspected: "Đã kiểm",

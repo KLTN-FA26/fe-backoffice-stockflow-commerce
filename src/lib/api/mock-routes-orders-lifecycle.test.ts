@@ -140,9 +140,10 @@ describe("đăng ký route — mỗi METHOD + PATH đúng một chủ", () => {
     // Giao thất bại — hàng đợi + quyết định của Sale (`mock-routes-order-delivery-failures.ts`, WF-05 GH-1)
     "GET /orders/delivery-failures",
     "GET /orders/:id/delivery-failures",
-    "POST /orders/:id/delivery-failures/:caseId/redelivery",
     "POST /orders/:id/delivery-failures/:caseId/cancellation",
     "POST /orders/:id/delivery-failures/cancellation",
+    "POST /orders/:id/shipments/:shipmentId/lost-closure/evidence/uploads",
+    "POST /orders/:id/shipments/:shipmentId/lost-closure",
     // Giữ hoàn tất (WF-05 GH-2)
     "GET /orders/:id/completion-hold",
     "POST /orders/:id/completion-hold",

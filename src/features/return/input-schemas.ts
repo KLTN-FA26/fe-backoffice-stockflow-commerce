@@ -5,7 +5,12 @@
 
 import { z } from "zod";
 
-import { RETURN_LIMITS, RETURN_NAMED_FAULTS, RETURN_OPENABLE_REASONS } from "@/constants/returns";
+import {
+  RETURN_LIMITS,
+  RETURN_NAMED_FAULTS,
+  RETURN_OPENABLE_REASONS,
+  RETURN_REFUSAL_REASONS,
+} from "@/constants/returns";
 
 const L = RETURN_LIMITS;
 const max = (n: number) => `Tối đa ${n} ký tự`;
@@ -39,13 +44,54 @@ export const cancelInputSchema = z.object({
   reason: z.string().trim().max(L.reasonMax, max(L.reasonMax)),
 });
 
-/** Đề xuất hoàn tiền: mỗi dòng 0..min(duyệt, đã về) (BE `ReturnRequest.proposeRefund`, docs 17 §4.10 bước 40). */
-export const proposeInputSchema = z.object({
-  lines: z
-    .array(cappedLine)
-    .refine((lines) => lines.some((line) => line.quantity > 0), "Hoàn ít nhất một đơn vị"),
-  note: z.string().trim().max(L.noteMax, max(L.noteMax)),
-});
+type ProposedLine = { quantity: number; cap: number };
+const proposedTotal = (lines: readonly ProposedLine[]) =>
+  lines.reduce((sum, line) => sum + (Number.isFinite(line.quantity) ? line.quantity : 0), 0);
+const refundableTotal = (lines: readonly ProposedLine[]) =>
+  lines.reduce((sum, line) => sum + line.cap, 0);
+
+/** Mọi dòng của đề xuất đều 0 trong khi còn đơn vị hoàn được — tức là đề xuất không hoàn tiền (WF-05 Q-4). */
+export const refusesRefund = (lines: readonly ProposedLine[]): boolean =>
+  proposedTotal(lines) === 0 && refundableTotal(lines) > 0;
+
+/**
+ * Đề xuất giữ lại ít nhất một đơn vị đã về (hoàn ít hơn số hoàn được) — chỉ khi đó mới có lý do không hoàn (BE G4
+ * `ReturnRequest.proposeRefund`: lý do bị từ chối khi hoàn đủ mọi đơn vị).
+ */
+export const withholdsUnits = (lines: readonly ProposedLine[]): boolean =>
+  proposedTotal(lines) < refundableTotal(lines);
+
+/**
+ * Đề xuất hoàn tiền: mỗi dòng 0..min(duyệt, đã về) (BE `ReturnRequest.proposeRefund`, docs 17 §4.10 bước 40). WF-05 Q-4
+ * (BE-12), luật của BE G4:
+ * - để 0 mọi dòng là đề xuất không hoàn tiền — bắt buộc chọn lý do trong danh sách cố định
+ *   (`RETURN_REFUSAL_REASON_REQUIRED`);
+ * - giữ lại một phần thì lý do tuỳ chọn; hoàn đủ thì không có lý do (BE từ chối);
+ * - lý do "Khác" phải có ghi chú gửi khách; ghi chú gửi khách chỉ đi kèm lý do (≤ 500 ký tự).
+ * Kế toán duyệt như mọi đề xuất (bốn mắt, nút "Duyệt hoàn tiền").
+ */
+export const proposeInputSchema = z
+  .object({
+    lines: z.array(cappedLine),
+    note: z.string().trim().max(L.noteMax, max(L.noteMax)),
+    /** "" = chưa chọn. */
+    refusalReason: z.union([z.enum(RETURN_REFUSAL_REASONS), z.literal("")]),
+    refusalNote: z.string().trim().max(L.refusalNoteMax, max(L.refusalNoteMax)),
+  })
+  .superRefine((v, ctx) => {
+    if (refusesRefund(v.lines) && v.refusalReason === "")
+      ctx.addIssue({
+        code: "custom",
+        message: "Mọi dòng đều 0 — chọn lý do không hoàn (khách đọc được).",
+        path: ["refusalReason"],
+      });
+    if (withholdsUnits(v.lines) && v.refusalReason === "OTHER" && v.refusalNote === "")
+      ctx.addIssue({
+        code: "custom",
+        message: "Lý do khác — ghi rõ cho khách lý do không hoàn.",
+        path: ["refusalNote"],
+      });
+  });
 
 /**
  * Sale mở yêu cầu thay khách (BE `ReturnRequests.Open`, `ReturnRequest.open`):
@@ -135,3 +181,22 @@ export const looseLineInputSchema = z.object({
     .int("Số lượng là số nguyên")
     .min(1, "Số lượng ≥ 1"),
 });
+
+/**
+ * Biên nhận giữ hộ (WF-05 Q-11, BE G4 `ReturnEvidence.Custody`): hàng về mà phiếu nhập không nhận — nêu SKU hoặc LPN (ít
+ * nhất một), số lượng ≥ 1, ghi chú tuỳ chọn (lựa chọn của khách: gửi trả / mở yêu cầu bổ sung / huỷ hộ có biên bản).
+ */
+export const custodyInputSchema = z
+  .object({
+    sku: z.string().trim().max(L.custodySkuMax, max(L.custodySkuMax)),
+    lpn: z.string().trim().max(L.custodyLpnMax, max(L.custodyLpnMax)),
+    quantity: z
+      .number({ error: "Nhập số lượng" })
+      .int("Số lượng là số nguyên")
+      .min(1, "Số lượng ≥ 1"),
+    note: z.string().trim().max(L.custodyNoteMax, max(L.custodyNoteMax)),
+  })
+  .refine((v) => v.sku !== "" || v.lpn !== "", {
+    message: "Nhập SKU hoặc LPN của hàng giữ hộ",
+    path: ["sku"],
+  });

@@ -1,7 +1,10 @@
 "use client";
 
+import { ADMIN_ROUTES } from "@/constants";
 import { PAYMENT_LABELS, SETTLEMENT_KIND_LABELS } from "@/constants/labels-payment";
 import { PAYMENT_ROUTES } from "@/constants/payment";
+import { SHIPMENT_PERMISSIONS } from "@/constants/permissions";
+import { useCan } from "@/lib/auth/components/Can";
 import { formatDateTime } from "@/lib/format/date";
 
 import { CodeLink, InfoRow, MoneyCell } from "./primitives";
@@ -10,8 +13,13 @@ import type { OrderRefund } from "../types";
 
 const L = PAYMENT_LABELS.refunds;
 
-/** Các lần tính hoàn của đơn (huỷ đơn / đóng phần còn lại / trả hàng — docs 15 §4.5, §4.6). */
+/**
+ * Các lần tính hoàn của đơn (huỷ đơn / đóng phần còn lại / trả hàng / lô hãng hoàn về — docs 15 §4.5, §4.6; WF-05 F-9):
+ * lần tính SHIPMENT_RETURNED nêu lô giao (`shipmentId`, mở được khi có quyền xem lô) và phần phí vận chuyển được miễn
+ * (Q-19: theo tỷ lệ giá trị hàng của lô, toàn bộ phần còn lại khi đơn không giao được gì).
+ */
 export function RefundSettlements({ refund }: { refund: OrderRefund }) {
+  const canOpenShipment = useCan(SHIPMENT_PERMISSIONS.read);
   return (
     <div className="space-y-4">
       {(refund.settlements ?? []).map((s) => (
@@ -26,6 +34,13 @@ export function RefundSettlements({ refund }: { refund: OrderRefund }) {
             </span>
           </div>
           <dl className="grid grid-cols-[minmax(180px,auto)_1fr] gap-x-4 gap-y-1.5 text-[0.8125rem]">
+            {s.shipmentId && canOpenShipment && (
+              <InfoRow label={L.shipment}>
+                <CodeLink href={ADMIN_ROUTES.shipments.detail(s.shipmentId)}>
+                  {L.openShipment}
+                </CodeLink>
+              </InfoRow>
+            )}
             <InfoRow label={L.collected}>
               <MoneyCell amount={s.collected} currency={refund.currency} />
             </InfoRow>
@@ -37,6 +52,12 @@ export function RefundSettlements({ refund }: { refund: OrderRefund }) {
             {s.reduced > 0 && (
               <InfoRow label={L.reduced}>
                 <MoneyCell amount={s.reduced} currency={refund.currency} />
+              </InfoRow>
+            )}
+            {s.shippingFeeWaived != null && s.shippingFeeWaived > 0 && (
+              <InfoRow label={L.shippingFeeWaived}>
+                <MoneyCell amount={s.shippingFeeWaived} currency={refund.currency} />
+                <p className="text-ink-tertiary text-xs">{L.shippingFeeWaivedHint}</p>
               </InfoRow>
             )}
             <InfoRow label={L.surplus}>
@@ -70,6 +91,20 @@ export function RefundSettlements({ refund }: { refund: OrderRefund }) {
                     </CodeLink>
                   </span>
                 )}
+              </InfoRow>
+            )}
+            {/* Audit r3 LM-3: phần phí của các đợt giao đóng cả lô chuyển sang khoản phí của lần đóng (nằm trong "Đã giảm") */}
+            {(s.carriedToFee ?? 0) > 0 && (
+              <InfoRow label={L.carriedToFee}>
+                <MoneyCell amount={s.carriedToFee ?? 0} currency={refund.currency} />
+                {s.feeItemId && s.feeOwed <= 0 && (
+                  <span className="ml-3">
+                    <CodeLink href={PAYMENT_ROUTES.installments.detail(s.feeItemId)}>
+                      {L.feeItem}
+                    </CodeLink>
+                  </span>
+                )}
+                <p className="text-ink-tertiary text-xs">{L.carriedToFeeHint}</p>
               </InfoRow>
             )}
           </dl>

@@ -52,6 +52,9 @@ export const ORDER_PERMISSIONS = {
   // Đổi địa chỉ giao của đơn tới khi thùng đầu tiên được dán nhãn (`PUT /orders/{id}/shipping-address`, docs 17 §4.7
   // bước 23-24, BR-16; 08 BR-04) — resource riêng `sales-order-addresses` (UPDATE, scope ALL; seed: SALES_STAFF + SYSTEM_ADMIN)
   shippingAddress: "sales-order-addresses:UPDATE",
+  // Đóng phần thất lạc của một lô hãng báo mất (WF-05 Q-12, BE-17; `POST /orders/{id}/shipments/{shipmentId}/lost-closure`)
+  // — resource riêng `sales-lost-shipment-closures` (APPROVE; seed V20261216000050: SALES_STAFF, SYSTEM_ADMIN)
+  lostShipmentClosure: "sales-lost-shipment-closures:APPROVE",
 } as const;
 
 /**

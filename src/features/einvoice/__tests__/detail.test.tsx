@@ -3,12 +3,13 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "@/lib/api/error";
-import { formatDateTime } from "@/lib/format/date";
+import { formatDateTime, toLocalIsoDate } from "@/lib/format/date";
 
 import {
   ACCOUNTANT_GRANTS,
   MANAGER_GRANTS,
   detailJson,
+  listItemJson,
   mockEInvoiceApi,
   renderEInvoiceScreen,
 } from "../__fixtures__/screen";
@@ -22,25 +23,72 @@ vi.mock("next/navigation", () => ({
 
 afterEach(() => vi.restoreAllMocks());
 
-const get = (invoice: Record<string, unknown>) => ({
+const get = (invoice: Record<string, unknown>, corrections: unknown[] = []) => ({
   "/einvoices/einv-1": () => invoice,
   "/einvoices/einv-1/provider-calls": () => [],
   "/einvoices/einv-1/error-notices": () => [],
+  "/einvoices/einv-1/corrections": () => corrections,
 });
+/** Nháp giao hôm nay — phát hành không trễ (WF-05 Q-10). */
+const today = () => toLocalIsoDate(new Date().toISOString());
 
 describe("EInvoiceDetail — issuing (docs 21 §4.2)", () => {
   it("shows the draft: lines, totals by rate, total in words and the buyer", async () => {
     mockEInvoiceApi(ACCOUNTANT_GRANTS, { get: get(detailJson()) });
     renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
     expect(await screen.findByText("Ly giấy 8oz in logo")).toBeInTheDocument();
-    expect(screen.getByText("20 thùng × 1000 cái")).toBeInTheDocument();
+    // Demo D-9: BE sends whole cartons as cartons (quantity 20, unit "Thùng", price of a carton).
+    expect(screen.getByText("20 thùng × 1.000 cái = 20.000 cái")).toBeInTheDocument();
+    expect(screen.getByText("20 Thùng")).toBeInTheDocument();
+    expect(screen.queryByText(/0[.,]02 thùng/)).not.toBeInTheDocument();
     expect(screen.getByText(/Bằng chữ: Mười sáu triệu/)).toBeInTheDocument();
     expect(screen.getAllByText("0315987654").length).toBeGreaterThan(0);
   });
 
+  it("D-9: a reduction in cartons drops the sign in the hint; one in pieces has no carton hint", async () => {
+    const reduction = (over: Record<string, unknown>) => ({
+      id: `r-${String(over.lineNo)}`,
+      kind: "GOODS",
+      sku: "LY-GIAY-DEMO-12OZ-MOC",
+      itemName: "Ly giấy 12oz",
+      taxRate: 8,
+      ...over,
+    });
+    mockEInvoiceApi(ACCOUNTANT_GRANTS, {
+      get: get(
+        detailJson({
+          lines: [
+            reduction({
+              lineNo: 1,
+              unit: "Thùng",
+              quantity: -1,
+              unitsPerCarton: 1000,
+              unitPrice: 1_200_000,
+              amount: -1_200_000,
+              taxAmount: -96_000,
+            }),
+            reduction({
+              lineNo: 2,
+              unit: "Cái",
+              quantity: -850,
+              unitsPerCarton: null,
+              unitPrice: 1_200,
+              amount: -1_020_000,
+              taxAmount: -81_600,
+            }),
+          ],
+        }),
+      ),
+    });
+    renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
+    expect(await screen.findByText("1 thùng × 1.000 cái = 1.000 cái")).toBeInTheDocument();
+    expect(screen.getByText("-850 Cái")).toBeInTheDocument();
+    expect(screen.getAllByText(/thùng ×/)).toHaveLength(1);
+  });
+
   it("issues a draft after confirming, sending the version read", async () => {
     const api = mockEInvoiceApi(ACCOUNTANT_GRANTS, {
-      get: get(detailJson()),
+      get: get(detailJson({ issueDate: today() })),
       post: {
         "/einvoices/einv-1/issuance": () => detailJson({ status: "SUBMITTING", version: 4 }),
       },
@@ -57,7 +105,7 @@ describe("EInvoiceDetail — issuing (docs 21 §4.2)", () => {
 
   it("BR-06: tells the accountant in Vietnamese why issuing was refused, inside the dialog", async () => {
     mockEInvoiceApi(ACCOUNTANT_GRANTS, {
-      get: get(detailJson()),
+      get: get(detailJson({ issueDate: today() })),
       post: {
         "/einvoices/einv-1/issuance": () => {
           throw new ApiError(409, "EINVOICE_BUYER_PROFILE_INCOMPLETE", "Buyer incomplete");
@@ -196,10 +244,12 @@ describe("EInvoiceDetail — system-drawn reduction of a failed delivery (WF-05 
 });
 
 describe("EInvoiceDetail — withdrawing an invoice stuck at the provider (BE HĐ-1)", () => {
+  // Audit r2 H-2: BE nói rút được ngay (`withdrawable`) — luật `WithdrawalRule` trên câu trả lời gần nhất của NCC
   const stuck = detailJson({
     status: "SUBMITTING",
     provider: "SEPAY_EINVOICE",
     submittedAt: "2026-11-01T00:00:00Z",
+    withdrawable: true,
   });
 
   it("asks what was checked with the provider and sends it with the version", async () => {
@@ -213,7 +263,10 @@ describe("EInvoiceDetail — withdrawing an invoice stuck at the provider (BE H�
     renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
     await userEvent.click(await screen.findByRole("button", { name: "Rút hoá đơn" }));
     const dialog = screen.getByRole("dialog", { name: "Rút hoá đơn khỏi nhà cung cấp?" });
-    await userEvent.type(within(dialog).getByRole("textbox"), "Cổng SePay không có hoá đơn");
+    await userEvent.type(
+      within(dialog).getByLabelText(/Đã kiểm tra gì/),
+      "Cổng SePay không có hoá đơn",
+    );
     await userEvent.click(within(dialog).getByRole("button", { name: "Rút hoá đơn" }));
     await waitFor(() =>
       expect(api.post).toHaveBeenCalledWith("/einvoices/einv-1/withdrawal", {
@@ -235,17 +288,57 @@ describe("EInvoiceDetail — withdrawing an invoice stuck at the provider (BE H�
     renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
     await userEvent.click(await screen.findByRole("button", { name: "Rút hoá đơn" }));
     const dialog = screen.getByRole("dialog");
-    await userEvent.type(within(dialog).getByRole("textbox"), "Đã kiểm tra");
+    await userEvent.type(within(dialog).getByLabelText(/Đã kiểm tra gì/), "Đã kiểm tra");
     await userEvent.click(within(dialog).getByRole("button", { name: "Rút hoá đơn" }));
     expect(await within(dialog).findByText(/Chưa rút được hoá đơn/)).toBeInTheDocument();
   });
 
-  it("offered right after sending too — the time rule is BE's, refused with a fixed Vietnamese reason", async () => {
+  it("audit r2 H-2 / demo HĐ-1 step 2: an invoice the provider holds has “Kiểm tra lại” and no “Rút”, and says why", async () => {
+    mockEInvoiceApi(ACCOUNTANT_GRANTS, {
+      get: get({
+        ...stuck,
+        withdrawable: false,
+        withdrawalBlockedBy: "PROVIDER_HOLDS",
+      }),
+    });
+    renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
+    expect(await screen.findByRole("button", { name: "Kiểm tra lại" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Rút hoá đơn" })).not.toBeInTheDocument();
+    expect(screen.getByText(/Nhà cung cấp đang giữ hoá đơn/)).toBeInTheDocument();
+  });
+
+  it("audit r2 H-2: sent too recently — no “Rút”, and the screen says from when (BE withdrawableFrom)", async () => {
+    const from = "2026-11-23T08:30:00Z";
+    mockEInvoiceApi(ACCOUNTANT_GRANTS, {
+      get: get({
+        ...stuck,
+        withdrawable: false,
+        withdrawalBlockedBy: "TOO_RECENT",
+        withdrawableFrom: from,
+      }),
+    });
+    renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
+    expect(await screen.findByRole("button", { name: "Kiểm tra lại" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Rút hoá đơn" })).not.toBeInTheDocument();
+    expect(screen.getByText(new RegExp(`Rút được từ ${formatDateTime(from)}`))).toBeInTheDocument();
+  });
+
+  it("a refusal raced in after the screen loaded still reads “Rút được từ <giờ>” (BE-59)", async () => {
+    const from = "2026-11-23T08:30:00Z";
     mockEInvoiceApi(ACCOUNTANT_GRANTS, {
       get: get({ ...stuck, submittedAt: new Date().toISOString() }),
       post: {
         "/einvoices/einv-1/withdrawal": () => {
-          throw new ApiError(409, "EINVOICE_WITHDRAWAL_REFUSED", "sent too recently");
+          throw new ApiError(
+            409,
+            "EINVOICE_WITHDRAWAL_REFUSED",
+            "sent too recently",
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            { withdrawableFrom: from, providerState: "NOT_FOUND" },
+          );
         },
       },
     });
@@ -253,10 +346,431 @@ describe("EInvoiceDetail — withdrawing an invoice stuck at the provider (BE H�
     expect(await screen.findByRole("button", { name: "Kiểm tra lại" })).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Rút hoá đơn" }));
     const dialog = screen.getByRole("dialog");
-    await userEvent.type(within(dialog).getByRole("textbox"), "Đã kiểm tra");
+    await userEvent.type(within(dialog).getByLabelText(/Đã kiểm tra gì/), "Đã kiểm tra");
     await userEvent.click(within(dialog).getByRole("button", { name: "Rút hoá đơn" }));
-    expect(await within(dialog).findByText(/3 giờ sau lần gửi cuối/)).toBeInTheDocument();
-    expect(within(dialog).getByText(/Kiểm tra lại/)).toBeInTheDocument();
-    expect(within(dialog).queryByText(/sent too recently/)).not.toBeInTheDocument();
+    const alert = await within(dialog).findByRole("alert");
+    expect(alert).toHaveTextContent(`Rút được từ ${formatDateTime(from)}`);
+    expect(alert).toHaveTextContent(/chưa có bản ghi/);
+    expect(alert).not.toHaveTextContent(/sent too recently/);
+  });
+
+  it("Q-5: a pending provider answer is never withdrawn — the refusal says so", async () => {
+    mockEInvoiceApi(ACCOUNTANT_GRANTS, {
+      get: get(stuck),
+      post: {
+        "/einvoices/einv-1/withdrawal": () => {
+          throw new ApiError(
+            409,
+            "EINVOICE_WITHDRAWAL_REFUSED",
+            "pending",
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            { providerState: "PENDING", withdrawableFrom: null },
+          );
+        },
+      },
+    });
+    renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
+    await userEvent.click(await screen.findByRole("button", { name: "Rút hoá đơn" }));
+    const dialog = screen.getByRole("dialog");
+    await userEvent.type(within(dialog).getByLabelText(/Đã kiểm tra gì/), "Đã kiểm tra");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Rút hoá đơn" }));
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(/không bao giờ rút/);
+  });
+
+  it("audit r2 H-2: when the BE already knows the result is unconfirmed, the support's answer is asked up front", async () => {
+    mockEInvoiceApi(ACCOUNTANT_GRANTS, {
+      get: get({ ...stuck, withdrawalEvidenceRequired: true }),
+    });
+    renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
+    await userEvent.click(await screen.findByRole("button", { name: "Rút hoá đơn" }));
+    const dialog = screen.getByRole("dialog");
+    await userEvent.type(within(dialog).getByLabelText(/Đã kiểm tra gì/), "SePay không trả lời");
+    expect(within(dialog).getByRole("button", { name: "Rút hoá đơn" })).toBeDisabled();
+    await userEvent.type(within(dialog).getByLabelText(/hỗ trợ nhà cung cấp/), "Phiếu SP-9");
+    expect(within(dialog).getByRole("button", { name: "Rút hoá đơn" })).toBeEnabled();
+  });
+
+  it("Q-5 (F-12): an unconfirmed result needs the provider support's written answer before it is withdrawn", async () => {
+    const api = mockEInvoiceApi(ACCOUNTANT_GRANTS, {
+      get: get(stuck),
+      post: {
+        "/einvoices/einv-1/withdrawal": (_params, body) => {
+          if (!(body as { supportReference?: string }).supportReference)
+            throw new ApiError(409, "EINVOICE_WITHDRAWAL_EVIDENCE_REQUIRED", "evidence");
+          return detailJson({ status: "REJECTED", rejectionCode: "WITHDRAWN_RESULT_UNCONFIRMED" });
+        },
+      },
+    });
+    renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
+    await userEvent.click(await screen.findByRole("button", { name: "Rút hoá đơn" }));
+    const dialog = screen.getByRole("dialog");
+    await userEvent.type(within(dialog).getByLabelText(/Đã kiểm tra gì/), "SePay không trả lời");
+    const confirm = within(dialog).getByRole("button", { name: "Rút hoá đơn" });
+    await userEvent.click(confirm);
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      /Không xác nhận được kết quả/,
+    );
+    expect(confirm).toBeDisabled();
+    await userEvent.type(within(dialog).getByLabelText(/hỗ trợ nhà cung cấp/), "Phiếu SP-123");
+    expect(confirm).toBeEnabled();
+    await userEvent.click(confirm);
+    await waitFor(() =>
+      expect(api.post).toHaveBeenLastCalledWith("/einvoices/einv-1/withdrawal", {
+        version: 3,
+        reason: "SePay không trả lời",
+        supportReference: "Phiếu SP-123",
+      }),
+    );
+  });
+});
+
+describe("EInvoiceDetail — manual issue re-checked (WF-05 F-16, Q-10)", () => {
+  it("Q-10: a draft delivered before today asks for the late reason and sends it", async () => {
+    const api = mockEInvoiceApi(ACCOUNTANT_GRANTS, {
+      get: get(detailJson({ issueDate: "2026-11-10" })),
+      post: { "/einvoices/einv-1/issuance": () => detailJson({ status: "SUBMITTING" }) },
+    });
+    renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
+    await userEvent.click(await screen.findByRole("button", { name: "Phát hành" }));
+    const dialog = screen.getByRole("dialog", { name: "Phát hành hoá đơn?" });
+    const confirm = within(dialog).getByRole("button", { name: "Phát hành" });
+    expect(confirm).toBeDisabled();
+    await userEvent.type(
+      within(dialog).getByLabelText(/Lý do phát hành trễ/),
+      "Hãng báo giao muộn",
+    );
+    await userEvent.click(confirm);
+    await waitFor(() =>
+      expect(api.post).toHaveBeenCalledWith("/einvoices/einv-1/issuance", {
+        version: 3,
+        lateReason: "Hãng báo giao muộn",
+      }),
+    );
+  });
+
+  it("Q-10: when the BE asks for a late reason the FE did not foresee, the field appears", async () => {
+    mockEInvoiceApi(ACCOUNTANT_GRANTS, {
+      get: get(detailJson({ issueDate: today() })),
+      post: {
+        "/einvoices/einv-1/issuance": () => {
+          throw new ApiError(400, "EINVOICE_LATE_ISSUE_REASON_REQUIRED", "late");
+        },
+      },
+    });
+    renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
+    await userEvent.click(await screen.findByRole("button", { name: "Phát hành" }));
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).queryByLabelText(/Lý do phát hành trễ/)).not.toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Phát hành" }));
+    expect(await within(dialog).findByLabelText(/Lý do phát hành trễ/)).toBeInTheDocument();
+  });
+
+  it("F-16: sends the warnings seen; new ones from the BE are shown and acknowledged on the next click", async () => {
+    let calls = 0;
+    const api = mockEInvoiceApi(ACCOUNTANT_GRANTS, {
+      get: get(detailJson({ issueDate: today(), warnings: ["TAX_RATE_NOT_ON_CONTRACT"] })),
+      post: {
+        "/einvoices/einv-1/issuance": () => {
+          calls += 1;
+          if (calls === 1)
+            throw new ApiError(
+              409,
+              "EINVOICE_DRAFT_OUT_OF_DATE",
+              "new",
+              undefined,
+              undefined,
+              undefined,
+              undefined,
+              { warnings: ["TAX_CLASS_UNKNOWN"] },
+            );
+          return detailJson({ status: "SUBMITTING" });
+        },
+      },
+    });
+    renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
+    await userEvent.click(await screen.findByRole("button", { name: "Phát hành" }));
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveTextContent(/Dòng đơn chưa chốt thuế suất/);
+    await userEvent.click(within(dialog).getByRole("button", { name: "Phát hành" }));
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(/mức cao nhất 10%/);
+    expect(api.post).toHaveBeenCalledWith("/einvoices/einv-1/issuance", {
+      version: 3,
+      acknowledgedWarnings: ["TAX_RATE_NOT_ON_CONTRACT"],
+    });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Phát hành" }));
+    await waitFor(() =>
+      expect(api.post).toHaveBeenLastCalledWith("/einvoices/einv-1/issuance", {
+        version: 3,
+        acknowledgedWarnings: ["TAX_RATE_NOT_ON_CONTRACT", "TAX_CLASS_UNKNOWN"],
+      }),
+    );
+  });
+
+  it("Q-10: an issued late invoice reads “Lập trễ N ngày”", async () => {
+    mockEInvoiceApi(ACCOUNTANT_GRANTS, {
+      get: get(
+        detailJson({
+          status: "ISSUED",
+          issueDate: "2026-11-12",
+          deliveredOn: "2026-11-10",
+          warnings: ["ISSUED_LATE"],
+        }),
+      ),
+    });
+    renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
+    expect(await screen.findByText("Lập trễ 2 ngày")).toBeInTheDocument();
+  });
+});
+
+describe("EInvoiceDetail — corrections the BE refuses are not offered (BO-03, Q-9)", () => {
+  const issued = (over: Record<string, unknown> = {}) =>
+    detailJson({ status: "ISSUED", hasFiles: true, invoiceNumber: 42, symbol: "C26TAA", ...over });
+
+  it("an original with no correction offers adjust and replace", async () => {
+    mockEInvoiceApi(ACCOUNTANT_GRANTS, { get: get(issued()) });
+    renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
+    expect(await screen.findByRole("button", { name: "Lập điều chỉnh" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Lập thay thế" })).toBeInTheDocument();
+  });
+
+  it("Q-9: a replacement is never adjusted; replace again and the portal reduction stay", async () => {
+    mockEInvoiceApi(ACCOUNTANT_GRANTS, {
+      get: get(
+        issued({
+          type: "REPLACEMENT",
+          originalEInvoiceId: "einv-0",
+          correctionBasis: "ERROR",
+          externalReductionAllowed: true,
+          externalReductionBases: ["DELIVERY_FAILED"],
+        }),
+      ),
+    });
+    renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
+    expect(await screen.findByRole("button", { name: "Lập thay thế" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Ghi hoá đơn giảm làm trên cổng NCC" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Lập điều chỉnh" })).not.toBeInTheDocument();
+  });
+
+  it("a reversed original (reversedAt) offers neither, and says when it was reduced", async () => {
+    mockEInvoiceApi(ACCOUNTANT_GRANTS, {
+      get: get(issued({ reversedAt: "2026-11-09T08:00:00Z" })),
+    });
+    renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
+    expect(await screen.findByText("Đã giảm toàn bộ lúc")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Lập điều chỉnh" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Lập thay thế" })).not.toBeInTheDocument();
+  });
+
+  it("a pending system reduction hides replace", async () => {
+    mockEInvoiceApi(ACCOUNTANT_GRANTS, {
+      get: get(issued(), [
+        listItemJson({ id: "einv-2", type: "ADJUSTMENT", correctionBasis: "DELIVERY_FAILED" }),
+      ]),
+    });
+    renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
+    expect(await screen.findByRole("button", { name: "Lập điều chỉnh" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Lập thay thế" })).not.toBeInTheDocument();
+  });
+
+  it("Q-8 (F-14): a system reduction that cannot be sent is voided with the UNSENDABLE_REVERSAL code", async () => {
+    const api = mockEInvoiceApi(ACCOUNTANT_GRANTS, {
+      get: get(
+        detailJson({
+          type: "ADJUSTMENT",
+          originalEInvoiceId: "einv-0",
+          correctionBasis: "DELIVERY_FAILED",
+        }),
+      ),
+      post: { "/einvoices/einv-1/void": () => detailJson({ status: "VOIDED_DRAFT" }) },
+    });
+    renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
+    await userEvent.click(await screen.findByRole("button", { name: "Huỷ bản không gửi được" }));
+    const dialog = screen.getByRole("dialog");
+    await userEvent.type(
+      within(dialog).getByLabelText(/Vì sao không gửi được/),
+      "NCC cũ ngừng dịch vụ",
+    );
+    await userEvent.click(within(dialog).getByRole("button", { name: "Huỷ bản không gửi được" }));
+    await waitFor(() =>
+      expect(api.post).toHaveBeenCalledWith("/einvoices/einv-1/void", {
+        version: 3,
+        reason: "NCC cũ ngừng dịch vụ",
+        reasonCode: "UNSENDABLE_REVERSAL",
+      }),
+    );
+  });
+
+  it("BE-11 (F-15): reduce a marked original for its failed delivery", async () => {
+    const api = mockEInvoiceApi(ACCOUNTANT_GRANTS, {
+      get: get(issued({ deliveryFailedAt: "2026-11-09T07:00:00Z", adjusted: true })),
+      post: {
+        "/einvoices/einv-1/delivery-failure-reduction": () =>
+          detailJson({ id: "einv-9", type: "ADJUSTMENT", correctionBasis: "DELIVERY_FAILED" }),
+      },
+    });
+    renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Lập bản giảm do giao thất bại" }),
+    );
+    const dialog = screen.getByRole("dialog");
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Lập bản giảm do giao thất bại" }),
+    );
+    await waitFor(() =>
+      expect(api.post).toHaveBeenCalledWith("/einvoices/einv-1/delivery-failure-reduction", {
+        version: 3,
+      }),
+    );
+  });
+
+  it("Q-8 (F-13): a SUBMITTING invoice is recorded from the provider's portal as multipart", async () => {
+    const api = mockEInvoiceApi(ACCOUNTANT_GRANTS, {
+      get: get(detailJson({ status: "SUBMITTING", provider: "SEPAY_EINVOICE" })),
+      post: {
+        "/einvoices/einv-1/portal-result": () =>
+          detailJson({ status: "ISSUED", issuedVia: "PORTAL_RECORD" }),
+      },
+    });
+    renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
+    await userEvent.click(await screen.findByRole("button", { name: "Ghi kết quả từ cổng NCC" }));
+    const dialog = screen.getByRole("dialog");
+    await userEvent.type(within(dialog).getByLabelText(/Đã kiểm gì/), "Cổng SePay có số 77");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Ghi kết quả" }));
+    expect(await within(dialog).findByText(/Nhập số hoá đơn đã phát hành/)).toBeInTheDocument();
+    await userEvent.type(within(dialog).getByLabelText(/Số hoá đơn/), "77");
+    // M-2: BE `recordPortalResult` từ chối ISSUED thiếu mã CQT, mã tra cứu, XML hoặc PDF — FE chặn trước, báo từng ô
+    await userEvent.click(within(dialog).getByRole("button", { name: "Ghi kết quả" }));
+    expect(
+      await within(dialog).findByText("Nhập mã của cơ quan thuế in trên hoá đơn"),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByText("Nhập mã tra cứu hoá đơn trên cổng")).toBeInTheDocument();
+    expect(within(dialog).getByText("Chọn tệp XML của hoá đơn tải từ cổng")).toBeInTheDocument();
+    expect(within(dialog).getByText("Chọn bản PDF của hoá đơn tải từ cổng")).toBeInTheDocument();
+    expect(within(dialog).getByLabelText(/Mã cơ quan thuế/)).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    expect(api.post).not.toHaveBeenCalled();
+    await userEvent.type(within(dialog).getByLabelText(/Mã cơ quan thuế/), "M1-26-ABCDE");
+    await userEvent.type(within(dialog).getByLabelText(/Mã tra cứu/), "TRACUU77");
+    const xml = new File(["<HDon/>"], "hd77.xml", { type: "text/xml" });
+    const pdf = new File(["%PDF"], "hd77.pdf", { type: "application/pdf" });
+    await userEvent.upload(within(dialog).getByLabelText(/Tệp XML/), xml);
+    await userEvent.upload(within(dialog).getByLabelText(/Bản PDF/), pdf);
+    await userEvent.click(within(dialog).getByRole("button", { name: "Ghi kết quả" }));
+    await waitFor(() =>
+      expect(api.post).toHaveBeenCalledWith(
+        "/einvoices/einv-1/portal-result",
+        expect.any(FormData),
+        expect.anything(),
+      ),
+    );
+    const form = api.post.mock.calls.at(-1)?.[1] as FormData;
+    expect(form.get("outcome")).toBe("ISSUED");
+    expect(form.get("invoiceNumber")).toBe("77");
+    expect(form.get("taxAuthorityCode")).toBe("M1-26-ABCDE");
+    expect(form.get("lookupCode")).toBe("TRACUU77");
+    expect(form.get("xml")).toBe(xml);
+    expect(form.get("pdf")).toBe(pdf);
+    expect(form.get("version")).toBe("3");
+  });
+
+  it("M-2: a tax-authority refusal needs only the note and sends no files", async () => {
+    const api = mockEInvoiceApi(ACCOUNTANT_GRANTS, {
+      get: get(detailJson({ status: "SUBMITTING", provider: "SEPAY_EINVOICE" })),
+      post: {
+        "/einvoices/einv-1/portal-result": () => detailJson({ status: "REJECTED" }),
+      },
+    });
+    renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
+    await userEvent.click(await screen.findByRole("button", { name: "Ghi kết quả từ cổng NCC" }));
+    const dialog = screen.getByRole("dialog");
+    await userEvent.click(within(dialog).getByRole("combobox", { name: /Kết quả trên cổng/ }));
+    await userEvent.click(await screen.findByRole("option", { name: "Cơ quan thuế từ chối" }));
+    await userEvent.type(within(dialog).getByLabelText(/Đã kiểm gì/), "CQT từ chối trên cổng");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Ghi kết quả" }));
+    await waitFor(() => expect(api.post).toHaveBeenCalled());
+    const form = api.post.mock.calls.at(-1)?.[1] as FormData;
+    expect(form.get("outcome")).toBe("REFUSED_BY_TAX_AUTHORITY");
+    expect(form.get("xml")).toBeNull();
+    expect(form.get("taxAuthorityCode")).toBeNull();
+  });
+
+  it("shows the portal-recorded origin of an issued invoice", async () => {
+    mockEInvoiceApi(ACCOUNTANT_GRANTS, {
+      get: get(issued({ issuedAt: "2026-11-08T03:00:00Z", issuedVia: "PORTAL_RECORD" })),
+    });
+    renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
+    expect(await screen.findByText(/Ghi lại từ cổng nhà cung cấp/)).toBeInTheDocument();
+  });
+});
+
+describe("EInvoiceDetail — signature and provider handle (BO-09)", () => {
+  it("checks the signature on demand and labels a SHA-1 one as unchecked, not invalid", async () => {
+    const signature = vi.fn(() => ({
+      status: "SHA1_UNCHECKED",
+      valid: false,
+      signer: "CÔNG TY TNHH STOCKFLOW",
+      buyerSigned: false,
+      chainChecked: false,
+    }));
+    mockEInvoiceApi(ACCOUNTANT_GRANTS, {
+      get: {
+        ...get(detailJson({ status: "ISSUED", hasFiles: true, issuedAt: "2026-11-08T03:00:00Z" })),
+        "/einvoices/einv-1/signature": signature,
+      },
+    });
+    renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
+    const button = await screen.findByRole("button", { name: "Kiểm tra chữ ký số" });
+    expect(signature).not.toHaveBeenCalled();
+    await userEvent.click(button);
+    expect(await screen.findByText(/SHA-1 — hệ thống chưa kiểm được/)).toBeInTheDocument();
+  });
+
+  it("shows the provider's tracking handle on its calls", async () => {
+    mockEInvoiceApi(ACCOUNTANT_GRANTS, {
+      get: {
+        ...get(detailJson({ status: "SUBMITTING", provider: "SEPAY_EINVOICE" })),
+        "/einvoices/einv-1/provider-calls": () => [
+          {
+            provider: "SEPAY_EINVOICE",
+            operation: "SUBMIT",
+            outcome: "PENDING",
+            calledAt: "2026-11-08T03:00:00Z",
+            durationMs: 300,
+            providerReference: "create/TRK-42",
+          },
+        ],
+      },
+    });
+    renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
+    expect(await screen.findByText(/create\/TRK-42/)).toBeInTheDocument();
+  });
+});
+
+describe("EInvoiceDetail — agreement draft (BE feat/business-documents #7)", () => {
+  it("a correction offers the agreement draft PDF; the original does not", async () => {
+    mockEInvoiceApi(ACCOUNTANT_GRANTS, {
+      get: get(
+        detailJson({ type: "ADJUSTMENT", correctionBasis: "ERROR", agreementRequired: true }),
+      ),
+    });
+    const view = renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
+    expect(
+      await screen.findByRole("button", { name: /Tải biên bản thoả thuận \(bản nháp\)/ }),
+    ).toBeInTheDocument();
+    view.unmount();
+    vi.restoreAllMocks();
+    mockEInvoiceApi(ACCOUNTANT_GRANTS, { get: get(detailJson()) });
+    renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
+    expect(await screen.findByText("Ly giấy 8oz in logo")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Tải biên bản thoả thuận/ }),
+    ).not.toBeInTheDocument();
   });
 });

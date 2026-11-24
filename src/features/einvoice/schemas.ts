@@ -13,6 +13,10 @@ import {
   ERROR_NOTICE_STATUSES,
   ERROR_NOTICE_SUBJECTS,
   EINVOICE_UNKNOWN,
+  EXTERNAL_REDUCTION_BASES,
+  SIGNATURE_STATUSES,
+  WITHDRAWAL_BLOCKS,
+  WITHDRAWAL_PROVIDER_STATES,
 } from "@/constants/einvoice";
 import { bePageSchema } from "@/lib/api/page-schema";
 
@@ -126,6 +130,79 @@ export const einvoiceDtoSchema = z.object({
    * (căn cứ DELIVERY_FAILED), bị từ chối thì huỷ thay vì gửi lại. Vắng khi chưa bị đánh dấu / đã gỡ đánh dấu.
    */
   deliveryFailedAt: z.string().nullish(),
+  /**
+   * WF-05 F-11 (BE-36): hoá đơn gốc đã bị giảm toàn bộ (giao thất bại) — không còn hiệu lực để điều chỉnh / thay thế.
+   * Vắng với BE cũ.
+   */
+  reversedAt: z.string().nullish(),
+  /** WF-05 F-11: NCC của hoá đơn gửi được 04/SS-HĐĐT. Vắng với BE cũ → dự phòng theo `ERROR_NOTICE_PROVIDERS`. */
+  errorNoticeSupported: z.boolean().nullish(),
+  /** WF-05 F-13: `PROVIDER` (qua API) hoặc `PORTAL_RECORD` (Kế toán ghi lại từ cổng NCC). Chuỗi mở. */
+  issuedVia: openString.nullish(),
+  /**
+   * Ngày giao (Asia/Ho_Chi_Minh, `YYYY-MM-DD`) của lần giao hoá đơn này — để tính "Lập trễ N ngày" (WF-05 Q-10).
+   * HỢP ĐỒNG GIẢ ĐỊNH: BE chưa có trường này trên DTO; vắng → nhãn "Lập trễ" không số ngày.
+   */
+  deliveredOn: z.string().nullish(),
+  /**
+   * Audit r2 H-2 (BE `WithdrawalRule`): "Rút" (`/withdrawal`) được nhận ngay lúc này, xét theo câu trả lời gần nhất của
+   * NCC — cùng luật BE áp khi rút. Vắng (BE cũ) = null → KHÔNG hiện nút (Q-5: hoá đơn NCC đang giữ không bao giờ rút; BE
+   * cũ không cho FE biết điều đó).
+   */
+  withdrawable: z.boolean().nullish(),
+  /** Vì sao chưa rút được (`WITHDRAWAL_BLOCKS`); null khi rút được. Mã lạ → UNKNOWN. */
+  withdrawalBlockedBy: tolerantEnum(WITHDRAWAL_BLOCKS).nullish(),
+  /** TOO_RECENT: rút được từ mốc này (instant). */
+  withdrawableFrom: z.string().nullish(),
+  /** NCC không xác nhận được kết quả → rút phải kèm `supportReference` (văn bản của hỗ trợ NCC, Q-5). */
+  withdrawalEvidenceRequired: z.boolean().nullish(),
+  /**
+   * Audit r2 M-10 (BE `EInvoicePortalReductions.applicability`): "Ghi hoá đơn giảm" (`/external-reductions`) được nhận.
+   * Vắng (BE cũ) = null → không hiện nút.
+   */
+  externalReductionAllowed: z.boolean().nullish(),
+  /** Căn cứ nhận được lúc này: DELIVERY_FAILED, RETURN, ERROR. Căn cứ lạ bị bỏ (không có ô nhập cho nó). */
+  externalReductionBases: z
+    .array(z.string())
+    .nullish()
+    .transform((bases) =>
+      (bases ?? []).filter((basis): basis is (typeof EXTERNAL_REDUCTION_BASES)[number] =>
+        (EXTERNAL_REDUCTION_BASES as readonly string[]).includes(basis),
+      ),
+    ),
+  /**
+   * Các yêu cầu trả hàng có hàng đã hoàn tiền đang chờ giảm trên hoá đơn này — hoá đơn thay thế, hoặc (audit r3 EINV-2) hoá
+   * đơn gốc mà NCC của nó không còn dùng được và bản điều chỉnh trả hàng đã bị huỷ. Nguồn duy nhất của ô chọn.
+   */
+  externalReductionReturns: z
+    .array(z.object({ returnRequestId: z.string(), rmaNumber: z.string().nullish() }))
+    .nullish()
+    .transform((rows) => rows ?? []),
+  /**
+   * Audit r3 EINV-2, nửa sai sót (BE `EInvoiceResponse.ExternalReductionError`): các bản điều chỉnh sai sót của hoá đơn gốc
+   * này — đã thoả thuận bằng văn bản với bên mua, chỉ giảm — mà NCC không gửi được nên Kế toán đã huỷ để làm trên cổng, chưa
+   * được ghi. Nguồn duy nhất của ô chọn khi căn cứ là ERROR; `voidedAdjustmentId` là id gửi lên, `grandTotal` âm (tổng
+   * bản nháp giảm). Vắng (BE cũ) → [].
+   */
+  externalReductionErrors: z
+    .array(
+      z.object({
+        voidedAdjustmentId: z.string(),
+        code: z.string().nullish(),
+        reason: z.string().nullish(),
+        grandTotal: z.number(),
+      }),
+    )
+    .nullish()
+    .transform((rows) => rows ?? []),
+  /**
+   * Audit r3 EINV-3 (QĐ HĐ-1 bước 3, BE r3b): giao dịch gần nhất bị buông của hoá đơn (rút, hoặc từ chối chỉ theo báo cáo xử lý
+   * của NCC) được tra lại mỗi ngày tới mốc này, phòng NCC vẫn phát hành; null khi không có giao dịch nào bị buông. Giữ cả sau
+   * khi hoá đơn được mở lại và gửi lại.
+   */
+  watchUntil: z.string().nullish(),
+  /** Lúc tra lại thấy NCC đã phát hành giao dịch cũ (Kế toán đã được báo, `DUPLICATE_RISK`); null khi chưa thấy. */
+  watchFoundAt: z.string().nullish(),
 });
 
 /** BE `EInvoiceListItemResponse`. */
@@ -154,8 +231,26 @@ export const einvoiceListItemDtoSchema = z.object({
   warnings: z.array(openString),
   rejectionCode: z.string().nullish(),
   issuedAt: z.string().nullish(),
+  /** WF-05 F-11: như chi tiết. */
+  reversedAt: z.string().nullish(),
+  /** WF-05 F-11: căn cứ của điều chỉnh (danh sách điều chỉnh / thay thế của một hoá đơn gốc). */
+  correctionBasis: tolerantEnum(CORRECTION_BASES).nullish(),
+  /** HỢP ĐỒNG GIẢ ĐỊNH (như chi tiết). */
+  deliveredOn: z.string().nullish(),
 });
 export const einvoicePageDtoSchema = bePageSchema(einvoiceListItemDtoSchema);
+
+/**
+ * Một yêu cầu trả hàng của đơn để chọn khi điều chỉnh / ghi hoá đơn giảm vì trả hàng (BE `GET /returns?orderId=`, dòng
+ * `ReturnRequestRowResponse`) — chỉ những trường ô chọn cần; trạng thái đọc như chuỗi (mã lạ vẫn hiện được).
+ */
+export const orderReturnChoiceDtoSchema = z.object({
+  id: z.string(),
+  rmaNumber: z.string(),
+  status: z.string(),
+  requestedAt: z.string().nullish(),
+});
+export const orderReturnChoicePageDtoSchema = bePageSchema(orderReturnChoiceDtoSchema);
 
 /** BE `ProviderCallResponse` — nhật ký gọi nhà cung cấp (docs 21 §3 Output). */
 export const providerCallDtoSchema = z.object({
@@ -167,6 +262,57 @@ export const providerCallDtoSchema = z.object({
   errorCode: z.string().nullish(),
   calledAt: z.string(),
   durationMs: z.number(),
+  /** Mã theo dõi của NCC (SePay: `<create|adjust|replace>/<tracking_code>`) — bộ phận hỗ trợ NCC hỏi mã này. */
+  providerReference: z.string().nullish(),
+});
+
+/** BE `EInvoiceSignatureResponse` — chữ ký số của bên bán trên XML, kiểm lúc hỏi (WF-05 BO-09). */
+export const signatureDtoSchema = z.object({
+  status: tolerantEnum(SIGNATURE_STATUSES),
+  valid: z.boolean(),
+  signer: z.string().nullish(),
+  signerTaxCode: z.string().nullish(),
+  signerOrganization: z.string().nullish(),
+  issuer: z.string().nullish(),
+  signingTime: z.string().nullish(),
+  certificateValidFrom: z.string().nullish(),
+  certificateValidTo: z.string().nullish(),
+  certificateValidAtSigning: z.boolean().nullish(),
+  buyerSigned: z.boolean().nullish(),
+  chainChecked: z.boolean().nullish(),
+});
+
+/**
+ * `details` của 409 `EINVOICE_WITHDRAWAL_REFUSED` / `EINVOICE_WITHDRAWAL_EVIDENCE_REQUIRED` (WF-05 F-12, BE-59):
+ * mốc rút được (instant | null) và câu trả lời của NCC. Đọc khoan dung — sai hình thì coi như không có.
+ */
+export const withdrawalRefusalDetailsSchema = z.object({
+  withdrawableFrom: z.string().nullish().catch(null),
+  // `UNKNOWN` là một câu trả lời thật của NCC ("chưa trả lời rõ") — giá trị lạ đọc là null, không lẫn với nó
+  providerState: z.enum(WITHDRAWAL_PROVIDER_STATES).nullish().catch(null),
+});
+
+/** `details` của 409 `EINVOICE_DRAFT_OUT_OF_DATE` (WF-05 F-16, BE-25): cảnh báo mới chưa được xác nhận. */
+export const draftOutOfDateDetailsSchema = z.object({
+  warnings: z.array(z.string()).catch([]),
+});
+
+/** BE `EInvoiceMailResendResponse` — gửi lại hoá đơn qua e-mail đã được nhận (audit r2 einvoice M-1). */
+export const mailResendDtoSchema = z.object({
+  einvoiceId: z.string(),
+  /** E-mail nhận hoá đơn của khách lúc này — thư đi tới đây. */
+  recipient: z.string().nullish(),
+  requestedAt: z.string().nullish(),
+});
+
+/** `details` của 409 `EINVOICE_BUYER_PROFILE_INCOMPLETE` khi gửi lại e-mail: `missing` = ["EMAIL"]. */
+export const profileMissingDetailsSchema = z.object({
+  missing: z.array(z.string()).catch([]),
+});
+
+/** `details` của 409 `EINVOICE_INVALID_TRANSITION` khi gửi lại e-mail: `reason` = SIGNATURE_INVALID. */
+export const transitionReasonDetailsSchema = z.object({
+  reason: z.string().nullish().catch(null),
 });
 
 export const fileLinkDtoSchema = z.object({ url: z.string(), expiresAt: z.string() });
@@ -228,6 +374,10 @@ export const einvoiceSettingsDtoSchema = z.object({
   version: z.number().int(),
 });
 
+/**
+ * BE `EInvoiceProviderResponse`. Cờ khả năng (WF-05 F-11, BE-58) vắng với BE cũ → FE dùng bảng dự phòng trong
+ * `@/constants/einvoice` (`DEPLOYMENT_ACCOUNT_PROVIDERS`, `ERROR_NOTICE_PROVIDERS`).
+ */
 export const einvoiceProviderDtoSchema = z.object({
   provider: z.string(),
   environment: z.string().nullish(),
@@ -236,4 +386,11 @@ export const einvoiceProviderDtoSchema = z.object({
   active: z.boolean(),
   autoIssue: z.boolean(),
   version: z.number().int(),
+  /** Tài khoản đọc từ biến môi trường máy chủ (SePay) — không lưu qua màn này. */
+  accountInDeployment: z.boolean().nullish(),
+  /** Biến môi trường đủ để gọi NCC. */
+  deploymentAccountReady: z.boolean().nullish(),
+  issuesCorrections: z.boolean().nullish(),
+  adjustsReplacements: z.boolean().nullish(),
+  sendsErrorNotices: z.boolean().nullish(),
 });

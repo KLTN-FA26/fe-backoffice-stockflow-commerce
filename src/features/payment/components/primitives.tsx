@@ -17,9 +17,9 @@ import { MONO } from "./copy";
 import type { ReactNode } from "react";
 import type {
   InstallmentDisplayStatus,
-  OrderPaymentApiStatus,
-  ReceiptApiStatus,
-  RefundApiStatus,
+  OrderPaymentReadStatus,
+  ReceiptReadStatus,
+  RefundReadStatus,
 } from "@/constants/payment";
 
 const EMPTY = PAYMENT_LABELS.empty;
@@ -36,23 +36,24 @@ export function InstallmentStatusDot({ status }: { status: InstallmentDisplaySta
   return <StatusDot domain="payment" status={INSTALLMENT_DISPLAY_STATUS_BY_API[status]} />;
 }
 
-export function ReceiptStatusDot({ status }: { status: ReceiptApiStatus }) {
+export function ReceiptStatusDot({ status }: { status: ReceiptReadStatus }) {
   return <StatusDot domain="payment" status={RECEIPT_STATUS_BY_API[status]} />;
 }
 
-export function OrderPaymentStatusDot({ status }: { status: OrderPaymentApiStatus }) {
+export function OrderPaymentStatusDot({ status }: { status: OrderPaymentReadStatus }) {
   return <StatusDot domain="payment" status={ORDER_PAYMENT_STATUS_BY_API[status]} />;
 }
 
-const REFUND_TONE: Record<RefundApiStatus, string> = {
+const REFUND_TONE: Record<RefundReadStatus, string> = {
   NONE: "bg-neutral",
   PENDING: "bg-warning",
   PARTIALLY_REFUNDED: "bg-warning",
   REFUNDED: "bg-positive",
+  UNKNOWN: "bg-neutral",
 };
 
 /** Tình trạng hoàn tiền là giá trị suy ra (docs 15 §5.3), không phải union trạng thái → không qua status-map. */
-export function RefundStateDot({ status }: { status: RefundApiStatus }) {
+export function RefundStateDot({ status }: { status: RefundReadStatus }) {
   return (
     <span className="text-ink-primary inline-flex items-center gap-2 text-[0.8125rem] font-medium">
       <span aria-hidden="true" className={`size-2.5 rounded-full ${REFUND_TONE[status]}`} />

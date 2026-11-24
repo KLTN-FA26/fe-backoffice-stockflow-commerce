@@ -26,6 +26,7 @@ import type {
   orderLineSchema,
   orderSchema,
   orderShipmentSchema,
+  settlementReadinessSchema,
 } from "./model-schemas";
 import type { productionOrderDtoSchema, productionOrderSchema } from "./production-schemas";
 import type {
@@ -62,6 +63,7 @@ export type Order = z.infer<typeof orderSchema>;
 export type OrderLine = z.infer<typeof orderLineSchema>;
 export type OrderShipment = z.infer<typeof orderShipmentSchema>;
 export type OrderCancellation = z.infer<typeof orderCancellationSchema>;
+export type SettlementReadiness = z.infer<typeof settlementReadinessSchema>;
 export type OrderDeliveryMode = Exclude<z.infer<typeof orderDeliveryModeDtoSchema>, "UNKNOWN">;
 export type OrderBalancePolicy = z.infer<typeof orderBalancePolicyDtoSchema>;
 export type OrderHistoryEntryDto = z.infer<typeof orderHistoryEntryDtoSchema>;

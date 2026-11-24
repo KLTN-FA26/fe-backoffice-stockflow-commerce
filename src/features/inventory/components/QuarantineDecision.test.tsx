@@ -194,6 +194,25 @@ describe("quarantine decisions on one carton (docs 20 §4.8)", () => {
     expect(releases).toBe(1);
   });
 
+  it("WF-05 BE-24: a carton flagged opened on return offers only the write-off, never the release", async () => {
+    server.use(
+      inventoryPermissions(MANAGER),
+      http.get(cartonEndpoint, () =>
+        ok(
+          cartonBody("QUARANTINE", {
+            openedOnReturn: true,
+            returnOpenedAt: "2026-11-24T03:00:00Z",
+          }),
+        ),
+      ),
+    );
+    renderInventory(<QuarantineDecision />, `?lpn=${LPN}`);
+    expect(await screen.findByRole("link", { name: L.writeOff })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: L.release })).toBeNull();
+    expect(screen.getByText(L.openedOnReturnNotice)).toBeInTheDocument();
+    expect(screen.getByText(L.openedOnReturn)).toBeInTheDocument();
+  });
+
   it("writes a damaged quarantined carton off through the four-eyes adjustment, not directly", async () => {
     server.use(
       inventoryPermissions(MANAGER),
@@ -345,5 +364,105 @@ describe("cartons in a quarantine area (BE GET /inventory/stock-packages?locatio
     renderInventory(<QuarantineDecision />, "?location=HN-QC01");
     expect(await screen.findByText(INVENTORY_LABELS.denied)).toBeInTheDocument();
     expect(screen.queryByText(/English backend prose/)).not.toBeInTheDocument();
+  });
+});
+
+// Audit r3 RAD-4 (BE r3c): a sealed RMA carton confirmed into quarantine stays PENDING until the accountant decides the
+// refund. Before, the screen offered "Gỡ cách ly" / "Ghi giảm", the BE answered 409 STOCK_PACKAGE_DECISION_PENDING and the
+// screen blamed "another decision" instead of the refund.
+describe("audit r3 RAD-4: a carton waiting for its return's refund decision", () => {
+  const RET = "0193a1b2-0000-7000-8000-0000000000aa";
+  const pending = {
+    returnOwnership: "PENDING",
+    returnRequestId: RET,
+    returnRmaNumber: "RMA-20261120-0003",
+  };
+
+  it("offers neither release nor write-off, and names the return it waits for", async () => {
+    server.use(
+      inventoryPermissions(MANAGER),
+      http.get(cartonEndpoint, () => ok(cartonBody("QUARANTINE", pending))),
+    );
+    renderInventory(<QuarantineDecision />, `?lpn=${LPN}`);
+    expect(await screen.findByText(L.refundPending("RMA-20261120-0003"))).toBeInTheDocument();
+    expect(L.refundPending("RMA-20261120-0003")).toBe("Chờ duyệt hoàn tiền — RMA-20261120-0003");
+    expect(screen.getByText(L.refundPendingNotice)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: L.release })).toBeNull();
+    expect(screen.queryByRole("link", { name: L.writeOff })).toBeNull();
+  });
+
+  it("a carton that is the customer's (held for them) is not decidable either", async () => {
+    server.use(
+      inventoryPermissions(MANAGER),
+      http.get(cartonEndpoint, () =>
+        ok(cartonBody("QUARANTINE", { ...pending, returnOwnership: "CUSTOMER_HELD" })),
+      ),
+    );
+    renderInventory(<QuarantineDecision />, `?lpn=${LPN}`);
+    expect(await screen.findByText(L.customerOwnedNotice)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: L.release })).toBeNull();
+    expect(screen.queryByRole("link", { name: L.writeOff })).toBeNull();
+  });
+
+  it("COMPANY decides like any quarantined carton", async () => {
+    server.use(
+      inventoryPermissions(MANAGER),
+      http.get(cartonEndpoint, () =>
+        ok(cartonBody("QUARANTINE", { ...pending, returnOwnership: "COMPANY" })),
+      ),
+    );
+    renderInventory(<QuarantineDecision />, `?lpn=${LPN}`);
+    expect(await screen.findByRole("button", { name: L.release })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: L.writeOff })).toBeInTheDocument();
+  });
+
+  it("the 409 with details.returnOwnership says the refund is awaited, naming the RMA of the carton just read", async () => {
+    server.use(
+      inventoryPermissions(MANAGER),
+      // Read before the return came back on it (or from an older read): the screen still offers the release
+      http.get(cartonEndpoint, () =>
+        ok(
+          cartonBody("QUARANTINE", { returnRequestId: RET, returnRmaNumber: "RMA-20261120-0003" }),
+        ),
+      ),
+      http.post(inventoryEndpoint(QUARANTINE_API.release(LPN)), () =>
+        HttpResponse.json(
+          {
+            success: false,
+            errorCode: "STOCK_PACKAGE_DECISION_PENDING",
+            message: "English backend prose",
+            details: { lpn: LPN, returnOwnership: "PENDING", returnRequestId: RET },
+          },
+          { status: 409 },
+        ),
+      ),
+    );
+    renderInventory(<QuarantineDecision />, `?lpn=${LPN}`);
+    await userEvent.click(await screen.findByRole("button", { name: L.release }));
+    const dialog = screen.getByRole("dialog");
+    await userEvent.click(within(dialog).getByRole("button", { name: L.release }));
+    expect(
+      await within(dialog).findByText(
+        QUARANTINE_ERROR_MESSAGES.refundDecisionPending("RMA-20261120-0003"),
+      ),
+    ).toBeInTheDocument();
+    expect(within(dialog).queryByText(QUARANTINE_ERROR_MESSAGES.decisionPending)).toBeNull();
+  });
+
+  it("without details.returnOwnership the old wording stays (a putaway task or a write-off under way)", async () => {
+    server.use(
+      inventoryPermissions(MANAGER),
+      http.get(cartonEndpoint, () => ok(cartonBody("QUARANTINE"))),
+      http.post(inventoryEndpoint(QUARANTINE_API.release(LPN)), () =>
+        fail("STOCK_PACKAGE_DECISION_PENDING", 409),
+      ),
+    );
+    renderInventory(<QuarantineDecision />, `?lpn=${LPN}`);
+    await userEvent.click(await screen.findByRole("button", { name: L.release }));
+    const dialog = screen.getByRole("dialog");
+    await userEvent.click(within(dialog).getByRole("button", { name: L.release }));
+    expect(
+      await within(dialog).findByText(QUARANTINE_ERROR_MESSAGES.decisionPending),
+    ).toBeInTheDocument();
   });
 });

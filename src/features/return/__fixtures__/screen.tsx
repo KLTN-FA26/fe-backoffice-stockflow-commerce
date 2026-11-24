@@ -15,7 +15,12 @@ import {
   WAREHOUSE_LOCATION_PERMISSIONS,
   WAREHOUSE_PERMISSIONS,
 } from "@/constants/permissions";
-import { RMA_PERMISSIONS, RMA_RESOLUTION_PERMISSIONS } from "@/constants/returns";
+import {
+  RETURN_RECEIPT_APPROVAL_PERMISSIONS,
+  RMA_CUSTODY_PERMISSIONS,
+  RMA_PERMISSIONS,
+  RMA_RESOLUTION_PERMISSIONS,
+} from "@/constants/returns";
 import { api } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/auth/auth-store";
 
@@ -34,6 +39,8 @@ Element.prototype.scrollIntoView ??= () => {};
 export const SALES_GRANTS: PermissionCode[] = [
   ...Object.values(RMA_PERMISSIONS),
   RMA_RESOLUTION_PERMISSIONS.propose,
+  // V20261223000330 (audit r2 returns M4)
+  RMA_CUSTODY_PERMISSIONS.create,
 ];
 export const ACCOUNTANT_GRANTS: PermissionCode[] = [
   RMA_PERMISSIONS.viewPage,
@@ -47,6 +54,13 @@ export const WAREHOUSE_GRANTS: PermissionCode[] = [
   WAREHOUSE_PERMISSIONS.read,
   WAREHOUSE_LOCATION_PERMISSIONS.read,
   SHIPMENT_PERMISSIONS.read,
+  // V20261223000330 (audit r2 returns M4): kho ở cửa nhận hàng ghi biên nhận giữ hộ
+  RMA_CUSTODY_PERMISSIONS.create,
+];
+/** Quản lý kho: thêm quyền xác nhận phiếu có thùng mở / hàng lẻ (WF-05 Q-18). */
+export const WAREHOUSE_MANAGER_GRANTS: PermissionCode[] = [
+  ...WAREHOUSE_GRANTS,
+  RETURN_RECEIPT_APPROVAL_PERMISSIONS.approve,
 ];
 
 type Handler = (params: unknown, body?: unknown) => unknown;

@@ -483,3 +483,88 @@ describe("WF-02 BO-7 — hợp đồng: đợt đã qua, huỷ bởi người kh
     expect(screen.getByLabelText("Đợt 4 — số ngày")).toHaveValue("3");
   });
 });
+
+describe("Giấy tờ sau ký — phụ lục, biên bản thanh lý (BE feat/business-documents #1, #2)", () => {
+  const signed = {
+    ...contractSent,
+    status: "SIGNED",
+    version: 2,
+    signedOn: "2026-11-10",
+    appendixAvailable: true,
+  };
+  const routes = (extra: Record<string, () => unknown> = {}) => ({
+    [PATH]: () => signed,
+    [`/installments/orders/${CONTRACT_ORDER_ID}`]: () => ({ installments: [] }),
+    ...extra,
+  });
+
+  it("đơn đang thực hiện: tải phụ lục, chưa có biên bản thanh lý; lỗi 404 nói chưa có phụ lục", async () => {
+    mockOrderApiGet(
+      SALES,
+      routes({
+        [`${PATH}/appendix`]: () => {
+          throw new ApiError(404, "NOT_FOUND", "Contract was not changed");
+        },
+      }),
+    );
+    const can = (code: PermissionCode) => SALES.includes(code);
+    renderOrderScreen(
+      <OrderContractSection order={{ ...draftOrder, status: "Shipped" }} can={can} />,
+    );
+    await userEvent.click(await screen.findByRole("button", { name: "Tải phụ lục hợp đồng" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/Chưa có phụ lục/);
+    expect(screen.queryByRole("button", { name: "Tải biên bản thanh lý" })).not.toBeInTheDocument();
+  });
+
+  it("appendixAvailable=false (chưa dời lịch giao) → không có nút phụ lục", async () => {
+    mockOrderApiGet(SALES, {
+      ...routes(),
+      [PATH]: () => ({ ...signed, appendixAvailable: false }),
+    });
+    const can = (code: PermissionCode) => SALES.includes(code);
+    renderOrderScreen(
+      <OrderContractSection order={{ ...draftOrder, status: "Shipped" }} can={can} />,
+    );
+    expect(await screen.findByText("Bên mua")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Tải phụ lục hợp đồng" })).not.toBeInTheDocument();
+  });
+
+  it("đơn đã kết thúc: có biên bản thanh lý; BE từ chối NOT_SETTLED → câu tiếng Việt có số tiền", async () => {
+    mockOrderApiGet(
+      SALES,
+      routes({
+        [`${PATH}/liquidation`]: () => {
+          throw new ApiError(
+            409,
+            "SALES_CONTRACT_STATUS_INVALID",
+            "Contract is not settled",
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            { reason: "NOT_SETTLED", outstanding: 75600000, toRefund: 0 },
+          );
+        },
+      }),
+    );
+    const can = (code: PermissionCode) => SALES.includes(code);
+    renderOrderScreen(
+      <OrderContractSection order={{ ...draftOrder, status: "Completed" }} can={can} />,
+    );
+    await userEvent.click(await screen.findByRole("button", { name: "Tải biên bản thanh lý" }));
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(/khách còn phải thanh toán 75\.600\.000/);
+    expect(alert).toHaveTextContent(/“Còn lại” bằng 0/);
+  });
+
+  it("không có sales-contracts:READ thì không thấy nút giấy tờ", async () => {
+    const noRead = SALES.filter((code) => code !== SALES_CONTRACT_PERMISSIONS.read);
+    mockOrderApiGet(noRead, routes());
+    const can = (code: PermissionCode) => noRead.includes(code);
+    renderOrderScreen(
+      <OrderContractSection order={{ ...draftOrder, status: "Completed" }} can={can} />,
+    );
+    await waitFor(() => expect(screen.queryByText(/loading/)).not.toBeInTheDocument());
+    expect(screen.queryByRole("button", { name: "Tải phụ lục hợp đồng" })).not.toBeInTheDocument();
+  });
+});

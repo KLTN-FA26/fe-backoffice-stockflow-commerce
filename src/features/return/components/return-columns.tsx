@@ -10,6 +10,7 @@ import {
 import { RETURN_ROUTES } from "@/constants/returns";
 
 import { CodeLink, Money, ReturnStatusDot, When } from "./primitives";
+import { ReturnDraftReceiptMarker } from "./ReturnDraftReceiptMarker";
 
 import type { ColumnDef } from "@/components/shared/DataTable";
 import type { ReturnRow } from "../types";
@@ -45,7 +46,20 @@ export const RETURN_COLUMNS: ColumnDef<ReturnRow>[] = [
     align: "right",
     cell: (row) => <Money amount={row.settlementAmount} currency={row.currency} />,
   },
-  { key: "status", header: C.status, cell: (row) => <ReturnStatusDot status={row.status} /> },
+  {
+    key: "status",
+    header: C.status,
+    // WF-05 BE-23: đang có phiếu nháp đếm hàng → nêu ngay trên dòng, kèm đường tới phiếu đó
+    cell: (row) =>
+      row.receiptDraftOpen ? (
+        <span className="flex flex-col items-start gap-0.5">
+          <ReturnStatusDot status={row.status} />
+          <ReturnDraftReceiptMarker returnRequestId={row.id} />
+        </span>
+      ) : (
+        <ReturnStatusDot status={row.status} />
+      ),
+  },
 ];
 
 /** Tab "Cần hoá đơn điều chỉnh" (Kế toán): thêm link sang hoá đơn điện tử của đơn (docs 21 §4.4). */

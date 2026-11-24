@@ -24,6 +24,7 @@ import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { useReceivables } from "../queries";
 
 import { MONO } from "./copy";
+import { DebtReconciliationAction } from "./DebtReconciliationAction";
 import { DateCell, MoneyCell } from "./primitives";
 
 import type { LoadErrorCopy } from "@/components/backoffice/LoadErrorState";
@@ -113,6 +114,17 @@ const COLUMNS: ColumnDef<Receivable>[] = [
     header: L.installmentCount,
     align: "right",
     cell: (row) => <span className={MONO}>{row.installmentCount ?? "—"}</span>,
+  },
+  {
+    // BE feat/business-documents #6: biên bản đối chiếu công nợ của khách, chọn kỳ (nút tự ẩn khi thiếu quyền)
+    key: "reconciliation",
+    header: L.reconciliation,
+    cell: (row) => (
+      <DebtReconciliationAction
+        customerId={row.customerId}
+        customerName={row.customerName ?? row.customerCode ?? L.customer}
+      />
+    ),
   },
 ];
 

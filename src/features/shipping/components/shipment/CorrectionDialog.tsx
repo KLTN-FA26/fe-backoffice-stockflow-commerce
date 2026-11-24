@@ -44,7 +44,8 @@ export function CorrectionDialog({ data, onClose }: { data: Shipment; onClose: (
   const toFailed = target === "DELIVERY_FAILED";
   const correct = useCorrectDeliveryOutcome({ onSuccess: onClose });
   const [serverError, setServerError] = useState<string | null>(null);
-  const time = useDeliveryTimeInput(shipment.handedOverAt, !toFailed);
+  // Audit r3 EINV-1: sửa ngược về "đã giao" điền sẵn lần giao bị sửa (BE `undoneDeliveredAt`)
+  const time = useDeliveryTimeInput(shipment.handedOverAt, !toFailed, data.undoneDeliveredAt);
   const form = useForm<DeliveryCorrectionFormInput, unknown, DeliveryCorrectionValues>({
     resolver: zodResolver(deliveryCorrectionInputSchema),
     mode: "onChange",
@@ -133,8 +134,10 @@ export function CorrectionDialog({ data, onClose }: { data: Shipment; onClose: (
               handedOverAt={shipment.handedOverAt}
               now={time.opened}
               error={time.problem}
+              hint={time.restoresUndone ? C.deliveredAtUndoneHint : C.deliveredAtCorrectionHint}
             />
           )}
+          {time.otherDay && <Alert tone="warning">{C.otherDayWarning}</Alert>}
           <CorrectionReasonField
             register={form.register("reason")}
             error={errors.reason?.message}

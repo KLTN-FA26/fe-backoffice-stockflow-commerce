@@ -45,6 +45,14 @@ export function deliveryTimeProblem(
 }
 
 /**
+ * Hai giá trị ô `datetime-local` (giờ Việt Nam) cùng một ngày nghiệp vụ — như BE so ngày giao (Asia/Ho_Chi_Minh) khi quyết
+ * một lần sửa về "đã giao" là lần giao cũ hay lần giao mới (audit r3 EINV-1).
+ */
+export function sameBusinessDay(local: string, other: string): boolean {
+  return local.slice(0, 10) === other.slice(0, 10);
+}
+
+/**
  * Thời điểm gửi BE (`deliveredAt`, Instant ISO): chỉ gửi khi người dùng ĐÃ SỬA ô — để nguyên thì BE lấy đúng lúc ghi
  * nhận, không phụ thuộc đồng hồ trình duyệt.
  */

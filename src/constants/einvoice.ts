@@ -24,6 +24,19 @@ export const EINVOICE_PERMISSIONS = {
 } as const;
 
 /**
+ * Gửi lại hoá đơn đã phát hành qua e-mail (BE `POST /einvoices/{id}/email`, audit r2 einvoice M-1): KHÔNG phải quyền
+ * `einvoices` mà `customer-legal-profiles:UPDATE` — người ghi e-mail nhận hoá đơn của khách (Sale, Sales Manager, Kế
+ * toán) là người gửi lại (BE `InvoicingResources.LEGAL_PROFILES`).
+ */
+export const EINVOICE_RESEND_EMAIL_PERMISSION = "customer-legal-profiles:UPDATE";
+
+/**
+ * Gán / đổi nhóm thuế của sản phẩm ở mọi trạng thái (BE `ProductTaxClassController`, demo D-8): Kế toán và Trưởng KD
+ * (V20261224000350). Nháp có cảnh báo `TAX_CLASS_UNKNOWN` hiện nút cho người có quyền này.
+ */
+export const PRODUCT_TAX_CLASS_PERMISSION = "product-tax-class:UPDATE";
+
+/**
  * Resource `einvoice-settings` (không có VIEW_PAGE): Quản trị READ + UPDATE — nhà cung cấp, tài khoản,
  * ký hiệu, tự phát hành; Kế toán chỉ READ.
  */
@@ -103,6 +116,14 @@ export const MANUAL_CORRECTION_BASES = ["ERROR", "RETURN", "TRADE_DISCOUNT"] as 
 export type ManualCorrectionBasis = (typeof MANUAL_CORRECTION_BASES)[number];
 
 /**
+ * Căn cứ của hoá đơn giảm Kế toán làm trên cổng NCC rồi ghi vào hệ thống (BE G3 `external-reductions` `basis`, mặc
+ * định DELIVERY_FAILED): giao thất bại, trả hàng (kèm `returnRequestId`), hoặc (audit r3 EINV-2) điều chỉnh sai sót của
+ * hoá đơn gốc mà NCC không còn điều chỉnh được — kèm `voidedAdjustmentId`, bản nháp đã huỷ trong `externalReductionErrors`.
+ */
+export const EXTERNAL_REDUCTION_BASES = ["DELIVERY_FAILED", "RETURN", "ERROR"] as const;
+export type ExternalReductionBasis = (typeof EXTERNAL_REDUCTION_BASES)[number];
+
+/**
  * Căn cứ của chứng từ do hệ thống tự lập (BE `CorrectionBasis.systemOnly()`): không lập tay, không huỷ
  * nháp tay (BE `EInvoice.voidDraft` → 409 `EINVOICE_CORRECTION_NOT_APPLICABLE`); văn bản chứng minh
  * giao thất bại được gắn kèm nhưng không bắt buộc (`acceptsAgreement()`).
@@ -123,7 +144,22 @@ export const EINVOICE_WARNINGS = [
   "UNKNOWN_TO_PROVIDER",
   "SIGNATURE_INVALID",
   "EARLIER_INVOICE_PENDING",
+  // WF-05 Q-21: sản phẩm chưa gán nhóm thuế → tính mức cao nhất (10%); chặn tự phát hành
+  "TAX_CLASS_UNKNOWN",
+  // WF-05 Q-10 / §1.5 bước 6: phát hành sau ngày giao — BE thêm lúc gửi, không chặn gì
+  "ISSUED_LATE",
 ] as const;
+
+/** Cảnh báo "lập trễ" (BE thêm vào `warnings` lúc gửi, WF-05 Q-10) — nhãn "Lập trễ N ngày", bộ lọc danh sách. */
+export const EINVOICE_LATE_WARNING = "ISSUED_LATE";
+
+/**
+ * Điều BE kiểm lại lúc phát hành tay mà KHÔNG lưu thành cảnh báo trên hoá đơn (`details.warnings` của 409
+ * `EINVOICE_DRAFT_OUT_OF_DATE`, WF-05 BE-25 / F-16): hồ sơ pháp lý của khách nêu bên mua khác nháp
+ * (BE `EInvoiceDrafts.BUYER_PROFILE_CHANGED`). Kế toán bấm "Làm mới bên mua" hoặc xác nhận rồi phát hành.
+ */
+export const EINVOICE_ISSUE_CHECKS = ["BUYER_PROFILE_CHANGED"] as const;
+export type EInvoiceIssueCheck = (typeof EINVOICE_ISSUE_CHECKS)[number];
 
 /**
  * `rejectionCode` do chính hệ thống ghi (BE `EInvoice.UNKNOWN_TO_PROVIDER_CODE`, `WITHDRAWN_CODE`) — không
@@ -132,6 +168,10 @@ export const EINVOICE_WARNINGS = [
 export const EINVOICE_SYSTEM_REJECTION_CODES = [
   "UNKNOWN_TO_PROVIDER",
   "WITHDRAWN_NO_PROVIDER_RECORD",
+  // WF-05 Q-5: rút hoá đơn không xác nhận được kết quả, có văn bản trả lời của hỗ trợ NCC (`rejectionMessage`)
+  "WITHDRAWN_RESULT_UNCONFIRMED",
+  // WF-05 Q-8 (F-13): Kế toán ghi "cơ quan thuế từ chối" từ cổng NCC (BE `EInvoice.REFUSED_BY_TAX_AUTHORITY_CODE`)
+  "REFUSED_BY_TAX_AUTHORITY",
 ] as const;
 export type EInvoiceSystemRejectionCode = (typeof EINVOICE_SYSTEM_REJECTION_CODES)[number];
 export type EInvoiceWarning = (typeof EINVOICE_WARNINGS)[number];
@@ -141,11 +181,96 @@ export const EINVOICE_FILE_KINDS = ["XML", "PDF"] as const;
 export type EInvoiceFileKind = (typeof EINVOICE_FILE_KINDS)[number];
 
 /**
+ * DỰ PHÒNG khi BE chưa gửi cờ `errorNoticeSupported` (hoá đơn) / `sendsErrorNotices` (NCC) — WF-05 F-11.
  * Nhà cung cấp gửi được thông báo sai sót 04/SS-HĐĐT (BE `EInvoiceProvider.sendsErrorNotices()`, HĐ-6):
  * chỉ `SANDBOX`. SePay (`SEPAY_EINVOICE`) không có API cho mẫu này, adapter Viettel (`VIETTEL_SINVOICE`)
  * không gửi → BE luôn trả 409 `EINVOICE_ERROR_NOTICE_NOT_SUPPORTED`; Kế toán lập trên cổng NCC / cơ quan thuế.
  */
 export const ERROR_NOTICE_PROVIDERS: readonly string[] = ["SANDBOX"];
+
+/** Mã NCC của BE (`EInvoiceProvider.code()`). */
+export const EINVOICE_PROVIDER_CODES = {
+  sandbox: "SANDBOX",
+  sepay: "SEPAY_EINVOICE",
+  viettel: "VIETTEL_SINVOICE",
+} as const;
+
+/**
+ * DỰ PHÒNG khi BE chưa gửi cờ `accountInDeployment` (WF-05 F-11): NCC đọc tài khoản từ biến môi trường của máy chủ
+ * (BE `SepayEInvoiceProvider.accountInDeployment()`) — BE từ chối lưu tài khoản qua màn cấu hình (400).
+ */
+export const DEPLOYMENT_ACCOUNT_PROVIDERS: readonly string[] = [EINVOICE_PROVIDER_CODES.sepay];
+
+/**
+ * Trạng thái chữ ký số trên XML (BE `EInvoiceSignatureResponse.status`): VALID; CONTENT_CHANGED (ký rồi bị sửa);
+ * SIGNATURE_INVALID; NOT_SIGNED (sandbox không ký); UNREADABLE (không phải XML); SHA1_UNCHECKED (ký SHA-1 — chưa
+ * kiểm được, không phải chữ ký sai; WF-05 BE-56 / F-18).
+ */
+export const SIGNATURE_STATUSES = [
+  "VALID",
+  "CONTENT_CHANGED",
+  "SIGNATURE_INVALID",
+  "NOT_SIGNED",
+  "UNREADABLE",
+  "SHA1_UNCHECKED",
+] as const;
+export type SignatureStatus = (typeof SIGNATURE_STATUSES)[number];
+
+/**
+ * Trạng thái câu trả lời của NCC khi BE từ chối rút hoá đơn (`details.providerState`, WF-05 F-12 / BE-59).
+ * UNCONFIRMED: không xác nhận được kết quả — rút chỉ khi có văn bản của bộ phận hỗ trợ NCC (Q-5).
+ */
+export const WITHDRAWAL_PROVIDER_STATES = [
+  "PENDING",
+  "UNKNOWN",
+  "NOT_FOUND",
+  "UNCONFIRMED",
+  // BE `EInvoiceIssuance.withdraw`: `ResultState.name()` khi NCC không nói "không có bản ghi"
+  "ISSUED",
+  "REJECTED",
+] as const;
+export type WithdrawalProviderState = (typeof WITHDRAWAL_PROVIDER_STATES)[number];
+
+/**
+ * Vì sao hoá đơn chưa rút được lúc này (BE `EInvoiceResponse.withdrawalBlockedBy`, `WithdrawalRule.Blocked`; audit r2
+ * H-2): NOT_AT_PROVIDER (không đang gửi), PROVIDER_HOLDS (NCC đang giữ — "đã phát hành, chưa có số" hoặc đang xử lý; Q-5:
+ * không bao giờ rút, chỉ "Kiểm tra lại"), TOO_RECENT (rút được từ `withdrawableFrom`), PROVIDER_STATE_UNCLEAR (NCC chưa
+ * nói không có bản ghi). Giá trị lạ đọc là UNKNOWN.
+ */
+export const WITHDRAWAL_BLOCKS = [
+  "NOT_AT_PROVIDER",
+  "PROVIDER_HOLDS",
+  "TOO_RECENT",
+  "PROVIDER_STATE_UNCLEAR",
+] as const;
+export type WithdrawalBlock = (typeof WITHDRAWAL_BLOCKS)[number];
+
+/**
+ * NCC chỉ nhận ngày lập là hôm nay (BE `EInvoiceProvider.datesOnlyToday()`: SePay) — chỉ dưới NCC này hoá đơn GỐC phát
+ * hành sau ngày giao mới là "lập trễ" và BE đòi lý do (`EInvoiceIssuanceSteps`, 400 EINVOICE_LATE_ISSUE_REASON_REQUIRED;
+ * audit r2 contract L12). NCC khác ghi đúng ngày giao, không đòi. BE không gửi cờ này trên hoá đơn — bảng chép theo code.
+ */
+export const DATES_ONLY_TODAY_PROVIDERS: readonly string[] = [EINVOICE_PROVIDER_CODES.sepay];
+
+/**
+ * Hộp thư của Sale khi hoá đơn phát hành mà khách chưa có e-mail nhận hoá đơn (BE `EInvoiceIssuedNotificationListener`
+ * `EMAIL_MISSING_CATEGORY`, `sourceType` EINVOICE, `sourceId` = mã hoá đơn; audit r2 einvoice M-1): Sale không có quyền
+ * xem hoá đơn, nên nút "Gửi lại hoá đơn" nằm ngay trên thông báo này.
+ */
+export const EINVOICE_EMAIL_MISSING_NOTICE = {
+  category: "EINVOICE_BUYER_EMAIL_MISSING",
+  sourceType: "EINVOICE",
+} as const;
+
+/** Kết quả Kế toán ghi lại từ cổng NCC cho hoá đơn kẹt "đang gửi" (WF-05 Q-8, F-13). */
+export const PORTAL_RESULT_OUTCOMES = ["ISSUED", "REFUSED_BY_TAX_AUTHORITY"] as const;
+export type PortalResultOutcome = (typeof PORTAL_RESULT_OUTCOMES)[number];
+
+/** Hoá đơn ghi lại từ cổng NCC, không phát hành qua API (BE `EInvoiceResponse.issuedVia`, WF-05 F-13). */
+export const EINVOICE_ISSUED_VIA_PORTAL = "PORTAL_RECORD";
+
+/** Mã lý do huỷ bản giảm do giao thất bại không gửi được qua NCC (BE `void` `reasonCode`, WF-05 Q-8 / F-14). */
+export const UNSENDABLE_REVERSAL_REASON_CODE = "UNSENDABLE_REVERSAL";
 
 /** BE `ErrorNotice.Subject` / `Status` — thông báo sai sót mẫu 04/SS-HDDT. */
 export const ERROR_NOTICE_SUBJECTS = ["BUYER_NAME_ADDRESS", "WITH_CORRECTION"] as const;
@@ -187,17 +312,25 @@ export const EINVOICE_LIMITS = {
   taxCodePattern: /^(\d{10}|\d{10}-\d{3}|\d{12})$/,
   yearMin: 2026,
   yearMax: 2099,
+  /** Số phiếu / nội dung trả lời của hỗ trợ NCC khi rút hoá đơn không xác nhận được (WF-05 F-12). */
+  supportReferenceMax: 200,
+  /** Ghi chú khi ghi kết quả từ cổng NCC (WF-05 F-13) — cùng cột lý do. */
+  noteMax: 500,
+  /** Mã cơ quan thuế / mã tra cứu ghi từ cổng NCC. */
+  providerCodeMax: 64,
 } as const;
 
 /**
- * Mốc thời gian của BE `InvoicingProperties` (application.yml `stockflow.invoicing.*`, BE PR #369) —
- * FE chỉ dùng để ẩn nút sớm; BE kiểm lại và trả 409 `EINVOICE_WITHDRAWAL_REFUSED`.
+ * Mốc thời gian của BE `InvoicingProperties` (application.yml `stockflow.invoicing.*`, BE PR #369) — CHỈ mock dùng.
+ * FE không tự tính đồng hồ rút: BE trả mốc thật trong `details.withdrawableFrom` của 409 `EINVOICE_WITHDRAWAL_REFUSED`.
  */
 export const EINVOICE_TIMING = {
   /** `withdraw-after` (3 giờ): rút được hoá đơn kẹt ở NCC khi lần gửi cuối đã quá mốc này và NCC không có bản ghi. */
   withdrawAfterMs: 3 * 60 * 60 * 1000,
   /** `withdraw-unknown-after` (1 ngày): NCC "không trả lời được" (UNKNOWN) thì phải chờ lâu hơn. */
   withdrawUnknownAfterMs: 24 * 60 * 60 * 1000,
+  /** QĐ HĐ-1 bước 3: giao dịch bị buông được tra lại mỗi ngày trong 30 ngày (BE `watchUntil`) — chỉ mock dùng. */
+  watchMs: 30 * 24 * 60 * 60 * 1000,
 } as const;
 
 export const EINVOICE_STORAGE_KEYS = {

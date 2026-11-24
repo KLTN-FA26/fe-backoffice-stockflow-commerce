@@ -94,6 +94,11 @@ export interface MockShipment {
   outcomeAt: string | null;
   failureReason: string | null;
   failureNote: string | null;
+  /**
+   * Audit r3 EINV-1 (BE `undone_delivered_at`): lô đang "giao thất bại" do Quản lý kho sửa từ "đã giao" — thời điểm của lần
+   * giao bị sửa đó; vắng / null với lô khác.
+   */
+  undoneDeliveredAt?: string | null;
   block: MockHandoverBlock | null;
   recipient: { name: string; phone: string; address: string };
   timeline: MockStep[];

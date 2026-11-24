@@ -10,6 +10,7 @@ import {
   ORDER_LIMITS,
   UI_LABELS,
 } from "@/constants";
+import { PAYMENT_INSTALLMENT_PERMISSIONS } from "@/constants/payment";
 import { FormDialogBody } from "@/components/shared/FormDialog";
 import { Label } from "@/components/ui/label";
 import {
@@ -21,11 +22,13 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
+import { useCan } from "@/lib/auth";
 import { formatMoney } from "@/lib/format";
 
 import { ADMIN_CANCEL_FIELD_ERRORS, adminCancelErrorView } from "../errors";
 import { ADMIN_CANCEL_FORM_DEFAULTS, adminCancelFormSchema } from "../form-schemas";
 import type { useAdminCancelOrder } from "../mutations";
+import { useOrderInstallmentsSummary } from "../queries";
 import { cancelConsequence } from "../selectors";
 
 import { FormFieldError, RequiredMark } from "./FormFieldError";
@@ -37,7 +40,7 @@ import type { AdminCancelOrderInput, Order } from "../types";
 
 export type CancelOrder = Pick<
   Order,
-  "orderId" | "orderNumber" | "status" | "statusBeforeHold" | "paidAmount" | "currency"
+  "orderId" | "orderNumber" | "status" | "statusBeforeHold" | "currency"
 >;
 
 const LABEL = "text-ink-secondary text-xs font-medium";
@@ -83,7 +86,12 @@ export function CancelForm({
     });
   const reasonCode = useWatch({ control: form.control, name: "reasonCode" });
   const { errors } = form.formState;
-  const paid = order.paidAmount ?? 0;
+  // "Đã thu" từ các đợt thanh toán (`GET /installments/orders/{id}`) — `OrderResponse` không còn `paidAmount` (4B-10,
+  // WF-05 BO-08). Không có quyền đọc đợt / chưa có hợp đồng / đang tải → không nói số, không đoán 0.
+  const canReadInstallments = useCan(PAYMENT_INSTALLMENT_PERMISSIONS.read);
+  const installments = useOrderInstallmentsSummary(order.orderId, { enabled: canReadInstallments });
+  const paid = canReadInstallments ? (installments.data?.paid ?? 0) : 0;
+  const paidCurrency = installments.data?.currency ?? order.currency;
   const consequence = cancelConsequence(order.status, order.statusBeforeHold);
   // Lỗi "OTHER cần ghi chú" chỉ hiện khi đã chọn OTHER (BE Order#cancelByAdmin); lỗi máy chủ
   // trả về cho ô ghi chú (vd quá dài) thì luôn hiện
@@ -182,8 +190,8 @@ export function CancelForm({
       {paid > 0 && (
         <p className="text-ink-secondary text-xs">
           Khi huỷ đơn, hệ thống sẽ tạo yêu cầu hoàn tiền cho toàn bộ số tiền đã thu (
-          {formatMoney(paid, order.currency)}). Yêu cầu này cần kế toán xử lý; việc huỷ đơn không
-          đồng nghĩa tiền đã được hoàn.
+          {formatMoney(paid, paidCurrency)}). Yêu cầu này cần kế toán xử lý; việc huỷ đơn không đồng
+          nghĩa tiền đã được hoàn.
         </p>
       )}
       {refusal && <OrderRefusalAlert view={refusal} />}

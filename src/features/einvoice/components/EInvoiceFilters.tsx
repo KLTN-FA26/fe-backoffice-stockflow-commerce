@@ -70,6 +70,16 @@ export function EInvoiceFilters({ s, actions }: { s: EInvoiceListState; actions?
         </Label>
       </div>
       <div className="flex items-center gap-2">
+        <Checkbox
+          id="einvoice-late"
+          checked={s.late === true}
+          onCheckedChange={(checked) => s.setLate(checked === true ? true : null)}
+        />
+        <Label htmlFor="einvoice-late" className={LABEL}>
+          {L.lateOnly}
+        </Label>
+      </div>
+      <div className="flex items-center gap-2">
         <Label htmlFor="einvoice-from" className={LABEL}>
           {L.issuedFrom}
         </Label>

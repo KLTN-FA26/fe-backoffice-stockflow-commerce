@@ -6,9 +6,11 @@ import { createDetailQuery, createListQuery, createQueryKeys } from "@/lib/api/q
 import {
   getEInvoice,
   getRegister,
+  getSignature,
   listCorrections,
   listEInvoices,
   listErrorNotices,
+  listOrderReturnChoices,
   listProviderCalls,
 } from "./api";
 import { getEInvoiceSettings, listProviders } from "./settings-api";
@@ -62,6 +64,15 @@ export const useErrorNotices = (id: string | null | undefined, enabled = true) =
     ...QUERY_TIMES.detail,
   });
 
+/** Chữ ký số trên XML (BO-09) — kiểm lúc Kế toán bấm (`enabled`), không tự gọi mỗi lần mở trang. */
+export const useSignature = (id: string | null | undefined, enabled: boolean) =>
+  useQuery({
+    queryKey: sub(id, "signature"),
+    queryFn: ({ signal }) => getSignature(id ?? "", signal),
+    enabled: enabled && !!id,
+    ...QUERY_TIMES.detail,
+  });
+
 export const useRegister = (range: RegisterRange | null) =>
   useQuery({
     queryKey: [...einvoiceKeys.all, "register", range?.from ?? "", range?.to ?? ""],
@@ -84,4 +95,13 @@ export const useEInvoiceProviders = (enabled = true) =>
     queryFn: ({ signal }) => listProviders(signal),
     enabled,
     ...QUERY_TIMES.detail,
+  });
+
+/** Yêu cầu trả hàng của đơn — ô chọn "Yêu cầu trả hàng" khi điều chỉnh / ghi hoá đơn giảm vì trả hàng. */
+export const useOrderReturnChoices = (orderId: string | null | undefined, enabled = true) =>
+  useQuery({
+    queryKey: [...einvoiceKeys.all, "order-returns", orderId ?? ""],
+    queryFn: ({ signal }) => listOrderReturnChoices(orderId ?? "", signal),
+    enabled: enabled && !!orderId,
+    ...QUERY_TIMES.list,
   });

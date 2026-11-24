@@ -2,6 +2,9 @@
 
 import { INSTALLMENT_STATUS_BY_API, RECEIPT_STATUS_BY_API } from "@/constants/payment";
 import {
+  CANCELLATION_FEE_ITEM_NAME,
+  FEE_ITEM_MILESTONE_LABELS,
+  FEE_ITEM_NAME_LABELS,
   INSTALLMENT_MILESTONE_LABELS,
   PAYMENT_LABELS,
   PAYMENT_LIST_LABELS,
@@ -12,16 +15,16 @@ import { statusLabelVi } from "@/lib/status-map";
 import { installmentTakesMoney } from "./lifecycle";
 
 import type {
-  InstallmentApiStatus,
   InstallmentDisplayStatus,
-  ReceiptApiStatus,
+  InstallmentReadStatus,
+  ReceiptReadStatus,
 } from "@/constants/payment";
 import type { Installment, ReceiptFormValues } from "./types";
 
 const L = PAYMENT_LABELS.installments;
 
 /** Nhãn tiếng Việt; trạng thái chưa có nhãn → "Không rõ", không lộ mã tiếng Anh ("Partially Paid") — BO-UX-6. */
-export function installmentStatusLabel(status: InstallmentApiStatus): string {
+export function installmentStatusLabel(status: InstallmentReadStatus): string {
   return (
     statusLabelVi(INSTALLMENT_STATUS_BY_API[status], "payment") ?? PAYMENT_LIST_LABELS.unknownStatus
   );
@@ -37,7 +40,7 @@ export function displayStatus(
   return installment.overdue ? "OVERDUE" : installment.status;
 }
 
-export function receiptStatusLabel(status: ReceiptApiStatus): string {
+export function receiptStatusLabel(status: ReceiptReadStatus): string {
   return (
     statusLabelVi(RECEIPT_STATUS_BY_API[status], "payment") ?? PAYMENT_LIST_LABELS.unknownStatus
   );
@@ -59,6 +62,28 @@ export function daysOverdue(
 
 export function milestoneLabel(milestone: Installment["milestone"]): string {
   return INSTALLMENT_MILESTONE_LABELS[milestone];
+}
+
+/** Tên đợt / khoản phí như người dùng đọc: tên khoản phí BE (tiếng Anh) dịch sang tiếng Việt, tên đợt khác giữ nguyên. */
+export function installmentName(name: string): string {
+  return FEE_ITEM_NAME_LABELS[name.trim()] ?? name;
+}
+
+/**
+ * Mốc của một đợt cụ thể: khoản phí (`CANCELLATION_FEE`) lập khi huỷ đơn hay khi đóng phần còn lại — kể cả phần phí của
+ * các đợt giao đã đóng chuyển sang (audit r3 LM-3) — đọc theo tên BE đặt; tên lạ → nhãn chung của mốc.
+ */
+export function installmentMilestoneLabel(installment: {
+  milestone: Installment["milestone"];
+  name?: string | null;
+}): string {
+  const name = installment.name?.trim();
+  if (installment.milestone === "CANCELLATION_FEE" && name && FEE_ITEM_NAME_LABELS[name]) {
+    return name === CANCELLATION_FEE_ITEM_NAME
+      ? FEE_ITEM_MILESTONE_LABELS.cancellation
+      : FEE_ITEM_MILESTONE_LABELS.remainderClosure;
+  }
+  return milestoneLabel(installment.milestone);
 }
 
 /** "Đợt giao 2" khi đợt gắn đợt giao (docs 15 §4.1, BR-08); không gắn → "Không gắn đợt giao". */
@@ -91,5 +116,5 @@ export function receiptFormTotal(lines: ReceiptFormValues["lines"]): number {
 
 /** Tên đợt hiển thị: "Đợt 2 — Thanh toán trước khi giao". */
 export function installmentTitle(installment: Pick<Installment, "seq" | "name">): string {
-  return `Đợt ${installment.seq} — ${installment.name}`;
+  return `Đợt ${installment.seq} — ${installmentName(installment.name)}`;
 }

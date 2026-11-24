@@ -48,8 +48,31 @@ function messageOf(code: string): string | null {
   }
 }
 
-export function quarantineActionError(error: unknown): { detail: string; traceId?: string } {
+/**
+ * Audit r3 RAD-4: 409 STOCK_PACKAGE_DECISION_PENDING kèm `details.returnOwnership` = thùng chờ Kế toán duyệt hoàn tiền của
+ * một yêu cầu trả hàng, không phải "một quyết định khác". RMA lấy từ thùng vừa đọc khi cùng yêu cầu (`details.returnRequestId`);
+ * không biết → câu không có số RMA. Null khi lỗi không phải ca này.
+ */
+export function refundPendingMessage(
+  error: unknown,
+  carton?: { returnRequestId?: string | null; returnRmaNumber?: string | null } | null,
+): string | null {
+  if (!(error instanceof ApiError) || error.code !== "STOCK_PACKAGE_DECISION_PENDING") return null;
+  const details = error.details ?? {};
+  if (typeof details.returnOwnership !== "string") return null;
+  const returnId = typeof details.returnRequestId === "string" ? details.returnRequestId : null;
+  const sameReturn =
+    !!carton?.returnRmaNumber && (!returnId || carton.returnRequestId === returnId);
+  return M.refundDecisionPending(sameReturn ? (carton?.returnRmaNumber ?? null) : null);
+}
+
+export function quarantineActionError(
+  error: unknown,
+  carton?: { returnRequestId?: string | null; returnRmaNumber?: string | null } | null,
+): { detail: string; traceId?: string } {
   if (error instanceof ApiError) {
+    const pending = refundPendingMessage(error, carton);
+    if (pending) return { detail: pending, traceId: error.traceId };
     const detail = messageOf(error.code);
     if (detail) return { detail, traceId: error.traceId };
   }

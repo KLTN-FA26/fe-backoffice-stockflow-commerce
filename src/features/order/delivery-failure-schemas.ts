@@ -1,17 +1,19 @@
 /**
- * Giao thất bại (WF-05 GH-1; docs 09 §4.3, 17 §4.8) — DTO + input của BE `DeliveryFailureController`.
+ * Lô hàng hoàn về (WF-05 GH-1; docs 09 §4.3, 17 §4.8) — DTO + input của BE `DeliveryFailureController`.
  *
  * DTO `DeliveryFailureCaseResponse`: field null bị BỎ khỏi JSON (Jackson non_null) → `.nullish()` rồi chuẩn hoá null.
- * Input `DeliveryFailureCaseRequests.Redelivery {note, failedTripFee?}` / `.Cancellation {note, agreedFee?}`.
+ * Input `DeliveryFailureCaseRequests.Cancellation {note, agreedFee?}` (đơn cũ). Đóng phần thất lạc: `{note,
+ * evidenceUploadId}` (Q-12, F-5).
  */
 
 import { z } from "zod";
 
 import {
   DELIVERY_FAILURE_CASE_STATUSES,
-  DELIVERY_FAILURE_CUSTOMER_PAID_REASONS,
+  DELIVERY_FAILURE_CLOSURES,
   DELIVERY_FAILURE_LABELS,
   DELIVERY_FAILURE_LIMITS,
+  LOST_SHIPMENT_CLOSURE_LABELS,
 } from "@/constants/labels-order-delivery-failure";
 import { ORDER_DELIVERY_FAILURE_REASONS } from "@/constants/labels-order";
 import { ORDER_STATUS_UNKNOWN } from "@/constants/statuses";
@@ -25,6 +27,11 @@ const caseStatus = z
 const failureReason = z
   .enum([...ORDER_DELIVERY_FAILURE_REASONS, ORDER_STATUS_UNKNOWN])
   .catch(ORDER_STATUS_UNKNOWN);
+/**
+ * F-4: ai đóng hồ sơ CANCELLED — kho khi nhận hàng hoàn về (`RECORDED_ON_RETURN`, hệ thống) hay Sale huỷ phần chưa giao
+ * (`CANCELLED_BY_SALES`). Vắng (BE cũ) hoặc giá trị lạ → null: nhãn trung tính "Đã đóng", không đoán.
+ */
+const closure = z.enum(DELIVERY_FAILURE_CLOSURES).nullish().catch(null);
 
 /** BE `DeliveryFailureCaseResponse` → model FE (field vắng → null, danh sách vắng → rỗng). */
 export const deliveryFailureCaseSchema = z
@@ -45,6 +52,7 @@ export const deliveryFailureCaseSchema = z
     /** REFUSED / WRONG_ADDRESS: giao lại phải tính phí chuyến hỏng cho khách. */
     customerPaysFailedTrip: z.boolean(),
     status: caseStatus,
+    closure,
     openedAt: z.string(),
     decidedBy: z.string().nullish(),
     decidedAt: z.string().nullish(),
@@ -76,6 +84,8 @@ export const deliveryFailureCaseSchema = z
   .transform((dto) => ({
     ...dto,
     customerId: dto.customerId ?? null,
+    orderStatus: dto.orderStatus ?? null,
+    closure: dto.closure ?? null,
     receiptNumber: dto.receiptNumber ?? null,
     failureNote: dto.failureNote ?? null,
     decidedAt: dto.decidedAt ?? null,
@@ -108,30 +118,6 @@ const wholeVnd = (message: string) =>
     .regex(/^\d+$/, message)
     .transform(Number)
     .refine((value) => value > 0, message);
-
-/** Lý do khách gây ra chuyến hỏng (BE `customerPaysFailedTrip`). */
-export function customerPaysFailedTrip(reason: DeliveryFailureCase["failureReason"]): boolean {
-  return (DELIVERY_FAILURE_CUSTOMER_PAID_REASONS as readonly string[]).includes(reason);
-}
-
-/**
- * Giao lại (BE `Redelivery`). docs 09 §4.3 + BE `DeliveryFailureCase#requireRedeliverable`: phí chuyến hỏng BẮT BUỘC khi
- * khách gây ra (REFUSED / WRONG_ADDRESS) và PHẢI BỎ với lý do khác (chi phí đòi hãng vận chuyển).
- */
-export function redeliveryInputSchema(customerPays: boolean) {
-  return z.object({ note, failedTripFee: z.string() }).transform((value, ctx) => {
-    if (!customerPays) return { note: value.note, failedTripFee: undefined };
-    const fee = wholeVnd(V.feeInvalid).safeParse(value.failedTripFee);
-    if (!fee.success) {
-      ctx.addIssue({ code: "custom", path: ["failedTripFee"], message: V.feeRequired });
-      return z.NEVER;
-    }
-    return { note: value.note, failedTripFee: fee.data };
-  });
-}
-
-export type RedeliveryFormValues = z.input<ReturnType<typeof redeliveryInputSchema>>;
-export type RedeliveryValues = z.output<ReturnType<typeof redeliveryInputSchema>>;
 
 /**
  * Huỷ phần chưa giao (BE `Cancellation` + `CancellationFeeRequest`): ghi chú bắt buộc; phí thoả thuận tuỳ chọn — khi
@@ -174,3 +160,25 @@ export const CANCEL_UNDELIVERED_DEFAULTS: CancelUndeliveredFormValues = {
   feeReason: "",
   feeDetail: "",
 };
+
+/* ── Đóng phần thất lạc (Q-12, F-5) ────────────────────────────────── */
+
+const LOST = LOST_SHIPMENT_CLOSURE_LABELS;
+
+/**
+ * Đóng phần thất lạc: ghi chú 1..1000 (BE F-5) + tệp xác nhận thất lạc của hãng BẮT BUỘC (PR-0
+ * `ORDER_SHIPMENT_LOSS_EVIDENCE_REQUIRED`). `evidenceUploadId` do `useEvidenceUpload` điền khi tệp đã tải xong; "" = chưa có.
+ */
+export const lostClosureInputSchema = z.object({
+  note: z
+    .string()
+    .trim()
+    .min(1, LOST.noteRequired)
+    .max(DELIVERY_FAILURE_LIMITS.noteMax, LOST.noteTooLong),
+  evidenceUploadId: z.string().min(1, LOST.evidenceRequired),
+});
+
+export type LostClosureFormValues = z.input<typeof lostClosureInputSchema>;
+export type LostClosureValues = z.output<typeof lostClosureInputSchema>;
+
+export const LOST_CLOSURE_DEFAULTS: LostClosureFormValues = { note: "", evidenceUploadId: "" };

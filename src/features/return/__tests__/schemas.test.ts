@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { approveInputSchema, createReceiptInputSchema, openInputSchema } from "../input-schemas";
+import {
+  approveInputSchema,
+  createReceiptInputSchema,
+  openInputSchema,
+  proposeInputSchema,
+} from "../input-schemas";
 import { returnReceiptDtoSchema, returnRequestDtoSchema, returnRowDtoSchema } from "../schemas";
 
 /** Hình BE `ReturnRequestResponse` với `non_null`: trường chưa đặt vắng mặt hẳn. */
@@ -73,8 +78,94 @@ describe("DTO schemas (contract)", () => {
     expect(receipt.expectedCartons).toHaveLength(1);
   });
 
-  it("rejects an unknown status (contract bug, not silently shown)", () => {
-    expect(() => returnRequestDtoSchema.parse(returnJson({ status: "QC_DONE" }))).toThrow();
+  // WF-05 BO-11 (audit C-32): BE gửi chuỗi và còn thêm giá trị — giá trị lạ đọc thành UNKNOWN, không làm hỏng màn
+  it("reads a status / reason / channel / outcome the FE does not know as UNKNOWN", () => {
+    const parsed = returnRequestDtoSchema.parse(
+      returnJson({
+        status: "QC_DONE",
+        reasonCode: "NEW_REASON",
+        channel: "EMAIL",
+        outcome: "PARTLY",
+        refusalReason: "SOMETHING",
+      }),
+    );
+    expect(parsed).toMatchObject({
+      status: "UNKNOWN",
+      reasonCode: "UNKNOWN",
+      channel: "UNKNOWN",
+      outcome: "UNKNOWN",
+      refusalReason: "UNKNOWN",
+    });
+    const receipt = returnReceiptDtoSchema.parse({
+      id: "gr-1",
+      number: "GR-1",
+      status: "ARCHIVED",
+      warehouseId: "wh-1",
+      cartons: [],
+      expectedCartons: [],
+      version: 0,
+    });
+    expect(receipt.status).toBe("UNKNOWN");
+  });
+
+  it("WF-05 F-20 / F-21: outcome, refusal reason, receipt flags, carton stockEntered, loose photo", () => {
+    const parsed = returnRequestDtoSchema.parse(
+      returnJson({
+        status: "RESOLVED",
+        outcome: "REFUSED",
+        refusalReason: "CUSTOMER_DAMAGE",
+        refusalNote: "Ly bị ướt do bảo quản",
+        receiptOpenable: false,
+        receiptDraftOpen: false,
+      }),
+    );
+    expect(parsed).toMatchObject({
+      outcome: "REFUSED",
+      refusalReason: "CUSTOMER_DAMAGE",
+      refusalNote: "Ly bị ướt do bảo quản",
+      receiptOpenable: false,
+      receiptDraftOpen: false,
+    });
+    const receipt = returnReceiptDtoSchema.parse({
+      id: "gr-1",
+      number: "GR-1",
+      status: "CLOSED",
+      warehouseId: "wh-1",
+      cartons: [
+        {
+          lpn: "L1",
+          sku: "S",
+          quantity: 10,
+          countedQuantity: 8,
+          opened: true,
+          stockEntered: false,
+          countedBy: "u-3",
+        },
+      ],
+      looseLines: [{ id: "ll-1", sku: "S", quantity: 2, recordedBy: "u-4", photoId: "ph-1" }],
+      expectedCartons: [],
+      managerConfirmationRequired: false,
+      version: 1,
+    });
+    expect(receipt.cartons[0]).toMatchObject({ stockEntered: false, countedBy: "u-3" });
+    expect(receipt.looseLines?.[0]).toMatchObject({ photoId: "ph-1", recordedBy: "u-4" });
+    expect(receipt.managerConfirmationRequired).toBe(false);
+  });
+
+  it("WF-05 Q-11: a CUSTODY photo carries what is kept for the customer", () => {
+    const parsed = returnRequestDtoSchema.parse(
+      returnJson({
+        evidence: [
+          {
+            id: "ev-9",
+            stage: "CUSTODY",
+            uploadedAt: "2026-11-24T03:00:00Z",
+            custody: { sku: "SKU-X", lpn: null, quantity: 3, note: "Khách nhờ huỷ hộ" },
+          },
+        ],
+      }),
+    );
+    expect(parsed.evidence?.[0]?.custody).toMatchObject({ sku: "SKU-X", quantity: 3 });
   });
 });
 
@@ -147,6 +238,60 @@ describe("input schemas", () => {
     expect(createReceiptInputSchema.safeParse(base).success).toBe(false);
     expect(createReceiptInputSchema.safeParse({ ...base, returnRequestId: "r" }).success).toBe(
       true,
+    );
+  });
+});
+
+describe("proposeInputSchema (WF-05 Q-4: 0 refund needs a fixed reason)", () => {
+  const propose = (quantities: number[], over: Record<string, unknown> = {}) => ({
+    lines: quantities.map((quantity, index) => ({ lineId: `l-${index}`, quantity, cap: 5 })),
+    note: "",
+    refusalReason: "",
+    refusalNote: "",
+    ...over,
+  });
+
+  it("refunding at least one unit needs no reason", () => {
+    expect(proposeInputSchema.safeParse(propose([0, 2])).success).toBe(true);
+  });
+
+  it("every line at 0 while units are refundable: the reason is required", () => {
+    const result = proposeInputSchema.safeParse(propose([0, 0]));
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]?.path).toEqual(["refusalReason"]);
+    expect(
+      proposeInputSchema.safeParse(propose([0, 0], { refusalReason: "CUSTOMER_DAMAGE" })).success,
+    ).toBe(true);
+  });
+
+  it("the reason comes from the fixed list; the public note is at most 500 characters", () => {
+    expect(proposeInputSchema.safeParse(propose([0, 0], { refusalReason: "BAD" })).success).toBe(
+      false,
+    );
+    expect(
+      proposeInputSchema.safeParse(
+        propose([0, 0], { refusalReason: "OTHER", refusalNote: "x".repeat(501) }),
+      ).success,
+    ).toBe(false);
+  });
+
+  it("withholding some units may give a reason; OTHER needs a note for the customer", () => {
+    expect(
+      proposeInputSchema.safeParse(propose([0, 2], { refusalReason: "NOT_DEFECTIVE" })).success,
+    ).toBe(true);
+    const other = proposeInputSchema.safeParse(propose([0, 0], { refusalReason: "OTHER" }));
+    expect(other.success).toBe(false);
+    expect(other.error?.issues[0]?.path).toEqual(["refusalNote"]);
+    expect(
+      proposeInputSchema.safeParse(
+        propose([0, 0], { refusalReason: "OTHER", refusalNote: "Khách tự in thêm logo" }),
+      ).success,
+    ).toBe(true);
+  });
+
+  it("a line above its cap is still refused", () => {
+    expect(proposeInputSchema.safeParse(propose([6], { refusalReason: "OTHER" })).success).toBe(
+      false,
     );
   });
 });

@@ -9,12 +9,19 @@
  *   GET  /einvoices/register?from&to · /register/export
  *   GET|PUT /einvoice-settings · GET /providers · PUT /providers/{p}/account|series · POST /activation
  * Phát hành là bất đồng bộ: `issuance` trả SUBMITTING; lần đọc sau ≥ 2 giây (hoặc `reconciliation`) ra ISSUED.
+ * WF-05: `GET /{id}/signature`, `POST /signature-checks` (BO-09); `POST /{id}/portal-result`,
+ * `/{id}/external-reductions`, `/{id}/delivery-failure-reduction` (Q-8, BE-11); `issuance` nhận
+ * `acknowledgedWarnings` / `lateReason`, `withdrawal` nhận `supportReference`, `void` nhận `reasonCode`.
  */
 
 import {
+  EINVOICE_ISSUED_VIA_PORTAL,
+  EINVOICE_LATE_WARNING,
   EINVOICE_PERMISSIONS,
+  EINVOICE_RESEND_EMAIL_PERMISSION,
   EINVOICE_SETTINGS_PERMISSIONS,
   EINVOICE_TIMING,
+  UNSENDABLE_REVERSAL_REASON_CODE,
 } from "@/constants/einvoice";
 
 import { registerMockRoute } from "./mock-adapter";
@@ -110,6 +117,9 @@ function listItem(i: MockEInvoice) {
     warnings: i.warnings,
     rejectionCode: i.rejectionCode,
     issuedAt: i.issuedAt,
+    reversedAt: i.reversedAt ?? null,
+    correctionBasis: i.correctionBasis,
+    deliveredOn: i.deliveredOn ?? null,
   };
 }
 
@@ -150,7 +160,148 @@ function detail(i: MockEInvoice) {
     returnRequestId: i.returnRequestId,
     earlierPendingInvoice: earlier?.code ?? null,
     deliveryFailedAt: i.deliveryFailedAt,
+    errorNoticeSupported: mockEInvoiceSettings().provider === "SANDBOX",
+    issuedVia: i.issuedVia ?? (i.issuedAt ? "PROVIDER" : null),
+    ...withdrawability(i),
+    ...externalReductions(i),
+    watchUntil: i.watchUntil ?? null,
+    watchFoundAt: i.watchFoundAt ?? null,
   };
+}
+
+/**
+ * Audit r2 H-2 — như BE `WithdrawalRule.decide` trên câu trả lời gần nhất của NCC: mock coi NCC trả NOT_FOUND, trừ hoá
+ * đơn mock đánh `providerHeld` (PROVIDER_HOLDS). Vừa gửi (< `withdraw-after`) → TOO_RECENT kèm mốc.
+ */
+function withdrawability(i: MockEInvoice) {
+  const blocked = (by: string, from: string | null = null) => ({
+    withdrawable: false,
+    withdrawalBlockedBy: by,
+    withdrawableFrom: from,
+    withdrawalEvidenceRequired: false,
+  });
+  if (i.status !== "SUBMITTING") return blocked("NOT_AT_PROVIDER");
+  if (i.providerHeld) return blocked("PROVIDER_HOLDS");
+  const from = Date.parse(i.submittedAt ?? nowIso()) + EINVOICE_TIMING.withdrawAfterMs;
+  if (Date.now() < from) return blocked("TOO_RECENT", new Date(from).toISOString());
+  return {
+    withdrawable: true,
+    withdrawalBlockedBy: null,
+    withdrawableFrom: null,
+    withdrawalEvidenceRequired: false,
+  };
+}
+
+/**
+ * Audit r2 M-10 — như BE `EInvoicePortalReductions.applicability`: hoá đơn đã phát hành của một lần giao (không phải
+ * điều chỉnh), chưa có bản giảm giao thất bại còn sống; DELIVERY_FAILED khi bản giảm không gửi được đã bị huỷ (hoá đơn
+ * gốc vẫn `reversedAt`) hoặc hoá đơn thay thế còn hiệu lực mà lần giao đã thất bại; RETURN khi hoá đơn thay thế còn hiệu
+ * lực có yêu cầu trả hàng chờ giảm; ERROR (audit r3 EINV-2) khi hoá đơn gốc còn hiệu lực của NCC không điều chỉnh được có
+ * điều chỉnh sai sót đã huỷ — chỉ giảm, có văn bản thoả thuận, chưa được ghi (`errorRecordable`).
+ */
+function externalReductions(i: MockEInvoice) {
+  const none = {
+    externalReductionAllowed: false,
+    externalReductionBases: [] as string[],
+    externalReductionReturns: [] as { returnRequestId: string; rmaNumber: string }[],
+    externalReductionErrors: [] as ReturnType<typeof errorOption>[],
+  };
+  if (i.status !== "ISSUED" || i.type === "ADJUSTMENT") return none;
+  const corrections = mockEInvoices().filter((o) => o.originalEInvoiceId === i.id);
+  const liveReduction = corrections.some(
+    (o) => o.correctionBasis === "DELIVERY_FAILED" && o.status !== "VOIDED_DRAFT",
+  );
+  if (liveReduction) return none;
+  // CF-4 / CF-10: hoá đơn phần còn lại của đơn (không thuộc lần giao nào) — chỉ DELIVERY_FAILED, chỉ phí vận chuyển
+  // đã miễn; BE tính số tiền nên không nhận returnRequestId / voidedAdjustmentId
+  if (!i.shipmentId) {
+    const offered = !i.reversedAt && (i.waivedShippingShare ?? 0) > 0;
+    return offered
+      ? { ...none, externalReductionAllowed: true, externalReductionBases: ["DELIVERY_FAILED"] }
+      : none;
+  }
+  const replacementInForce = i.type === "REPLACEMENT" && !i.reversedAt;
+  const unsendableVoided =
+    !!i.reversedAt && corrections.some((o) => o.voidReasonCode === UNSENDABLE_REVERSAL_REASON_CODE);
+  const deliveryFailed = unsendableVoided || (replacementInForce && !!i.deliveryFailedAt);
+  const returns = replacementInForce
+    ? (i.pendingReturns ?? []).filter(
+        (pending) =>
+          !mockEInvoices().some(
+            (o) => o.type === "ADJUSTMENT" && o.returnRequestId === pending.returnRequestId,
+          ),
+      )
+    : [];
+  const errors = errorRecordable(i).map(errorOption);
+  return {
+    externalReductionAllowed: deliveryFailed || returns.length > 0 || errors.length > 0,
+    externalReductionBases: [
+      ...(deliveryFailed ? ["DELIVERY_FAILED"] : []),
+      ...(returns.length > 0 ? ["RETURN"] : []),
+      ...(errors.length > 0 ? ["ERROR"] : []),
+    ],
+    externalReductionReturns: returns,
+    externalReductionErrors: errors,
+  };
+}
+
+/** BE `recordRest`: chỉ dòng phí vận chuyển, đúng phần đã miễn (`waivedShippingShare`), không đụng phí khuôn. */
+function restShippingReduction(original: MockEInvoice): MockEInvoice["lines"] {
+  const line = original.lines.find((candidate) => candidate.feeKind === "SHIPPING_FEE");
+  return line ? [{ ...line, quantity: -1, unitPrice: original.waivedShippingShare ?? 0 }] : [];
+}
+
+const draftTotal = (draft: MockEInvoice) =>
+  draft.lines.reduce((sum, line) => sum + lineAmount(line) + lineTax(line), 0);
+
+/**
+ * Như BE `EInvoicePortalReductions.errorRecordable`: điều chỉnh sai sót đã huỷ của hoá đơn GỐC còn hiệu lực mà NCC không
+ * điều chỉnh được nữa (`providerCannotCorrect`), có văn bản thoả thuận, chỉ giảm (`EInvoice.reducesOnly`: không dòng nào
+ * tăng, tổng âm), chưa được ghi từ cổng.
+ */
+function errorRecordable(i: MockEInvoice): MockEInvoice[] {
+  if (i.type !== "ORIGINAL" || i.reversedAt || !i.providerCannotCorrect) return [];
+  return mockEInvoices().filter(
+    (o) =>
+      o.originalEInvoiceId === i.id &&
+      o.type === "ADJUSTMENT" &&
+      o.correctionBasis === "ERROR" &&
+      o.status === "VOIDED_DRAFT" &&
+      o.agreement !== null &&
+      o.lines.every((line) => lineAmount(line) <= 0 && lineTax(line) <= 0) &&
+      draftTotal(o) < 0 &&
+      !mockEInvoices().some((r) => r.voidedAdjustmentId === o.id),
+  );
+}
+
+/** BE `EInvoiceResponse.ExternalReductionError`: `grandTotal` âm. */
+function errorOption(draft: MockEInvoice) {
+  return {
+    voidedAdjustmentId: draft.id,
+    code: draft.code,
+    reason: draft.correctionReason,
+    grandTotal: draftTotal(draft),
+  };
+}
+
+/**
+ * BE `recordError`: số hàng bản sai sót giảm phải còn trên hoá đơn gốc (dòng gốc trừ các điều chỉnh đã phát hành) — không cắt
+ * bớt cho vừa, từ chối.
+ */
+function holdsWhatErrorTakesOff(original: MockEInvoice, draft: MockEInvoice): boolean {
+  const issued = mockEInvoices().filter(
+    (o) => o.originalEInvoiceId === original.id && o.type === "ADJUSTMENT" && o.status === "ISSUED",
+  );
+  return draft.lines.every((line) => {
+    const held = original.lines
+      .filter((own) => own.id === line.id)
+      .reduce((sum, own) => sum + own.quantity, 0);
+    const taken = issued
+      .flatMap((o) => o.lines)
+      .filter((own) => own.id === line.id)
+      .reduce((sum, own) => sum - own.quantity, 0);
+    return line.quantity >= 0 || -line.quantity <= held - taken;
+  });
 }
 
 function list(config: AxiosRequestConfig) {
@@ -166,6 +317,7 @@ function list(config: AxiosRequestConfig) {
         (!q.get("customerId") || i.customerId === q.get("customerId")) &&
         (!q.get("issuedFrom") || i.issueDate >= (q.get("issuedFrom") ?? "")) &&
         (!q.get("issuedTo") || i.issueDate <= (q.get("issuedTo") ?? "")) &&
+        (!q.get("warning") || i.warnings.includes(q.get("warning") ?? "")) &&
         (!due || (!i.issuedAt && i.status !== "VOIDED_DRAFT" && i.issueDueAt < due)),
     )
     // Còn phải phát hành trước, hạn gần nhất trước (BE EInvoiceQueries)
@@ -246,6 +398,7 @@ export function registerEInvoiceMockRoutes(): void {
             httpStatus: 200,
             calledAt: invoice.submittedAt,
             durationMs: 420,
+            providerReference: `create/TRK-${invoice.code}`,
           },
         ]
       : [];
@@ -315,9 +468,16 @@ export function registerEInvoiceMockRoutes(): void {
       if (i.status !== "DRAFT") return transition();
       if (!text(body.reason))
         return fail(400, "VALIDATION_FAILED", "reason", [{ field: "reason", message: "required" }]);
+      const unsendable = text(body.reasonCode) === UNSENDABLE_REVERSAL_REASON_CODE;
+      // BE `voidDraft`: bản giảm hệ thống lập chỉ huỷ với mã UNSENDABLE_REVERSAL (WF-05 Q-8, F-14)
+      if (i.correctionBasis === "DELIVERY_FAILED" && !unsendable)
+        return fail(409, "EINVOICE_CORRECTION_NOT_APPLICABLE", "Issued, not voided");
+      if (unsendable && i.correctionBasis !== "DELIVERY_FAILED")
+        return fail(409, "EINVOICE_CORRECTION_NOT_APPLICABLE", "Not a reversal");
       Object.assign(i, {
         status: "VOIDED_DRAFT",
         voidReason: text(body.reason),
+        voidReasonCode: unsendable ? UNSENDABLE_REVERSAL_REASON_CODE : null,
         voidedAt: nowIso(),
       });
       return touch(i);
@@ -335,14 +495,33 @@ export function registerEInvoiceMockRoutes(): void {
   registerMockRoute(
     "POST",
     "/einvoices/:id/issuance",
-    versioned(P.approve, (i) => {
+    versioned(P.approve, (i, body) => {
       if (i.status !== "DRAFT") return transition();
       // docs 21 BR-06: bên mua đủ tên, mã số thuế, địa chỉ
       if (!i.buyer.name || !i.buyer.taxCode || !i.buyer.address)
         return fail(409, "EINVOICE_BUYER_PROFILE_INCOMPLETE", "Buyer profile incomplete");
       if (i.correctionBasis === "ERROR" && !i.agreement)
         return fail(409, "EINVOICE_AGREEMENT_REQUIRED", "Agreement required");
-      Object.assign(i, { status: "SUBMITTING", submittedAt: nowIso() });
+      // WF-05 F-16: cảnh báo chưa được xác nhận → 409 kèm danh sách
+      const acknowledged = Array.isArray(body.acknowledgedWarnings)
+        ? body.acknowledgedWarnings.map(String)
+        : [];
+      const unseen = i.warnings.filter((w) => !acknowledged.includes(w));
+      if (unseen.length > 0)
+        return fail(409, "EINVOICE_DRAFT_OUT_OF_DATE", "New warnings", [], { warnings: unseen });
+      // WF-05 Q-10: nháp có ngày giao trước hôm nay → bắt buộc lý do, hoá đơn mang ngày hôm nay + ISSUED_LATE
+      const today = nowIso().slice(0, 10);
+      const delivered = i.deliveredOn ?? (i.type === "ORIGINAL" ? i.issueDate : null);
+      const late = delivered !== null && delivered < today;
+      if (late && !text(body.lateReason))
+        return fail(400, "EINVOICE_LATE_ISSUE_REASON_REQUIRED", "Late reason required");
+      Object.assign(i, {
+        status: "SUBMITTING",
+        submittedAt: nowIso(),
+        deliveredOn: delivered,
+        issueDate: today,
+        warnings: late ? [...i.warnings, EINVOICE_LATE_WARNING] : i.warnings,
+      });
       return touch(i);
     }),
   );
@@ -364,18 +543,176 @@ export function registerEInvoiceMockRoutes(): void {
       if (i.status !== "SUBMITTING") return transition();
       if (!text(body.reason))
         return fail(400, "VALIDATION_FAILED", "reason", [{ field: "reason", message: "required" }]);
-      // BE HĐ-1: lần gửi cuối quá `withdraw-after`; mock coi NCC luôn trả NOT_FOUND
-      const sent = Date.parse(i.submittedAt ?? nowIso());
-      if (Date.now() - sent < EINVOICE_TIMING.withdrawAfterMs)
-        return fail(409, "EINVOICE_WITHDRAWAL_REFUSED", "Too recent");
+      // BE HĐ-1 / audit r2 H-2: cùng luật cờ `withdrawable` trên chi tiết (`withdrawability`)
+      const rule = withdrawability(i);
+      if (!rule.withdrawable)
+        return fail(409, "EINVOICE_WITHDRAWAL_REFUSED", "Not withdrawable now", undefined, {
+          withdrawableFrom: rule.withdrawableFrom,
+          providerState: i.providerHeld ? "PENDING" : null,
+        });
       Object.assign(i, {
         status: "REJECTED",
         rejectionCode: "WITHDRAWN_NO_PROVIDER_RECORD",
         rejectionMessage: text(body.reason),
         warnings: i.warnings.filter((w) => w !== "UNKNOWN_TO_PROVIDER"),
+        // Audit r3 EINV-3: BE tra lại giao dịch vừa buông mỗi ngày trong 30 ngày
+        watchUntil: new Date(Date.now() + EINVOICE_TIMING.watchMs).toISOString(),
       });
       return touch(i);
     }),
+  );
+  // WF-05 Q-8 (F-13): Kế toán ghi kết quả đã kiểm trên cổng NCC
+  registerMockRoute(
+    "POST",
+    "/einvoices/:id/portal-result",
+    versioned(P.approve, (i, body) => {
+      if (i.status !== "SUBMITTING") return transition();
+      const form = body instanceof FormData ? body : null;
+      if (form?.get("outcome") === "ISSUED") {
+        Object.assign(i, {
+          status: "ISSUED",
+          invoiceNumber: Number(form.get("invoiceNumber") ?? 0) || nextInvoiceNumber(),
+          symbol: mockEInvoiceSettings().series[0]?.symbol ?? null,
+          issuedAt: nowIso(),
+          issuedVia: EINVOICE_ISSUED_VIA_PORTAL,
+        });
+      } else {
+        Object.assign(i, {
+          status: "REJECTED",
+          rejectionCode: "REFUSED_BY_TAX_AUTHORITY",
+          rejectionMessage: String(form?.get("note") ?? ""),
+          watchUntil: new Date(Date.now() + EINVOICE_TIMING.watchMs).toISOString(),
+        });
+      }
+      return touch(i);
+    }),
+  );
+  // WF-05 BE-11 (F-15): bản giảm do giao thất bại cho hoá đơn gốc đã bị đánh dấu
+  registerMockRoute(
+    "POST",
+    "/einvoices/:id/delivery-failure-reduction",
+    versioned(P.create, (i) => {
+      if (i.status !== "ISSUED" || !i.deliveryFailedAt || i.reversedAt)
+        return fail(409, "EINVOICE_REVERSAL_NOT_APPLICABLE", "Not applicable");
+      const reduction = correctionOf(i, "ADJUSTMENT", "DELIVERY_FAILED", "Giao không thành công");
+      reduction.lines = i.lines.map((line) => ({ ...line, quantity: -line.quantity }));
+      i.reversedAt = nowIso();
+      i.version += 1;
+      return ok(detail(reduction));
+    }),
+  );
+  // WF-05 Q-8 (F-13): hoá đơn giảm Kế toán làm trên cổng NCC
+  registerMockRoute("POST", "/einvoices/:id/external-reductions", async (config) => {
+    if (!(await can(P.approve))) return forbidden();
+    const original = byId(pathParams(config).id ?? "");
+    if (!original) return notFound();
+    const raw: unknown = config.data;
+    const form = raw instanceof FormData ? raw : null;
+    // BE G3 `recordExternalReduction`: các ô bắt buộc trước mọi thứ (XML là hoá đơn theo luật)
+    if (!form?.get("xml") || !form.get("pdf") || !text(form.get("note")))
+      return fail(
+        400,
+        "VALIDATION_FAILED",
+        "templateCode, symbol, issueDate, xml, pdf, note required",
+      );
+    // Audit r2 M-10: cùng luật cờ `externalReductionAllowed` trên chi tiết (`externalReductions`)
+    const options = externalReductions(original);
+    if (!options.externalReductionAllowed)
+      return fail(409, "EINVOICE_EXTERNAL_REDUCTION_NOT_APPLICABLE", "Not applicable");
+    const rawBasis = text(form.get("basis"));
+    const basis = rawBasis === "RETURN" || rawBasis === "ERROR" ? rawBasis : "DELIVERY_FAILED";
+    const returnRequestId = text(form.get("returnRequestId")) || null;
+    const voidedAdjustmentId = text(form.get("voidedAdjustmentId")) || null;
+    // BE `EInvoicePortalReductions.record`: `voidedAdjustmentId` chỉ đi với ERROR; ERROR đòi nó, không kèm returnRequestId
+    if (basis === "ERROR" && (!voidedAdjustmentId || returnRequestId))
+      return fail(
+        400,
+        "VALIDATION_FAILED",
+        "voidedAdjustmentId: required for an error, and no returnRequestId",
+      );
+    if (basis !== "ERROR" && voidedAdjustmentId)
+      return fail(400, "VALIDATION_FAILED", "voidedAdjustmentId: only with basis ERROR");
+    // CF-4 / CF-10 `recordRest`: hoá đơn phần còn lại chỉ DELIVERY_FAILED, không kèm id nào
+    if (
+      !original.shipmentId &&
+      (basis !== "DELIVERY_FAILED" || returnRequestId || voidedAdjustmentId)
+    )
+      return fail(400, "VALIDATION_FAILED", "basis: DELIVERY_FAILED for the shipping fee waived");
+    if (basis === "RETURN" && !returnRequestId)
+      return fail(400, "VALIDATION_FAILED", "returnRequestId is required for basis RETURN");
+    const draft =
+      basis === "ERROR"
+        ? errorRecordable(original).find((o) => o.id === voidedAdjustmentId)
+        : undefined;
+    if (
+      !options.externalReductionBases.includes(basis) ||
+      (basis === "RETURN" &&
+        !options.externalReductionReturns.some((row) => row.returnRequestId === returnRequestId)) ||
+      (basis === "ERROR" && !draft)
+    )
+      return fail(409, "EINVOICE_EXTERNAL_REDUCTION_NOT_APPLICABLE", "Not applicable");
+    const issueDate = text(form.get("issueDate")) || nowIso().slice(0, 10);
+    // BE `requireSameSeller`: không trước ngày của hoá đơn bị giảm (400 không kèm ô)
+    if (issueDate < original.issueDate)
+      return fail(
+        400,
+        "VALIDATION_FAILED",
+        `issueDate: not before the invoice it reduces (${original.issueDate})`,
+      );
+    if (draft && !holdsWhatErrorTakesOff(original, draft))
+      return fail(409, "EINVOICE_EXTERNAL_REDUCTION_NOT_APPLICABLE", "Holds fewer of those goods");
+    const reduction = correctionOf(
+      original,
+      "ADJUSTMENT",
+      basis,
+      draft?.correctionReason ?? text(form.get("note")),
+    );
+    Object.assign(reduction, {
+      returnRequestId,
+      voidedAdjustmentId,
+      status: "ISSUED",
+      symbol: text(form.get("symbol")) || null,
+      invoiceNumber: Number(form.get("invoiceNumber") ?? 0) || null,
+      issueDate,
+      issuedAt: nowIso(),
+      issuedVia: EINVOICE_ISSUED_VIA_PORTAL,
+      // BE `recordedErrorReduction`: đúng các dòng và văn bản thoả thuận của bản nháp đã huỷ
+      agreement: draft?.agreement ?? null,
+      lines: draft
+        ? draft.lines.map((line) => ({ ...line }))
+        : original.shipmentId
+          ? original.lines.map((line) => ({ ...line, quantity: -line.quantity }))
+          : restShippingReduction(original),
+    });
+    return ok(detail(reduction));
+  });
+  // Audit r2 einvoice M-1: gửi lại hoá đơn qua e-mail — quyền `customer-legal-profiles:UPDATE` (không phải `einvoices`)
+  registerMockRoute("POST", "/einvoices/:id/email", async (config) => {
+    if (!(await can(EINVOICE_RESEND_EMAIL_PERMISSION as PermissionCode))) return forbidden();
+    const invoice = byId(pathParams(config).id ?? "");
+    if (!invoice) return notFound();
+    if (invoice.status !== "ISSUED" && invoice.status !== "REPLACED")
+      return fail(409, "EINVOICE_NOT_ISSUED", "Not issued");
+    if (invoice.warnings.includes("SIGNATURE_INVALID"))
+      return fail(409, "EINVOICE_INVALID_TRANSITION", "Signature invalid", undefined, {
+        reason: "SIGNATURE_INVALID",
+      });
+    if (!invoice.buyer.email)
+      return fail(409, "EINVOICE_BUYER_PROFILE_INCOMPLETE", "No invoice e-mail", undefined, {
+        missing: ["EMAIL"],
+      });
+    return ok({ einvoiceId: invoice.id, recipient: invoice.buyer.email, requestedAt: nowIso() });
+  });
+  // BO-09: chữ ký số — mock coi mọi hoá đơn đã phát hành ký hợp lệ; tệp tải lên → SHA1_UNCHECKED
+  registerMockRoute("GET", "/einvoices/:id/signature", async (config) => {
+    if (!(await can(P.read))) return forbidden();
+    const invoice = byId(pathParams(config).id ?? "");
+    if (!invoice) return notFound();
+    if (!invoice.issuedAt) return fail(409, "EINVOICE_NOT_ISSUED", "Not issued");
+    return ok(signatureOf("VALID", invoice.issuedAt));
+  });
+  registerMockRoute("POST", "/einvoices/signature-checks", async () =>
+    (await can(P.read)) ? ok(signatureOf("SHA1_UNCHECKED", nowIso())) : forbidden(),
   );
   registerMockRoute(
     "POST",
@@ -515,6 +852,53 @@ export function registerEInvoiceMockRoutes(): void {
   registerSettingsRoutes();
 }
 
+/** Một điều chỉnh / thay thế mới của hoá đơn `original`, đã đưa vào kho mock. */
+function correctionOf(
+  original: MockEInvoice,
+  type: MockEInvoice["type"],
+  basis: MockEInvoice["correctionBasis"],
+  reason: string,
+): MockEInvoice {
+  const correction: MockEInvoice = {
+    ...original,
+    id: nextEInvoiceId(),
+    type,
+    status: "DRAFT",
+    adjusted: false,
+    originalEInvoiceId: original.id,
+    invoiceNumber: null,
+    symbol: null,
+    issuedAt: null,
+    submittedAt: null,
+    version: 0,
+    warnings: [],
+    correctionBasis: basis,
+    correctionReason: reason,
+    agreement: null,
+    reversedAt: null,
+    issuedVia: null,
+    issueDate: nowIso().slice(0, 10),
+  };
+  correction.code = `HDDT-${correction.id.replace("EINV-", "")}`;
+  mockEInvoices().push(correction);
+  return correction;
+}
+
+const signatureOf = (status: string, at: string) => ({
+  status,
+  valid: status === "VALID",
+  signer: MOCK_SELLER.name,
+  signerTaxCode: MOCK_SELLER.taxCode,
+  signerOrganization: MOCK_SELLER.name,
+  issuer: "CA thử nghiệm",
+  signingTime: at,
+  certificateValidFrom: "2026-01-01T00:00:00Z",
+  certificateValidTo: "2027-12-31T00:00:00Z",
+  certificateValidAtSigning: true,
+  buyerSigned: false,
+  chainChecked: false,
+});
+
 const noticeWire = (n: ReturnType<typeof mockErrorNotices>[number]) => ({
   ...n,
   formCode: "04/SS-HDDT",
@@ -536,6 +920,12 @@ function registerSettingsRoutes() {
       active: true,
       autoIssue: s.autoIssue,
       version: s.version,
+      // WF-05 F-11: cờ khả năng của NCC
+      accountInDeployment: s.provider === "SEPAY_EINVOICE",
+      deploymentAccountReady: s.provider === "SEPAY_EINVOICE" ? true : null,
+      issuesCorrections: true,
+      adjustsReplacements: s.provider !== "SEPAY_EINVOICE",
+      sendsErrorNotices: s.provider === "SANDBOX",
     };
   };
   const bump = (patch: Partial<ReturnType<typeof mockEInvoiceSettings>>) =>
@@ -559,6 +949,12 @@ function registerSettingsRoutes() {
   );
   registerMockRoute("PUT", "/einvoice-settings/providers/:provider/account", async (config) => {
     if (!(await can(S.update))) return forbidden();
+    // BE `storeAccount`: sandbox không có tài khoản; SePay đọc tài khoản từ biến môi trường (BO-04)
+    const code = pathParams(config).provider;
+    if (code === "SANDBOX" || code === "SEPAY_EINVOICE")
+      return fail(400, "VALIDATION_FAILED", "provider", [
+        { field: "provider", message: "This provider's account is not stored here" },
+      ]);
     const body = bodyOf(config);
     bump({
       environment: body.environment === "PRODUCTION" ? "PRODUCTION" : "SANDBOX",
@@ -570,6 +966,15 @@ function registerSettingsRoutes() {
   registerMockRoute("PUT", "/einvoice-settings/providers/:provider/series", async (config) => {
     if (!(await can(S.update))) return forbidden();
     const body = bodyOf(config);
+    // BE `useSeries`: NCC thật bắt buộc mã mẫu của NCC, sandbox không có (BO-10)
+    const sandbox = pathParams(config).provider === "SANDBOX";
+    if (sandbox === !!text(body.providerTemplateCode))
+      return fail(400, "VALIDATION_FAILED", "providerTemplateCode", [
+        {
+          field: "providerTemplateCode",
+          message: sandbox ? "Sandbox không có mã mẫu riêng" : "Nhập mã mẫu của nhà cung cấp",
+        },
+      ]);
     const series = { templateCode: "1", symbol: text(body.symbol), year: Number(body.year) };
     bump({
       series: [series, ...mockEInvoiceSettings().series.filter((s) => s.year !== series.year)],

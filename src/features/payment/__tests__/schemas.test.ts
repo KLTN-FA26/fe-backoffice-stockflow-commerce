@@ -52,18 +52,18 @@ describe("DTO contract (BE InstallmentResponse / OrderInstallmentsResponse / Pay
     expect(page.items[0]?.dueDate).toBeUndefined();
   });
 
-  it("rejects a status the docs do not define", () => {
-    expect(() =>
-      installmentPageDtoSchema.parse({
-        items: [{ ...installmentJson, status: "FAILED" }],
-        page: 0,
-        size: 20,
-        totalElements: 1,
-        totalPages: 1,
-        hasNext: false,
-        hasPrevious: false,
-      }),
-    ).toThrow();
+  // WF-05 BO-11 (audit C-32): BE gửi chuỗi và còn thêm giá trị — một giá trị lạ không làm hỏng cả màn
+  it("reads a status / milestone the FE does not know as UNKNOWN instead of failing the page", () => {
+    const page = installmentPageDtoSchema.parse({
+      items: [{ ...installmentJson, status: "FAILED", milestone: "ON_PROGRESS" }],
+      page: 0,
+      size: 20,
+      totalElements: 1,
+      totalPages: 1,
+      hasNext: false,
+      hasPrevious: false,
+    });
+    expect(page.items[0]).toMatchObject({ status: "UNKNOWN", milestone: "UNKNOWN" });
   });
 
   it("parses an order's installments with the derived payment status (docs 15 §5.2)", () => {
@@ -232,5 +232,154 @@ describe("InstallmentResponse after the WF-05 fix plan", () => {
     expect(
       installmentDtoSchema.parse({ ...installmentJson, milestone: "FAILED_TRIP_FEE" }).milestone,
     ).toBe("FAILED_TRIP_FEE");
+  });
+});
+
+describe("WF-05 BO-11 / F-9: tolerant enums and the carrier-return settlement", () => {
+  const settlement = {
+    settlementId: "s-1",
+    collected: 100,
+    closed: 100,
+    reduced: 0,
+    surplus: 100,
+    fee: 0,
+    feeCovered: 0,
+    refundable: 100,
+    feeOwed: 0,
+    settledAt: "2026-11-24T03:00:00Z",
+  };
+
+  it("reads SHIPMENT_RETURNED as a known kind and the order's open fees (feeOwed)", () => {
+    const refund = orderRefundDtoSchema.parse({
+      orderId: "o-1",
+      orderNumber: "SO-1",
+      currency: "VND",
+      refundStatus: "PENDING",
+      refundable: 100,
+      refunded: 0,
+      remaining: 100,
+      feeOwed: 30,
+      settlements: [{ ...settlement, kind: "SHIPMENT_RETURNED" }],
+    });
+    expect(refund.settlements?.[0]?.kind).toBe("SHIPMENT_RETURNED");
+    expect(refund.feeOwed).toBe(30);
+    // BE G2: the shipment it closed and the shipping fee waived (Q-19)
+    const carrier = orderRefundDtoSchema.parse({
+      orderId: "o-1",
+      orderNumber: "SO-1",
+      currency: "VND",
+      refundStatus: "PENDING",
+      refundable: 100,
+      refunded: 0,
+      remaining: 100,
+      settlements: [
+        { ...settlement, kind: "SHIPMENT_RETURNED", shipmentId: "sh-1", shippingFeeWaived: 20 },
+      ],
+    });
+    expect(carrier.settlements?.[0]).toMatchObject({ shipmentId: "sh-1", shippingFeeWaived: 20 });
+  });
+
+  it("an old BE without feeOwed still parses", () => {
+    const refund = orderRefundDtoSchema.parse({
+      orderId: "o-1",
+      orderNumber: "SO-1",
+      currency: "VND",
+      refundStatus: "NONE",
+      refundable: 0,
+      refunded: 0,
+      remaining: 0,
+    });
+    expect(refund.feeOwed).toBeUndefined();
+  });
+
+  it("an unknown settlement kind, refund status, receipt status or payment status reads UNKNOWN", () => {
+    const refund = orderRefundDtoSchema.parse({
+      orderId: "o-1",
+      orderNumber: "SO-1",
+      currency: "VND",
+      refundStatus: "ON_HOLD",
+      refundable: 100,
+      refunded: 0,
+      remaining: 100,
+      settlements: [{ ...settlement, kind: "SOMETHING_NEW" }],
+      records: [
+        {
+          refundRecordId: "rr-1",
+          orderId: "o-1",
+          orderNumber: "SO-1",
+          customerId: "cu-1",
+          amount: 10,
+          currency: "VND",
+          refundedOn: "2026-11-24",
+          reference: "FT1",
+          status: "REVERSED",
+          recordedAt: "2026-11-24T03:00:00Z",
+        },
+      ],
+    });
+    expect(refund.refundStatus).toBe("UNKNOWN");
+    expect(refund.settlements?.[0]?.kind).toBe("UNKNOWN");
+    expect(refund.records?.[0]?.status).toBe("UNKNOWN");
+    const receipt = receiptDtoSchema.parse({
+      receiptId: "r-1",
+      customerId: "cu-1",
+      reference: "FT1",
+      receivedOn: "2026-11-09",
+      amount: 100,
+      currency: "VND",
+      status: "ARCHIVED",
+      recordedAt: "2026-11-09T03:00:00Z",
+      lines: [{ installmentId: "i-1", amount: 100, milestone: "NEW_MILESTONE" }],
+    });
+    expect(receipt.status).toBe("UNKNOWN");
+    expect(receipt.lines[0]?.milestone).toBe("UNKNOWN");
+    const order = orderInstallmentsDtoSchema.parse({
+      orderId: "o-1",
+      orderNumber: "SO-1",
+      contractNumber: "HD-1",
+      paymentStatus: "OVERPAID",
+      total: 1,
+      paid: 1,
+      outstanding: 0,
+      onSigningPaid: true,
+      beforeDeliveryUnpaid: 0,
+      dueBeforeHandover: 0,
+      currency: "VND",
+      installments: [],
+    });
+    expect(order.paymentStatus).toBe("UNKNOWN");
+  });
+});
+
+describe("receiptDtoSchema — WF-05 Q-20 voidable / voidBlockedBy (G2, detail only)", () => {
+  const base = {
+    receiptId: "r-1",
+    customerId: "cu-1",
+    reference: "FT1",
+    receivedOn: "2026-11-09",
+    amount: 100,
+    currency: "VND",
+    status: "RECORDED",
+    recordedAt: "2026-11-09T03:00:00Z",
+    lines: [{ installmentId: "i-1", amount: 100 }],
+  };
+
+  it("keeps the flag and the blocker code as sent (an unknown code stays a string)", () => {
+    expect(
+      receiptDtoSchema.parse({
+        ...base,
+        voidable: false,
+        voidBlockedBy: "PAYMENT_RECEIPT_VOID_AFTER_HANDOVER",
+      }),
+    ).toMatchObject({ voidable: false, voidBlockedBy: "PAYMENT_RECEIPT_VOID_AFTER_HANDOVER" });
+    expect(
+      receiptDtoSchema.parse({ ...base, voidable: false, voidBlockedBy: "NEW" }).voidBlockedBy,
+    ).toBe("NEW");
+  });
+
+  it("the list sends neither (null / absent) and still parses", () => {
+    const row = receiptDtoSchema.parse({ ...base, voidable: null, voidBlockedBy: null });
+    expect(row.voidable).toBeNull();
+    expect(receiptDtoSchema.parse(base).voidable).toBeUndefined();
   });
 });

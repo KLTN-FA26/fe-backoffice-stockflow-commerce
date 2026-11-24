@@ -1,16 +1,18 @@
 /**
- * Điều kiện một đơn đã giao tự chuyển `Completed`, rồi `Closed` (docs 17 §4.6 bước 21–22; BE
- * `Order.complete()` / `Order.close()` gọi từ `OrderSettlementJob` lúc 00:30 mỗi đêm). Hàm thuần —
- * màn đơn dùng để giải thích vì sao đơn chưa hoàn tất; BE mới là bên quyết định.
+ * ƯỚC TÍNH DỰ PHÒNG điều kiện một đơn đã giao tự chuyển `Completed`, rồi `Closed` (docs 17 §4.6 bước 21–22; BE
+ * `Order.complete()` / `Order.close()` gọi từ `OrderSettlementJob` lúc 00:30 mỗi đêm). Hàm thuần.
  *
- * Khác docs 17 (3 điều kiện): BE thêm điều kiện "mọi lần giao đã có hoá đơn điện tử phát hành"
- * (WF-05 plan §4, điều kiện 5) — xem DOC-01.
+ * WF-05 BO-02: BE trả khối điều kiện của chính nó (`OrderResponse.settlementReadiness`, F-1) — khi có, màn đơn CHỈ hiển thị
+ * khối đó và không gọi hàm này (BO không tính lại luật BE đã tính). Hàm này chỉ chạy khi BE chưa trả khối (BE cũ), với
+ * hai sửa của C-7: hạn đổi trả lấy theo hợp đồng (mặc định 7), và đơn không có lịch thanh toán coi như không nợ. Những
+ * điều kiện còn thiếu so với BE (hoá đơn phí vận chuyển, điều kiện đóng của nhánh hoàn tiền) cố ý không bịa ở đây —
+ * màn ghi rõ đây là ước tính.
  */
 
 const DAY_MS = 86_400_000;
 /** Giờ Việt Nam: UTC+7, không đổi giờ (BE `BusinessCalendar.ZONE`). */
 const VN_OFFSET_MS = 7 * 3_600_000;
-/** BE `stockflow.order.return-window-days` / `close-after-days`. */
+/** Mặc định của BE `stockflow.order.return-window-days` (hợp đồng không ghi hạn) / `close-after-days`. */
 export const RETURN_WINDOW_DAYS = 7;
 export const CLOSE_AFTER_DAYS = 30;
 
@@ -29,8 +31,13 @@ export interface CompletionFacts {
   status: string;
   deliveredAt: string | null | undefined;
   completedAt: string | null | undefined;
-  /** Còn phải thu trên các đợt (null = chưa biết / không có đợt). */
+  /**
+   * Còn phải thu trên các đợt: 0 cả khi đơn KHÔNG có lịch thanh toán (BE: đơn không có đợt không "nợ" — C-7);
+   * null = chưa đọc được (đang tải / lỗi / không có quyền).
+   */
   outstanding: number | null;
+  /** Hạn đổi trả của hợp đồng (ngày); vắng / null → mặc định `RETURN_WINDOW_DAYS`. */
+  returnWindowDays?: number | null;
   /** Các lần giao đã giao thành công. */
   deliveredShipmentIds: readonly string[];
   /** Các lần giao đã có hoá đơn (gốc hoặc thay thế) `ISSUED`. */
@@ -77,14 +84,15 @@ function holdCheck(held: boolean | null | undefined): CompletionCheck[] {
  * "không bị giữ hoàn tất" khi màn biết tình trạng giữ (WF-05 GH-2).
  */
 export function completionChecks(facts: CompletionFacts, now = new Date()): CompletionCheck[] {
-  const windowEnd = facts.deliveredAt ? endOfDays(facts.deliveredAt, RETURN_WINDOW_DAYS) : null;
+  const windowDays = facts.returnWindowDays ?? RETURN_WINDOW_DAYS;
+  const windowEnd = facts.deliveredAt ? endOfDays(facts.deliveredAt, windowDays) : null;
   const missing = facts.deliveredShipmentIds.filter(
     (id) => !facts.invoicedShipmentIds.includes(id),
   );
   return [
     {
       key: "returnWindow",
-      label: `Hết hạn đổi / trả ${RETURN_WINDOW_DAYS} ngày`,
+      label: `Hết hạn đổi / trả ${windowDays} ngày`,
       met: windowEnd !== null && windowEnd.getTime() <= now.getTime(),
       detail: windowEnd
         ? `Hết hạn lúc 0 giờ ngày ${fmt(windowEnd)}`
@@ -112,7 +120,7 @@ export function completionChecks(facts: CompletionFacts, now = new Date()): Comp
   ];
 }
 
-/** Ngày đơn `Completed` sẽ tự đóng (`Closed`) — BE `Order.close`: hoàn tất + 30 ngày, không còn nợ. */
+/** Ngày đơn `Completed` sẽ tự đóng (`Closed`) — BE `Order.close`: hoàn tất + 30 ngày, không còn nợ. Chỉ dự phòng. */
 export function closingDate(completedAt: string): Date {
   return new Date(Date.parse(completedAt) + CLOSE_AFTER_DAYS * DAY_MS);
 }

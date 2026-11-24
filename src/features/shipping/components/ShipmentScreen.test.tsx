@@ -117,16 +117,38 @@ describe("ShipmentScreen — ghi nhận kết quả giao (BR-02)", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("giao thất bại rồi: giao lại / hoàn hàng; quản lý kho chỉ thấy hoàn hàng", async () => {
+  it("giao thất bại rồi: quản lý kho (UPDATE + APPROVE, seed BE) thấy giao lại / hoàn hàng", async () => {
+    renderShipment(
+      ACTORS.warehouseManagerFull,
+      shipment({ status: "DELIVERY_FAILED", failureReason: "REFUSED" }),
+    );
+    await screen.findByRole("button", { name: L.outcomeAction.RETURNED });
+    expect(screen.getByRole("button", { name: L.outcomeAction.DELIVERED })).toBeInTheDocument();
+    expect(screen.getByText("Khách từ chối nhận")).toBeInTheDocument();
+  });
+
+  it("WF-05 BO-05 (C-5): hộp thoại hàng hoàn về nói rõ phần hàng bị đóng, tiền tính lúc xác nhận phiếu, gửi lại = đơn mới", async () => {
+    renderShipment(
+      ACTORS.warehouseManagerFull,
+      shipment({ status: "DELIVERY_FAILED", failureReason: "REFUSED" }),
+    );
+    await userEvent.click(await screen.findByRole("button", { name: L.outcomeAction.RETURNED }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(/bị đóng khỏi đơn/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/xác nhận phiếu nhận hàng hoàn/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/tạo đơn mới/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/không sửa lại được/)).toBeInTheDocument();
+  });
+
+  it("WF-05 BO-05 (Q-7, F-6): chỉ có delivery-outcomes:UPDATE → KHÔNG ghi được hàng hoàn về, nói cần quyền phê duyệt", async () => {
     renderShipment(
       ACTORS.warehouseManager,
       shipment({ status: "DELIVERY_FAILED", failureReason: "REFUSED" }),
     );
-    await screen.findByRole("button", { name: L.outcomeAction.RETURNED });
+    expect(await screen.findByText(L.noActions.needsApproval)).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: L.outcomeAction.DELIVERED }),
+      screen.queryByRole("button", { name: L.outcomeAction.RETURNED }),
     ).not.toBeInTheDocument();
-    expect(screen.getByText("Khách từ chối nhận")).toBeInTheDocument();
   });
 
   it("nhân viên kho / chỉ xem / lô chưa bàn giao / lô đã kết thúc → không nút kết quả, kèm lý do", async () => {
@@ -448,6 +470,64 @@ describe("ShipmentScreen — sửa tay kết quả giao (docs 09 §4.3 bước 5
         deliveredAt: "2026-10-22T02:15:00.000Z",
       }),
     );
+  });
+
+  // Audit r3 EINV-1: X giao ngày D1 (hoá đơn gốc D1); D1 QLK sửa thành thất bại; D2 biết khách đã nhận → sửa ngược. Trước
+  // đây ô mặc định "bây giờ" (D2) → BE coi là lần giao mới: hoá đơn D1 bị giảm về 0 và lập hoá đơn D2 sai ngày.
+  describe("audit r3 EINV-1 — sửa ngược một lần thất bại vốn sửa từ đã giao", () => {
+    // D1 = 2026-10-22 10:00 giờ Việt Nam
+    const undone = () => ({ ...failed(), undoneDeliveredAt: "2026-10-22T03:00:00Z" });
+
+    it("ô điền sẵn thời điểm giao cũ; để nguyên thì không gửi deliveredAt (BE lấy lại đúng lần giao cũ), không cảnh báo", async () => {
+      const user = userEvent.setup();
+      const { post } = renderShipment(ACTORS.warehouseManagerFull, undone());
+      await user.click(await screen.findByRole("button", { name: C.action }));
+      const dialog = screen.getByRole("dialog");
+      expect(within(dialog).getByLabelText(O.deliveredAt)).toHaveValue("2026-10-22T10:00");
+      expect(within(dialog).getByText(C.deliveredAtUndoneHint)).toBeInTheDocument();
+      expect(within(dialog).queryByText(C.otherDayWarning)).not.toBeInTheDocument();
+      await user.type(
+        within(dialog).getByLabelText(new RegExp(C.reason)),
+        "Khách xác nhận đã nhận",
+      );
+      await user.click(within(dialog).getByRole("button", { name: C.submit }));
+      await waitFor(() =>
+        expect(post).toHaveBeenCalledWith(
+          `${PATH}/delivery-outcome-correction`,
+          expect.objectContaining({ outcome: "DELIVERED", deliveredAt: undefined }),
+        ),
+      );
+    });
+
+    it("đổi giờ cùng ngày: gửi giờ mới, không cảnh báo; đổi sang ngày khác: cảnh báo hoá đơn cũ bị giảm về 0", async () => {
+      const user = userEvent.setup();
+      const { post } = renderShipment(ACTORS.warehouseManagerFull, undone());
+      await user.click(await screen.findByRole("button", { name: C.action }));
+      const dialog = screen.getByRole("dialog");
+      const field = within(dialog).getByLabelText(O.deliveredAt);
+      fireEvent.change(field, { target: { value: "2026-10-22T15:30" } });
+      expect(within(dialog).queryByText(C.otherDayWarning)).not.toBeInTheDocument();
+      fireEvent.change(field, { target: { value: "2026-10-23T09:00" } });
+      expect(within(dialog).getByText(C.otherDayWarning)).toBeInTheDocument();
+      expect(C.otherDayWarning).toContain("hoá đơn cũ bị giảm về 0 và lập hoá đơn mới");
+      await user.type(within(dialog).getByLabelText(new RegExp(C.reason)), "Giao lại hôm sau");
+      await user.click(within(dialog).getByRole("button", { name: C.submit }));
+      await waitFor(() =>
+        expect(post).toHaveBeenCalledWith(
+          `${PATH}/delivery-outcome-correction`,
+          expect.objectContaining({ deliveredAt: "2026-10-23T02:00:00.000Z" }),
+        ),
+      );
+    });
+
+    it("không có lần giao bị sửa (BE cũ / thất bại do hãng): ô mặc định bây giờ, câu nói rõ BE tự lấy lại nếu có", async () => {
+      const user = userEvent.setup();
+      renderShipment(ACTORS.warehouseManagerFull, failed());
+      await user.click(await screen.findByRole("button", { name: C.action }));
+      const dialog = screen.getByRole("dialog");
+      expect(within(dialog).getByText(C.deliveredAtCorrectionHint)).toBeInTheDocument();
+      expect(within(dialog).queryByText(C.otherDayWarning)).not.toBeInTheDocument();
+    });
   });
 
   it("hộp thoại cao cuộn được, nút Lưu nằm ngoài vùng cuộn (màn thấp vẫn bấm được)", async () => {

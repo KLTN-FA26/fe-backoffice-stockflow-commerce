@@ -72,7 +72,8 @@ function useRequestOrderFacts(row: CancellationRequest, canOpenOrder: boolean) {
     orderNumber: row.orderNumber ?? order?.orderNumber ?? null,
     customerName: row.customerName ?? order?.customerName ?? null,
     total: row.orderTotal ?? order?.totalAmount ?? null,
-    paid: row.paidTotal ?? order?.paidAmount ?? null,
+    // `OrderResponse` không còn `paidAmount` (4B-10, WF-05 BO-08): chỉ số BE kèm trên dòng yêu cầu
+    paid: row.paidTotal ?? null,
     currency: order?.currency ?? "VND",
     status: row.orderStatus ? r5OrderStatus(row.orderStatus) : (order?.status ?? null),
   };

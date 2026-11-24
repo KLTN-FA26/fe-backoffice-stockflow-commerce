@@ -1,11 +1,12 @@
 /**
  * Hợp đồng — vòng đời + kiểm tra thuần (docs 14 §4.3, §5; BE `SalesContractStatus`, origin/develop 438fe6fb):
  *   (chưa có / CANCELLED) + đơn DRAFT → lập; DRAFT → sửa, gửi, huỷ; SENT → ghi nhận đã ký, huỷ;
- *   SIGNED / COMPLETED: chỉ xem, tải bản đã gửi / đã ký. Huỷ đưa đơn về DRAFT để lập lại.
+ *   SIGNED / COMPLETED / LIQUIDATED (thanh lý, WF-05 Q-6): chỉ xem, tải bản đã gửi / đã ký. Huỷ đưa đơn về DRAFT để
+ *   lập lại. Trạng thái lạ (UNKNOWN): không thao tác.
  * UI-only — Backend phải re-check (quyền sales-contracts CREATE / UPDATE / APPROVE).
  */
 
-import { SALES_CONTRACT_PERMISSIONS } from "@/constants";
+import { SALES_CONTRACT_PERMISSIONS, SALES_CONTRACT_SIGNED_STATUSES } from "@/constants";
 
 import { DEFAULT_ON_SIGNING_DUE_DAYS } from "./sales-contract-form";
 
@@ -19,9 +20,12 @@ export type ContractAction = "create" | "edit" | "send" | "sign" | "cancel" | "p
 export const CONTRACT_TRANSITIONS = {
   DRAFT: ["SENT", "CANCELLED"],
   SENT: ["SIGNED", "CANCELLED"],
-  SIGNED: ["COMPLETED"],
+  // LIQUIDATED: đơn kết thúc mà không giao được gì, đã xong tiền (Q-6, BE-06)
+  SIGNED: ["COMPLETED", "LIQUIDATED"],
   COMPLETED: [],
+  LIQUIDATED: [],
   CANCELLED: [],
+  UNKNOWN: [],
 } as const satisfies Record<SalesContract["status"], readonly SalesContract["status"][]>;
 
 export function allowedContractActions(
@@ -43,6 +47,34 @@ export function allowedContractActions(
   if (status === "SENT" && can(SALES_CONTRACT_PERMISSIONS.approve)) actions.push("sign");
   if (status === "SENT" && can(SALES_CONTRACT_PERMISSIONS.update)) actions.push("cancel");
   return actions;
+}
+
+/** Đơn không còn giao / thu gì thêm — BE `ContractPaperService.ended` (COMPLETED, CANCELLED, CLOSED, REFUNDED, PARTIALLY_REFUNDED). */
+const CONTRACT_ENDED_ORDER_STATUSES: readonly Order["status"][] = [
+  "Completed",
+  "Cancelled",
+  "Closed",
+  "Refunded",
+  "Partially Refunded",
+];
+
+/**
+ * Giấy tờ sau ký (BE `feat/business-documents`, endpoints #1, #2): phụ lục chỉ khi BE báo `appendixAvailable` (đã ký và
+ * có đợt giao đang hiệu lực khác cửa sổ đã ký — đúng điều kiện GET …/appendix trả 200); biên bản thanh lý khi đã ký VÀ
+ * hợp đồng đã kết thúc (Hoàn tất / Thanh lý) hoặc đơn đã kết thúc. BE còn từ chối khi số "Còn lại" khác 0 (owner
+ * 2026-11-23, `details.reason` NOT_SETTLED) — FE không tính lại, hiện câu lỗi có số tiền. Quyền `sales-contracts:READ` do
+ * nút kiểm. UI-only — Backend re-check.
+ */
+export function contractPapers(
+  contract: Pick<SalesContract, "status" | "appendixAvailable">,
+  orderStatus: Order["status"],
+): { appendix: boolean; liquidation: boolean } {
+  const signed = (SALES_CONTRACT_SIGNED_STATUSES as readonly string[]).includes(contract.status);
+  const ended =
+    contract.status === "COMPLETED" ||
+    contract.status === "LIQUIDATED" ||
+    CONTRACT_ENDED_ORDER_STATUSES.includes(orderStatus);
+  return { appendix: signed && contract.appendixAvailable, liquidation: signed && ended };
 }
 
 export interface CartonGap {

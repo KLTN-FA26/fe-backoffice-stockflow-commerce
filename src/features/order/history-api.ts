@@ -60,6 +60,8 @@ export function toOrderHistoryEntry(dto: OrderHistoryEntryDto): OrderHistoryEntr
       to: newAddress,
     };
   }
+  // WF-05 BE-52 (TT-3): phiếu hoàn tiền bị huỷ khi còn yêu cầu trả hàng mở — không đổi trạng thái
+  if (dto.type === "REFUND_VOIDED") return { ...base, kind: "refund-voided" };
   if (dto.type === "STATUS_CHANGE" && dto.to) {
     return {
       ...base,

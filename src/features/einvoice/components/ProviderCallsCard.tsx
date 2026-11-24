@@ -25,7 +25,10 @@ const OUTCOME: Record<string, string> = {
   NOT_SUPPORTED: "Không hỗ trợ",
 };
 
-/** Nhật ký gọi nhà cung cấp (docs 21 §3 Output, BR-10) — cũ nhất trước. */
+/**
+ * Nhật ký gọi nhà cung cấp (docs 21 §3 Output, BR-10) — cũ nhất trước. `providerReference` (BO-09) là mã bộ phận hỗ
+ * trợ của NCC hỏi trước khi trả lời về một hoá đơn (vd khi rút, WF-05 Q-5).
+ */
 export function ProviderCallsCard({ id }: { id: string }) {
   const query = useProviderCalls(id);
   const calls = query.data ?? [];
@@ -51,6 +54,11 @@ export function ProviderCallsCard({ id }: { id: string }) {
               <span>{OPERATION[call.operation] ?? call.operation}</span>
               <span className="font-medium">{OUTCOME[call.outcome] ?? call.outcome}</span>
               {call.errorCode && <span className="text-danger font-mono">{call.errorCode}</span>}
+              {call.providerReference && (
+                <span className="text-ink-secondary font-mono">
+                  Mã theo dõi của NCC: {call.providerReference}
+                </span>
+              )}
               {call.transactionId && (
                 <span className="text-ink-tertiary ml-auto font-mono">{call.transactionId}</span>
               )}

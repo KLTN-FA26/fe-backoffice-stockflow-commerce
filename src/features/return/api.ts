@@ -8,7 +8,12 @@ import { uploadSlotSchema } from "@/lib/api/direct-upload";
 
 import { evidenceLinkDtoSchema, returnPageDtoSchema, returnRequestDtoSchema } from "./schemas";
 
-import type { ReturnApiStatus, ReturnReason } from "@/constants/returns";
+import type {
+  ReturnApiStatus,
+  ReturnCustodyChoice,
+  ReturnReason,
+  ReturnRefusalReason,
+} from "@/constants/returns";
 import type { UploadDeclaration, UploadSlot } from "@/lib/api/direct-upload";
 import type { ListQueryParams, PaginatedResponse } from "@/lib/api/query-factory";
 import type { ReturnRequest, ReturnRow } from "./types";
@@ -108,17 +113,25 @@ export const openReturnForCustomer = (input: {
     ...optional("lateClaimReason", input.lateClaimReason),
   });
 
-/** Đề xuất hoàn tiền của yêu cầu RECEIVED (Sale) — chờ người khác duyệt. */
+/**
+ * Đề xuất hoàn tiền của yêu cầu RECEIVED (Sale) — chờ người khác duyệt. WF-05 Q-4 (BE-12, F-20): mọi dòng 0 là đề xuất
+ * không hoàn tiền, kèm `refusalReason` (danh sách cố định) và `refusalNote` (khách đọc được — tên trường giả định, BE G4
+ * chốt). Luôn gửi `lines` (BE hiểu "không có dòng" là hoàn đủ mọi đơn vị đã duyệt và đã về).
+ */
 export const proposeRefund = (input: {
   id: string;
   version: number;
   lines: { lineId: string; quantity: number }[];
   note?: string;
+  refusalReason?: ReturnRefusalReason;
+  refusalNote?: string;
 }) =>
   post(`${RETURNS}/${seg(input.id)}/resolution`, {
     lines: input.lines,
     version: input.version,
     ...optional("note", input.note),
+    ...(input.refusalReason ? { refusalReason: input.refusalReason } : {}),
+    ...(input.refusalReason ? optional("refusalNote", input.refusalNote) : {}),
   });
 
 /**
@@ -162,6 +175,62 @@ export async function beginReturnEvidenceUpload(
 /** Bước 3: gắn ảnh đã PUT lên kho vào yêu cầu (BE `POST /returns/{id}/evidence` `{uploadId}`, gửi lại cùng id = như cũ). */
 export const attachReturnEvidence = (input: { id: string; uploadId: string }) =>
   post(`${RETURNS}/${seg(input.id)}/evidence`, { uploadId: input.uploadId });
+
+/**
+ * Biên nhận giữ hộ, bước 1 (WF-05 Q-11; BE G4 `POST /returns/{id}/custody/uploads`, `sales-rmas:CREATE`): xin đường PUT
+ * cho ảnh hàng giữ hộ.
+ */
+export async function beginCustodyUpload(
+  returnId: string,
+  declaration: UploadDeclaration,
+  signal?: AbortSignal,
+): Promise<UploadSlot> {
+  const { data } = await api.post<unknown>(
+    `${RETURNS}/${seg(returnId)}/custody/uploads`,
+    declaration,
+    { signal },
+  );
+  return uploadSlotSchema.parse(data);
+}
+
+/**
+ * Biên nhận giữ hộ, bước 3 (BE G4 `POST /returns/{id}/custody` `{uploadId, sku?, lpn?, quantity, note?}`): hàng về mà
+ * phiếu nhập không nhận (SKU không được duyệt — `RETURN_CARTON_NOT_CLAIMED`; vượt số duyệt; kiện về sau khi đã chốt tiền).
+ * Ghi được ở mọi trạng thái; không nhập tồn, không hoàn, không điều chỉnh hoá đơn.
+ */
+export const addCustody = (input: {
+  id: string;
+  uploadId: string;
+  sku?: string;
+  lpn?: string;
+  quantity: number;
+  note?: string;
+}) =>
+  post(`${RETURNS}/${seg(input.id)}/custody`, {
+    uploadId: input.uploadId,
+    ...optional("sku", input.sku),
+    ...optional("lpn", input.lpn),
+    quantity: input.quantity,
+    ...optional("note", input.note),
+  });
+
+/**
+ * Sale ghi lựa chọn của khách cho hàng giữ hộ (WF-05 Q-4, audit r2 returns H1; BE `POST /returns/{id}/custody-choice`,
+ * `sales-rmas:UPDATE`): chỉ yêu cầu RESOLVED không hoàn đơn vị nào và có thùng đang giữ hộ. Huỷ hộ bắt buộc ghi chú (biên
+ * bản khách đồng ý). Ghi lại thay lựa chọn cũ khi kho chưa thực hiện. 409 RETURN_INVALID_TRANSITION /
+ * INVALID_STOCK_PACKAGE_TRANSITION (đã thực hiện) / OPTIMISTIC_LOCK; 400 VALIDATION_FAILED.
+ */
+export const recordCustodyChoice = (input: {
+  id: string;
+  version: number;
+  choice: ReturnCustodyChoice;
+  note?: string;
+}) =>
+  post(`${RETURNS}/${seg(input.id)}/custody-choice`, {
+    choice: input.choice,
+    version: input.version,
+    ...optional("note", input.note),
+  });
 
 export const approveSettlement = (input: { id: string; version: number }) =>
   post(`${RETURNS}/${seg(input.id)}/settlement-approval`, { version: input.version });

@@ -9,7 +9,7 @@ import { formatDate, formatDateTime } from "@/lib/format/date";
 import { StatusDot } from "@/components/shared/StatusDot";
 
 import type { ReactNode } from "react";
-import type { ReturnApiStatus, ReturnReceiptApiStatus } from "@/constants/returns";
+import type { ReturnReadStatus, ReturnReceiptReadStatus } from "@/constants/returns";
 import type { LoadErrorCopy } from "@/components/backoffice/LoadErrorState";
 
 /** Số / mã: mono, tabular — cột số căn phải (data-table-mode-a). */
@@ -32,11 +32,12 @@ export const RETURN_RECEIPT_COPY: LoadErrorCopy = {
   noReadDescription: RETURN_RECEIPT_LABELS.noReadDescription,
 };
 
-export function ReturnStatusDot({ status }: { status: ReturnApiStatus }) {
+/** Trạng thái lạ (UNKNOWN) hiện "Không rõ" (status-map), không làm hỏng màn (WF-05 BO-11). */
+export function ReturnStatusDot({ status }: { status: ReturnReadStatus }) {
   return <StatusDot domain="rma" status={RETURN_STATUS_BY_API[status]} />;
 }
 
-export function ReturnReceiptStatusDot({ status }: { status: ReturnReceiptApiStatus }) {
+export function ReturnReceiptStatusDot({ status }: { status: ReturnReceiptReadStatus }) {
   return <StatusDot domain="receipt" status={RETURN_RECEIPT_STATUS_BY_API[status]} />;
 }
 

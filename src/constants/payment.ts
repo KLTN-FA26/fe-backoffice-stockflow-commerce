@@ -82,6 +82,12 @@ export const PAYMENT_ROUTES = {
 /* ── Trạng thái (docs 15 §5.1, §5.2, §5.3 — nguyên văn) ─────────────────────────────────── */
 
 /**
+ * Giá trị BE thêm sau mà FE chưa biết (trạng thái đợt / phiếu / hoàn, mốc, loại tính hoàn) đọc về thành `UNKNOWN` (WF-05
+ * BO-11, audit C-32): hiển thị "Không rõ", không mở thao tác nào. KHÔNG bao giờ gửi lên BE (bộ lọc dùng kiểu `…ApiStatus`).
+ */
+export const PAYMENT_UNKNOWN = "UNKNOWN" as const;
+
+/**
  * BE `InstallmentStatus`; `Cancelled` bổ sung ngoài danh sách đã chốt (docs 15 §5.1, 2026-11-05). Quá hạn
  * KHÔNG phải trạng thái: là cờ `overdue: boolean` của đợt (plan WF-02 F1).
  */
@@ -93,6 +99,7 @@ export const INSTALLMENT_API_STATUSES = [
   "CANCELLED",
 ] as const;
 export type InstallmentApiStatus = (typeof INSTALLMENT_API_STATUSES)[number];
+export type InstallmentReadStatus = InstallmentApiStatus | typeof PAYMENT_UNKNOWN;
 /**
  * Trạng thái lọc được ở `GET /installments`. Quá hạn là CỜ `overdue` tính từ hạn trả khi đọc (WF-05 fix
  * plan §8) — `status=OVERDUE` bị BE trả 400 `INSTALLMENT_OVERDUE_IS_A_FLAG`; lọc quá hạn bằng `overdue=true`.
@@ -110,9 +117,11 @@ export const INSTALLMENT_STATUS_BY_API = {
   PARTIALLY_PAID: "Partially Paid",
   PAID: "Paid",
   CANCELLED: "Cancelled",
-} as const satisfies Record<InstallmentApiStatus, string>;
+  // status-map: "UNKNOWN" → "Không rõ"
+  UNKNOWN: "UNKNOWN",
+} as const satisfies Record<InstallmentReadStatus, string>;
 /** Trạng thái HIỂN THỊ: đợt còn nợ có cờ `overdue` hiện "Overdue" (chỉ để vẽ, không gửi lên BE). */
-export type InstallmentDisplayStatus = InstallmentApiStatus | "OVERDUE";
+export type InstallmentDisplayStatus = InstallmentReadStatus | "OVERDUE";
 export const INSTALLMENT_DISPLAY_STATUS_BY_API = {
   ...INSTALLMENT_STATUS_BY_API,
   OVERDUE: "Overdue",
@@ -131,6 +140,7 @@ export const INSTALLMENT_MILESTONES = [
   "FAILED_TRIP_FEE",
 ] as const;
 export type InstallmentMilestone = (typeof INSTALLMENT_MILESTONES)[number];
+export type InstallmentReadMilestone = InstallmentMilestone | typeof PAYMENT_UNKNOWN;
 
 /** Trạng thái đợt còn nhận tiền: chưa `Paid` / `Cancelled` (docs 15 BR-05; BE `InstallmentStatus.takesMoney`). */
 export const INSTALLMENT_PAYABLE_STATUSES = [
@@ -142,27 +152,41 @@ export const INSTALLMENT_PAYABLE_STATUSES = [
 /** Phiếu thu và ghi nhận hoàn (docs 15 §5.3): `Recorded` → `Voided`. */
 export const RECEIPT_API_STATUSES = ["RECORDED", "VOIDED"] as const;
 export type ReceiptApiStatus = (typeof RECEIPT_API_STATUSES)[number];
+export type ReceiptReadStatus = ReceiptApiStatus | typeof PAYMENT_UNKNOWN;
 export const RECEIPT_STATUS_BY_API = {
   RECORDED: "Recorded",
   VOIDED: "Voided",
-} as const satisfies Record<ReceiptApiStatus, string>;
+  UNKNOWN: "UNKNOWN",
+} as const satisfies Record<ReceiptReadStatus, string>;
 
 /** Trạng thái thanh toán của đơn — tính từ các đợt, không lưu (docs 15 §5.2). */
 export const ORDER_PAYMENT_API_STATUSES = ["UNPAID", "PARTIALLY_PAID", "PAID"] as const;
 export type OrderPaymentApiStatus = (typeof ORDER_PAYMENT_API_STATUSES)[number];
+export type OrderPaymentReadStatus = OrderPaymentApiStatus | typeof PAYMENT_UNKNOWN;
 export const ORDER_PAYMENT_STATUS_BY_API = {
   UNPAID: "Unpaid",
   PARTIALLY_PAID: "Partially Paid",
   PAID: "Paid",
-} as const satisfies Record<OrderPaymentApiStatus, string>;
+  UNKNOWN: "UNKNOWN",
+} as const satisfies Record<OrderPaymentReadStatus, string>;
 
 /** Tình trạng hoàn tiền của đơn — tính ra, không lưu (docs 15 §5.3). */
 export const REFUND_API_STATUSES = ["NONE", "PENDING", "PARTIALLY_REFUNDED", "REFUNDED"] as const;
 export type RefundApiStatus = (typeof REFUND_API_STATUSES)[number];
+export type RefundReadStatus = RefundApiStatus | typeof PAYMENT_UNKNOWN;
 
-/** Nguồn của một lần tính hoàn (BE `OrderSettlement.Kind`; docs 15 §4.5, §4.6): huỷ đơn, đóng phần còn lại, trả hàng. */
-export const SETTLEMENT_KINDS = ["ORDER_CANCELLED", "REMAINDER_CLOSED", "GOODS_RETURNED"] as const;
+/**
+ * Nguồn của một lần tính hoàn (BE `OrderSettlement.Kind`; docs 15 §4.5, §4.6): huỷ đơn, đóng phần còn lại, trả hàng, và
+ * (WF-05 Q-2, BE-03) lô hãng hoàn về / thất lạc — tính như khách trả hàng: đợt của chính lô trước, rồi nợ cũ, thừa thì hoàn.
+ */
+export const SETTLEMENT_KINDS = [
+  "ORDER_CANCELLED",
+  "REMAINDER_CLOSED",
+  "GOODS_RETURNED",
+  "SHIPMENT_RETURNED",
+] as const;
 export type SettlementKind = (typeof SETTLEMENT_KINDS)[number];
+export type SettlementReadKind = SettlementKind | typeof PAYMENT_UNKNOWN;
 
 /* ── Giới hạn (BE `RecordReceiptRequest`, `VoidReceiptRequest`, `RecordRefundRequest`) ────── */
 

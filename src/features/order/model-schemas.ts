@@ -9,7 +9,8 @@ import {
   ORDER_HOLD_REASONS,
   ORDER_SHIPMENT_READ_STATUSES,
 } from "@/constants/labels-order";
-import { ORDER_PAYMENT_READ_STATUSES, ORDER_PAYMENT_TERMS } from "@/constants/orders";
+import { SETTLEMENT_BLOCKERS, SETTLEMENT_BRANCHES } from "@/constants/labels-order-settlement";
+import { ORDER_PAYMENT_TERMS } from "@/constants/orders";
 import { ORDER_READ_STATUSES, ORDER_STATUS_UNKNOWN, QUOTE_FEE_KINDS } from "@/constants/statuses";
 
 import { orderDeliveryModeDtoSchema } from "./delivery-mode-schemas";
@@ -48,14 +49,42 @@ export const orderLineSchema = z.object({
 export const orderShipmentSchema = z.object({
   shipmentId: z.string(),
   status: z.enum(ORDER_SHIPMENT_READ_STATUSES),
-  amount: z.number().nullable(),
-  billedAmount: z.number().nullable(),
   handedOverAt: z.string().nullable(),
   outcomeAt: z.string().nullable(),
   failureReason: orderDeliveryFailureReasonSchema.nullable(),
   /** Rỗng khi BE không gửi `lines`. */
   lines: z.array(orderShipmentLineDtoSchema),
-  codAmount: z.number().nullable(),
+  /** Q-12: BE nói lô còn đóng được như thất lạc; null = BE chưa trả (luật dự phòng ở `canCloseLostShipment`). */
+  lostClosable: z.boolean().nullable(),
+});
+
+/**
+ * Khối điều kiện hoàn tất / đóng đơn do BE tính (F-1, `schemas.ts#settlementReadinessDtoSchema`). Mã chặn đã biết có
+ * `known: true`; mã BE thêm sau giữ nguyên chuỗi với `known: false`.
+ */
+export const settlementReadinessSchema = z.object({
+  branch: z.enum([...SETTLEMENT_BRANCHES, ORDER_STATUS_UNKNOWN]),
+  returnWindowDays: z.number().int().nullable(),
+  returnWindowEndsAt: z.string().nullable(),
+  owing: z.boolean(),
+  openReturn: z.boolean(),
+  uninvoicedShipmentIds: z.array(z.string()),
+  shippingFeeUninvoiced: z.boolean(),
+  refundOutstanding: z.boolean(),
+  completionHeld: z.boolean(),
+  completesAt: z.string().nullable(),
+  closesAt: z.string().nullable(),
+  blockers: z.array(
+    z.union([
+      z.object({ code: z.enum(SETTLEMENT_BLOCKERS), known: z.literal(true) }),
+      z.object({ code: z.string(), known: z.literal(false) }),
+    ]),
+  ),
+  returnAdjustmentUnissued: z.boolean(),
+  /** Sale giữ hoàn tất được ngay (BE `completionHoldable`). */
+  completionHoldable: z.boolean(),
+  /** Audit r3 EINV-7: còn bản giảm do giao không thành công chưa phát hành — dòng thông tin, không chặn. */
+  deliveryReductionUnissued: z.boolean(),
 });
 
 /** Dòng phí của đơn (4B-3); field BE vắng → null. */
@@ -102,10 +131,8 @@ export const orderSchema = z.object({
   shippingAddressText: z.string().nullable(),
   lines: z.array(orderLineSchema),
   // Thanh toán / release / huỷ (SCRUM-423/427/460)
+  // Đã thu / trạng thái thanh toán BE bỏ khỏi đơn (4B-10) — đọc từ `GET /installments/orders/{id}` (WF-05 BO-08)
   paymentTerm: z.enum(ORDER_PAYMENT_TERMS).nullable(),
-  paymentStatus: z.enum(ORDER_PAYMENT_READ_STATUSES).nullable(),
-  paidAmount: z.number().nullable(),
-  paidInFullAt: z.string().nullable(),
   /** Số ngày trả sau khi giao (đơn CREDIT, hoặc đơn cọc ON_CREDIT); null nếu khác. */
   creditTermDays: z.number().int().nullable(),
   /** null khi đơn không cọc (hoặc dòng danh sách không mang field này). */
@@ -128,11 +155,17 @@ export const orderSchema = z.object({
   deliveryFailureReason: orderDeliveryFailureReasonSchema.nullable(),
   completedAt: z.string().nullable(),
   closedAt: z.string().nullable(),
-  billedAmount: z.number().nullable(),
+  /** F-1: lúc tiền hoàn đã chi xong; null khi BE chưa trả / chưa hoàn. */
+  refundedAt: z.string().nullable(),
+  /** F-1: khối điều kiện hoàn tất / đóng của BE; null khi BE không trả (chưa giao gì, dòng danh sách, BE cũ). */
+  settlementReadiness: settlementReadinessSchema.nullable(),
+  /**
+   * WF-05 Q-12 (BE 6bbfa15b `OrderResponse.version`): phiên bản khoá lạc quan của đơn — gửi lại làm `version` khi đóng
+   * phần thất lạc (409 OPTIMISTIC_LOCK khi đơn đã đổi). null khi BE không trả (cổng khách, BE cũ).
+   */
+  version: z.number().int().nullable(),
   effectiveTotal: z.number().nullable(),
-  amountDue: z.number().nullable(),
   amountDueBeforeHandover: z.number().nullable(),
-  amountDueOnDelivery: z.number().nullable(),
   /** 4B-3: tổng trước thuế / VAT; null khi BE không trả (dòng danh sách, đơn cũ). */
   netAmount: z.number().nullable(),
   taxAmount: z.number().nullable(),

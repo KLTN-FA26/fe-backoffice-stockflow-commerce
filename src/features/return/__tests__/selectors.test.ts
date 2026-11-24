@@ -3,10 +3,14 @@ import { describe, expect, it } from "vitest";
 import { isReturnOpen } from "../lifecycle";
 import {
   claimedUnits,
+  claimEvidence,
+  custodyEvidence,
   openCaps,
   openLines,
   proposedValue,
+  proposesNoRefund,
   refundableUnits,
+  returnOutcome,
   scanProgress,
 } from "../selectors";
 
@@ -30,6 +34,55 @@ describe("claimedUnits (BE ReturnLine.claimedUnits)", () => {
     expect(claimedUnits(l, "AWAITING_RETURN")).toBe(6);
     expect(claimedUnits(l, "RESOLVED")).toBe(4);
     expect(claimedUnits(l, "REJECTED")).toBe(0);
+  });
+
+  it("WF-05 BE-21 (as BE G4): goods back in the warehouse always count — even after expiry, rejection or a 0 refund", () => {
+    const back = line({ approvedQuantity: 6, receivedQuantity: 5, refundQuantity: 0 });
+    expect(claimedUnits(back, "RESOLVED")).toBe(5);
+    expect(claimedUnits(back, "EXPIRED")).toBe(5);
+    expect(claimedUnits(back, "CANCELLED")).toBe(5);
+    expect(claimedUnits(back, "REJECTED")).toBe(5);
+    expect(claimedUnits(line({ requestedQuantity: 2, receivedQuantity: 3 }), "REQUESTED")).toBe(3);
+    // a status the FE does not know: the largest known count (stricter cap, BE re-checks)
+    expect(claimedUnits(back, "UNKNOWN")).toBe(10);
+  });
+});
+
+describe("WF-05 Q-4: refusal and outcome read by units, as the BE does", () => {
+  const ret = (over: Record<string, unknown> = {}) => ({
+    status: "RESOLVED" as const,
+    outcome: null,
+    refusalReason: null,
+    resolution: null,
+    lines: [line({ refundQuantity: 0 })],
+    ...over,
+  });
+
+  it("a proposal of no unit is a refusal; a partial one with a reason still refunds", () => {
+    expect(proposesNoRefund(ret())).toBe(true);
+    expect(proposesNoRefund(ret({ lines: [line({ refundQuantity: 2 })] }))).toBe(false);
+  });
+
+  it("the BE outcome wins; an old BE: units refunded → REFUNDED, else REFUSED with a reason, else nothing to refund", () => {
+    expect(returnOutcome(ret({ outcome: "REFUSED" }))).toBe("REFUSED");
+    // units refunded worth 0 (nothing paid on the order) is still a refund
+    expect(returnOutcome(ret({ lines: [line({ refundQuantity: 2, refundAmount: 0 })] }))).toBe(
+      "REFUNDED",
+    );
+    expect(returnOutcome(ret({ refusalReason: "NOT_DEFECTIVE" }))).toBe("REFUSED");
+    expect(returnOutcome(ret())).toBe("NOTHING_TO_REFUND");
+    expect(returnOutcome(ret({ status: "SETTLEMENT_PENDING" }))).toBeNull();
+  });
+});
+
+describe("WF-05 Q-11: custody notes are not claim photos", () => {
+  it("splits the photos by stage", () => {
+    const evidence = [
+      { id: "a", stage: "CLAIM", uploadedAt: "2026-11-24T00:00:00Z" },
+      { id: "b", stage: "CUSTODY", uploadedAt: "2026-11-24T00:00:00Z" },
+    ];
+    expect(claimEvidence({ evidence }).map((e) => e.id)).toEqual(["a"]);
+    expect(custodyEvidence({ evidence }).map((e) => e.id)).toEqual(["b"]);
   });
 });
 

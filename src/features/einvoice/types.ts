@@ -20,8 +20,11 @@ import type {
   einvoiceSettingsDtoSchema,
   errorNoticeDtoSchema,
   fileLinkDtoSchema,
+  mailResendDtoSchema,
+  orderReturnChoiceDtoSchema,
   providerCallDtoSchema,
   registerEntryDtoSchema,
+  signatureDtoSchema,
 } from "./schemas";
 
 export type EInvoice = z.infer<typeof einvoiceDtoSchema>;
@@ -33,6 +36,9 @@ export type ErrorNotice = z.infer<typeof errorNoticeDtoSchema>;
 export type RegisterEntry = z.infer<typeof registerEntryDtoSchema>;
 export type EInvoiceSettings = z.infer<typeof einvoiceSettingsDtoSchema>;
 export type EInvoiceProvider = z.infer<typeof einvoiceProviderDtoSchema>;
+export type EInvoiceSignature = z.infer<typeof signatureDtoSchema>;
+export type OrderReturnChoice = z.infer<typeof orderReturnChoiceDtoSchema>;
+export type MailResend = z.infer<typeof mailResendDtoSchema>;
 
 export type VoidDraftInput = z.output<typeof voidDraftInputSchema>;
 export type ReviseDraftFormValues = z.input<typeof reviseDraftInputSchema>;

@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PackagePlus } from "lucide-react";
 
 import { RETURN_RECEIPT_LABELS } from "@/constants/labels-return";
 import { RETURN_LIMITS } from "@/constants/returns";
+import { DirectUploadError, uploadFileDirect } from "@/lib/api/direct-upload";
 import { ApiError } from "@/lib/api/error";
 import { Card } from "@/components/shared/Card";
 import { FormField, fieldA11y } from "@/components/shared/FormField";
@@ -15,9 +16,11 @@ import { Notice } from "@/components/shared/Notice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-import { returnErrorMessage } from "../errors";
+import { returnEvidenceErrorMessage } from "../errors";
 import { looseLineInputSchema } from "../input-schemas";
 import { useRecordLooseLine, useRemoveLooseLine } from "../mutations";
+import { attachLoosePhoto, beginLoosePhotoUpload } from "../receipt-api";
+import { loosePhotoProblem } from "../selectors";
 
 import { EMPTY, MONO } from "./primitives";
 
@@ -25,13 +28,28 @@ import type { LooseLineFormValues, ReturnReceipt } from "../types";
 
 const D = RETURN_RECEIPT_LABELS.detail.loose;
 const TH = "py-1 pr-3 font-medium";
-/** BE trả VALIDATION_FAILED chung khi SKU không thuộc đơn. */
-const looseErrorMessage = (failure: unknown) =>
-  failure instanceof ApiError && failure.code === "VALIDATION_FAILED"
-    ? D.invalid
-    : returnErrorMessage(failure);
+
+/**
+ * BE trả VALIDATION_FAILED chung khi SKU không thuộc đơn; ảnh của phiếu nhập chỉ nhận JPEG / PNG ≤ 20 MB (khác ảnh khiếu
+ * nại). Còn lại: lỗi PUT lên kho, hoặc theo mã BE.
+ */
+function looseErrorMessage(failure: unknown): string {
+  if (failure instanceof ApiError) {
+    if (failure.code === "VALIDATION_FAILED") return D.invalid;
+    if (failure.code === "UNSUPPORTED_MEDIA_TYPE") return D.photoWrongType;
+    if (failure.code === "PAYLOAD_TOO_LARGE") return D.photoTooLarge;
+    if (failure.code === "GOODS_RECEIPT_PHOTO_LIMIT_REACHED") return D.photoLimit;
+  }
+  return returnEvidenceErrorMessage(failure);
+}
 
 function LooseLineForm({ receiptId }: { receiptId: string }) {
+  const photoId = useId();
+  const photoRef = useRef<HTMLInputElement>(null);
+  const controller = useRef<AbortController | null>(null);
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const record = useRecordLooseLine();
   const form = useForm<LooseLineFormValues>({
@@ -39,21 +57,47 @@ function LooseLineForm({ receiptId }: { receiptId: string }) {
     defaultValues: { sku: "", lotNumber: "", quantity: Number.NaN },
   });
   const { errors } = form.formState;
-  const submit = form.handleSubmit((values) => {
+
+  useEffect(() => () => controller.current?.abort(), []);
+
+  const resetPhoto = () => {
+    setPhoto(null);
+    if (photoRef.current) photoRef.current.value = "";
+  };
+
+  // WF-05 Q-18: ảnh bắt buộc — tải ảnh thẳng lên kho, giữ thành ảnh nhận hàng của phiếu, rồi ghi dòng kèm `photoId`
+  // handleSubmit chạy trong sự kiện submit, không lúc render (react-hooks/refs: hàm dùng ref)
+  const onValid = async (values: LooseLineFormValues) => {
     setError(null);
-    record.mutate(
-      { id: receiptId, ...values },
-      {
-        onSuccess: () => form.reset(),
-        onError: (failure) => setError(looseErrorMessage(failure)),
-      },
-    );
-  });
+    const problem = loosePhotoProblem(photo);
+    setPhotoError(problem);
+    if (problem || !photo) return;
+    const current = new AbortController();
+    controller.current = current;
+    setUploading(true);
+    try {
+      const uploadId = await uploadFileDirect({
+        file: photo,
+        signal: current.signal,
+        declare: (declaration, signal) => beginLoosePhotoUpload(receiptId, declaration, signal),
+      });
+      const photoId = await attachLoosePhoto(receiptId, uploadId);
+      await record.mutateAsync({ id: receiptId, ...values, photoId });
+      form.reset();
+      resetPhoto();
+    } catch (failure: unknown) {
+      if (!(failure instanceof DirectUploadError && failure.kind === "aborted"))
+        setError(looseErrorMessage(failure));
+    } finally {
+      setUploading(false);
+    }
+  };
+  const busy = uploading || record.isPending;
 
   return (
     <form
-      className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_7rem_auto] sm:items-end"
-      onSubmit={(event) => void submit(event)}
+      className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_7rem] sm:items-end"
+      onSubmit={(event) => void form.handleSubmit(onValid)(event)}
       noValidate
     >
       <FormField id="rr-loose-sku" label={D.sku} required error={errors.sku?.message}>
@@ -83,11 +127,29 @@ function LooseLineForm({ receiptId }: { receiptId: string }) {
           {...form.register("quantity", { valueAsNumber: true })}
         />
       </FormField>
-      <Button type="submit" size="sm" disabled={record.isPending}>
-        <PackagePlus className="size-3.5" aria-hidden /> {D.add}
+      <div className="sm:col-span-2">
+        <FormField id={photoId} label={D.photo} required error={photoError ?? undefined}>
+          <input
+            ref={photoRef}
+            type="file"
+            accept={RETURN_LIMITS.loosePhotoTypes.join(",")}
+            capture="environment"
+            disabled={busy}
+            className="text-[0.8125rem]"
+            {...fieldA11y(photoId, photoError ?? undefined)}
+            onChange={(event) => {
+              const file = event.target.files?.[0] ?? null;
+              setPhoto(file);
+              setPhotoError(file ? loosePhotoProblem(file) : null);
+            }}
+          />
+        </FormField>
+      </div>
+      <Button type="submit" size="sm" disabled={busy}>
+        <PackagePlus className="size-3.5" aria-hidden /> {uploading ? D.photoUploading : D.add}
       </Button>
       {error && (
-        <div className="sm:col-span-4">
+        <div className="sm:col-span-3">
           <Notice tone="danger" live>
             {error}
           </Notice>
@@ -99,8 +161,9 @@ function LooseLineForm({ receiptId }: { receiptId: string }) {
 
 /**
  * Hàng lẻ không nhãn thùng của phiếu (WF-05 TH-4; BE `/goods-receipts/returns/{id}/loose-lines`): ghi trên phiếu, không
- * nhập tồn, tính là đã về cho yêu cầu trả hàng. `editable` = phiếu nháp của một yêu cầu trả hàng và có quyền sửa
- * (`allowedReturnReceiptActions` → `loose`).
+ * nhập tồn, tính là đã về cho yêu cầu trả hàng. WF-05 Q-18: ảnh bắt buộc, tối đa số đã duyệt còn lại (BE kiểm); phiếu có
+ * hàng lẻ do Quản lý kho (khác người đếm) xác nhận. `editable` = phiếu nháp của một yêu cầu trả hàng
+ * và có quyền sửa (`allowedReturnReceiptActions` → `loose`).
  */
 export function ReturnLooseLines({
   receipt,
@@ -134,6 +197,9 @@ export function ReturnLooseLines({
               <th scope="col" className={`${TH} text-right`}>
                 {D.quantity}
               </th>
+              <th scope="col" className={TH}>
+                {D.photoColumn}
+              </th>
               {editable && <th scope="col" className={TH} aria-label={D.remove} />}
             </tr>
           </thead>
@@ -143,6 +209,13 @@ export function ReturnLooseLines({
                 <td className={`py-1.5 pr-3 ${MONO}`}>{line.sku}</td>
                 <td className={`py-1.5 pr-3 ${MONO}`}>{line.lotNumber ?? EMPTY}</td>
                 <td className={`py-1.5 pr-3 text-right ${MONO}`}>{line.quantity}</td>
+                <td className="py-1.5 pr-3">
+                  {line.photoId ? (
+                    <span className="text-positive">{D.hasPhoto}</span>
+                  ) : (
+                    <span className="text-ink-tertiary">{D.noPhoto}</span>
+                  )}
+                </td>
                 {editable && (
                   <td className="py-1.5 text-right">
                     <Button

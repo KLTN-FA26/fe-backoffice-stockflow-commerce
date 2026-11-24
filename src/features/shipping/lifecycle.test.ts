@@ -301,7 +301,7 @@ describe("SHIPMENT_TRANSITIONS + allowedOutcomes (docs 09 §5, BR-02)", () => {
     }
   });
 
-  it("delivery-outcomes:APPROVE ghi đã giao / thất bại / hoàn; chỉ :UPDATE (quản lý kho) chỉ ghi hoàn hàng; không có quyền nào thì không ghi gì", () => {
+  it("delivery-outcomes:APPROVE ghi đã giao / thất bại / hoàn; chỉ :UPDATE thì không ghi gì, kể cả hoàn hàng (WF-05 Q-7, F-6); không có quyền nào thì không ghi gì", () => {
     expect(allowedOutcomes({ status: "HANDED_OVER" }, COORDINATOR)).toEqual([
       "DELIVERED",
       "DELIVERY_FAILED",
@@ -310,7 +310,8 @@ describe("SHIPMENT_TRANSITIONS + allowedOutcomes (docs 09 §5, BR-02)", () => {
       "DELIVERED",
       "RETURNED",
     ]);
-    expect(allowedOutcomes({ status: "DELIVERY_FAILED" }, MANAGER)).toEqual(["RETURNED"]);
+    // BO-05: trước đây UPDATE một mình ghi được RETURNED (BE nay 403) — đóng hẳn phần hàng + tính tiền, cần APPROVE
+    expect(allowedOutcomes({ status: "DELIVERY_FAILED" }, MANAGER)).toEqual([]);
     expect(allowedOutcomes({ status: "HANDED_OVER" }, MANAGER)).toEqual([]);
     expect(allowedOutcomes({ status: "HANDED_OVER" }, STAFF)).toEqual([]);
     expect(allowedOutcomes({ status: "HANDED_OVER" }, ADMIN)).toEqual([

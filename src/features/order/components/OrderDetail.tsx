@@ -126,6 +126,11 @@ function OrderDetailContent({
   }
 
   const order = query.data;
+  // Hạn đổi trả của hợp đồng hiệu lực — thẻ "Trả hàng" và ước tính dự phòng của khối hoàn tất (WF-05 BO-02)
+  const contractReturnWindowDays =
+    contract.data && contract.data.status !== "CANCELLED"
+      ? (contract.data.returnWindowDays ?? null)
+      : null;
   const productionByLine = groupProductionOrdersByLine(production.data ?? []);
   const productionState =
     !canReadProduction || production.isError
@@ -180,6 +185,8 @@ function OrderDetailContent({
               .filter((shipment) => shipment.status === "DELIVERED")
               .map((shipment) => shipment.shipmentId),
             completionHeld: completionHold.isSuccess ? completionHold.data !== null : null,
+            settlementReadiness: order.settlementReadiness,
+            returnWindowDays: contractReturnWindowDays,
           })}
           {returnsSlot?.({
             orderId: order.orderId,
@@ -200,10 +207,7 @@ function OrderDetailContent({
                 deliveredAt: shipment.outcomeAt ?? null,
                 lines: shipment.lines,
               })),
-            returnWindowDays:
-              contract.data && contract.data.status !== "CANCELLED"
-                ? (contract.data.returnWindowDays ?? null)
-                : null,
+            returnWindowDays: contractReturnWindowDays,
           })}
           <OrderHistory orderId={order.orderId} />
         </div>

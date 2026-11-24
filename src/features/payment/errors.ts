@@ -37,6 +37,9 @@ export const PAYMENT_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   // docs 15 BR-13 / §4.4 bước 14
   PAYMENT_RECEIPT_VOID_NEEDS_HOLD:
     "Huỷ phiếu này làm đơn đã xác nhận thiếu đợt khi ký. Hãy chọn “Treo đơn” để tiếp tục.",
+  // WF-05 Q-20 (BE-33): phiếu thu "khi ký" / "trước khi giao" là căn cứ cho xe ra cổng — hàng đã bàn giao thì không huỷ
+  PAYMENT_RECEIPT_VOID_AFTER_HANDOVER:
+    "Không huỷ được phiếu thu này: khoản “khi ký” / “trước khi giao” mà phiếu trả là căn cứ cho hàng đã bàn giao. Ghi nhầm thì sửa bằng chứng từ điều chỉnh ở phần mềm kế toán.",
   REFUND_EXCEEDS_REFUNDABLE: "Số tiền vượt số còn phải hoàn của đơn. Dữ liệu đã được tải lại.",
   REFUND_RECORD_NOT_FOUND: "Không tìm thấy ghi nhận hoàn tiền.",
   REFUND_RECORD_ALREADY_VOIDED: "Ghi nhận hoàn tiền này đã được huỷ. Dữ liệu đã được tải lại.",

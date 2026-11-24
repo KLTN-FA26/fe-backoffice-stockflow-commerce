@@ -59,15 +59,6 @@ describe("OrderResponse — field SCRUM-423/427/460", () => {
     expect(orderDtoSchema.safeParse(listRow).success).toBe(true);
   });
 
-  it("paymentStatus: lạ → UNKNOWN; đã biết giữ nguyên; null giữ null; vắng key giữ undefined", () => {
-    const parse = (paymentStatus: unknown) =>
-      orderDtoSchema.parse({ ...apiOrder, paymentStatus }).paymentStatus;
-    expect(parse("REFUNDED")).toBe("UNKNOWN");
-    expect(parse("PARTIALLY_PAID")).toBe("PARTIALLY_PAID");
-    expect(parse(null)).toBeNull();
-    expect(orderDtoSchema.parse(apiOrder).paymentStatus).toBeUndefined();
-  });
-
   it("paymentTerm: lạ → null (KHÔNG UNKNOWN); đã biết giữ nguyên; null → null; vắng → undefined", () => {
     const parse = (paymentTerm: unknown) =>
       orderDtoSchema.parse({ ...apiOrder, paymentTerm }).paymentTerm;
@@ -82,7 +73,6 @@ describe("OrderResponse — field SCRUM-423/427/460", () => {
   it("sai KIỂU (không phải chuỗi) vẫn fail — chỉ chuỗi lạ mới được dung thứ", () => {
     expect(orderDtoSchema.safeParse({ ...apiOrder, status: 3 }).success).toBe(false);
     expect(orderDtoSchema.safeParse({ ...apiOrder, paymentTerm: 1 }).success).toBe(false);
-    expect(orderDtoSchema.safeParse({ ...apiOrder, paymentStatus: true }).success).toBe(false);
   });
 
   it("đơn credit hold lồng status lạ → order.status UNKNOWN, cả bản ghi vẫn parse", () => {

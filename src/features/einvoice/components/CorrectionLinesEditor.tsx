@@ -105,7 +105,10 @@ export function CorrectionLinesEditor({
 
 const num = (text: string) => (text.trim() === "" ? undefined : Number(text));
 
-/** Dòng được chọn → `CorrectionLineRequest`; thuế suất nhập % đổi về phân số như BE. */
+/**
+ * Dòng được chọn → `CorrectionLineRequest`. Thuế suất gửi đúng số % đã nhập (8 = 8%): BE nhận phần trăm, 0 tới dưới 100,
+ * tối đa 2 số lẻ (`EInvoiceLine`, `vat = thành tiền × thuế suất / 100`).
+ */
 export function toCorrectionLines(value: DraftLine[], priced: boolean) {
   return value
     .filter((line) => line.include)
@@ -114,9 +117,7 @@ export function toCorrectionLines(value: DraftLine[], priced: boolean) {
       return {
         originalLineId: line.originalLineId,
         quantity: num(line.quantity),
-        ...(priced
-          ? { unitPrice: num(line.unitPrice), taxRate: rate === undefined ? undefined : rate / 100 }
-          : {}),
+        ...(priced ? { unitPrice: num(line.unitPrice), taxRate: rate } : {}),
       };
     });
 }
@@ -127,6 +128,6 @@ export function draftLinesOf(lines: EInvoiceLine[], mode: "adjust" | "replace"):
     include: mode === "replace",
     quantity: mode === "replace" ? String(line.quantity) : "",
     unitPrice: String(line.unitPrice),
-    taxRate: line.taxRate == null ? "" : String(Math.round(line.taxRate * 10000) / 100),
+    taxRate: line.taxRate == null ? "" : String(line.taxRate),
   }));
 }

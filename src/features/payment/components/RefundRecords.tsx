@@ -3,7 +3,9 @@
 import { Ban, History } from "lucide-react";
 
 import { PAYMENT_LABELS } from "@/constants/labels-payment";
+import { BUSINESS_DOCUMENT_PATHS } from "@/lib/api/business-documents";
 import { formatDateTime } from "@/lib/format/date";
+import { DocumentDownloadButton } from "@/components/backoffice/DocumentDownloadButton";
 import { DetailSection } from "@/components/shared/DetailSection";
 import { Button } from "@/components/ui/button";
 
@@ -13,7 +15,10 @@ import type { RefundRecord } from "../types";
 
 const L = PAYMENT_LABELS.refunds;
 
-/** Các lần ghi nhận đã hoàn của đơn; ghi nhận ghi sai thì huỷ (giữ lại kèm lý do — docs 15 §4.5 bước 16). */
+/**
+ * Các lần ghi nhận đã hoàn của đơn; ghi nhận ghi sai thì huỷ (giữ lại kèm lý do — docs 15 §4.5 bước 16). Ghi nhận còn
+ * hiệu lực có "Phiếu hoàn tiền" để in (BE `feat/business-documents` #4, `payment-refunds:READ`; bản đã huỷ BE trả 409).
+ */
 export function RefundRecords({
   records,
   canVoid,
@@ -36,6 +41,14 @@ export function RefundRecords({
                 <DateCell iso={record.refundedOn} />
                 <MoneyCell amount={record.amount} currency={record.currency} />
                 <ReceiptStatusDot status={record.status} />
+                {record.status === "RECORDED" && (
+                  <DocumentDownloadButton
+                    kind="refundConfirmation"
+                    size="xs"
+                    label={L.confirmationPdf}
+                    path={BUSINESS_DOCUMENT_PATHS.refundConfirmation(record.refundRecordId)}
+                  />
+                )}
                 {canVoid(record) && (
                   <Button
                     type="button"

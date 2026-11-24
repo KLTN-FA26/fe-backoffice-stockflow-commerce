@@ -66,7 +66,11 @@ export const salesContractDtoSchema = z.object({
   contractNumber: z.string(),
   orderId: z.string(),
   orderNumber: z.string(),
-  status: z.enum(SALES_CONTRACT_STATUSES),
+  // Giá trị BE thêm sau → UNKNOWN: thẻ hợp đồng vẫn hiện ("Không rõ"), không mở thao tác nào (WF-05 BO-11)
+  status: z.union([
+    z.enum(SALES_CONTRACT_STATUSES),
+    z.string().transform((): "UNKNOWN" => "UNKNOWN"),
+  ]),
   seller: contractPartySchema,
   buyer: contractPartySchema,
   freeSampleRounds: z.number().int(),
@@ -91,6 +95,11 @@ export const salesContractDtoSchema = z.object({
   version: z.number().int(),
   creditWarning: omittedOrNull(contractCreditWarningSchema),
   returnWindowDays: omittedOrNull(z.number().int()),
+  /**
+   * WF-05 (BE `SalesContracts.ContractView.appendixAvailable`, 81214e74): GET …/contract/appendix trả 200 đúng khi cờ
+   * này true — đã ký và có đợt giao đang hiệu lực khác cửa sổ đã ký. Thiếu (BE cũ) → false: không hiện nút.
+   */
+  appendixAvailable: z.boolean().default(false),
 });
 
 export const salesContractHistoryDtoSchema = z.array(salesContractDtoSchema);

@@ -37,6 +37,15 @@ export function TypeText({ type, adjusted }: { type: EInvoiceTypeRead; adjusted?
   );
 }
 
+/** Nhãn "Lập trễ N ngày" (WF-05 Q-10) — hoá đơn phát hành sau ngày giao. */
+export function LateBadge({ label }: { label: string }) {
+  return (
+    <span className="border-warning/40 bg-warning/10 text-ink-primary rounded-[var(--r-sm)] border px-1.5 py-0.5 text-xs font-medium whitespace-nowrap">
+      {label}
+    </span>
+  );
+}
+
 export function CodeLink({ href, children }: { href: string; children: ReactNode }) {
   return (
     <Link

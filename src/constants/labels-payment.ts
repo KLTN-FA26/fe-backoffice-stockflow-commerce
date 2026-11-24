@@ -3,15 +3,44 @@
  * toán", "phiếu thu", "mã tham chiếu sao kê", "công nợ phải thu", "số tiền phải hoàn".
  */
 
-import type { InstallmentMilestone, RefundApiStatus, SettlementKind } from "./payment";
+import type { InstallmentReadMilestone, RefundReadStatus, SettlementReadKind } from "./payment";
+
+/** Giá trị BE thêm sau, FE chưa có nhãn (WF-05 BO-11). */
+const UNKNOWN_LABEL = "Không rõ";
 
 export const INSTALLMENT_MILESTONE_LABELS = {
   ON_SIGNING: "Khi ký hợp đồng",
   BEFORE_DELIVERY: "Trước khi giao",
   AFTER_DELIVERY: "Sau khi giao",
-  CANCELLATION_FEE: "Phí huỷ đơn",
+  // Khoản phí lập khi huỷ đơn hoặc khi đóng phần còn lại (kể cả phần phí của các đợt giao đóng cả lô chuyển sang — audit r3
+  // LM-3); nhãn của từng khoản theo tên BE: `installmentMilestoneLabel`
+  CANCELLATION_FEE: "Phí huỷ đơn / đóng phần còn lại",
+  // Dữ liệu cũ: WF-05 Q-19 bỏ phí chuyến hỏng khỏi code BE (cột DB giữ), không lập khoản mới
   FAILED_TRIP_FEE: "Phí chuyến giao không thành",
-} as const satisfies Record<InstallmentMilestone, string>;
+  UNKNOWN: UNKNOWN_LABEL,
+} as const satisfies Record<InstallmentReadMilestone, string>;
+
+/**
+ * Tên khoản phí BE đặt (tiếng Anh, `payment` `OrderSettlement`) → tên tiếng Việt. Audit r3 LM-3: khi đóng phần còn lại cả
+ * lô, phần các đợt "trước khi giao" của lô đó còn phải trả trên giá trị hàng đã đóng (phần phí khuôn, phí vận chuyển của
+ * lô) chuyển sang khoản phí của lần đóng — không phải phí huỷ đơn. Tên lạ hiện nguyên văn.
+ */
+export const FEE_ITEM_NAME_LABELS: Readonly<Record<string, string>> = {
+  "Cancellation fee": "Phí huỷ đơn",
+  "Fee for the rest closed": "Phí đóng phần còn lại",
+  "Fee lines of the batches closed": "Phí khuôn, phí vận chuyển của các đợt giao đã đóng",
+  "Fee for the rest closed, with the fee lines of the batches closed":
+    "Phí đóng phần còn lại, kèm phí khuôn, phí vận chuyển của các đợt giao đã đóng",
+};
+
+/** Tên BE của khoản phí huỷ đơn — mọi tên khoản phí khác ở `FEE_ITEM_NAME_LABELS` là khoản lập khi đóng phần còn lại. */
+export const CANCELLATION_FEE_ITEM_NAME = "Cancellation fee";
+
+/** Mốc của một khoản phí theo tên BE: khoản huỷ đơn khác khoản lập khi đóng phần còn lại (audit r3 LM-3). */
+export const FEE_ITEM_MILESTONE_LABELS = {
+  cancellation: "Phí huỷ đơn",
+  remainderClosure: "Khoản phải trả khi đóng phần còn lại",
+} as const;
 
 /** Tình trạng hoàn tiền (docs 15 §5.3: "Chờ hoàn" / "Hoàn một phần" / "Đã hoàn"). */
 export const REFUND_STATUS_LABELS = {
@@ -19,13 +48,17 @@ export const REFUND_STATUS_LABELS = {
   PENDING: "Chờ hoàn",
   PARTIALLY_REFUNDED: "Hoàn một phần",
   REFUNDED: "Đã hoàn",
-} as const satisfies Record<RefundApiStatus, string>;
+  UNKNOWN: UNKNOWN_LABEL,
+} as const satisfies Record<RefundReadStatus, string>;
 
 export const SETTLEMENT_KIND_LABELS = {
   ORDER_CANCELLED: "Huỷ đơn",
   REMAINDER_CLOSED: "Đóng phần còn lại",
   GOODS_RETURNED: "Trả hàng",
-} as const satisfies Record<SettlementKind, string>;
+  // WF-05 Q-2 (BE-03): khách từ chối / vắng, hãng chở hàng về (hoặc thất lạc) — tính lúc kho xác nhận phiếu nhập hàng hoàn
+  SHIPMENT_RETURNED: "Lô hãng hoàn về",
+  UNKNOWN: UNKNOWN_LABEL,
+} as const satisfies Record<SettlementReadKind, string>;
 
 export const PAYMENT_LABELS = {
   /** Tên nhóm sidebar: thanh toán theo hợp đồng, công nợ (docs 15) và hoá đơn điện tử (docs 21). */
@@ -129,6 +162,18 @@ export const PAYMENT_LABELS = {
     notFoundDescription: "Phiếu thu không tồn tại hoặc đường dẫn không hợp lệ.",
     lines: "Các dòng của phiếu thu",
     voidAction: "Huỷ phiếu thu",
+    // WF-05 Q-20 (G2 `voidable` / `voidBlockedBy` trên chi tiết phiếu): khoá nút huỷ và nói lý do
+    voidBlockedTitle: "Không huỷ được phiếu thu này",
+    voidBlockedBy: {
+      PAYMENT_RECEIPT_ALREADY_VOIDED: "Phiếu thu đã được huỷ.",
+      PAYMENT_RECEIPT_VOID_NOT_ALLOWED:
+        "Tiền của đơn đã được tất toán (đơn đã huỷ, hoàn tất, đóng, đang trả hàng hoặc đã ghi nhận hoàn tiền).",
+      PAYMENT_RECEIPT_VOID_AFTER_HANDOVER:
+        "Phiếu trả khoản “khi ký” / “trước khi giao” và hàng mà khoản đó cho xuất đã bàn giao cho hãng vận chuyển. Ghi nhầm thì sửa bằng chứng từ điều chỉnh ở phần mềm kế toán.",
+    } as Readonly<Record<string, string>>,
+    voidBlockedUnknown: (code: string) => `Máy chủ không cho huỷ phiếu này (${code}).`,
+    // BE `feat/business-documents` #5: phiếu xác nhận thanh toán của một phiếu thu cho một đợt
+    confirmationPdf: "Phiếu xác nhận thanh toán",
     voidInfo: "Thông tin huỷ",
     voidedBy: "Người huỷ",
     voidedAt: "Huỷ lúc",
@@ -176,7 +221,7 @@ export const PAYMENT_LABELS = {
   voidDialog: {
     title: "Huỷ phiếu thu?",
     description:
-      "Phiếu chuyển sang Đã huỷ, giữ nguyên nội dung kèm người huỷ, thời điểm và lý do. Các đợt trong phiếu được tính lại; mã tham chiếu sao kê dùng lại được cho phiếu lập đúng.",
+      "Phiếu chuyển sang Đã huỷ, giữ nguyên nội dung kèm người huỷ, thời điểm và lý do. Các đợt trong phiếu được tính lại; mã tham chiếu sao kê dùng lại được cho phiếu lập đúng. Phiếu trả khoản “khi ký” / “trước khi giao” của hàng đã bàn giao thì không huỷ được — sửa bằng chứng từ điều chỉnh ở phần mềm kế toán.",
     reason: "Lý do huỷ phiếu thu",
     holdOrders: "Treo đơn nếu huỷ làm đơn đã xác nhận thiếu đợt khi ký",
     holdHint: "Không chọn mà huỷ làm đơn đã xác nhận thiếu đợt khi ký thì thao tác bị từ chối.",
@@ -201,6 +246,10 @@ export const PAYMENT_LABELS = {
     refundable: "Phải hoàn",
     refunded: "Đã hoàn",
     remaining: "Còn phải hoàn",
+    // WF-05 BE-51 (F-9): phí khách còn nợ trên đơn — đọc cạnh số còn phải hoàn
+    orderFeeOwed: "Phí khách còn nợ",
+    orderFeeOwedHint:
+      "Khách còn nợ phí trên đơn này (khoản phí chưa trả, xem ở Đợt thanh toán của đơn).",
     settlements: "Các lần tính",
     records: "Các lần ghi nhận đã hoàn",
     noRecords: "Chưa ghi nhận lần hoàn nào.",
@@ -216,7 +265,22 @@ export const PAYMENT_LABELS = {
     feeReason: "Lý do phí",
     feeCovered: "Phí đã được tiền thu bù",
     feeOwed: "Phí còn thiếu (khách trả)",
-    feeItem: "Xem khoản phí huỷ",
+    // WF-05 Q-19 (G2 follow-up): lô hãng hoàn về / thất lạc được miễn phần phí vận chuyển tương ứng giá trị hàng của lô
+    // trên giá trị hàng của đơn; đơn kết thúc mà không giao được gì thì miễn toàn bộ phần phí vận chuyển còn lại.
+    // Phí khuôn không bao giờ được miễn.
+    shippingFeeWaived: "Phí vận chuyển được miễn",
+    shippingFeeWaivedHint:
+      "Phần phí vận chuyển theo tỷ lệ giá trị hàng của lô hoàn về trên giá trị hàng của đơn; đơn không giao được gì thì miễn toàn bộ phần còn lại. Phí khuôn không được miễn.",
+    // F-9: lô hãng hoàn về / thất lạc mà lần tính SHIPMENT_RETURNED đóng
+    shipment: "Lô giao",
+    openShipment: "Mở lô giao",
+    confirmationPdf: "Phiếu hoàn tiền",
+    feeItem: "Xem khoản phí",
+    // Audit r3 LM-3 (BE `carriedToFee`): phần các đợt "trước khi giao" của lô bị đóng cả lô còn phải trả (phí khuôn, phí
+    // vận chuyển của lô) — nằm trong "Đã giảm", chuyển sang khoản phí của lần đóng, đến hạn từ ngày đóng
+    carriedToFee: "Chuyển sang khoản phí",
+    carriedToFeeHint:
+      "Phần phí khuôn, phí vận chuyển của các đợt giao đóng cả lô mà đợt trả trước khi giao còn phải trả: đã giảm khỏi đợt đó, khách trả trên khoản phí của lần đóng, đến hạn từ ngày đóng.",
     settledAt: "Tính lúc",
     refundedOn: "Ngày chuyển",
     recordedAt: "Ghi nhận lúc",
@@ -298,6 +362,7 @@ export const RECEIVABLES_LABELS = {
   pageTitle: "Công nợ phải thu",
   searchPlaceholder: "Tìm khách (tên, mã khách hoặc mã số thuế)",
   customer: "Khách hàng",
+  reconciliation: "Đối chiếu công nợ",
   taxCode: "MST",
   owed: "Còn phải thu",
   overdue: "Quá hạn",

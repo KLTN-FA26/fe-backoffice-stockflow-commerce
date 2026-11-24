@@ -11,13 +11,18 @@ import { withStaleRefetch } from "@/lib/api/stale-refetch";
 import {
   adjustEInvoice,
   attachAgreement,
+  checkSignature,
   drawUpEInvoice,
   issueEInvoice,
   reconcileEInvoice,
   recordErrorNotice,
+  recordExternalReduction,
+  recordPortalResult,
+  reduceFailedDelivery,
   refreshBuyer,
   reopenEInvoice,
   replaceEInvoice,
+  resendEInvoiceEmail,
   resubmitEInvoice,
   reviseDraft,
   sendErrorNotice,
@@ -73,6 +78,30 @@ export const useRecordErrorNotice = einvoiceMutation(
   "Đã lập thông báo sai sót.",
 );
 export const useSendErrorNotice = einvoiceMutation(sendErrorNotice, "Đã gửi thông báo sai sót.");
+// WF-05 Q-8 (F-13), BE-11 (F-15)
+export const useRecordPortalResult = einvoiceMutation(
+  recordPortalResult,
+  "Đã ghi kết quả từ cổng nhà cung cấp.",
+);
+export const useRecordExternalReduction = einvoiceMutation(
+  recordExternalReduction,
+  "Đã ghi hoá đơn giảm làm trên cổng nhà cung cấp.",
+);
+export const useReduceFailedDelivery = einvoiceMutation(
+  reduceFailedDelivery,
+  "Đã lập bản giảm do giao thất bại.",
+);
+/**
+ * Gửi lại hoá đơn qua e-mail (audit r2 einvoice M-1): không đổi hoá đơn nên không làm mới dữ liệu nào; BE nhận ngay, thư
+ * đi sau và được gửi lại như thư đầu nếu lỗi.
+ */
+export const useResendEInvoiceEmail = einvoiceMutation(
+  resendEInvoiceEmail,
+  "Đã yêu cầu gửi lại hoá đơn qua e-mail.",
+  [],
+);
+/** Kiểm chữ ký một tệp XML (BO-09) — không ghi gì nên không làm mới dữ liệu nào. */
+export const useCheckSignature = einvoiceMutation(checkSignature, "Đã kiểm chữ ký số.", []);
 
 const SETTINGS_INVALIDATION = [einvoiceSettingsKeys.all] as const;
 export const useChangeAutoIssue = einvoiceMutation(

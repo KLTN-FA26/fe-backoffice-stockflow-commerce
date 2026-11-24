@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { EINVOICE_SETTINGS_PERMISSIONS } from "@/constants/einvoice";
+import { ApiError } from "@/lib/api/error";
 
 import { mockEInvoiceApi, renderEInvoiceScreen } from "../__fixtures__/screen";
 import { EInvoiceSettingsView } from "../components/EInvoiceSettingsView";
@@ -66,6 +67,58 @@ describe("EInvoiceSettingsView (docs 21 BR-10)", () => {
     );
   });
 
+  it("BO-10: a real provider needs its own template code before the series is sent", async () => {
+    const api = mockEInvoiceApi(ADMIN, routes);
+    renderEInvoiceScreen(<EInvoiceSettingsView />);
+    await userEvent.type(await screen.findByLabelText(/^Ký hiệu/), "C26TAA");
+    await userEvent.click(screen.getByRole("button", { name: "Dùng ký hiệu" }));
+    expect(await screen.findByText("Nhập mã mẫu của nhà cung cấp")).toBeInTheDocument();
+    expect(api.put).not.toHaveBeenCalledWith(
+      "/einvoice-settings/providers/VIETTEL_SINVOICE/series",
+      expect.anything(),
+    );
+    await userEvent.type(screen.getByLabelText(/Mã mẫu của nhà cung cấp/), "1/001");
+    await userEvent.click(screen.getByRole("button", { name: "Dùng ký hiệu" }));
+    await waitFor(() =>
+      expect(api.put).toHaveBeenCalledWith("/einvoice-settings/providers/VIETTEL_SINVOICE/series", {
+        templateCode: "1",
+        symbol: "C26TAA",
+        year: new Date().getFullYear(),
+        providerTemplateCode: "1/001",
+      }),
+    );
+  });
+
+  it("BO-10: the BE's field errors land under the field", async () => {
+    mockEInvoiceApi(ADMIN, {
+      ...routes,
+      put: {
+        ...routes.put,
+        "/einvoice-settings/providers/VIETTEL_SINVOICE/account": () => {
+          throw new ApiError(400, "VALIDATION_FAILED", "x", { username: "Tên đăng nhập bị khoá" });
+        },
+      },
+    });
+    renderEInvoiceScreen(<EInvoiceSettingsView />);
+    await userEvent.click(await screen.findByRole("button", { name: "Lưu tài khoản" }));
+    expect(await screen.findByText("Tên đăng nhập bị khoá")).toBeInTheDocument();
+  });
+
+  it("BO-10: SECRETS_UNAVAILABLE reads in Vietnamese", async () => {
+    mockEInvoiceApi(ADMIN, {
+      ...routes,
+      put: {
+        ...routes.put,
+        "/einvoice-settings/providers/VIETTEL_SINVOICE/account": () => {
+          throw new ApiError(503, "SECRETS_UNAVAILABLE", "no key");
+        },
+      },
+    });
+    renderEInvoiceScreen(<EInvoiceSettingsView />);
+    await userEvent.click(await screen.findByRole("button", { name: "Lưu tài khoản" }));
+    expect(await screen.findByText(/khoá mã hoá bí mật/)).toBeInTheDocument();
+  });
+
   it("refuses a malformed series symbol before sending it (BR-07)", async () => {
     const api = mockEInvoiceApi(ADMIN, routes);
     renderEInvoiceScreen(<EInvoiceSettingsView />);
@@ -94,5 +147,66 @@ describe("EInvoiceSettingsView (docs 21 BR-10)", () => {
       expect(api.get).toHaveBeenCalledWith("/identity/me/permissions", expect.anything()),
     );
     expect(api.get.mock.calls.some(([url]) => url === "/einvoice-settings")).toBe(false);
+  });
+});
+
+describe("EInvoiceSettingsView — accounts the BE does not store here (BO-04)", () => {
+  const sepaySettings = {
+    ...settings,
+    provider: "SEPAY_EINVOICE",
+    username: null,
+    secretSet: false,
+  };
+  const sepay = (flags: Record<string, unknown>) => ({
+    ...provider,
+    provider: "SEPAY_EINVOICE",
+    username: null,
+    secretSet: false,
+    ...flags,
+  });
+
+  it("SePay: no account form, “Tài khoản cấu hình trên máy chủ” and its readiness (flag)", async () => {
+    mockEInvoiceApi(ADMIN, {
+      get: {
+        "/einvoice-settings": () => sepaySettings,
+        "/einvoice-settings/providers": () => [
+          sepay({ accountInDeployment: true, deploymentAccountReady: true }),
+        ],
+      },
+    });
+    renderEInvoiceScreen(<EInvoiceSettingsView />);
+    expect(await screen.findAllByText("SePay eInvoice — đang dùng")).toHaveLength(1);
+    expect(
+      screen.getAllByText(/Tài khoản cấu hình trên máy chủ — đã sẵn sàng/).length,
+    ).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: "Lưu tài khoản" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Chưa lưu")).not.toBeInTheDocument();
+  });
+
+  it("SePay without the BE flag: the fallback still hides the form", async () => {
+    mockEInvoiceApi(ADMIN, {
+      get: {
+        "/einvoice-settings": () => sepaySettings,
+        "/einvoice-settings/providers": () => [sepay({})],
+      },
+    });
+    renderEInvoiceScreen(<EInvoiceSettingsView />);
+    expect((await screen.findAllByText(/Tài khoản cấu hình trên máy chủ/)).length).toBeGreaterThan(
+      0,
+    );
+    expect(screen.queryByRole("button", { name: "Lưu tài khoản" })).not.toBeInTheDocument();
+  });
+
+  it("Sandbox: no account form and no provider template code", async () => {
+    mockEInvoiceApi(ADMIN, {
+      get: {
+        "/einvoice-settings": () => ({ ...settings, provider: "SANDBOX" }),
+        "/einvoice-settings/providers": () => [{ ...provider, provider: "SANDBOX" }],
+      },
+    });
+    renderEInvoiceScreen(<EInvoiceSettingsView />);
+    expect((await screen.findAllByText(/Sandbox không cần tài khoản/)).length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: "Lưu tài khoản" })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Mã mẫu của nhà cung cấp/)).not.toBeInTheDocument();
   });
 });

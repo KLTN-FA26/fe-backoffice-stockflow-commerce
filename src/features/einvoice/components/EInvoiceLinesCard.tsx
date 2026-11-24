@@ -1,7 +1,7 @@
 "use client";
 
 import { EINVOICE_LABELS } from "@/constants/labels-einvoice";
-import { formatNumber, formatPercent } from "@/lib/format";
+import { formatNumber, formatRatePercent } from "@/lib/format";
 import { Card } from "@/components/shared/Card";
 
 import { MONO } from "./copy";
@@ -10,14 +10,26 @@ import { MoneyCell } from "./primitives";
 import type { EInvoice } from "../types";
 
 const D = EINVOICE_LABELS.detail;
+/** BE gửi thuế suất dạng phần trăm (8 = 8%, `EInvoiceLine.taxRate`), không phải phân số. */
 const rate = (value: number | null | undefined) =>
-  value == null ? "KCT" : formatPercent(value, 0);
+  value == null ? "KCT" : formatRatePercent(value);
 
 /**
- * Dòng hàng / dòng phí (docs 21 §4.1 bước 2): số lượng = số thùng × số cái / thùng, đơn giá / cái,
- * thuế suất đã chốt của dòng đơn; tổng theo thuế suất, tổng có thuế và số tiền bằng chữ.
+ * Dòng hàng / dòng phí (docs 21 §4.1 bước 2); tổng theo thuế suất, tổng có thuế và số tiền bằng chữ.
  * Dòng âm là điều chỉnh giảm.
+ *
+ * Demo D-9: BE gửi dòng nguyên thùng theo đơn vị **thùng** (`EInvoiceDrafts`: `quantity` = số thùng,
+ * `unit` = "Thùng", `unitPrice` = giá một thùng, `unitsPerCarton` = số cái / thùng); dòng lẻ cái thì
+ * `unitsPerCarton` trống và `quantity` là số cái. Dòng phụ dưới tên chỉ quy đổi thùng ra cái — trước đây
+ * lấy `quantity` chia `unitsPerCarton` như thể `quantity` là số cái, ra "0.003 thùng × 1000 Thùng".
  */
+/** "3 thùng × 1.000 cái = 3.000 cái": `quantity` đã là số thùng (dấu âm của dòng giảm bỏ đi). */
+function cartonHint(line: { quantity: number; unitsPerCarton?: number | null }) {
+  const cartons = Math.abs(line.quantity);
+  const perCarton = line.unitsPerCarton ?? 0;
+  return `${formatNumber(cartons)} thùng × ${formatNumber(perCarton)} cái = ${formatNumber(cartons * perCarton)} cái`;
+}
+
 export function EInvoiceLinesCard({ invoice }: { invoice: EInvoice }) {
   const money = (amount: number) => <MoneyCell amount={amount} currency={invoice.currency} />;
   return (
@@ -45,12 +57,9 @@ export function EInvoiceLinesCard({ invoice }: { invoice: EInvoice }) {
                   {line.sku && (
                     <div className="text-ink-tertiary font-mono text-xs">{line.sku}</div>
                   )}
-                  {line.unitsPerCarton && (
-                    <div className="text-ink-tertiary text-xs">
-                      {Math.abs(line.quantity) / line.unitsPerCarton} thùng × {line.unitsPerCarton}{" "}
-                      {line.unit}
-                    </div>
-                  )}
+                  {line.unitsPerCarton ? (
+                    <div className="text-ink-tertiary text-xs">{cartonHint(line)}</div>
+                  ) : null}
                 </td>
                 <td className={`py-1.5 pr-2 text-right ${MONO}`}>
                   {formatNumber(line.quantity)} {line.unit}

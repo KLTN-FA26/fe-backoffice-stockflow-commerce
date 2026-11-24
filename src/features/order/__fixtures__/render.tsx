@@ -43,6 +43,8 @@ export const ORDER_PERMISSION_SETS = {
     ORDER_PERMISSIONS.cancel,
     ORDER_PERMISSIONS.hold,
     ORDER_PERMISSIONS.partialShipment,
+    // PR-0 V20261216000050 (WF-05 Q-12): đóng phần thất lạc cấp cho SALES_STAFF
+    ORDER_PERMISSIONS.lostShipmentClosure,
     CREDIT_HOLD_PERMISSIONS.viewPage,
     CREDIT_HOLD_PERMISSIONS.read,
     CUSTOMER_CREDIT_PROFILE_PERMISSIONS.read,

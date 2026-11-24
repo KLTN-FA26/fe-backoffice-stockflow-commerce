@@ -7,6 +7,7 @@ import { STOCK_PACKAGE_PERMISSIONS, WAREHOUSE_LOCATION_PERMISSIONS } from "@/con
 import { QUARANTINE_LABELS, QUARANTINE_LIMITS } from "@/constants/quarantine";
 
 import { usePermissionChecker } from "@/lib/auth";
+import { formatDateTime } from "@/lib/format/date";
 import { useWarehouseAreas } from "@/lib/references/warehouse-layout";
 import { useAppStore } from "@/lib/store/use-app-store";
 
@@ -17,7 +18,12 @@ import { StatusDot } from "@/components/shared/StatusDot";
 import { Button } from "@/components/ui/button";
 
 import { quarantineActionError } from "../quarantine-errors";
-import { cartonStatusLabel, isQuarantined } from "../quarantine-lifecycle";
+import {
+  cartonStatusLabel,
+  isOpenedOnReturn,
+  isQuarantined,
+  returnOwnershipBadge,
+} from "../quarantine-lifecycle";
 import { useCarton } from "../quarantine-queries";
 import { cartonLookupInput } from "../quarantine-schemas";
 import { useQuarantineFilters } from "../use-quarantine-filters";
@@ -110,7 +116,19 @@ function CartonCard({ carton }: { carton: StockPackageDetail }) {
     [L.onHand, carton.onHand.toLocaleString("vi-VN")],
     [L.reserved, carton.reserved.toLocaleString("vi-VN")],
     [L.stockStatus, isQuarantined(carton) ? L.quarantined : L.notQuarantined],
-  ] as const;
+    ...(isOpenedOnReturn(carton)
+      ? ([
+          [
+            L.openedOnReturn,
+            carton.returnOpenedAt ? formatDateTime(carton.returnOpenedAt) : L.openedOnReturnYes,
+          ],
+        ] as const)
+      : []),
+    // Audit r3 RAD-4: "Chờ duyệt hoàn tiền — RMA-…" / "Hàng của khách (giữ hộ) — RMA-…"
+    ...(returnOwnershipBadge(carton)
+      ? ([[L.returnOwnership, returnOwnershipBadge(carton)]] as const)
+      : []),
+  ];
   return (
     <div className="space-y-[var(--card-pad)]">
       <StatusDot domain="stock" status={cartonStatusLabel(carton.status)} />

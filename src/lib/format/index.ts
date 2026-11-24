@@ -21,4 +21,5 @@ export {
   formatFixed,
   formatNumber,
   formatPercent,
+  formatRatePercent,
 } from "./number";

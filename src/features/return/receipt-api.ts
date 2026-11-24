@@ -3,7 +3,10 @@
  * Hàng về nhận theo LPN thẳng vào khu cách ly; xác nhận phiếu đưa yêu cầu trả hàng sang RECEIVED.
  */
 
+import { z } from "zod";
+
 import { api } from "@/lib/api/client";
+import { uploadSlotSchema } from "@/lib/api/direct-upload";
 
 import {
   returnedShipmentPageDtoSchema,
@@ -12,6 +15,7 @@ import {
 } from "./schemas";
 
 import type { ReturnReceiptApiStatus } from "@/constants/returns";
+import type { UploadDeclaration, UploadSlot } from "@/lib/api/direct-upload";
 import type { ListQueryParams, PaginatedResponse } from "@/lib/api/query-factory";
 import type { ReturnedShipment, ReturnReceipt, ReturnReceiptRow } from "./types";
 
@@ -85,19 +89,54 @@ export async function scanReturnCarton(input: {
 }
 
 /**
+ * Bước 1 của ảnh hàng lẻ tải thẳng lên kho (WF-05 Q-18): xin đường PUT ở endpoint ảnh nhận hàng sẵn có của phiếu nhập
+ * (`POST /goods-receipts/{receiptId}/photos/uploads`, `procurement-goods-receipts:UPDATE` — người đếm là kho, không có
+ * quyền ảnh của yêu cầu trả hàng).
+ */
+export async function beginLoosePhotoUpload(
+  receiptId: string,
+  declaration: UploadDeclaration,
+  signal?: AbortSignal,
+): Promise<UploadSlot> {
+  const { data } = await api.post<unknown>(
+    `/goods-receipts/${seg(receiptId)}/photos/uploads`,
+    declaration,
+    { signal },
+  );
+  return uploadSlotSchema.parse(data);
+}
+
+const receiptPhotoSchema = z.object({ id: z.string() });
+
+/**
+ * Bước 3: giữ ảnh đã PUT thành một ảnh nhận hàng của phiếu (BE `POST /goods-receipts/{receiptId}/photos` `{uploadId}`;
+ * gửi lại cùng `uploadId` = cùng ảnh). Trả `id` của ảnh — `photoId` của dòng hàng lẻ (BE G4 `RecordLooseUnitsRequest`).
+ */
+export async function attachLoosePhoto(receiptId: string, uploadId: string): Promise<string> {
+  const { data } = await api.post<unknown>(`/goods-receipts/${seg(receiptId)}/photos`, {
+    uploadId,
+  });
+  return receiptPhotoSchema.parse(data).id;
+}
+
+/**
  * Hàng lẻ không nhãn thùng (WF-05 TH-4; BE `POST /{id}/loose-lines`): chỉ phiếu nháp của một yêu cầu trả hàng. Cùng SKU
- * và lô thì thay số cũ. SKU không thuộc đơn → `VALIDATION_FAILED`.
+ * và lô thì thay số cũ. SKU không thuộc đơn → `VALIDATION_FAILED`. WF-05 Q-18 (BE-43): ảnh bắt buộc
+ * (`RETURN_LOOSE_PHOTO_REQUIRED`) — `photoId` là một ảnh nhận hàng của chính phiếu (`attachLoosePhoto`); tổng đã về của
+ * SKU, mọi phiếu cộng lại, không vượt số đã duyệt (`RETURN_LOOSE_EXCEEDS_APPROVED`).
  */
 export async function recordLooseLine(input: {
   id: string;
   sku: string;
   lotNumber?: string;
   quantity: number;
+  photoId: string;
 }): Promise<ReturnReceipt> {
   const { data } = await api.post<unknown>(`${BASE}/${seg(input.id)}/loose-lines`, {
     sku: input.sku.trim(),
     ...(input.lotNumber?.trim() ? { lotNumber: input.lotNumber.trim() } : {}),
     quantity: input.quantity,
+    photoId: input.photoId,
   });
   return parse(data);
 }

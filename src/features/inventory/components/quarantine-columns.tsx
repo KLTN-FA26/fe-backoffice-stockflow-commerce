@@ -1,6 +1,6 @@
 "use client";
 
-import { QUARANTINE_LIST_LABELS } from "@/constants/quarantine";
+import { QUARANTINE_LABELS, QUARANTINE_LIST_LABELS } from "@/constants/quarantine";
 import {
   CELL,
   EmptyCell,
@@ -10,7 +10,7 @@ import {
   textCell,
 } from "@/components/shared/column-helpers";
 
-import { cartonStatusLabel } from "../quarantine-lifecycle";
+import { cartonStatusLabel, returnOwnershipBadge } from "../quarantine-lifecycle";
 
 import type { ColumnDef } from "@/components/shared/DataTable";
 import type { StockPackage } from "../quarantine-types";
@@ -46,5 +46,25 @@ export function buildQuarantineColumns(open: (lpn: string) => void): ColumnDef<S
         ),
     },
     statusCell<StockPackage>("status", C.status, (row) => cartonStatusLabel(row.status), "stock"),
+    // WF-05 BE-24: thùng hàng trả về đã mở — chỉ ghi giảm
+    {
+      key: "openedOnReturn",
+      header: C.openedOnReturn,
+      cell: (row) =>
+        row.openedOnReturn ? (
+          <span className="text-warning">{QUARANTINE_LABELS.openedOnReturnYes}</span>
+        ) : (
+          <EmptyCell />
+        ),
+    },
+    // Audit r3 RAD-4 (TH-6): thùng chờ Kế toán quyết hoàn tiền / hàng của khách — kho chưa quyết được
+    {
+      key: "returnOwnership",
+      header: C.returnOwnership,
+      cell: (row) => {
+        const badge = returnOwnershipBadge(row);
+        return badge ? <span className="text-warning">{badge}</span> : <EmptyCell />;
+      },
+    },
   ];
 }

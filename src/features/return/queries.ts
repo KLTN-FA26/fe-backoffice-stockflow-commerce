@@ -1,18 +1,42 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { RETURN_LIMITS } from "@/constants/returns";
+import { RETURN_LIMITS, RETURN_RECEIPT_SOURCE_STATUSES } from "@/constants/returns";
 import { QUERY_TIMES } from "@/lib/api/query-client";
 import { createDetailQuery, createListQuery, createQueryKeys } from "@/lib/api/query-factory";
 
 import { getReturn, listReturns } from "./api";
+import { listCustodyNotes, listCustomerCustody } from "./custody-api";
 import { getReturnReceipt, listReturnedShipments, listReturnReceipts } from "./receipt-api";
 
 import type { ListReturnParams } from "./api";
+import type { CustodyNoteParams, CustomerCustodyParams } from "./custody-api";
 import type { ListReturnReceiptParams } from "./receipt-api";
 import type { ReturnReceipt, ReturnReceiptRow, ReturnRequest, ReturnRow } from "./types";
 
 export const returnKeys = createQueryKeys<ListReturnParams>("returns");
 export const returnReceiptKeys = createQueryKeys<ListReturnReceiptParams>("return-receipts");
+/** Thùng giữ hộ khách (WF-05 Q-4) — khoá riêng: kho đọc, Sale đổi lựa chọn, Quản lý kho thực hiện. */
+export const customerCustodyKeys = { all: ["customer-custody"] as const };
+/** Hàng giữ hộ trên biên nhận (audit r3 RAD-3): Sale ghi lựa chọn, Quản lý kho ghi đã rời kho. */
+export const custodyNoteKeys = { all: ["custody-notes"] as const };
+
+/** Hàng giữ hộ trên biên nhận (`GET /returns/custody-notes`), theo yêu cầu hoặc toàn kho. */
+export const useCustodyNotes = (params: CustodyNoteParams, enabled = true) =>
+  useQuery({
+    queryKey: [...custodyNoteKeys.all, params],
+    queryFn: ({ signal }) => listCustodyNotes(params, signal),
+    enabled,
+    ...QUERY_TIMES.list,
+  });
+
+/** Thùng giữ hộ khách (`GET /inventory/stock-packages/customer-custody`), theo yêu cầu hoặc toàn kho. */
+export const useCustomerCustody = (params: CustomerCustodyParams, enabled = true) =>
+  useQuery({
+    queryKey: [...customerCustodyKeys.all, params],
+    queryFn: ({ signal }) => listCustomerCustody(params, signal),
+    enabled,
+    ...QUERY_TIMES.list,
+  });
 
 export const useReturns = createListQuery<ReturnRow, ListReturnParams>(returnKeys, listReturns);
 export const useReturn = createDetailQuery<ReturnRequest>(returnKeys, getReturn);
@@ -32,10 +56,13 @@ export const useOrderReturns = (orderId: string | null | undefined, enabled = tr
     { enabled: enabled && !!orderId },
   );
 
-/** Yêu cầu đang chờ hàng về — nguồn chọn khi lập phiếu nhập hàng hoàn. */
-export const useAwaitingReturns = (enabled = true) =>
+/**
+ * Yêu cầu có thể nhận phiếu nhập hàng hoàn — nguồn chọn khi lập phiếu (WF-05 Q-11, BE-13: cả hàng về muộn). Tải mọi
+ * trạng thái BE có thể cho mở phiếu; màn lọc bằng `receiptOpenableRow` (cờ của BE, dự phòng theo trạng thái).
+ */
+export const useReceiptSourceReturns = (enabled = true) =>
   useReturns(
-    { statuses: ["AWAITING_RETURN"], page: 0, size: RETURN_LIMITS.pageSizeMax },
+    { statuses: RETURN_RECEIPT_SOURCE_STATUSES, page: 0, size: RETURN_LIMITS.pageSizeMax },
     { enabled },
   );
 

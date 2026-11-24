@@ -8,7 +8,7 @@ import { RETURN_LIMITS } from "@/constants/returns";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 
-import { returnErrorMessage } from "../errors";
+import { cancelReturnErrorMessage, returnErrorMessage } from "../errors";
 import { useCancelReturn, useRejectReturn } from "../mutations";
 
 import { ApproveReturnDialog } from "./ApproveReturnDialog";
@@ -93,7 +93,15 @@ export function ReturnActions({
         closeOnConfirm={false}
         loading={cancel.isPending}
         error={error}
-        onConfirm={(reason) => cancel.mutate({ id: ret.id, reason }, { onSuccess: close, onError })}
+        onConfirm={(reason) =>
+          cancel.mutate(
+            { id: ret.id, reason },
+            {
+              onSuccess: close,
+              onError: (failure) => setError(cancelReturnErrorMessage(failure)),
+            },
+          )
+        }
       />
     </>
   );

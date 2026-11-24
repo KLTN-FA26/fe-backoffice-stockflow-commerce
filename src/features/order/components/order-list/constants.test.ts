@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { FILTERABLE_STATUSES, STATUS_OPTIONS } from "./constants";
+import { COLUMN_LABELS, DEFAULT_COLUMNS, FILTERABLE_STATUSES, STATUS_OPTIONS } from "./constants";
 
 describe("bộ lọc trạng thái danh sách đơn (BE PR #133)", () => {
   it("có đủ 21 trạng thái BE với nhãn tiếng Việt, gồm các trạng thái mới", () => {
@@ -11,7 +11,7 @@ describe("bộ lọc trạng thái danh sách đơn (BE PR #133)", () => {
       Packed: "Đã đóng gói",
       "Partially Fulfilled": "Giao một phần",
       "Delivery Failed": "Giao thất bại",
-      "Return Requested": "Yêu cầu trả hàng",
+      "Return Requested": "Đang yêu cầu trả hàng",
       Refunded: "Đã hoàn tiền",
       "Partially Refunded": "Hoàn tiền một phần",
       Closed: "Đã đóng",
@@ -28,5 +28,14 @@ describe("bộ lọc trạng thái danh sách đơn (BE PR #133)", () => {
     expect(values).not.toContain("In Fulfilment");
     expect(values).not.toContain("UNKNOWN");
     expect(FILTERABLE_STATUSES).toEqual(STATUS_OPTIONS.map((o) => o.value));
+  });
+});
+
+describe("cột mặc định (WF-05 BO-08)", () => {
+  it("không còn Phương thức TT / Thanh toán — BE không trả trên đơn (4B-10), luôn hiện “—”", () => {
+    expect(DEFAULT_COLUMNS).not.toContain("paymentTerm");
+    expect(DEFAULT_COLUMNS).not.toContain("paymentStatus");
+    expect(COLUMN_LABELS).not.toHaveProperty("paymentTerm");
+    expect(COLUMN_LABELS).not.toHaveProperty("paymentStatus");
   });
 });

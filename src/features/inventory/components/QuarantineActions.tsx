@@ -4,7 +4,12 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 
 import { INVENTORY_ROUTES } from "@/constants/inventory";
-import { QUARANTINE_ACTION, QUARANTINE_LABELS, QUARANTINE_LIMITS } from "@/constants/quarantine";
+import {
+  QUARANTINE_ACTION,
+  QUARANTINE_LABELS,
+  QUARANTINE_LIMITS,
+  RETURN_OWNERSHIP_PENDING,
+} from "@/constants/quarantine";
 
 import { usePermissionChecker } from "@/lib/auth";
 
@@ -16,9 +21,11 @@ import { Input } from "@/components/ui/input";
 import { quarantineActionError } from "../quarantine-errors";
 import {
   allowedQuarantineActions,
+  awaitsReturnDecision,
   canWriteOffCarton,
   isHeldForOrder,
   isQuarantined,
+  openedOnReturnNotice,
 } from "../quarantine-lifecycle";
 import { useQuarantineCarton, useReleaseCarton } from "../quarantine-mutations";
 import { quarantineInput } from "../quarantine-schemas";
@@ -35,6 +42,7 @@ const L = QUARANTINE_LABELS;
 export function QuarantineActions({ carton }: { carton: StockPackageDetail }) {
   const can = usePermissionChecker();
   const actions = allowedQuarantineActions(carton, can);
+  const openedNotice = openedOnReturnNotice(carton);
   const quarantine = useQuarantineCarton(carton.lpn);
   const release = useReleaseCarton(carton.lpn);
   const [action, setAction] = useState<QuarantineAction | null>(null);
@@ -66,7 +74,7 @@ export function QuarantineActions({ carton }: { carton: StockPackageDetail }) {
       }
       close();
     } catch (failure: unknown) {
-      setError(quarantineActionError(failure).detail);
+      setError(quarantineActionError(failure, carton).detail);
     } finally {
       running.current = false;
     }
@@ -98,6 +106,15 @@ export function QuarantineActions({ carton }: { carton: StockPackageDetail }) {
           </Button>
         )}
       </div>
+      {openedNotice && <Alert tone="warning">{L[openedNotice]}</Alert>}
+      {/* Audit r3 RAD-4: thùng chờ quyết hoàn tiền / hàng của khách — vì sao không có nút */}
+      {awaitsReturnDecision(carton) && (
+        <Alert tone="warning">
+          {carton.returnOwnership === RETURN_OWNERSHIP_PENDING
+            ? L.refundPendingNotice
+            : L.customerOwnedNotice}
+        </Alert>
+      )}
       {isHeldForOrder(carton) && !isQuarantined(carton) && (
         <Alert tone="warning">{L.heldForOrder}</Alert>
       )}

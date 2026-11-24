@@ -1,6 +1,6 @@
 /**
- * Giao thất bại — query hooks + key (WF-05 GH-1). Key nằm dưới `orderKeys.all`: mọi thao tác đơn (giao lại, huỷ phần
- * chưa giao, release lô giao lại…) invalidate `orderKeys.all` nên hàng đợi và khối trên chi tiết đơn tự tải lại.
+ * Lô hàng hoàn về — query hooks + key (WF-05 GH-1 / BO-01). Key nằm dưới `orderKeys.all`: mọi thao tác đơn (huỷ phần
+ * chưa giao, đóng phần thất lạc…) invalidate `orderKeys.all` nên danh sách và khối trên chi tiết đơn tự tải lại.
  */
 
 import { useQuery } from "@tanstack/react-query";
@@ -27,7 +27,7 @@ function retryTransient(failureCount: number, error: unknown): boolean {
   return failureCount < 2;
 }
 
-/** Hàng đợi giao thất bại (`GET /orders/delivery-failures`, cần `sales-orders:READ`). */
+/** Lịch sử lô hàng hoàn về (`GET /orders/delivery-failures`, cần `sales-orders:READ`). */
 export function useDeliveryFailures(
   params: ListDeliveryFailureParams,
   options: { enabled?: boolean } = {},
@@ -41,7 +41,7 @@ export function useDeliveryFailures(
   });
 }
 
-/** Hồ sơ giao thất bại của một đơn — khối "Giao thất bại" trên chi tiết đơn. */
+/** Hồ sơ hàng hoàn về của một đơn — khối "Lô hàng hoàn về" trên chi tiết đơn. */
 export function useOrderDeliveryFailures(orderId: string, options: { enabled?: boolean } = {}) {
   return useQuery<DeliveryFailureCase[], ApiError>({
     queryKey: deliveryFailureKeys.ofOrder(orderId),
