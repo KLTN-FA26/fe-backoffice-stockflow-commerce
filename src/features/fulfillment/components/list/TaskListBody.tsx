@@ -24,7 +24,8 @@ const F = fulfillment.filter;
 /**
  * Vùng bảng — tách các trạng thái (api-conventions §8): tải lần đầu, lỗi tải, kho lọc ngoài phạm vi,
  * chưa có task, lọc không ra kết quả (EmptyState riêng + Bỏ lọc), trang vượt quá dữ liệu.
- * EmptyState không lặp lại nút tạo task — nút duy nhất nằm ở PageHeader (người dùng chốt).
+ * Hai loại rỗng nằm TRONG bảng (`DataTable emptyState`) để header — và nút lọc người được gán trên header — vẫn còn
+ * (data-table-mode-a §4.1). EmptyState không lặp lại nút tạo task — nút duy nhất nằm ở toolbar.
  */
 export function TaskListBody({
   s,
@@ -77,29 +78,6 @@ export function TaskListBody({
     }
     return <PageSkeleton variant="list" />;
   }
-  if (s.emptyState === "no-tasks") {
-    return (
-      <EmptyState
-        icon={<PackageSearch className="size-8" />}
-        title="Chưa có task xuất kho"
-        description="Chưa có đơn nào được đưa vào xuất kho trong phạm vi bạn được xem."
-      />
-    );
-  }
-  if (s.emptyState === "no-match") {
-    return (
-      <EmptyState
-        icon={<FilterX className="size-8" />}
-        title={F.noMatchTitle}
-        description={F.noMatchDescription}
-        action={
-          <Button type="button" variant="outline" size="sm" onClick={s.clearFilters}>
-            {F.clear}
-          </Button>
-        }
-      />
-    );
-  }
   if (s.emptyState === "invalid-page") {
     return (
       <EmptyState
@@ -116,6 +94,25 @@ export function TaskListBody({
   }
 
   const page = query.data;
+  const empty =
+    s.emptyState === "no-match" ? (
+      <EmptyState
+        icon={<FilterX className="size-8" />}
+        title={F.noMatchTitle}
+        description={F.noMatchDescription}
+        action={
+          <Button type="button" variant="outline" size="sm" onClick={s.clearFilters}>
+            {F.clear}
+          </Button>
+        }
+      />
+    ) : (
+      <EmptyState
+        icon={<PackageSearch className="size-8" />}
+        title="Chưa có task xuất kho"
+        description="Chưa có đơn nào được đưa vào xuất kho trong phạm vi bạn được xem."
+      />
+    );
   return (
     <>
       <RefetchBar active={query.isFetching} label={`Đang tải lại ${title.toLowerCase()}`} />
@@ -126,6 +123,7 @@ export function TaskListBody({
         rowKey={(row) => row.taskId}
         caption={`Hiển thị ${page.items.length} / ${page.totalElements} task xuất kho`}
         onRowClick={s.navigateToDetail}
+        emptyState={empty}
         pageSize={s.config.pageSize}
         pageSizeOptions={PAGE_SIZE_OPTIONS}
         serverPagination={{

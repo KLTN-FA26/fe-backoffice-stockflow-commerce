@@ -32,24 +32,15 @@ export async function getInventoryItem(id: string, signal?: AbortSignal): Promis
   return inventoryItemDtoSchema.parse(data);
 }
 
-const toNumber = (raw: string) => (raw.trim() === "" ? null : Number(raw));
-
-/** Form → BE `UpdateItemLogisticsRequest`; trống = chưa biết (null); `version` là của item đã đọc. */
+/**
+ * Form → BE `UpdateItemLogisticsRequest`; `version` là của item đã đọc. Không gửi số đo: BE #396 bỏ chúng
+ * (docs 01 BR-03 — số đo là của thùng, sửa ở quy cách thùng) và bỏ qua nếu client cũ vẫn gửi.
+ */
 export function toLogisticsRequest(values: LogisticsFormValues, version: number) {
   return {
     version,
     unitOfMeasure: values.unitOfMeasure.trim(),
     barcode: values.barcode.trim() || null,
-    weightKg: toNumber(values.weightKg),
-    lengthCm: toNumber(values.lengthCm),
-    widthCm: toNumber(values.widthCm),
-    heightCm: toNumber(values.heightCm),
-    packageWeightKg: toNumber(values.packageWeightKg),
-    packageLengthCm: toNumber(values.packageLengthCm),
-    packageWidthCm: toNumber(values.packageWidthCm),
-    packageHeightCm: toNumber(values.packageHeightCm),
-    packageCount: toNumber(values.packageCount),
-    packSize: toNumber(values.packSize),
     // BE `InventoryItemWebMapper.toLogistics`: thiếu trường = true → luôn gửi, nếu không mỗi lần lưu
     // sẽ bật lại xoay kiện cho SKU đã tắt
     rotatable: values.rotatable,

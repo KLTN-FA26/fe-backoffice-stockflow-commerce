@@ -81,7 +81,7 @@ export function WarehouseCrumb() {
 }
 
 /**
- * Phần breadcrumb sau "Kho & bản đồ" cho trang của một kho: `[kho ⇅] / <trang> / <id>`. Shell gọi qua
+ * Phần breadcrumb sau "Kho" cho trang của một kho: `[kho ⇅] / <trang> / <id>`. Shell gọi qua
  * `NavItem.breadcrumbTail` với các đoạn URL sau `/admin/warehouse-map`. Trang tra theo `WORKSPACE_PAGES`; còn đoạn sau
  * (trang chi tiết) thì tên trang là link về trang list.
  */

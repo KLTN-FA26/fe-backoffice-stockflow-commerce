@@ -29,6 +29,7 @@ export {
 } from "./labels-receipt-carton";
 export type { CartonLabelFormat } from "./labels-receipt-carton";
 export { RECEIPT_COUNT_FIELD_MESSAGES, RECEIPT_COUNT_LABELS } from "./labels-receipt-count";
+export { RECEIVING_LABELS } from "./labels-receiving";
 export {
   AREA_TYPE_LABELS,
   BIN_NAMING_SCHEME_LABELS,

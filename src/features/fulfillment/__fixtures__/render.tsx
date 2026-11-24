@@ -25,6 +25,7 @@ import { WorkspaceWarehouseProvider } from "@/lib/workspace";
 
 import { PICKER_ID, WAREHOUSE_ID } from "./task";
 
+import type { OnUrlUpdateFunction } from "nuqs/adapters/testing";
 import type { PermissionCode } from "@/lib/auth";
 
 /** Người đăng nhập trong test = một bộ mã quyền (FE không đọc tên vai trò để quyết định quyền). */
@@ -121,14 +122,18 @@ export function mockFulfillmentApi(
   return { get, post, put, del };
 }
 
-/** `userId` mặc định là người được gán của fixture `apiTask()`; `searchParams` = URL ban đầu (nuqs). */
 /** Kho của tab theo kho trong test — trùng kho của task mẫu (`WAREHOUSE_ID`). */
 export const TAB_WAREHOUSE = { id: WAREHOUSE_ID, prefix: "HCM", name: "Kho Hồ Chí Minh" };
 
+/**
+ * `userId` mặc định là người được gán của fixture `apiTask()`; `searchParams` = URL ban đầu (nuqs); `onUrlUpdate` nhận
+ * mỗi lần màn ghi URL (kiểm bộ lọc lên URL).
+ */
 export function renderFulfillmentScreen(
   ui: React.ReactElement,
   userId: string = PICKER_ID,
   searchParams = "",
+  onUrlUpdate?: OnUrlUpdateFunction,
 ) {
   useAuthStore.setState({
     user: {
@@ -148,7 +153,7 @@ export function renderFulfillmentScreen(
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <NuqsTestingAdapter searchParams={searchParams} hasMemory>
+      <NuqsTestingAdapter searchParams={searchParams} hasMemory onUrlUpdate={onUrlUpdate}>
         <Suspense fallback={<div>loading</div>}>
           {/* Màn lấy hàng / kiểm thùng / cất lại nằm trong tab theo kho (spec 2026-11-22) */}
           <WorkspaceWarehouseProvider value={TAB_WAREHOUSE}>{ui}</WorkspaceWarehouseProvider>
@@ -174,6 +179,16 @@ export async function pickSelectOption(
   await user.click(await screen.findByRole("option", { name: option }));
 }
 
+/** jsdom thiếu `ResizeObserver` / `scrollIntoView` mà `cmdk` (popover công cụ toolbar, lọc header cột) dùng → vá rỗng. */
+export function patchCmdk() {
+  globalThis.ResizeObserver ??= class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+  Element.prototype.scrollIntoView ??= () => {};
+}
+
 /**
  * Chọn một mục của combobox gõ-thẳng (`InputCombobox`, vd `CodeCombobox`): bấm ô theo nhãn, gõ chữ để lọc rồi
  * bấm option khớp tên. jsdom thiếu `ResizeObserver` / `scrollIntoView` mà `cmdk` dùng → vá trước.
@@ -186,12 +201,7 @@ export async function pickInputComboboxOption(
   label: string | RegExp,
   option: string,
 ) {
-  globalThis.ResizeObserver ??= class {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  };
-  Element.prototype.scrollIntoView ??= () => {};
+  patchCmdk();
   const box = await screen.findByRole("combobox", { name: label });
   await user.click(box);
   await user.type(box, option);

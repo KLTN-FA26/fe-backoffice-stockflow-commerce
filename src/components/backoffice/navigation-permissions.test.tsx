@@ -169,7 +169,7 @@ describe("declared navigation permissions", () => {
     ],
     ["không có quyền màn nào trong kho", [], false],
   ] as const)(
-    "Trả hàng về kệ (trong tab theo kho) với %s → tab Kho & bản đồ hiện: %s",
+    "Trả hàng về kệ (trong tab theo kho) với %s → tab Kho hiện: %s",
     async (_, permissions, visible) => {
       vi.spyOn(api, "get").mockResolvedValue({
         data: {
@@ -182,7 +182,7 @@ describe("declared navigation permissions", () => {
       expect(await screen.findByRole("link", { name: "Phân quyền" })).toBeInTheDocument();
       // Màn đã vào tab theo kho (spec 2026-11-22): không còn item riêng ngoài tab
       expect(screen.queryByRole("link", { name: "Trả hàng về kệ" })).toBeNull();
-      const tab = screen.queryByRole("link", { name: "Kho & bản đồ" });
+      const tab = screen.queryByRole("link", { name: "Kho" });
       expect(tab !== null).toBe(visible);
       if (tab) expect(tab).toHaveAttribute("href", ADMIN_ROUTES.warehouseMap.root);
     },
@@ -192,7 +192,7 @@ describe("declared navigation permissions", () => {
     ["cycle-counts:READ alone", [CYCLE_COUNT_PERMISSIONS.read], false],
     ["cycle-counts:UPDATE alone", [CYCLE_COUNT_PERMISSIONS.update], false],
   ] as const)(
-    "kiểm kê (trong tab theo kho) with %s → tab Kho & bản đồ visible: %s",
+    "kiểm kê (trong tab theo kho) with %s → tab Kho visible: %s",
     async (_, permissions, visible) => {
       vi.spyOn(api, "get").mockResolvedValue({
         data: {
@@ -205,7 +205,7 @@ describe("declared navigation permissions", () => {
       expect(await screen.findByRole("link", { name: "Phân quyền" })).toBeInTheDocument();
       // Kiểm kê đã vào tab theo kho (spec 2026-11-22): không còn mục riêng ở nhóm Tồn kho
       expect(screen.queryByRole("link", { name: CYCLE_COUNT_LABELS.title })).toBeNull();
-      const tab = screen.queryByRole("link", { name: "Kho & bản đồ" });
+      const tab = screen.queryByRole("link", { name: "Kho" });
       expect(tab !== null).toBe(visible);
       if (tab) expect(tab).toHaveAttribute("href", ADMIN_ROUTES.warehouseMap.root);
     },

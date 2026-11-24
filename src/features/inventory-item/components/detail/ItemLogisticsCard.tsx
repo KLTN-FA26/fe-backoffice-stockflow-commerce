@@ -14,12 +14,10 @@ import type { ItemEditing } from "./InventoryItemDetail";
 
 const L = UI_LABELS.inventoryItem;
 
-type Measure = number | null | undefined;
-const num = (v: Measure) => (v == null ? "?" : String(v));
-const dims = (l: Measure, w: Measure, h: Measure) =>
-  l == null && w == null && h == null ? L.notProvided : `${num(l)} × ${num(w)} × ${num(h)} cm`;
-
-/** Thẻ logistics — xem; sửa trong popup khi `editing === "logistics"`. */
+/**
+ * Thẻ logistics — xem; sửa trong popup khi `editing === "logistics"`. Không có kích thước / khối lượng: đó là
+ * của thùng, ở quy cách thùng của SKU (BE #396, docs 01 BR-03).
+ */
 export function ItemLogisticsCard({
   item,
   editing,
@@ -35,7 +33,6 @@ export function ItemLogisticsCard({
 }) {
   const l = item.logistics;
   const showEdit = canEdit && editing === null;
-  const pkgWeight = l.packageWeightKg == null ? "" : `, ${l.packageWeightKg} kg`;
 
   return (
     <ItemCardShell
@@ -52,19 +49,6 @@ export function ItemLogisticsCard({
       <dl>
         <DefinitionItem label={L.field.unitOfMeasure} value={l.unitOfMeasure} mono />
         <DefinitionItem label={L.field.barcode} value={l.barcode || L.notProvided} mono />
-        <DefinitionItem
-          label={L.weightView}
-          value={l.weightKg == null ? L.notProvided : `${l.weightKg} kg`}
-        />
-        <DefinitionItem label={L.dimensions} value={dims(l.lengthCm, l.widthCm, l.heightCm)} />
-        <DefinitionItem
-          label={L.packageDimensions}
-          value={`${dims(l.packageLengthCm, l.packageWidthCm, l.packageHeightCm)}${pkgWeight}`}
-        />
-        <DefinitionItem
-          label={L.countAndPack}
-          value={`${l.packageCount} · ${l.packSize}${L.packSuffix}`}
-        />
         <DefinitionItem label={L.field.rotatable} value={l.rotatable ? L.yes : L.no} />
       </dl>
       <FormDialog open={editing === "logistics"} onOpenChange={(open) => !open && onDone()}>

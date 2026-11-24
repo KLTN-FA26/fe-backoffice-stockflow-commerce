@@ -39,14 +39,15 @@ export const CARTON_SPEC_UI_LABELS = {
   weightValue: (kg: string) => `${kg} kg`,
   unitsValue: (count: string, base: string) => `${count} ${base}`,
   none: "SKU chưa có quy cách thùng. Cần khai báo đơn vị thùng trước khi nhập kho theo thùng, in nhãn giao và xếp xe.",
+  // BE #396 (docs 01 BR-03, 03 BR-13): số đo chỉ còn ở thùng — thiếu thì chưa nhập kho theo thùng được
   notMeasured:
-    "Thùng chưa đủ kích thước và khối lượng thùng đầy — chưa in được nhãn giao cho thùng của SKU này.",
+    "Thùng chưa đủ kích thước và khối lượng thùng đầy — chưa nhập kho theo thùng và chưa in được nhãn giao cho thùng của SKU này.",
   ambiguous:
     "SKU có nhiều đơn vị đóng gói nhưng chưa chọn đơn vị giao mặc định, nên hệ thống chưa xác định được thùng. Sửa một đơn vị và đánh dấu là đơn vị giao mặc định.",
   declare: "Khai báo quy cách thùng",
   edit: "Sửa quy cách thùng",
   editUnit: (code: string) => `Sửa ${code}`,
-  openInventoryItem: "Mã vạch, cỡ / khối lượng một cái, cho phép xoay: mở hồ sơ hàng tồn",
+  openInventoryItem: "Đơn vị tính, mã vạch, cho phép xoay: mở hồ sơ hàng tồn",
   dialog: {
     createTitle: "Khai báo quy cách thùng",
     editTitle: (code: string) => `Sửa quy cách thùng ${code}`,
@@ -61,7 +62,7 @@ export const CARTON_SPEC_UI_LABELS = {
     widthCm: "Rộng (cm)",
     heightCm: "Cao (cm)",
     weightKg: "Khối lượng thùng đầy (kg)",
-    measuresHint: "Bỏ trống nếu chưa đo; đủ bốn số mới in được nhãn giao.",
+    measuresHint: "Bỏ trống nếu chưa đo; đủ bốn số mới nhập kho theo thùng và in được nhãn giao.",
     defaultShipping: "Là đơn vị giao mặc định (xếp xe ước tính theo thùng này)",
   },
   validation: {

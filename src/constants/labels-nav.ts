@@ -1,6 +1,6 @@
 /**
  * Tên nhóm (tab) của sidebar back-office — chia theo nhóm chức năng và module của docs
- * (docs 00 §3 "Bản đồ module"). Nhóm Sản xuất, Kho & bản đồ, Thanh toán dùng nhãn của feature
+ * (docs 00 §3 "Bản đồ module"). Nhóm Sản xuất, Kho, Thanh toán dùng nhãn của feature
  * (`PRODUCTION_LABELS.navGroup`, `UI_LABELS.warehouseMap.workspace.navGroup`, `PAYMENT_LABELS.navGroup`).
  */
 export const NAV_GROUP_LABELS = {

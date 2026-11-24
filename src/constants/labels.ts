@@ -233,6 +233,15 @@ export const UI_LABELS = {
       noMatchDescription: "Thử bỏ bớt bộ lọc để xem thêm task.",
       outOfScope: "Kho này nằm ngoài phạm vi dữ liệu của bạn.",
       assigneesFailed: "Không tải được danh sách người được gán.",
+      // Lọc người được gán trên header cột (data-table-mode-a §4.1)
+      assigneeSearch: "Tìm người…",
+      assigneeEmpty: "Không có người phù hợp.",
+      // Chip thanh "Cấu hình" — phạm vi dữ liệu do BE quyết theo mã quyền (task-oversight:READ)
+      scope: "Phạm vi",
+      scopeAll: "mọi task",
+      scopeOwn: "task được gán cho bạn",
+      columns: "Cột hiển thị",
+      actions: "Thao tác",
     },
     // Dialog tạo task: đơn chờ xuất kho đọc từ GET /fulfillment/task-candidates (cần fulfillment-task-assignment:CREATE)
     // Docs 07 §4.1 bước 1–2: đơn đã release, hoặc đơn chờ hàng lấy trước phần đã giữ

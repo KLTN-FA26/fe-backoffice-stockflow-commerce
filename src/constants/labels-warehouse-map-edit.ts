@@ -87,12 +87,16 @@ export const WAREHOUSE_MAP_EDIT_LABELS = {
   },
 } as const;
 
-/** Tab "Kho & bản đồ" — chọn kho ở Danh mục kho, rồi mới vào các trang của kho đó. */
+/**
+ * Tab "Kho" — chọn kho ở Danh mục kho, rồi mới vào các trang của kho đó (vận hành + bản đồ). Đổi từ "Kho & bản đồ"
+ * khi Nhận hàng vào tab: bản đồ chỉ còn là một nhóm trong tab.
+ */
 export const WAREHOUSE_WORKSPACE_LABELS = {
-  navGroup: "Kho & bản đồ",
+  navGroup: "Kho",
   choose: "Đang tải danh sách kho",
   change: "Đổi kho",
-  pickHint: "Chọn một kho ở Danh mục kho để mở bản đồ và gợi ý vị trí của kho đó.",
+  pickHint: "Chưa vào kho nào — bấm một kho ở Danh mục kho để mở trang vận hành và bản đồ.",
+  current: "Kho đang làm việc",
   notFoundTitle: (prefix: string) => `Không có kho ${prefix}`,
   notFoundDescription:
     "Kho không còn trong danh mục hoặc bạn chưa được cấp quyền xem — chọn kho khác.",
@@ -112,7 +116,8 @@ export const WAREHOUSE_WORKSPACE_LABELS = {
   openMap: "Mở bản đồ kho",
   noAssignmentTitle: "Bạn chưa được gán kho nào — liên hệ quản trị viên",
   notAssignedBadge: "Không được gán",
-  groups: { operations: "Vận hành", map: "Bản đồ" },
+  // `all`: trang xem mọi kho (Danh mục kho, Sức chứa kho) — tách khỏi trang của kho đang làm việc
+  groups: { operations: "Vận hành", map: "Bản đồ", all: "Tất cả kho" },
 } as const;
 
 /** Một dòng trong bảng phím tắt — `keys` là các phím bấm cùng lúc (hoặc lựa chọn, nối bằng "/"). */

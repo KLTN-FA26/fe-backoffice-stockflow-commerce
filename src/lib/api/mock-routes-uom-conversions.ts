@@ -1,8 +1,8 @@
 /**
  * Mock routes — đơn vị tính của SKU (BE `UomConversionController`, docs 01 §3 "Đơn vị quy đổi", BR-03,
  * BR-09): `GET/POST /products/{id}/variants/{variantId}/uom-conversions`, `PUT .../{conversionId}`.
- * Đơn vị cơ sở luôn đi theo logistics của hồ sơ hàng tồn (mã, cỡ, khối lượng — `mock-routes-variants.ts`);
- * thùng seed từ `packSize` + kích thước kiện có sẵn của logistics mock (không bịa số). Thứ tự kiểm theo
+ * Mã đơn vị cơ sở đi theo logistics của hồ sơ hàng tồn (`mock-routes-variants.ts`); đơn vị cơ sở không có số đo —
+ * chỉ thùng có (BE #396, `UomConversionRepository`). Seed chỉ có đơn vị cơ sở, không bịa thùng. Thứ tự kiểm theo
  * `SkuUnitService` (sản phẩm → biến thể → sửa được) và `UomConversionServiceImpl` / `UomConversionRules`.
  */
 import { registerMockRoute } from "./mock-adapter";
@@ -41,7 +41,7 @@ export function resetUomConversionMockStore(): void {
 export const mockPackingUnitUses = (variantId: string, code: string): boolean =>
   (units.get(variantId) ?? []).some((u) => !u.base && u.unitOfMeasure === code);
 
-/** Seed lần đầu: đơn vị cơ sở + thùng nếu logistics mock có quy cách kiện (> 1 cái). */
+/** Seed lần đầu: chỉ đơn vị cơ sở (là đơn vị giao mặc định) — thùng do người dùng khai ở quy cách thùng. */
 function seed(variantId: string, row: MockLogistics): MockUnit[] {
   const base: MockUnit = {
     id: `uom-base-${variantId}`,
@@ -55,24 +55,9 @@ function seed(variantId: string, row: MockLogistics): MockUnit[] {
     defaultPurchase: true,
     active: true,
     version: 0,
-    defaultShipping: row.packSize <= 1,
-  };
-  if (row.packSize <= 1) return [base];
-  const carton: MockUnit = {
-    id: `uom-carton-${variantId}`,
-    unitOfMeasure: "CARTON",
-    factor: row.packSize,
-    base: false,
-    weightKg: row.packageWeightKg,
-    lengthCm: row.packageLengthCm,
-    widthCm: row.packageWidthCm,
-    heightCm: row.packageHeightCm,
-    defaultPurchase: false,
-    active: true,
-    version: 0,
     defaultShipping: true,
   };
-  return [base, carton];
+  return [base];
 }
 
 function unitsOf(variantId: string, row: MockLogistics): MockUnit[] {
@@ -84,18 +69,10 @@ function unitsOf(variantId: string, row: MockLogistics): MockUnit[] {
   return list;
 }
 
-/** BE `UomConversionResponse`: đơn vị cơ sở mang mã / cỡ / khối lượng của logistics. */
+/** BE `UomConversionResponse`: đơn vị cơ sở mang mã của logistics, không số đo (BE #396, docs 01 BR-03). */
 function view(unit: MockUnit, row: MockLogistics) {
   if (!unit.base) return { ...unit, sku: row.sku };
-  return {
-    ...unit,
-    sku: row.sku,
-    unitOfMeasure: row.unitOfMeasure,
-    weightKg: row.weightKg,
-    lengthCm: row.lengthCm,
-    widthCm: row.widthCm,
-    heightCm: row.heightCm,
-  };
+  return { ...unit, sku: row.sku, unitOfMeasure: row.unitOfMeasure };
 }
 
 /** Đơn vị cơ sở trước, rồi theo mã (thứ tự BE). */

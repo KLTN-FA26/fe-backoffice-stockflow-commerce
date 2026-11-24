@@ -21,8 +21,9 @@ export const RECEIPT_CARTON_ERROR_MESSAGES = {
   // Docs 03 §4.1 bước 5: dòng đã từng có thùng (kể cả Void) không bỏ được, không đổi đơn vị thùng khi còn thùng cũ
   RECEIPT_LINE_HAS_PACKAGES:
     "Dòng đã từng có thùng dán nhãn không bỏ khỏi phiếu được, cũng không đổi quy cách thùng khi còn thùng cũ. Muốn làm lại — huỷ phiếu rồi đếm lại",
+  // BE #396 `GoodsReceiptServiceImpl.cartonUnit` dùng cả mã này khi thùng chưa đủ kích thước / khối lượng (docs 01 BR-03)
   RECEIPT_LINE_UNIT_INVALID:
-    "Đơn vị không hợp lệ cho thùng: thùng phải theo một đơn vị đóng gói đang dùng; dòng không có thùng thì đếm theo đơn vị cơ sở",
+    "Đơn vị không hợp lệ cho thùng: thùng phải theo một đơn vị đóng gói đang dùng và quy cách thùng đã khai đủ kích thước, khối lượng thùng đầy; dòng không có thùng thì đếm theo đơn vị cơ sở",
   UOM_CONVERSION_NOT_FOUND: "Mặt hàng không có đơn vị này",
   RECEIPT_PACKAGES_NOT_SUPPORTED: "Phiếu nhận hàng gia công không chia thùng — hãy đếm hàng lẻ",
   STOCK_PACKAGE_NOT_FOUND:

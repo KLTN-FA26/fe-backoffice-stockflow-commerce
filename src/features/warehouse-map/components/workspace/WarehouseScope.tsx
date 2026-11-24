@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
 import { ADMIN_ROUTES, UI_LABELS } from "@/constants";
+import { useAppStore } from "@/lib/store/use-app-store";
 import { WorkspaceWarehouseProvider } from "@/lib/workspace";
 
 import { useWarehouseByPrefix } from "@/features/warehouse-map/workspace";
@@ -58,7 +59,7 @@ export function WarehouseListStatus({
 }
 
 /**
- * Phạm vi một kho của tab "Kho & bản đồ" (layout `[prefix]`): đổi prefix trên URL ra kho rồi cấp kho cho trang con qua
+ * Phạm vi một kho của tab "Kho" (layout `[prefix]`): đổi prefix trên URL ra kho rồi cấp kho cho trang con qua
  * `lib/workspace`; prefix không có trong danh mục (gõ sai, kho bị ẩn quyền) → báo và dẫn về Danh mục kho để chọn kho.
  * KHÔNG kiểm kho được gán — bản đồ không giới hạn theo kho được gán (06); màn vận hành do `AssignedOnly` chặn.
  */
@@ -67,6 +68,11 @@ export function WarehouseScope({ prefix, children }: { prefix: string; children:
   const canonical = workspace.warehouse?.prefix;
   const pathname = usePathname();
   const router = useRouter();
+  const setWorkspacePrefix = useAppStore((state) => state.setWorkspacePrefix);
+  // Nhớ kho vừa vào (đã khớp danh mục) → panel sidebar giữ trang của kho này khi sang Danh mục kho / Sức chứa kho
+  useEffect(() => {
+    if (canonical) setWorkspacePrefix(canonical);
+  }, [canonical, setWorkspacePrefix]);
   // Prefix gõ chữ thường (`/bd/…`) → URL về prefix chuẩn của danh mục: link trong tab, panel và breadcrumb cùng một
   // dạng, đổi qua lại không dựng lại layout (mất bản nháp bản đồ…)
   useEffect(() => {

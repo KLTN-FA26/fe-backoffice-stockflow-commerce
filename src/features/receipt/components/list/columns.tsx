@@ -38,6 +38,8 @@ function dateTimeCell(
  */
 export function buildReceiptColumns(
   navigateToDetail: (row: GoodsReceiptRow) => void,
+  /** Link chi tiết — màn Nhận hàng trong tab theo kho trỏ vào route của kho. */
+  hrefOf: (row: GoodsReceiptRow) => string = (row) => ADMIN_ROUTES.receipts.detail(row.id),
 ): ColumnDef<GoodsReceiptRow>[] {
   return [
     {
@@ -46,7 +48,7 @@ export function buildReceiptColumns(
       sortable: true,
       cell: (row) => (
         <Link
-          href={ADMIN_ROUTES.receipts.detail(row.id)}
+          href={hrefOf(row)}
           className={`${CELL.code} hover:underline`}
           onClick={(event) => event.stopPropagation()}
         >

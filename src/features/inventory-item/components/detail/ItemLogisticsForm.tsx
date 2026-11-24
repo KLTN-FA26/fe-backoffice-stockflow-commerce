@@ -15,7 +15,6 @@ import { logisticsFormSchema } from "../../schemas";
 import { logisticsToForm } from "../../selectors";
 import { Field } from "./Field";
 import { ItemOutdatedNotice } from "./ItemOutdatedNotice";
-import { LOGISTICS_MEASURES } from "./measure-fields";
 import { useItemSubmitHandlers } from "./useItemSubmitHandlers";
 
 import type { InventoryItem, LogisticsFormValues } from "../../types";
@@ -79,18 +78,6 @@ export function ItemLogisticsForm({ item, onDone }: { item: InventoryItem; onDon
           <Field label={F.barcode} id="lg-barcode" error={errors.barcode?.message}>
             <Input id="lg-barcode" {...form.register("barcode")} className={FORM_INPUT_CLASS} />
           </Field>
-          {LOGISTICS_MEASURES.map((name) => (
-            <Field key={name} label={F[name]} id={`lg-${name}`} error={errors[name]?.message}>
-              <Input
-                id={`lg-${name}`}
-                type="number"
-                min={0}
-                step="any"
-                {...form.register(name)}
-                className={`${FORM_INPUT_CLASS} text-right tabular-nums`}
-              />
-            </Field>
-          ))}
         </div>
         <CheckboxField control={form.control} name="rotatable" label={F.rotatable} />
       </DialogScrollArea>

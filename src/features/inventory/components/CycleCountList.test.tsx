@@ -6,8 +6,10 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 
 import {
   CYCLE_COUNT_API,
+  CYCLE_COUNT_COLUMNS,
   CYCLE_COUNT_CREATE_LABELS as C,
   CYCLE_COUNT_LABELS,
+  CYCLE_COUNT_STORAGE_KEYS,
 } from "@/constants/cycle-count";
 import { INVENTORY_LABELS } from "@/constants/inventory";
 import { CYCLE_COUNT_PERMISSIONS } from "@/constants/permissions";
@@ -29,6 +31,10 @@ vi.mock("next/navigation", () => ({ useRouter: () => navigation }));
 const server = setupServer();
 const endpoint = inventoryEndpoint(CYCLE_COUNT_API.list);
 const { viewPage, read } = CYCLE_COUNT_PERMISSIONS;
+// ListToolbar / ListConfigSummary (shared, unlabelled constants)
+const RESET_ALL = "Đặt lại";
+const STATUS_TOOL = "Lọc trạng thái";
+const COLUMNS_TOOL = "Ẩn hiện cột";
 const page = (items: unknown[]) => ({
   items,
   page: 0,
@@ -56,6 +62,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   server.resetHandlers();
+  localStorage.clear();
 });
 afterAll(() => {
   server.close();
@@ -147,12 +154,124 @@ describe("cycle count list (docs 20 §4.2, §5.2)", () => {
     expect(statuses).toHaveBeenLastCalledWith("IN_PROGRESS");
     // Chỉ phiếu của kho trong tab theo kho
     expect(warehouses).toHaveBeenLastCalledWith(INVENTORY_TAB_WAREHOUSE.id);
-    // The toolbar reset and the empty state offer the same way out.
-    const [reset] = screen.getAllByRole("button", { name: INVENTORY_LABELS.reset });
-    if (!reset) throw new Error("reset not rendered");
-    await userEvent.click(reset);
+    // The status chip on the config bar; "Đặt lại" of the toolbar clears the filter like the empty state's way out.
+    expect(screen.getByText(`${CYCLE_COUNT_LABELS.status}: Đang đếm`)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: INVENTORY_LABELS.reset })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: RESET_ALL }));
     await screen.findByText(CYCLE_COUNT_LABELS.noCounts);
     expect(statuses).toHaveBeenLastCalledWith(null);
+  });
+
+  it("the status filter is the toolbar facet: one wire status on the BE param, a chip, again to clear", async () => {
+    const statuses = vi.fn();
+    server.use(
+      inventoryPermissions([viewPage, read]),
+      http.get(endpoint, ({ request }) => {
+        statuses(new URL(request.url).searchParams.get("status"));
+        return HttpResponse.json({ success: true, data: page([]) });
+      }),
+    );
+    const user = userEvent.setup();
+    renderInventory(<CycleCountList />);
+    await screen.findByText(CYCLE_COUNT_LABELS.noCounts);
+    expect(statuses).toHaveBeenLastCalledWith(null);
+    expect(screen.getByRole("button", { name: RESET_ALL })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: STATUS_TOOL }));
+    const options = within(await screen.findByRole("listbox")).getAllByRole("option");
+    expect(options.map((option) => option.textContent)).toEqual([
+      "Đã lập phiếu",
+      "Đang đếm",
+      expect.any(String),
+      expect.any(String),
+    ]);
+    await user.click(screen.getByRole("option", { name: "Đang đếm" }));
+    await waitFor(() => expect(statuses).toHaveBeenLastCalledWith("IN_PROGRESS"));
+    expect(await screen.findByText(INVENTORY_LABELS.noResults)).toBeInTheDocument();
+    expect(screen.getByText(`${CYCLE_COUNT_LABELS.status}: Đang đếm`)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: RESET_ALL })).toBeEnabled();
+    // BE nhận một trạng thái: chọn lại cùng option là bỏ lọc
+    await user.click(screen.getByRole("option", { name: "Đang đếm" }));
+    await waitFor(() => expect(statuses).toHaveBeenLastCalledWith(null));
+    expect(await screen.findByText(CYCLE_COUNT_LABELS.noCounts)).toBeInTheDocument();
+  });
+
+  it("hides a column from the toolbar, keeps the locked number column, and the chip brings it back", async () => {
+    const fetched = vi.fn();
+    server.use(
+      inventoryPermissions([viewPage, read]),
+      http.get(endpoint, () => {
+        fetched();
+        return HttpResponse.json({
+          success: true,
+          data: page([cycleCountSummaryFixture({ countNumber: "CC-COL-1" })]),
+        });
+      }),
+    );
+    const user = userEvent.setup();
+    renderInventory(<CycleCountList />);
+    await screen.findByRole("link", { name: "CC-COL-1" });
+    expect(screen.getByText(`${CYCLE_COUNT_LABELS.summaryColumns}: 7/7`)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: COLUMNS_TOOL }));
+    // Mã phiếu là link sang chi tiết — khoá, không tắt được
+    expect(await screen.findByRole("option", { name: CYCLE_COUNT_LABELS.number })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+    await user.click(screen.getByRole("option", { name: CYCLE_COUNT_LABELS.trigger }));
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("columnheader", { name: CYCLE_COUNT_LABELS.trigger }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(
+      screen.getByRole("columnheader", { name: CYCLE_COUNT_LABELS.number }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: `${CYCLE_COUNT_LABELS.open} CC-COL-1` }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(`${CYCLE_COUNT_LABELS.summaryColumns}: 6/7`)).toBeInTheDocument();
+    // Sở thích cá nhân → localStorage, không lên URL, không gọi lại API
+    expect(
+      JSON.parse(localStorage.getItem(CYCLE_COUNT_STORAGE_KEYS.columns) ?? "{}").visibleColumns,
+    ).not.toContain(CYCLE_COUNT_COLUMNS.TRIGGER);
+    expect(fetched).toHaveBeenCalledTimes(1);
+    await user.keyboard("{Escape}");
+    await user.click(
+      screen.getByRole("button", { name: `Xoá ${CYCLE_COUNT_LABELS.summaryColumns}` }),
+    );
+    expect(
+      await screen.findByRole("columnheader", { name: CYCLE_COUNT_LABELS.trigger }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(`${CYCLE_COUNT_LABELS.summaryColumns}: 7/7`)).toBeInTheDocument();
+  });
+
+  it("a stored column config with a removed key drops it and keeps the locked number column", async () => {
+    localStorage.setItem(
+      CYCLE_COUNT_STORAGE_KEYS.columns,
+      JSON.stringify({ visibleColumns: ["gone", CYCLE_COUNT_COLUMNS.TRIGGER] }),
+    );
+    server.use(
+      inventoryPermissions([viewPage, read]),
+      http.get(endpoint, () =>
+        HttpResponse.json({
+          success: true,
+          data: page([cycleCountSummaryFixture({ countNumber: "CC-OLD-1" })]),
+        }),
+      ),
+    );
+    renderInventory(<CycleCountList />);
+    await screen.findByRole("link", { name: "CC-OLD-1" });
+    expect(
+      await screen.findByText(`${CYCLE_COUNT_LABELS.summaryColumns}: 2/7`),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: CYCLE_COUNT_LABELS.number }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: CYCLE_COUNT_LABELS.trigger }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: CYCLE_COUNT_LABELS.status })).toBeNull();
+    expect(screen.queryByRole("columnheader", { name: CYCLE_COUNT_LABELS.plannedDate })).toBeNull();
   });
 
   it("tells 'nothing yet' apart from 'the filter matches nothing'", async () => {
@@ -248,6 +367,17 @@ describe("planning a count by hand (docs 20 §4.2 a, BR-12)", () => {
     renderInventory(<CycleCountList />);
     await screen.findByText(CYCLE_COUNT_LABELS.noCounts);
     expect(screen.queryByRole("button", { name: C.action })).toBeNull();
+  });
+
+  it("a manager with inventory-cycle-counts:CREATE gets Lập phiếu on the toolbar, which opens the dialog", async () => {
+    handlers(() => ok({}));
+    const user = userEvent.setup();
+    renderInventory(<CycleCountList />);
+    await screen.findByText(CYCLE_COUNT_LABELS.noCounts);
+    await user.click(screen.getByRole("button", { name: C.action }));
+    expect(
+      within(await screen.findByRole("dialog")).getByRole("heading", { name: C.title }),
+    ).toBeInTheDocument();
   });
 
   it("an empty scope is refused on the form and nothing is sent", async () => {

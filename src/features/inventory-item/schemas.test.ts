@@ -8,19 +8,44 @@ import {
 } from "./schemas";
 import { logisticsToForm } from "./selectors";
 
-/** BE `InventoryItemResponse` hiện tại: chỉ còn logistics (không policy / evaluation / storageClass). */
+/**
+ * BE `InventoryItemResponse` sau BE #396 (V20261215000100, docs 01 BR-03): logistics chỉ còn đơn vị tính, mã vạch,
+ * cờ xoay — số đo là của thùng, nằm ở quy cách thùng.
+ */
 const dto = (logistics: Record<string, unknown> = {}) => ({
   id: "i1",
   sku: "SKU-1",
   version: 2,
-  logistics: { unitOfMeasure: "EACH", packageCount: 1, packSize: 1, rotatable: true, ...logistics },
+  logistics: { unitOfMeasure: "EACH", barcode: "893", rotatable: true, ...logistics },
 });
 
+/** 10 trường số đo BE cũ còn trả trước #396 — FE phải chạy được với cả BE cũ lẫn mới. */
+const OLD_MEASURES = {
+  weightKg: "0.020",
+  lengthCm: 10,
+  widthCm: 5,
+  heightCm: 2,
+  packageWeightKg: 1,
+  packageLengthCm: 30,
+  packageWidthCm: 20,
+  packageHeightCm: 10,
+  packageCount: 1,
+  packSize: 50,
+};
+
 describe("inventoryItemDtoSchema (BE InventoryItemResponse)", () => {
-  it("parse response không có policy / evaluation / storageClass; số đo vắng là undefined", () => {
-    const item = inventoryItemDtoSchema.parse(dto({ weightKg: "0.020" }));
-    expect(item).toMatchObject({ id: "i1", version: 2, logistics: { weightKg: 0.02 } });
-    expect(item.logistics.lengthCm).toBeUndefined();
+  it("BE #396: logistics chỉ có đơn vị tính, mã vạch, cờ xoay — parse được, không còn số đo", () => {
+    expect(inventoryItemDtoSchema.parse(dto())).toEqual({
+      id: "i1",
+      sku: "SKU-1",
+      version: 2,
+      logistics: { unitOfMeasure: "EACH", barcode: "893", rotatable: true },
+    });
+  });
+
+  it("BE cũ còn trả 10 trường số đo: vẫn parse, bỏ các trường đó", () => {
+    const item = inventoryItemDtoSchema.parse(dto(OLD_MEASURES));
+    expect(item.logistics).toEqual({ unitOfMeasure: "EACH", barcode: "893", rotatable: true });
   });
 
   it("rotatable: giữ false; vắng → true như BE", () => {
@@ -52,18 +77,12 @@ describe("logisticsFormSchema (BE UpdateItemLogisticsRequest)", () => {
     expect(paths({ barcode: "x".repeat(65) })).toEqual(["barcode"]);
   });
 
-  it("số đo dương hoặc trống; số kiện / quy cách nguyên ≥ 1", () => {
-    expect(paths({ weightKg: "0" })).toEqual(["weightKg"]);
-    expect(paths({ lengthCm: "", packSize: "" })).toEqual([]);
-    expect(paths({ packageCount: "0" })).toEqual(["packageCount"]);
-    expect(paths({ packSize: "1.5" })).toEqual(["packSize"]);
+  it("form chỉ còn đơn vị tính, mã vạch, cờ xoay", () => {
+    expect(Object.keys(values).sort()).toEqual(["barcode", "rotatable", "unitOfMeasure"]);
   });
 
-  it("request: trống → null, luôn gửi rotatable, không còn trường lưu kho / QC / ký nhận", () => {
-    const body = toLogisticsRequest({ ...values, barcode: " ", weightKg: "2.5" }, 3);
-    expect(body).toMatchObject({ version: 3, barcode: null, weightKg: 2.5, rotatable: true });
-    for (const gone of ["storageClass", "qcRequired", "requiresAdultSignature"]) {
-      expect(body).not.toHaveProperty(gone);
-    }
+  it("request BE #396: đúng version, đơn vị tính, mã vạch (trống → null), cờ xoay — không gửi số đo", () => {
+    const body = toLogisticsRequest({ ...values, unitOfMeasure: " EACH ", barcode: " " }, 3);
+    expect(body).toEqual({ version: 3, unitOfMeasure: "EACH", barcode: null, rotatable: true });
   });
 });

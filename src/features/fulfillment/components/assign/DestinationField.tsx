@@ -8,7 +8,7 @@ import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/
 import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 
 import { FieldError } from "../primitives";
-import { SELECT_FIELD } from "./AssigneeSelect";
+import { TASK_SELECT_CLASS } from "./AssigneeSelect";
 
 import type { PickDestination } from "@/constants";
 
@@ -124,7 +124,7 @@ export function DestinationField({
                   id="task-staging-area"
                   aria-invalid={error ? true : undefined}
                   aria-describedby={error ? "task-staging-area-error" : undefined}
-                  className={SELECT_FIELD}
+                  className={TASK_SELECT_CLASS}
                 >
                   <SelectValue placeholder={D.stagingAreaPlaceholder} />
                 </SelectTrigger>

@@ -1,19 +1,22 @@
 "use client";
 
+import { cn } from "cn";
+
 import { UI_LABELS } from "@/constants";
 import { useAssignees } from "@/features/fulfillment/queries";
 import { assigneeName } from "@/features/fulfillment/reference-api";
 import { Alert } from "@/components/shared/Alert";
+import { FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 
 import { FieldError } from "../primitives";
 
 const { fulfillment, loadError, common } = UI_LABELS;
-export const SELECT_FIELD =
-  "border-border-default bg-bg-surface mt-1 w-full rounded-[var(--r-sm)] text-[0.8125rem]";
+/** Ô chọn của form dialog task — class ô nhập dùng chung, cách nhãn phía trên 4px. */
+export const TASK_SELECT_CLASS = cn(FORM_SELECT_CLASS, "mt-1");
 
 /**
  * Chọn người được gán — danh sách do BE trả theo kho (`GET /fulfillment/assignees?warehouseId=`: nhân viên
@@ -76,7 +79,7 @@ export function AssigneeSelect({
           autoFocus={autoFocus}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? "task-assignee-error" : undefined}
-          className={SELECT_FIELD}
+          className={TASK_SELECT_CLASS}
         >
           <SelectValue
             placeholder={

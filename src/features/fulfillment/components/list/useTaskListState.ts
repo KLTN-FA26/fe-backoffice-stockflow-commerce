@@ -8,6 +8,8 @@ import { useWorkspaceHref, useWorkspaceWarehouse } from "@/lib/workspace";
 import { useFulfillmentTasks } from "@/features/fulfillment/queries";
 
 import {
+  ALL_COLUMNS,
+  LOCKED_COLUMNS,
   STORAGE_KEY,
   defaultColumns,
   defaultConfig,
@@ -83,13 +85,14 @@ export function useTaskListState(scope: FulfillmentScope, canRead: boolean) {
     void setPage(1);
   };
 
+  // Cột khoá (mã task, thao tác) luôn hiện; giữ đúng thứ tự cột gốc khi bật lại (data-table-mode-a §4.2)
   const toggleColumn = (column: string) => {
-    if (column === FULFILLMENT_COLUMNS.ACTIONS) return;
+    if (LOCKED_COLUMNS.includes(column)) return;
     updateConfig((c) => ({
       ...c,
-      visibleColumns: c.visibleColumns.includes(column)
-        ? c.visibleColumns.filter((x) => x !== column)
-        : [...c.visibleColumns, column],
+      visibleColumns: ALL_COLUMNS.filter((x) =>
+        x === column ? !c.visibleColumns.includes(x) : c.visibleColumns.includes(x),
+      ),
     }));
   };
 

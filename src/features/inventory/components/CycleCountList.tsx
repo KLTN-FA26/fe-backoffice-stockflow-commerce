@@ -1,33 +1,25 @@
 "use client";
 
 import { useState } from "react";
-import { WORKSPACE_PATHS } from "@/constants";
 
-import {
-  CYCLE_COUNT_CREATE_LABELS,
-  CYCLE_COUNT_LABELS,
-  CYCLE_COUNT_STATUSES,
-} from "@/constants/cycle-count";
-import { INVENTORY_LABELS, INVENTORY_PAGE_SIZES } from "@/constants/inventory";
+import { WORKSPACE_PATHS } from "@/constants";
+import { CYCLE_COUNT_LABELS } from "@/constants/cycle-count";
+import { INVENTORY_PAGE_SIZES } from "@/constants/inventory";
 import { CYCLE_COUNT_PERMISSIONS } from "@/constants/permissions";
 
 import { useCan } from "@/lib/auth";
-import { statusLabelVi } from "@/lib/status-map";
 import { useWorkspaceHref, useWorkspaceWarehouse } from "@/lib/workspace";
 
 import { DataTable } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
-import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RefetchBar } from "@/components/shared/RefetchBar";
 
 import { useCycleCounts } from "../cycle-count-queries";
-import { CycleCountCreateDialog } from "./CycleCountCreateDialog";
 import { useCycleCountFilters } from "../use-cycle-count-filters";
 import { buildCycleCountColumns, isOpenCycleCount } from "./cycle-count-columns";
+import { CycleCountCreateDialog } from "./CycleCountCreateDialog";
+import { CycleCountToolbar } from "./CycleCountToolbar";
 import {
   InventoryError,
   InventoryInvalidPage,
@@ -36,9 +28,9 @@ import {
 } from "./InventoryFeedback";
 import { isInvalidPage, serverPage } from "./inventory-page";
 import { InventoryPermissionGate } from "./InventoryPermissionGate";
+import { useCycleCountColumns } from "./useCycleCountColumns";
 
 const L = CYCLE_COUNT_LABELS;
-const ALL = "all";
 
 export function CycleCountList() {
   return (
@@ -53,12 +45,15 @@ export function CycleCountList() {
 
 function CycleCountListContent() {
   const state = useCycleCountFilters();
+  const visibleColumns = useCycleCountColumns();
   // UI-only — Backend phải re-check (inventory-cycle-counts:CREATE, docs 20 §4.2 a)
   const canPlan = useCan(CYCLE_COUNT_PERMISSIONS.create);
   const [planning, setPlanning] = useState(false);
   const warehouse = useWorkspaceWarehouse();
   const href = useWorkspaceHref();
-  const columns = buildCycleCountColumns((id) => href(WORKSPACE_PATHS.cycleCount(id)));
+  const columns = buildCycleCountColumns(visibleColumns.visible, (id) =>
+    href(WORKSPACE_PATHS.cycleCount(id)),
+  );
   const query = useCycleCounts({
     page: state.page - 1,
     size: state.size,
@@ -66,48 +61,21 @@ function CycleCountListContent() {
     warehouseId: warehouse.id,
   });
   return (
-    // Giao diện kiểu Vercel như danh sách điều chỉnh tồn (`.surface-soft`): không tiêu đề hiển thị — breadcrumb là
-    // tên trang. Phiếu do quản lý kho lập tay (nút "Lập phiếu") hoặc hệ thống tự mở khi báo thiếu thùng.
-    <div className="surface-soft space-y-[var(--card-pad)]">
+    // Trang danh sách style Vercel (`.surface-soft`, mẫu ProductList): không tiêu đề hiển thị — breadcrumb là tên
+    // trang. Phiếu do quản lý kho lập tay (nút "Lập phiếu" trên toolbar) hoặc hệ thống tự mở khi báo thiếu thùng.
+    <div className="surface-soft">
       <h1 className="sr-only">{L.title}</h1>
-      <InventoryOffline />
-      <div className="flex flex-wrap items-center gap-[var(--el-gap)]">
-        <Label htmlFor="cycle-count-status" className="text-ink-secondary text-[0.8125rem]">
-          {L.statusFilter}
-        </Label>
-        <Select
-          value={state.status ?? ALL}
-          onValueChange={(value) =>
-            void state.setStatus(CYCLE_COUNT_STATUSES.find((status) => status === value) ?? null)
-          }
-        >
-          <SelectTrigger id="cycle-count-status" className={`${FORM_SELECT_CLASS} w-[13rem]`}>
-            <SelectValue />
-          </SelectTrigger>
-          <TitledSelectContent title={L.statusFilter}>
-            <SelectItem value={ALL}>{L.all}</SelectItem>
-            {CYCLE_COUNT_STATUSES.map((status) => (
-              <SelectItem key={status} value={status}>
-                {statusLabelVi(status, "stock") ?? status}
-              </SelectItem>
-            ))}
-          </TitledSelectContent>
-        </Select>
-        {state.hasFilters && (
-          <Button type="button" variant="outline" size="sm" onClick={() => void state.reset()}>
-            {INVENTORY_LABELS.reset}
-          </Button>
-        )}
-        {canPlan && (
-          <Button type="button" size="sm" className="ml-auto" onClick={() => setPlanning(true)}>
-            {CYCLE_COUNT_CREATE_LABELS.action}
-          </Button>
-        )}
+      {/* Banner mất mạng cách toolbar như thanh Cấu hình; online → div rỗng, ẩn */}
+      <div className="mb-3 empty:hidden">
+        <InventoryOffline />
       </div>
+      <CycleCountToolbar
+        state={state}
+        columns={visibleColumns}
+        canPlan={canPlan}
+        onPlan={() => setPlanning(true)}
+      />
       {planning && <CycleCountCreateDialog onClose={() => setPlanning(false)} />}
-      {query.isFetching && !query.isLoading && (
-        <div role="status" aria-label={L.fetching} className="bg-info h-1" />
-      )}
       {query.isLoading ? (
         <PageSkeleton variant="list" />
       ) : query.isError ? (
@@ -115,6 +83,11 @@ function CycleCountListContent() {
       ) : (
         query.data && (
           <section aria-busy={query.isFetching}>
+            <RefetchBar
+              active={query.isFetching && !query.isLoading}
+              label={L.fetching}
+              className="-mt-0.5"
+            />
             {query.data.items.length ? (
               <DataTable
                 stickyHeader

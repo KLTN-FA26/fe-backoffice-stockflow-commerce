@@ -1,5 +1,7 @@
 import { MOVE_LABELS, MOVE_LIMITS } from "@/constants/move";
 
+import { FORM_INPUT_CLASS } from "@/components/shared/form-control-classes";
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -37,13 +39,13 @@ export function MoveFields({
     help?: string,
     required = true,
   ) => (
-    <div key={field}>
+    <div key={field} className="space-y-1.5">
       <Label htmlFor={`move-${field}`}>
         {label}
         {required && " *"}
       </Label>
       <Input
-        className="bg-bg-surface rounded-[var(--r-sm)]"
+        className={FORM_INPUT_CLASS}
         id={`move-${field}`}
         {...register(field)}
         maxLength={limit}
@@ -76,10 +78,10 @@ export function MoveFields({
           <option key={code} value={code} />
         ))}
       </datalist>
-      <div>
+      <div className="space-y-1.5">
         <Label htmlFor="move-quantity">{MOVE_LABELS.quantity} *</Label>
         <Input
-          className="bg-bg-surface rounded-[var(--r-sm)]"
+          className={FORM_INPUT_CLASS}
           id="move-quantity"
           type="number"
           step={1}
