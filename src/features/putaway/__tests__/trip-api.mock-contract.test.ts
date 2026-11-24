@@ -144,6 +144,10 @@ describe("putaway trip mock ↔ hợp đồng BE PutawayTripController", () => {
       true,
     );
     expect(going.stops.length).toBeGreaterThan(0);
+    // BE #410: điểm gốc = khu nguồn khi chưa cất thùng nào; mock không tìm đường → path null (FE nối thẳng)
+    expect(going.originLocationCode).toBe("HCM-RCV01");
+    expect([going.originX, going.originY]).toEqual([going.startX, going.startY]);
+    expect(going.stops.every((s) => s.path === null)).toBe(true);
     expect(await codeOf(loadTripCarton({ tripId: trip.id, lpn: a ?? "" }))).toBe(
       "PUTAWAY_TRIP_INVALID_STATE",
     );

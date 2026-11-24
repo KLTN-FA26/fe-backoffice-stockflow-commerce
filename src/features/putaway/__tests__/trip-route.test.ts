@@ -57,8 +57,42 @@ describe("tripRoutePath — đường nối điểm dừng trên Kho Map 2D (doc
     );
     expect(path.start).toBeNull();
     expect(path.stops).toEqual([
-      { sequence: 2, locationCode: "OVERFLOW-01", x: 20, y: 3, state: "todo" },
+      { sequence: 2, locationCode: "OVERFLOW-01", x: 20, y: 3, state: "todo", path: null },
     ]);
+  });
+
+  it("đường đi BE tính (issue BE #410) đi kèm từng điểm dừng; điểm gốc BE dùng để sắp thứ tự cũng được đưa ra", () => {
+    const walk = [
+      { x: 7, y: 6 },
+      { x: 16.75, y: 3.75 },
+      { x: 17.2, y: 6.5 },
+    ];
+    const path = tripRoutePath(
+      going({
+        originLocationCode: "A01-1-01",
+        originX: 7,
+        originY: 6,
+        cartons: [tripCarton({ lpn: "L1" }), tripCarton({ lpn: "L2", putawayTaskId: "t-2" })],
+        stops: [
+          { sequence: 1, locationCode: "A01-1-02", x: 17.2, y: 6.5, lpns: ["L1"], path: walk },
+          // BE không tìm được lối → path null, FE vẽ đoạn thẳng
+          { sequence: 2, locationCode: "B02-1-05", x: 30, y: 6.5, lpns: ["L2"], path: null },
+        ],
+      }),
+    );
+    expect(path.origin).toEqual({ locationCode: "A01-1-01", x: 7, y: 6 });
+    expect(path.stops.map((s) => s.path)).toEqual([walk, null]);
+  });
+
+  it("BE cũ chưa trả điểm gốc / đường đi → origin null, path null (vẽ thẳng như trước)", () => {
+    const path = tripRoutePath(
+      going({
+        cartons: [tripCarton({ lpn: "L1" })],
+        stops: [{ sequence: 1, locationCode: "A", x: 4, y: 6, lpns: ["L1"] }],
+      }),
+    );
+    expect(path.origin).toBeNull();
+    expect(path.stops[0]?.path).toBeNull();
   });
 
   it("chuyến chưa đi (không có điểm dừng) → không có gì để vẽ", () => {

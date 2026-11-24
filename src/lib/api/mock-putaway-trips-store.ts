@@ -205,6 +205,11 @@ export function toTripResponse(trip: MockTrip) {
     startLocationCode: trip.startLocationCode,
     startX: trip.startX,
     startY: trip.startY,
+    // BE #410: điểm gốc của lộ trình + đường đi từng chặng. Mock không tìm đường (mock không chứa nghiệp vụ) và không
+    // sắp lại sau khi cất → điểm gốc = khu nguồn, `path` null để FE nối thẳng (nhánh dự phòng của BE)
+    ...(trip.status === "IN_PROGRESS"
+      ? { originLocationCode: trip.startLocationCode, originX: trip.startX, originY: trip.startY }
+      : { originLocationCode: null, originX: null, originY: null }),
     startedAt: trip.startedAt,
     lastActivityAt: trip.lastActivityAt,
     closedAt: trip.closedAt,
@@ -221,6 +226,6 @@ export function toTripResponse(trip: MockTrip) {
       loadedAt: c.loadedAt,
       placedAt: c.placedAt,
     })),
-    stops: trip.status === "IN_PROGRESS" ? trip.stops : [],
+    stops: trip.status === "IN_PROGRESS" ? trip.stops.map((s) => ({ ...s, path: null })) : [],
   };
 }
