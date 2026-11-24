@@ -17,6 +17,7 @@ import {
 } from "../selectors";
 
 import { CodeLink, DateCell, EInvoiceStatusDot, InfoRow, LateBadge, TypeText } from "./primitives";
+import { TaxClassAction } from "./TaxClassAction";
 
 import type { EInvoice } from "../types";
 
@@ -73,6 +74,8 @@ export function EInvoiceInfoCard({ invoice }: { invoice: EInvoice }) {
           ))}
         </ul>
       )}
+      {/* Demo D-8: cảnh báo bảo gán nhóm thuế → cho gán ngay ở đây (quyền product-tax-class:UPDATE) */}
+      <TaxClassAction invoice={invoice} />
       {invoice.status === "REJECTED" && (
         <p className="text-danger flex gap-2 text-[0.8125rem]">
           <XCircle aria-hidden className="mt-0.5 size-3.5 shrink-0" />

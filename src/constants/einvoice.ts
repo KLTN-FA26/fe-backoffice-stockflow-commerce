@@ -31,6 +31,12 @@ export const EINVOICE_PERMISSIONS = {
 export const EINVOICE_RESEND_EMAIL_PERMISSION = "customer-legal-profiles:UPDATE";
 
 /**
+ * Gán / đổi nhóm thuế của sản phẩm ở mọi trạng thái (BE `ProductTaxClassController`, demo D-8): Kế toán và Trưởng KD
+ * (V20261224000350). Nháp có cảnh báo `TAX_CLASS_UNKNOWN` hiện nút cho người có quyền này.
+ */
+export const PRODUCT_TAX_CLASS_PERMISSION = "product-tax-class:UPDATE";
+
+/**
  * Resource `einvoice-settings` (không có VIEW_PAGE): Quản trị READ + UPDATE — nhà cung cấp, tài khoản,
  * ký hiệu, tự phát hành; Kế toán chỉ READ.
  */
