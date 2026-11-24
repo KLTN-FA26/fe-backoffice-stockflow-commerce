@@ -128,8 +128,12 @@ describe("ModelViewSlot: a clean file", () => {
   it("reaches the turn controls by keyboard", async () => {
     render(view(measured()));
     await shown();
-    await userEvent.tab();
-    expect(screen.getByRole("button", { name: "Xoay tới mặt trước ly" })).toHaveFocus();
+    const front = screen.getByRole("button", { name: "Xoay tới mặt trước ly" });
+    // The panels' "expand" buttons (the 2D sheet comes first, on the left) are tab stops before the turn controls.
+    for (let stop = 0; stop < 6 && document.activeElement !== front; stop += 1) {
+      await userEvent.tab();
+    }
+    expect(front).toHaveFocus();
     await userEvent.tab();
     expect(screen.getByRole("button", { name: "Xoay tới mặt sau ly (đường nối)" })).toHaveFocus();
   });

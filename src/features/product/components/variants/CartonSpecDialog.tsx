@@ -110,7 +110,10 @@ function CartonSpecForm({
         >
           <ProductInput
             id="carton-unit"
-            {...form.register("unitOfMeasure")}
+            {...form.register("unitOfMeasure", {
+              // BE chỉ nhận chữ in hoa: đổi thật sang chữ hoa (class `uppercase` chỉ đổi cách hiển thị).
+              setValueAs: (value: string) => value.toUpperCase(),
+            })}
             className="font-[family-name:var(--font-mono)] uppercase"
           />
         </Field>

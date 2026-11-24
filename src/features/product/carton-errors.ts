@@ -54,6 +54,8 @@ export function cartonSaveError(error: unknown): {
   const known: Record<string, string> = {
     OPTIMISTIC_LOCK: E.versionConflict,
     UOM_CONVERSION_DUPLICATE: E.duplicate,
+    // BE 409: biến thể đã có một thùng đang dùng (01 BR-03) — phải ngừng dùng thùng cũ trước.
+    UOM_CARTON_ALREADY_DECLARED: E.cartonAlreadyDeclared,
     UOM_CONVERSION_IN_USE: E.inUse,
     UOM_CONVERSION_NOT_FOUND: E.unitGone,
     CARTONS_WOULD_NOT_FIT: E.wouldNotFit,

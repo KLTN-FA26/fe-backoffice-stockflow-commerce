@@ -21,16 +21,38 @@ const TEXT = PRINT_CONFIG_SCREEN_LABELS.report;
 const partName = (code: PrintAreaCode) =>
   code === "BODY" ? MODEL3D_TEMPLATE_LABELS.cupBody : MODEL3D_TEMPLATE_LABELS.faces[code];
 
-function partSize({ shape }: PrintPart): string {
-  if (shape === null) return TEXT.unreadSize;
+const SIZE = TEXT.sizeLabels;
+
+/** Each figure of a print part on its own line, or `null` when the file gave none. */
+function partFigures({ shape }: PrintPart): { label: string; value: string }[] | null {
+  if (shape === null) return null;
   if (shape.kind === "band") {
-    return TEXT.bandSize(
-      formatMm(shape.topDiameterMm),
-      formatMm(shape.bottomDiameterMm),
-      formatMm(shape.topYMm - shape.bottomYMm),
-    );
+    return [
+      { label: SIZE.top, value: formatMm(shape.topDiameterMm) },
+      { label: SIZE.bottom, value: formatMm(shape.bottomDiameterMm) },
+      { label: SIZE.height, value: formatMm(shape.topYMm - shape.bottomYMm) },
+    ];
   }
-  return TEXT.faceSize(formatMm(shape.widthMm), formatMm(shape.heightMm));
+  return [
+    { label: SIZE.width, value: formatMm(shape.widthMm) },
+    { label: SIZE.height, value: formatMm(shape.heightMm) },
+  ];
+}
+
+/** The figures as a small label / value list, values right-aligned so they line up from row to row. */
+function PartSize({ part }: { part: PrintPart }) {
+  const figures = partFigures(part);
+  if (figures === null) return <span className="text-ink-tertiary">{TEXT.unreadSize}</span>;
+  return (
+    <dl className="grid w-max grid-cols-[auto_auto] gap-x-4 gap-y-0.5">
+      {figures.map(({ label, value }) => (
+        <div key={label} className="contents">
+          <dt className="text-ink-tertiary">{label}</dt>
+          <dd className="text-ink-primary text-right tabular-nums">{value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
 }
 
 /**
@@ -77,10 +99,8 @@ export function ModelReadReport({ result }: { result: MeasuredFile }) {
                 <TableRow key={`${index}-${part.printAreaCode}-${part.meshName}`}>
                   <TableCell className="text-ink-primary">{partName(part.printAreaCode)}</TableCell>
                   <TableCell className="text-ink-secondary font-mono">{part.meshName}</TableCell>
-                  {/* The size is a sentence ("Miệng …, đáy …, cao …"): it wraps in the narrow work column instead of
-                      the table scrolling sideways (shadcn cells are `whitespace-nowrap`). */}
-                  <TableCell className="text-ink-primary whitespace-normal tabular-nums">
-                    {partSize(part)}
+                  <TableCell className="py-2 align-top">
+                    <PartSize part={part} />
                   </TableCell>
                 </TableRow>
               ))}

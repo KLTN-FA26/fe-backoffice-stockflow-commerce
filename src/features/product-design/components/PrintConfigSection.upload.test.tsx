@@ -145,7 +145,10 @@ describe("what blocks a save and what only warns", () => {
     await upload(glbFile());
     const parts = within(await screen.findByRole("table", { name: "Từng phần in trong file" }));
     expect(parts.getByText("Mặt trước")).toBeInTheDocument();
-    expect(parts.getByText("120,0 mm × 160,0 mm")).toBeInTheDocument();
+    // Each figure on its own line: "Rộng 120,0 mm", "Cao 160,0 mm".
+    expect(parts.getByText("Rộng")).toBeInTheDocument();
+    expect(parts.getByText("120,0 mm")).toBeInTheDocument();
+    expect(parts.getByText("160,0 mm")).toBeInTheDocument();
     expect(screen.getByText(/Chưa đủ mặt để dựng cấu hình của cả túi/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: SAVE.name })).toBeDisabled();
   });

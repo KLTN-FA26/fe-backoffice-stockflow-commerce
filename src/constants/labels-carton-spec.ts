@@ -80,6 +80,8 @@ export const CARTON_SPEC_UI_LABELS = {
     versionConflict:
       "Quy cách thùng vừa được người khác sửa. Dữ liệu đã được tải lại — hãy mở lại và nhập lại.",
     duplicate: "SKU đã có một đơn vị với mã này (kể cả đơn vị đã ngừng dùng).",
+    cartonAlreadyDeclared:
+      "Biến thể đã có quy cách thùng đang dùng. Ngừng dùng thùng cũ trước khi khai báo thùng mới.",
     inUse:
       "Không đổi được mã hoặc số cái / thùng: đơn vị này đang được bán hoặc đã dùng trên chứng từ.",
     unitGone: "Đơn vị này không còn. Dữ liệu đã được tải lại.",

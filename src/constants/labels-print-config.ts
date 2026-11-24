@@ -226,8 +226,8 @@ export const PRINT_CONFIG_SCREEN_LABELS = {
     partsTitle: "Từng phần in trong file",
     partColumns: { part: "Phần in", name: "Tên trong file", size: "Số đo" },
     unreadSize: "Chưa đọc được số đo",
-    bandSize: (top: string, bottom: string, height: string) =>
-      `Miệng ${top}, đáy ${bottom}, cao ${height}`,
+    /** Nhãn từng số đo của một phần in, mỗi số một dòng (thân ly: miệng / đáy / cao; mặt túi: rộng / cao). */
+    sizeLabels: { top: "Miệng", bottom: "Đáy", height: "Cao", width: "Rộng" },
     faceSize: (width: string, height: string) => `${width} × ${height}`,
     meshInFile: "Phần trong file",
   },

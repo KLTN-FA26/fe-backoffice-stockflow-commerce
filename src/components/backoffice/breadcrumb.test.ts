@@ -183,6 +183,18 @@ describe("buildBreadcrumbItems", () => {
     ]);
   });
 
+  it("cấu hình in của một biến thể: mã sản phẩm là link về trang chi tiết sản phẩm, rồi tên trang", () => {
+    const labelFor = (id: string) => (id === "p-1" ? "LYG12-UI2" : undefined);
+    expect(
+      buildBreadcrumbItems(ADMIN_ROUTES.products.printConfig("p-1", "v-1"), () => true, labelFor),
+    ).toEqual([
+      { label: "Trang quản trị", href: "/admin" },
+      { label: "Sản phẩm & SKU", href: ADMIN_ROUTES.products.list },
+      { label: "LYG12-UI2", href: ADMIN_ROUTES.products.detail("p-1") },
+      { label: "Cấu hình in" },
+    ]);
+  });
+
   it("lịch sử biến động có breadcrumb riêng, không lẫn với Di chuyển nội bộ", () => {
     expect(buildBreadcrumbItems(INVENTORY_ROUTES.movements)).toEqual([
       { label: "Trang quản trị", href: "/admin" },

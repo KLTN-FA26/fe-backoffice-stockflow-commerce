@@ -2,6 +2,7 @@ import { FileBox, RefreshCw, X } from "lucide-react";
 
 import { PRINT_CONFIG_SCREEN_LABELS } from "@/constants/labels-print-config";
 import { cn } from "cn";
+import { DETAIL_ACTION_CLASS } from "@/components/shared/DetailSection";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -89,13 +90,15 @@ export function ChosenModelFile({
             <RefreshCw aria-hidden className="size-3.5" />
             {TEXT.change}
           </Button>
+          {/* Bỏ file là việc huỷ: cùng kiểu nút huỷ của hệ thống (viền + chữ đỏ, `DETAIL_ACTION_CLASS.danger`);
+              `w-auto` vì class đó rộng hết cột, còn ở đây nút đứng cạnh "Đổi file". */}
           <Button
             type="button"
             variant="ghost"
             size="sm"
             disabled={busy}
             onClick={onDiscard}
-            className={ACTION_CLASS}
+            className={cn(DETAIL_ACTION_CLASS.danger, "w-auto px-(--action-px)")}
           >
             <X aria-hidden className="size-3.5" />
             {TEXT.discard}

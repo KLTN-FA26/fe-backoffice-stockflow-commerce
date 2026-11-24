@@ -103,11 +103,11 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
             query={variantsQuery}
           />
           {/* Thông tin bán trên cửa hàng — BE `GET/PUT /products/{id}/ecommerce` */}
-          <Section title="Thông tin cửa hàng (TMĐT)" icon={Tag} defaultOpen={false}>
+          <Section title="Thông tin cửa hàng (TMĐT)" icon={Tag}>
             <ProductListingSection productId={product.productId} status={product.status} />
           </Section>
-          {/* Lịch sử thay đổi — BE `GET /products/{id}/versions` (tải khi mở mục) */}
-          <Section title="Lịch sử thay đổi" icon={History} defaultOpen={false}>
+          {/* Lịch sử thay đổi — BE `GET /products/{id}/versions`; mở sẵn khi vào trang */}
+          <Section title="Lịch sử thay đổi" icon={History}>
             <ProductHistory productId={product.productId} skuById={skuById} />
           </Section>
           <ProductPrintAreasSection product={product} />

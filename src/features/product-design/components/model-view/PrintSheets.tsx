@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef } from "react";
 
 import { MODEL3D_VIEW_LABELS as LABELS } from "@/constants/labels-model3d";
 import { MODEL3D_VIEW as VIEW } from "@/constants/numbers";
+import { cn } from "cn";
 
 import { printedWidthMm } from "../../model3d/cup-sector";
 import { readGridColors } from "../../model3d/grid-colors";
@@ -44,15 +45,20 @@ function PrintSheet({
 
   const { width, height } = surface.flatBounds;
   const size = `${formatMm(area.widthMm)} × ${formatMm(area.heightMm)}`;
+  // No card of its own: the sheet already sits in the panel "Khuôn phẳng của từng phần in". The frame is a padded box
+  // around the canvas, not the canvas's own edge (the canvas is exactly the sheet's bounds, so a border on it touched the
+  // sheet). The sheet takes the full width inside (drawn at a high pixel density, so it stays sharp when large).
   return (
-    <figure className="border-border-default bg-bg-surface space-y-2 rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-[var(--card-shadow)]">
-      <canvas
-        ref={canvasRef}
-        role="img"
-        aria-label={LABELS.sheetLabel(area.name)}
-        className="border-border-default mx-auto block h-auto max-h-80 w-auto max-w-full rounded-[var(--r-sm)] border"
-        style={{ aspectRatio: `${width} / ${height}` }}
-      />
+    <figure className="space-y-2">
+      <div className="border-border-default bg-bg-surface rounded-[var(--r-md)] border p-4 sm:p-6">
+        <canvas
+          ref={canvasRef}
+          role="img"
+          aria-label={LABELS.sheetLabel(area.name)}
+          className="block h-auto w-full"
+          style={{ aspectRatio: `${width} / ${height}` }}
+        />
+      </div>
       <figcaption className="text-ink-secondary text-center text-xs tabular-nums">
         {LABELS.sheetCaption(area.name, size, formatMm(area.bleedMm), formatMm(area.safeMarginMm))}
       </figcaption>
@@ -60,19 +66,31 @@ function PrintSheet({
   );
 }
 
-/** The flat sheet of every print area of the template. */
+/**
+ * The flat sheet of every print area of the template: one sheet (a cup's body) fills the panel; several (a bag's
+ * faces) go two to a row. `large` is the panel expanded over the page.
+ */
 export function PrintSheets({
   template,
   model,
   stamp,
+  large = false,
 }: {
   template: CustomizationTemplate;
   model: CupModel | BagModel;
   stamp: string;
+  large?: boolean;
 }) {
   const surfaces = useMemo(() => createSurfaces(template), [template]);
+  const several = template.printAreas.length > 1;
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
+    <div
+      className={cn(
+        "grid gap-4",
+        several && "sm:grid-cols-2",
+        large && !several && "mx-auto max-w-6xl",
+      )}
+    >
       {template.printAreas.map((area) => {
         const surface = surfaces.byCode[area.code];
         if (!surface) return null;

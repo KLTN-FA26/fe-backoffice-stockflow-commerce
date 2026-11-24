@@ -18,7 +18,7 @@ import { PrintConfigEditor } from "./PrintConfigEditor";
 import { PrintConfigEmpty } from "./PrintConfigEmpty";
 import { PrintConfigHeader } from "./PrintConfigHeader";
 import { PrintConfigSkeleton } from "./PrintConfigSkeleton";
-import { PrintConfigStatusActions } from "./PrintConfigStatusActions";
+import { PrintConfigStatusActions, printConfigStatusHint } from "./PrintConfigStatusActions";
 import { PrintConfigSummary } from "./PrintConfigSummary";
 import { ReferenceFileSection } from "./ReferenceFileSection";
 
@@ -93,7 +93,9 @@ export function PrintConfigSection({
   // Read-only says why: the page's reason, else the one the section can tell itself.
   const reason = canEdit ? null : (readOnlyReason ?? (writable ? "permission" : "product"));
 
-  const header = (save?: { button: ReactNode; alerts: ReactNode }) => (
+  // Viewing a saved configuration: the band's sentence is what activating does, or why it cannot be activated yet.
+  const statusHint = config ? printConfigStatusHint({ config, can, writable }) : null;
+  const header = (save?: { button: ReactNode; hint: string | null; alerts: ReactNode }) => (
     <PrintConfigHeader
       identity={general}
       status={status}
@@ -110,6 +112,9 @@ export function PrintConfigSection({
         )
       }
       save={save?.button}
+      hint={save?.hint}
+      // Viewing or editing, the band says what activating does or why it is not offered yet.
+      statusNote={statusHint}
       alerts={save?.alerts}
     />
   );
@@ -146,7 +151,7 @@ export function PrintConfigSection({
   );
   return (
     <div className="space-y-5">
-      {header(edit ? { button: edit, alerts: null } : undefined)}
+      {header({ button: edit || null, hint: null, alerts: null })}
       {config ? <PrintConfigSummary config={config} /> : <PrintConfigEmpty />}
       {reference}
     </div>

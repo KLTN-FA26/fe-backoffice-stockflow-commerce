@@ -94,6 +94,23 @@ export function ProductActionCard({
   const canEdit = can(PRODUCT_PERMISSIONS.update) && product.status === PRODUCT_STATUS.DRAFT;
   const actions = visibleProductActions(product, can, currentUserId);
   const canPublish = actions.some((action) => action.transition === "publish");
+  // Việc chính (Gửi duyệt, Phê duyệt, Đăng bán…) đứng đầu, rồi "Chỉnh sửa", việc nguy hiểm (Xoá…) cuối.
+  const primaryActions = actions.filter((action) => !action.destructive);
+  const destructiveActions = actions.filter((action) => action.destructive);
+  const renderAction = (action: ProductAction) => (
+    <Button
+      key={action.code}
+      type="button"
+      variant={action.destructive ? "ghost" : "default"}
+      size="sm"
+      disabled={isPending}
+      onClick={() => onAction(action)}
+      className={action.destructive ? DANGER : PRIMARY}
+    >
+      {action.transition && ACTION_ICON[action.transition]}{" "}
+      {pendingAction && pendingAction === action.transition ? L.actionCard.pending : action.label}
+    </Button>
+  );
   return (
     <section className={PRODUCT_CARD_CLASS}>
       <div className="mb-4 flex justify-center">
@@ -101,6 +118,7 @@ export function ProductActionCard({
       </div>
       <ProductStatusReason product={product} />
       <div className="space-y-2">
+        {primaryActions.map(renderAction)}
         {canEdit && (
           <Button asChild variant="outline" size="sm" className={OUTLINE}>
             <Link href={ADMIN_ROUTES.products.edit(product.productId)}>
@@ -108,22 +126,7 @@ export function ProductActionCard({
             </Link>
           </Button>
         )}
-        {actions.map((action) => (
-          <Button
-            key={action.code}
-            type="button"
-            variant={action.destructive ? "ghost" : "default"}
-            size="sm"
-            disabled={isPending}
-            onClick={() => onAction(action)}
-            className={action.destructive ? DANGER : PRIMARY}
-          >
-            {action.transition && ACTION_ICON[action.transition]}{" "}
-            {pendingAction && pendingAction === action.transition
-              ? L.actionCard.pending
-              : action.label}
-          </Button>
-        ))}
+        {destructiveActions.map(renderAction)}
         {!canEdit && actions.length === 0 && (
           <p className="text-ink-tertiary text-center text-xs">{L.actionCard.noActions}</p>
         )}

@@ -68,7 +68,7 @@ export function ProductDescriptionSection({ product }: { product: Product }) {
   const vi = product.description.trim();
   const en = product.descriptionEn.trim();
   return (
-    <Section title={D.title} icon={FileText} defaultOpen={false}>
+    <Section title={D.title} icon={FileText}>
       {vi || en ? (
         <>
           <p className="text-ink-secondary text-[0.8125rem] leading-relaxed">{vi || D.emptyVi}</p>

@@ -104,6 +104,8 @@ import {
 } from "@/constants/einvoice";
 import { EINVOICE_LABELS } from "@/constants/labels-einvoice";
 import { PAYMENT_LABELS, RECEIVABLES_LABELS } from "@/constants/labels-payment";
+import { PRINT_CONFIG_PAGE_LABELS } from "@/constants/labels-print-config";
+import { PRINT_CONFIG_SEGMENT } from "@/constants/routes";
 import { RETURN_LABELS, RETURN_RECEIPT_LABELS } from "@/constants/labels-return";
 import {
   PAYMENT_INSTALLMENT_PERMISSIONS,
@@ -615,6 +617,8 @@ const SUBPAGE_LABELS: Record<string, string> = {
   manifest: UI_LABELS.shipping.manifest.title,
   /** `/load-plans/<id>/vehicles/<seq>/print` — phiếu xếp hàng của một xe (SCRUM-287 PR F6). */
   print: LOAD_PLAN_PRINT_LABELS.documentTitle,
+  /** `/products/<id>/variants/<variantId>/print-config` — cấu hình in của một biến thể (module 12). */
+  [PRINT_CONFIG_SEGMENT]: PRINT_CONFIG_PAGE_LABELS.pageTitle,
 };
 
 const DETAIL_LABEL_BY_ROUTE: Record<string, string> = {
@@ -722,8 +726,10 @@ export function buildBreadcrumbItems(
     const subpage =
       rest.length >= 2 && Object.hasOwn(SUBPAGE_LABELS, last) ? SUBPAGE_LABELS[last] : undefined;
     if (subpage) {
-      // Trang in nằm sâu hơn một cấp (`<id>/vehicles/<seq>/print`): bản ghi vẫn là đoạn đầu tiên
-      const id = (last === "print" ? rest.slice(0, 1) : rest.slice(0, -1)).join("/");
+      // Trang nằm sâu hơn một cấp (`<id>/vehicles/<seq>/print`, `<id>/variants/<variantId>/print-config`): bản ghi
+      // vẫn là đoạn đầu tiên, nên "… / <mã sản phẩm> / Cấu hình in" dẫn về đúng trang chi tiết sản phẩm.
+      const deep = last === "print" || last === PRINT_CONFIG_SEGMENT;
+      const id = (deep ? rest.slice(0, 1) : rest.slice(0, -1)).join("/");
       items.push({
         label: labelFor(id) ?? decodeURIComponent(id),
         href: linkable ? `${navItem.href}/${id}` : undefined,
