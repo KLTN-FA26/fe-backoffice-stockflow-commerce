@@ -13,11 +13,15 @@ import {
   daysOverdue,
   deliveryBatchLabel,
   installmentMilestoneLabel,
-  installmentName,
 } from "../selectors";
 
-import { MONO } from "./copy";
-import { CodeLink, DateCell, InstallmentStatusDot, MoneyCell } from "./primitives";
+import {
+  CodeLink,
+  DateCell,
+  InstallmentLabel,
+  InstallmentStatusDot,
+  MoneyCell,
+} from "./primitives";
 
 import type { ColumnDef } from "@/components/shared/DataTable";
 import type { Installment } from "../types";
@@ -107,11 +111,11 @@ export function buildInstallmentColumns(
             href={PAYMENT_ROUTES.installments.detail(row.installmentId)}
             className="text-accent-text font-medium hover:underline"
           >
-            <span className={MONO}>{row.seq}</span> — {installmentName(row.name)}
+            <InstallmentLabel installment={row} />
           </Link>
         ) : (
           <span className="text-ink-primary">
-            <span className={MONO}>{row.seq}</span> — {installmentName(row.name)}
+            <InstallmentLabel installment={row} />
           </span>
         ),
     },

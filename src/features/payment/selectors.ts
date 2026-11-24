@@ -1,6 +1,10 @@
 /** Selector thuần cho thanh toán theo hợp đồng (docs 15). */
 
-import { INSTALLMENT_STATUS_BY_API, RECEIPT_STATUS_BY_API } from "@/constants/payment";
+import {
+  FEE_INSTALLMENT_MILESTONES,
+  INSTALLMENT_STATUS_BY_API,
+  RECEIPT_STATUS_BY_API,
+} from "@/constants/payment";
 import {
   CANCELLATION_FEE_ITEM_NAME,
   FEE_ITEM_MILESTONE_LABELS,
@@ -114,7 +118,31 @@ export function receiptFormTotal(lines: ReceiptFormValues["lines"]): number {
   }, 0);
 }
 
-/** Tên đợt hiển thị: "Đợt 2 — Thanh toán trước khi giao". */
-export function installmentTitle(installment: Pick<Installment, "seq" | "name">): string {
-  return `Đợt ${installment.seq} — ${installmentName(installment.name)}`;
+/** Khoản phí (huỷ đơn / đóng phần còn lại / chuyến hỏng cũ), không phải đợt của lịch — FE-7. */
+export function isFeeInstallment(installment: { milestone?: Installment["milestone"] | null }) {
+  return FEE_INSTALLMENT_MILESTONES.some((fee) => fee === installment.milestone);
+}
+
+type TitleSource = {
+  seq: number;
+  name?: string | null;
+  milestone?: Installment["milestone"] | null;
+};
+
+/**
+ * Tên đợt hiển thị: "Đợt 2 — Thanh toán trước khi giao". Khoản phí (seq 21–40) không gọi "Đợt 21": chỉ tên khoản phí
+ * ("Phí huỷ đơn"), không có tên thì nhãn mốc (FE-7).
+ */
+export function installmentTitle(installment: TitleSource): string {
+  const name = installment.name ? installmentName(installment.name) : null;
+  if (installment.milestone && isFeeInstallment(installment))
+    return name ?? milestoneLabel(installment.milestone);
+  return name ? `Đợt ${installment.seq} — ${name}` : `Đợt ${installment.seq}`;
+}
+
+/** Đợt trong câu (nhãn nút cho trình đọc màn hình): "đợt 4", khoản phí → tên khoản phí. */
+export function installmentRef(installment: TitleSource): string {
+  return installment.milestone && isFeeInstallment(installment)
+    ? installmentTitle(installment)
+    : `đợt ${installment.seq}`;
 }

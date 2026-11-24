@@ -259,6 +259,25 @@ describe("BO-UX-45 — transfer details, previewed and shown to the staff", () =
     expect(view).toMatchObject({ bankName: null, accountNumber: null, vietQr: null });
     expect(view.amount).toBe(15_000_000);
   });
+
+  it("FE-7: a fee item (seq 21+) reads by its Vietnamese name, never as 'đợt 21'", () => {
+    const view = transferViewFromCard(
+      chatCardSchema.parse({
+        kind: "PAYMENT_REMINDER",
+        state: "OPEN",
+        payload: { ...transferPayload, seq: 21, name: "Cancellation fee" },
+      }),
+    );
+    expect(view.title).toBe("HD-DEMO-0001-1 — Phí huỷ đơn");
+    const unnamed = transferViewFromCard(
+      chatCardSchema.parse({
+        kind: "PAYMENT_REMINDER",
+        state: "OPEN",
+        payload: { ...transferPayload, seq: 22, name: null },
+      }),
+    );
+    expect(unnamed.title).toBe("HD-DEMO-0001-1 — Phí huỷ đơn / đóng phần còn lại");
+  });
 });
 
 describe("BO-UX-48 / BO-UX-6 — card state as a status dot, no raw codes", () => {

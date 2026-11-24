@@ -25,7 +25,7 @@ import { Button } from "@/components/ui/button";
 
 import { allowedReceiptActions, receiptVoidBlock } from "../lifecycle";
 import { useReceipt } from "../queries";
-import { installmentMilestoneLabel, installmentName } from "../selectors";
+import { installmentMilestoneLabel, installmentTitle } from "../selectors";
 
 import { RECEIPT_COPY } from "./copy";
 import { CodeLink, DateCell, InfoRow, MoneyCell, ReceiptStatusDot } from "./primitives";
@@ -102,9 +102,7 @@ function ReceiptDetailContent({ id }: { id: string }) {
                     {/* Không có số hợp đồng → nhãn trung tính, không mảnh UUID (BO-UX-6) */}
                     {line.contractNumber ?? PAYMENT_LIST_LABELS.unknownContract}
                   </CodeLink>
-                  {line.seq != null && (
-                    <span>{`Đợt ${line.seq}${line.name ? ` — ${installmentName(line.name)}` : ""}`}</span>
-                  )}
+                  {line.seq != null && <span>{installmentTitle({ ...line, seq: line.seq })}</span>}
                   {line.milestone && (
                     <span className="text-ink-secondary">
                       {installmentMilestoneLabel({ milestone: line.milestone, name: line.name })}

@@ -13,6 +13,8 @@ import { formatDate } from "@/lib/format/date";
 import { PermittedLink } from "@/components/backoffice/PermittedLink";
 import { StatusDot } from "@/components/shared/StatusDot";
 
+import { installmentName, isFeeInstallment } from "../selectors";
+
 import { MONO } from "./copy";
 
 import type { ReactNode } from "react";
@@ -23,6 +25,7 @@ import type {
   ReceiptReadStatus,
   RefundReadStatus,
 } from "@/constants/payment";
+import type { Installment } from "../types";
 
 const EMPTY = PAYMENT_LABELS.empty;
 
@@ -95,6 +98,16 @@ export function CodeLink({
     <Link href={href} className={CODE_LINK_CLASS} onClick={(event) => event.stopPropagation()}>
       {children}
     </Link>
+  );
+}
+
+/** Đợt trong bảng: "4 — Đặt cọc"; khoản phí (seq 21–40) không mang số đợt — chỉ tên khoản phí (FE-7). */
+export function InstallmentLabel({ installment: i }: { installment: Installment }) {
+  if (isFeeInstallment(i)) return <>{installmentName(i.name)}</>;
+  return (
+    <>
+      <span className={MONO}>{i.seq}</span> — {installmentName(i.name)}
+    </>
   );
 }
 

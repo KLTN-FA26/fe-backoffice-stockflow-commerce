@@ -11,6 +11,8 @@ import {
   CHAT_CARD_STATE_TONE_KEY,
   CHAT_UNKNOWN_LABELS,
 } from "@/constants";
+import { FEE_ITEM_NAME_LABELS, INSTALLMENT_MILESTONE_LABELS } from "@/constants/labels-payment";
+import { FEE_INSTALLMENT_SEQ } from "@/constants/payment";
 
 import { payloadNumber, payloadText } from "./selectors";
 
@@ -46,14 +48,26 @@ export interface TransferView {
   vietQr: string | null;
 }
 
+/**
+ * FE-7: a fee item (seq 21–40, BE `Installment.FIRST_FEE_SEQ`..`LAST_FEE_SEQ`) is not a step of the plan, so it is never
+ * "đợt 21" - only its name, the BE's English fee name in Vietnamese. The card carries no milestone, so the seq decides.
+ */
+const isFeeSeq = (seq: number | null) =>
+  seq != null && seq >= FEE_INSTALLMENT_SEQ.first && seq <= FEE_INSTALLMENT_SEQ.last;
+
 const installmentTitle = (
   number: string | null | undefined,
   seq: number | null,
-  name: string | null | undefined,
-) =>
-  [number, seq != null ? `đợt ${seq}${name ? ` ${name}` : ""}` : name]
-    .filter(Boolean)
-    .join(" — ") || null;
+  rawName: string | null | undefined,
+) => {
+  const name = rawName ? (FEE_ITEM_NAME_LABELS[rawName.trim()] ?? rawName) : rawName;
+  const part = isFeeSeq(seq)
+    ? (name ?? INSTALLMENT_MILESTONE_LABELS.CANCELLATION_FEE)
+    : seq != null
+      ? `đợt ${seq}${name ? ` ${name}` : ""}`
+      : name;
+  return [number, part].filter(Boolean).join(" — ") || null;
+};
 
 function bankField(card: ChatCard, key: string): string | null {
   const bank = card.payload?.bank;
