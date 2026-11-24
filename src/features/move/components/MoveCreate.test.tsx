@@ -23,6 +23,8 @@ import {
 } from "../test-support";
 import { MoveCreate } from "./MoveCreate";
 
+import type { DestinationMap, DestinationMapProps } from "./destination-map";
+
 const server = setupServer();
 const moveUrl = moveEndpoint(MOVE_API.move);
 const cartonUrl = moveEndpoint("/inventory/stock-packages/:lpn");
@@ -105,8 +107,8 @@ const destination = () => screen.getByLabelText(/Đến vị trí/);
 const cartonList = () => screen.getByRole("region", { name: MOVE_LABELS.cartonsTitle });
 
 /** Trang Di chuyển nội bộ: form nằm trong modal mở từ nút "Tạo lệnh di chuyển" của toolbar. */
-async function openMove() {
-  renderMove(<MoveCreate />);
+async function openMove(destinationMap?: DestinationMap) {
+  renderMove(<MoveCreate destinationMap={destinationMap} />);
   await userEvent.click(await screen.findByRole("button", { name: MOVE_LABELS.formTitle }));
   await screen.findByLabelText(MOVE_LABELS.scan);
 }
@@ -120,7 +122,7 @@ async function scanAndPick(lpns: string[], to = "HCM-PACK01") {
     await scan(lpn);
     await within(cartonList()).findByText(lpn);
   }
-  await userEvent.type(destination(), to);
+  if (to) await userEvent.type(destination(), to);
 }
 
 function PermissionsReady() {
@@ -434,5 +436,73 @@ describe("move form — destination suggestions and carton finder", () => {
     expect(
       within(finder).getByRole("button", { name: `${MOVE_LABELS.finderAdded} ${LPN_1}` }),
     ).toBeDisabled();
+  });
+});
+
+describe("move form — destination map (docs 11 §4.1 bước 1–2)", () => {
+  /** Bản đồ giả: tầng route ghép bản đồ kho thật; ở đây chỉ cần xem dữ liệu đưa vào và bấm chọn. */
+  function stubMap() {
+    const seen: DestinationMapProps[] = [];
+    const map: DestinationMap = (props) => {
+      seen.push(props);
+      return (
+        <section aria-label="stub-map">
+          <button
+            type="button"
+            disabled={props.disabled}
+            onClick={() => props.onPick("HCM-PACK01")}
+          >
+            pick-pack
+          </button>
+        </section>
+      );
+    };
+    return { map, last: () => seen.at(-1) };
+  }
+
+  it("marks where the scanned cartons are, and a pick on the map fills the destination", async () => {
+    const sent = vi.fn();
+    server.use(
+      movePermissions([stockUpdate, cartonRead, WAREHOUSE_LOCATION_PERMISSIONS.read]),
+      http.get(moveEndpoint(`/warehouses/${MOVE_TAB_WAREHOUSE.id}/layout`), () =>
+        HttpResponse.json({
+          success: true,
+          data: {
+            shelves: [{ levels: [{ bins: [{ locationCode: "HCM-A01-1-A", usable: true }] }] }],
+            areas: [
+              { locationCode: "HCM-PACK01", usable: true, type: "PACKING" },
+              { locationCode: "HCM-STG01", usable: true, type: "STAGING" },
+            ],
+          },
+        }),
+      ),
+      http.post(moveUrl, async ({ request }) => {
+        const body = (await request.json()) as Record<string, unknown>;
+        sent(body);
+        return moved(body);
+      }),
+    );
+    const stub = stubMap();
+    await openMove(stub.map);
+    await scanAndPick([LPN_1, LPN_2], "");
+    await waitFor(() => expect(stub.last()?.marked).toEqual(["HCM-A01-1-A", "HCM-A01-1-B"]));
+    // Chỉ mã gợi ý được mới chọn được trên bản đồ: không khu tập kết, không nơi thùng đang nằm
+    await waitFor(() => expect([...(stub.last()?.pickable ?? [])]).toEqual(["HCM-PACK01"]));
+    expect(stub.last()?.value).toBe("");
+
+    await userEvent.click(screen.getByRole("button", { name: "pick-pack" }));
+    expect(destination()).toHaveValue("HCM-PACK01");
+    await waitFor(() => expect(stub.last()?.value).toBe("HCM-PACK01"));
+    await waitFor(() => expect(submit()).toBeEnabled());
+    await userEvent.click(submit());
+    await screen.findByText(MOVE_LABELS.resultSummary(2, "HCM-PACK01"));
+    expect(sent.mock.calls[0]?.[0]).toMatchObject({ toLocation: "HCM-PACK01" });
+  });
+
+  it("scanning with the map open still reads every character of the LPN", async () => {
+    const stub = stubMap();
+    await openMove(stub.map);
+    await scan(LPN_1);
+    expect(await within(cartonList()).findByText(LPN_1)).toBeInTheDocument();
   });
 });

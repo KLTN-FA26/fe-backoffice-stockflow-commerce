@@ -58,6 +58,23 @@ export function cartonsAlreadyAt(cartons: readonly ScannedCarton[], toLocation: 
 }
 
 /**
+ * Dữ liệu dẫn xuất của danh sách thùng cho form: vị trí hiện tại (`here`, để đánh dấu trên bản đồ và bỏ khỏi gợi ý),
+ * thùng đã ở sẵn đích, tập LPN, và các dòng cần đánh dấu đỏ — thùng ở sẵn đích + thùng BE vừa từ chối (chỉ khi còn trong
+ * danh sách).
+ */
+export function cartonMarks(
+  cartons: readonly ScannedCarton[],
+  toLocation: string,
+  rejectedLpn: string | undefined,
+) {
+  const here = cartons.flatMap((carton) => (carton.locationCode ? [carton.locationCode] : []));
+  const alreadyAt = cartonsAlreadyAt(cartons, toLocation);
+  const inList = new Set(cartons.map((carton) => carton.lpn));
+  const rejected = rejectedLpn && inList.has(rejectedLpn) ? [rejectedLpn] : [];
+  return { here, alreadyAt, inList, flagged: new Set([...alreadyAt, ...rejected]) };
+}
+
+/**
  * Vị trí đích gợi ý (docs 11 §4.1 bước 2): bin / khu `usable` của kho, không phải khu tập kết (BR-09), khác vị trí hiện
  * tại của mọi thùng trong danh sách. Sắp xếp, không trùng.
  */
