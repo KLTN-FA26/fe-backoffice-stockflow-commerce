@@ -1,105 +1,131 @@
 import { describe, expect, it } from "vitest";
 
+import { MOVE_MESSAGES } from "@/constants/move";
+
 import {
+  cartonProblem,
+  cartonSearchParams,
+  cartonsAlreadyAt,
+  cartonsInWarehouse,
   destinationCodes,
-  findSourceRow,
-  isCountHidden,
-  movableQuantity,
-  normalizeLocation,
-  sameLocation,
-  sameWarehouse,
+  isInWarehouse,
+  normalizeLpn,
+  toScanned,
   warehouseOf,
 } from "./selectors";
 
-import type { StockRow, WarehouseLayout } from "./types";
+import type { Carton, ScannedCarton, WarehouseLayout } from "./types";
 
-const row = (overrides: Partial<StockRow>): StockRow => ({
-  id: crypto.randomUUID(),
-  sku: "CUP-PP-500",
-  locationCode: "HCM-A01-1-A",
-  onHand: 10,
-  reserved: 4,
-  available: 6,
-  hiddenDuringCount: false,
-  status: "AVAILABLE",
-  ...overrides,
+const carton = (patch: Partial<Carton> = {}): Carton => ({
+  lpn: "LPN-20261111-000001",
+  sku: "SOFA-3S-GREY",
+  lotNumber: null,
+  onHand: 1,
+  reserved: 0,
+  status: "IN_STOCK",
+  locationCode: "HCM-A01-2-B",
+  ...patch,
 });
 
-describe("location helpers (BE LocationId)", () => {
-  it("normalises like the BE: trim + upper case", () => {
-    expect(normalizeLocation("  hcm-a01-1-a ")).toBe("HCM-A01-1-A");
+describe("location / LPN helpers", () => {
+  it("warehouse prefix is the segment before the first hyphen (BE LocationId.warehouseCode)", () => {
+    expect(warehouseOf(" hcm-a01-1-a ")).toBe("HCM");
+    expect(warehouseOf("HCMONLY")).toBe("HCMONLY");
+    expect(isInWarehouse("hcm-a01", "HCM")).toBe(true);
+    expect(isInWarehouse("HCMX-A01", "HCM")).toBe(false);
   });
 
-  it("warehouse = segment before the first hyphen, whole code when there is none", () => {
-    expect(warehouseOf("hn-a01-2-03")).toBe("HN");
-    expect(warehouseOf("HN-RCV01")).toBe("HN");
-    expect(warehouseOf("HN")).toBe("HN");
-  });
-
-  it("sameLocation ignores case and spaces but never matches empty", () => {
-    expect(sameLocation("hcm-a", " HCM-A ")).toBe(true);
-    expect(sameLocation("", "")).toBe(false);
-  });
-
-  it("sameWarehouse is judged only when both ends are filled in", () => {
-    expect(sameWarehouse("HCM-A", "")).toBe(true);
-    expect(sameWarehouse("HCM-A", "HCM-B")).toBe(true);
-    expect(sameWarehouse("HCM-A", "HN-A")).toBe(false);
+  it("normalizes a scanned LPN", () => {
+    expect(normalizeLpn("  lpn-1 ")).toBe("LPN-1");
   });
 });
 
-describe("stock rows", () => {
-  it("movable = onHand - reserved whatever the status, never negative", () => {
-    expect(movableQuantity({ onHand: 10, reserved: 4 })).toBe(6);
-    expect(movableQuantity({ onHand: 3, reserved: 5 })).toBe(0);
+describe("cartonProblem (docs 11 §4.1 bước 1)", () => {
+  it("a free carton in stock in the tab warehouse may be added", () => {
+    expect(cartonProblem(carton(), "HCM")).toBeNull();
   });
 
-  it("a row hidden during a count is not movable and reads as hidden (SCRUM-146)", () => {
-    const hidden = row({
-      onHand: undefined,
-      reserved: undefined,
-      available: undefined,
-      hiddenDuringCount: true,
-    });
-    expect(isCountHidden(hidden)).toBe(true);
-    expect(movableQuantity(hidden)).toBe(0);
-    // Even if a payload still carried numbers, the flag wins: the bin is under count.
-    expect(movableQuantity(row({ hiddenDuringCount: true }))).toBe(0);
-    expect(isCountHidden(row({}))).toBe(false);
+  it("BR-05: a carton held for an order is refused", () => {
+    expect(cartonProblem(carton({ reserved: 1 }), "HCM")).toBe(
+      MOVE_MESSAGES.held("LPN-20261111-000001"),
+    );
   });
 
-  it("finds the row a typed source points at, by location (any case) and lot", () => {
-    const rows = [
-      row({ lotNumber: "L1" }),
-      row({ lotNumber: "L2" }),
-      row({ locationCode: "HCM-B" }),
-    ];
-    expect(findSourceRow(rows, "hcm-a01-1-a", "L2")?.lotNumber).toBe("L2");
-    expect(findSourceRow(rows, "HCM-B", "")?.locationCode).toBe("HCM-B");
-    expect(findSourceRow(rows, "HCM-A01-1-A", "")).toBeUndefined();
-    expect(findSourceRow(undefined, "HCM-B", "")).toBeUndefined();
+  it("BR-04: only an IN_STOCK carton moves", () => {
+    expect(cartonProblem(carton({ status: "RECEIVING" }), "HCM")).toBe(
+      MOVE_MESSAGES.notInStock("LPN-20261111-000001", "RECEIVING"),
+    );
+  });
+
+  it("BR-01: a carton of another warehouse (or nowhere) is refused", () => {
+    const other = MOVE_MESSAGES.cartonOtherWarehouse("LPN-20261111-000001", "HCM");
+    expect(cartonProblem(carton({ locationCode: "HN-A01-1-A" }), "hcm")).toBe(other);
+    expect(cartonProblem(carton({ locationCode: null }), "HCM")).toBe(other);
   });
 });
 
-describe("destinationCodes", () => {
-  it("lists usable bins and areas only, unique and sorted; NON_STORAGE areas have no code", () => {
-    const layout: WarehouseLayout = {
-      shelves: [
-        {
-          levels: [
-            {
-              bins: [
-                { locationCode: "HCM-A01-1-B", usable: true },
-                { locationCode: "HCM-A01-1-A", usable: true },
-                { locationCode: "HCM-A01-1-C", usable: false },
-              ],
-            },
-          ],
-        },
-      ],
-      areas: [{ locationCode: "hcm-pack01", usable: true }, { usable: null }],
-    };
-    expect(destinationCodes(layout)).toEqual(["HCM-A01-1-A", "HCM-A01-1-B", "HCM-PACK01"]);
+describe("cartonsAlreadyAt", () => {
+  const rows: ScannedCarton[] = [
+    toScanned(carton()),
+    toScanned(carton({ lpn: "LPN-2", locationCode: "HCM-A02-1-A" })),
+    { lpn: "LPN-3", sku: null, lotNumber: null, onHand: null, locationCode: null },
+  ];
+  it("names the cartons already at the destination (BE 422 VALIDATION_FAILED)", () => {
+    expect(cartonsAlreadyAt(rows, " hcm-a01-2-b")).toEqual(["LPN-20261111-000001"]);
+    expect(cartonsAlreadyAt(rows, "HCM-B01-1-A")).toEqual([]);
+    expect(cartonsAlreadyAt(rows, "")).toEqual([]);
+  });
+});
+
+describe("destinationCodes (docs 11 §4.1 bước 2)", () => {
+  const layout: WarehouseLayout = {
+    shelves: [
+      {
+        levels: [
+          {
+            bins: [
+              { locationCode: "hcm-a01-1-b", usable: true },
+              { locationCode: "HCM-A01-1-C", usable: false },
+              { locationCode: "HCM-A01-2-B", usable: true },
+            ],
+          },
+        ],
+      },
+    ],
+    areas: [
+      { locationCode: "HCM-PACK01", usable: true, type: "PACKING" },
+      // BR-09: khu tập kết không phải đích chuyển tay
+      { locationCode: "HCM-STG01", usable: true, type: "STAGING" },
+      { locationCode: null, usable: null },
+    ],
+  };
+
+  it("usable bins and areas, without STAGING, sorted", () => {
+    expect(destinationCodes(layout)).toEqual(["HCM-A01-1-B", "HCM-A01-2-B", "HCM-PACK01"]);
+  });
+
+  it("leaves out the current location of the chosen cartons", () => {
+    expect(destinationCodes(layout, ["hcm-a01-2-b"])).toEqual(["HCM-A01-1-B", "HCM-PACK01"]);
+  });
+
+  it("no layout → no suggestions", () => {
     expect(destinationCodes(undefined)).toEqual([]);
+  });
+});
+
+describe("carton finder", () => {
+  it("a location code of the tab warehouse searches by location, anything else by SKU", () => {
+    expect(cartonSearchParams(" hcm-a01-2-b ", "HCM")).toEqual({ location: "HCM-A01-2-B" });
+    expect(cartonSearchParams("sofa-3s-grey", "HCM")).toEqual({ sku: "SOFA-3S-GREY" });
+    expect(cartonSearchParams("  ", "HCM")).toBeNull();
+  });
+
+  it("keeps only cartons of the tab warehouse", () => {
+    const rows = [
+      carton(),
+      carton({ lpn: "LPN-HN", locationCode: "HN-A01-1-A" }),
+      carton({ lpn: "X", locationCode: null }),
+    ];
+    expect(cartonsInWarehouse(rows, "HCM").map((row) => row.lpn)).toEqual(["LPN-20261111-000001"]);
   });
 });

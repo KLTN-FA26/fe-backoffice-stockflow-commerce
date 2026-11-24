@@ -1,8 +1,15 @@
 import type { z } from "zod";
 
-import type { moveCreateInput, stockMoveDto, stockRowDto, warehouseLayoutDto } from "./schemas";
+import type {
+  cartonDto,
+  movedCartonDto,
+  moveCreateInput,
+  scannedCartonSchema,
+  warehouseLayoutDto,
+} from "./schemas";
 
 export type MoveCreateInput = z.infer<typeof moveCreateInput>;
-export type StockMove = z.infer<typeof stockMoveDto>;
-export type StockRow = z.infer<typeof stockRowDto>;
+export type MovedCarton = z.infer<typeof movedCartonDto>;
+export type Carton = z.infer<typeof cartonDto>;
+export type ScannedCarton = z.infer<typeof scannedCartonSchema>;
 export type WarehouseLayout = z.infer<typeof warehouseLayoutDto>;

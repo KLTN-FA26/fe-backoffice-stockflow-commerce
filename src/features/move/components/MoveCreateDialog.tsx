@@ -1,38 +1,36 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 
-import { INVENTORY_PERMISSIONS, WAREHOUSE_LOCATION_PERMISSIONS } from "@/constants/permissions";
 import { MOVE_LABELS, MOVE_MESSAGES } from "@/constants/move";
+import { STOCK_PACKAGE_PERMISSIONS, WAREHOUSE_LOCATION_PERMISSIONS } from "@/constants/permissions";
 
-import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { ApiError } from "@/lib/api/error";
 import { useCan } from "@/lib/auth";
-import { SKU_INPUT_PATTERN } from "@/lib/validation/sku";
 import { useWorkspaceWarehouse } from "@/lib/workspace";
 
-import { Alert } from "@/components/shared/Alert";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 
-import { moveErrorView, moveFieldErrors } from "../errors";
-import { useCreateMove } from "../mutations";
-import { useDestinationCodes, useStockRows } from "../queries";
+import { useDestinationCodes } from "../queries";
 import { moveInWarehouseInput } from "../schemas";
-import { findSourceRow, isCountHidden, movableQuantity } from "../selectors";
-import { useMoveRequestId } from "../use-move-request-id";
+import { cartonsAlreadyAt } from "../selectors";
+import { useCartonScan } from "../use-carton-scan";
+import { useMoveSubmit } from "../use-move-submit";
+import { CartonFinder } from "./CartonFinder";
+import { CartonScanField } from "./CartonScanField";
 import { MoveFields } from "./MoveFields";
 import { MoveResult } from "./MoveResult";
-import { StockRowPicker } from "./StockRowPicker";
+import { ScannedCartons } from "./ScannedCartons";
 
-import type { MoveCreateInput, StockMove, StockRow } from "../types";
+import type { MoveCreateInput, ScannedCarton } from "../types";
 
-const EMPTY_MOVE = { sku: "", lotNumber: "", fromLocation: "", toLocation: "" };
+const EMPTY_MOVE: MoveCreateInput = { lpns: [], toLocation: "" };
 
 /**
- * Modal tạo lệnh di chuyển (docs 11) — khung `FormDialog` chung của Mode A. Chuyển xong form trống lại và giữ modal mở,
- * kèm thẻ kết quả: NV kho thường chuyển nhiều lệnh liên tiếp. Radix unmount khi đóng nên mở lại là form mới.
+ * Modal tạo lệnh chuyển nguyên thùng (docs 11 §4.1) — khung `FormDialog` chung của Mode A. Quét LPN → chọn đích → gửi.
+ * Chuyển xong danh sách trống lại và giữ modal mở, kèm thẻ kết quả: NV kho thường chuyển nhiều lệnh liên tiếp. Radix
+ * unmount khi đóng nên mở lại là form mới.
  */
 export function MoveCreateDialog({
   open,
@@ -49,109 +47,86 @@ export function MoveCreateDialog({
 }
 
 function MoveForm({ onCancel }: { onCancel: () => void }) {
-  const mutation = useCreateMove();
-  const requestId = useMoveRequestId();
-  const [result, setResult] = useState<StockMove | null>(null);
-  // Kept outside the form's error state: `setError` would mark the form invalid and block a retry
-  // of an unchanged, still valid move (e.g. after a lost response).
-  const [failure, setFailure] = useState<string | null>(null);
   const warehouse = useWorkspaceWarehouse();
   const form = useForm<MoveCreateInput>({
     resolver: zodResolver(moveInWarehouseInput(warehouse.prefix)),
     mode: "onChange",
     defaultValues: EMPTY_MOVE,
   });
-  const [sku, lot, from, to, quantity] = useWatch({
-    control: form.control,
-    name: ["sku", "lotNumber", "fromLocation", "toLocation", "quantity"],
+  const toLocation = useWatch({ control: form.control, name: "toLocation" });
+  const canLookup = useCan(STOCK_PACKAGE_PERMISSIONS.read);
+  // Danh sách thùng là nguồn của `lpns`: mỗi lần thêm / bỏ ghi lại vào form (zod kiểm 1–500, bỏ trùng).
+  const scan = useCartonScan({
+    prefix: warehouse.prefix,
+    canLookup,
+    onChange: (cartons: ScannedCarton[]) =>
+      form.setValue(
+        "lpns",
+        cartons.map((carton) => carton.lpn),
+        { shouldDirty: true, shouldValidate: true },
+      ),
   });
-  // Cross-field rules (same location, other warehouse) attach to the destination: re-check it when
-  // the source or quantity changes, otherwise its error would only show after the destination is edited.
-  useEffect(() => {
-    if (to) void form.trigger("toLocation");
-  }, [form, from, to, quantity]);
-  // Optional aids — each needs its own BE permission and degrades to plain typing without it.
-  const skuCode = useDebouncedValue(sku.trim().toUpperCase(), 400);
-  const rows = useStockRows(
-    warehouse.id,
-    SKU_INPUT_PATTERN.test(skuCode) ? skuCode : "",
-    useCan(INVENTORY_PERMISSIONS.stockRead),
-  );
+  const move = useMoveSubmit(form, () => {
+    scan.clear();
+    form.reset(EMPTY_MOVE);
+  });
+  const here = scan.cartons.flatMap((carton) => (carton.locationCode ? [carton.locationCode] : []));
   const destinations = useDestinationCodes(
     warehouse.id,
     useCan(WAREHOUSE_LOCATION_PERMISSIONS.read),
+    here,
   );
-  const source = findSourceRow(rows.data, from, lot);
-  const sourceHidden = source ? isCountHidden(source) : false;
-  const movable = source && !sourceHidden ? movableQuantity(source) : undefined;
-  const pick = (row: StockRow) => {
-    form.setValue("fromLocation", row.locationCode, { shouldDirty: true, shouldValidate: true });
-    form.setValue("lotNumber", row.lotNumber ?? "", { shouldDirty: true, shouldValidate: true });
-  };
-  // `mutation.isPending` is a render snapshot; this ref flips synchronously so a double click
-  // cannot send two requests.
-  const submitting = useRef(false);
-  const submitValid = async (input: MoveCreateInput) => {
-    if (submitting.current) return;
-    submitting.current = true;
-    setFailure(null);
-    setResult(null);
-    try {
-      setResult(await mutation.mutateAsync({ input, requestId: requestId.idFor(input) }));
-      requestId.forget();
-      // NaN empties the (uncontrolled) number input; leaving the key out would keep the old figure.
-      form.reset({ ...EMPTY_MOVE, quantity: Number.NaN });
-    } catch (error: unknown) {
-      for (const [field, message] of Object.entries(moveFieldErrors(error))) {
-        form.setError(field as keyof MoveCreateInput, { type: "server", message });
-      }
-      setFailure(moveErrorView(error).detail);
-    } finally {
-      submitting.current = false;
-    }
-  };
+  const alreadyAt = cartonsAlreadyAt(scan.cartons, toLocation);
+  const inList = new Set(scan.cartons.map((carton) => carton.lpn));
+  // Thùng BE vừa từ chối chỉ còn đánh dấu khi vẫn nằm trong danh sách.
+  const rejected = move.failure?.lpn && inList.has(move.failure.lpn) ? [move.failure.lpn] : [];
+  const flagged = new Set([...alreadyAt, ...rejected]);
   return (
     <FormDialogBody
       title={MOVE_LABELS.formTitle}
       description={MOVE_LABELS.subtitle}
-      submitLabel={mutation.isPending ? MOVE_LABELS.submitting : MOVE_LABELS.submit}
-      canSubmit={form.formState.isValid && !sourceHidden}
-      isPending={mutation.isPending}
-      error={failure}
-      onSubmit={() => void form.handleSubmit(submitValid)()}
+      submitLabel={move.isPending ? MOVE_LABELS.submitting : MOVE_LABELS.submit}
+      canSubmit={form.formState.isValid && alreadyAt.length === 0 && !scan.pending}
+      isPending={move.isPending}
+      error={move.failure?.detail ?? null}
+      onSubmit={move.submit}
       onCancel={onCancel}
     >
-      {/* Bảng tồn của SKU có thể dài — cuộn trong thân modal, header / footer đứng yên */}
+      {/* Danh sách thùng / bộ tìm có thể dài — cuộn trong thân modal, header / footer đứng yên */}
       <div className="-mx-1 max-h-[calc(100vh-16rem)] space-y-3 overflow-y-auto px-1">
-        {result && <MoveResult move={result} />}
-        <fieldset disabled={mutation.isPending} className="m-0 min-w-0 space-y-3 border-0 p-0">
-          <MoveFields form={form} destinations={destinations.codes} movable={movable} />
-          {sourceHidden && <Alert tone="warning">{MOVE_MESSAGES.sourceUnderCount}</Alert>}
-          {movable !== undefined && Number.isFinite(quantity) && quantity > movable && (
-            <Alert tone="warning">{MOVE_MESSAGES.exceedsMovable}</Alert>
-          )}
-          {rows.isSuccess && (
-            <section aria-label={MOVE_LABELS.stockTitle} className="space-y-2">
-              <h3 className="text-ink-secondary text-[0.8125rem] font-medium">
-                {MOVE_LABELS.stockTitle}
-              </h3>
-              {rows.data.length ? (
-                <StockRowPicker rows={rows.data} selectedId={source?.id} onPick={pick} />
-              ) : (
-                <p className="text-ink-secondary text-[0.8125rem]">{MOVE_LABELS.stockEmpty}</p>
-              )}
-            </section>
-          )}
-          {rows.isFetching && (
-            <p className="text-ink-tertiary text-[0.8125rem]">{MOVE_LABELS.stockLoading}</p>
-          )}
-          {rows.isError && (
-            <p className="text-ink-secondary text-[0.8125rem]">{MOVE_LABELS.stockUnavailable}</p>
+        {move.result && <MoveResult cartons={move.result} />}
+        <fieldset disabled={move.isPending} className="m-0 min-w-0 space-y-3 border-0 p-0">
+          <div className="grid grid-cols-1 gap-[var(--card-pad)] md:grid-cols-2">
+            <CartonScanField
+              onScan={(lpn) => void scan.scan(lpn)}
+              disabled={move.isPending}
+              pending={scan.pending}
+              feedback={scan.feedback}
+            />
+            <MoveFields
+              form={form}
+              destinations={destinations.codes}
+              problem={alreadyAt.length ? MOVE_MESSAGES.alreadyThere(alreadyAt.join(", ")) : null}
+            />
+          </div>
+          <ScannedCartons
+            cartons={scan.cartons}
+            flagged={flagged}
+            disabled={move.isPending}
+            onRemove={scan.remove}
+          />
+          {canLookup && (
+            <CartonFinder
+              prefix={warehouse.prefix}
+              added={inList}
+              disabled={move.isPending}
+              onAdd={scan.add}
+            />
           )}
         </fieldset>
-        {mutation.error instanceof ApiError && mutation.error.traceId && (
+        {move.error instanceof ApiError && move.error.traceId && (
           <p className="text-ink-tertiary text-xs">
-            {MOVE_LABELS.trace}: {mutation.error.traceId}
+            {MOVE_LABELS.trace}: {move.error.traceId}
           </p>
         )}
       </div>

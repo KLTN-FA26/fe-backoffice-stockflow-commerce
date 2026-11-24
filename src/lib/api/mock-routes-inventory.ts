@@ -10,12 +10,13 @@
  * State nằm trong bộ nhớ module và bắt đầu RỖNG — không thêm bản ghi vào mock-data.ts. Phiếu
  * và dòng sổ kho chỉ sinh ra từ chính các thao tác tạo / duyệt trong phiên mock.
  *
- * Chuyển vị trí (`POST /inventory/movements`, StockOperationsServiceImpl.relocate) kiểm @Valid, hai vị
- * trí khác nhau, cùng kho (MOVE_ACROSS_WAREHOUSES theo tiền tố mã vị trí) và idempotent theo requestId;
- * `GET /inventory/stock-items` luôn rỗng vì mock không có tồn.
+ * Chuyển vị trí (`POST /inventory/movements`, StockOperationsServiceImpl.relocatePackages, BE 0a0226a8): chuyển NGUYÊN
+ * THÙNG theo LPN (MoveStockPackagesRequest), cả danh sách hoặc không thùng nào, idempotent theo requestId
+ * (IDEMPOTENCY_KEY_REUSED khi cùng id khác thùng / đích). Kiểm thùng tồn tại, In Stock, khác đích, cùng kho, không
+ * phải khu tập kết, không trong phiếu kiểm kê mở, luật cách ly; mỗi thùng ghi một dòng sổ MOVE.
  *
- * Không mô phỏng (mock không có dữ liệu tồn kho thật để quyết định): STOCK_ITEM_NOT_FOUND,
- * INSUFFICIENT_STOCK, INVENTORY_POLICY_STOCK_CONFLICT, OUT_OF_DATA_SCOPE và `status`/`toStatus`
+ * Không mô phỏng: STOCK_PACKAGE_HELD (mock thùng không có khoản giữ), CARTON_DOES_NOT_FIT_BIN (mock không có kích
+ * thước bin / thùng), LOCATION_NOT_FOUND / LOCATION_NOT_USABLE của đích, OUT_OF_DATA_SCOPE và `status`/`toStatus`
  * của dòng sổ kho (BE lấy từ trạng thái thật của stock item).
  */
 
@@ -32,18 +33,24 @@ import { STOCK_ADJUSTMENT_STATUS, STOCK_ADJUSTMENT_STATUSES } from "@/constants/
 
 import { MOVE_API, MOVE_LIMITS } from "@/constants/move";
 
-import { SKU_INPUT_PATTERN } from "@/lib/validation/sku";
-
 import { registerMockRoute } from "./mock-adapter";
-import { registerCycleCountMockRoutes, resetCycleCountMockState } from "./mock-routes-cycle-counts";
+import {
+  isMockCartonUnderCount,
+  registerCycleCountMockRoutes,
+  resetCycleCountMockState,
+} from "./mock-routes-cycle-counts";
 import {
   findMockCarton,
+  isMockQuarantined,
+  mockWarehouseCodeOf,
   resetMockCartonLedger,
   setMockCartonStatus,
   setMockQuarantined,
 } from "./mock-inventory-cartons";
 import { registerQuarantineMockRoutes } from "./mock-routes-quarantine";
 import { registerInventoryStockMockRoutes } from "./mock-routes-inventory-stock";
+import { MOCK_AREAS } from "./mock-routes-goods-receipts-store";
+import { isMockStagingArea } from "./mock-routes-warehouse-layout";
 import {
   beError,
   parseJsonBody,
@@ -53,6 +60,7 @@ import {
 } from "./mock-routes-purchase-orders-store";
 
 import type { AxiosRequestConfig } from "axios";
+import type { MockCarton } from "./mock-inventory-cartons";
 import type { MockFieldError } from "./mock-routes-purchase-orders-store";
 
 interface MockAdjustment {
@@ -106,6 +114,7 @@ let seq = 0;
 export function resetInventoryMockState(): void {
   adjustments.clear();
   movements.length = 0;
+  servedMoves.clear();
   numberByDay.clear();
   seq = 0;
   resetMockCartonLedger();
@@ -605,49 +614,101 @@ function listMovements(config: AxiosRequestConfig) {
 
 const MOVE_REFERENCE_TYPE = "MOVE_TASK"; // StockOperationsController: MoveReference.MOVE_TASK
 
-/** MoveStockRequest (@Valid) → 400 VALIDATION_FAILED kèm fieldErrors. */
+/** Lệnh đã phục vụ theo requestId: tập LPN + đích (BE so khi gửi lại, IDEMPOTENCY_KEY_REUSED nếu khác). */
+const servedMoves = new Map<string, { lpns: string[]; to: string }>();
+
+/** MoveStockPackagesRequest (@Valid) → 400 VALIDATION_FAILED kèm fieldErrors. */
 function moveFieldErrors(body: Record<string, unknown>): MockFieldError[] {
   const errors: MockFieldError[] = [];
   const add = (field: string, message: string, rule: string) =>
     errors.push({ field, message, code: rule });
   if (body.requestId === undefined || body.requestId === null)
     add("requestId", "requestId is required", "NotNull");
-  const sku = readString(body.sku);
-  if (!sku) add("sku", "sku is required", "NotBlank");
-  else if (!SKU_INPUT_PATTERN.test(sku)) add("sku", "malformed SKU", "Pattern");
-  if (typeof body.lotNumber === "string" && body.lotNumber.length > MOVE_LIMITS.lotLength)
-    add("lotNumber", "lotNumber is at most 64 characters", "Size");
-  for (const field of ["fromLocation", "toLocation"] as const) {
-    const value = readString(body[field]);
-    if (!value) add(field, `${field} is required`, "NotBlank");
-    else if (value.length > MOVE_LIMITS.locationLength)
-      add(field, `${field} is at most 64 characters`, "Size");
-  }
-  const quantity = body.quantity;
-  if (typeof quantity === "number" && quantity < MOVE_LIMITS.quantityMin)
-    add("quantity", "quantity must be at least 1", "Min");
-  if (typeof quantity === "number" && quantity > MOVE_LIMITS.quantityMax)
-    add("quantity", "quantity is at most 1,000,000", "Max");
+  const lpns = Array.isArray(body.lpns) ? body.lpns : [];
+  if (lpns.length === 0) add("lpns", "lpns needs at least one carton", "NotEmpty");
+  if (lpns.length > MOVE_LIMITS.lpnsMax) add("lpns", "lpns holds at most 500 cartons", "Size");
+  lpns.forEach((lpn, index) => {
+    const value = readString(lpn);
+    if (!value) add(`lpns[${index}]`, "an LPN is not blank", "NotBlank");
+    else if (value.length > MOVE_LIMITS.lpnLength)
+      add(`lpns[${index}]`, "an LPN is at most 30 characters", "Size");
+  });
+  const to = readString(body.toLocation);
+  if (!to) add("toLocation", "toLocation is required", "NotBlank");
+  else if (to.length > MOVE_LIMITS.locationLength)
+    add("toLocation", "toLocation is at most 64 characters", "Size");
   return errors;
 }
 
-/** LocationId.warehouseCode(): đoạn trước dấu gạch đầu tiên. */
-function warehouseCode(location: string): string {
-  const dash = location.indexOf("-");
-  return dash > 0 ? location.slice(0, dash) : location;
+/** BE `MovedStockPackageResponse`. */
+function movedOf(carton: MockCarton) {
+  return {
+    lpn: carton.pkg.lpn,
+    sku: carton.sku,
+    unitOfMeasure: "CARTON",
+    quantity: carton.pkg.receivedQty,
+    locationCode: carton.pkg.locationCode ?? "",
+    status: carton.pkg.status,
+  };
+}
+
+const sameSet = (a: readonly string[], b: readonly string[]) =>
+  a.length === b.length && a.every((value) => b.includes(value));
+
+/**
+ * StockOperationsServiceImpl.relocatePackages (MOVE_TASK): thứ tự kiểm như BE — tồn tại → gửi lại → trạng thái + hai
+ * vị trí → kiểm kê → giữ cho đơn → cách ly; mọi thùng qua hết rồi mới chuyển (cả danh sách hoặc không thùng nào).
+ */
+async function moveCartons(cartons: MockCarton[], to: string) {
+  for (const { pkg } of cartons) {
+    // Docs 11 BR-04: chỉ thùng In Stock.
+    if (pkg.status !== "IN_STOCK")
+      return beError(409, "INVALID_STOCK_PACKAGE_TRANSITION", `${pkg.lpn} is ${pkg.status}`);
+    const from = (pkg.locationCode ?? "").toUpperCase();
+    if (from === to) return validationFailed("A move needs two different locations");
+    // Docs 11 BR-01.
+    if (mockWarehouseCodeOf(from) !== mockWarehouseCodeOf(to))
+      return beError(
+        409,
+        "MOVE_ACROSS_WAREHOUSES",
+        `${from} and ${to} are in different warehouses`,
+      );
+    // Docs 11 BR-09: khu tập kết chỉ vào bằng lấy hàng, ra bằng xuất / trả lại.
+    for (const end of [from, to]) {
+      if (await isMockStagingArea(end))
+        return beError(409, "STAGING_MOVE_NOT_ALLOWED", `${end} is a staging area`, [], {
+          locationCode: end,
+        });
+    }
+  }
+  // Docs 11 BR-06.
+  if (cartons.some(({ pkg }) => isMockCartonUnderCount(pkg.id)))
+    return beError(409, "STOCK_SLOT_UNDER_COUNT", "This stock slot is under a cycle count");
+  // Docs 20 BR-21: hàng cách ly rời khu bằng gỡ cách ly; hàng đang bán vào khu cách ly bằng cách ly.
+  const intoQuarantine = MOCK_AREAS[to] === "QUARANTINE";
+  for (const { pkg } of cartons) {
+    if (intoQuarantine && !isMockQuarantined(pkg.lpn))
+      return beError(409, "LOCATION_AREA_MISMATCH", `${pkg.lpn} is on sale`, [], { lpn: pkg.lpn });
+    if (!intoQuarantine && isMockQuarantined(pkg.lpn))
+      return beError(409, "STOCK_PACKAGE_QUARANTINED", `${pkg.lpn} is in quarantine`, [], {
+        lpn: pkg.lpn,
+      });
+  }
+  return null;
 }
 
 async function createMove(config: AxiosRequestConfig) {
   const actor = await currentActor();
   if (!actor) return unauthenticated();
   const body = parseJsonBody(config.data);
-  // Jackson: requestId không phải UUID / quantity không phải số nguyên → body không đọc được.
+  // Jackson: requestId không phải UUID / lpns không phải mảng chuỗi → body không đọc được.
   if (
     (typeof body.requestId === "string" && !UUID_PATTERN.test(body.requestId)) ||
     (body.requestId !== undefined &&
       body.requestId !== null &&
       typeof body.requestId !== "string") ||
-    (body.quantity !== undefined && !Number.isInteger(body.quantity))
+    (body.lpns !== undefined &&
+      (!Array.isArray(body.lpns) || body.lpns.some((lpn) => typeof lpn !== "string")))
   ) {
     return beError(400, "MALFORMED_REQUEST", "The request body could not be read");
   }
@@ -655,60 +716,52 @@ async function createMove(config: AxiosRequestConfig) {
   if (fieldErrors.length) return validationFailed("Invalid request data", fieldErrors);
 
   const requestId = String(body.requestId).toLowerCase();
-  // Replay first: a retried move must not move the goods again.
-  const done = movements.find(
-    (row) =>
-      row.type === "MOVE" &&
-      row.referenceType === MOVE_REFERENCE_TYPE &&
-      row.referenceId === requestId,
-  );
-  const from = code(body.fromLocation);
   const to = code(body.toLocation);
-  if (!done) {
-    if (from === to) return validationFailed("A move needs two different locations");
-    // Docs 11 BR-01.
-    if (warehouseCode(from) !== warehouseCode(to)) {
-      return beError(
-        409,
-        "MOVE_ACROSS_WAREHOUSES",
-        `${from} and ${to} are in different warehouses; use a transfer order`,
-      );
-    }
+  const asked = Array.isArray(body.lpns)
+    ? body.lpns.map((lpn) => readString(lpn).toUpperCase())
+    : [];
+  const cartons: MockCarton[] = [];
+  for (const lpn of new Set(asked)) {
+    const carton = await findMockCarton(lpn);
+    if (!carton) return beError(404, "STOCK_PACKAGE_NOT_FOUND", `No stock package ${lpn}`);
+    cartons.push(carton);
   }
-  const move =
-    done ??
-    (() => {
-      seq += 1;
-      const line: MockMovement = {
-        movementId: crypto.randomUUID(),
-        type: "MOVE",
-        sku: code(body.sku),
-        lotNumber: readString(body.lotNumber) || null,
-        fromLocation: from,
-        toLocation: to,
-        quantity: Number(body.quantity),
-        referenceType: MOVE_REFERENCE_TYPE,
-        referenceId: requestId,
-        reason: null,
-        actorId: actor,
-        occurredAt: new Date().toISOString(),
-        seq,
-      };
-      movements.push(line);
-      return line;
-    })();
-  return ok(
-    nonNull({
-      movementId: move.movementId,
-      sku: move.sku,
-      lotNumber: move.lotNumber,
-      fromLocation: move.fromLocation,
-      toLocation: move.toLocation,
-      quantity: move.quantity,
-      occurredAt: move.occurredAt,
-    }),
-    201,
-  );
+  const lpns = cartons.map(({ pkg }) => pkg.lpn.toUpperCase());
+  // Gửi lại trước: lệnh đã chuyển không chuyển lần nữa; cùng id mà khác thùng / khác đích → 422.
+  const served = servedMoves.get(requestId);
+  if (served) {
+    if (!sameSet(served.lpns, lpns) || served.to !== to)
+      return beError(
+        422,
+        "IDEMPOTENCY_KEY_REUSED",
+        "This idempotency key was already used for a different request",
+      );
+    return ok(cartons.map(movedOf), 201);
+  }
+  const refused = await moveCartons(cartons, to);
+  if (refused) return refused;
+  const now = new Date().toISOString();
+  for (const carton of cartons) {
+    seq += 1;
+    movements.push({
+      movementId: crypto.randomUUID(),
+      type: "MOVE",
+      sku: carton.sku,
+      lotNumber: carton.lotNumber,
+      fromLocation: carton.pkg.locationCode,
+      toLocation: to,
+      quantity: carton.pkg.receivedQty,
+      referenceType: MOVE_REFERENCE_TYPE,
+      referenceId: requestId,
+      reason: null,
+      actorId: actor,
+      occurredAt: now,
+      seq,
+    });
+    carton.pkg.locationCode = to;
+  }
+  servedMoves.set(requestId, { lpns, to });
+  return ok(cartons.map(movedOf), 201);
 }
 
 export function registerInventoryMockRoutes(): void {
@@ -727,7 +780,7 @@ export function registerInventoryMockRoutes(): void {
   registerCycleCountMockRoutes();
   registerQuarantineMockRoutes();
   registerMockRoute("POST", MOVE_API.move, createMove);
-  // `GET /inventory/stock-items?sku=` (mọi kho): mock không có tồn theo vị trí → danh sách rỗng. Màn Di chuyển giờ đọc
-  // tồn theo kho của tab (`/inventory/warehouses/{id}/stock-items`, registerInventoryStockMockRoutes).
+  // `GET /inventory/stock-items?sku=` (mọi kho): mock không có tồn theo vị trí → danh sách rỗng. Màn Di chuyển giờ tra
+  // thùng theo LPN (`/inventory/stock-packages`, registerQuarantineMockRoutes).
   registerMockRoute("GET", "/inventory/stock-items", () => ok([]));
 }

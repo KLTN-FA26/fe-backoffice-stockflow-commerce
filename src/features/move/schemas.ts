@@ -2,123 +2,107 @@ import { z } from "zod";
 
 import { MOVE_LIMITS, MOVE_MESSAGES } from "@/constants/move";
 
-import { beUuid, requiredString } from "@/lib/validation/primitives";
-import { skuSchema } from "@/lib/validation/sku";
+import { requiredString } from "@/lib/validation/primitives";
 
-import { sameLocation, sameWarehouse, warehouseOf } from "./selectors";
+import { normalizeLpn, warehouseOf } from "./selectors";
 
-// Source: backend develop `MoveStockRequest` (sku @ValidSku, lotNumber @Size(64), from/to @NotBlank
-// @Size(64), quantity @Min(1) @Max(1_000_000)). `requestId` is the idempotency key and is added by
-// the API layer, not typed by the user.
-export const moveCreateInput = z
-  .object({
-    sku: skuSchema({ required: MOVE_MESSAGES.required, format: MOVE_MESSAGES.invalidSku }),
-    lotNumber: z.string().trim().max(MOVE_LIMITS.lotLength).optional(),
-    fromLocation: requiredString(MOVE_MESSAGES.required).max(MOVE_LIMITS.locationLength),
-    toLocation: requiredString(MOVE_MESSAGES.required).max(MOVE_LIMITS.locationLength),
-    quantity: z
-      .number(MOVE_MESSAGES.quantity)
-      .int(MOVE_MESSAGES.quantity)
-      .min(MOVE_LIMITS.quantityMin, MOVE_MESSAGES.quantity)
-      .max(MOVE_LIMITS.quantityMax, MOVE_MESSAGES.quantity),
-  })
-  .superRefine((value, context) => {
-    // BE `relocate`: "A move needs two different locations" (400 VALIDATION_FAILED).
-    if (sameLocation(value.fromLocation, value.toLocation)) {
-      context.addIssue({
-        code: "custom",
-        path: ["toLocation"],
-        message: MOVE_MESSAGES.sameLocation,
-      });
-      return;
-    }
-    // Docs 11 BR-01 + BE MOVE_ACROSS_WAREHOUSES: both ends in one warehouse.
-    if (!sameWarehouse(value.fromLocation, value.toLocation)) {
-      context.addIssue({
-        code: "custom",
-        path: ["toLocation"],
-        message: MOVE_MESSAGES.crossWarehouse,
-      });
-    }
-  });
+// Source: backend develop `MoveStockPackagesRequest` (BE 0a0226a8, 2026-11-09). Docs 11 BR-04, BR-07 và 01 BR-09: chuyển
+// vị trí là chuyển NGUYÊN THÙNG, quét theo LPN — không SKU, lô, vị trí nguồn hay số lượng (LPN cho biết hết). lpns
+// @NotEmpty @Size(max = 500), mỗi LPN @NotBlank @Size(max = 30); toLocation @NotBlank @Size(max = 64). `requestId` là
+// khoá idempotent do lớp API thêm, người dùng không gõ.
+export const moveCreateInput = z.object({
+  lpns: z
+    .array(
+      z
+        .string()
+        .transform(normalizeLpn)
+        .pipe(
+          z
+            .string()
+            .min(1, MOVE_MESSAGES.required)
+            .max(MOVE_LIMITS.lpnLength, MOVE_MESSAGES.lpnLength),
+        ),
+    )
+    // Bỏ trùng: một thùng chỉ chuyển một lần trong lệnh (BE so tập LPN khi gửi lại cùng requestId).
+    .transform((lpns) => [...new Set(lpns)])
+    .pipe(
+      z
+        .array(z.string())
+        .min(1, MOVE_MESSAGES.noCartons)
+        .max(MOVE_LIMITS.lpnsMax, MOVE_MESSAGES.tooManyCartons),
+    ),
+  toLocation: requiredString(MOVE_MESSAGES.required)
+    .max(MOVE_LIMITS.locationLength)
+    .transform((value) => value.toUpperCase()),
+});
 
 /**
- * Form trong tab theo kho (spec 2026-11-22 §5.8): cả hai vị trí phải thuộc kho đang làm việc — prefix kho là đoạn mã
- * vị trí trước dấu gạch (06 BR-10). Docs 11 BR-01; UI-only — Backend phải re-check (WarehouseScope.requireLocation).
+ * Form trong tab theo kho (spec 2026-11-22 §5.8): vị trí đích phải thuộc kho đang làm việc — prefix kho là đoạn mã vị
+ * trí trước dấu gạch (06 BR-10). Docs 11 BR-01; UI-only — Backend phải re-check (WarehouseScope.requireLocation,
+ * MOVE_ACROSS_WAREHOUSES).
  */
 export const moveInWarehouseInput = (prefix: string) =>
   moveCreateInput.superRefine((value, context) => {
-    for (const field of ["fromLocation", "toLocation"] as const) {
-      const code = value[field];
-      if (code && warehouseOf(code) !== prefix.toUpperCase()) {
-        context.addIssue({
-          code: "custom",
-          path: [field],
-          message: MOVE_MESSAGES.otherWarehouse(prefix),
-        });
-      }
+    if (value.toLocation && warehouseOf(value.toLocation) !== prefix.toUpperCase()) {
+      context.addIssue({
+        code: "custom",
+        path: ["toLocation"],
+        message: MOVE_MESSAGES.otherWarehouse(prefix),
+      });
     }
   });
 
-// BE `StockMoveResponse`; lotNumber is omitted when null (Jackson NON_NULL).
-export const stockMoveDto = z.object({
-  movementId: beUuid,
+// BE `MovedStockPackageResponse`: thùng sau khi chuyển. `sku` / `quantity` chỉ mô tả thùng chứa gì (01 BR-09: tồn ghi
+// nội bộ theo đơn vị cơ sở), không phải đầu vào. `Integer quantity` / `String unitOfMeasure` có thể null.
+export const movedCartonDto = z.object({
+  lpn: z.string(),
   sku: z.string(),
-  lotNumber: z.string().nullish(),
-  fromLocation: z.string(),
-  toLocation: z.string(),
-  quantity: z.number().int().positive(),
-  occurredAt: z.iso.datetime(),
-});
-
-// BE `StockItemResponse` (GET /inventory/stock-items?sku=): a bare list, not a page. `status` is a
-// String on the wire — kept open so a newer code does not invalidate the list. SCRUM-146 (BE #202):
-// for a caller without inventory-cycle-counts:APPROVE the quantities of a slot under an open count
-// are ABSENT (not null) and `hiddenDuringCount` is true.
-export const stockRowDto = z.object({
-  id: beUuid,
-  sku: z.string(),
+  unitOfMeasure: z.string().nullish(),
+  quantity: z.number().int().nonnegative().nullish(),
   locationCode: z.string(),
-  lotNumber: z.string().nullish(),
-  expiryDate: z.string().nullish(),
-  onHand: z.number().int().nonnegative().optional(),
-  reserved: z.number().int().nonnegative().optional(),
-  available: z.number().int().nonnegative().optional(),
-  hiddenDuringCount: z.boolean().default(false),
   status: z.string(),
 });
-export const stockRowListDto = z.array(stockRowDto);
+export const movedCartonsDto = z.array(movedCartonDto);
 
-// BE `WarehouseStockItemResponse` (GET /inventory/warehouses/{id}/stock-items?sku=, SCRUM-462): một trang, id là
-// `stockItemId`, không có expiryDate — chuẩn hoá về `StockRow` của form.
-const warehouseStockRowDto = z
-  .object({
-    stockItemId: beUuid,
-    sku: z.string(),
-    locationCode: z.string(),
-    lotNumber: z.string().nullish(),
-    onHand: z.number().int().nonnegative().nullish(),
-    reserved: z.number().int().nonnegative().nullish(),
-    available: z.number().int().nonnegative().nullish(),
-    hiddenDuringCount: z.boolean().default(false),
-    status: z.string(),
-  })
-  .transform(({ stockItemId, onHand, reserved, available, ...row }) =>
-    stockRowDto.parse({
-      ...row,
-      id: stockItemId,
-      onHand: onHand ?? undefined,
-      reserved: reserved ?? undefined,
-      available: available ?? undefined,
-    }),
-  );
-export const warehouseStockRowPageDto = z.object({ items: z.array(warehouseStockRowDto) });
+// BE `StockPackageDetailResponse` (GET /inventory/stock-packages/{lpn}) — chỉ phần màn chuyển cần. `status` mở
+// (RECEIVING, IN_STOCK, CONSUMED, LOST, VOID): mã lạ hiện nguyên văn, không làm hỏng màn.
+export const cartonDto = z.object({
+  lpn: z.string(),
+  sku: z.string(),
+  unitOfMeasure: z.string().nullish(),
+  lotNumber: z.string().nullish(),
+  onHand: z.number().int().nonnegative(),
+  reserved: z.number().int().nonnegative(),
+  status: z.string(),
+  locationCode: z.string().nullish(),
+});
+
+// BE `StockPackageResponse` (GET /inventory/stock-packages, một trang) — cùng phần trên của từng dòng.
+export const cartonPageDto = z.object({
+  items: z.array(cartonDto),
+  hasNext: z.boolean().default(false),
+});
+
+// Một dòng của danh sách thùng sẽ chuyển (state của form, không đi qua mạng). Thùng thêm khi không tra được (thiếu
+// inventory-stock-packages:READ) chỉ có LPN — các trường còn lại `null`, BE kiểm khi gửi lệnh.
+export const scannedCartonSchema = z.object({
+  lpn: z.string(),
+  sku: z.string().nullable(),
+  lotNumber: z.string().nullable(),
+  onHand: z.number().int().nonnegative().nullable(),
+  locationCode: z.string().nullable(),
+});
+
+// BE `ApiResponse.details` của lỗi chuyển thùng: STOCK_PACKAGE_HELD, STOCK_PACKAGE_QUARANTINED, LOCATION_AREA_MISMATCH,
+// CARTON_DOES_NOT_FIT_BIN nêu thùng gây lỗi (`lpn`). Dữ liệu mạng — parse trước khi dùng.
+export const moveErrorDetailsDto = z.object({ lpn: z.string().optional() });
 
 // BE `WarehouseLayoutResponse`: only what the destination suggestions need. A NON_STORAGE area has
-// no locationCode / usable (omitted), so both stay optional.
+// no locationCode / usable (omitted), so both stay optional; `type` (AreaType) marks a STAGING area.
 const layoutPlaceDto = z.object({
   locationCode: z.string().nullish(),
   usable: z.boolean().nullish(),
+  type: z.string().nullish(),
 });
 export const warehouseLayoutDto = z.object({
   shelves: z.array(

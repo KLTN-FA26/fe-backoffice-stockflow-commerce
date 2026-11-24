@@ -2,120 +2,113 @@ import { describe, expect, it } from "vitest";
 
 import { MOVE_LIMITS, MOVE_MESSAGES } from "@/constants/move";
 
-import { moveCreateInput, stockMoveDto, stockRowListDto, warehouseLayoutDto } from "./schemas";
+import {
+  cartonDto,
+  movedCartonsDto,
+  moveCreateInput,
+  moveInWarehouseInput,
+  warehouseLayoutDto,
+} from "./schemas";
 
-const valid = {
-  sku: "CUP-PP-500",
-  fromLocation: "HCM-A01-1-A",
-  toLocation: "HCM-PACK01",
-  quantity: 5,
-};
+const valid = { lpns: ["LPN-20261109-000001"], toLocation: "HCM-A01-1-A" };
 
-function messages(input: unknown) {
-  const result = moveCreateInput.safeParse(input);
+function messages(input: unknown, schema = moveCreateInput) {
+  const result = schema.safeParse(input);
   return result.success ? [] : result.error.issues.map((issue) => issue.message);
 }
 
-describe("moveCreateInput (BE MoveStockRequest)", () => {
-  it("accepts a move inside one warehouse; lot is optional", () => {
-    expect(moveCreateInput.safeParse(valid).success).toBe(true);
-    expect(moveCreateInput.safeParse({ ...valid, lotNumber: "LOT-1" }).success).toBe(true);
+describe("moveCreateInput (BE MoveStockPackagesRequest — docs 11 BR-04, BR-07)", () => {
+  it("accepts whole cartons by LPN and one destination — no SKU, lot, source or quantity", () => {
+    expect(moveCreateInput.parse(valid)).toEqual(valid);
+    // Trường cũ của MoveStockRequest không còn trong hợp đồng
+    expect(moveCreateInput.parse({ ...valid, sku: "X", quantity: 5 })).toEqual(valid);
   });
 
-  it.each([
-    ["sku required", { sku: "" }],
-    ["sku malformed (@ValidSku)", { sku: "-bad sku" }],
-    ["from required", { fromLocation: " " }],
-    ["to required", { toLocation: "" }],
-    ["lot longer than 64", { lotNumber: "L".repeat(MOVE_LIMITS.lotLength + 1) }],
-    ["location longer than 64", { toLocation: `HCM-${"X".repeat(MOVE_LIMITS.locationLength)}` }],
-    ["quantity below 1", { quantity: 0 }],
-    ["quantity above 1,000,000", { quantity: MOVE_LIMITS.quantityMax + 1 }],
-    ["quantity fractional", { quantity: 1.5 }],
-    ["quantity missing", { quantity: Number.NaN }],
-  ])("rejects: %s", (_name, patch) => {
-    expect(moveCreateInput.safeParse({ ...valid, ...patch }).success).toBe(false);
+  it("trims, upper-cases and drops duplicate LPNs; upper-cases the destination", () => {
+    expect(
+      moveCreateInput.parse({
+        lpns: [" lpn-20261109-000001 ", "LPN-20261109-000001", "LPN-20261109-000002"],
+        toLocation: " hcm-a01-1-a ",
+      }),
+    ).toEqual({
+      lpns: ["LPN-20261109-000001", "LPN-20261109-000002"],
+      toLocation: "HCM-A01-1-A",
+    });
   });
 
-  it("accepts the limits themselves", () => {
-    expect(moveCreateInput.safeParse({ ...valid, quantity: MOVE_LIMITS.quantityMin }).success).toBe(
-      true,
+  it("needs 1 to 500 cartons (@NotEmpty @Size(max = 500))", () => {
+    expect(messages({ ...valid, lpns: [] })).toContain(MOVE_MESSAGES.noCartons);
+    const many = Array.from({ length: MOVE_LIMITS.lpnsMax + 1 }, (_, i) => `LPN-${i}`);
+    expect(messages({ ...valid, lpns: many })).toContain(MOVE_MESSAGES.tooManyCartons);
+    expect(messages({ ...valid, lpns: many.slice(0, MOVE_LIMITS.lpnsMax) })).toEqual([]);
+  });
+
+  it("refuses a blank LPN or one longer than 30 characters (@NotBlank @Size(max = 30))", () => {
+    expect(messages({ ...valid, lpns: ["  "] })).toContain(MOVE_MESSAGES.required);
+    expect(messages({ ...valid, lpns: ["L".repeat(MOVE_LIMITS.lpnLength + 1)] })).toContain(
+      MOVE_MESSAGES.lpnLength,
     );
-    expect(moveCreateInput.safeParse({ ...valid, quantity: MOVE_LIMITS.quantityMax }).success).toBe(
-      true,
-    );
+    expect(messages({ ...valid, lpns: ["L".repeat(MOVE_LIMITS.lpnLength)] })).toEqual([]);
   });
 
-  it("requires two different locations, ignoring case and spaces (BE LocationId trims + upper-cases)", () => {
-    expect(messages({ ...valid, toLocation: " hcm-a01-1-a " })).toEqual([
-      MOVE_MESSAGES.sameLocation,
+  it("needs a destination of at most 64 characters", () => {
+    expect(messages({ ...valid, toLocation: " " })).toContain(MOVE_MESSAGES.required);
+    expect(
+      messages({ ...valid, toLocation: "H".repeat(MOVE_LIMITS.locationLength + 1) }),
+    ).not.toEqual([]);
+  });
+
+  it("in the warehouse tab, the destination belongs to that warehouse (docs 11 BR-01)", () => {
+    const inHcm = moveInWarehouseInput("hcm");
+    expect(messages(valid, inHcm)).toEqual([]);
+    expect(messages({ ...valid, toLocation: "HN-A01-1-A" }, inHcm)).toEqual([
+      MOVE_MESSAGES.otherWarehouse("hcm"),
     ]);
-  });
-
-  it("docs 11 BR-01: both locations in one warehouse (prefix before the first hyphen)", () => {
-    expect(messages({ ...valid, toLocation: "HN-PACK01" })).toEqual([MOVE_MESSAGES.crossWarehouse]);
-    expect(messages({ ...valid, toLocation: "hcm-pack01" })).toEqual([]);
   });
 });
 
-describe("response contracts", () => {
-  it("StockMoveResponse omits a null lot (Jackson NON_NULL)", () => {
-    const move = stockMoveDto.parse({
-      movementId: crypto.randomUUID(),
-      sku: "CUP-PP-500",
-      fromLocation: "HCM-A01-1-A",
-      toLocation: "HCM-PACK01",
-      quantity: 5,
-      occurredAt: "2026-10-19T03:00:00Z",
-    });
-    expect(move.lotNumber).toBeUndefined();
-  });
-
-  it("StockItemResponse list: lot and expiry may be omitted, status stays open", () => {
-    const rows = stockRowListDto.parse([
+describe("DTOs", () => {
+  it("MovedStockPackageResponse[]: quantity and unit may be null", () => {
+    const moved = movedCartonsDto.parse([
       {
-        id: crypto.randomUUID(),
-        sku: "CUP-PP-500",
+        lpn: "LPN-1",
+        sku: "SOFA-3S-GREY",
+        unitOfMeasure: "CARTON",
+        quantity: 1000,
         locationCode: "HCM-A01-1-A",
-        onHand: 10,
-        reserved: 4,
-        available: 6,
-        status: "A_STATUS_FROM_THE_FUTURE",
+        status: "IN_STOCK",
+      },
+      {
+        lpn: "LPN-2",
+        sku: "SOFA-3S-GREY",
+        unitOfMeasure: null,
+        quantity: null,
+        locationCode: "HCM-A01-1-A",
+        status: "IN_STOCK",
       },
     ]);
-    expect(rows[0]?.status).toBe("A_STATUS_FROM_THE_FUTURE");
+    expect(moved).toHaveLength(2);
+    expect(movedCartonsDto.safeParse({ lpn: "LPN-1" }).success).toBe(false);
   });
 
-  it("StockItemResponse masked by a count: quantities absent, flag true; flag defaults to false", () => {
-    const base = { id: crypto.randomUUID(), sku: "CUP-PP-500", locationCode: "HCM-A01-1-A" };
-    const rows = stockRowListDto.parse([
-      { ...base, status: "AVAILABLE", hiddenDuringCount: true },
-      { ...base, onHand: 10, reserved: 4, available: 6, status: "AVAILABLE" },
-    ]);
-    expect(rows[0]).toMatchObject({ hiddenDuringCount: true });
-    expect(rows[0]?.onHand).toBeUndefined();
-    expect(rows[1]).toMatchObject({ hiddenDuringCount: false, onHand: 10 });
-  });
-
-  it("layout keeps only what suggestions need; an area without code/usable is tolerated", () => {
-    const layout = warehouseLayoutDto.parse({
-      warehouse: { id: "ignored" },
-      shelves: [{ levels: [{ bins: [{ locationCode: "HCM-A01-1-A", usable: true }] }] }],
-      areas: [{ type: "NON_STORAGE" }, { locationCode: "HCM-PACK01", usable: true }],
+  it("StockPackageDetailResponse keeps an unknown status verbatim", () => {
+    const carton = cartonDto.parse({
+      lpn: "LPN-1",
+      sku: "SOFA-3S-GREY",
+      onHand: 1,
+      reserved: 0,
+      status: "SOMETHING_NEW",
+      contents: [],
     });
-    expect(layout.areas).toHaveLength(2);
+    expect(carton.status).toBe("SOMETHING_NEW");
+    expect(carton.locationCode).toBeUndefined();
   });
 
-  it("rejects a move response with a non-positive quantity", () => {
-    expect(
-      stockMoveDto.safeParse({
-        movementId: crypto.randomUUID(),
-        sku: "X",
-        fromLocation: "A-1",
-        toLocation: "A-2",
-        quantity: 0,
-        occurredAt: "2026-10-19T03:00:00Z",
-      }).success,
-    ).toBe(false);
+  it("layout keeps the area type (STAGING is not a destination)", () => {
+    const layout = warehouseLayoutDto.parse({
+      shelves: [],
+      areas: [{ locationCode: "HCM-STG01", usable: true, type: "STAGING" }, {}],
+    });
+    expect(layout.areas[0]?.type).toBe("STAGING");
   });
 });

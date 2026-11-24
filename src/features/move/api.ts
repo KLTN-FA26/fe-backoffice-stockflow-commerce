@@ -1,17 +1,23 @@
-import { MOVE_API, MOVE_LIMITS, MOVE_MESSAGES, MOVE_SOURCE_STOCK_STATUS } from "@/constants/move";
+import {
+  MOVE_API,
+  MOVE_CARTON_STATUS_IN_STOCK,
+  MOVE_LIMITS,
+  MOVE_MESSAGES,
+} from "@/constants/move";
 
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 
 import {
+  cartonDto,
+  cartonPageDto,
+  movedCartonsDto,
   moveCreateInput,
-  stockMoveDto,
   warehouseLayoutDto,
-  warehouseStockRowPageDto,
 } from "./schemas";
 
 import type { z } from "zod";
-import type { MoveCreateInput, StockMove, StockRow, WarehouseLayout } from "./types";
+import type { Carton, MovedCarton, MoveCreateInput, WarehouseLayout } from "./types";
 
 // The shared client unwraps `{ success, data }` and turns failures into `ApiError` (errorCode,
 // fieldErrors, correlationId). A success body that does not match the DTO is a contract failure.
@@ -24,36 +30,50 @@ function parseContract<T extends z.ZodType>(schema: T, data: unknown): z.infer<T
 }
 
 /**
- * `POST /inventory/movements` — idempotent on `requestId`: resending the same id returns the move
- * already made. The caller keeps one id per distinct form content (see `useMoveRequestId`).
+ * `POST /inventory/movements` — chuyển nguyên thùng theo LPN tới một vị trí, cả danh sách hoặc không thùng nào (docs 11
+ * BR-04, BR-07). Idempotent theo `requestId`: gửi lại cùng id trả đúng các thùng đã chuyển; caller giữ một id cho mỗi bộ
+ * (danh sách LPN, đích) — xem `useMoveRequestId`.
  */
-export async function createMove(input: MoveCreateInput, requestId: string): Promise<StockMove> {
+export async function createMove(
+  input: MoveCreateInput,
+  requestId: string,
+): Promise<MovedCarton[]> {
   const parsed = moveCreateInput.parse(input);
   const { data } = await api.post<unknown>(MOVE_API.move, {
     requestId,
-    sku: parsed.sku,
-    lotNumber: parsed.lotNumber || undefined,
-    fromLocation: parsed.fromLocation,
+    lpns: parsed.lpns,
     toLocation: parsed.toLocation,
-    quantity: parsed.quantity,
   });
-  return parseContract(stockMoveDto, data);
+  return parseContract(movedCartonsDto, data);
 }
 
 /**
- * `GET /inventory/warehouses/{id}/stock-items?sku=` — rows of one SKU by location in the tab warehouse
- * (inventory-stock-items:READ, one page). Spec 2026-11-22 §5.8: the move screen works in one warehouse.
+ * `GET /inventory/stock-packages/{lpn}` (inventory-stock-packages:READ) — tra một thùng vừa quét: SKU, lô, số cái và vị
+ * trí hiện tại (docs 11 §3: LPN cho biết vị trí nguồn, người dùng không nhập).
  */
-export async function listStockRows(
-  warehouseId: string,
-  sku: string,
+export async function getCarton(lpn: string, signal?: AbortSignal): Promise<Carton> {
+  const { data } = await api.get<unknown>(MOVE_API.carton(lpn), { signal });
+  return parseContract(cartonDto, data);
+}
+
+/**
+ * `GET /inventory/stock-packages?location|sku&status=IN_STOCK` (inventory-stock-packages:READ, một trang) — tìm thùng
+ * trước khi quét: thùng của một SKU nằm ở đâu, hoặc một vị trí đang chứa thùng nào.
+ */
+export async function listCartons(
+  query: { location: string } | { sku: string },
   signal?: AbortSignal,
-): Promise<StockRow[]> {
-  const { data } = await api.get<unknown>(MOVE_API.stockItems(warehouseId), {
-    params: { sku, status: MOVE_SOURCE_STOCK_STATUS, page: 0, size: MOVE_LIMITS.stockRowsSize },
+): Promise<{ items: Carton[]; hasNext: boolean }> {
+  const { data } = await api.get<unknown>(MOVE_API.cartons, {
+    params: {
+      ...query,
+      status: MOVE_CARTON_STATUS_IN_STOCK,
+      page: 0,
+      size: MOVE_LIMITS.cartonsSize,
+    },
     signal,
   });
-  return parseContract(warehouseStockRowPageDto, data).items;
+  return parseContract(cartonPageDto, data);
 }
 
 /** `GET /warehouses/{id}/layout` — the whole map (warehouse-locations:READ). */

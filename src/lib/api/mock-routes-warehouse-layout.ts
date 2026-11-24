@@ -36,6 +36,16 @@ export async function mockWarehouseLocations(warehouseId: string): Promise<Locat
   return locations.filter((location) => location.warehouseId === warehouseId);
 }
 
+/** Mã vị trí là khu tập kết (BE `AreaType.STAGING`, docs 11 BR-09) — ở bất kỳ kho nào của mock-data. */
+export async function isMockStagingArea(code: string): Promise<boolean> {
+  const { locations } = await import("@/lib/mock-data");
+  const wanted = code.trim().toUpperCase();
+  return locations.some(
+    (location) =>
+      location.type === "staging" && mockLocationCode(location).toUpperCase() === wanted,
+  );
+}
+
 /** Mã các bin lấy hàng được của kho (dùng được + pickable), sắp theo mã = thứ tự lộ trình mock. */
 export async function mockPickableBinCodes(warehouseId: string): Promise<string[]> {
   return (await mockWarehouseLocations(warehouseId))

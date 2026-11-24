@@ -9,6 +9,8 @@ import { MOVE_ERROR_MESSAGES, MOVE_ERROR_TITLES, MOVE_MESSAGES } from "@/constan
 
 import { ApiError } from "@/lib/api/error";
 
+import { moveErrorDetailsDto } from "./schemas";
+
 import type { MoveCreateInput } from "./types";
 
 export type MoveErrorKind =
@@ -19,6 +21,8 @@ export interface MoveErrorView {
   title: string;
   detail: string;
   traceId?: string;
+  /** Thùng gây lỗi khi BE nêu (`details.lpn`) — để đánh dấu đúng dòng trong danh sách. */
+  lpn?: string;
 }
 
 const M = MOVE_ERROR_MESSAGES;
@@ -38,48 +42,39 @@ function view(kind: MoveErrorKind, detail: string): Omit<MoveErrorView, "traceId
   return { kind, title, detail };
 }
 
-function known(code: string): Omit<MoveErrorView, "traceId"> | null {
-  switch (code) {
-    // relocate(): a move needs two different locations / hợp lệ theo @Valid — 400.
-    case "VALIDATION_FAILED":
-      return view("validation", M.validation);
-    // Docs 11 BR-01 — 409, the two codes name different warehouses.
-    case "MOVE_ACROSS_WAREHOUSES":
-      return view("conflict", M.crossWarehouse);
-    // requireNotUnderCount(): the source or destination slot is held by a cycle count — 409.
-    case "STOCK_SLOT_UNDER_COUNT":
-      return view("conflict", M.slotUnderCount);
-    // relocate(): destination UNKNOWN — 404.
-    case "LOCATION_NOT_FOUND":
-      return view("not-found", M.locationNotFound);
-    // relocate(): destination, its shelf or its warehouse is not active — 409.
-    case "LOCATION_NOT_USABLE":
-      return view("conflict", M.locationNotUsable);
-    // relocate(): no stock row of SKU (and lot) at the source — 404.
-    case "STOCK_ITEM_NOT_FOUND":
-      return view("not-found", M.stockItemNotFound);
-    // StockItem.moveOut: only unreserved units move — 409.
-    case "INSUFFICIENT_STOCK":
-      return view("conflict", M.insufficientStock);
-    // relocate(): destination holds this lot in another status — 409.
-    case "STOCK_STATUS_MISMATCH":
-      return view("conflict", M.statusMismatch);
-    // findOne (several layers) / destination cannot merge — 409.
-    case "INVENTORY_POLICY_STOCK_CONFLICT":
-      return view("conflict", M.policyConflict);
-    // WarehouseScope.requireLocation — 403.
-    case "OUT_OF_DATA_SCOPE":
-      return view("forbidden", M.outOfScope);
-    case "OPTIMISTIC_LOCK":
-      return view("conflict", M.concurrent);
-    case "INVALID_MOVE_CONTRACT":
-      return view("contract", FALLBACK.contract);
-    case "NETWORK_ERROR":
-      return view("network", FALLBACK.network);
-    default:
-      return null;
-  }
-}
+// BE StockOperationsServiceImpl.relocatePackages (MOVE_TASK) — mã nào, lúc nào.
+const KNOWN: Record<string, Omit<MoveErrorView, "traceId">> = {
+  // @Valid, hoặc một thùng đã ở sẵn vị trí đích (requireMovableBetween) — 400 / 422.
+  VALIDATION_FAILED: view("validation", M.validation),
+  // Một LPN không tồn tại — 404.
+  STOCK_PACKAGE_NOT_FOUND: view("not-found", M.cartonNotFound),
+  // Docs 11 BR-05 — 409: thùng đang giữ cho đơn.
+  STOCK_PACKAGE_HELD: view("conflict", M.cartonHeld),
+  // Docs 11 BR-06 — 409: thùng hoặc vị trí đích đang kiểm kê.
+  STOCK_SLOT_UNDER_COUNT: view("conflict", M.slotUnderCount),
+  // Docs 11 BR-04 — 409: thùng không ở IN_STOCK.
+  INVALID_STOCK_PACKAGE_TRANSITION: view("conflict", M.cartonNotInStock),
+  // Docs 11 BR-01 — 409.
+  MOVE_ACROSS_WAREHOUSES: view("conflict", M.crossWarehouse),
+  // Docs 11 BR-09 — 409: nguồn hoặc đích là khu tập kết.
+  STAGING_MOVE_NOT_ALLOWED: view("conflict", M.staging),
+  // Docs 06 BR-01, 11 BR-10 — 422: đích là bin và thùng không vừa.
+  CARTON_DOES_NOT_FIT_BIN: view("validation", M.doesNotFit),
+  // Docs 20 BR-21 (requireQuarantineByDecision) — 409.
+  STOCK_PACKAGE_QUARANTINED: view("conflict", M.quarantined),
+  LOCATION_AREA_MISMATCH: view("conflict", M.areaMismatch),
+  STOCK_STATUS_MISMATCH: view("conflict", M.statusMismatch),
+  // requireUsable(): đích UNKNOWN — 404; đích / kệ / kho không hoạt động — 409.
+  LOCATION_NOT_FOUND: view("not-found", M.locationNotFound),
+  LOCATION_NOT_USABLE: view("conflict", M.locationNotUsable),
+  // 422: cùng requestId, khác danh sách thùng hoặc khác đích.
+  IDEMPOTENCY_KEY_REUSED: view("validation", M.idempotencyReused),
+  // WarehouseScope.requireLocation — 403.
+  OUT_OF_DATA_SCOPE: view("forbidden", M.outOfScope),
+  OPTIMISTIC_LOCK: view("conflict", M.concurrent),
+  INVALID_MOVE_CONTRACT: view("contract", FALLBACK.contract),
+  NETWORK_ERROR: view("network", FALLBACK.network),
+};
 
 function kindOfStatus(status: number): MoveErrorKind {
   if (status === 0) return "network";
@@ -92,27 +87,32 @@ function kindOfStatus(status: number): MoveErrorKind {
 
 export function moveErrorView(error: unknown): MoveErrorView {
   if (!(error instanceof ApiError)) return { ...view("server", FALLBACK.server) };
-  const mapped = known(error.code);
-  if (mapped) return { ...mapped, traceId: error.traceId };
-  const kind = kindOfStatus(error.status);
-  return { ...view(kind, FALLBACK[kind]), traceId: error.traceId };
+  const lpn = moveErrorDetailsDto.safeParse(error.details ?? {}).data?.lpn;
+  const mapped =
+    KNOWN[error.code] ?? view(kindOfStatus(error.status), FALLBACK[kindOfStatus(error.status)]);
+  return { ...mapped, traceId: error.traceId, ...(lpn ? { lpn } : {}) };
 }
 
-// Server `fieldErrors` (BE @Valid, English text) → the form field they belong to, with our own
-// Vietnamese wording. Only fields the form has are returned.
+/** Lệnh gửi lại cùng requestId nhưng khác nội dung — cần một id mới trước khi gửi tiếp. */
+export function isIdempotencyReused(error: unknown): boolean {
+  return error instanceof ApiError && error.code === "IDEMPOTENCY_KEY_REUSED";
+}
+
+// Server `fieldErrors` (BE @Valid, English text) → the form field they belong to, with our own Vietnamese wording.
+// BE names an element of the list as `lpns[3]`: every `lpns…` key belongs to the carton list.
 const FIELD_MESSAGES: Record<keyof MoveCreateInput, string> = {
-  sku: MOVE_MESSAGES.invalidSku,
-  lotNumber: M.validation,
-  fromLocation: MOVE_MESSAGES.required,
+  lpns: M.validation,
   toLocation: MOVE_MESSAGES.required,
-  quantity: MOVE_MESSAGES.quantity,
 };
 
 export function moveFieldErrors(error: unknown): Partial<Record<keyof MoveCreateInput, string>> {
   if (!(error instanceof ApiError) || !error.fieldErrors) return {};
+  const fields = Object.keys(error.fieldErrors);
   const result: Partial<Record<keyof MoveCreateInput, string>> = {};
   for (const field of Object.keys(FIELD_MESSAGES) as Array<keyof MoveCreateInput>) {
-    if (error.fieldErrors[field]) result[field] = FIELD_MESSAGES[field];
+    if (fields.some((name) => name === field || name.startsWith(`${field}[`))) {
+      result[field] = FIELD_MESSAGES[field];
+    }
   }
   return result;
 }
