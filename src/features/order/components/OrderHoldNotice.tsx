@@ -1,12 +1,17 @@
 import { PauseCircle } from "lucide-react";
 
-import { ORDER_HOLD_PUBLIC_LABELS, ORDER_HOLD_REASON_LABELS } from "@/constants";
+import { ADMIN_ROUTES, ORDER_HOLD_PUBLIC_LABELS, ORDER_HOLD_REASON_LABELS } from "@/constants";
 import { statusLabelVi } from "@/lib/status-map";
+
+import { CreditLimitLink } from "./credit-hold/CreditLimitLink";
 
 import type { Order } from "../types";
 
 interface OrderHoldNoticeProps {
-  order: Pick<Order, "holdReason" | "holdReasonPublic" | "holdNote" | "statusBeforeHold">;
+  order: Pick<
+    Order,
+    "orderId" | "customerId" | "holdReason" | "holdReasonPublic" | "holdNote" | "statusBeforeHold"
+  >;
 }
 
 /**
@@ -31,7 +36,17 @@ export function OrderHoldNotice({ order }: OrderHoldNoticeProps) {
       </div>
       <dl className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1">
         <dt className="text-ink-secondary">Lý do</dt>
-        <dd className="text-ink-primary">{reason ?? "—"}</dd>
+        <dd className="text-ink-primary">
+          {reason ?? "—"}
+          {/* AUTH-6: giữ vì công nợ → lối tắt tới hạn mức của khách (người duyệt công nợ). */}
+          {order.holdReason === "CREDIT" && (
+            <CreditLimitLink
+              customerId={order.customerId}
+              returnTo={ADMIN_ROUTES.orders.detail(order.orderId)}
+              className="ml-2"
+            />
+          )}
+        </dd>
         {order.holdNote && (
           <>
             <dt className="text-ink-secondary">Ghi chú</dt>

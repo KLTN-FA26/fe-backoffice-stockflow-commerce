@@ -2,7 +2,12 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ADMIN_ROUTES, CREDIT_HOLD_PERMISSIONS } from "@/constants";
+import {
+  ADMIN_ROUTES,
+  CREDIT_HOLD_PERMISSIONS,
+  CREDIT_PROFILE_PERMISSIONS,
+  CUSTOMER_PERMISSIONS,
+} from "@/constants";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 
@@ -114,6 +119,28 @@ describe("Credit hold — danh sách (SCRUM-427)", () => {
     expect(screen.queryByRole("link", { name: apiOrder.orderNumber })).not.toBeInTheDocument();
     // E. không có link "Đơn hàng" ở header — ACCOUNTANT không vào được trang đơn
     expect(screen.queryByRole("link", { name: /Đơn hàng/ })).not.toBeInTheDocument();
+  });
+
+  it("AUTH-6: người duyệt hạn mức (xem khách + APPROVE hồ sơ công nợ) có lối tắt sửa hạn mức của khách", async () => {
+    renderList([
+      ...ORDER_PERMISSION_SETS.accountant,
+      CUSTOMER_PERMISSIONS.viewPage,
+      CREDIT_PROFILE_PERMISSIONS.approve,
+    ]);
+
+    expect(await screen.findByRole("link", { name: "Sửa hạn mức công nợ" })).toHaveAttribute(
+      "href",
+      ADMIN_ROUTES.customers.creditProfile(
+        apiOrder.customerId as string,
+        ADMIN_ROUTES.orders.creditHolds,
+      ),
+    );
+  });
+
+  it("AUTH-6: thiếu quyền xem trang khách hoặc APPROVE hồ sơ công nợ → không có lối tắt", async () => {
+    renderList([...ORDER_PERMISSION_SETS.accountant, CREDIT_PROFILE_PERMISSIONS.approve]);
+    await screen.findByText(apiOrder.orderNumber);
+    expect(screen.queryByRole("link", { name: "Sửa hạn mức công nợ" })).not.toBeInTheDocument();
   });
 
   it("ORDER_COORDINATOR / SALES_STAFF chỉ xem — không có nút duyệt, mã đơn là link", async () => {

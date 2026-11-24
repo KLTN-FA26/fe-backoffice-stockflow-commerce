@@ -157,6 +157,17 @@ export const ROLE_PERMISSIONS = {
     "production-qc-results:READ",
     "production-qc-results:CREATE",
   ],
+  // V20261013000400 (hồ sơ công nợ, hàng đợi duyệt) + WF-02 r6 AUTH-6 (BE: xem khách để cấp hạn mức).
+  ACCOUNTANT: [
+    "customer-customers:VIEW_PAGE",
+    "customer-customers:READ",
+    "customer-credit-profiles:VIEW_PAGE",
+    "customer-credit-profiles:READ",
+    "customer-credit-profiles:APPROVE",
+    "sales-order-credit-holds:VIEW_PAGE",
+    "sales-order-credit-holds:READ",
+    "sales-order-credit-holds:APPROVE",
+  ],
   CUSTOMER: [
     "customer-customers:VIEW_PAGE",
     "customer-customers:READ",

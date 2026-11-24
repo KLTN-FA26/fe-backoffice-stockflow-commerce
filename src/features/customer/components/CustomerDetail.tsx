@@ -67,6 +67,7 @@ function CustomerDetailContent({ id }: { id: string }) {
           <CreditProfileCard
             customerId={customer.customerId}
             canRead={can(CREDIT_PROFILE_PERMISSIONS.read)}
+            canApprove={can(CREDIT_PROFILE_PERMISSIONS.approve)}
           />
           <CustomerSkusCard
             customerId={customer.customerId}

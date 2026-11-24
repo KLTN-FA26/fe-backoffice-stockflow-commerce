@@ -18,7 +18,8 @@ export const CUSTOMER_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   PORTAL_ACCOUNT_ALREADY_ACTIVE: "Khách hàng đã kích hoạt tài khoản portal.",
   PORTAL_INVITATION_UNAVAILABLE:
     "Hệ thống chưa cấu hình gửi lời mời kích hoạt. Vui lòng liên hệ quản trị viên.",
-  CREDIT_PROFILE_INVALID: "Điều khoản thanh toán không hợp lệ.",
+  CREDIT_PROFILE_INVALID:
+    "Hạn mức công nợ không hợp lệ: nhập cả hạn mức (từ 0) và số ngày (0–365), hoặc để trống cả hai.",
   LEGAL_PROFILE_NOT_FOUND: "Khách chưa có thông tin pháp lý.",
   CONFLICT: "Khách hàng không còn ở trạng thái chờ kích hoạt.",
   RATE_LIMITED: "Vừa gửi lời mời. Vui lòng chờ khoảng 1 phút rồi gửi lại.",
@@ -69,6 +70,20 @@ export function legalProfileFieldErrors(error: unknown): {
     else others.push(message);
   }
   return { fields, others };
+}
+
+/** Câu riêng cho hộp hạn mức công nợ (AUTH-6): `OPTIMISTIC_LOCK` / `VALIDATION_FAILED` ở đây nói về hạn mức. */
+const CREDIT_PROFILE_ERROR_MESSAGES: Readonly<Record<string, string>> = {
+  ...CUSTOMER_ERROR_MESSAGES,
+  OPTIMISTIC_LOCK: "Hạn mức công nợ vừa được người khác sửa, đã tải lại.",
+  VALIDATION_FAILED: "Hạn mức công nợ chưa hợp lệ, kiểm tra lại các ô.",
+  // BE 18 BR-03 / 4B-1: bỏ công nợ khi lịch thanh toán mặc định của khách còn đợt trả sau giao hàng.
+  PAYMENT_SCHEDULE_NEEDS_CREDIT:
+    "Lịch thanh toán mặc định của khách còn đợt trả sau giao hàng. Đổi lịch đó trước khi bỏ công nợ.",
+};
+
+export function creditProfileErrorMessage(error: unknown): string {
+  return apiErrorMessage(error, CREDIT_PROFILE_ERROR_MESSAGES);
 }
 
 /** Lỗi kích hoạt mật khẩu yếu: BE trả VALIDATION_FAILED không kèm fieldErrors, link vẫn dùng được. */
