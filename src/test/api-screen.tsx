@@ -43,6 +43,8 @@ export const ROLE_PERMISSIONS = {
     "production-orders:VIEW_PAGE",
     "production-orders:READ",
     "production-qc-results:READ",
+    // Baseline V20261111000000: Sale mở được trang đơn (link số đơn trong chat, AUTH-8)
+    "sales-orders:VIEW_PAGE",
     "sales-orders:READ",
     // V20261017000800 (PR #109): nộp mẫu vào kho thật + chọn thiết kế đã xác nhận của khách.
     "warehouse-warehouses:READ",

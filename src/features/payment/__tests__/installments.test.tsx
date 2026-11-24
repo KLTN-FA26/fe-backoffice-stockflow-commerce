@@ -2,6 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { ORDER_PERMISSIONS } from "@/constants";
 import { apiError, bePage } from "@/test/api-screen";
 import "@/test/jsdom-popover";
 
@@ -384,5 +385,25 @@ describe("Record a receipt from a due installment (WF4 X03: pay BEFORE_DELIVERY 
     await userEvent.click(dialog.getByRole("button", { name: "Lập phiếu thu" }));
     expect(await dialog.findByText("Nhập mã tham chiếu sao kê")).toBeInTheDocument();
     expect(api.post).not.toHaveBeenCalled();
+  });
+});
+
+describe("InstallmentList — order number links only with the order page (AUTH-8)", () => {
+  it("without sales-orders:VIEW_PAGE the order number is plain text", async () => {
+    mockPaymentApi(ACCOUNTANT_GRANTS, { get: listRoutes([due]) });
+    renderPaymentScreen(<InstallmentList />);
+    expect(await screen.findByText("SO-20261108-000013")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "SO-20261108-000013" })).not.toBeInTheDocument();
+  });
+
+  it("with the order page it links to the order", async () => {
+    mockPaymentApi([...ACCOUNTANT_GRANTS, ORDER_PERMISSIONS.viewPage], {
+      get: listRoutes([due]),
+    });
+    renderPaymentScreen(<InstallmentList />);
+    expect(await screen.findByRole("link", { name: "SO-20261108-000013" })).toHaveAttribute(
+      "href",
+      `/admin/orders/${due.orderId}`,
+    );
   });
 });

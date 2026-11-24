@@ -1,11 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FilePlus2, LoaderCircle } from "lucide-react";
 
-import { ADMIN_ROUTES, CHAT_UNKNOWN_LABELS } from "@/constants";
+import { ADMIN_ROUTES, CHAT_UNKNOWN_LABELS, QUOTE_PERMISSIONS } from "@/constants";
 import { formatDate } from "@/lib/format/date";
+import { PermittedLink } from "@/components/backoffice/PermittedLink";
 import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
 
@@ -65,12 +65,15 @@ export function QuoteRequestCardBody({
         <div className="text-warning-ink">Lý do trả lại: {view.returnReason}</div>
       )}
       {view.quoteId && (
-        <Link
+        // AUTH-8: thiếu quyền mở trang báo giá thì chỉ hiện chữ
+        <PermittedLink
+          permission={QUOTE_PERMISSIONS.viewPage}
           href={ADMIN_ROUTES.quotes.detail(view.quoteId)}
           className="text-accent-text hover:underline"
+          plainClassName="text-ink-secondary block"
         >
           Báo giá {view.quoteNumber ?? ""}
-        </Link>
+        </PermittedLink>
       )}
       {!canCreate && !view.quoteId && card.state === "OPEN" && waitNote && (
         <div className="text-ink-tertiary">{waitNote}</div>
