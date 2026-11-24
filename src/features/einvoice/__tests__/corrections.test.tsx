@@ -110,7 +110,8 @@ describe("corrections of an issued invoice (docs 21 §4.4)", () => {
     await waitFor(() =>
       expect(api.post).toHaveBeenCalledWith("/einvoices/einv-1/replacements", {
         reason: "Sai thuế suất",
-        lines: [{ originalLineId: "line-1", quantity: 20_000, unitPrice: 780, taxRate: 10 }],
+        // The line as BE holds it (D-9): 20 cartons at a carton's price.
+        lines: [{ originalLineId: "line-1", quantity: 20, unitPrice: 780_000, taxRate: 10 }],
       }),
     );
   });

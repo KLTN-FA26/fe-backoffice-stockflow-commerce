@@ -37,9 +37,53 @@ describe("EInvoiceDetail — issuing (docs 21 §4.2)", () => {
     mockEInvoiceApi(ACCOUNTANT_GRANTS, { get: get(detailJson()) });
     renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
     expect(await screen.findByText("Ly giấy 8oz in logo")).toBeInTheDocument();
-    expect(screen.getByText("20 thùng × 1000 cái")).toBeInTheDocument();
+    // Demo D-9: BE sends whole cartons as cartons (quantity 20, unit "Thùng", price of a carton).
+    expect(screen.getByText("20 thùng × 1.000 cái = 20.000 cái")).toBeInTheDocument();
+    expect(screen.getByText("20 Thùng")).toBeInTheDocument();
+    expect(screen.queryByText(/0[.,]02 thùng/)).not.toBeInTheDocument();
     expect(screen.getByText(/Bằng chữ: Mười sáu triệu/)).toBeInTheDocument();
     expect(screen.getAllByText("0315987654").length).toBeGreaterThan(0);
+  });
+
+  it("D-9: a reduction in cartons drops the sign in the hint; one in pieces has no carton hint", async () => {
+    const reduction = (over: Record<string, unknown>) => ({
+      id: `r-${String(over.lineNo)}`,
+      kind: "GOODS",
+      sku: "LY-GIAY-DEMO-12OZ-MOC",
+      itemName: "Ly giấy 12oz",
+      taxRate: 8,
+      ...over,
+    });
+    mockEInvoiceApi(ACCOUNTANT_GRANTS, {
+      get: get(
+        detailJson({
+          lines: [
+            reduction({
+              lineNo: 1,
+              unit: "Thùng",
+              quantity: -1,
+              unitsPerCarton: 1000,
+              unitPrice: 1_200_000,
+              amount: -1_200_000,
+              taxAmount: -96_000,
+            }),
+            reduction({
+              lineNo: 2,
+              unit: "Cái",
+              quantity: -850,
+              unitsPerCarton: null,
+              unitPrice: 1_200,
+              amount: -1_020_000,
+              taxAmount: -81_600,
+            }),
+          ],
+        }),
+      ),
+    });
+    renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
+    expect(await screen.findByText("1 thùng × 1.000 cái = 1.000 cái")).toBeInTheDocument();
+    expect(screen.getByText("-850 Cái")).toBeInTheDocument();
+    expect(screen.getAllByText(/thùng ×/)).toHaveLength(1);
   });
 
   it("issues a draft after confirming, sending the version read", async () => {
