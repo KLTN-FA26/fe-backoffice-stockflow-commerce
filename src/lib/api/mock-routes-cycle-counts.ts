@@ -74,6 +74,15 @@ const PAGE_SIZE_DEFAULT = 20; // BE Pages.DEFAULT_PAGE_SIZE
 const PAGE_SIZE_MAX = 200; // BE Pages.MAX_PAGE_SIZE
 const OPEN: readonly string[] = [CYCLE_COUNT_STATUS.PLANNED, CYCLE_COUNT_STATUS.IN_PROGRESS];
 
+/** Thùng nằm trên một phiếu kiểm kê đang mở (docs 11 BR-06) — chuyển tay bị từ chối STOCK_SLOT_UNDER_COUNT. */
+export function isMockCartonUnderCount(stockPackageId: string): boolean {
+  for (const count of counts.values()) {
+    if (!OPEN.includes(count.status)) continue;
+    if (count.lines.some((line) => line.stockPackageId === stockPackageId)) return true;
+  }
+  return false;
+}
+
 export function resetCycleCountMockState(): void {
   counts.clear();
   seq = 0;

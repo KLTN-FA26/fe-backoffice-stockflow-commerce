@@ -1,7 +1,6 @@
 import { MOVE_LABELS, MOVE_LIMITS } from "@/constants/move";
 
 import { FORM_INPUT_CLASS } from "@/components/shared/form-control-classes";
-
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -10,93 +9,54 @@ import type { MoveCreateInput } from "../types";
 
 const DESTINATION_LIST_ID = "move-toLocation-options";
 
-function FieldError({ id, message }: { id: string; message?: string }) {
-  return (
-    <p id={id} role={message ? "alert" : undefined} className="text-danger text-sm">
-      {message}
-    </p>
-  );
-}
-
+/**
+ * Vị trí đích (docs 11 §4.1 bước 2): quét / gõ mã vị trí, gợi ý các vị trí dùng được của kho (không khu tập kết, khác vị
+ * trí hiện tại của các thùng). `problem` là lỗi chéo với danh sách thùng (thùng đã ở sẵn đích) — không nằm trong zod.
+ */
 export function MoveFields({
   form,
   destinations,
-  movable,
+  problem,
 }: {
   form: UseFormReturn<MoveCreateInput>;
   destinations: readonly string[];
-  /** Units that may leave the chosen source row; undefined while the source row is unknown. */
-  movable: number | undefined;
+  problem: string | null;
 }) {
   const {
     register,
     formState: { errors },
   } = form;
-  const text = (
-    field: "sku" | "lotNumber" | "fromLocation" | "toLocation",
-    label: string,
-    limit: number,
-    help?: string,
-    required = true,
-  ) => (
-    <div key={field} className="space-y-1.5">
-      <Label htmlFor={`move-${field}`}>
-        {label}
-        {required && " *"}
-      </Label>
+  const message = errors.toLocation?.message ?? problem ?? undefined;
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor="move-toLocation">{MOVE_LABELS.toLocation} *</Label>
       <Input
         className={FORM_INPUT_CLASS}
-        id={`move-${field}`}
-        {...register(field)}
-        maxLength={limit}
+        id="move-toLocation"
+        {...register("toLocation")}
+        maxLength={MOVE_LIMITS.locationLength}
         autoComplete="off"
-        list={field === "toLocation" ? DESTINATION_LIST_ID : undefined}
-        aria-invalid={Boolean(errors[field])}
-        aria-describedby={`move-${field}-error${help ? ` move-${field}-help` : ""}`}
+        list={DESTINATION_LIST_ID}
+        aria-invalid={Boolean(message)}
+        aria-describedby={`move-toLocation-error${destinations.length ? " move-toLocation-help" : ""}`}
       />
-      {help && (
-        <p id={`move-${field}-help`} className="text-ink-secondary text-sm">
-          {help}
-        </p>
-      )}
-      <FieldError id={`move-${field}-error`} message={errors[field]?.message} />
-    </div>
-  );
-  return (
-    <div className="grid grid-cols-1 gap-[var(--card-pad)] md:grid-cols-2">
-      {text("sku", MOVE_LABELS.sku, 64, MOVE_LABELS.skuHelp)}
-      {text("lotNumber", MOVE_LABELS.lot, MOVE_LIMITS.lotLength, MOVE_LABELS.lotHelp, false)}
-      {text("fromLocation", MOVE_LABELS.fromLocation, MOVE_LIMITS.locationLength)}
-      {text(
-        "toLocation",
-        MOVE_LABELS.toLocation,
-        MOVE_LIMITS.locationLength,
-        destinations.length ? MOVE_LABELS.toLocationHelp : undefined,
-      )}
       <datalist id={DESTINATION_LIST_ID}>
         {destinations.map((code) => (
           <option key={code} value={code} />
         ))}
       </datalist>
-      <div className="space-y-1.5">
-        <Label htmlFor="move-quantity">{MOVE_LABELS.quantity} *</Label>
-        <Input
-          className={FORM_INPUT_CLASS}
-          id="move-quantity"
-          type="number"
-          step={1}
-          min={MOVE_LIMITS.quantityMin}
-          max={MOVE_LIMITS.quantityMax}
-          {...register("quantity", { valueAsNumber: true })}
-          aria-invalid={Boolean(errors.quantity)}
-          aria-describedby="move-quantity-help move-quantity-error"
-        />
-        <p id="move-quantity-help" className="text-ink-secondary text-sm">
-          {MOVE_LABELS.quantityHelp}
-          {movable !== undefined && ` ${MOVE_LABELS.movableUpTo}: ${movable}.`}
+      {destinations.length > 0 && (
+        <p id="move-toLocation-help" className="text-ink-secondary text-sm">
+          {MOVE_LABELS.toLocationHelp}
         </p>
-        <FieldError id="move-quantity-error" message={errors.quantity?.message} />
-      </div>
+      )}
+      <p
+        id="move-toLocation-error"
+        role={message ? "alert" : undefined}
+        className="text-danger text-sm"
+      >
+        {message}
+      </p>
     </div>
   );
 }

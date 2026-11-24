@@ -1,20 +1,15 @@
 import { useCallback, useRef } from "react";
 
-import { normalizeLocation } from "./selectors";
+import { normalizeLocation, normalizeLpn } from "./selectors";
 
 import type { MoveCreateInput } from "./types";
 
-// The same content always goes out under the same idempotency key (a retry after a lost response
-// replays the move instead of making it twice); different content gets a fresh key, otherwise the
-// server would answer an edited retry with the move that was already made.
+// The same content always goes out under the same idempotency key (a retry after a lost response replays the move
+// instead of making it twice); different content gets a fresh key, otherwise the server refuses it with
+// IDEMPOTENCY_KEY_REUSED. BE so sánh TẬP thùng + đích: đổi thứ tự quét không phải lệnh khác.
 function signature(input: MoveCreateInput): string {
-  return [
-    input.sku.trim().toUpperCase(),
-    input.lotNumber?.trim() ?? "",
-    normalizeLocation(input.fromLocation),
-    normalizeLocation(input.toLocation),
-    String(input.quantity),
-  ].join("|");
+  const lpns = [...new Set(input.lpns.map(normalizeLpn))].sort();
+  return `${lpns.join(",")}→${normalizeLocation(input.toLocation)}`;
 }
 
 export function useMoveRequestId() {

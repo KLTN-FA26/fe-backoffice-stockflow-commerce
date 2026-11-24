@@ -4,9 +4,12 @@ import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { INVENTORY_LABELS } from "@/constants/inventory";
 import { MOVE_API, MOVE_ERROR_MESSAGES, MOVE_LABELS, MOVE_MESSAGES } from "@/constants/move";
-import { INVENTORY_PERMISSIONS, WAREHOUSE_LOCATION_PERMISSIONS } from "@/constants/permissions";
+import {
+  INVENTORY_PERMISSIONS,
+  STOCK_PACKAGE_PERMISSIONS,
+  WAREHOUSE_LOCATION_PERMISSIONS,
+} from "@/constants/permissions";
 
 import { useMyPermissions } from "@/lib/auth";
 
@@ -22,21 +25,73 @@ import { MoveCreate } from "./MoveCreate";
 
 const server = setupServer();
 const moveUrl = moveEndpoint(MOVE_API.move);
+const cartonUrl = moveEndpoint("/inventory/stock-packages/:lpn");
+const cartonsUrl = moveEndpoint(MOVE_API.cartons);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const stockUpdate = INVENTORY_PERMISSIONS.stockUpdate;
-// Tồn theo kho của tab (BE InventoryController `GET /inventory/warehouses/{id}/stock-items`, trang)
-const stockUrl = moveEndpoint(MOVE_API.stockItems(MOVE_TAB_WAREHOUSE.id));
-const stockPage = (items: unknown[]) =>
-  HttpResponse.json({
-    success: true,
-    data: { items, page: 0, size: 200, totalElements: items.length, totalPages: 1 },
+const cartonRead = STOCK_PACKAGE_PERMISSIONS.read;
+
+const LPN_1 = "LPN-20261109-000001";
+const LPN_2 = "LPN-20261109-000002";
+
+/** BE `StockPackageDetailResponse` của một thùng trong kho HCM. */
+function carton(lpn: string, patch: Record<string, unknown> = {}) {
+  return {
+    lpn,
+    sku: "SOFA-3S-GREY",
+    unitOfMeasure: "CARTON",
+    nominalQty: 10,
+    receivedQty: 10,
+    lotNumber: "LOT-7",
+    onHand: 10,
+    reserved: 0,
+    status: "IN_STOCK",
+    locationCode: "HCM-A01-1-A",
+    contents: [],
+    ...patch,
+  };
+}
+
+/** GET /inventory/stock-packages/{lpn}: thùng theo bảng, LPN lạ → 404. */
+function cartons(table: Record<string, Record<string, unknown>>) {
+  return http.get(cartonUrl, ({ params }) => {
+    const found = table[String(params.lpn)];
+    return found
+      ? HttpResponse.json({ success: true, data: found })
+      : failure(404, "STOCK_PACKAGE_NOT_FOUND");
   });
+}
+
+function moved(body: Record<string, unknown>) {
+  const lpns = Array.isArray(body.lpns) ? body.lpns : [];
+  return HttpResponse.json(
+    {
+      success: true,
+      data: lpns.map((lpn) => ({
+        lpn,
+        sku: "SOFA-3S-GREY",
+        unitOfMeasure: "CARTON",
+        quantity: 10,
+        locationCode: body.toLocation,
+        status: "IN_STOCK",
+      })),
+    },
+    { status: 201 },
+  );
+}
 
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
 beforeEach(() => {
   localStorage.clear();
   setMoveTestActor();
-  server.use(movePermissions([stockUpdate]));
+  server.use(
+    movePermissions([stockUpdate, cartonRead]),
+    cartons({ [LPN_1]: carton(LPN_1), [LPN_2]: carton(LPN_2, { locationCode: "HCM-A01-1-B" }) }),
+    // Bộ tìm thùng gọi khi gõ; mặc định không có gì
+    http.get(cartonsUrl, () =>
+      HttpResponse.json({ success: true, data: { items: [], hasNext: false } }),
+    ),
+  );
 });
 afterEach(() => {
   cleanup();
@@ -44,38 +99,28 @@ afterEach(() => {
 });
 afterAll(() => server.close());
 
-function created(body: Record<string, unknown>) {
-  return HttpResponse.json(
-    {
-      success: true,
-      data: {
-        movementId: crypto.randomUUID(),
-        sku: body.sku,
-        fromLocation: body.fromLocation,
-        toLocation: body.toLocation,
-        quantity: body.quantity,
-        occurredAt: "2026-10-19T03:00:00Z",
-      },
-    },
-    { status: 201 },
-  );
-}
-
-async function fill(quantity = "5", to = "HCM-PACK01") {
-  await userEvent.type(await screen.findByLabelText(/^SKU/), "CUP-PP-500");
-  await userEvent.type(screen.getByLabelText(/Từ vị trí/), "HCM-A01-1-A");
-  await userEvent.type(screen.getByLabelText(/Đến vị trí/), to);
-  const qty = screen.getByLabelText(/Số lượng/);
-  await userEvent.clear(qty);
-  await userEvent.type(qty, quantity);
-}
-
 const submit = () => screen.getByRole("button", { name: MOVE_LABELS.submit });
+const scanInput = () => screen.getByLabelText(MOVE_LABELS.scan);
+const destination = () => screen.getByLabelText(/Đến vị trí/);
+const cartonList = () => screen.getByRole("region", { name: MOVE_LABELS.cartonsTitle });
 
 /** Trang Di chuyển nội bộ: form nằm trong modal mở từ nút "Tạo lệnh di chuyển" của toolbar. */
 async function openMove() {
   renderMove(<MoveCreate />);
   await userEvent.click(await screen.findByRole("button", { name: MOVE_LABELS.formTitle }));
+  await screen.findByLabelText(MOVE_LABELS.scan);
+}
+
+async function scan(lpn: string) {
+  await userEvent.type(scanInput(), `${lpn}{Enter}`);
+}
+
+async function scanAndPick(lpns: string[], to = "HCM-PACK01") {
+  for (const lpn of lpns) {
+    await scan(lpn);
+    await within(cartonList()).findByText(lpn);
+  }
+  await userEvent.type(destination(), to);
 }
 
 function PermissionsReady() {
@@ -83,73 +128,117 @@ function PermissionsReady() {
 }
 
 describe("move form — permission gate", () => {
-  it("has no create button without the BE guard permission (inventory-stock-items:UPDATE) and sends nothing", async () => {
-    server.use(movePermissions([INVENTORY_PERMISSIONS.movementRead]));
+  it("has no create button without the BE guard permission (inventory-stock-items:UPDATE)", async () => {
+    server.use(movePermissions([INVENTORY_PERMISSIONS.movementRead, cartonRead]));
     renderMove(
       <>
         <MoveCreate />
         <PermissionsReady />
       </>,
     );
-    // Quyền đã tải xong mà vẫn không có nút tạo lệnh — không mở được form, không gửi gì
     expect(await screen.findByText("permissions-ready")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: MOVE_LABELS.formTitle })).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/^SKU/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(MOVE_LABELS.scan)).not.toBeInTheDocument();
+  });
+});
+
+describe("move form — scan cartons by LPN (docs 11 §4.1)", () => {
+  it("shows SKU, lot, count and current location of each scanned carton; no source / quantity field", async () => {
+    await openMove();
+    await scan(LPN_1.toLowerCase());
+    const row = (await within(cartonList()).findByText(LPN_1)).closest("tr");
+    expect(row).not.toBeNull();
+    const cells = within(row as HTMLElement);
+    expect(cells.getByText("SOFA-3S-GREY")).toBeInTheDocument();
+    expect(cells.getByText("LOT-7")).toBeInTheDocument();
+    expect(cells.getByText("10")).toBeInTheDocument();
+    expect(cells.getByText("HCM-A01-1-A")).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Số lượng/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Từ vị trí/)).not.toBeInTheDocument();
+    expect(scanInput()).toHaveValue("");
+  });
+
+  it.each([
+    ["held for an order (BR-05)", { reserved: 2 }, MOVE_MESSAGES.held(LPN_1)],
+    ["not in stock (BR-04)", { status: "RECEIVING" }, MOVE_MESSAGES.notInStock(LPN_1, "RECEIVING")],
+    [
+      "in another warehouse (BR-01)",
+      { locationCode: "HN-A01-1-A" },
+      MOVE_MESSAGES.cartonOtherWarehouse(LPN_1, "HCM"),
+    ],
+  ])("refuses a carton %s and does not add it", async (_label, patch, message) => {
+    server.use(cartons({ [LPN_1]: carton(LPN_1, patch) }));
+    await openMove();
+    await scan(LPN_1);
+    expect(await screen.findByText(message)).toBeInTheDocument();
+    expect(within(cartonList()).queryByText(LPN_1)).not.toBeInTheDocument();
+    expect(within(cartonList()).getByText(MOVE_LABELS.cartonsEmpty)).toBeInTheDocument();
+  });
+
+  it("an unknown LPN is not added; the same carton twice stays once", async () => {
+    await openMove();
+    await scan("LPN-NOPE");
+    expect(await screen.findByText(MOVE_MESSAGES.notFound("LPN-NOPE"))).toBeInTheDocument();
+    await scan(LPN_1);
+    await within(cartonList()).findByText(LPN_1);
+    await scan(LPN_1);
+    expect(await screen.findByText(MOVE_MESSAGES.duplicate(LPN_1))).toBeInTheDocument();
+    expect(within(cartonList()).getAllByText(LPN_1)).toHaveLength(1);
+  });
+
+  it("without inventory-stock-packages:READ the LPN is added unchecked, the BE checks it on send", async () => {
+    const looked = vi.fn();
+    server.use(
+      movePermissions([stockUpdate]),
+      http.get(cartonUrl, () => {
+        looked();
+        return failure(500, "UNEXPECTED");
+      }),
+    );
+    await openMove();
+    await scan(LPN_1);
+    expect(await screen.findByText(MOVE_MESSAGES.addedUnverified(LPN_1))).toBeInTheDocument();
+    expect(within(cartonList()).getByText(MOVE_LABELS.unverified)).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: MOVE_LABELS.finderTitle })).not.toBeInTheDocument();
+    expect(looked).not.toHaveBeenCalled();
+  });
+
+  it("removes a carton from the list", async () => {
+    await openMove();
+    await scanAndPick([LPN_1, LPN_2]);
+    await userEvent.click(screen.getByRole("button", { name: MOVE_LABELS.remove(LPN_1) }));
+    expect(within(cartonList()).queryByText(LPN_1)).not.toBeInTheDocument();
+    expect(within(cartonList()).getByText(LPN_2)).toBeInTheDocument();
   });
 });
 
 describe("move form — submit", () => {
-  it("sends the BE contract with an idempotency key and shows what was moved", async () => {
+  it("sends only { requestId, lpns, toLocation } and shows each carton's new place", async () => {
     const sent = vi.fn();
     server.use(
       http.post(moveUrl, async ({ request }) => {
         const body = (await request.json()) as Record<string, unknown>;
         sent(body);
-        return created(body);
+        return moved(body);
       }),
     );
     await openMove();
-    await fill();
+    await scanAndPick([LPN_1, LPN_2], "hcm-pack01");
     await waitFor(() => expect(submit()).toBeEnabled());
     await userEvent.click(submit());
-    const status = await screen.findByRole("status");
-    expect(status).toHaveTextContent(MOVE_LABELS.resultTitle);
-    expect(status).toHaveTextContent("HCM-PACK01");
+    expect(await screen.findByText(MOVE_LABELS.resultSummary(2, "HCM-PACK01"))).toBeInTheDocument();
     expect(sent).toHaveBeenCalledTimes(1);
-    const body = sent.mock.calls[0]?.[0] as Record<string, unknown>;
-    expect(body).toEqual({
+    expect(sent.mock.calls[0]?.[0]).toEqual({
       requestId: expect.stringMatching(UUID),
-      sku: "CUP-PP-500",
-      fromLocation: "HCM-A01-1-A",
+      lpns: [LPN_1, LPN_2],
       toLocation: "HCM-PACK01",
-      quantity: 5,
     });
-    expect(body).not.toHaveProperty("lotNumber");
-    // The form is ready for the next move.
-    expect(screen.getByLabelText(/^SKU/)).toHaveValue("");
-    expect(screen.getByLabelText(/Số lượng/)).toHaveValue(null);
+    // Sẵn sàng cho lệnh kế tiếp
+    expect(within(cartonList()).getByText(MOVE_LABELS.cartonsEmpty)).toBeInTheDocument();
+    expect(destination()).toHaveValue("");
   });
 
-  it("keeps the submit disabled for an invalid move: same location, other warehouse, quantity 0", async () => {
-    await openMove();
-    await fill("5", "hcm-a01-1-a");
-    expect(await screen.findByText(MOVE_MESSAGES.sameLocation)).toBeInTheDocument();
-    expect(submit()).toBeDisabled();
-
-    await userEvent.clear(screen.getByLabelText(/Đến vị trí/));
-    await userEvent.type(screen.getByLabelText(/Đến vị trí/), "HN-PACK01");
-    expect(await screen.findByText(MOVE_MESSAGES.crossWarehouse)).toBeInTheDocument();
-    expect(submit()).toBeDisabled();
-
-    await userEvent.clear(screen.getByLabelText(/Đến vị trí/));
-    await userEvent.type(screen.getByLabelText(/Đến vị trí/), "HCM-PACK01");
-    await userEvent.clear(screen.getByLabelText(/Số lượng/));
-    await userEvent.type(screen.getByLabelText(/Số lượng/), "0");
-    expect(await screen.findByText(MOVE_MESSAGES.quantity)).toBeInTheDocument();
-    expect(submit()).toBeDisabled();
-  });
-
-  it("chặn vị trí thuộc kho khác kho của tab (docs 11 BR-01), không gửi lệnh", async () => {
+  it("blocks a destination where a carton already is (BE 422), and one outside the tab warehouse", async () => {
     const sent = vi.fn();
     server.use(
       http.post(moveUrl, async ({ request }) => {
@@ -158,88 +247,85 @@ describe("move form — submit", () => {
       }),
     );
     await openMove();
-    await userEvent.type(await screen.findByLabelText(/^SKU/), "CUP-PP-500");
-    await userEvent.type(screen.getByLabelText(/Từ vị trí/), "HN-A01-1-A");
-    await userEvent.type(screen.getByLabelText(/Đến vị trí/), "HN-PACK01");
-    await userEvent.type(screen.getByLabelText(/Số lượng/), "1");
-    expect(await screen.findAllByText(MOVE_MESSAGES.otherWarehouse("HCM"))).not.toHaveLength(0);
+    await scanAndPick([LPN_1], "HCM-A01-1-A");
+    expect(await screen.findByText(MOVE_MESSAGES.alreadyThere(LPN_1))).toBeInTheDocument();
+    expect(submit()).toBeDisabled();
+
+    await userEvent.clear(destination());
+    await userEvent.type(destination(), "HN-PACK01");
+    expect(await screen.findByText(MOVE_MESSAGES.otherWarehouse("HCM"))).toBeInTheDocument();
     expect(submit()).toBeDisabled();
     expect(sent).not.toHaveBeenCalled();
   });
 
-  it("includes the lot when one is entered", async () => {
-    const sent = vi.fn();
-    server.use(
-      http.post(moveUrl, async ({ request }) => {
-        const body = (await request.json()) as Record<string, unknown>;
-        sent(body);
-        return created(body);
-      }),
-    );
+  it("no carton → nothing to send", async () => {
     await openMove();
-    await fill();
-    await userEvent.type(screen.getByLabelText(/^Lô/), "LOT-7");
-    await waitFor(() => expect(submit()).toBeEnabled());
-    await userEvent.click(submit());
-    await screen.findByRole("status");
-    expect(sent.mock.calls[0]?.[0]).toMatchObject({ lotNumber: "LOT-7" });
+    await userEvent.type(destination(), "HCM-PACK01");
+    expect(submit()).toBeDisabled();
   });
 });
 
 describe("move form — BE errors in Vietnamese", () => {
   it.each([
-    ["INSUFFICIENT_STOCK", 409, MOVE_ERROR_MESSAGES.insufficientStock],
-    ["STOCK_ITEM_NOT_FOUND", 404, MOVE_ERROR_MESSAGES.stockItemNotFound],
-    ["LOCATION_NOT_FOUND", 404, MOVE_ERROR_MESSAGES.locationNotFound],
-    ["LOCATION_NOT_USABLE", 409, MOVE_ERROR_MESSAGES.locationNotUsable],
-    ["MOVE_ACROSS_WAREHOUSES", 409, MOVE_ERROR_MESSAGES.crossWarehouse],
+    ["STOCK_PACKAGE_HELD", 409, MOVE_ERROR_MESSAGES.cartonHeld],
     ["STOCK_SLOT_UNDER_COUNT", 409, MOVE_ERROR_MESSAGES.slotUnderCount],
-    ["STOCK_STATUS_MISMATCH", 409, MOVE_ERROR_MESSAGES.statusMismatch],
-    ["INVENTORY_POLICY_STOCK_CONFLICT", 409, MOVE_ERROR_MESSAGES.policyConflict],
+    ["INVALID_STOCK_PACKAGE_TRANSITION", 409, MOVE_ERROR_MESSAGES.cartonNotInStock],
+    ["MOVE_ACROSS_WAREHOUSES", 409, MOVE_ERROR_MESSAGES.crossWarehouse],
+    ["STAGING_MOVE_NOT_ALLOWED", 409, MOVE_ERROR_MESSAGES.staging],
+    ["CARTON_DOES_NOT_FIT_BIN", 422, MOVE_ERROR_MESSAGES.doesNotFit],
     ["OUT_OF_DATA_SCOPE", 403, MOVE_ERROR_MESSAGES.outOfScope],
   ])("%s", async (code, status, message) => {
     server.use(http.post(moveUrl, () => failure(status, code)));
     await openMove();
-    await fill();
+    await scanAndPick([LPN_1]);
     await waitFor(() => expect(submit()).toBeEnabled());
     await userEvent.click(submit());
-    const alert = await screen.findByText(message);
-    expect(alert).toBeInTheDocument();
+    expect(await screen.findByText(message)).toBeInTheDocument();
     expect(screen.queryByText(/English server message/)).not.toBeInTheDocument();
-    // The typed values survive a refused move.
-    expect(screen.getByLabelText(/^SKU/)).toHaveValue("CUP-PP-500");
+    // Danh sách thùng còn nguyên sau khi bị từ chối
+    expect(within(cartonList()).getByText(LPN_1)).toBeInTheDocument();
   });
 
-  it("puts a server field error under its field, in Vietnamese", async () => {
+  it("flags the carton the BE named (details.lpn)", async () => {
     server.use(
       http.post(moveUrl, () =>
-        failure(400, "VALIDATION_FAILED", [
-          { field: "quantity", message: "quantity must be at least 1", code: "Min" },
-        ]),
+        HttpResponse.json(
+          {
+            success: false,
+            errorCode: "STOCK_PACKAGE_HELD",
+            message: "English server message",
+            details: { lpn: LPN_2 },
+          },
+          { status: 409 },
+        ),
       ),
     );
     await openMove();
-    await fill();
+    await scanAndPick([LPN_1, LPN_2]);
     await waitFor(() => expect(submit()).toBeEnabled());
     await userEvent.click(submit());
-    expect(await screen.findAllByText(MOVE_MESSAGES.quantity)).not.toHaveLength(0);
+    expect(
+      await screen.findByText(`${LPN_2}: ${MOVE_ERROR_MESSAGES.cartonHeld}`),
+    ).toBeInTheDocument();
+    const rows = within(cartonList()).getAllByRole("row");
+    const flagged = rows.filter((row) => row.getAttribute("aria-invalid") === "true");
+    expect(flagged).toHaveLength(1);
+    expect(flagged[0]).toHaveTextContent(LPN_2);
   });
 });
 
 describe("move form — idempotency key", () => {
-  it("retries the same content under the same requestId, and a changed move under a new one", async () => {
+  it("retries the same cartons under the same requestId, a changed list under a new one", async () => {
     const ids: string[] = [];
-    let attempt = 0;
     server.use(
       http.post(moveUrl, async ({ request }) => {
         const body = (await request.json()) as Record<string, unknown>;
         ids.push(String(body.requestId));
-        attempt += 1;
-        return attempt < 3 ? failure(500, "INTERNAL_ERROR") : created(body);
+        return failure(500, "INTERNAL_ERROR");
       }),
     );
     await openMove();
-    await fill();
+    await scanAndPick([LPN_1, LPN_2]);
     await waitFor(() => expect(submit()).toBeEnabled());
     await userEvent.click(submit());
     await screen.findByText(MOVE_ERROR_MESSAGES.server);
@@ -247,60 +333,38 @@ describe("move form — idempotency key", () => {
     await waitFor(() => expect(ids).toHaveLength(2));
     expect(ids[1]).toBe(ids[0]);
 
-    await screen.findByText(MOVE_ERROR_MESSAGES.server);
-    const qty = screen.getByLabelText(/Số lượng/);
-    await userEvent.clear(qty);
-    await userEvent.type(qty, "6");
+    await userEvent.click(screen.getByRole("button", { name: MOVE_LABELS.remove(LPN_2) }));
+    await waitFor(() => expect(submit()).toBeEnabled());
     await userEvent.click(submit());
     await waitFor(() => expect(ids).toHaveLength(3));
     expect(ids[2]).not.toBe(ids[0]);
   });
-});
 
-describe("move form — stock aids (optional, separately permissioned)", () => {
-  const row = {
-    stockItemId: crypto.randomUUID(),
-    sku: "CUP-PP-500",
-    locationCode: "HCM-A01-1-A",
-    lotNumber: "LOT-7",
-    onHand: 10,
-    reserved: 4,
-    available: 6,
-    status: "AVAILABLE",
-  };
-
-  it("lists the SKU's stock and fills source + lot from the chosen row; warns above the movable quantity", async () => {
+  it("after IDEMPOTENCY_KEY_REUSED the next send carries a fresh requestId", async () => {
+    const ids: string[] = [];
     server.use(
-      movePermissions([stockUpdate, INVENTORY_PERMISSIONS.stockRead]),
-      http.get(stockUrl, ({ request }) => {
-        expect(new URL(request.url).searchParams.get("sku")).toBe("CUP-PP-500");
-        // Chỉ tồn AVAILABLE — như `/inventory/stock-items` cũ (findAvailableBySku); tồn khác không chuyển được
-        expect(new URL(request.url).searchParams.get("status")).toBe("AVAILABLE");
-        return stockPage([row]);
+      http.post(moveUrl, async ({ request }) => {
+        const body = (await request.json()) as Record<string, unknown>;
+        ids.push(String(body.requestId));
+        return ids.length === 1 ? failure(422, "IDEMPOTENCY_KEY_REUSED") : moved(body);
       }),
     );
     await openMove();
-    await userEvent.type(await screen.findByLabelText(/^SKU/), "CUP-PP-500");
-    const section = await screen.findByRole("region", { name: MOVE_LABELS.stockTitle });
-    await userEvent.click(within(section).getByRole("button", { name: MOVE_LABELS.stockPick }));
-    expect(screen.getByLabelText(/Từ vị trí/)).toHaveValue("HCM-A01-1-A");
-    expect(screen.getByLabelText(/^Lô/)).toHaveValue("LOT-7");
-    expect(screen.getByText(new RegExp(`${MOVE_LABELS.movableUpTo}: 6`))).toBeInTheDocument();
-    await userEvent.type(screen.getByLabelText(/Số lượng/), "7");
-    expect(await screen.findByText(MOVE_MESSAGES.exceedsMovable)).toBeInTheDocument();
-  });
-
-  it("without stock READ it makes no stock request and the form still works by typing", async () => {
-    await openMove();
-    await fill();
-    expect(screen.queryByRole("region", { name: MOVE_LABELS.stockTitle })).not.toBeInTheDocument();
+    await scanAndPick([LPN_1]);
     await waitFor(() => expect(submit()).toBeEnabled());
+    await userEvent.click(submit());
+    expect(await screen.findByText(MOVE_ERROR_MESSAGES.idempotencyReused)).toBeInTheDocument();
+    await userEvent.click(submit());
+    await waitFor(() => expect(ids).toHaveLength(2));
+    expect(ids[1]).not.toBe(ids[0]);
   });
+});
 
-  it("suggests usable locations of the tab warehouse from its layout (no warehouse lookup)", async () => {
+describe("move form — destination suggestions and carton finder", () => {
+  it("suggests usable places of the tab warehouse, without STAGING or where the cartons are", async () => {
     server.use(
-      movePermissions([stockUpdate, WAREHOUSE_LOCATION_PERMISSIONS.read]),
-      http.get(moveEndpoint("/warehouses/11111111-1111-4111-8111-111111111111/layout"), () =>
+      movePermissions([stockUpdate, cartonRead, WAREHOUSE_LOCATION_PERMISSIONS.read]),
+      http.get(moveEndpoint(`/warehouses/${MOVE_TAB_WAREHOUSE.id}/layout`), () =>
         HttpResponse.json({
           success: true,
           data: {
@@ -309,6 +373,7 @@ describe("move form — stock aids (optional, separately permissioned)", () => {
                 levels: [
                   {
                     bins: [
+                      { locationCode: "HCM-A01-1-A", usable: true },
                       { locationCode: "HCM-A01-1-B", usable: true },
                       { locationCode: "HCM-A01-1-C", usable: false },
                     ],
@@ -316,50 +381,58 @@ describe("move form — stock aids (optional, separately permissioned)", () => {
                 ],
               },
             ],
-            areas: [{ locationCode: "HCM-PACK01", usable: true }],
+            areas: [
+              { locationCode: "HCM-PACK01", usable: true, type: "PACKING" },
+              { locationCode: "HCM-STG01", usable: true, type: "STAGING" },
+            ],
           },
         }),
       ),
     );
     await openMove();
-    await userEvent.type(await screen.findByLabelText(/Từ vị trí/), "HCM-A01-1-A");
-    await waitFor(() =>
-      expect(document.querySelectorAll("#move-toLocation-options option")).toHaveLength(2),
-    );
-    const values = [
+    await scan(LPN_1);
+    await within(cartonList()).findByText(LPN_1);
+    const options = () => [
       ...document.querySelectorAll<HTMLOptionElement>("#move-toLocation-options option"),
     ];
-    expect(values.map((option) => option.value)).toEqual(["HCM-A01-1-B", "HCM-PACK01"]);
+    await waitFor(() =>
+      expect(options().map((option) => option.value)).toEqual(["HCM-A01-1-B", "HCM-PACK01"]),
+    );
   });
-});
 
-describe("move form — source slot under a cycle count (SCRUM-146)", () => {
-  it("warns and keeps submit disabled when the typed source is hidden during a count", async () => {
-    const sent = vi.fn();
+  it("finds a SKU's cartons in the tab warehouse and adds one; a held carton cannot be added", async () => {
     server.use(
-      movePermissions([stockUpdate, INVENTORY_PERMISSIONS.stockRead]),
-      http.get(stockUrl, () =>
-        stockPage([
-          {
-            stockItemId: crypto.randomUUID(),
-            sku: "CUP-PP-500",
-            locationCode: "HCM-A01-1-A",
-            status: "AVAILABLE",
-            hiddenDuringCount: true,
+      http.get(cartonsUrl, ({ request }) => {
+        const params = new URL(request.url).searchParams;
+        expect(params.get("sku")).toBe("SOFA-3S-GREY");
+        expect(params.get("status")).toBe("IN_STOCK");
+        return HttpResponse.json({
+          success: true,
+          data: {
+            items: [
+              carton(LPN_1),
+              carton(LPN_2, { reserved: 3 }),
+              carton("LPN-HN-1", { locationCode: "HN-A01-1-A" }),
+            ],
+            hasNext: false,
           },
-        ]),
-      ),
-      http.post(moveUrl, async ({ request }) => {
-        sent(await request.json());
-        return failure(500, "UNEXPECTED");
+        });
       }),
     );
     await openMove();
-    await fill();
-    expect(await screen.findByText(MOVE_MESSAGES.sourceUnderCount)).toBeInTheDocument();
-    expect(await screen.findByText(INVENTORY_LABELS.hiddenDuringCount)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: MOVE_LABELS.stockPicked })).toBeDisabled();
-    expect(submit()).toBeDisabled();
-    expect(sent).not.toHaveBeenCalled();
+    await userEvent.type(screen.getByLabelText(MOVE_LABELS.finderSearch), "sofa-3s-grey");
+    const finder = screen.getByRole("region", { name: MOVE_LABELS.finderTitle });
+    const add = await within(finder).findByRole("button", {
+      name: `${MOVE_LABELS.finderAdd} ${LPN_1}`,
+    });
+    expect(within(finder).queryByText("LPN-HN-1")).not.toBeInTheDocument();
+    expect(
+      within(finder).getByRole("button", { name: `${MOVE_LABELS.finderAdd} ${LPN_2}` }),
+    ).toBeDisabled();
+    await userEvent.click(add);
+    expect(within(cartonList()).getByText(LPN_1)).toBeInTheDocument();
+    expect(
+      within(finder).getByRole("button", { name: `${MOVE_LABELS.finderAdded} ${LPN_1}` }),
+    ).toBeDisabled();
   });
 });

@@ -2,4 +2,4 @@
 export { MoveCreate } from "./components/MoveCreate";
 export { moveErrorView } from "./errors";
 export { moveCreateInput } from "./schemas";
-export type { MoveCreateInput, StockMove } from "./types";
+export type { MovedCarton, MoveCreateInput } from "./types";

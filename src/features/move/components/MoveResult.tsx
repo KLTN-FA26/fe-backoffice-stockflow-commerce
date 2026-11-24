@@ -1,31 +1,28 @@
 import { MOVE_LABELS } from "@/constants/move";
 
-import { formatDateTime } from "@/lib/format/date";
-
 import { Alert } from "@/components/shared/Alert";
 
-import type { StockMove } from "../types";
+import type { MovedCarton } from "../types";
 
-export function MoveResult({ move }: { move: StockMove }) {
+/** Kết quả một lệnh chuyển: từng thùng → vị trí mới (BE `MovedStockPackageResponse`). */
+export function MoveResult({ cartons }: { cartons: readonly MovedCarton[] }) {
+  const to = cartons[0]?.locationCode ?? MOVE_LABELS.missing;
   return (
     <div role="status">
       <Alert tone="info" title={MOVE_LABELS.resultTitle}>
-        <p>
-          {MOVE_LABELS.resultSummary} {move.quantity} ×{" "}
-          <span className="font-mono">{move.sku}</span>
-          {move.lotNumber ? (
-            <>
-              {" "}
-              ({MOVE_LABELS.lot} <span className="font-mono">{move.lotNumber}</span>)
-            </>
-          ) : null}{" "}
-          — <span className="font-mono">{move.fromLocation}</span> →{" "}
-          <span className="font-mono">{move.toLocation}</span>
-        </p>
-        <p className="text-ink-secondary text-xs">
-          {MOVE_LABELS.resultAt} {formatDateTime(move.occurredAt)} · {MOVE_LABELS.resultMovement}:{" "}
-          <span className="font-mono">{move.movementId}</span>
-        </p>
+        <p>{MOVE_LABELS.resultSummary(cartons.length, to)}</p>
+        <ul className="text-ink-secondary mt-1 max-h-32 space-y-0.5 overflow-auto text-xs">
+          {cartons.map((carton) => (
+            <li key={carton.lpn}>
+              <span className="font-mono">{carton.lpn}</span> ·{" "}
+              <span className="font-mono">{carton.sku}</span>
+              {carton.quantity != null && (
+                <span className="font-mono tabular-nums"> × {carton.quantity}</span>
+              )}{" "}
+              → <span className="font-mono">{carton.locationCode}</span>
+            </li>
+          ))}
+        </ul>
       </Alert>
     </div>
   );
