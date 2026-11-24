@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import { QUOTE_PERMISSIONS } from "@/constants";
 
+import { QUOTE_ACCEPTED } from "../__fixtures__/quote-ds02";
 import { QUOTE_TRANSITIONS, allowedStaffQuoteActions } from "../lifecycle";
+import { quoteDtoSchema } from "../schemas";
 import {
+  canCancelAcceptedQuote,
   hasDiscontinuedLine,
   isExpired,
   lastChangeRequest,
@@ -61,6 +64,21 @@ describe("allowedStaffQuoteActions — action gating (3 roles)", () => {
     expect(allowedStaffQuoteActions("ACCEPTED", all, false, true)).toEqual(["cancel", "convert"]);
     // Drafts keep their cancel regardless of lines.
     expect(allowedStaffQuoteActions("DRAFT", all)).toContain("cancel");
+  });
+  it("LC-2: ACCEPTED can also be cancelled when the customer is no longer ACTIVE", () => {
+    const quote = quoteDtoSchema.parse(QUOTE_ACCEPTED);
+    const withSku = (purchasability: string) => ({
+      lines: quote.lines.map((line) => ({ ...line, purchasability })),
+    });
+    const sold = withSku("PURCHASABLE");
+    expect(canCancelAcceptedQuote(sold, "ACTIVE")).toBe(false);
+    expect(canCancelAcceptedQuote(sold, "BLOCKED")).toBe(true);
+    expect(canCancelAcceptedQuote(sold, "INACTIVE")).toBe(true);
+    expect(canCancelAcceptedQuote(sold, "PENDING_ACTIVATION")).toBe(true);
+    // Customer not readable (no customer-customers:READ): only the SKU rule applies.
+    expect(canCancelAcceptedQuote(sold, null)).toBe(false);
+    expect(canCancelAcceptedQuote(sold, undefined)).toBe(false);
+    expect(canCancelAcceptedQuote(withSku("PRODUCT_INACTIVE"), "ACTIVE")).toBe(true);
   });
   it("a legacy quote is view-only", () => {
     expect(allowedStaffQuoteActions("DRAFT", all, true)).toEqual([]);

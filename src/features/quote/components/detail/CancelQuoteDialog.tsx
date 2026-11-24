@@ -26,7 +26,7 @@ export function CancelQuoteDialog({
       title={accepted ? "Huỷ báo giá đã chấp nhận?" : "Huỷ báo giá nháp?"}
       description={
         accepted
-          ? "Chỉ huỷ được khi có SKU trên báo giá đã ngừng bán (hệ thống kiểm lại). Ghi lý do rồi lập báo giá mới nếu khách vẫn muốn mua."
+          ? "Chỉ huỷ được khi có SKU trên báo giá đã ngừng bán hoặc khách không còn hoạt động (hệ thống kiểm lại). Ghi lý do; lập báo giá mới nếu khách vẫn muốn mua."
           : "Báo giá bị huỷ không thể khôi phục."
       }
       confirmLabel="Huỷ báo giá"

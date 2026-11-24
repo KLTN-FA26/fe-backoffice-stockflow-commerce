@@ -3,7 +3,8 @@
  *   DRAFT → SENT (gửi) | CANCELLED (huỷ, lý do bắt buộc); sửa nội dung chỉ khi DRAFT
  *   SENT → ACCEPTED | CHANGES_REQUESTED (chỉ khách) ; quá validUntil → EXPIRED (job)
  *   CHANGES_REQUESTED → DRAFT (mở bản sửa, revision + 1)
- *   ACCEPTED → CONVERTED (tạo đơn Nháp) | CANCELLED (chỉ khi có dòng `purchasability` ≠ PURCHASABLE — BE-14, BE kiểm lại)
+ *   ACCEPTED → CONVERTED (tạo đơn Nháp) | CANCELLED (chỉ khi có dòng `purchasability` ≠ PURCHASABLE — BE-14 — hoặc
+ *     khách không còn ACTIVE — LC-2; BE kiểm lại)
  *   EXPIRED / CANCELLED / CONVERTED: trạng thái cuối.
  * UI-only — Backend phải re-check (QuoteService, quyền sales-quotes / sales-quote-conversions).
  */
@@ -41,12 +42,13 @@ export function allowedStaffQuoteActions(
   status: QuoteApiStatus,
   can: (code: PermissionCode) => boolean,
   legacy = false,
-  hasDiscontinuedLine = false,
+  // `canCancelAcceptedQuote` (selectors): SKU ngừng bán hoặc khách không còn ACTIVE
+  acceptedCancellable = false,
 ): readonly StaffQuoteAction[] {
   // Báo giá cũ trước rescope chỉ xem (BE QUOTE_LINES_LEGACY).
   if (legacy) return [];
   return STAFF_ACTIONS[status]
-    .filter((action) => !(status === "ACCEPTED" && action === "cancel" && !hasDiscontinuedLine))
+    .filter((action) => !(status === "ACCEPTED" && action === "cancel" && !acceptedCancellable))
     .filter((action) =>
       action === "convert" ? can(QUOTE_PERMISSIONS.convert) : can(QUOTE_PERMISSIONS.update),
     );

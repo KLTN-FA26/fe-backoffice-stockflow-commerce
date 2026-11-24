@@ -243,7 +243,38 @@ describe("Quote detail", () => {
     });
     renderScreen(<QuoteDetail id={QUOTE_ID} />, "SALES_STAFF");
     await screen.findByRole("button", { name: "Tạo đơn" });
-    expect(screen.queryByRole("button", { name: "Huỷ (SKU ngừng bán)" }) !== null).toBe(shown);
+    expect(screen.queryByRole("button", { name: "Huỷ báo giá đã chấp nhận" }) !== null).toBe(shown);
+  });
+
+  it.each([
+    ["ACTIVE", false],
+    ["BLOCKED", true],
+    ["INACTIVE", true],
+  ])("LC-2: ACCEPTED, every SKU sold, customer %s → cancel button %s", async (status, shown) => {
+    mockApi("SALES_STAFF", {
+      get: {
+        [detailUrl]: () => QUOTE_ACCEPTED,
+        [`/customers/${CUSTOMER_ID}`]: () => ({ ...CUSTOMER, status }),
+      },
+    });
+    renderScreen(<QuoteDetail id={QUOTE_ID} />, "SALES_STAFF");
+    await screen.findByRole("button", { name: "Tạo đơn" });
+    await screen.findByText(CUSTOMER.fullName);
+    expect(screen.queryByRole("button", { name: "Huỷ báo giá đã chấp nhận" }) !== null).toBe(shown);
+  });
+
+  it("LC-2: the cancel dialog of an accepted quote names both reasons and needs a reason", async () => {
+    mockApi("SALES_STAFF", {
+      get: {
+        [detailUrl]: () => QUOTE_ACCEPTED,
+        [`/customers/${CUSTOMER_ID}`]: () => ({ ...CUSTOMER, status: "BLOCKED" }),
+      },
+    });
+    renderScreen(<QuoteDetail id={QUOTE_ID} />, "SALES_STAFF");
+    await userEvent.click(await screen.findByRole("button", { name: "Huỷ báo giá đã chấp nhận" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(/khách không còn hoạt động/)).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Huỷ báo giá" })).toBeDisabled();
   });
 
   it("DRAFT có dòng chưa có nhóm thuế: chặn gửi và nêu dòng", async () => {
