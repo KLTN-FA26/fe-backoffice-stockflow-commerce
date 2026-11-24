@@ -2,7 +2,7 @@
 
 import { FileCheck2 } from "lucide-react";
 import { useId } from "react";
-import { Controller } from "react-hook-form";
+import { Controller, useWatch } from "react-hook-form";
 
 import { PRINT_CONFIG_SCREEN_LABELS } from "@/constants/labels-print-config";
 import { PRINT_CONFIG_LIMITS } from "@/constants/numbers";
@@ -17,6 +17,7 @@ import { SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/compone
 
 import { Choices, OPTION_CLASS } from "./FileRulesChoices";
 import { Fonts } from "./FontsField";
+import { savedHint } from "./saved-values";
 
 import type { Control, FieldErrors, UseFormRegister } from "react-hook-form";
 import type { PrintDefaultsValues } from "./print-defaults";
@@ -36,10 +37,12 @@ function MaxColors({
   control,
   disabled,
   error,
+  hint,
 }: {
   control: Control<PrintDefaultsValues>;
   disabled: boolean;
   error?: string;
+  hint?: string;
 }) {
   return (
     <Controller
@@ -55,6 +58,7 @@ function MaxColors({
             className={cn(FORM_INPUT_CLASS, "tabular-nums")}
             disabled={disabled || field.value === null}
             error={error}
+            hint={hint}
             value={field.value === null || Number.isNaN(field.value) ? "" : field.value}
             onBlur={field.onBlur}
             onChange={(event) => field.onChange(event.target.valueAsNumber)}
@@ -78,20 +82,29 @@ function MaxColors({
 /**
  * "Ràng buộc file": what the customer's uploads are held to. Editable beside the defaults, in the same form (so
  * "dirty", the save and the server's field errors follow); closed until opened and kept open while one of its fields
- * has an error. The BE reads a missing list of fonts as "every font" and a missing colour count as "no limit".
+ * has an error. The BE reads a missing list of fonts as "every font" and a missing colour count as "no limit". With
+ * `saved` (the stored configuration's rules), a changed field says what is stored under it.
  */
 export function FileRulesForm({
   register,
   control,
   errors,
   disabled,
+  saved = null,
 }: {
   register: UseFormRegister<PrintDefaultsValues>;
   control: Control<PrintDefaultsValues>;
   errors: FieldErrors<PrintDefaultsValues>;
   disabled: boolean;
+  saved?: PrintDefaultsValues | null;
 }) {
   const colorModeId = useId();
+  const current = useWatch({ control });
+  const hint = (name: (typeof FIELDS)[number]) => savedHint(name, current, saved);
+  const below = (name: (typeof FIELDS)[number]) => {
+    const text = hint(name);
+    return text && <p className="text-ink-tertiary text-xs">{text}</p>;
+  };
   const hasError = FIELDS.some((name) => errors[name] !== undefined);
   const message = (name: (typeof FIELDS)[number]) => {
     const error = errors[name];
@@ -110,6 +123,7 @@ export function FileRulesForm({
             step={1}
             className={cn(FORM_INPUT_CLASS, "tabular-nums")}
             error={message("minDpi")}
+            hint={hint("minDpi")}
             {...register("minDpi", { valueAsNumber: true })}
           />
           <TextField
@@ -119,6 +133,7 @@ export function FileRulesForm({
             step={1}
             className={cn(FORM_INPUT_CLASS, "tabular-nums")}
             error={message("maxFileSizeMb")}
+            hint={hint("maxFileSizeMb")}
             {...register("maxFileSizeMb", { valueAsNumber: true })}
           />
           <div className="flex flex-col gap-1.5">
@@ -147,8 +162,14 @@ export function FileRulesForm({
                 </FormSelect>
               )}
             />
+            {below("colorMode")}
           </div>
-          <MaxColors control={control} disabled={disabled} error={message("maxColors")} />
+          <MaxColors
+            control={control}
+            disabled={disabled}
+            error={message("maxColors")}
+            hint={hint("maxColors")}
+          />
           <div className="@sm:col-span-2 @3xl:col-span-3">
             <Choices
               name="allowedFileFormats"
@@ -161,8 +182,14 @@ export function FileRulesForm({
               disabled={disabled}
               error={message("allowedFileFormats")}
             />
+            {below("allowedFileFormats")}
           </div>
           <Fonts control={control} disabled={disabled} error={message("allowedFontCodes")} />
+          {hint("allowedFontCodes") && (
+            <p className="text-ink-tertiary text-xs @sm:col-span-2 @3xl:col-span-3">
+              {hint("allowedFontCodes")}
+            </p>
+          )}
         </fieldset>
       </div>
     </DetailSection>

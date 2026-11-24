@@ -13,7 +13,7 @@ import { resetProductMockStore } from "@/lib/api/mock-product-store";
 import { resetPrintConfigMockStore } from "@/lib/api/mock-routes-print-configs";
 import { resetVariantMockStore } from "@/lib/api/mock-routes-variants";
 
-import { DEFAULTS_TOGGLE, renderSection } from "./print-config-test-utils";
+import { DEFAULTS_TOGGLE, editStored, renderSection } from "./print-config-test-utils";
 
 vi.mock("./save-input", async (importOriginal) => ({
   ...(await importOriginal<object>()),
@@ -40,6 +40,7 @@ describe("a save that cannot be prepared", () => {
     const put = vi.spyOn(api, "put");
     const user = userEvent.setup();
     renderSection();
+    await editStored(user);
     await user.click(await screen.findByRole("button", DEFAULTS_TOGGLE));
     const seam = screen.getByLabelText("Mép dán (mm)");
     await user.clear(seam);

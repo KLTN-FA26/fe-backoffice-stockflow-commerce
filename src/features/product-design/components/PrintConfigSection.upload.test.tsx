@@ -19,6 +19,7 @@ import {
   CHANGE_FILE,
   CHOSEN_FILE,
   cupTree,
+  DEFAULTS_TOGGLE,
   EMPTY_VARIANT,
   FILE_INPUT,
   findStatus,
@@ -72,8 +73,11 @@ describe("choosing the real sample cup", () => {
     expect(measured.getByRole("row", { name: /Chiều cao.*110,0 mm/ })).toBeInTheDocument();
     expect(measured.getByRole("row", { name: /Dải in cách miệng.*6,0 mm/ })).toBeInTheDocument();
     expect(measured.getByRole("row", { name: /Dải in cách đáy.*8,0 mm/ })).toBeInTheDocument();
-    // the figures the system fills in are a separate group, to confirm with the maker
-    expect(screen.getByRole("table", { name: /Số hệ thống tự điền/ })).toBeInTheDocument();
+    // the figures the file cannot tell are only the form below the report, never a second table
+    expect(screen.queryByRole("table", { name: /Số hệ thống tự điền/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", DEFAULTS_TOGGLE)).toBeInTheDocument();
+    // the file gives the sizes: there is no field to type a manufacturer's figure
+    expect(screen.queryByLabelText("Đường kính miệng (mm)")).not.toBeInTheDocument();
     const parts = within(screen.getByRole("table", { name: "Từng phần in trong file" }));
     expect(parts.getByText("print:BODY")).toBeInTheDocument();
 
@@ -134,19 +138,6 @@ describe("what blocks a save and what only warns", () => {
     expect(list.getByText(/Hãy đặt tên chính xác là "print:BODY"/)).toBeInTheDocument();
     expect(list.getByText("print:BODY.001")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: SAVE.name })).toBeDisabled();
-  });
-
-  it("a manufacturer's figure 2 mm off warns and saving is still possible", async () => {
-    await renderEmpty(loaderOf(cupTree()));
-    await upload(glbFile());
-    await screen.findByText("Nhận ra: Ly");
-    expect(screen.getByRole("button", { name: SAVE.name })).toBeEnabled();
-
-    await userEvent.setup().type(screen.getByLabelText("Đường kính miệng (mm)"), "92");
-    const list = within(await screen.findByRole("list", { name: "Lỗi và cảnh báo" }));
-    expect(list.getByText("Cảnh báo")).toBeInTheDocument();
-    expect(list.getByText(/Đường kính miệng đo được/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: SAVE.name })).toBeEnabled();
   });
 
   it("a bag that cannot be sized as a whole shows the size of its face and cannot be saved yet", async () => {

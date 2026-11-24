@@ -28,7 +28,6 @@ import { useFileChecks } from "./use-file-checks";
 import { useGlbReading } from "./use-glb-reading";
 
 import type { PrintConfigDto, PrintConfigSaveInput } from "../types";
-import type { NominalKey, NominalText } from "./nominal";
 import type { ModelKind, PrintDefaultsValues } from "./print-defaults";
 import type { GlbLoader, MeasuredFile } from "./use-glb-reading";
 
@@ -41,6 +40,8 @@ export interface PrintConfigEditorArgs {
   variantId: string;
   config: PrintConfigDto | null;
   loadModel?: GlbLoader;
+  /** The save stored everything (the page goes back to viewing the stored configuration). */
+  onSaved?: () => void;
 }
 
 export function usePrintConfigEditor({
@@ -48,13 +49,13 @@ export function usePrintConfigEditor({
   variantId,
   config,
   loadModel,
+  onSaved,
 }: PrintConfigEditorArgs) {
   const reading = useGlbReading(loadModel);
   const save = useSavePrintConfig();
   const result: MeasuredFile | null = reading.phase.status === "done" ? reading.phase.result : null;
 
   const [formKind, setFormKind] = useState<ModelKind>(config?.model?.kind ?? "parametric-cup");
-  const [nominalText, setNominalText] = useState<NominalText>({});
   const [serverError, setServerError] = useState<string | null>(null);
   /** The save waiting for the person's yes: a save of a stored configuration bumps its version (BD-4). */
   const [asked, setAsked] = useState<PrintConfigSaveInput | null>(null);
@@ -79,13 +80,13 @@ export function usePrintConfigEditor({
   /** The save stored everything: back to the saved state. */
   function afterStored(saved: PrintConfigDto) {
     reading.clear();
-    setNominalText({});
     const savedKind = saved.model?.kind ?? formKind;
     setFormKind(savedKind);
     form.reset(defaultsFor(savedKind, saved));
+    onSaved?.();
   }
 
-  const { invalid, issues, blockedReason } = useFileChecks(result, nominalText, defaults);
+  const { issues, blockedReason } = useFileChecks(result, defaults);
   const source = result?.model ? { model: result.model, printMeshes: result.parts } : null;
   const sheet = sheetOfForm({ source, stored: config, defaults }); // `null` unless a bag is in play
 
@@ -105,10 +106,9 @@ export function usePrintConfigEditor({
     form.reset(defaultsFor(storedKind, config));
   }
 
-  /** What the person is about to change invalidates the last error and the typed figures. */
+  /** What the person is about to change invalidates the last error. */
   function clearNotices() {
     setServerError(null);
-    setNominalText({});
   }
 
   async function chooseFile(file: File) {
@@ -209,9 +209,6 @@ export function usePrintConfigEditor({
     defaults,
     sheet,
     issues,
-    nominalText,
-    nominalInvalid: invalid,
-    setNominal: (key: NominalKey, text: string) => setNominalText((t) => ({ ...t, [key]: text })),
     chooseFile,
     discard,
     submit,

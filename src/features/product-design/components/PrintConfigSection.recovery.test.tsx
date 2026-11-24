@@ -18,6 +18,7 @@ import {
   bagTree,
   cupTree,
   DEFAULTS_TOGGLE,
+  editStored,
   EMPTY_VARIANT,
   FILE_INPUT,
   findStatus,
@@ -89,6 +90,7 @@ describe("a failed save", () => {
     const user = userEvent.setup();
     renderSection({ loadModel: loaderOf(cupTree()) });
     await screen.findByText("Đã đính kèm file 3D");
+    await editStored(user);
     await upload(glbFile("again.glb"));
     await screen.findByText("Nhận ra: Ly");
     const seam = await setSeam(user, "6");
@@ -111,6 +113,7 @@ describe("discarding a chosen file", () => {
     const user = userEvent.setup();
     renderSection({ loadModel: loaderOf(bagTree()) });
     await screen.findByText("Đã đính kèm file 3D");
+    await editStored(user);
     await upload(glbFile("bag.glb"));
     await screen.findByText("Nhận ra: Túi");
     await user.click(screen.getByRole("button", { name: "Bỏ file" }));

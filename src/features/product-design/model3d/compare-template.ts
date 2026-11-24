@@ -1,7 +1,7 @@
 // Ported from stockflow-storefront src/features/product-design/engine/model3d/compare-template.ts
 import { MODEL3D_DIFFERENCE_MESSAGES as MESSAGES } from "@/constants/labels-model3d";
 
-import { NOMINAL_TOLERANCE_MM } from "./issues";
+import { COMPARISON_TOLERANCE_MM } from "./issues";
 
 import type { PrintShape } from "./measure-types";
 import type { BagModel, CupModel, PrintAreaCode } from "./model-types";
@@ -14,8 +14,8 @@ import type { BagModel, CupModel, PrintAreaCode } from "./model-types";
  */
 export type PrintTarget = { code: PrintAreaCode; surface: { vRange: readonly [number, number] } };
 
-/** Same comparison as `compareWithNominal` in `issues.ts`: exactly 1 mm off passes, float noise does not flip it. */
-const TOLERANCE_MM = NOMINAL_TOLERANCE_MM + 1e-9;
+/** Exactly 1 mm off passes, float noise does not flip it. */
+const TOLERANCE_MM = COMPARISON_TOLERANCE_MM + 1e-9;
 
 /** The plane a bag face stands in (`segmentsOf` in `viewer3d/bag-mesh.ts`): FRONT z +g/2, BACK z -g/2, RIGHT x +w/2, LEFT x -w/2. */
 function facePlane(code: PrintAreaCode, model: BagModel): number {

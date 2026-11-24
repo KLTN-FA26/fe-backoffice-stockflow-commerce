@@ -10,13 +10,11 @@ import {
 } from "@/components/ui/table";
 
 import { figureRows } from "../selectors";
-import { defaultRows } from "./default-rows";
 import { formatMm } from "./format-mm";
 import { ValueTable } from "./ValueTable";
 
 import type { PrintAreaCode } from "../model3d/model-types";
 import type { MeasuredFile, PrintPart } from "./use-glb-reading";
-import type { PrintDefaultsValues } from "./print-defaults";
 
 const TEXT = PRINT_CONFIG_SCREEN_LABELS.report;
 
@@ -36,17 +34,11 @@ function partSize({ shape }: PrintPart): string {
 }
 
 /**
- * What was read from the file: the kind, the figures it gave (read-only: never typed by hand), the figures the
- * system filled in by default (to confirm with the manufacturer), and each print part with its size. A bag that could
- * not be sized as a whole has no figures but still shows the size of every face.
+ * What was read from the file: the kind, the figures it gave (read-only: never typed by hand) and each print part
+ * with its size. A bag that could not be sized as a whole has no figures but still shows the size of every face. The
+ * values the file cannot tell are not repeated here: they are the form "Số không lấy từ file 3D" right below.
  */
-export function ModelReadReport({
-  result,
-  defaults,
-}: {
-  result: MeasuredFile;
-  defaults: PrintDefaultsValues;
-}) {
+export function ModelReadReport({ result }: { result: MeasuredFile }) {
   const kind = result.kind === null ? null : PRINT_CONFIG_SCREEN_LABELS.kinds[result.kind];
   return (
     <section aria-labelledby="print-config-report" className="space-y-3">
@@ -58,20 +50,13 @@ export function ModelReadReport({
       </div>
 
       {result.model !== null && (
-        <>
-          <ValueTable
-            caption={TEXT.measuredTitle}
-            rows={figureRows(result.model).map(({ label, value }) => ({
-              label,
-              value: formatMm(value),
-            }))}
-          />
-          <ValueTable
-            caption={TEXT.defaultsTitle}
-            note={TEXT.defaultsNote}
-            rows={defaultRows(result.model.kind, defaults)}
-          />
-        </>
+        <ValueTable
+          caption={TEXT.measuredTitle}
+          rows={figureRows(result.model).map(({ label, value }) => ({
+            label,
+            value: formatMm(value),
+          }))}
+        />
       )}
 
       {result.parts.length > 0 && (
@@ -92,7 +77,11 @@ export function ModelReadReport({
                 <TableRow key={`${index}-${part.printAreaCode}-${part.meshName}`}>
                   <TableCell className="text-ink-primary">{partName(part.printAreaCode)}</TableCell>
                   <TableCell className="text-ink-secondary font-mono">{part.meshName}</TableCell>
-                  <TableCell className="text-ink-primary tabular-nums">{partSize(part)}</TableCell>
+                  {/* The size is a sentence ("Miệng …, đáy …, cao …"): it wraps in the narrow work column instead of
+                      the table scrolling sideways (shadcn cells are `whitespace-nowrap`). */}
+                  <TableCell className="text-ink-primary whitespace-normal tabular-nums">
+                    {partSize(part)}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

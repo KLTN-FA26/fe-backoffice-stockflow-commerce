@@ -24,6 +24,8 @@ import {
   allowNone,
   canWith,
   DEFAULTS_TOGGLE,
+  EDIT_BUTTON,
+  editStored,
   EMPTY_VARIANT,
   FILE_INPUT,
   findStatus,
@@ -61,6 +63,7 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 async function openAdvancedAndSetSeam(user: ReturnType<typeof userEvent.setup>, seam: string) {
+  await editStored(user);
   await user.click(await screen.findByRole("button", DEFAULTS_TOGGLE));
   const field = screen.getByLabelText("Mép dán (mm)");
   await user.clear(field);
@@ -83,7 +86,7 @@ describe("PrintConfigSection: the saved configuration", () => {
     expect(await findStatus("Đang dùng")).toBeInTheDocument();
     // Said once, in the page band: there is no second status card any more.
     expect(screen.getAllByText("Đang dùng")).toHaveLength(1);
-    const defaults = within(screen.getByRole("table", { name: /Số mặc định/ }));
+    const defaults = within(screen.getByRole("table", { name: "Số không lấy từ file 3D" }));
     expect(defaults.getByRole("row", { name: /Mép dán.*8,0 mm/ })).toBeInTheDocument();
   });
 
@@ -151,14 +154,20 @@ describe("PrintConfigSection: permissions of the template resource", () => {
     expect(await screen.findByRole("table", { name: "Số đo lấy từ file 3D" })).toBeInTheDocument();
     expect(screen.queryByLabelText(FILE_INPUT)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: SAVE.name })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", EDIT_BUTTON)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Ngừng dùng" })).not.toBeInTheDocument();
   });
 
   it("READ + UPDATE changes a saved configuration and deactivates it", async () => {
+    const user = userEvent.setup();
     renderSection({ can: canWith(...view, TEMPLATE.update) });
+    // A stored configuration opens read-only: no file input and no save until "Sửa cấu hình".
+    expect(await screen.findByRole("button", { name: "Ngừng dùng" })).toBeInTheDocument();
+    expect(screen.queryByLabelText(FILE_INPUT)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: SAVE.name })).not.toBeInTheDocument();
+    await editStored(user);
     expect(await screen.findByLabelText(REPLACE_FILE)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: SAVE.name })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Ngừng dùng" })).toBeInTheDocument();
   });
 
   it("the first save of a variant needs CREATE: with UPDATE alone it is read-only", async () => {
@@ -176,6 +185,7 @@ describe("PrintConfigSection: permissions of the template resource", () => {
     renderSection({ can: canWith(...view, TEMPLATE.create) });
     await screen.findByRole("table", { name: "Số đo lấy từ file 3D" });
     expect(screen.queryByRole("button", { name: SAVE.name })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", EDIT_BUTTON)).not.toBeInTheDocument();
   });
 });
 
@@ -209,6 +219,7 @@ describe("PrintConfigSection: permissions", () => {
 describe("PrintConfigSection: a save that changes only a default", () => {
   it("the save is off until something changes", async () => {
     renderSection();
+    await editStored(userEvent.setup());
     expect(await screen.findByRole("button", { name: SAVE.name })).toBeDisabled();
     expect(screen.getByText("Chưa có thay đổi để lưu.")).toBeInTheDocument();
   });
@@ -253,11 +264,11 @@ describe("PrintConfigSection: a save that changes only a default", () => {
       model: { kind: "parametric-cup", seamMm: 6, topDiameterMm: 90, heightMm: 110 },
     });
     // The success toast comes from `createMutation` through a `require` that vitest cannot resolve: not asserted here.
-    const defaults = within(await screen.findByRole("table", { name: /Số mặc định/ }));
+    const defaults = within(await screen.findByRole("table", { name: "Số không lấy từ file 3D" }));
     await waitFor(() =>
       expect(defaults.getByRole("row", { name: /Mép dán.*6,0 mm/ })).toBeInTheDocument(),
     );
-    expect(screen.getByRole("button", { name: SAVE.name })).toBeDisabled();
+    expect(screen.getByRole("button", EDIT_BUTTON)).toBeInTheDocument(); // back to the view mode
     expect(put).toHaveBeenCalledTimes(1); // one request, nothing followed
     // the measured values and the stored table go back exactly as they were read
     expect(body).toMatchObject({
@@ -301,6 +312,7 @@ describe("PrintConfigSection: a save that changes only a default", () => {
     const get = vi.spyOn(api, "get");
     const user = userEvent.setup();
     renderSection();
+    await editStored(user);
     await user.click(await screen.findByRole("button", FILE_RULES_TOGGLE));
     const only = screen.getByRole("radio", { name: "Chỉ các font được chọn" });
     await waitFor(() => expect(only).toBeEnabled());
@@ -315,6 +327,7 @@ describe("PrintConfigSection: a save that changes only a default", () => {
     const put = vi.spyOn(api, "put");
     const user = userEvent.setup();
     renderSection();
+    await editStored(user);
     await user.click(await screen.findByRole("button", FILE_RULES_TOGGLE));
     const only = screen.getByRole("radio", { name: "Chỉ các font được chọn" });
     // Unavailable until GET /design-fonts answers: it starts with the list's first font.
@@ -335,6 +348,7 @@ describe("PrintConfigSection: a save that changes only a default", () => {
     const put = vi.spyOn(api, "put");
     const user = userEvent.setup();
     renderSection();
+    await editStored(user);
     await user.click(await screen.findByRole("button", FILE_RULES_TOGGLE));
     const dpi = screen.getByLabelText("Độ phân giải tối thiểu (dpi)");
     await user.clear(dpi);
@@ -359,13 +373,14 @@ describe("PrintConfigSection: a save that changes only a default", () => {
       allowedFontCodes: ["be-vietnam-pro", "lobster"],
     });
     // Let the save finish (the form resets to the stored values) so it cannot write into the next test's store.
-    await waitFor(() => expect(screen.getByRole("button", { name: SAVE.name })).toBeDisabled());
+    await screen.findByRole("button", EDIT_BUTTON);
   });
 
   it("maxColors 13 → lỗi dưới ô, không gửi gì", async () => {
     const put = vi.spyOn(api, "put");
     const user = userEvent.setup();
     renderSection();
+    await editStored(user);
     await user.click(await screen.findByRole("button", FILE_RULES_TOGGLE));
     const noLimit = await screen.findByRole("checkbox", { name: "Không giới hạn" });
     expect(noLimit).toBeChecked();
@@ -389,13 +404,13 @@ describe("PrintConfigSection: a save that changes only a default", () => {
     await waitFor(() => expect(put).toHaveBeenCalledTimes(1));
     const first = (await put.mock.results[0]?.value) as { data: { version: number } };
     expect(first.data.version).toBe(5); // the mock moved it by two, as the BE may
-    const defaults = within(await screen.findByRole("table", { name: /Số mặc định/ }));
+    const defaults = within(await screen.findByRole("table", { name: "Số không lấy từ file 3D" }));
     await waitFor(() =>
       expect(defaults.getByRole("row", { name: /Mép dán.*6,0 mm/ })).toBeInTheDocument(),
     );
-    if (!screen.queryByLabelText("Mép dán (mm)")) {
-      await user.click(screen.getByRole("button", DEFAULTS_TOGGLE));
-    }
+    // A stored save goes back to the view mode: edit again.
+    await editStored(user);
+    await user.click(await screen.findByRole("button", DEFAULTS_TOGGLE));
     const seam = screen.getByLabelText("Mép dán (mm)");
     await user.clear(seam);
     await user.type(seam, "7");
@@ -413,10 +428,10 @@ describe("PrintConfigSection: a save that changes only a default", () => {
     const get = vi.spyOn(api, "get").mockReturnValue(new Promise(() => {}));
     await saveStored(user);
     await waitFor(() => expect(put).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(screen.getByRole("button", { name: SAVE.name })).toBeDisabled());
-    if (!screen.queryByLabelText("Mép dán (mm)")) {
-      await user.click(screen.getByRole("button", DEFAULTS_TOGGLE));
-    }
+    await screen.findByRole("button", EDIT_BUTTON); // the save went back to the view mode
+    // A stored save goes back to the view mode: edit again.
+    await editStored(user);
+    await user.click(await screen.findByRole("button", DEFAULTS_TOGGLE));
     const seam = screen.getByLabelText("Mép dán (mm)");
     await user.clear(seam);
     await user.type(seam, "7");
@@ -474,7 +489,10 @@ describe("PrintConfigSection: a save that changes only a default", () => {
     const field = await openAdvancedAndSetSeam(user, "6");
     await saveStored(user);
     await waitFor(() =>
-      expect(field).toHaveAccessibleDescription("Máy chủ không chấp nhận giá trị này."),
+      // The error first, then the stored value the field was changed from.
+      expect(field).toHaveAccessibleDescription(
+        "Máy chủ không chấp nhận giá trị này. Đang lưu: 8,0 mm",
+      ),
     );
     expect(field).toBeInvalid();
   });
@@ -483,6 +501,7 @@ describe("PrintConfigSection: a save that changes only a default", () => {
     const put = vi.spyOn(api, "put");
     const user = userEvent.setup();
     renderSection();
+    await editStored(user);
     await user.click(await screen.findByRole("button", DEFAULTS_TOGGLE));
     const bleed = screen.getByLabelText("Tràn lề (mm)");
     await user.clear(bleed);

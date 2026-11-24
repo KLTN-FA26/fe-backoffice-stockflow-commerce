@@ -18,6 +18,8 @@ import {
   CHOSEN_FILE,
   cupTree,
   DEFAULTS_TOGGLE,
+  EDIT_BUTTON,
+  editStored,
   EMPTY_VARIANT,
   findStatus,
   glbFile,
@@ -111,6 +113,7 @@ describe("the chosen file", () => {
     const user = userEvent.setup();
     renderSection({ loadModel: loaderOf(cupTree()) });
     await findStatus("Đang dùng");
+    await editStored(user);
     await user.upload(screen.getByLabelText(REPLACE_FILE), glbFile("again.glb"));
     await screen.findByText("Nhận ra: Ly");
 
@@ -152,7 +155,9 @@ describe("the chosen file", () => {
     expect(await saved.findByRole("link", { name: "Xem / tải cup.glb" })).toBeInTheDocument();
     expect(screen.queryByRole("group", CHOSEN_FILE)).not.toBeInTheDocument();
     expect(screen.queryByText(NOT_UPLOADED)).not.toBeInTheDocument();
-    expect(screen.getByLabelText(REPLACE_FILE)).toBeInTheDocument();
+    // A save goes back to the view mode: changing the file again starts with "Sửa cấu hình".
+    expect(screen.queryByLabelText(REPLACE_FILE)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", EDIT_BUTTON)).toBeInTheDocument();
   });
 });
 
@@ -160,6 +165,7 @@ describe("the defaults card", () => {
   it("is closed by default under its plain title, and opens to the note and the fields", async () => {
     const user = userEvent.setup();
     renderSection();
+    await editStored(user);
     const toggle = await screen.findByRole("button", DEFAULTS_TOGGLE);
     expect(toggle).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByLabelText("Mép dán (mm)")).not.toBeInTheDocument();
@@ -192,6 +198,7 @@ describe("the status card's save", () => {
     const user = userEvent.setup();
     renderSection();
     await findStatus("Đang dùng");
+    await editStored(user);
     const card = within(screen.getByRole("region", STATUS_CARD));
     const save = card.getByRole("button", SAVE);
     expect(save).toHaveAttribute("type", "submit");
@@ -217,5 +224,68 @@ describe("the status card's save", () => {
     const card = within(screen.getByRole("region", STATUS_CARD));
     expect(card.queryByRole("button", SAVE)).not.toBeInTheDocument();
     expect(card.getByText(/Bạn không có quyền sửa cấu hình in/)).toBeInTheDocument();
+  });
+});
+
+describe("view and edit of a stored configuration", () => {
+  it("opens read-only with the stored defaults and file rules; Sửa cấu hình opens the form, Huỷ sửa drops the edit", async () => {
+    const put = vi.spyOn(api, "put");
+    const user = userEvent.setup();
+    renderSection();
+    await findStatus("Đang dùng");
+    // View mode: one card with what is stored, no form and no save.
+    expect(screen.getByRole("table", { name: "Số không lấy từ file 3D" })).toBeInTheDocument();
+    expect(screen.getByRole("table", { name: "Ràng buộc file" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", SAVE)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(REPLACE_FILE)).not.toBeInTheDocument();
+
+    await editStored(user);
+    expect(screen.getByRole("button", SAVE)).toBeDisabled();
+    expect(screen.queryByRole("button", EDIT_BUTTON)).not.toBeInTheDocument();
+    // The editing card does not repeat the stored defaults: they are the form.
+    expect(
+      screen.queryByRole("table", { name: "Số không lấy từ file 3D" }),
+    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", DEFAULTS_TOGGLE));
+    const seam = screen.getByLabelText("Mép dán (mm)");
+    await user.clear(seam);
+    await user.type(seam, "6");
+
+    await user.click(screen.getByRole("button", { name: "Huỷ sửa" }));
+    expect(await screen.findByRole("button", EDIT_BUTTON)).toBeInTheDocument();
+    expect(put).not.toHaveBeenCalled();
+    // The dropped edit is gone: editing again starts from the stored value.
+    await editStored(user);
+    await user.click(screen.getByRole("button", DEFAULTS_TOGGLE));
+    expect(screen.getByLabelText("Mép dán (mm)")).toHaveValue(8);
+  });
+
+  it("a changed field says what is stored under it, and stops saying it once back to the stored value", async () => {
+    const user = userEvent.setup();
+    renderSection();
+    await editStored(user);
+    await user.click(await screen.findByRole("button", DEFAULTS_TOGGLE));
+    const seam = screen.getByLabelText("Mép dán (mm)");
+    expect(screen.queryByText(/^Đang lưu:/)).not.toBeInTheDocument();
+    await user.clear(seam);
+    await user.type(seam, "6");
+    expect(screen.getByText("Đang lưu: 8,0 mm")).toBeInTheDocument();
+    await user.clear(seam);
+    await user.type(seam, "8");
+    expect(screen.queryByText(/^Đang lưu:/)).not.toBeInTheDocument();
+  });
+
+  it("a new configuration has no Huỷ sửa: there is nothing stored to go back to", async () => {
+    renderSection(EMPTY_VARIANT);
+    await findStatus("Chưa có cấu hình in");
+    expect(screen.getByLabelText(NEW_FILE)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Huỷ sửa" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", EDIT_BUTTON)).not.toBeInTheDocument();
+  });
+
+  it("a viewer has no Sửa cấu hình", async () => {
+    renderSection({ can: readOnly });
+    await findStatus("Đang dùng");
+    expect(screen.queryByRole("button", EDIT_BUTTON)).not.toBeInTheDocument();
   });
 });

@@ -27,7 +27,7 @@ export const CHANGE_FILE = "Đổi file .glb";
 export const FILE_INPUT =
   /^(Chọn hoặc kéo thả file \.glb|Chọn file \.glb khác để thay|Đổi file \.glb)$/;
 /** The title button of the defaults card (closed until opened). */
-export const DEFAULTS_TOGGLE = { name: "Số mặc định (cần xác nhận với nhà in)" };
+export const DEFAULTS_TOGGLE = { name: "Số không lấy từ file 3D (cần xác nhận với nhà in)" };
 /** The page band: who the page is about, the configuration's status, activate / stop and the save. */
 export const STATUS_CARD = { name: "Biến thể và trạng thái cấu hình in" };
 export const CHOSEN_FILE = { name: "File đã chọn" };
@@ -216,6 +216,14 @@ export function loaderOf(...trees: Group[]): GlbLoader & { calls: () => number }
     return tree;
   };
   return Object.assign(load, { calls: () => n });
+}
+
+/** The view-mode button that opens the editor of a stored configuration. */
+export const EDIT_BUTTON = { name: "Sửa cấu hình" };
+
+/** A stored configuration opens read-only: switch it to the edit mode (waits for the page to load). */
+export async function editStored(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(await screen.findByRole("button", EDIT_BUTTON));
 }
 
 /**

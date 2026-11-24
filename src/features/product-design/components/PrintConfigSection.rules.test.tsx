@@ -12,7 +12,7 @@ import { resetProductMockStore } from "@/lib/api/mock-product-store";
 import { resetPrintConfigMockStore } from "@/lib/api/mock-routes-print-configs";
 import { resetVariantMockStore } from "@/lib/api/mock-routes-variants";
 
-import { DEFAULTS_TOGGLE, renderSection, saveStored } from "./print-config-test-utils";
+import { DEFAULTS_TOGGLE, editStored, renderSection, saveStored } from "./print-config-test-utils";
 
 vi.setConfig({ testTimeout: 60_000 });
 configure({ asyncUtilTimeout: 45_000 });
@@ -42,6 +42,7 @@ describe("PrintConfigSection: BE PrintConfigRules before the save", () => {
     const put = vi.spyOn(api, "put");
     const user = userEvent.setup();
     renderSection();
+    await editStored(user);
     await user.click(await screen.findByRole("button", ADVANCED));
     const field = await typeInto(user, "Lề an toàn (mm)", "48.51");
     await user.click(screen.getByRole("button", SAVE));
@@ -64,6 +65,7 @@ describe("PrintConfigSection: BE PrintConfigRules before the save", () => {
     const put = vi.spyOn(api, "put");
     const user = userEvent.setup();
     renderSection();
+    await editStored(user);
     await user.click(await screen.findByRole("button", ADVANCED));
     await typeInto(user, "Mép dán (mm)", "100.01");
     await user.click(screen.getByRole("button", ADVANCED)); // closed again (the card animates shut)

@@ -1,6 +1,6 @@
 // Public surface of the 3D model measuring and checking code (ported from the storefront's engine/model3d).
-export { compareWithNominal, MODEL_ISSUE_LEVEL, modelIssue } from "./issues";
-export type { ModelIssue, ModelIssueCode, NominalSizes } from "./issues";
+export { MODEL_ISSUE_LEVEL, modelIssue } from "./issues";
+export type { ModelIssue, ModelIssueCode } from "./issues";
 export { templateDifferences } from "./compare-template";
 export type { PrintTarget } from "./compare-template";
 export {

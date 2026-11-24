@@ -1,12 +1,6 @@
 // Ported from stockflow-storefront src/features/product-design/engine/model3d/issues.ts
-import {
-  MODEL3D_ISSUE_MESSAGES,
-  MODEL3D_NOMINAL_LABELS,
-  MODEL3D_NOMINAL_MESSAGES,
-} from "@/constants/labels-model3d";
+import { MODEL3D_ISSUE_MESSAGES } from "@/constants/labels-model3d";
 import { MODEL3D_LIMITS } from "@/constants/numbers";
-
-import type { BagModel, CupModel } from "./model-types";
 
 /**
  * What can be wrong with a `.glb` model, in plain Vietnamese (spec §5).
@@ -30,8 +24,7 @@ export type ModelIssueCode =
   | "INVALID_GEOMETRY"
   | "MULTI_MATERIAL_PRINT_MESH"
   | "GUSSET_MISMATCH"
-  | "BAG_MODEL_INCOMPLETE"
-  | "NOMINAL_MISMATCH";
+  | "BAG_MODEL_INCOMPLETE";
 
 export type ModelIssue = {
   code: ModelIssueCode;
@@ -59,7 +52,6 @@ export const MODEL_ISSUE_LEVEL: Readonly<Record<ModelIssueCode, ModelIssue["leve
   MULTI_MATERIAL_PRINT_MESH: "error",
   GUSSET_MISMATCH: "warning",
   BAG_MODEL_INCOMPLETE: "warning",
-  NOMINAL_MISMATCH: "warning",
 };
 
 export function modelIssue(code: ModelIssueCode, message: string, meshName?: string): ModelIssue {
@@ -71,37 +63,5 @@ export function modelIssue(code: ModelIssueCode, message: string, meshName?: str
 /** The Vietnamese message of each issue (texts live in `constants/labels-model3d.ts`). */
 export const issueMessages = MODEL3D_ISSUE_MESSAGES;
 
-/** Numbers a user may type to cross-check what was measured (all optional). */
-export type NominalSizes = Partial<Record<keyof typeof MODEL3D_NOMINAL_LABELS, number>>;
-
-/** Exactly 1 mm off passes, float noise does not flip it (also used by `templateDifferences`). */
-export const NOMINAL_TOLERANCE_MM = MODEL3D_LIMITS.comparisonToleranceMm;
-
-/** A warning for each figure that differs from the nominal by more than 1 mm (spec §5). */
-export function compareWithNominal(
-  model: CupModel | BagModel,
-  nominal: NominalSizes,
-): ModelIssue[] {
-  const measured: Record<string, unknown> = { ...model };
-  const issues: ModelIssue[] = [];
-  for (const key of Object.keys(MODEL3D_NOMINAL_LABELS) as (keyof NominalSizes)[]) {
-    const wanted = nominal[key];
-    const actual = measured[key];
-    if (wanted === undefined || typeof actual !== "number") continue;
-    if (Math.abs(actual - wanted) > NOMINAL_TOLERANCE_MM + 1e-9) {
-      issues.push(
-        modelIssue(
-          "NOMINAL_MISMATCH",
-          MODEL3D_NOMINAL_MESSAGES.mismatch(
-            MODEL3D_NOMINAL_LABELS[key],
-            actual,
-            Math.abs(actual - wanted),
-            wanted,
-            NOMINAL_TOLERANCE_MM,
-          ),
-        ),
-      );
-    }
-  }
-  return issues;
-}
+/** Exactly 1 mm off passes, float noise does not flip it (used by `templateDifferences`). */
+export const COMPARISON_TOLERANCE_MM = MODEL3D_LIMITS.comparisonToleranceMm;

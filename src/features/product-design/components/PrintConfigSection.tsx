@@ -1,6 +1,12 @@
 "use client";
 
-import { PRINT_CONFIG_SCREEN_LABELS } from "@/constants/labels-print-config";
+import { Pencil } from "lucide-react";
+import { useState } from "react";
+
+import {
+  PRINT_CONFIG_ACTION_LABELS,
+  PRINT_CONFIG_SCREEN_LABELS,
+} from "@/constants/labels-print-config";
 import { Alert } from "@/components/shared/Alert";
 import { DETAIL_CARD_CLASS } from "@/components/shared/DetailSection";
 import { Button } from "@/components/ui/button";
@@ -39,9 +45,11 @@ export interface PrintConfigSectionProps {
 
 /**
  * The body of the "Cấu hình in" page of a variant of a customizable product. A band across the top says who it is about,
- * the configuration's status and what can be done now (activate, stop, save); under it, for who may edit, the file work
- * and the model side by side (`PrintConfigEditor`), otherwise the saved configuration. The page decides whether the
- * variant is customizable (the BE answers an empty list, and 409 on a save, for any other product).
+ * the configuration's status and what can be done now (activate, stop, edit or save). A stored configuration opens in
+ * the view mode (one read-only card, `PrintConfigSummary`); who may edit switches to the edit mode with "Sửa cấu hình"
+ * (`PrintConfigEditor`), and back with "Huỷ sửa" or once the save is stored. With nothing stored the page opens straight
+ * in the edit mode for who may edit. The page decides whether the variant is customizable (the BE answers an empty
+ * list, and 409 on a save, for any other product).
  */
 export function PrintConfigSection({
   productId,
@@ -53,6 +61,7 @@ export function PrintConfigSection({
   loadModel,
 }: PrintConfigSectionProps) {
   const query = usePrintConfig(productId, variantId);
+  const [editing, setEditing] = useState(false);
   if (!canViewPrintConfig(can)) return null;
 
   if (query.data === undefined) {
@@ -107,7 +116,7 @@ export function PrintConfigSection({
 
   // BD-7: a saved configuration's reference die-line; attaching follows the save's gate (UPDATE, product still sold).
   const reference = config && <ReferenceFileSection config={config} canAttach={canEdit} />;
-  if (canEdit) {
+  if (canEdit && (editing || config === null)) {
     return (
       <div className="space-y-5">
         <PrintConfigEditor
@@ -117,14 +126,27 @@ export function PrintConfigSection({
           config={config}
           loadModel={loadModel}
           header={header}
+          onCancel={config ? () => setEditing(false) : undefined}
+          onSaved={() => setEditing(false)}
         />
         {reference}
       </div>
     );
   }
+  const edit = canEdit && (
+    <Button
+      type="button"
+      variant="outline"
+      className="h-(--action-h) rounded-(--action-radius) px-(--action-px) text-[0.8125rem] font-medium"
+      onClick={() => setEditing(true)}
+    >
+      <Pencil aria-hidden className="size-3.5" />
+      {PRINT_CONFIG_ACTION_LABELS.edit}
+    </Button>
+  );
   return (
     <div className="space-y-5">
-      {header()}
+      {header(edit ? { button: edit, alerts: null } : undefined)}
       {config ? <PrintConfigSummary config={config} /> : <PrintConfigEmpty />}
       {reference}
     </div>
