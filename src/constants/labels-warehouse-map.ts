@@ -221,6 +221,21 @@ export const WAREHOUSE_MAP_UI_LABELS = {
     noRead: "Cần quyền xem bản đồ kho (warehouse-locations:READ) để thấy lộ trình trên bản đồ.",
     loadFailed: "Không tải được bản đồ kho — xem lộ trình theo danh sách điểm dừng.",
   },
+  /** Chọn vị trí trên mặt bằng 2D — vd vị trí đích của lệnh chuyển thùng (docs 11 §4.1 bước 1–2). */
+  pick: {
+    label: "Chọn vị trí trên bản đồ kho",
+    legendMarked: "Vị trí hiện tại của thùng",
+    legendPicked: "Vị trí đích đã chọn",
+    hint: "Bấm một khu để chọn làm đích; bấm một kệ để chọn bin của kệ đó.",
+    shelfBins: (code: string) => `Bin của kệ ${code}`,
+    bin: (code: string, marked: boolean, pickable: boolean) =>
+      `${code}${marked ? " — đang chứa thùng" : ""}${pickable ? "" : " — không chọn được"}`,
+    noBins: "Kệ này chưa có bin.",
+    notPickable: (code: string) => `${code} không chọn được làm đích.`,
+    noRead: "Cần quyền xem bản đồ kho (warehouse-locations:READ) để chọn vị trí trên bản đồ.",
+    loadFailed: "Không tải được bản đồ kho — nhập hoặc quét mã vị trí.",
+    note: "Bản đồ chỉ để định hướng; tồn thật theo sổ thùng.",
+  },
   panel: {
     title: "Chi tiết",
     shelf: "Kệ",

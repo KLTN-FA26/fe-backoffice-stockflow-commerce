@@ -14,12 +14,15 @@ import { Button } from "@/components/ui/button";
 
 import { MoveCreateDialog } from "./MoveCreateDialog";
 
+import type { DestinationMap } from "./destination-map";
+
 /**
  * Nút "Tạo lệnh di chuyển" cho `ListToolbar actions` của trang Di chuyển nội bộ — mở modal tạo lệnh (như "Lập phiếu" của
  * Kiểm kê). Chỉ hiện khi có inventory-stock-items:UPDATE — cùng guard với BE `POST /inventory/movements`.
  * UI-only — Backend phải re-check (@RequiresPermission inventory-stock-items:UPDATE).
+ * `destinationMap`: bản đồ chọn đích do tầng route ghép (feature bản đồ kho); không truyền thì chỉ có ô nhập mã.
  */
-export function MoveCreate() {
+export function MoveCreate({ destinationMap }: { destinationMap?: DestinationMap }) {
   const canMove = useCan(INVENTORY_PERMISSIONS.stockUpdate);
   const [open, setOpen] = useState(false);
   if (!canMove) return null;
@@ -33,7 +36,7 @@ export function MoveCreate() {
         <Plus className="size-3.5" />
         {MOVE_LABELS.formTitle}
       </Button>
-      <MoveCreateDialog open={open} onOpenChange={setOpen} />
+      <MoveCreateDialog open={open} onOpenChange={setOpen} destinationMap={destinationMap} />
     </>
   );
 }
