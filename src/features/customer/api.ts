@@ -142,8 +142,6 @@ export async function createCustomer(values: CustomerCreateValues): Promise<Invi
     email: values.email.trim(),
     ...(values.taxCode.trim() ? { taxCode: normalizeTaxCode(values.taxCode) } : {}),
     ...(values.phone.trim() ? { phone: values.phone.trim() } : {}),
-    paymentTerm: values.paymentTerm,
-    ...(values.paymentTerm === "DEPOSIT" ? { depositPercent: Number(values.depositPercent) } : {}),
   };
   const { data } = await api.post<unknown>(CUSTOMERS, body);
   return invitedCustomerDtoSchema.parse(data);

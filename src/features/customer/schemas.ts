@@ -8,9 +8,8 @@
 
 import { z } from "zod";
 
-import { CUSTOMER_API_STATUSES, SALES_ONBOARDING_PAYMENT_TERMS } from "@/constants";
+import { CUSTOMER_API_STATUSES } from "@/constants";
 import { bePageSchema } from "@/lib/api/page-schema";
-import { depositPercentText } from "@/lib/validation/primitives";
 
 /* ── DTO ─────────────────────────────────────────────────────────────── */
 
@@ -130,32 +129,15 @@ const optionalTaxCode = z
     message: "MST gồm 10 số, 10-3 số, hoặc 12 số",
   });
 
-export const customerCreateInputSchema = z
-  .object({
-    companyName: z
-      .string()
-      .trim()
-      .min(1, "Nhập tên công ty / cửa hàng")
-      .max(200, "Tối đa 200 ký tự"),
-    taxCode: optionalTaxCode,
-    contactName: z.string().trim().min(1, "Nhập người liên hệ").max(200, "Tối đa 200 ký tự"),
-    email: z.email("Email không hợp lệ").max(320, "Tối đa 320 ký tự"),
-    phone: optionalPhone,
-    // B1 (SPRINT2-FINISH-DECISIONS 2026-10-13): Sales chọn PREPAID hoặc DEPOSIT; CREDIT thuộc
-    // người duyệt công nợ hiện có → không có trong form tạo khách.
-    paymentTerm: z.enum(SALES_ONBOARDING_PAYMENT_TERMS),
-    depositPercent: z.string().trim(),
-  })
-  // BE: depositPercent bắt buộc KHI VÀ CHỈ KHI chọn DEPOSIT (CreateBusinessCustomerRequest). Điều khoản
-  // khác: ô bị ẩn mà form vẫn giữ giá trị cũ (api.ts bỏ nó) → không kiểm, kẻo chặn submit không lỗi.
-  .superRefine((v, ctx) => {
-    if (v.paymentTerm !== "DEPOSIT") return;
-    const message =
-      v.depositPercent === ""
-        ? "Nhập tỷ lệ cọc đã thoả thuận"
-        : depositPercentText.safeParse(v.depositPercent).error?.issues[0]?.message;
-    if (message) ctx.addIssue({ code: "custom", path: ["depositPercent"], message });
-  });
+/* NEW-FE-1: no payment terms on create (BE CreateBusinessCustomerRequest, 4B-10). Credit is granted
+ * afterwards by the credit approver on the customer page (PUT /customers/{id}/credit-profile). */
+export const customerCreateInputSchema = z.object({
+  companyName: z.string().trim().min(1, "Nhập tên công ty / cửa hàng").max(200, "Tối đa 200 ký tự"),
+  taxCode: optionalTaxCode,
+  contactName: z.string().trim().min(1, "Nhập người liên hệ").max(200, "Tối đa 200 ký tự"),
+  email: z.email("Email không hợp lệ").max(320, "Tối đa 320 ký tự"),
+  phone: optionalPhone,
+});
 
 export const customerUpdateInputSchema = z.object({
   fullName: z.string().trim().min(1, "Nhập tên công ty / cửa hàng").max(200, "Tối đa 200 ký tự"),
