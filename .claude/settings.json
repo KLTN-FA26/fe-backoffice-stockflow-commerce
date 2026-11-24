@@ -34,7 +34,7 @@
             "command": "node",
             "args": [".claude/hooks/guard-protected-files.mjs"],
             "timeout": 10,
-            "statusMessage": "Kiểm tra file được bảo vệ"
+            "statusMessage": "Ki\u1ec3m tra file \u0111\u01b0\u1ee3c b\u1ea3o v\u1ec7"
           }
         ]
       },
@@ -46,7 +46,27 @@
             "command": "node",
             "args": [".claude/hooks/guard-package-manager.mjs"],
             "timeout": 10,
-            "statusMessage": "Kiểm tra package manager"
+            "statusMessage": "Ki\u1ec3m tra package manager"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|Grep",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "graphify hook-guard search",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Read|Glob",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "graphify hook-guard read",
+            "timeout": 10
           }
         ]
       }
@@ -60,7 +80,7 @@
             "command": "node",
             "args": [".claude/hooks/format-changed-file.mjs"],
             "timeout": 45,
-            "statusMessage": "Format file vừa sửa"
+            "statusMessage": "Format file v\u1eeba s\u1eeda"
           }
         ]
       }
@@ -73,7 +93,19 @@
             "command": "node",
             "args": [".claude/hooks/remind-validate.mjs"],
             "timeout": 20,
-            "statusMessage": "Kiểm tra quy trình verify"
+            "statusMessage": "Ki\u1ec3m tra quy tr\u00ecnh verify"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "graphify hook-guard compact",
+            "timeout": 10
           }
         ]
       }

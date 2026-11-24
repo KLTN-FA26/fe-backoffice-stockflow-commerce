@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(pnpm run:*)",
+      "Bash(pnpm exec:*)",
+      "Bash(pnpm dlx:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git branch:*)",
+      "Bash(git stash:*)",
+      "Read(src/**)",
+      "Read(public/**)",
+      "Read(D:/FPTU/Capstone/docs/**)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Bash(npm install:*)",
+      "Bash(npm ci:*)",
+      "Bash(yarn:*)"
+    ],
+    "additionalDirectories": ["D:/FPTU/Capstone/docs"]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [".claude/hooks/guard-protected-files.mjs"],
+            "timeout": 10,
+            "statusMessage": "Kiểm tra file được bảo vệ"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [".claude/hooks/guard-package-manager.mjs"],
+            "timeout": 10,
+            "statusMessage": "Kiểm tra package manager"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [".claude/hooks/format-changed-file.mjs"],
+            "timeout": 45,
+            "statusMessage": "Format file vừa sửa"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [".claude/hooks/remind-validate.mjs"],
+            "timeout": 20,
+            "statusMessage": "Kiểm tra quy trình verify"
+          }
+        ]
+      }
+    ]
+  }
+}

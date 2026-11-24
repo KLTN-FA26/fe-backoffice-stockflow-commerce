@@ -9,6 +9,13 @@
       "autoPort": true
     },
     {
+      "name": "dev-mock",
+      "runtimeExecutable": "env",
+      "runtimeArgs": ["USE_MOCK=true", "pnpm", "run", "dev"],
+      "port": 3000,
+      "autoPort": true
+    },
+    {
       "name": "dev-existing",
       "url": "http://localhost:3000"
     }
