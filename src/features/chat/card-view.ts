@@ -9,6 +9,7 @@ import {
   CHAT_CARD_LABELS,
   CHAT_CARD_STATE_LABELS,
   CHAT_CARD_STATE_TONE_KEY,
+  CHAT_QUOTE_ACTED_VIEW,
   CHAT_UNKNOWN_LABELS,
 } from "@/constants";
 import { FEE_ITEM_NAME_LABELS, INSTALLMENT_MILESTONE_LABELS } from "@/constants/labels-payment";
@@ -22,11 +23,18 @@ export function cardKindLabel(kind: string): string {
   return CHAT_CARD_LABELS[kind] ?? CHAT_UNKNOWN_LABELS.card;
 }
 
-/** The card's state for a StatusDot: the kind's own word for "acted on" (accepted, signed, paid…), else the state's. */
-export function cardStateView(card: Pick<ChatCard, "kind" | "state">): {
+/**
+ * The card's state for a StatusDot: the kind's own word for "acted on" (accepted, signed, paid…), else the state's. An
+ * acted quote card reads its outcome from `payload.status` (FE-9): changes requested or turned into an order.
+ */
+export function cardStateView(card: Pick<ChatCard, "kind" | "state" | "payload">): {
   label: string;
   toneKey: string;
 } {
+  const quoteStatus = card.kind === "QUOTE" && card.state === "ACTED" ? card.payload?.status : null;
+  const quoteView =
+    typeof quoteStatus === "string" ? CHAT_QUOTE_ACTED_VIEW[quoteStatus] : undefined;
+  if (quoteView) return quoteView;
   const label =
     (card.state === "ACTED" ? CHAT_CARD_ACTED_LABELS[card.kind] : undefined) ??
     CHAT_CARD_STATE_LABELS[card.state] ??

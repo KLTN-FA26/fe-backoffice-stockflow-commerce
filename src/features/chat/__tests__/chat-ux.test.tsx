@@ -318,6 +318,38 @@ describe("BO-UX-48 / BO-UX-6 — card state as a status dot, no raw codes", () =
     );
   });
 
+  it.each([
+    ["CHANGES_REQUESTED", "Khách yêu cầu sửa", "Waiting on Internal"],
+    ["CONVERTED", "Đã lên đơn", "Converted"],
+    ["ACCEPTED", "Khách đã chấp nhận", "Completed"],
+    [undefined, "Khách đã chấp nhận", "Completed"],
+  ])("FE-9: an acted quote card with status %s reads '%s'", (status, label, toneKey) => {
+    const card = chatCardSchema.parse({
+      kind: "QUOTE",
+      state: "ACTED",
+      payload: { quoteId: "q-1", number: "QT-1", status },
+    });
+    expect(cardStateView(card)).toEqual({ label, toneKey });
+  });
+
+  it("FE-9: a quote request card is not read by the quote's status", () => {
+    const card = chatCardSchema.parse({
+      kind: "QUOTE_REQUEST",
+      state: "ACTED",
+      payload: { status: "CHANGES_REQUESTED" },
+    });
+    expect(cardStateView(card).label).toBe("Đã lập báo giá");
+  });
+
+  it("FE-9: the conversation shows 'Khách yêu cầu sửa' with a warning dot", async () => {
+    renderConversation([
+      card("QUOTE", "ACTED", { quoteId: "q-1", number: "QT-1", status: "CHANGES_REQUESTED" }, 14),
+    ]);
+    const state = await screen.findByText("Khách yêu cầu sửa");
+    // The dot is decorative (no role); its tone class is the only handle on the colour.
+    expect(state.querySelector(".bg-dot-warning")).not.toBeNull();
+  });
+
   it("a quote request with an unknown design status shows a neutral label", async () => {
     renderConversation([
       card(
