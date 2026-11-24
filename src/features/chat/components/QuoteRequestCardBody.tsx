@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { FilePlus2, LoaderCircle } from "lucide-react";
 
 import { ADMIN_ROUTES, CHAT_UNKNOWN_LABELS, QUOTE_PERMISSIONS } from "@/constants";
+import { useCan } from "@/lib/auth/components/Can";
 import { formatDate } from "@/lib/format/date";
 import { PermittedLink } from "@/components/backoffice/PermittedLink";
 import { toast } from "@/components/shared/Toast";
@@ -40,7 +41,11 @@ export function QuoteRequestCardBody({
   const router = useRouter();
   const action = useStaffCardAction();
   // Nút vẽ đúng `card.staffActions` của BE (CardActions.quotable): chỉ khi thiết kế đã duyệt và chưa có báo giá.
-  const canCreate = card.staffActions.includes("CREATE_QUOTE");
+  const offered = card.staffActions.includes("CREATE_QUOTE");
+  // AUTH-2: lập báo giá từ thẻ là tạo báo giá — thiếu `sales-quotes:CREATE` thì không hiện nút.
+  // UI-only, Backend phải re-check (QuoteFromRequestService.draw đòi quyền này).
+  const mayCreateQuote = useCan(QUOTE_PERMISSIONS.create);
+  const canCreate = offered && mayCreateQuote;
   const designStatus = designStatusLabel(view.designStatus);
   return (
     <div className="space-y-1">
@@ -75,7 +80,7 @@ export function QuoteRequestCardBody({
           Báo giá {view.quoteNumber ?? ""}
         </PermittedLink>
       )}
-      {!canCreate && !view.quoteId && card.state === "OPEN" && waitNote && (
+      {!offered && !view.quoteId && card.state === "OPEN" && waitNote && (
         <div className="text-ink-tertiary">{waitNote}</div>
       )}
       {canCreate && (

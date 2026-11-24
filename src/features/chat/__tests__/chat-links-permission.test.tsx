@@ -138,3 +138,44 @@ describe("AUTH-8 — document links only for a viewer who can open the page", ()
     );
   });
 });
+
+// SALES_STAFF holds sales-quotes:CREATE; ORDER_COORDINATOR reads quotes but does not.
+describe("AUTH-2 — 'Lập báo giá' on a quote request card needs sales-quotes:CREATE", () => {
+  const offered = () => {
+    const message = chatMessageSchema.parse(quoteRequestCard(["CREATE_QUOTE"]));
+    const card = message.card;
+    if (!card) throw new Error("fixture has no card");
+    return { message, card };
+  };
+
+  it("with quote CREATE: the button is there", async () => {
+    const { message, card } = offered();
+    renderAs(
+      "SALES_STAFF",
+      <QuoteRequestCardBody
+        message={message}
+        card={card}
+        quoteGate={{ allowed: true, hint: null }}
+      />,
+    );
+    expect(await screen.findByRole("button", { name: /Lập báo giá/ })).toBeEnabled();
+  });
+
+  it("without quote CREATE: no button even though the card offers the action", async () => {
+    const { message, card } = offered();
+    // Order coordinator: reads quotes (the quote card's link proves its permissions have loaded), cannot create one.
+    renderAs(
+      "ORDER_COORDINATOR",
+      <>
+        <QuoteRequestCardBody
+          message={message}
+          card={card}
+          quoteGate={{ allowed: true, hint: null }}
+        />
+        <DocumentCardBody card={quoteCard} />
+      </>,
+    );
+    expect(await screen.findByRole("link", { name: "Mở báo giá" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Lập báo giá/ })).not.toBeInTheDocument();
+  });
+});
