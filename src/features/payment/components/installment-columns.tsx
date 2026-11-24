@@ -159,7 +159,7 @@ export function buildInstallmentColumns(
     {
       key: "order",
       header: C.order,
-      // AUTH-8: kế toán không có trang đơn thì số đơn chỉ là chữ
+      // AUTH-8: người xem không mở được trang đơn thì số đơn chỉ là chữ
       cell: (row) => (
         <CodeLink
           href={ADMIN_ROUTES.orders.detail(row.orderId)}
