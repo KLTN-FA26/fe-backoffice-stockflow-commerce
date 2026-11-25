@@ -363,6 +363,12 @@ function ReadinessSection({
           {R.deliveryReductionUnissued}
         </p>
       )}
+      {readiness.failedDeliveryUnreducedShipmentIds.length > 0 && (
+        <p className="text-ink-secondary flex gap-1.5">
+          <Info className="text-ink-tertiary mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+          {R.failedDeliveryUnreduced(readiness.failedDeliveryUnreducedShipmentIds.length)}
+        </p>
+      )}
       <DrawUpDialog orderId={drawingFor} onClose={() => setDrawingFor(null)} />
     </section>
   );
