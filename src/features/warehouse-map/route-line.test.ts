@@ -109,4 +109,11 @@ describe("routeOrigin — điểm gốc chỉ cần đánh dấu riêng khi khá
     expect(routeOrigin({ start: START, origin, stops: [] })).toEqual(origin);
     expect(routeOrigin({ start: null, origin, stops: [] })).toEqual(origin);
   });
+
+  it("bin vừa cất vẫn còn thùng trên xe (trùng một điểm dừng) → null, chấm điểm dừng đã che chỗ đó", () => {
+    const origin = { locationCode: "A01-1-01", x: 16, y: 5 };
+    expect(
+      routeOrigin({ start: START, origin, stops: [stop(1, 16, 5), stop(2, 24, 6.5)] }),
+    ).toBeNull();
+  });
 });

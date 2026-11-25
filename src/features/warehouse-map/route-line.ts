@@ -35,11 +35,15 @@ export interface RouteMapPath {
 
 const same = (a: MapPoint, b: MapPoint) => a.x === b.x && a.y === b.y;
 
-/** Điểm gốc cần chấm riêng: chỉ khi khác ô "Xuất phát" (đã cất thùng ở bin khác khu nguồn). */
+/**
+ * Điểm gốc cần chấm riêng: chỉ khi khác ô "Xuất phát" (đã cất thùng ở bin khác khu nguồn) và không trùng điểm dừng nào
+ * — bin vừa cất còn thùng trên xe thì BE vẫn giữ nó làm điểm dừng, chấm điểm dừng sẽ che mất chấm "Vừa cất".
+ */
 export function routeOrigin(path: RouteMapPath): RouteMapPoint | null {
   const { origin, start } = path;
   if (!origin) return null;
-  return start && same(origin, start) ? null : origin;
+  if (start && same(origin, start)) return null;
+  return path.stops.some((stop) => same(origin, stop)) ? null : origin;
 }
 
 /** Các điểm của đường vẽ: điểm gốc → chặng 1 → chặng 2…, điểm nối giữa hai chặng không lặp lại. */

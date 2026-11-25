@@ -158,6 +158,11 @@ describe("putaway trip mock ↔ hợp đồng BE PutawayTripController", () => {
         tripId: trip.id,
         values: { lpn: carton.lpn, locationCode: carton.assignedLocationCode ?? "" },
       });
+      if (last.status === "IN_PROGRESS") {
+        // BE #410: đã cất thùng → điểm gốc là bin của thùng vừa cất, không còn là khu nguồn
+        expect(last.originLocationCode).toBe(carton.assignedLocationCode);
+        expect(last.originX).not.toBeNull();
+      }
     }
     expect(last.status).toBe("COMPLETED");
     expect(last.stops).toEqual([]);
