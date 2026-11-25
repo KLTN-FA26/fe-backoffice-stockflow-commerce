@@ -193,7 +193,7 @@ describe("admin layout — sau cổng chung, cổng quyền từng trang vẫn q
     CREDIT_HOLD_PERMISSIONS.read,
     CREDIT_HOLD_PERMISSIONS.approve,
     CUSTOMER_CREDIT_PROFILE_PERMISSIONS.read,
-    // BE V20261227000100 (AUTH-6): Kế toán mở trang khách để cấp hạn mức — xem, không sửa
+    // BE V20261227000400 (AUTH-6): Kế toán mở trang khách để cấp hạn mức — xem, không sửa
     CUSTOMER_PERMISSIONS.viewPage,
     CUSTOMER_PERMISSIONS.read,
   ];

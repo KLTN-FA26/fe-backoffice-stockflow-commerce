@@ -207,7 +207,7 @@ const ROLE_PERMISSIONS: Record<string, readonly PermissionCode[]> = {
     "sales-order-credit-holds:VIEW_PAGE",
     "sales-order-credit-holds:READ",
     "sales-order-credit-holds:APPROVE",
-    // BE V20261227000100 (AUTH-6): Kế toán mở trang khách để cấp hạn mức — xem, không sửa
+    // BE V20261227000400 (AUTH-6): Kế toán mở trang khách để cấp hạn mức — xem, không sửa
     "customer-customers:VIEW_PAGE",
     "customer-customers:READ",
   ],

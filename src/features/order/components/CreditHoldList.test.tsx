@@ -122,7 +122,7 @@ describe("Credit hold — danh sách (SCRUM-427)", () => {
   });
 
   it("AUTH-6: người duyệt hạn mức (xem khách + APPROVE hồ sơ công nợ) có lối tắt sửa hạn mức của khách", async () => {
-    // Kế toán đã xem được trang khách (BE V20261227000100) — chỉ thêm APPROVE hồ sơ công nợ
+    // Kế toán đã xem được trang khách (BE V20261227000400) — chỉ thêm APPROVE hồ sơ công nợ
     renderList([...ORDER_PERMISSION_SETS.accountant, CREDIT_PROFILE_PERMISSIONS.approve]);
 
     expect(await screen.findByRole("link", { name: "Sửa hạn mức công nợ" })).toHaveAttribute(

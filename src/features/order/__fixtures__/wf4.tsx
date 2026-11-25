@@ -59,7 +59,7 @@ export const WF4_PERMISSION_SETS = {
     ORDER_PERMISSIONS.read,
     ORDER_DELIVERY_BATCH_PERMISSIONS.read,
     PAYMENT_REFUND_PERMISSIONS.read,
-    // BE V20261227000100 (AUTH-6): Kế toán mở trang khách để cấp hạn mức — xem, không sửa
+    // BE V20261227000400 (AUTH-6): Kế toán mở trang khách để cấp hạn mức — xem, không sửa
     CUSTOMER_PERMISSIONS.viewPage,
     CUSTOMER_PERMISSIONS.read,
   ],

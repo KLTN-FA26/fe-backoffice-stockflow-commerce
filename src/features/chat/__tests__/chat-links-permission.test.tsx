@@ -67,7 +67,7 @@ describe("AUTH-8 — document links only for a viewer who can open the page", ()
     expect(screen.getByRole("link", { name: "Mở hợp đồng" })).toBeInTheDocument();
   });
 
-  it("AUTH-4: a Sales Manager opens the quote and the order it became (BE V20261227000100)", async () => {
+  it("AUTH-4: a Sales Manager opens the quote and the order it became (BE V20261227000400)", async () => {
     renderAs("SALES_MANAGER", <DocumentCardBody card={quoteCard} />);
     expect(await screen.findByRole("link", { name: "Mở báo giá" })).toHaveAttribute(
       "href",
