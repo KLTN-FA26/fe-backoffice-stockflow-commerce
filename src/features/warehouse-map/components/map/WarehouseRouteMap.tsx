@@ -69,6 +69,7 @@ export function WarehouseRouteMap({
               overlay={
                 <RouteOverlay
                   path={path}
+                  shelves={layout.data.shelves}
                   mapExtent={Math.max(
                     layout.data.warehouse.mapWidth,
                     layout.data.warehouse.mapHeight,
