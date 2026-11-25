@@ -224,6 +224,12 @@ export const settlementReadinessDtoSchema = z
      * không chặn đóng. Vắng (BE cũ) → false.
      */
     deliveryReductionUnissued: flag,
+    /**
+     * BE #423 (audit 25/11 N-1): lần giao không thành công (sửa thành thất bại / hãng chở về) mà hoá đơn đã phát hành vẫn
+     * còn hiệu lực và chưa có bản giảm nào — máy không tự giảm được. Dòng thông tin như Q-16, không chặn đóng. Vắng (BE cũ)
+     * → [].
+     */
+    failedDeliveryUnreducedShipmentIds: z.array(z.string()).nullish(),
   })
   .transform((dto) => ({
     branch: dto.branch ?? ORDER_STATUS_UNKNOWN,
@@ -245,6 +251,7 @@ export const settlementReadinessDtoSchema = z
     returnAdjustmentUnissued: dto.returnAdjustmentUnissued,
     completionHoldable: dto.completionHoldable,
     deliveryReductionUnissued: dto.deliveryReductionUnissued,
+    failedDeliveryUnreducedShipmentIds: dto.failedDeliveryUnreducedShipmentIds ?? [],
   }));
 
 /** BE `OrderResponse.Fee` (4B-3, 14 BR-17/BR-20/BR-21): dòng phí của đơn kèm VAT; `kind` lạ → `UNKNOWN`. */

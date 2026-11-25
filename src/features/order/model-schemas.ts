@@ -85,6 +85,8 @@ export const settlementReadinessSchema = z.object({
   completionHoldable: z.boolean(),
   /** Audit r3 EINV-7: còn bản giảm do giao không thành công chưa phát hành — dòng thông tin, không chặn. */
   deliveryReductionUnissued: z.boolean(),
+  /** BE #423 / N-1: lần giao không thành công còn hoá đơn chưa được giảm — dòng thông tin, không chặn. */
+  failedDeliveryUnreducedShipmentIds: z.array(z.string()),
 });
 
 /** Dòng phí của đơn (4B-3); field BE vắng → null. */

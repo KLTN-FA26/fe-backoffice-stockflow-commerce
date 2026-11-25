@@ -66,6 +66,12 @@ export const SETTLEMENT_READINESS_LABELS = {
    */
   deliveryReductionUnissued:
     "Còn bản giảm (giao không thành công) chưa phát hành — không chặn đóng đơn; Kế toán phát hành ở màn hoá đơn.",
+  /**
+   * BE #423 (audit 25/11 N-1): hoá đơn đã phát hành của lần giao không thành công còn hiệu lực, máy không tự giảm được
+   * (đang có điều chỉnh ở NCC, hoá đơn thay thế — Q-9…) — thông tin, không chặn đóng; Kế toán xử lý ở màn hoá đơn.
+   */
+  failedDeliveryUnreduced: (count: number) =>
+    `${count} lần giao không thành công còn hoá đơn chưa được giảm — không chặn đóng đơn; Kế toán lập bản giảm ở màn hoá đơn, hoặc ghi bản giảm đã làm trên cổng nhà cung cấp.`,
   /** Blocker SHIPPING_FEE_UNINVOICED: lập hoá đơn phần phí còn lại (BE `POST /einvoices {orderId}`, không lần giao). */
   drawUpFeeRest: "Lập hoá đơn phần phí còn lại",
   /** Hàng "Hoàn tiền" khi không có tiền phải hoàn nhưng có phí được miễn / còn thiếu (Q-19). */

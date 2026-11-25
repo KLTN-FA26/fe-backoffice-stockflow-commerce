@@ -80,6 +80,7 @@ const readiness = (over: Partial<SettlementReadiness> = {}): SettlementReadiness
   returnAdjustmentUnissued: false,
   completionHoldable: false,
   deliveryReductionUnissued: false,
+  failedDeliveryUnreducedShipmentIds: [],
   ...over,
 });
 const routes = (outstanding: number, invoices: unknown[]) => ({
@@ -384,6 +385,31 @@ describe("audit r3 (BE r3b): EINV-7 information line, LM-2 fee-rest draw-up", ()
   it("an older BE without the flag shows no such line", () => {
     const parsed = settlementReadinessDtoSchema.parse({ branch: "REFUND_CLOSE" });
     expect(parsed.deliveryReductionUnissued).toBe(false);
+    expect(parsed.failedDeliveryUnreducedShipmentIds).toEqual([]);
+  });
+
+  it("BE #423 / N-1: a failed delivery whose issued invoice still stands is an information line, never a blocker", async () => {
+    mockEInvoiceApi(ALL, routes(0, []));
+    const parsed = settlementReadinessDtoSchema.parse({
+      branch: "REFUND_CLOSE",
+      failedDeliveryUnreducedShipmentIds: ["shp-2"],
+    });
+    expect(parsed.failedDeliveryUnreducedShipmentIds).toEqual(["shp-2"]);
+    renderEInvoiceScreen(
+      <OrderSettlementPanel
+        {...props}
+        status="Returned"
+        settlementReadiness={readiness({
+          branch: "REFUND_CLOSE",
+          failedDeliveryUnreducedShipmentIds: ["shp-2"],
+        })}
+      />,
+    );
+    const checks = await screen.findByRole("region", { name: "Điều kiện hoàn tất" });
+    expect(
+      within(checks).getByText(SETTLEMENT_READINESS_LABELS.failedDeliveryUnreduced(1)),
+    ).toBeInTheDocument();
+    expect(within(checks).getByText("Đủ điều kiện.")).toBeInTheDocument();
   });
 
   it("SHIPPING_FEE_UNINVOICED offers the fee-rest draw-up to whoever may create invoices, posting the order only", async () => {
