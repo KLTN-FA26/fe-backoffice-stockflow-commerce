@@ -3,6 +3,7 @@ import {
   ClipboardCheck,
   Inbox,
   Lightbulb,
+  List,
   Map as MapIcon,
   Move,
   PackageCheck,
@@ -132,6 +133,16 @@ export const WORKSPACE_PAGES: readonly WorkspacePage[] = [
     label: W.pages.map,
     icon: MapIcon,
     // BE WarehouseLocationResourceDeclaration route `/admin/warehouse-map`
+    permission: WAREHOUSE_LOCATION_PERMISSIONS.viewPage,
+    assignedOnly: false,
+  },
+  {
+    path: WORKSPACE_PATHS.locations,
+    group: "map",
+    label: W.pages.locations,
+    icon: List,
+    // Cùng nguồn layout với bản đồ (`GET /warehouses/{id}/layout`, warehouse-locations) — không giới hạn kho được gán
+    // (06); hàng trong vị trí tự ẩn ở kho không được gán (inventory-stock-items là DataScope.WAREHOUSE)
     permission: WAREHOUSE_LOCATION_PERMISSIONS.viewPage,
     assignedOnly: false,
   },

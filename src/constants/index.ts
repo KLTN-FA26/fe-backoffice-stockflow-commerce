@@ -432,6 +432,7 @@ export {
   CAPACITY_GROUP_COLUMNS,
   WAREHOUSE_CAPACITY_COLUMNS,
   WAREHOUSE_COLUMNS,
+  WAREHOUSE_LOCATION_COLUMNS,
 } from "./table";
 export {
   CARRIER_BOOKING_STATUSES,
@@ -648,3 +649,10 @@ export {
 } from "./labels-putaway";
 export { BUSINESS_DOCUMENT_LABELS, BUSINESS_DOCUMENTS } from "./labels-business-documents";
 export type { BusinessDocumentKind, BusinessDocumentSpec } from "./labels-business-documents";
+export {
+  CLIPBOARD_LABELS,
+  LOCATION_KINDS,
+  LOCATION_STOCK_FILTERS,
+  WAREHOUSE_LOCATION_LABELS,
+} from "./labels-warehouse-locations";
+export type { LocationKind, LocationStockFilter } from "./labels-warehouse-locations";

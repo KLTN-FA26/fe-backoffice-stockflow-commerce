@@ -5,7 +5,7 @@ import { QUERY_TIMES } from "@/lib/api/query-client";
 import { createListQuery, createQueryKeys } from "@/lib/api/query-factory";
 
 import { getWarehouseLayout, listWarehouses } from "./api";
-import { listLocationCartons } from "./api-cartons";
+import { getLocationSummary, listLocationCartonPage, listLocationCartons } from "./api-cartons";
 import { hasStockAt, listShelfStock, listWarehouseStock } from "./api-draft";
 
 import type { ListWarehouseParams } from "./api";
@@ -79,11 +79,13 @@ export const warehouseStockKeys = {
   of: (warehouseId: string) => [...warehouseStockKeys.all, warehouseId] as const,
 };
 
-export function useWarehouseStock(warehouse: { id: string; prefix: string }) {
+/** `enabled` false khi người xem không đọc được tồn của kho (thiếu quyền / không được gán) — tránh 403 vô ích. */
+export function useWarehouseStock(warehouse: { id: string; prefix: string }, enabled = true) {
   return useQuery({
     queryKey: warehouseStockKeys.of(warehouse.id),
     queryFn: ({ signal }) =>
       listWarehouseStock({ warehouseId: warehouse.id, prefix: warehouse.prefix }, signal),
+    enabled,
     ...QUERY_TIMES.detail,
   });
 }
@@ -114,5 +116,29 @@ export function useBinCartons(locationCodes: readonly string[], enabled: boolean
       ...QUERY_TIMES.detail,
     })),
     combine,
+  });
+}
+
+/** Một vị trí đang chứa gì (panel chi tiết của danh sách vị trí) — theo SKU, lô, trạng thái tồn. */
+export const locationSummaryKeys = createQueryKeys("warehouse-map-location-summary");
+
+export function useLocationSummary(locationCode: string, enabled: boolean) {
+  return useQuery({
+    queryKey: locationSummaryKeys.detail(locationCode),
+    queryFn: ({ signal }) => getLocationSummary(locationCode, signal),
+    enabled,
+    ...QUERY_TIMES.detail,
+  });
+}
+
+/** Thùng (LPN) của một vị trí kèm tổng số — trang đầu, sắp theo LPN. */
+export const locationCartonPageKeys = createQueryKeys("warehouse-map-location-cartons");
+
+export function useLocationCartons(locationCode: string, enabled: boolean) {
+  return useQuery({
+    queryKey: locationCartonPageKeys.detail(locationCode),
+    queryFn: ({ signal }) => listLocationCartonPage(locationCode, signal),
+    enabled,
+    ...QUERY_TIMES.detail,
   });
 }

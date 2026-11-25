@@ -106,6 +106,7 @@ export const WAREHOUSE_WORKSPACE_LABELS = {
   pages: {
     map: "Bản đồ kho",
     slotting: "Gợi ý vị trí",
+    locations: "Danh sách vị trí",
     picking: "Lấy hàng",
     moves: "Di chuyển nội bộ",
   },

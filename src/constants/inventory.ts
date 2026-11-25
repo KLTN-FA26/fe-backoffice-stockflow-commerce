@@ -32,6 +32,26 @@ export const STOCK_STATUSES = [
   "DAMAGED",
   "EXPIRED",
 ] as const;
+
+/**
+ * Chuỗi status của `StatusDot` cho trạng thái tồn (Title Case 1-1 với enum BE `StockStatus`; nhãn + màu ở
+ * `lib/status-map.ts`). Docs 20 §5.1 chỉ có Inbound / Available / Quarantine — giá trị còn lại hiện nguyên văn.
+ */
+export const STOCK_STATUS_DISPLAY = {
+  INBOUND: "Inbound",
+  AVAILABLE: "Available",
+  QUARANTINE: "Quarantine",
+  BLOCKED: "Blocked",
+  DAMAGED: "Damaged",
+  EXPIRED: "Expired",
+} as const satisfies Record<(typeof STOCK_STATUSES)[number], string>;
+
+/** Trạng thái tồn BE → chuỗi của `StatusDot`; giá trị lạ giữ nguyên. */
+export function stockStatusDisplay(status: string): string {
+  const known = STOCK_STATUSES.find((value) => value === status);
+  return known ? STOCK_STATUS_DISPLAY[known] : status;
+}
+
 // StockBrowsingImpl STOCK_SORT whitelist; the backend default is locationCode ascending.
 export const STOCK_ITEM_SORT_FIELDS = [
   "locationCode",
@@ -142,6 +162,9 @@ export const INVENTORY_MESSAGES = {
 export const INVENTORY_ROUTES = {
   overview: "/admin/inventory",
   movements: "/admin/movements",
+  /** Lịch sử di chuyển lọc sẵn theo một mã vị trí (`?location=`, `useInventoryListFilters`). */
+  movementsAt: (locationCode: string) =>
+    `/admin/movements?location=${encodeURIComponent(locationCode)}`,
   adjustments: "/admin/inventory/adjustments",
   createAdjustment: "/admin/inventory/adjustments/create",
   adjustment: (id: string) => `/admin/inventory/adjustments/${encodeURIComponent(id)}`,

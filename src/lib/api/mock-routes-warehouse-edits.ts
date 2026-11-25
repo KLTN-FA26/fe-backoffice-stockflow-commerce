@@ -27,9 +27,11 @@ import {
   placementError,
   warehouseOf,
 } from "./mock-warehouse-rules";
+import { isMockQuarantined, listMockCartons } from "./mock-inventory-cartons";
 import { getWarehouseStore } from "./mock-warehouse-store";
 
 import type { AxiosRequestConfig } from "axios";
+import type { MockCarton } from "./mock-inventory-cartons";
 import type { MockResponseShape } from "./mock-route-utils";
 import type { MockShelf } from "./mock-warehouse-store";
 
@@ -188,6 +190,41 @@ function registerBoundaryAndZoneEdits(): void {
   });
 }
 
+const LIVE_CARTON = new Set(["RECEIVING", "IN_STOCK"]);
+
+/**
+ * Dòng tồn như BE `WarehouseStockItemResponse` (một dòng mỗi vị trí + SKU + lô), cộng từ sổ thùng mock — thùng đầu kỳ
+ * nằm đúng các vị trí có tồn của bản đồ. Vị trí có tồn mà không có thùng (đã sửa bản đồ) → chỉ mã vị trí như trước.
+ */
+function stockRowsAt(codes: readonly string[], cartons: readonly MockCarton[]) {
+  return codes.flatMap((locationCode) => {
+    const lines = new Map<
+      string,
+      { sku: string; lotNumber: string | null; onHand: number; status: string }
+    >();
+    for (const carton of cartons) {
+      if (carton.pkg.locationCode !== locationCode || !LIVE_CARTON.has(carton.pkg.status)) continue;
+      const key = `${carton.sku}|${carton.lotNumber ?? ""}`;
+      const line = lines.get(key) ?? {
+        sku: carton.sku,
+        lotNumber: carton.lotNumber,
+        onHand: 0,
+        status: isMockQuarantined(carton.pkg.lpn) ? "QUARANTINE" : "AVAILABLE",
+      };
+      line.onHand += carton.pkg.receivedQty;
+      lines.set(key, line);
+    }
+    if (lines.size === 0) return [{ locationCode }];
+    return [...lines.values()].map((line) => ({
+      locationCode,
+      ...line,
+      reserved: 0,
+      available: line.onHand,
+      hiddenDuringCount: false,
+    }));
+  });
+}
+
 /** Kho của store bản đồ: dòng tồn theo `stockedLocations`; kho khác → mock tồn kho đã đăng ký trước. */
 function registerStockProbe(): void {
   const previous = resolveMockRoute("GET", STOCK_ITEMS.replace(":id", "probe"))?.handler;
@@ -197,10 +234,10 @@ function registerStockProbe(): void {
       return previous ? previous(config) : fail(404, "WAREHOUSE_NOT_FOUND", "Warehouse not found");
     const params = queryOf(config);
     const location = (params.get("location") ?? "").trim().toUpperCase();
-    const rows = [...getWarehouseStore().stockedLocations]
+    const codes = [...getWarehouseStore().stockedLocations]
       .filter((code) => code.startsWith(`${warehouse.prefix}-`) && code.startsWith(location))
-      .sort()
-      .map((locationCode) => ({ locationCode }));
+      .sort();
+    const rows = stockRowsAt(codes, await listMockCartons());
     return ok(pageOf(rows, Number(params.get("page")) || 0, Number(params.get("size")) || 20));
   });
 }
