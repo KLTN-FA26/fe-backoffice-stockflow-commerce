@@ -9,6 +9,7 @@ import { useWarehouseLayout } from "@/features/warehouse-map/queries";
 
 import { Skeleton } from "@/components/ui/skeleton";
 
+import { routeOrigin } from "../../route-line";
 import { MapFrame } from "../shared/MapFrame";
 import { MapCanvas2D } from "./MapCanvas2D";
 import { RouteOverlay } from "./RouteOverlay";
@@ -20,7 +21,7 @@ const R = UI_LABELS.warehouseMap.route;
 const FRAME_CLASS = "flex h-105 flex-col";
 const NOTE_CLASS = "text-ink-tertiary text-xs";
 
-function Legend() {
+function Legend({ origin }: { origin: boolean }) {
   const item = (dot: string, text: string) => (
     <span className="flex items-center gap-1.5">
       <span className={`size-2.5 ${dot}`} aria-hidden />
@@ -30,6 +31,7 @@ function Legend() {
   return (
     <div className={`${NOTE_CLASS} flex flex-wrap items-center gap-x-4 gap-y-1`}>
       {item("bg-ink-primary rounded-(--r-sm)", R.legendStart)}
+      {origin && item("bg-bg-surface border-ink-primary rounded-full border-2", R.legendOrigin)}
       {item("bg-dot-info rounded-full", R.legendNext)}
       {item("bg-dot-positive rounded-full", R.legendDone)}
     </div>
@@ -77,7 +79,7 @@ export function WarehouseRouteMap({
           )}
         </MapFrame>
       </div>
-      <Legend />
+      <Legend origin={routeOrigin(path) !== null} />
       <p className={NOTE_CLASS}>{R.note}</p>
     </section>
   );

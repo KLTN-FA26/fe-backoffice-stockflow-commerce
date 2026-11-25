@@ -213,8 +213,11 @@ export const WAREHOUSE_MAP_UI_LABELS = {
     legendStart: "Xuất phát",
     legendNext: "Nên tới tiếp",
     legendDone: "Đã cất xong",
-    // docs 05 §4.5 ⚠️ C46: khoảng cách trên mặt bằng, không tránh kệ / tường
-    note: "Đường thẳng nối các điểm đứng, không tránh kệ / tường — đi theo lối thực tế.",
+    /** Nơi BE sắp các điểm dừng còn lại (bin vừa cất) khi khác khu nguồn — chặng 1 đi từ đây (BE #410). */
+    origin: (code: string | null) => (code ? `Vừa cất — ${code}` : "Vừa cất"),
+    legendOrigin: "Vừa cất",
+    // docs 05 §4.5 ⚠️ C46: thứ tự vẫn theo khoảng cách Manhattan (BR-17); đường đi BE ước lượng từ bản đồ (BE #410)
+    note: "Thứ tự điểm dừng tính theo khoảng cách thẳng; đường vẽ vòng qua kệ, tường và cửa đóng theo bản đồ — chỉ là ước lượng, chặng không tìm được lối thì nối thẳng. Đi theo lối thực tế.",
     noRead: "Cần quyền xem bản đồ kho (warehouse-locations:READ) để thấy lộ trình trên bản đồ.",
     loadFailed: "Không tải được bản đồ kho — xem lộ trình theo danh sách điểm dừng.",
   },

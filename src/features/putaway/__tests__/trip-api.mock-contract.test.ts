@@ -144,6 +144,10 @@ describe("putaway trip mock ↔ hợp đồng BE PutawayTripController", () => {
       true,
     );
     expect(going.stops.length).toBeGreaterThan(0);
+    // BE #410: điểm gốc = khu nguồn khi chưa cất thùng nào; mock không tìm đường → path null (FE nối thẳng)
+    expect(going.originLocationCode).toBe("HCM-RCV01");
+    expect([going.originX, going.originY]).toEqual([going.startX, going.startY]);
+    expect(going.stops.every((s) => s.path === null)).toBe(true);
     expect(await codeOf(loadTripCarton({ tripId: trip.id, lpn: a ?? "" }))).toBe(
       "PUTAWAY_TRIP_INVALID_STATE",
     );
@@ -154,6 +158,11 @@ describe("putaway trip mock ↔ hợp đồng BE PutawayTripController", () => {
         tripId: trip.id,
         values: { lpn: carton.lpn, locationCode: carton.assignedLocationCode ?? "" },
       });
+      if (last.status === "IN_PROGRESS") {
+        // BE #410: đã cất thùng → điểm gốc là bin của thùng vừa cất, không còn là khu nguồn
+        expect(last.originLocationCode).toBe(carton.assignedLocationCode);
+        expect(last.originX).not.toBeNull();
+      }
     }
     expect(last.status).toBe("COMPLETED");
     expect(last.stops).toEqual([]);

@@ -195,6 +195,23 @@ export function closeTripNow(trip: MockTrip, by: string): void {
   trip.closedBy = by;
 }
 
+/**
+ * Điểm gốc — BE `PutawayTripsImpl#origins`: bin của thùng cất gần nhất nếu đặt được lên bản đồ, không thì khu nguồn.
+ */
+function originOf(trip: MockTrip) {
+  // Cùng mốc thời gian → thùng cất sau (đứng sau trong danh sách) thắng
+  const placed = trip.cartons
+    .filter((c) => c.status === "PLACED" && c.placedAt && c.assignedLocationCode)
+    .reduce<MockTripCarton | null>(
+      (last, c) => (!last || (c.placedAt ?? "") >= (last.placedAt ?? "") ? c : last),
+      null,
+    )?.assignedLocationCode;
+  const point = placed ? pointOf(placed) : null;
+  return placed && point
+    ? { originLocationCode: placed, originX: point.x, originY: point.y }
+    : { originLocationCode: trip.startLocationCode, originX: trip.startX, originY: trip.startY };
+}
+
 /** BE `PutawayTripResponse` — bỏ field nội bộ của mock (mã kho, SL thùng). */
 export function toTripResponse(trip: MockTrip) {
   return {
@@ -205,6 +222,11 @@ export function toTripResponse(trip: MockTrip) {
     startLocationCode: trip.startLocationCode,
     startX: trip.startX,
     startY: trip.startY,
+    // BE #410: điểm gốc của lộ trình + đường đi từng chặng. Mock không tìm đường (mock không chứa nghiệp vụ) và không
+    // sắp lại sau khi cất → `path` null để FE nối thẳng (nhánh dự phòng của BE)
+    ...(trip.status === "IN_PROGRESS"
+      ? originOf(trip)
+      : { originLocationCode: null, originX: null, originY: null }),
     startedAt: trip.startedAt,
     lastActivityAt: trip.lastActivityAt,
     closedAt: trip.closedAt,
@@ -221,6 +243,6 @@ export function toTripResponse(trip: MockTrip) {
       loadedAt: c.loadedAt,
       placedAt: c.placedAt,
     })),
-    stops: trip.status === "IN_PROGRESS" ? trip.stops : [],
+    stops: trip.status === "IN_PROGRESS" ? trip.stops.map((s) => ({ ...s, path: null })) : [],
   };
 }

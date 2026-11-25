@@ -2,25 +2,18 @@
 
 import { UI_LABELS } from "@/constants";
 
+import { routeLine, routeOrigin } from "../../route-line";
+
+import type { RouteMapPath, RouteStopState } from "../../route-line";
+
+export type { RouteMapPath, RouteStopState } from "../../route-line";
+
 const R = UI_LABELS.warehouseMap.route;
 /**
  * Bán kính chấm theo cỡ kho: SVG vẽ theo mét nên kho càng lớn chấm càng nhỏ trên màn — lấy 1/60 cạnh dài (kho 60 m
  * → 1 m: chấm ≈ 18px, số ≈ 11px ở khung 420px, đo 1440px) để số thứ tự đọc được ở zoom vừa khung.
  */
 const dotFor = (mapExtent: number) => Math.max(0.5, mapExtent / 60);
-
-export type RouteStopState = "done" | "next" | "todo";
-
-export interface RouteMapPath {
-  start: { locationCode: string | null; x: number; y: number } | null;
-  stops: readonly {
-    sequence: number;
-    locationCode: string;
-    x: number;
-    y: number;
-    state: RouteStopState;
-  }[];
-}
 
 const DOT_CLASS: Record<RouteStopState, { dot: string; text: string }> = {
   done: { dot: "fill-dot-positive stroke-bg-surface", text: "fill-ink-inverse" },
@@ -43,18 +36,18 @@ function spread<T extends { x: number; y: number }>(
 }
 
 /**
- * Lộ trình chuyến cất vẽ chồng lên mặt bằng 2D (docs 05 §4.5 bước 14): đường thẳng từ khu nguồn qua các điểm dừng theo
- * thứ tự, chấm đánh số khớp danh sách điểm dừng. Không tránh kệ / tường (⚠️ C46) — chỉ để định hướng (BR-17). Không
- * nhận chuột: bấm kệ / khu bên dưới vẫn được.
+ * Lộ trình chuyến cất vẽ chồng lên mặt bằng 2D (docs 05 §4.5 bước 14): đường đi BE tính cho từng chặng, vòng qua kệ /
+ * tường / cửa đóng (BE #410), theo đúng thứ tự BE sắp (BR-17); chặng BE không có đường thì nối thẳng (⚠️ C46 — ước
+ * lượng từ bản đồ, chỉ để định hướng). Chấm đánh số khớp danh sách điểm dừng. Không nhận chuột: bấm kệ / khu bên dưới
+ * vẫn được.
  */
 export function RouteOverlay({ path, mapExtent }: { path: RouteMapPath; mapExtent: number }) {
   const dot = dotFor(mapExtent);
-  // Hai điểm dừng trùng điểm đứng (bin khác tầng cùng cột) → dời ngang để không che nhau
+  // Hai điểm dừng trùng điểm đứng (bin khác tầng cùng cột) → dời ngang chấm để không che nhau; đường vẫn đi qua điểm
+  // đứng thật (chấm dời có thể nằm trên kệ)
   const stops = spread(path.stops, dot * 2.2);
-  const points = [
-    ...(path.start ? [{ x: path.start.x, y: path.start.y, dx: 0 }] : []),
-    ...stops,
-  ].map((p) => `${p.x + p.dx},${p.y}`);
+  const points = routeLine(path).map((p) => `${p.x},${p.y}`);
+  const origin = routeOrigin(path);
   return (
     <g className="pointer-events-none">
       {points.length > 1 && (
@@ -87,6 +80,17 @@ export function RouteOverlay({ path, mapExtent }: { path: RouteMapPath; mapExten
           rx={0.15}
           className="fill-ink-primary stroke-bg-surface"
           strokeWidth={dot * 0.25}
+        />
+      )}
+      {origin && (
+        <circle
+          role="img"
+          aria-label={R.origin(origin.locationCode)}
+          cx={origin.x}
+          cy={origin.y}
+          r={dot * 0.6}
+          className="fill-bg-surface stroke-ink-primary"
+          strokeWidth={dot * 0.3}
         />
       )}
       {stops.map((stop) => (

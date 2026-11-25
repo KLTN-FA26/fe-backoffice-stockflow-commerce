@@ -43,14 +43,24 @@ export function stopsWithCartons(trip: Pick<PutawayTrip, "stops" | "cartons">): 
 /** Điểm dừng đã cất hết thùng · điểm nên tới tiếp · điểm còn lại. */
 export type TripRouteStopState = "done" | "next" | "todo";
 
+interface TripRoutePoint {
+  locationCode: string | null;
+  x: number;
+  y: number;
+}
+
 export interface TripRoutePath {
-  start: { locationCode: string | null; x: number; y: number } | null;
+  start: TripRoutePoint | null;
+  /** Nơi BE sắp các điểm dừng còn lại — chặng 1 đi từ đây (có thể khác `start` sau khi đã cất thùng). */
+  origin: TripRoutePoint | null;
   stops: {
     sequence: number;
     locationCode: string;
     x: number;
     y: number;
     state: TripRouteStopState;
+    /** Đường đi BE tính tới điểm này (cả hai đầu); null → nối thẳng. */
+    path: { x: number; y: number }[] | null;
   }[];
 }
 
@@ -59,25 +69,43 @@ const hasPoint = <T extends { x?: number | null; y?: number | null }>(
 ): point is T & { x: number; y: number } => point.x != null && point.y != null;
 
 /**
- * Đường nối các điểm dừng trên Kho Map 2D (docs 05 §4.5 bước 14): tâm khu nguồn → điểm dừng theo `sequence`, toạ độ
- * điểm đứng do BE tính. Điểm không có toạ độ bị bỏ khỏi đường (danh sách vẫn hiện), số thứ tự giữ nguyên để khớp danh
- * sách. `next` = điểm đầu tiên còn thùng trên xe — chỉ gợi ý, không bắt buộc đi đúng thứ tự (BR-17).
+ * Đường nối các điểm dừng trên Kho Map 2D (docs 05 §4.5 bước 14): điểm gốc → điểm dừng theo `sequence`, toạ độ điểm
+ * đứng và đường đi vòng kệ / tường do BE tính (BE #410) — FE chỉ vẽ, không sắp lại thứ tự (BR-17). Điểm không có toạ
+ * độ bị bỏ khỏi đường (danh sách vẫn hiện), số thứ tự giữ nguyên để khớp danh sách. `next` = điểm đầu tiên còn thùng
+ * trên xe — chỉ gợi ý, không bắt buộc đi đúng thứ tự.
  */
 export function tripRoutePath(
-  trip: Pick<PutawayTrip, "stops" | "cartons" | "startLocationCode" | "startX" | "startY">,
+  trip: Pick<
+    PutawayTrip,
+    | "stops"
+    | "cartons"
+    | "startLocationCode"
+    | "startX"
+    | "startY"
+    | "originLocationCode"
+    | "originX"
+    | "originY"
+  >,
 ): TripRoutePath {
   const stops = stopsWithCartons(trip);
   const done = (stop: StopWithCartons) => stop.cartons.every((c) => c.status !== I.ON_CART);
   const next = stops.find((stop) => !done(stop));
   const start = { locationCode: trip.startLocationCode ?? null, x: trip.startX, y: trip.startY };
+  const origin = {
+    locationCode: trip.originLocationCode ?? null,
+    x: trip.originX,
+    y: trip.originY,
+  };
   return {
     start: hasPoint(start) ? start : null,
+    origin: hasPoint(origin) ? origin : null,
     stops: stops.filter(hasPoint).map((stop) => ({
       sequence: stop.sequence,
       locationCode: stop.locationCode,
       x: stop.x,
       y: stop.y,
       state: stop === next ? "next" : done(stop) ? "done" : "todo",
+      path: stop.path?.map(({ x, y }) => ({ x, y })) ?? null,
     })),
   };
 }
