@@ -14,6 +14,11 @@ const R = UI_LABELS.warehouseMap.route;
  * → 1 m: chấm ≈ 18px, số ≈ 11px ở khung 420px, đo 1440px) để số thứ tự đọc được ở zoom vừa khung.
  */
 const dotFor = (mapExtent: number) => Math.max(0.5, mapExtent / 60);
+/**
+ * Độ dày đường theo bán kính chấm. Đường đi BE chạy sát mặt kệ (điểm đứng cách kệ 0,5 m) nên phải mảnh: kho 90 m →
+ * viền trắng ~0,5 m, nét xanh ~0,27 m — dày hơn thì che mất chữ / ô bin của kệ cạnh lối.
+ */
+const LINE = { halo: 0.35, stroke: 0.18, dash: 0.8, gap: 0.5 } as const;
 
 const DOT_CLASS: Record<RouteStopState, { dot: string; text: string }> = {
   done: { dot: "fill-dot-positive stroke-bg-surface", text: "fill-ink-inverse" },
@@ -55,15 +60,15 @@ export function RouteOverlay({ path, mapExtent }: { path: RouteMapPath; mapExten
           <polyline
             points={points.join(" ")}
             className="stroke-bg-surface fill-none"
-            strokeWidth={dot * 0.9}
+            strokeWidth={dot * LINE.halo}
             strokeLinejoin="round"
             strokeLinecap="round"
           />
           <polyline
             points={points.join(" ")}
             className="stroke-dot-info fill-none"
-            strokeWidth={dot * 0.4}
-            strokeDasharray={`${dot * 1.1} ${dot * 0.6}`}
+            strokeWidth={dot * LINE.stroke}
+            strokeDasharray={`${dot * LINE.dash} ${dot * LINE.gap}`}
             strokeLinejoin="round"
             strokeLinecap="round"
           />
