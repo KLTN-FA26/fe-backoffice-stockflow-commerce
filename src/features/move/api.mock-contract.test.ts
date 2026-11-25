@@ -274,6 +274,14 @@ describe("bin suggestions (mock GET /inventory/stock-packages/bin-suggestions, B
     expect(shared?.reason).toBe("OTHER_SKU");
   });
 
+  it("more than 500 LPNs → 400 VALIDATION_FAILED, like BE MoveSuggestionService", async () => {
+    const many = Array.from({ length: 501 }, (_, index) => lpn(index + 1));
+    expect(await failureOf(getBinSuggestions(many))).toMatchObject({
+      status: 400,
+      code: "VALIDATION_FAILED",
+    });
+  });
+
   it("unknown LPN → 404 STOCK_PACKAGE_NOT_FOUND", async () => {
     expect(await failureOf(getBinSuggestions([lpn(1), "LPN-NOPE"]))).toMatchObject({
       status: 404,

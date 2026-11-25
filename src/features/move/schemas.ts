@@ -114,7 +114,7 @@ export const warehouseLayoutDto = z.object({
   areas: z.array(layoutPlaceDto),
 });
 
-// BE #412 (issue, chưa có code trên develop 2026-11-25; nghiệp vụ docs#46, docs 11 BR-10): bin nhận được MỌI thùng đang
+// BE `MoveSuggestionResponse` (#412, PR #450, develop c23a3eee; nghiệp vụ docs#46, docs 11 BR-10): bin nhận được MỌI thùng đang
 // chọn — vừa từng thùng theo kích thước (06 BR-01), đủ thể tích + tải cho cả nhóm. Thứ tự = thứ hạng của PutawayRanker
 // (05 §4.3), `reason` cùng tập với màn cất hàng. `freeVolumeM3` / `freeWeightKg` null = không giới hạn. `overflowAreas`
 // chỉ có khi không bin nào nhận (05 BR-13). Chỉ để tham khảo: không giữ chỗ, lệnh chuyển vẫn kiểm lại (11 BR-10).

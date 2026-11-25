@@ -10,7 +10,7 @@ export const MOVE_API = {
   carton: QUARANTINE_API.carton,
   cartons: STOCK_PACKAGE_API.list,
   layout: (warehouseId: string) => `/warehouses/${encodeURIComponent(warehouseId)}/layout`,
-  // BE #412 (issue, chưa có code trên develop 2026-11-25): `GET …/bin-suggestions?lpn=…&lpn=…`
+  // BE #412 (PR #450, develop c23a3eee): StockPackageController `GET …/bin-suggestions?lpn=…&lpn=…`
   // (inventory-stock-items:UPDATE) — bin nhận được mọi thùng đang chọn (docs 11 BR-10, docs#46).
   binSuggestions: `${STOCK_PACKAGE_API.list}/bin-suggestions`,
 } as const;

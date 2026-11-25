@@ -2,15 +2,16 @@
  * Mock `GET /inventory/stock-packages/bin-suggestions?lpn=…&lpn=…` — bin nhận được mọi thùng của một lệnh chuyển, chỉ
  * dùng khi USE_MOCK=true.
  *
- * Hợp đồng chép từ BE #412 (issue, CHƯA có code trên develop 2026-11-25; nghiệp vụ docs#46): `{ suggestions:
+ * Hợp đồng chép từ BE develop c23a3eee (#412, PR #450: StockPackageController#binSuggestions, MoveSuggestionService;
+ * nghiệp vụ docs#46): `{ suggestions:
  * [{locationCode, reason, freeVolumeM3, freeWeightKg}], overflowAreas }`. Dùng lại bộ xếp hạng mock của cất hàng
  * (`mock-putaway-store`, BE `PutawayRanker`, docs 05 §4.3) cho cả nhóm thùng:
  * - bỏ vị trí hiện tại của các thùng, bin không dùng được / không cho cất (BR-04);
  * - thể tích + tải còn trống phải đủ cho CẢ nhóm (tính cả chỗ chuyến cất hàng đang giữ, 05 BR-16);
  * - `SAME_LOT` / `SAME_SKU` chỉ khi mọi thùng đều đạt;
  * - không bin nào nhận → các khu OVERFLOW dùng được của kho (05 BR-13).
- * Lỗi: 404 STOCK_PACKAGE_NOT_FOUND, 409 MOVE_ACROSS_WAREHOUSES. Thùng không chuyển được (giữ, không IN_STOCK) KHÔNG bị
- * từ chối ở đây — lệnh chuyển từ chối nó.
+ * Lỗi: 400 VALIDATION_FAILED (0 hoặc > 500 LPN), 404 STOCK_PACKAGE_NOT_FOUND, 409 MOVE_ACROSS_WAREHOUSES. Thùng không
+ * chuyển được (giữ, không IN_STOCK) KHÔNG bị từ chối ở đây — lệnh chuyển từ chối nó.
  *
  * ASSUMPTION (mock): không có kích thước từng thùng (06 BR-01 "vừa theo từng chiều") — mọi thùng coi như cùng khối
  * `MOCK_CARTON_VOLUME_M3`; mock `POST /inventory/movements` cũng không kiểm CARTON_DOES_NOT_FIT_BIN, nên bin gợi ý
@@ -19,7 +20,7 @@
 
 import { PUTAWAY_SUGGESTION_REASONS } from "@/constants/putaway";
 
-import { MOVE_API } from "@/constants/move";
+import { MOVE_API, MOVE_LIMITS } from "@/constants/move";
 
 import { registerMockRoute } from "./mock-adapter";
 import { findMockCarton, mockWarehouseCodeOf } from "./mock-inventory-cartons";
@@ -104,7 +105,9 @@ async function binSuggestions(config: AxiosRequestConfig) {
   const { useAuthStore } = await import("@/lib/auth/auth-store");
   if (!useAuthStore.getState().user) return beError(401, "UNAUTHORIZED", "Authentication required");
   const lpns = lpnsOf(config);
-  if (lpns.length === 0) return beError(400, "VALIDATION_FAILED", "lpn needs at least one carton");
+  // BE MoveSuggestionService.MAX_CARTONS: 1..500 LPN, cùng giới hạn với lệnh chuyển.
+  if (lpns.length === 0 || lpns.length > MOVE_LIMITS.lpnsMax)
+    return beError(400, "VALIDATION_FAILED", "Between 1 and 500 LPNs");
   const cartons: MockCarton[] = [];
   for (const lpn of lpns) {
     const carton = await findMockCarton(lpn);
