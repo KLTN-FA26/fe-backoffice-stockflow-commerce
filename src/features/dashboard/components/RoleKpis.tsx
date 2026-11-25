@@ -1,26 +1,12 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { CalendarClock, CalendarX2, FileInput, Hourglass, MessagesSquare } from "lucide-react";
-
-import {
-  ADMIN_ROUTES,
-  CHAT_PERMISSIONS,
-  DESIGN_QUOTE_REQUEST_PERMISSIONS,
-  QUOTE_PERMISSIONS,
-} from "@/constants";
 import {
   DASHBOARD_LABELS,
   DASHBOARD_QUERY_KEYS,
-  ROLE_DASHBOARD_API,
   ROLE_DASHBOARD_LABELS as L,
   ROLE_DASHBOARD_LIMITS,
 } from "@/constants/dashboard";
-import {
-  PAYMENT_INSTALLMENT_PERMISSIONS,
-  PAYMENT_RECEIPT_PERMISSIONS,
-  PAYMENT_ROUTES,
-} from "@/constants/payment";
 
 import { QUERY_TIMES } from "@/lib/api/query-client";
 import { hasPermission, useMyPermissions } from "@/lib/auth";
@@ -28,86 +14,9 @@ import { hasPermission, useMyPermissions } from "@/lib/auth";
 import { StatCell, StatStrip } from "@/components/shared/StatStrip";
 
 import { fetchCounts, fetchExpiringQuotes } from "../role-api";
+import { ROLE_TILES } from "../role-tiles";
 
-import type { LucideIcon } from "lucide-react";
-import type { StatTone } from "@/components/shared/StatStrip";
-import type { PermissionCode } from "@/lib/auth";
-
-type CountSources = readonly { path: string; params: Readonly<Record<string, string>> }[];
-
-interface RoleTile {
-  key: string;
-  label: string;
-  icon: LucideIcon;
-  tone: StatTone;
-  /** Mọi mã phải có: quyền của endpoint + (nếu cần) quyền xác định vai trò. UI-only — BE kiểm lại. */
-  permissions: readonly PermissionCode[];
-  href: string;
-  kind: "count" | "expiring-quotes" | "unread-chats";
-  sources?: CountSources;
-}
-
-/**
- * Sale: yêu cầu báo giá mới (đơn lẻ + dự án, OPEN), báo giá sắp hết hạn, tin chat chưa đọc. Kế toán (người lập phiếu
- * thu): đợt đến hạn chưa thu (`owing=true`, BE-5), đợt quá hạn (`overdue=true`). Mỗi ô dẫn tới danh sách đã lọc đúng
- * tập nó đếm.
- */
-const ROLE_TILES: readonly RoleTile[] = [
-  {
-    key: "quote-requests",
-    label: L.newQuoteRequests,
-    icon: FileInput,
-    tone: "info",
-    permissions: [DESIGN_QUOTE_REQUEST_PERMISSIONS.read],
-    href: ADMIN_ROUTES.designQuoteRequests.list,
-    kind: "count",
-    sources: [
-      { path: ROLE_DASHBOARD_API.designQuoteRequests, params: { status: "OPEN" } },
-      { path: ROLE_DASHBOARD_API.projectQuoteRequests, params: { status: "OPEN" } },
-    ],
-  },
-  {
-    key: "expiring-quotes",
-    label: L.expiringQuotes,
-    icon: Hourglass,
-    tone: "warning",
-    permissions: [QUOTE_PERMISSIONS.read],
-    href: `${ADMIN_ROUTES.quotes.list}?status=SENT&sort=validUntil,asc`,
-    kind: "expiring-quotes",
-  },
-  {
-    key: "unread-chats",
-    label: L.unreadChats,
-    icon: MessagesSquare,
-    tone: "special",
-    permissions: [CHAT_PERMISSIONS.read],
-    href: ADMIN_ROUTES.chat.list,
-    kind: "unread-chats",
-  },
-  {
-    key: "installments-owing",
-    label: L.installmentsOwing,
-    icon: CalendarClock,
-    tone: "info",
-    // Sales cũng đọc được đợt; ô này là việc của người lập phiếu thu (Kế toán)
-    permissions: [PAYMENT_INSTALLMENT_PERMISSIONS.read, PAYMENT_RECEIPT_PERMISSIONS.create],
-    href: PAYMENT_ROUTES.installments.receivables,
-    kind: "count",
-    sources: [{ path: ROLE_DASHBOARD_API.installments, params: { owing: "true" } }],
-  },
-  {
-    key: "installments-overdue",
-    label: L.installmentsOverdue,
-    icon: CalendarX2,
-    tone: "danger",
-    permissions: [PAYMENT_INSTALLMENT_PERMISSIONS.read, PAYMENT_RECEIPT_PERMISSIONS.create],
-    href: PAYMENT_ROUTES.installments.overdue,
-    kind: "count",
-    sources: [
-      { path: ROLE_DASHBOARD_API.installments, params: { owing: "true", overdue: "true" } },
-    ],
-  },
-];
+import type { RoleTile } from "../role-tiles";
 
 function useTileValue(tile: RoleTile, unreadChats: number | undefined) {
   const count = useQuery({
@@ -161,6 +70,7 @@ const COLUMNS: Record<number, string> = {
   3: "grid-cols-1 sm:grid-cols-3",
   4: "grid-cols-2 xl:grid-cols-4",
   5: "grid-cols-2 md:grid-cols-3 xl:grid-cols-5",
+  6: "grid-cols-2 md:grid-cols-3 xl:grid-cols-6",
 };
 
 /**
@@ -177,7 +87,7 @@ export function RoleKpis({ unreadChats }: { unreadChats?: number }) {
   return (
     <section aria-label={L.title} className="mb-6">
       <h2 className="text-ink-primary mb-2 text-[0.9375rem] font-semibold">{L.title}</h2>
-      <StatStrip columns={COLUMNS[visible.length] ?? COLUMNS[5]}>
+      <StatStrip columns={COLUMNS[visible.length] ?? COLUMNS[6]}>
         {visible.map((tile) => (
           <RoleTileCell key={tile.key} tile={tile} unreadChats={unreadChats} />
         ))}

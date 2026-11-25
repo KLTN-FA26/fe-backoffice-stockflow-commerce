@@ -2,7 +2,12 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ADMIN_ROUTES, CREDIT_HOLD_PERMISSIONS } from "@/constants";
+import {
+  ADMIN_ROUTES,
+  CREDIT_HOLD_PERMISSIONS,
+  CREDIT_PROFILE_PERMISSIONS,
+  CUSTOMER_PERMISSIONS,
+} from "@/constants";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 
@@ -114,6 +119,34 @@ describe("Credit hold — danh sách (SCRUM-427)", () => {
     expect(screen.queryByRole("link", { name: apiOrder.orderNumber })).not.toBeInTheDocument();
     // E. không có link "Đơn hàng" ở header — ACCOUNTANT không vào được trang đơn
     expect(screen.queryByRole("link", { name: /Đơn hàng/ })).not.toBeInTheDocument();
+  });
+
+  it("AUTH-6: người duyệt hạn mức (xem khách + APPROVE hồ sơ công nợ) có lối tắt sửa hạn mức của khách", async () => {
+    // Kế toán đã xem được trang khách (BE V20261227000400) — chỉ thêm APPROVE hồ sơ công nợ
+    renderList([...ORDER_PERMISSION_SETS.accountant, CREDIT_PROFILE_PERMISSIONS.approve]);
+
+    expect(await screen.findByRole("link", { name: "Sửa hạn mức công nợ" })).toHaveAttribute(
+      "href",
+      ADMIN_ROUTES.customers.creditProfile(
+        apiOrder.customerId as string,
+        ADMIN_ROUTES.orders.creditHolds,
+      ),
+    );
+  });
+
+  it.each([
+    [
+      "thiếu quyền xem trang khách",
+      [
+        ...ORDER_PERMISSION_SETS.accountant.filter((code) => code !== CUSTOMER_PERMISSIONS.viewPage),
+        CREDIT_PROFILE_PERMISSIONS.approve,
+      ],
+    ],
+    ["thiếu APPROVE hồ sơ công nợ", ORDER_PERMISSION_SETS.accountant],
+  ])("AUTH-6: %s → không có lối tắt", async (_case, permissions) => {
+    renderList(permissions);
+    await screen.findByText(apiOrder.orderNumber);
+    expect(screen.queryByRole("link", { name: "Sửa hạn mức công nợ" })).not.toBeInTheDocument();
   });
 
   it("ORDER_COORDINATOR / SALES_STAFF chỉ xem — không có nút duyệt, mã đơn là link", async () => {

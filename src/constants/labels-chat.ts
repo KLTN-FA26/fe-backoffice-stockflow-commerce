@@ -213,6 +213,16 @@ export const CHAT_CARD_ACTED_LABELS: Readonly<Record<string, string>> = {
   CSAT_SURVEY: "Khách đã đánh giá",
 };
 
+/**
+ * FE-9: thẻ báo giá ở trạng thái ACTED có ba kết cục (BE `DocumentCards`: ACCEPTED, CHANGES_REQUESTED, CONVERTED) — đọc
+ * theo `payload.status`. ACCEPTED (và trạng thái lạ) giữ nhãn chung "Khách đã chấp nhận" của `CHAT_CARD_ACTED_LABELS`.
+ * `toneKey` là khoá status-map: khách yêu cầu sửa là việc Sale phải làm tiếp (tone cảnh báo).
+ */
+export const CHAT_QUOTE_ACTED_VIEW: Readonly<Record<string, { label: string; toneKey: string }>> = {
+  CHANGES_REQUESTED: { label: "Khách yêu cầu sửa", toneKey: "Waiting on Internal" },
+  CONVERTED: { label: "Đã lên đơn", toneKey: "Converted" },
+};
+
 /** BO-UX-45: thẻ chuyển khoản — cùng các trường ở hộp xem trước và ở thẻ trong hội thoại. */
 export const CHAT_TRANSFER_LABELS = {
   bank: "Ngân hàng",

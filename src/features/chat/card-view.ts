@@ -9,8 +9,11 @@ import {
   CHAT_CARD_LABELS,
   CHAT_CARD_STATE_LABELS,
   CHAT_CARD_STATE_TONE_KEY,
+  CHAT_QUOTE_ACTED_VIEW,
   CHAT_UNKNOWN_LABELS,
 } from "@/constants";
+import { FEE_ITEM_NAME_LABELS, INSTALLMENT_MILESTONE_LABELS } from "@/constants/labels-payment";
+import { FEE_INSTALLMENT_SEQ } from "@/constants/payment";
 
 import { payloadNumber, payloadText } from "./selectors";
 
@@ -20,11 +23,18 @@ export function cardKindLabel(kind: string): string {
   return CHAT_CARD_LABELS[kind] ?? CHAT_UNKNOWN_LABELS.card;
 }
 
-/** The card's state for a StatusDot: the kind's own word for "acted on" (accepted, signed, paid…), else the state's. */
-export function cardStateView(card: Pick<ChatCard, "kind" | "state">): {
+/**
+ * The card's state for a StatusDot: the kind's own word for "acted on" (accepted, signed, paid…), else the state's. An
+ * acted quote card reads its outcome from `payload.status` (FE-9): changes requested or turned into an order.
+ */
+export function cardStateView(card: Pick<ChatCard, "kind" | "state" | "payload">): {
   label: string;
   toneKey: string;
 } {
+  const quoteStatus = card.kind === "QUOTE" && card.state === "ACTED" ? card.payload?.status : null;
+  const quoteView =
+    typeof quoteStatus === "string" ? CHAT_QUOTE_ACTED_VIEW[quoteStatus] : undefined;
+  if (quoteView) return quoteView;
   const label =
     (card.state === "ACTED" ? CHAT_CARD_ACTED_LABELS[card.kind] : undefined) ??
     CHAT_CARD_STATE_LABELS[card.state] ??
@@ -46,14 +56,26 @@ export interface TransferView {
   vietQr: string | null;
 }
 
+/**
+ * FE-7: a fee item (seq 21–40, BE `Installment.FIRST_FEE_SEQ`..`LAST_FEE_SEQ`) is not a step of the plan, so it is never
+ * "đợt 21" - only its name, the BE's English fee name in Vietnamese. The card carries no milestone, so the seq decides.
+ */
+const isFeeSeq = (seq: number | null) =>
+  seq != null && seq >= FEE_INSTALLMENT_SEQ.first && seq <= FEE_INSTALLMENT_SEQ.last;
+
 const installmentTitle = (
   number: string | null | undefined,
   seq: number | null,
-  name: string | null | undefined,
-) =>
-  [number, seq != null ? `đợt ${seq}${name ? ` ${name}` : ""}` : name]
-    .filter(Boolean)
-    .join(" — ") || null;
+  rawName: string | null | undefined,
+) => {
+  const name = rawName ? (FEE_ITEM_NAME_LABELS[rawName.trim()] ?? rawName) : rawName;
+  const part = isFeeSeq(seq)
+    ? (name ?? INSTALLMENT_MILESTONE_LABELS.CANCELLATION_FEE)
+    : seq != null
+      ? `đợt ${seq}${name ? ` ${name}` : ""}`
+      : name;
+  return [number, part].filter(Boolean).join(" — ") || null;
+};
 
 function bankField(card: ChatCard, key: string): string | null {
   const bank = card.payload?.bank;

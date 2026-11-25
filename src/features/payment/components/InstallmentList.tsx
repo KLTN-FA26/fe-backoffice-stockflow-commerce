@@ -18,6 +18,7 @@ import { TOOLBAR_ACTION_CLASS } from "@/components/shared/ListToolbar";
 import { Button } from "@/components/ui/button";
 
 import { allowedInstallmentActions } from "../lifecycle";
+import { installmentRef } from "../selectors";
 
 import { INSTALLMENT_COPY } from "./copy";
 import {
@@ -53,7 +54,7 @@ function InstallmentListContent() {
         variant="outline"
         className={TOOLBAR_ACTION_CLASS}
         // Tên truy cập mang hợp đồng + đợt: mỗi dòng một nút "Lập phiếu thu" phân biệt được (BO-UX-11)
-        aria-label={`${PAYMENT_LABELS.receipts.createAction} — ${row.contractNumber} đợt ${row.seq}`}
+        aria-label={`${PAYMENT_LABELS.receipts.createAction} — ${row.contractNumber} ${installmentRef(row)}`}
         onClick={(event) => {
           event.stopPropagation();
           setRecording(row);

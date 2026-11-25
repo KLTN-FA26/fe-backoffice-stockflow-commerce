@@ -18,11 +18,19 @@ import {
   saveLegalProfile,
   updateCustomer,
 } from "./api";
+import { saveCreditProfile } from "./credit-profile-api";
 import { customerErrorMessage } from "./errors";
 import { customerKeys } from "./queries";
 
 import type { ChangeCustomerStatusInput, SaveLegalProfileInput, UpdateCustomerInput } from "./api";
-import type { Customer, CustomerCreateValues, InvitedCustomer, LegalProfile } from "./types";
+import type { SaveCreditProfileInput } from "./credit-profile-api";
+import type {
+  CreditProfile,
+  Customer,
+  CustomerCreateValues,
+  InvitedCustomer,
+  LegalProfile,
+} from "./types";
 
 /**
  * Khách + bản tra cứu khách dùng ở báo giá / mẫu / LSX (`references/customers`: tên, ô chọn khách
@@ -76,6 +84,20 @@ export const useSaveLegalProfile = withStaleRefetch(
   createMutation<SaveLegalProfileInput, LegalProfile>(saveLegalProfile, {
     invalidate: [customerKeys.all],
     successMessage: "Đã lưu thông tin pháp lý.",
+    showErrorToast: false,
+  }),
+  [customerKeys.all],
+);
+
+/**
+ * Cấp / sửa hạn mức công nợ (AUTH-6). Làm mới `customerKeys.all` (thẻ hạn mức) và `customerRefKeys.all` (bản tra
+ * cứu khách có điều khoản tín dụng). Bảng công nợ ở hàng đợi duyệt (`features/order`) tự tải lại khi mở hộp duyệt.
+ * `OPTIMISTIC_LOCK`: người khác vừa sửa → tải lại, hộp thoại báo bản cũ.
+ */
+export const useSaveCreditProfile = withStaleRefetch(
+  createMutation<SaveCreditProfileInput, CreditProfile>(saveCreditProfile, {
+    invalidate: CUSTOMER_DATA,
+    successMessage: "Đã lưu hạn mức công nợ.",
     showErrorToast: false,
   }),
   [customerKeys.all],

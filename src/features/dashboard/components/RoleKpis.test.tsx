@@ -4,6 +4,7 @@ import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { ROLE_DASHBOARD_LABELS as L } from "@/constants/dashboard";
+import { UI_LABELS } from "@/constants/labels";
 
 import {
   countPage,
@@ -107,6 +108,31 @@ describe("Việc của bạn — bảng điều khiển theo vai trò (L-12)", (
     );
     expect(seen.every((params) => params.get("owing") === "true")).toBe(true);
     expect(screen.queryByText(L.newQuoteRequests)).not.toBeInTheDocument();
+  });
+
+  it("FLOW-1: Kế toán (duyệt công nợ) thấy số đơn chờ duyệt công nợ, dẫn tới hàng đợi", async () => {
+    const seen: URLSearchParams[] = [];
+    server.use(
+      dashboardPermissions(["sales-order-credit-holds:READ", "sales-order-credit-holds:APPROVE"]),
+      http.get(dashboardEndpoint("/orders/credit-holds"), ({ request }) => {
+        seen.push(new URL(request.url).searchParams);
+        return countPage(3);
+      }),
+    );
+    renderDashboard(<RoleKpis />);
+    await waitFor(() => expect(within(tile(L.creditHolds)).getByText("3")).toBeInTheDocument());
+    expect(tile(L.creditHolds)).toHaveAttribute("href", "/admin/orders/credit-holds");
+    // The tile is named like the queue page it opens.
+    expect(L.creditHolds).toBe(UI_LABELS.order.creditHoldsTitle);
+    expect(seen[0]?.get("size")).toBe("1");
+  });
+
+  it("FLOW-1: chỉ xem hàng đợi (READ, không APPROVE) → không có ô đơn chờ duyệt", async () => {
+    server.use(dashboardPermissions(["sales-order-credit-holds:READ", "sales-quotes:READ"]));
+    server.use(http.get(dashboardEndpoint("/quotes"), () => quotesPage([])));
+    renderDashboard(<RoleKpis />);
+    expect(await screen.findByText(L.expiringQuotes)).toBeInTheDocument();
+    expect(screen.queryByText(L.creditHolds)).not.toBeInTheDocument();
   });
 
   it("không quyền nào → không hiện hàng 'Việc của bạn'", async () => {

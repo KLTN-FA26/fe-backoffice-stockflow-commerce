@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { AlertTriangle, CalendarX2 } from "lucide-react";
 
-import { ADMIN_ROUTES } from "@/constants";
+import { ADMIN_ROUTES, ORDER_PERMISSIONS } from "@/constants";
 import { PAYMENT_LABELS, PAYMENT_LIST_LABELS } from "@/constants/labels-payment";
 import { PAYMENT_ROUTES } from "@/constants/payment";
 import { CustomerName } from "@/components/backoffice/CustomerName";
@@ -13,11 +13,15 @@ import {
   daysOverdue,
   deliveryBatchLabel,
   installmentMilestoneLabel,
-  installmentName,
 } from "../selectors";
 
-import { MONO } from "./copy";
-import { CodeLink, DateCell, InstallmentStatusDot, MoneyCell } from "./primitives";
+import {
+  CodeLink,
+  DateCell,
+  InstallmentLabel,
+  InstallmentStatusDot,
+  MoneyCell,
+} from "./primitives";
 
 import type { ColumnDef } from "@/components/shared/DataTable";
 import type { Installment } from "../types";
@@ -107,11 +111,11 @@ export function buildInstallmentColumns(
             href={PAYMENT_ROUTES.installments.detail(row.installmentId)}
             className="text-accent-text font-medium hover:underline"
           >
-            <span className={MONO}>{row.seq}</span> — {installmentName(row.name)}
+            <InstallmentLabel installment={row} />
           </Link>
         ) : (
           <span className="text-ink-primary">
-            <span className={MONO}>{row.seq}</span> — {installmentName(row.name)}
+            <InstallmentLabel installment={row} />
           </span>
         ),
     },
@@ -155,8 +159,14 @@ export function buildInstallmentColumns(
     {
       key: "order",
       header: C.order,
+      // AUTH-8: người xem không mở được trang đơn thì số đơn chỉ là chữ
       cell: (row) => (
-        <CodeLink href={ADMIN_ROUTES.orders.detail(row.orderId)}>{row.orderNumber}</CodeLink>
+        <CodeLink
+          href={ADMIN_ROUTES.orders.detail(row.orderId)}
+          permission={ORDER_PERMISSIONS.viewPage}
+        >
+          {row.orderNumber}
+        </CodeLink>
       ),
     },
     { key: "milestone", header: C.milestone, cell: (row) => installmentMilestoneLabel(row) },

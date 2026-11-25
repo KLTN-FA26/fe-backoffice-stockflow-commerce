@@ -3,6 +3,7 @@
  * form và luôn ghi rõ "tạm tính"; số chốt luôn đọc lại từ `proposed` / `accepted` của BE.
  */
 
+import type { CustomerApiStatus } from "@/constants";
 import type { Quote, QuoteLine, QuoteTier, QuoteTotals, QuoteTransition } from "./types";
 
 /**
@@ -11,6 +12,23 @@ import type { Quote, QuoteLine, QuoteTier, QuoteTotals, QuoteTransition } from "
  */
 export function hasDiscontinuedLine(quote: Pick<Quote, "lines">): boolean {
   return quote.lines.some((line) => !!line.purchasability && line.purchasability !== "PURCHASABLE");
+}
+
+/**
+ * BE `QuoteService.cancel`: an ACCEPTED quote may be cancelled when it is legacy (drafted on blanks / designs before
+ * 4B-2: it can never be converted, QD-16), OR a SKU on it can no longer be bought (BE-14), OR the customer is no longer
+ * ACTIVE (LC-2). `customerStatus` is null when the viewer cannot read the customer — then the customer rule is skipped.
+ * UI-only, Backend phải re-check (QuoteService cancel).
+ */
+export function canCancelAcceptedQuote(
+  quote: Pick<Quote, "lines"> & Partial<Pick<Quote, "legacy">>,
+  customerStatus: CustomerApiStatus | null | undefined,
+): boolean {
+  return (
+    !!quote.legacy ||
+    hasDiscontinuedLine(quote) ||
+    (!!customerStatus && customerStatus !== "ACTIVE")
+  );
 }
 
 /**

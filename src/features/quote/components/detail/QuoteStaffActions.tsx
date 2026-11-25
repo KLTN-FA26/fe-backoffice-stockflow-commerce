@@ -4,12 +4,13 @@ import { useState } from "react";
 import Link from "next/link";
 import { FileOutput, LoaderCircle, Pencil, Send, XCircle } from "lucide-react";
 
-import { ADMIN_ROUTES } from "@/constants";
+import { ADMIN_ROUTES, CUSTOMER_PERMISSIONS } from "@/constants";
 import { usePermissionChecker } from "@/lib/auth/components/Can";
+import { useCustomerRef } from "@/lib/references/customer-lookup";
 import { quoteErrorMessage } from "@/features/quote/errors";
 import { allowedStaffQuoteActions } from "@/features/quote/lifecycle";
 import { useReviseQuote } from "@/features/quote/mutations";
-import { hasDiscontinuedLine, sendBlockReason } from "@/features/quote/selectors";
+import { canCancelAcceptedQuote, sendBlockReason } from "@/features/quote/selectors";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { DETAIL_ACTION_CLASS } from "@/components/shared/DetailSection";
 import { toast } from "@/components/shared/Toast";
@@ -26,18 +27,26 @@ type Dialog = "send" | "cancel" | "revise" | "convert" | null;
 
 /**
  * Nút back-office theo lifecycle (allowedStaffQuoteActions, plan WF-02 A4):
- * DRAFT → Sửa / Gửi khách / Huỷ; CHANGES_REQUESTED → Mở bản sửa; ACCEPTED → Tạo đơn (Huỷ chỉ khi có dòng SKU ngừng bán, BE-14).
+ * DRAFT → Sửa / Gửi khách / Huỷ; CHANGES_REQUESTED → Mở bản sửa; ACCEPTED → Tạo đơn (Huỷ chỉ khi là báo giá cũ — QD-16 —
+ * có dòng SKU ngừng bán — BE-14 — hoặc khách không còn ACTIVE — LC-2; trạng thái khách đọc chung query với tên khách, cần
+ * `customer-customers:READ`). Báo giá cũ đã chấp nhận chỉ còn nút Huỷ.
  * Tải PDF luôn có cho người đọc được báo giá. Nút xếp dọc trong thẻ trạng thái cột phải (như thẻ hành động sản phẩm).
  */
 export function QuoteStaffActions({ quote }: { quote: Quote }) {
   const can = usePermissionChecker();
   const [dialog, setDialog] = useState<Dialog>(null);
   const revise = useReviseQuote();
+  // Cùng query key với <CustomerName> trên trang → không gọi thêm API. Không đọc được khách → chỉ còn luật SKU.
+  // UI-only, Backend phải re-check (BE kiểm lại điều kiện huỷ).
+  const customer = useCustomerRef(
+    quote.customerId,
+    quote.status === "ACCEPTED" && can(CUSTOMER_PERMISSIONS.read),
+  );
   const actions = allowedStaffQuoteActions(
     quote.status,
     can,
     quote.legacy,
-    hasDiscontinuedLine(quote),
+    canCancelAcceptedQuote(quote, customer.data?.status),
   );
   const onError = (error: unknown) => toast.error(quoteErrorMessage(error));
   const close = () => setDialog(null);
@@ -98,7 +107,7 @@ export function QuoteStaffActions({ quote }: { quote: Quote }) {
           onClick={() => setDialog("cancel")}
         >
           <XCircle className="size-3.5" />
-          {quote.status === "ACCEPTED" ? "Huỷ (SKU ngừng bán)" : "Huỷ báo giá"}
+          {quote.status === "ACCEPTED" ? "Huỷ báo giá đã chấp nhận" : "Huỷ báo giá"}
         </Button>
       )}
 

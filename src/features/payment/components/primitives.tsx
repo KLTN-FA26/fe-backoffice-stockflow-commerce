@@ -10,17 +10,22 @@ import {
 } from "@/constants/payment";
 import { formatMoney } from "@/lib/format";
 import { formatDate } from "@/lib/format/date";
+import { PermittedLink } from "@/components/backoffice/PermittedLink";
 import { StatusDot } from "@/components/shared/StatusDot";
+
+import { installmentName, isFeeInstallment } from "../selectors";
 
 import { MONO } from "./copy";
 
 import type { ReactNode } from "react";
+import type { PermissionCode } from "@/lib/auth";
 import type {
   InstallmentDisplayStatus,
   OrderPaymentReadStatus,
   ReceiptReadStatus,
   RefundReadStatus,
 } from "@/constants/payment";
+import type { Installment } from "../types";
 
 const EMPTY = PAYMENT_LABELS.empty;
 
@@ -62,15 +67,47 @@ export function RefundStateDot({ status }: { status: RefundReadStatus }) {
   );
 }
 
-export function CodeLink({ href, children }: { href: string; children: ReactNode }) {
+const CODE_LINK_CLASS = `text-accent-text font-medium hover:underline ${MONO}`;
+
+/**
+ * Mã chứng từ dẫn tới trang chi tiết. Có `permission` (VIEW_PAGE của trang đích, AUTH-8) mà người xem thiếu thì chỉ
+ * hiện mã dạng chữ — UI-only, Backend phải re-check.
+ */
+export function CodeLink({
+  href,
+  permission,
+  children,
+}: {
+  href: string;
+  permission?: PermissionCode;
+  children: ReactNode;
+}) {
+  if (permission)
+    return (
+      <PermittedLink
+        permission={permission}
+        href={href}
+        className={CODE_LINK_CLASS}
+        plainClassName={MONO}
+        onClick={(event) => event.stopPropagation()}
+      >
+        {children}
+      </PermittedLink>
+    );
   return (
-    <Link
-      href={href}
-      className={`text-accent-text font-medium hover:underline ${MONO}`}
-      onClick={(event) => event.stopPropagation()}
-    >
+    <Link href={href} className={CODE_LINK_CLASS} onClick={(event) => event.stopPropagation()}>
       {children}
     </Link>
+  );
+}
+
+/** Đợt trong bảng: "4 — Đặt cọc"; khoản phí (seq 21–40) không mang số đợt — chỉ tên khoản phí (FE-7). */
+export function InstallmentLabel({ installment: i }: { installment: Installment }) {
+  if (isFeeInstallment(i)) return <>{installmentName(i.name)}</>;
+  return (
+    <>
+      <span className={MONO}>{i.seq}</span> — {installmentName(i.name)}
+    </>
   );
 }
 

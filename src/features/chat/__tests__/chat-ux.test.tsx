@@ -259,6 +259,25 @@ describe("BO-UX-45 — transfer details, previewed and shown to the staff", () =
     expect(view).toMatchObject({ bankName: null, accountNumber: null, vietQr: null });
     expect(view.amount).toBe(15_000_000);
   });
+
+  it("FE-7: a fee item (seq 21+) reads by its Vietnamese name, never as 'đợt 21'", () => {
+    const view = transferViewFromCard(
+      chatCardSchema.parse({
+        kind: "PAYMENT_REMINDER",
+        state: "OPEN",
+        payload: { ...transferPayload, seq: 21, name: "Cancellation fee" },
+      }),
+    );
+    expect(view.title).toBe("HD-DEMO-0001-1 — Phí huỷ đơn");
+    const unnamed = transferViewFromCard(
+      chatCardSchema.parse({
+        kind: "PAYMENT_REMINDER",
+        state: "OPEN",
+        payload: { ...transferPayload, seq: 22, name: null },
+      }),
+    );
+    expect(unnamed.title).toBe("HD-DEMO-0001-1 — Phí huỷ đơn / đóng phần còn lại");
+  });
 });
 
 describe("BO-UX-48 / BO-UX-6 — card state as a status dot, no raw codes", () => {
@@ -297,6 +316,38 @@ describe("BO-UX-48 / BO-UX-6 — card state as a status dot, no raw codes", () =
     expect(cardStateView({ kind: "INVOICE", state: "SUPERSEDED" }).label).toBe(
       "Đã thay bằng bản mới",
     );
+  });
+
+  it.each([
+    ["CHANGES_REQUESTED", "Khách yêu cầu sửa", "Waiting on Internal"],
+    ["CONVERTED", "Đã lên đơn", "Converted"],
+    ["ACCEPTED", "Khách đã chấp nhận", "Completed"],
+    [undefined, "Khách đã chấp nhận", "Completed"],
+  ])("FE-9: an acted quote card with status %s reads '%s'", (status, label, toneKey) => {
+    const card = chatCardSchema.parse({
+      kind: "QUOTE",
+      state: "ACTED",
+      payload: { quoteId: "q-1", number: "QT-1", status },
+    });
+    expect(cardStateView(card)).toEqual({ label, toneKey });
+  });
+
+  it("FE-9: a quote request card is not read by the quote's status", () => {
+    const card = chatCardSchema.parse({
+      kind: "QUOTE_REQUEST",
+      state: "ACTED",
+      payload: { status: "CHANGES_REQUESTED" },
+    });
+    expect(cardStateView(card).label).toBe("Đã lập báo giá");
+  });
+
+  it("FE-9: the conversation shows 'Khách yêu cầu sửa' with a warning dot", async () => {
+    renderConversation([
+      card("QUOTE", "ACTED", { quoteId: "q-1", number: "QT-1", status: "CHANGES_REQUESTED" }, 14),
+    ]);
+    const state = await screen.findByText("Khách yêu cầu sửa");
+    // The dot is decorative (no role); its tone class is the only handle on the colour.
+    expect(state.querySelector(".bg-dot-warning")).not.toBeNull();
   });
 
   it("a quote request with an unknown design status shows a neutral label", async () => {

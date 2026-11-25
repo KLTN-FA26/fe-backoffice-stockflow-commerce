@@ -68,6 +68,7 @@ export const ROLE_DASHBOARD_API = {
   projectQuoteRequests: "/design-project-quote-requests",
   quotes: "/quotes",
   installments: "/installments",
+  creditHolds: "/orders/credit-holds",
 } as const;
 
 export const ROLE_DASHBOARD_LIMITS = {
@@ -85,4 +86,5 @@ export const ROLE_DASHBOARD_LABELS = {
   unreadChats: "Tin chat chưa đọc",
   installmentsOwing: "Đợt đến hạn chưa thu",
   installmentsOverdue: "Đợt quá hạn",
+  creditHolds: "Đơn chờ duyệt công nợ",
 } as const;

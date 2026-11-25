@@ -1,10 +1,15 @@
 "use client";
 
-import Link from "next/link";
-
-import { ADMIN_ROUTES, QUOTE_STATUS_LABELS, SALES_CONTRACT_STATUS_LABELS } from "@/constants";
+import {
+  ADMIN_ROUTES,
+  ORDER_PERMISSIONS,
+  QUOTE_PERMISSIONS,
+  QUOTE_STATUS_LABELS,
+  SALES_CONTRACT_STATUS_LABELS,
+} from "@/constants";
 import { formatDate } from "@/lib/format/date";
 import { formatMoney } from "@/lib/format/money";
+import { PermittedLink } from "@/components/backoffice/PermittedLink";
 
 import { isTransferCard, transferViewFromCard } from "../card-view";
 import { payloadNumber, payloadText } from "../selectors";
@@ -18,13 +23,17 @@ const LINK = "text-accent-text hover:underline";
 const label = (labels: Readonly<Record<string, string>>, status: string | null) =>
   status ? labels[status] : undefined;
 
-/** Báo giá: số, tổng, trạng thái của báo giá, hiệu lực đến (BO-UX-48); đã lên đơn thì có link tới đơn. */
+/**
+ * Báo giá: số, tổng, trạng thái của báo giá, hiệu lực đến (BO-UX-48); đã lên đơn thì có link tới đơn. Link chỉ hiện khi
+ * mở được trang đích (VIEW_PAGE, AUTH-8); số chứng từ đã in trên thẻ nên thiếu quyền thì bỏ chữ "Mở …".
+ */
 function QuoteBody({ card }: { card: ChatCard }) {
   const quoteId = payloadText(card, "quoteId") ?? payloadText(card, "id");
   const total = payloadNumber(card, "acceptedTotal") ?? payloadNumber(card, "proposedTotal");
   const validUntil = payloadText(card, "validUntil");
   const status = label(QUOTE_STATUS_LABELS, payloadText(card, "status"));
   const orderId = payloadText(card, "convertedOrderId");
+  const orderNumber = payloadText(card, "convertedOrderNumber");
   return (
     <div className="space-y-1">
       {payloadText(card, "number") && (
@@ -44,14 +53,26 @@ function QuoteBody({ card }: { card: ChatCard }) {
       )}
       <div className="flex flex-wrap gap-x-3">
         {quoteId && (
-          <Link href={ADMIN_ROUTES.quotes.detail(quoteId)} className={LINK}>
+          <PermittedLink
+            permission={QUOTE_PERMISSIONS.viewPage}
+            href={ADMIN_ROUTES.quotes.detail(quoteId)}
+            className={LINK}
+            fallback={null}
+          >
             Mở báo giá
-          </Link>
+          </PermittedLink>
         )}
         {orderId && (
-          <Link href={ADMIN_ROUTES.orders.detail(orderId)} className={LINK}>
-            Mở đơn {payloadText(card, "convertedOrderNumber") ?? ""}
-          </Link>
+          <PermittedLink
+            permission={ORDER_PERMISSIONS.viewPage}
+            href={ADMIN_ROUTES.orders.detail(orderId)}
+            className={LINK}
+            fallback={
+              orderNumber && <span className="text-ink-secondary">Đã lên đơn {orderNumber}</span>
+            }
+          >
+            Mở đơn {orderNumber ?? ""}
+          </PermittedLink>
         )}
       </div>
     </div>
@@ -75,9 +96,14 @@ function ContractBody({ card }: { card: ChatCard }) {
       )}
       {status && <div className="text-ink-secondary">{status}</div>}
       {orderId && (
-        <Link href={ADMIN_ROUTES.orders.contract(orderId)} className={LINK}>
+        <PermittedLink
+          permission={ORDER_PERMISSIONS.viewPage}
+          href={ADMIN_ROUTES.orders.contract(orderId)}
+          className={LINK}
+          fallback={null}
+        >
           Mở hợp đồng
-        </Link>
+        </PermittedLink>
       )}
     </div>
   );
@@ -98,9 +124,14 @@ function OtherBody({ card }: { card: ChatCard }) {
         </div>
       )}
       {orderId && (
-        <Link href={ADMIN_ROUTES.orders.detail(orderId)} className={LINK}>
+        <PermittedLink
+          permission={ORDER_PERMISSIONS.viewPage}
+          href={ADMIN_ROUTES.orders.detail(orderId)}
+          className={LINK}
+          fallback={null}
+        >
           Mở đơn
-        </Link>
+        </PermittedLink>
       )}
     </div>
   );

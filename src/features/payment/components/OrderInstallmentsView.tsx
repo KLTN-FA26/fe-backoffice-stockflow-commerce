@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 
 import { allowedInstallmentActions } from "../lifecycle";
 import { useOrderInstallments } from "../queries";
+import { installmentRef } from "../selectors";
 
 import { ORDER_INSTALLMENTS_COPY } from "./copy";
 import { buildInstallmentColumns } from "./installment-columns";
@@ -69,7 +70,7 @@ function OrderInstallmentsContent({ orderId }: { orderId: string }) {
           type="button"
           size="xs"
           variant="outline"
-          aria-label={`${PAYMENT_LABELS.receipts.createAction} — đợt ${row.seq}`}
+          aria-label={`${PAYMENT_LABELS.receipts.createAction} — ${installmentRef(row)}`}
           onClick={() => setRecording(row)}
         >
           <ReceiptText className="size-3.5" aria-hidden="true" />{" "}

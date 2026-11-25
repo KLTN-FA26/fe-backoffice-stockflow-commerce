@@ -13,7 +13,13 @@ import {
   refundJson,
   renderPaymentScreen,
 } from "../__fixtures__/screen";
-import { installmentMilestoneLabel, installmentName, installmentTitle } from "../selectors";
+import {
+  installmentMilestoneLabel,
+  installmentName,
+  installmentRef,
+  installmentTitle,
+  isFeeInstallment,
+} from "../selectors";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
@@ -96,5 +102,26 @@ describe("LM-3: the fee item is named for what it is", () => {
     expect(
       installmentMilestoneLabel({ milestone: "BEFORE_DELIVERY", name: "Cancellation fee" }),
     ).toBe("Trước khi giao");
+  });
+});
+
+describe("FE-7 — a fee item is named, not numbered as an installment", () => {
+  it("CANCELLATION_FEE / FAILED_TRIP_FEE are fee items; plan milestones are not", () => {
+    expect(isFeeInstallment({ milestone: "CANCELLATION_FEE" })).toBe(true);
+    expect(isFeeInstallment({ milestone: "FAILED_TRIP_FEE" })).toBe(true);
+    expect(isFeeInstallment({ milestone: "BEFORE_DELIVERY" })).toBe(false);
+    expect(isFeeInstallment({ milestone: null })).toBe(false);
+  });
+
+  it("title and reference drop 'Đợt 21' for a fee, keep it for a plan step", () => {
+    const fee = { seq: 21, name: "Cancellation fee", milestone: "CANCELLATION_FEE" } as const;
+    expect(installmentTitle(fee)).toBe("Phí huỷ đơn");
+    expect(installmentRef(fee)).toBe("Phí huỷ đơn");
+    expect(installmentTitle({ seq: 22, name: null, milestone: "CANCELLATION_FEE" })).toBe(
+      "Phí huỷ đơn / đóng phần còn lại",
+    );
+    const step = { seq: 2, name: "Trước giao hàng", milestone: "BEFORE_DELIVERY" } as const;
+    expect(installmentTitle(step)).toBe("Đợt 2 — Trước giao hàng");
+    expect(installmentRef(step)).toBe("đợt 2");
   });
 });

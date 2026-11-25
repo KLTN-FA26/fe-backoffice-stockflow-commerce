@@ -37,7 +37,11 @@ export function QuoteNotices({ quote }: { quote: Quote }) {
   return (
     <>
       {quote.legacy && (
-        <Notice tone="info">Báo giá cũ trước khi chuyển sang báo giá theo thùng — chỉ xem.</Notice>
+        <Notice tone="info">
+          {quote.status === "ACCEPTED"
+            ? "Báo giá cũ trước khi chuyển sang báo giá theo thùng — không tạo đơn được. Khách vẫn muốn mua: huỷ báo giá này rồi lập báo giá mới."
+            : "Báo giá cũ trước khi chuyển sang báo giá theo thùng — chỉ xem."}
+        </Notice>
       )}
       {quote.status === "CHANGES_REQUESTED" && quote.customerFeedback && (
         <Notice tone="warning">

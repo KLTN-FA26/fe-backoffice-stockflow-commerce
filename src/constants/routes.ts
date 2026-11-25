@@ -52,6 +52,12 @@ export const ADMIN_ROUTES = {
     legalProfile: (id: string, returnTo?: string) =>
       `${ADMIN_BASE}/customers/${id}?legalProfile=edit${returnTo ? `&returnTo=${encodeURIComponent(returnTo)}` : ""}#legal-profile`,
     list: `${ADMIN_BASE}/customers`,
+    /**
+     * Mở thẳng hộp cấp / sửa hạn mức công nợ (AUTH-6). `creditReturnTo` (đường dẫn admin, ví dụ hàng đợi duyệt công
+     * nợ) cho link quay lại; tên riêng để không bật câu "đến từ hợp đồng" của thẻ pháp lý.
+     */
+    creditProfile: (id: string, returnTo?: string) =>
+      `${ADMIN_BASE}/customers/${id}?creditProfile=edit${returnTo ? `&creditReturnTo=${encodeURIComponent(returnTo)}` : ""}#credit-profile`,
   },
   /** Hộp thư chat của Sale (WF-02 pha E2). */
   chat: {

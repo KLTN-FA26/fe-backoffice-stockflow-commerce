@@ -43,6 +43,8 @@ export const ROLE_PERMISSIONS = {
     "production-orders:VIEW_PAGE",
     "production-orders:READ",
     "production-qc-results:READ",
+    // Baseline V20261111000000: Sale mở được trang đơn (link số đơn trong chat, AUTH-8)
+    "sales-orders:VIEW_PAGE",
     "sales-orders:READ",
     // V20261017000800 (PR #109): nộp mẫu vào kho thật + chọn thiết kế đã xác nhận của khách.
     "warehouse-warehouses:READ",
@@ -62,12 +64,15 @@ export const ROLE_PERMISSIONS = {
     "design-quote-requests:UPDATE",
   ],
   // V20261111000000 (baseline) + V20261213000200: yêu cầu báo giá, xem khách; đọc thiết kế qua yêu cầu báo giá đang mở.
-  // design-designs:APPROVE đã chuyển sang PRODUCTION_COORDINATOR.
+  // design-designs:APPROVE đã chuyển sang PRODUCTION_COORDINATOR. V20261227000400 (AUTH-4): mở trang báo giá và trang
+  // đơn (link trong chat) — chỉ xem, không lập / sửa.
   SALES_MANAGER: [
     "customer-customers:VIEW_PAGE",
     "customer-customers:READ",
     "sales-quotes:VIEW_PAGE",
     "sales-quotes:READ",
+    "sales-orders:VIEW_PAGE",
+    "sales-orders:READ",
     "design-designs:VIEW_PAGE",
     "design-designs:READ",
     "design-quote-requests:VIEW_PAGE",
@@ -156,6 +161,17 @@ export const ROLE_PERMISSIONS = {
     "production-orders:READ",
     "production-qc-results:READ",
     "production-qc-results:CREATE",
+  ],
+  // V20261013000400 (hồ sơ công nợ, hàng đợi duyệt) + WF-02 r6 AUTH-6 (BE: xem khách để cấp hạn mức).
+  ACCOUNTANT: [
+    "customer-customers:VIEW_PAGE",
+    "customer-customers:READ",
+    "customer-credit-profiles:VIEW_PAGE",
+    "customer-credit-profiles:READ",
+    "customer-credit-profiles:APPROVE",
+    "sales-order-credit-holds:VIEW_PAGE",
+    "sales-order-credit-holds:READ",
+    "sales-order-credit-holds:APPROVE",
   ],
   CUSTOMER: [
     "customer-customers:VIEW_PAGE",

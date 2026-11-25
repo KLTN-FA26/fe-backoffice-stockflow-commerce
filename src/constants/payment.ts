@@ -142,6 +142,21 @@ export const INSTALLMENT_MILESTONES = [
 export type InstallmentMilestone = (typeof INSTALLMENT_MILESTONES)[number];
 export type InstallmentReadMilestone = InstallmentMilestone | typeof PAYMENT_UNKNOWN;
 
+/**
+ * Mốc của khoản phí (BE `InstallmentMilestone.isFee`): khoản phí không phải đợt của lịch thanh toán, nên không gọi
+ * "Đợt 21" — hiện tên khoản phí (FE-7).
+ */
+export const FEE_INSTALLMENT_MILESTONES = [
+  "CANCELLATION_FEE",
+  "FAILED_TRIP_FEE",
+] as const satisfies readonly InstallmentMilestone[];
+
+/**
+ * Số thứ tự dành cho khoản phí (BE `Installment.FIRST_FEE_SEQ` / `LAST_FEE_SEQ`): lịch có tối đa 20 đợt (14 BR-13), khoản
+ * phí đánh số 21–40. Chỉ dùng khi dữ liệu không mang mốc (thẻ chuyển khoản trong chat) — có mốc thì đọc mốc.
+ */
+export const FEE_INSTALLMENT_SEQ = { first: 21, last: 40 } as const;
+
 /** Trạng thái đợt còn nhận tiền: chưa `Paid` / `Cancelled` (docs 15 BR-05; BE `InstallmentStatus.takesMoney`). */
 export const INSTALLMENT_PAYABLE_STATUSES = [
   "NOT_DUE",

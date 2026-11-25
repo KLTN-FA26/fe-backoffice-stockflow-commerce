@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 
-import { ADMIN_ROUTES, CUSTOMER_FALLBACK_LABEL } from "@/constants";
+import { ADMIN_ROUTES } from "@/constants";
 import { daysBetween, todayIso } from "@/lib/date-range";
 import { formatMoney } from "@/lib/format";
 import { formatDate, formatDateTime, toLocalIsoDate } from "@/lib/format/date";
 
 import { creditHoldSummary } from "../../selectors";
 
+import { CustomerCell } from "./CustomerCell";
 import { useCustomerCreditPosition } from "./useCustomerCreditPosition";
 
 import type { ReactNode } from "react";
@@ -128,19 +129,7 @@ export function buildCreditHoldColumns(
     {
       key: "customer",
       header: L.customer,
-      cell: (row) => (
-        <div className="flex flex-col">
-          {/* Không có tên → nhãn trung tính, không hiện mảnh UUID (BO-UX-6) */}
-          <span className="text-ink-primary text-[0.8125rem]">
-            {row.order.customerName || row.order.recipientName || CUSTOMER_FALLBACK_LABEL}
-          </span>
-          {row.order.customerCode && (
-            <span className="text-ink-tertiary max-w-40 truncate font-[family-name:var(--font-mono)] text-xs">
-              {row.order.customerCode}
-            </span>
-          )}
-        </div>
-      ),
+      cell: (row) => <CustomerCell row={row} />,
     },
     {
       key: "placedAt",

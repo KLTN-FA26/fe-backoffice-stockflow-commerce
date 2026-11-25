@@ -273,6 +273,27 @@ describe("khách trả lời → chuyển đơn", () => {
     expect(cancel.code).toBe("INVALID_QUOTE_TRANSITION");
   });
 
+  it("báo giá cũ đã chấp nhận (QD-16): không tạo đơn được, huỷ được dù khách còn hoạt động và SKU còn bán", async () => {
+    const sent = await sentQuote();
+    await accept(sent);
+    const stored = mockQuotes().find((q) => q.id === sent.id);
+    if (!stored) throw new Error("quote not stored");
+    stored.legacy = true;
+    const accepted = await getQuote(sent.id);
+    expect([accepted.status, accepted.legacy]).toEqual(["ACCEPTED", true]);
+    const convert = await errorOf(convertQuote({ id: accepted.id, version: accepted.version }));
+    expect(convert.code).toBe("QUOTE_LINES_LEGACY");
+    const cancelled = await cancelQuote({
+      id: accepted.id,
+      version: accepted.version,
+      reason: "Báo giá cũ, lập lại theo SKU của khách",
+    });
+    expect([cancelled.status, cancelled.cancellationReason]).toEqual([
+      "CANCELLED",
+      "Báo giá cũ, lập lại theo SKU của khách",
+    ]);
+  });
+
   it("chuyển đơn: đơn NHÁP ở số thùng đã chấp nhận; gọi lại trả cùng đơn; đơn parse được ở màn đơn", async () => {
     const sent = await sentQuote();
     await accept(sent);

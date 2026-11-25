@@ -1,11 +1,16 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 
-import { ADMIN_ROUTES, CHAT_CONTEXT_LABELS } from "@/constants";
+import {
+  ADMIN_ROUTES,
+  CHAT_CONTEXT_LABELS,
+  ORDER_PERMISSIONS,
+  QUOTE_PERMISSIONS,
+} from "@/constants";
 import { formatDate } from "@/lib/format/date";
 import { formatMoney } from "@/lib/format/money";
+import { PermittedLink } from "@/components/backoffice/PermittedLink";
 import { Card } from "@/components/shared/Card";
 import { Skeleton } from "@/components/shared/Skeleton";
 import { Button } from "@/components/ui/button";
@@ -17,12 +22,20 @@ import { contextStatusLabel } from "../selectors";
 import { AttachContextDialog } from "./AttachContextDialog";
 import { TransferDetailsDialog } from "./TransferDetailsDialog";
 
+import type { PermissionCode } from "@/lib/auth";
 import type { ChatConversation } from "../schemas";
 
-/** Đường dẫn tới chứng từ ngữ cảnh (báo giá / đơn / hợp đồng); kiểu khác chỉ hiện nhãn. */
-function contextHref(kind: string, refId: string): string | null {
-  if (kind === "QUOTE") return ADMIN_ROUTES.quotes.detail(refId);
-  if (kind === "ORDER") return ADMIN_ROUTES.orders.detail(refId);
+/**
+ * Đường dẫn tới chứng từ ngữ cảnh (báo giá / đơn) kèm quyền mở trang đích (VIEW_PAGE, AUTH-8); kiểu khác chỉ hiện nhãn.
+ */
+function contextLink(
+  kind: string,
+  refId: string,
+): { href: string; permission: PermissionCode } | null {
+  if (kind === "QUOTE")
+    return { href: ADMIN_ROUTES.quotes.detail(refId), permission: QUOTE_PERMISSIONS.viewPage };
+  if (kind === "ORDER")
+    return { href: ADMIN_ROUTES.orders.detail(refId), permission: ORDER_PERMISSIONS.viewPage };
   return null;
 }
 
@@ -72,15 +85,19 @@ export function CustomerPanel({
           <p className="text-ink-tertiary">Không gắn chứng từ.</p>
         )}
         {conversation.contexts.map((context) => {
-          const href = contextHref(context.kind, context.refId);
+          const link = contextLink(context.kind, context.refId);
           const label =
             `${CHAT_CONTEXT_LABELS[context.kind] ?? context.kind} ${context.label ?? ""}`.trim();
           return (
             <div key={context.id}>
-              {href ? (
-                <Link href={href} className="text-accent-text hover:underline">
+              {link ? (
+                <PermittedLink
+                  permission={link.permission}
+                  href={link.href}
+                  className="text-accent-text hover:underline"
+                >
                   {label}
-                </Link>
+                </PermittedLink>
               ) : (
                 label
               )}

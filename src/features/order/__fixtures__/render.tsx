@@ -12,6 +12,7 @@ import { vi } from "vitest";
 import {
   CREDIT_HOLD_PERMISSIONS,
   CUSTOMER_CREDIT_PROFILE_PERMISSIONS,
+  CUSTOMER_PERMISSIONS,
   FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS,
   ORDER_DELIVERY_BATCH_PERMISSIONS,
   ORDER_PERMISSIONS,
@@ -70,6 +71,9 @@ export const ORDER_PERMISSION_SETS = {
     CREDIT_HOLD_PERMISSIONS.read,
     CREDIT_HOLD_PERMISSIONS.approve,
     CUSTOMER_CREDIT_PROFILE_PERMISSIONS.read,
+    // BE V20261227000400 (AUTH-6): Kế toán mở trang khách để cấp hạn mức — xem, không sửa
+    CUSTOMER_PERMISSIONS.viewPage,
+    CUSTOMER_PERMISSIONS.read,
   ],
   // Quản lý kho của kho xuất (BE V20261115000200 + V20261124000650, PR #317): đọc đơn + release (`sales-order-releases:UPDATE`)
   // + đọc lịch giao (`sales-order-delivery-batches:READ`, cấp cho mọi vai release) — có ô chọn đợt giao. Không có

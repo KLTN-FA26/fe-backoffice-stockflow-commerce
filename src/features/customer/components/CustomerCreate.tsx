@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm, useWatch } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LoaderCircle } from "lucide-react";
 
@@ -24,7 +24,6 @@ import { FORM_INPUT_CLASS, FormField, fieldA11y } from "@/components/shared/Form
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-import { PaymentTermSection } from "./PaymentTermSection";
 import { DEFAULTS, FIELD_BY_ERROR, isFormField } from "./create-form";
 
 import type { CustomerCreateValues } from "@/features/customer/types";
@@ -38,9 +37,8 @@ function CustomerCreateForm() {
     defaultValues: DEFAULTS,
     mode: "onTouched",
   });
-  const { register, handleSubmit, setError, control, formState } = form;
+  const { register, handleSubmit, setError, formState } = form;
   const { errors, isDirty } = formState;
-  const paymentTerm = useWatch({ control, name: "paymentTerm" });
   const create = useCreateCustomer();
   useUnsavedChangesWarning(isDirty && !create.isSuccess);
 
@@ -155,8 +153,6 @@ function CustomerCreateForm() {
             />
           </FormField>
         </Card>
-
-        <PaymentTermSection register={register} errors={errors} paymentTerm={paymentTerm} />
 
         <FormBottomBar note="Khách nhận email mời kích hoạt portal; chưa đăng nhập được tới khi tự đặt mật khẩu.">
           <Button

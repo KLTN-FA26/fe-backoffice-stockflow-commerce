@@ -621,8 +621,22 @@ export function reviseQuote(id: string, body: Record<string, unknown>): MockQuot
 }
 
 /**
- * `POST /quotes/{id}/cancellation` — nháp, hoặc báo giá đã chấp nhận có SKU ngừng bán (quyết định 2026-10-17). SKU seed
- * đều đang bán, nên báo giá đã chấp nhận luôn bị từ chối như BE.
+ * BE `QuoteService.cancel`: báo giá đã chấp nhận chỉ huỷ được khi là báo giá cũ (QD-16, không bao giờ tạo đơn được),
+ * khách không còn ACTIVE (LC-2; không tìm thấy khách cũng tính là không ACTIVE), hoặc có SKU không còn bán được (BE-14;
+ * SKU không có trong danh mục thì không tính).
+ */
+function acceptedCancellable(quote: MockQuote): boolean {
+  if (quote.legacy) return true;
+  if (findMockCustomer(quote.customerId)?.status !== "ACTIVE") return true;
+  return quote.lines.some((line) => {
+    const sku = wf02Sku(line.sku);
+    return !!sku && sku.status !== "ACTIVE";
+  });
+}
+
+/**
+ * `POST /quotes/{id}/cancellation` — nháp, hoặc báo giá đã chấp nhận theo `acceptedCancellable` (quyết định 2026-10-17,
+ * LC-2, QD-16).
  */
 export function cancelQuote(id: string, body: Record<string, unknown>): MockQuote {
   const errors: MockFieldError[] = [];
@@ -633,10 +647,10 @@ export function cancelQuote(id: string, body: Record<string, unknown>): MockQuot
   requireNoErrors(errors);
   const quote = find(id);
   requireVersion(quote, version);
-  if (quote.status === "ACCEPTED")
+  if (quote.status === "ACCEPTED" && !acceptedCancellable(quote))
     conflict(
       "INVALID_QUOTE_TRANSITION",
-      `Báo giá ${quote.quoteNumber} đã được chấp nhận và mọi SKU vẫn còn bán: hãy tạo đơn từ báo giá thay vì huỷ.`,
+      `Báo giá ${quote.quoteNumber} đã được chấp nhận, khách vẫn đang hoạt động và mọi SKU vẫn còn bán: hãy tạo đơn từ báo giá thay vì huỷ.`,
     );
   if (!TRANSITIONS[quote.status].includes("CANCELLED")) transitionRefused(quote, "huỷ");
   const from = quote.status;
@@ -663,6 +677,12 @@ export function convertQuote(id: string, body: Record<string, unknown>): MockQuo
     conflict(
       "INVALID_QUOTE_TRANSITION",
       `Báo giá ${quote.quoteNumber} đang ở trạng thái ${quote.status}: chỉ báo giá đã được chấp nhận mới tạo được đơn.`,
+    );
+  // BE `QuoteService.requireCustomerSkus`: báo giá cũ trước 4B-2 không bao giờ tạo đơn được (QD-16).
+  if (quote.legacy)
+    conflict(
+      "QUOTE_LINES_LEGACY",
+      `Báo giá ${quote.quoteNumber} được lập theo phôi và thiết kế trước khi có SKU riêng của khách: sửa bản nháp sang SKU riêng của khách, hoặc lập báo giá mới.`,
     );
   requireOwnSkus(
     quote.customerId,
