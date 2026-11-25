@@ -2,29 +2,22 @@
 
 import { UI_LABELS } from "@/constants";
 
-import { routeLine, routeOrigin } from "../../route-line";
+import { routeBinTarget, routeLine, routeOrigin } from "../../route-line";
+import { RouteStopMarker } from "./RouteStopMarker";
 
-import type { RouteMapPath, RouteStopState } from "../../route-line";
+import type { RouteMapPath } from "../../route-line";
+import type { LayoutShelf } from "../../types";
 
 export type { RouteMapPath, RouteStopState } from "../../route-line";
 
 const R = UI_LABELS.warehouseMap.route;
+/** Đơn vị vẽ theo cỡ kho: SVG vẽ theo mét nên kho càng lớn nét càng nhỏ trên màn — lấy 1/60 cạnh dài (kho 60 m → 1 m). */
+const unitFor = (mapExtent: number) => Math.max(0.5, mapExtent / 60);
 /**
- * Bán kính chấm theo cỡ kho: SVG vẽ theo mét nên kho càng lớn chấm càng nhỏ trên màn — lấy 1/60 cạnh dài (kho 60 m
- * → 1 m: chấm ≈ 18px, số ≈ 11px ở khung 420px, đo 1440px) để số thứ tự đọc được ở zoom vừa khung.
+ * Kích thước theo đơn vị. Đường đi BE chạy sát mặt kệ (BE #446) nên nét phải mảnh — kho 90 m → viền trắng ~0,5 m, nét
+ * xanh ~0,27 m. Chấm số nhỏ (~0,8 m bán kính ở kho 90 m) vì ô bin tô trên kệ mới là chỗ đặt; chấm chỉ để đọc thứ tự.
  */
-const dotFor = (mapExtent: number) => Math.max(0.5, mapExtent / 60);
-/**
- * Độ dày đường theo bán kính chấm. Đường đi BE chạy sát mặt kệ (điểm đứng cách kệ 0,5 m) nên phải mảnh: kho 90 m →
- * viền trắng ~0,5 m, nét xanh ~0,27 m — dày hơn thì che mất chữ / ô bin của kệ cạnh lối.
- */
-const LINE = { halo: 0.35, stroke: 0.18, dash: 0.8, gap: 0.5 } as const;
-
-const DOT_CLASS: Record<RouteStopState, { dot: string; text: string }> = {
-  done: { dot: "fill-dot-positive stroke-bg-surface", text: "fill-ink-inverse" },
-  next: { dot: "fill-dot-info stroke-bg-surface", text: "fill-ink-inverse" },
-  todo: { dot: "fill-bg-surface stroke-dot-info", text: "fill-ink-primary" },
-};
+const SIZE = { halo: 0.35, stroke: 0.18, dash: 0.8, gap: 0.5, mark: 0.5 } as const;
 
 /** Dời các điểm trùng toạ độ sang ngang theo thứ tự xuất hiện. */
 function spread<T extends { x: number; y: number }>(
@@ -43,34 +36,44 @@ function spread<T extends { x: number; y: number }>(
 /**
  * Lộ trình chuyến cất vẽ chồng lên mặt bằng 2D (docs 05 §4.5 bước 14): đường đi BE tính cho từng chặng, vòng qua kệ /
  * tường / cửa đóng (BE #410), theo đúng thứ tự BE sắp (BR-17); chặng BE không có đường thì nối thẳng (⚠️ C46 — ước
- * lượng từ bản đồ, chỉ để định hướng). Chấm đánh số khớp danh sách điểm dừng. Không nhận chuột: bấm kệ / khu bên dưới
- * vẫn được.
+ * lượng từ bản đồ, chỉ để định hướng). Mỗi điểm dừng tô ô bin cần đặt trên kệ + chấm số nhỏ ở điểm đứng, khớp danh
+ * sách điểm dừng. Không nhận chuột: bấm kệ / khu bên dưới vẫn được.
  */
-export function RouteOverlay({ path, mapExtent }: { path: RouteMapPath; mapExtent: number }) {
-  const dot = dotFor(mapExtent);
+export function RouteOverlay({
+  path,
+  mapExtent,
+  shelves = [],
+}: {
+  path: RouteMapPath;
+  mapExtent: number;
+  shelves?: readonly Pick<LayoutShelf, "footprint" | "levels">[];
+}) {
+  const unit = unitFor(mapExtent);
+  const mark = unit * SIZE.mark;
   // Hai điểm dừng trùng điểm đứng (bin khác tầng cùng cột) → dời ngang chấm để không che nhau; đường vẫn đi qua điểm
-  // đứng thật (chấm dời có thể nằm trên kệ)
-  const stops = spread(path.stops, dot * 2.2);
-  const points = routeLine(path).map((p) => `${p.x},${p.y}`);
+  // đứng thật
+  const stops = spread(path.stops, mark * 2.4);
+  const points = routeLine(path)
+    .map((p) => `${p.x},${p.y}`)
+    .join(" ");
   const origin = routeOrigin(path);
+  const line = { strokeLinejoin: "round", strokeLinecap: "round", fill: "none" } as const;
   return (
     <g className="pointer-events-none">
-      {points.length > 1 && (
+      {points.includes(" ") && (
         <>
           <polyline
-            points={points.join(" ")}
-            className="stroke-bg-surface fill-none"
-            strokeWidth={dot * LINE.halo}
-            strokeLinejoin="round"
-            strokeLinecap="round"
+            points={points}
+            className="stroke-bg-surface"
+            strokeWidth={unit * SIZE.halo}
+            {...line}
           />
           <polyline
-            points={points.join(" ")}
-            className="stroke-dot-info fill-none"
-            strokeWidth={dot * LINE.stroke}
-            strokeDasharray={`${dot * LINE.dash} ${dot * LINE.gap}`}
-            strokeLinejoin="round"
-            strokeLinecap="round"
+            points={points}
+            className="stroke-dot-info"
+            strokeWidth={unit * SIZE.stroke}
+            strokeDasharray={`${unit * SIZE.dash} ${unit * SIZE.gap}`}
+            {...line}
           />
         </>
       )}
@@ -78,13 +81,13 @@ export function RouteOverlay({ path, mapExtent }: { path: RouteMapPath; mapExten
         <rect
           role="img"
           aria-label={R.start(path.start.locationCode)}
-          x={path.start.x - dot * 0.8}
-          y={path.start.y - dot * 0.8}
-          width={dot * 1.6}
-          height={dot * 1.6}
+          x={path.start.x - mark * 1.1}
+          y={path.start.y - mark * 1.1}
+          width={mark * 2.2}
+          height={mark * 2.2}
           rx={0.15}
           className="fill-ink-primary stroke-bg-surface"
-          strokeWidth={dot * 0.25}
+          strokeWidth={mark * 0.25}
         />
       )}
       {origin && (
@@ -93,36 +96,18 @@ export function RouteOverlay({ path, mapExtent }: { path: RouteMapPath; mapExten
           aria-label={R.origin(origin.locationCode)}
           cx={origin.x}
           cy={origin.y}
-          r={dot * 0.6}
+          r={mark * 0.8}
           className="fill-bg-surface stroke-ink-primary"
-          strokeWidth={dot * 0.3}
+          strokeWidth={mark * 0.35}
         />
       )}
       {stops.map((stop) => (
-        <g
+        <RouteStopMarker
           key={stop.sequence}
-          role="img"
-          aria-label={R.stop(stop.sequence, stop.locationCode, stop.state)}
-        >
-          <circle
-            cx={stop.x + stop.dx}
-            cy={stop.y}
-            r={stop.state === "next" ? dot * 1.2 : dot}
-            className={DOT_CLASS[stop.state].dot}
-            strokeWidth={dot * 0.3}
-          />
-          <text
-            x={stop.x + stop.dx}
-            y={stop.y}
-            fontSize={dot * 1.2}
-            fontWeight={600}
-            textAnchor="middle"
-            dominantBaseline="central"
-            className={`${DOT_CLASS[stop.state].text} tabular-nums`}
-          >
-            {stop.sequence}
-          </text>
-        </g>
+          stop={stop}
+          bin={routeBinTarget(shelves, stop.locationCode)}
+          mark={mark}
+        />
       ))}
     </g>
   );

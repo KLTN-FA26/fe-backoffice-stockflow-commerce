@@ -56,6 +56,15 @@ describe("WarehouseRouteMap — lộ trình chuyến cất trên Kho Map 2D (doc
     expect(within(map).getByText(R.note)).toBeVisible();
   });
 
+  it("tô đúng ô bin cần đặt trên kệ; điểm dừng là khu (OVF01) chỉ có chấm số", async () => {
+    show("WAREHOUSE_STAFF");
+    const markers = await screen.findAllByRole("img", { name: /^Điểm \d/ });
+    // Không còn cách truy vấn theo vai trò cho hình tô trong SVG → dùng data-route-bin
+    const target = (marker: HTMLElement | undefined) =>
+      marker?.querySelector("[data-route-bin]")?.getAttribute("data-route-bin") ?? null;
+    expect(markers.map(target)).toEqual(["HCM-A01-1-A", "HCM-A01-2-A", null]);
+  });
+
   it("hai điểm dừng trùng điểm đứng (bin khác tầng cùng cột) không chồng lên nhau", async () => {
     show("WAREHOUSE_STAFF");
     const [first, second] = await screen.findAllByRole("img", { name: /^Điểm [12] / });
