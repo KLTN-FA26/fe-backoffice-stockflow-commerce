@@ -86,5 +86,5 @@ export const ROLE_DASHBOARD_LABELS = {
   unreadChats: "Tin chat chưa đọc",
   installmentsOwing: "Đợt đến hạn chưa thu",
   installmentsOverdue: "Đợt quá hạn",
-  creditHolds: "Đơn chờ duyệt tín dụng",
+  creditHolds: "Đơn chờ duyệt công nợ",
 } as const;

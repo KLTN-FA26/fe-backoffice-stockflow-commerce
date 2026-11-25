@@ -4,6 +4,7 @@ import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { ROLE_DASHBOARD_LABELS as L } from "@/constants/dashboard";
+import { UI_LABELS } from "@/constants/labels";
 
 import {
   countPage,
@@ -109,7 +110,7 @@ describe("Việc của bạn — bảng điều khiển theo vai trò (L-12)", (
     expect(screen.queryByText(L.newQuoteRequests)).not.toBeInTheDocument();
   });
 
-  it("FLOW-1: Kế toán (duyệt công nợ) thấy số đơn chờ duyệt tín dụng, dẫn tới hàng đợi", async () => {
+  it("FLOW-1: Kế toán (duyệt công nợ) thấy số đơn chờ duyệt công nợ, dẫn tới hàng đợi", async () => {
     const seen: URLSearchParams[] = [];
     server.use(
       dashboardPermissions(["sales-order-credit-holds:READ", "sales-order-credit-holds:APPROVE"]),
@@ -121,6 +122,8 @@ describe("Việc của bạn — bảng điều khiển theo vai trò (L-12)", (
     renderDashboard(<RoleKpis />);
     await waitFor(() => expect(within(tile(L.creditHolds)).getByText("3")).toBeInTheDocument());
     expect(tile(L.creditHolds)).toHaveAttribute("href", "/admin/orders/credit-holds");
+    // The tile is named like the queue page it opens.
+    expect(L.creditHolds).toBe(UI_LABELS.order.creditHoldsTitle);
     expect(seen[0]?.get("size")).toBe("1");
   });
 
