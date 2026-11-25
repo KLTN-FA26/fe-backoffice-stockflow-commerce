@@ -7,6 +7,7 @@ import {
   findQuoteConversationId,
   getCustomerPrice,
   getQuote,
+  getStandardPriceSuggestion,
   listCustomerSkus,
   listQuotes,
 } from "./api";
@@ -24,6 +25,9 @@ export const customerSkuKeys = {
   byCustomer: (customerId: string) => [...customerSkuKeys.all, customerId] as const,
   price: (customerId: string, sku: string) =>
     [...customerSkuKeys.all, customerId, "price", sku] as const,
+  /** Giá chuẩn của quy cách (không theo khách) — cùng gốc để làm mới chung với giá gợi ý. */
+  standardPrice: (variantSku: string) =>
+    [...customerSkuKeys.all, "standard-price", variantSku] as const,
 };
 
 /** SKU riêng của khách cho form báo giá. */
@@ -43,6 +47,23 @@ export function useCustomerPrice(customerId: string | undefined, sku: string | u
     queryKey: customerSkuKeys.price(customerId ?? "", code),
     queryFn: ({ signal }) => getCustomerPrice(customerId ?? "", code, signal),
     enabled: !!customerId && !!code,
+    ...QUERY_TIMES.master,
+  });
+}
+
+/**
+ * Giá chuẩn của quy cách SKU được làm từ đó (13 BR-04 sửa ngày 2026-11-26) — giá gợi ý khi khách chưa có giá riêng;
+ * `null` khi quy cách chưa có giá chuẩn. `enabled` gồm quyền `catalog-standard-prices:READ` (UI-only).
+ */
+export function useStandardPriceSuggestion(
+  variantSku: string | null | undefined,
+  enabled: boolean,
+) {
+  const code = variantSku?.trim().toUpperCase() ?? "";
+  return useQuery({
+    queryKey: customerSkuKeys.standardPrice(code),
+    queryFn: ({ signal }) => getStandardPriceSuggestion(code, signal),
+    enabled: enabled && !!code,
     ...QUERY_TIMES.master,
   });
 }

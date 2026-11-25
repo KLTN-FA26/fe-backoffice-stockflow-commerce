@@ -116,6 +116,10 @@ export const ADMIN_ROUTES = {
   customerPrices: {
     list: `${ADMIN_BASE}/customer-prices`,
   },
+  /** Giá chuẩn theo quy cách — BE `StandardPriceController` (route khai báo `/catalog/standard-prices`). */
+  standardPrices: {
+    list: `${ADMIN_BASE}/standard-prices`,
+  },
   products: {
     create: `${ADMIN_BASE}/products/create`,
     detail: (id: string) => `${ADMIN_BASE}/products/${id}`,

@@ -3,20 +3,34 @@
 import Link from "next/link";
 import { FilePlus2, MessageSquare } from "lucide-react";
 
-import { ADMIN_ROUTES, CHAT_PERMISSIONS, QUOTE_PERMISSIONS } from "@/constants";
+import {
+  ADMIN_ROUTES,
+  CHAT_PERMISSIONS,
+  QUOTE_PERMISSIONS,
+  QUOTE_PRICE_APPROVAL_PERMISSIONS,
+  QUOTE_PRICE_REVIEW_LABELS,
+} from "@/constants";
+import { useAuthStore } from "@/lib/auth";
 import { useCan } from "@/lib/auth/components/Can";
 import { formatDate } from "@/lib/format/date";
 import { useQuoteConversationId } from "@/features/quote/queries";
-import { isExpired } from "@/features/quote/selectors";
+import { isExpired, isPriceReviewSubmitter } from "@/features/quote/selectors";
 import { DETAIL_ACTION_CLASS } from "@/components/shared/DetailSection";
 import { Button } from "@/components/ui/button";
 
 import type { Quote } from "@/features/quote/types";
 
-/** Một dòng "việc tiếp theo" theo trạng thái (BO-UX-19): ai đang chờ ai, đến khi nào. */
-export function quoteNextStep(quote: Quote): string {
+/**
+ * Một dòng "việc tiếp theo" theo trạng thái (BO-UX-19): ai đang chờ ai, đến khi nào. Nháp chờ duyệt giá (14 BR-10): người
+ * duyệt được thấy việc của mình, còn lại thấy đang chờ Quản lý kinh doanh.
+ */
+export function quoteNextStep(quote: Quote, canApprovePrice = false): string {
   const expired = quote.status === "SENT" && isExpired(quote.validUntil);
   if (expired) return "Đã quá hạn hiệu lực — khách không chấp nhận được nữa. Lập báo giá mới.";
+  if (quote.status === "DRAFT" && quote.priceReviewPending)
+    return canApprovePrice
+      ? QUOTE_PRICE_REVIEW_LABELS.nextStep.pendingApprover
+      : QUOTE_PRICE_REVIEW_LABELS.nextStep.pending;
   switch (quote.status) {
     case "DRAFT":
       return "Bước tiếp theo: nhập đủ giá và phí, rồi Gửi khách.";
@@ -39,6 +53,10 @@ export function quoteNextStep(quote: Quote): string {
 export function QuoteNextStep({ quote }: { quote: Quote }) {
   const canChat = useCan(CHAT_PERMISSIONS.read);
   const canCreate = useCan(QUOTE_PERMISSIONS.create);
+  const meId = useAuthStore((state) => state.user?.userId ?? null);
+  // Bốn mắt: người gửi duyệt không duyệt được, dù có quyền (14 BR-10)
+  const canApprovePrice =
+    useCan(QUOTE_PRICE_APPROVAL_PERMISSIONS.approve) && !isPriceReviewSubmitter(quote, meId);
   const waitsOnCustomer = quote.status === "SENT" || quote.status === "CHANGES_REQUESTED";
   const conversation = useQuoteConversationId(quote, canChat && waitsOnCustomer);
   const ended =
@@ -47,7 +65,9 @@ export function QuoteNextStep({ quote }: { quote: Quote }) {
     (quote.status === "SENT" && isExpired(quote.validUntil));
   return (
     <div className="space-y-2">
-      <p className="text-ink-secondary text-center text-xs">{quoteNextStep(quote)}</p>
+      <p className="text-ink-secondary text-center text-xs">
+        {quoteNextStep(quote, canApprovePrice)}
+      </p>
       {conversation.data && (
         <Button asChild size="sm" variant="outline" className={DETAIL_ACTION_CLASS.outline}>
           <Link href={ADMIN_ROUTES.chat.detail(conversation.data)}>

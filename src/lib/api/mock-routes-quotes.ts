@@ -2,6 +2,8 @@
  * Mock route — báo giá theo thùng (WF-02 pha A), đúng hợp đồng BE `QuoteController` (origin/develop; plan WF02-FE Phụ lục
  * A.1): danh sách (trang từ 0, lọc trạng thái / khách / số báo giá), chi tiết, lập (idempotent theo `requestId`, 201),
  * sửa nháp, gửi, mở bản sửa, huỷ, chuyển thành đơn nháp, PDF. Luật ở `mock-quote-rules.ts`, store ở `mock-quote-store.ts`.
+ * Duyệt giá (14 BR-10): `?priceReview=PENDING` lọc nháp chờ duyệt; gửi có thể ở lại nháp chờ duyệt; duyệt / từ chối / rút
+ * lại ở `mock-quote-price-actions.ts`, người gọi là tài khoản demo đang đăng nhập (bốn mắt).
  *
  * Hai route của KHÁCH (`/acceptance`, `/change-request`) cũng có — storefront gọi chúng; ở back-office (không có màn
  * khách) đây là cách đưa một báo giá đã gửi sang ACCEPTED khi chạy mock: `api.post('/quotes/{id}/acceptance',
@@ -21,6 +23,12 @@ import {
   reviseQuote,
   sendQuote,
 } from "./mock-quote-rules";
+import {
+  approveQuotePrice,
+  mockActor,
+  rejectQuotePrice,
+  withdrawQuotePriceReview,
+} from "./mock-quote-price-actions";
 import { MockRefusal, guarded, refuseNotFound } from "./mock-quote-refusal";
 import { findMockQuote, mockQuotes, quoteRow, quoteView, statusAt } from "./mock-quote-store";
 import {
@@ -36,6 +44,7 @@ import { mockTextPdf } from "./mock-text-pdf";
 
 import type { AxiosRequestConfig } from "axios";
 import type { QuoteApiStatus } from "@/constants";
+import type { MockActor } from "./mock-quote-price-review";
 import type { MockQuote } from "./mock-quote-store";
 
 /** BE `Pages.DEFAULT_PAGE_SIZE`. */
@@ -69,6 +78,8 @@ function list(config: AxiosRequestConfig) {
   const customerId = query.get("customerId");
   if (customerId && !isUuidText(customerId)) return typeMismatch("customerId", "UUID");
   const search = (query.get("search") ?? "").trim().toUpperCase();
+  // BE `Quotes.Criteria.pricePending`: "PENDING" (không phân biệt hoa thường) → chỉ nháp chờ duyệt giá
+  const pricePending = (query.get("priceReview") ?? "").toUpperCase() === "PENDING";
   const [field = "", direction = "desc"] = (query.get("sort") ?? "").split(",");
   const known = field in SORT_KEYS;
   const key = SORT_KEYS[known ? field : "createdAt"] ?? ((q: MockQuote) => q.createdAt);
@@ -78,6 +89,7 @@ function list(config: AxiosRequestConfig) {
       (q) =>
         (!customerId || q.customerId === customerId.toLowerCase()) &&
         (!search || q.quoteNumber.toUpperCase().includes(search)) &&
+        (!pricePending || (q.priceReviewPending ?? false)) &&
         // BE `statusAt`: báo giá đã gửi quá hạn nằm ở EXPIRED, không ở SENT
         (statuses.length === 0 || statuses.includes(statusAt(q))),
     )
@@ -117,6 +129,15 @@ function documentOf(config: AxiosRequestConfig) {
 const action = (run: (id: string, body: Record<string, unknown>) => MockQuote) =>
   guarded((config) => ok(quoteView(run(quoteIdOf(config), bodyOf(config)))));
 
+/** Bước cần biết ai gọi (gửi duyệt, duyệt, từ chối, rút lại — 14 BR-10). */
+const actorAction = (
+  run: (id: string, body: Record<string, unknown>, actor: MockActor) => MockQuote,
+) =>
+  guarded(async (config) => {
+    const actor = await mockActor();
+    return ok(quoteView(run(quoteIdOf(config), bodyOf(config), actor)));
+  });
+
 export function registerQuoteMockRoutes(): void {
   registerMockRoute("GET", "/quotes", guarded(list));
   registerMockRoute(
@@ -127,7 +148,14 @@ export function registerQuoteMockRoutes(): void {
   registerMockRoute("GET", "/quotes/:id", guarded(detail));
   registerMockRoute("PUT", "/quotes/:id", action(editQuote));
   registerMockRoute("GET", "/quotes/:id/document", guarded(documentOf));
-  registerMockRoute("POST", "/quotes/:id/sending", action(sendQuote));
+  registerMockRoute("POST", "/quotes/:id/sending", actorAction(sendQuote));
+  registerMockRoute("POST", "/quotes/:id/price-approval", actorAction(approveQuotePrice));
+  registerMockRoute("POST", "/quotes/:id/price-rejection", actorAction(rejectQuotePrice));
+  registerMockRoute(
+    "POST",
+    "/quotes/:id/price-review-withdrawal",
+    actorAction(withdrawQuotePriceReview),
+  );
   registerMockRoute("POST", "/quotes/:id/acceptance", action(acceptQuote));
   registerMockRoute("POST", "/quotes/:id/change-request", action(requestQuoteChanges));
   registerMockRoute("POST", "/quotes/:id/revision", action(reviseQuote));

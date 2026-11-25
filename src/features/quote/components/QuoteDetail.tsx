@@ -27,6 +27,9 @@ import { QuoteNotices } from "./detail/QuoteNotices";
 import { QuoteLinesTable } from "./detail/QuoteLinesTable";
 import { QuoteNextStep } from "./detail/QuoteNextStep";
 import { QuoteStaffActions } from "./detail/QuoteStaffActions";
+import { PriceReviewBadge } from "./price-review/PriceReviewBadge";
+import { PriceReviewNotice } from "./price-review/PriceReviewNotice";
+import { QuotePriceReviewSection } from "./price-review/QuotePriceReviewSection";
 
 import type { Quote } from "@/features/quote/types";
 
@@ -91,6 +94,7 @@ function QuoteDetailContent({ id }: { id: string }) {
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 space-y-5">
           <QuoteNotices quote={quote} />
+          <PriceReviewNotice quote={quote} />
           <General quote={quote} />
           {quote.terms && (
             <DetailSection title="Điều khoản" icon={ScrollText}>
@@ -100,18 +104,20 @@ function QuoteDetailContent({ id }: { id: string }) {
             </DetailSection>
           )}
           <QuoteLinesTable lines={quote.lines} />
+          <QuotePriceReviewSection quote={quote} />
           <QuoteFeesTotals quote={quote} />
         </div>
         <div className="space-y-5">
           {/* Trạng thái + hành động — cùng bố cục thẻ hành động trang chi tiết sản phẩm */}
           <section className={DETAIL_CARD_CLASS}>
-            <div className="mb-4 flex justify-center">
+            <div className="mb-4 flex flex-col items-center gap-1.5">
               <StatusDot
                 domain="order"
                 status={QUOTE_STATUS_BY_API[quote.status]}
                 label={QUOTE_STATUS_LABELS[quote.status]}
                 size="md"
               />
+              {quote.status === "DRAFT" && quote.priceReviewPending && <PriceReviewBadge />}
             </div>
             <div className="space-y-3">
               <QuoteNextStep quote={quote} />

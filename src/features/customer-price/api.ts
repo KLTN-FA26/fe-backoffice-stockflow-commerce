@@ -6,6 +6,7 @@
 import { z } from "zod";
 
 import { api } from "@/lib/api/client";
+import { toPriceTierBody } from "@/lib/pricing/price-tiers";
 
 import {
   beCustomerPriceSchema,
@@ -13,7 +14,7 @@ import {
   customerPriceVersionSchema,
 } from "./schemas";
 
-import type { CustomerPrice, CustomerPriceValues, ValidCustomerPriceValues } from "./schemas";
+import type { CustomerPrice, CustomerPriceValues } from "./schemas";
 
 const BASE = "/catalog/customer-prices";
 
@@ -69,19 +70,8 @@ export async function getCustomerPrice(
   return parsePrice(data, customerId, sku);
 }
 
-/**
- * Body `CustomerPriceRequest`. Đơn giá đã qua `travelsExactly` nên `Number` ở đây in lại đúng chữ số khi
- * `JSON.stringify`. Tạo: KHÔNG có `version` (BE: vắng = tạo). Thay: luôn có `version`.
- */
-export function toCustomerPriceBody(values: ValidCustomerPriceValues) {
-  return {
-    tiers: values.tiers.map((t) => ({
-      minQuantity: t.minQuantity,
-      unitPrice: Number(t.unitPrice),
-    })),
-    note: values.note,
-  };
-}
+/** Body `CustomerPriceRequest` — bậc giá + ghi chú (`toPriceTierBody`). Tạo: KHÔNG có `version`; thay: luôn có. */
+export const toCustomerPriceBody = toPriceTierBody;
 
 export interface CreateCustomerPriceInput {
   customerId: string;

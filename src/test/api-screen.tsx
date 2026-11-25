@@ -62,6 +62,9 @@ export const ROLE_PERMISSIONS = {
     "design-quote-requests:VIEW_PAGE",
     "design-quote-requests:READ",
     "design-quote-requests:UPDATE",
+    // V20261230000100 (13 BR-04 sửa ngày 2026-11-26): Sale xem giá chuẩn, không sửa.
+    "catalog-standard-prices:VIEW_PAGE",
+    "catalog-standard-prices:READ",
   ],
   // V20261111000000 (baseline) + V20261213000200: yêu cầu báo giá, xem khách; đọc thiết kế qua yêu cầu báo giá đang mở.
   // design-designs:APPROVE đã chuyển sang PRODUCTION_COORDINATOR. V20261227000400 (AUTH-4): mở trang báo giá và trang
@@ -80,6 +83,13 @@ export const ROLE_PERMISSIONS = {
     "design-quote-requests:UPDATE",
     "chat-conversations:VIEW_PAGE",
     "chat-conversations:READ",
+    // V20261230000100 / V20261230000200 (13 BR-04, 14 BR-10 sửa ngày 2026-11-26): giữ giá chuẩn, duyệt giá báo giá.
+    "catalog-standard-prices:VIEW_PAGE",
+    "catalog-standard-prices:READ",
+    "catalog-standard-prices:CREATE",
+    "catalog-standard-prices:UPDATE",
+    "catalog-standard-prices:DELETE",
+    "sales-quote-price-approvals:APPROVE",
   ],
   // V20261213000200: Điều phối sản xuất duyệt thiết kế của khách (kltn-docs 12 §4.4, §4.10).
   PRODUCTION_COORDINATOR: [

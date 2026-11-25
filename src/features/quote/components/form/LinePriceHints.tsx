@@ -2,15 +2,19 @@
 
 import { WandSparkles } from "lucide-react";
 
+import { QUOTE_PRICE_REVIEW_LABELS } from "@/constants";
 import { formatMoney } from "@/lib/format/money";
 import { lineAmount } from "@/features/quote/selectors";
 import { Button } from "@/components/ui/button";
 
-import type { CustomerPrice } from "@/features/quote/types";
+import type { LinePriceSuggestion } from "./useLinePriceSuggestion";
 
 const NUM = "tabular-nums font-[family-name:var(--font-mono)]";
 
-/** MOQ + giá gợi ý (giá riêng của khách, `GET /catalog/customer-prices/{customerId}/{sku}`). */
+/**
+ * MOQ + giá gợi ý: giá riêng của khách (`GET /catalog/customer-prices/{customerId}/{sku}`), không có thì giá chuẩn của
+ * quy cách (`GET /catalog/standard-prices/{sku}`, 13 BR-04 sửa ngày 2026-11-26). Nguồn ghi rõ trên nút.
+ */
 export function SuggestionBar({
   sku,
   moq,
@@ -24,7 +28,7 @@ export function SuggestionBar({
   sku: string | undefined;
   moq: number | null;
   cartons: number;
-  suggestion: CustomerPrice | null;
+  suggestion: LinePriceSuggestion | null;
   loading: boolean;
   failed: boolean;
   tiersEmpty: boolean;
@@ -38,7 +42,7 @@ export function SuggestionBar({
       {loading && <span className="text-ink-tertiary">Đang tải giá gợi ý…</span>}
       {sku && !loading && !suggestion && !failed && (
         <span className="text-warning-ink">
-          Khách chưa có giá riêng cho SKU này — nhập bậc giá.
+          Chưa có giá riêng của khách lẫn giá chuẩn cho SKU này — nhập bậc giá.
         </span>
       )}
       {failed && <span className="text-danger">Không tải được giá gợi ý.</span>}
@@ -56,17 +60,20 @@ export function SuggestionBar({
             )
           }
         >
-          <WandSparkles className="size-3.5" /> Dùng giá gợi ý
+          <WandSparkles className="size-3.5" />
+          {`Dùng giá gợi ý (${QUOTE_PRICE_REVIEW_LABELS.source[suggestion.source].toLowerCase()})`}
         </Button>
       )}
       {suggestion && tiersEmpty && (
-        // BE chỉ tự lấy giá riêng khi số thùng đạt MOQ; dưới MOQ phải nhập bậc giá đã thoả thuận.
+        // BE chỉ tự lấy giá gợi ý khi số thùng đạt MOQ; dưới MOQ phải nhập bậc giá đã thoả thuận.
         <span
           className={moq && cartons > 0 && cartons < moq ? "text-warning-ink" : "text-ink-tertiary"}
         >
           {moq && cartons > 0 && cartons < moq
-            ? `Dưới mức tối thiểu ${moq} thùng của bảng giá khách — cần nhập bậc giá.`
-            : "Để trống bậc giá = dùng giá riêng của khách."}
+            ? `Dưới mức tối thiểu ${moq} thùng của bảng giá — cần nhập bậc giá.`
+            : suggestion.source === "CUSTOMER_PRICE"
+              ? "Để trống bậc giá = dùng giá riêng của khách."
+              : "Để trống bậc giá = dùng giá chuẩn của quy cách."}
         </span>
       )}
     </div>

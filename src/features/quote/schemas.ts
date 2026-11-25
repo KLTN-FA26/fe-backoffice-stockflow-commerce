@@ -6,7 +6,12 @@
 
 import { z } from "zod";
 
-import { QUOTE_API_STATUSES, QUOTE_FEE_KINDS } from "@/constants";
+import {
+  QUOTE_API_STATUSES,
+  QUOTE_FEE_KINDS,
+  QUOTE_PRICE_REVIEW_OUTCOMES,
+  QUOTE_PRICE_SOURCES,
+} from "@/constants";
 
 import { bePageSchema } from "@/lib/api/page-schema";
 import { omittedOrNull } from "@/lib/validation/primitives";
@@ -80,6 +85,55 @@ export const quoteTransitionDtoSchema = z.object({
   changedByName: omittedOrNull(z.string()),
 });
 
+/**
+ * 14 BR-10 (sửa ngày 2026-11-26) — một bậc giá so với giá tham chiếu (BE `QuoteResponse.PriceCheckTier`): giá riêng của
+ * khách, không có thì giá chuẩn của quy cách; `source` / `referencePrice` / `discountPercent` null khi không có tham chiếu.
+ * `discountPercent` dương = thấp hơn giá tham chiếu (âm = cao hơn, không bao giờ cần duyệt).
+ */
+export const priceCheckTierDtoSchema = z.object({
+  minQuantity: z.number().int(),
+  unitPrice: z.number(),
+  referencePrice: omittedOrNull(z.number()),
+  source: omittedOrNull(z.enum(QUOTE_PRICE_SOURCES)),
+  discountPercent: omittedOrNull(z.number()),
+  needsApproval: z.boolean(),
+});
+
+/** Một dòng báo giá đã đo giá (BE `PriceCheckLine`). */
+export const priceCheckLineDtoSchema = z.object({
+  lineNo: z.number().int(),
+  sku: z.string(),
+  cartons: z.number().int(),
+  needsApproval: z.boolean(),
+  tiers: z.array(priceCheckTierDtoSchema).default([]),
+});
+
+/** Kiểm tra giá của bản nháp lúc này (BE `PriceCheck`) — chỉ có khi DRAFT: gửi bây giờ thì có phải chờ duyệt không. */
+export const priceCheckDtoSchema = z.object({
+  thresholdPercent: z.number(),
+  needsApproval: z.boolean(),
+  lines: z.array(priceCheckLineDtoSchema).default([]),
+});
+
+/**
+ * Lần gửi duyệt giá gần nhất (BE `PriceReview`), với số liệu lúc gửi. `reason`: lý do từ chối, ghi chú khi duyệt, hoặc lý
+ * do huỷ khi báo giá bị huỷ lúc đang chờ.
+ */
+export const priceReviewDtoSchema = z.object({
+  id: z.string(),
+  revision: z.number().int(),
+  outcome: z.enum(QUOTE_PRICE_REVIEW_OUTCOMES),
+  thresholdPercent: z.number(),
+  submittedAt: z.string(),
+  submittedBy: omittedOrNull(z.string()),
+  submittedByName: omittedOrNull(z.string()),
+  decidedAt: omittedOrNull(z.string()),
+  decidedBy: omittedOrNull(z.string()),
+  decidedByName: omittedOrNull(z.string()),
+  reason: omittedOrNull(z.string()),
+  lines: z.array(priceCheckLineDtoSchema).default([]),
+});
+
 export const quoteDtoSchema = z.object({
   id: z.string(),
   quoteNumber: z.string(),
@@ -117,6 +171,10 @@ export const quoteDtoSchema = z.object({
   createdAt: z.string(),
   createdBy: omittedOrNull(z.string()),
   version: z.number().int(),
+  /** 14 BR-10: bản nháp đang chờ Quản lý kinh doanh duyệt giá (vẫn `DRAFT`, khoá sửa / gửi). */
+  priceReviewPending: z.boolean().default(false),
+  priceReview: omittedOrNull(priceReviewDtoSchema),
+  priceCheck: omittedOrNull(priceCheckDtoSchema),
 });
 
 /** Dòng danh sách — BE `QuoteRowResponse` (không có điều khoản thanh toán). */
@@ -138,6 +196,8 @@ export const quoteRowDtoSchema = z.object({
   total: omittedOrNull(z.number()),
   lineCount: omittedOrNull(z.number().int()),
   firstItemName: omittedOrNull(z.string()),
+  /** 14 BR-10: nháp đang chờ duyệt giá. */
+  priceReviewPending: z.boolean().default(false),
 });
 export const quotePageDtoSchema = bePageSchema(quoteRowDtoSchema);
 
@@ -167,4 +227,13 @@ export const customerPriceDtoSchema = z.object({
   tiers: z.array(tierDtoSchema),
   note: omittedOrNull(z.string()),
   version: z.number().int(),
+});
+
+/**
+ * Giá chuẩn của quy cách — BE `StandardPriceResponse` (chỉ phần form báo giá cần). Giá gợi ý khi khách chưa có giá riêng.
+ */
+export const standardPriceSuggestionSchema = z.object({
+  sku: z.string(),
+  moq: z.number().int(),
+  tiers: z.array(tierDtoSchema),
 });

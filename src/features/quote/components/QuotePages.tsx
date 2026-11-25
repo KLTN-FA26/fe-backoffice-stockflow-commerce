@@ -45,13 +45,19 @@ function EditContent({ id }: { id: string }) {
       />
     );
   if (query.isPending) return <PageSkeleton variant="form" />;
-  // Chỉ báo giá nháp được sửa (BE PUT chỉ nhận DRAFT).
-  if (query.data.status !== "DRAFT")
+  // Chỉ báo giá nháp được sửa (BE PUT chỉ nhận DRAFT); nháp đang chờ duyệt giá phải rút lại trước (14 BR-10, BE 409
+  // QUOTE_PRICE_REVIEW_PENDING).
+  if (query.data.status !== "DRAFT" || query.data.priceReviewPending)
     return (
       <LoadErrorState
         error={null}
         kind="forbidden"
-        copy={{ ...QUOTE_COPY, forbiddenDescription: "Chỉ báo giá nháp mới sửa được nội dung." }}
+        copy={{
+          ...QUOTE_COPY,
+          forbiddenDescription: query.data.priceReviewPending
+            ? "Báo giá đang chờ duyệt giá — rút lại ở trang báo giá rồi mới sửa được."
+            : "Chỉ báo giá nháp mới sửa được nội dung.",
+        }}
         back={back}
       />
     );

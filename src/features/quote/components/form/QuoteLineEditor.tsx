@@ -4,7 +4,6 @@ import { useEffect, useRef } from "react";
 import { Controller, useWatch } from "react-hook-form";
 import { Trash2 } from "lucide-react";
 
-import { useCustomerPrice } from "@/features/quote/queries";
 import { moqOf, tierPrice } from "@/features/quote/selectors";
 import { Card } from "@/components/shared/Card";
 import { FORM_INPUT_CLASS, FormField, fieldA11y } from "@/components/shared/FormField";
@@ -13,6 +12,7 @@ import { Input } from "@/components/ui/input";
 
 import { LinePreview, SuggestionBar } from "./LinePriceHints";
 import { TierEditor } from "./TierEditor";
+import { useLinePriceSuggestion } from "./useLinePriceSuggestion";
 
 import type { UseFormReturn } from "react-hook-form";
 import type { CustomerSku, QuoteFormValues, QuoteTier } from "@/features/quote/types";
@@ -52,16 +52,17 @@ export function QuoteLineEditor({
     control,
     name: [`lines.${index}.sku`, `lines.${index}.cartons`, `lines.${index}.tiers`],
   });
-  const price = useCustomerPrice(customerId, sku);
-  const suggestion = price.data ?? null;
+  // Giá riêng của khách, không có thì giá chuẩn của quy cách (13 BR-04 / BR-05 sửa ngày 2026-11-26)
+  const price = useLinePriceSuggestion(customerId, sku, skus);
+  const suggestion = price.suggestion;
 
   // Read during render so the form subscribes to it.
   const submitted = formState.isSubmitted;
-  /** The customer price this line last saw; `undefined` before its first run (a line just added). */
+  /** The reference price this line last saw; `undefined` before its first run (a line just added). */
   const seen = useRef<typeof suggestion | undefined>(undefined);
-  // 13 BR-05: có giá riêng thì được để trống bậc giá (BE tự lấy). Sau lần gửi đầu, khi giá riêng của dòng đổi (về sau
-  // khi chọn SKU), kiểm lại ô bậc giá ngay (lỗi dưới MOQ nằm ở `tiers`), không đợi lần gửi sau. Một dòng vừa thêm
-  // không bị kiểm khi mới hiện: nó chưa có gì để sai.
+  // 13 BR-05 / BR-04: có giá riêng của khách hoặc giá chuẩn thì được để trống bậc giá (BE tự lấy). Sau lần gửi đầu, khi
+  // giá gợi ý của dòng đổi (về sau khi chọn SKU), kiểm lại ô bậc giá ngay (lỗi dưới MOQ nằm ở `tiers`), không đợi lần gửi
+  // sau. Một dòng vừa thêm không bị kiểm khi mới hiện: nó chưa có gì để sai.
   useEffect(() => {
     const changed = seen.current !== undefined && seen.current !== suggestion;
     seen.current = suggestion;
@@ -147,8 +148,8 @@ export function QuoteLineEditor({
         moq={moq}
         cartons={cartons}
         suggestion={suggestion}
-        loading={price.isFetching}
-        failed={price.isError}
+        loading={price.loading}
+        failed={price.failed}
         tiersEmpty={tiers.length === 0}
         onUse={(next) =>
           setValue(`lines.${index}.tiers`, next, { shouldDirty: true, shouldValidate: true })

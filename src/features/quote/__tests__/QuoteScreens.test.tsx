@@ -521,8 +521,9 @@ describe("Quote form", () => {
     const select = await screen.findByLabelText(/SKU riêng của khách/); // the customer is chosen
     await within(select).findByRole("option", { name: new RegExp(SKU) });
     await user.click(screen.getByRole("button", { name: "Lưu nháp" })); // submitted once
-    // The tiers error of the form schema (no customer price → at least one tier), on line 1 after the save.
-    const TIERS_ERROR = "Khách chưa có giá riêng cho SKU này — nhập ít nhất một bậc giá";
+    // The tiers error of the form schema (no customer price nor standard price → at least one tier), on line 1.
+    const TIERS_ERROR =
+      "Chưa có giá riêng của khách lẫn giá chuẩn cho SKU này — nhập ít nhất một bậc giá";
     const before = screen.queryAllByText(TIERS_ERROR).length;
     expect(before).toBeGreaterThan(0);
     await user.click(screen.getByRole("button", { name: /Thêm dòng/ }));
@@ -560,7 +561,7 @@ describe("Quote form", () => {
     await within(select).findByRole("option", { name: new RegExp(SKU) });
     await userEvent.selectOptions(select, SKU);
     await userEvent.type(screen.getByLabelText(/Số thùng/), "5");
-    expect(await screen.findByText(/Dưới mức tối thiểu 20 thùng của bảng giá khách/)).toBeVisible();
+    expect(await screen.findByText(/Dưới mức tối thiểu 20 thùng của bảng giá/)).toBeVisible();
     await userEvent.click(screen.getByRole("button", { name: "Lưu nháp" }));
     expect(await screen.findAllByText(/nhập bậc giá/)).not.toHaveLength(0);
     expect(api.post).not.toHaveBeenCalled();

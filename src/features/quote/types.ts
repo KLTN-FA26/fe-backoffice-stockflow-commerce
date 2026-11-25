@@ -4,11 +4,16 @@ import type { quoteFormSchema, quoteLineInputSchema } from "./form-schemas";
 import type {
   customerPriceDtoSchema,
   customerSkuDtoSchema,
+  priceCheckDtoSchema,
+  priceCheckLineDtoSchema,
+  priceCheckTierDtoSchema,
+  priceReviewDtoSchema,
   quoteDtoSchema,
   quoteFeeDtoSchema,
   quoteLineDtoSchema,
   quoteRowDtoSchema,
   quoteTransitionDtoSchema,
+  standardPriceSuggestionSchema,
   tierDtoSchema,
   totalsDtoSchema,
 } from "./schemas";
@@ -33,3 +38,8 @@ export type CustomerPrice = z.infer<typeof customerPriceDtoSchema>;
 export type QuoteFormValues = z.input<typeof quoteFormSchema>;
 export type QuoteFormOutput = z.output<typeof quoteFormSchema>;
 export type QuoteLineFormValues = z.input<typeof quoteLineInputSchema>;
+export type PriceCheck = z.infer<typeof priceCheckDtoSchema>;
+export type PriceCheckLine = z.infer<typeof priceCheckLineDtoSchema>;
+export type PriceCheckTier = z.infer<typeof priceCheckTierDtoSchema>;
+export type PriceReview = z.infer<typeof priceReviewDtoSchema>;
+export type StandardPriceSuggestion = z.infer<typeof standardPriceSuggestionSchema>;

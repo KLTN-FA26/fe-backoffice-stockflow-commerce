@@ -190,11 +190,11 @@ export const SHIPPING_LIMITS = {
 } as const;
 
 /**
- * Bảng giá riêng của khách hàng — BE `CustomerPriceRequest` (`@NotEmpty @Size(max = 20) tiers`,
- * `Tier.@Min(1) int minQuantity`, `@Size(max = 500) note`), `CustomerPrice.MAX_TIERS`, `SellingPrice`
- * (VND số nguyên dương, tối đa 16 chữ số phần nguyên).
+ * Bậc giá theo thùng — chung cho bảng giá riêng của khách (BE `CustomerPriceRequest`) và giá chuẩn theo quy cách (BE
+ * `StandardPriceRequest`, cùng `PriceTiers`): `@NotEmpty @Size(max = 20) tiers`, `Tier.@Min(1) int minQuantity`,
+ * `@Size(max = 500) note`, `SellingPrice` (VND số nguyên dương, tối đa 16 chữ số phần nguyên).
  */
-export const CUSTOMER_PRICE_LIMITS = {
+export const PRICE_TIER_LIMITS = {
   tiersMax: 20,
   minQuantityMin: 1,
   // `minQuantity` là `int` Java — quá int32 thì Jackson không bind được (400 chung)
@@ -202,6 +202,12 @@ export const CUSTOMER_PRICE_LIMITS = {
   noteMax: 500,
   priceIntegerDigitsMax: 16,
 } as const;
+
+/** Bảng giá riêng của khách hàng — cùng giới hạn bậc giá (`PRICE_TIER_LIMITS`). */
+export const CUSTOMER_PRICE_LIMITS = PRICE_TIER_LIMITS;
+
+/** Duyệt giá báo giá — BE `QuoteRequests.PriceApproval.note` / `PriceRejection.reason` (`@Size(max = 500)`). */
+export const QUOTE_PRICE_REVIEW_LIMITS = { noteMax: 500 } as const;
 
 /** Số khách mỗi trang gợi ý ở ô chọn khách (`GET /customers?q=`) — `Pages.DEFAULT_PAGE_SIZE` của BE (tối đa 200). */
 export const CUSTOMER_OPTIONS_PAGE_SIZE = 20;

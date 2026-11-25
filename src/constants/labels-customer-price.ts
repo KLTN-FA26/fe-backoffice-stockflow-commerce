@@ -4,20 +4,10 @@
  * giá theo cái; áp dụng tới khi sửa — KHÔNG có ngày hiệu lực; MOQ là bậc nhỏ nhất; tiền tệ luôn VND.
  */
 
-import { CUSTOMER_PRICE_LIMITS as L } from "./numbers";
+import { PRICE_TIER_FIELD_MESSAGES, PRICE_TIER_FORM_LABELS as T } from "./labels-price-tiers";
 
-export const CUSTOMER_PRICE_FIELD_MESSAGES = {
-  tiersCount: `Cần từ 1 đến ${L.tiersMax} bậc giá`,
-  minQuantity: `Số thùng từ là số nguyên từ ${L.minQuantityMin} trở lên`,
-  // BE `CustomerPrice`: "Two price tiers start at N"
-  minQuantityDuplicate: "Hai bậc giá không được bắt đầu cùng một số thùng",
-  // BE `SellingPrice`: > 0, VND số nguyên, tối đa 16 chữ số phần nguyên
-  unitPrice: `Đơn giá là số tiền VND nguyên lớn hơn 0, tối đa ${L.priceIntegerDigitsMax} chữ số`,
-  // Giá JSON đi qua số thực IEEE-754 của trình duyệt — quá nhiều chữ số thì không gửi nguyên vẹn được
-  unitPricePrecision: "Đơn giá có quá nhiều chữ số để gửi chính xác — hãy bớt chữ số",
-  note: `Ghi chú tối đa ${L.noteMax} ký tự`,
-  version: "Thiếu phiên bản dữ liệu — tải lại bảng giá rồi lưu lại",
-} as const;
+/** Lỗi theo ô — chung với giá chuẩn (`PRICE_TIER_FIELD_MESSAGES`). */
+export const CUSTOMER_PRICE_FIELD_MESSAGES = PRICE_TIER_FIELD_MESSAGES;
 
 /** Theo `errorCode` của BE (BE trả message tiếng Anh). */
 export const CUSTOMER_PRICE_ERROR_MESSAGES = {
@@ -43,9 +33,9 @@ export const CUSTOMER_PRICE_UI_LABELS = {
     customer: "Khách hàng",
     sku: "SKU",
     moq: "SL đặt tối thiểu (MOQ)",
-    tiers: "Bậc giá",
-    minQuantity: "Từ số thùng",
-    unitPrice: "Đơn giá / cái (VND)",
+    tiers: T.tiers,
+    minQuantity: T.minQuantity,
+    unitPrice: T.unitPrice,
     note: "Ghi chú",
   },
   // MOQ suy từ bậc giá thấp nhất; dưới MOQ khách không có giá (BE `CustomerPrice.priceFor`, 13 BR-06)
@@ -123,17 +113,16 @@ export const CUSTOMER_PRICE_UI_LABELS = {
     sku: "SKU",
     skuHint:
       "Chỉ SKU riêng của khách này (sinh khi thiết kế của khách được duyệt) — không phân biệt hoa thường.",
-    skuInvalid: "Mã SKU không đúng định dạng (chữ, số, dấu . _ -; tối đa 64 ký tự)",
+    skuInvalid: T.skuInvalid,
     skuLocked: "SKU là định danh của bảng giá — không đổi được khi sửa.",
-    moqHint: "MOQ được xác định bởi số thùng nhỏ nhất.",
-    tierOrderHint: "Có thể nhập các bậc theo thứ tự bất kỳ — hệ thống tự sắp theo số thùng.",
-    addTier: "Thêm bậc giá",
-    removeTier: (index: number) => `Xoá bậc giá ${index}`,
-    tierLabel: (index: number) => `Bậc ${index}`,
-    tierLimit: "Tối đa 20 bậc giá.",
-    // Đơn giá VND nguyên: "95.000" của người dùng VN là 95 nghìn — chỉ nhận chữ số để không lưu nhầm 95 đ
-    digitsOnly: "Đơn giá chỉ gồm chữ số, không dùng dấu chấm / phẩy (vd 95000)",
-    inexactReplace: "Giá cũ không đọc chính xác được — nhập lại đơn giá cho bậc này",
+    moqHint: T.moqHint,
+    tierOrderHint: T.tierOrderHint,
+    addTier: T.addTier,
+    removeTier: T.removeTier,
+    tierLabel: T.tierLabel,
+    tierLimit: T.tierLimit,
+    digitsOnly: T.digitsOnly,
+    inexactReplace: T.inexactReplace,
     inexactWarning:
       "Có bậc giá vượt độ chính xác của trình duyệt nên không đọc lại đúng được. Ô giá của bậc đó để trống — nhập giá mới trước khi lưu.",
     loading: "Đang tải bảng giá…",
