@@ -17,7 +17,6 @@ const STOCK = [
     locationCode: "HCM-A01-1-A",
     sku: "SOFA-01",
     lotNumber: "L1",
-    expiryDate: "2027-03-01",
     onHand: 10,
     reserved: 4,
   },
@@ -25,7 +24,6 @@ const STOCK = [
     locationCode: "HCM-A01-1-A",
     sku: "SOFA-02",
     lotNumber: "L2",
-    expiryDate: "2026-12-31",
     onHand: 5,
     reserved: 0,
   },
@@ -121,14 +119,13 @@ describe("buildLocationRows — hàng trong vị trí (docs 20 §4.1)", () => {
     expect(buildLocationRows(LAYOUT, null).every((row) => row.stock === null)).toBe(true);
   });
 
-  it("cộng tồn theo vị trí: SKU, lô, tồn, đang giữ, hạn dùng gần nhất", () => {
+  it("cộng tồn theo vị trí: SKU, lô, tồn, đang giữ (ly / bao bì không có hạn dùng — docs 00)", () => {
     const row = buildLocationRows(LAYOUT, STOCK)[0];
     expect(row?.stock).toEqual({
       skus: ["SOFA-01", "SOFA-02"],
       lots: ["L1", "L2"],
       onHand: 15,
       reserved: 4,
-      nearestExpiry: "2026-12-31",
       hidden: false,
     });
   });
@@ -140,7 +137,6 @@ describe("buildLocationRows — hàng trong vị trí (docs 20 §4.1)", () => {
       lots: [],
       onHand: 0,
       reserved: 0,
-      nearestExpiry: null,
       hidden: false,
     });
   });

@@ -257,7 +257,6 @@ export const WAREHOUSE_LOCATION_COLUMNS = {
   ACTIONS: "actions",
   CAPACITY: "capacity",
   CODE: "code",
-  EXPIRY: "expiry",
   KIND: "kind",
   LEVEL: "level",
   MAX_WEIGHT: "maxWeight",
