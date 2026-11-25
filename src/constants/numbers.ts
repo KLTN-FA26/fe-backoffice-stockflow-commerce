@@ -604,3 +604,10 @@ export const MODEL3D_VIEW = {
   keyLight: { intensity: 1.4, position: [3, 5, 4] },
   fillLight: { intensity: 0.5, position: [-3, 2, -4] },
 } as const;
+
+/** Màn Thùng hàng (LPN) — search / lọc chữ gọi BE nên debounce (api-conventions §9); cỡ trang ≤ BE `Pages.MAX_PAGE_SIZE`. */
+export const CARTON_LIST_LIMITS = {
+  searchDebounceMs: 300,
+  pageSizes: [15, 25, 50, 100] as const,
+  defaultPageSize: 25,
+} as const;

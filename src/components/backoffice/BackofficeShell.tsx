@@ -44,6 +44,7 @@ import {
   Settings,
   TableProperties,
   PackageX,
+  ScanBarcode,
   SlidersHorizontal,
   Tags,
   Truck,
@@ -57,6 +58,7 @@ import { useMemo, useState } from "react";
 
 import {
   ADMIN_ROUTES,
+  CARTON_LIST_LABELS,
   ATTRIBUTE_PERMISSIONS,
   BRAND,
   CANCELLATION_REQUEST_LABELS,
@@ -447,6 +449,13 @@ export const NAV_GROUPS: NavGroup[] = [
         href: INVENTORY_ROUTES.adjustments,
         icon: SlidersHorizontal,
         permission: INVENTORY_PERMISSIONS.adjustmentViewPage,
+      },
+      {
+        // Tra cứu mọi thùng theo LPN / SKU / vị trí / lô (docs 20 §4.1) — route BE khai báo cho inventory-stock-packages
+        label: CARTON_LIST_LABELS.title,
+        href: INVENTORY_ROUTES.cartons,
+        icon: ScanBarcode,
+        permission: STOCK_PACKAGE_PERMISSIONS.viewPage,
       },
       {
         label: QUARANTINE_LABELS.title,

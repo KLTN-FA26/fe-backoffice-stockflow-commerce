@@ -33,6 +33,8 @@ export const STORAGE_KEYS = {
   adminWarehouseCapacityConfig: "stockflow:admin:warehouse-capacity:config",
   /** Danh sách vị trí của kho (tab Kho) — cột đang hiện, số dòng / trang; dùng chung mọi kho. */
   adminWarehouseLocationsConfig: "stockflow:admin:warehouse-map:locations:config",
+  /** Thùng hàng (LPN) — cột đang hiện, số dòng / trang. */
+  adminInventoryCartonsConfig: "stockflow:admin:inventory:cartons:config",
   adminLoadPlansConfig: "stockflow:admin:load-plans:config",
   /** sessionStorage — `requestId` của lần lập kế hoạch xếp xe (BE trả lại kế hoạch cũ khi gửi lại cùng id). */
   loadPlanRequest: "stockflow:admin:load-plans:create-request",
