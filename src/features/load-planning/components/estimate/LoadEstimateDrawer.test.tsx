@@ -121,11 +121,11 @@ describe("LoadEstimateDrawer — nội dung", () => {
     expect(screen.getByText("Số xe")).toBeInTheDocument();
     // bảng dòng
     const lines = screen.getByRole("table", { name: "Thùng hàng theo dòng đơn" });
-    const sofa = within(lines).getByRole("row", { name: /SF-A/ });
-    expect(within(sofa).getByText("Đơn vị giao mặc định")).toBeInTheDocument();
-    expect(within(sofa).getByText("CTN (×4)")).toBeInTheDocument();
-    expect(within(sofa).getByText(/2 đơn vị · 4,75 kg/)).toBeInTheDocument();
-    expect(within(sofa).getByText("60×40×40")).toBeInTheDocument();
+    const cups = within(lines).getByRole("row", { name: /LP-A/ });
+    expect(within(cups).getByText("Đơn vị giao mặc định")).toBeInTheDocument();
+    expect(within(cups).getByText("CTN (×4)")).toBeInTheDocument();
+    expect(within(cups).getByText(/2 đơn vị · 4,75 kg/)).toBeInTheDocument();
+    expect(within(cups).getByText("60×40×40")).toBeInTheDocument();
     expect(within(lines).getByText("bộ 2 kiện")).toBeInTheDocument();
     // kiện chưa xếp
     const unplaced = screen.getByRole("table", { name: "Kiện chưa xếp được" });
@@ -156,11 +156,11 @@ describe("LoadEstimateDrawer — nội dung", () => {
     expect(
       within(banner).getByText(/một số dòng thiếu kích thước hoặc khối lượng/),
     ).toBeInTheDocument();
-    expect(within(banner).getByText("TV-F")).toBeInTheDocument();
+    expect(within(banner).getByText("SD-F")).toBeInTheDocument();
     expect(within(banner).getByText(/Thiếu: chiều dài, khối lượng/)).toBeInTheDocument();
-    expect(within(banner).getByRole("link", { name: "Mở hồ sơ hàng tồn TV-F" })).toHaveAttribute(
+    expect(within(banner).getByRole("link", { name: "Mở hồ sơ hàng tồn SD-F" })).toHaveAttribute(
       "href",
-      "/admin/inventory-items/item-TV-F",
+      "/admin/inventory-items/item-SD-F",
     );
   });
 

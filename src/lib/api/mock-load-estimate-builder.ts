@@ -1,13 +1,13 @@
 /**
  * Dựng một ước tính giả cho mock (BE PR #160), từ fixture `Layout` của F1 (`features/load-planning/__fixtures__`):
- * SINGLE_TYPE → một container 40HC; FEWEST_VEHICLES → thêm một xe bán tải chở bộ bàn và dừng do hết thời gian tính (để
+ * SINGLE_TYPE → một container 40HC; FEWEST_VEHICLES → thêm một xe bán tải chở bộ khay ly và dừng do hết thời gian tính (để
  * màn chạm được "Dừng do hết thời gian tính"). Đơn có từ hai dòng thì dòng cuối bị coi là chưa đo kích thước (LP2-3):
  * vào `missing[]`, ước tính `incomplete`. Tách khỏi `mock-routes-load-estimates.ts` (giới hạn 200 dòng / file).
  */
 
 import { LOAD_ESTIMATE_SELECTION_MODES } from "@/constants";
 import {
-  KIT_BAN,
+  KIT_KHAY,
   LAYOUT_40HC,
   LAYOUT_PICKUP_KIT,
   UNPLACED_40HC,
@@ -48,7 +48,7 @@ function linesOf(layouts: readonly Layout[]) {
   });
 }
 
-/** Chỗ bán tải cho bộ bàn: một xe thứ hai, đánh số lại để seq liên tục. */
+/** Chỗ bán tải cho bộ khay ly: một xe thứ hai, đánh số lại để seq liên tục. */
 const secondVehicle = (): Layout => ({ ...LAYOUT_PICKUP_KIT, seq: 2 });
 
 async function missingLinesOf(order: Order) {
@@ -90,7 +90,7 @@ export async function buildMockEstimate(
     warnings: [
       {
         orderLineId: "LINE-005",
-        sku: "PK-E",
+        sku: "NL-E",
         code: "SHIPPING_UNIT_INCOMPLETE",
         unitOfMeasure: "PALLET",
         fields: ["weightKg"],
@@ -114,9 +114,9 @@ export async function buildMockEstimate(
       elapsedMillis: fewest ? 5003 : 812,
       placedBoxes: vehicles.reduce((sum, v) => sum + v.boxes.length, 0),
       unplacedBoxes: UNPLACED_40HC.reduce((sum, line) => sum + line.quantity, 0),
-      kitBalance: [{ [KIT_BAN.parts[0].partName]: 4 }],
+      kitBalance: [{ [KIT_KHAY.parts[0].partName]: 4 }],
       kitWarnings: fewest
-        ? [{ kitName: KIT_BAN.group, type: "SURPLUS_PARTS", partCode: "BAN-CB", count: 2 }]
+        ? [{ kitName: KIT_KHAY.group, type: "SURPLUS_PARTS", partCode: "KHAY-B", count: 2 }]
         : [],
     },
     createdAt: new Date().toISOString(),

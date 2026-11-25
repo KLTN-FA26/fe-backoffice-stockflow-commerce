@@ -183,7 +183,7 @@ describe("LoadPlanDetail — hiển thị", () => {
   it("shows the plan metrics and the per-vehicle item table grouped by SKU and size", async () => {
     renderDetail(ACTORS.viewOnly);
     expect((await screen.findAllByText("Số kiện đã xếp theo xe")).length).toBeGreaterThan(0);
-    for (const name of ["Mặt bàn", "Chân bàn", "Ghế bar"])
+    for (const name of ["Khay giấy", "Ống ly giấy", "Thùng ống hút"])
       expect(screen.getAllByText(name).length).toBeGreaterThan(0);
     expect(screen.getByText("Hiệu suất")).toBeInTheDocument();
   });

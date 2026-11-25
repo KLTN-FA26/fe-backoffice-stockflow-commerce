@@ -56,9 +56,9 @@ describe("prepareScene", () => {
 
   it("colours by part with the caller's map when given, else by its own sorted map", () => {
     expect(scene.boxes[0].color).toBe(
-      buildColorMap(LAYOUT_40HC.boxes.map((b) => b.partName)).get("Thùng sofa"),
+      buildColorMap(LAYOUT_40HC.boxes.map((b) => b.partName)).get("Thùng ly nhựa PP"),
     );
-    const forced = prepareScene(LAYOUT_PICKUP_KIT, new Map([["Mặt bàn", "#123456"]]));
+    const forced = prepareScene(LAYOUT_PICKUP_KIT, new Map([["Khay giấy", "#123456"]]));
     expect(forced.boxes[0].color).toBe("#123456");
     // tên không có trong map của người gọi → ô đầu của bảng màu, không ném lỗi
     expect(forced.boxes.at(-1)?.color).toBe(VIEWER_PALETTE[0]);
@@ -133,22 +133,22 @@ describe("sceneScale", () => {
 
 describe("labels", () => {
   it("hover label shows the AS-PLACED size in D×R×C", () => {
-    expect(hoverLabel(LAYOUT_40HC.boxes[0])).toBe("Thùng sofa · 600×400×400mm");
-    // Bàn trà xoay WLH: dài(z)=600, rộng(x)=1000, cao=500
-    const rotated = LAYOUT_40HC.boxes.find((b) => b.partName === "Bàn trà");
-    expect(rotated && hoverLabel(rotated)).toBe("Bàn trà · 600×1000×500mm");
+    expect(hoverLabel(LAYOUT_40HC.boxes[0])).toBe("Thùng ly nhựa PP · 600×400×400mm");
+    // Thùng túi giấy xoay WLH: dài(z)=600, rộng(x)=1000, cao=500
+    const rotated = LAYOUT_40HC.boxes.find((b) => b.partName === "Thùng túi giấy");
+    expect(rotated && hoverLabel(rotated)).toBe("Thùng túi giấy · 600×1000×500mm");
   });
 
   it("falls back to the face code and then to the unnamed label", () => {
     const base = LAYOUT_40HC.boxes[0];
-    expect(hoverLabel({ ...base, partName: "" })).toBe("SF-A · 600×400×400mm");
+    expect(hoverLabel({ ...base, partName: "" })).toBe("LP-A · 600×400×400mm");
     expect(hoverLabel({ ...base, partName: "", label: "" })).toBe("(chưa đặt tên) · 600×400×400mm");
   });
 
   it("truncates long face codes to 14 characters with an ellipsis", () => {
     expect(truncateLabel("ABCDEFGHIJKLMN")).toBe("ABCDEFGHIJKLMN");
     expect(truncateLabel("ABCDEFGHIJKLMNO")).toBe("ABCDEFGHIJKLM…");
-    expect(faceCode({ ...LAYOUT_40HC.boxes[0], label: "  SF-A  " })).toBe("SF-A");
+    expect(faceCode({ ...LAYOUT_40HC.boxes[0], label: "  LP-A  " })).toBe("LP-A");
   });
 });
 

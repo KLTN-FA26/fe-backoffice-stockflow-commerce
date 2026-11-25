@@ -144,6 +144,6 @@ export async function openEditor(user: ReturnType<typeof userEvent.setup>) {
   await screen.findByRole("toolbar", { name: E.toolbar.group });
 }
 
-export const stoolButtons = () => screen.getAllByRole("button", { name: /kiện GB-01/ });
+export const stoolButtons = () => screen.getAllByRole("button", { name: /kiện OH-01/ });
 export const putCalls = (put: { mock: { calls: unknown[][] } }) =>
   put.mock.calls.filter(([url]) => url === `${PATH}/placements`);

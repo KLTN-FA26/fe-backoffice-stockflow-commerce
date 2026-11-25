@@ -20,7 +20,7 @@ export interface TrayLine {
 }
 
 /**
- * Gom khay thành dòng. Khoá có cả mã bộ: hai bộ bàn khác nhau không gộp, để người soạn chọn đúng bộ cần đặt cạnh nhau
+ * Gom khay thành dòng. Khoá có cả mã bộ: hai bộ khay ly khác nhau không gộp, để người soạn chọn đúng bộ cần đặt cạnh nhau
  * (LP-3 — một bộ đi cùng một xe).
  */
 export function trayLines(tray: readonly TrayParcel[]): TrayLine[] {

@@ -8,33 +8,33 @@ import { gridBlock, makeLayout } from "./build";
 
 import type { CartonType } from "./build";
 
-const TABLE_BOX: CartonType = {
-  ref: "pkg-table",
+const CUP_BOX: CartonType = {
+  ref: "pkg-cup",
   source: "package",
   label: "",
-  partName: "SKU-TABLE-01",
+  partName: "CUP-PP-500",
   origMm: { l: 800, w: 500, h: 300 },
   weightKg: 12,
 };
-const CHAIR_BOX: CartonType = {
-  ref: "pkg-chair",
+const BAG_BOX: CartonType = {
+  ref: "pkg-bag",
   source: "package",
   label: "",
-  partName: "SKU-CHAIR-02",
+  partName: "BAG-CUP-2",
   origMm: { l: 600, w: 400, h: 400 },
   weightKg: 7,
 };
 
-/** Xe bán tải: 6 thùng bàn (3 × 2 tầng) + 2 thùng ghế, MỖI kiện một nhãn riêng → đúng 2 khối / 2 bước. */
+/** Xe bán tải: 6 thùng ly (3 × 2 tầng) + 2 thùng túi đựng ly, MỖI kiện một nhãn riêng → đúng 2 khối / 2 bước. */
 export const LAYOUT_UNIQUE_LABELS = (() => {
   const boxes = [
     ...gridBlock({
-      carton: TABLE_BOX,
+      carton: CUP_BOX,
       origin: { xMm: 0, yMm: 0, zMm: 0 },
       counts: { nx: 3, ny: 2, nz: 1 },
     }),
     ...gridBlock({
-      carton: CHAIR_BOX,
+      carton: BAG_BOX,
       origin: { xMm: 0, yMm: 0, zMm: 800 },
       counts: { nx: 2, ny: 1, nz: 1 },
     }),

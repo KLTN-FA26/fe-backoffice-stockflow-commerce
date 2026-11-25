@@ -43,10 +43,10 @@ afterEach(() => {
 const E = UI_LABELS.loadPlan.editor;
 const C = E.conflict;
 
-/** Người khác dời kiện ghế bar cuối cùng 50 mm rồi lưu: kế hoạch lên version 5. */
+/** Người khác dời kiện thùng ống hút cuối cùng 50 mm rồi lưu: kế hoạch lên version 5. */
 function someoneElseMovesAStool(server: Server) {
   const layout = server.layouts[0];
-  const last = layout.boxes.findLastIndex((b) => b.label === "GB-01");
+  const last = layout.boxes.findLastIndex((b) => b.label === "OH-01");
   server.layouts = [
     { ...layout, boxes: layout.boxes.map((b, i) => (i === last ? { ...b, zMm: b.zMm - 50 } : b)) },
   ];
@@ -102,7 +102,7 @@ describe("lưu bị 409 OPTIMISTIC_LOCK", () => {
     await user.click(screen.getByRole("button", { name: C.review }));
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText(C.changes(1))).toBeInTheDocument();
-    expect(within(dialog).getByText(/GB-01: xe #1 → xe #1/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/OH-01: xe #1 → xe #1/)).toBeInTheDocument();
     await user.click(within(dialog).getByRole("button", { name: C.overwrite }));
     await waitFor(() => expect(putCalls(view.put)).toHaveLength(2));
     const [first, second] = putCalls(view.put).map(
@@ -268,8 +268,8 @@ describe("vi phạm do máy chủ báo hết hiệu lực khi bố cục đổi"
     const user = userEvent.setup();
     const server = onePlan();
     const parts = server.layouts[0].boxes;
-    const leg = parts.find((b) => b.label === "BAN-CB")?.ref ?? "";
-    const top = parts.find((b) => b.label === "BAN-MB")?.ref ?? "";
+    const leg = parts.find((b) => b.label === "KHAY-B")?.ref ?? "";
+    const top = parts.find((b) => b.label === "KHAY-A")?.ref ?? "";
     let calls = 0;
     const view = renderEditor(ACTORS.dispatcher, server, {
       put: () => {
@@ -291,7 +291,7 @@ describe("vi phạm do máy chủ báo hết hiệu lực khi bố cục đổi"
       },
     });
     await openEditor(user);
-    await user.click(screen.getAllByRole("button", { name: /kiện BAN-CB/ })[0]);
+    await user.click(screen.getAllByRole("button", { name: /kiện KHAY-B/ })[0]);
     await user.click(screen.getByRole("button", { name: E.selection.toTray }));
     await user.click(screen.getByRole("button", { name: E.save.save }));
     await user.click(
@@ -314,7 +314,7 @@ describe("vi phạm do máy chủ báo hết hiệu lực khi bố cục đổi"
   it("fixing a multi-box violation by moving a DIFFERENT box also clears it", async () => {
     const user = userEvent.setup();
     const server = onePlan();
-    const flagged = server.layouts[0].boxes.filter((b) => b.label === "GB-01")[0].ref;
+    const flagged = server.layouts[0].boxes.filter((b) => b.label === "OH-01")[0].ref;
     renderEditor(ACTORS.dispatcher, server, {
       put: () => {
         throw new ApiError(422, "PLACEMENT_RULE_VIOLATION", "x", undefined, undefined, undefined, [

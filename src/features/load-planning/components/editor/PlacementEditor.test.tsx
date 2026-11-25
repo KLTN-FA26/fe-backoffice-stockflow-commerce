@@ -131,7 +131,7 @@ describe("trình soạn xếp tay — thao tác", () => {
     await user.click(screen.getByRole("button", { name: E.selection.toTray }));
     expect(stoolButtons()).toHaveLength(2);
     const tray = screen.getByRole("region", { name: E.tray.title });
-    expect(within(tray).getByRole("button", { name: /Chọn Ghế bar/ })).toBeInTheDocument();
+    expect(within(tray).getByRole("button", { name: /Chọn Thùng ống hút/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: E.save.save })).toBeEnabled();
     await user.click(screen.getByRole("button", { name: E.toolbar.undo }));
     expect(stoolButtons()).toHaveLength(3);
@@ -144,10 +144,10 @@ describe("trình soạn xếp tay — thao tác", () => {
     const user = userEvent.setup();
     const { put, state } = renderEditor(ACTORS.dispatcher);
     await openEditor(user);
-    const moved = state.layouts[0].boxes.find((b) => b.label === "GB-01" && b.xMm === 1000);
+    const moved = state.layouts[0].boxes.find((b) => b.label === "OH-01" && b.xMm === 1000);
     await user.click(stoolButtons()[2]);
     await user.click(screen.getByRole("button", { name: E.selection.toTray }));
-    await user.click(screen.getByRole("button", { name: /Chọn Ghế bar/ }));
+    await user.click(screen.getByRole("button", { name: /Chọn Thùng ống hút/ }));
     const spot = await screen.findByRole("button", { name: /^ô 0$/ });
     await user.click(spot);
     // back on a vehicle, tray empty again
@@ -204,12 +204,14 @@ describe("trình soạn xếp tay — thao tác", () => {
     renderEditor(ACTORS.dispatcher);
     await openEditor(user);
     const lines = screen.getByRole("region", { name: E.lines.title });
-    await user.type(within(lines).getByLabelText(`${E.lines.qty}: Ghế bar`), "2");
-    await user.click(within(lines).getByRole("button", { name: `${E.lines.moveOut} Ghế bar` }));
+    await user.type(within(lines).getByLabelText(`${E.lines.qty}: Thùng ống hút`), "2");
+    await user.click(
+      within(lines).getByRole("button", { name: `${E.lines.moveOut} Thùng ống hút` }),
+    );
     expect(stoolButtons()).toHaveLength(1);
     expect(
       within(screen.getByRole("region", { name: E.tray.title })).getByRole("button", {
-        name: /Chọn Ghế bar/,
+        name: /Chọn Thùng ống hút/,
       }),
     ).toHaveTextContent("×2");
   });
@@ -220,7 +222,7 @@ describe("trình soạn xếp tay — thao tác", () => {
     await openEditor(user);
     await user.click(screen.getByRole("button", { name: E.toolbar.emptyOff }));
     expect(await screen.findByText(/xem chỗ trống: [1-9]/)).toBeInTheDocument();
-    expect(screen.queryAllByRole("button", { name: /kiện GB-01/ })).toHaveLength(0);
+    expect(screen.queryAllByRole("button", { name: /kiện OH-01/ })).toHaveLength(0);
   });
 });
 
@@ -237,7 +239,7 @@ describe("trình soạn xếp tay — đặt kiện từ khay bằng bàn phím"
     renderEditor(ACTORS.dispatcher);
     await openEditor(user);
     await trayStool(user);
-    const chip = screen.getByRole("button", { name: /Chọn Ghế bar/ });
+    const chip = screen.getByRole("button", { name: /Chọn Thùng ống hút/ });
     chip.focus();
     await user.keyboard("{Enter}");
     expect(chip).toHaveAttribute("aria-pressed", "true");
@@ -252,7 +254,7 @@ describe("trình soạn xếp tay — đặt kiện từ khay bằng bàn phím"
     const { put } = renderEditor(ACTORS.dispatcher);
     await openEditor(user);
     await trayStool(user);
-    await user.click(screen.getByRole("button", { name: /Chọn Ghế bar/ }));
+    await user.click(screen.getByRole("button", { name: /Chọn Thùng ống hút/ }));
     const list = await screen.findByRole("listbox", { name: E.tray.spotList.aria });
     list.focus();
     const options = () => within(list).getAllByRole("option");
@@ -285,7 +287,7 @@ describe("trình soạn xếp tay — đặt kiện từ khay bằng bàn phím"
     renderEditor(ACTORS.dispatcher);
     await openEditor(user);
     await trayStool(user);
-    await user.click(screen.getByRole("button", { name: /Chọn Ghế bar/ }));
+    await user.click(screen.getByRole("button", { name: /Chọn Thùng ống hút/ }));
     const list = await screen.findByRole("listbox", { name: E.tray.spotList.aria });
     list.focus();
     await user.keyboard("{ArrowDown}");
@@ -300,11 +302,11 @@ describe("trình soạn xếp tay — kiểm tra trước khi lưu", () => {
     const user = userEvent.setup();
     const { put } = renderEditor(ACTORS.dispatcher);
     await openEditor(user);
-    await user.click(screen.getAllByRole("button", { name: /kiện BAN-CB/ })[0]);
+    await user.click(screen.getAllByRole("button", { name: /kiện KHAY-B/ })[0]);
     await user.click(screen.getByRole("button", { name: E.selection.toTray }));
     const issues = screen.getByRole("region", { name: E.issues.title });
     expect(within(issues).getAllByText(PLACEMENT_RULE_LABELS.KIT_SPLIT).length).toBeGreaterThan(1);
-    expect(screen.getAllByRole("button", { name: /kiện BAN-MB/ })[0]).toHaveAttribute(
+    expect(screen.getAllByRole("button", { name: /kiện KHAY-A/ })[0]).toHaveAttribute(
       "data-tone",
       "violation",
     );
@@ -319,7 +321,7 @@ describe("trình soạn xếp tay — kiểm tra trước khi lưu", () => {
     const user = userEvent.setup();
     renderEditor(ACTORS.dispatcher, onePlan(), { door: { doorWidthMm: 700 } });
     await openEditor(user);
-    const top = screen.getAllByRole("button", { name: /kiện BAN-MB/ })[0];
+    const top = screen.getAllByRole("button", { name: /kiện KHAY-A/ })[0];
     expect(top).toHaveAttribute("data-tone", "violation");
     expect(
       within(screen.getByRole("region", { name: E.issues.title })).getAllByText(
@@ -354,7 +356,7 @@ describe("trình soạn xếp tay — lỗi khi lưu", () => {
   it("422 puts the BE's violations on the boxes with the Vietnamese rule text and keeps the edit", async () => {
     const user = userEvent.setup();
     const server = onePlan();
-    const target = server.layouts[0].boxes.find((b) => b.label === "GB-01")?.ref ?? "";
+    const target = server.layouts[0].boxes.find((b) => b.label === "OH-01")?.ref ?? "";
     renderEditor(ACTORS.dispatcher, server, {
       put: () => {
         throw violation([
@@ -383,7 +385,7 @@ describe("trình soạn xếp tay — lỗi khi lưu", () => {
   it("the server's violation disappears from a box once the user moves that box", async () => {
     const user = userEvent.setup();
     const server = onePlan();
-    const target = server.layouts[0].boxes.filter((b) => b.label === "GB-01")[0].ref;
+    const target = server.layouts[0].boxes.filter((b) => b.label === "OH-01")[0].ref;
     renderEditor(ACTORS.dispatcher, server, {
       put: () => {
         throw violation([{ field: target, code: "OVERLAP" }]);

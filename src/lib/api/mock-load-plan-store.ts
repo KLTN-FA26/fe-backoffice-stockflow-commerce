@@ -1,6 +1,6 @@
 /**
  * Store in-memory cho mock kế hoạch xếp xe (SCRUM-287 PR D, BE PR #161). Lô giao nguyên xe và kiện lấy từ fixture của
- * F1 (`features/load-planning/__fixtures__`: bộ bàn A+B + ghế bar) cộng vài lô nhỏ; bốn kế hoạch phủ các trạng thái:
+ * F1 (`features/load-planning/__fixtures__`: bộ khay ly (khay + ống ly) + thùng ống hút) cộng vài lô nhỏ; bốn kế hoạch phủ các trạng thái:
  * PLANNED (đủ kiện trên một xe), DRAFT, CANCELLED, và CONFIRMED với một xe đang xếp hàng (thử BR-14). Chỉ dùng khi
  * USE_MOCK=true.
  */
@@ -138,7 +138,7 @@ function shipment(
   };
 }
 
-/** Kiện của lô S1 = đúng các hộp của fixture F1 (xe bán tải 4 bộ bàn + 3 ghế bar), id kiện = `ref` của hộp. */
+/** Kiện của lô S1 = đúng các hộp của fixture F1 (xe bán tải 4 bộ khay ly + 3 thùng ống hút), id kiện = `ref` của hộp. */
 function kitShipment(): MockShipment {
   const head = { shipmentId: ID(1), code: "SO-20261004-000001-S1" };
   const packages = LAYOUT_PICKUP_KIT.boxes.map((box, index): MockParcel => ({
@@ -172,15 +172,16 @@ function seedShipments(): MockShipment[] {
     kitShipment(),
     // Có kiện 2600 mm: dài hơn mọi xe bán tải / xe tải nhỏ → TOO_LARGE; đơn KHÔNG cho giao một phần (LP-4)
     shipment(2, HN, "SO-20261006-000004", false, [
-      ["Bàn trà", 6, 1000, 600, 500, 14],
-      ["Tủ vải", 2, 2600, 500, 500, 30],
+      ["Thùng túi giấy", 6, 1000, 600, 500, 14],
+      // Cuộn băng rôn quảng cáo (POSM) đi kèm đơn ly: kiện dài 2600 mm vượt mọi xe nhỏ → TOO_LARGE
+      ["Cuộn băng rôn (POSM)", 2, 2600, 500, 500, 30],
     ]),
-    shipment(3, HN, "SO-20261007-000002", true, [["Ghế ăn", 8, 800, 500, 300, 6.2]]),
+    shipment(3, HN, "SO-20261007-000002", true, [["Thùng ly giấy", 8, 800, 500, 300, 6.2]]),
     shipment(4, HCM, "SO-20261008-000003", true, [
-      ["Kệ sách", 4, 1200, 300, 1800, 22],
-      ["Phụ kiện", 6, 400, 300, 200, 3],
+      ["Kệ trưng bày ly", 4, 1200, 300, 1800, 22],
+      ["Thùng nắp ly", 6, 400, 300, 200, 3],
     ]),
-    shipment(5, HN, "SO-20261003-000007", true, [["Sofa", 5, 600, 400, 400, 9.5]]),
+    shipment(5, HN, "SO-20261003-000007", true, [["Thùng ly nhựa PP", 5, 600, 400, 400, 9.5]]),
   ];
 }
 

@@ -42,7 +42,12 @@ describe("unplaced tray", () => {
   it("groups the tray by SKU and size so the item table shows one line per kind", () => {
     const lines = unplacedLinesOf([unplacedParcel("TOO_LARGE", 1), unplacedParcel("TOO_LARGE", 2)]);
     expect(lines).toEqual([
-      { label: "", partName: "Tủ vải", origMm: { l: 2600, w: 500, h: 500 }, quantity: 2 },
+      {
+        label: "",
+        partName: "Standee quảng cáo",
+        origMm: { l: 2600, w: 500, h: 500 },
+        quantity: 2,
+      },
     ]);
   });
 });
@@ -55,9 +60,9 @@ describe("item table over BE layouts (label = parcel label code)", () => {
     const grouped = buildItemTable(layoutsForItemTable([layout]));
     expect(grouped.rows.map((row) => [row.partName, row.loaded])).toEqual(
       expect.arrayContaining([
-        ["Mặt bàn", 4],
-        ["Chân bàn", 16],
-        ["Ghế bar", 3],
+        ["Khay giấy", 4],
+        ["Ống ly giấy", 16],
+        ["Thùng ống hút", 3],
       ]),
     );
     expect(grouped.grandTotal).toBe(perLabel.length);

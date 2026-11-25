@@ -102,8 +102,8 @@ describe("BlockMmSchema", () => {
 
 describe("UnplacedLineSchema", () => {
   const line = {
-    label: "BT-C",
-    partName: "Bàn trà",
+    label: "TG-C",
+    partName: "Thùng túi giấy",
     origMm: { l: 1000, w: 600, h: 500 },
     quantity: 12,
   };

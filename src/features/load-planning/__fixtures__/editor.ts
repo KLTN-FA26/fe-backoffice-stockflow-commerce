@@ -31,7 +31,7 @@ export const KIT_PART_1: CartonType = {
   ref: "KIT1",
   source: "package",
   label: "PKG-K1",
-  partName: "Bàn 1/2",
+  partName: "Bộ khay 1/2",
   kitGroup: "kit-A",
   origMm: { l: 400, w: 400, h: 200 },
   weightKg: 4,
@@ -40,7 +40,7 @@ export const KIT_PART_2: CartonType = {
   ...KIT_PART_1,
   ref: "KIT2",
   label: "PKG-K2",
-  partName: "Bàn 2/2",
+  partName: "Bộ khay 2/2",
 };
 
 const INNER = { l: 2000, w: 1000, h: 1000 };

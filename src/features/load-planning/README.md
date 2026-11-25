@@ -99,7 +99,7 @@ Cố ý chưa port (đến ở PR sau): bảng "hướng dẫn xếp theo bướ
 - **Cắt bớt kiện có thông báo**: gốc lặng lẽ `slice(0, 600)`; nay khung 3D hiện "chỉ dựng N/M kiện" khi vượt `renderBoxesMax`.
 - **`checkPieces` không coi số lượng hỏng là 0**: gốc `Number(q) || 0` che đúng loại lỗi mà phép đối chiếu sinh ra để bắt;
   nay dòng hỏng được đếm (`malformedLines`) và làm phép đối chiếu thất bại.
-- **Cân bằng bộ theo tỉ lệ `perSet`** (1 mặt + 4 chân), không chỉ "bằng nhau"; chỉ ra xe/bộ lệch. Hợp đồng không có
+- **Cân bằng bộ theo tỉ lệ `perSet`** (1 khay + 4 ống ly), không chỉ "bằng nhau"; chỉ ra xe/bộ lệch. Hợp đồng không có
   `perSet`, nên mặc định bộ được **suy ra từ chính các kiện** (`deriveKitDefs`): gom theo `kitGroup`, thành phần theo
   `partName`, `perSet` = tổng số kiện của thành phần trong cả kế hoạch ÷ ƯCLN các tổng. Cách này bắt được bộ bị chia lệch
   tỉ lệ giữa các xe nhưng KHÔNG bắt được cả kế hoạch cùng thiếu một món (tỉ lệ suy ra theo số đang có) — muốn kiểm chặt
@@ -145,7 +145,7 @@ const { captureStepImages } = await import("@/features/load-planning/lib/capture
 
 `pnpm test src/features/load-planning` — dims, piece check, thứ tự bước (snapshot), zod, palette, cảnh 3D thuần,
 luật hình học, khoảng trống, capture (renderer giả: đúng MỘT context cho mọi ảnh), và các component trình bày.
-Fixture (`__fixtures__/layouts.ts`): 40HC 438 kiện hỗn hợp (có gusset, Bàn trà xoay) và bán tải chở 4 bộ bàn A+B;
+Fixture (`__fixtures__/layouts.ts`): 40HC 438 kiện hỗn hợp (có gusset, Thùng túi giấy xoay) và bán tải chở 4 bộ khay ly (khay + ống ly);
 test xác nhận cả hai hợp lệ hình học. Jsdom không có WebGL nên viewer chỉ có smoke test với fiber được mock
 (lớp DOM: nhãn truy cập, nút góc nhìn, cảnh báo cắt bớt); hình học cảnh test ở `lib/scene.test.ts`.
 
