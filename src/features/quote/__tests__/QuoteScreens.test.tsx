@@ -292,6 +292,22 @@ describe("Quote detail", () => {
     expect(within(dialog).getByRole("button", { name: "Huỷ báo giá" })).toBeDisabled();
   });
 
+  it("QD-16: an accepted legacy quote cannot become an order but can be cancelled, even for an ACTIVE customer", async () => {
+    mockApi("SALES_STAFF", {
+      get: {
+        [detailUrl]: () => ({ ...QUOTE_ACCEPTED, legacy: true }),
+        [`/customers/${CUSTOMER_ID}`]: () => CUSTOMER,
+      },
+    });
+    renderScreen(<QuoteDetail id={QUOTE_ID} />, "SALES_STAFF");
+    expect(await screen.findByText(/huỷ báo giá này rồi lập báo giá mới/)).toBeInTheDocument();
+    await userEvent.click(await screen.findByRole("button", { name: "Huỷ báo giá đã chấp nhận" }));
+    expect(screen.queryByRole("button", { name: "Tạo đơn" })).not.toBeInTheDocument();
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(/Báo giá cũ .* không tạo đơn được/)).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Huỷ báo giá" })).toBeDisabled();
+  });
+
   it("DRAFT có dòng chưa có nhóm thuế: chặn gửi và nêu dòng", async () => {
     const line = { ...priced.lines[0], taxClass: undefined, taxRate: undefined };
     mockApi("SALES_STAFF", {

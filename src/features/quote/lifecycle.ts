@@ -3,8 +3,8 @@
  *   DRAFT → SENT (gửi) | CANCELLED (huỷ, lý do bắt buộc); sửa nội dung chỉ khi DRAFT
  *   SENT → ACCEPTED | CHANGES_REQUESTED (chỉ khách) ; quá validUntil → EXPIRED (job)
  *   CHANGES_REQUESTED → DRAFT (mở bản sửa, revision + 1)
- *   ACCEPTED → CONVERTED (tạo đơn Nháp) | CANCELLED (chỉ khi có dòng `purchasability` ≠ PURCHASABLE — BE-14 — hoặc
- *     khách không còn ACTIVE — LC-2; BE kiểm lại)
+ *   ACCEPTED → CONVERTED (tạo đơn Nháp) | CANCELLED (chỉ khi là báo giá cũ — QD-16 — có dòng `purchasability` ≠
+ *     PURCHASABLE — BE-14 — hoặc khách không còn ACTIVE — LC-2; BE kiểm lại)
  *   EXPIRED / CANCELLED / CONVERTED: trạng thái cuối.
  * UI-only — Backend phải re-check (QuoteService, quyền sales-quotes / sales-quote-conversions).
  */
@@ -42,16 +42,19 @@ export function allowedStaffQuoteActions(
   status: QuoteApiStatus,
   can: (code: PermissionCode) => boolean,
   legacy = false,
-  // `canCancelAcceptedQuote` (selectors): SKU ngừng bán hoặc khách không còn ACTIVE
+  // `canCancelAcceptedQuote` (selectors): báo giá cũ, SKU ngừng bán hoặc khách không còn ACTIVE
   acceptedCancellable = false,
 ): readonly StaffQuoteAction[] {
-  // Báo giá cũ trước rescope chỉ xem (BE QUOTE_LINES_LEGACY).
-  if (legacy) return [];
-  return STAFF_ACTIONS[status]
-    .filter((action) => !(status === "ACCEPTED" && action === "cancel" && !acceptedCancellable))
-    .filter((action) =>
-      action === "convert" ? can(QUOTE_PERMISSIONS.convert) : can(QUOTE_PERMISSIONS.update),
-    );
+  return (
+    STAFF_ACTIONS[status]
+      // Báo giá cũ trước rescope: không sửa / gửi / tạo đơn được (BE QUOTE_LINES_LEGACY); đã chấp nhận thì vẫn huỷ được
+      // (BE QuoteService.cancel, QD-16).
+      .filter((action) => !legacy || (status === "ACCEPTED" && action === "cancel"))
+      .filter((action) => !(status === "ACCEPTED" && action === "cancel" && !acceptedCancellable))
+      .filter((action) =>
+        action === "convert" ? can(QUOTE_PERMISSIONS.convert) : can(QUOTE_PERMISSIONS.update),
+      )
+  );
 }
 
 export const TERMINAL_QUOTE_STATUSES: readonly QuoteApiStatus[] = [

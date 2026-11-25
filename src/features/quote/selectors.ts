@@ -15,15 +15,20 @@ export function hasDiscontinuedLine(quote: Pick<Quote, "lines">): boolean {
 }
 
 /**
- * LC-2: an ACCEPTED quote may be cancelled when a SKU on it can no longer be bought (BE-14) OR the customer is no longer
- * ACTIVE. `customerStatus` is null when the viewer cannot read the customer — then only the SKU rule applies. UI-only,
- * Backend phải re-check (QuoteService cancel).
+ * BE `QuoteService.cancel`: an ACCEPTED quote may be cancelled when it is legacy (drafted on blanks / designs before
+ * 4B-2: it can never be converted, QD-16), OR a SKU on it can no longer be bought (BE-14), OR the customer is no longer
+ * ACTIVE (LC-2). `customerStatus` is null when the viewer cannot read the customer — then the customer rule is skipped.
+ * UI-only, Backend phải re-check (QuoteService cancel).
  */
 export function canCancelAcceptedQuote(
-  quote: Pick<Quote, "lines">,
+  quote: Pick<Quote, "lines"> & Partial<Pick<Quote, "legacy">>,
   customerStatus: CustomerApiStatus | null | undefined,
 ): boolean {
-  return hasDiscontinuedLine(quote) || (!!customerStatus && customerStatus !== "ACTIVE");
+  return (
+    !!quote.legacy ||
+    hasDiscontinuedLine(quote) ||
+    (!!customerStatus && customerStatus !== "ACTIVE")
+  );
 }
 
 /**

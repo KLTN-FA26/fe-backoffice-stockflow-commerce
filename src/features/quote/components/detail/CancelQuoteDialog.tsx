@@ -22,6 +22,9 @@ export function CancelQuoteDialog({
 }) {
   const cancel = useCancelQuote();
   const accepted = quote.status === "ACCEPTED";
+  const acceptedDescription = quote.legacy
+    ? "Báo giá cũ (lập trước khi báo giá theo thùng SKU của khách) không tạo đơn được. Ghi lý do; lập báo giá mới theo SKU của khách nếu khách vẫn muốn mua."
+    : "Chỉ huỷ được khi có SKU trên báo giá đã ngừng bán hoặc khách không còn hoạt động (hệ thống kiểm lại). Ghi lý do; lập báo giá mới nếu khách vẫn muốn mua.";
   return (
     <ConfirmDialog
       open={open}
@@ -29,7 +32,7 @@ export function CancelQuoteDialog({
       title={accepted ? "Huỷ báo giá đã chấp nhận?" : "Huỷ báo giá nháp?"}
       description={
         accepted
-          ? "Chỉ huỷ được khi có SKU trên báo giá đã ngừng bán hoặc khách không còn hoạt động (hệ thống kiểm lại). Ghi lý do; lập báo giá mới nếu khách vẫn muốn mua."
+          ? acceptedDescription
           : "Báo giá bị huỷ không thể khôi phục. Nếu nháp này lập từ yêu cầu báo giá của khách, huỷ sẽ đóng yêu cầu đó. Chỉ sai giá hay số thùng thì sửa nháp thay vì huỷ."
       }
       confirmLabel="Huỷ báo giá"

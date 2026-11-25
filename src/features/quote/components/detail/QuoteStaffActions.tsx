@@ -27,8 +27,9 @@ type Dialog = "send" | "cancel" | "revise" | "convert" | null;
 
 /**
  * Nút back-office theo lifecycle (allowedStaffQuoteActions, plan WF-02 A4):
- * DRAFT → Sửa / Gửi khách / Huỷ; CHANGES_REQUESTED → Mở bản sửa; ACCEPTED → Tạo đơn (Huỷ chỉ khi có dòng SKU ngừng bán —
- * BE-14 — hoặc khách không còn ACTIVE — LC-2; trạng thái khách đọc chung query với tên khách, cần `customer-customers:READ`).
+ * DRAFT → Sửa / Gửi khách / Huỷ; CHANGES_REQUESTED → Mở bản sửa; ACCEPTED → Tạo đơn (Huỷ chỉ khi là báo giá cũ — QD-16 —
+ * có dòng SKU ngừng bán — BE-14 — hoặc khách không còn ACTIVE — LC-2; trạng thái khách đọc chung query với tên khách, cần
+ * `customer-customers:READ`). Báo giá cũ đã chấp nhận chỉ còn nút Huỷ.
  * Tải PDF luôn có cho người đọc được báo giá. Nút xếp dọc trong thẻ trạng thái cột phải (như thẻ hành động sản phẩm).
  */
 export function QuoteStaffActions({ quote }: { quote: Quote }) {

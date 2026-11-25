@@ -80,8 +80,30 @@ describe("allowedStaffQuoteActions — action gating (3 roles)", () => {
     expect(canCancelAcceptedQuote(sold, undefined)).toBe(false);
     expect(canCancelAcceptedQuote(withSku("PRODUCT_INACTIVE"), "ACTIVE")).toBe(true);
   });
-  it("a legacy quote is view-only", () => {
-    expect(allowedStaffQuoteActions("DRAFT", all, true)).toEqual([]);
+  it("QD-16: a legacy quote is view-only, except that an ACCEPTED one can be cancelled (BE QuoteService.cancel)", () => {
+    for (const status of [
+      "DRAFT",
+      "SENT",
+      "CHANGES_REQUESTED",
+      "EXPIRED",
+      "CANCELLED",
+      "CONVERTED",
+    ] as const)
+      expect(allowedStaffQuoteActions(status, all, true, true)).toEqual([]);
+    const legacy = { ...quoteDtoSchema.parse(QUOTE_ACCEPTED), legacy: true };
+    // Every SKU still sold and the customer ACTIVE: a legacy quote is still cancellable, it never becomes an order.
+    const sold = {
+      ...legacy,
+      lines: legacy.lines.map((line) => ({ ...line, purchasability: "PURCHASABLE" })),
+    };
+    expect(canCancelAcceptedQuote(sold, "ACTIVE")).toBe(true);
+    expect(canCancelAcceptedQuote(sold, null)).toBe(true);
+    expect(canCancelAcceptedQuote({ ...sold, legacy: false }, "ACTIVE")).toBe(false);
+    expect(
+      allowedStaffQuoteActions("ACCEPTED", all, true, canCancelAcceptedQuote(sold, "ACTIVE")),
+    ).toEqual(["cancel"]);
+    expect(allowedStaffQuoteActions("ACCEPTED", readOnly, true, true)).toEqual([]);
+    expect(allowedStaffQuoteActions("ACCEPTED", coordinator, true, true)).toEqual([]);
   });
 });
 

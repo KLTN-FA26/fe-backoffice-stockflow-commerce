@@ -69,6 +69,8 @@ export interface MockQuote {
   validUntil: string;
   terms: string | null;
   requestedDeliveryDate: string | null;
+  /** BE `Quote.Offer.legacy`: lập theo phôi / thiết kế trước 4B-2, không bao giờ tạo đơn được (QD-16). Seed không có. */
+  legacy?: boolean;
   lines: MockQuoteLine[];
   fees: MockQuoteFee[];
   sentAt: string | null;
@@ -391,7 +393,7 @@ export function quoteView(quote: MockQuote) {
     validUntil: quote.validUntil,
     terms: quote.terms,
     requestedDeliveryDate: quote.requestedDeliveryDate,
-    legacy: false,
+    legacy: quote.legacy ?? false,
     lines,
     fees,
     priced: quote.lines.every((line) => line.tiers.length > 0),
