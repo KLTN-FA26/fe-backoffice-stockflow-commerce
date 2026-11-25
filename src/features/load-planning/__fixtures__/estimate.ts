@@ -4,11 +4,11 @@
  * API và ngăn kéo ước tính.
  */
 
-import { KIT_BAN, LAYOUT_40HC, LAYOUT_PICKUP_KIT, UNPLACED_40HC } from "./layouts";
+import { KIT_KHAY, LAYOUT_40HC, LAYOUT_PICKUP_KIT, UNPLACED_40HC } from "./layouts";
 
 export const ORDER_ID = "0b6f7c1e-4c5d-4f1a-9a77-2f3e6f1d2a10";
 export const WAREHOUSE_ID = "wh-hn-01";
-export const ITEM_ID = "item-TV-F";
+export const ITEM_ID = "item-SD-F";
 
 const unplaced = UNPLACED_40HC.map((line, index) => ({
   ...line,
@@ -30,8 +30,8 @@ export function apiEstimate(patch: Record<string, unknown> = {}) {
     lines: [
       {
         orderLineId: "LINE-001",
-        sku: "SF-A",
-        inventoryItemId: "item-SF-A",
+        sku: "LP-A",
+        inventoryItemId: "item-LP-A",
         quantity: 120,
         rule: "DEFAULT_SHIPPING_UNIT",
         uom: "CTN",
@@ -45,8 +45,8 @@ export function apiEstimate(patch: Record<string, unknown> = {}) {
       },
       {
         orderLineId: "LINE-004",
-        sku: "KS-D",
-        inventoryItemId: "item-KS-D",
+        sku: "KT-D",
+        inventoryItemId: "item-KT-D",
         quantity: 14,
         rule: "ITEM_BOX",
         uom: "PCS",
@@ -63,7 +63,7 @@ export function apiEstimate(patch: Record<string, unknown> = {}) {
     warnings: [
       {
         orderLineId: "LINE-005",
-        sku: "PK-E",
+        sku: "NL-E",
         code: "SHIPPING_UNIT_INCOMPLETE",
         unitOfMeasure: "PALLET",
         fields: ["weightKg"],
@@ -99,7 +99,7 @@ export function apiIncompleteEstimate() {
     missing: [
       {
         orderLineId: "LINE-009",
-        sku: "TV-F",
+        sku: "SD-F",
         inventoryItemId: ITEM_ID,
         missingFields: ["lengthCm", "weightKg"],
       },
@@ -116,7 +116,7 @@ export function apiTwoVehicleEstimate() {
       ...apiEstimate().meta,
       budgetExhausted: true,
       kitWarnings: [
-        { kitName: KIT_BAN.group, type: "SURPLUS_PARTS", partCode: "BAN-CB", count: 2 },
+        { kitName: KIT_KHAY.group, type: "SURPLUS_PARTS", partCode: "KHAY-B", count: 2 },
       ],
     },
     unplaced: [{ ...unplaced[0], reason: "SEARCH_CUT_OFF" }],

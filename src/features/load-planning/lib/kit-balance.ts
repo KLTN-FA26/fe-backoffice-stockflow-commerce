@@ -1,15 +1,15 @@
 /**
  * Cân bằng bộ (kit): mỗi bộ phải lên MỖI xe với số lượng các thành phần theo đúng tỉ lệ của bộ, để
- * mặt bàn và chân bàn không rơi vào hai xe khác nhau (design §1 "Kits"). (Gốc: `balanceOk` trong
+ * khay giấy và ống ly giấy không rơi vào hai xe khác nhau (design §1 "Kits"). (Gốc: `balanceOk` trong
  * `kit-packing.tsx`.)
  *
- * Bản gốc chỉ so các thành phần bằng nhau; bộ thật có số thành phần khác nhau (1 mặt + 4 chân) nên
+ * Bản gốc chỉ so các thành phần bằng nhau; bộ thật có số thành phần khác nhau (1 khay + 4 ống ly) nên
  * ở đây mỗi thành phần có `perSet` và số bộ = số kiện ÷ perSet phải là một số nguyên giống nhau ở
  * mọi thành phần của bộ trong xe đó.
  *
  * Hợp đồng `Layout` không có `perSet`, nên mặc định bộ được SUY RA từ chính các kiện (`deriveKitDefs`):
  * gom theo `kitGroup`, thành phần theo `partName`, và `perSet` = tổng số kiện của thành phần trong cả
- * kế hoạch chia cho ƯCLN các tổng (bộ nhỏ nhất đủ ghép — 4 mặt + 16 chân → 1 mặt + 4 chân). Có định
+ * kế hoạch chia cho ƯCLN các tổng (bộ nhỏ nhất đủ ghép — 4 khay + 16 ống ly → 1 khay + 4 ống ly). Có định
  * nghĩa chính thức (vd từ dòng ước lượng `kitParts`) thì truyền vào `kits` để dùng thay thế; khi đó
  * kiện có `kitGroup` không nằm trong định nghĩa nào bị báo là bộ lạ, không bị bỏ qua.
  */

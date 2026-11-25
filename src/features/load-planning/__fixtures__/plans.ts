@@ -1,6 +1,6 @@
 /**
- * Fixture kế hoạch xếp xe (BE PR #161) cho test: dựng từ bố cục F1 (`LAYOUT_PICKUP_KIT` — xe bán tải 4 bộ bàn A+B + 3 ghế
- * bar) nên bảng kiện, bản đồ màu và hộp 3D khớp nhau. Dạng trả về là kiểu đã parse; schema parse lại được nguyên văn.
+ * Fixture kế hoạch xếp xe (BE PR #161) cho test: dựng từ bố cục F1 (`LAYOUT_PICKUP_KIT` — xe bán tải 4 bộ khay ly
+ * (khay + ống ly) + 3 thùng ống hút) nên bảng kiện, bản đồ màu và hộp 3D khớp nhau. Dạng trả về là kiểu đã parse; schema parse lại được nguyên văn.
  */
 
 import { LAYOUT_PICKUP_KIT } from "./layouts";
@@ -66,7 +66,7 @@ export function unplacedParcel(
     ...BASE_PARCEL,
     packageId: `unplaced-${reason}-${n}`,
     labelCode: `PKG-U${n}`,
-    partName: "Tủ vải",
+    partName: "Standee quảng cáo",
     lengthMm: 2600,
     widthMm: 500,
     heightMm: 500,

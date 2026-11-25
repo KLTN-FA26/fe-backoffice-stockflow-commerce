@@ -18,8 +18,8 @@ describe("LoadEstimateSchema — hợp đồng BE PR #160", () => {
     expect(estimate.incomplete).toBe(false);
     expect(estimate.vehicles).toHaveLength(1);
     expect(estimate.vehicles[0]?.code).toBe("40HC");
-    const [sofa, shelf] = estimate.lines;
-    expect(sofa?.partial).toEqual({ units: 2, weightKg: 4.75 });
+    const [cups, shelf] = estimate.lines;
+    expect(cups?.partial).toEqual({ units: 2, weightKg: 4.75 });
     // Jackson non_null bỏ key `partial` khi chẵn thùng → chuẩn về null
     expect(shelf?.partial).toBeNull();
     expect(shelf?.kitParts).toBe(2);
@@ -28,8 +28,8 @@ describe("LoadEstimateSchema — hợp đồng BE PR #160", () => {
   it("unplaced giữ khoá của UnplacedLineSchema (label, partName, origMm, quantity) cộng reason / sourceRef / refs", () => {
     const [first] = LoadEstimateSchema.parse(apiEstimate()).unplaced;
     expect(first).toMatchObject({
-      label: "BT-C",
-      partName: "Bàn trà",
+      label: "TG-C",
+      partName: "Thùng túi giấy",
       quantity: 12,
       sourceRef: "LINE-003",
       reason: "NO_SPACE",
@@ -43,8 +43,8 @@ describe("LoadEstimateSchema — hợp đồng BE PR #160", () => {
     expect(estimate.missing).toEqual([
       {
         orderLineId: "LINE-009",
-        sku: "TV-F",
-        inventoryItemId: "item-TV-F",
+        sku: "SD-F",
+        inventoryItemId: "item-SD-F",
         missingFields: ["lengthCm", "weightKg"],
       },
     ]);

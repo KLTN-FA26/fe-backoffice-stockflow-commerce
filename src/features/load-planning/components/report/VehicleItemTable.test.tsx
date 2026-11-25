@@ -16,9 +16,9 @@ describe("VehicleItemTable", () => {
   it("lists one row per item with the nominal D×R×C in cm and the per-vehicle count", () => {
     render(<VehicleItemTable layouts={[LAYOUT_40HC]} />);
     expect(screen.getAllByText("Số kiện đã xếp theo xe")).toHaveLength(2); // tiêu đề hiện + caption sr-only
-    const row = within(rowOf("Thùng sofa"));
+    const row = within(rowOf("Thùng ly nhựa PP"));
     expect(row.getByText("60×40×40")).toBeInTheDocument();
-    expect(row.getByText("SF-A")).toBeInTheDocument();
+    expect(row.getByText("LP-A")).toBeInTheDocument();
     expect(row.getAllByText("120")).toHaveLength(3); // xe #1, đã xếp, tổng
   });
 
@@ -36,16 +36,16 @@ describe("VehicleItemTable", () => {
 
   it("flags rows that still have unplaced pieces and shows the requested total", () => {
     render(<VehicleItemTable layouts={[LAYOUT_40HC]} unplaced={UNPLACED_40HC} />);
-    const table = within(rowOf("Bàn trà"));
+    const table = within(rowOf("Thùng túi giấy"));
     expect(table.getByText("52")).toHaveClass("text-warning");
     expect(table.getByText("40", { selector: "td.font-medium" })).toBeInTheDocument();
     // dòng chỉ có hàng chưa xếp vẫn hiện đúng tên
-    expect(within(rowOf("Tủ vải")).getByText("3")).toBeInTheDocument();
+    expect(within(rowOf("Standee quảng cáo")).getByText("3")).toBeInTheDocument();
   });
 
   it("does not warn for a fully loaded item", () => {
     render(<VehicleItemTable layouts={[LAYOUT_40HC]} unplaced={UNPLACED_40HC} />);
-    const row = within(rowOf("Ghế ăn"));
+    const row = within(rowOf("Thùng ly giấy"));
     expect(row.getAllByText("96").at(-1)).not.toHaveClass("text-warning");
   });
 

@@ -49,7 +49,7 @@ describe("checkLayout", () => {
   });
 
   it("flags a non-rotatable box that is not in its original pose (BR-10)", () => {
-    const shelf = LAYOUT_40HC.boxes.findIndex((b) => b.partName === "Kệ sách");
+    const shelf = LAYOUT_40HC.boxes.findIndex((b) => b.partName === "Kệ trưng bày ly");
     expect(LAYOUT_40HC.boxes[shelf].rotatable).toBe(false);
     // xoay kệ cao nằm xuống: kích thước đã xếp khớp hướng mới, nên chỉ vi phạm cờ xoay
     const original = LAYOUT_40HC.boxes[shelf];
@@ -70,7 +70,7 @@ describe("checkLayout", () => {
   });
 
   it("lets a rotatable box be turned freely", () => {
-    // Bàn trà trong fixture đã xoay WLH và hợp lệ
+    // Thùng túi giấy trong fixture đã xoay WLH và hợp lệ
     expect(LAYOUT_40HC.boxes.some((b) => b.orientation === "WLH" && b.rotatable)).toBe(true);
     expect(checkLayout(LAYOUT_40HC)).toEqual([]);
   });

@@ -8,12 +8,17 @@ import { buildColorMap, colorMapForLayouts, colorMapForPrint, colorOf } from "./
 
 describe("buildColorMap", () => {
   it("assigns by sorted name, so the colours depend on the set of names, not their order", () => {
-    const a = buildColorMap(["Ghế ăn", "Bàn trà", "Kệ sách"]);
-    const b = buildColorMap(["Kệ sách", "Ghế ăn", "Bàn trà", "Ghế ăn"]);
+    const a = buildColorMap(["Thùng ly giấy", "Thùng túi giấy", "Kệ trưng bày ly"]);
+    const b = buildColorMap([
+      "Kệ trưng bày ly",
+      "Thùng ly giấy",
+      "Thùng túi giấy",
+      "Thùng ly giấy",
+    ]);
     expect([...a.entries()].sort()).toEqual([...b.entries()].sort());
-    expect(a.get("Bàn trà")).toBe(VIEWER_PALETTE[0]);
-    expect(a.get("Ghế ăn")).toBe(VIEWER_PALETTE[1]);
-    expect(a.get("Kệ sách")).toBe(VIEWER_PALETTE[2]);
+    expect(a.get("Kệ trưng bày ly")).toBe(VIEWER_PALETTE[0]);
+    expect(a.get("Thùng ly giấy")).toBe(VIEWER_PALETTE[1]);
+    expect(a.get("Thùng túi giấy")).toBe(VIEWER_PALETTE[2]);
   });
 
   it("sorts Vietnamese names by vi collation", () => {
@@ -73,7 +78,7 @@ describe("colorMapForLayouts", () => {
     expect(map.size).toBe(8);
     const alone = colorMapForLayouts([LAYOUT_PICKUP_KIT]);
     // Cùng tên nhưng bảng màu khác nhau khi tập tên khác nhau: lý do chia chung một map cho cả kế hoạch.
-    expect(alone.get("Mặt bàn")).not.toBe(map.get("Mặt bàn"));
+    expect(alone.get("Khay giấy")).not.toBe(map.get("Khay giấy"));
   });
 
   it("uses the lighter print palette for the print map", () => {

@@ -1,25 +1,27 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { KIT_BAN, LAYOUT_40HC, LAYOUT_PICKUP_KIT } from "../../__fixtures__/layouts";
+import { KIT_KHAY, LAYOUT_40HC, LAYOUT_PICKUP_KIT } from "../../__fixtures__/layouts";
 import { computeKitBalance } from "../../lib/kit-balance";
 
 import { KitBalanceBadge } from "./KitBalanceBadge";
 
 describe("KitBalanceBadge", () => {
   it("says the kit is balanced when every vehicle holds whole sets", () => {
-    render(<KitBalanceBadge balance={computeKitBalance([LAYOUT_PICKUP_KIT], [KIT_BAN])} />);
+    render(<KitBalanceBadge balance={computeKitBalance([LAYOUT_PICKUP_KIT], [KIT_KHAY])} />);
     expect(screen.getByText("Cân bằng bộ")).toBeInTheDocument();
     expect(screen.queryByText("Bộ bị lệch")).not.toBeInTheDocument();
   });
 
   it("warns, naming the vehicle and kit in the tooltip, when a set is split", () => {
-    const boxes = LAYOUT_PICKUP_KIT.boxes.filter((b) => b.partName !== "Chân bàn");
+    const boxes = LAYOUT_PICKUP_KIT.boxes.filter((b) => b.partName !== "Ống ly giấy");
     render(
-      <KitBalanceBadge balance={computeKitBalance([{ ...LAYOUT_PICKUP_KIT, boxes }], [KIT_BAN])} />,
+      <KitBalanceBadge
+        balance={computeKitBalance([{ ...LAYOUT_PICKUP_KIT, boxes }], [KIT_KHAY])}
+      />,
     );
     const badge = screen.getByText("Bộ bị lệch");
-    expect(badge).toHaveAttribute("title", "Xe #1: bộ KIT-BAN-01 không đủ tỉ lệ");
+    expect(badge).toHaveAttribute("title", "Xe #1: bộ KIT-KHAY-01 không đủ tỉ lệ");
     expect(screen.queryByText("Cân bằng bộ")).not.toBeInTheDocument();
   });
 
@@ -30,7 +32,7 @@ describe("KitBalanceBadge", () => {
 
   it("shows nothing for a vehicle without kit pieces even when kits are declared (40HC)", () => {
     const { container } = render(
-      <KitBalanceBadge balance={computeKitBalance([LAYOUT_40HC], [KIT_BAN])} />,
+      <KitBalanceBadge balance={computeKitBalance([LAYOUT_40HC], [KIT_KHAY])} />,
     );
     expect(container).toBeEmptyDOMElement();
   });
@@ -39,7 +41,7 @@ describe("KitBalanceBadge", () => {
     render(<KitBalanceBadge balance={computeKitBalance([LAYOUT_PICKUP_KIT], [])} />);
     expect(screen.getByText("Bộ bị lệch")).toHaveAttribute(
       "title",
-      "Xe #1: bộ KIT-BAN-01 chưa được khai báo",
+      "Xe #1: bộ KIT-KHAY-01 chưa được khai báo",
     );
   });
 });

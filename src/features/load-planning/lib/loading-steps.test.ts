@@ -25,20 +25,20 @@ describe("buildLoadingSteps", () => {
   it("40HC: one block per item, back (z) → bottom (y) → left (x), shelf before the fittings on top of it", () => {
     expect(project(buildLoadingSteps([LAYOUT_40HC]))).toMatchInlineSnapshot(`
       [
-        "1. Thùng sofa ×120 @ z0 y0 x0",
-        "2. Ghế ăn ×96 @ z2400 y0 x0",
-        "3. Bàn trà ×40 @ z4800 y0 x0",
-        "4. Kệ sách ×14 @ z7800 y0 x0",
-        "5. Phụ kiện ×168 @ z7800 y1800 x0",
+        "1. Thùng ly nhựa PP ×120 @ z0 y0 x0",
+        "2. Thùng ly giấy ×96 @ z2400 y0 x0",
+        "3. Thùng túi giấy ×40 @ z4800 y0 x0",
+        "4. Kệ trưng bày ly ×14 @ z7800 y0 x0",
+        "5. Thùng nắp ly ×168 @ z7800 y1800 x0",
       ]
     `);
   });
 
   it("pickup kit: tops and legs both start at the front wall, the legs sit to the right (x), stools last", () => {
     expect(project(buildLoadingSteps([LAYOUT_PICKUP_KIT]))).toEqual([
-      "1. Mặt bàn ×4 @ z0 y0 x0",
-      "2. Chân bàn ×16 @ z0 y0 x800",
-      "3. Ghế bar ×3 @ z1200 y0 x0",
+      "1. Khay giấy ×4 @ z0 y0 x0",
+      "2. Ống ly giấy ×16 @ z0 y0 x800",
+      "3. Thùng ống hút ×3 @ z1200 y0 x0",
     ]);
   });
 
@@ -59,8 +59,8 @@ describe("buildLoadingSteps", () => {
   });
 
   it("returns the block bounding box in mm", () => {
-    const [sofa] = buildLoadingSteps([LAYOUT_40HC]);
-    expect(sofa).toMatchObject({ xMm: 0, yMm: 0, zMm: 0, wMm: 2000, hMm: 2400, dMm: 2400 });
+    const [cups] = buildLoadingSteps([LAYOUT_40HC]);
+    expect(cups).toMatchObject({ xMm: 0, yMm: 0, zMm: 0, wMm: 2000, hMm: 2400, dMm: 2400 });
   });
 
   it("loads a supporting block first even when the block on top starts closer to the front", () => {
@@ -188,8 +188,8 @@ describe("buildLoadingSteps", () => {
     expect(new Set(labels).size).toBe(8);
     const steps = buildLoadingSteps([LAYOUT_UNIQUE_LABELS]);
     expect(steps.map((s) => `${s.partName} x${s.count}`)).toEqual([
-      "SKU-TABLE-01 x6",
-      "SKU-CHAIR-02 x2",
+      "CUP-PP-500 x6",
+      "BAG-CUP-2 x2",
     ]);
     expect(steps.reduce((n, s) => n + s.boxes.length, 0)).toBe(8);
   });

@@ -271,7 +271,7 @@ describe("khớp BE ở các ca biên (review)", () => {
   it("every parcel too large for every type is still PLANNED, with the whole shipment on the tray and no vehicle", async () => {
     const shipment = getMockShipments().find((s) => s.shipmentId === SEED.hcmShipment);
     if (!shipment) throw new Error("seed");
-    shipment.packages = shipment.packages.filter((p) => p.partName === "Kệ sách");
+    shipment.packages = shipment.packages.filter((p) => p.partName === "Kệ trưng bày ly");
     const { plan, response } = await planOf(SEED.hcmShipment, "WH-HCM-01", "PICKUP");
     expect(response.status).toBe(200);
     expect(plan).toMatchObject({

@@ -11,10 +11,10 @@ import { buildPrintSheet } from "./print-sheet";
 import type { CartonType } from "../__fixtures__/build";
 import type { PlanDetail } from "../plan-types";
 
-const SHELF: CartonType = {
+const DISPLAY_RACK: CartonType = {
   ref: "S",
   label: "KS",
-  partName: "Kệ sách",
+  partName: "Kệ trưng bày ly",
   source: "package",
   origMm: { l: 1200, w: 300, h: 1800 },
   weightKg: 22,
@@ -30,9 +30,9 @@ describe("buildPrintSheet", () => {
     const sheet = buildPrintSheet(planFixture(), [LAYOUT_PICKUP_KIT], 1);
     expect(sheet).not.toBeNull();
     expect(sheet?.steps.map((s) => `${s.seq}/${s.total} ${s.partName} x${s.count}`)).toEqual([
-      "1/3 Mặt bàn x4",
-      "2/3 Chân bàn x16",
-      "3/3 Ghế bar x3",
+      "1/3 Khay giấy x4",
+      "2/3 Ống ly giấy x16",
+      "3/3 Thùng ống hút x3",
     ]);
     expect(sheet?.steps.map((s) => s.parcels.length)).toEqual([4, 16, 3]);
     expect(sheet?.parcels).toHaveLength(LAYOUT_PICKUP_KIT.boxes.length);
@@ -47,7 +47,7 @@ describe("buildPrintSheet", () => {
       step: 1,
       labelCode: "PKG-1",
       orderNo: "SO-20261004-000001",
-      partName: "Mặt bàn",
+      partName: "Khay giấy",
       weightKg: expect.any(Number),
     });
     // z / x / y of the block corner, and depth × width × height of the block
@@ -90,7 +90,7 @@ describe("buildPrintSheet", () => {
       innerMm: { l: 4000, w: 2000, h: 2000 },
       maxPayloadKg: 500,
       boxes: gridBlock({
-        carton: SHELF,
+        carton: DISPLAY_RACK,
         orientation: "WLH",
         origin: { xMm: 0, yMm: 0, zMm: 0 },
         counts: { nx: 2, ny: 1, nz: 1 },
@@ -111,13 +111,13 @@ describe("buildPrintSheet", () => {
   it("builds the contents lines with a stable letter per item and correct totals", () => {
     const sheet = buildPrintSheet(planFixture(), [LAYOUT_PICKUP_KIT], 1);
     expect(sheet?.lines.map((l) => [l.letter, l.partName, l.pieces])).toEqual([
-      ["A", "Chân bàn", 16],
-      ["B", "Ghế bar", 3],
-      ["C", "Mặt bàn", 4],
+      ["A", "Khay giấy", 4],
+      ["B", "Ống ly giấy", 16],
+      ["C", "Thùng ống hút", 3],
     ]);
     expect(sheet?.lines.reduce((n, l) => n + l.pieces, 0)).toBe(23);
     expect(sheet?.totalWeightKg).toBeCloseTo(LAYOUT_PICKUP_KIT.usedWeightKg, 1);
-    expect(sheet?.steps[0].letter).toBe("C");
+    expect(sheet?.steps[0].letter).toBe("A");
   });
 
   it("keeps the letters of an item the same on every vehicle of the plan", () => {
@@ -127,7 +127,7 @@ describe("buildPrintSheet", () => {
       innerMm: { l: 4000, w: 2000, h: 2000 },
       maxPayloadKg: 500,
       boxes: gridBlock({
-        carton: { ...SHELF, partName: "Ấm chén" },
+        carton: { ...DISPLAY_RACK, partName: "Bao bì mẫu" },
         origin: { xMm: 0, yMm: 0, zMm: 0 },
         counts: { nx: 1, ny: 1, nz: 1 },
       }),
@@ -136,7 +136,7 @@ describe("buildPrintSheet", () => {
       vehicles: [planFixture().vehicles[0], { ...planFixture().vehicles[0], seq: 2 }],
     });
     const sheet = buildPrintSheet(plan, [LAYOUT_PICKUP_KIT, other], 1);
-    // "Ấm chén" sorts first across the whole plan, so the items of vehicle 1 shift by one letter
+    // "Bao bì mẫu" sorts first across the whole plan, so the items of vehicle 1 shift by one letter
     expect(sheet?.lines.map((l) => l.letter)).toEqual(["B", "C", "D"]);
   });
 
@@ -147,7 +147,7 @@ describe("buildPrintSheet", () => {
       count: 1,
       acknowledged: false,
       reasons: ["TOO_LARGE"],
-      lines: [{ partName: "Tủ vải", quantity: 1 }],
+      lines: [{ partName: "Standee quảng cáo", quantity: 1 }],
     });
     const acknowledged = planWithUnplaced();
     const ack = buildPrintSheet(
@@ -182,8 +182,8 @@ describe("buildPrintSheet — real BE labels", () => {
     expect(sheet?.steps.map((s) => s.parcels.length)).toEqual([6, 2]);
     expect(sheet?.parcels).toHaveLength(8);
     expect(sheet?.lines.map((l) => [l.partName, l.pieces])).toEqual([
-      ["SKU-CHAIR-02", 2],
-      ["SKU-TABLE-01", 6],
+      ["BAG-CUP-2", 2],
+      ["CUP-PP-500", 6],
     ]);
   });
 });

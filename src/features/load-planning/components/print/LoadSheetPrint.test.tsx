@@ -328,7 +328,7 @@ describe("LoadSheetPrint — booking, unplaced note, bad input", () => {
     expect(await screen.findByRole("heading", { name: L.unplaced.title })).toBeInTheDocument();
     expect(screen.getByText(L.unplaced.left(1))).toBeInTheDocument();
     expect(screen.getByText(L.unplaced.notAcknowledged)).toBeInTheDocument();
-    expect(screen.getByText("Tủ vải")).toBeInTheDocument();
+    expect(screen.getByText("Standee quảng cáo")).toBeInTheDocument();
   });
 
   it("explains a vehicle the plan does not have, without capturing anything", async () => {

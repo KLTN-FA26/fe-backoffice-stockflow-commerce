@@ -58,7 +58,7 @@ describe("PUT placements (mock)", () => {
 
   it("applies an edit: parcel to the tray is unplaced MANUAL and the BR-13 acknowledgement is cleared", async () => {
     const { state, version } = await openState();
-    const ref = state.vehicles[0].boxes.find((b) => b.partName === "Ghế bar")?.ref ?? "";
+    const ref = state.vehicles[0].boxes.find((b) => b.partName === "Thùng ống hút")?.ref ?? "";
     const edited = applyEdit(state, { kind: "toTray", seq: 1, refs: [ref] });
     if (!edited.ok) throw new Error("rejected");
     const plan = bePlanDetailSchema.parse(
@@ -100,7 +100,7 @@ describe("PUT placements (mock)", () => {
 
   it("splitting a kit between a vehicle and the tray is KIT_SPLIT for every part (LP-3)", async () => {
     const { state, version } = await openState();
-    const leg = state.vehicles[0].boxes.find((b) => b.kitGroup && b.partName === "Chân bàn");
+    const leg = state.vehicles[0].boxes.find((b) => b.kitGroup && b.partName === "Ống ly giấy");
     if (!leg) throw new Error("the seeded plan carries a table kit");
     const edited = applyEdit(state, { kind: "toTray", seq: 1, refs: [leg.ref] });
     if (!edited.ok) throw new Error("rejected");

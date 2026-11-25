@@ -25,7 +25,7 @@ describe("buildEditorState", () => {
         ref: tray.packageId,
         sourceRef: null,
         label: tray.labelCode,
-        partName: "Tủ vải",
+        partName: "Standee quảng cáo",
         kitGroup: null,
         origMm: { l: 2600, w: 500, h: 500 },
         rotatable: true,
