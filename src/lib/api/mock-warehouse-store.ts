@@ -217,7 +217,7 @@ function seed(): MockWarehouseStore {
   return {
     warehouses: new Map([[hcm.id, hcm]]),
     // Màu zone là DỮ LIỆU người dùng nhập (#RRGGBB) — chép nguyên từ seed BE
-    zones: [zone("A", "Khu A - Sofa", "#4F81BD"), zone("B", "Khu B - Bàn", "#9BBB59")],
+    zones: [zone("A", "Khu A - Ly", "#4F81BD"), zone("B", "Khu B - Bao bì", "#9BBB59")],
     shelves: [seedShelf("A01", "A", 5), seedShelf("A02", "A", 9), seedShelf("B01", "B", 14)],
     areas: [
       seedArea("RCV01", "RECEIVING", "Khu nhận hàng", fp(40, 2, 15, 8)),

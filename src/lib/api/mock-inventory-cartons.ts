@@ -20,15 +20,16 @@ export interface MockCarton {
 /**
  * Thùng tồn đầu kỳ của seed BE (`V20261111000110` → `inventory.stock_package`): 75 thùng IN_STOCK, mỗi thùng 1 đơn
  * vị, nằm đúng 4 vị trí có tồn của bản đồ (`stockedLocations` của mock bản đồ). Không đến từ phiếu nhận nên mock giữ
- * riêng ở đây. Lô theo `inventory.stock_item` của seed (SOFA không theo lô → `null`); thùng ở HCM-QC01 mang tồn
- * QUARANTINE.
+ * riêng ở đây. Lô theo `inventory.stock_item` của seed (ly CUP-PP-500 không theo lô → `null`); thùng ở HCM-QC01 mang
+ * tồn QUARANTINE. Mặt hàng ly / túi đựng ly theo docs README (dải mặt hàng) và BE issue #474 — seed BE cũ còn là
+ * sofa / bàn, mock đi trước theo bước (1) của issue: đổi mã, giữ nguyên vị trí, số thùng, lô.
  */
 const OPENING_CARTONS = [
-  { sku: "SOFA-3S-GREY", lot: null, location: "HCM-A01-2-B", first: 1, count: 25 },
-  { sku: "SOFA-3S-GREY", lot: null, location: "HCM-A02-1-A", first: 26, count: 8 },
-  { sku: "TABLE-OAK-160", lot: "LOT-2026-03", location: "HCM-B01-1-A", first: 34, count: 12 },
+  { sku: "CUP-PP-500", lot: null, location: "HCM-A01-2-B", first: 1, count: 25 },
+  { sku: "CUP-PP-500", lot: null, location: "HCM-A02-1-A", first: 26, count: 8 },
+  { sku: "BAG-CUP-2", lot: "LOT-2026-03", location: "HCM-B01-1-A", first: 34, count: 12 },
   {
-    sku: "TABLE-OAK-160",
+    sku: "BAG-CUP-2",
     lot: "LOT-2026-04",
     location: "HCM-QC01",
     first: 46,
