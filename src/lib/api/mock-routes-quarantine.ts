@@ -11,6 +11,7 @@
 import { QUARANTINE_API } from "@/constants/quarantine";
 
 import { registerMockRoute } from "./mock-adapter";
+import { registerLocationSummaryMockRoute } from "./mock-routes-location-summary";
 import {
   findMockCarton,
   isMockQuarantined,
@@ -198,6 +199,7 @@ async function release(config: AxiosRequestConfig) {
 
 export function registerQuarantineMockRoutes(): void {
   registerMockRoute("GET", STOCK_PACKAGES, list);
+  registerLocationSummaryMockRoute();
   registerMockRoute("GET", `${STOCK_PACKAGES}/:lpn`, async (config) => {
     const loaded = await load(config);
     return loaded.error ?? ok(detail(loaded.carton));

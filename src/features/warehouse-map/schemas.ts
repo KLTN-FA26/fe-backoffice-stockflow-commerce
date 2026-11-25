@@ -169,13 +169,20 @@ export const savedRefDto = z.object({ id: z.string(), version: z.number().int() 
 /** BE `WarehouseStockItemResponse` — bản đồ chỉ cần biết vị trí nào còn dòng tồn. */
 export const stockProbeDto = bePageSchema(z.object({ locationCode: z.string() }).loose());
 
-/** Hàng trên một kệ (3D): mã vị trí + SKU + tồn; `onHand` vắng khi vị trí đang kiểm kê (SCRUM-146). */
+/**
+ * Tồn theo vị trí (BE `WarehouseStockItemResponse`) cho 3D và danh sách vị trí: `onHand` / `reserved` vắng khi vị trí
+ * đang kiểm kê và người xem không có quyền duyệt (SCRUM-146, `hiddenDuringCount`).
+ */
 export const locationStockDto = bePageSchema(
   z
     .object({
       locationCode: z.string(),
       sku: z.string().nullish(),
+      lotNumber: z.string().nullish(),
+      expiryDate: z.string().nullish(),
       onHand: beDecimal.nullish(),
+      reserved: beDecimal.nullish(),
+      hiddenDuringCount: z.boolean().nullish(),
     })
     .loose(),
 );

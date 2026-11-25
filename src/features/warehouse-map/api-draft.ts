@@ -15,8 +15,8 @@ import { api } from "@/lib/api/client";
 import { WAREHOUSES_PATH } from "./api";
 import { locationStockDto, savedRefDto, stockProbeDto } from "./schemas";
 
-import type { LocationStockRow } from "./cartons-3d";
 import type { DraftArea, DraftBoundary, DraftShelf, DraftZone } from "./draft";
+import type { LocationStockItem } from "./types";
 
 const id = (value: string) => encodeURIComponent(value);
 
@@ -124,7 +124,7 @@ export async function listShelfStock(
 
 /** Tồn cả kho đọc cho toàn cảnh 3D. `truncated`: kho nhiều dòng hơn trần → UI báo "một phần". */
 export interface WarehouseStock {
-  rows: LocationStockRow[];
+  rows: LocationStockItem[];
   total: number;
   truncated: boolean;
 }
@@ -137,7 +137,7 @@ export async function listWarehouseStock(
   input: { warehouseId: string; prefix: string },
   signal?: AbortSignal,
 ): Promise<WarehouseStock> {
-  const rows: LocationStockRow[] = [];
+  const rows: LocationStockItem[] = [];
   let total = 0;
   for (let page = 0; ; page += 1) {
     const { data } = await api.get<unknown>(INVENTORY_API.warehouseStockItems(input.warehouseId), {

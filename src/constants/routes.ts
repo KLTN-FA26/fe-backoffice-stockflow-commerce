@@ -23,6 +23,8 @@ const id = (value: string) => encodeURIComponent(value);
  */
 export const WORKSPACE_PATHS = {
   slotting: "slotting",
+  /** Danh sách vị trí (bin + khu vực có mã) của kho — tra mã, xem hàng và thùng trong vị trí (docs 06, 20 §4.1). */
+  locations: "locations",
   /** Nhận hàng (docs 03): phiếu nhận của kho — chi tiết theo loại phiếu (Đơn sản xuất / hàng hoàn). */
   receiving: "receiving",
   receivingReceipt: (receiptId: string) => `receiving/${id(receiptId)}`,
@@ -203,6 +205,9 @@ export const ADMIN_ROUTES = {
     page: workspacePage,
     of: (prefix: string) => workspacePage(prefix),
     slotting: (prefix: string) => workspacePage(prefix, WORKSPACE_PATHS.slotting),
+    /** Bản đồ mở sẵn một kệ / khu vực (`?selected=` của `useMapUrlState`). */
+    place: (prefix: string, placeId: string) =>
+      `${workspacePage(prefix)}?selected=${encodeURIComponent(placeId)}`,
   },
   /**
    * Bảng sức chứa kho (docs 06 §4.6, BE `WarehouseCapacityController`): danh sách mọi kho, chi tiết theo prefix kho

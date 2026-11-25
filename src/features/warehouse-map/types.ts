@@ -9,6 +9,7 @@ import type {
   layoutBinDto,
   layoutLevelDto,
   layoutShelfDto,
+  locationStockDto,
   warehouseDto,
   warehouseLayoutDto,
   zoneDto,
@@ -24,6 +25,8 @@ export type LayoutArea = z.infer<typeof layoutAreaDto>;
 export type Boundary = z.infer<typeof boundaryDto>;
 export type WarehouseLayout = z.infer<typeof warehouseLayoutDto>;
 export type LocationStatus = LayoutShelf["status"];
+/** Một dòng tồn theo vị trí (SKU + lô) — 3D và danh sách vị trí. */
+export type LocationStockItem = z.infer<typeof locationStockDto>["items"][number];
 
 export type {
   WarehouseCreateBody,

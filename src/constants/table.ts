@@ -251,3 +251,21 @@ export const SHIPMENT_COLUMNS = {
   READY_AT: "readyAt",
   STATUS: "status",
 } as const;
+
+/** Cột danh sách vị trí của một kho (layout BE `GET /warehouses/{id}/layout` + tồn theo vị trí, docs 06 / 20 §4.1). */
+export const WAREHOUSE_LOCATION_COLUMNS = {
+  ACTIONS: "actions",
+  CAPACITY: "capacity",
+  CODE: "code",
+  EXPIRY: "expiry",
+  KIND: "kind",
+  LEVEL: "level",
+  MAX_WEIGHT: "maxWeight",
+  ON_HAND: "onHand",
+  RESERVED: "reserved",
+  SHELF: "shelf",
+  SKUS: "skus",
+  STATUS: "status",
+  USES: "uses",
+  ZONE: "zone",
+} as const;

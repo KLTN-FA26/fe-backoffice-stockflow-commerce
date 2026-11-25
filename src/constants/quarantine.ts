@@ -6,6 +6,8 @@
 /** Danh sách thùng theo trang — dùng chung cho màn cách ly và tem LPN trên bản đồ 3D (đúng một mã `location`). */
 export const STOCK_PACKAGE_API = {
   list: "/inventory/stock-packages",
+  /** `GET …/location-summary?location=` — một vị trí đang chứa gì: theo SKU, lô, trạng thái tồn (thùng + cái lẻ). */
+  locationSummary: "/inventory/stock-packages/location-summary",
 } as const;
 
 export const QUARANTINE_API = {
