@@ -16,6 +16,20 @@
       "autoPort": true
     },
     {
+      "name": "dev-real-route",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "API_URL=https://api.stockflow.io.vn/api/v1",
+        "USE_MOCK=false",
+        "NEXT_PUBLIC_USE_MOCK=false",
+        "pnpm",
+        "run",
+        "dev"
+      ],
+      "port": 3000,
+      "autoPort": true
+    },
+    {
       "name": "dev-existing",
       "url": "http://localhost:3000"
     }
