@@ -552,6 +552,8 @@ export const PRODUCTION_ORDER_TYPES = ["SAMPLE", "ORDER"] as const;
  * Nhóm trạng thái đơn khách đọc — BE `CustomerOrders.StatusGroup` (`statusGroup` của thẻ, chi tiết và
  * dòng thời gian đơn trên cổng; docs 17 §5.2). `AWAITING_CONTRACT`
  * = `Pending Contract`, `AWAITING_STOCK` = `Awaiting Stock`; `IN_PRODUCTION` chỉ còn ở đơn cũ.
+ * `RETURN_REQUESTED` (HT-1) và `PARTIALLY_RETURNED` (BE-35: đơn kết thúc bằng trả hàng mà khách còn giữ hàng) — issue #262.
+ * Schema đọc khoan dung: nhóm BE thêm sau này thành `UNKNOWN` thay vì làm hỏng cả trang.
  */
 export const ORDER_STATUS_GROUPS = [
   "AWAITING_CONTRACT",
@@ -563,8 +565,10 @@ export const ORDER_STATUS_GROUPS = [
   "PREPARING",
   "SHIPPING",
   "DELIVERED",
+  "RETURN_REQUESTED",
   "CANCELLED",
   "RETURNED",
+  "PARTIALLY_RETURNED",
 ] as const;
 export type OrderStatusGroup = (typeof ORDER_STATUS_GROUPS)[number];
 /** Nhóm → chuỗi status-map (nhãn Việt + tone dùng chung). */
@@ -578,8 +582,10 @@ export const ORDER_STATUS_GROUP_DISPLAY = {
   PREPARING: "Preparing",
   SHIPPING: "Shipping",
   DELIVERED: "Delivered",
+  RETURN_REQUESTED: "Return Requested",
   CANCELLED: "Cancelled",
   RETURNED: "Returned",
+  PARTIALLY_RETURNED: "Partially Returned",
 } as const satisfies Record<OrderStatusGroup, string>;
 export type LoadStatus = (typeof LOAD_STATUSES)[number];
 export type ShipmentApiStatus = (typeof PACK_SHIPMENT_API_STATUSES)[number];
