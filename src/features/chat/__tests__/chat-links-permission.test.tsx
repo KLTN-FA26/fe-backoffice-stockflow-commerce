@@ -46,7 +46,7 @@ function renderAs(role: TestRole, ui: React.ReactElement) {
   renderScreen(ui, role);
 }
 
-// SALES_STAFF: sales-quotes + sales-orders VIEW_PAGE. PRODUCTION_COORDINATOR: neither page.
+// SALES_STAFF and SALES_MANAGER: sales-quotes + sales-orders VIEW_PAGE. PRODUCTION_COORDINATOR: neither page.
 describe("AUTH-8 — document links only for a viewer who can open the page", () => {
   it("Sale: quote card links the quote and the order it became; contract card links the contract", async () => {
     renderAs(
@@ -65,6 +65,18 @@ describe("AUTH-8 — document links only for a viewer who can open the page", ()
       "/admin/orders/o-1",
     );
     expect(screen.getByRole("link", { name: "Mở hợp đồng" })).toBeInTheDocument();
+  });
+
+  it("AUTH-4: a Sales Manager opens the quote and the order it became (BE V20261227000100)", async () => {
+    renderAs("SALES_MANAGER", <DocumentCardBody card={quoteCard} />);
+    expect(await screen.findByRole("link", { name: "Mở báo giá" })).toHaveAttribute(
+      "href",
+      "/admin/quotes/q-1",
+    );
+    expect(screen.getByRole("link", { name: "Mở đơn SO-1" })).toHaveAttribute(
+      "href",
+      "/admin/orders/o-1",
+    );
   });
 
   it("no quote / order page: no links, the order number stays as plain text", async () => {

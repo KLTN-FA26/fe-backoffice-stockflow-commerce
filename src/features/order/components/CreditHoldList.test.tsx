@@ -122,11 +122,8 @@ describe("Credit hold — danh sách (SCRUM-427)", () => {
   });
 
   it("AUTH-6: người duyệt hạn mức (xem khách + APPROVE hồ sơ công nợ) có lối tắt sửa hạn mức của khách", async () => {
-    renderList([
-      ...ORDER_PERMISSION_SETS.accountant,
-      CUSTOMER_PERMISSIONS.viewPage,
-      CREDIT_PROFILE_PERMISSIONS.approve,
-    ]);
+    // Kế toán đã xem được trang khách (BE V20261227000100) — chỉ thêm APPROVE hồ sơ công nợ
+    renderList([...ORDER_PERMISSION_SETS.accountant, CREDIT_PROFILE_PERMISSIONS.approve]);
 
     expect(await screen.findByRole("link", { name: "Sửa hạn mức công nợ" })).toHaveAttribute(
       "href",
@@ -137,8 +134,17 @@ describe("Credit hold — danh sách (SCRUM-427)", () => {
     );
   });
 
-  it("AUTH-6: thiếu quyền xem trang khách hoặc APPROVE hồ sơ công nợ → không có lối tắt", async () => {
-    renderList([...ORDER_PERMISSION_SETS.accountant, CREDIT_PROFILE_PERMISSIONS.approve]);
+  it.each([
+    [
+      "thiếu quyền xem trang khách",
+      [
+        ...ORDER_PERMISSION_SETS.accountant.filter((code) => code !== CUSTOMER_PERMISSIONS.viewPage),
+        CREDIT_PROFILE_PERMISSIONS.approve,
+      ],
+    ],
+    ["thiếu APPROVE hồ sơ công nợ", ORDER_PERMISSION_SETS.accountant],
+  ])("AUTH-6: %s → không có lối tắt", async (_case, permissions) => {
+    renderList(permissions);
     await screen.findByText(apiOrder.orderNumber);
     expect(screen.queryByRole("link", { name: "Sửa hạn mức công nợ" })).not.toBeInTheDocument();
   });

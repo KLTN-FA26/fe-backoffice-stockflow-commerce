@@ -64,12 +64,15 @@ export const ROLE_PERMISSIONS = {
     "design-quote-requests:UPDATE",
   ],
   // V20261111000000 (baseline) + V20261213000200: yêu cầu báo giá, xem khách; đọc thiết kế qua yêu cầu báo giá đang mở.
-  // design-designs:APPROVE đã chuyển sang PRODUCTION_COORDINATOR.
+  // design-designs:APPROVE đã chuyển sang PRODUCTION_COORDINATOR. V20261227000100 (AUTH-4): mở trang báo giá và trang
+  // đơn (link trong chat) — chỉ xem, không lập / sửa.
   SALES_MANAGER: [
     "customer-customers:VIEW_PAGE",
     "customer-customers:READ",
     "sales-quotes:VIEW_PAGE",
     "sales-quotes:READ",
+    "sales-orders:VIEW_PAGE",
+    "sales-orders:READ",
     "design-designs:VIEW_PAGE",
     "design-designs:READ",
     "design-quote-requests:VIEW_PAGE",
