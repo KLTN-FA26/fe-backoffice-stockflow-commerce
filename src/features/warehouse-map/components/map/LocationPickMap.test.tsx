@@ -38,7 +38,7 @@ const MAP: WarehouseLayout = { ...LAYOUT, areas: [...LAYOUT.areas, STAGING_AREA]
 
 function show(
   role: TestRole,
-  props: Partial<{ marked: string[]; pickable: string[]; value: string }> = {},
+  props: Partial<{ marked: string[]; suggested: string[]; pickable: string[]; value: string }> = {},
 ) {
   const onPick = vi.fn();
   const spies = mockApi(role, { get: { "/warehouses/wh-hcm/layout": () => MAP } });
@@ -46,6 +46,7 @@ function show(
     <LocationPickMap
       warehouseId="wh-hcm"
       marked={props.marked ?? ["HCM-A01-1-A"]}
+      suggested={props.suggested}
       pickable={new Set(props.pickable ?? ["HCM-A01-2-A", "HCM-RCV01"])}
       value={props.value ?? ""}
       onPick={onPick}
@@ -55,7 +56,7 @@ function show(
   return { onPick, spies };
 }
 
-const overlay = (map: HTMLElement, tone: "warning" | "positive") =>
+const overlay = (map: HTMLElement, tone: "warning" | "positive" | "info") =>
   map.querySelectorAll(`g[aria-hidden] rect.stroke-dot-${tone}`);
 
 describe("LocationPickMap — chọn vị trí trên Kho Map 2D (docs 11 §4.1 bước 1–2)", () => {
@@ -101,6 +102,33 @@ describe("LocationPickMap — chọn vị trí trên Kho Map 2D (docs 11 §4.1 b
     expect(
       within(bins).getByRole("button", { name: K.bin("HCM-A01-2-A", false, true) }),
     ).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("bin gợi ý: kệ của bin hạng nhất tô đậm, lưới bin nêu số hạng, chú giải chỉ hiện khi có gợi ý", async () => {
+    const { onPick } = show("WAREHOUSE_STAFF", {
+      suggested: ["HCM-A01-2-A", "HCM-A01-1-B"],
+      pickable: ["HCM-A01-2-A", "HCM-A01-1-B"],
+    });
+    const map = await screen.findByRole("region", { name: K.label });
+    // Hai bin cùng kệ A01 → một khung, khung hạng nhất (đậm)
+    const marks = overlay(map, "info");
+    expect(marks).toHaveLength(1);
+    expect(marks[0]).toHaveAttribute("fill-opacity", "0.24");
+    expect(within(map).getByText(K.legendSuggested)).toBeVisible();
+    await userEvent.click(within(map).getByRole("button", { name: /Kệ A01/ }));
+    const bins = within(map).getByRole("region", { name: K.shelfBins("A01") });
+    expect(within(bins).getByText(K.rank(1))).toBeVisible();
+    await userEvent.click(
+      within(bins).getByRole("button", { name: K.bin("HCM-A01-1-B", false, true, 2) }),
+    );
+    expect(onPick).toHaveBeenCalledWith("HCM-A01-1-B");
+  });
+
+  it("không có gợi ý → không tô xanh, không chú giải gợi ý", async () => {
+    show("WAREHOUSE_STAFF");
+    const map = await screen.findByRole("region", { name: K.label });
+    expect(overlay(map, "info")).toHaveLength(0);
+    expect(within(map).queryByText(K.legendSuggested)).not.toBeInTheDocument();
   });
 
   it("thiếu quyền xem bản đồ (warehouse-locations:READ) → chỉ một dòng nhắc, không gọi API bản đồ", async () => {

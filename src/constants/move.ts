@@ -1,4 +1,5 @@
 import { INVENTORY_API, INVENTORY_LIMITS, INVENTORY_QUERY_KEYS } from "./inventory";
+import { PUTAWAY_DETAIL_LABELS } from "./labels-putaway";
 import { QUARANTINE_API, QUARANTINE_QUERY_KEYS, STOCK_PACKAGE_API } from "./quarantine";
 
 // Wire contract: backend develop — StockOperationsController `POST /inventory/movements` (MoveStockPackagesRequest /
@@ -9,6 +10,9 @@ export const MOVE_API = {
   carton: QUARANTINE_API.carton,
   cartons: STOCK_PACKAGE_API.list,
   layout: (warehouseId: string) => `/warehouses/${encodeURIComponent(warehouseId)}/layout`,
+  // BE #412 (issue, chưa có code trên develop 2026-11-25): `GET …/bin-suggestions?lpn=…&lpn=…`
+  // (inventory-stock-items:UPDATE) — bin nhận được mọi thùng đang chọn (docs 11 BR-10, docs#46).
+  binSuggestions: `${STOCK_PACKAGE_API.list}/bin-suggestions`,
 } as const;
 
 // BE StockPackageStatus: chỉ thùng đang trong kho mới chuyển được (docs 11 BR-04; BE INVALID_STOCK_PACKAGE_TRANSITION).
@@ -19,6 +23,7 @@ export const MOVE_STAGING_AREA_TYPE = "STAGING" as const;
 export const MOVE_QUERY_KEYS = {
   layout: "move-warehouse-layout",
   cartons: "move-cartons",
+  binSuggestions: "move-bin-suggestions",
   // Cache liên module: chuyển thùng đổi sổ kho, tồn theo vị trí, thùng (cách ly) và tem thùng trên bản đồ.
   movements: INVENTORY_QUERY_KEYS.movements,
   stock: INVENTORY_QUERY_KEYS.stock,
@@ -40,6 +45,8 @@ export const MOVE_LIMITS = {
   cartonsSize: 100,
   // Gõ tìm thùng: chờ người dùng ngừng gõ (ms)
   searchDebounceMs: 400,
+  // Danh sách thùng đổi (quét liên tiếp): chờ ngừng quét rồi mới hỏi gợi ý bin
+  suggestionsDebounceMs: 300,
   // Tên kho = đoạn mã vị trí trước dấu gạch đầu tiên (BE `LocationId.warehouseCode()`).
   warehouseSeparator: "-",
 } as const;
@@ -68,6 +75,16 @@ export const MOVE_LABELS = {
   remove: (lpn: string) => `Bỏ thùng ${lpn}`,
   toLocation: "Đến vị trí",
   toLocationHelp: "Gợi ý các vị trí đang dùng được trong kho (trừ khu tập kết).",
+  // Bin gợi ý (BE #412, docs 11 BR-10): chỉ để tham khảo, không giữ chỗ
+  suggestionsTitle: "Bin gợi ý",
+  suggestionsHint:
+    "Bin nhận được mọi thùng trong danh sách. Chỉ để tham khảo — vẫn quét hoặc chọn vị trí khác được.",
+  suggestionsIdle: "Thêm thùng để xem bin gợi ý.",
+  suggestionsLoading: "Đang tìm bin phù hợp…",
+  suggestionsNone: "Không bin nào nhận được tất cả các thùng này.",
+  suggestionsOverflow: "Có thể chuyển tạm vào khu OVERFLOW:",
+  suggestionsUnavailable: "Không tải được bin gợi ý — vẫn quét hoặc nhập vị trí đích.",
+  chooseOverflow: (code: string) => `Chọn khu ${code}`,
   submit: "Chuyển thùng",
   submitting: "Đang chuyển…",
   finderTitle: "Tìm thùng",
@@ -96,6 +113,18 @@ export const MOVE_LABELS = {
   missing: "—",
   denied: "Bạn không có quyền chuyển vị trí tồn kho",
   deniedDescription: "Liên hệ quản trị viên để được cấp quyền phù hợp.",
+} as const;
+
+// Bảng bin gợi ý dùng chung `SlottingSuggestionList` + nhãn với màn cất hàng (docs 05 §4.3) — cùng thứ hạng, cùng lý do.
+const P = PUTAWAY_DETAIL_LABELS;
+export const MOVE_SUGGESTION_LIST_LABELS = {
+  ...P.suggestionColumns,
+  freeVolume: P.freeVolume,
+  freeWeight: P.freeWeight,
+  unlimited: P.unlimited,
+  choose: P.choose,
+  chooseBin: P.chooseBin,
+  chosen: P.chosen,
 } as const;
 
 export const MOVE_MESSAGES = {

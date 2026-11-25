@@ -12,14 +12,14 @@ import { useWorkspaceWarehouse } from "@/lib/workspace";
 
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 
-import { useDestinationCodes } from "../queries";
+import { useBinSuggestions, useDestinationCodes } from "../queries";
 import { moveInWarehouseInput } from "../schemas";
 import { cartonMarks, normalizeLocation } from "../selectors";
 import { useCartonScan } from "../use-carton-scan";
 import { useMoveSubmit } from "../use-move-submit";
 import { CartonFinder } from "./CartonFinder";
 import { CartonScanField } from "./CartonScanField";
-import { MoveFields } from "./MoveFields";
+import { DestinationPanel } from "./DestinationPanel";
 import { MoveResult } from "./MoveResult";
 import { ScannedCartons } from "./ScannedCartons";
 
@@ -27,6 +27,8 @@ import type { MoveCreateInput, ScannedCarton } from "../types";
 import type { DestinationMap } from "./destination-map";
 
 const EMPTY_MOVE: MoveCreateInput = { lpns: [], toLocation: "" };
+const CHANGED = { shouldDirty: true, shouldValidate: true } as const;
+const lpnOf = (carton: ScannedCarton) => carton.lpn;
 type MapProp = { destinationMap?: DestinationMap };
 
 /**
@@ -59,12 +61,7 @@ function MoveForm({ onCancel, destinationMap }: MapProp & { onCancel: () => void
   const scan = useCartonScan({
     prefix: warehouse.prefix,
     canLookup,
-    onChange: (cartons: ScannedCarton[]) =>
-      form.setValue(
-        "lpns",
-        cartons.map((carton) => carton.lpn),
-        { shouldDirty: true, shouldValidate: true },
-      ),
+    onChange: (cartons: ScannedCarton[]) => form.setValue("lpns", cartons.map(lpnOf), CHANGED),
   });
   const move = useMoveSubmit(form, () => {
     scan.clear();
@@ -80,6 +77,9 @@ function MoveForm({ onCancel, destinationMap }: MapProp & { onCancel: () => void
     useCan(WAREHOUSE_LOCATION_PERMISSIONS.read),
     here,
   );
+  const suggestions = useBinSuggestions(scan.cartons.map(lpnOf));
+  const value = normalizeLocation(toLocation);
+  const pick = (code: string) => form.setValue("toLocation", code, CHANGED);
   return (
     <FormDialogBody
       title={MOVE_LABELS.formTitle}
@@ -102,10 +102,14 @@ function MoveForm({ onCancel, destinationMap }: MapProp & { onCancel: () => void
               pending={scan.pending}
               feedback={scan.feedback}
             />
-            <MoveFields
+            <DestinationPanel
               form={form}
               destinations={destinations.codes}
               problem={alreadyAt.length ? MOVE_MESSAGES.alreadyThere(alreadyAt.join(", ")) : null}
+              suggestions={{ ...suggestions, hasCartons: scan.cartons.length > 0 }}
+              value={value}
+              disabled={move.isPending}
+              onPick={pick}
             />
           </div>
           <ScannedCartons
@@ -114,14 +118,14 @@ function MoveForm({ onCancel, destinationMap }: MapProp & { onCancel: () => void
             disabled={move.isPending}
             onRemove={scan.remove}
           />
-          {/* Docs 11 §4.1 bước 1–2: tô nơi thùng đang nằm, bấm bản đồ để chọn đích (chỉ mã gợi ý được) */}
+          {/* Docs 11 §4.1 bước 1–2: tô nơi thùng đang nằm + bin gợi ý (BE #412), bấm bản đồ để chọn đích */}
           {destinationMap?.({
             marked: here,
+            suggested: suggestions.data?.suggestions.map((s) => s.locationCode) ?? [],
             pickable: new Set(destinations.codes),
-            value: normalizeLocation(toLocation),
+            value,
             disabled: move.isPending,
-            onPick: (code) =>
-              form.setValue("toLocation", code, { shouldDirty: true, shouldValidate: true }),
+            onPick: pick,
           })}
           {canLookup && (
             <CartonFinder

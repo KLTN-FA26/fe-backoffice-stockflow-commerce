@@ -1,3 +1,4 @@
+import { PUTAWAY_DETAIL_LABELS } from "@/constants";
 import {
   MOVE_CARTON_STATUS_IN_STOCK,
   MOVE_LIMITS,
@@ -5,7 +6,10 @@ import {
   MOVE_STAGING_AREA_TYPE,
 } from "@/constants/move";
 
-import type { Carton, ScannedCarton, WarehouseLayout } from "./types";
+import { formatDecimal } from "@/lib/format";
+
+import type { SlottingSuggestionItem } from "@/components/backoffice/SlottingSuggestionList";
+import type { BinSuggestion, Carton, ScannedCarton, WarehouseLayout } from "./types";
 
 // BE `LocationId`: trim + upper case.
 export function normalizeLocation(code: string): string {
@@ -122,4 +126,24 @@ export function toScanned(carton: Carton): ScannedCarton {
     onHand: carton.onHand,
     locationCode: carton.locationCode ?? null,
   };
+}
+
+/** LPN hỏi gợi ý: chuẩn hoá, bỏ trống + trùng, sắp xếp — bỏ rồi thêm lại cùng thùng không hỏi lại BE. */
+export function suggestionLpns(lpns: readonly string[]): string[] {
+  return [...new Set(lpns.map(normalizeLpn).filter(Boolean))].sort();
+}
+
+const R = PUTAWAY_DETAIL_LABELS;
+
+/**
+ * Bin gợi ý → dòng của `SlottingSuggestionList`: lý do dùng nhãn của màn cất hàng (docs 05 §4.3), m³ tối đa 3 chữ số lẻ,
+ * kg 1 chữ số lẻ; null = không giới hạn.
+ */
+export function suggestionItems(suggestions: readonly BinSuggestion[]): SlottingSuggestionItem[] {
+  return suggestions.map((s) => ({
+    locationCode: s.locationCode,
+    reason: R.reason[s.reason],
+    freeVolume: s.freeVolumeM3 == null ? null : R.cubicMeters(formatDecimal(s.freeVolumeM3, 3)),
+    freeWeight: s.freeWeightKg == null ? null : R.kilograms(formatDecimal(s.freeWeightKg, 1)),
+  }));
 }

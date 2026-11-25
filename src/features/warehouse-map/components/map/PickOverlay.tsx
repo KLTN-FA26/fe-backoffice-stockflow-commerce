@@ -16,18 +16,42 @@ const frame = (mark: PlaceMark) => ({
 });
 
 /**
- * Đánh dấu trên mặt bằng 2D khi chọn vị trí (docs 11 §4.1): viền đứt cam = nơi các thùng đang nằm, viền liền xanh lá
- * + nền nhạt = vị trí đích đã chọn. Không nhận chuột — bấm kệ / khu bên dưới vẫn được.
+ * Đánh dấu trên mặt bằng 2D khi chọn vị trí (docs 11 §4.1): nền xanh dương = kệ / khu có bin gợi ý (kệ của bin hạng
+ * nhất đậm nhất), viền đứt cam = nơi các thùng đang nằm, viền liền xanh lá + nền nhạt = vị trí đích đã chọn. Không nhận
+ * chuột — bấm kệ / khu bên dưới vẫn được.
  */
 export function PickOverlay({
   marked,
   picked,
+  suggested = [],
+  top = [],
 }: {
   marked: readonly PlaceMark[];
   picked: readonly PlaceMark[];
+  /** Kệ / khu có bin gợi ý, trừ chỗ của bin hạng nhất (`top`). */
+  suggested?: readonly PlaceMark[];
+  top?: readonly PlaceMark[];
 }) {
   return (
     <g className="pointer-events-none" aria-hidden>
+      {suggested.map((mark) => (
+        <rect
+          key={`suggested-${mark.id}`}
+          {...frame(mark)}
+          className="stroke-dot-info fill-dot-info"
+          fillOpacity={0.08}
+          strokeWidth={LINE.base}
+        />
+      ))}
+      {top.map((mark) => (
+        <rect
+          key={`top-${mark.id}`}
+          {...frame(mark)}
+          className="stroke-dot-info fill-dot-info"
+          fillOpacity={0.24}
+          strokeWidth={LINE.bold}
+        />
+      ))}
       {marked.map((mark) => (
         <rect
           key={`marked-${mark.id}`}

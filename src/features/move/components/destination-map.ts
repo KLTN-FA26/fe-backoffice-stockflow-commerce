@@ -7,6 +7,8 @@ import type { ReactNode } from "react";
  */
 export interface DestinationMapProps {
   marked: readonly string[];
+  /** Bin gợi ý theo thứ hạng (BE #412) — phần tử đầu là bin hạng nhất. */
+  suggested: readonly string[];
   pickable: ReadonlySet<string>;
   value: string;
   disabled: boolean;

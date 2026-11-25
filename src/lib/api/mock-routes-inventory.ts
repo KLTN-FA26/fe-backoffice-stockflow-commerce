@@ -47,6 +47,7 @@ import {
   setMockCartonStatus,
   setMockQuarantined,
 } from "./mock-inventory-cartons";
+import { registerMoveSuggestionMockRoutes } from "./mock-routes-move-suggestions";
 import { registerQuarantineMockRoutes } from "./mock-routes-quarantine";
 import { registerInventoryStockMockRoutes } from "./mock-routes-inventory-stock";
 import { MOCK_AREAS } from "./mock-routes-goods-receipts-store";
@@ -778,6 +779,8 @@ export function registerInventoryMockRoutes(): void {
   registerMockRoute("GET", INVENTORY_API.movements, listMovements);
   registerInventoryStockMockRoutes();
   registerCycleCountMockRoutes();
+  // Trước `GET /inventory/stock-packages/:lpn` của cách ly — adapter lấy route khớp đầu tiên.
+  registerMoveSuggestionMockRoutes();
   registerQuarantineMockRoutes();
   registerMockRoute("POST", MOVE_API.move, createMove);
   // `GET /inventory/stock-items?sku=` (mọi kho): mock không có tồn theo vị trí → danh sách rỗng. Màn Di chuyển giờ tra

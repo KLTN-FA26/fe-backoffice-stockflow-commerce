@@ -27,6 +27,8 @@ export interface LocationPickMapProps {
   warehouseId: string;
   /** Mã vị trí cần đánh dấu (vd nơi các thùng đang nằm). */
   marked: readonly string[];
+  /** Mã vị trí gợi ý theo thứ hạng — phần tử đầu tô đậm nhất. Thứ hạng do màn gọi quyết định. */
+  suggested?: readonly string[];
   /** Mã vị trí được chọn — quy tắc chọn (dùng được, không khu tập kết…) do màn gọi quyết định. */
   pickable: ReadonlySet<string>;
   /** Vị trí đang chọn (in hoa), rỗng khi chưa chọn. */
@@ -35,7 +37,7 @@ export interface LocationPickMapProps {
   onPick: (code: string) => void;
 }
 
-function Legend() {
+function Legend({ suggested }: { suggested: boolean }) {
   return (
     <div className={`${NOTE_CLASS} flex flex-wrap items-center gap-x-4 gap-y-1`}>
       <span className="flex items-center gap-1.5">
@@ -52,6 +54,15 @@ function Legend() {
         />
         {K.legendPicked}
       </span>
+      {suggested && (
+        <span className="flex items-center gap-1.5">
+          <span
+            className="border-dot-info bg-dot-info/25 size-2.5 rounded-(--r-sm) border"
+            aria-hidden
+          />
+          {K.legendSuggested}
+        </span>
+      )}
     </div>
   );
 }
@@ -64,6 +75,7 @@ function Legend() {
 export function LocationPickMap({
   warehouseId,
   marked,
+  suggested = [],
   pickable,
   value,
   disabled = false,
@@ -77,6 +89,9 @@ export function LocationPickMap({
   if (layout.isPending) return <Skeleton className="h-80 w-full rounded-(--card-radius)" />;
   if (!layout.data) return <p className={NOTE_CLASS}>{K.loadFailed}</p>;
   const map = layout.data;
+  const top = placesOf(map, suggested.slice(0, 1));
+  const topIds = new Set(top.map((mark) => mark.id));
+  const rest = placesOf(map, suggested.slice(1)).filter((mark) => !topIds.has(mark.id));
   // Kệ đang mở lưới bin: kệ vừa bấm, hoặc kệ chứa bin đích đang chọn (gõ / quét mã cũng mở sẵn)
   const shelf =
     map.shelves.find((item) => item.id === selectedId) ??
@@ -100,13 +115,18 @@ export function LocationPickMap({
               onSelect={select}
               controls={controls}
               overlay={
-                <PickOverlay marked={placesOf(map, marked)} picked={placesOf(map, [value])} />
+                <PickOverlay
+                  marked={placesOf(map, marked)}
+                  picked={placesOf(map, [value])}
+                  suggested={rest}
+                  top={top}
+                />
               }
             />
           )}
         </MapFrame>
       </div>
-      <Legend />
+      <Legend suggested={suggested.length > 0} />
       <p className={NOTE_CLASS}>{K.hint}</p>
       {refused && (
         <p role="status" className="text-ink-secondary text-xs">
@@ -117,6 +137,7 @@ export function LocationPickMap({
         <ShelfBinPicker
           shelf={shelf}
           marked={new Set(marked.map((code) => code.trim().toUpperCase()))}
+          suggested={suggested}
           pickable={pickable}
           value={value}
           disabled={disabled}

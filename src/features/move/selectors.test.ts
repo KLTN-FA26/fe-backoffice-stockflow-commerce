@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { MOVE_MESSAGES } from "@/constants/move";
 
+import { PUTAWAY_DETAIL_LABELS } from "@/constants";
+
 import {
   cartonProblem,
   cartonSearchParams,
@@ -10,6 +12,8 @@ import {
   destinationCodes,
   isInWarehouse,
   normalizeLpn,
+  suggestionItems,
+  suggestionLpns,
   toScanned,
   warehouseOf,
 } from "./selectors";
@@ -127,5 +131,43 @@ describe("carton finder", () => {
       carton({ lpn: "X", locationCode: null }),
     ];
     expect(cartonsInWarehouse(rows, "HCM").map((row) => row.lpn)).toEqual(["LPN-20261111-000001"]);
+  });
+});
+
+describe("bin suggestions (BE #412)", () => {
+  it("asks with normalized, deduped, sorted LPNs — remove + re-add is the same question", () => {
+    expect(suggestionLpns([" lpn-2", "LPN-1", "lpn-2", ""])).toEqual(["LPN-1", "LPN-2"]);
+  });
+
+  it("rows use the putaway reason labels; null free room stays null (unlimited)", () => {
+    expect(
+      suggestionItems([
+        {
+          locationCode: "HCM-A01-2-B",
+          reason: "SAME_SKU",
+          freeVolumeM3: 0.1234,
+          freeWeightKg: 12.25,
+        },
+        {
+          locationCode: "HCM-A01-3-A",
+          reason: "OTHER_SKU",
+          freeVolumeM3: null,
+          freeWeightKg: null,
+        },
+      ]),
+    ).toEqual([
+      {
+        locationCode: "HCM-A01-2-B",
+        reason: PUTAWAY_DETAIL_LABELS.reason.SAME_SKU,
+        freeVolume: "0,123 m³",
+        freeWeight: "12,3 kg",
+      },
+      {
+        locationCode: "HCM-A01-3-A",
+        reason: PUTAWAY_DETAIL_LABELS.reason.OTHER_SKU,
+        freeVolume: null,
+        freeWeight: null,
+      },
+    ]);
   });
 });

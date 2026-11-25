@@ -9,6 +9,7 @@ import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 
 import {
+  binSuggestionsDto,
   cartonDto,
   cartonPageDto,
   movedCartonsDto,
@@ -17,7 +18,13 @@ import {
 } from "./schemas";
 
 import type { z } from "zod";
-import type { Carton, MovedCarton, MoveCreateInput, WarehouseLayout } from "./types";
+import type {
+  BinSuggestions,
+  Carton,
+  MovedCarton,
+  MoveCreateInput,
+  WarehouseLayout,
+} from "./types";
 
 // The shared client unwraps `{ success, data }` and turns failures into `ApiError` (errorCode,
 // fieldErrors, correlationId). A success body that does not match the DTO is a contract failure.
@@ -74,6 +81,22 @@ export async function listCartons(
     signal,
   });
   return parseContract(cartonPageDto, data);
+}
+
+/**
+ * `GET /inventory/stock-packages/bin-suggestions?lpn=…&lpn=…` (BE #412, inventory-stock-items:UPDATE) — bin nhận được
+ * mọi thùng trong danh sách (docs 11 BR-10). Spring đọc `lpn` lặp lại: gửi `lpn=A&lpn=B`, không phải `lpn[]=A`.
+ */
+export async function getBinSuggestions(
+  lpns: readonly string[],
+  signal?: AbortSignal,
+): Promise<BinSuggestions> {
+  const { data } = await api.get<unknown>(MOVE_API.binSuggestions, {
+    params: { lpn: lpns },
+    paramsSerializer: { indexes: null },
+    signal,
+  });
+  return parseContract(binSuggestionsDto, data);
 }
 
 /** `GET /warehouses/{id}/layout` — the whole map (warehouse-locations:READ). */

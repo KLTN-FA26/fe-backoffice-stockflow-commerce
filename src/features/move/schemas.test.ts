@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { MOVE_LIMITS, MOVE_MESSAGES } from "@/constants/move";
 
 import {
+  binSuggestionsDto,
   cartonDto,
   movedCartonsDto,
   moveCreateInput,
@@ -110,5 +111,28 @@ describe("DTOs", () => {
       areas: [{ locationCode: "HCM-STG01", usable: true, type: "STAGING" }, {}],
     });
     expect(layout.areas[0]?.type).toBe("STAGING");
+  });
+});
+
+describe("binSuggestionsDto (BE #412)", () => {
+  it("keeps rank order, null free room = unlimited, overflowAreas absent → []", () => {
+    const parsed = binSuggestionsDto.parse({
+      suggestions: [
+        { locationCode: "HCM-A01-2-B", reason: "SAME_LOT", freeVolumeM3: 0.84, freeWeightKg: 120 },
+        { locationCode: "HCM-A01-3-A", reason: "EMPTY", freeVolumeM3: null },
+      ],
+    });
+    expect(parsed.suggestions.map((s) => s.locationCode)).toEqual(["HCM-A01-2-B", "HCM-A01-3-A"]);
+    expect(parsed.suggestions[1]?.freeWeightKg).toBeUndefined();
+    expect(parsed.overflowAreas).toEqual([]);
+  });
+
+  it("refuses a reason the putaway ranker does not have (contract drift)", () => {
+    expect(
+      binSuggestionsDto.safeParse({
+        suggestions: [{ locationCode: "HCM-A01-2-B", reason: "CLOSEST" }],
+        overflowAreas: [],
+      }).success,
+    ).toBe(false);
   });
 });
