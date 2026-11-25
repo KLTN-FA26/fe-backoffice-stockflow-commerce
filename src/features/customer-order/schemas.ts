@@ -10,7 +10,15 @@ import { ORDER_STATUS_GROUPS } from "@/constants";
 
 import { bePageSchema } from "@/lib/api/page-schema";
 
-const statusGroup = z.enum(ORDER_STATUS_GROUPS);
+export const MY_ORDER_STATUS_GROUP_UNKNOWN = "UNKNOWN";
+
+/**
+ * Nhóm BE chưa biết → `UNKNOWN` ("Không rõ") thay vì làm hỏng cả danh sách / chi tiết đơn (issue #262: thiếu
+ * `RETURN_REQUESTED` làm `/portal/orders` báo "Dữ liệu trả về không đúng định dạng").
+ */
+const statusGroup = z
+  .enum([...ORDER_STATUS_GROUPS, MY_ORDER_STATUS_GROUP_UNKNOWN])
+  .catch(MY_ORDER_STATUS_GROUP_UNKNOWN);
 
 export const myOrderCardDtoSchema = z.object({
   orderId: z.string(),

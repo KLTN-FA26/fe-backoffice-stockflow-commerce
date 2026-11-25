@@ -4,8 +4,9 @@ import { ORDER_STATUS_GROUP_DISPLAY } from "@/constants";
 
 import type { OrderStatusGroup } from "@/constants";
 
-export function statusGroupDisplay(group: OrderStatusGroup): string {
-  return ORDER_STATUS_GROUP_DISPLAY[group];
+/** Chuỗi status-map của nhóm; nhóm BE chưa biết (`UNKNOWN`) → "Không rõ". */
+export function statusGroupDisplay(group: OrderStatusGroup | "UNKNOWN"): string {
+  return group === "UNKNOWN" ? "UNKNOWN" : ORDER_STATUS_GROUP_DISPLAY[group];
 }
 
 /** Trạng thái in theo dòng (BE `CustomerOrderLine.production.state`). */

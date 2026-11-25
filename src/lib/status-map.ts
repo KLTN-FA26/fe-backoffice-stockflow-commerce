@@ -78,6 +78,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "DISPATCHED",
   ],
   info: [
+    // Đơn kết thúc bằng trả hàng mà khách còn giữ hàng (BE CustomerOrders.StatusGroup.PARTIALLY_RETURNED, BE-35)
+    "Partially Returned",
     // Sự kiện hãng vận chuyển (BE CarrierEventResult, docs 09 §4.5)
     CARRIER_EVENT_STATUS_KEYS.RECEIVED,
     // Hoá đơn điện tử đã gửi nhà cung cấp, chờ kết quả (BE EInvoiceStatus.SUBMITTING)
@@ -467,6 +469,8 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   "Ready to Fulfill": "Sẵn sàng thực hiện",
   // Quyết định WF-05 §3 HT-1: "Đang yêu cầu trả hàng" (như BE `CustomerOrders` và SF) — không đọc thành "đã trả"
   "Return Requested": "Đang yêu cầu trả hàng",
+  // BE-35: như SF — khách giữ một phần hàng, phần còn lại đã trả về / thất lạc
+  "Partially Returned": "Giữ một phần hàng",
   "Awaiting Return": "Chờ hàng về",
   "Settlement Pending": "Chờ duyệt hoàn tiền",
   Inspected: "Đã kiểm",

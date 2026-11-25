@@ -8,7 +8,7 @@ import type { OrderStatusGroup } from "@/constants";
 
 export type MyOrderAction = "returnUnavailable";
 
-export function allowedMyOrderActions(statusGroup: OrderStatusGroup): MyOrderAction[] {
+export function allowedMyOrderActions(statusGroup: OrderStatusGroup | "UNKNOWN"): MyOrderAction[] {
   const actions: MyOrderAction[] = [];
   if (statusGroup === "DELIVERED") actions.push("returnUnavailable");
   return actions;
