@@ -85,7 +85,7 @@ describe("POST /inventory/movements (mock)", () => {
     expect(moved).toEqual([
       expect.objectContaining({
         lpn: lpn(1),
-        sku: "SOFA-3S-GREY",
+        sku: "CUP-PP-500",
         locationCode: TO,
         status: "IN_STOCK",
       }),
@@ -205,7 +205,7 @@ describe("carton lookup (mock GET /inventory/stock-packages)", () => {
   it("one carton by LPN: SKU, count and where it is", async () => {
     expect(await getCarton(lpn(1))).toMatchObject({
       lpn: lpn(1),
-      sku: "SOFA-3S-GREY",
+      sku: "CUP-PP-500",
       onHand: 1,
       reserved: 0,
       status: "IN_STOCK",
@@ -221,9 +221,9 @@ describe("carton lookup (mock GET /inventory/stock-packages)", () => {
     const byLocation = await listCartons({ location: "HCM-A02-1-A" });
     expect(byLocation.items).toHaveLength(8);
     expect(byLocation.hasNext).toBe(false);
-    const bySku = await listCartons({ sku: "TABLE-OAK-160" });
-    expect(
-      bySku.items.every((row) => row.sku === "TABLE-OAK-160" && row.status === "IN_STOCK"),
-    ).toBe(true);
+    const bySku = await listCartons({ sku: "BAG-CUP-2" });
+    expect(bySku.items.every((row) => row.sku === "BAG-CUP-2" && row.status === "IN_STOCK")).toBe(
+      true,
+    );
   });
 });

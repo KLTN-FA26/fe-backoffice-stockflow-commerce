@@ -98,14 +98,14 @@ describe("looking a carton up", () => {
   it("seed BE: thùng tồn đầu kỳ ở HCM-QC01 đang cách ly, mang lô của seed; thùng ở kệ thì sẵn dùng", async () => {
     const held = await getCarton("LPN-20261111-000046");
     expect(held).toMatchObject({
-      sku: "TABLE-OAK-160",
+      sku: "BAG-CUP-2",
       lotNumber: "LOT-2026-04",
       locationCode: "HCM-QC01",
       onHand: 1,
     });
     expect(held.contents?.[0]?.status).toBe("QUARANTINE");
     const shelved = await getCarton("LPN-20261111-000001");
-    expect(shelved).toMatchObject({ sku: "SOFA-3S-GREY", locationCode: "HCM-A01-2-B" });
+    expect(shelved).toMatchObject({ sku: "CUP-PP-500", locationCode: "HCM-A01-2-B" });
     expect(shelved.contents?.[0]?.status).toBe("AVAILABLE");
   });
 

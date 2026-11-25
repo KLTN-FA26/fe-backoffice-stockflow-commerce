@@ -80,9 +80,9 @@ describe("thùng tồn đầu kỳ của seed BE (V20261111000110)", () => {
     expect((await listLocationCartons("HCM-A02-1-A")).map((carton) => carton.lpn)).toEqual(
       lpns(26, 8),
     );
-    const tables = await listLocationCartons("HCM-B01-1-A");
-    expect(tables.map((carton) => carton.lpn)).toEqual(lpns(34, 12));
-    expect(tables.every((carton) => carton.sku === "TABLE-OAK-160")).toBe(true);
+    const bags = await listLocationCartons("HCM-B01-1-A");
+    expect(bags.map((carton) => carton.lpn)).toEqual(lpns(34, 12));
+    expect(bags.every((carton) => carton.sku === "BAG-CUP-2")).toBe(true);
     expect(await listLocationCartons("HCM-QC01")).toHaveLength(30);
   });
 });
