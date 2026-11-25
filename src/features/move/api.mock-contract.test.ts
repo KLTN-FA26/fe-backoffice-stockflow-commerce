@@ -13,7 +13,7 @@ import { activateMockAdapter } from "@/lib/api/mock-adapter";
 import { resetInventoryMockState } from "@/lib/api/mock-routes-inventory";
 import { useAuthStore } from "@/lib/auth/auth-store";
 
-import { createMove, getCarton, listCartons } from "./api";
+import { createMove, getBinSuggestions, getCarton, listCartons } from "./api";
 
 // Each mock request waits ~215 ms (Math.random fixed at 0.05).
 vi.setConfig({ testTimeout: 20_000 });
@@ -225,5 +225,67 @@ describe("carton lookup (mock GET /inventory/stock-packages)", () => {
     expect(
       bySku.items.every((row) => row.sku === "TABLE-OAK-160" && row.status === "IN_STOCK"),
     ).toBe(true);
+  });
+});
+
+describe("bin suggestions (mock GET /inventory/stock-packages/bin-suggestions, BE #412)", () => {
+  it("sends the LPNs as a repeated `lpn` param (Spring binding), not lpn[]", async () => {
+    const adapter = api.defaults.adapter;
+    let url = "";
+    api.defaults.adapter = async (config) => {
+      url = api.getUri(config);
+      return {
+        data: { success: true, data: { suggestions: [] } },
+        status: 200,
+        statusText: "OK",
+        headers: {},
+        config,
+      };
+    };
+    try {
+      await getBinSuggestions([lpn(1), lpn(2)]);
+    } finally {
+      api.defaults.adapter = adapter;
+    }
+    expect(url).toContain(`bin-suggestions?lpn=${lpn(1)}&lpn=${lpn(2)}`);
+  });
+
+  it("ranks bins that take every carton, never where they are; a suggested bin is accepted by the move", async () => {
+    const lpns = [lpn(1), lpn(2), lpn(3)];
+    const { suggestions, overflowAreas } = await getBinSuggestions(lpns);
+    expect(suggestions.length).toBeGreaterThan(0);
+    expect(suggestions.length).toBeLessThanOrEqual(10);
+    expect(suggestions.map((s) => s.locationCode)).not.toContain("HCM-A01-2-B");
+    expect(suggestions.every((s) => s.locationCode.startsWith("HCM-"))).toBe(true);
+    expect(overflowAreas).toEqual([]);
+    const best = suggestions[0]?.locationCode ?? "";
+    const moved = await createMove({ lpns, toLocation: best }, crypto.randomUUID());
+    expect(moved.every((row) => row.locationCode === best)).toBe(true);
+  });
+
+  it("SAME_LOT only when every carton has its lot in the bin", async () => {
+    // Thùng 26–33 (SOFA, không lô) nằm ở HCM-A02-1-A: thùng SOFA khác → bin đó cùng lô (null = null)
+    const sofa = await getBinSuggestions([lpn(1)]);
+    expect(sofa.suggestions.find((s) => s.locationCode === "HCM-A02-1-A")?.reason).toBe("SAME_LOT");
+    // Thêm một thùng TABLE (lô LOT-2026-03) → bin chỉ có SOFA không còn SAME_LOT
+    const mixed = await getBinSuggestions([lpn(1), lpn(34)]);
+    const shared = mixed.suggestions.find((s) => s.locationCode === "HCM-A02-1-A");
+    expect(shared).toBeDefined();
+    expect(shared?.reason).toBe("OTHER_SKU");
+  });
+
+  it("more than 500 LPNs → 400 VALIDATION_FAILED, like BE MoveSuggestionService", async () => {
+    const many = Array.from({ length: 501 }, (_, index) => lpn(index + 1));
+    expect(await failureOf(getBinSuggestions(many))).toMatchObject({
+      status: 400,
+      code: "VALIDATION_FAILED",
+    });
+  });
+
+  it("unknown LPN → 404 STOCK_PACKAGE_NOT_FOUND", async () => {
+    expect(await failureOf(getBinSuggestions([lpn(1), "LPN-NOPE"]))).toMatchObject({
+      status: 404,
+      code: "STOCK_PACKAGE_NOT_FOUND",
+    });
   });
 });

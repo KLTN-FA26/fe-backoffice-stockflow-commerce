@@ -1,3 +1,4 @@
+import { PUTAWAY_DETAIL_LABELS } from "@/constants";
 import {
   MOVE_CARTON_STATUS_IN_STOCK,
   MOVE_LIMITS,
@@ -5,7 +6,10 @@ import {
   MOVE_STAGING_AREA_TYPE,
 } from "@/constants/move";
 
-import type { Carton, ScannedCarton, WarehouseLayout } from "./types";
+import { formatDecimal } from "@/lib/format";
+
+import type { SlottingSuggestionItem } from "@/components/backoffice/SlottingSuggestionList";
+import type { BinSuggestion, Carton, ScannedCarton, WarehouseLayout } from "./types";
 
 // BE `LocationId`: trim + upper case.
 export function normalizeLocation(code: string): string {
@@ -58,6 +62,23 @@ export function cartonsAlreadyAt(cartons: readonly ScannedCarton[], toLocation: 
 }
 
 /**
+ * Dữ liệu dẫn xuất của danh sách thùng cho form: vị trí hiện tại (`here`, để đánh dấu trên bản đồ và bỏ khỏi gợi ý),
+ * thùng đã ở sẵn đích, tập LPN, và các dòng cần đánh dấu đỏ — thùng ở sẵn đích + thùng BE vừa từ chối (chỉ khi còn trong
+ * danh sách).
+ */
+export function cartonMarks(
+  cartons: readonly ScannedCarton[],
+  toLocation: string,
+  rejectedLpn: string | undefined,
+) {
+  const here = cartons.flatMap((carton) => (carton.locationCode ? [carton.locationCode] : []));
+  const alreadyAt = cartonsAlreadyAt(cartons, toLocation);
+  const inList = new Set(cartons.map((carton) => carton.lpn));
+  const rejected = rejectedLpn && inList.has(rejectedLpn) ? [rejectedLpn] : [];
+  return { here, alreadyAt, inList, flagged: new Set([...alreadyAt, ...rejected]) };
+}
+
+/**
  * Vị trí đích gợi ý (docs 11 §4.1 bước 2): bin / khu `usable` của kho, không phải khu tập kết (BR-09), khác vị trí hiện
  * tại của mọi thùng trong danh sách. Sắp xếp, không trùng.
  */
@@ -105,4 +126,24 @@ export function toScanned(carton: Carton): ScannedCarton {
     onHand: carton.onHand,
     locationCode: carton.locationCode ?? null,
   };
+}
+
+/** LPN hỏi gợi ý: chuẩn hoá, bỏ trống + trùng, sắp xếp — bỏ rồi thêm lại cùng thùng không hỏi lại BE. */
+export function suggestionLpns(lpns: readonly string[]): string[] {
+  return [...new Set(lpns.map(normalizeLpn).filter(Boolean))].sort();
+}
+
+const R = PUTAWAY_DETAIL_LABELS;
+
+/**
+ * Bin gợi ý → dòng của `SlottingSuggestionList`: lý do dùng nhãn của màn cất hàng (docs 05 §4.3), m³ tối đa 3 chữ số lẻ,
+ * kg 1 chữ số lẻ; null = không giới hạn.
+ */
+export function suggestionItems(suggestions: readonly BinSuggestion[]): SlottingSuggestionItem[] {
+  return suggestions.map((s) => ({
+    locationCode: s.locationCode,
+    reason: R.reason[s.reason],
+    freeVolume: s.freeVolumeM3 == null ? null : R.cubicMeters(formatDecimal(s.freeVolumeM3, 3)),
+    freeWeight: s.freeWeightKg == null ? null : R.kilograms(formatDecimal(s.freeWeightKg, 1)),
+  }));
 }

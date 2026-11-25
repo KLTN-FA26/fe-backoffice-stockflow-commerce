@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { MOVE_LIMITS, MOVE_MESSAGES } from "@/constants/move";
+import { PUTAWAY_SUGGESTION_REASONS } from "@/constants/putaway";
 
 import { requiredString } from "@/lib/validation/primitives";
 
@@ -111,4 +112,19 @@ export const warehouseLayoutDto = z.object({
     }),
   ),
   areas: z.array(layoutPlaceDto),
+});
+
+// BE `MoveSuggestionResponse` (#412, PR #450, develop c23a3eee; nghiệp vụ docs#46, docs 11 BR-10): bin nhận được MỌI thùng đang
+// chọn — vừa từng thùng theo kích thước (06 BR-01), đủ thể tích + tải cho cả nhóm. Thứ tự = thứ hạng của PutawayRanker
+// (05 §4.3), `reason` cùng tập với màn cất hàng. `freeVolumeM3` / `freeWeightKg` null = không giới hạn. `overflowAreas`
+// chỉ có khi không bin nào nhận (05 BR-13). Chỉ để tham khảo: không giữ chỗ, lệnh chuyển vẫn kiểm lại (11 BR-10).
+export const binSuggestionDto = z.object({
+  locationCode: z.string(),
+  reason: z.enum(PUTAWAY_SUGGESTION_REASONS),
+  freeVolumeM3: z.number().nullish(),
+  freeWeightKg: z.number().nullish(),
+});
+export const binSuggestionsDto = z.object({
+  suggestions: z.array(binSuggestionDto),
+  overflowAreas: z.array(z.string()).default([]),
 });

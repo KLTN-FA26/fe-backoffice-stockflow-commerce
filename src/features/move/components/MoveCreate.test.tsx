@@ -4,7 +4,14 @@ import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { MOVE_API, MOVE_ERROR_MESSAGES, MOVE_LABELS, MOVE_MESSAGES } from "@/constants/move";
+import { PUTAWAY_DETAIL_LABELS } from "@/constants";
+import {
+  MOVE_API,
+  MOVE_ERROR_MESSAGES,
+  MOVE_LABELS,
+  MOVE_MESSAGES,
+  MOVE_SUGGESTION_LIST_LABELS,
+} from "@/constants/move";
 import {
   INVENTORY_PERMISSIONS,
   STOCK_PACKAGE_PERMISSIONS,
@@ -23,10 +30,13 @@ import {
 } from "../test-support";
 import { MoveCreate } from "./MoveCreate";
 
+import type { DestinationMap, DestinationMapProps } from "./destination-map";
+
 const server = setupServer();
 const moveUrl = moveEndpoint(MOVE_API.move);
 const cartonUrl = moveEndpoint("/inventory/stock-packages/:lpn");
 const cartonsUrl = moveEndpoint(MOVE_API.cartons);
+const suggestionsUrl = moveEndpoint(MOVE_API.binSuggestions);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const stockUpdate = INVENTORY_PERMISSIONS.stockUpdate;
 const cartonRead = STOCK_PACKAGE_PERMISSIONS.read;
@@ -62,6 +72,15 @@ function cartons(table: Record<string, Record<string, unknown>>) {
   });
 }
 
+/** GET …/bin-suggestions (BE #412): ghi lại LPN của từng lần hỏi (`lpn` lặp lại trên query). */
+function suggestionsReply(reply: (lpns: string[]) => unknown, asked: string[][] = []) {
+  return http.get(suggestionsUrl, ({ request }) => {
+    const lpns = new URL(request.url).searchParams.getAll("lpn");
+    asked.push(lpns);
+    return HttpResponse.json({ success: true, data: reply(lpns) });
+  });
+}
+
 function moved(body: Record<string, unknown>) {
   const lpns = Array.isArray(body.lpns) ? body.lpns : [];
   return HttpResponse.json(
@@ -85,6 +104,8 @@ beforeEach(() => {
   localStorage.clear();
   setMoveTestActor();
   server.use(
+    // Trước `/stock-packages/:lpn`: MSW lấy handler khớp đầu tiên. Mặc định không có bin gợi ý.
+    suggestionsReply(() => ({ suggestions: [], overflowAreas: [] })),
     movePermissions([stockUpdate, cartonRead]),
     cartons({ [LPN_1]: carton(LPN_1), [LPN_2]: carton(LPN_2, { locationCode: "HCM-A01-1-B" }) }),
     // Bộ tìm thùng gọi khi gõ; mặc định không có gì
@@ -105,8 +126,8 @@ const destination = () => screen.getByLabelText(/Đến vị trí/);
 const cartonList = () => screen.getByRole("region", { name: MOVE_LABELS.cartonsTitle });
 
 /** Trang Di chuyển nội bộ: form nằm trong modal mở từ nút "Tạo lệnh di chuyển" của toolbar. */
-async function openMove() {
-  renderMove(<MoveCreate />);
+async function openMove(destinationMap?: DestinationMap) {
+  renderMove(<MoveCreate destinationMap={destinationMap} />);
   await userEvent.click(await screen.findByRole("button", { name: MOVE_LABELS.formTitle }));
   await screen.findByLabelText(MOVE_LABELS.scan);
 }
@@ -120,7 +141,7 @@ async function scanAndPick(lpns: string[], to = "HCM-PACK01") {
     await scan(lpn);
     await within(cartonList()).findByText(lpn);
   }
-  await userEvent.type(destination(), to);
+  if (to) await userEvent.type(destination(), to);
 }
 
 function PermissionsReady() {
@@ -434,5 +455,180 @@ describe("move form — destination suggestions and carton finder", () => {
     expect(
       within(finder).getByRole("button", { name: `${MOVE_LABELS.finderAdded} ${LPN_1}` }),
     ).toBeDisabled();
+  });
+});
+
+describe("move form — destination map (docs 11 §4.1 bước 1–2)", () => {
+  /** Bản đồ giả: tầng route ghép bản đồ kho thật; ở đây chỉ cần xem dữ liệu đưa vào và bấm chọn. */
+  function stubMap() {
+    const seen: DestinationMapProps[] = [];
+    const map: DestinationMap = (props) => {
+      seen.push(props);
+      return (
+        <section aria-label="stub-map">
+          <button
+            type="button"
+            disabled={props.disabled}
+            onClick={() => props.onPick("HCM-PACK01")}
+          >
+            pick-pack
+          </button>
+        </section>
+      );
+    };
+    return { map, last: () => seen.at(-1) };
+  }
+
+  it("marks where the scanned cartons are, and a pick on the map fills the destination", async () => {
+    const sent = vi.fn();
+    server.use(
+      movePermissions([stockUpdate, cartonRead, WAREHOUSE_LOCATION_PERMISSIONS.read]),
+      http.get(moveEndpoint(`/warehouses/${MOVE_TAB_WAREHOUSE.id}/layout`), () =>
+        HttpResponse.json({
+          success: true,
+          data: {
+            shelves: [{ levels: [{ bins: [{ locationCode: "HCM-A01-1-A", usable: true }] }] }],
+            areas: [
+              { locationCode: "HCM-PACK01", usable: true, type: "PACKING" },
+              { locationCode: "HCM-STG01", usable: true, type: "STAGING" },
+            ],
+          },
+        }),
+      ),
+      http.post(moveUrl, async ({ request }) => {
+        const body = (await request.json()) as Record<string, unknown>;
+        sent(body);
+        return moved(body);
+      }),
+    );
+    const stub = stubMap();
+    await openMove(stub.map);
+    await scanAndPick([LPN_1, LPN_2], "");
+    await waitFor(() => expect(stub.last()?.marked).toEqual(["HCM-A01-1-A", "HCM-A01-1-B"]));
+    // Chỉ mã gợi ý được mới chọn được trên bản đồ: không khu tập kết, không nơi thùng đang nằm
+    await waitFor(() => expect([...(stub.last()?.pickable ?? [])]).toEqual(["HCM-PACK01"]));
+    expect(stub.last()?.value).toBe("");
+
+    await userEvent.click(screen.getByRole("button", { name: "pick-pack" }));
+    expect(destination()).toHaveValue("HCM-PACK01");
+    await waitFor(() => expect(stub.last()?.value).toBe("HCM-PACK01"));
+    await waitFor(() => expect(submit()).toBeEnabled());
+    await userEvent.click(submit());
+    await screen.findByText(MOVE_LABELS.resultSummary(2, "HCM-PACK01"));
+    expect(sent.mock.calls[0]?.[0]).toMatchObject({ toLocation: "HCM-PACK01" });
+  });
+
+  it("scanning with the map open still reads every character of the LPN", async () => {
+    const stub = stubMap();
+    await openMove(stub.map);
+    await scan(LPN_1);
+    expect(await within(cartonList()).findByText(LPN_1)).toBeInTheDocument();
+  });
+});
+
+describe("move form — bin suggestions (BE #412, docs 11 BR-10)", () => {
+  const RANKED = {
+    suggestions: [
+      { locationCode: "HCM-A02-1-A", reason: "SAME_LOT", freeVolumeM3: 0.84, freeWeightKg: 120 },
+      { locationCode: "HCM-A03-2-B", reason: "EMPTY", freeVolumeM3: null, freeWeightKg: null },
+    ],
+  };
+  const suggestionList = () => screen.getByRole("region", { name: MOVE_LABELS.suggestionsTitle });
+
+  it("asks once for every scanned carton and lists the ranked bins with reason and free room", async () => {
+    const asked: string[][] = [];
+    server.use(suggestionsReply(() => RANKED, asked));
+    await openMove();
+    expect(within(suggestionList()).getByText(MOVE_LABELS.suggestionsIdle)).toBeInTheDocument();
+    await scanAndPick([LPN_2, LPN_1], "");
+    const list = suggestionList();
+    expect(await within(list).findByText("HCM-A02-1-A")).toBeInTheDocument();
+    expect(within(list).getByText(PUTAWAY_DETAIL_LABELS.reason.SAME_LOT)).toBeInTheDocument();
+    expect(within(list).getByText(PUTAWAY_DETAIL_LABELS.reason.EMPTY)).toBeInTheDocument();
+    expect(within(list).getByText("0,84 m³")).toBeInTheDocument();
+    expect(within(list).getByText("120 kg")).toBeInTheDocument();
+    // Lần hỏi cuối mang cả hai thùng, sắp xếp — không hỏi khi danh sách rỗng
+    expect(asked.at(-1)).toEqual([LPN_1, LPN_2]);
+    expect(asked.every((lpns) => lpns.length > 0)).toBe(true);
+  });
+
+  it("choosing a suggestion fills the destination; the map gets the bins in rank order", async () => {
+    const sent = vi.fn();
+    const seen: DestinationMapProps[] = [];
+    server.use(
+      suggestionsReply(() => RANKED),
+      http.post(moveUrl, async ({ request }) => {
+        const body = (await request.json()) as Record<string, unknown>;
+        sent(body);
+        return moved(body);
+      }),
+    );
+    await openMove((props) => {
+      seen.push(props);
+      return null;
+    });
+    await scanAndPick([LPN_1], "");
+    await within(suggestionList()).findByText("HCM-A02-1-A");
+    await waitFor(() => expect(seen.at(-1)?.suggested).toEqual(["HCM-A02-1-A", "HCM-A03-2-B"]));
+    await userEvent.click(
+      screen.getByRole("button", { name: MOVE_SUGGESTION_LIST_LABELS.chooseBin("HCM-A03-2-B") }),
+    );
+    expect(destination()).toHaveValue("HCM-A03-2-B");
+    await waitFor(() => expect(submit()).toBeEnabled());
+    await userEvent.click(submit());
+    await screen.findByText(MOVE_LABELS.resultSummary(1, "HCM-A03-2-B"));
+    expect(sent.mock.calls[0]?.[0]).toMatchObject({ toLocation: "HCM-A03-2-B" });
+  });
+
+  it("no bin takes the cartons → the OVERFLOW areas are offered", async () => {
+    server.use(suggestionsReply(() => ({ suggestions: [], overflowAreas: ["HCM-OVERFLOW-1"] })));
+    await openMove();
+    await scanAndPick([LPN_1], "");
+    expect(
+      await within(suggestionList()).findByText(MOVE_LABELS.suggestionsNone),
+    ).toBeInTheDocument();
+    await userEvent.click(
+      within(suggestionList()).getByRole("button", {
+        name: MOVE_LABELS.chooseOverflow("HCM-OVERFLOW-1"),
+      }),
+    );
+    expect(destination()).toHaveValue("HCM-OVERFLOW-1");
+  });
+
+  it("advisory only: a failed lookup says so and a typed destination still moves", async () => {
+    server.use(
+      http.get(suggestionsUrl, () => failure(500, "INTERNAL_ERROR")),
+      http.post(moveUrl, async ({ request }) =>
+        moved((await request.json()) as Record<string, unknown>),
+      ),
+    );
+    await openMove();
+    await scanAndPick([LPN_1], "HCM-PACK01");
+    expect(
+      await within(suggestionList()).findByText(MOVE_LABELS.suggestionsUnavailable),
+    ).toBeInTheDocument();
+    await waitFor(() => expect(submit()).toBeEnabled());
+    await userEvent.click(submit());
+    expect(await screen.findByText(MOVE_LABELS.resultSummary(1, "HCM-PACK01"))).toBeInTheDocument();
+  });
+
+  it("suggestions hold nothing: after CARTON_DOES_NOT_FIT_BIN the bins are asked again", async () => {
+    const asked: string[][] = [];
+    server.use(
+      suggestionsReply(() => RANKED, asked),
+      http.post(moveUrl, () => failure(422, "CARTON_DOES_NOT_FIT_BIN")),
+    );
+    await openMove();
+    await scanAndPick([LPN_1], "");
+    await within(suggestionList()).findByText("HCM-A02-1-A");
+    await userEvent.click(
+      screen.getByRole("button", { name: MOVE_SUGGESTION_LIST_LABELS.chooseBin("HCM-A02-1-A") }),
+    );
+    const before = asked.length;
+    await waitFor(() => expect(submit()).toBeEnabled());
+    await userEvent.click(submit());
+    expect(await screen.findByText(MOVE_ERROR_MESSAGES.doesNotFit)).toBeInTheDocument();
+    await waitFor(() => expect(asked.length).toBe(before + 1));
+    expect(asked.at(-1)).toEqual([LPN_1]);
   });
 });

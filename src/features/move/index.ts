@@ -3,3 +3,4 @@ export { MoveCreate } from "./components/MoveCreate";
 export { moveErrorView } from "./errors";
 export { moveCreateInput } from "./schemas";
 export type { MovedCarton, MoveCreateInput } from "./types";
+export type { DestinationMap, DestinationMapProps } from "./components/destination-map";
