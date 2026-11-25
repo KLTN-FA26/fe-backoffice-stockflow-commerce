@@ -67,9 +67,9 @@ type Gate = Pick<
       EInvoice,
       | "reversedAt"
       | "errorNoticeSupported"
-      | "deliveryFailedAt"
       | "withdrawable"
       | "externalReductionAllowed"
+      | "deliveryFailureReductionAllowed"
     >
   >;
 
@@ -206,11 +206,13 @@ function correctionActions(
   // BE-11 (F-15): lần giao bị sửa thành thất bại mà hoá đơn gốc còn hiệu lực chưa được giảm (vd đã có điều chỉnh từ
   // trước) — BE lập bản giảm phần còn lại; 409 EINVOICE_REVERSAL_NOT_APPLICABLE nếu chuyến đã giao lại / đã giảm.
   // Hoá đơn thay thế không có nút này: Q-9 — giao thất bại trên hoá đơn thay thế đi đường cổng NCC (dưới).
+  // fe#264 / be#423: chỉ khi BE nói nhận (`deliveryFailureReductionAllowed`) — `deliveryFailedAt` chỉ có trên hoá đơn bị
+  // đánh dấu lúc còn SUBMITTING, hoá đơn gốc đã phát hành rồi mới giao thất bại không có. Backend phải re-check.
   if (
     inForce &&
     can(P.create) &&
     invoice.type === "ORIGINAL" &&
-    invoice.deliveryFailedAt &&
+    invoice.deliveryFailureReductionAllowed === true &&
     !liveReduction
   )
     actions.push("reduceFailedDelivery");

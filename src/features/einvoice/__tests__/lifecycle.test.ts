@@ -327,19 +327,36 @@ describe("allowedEInvoiceActions — corrections the BE would refuse are hidden 
     expect(partlyReduced).toContain("adjust");
   });
 
-  it("BE-11 (F-15): reduce for a failed delivery only on a marked, unreduced original", () => {
-    const marked = { deliveryFailedAt: "2026-11-09T07:00:00Z" };
-    expect(issued(marked, NO_CORRECTIONS)).toContain("reduceFailedDelivery");
-    expect(issued({ ...marked, reversedAt: "2026-11-09T08:00:00Z" }, NO_CORRECTIONS)).not.toContain(
+  it("BE-11 (F-15) / fe#264: reduce for a failed delivery only when the BE allows it, on an unreduced original", () => {
+    const allowed = { deliveryFailureReductionAllowed: true };
+    expect(issued(allowed, NO_CORRECTIONS)).toContain("reduceFailedDelivery");
+    expect(
+      issued({ ...allowed, reversedAt: "2026-11-09T08:00:00Z" }, NO_CORRECTIONS),
+    ).not.toContain("reduceFailedDelivery");
+    expect(issued(allowed, [row({ correctionBasis: "DELIVERY_FAILED" })])).not.toContain(
       "reduceFailedDelivery",
     );
-    expect(issued(marked, [row({ correctionBasis: "DELIVERY_FAILED" })])).not.toContain(
+    expect(
+      allowedEInvoiceActions(gate({ status: "ISSUED", ...allowed }), SALES_MANAGER, NO_CORRECTIONS),
+    ).not.toContain("reduceFailedDelivery");
+  });
+
+  it("fe#264: an original issued before its delivery failed has no deliveryFailedAt — the BE flag alone shows the button", () => {
+    // BE chỉ đánh dấu `deliveryFailedAt` lúc hoá đơn còn SUBMITTING; hoá đơn gốc đã ISSUED rồi mới giao thất bại không có
+    // dấu đó mà BE vẫn bảo Kế toán dùng "Giảm do giao thất bại".
+    expect(issued({ deliveryFailureReductionAllowed: true }, NO_CORRECTIONS)).toContain(
+      "reduceFailedDelivery",
+    );
+  });
+
+  it("fe#264: BE flag false or absent (old BE) → no failed-delivery reduction", () => {
+    expect(issued({ deliveryFailureReductionAllowed: false }, NO_CORRECTIONS)).not.toContain(
+      "reduceFailedDelivery",
+    );
+    expect(issued({ deliveryFailureReductionAllowed: null }, NO_CORRECTIONS)).not.toContain(
       "reduceFailedDelivery",
     );
     expect(issued({}, NO_CORRECTIONS)).not.toContain("reduceFailedDelivery");
-    expect(
-      allowedEInvoiceActions(gate({ status: "ISSUED", ...marked }), SALES_MANAGER, NO_CORRECTIONS),
-    ).not.toContain("reduceFailedDelivery");
   });
 
   it("Q-8 (F-13): after an unsendable reduction is voided, the portal reduction is recorded on the original — as the BE says", () => {
@@ -370,7 +387,7 @@ describe("allowedEInvoiceActions — corrections the BE would refuse are hidden 
   });
 
   it("BE-11: an original already reduced to a net 0 by returns is not offered a failed-delivery reduction", () => {
-    const actions = issued({ deliveryFailedAt: "2026-11-09T07:00:00Z", adjusted: true }, [
+    const actions = issued({ deliveryFailureReductionAllowed: true, adjusted: true }, [
       row({ status: "ISSUED", grandTotal: -16_848_000 }),
     ]);
     expect(actions).not.toContain("reduceFailedDelivery");
@@ -380,7 +397,7 @@ describe("allowedEInvoiceActions — corrections the BE would refuse are hidden 
     const actions = issued(
       {
         type: "REPLACEMENT",
-        deliveryFailedAt: "2026-11-09T07:00:00Z",
+        deliveryFailureReductionAllowed: true,
         externalReductionAllowed: true,
       },
       NO_CORRECTIONS,

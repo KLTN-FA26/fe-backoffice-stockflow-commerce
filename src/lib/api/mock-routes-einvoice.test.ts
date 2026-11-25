@@ -19,6 +19,7 @@ import {
   recordErrorNotice,
   recordExternalReduction,
   recordPortalResult,
+  reduceFailedDelivery,
   reopenEInvoice,
   replaceEInvoice,
   resubmitEInvoice,
@@ -284,6 +285,30 @@ describe("WF-05 additions (Q-8, BE-11, BO-04, BO-09, BO-10)", () => {
       reasonCode: "UNSENDABLE_REVERSAL",
     });
     expect(voided.status).toBe("VOIDED_DRAFT");
+  });
+
+  it("fe#264 / be#423: deliveryFailureReductionAllowed follows the reduction endpoint's own rule", async () => {
+    // EINV-0011: hoá đơn gốc đã phát hành, giao thất bại, còn bản giảm nháp EINV-0012 → chưa được lập thêm
+    const original = await getEInvoice("EINV-0011");
+    expect(original.deliveryFailureReductionAllowed).toBe(false);
+    expect(
+      await errorOf(reduceFailedDelivery({ id: original.id, version: original.version })),
+    ).toMatchObject({ status: 409, code: "EINVOICE_REVERSAL_NOT_APPLICABLE" });
+    // Bản giảm nháp bị huỷ vì không gửi được → BE bật cờ, endpoint nhận, rồi thôi gửi cờ
+    const draft = await getEInvoice("EINV-0012");
+    await voidDraft({
+      id: draft.id,
+      version: draft.version,
+      reason: "NCC cũ không dùng được",
+      reasonCode: "UNSENDABLE_REVERSAL",
+    });
+    const reducible = await getEInvoice("EINV-0011");
+    expect(reducible.deliveryFailureReductionAllowed).toBe(true);
+    const reduction = await reduceFailedDelivery({ id: reducible.id, version: reducible.version });
+    expect(reduction).toMatchObject({ type: "ADJUSTMENT", correctionBasis: "DELIVERY_FAILED" });
+    expect((await getEInvoice("EINV-0011")).deliveryFailureReductionAllowed).toBe(false);
+    // Hoá đơn gốc không có lần giao thất bại: không cờ
+    expect((await getEInvoice("EINV-0001")).deliveryFailureReductionAllowed).toBe(false);
   });
 
   it("NĐ 254 (G3): the issue deadline is the end of the invoice's own date, Vietnam time", async () => {

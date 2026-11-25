@@ -605,9 +605,21 @@ describe("EInvoiceDetail — corrections the BE refuses are not offered (BO-03, 
     );
   });
 
-  it("BE-11 (F-15): reduce a marked original for its failed delivery", async () => {
+  it("fe#264: an original marked failed but without the BE flag (old BE) offers no failed-delivery reduction", async () => {
+    mockEInvoiceApi(ACCOUNTANT_GRANTS, {
+      get: get(issued({ deliveryFailedAt: "2026-11-09T07:00:00Z" })),
+    });
+    renderEInvoiceScreen(<EInvoiceDetail id="einv-1" />);
+    expect(await screen.findByRole("button", { name: "Lập điều chỉnh" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Lập bản giảm do giao thất bại" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("BE-11 (F-15) / fe#264: reduce an issued original for its failed delivery when the BE allows it", async () => {
+    // Hoá đơn gốc đã phát hành rồi mới giao thất bại: BE không đánh dấu `deliveryFailedAt`, chỉ gửi cờ
     const api = mockEInvoiceApi(ACCOUNTANT_GRANTS, {
-      get: get(issued({ deliveryFailedAt: "2026-11-09T07:00:00Z", adjusted: true })),
+      get: get(issued({ deliveryFailureReductionAllowed: true, adjusted: true })),
       post: {
         "/einvoices/einv-1/delivery-failure-reduction": () =>
           detailJson({ id: "einv-9", type: "ADJUSTMENT", correctionBasis: "DELIVERY_FAILED" }),

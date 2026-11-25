@@ -161,6 +161,13 @@ export const einvoiceDtoSchema = z.object({
    * Vắng (BE cũ) = null → không hiện nút.
    */
   externalReductionAllowed: z.boolean().nullish(),
+  /**
+   * BE-11 (F-15), be#423: "Lập bản giảm do giao thất bại" (`/delivery-failure-reduction`) được nhận ngay lúc này — BE xét
+   * cùng luật `reduceForFailedDelivery` (hoá đơn gốc đã phát hành, chưa giảm, lần giao đang thất bại, không còn điều
+   * chỉnh đang gửi, lập được bản giảm). Không dựa vào `deliveryFailedAt`: BE chỉ đánh dấu hoá đơn đang SUBMITTING, hoá
+   * đơn đã phát hành trước khi giao thất bại không bao giờ có dấu đó (fe#264). Vắng (BE cũ) = null → không hiện nút.
+   */
+  deliveryFailureReductionAllowed: z.boolean().nullish(),
   /** Căn cứ nhận được lúc này: DELIVERY_FAILED, RETURN, ERROR. Căn cứ lạ bị bỏ (không có ô nhập cho nó). */
   externalReductionBases: z
     .array(z.string())

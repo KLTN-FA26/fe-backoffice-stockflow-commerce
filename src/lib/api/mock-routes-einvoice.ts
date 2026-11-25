@@ -164,6 +164,7 @@ function detail(i: MockEInvoice) {
     issuedVia: i.issuedVia ?? (i.issuedAt ? "PROVIDER" : null),
     ...withdrawability(i),
     ...externalReductions(i),
+    deliveryFailureReductionAllowed: deliveryFailureReductionAllowed(i),
     watchUntil: i.watchUntil ?? null,
     watchFoundAt: i.watchFoundAt ?? null,
   };
@@ -190,6 +191,22 @@ function withdrawability(i: MockEInvoice) {
     withdrawableFrom: null,
     withdrawalEvidenceRequired: false,
   };
+}
+
+/**
+ * fe#264 / be#423 — như cờ BE `deliveryFailureReductionAllowed` (cùng luật `reduceForFailedDelivery`): hoá đơn gốc đã
+ * phát hành, chưa bị giảm toàn bộ, lần giao đang thất bại (mock giữ dấu ở `deliveryFailedAt`), chưa có bản giảm giao
+ * thất bại còn sống.
+ */
+function deliveryFailureReductionAllowed(i: MockEInvoice): boolean {
+  if (i.status !== "ISSUED" || i.type !== "ORIGINAL" || i.reversedAt || !i.deliveryFailedAt)
+    return false;
+  return !mockEInvoices().some(
+    (o) =>
+      o.originalEInvoiceId === i.id &&
+      o.correctionBasis === "DELIVERY_FAILED" &&
+      o.status !== "VOIDED_DRAFT",
+  );
 }
 
 /**
@@ -592,7 +609,7 @@ export function registerEInvoiceMockRoutes(): void {
     "POST",
     "/einvoices/:id/delivery-failure-reduction",
     versioned(P.create, (i) => {
-      if (i.status !== "ISSUED" || !i.deliveryFailedAt || i.reversedAt)
+      if (!deliveryFailureReductionAllowed(i))
         return fail(409, "EINVOICE_REVERSAL_NOT_APPLICABLE", "Not applicable");
       const reduction = correctionOf(i, "ADJUSTMENT", "DELIVERY_FAILED", "Giao không thành công");
       reduction.lines = i.lines.map((line) => ({ ...line, quantity: -line.quantity }));
