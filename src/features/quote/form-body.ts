@@ -5,15 +5,11 @@
 
 import { addDays, format, parseISO } from "date-fns";
 
+import { QUOTE_DEFAULT_VALIDITY_DAYS } from "@/constants/numbers";
+
 import { todayVn } from "./form-schemas";
 
 import type { Quote, QuoteFormOutput, QuoteFormValues, QuoteLineFormValues } from "./types";
-
-/**
- * Hiệu lực mặc định của báo giá mới: hôm nay + 30 ngày (owner Tú chốt 2026-11-26, UX-Q2). Docs 14 chỉ nêu "ngày hết
- * hiệu lực ở tương lai" — Sale sửa được; số ngày chỉ là giá trị điền sẵn.
- */
-export const QUOTE_DEFAULT_VALIDITY_DAYS = 30;
 
 /** Ngày hết hiệu lực điền sẵn (`YYYY-MM-DD`, giờ VN). */
 export function defaultValidUntil(today = todayVn()): string {

@@ -4,6 +4,7 @@ import { Controller, useWatch } from "react-hook-form";
 import { Trash2 } from "lucide-react";
 
 import { CONTRACT_MILESTONE_LABELS, CONTRACT_MILESTONES } from "@/constants";
+import { ORDER_CONTRACT_LABELS } from "@/constants/labels-order-contract";
 import { FORM_INPUT_CLASS, fieldA11y } from "@/components/shared/FormField";
 import { MoneyInput } from "@/components/shared/MoneyInput";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,7 @@ import { AmountModeToggle } from "./AmountModeToggle";
 import type { UseFormReturn } from "react-hook-form";
 import type { ContractFormValues } from "../../sales-contract-form";
 
+const P = ORDER_CONTRACT_LABELS.plan;
 const SELECT = `${FORM_INPUT_CLASS} w-full border px-2`;
 const NUM = `${FORM_INPUT_CLASS} text-right font-[family-name:var(--font-mono)] tabular-nums`;
 
@@ -65,20 +67,20 @@ export function PaymentPlanRow({
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
           <label htmlFor={id("name")} className={LABEL}>
-            Tên đợt
+            {P.name}
           </label>
           <Input
             {...register(`paymentPlan.${index}.name`)}
             {...fieldA11y(id("name"), e?.name?.message)}
             aria-label={`Đợt ${n} — tên`}
-            placeholder="Tên đợt"
+            placeholder={P.name}
             className={FORM_INPUT_CLASS}
           />
           <FieldError id={id("name")} message={e?.name?.message} />
         </div>
         <div className="w-36 shrink-0">
           <label htmlFor={id("milestone")} className={LABEL}>
-            Mốc
+            {P.milestone}
           </label>
           <select
             id={id("milestone")}
@@ -122,15 +124,22 @@ export function PaymentPlanRow({
       <div className="grid gap-3 sm:grid-cols-[minmax(0,1.5fr)_minmax(0,0.7fr)_minmax(0,1fr)]">
         <div className="min-w-0">
           <label htmlFor={id("value")} className={LABEL}>
-            Giá trị
+            {P.value}
           </label>
           <div className="flex items-start gap-2">
             <AmountModeToggle
               label={`Đợt ${n} — tính theo`}
               value={mode}
-              onChange={(next) =>
-                setValue(`paymentPlan.${index}.mode`, next, { shouldDirty: true })
-              }
+              onChange={(next) => {
+                if (next === mode) return;
+                setValue(`paymentPlan.${index}.mode`, next, { shouldDirty: true });
+                // "30,5" as a percent is not "30 ₫": the number means something else now, so it is cleared and
+                // asked again (an error shows at once when the form was already submitted).
+                setValue(`paymentPlan.${index}.value`, "", {
+                  shouldDirty: true,
+                  shouldValidate: formState.isSubmitted,
+                });
+              }}
             />
             <div className="min-w-0 flex-1">
               <Controller
@@ -176,7 +185,7 @@ export function PaymentPlanRow({
         </div>
         <div className="min-w-0">
           <label htmlFor={id("days")} className={LABEL}>
-            Hạn (ngày)
+            {P.days}
           </label>
           <Input
             {...register(`paymentPlan.${index}.dueDays`)}
@@ -191,7 +200,7 @@ export function PaymentPlanRow({
         </div>
         <div className="min-w-0">
           <label htmlFor={id("batch")} className={LABEL}>
-            Gắn đợt giao
+            {P.batch}
           </label>
           <select
             {...register(`paymentPlan.${index}.deliveryBatchSeq`)}

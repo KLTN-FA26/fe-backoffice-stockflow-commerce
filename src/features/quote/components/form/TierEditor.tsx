@@ -3,6 +3,7 @@
 import { Controller, useFieldArray } from "react-hook-form";
 import { Plus, Trash2 } from "lucide-react";
 
+import { QUOTE_FORM_LABELS } from "@/constants/labels-quote-form";
 import { FORM_INPUT_CLASS } from "@/components/shared/FormField";
 import { MoneyInput } from "@/components/shared/MoneyInput";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import type { Control, FieldErrors, UseFormRegister } from "react-hook-form";
 import type { QuoteFormValues } from "@/features/quote/types";
 
+const T = QUOTE_FORM_LABELS.tiers;
 const NUM = `${FORM_INPUT_CLASS} text-right font-[family-name:var(--font-mono)] tabular-nums`;
 const TH = "text-ink-secondary px-1 pb-1 text-left text-xs font-medium";
 
@@ -47,10 +49,10 @@ export function TierEditor({
           <thead>
             <tr>
               <th scope="col" className={TH}>
-                Từ số thùng
+                {T.from}
               </th>
               <th scope="col" className={TH}>
-                Đơn giá một cái
+                {T.unitPrice}
               </th>
               <th scope="col" className="w-9">
                 <span className="sr-only">Xoá</span>
@@ -92,7 +94,7 @@ export function TierEditor({
                     </div>
                     {tierIndex === 0 && (
                       <p id={`${minId}-moq`} className="text-ink-secondary mt-1 text-xs">
-                        Bậc đầu là số thùng tối thiểu của báo giá
+                        {T.firstIsMinimum}
                       </p>
                     )}
                     {minError && (

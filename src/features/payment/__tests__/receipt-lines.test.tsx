@@ -2,6 +2,8 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { SHIPMENT_PERMISSIONS } from "@/constants";
+import type { PermissionCode } from "@/lib/auth";
 import { toast } from "@/components/shared/Toast";
 import { bePage } from "@/test/api-screen";
 import "@/test/jsdom-popover";
@@ -149,8 +151,11 @@ describe("After 'Lập phiếu thu' from a load's handover block (S07-5)", () =>
   };
   const LOAD = "4f0c6a52-1c63-4f4c-9d5e-0a8f6c2e7b10";
 
-  async function record(search: string) {
-    mockPaymentApi(ACCOUNTANT_GRANTS, {
+  async function record(
+    search: string,
+    grants: PermissionCode[] = [...ACCOUNTANT_GRANTS, SHIPMENT_PERMISSIONS.read],
+  ) {
+    mockPaymentApi(grants, {
       get: { "/installments/orders/ord-13": () => orderView, "/installments": () => bePage([due]) },
       post: { "/payment-receipts": () => receiptJson() },
     });
@@ -166,6 +171,12 @@ describe("After 'Lập phiếu thu' from a load's handover block (S07-5)", () =>
     const back = await screen.findByRole("link", { name: "Quay lại chuyến LD-20261126-0001" });
     expect(back).toHaveAttribute("href", `/admin/loads/${LOAD}`);
     expect(screen.getByRole("link", { name: "Xem phiếu thu" })).toBeInTheDocument();
+  });
+
+  it("without permission to read loads there is no link to a page that would refuse them", async () => {
+    await record(`?loadId=${LOAD}&loadCode=LD-20261126-0001`, ACCOUNTANT_GRANTS);
+    await screen.findByRole("link", { name: "Xem phiếu thu" });
+    expect(screen.queryByRole("link", { name: /Quay lại chuyến/ })).toBeNull();
   });
 
   it("a load code or id that is not shaped like one is ignored, never turned into a link", async () => {

@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -161,5 +161,42 @@ describe("Quote detail — round 5", () => {
       await within(dialog).findByText("Kho A, 12 Nguyễn Huệ, Bến Nghé, TP Hồ Chí Minh"),
     ).toBeInTheDocument();
     expect(within(dialog).queryByLabelText("Địa chỉ giao hàng")).toBeNull();
+  });
+
+  it("S03-2: one address of a type that is not marked default is sent by its id, not left to a default the BE does not have", async () => {
+    const lone = (type: string, id: string) => ({
+      addressId: id,
+      type,
+      recipientName: "Kho A",
+      phone: "0900000000",
+      line1: "12 Nguyễn Huệ",
+      wardName: "Bến Nghé",
+      provinceName: "TP Hồ Chí Minh",
+      defaultAddress: false,
+    });
+    const api = mockApi("SALES_STAFF", {
+      get: {
+        [detailUrl]: () => QUOTE_ACCEPTED,
+        [`/customers/${CUSTOMER_ID}`]: () => CUSTOMER,
+        [`/customers/${CUSTOMER_ID}/addresses`]: () => [
+          lone("SHIPPING", "ship-1"),
+          lone("BILLING", "bill-1"),
+        ],
+      },
+      post: { [`${detailUrl}/conversion`]: () => ({ ...QUOTE_ACCEPTED, status: "CONVERTED" }) },
+    });
+    renderScreen(<QuoteDetail id={QUOTE_ID} />, "SALES_STAFF");
+    await userEvent.click(await screen.findByRole("button", { name: "Tạo đơn" }));
+    const dialog = await screen.findByRole("dialog");
+    // Plain text of that address, nothing to choose.
+    expect(
+      await within(dialog).findAllByText("Kho A, 12 Nguyễn Huệ, Bến Nghé, TP Hồ Chí Minh"),
+    ).toHaveLength(2);
+    await userEvent.click(within(dialog).getByRole("button", { name: "Tạo đơn" }));
+    await waitFor(() => expect(api.post).toHaveBeenCalled());
+    expect(api.post.mock.calls[0]?.[1]).toMatchObject({
+      shippingAddressId: "ship-1",
+      billingAddressId: "bill-1",
+    });
   });
 });

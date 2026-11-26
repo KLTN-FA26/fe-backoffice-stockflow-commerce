@@ -3,6 +3,7 @@
 import { Controller, useWatch } from "react-hook-form";
 import { addDays, differenceInCalendarDays, format, parseISO } from "date-fns";
 
+import { QUOTE_FORM_LABELS } from "@/constants/labels-quote-form";
 import { todayVn } from "@/features/quote/form-schemas";
 import { CustomerPicker } from "@/components/backoffice/CustomerPicker";
 import { Card } from "@/components/shared/Card";
@@ -58,7 +59,11 @@ export function QuoteGeneralFields({
         label="Hiệu lực đến hết ngày"
         required
         error={errors.validUntil?.message}
-        hint={daysLeft !== null && daysLeft > 0 ? `Còn ${daysLeft} ngày kể từ hôm nay.` : undefined}
+        hint={
+          daysLeft !== null && daysLeft > 0
+            ? QUOTE_FORM_LABELS.validity.daysLeft(daysLeft)
+            : undefined
+        }
       >
         <Controller
           control={control}

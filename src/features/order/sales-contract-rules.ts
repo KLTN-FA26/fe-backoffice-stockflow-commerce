@@ -7,6 +7,7 @@
  */
 
 import { SALES_CONTRACT_PERMISSIONS, SALES_CONTRACT_SIGNED_STATUSES } from "@/constants";
+import { ORDER_CONTRACT_LABELS } from "@/constants/labels-order-contract";
 
 import { DEFAULT_ON_SIGNING_DUE_DAYS } from "./sales-contract-form";
 
@@ -241,11 +242,8 @@ export function sendBlockers(
 export function sendBlockersText(blockers: { missing: number[]; past: number[] }): string | null {
   const parts: string[] = [];
   if (blockers.missing.length > 0)
-    parts.push(`Còn thiếu: cửa sổ giao ${blockers.missing.map((seq) => `đợt ${seq}`).join(", ")}.`);
-  if (blockers.past.length > 0)
-    parts.push(
-      `Cần sửa: cửa sổ giao ${blockers.past.map((seq) => `đợt ${seq}`).join(", ")} bắt đầu trước hôm nay.`,
-    );
+    parts.push(ORDER_CONTRACT_LABELS.sendBlocked.missing(blockers.missing));
+  if (blockers.past.length > 0) parts.push(ORDER_CONTRACT_LABELS.sendBlocked.past(blockers.past));
   return parts.length > 0 ? parts.join(" ") : null;
 }
 

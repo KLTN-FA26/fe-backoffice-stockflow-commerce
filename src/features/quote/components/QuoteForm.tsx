@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { LoaderCircle, Plus } from "lucide-react";
 
 import { ADMIN_ROUTES } from "@/constants";
+import { QUOTE_FORM_LABELS } from "@/constants/labels-quote-form";
 import { EMPTY_LINE } from "@/features/quote/form-body";
 import { useCustomerSkus } from "@/features/quote/queries";
 import { FORM_BAR_ACTION_CLASS, FormBottomBar } from "@/components/backoffice/FormBottomBar";
@@ -43,6 +44,8 @@ export function QuoteForm({
   // R5-4: cái/thùng của SKU riêng (khi BE trả) cho dòng chưa lưu; dòng đã lưu dùng số BE ghi trên dòng.
   const unitsPerCartonOf = (sku: string) =>
     perCarton.get(sku) ?? skus.find((option) => option.sku === sku)?.unitsPerCarton ?? null;
+  // BE: mỗi SKU chỉ một dòng — hết SKU của khách thì không thêm dòng được nữa. Đang tải danh sách thì chưa khoá.
+  const noSkuLeft = !skusQuery.isPending && q.lines.fields.length >= skus.length;
   const backHref = quote ? ADMIN_ROUTES.quotes.detail(quote.id) : ADMIN_ROUTES.quotes.list;
 
   return (
@@ -108,18 +111,19 @@ export function QuoteForm({
                   type="button"
                   variant="outline"
                   size="sm"
-                  // BE: mỗi SKU chỉ một dòng — hết SKU của khách thì không thêm dòng được nữa.
-                  disabled={q.lines.fields.length >= Math.min(50, skus.length)}
-                  title={
-                    q.lines.fields.length >= skus.length
-                      ? "Khách không còn SKU nào khác để báo giá."
-                      : undefined
-                  }
+                  disabled={q.lines.fields.length >= 50 || noSkuLeft}
+                  aria-describedby={noSkuLeft ? "quote-add-line-hint" : undefined}
                   onClick={() => q.lines.append(EMPTY_LINE)}
                   className={FORM_BAR_ACTION_CLASS.outline}
                 >
-                  <Plus className="size-3.5" /> Thêm dòng
+                  <Plus className="size-3.5" /> {QUOTE_FORM_LABELS.addLine.label}
                 </Button>
+                {/* R7: nút khoá thì nói vì sao ngay dưới nút, không chỉ trong chú thích khi rê chuột. */}
+                {noSkuLeft && (
+                  <p id="quote-add-line-hint" className="text-ink-secondary text-xs">
+                    {QUOTE_FORM_LABELS.addLine.noSkuLeft}
+                  </p>
+                )}
               </section>
             )}
             {q.customerId && <QuoteFeesEditor form={form} />}

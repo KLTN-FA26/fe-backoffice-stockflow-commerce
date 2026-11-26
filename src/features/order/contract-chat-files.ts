@@ -20,13 +20,25 @@ import type { SalesContract } from "./sales-contract-schemas";
 const MAX_FILES = 8;
 const MAX_CONVERSATIONS = 3;
 
-const conversationsSchema = z.object({ items: z.array(z.object({ id: z.string() })) });
+const conversationsSchema = z.object({
+  items: z.array(
+    z.object({
+      id: z.string(),
+      /** The documents the thread is about (one thread can carry several contracts). */
+      contexts: z
+        .array(z.object({ id: z.string(), kind: z.string(), refId: z.string() }))
+        .default([]),
+    }),
+  ),
+});
 const messagesSchema = z.object({
   items: z.array(
     z.object({
       visibility: z.string(),
       senderType: z.string(),
       sentAt: z.string(),
+      /** The thread context the message is about (BE `ChatMessageView.contextId`); null when none in particular. */
+      contextId: z.string().nullish(),
       deleted: z.boolean().default(false),
       attachments: z
         .array(
@@ -52,35 +64,57 @@ export interface ChatFile {
   sentAt: string;
   /** Sent by the customer (not by staff). */
   fromCustomer: boolean;
+  /**
+   * The message is tied to THIS contract (its `contextId` is this contract's context of the thread). The BE sets no
+   * context on a file message today, so this is usually false: then nothing says which contract the file is for.
+   */
+  forThisContract: boolean;
 }
 
-async function conversationIds(
+interface ThreadRef {
+  id: string;
+  /** This contract's context ids in the thread (kind CONTRACT, ref = the contract). */
+  contractContexts: string[];
+}
+
+async function threads(
   params: Record<string, string>,
+  contractId: string,
   signal?: AbortSignal,
-): Promise<string[]> {
+): Promise<ThreadRef[]> {
   const { data } = await api.get<unknown>("/chat/conversations", {
     params: { ...params, size: String(MAX_CONVERSATIONS) },
     signal,
   });
-  return conversationsSchema.parse(data).items.map((item) => item.id);
+  return conversationsSchema.parse(data).items.map((item) => ({
+    id: item.id,
+    contractContexts: item.contexts
+      .filter((context) => context.kind === "CONTRACT" && context.refId === contractId)
+      .map((context) => context.id),
+  }));
 }
 
 /**
- * Files the customer could have sent the signed copy as, from the chats about the contract, then the order. A signed
- * copy can only come after the contract was sent (docs 14 §4.3 bước 13-14), so a file sent earlier belongs to another
- * contract of the same order or customer and is left out (S06-5).
+ * Files the customer could have sent the signed copy as, from the chats about the contract, then the order. A thread can
+ * carry several contracts, so: a file message the BE ties to another document is left out; a signed copy cannot exist
+ * before the contract was sent (docs 14 §4.3 bước 13-14), so an earlier file is left out too (S06-5). What stays is a
+ * candidate, not a proof it is this contract's: only a customer file tied to this contract (`forThisContract`) may be
+ * chosen for Sale.
  */
 export async function listContractChatFiles(
   contract: Pick<SalesContract, "id" | "orderId" | "sentAt">,
   signal?: AbortSignal,
 ): Promise<ChatFile[]> {
-  const ids = [
-    ...(await conversationIds({ contextKind: "CONTRACT", contextId: contract.id }, signal)),
-    ...(await conversationIds({ contextKind: "ORDER", contextId: contract.orderId }, signal)),
+  const found = [
+    ...(await threads({ contextKind: "CONTRACT", contextId: contract.id }, contract.id, signal)),
+    ...(await threads({ contextKind: "ORDER", contextId: contract.orderId }, contract.id, signal)),
   ];
-  const unique = [...new Set(ids)].slice(0, MAX_CONVERSATIONS);
+  const unique = [...new Map(found.map((thread) => [thread.id, thread])).values()].slice(
+    0,
+    MAX_CONVERSATIONS,
+  );
   const files: ChatFile[] = [];
-  for (const conversationId of unique) {
+  for (const { id: conversationId, contractContexts } of unique) {
     const { data } = await api.get<unknown>(
       `/chat/conversations/${encodeURIComponent(conversationId)}/messages`,
       { params: { limit: "50" }, signal },
@@ -88,6 +122,9 @@ export async function listContractChatFiles(
     for (const message of messagesSchema.parse(data).items) {
       // Internal notes never reach the customer; a deleted message's file is gone.
       if (message.deleted || message.visibility === "STAFF") continue;
+      // A message the BE ties to another document of the thread (another contract) is not this contract's.
+      const forThisContract = !!message.contextId && contractContexts.includes(message.contextId);
+      if (message.contextId && !forThisContract) continue;
       for (const attachment of message.attachments) {
         if (!isSignedFileTypeAllowed({ name: attachment.fileName, type: attachment.contentType }))
           continue;
@@ -99,6 +136,7 @@ export async function listContractChatFiles(
           sizeBytes: attachment.sizeBytes,
           sentAt: message.sentAt,
           fromCustomer: message.senderType === "CUSTOMER",
+          forThisContract,
         });
       }
     }

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { ADMIN_ROUTES, CUSTOMER_PERMISSIONS } from "@/constants";
+import { QUOTE_FORM_LABELS } from "@/constants/labels-quote-form";
 import { useCan } from "@/lib/auth/components/Can";
 import { formatAddress, useCustomerAddressOptions } from "@/lib/references/customer-lookup";
 import { quoteErrorMessage } from "@/features/quote/errors";
@@ -43,13 +44,15 @@ function AddressField({
   addresses: readonly CustomerAddressRef[];
 }) {
   const fallback = addresses.find((address) => address.defaultAddress);
-  const chosen = value ? addresses.find((address) => address.addressId === value) : fallback;
+  const chosen = value
+    ? addresses.find((address) => address.addressId === value)
+    : (fallback ?? (addresses.length === 1 ? addresses[0] : undefined));
   if (addresses.length <= 1)
     return (
       <div className="flex min-w-0 flex-col gap-1">
         <span className="text-ink-secondary text-xs font-medium">{label}</span>
         <p className="text-ink-primary text-[0.8125rem]">
-          {chosen ? formatAddress(chosen) : "Địa chỉ mặc định của khách"}
+          {chosen ? formatAddress(chosen) : QUOTE_FORM_LABELS.convert.defaultAddress}
         </p>
       </div>
     );
@@ -63,7 +66,9 @@ function AddressField({
         className={`${FORM_INPUT_CLASS} border px-2`}
       >
         <option value="">
-          {fallback ? `Mặc định — ${shortAddress(fallback)}` : "Địa chỉ mặc định của khách"}
+          {fallback
+            ? `Mặc định — ${shortAddress(fallback)}`
+            : QUOTE_FORM_LABELS.convert.defaultAddress}
         </option>
         {addresses
           .filter((address) => !address.defaultAddress)
@@ -87,6 +92,11 @@ function ConvertForm({ quote, onClose }: { quote: Quote; onClose: () => void }) 
   const router = useRouter();
   const ofType = (type: "SHIPPING" | "BILLING") =>
     (addresses.data ?? []).filter((address) => address.type === type);
+  // One address of the type and it is not marked default: the BE would find no default to take, so send it by id.
+  const soleAddressId = (type: "SHIPPING" | "BILLING") => {
+    const only = ofType(type);
+    return only.length === 1 && !only[0]?.defaultAddress ? only[0]?.addressId : undefined;
+  };
 
   return (
     <FormDialogBody
@@ -103,8 +113,8 @@ function ConvertForm({ quote, onClose }: { quote: Quote; onClose: () => void }) 
           {
             id: quote.id,
             version: quote.version,
-            shippingAddressId: shipping || undefined,
-            billingAddressId: billing || undefined,
+            shippingAddressId: shipping || soleAddressId("SHIPPING"),
+            billingAddressId: billing || soleAddressId("BILLING"),
           },
           {
             onSuccess: (saved) => {

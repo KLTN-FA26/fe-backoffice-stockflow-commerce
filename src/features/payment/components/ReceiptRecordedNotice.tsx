@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 
-import { ADMIN_ROUTES } from "@/constants";
+import { ADMIN_ROUTES, SHIPMENT_PERMISSIONS } from "@/constants";
 import { PAYMENT_LABELS } from "@/constants/labels-payment";
 import { PAYMENT_RECEIPT_PERMISSIONS, PAYMENT_ROUTES } from "@/constants/payment";
 import { useCan } from "@/lib/auth/components/Can";
@@ -57,6 +57,8 @@ function ReceiptRecordedNotice({
   onDismiss: () => void;
 }) {
   const canRead = useCan(PAYMENT_RECEIPT_PERMISSIONS.read);
+  // The load screen needs fulfillment-shipments:READ: without it the link would lead to a refusal page.
+  const canOpenLoad = useCan(SHIPMENT_PERMISSIONS.read);
   return (
     <Notice tone="positive" live>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
@@ -69,7 +71,7 @@ function ReceiptRecordedNotice({
             {R.view}
           </Link>
         )}
-        {returnLoad && (
+        {returnLoad && canOpenLoad && (
           <Link
             href={ADMIN_ROUTES.loads.detail(returnLoad.loadId)}
             className="text-accent-text font-medium hover:underline"

@@ -112,7 +112,12 @@ export function QuoteLineEditor({
               options={skus.filter(
                 (option) => option.sku === field.value || !takenElsewhere.has(option.sku),
               )}
-              onlyOption={skus.length === 1 ? (skus[0] ?? null) : null}
+              // Read-only only while the line is empty or already holds that SKU: a value the list does not have stays visible.
+              onlyOption={
+                skus.length === 1 && (!field.value || field.value === skus[0]?.sku)
+                  ? (skus[0] ?? null)
+                  : null
+              }
               error={errors?.sku?.message}
             />
           )}

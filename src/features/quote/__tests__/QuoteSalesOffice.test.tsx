@@ -2,6 +2,7 @@ import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { QUOTE_DEFAULT_VALIDITY_DAYS } from "@/constants/numbers";
 import { formatDate } from "@/lib/format/date";
 import { mockApi, renderScreen } from "@/test/api-screen";
 import "@/test/jsdom-popover";
@@ -15,7 +16,7 @@ import {
   QUOTE_ID,
   SKU,
 } from "../__fixtures__/quote-ds02";
-import { QUOTE_DEFAULT_VALIDITY_DAYS, defaultValidUntil, emptyQuoteForm } from "../form-body";
+import { defaultValidUntil, emptyQuoteForm } from "../form-body";
 import { pickSku } from "./sku-picker";
 
 const push = vi.fn();
@@ -91,8 +92,34 @@ describe("Quote line — SKU box (S02-1)", () => {
     renderScreen(<QuoteCreate />, "SALES_STAFF");
     expect(await screen.findByText("Ly 12oz xanh")).toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: /Sản phẩm/ })).toBeNull();
-    // BE: one line per SKU → "Thêm dòng" has nothing left to offer.
-    expect(screen.getByRole("button", { name: /Thêm dòng/ })).toBeDisabled();
+    // BE: one line per SKU → "Thêm dòng" has nothing left to offer, and the line under it says so (R7).
+    const add = screen.getByRole("button", { name: /Thêm dòng/ });
+    expect(add).toBeDisabled();
+    expect(
+      screen.getByText("Còn thiếu: SKU riêng khác của khách để báo giá (mỗi SKU một dòng)."),
+    ).toBeInTheDocument();
+    expect(add).toHaveAttribute("aria-describedby", "quote-add-line-hint");
+  });
+
+  it("'Thêm dòng' is not locked while the SKU list is still loading", async () => {
+    let release: (value: unknown) => void = () => undefined;
+    mockApi("SALES_STAFF", {
+      get: {
+        [`/customers/${CUSTOMER_ID}`]: () => CUSTOMER,
+        "/customer-skus": () =>
+          new Promise((resolve) => {
+            release = resolve;
+          }),
+      },
+    });
+    renderScreen(<QuoteCreate />, "SALES_STAFF");
+    const add = await screen.findByRole("button", { name: /Thêm dòng/ });
+    expect(add).toBeEnabled();
+    expect(screen.queryByText(/^Còn thiếu: SKU riêng khác/)).toBeNull();
+    release(TWO_SKUS);
+    // Two SKUs, one line: still open once the list is in.
+    await screen.findByRole("combobox", { name: /Sản phẩm \(SKU riêng\)/ });
+    expect(screen.getByRole("button", { name: /Thêm dòng/ })).toBeEnabled();
   });
 
   it("picks through the helper a SKU of a second line", async () => {

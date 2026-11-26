@@ -352,6 +352,24 @@ describe("WF-02 audit — gợi ý số tiền, gửi, file ký", () => {
     expect(get.mock.calls.some(([url]) => url === SUGGESTION)).toBe(false);
   });
 
+  it.each([
+    ["CUSTOMER_NOT_ACTIVE", /Khách hàng chưa ở trạng thái Hoạt động.*Quản lý kinh doanh/],
+    ["PAYMENT_SCHEDULE_NEEDS_CREDIT", /chưa có hạn mức công nợ do Kế toán duyệt.*Trước giao/],
+  ])(
+    "R7: gửi bị BE từ chối vì %s → câu nói vì sao và ai gỡ ngay trong hộp thoại, không phải câu BE trơ",
+    async (code, expected) => {
+      renderSection(() => contractDraft);
+      vi.spyOn(api, "post").mockRejectedValue(new ApiError(409, code, "English BE sentence."));
+      await userEvent.click(await screen.findByRole("button", { name: /Gửi hợp đồng/ }));
+      const dialog = await screen.findByRole("dialog");
+      await userEvent.click(within(dialog).getByRole("button", { name: "Gửi hợp đồng" }));
+      expect(await within(dialog).findByText(expected)).toBeInTheDocument();
+      expect(within(dialog).queryByText("English BE sentence.")).toBeNull();
+      // The dialog stays open so Sale can read it, and no "edit and resend" tail that does not apply.
+      expect(within(dialog).queryByText(/Huỷ hộp thoại, bấm Sửa/)).toBeNull();
+    },
+  );
+
   it("mục 8: gửi bị từ chối → hộp thoại giữ mở, hiện từng fieldErrors theo tên đợt", async () => {
     renderSection(() => contractDraft);
     vi.spyOn(api, "post").mockRejectedValue(

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Pencil, Send, Signature, XCircle } from "lucide-react";
 
+import { ORDER_CONTRACT_LABELS } from "@/constants/labels-order-contract";
 import { ApiError } from "@/lib/api/error";
 
 import { toLocalIsoDate } from "@/lib/format/date";
@@ -37,6 +38,15 @@ export type ContractDialog = "send" | "sign" | "cancel" | null;
  */
 function SendError({ error }: { error: unknown }) {
   const fields = error instanceof ApiError ? (error.fieldErrorList ?? []) : [];
+  // Refused for something the contract does not show beforehand (customer not active, no credit now): say why and who
+  // unblocks, in the dialog (R7) — not the bare BE sentence.
+  const refusal =
+    error instanceof ApiError && error.code in ORDER_CONTRACT_LABELS.sendRefused
+      ? ORDER_CONTRACT_LABELS.sendRefused[
+          error.code as keyof typeof ORDER_CONTRACT_LABELS.sendRefused
+        ]
+      : null;
+  if (refusal) return <p>{refusal}</p>;
   return (
     <div className="space-y-1">
       <p>{contractErrorMessage(error)}</p>
@@ -50,7 +60,7 @@ function SendError({ error }: { error: unknown }) {
           ))}
         </ul>
       )}
-      {fields.length > 0 && <p>Huỷ hộp thoại, bấm Sửa để chỉnh rồi gửi lại.</p>}
+      {fields.length > 0 && <p>{ORDER_CONTRACT_LABELS.sendRefusedFields}</p>}
     </div>
   );
 }

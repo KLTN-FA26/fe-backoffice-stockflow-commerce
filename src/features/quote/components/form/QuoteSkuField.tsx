@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 
+import { QUOTE_FORM_LABELS } from "@/constants/labels-quote-form";
 import { FormField } from "@/components/shared/FormField";
 import { COMBOBOX_ITEM_CLASS, InputCombobox } from "@/components/shared/InputCombobox";
 import { CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
 
 import type { CustomerSku } from "@/features/quote/types";
 
-const LABEL = "Sản phẩm (SKU riêng)";
+const L = QUOTE_FORM_LABELS.sku;
 const STATUS_ROW = "text-[0.8125rem] px-3 py-2";
 
 /** Tên người đọc được của SKU: tên sản phẩm kèm quy cách; chưa có tên thì chính mã. */
@@ -48,7 +49,7 @@ export function QuoteSkuField({
     return (
       <div className="flex min-w-0 flex-col gap-1">
         <span id={`${id}-label`} className="text-ink-secondary text-xs font-medium">
-          {LABEL}
+          {L.label}
         </span>
         <p id={id} aria-labelledby={`${id}-label`} className="text-ink-primary text-[0.8125rem]">
           <span className="font-medium">{skuLabel(onlyOption)}</span>
@@ -62,7 +63,7 @@ export function QuoteSkuField({
   return (
     <FormField
       id={id}
-      label={LABEL}
+      label={L.label}
       required
       error={error}
       hint={hint && <span className="font-[family-name:var(--font-mono)]">{hint}</span>}
@@ -72,9 +73,9 @@ export function QuoteSkuField({
         open={open}
         onOpenChange={setOpen}
         displayValue={chosen ? skuLabel(chosen) : value}
-        placeholder="Chọn sản phẩm…"
-        searchPlaceholder="Gõ tên sản phẩm hoặc mã SKU…"
-        ariaLabel={LABEL}
+        placeholder={L.placeholder}
+        searchPlaceholder={L.search}
+        ariaLabel={L.label}
         hasError={!!error}
         describedBy={
           [error ? `${id}-error` : "", hint ? `${id}-hint` : ""].filter(Boolean).join(" ") ||
@@ -84,7 +85,7 @@ export function QuoteSkuField({
       >
         <CommandList>
           <CommandEmpty className={`text-ink-tertiary ${STATUS_ROW} text-left`}>
-            Không có sản phẩm khớp.
+            {L.none}
           </CommandEmpty>
           <CommandGroup>
             {options.map((option) => (

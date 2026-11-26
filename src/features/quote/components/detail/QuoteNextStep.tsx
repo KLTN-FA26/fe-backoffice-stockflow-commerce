@@ -10,6 +10,7 @@ import {
   QUOTE_PRICE_APPROVAL_PERMISSIONS,
   QUOTE_PRICE_REVIEW_LABELS,
 } from "@/constants";
+import { QUOTE_FORM_LABELS } from "@/constants/labels-quote-form";
 import { useAuthStore } from "@/lib/auth";
 import { useCan } from "@/lib/auth/components/Can";
 import { formatDate } from "@/lib/format/date";
@@ -35,8 +36,8 @@ export function quoteNextStep(quote: Quote, canApprovePrice = false): string {
     case "DRAFT":
       // Theo trạng thái thật (`priced` do BE tính): đã đủ giá và phí thì chỉ còn kiểm lại rồi gửi.
       return quote.priced
-        ? "Báo giá đã đủ giá và phí — kiểm tra rồi bấm Gửi khách."
-        : "Bước tiếp theo: nhập đủ giá và phí, rồi Gửi khách.";
+        ? QUOTE_FORM_LABELS.nextStep.readyToSend
+        : QUOTE_FORM_LABELS.nextStep.needPrices;
     case "SENT":
       return `Chờ khách phản hồi trong chat, đến hết ${formatDate(quote.validUntil)}.`;
     case "CHANGES_REQUESTED":

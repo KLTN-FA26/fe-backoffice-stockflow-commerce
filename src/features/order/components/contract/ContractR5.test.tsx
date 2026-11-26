@@ -108,6 +108,24 @@ describe("Contract editor — round 5", () => {
     expect(within(group).getByRole("radio", { name: "Số tiền (₫)" })).not.toBeChecked();
   });
 
+  it("S06-2: switching ₫ | % clears the value (30 is not 30 ₫) and asks again once the form was submitted", async () => {
+    renderSection(() => contractDraft);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: /Sửa/ }));
+    expect(screen.getByLabelText("Đợt 1 — giá trị")).toHaveValue("30");
+    const group = screen.getByRole("radiogroup", { name: "Đợt 1 — tính theo" });
+    await user.click(within(group).getByRole("radio", { name: "Số tiền (₫)" }));
+    expect(screen.getByLabelText("Đợt 1 — giá trị")).toHaveValue("");
+    // Not submitted yet: no error shouted at once.
+    expect(screen.queryByText("Số tiền nguyên VND > 0")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Lưu hợp đồng" }));
+    expect(await screen.findByText("Số tiền nguyên VND > 0")).toBeInTheDocument();
+    // After a submit, switching back clears and revalidates right away.
+    await user.click(within(group).getByRole("radio", { name: "% tổng đơn" }));
+    expect(screen.getByLabelText("Đợt 1 — giá trị")).toHaveValue("");
+    expect(await screen.findByText("% từ 0,01 đến 100 (2 số lẻ)")).toBeInTheDocument();
+  });
+
   it("BO-UX-4: an amount is grouped as it is typed; a % row keeps a plain percent field", async () => {
     renderSection(() => contractDraft);
     await userEvent.click(await screen.findByRole("button", { name: /Sửa/ }));
@@ -336,80 +354,149 @@ describe("Record signed — round 5", () => {
     expect(within(dialog).getAllByText("hd-da-ky.pdf").length).toBeGreaterThan(1);
   });
 
-  it("S06-5: only files sent after this contract was sent; the newest first, already in use, two lines each", async () => {
-    const files = {
-      "/chat/conversations": () => ({ items: [{ id: CONVERSATION }] }),
-      [`/chat/conversations/${CONVERSATION}/messages`]: () => ({
+  describe("S06-5 — files for the signed copy (a thread can carry several contracts)", () => {
+    const THIS_CONTEXT = "ctx-this";
+    const OTHER_CONTEXT = "ctx-other";
+    const file = (id: string, name: string) => ({
+      id,
+      fileName: name,
+      contentType: "application/pdf",
+      sizeBytes: 9,
+    });
+    const message = (
+      sentAt: string,
+      attachment: ReturnType<typeof file>,
+      extra: Record<string, unknown> = {},
+    ) => ({
+      visibility: "CUSTOMER",
+      senderType: "CUSTOMER",
+      sentAt,
+      attachments: [attachment],
+      ...extra,
+    });
+    const thread = (items: unknown[]) => ({
+      "/chat/conversations": () => ({
         items: [
           {
-            visibility: "CUSTOMER",
-            senderType: "CUSTOMER",
-            // Before the contract was sent (2026-11-16T03:00): a copy of another contract.
-            sentAt: "2026-11-15T03:00:00Z",
-            attachments: [
-              {
-                id: "old",
-                fileName: "hop-dong-cu.pdf",
-                contentType: "application/pdf",
-                sizeBytes: 9,
-              },
-            ],
-          },
-          {
-            visibility: "CUSTOMER",
-            senderType: "CUSTOMER",
-            sentAt: "2026-11-17T03:00:00Z",
-            attachments: [
-              {
-                id: "a1",
-                fileName: "ban-ky-lan-1.pdf",
-                contentType: "application/pdf",
-                sizeBytes: 9,
-              },
-            ],
-          },
-          {
-            visibility: "CUSTOMER",
-            senderType: "CUSTOMER",
-            sentAt: "2026-11-18T03:00:00Z",
-            attachments: [
-              {
-                id: "a2",
-                fileName: "ban-ky-lan-2.pdf",
-                contentType: "application/pdf",
-                sizeBytes: 9,
-              },
+            id: CONVERSATION,
+            contexts: [
+              { id: THIS_CONTEXT, kind: "CONTRACT", refId: contractSent.id },
+              { id: OTHER_CONTEXT, kind: "CONTRACT", refId: "another-contract" },
             ],
           },
         ],
       }),
+      [`/chat/conversations/${CONVERSATION}/messages`]: () => ({ items }),
       [`/chat/conversations/${CONVERSATION}/attachments/a2/link`]: () => ({
         url: "https://files.example.test/ban-ky-lan-2.pdf",
       }),
-    };
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(
-        async () => new Response("%PDF-1.4", { headers: { "content-type": "application/pdf" } }),
-      ),
-    );
-    renderSection(() => contractSent, [...SALES, CHAT_PERMISSIONS.read], files);
-    await userEvent.click(await screen.findByRole("button", { name: /Ghi nhận đã ký/ }));
-    const dialog = await screen.findByRole("dialog");
-    const buttons = await within(dialog).findAllByRole("button", { name: /^Dùng file / });
-    // The older file belongs to another contract and is not offered; the newest is the first row.
-    expect(within(dialog).queryByText("hop-dong-cu.pdf")).not.toBeInTheDocument();
-    expect(buttons.map((button) => button.getAttribute("aria-label"))).toEqual([
-      "Dùng file ban-ky-lan-2.pdf",
-      "Dùng file ban-ky-lan-1.pdf",
-    ]);
-    // Chosen already (R6): marked as in use, and the file box above shows its name.
-    await waitFor(() => expect(buttons[0]).toHaveAttribute("aria-pressed", "true"));
-    expect(buttons[1]).toHaveAttribute("aria-pressed", "false");
-    // Who sent it and when sit on a second line, not cut off beside the name.
-    const row = (buttons[0] as HTMLElement).closest("li") as HTMLElement;
-    expect(row).toHaveTextContent(/Khách gửi · .*· mới nhất/);
-    expect(within(row).getByText("ban-ky-lan-2.pdf").className).toContain("block");
+      [`/chat/conversations/${CONVERSATION}/attachments/a1/link`]: () => ({
+        url: "https://files.example.test/ban-ky-lan-1.pdf",
+      }),
+    });
+    const fetchPdf = () =>
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(
+          async () => new Response("%PDF-1.4", { headers: { "content-type": "application/pdf" } }),
+        ),
+      );
+    async function openSign(items: unknown[]) {
+      fetchPdf();
+      renderSection(() => contractSent, [...SALES, CHAT_PERMISSIONS.read], thread(items));
+      await userEvent.click(await screen.findByRole("button", { name: /Ghi nhận đã ký/ }));
+      const dialog = await screen.findByRole("dialog");
+      const buttons = await within(dialog).findAllByRole("button", { name: /^Dùng file / });
+      return { dialog, buttons };
+    }
+
+    it("lists only files sent after this contract was sent and not tied to another contract, newest first, two lines each; nothing is chosen when the BE ties no file to this contract", async () => {
+      const { dialog, buttons } = await openSign([
+        // Before the contract was sent (2026-11-16T03:00): a copy of another contract.
+        message("2026-11-15T03:00:00Z", file("old", "hop-dong-cu.pdf")),
+        message("2026-11-17T03:00:00Z", file("a1", "ban-ky-lan-1.pdf")),
+        message("2026-11-18T03:00:00Z", file("a2", "ban-ky-lan-2.pdf")),
+        // The BE ties this one to ANOTHER contract of the thread.
+        message("2026-11-19T03:00:00Z", file("x", "hop-dong-khac.pdf"), {
+          contextId: OTHER_CONTEXT,
+        }),
+      ]);
+      expect(within(dialog).queryByText("hop-dong-cu.pdf")).not.toBeInTheDocument();
+      expect(within(dialog).queryByText("hop-dong-khac.pdf")).not.toBeInTheDocument();
+      expect(buttons.map((button) => button.getAttribute("aria-label"))).toEqual([
+        "Dùng file ban-ky-lan-2.pdf",
+        "Dùng file ban-ky-lan-1.pdf",
+      ]);
+      // No message says which contract these belong to: Sale chooses, nothing is used already.
+      for (const button of buttons) expect(button).toHaveAttribute("aria-pressed", "false");
+      expect(within(dialog).getByText("Chưa chọn tệp")).toBeInTheDocument();
+      const row = (buttons[0] as HTMLElement).closest("li") as HTMLElement;
+      expect(row).toHaveTextContent(/Khách gửi · .*· mới nhất/);
+      expect(within(row).getByText("ban-ky-lan-2.pdf").className).toContain("block");
+    });
+
+    it("a customer file the BE ties to this contract is chosen already", async () => {
+      const { dialog, buttons } = await openSign([
+        message("2026-11-17T03:00:00Z", file("a1", "ban-ky-lan-1.pdf")),
+        message("2026-11-18T03:00:00Z", file("a2", "ban-ky-lan-2.pdf"), {
+          contextId: THIS_CONTEXT,
+        }),
+      ]);
+      await waitFor(() =>
+        expect(
+          within(dialog).getByRole("button", { name: "Dùng file ban-ky-lan-2.pdf" }),
+        ).toHaveAttribute("aria-pressed", "true"),
+      );
+      expect(buttons[1]).toHaveAttribute("aria-pressed", "false");
+    });
+
+    it("a file staff sent is never chosen already, even tied to this contract", async () => {
+      const { dialog, buttons } = await openSign([
+        message("2026-11-18T03:00:00Z", file("a2", "ban-ky-lan-2.pdf"), {
+          senderType: "STAFF",
+          contextId: THIS_CONTEXT,
+        }),
+      ]);
+      expect(buttons[0]).toHaveAttribute("aria-pressed", "false");
+      expect(within(dialog).getByText("Chưa chọn tệp")).toBeInTheDocument();
+      expect(within(dialog).getByText(/Nhân viên gửi/)).toBeInTheDocument();
+    });
+
+    it("a file Sale chose while the chosen-already one was still downloading is not replaced", async () => {
+      let release: (response: Response) => void = () => undefined;
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(
+          () =>
+            new Promise<Response>((resolve) => {
+              release = resolve;
+            }),
+        ),
+      );
+      renderSection(
+        () => contractSent,
+        [...SALES, CHAT_PERMISSIONS.read],
+        thread([
+          message("2026-11-18T03:00:00Z", file("a2", "ban-ky-lan-2.pdf"), {
+            contextId: THIS_CONTEXT,
+          }),
+        ]),
+      );
+      await userEvent.click(await screen.findByRole("button", { name: /Ghi nhận đã ký/ }));
+      const dialog = await screen.findByRole("dialog");
+      await within(dialog).findByRole("button", { name: "Dùng file ban-ky-lan-2.pdf" });
+      // Sale picks a file from the computer before the download ends.
+      const own = new File(["x"], "scan-cua-toi.pdf", { type: "application/pdf" });
+      await userEvent.upload(dialog.querySelector('input[type="file"]') as HTMLInputElement, own);
+      expect(within(dialog).getByText("scan-cua-toi.pdf")).toBeInTheDocument();
+      release(new Response("%PDF-1.4", { headers: { "content-type": "application/pdf" } }));
+      await waitFor(() => expect(fetch).toHaveBeenCalled());
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(within(dialog).getByText("scan-cua-toi.pdf")).toBeInTheDocument();
+      expect(
+        within(dialog).getByRole("button", { name: "Dùng file ban-ky-lan-2.pdf" }),
+      ).toHaveAttribute("aria-pressed", "false");
+    });
   });
 
   it("L-11: without chat access nothing is offered", async () => {

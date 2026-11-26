@@ -1,5 +1,6 @@
 "use client";
 
+import { ORDER_CONTRACT_LABELS } from "@/constants/labels-order-contract";
 import { Button } from "@/components/ui/button";
 
 import type { ContractFormValues } from "../../sales-contract-form";
@@ -7,8 +8,8 @@ import type { ContractFormValues } from "../../sales-contract-form";
 type AmountMode = ContractFormValues["paymentPlan"][number]["mode"];
 
 const OPTIONS: readonly { value: AmountMode; label: string; name: string }[] = [
-  { value: "amount", label: "₫", name: "Số tiền (₫)" },
-  { value: "percent", label: "%", name: "% tổng đơn" },
+  { value: "amount", label: "₫", name: ORDER_CONTRACT_LABELS.plan.amountMode.amount },
+  { value: "percent", label: "%", name: ORDER_CONTRACT_LABELS.plan.amountMode.percent },
 ];
 
 /**

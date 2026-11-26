@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 
 import { ADMIN_ROUTES, QUOTE_PRICE_REVIEW_LABELS } from "@/constants";
+import { QUOTE_FORM_LABELS } from "@/constants/labels-quote-form";
 import { formatDate } from "@/lib/format/date";
 import { formatMoney } from "@/lib/format/money";
 import { QUOTE_PRICE_MISSING_CODES, isQuoteErrorCode } from "@/features/quote/errors";
@@ -67,11 +68,11 @@ export function SendQuoteDialog({
     >
       {/* S03-1: gửi cho ai và hiệu lực đến ngày nào — Sale kiểm lại ngay trong hộp xác nhận. */}
       <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[0.8125rem]">
-        <dt className="text-ink-secondary">Gửi cho</dt>
+        <dt className="text-ink-secondary">{QUOTE_FORM_LABELS.send.to}</dt>
         <dd className="text-ink-primary">
           <CustomerName id={quote.customerId} link={false} />
         </dd>
-        <dt className="text-ink-secondary">Hiệu lực đến hết ngày</dt>
+        <dt className="text-ink-secondary">{QUOTE_FORM_LABELS.send.validUntil}</dt>
         <dd className="text-ink-primary tabular-nums">{formatDate(quote.validUntil)}</dd>
       </dl>
     </ConfirmDialog>

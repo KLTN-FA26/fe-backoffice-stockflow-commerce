@@ -104,8 +104,10 @@ export function buildInstallmentColumns(
     {
       key: "installment",
       header: C.installment,
-      // Trang một đơn bỏ cột hợp đồng (link chi tiết): tên đợt thành link thay. Bỏ cả cột mốc / đợt giao (S07-1: bảng không
-      // bị cuộn ngang) thì mốc, đợt giao gắn kèm và cờ chặn bàn giao chuyển xuống dòng phụ dưới tên đợt.
+      // Tên đợt dài ("2 — Thanh toán sau đợt 1") được xuống dòng để nhường chỗ cho các cột số tiền
+      className: "min-w-28 whitespace-normal",
+      // Trang một đơn bỏ cột hợp đồng (link chi tiết): tên đợt thành link thay
+      // S07-1: bỏ cả cột mốc / đợt giao thì mốc, đợt giao gắn kèm và cờ chặn bàn giao chuyển xuống dòng phụ dưới tên đợt.
       cell: (row) => {
         const name = omit.includes("contract") ? (
           <Link
