@@ -111,13 +111,23 @@ export function QuoteTotalsPreview({
       <h2 className="text-ink-primary text-sm font-semibold">Tạm tính báo giá</h2>
       <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-[0.8125rem]">
         <dt className="text-ink-secondary">Tiền hàng</dt>
-        <dd className={`text-right ${NUM}`}>{priced ? money(totals.subtotal) : "chưa đủ giá"}</dd>
+        <dd className={priced ? `text-right ${NUM}` : "text-ink-tertiary text-right"}>
+          {priced ? money(totals.subtotal) : "chưa đủ giá"}
+        </dd>
         <dt className="text-ink-secondary">Phí</dt>
         <dd className={`text-right ${NUM}`}>{money(totals.fees)}</dd>
         <dt className="text-ink-secondary">Thuế</dt>
-        <dd className={`text-right ${NUM}`}>{taxKnown ? money(totals.tax) : "tính khi lưu"}</dd>
+        <dd className={taxKnown ? `text-right ${NUM}` : "text-ink-tertiary text-right"}>
+          {taxKnown ? money(totals.tax) : "tính khi lưu"}
+        </dd>
         <dt className="text-ink-primary font-semibold">Tổng có thuế</dt>
-        <dd className={`text-ink-primary text-right font-semibold ${NUM}`}>
+        <dd
+          className={
+            taxKnown
+              ? `text-ink-primary text-right font-semibold ${NUM}`
+              : "text-ink-tertiary text-right font-semibold"
+          }
+        >
           {taxKnown ? money(totals.total) : "—"}
         </dd>
       </dl>

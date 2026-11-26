@@ -117,6 +117,7 @@ function RecordReceiptForm({
         choices={choices}
         watched={lines}
         currency={initial.currency}
+        fixedInstallmentId={initial.installmentId}
       />
       {errors.lines?.message && (
         <p role="alert" className="text-danger text-xs">

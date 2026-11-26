@@ -8,6 +8,7 @@ import { PAYMENT_INSTALLMENT_PERMISSIONS } from "@/constants/payment";
 import {
   CONTRACT_ORDER_ID,
   contractDraft,
+  contractDraftOverdue,
   contractOrderDto,
   contractSent,
 } from "../../__fixtures__/contract";
@@ -64,18 +65,16 @@ describe("dueRuleText", () => {
 });
 
 describe("Contract editor — round 5", () => {
-  it("B3 / BO-UX-26: the payment plan is a table with visible headers and a due rule per row", async () => {
+  it("B3 / BO-UX-26 / S06-2: each installment is a card with visible field labels and a due rule", async () => {
     renderSection(() => contractDraft);
     await userEvent.click(await screen.findByRole("button", { name: /Sửa/ }));
-    for (const header of [
-      "Tên đợt",
-      "Mốc",
-      "Tính theo",
-      "Giá trị (₫ / %)",
-      "Hạn (số ngày sau mốc)",
-      "Gắn đợt giao",
-    ])
-      expect(screen.getByRole("columnheader", { name: header })).toBeVisible();
+    // One card per installment, no table to scroll sideways.
+    const plan = screen.getByRole("group", { name: "Lịch thanh toán" });
+    expect(within(plan).queryByRole("table")).toBeNull();
+    const cards = within(plan).getAllByRole("listitem");
+    expect(cards).toHaveLength(contractDraft.paymentPlan.length);
+    for (const label of ["Tên đợt", "Mốc", "Giá trị", "Hạn (ngày)", "Gắn đợt giao"])
+      expect(within(cards[0] as HTMLElement).getByText(label)).toBeVisible();
     expect(screen.getByText("Hạn = ngày ký + 3 ngày")).toBeInTheDocument();
     expect(screen.getByText("Hạn = trước khi xuất hàng đợt 1")).toBeInTheDocument();
     expect(screen.getByText("Hạn = ngày giao đợt 2 + 30 ngày")).toBeInTheDocument();
@@ -95,6 +94,18 @@ describe("Contract editor — round 5", () => {
     await waitFor(() => expect(name).toHaveAttribute("aria-invalid", "true"));
     expect(name).toHaveAttribute("aria-describedby", "plan-1-name-error");
     expect(document.getElementById("plan-1-name-error")).toHaveTextContent("Nhập tên đợt");
+  });
+
+  it("S06-2: 'tính theo' is a ₫ | % button group beside the value, not a small select", async () => {
+    renderSection(() => contractDraft);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: /Sửa/ }));
+    const group = screen.getByRole("radiogroup", { name: "Đợt 2 — tính theo" });
+    expect(within(group).getByRole("radio", { name: "Số tiền (₫)" })).toBeChecked();
+    expect(within(group).getByRole("radio", { name: "% tổng đơn" })).not.toBeChecked();
+    await user.click(within(group).getByRole("radio", { name: "% tổng đơn" }));
+    expect(within(group).getByRole("radio", { name: "% tổng đơn" })).toBeChecked();
+    expect(within(group).getByRole("radio", { name: "Số tiền (₫)" })).not.toBeChecked();
   });
 
   it("BO-UX-4: an amount is grouped as it is typed; a % row keeps a plain percent field", async () => {
@@ -126,6 +137,64 @@ describe("Contract editor — round 5", () => {
     const dialog = await screen.findByRole("dialog");
     await userEvent.click(within(dialog).getByRole("button", { name: "Bỏ thay đổi" }));
     await waitFor(() => expect(screen.queryByLabelText("Đợt 1 — tên")).not.toBeInTheDocument());
+  });
+});
+
+describe("Contract send — what is missing is said before the click (S06-3, R7)", () => {
+  const withWindows = (windows: ([string, string] | null)[]) => ({
+    ...contractDraft,
+    deliverySchedule: contractDraft.deliverySchedule.map((batch, index) => {
+      const window = windows[index];
+      const { windowStart: _s, windowEnd: _e, ...rest } = batch;
+      return window ? { ...rest, windowStart: window[0], windowEnd: window[1] } : rest;
+    }),
+  });
+
+  it("a delivery batch without its window: the button is locked and the line under it names the batch", async () => {
+    renderSection(() => withWindows([null, ["2099-12-23", "2099-12-25"]]));
+    const send = await screen.findByRole("button", { name: /Gửi hợp đồng/ });
+    expect(send).toBeDisabled();
+    expect(screen.getByText("Còn thiếu: cửa sổ giao đợt 1.")).toBeInTheDocument();
+    expect(send).toHaveAttribute("aria-describedby", "contract-send-blocked");
+  });
+
+  it("a window that starts before today is named too; the credit warning cannot bypass the lock", async () => {
+    renderSection(() => ({
+      ...withWindows([
+        ["2020-01-01", "2020-01-02"],
+        ["2099-12-23", "2099-12-25"],
+      ]),
+      creditWarning: contractDraftOverdue.creditWarning,
+    }));
+    expect(
+      await screen.findByText(/^Cần sửa: cửa sổ giao đợt 1 bắt đầu trước hôm nay/),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Gửi hợp đồng/ })).toBeDisabled();
+    // "Vẫn gửi" would open the same send dialog: it is not offered while the schedule is blocked.
+    expect(screen.queryByRole("button", { name: "Vẫn gửi" })).toBeNull();
+  });
+
+  it("every window known and not in the past: nothing blocks", async () => {
+    renderSection(() => contractDraft);
+    expect(await screen.findByRole("button", { name: /Gửi hợp đồng/ })).toBeEnabled();
+    expect(screen.queryByText(/^Còn thiếu:/)).toBeNull();
+  });
+
+  it("in the editor the window fields are marked required, and a new batch starts with the cartons still unscheduled", async () => {
+    // 60 cartons ordered, only batch 1 (30) scheduled: the new batch gets the other 30.
+    renderSection(() => ({
+      ...contractDraft,
+      deliverySchedule: [contractDraft.deliverySchedule[0]],
+    }));
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: /Sửa/ }));
+    const batch = screen.getByLabelText("Đợt 1 từ ngày").closest("div") as HTMLElement;
+    expect(within(batch).getByText("Từ ngày").textContent).toContain("*");
+    await user.click(screen.getByRole("button", { name: /Thêm đợt giao/ }));
+    expect(screen.getByLabelText("Đợt 2 — LY-GIAY-DEMO-12OZ-XANH (thùng)")).toHaveValue("30");
+    // Nothing is left to schedule any more: a further batch starts at 0.
+    await user.click(screen.getByRole("button", { name: /Thêm đợt giao/ }));
+    expect(screen.getByLabelText("Đợt 3 — LY-GIAY-DEMO-12OZ-XANH (thùng)")).toHaveValue("0");
   });
 });
 
@@ -265,6 +334,82 @@ describe("Record signed — round 5", () => {
     );
     expect(fetchMock).toHaveBeenCalledWith("https://files.example.test/hd-da-ky.pdf");
     expect(within(dialog).getAllByText("hd-da-ky.pdf").length).toBeGreaterThan(1);
+  });
+
+  it("S06-5: only files sent after this contract was sent; the newest first, already in use, two lines each", async () => {
+    const files = {
+      "/chat/conversations": () => ({ items: [{ id: CONVERSATION }] }),
+      [`/chat/conversations/${CONVERSATION}/messages`]: () => ({
+        items: [
+          {
+            visibility: "CUSTOMER",
+            senderType: "CUSTOMER",
+            // Before the contract was sent (2026-11-16T03:00): a copy of another contract.
+            sentAt: "2026-11-15T03:00:00Z",
+            attachments: [
+              {
+                id: "old",
+                fileName: "hop-dong-cu.pdf",
+                contentType: "application/pdf",
+                sizeBytes: 9,
+              },
+            ],
+          },
+          {
+            visibility: "CUSTOMER",
+            senderType: "CUSTOMER",
+            sentAt: "2026-11-17T03:00:00Z",
+            attachments: [
+              {
+                id: "a1",
+                fileName: "ban-ky-lan-1.pdf",
+                contentType: "application/pdf",
+                sizeBytes: 9,
+              },
+            ],
+          },
+          {
+            visibility: "CUSTOMER",
+            senderType: "CUSTOMER",
+            sentAt: "2026-11-18T03:00:00Z",
+            attachments: [
+              {
+                id: "a2",
+                fileName: "ban-ky-lan-2.pdf",
+                contentType: "application/pdf",
+                sizeBytes: 9,
+              },
+            ],
+          },
+        ],
+      }),
+      [`/chat/conversations/${CONVERSATION}/attachments/a2/link`]: () => ({
+        url: "https://files.example.test/ban-ky-lan-2.pdf",
+      }),
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () => new Response("%PDF-1.4", { headers: { "content-type": "application/pdf" } }),
+      ),
+    );
+    renderSection(() => contractSent, [...SALES, CHAT_PERMISSIONS.read], files);
+    await userEvent.click(await screen.findByRole("button", { name: /Ghi nhận đã ký/ }));
+    const dialog = await screen.findByRole("dialog");
+    const buttons = await within(dialog).findAllByRole("button", { name: /^Dùng file / });
+    // The older file belongs to another contract and is not offered; the newest is the first row.
+    expect(within(dialog).queryByText("hop-dong-cu.pdf")).not.toBeInTheDocument();
+    expect(buttons.map((button) => button.getAttribute("aria-label"))).toEqual([
+      "Dùng file ban-ky-lan-2.pdf",
+      "Dùng file ban-ky-lan-1.pdf",
+    ]);
+    // Chosen already (R6): marked as in use, and the file box above shows its name.
+    await waitFor(() => expect(buttons[0]).toHaveAttribute("aria-pressed", "true"));
+    expect(buttons[1]).toHaveAttribute("aria-pressed", "false");
+    // Who sent it and when sit on a second line, not cut off beside the name.
+    const row = (buttons[0] as HTMLElement).closest("li") as HTMLElement;
+    expect(row).toHaveTextContent(/Khách gửi · .*· mới nhất/);
+    expect(within(row).getByText("ban-ky-lan-2.pdf").className).toContain("block");
   });
 
   it("L-11: without chat access nothing is offered", async () => {

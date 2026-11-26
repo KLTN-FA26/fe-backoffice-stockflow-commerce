@@ -45,6 +45,13 @@ export const ORDER_SHIPPING_WAREHOUSE_LABELS = {
     submit: "Chọn kho và giữ hàng",
     failedTitle: "Không chọn được kho xuất",
     recommended: "Gợi ý",
+    /** Lý do kho đầu danh sách được gợi ý (docs 17 §4.2 bước 2). */
+    recommendedBecause: {
+      holdsEveryLine: "Gợi ý vì đủ hàng cho mọi dòng",
+      roomForProduction: "Gợi ý vì còn chỗ nhiều nhất cho phần phải sản xuất",
+    },
+    details: "Chi tiết",
+    warehouseCode: "Mã kho",
     current: "Đang chọn",
     holdsEveryLine: "Đủ hàng",
     available: (cartons: number, total: number) => `Có sẵn ${cartons}/${total} thùng`,

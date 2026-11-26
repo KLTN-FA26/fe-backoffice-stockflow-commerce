@@ -47,10 +47,10 @@ export function TierEditor({
           <thead>
             <tr>
               <th scope="col" className={TH}>
-                Từ (thùng)
+                Từ số thùng
               </th>
               <th scope="col" className={TH}>
-                Đơn giá (₫/cái)
+                Đơn giá một cái
               </th>
               <th scope="col" className="w-9">
                 <span className="sr-only">Xoá</span>
@@ -70,21 +70,29 @@ export function TierEditor({
                     <label htmlFor={minId} className="sr-only">
                       Từ số thùng (bậc {tierIndex + 1})
                     </label>
-                    <Input
-                      id={minId}
-                      {...register(`lines.${lineIndex}.tiers.${tierIndex}.minQuantity`)}
-                      inputMode="numeric"
-                      aria-invalid={minError ? true : undefined}
-                      aria-describedby={
-                        [minError ? `${minId}-error` : "", tierIndex === 0 ? `${minId}-moq` : ""]
-                          .filter(Boolean)
-                          .join(" ") || undefined
-                      }
-                      className={NUM}
-                    />
+                    <div className="relative">
+                      <Input
+                        id={minId}
+                        {...register(`lines.${lineIndex}.tiers.${tierIndex}.minQuantity`)}
+                        inputMode="numeric"
+                        aria-invalid={minError ? true : undefined}
+                        aria-describedby={
+                          [minError ? `${minId}-error` : "", tierIndex === 0 ? `${minId}-moq` : ""]
+                            .filter(Boolean)
+                            .join(" ") || undefined
+                        }
+                        className={`${NUM} pr-14`}
+                      />
+                      <span
+                        aria-hidden="true"
+                        className="text-ink-secondary pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-xs"
+                      >
+                        thùng
+                      </span>
+                    </div>
                     {tierIndex === 0 && (
                       <p id={`${minId}-moq`} className="text-ink-secondary mt-1 text-xs">
-                        Bậc đầu = MOQ
+                        Bậc đầu là số thùng tối thiểu của báo giá
                       </p>
                     )}
                     {minError && (

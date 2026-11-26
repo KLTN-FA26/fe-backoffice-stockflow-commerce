@@ -37,7 +37,14 @@ export function SuggestionBar({
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[0.8125rem]">
       <span className="text-ink-secondary">
-        MOQ: <strong className={`text-ink-primary ${NUM}`}>{moq ?? "—"}</strong> thùng
+        Số thùng tối thiểu:{" "}
+        {moq == null ? (
+          <span className="text-ink-tertiary">chưa có</span>
+        ) : (
+          <>
+            <strong className={`text-ink-primary ${NUM}`}>{moq}</strong> thùng
+          </>
+        )}
       </span>
       {loading && <span className="text-ink-tertiary">Đang tải giá gợi ý…</span>}
       {sku && !loading && !suggestion && !failed && (
@@ -97,7 +104,9 @@ export function LinePreview({
       Tạm tính:{" "}
       {unitPrice == null ? (
         <span className="text-ink-tertiary">
-          {moq && cartons > 0 && cartons < moq ? `dưới MOQ ${moq} thùng` : "chưa đủ dữ liệu"}
+          {moq && cartons > 0 && cartons < moq
+            ? `dưới mức tối thiểu ${moq} thùng`
+            : "chưa đủ dữ liệu"}
         </span>
       ) : (
         <>

@@ -130,11 +130,36 @@ describe("Quote detail — round 5", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Tạo đơn" }));
     const dialog = await screen.findByRole("dialog");
     const select = within(dialog).getByLabelText("Địa chỉ giao hàng");
+    // S03-2: a short label inside the box (recipient — ward, province); the full address is written under it.
     const first = await within(select).findByRole("option", {
-      name: /^Mặc định — Kho A, 12 Nguyễn Huệ/,
+      name: "Mặc định — Kho A — Bến Nghé, TP Hồ Chí Minh",
     });
     expect(first).toHaveValue("");
     expect(within(select).getAllByRole("option")).toHaveLength(2);
+    expect(dialog.textContent).toContain("Kho A, 12 Nguyễn Huệ, Bến Nghé, TP Hồ Chí Minh");
     expect(dialog.textContent).not.toContain("★");
+  });
+
+  it("S03-2: a customer with a single address gets plain text, not a box to choose from", async () => {
+    renderDetail(QUOTE_ACCEPTED, {
+      [`/customers/${CUSTOMER_ID}/addresses`]: () => [
+        {
+          addressId: "a1",
+          type: "SHIPPING",
+          recipientName: "Kho A",
+          phone: "0900000000",
+          line1: "12 Nguyễn Huệ",
+          wardName: "Bến Nghé",
+          provinceName: "TP Hồ Chí Minh",
+          defaultAddress: true,
+        },
+      ],
+    });
+    await userEvent.click(await screen.findByRole("button", { name: "Tạo đơn" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(
+      await within(dialog).findByText("Kho A, 12 Nguyễn Huệ, Bến Nghé, TP Hồ Chí Minh"),
+    ).toBeInTheDocument();
+    expect(within(dialog).queryByLabelText("Địa chỉ giao hàng")).toBeNull();
   });
 });

@@ -2,7 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { focusManager } from "@tanstack/react-query";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { ORDER_PERMISSIONS, SALES_CONTRACT_PERMISSIONS } from "@/constants";
 import { api } from "@/lib/api/client";
@@ -150,6 +150,25 @@ describe("TC-F04-02 — editor lịch giao / lịch thanh toán", () => {
     expect(await screen.findByText(message)).toBeInTheDocument();
     expect(screen.getByText("Cửa sổ giao không được ở quá khứ.")).toBeInTheDocument();
     expect(screen.getByText("Lịch giao không hợp lệ.")).toBeInTheDocument();
+  });
+
+  it("S06-4: sau khi lưu hợp đồng, trang cuộn về đầu khối Hợp đồng (thấy nút Gửi hợp đồng và trạng thái)", async () => {
+    const scrollIntoView = vi.fn();
+    const original = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scrollIntoView;
+    onTestFinished(() => {
+      Element.prototype.scrollIntoView = original;
+    });
+    renderSection(() => contractDraft);
+    await userEvent.click(await screen.findByRole("button", { name: /Sửa/ }));
+    vi.spyOn(api, "put").mockResolvedValue({ data: contractDraft });
+    await userEvent.click(screen.getByRole("button", { name: "Lưu hợp đồng" }));
+    await waitFor(() => expect(scrollIntoView).toHaveBeenCalled());
+    const target = scrollIntoView.mock.contexts[0] as HTMLElement;
+    expect(target.id).toBe("contract");
+    expect(scrollIntoView).toHaveBeenCalledWith(expect.objectContaining({ block: "start" }));
+    // The editor is closed and the summary with its actions is what the user lands on.
+    expect(await screen.findByRole("button", { name: /Gửi hợp đồng/ })).toBeInTheDocument();
   });
 
   it("đợt % → body percent; BEFORE_DELIVERY không gửi số ngày", async () => {

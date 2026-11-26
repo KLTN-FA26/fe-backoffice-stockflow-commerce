@@ -104,9 +104,10 @@ export function buildInstallmentColumns(
     {
       key: "installment",
       header: C.installment,
-      // Trang một đơn bỏ cột hợp đồng (link chi tiết): tên đợt thành link thay
-      cell: (row) =>
-        omit.includes("contract") ? (
+      // Trang một đơn bỏ cột hợp đồng (link chi tiết): tên đợt thành link thay. Bỏ cả cột mốc / đợt giao (S07-1: bảng không
+      // bị cuộn ngang) thì mốc, đợt giao gắn kèm và cờ chặn bàn giao chuyển xuống dòng phụ dưới tên đợt.
+      cell: (row) => {
+        const name = omit.includes("contract") ? (
           <Link
             href={PAYMENT_ROUTES.installments.detail(row.installmentId)}
             className="text-accent-text font-medium hover:underline"
@@ -117,7 +118,28 @@ export function buildInstallmentColumns(
           <span className="text-ink-primary">
             <InstallmentLabel installment={row} />
           </span>
-        ),
+        );
+        const milestone = omit.includes("milestone");
+        const batch = omit.includes("batch") && row.deliveryBatchSeq != null;
+        const blocked = omit.includes("batch") && blocksHandover(row);
+        if (!milestone && !batch && !blocked) return name;
+        return (
+          <span className="flex flex-col gap-0.5">
+            {name}
+            <span className="text-ink-secondary flex flex-wrap items-center gap-x-1 text-xs">
+              {milestone && <span>{installmentMilestoneLabel(row)}</span>}
+              {milestone && batch && " · "}
+              {batch && <span>{deliveryBatchLabel(row)}</span>}
+              {blocked && (
+                <span className="text-ink-primary ml-2 inline-flex items-center gap-1">
+                  <AlertTriangle className="text-dot-warning size-3.5" aria-hidden="true" />
+                  {L.handoverBlocked}
+                </span>
+              )}
+            </span>
+          </span>
+        );
+      },
     },
     {
       key: "dueDate",

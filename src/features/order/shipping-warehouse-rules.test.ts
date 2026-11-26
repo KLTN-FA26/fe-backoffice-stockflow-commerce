@@ -9,13 +9,24 @@ import { ORDER_STATUSES } from "@/constants";
 import {
   SHIPPING_WAREHOUSE_STATUSES,
   cartonTotals,
+  defaultWarehouseId,
   holdOutcome,
   isWarehouseLocked,
+  recommendedWarehouse,
   shippingWarehouseControl,
 } from "./shipping-warehouse-rules";
-import { shippingCoverageSchema } from "./shipping-warehouse-schemas";
+import {
+  shippingCoverageSchema,
+  shippingWarehouseOptionSchema,
+} from "./shipping-warehouse-schemas";
 
-import { apiCoverage, SHIPPING_PERMISSION_SETS } from "./__fixtures__/shipping-warehouse";
+import {
+  apiCoverage,
+  apiOption,
+  SHIPPING_PERMISSION_SETS,
+  WH_HCM,
+  WH_HN,
+} from "./__fixtures__/shipping-warehouse";
 
 import type { PermissionCode } from "@/lib/auth";
 
@@ -138,5 +149,55 @@ describe("isWarehouseLocked — đã giữ hàng thì không đổi kho (BR-22)"
       ),
     ).toBe(false);
     expect(isWarehouseLocked(undefined)).toBe(false);
+  });
+});
+
+describe("recommendedWarehouse / defaultWarehouseId — gợi ý kho xuất theo docs 17 §4.2 bước 2 (S10-1)", () => {
+  const full = shippingWarehouseOptionSchema.parse(apiOption());
+  const short = shippingWarehouseOptionSchema.parse(
+    apiOption({
+      warehouseId: WH_HN,
+      holdsEveryLine: false,
+      availableCartons: 5,
+      projectedFreeM3: 40,
+      neededM3: 10,
+      exceedsProjected: false,
+    }),
+  );
+  const noRoom = shippingWarehouseOptionSchema.parse(
+    apiOption({ warehouseId: WH_HN, holdsEveryLine: false, exceedsProjected: true, neededM3: 9 }),
+  );
+
+  it("kho đầu danh sách đủ hàng → lý do 'đủ hàng'", () => {
+    expect(recommendedWarehouse([full, short])).toEqual({
+      warehouseId: WH_HCM,
+      reason: "holdsEveryLine",
+    });
+  });
+
+  it("kho đầu không đủ hàng nhưng còn chỗ cho phần phải sản xuất → lý do 'còn chỗ'", () => {
+    expect(recommendedWarehouse([short, noRoom])).toEqual({
+      warehouseId: WH_HN,
+      reason: "roomForProduction",
+    });
+  });
+
+  it("kho đầu thiếu cả hàng lẫn chỗ (xếp theo số thùng, không có trong docs) → không có lý do để nói", () => {
+    expect(recommendedWarehouse([noRoom, short])).toBeNull();
+    expect(recommendedWarehouse([])).toBeNull();
+  });
+
+  it("thể tích không tính được (thùng chưa có kích thước) không phải là 'còn chỗ'", () => {
+    const unknown = shippingWarehouseOptionSchema.parse(
+      apiOption({ holdsEveryLine: false, neededM3: null }),
+    );
+    expect(recommendedWarehouse([unknown])).toBeNull();
+  });
+
+  it("chọn sẵn: kho gợi ý có lý do, hoặc kho duy nhất; đang đổi kho thì không chọn sẵn", () => {
+    expect(defaultWarehouseId([full, short], null)).toBe(WH_HCM);
+    expect(defaultWarehouseId([noRoom], null)).toBe(WH_HN);
+    expect(defaultWarehouseId([noRoom, short], null)).toBe("");
+    expect(defaultWarehouseId([full, short], WH_HN)).toBe("");
   });
 });

@@ -108,7 +108,13 @@ export function QuoteForm({
                   type="button"
                   variant="outline"
                   size="sm"
-                  disabled={q.lines.fields.length >= 50}
+                  // BE: mỗi SKU chỉ một dòng — hết SKU của khách thì không thêm dòng được nữa.
+                  disabled={q.lines.fields.length >= Math.min(50, skus.length)}
+                  title={
+                    q.lines.fields.length >= skus.length
+                      ? "Khách không còn SKU nào khác để báo giá."
+                      : undefined
+                  }
                   onClick={() => q.lines.append(EMPTY_LINE)}
                   className={FORM_BAR_ACTION_CLASS.outline}
                 >

@@ -168,7 +168,12 @@ export function HandoverDialog({
         {noWaybill && (
           <MissingWaybillNotice apiManaged={isApiBookedLoad(load)} onEnter={onEnterWaybill} />
         )}
-        {blockedOrders && <HandoverBlockedNotice orders={blockedOrders} />}
+        {blockedOrders && (
+          <HandoverBlockedNotice
+            orders={blockedOrders}
+            load={{ loadId: load.loadId, code: load.code }}
+          />
+        )}
         <HandoverFields form={form} load={load} />
       </FormDialogBody>
     </FormDialog>

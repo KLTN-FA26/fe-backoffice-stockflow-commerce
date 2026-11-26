@@ -33,7 +33,10 @@ export function quoteNextStep(quote: Quote, canApprovePrice = false): string {
       : QUOTE_PRICE_REVIEW_LABELS.nextStep.pending;
   switch (quote.status) {
     case "DRAFT":
-      return "Bước tiếp theo: nhập đủ giá và phí, rồi Gửi khách.";
+      // Theo trạng thái thật (`priced` do BE tính): đã đủ giá và phí thì chỉ còn kiểm lại rồi gửi.
+      return quote.priced
+        ? "Báo giá đã đủ giá và phí — kiểm tra rồi bấm Gửi khách."
+        : "Bước tiếp theo: nhập đủ giá và phí, rồi Gửi khách.";
     case "SENT":
       return `Chờ khách phản hồi trong chat, đến hết ${formatDate(quote.validUntil)}.`;
     case "CHANGES_REQUESTED":

@@ -12,12 +12,13 @@ import { Input } from "@/components/ui/input";
 import { DEFAULT_ON_SIGNING_DUE_DAYS } from "../../sales-contract-form";
 import { dueRuleText } from "../../sales-contract-rules";
 
+import { AmountModeToggle } from "./AmountModeToggle";
+
 import type { UseFormReturn } from "react-hook-form";
 import type { ContractFormValues } from "../../sales-contract-form";
 
 const SELECT = `${FORM_INPUT_CLASS} w-full border px-2`;
 const NUM = `${FORM_INPUT_CLASS} text-right font-[family-name:var(--font-mono)] tabular-nums`;
-const TD = "px-1 pt-1 align-top";
 
 function FieldError({ id, message }: { id: string; message?: string }) {
   return message ? (
@@ -28,8 +29,8 @@ function FieldError({ id, message }: { id: string; message?: string }) {
 }
 
 /**
- * Một đợt thanh toán là một hàng của bảng lịch thanh toán (BO-UX-26): tên, mốc, tính theo, giá trị, số ngày sau mốc,
- * đợt giao gắn kèm; dưới hàng là quy tắc ra hạn ("Hạn = ngày ký + 3 ngày"). Lỗi gắn vào ô qua `fieldA11y`.
+ * Một đợt thanh toán là một thẻ hai dòng (BO-UX-26, S06-2): tên + mốc + xoá; giá trị (nút ₫ | % cạnh ô) + số ngày sau
+ * mốc + đợt giao gắn kèm; dưới thẻ là quy tắc ra hạn ("Hạn = ngày ký + 3 ngày"). Lỗi gắn vào ô qua `fieldA11y`.
  */
 export function PaymentPlanRow({
   form,
@@ -58,10 +59,14 @@ export function PaymentPlanRow({
   const id = (field: string) => `plan-${index}-${field}`;
   const n = index + 1;
   const valueError = e?.value?.message ?? e?.message;
+  const LABEL = "text-ink-secondary mb-1 block text-xs font-medium";
   return (
-    <tbody className="border-border-default border-b last:border-b-0">
-      <tr>
-        <td className={TD}>
+    <li className="border-border-default space-y-2 rounded-[var(--r-sm)] border p-3">
+      <div className="flex items-start gap-2">
+        <div className="min-w-0 flex-1">
+          <label htmlFor={id("name")} className={LABEL}>
+            Tên đợt
+          </label>
           <Input
             {...register(`paymentPlan.${index}.name`)}
             {...fieldA11y(id("name"), e?.name?.message)}
@@ -70,9 +75,13 @@ export function PaymentPlanRow({
             className={FORM_INPUT_CLASS}
           />
           <FieldError id={id("name")} message={e?.name?.message} />
-        </td>
-        <td className={TD}>
+        </div>
+        <div className="w-36 shrink-0">
+          <label htmlFor={id("milestone")} className={LABEL}>
+            Mốc
+          </label>
           <select
+            id={id("milestone")}
             {...register(`paymentPlan.${index}.milestone`, {
               // N10: an ON_SIGNING row left without a number of days defaults to the BE's 3 days. Moving
               // away from ON_SIGNING drops that untouched default so AFTER_DELIVERY falls back to the credit term.
@@ -97,58 +106,78 @@ export function PaymentPlanRow({
               </option>
             ))}
           </select>
-        </td>
-        <td className={TD}>
-          <select
-            {...register(`paymentPlan.${index}.mode`)}
-            aria-label={`Đợt ${n} — tính theo`}
-            className={SELECT}
-          >
-            <option value="amount">Số tiền (₫)</option>
-            <option value="percent">% tổng đơn</option>
-          </select>
-        </td>
-        <td className={TD}>
-          <Controller
-            control={control}
-            name={`paymentPlan.${index}.value`}
-            render={({ field }) =>
-              mode === "percent" ? (
-                <div className="relative">
-                  <Input
-                    name={field.name}
-                    ref={field.ref}
-                    value={field.value}
-                    onChange={field.onChange}
-                    onBlur={field.onBlur}
-                    {...fieldA11y(id("value"), valueError)}
-                    aria-label={`Đợt ${n} — giá trị`}
-                    inputMode="decimal"
-                    className={`${NUM} pr-7`}
-                  />
-                  <span
-                    aria-hidden="true"
-                    className="text-ink-secondary pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-xs"
-                  >
-                    %
-                  </span>
-                </div>
-              ) : (
-                <MoneyInput
-                  name={field.name}
-                  ref={field.ref}
-                  value={field.value}
-                  onChange={field.onChange}
-                  onBlur={field.onBlur}
-                  {...fieldA11y(id("value"), valueError)}
-                  aria-label={`Đợt ${n} — giá trị`}
-                />
-              )
-            }
-          />
+        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="mt-5 shrink-0"
+          aria-label={`Xoá đợt thanh toán ${n}`}
+          disabled={!canRemove}
+          onClick={onRemove}
+        >
+          <Trash2 className="size-4" />
+        </Button>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1.5fr)_minmax(0,0.7fr)_minmax(0,1fr)]">
+        <div className="min-w-0">
+          <label htmlFor={id("value")} className={LABEL}>
+            Giá trị
+          </label>
+          <div className="flex items-start gap-2">
+            <AmountModeToggle
+              label={`Đợt ${n} — tính theo`}
+              value={mode}
+              onChange={(next) =>
+                setValue(`paymentPlan.${index}.mode`, next, { shouldDirty: true })
+              }
+            />
+            <div className="min-w-0 flex-1">
+              <Controller
+                control={control}
+                name={`paymentPlan.${index}.value`}
+                render={({ field }) =>
+                  mode === "percent" ? (
+                    <div className="relative">
+                      <Input
+                        name={field.name}
+                        ref={field.ref}
+                        value={field.value}
+                        onChange={field.onChange}
+                        onBlur={field.onBlur}
+                        {...fieldA11y(id("value"), valueError)}
+                        aria-label={`Đợt ${n} — giá trị`}
+                        inputMode="decimal"
+                        className={`${NUM} pr-7`}
+                      />
+                      <span
+                        aria-hidden="true"
+                        className="text-ink-secondary pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-xs"
+                      >
+                        %
+                      </span>
+                    </div>
+                  ) : (
+                    <MoneyInput
+                      name={field.name}
+                      ref={field.ref}
+                      value={field.value}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      {...fieldA11y(id("value"), valueError)}
+                      aria-label={`Đợt ${n} — giá trị`}
+                    />
+                  )
+                }
+              />
+            </div>
+          </div>
           <FieldError id={id("value")} message={valueError} />
-        </td>
-        <td className={TD}>
+        </div>
+        <div className="min-w-0">
+          <label htmlFor={id("days")} className={LABEL}>
+            Hạn (ngày)
+          </label>
           <Input
             {...register(`paymentPlan.${index}.dueDays`)}
             {...fieldA11y(id("days"), e?.dueDays?.message, true)}
@@ -159,8 +188,11 @@ export function PaymentPlanRow({
             className={NUM}
           />
           <FieldError id={id("days")} message={e?.dueDays?.message} />
-        </td>
-        <td className={TD}>
+        </div>
+        <div className="min-w-0">
+          <label htmlFor={id("batch")} className={LABEL}>
+            Gắn đợt giao
+          </label>
           <select
             {...register(`paymentPlan.${index}.deliveryBatchSeq`)}
             {...fieldA11y(id("batch"), e?.deliveryBatchSeq?.message)}
@@ -176,27 +208,11 @@ export function PaymentPlanRow({
             ))}
           </select>
           <FieldError id={id("batch")} message={e?.deliveryBatchSeq?.message} />
-        </td>
-        <td className={TD}>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            aria-label={`Xoá đợt thanh toán ${n}`}
-            disabled={!canRemove}
-            onClick={onRemove}
-          >
-            <Trash2 className="size-4" />
-          </Button>
-        </td>
-      </tr>
-      <tr>
-        <td colSpan={7} className="px-1 pt-0.5 pb-2">
-          <p id={`${id("days")}-hint`} className="text-ink-secondary text-xs">
-            {dueRuleText({ milestone, dueDays, deliveryBatchSeq: batchSeq })}
-          </p>
-        </td>
-      </tr>
-    </tbody>
+        </div>
+      </div>
+      <p id={`${id("days")}-hint`} className="text-ink-secondary text-xs">
+        {dueRuleText({ milestone, dueDays, deliveryBatchSeq: batchSeq })}
+      </p>
+    </li>
   );
 }

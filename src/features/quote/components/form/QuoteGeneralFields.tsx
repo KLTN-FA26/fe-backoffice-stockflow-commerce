@@ -1,7 +1,7 @@
 "use client";
 
-import { Controller } from "react-hook-form";
-import { addDays, format, parseISO } from "date-fns";
+import { Controller, useWatch } from "react-hook-form";
+import { addDays, differenceInCalendarDays, format, parseISO } from "date-fns";
 
 import { todayVn } from "@/features/quote/form-schemas";
 import { CustomerPicker } from "@/components/backoffice/CustomerPicker";
@@ -32,6 +32,11 @@ export function QuoteGeneralFields({
   const { control, formState, register } = form;
   const { errors } = formState;
   const today = todayVn();
+  const validUntil = useWatch({ control, name: "validUntil" });
+  // "còn N ngày" kể từ hôm nay cạnh ô hiệu lực — Sale thấy ngay hạn điền sẵn là bao lâu (R6).
+  const daysLeft = /^\d{4}-\d{2}-\d{2}$/.test(validUntil ?? "")
+    ? differenceInCalendarDays(parseISO(validUntil), parseISO(today))
+    : null;
   return (
     <Card className="grid gap-4 md:grid-cols-2">
       <h2 className="text-ink-primary text-sm font-semibold md:col-span-2">Thông tin chung</h2>
@@ -53,6 +58,7 @@ export function QuoteGeneralFields({
         label="Hiệu lực đến hết ngày"
         required
         error={errors.validUntil?.message}
+        hint={daysLeft !== null && daysLeft > 0 ? `Còn ${daysLeft} ngày kể từ hôm nay.` : undefined}
       >
         <Controller
           control={control}
@@ -64,7 +70,11 @@ export function QuoteGeneralFields({
               onChange={field.onChange}
               onBlur={field.onBlur}
               min={nextDay(today)}
-              {...fieldA11y("quote-valid", errors.validUntil?.message)}
+              {...fieldA11y(
+                "quote-valid",
+                errors.validUntil?.message,
+                daysLeft !== null && daysLeft > 0,
+              )}
             />
           )}
         />

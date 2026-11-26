@@ -73,7 +73,7 @@ describe("OrderDetail — Đóng phần còn lại kèm phí đã thoả thuận
     );
   });
 
-  it("số tiền có dấu thập phân → báo lỗi thay vì đọc thành số lớn gấp 100 lần; số hợp lệ hiện bản xem trước", async () => {
+  it("số tiền là ô MoneyInput (chấm nghìn khi gõ, không nhận chữ); để trống thì báo lỗi; số hợp lệ hiện bản xem trước", async () => {
     await renderDetail(ORDER_PERMISSION_SETS.salesStaff, () => apiPartialOrder);
     const post = vi.spyOn(api, "post").mockResolvedValue({ data: apiPartialOrder });
     const user = userEvent.setup();
@@ -83,7 +83,13 @@ describe("OrderDetail — Đóng phần còn lại kèm phí đã thoả thuận
     // fillFee gõ "4.000.000" → bản xem trước đúng số sẽ gửi
     expect(screen.getByText(/Sẽ ghi nhận: .*4\.000\.000/)).toBeInTheDocument();
     await user.clear(screen.getByLabelText(/Số tiền phí/));
-    await user.type(screen.getByLabelText(/Số tiền phí/), "150000.50");
+    await user.type(screen.getByLabelText(/Số tiền phí/), "150000");
+    expect(screen.getByLabelText(/Số tiền phí/)).toHaveValue("150.000");
+    expect(screen.getByText(/Sẽ ghi nhận: .*150\.000/)).toBeInTheDocument();
+    // Letters are not typed into the box at all, so a cleared box is an empty amount.
+    await user.clear(screen.getByLabelText(/Số tiền phí/));
+    await user.type(screen.getByLabelText(/Số tiền phí/), "abc");
+    expect(screen.getByLabelText(/Số tiền phí/)).toHaveValue("");
     expect(screen.queryByText(/Sẽ ghi nhận/)).not.toBeInTheDocument();
     await submit(user);
 
@@ -98,7 +104,7 @@ describe("OrderDetail — Đóng phần còn lại kèm phí đã thoả thuận
 
     await openClosureDialog(user);
     await user.click(screen.getByRole("checkbox", { name: /Giữ một khoản phí/ }));
-    await user.type(screen.getByLabelText(/Số tiền phí/), "12abc");
+    await user.type(screen.getByLabelText(/Số tiền phí/), "abc");
     await submit(user);
 
     expect(await screen.findByText("Nhập số tiền nguyên lớn hơn 0")).toBeInTheDocument();

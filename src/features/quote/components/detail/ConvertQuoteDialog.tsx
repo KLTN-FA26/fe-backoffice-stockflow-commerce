@@ -12,29 +12,49 @@ import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { FORM_INPUT_CLASS, FormField } from "@/components/shared/FormField";
 import { Notice } from "@/components/shared/Notice";
 
+import type { CustomerAddressRef } from "@/lib/references/customer-lookup";
 import type { Quote } from "@/features/quote/types";
 
-function AddressSelect({
+/** Nhãn ngắn trong ô chọn: người nhận và nơi giao; địa chỉ đầy đủ viết ở dòng dưới ô (không bị cắt chữ). */
+function shortAddress(address: CustomerAddressRef): string {
+  return [
+    address.recipientName,
+    [address.wardName, address.provinceName].filter(Boolean).join(", "),
+  ]
+    .filter(Boolean)
+    .join(" — ");
+}
+
+/**
+ * Địa chỉ của đơn: "" = địa chỉ mặc định (BE tự lấy). Chỉ có một địa chỉ (hoặc chưa tải được sổ địa chỉ) thì không có gì
+ * để chọn → hiện chữ, không hiện ô chọn (R6, S03-2).
+ */
+function AddressField({
   id,
   label,
   value,
   onChange,
-  defaultLabel,
-  options,
+  addresses,
 }: {
   id: string;
   label: string;
   value: string;
   onChange: (value: string) => void;
-  /** Địa chỉ mặc định viết đủ (BO-UX-21), hoặc null khi chưa tải được sổ địa chỉ. */
-  defaultLabel: string | null;
-  options: { id: string; label: string }[];
+  addresses: readonly CustomerAddressRef[];
 }) {
-  const chosen = value
-    ? options.find((option) => option.id === value)?.label
-    : (defaultLabel ?? undefined);
+  const fallback = addresses.find((address) => address.defaultAddress);
+  const chosen = value ? addresses.find((address) => address.addressId === value) : fallback;
+  if (addresses.length <= 1)
+    return (
+      <div className="flex min-w-0 flex-col gap-1">
+        <span className="text-ink-secondary text-xs font-medium">{label}</span>
+        <p className="text-ink-primary text-[0.8125rem]">
+          {chosen ? formatAddress(chosen) : "Địa chỉ mặc định của khách"}
+        </p>
+      </div>
+    );
   return (
-    <FormField id={id} label={label} hint={chosen}>
+    <FormField id={id} label={label} hint={chosen ? formatAddress(chosen) : undefined}>
       <select
         id={id}
         value={value}
@@ -43,13 +63,15 @@ function AddressSelect({
         className={`${FORM_INPUT_CLASS} border px-2`}
       >
         <option value="">
-          {defaultLabel ? `Mặc định — ${defaultLabel}` : "Địa chỉ mặc định của khách"}
+          {fallback ? `Mặc định — ${shortAddress(fallback)}` : "Địa chỉ mặc định của khách"}
         </option>
-        {options.map((option) => (
-          <option key={option.id} value={option.id}>
-            {option.label}
-          </option>
-        ))}
+        {addresses
+          .filter((address) => !address.defaultAddress)
+          .map((address) => (
+            <option key={address.addressId} value={address.addressId}>
+              {shortAddress(address)}
+            </option>
+          ))}
       </select>
     </FormField>
   );
@@ -63,17 +85,8 @@ function ConvertForm({ quote, onClose }: { quote: Quote; onClose: () => void }) 
   const [error, setError] = useState<string | null>(null);
   const convert = useConvertQuote();
   const router = useRouter();
-  // "" = địa chỉ mặc định (BE tự lấy): viết nó ra đủ ở lựa chọn đầu, không lặp lại trong danh sách, không dùng ★.
   const ofType = (type: "SHIPPING" | "BILLING") =>
     (addresses.data ?? []).filter((address) => address.type === type);
-  const defaultLabel = (type: "SHIPPING" | "BILLING") => {
-    const fallback = ofType(type).find((address) => address.defaultAddress);
-    return fallback ? formatAddress(fallback) : null;
-  };
-  const options = (type: "SHIPPING" | "BILLING") =>
-    ofType(type)
-      .filter((address) => !address.defaultAddress)
-      .map((address) => ({ id: address.addressId, label: formatAddress(address) }));
 
   return (
     <FormDialogBody
@@ -110,21 +123,19 @@ function ConvertForm({ quote, onClose }: { quote: Quote; onClose: () => void }) 
           Không tải được sổ địa chỉ — đơn sẽ dùng địa chỉ mặc định của khách.
         </Notice>
       )}
-      <AddressSelect
+      <AddressField
         id="convert-shipping"
         label="Địa chỉ giao hàng"
         value={shipping}
         onChange={setShipping}
-        defaultLabel={defaultLabel("SHIPPING")}
-        options={options("SHIPPING")}
+        addresses={ofType("SHIPPING")}
       />
-      <AddressSelect
+      <AddressField
         id="convert-billing"
         label="Địa chỉ xuất hoá đơn"
         value={billing}
         onChange={setBilling}
-        defaultLabel={defaultLabel("BILLING")}
-        options={options("BILLING")}
+        addresses={ofType("BILLING")}
       />
     </FormDialogBody>
   );

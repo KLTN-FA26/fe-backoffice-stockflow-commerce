@@ -207,8 +207,12 @@ export const PAYMENT_LABELS = {
     receivedOn: "Ngày nhận",
     note: "Ghi chú",
     linesTitle: "Các đợt được trả",
-    addLine: "Thêm đợt",
+    addLine: "Thêm đợt khác của khách này",
     removeLine: "Bỏ dòng",
+    searchInstallment: "Gõ số đơn, số hợp đồng hoặc tên đợt…",
+    noInstallmentMatch: "Không có đợt nào khớp.",
+    orderGroup: "Đơn",
+    moreInstallments: (count: number) => `Còn ${count} đợt — gõ thêm để thu hẹp`,
     installmentLabel: "Đợt thanh toán",
     amountLabel: "Số tiền (₫)",
     outstandingOf: (amount: string) => `Còn phải thu ${amount}`,
@@ -217,6 +221,16 @@ export const PAYMENT_LABELS = {
     noMoreInstallments: "Khách này không còn đợt nào để ghi thêm.",
     loadFailed: "Không tải được các đợt của khách. Đóng hộp thoại rồi thử lại.",
     pickInstallment: "Chọn đợt…",
+    /** Sau khi lập phiếu thu (S07-5): số tiền, liên kết phiếu, và đường quay lại chuyến đang chờ bàn giao. */
+    recorded: {
+      toastTitle: "Đã lập phiếu thu",
+      toastBody: (amount: string, reference: string) => `${amount} — mã sao kê ${reference}`,
+      summary: (amount: string, reference: string) =>
+        `Đã lập phiếu thu ${amount} (mã sao kê ${reference}).`,
+      view: "Xem phiếu thu",
+      backToLoad: (code: string) => `Quay lại chuyến ${code}`,
+      dismiss: "Đóng",
+    },
   },
   voidDialog: {
     title: "Huỷ phiếu thu?",

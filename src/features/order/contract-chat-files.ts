@@ -65,9 +65,13 @@ async function conversationIds(
   return conversationsSchema.parse(data).items.map((item) => item.id);
 }
 
-/** Files the customer could have sent the signed copy as, from the chats about the contract, then the order. */
+/**
+ * Files the customer could have sent the signed copy as, from the chats about the contract, then the order. A signed
+ * copy can only come after the contract was sent (docs 14 §4.3 bước 13-14), so a file sent earlier belongs to another
+ * contract of the same order or customer and is left out (S06-5).
+ */
 export async function listContractChatFiles(
-  contract: Pick<SalesContract, "id" | "orderId">,
+  contract: Pick<SalesContract, "id" | "orderId" | "sentAt">,
   signal?: AbortSignal,
 ): Promise<ChatFile[]> {
   const ids = [
@@ -99,7 +103,11 @@ export async function listContractChatFiles(
       }
     }
   }
-  return files.sort((a, b) => b.sentAt.localeCompare(a.sentAt)).slice(0, MAX_FILES);
+  const sentAfter = contract.sentAt ? Date.parse(contract.sentAt) : Number.NaN;
+  return files
+    .filter((file) => Number.isNaN(sentAfter) || Date.parse(file.sentAt) >= sentAfter)
+    .sort((a, b) => b.sentAt.localeCompare(a.sentAt))
+    .slice(0, MAX_FILES);
 }
 
 /** The attachment as a `File`, ready for the signature upload. */
@@ -117,11 +125,16 @@ export async function fetchChatFile(file: ChatFile): Promise<File> {
 }
 
 export function useContractChatFiles(
-  contract: Pick<SalesContract, "id" | "orderId">,
+  contract: Pick<SalesContract, "id" | "orderId" | "sentAt">,
   enabled: boolean,
 ) {
   return useQuery({
-    queryKey: [...orderKeys.all, "contract-chat-files", contract.id] as const,
+    queryKey: [
+      ...orderKeys.all,
+      "contract-chat-files",
+      contract.id,
+      contract.sentAt ?? "",
+    ] as const,
     queryFn: ({ signal }) => listContractChatFiles(contract, signal),
     enabled,
     ...QUERY_TIMES.list,

@@ -23,15 +23,19 @@ export function ContractEditor({
   contract,
   order,
   onDone,
+  onSaved,
 }: {
   contract: SalesContract;
   order: Pick<Order, "lines">;
+  /** Đóng editor khi bỏ thay đổi. */
   onDone: () => void;
+  /** Đóng editor sau khi lưu xong; không truyền thì như `onDone`. */
+  onSaved?: () => void;
 }) {
   const editor = useContractEditor({
     contract,
     orderLineIds: order.lines.map((line) => line.lineId),
-    onSaved: onDone,
+    onSaved: onSaved ?? onDone,
   });
   const { form } = editor;
   const errors = form.formState.errors;

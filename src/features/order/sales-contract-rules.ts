@@ -218,6 +218,37 @@ export function passedBatchesText(passed: readonly { seq: number }[]): string | 
   return `Đợt giao ${passed.map((batch) => batch.seq).join(", ")} đã qua — sau khi ký dùng 'Dời cửa sổ giao' ở khối Lịch giao để đặt lại.`;
 }
 
+/**
+ * Gửi hợp đồng cần mọi đợt giao có cửa sổ giao và không đợt nào bắt đầu trước hôm nay (docs 14 §4.3 bước 11, BR-23; BE
+ * `ContractTerms.requireWindows`). Tính trước để nút "Gửi hợp đồng" khoá kèm lý do, thay vì để Sale bấm rồi mới nghe lỗi.
+ * `today` là "YYYY-MM-DD" theo Asia/Ho_Chi_Minh. UI-only — BE vẫn kiểm lại.
+ */
+export function sendBlockers(
+  contract: Pick<SalesContract, "deliverySchedule">,
+  today: string,
+): { missing: number[]; past: number[] } {
+  const missing: number[] = [];
+  const past: number[] = [];
+  contract.deliverySchedule.forEach((batch, index) => {
+    const seq = batch.seq ?? index + 1;
+    if (!batch.windowStart) missing.push(seq);
+    else if (batch.windowStart < today) past.push(seq);
+  });
+  return { missing, past };
+}
+
+/** Một dòng "Còn thiếu: …" dưới nút Gửi hợp đồng (R7); `null` khi gửi được. */
+export function sendBlockersText(blockers: { missing: number[]; past: number[] }): string | null {
+  const parts: string[] = [];
+  if (blockers.missing.length > 0)
+    parts.push(`Còn thiếu: cửa sổ giao ${blockers.missing.map((seq) => `đợt ${seq}`).join(", ")}.`);
+  if (blockers.past.length > 0)
+    parts.push(
+      `Cần sửa: cửa sổ giao ${blockers.past.map((seq) => `đợt ${seq}`).join(", ")} bắt đầu trước hôm nay.`,
+    );
+  return parts.length > 0 ? parts.join(" ") : null;
+}
+
 /** Mục 29: BE `FileCategory.DOCUMENT` — pdf, docx, xlsx, jpeg, png (else 415). `.webp` is not accepted. */
 const SIGNED_FILE_TYPES: Record<string, string> = {
   "application/pdf": ".pdf",

@@ -13,6 +13,7 @@ import {
 } from "@/constants";
 import { PAYMENT_INSTALLMENT_PERMISSIONS } from "@/constants/payment";
 import { ApiError } from "@/lib/api/error";
+import { toLocalIsoDate } from "@/lib/format/date";
 import { Card } from "@/components/shared/Card";
 import { Notice } from "@/components/shared/Notice";
 import { StatusDot } from "@/components/shared/StatusDot";
@@ -25,8 +26,12 @@ import { useSalesContract } from "../../sales-contract-queries";
 import {
   allowedContractActions,
   contractPapers,
+  sendBlockers,
+  sendBlockersText,
   signOutcomeText,
 } from "../../sales-contract-rules";
+
+import { scrollToSection } from "../scroll-to-section";
 
 import { ContractActions } from "./ContractActions";
 import { CancelledContractNotice } from "./CancelledContractNotice";
@@ -57,6 +62,7 @@ export function OrderContractSection({
   const [dialog, setDialog] = useState<ContractDialog>(null);
   const [legalMissing, setLegalMissing] = useState<string | null>(null);
   const contract = query.data ?? null;
+  const today = toLocalIsoDate(new Date().toISOString());
   // BO-UX-28: hợp đồng đã ký → đợt thật (hạn, đã thu / còn), khi người xem đọc được các đợt.
   const signedContract =
     !!contract && (SALES_CONTRACT_SIGNED_STATUSES as readonly string[]).includes(contract.status);
@@ -149,7 +155,11 @@ export function OrderContractSection({
                   <ContractCreditWarning
                     contract={contract}
                     onEdit={actions.includes("edit") ? () => setEditing(true) : undefined}
-                    onSend={actions.includes("send") ? () => setDialog("send") : undefined}
+                    onSend={
+                      actions.includes("send") && !sendBlockersText(sendBlockers(contract, today))
+                        ? () => setDialog("send")
+                        : undefined
+                    }
                   />
                 )}
                 <ContractActions
@@ -166,6 +176,11 @@ export function OrderContractSection({
                     contract={contract}
                     order={order}
                     onDone={() => setEditing(false)}
+                    onSaved={() => {
+                      setEditing(false);
+                      // S06-4: về đầu khối hợp đồng — thấy ngay nút "Gửi hợp đồng" và trạng thái, không phải cuộn tìm.
+                      scrollToSection("contract");
+                    }}
                   />
                 ) : (
                   <ContractSummary

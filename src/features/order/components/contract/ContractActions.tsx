@@ -5,6 +5,7 @@ import { Pencil, Send, Signature, XCircle } from "lucide-react";
 
 import { ApiError } from "@/lib/api/error";
 
+import { toLocalIsoDate } from "@/lib/format/date";
 import { formatMoney } from "@/lib/format/money";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { toast } from "@/components/shared/Toast";
@@ -15,7 +16,12 @@ import {
   useCancelSalesContract,
   useSendSalesContract,
 } from "../../sales-contract-mutations";
-import { contractFieldLabel, creditWarningText } from "../../sales-contract-rules";
+import {
+  contractFieldLabel,
+  creditWarningText,
+  sendBlockers,
+  sendBlockersText,
+} from "../../sales-contract-rules";
 
 import { ContractDownloads } from "./ContractDownloads";
 import { SignContractDialog } from "./SignContractDialog";
@@ -79,42 +85,57 @@ export function ContractActions({
   const onError = (error: unknown) => toast.error(contractErrorMessage(error));
   const money = (amount: number) => formatMoney(amount, contract.totals.currency);
   const warning = contract.creditWarning;
+  // R7 (S06-3): thiếu cửa sổ giao thì khoá nút và nói thiếu gì ngay dưới nút, không để lỗi hiện sau khi xác nhận.
+  const blocked = sendBlockersText(
+    sendBlockers(contract, toLocalIsoDate(new Date().toISOString())),
+  );
 
   return (
-    <div className="flex w-full flex-wrap items-center gap-2">
-      {/* BO-UX-27: việc chính trước (Gửi / Ghi nhận đã ký), rồi Sửa, rồi tải PDF; Huỷ hợp đồng cuối, tách riêng. */}
-      {actions.includes("send") && (
-        <Button size="sm" onClick={() => setDialog("send")}>
-          <Send className="size-3.5" /> Gửi hợp đồng
-        </Button>
+    <div className="w-full space-y-1.5">
+      <div className="flex w-full flex-wrap items-center gap-2">
+        {/* BO-UX-27: việc chính trước (Gửi / Ghi nhận đã ký), rồi Sửa, rồi tải PDF; Huỷ hợp đồng cuối, tách riêng. */}
+        {actions.includes("send") && (
+          <Button
+            size="sm"
+            disabled={!!blocked}
+            aria-describedby={blocked ? "contract-send-blocked" : undefined}
+            onClick={() => setDialog("send")}
+          >
+            <Send className="size-3.5" /> Gửi hợp đồng
+          </Button>
+        )}
+        {actions.includes("sign") && (
+          <Button size="sm" onClick={() => setDialog("sign")}>
+            <Signature className="size-3.5" /> Ghi nhận đã ký
+          </Button>
+        )}
+        {actions.includes("edit") && (
+          <Button size="sm" variant="outline" onClick={onEdit}>
+            <Pencil className="size-3.5" /> Sửa
+          </Button>
+        )}
+        <ContractDownloads
+          contract={contract}
+          canPreview={actions.includes("preview")}
+          onError={onError}
+          papers={papers}
+        />
+        {actions.includes("cancel") && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-danger hover:text-danger border-border-default ml-auto border-l pl-3"
+            onClick={() => setDialog("cancel")}
+          >
+            <XCircle className="size-3.5" /> Huỷ hợp đồng
+          </Button>
+        )}
+      </div>
+      {actions.includes("send") && blocked && (
+        <p id="contract-send-blocked" className="text-warning-ink text-xs">
+          {blocked}
+        </p>
       )}
-      {actions.includes("sign") && (
-        <Button size="sm" onClick={() => setDialog("sign")}>
-          <Signature className="size-3.5" /> Ghi nhận đã ký
-        </Button>
-      )}
-      {actions.includes("edit") && (
-        <Button size="sm" variant="outline" onClick={onEdit}>
-          <Pencil className="size-3.5" /> Sửa
-        </Button>
-      )}
-      <ContractDownloads
-        contract={contract}
-        canPreview={actions.includes("preview")}
-        onError={onError}
-        papers={papers}
-      />
-      {actions.includes("cancel") && (
-        <Button
-          size="sm"
-          variant="ghost"
-          className="text-danger hover:text-danger border-border-default ml-auto border-l pl-3"
-          onClick={() => setDialog("cancel")}
-        >
-          <XCircle className="size-3.5" /> Huỷ hợp đồng
-        </Button>
-      )}
-
       <ConfirmDialog
         open={dialog === "send"}
         onOpenChange={(next) => !next && close()}
