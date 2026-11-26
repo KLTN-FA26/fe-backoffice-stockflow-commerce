@@ -6,6 +6,7 @@ import {
   ACCOUNTANT_GRANTS,
   bePage,
   detailJson,
+  listItemJson,
   mockEInvoiceApi,
   renderEInvoiceScreen,
 } from "../__fixtures__/screen";
@@ -20,25 +21,28 @@ vi.mock("next/navigation", () => ({
 
 afterEach(() => vi.restoreAllMocks());
 
-const delivered = [
-  {
-    shipmentId: "shp-2",
-    code: "SO-20261108-000013-S2",
-    packageCount: 3,
-    outcomeAt: "2026-11-12T03:00:00Z",
-  },
-  {
+// Kế toán không đọc được lô giao (403), nên các lô lấy từ hoá đơn của đơn: S1 đã có nháp bị huỷ, S2 đang là nháp.
+const invoices = [
+  listItemJson({ id: "e-2", shipmentId: "shp-2", shipmentCode: "SO-20261108-000013-S2" }),
+  listItemJson({
+    id: "e-1",
+    status: "VOIDED_DRAFT",
     shipmentId: "shp-1",
-    code: "SO-20261108-000013-S1",
-    packageCount: 4,
-    outcomeAt: "2026-11-10T03:00:00Z",
-  },
+    shipmentCode: "SO-20261108-000013-S1",
+  }),
+  listItemJson({
+    id: "e-3",
+    type: "ADJUSTMENT",
+    shipmentId: "shp-2",
+    shipmentCode: "SO-20261108-000013-S2",
+  }),
+  listItemJson({ id: "e-4", shipmentId: null, shipmentCode: null }),
 ];
 
 describe("DrawUpDialog — pick the delivered shipment by its code (UX audit S21-1)", () => {
   it("lists the order's delivered shipments instead of asking for an internal id", async () => {
     const api = mockEInvoiceApi(ACCOUNTANT_GRANTS, {
-      get: { "/fulfillment/shipments": () => bePage(delivered) },
+      get: { "/einvoices": () => bePage(invoices) },
     });
     renderEInvoiceScreen(<DrawUpDialog orderId="ord-13" onClose={vi.fn()} />);
     expect(screen.queryByText(/shipment ID/i)).not.toBeInTheDocument();
@@ -48,16 +52,17 @@ describe("DrawUpDialog — pick the delivered shipment by its code (UX audit S21
     const options = await screen.findAllByRole("option");
     expect(options.map((o) => o.textContent)).toEqual([
       expect.stringContaining("Phần phí còn lại"),
-      expect.stringContaining("SO-20261108-000013-S1"),
-      expect.stringContaining("SO-20261108-000013-S2"),
+      expect.stringMatching(/-S1 · hoá đơn đã huỷ/),
+      expect.stringMatching(/-S2 · hoá đơn nháp/),
     ]);
-    const call = api.get.mock.calls.find(([url]) => url === "/fulfillment/shipments");
-    expect(call?.[1]).toMatchObject({ params: { orderId: "ord-13", status: "DELIVERED" } });
+    const call = api.get.mock.calls.find(([url]) => url === "/einvoices");
+    expect((call?.[1] as { params: URLSearchParams }).params.get("orderId")).toBe("ord-13");
+    expect(api.get.mock.calls.some(([url]) => url === "/fulfillment/shipments")).toBe(false);
   });
 
   it("sends the chosen shipment id, and nothing for the remaining-fee draft", async () => {
     const api = mockEInvoiceApi(ACCOUNTANT_GRANTS, {
-      get: { "/fulfillment/shipments": () => bePage(delivered) },
+      get: { "/einvoices": () => bePage(invoices) },
       post: { "/einvoices": () => detailJson() },
     });
     renderEInvoiceScreen(<DrawUpDialog orderId="ord-13" onClose={vi.fn()} />);

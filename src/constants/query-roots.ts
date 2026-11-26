@@ -23,11 +23,6 @@ export const SHARED_QUERY_ROOTS = {
    * (`load-planning`, không import chéo) build key dưới đúng root này nên thêm / sửa / ngừng dùng loại xe làm mới cả hai.
    */
   vehicleTypes: "fulfillment-vehicle-types",
-  /**
-   * Lô giao (`GET /fulfillment/shipments`) — feature `shipping` sở hữu; ô chọn lô giao của hoá đơn nháp
-   * (`lib/references/order-shipments`, không import chéo) build key dưới root này.
-   */
-  fulfillmentShipments: "fulfillment-shipments",
   /** Chuyến xe giao hãng vận chuyển — thêm lô vào chuyến / bàn giao phụ thuộc cờ giao một phần của đơn. */
   fulfillmentLoads: "fulfillment-loads",
   /**
