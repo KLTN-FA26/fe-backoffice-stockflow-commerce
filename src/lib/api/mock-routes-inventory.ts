@@ -105,6 +105,9 @@ interface MockMovement {
   actorId: string;
   occurredAt: string;
   seq: number;
+  /** BE #460 (issue #455): thùng hàng rời đi / đi vào; null khi phía đó không có thùng. */
+  fromLpn: string | null;
+  toLpn: string | null;
 }
 
 const adjustments = new Map<string, MockAdjustment>();
@@ -516,6 +519,8 @@ async function approve(config: AxiosRequestConfig) {
     lotNumber: adjustment.lotNumber,
     fromLocation: delta < 0 ? adjustment.locationCode : null,
     toLocation: delta > 0 ? adjustment.locationCode : null,
+    fromLpn: delta < 0 ? adjustment.lpn : null,
+    toLpn: delta > 0 ? adjustment.lpn : null,
     quantity: Math.abs(delta),
     referenceType: "STOCK_ADJUSTMENT",
     referenceId: adjustment.adjustmentId,
@@ -603,8 +608,10 @@ function listMovements(config: AxiosRequestConfig) {
   }
   const sku = code(params.sku);
   const location = code(params.location);
+  const lpn = code(params.lpn);
   const rows = movements
     .filter((row) => !type || row.type === type)
+    .filter((row) => !lpn || row.fromLpn?.toUpperCase() === lpn || row.toLpn?.toUpperCase() === lpn)
     .filter((row) => !sku || row.sku === sku)
     .filter((row) => !location || row.fromLocation === location || row.toLocation === location)
     .sort((a, b) => b.seq - a.seq);
@@ -751,6 +758,9 @@ async function createMove(config: AxiosRequestConfig) {
       lotNumber: carton.lotNumber,
       fromLocation: carton.pkg.locationCode,
       toLocation: to,
+      // Di chuyển nguyên thùng: thùng vẫn là thùng đó ở cả hai phía
+      fromLpn: carton.pkg.lpn,
+      toLpn: carton.pkg.lpn,
       quantity: carton.pkg.receivedQty,
       referenceType: MOVE_REFERENCE_TYPE,
       referenceId: requestId,

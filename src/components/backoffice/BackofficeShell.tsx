@@ -44,6 +44,7 @@ import {
   Settings,
   TableProperties,
   PackageX,
+  ScanBarcode,
   SlidersHorizontal,
   Tag,
   Tags,
@@ -62,6 +63,7 @@ import {
   BRAND,
   CANCELLATION_REQUEST_LABELS,
   CANCELLATION_REQUEST_PERMISSIONS,
+  CARTON_LIST_LABELS,
   CUSTOMER_PERMISSIONS,
   CREDIT_HOLD_PERMISSIONS,
   CUSTOMER_PRICE_PERMISSIONS,
@@ -457,6 +459,13 @@ export const NAV_GROUPS: NavGroup[] = [
         href: INVENTORY_ROUTES.adjustments,
         icon: SlidersHorizontal,
         permission: INVENTORY_PERMISSIONS.adjustmentViewPage,
+      },
+      {
+        // Tra cứu mọi thùng theo LPN / SKU / vị trí / lô (docs 20 §4.1) — route BE khai báo cho inventory-stock-packages
+        label: CARTON_LIST_LABELS.title,
+        href: INVENTORY_ROUTES.cartons,
+        icon: ScanBarcode,
+        permission: STOCK_PACKAGE_PERMISSIONS.viewPage,
       },
       {
         label: QUARANTINE_LABELS.title,

@@ -84,6 +84,8 @@ describe("NAV_GROUPS — chia tab theo docs 00 §3", () => {
     expect(hrefsOf(NAV_GROUP_LABELS.inventory)).toEqual([
       INVENTORY_ROUTES.overview,
       INVENTORY_ROUTES.adjustments,
+      // Tra cứu thùng LPN (docs 20 §4.1) — module 20 sở hữu
+      INVENTORY_ROUTES.cartons,
       INVENTORY_ROUTES.quarantine,
       INVENTORY_ROUTES.movements,
     ]);

@@ -269,3 +269,20 @@ export const WAREHOUSE_LOCATION_COLUMNS = {
   USES: "uses",
   ZONE: "zone",
 } as const;
+
+/** Cột màn Thùng hàng (LPN) — BE `StockPackageResponse` (docs 20 §4.1, BE #454). */
+export const CARTON_LIST_COLUMNS = {
+  ACTIONS: "actions",
+  LOCATION: "location",
+  LOT: "lot",
+  LPN: "lpn",
+  OPEN_TASK: "openTask",
+  PRODUCT: "product",
+  QTY: "qty",
+  RECEIVED_AT: "receivedAt",
+  RESERVED: "reserved",
+  SOURCE: "source",
+  STATUS: "status",
+  STOCK_STATUS: "stockStatus",
+  WAREHOUSE: "warehouse",
+} as const;
