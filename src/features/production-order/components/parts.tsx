@@ -35,10 +35,17 @@ export function formatWindow(
   return `${start ? formatDate(start) : EMPTY_CELL} – ${end ? formatDate(end) : EMPTY_CELL}`;
 }
 
-/** Mã rút gọn khi không tra được tên (thiếu quyền / bản ghi đã xoá) — không đoán tên. */
+/** Mã rút gọn khi không tra được tên (thiếu quyền / bản ghi đã xoá) — không đoán tên. Chỉ còn dùng ở lịch sản xuất. */
 export const shortId = (id: string): string => id.slice(0, 8);
 
-/** "Mã · Tên" của đơn vị sản xuất; chưa tra được thì hiện mã rút gọn của id. */
-export function producerLabel(producer: ProducerRef | undefined, id: string): string {
-  return producer ? `${producer.code} · ${producer.name}` : shortId(id);
+/**
+ * "Mã · Tên" của đơn vị sản xuất. Ưu tiên danh mục đơn vị (có mã); không có quyền đọc danh mục thì dùng tên BE kèm sẵn
+ * trong đơn (FE#286); không có cả hai thì "—" — không hiện mảnh UUID.
+ */
+export function producerLabel(
+  producer: ProducerRef | undefined,
+  fallbackName?: string | null,
+): string {
+  if (producer) return `${producer.code} · ${producer.name}`;
+  return fallbackName || EMPTY_CELL;
 }

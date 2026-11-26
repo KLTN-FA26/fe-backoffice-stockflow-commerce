@@ -6,7 +6,7 @@
 
 import { Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { vi } from "vitest";
 
@@ -135,6 +135,8 @@ export function renderFulfillmentScreen(
   searchParams = "",
   onUrlUpdate?: OnUrlUpdateFunction,
 ) {
+  // Ô chọn gõ-thẳng (cmdk) cần ResizeObserver / scrollIntoView mà jsdom không có
+  patchCmdk();
   useAuthStore.setState({
     user: {
       userId,
@@ -187,6 +189,17 @@ export function patchCmdk() {
     disconnect() {}
   };
   Element.prototype.scrollIntoView ??= () => {};
+}
+
+/** Quét một mã vào ô quét lớn (`ScanInput`): gõ mã rồi Enter như máy quét. `scope` = hộp thoại chứa ô quét (nếu có). */
+export async function scanCode(
+  user: { type: (el: Element, text: string) => Promise<void> },
+  label: string | RegExp,
+  code: string,
+  scope?: HTMLElement,
+) {
+  const field = scope ? within(scope).getByLabelText(label) : await screen.findByLabelText(label);
+  await user.type(field, `${code}{Enter}`);
 }
 
 /**

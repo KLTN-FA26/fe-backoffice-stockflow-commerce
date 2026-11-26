@@ -5,6 +5,7 @@ import {
   freeVolumeText,
   freeWeightText,
   hasTextFilter,
+  nextPendingTask,
   sortByLpn,
 } from "../selectors";
 import { task } from "./fixtures";
@@ -68,5 +69,26 @@ describe("định dạng chỗ còn trống", () => {
     expect(freeVolumeText(8.304)).toBe("8,304");
     expect(freeVolumeText(8.4)).toBe("8,4");
     expect(freeWeightText(240)).toBe("240");
+  });
+});
+
+describe("nextPendingTask — nút 'Cất thùng tiếp theo (còn N)'", () => {
+  it("lấy thùng chờ cất kế tiếp theo thứ tự LPN, bỏ thùng vừa cất và thùng đã xong", () => {
+    const list = [
+      task({ id: "a", lpn: "LPN-3", status: "PENDING" }),
+      task({ id: "b", lpn: "LPN-1", status: "DONE" }),
+      task({ id: "c", lpn: "LPN-2", status: "PENDING" }),
+      task({ id: "d", lpn: "LPN-0", status: "PENDING" }),
+    ];
+    const next = nextPendingTask(list, "d");
+    expect(next.task?.id).toBe("c");
+    expect(next.remaining).toBe(2);
+  });
+
+  it("không còn thùng nào → task null, còn 0", () => {
+    expect(nextPendingTask([task({ id: "a", status: "DONE" })], "a")).toEqual({
+      task: null,
+      remaining: 0,
+    });
   });
 });

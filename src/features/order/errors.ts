@@ -421,7 +421,7 @@ const STATUS_ACTION_VERB: Readonly<Record<OrderStatusActionKey, string>> = {
   deliveryFailure: "ghi giao thất bại",
   remainderClosure: "đóng phần còn lại của đơn",
   partialShipment: "đổi cách giao một phần",
-  release: "release đơn",
+  release: "xuất kho cho đơn",
   shippingAddress: "đổi địa chỉ giao của đơn",
   shippingWarehouse: "chọn kho xuất cho đơn",
 };

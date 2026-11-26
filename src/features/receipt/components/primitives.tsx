@@ -43,16 +43,19 @@ export function InfoItem({
   label,
   value,
   mono,
+  wrap,
 }: {
   label: string;
   value: ReactNode;
   mono?: boolean;
+  /** Chữ dài (ghi chú) xuống dòng đủ ý thay vì bị cắt "…". */
+  wrap?: boolean;
 }) {
   return (
     <div className="min-w-0">
       <div className="text-ink-tertiary text-xs">{label}</div>
       <div
-        className={`text-ink-primary mt-0.5 truncate text-[0.8125rem] font-medium ${mono ? "font-[family-name:var(--font-mono)] tabular-nums" : ""}`}
+        className={`text-ink-primary mt-0.5 text-[0.8125rem] font-medium ${wrap ? "break-words whitespace-pre-line" : "truncate"} ${mono ? "font-[family-name:var(--font-mono)] tabular-nums" : ""}`}
       >
         {value}
       </div>

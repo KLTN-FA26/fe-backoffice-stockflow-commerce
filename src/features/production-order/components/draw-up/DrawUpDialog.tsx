@@ -10,14 +10,82 @@ import { productionOrderErrorMessage } from "@/features/production-order/errors"
 import { useDrawUpProductionOrder } from "@/features/production-order/mutations";
 
 import { FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
+import { COMBOBOX_ITEM_CLASS, InputCombobox } from "@/components/shared/InputCombobox";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { FormField } from "@/components/shared/FormField";
 import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
+import { CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
 import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
+import type { ProducerRef } from "@/lib/references/producer-options";
 import type { ShortDeliveryBatch } from "@/features/production-order/schedule-schemas";
 
 const L = PRODUCTION_LABELS.drawUp;
+/** Quá ngần này đơn vị thì Select cuộn dài khó dò → ô chọn gõ để tìm (R1). */
+const SEARCHABLE_FROM = 10;
+
+const producerText = (producer: ProducerRef) => `${producer.code} · ${producer.name}`;
+
+/** Chọn đơn vị sản xuất: ≤ 10 đơn vị là Select, nhiều hơn là ô gõ tìm theo mã / tên. */
+function ProducerField({
+  producers,
+  value,
+  onChange,
+}: {
+  producers: readonly ProducerRef[];
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  if (producers.length <= SEARCHABLE_FROM) {
+    return (
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger id="draw-up-producer" className={FORM_SELECT_CLASS} autoFocus>
+          <SelectValue placeholder={PRODUCTION_LABELS.edit.producerPlaceholder} />
+        </SelectTrigger>
+        <TitledSelectContent title={L.producer}>
+          {producers.map((producer) => (
+            <SelectItem key={producer.id} value={producer.id}>
+              {producerText(producer)}
+            </SelectItem>
+          ))}
+        </TitledSelectContent>
+      </Select>
+    );
+  }
+  const picked = producers.find((producer) => producer.id === value);
+  return (
+    <InputCombobox
+      id="draw-up-producer"
+      open={open}
+      onOpenChange={setOpen}
+      displayValue={picked ? producerText(picked) : ""}
+      placeholder={PRODUCTION_LABELS.edit.producerPlaceholder}
+      searchPlaceholder={L.producerSearch}
+      ariaLabel={L.producer}
+      autoFocus
+    >
+      <CommandList>
+        <CommandEmpty>{L.producerNoMatch}</CommandEmpty>
+        <CommandGroup>
+          {producers.map((producer) => (
+            <CommandItem
+              key={producer.id}
+              value={producerText(producer)}
+              className={COMBOBOX_ITEM_CLASS}
+              onSelect={() => {
+                onChange(producer.id);
+                setOpen(false);
+              }}
+            >
+              {producerText(producer)}
+            </CommandItem>
+          ))}
+        </CommandGroup>
+      </CommandList>
+    </InputCombobox>
+  );
+}
 
 /**
  * Lập Đơn sản xuất cho MỘT đợt giao còn thiếu (docs 17 §4.3 bước 6, BR-05): chỉ chọn đơn vị sản xuất đang dùng; BE tự
@@ -34,7 +102,9 @@ export function DrawUpDialog({
   const router = useRouter();
   const drawUp = useDrawUpProductionOrder();
   const { active } = useProducerDirectory();
-  const [producerId, setProducerId] = useState("");
+  const [chosenId, setChosenId] = useState("");
+  // Chỉ có một đơn vị đang dùng → chọn sẵn (R6); người dùng vẫn đổi được nếu sau này có thêm
+  const producerId = chosenId || (active.length === 1 ? (active[0]?.id ?? "") : "");
   const [error, setError] = useState<string | null>(null);
 
   const submit = () => {
@@ -61,18 +131,7 @@ export function DrawUpDialog({
         onCancel={onClose}
       >
         <FormField id="draw-up-producer" label={L.producer} required>
-          <Select value={producerId} onValueChange={setProducerId}>
-            <SelectTrigger id="draw-up-producer" className={FORM_SELECT_CLASS} autoFocus>
-              <SelectValue placeholder={PRODUCTION_LABELS.edit.producerPlaceholder} />
-            </SelectTrigger>
-            <TitledSelectContent title={L.producer}>
-              {active.map((producer) => (
-                <SelectItem key={producer.id} value={producer.id}>
-                  {producer.code} · {producer.name}
-                </SelectItem>
-              ))}
-            </TitledSelectContent>
-          </Select>
+          <ProducerField producers={active} value={producerId} onChange={setChosenId} />
         </FormField>
       </FormDialogBody>
     </FormDialog>

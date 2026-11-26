@@ -17,7 +17,30 @@ export const RECEIPT_COUNT_LABELS = {
     productionOrderEmpty: "Không có Đơn sản xuất nào đang nhận được hàng",
     loading: "Đang tải danh sách Đơn sản xuất…",
     loadError: "Không tải được danh sách Đơn sản xuất — bấm để thử lại",
-    optionMeta: (remaining: number, ordered: number) => `còn ${remaining}/${ordered} thùng`,
+    /** Dòng phụ trong danh sách: đơn vị sản xuất · SKU · thùng còn nhận · ngày giao dự kiến (hoặc ngày cần hàng). */
+    optionSub: (parts: {
+      producer: string | null | undefined;
+      skus: readonly string[];
+      remaining: number;
+      ordered: number;
+      expected: string | null | undefined;
+      needBy: string | null | undefined;
+    }) =>
+      [
+        parts.producer,
+        parts.skus.length > 3
+          ? `${parts.skus.slice(0, 3).join(", ")} +${parts.skus.length - 3}`
+          : parts.skus.join(", "),
+        `còn ${parts.remaining}/${parts.ordered} thùng`,
+        parts.expected
+          ? `giao dự kiến ${parts.expected}`
+          : parts.needBy
+            ? `cần hàng ${parts.needBy}`
+            : null,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+    retry: "Thử lại",
     deliveryNote: "Số phiếu giao",
     deliveryNotePlaceholder: "Số phiếu giao của đơn vị sản xuất",
     note: "Ghi chú",
@@ -29,20 +52,32 @@ export const RECEIPT_COUNT_LABELS = {
   count: {
     title: "Kiểm đếm theo thùng",
     description:
-      "Mỗi dòng Đơn sản xuất: chọn khu nhận, liệt kê các thùng đúng số cái chuẩn. Thùng lệch số chuẩn hoặc lỗi thì trả lại đơn vị sản xuất, không nhận. Lô tự gán theo mã Đơn sản xuất.",
+      "Chọn khu nhận và liệt kê các thùng đúng số cái chuẩn của từng dòng. Thùng lệch số chuẩn hoặc lỗi thì trả lại đơn vị sản xuất.",
     caption: "Kiểm đếm theo dòng Đơn sản xuất",
     headers: {
       sku: "SKU",
-      production: "Đơn SX (nhận / đặt)",
+      production: "Đã nhận / đặt (thùng)",
       location: "Khu nhận",
       cartons: "Thùng phiếu này",
       result: "Đối chiếu",
     },
     openCartons: (cartons: number) => `còn nhận ${cartons} thùng`,
+    /** Số thùng đã nhận / đặt của dòng Đơn sản xuất — có đơn vị (S12-4). */
+    receivedOfOrdered: (received: number, ordered: number) =>
+      `Đã nhận ${received}/${ordered} thùng`,
+    /** Thùng đã đếm trong phiếu này của dòng: "Đã đếm 10/10 thùng". */
+    countedOfOpen: (counted: number, open: number) => `Đã đếm ${counted}/${open} thùng`,
+    // Một khu nhận cho cả phiếu (sửa riêng từng dòng khi cần)
+    allLocation: "Khu nhận cho cả phiếu",
+    allLocationPlaceholder: "Chọn khu cho mọi dòng",
+    allLocationMixed: "Mỗi dòng một khu",
+    allLocationHint: "Áp cho mọi dòng; sửa riêng từng dòng ở cột Khu nhận.",
     perCarton: (units: number) => `${units} cái / thùng`,
     lot: (code: string) => `Lô ${code} (tự gán)`,
     cartonsAndUnits: (cartons: number, units: number) => `${cartons} thùng · ${units} cái`,
-    newCartons: "Thùng mới",
+    unitsOnly: (units: number) => `${units} cái`,
+    newCartons: "Thêm thùng mới",
+    existingCartons: (count: number) => `Đã có ${count} thùng — nhập số thùng thêm`,
     newCartonsAria: (sku: string) => `Số thùng mới của ${sku}`,
     locationAria: (sku: string) => `Khu nhận của ${sku}`,
     locationPlaceholder: "Chọn khu",

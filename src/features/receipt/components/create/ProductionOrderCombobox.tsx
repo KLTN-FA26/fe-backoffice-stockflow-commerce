@@ -7,13 +7,16 @@ import { formatDate } from "@/lib/format/date";
 import {
   openCartonsOf,
   orderedCartonsOf,
+  skusOf,
   useReceivableProductionOrders,
 } from "@/lib/references/production-orders";
+import { Button } from "@/components/ui/button";
 import { COMBOBOX_ITEM_CLASS, InputCombobox } from "@/components/shared/InputCombobox";
 import { CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
 
 const L = RECEIPT_COUNT_LABELS.create;
 const NOTE = "text-ink-tertiary px-3 py-1.5 text-xs";
+const dayOf = (iso: string | null | undefined) => (iso ? formatDate(iso) : null);
 
 /**
  * Chọn Đơn sản xuất nhận được hàng (BR-01 / BR-15, docs 03 §6) — gõ thẳng mã đơn vào ô. Danh sách nhỏ (đơn đang mở ở
@@ -55,36 +58,49 @@ export function ProductionOrderCombobox({
           <p className={NOTE}>{L.loading}</p>
         ) : (
           <>
-            {/* Một trạng thái tải lỗi không che các đơn đã tải được — vẫn hiện danh sách, kèm mục thử lại */}
+            {/* Lỗi tải nằm riêng trên danh sách (không phải một dòng đơn để chọn); đơn đã tải được vẫn hiện bên dưới */}
             {orders.isError && (
-              <CommandItem
-                value="retry"
-                forceMount
-                className={COMBOBOX_ITEM_CLASS}
-                onSelect={() => orders.refetch()}
-              >
-                {L.loadError}
-              </CommandItem>
+              <div role="alert" className="text-danger flex items-center gap-2 px-3 py-2 text-xs">
+                <span className="min-w-0 flex-1">{L.loadError}</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="xs"
+                  onClick={() => orders.refetch()}
+                  className="shrink-0"
+                >
+                  {L.retry}
+                </Button>
+              </div>
             )}
             {!orders.isError && <CommandEmpty>{L.productionOrderEmpty}</CommandEmpty>}
             <CommandGroup>
               {orders.data.map((order) => (
                 <CommandItem
                   key={order.id}
-                  value={order.code}
+                  // Gõ mã đơn, đơn vị sản xuất hoặc SKU đều tìm ra đơn
+                  value={`${order.code} ${order.producerName ?? ""} ${skusOf(order).join(" ")}`}
                   className={COMBOBOX_ITEM_CLASS}
                   onSelect={() => {
                     onChange(order.id);
                     setOpen(false);
                   }}
                 >
-                  <div className="flex min-w-0 flex-1 items-baseline justify-between gap-3">
+                  {/* Hai tầng: mã Đơn sản xuất / đơn vị · SKU · thùng còn nhận · ngày giao dự kiến */}
+                  <div className="flex min-w-0 flex-1 flex-col">
                     <span className="truncate font-[family-name:var(--font-mono)]">
                       {order.code}
                     </span>
-                    <span className="text-ink-tertiary shrink-0 text-xs tabular-nums">
-                      {L.optionMeta(openCartonsOf(order), orderedCartonsOf(order))}
-                      {order.needByDate ? ` · ${formatDate(order.needByDate)}` : ""}
+                    {/* Khoảng trắng giữa hai tầng: trình đọc màn hình đọc "mã, rồi thông tin", không dính liền */}{" "}
+                    <span className="text-ink-tertiary truncate text-xs tabular-nums">
+                      {L.optionSub({
+                        producer: order.producerName,
+                        skus: skusOf(order),
+                        remaining: openCartonsOf(order),
+                        ordered: orderedCartonsOf(order),
+                        expected: dayOf(order.expectedCompletionDate),
+                        needBy: dayOf(order.needByDate),
+                      })}
                     </span>
                   </div>
                 </CommandItem>

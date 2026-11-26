@@ -3,7 +3,13 @@ import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ADMIN_ROUTES, RECEIVING_LABELS, STORAGE_KEYS, WORKSPACE_PATHS } from "@/constants";
+import {
+  ADMIN_ROUTES,
+  RECEIPT_COUNT_LABELS,
+  RECEIVING_LABELS,
+  STORAGE_KEYS,
+  WORKSPACE_PATHS,
+} from "@/constants";
 import { WorkspaceWarehouseProvider } from "@/lib/workspace";
 
 import { HCM_ID, RECEIPT_ID, apiReceipt, apiReceiptPage } from "../../__fixtures__/receipt";
@@ -174,5 +180,28 @@ describe("ReceivingList — Nhận hàng trong tab theo kho (docs 03)", () => {
     );
     expect(listCalls(get)).toHaveLength(0);
     expect(screen.queryByRole("button", { name: "Lọc trạng thái" })).not.toBeInTheDocument();
+  });
+});
+
+describe("ReceivingList — Lập phiếu nhập ngay tại màn nhận hàng của kho (S12-2)", () => {
+  it("quản lý kho có nút 'Lập phiếu nhập' trên thanh công cụ; nhân viên chỉ đọc thì không", async () => {
+    renderTab(ROLES.warehouseManager);
+    expect(
+      await screen.findByRole("button", { name: RECEIPT_COUNT_LABELS.create.button }),
+    ).toBeInTheDocument();
+  });
+
+  it("kho chưa có phiếu: trạng thái trống có nút 'Lập phiếu nhập', toolbar vẫn còn nút của nó", async () => {
+    renderTab(ROLES.warehouseManager, apiReceiptPage([]));
+    expect(await screen.findByText(L.emptyDraftTitle)).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("button", { name: RECEIPT_COUNT_LABELS.create.button }),
+    ).toHaveLength(2);
+  });
+
+  it("không có goods-receipts:CREATE → không nút nào", async () => {
+    renderTab(ROLES.reader);
+    await screen.findByText(NUMBER);
+    expect(screen.queryByRole("button", { name: RECEIPT_COUNT_LABELS.create.button })).toBeNull();
   });
 });

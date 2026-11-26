@@ -168,6 +168,11 @@ function OrderDetailContent({
               <LineProductionOrdersView
                 entry={productionByLine.get(line.lineId)}
                 state={productionState}
+                drawUpHref={
+                  can(PRODUCTION_ORDER_PERMISSIONS.create)
+                    ? ADMIN_ROUTES.productionScheduleDrawUpFor(order.orderId)
+                    : undefined
+                }
               />
             )}
           />

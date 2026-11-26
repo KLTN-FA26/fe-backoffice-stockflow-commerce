@@ -106,4 +106,25 @@ describe("ScanInput", () => {
     );
     expect(screen.getByRole("alert")).toHaveTextContent("Kiện không thuộc chuyến");
   });
+
+  it("có submitLabel: gõ tay mã rồi bấm nút = như Enter; ô và nút đều cao 48px (R10)", async () => {
+    const user = userEvent.setup();
+    const onScan = vi.fn();
+    render(<ScanInput id="scan" label="Quét mã" onScan={onScan} submitLabel="Xác nhận" />);
+    const input = screen.getByLabelText("Quét mã");
+    expect(input).toHaveClass("h-12");
+    const button = screen.getByRole("button", { name: "Xác nhận" });
+    expect(button).toHaveClass("h-12");
+    await user.type(input, "ABC-9");
+    await user.click(button);
+    expect(onScan).toHaveBeenCalledWith("ABC-9");
+    expect(input).toHaveValue("");
+    // Bấm nút không cướp focus của ô quét
+    expect(input).toHaveFocus();
+  });
+
+  it("không có submitLabel → không có nút (máy quét gửi Enter)", () => {
+    render(<ScanInput id="scan" label="Quét mã" onScan={vi.fn()} />);
+    expect(screen.queryByRole("button")).toBeNull();
+  });
 });

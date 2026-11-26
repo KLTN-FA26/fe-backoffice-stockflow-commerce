@@ -49,7 +49,7 @@ describe("cảnh báo công nợ quá hạn trong hộp thoại Release", () => 
     const post = vi.spyOn(api, "post").mockResolvedValue({ data: apiOrder });
 
     await pickSelectOption(user, /Kho xuất hàng/, "HN01 — Kho Hà Nội");
-    const submit = within(dialog).getByRole("button", { name: "Release đơn" });
+    const submit = within(dialog).getByRole("button", { name: "Xuất kho" });
     expect(submit).toBeEnabled();
     await user.click(submit);
 
@@ -75,6 +75,6 @@ describe("cảnh báo công nợ quá hạn trong hộp thoại Release", () => 
     );
     expect(within(dialog).queryByText(WARNING)).not.toBeInTheDocument();
     expect(within(dialog).queryByRole("alert")).not.toBeInTheDocument();
-    expect(within(dialog).getByRole("button", { name: "Release đơn" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Xuất kho" })).toBeInTheDocument();
   });
 });

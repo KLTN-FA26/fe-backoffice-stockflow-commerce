@@ -38,12 +38,23 @@ function Fact({ label, value }: { label: string; value: string }) {
 export function PutawayConfirmCard({
   task,
   confirm,
+  lastBin,
 }: {
   task: PutawayTask;
   confirm: PutawayConfirmState;
+  /** Ô kệ vừa cất cho thùng trước (từ nút "Cất thùng tiếp theo") — gợi ý dùng lại một chạm. */
+  lastBin?: string | null;
 }) {
   const { form, submit, pending, banner, alternative, chooseBin } = confirm;
   const { errors } = form.formState;
+  const chosenBin = form.watch("locationCode");
+  // Bốn nút một chạm cạnh ô quét: ô kệ BE đề nghị (khi bị từ chối), gợi ý số 1, ô kệ vừa dùng cho thùng trước.
+  // Không tự điền ô quét (docs 05: ô kệ cuối cùng là ô kệ nhân viên quét) — chỉ bấm mới điền.
+  const oneTap = [
+    alternative,
+    task.suggestions[0]?.locationCode,
+    lastBin && lastBin !== task.suggestions[0]?.locationCode ? lastBin : null,
+  ].filter((code, index, all): code is string => !!code && all.indexOf(code) === index);
   const lpn = form.register("lpn", { onChange: () => form.clearErrors("lpn") });
   const location = form.register("locationCode", {
     onChange: () => form.clearErrors("locationCode"),
@@ -89,22 +100,39 @@ export function PutawayConfirmCard({
             placeholder={L.locationPlaceholder}
             {...location}
           />
-          {alternative && (
-            <Button
-              type="button"
-              variant="outline"
-              size="xs"
-              onClick={() => {
-                chooseBin(alternative);
-                focusField(PUTAWAY_FIELD_IDS.locationCode);
-              }}
-              className={`border-border-default bg-bg-surface text-ink-primary hover:bg-bg-muted h-7 rounded-[var(--r-sm)] px-2.5 text-xs ${MONO}`}
-            >
-              {L.takeAlternative(alternative)}
-            </Button>
+          {oneTap.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {oneTap.map((code) => (
+                <Button
+                  key={code}
+                  type="button"
+                  variant="outline"
+                  aria-pressed={chosenBin === code}
+                  onClick={() => {
+                    chooseBin(code);
+                    focusField(
+                      form.getValues("lpn")
+                        ? PUTAWAY_FIELD_IDS.locationCode
+                        : PUTAWAY_FIELD_IDS.lpn,
+                    );
+                  }}
+                  className={`border-border-default bg-bg-surface text-ink-primary hover:bg-bg-muted h-11 rounded-[var(--r-sm)] px-3 text-[0.8125rem] ${MONO} ${
+                    chosenBin === code ? "border-brand bg-bg-muted" : ""
+                  }`}
+                >
+                  {code === lastBin && code !== task.suggestions[0]?.locationCode
+                    ? L.takeLast(code)
+                    : L.takeAlternative(code)}
+                </Button>
+              ))}
+            </div>
           )}
         </div>
-        <Button type="submit" disabled={pending} className={DETAIL_ACTION_CLASS.primary}>
+        <Button
+          type="submit"
+          disabled={pending}
+          className={`${DETAIL_ACTION_CLASS.primary} h-11 text-sm`}
+        >
           {pending && <Loader2 className="size-3.5 animate-spin" />}
           {L.submit}
         </Button>

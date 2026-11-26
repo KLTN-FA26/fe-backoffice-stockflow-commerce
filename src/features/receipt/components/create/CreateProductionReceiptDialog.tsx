@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import { ADMIN_ROUTES, PRODUCTION_RECEIPT_LIMITS, RECEIPT_COUNT_LABELS } from "@/constants";
+import { useReceivableProductionOrders } from "@/lib/references/production-orders";
 import { productionReceiptCreateInputSchema } from "@/features/receipt/count-schemas";
 import { receiptErrorMessage } from "@/features/receipt/errors";
 import { useCreateProductionReceipt } from "@/features/receipt/mutations";
@@ -27,22 +28,39 @@ const PO_ID = "gr-production-order";
 const NOTE_ID = "gr-delivery-note";
 const REMARK_ID = "gr-note";
 
-function CreateForm({ onClose }: { onClose: () => void }) {
+function CreateForm({
+  onClose,
+  productionOrderId = "",
+  detailHref = ADMIN_ROUTES.receipts.detail,
+}: {
+  onClose: () => void;
+  /** Mở từ một Đơn sản xuất: chọn sẵn đơn đó. */
+  productionOrderId?: string;
+  detailHref?: (receiptId: string) => string;
+}) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const create = useCreateProductionReceipt();
   const form = useForm<ProductionReceiptCreateValues, unknown, ProductionReceiptCreateInput>({
     resolver: zodResolver(productionReceiptCreateInputSchema),
-    defaultValues: { productionOrderId: "", deliveryNote: "", note: "" },
+    defaultValues: { productionOrderId, deliveryNote: "", note: "" },
   });
   const { errors } = form.formState;
+  // Chỉ có đúng một Đơn sản xuất nhận được hàng → chọn sẵn (R6), người dùng vẫn đổi / xoá được
+  const receivable = useReceivableProductionOrders();
+  const onlyId = receivable.data.length === 1 ? receivable.data[0]?.id : undefined;
+  useEffect(() => {
+    if (onlyId && !form.getValues("productionOrderId")) {
+      form.setValue("productionOrderId", onlyId, { shouldValidate: false });
+    }
+  }, [onlyId, form]);
 
   const submit = form.handleSubmit((values) =>
     create.mutate(values, {
       // Phiếu nháp chưa có dòng — sang trang chi tiết để kiểm đếm (docs 03 §4.1 bước 2)
       onSuccess: (receipt) => {
         onClose();
-        router.push(ADMIN_ROUTES.receipts.detail(receipt.id));
+        router.push(detailHref(receipt.id));
       },
       onError: (failure) => setError(receiptErrorMessage(failure)),
     }),
@@ -108,13 +126,23 @@ function CreateForm({ onClose }: { onClose: () => void }) {
 export function CreateProductionReceiptDialog({
   open,
   onClose,
+  productionOrderId,
+  detailHref,
 }: {
   open: boolean;
   onClose: () => void;
+  productionOrderId?: string;
+  detailHref?: (receiptId: string) => string;
 }) {
   return (
     <FormDialog open={open} onOpenChange={(next) => !next && onClose()}>
-      {open && <CreateForm onClose={onClose} />}
+      {open && (
+        <CreateForm
+          onClose={onClose}
+          productionOrderId={productionOrderId}
+          detailHref={detailHref}
+        />
+      )}
     </FormDialog>
   );
 }

@@ -92,6 +92,8 @@ function ProductionRow({ po }: { po: ProductionOrder }) {
 
 interface LineProductionProps {
   entry: LineProductionOrders | undefined;
+  /** Có quyền lập Đơn sản xuất → link mở thẳng hộp Lập của đợt còn thiếu của đơn này (lịch sản xuất). */
+  drawUpHref?: string;
   /** Đang tải / lỗi đã báo ở cấp đơn → dòng chỉ hiện skeleton hoặc không gì. */
   state: "loading" | "ready" | "unavailable";
 }
@@ -100,7 +102,7 @@ interface LineProductionProps {
  * Đơn sản xuất của MỘT dòng in: mỗi đợt giao còn thiếu một Đơn sản xuất (docs 17 §4.3 bước 6), kèm số thùng đã nhập
  * kho. Đơn sản xuất `Received` là đã nhập đủ (§5.3).
  */
-export function LineProductionOrdersView({ entry, state }: LineProductionProps) {
+export function LineProductionOrdersView({ entry, state, drawUpHref }: LineProductionProps) {
   if (state === "unavailable") return null;
   if (state === "loading") {
     return <Skeleton className="mt-2 h-5 w-1/2" aria-label="Đang tải đơn sản xuất" />;
@@ -109,6 +111,14 @@ export function LineProductionOrdersView({ entry, state }: LineProductionProps) 
     return (
       <p className="text-ink-tertiary mt-2 text-xs">
         Chưa có đơn sản xuất — Điều phối sản xuất lập cho phần thiếu của từng đợt giao.
+        {drawUpHref && (
+          <>
+            {" "}
+            <Link href={drawUpHref} className="text-accent-text font-medium hover:underline">
+              Lập Đơn sản xuất
+            </Link>
+          </>
+        )}
       </p>
     );
   }

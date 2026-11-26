@@ -47,7 +47,7 @@ function CartonCheckStationBody({
   });
   const session = sessionQuery.data;
   const listHref = useWorkspaceHref()(WORKSPACE_PATHS.packing);
-  useBreadcrumbLabel(id, session ? (session.orderNumber ?? taskCode(session.taskId)) : undefined);
+  useBreadcrumbLabel(id, session ? (session.orderNumber ?? taskCode(session)) : undefined);
 
   if (!canRead)
     return <FulfillmentLoadError scope="packing" error={null} kind="no-read" listHref={listHref} />;
@@ -75,7 +75,7 @@ function CartonCheckStationBody({
     // Phiên của kho khác kho trên URL → chuyển sang đúng kho (spec 2026-11-22 §2)
     <InWorkspaceWarehouse warehouseId={session.warehouseId} path={WORKSPACE_PATHS.packingTask(id)}>
       <div className="surface-soft surface-compact">
-        <h1 className="sr-only">{`${cartonCheck.stationTitle} — ${session.orderNumber ?? taskCode(session.taskId)}`}</h1>
+        <h1 className="sr-only">{`${cartonCheck.stationTitle} — ${session.orderNumber ?? taskCode(session)}`}</h1>
         {sessionQuery.isError && (
           <Alert tone="warning" className="mb-3 print:hidden">
             {cartonCheck.notice.refetchFailed}{" "}
@@ -92,12 +92,14 @@ function CartonCheckStationBody({
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
           <div className="min-w-0 space-y-5">
             <CartonCheckNotices session={session} access={access} waitingPick={waitingPick} />
-            <CartonLinesSection session={session} />
+            {/* Ô quét lên trên bảng dòng: trên máy tính bảng không phải cuộn qua bảng mới thấy chỗ quét (S01-12) */}
             {access.canWork && <CartonScanSection session={session} />}
+            <CartonLinesSection session={session} />
             <CartonsSection session={session} access={access} lpnLabelSlot={lpnLabelSlot} />
             <ShipmentsSection session={session} />
           </div>
-          <div className="space-y-5">
+          {/* Màn hẹp (một cột): thẻ trạng thái + nút Bắt đầu / Hoàn tất lên đầu, không nằm cuối trang (S01-12) */}
+          <div className="order-first space-y-5 xl:order-none">
             <CartonCheckStatusCard
               session={session}
               access={access}

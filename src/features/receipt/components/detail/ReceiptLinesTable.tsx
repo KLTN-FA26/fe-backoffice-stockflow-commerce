@@ -1,6 +1,7 @@
 "use client";
 
 import { RECEIPT_CARTON_LABELS, UI_LABELS } from "@/constants";
+import { ScrollShadowBox } from "@/components/backoffice/ScrollShadowBox";
 
 import { LineCartonsCell } from "../cartons/LineCartonsCell";
 import { NUM } from "../primitives";
@@ -20,9 +21,9 @@ function ProductionProgressCell({ line }: { line: ReceiptLineDto }) {
   const p = line.production;
   if (!p) return <td className="text-ink-tertiary px-3 py-2">—</td>;
   return (
-    <td className={`px-3 py-2 ${NUM}`}>
+    <td className={`px-3 py-2 whitespace-nowrap ${NUM}`}>
       <div className="text-ink-primary">
-        {p.receivedCartons}/{p.orderedCartons}
+        {PROGRESS.cartonsOfOrdered(p.receivedCartons, p.orderedCartons)}
       </div>
       <div className="text-ink-tertiary text-xs">{PROGRESS.thisReceipt(p.thisReceiptCartons)}</div>
       <div className="text-ink-tertiary text-xs">{PROGRESS.remaining(p.remainingCartons)}</div>
@@ -41,6 +42,8 @@ export function ReceiptLinesTable({
   receipt: GoodsReceipt;
   draft?: boolean;
 }) {
+  // Cột Ghi chú chỉ hiện khi có dòng nào có ghi chú — cột trống toàn "—" chỉ làm bảng rộng thêm và bị cắt
+  const hasNotes = receipt.lines.some((line) => !!line.note);
   const headers = [
     "SKU",
     "SL",
@@ -48,14 +51,14 @@ export function ReceiptLinesTable({
     "Lô",
     "Vị trí nhận",
     PRODUCTION,
-    "Ghi chú",
+    ...(hasNotes ? ["Ghi chú"] : []),
     ...(draft ? [] : ["Chờ cất"]),
   ];
   const rightAligned = new Set(["SL", PRODUCTION, "Chờ cất"]);
 
   return (
     // Bảng nhiều cột trong cột trái (cạnh sidebar 320px) → không ép co cột, cho cuộn ngang
-    <div className="border-border-default overflow-x-auto rounded-[var(--r-sm)] border">
+    <ScrollShadowBox>
       <table className="w-full min-w-max text-[0.8125rem]">
         <caption className="sr-only">Dòng nhận của phiếu {receipt.number}</caption>
         <thead className="bg-bg-subtle text-ink-secondary">
@@ -81,22 +84,24 @@ export function ReceiptLinesTable({
           )}
           {receipt.lines.map((line) => (
             <tr key={line.id} className="border-border-default border-t align-top">
-              <td className="px-3 py-2 font-[family-name:var(--font-mono)]">{line.sku ?? "—"}</td>
+              <td className="px-3 py-2 font-[family-name:var(--font-mono)] whitespace-nowrap">
+                {line.sku ?? "—"}
+              </td>
               <td className={`text-ink-primary px-3 py-2 font-medium ${NUM}`}>{line.quantity}</td>
               <LineCartonsCell line={line} />
-              <td className="px-3 py-2 font-[family-name:var(--font-mono)]">
+              <td className="px-3 py-2 font-[family-name:var(--font-mono)] whitespace-nowrap">
                 {line.lotNumber ?? "—"}
               </td>
-              <td className="px-3 py-2 font-[family-name:var(--font-mono)]">
+              <td className="px-3 py-2 font-[family-name:var(--font-mono)] whitespace-nowrap">
                 {line.locationCode ?? "—"}
               </td>
               <ProductionProgressCell line={line} />
-              <LineNoteCell note={line.note} />
+              {hasNotes && <LineNoteCell note={line.note} />}
               {!draft && <td className={`px-3 py-2 ${NUM}`}>{line.quantityForPutaway}</td>}
             </tr>
           ))}
         </tbody>
       </table>
-    </div>
+    </ScrollShadowBox>
   );
 }

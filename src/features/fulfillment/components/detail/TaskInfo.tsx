@@ -15,8 +15,8 @@ const DESTINATION = UI_LABELS.fulfillment.destination;
 const dt = (iso: string | null | undefined) => (iso ? formatDateTime(iso) : "—");
 
 /**
- * Thông tin task — chỉ field BE trả; số đơn tra thêm nếu đủ quyền. Không hiện dòng "Mã task": BE chưa có mã task đọc
- * được (chỉ UUID), nên không bịa mã và không để lộ UUID cho người dùng.
+ * Thông tin nhiệm vụ — chỉ field BE trả; số đơn tra thêm nếu đủ quyền. Số nhiệm vụ là `taskNumber` BE cấp
+ * ("PK-yyyyMMdd-nnnn"); bản BE cũ chưa có thì không hiện dòng này — không bịa mã, không để lộ UUID.
  */
 export function TaskInfo({
   task,
@@ -30,8 +30,9 @@ export function TaskInfo({
 }) {
   const orderText = orderLabel(task.orderId, orderNumber);
   return (
-    <Section title="Thông tin task">
+    <Section title="Thông tin nhiệm vụ">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+        {task.taskNumber && <InfoItem label={FIELD.task} mono value={task.taskNumber} />}
         <InfoItem
           label={FIELD.order}
           mono

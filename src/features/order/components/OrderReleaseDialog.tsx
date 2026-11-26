@@ -100,6 +100,7 @@ export function OrderReleaseDialog({
           value={warehouseId}
           onChange={(value) => form.setValue("warehouseId", value, { shouldValidate: true })}
           error={form.formState.errors.warehouseId?.message}
+          chosenWarehouseId={defaultWarehouseId}
         />
         {canChooseBatch && (
           <ReleaseBatchField orderId={order.orderId} value={batchId} onChange={setBatch} />

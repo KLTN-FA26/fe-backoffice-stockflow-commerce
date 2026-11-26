@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   CUSTOMER_ADDRESS_PERMISSIONS,
+  FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS,
   ORDER_PERMISSIONS,
   ORDER_SHIPPING_ADDRESS_LABELS,
   WAREHOUSE_PERMISSIONS,
@@ -257,5 +258,66 @@ describe("WF04 G2 — Đổi địa chỉ giao trên chi tiết đơn (docs 17 �
       ...ORDER_PERMISSION_SETS.salesStaff,
     ]);
     expect(screen.queryByRole("button", { name: L.button })).toBeNull();
+  });
+});
+
+describe("Kho xuất lấy từ tên BE kèm sẵn (FE#286, S14-2)", () => {
+  const withName = apiOrderWith({
+    status: "READY_TO_FULFILL",
+    warehouseId: WAREHOUSE_ID,
+    warehouseCode: "HAN",
+    warehouseName: "Kho Hà Nội",
+  });
+
+  it("hiện tên kho (mã nhỏ dưới) cho mọi vai, không gọi GET /warehouses, không câu 'chưa có quyền xem tên kho'", async () => {
+    const get = mockOrderApiGet(ORDER_PERMISSION_SETS.coordinator, {
+      [DETAIL_PATH]: () => withName,
+      [`${DETAIL_PATH}/history`]: () => [],
+    });
+    await act(async () => {
+      renderOrderScreen(<OrderDetail params={Promise.resolve({ id: apiOrder.orderId })} />);
+    });
+    expect(await screen.findByText("Kho Hà Nội")).toBeInTheDocument();
+    expect(screen.getByText("HAN")).toBeInTheDocument();
+    expect(screen.queryByText(/chưa có quyền xem tên kho/)).not.toBeInTheDocument();
+    expect(warehouseCalls(get)).toHaveLength(0);
+  });
+});
+
+describe("Sau khi có lệnh xuất kho: Quản lý kho tạo nhiệm vụ lấy hàng ngay trên đơn (S14-4)", () => {
+  const ready = apiOrderWith({
+    status: "READY_TO_FULFILL",
+    warehouseId: WAREHOUSE_ID,
+    warehouseCode: "HAN",
+    warehouseName: "Kho Hà Nội",
+  });
+  const manager = [
+    ...ORDER_PERMISSION_SETS.warehouseManager,
+    FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS.create,
+  ];
+
+  async function renderWith(permissions: readonly PermissionCode[]) {
+    mockOrderApiGet(permissions, {
+      [DETAIL_PATH]: () => ready,
+      [`${DETAIL_PATH}/history`]: () => [],
+    });
+    await act(async () => {
+      renderOrderScreen(<OrderDetail params={Promise.resolve({ id: apiOrder.orderId })} />);
+    });
+    await screen.findByRole("heading", { name: apiOrder.orderNumber });
+  }
+
+  it("có fulfillment-task-assignment:CREATE → nút 'Tạo nhiệm vụ lấy hàng' mở màn Lấy hàng của kho xuất, đã chọn sẵn đơn", async () => {
+    await renderWith(manager);
+    expect(await screen.findByRole("link", { name: "Tạo nhiệm vụ lấy hàng" })).toHaveAttribute(
+      "href",
+      `/admin/warehouse-map/HAN/picking?create=${apiOrder.orderId}`,
+    );
+    expect(screen.queryByText(/Không có thao tác nào bạn được phép làm/)).not.toBeInTheDocument();
+  });
+
+  it("thiếu quyền tạo nhiệm vụ → không có nút (vẫn câu giải thích như cũ)", async () => {
+    await renderWith(ORDER_PERMISSION_SETS.coordinator);
+    expect(screen.queryByRole("link", { name: "Tạo nhiệm vụ lấy hàng" })).not.toBeInTheDocument();
   });
 });

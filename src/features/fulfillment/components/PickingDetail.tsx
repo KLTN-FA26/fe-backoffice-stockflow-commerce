@@ -20,7 +20,7 @@ function PickingDetailBody({ id }: { id: string }) {
   const query = useFulfillmentTask(id, { enabled: canRead });
   const listHref = useWorkspaceHref()(WORKSPACE_PATHS.picking);
   // Breadcrumb hiện mã rút gọn thay vì UUID đầy đủ
-  useBreadcrumbLabel(id, query.data ? taskCode(query.data.taskId) : undefined);
+  useBreadcrumbLabel(id, query.data ? taskCode(query.data) : undefined);
 
   if (!canRead)
     return <FulfillmentLoadError scope="picking" error={null} kind="no-read" listHref={listHref} />;
@@ -44,7 +44,7 @@ function PickingDetailBody({ id }: { id: string }) {
     // Task của kho khác kho trên URL → chuyển sang đúng kho, không hiện dưới kho sai (spec 2026-11-22 §2)
     <InWorkspaceWarehouse warehouseId={task.warehouseId} path={WORKSPACE_PATHS.pickingTask(id)}>
       <div className="surface-soft surface-compact">
-        <h1 className="sr-only">{`Task ${taskCode(task.taskId)}`}</h1>
+        <h1 className="sr-only">{`Nhiệm vụ ${taskCode(task)}`}</h1>
         <PickingWorkArea
           task={task}
           actor={actor}

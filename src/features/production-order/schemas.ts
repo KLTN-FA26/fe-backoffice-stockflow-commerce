@@ -34,6 +34,8 @@ export const productionOrderHistoryDto = z.object({
   to: productionOrderStatusSchema,
   reason: z.string().nullish(),
   by: z.string().nullish(),
+  /** Họ tên người thao tác (FE#286); vắng khi hệ thống chuyển hoặc tài khoản không còn. */
+  byName: z.string().nullish(),
   at: z.string(),
 });
 
@@ -98,6 +100,16 @@ export const productionOrderDto = z.object({
   lines: z.array(productionOrderLineDto),
   history: z.array(productionOrderHistoryDto).nullish(),
   version: z.number().int(),
+  // Tên đi kèm id (BE FE#286): hiện tên thay UUID / mã. `.nullish()` vì BE `non_null` bỏ trường khi không tra được.
+  salesOrderNumber: z.string().nullish(),
+  customerName: z.string().nullish(),
+  customerCode: z.string().nullish(),
+  producerName: z.string().nullish(),
+  receivingWarehouseCode: z.string().nullish(),
+  receivingWarehouseName: z.string().nullish(),
+  drawnUpByName: z.string().nullish(),
+  approvedByName: z.string().nullish(),
+  sentByName: z.string().nullish(),
 });
 
 export const productionOrderPageDto = bePageSchema(productionOrderDto);

@@ -109,7 +109,7 @@ export function TaskListBody({
     ) : (
       <EmptyState
         icon={<PackageSearch className="size-8" />}
-        title="Chưa có task xuất kho"
+        title="Chưa có nhiệm vụ lấy hàng"
         description="Chưa có đơn nào được đưa vào xuất kho trong phạm vi bạn được xem."
       />
     );
@@ -121,7 +121,7 @@ export function TaskListBody({
         columns={columns}
         data={page.items}
         rowKey={(row) => row.taskId}
-        caption={`Hiển thị ${page.items.length} / ${page.totalElements} task xuất kho`}
+        caption={`Hiển thị ${page.items.length} / ${page.totalElements} nhiệm vụ lấy hàng`}
         onRowClick={s.navigateToDetail}
         emptyState={empty}
         pageSize={s.config.pageSize}

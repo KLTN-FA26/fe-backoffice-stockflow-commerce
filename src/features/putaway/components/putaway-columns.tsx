@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { PackageCheck } from "lucide-react";
+import { Eye, PackageCheck } from "lucide-react";
 
 import { ADMIN_ROUTES, PUTAWAY_COLUMNS as C, PUTAWAY_LABELS, PUTAWAY_SOURCE } from "@/constants";
 import { formatNumber } from "@/lib/format";
 import { isPutawayTaskClosed } from "@/features/putaway/lifecycle";
 
-import { CELL, EmptyCell, statusCell, ViewAction } from "@/components/shared/column-helpers";
+import { CELL, EmptyCell, statusCell } from "@/components/shared/column-helpers";
 
 import type { ColumnDef } from "@/components/shared/DataTable";
 import type { PutawayTask } from "@/features/putaway/types";
@@ -32,21 +32,29 @@ function SourceCell({ row }: { row: PutawayTask }) {
   return <span className={CELL.text}>{L.source[row.source]}</span>;
 }
 
-/** Cất được → icon cất thùng; đã xong / không còn thao tác → icon xem. Cùng một đích: màn cất một thùng. */
+/** Nút thao tác có chữ (biểu tượng trơn khó đoán ý) — cao 44px trên màn cảm ứng của kho. */
+const ACTION_BUTTON =
+  "border-border-default bg-bg-surface text-ink-primary hover:bg-bg-muted inline-flex h-7 items-center gap-1.5 rounded-[var(--r-sm)] border px-2.5 text-xs font-medium whitespace-nowrap transition-colors pointer-coarse:h-11 pointer-coarse:px-3 pointer-coarse:text-[0.8125rem]";
+
+/** Cất được → "Cất"; đã xong / không còn thao tác → "Xem". Cùng một đích: màn cất một thùng. */
 function ActionCell({ row, href }: { row: PutawayTask; href: string }) {
   const lpn = row.lpn ?? row.id;
   // Nút là `flex` nên `text-right` của ô không đẩy được — bọc `justify-end` để thẳng mép với tiêu đề cột
   if (isPutawayTaskClosed(row.status)) {
     return (
       <div className="flex justify-end">
-        <ViewAction label={L.view(lpn)} href={href} />
+        <Link href={href} aria-label={L.view(lpn)} className={ACTION_BUTTON}>
+          <Eye className="size-3.5" />
+          {L.viewShort}
+        </Link>
       </div>
     );
   }
   return (
     <div className="flex justify-end">
-      <Link href={href} aria-label={L.putAway(lpn)} className={CELL.action}>
+      <Link href={href} aria-label={L.putAway(lpn)} className={ACTION_BUTTON}>
         <PackageCheck className="text-dot-positive size-3.5" />
+        {L.putAwayShort}
       </Link>
     </div>
   );

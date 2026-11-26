@@ -135,20 +135,20 @@ describe("PickingList — danh sách task theo BE (phân trang + lọc)", () => 
       `/admin/warehouse-map/HCM/picking/${TASK_ID}`,
     );
     expect(screen.getByRole("button", { name: STATUS_TOOL })).toBeInTheDocument();
-    expect(screen.getByText(/Phạm vi: mọi task/)).toBeInTheDocument();
+    expect(screen.getByText(/Phạm vi: mọi nhiệm vụ/)).toBeInTheDocument();
   });
 
   it("ghi chú phạm vi theo mã quyền: oversight → mọi task; còn lại (kể cả QC — BE bỏ phạm vi design-reverification) → của mình", async () => {
     renderList(<PickingList />, IDENTITIES.warehouseStaff);
     await screen.findByRole("link", { name: "3F4A5B6C" });
-    expect(screen.getByText(/Phạm vi: task được gán cho bạn/)).toBeInTheDocument();
+    expect(screen.getByText(/Phạm vi: nhiệm vụ được gán cho bạn/)).toBeInTheDocument();
     cleanup();
 
     renderList(<PickingList />, {
       permissions: [...IDENTITIES.qcStaff.permissions, "fulfillment-pick-lists:VIEW_PAGE" as const],
     });
     await screen.findByRole("link", { name: "3F4A5B6C" });
-    expect(screen.getByText(/Phạm vi: task được gán cho bạn/)).toBeInTheDocument();
+    expect(screen.getByText(/Phạm vi: nhiệm vụ được gán cho bạn/)).toBeInTheDocument();
     expect(screen.queryByText(/kiện đang bị giữ do lệch thiết kế/)).toBeNull();
   });
 
@@ -166,7 +166,7 @@ describe("PickingList — danh sách task theo BE (phân trang + lọc)", () => 
     expect(await screen.findByText("Nguyễn Văn Đạt")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: fulfillment.action.create })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /Gán lại task 3F4A5B6C/ }));
+    await user.click(screen.getByRole("button", { name: /Gán lại nhiệm vụ 3F4A5B6C/ }));
     const dialog = await screen.findByRole("dialog");
     await pickSelectOption(user, "Người được gán", /Hoàng Anh Tuấn/);
     // Danh sách người nhận lấy theo kho của task, không qua /identity/users
@@ -189,7 +189,7 @@ describe("PickingList — danh sách task theo BE (phân trang + lọc)", () => 
       apiTask({ assignedUserId: OTHER_PICKER_ID }),
     ]);
 
-    await user.click(await screen.findByRole("button", { name: /Gán lại task/ }));
+    await user.click(await screen.findByRole("button", { name: /Gán lại nhiệm vụ/ }));
     const dialog = await screen.findByRole("dialog");
     await pickSelectOption(user, "Người được gán", /Nguyễn Văn Đạt/);
     expect(within(dialog).getByRole("alert")).toHaveTextContent(fulfillment.alreadyAssigned);
@@ -203,7 +203,7 @@ describe("PickingList — danh sách task theo BE (phân trang + lọc)", () => 
       apiTask({ assignedUserId: OTHER_PICKER_ID }),
     ]);
 
-    await user.click(await screen.findByRole("button", { name: /Gán lại task/ }));
+    await user.click(await screen.findByRole("button", { name: /Gán lại nhiệm vụ/ }));
     const dialog = await screen.findByRole("dialog");
     await pickSelectOption(user, "Người được gán", /Hoàng Anh Tuấn/);
     expect(within(dialog).queryByText(fulfillment.noAssignTitle)).toBeNull();
@@ -237,7 +237,7 @@ describe("PickingList — danh sách task theo BE (phân trang + lọc)", () => 
       apiTask({ taskId: HELD_ID, pickStatus: "PICKING" }),
     ]);
     await screen.findByRole("link", { name: "3F4A5B6C" });
-    expect(screen.getAllByRole("button", { name: /Gán lại task/ })).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: /Gán lại nhiệm vụ/ })).toHaveLength(1);
   });
 
   it("QC theo seed BE không có VIEW_PAGE → bị chặn ở cổng route, không gọi API task", async () => {
@@ -248,14 +248,14 @@ describe("PickingList — danh sách task theo BE (phân trang + lọc)", () => 
 
   it("chưa có task → EmptyState riêng trong bảng (header vẫn hiện); nút tạo chỉ có một, ở toolbar", async () => {
     renderList(<PickingList />, IDENTITIES.warehouseManager, []);
-    expect(await screen.findByText("Chưa có task xuất kho")).toBeInTheDocument();
+    expect(await screen.findByText("Chưa có nhiệm vụ lấy hàng")).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: fulfillment.field.order })).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: fulfillment.action.create })).toHaveLength(1);
   });
 
   it("NV kho chưa có task → EmptyState không có nút tạo", async () => {
     renderList(<PickingList />, IDENTITIES.warehouseStaff, []);
-    expect(await screen.findByText("Chưa có task xuất kho")).toBeInTheDocument();
+    expect(await screen.findByText("Chưa có nhiệm vụ lấy hàng")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: fulfillment.action.create })).toBeNull();
   });
 });
@@ -520,7 +520,7 @@ describe("PickingList — lọc trạng thái / kho / người được gán (UR
       searchParams: "?status=PICKED",
     });
     expect(await screen.findByText(FILTER.noMatchTitle)).toBeInTheDocument();
-    expect(screen.queryByText("Chưa có task xuất kho")).toBeNull();
+    expect(screen.queryByText("Chưa có nhiệm vụ lấy hàng")).toBeNull();
     await user.click(screen.getByRole("button", { name: FILTER.clear }));
     await waitFor(() => expect(lastListParams(get)).not.toHaveProperty("status"));
   });
@@ -554,11 +554,11 @@ describe("PickingList — ẩn hiện cột (data-table-mode-a §4.2)", () => {
   const header = (label: string) =>
     screen.queryByRole("columnheader", { name: new RegExp(`^${label}`) });
 
-  it("tắt cột Người được gán → header biến mất, chip 7/9, X trả lại; cột Mã task khoá", async () => {
+  it("tắt cột Người được gán → header biến mất, chip 5/9, X trả lại; cột Mã task khoá", async () => {
     const user = userEvent.setup();
     renderList(<PickingList />, IDENTITIES.warehouseManager);
     await screen.findByRole("link", { name: "3F4A5B6C" });
-    expect(screen.getByText(`${FILTER.columns}: 8/9`)).toBeInTheDocument();
+    expect(screen.getByText(`${FILTER.columns}: 6/9`)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: COLUMNS_TOOL }));
     // Cột mã task (link sang chi tiết) luôn hiện — không tắt được
@@ -567,12 +567,12 @@ describe("PickingList — ẩn hiện cột (data-table-mode-a §4.2)", () => {
     await user.click(screen.getByRole("option", { name: FIELD.assignee }));
     expect(header(FIELD.assignee)).not.toBeInTheDocument();
     expect(header(FIELD.task)).toBeInTheDocument();
-    expect(screen.getByText(`${FILTER.columns}: 7/9`)).toBeInTheDocument();
+    expect(screen.getByText(`${FILTER.columns}: 5/9`)).toBeInTheDocument();
 
     await user.keyboard("{Escape}");
     await user.click(screen.getByRole("button", { name: `Xoá ${FILTER.columns}` }));
     expect(header(FIELD.assignee)).toBeInTheDocument();
-    expect(screen.getByText(`${FILTER.columns}: 8/9`)).toBeInTheDocument();
+    expect(screen.getByText(`${FILTER.columns}: 6/9`)).toBeInTheDocument();
   });
 
   it("cấu hình đã lưu có key lạ, thiếu cột khoá → bỏ key lạ, giữ Mã task + Thao tác", async () => {
@@ -586,7 +586,7 @@ describe("PickingList — ẩn hiện cột (data-table-mode-a §4.2)", () => {
     expect(header(FIELD.task)).toBeInTheDocument();
     expect(header(FIELD.order)).toBeInTheDocument();
     // Cột thao tác vẫn còn → nút gán lại vẫn có
-    expect(screen.getByRole("button", { name: /Gán lại task 3F4A5B6C/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Gán lại nhiệm vụ 3F4A5B6C/ })).toBeInTheDocument();
     expect(screen.getByText(`${FILTER.columns}: 2/9`)).toBeInTheDocument();
   });
 });

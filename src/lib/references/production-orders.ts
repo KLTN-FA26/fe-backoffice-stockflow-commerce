@@ -37,6 +37,10 @@ const productionOrderRefSchema = z.object({
   receivingWarehouseId: z.string(),
   sampleApprovalRequired: z.boolean(),
   needByDate: z.string().nullish(),
+  /** Ngày đơn vị sản xuất báo xong (ngày giao dự kiến) — ghi khi nhận đơn. */
+  expectedCompletionDate: z.string().nullish(),
+  /** Tên đơn vị sản xuất do BE kèm sẵn (FE#286) — dòng danh sách nêu tên, không cần quyền đọc danh mục đơn vị. */
+  producerName: z.string().nullish(),
   lines: z.array(productionLineRefSchema).default([]),
 });
 const productionOrderRefPageSchema = z.object({ items: z.array(productionOrderRefSchema) });
@@ -87,6 +91,11 @@ async function fetchByStatus(
   return productionOrderRefPageSchema.parse(data).items;
 }
 
+/** SKU của đơn, mỗi mã một lần, theo thứ tự dòng — dòng danh sách chọn Đơn sản xuất nêu hàng đang nhận. */
+export function skusOf(order: Pick<ProductionOrderRef, "lines">): string[] {
+  return [...new Set(order.lines.map((line) => line.sku))];
+}
+
 /** Hạn cần sớm nhất lên đầu; đơn chưa có hạn xếp cuối (không chen trước đơn gấp). */
 function byNeedByDate(a: ProductionOrderRef, b: ProductionOrderRef): number {
   if (!a.needByDate || !b.needByDate) return Number(!a.needByDate) - Number(!b.needByDate);
@@ -99,6 +108,8 @@ function combineReceivable(results: UseQueryResult<ProductionOrderRef[]>[]) {
     data: results
       .flatMap((result) => result.data ?? [])
       .filter(isReceivableProductionOrder)
+      // Chỉ đơn còn thùng chưa nhập — đơn đã nhập đủ không còn gì để lập phiếu
+      .filter((order) => openCartonsOf(order) > 0)
       .sort(byNeedByDate),
     isPending: results.some((result) => result.isPending),
     isError: results.some((result) => result.isError),

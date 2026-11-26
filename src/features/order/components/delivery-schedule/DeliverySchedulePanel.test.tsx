@@ -75,8 +75,8 @@ describe("Lịch giao — hiển thị (docs 17 §5.5)", () => {
     expect(within(card).getByText("Sẵn sàng")).toBeInTheDocument(); // Ready
     expect(within(card).getByText("Chờ hàng")).toBeInTheDocument(); // Awaiting Stock
     expect(within(card).getByText(formatWindowRange(inDays(10), inDays(14)))).toBeInTheDocument();
-    expect(within(card).getByText(/Đã release/)).toBeInTheDocument();
-    expect(within(card).getByText("Chưa release")).toBeInTheDocument();
+    expect(within(card).getByText(/Đã có lệnh xuất kho/)).toBeInTheDocument();
+    expect(within(card).getByText("Chưa có lệnh xuất kho")).toBeInTheDocument();
     expect(within(card).getByText("TSHIRT-WHT-M")).toBeInTheDocument();
     expect(within(card).getByText("4/4 thùng đã giữ")).toBeInTheDocument();
     expect(within(card).getByText("MUG-RED")).toBeInTheDocument();

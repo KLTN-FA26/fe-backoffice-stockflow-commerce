@@ -93,10 +93,10 @@ async function submitCancel(user: User) {
 
 /** Hộp thoại release của PR #74 (`OrderReleaseDialog`): ô "Kho xuất hàng", nút gửi "Release đơn". */
 async function submitRelease(user: User) {
-  await user.click(await screen.findByRole("button", { name: "Release đơn" }));
+  await user.click(await screen.findByRole("button", { name: "Xuất kho" }));
   await pickOrderSelectOption(user, /Kho xuất hàng/, /HN — Kho Hà Nội/);
   const dialog = screen.getByRole("dialog");
-  await user.click(within(dialog).getByRole("button", { name: "Release đơn" }));
+  await user.click(within(dialog).getByRole("button", { name: "Xuất kho" }));
   return dialog;
 }
 
@@ -248,7 +248,7 @@ describe("Release — dialog khi đang gửi", { timeout: DIALOG_FLOW_TIMEOUT_MS
     await act(async () => pending.reject(new ApiError(409, "LOCK_TIMEOUT", "busy")));
 
     await within(dialog).findByText(/đang được xử lý ở nơi khác/);
-    await user.click(within(dialog).getByRole("button", { name: "Release đơn" }));
+    await user.click(within(dialog).getByRole("button", { name: "Xuất kho" }));
     await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
     expect(keyOf(post, 1)).toBe(keyOf(post, 0));
   });
@@ -325,10 +325,10 @@ describe("Bấm đúp nút gửi → đúng 1 request", { timeout: DIALOG_FLOW_T
     const user = setupUser();
     await renderDetail(confirmed);
     const post = slowPost({ ...confirmed, status: "READY_TO_FULFILL" });
-    await user.click(await screen.findByRole("button", { name: "Release đơn" }));
+    await user.click(await screen.findByRole("button", { name: "Xuất kho" }));
     await pickOrderSelectOption(user, /Kho xuất hàng/, /HN — Kho Hà Nội/);
     await user.dblClick(
-      within(screen.getByRole("dialog")).getByRole("button", { name: "Release đơn" }),
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Xuất kho" }),
     );
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expect(post).toHaveBeenCalledTimes(1);

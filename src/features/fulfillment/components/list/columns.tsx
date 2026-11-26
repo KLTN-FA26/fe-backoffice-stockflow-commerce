@@ -50,7 +50,7 @@ export function buildTaskColumns({
           className={`${CELL.code} hover:underline`}
           onClick={(event) => event.stopPropagation()}
         >
-          {taskCode(row.taskId)}
+          {taskCode(row)}
         </Link>
       ),
     },
@@ -91,6 +91,8 @@ export function buildTaskColumns({
     {
       key: C.ACTIONS,
       header: "",
+      // Ghim phải: nút xem / gán không bị cắt khi bảng rộng hơn màn hình
+      sticky: "right",
       // Nút xem luôn có (dòng cao chuẩn 43px); nút giao việc chỉ khi lifecycle cho phép
       cell: (row) => {
         const canAssign =
@@ -98,7 +100,7 @@ export function buildTaskColumns({
           allowedFulfillmentActions(row, actor).some((a) => a.code === "assign");
         return (
           <div className="flex items-center gap-1.5">
-            <ViewAction label={`Xem task ${taskCode(row.taskId)}`} href={detailHref(row.taskId)} />
+            <ViewAction label={`Xem nhiệm vụ ${taskCode(row)}`} href={detailHref(row.taskId)} />
             {canAssign && (
               <button
                 type="button"
@@ -107,7 +109,7 @@ export function buildTaskColumns({
                   onAssign(row);
                 }}
                 className={CELL.action}
-                aria-label={`${UI_LABELS.fulfillment.action.assign} task ${taskCode(row.taskId)}`}
+                aria-label={`${UI_LABELS.fulfillment.action.assign} nhiệm vụ ${taskCode(row)}`}
               >
                 <UserCog className="size-3.5" />
               </button>

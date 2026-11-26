@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { cn } from "cn";
 
 import { UI_LABELS } from "@/constants";
@@ -43,6 +44,12 @@ export function AssigneeSelect({
   autoFocus?: boolean;
 }) {
   const users = useAssignees(warehouseId, canAssign);
+  // Kho chỉ có đúng một nhân viên nhận được → chọn sẵn (R6); giao lại cho người đang được gán thì không chọn thay
+  const onlyUserId = users.data?.length === 1 ? users.data[0]?.userId : undefined;
+  const selectOnly = onlyUserId && onlyUserId !== currentUserId ? onlyUserId : undefined;
+  useEffect(() => {
+    if (selectOnly && !value) onChange(selectOnly);
+  }, [selectOnly, value, onChange]);
 
   if (!canAssign) {
     return (

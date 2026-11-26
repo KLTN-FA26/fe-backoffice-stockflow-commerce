@@ -60,7 +60,7 @@ export function CartonCheckStatusCard({
         <div className="flex items-center justify-between gap-3">
           <dt className="text-ink-secondary">{UI_LABELS.fulfillment.field.order}</dt>
           <dd className={`text-ink-primary truncate font-medium ${MONO}`}>
-            {session.orderNumber ?? taskCode(session.taskId)}
+            {session.orderNumber ?? taskCode(session)}
           </dd>
         </div>
         <div className="flex items-center justify-between">

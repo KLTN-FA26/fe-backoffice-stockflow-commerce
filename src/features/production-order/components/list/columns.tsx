@@ -6,11 +6,20 @@ import { formatNumber } from "@/lib/format";
 import {
   productionOrderTotals,
   receivingWarehouseCode,
+  receivingWarehouseName,
 } from "@/features/production-order/selectors";
 
-import { CELL, codeCell, dateCell, textCell, ToneDot } from "@/components/shared/column-helpers";
+import {
+  CELL,
+  codeCell,
+  dateCell,
+  EmptyCell,
+  StackText,
+  textCell,
+  ToneDot,
+} from "@/components/shared/column-helpers";
 
-import { producerLabel, ProductionStatusDot, shortId } from "../parts";
+import { producerLabel, ProductionStatusDot } from "../parts";
 
 import type { ProducerRef } from "@/lib/references/producer-options";
 import type { ColumnDef } from "@/components/shared/DataTable";
@@ -28,17 +37,19 @@ export function buildProductionOrderColumns(
     textCell<ProductionOrder>(
       C.PRODUCER,
       col.producer,
-      (row) => producerLabel(producerOf(row.producerId), row.producerId),
+      (row) => producerLabel(producerOf(row.producerId), row.producerName),
       { color: "primary" },
     ),
     {
       key: C.WAREHOUSE,
       header: col.warehouse,
-      cell: (row) => (
-        <span className={CELL.ref}>
-          {receivingWarehouseCode(row) ?? shortId(row.receivingWarehouseId)}
-        </span>
-      ),
+      // Tên kho (BE kèm sẵn, FE#286), mã nhỏ ở dòng dưới — không còn mã trần "BDG" / "HNI"
+      cell: (row) => {
+        const name = receivingWarehouseName(row);
+        if (!name) return <EmptyCell />;
+        const code = receivingWarehouseCode(row);
+        return <StackText main={name} sub={code && code !== name ? code : undefined} />;
+      },
     },
     dateCell<ProductionOrder>(C.NEED_BY, col.needBy, (row) => row.needByDate),
     dateCell<ProductionOrder>(C.EXPECTED, col.expected, (row) => row.expectedCompletionDate),
@@ -68,6 +79,9 @@ export function buildProductionOrderColumns(
     {
       key: C.STATUS,
       header: col.status,
+      // Ghim phải + không xuống dòng: bảng rộng hơn màn hình vẫn thấy đủ nhãn trạng thái ("Đang sản xuất"), không bị cắt
+      sticky: "right",
+      className: "whitespace-nowrap",
       cell: (row) => <ProductionStatusDot status={row.status} />,
     },
   ];

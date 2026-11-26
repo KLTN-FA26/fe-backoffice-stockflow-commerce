@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FormProvider, useForm } from "react-hook-form";
+import { FormProvider, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Save } from "lucide-react";
 
@@ -10,9 +10,14 @@ import { receiptCountInputSchema } from "@/features/receipt/count-schemas";
 import { countFieldErrors, toLinesRequest } from "@/features/receipt/count-selectors";
 import { isStaleReceiptError, receiptErrorMessage } from "@/features/receipt/errors";
 import { useReplaceReceiptLines } from "@/features/receipt/mutations";
+import { ScrollShadowBox } from "@/components/backoffice/ScrollShadowBox";
 import { Alert } from "@/components/shared/Alert";
+import { FormSelect } from "@/components/shared/FormSelect";
+import { FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
 import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { CountLineRow } from "./CountLineRow";
 
@@ -86,10 +91,47 @@ export function ReceiptCountForm({
     );
   });
 
+  const rowValues = useWatch({ control: form.control, name: "rows" });
+  // Một khu nhận cho cả phiếu: chọn một lần áp cho mọi dòng; các dòng đã khác nhau thì hiện "Mỗi dòng một khu"
+  const firstLocation = rowValues[0]?.locationCode ?? "";
+  const sharedLocation = rowValues.every((row) => row.locationCode === firstLocation)
+    ? firstLocation
+    : "";
+  const applyLocationToAll = (code: string) =>
+    rowValues.forEach((_, index) =>
+      form.setValue(`rows.${index}.locationCode`, code, { shouldDirty: true }),
+    );
+
   return (
     <FormProvider {...form}>
       <form onSubmit={(event) => void submit(event)} noValidate className="space-y-3">
-        <div className="border-border-default overflow-x-auto rounded-[var(--r-sm)] border">
+        {rows.length > 1 && areas.length > 1 && (
+          <div className="max-w-sm space-y-1">
+            <Label htmlFor="count-all-location" className="text-ink-primary text-[0.8125rem]">
+              {C.allLocation}
+            </Label>
+            <FormSelect value={sharedLocation} onValueChange={applyLocationToAll}>
+              <SelectTrigger id="count-all-location" className={FORM_SELECT_CLASS}>
+                <SelectValue
+                  placeholder={
+                    rowValues.length > 0 && sharedLocation === "" && firstLocation !== ""
+                      ? C.allLocationMixed
+                      : C.allLocationPlaceholder
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {areas.map((area) => (
+                  <SelectItem key={area.locationCode} value={area.locationCode}>
+                    {area.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </FormSelect>
+            <p className="text-ink-tertiary text-xs">{C.allLocationHint}</p>
+          </div>
+        )}
+        <ScrollShadowBox>
           <table className="w-full text-[0.8125rem]">
             <caption className="sr-only">{C.caption}</caption>
             <thead className="bg-bg-subtle text-ink-secondary">
@@ -116,7 +158,7 @@ export function ReceiptCountForm({
               ))}
             </tbody>
           </table>
-        </div>
+        </ScrollShadowBox>
         <p className="text-ink-tertiary text-xs">{C.voidHint}</p>
         {rootError && (
           <p role="alert" className="text-danger text-xs">

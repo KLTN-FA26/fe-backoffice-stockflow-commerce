@@ -45,6 +45,20 @@ function WarehouseName({ warehouseId }: { warehouseId: string }) {
   );
 }
 
+/** Tên kho BE kèm sẵn trong đơn (FE#286): không gọi API, ai xem đơn cũng thấy; mã kho nhỏ ở dòng dưới. */
+function WarehouseLabel({ name, code }: { name: string; code: string | null }) {
+  return (
+    <>
+      <span className="block truncate">{name}</span>
+      {code && code !== name && (
+        <span className="text-ink-secondary block font-[family-name:var(--font-mono)] text-xs">
+          {code}
+        </span>
+      )}
+    </>
+  );
+}
+
 /** Mốc thời gian vòng đời đơn (BE PR #133) — chỉ hiện mốc đã có. */
 const MILESTONES = [
   ["packedAt", "Đóng gói xong"],
@@ -115,7 +129,9 @@ export function OrderInfoCard({ order, can }: OrderInfoCardProps) {
         </dd>
         <dt className="text-ink-secondary">Kho xuất</dt>
         <dd className="text-ink-primary">
-          {order.warehouseId ? (
+          {order.warehouseName ? (
+            <WarehouseLabel name={order.warehouseName} code={order.warehouseCode} />
+          ) : order.warehouseId ? (
             <WarehouseName warehouseId={order.warehouseId} />
           ) : (
             "Chưa chọn kho xuất"
@@ -123,7 +139,7 @@ export function OrderInfoCard({ order, can }: OrderInfoCardProps) {
         </dd>
         {order.releasedAt && (
           <>
-            <dt className="text-ink-secondary">Release lúc</dt>
+            <dt className="text-ink-secondary">Xuất kho lúc</dt>
             <dd className="text-ink-primary tabular-nums">{formatDateTime(order.releasedAt)}</dd>
           </>
         )}

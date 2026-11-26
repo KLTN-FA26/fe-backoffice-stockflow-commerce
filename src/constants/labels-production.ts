@@ -183,7 +183,10 @@ export const PRODUCTION_LABELS = {
     historyEmpty: "Chưa có lịch sử.",
     system: "Hệ thống",
     you: "Bạn",
-    userShort: (id: string) => `NV ${id.slice(0, 8)}`,
+    youNamed: (name: string) => `${name} (bạn)`,
+    // Đơn cũ / tài khoản không còn: không hiện mã nhân viên
+    unknownUser: "Nhân viên",
+    salesOrderFallback: "Đơn bán",
     capacityTitle: "Cảnh báo sức chứa kho nhận",
     capacityProjected: (code: string) =>
       `Thể tích Đơn sản xuất vượt còn trống dự kiến của kho ${code}.`,
@@ -222,6 +225,9 @@ export const PRODUCTION_LABELS = {
     attempt: (n: number, generation: number) =>
       generation > 0 ? `Lần ${n} · gửi lại #${generation}` : `Lần ${n}`,
     pdfChannelHint: "Kênh PDF: tải phiếu và tự giao cho đơn vị sản xuất.",
+    // Thư gửi đơn vị sản xuất lỗi — cảnh báo ngay cạnh trạng thái (BE#477: đơn vẫn ghi "Đã gửi")
+    mailFailed:
+      "Thư gửi đơn vị sản xuất bị lỗi nên đơn vị chưa nhận được. Bấm Gửi lại mail ở mục Gửi cho đơn vị sản xuất.",
   },
   actions: {
     title: "Trạng thái & thao tác",
@@ -230,6 +236,7 @@ export const PRODUCTION_LABELS = {
     accept: "Ghi nhận nhận đơn",
     changeExpected: "Đổi ngày dự kiến",
     startProduction: "Bắt đầu sản xuất",
+    createReceipt: "Lập phiếu nhập",
     cancel: "Huỷ đơn",
     close: "Đóng đơn",
     sampleBlocksStart:
@@ -237,8 +244,17 @@ export const PRODUCTION_LABELS = {
   },
   dialogs: {
     sendTitle: "Gửi Đơn sản xuất cho đơn vị sản xuất?",
-    sendDescription:
-      "Chỉ gửi khi đã thoả thuận với đơn vị sản xuất. Hệ thống kiểm lại file in, xuất phiếu PDF và gửi qua kênh của đơn vị; đơn bán chuyển Chờ hàng, Quản lý kho của kho nhận và Sales Manager được báo. Gửi rồi không rút lại — đơn vị rút lui thì huỷ và lập đơn mới.",
+    sendDescription: "Chỉ gửi khi đã thoả thuận với đơn vị sản xuất.",
+    // Ba ý ngắn thay đoạn văn dài (R7): việc hệ thống làm, ai được báo, không rút lại được
+    sendSteps: [
+      "Hệ thống kiểm file in, tạo phiếu PDF và gửi cho đơn vị qua kênh của đơn vị.",
+      "Đơn bán chuyển sang Chờ hàng; Quản lý kho nhận và Quản lý kinh doanh nhận thông báo.",
+      "Gửi rồi không rút lại được — đơn vị rút lui thì huỷ và lập đơn mới.",
+    ],
+    // Lỗi kho tệp khi gửi: nói đơn còn Nháp, việc tiếp theo và ai xử lý (không nói "Kho lưu trữ tệp đang lỗi")
+    sendStorageError:
+      "Chưa lưu được phiếu Đơn sản xuất nên chưa gửi. Đơn vẫn là Nháp, chưa mất gì. Bấm Thử lại; nếu vẫn lỗi, báo Quản trị hệ thống.",
+    retry: "Thử lại",
     cancelTitle: "Huỷ Đơn sản xuất",
     cancelDescription:
       "Chỉ huỷ được khi chưa in hàng loạt. Đơn đã gửi thì hệ thống báo đơn vị sản xuất dừng.",
@@ -261,6 +277,11 @@ export const PRODUCTION_LABELS = {
     expectedDate: "Ngày hoàn thành dự kiến",
     expectedRequired: "Chọn ngày hoàn thành dự kiến",
     expectedPast: "Ngày dự kiến không được ở quá khứ",
+    // Nút ngày nhanh + lý do nút Xác nhận đang khoá (R7)
+    quickLabel: "Chọn nhanh ngày",
+    quickNeedBy: "Bằng ngày cần hàng",
+    quickDays: (days: number) => `Sau ${days} ngày`,
+    expectedMissing: "Cần chọn ngày hoàn thành dự kiến mới xác nhận được.",
     later: (needBy: string) => `Muộn hơn ngày cần hàng ${needBy} — sẽ có cảnh báo Nguy cơ trễ.`,
     confirm: "Xác nhận",
   },
@@ -300,6 +321,8 @@ export const PRODUCTION_LABELS = {
     lines: "Dòng thiếu",
     alerts: "Cảnh báo",
     action: "Lập",
+    producerSearch: "Gõ mã hoặc tên đơn vị…",
+    producerNoMatch: "Không có đơn vị sản xuất nào khớp.",
     dialogTitle: "Lập Đơn sản xuất",
     dialogDescription: (order: string, seq: number) =>
       `Đơn bán ${order}, đợt ${seq}. Chọn đơn vị sản xuất đang dùng — đơn nháp được tạo với các dòng còn thiếu của đợt.`,
@@ -463,5 +486,5 @@ export const PRODUCTION_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   SAMPLE_ROUND_NOT_FOUND: "Không tìm thấy vòng mẫu.",
   UNSUPPORTED_MEDIA_TYPE: "Loại tệp không được hỗ trợ.",
   PAYLOAD_TOO_LARGE: "Tệp lớn hơn 100 MB.",
-  STORAGE_ERROR: "Kho lưu trữ tệp đang lỗi. Thử lại sau.",
+  STORAGE_ERROR: "Chưa lưu được tệp. Bấm Thử lại; nếu vẫn lỗi, báo Quản trị hệ thống.",
 };

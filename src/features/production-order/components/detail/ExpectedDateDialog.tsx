@@ -5,7 +5,7 @@ import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import { PRODUCTION_LABELS } from "@/constants";
-import { todayIso } from "@/lib/date-range";
+import { addDays, todayIso } from "@/lib/date-range";
 import { formatDate } from "@/lib/format/date";
 
 import { productionOrderErrorMessage } from "@/features/production-order/errors";
@@ -21,6 +21,7 @@ import { DatePicker } from "@/components/shared/DatePicker";
 import { FORM_TEXTAREA_CLASS } from "@/components/shared/form-control-classes";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { fieldA11y, FormField } from "@/components/shared/FormField";
+import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
 import type { ExpectedDateValues, ProductionOrder } from "@/features/production-order/types";
@@ -36,6 +37,9 @@ const COPY = {
 
 /** Ngày đã ghi đã qua thì không điền sẵn — ngày quá khứ làm form hỏng mà chưa hiện lỗi (nút Xác nhận tắt không rõ lý do). */
 const prefill = (date: string | null | undefined) => (date && date >= todayIso() ? date : "");
+
+/** Nút ngày nhanh: ngày đơn vị sản xuất báo thường gần ngày cần hàng hoặc 1–2 tuần nữa; không tự điền, người dùng bấm chọn. */
+const QUICK_OFFSETS = [7, 14] as const;
 
 /**
  * Ghi ngày hoàn thành dự kiến (docs 17 §4.3 bước 8, 10): nhận đơn (bắt buộc), đổi ngày, bắt đầu sản xuất (tuỳ chọn —
@@ -117,6 +121,36 @@ export function ExpectedDateDialog({
             )}
           />
         </FormField>
+        <div className="flex flex-wrap items-center gap-2" role="group" aria-label={D.quickLabel}>
+          {[
+            { key: "needBy", label: D.quickNeedBy, value: order.needByDate },
+            ...QUICK_OFFSETS.map((days) => ({
+              key: `+${days}`,
+              label: D.quickDays(days),
+              value: addDays(todayIso(), days),
+            })),
+          ].map((quick) => (
+            <Button
+              key={quick.key}
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={quick.value < todayIso()}
+              aria-pressed={date === quick.value}
+              onClick={() =>
+                form.setValue("date", quick.value, { shouldValidate: true, shouldDirty: true })
+              }
+              className="h-8 rounded-[var(--r-sm)] text-[0.8125rem]"
+            >
+              {quick.label}
+            </Button>
+          ))}
+        </div>
+        {mode !== "start" && !date && (
+          <p role="status" className="text-ink-secondary text-xs">
+            {D.expectedMissing}
+          </p>
+        )}
         {date && date > order.needByDate && (
           <Alert tone="warning">{D.later(formatDate(order.needByDate))}</Alert>
         )}

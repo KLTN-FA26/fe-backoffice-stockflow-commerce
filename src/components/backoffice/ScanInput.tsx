@@ -5,6 +5,7 @@ import { cn } from "cn";
 import { CheckCircle2, Loader2, ScanLine, XCircle } from "lucide-react";
 
 import { useScanInput } from "@/hooks/use-scan-input";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -30,6 +31,11 @@ interface ScanInputProps {
   maxLength?: number;
   /** Kết quả lần quét gần nhất — viền + dòng thông báo đổi màu, đọc qua `aria-live`. */
   feedback?: ScanFeedback | null;
+  /**
+   * Nút xác nhận cạnh ô (cao 48px như ô) cho người gõ tay không dùng máy quét — bấm là gửi mã đang gõ như Enter.
+   * Vắng = chỉ Enter (máy quét gửi Enter sau mã).
+   */
+  submitLabel?: string;
 }
 
 const FEEDBACK_CLASSES: Record<ScanFeedback["tone"], { field: string; text: string }> = {
@@ -61,6 +67,7 @@ export function ScanInput({
   disabled = false,
   maxLength,
   feedback,
+  submitLabel,
 }: ScanInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const scan = useScanInput(inputRef, { onScan, disabled });
@@ -72,30 +79,44 @@ export function ScanInput({
       <Label htmlFor={id} className="text-ink-primary text-[0.8125rem] font-semibold">
         {label}
       </Label>
-      <div className="relative">
-        <ScanLine className="text-accent pointer-events-none absolute top-1/2 left-3 size-5 -translate-y-1/2" />
-        <Input
-          id={id}
-          ref={inputRef}
-          value={scan.value}
-          onChange={scan.onChange}
-          onKeyDown={scan.onKeyDown}
-          onBlur={scan.onBlur}
-          disabled={disabled}
-          maxLength={maxLength}
-          placeholder={placeholder}
-          autoComplete="off"
-          spellCheck={false}
-          // Trỏ tới gợi ý (luôn có) — kết quả quét đã đọc qua vùng live, không đọc lặp lần hai
-          aria-describedby={hint ? `${id}-hint` : undefined}
-          className={cn(
-            // `dark:bg-bg-surface`: Input shadcn có `dark:bg-input/30` đè nền + màu phản hồi ở dark mode
-            "border-border-default bg-bg-surface dark:bg-bg-surface focus-visible:border-brand focus-visible:ring-brand/20 h-12 rounded-[var(--r-sm)] pr-10 pl-11 font-[family-name:var(--font-mono)] text-base tracking-wide md:text-base",
-            tone?.field,
+      <div className={submitLabel ? "flex gap-2" : undefined}>
+        <div className="relative min-w-0 flex-1">
+          <ScanLine className="text-accent pointer-events-none absolute top-1/2 left-3 size-5 -translate-y-1/2" />
+          <Input
+            id={id}
+            ref={inputRef}
+            value={scan.value}
+            onChange={scan.onChange}
+            onKeyDown={scan.onKeyDown}
+            onBlur={scan.onBlur}
+            disabled={disabled}
+            maxLength={maxLength}
+            placeholder={placeholder}
+            autoComplete="off"
+            spellCheck={false}
+            // Trỏ tới gợi ý (luôn có) — kết quả quét đã đọc qua vùng live, không đọc lặp lần hai
+            aria-describedby={hint ? `${id}-hint` : undefined}
+            className={cn(
+              // `dark:bg-bg-surface`: Input shadcn có `dark:bg-input/30` đè nền + màu phản hồi ở dark mode
+              "border-border-default bg-bg-surface dark:bg-bg-surface focus-visible:border-brand focus-visible:ring-brand/20 h-12 rounded-[var(--r-sm)] pr-10 pl-11 font-[family-name:var(--font-mono)] text-base tracking-wide md:text-base",
+              tone?.field,
+            )}
+          />
+          {pending && (
+            <Loader2 className="text-ink-tertiary absolute top-1/2 right-3 size-4 -translate-y-1/2 animate-spin" />
           )}
-        />
-        {pending && (
-          <Loader2 className="text-ink-tertiary absolute top-1/2 right-3 size-4 -translate-y-1/2 animate-spin" />
+        </div>
+        {submitLabel && (
+          <Button
+            type="button"
+            disabled={disabled}
+            // Giữ focus ở ô quét: bấm nút không được cướp focus của máy quét
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={scan.submit}
+            className="bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse h-12 shrink-0 rounded-[var(--r-sm)] px-4 text-sm"
+          >
+            {submitLabel}
+          </Button>
         )}
       </div>
       {/* Hai vùng live cố định (đổi `role` trên cùng một node thì trình đọc màn hình đọc không ổn

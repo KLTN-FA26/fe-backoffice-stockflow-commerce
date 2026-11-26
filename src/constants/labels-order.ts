@@ -429,8 +429,8 @@ export const ORDER_ERROR_MESSAGES = {
   WAREHOUSE_NOT_FOUND: "Không tìm thấy kho đã chọn. Chọn lại kho.",
   WAREHOUSE_INACTIVE: "Kho đã chọn không còn hoạt động. Chọn kho khác.",
   DESIGN_SAMPLE_NOT_APPROVED:
-    "Đơn có thiết kế mới chưa có mẫu thử khách đã duyệt — chưa release được (BR-PRD-08).",
-  ORDER_DEPOSIT_NOT_RECEIVED: "Tiền cọc của đơn chưa về — chưa release được (BR-PRD-09).",
+    "Đơn có thiết kế mới chưa có mẫu thử khách đã duyệt — chưa xuất kho được (BR-PRD-08).",
+  ORDER_DEPOSIT_NOT_RECEIVED: "Tiền cọc của đơn chưa về — chưa xuất kho được (BR-PRD-09).",
 } as const;
 
 export type OrderErrorCode = keyof typeof ORDER_ERROR_MESSAGES;

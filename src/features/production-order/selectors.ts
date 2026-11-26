@@ -1,6 +1,11 @@
 /** Selector thuần của Đơn sản xuất — không side effect, test được không cần React. */
 
-import type { EditInput, ProductionOrder, ProductionOrderEditValues } from "./types";
+import type {
+  EditInput,
+  ProductionOrder,
+  ProductionOrderDispatch,
+  ProductionOrderEditValues,
+} from "./types";
 
 export interface ProductionOrderTotals {
   cartons: number;
@@ -28,9 +33,21 @@ export function hasCapacityWarning(order: Pick<ProductionOrder, "capacity">): bo
   return Boolean(capacity && (capacity.exceedsProjected || capacity.exceedsIfAllApproved));
 }
 
-/** Mã kho nhận để hiện — bảng sức chứa kèm trong response (Điều phối sản xuất không có quyền đọc danh mục kho). */
-export const receivingWarehouseCode = (order: Pick<ProductionOrder, "capacity">): string | null =>
-  order.capacity?.board.warehouseCode ?? null;
+/** Mã kho nhận — BE kèm `receivingWarehouseCode`; đơn cũ thì lấy từ bảng sức chứa trong response. */
+export const receivingWarehouseCode = (
+  order: Pick<ProductionOrder, "capacity" | "receivingWarehouseCode">,
+): string | null => order.receivingWarehouseCode ?? order.capacity?.board.warehouseCode ?? null;
+
+/**
+ * Tên kho nhận để hiện (Điều phối sản xuất không có quyền đọc danh mục kho — tên do BE kèm, FE#286). Chưa có tên thì
+ * mã kho; không có cả hai thì `null`.
+ */
+export const receivingWarehouseName = (
+  order: Pick<ProductionOrder, "capacity" | "receivingWarehouseCode" | "receivingWarehouseName">,
+): string | null =>
+  order.receivingWarehouseName ??
+  order.capacity?.board.warehouseName ??
+  receivingWarehouseCode(order);
 
 /** Bản ghi → giá trị form sửa nháp. */
 export function editValuesOf(order: ProductionOrder): ProductionOrderEditValues {
@@ -102,4 +119,16 @@ export function matchesProductionOrder(order: ProductionOrder, query: string): b
 export function shortageFromMessage(message: string | undefined): number | null {
   const match = message?.match(/lacks (\d+) carton/);
   return match ? Number(match[1]) : null;
+}
+
+/**
+ * Lần gửi mail gần nhất tới đơn vị sản xuất có lỗi không (kênh Email): đơn vẫn ghi "Đã gửi" dù thư lỗi (BE#477), nên
+ * màn nhắc ngay cạnh trạng thái. Lần mới nhất = thế hệ gửi lại lớn nhất rồi số lần thử lớn nhất.
+ */
+export function latestMailFailed(dispatch: ProductionOrderDispatch | undefined): boolean {
+  if (!dispatch || dispatch.channel === "PDF") return false;
+  const latest = [...dispatch.messages.items].sort(
+    (a, b) => b.generation - a.generation || b.attemptNumber - a.attemptNumber,
+  )[0];
+  return latest?.status === "FAILED";
 }

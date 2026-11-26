@@ -12,7 +12,7 @@ export const ORDER_SHIPPING_WAREHOUSE_LABELS = {
     title: "Kho xuất",
     none: "Chưa chọn kho xuất",
     noneHint:
-      "Chọn kho xuất để giữ hàng cho đơn. Quản lý kho chỉ release được khi đơn đã giữ đủ thùng ở kho xuất.",
+      "Chọn kho xuất để giữ hàng cho đơn. Quản lý kho chỉ ra lệnh xuất kho được khi đơn đã giữ đủ thùng ở kho xuất.",
     chosen: (warehouse: string) => `Kho xuất: ${warehouse}`,
     chosenUnknown: "đã chọn",
     loading: "Đang tải tình trạng giữ hàng…",
@@ -23,7 +23,7 @@ export const ORDER_SHIPPING_WAREHOUSE_LABELS = {
     change: "Đổi kho xuất",
   },
   coverage: {
-    full: "Đã giữ đủ hàng — quản lý kho có thể release đơn.",
+    full: "Đã giữ đủ hàng — quản lý kho có thể xuất kho cho đơn.",
     partial: (held: number, total: number) =>
       `Đã giữ ${held}/${total} thùng. Phần còn thiếu sẽ được giữ tiếp khi hàng nhập kho.`,
     nothing: "Chưa giữ được thùng nào. Hàng sẽ được giữ khi nhập kho; phần thiếu cần Đơn sản xuất.",

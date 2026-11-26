@@ -13,7 +13,7 @@ import { toast } from "@/components/shared/Toast";
 
 import { LPN_1, PICK_LINE_1, apiPickLines } from "../__fixtures__/pick-lines";
 import { linePath, renderPickingDetail } from "../__fixtures__/picking-detail";
-import { IDENTITIES, pickInputComboboxOption, pickSelectOption } from "../__fixtures__/render";
+import { IDENTITIES, pickSelectOption, scanCode } from "../__fixtures__/render";
 import { OTHER_PICKER_ID, TASK_ID, apiTask, stagedTask } from "../__fixtures__/task";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
@@ -38,8 +38,8 @@ describe("Task đích STAGING — lấy hàng về khu chờ xuất", () => {
     const user = userEvent.setup();
     const { post } = renderPickingDetail(IDENTITIES.warehouseStaff, stagingPicking());
     await screen.findByText(L.confirmTitle(1));
-    await pickInputComboboxOption(user, L.location, "HN-A01-01-01-A");
-    await user.type(screen.getByLabelText(L.lpn), `${LPN_1}{Enter}`);
+    await scanCode(user, L.scanLocation, "HN-A01-01-01-A");
+    await scanCode(user, L.scanLpn, LPN_1);
     await waitFor(() =>
       expect(post).toHaveBeenCalledWith(
         linePath(PICK_LINE_1, "confirmation"),
@@ -70,7 +70,7 @@ describe("Task đích STAGING — lấy hàng về khu chờ xuất", () => {
 
   it("thông tin task nói đích STAGING, khu chờ xuất và mốc về khu", async () => {
     renderPickingDetail(IDENTITIES.warehouseStaff, stagedTask(), { lines: stagedLines() });
-    const info = (await screen.findByText("Thông tin task")).closest("section") as HTMLElement;
+    const info = (await screen.findByText("Thông tin nhiệm vụ")).closest("section") as HTMLElement;
     // "Khu chờ xuất" vừa là tên đích vừa là nhãn ô khu chờ xuất của task
     expect(within(info).getByText(UI_LABELS.fulfillment.field.destination)).toBeInTheDocument();
     expect(within(info).getAllByText(D.STAGING)).toHaveLength(2);
@@ -80,7 +80,7 @@ describe("Task đích STAGING — lấy hàng về khu chờ xuất", () => {
 
   it("task DISPATCH: thông tin task nói khu xuất hàng, không có khu chờ xuất", async () => {
     renderPickingDetail(IDENTITIES.warehouseStaff, apiTask());
-    const info = (await screen.findByText("Thông tin task")).closest("section") as HTMLElement;
+    const info = (await screen.findByText("Thông tin nhiệm vụ")).closest("section") as HTMLElement;
     expect(within(info).getByText(D.DISPATCH)).toBeInTheDocument();
     expect(within(info).queryByText(UI_LABELS.fulfillment.field.stagingLocation)).toBeNull();
   });
@@ -120,7 +120,7 @@ describe("Chuyển cả task sang khu xuất hàng — action-gating (docs 07 §
       apiTask({ pickStatus: "CANCELLED", packStatus: "CANCELLED" }),
     ]) {
       const view = renderPickingDetail(IDENTITIES.warehouseManager, task);
-      await screen.findByText("Thông tin task");
+      await screen.findByText("Thông tin nhiệm vụ");
       expect(screen.queryByRole("button", { name: action.moveToDispatch })).toBeNull();
       expect(view.post).not.toHaveBeenCalled();
       document.body.innerHTML = "";
@@ -200,7 +200,7 @@ describe("Thùng ở khu chờ xuất bị thiếu — task Staged (docs 20 §4.
     const dialog = await screen.findByRole("dialog");
     // Thùng đứng ở khu chờ xuất nên dialog nói khu đó, không phải bin đã lấy ra
     expect(dialog).toHaveTextContent("HN-STAGE-01");
-    await pickInputComboboxOption(user, L.location, "HN-STAGE-01");
+    await scanCode(user, L.shortScanLocation, "HN-STAGE-01", dialog);
     await pickSelectOption(user, L.shortReason, L.shortReasons.NOT_FOUND);
     await user.click(within(dialog).getByRole("button", { name: L.shortAction }));
     await waitFor(() =>

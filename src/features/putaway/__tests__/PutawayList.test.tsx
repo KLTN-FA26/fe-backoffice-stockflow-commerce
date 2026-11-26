@@ -13,6 +13,12 @@ import { task } from "./fixtures";
 import type { TestRole } from "@/test/api-screen";
 import type { PutawayTask } from "../types";
 
+const push = vi.fn();
+vi.mock("next/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/navigation")>()),
+  useRouter: () => ({ push, replace: vi.fn(), prefetch: vi.fn() }),
+}));
+
 const L = PUTAWAY_LABELS;
 const HCM = { id: "wh-1", prefix: "HCM", name: "Kho Hồ Chí Minh" };
 
@@ -66,6 +72,7 @@ const lpnCells = () =>
 afterEach(() => {
   vi.restoreAllMocks();
   window.localStorage.clear();
+  push.mockReset();
 });
 
 describe("PutawayList (docs 05 §4.2)", () => {
@@ -169,5 +176,32 @@ describe("PutawayList (docs 05 §4.2)", () => {
     const spies = setup({ role: "QC_STAFF" });
     expect(await screen.findByText(PERMISSION_UI.deniedTitle)).toBeInTheDocument();
     expect(taskCalls(spies)).toHaveLength(0);
+  });
+
+  it("ô quét LPN ngay trên danh sách: quét LPN (không phân biệt hoa thường) → mở đúng thùng đó (S13-2)", async () => {
+    const user = userEvent.setup();
+    setup();
+    await screen.findByText("LPN-1");
+    const scan = screen.getByLabelText(L.scanLabel);
+    expect(scan).toHaveClass("h-12");
+    await user.type(scan, "lpn-2{Enter}");
+    expect(push).toHaveBeenCalledWith("/admin/warehouse-map/HCM/putaway/t-2");
+  });
+
+  it("quét LPN không có trong danh sách chờ cất → báo ngay tại ô quét, không chuyển trang", async () => {
+    const user = userEvent.setup();
+    setup();
+    await screen.findByText("LPN-1");
+    await user.type(screen.getByLabelText(L.scanLabel), "LPN-404{Enter}");
+    expect((await screen.findAllByText(L.scanNotFound("LPN-404"))).length).toBeGreaterThan(0);
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("nút thao tác trong bảng có chữ 'Cất' (không chỉ biểu tượng)", async () => {
+    setup();
+    await screen.findByText("LPN-1");
+    expect(screen.getAllByRole("link", { name: /^Cất thùng LPN-/ })[0]).toHaveTextContent(
+      L.putAwayShort,
+    );
   });
 });

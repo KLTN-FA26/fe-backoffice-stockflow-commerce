@@ -52,17 +52,17 @@ export function isSecondaryCode(code: FulfillmentActionCode): boolean {
 
 export const CONFIRM_COPY: Record<ConfirmCode, (code: string) => string> = {
   startPicking: (code) =>
-    `Bắt đầu lấy hàng cho task ${code}? Sau khi bắt đầu, task không gán lại được cho người khác.`,
+    `Bắt đầu lấy hàng cho nhiệm vụ ${code}? Sau khi bắt đầu, nhiệm vụ không gán lại được cho người khác.`,
   // Đích DISPATCH: thùng mang về khu xuất hàng, phần kiểm thùng mở (docs 07 §4.2 bước 6); đích STAGING: thùng ở khu
   // chờ xuất, task chuyển Staged. Câu chung cho cả hai, không nói "khu đóng gói" (khu đó đã gộp vào khu xuất hàng).
   completePicking: (code) =>
-    `Xác nhận đã lấy đủ thùng của task ${code}? Thao tác không hoàn lại được.`,
+    `Xác nhận đã lấy đủ thùng của nhiệm vụ ${code}? Thao tác không hoàn lại được.`,
   // Docs 07 §4.3 bước 8: trừ tồn các thùng ở khu chờ xuất, ghi sổ PICK — không hoàn lại được
   moveToDispatch: (code) =>
-    `Chuyển cả task ${code} từ khu chờ xuất sang khu xuất hàng? Tồn của mọi thùng trong task sẽ bị trừ và thao tác không hoàn lại được.`,
+    `Chuyển cả nhiệm vụ ${code} từ khu chờ xuất sang khu xuất hàng? Tồn của mọi thùng trong nhiệm vụ sẽ bị trừ và thao tác không hoàn lại được.`,
   // Docs 07 §4.3 bước 7: thùng còn thiếu đã về kho thêm vào cùng task, giữ đích của task; task quay lại Đang lấy hàng
   topUp: (code) =>
-    `Lấy bổ sung cho task ${code}? Các thùng đơn đã giữ thêm được đưa vào cùng task và task quay lại Đang lấy hàng.`,
+    `Lấy bổ sung cho nhiệm vụ ${code}? Các thùng đơn đã giữ thêm được đưa vào cùng nhiệm vụ và nhiệm vụ quay lại Đang lấy hàng.`,
 };
 
 export const ACTION_ICON: Partial<Record<FulfillmentActionCode, typeof CheckCircle2>> = {

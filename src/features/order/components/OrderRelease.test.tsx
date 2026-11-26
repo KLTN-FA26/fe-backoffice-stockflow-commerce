@@ -8,7 +8,11 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api } from "@/lib/api/client";
-import { ORDER_PERMISSIONS, ORDER_SHIPPING_WAREHOUSE_PERMISSIONS } from "@/constants";
+import {
+  ORDER_PERMISSIONS,
+  ORDER_RELEASE_LABELS,
+  ORDER_SHIPPING_WAREHOUSE_PERMISSIONS,
+} from "@/constants";
 import { ApiError } from "@/lib/api/error";
 import { toast } from "@/components/shared/Toast";
 
@@ -67,7 +71,7 @@ async function renderConfirmed(
   });
   await renderDetailScreen(estimateSlot);
   const user = userEvent.setup();
-  await user.click(await screen.findByRole("button", { name: "Release đơn" }));
+  await user.click(await screen.findByRole("button", { name: "Xuất kho" }));
   return { user, dialog: await screen.findByRole("dialog") };
 }
 
@@ -93,7 +97,7 @@ describe("Release đơn — gate theo trạng thái và mã quyền (BE V2026111
       await waitFor(() =>
         expect(api.get).toHaveBeenCalledWith("/identity/me/permissions", expect.anything()),
       );
-      expect(screen.queryByRole("button", { name: "Release đơn" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Xuất kho" })).not.toBeInTheDocument();
       view.unmount();
       vi.restoreAllMocks();
     }
@@ -111,7 +115,7 @@ describe("Release đơn — gate theo trạng thái và mã quyền (BE V2026111
       });
       const view = await renderDetailScreen();
       await screen.findByRole("heading", { name: apiOrder.orderNumber });
-      expect(await screen.findByRole("button", { name: "Release đơn" })).toBeEnabled();
+      expect(await screen.findByRole("button", { name: "Xuất kho" })).toBeEnabled();
       expect(screen.getAllByText(label).length).toBeGreaterThan(0);
       expect(screen.queryByText("Không rõ")).not.toBeInTheDocument();
       view.unmount();
@@ -128,7 +132,7 @@ describe("Release đơn — gate theo trạng thái và mã quyền (BE V2026111
     await screen.findByRole("heading", { name: apiOrder.orderNumber });
     expect(screen.getAllByText("Chờ ký hợp đồng").length).toBeGreaterThan(0);
     expect(screen.queryByText("Không rõ")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Release đơn" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Xuất kho" })).not.toBeInTheDocument();
   });
 
   it("đơn đã release (Ready to Fulfill) / đang giữ / đã huỷ → không còn nút Release", async () => {
@@ -139,7 +143,7 @@ describe("Release đơn — gate theo trạng thái và mã quyền (BE V2026111
       });
       const view = await renderDetailScreen();
       await screen.findByRole("heading", { name: apiOrder.orderNumber });
-      expect(screen.queryByRole("button", { name: "Release đơn" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Xuất kho" })).not.toBeInTheDocument();
       view.unmount();
       vi.restoreAllMocks();
     }
@@ -166,17 +170,68 @@ describe("Release đơn — chọn sẵn kho Sale đã chọn (GET /orders/{id}/
     await renderDetailScreen();
     const user = userEvent.setup();
     await waitFor(() => expect(api.get).toHaveBeenCalledWith(OPTIONS_PATH, expect.anything()));
-    await user.click(await screen.findByRole("button", { name: "Release đơn" }));
+    await user.click(await screen.findByRole("button", { name: "Xuất kho" }));
     return { user, dialog: await screen.findByRole("dialog") };
   }
 
-  it("đơn đã có kho xuất → ô kho chọn sẵn kho đó, bấm Release gửi đúng kho", async () => {
+  it("đơn đã có kho xuất → hiện kho Sale đã chọn dạng chữ (không ô chọn), bấm Xuất kho gửi đúng kho", async () => {
     const { user, dialog } = await renderWithChosen("wh-hcm");
-    await waitFor(() => expect(warehouseValue(dialog)).toHaveTextContent("HCM01 — Kho TP.HCM"));
+    await waitFor(() =>
+      expect(within(dialog).getByTestId("release-chosen-warehouse")).toHaveTextContent(
+        "Kho TP.HCM (HCM01)",
+      ),
+    );
+    // Không bắt chọn lại: không có ô chọn kho
+    expect(within(dialog).queryByRole("combobox", { name: /Kho xuất hàng/ })).toBeNull();
     const post = vi.spyOn(api, "post").mockResolvedValue({ data: apiOrder });
-    await user.click(within(dialog).getByRole("button", { name: "Release đơn" }));
+    await user.click(within(dialog).getByRole("button", { name: "Xuất kho" }));
     await waitFor(() =>
       expect(post).toHaveBeenCalledWith(RELEASE_PATH, { warehouseId: "wh-hcm" }, KEY),
+    );
+  });
+
+  it("Sale chọn kho nhưng người xem không đọc được danh mục kho → chữ trung tính, vẫn gửi đúng kho", async () => {
+    mockOrderApiGet(
+      [...ORDER_PERMISSION_SETS.warehouseManager, ORDER_SHIPPING_WAREHOUSE_PERMISSIONS.read],
+      {
+        [DETAIL_PATH]: () => apiOrderAt("CONFIRMED"),
+        [HISTORY_PATH]: () => [],
+        "/warehouses": () => {
+          throw new ApiError(403, "FORBIDDEN", "x");
+        },
+        [OPTIONS_PATH]: () => ({
+          orderId: apiOrder.orderId,
+          chosenWarehouseId: "wh-hcm",
+          warehouses: [],
+        }),
+      },
+    );
+    await renderDetailScreen();
+    const user = userEvent.setup();
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith(OPTIONS_PATH, expect.anything()));
+    await user.click(await screen.findByRole("button", { name: "Xuất kho" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(await within(dialog).findByTestId("release-chosen-warehouse")).toHaveTextContent(
+      ORDER_RELEASE_LABELS.chosenWarehouseUnknown,
+    );
+  });
+
+  it("chưa có kho Sale chọn mà hệ thống chỉ có đúng một kho → chọn sẵn kho đó", async () => {
+    mockOrderApiGet(ORDER_PERMISSION_SETS.warehouseManager, {
+      [DETAIL_PATH]: () => apiOrderAt("CONFIRMED"),
+      [HISTORY_PATH]: () => [],
+      "/warehouses": () => ({ items: [WAREHOUSES.items[0]] }),
+      [`${DETAIL_PATH}/release-warnings`]: () => ({}),
+    });
+    await renderDetailScreen();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Xuất kho" }));
+    const dialog = await screen.findByRole("dialog");
+    await waitFor(() => expect(warehouseValue(dialog)).toHaveTextContent("HN01 — Kho Hà Nội"));
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: apiOrder });
+    await user.click(within(dialog).getByRole("button", { name: "Xuất kho" }));
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(RELEASE_PATH, { warehouseId: "wh-hn" }, KEY),
     );
   });
 
@@ -198,13 +253,13 @@ describe("Release đơn — payload (BE ReleaseOrderRequest: warehouseId + deliv
     const toastSuccess = vi.spyOn(toast, "success");
 
     await pickSelectOption(user, /Kho xuất hàng/, "HN01 — Kho Hà Nội");
-    await user.click(within(dialog).getByRole("button", { name: "Release đơn" }));
+    await user.click(within(dialog).getByRole("button", { name: "Xuất kho" }));
 
     await waitFor(() =>
       expect(post).toHaveBeenCalledWith(RELEASE_PATH, { warehouseId: "wh-hn" }, KEY),
     );
     expect(post.mock.calls[0]?.[1]).not.toHaveProperty("deliveryMode");
-    await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith("Đã release đơn cho kho"));
+    await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith("Đã ra lệnh xuất kho cho đơn"));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 
@@ -218,7 +273,7 @@ describe("Release đơn — payload (BE ReleaseOrderRequest: warehouseId + deliv
 
   it("chưa chọn kho → nút Release bị khoá", async () => {
     const { dialog } = await renderConfirmed(ORDER_PERMISSION_SETS.warehouseManager);
-    expect(within(dialog).getByRole("button", { name: "Release đơn" })).toBeDisabled();
+    expect(within(dialog).getByRole("button", { name: "Xuất kho" })).toBeDisabled();
   });
 });
 
@@ -258,7 +313,7 @@ describe("Release đơn — chọn đợt giao (docs 17 §4.5, BR-29; cần sale
     });
     await renderDetailScreen();
     const user = userEvent.setup();
-    await user.click(await screen.findByRole("button", { name: "Release đơn" }));
+    await user.click(await screen.findByRole("button", { name: "Xuất kho" }));
     return { user, dialog: await screen.findByRole("dialog") };
   };
 
@@ -272,7 +327,7 @@ describe("Release đơn — chọn đợt giao (docs 17 §4.5, BR-29; cần sale
     );
     const post = vi.spyOn(api, "post").mockResolvedValue({ data: apiOrder });
     await pickSelectOption(user, /Kho xuất hàng/, "HN01 — Kho Hà Nội");
-    await user.click(within(dialog).getByRole("button", { name: "Release đơn" }));
+    await user.click(within(dialog).getByRole("button", { name: "Xuất kho" }));
     await waitFor(() =>
       expect(post).toHaveBeenCalledWith(
         RELEASE_PATH,
@@ -291,7 +346,7 @@ describe("Release đơn — chọn đợt giao (docs 17 §4.5, BR-29; cần sale
     await pickSelectOption(user, /Đợt giao/, /Đợt 2/);
     const post = vi.spyOn(api, "post").mockResolvedValue({ data: apiOrder });
     await pickSelectOption(user, /Kho xuất hàng/, "HN01 — Kho Hà Nội");
-    await user.click(within(dialog).getByRole("button", { name: "Release đơn" }));
+    await user.click(within(dialog).getByRole("button", { name: "Xuất kho" }));
     await waitFor(() =>
       expect(post).toHaveBeenCalledWith(
         RELEASE_PATH,
@@ -310,7 +365,7 @@ describe("Release đơn — chọn đợt giao (docs 17 §4.5, BR-29; cần sale
     expect(vi.mocked(api.get).mock.calls.some(([url]) => url === SCHEDULE_PATH)).toBe(false);
     const post = vi.spyOn(api, "post").mockResolvedValue({ data: apiOrder });
     await pickSelectOption(user, /Kho xuất hàng/, "HN01 — Kho Hà Nội");
-    await user.click(within(dialog).getByRole("button", { name: "Release đơn" }));
+    await user.click(within(dialog).getByRole("button", { name: "Xuất kho" }));
     await waitFor(() =>
       expect(post).toHaveBeenCalledWith(RELEASE_PATH, { warehouseId: "wh-hn" }, KEY),
     );
@@ -338,12 +393,12 @@ describe("Release đơn — chọn đợt giao (docs 17 §4.5, BR-29; cần sale
     });
     await renderDetailScreen();
     const user = userEvent.setup();
-    await user.click(await screen.findByRole("button", { name: "Release đơn" }));
+    await user.click(await screen.findByRole("button", { name: "Xuất kho" }));
     const dialog = await screen.findByRole("dialog");
     expect(await within(dialog).findByText(/Không tải được lịch giao/)).toBeInTheDocument();
     const post = vi.spyOn(api, "post").mockResolvedValue({ data: apiOrder });
     await pickSelectOption(user, /Kho xuất hàng/, "HN01 — Kho Hà Nội");
-    await user.click(within(dialog).getByRole("button", { name: "Release đơn" }));
+    await user.click(within(dialog).getByRole("button", { name: "Xuất kho" }));
     await waitFor(() =>
       expect(post).toHaveBeenCalledWith(RELEASE_PATH, { warehouseId: "wh-hn" }, KEY),
     );
@@ -361,7 +416,7 @@ describe("Release đơn — lý do BE từ chối hiện trong hộp thoại (ti
       const { user, dialog } = await renderConfirmed(ORDER_PERMISSION_SETS.warehouseManager);
       vi.spyOn(api, "post").mockRejectedValue(new ApiError(409, code, "English server message"));
       await pickSelectOption(user, /Kho xuất hàng/, "HN01 — Kho Hà Nội");
-      await user.click(within(dialog).getByRole("button", { name: "Release đơn" }));
+      await user.click(within(dialog).getByRole("button", { name: "Xuất kho" }));
       const alert = await within(dialog).findByRole("alert");
       expect(alert).toHaveTextContent(text);
       expect(alert).not.toHaveTextContent(/BR-\d/);
@@ -376,7 +431,7 @@ describe("Release đơn — lý do BE từ chối hiện trong hộp thoại (ti
       new ApiError(403, "OUT_OF_DATA_SCOPE", "English server message"),
     );
     await pickSelectOption(user, /Kho xuất hàng/, "HCM01 — Kho TP.HCM");
-    await user.click(within(dialog).getByRole("button", { name: "Release đơn" }));
+    await user.click(within(dialog).getByRole("button", { name: "Xuất kho" }));
     const alert = await within(dialog).findByRole("alert");
     expect(alert).toHaveTextContent(/ngoài phạm vi kho bạn phụ trách/);
     expect(alert).not.toHaveTextContent(/BR-\d/);
@@ -394,7 +449,7 @@ describe("Release đơn — danh sách kho lỗi", () => {
     });
     await renderDetailScreen(() => <span>khe ước tính</span>);
     const user = userEvent.setup();
-    await user.click(await screen.findByRole("button", { name: "Release đơn" }));
+    await user.click(await screen.findByRole("button", { name: "Xuất kho" }));
     return { user, dialog: await screen.findByRole("dialog") };
   }
 
@@ -408,7 +463,7 @@ describe("Release đơn — danh sách kho lỗi", () => {
     expect(within(dialog).queryByText("Không tải được danh sách kho.")).not.toBeInTheDocument();
     // vẫn dùng được: khe ước tính; chưa có kho nên chưa release được; huỷ đóng được
     expect(within(dialog).getByText("khe ước tính")).toBeInTheDocument();
-    expect(within(dialog).getByRole("button", { name: "Release đơn" })).toBeDisabled();
+    expect(within(dialog).getByRole("button", { name: "Xuất kho" })).toBeDisabled();
     await user.click(within(dialog).getByRole("button", { name: "Huỷ" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });

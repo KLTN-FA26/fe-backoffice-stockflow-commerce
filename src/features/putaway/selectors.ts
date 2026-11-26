@@ -2,6 +2,7 @@
  * Hàm thuần của màn cất hàng — lọc chữ phía FE (BE không có tìm kiếm), định dạng sức chứa còn trống.
  */
 
+import { PUTAWAY_TASK_STATUS } from "@/constants";
 import { formatDecimal } from "@/lib/format/number";
 
 import type { PutawayTask } from "./types";
@@ -41,6 +42,20 @@ export function filterPutawayTasks(
  */
 export function sortByLpn(rows: readonly PutawayTask[]): PutawayTask[] {
   return [...rows].sort((a, b) => (a.lpn ?? "").localeCompare(b.lpn ?? "", "vi"));
+}
+
+/**
+ * Thùng chờ cất kế tiếp sau thùng vừa cất (theo thứ tự LPN như danh sách) và số thùng còn chờ — cho nút "Cất thùng tiếp
+ * theo (còn N)". Mỗi thùng vẫn cất riêng, quét riêng (docs 05 BR-08): đây chỉ là lối đi tiếp, không cất hàng loạt.
+ */
+export function nextPendingTask(
+  rows: readonly PutawayTask[],
+  currentId: string,
+): { task: PutawayTask | null; remaining: number } {
+  const pending = sortByLpn(
+    rows.filter((row) => row.status === PUTAWAY_TASK_STATUS.PENDING && row.id !== currentId),
+  );
+  return { task: pending[0] ?? null, remaining: pending.length };
 }
 
 /** Có ô lọc chữ nào đang bật (search chính hoặc trong cột). */

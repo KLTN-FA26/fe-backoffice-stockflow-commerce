@@ -1,17 +1,23 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+
 import {
   PUTAWAY_COLUMNS as C,
   PUTAWAY_LABELS,
+  PUTAWAY_LIMITS,
   PUTAWAY_TASK_PERMISSIONS,
   WORKSPACE_PATHS,
 } from "@/constants";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 import { useWorkspaceHref } from "@/lib/workspace";
+import { isPutawayTaskClosed } from "@/features/putaway/lifecycle";
 import { usePutawayTasks } from "@/features/putaway/queries";
 import { filterPutawayTasks, sortByLpn } from "@/features/putaway/selectors";
 
 import { LoadErrorState } from "@/components/backoffice/LoadErrorState";
+import { ScanInput } from "@/components/backoffice/ScanInput";
 import { Alert } from "@/components/shared/Alert";
 import { ColumnFilterButton, withHeaderFilters } from "@/components/shared/ColumnHeaderFilter";
 import { DataTable } from "@/components/shared/DataTable";
@@ -24,6 +30,7 @@ import { PutawayToolbar } from "./PutawayToolbar";
 import { usePutawayColumns } from "./usePutawayColumns";
 import { usePutawayFilters } from "./usePutawayFilters";
 
+import type { ScanFeedback } from "@/components/backoffice/ScanInput";
 import type { PutawayFiltersState } from "./usePutawayFilters";
 
 const L = PUTAWAY_LABELS;
@@ -53,6 +60,21 @@ function PutawayContent() {
   const href = useWorkspaceHref();
   const query = usePutawayTasks(state.params);
   const data = query.data;
+  const router = useRouter();
+  const [scanFeedback, setScanFeedback] = useState<ScanFeedback | null>(null);
+  // Quét LPN → mở đúng thùng đó (không phân biệt hoa thường); không có thùng chờ cất nào khớp → báo ngay tại ô quét
+  const onScan = (code: string) => {
+    const hit = data?.items.find(
+      (task) =>
+        task.lpn?.toUpperCase() === code.trim().toUpperCase() && !isPutawayTaskClosed(task.status),
+    );
+    if (hit) {
+      setScanFeedback({ tone: "positive", message: L.scanOpened(code), seq: Date.now() });
+      router.push(href(WORKSPACE_PATHS.putawayTask(hit.id)));
+    } else {
+      setScanFeedback({ tone: "danger", message: L.scanNotFound(code), seq: Date.now() });
+    }
+  };
   const rows = data ? sortByLpn(filterPutawayTasks(data.items, state.text)) : [];
   // Lọc theo phiếu nhập mà phiếu không còn nhiệm vụ → vẫn là "lọc không ra" (kèm Bỏ bộ lọc), không phải kho trống
   const emptyKind = data?.items.length === 0 && !state.filters.receipt ? "none" : "noMatch";
@@ -60,6 +82,19 @@ function PutawayContent() {
   return (
     <>
       <PutawayToolbar state={state} columns={columns} />
+      {data && data.items.length > 0 && (
+        <div className="mb-3 max-w-xl">
+          <ScanInput
+            id="putaway-list-scan"
+            label={L.scanLabel}
+            placeholder={L.scanPlaceholder}
+            hint={L.scanHint}
+            maxLength={PUTAWAY_LIMITS.lpnMax}
+            onScan={onScan}
+            feedback={scanFeedback}
+          />
+        </div>
+      )}
       {query.isError ? (
         <LoadErrorState
           inline

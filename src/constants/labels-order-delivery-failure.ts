@@ -95,7 +95,7 @@ export const DELIVERY_FAILURE_LABELS = {
     failureNote: "Ghi chú của hãng / kho",
     failedTripFee: "Phí chuyến giao hỏng (đơn cũ)",
     carrierClaim: "Không thu khách — đòi hãng vận chuyển",
-    readyForRelease: "Đã giữ đủ hàng — chờ Quản lý kho release để giao lại",
+    readyForRelease: "Đã giữ đủ hàng — chờ Quản lý kho ra lệnh xuất kho để giao lại",
     units: (units: number, held: number) => `${units} sp về kho · đã giữ lại ${held}`,
     cartons: (count: number) => `${count} thùng`,
   },

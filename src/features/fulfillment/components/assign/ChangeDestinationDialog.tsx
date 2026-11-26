@@ -65,7 +65,7 @@ export function ChangeDestinationDialog({
   return (
     <FormDialog open onOpenChange={(open) => !open && onClose()}>
       <FormDialogBody
-        title={fulfillment.destination.changeTitle(taskCode(task.taskId))}
+        title={fulfillment.destination.changeTitle(taskCode(task))}
         description={fulfillment.destination.changeDescription}
         submitLabel={fulfillment.action.changeDestination}
         canSubmit={canChange && !unchanged && !stagingArea.none}

@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   CARTON_CHECK_ERROR_MESSAGES,
   CARTON_NOT_CHECKED_MESSAGES,
+  LOAD_PLAN_PERMISSIONS,
   STOCK_PACKAGE_PERMISSIONS,
   UI_LABELS,
 } from "@/constants";
@@ -322,9 +323,13 @@ describe("CartonCheckStation — dán nhãn và in PDF (docs 08 §4.3)", () => {
         [PDF]: pdfBlob,
       }),
     });
+    // In lại nhãn nằm trong trình đơn "…" của dòng (nút chính của thùng đã dán nhãn là "In nhãn")
     await user.click(
-      await within(await waitForRow("LPN000001")).findByRole("button", { name: L.action.reprint }),
+      await within(await waitForRow("LPN000001")).findByRole("button", {
+        name: L.action.more("LPN000001"),
+      }),
     );
+    await user.click(await screen.findByRole("button", { name: L.action.reprint }));
     expect(screen.getByText(L.reprint.description(1))).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: L.reprint.submit }));
     expect(await screen.findByTitle(L.labels.preview)).toBeInTheDocument();
@@ -393,6 +398,10 @@ describe("CartonCheckStation — hoàn tất (docs 08 §4.4)", () => {
     const user = userEvent.setup();
     const issued = stubUuids();
     const { post } = renderCartonCheckStation({
+      // Quản lý kho có thêm quyền lập kế hoạch xếp xe → hộp kết quả có nút đi tiếp
+      identity: {
+        permissions: [...IDENTITIES.warehouseStaff.permissions, LOAD_PLAN_PERMISSIONS.create],
+      },
       session: allLabeledSession(),
       post: (state) => ({
         [COMPLETION]: () => {
@@ -433,6 +442,11 @@ describe("CartonCheckStation — hoàn tất (docs 08 §4.4)", () => {
     // Cảnh báo BEFORE_DELIVERY chưa thu: số tiền, không chặn
     expect(screen.getByText(L.notice.paymentTitle)).toBeInTheDocument();
     expect(screen.getByText(/2\.500\.000/)).toBeInTheDocument();
+    // Việc kế tiếp: lập kế hoạch xếp xe (S15-2) — quản lý kho có fulfillment-load-plans:CREATE
+    expect(screen.getByRole("link", { name: L.complete.planLoad })).toHaveAttribute(
+      "href",
+      "/admin/load-plans/create",
+    );
   });
 
   it("còn thùng chưa dán nhãn → hộp thoại báo rõ và khoá nút hoàn tất (BE PACKING_INCOMPLETE)", async () => {
@@ -588,7 +602,10 @@ describe("CartonCheckStation — action-gating theo quyền và người bắt �
     expect(screen.queryByLabelText(L.scan.label)).toBeNull();
     expect(screen.queryByRole("button", { name: L.action.complete })).toBeNull();
     const row = rowOf("LPN000001");
-    expect(within(row).getByRole("button", { name: L.action.reprint })).toBeInTheDocument();
+    expect(
+      within(row).getByRole("button", { name: L.action.more("LPN000001") }),
+    ).toBeInTheDocument();
+    expect(within(row).getByRole("button", { name: L.action.print })).toBeInTheDocument();
     expect(within(row).queryByRole("button", { name: L.action.remove })).toBeNull();
   });
 
@@ -649,7 +666,8 @@ describe("WF04 G1 — In lại nhãn LPN ở trạm kiểm (docs 08 §6 'Nhãn L
     });
     const row = await waitForRow("LPN000001");
 
-    await user.click(within(row).getByRole("button", { name: L.action.reprintLpn }));
+    await user.click(within(row).getByRole("button", { name: L.action.more("LPN000001") }));
+    await user.click(await screen.findByRole("button", { name: L.action.reprintLpn }));
 
     expect(await screen.findByText("in nhãn LPN000001")).toBeInTheDocument();
     expect(slot).toHaveBeenLastCalledWith(expect.objectContaining({ lpn: "LPN000001" }));
@@ -682,5 +700,45 @@ describe("CartonCheckStation — phiên của kho khác mở trong tab (spec §2
     renderCartonCheckStation({ session: { ...apiSession(), warehouseId: "wh-khac" } });
     await waitFor(() => expect(replaceSpy).toHaveBeenCalledWith("/admin/warehouse-map"));
     expect(screen.queryByRole("button", { name: L.action.start })).toBeNull();
+  });
+});
+
+describe("Bảng thùng của đơn — gọn, không cắt cột, một nút chính (S15-1)", () => {
+  it("chưa có kích thước / khối lượng / lô giao → ẩn các cột đó; mã không bẻ dòng", async () => {
+    renderCartonCheckStation({ session: startedSession() });
+    const row = await waitForRow("LPN000001");
+    expect(screen.queryByRole("columnheader", { name: L.cartons.colSize })).toBeNull();
+    expect(screen.queryByRole("columnheader", { name: L.cartons.colWeight })).toBeNull();
+    expect(screen.queryByRole("columnheader", { name: L.cartons.colShipment })).toBeNull();
+    expect(screen.getByRole("columnheader", { name: L.cartons.colActions })).toBeInTheDocument();
+    expect(within(row).getByText("LPN000001").closest("td")).toHaveClass("whitespace-nowrap");
+  });
+
+  it("đã dán nhãn (có kích thước, khối lượng) → hiện các cột; tiêu đề không xuống dòng", async () => {
+    renderCartonCheckStation({ session: allLabeledSession() });
+    await waitForRow("LPN000001");
+    const size = screen.getByRole("columnheader", { name: L.cartons.colSize });
+    expect(size).toHaveClass("whitespace-nowrap");
+    expect(screen.getByRole("columnheader", { name: L.cartons.colWeight })).toBeInTheDocument();
+  });
+
+  it("thùng đã dán nhãn: một nút chính 'In nhãn', thao tác phụ trong trình đơn '…', 'Loại thùng' tách riêng có khoảng cách", async () => {
+    renderCartonCheckStation({ session: allLabeledSession() });
+    const row = await waitForRow("LPN000001");
+    expect(within(row).getByRole("button", { name: L.action.print })).toBeInTheDocument();
+    // In lại nhãn không còn nằm ngang hàng với nút chính
+    expect(within(row).queryByRole("button", { name: L.action.reprint })).toBeNull();
+    expect(
+      within(row).getByRole("button", { name: L.action.more("LPN000001") }),
+    ).toBeInTheDocument();
+    expect(within(row).getByRole("button", { name: L.action.remove })).toHaveClass("ml-4");
+  });
+
+  it("nút trong dòng cao 32px, 44px khi màn cảm ứng (R10)", async () => {
+    renderCartonCheckStation({ session: allLabeledSession() });
+    const row = await waitForRow("LPN000001");
+    const button = within(row).getByRole("button", { name: L.action.print });
+    expect(button).toHaveClass("h-8");
+    expect(button).toHaveClass("pointer-coarse:h-11");
   });
 });

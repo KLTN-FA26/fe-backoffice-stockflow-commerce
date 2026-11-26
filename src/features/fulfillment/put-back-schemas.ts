@@ -17,6 +17,7 @@ import { bePageSchema } from "@/lib/api/page-schema";
  */
 export const bePutBackRowSchema = z.object({
   taskId: z.string(),
+  taskNumber: z.string().nullish(),
   orderNumber: z.string(),
   warehouseId: z.string(),
   lineId: z.string(),

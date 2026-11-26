@@ -157,6 +157,9 @@ export const ADMIN_ROUTES = {
   receipts: {
     detail: (id: string) => `${ADMIN_BASE}/receipts/${id}`,
     list: `${ADMIN_BASE}/receipts`,
+    /** Danh sách phiếu với hộp "Lập phiếu nhập" mở sẵn, đã chọn Đơn sản xuất này (từ chi tiết Đơn sản xuất). */
+    createFor: (productionOrderId: string) =>
+      `${ADMIN_BASE}/receipts?productionOrder=${encodeURIComponent(productionOrderId)}`,
   },
   /** Cất hàng (docs 05) — danh sách nhiệm vụ theo kho / phiếu nhập và màn cất một thùng. */
   putaway: {
@@ -236,6 +239,14 @@ export const ADMIN_ROUTES = {
   productionSchedule: `${ADMIN_BASE}/production-schedule`,
   /** Tab "Cần lập Đơn sản xuất" của lịch — nơi duy nhất bắt đầu lập (docs 17 §4.3 bước 6). `tab` = `useScheduleTab`. */
   productionScheduleDrawUp: `${ADMIN_BASE}/production-schedule?tab=batches`,
+  /**
+   * Như trên nhưng từ một đơn bán: lịch mở thẳng hộp "Lập Đơn sản xuất" của đợt còn thiếu của đơn đó (đợt `drawBatch` nếu
+   * có, không thì đợt duy nhất còn thiếu) — không bắt chọn lại ở danh sách.
+   */
+  productionScheduleDrawUpFor: (salesOrderId: string, batchSeq?: number) =>
+    `${ADMIN_BASE}/production-schedule?tab=batches&drawOrder=${encodeURIComponent(salesOrderId)}${
+      batchSeq === undefined ? "" : `&drawBatch=${batchSeq}`
+    }`,
   /** Danh mục loại xe (container, xe tải, bán tải) — BE `VehicleTypeController`, PR #153. */
   vehicleTypes: `${ADMIN_BASE}/vehicle-types`,
   /** Kế hoạch xếp xe (SCRUM-287 PR F4): danh sách, lập mới, chi tiết — BE `LoadPlanController`, PR #161. */

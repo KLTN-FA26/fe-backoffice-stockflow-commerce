@@ -94,6 +94,7 @@ function renderCount(
   permissions: readonly PermissionCode[],
   onPut: (body: unknown) => GoodsReceiptApiDto,
   initial: GoodsReceiptApiDto = apiReceipt(),
+  layout: unknown = LAYOUT,
 ) {
   let current = initial;
   const spies = mockReceiptApi(
@@ -101,7 +102,7 @@ function renderCount(
     {
       [PATH]: () => current,
       [`/production-orders/${PRODUCTION_ORDER_ID}`]: () => PRODUCTION_ORDER,
-      [`/warehouses/${HCM_ID}/layout`]: () => LAYOUT,
+      [`/warehouses/${HCM_ID}/layout`]: () => layout,
     },
     {},
     {
@@ -268,5 +269,61 @@ describe("Kiểm đếm theo thùng — phiếu nháp theo Đơn sản xuất (d
     expect(get.mock.calls.some(([url]) => String(url).startsWith("/production-orders"))).toBe(
       false,
     );
+  });
+});
+
+describe("Kiểm đếm — một khu nhận cho cả phiếu, cột rõ nghĩa (S12-4)", () => {
+  const TWO_AREAS = {
+    areas: [
+      {
+        code: "RCV01",
+        type: "RECEIVING",
+        name: "Khu nhận 1",
+        usable: true,
+        locationCode: "HCM-RCV01",
+      },
+      {
+        code: "RCV02",
+        type: "RECEIVING",
+        name: "Khu nhận 2",
+        usable: true,
+        locationCode: "HCM-RCV02",
+      },
+    ],
+  };
+
+  it("có nhiều dòng và nhiều khu nhận → một ô 'Khu nhận cho cả phiếu' áp cho mọi dòng", async () => {
+    const user = userEvent.setup();
+    renderCount(MANAGER, () => savedWith(["LPN-A"]), apiReceipt(), TWO_AREAS);
+    await screen.findByRole("spinbutton", { name: C.newCartonsAria("CUP-PRINT-ACME-12OZ") });
+    await user.click(screen.getByRole("combobox", { name: C.allLocation }));
+    await user.click(await screen.findByRole("option", { name: /RCV02/ }));
+    // Cả hai dòng (ly, nắp) đã nhận khu RCV02
+    expect(
+      screen.getByRole("combobox", { name: C.locationAria("CUP-PRINT-ACME-12OZ") }),
+    ).toHaveTextContent("RCV02");
+    expect(
+      screen.getByRole("combobox", { name: C.locationAria("LID-PRINT-ACME-90") }),
+    ).toHaveTextContent("RCV02");
+  });
+
+  it("chỉ một khu nhận → không cần ô chung (đã chọn sẵn từng dòng)", async () => {
+    renderCount(MANAGER, () => savedWith(["LPN-A"]));
+    await screen.findByRole("spinbutton", { name: C.newCartonsAria("CUP-PRINT-ACME-12OZ") });
+    expect(screen.queryByRole("combobox", { name: C.allLocation })).toBeNull();
+  });
+
+  it("số thùng có đơn vị: 'Đã nhận 4/10 thùng', ô nhập nói 'Thêm thùng mới', SKU không bẻ dòng", async () => {
+    renderCount(MANAGER, () => savedWith(["LPN-A"]));
+    await screen.findByRole("spinbutton", { name: C.newCartonsAria("CUP-PRINT-ACME-12OZ") });
+    expect(screen.getByText(C.receivedOfOrdered(4, 10))).toBeInTheDocument();
+    expect(screen.getAllByText(C.newCartons).length).toBeGreaterThan(0);
+    expect(screen.getByText("CUP-PRINT-ACME-12OZ").closest("th")).toHaveClass("whitespace-nowrap");
+  });
+
+  it("phiếu đã có thùng: nhãn nói 'Đã có N thùng' và kết quả 'Đã đếm N/M thùng'", async () => {
+    renderCount(MANAGER, () => savedWith(["LPN-A"]), savedWith(["LPN-A", "LPN-B"]));
+    expect(await screen.findByText(C.existingCartons(2))).toBeInTheDocument();
+    expect(screen.getByText(C.countedOfOpen(2, 6))).toBeInTheDocument();
   });
 });

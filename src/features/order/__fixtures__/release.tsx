@@ -46,6 +46,6 @@ export async function renderConfirmedScreen(
 
 export async function openReleaseDialog() {
   const user = userEvent.setup();
-  await user.click(await screen.findByRole("button", { name: "Release đơn" }));
+  await user.click(await screen.findByRole("button", { name: "Xuất kho" }));
   return { user, dialog: await screen.findByRole("dialog") };
 }

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { parseAsInteger, parseAsString, useQueryStates } from "nuqs";
 
 import {
   PRODUCER_PERMISSIONS,
@@ -50,12 +51,29 @@ function ScheduleContent() {
   const warehouses = useWarehouseDirectory(can(WAREHOUSE_PERMISSIONS.read));
   const [batch, setBatch] = useState<ShortDeliveryBatch | null>(null);
   const canDrawUp = can(PRODUCTION_ORDER_PERMISSIONS.create);
+  // Link từ đơn bán (`?drawOrder=&drawBatch=`): mở thẳng hộp Lập của đợt còn thiếu đó, rồi bỏ tham số khỏi URL
+  const [link, setLink] = useQueryStates({ drawOrder: parseAsString, drawBatch: parseAsInteger });
 
   const data = schedule.data;
   const orders = data
     ? filterScheduledOrders(byNeedByDate(data.productionOrders), filters.text)
     : [];
   const batches = data ? filterShortBatches(byWindowStart(data.shortBatches), filters.text) : [];
+  const linkedBatches =
+    data && link.drawOrder
+      ? data.shortBatches.filter(
+          (item) =>
+            item.salesOrderId === link.drawOrder &&
+            (link.drawBatch === null || item.seq === link.drawBatch),
+        )
+      : [];
+  const linkedBatch = linkedBatches.length === 1 ? (linkedBatches[0] ?? null) : null;
+  // Không khớp đợt nào / nhiều đợt: để nguyên danh sách và bỏ tham số khỏi URL (đúng một đợt thì hộp mở, bỏ khi đóng)
+  const unmatchedLink = !!data && !!link.drawOrder && !linkedBatch;
+  useEffect(() => {
+    if (unmatchedLink) void setLink({ drawOrder: null, drawBatch: null });
+  }, [unmatchedLink, setLink]);
+  const openBatch = batch ?? (canDrawUp ? linkedBatch : null);
   // Đếm theo dữ liệu BE trả về, không theo search chữ — gõ tìm không được làm nhảy tab mặc định. Lỗi tải → không
   // còn chờ dữ liệu nữa, chọn luôn tab mặc định thay vì giữ chỗ mãi.
   const { tab, setTab } = useScheduleTab(
@@ -128,7 +146,15 @@ function ScheduleContent() {
           </>
         )}
       </div>
-      {batch && <DrawUpDialog batch={batch} onClose={() => setBatch(null)} />}
+      {openBatch && (
+        <DrawUpDialog
+          batch={openBatch}
+          onClose={() => {
+            setBatch(null);
+            if (link.drawOrder) void setLink({ drawOrder: null, drawBatch: null });
+          }}
+        />
+      )}
     </>
   );
 }

@@ -35,16 +35,19 @@ type FieldErrors = Partial<Record<"orderId" | "assignedUserId" | "stagingLocatio
 export function CreateTaskDialog({
   onClose,
   warehouseId: tabWarehouseId,
+  initialOrderId = "",
 }: {
   onClose: () => void;
   /** Kho của tab theo kho — chỉ đơn xuất từ kho này (BE `task-candidates?warehouseId=` lọc). */
   warehouseId: string;
+  /** Mở từ một đơn (nút "Tạo nhiệm vụ lấy hàng" ở chi tiết đơn): chọn sẵn đơn đó. */
+  initialOrderId?: string;
 }) {
   const canCreate = useCan(FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS.create);
   const canAssign = useCan(FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS.update);
   const candidates = useTaskCandidates(canCreate, tabWarehouseId);
   const create = useCreateFulfillmentTask();
-  const [orderId, setOrderId] = useState("");
+  const [pickedOrderId, setPickedOrderId] = useState(initialOrderId);
   const [assignedUserId, setAssignedUserId] = useState("");
   const [destination, setDestination] = useState<PickDestination>(PICK_DESTINATION.DISPATCH);
   const [stagingChoice, setStagingChoice] = useState("");
@@ -58,9 +61,12 @@ export function CreateTaskDialog({
   };
 
   const options = candidates.data?.items ?? [];
+  // Chỉ có đúng một đơn chờ xuất kho → chọn sẵn (R6); người dùng vẫn đổi được
+  const orderId = pickedOrderId || (options.length === 1 ? (options[0]?.orderId ?? "") : "");
   const selected = options.find((order) => order.orderId === orderId);
   // Người nhận và khu chờ xuất theo kho của đơn đã chọn (BE `GET /fulfillment/assignees?warehouseId=`)
-  const warehouseId = selected?.warehouseId;
+  // Chưa chọn đơn thì dùng kho của tab (danh sách đơn đã lọc theo kho đó) — người nhận hiện sẵn, không khoá tới khi chọn đơn
+  const warehouseId = selected?.warehouseId ?? tabWarehouseId;
   // Docs 07 §4.1 bước 2: đơn chờ hàng chưa được giao một phần → chỉ khu chờ xuất (Backend phải re-check)
   const stagingOnly = prePickStagingOnly(selected);
   const target = stagingOnly ? PICK_DESTINATION.STAGING : destination;
@@ -113,7 +119,7 @@ export function CreateTaskDialog({
             error={errors.orderId}
             onChange={(value) =>
               edit(() => {
-                setOrderId(value);
+                setPickedOrderId(value);
                 // Đổi đơn có thể đổi kho → danh sách người nhận khác, bỏ lựa chọn cũ
                 setAssignedUserId("");
                 setStagingChoice("");

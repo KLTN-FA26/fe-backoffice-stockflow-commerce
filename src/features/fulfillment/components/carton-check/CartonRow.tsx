@@ -14,6 +14,8 @@ import type { Carton } from "@/features/fulfillment/carton-check-types";
 
 const L = UI_LABELS.cartonCheck.cartons;
 const TD = "px-3 py-2 text-[0.8125rem] align-top";
+/** Mã (LPN, SKU, lô) luôn một dòng — không bẻ giữa chừng, bảng cuộn ngang thay vì ép mã xuống 3 dòng. */
+const CODE_TD = `${TD} whitespace-nowrap`;
 
 function sizeText(carton: Carton): string {
   if (carton.lengthCm == null || carton.widthCm == null || carton.heightCm == null) return "—";
@@ -42,19 +44,22 @@ export function CartonRow({
   shipmentCode,
   labeling,
   handlers,
+  columns,
 }: {
   carton: Carton;
   actions: CartonActions;
   shipmentCode: string | undefined;
   labeling: boolean;
   handlers: CartonRowHandlers;
+  /** Cột tuỳ chọn đang hiện (ẩn khi không thùng nào có dữ liệu) — xem `CartonsTable`. */
+  columns: { size: boolean; weight: boolean; shipment: boolean };
 }) {
   return (
     <tr className="border-border-default border-b last:border-b-0">
-      <td className={`${TD} text-ink-secondary ${MONO}`}>{carton.packageNo}</td>
-      <td className={`${TD} text-ink-primary ${MONO}`}>{carton.lpn}</td>
-      <td className={`${TD} ${MONO}`}>{carton.sku}</td>
-      <td className={`${TD} text-ink-secondary ${MONO}`}>{carton.lotNumber ?? "—"}</td>
+      <td className={`${CODE_TD} text-ink-secondary ${MONO}`}>{carton.packageNo}</td>
+      <td className={`${CODE_TD} text-ink-primary ${MONO}`}>{carton.lpn}</td>
+      <td className={`${CODE_TD} ${MONO}`}>{carton.sku}</td>
+      <td className={`${CODE_TD} text-ink-secondary ${MONO}`}>{carton.lotNumber ?? "—"}</td>
       <td className={`${TD} text-right ${MONO}`}>{carton.quantity}</td>
       <td className={TD}>
         <StatusDot domain="pack" status={carton.status} />
@@ -76,14 +81,22 @@ export function CartonRow({
           L.noLabel
         )}
       </td>
-      <td className={`${TD} text-ink-secondary`}>
-        {sizeText(carton)}
-        {carton.labelVersion > 0 && !carton.rotatable && (
-          <span className="text-warning ml-1 text-xs">{L.notRotatable}</span>
-        )}
-      </td>
-      <td className={`${TD} text-ink-secondary tabular-nums`}>{weightText(carton)}</td>
-      <td className={`${TD} text-ink-secondary ${MONO}`}>{shipmentCode ?? "—"}</td>
+      {columns.size && (
+        <td className={`${TD} text-ink-secondary whitespace-nowrap`}>
+          {sizeText(carton)}
+          {carton.labelVersion > 0 && !carton.rotatable && (
+            <span className="text-warning ml-1 text-xs">{L.notRotatable}</span>
+          )}
+        </td>
+      )}
+      {columns.weight && (
+        <td className={`${TD} text-ink-secondary whitespace-nowrap tabular-nums`}>
+          {weightText(carton)}
+        </td>
+      )}
+      {columns.shipment && (
+        <td className={`${CODE_TD} text-ink-secondary ${MONO}`}>{shipmentCode ?? "—"}</td>
+      )}
       <td className={TD}>
         <CartonRowActions
           carton={carton}

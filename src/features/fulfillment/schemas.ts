@@ -44,6 +44,8 @@ export const beFulfillmentTaskSchema = z.object({
   orderId: z.string(),
   // BE PR #136 trả thêm số đơn / kho / tên người được gán
   orderNumber: z.string().nullish(),
+  /** Số nhiệm vụ đọc được "PK-yyyyMMdd-nnnn" (BE FE#286, luôn có) — thay đoạn UUID. */
+  taskNumber: z.string().nullish(),
   warehouseId: z.string().nullish(),
   assignedUserName: z.string().nullish(),
   // API luôn gán khi tạo (CreateTaskRequest @NotNull), cột DB cho phép null

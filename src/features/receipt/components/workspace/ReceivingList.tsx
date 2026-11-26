@@ -22,6 +22,7 @@ import { useGoodsReceipts } from "@/features/receipt/queries";
 
 import { ServerTableBody } from "@/components/backoffice/ServerTableBody";
 
+import { CreateReceiptAction } from "../create/CreateReceiptAction";
 import { buildReceiptColumns } from "../list/columns";
 import {
   DEFAULT_RECEIVING_TAB,
@@ -100,6 +101,13 @@ function ReceivingListContent() {
           icon: <Inbox className="size-8" />,
           title: tab === DEFAULT_RECEIVING_TAB ? L.emptyDraftTitle : L.emptyAllTitle,
           description: L.emptyDescription,
+          // Trạng thái trống có ngay nút Lập phiếu nhập (nút tự ẩn khi không có quyền lập)
+          action: (
+            <CreateReceiptAction
+              handleLink={false}
+              detailHref={(id) => href(WORKSPACE_PATHS.receivingReceipt(id))}
+            />
+          ),
         }}
         pageSize={paged.pageSize}
         onPageChange={paged.goToPage}

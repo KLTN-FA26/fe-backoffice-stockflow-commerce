@@ -14,7 +14,7 @@ import {
   nextOpenLine,
   openLineCount,
   pickIncompleteReason,
-  pickLocationOptions,
+  sameScannedCode,
   pickProgress,
   putBackLocationOptions,
   shortLineCount,
@@ -68,28 +68,10 @@ describe("pick-line selectors", () => {
     expect(nextOpenLine([third, reallocated] as PickLine[])?.lineId).toBe("r");
   });
 
-  it("pickLocationOptions: hợp mã layout (mọi loại, kể cả không dùng được) với vị trí các dòng", () => {
-    const options = pickLocationOptions(
-      [
-        { locationCode: "HN-Z-99", kind: "AREA", usable: true },
-        { locationCode: "HN-A01-01-01-A", kind: "BIN", usable: false },
-      ],
-      lines(),
-    );
-    expect(options.map((option) => option.value)).toEqual([
-      "HN-A01-01-01-A",
-      "HN-A01-01-02-A",
-      "HN-A02-02-01-B",
-      "HN-Z-99",
-    ]);
-  });
-
-  it("pickLocationOptions: không tải được layout → vẫn có vị trí của các dòng", () => {
-    expect(pickLocationOptions(undefined, lines()).map((option) => option.value)).toEqual([
-      "HN-A01-01-01-A",
-      "HN-A01-01-02-A",
-      "HN-A02-02-01-B",
-    ]);
+  it("sameScannedCode: cắt khoảng trắng, không phân biệt hoa thường — như BE sameCode", () => {
+    expect(sameScannedCode(" hn-a01-01-01-a\n", "HN-A01-01-01-A")).toBe(true);
+    expect(sameScannedCode("HN-A01-01-02-A", "HN-A01-01-01-A")).toBe(false);
+    expect(sameScannedCode("", "HN-A01-01-01-A")).toBe(false);
   });
 
   it("linesComplete: dòng Put Back (thùng hư bị loại ở trạm kiểm, đã cất đi) tính là xong như BE requireAllPicked — thùng bù thay chỗ", () => {
@@ -211,12 +193,5 @@ describe("vị trí cất lại thùng — BE PickList.putBack: bin đang dùng 
   it("stagingAreaOptions: chỉ khu STAGING đang dùng được (đích STAGING khi tạo task)", () => {
     expect(stagingAreaOptions(LOCATIONS).map((o) => o.value)).toEqual(["HN-STAGE-01"]);
     expect(stagingAreaOptions(undefined)).toEqual([]);
-  });
-});
-
-describe("pickLocationOptions — dòng Staged báo thiếu quét đúng khu chờ xuất", () => {
-  it("thêm khu chờ xuất của dòng dù không tải được sơ đồ kho", () => {
-    const staged = { ...lines()[0], status: "Staged" as const, stagedLocationCode: "HN-STAGE-01" };
-    expect(pickLocationOptions(undefined, [staged]).map((o) => o.value)).toContain("HN-STAGE-01");
   });
 });

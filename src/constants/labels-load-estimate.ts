@@ -181,7 +181,7 @@ export const LOAD_ESTIMATE_ERROR_MESSAGES = {
   VALIDATION_FAILED: "Dữ liệu ước tính không hợp lệ. Kiểm tra kho, loại xe và cách chọn xe.",
   /** `VALIDATION_FAILED` rẽ theo `fieldErrors[].code` của BE: ô `warehouseId` / `vehicleTypeIds`. */
   WAREHOUSE_REQUIRED: "Chọn kho sẽ xuất hàng trước khi ước tính.",
-  WAREHOUSE_MISMATCH: "Đơn đã release cho kho khác — không chọn kho khác được.",
+  WAREHOUSE_MISMATCH: "Đơn đã có lệnh xuất kho cho kho khác — không chọn kho khác được.",
   WAREHOUSE_INACTIVE: "Kho đã chọn không còn hoạt động.",
   NO_ACTIVE_VEHICLE_TYPE: "Chưa có loại xe nào đang dùng để ước tính.",
   NETWORK_ERROR: "Không kết nối được máy chủ. Vui lòng kiểm tra mạng.",
