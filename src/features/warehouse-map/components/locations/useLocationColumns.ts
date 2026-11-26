@@ -14,13 +14,12 @@ export const LOCATION_COLUMNS: readonly LocationColumn[] = [
   C.SKUS,
   C.ON_HAND,
   C.RESERVED,
-  C.EXPIRY,
   C.USES,
   C.CAPACITY,
   C.MAX_WEIGHT,
 ];
 /** Cột cần tồn theo vị trí — bỏ khỏi bảng và khỏi ẩn hiện cột khi người xem không đọc được tồn. */
-export const STOCK_COLUMNS: readonly LocationColumn[] = [C.SKUS, C.ON_HAND, C.RESERVED, C.EXPIRY];
+export const STOCK_COLUMNS: readonly LocationColumn[] = [C.SKUS, C.ON_HAND, C.RESERVED];
 /** Mã vị trí mở chi tiết + sao chép — luôn hiện. */
 export const LOCKED_LOCATION_COLUMNS: LocationColumn[] = [C.CODE];
 export const LOCATION_PAGE_SIZES = [PAGE_SIZE.md, PAGE_SIZE.lg, PAGE_SIZE.xl, 100] as const;

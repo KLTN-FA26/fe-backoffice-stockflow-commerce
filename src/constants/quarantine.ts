@@ -25,6 +25,9 @@ export const QUARANTINE_API = {
 export const QUARANTINE_QUERY_KEYS = {
   carton: "inventory-stock-package",
   list: "inventory-stock-packages",
+  /** Màn Thùng hàng (LPN): danh sách tra cứu và chi tiết một thùng — dưới khoá `carton` nên cách ly làm mới cả hai. */
+  lookup: "lookup",
+  lookupDetail: "lookup-detail",
 } as const;
 
 export const QUARANTINE_STORAGE_KEYS = {

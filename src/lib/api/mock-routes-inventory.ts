@@ -611,8 +611,10 @@ function listMovements(config: AxiosRequestConfig) {
   }
   const sku = code(params.sku);
   const location = code(params.location);
+  const lpn = code(params.lpn);
   const rows = movements
     .filter((row) => !type || row.type === type)
+    .filter((row) => !lpn || row.lpn?.toUpperCase() === lpn)
     .filter((row) => !sku || row.sku === sku)
     .filter((row) => !location || row.fromLocation === location || row.toLocation === location)
     .sort((a, b) => b.seq - a.seq);

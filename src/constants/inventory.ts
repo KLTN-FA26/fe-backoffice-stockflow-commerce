@@ -172,6 +172,8 @@ export const INVENTORY_ROUTES = {
   adjustments: "/admin/inventory/adjustments",
   createAdjustment: "/admin/inventory/adjustments/create",
   adjustment: (id: string) => `/admin/inventory/adjustments/${encodeURIComponent(id)}`,
+  /** Thùng hàng (LPN) — tra cứu mọi thùng (docs 20 §4.1); `?lpn=` mở sẵn chi tiết một thùng. */
+  cartons: "/admin/inventory/cartons",
   // Cách ly / gỡ cách ly thùng (docs 20 §4.8): LPN trên URL `?lpn=`.
   quarantine: "/admin/inventory/quarantine",
 } as const;
