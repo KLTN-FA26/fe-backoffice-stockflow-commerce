@@ -82,6 +82,10 @@ export function ContractScheduleTables({
           ))}
         </tbody>
       </table>
+      {/* Cùng chú thích như storefront: giá trị đợt khác tổng đơn vì chỉ tính hàng (UX audit S06-7) */}
+      <p className="text-ink-tertiary -mt-1 text-xs">
+        Giá trị đợt là giá trị hàng của đợt (gồm VAT, chưa gồm phí).
+      </p>
       <table className="w-full text-[0.8125rem]">
         <caption className="text-ink-secondary mb-1 text-left text-xs font-medium">
           Lịch thanh toán
