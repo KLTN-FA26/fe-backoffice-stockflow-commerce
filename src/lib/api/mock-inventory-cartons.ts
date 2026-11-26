@@ -51,7 +51,7 @@ function seedOpeningCartons(): MockCarton[] {
           id: `mock-opening-${lpn}`,
           lpn,
           quantity: 1,
-          receivedQty: 1,
+          countedAt: "2026-11-11T00:00:00Z",
           nominalQty: 1,
           status: "IN_STOCK" as const,
           locationCode: location,

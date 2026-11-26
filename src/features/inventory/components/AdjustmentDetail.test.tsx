@@ -513,7 +513,8 @@ describe("adjustment detail", () => {
   it("shows the reason label and a whole-carton delta", async () => {
     const fixture = adjustmentFixture({
       reason: "DAMAGED",
-      quantityDelta: 120,
+      direction: "RESTOCK",
+      nominalQty: 120,
       stockPackageId: crypto.randomUUID(),
     });
     server.use(inventoryPermissions([adjustmentViewPage, adjustmentRead]), serve(fixture));
@@ -528,7 +529,8 @@ describe("adjustment detail", () => {
     const variance = (requestedBy: string) =>
       adjustmentFixture({
         reason: "COUNT_VARIANCE",
-        quantityDelta: -120,
+        direction: "WRITE_OFF",
+        nominalQty: 120,
         stockPackageId: crypto.randomUUID(),
         cycleCountLineId: crypto.randomUUID(),
         requestedBy,

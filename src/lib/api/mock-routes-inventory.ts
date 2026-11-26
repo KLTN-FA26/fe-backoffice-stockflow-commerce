@@ -70,7 +70,9 @@ interface MockAdjustment {
   locationCode: string;
   sku: string;
   lotNumber: string | null;
-  quantityDelta: number;
+  /** ADR-0011 (BE, issue #305): cả thùng — WRITE_OFF / RESTOCK; số đơn vị là `nominalQty` của thùng. */
+  direction: "WRITE_OFF" | "RESTOCK";
+  nominalQty: number;
   reason: string;
   note: string | null;
   status: string;
@@ -84,7 +86,7 @@ interface MockAdjustment {
   version: number;
   /** Id của thùng (`StockPackage.id`) và LPN của nó — phiếu nào cũng đúng một thùng (docs 20 BR-14). */
   stockPackageId: string;
-  lpn: string;
+  cartonLpn: string;
   /** Có khi phiếu do kiểm kê sinh ra; `countedBy` là người đã đếm dòng đó — cũng không được tự duyệt. */
   cycleCountLineId: string | null;
   countedBy: string | null;
@@ -98,6 +100,8 @@ interface MockMovement {
   lotNumber: string | null;
   fromLocation: string | null;
   toLocation: string | null;
+  /** ADR-0011 (BE, issue #305): một `lpn` thay cho `fromLpn` / `toLpn`. */
+  lpn: string | null;
   quantity: number;
   referenceType: string;
   referenceId: string;
@@ -141,7 +145,8 @@ function ok(data: unknown, status = 200) {
 function nonNull<T extends object>(value: T): Partial<T> {
   return Object.fromEntries(
     Object.entries(value).filter(
-      ([key, field]) => field !== null && key !== "seq" && key !== "lpn" && key !== "countedBy",
+      ([key, field]) =>
+        field !== null && key !== "seq" && key !== "cartonLpn" && key !== "countedBy",
     ),
   ) as Partial<T>;
 }
@@ -346,7 +351,8 @@ export function openMockCountVariance(input: {
   locationCode: string;
   sku: string;
   lotNumber: string | null;
-  quantityDelta: number;
+  direction: MockAdjustment["direction"];
+  nominalQty: number;
   lineId: string;
   requestedBy: string;
   countedBy: string | null;
@@ -360,7 +366,8 @@ export function openMockCountVariance(input: {
     locationCode: input.locationCode,
     sku: input.sku,
     lotNumber: input.lotNumber,
-    quantityDelta: input.quantityDelta,
+    direction: input.direction,
+    nominalQty: input.nominalQty,
     reason: STOCK_ADJUSTMENT_REASON.COUNT_VARIANCE,
     note: input.note,
     status: STOCK_ADJUSTMENT_STATUS.PENDING_APPROVAL,
@@ -373,7 +380,7 @@ export function openMockCountVariance(input: {
     withdrawnAt: null,
     version: 0,
     stockPackageId: input.stockPackageId,
-    lpn: input.lpn,
+    cartonLpn: input.lpn,
     cycleCountLineId: input.lineId,
     countedBy: input.countedBy,
     seq,
@@ -389,7 +396,7 @@ export function mockAdjustmentView(adjustmentId: string) {
     ? {
         id: row.adjustmentId,
         number: row.number,
-        quantityDelta: row.quantityDelta,
+        direction: row.direction,
         status: row.status,
       }
     : null;
@@ -444,14 +451,14 @@ async function createAdjustment(config: AxiosRequestConfig) {
   }
   const now = new Date();
   seq += 1;
-  const quantity = carton.pkg.nominalQty;
   const adjustment: MockAdjustment = {
     adjustmentId: crypto.randomUUID(),
     number: nextNumber(now),
     locationCode: carton.pkg.locationCode ?? "",
     sku: carton.sku,
     lotNumber: carton.lotNumber,
-    quantityDelta: writeOff ? -quantity : quantity,
+    direction: writeOff ? "WRITE_OFF" : "RESTOCK",
+    nominalQty: carton.pkg.nominalQty,
     reason,
     note,
     status: STOCK_ADJUSTMENT_STATUS.PENDING_APPROVAL,
@@ -464,7 +471,7 @@ async function createAdjustment(config: AxiosRequestConfig) {
     withdrawnAt: null,
     version: 0,
     stockPackageId: carton.pkg.id,
-    lpn: carton.pkg.lpn,
+    cartonLpn: carton.pkg.lpn,
     cycleCountLineId: null,
     countedBy: null,
     seq,
@@ -494,19 +501,19 @@ async function approve(config: AxiosRequestConfig) {
   const refused = requirePending(adjustment) ?? selfDecision(adjustment, actor);
   if (refused) return refused;
   const now = new Date().toISOString();
-  const delta = adjustment.quantityDelta;
+  const restock = adjustment.direction === "RESTOCK";
   // Duyệt là ghi tồn ngay (BR-05): thùng ghi giảm → Consumed (kiểm kê không thấy → Lost); nạp lại → In Stock.
-  const carton = await findMockCarton(adjustment.lpn);
+  const carton = await findMockCarton(adjustment.cartonLpn);
   if (carton) {
     setMockCartonStatus(
       carton,
-      delta > 0
+      restock
         ? "IN_STOCK"
         : adjustment.reason === STOCK_ADJUSTMENT_REASON.COUNT_VARIANCE
           ? "LOST"
           : "CONSUMED",
     );
-    setMockQuarantined(adjustment.lpn, false);
+    setMockQuarantined(adjustment.cartonLpn, false);
   }
   seq += 1;
   movements.push({
@@ -514,9 +521,10 @@ async function approve(config: AxiosRequestConfig) {
     type: "ADJUSTMENT",
     sku: adjustment.sku,
     lotNumber: adjustment.lotNumber,
-    fromLocation: delta < 0 ? adjustment.locationCode : null,
-    toLocation: delta > 0 ? adjustment.locationCode : null,
-    quantity: Math.abs(delta),
+    fromLocation: restock ? null : adjustment.locationCode,
+    toLocation: restock ? adjustment.locationCode : null,
+    lpn: adjustment.cartonLpn,
+    quantity: adjustment.nominalQty,
     referenceType: "STOCK_ADJUSTMENT",
     referenceId: adjustment.adjustmentId,
     reason: adjustment.reason + (adjustment.note === null ? "" : `: ${adjustment.note}`),
@@ -647,7 +655,7 @@ function movedOf(carton: MockCarton) {
     lpn: carton.pkg.lpn,
     sku: carton.sku,
     unitOfMeasure: "CARTON",
-    quantity: carton.pkg.receivedQty,
+    quantity: carton.pkg.quantity,
     locationCode: carton.pkg.locationCode ?? "",
     status: carton.pkg.status,
   };
@@ -751,7 +759,8 @@ async function createMove(config: AxiosRequestConfig) {
       lotNumber: carton.lotNumber,
       fromLocation: carton.pkg.locationCode,
       toLocation: to,
-      quantity: carton.pkg.receivedQty,
+      lpn: carton.pkg.lpn,
+      quantity: carton.pkg.quantity,
       referenceType: MOVE_REFERENCE_TYPE,
       referenceId: requestId,
       reason: null,

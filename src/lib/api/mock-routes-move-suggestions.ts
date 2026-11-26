@@ -65,7 +65,7 @@ export async function moveSuggestionsFor(cartons: readonly MockCarton[]) {
   const warehouse = mockWarehouseCodeOf(cartons[0]?.pkg.locationCode ?? null);
   const here = new Set(cartons.map((c) => upper(c.pkg.locationCode)));
   const volume = cartons.length * MOCK_CARTON_VOLUME_M3;
-  const weight = cartons.reduce((sum, c) => sum + cartonWeight(c.pkg.receivedQty), 0);
+  const weight = cartons.reduce((sum, c) => sum + cartonWeight(c.pkg.quantity), 0);
   const ranked = [];
   for (const bin of binsOfWarehouse(warehouse)) {
     if (!bin.usable || !bin.putawayTarget || here.has(upper(bin.locationCode))) continue;

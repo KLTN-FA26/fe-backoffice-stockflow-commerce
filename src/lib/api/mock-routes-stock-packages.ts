@@ -27,7 +27,7 @@ export function mockLabelsPdf(rows: readonly LabelRow[], format: string): Blob {
     `Carton labels (${format}) - mock`,
     ...rows.map(
       ({ carton, sku, unit }) =>
-        `${carton.lpn}   ${sku}   ${carton.receivedQty} / ${carton.nominalQty} ${unit}`,
+        `${carton.lpn}   ${sku}   ${carton.quantity} / ${carton.nominalQty} ${unit}`,
     ),
   ]);
 }

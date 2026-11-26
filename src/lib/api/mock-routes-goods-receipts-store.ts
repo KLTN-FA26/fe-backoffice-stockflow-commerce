@@ -182,7 +182,7 @@ function waitingCartons(line: MockReceiptLine, receivedAt: string): MockReceiptL
       id: `mock-pkg-${lpn}`,
       lpn,
       quantity: units,
-      receivedQty: units,
+      countedAt: receivedAt,
       nominalQty: MOCK_CARTON_FACTOR,
       status: "IN_STOCK" as const,
       locationCode: line.locationCode,
