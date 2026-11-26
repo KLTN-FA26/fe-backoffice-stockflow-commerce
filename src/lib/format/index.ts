@@ -25,7 +25,9 @@ export {
 } from "./number";
 export {
   addDaysIso,
+  caretAfterDigits,
   dayOfLocal,
+  digitsBefore,
   isoToDateText,
   localToDateTimeText,
   maskDateInput,

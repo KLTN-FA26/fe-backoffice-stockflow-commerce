@@ -11,7 +11,7 @@ import type { UserEvent } from "@testing-library/user-event";
 /** Nút "Mở lịch" nằm cạnh ô gõ của DatePicker / DateTimePicker; `trigger` có thể là ô gõ (theo nhãn) hoặc chính nút. */
 function calendarButton(trigger: HTMLElement): HTMLElement {
   if (trigger.tagName !== "INPUT") return trigger;
-  return within(trigger.parentElement as HTMLElement).getByRole("button", { name: "Mở lịch" });
+  return within(trigger.parentElement as HTMLElement).getByRole("button", { name: /^Mở lịch/ });
 }
 
 /** Mở lịch của `DatePicker` / `DateTimePicker` như người dùng: bấm nút "Mở lịch" cạnh ô gõ. */

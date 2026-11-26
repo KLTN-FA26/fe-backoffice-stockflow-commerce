@@ -161,8 +161,8 @@ export const SHIPPING_WAYBILL_LABELS = {
     pickupAtHint:
       "Gõ ngày giờ (ngày/tháng/năm, 24 giờ) hoặc bấm nút chọn nhanh. Bỏ trống = lấy hàng càng sớm càng tốt.",
     pickupQuickEarliest: "Sớm nhất",
-    pickupQuickToday: "Hôm nay 08:30",
-    pickupQuickTomorrow: "Ngày mai 08:30",
+    pickupQuickToday: (time: string) => `Hôm nay ${time}`,
+    pickupQuickTomorrow: (time: string) => `Ngày mai ${time}`,
     stops: "Thứ tự điểm giao",
     stopsHint:
       "Điểm lấy hàng là kho xuất; mỗi lô giao trên xe là một điểm giao, theo thứ tự bạn xác nhận (kế hoạch xếp xe chưa sắp theo thứ tự giao).",

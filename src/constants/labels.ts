@@ -79,21 +79,39 @@ export const UI_LABELS = {
     /** Ô gõ được: dd/MM/yyyy — người dùng gõ liền 8 chữ số, dấu "/" tự thêm. */
     placeholder: "dd/mm/yyyy",
     openCalendar: "Mở lịch",
+    /** Tên nút lịch khi biết nhãn của ô: "Mở lịch – Từ ngày". */
+    openCalendarFor: (label: string) => `Mở lịch – ${label}`,
     yesterday: "Hôm qua",
     today: "Hôm nay",
     tomorrow: "Ngày mai",
     nextWeek: "+7 ngày",
+    lastWeek: "7 ngày trước",
     clear: "Xoá ngày",
+    /** Lý do chữ khi ngày gõ không nhận được. */
+    incomplete: "Nhập đủ ngày/tháng/năm, ví dụ 25/11/2026",
+    invalid: (minYear: number, maxYear: number) =>
+      `Ngày không hợp lệ — ngày có thật, năm từ ${minYear} đến ${maxYear}`,
+    outOfRange: (from: string | null, to: string | null) =>
+      from && to
+        ? `Chọn ngày từ ${from} đến ${to}`
+        : from
+          ? `Chọn ngày từ ${from} trở đi`
+          : `Chọn ngày đến hết ${to}`,
   },
   // Ô ngày giờ dùng chung (components/shared/DateTimePicker): dd/MM/yyyy HH:mm, 24 giờ
   dateTimePicker: {
     placeholder: "dd/mm/yyyy hh:mm",
     openCalendar: "Mở lịch",
+    openCalendarFor: (label: string) => `Mở lịch – ${label}`,
     time: "Giờ (24 giờ)",
+    timeFor: (label: string) => `Giờ (24 giờ) – ${label}`,
     timePlaceholder: "hh:mm",
     done: "Xong",
     clear: "Xoá",
     now: "Bây giờ",
+    incomplete: "Nhập đủ ngày giờ, ví dụ 27/11/2026 08:30 (24 giờ)",
+    invalid: "Ngày giờ không hợp lệ — ngày có thật, giờ từ 00:00 đến 23:59",
+    outOfRange: "Ngày giờ nằm ngoài khoảng cho phép",
   },
   // Ô nhập tiền dùng chung (components/shared/MoneyInput)
   moneyInput: {

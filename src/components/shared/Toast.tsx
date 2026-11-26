@@ -3,6 +3,8 @@
 import { Toaster as SonnerToaster, toast as sonnerToast } from "sonner";
 import { CheckCircle, XCircle, AlertTriangle, Info } from "lucide-react";
 
+import { TOAST_DURATION_MS } from "@/constants";
+
 /* -------------------------------------------------------------------------- */
 /*  Custom toast renderer — match components-preview.html §Feedback           */
 /*  .toast: border-left 3px solid tone, bg-surface, shadow-lg, r-md          */
@@ -68,9 +70,6 @@ export function ToastProvider() {
     />
   );
 }
-
-/** Thông báo thành công / thông tin tự tắt nhanh; lỗi và cảnh báo ở lại lâu hơn để kịp đọc (người lớn tuổi đọc chậm). */
-const TOAST_DURATION_MS = { default: 4000, attention: 8000 } as const;
 
 /** `id`: toast mới cùng id thay toast cũ thay vì chồng thêm (vd giữ phím lặp lại cùng một cảnh báo). */
 export interface ToastOptions {

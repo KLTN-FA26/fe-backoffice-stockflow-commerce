@@ -74,6 +74,7 @@ export function OrderListFilters({ s }: { s: OrderListState }) {
           </Label>
           {/* dd/MM/yyyy dùng chung (B1): ô `type="date"` theo locale trình duyệt đọc 03/12 thành 12/3 */}
           <DatePicker
+            quickKind="past"
             id="order-filter-from"
             value={extra.placedFrom}
             max={extra.placedTo || undefined}
@@ -88,6 +89,7 @@ export function OrderListFilters({ s }: { s: OrderListState }) {
             {FILTER_LABELS.to}
           </Label>
           <DatePicker
+            quickKind="past"
             id="order-filter-to"
             value={extra.placedTo}
             min={extra.placedFrom || undefined}

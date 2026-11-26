@@ -28,6 +28,8 @@ export function NotFoundView({
   /** Đứng một mình (không nằm trong khung quản trị) → cao đủ màn hình. */
   fullPage?: boolean;
 }) {
+  // Trong khung quản trị đã có <main> của khung: ở đó chỉ là một vùng (section), không lồng thêm <main>
+  const Content = fullPage ? "main" : "section";
   return (
     <div
       className={cn(
@@ -36,7 +38,7 @@ export function NotFoundView({
       )}
     >
       {header}
-      <main className="mx-auto flex w-full max-w-xl flex-1 flex-col items-center justify-center gap-4 px-5 py-16 text-center">
+      <Content className="mx-auto flex w-full max-w-xl flex-1 flex-col items-center justify-center gap-4 px-5 py-16 text-center">
         <SearchX className="text-ink-tertiary size-10" aria-hidden="true" />
         <h1 className="font-[family-name:var(--font-display)] text-xl font-semibold">{L.title}</h1>
         <p className="text-ink-secondary max-w-[46ch] text-sm">{L.description}</p>
@@ -47,7 +49,7 @@ export function NotFoundView({
             </Button>
           ))}
         </div>
-      </main>
+      </Content>
     </div>
   );
 }

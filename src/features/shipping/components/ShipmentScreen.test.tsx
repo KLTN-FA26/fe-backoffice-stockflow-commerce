@@ -353,9 +353,19 @@ describe("ShipmentScreen — thời điểm giao khi ghi tay (docs 09 §4.3 bư�
 
   it("thời điểm ở tương lai → báo lỗi tiếng Việt, nút Ghi nhận bị khoá", async () => {
     const { user, dialog, time } = await openDelivered();
-    await typeDateTime(user, time, "2999-01-01T10:00");
+    // Năm sau (trong khoảng năm của lịch): ngày giờ thật nhưng ở tương lai
+    await typeDateTime(user, time, `${new Date().getFullYear() + 1}-01-01T10:00`);
     expect(await within(dialog).findByText(DT.future)).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: O.confirm })).toBeDisabled();
+  });
+
+  it("thời điểm gõ sai (31/11/2026 08:30) → báo lỗi, nút Ghi nhận khoá, không gửi deliveredAt", async () => {
+    const { user, dialog, post, time } = await openDelivered();
+    await user.clear(time);
+    await user.type(time, "311120260830");
+    expect(await within(dialog).findByText(DT.invalid)).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: O.confirm })).toBeDisabled();
+    expect(post).not.toHaveBeenCalled();
   });
 
   it("thời điểm trước lúc bàn giao → báo lỗi, nút Ghi nhận bị khoá", async () => {

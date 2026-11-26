@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   addDaysIso,
+  caretAfterDigits,
   dayOfLocal,
+  digitsBefore,
   isoToDateText,
   localToDateTimeText,
   maskDateInput,
@@ -90,5 +92,24 @@ describe("typed date-time input (24h)", () => {
   it("an instant becomes Vietnam local time", () => {
     expect(toLocalDateTime("2026-11-25T01:30:00Z")).toBe("2026-11-25T08:30");
     expect(toLocalDateTime(new Date("2026-11-25T17:30:00Z"))).toBe("2026-11-26T00:30");
+  });
+});
+
+describe("year bounds and caret helpers", () => {
+  it("a typed year outside the field's bounds is refused", () => {
+    expect(parseDateInput("15/03/2999")).toBe("2999-03-15");
+    expect(parseDateInput("15/03/2999", { min: 2016, max: 2036 })).toBeNull();
+    expect(parseDateInput("15/03/2030", { min: 2016, max: 2036 })).toBe("2030-03-15");
+    expect(parseDateTimeInput("15/03/2040 08:30", { min: 2016, max: 2036 })).toBeNull();
+  });
+
+  it("keeps the caret after the same digit when slashes are added", () => {
+    expect(digitsBefore("25/1", 4)).toBe(3);
+    expect(digitsBefore("25/11/2026", 2)).toBe(2);
+    expect(caretAfterDigits("25/11/2026", 2)).toBe(2);
+    expect(caretAfterDigits("25/11/2026", 3)).toBe(4);
+    expect(caretAfterDigits("25/11/2026 08:30", 9)).toBe(12);
+    expect(caretAfterDigits("25/11", 0)).toBe(0);
+    expect(caretAfterDigits("25/11", 9)).toBe(5);
   });
 });

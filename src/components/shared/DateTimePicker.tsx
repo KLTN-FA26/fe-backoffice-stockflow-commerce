@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { cn } from "cn";
 import { format, isValid, parseISO } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { vi } from "react-day-picker/locale";
 
-import { DATE_PICKER_YEAR_SPAN, UI_LABELS } from "@/constants";
+import { DATE_INPUT, DATE_PICKER_YEAR_SPAN, UI_LABELS } from "@/constants";
 import {
   dayOfLocal,
   localToDateTimeText,
@@ -22,6 +22,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 import { FORM_INPUT_CLASS } from "./form-control-classes";
+import { useTypedField } from "./use-typed-field";
 
 import type { Ref } from "react";
 
@@ -29,9 +30,7 @@ const L = UI_LABELS.dateTimePicker;
 const ISO_DATE = "yyyy-MM-dd";
 /** Một ngày giờ đã gõ đủ: dd/MM/yyyy HH:mm. */
 const FULL_LENGTH = 16;
-const FULL_TIME_LENGTH = 5;
-/** Giờ điền sẵn khi chọn một ngày mà ô còn trống. */
-const FALLBACK_TIME = "08:00";
+const LOCAL_VALUE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
 
 /** Nút chọn nhanh dưới ô. `value` tính lúc bấm (`yyyy-MM-ddTHH:mm` giờ Việt Nam); "" = bỏ trống ô. */
 export interface QuickDateTime {
@@ -51,8 +50,11 @@ interface DateTimePickerProps {
   min?: string;
   max?: string;
   placeholder?: string;
-  /** Cho xoá hết chữ về "" (ô không bắt buộc). */
-  clearable?: boolean;
+  /**
+   * Hiện lý do bằng chữ dưới ô khi ngày giờ gõ không nhận được / nằm ngoài `min`–`max` (mặc định có). Tắt khi form tự
+   * hiện lỗi của ô (vd lỗi zod dưới ô) để khỏi hiện hai câu.
+   */
+  showReason?: boolean;
   /** Nút chọn nhanh dưới ô (vd "Sớm nhất" = "", "Hôm nay 08:30"). */
   quick?: QuickDateTime[];
   disabled?: boolean;
@@ -74,6 +76,10 @@ function toDate(iso: string | undefined): Date | undefined {
  * Ô ngày giờ dd/MM/yyyy HH:mm, 24 giờ: GÕ được (gõ liền 12 chữ số, "/" ":" và dấu cách tự thêm) + nút lịch (chọn ngày,
  * gõ giờ) + nút chọn nhanh. Thay cho `<input type="datetime-local">` gốc của trình duyệt (kiểu Mỹ `mm/dd/yyyy`, AM/PM).
  * Giá trị vẫn là `yyyy-MM-ddTHH:mm` giờ Việt Nam nên chỗ đổi ra Instant gửi BE giữ nguyên.
+ *
+ * Chữ gõ KHÔNG nhận được (dở, ngày 31/11, giờ 25:00) được báo về `onChange` NGUYÊN CHỮ — không phải một giá trị cũ hay
+ * "" (rỗng thường nghĩa là "không chọn / càng sớm càng tốt") — để form giữ lỗi và chặn gửi; caller phải kiểm
+ * `yyyy-MM-ddTHH:mm` (zod regex). Xoá hết chữ báo "". Chữ không nhận được vẫn nằm trong ô sau khi rời ô.
  */
 export function DateTimePicker({
   value,
@@ -82,7 +88,7 @@ export function DateTimePicker({
   min,
   max,
   placeholder = L.placeholder,
-  clearable = false,
+  showReason = true,
   quick,
   disabled,
   onBlur,
@@ -90,34 +96,64 @@ export function DateTimePicker({
   className,
   ...ariaProps
 }: DateTimePickerProps) {
+  const reasonId = useId();
+  const timeId = useId();
+  const { attachInput, keepCaret, label: fieldLabel } = useTypedField(ref);
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<string | null>(null);
   const [timeDraft, setTimeDraft] = useState<string | null>(null);
+  const [blurred, setBlurred] = useState(false);
+  // Giá trị đổi từ bên ngoài (đặt lại, nút chọn nhanh…) → bỏ chữ đang gõ; giá trị do chính ô báo thì không
+  const [synced, setSynced] = useState(value);
+  if (value !== synced) {
+    setSynced(value);
+    setDraft(null);
+  }
   const selected = toDate(dayOfLocal(value));
   const minDay = dayOfLocal(min);
   const maxDay = dayOfLocal(max);
   const today = todayIso();
   const year = Number(today.slice(0, 4));
+  const years = { min: year - DATE_PICKER_YEAR_SPAN.back, max: year + DATE_PICKER_YEAR_SPAN.ahead };
 
-  const text = draft ?? localToDateTimeText(value);
   const outOfRange = (local: string) => (!!min && local < min) || (!!max && local > max);
+  const text = draft ?? localToDateTimeText(value);
+  const typedFull = draft !== null && draft.length === FULL_LENGTH;
+  const typedParsed = typedFull ? parseDateTimeInput(draft, years) : null;
+  const valueOutOfRange = LOCAL_VALUE.test(value) && outOfRange(value);
+  const reason = (() => {
+    if (!showReason) return null;
+    if (draft !== null && draft !== "") {
+      if (typedFull && typedParsed === null) return L.invalid;
+      if (!typedFull && blurred) return L.incomplete;
+    }
+    return valueOutOfRange ? L.outOfRange : null;
+  })();
+  // Viền đỏ cả khi caller tự hiện lỗi (showReason = false)
   const invalid =
-    (draft !== null && draft.length === FULL_LENGTH && parseDateTimeInput(draft) === null) ||
-    (value !== "" && outOfRange(value));
+    (draft !== null && draft !== "" && (typedFull ? typedParsed === null : blurred)) ||
+    valueOutOfRange;
 
-  const handleType = (raw: string) => {
-    const masked = maskDateTimeInput(raw);
+  const report = (next: string) => {
+    setSynced(next);
+    onChange(next);
+  };
+
+  const handleType = (input: HTMLInputElement) => {
+    const masked = maskDateTimeInput(input.value);
+    keepCaret(input, masked);
     setDraft(masked);
+    setBlurred(false);
     if (masked === "") {
-      if (clearable) onChange("");
+      report("");
       return;
     }
-    const local = parseDateTimeInput(masked);
-    if (local) onChange(local);
+    // Đủ và đúng → `yyyy-MM-ddTHH:mm`; còn lại → chính chữ gõ (không nhận được, form báo lỗi)
+    report(parseDateTimeInput(masked, years) ?? masked);
   };
 
   const pickDay = (day: string) => {
-    onChange(`${day}T${timeOfLocal(value) || FALLBACK_TIME}`);
+    report(`${day}T${timeOfLocal(value) || DATE_INPUT.fallbackTime}`);
     setDraft(null);
   };
 
@@ -126,7 +162,7 @@ export function DateTimePicker({
     setTimeDraft(masked);
     const time = parseTimeInput(masked);
     if (time) {
-      onChange(`${dayOfLocal(value) || today}T${time}`);
+      report(`${dayOfLocal(value) || today}T${time}`);
       setDraft(null);
     }
   };
@@ -144,21 +180,25 @@ export function DateTimePicker({
       >
         <input
           id={id}
-          ref={ref}
+          ref={attachInput}
           type="text"
           inputMode="numeric"
           autoComplete="off"
           disabled={disabled}
           value={text}
           placeholder={placeholder}
-          maxLength={FULL_LENGTH}
-          onChange={(event) => handleType(event.target.value)}
+          onChange={(event) => handleType(event.target)}
           onBlur={() => {
-            setDraft(null);
+            setBlurred(true);
+            // Chữ không nhận được ở lại trong ô cùng lý do; chữ hợp lệ thì hiện lại dạng chuẩn
+            if (draft !== null && parseDateTimeInput(draft, years) !== null) setDraft(null);
             onBlur?.();
           }}
           aria-label={ariaProps["aria-label"]}
-          aria-describedby={ariaProps["aria-describedby"]}
+          aria-describedby={
+            [ariaProps["aria-describedby"], reason ? reasonId : null].filter(Boolean).join(" ") ||
+            undefined
+          }
           aria-invalid={ariaProps["aria-invalid"] || invalid || undefined}
           className="placeholder:text-ink-tertiary min-w-0 flex-1 bg-transparent px-2.5 outline-none"
         />
@@ -175,7 +215,7 @@ export function DateTimePicker({
               variant="ghost"
               size="icon-xs"
               disabled={disabled}
-              aria-label={L.openCalendar}
+              aria-label={fieldLabel ? L.openCalendarFor(fieldLabel) : L.openCalendar}
               className="text-ink-tertiary hover:text-ink-primary shrink-0"
             >
               <CalendarIcon className="size-3.5" aria-hidden />
@@ -190,8 +230,8 @@ export function DateTimePicker({
               selected={selected}
               today={toDate(today)}
               defaultMonth={selected ?? toDate(minDay)}
-              startMonth={new Date(year - DATE_PICKER_YEAR_SPAN.back, 0)}
-              endMonth={new Date(year + DATE_PICKER_YEAR_SPAN.ahead, 11)}
+              startMonth={new Date(years.min, 0)}
+              endMonth={new Date(years.max, 11)}
               disabled={[
                 ...(toDate(minDay) ? [{ before: toDate(minDay) as Date }] : []),
                 ...(toDate(maxDay) ? [{ after: toDate(maxDay) as Date }] : []),
@@ -202,15 +242,15 @@ export function DateTimePicker({
               }}
             />
             <div className="border-border-default flex items-center gap-2 border-t p-2">
-              <label htmlFor={id ? `${id}-time` : undefined} className="text-ink-secondary text-xs">
+              <label htmlFor={timeId} className="text-ink-secondary text-xs">
                 {L.time}
               </label>
               <input
-                id={id ? `${id}-time` : undefined}
+                id={timeId}
                 type="text"
                 inputMode="numeric"
                 autoComplete="off"
-                maxLength={FULL_TIME_LENGTH}
+                aria-label={fieldLabel ? L.timeFor(fieldLabel) : L.time}
                 value={timeDraft ?? timeOfLocal(value)}
                 placeholder={L.timePlaceholder}
                 onChange={(event) => handleTime(event.target.value)}
@@ -230,6 +270,11 @@ export function DateTimePicker({
           </PopoverContent>
         </Popover>
       </div>
+      {reason && (
+        <p id={reasonId} className="text-danger text-xs">
+          {reason}
+        </p>
+      )}
       {quick && quick.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {quick.map((q) => (
@@ -241,7 +286,7 @@ export function DateTimePicker({
               disabled={disabled}
               onClick={() => {
                 setDraft(null);
-                onChange(q.value());
+                report(q.value());
               }}
             >
               {q.label}

@@ -13,6 +13,7 @@ import { bookingInputSchema } from "@/features/shipping/input-schemas";
 import { useBookLoad } from "@/features/shipping/ftl-mutations";
 import { useActiveCarriers } from "@/features/shipping/queries";
 import { DateTimePicker } from "@/components/shared/DateTimePicker";
+import type { QuickDateTime } from "@/components/shared/DateTimePicker";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,20 +26,24 @@ import type { BookingFormInput, BookingValues, Load } from "@/features/shipping/
 
 const D = UI_LABELS.shipping.ftl.bookDialog;
 const A = UI_LABELS.shipping.waybill.apiBooking;
-const QUICK_PICKUP_TIME = "08:30";
 
 /** Nút chọn nhanh giờ hẹn lấy hàng: sớm nhất (bỏ trống), 08:30 hôm nay (nếu chưa qua), 08:30 ngày mai. */
 function pickupQuickOptions() {
-  const today830 = todayAt(QUICK_PICKUP_TIME);
-  return [
+  const time = SHIPPING_LIMITS.quickPickupTime;
+  const todayAtTime = todayAt(time);
+  const options: QuickDateTime[] = [
     { label: A.pickupQuickEarliest, value: () => "" },
-    ...(today830 > toLocalDateTime() ? [{ label: A.pickupQuickToday, value: () => today830 }] : []),
+    ...(todayAtTime > toLocalDateTime()
+      ? [{ label: A.pickupQuickToday(time), value: () => todayAtTime }]
+      : []),
     {
-      label: A.pickupQuickTomorrow,
-      value: () => `${addDaysIso(todayIso(), 1)}T${QUICK_PICKUP_TIME}`,
+      label: A.pickupQuickTomorrow(time),
+      value: () => `${addDaysIso(todayIso(), 1)}T${time}`,
     },
   ];
+  return options;
 }
+
 const SERVER_FIELDS = [
   "carrierId",
   "vehiclePlate",
@@ -195,7 +200,7 @@ export function BookingDialog({ load, onClose }: { load: Load; onClose: () => vo
                     onChange={field.onChange}
                     onBlur={field.onBlur}
                     ref={field.ref}
-                    clearable
+                    showReason={false}
                     quick={pickupQuickOptions()}
                     className="h-8"
                     aria-invalid={errors.pickupAt ? true : undefined}

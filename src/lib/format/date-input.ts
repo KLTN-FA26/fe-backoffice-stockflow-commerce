@@ -4,17 +4,23 @@
  * `<input type="date">` / `datetime-local` held, so nothing sent to the BE changes. Pure helpers: no React, no network.
  */
 
+import { DATE_INPUT } from "@/constants/numbers";
+
 import { toLocalIsoDate } from "./date";
 
 const TZ = "Asia/Ho_Chi_Minh";
 const ISO_DAY = /^(\d{4})-(\d{2})-(\d{2})$/;
 const ISO_LOCAL = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})$/;
-/** A typed date is accepted from this year (a 2-digit year typo like "26" must not become year 0026). */
-const MIN_YEAR = 1900;
-const MAX_YEAR = 2999;
 
-function isRealDay(year: number, month: number, day: number): boolean {
-  if (year < MIN_YEAR || year > MAX_YEAR || month < 1 || month > 12 || day < 1) return false;
+/** Years a typed date may have; the field passes the calendar's own range so typing cannot reach outside it. */
+export interface YearBounds {
+  min: number;
+  max: number;
+}
+const DEFAULT_YEARS: YearBounds = { min: DATE_INPUT.minYear, max: DATE_INPUT.maxYear };
+
+function isRealDay(year: number, month: number, day: number, years: YearBounds): boolean {
+  if (year < years.min || year > years.max || month < 1 || month > 12 || day < 1) return false;
   return day <= new Date(Date.UTC(year, month, 0)).getUTCDate();
 }
 
@@ -28,6 +34,21 @@ function mask(raw: string, withTime: boolean): string {
     out += ` ${time}`;
   }
   return out;
+}
+
+/** How many digits of `text` come before index `end` (where the caret was). */
+export function digitsBefore(text: string, end: number): number {
+  return text.slice(0, end).replace(/\D/g, "").length;
+}
+
+/** Caret index in a masked text that sits right after its `count`-th digit (0 → start). */
+export function caretAfterDigits(masked: string, count: number): number {
+  if (count <= 0) return 0;
+  let seen = 0;
+  for (let i = 0; i < masked.length; i++) {
+    if (/\d/.test(masked.charAt(i)) && ++seen === count) return i + 1;
+  }
+  return masked.length;
 }
 
 /** Typed text → "25/11/2026" shape, slashes added as digits arrive. */
@@ -47,11 +68,11 @@ export function maskTimeInput(raw: string): string {
 }
 
 /** "25/11/2026" → `2026-11-25`; incomplete or not a real calendar day → null. */
-export function parseDateInput(text: string): string | null {
+export function parseDateInput(text: string, years: YearBounds = DEFAULT_YEARS): string | null {
   const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(text.trim());
   if (!match) return null;
   const [, d, m, y] = match;
-  if (!isRealDay(Number(y), Number(m), Number(d))) return null;
+  if (!isRealDay(Number(y), Number(m), Number(d), years)) return null;
   return `${y}-${m}-${d}`;
 }
 
@@ -65,11 +86,11 @@ export function parseTimeInput(text: string): string | null {
 }
 
 /** "25/11/2026 08:30" → `2026-11-25T08:30`; incomplete or invalid → null. */
-export function parseDateTimeInput(text: string): string | null {
+export function parseDateTimeInput(text: string, years: YearBounds = DEFAULT_YEARS): string | null {
   const match = /^(\d{2}\/\d{2}\/\d{4})\s+(\d{2}:\d{2})$/.exec(text.trim());
   if (!match) return null;
   const [, date, time] = match;
-  const day = parseDateInput(date ?? "");
+  const day = parseDateInput(date ?? "", years);
   const clock = parseTimeInput(time ?? "");
   return day && clock ? `${day}T${clock}` : null;
 }
@@ -79,7 +100,9 @@ export function isoToDateText(iso: string | undefined): string {
   const match = iso ? ISO_DAY.exec(iso) : null;
   if (!match) return "";
   const [, y, m, d] = match;
-  return isRealDay(Number(y), Number(m), Number(d)) ? `${d}/${m}/${y}` : "";
+  return isRealDay(Number(y), Number(m), Number(d), { min: 1, max: DATE_INPUT.maxYear })
+    ? `${d}/${m}/${y}`
+    : "";
 }
 
 /** `2026-11-25T08:30` → "25/11/2026 08:30"; empty / invalid → "". */

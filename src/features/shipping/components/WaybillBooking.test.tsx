@@ -2,7 +2,12 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ADMIN_ROUTES, SHIPPING_ERROR_MESSAGES as ERR, UI_LABELS } from "@/constants";
+import {
+  ADMIN_ROUTES,
+  SHIPPING_ERROR_MESSAGES as ERR,
+  SHIPPING_FIELD_MESSAGES as FIELD_MSG,
+  UI_LABELS,
+} from "@/constants";
 import { ApiError } from "@/lib/api/error";
 import { formatMoney } from "@/lib/format/money";
 import { typeDateTime } from "@/test/date-picker";
@@ -215,6 +220,31 @@ describe("Đặt xe — hãng đặt xe qua API (BR-29)", () => {
       pickupAt: "2026-11-12T02:30:00.000Z",
       stopShipmentIds: ["shp-SO-2-S1", "shp-SO-1-S1"],
     });
+  });
+
+  it("giờ hẹn gõ sai (31/11/2026 08:30): nút tạo đơn khoá, báo lỗi ở ô, KHÔNG gửi gì lên hãng; sửa đúng thì gửi đúng giờ đó", async () => {
+    const user = userEvent.setup();
+    const { post } = renderLoad(ACTORS.warehouseStaff, twoStops(), { booking: () => apiBooked() });
+    await user.click(await screen.findByRole("button", { name: F.booking.book }));
+    const dialog = await screen.findByRole("dialog");
+    await chooseCarrier(user, /AHAMOVE/);
+    const field = within(dialog).getByLabelText(A.pickupAt);
+    await user.type(field, "311120260830");
+    expect(await within(dialog).findByText(FIELD_MSG.pickupAtInvalid)).toBeInTheDocument();
+    expect(field).toHaveAttribute("aria-invalid", "true");
+    const submit = within(dialog).getByRole("button", { name: A.submit });
+    expect(submit).toBeDisabled();
+    // Rời ô: không âm thầm thành "bỏ trống = sớm nhất" hay giờ cũ
+    await user.tab();
+    expect(field).toHaveValue("31/11/2026 08:30");
+    expect(submit).toBeDisabled();
+    expect(post).not.toHaveBeenCalled();
+
+    await typeDateTime(user, field, "2026-11-30T08:30");
+    await waitFor(() => expect(submit).toBeEnabled());
+    await user.click(submit);
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(1));
+    expect(sent(post.mock.calls[0]?.[1])).toMatchObject({ pickupAt: "2026-11-30T01:30:00.000Z" });
   });
 
   it("bỏ trống giờ hẹn: không gửi pickupAt (hãng lấy hàng sớm nhất); thứ tự mặc định theo biên bản", async () => {
