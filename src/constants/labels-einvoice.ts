@@ -128,8 +128,7 @@ export const EINVOICE_LABELS = {
     clearFilters: "Bỏ bộ lọc",
     drawUp: "Lập nháp",
     emptyTitle: "Chưa có hoá đơn điện tử",
-    emptyDescription:
-      "Hoá đơn nháp được hệ thống tạo khi một lần giao thành công (shipment Delivered).",
+    emptyDescription: "Hoá đơn nháp được hệ thống tạo khi một lô giao được giao thành công.",
     noReadDescription:
       "Bạn được mở trang nhưng chưa có quyền xem hoá đơn điện tử. Liên hệ quản trị để được cấp.",
   },
@@ -137,7 +136,7 @@ export const EINVOICE_LABELS = {
     reference: "Số hoá đơn",
     type: "Loại",
     order: "Đơn hàng",
-    shipment: "Lần giao",
+    shipment: "Lô giao",
     buyer: "Bên mua",
     issueDate: "Ngày lập",
     dueAt: "Hạn phát hành",

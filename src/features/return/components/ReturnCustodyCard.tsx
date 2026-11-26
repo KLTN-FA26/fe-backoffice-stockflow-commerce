@@ -9,6 +9,7 @@ import { RETURN_LABELS } from "@/constants/labels-return";
 import { RETURN_LIMITS } from "@/constants/returns";
 import { DirectUploadError, uploadFileDirect } from "@/lib/api/direct-upload";
 import { Card } from "@/components/shared/Card";
+import { FilePickerField } from "@/components/shared/FilePickerField";
 import { FormField, fieldA11y } from "@/components/shared/FormField";
 import { FORM_TEXTAREA_CLASS } from "@/components/shared/form-control-classes";
 import { Notice } from "@/components/shared/Notice";
@@ -120,15 +121,13 @@ function CustodyForm({ ret }: { ret: ReturnRequest }) {
       </div>
       <div className="sm:col-span-2">
         <FormField id={photoId} label={C.photo} required error={photoError ?? undefined}>
-          <input
-            ref={photoRef}
-            type="file"
+          <FilePickerField
+            inputRef={photoRef}
             accept={RETURN_LIMITS.evidenceTypes.join(",")}
+            fileName={photo?.name}
             disabled={busy}
-            className="text-[0.8125rem]"
             {...fieldA11y(photoId, photoError ?? undefined)}
-            onChange={(event) => {
-              const file = event.target.files?.[0] ?? null;
+            onChange={(file) => {
               setPhoto(file);
               setPhotoError(file ? evidenceFileProblem(file) : null);
             }}

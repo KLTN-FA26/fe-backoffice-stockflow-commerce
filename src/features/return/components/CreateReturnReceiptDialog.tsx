@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Controller, useForm, useWatch } from "react-hook-form";
@@ -74,6 +74,18 @@ function CreateForm({
     useCan(WAREHOUSE_LOCATION_PERMISSIONS.read),
   );
   const quarantine = (areas.data ?? []).filter((area) => area.type === "QUARANTINE");
+  const warehouseList = warehouses.data ?? [];
+  const onlyWarehouseId = warehouseList.length === 1 ? warehouseList[0]?.warehouseId : undefined;
+  const onlyAreaCode = quarantine.length === 1 ? quarantine[0]?.locationCode : undefined;
+  // Chỉ có một kho / một khu cách ly để chọn thì chọn sẵn (UX audit S21-2)
+  useEffect(() => {
+    if (onlyWarehouseId && !form.getValues("warehouseId"))
+      form.setValue("warehouseId", onlyWarehouseId);
+  }, [form, onlyWarehouseId]);
+  useEffect(() => {
+    if (onlyAreaCode && !form.getValues("quarantineLocationCode"))
+      form.setValue("quarantineLocationCode", onlyAreaCode);
+  }, [form, onlyAreaCode]);
 
   const submit = form.handleSubmit((values) =>
     create.mutate(

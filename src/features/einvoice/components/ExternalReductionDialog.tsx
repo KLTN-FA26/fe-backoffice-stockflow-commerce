@@ -171,7 +171,7 @@ function ExternalReductionForm({ invoice, onClose }: { invoice: EInvoice; onClos
         error={fieldErrors.basis}
         hint={
           isRest
-            ? "Hoá đơn này không thuộc lần giao nào: hoá đơn giảm chỉ lấy lại phí vận chuyển đã miễn (hệ thống tự tính số tiền, không lấy phí khuôn) — hoá đơn giảm làm trên cổng phải đúng số đó."
+            ? "Hoá đơn này không thuộc lô giao nào: hoá đơn giảm chỉ lấy lại phí vận chuyển đã miễn (hệ thống tự tính số tiền, không lấy phí khuôn) — hoá đơn giảm làm trên cổng phải đúng số đó."
             : undefined
         }
       >

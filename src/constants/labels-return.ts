@@ -419,7 +419,7 @@ export const RETURN_RECEIPT_LABELS = {
   tabs: { draft: "Đang nhận", all: "Tất cả" },
   emptyTitle: "Chưa có phiếu nhập hàng hoàn",
   emptyDescription:
-    "Lập phiếu khi hàng của một yêu cầu trả hàng đã duyệt, hoặc một chuyến hãng hoàn về, tới kho.",
+    "Lập phiếu khi hàng của một yêu cầu trả hàng đã duyệt, hoặc một lô giao hãng hoàn về, tới kho.",
   noReadDescription:
     "Bạn được mở trang nhưng chưa có quyền xem phiếu nhận. Liên hệ quản trị để được cấp.",
   forbiddenDescription: "Tài khoản của bạn chưa được cấp quyền xem phiếu nhận.",
@@ -438,7 +438,7 @@ export const RETURN_RECEIPT_LABELS = {
   source: {
     rmaShort: "RMA",
     rma: (rma: string) => `RMA ${rma}`,
-    shipment: (code: string) => `Chuyến hoàn ${code}`,
+    shipment: (code: string) => `Lô hoàn về ${code}`,
   },
   createDialog: {
     title: "Lập phiếu nhập hàng hoàn",
@@ -446,11 +446,11 @@ export const RETURN_RECEIPT_LABELS = {
       "Hàng về nhận theo LPN vào khu cách ly (QUARANTINE) của kho xuất đơn. Quản lý kho gỡ cách ly hoặc ghi giảm sau.",
     sourceType: "Nguồn hàng về",
     sourceRma: "Yêu cầu trả hàng đã duyệt",
-    sourceShipment: "Chuyến hãng hoàn về (RTO)",
+    sourceShipment: "Lô giao hãng hoàn về (RTO)",
     rma: "Yêu cầu trả hàng",
     rmaPlaceholder: "Chọn yêu cầu đang chờ hàng về",
-    shipment: "Chuyến hoàn về",
-    shipmentPlaceholder: "Chọn chuyến đã hoàn về",
+    shipment: "Lô giao hoàn về",
+    shipmentPlaceholder: "Chọn lô giao đã hoàn về",
     warehouse: "Kho nhận (kho xuất của đơn)",
     warehousePlaceholder: "Chọn kho",
     area: "Khu cách ly",
@@ -458,7 +458,7 @@ export const RETURN_RECEIPT_LABELS = {
     noArea: "Kho chưa có khu cách ly dùng được.",
     note: "Ghi chú",
     submit: "Lập phiếu",
-    noSource: "Chưa có yêu cầu / chuyến nào chờ nhập.",
+    noSource: "Chưa có yêu cầu / lô giao nào chờ nhập.",
     openDraft: "Mở phiếu nháp đang đếm",
   },
   detail: {
@@ -473,6 +473,9 @@ export const RETURN_RECEIPT_LABELS = {
     scanPlaceholder: "Quét hoặc nhập mã LPN rồi Enter",
     condition: "Tình trạng thùng (nếu có)",
     conditionPlaceholder: "Móp, ướt, bị mở…",
+    /** Nút điền nhanh tình trạng thùng (UX audit S21-2) — vẫn gõ thêm được. */
+    conditionQuickLabel: "Chọn nhanh",
+    conditionQuick: ["Bình thường", "Móp", "Ướt", "Rách"],
     // WF-05 TH-4: thùng về bị mở — đếm số thực có trong thùng (ít hơn nhãn = chỉ ghi giảm)
     opened: "Thùng đã mở",
     counted: "Số đếm thực tế",

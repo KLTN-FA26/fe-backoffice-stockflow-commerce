@@ -10,6 +10,7 @@ import { RETURN_LIMITS } from "@/constants/returns";
 import { DirectUploadError, uploadFileDirect } from "@/lib/api/direct-upload";
 import { ApiError } from "@/lib/api/error";
 import { Card } from "@/components/shared/Card";
+import { FilePickerField } from "@/components/shared/FilePickerField";
 import { FormField, fieldA11y } from "@/components/shared/FormField";
 import { FORM_INPUT_CLASS } from "@/components/shared/form-control-classes";
 import { Notice } from "@/components/shared/Notice";
@@ -129,16 +130,13 @@ function LooseLineForm({ receiptId }: { receiptId: string }) {
       </FormField>
       <div className="sm:col-span-2">
         <FormField id={photoId} label={D.photo} required error={photoError ?? undefined}>
-          <input
-            ref={photoRef}
-            type="file"
+          <FilePickerField
+            inputRef={photoRef}
             accept={RETURN_LIMITS.loosePhotoTypes.join(",")}
-            capture="environment"
+            fileName={photo?.name}
             disabled={busy}
-            className="text-[0.8125rem]"
             {...fieldA11y(photoId, photoError ?? undefined)}
-            onChange={(event) => {
-              const file = event.target.files?.[0] ?? null;
+            onChange={(file) => {
               setPhoto(file);
               setPhotoError(file ? loosePhotoProblem(file) : null);
             }}

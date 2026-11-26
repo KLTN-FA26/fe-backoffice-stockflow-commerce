@@ -10,6 +10,7 @@ import { useScanInput } from "@/hooks/use-scan-input";
 import { Card } from "@/components/shared/Card";
 import { FORM_INPUT_CLASS } from "@/components/shared/form-control-classes";
 import { Notice } from "@/components/shared/Notice";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 
@@ -116,6 +117,24 @@ export function ReturnCartonScan({
             value={condition}
             onChange={(event) => setCondition(event.target.value)}
           />
+          <div
+            className="flex flex-wrap gap-1.5 pt-0.5"
+            role="group"
+            aria-label={D.conditionQuickLabel}
+          >
+            {D.conditionQuick.map((label) => (
+              <Button
+                key={label}
+                type="button"
+                size="sm"
+                variant={condition === label ? "default" : "outline"}
+                aria-pressed={condition === label}
+                onClick={() => setCondition(label)}
+              >
+                {label}
+              </Button>
+            ))}
+          </div>
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
