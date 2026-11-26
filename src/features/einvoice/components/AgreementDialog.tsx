@@ -3,7 +3,6 @@
 import { useState } from "react";
 
 import { EINVOICE_LIMITS } from "@/constants/einvoice";
-import { todayIso } from "@/lib/date-range";
 import { FilePickerField } from "@/components/shared/FilePickerField";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { FormField } from "@/components/shared/FormField";
@@ -60,7 +59,7 @@ function AgreementForm({ invoice, onClose }: { invoice: EInvoice; onClose: () =>
         />
       </FormField>
       <FormField id="agreement-date" label="Ngày ký" required>
-        <DatePicker id="agreement-date" value={date} onChange={setDate} max={todayIso()} />
+        <DatePicker id="agreement-date" value={date} onChange={setDate} />
       </FormField>
       <FormField id="agreement-file" label="Tệp PDF đã ký" required>
         <FilePickerField
