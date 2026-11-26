@@ -46,7 +46,13 @@ export function OrderShippingWarehouseCard({ order, can }: OrderShippingWarehous
       {coverage.data && (
         <>
           <p className="text-ink-primary text-[0.8125rem] font-medium">
-            {hasChosen ? L.chosen(coverage.data.warehouseCode ?? L.chosenUnknown) : L.none}
+            {hasChosen
+              ? coverage.data.warehouseCode
+                ? L.chosen(coverage.data.warehouseCode, coverage.data.warehouseName)
+                : coverage.data.warehouseName
+                  ? L.chosen(coverage.data.warehouseName)
+                  : L.chosen(L.chosenUnknown)
+              : L.none}
           </p>
           {hasChosen ? (
             <CoverageSummary coverage={coverage.data} />

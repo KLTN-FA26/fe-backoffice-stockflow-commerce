@@ -100,6 +100,34 @@ describe("thẻ Kho xuất — gate theo trạng thái và mã quyền", () => {
     expect(within(region).queryByRole("button")).not.toBeInTheDocument();
   });
 
+  it("BE#488: kho có tên → 'Kho xuất: <tên> (mã)'; BE cũ chưa có tên → chỉ mã", async () => {
+    await renderOrder(SHIPPING_PERMISSION_SETS.warehouseManager, {
+      coverage: {
+        ...apiCoverage([
+          [8, 8],
+          [4, 4],
+        ]),
+        warehouseName: "Kho TP.HCM",
+      },
+    });
+    expect(
+      await within(await card()).findByText("Kho xuất: Kho TP.HCM (HCM01)"),
+    ).toBeInTheDocument();
+  });
+
+  it("tên kho trùng mã thì không lặp lại", async () => {
+    await renderOrder(SHIPPING_PERMISSION_SETS.warehouseManager, {
+      coverage: {
+        ...apiCoverage([
+          [8, 8],
+          [4, 4],
+        ]),
+        warehouseName: "HCM01",
+      },
+    });
+    expect(await within(await card()).findByText("Kho xuất: HCM01")).toBeInTheDocument();
+  });
+
   it("không có mã kho xuất nào → không có thẻ và không gọi API kho xuất", async () => {
     await renderOrder(SHIPPING_PERMISSION_SETS.noShippingCodes);
     await waitFor(() =>
