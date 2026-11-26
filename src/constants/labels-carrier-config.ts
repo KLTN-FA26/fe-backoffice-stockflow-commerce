@@ -48,8 +48,8 @@ export const CARRIER_CONFIG_LABELS = {
     environment: "Môi trường",
     environmentPlaceholder: "Chọn môi trường",
     environmentOption: {
-      STAGING: "Thử nghiệm (staging)",
-      PRODUCTION: "Chạy thật (production)",
+      STAGING: "Thử nghiệm",
+      PRODUCTION: "Chạy thật",
     },
     account: "Tài khoản ở hãng",
     accountHint:

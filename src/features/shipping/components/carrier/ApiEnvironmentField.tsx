@@ -17,7 +17,7 @@ const A = UI_LABELS.shipping.waybill.carriers.config.api;
 const TRIGGER =
   "border-border-default bg-bg-surface h-8 w-full rounded-[var(--r-sm)] text-[0.8125rem]";
 
-/** Môi trường gọi API của hãng: thử nghiệm (staging) hoặc chạy thật (production). */
+/** Môi trường gọi API của hãng: thử nghiệm hoặc chạy thật. */
 export function ApiEnvironmentField({
   form,
 }: {

@@ -147,16 +147,24 @@ describe("VehicleTypeFormDialog — sửa loại xe", () => {
 
   it("loại xe mặc định: mã và loại bị khoá, có gợi ý; loại xe tự thêm đổi được loại", async () => {
     renderDialog(apiVehicleType());
-    const kind = await screen.findByRole("combobox", { name: new RegExp(`^${L.field.kind}`) });
-    expect(kind).toBeDisabled();
+    const kind = await screen.findByRole("radiogroup", { name: L.field.kind });
+    expect(
+      within(kind)
+        .getAllByRole("radio")
+        .every((radio) => radio.hasAttribute("disabled")),
+    ).toBe(true);
     expect(field(L.field.code)).toBeDisabled();
     expect(screen.getByText(L.form.presetLockedHint)).toBeInTheDocument();
   });
 
   it("loại xe tự thêm: loại chọn được, chỉ mã bị khoá", async () => {
     renderDialog(apiCustomTruck());
-    const kind = await screen.findByRole("combobox", { name: new RegExp(`^${L.field.kind}`) });
-    expect(kind).toBeEnabled();
+    const kind = await screen.findByRole("radiogroup", { name: L.field.kind });
+    expect(
+      within(kind)
+        .getAllByRole("radio")
+        .every((radio) => radio.hasAttribute("disabled")),
+    ).toBe(false);
     expect(field(L.field.code)).toBeDisabled();
     expect(screen.queryByText(L.form.presetLockedHint)).not.toBeInTheDocument();
   });

@@ -4,23 +4,17 @@ import { useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
-import {
-  ORDER_DELIVERY_FAILURE_LABELS,
-  ORDER_DELIVERY_FAILURE_REASONS,
-  SHIPPING_LIMITS,
-  UI_LABELS,
-} from "@/constants";
+import { SHIPPING_LIMITS, UI_LABELS } from "@/constants";
 import { shippingErrorMessage } from "@/features/shipping/errors";
 import { useCorrectFailureReason } from "@/features/shipping/failure-reason-mutations";
 import { failureReasonCorrectionInputSchema } from "@/features/shipping/failure-reason-schemas";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
-import { FormSelect } from "@/components/shared/FormSelect";
-import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { Label } from "@/components/ui/label";
-import { SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
 import { FieldError } from "../primitives";
+
+import { FailureReasonField } from "./FailureReasonField";
 
 import type {
   FailureReasonCorrectionFormInput,
@@ -74,34 +68,18 @@ export function FailureReasonCorrectionDialog({
         onSubmit={() => void submit()}
         onCancel={() => !correct.isPending && onClose()}
       >
-        <div>
-          <Label htmlFor="correction-failure-reason" className={LABEL}>
-            {D.reason} <span className="text-danger">*</span>
-          </Label>
-          <Controller
-            control={form.control}
-            name="failureReason"
-            render={({ field }) => (
-              <FormSelect value={field.value ?? ""} onValueChange={field.onChange}>
-                <SelectTrigger
-                  id="correction-failure-reason"
-                  aria-invalid={errors.failureReason ? true : undefined}
-                  className="border-border-default bg-bg-surface h-8 w-full rounded-[var(--r-sm)] text-[0.8125rem]"
-                >
-                  <SelectValue placeholder={D.reasonPlaceholder} />
-                </SelectTrigger>
-                <TitledSelectContent title={D.reason}>
-                  {ORDER_DELIVERY_FAILURE_REASONS.map((value) => (
-                    <SelectItem key={value} value={value}>
-                      {ORDER_DELIVERY_FAILURE_LABELS[value]}
-                    </SelectItem>
-                  ))}
-                </TitledSelectContent>
-              </FormSelect>
-            )}
-          />
-          <FieldError>{errors.failureReason?.message}</FieldError>
-        </div>
+        <Controller
+          control={form.control}
+          name="failureReason"
+          render={({ field }) => (
+            // Cùng sáu thẻ chọn một như lúc ghi giao thất bại (UX audit S01-6)
+            <FailureReasonField
+              value={field.value ?? undefined}
+              onChange={field.onChange}
+              error={errors.failureReason?.message}
+            />
+          )}
+        />
         <div>
           <Label htmlFor="correction-note" className={LABEL}>
             {D.note} {picked === "OTHER" && <span className="text-danger">*</span>}

@@ -19,6 +19,7 @@ import { useWarehouseOptions } from "@/lib/references/warehouse-options";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { FormField, fieldA11y } from "@/components/shared/FormField";
 import { FORM_TEXTAREA_CLASS } from "@/components/shared/form-control-classes";
+import { SegmentedControl } from "@/components/shared/SegmentedControl";
 import { Textarea } from "@/components/ui/textarea";
 
 import { openDraftReceiptOf, returnErrorMessage } from "../errors";
@@ -123,16 +124,19 @@ function CreateForm({
         control={form.control}
         name="sourceType"
         render={({ field }) => (
-          <PickField
-            id="rr-source-type"
-            label={L.sourceType}
-            value={field.value}
-            onChange={(value) => field.onChange(value)}
-            options={[
-              { value: "RMA", label: L.sourceRma },
-              ...(canReadShipments ? [{ value: "SHIPMENT", label: L.sourceShipment }] : []),
-            ]}
-          />
+          // 2 nguồn cố định: hiện sẵn cả hai, một lần bấm (UX audit S01-6)
+          <FormField id="rr-source-type" label={L.sourceType}>
+            <SegmentedControl<string>
+              id="rr-source-type"
+              label={L.sourceType}
+              value={field.value}
+              onChange={field.onChange}
+              options={[
+                { value: "RMA", label: L.sourceRma },
+                ...(canReadShipments ? [{ value: "SHIPMENT", label: L.sourceShipment }] : []),
+              ]}
+            />
+          </FormField>
         )}
       />
       {sourceType === "RMA" ? (

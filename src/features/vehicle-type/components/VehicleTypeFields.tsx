@@ -9,9 +9,7 @@ import {
   VEHICLE_TYPE_STATUS_LABELS,
   VEHICLE_TYPE_STATUSES,
 } from "@/constants";
-import { FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
-import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
-import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SegmentedControl } from "@/components/shared/SegmentedControl";
 
 import { FormField, TextInput } from "./form-parts";
 import { VolumePreview } from "./VolumePreview";
@@ -84,18 +82,15 @@ export function VehicleTypeFields({
         control={form.control}
         name={name}
         render={({ field }) => (
-          <Select value={field.value} onValueChange={field.onChange} disabled={opts.disabled}>
-            <SelectTrigger id={`vt-${name}`} className={FORM_SELECT_CLASS}>
-              <SelectValue />
-            </SelectTrigger>
-            <TitledSelectContent title={L.field[name]}>
-              {options.map((value) => (
-                <SelectItem key={value} value={value}>
-                  {labels[value]}
-                </SelectItem>
-              ))}
-            </TitledSelectContent>
-          </Select>
+          // 2–3 giá trị cố định: hiện sẵn cả hai / ba, một lần bấm (UX audit S01-6)
+          <SegmentedControl
+            id={`vt-${name}`}
+            label={L.field[name]}
+            value={field.value}
+            onChange={field.onChange}
+            disabled={opts.disabled}
+            options={options.map((value) => ({ value, label: labels[value] ?? value }))}
+          />
         )}
       />
     </FormField>
