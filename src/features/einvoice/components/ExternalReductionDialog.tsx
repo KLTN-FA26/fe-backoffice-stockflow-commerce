@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { todayIso } from "@/lib/date-range";
 import { formatMoney } from "@/lib/format";
 import { formatDate } from "@/lib/format/date";
 
@@ -298,7 +299,12 @@ function ExternalReductionForm({ invoice, onClose }: { invoice: EInvoice; onClos
       </div>
       <div className="grid gap-3 md:grid-cols-3">
         <FormField id="reduction-date" label="Ngày hoá đơn" required error={fieldErrors.issueDate}>
-          <DatePicker id="reduction-date" value={issueDate} onChange={setIssueDate} />
+          <DatePicker
+            id="reduction-date"
+            value={issueDate}
+            onChange={setIssueDate}
+            max={todayIso()}
+          />
         </FormField>
         <FormField
           id="reduction-tax-code"

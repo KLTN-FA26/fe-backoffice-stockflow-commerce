@@ -34,7 +34,11 @@ export function CustomerCell({
   const title = [customerName, customerCode].filter(Boolean).join(" · ") || undefined;
   return (
     <span className="flex items-center gap-1">
-      <span className="text-ink-secondary max-w-40 truncate text-[0.8125rem]" title={title}>
+      {/* Tên khách dài xuống tối đa 2 dòng thay vì bị cắt giữa chừng; tên đầy đủ ở chú thích (UX audit S05-1) */}
+      <span
+        className="text-ink-secondary line-clamp-2 max-w-56 text-[0.8125rem] leading-snug break-words"
+        title={title}
+      >
         {label}
       </span>
       {isValidOrderCustomerId(customerId) && (

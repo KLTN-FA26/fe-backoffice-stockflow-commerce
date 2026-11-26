@@ -75,7 +75,8 @@ export function ShipmentCancelAction({ data }: { data: Shipment }) {
           <fieldset className="space-y-1.5" disabled={cancel.isPending}>
             <legend className="text-[0.8125rem] font-medium">{C.damagedLabel}</legend>
             <p className="text-ink-tertiary text-xs">{C.damagedHint}</p>
-            <ul className="space-y-1">
+            {/* Lô nhiều kiện: danh sách cuộn riêng, không kéo dài hộp thoại (UX audit S19-2) */}
+            <ul className="max-h-48 space-y-1 overflow-y-auto pr-1">
               {data.packages.map((parcel) => (
                 <li key={parcel.packageId}>
                   <label className="text-ink-primary flex items-center gap-2 text-[0.8125rem]">
