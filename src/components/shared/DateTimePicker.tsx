@@ -173,7 +173,7 @@ export function DateTimePicker({
         className={cn(
           FORM_INPUT_CLASS,
           "focus-within:border-brand focus-within:ring-brand/20 flex w-full items-center gap-1 pr-1 tabular-nums focus-within:ring-3",
-          "has-[input[aria-invalid=true]]:border-danger",
+          "has-[input[aria-invalid=true]]:border-danger has-[input[aria-invalid=true]]:focus-within:border-danger has-[input[aria-invalid=true]]:focus-within:ring-danger/20",
           disabled && "pointer-events-none opacity-50",
           className,
         )}
