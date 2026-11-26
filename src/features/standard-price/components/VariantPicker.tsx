@@ -82,6 +82,9 @@ export function VariantPicker({
                   <CommandItem
                     key={item.productId}
                     value={item.productId}
+                    // Chữ đang gõ chưa phải kết quả đang hiện (chờ debounce / còn dữ liệu cũ) → khoá dòng: Enter của
+                    // `InputCombobox` chọn mục đầu chưa khoá, không được chọn nhầm sản phẩm của lần tìm trước
+                    disabled={search !== term || products.isPlaceholderData}
                     className={COMBOBOX_ITEM_CLASS}
                     onSelect={() => {
                       setProduct(item);

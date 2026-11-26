@@ -215,8 +215,12 @@ export const QUOTE_PRICE_REVIEW_LIMITS = { noteMax: 500 } as const;
  */
 export const COMBOBOX_MAX_ROWS = 10;
 
-/** Số khách mỗi trang gợi ý ở ô chọn khách (`GET /customers?q=`) — bằng `COMBOBOX_MAX_ROWS` (BE nhận tối đa 200). */
-export const CUSTOMER_OPTIONS_PAGE_SIZE = COMBOBOX_MAX_ROWS;
+/**
+ * Số khách mỗi trang gợi ý ở ô chọn khách có phân trang của màn Bảng giá khách hàng (`GET /customers?q=&page=`) —
+ * `Pages.DEFAULT_PAGE_SIZE` của BE (tối đa 200). Giữ 20 (ô này có nút Trang trước / sau, không cắt còn
+ * `COMBOBOX_MAX_ROWS` như các ô không phân trang).
+ */
+export const CUSTOMER_OPTIONS_PAGE_SIZE = 20;
 
 /**
  * Số gợi ý mỗi lần tìm hồ sơ hàng tồn (`GET /inventory/items?q=`) ở ô chọn SKU — bằng `COMBOBOX_MAX_ROWS`

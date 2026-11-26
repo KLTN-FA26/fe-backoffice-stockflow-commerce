@@ -56,14 +56,18 @@ const ORDERS_BY_STATUS: Record<string, unknown[]> = {
   ACCEPTED: [productionOrder("po-3", "PRD-20261101-0003", "ACCEPTED")],
 };
 
-function renderList(permissions: readonly PermissionCode[], onCreate?: (body: unknown) => unknown) {
+function renderList(
+  permissions: readonly PermissionCode[],
+  onCreate?: (body: unknown) => unknown,
+  inProduction: unknown[] = ORDERS_BY_STATUS.IN_PRODUCTION ?? [],
+) {
   const spies = mockReceiptApi(
     permissions,
     {
       "/goods-receipts": () => apiReceiptPage(),
       "/production-orders": (params) => {
         const status = (params as { status: string }).status;
-        return bePage(ORDERS_BY_STATUS[status] ?? []);
+        return bePage(status === "IN_PRODUCTION" ? inProduction : (ORDERS_BY_STATUS[status] ?? []));
       },
     },
     { "/goods-receipts/production": (_p, body) => (onCreate ? onCreate(body) : apiReceipt()) },
@@ -99,6 +103,30 @@ describe("Lập phiếu nhập theo Đơn sản xuất (docs 03 §4.1 bước 1)
       .map(([, config]) => (config as { params: { status: string } }).params.status);
     expect(new Set(statuses)).toEqual(
       new Set(["IN_PRODUCTION", "PARTIALLY_RECEIVED", "SENT", "ACCEPTED"]),
+    );
+  });
+
+  it("quét / gõ đủ mã Đơn sản xuất + Enter → chọn đúng mã đó, không chọn mã dài hơn chứa nó", async () => {
+    const user = userEvent.setup();
+    const { post } = renderList(ROLES.warehouseManager, undefined, [
+      productionOrder("po-10", "PRD-20261101-00010", "IN_PRODUCTION"),
+      productionOrder("po-1", "PRD-20261101-0001", "IN_PRODUCTION"),
+    ]);
+    await user.click(await screen.findByRole("button", { name: L.button }));
+    const box = await screen.findByRole("combobox", { name: L.productionOrder });
+    // Danh sách đơn tải xong rồi mới quét (máy quét gõ nhanh; ở đây chờ dữ liệu để không phụ thuộc thời gian)
+    await openComboboxList(user, L.productionOrder);
+    await screen.findByRole("option", { name: /PRD-20261101-00010/ });
+    await user.keyboard("{Escape}");
+    await user.type(box, "PRD-20261101-0001{Enter}");
+    expect(box).toHaveValue("PRD-20261101-0001");
+    await user.click(screen.getByRole("button", { name: L.submit }));
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith("/goods-receipts/production", {
+        productionOrderId: "po-1",
+        deliveryNote: undefined,
+        note: undefined,
+      }),
     );
   });
 

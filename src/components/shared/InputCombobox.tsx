@@ -8,7 +8,7 @@ import { ChevronDown, X } from "lucide-react";
 import { UI_LABELS } from "@/constants";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 
-import type { KeyboardEvent, ReactNode } from "react";
+import type { KeyboardEvent, ReactNode, RefObject } from "react";
 
 const L = UI_LABELS.combobox;
 const FIRST_ITEM = '[cmdk-item]:not([aria-disabled="true"])';
@@ -58,11 +58,12 @@ export function InputCombobox(props: InputComboboxProps) {
   const [innerSearch, setInnerSearch] = useState("");
   const search = props.search ?? innerSearch;
   const setSearch = props.onSearchChange ?? setInnerSearch;
+  const syncInputRef = useRef<HTMLInputElement>(null);
   return (
     <CommandPrimitive shouldFilter={props.shouldFilter} loop className="w-full">
       {/* cmdk chỉ lọc theo search của `Command.Input` — ô ẩn này đồng bộ search, ô thật ở dưới */}
-      <CommandPrimitive.Input value={search} hidden readOnly tabIndex={-1} />
-      <ComboboxField {...props} search={search} setSearch={setSearch} />
+      <CommandPrimitive.Input ref={syncInputRef} value={search} hidden readOnly tabIndex={-1} />
+      <ComboboxField {...props} search={search} setSearch={setSearch} syncInputRef={syncInputRef} />
     </CommandPrimitive>
   );
 }
@@ -86,11 +87,23 @@ function ComboboxField({
   onBlur,
   contentClassName,
   children,
-}: InputComboboxProps & { search: string; setSearch: (search: string) => void }) {
+  syncInputRef,
+}: InputComboboxProps & {
+  search: string;
+  setSearch: (search: string) => void;
+  syncInputRef: RefObject<HTMLInputElement | null>;
+}) {
   const anchorRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const listboxId = useId();
+  const popoverId = useId();
   const activeId = useCommandState((state) => state.selectedItemId);
+
+  // `aria-controls` phải trỏ tới thẻ `role="listbox"` của cmdk (CommandList), không phải khung popover: id đó chỉ
+  // có trong context của cmdk — lấy từ ô ẩn của cmdk (nó có `aria-controls` đúng) rồi gắn sang ô thật.
+  const [listId, setListId] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    setListId(syncInputRef.current?.getAttribute("aria-controls") ?? undefined);
+  }, [syncInputRef]);
 
   // Mở bằng nút mũi tên (ô tìm còn trống) — xoá hết chữ đã gõ thì danh sách vẫn mở; mở bằng gõ thì đóng lại
   const openedByButton = useRef(false);
@@ -118,6 +131,8 @@ function ComboboxField({
         ? typed.replace(displayValue, "")
         : typed;
     setSearch(next);
+    // Chọn hết chữ rồi xoá khi ô đang đóng = bỏ chọn (không để ô bật lại tên cũ)
+    if (typed === "" && !open && displayValue && onClear) onClear();
     if (next !== "") {
       if (!open) onOpenChange(true);
     } else if (open && !openedByButton.current) {
@@ -130,7 +145,7 @@ function ComboboxField({
       // ↑/↓/Enter do cmdk xử lý ở thẻ gốc. Riêng khi gõ thẳng vào ô đang đóng (bàn phím / máy quét), danh sách
       // vừa mở có thể chưa có mục nào được đánh dấu → Enter của cmdk không làm gì; khi đó chọn mục đầu khớp.
       if (e.key === "Enter") {
-        const list = document.getElementById(listboxId);
+        const list = document.getElementById(popoverId);
         const first = list?.querySelector<HTMLElement>(FIRST_ITEM);
         if (first && !list?.querySelector(SELECTED_ITEM)) {
           e.preventDefault();
@@ -171,8 +186,8 @@ function ComboboxField({
             autoComplete="off"
             spellCheck={false}
             aria-label={ariaLabel}
+            aria-controls={listId}
             aria-expanded={open}
-            aria-controls={listboxId}
             aria-autocomplete="list"
             aria-activedescendant={open ? activeId : undefined}
             aria-invalid={hasError ? true : undefined}
@@ -196,15 +211,16 @@ function ComboboxField({
           {showClear && (
             <button
               type="button"
-              tabIndex={-1}
               aria-label={L.clear(ariaLabel)}
+              // cmdk bắt Enter ở thẻ gốc (preventDefault) → nút không kích hoạt được bằng bàn phím nếu để nổi bọt
+              onKeyDown={(e) => e.stopPropagation()}
               // Giữ focus ở ô input: bấm ✕ xong gõ tiếp được ngay
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
                 onClear?.();
                 inputRef.current?.focus();
               }}
-              className="text-ink-tertiary hover:text-ink-primary absolute right-7 grid size-5 place-items-center rounded-sm"
+              className="text-ink-tertiary hover:text-ink-primary focus-visible:ring-brand/40 absolute right-7 grid size-5 place-items-center rounded-sm focus-visible:ring-2 focus-visible:outline-none"
             >
               <X aria-hidden className="size-3.5" />
             </button>
@@ -235,7 +251,7 @@ function ComboboxField({
         </div>
       </PopoverAnchor>
       <PopoverContent
-        id={listboxId}
+        id={popoverId}
         align="start"
         className={cn("w-(--radix-popover-trigger-width) gap-0 p-1", contentClassName)}
         // Focus ở lại ô input để gõ tiếp; bấm vào option không làm ô mất focus
@@ -260,7 +276,10 @@ function ComboboxField({
 export function ComboboxMoreHint({ remaining, label }: { remaining?: number; label?: string }) {
   if (remaining !== undefined && remaining <= 0) return null;
   return (
-    <p className="text-ink-tertiary border-border-default border-t px-3 py-1.5 text-xs">
+    <p
+      role="status"
+      className="text-ink-tertiary border-border-default border-t px-3 py-1.5 text-xs"
+    >
       {label ?? (remaining === undefined ? L.moreUnknown : L.more(remaining))}
     </p>
   );

@@ -157,6 +157,32 @@ describe("CustomerPicker — InputCombobox chọn khách (BE lọc theo q)", () 
     expect(customerParams(api).has("status")).toBe(false);
   });
 
+  it("đang tải tên khách đã chọn → ô để trống (không hiện nhãn 'Khách hàng' như đã chọn); tải xong hiện tên", async () => {
+    let release: (customer: typeof MOC_AN) => void = () => {};
+    const pending = new Promise<typeof MOC_AN>((resolve) => (release = resolve));
+    mockApi("SALES_STAFF", { get: { "/customers/c-1": () => pending } });
+    renderScreen(<Harness onPick={vi.fn()} locked />, "SALES_STAFF");
+    const box = screen.getByRole("combobox", { name: "Khách hàng" });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(box).toHaveValue("");
+    release(MOC_AN);
+    await waitFor(() => expect(box).toHaveValue("Công ty Mộc An"));
+  });
+
+  it("tải tên khách lỗi (thiếu quyền tra khách) → nhãn trung tính 'Khách hàng', không UUID", async () => {
+    mockApi("SALES_STAFF", {
+      get: {
+        "/customers/c-1": () => {
+          throw new Error("403");
+        },
+      },
+    });
+    renderScreen(<Harness onPick={vi.fn()} locked />, "SALES_STAFF");
+    await waitFor(() =>
+      expect(screen.getByRole("combobox", { name: "Khách hàng" })).toHaveValue("Khách hàng"),
+    );
+  });
+
   it("locked (sửa báo giá / mẫu từ báo giá) → ô hiện tên khách nhưng khoá, không ✕, không đổi được", async () => {
     mockApi("SALES_STAFF", { get: { "/customers/c-1": () => MOC_AN } });
     renderScreen(<Harness onPick={vi.fn()} locked />, "SALES_STAFF");

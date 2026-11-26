@@ -146,6 +146,11 @@ describe("chọn khách + URL", () => {
     const user = userEvent.setup();
     await openComboboxList(user, L.picker.label);
     const firstPage = await screen.findAllByRole("option", {}, WAIT);
+    // Trang 20 khách (không bị cắt còn 10) + còn lại sau trang này
+    expect(calledWith(get, "/customers").every(([, c]) => paramsOf(c).get("size") === "20")).toBe(
+      true,
+    );
+    expect(await screen.findByText(L.picker.more(25))).toBeInTheDocument();
     await user.click(await screen.findByRole("option", { name: L.picker.next }));
     await screen.findByText(L.picker.pageInfo(2, 45), {}, WAIT);
     expect(calledWith(get, "/customers").some(([, c]) => paramsOf(c).get("page") === "1")).toBe(

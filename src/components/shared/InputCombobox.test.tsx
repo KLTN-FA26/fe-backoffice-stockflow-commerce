@@ -167,9 +167,43 @@ describe("InputCombobox", () => {
     expect(onPick).toHaveBeenCalled();
   });
 
+  it("✕ vào được bằng Tab (bàn phím), Enter bỏ chọn và con trỏ về ô", async () => {
+    const user = userEvent.setup();
+    render(<Fruits onPick={vi.fn()} initial="Banana" />);
+    const box = screen.getByRole("combobox", { name: "Quả" });
+    box.focus();
+    await user.tab();
+    const clear = screen.getByRole("button", { name: "Bỏ chọn Quả" });
+    expect(clear).toHaveFocus();
+    await user.keyboard("{Enter}");
+    expect(box).toHaveValue("");
+    expect(box).toHaveFocus();
+  });
+
+  it("chọn hết chữ rồi Delete khi danh sách đóng → bỏ chọn (gọi onClear), không bật lại tên cũ", async () => {
+    const user = userEvent.setup();
+    render(<Fruits onPick={vi.fn()} initial="Banana" />);
+    const box = screen.getByRole("combobox", { name: "Quả" });
+    await user.click(box);
+    await user.keyboard("{Control>}a{/Control}{Delete}");
+    expect(box).toHaveValue("");
+    expect(screen.queryByRole("button", { name: "Bỏ chọn Quả" })).not.toBeInTheDocument();
+    expect(box).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("aria-controls trỏ tới thẻ role=listbox của danh sách (không phải khung popover)", async () => {
+    const user = userEvent.setup();
+    render(<Fruits onPick={vi.fn()} />);
+    const box = screen.getByRole("combobox", { name: "Quả" });
+    await user.click(screen.getByRole("button", { name: "Mở danh sách Quả" }));
+    const controls = box.getAttribute("aria-controls");
+    expect(controls).toBeTruthy();
+    expect(screen.getByRole("listbox")).toHaveAttribute("id", controls);
+  });
+
   it("ComboboxMoreHint: báo còn N kết quả; N ≤ 0 thì ẩn", () => {
     const { rerender } = render(<ComboboxMoreHint remaining={7} />);
-    expect(screen.getByText("Còn 7 kết quả — gõ thêm để thu hẹp")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Còn 7 kết quả — gõ thêm để thu hẹp");
     rerender(<ComboboxMoreHint remaining={0} />);
     expect(screen.queryByText(/Còn/)).not.toBeInTheDocument();
     rerender(<ComboboxMoreHint />);

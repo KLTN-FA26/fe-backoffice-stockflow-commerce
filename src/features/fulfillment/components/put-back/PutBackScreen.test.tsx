@@ -22,6 +22,7 @@ import {
   IDENTITIES,
   mockFulfillmentApi,
   pickInputComboboxOption,
+  scanInputComboboxCode,
   renderFulfillmentScreen,
 } from "../../__fixtures__/render";
 import { TASK_ID, WAREHOUSE_ID, bePage } from "../../__fixtures__/task";
@@ -423,6 +424,26 @@ describe("PutBackDialog — trả một dòng về kệ (BE POST …/put-back)",
     expect(await screen.findByRole("option", { name: "HN-A01-01-02-A" })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "HN-A01-01-01-A" })).toBeNull();
     expect(screen.queryByRole("option", { name: "HN-STAGE-01" })).toBeNull();
+  });
+
+  it("quét đủ mã bin + Enter → chọn đúng bin đó, không chọn bin có mã dài hơn chứa nó", async () => {
+    const user = userEvent.setup();
+    const { post } = renderScreen(IDENTITIES.warehouseStaff, {
+      bins: [
+        { locationCode: "HN-A01-01-02-A1", usable: true },
+        { locationCode: "HN-A01-01-02-A", usable: true },
+        { locationCode: "HN-A01-01-01-A", usable: true },
+      ],
+    });
+    const dialog = await openDialog(user);
+    await scanInputComboboxCode(user, P.location, "HN-A01-01-02-A");
+    expect(within(dialog).getByRole("combobox", { name: P.location })).toHaveValue(
+      "HN-A01-01-02-A",
+    );
+    await scanLpn(user, dialog);
+    await user.click(within(dialog).getByRole("button", { name: P.action }));
+    await waitFor(() => expect(putBackCalls(post)).toHaveLength(1));
+    expect(putBackCalls(post)[0]?.[1]).toMatchObject({ locationCode: "HN-A01-01-02-A" });
   });
 
   it("PUT_BACK_LOCATION_INVALID → lỗi dưới ô Vị trí trả", async () => {

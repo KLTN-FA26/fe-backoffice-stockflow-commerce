@@ -74,7 +74,9 @@ export function CustomerPicker({
     ? ""
     : picked?.customerId === value
       ? picked.fullName
-      : (ref.data?.fullName ?? CUSTOMER_FALLBACK_LABEL);
+      : // Đang tải tên → để trống (hiện gợi ý "Chọn khách hàng…"), không hiện nhãn "Khách hàng" như đã chọn xong;
+        // tải xong mà không có tên (thiếu quyền tra khách / lỗi) mới dùng nhãn trung tính
+        (ref.data?.fullName ?? (ref.isPending ? "" : CUSTOMER_FALLBACK_LABEL));
   const items = search.data?.items ?? [];
   const remaining = (search.data?.total ?? 0) - items.length;
   const a11y = fieldA11y(searchId, error, !filterMode);
@@ -108,7 +110,7 @@ export function CustomerPicker({
         describedBy={a11y["aria-describedby"]}
         contentClassName={LIST_CLASS}
       >
-        {/* 8 dòng 2 tầng không cuộn; dòng "Còn N khách" nằm dưới danh sách, luôn thấy */}
+        {/* Cao tối đa 24rem (~8 dòng 2 tầng, tối đa 10 dòng thì cuộn); dòng "Còn N khách" nằm NGOÀI vùng cuộn nên luôn thấy */}
         <CommandList className="max-h-96">
           {search.isPending && <p className={`text-ink-tertiary ${STATUS_ROW}`}>{L.searching}</p>}
           {search.isError && (
