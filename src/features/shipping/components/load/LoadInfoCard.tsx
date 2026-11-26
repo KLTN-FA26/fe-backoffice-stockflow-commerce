@@ -29,7 +29,7 @@ export function LoadInfoCard({
   const warehouse = warehouses?.find((w) => w.warehouseId === load.warehouseId);
   return (
     <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-(--card-shadow)">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
         <div className="flex items-center gap-3">
           <h2 className="text-ink-primary text-[0.9375rem] font-semibold">{L.info}</h2>
           <StatusDot domain="shipment" status={load.status} size="md" withIcon />

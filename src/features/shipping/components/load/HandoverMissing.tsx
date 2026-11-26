@@ -23,7 +23,7 @@ export function HandoverMissing({ load }: { load: Load }) {
   const blockers = handoverBlockers(load);
   if (blockers.length === 0) return null;
   return (
-    <div className="text-ink-secondary max-w-md text-right text-xs" aria-live="polite">
+    <div className="text-ink-secondary max-w-xl text-left text-xs" aria-live="polite">
       <p className="text-ink-primary font-medium">{L.handoverMissing.title}</p>
       <ul className="mt-0.5 space-y-0.5">
         {blockers.map((blocker) => {
