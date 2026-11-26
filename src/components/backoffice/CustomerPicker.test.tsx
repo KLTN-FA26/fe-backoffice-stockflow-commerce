@@ -116,6 +116,36 @@ describe("CustomerPicker — InputCombobox chọn khách (BE lọc theo q)", () 
     expect(screen.getByText("Còn 27 khách — gõ thêm để thu hẹp")).toBeInTheDocument();
   });
 
+  it("BE#488: có tỉnh giao mặc định → dòng phụ 'MST · tỉnh'; không có tỉnh (BE cũ / thiếu quyền địa chỉ) → chỉ MST", async () => {
+    const user = userEvent.setup();
+    mockApi("SALES_STAFF", {
+      get: {
+        "/customers": () =>
+          bePage([
+            { ...MOC_AN, defaultShippingProvinceName: "Bình Dương" },
+            { ...MOC_AN, customerId: "c-2", fullName: "Công ty Lá Xanh", taxCode: "0100000001" },
+          ]),
+      },
+    });
+    renderScreen(<Harness onPick={vi.fn()} />, "SALES_STAFF");
+    await openComboboxList(user, "Khách hàng");
+    expect(await screen.findByText("MST 0312345678 · Bình Dương")).toBeInTheDocument();
+    expect(screen.getByText("MST 0100000001")).toBeInTheDocument();
+  });
+
+  it("có tỉnh nhưng không có MST → chỉ tỉnh", async () => {
+    const user = userEvent.setup();
+    mockApi("SALES_STAFF", {
+      get: {
+        "/customers": () =>
+          bePage([{ ...MOC_AN, taxCode: null, defaultShippingProvinceName: "Hà Nội" }]),
+      },
+    });
+    renderScreen(<Harness onPick={vi.fn()} />, "SALES_STAFF");
+    await openComboboxList(user, "Khách hàng");
+    expect(await screen.findByText("Hà Nội")).toBeInTheDocument();
+  });
+
   it("khách không có MST → dòng phụ là email", async () => {
     const user = userEvent.setup();
     mockApi("SALES_STAFF", {

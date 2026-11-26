@@ -24,9 +24,16 @@ const LIST_CLASS = "min-w-[28rem] max-w-[calc(100vw-2rem)]";
 
 const L = UI_LABELS.customerPicker;
 
-/** Dòng phụ của khách: MST; khách cá nhân không có MST thì email (để phân biệt hai người trùng tên). */
+/**
+ * Dòng phụ của khách: "MST · tỉnh" (tỉnh giao mặc định, BE#488 — chỉ có khi có `customer-addresses:READ`, BE cũ không
+ * trả). Thiếu cả hai (khách cá nhân, không địa chỉ) thì email để phân biệt hai người trùng tên.
+ */
 function customerSubline(customer: CustomerRef): string {
-  return customer.taxCode ? L.taxCode(customer.taxCode) : customer.email;
+  const parts = [
+    customer.taxCode ? L.taxCode(customer.taxCode) : null,
+    customer.defaultShippingProvinceName || null,
+  ].filter((part) => part !== null);
+  return parts.length > 0 ? parts.join(" · ") : customer.email;
 }
 
 /**

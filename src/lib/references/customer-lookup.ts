@@ -17,6 +17,8 @@ const customerRefSchema = z.object({
   email: z.string(),
   status: z.enum(CUSTOMER_API_STATUSES),
   taxCode: z.string().nullish(),
+  // BE#488: tỉnh giao mặc định — chỉ có khi người gọi có `customer-addresses:READ`; BE cũ chưa trả → bỏ qua
+  defaultShippingProvinceName: z.string().nullish(),
 });
 const customerRefPageSchema = z.object({
   items: z.array(customerRefSchema),
