@@ -37,6 +37,7 @@ import {
   SORTABLE,
   STATUS_OPTIONS,
 } from "./list-columns";
+import { usePriceReviewFilter } from "./price-review/usePriceReviewFilter";
 
 function QuoteListContent() {
   const router = useRouter();
@@ -45,6 +46,7 @@ function QuoteListContent() {
   const list = useServerList(STORAGE_KEYS.adminQuotesConfig, QUOTE_API_STATUSES);
   const { filters } = list;
   const [customerId, setCustomerId] = useQueryState("customerId", parseAsString.withDefault(""));
+  const priceReview = usePriceReviewFilter(() => void filters.setPage(1));
   const [sortKey, sortDir] = filters.sort.split(",");
   const sortActive = SORTABLE.has(sortKey ?? "");
   const direction = sortDir === "asc" ? ("asc" as const) : ("desc" as const);
@@ -56,6 +58,7 @@ function QuoteListContent() {
       status: filters.status,
       customerId: customerId || undefined,
       sort: sortActive ? `${sortKey},${direction}` : undefined,
+      priceReview: priceReview.value,
     },
     { enabled: canRead },
   );
@@ -67,10 +70,11 @@ function QuoteListContent() {
   const columns = buildQuoteColumns(showTotal).filter((column) =>
     columnState.visible.some((key) => key === column.key),
   );
-  const hasFilters = list.hasBaseFilters || !!customerId;
+  const hasFilters = list.hasBaseFilters || !!customerId || !!priceReview.value;
   const clearAll = () => {
     filters.reset();
     void setCustomerId(null);
+    priceReview.clear();
   };
   const createHref = customerId
     ? ADMIN_ROUTES.quotes.createForCustomer(customerId)
@@ -122,6 +126,7 @@ function QuoteListContent() {
                 void filters.setPage(1);
               },
             },
+            priceReview.summaryItem,
             columnSummaryItem(columnState),
           ]}
           onResetAll={() => {
@@ -129,7 +134,12 @@ function QuoteListContent() {
             columnState.reset();
           }}
           resetDisabled={!hasFilters && !filters.sort && !columnState.hasColumnConfig}
-          actions={createButton}
+          actions={
+            <>
+              {priceReview.toggle}
+              {createButton}
+            </>
+          }
         />
       ) : (
         createButton && <div className="mb-3 flex justify-end">{createButton}</div>
@@ -140,7 +150,9 @@ function QuoteListContent() {
         columns={columns}
         rowKey={(row) => row.id}
         onRowClick={(row) => router.push(ADMIN_ROUTES.quotes.detail(row.id))}
-        flagRow={(row) => row.status === "CHANGES_REQUESTED" || row.status === "ACCEPTED"}
+        flagRow={(row) =>
+          row.status === "CHANGES_REQUESTED" || row.status === "ACCEPTED" || row.priceReviewPending
+        }
         noun="báo giá"
         errorCopy={QUOTE_COPY}
         hasFilters={hasFilters}

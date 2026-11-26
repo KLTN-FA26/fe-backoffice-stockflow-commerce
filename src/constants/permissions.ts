@@ -393,6 +393,23 @@ export const CUSTOMER_PRICE_PERMISSIONS = {
 } as const;
 
 /**
+ * Giá chuẩn theo quy cách — resource `catalog-standard-prices` (BE `StandardPriceController`,
+ * `/api/v1/catalog/standard-prices`; kltn-docs 13 BR-04 sửa ngày 2026-11-26). Seed BE (V20261230000100): SALES_MANAGER và
+ * SYSTEM_ADMIN đủ quyền; SALES_STAFF VIEW_PAGE / READ. Khách hàng không có resource này.
+ */
+export const STANDARD_PRICE_PERMISSIONS = {
+  viewPage: "catalog-standard-prices:VIEW_PAGE",
+  // GET /catalog/standard-prices?sku=, GET …/{sku}
+  read: "catalog-standard-prices:READ",
+  // POST …/{sku}
+  create: "catalog-standard-prices:CREATE",
+  // PUT …/{sku} (thay toàn bộ, cần version)
+  update: "catalog-standard-prices:UPDATE",
+  // DELETE …/{sku}?version=
+  delete: "catalog-standard-prices:DELETE",
+} as const;
+
+/**
  * Sơ đồ kho — resource `warehouse-locations` (BE `LayoutController`): `GET /warehouses/{id}/layout`
  * và `GET /locations/{code}`. WAREHOUSE_STAFF có VIEW_PAGE/READ (seed V20260928006000).
  */
@@ -523,6 +540,15 @@ export const QUOTE_PERMISSIONS = {
   convert: "sales-quote-conversions:CREATE",
   // Phía khách: chấp nhận / yêu cầu sửa
   approve: "sales-quotes:APPROVE",
+} as const;
+
+/**
+ * Duyệt giá báo giá — resource `sales-quote-price-approvals` (BE `QuotePriceApprovalsResourceDeclaration`, kltn-docs 14
+ * BR-10 sửa ngày 2026-11-26): `POST /quotes/{id}/price-approval` và `/price-rejection`. Seed: SALES_MANAGER, SYSTEM_ADMIN.
+ * Rút lại yêu cầu duyệt (`/price-review-withdrawal`) dùng `sales-quotes:UPDATE` của Sales.
+ */
+export const QUOTE_PRICE_APPROVAL_PERMISSIONS = {
+  approve: "sales-quote-price-approvals:APPROVE",
 } as const;
 
 /**

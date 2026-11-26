@@ -132,3 +132,16 @@ export function lastChangeRequest(
   const row = history.findLast((entry) => entry.toStatus === "CHANGES_REQUESTED");
   return row ? { feedback: row.reason, at: row.changedAt, revision: row.revision } : null;
 }
+
+/**
+ * 14 BR-10 (bốn mắt): người đang xem có phải người đã gửi duyệt giá của lần đang chờ không — người đó không duyệt / từ
+ * chối được (BE 403 QUOTE_PRICE_REVIEW_SELF). UI-only, Backend phải re-check.
+ */
+export function isPriceReviewSubmitter(
+  quote: Pick<Quote, "priceReviewPending" | "priceReview">,
+  userId: string | null,
+): boolean {
+  const review = quote.priceReview;
+  if (!quote.priceReviewPending || !userId || review?.outcome !== "PENDING") return false;
+  return !!review.submittedBy && review.submittedBy.toLowerCase() === userId.toLowerCase();
+}

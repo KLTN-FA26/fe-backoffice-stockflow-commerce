@@ -6,7 +6,7 @@ import { useWatch } from "react-hook-form";
 import { Card } from "@/components/shared/Card";
 import { QUERY_TIMES } from "@/lib/api/query-client";
 import { formatMoney } from "@/lib/format/money";
-import { getCustomerPrice } from "@/features/quote/api";
+import { getCustomerPrice, getStandardPriceSuggestion } from "@/features/quote/api";
 import { customerSkuKeys } from "@/features/quote/queries";
 import { lineAmount, previewTotals, tierPrice } from "@/features/quote/selectors";
 
@@ -24,7 +24,7 @@ function toTiers(values: QuoteFormValues["lines"][number]["tiers"] | undefined):
 
 /**
  * Tổng xem trước của báo giá đang sửa (kế hoạch WF-02 A3): tiền hàng = Σ thùng × cái/thùng × đơn giá theo bậc (bậc Sale
- * nhập, không có thì giá riêng của khách), phí đã nhập, thuế từng khoản theo thuế suất BE đã điền lần lưu trước, tổng
+ * nhập, không có thì giá riêng của khách, không có nữa thì giá chuẩn của quy cách), phí đã nhập, thuế từng khoản theo thuế suất BE đã điền lần lưu trước, tổng
  * có thuế. Không đoán: một dòng chưa tính được (thiếu giá, dưới MOQ, chưa biết cái/thùng) thì chưa có tiền hàng; một
  * khoản chưa biết thuế suất (dòng / phí mới, chưa lưu) thì thuế và tổng có thuế "tính khi lưu". Số chính thức là của BE.
  */
@@ -55,12 +55,28 @@ export function QuoteTotalsPreview({
     })),
   });
 
-  const saved = new Map(quote?.lines.map((line) => [line.sku, line]) ?? []);
   const bySku = new Map(customerSkus.map((sku) => [sku.sku.trim().toUpperCase(), sku]));
+  // Giá chuẩn của quy cách (13 BR-04 sửa ngày 2026-11-26): chỉ ĐỌC cache mà từng dòng đã tải (dòng mới hỏi khi khách
+  // không có giá riêng và người dùng được xem giá chuẩn) — không gọi thêm ở đây.
+  const standards = useQueries({
+    queries: skus.map((sku) => {
+      const variantSku = bySku.get(sku)?.sourceSku?.trim().toUpperCase() ?? "";
+      return {
+        queryKey: customerSkuKeys.standardPrice(variantSku),
+        queryFn: ({ signal }: { signal: AbortSignal }) =>
+          getStandardPriceSuggestion(variantSku, signal),
+        enabled: false,
+        ...QUERY_TIMES.master,
+      };
+    }),
+  });
+
+  const saved = new Map(quote?.lines.map((line) => [line.sku, line]) ?? []);
   const items: (PreviewItem | null)[] = (lines ?? []).map((line, index) => {
     const known = saved.get(skus[index] ?? "");
     const own = toTiers(line.tiers);
-    const tiers = own.length ? own : (prices[index]?.data?.tiers ?? []);
+    const reference = prices[index]?.data ?? standards[index]?.data ?? null;
+    const tiers = own.length ? own : (reference?.tiers ?? []);
     const cartons = Number(line.cartons);
     const unitPrice = tierPrice(tiers, cartons);
     const customerSku = bySku.get(skus[index] ?? "");

@@ -4,18 +4,24 @@ import { useState } from "react";
 import Link from "next/link";
 import { FileOutput, LoaderCircle, Pencil, Send, XCircle } from "lucide-react";
 
-import { ADMIN_ROUTES, CUSTOMER_PERMISSIONS } from "@/constants";
+import { ADMIN_ROUTES, CUSTOMER_PERMISSIONS, QUOTE_PRICE_REVIEW_LABELS } from "@/constants";
+import { useAuthStore } from "@/lib/auth";
 import { usePermissionChecker } from "@/lib/auth/components/Can";
 import { useCustomerRef } from "@/lib/references/customer-lookup";
 import { quoteErrorMessage } from "@/features/quote/errors";
 import { allowedStaffQuoteActions } from "@/features/quote/lifecycle";
 import { useReviseQuote } from "@/features/quote/mutations";
-import { canCancelAcceptedQuote, sendBlockReason } from "@/features/quote/selectors";
+import {
+  canCancelAcceptedQuote,
+  isPriceReviewSubmitter,
+  sendBlockReason,
+} from "@/features/quote/selectors";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { DETAIL_ACTION_CLASS } from "@/components/shared/DetailSection";
 import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
 
+import { PriceReviewActions } from "../price-review/PriceReviewActions";
 import { CancelQuoteDialog } from "./CancelQuoteDialog";
 import { ConvertQuoteDialog } from "./ConvertQuoteDialog";
 import { QuotePdfButton } from "./QuotePdfButton";
@@ -30,6 +36,8 @@ type Dialog = "send" | "cancel" | "revise" | "convert" | null;
  * DRAFT → Sửa / Gửi khách / Huỷ; CHANGES_REQUESTED → Mở bản sửa; ACCEPTED → Tạo đơn (Huỷ chỉ khi là báo giá cũ — QD-16 —
  * có dòng SKU ngừng bán — BE-14 — hoặc khách không còn ACTIVE — LC-2; trạng thái khách đọc chung query với tên khách, cần
  * `customer-customers:READ`). Báo giá cũ đã chấp nhận chỉ còn nút Huỷ.
+ * 14 BR-10: nháp chờ duyệt giá → Rút lại / Duyệt giá / Từ chối (`PriceReviewActions`) và Huỷ; nháp mà gửi bây giờ sẽ
+ * phải chờ duyệt (`priceCheck.needsApproval`) → nút ghi "Gửi duyệt giá" thay cho "Gửi khách".
  * Tải PDF luôn có cho người đọc được báo giá. Nút xếp dọc trong thẻ trạng thái cột phải (như thẻ hành động sản phẩm).
  */
 export function QuoteStaffActions({ quote }: { quote: Quote }) {
@@ -42,12 +50,16 @@ export function QuoteStaffActions({ quote }: { quote: Quote }) {
     quote.customerId,
     quote.status === "ACCEPTED" && can(CUSTOMER_PERMISSIONS.read),
   );
+  const meId = useAuthStore((state) => state.user?.userId ?? null);
+  const submittedByMe = isPriceReviewSubmitter(quote, meId);
   const actions = allowedStaffQuoteActions(
     quote.status,
     can,
     quote.legacy,
     canCancelAcceptedQuote(quote, customer.data?.status),
+    { pending: quote.priceReviewPending, submittedByMe },
   );
+  const needsApproval = quote.priceCheck?.needsApproval ?? false;
   const onError = (error: unknown) => toast.error(quoteErrorMessage(error));
   const close = () => setDialog(null);
   const sendBlocked = sendBlockReason(quote);
@@ -70,12 +82,19 @@ export function QuoteStaffActions({ quote }: { quote: Quote }) {
           onClick={() => setDialog("send")}
           className={DETAIL_ACTION_CLASS.primary}
         >
-          <Send className="size-3.5" /> Gửi khách
+          <Send className="size-3.5" />{" "}
+          {needsApproval ? QUOTE_PRICE_REVIEW_LABELS.action.sendForApproval : "Gửi khách"}
         </Button>
       )}
       {sendBlocked && actions.includes("send") && (
         <p className="text-ink-tertiary text-center text-xs">{sendBlocked}</p>
       )}
+      <PriceReviewActions
+        quote={quote}
+        actions={actions}
+        submittedByMe={submittedByMe}
+        onError={onError}
+      />
       {actions.includes("revise") && (
         <Button
           type="button"

@@ -14,11 +14,19 @@ import {
   customerSkuListDtoSchema,
   quoteDtoSchema,
   quotePageDtoSchema,
+  standardPriceSuggestionSchema,
 } from "./schemas";
 
 import type { QuoteApiStatus } from "@/constants";
 import type { ListQueryParams, PaginatedResponse } from "@/lib/api/query-factory";
-import type { CustomerPrice, CustomerSku, Quote, QuoteFormOutput, QuoteRow } from "./types";
+import type {
+  CustomerPrice,
+  CustomerSku,
+  Quote,
+  QuoteFormOutput,
+  QuoteRow,
+  StandardPriceSuggestion,
+} from "./types";
 
 const QUOTES = "/quotes";
 const byId = (id: string) => `${QUOTES}/${encodeURIComponent(id)}`;
@@ -31,6 +39,8 @@ export interface ListQuoteParams extends ListQueryParams {
   customerId?: string;
   /** `createdAt|validUntil|quoteNumber|status[,asc|desc]`. */
   sort?: string;
+  /** 14 BR-10: `PENDING` = chỉ nháp đang chờ duyệt giá (hàng chờ của Quản lý kinh doanh). */
+  priceReview?: "PENDING";
 }
 
 export async function listQuotes(
@@ -46,6 +56,7 @@ export async function listQuotes(
   for (const status of params.status ?? []) query.append("status", status);
   if (params.customerId) query.set("customerId", params.customerId);
   if (params.sort) query.set("sort", params.sort);
+  if (params.priceReview) query.set("priceReview", params.priceReview);
   const { data } = await api.get<unknown>(QUOTES, { params: query, signal });
   return quotePageDtoSchema.parse(data);
 }
@@ -99,7 +110,20 @@ async function action(id: string, path: string, body: object): Promise<Quote> {
   return quoteDtoSchema.parse(data);
 }
 
+/**
+ * DRAFT → SENT; hoặc (14 BR-10) báo giá ở lại `DRAFT` với `priceReviewPending: true` khi có bậc giá thấp hơn giá tham
+ * chiếu quá ngưỡng hoặc không có giá tham chiếu — màn hình đọc response để biết đã gửi khách hay gửi duyệt.
+ */
 export const sendQuote = ({ id, version }: QuoteActionInput) => action(id, "sending", { version });
+/** 14 BR-10: Quản lý kinh doanh duyệt giá → báo giá gửi khách ngay (SENT). Người gửi duyệt không tự duyệt (403). */
+export const approveQuotePrice = ({ id, version, note }: QuoteActionInput & { note?: string }) =>
+  action(id, "price-approval", { version, ...(note?.trim() ? { note: note.trim() } : {}) });
+/** 14 BR-10: từ chối giá, lý do bắt buộc → báo giá trở về nháp sửa được. */
+export const rejectQuotePrice = ({ id, version, reason }: QuoteActionInput & { reason: string }) =>
+  action(id, "price-rejection", { version, reason });
+/** 14 BR-10: Sales rút lại yêu cầu duyệt giá để sửa báo giá (`sales-quotes:UPDATE`). */
+export const withdrawQuotePriceReview = ({ id, version }: QuoteActionInput) =>
+  action(id, "price-review-withdrawal", { version });
 export const reviseQuote = ({ id, version }: QuoteActionInput) =>
   action(id, "revision", { version });
 export const cancelQuote = ({ id, version, reason }: QuoteActionInput & { reason: string }) =>
@@ -140,6 +164,27 @@ export async function getCustomerPrice(
     return customerPriceDtoSchema.parse(data);
   } catch (error) {
     if (error instanceof ApiError && error.status === 404) return null;
+    throw error;
+  }
+}
+
+/**
+ * Giá chuẩn của quy cách SKU được làm từ đó (`GET /catalog/standard-prices/{sku}`, `catalog-standard-prices:READ`) — giá
+ * gợi ý khi khách chưa có giá riêng (13 BR-04 sửa ngày 2026-11-26). `null` = quy cách chưa có giá chuẩn (404) hoặc người
+ * dùng không được xem giá chuẩn (403): khi đó Sale nhập bậc giá như trước.
+ */
+export async function getStandardPriceSuggestion(
+  variantSku: string,
+  signal?: AbortSignal,
+): Promise<StandardPriceSuggestion | null> {
+  try {
+    const { data } = await api.get<unknown>(
+      `/catalog/standard-prices/${encodeURIComponent(variantSku)}`,
+      { signal },
+    );
+    return standardPriceSuggestionSchema.parse(data);
+  } catch (error) {
+    if (error instanceof ApiError && (error.status === 404 || error.status === 403)) return null;
     throw error;
   }
 }

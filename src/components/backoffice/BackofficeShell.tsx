@@ -45,6 +45,7 @@ import {
   TableProperties,
   PackageX,
   SlidersHorizontal,
+  Tag,
   Tags,
   Truck,
   TruckElectric,
@@ -84,6 +85,8 @@ import {
   QUOTE_PERMISSIONS,
   CHAT_PERMISSIONS,
   SHIPMENT_PERMISSIONS,
+  STANDARD_PRICE_PERMISSIONS,
+  STANDARD_PRICE_UI_LABELS,
   STOCK_PACKAGE_PERMISSIONS,
   TRIAL_LABELS,
   UI_LABELS,
@@ -269,6 +272,13 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: Tags,
         // BE `@PermissionResource(catalog-customer-prices)`: VIEW_PAGE mở trang (seed: ECOMMERCE_ADMIN, SALES_STAFF)
         permission: CUSTOMER_PRICE_PERMISSIONS.viewPage,
+      },
+      {
+        label: STANDARD_PRICE_UI_LABELS.navLabel,
+        href: ADMIN_ROUTES.standardPrices.list,
+        icon: Tag,
+        // BE `@PermissionResource(catalog-standard-prices)`: VIEW_PAGE (seed: SALES_MANAGER, SALES_STAFF, SYSTEM_ADMIN)
+        permission: STANDARD_PRICE_PERMISSIONS.viewPage,
       },
       {
         label: "Báo giá",

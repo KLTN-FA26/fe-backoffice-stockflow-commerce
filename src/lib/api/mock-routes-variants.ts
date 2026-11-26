@@ -909,6 +909,13 @@ export async function mockSkuRetired(sku: string): Promise<boolean> {
   return (await store()).some((v) => v.sku === sku && v.status === "OBSOLETE");
 }
 
+/** Biến thể có mã SKU này (mã đã chuẩn hoá) — mock giá chuẩn đọc tên và chữ ký SKU riêng của khách. */
+export async function findMockVariantBySku(
+  sku: string,
+): Promise<Pick<MockVariant, "productId" | "sku" | "name" | "attributeSignature"> | undefined> {
+  return (await store()).find((v) => v.sku === sku);
+}
+
 /** BE `ProductService.nameForSku(code).isPresent()`: SKU có trong danh mục biến thể (mã đã chuẩn hoá). */
 export async function mockSkuExists(sku: string): Promise<boolean> {
   return (await store()).some((v) => v.sku === sku);

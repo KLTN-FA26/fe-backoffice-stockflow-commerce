@@ -43,13 +43,14 @@ export const beVariantSchema = z.object({
 export type Variant = z.infer<typeof beVariantSchema>;
 
 /**
- * SKU riêng của khách (docs 01 §1 "SKU thành phẩm theo mẫu của khách", §4.8): BE trả chung danh sách biến thể của
- * sản phẩm nhưng `VariantResponse` không có `ownerCustomerId` — nhận diện tạm qua chữ ký BE
- * `CustomerSkuService` đặt khi sinh SKU (`OWNED-SKU:<sku>`). ASSUMPTION: đổi khi BE thêm cờ riêng.
+ * SKU riêng của khách (docs 01 §1 "SKU thành phẩm theo mẫu của khách", §4.8) — nhận diện qua chữ ký BE
+ * `CustomerSkuService` (`OWNED-SKU:<sku>`); định nghĩa ở `lib/references/catalog-variants.ts` để màn giá chuẩn dùng
+ * chung mà không import feature này.
  */
-export const CUSTOMER_SKU_SIGNATURE_PREFIX = "OWNED-SKU:";
-export const isCustomerOwnedSku = (variant: Pick<Variant, "attributeSignature">): boolean =>
-  variant.attributeSignature?.startsWith(CUSTOMER_SKU_SIGNATURE_PREFIX) ?? false;
+export {
+  CUSTOMER_SKU_SIGNATURE_PREFIX,
+  isCustomerOwnedSku,
+} from "@/lib/references/catalog-variants";
 
 /** Nhãn tuỳ chọn của biến thể ("Trắng / 12oz"); "—" với biến thể không có trục. */
 export function variantOptionsLabel(variant: Pick<Variant, "options">): string {

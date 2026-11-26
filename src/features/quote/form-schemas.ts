@@ -39,14 +39,18 @@ export const quoteLineInputSchema = z
       (v) => Number(v) <= 1_000_000,
       "Tối đa 1.000.000 thùng",
     ),
-    /** Do form điền theo `GET /catalog/customer-prices/{customerId}/{sku}` (200 = có giá riêng). */
+    /**
+     * Dòng có giá tham chiếu để BE tự lấy khi bỏ trống bậc giá: giá riêng của khách (`GET /catalog/customer-prices/…`),
+     * không có thì giá chuẩn của quy cách (`GET /catalog/standard-prices/…`, 13 BR-04 sửa ngày 2026-11-26). Tên giữ từ
+     * trước khi có giá chuẩn; form điền theo `useLinePriceSuggestion`.
+     */
     hasCustomerPrice: z.boolean(),
-    /** MOQ (thùng) của giá riêng khách, do form điền cùng `hasCustomerPrice`; vắng = chưa biết. */
+    /** MOQ (thùng) của giá tham chiếu đó, do form điền cùng `hasCustomerPrice`; vắng = chưa biết. */
     customerPriceMoq: z.number().nullish(),
     tiers: z.array(z.object({ minQuantity: z.string().trim(), unitPrice: z.string().trim() })),
   })
   .superRefine((line, ctx) => {
-    // 13 BR-05: bỏ trống bậc giá = BE lấy giá riêng của khách; không có giá riêng thì phải nhập.
+    // 13 BR-05 / BR-04: bỏ trống bậc giá = BE lấy giá riêng của khách, không có thì giá chuẩn; không có cả hai thì nhập.
     const cartons = INT.test(line.cartons) ? Number(line.cartons) : null;
     if (line.tiers.length === 0) {
       // BE `defaultTiers`: dưới MOQ của giá riêng thì 400 `refusal.quote.belowOwnPriceMinimum`.
@@ -59,13 +63,14 @@ export const quoteLineInputSchema = z
         ctx.addIssue({
           code: "custom",
           path: ["tiers"],
-          message: `Dưới mức tối thiểu ${line.customerPriceMoq} thùng của bảng giá khách — nhập bậc giá đã thoả thuận`,
+          message: `Dưới mức tối thiểu ${line.customerPriceMoq} thùng của bảng giá — nhập bậc giá đã thoả thuận`,
         });
       if (!line.hasCustomerPrice)
         ctx.addIssue({
           code: "custom",
           path: ["tiers"],
-          message: "Khách chưa có giá riêng cho SKU này — nhập ít nhất một bậc giá",
+          message:
+            "Chưa có giá riêng của khách lẫn giá chuẩn cho SKU này — nhập ít nhất một bậc giá",
         });
       return;
     }

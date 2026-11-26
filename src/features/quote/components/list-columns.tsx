@@ -19,6 +19,7 @@ import { CustomerName } from "@/components/backoffice/CustomerName";
 import { StatusDot } from "@/components/shared/StatusDot";
 
 import { MONO, QUOTE_LIST_LABELS as L, quoteStatusLabel } from "./copy";
+import { PriceReviewBadge } from "./price-review/PriceReviewBadge";
 
 import type { ColumnDef } from "@/components/shared/DataTable";
 import type { QuoteRow } from "@/features/quote/types";
@@ -57,7 +58,7 @@ export const sentButExpired = (row: Pick<QuoteRow, "status" | "validUntil">) =>
 
 /**
  * Trạng thái; báo giá đã gửi mà quá hạn hiệu lực ghi rõ "Hết hiệu lực" bằng chữ (BO-UX-13, WCAG 1.4.1 — không chỉ đổi
- * màu ngày) như trang chi tiết.
+ * màu ngày) như trang chi tiết; nháp chờ duyệt giá ghi "Chờ duyệt giá" (14 BR-10).
  */
 function QuoteStatusCell({ row }: { row: QuoteRow }) {
   return (
@@ -67,6 +68,7 @@ function QuoteStatusCell({ row }: { row: QuoteRow }) {
         status={QUOTE_STATUS_BY_API[row.status]}
         label={QUOTE_STATUS_LABELS[row.status]}
       />
+      {row.status === "DRAFT" && row.priceReviewPending && <PriceReviewBadge />}
       {sentButExpired(row) && (
         <span className="text-ink-primary inline-flex items-center gap-1 text-xs font-medium">
           <CalendarX2 className="text-dot-danger size-3.5" aria-hidden="true" />

@@ -50,10 +50,11 @@ describe("NAV_GROUPS — chia tab theo docs 00 §3", () => {
     ]);
   });
 
-  it("Bán hàng gồm bảng giá nội bộ của khách (13 §4.2), không nằm ở dữ liệu sản phẩm", () => {
+  it("Bán hàng gồm bảng giá nội bộ của khách (13 §4.2) và giá chuẩn (13 BR-04), không nằm ở dữ liệu sản phẩm", () => {
     expect(hrefsOf(NAV_GROUP_LABELS.sales)).toEqual([
       ADMIN_ROUTES.customers.list,
       ADMIN_ROUTES.customerPrices.list,
+      ADMIN_ROUTES.standardPrices.list,
       ADMIN_ROUTES.quotes.list,
       // L-6: người làm báo giá thấy "Đơn hàng" ở đây (bản ở nhóm Đơn hàng ẩn với họ — `unlessPermission`)
       ADMIN_ROUTES.orders.list,

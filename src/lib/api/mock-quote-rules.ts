@@ -8,9 +8,17 @@
 import { QUOTE_FEE_KINDS } from "@/constants";
 
 import { findCustomerPrice } from "./mock-customer-price-store";
+import { findStandardPrice } from "./mock-standard-price-store";
 import { findMockCustomer } from "./mock-customer-store";
 import { placeQuotedOrder } from "./mock-contract-orders";
 import { viDateTime, viNumber, wholeNumber } from "./mock-quote-money";
+import {
+  pendingReview,
+  priceCheckOf,
+  refuseWhilePending,
+  submitForPriceReview,
+  decide,
+} from "./mock-quote-price-review";
 import { NOT_FOUND_MESSAGE, VALIDATION_MESSAGE, refuse, refuseInvalid } from "./mock-quote-refusal";
 import { WF02_DEMO_CUSTOMER_ID, WF02_USERS, taxRateOn, vnDay, wf02Sku } from "./mock-quote-seed";
 import {
@@ -25,6 +33,7 @@ import {
 import { isUuidText, text } from "./mock-route-utils";
 
 import type { QuoteApiStatus, QuoteFeeKind } from "@/constants";
+import type { MockActor } from "./mock-quote-price-review";
 import type { MockFieldError } from "./mock-quote-refusal";
 import type { MockQuote, MockQuoteFee, MockQuoteLine, MockQuoteTier } from "./mock-quote-store";
 
@@ -203,11 +212,18 @@ function requireOwnSkus(customerId: string, skus: readonly string[]): void {
   );
 }
 
-/** 13 BR-05: dòng bỏ trống bậc giá lấy giá riêng của khách, đọc ở số thùng của dòng. */
+/**
+ * 13 BR-05 / BR-04 (sửa ngày 2026-11-26): dòng bỏ trống bậc giá lấy giá riêng của khách, không có thì giá chuẩn của quy
+ * cách SKU được làm từ đó; đọc ở số thùng của dòng.
+ */
 function defaultTiers(customerId: string, sku: string, cartons: number): MockQuoteTier[] {
-  const price = findCustomerPrice(customerId, sku);
+  const sourceSku = wf02Sku(sku)?.sourceSku;
+  const price =
+    findCustomerPrice(customerId, sku) ?? (sourceSku ? findStandardPrice(sourceSku) : null);
   if (!price || price.tiers.length === 0)
-    refuseInvalid(`Khách chưa có bảng giá riêng cho ${sku}: nhập bậc giá cho dòng này.`);
+    refuseInvalid(
+      `${sku} chưa có bảng giá riêng của khách lẫn giá chuẩn: nhập bậc giá cho dòng này.`,
+    );
   const tiers = price.tiers.map((t) => ({
     minQuantity: t.minQuantity,
     unitPrice: Number(t.unitPrice),
@@ -215,7 +231,7 @@ function defaultTiers(customerId: string, sku: string, cartons: number): MockQuo
   const moq = tiers[0]?.minQuantity ?? 0;
   if (cartons < moq)
     refuseInvalid(
-      `${cartons} thùng ${sku} thấp hơn mức tối thiểu ${moq} thùng của bảng giá khách: nhập bậc giá đã thoả thuận.`,
+      `${cartons} thùng ${sku} thấp hơn mức tối thiểu ${moq} thùng của bảng giá: nhập bậc giá đã thoả thuận.`,
     );
   return tiers;
 }
@@ -449,6 +465,7 @@ export function editQuote(id: string, body: Record<string, unknown>): MockQuote 
   requireNoErrors(errors);
   const quote = find(id);
   requireVersion(quote, version);
+  refuseWhilePending(quote);
   const offer = buildOffer(quote.customerId, draft);
   if (quote.status !== "DRAFT") transitionRefused(quote, "sửa");
   Object.assign(quote, offer);
@@ -456,13 +473,21 @@ export function editQuote(id: string, body: Record<string, unknown>): MockQuote 
   return quote;
 }
 
-/** `POST /quotes/{id}/sending` — DRAFT → SENT (14 §4.1 bước 3). */
-export function sendQuote(id: string, body: Record<string, unknown>): MockQuote {
+/**
+ * `POST /quotes/{id}/sending` — DRAFT → SENT (14 §4.1 bước 3); 14 BR-10: có bậc giá thấp hơn giá tham chiếu quá ngưỡng
+ * hoặc không có tham chiếu → ở lại DRAFT chờ Quản lý kinh doanh duyệt giá (`submitForPriceReview`).
+ */
+export function sendQuote(
+  id: string,
+  body: Record<string, unknown>,
+  actor: MockActor = { id: WF02_USERS.sales, name: null },
+): MockQuote {
   const errors: MockFieldError[] = [];
   const version = readVersion(body, errors);
   requireNoErrors(errors);
   const quote = find(id);
   requireVersion(quote, version);
+  refuseWhilePending(quote);
   requireOwnSkus(
     quote.customerId,
     quote.lines.map((line) => line.sku),
@@ -504,10 +529,16 @@ export function sendQuote(id: string, body: Record<string, unknown>): MockQuote 
     refuseInvalid(
       `Báo giá ${quote.quoteNumber} có hiệu lực đến ${viDateTime(quote.validUntil)}, đã qua: đặt hạn hiệu lực mới trước khi gửi.`,
     );
+  if (priceCheckOf(quote).needsApproval) return submitForPriceReview(quote, actor);
+  return markSent(quote, actor.id);
+}
+
+/** DRAFT → SENT: khách thấy báo giá (gửi thẳng, hoặc ngay khi giá được duyệt — 14 BR-10). */
+export function markSent(quote: MockQuote, by: string): MockQuote {
   quote.status = "SENT";
   quote.sentAt = new Date().toISOString();
-  quote.sentBy = WF02_USERS.sales;
-  record(quote, "DRAFT", "SENT", null, WF02_USERS.sales);
+  quote.sentBy = by;
+  record(quote, "DRAFT", "SENT", null, by);
   quote.version += 1;
   return quote;
 }
@@ -653,6 +684,9 @@ export function cancelQuote(id: string, body: Record<string, unknown>): MockQuot
       `Báo giá ${quote.quoteNumber} đã được chấp nhận, khách vẫn đang hoạt động và mọi SKU vẫn còn bán: hãy tạo đơn từ báo giá thay vì huỷ.`,
     );
   if (!TRANSITIONS[quote.status].includes("CANCELLED")) transitionRefused(quote, "huỷ");
+  // 14 BR-10: huỷ lúc đang chờ duyệt giá → lần gửi duyệt rút lại với lý do huỷ
+  if (quote.priceReviewPending)
+    decide(quote, pendingReview(quote), "WITHDRAWN", { id: WF02_USERS.sales, name: null }, reason);
   const from = quote.status;
   quote.status = "CANCELLED";
   quote.cancellationReason = reason;
@@ -718,3 +752,6 @@ export function convertQuote(id: string, body: Record<string, unknown>): MockQuo
   quote.version += 1;
   return quote;
 }
+
+/** Kiểm dùng chung cho các bước duyệt giá (`mock-quote-price-actions.ts`), cùng thứ tự như các bước ở trên. */
+export const quoteGuards = { find, requireVersion, readVersion, requireNoErrors };

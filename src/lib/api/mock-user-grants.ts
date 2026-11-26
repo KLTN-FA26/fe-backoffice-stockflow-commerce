@@ -47,8 +47,10 @@ import {
   PUTAWAY_TRIP_PERMISSIONS,
   QC_TASK_PERMISSIONS,
   QUOTE_PERMISSIONS,
+  QUOTE_PRICE_APPROVAL_PERMISSIONS,
   REPORTING_PERMISSIONS,
   SHIPMENT_PERMISSIONS,
+  STANDARD_PRICE_PERMISSIONS,
   STOCK_PACKAGE_PERMISSIONS,
   SUPPLIER_PERMISSIONS,
   VARIANT_PERMISSIONS,
@@ -210,6 +212,11 @@ const CP = CUSTOMER_PRICE_PERMISSIONS;
 const CUSTOMER_PRICE_ALL = Object.values(CP);
 const CUSTOMER_PRICE_READ = [CP.viewPage, CP.read];
 const CUSTOMER_LOOKUP = CUSTOMER_PERMISSIONS.read;
+// Seed BE V20261230000100 (catalog-standard-prices, 13 BR-04 sửa ngày 2026-11-26): SALES_MANAGER và SYSTEM_ADMIN đủ
+// quyền, SALES_STAFF VIEW_PAGE + READ. Duyệt giá báo giá (`sales-quote-price-approvals:APPROVE`, 14 BR-10): SALES_MANAGER
+// và SYSTEM_ADMIN — mock admin là System Admin.
+const STANDARD_PRICE_ALL = Object.values(STANDARD_PRICE_PERMISSIONS);
+const STANDARD_PRICE_READ = [STANDARD_PRICE_PERMISSIONS.viewPage, STANDARD_PRICE_PERMISSIONS.read];
 const WH_WORK = [
   ...GR_WORK,
   ...FULFILLMENT_READ,
@@ -353,6 +360,8 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...EINVOICE_SETTINGS_ALL,
     ...CHAT_ALL,
     ...SALES_WF02,
+    ...STANDARD_PRICE_ALL,
+    QUOTE_PRICE_APPROVAL_PERMISSIONS.approve,
   ],
   "USER-PROC-01": [
     SUPPLIER_PERMISSIONS.viewPage,
@@ -447,6 +456,7 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...PAY_SALES,
     ...CHAT_AGENT,
     ...SALES_WF02,
+    ...STANDARD_PRICE_READ,
   ],
   "USER-SALE-02": [
     ORDER_PERMISSIONS.viewPage,
@@ -466,6 +476,7 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...PAY_SALES,
     ...CHAT_AGENT,
     ...SALES_WF02,
+    ...STANDARD_PRICE_READ,
   ],
   "USER-SALE-03": [
     ORDER_PERMISSIONS.viewPage,
@@ -485,6 +496,7 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...PAY_SALES,
     ...CHAT_AGENT,
     ...SALES_WF02,
+    ...STANDARD_PRICE_READ,
   ],
   // Seed BE: SALES_STAFF có sales-order-cancellations:UPDATE (huỷ đơn, đóng phần còn lại) và sales-order-holds:UPDATE
   // (giữ / gỡ giữ); ghi giao thất bại ở cấp đơn là fulfillment-delivery-outcomes:APPROVE

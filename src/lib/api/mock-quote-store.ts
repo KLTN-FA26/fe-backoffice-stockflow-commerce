@@ -7,6 +7,7 @@
 
 import { WF02_SEED_ORDERS, findWf02Order, orderTotal } from "./mock-contract-orders";
 import { percentOf } from "./mock-quote-money";
+import { priceReviewView } from "./mock-quote-price-review";
 import {
   WF02_DEMO_CUSTOMER_ID,
   WF02_TSM_CUSTOMER_ID,
@@ -20,6 +21,7 @@ import {
 } from "./mock-quote-seed";
 
 import type { QuoteApiStatus, QuoteFeeKind } from "@/constants";
+import type { MockPriceReview } from "./mock-quote-price-review";
 
 export interface MockQuoteTier {
   minQuantity: number;
@@ -86,6 +88,10 @@ export interface MockQuote {
   createdBy: string;
   /** JPA `@Version`: 0 khi lập, +1 mỗi lần lưu. */
   version: number;
+  /** 14 BR-10: nháp đang chờ Quản lý kinh doanh duyệt giá (vẫn DRAFT). Seed không có. */
+  priceReviewPending?: boolean;
+  /** 14 BR-10: các lần gửi duyệt giá, cũ trước (BE `ordering.quote_price_review`). */
+  priceReviews?: MockPriceReview[];
 }
 
 /* ── Giá (BE `QuoteLine`) ────────────────────────────────────────────── */
@@ -420,6 +426,7 @@ export function quoteView(quote: MockQuote) {
     createdAt: quote.createdAt,
     createdBy: quote.createdBy,
     version: quote.version,
+    ...priceReviewView(quote),
   };
 }
 
@@ -435,4 +442,5 @@ export const quoteRow = (quote: MockQuote) => ({
   convertedOrderId: quote.convertedOrderId,
   createdAt: quote.createdAt,
   version: quote.version,
+  priceReviewPending: quote.priceReviewPending ?? false,
 });
