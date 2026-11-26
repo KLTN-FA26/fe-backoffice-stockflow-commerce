@@ -87,8 +87,8 @@ export function CodeCombobox({
             </CommandItem>
           ))}
         </CommandGroup>
-        {hidden > 0 && <ComboboxMoreHint remaining={hidden} />}
       </CommandList>
+      {hidden > 0 && <ComboboxMoreHint remaining={hidden} />}
     </InputCombobox>
   );
 }

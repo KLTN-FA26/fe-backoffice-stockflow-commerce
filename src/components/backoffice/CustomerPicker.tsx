@@ -108,7 +108,8 @@ export function CustomerPicker({
         describedBy={a11y["aria-describedby"]}
         contentClassName={LIST_CLASS}
       >
-        <CommandList>
+        {/* 8 dòng 2 tầng không cuộn; dòng "Còn N khách" nằm dưới danh sách, luôn thấy */}
+        <CommandList className="max-h-96">
           {search.isPending && <p className={`text-ink-tertiary ${STATUS_ROW}`}>{L.searching}</p>}
           {search.isError && (
             <p role="alert" className={`text-danger ${STATUS_ROW}`}>
@@ -160,10 +161,10 @@ export function CustomerPicker({
               ))}
             </CommandGroup>
           )}
-          {items.length > 0 && remaining > 0 && (
-            <ComboboxMoreHint remaining={remaining} label={L.more(remaining)} />
-          )}
         </CommandList>
+        {items.length > 0 && remaining > 0 && (
+          <ComboboxMoreHint remaining={remaining} label={L.more(remaining)} />
+        )}
       </InputCombobox>
     </FormField>
   );

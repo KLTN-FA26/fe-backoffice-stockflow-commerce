@@ -106,8 +106,8 @@ export function VariantPicker({
                 ))}
               </CommandGroup>
             )}
-            {items.length > 0 && remaining > 0 && <ComboboxMoreHint remaining={remaining} />}
           </CommandList>
+          {items.length > 0 && remaining > 0 && <ComboboxMoreHint remaining={remaining} />}
         </InputCombobox>
       </div>
       <div className="space-y-1">

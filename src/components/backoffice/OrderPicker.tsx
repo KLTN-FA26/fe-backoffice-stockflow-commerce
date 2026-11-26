@@ -93,8 +93,8 @@ export function OrderPicker({
               ))}
             </CommandGroup>
           )}
-          {items.length > 0 && remaining > 0 && <ComboboxMoreHint remaining={remaining} />}
         </CommandList>
+        {items.length > 0 && remaining > 0 && <ComboboxMoreHint remaining={remaining} />}
       </InputCombobox>
     </div>
   );
