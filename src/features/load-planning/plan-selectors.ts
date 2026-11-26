@@ -117,19 +117,43 @@ export function fillLinesToSend(
   return options.map((o) => o.orderLineId).filter((id) => ticked.has(id));
 }
 
-/** Tổng số kiện / khối lượng / thể tích của các lô đã chọn trong màn lập kế hoạch. */
+/** Tổng số lô / kiện / khối lượng (kg) / thể tích (mm³) của các lô đã chọn trong màn lập kế hoạch. */
 export function totalsOf(
   candidates: readonly Pick<
     CandidateShipment,
-    "shipmentId" | "packageCount" | "packagesInOtherPlans"
+    "shipmentId" | "packageCount" | "packagesInOtherPlans" | "weightKg" | "volumeMm3"
   >[],
   selected: ReadonlySet<string>,
-): { shipments: number; packages: number } {
+): { shipments: number; packages: number; weightKg: number; volumeMm3: number } {
   const chosen = candidates.filter((candidate) => selected.has(candidate.shipmentId));
   return {
     shipments: chosen.length,
     packages: chosen.reduce((sum, c) => sum + c.packageCount - c.packagesInOtherPlans, 0),
+    weightKg: chosen.reduce((sum, c) => sum + c.weightKg, 0),
+    volumeMm3: chosen.reduce((sum, c) => sum + c.volumeMm3, 0),
   };
+}
+
+/** Lô sắp theo giờ sẵn sàng, sớm nhất trước; chưa có giờ xuống cuối; bằng nhau theo mã lô. Bản mới, không sửa mảng gốc. */
+export function sortByReadyAt<T extends Pick<CandidateShipment, "code" | "readyAt">>(
+  candidates: readonly T[],
+): T[] {
+  const time = (candidate: T) => {
+    const parsed = candidate.readyAt ? Date.parse(candidate.readyAt) : Number.NaN;
+    return Number.isNaN(parsed) ? Number.POSITIVE_INFINITY : parsed;
+  };
+  return [...candidates].sort(
+    (a, b) =>
+      (time(a) === time(b) ? 0 : time(a) < time(b) ? -1 : 1) || a.code.localeCompare(b.code),
+  );
+}
+
+/** Mã đơn khác nhau của các lô đã chọn (mỗi đơn một ước tính tải). */
+export function orderIdsOf(
+  candidates: readonly Pick<CandidateShipment, "shipmentId" | "orderId">[],
+  selected: ReadonlySet<string>,
+): string[] {
+  return [...new Set(candidates.filter((c) => selected.has(c.shipmentId)).map((c) => c.orderId))];
 }
 
 /**

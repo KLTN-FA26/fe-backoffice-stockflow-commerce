@@ -14,7 +14,7 @@ import {
   stoolButtons,
   twoVehiclePlan,
 } from "../../__fixtures__/editor-screen";
-import { LOAD_PLAN_ACTORS as ACTORS } from "../../__fixtures__/render-plan";
+import { LOAD_PLAN_ACTORS as ACTORS, planActionOf } from "../../__fixtures__/render-plan";
 
 // jsdom không có WebGL: khung 3D thay bằng nút cho từng kiện / ô gợi ý (hình học cảnh test ở lib/editor-scene.test.ts)
 vi.mock("./EditorViewer", () => ({
@@ -63,11 +63,11 @@ const E = UI_LABELS.loadPlan.editor;
 describe("trình soạn xếp tay — phân quyền và trạng thái", () => {
   it("only an actor with :UPDATE sees the button, and only on a PLANNED plan that has a vehicle", async () => {
     renderEditor(ACTORS.dispatcher);
-    expect(await screen.findByRole("button", { name: E.open })).toBeInTheDocument();
+    expect(await planActionOf(E.open)).toBeInTheDocument();
     cleanup();
     renderEditor(ACTORS.viewOnly);
     expect(await screen.findByText("LP-20261022-0001")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: E.open })).not.toBeInTheDocument();
+    expect(await planActionOf(E.open)).toBeNull();
   });
 
   it.each(["DRAFT", "CONFIRMED", "CANCELLED", "DISPATCHED"] as const)(
@@ -76,7 +76,7 @@ describe("trình soạn xếp tay — phân quyền và trạng thái", () => {
       const server = onePlan();
       renderEditor(ACTORS.dispatcher, { ...server, plan: { ...server.plan, status } });
       expect(await screen.findByText("LP-20261022-0001")).toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: E.open })).not.toBeInTheDocument();
+      expect(await planActionOf(E.open)).toBeNull();
     },
   );
 
@@ -87,7 +87,7 @@ describe("trình soạn xếp tay — phân quyền và trạng thái", () => {
       plan: { ...server.plan, vehicles: [], packages: [], packageCount: 0, placedCount: 0 },
     });
     expect(await screen.findByText("LP-20261022-0001")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: E.open })).not.toBeInTheDocument();
+    expect(await planActionOf(E.open)).toBeNull();
   });
 
   it("opening swaps the tabs and the plan actions for the editor; leaving brings them back", async () => {
@@ -170,7 +170,7 @@ describe("trình soạn xếp tay — thao tác", () => {
     const refs = body.vehicles[0].boxes.map((b) => b.ref);
     expect(new Set(refs).size).toBe(refs.length);
     // saved → back to the detail page
-    expect(await screen.findByRole("button", { name: E.open })).toBeInTheDocument();
+    expect(await planActionOf(E.open)).toBeInTheDocument();
   });
 
   it("moving a box to another vehicle goes through the shared tray and lands on the other vehicle's spots", async () => {

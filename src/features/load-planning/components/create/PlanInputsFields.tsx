@@ -2,7 +2,7 @@
 
 import { LOAD_PLAN_SELECTION_MODE, UI_LABELS } from "@/constants";
 import { knownLoadPlanReadError } from "@/features/load-planning/errors";
-import { fillLineOptions } from "@/features/load-planning/plan-selectors";
+import { fillLineOptions, totalsOf } from "@/features/load-planning/plan-selectors";
 
 import { FillLinesPicker } from "./FillLinesPicker";
 import { ModePicker } from "./ModePicker";
@@ -22,6 +22,7 @@ export function PlanInputsFields({
   candidates,
   types,
   inputs,
+  recommendedCodes,
 }: {
   idPrefix: string;
   warehouseId: string;
@@ -29,12 +30,16 @@ export function PlanInputsFields({
   candidates: UseQueryResult<CandidateShipment[]>;
   types: UseQueryResult<VehicleTypeOption[]>;
   inputs: PlanInputsState;
+  /** Mã loại xe mà ước tính tải của các đơn đã chọn dùng (chỉ màn lập mới có) — hiện "Gợi ý". */
+  recommendedCodes?: ReadonlySet<string>;
 }) {
+  const { weightKg, volumeMm3 } = totalsOf(candidates.data ?? [], inputs.shipments);
+  const hasRecommendation = (recommendedCodes?.size ?? 0) > 0;
   return (
     <div className="space-y-5">
       <section aria-labelledby={`${idPrefix}-shipments`} className="space-y-2">
         <h3 id={`${idPrefix}-shipments`} className="text-ink-primary text-sm font-medium">
-          {L.shipmentsTitle}
+          {L.shipmentsTitle} <span className="text-danger">*</span>
         </h3>
         <p className="text-ink-tertiary text-xs">{L.shipmentsHint}</p>
         <ShipmentPicker
@@ -53,15 +58,19 @@ export function PlanInputsFields({
       </section>
       <section aria-labelledby={`${idPrefix}-types`} className="space-y-2">
         <h3 id={`${idPrefix}-types`} className="text-ink-primary text-sm font-medium">
-          {L.vehicleTypesTitle}
+          {L.vehicleTypesTitle} <span className="text-danger">*</span>
         </h3>
-        <p className="text-ink-tertiary text-xs">{L.vehicleTypesHint}</p>
+        <p className="text-ink-tertiary text-xs">
+          {hasRecommendation ? L.vehicleTypesHintEstimated : L.vehicleTypesHint}
+        </p>
         <VehicleTypePicker
           types={types.data}
           loading={types.isPending}
           failed={types.isError}
           selected={inputs.vehicleTypes}
           onToggle={inputs.toggleVehicleType}
+          load={{ weightKg, volumeMm3 }}
+          recommendedCodes={recommendedCodes}
         />
       </section>
       <section aria-labelledby={`${idPrefix}-mode`} className="space-y-2">

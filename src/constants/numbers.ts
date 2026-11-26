@@ -187,6 +187,10 @@ export const SHIPPING_LIMITS = {
   scanFeedbackMs: 1500,
   /** Chuyến đang xếp hàng (LOADING): tự tải lại để thấy kiện quét từ máy khác. */
   loadPollMs: 15_000,
+  /** Số chuyến đã bàn giao gần nhất của kho đọc để biết hãng dùng gần nhất (ô chọn hãng khi đặt xe). */
+  recentLoadsSize: 20,
+  /** Số mã kiện chưa quét liệt kê dưới nút bàn giao (còn lại ghi "và N kiện khác"). */
+  unscannedListed: 5,
 } as const;
 
 /**
@@ -307,6 +311,8 @@ export const LOAD_PLAN_LIMITS = {
   estimateTolerancePct: 10,
   /** Số loại xe tải về một lần cho ô chọn loại xe (danh mục tối đa vài chục). */
   vehicleTypePickerSize: 100,
+  /** Từ ngần này lô ứng viên trở lên, màn lập kế hoạch mới hiện ô tìm lô (ít hơn thì cả bảng nằm gọn trên màn). */
+  shipmentSearchFrom: 5,
   /** `LoadPlacementsRequest.vehicles` @Size(max = 100). */
   placementVehiclesMax: 100,
   /** `LoadPlacementsRequest.Vehicle.boxes` và `tray` @Size(max = 2000). */

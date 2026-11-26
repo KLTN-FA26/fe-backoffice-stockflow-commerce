@@ -66,7 +66,14 @@ export function VehiclePanel({
           {vehicle.load && (
             <div>
               <dt className="text-ink-tertiary text-xs">{L.dispatchLoad}</dt>
-              <dd className="text-ink-primary font-mono text-[0.8125rem]">{vehicle.load.code}</dd>
+              <dd className="text-[0.8125rem]">
+                <Link
+                  href={ADMIN_ROUTES.loads.detail(vehicle.load.loadId)}
+                  className="text-accent-text font-mono hover:underline"
+                >
+                  {vehicle.load.code}
+                </Link>
+              </dd>
             </div>
           )}
         </dl>

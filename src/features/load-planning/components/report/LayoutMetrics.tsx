@@ -41,7 +41,7 @@ export function LayoutMetrics({
     },
     {
       label: labels.utilization,
-      value: formatPercent(summary.utilization, 2),
+      value: formatPercent(summary.utilization, 1),
       icon: <Gauge className="size-4" />,
       tone: summary.utilization < LOAD_PLANNING_LIMITS.lowUtilizationRatio ? "warn" : "good",
     },

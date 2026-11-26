@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { UI_LABELS } from "@/constants";
+import { vehicleTypeName } from "@/lib/domain/vehicle-type-name";
 import { canDownloadLoadingSheet } from "@/features/load-planning/lifecycle";
 import { colorMapForLayouts } from "@/features/load-planning/lib/palette";
 import {
@@ -53,6 +54,7 @@ export function LoadingTab({
   const tray = unplacedParcels(plan);
   const vehicle = plan.vehicles.find((v) => v.seq === seq) ?? plan.vehicles[0];
   const colorMap = colorMapForLayouts(layouts ?? []);
+  const typeNames = new Map(plan.vehicleTypes.map((t) => [t.vehicleTypeId, vehicleTypeName(t)]));
   // Chỉ kiện còn trên khay mới được gửi: kiện đã lên xe sau một lần tính lại phải rời lựa chọn
   const selected = pickedOnTray(picked, tray);
 
@@ -69,7 +71,12 @@ export function LoadingTab({
       {layoutsFailed && <Alert tone="danger">{L.layoutsFailed}</Alert>}
       {vehicle ? (
         <>
-          <VehicleSwitcher vehicles={plan.vehicles} selectedSeq={vehicle.seq} onSelect={setSeq} />
+          <VehicleSwitcher
+            vehicles={plan.vehicles}
+            selectedSeq={vehicle.seq}
+            onSelect={setSeq}
+            typeNames={typeNames}
+          />
           <VehiclePanel
             planId={plan.loadPlanId}
             vehicle={vehicle}

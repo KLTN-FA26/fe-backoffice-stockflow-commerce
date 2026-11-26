@@ -2,7 +2,7 @@ import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { LOAD_PLAN_ERROR_MESSAGES as ERRORS, UI_LABELS } from "@/constants";
+import { LOAD_PLAN_ERROR_MESSAGES as ERRORS, LOAD_PLANNING_LABELS, UI_LABELS } from "@/constants";
 import { PERMISSION_UI } from "@/constants/permissions";
 import { ApiError } from "@/lib/api/error";
 
@@ -20,6 +20,7 @@ import {
 import {
   LOAD_PLAN_ACTORS as ACTORS,
   mockLoadPlanApi,
+  planAction,
   renderLoadPlanScreen,
 } from "../__fixtures__/render-plan";
 import { LoadPlanDetail } from "./LoadPlanDetail";
@@ -174,7 +175,10 @@ describe("LoadPlanDetail — hiển thị", () => {
     expect(screen.getByText("Đã tính xếp")).toBeInTheDocument();
     expect(screen.getByText("Một loại xe")).toBeInTheDocument();
     expect(screen.getByText("SO-20261004-000001-S1")).toBeInTheDocument();
-    expect(screen.getByText(/PICKUP \(Xe bán tải\)/)).toBeInTheDocument();
+    // R3: tên của loại xe, không "PICKUP (Xe bán tải)"; mã chỉ ở chú thích
+    const type = screen.getByText("Pickup truck");
+    expect(type).toHaveAttribute("title", "PICKUP");
+    expect(screen.queryByText(/PICKUP \(/)).not.toBeInTheDocument();
     expect(await screen.findByTestId("viewer")).toHaveTextContent("3D xe #1 PICKUP-1T");
     // Warehouse resolved from the directory, not shown as an id
     expect(await screen.findByText("HN · Kho Hà Nội")).toBeInTheDocument();
@@ -185,7 +189,7 @@ describe("LoadPlanDetail — hiển thị", () => {
     expect((await screen.findAllByText("Số kiện đã xếp theo xe")).length).toBeGreaterThan(0);
     for (const name of ["Khay giấy", "Ống ly giấy", "Thùng ống hút"])
       expect(screen.getAllByText(name).length).toBeGreaterThan(0);
-    expect(screen.getByText("Hiệu suất")).toBeInTheDocument();
+    expect(screen.getAllByText(LOAD_PLANNING_LABELS.metrics.utilization).length).toBeGreaterThan(0);
   });
 
   it("switches between vehicles; a vehicle that needs recalculation carries a badge and a page notice", async () => {
@@ -313,7 +317,7 @@ describe("LoadPlanDetail — hộp thoại xác nhận ngay trong trang", () => 
   it("09 §4.2 step 9: a PLANNED plan takes one shipment out after a confirmation; the vehicle that carried it shows 'Cần tính lại'", async () => {
     const user = userEvent.setup();
     const { post } = renderDetail(ACTORS.dispatcher);
-    await user.click(await screen.findByRole("button", { name: L.actions.removeShipment }));
+    await user.click((await planAction(user, L.actions.removeShipment)) as HTMLElement);
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText(D.removeShipment.description)).toBeInTheDocument();
     await user.click(within(dialog).getByRole("button", { name: D.removeShipment.confirm }));
@@ -338,16 +342,14 @@ describe("LoadPlanDetail — hộp thoại xác nhận ngay trong trang", () => 
     async (status) => {
       renderDetail(ACTORS.dispatcher, planFixture({ status }));
       await screen.findByText("LP-20261022-0001");
-      expect(
-        screen.queryByRole("button", { name: L.actions.removeShipment }),
-      ).not.toBeInTheDocument();
+      expect(await planAction(userEvent.setup(), L.actions.removeShipment)).toBeNull();
     },
   );
 
   it("cancel needs a reason: the confirm button stays off until one is typed, then it is sent trimmed", async () => {
     const user = userEvent.setup();
     const { post } = renderDetail(ACTORS.dispatcher);
-    await user.click(await screen.findByRole("button", { name: L.actions.cancel }));
+    await user.click((await planAction(user, L.actions.cancel)) as HTMLElement);
     const dialog = await screen.findByRole("dialog");
     const confirm = within(dialog).getByRole("button", { name: D.cancel.confirm });
     expect(confirm).toBeDisabled();
@@ -364,7 +366,7 @@ describe("LoadPlanDetail — hộp thoại xác nhận ngay trong trang", () => 
   it("reopening a CONFIRMED plan needs a reason too", async () => {
     const user = userEvent.setup();
     const { post } = renderDetail(ACTORS.dispatcher, planFixture({ status: "CONFIRMED" }));
-    await user.click(await screen.findByRole("button", { name: L.actions.reopen }));
+    await user.click((await planAction(user, L.actions.reopen)) as HTMLElement);
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByRole("button", { name: D.reopen.confirm })).toBeDisabled();
     await user.type(within(dialog).getByRole("textbox"), "Đổi xe");
@@ -428,7 +430,7 @@ describe("LoadPlanDetail — hộp thoại xác nhận ngay trong trang", () => 
       ACTORS.dispatcher,
       planFixture({ status: "DRAFT", vehicles: [], vehicleTypes: [base.vehicleTypes[0], retired] }),
     );
-    await user.click(await screen.findByRole("button", { name: L.actions.editInputs }));
+    await user.click((await planAction(user, L.actions.editInputs)) as HTMLElement);
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText(D.editInputs.inactiveDropped("OLD-TRUCK"))).toBeInTheDocument();
     await within(dialog).findByText(candidateFixture().code);
@@ -443,7 +445,7 @@ describe("LoadPlanDetail — hộp thoại xác nhận ngay trong trang", () => 
       ACTORS.dispatcher,
       planFixture({ status: "DRAFT", vehicles: [], packages: [], packageCount: 0, placedCount: 0 }),
     );
-    await user.click(await screen.findByRole("button", { name: L.actions.editInputs }));
+    await user.click((await planAction(user, L.actions.editInputs)) as HTMLElement);
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText(D.editInputs.description)).toBeInTheDocument();
     await within(dialog).findByText(candidateFixture().code);
@@ -569,8 +571,10 @@ describe("LoadPlanDetail — cổng quyền và trạng thái", () => {
       ACTORS.dispatcher,
       planFixture({ status: "DRAFT", vehicles: [], packages: [], packageCount: 0, placedCount: 0 }),
     );
+    // S16-4: một nút chính (tính xếp xe); đổi đầu vào / huỷ nằm trong menu "Thao tác khác"
     expect(await screen.findByRole("button", { name: L.actions.calculate })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: L.actions.editInputs })).toBeInTheDocument();
+    const user = userEvent.setup();
+    expect(await planAction(user, L.actions.editInputs)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: L.actions.cancel })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: L.actions.confirm })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: L.actions.reopen })).not.toBeInTheDocument();
@@ -580,6 +584,47 @@ describe("LoadPlanDetail — cổng quyền và trạng thái", () => {
   it("confirm is shown but disabled while the unplaced parcels are not acknowledged (BR-13)", async () => {
     renderDetail(ACTORS.dispatcher, planWithUnplaced());
     expect(await screen.findByRole("button", { name: L.actions.confirm })).toBeDisabled();
+  });
+
+  it("R7: the reason confirm is locked is written under the button, with the way out (not only on hover)", async () => {
+    const user = userEvent.setup();
+    const { post } = renderDetail(ACTORS.dispatcher, planWithUnplaced());
+    expect(await screen.findByText(L.confirmBlocked.unplacedPending)).toBeInTheDocument();
+    // "Để lại các kiện chưa xếp" nằm ngay cạnh lý do: mở thẳng hộp thoại xác nhận
+    await user.click(
+      screen.getAllByRole("button", { name: L.actions.acknowledge })[0] as HTMLElement,
+    );
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  it("S16-4: one primary button; the other actions sit in the 'Thao tác khác' menu", async () => {
+    renderDetail(ACTORS.dispatcher);
+    expect(await screen.findByRole("button", { name: L.actions.confirm })).toBeInTheDocument();
+    for (const name of [L.actions.editInputs, L.actions.cancel, L.actions.calculate])
+      expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: L.actions.more }));
+    for (const name of [L.actions.editInputs, L.actions.cancel, L.actions.calculate])
+      expect(await screen.findByRole("button", { name })).toBeInTheDocument();
+  });
+
+  it("S16-6: a confirmed plan says what comes next and opens each trip with one click", async () => {
+    const loadOf = (n: number) => ({
+      loadId: `load-${n}`,
+      code: `LD-20261022-000${n}`,
+      status: "PLANNED",
+    });
+    const base = planFixture({ status: "CONFIRMED" });
+    renderDetail(
+      ACTORS.dispatcher,
+      planFixture({
+        status: "CONFIRMED",
+        vehicles: base.vehicles.map((v, i) => ({ ...v, load: loadOf(i + 1) })),
+      }),
+    );
+    expect(await screen.findByText(L.confirmed.title)).toBeInTheDocument();
+    const link = screen.getByRole("link", { name: L.confirmed.open("LD-20261022-0001") });
+    expect(link).toHaveAttribute("href", "/admin/loads/load-1");
   });
 
   it("an unknown plan is 'not found'; a failing server offers a retry; no READ is a permission message", async () => {

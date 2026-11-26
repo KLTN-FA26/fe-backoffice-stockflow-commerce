@@ -16,6 +16,7 @@ import {
   loadPlanStatusTone,
   pickedOnTray,
   summarizePlan,
+  orderIdsOf,
   totalsOf,
   unplacedLinesOf,
   unplacedParcels,
@@ -90,15 +91,51 @@ describe("summaries", () => {
 
   it("totals the selected shipments, leaving out parcels another plan holds", () => {
     const candidates = [
-      { shipmentId: "a", packageCount: 10, packagesInOtherPlans: 2 },
-      { shipmentId: "b", packageCount: 5, packagesInOtherPlans: 0 },
+      {
+        shipmentId: "a",
+        orderId: "o1",
+        packageCount: 10,
+        packagesInOtherPlans: 2,
+        weightKg: 95,
+        volumeMm3: 930_000_000,
+      },
+      {
+        shipmentId: "b",
+        orderId: "o1",
+        packageCount: 5,
+        packagesInOtherPlans: 0,
+        weightKg: 40,
+        volumeMm3: 100_000_000,
+      },
     ];
-    expect(totalsOf(candidates, new Set(["a"]))).toEqual({ shipments: 1, packages: 8 });
+    expect(totalsOf(candidates, new Set(["a"]))).toEqual({
+      shipments: 1,
+      packages: 8,
+      weightKg: 95,
+      volumeMm3: 930_000_000,
+    });
     expect(totalsOf(candidates, new Set(["a", "b", "zzz"]))).toEqual({
       shipments: 2,
       packages: 13,
+      weightKg: 135,
+      volumeMm3: 1_030_000_000,
     });
-    expect(totalsOf(candidates, new Set())).toEqual({ shipments: 0, packages: 0 });
+    expect(totalsOf(candidates, new Set())).toEqual({
+      shipments: 0,
+      packages: 0,
+      weightKg: 0,
+      volumeMm3: 0,
+    });
+  });
+
+  it("lists each order of the chosen shipments once (one load estimate per order)", () => {
+    const candidates = [
+      { shipmentId: "a", orderId: "o1" },
+      { shipmentId: "b", orderId: "o1" },
+      { shipmentId: "c", orderId: "o2" },
+    ];
+    expect(orderIdsOf(candidates, new Set(["a", "b", "c"]))).toEqual(["o1", "o2"]);
+    expect(orderIdsOf(candidates, new Set(["c"]))).toEqual(["o2"]);
   });
 });
 
