@@ -140,6 +140,8 @@ describe("VehicleTypeFormDialog — sửa loại xe", () => {
     expect(field(L.field.code)).toBeDisabled();
     expect(field(L.field.code)).toHaveValue("20DC");
     expect(field(L.field.innerLengthMm)).toHaveValue("5898");
+    // Nhập mm nhưng nơi khác hiện mét: dưới ô có quy đổi (UX audit S20-2)
+    expect(screen.getByText("= 5,898 m")).toBeInTheDocument();
     expect(field(L.field.maxPayloadKg)).toHaveValue("28200");
     expect(field(L.field.status)).toBeInTheDocument();
     expect(screen.getByText("33,20 m³")).toBeInTheDocument();

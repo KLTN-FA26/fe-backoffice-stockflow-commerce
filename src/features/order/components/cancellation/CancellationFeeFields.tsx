@@ -7,6 +7,7 @@ import { formatMoney } from "@/lib/format";
 import { FORM_INPUT_CLASS, FORM_TEXTAREA_CLASS } from "@/components/shared/form-control-classes";
 import { fieldA11y } from "@/components/shared/FormField";
 import { MoneyInput } from "@/components/shared/MoneyInput";
+import { NumberInput } from "@/components/shared/NumberInput";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -108,8 +109,8 @@ export function CancellationFeeFields({
           <Label htmlFor={percentId} className="text-[0.8125rem]">
             {L.percentLabel} <span className="text-danger">*</span>
           </Label>
-          <Input
-            type="number"
+          <NumberInput
+            suffix="%"
             step={ORDER_LIMITS.percentInputStep}
             inputMode="decimal"
             value={fee.percent}

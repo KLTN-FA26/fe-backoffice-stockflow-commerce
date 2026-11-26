@@ -13,6 +13,7 @@ import { Card } from "@/components/shared/Card";
 import { FilePickerField } from "@/components/shared/FilePickerField";
 import { FormField, fieldA11y } from "@/components/shared/FormField";
 import { FORM_INPUT_CLASS } from "@/components/shared/form-control-classes";
+import { NumberInput } from "@/components/shared/NumberInput";
 import { Notice } from "@/components/shared/Notice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -118,8 +119,7 @@ function LooseLineForm({ receiptId }: { receiptId: string }) {
         />
       </FormField>
       <FormField id="rr-loose-qty" label={D.quantity} required error={errors.quantity?.message}>
-        <Input
-          type="number"
+        <NumberInput
           inputMode="numeric"
           min={1}
           step={1}

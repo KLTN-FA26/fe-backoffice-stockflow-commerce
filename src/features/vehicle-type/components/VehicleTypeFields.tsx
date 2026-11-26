@@ -13,6 +13,7 @@ import { SegmentedControl } from "@/components/shared/SegmentedControl";
 
 import { FormField, TextInput } from "./form-parts";
 import { VolumePreview } from "./VolumePreview";
+import { formatMetres } from "../selectors";
 
 import type { UseFormReturn } from "react-hook-form";
 import type { VehicleTypeFormInput, VehicleTypeFormValues } from "@/features/vehicle-type/types";
@@ -37,6 +38,14 @@ export function VehicleTypeFields({
   preset?: boolean;
 }) {
   const errors = form.formState.errors;
+  // Nhập mm nhưng nơi khác hiện mét: dưới ô các cạnh (mm) nhắc quy đổi "= 5,898 m" (UX audit S20-2)
+  const metresOf = (name: TextName): string | undefined => {
+    if (!name.endsWith("Mm")) return undefined;
+    const raw = String(form.watch(name) ?? "").trim();
+    return /^\d+$/.test(raw) && Number(raw) > 0
+      ? `= ${formatMetres(Number(raw))} ${L.unitM}`
+      : undefined;
+  };
   const text = (
     name: TextName,
     opts: { required?: boolean; hint?: string; numeric?: boolean; disabled?: boolean } = {},
@@ -45,7 +54,15 @@ export function VehicleTypeFields({
       id={`vt-${name}`}
       label={L.field[name]}
       required={opts.required}
-      hint={opts.hint}
+      hint={
+        opts.hint || metresOf(name) ? (
+          <>
+            {opts.hint ? <span>{opts.hint}</span> : null}
+            {opts.hint && metresOf(name) ? " · " : null}
+            {metresOf(name) ? <span>{metresOf(name)}</span> : null}
+          </>
+        ) : undefined
+      }
       error={errors[name]?.message}
     >
       <TextInput

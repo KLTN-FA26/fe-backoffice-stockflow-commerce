@@ -1,7 +1,7 @@
 "use client";
 
 import { FORM_INPUT_CLASS } from "@/components/shared/form-control-classes";
-import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/shared/NumberInput";
 
 import { MONO } from "./primitives";
 
@@ -52,9 +52,8 @@ export function QuantityLines({
                 <label htmlFor={id} className="sr-only">
                   {`${label} ${row.sku}`}
                 </label>
-                <Input
+                <NumberInput
                   id={id}
-                  type="number"
                   inputMode="numeric"
                   aria-invalid={!!error}
                   aria-describedby={`${id}-cap`}

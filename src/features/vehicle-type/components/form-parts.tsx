@@ -28,7 +28,7 @@ export function FormField({
   id: string;
   label: string;
   required?: boolean;
-  hint?: string;
+  hint?: ReactNode;
   error?: string;
   children: ReactNode;
 }) {

@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 
 import { EINVOICE_PROVIDER_CODES } from "@/constants/einvoice";
 import { FormField, fieldA11y } from "@/components/shared/FormField";
+import { NumberInput } from "@/components/shared/NumberInput";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -61,8 +62,7 @@ export function SeriesForm({ provider }: { provider: string }) {
         />
       </FormField>
       <FormField id="series-year" label="Năm" required error={errors.year?.message}>
-        <Input
-          type="number"
+        <NumberInput
           {...fieldA11y("series-year", errors.year?.message)}
           {...form.register("year", { valueAsNumber: true })}
         />

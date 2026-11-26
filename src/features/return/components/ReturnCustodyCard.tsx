@@ -13,6 +13,7 @@ import { FilePickerField } from "@/components/shared/FilePickerField";
 import { FormField, fieldA11y } from "@/components/shared/FormField";
 import { FORM_TEXTAREA_CLASS } from "@/components/shared/form-control-classes";
 import { Notice } from "@/components/shared/Notice";
+import { NumberInput } from "@/components/shared/NumberInput";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -100,8 +101,7 @@ function CustodyForm({ ret }: { ret: ReturnRequest }) {
         />
       </FormField>
       <FormField id="custody-qty" label={C.quantity} required error={errors.quantity?.message}>
-        <Input
-          type="number"
+        <NumberInput
           min={1}
           inputMode="numeric"
           {...fieldA11y("custody-qty", errors.quantity?.message)}

@@ -1,6 +1,9 @@
 "use client";
 
+import { Controller } from "react-hook-form";
+
 import { DELIVERY_FAILURE_LABELS, DELIVERY_FAILURE_LIMITS } from "@/constants";
+import { MoneyInput } from "@/components/shared/MoneyInput";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -40,13 +43,20 @@ export function AgreedFeeInputs({
             <Label htmlFor="cancel-fee-amount" className="text-xs">
               {L.feeAmount} <RequiredMark />
             </Label>
-            <Input
-              id="cancel-fee-amount"
-              inputMode="numeric"
-              autoComplete="off"
-              className="tabular-nums"
-              aria-invalid={errors.feeAmount ? true : undefined}
-              {...form.register("feeAmount")}
+            <Controller
+              control={form.control}
+              name="feeAmount"
+              render={({ field }) => (
+                // Tiền: chấm nghìn khi gõ, hậu tố ₫; giá trị ra vẫn là chuỗi chữ số (UX audit S01-7)
+                <MoneyInput
+                  id="cancel-fee-amount"
+                  value={field.value}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  ref={field.ref}
+                  aria-invalid={errors.feeAmount ? true : undefined}
+                />
+              )}
             />
             <FormFieldError id="cancel-fee-amount-error" message={errors.feeAmount?.message} />
           </div>

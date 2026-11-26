@@ -13,6 +13,7 @@ import { Notice } from "@/components/shared/Notice";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/shared/NumberInput";
 
 import { returnErrorMessage } from "../errors";
 import { useScanReturnCarton } from "../mutations";
@@ -147,9 +148,8 @@ export function ReturnCartonScan({
             <label htmlFor="rr-counted" className="text-ink-secondary text-xs font-medium">
               {D.counted}
             </label>
-            <Input
+            <NumberInput
               id="rr-counted"
-              type="number"
               inputMode="numeric"
               min={0}
               step={1}
