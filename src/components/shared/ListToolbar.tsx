@@ -2,6 +2,7 @@
 
 import { cn } from "cn";
 import { Columns3, FileDown, Filter, ListFilter, Search, X } from "lucide-react";
+import { LIST_TOOLBAR_LIMITS, UI_LABELS } from "@/constants";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -28,6 +29,10 @@ import { ListConfigSummary, type ListSummaryItem } from "./ListConfigSummary";
 import type { ReactNode } from "react";
 
 export type { ListSummaryItem };
+
+const L = UI_LABELS.listToolbar;
+/** Ô "Tìm…" trong danh sách chọn chỉ cần khi có nhiều mục (≤ 10 mục nhìn một lượt là thấy hết). */
+const needsSearch = (count: number) => count > LIST_TOOLBAR_LIMITS.listSearchMin;
 
 export interface ListOption<T extends string> {
   label: string;
@@ -73,6 +78,11 @@ export interface ListToolbarProps<
   /** Không truyền → ẩn nút xuất (vd người dùng thiếu quyền xuất dữ liệu). */
   onExport?: () => void;
   summaryItems: ListSummaryItem[];
+  /**
+   * Một dòng chữ nhỏ dưới toolbar, LUÔN hiện — thông tin chỉ để đọc về danh sách (vd "Phạm vi: task được gán cho bạn").
+   * Không đặt vào thanh `Cấu hình`: thanh đó chỉ hiện khi có bộ lọc đang bật.
+   */
+  note?: ReactNode;
   /** Hàng facet nghiệp vụ dưới toolbar (kho, vị trí, loại…) — chỉ trang có bộ lọc thêm. */
   facets?: ReactNode;
   /** Công cụ riêng của trang (vd mở / thu gọn cây) — đặt sau các icon công cụ, dùng `ToolbarIconButton`. */
@@ -126,6 +136,91 @@ export function ToolbarIconButton({
   );
 }
 
+/**
+ * Công tắc bật / tắt một bộ lọc có hai trạng thái (vd "Chỉ cảnh báo") hiện sẵn trên thanh — một lần bấm, không phải mở
+ * danh sách. `role="switch"`, bật thì viền + nền tông info như các công cụ lọc khác.
+ */
+export function ToolbarSwitch({
+  label,
+  checked,
+  onCheckedChange,
+}: {
+  label: string;
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onCheckedChange(!checked)}
+      className={cn(
+        "border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted hover:text-ink-primary focus-visible:ring-brand/30 inline-flex h-(--control-size) items-center gap-2 rounded-(--control-radius) border px-3 text-[0.8125rem] shadow-(--control-shadow) outline-none focus-visible:ring-2",
+        checked && "border-info bg-info/10 text-info hover:bg-info/10 hover:text-info",
+      )}
+    >
+      <span
+        aria-hidden="true"
+        className={cn(
+          "relative h-4 w-7 shrink-0 rounded-full transition-colors",
+          checked ? "bg-info" : "bg-border-strong",
+        )}
+      >
+        <span
+          className={cn(
+            "bg-bg-surface absolute top-0.5 left-0.5 size-3 rounded-full transition-transform",
+            checked && "translate-x-3",
+          )}
+        />
+      </span>
+      {label}
+    </button>
+  );
+}
+
+/**
+ * Hai đến bốn trạng thái → nút chọn nhanh hiện sẵn trên thanh (một lần bấm), thay cho biểu tượng phễu + khung có ô tìm.
+ * Bấm nút đang chọn gọi `onToggle` như hộp tích — trang tự quyết "chọn một" hay "chọn nhiều".
+ */
+function StatusQuickPicks<Status extends string>({
+  options,
+  selected,
+  onToggle,
+}: {
+  options: ListOption<Status>[];
+  selected: Status[];
+  onToggle: (status: Status) => void;
+}) {
+  return (
+    <div
+      role="group"
+      aria-label={L.status}
+      className="border-border-default bg-bg-surface inline-flex h-(--control-size) items-center gap-0.5 rounded-(--control-radius) border p-0.5 shadow-(--control-shadow)"
+    >
+      {options.map((option) => {
+        const on = selected.includes(option.value);
+        return (
+          <button
+            key={option.value}
+            type="button"
+            aria-pressed={on}
+            onClick={() => onToggle(option.value)}
+            className={cn(
+              "focus-visible:ring-brand/30 h-full rounded-[calc(var(--control-radius)-2px)] px-3 text-[0.8125rem] whitespace-nowrap outline-none focus-visible:ring-2",
+              on
+                ? "bg-info/10 text-info font-medium"
+                : "text-ink-secondary hover:bg-bg-muted hover:text-ink-primary",
+            )}
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function commandItemClassName() {
   return "data-selected:bg-transparent data-selected:text-ink-secondary hover:bg-bg-muted/60 hover:text-ink-primary";
 }
@@ -155,11 +250,12 @@ export function ListToolbar<Status extends string, Field extends string, Column 
   onResetColumns,
   hasColumnConfig = false,
   selectedCount = 0,
-  bulkDeleteLabel = "Xoá đã chọn",
+  bulkDeleteLabel = L.bulkDelete,
   onBulkDelete,
-  exportLabel = "Xuất Excel",
+  exportLabel = L.export,
   onExport,
   summaryItems,
+  note,
   facets,
   tools,
   actions,
@@ -167,6 +263,11 @@ export function ListToolbar<Status extends string, Field extends string, Column 
   resetDisabled = false,
 }: ListToolbarProps<Status, Field, Column>) {
   const canUseStatus = Boolean(statusOptions?.length && onToggleStatus);
+  // 2–4 trạng thái: nút chọn nhanh hiện sẵn; nhiều hơn mới là biểu tượng phễu + khung chọn
+  const statusInline =
+    canUseStatus &&
+    statusOptions!.length >= 2 &&
+    statusOptions!.length <= LIST_TOOLBAR_LIMITS.statusInlineMax;
   const canUseFields = Boolean(fieldOptions?.length && onToggleField);
   const canUseColumns = Boolean(columnOptions?.length && onToggleColumn);
 
@@ -188,7 +289,14 @@ export function ListToolbar<Status extends string, Field extends string, Column 
           )}
 
           <div className="flex items-center gap-2">
-            {canUseStatus && (
+            {statusInline && (
+              <StatusQuickPicks
+                options={statusOptions!}
+                selected={selectedStatuses}
+                onToggle={onToggleStatus!}
+              />
+            )}
+            {canUseStatus && !statusInline && (
               <Popover>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -197,7 +305,7 @@ export function ListToolbar<Status extends string, Field extends string, Column 
                         type="button"
                         variant="outline"
                         size="icon"
-                        aria-label="Lọc trạng thái"
+                        aria-label={L.status}
                         className={cn(
                           "border-border-default bg-bg-surface text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary size-(--control-size) rounded-(--control-radius) shadow-(--control-shadow) focus-visible:ring-0",
                           hasStatusFilter &&
@@ -213,17 +321,19 @@ export function ListToolbar<Status extends string, Field extends string, Column 
                       </Button>
                     </PopoverTrigger>
                   </TooltipTrigger>
-                  <TooltipContent>Lọc trạng thái</TooltipContent>
+                  <TooltipContent>{L.status}</TooltipContent>
                 </Tooltip>
                 <PopoverContent align="end" className="w-80 p-0">
                   <PopoverHeader className="border-border-default border-b p-3">
-                    <PopoverTitle>Lọc trạng thái</PopoverTitle>
-                    <PopoverDescription>Tìm và chọn trạng thái cần hiển thị.</PopoverDescription>
+                    <PopoverTitle>{L.status}</PopoverTitle>
+                    <PopoverDescription>{L.statusHint}</PopoverDescription>
                   </PopoverHeader>
                   <Command>
-                    <CommandInput placeholder="Tìm trạng thái..." />
+                    {needsSearch(statusOptions!.length) && (
+                      <CommandInput placeholder={L.statusSearch} />
+                    )}
                     <CommandList>
-                      <CommandEmpty>Không có trạng thái phù hợp.</CommandEmpty>
+                      <CommandEmpty>{L.statusNone}</CommandEmpty>
                       <CommandGroup>
                         {statusOptions!.map((option) => (
                           <CommandItem
@@ -241,7 +351,7 @@ export function ListToolbar<Status extends string, Field extends string, Column 
                   </Command>
                   <div className="border-border-default flex justify-between gap-2 border-t p-2">
                     <Button type="button" variant="outline" size="sm" onClick={onClearStatuses}>
-                      Xoá lọc
+                      {L.clearFilter}
                     </Button>
                   </div>
                 </PopoverContent>
@@ -257,7 +367,7 @@ export function ListToolbar<Status extends string, Field extends string, Column 
                         type="button"
                         variant="outline"
                         size="icon"
-                        aria-label="Chọn trường search"
+                        aria-label={L.searchBy}
                         className={cn(
                           "border-border-default bg-bg-surface text-ink-tertiary hover:bg-special/5 hover:text-special focus-visible:border-border-default data-[state=open]:border-border-default data-[state=open]:bg-bg-surface data-[state=open]:text-ink-tertiary size-(--control-size) rounded-(--control-radius) shadow-(--control-shadow) focus-visible:ring-0",
                           hasFieldConfig &&
@@ -273,17 +383,19 @@ export function ListToolbar<Status extends string, Field extends string, Column 
                       </Button>
                     </PopoverTrigger>
                   </TooltipTrigger>
-                  <TooltipContent>Trường tìm kiếm</TooltipContent>
+                  <TooltipContent>{L.searchBy}</TooltipContent>
                 </Tooltip>
                 <PopoverContent align="end" className="w-[25rem] p-0">
                   <PopoverHeader className="border-border-default border-b p-3">
-                    <PopoverTitle>Trường tìm kiếm</PopoverTitle>
-                    <PopoverDescription>Chọn fields cho thanh search chính.</PopoverDescription>
+                    <PopoverTitle>{L.searchBy}</PopoverTitle>
+                    <PopoverDescription>{L.searchByHint}</PopoverDescription>
                   </PopoverHeader>
                   <Command>
-                    <CommandInput placeholder="Tìm field..." />
+                    {needsSearch(fieldOptions!.length) && (
+                      <CommandInput placeholder={L.searchBySearch} />
+                    )}
                     <CommandList>
-                      <CommandEmpty>Không có field phù hợp.</CommandEmpty>
+                      <CommandEmpty>{L.searchByNone}</CommandEmpty>
                       <CommandGroup>
                         {fieldOptions!.map((option) => (
                           <CommandItem
@@ -307,10 +419,10 @@ export function ListToolbar<Status extends string, Field extends string, Column 
                       onClick={onResetFields}
                       disabled={defaultFields.length === 0}
                     >
-                      Mặc định
+                      {L.searchByDefault}
                     </Button>
                     <Button type="button" variant="outline" size="sm" onClick={onSelectAllFields}>
-                      Chọn tất cả
+                      {L.searchByAll}
                     </Button>
                   </div>
                 </PopoverContent>
@@ -326,7 +438,7 @@ export function ListToolbar<Status extends string, Field extends string, Column 
                         type="button"
                         variant="outline"
                         size="icon"
-                        aria-label="Ẩn hiện cột"
+                        aria-label={L.columns}
                         className={cn(
                           "border-border-default bg-bg-surface text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary size-(--control-size) rounded-(--control-radius) shadow-(--control-shadow) focus-visible:ring-0",
                           hasColumnConfig &&
@@ -342,17 +454,19 @@ export function ListToolbar<Status extends string, Field extends string, Column 
                       </Button>
                     </PopoverTrigger>
                   </TooltipTrigger>
-                  <TooltipContent>Ẩn hiện cột</TooltipContent>
+                  <TooltipContent>{L.columns}</TooltipContent>
                 </Tooltip>
                 <PopoverContent align="end" className="w-80 p-0">
                   <PopoverHeader className="border-border-default border-b p-3">
-                    <PopoverTitle>Ẩn hiện cột</PopoverTitle>
-                    <PopoverDescription>Chọn các cột muốn thấy trên table.</PopoverDescription>
+                    <PopoverTitle>{L.columns}</PopoverTitle>
+                    <PopoverDescription>{L.columnsHint}</PopoverDescription>
                   </PopoverHeader>
                   <Command>
-                    <CommandInput placeholder="Tìm cột..." />
+                    {needsSearch(columnOptions!.length) && (
+                      <CommandInput placeholder={L.columnsSearch} />
+                    )}
                     <CommandList>
-                      <CommandEmpty>Không có cột phù hợp.</CommandEmpty>
+                      <CommandEmpty>{L.columnsNone}</CommandEmpty>
                       <CommandGroup>
                         {columnOptions!.map((option) => {
                           const locked = lockedColumns.includes(option.value);
@@ -384,7 +498,7 @@ export function ListToolbar<Status extends string, Field extends string, Column 
                       onClick={onResetColumns}
                       disabled={defaultColumns.length === 0}
                     >
-                      Hiện tất cả
+                      {L.columnsShowAll}
                     </Button>
                   </div>
                 </PopoverContent>
@@ -432,6 +546,7 @@ export function ListToolbar<Status extends string, Field extends string, Column 
           {facets}
         </div>
       )}
+      {note && <p className="text-ink-tertiary mb-3 text-xs">{note}</p>}
       <ListConfigSummary
         items={summaryItems}
         onResetAll={onResetAll}

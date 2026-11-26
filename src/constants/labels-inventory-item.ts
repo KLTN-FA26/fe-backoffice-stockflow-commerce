@@ -78,7 +78,7 @@ export const INVENTORY_ITEM_UI_LABELS = {
   listCaption: (shown: number, total: number) => `Hiển thị ${shown} / ${total} hồ sơ hàng tồn`,
   summary: {
     search: "Tìm kiếm chính",
-    scope: "Trường search",
+    scope: "Tìm theo",
     columns: "Cột hiển thị",
     none: "Chưa dùng",
   },

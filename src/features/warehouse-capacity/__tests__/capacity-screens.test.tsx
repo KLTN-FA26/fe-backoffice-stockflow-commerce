@@ -19,7 +19,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push, replace: vi.fn() }
 
 const L = UI_LABELS.warehouseCapacity;
 
-// jsdom thiếu ResizeObserver / scrollIntoView mà cmdk (popover Ẩn hiện cột) dùng.
+// jsdom thiếu ResizeObserver / scrollIntoView mà cmdk (popover Chọn cột hiển thị) dùng.
 globalThis.ResizeObserver ??= class {
   observe() {}
   unobserve() {}
@@ -125,9 +125,10 @@ describe("Bảng sức chứa — danh sách kho (docs 06 §4.6 bước 3)", () 
     await screen.findByRole("table");
     const header = () => screen.queryByRole("columnheader", { name: L.column.incoming });
     expect(header()).toBeInTheDocument();
-    expect(screen.getByText("Cột hiển thị: 8/8")).toBeInTheDocument();
+    // Chưa đổi cột → chưa có chip (thanh Cấu hình chỉ hiện khi có gì đang bật)
+    expect(screen.queryByText("Cột hiển thị: 8/8")).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Ẩn hiện cột" }));
+    await user.click(screen.getByRole("button", { name: "Chọn cột hiển thị" }));
     expect(screen.getByRole("option", { name: L.column.warehouse })).toHaveAttribute(
       "aria-disabled",
       "true",
@@ -139,6 +140,7 @@ describe("Bảng sức chứa — danh sách kho (docs 06 §4.6 bước 3)", () 
     await user.keyboard("{Escape}");
     await user.click(screen.getByRole("button", { name: "Xoá Cột hiển thị" }));
     expect(header()).toBeInTheDocument();
+    expect(screen.queryByText("Cột hiển thị: 8/8")).not.toBeInTheDocument();
   });
 
   it("cột đã lưu có key lạ / thiếu cột Kho → bỏ key lạ, luôn giữ cột Kho", async () => {

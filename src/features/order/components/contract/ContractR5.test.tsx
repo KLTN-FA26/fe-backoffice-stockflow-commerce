@@ -108,7 +108,8 @@ describe("Contract editor — round 5", () => {
     renderSection(() => contractDraft);
     await userEvent.click(await screen.findByRole("button", { name: /Sửa/ }));
     const start = screen.getByLabelText("Đợt 1 từ ngày");
-    expect(start.tagName).toBe("BUTTON");
+    expect(start.tagName).toBe("INPUT");
+    expect(start).toHaveAttribute("placeholder", "dd/mm/yyyy");
     expect(document.querySelector('input[type="date"]')).toBeNull();
     expect(screen.getAllByText("/ 60 thùng")).toHaveLength(2);
     expect(screen.getByLabelText("Đợt 1 — LY-GIAY-DEMO-12OZ-XANH (thùng)")).toHaveAttribute(
@@ -192,7 +193,7 @@ describe("Contract summary and actions — round 5", () => {
     };
     // No installment permission: only the contract's plan says when the row falls due.
     renderSection(() => signed);
-    expect(await screen.findByText("20 thg 11, 2026")).toBeInTheDocument();
+    expect(await screen.findByText("20/11/2026")).toBeInTheDocument();
     expect(screen.getByText("quá hạn 4 ngày")).toBeInTheDocument();
   });
 
@@ -242,7 +243,7 @@ describe("Record signed — round 5", () => {
     renderSection(() => contractSent);
     await userEvent.click(await screen.findByRole("button", { name: /Ghi nhận đã ký/ }));
     const dialog = await screen.findByRole("dialog");
-    expect(within(dialog).getByLabelText(/Ngày ký/).tagName).toBe("BUTTON");
+    expect(within(dialog).getByLabelText(/Ngày ký/).tagName).toBe("INPUT");
   });
 
   it("L-11: a file the customer sent in the chat can be used as the signed copy", async () => {

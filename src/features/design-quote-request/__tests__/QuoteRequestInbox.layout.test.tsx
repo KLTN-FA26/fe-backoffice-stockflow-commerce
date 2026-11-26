@@ -42,16 +42,17 @@ function request(overrides: Record<string, unknown> = {}) {
 const headers = () => screen.getAllByRole("columnheader").map((cell) => cell.textContent);
 
 describe("Hộp yêu cầu báo giá — bố cục 1366px (BO-UX-10/11, L-2, L-5)", () => {
-  it("ẩn mặc định Trạng thái thiết kế, SKU phôi, Lý do trả lại; bật lại qua Ẩn hiện cột, chip x/y", async () => {
+  it("ẩn mặc định Trạng thái thiết kế, SKU phôi, Lý do trả lại; bật lại qua Chọn cột hiển thị, chip x/y", async () => {
     mockApi("SALES_STAFF", { get: { "/design-quote-requests": () => bePage([request()]) } });
     renderScreen(<DesignQuoteRequestList />, "SALES_STAFF");
     await screen.findByText("Cửa hàng Trà Sen");
     expect(headers()).not.toContain("Trạng thái thiết kế");
     expect(headers()).not.toContain("SKU phôi");
     expect(headers()).not.toContain("Lý do trả lại");
-    expect(screen.getByText("Cột hiển thị: 7/10")).toBeInTheDocument();
+    // Bộ cột mặc định (7/10) chưa phải "đã đổi" → chưa có chip
+    expect(screen.queryByText("Cột hiển thị: 7/10")).not.toBeInTheDocument();
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: "Ẩn hiện cột" }));
+    await user.click(screen.getByRole("button", { name: "Chọn cột hiển thị" }));
     await user.click(await screen.findByRole("option", { name: "SKU phôi" }));
     await waitFor(() => expect(headers()).toContain("SKU phôi"));
     expect(screen.getByText("Cột hiển thị: 8/10")).toBeInTheDocument();

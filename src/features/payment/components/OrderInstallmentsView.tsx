@@ -108,17 +108,18 @@ function OrderInstallmentsContent({ orderId }: { orderId: string }) {
                 <span className="text-ink-tertiary text-xs">{O.noPaymentStatus}</span>
               )}
             </div>
-            <dl className="grid grid-cols-[minmax(110px,auto)_1fr] gap-x-3 gap-y-2 text-[0.8125rem]">
+            {/* Cột nhãn tối đa 7,5rem (nhãn dài tự xuống dòng) để cột giá trị đủ chỗ cho mã đơn / hợp đồng — mã không bị bẻ giữa chừng */}
+            <dl className="grid grid-cols-[minmax(0,7.5rem)_minmax(0,1fr)] gap-x-3 gap-y-2 text-[0.8125rem]">
               <InfoRow label={PAYMENT_LABELS.columns.order}>
                 <Link
                   href={ADMIN_ROUTES.orders.detail(order.orderId)}
-                  className="text-accent-text font-mono hover:underline"
+                  className="text-accent-text font-mono whitespace-nowrap hover:underline"
                 >
                   {order.orderNumber}
                 </Link>
               </InfoRow>
               <InfoRow label={PAYMENT_LABELS.columns.contract}>
-                <span className="font-mono">{order.contractNumber}</span>
+                <span className="font-mono whitespace-nowrap">{order.contractNumber}</span>
               </InfoRow>
               {customer && (
                 <InfoRow label={PAYMENT_LABELS.columns.customer}>

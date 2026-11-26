@@ -155,7 +155,7 @@ describe("Order detail — round 5", () => {
       [...ORDER_PERMISSION_SETS.salesStaff, PAYMENT_INSTALLMENT_PERMISSIONS.read],
     );
     expect(await screen.findByText("quá hạn 3 ngày")).toBeInTheDocument();
-    expect(screen.getByText(/hạn 20 thg 11, 2026/)).toBeInTheDocument();
+    expect(screen.getByText(/hạn 20\/11\/2026/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Xem các đợt" })).toHaveAttribute(
       "href",
       `/admin/payment/installments/orders/${apiOrder.orderId}`,

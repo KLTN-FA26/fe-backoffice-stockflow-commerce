@@ -42,7 +42,8 @@ function ToastContent({
       style={{ borderLeft: `3px solid ${borderColor}` }}
     >
       {icon}
-      <div>
+      {/* Mã dài (task, LPN, SKU) tự xuống dòng trong khung thay vì bị cắt */}
+      <div className="min-w-0 [overflow-wrap:anywhere]">
         <div className="text-ink-primary text-[0.8125rem] font-semibold">{title}</div>
         {description && <div className="text-ink-secondary mt-0.5 text-xs">{description}</div>}
       </div>
@@ -53,19 +54,23 @@ function ToastContent({
 /**
  * Toast system — wraps sonner. Render <ToastProvider /> once in root layout.
  * Toast style matches components-preview.html: left-border tone, icon, title + message.
+ * Góc dưới phải (WF4 UX S01-10): góc trên phải đè lên đường dẫn đầu trang và chuông thông báo.
  */
 export function ToastProvider() {
   return (
     <SonnerToaster
-      position="top-right"
+      position="bottom-right"
       toastOptions={{
         unstyled: true,
         className: "w-full",
-        duration: 4000,
+        duration: TOAST_DURATION_MS.default,
       }}
     />
   );
 }
+
+/** Thông báo thành công / thông tin tự tắt nhanh; lỗi và cảnh báo ở lại lâu hơn để kịp đọc (người lớn tuổi đọc chậm). */
+const TOAST_DURATION_MS = { default: 4000, attention: 8000 } as const;
 
 /** `id`: toast mới cùng id thay toast cũ thay vì chồng thêm (vd giữ phím lặp lại cùng một cảnh báo). */
 export interface ToastOptions {
@@ -73,10 +78,13 @@ export interface ToastOptions {
 }
 
 function fireToast(tone: ToastTone, title: string, description?: string, options?: ToastOptions) {
-  sonnerToast.custom(
-    () => <ToastContent tone={tone} title={title} description={description} />,
-    options,
-  );
+  sonnerToast.custom(() => <ToastContent tone={tone} title={title} description={description} />, {
+    duration:
+      tone === "error" || tone === "warning"
+        ? TOAST_DURATION_MS.attention
+        : TOAST_DURATION_MS.default,
+    ...options,
+  });
 }
 
 export const toast = {

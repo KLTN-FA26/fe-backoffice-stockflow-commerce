@@ -32,11 +32,11 @@ afterEach(() => {
 const L = UI_LABELS.cartonCheck;
 const STATUS_TOOL = "Lọc trạng thái";
 
-/** Chọn một trạng thái qua công cụ "Lọc trạng thái" của toolbar chuẩn rồi đóng popover. */
+/** Chọn một trạng thái bằng nút chọn nhanh hiện sẵn trên toolbar (nhóm "Lọc trạng thái", ≤ 4 trạng thái). */
 async function pickStatus(user: ReturnType<typeof userEvent.setup>, label: string) {
-  await user.click(screen.getByRole("button", { name: STATUS_TOOL }));
-  await user.click(await screen.findByRole("option", { name: label }));
-  await user.keyboard("{Escape}");
+  await user.click(
+    within(screen.getByRole("group", { name: STATUS_TOOL })).getByRole("button", { name: label }),
+  );
 }
 const WAREHOUSES = bePage([
   { id: "wh-1", prefix: "HN01", name: "Kho Hà Nội", status: "ACTIVE" },
@@ -128,8 +128,9 @@ describe("CartonCheckQueue — hàng chờ kiểm thùng", () => {
     await screen.findByText("SO-20261010-000431");
     expect(screen.queryByRole("textbox")).toBeNull();
     expect(screen.queryByRole("combobox", { name: L.filters.warehouse })).toBeNull();
-    expect(screen.getByText(`${L.filters.status}: ${L.filters.allWaiting}`)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Đặt lại" })).toBeDisabled();
+    // Chưa lọc gì → thanh Cấu hình không hiện (không "Trạng thái: …(mặc định)", không nút Đặt lại khoá)
+    expect(screen.queryByText(`${L.filters.status}: ${L.filters.allWaiting}`)).toBeNull();
+    expect(screen.queryByRole("button", { name: "Đặt lại" })).toBeNull();
 
     await pickStatus(user, L.statusFilter.IN_PROGRESS);
     await waitFor(() =>
@@ -146,18 +147,16 @@ describe("CartonCheckQueue — hàng chờ kiểm thùng", () => {
 
     await user.click(screen.getByRole("button", { name: "Đặt lại" }));
     await waitFor(() => expect(urls.at(-1)).not.toContain("status="));
-    expect(screen.getByText(`${L.filters.status}: ${L.filters.allWaiting}`)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Đặt lại" })).toBeNull();
   });
 
   it("BE nhận một trạng thái: chọn mục khác thay mục cũ; X trên chip bỏ lọc", async () => {
     const user = userEvent.setup();
     const { get, urls } = renderQueue([queueRow()]);
     await screen.findByText("SO-20261010-000431");
-    await user.click(screen.getByRole("button", { name: STATUS_TOOL }));
-    await user.click(await screen.findByRole("option", { name: L.statusFilter.PENDING }));
-    await user.click(screen.getByRole("option", { name: L.statusFilter.IN_PROGRESS }));
+    await pickStatus(user, L.statusFilter.PENDING);
+    await pickStatus(user, L.statusFilter.IN_PROGRESS);
     await waitFor(() => expect(queueCalls(get).at(-1)).toMatchObject({ status: "IN_PROGRESS" }));
-    await user.keyboard("{Escape}");
     await user.click(screen.getByRole("button", { name: `Xoá ${L.filters.status}` }));
     await waitFor(() => expect(urls.at(-1)).not.toContain("status="));
   });

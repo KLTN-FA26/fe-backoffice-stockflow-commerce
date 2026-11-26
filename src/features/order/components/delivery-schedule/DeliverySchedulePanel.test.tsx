@@ -11,7 +11,7 @@ import { ORDER_PERMISSIONS, SALES_CONTRACT_PERMISSIONS } from "@/constants";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 import { toast } from "@/components/shared/Toast";
-import { pickDate } from "@/test/date-picker";
+import { openDatePicker, pickDate } from "@/test/date-picker";
 
 import { formatWindowRange } from "../../delivery-window-rules";
 import { apiOrder } from "../../__fixtures__/order";
@@ -317,7 +317,7 @@ describe("Dời cửa sổ giao — form kiểm BR-28 rồi gửi đúng WindowC
 
   it("lịch khoá các ngày trong quá khứ (BR-28: cửa sổ mới không ở quá khứ)", async () => {
     const { user, dialog } = await openDialog();
-    await user.click(within(dialog).getByLabelText(/Từ ngày/));
+    await openDatePicker(user, within(dialog).getByLabelText(/Từ ngày/));
     const grid = await screen.findByRole("grid");
     const disabled = within(grid)
       .getAllByRole("gridcell")

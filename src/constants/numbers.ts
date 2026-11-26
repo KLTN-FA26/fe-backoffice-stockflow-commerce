@@ -8,6 +8,13 @@
  */
 export const DATE_PICKER_YEAR_SPAN = { back: 10, ahead: 10 } as const;
 
+/**
+ * Công cụ lọc của `ListToolbar` (WF4 UX S01-4): ít lựa chọn thì hiện sẵn, nhiều mới cần ô tìm.
+ * `statusInlineMax`: từ 2 đến ngần này trạng thái → nút chọn nhanh hiện sẵn trên thanh (không phải bấm biểu tượng phễu rồi tìm).
+ * `listSearchMin`: danh sách chọn (trạng thái / trường tìm / cột) chỉ có ô "Tìm…" khi nhiều hơn ngần này mục (≤ 10 mục nhìn một lượt là thấy).
+ */
+export const LIST_TOOLBAR_LIMITS = { statusInlineMax: 4, listSearchMin: 10 } as const;
+
 export const ORDER_LIMITS = {
   /** BE `AdminCancelOrderRequest.note` @Size(max = 1000); bắt buộc khi reasonCode = OTHER. */
   cancelNoteMax: 1000,

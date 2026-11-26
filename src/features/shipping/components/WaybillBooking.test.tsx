@@ -1,10 +1,11 @@
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ADMIN_ROUTES, SHIPPING_ERROR_MESSAGES as ERR, UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 import { formatMoney } from "@/lib/format/money";
+import { typeDateTime } from "@/test/date-picker";
 import { useRejectedScansStore } from "@/features/shipping/rejected-scans-store";
 import { resetScanIds } from "@/features/shipping/scan-ids";
 
@@ -179,7 +180,9 @@ describe("Đặt xe — hãng đặt xe qua API (BR-29)", () => {
     ]) {
       expect(within(dialog).queryByLabelText(label)).not.toBeInTheDocument();
     }
-    expect(within(dialog).getByLabelText(A.pickupAt)).toHaveAttribute("type", "datetime-local");
+    // Ô gõ dd/MM/yyyy HH:mm 24 giờ + nút chọn nhanh, không phải ô datetime-local gốc (mm/dd/yyyy, AM/PM)
+    expect(within(dialog).getByLabelText(A.pickupAt)).toHaveAttribute("type", "text");
+    expect(within(dialog).getByRole("button", { name: A.pickupQuickEarliest })).toBeInTheDocument();
     const stops = within(dialog).getAllByRole("listitem");
     expect(stops).toHaveLength(2);
     expect(within(stops[0] as HTMLElement).getByText("SO-1-S1")).toBeInTheDocument();
@@ -198,10 +201,7 @@ describe("Đặt xe — hãng đặt xe qua API (BR-29)", () => {
     await user.click(await screen.findByRole("button", { name: F.booking.book }));
     const dialog = await screen.findByRole("dialog");
     await chooseCarrier(user, /AHAMOVE/);
-    // datetime-local: userEvent không gõ được vào ô này → đặt giá trị trực tiếp
-    fireEvent.change(within(dialog).getByLabelText(A.pickupAt), {
-      target: { value: "2026-11-12T09:30" },
-    });
+    await typeDateTime(user, within(dialog).getByLabelText(A.pickupAt), "2026-11-12T09:30");
     await user.click(within(dialog).getByRole("button", { name: A.downAria("SO-1-S1") }));
     const stops = within(dialog).getAllByRole("listitem");
     expect(within(stops[0] as HTMLElement).getByText("SO-2-S1")).toBeInTheDocument();

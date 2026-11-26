@@ -36,6 +36,38 @@ export const UI_LABELS = {
     /** Badge thanh Cấu hình khi ô search chưa có nội dung. */
     notEntered: "Chưa nhập",
   },
+  // Thanh công cụ danh sách dùng chung (components/shared/ListToolbar, ListConfigSummary) — nhãn không dùng chữ kỹ thuật
+  listToolbar: {
+    configBar: "Cấu hình",
+    resetAll: "Đặt lại",
+    status: "Lọc trạng thái",
+    statusHint: "Chọn trạng thái cần hiển thị.",
+    statusSearch: "Tìm trạng thái...",
+    statusNone: "Không có trạng thái phù hợp.",
+    clearFilter: "Xoá lọc",
+    searchBy: "Tìm theo",
+    searchByHint: "Chọn thông tin mà ô tìm kiếm sẽ tìm trong đó.",
+    searchBySearch: "Tìm thông tin...",
+    searchByNone: "Không có mục phù hợp.",
+    searchByDefault: "Mặc định",
+    searchByAll: "Chọn tất cả",
+    columns: "Chọn cột hiển thị",
+    columnsHint: "Chọn các cột muốn xem trong bảng.",
+    columnsSearch: "Tìm cột...",
+    columnsNone: "Không có cột phù hợp.",
+    columnsShowAll: "Hiện tất cả",
+    bulkDelete: "Xoá đã chọn",
+    export: "Xuất Excel",
+  },
+  // Trang "Không tìm thấy" (app/not-found, app/admin/not-found)
+  notFound: {
+    title: "Không tìm thấy trang",
+    description:
+      "Đường dẫn này không có trang nào, hoặc trang đã được chuyển đi. Anh/chị chọn nơi muốn đến tiếp theo.",
+    home: "Về trang chủ",
+    admin: "Về trang quản trị",
+    myOrders: "Đơn hàng của tôi",
+  },
   // Ô chọn tệp dùng chung (components/shared/FilePickerField)
   filePicker: {
     choose: "Chọn tệp",
@@ -44,9 +76,24 @@ export const UI_LABELS = {
   },
   // Ô chọn ngày dùng chung (components/shared/DatePicker)
   datePicker: {
-    placeholder: "Chọn ngày",
+    /** Ô gõ được: dd/MM/yyyy — người dùng gõ liền 8 chữ số, dấu "/" tự thêm. */
+    placeholder: "dd/mm/yyyy",
+    openCalendar: "Mở lịch",
+    yesterday: "Hôm qua",
     today: "Hôm nay",
+    tomorrow: "Ngày mai",
+    nextWeek: "+7 ngày",
     clear: "Xoá ngày",
+  },
+  // Ô ngày giờ dùng chung (components/shared/DateTimePicker): dd/MM/yyyy HH:mm, 24 giờ
+  dateTimePicker: {
+    placeholder: "dd/mm/yyyy hh:mm",
+    openCalendar: "Mở lịch",
+    time: "Giờ (24 giờ)",
+    timePlaceholder: "hh:mm",
+    done: "Xong",
+    clear: "Xoá",
+    now: "Bây giờ",
   },
   // Ô nhập tiền dùng chung (components/shared/MoneyInput)
   moneyInput: {

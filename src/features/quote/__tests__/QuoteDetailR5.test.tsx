@@ -64,7 +64,7 @@ describe("Quote detail — round 5", () => {
       },
     );
     expect(
-      await screen.findByText("Chờ khách phản hồi trong chat, đến hết 26 thg 11, 2099."),
+      await screen.findByText("Chờ khách phản hồi trong chat, đến hết 26/11/2099."),
     ).toBeInTheDocument();
     expect(await screen.findByRole("link", { name: "Mở hội thoại" })).toHaveAttribute(
       "href",

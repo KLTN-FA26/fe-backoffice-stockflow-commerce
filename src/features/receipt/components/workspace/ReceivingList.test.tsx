@@ -63,7 +63,17 @@ describe("ReceivingList — Nhận hàng trong tab theo kho (docs 03)", () => {
     await screen.findByRole("link", { name: NUMBER });
     expect(listCalls(get)[0]).toMatchObject({ warehouseId: HCM_ID, status: ["DRAFT"] });
     expect(screen.queryByRole("combobox", { name: /kho/i })).not.toBeInTheDocument();
-    expect(screen.getByText(`${L.summaryStatus}: ${L.tabs.draft}`)).toBeInTheDocument();
+    // "Đang nhận | Tất cả" là hai nút chọn nhanh hiện sẵn trên thanh; mặc định (Đang nhận) đang chọn, chưa có chip
+    const picks = within(screen.getByRole("group", { name: "Lọc trạng thái" }));
+    expect(picks.getByRole("button", { name: L.tabs.draft })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(picks.getByRole("button", { name: L.tabs.all })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    expect(screen.queryByText(`${L.summaryStatus}: ${L.tabs.draft}`)).not.toBeInTheDocument();
     expect(screen.queryByRole("tab")).not.toBeInTheDocument();
   });
 
@@ -89,18 +99,27 @@ describe("ReceivingList — Nhận hàng trong tab theo kho (docs 03)", () => {
     const user = userEvent.setup();
     const { get, onUrlUpdate } = renderTab(ROLES.warehouseStaff);
     await screen.findByRole("link", { name: NUMBER });
-    await user.click(screen.getByRole("button", { name: "Lọc trạng thái" }));
-    await user.click(screen.getByRole("option", { name: L.tabs.all }));
+    await user.click(
+      within(screen.getByRole("group", { name: "Lọc trạng thái" })).getByRole("button", {
+        name: L.tabs.all,
+      }),
+    );
     await waitFor(() =>
       expect(listCalls(get).at(-1)).toMatchObject({ warehouseId: HCM_ID, status: undefined }),
     );
     expect(lastUrl(onUrlUpdate)?.get("tab")).toBe("all");
     expect(screen.getByText(`${L.summaryStatus}: ${L.tabs.all}`)).toBeInTheDocument();
 
-    await user.keyboard("{Escape}");
     await user.click(screen.getByRole("button", { name: `Xoá ${L.summaryStatus}` }));
-    // Đang nhận đã có trong cache React Query → không gọi lại; kiểm qua chip + URL
-    expect(await screen.findByText(`${L.summaryStatus}: ${L.tabs.draft}`)).toBeInTheDocument();
+    // Đang nhận đã có trong cache React Query → không gọi lại; kiểm qua nút chọn nhanh + URL (chip biến mất)
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole("group", { name: "Lọc trạng thái" })).getByRole("button", {
+          name: L.tabs.draft,
+        }),
+      ).toHaveAttribute("aria-pressed", "true"),
+    );
+    expect(screen.queryByText(`${L.summaryStatus}: ${L.tabs.all}`)).not.toBeInTheDocument();
     expect(lastUrl(onUrlUpdate)?.has("tab")).toBe(false);
   });
 
@@ -133,9 +152,10 @@ describe("ReceivingList — Nhận hàng trong tab theo kho (docs 03)", () => {
     await screen.findByRole("link", { name: NUMBER });
     const header = () => screen.queryByRole("columnheader", { name: DELIVERY_NOTE });
     expect(header()).toBeInTheDocument();
-    expect(screen.getByText("Cột hiển thị: 6/6")).toBeInTheDocument();
+    // Chưa đổi cột → chưa có chip (thanh Cấu hình chỉ hiện khi có gì đang bật)
+    expect(screen.queryByText("Cột hiển thị: 6/6")).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Ẩn hiện cột" }));
+    await user.click(screen.getByRole("button", { name: "Chọn cột hiển thị" }));
     const numberOption = screen.getByRole("option", { name: COLUMN_LABELS.number });
     expect(numberOption).toHaveAttribute("aria-disabled", "true");
     await user.click(screen.getByRole("option", { name: DELIVERY_NOTE }));
@@ -148,6 +168,7 @@ describe("ReceivingList — Nhận hàng trong tab theo kho (docs 03)", () => {
     await user.keyboard("{Escape}");
     await user.click(screen.getByRole("button", { name: "Xoá Cột hiển thị" }));
     expect(header()).toBeInTheDocument();
+    expect(screen.queryByText("Cột hiển thị: 6/6")).not.toBeInTheDocument();
   });
 
   it("cột đã lưu có key lạ / thiếu cột khoá → bỏ key lạ, giữ Số phiếu", async () => {
@@ -173,6 +194,6 @@ describe("ReceivingList — Nhận hàng trong tab theo kho (docs 03)", () => {
       expect(get.mock.calls.some(([url]) => url === "/identity/me/permissions")).toBe(true),
     );
     expect(listCalls(get)).toHaveLength(0);
-    expect(screen.queryByRole("button", { name: "Lọc trạng thái" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Lọc trạng thái" })).not.toBeInTheDocument();
   });
 });

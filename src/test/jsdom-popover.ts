@@ -1,5 +1,5 @@
 /**
- * jsdom thiếu ResizeObserver / pointer capture / scrollIntoView mà cmdk (popover `Ẩn hiện cột`) và Radix Select dùng.
+ * jsdom thiếu ResizeObserver / pointer capture / scrollIntoView mà cmdk (popover `Chọn cột hiển thị`) và Radix Select dùng.
  * Import để lấy tác dụng phụ (`import "@/test/jsdom-popover";`) trong test có mở các popover đó.
  */
 globalThis.ResizeObserver ??= class {

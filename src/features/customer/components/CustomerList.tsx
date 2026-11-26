@@ -86,7 +86,7 @@ function CustomerListContent() {
               active: filters.q.trim() !== "",
               onClear: () => void filters.setQ(""),
             },
-            { label: "Trường search", value: "Tên · Email · SĐT · MST" },
+            { label: "Tìm theo", value: "Tên · Email · SĐT · MST" },
             {
               label: "Trạng thái",
               value: status

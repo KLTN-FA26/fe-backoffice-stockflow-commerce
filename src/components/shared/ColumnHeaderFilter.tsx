@@ -20,7 +20,7 @@ import type { ReactNode } from "react";
 import type { ColumnDef } from "./DataTable";
 
 /**
- * Nút lọc nhỏ cạnh tên cột (data-table-mode-a §4 "Search trong cột"): bấm mở popover chứa ô lọc; đang lọc → icon
+ * Nút lọc nhỏ cạnh tên cột (data-table-mode-a §4 "Tìm trong cột"): bấm mở popover chứa ô lọc; đang lọc → icon
  * tone `info`. Đặt vào `ColumnDef.headerFilter`. Không chứa nghiệp vụ — nội dung popover do caller truyền.
  */
 export function HeaderFilterPopover({

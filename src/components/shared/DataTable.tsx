@@ -221,7 +221,9 @@ export function DataTable<T>({
           là khung cuộn gần nhất nên header `sticky` dính vào nó (không cuộn dọc) và trôi mất */}
       <div
         className={cn(
-          "relative w-full overflow-x-auto",
+          // Thanh cuộn ngang luôn thấy được (mảnh, bo tròn): macOS ẩn thanh cuộn hệ thống nên cột nằm ngoài khung trông như
+          // bị cắt cụt, không ai biết còn cột để cuộn tới (WF4 UX R8). Không đặt `scrollbar-width` — Chrome sẽ bỏ qua style webkit.
+          "[&::-webkit-scrollbar-thumb]:bg-border-strong relative w-full overflow-x-auto [&::-webkit-scrollbar]:block [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-button]:hidden [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent",
           stickyHeader
             ? "max-h-[calc(100svh-12rem)] overflow-y-auto"
             : shouldScroll && "max-h-[520px] overflow-y-auto",

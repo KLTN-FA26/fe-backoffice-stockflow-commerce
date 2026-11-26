@@ -240,7 +240,7 @@ describe("CarrierEventList — danh sách", () => {
     expect(lastParams(get)).toMatchObject({ result: "ERRORS", loadId: "ld-1" });
   });
 
-  it("thanh Cấu hình: mỗi bộ lọc đang bật có nút X gỡ riêng; mặc định 'Đặt lại' bị khoá", async () => {
+  it("thanh Cấu hình: mỗi bộ lọc đang bật có nút X gỡ riêng; hết lọc thì thanh biến mất", async () => {
     const user = userEvent.setup();
     const { get } = renderList(ACTORS.manager, { search: "?handling=open&carrier=car-vtp" });
     await screen.findByText(E.result.UNMATCHED);
@@ -251,8 +251,9 @@ describe("CarrierEventList — danh sách", () => {
     );
     await user.click(screen.getByRole("button", { name: E.filter.clearCarrier }));
     await waitFor(() => expect(lastParams(get)?.carrierId).toBeUndefined());
+    // Hết bộ lọc → thanh Cấu hình biến mất (không còn nút Đặt lại khoá)
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: E.filter.resetAll })).toBeDisabled(),
+      expect(screen.queryByRole("button", { name: E.filter.resetAll })).not.toBeInTheDocument(),
     );
   });
 
@@ -272,7 +273,7 @@ describe("CarrierEventList — danh sách", () => {
       expect(lastParams(get)).toMatchObject({ result: "ERRORS", loadId: undefined }),
     );
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: E.filter.resetAll })).toBeDisabled(),
+      expect(screen.queryByRole("button", { name: E.filter.resetAll })).not.toBeInTheDocument(),
     );
   });
 

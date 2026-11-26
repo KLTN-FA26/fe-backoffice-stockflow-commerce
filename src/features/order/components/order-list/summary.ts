@@ -11,7 +11,7 @@ import {
 import type { ListSummaryItem } from "@/components/shared/ListToolbar";
 import type { OrderListState } from "./useOrderListState";
 
-/** Thanh "Cấu hình" dưới toolbar (data-table-mode-a §3). Không có "Search trong cột" vì server không hỗ trợ. */
+/** Thanh "Cấu hình" dưới toolbar (data-table-mode-a §3). Không có "Tìm trong cột" vì server không hỗ trợ. */
 export function buildSummaryItems(s: OrderListState): ListSummaryItem[] {
   const { filters, extra } = s;
   const dateRange =
@@ -28,7 +28,7 @@ export function buildSummaryItems(s: OrderListState): ListSummaryItem[] {
       active: filters.q.trim() !== "",
       onClear: () => void filters.setQ(""),
     },
-    { label: "Trường search", value: SEARCH_SCOPE_LABEL },
+    { label: "Tìm theo", value: SEARCH_SCOPE_LABEL },
     {
       label: "Trạng thái",
       value: statusLabel || "Tất cả",

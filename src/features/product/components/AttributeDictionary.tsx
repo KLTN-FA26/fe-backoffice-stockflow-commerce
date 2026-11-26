@@ -165,7 +165,7 @@ export function AttributeDictionary() {
                   value: q || UI_LABELS.common.notEntered,
                   active: q !== "",
                   onClear: () => void setQ(null),
-                  clearLabel: "Xoá search chính",
+                  clearLabel: "Xoá tìm kiếm chính",
                 },
                 {
                   label: "Loại",

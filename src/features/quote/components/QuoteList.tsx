@@ -110,7 +110,7 @@ function QuoteListContent() {
               active: filters.q.trim() !== "",
               onClear: () => void filters.setQ(""),
             },
-            { label: "Trường search", value: "Số báo giá" },
+            { label: "Tìm theo", value: "Số báo giá" },
             {
               label: "Trạng thái",
               value: filters.status.map(quoteStatusLabel).join(", ") || "Tất cả",

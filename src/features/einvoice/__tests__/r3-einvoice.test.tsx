@@ -11,6 +11,7 @@ import { EINVOICE_LABELS } from "@/constants/labels-einvoice";
 import { ApiError } from "@/lib/api/error";
 import { formatMoney } from "@/lib/format";
 import { formatDate, formatDateTime } from "@/lib/format/date";
+import { openDatePicker } from "@/test/date-picker";
 
 import {
   ACCOUNTANT_GRANTS,
@@ -158,7 +159,7 @@ const errorOriginal = (over: Record<string, unknown> = {}) =>
 async function fillReduction(dialog: HTMLElement) {
   await userEvent.type(within(dialog).getByLabelText(/Ký hiệu/), "C26TAB");
   await userEvent.type(within(dialog).getByLabelText(/Số hoá đơn/), "12");
-  await userEvent.click(within(dialog).getByLabelText(/Ngày hoá đơn/));
+  await openDatePicker(userEvent.setup(), within(dialog).getByLabelText(/Ngày hoá đơn/));
   await userEvent.click(await screen.findByRole("button", { name: "Hôm nay" }));
   await userEvent.upload(
     within(dialog).getByLabelText(/Bản PDF/),

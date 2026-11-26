@@ -87,9 +87,9 @@ describe("InstallmentList — what the accountant sees (docs 15 §5.1)", () => {
     expect(within(row).getByText("Đến hạn")).toBeInTheDocument();
     expect(screen.getByText("Đã thanh toán")).toBeInTheDocument();
     expect(screen.getByText(/^Quá hạn \d+ ngày$/)).toBeInTheDocument();
-    // BO-UX-38: "Đợt giao" ẩn mặc định — bật lại qua Ẩn hiện cột thì thấy đợt giao + chặn bàn giao
+    // BO-UX-38: "Đợt giao" ẩn mặc định — bật lại qua Chọn cột hiển thị thì thấy đợt giao + chặn bàn giao
     expect(within(row).queryByText("Đợt giao 1")).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Ẩn hiện cột" }));
+    await userEvent.click(screen.getByRole("button", { name: "Chọn cột hiển thị" }));
     await userEvent.click(await screen.findByRole("option", { name: "Đợt giao" }));
     expect(await within(row).findByText("Đợt giao 1")).toBeInTheDocument();
     expect(within(row).getByText("Đang chặn bàn giao")).toBeInTheDocument();
