@@ -14,8 +14,18 @@ describe("vehicleTypeName", () => {
   it("drops a bracket that only repeats the code", () => {
     expect(vehicleTypeName(DC20)).toBe("Container 20' Dry");
   });
-  it("keeps a name without brackets, or whose bracket is not a lower-case phrase", () => {
+  it("keeps a name without brackets", () => {
     expect(vehicleTypeName({ code: "X", name: "Xe tải nhỏ" })).toBe("Xe tải nhỏ");
-    expect(vehicleTypeName({ code: "X", name: "Truck (Tuyến A)" })).toBe("Truck (Tuyến A)");
+  });
+
+  it("keeps the full name when the bracket is a real part of it, not a translation", () => {
+    for (const [code, name] of [
+      ["T125", "Xe tải 1,25 tấn (thùng bạt)"],
+      ["C20", "Container (20ft)"],
+      ["CR", "Xe cẩu (crane)"],
+      ["A", "Truck (Tuyến A)"],
+      ["B", "Xe tải (xe tải)"],
+    ] as const)
+      expect(vehicleTypeName({ code, name })).toBe(name);
   });
 });

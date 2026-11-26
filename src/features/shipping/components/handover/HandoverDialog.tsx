@@ -161,7 +161,8 @@ export function HandoverDialog({
         title={`${H.title} · ${load.code}`}
         description={FTL.description}
         submitLabel={H.title}
-        canSubmit={form.formState.isValid}
+        // BR-23: chưa có mã vận đơn thì BE từ chối ký — khoá nút, dòng "Còn thiếu" nêu mã vận đơn
+        canSubmit={form.formState.isValid && !noWaybill}
         isPending={handover.isPending || record.isPending}
         error={serverError}
         onSubmit={() => void submit()}
@@ -172,7 +173,12 @@ export function HandoverDialog({
           <MissingWaybillNotice apiManaged={isApiBookedLoad(load)} onEnter={onEnterWaybill} />
         )}
         {blockedOrders && <HandoverBlockedNotice orders={blockedOrders} />}
-        <HandoverFields form={form} load={load} signerIsDriver={signerIsDriver} />
+        <HandoverFields
+          form={form}
+          load={load}
+          signerIsDriver={signerIsDriver}
+          noWaybill={noWaybill}
+        />
       </FormDialogBody>
     </FormDialog>
   );

@@ -6,20 +6,27 @@
 
 import { SHIPPING_LIMITS } from "@/constants";
 
-import { hasPendingUnloads } from "./ftl-selectors";
+import { hasPendingUnloads, hasWaybill } from "./ftl-selectors";
 
 import type { HandoverWarning, Load } from "./types";
 
 export type HandoverBlocker =
   | { kind: "empty" }
   | { kind: "unloadPending" }
+  /** Chưa có mã vận đơn (BR-23): BE từ chối 409 LOAD_WAYBILL_MISSING. */
+  | { kind: "waybill" }
   /** Còn `count` kiện chưa quét; `codes` là vài mã đầu để quét nốt, `more` là số kiện còn lại không liệt kê. */
   | { kind: "unscanned"; count: number; codes: readonly string[]; more: number }
   | { kind: "order"; order: HandoverWarning };
 
 type GateLoad = Pick<
   Load,
-  "shipmentCount" | "expectedPackageCount" | "loadedPackageCount" | "shipments" | "handoverWarnings"
+  | "shipmentCount"
+  | "expectedPackageCount"
+  | "loadedPackageCount"
+  | "shipments"
+  | "handoverWarnings"
+  | "waybillNo"
 > &
   Partial<Pick<Load, "pendingUnloads">>;
 
@@ -41,6 +48,7 @@ export function handoverBlockers(load: GateLoad): HandoverBlocker[] {
       more: missing - shown.length,
     });
   }
+  if (!hasWaybill(load)) blockers.push({ kind: "waybill" });
   for (const order of load.handoverWarnings ?? []) blockers.push({ kind: "order", order });
   return blockers;
 }

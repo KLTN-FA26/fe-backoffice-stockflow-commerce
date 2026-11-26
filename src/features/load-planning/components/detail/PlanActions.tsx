@@ -1,12 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { MoreHorizontal } from "lucide-react";
-
 import { UI_LABELS } from "@/constants";
 import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
+import { PlanMoreMenu } from "./PlanMoreMenu";
+
+import type { MenuItem } from "./PlanMoreMenu";
 import type { ConfirmBlock, LoadPlanActions } from "@/features/load-planning/lifecycle";
 
 const L = UI_LABELS.loadPlan.detail;
@@ -25,14 +24,6 @@ export type PlanDialogKind =
 
 const PRIMARY = "bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse";
 
-interface MenuItem {
-  key: string;
-  label: string;
-  /** Lý do đang tắt, hiện ngay dưới tên. */
-  disabledReason?: string;
-  run?: () => void;
-}
-
 /**
  * Nút thao tác theo `loadPlanActions` (trạng thái + quyền `:UPDATE`): terminal state không có nút. MỘT nút chính — chốt
  * kế hoạch khi chốt được, không thì tính xếp xe — còn lại nằm trong menu `…` (S16-4: đầu trang không còn sáu nút cùng cỡ).
@@ -50,7 +41,6 @@ export function PlanActions({
   onEdit: () => void;
 }) {
   const A = L.actions;
-  const [menuOpen, setMenuOpen] = useState(false);
   const blocked = actions.confirmBlocked;
   const primary: "confirm" | "calculate" | null = actions.confirm
     ? "confirm"
@@ -107,39 +97,7 @@ export function PlanActions({
             {A.calculate}
           </Button>
         )}
-        {menu.length > 0 && (
-          <Popover open={menuOpen} onOpenChange={setMenuOpen}>
-            <PopoverTrigger asChild>
-              <Button type="button" size="sm" variant="outline" aria-label={A.more}>
-                <MoreHorizontal className="size-3.5" aria-hidden="true" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="flex w-60 flex-col gap-0.5 p-1">
-              {menu.map((item) => (
-                <button
-                  key={item.key}
-                  type="button"
-                  // Tên chỉ là nhãn; lý do khoá đọc qua mô tả (không lẫn vào tên nút)
-                  aria-label={item.label}
-                  aria-describedby={item.disabledReason ? `plan-menu-${item.key}-why` : undefined}
-                  disabled={!item.run}
-                  onClick={() => {
-                    setMenuOpen(false);
-                    item.run?.();
-                  }}
-                  className="hover:bg-bg-muted text-ink-primary flex flex-col items-start rounded-[var(--r-sm)] px-2.5 py-1.5 text-left text-[0.8125rem] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <span>{item.label}</span>
-                  {item.disabledReason && (
-                    <span id={`plan-menu-${item.key}-why`} className="text-ink-tertiary text-xs">
-                      {item.disabledReason}
-                    </span>
-                  )}
-                </button>
-              ))}
-            </PopoverContent>
-          </Popover>
-        )}
+        <PlanMoreMenu items={menu} label={A.more} />
       </div>
       {primary === "confirm" && blocked && (
         <p className="text-ink-secondary max-w-sm text-right text-xs">

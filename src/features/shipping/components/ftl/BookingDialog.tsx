@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
-import { LOAD_STATUS, SHIPPING_LIMITS, UI_LABELS } from "@/constants";
+import { CARRIER_REFUSAL_CODE, LOAD_STATUS, SHIPPING_LIMITS, UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 import { bookingRequestBody, isApiBooking, moveStop } from "@/features/shipping/booking";
 import { carrierRefusalCode, shippingErrorMessage } from "@/features/shipping/errors";
@@ -91,7 +91,7 @@ export function BookingDialog({ load, onClose }: { load: Load; onClose: () => vo
           setServerError(shippingErrorMessage(error));
           if (!(error instanceof ApiError)) return;
           // Giờ hẹn ngoài giờ phục vụ của hãng: chỉ vào ô giờ (câu đầy đủ của BE đã ở trên)
-          if (carrierRefusalCode(error) === "INVALID_SERVICE_HOUR")
+          if (carrierRefusalCode(error) === CARRIER_REFUSAL_CODE.INVALID_SERVICE_HOUR)
             form.setError("pickupAt", { type: "server", message: A.pickupAtOutOfHours });
           for (const name of SERVER_FIELDS) {
             const message = error.fieldErrors?.[name];

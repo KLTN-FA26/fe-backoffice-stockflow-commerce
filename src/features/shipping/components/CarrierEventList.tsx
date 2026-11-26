@@ -5,11 +5,9 @@ import { RadioTower } from "lucide-react";
 import {
   CARRIER_EVENT_PAGE_SIZES,
   FULFILLMENT_CARRIER_EVENT_PERMISSIONS,
-  SHIPMENT_PERMISSIONS,
   UI_LABELS,
 } from "@/constants";
 import { CARRIER_EVENT_ALL_FILTER } from "@/features/shipping/carrier-event-lifecycle";
-import { useActiveCarriers } from "@/features/shipping/queries";
 import { useCan } from "@/lib/auth";
 import { DataTable } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -17,10 +15,10 @@ import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { RefetchBar } from "@/components/shared/RefetchBar";
 import { Button } from "@/components/ui/button";
 
-import { buildCarrierEventColumns } from "./carrier-event/carrier-event-columns";
 import { CarrierEventDialog } from "./carrier-event/CarrierEventDialog";
 import { CarrierEventFilters } from "./carrier-event/CarrierEventFilters";
 import { CarrierEventSummary } from "./carrier-event/CarrierEventSummary";
+import { useCarrierEventColumns } from "./carrier-event/useCarrierEventColumns";
 import { useCarrierEventListState } from "./carrier-event/useCarrierEventListState";
 import { RefetchErrorNotice } from "./primitives";
 import { ShippingLoadError } from "./ShippingLoadError";
@@ -79,19 +77,10 @@ function EmptyBody({ s }: { s: CarrierEventListState }) {
 
 function CarrierEventListContent() {
   const canRead = useCan(FULFILLMENT_CARRIER_EVENT_PERMISSIONS.read);
-  const canLink = useCan(SHIPMENT_PERMISSIONS.viewPage);
   const s = useCarrierEventListState(canRead);
   const { query } = s;
   const page = query.data;
-  // Tên hãng cho cột "Hãng" (R3: tên trước, mã ở chú thích); thiếu quyền đọc danh mục thì cột chỉ còn mã
-  const carriers = useActiveCarriers({}, { enabled: useCan(SHIPMENT_PERMISSIONS.read) });
-  const carrierNames = new Map(carriers.data?.items.map((c) => [c.carrierId, c.name]));
-  const columns = buildCarrierEventColumns(
-    (row) => s.openEvent(row.eventId),
-    canLink,
-    (row) => (row.carrierId ? carrierNames.get(row.carrierId) : undefined),
-  );
-
+  const columns = useCarrierEventColumns((row) => s.openEvent(row.eventId));
   let body: React.ReactNode;
   if (!canRead) {
     body = <ShippingLoadError inline error={null} kind="no-read" />;

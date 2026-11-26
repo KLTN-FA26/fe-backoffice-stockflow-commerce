@@ -55,6 +55,32 @@ describe("orderVehicleTypes", () => {
     expect(ordered.fitting.map((t) => t.code)[0]).toBe("PICKUP");
   });
 
+  it("puts an estimate type first even when it is not the smallest that fits, then the other fitting types by volume", () => {
+    const load = { weightKg: 95, volumeMm3: 500_000_000 };
+    const ordered = orderVehicleTypes(all, load, new Set(["TRUCK-5T"]));
+    expect(ordered.fitting.map((t) => t.code)).toEqual([
+      "TRUCK-5T",
+      "PICKUP",
+      "TRUCK-1T25",
+      "20DC",
+    ]);
+    expect(ordered.others).toEqual([]);
+  });
+
+  it("sorts by inner volume, then payload", () => {
+    const sameVolumeHeavier = {
+      ...T125,
+      code: "TRUCK-1T25-H",
+      vehicleTypeId: "h",
+      maxPayloadKg: 2000,
+    };
+    const ordered = orderVehicleTypes([sameVolumeHeavier, T125, PICKUP], {
+      weightKg: 10,
+      volumeMm3: 100_000_000,
+    });
+    expect(ordered.fitting.map((t) => t.code)).toEqual(["PICKUP", "TRUCK-1T25", "TRUCK-1T25-H"]);
+  });
+
   it("has no basis for a group when no shipment is chosen: payload order, nothing set apart", () => {
     const ordered = orderVehicleTypes(all, { weightKg: 0, volumeMm3: 0 });
     expect(ordered.fitting.map((t) => t.code)).toEqual([

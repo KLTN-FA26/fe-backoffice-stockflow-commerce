@@ -3,6 +3,7 @@
 import Link from "next/link";
 
 import { ADMIN_ROUTES, UI_LABELS } from "@/constants";
+import { isApiBookedLoad } from "@/features/shipping/ftl-selectors";
 import { handoverBlockers } from "@/features/shipping/handover-gate";
 import { handoverBlockReasons, handoverReasonCodes } from "@/features/shipping/handover-blocks";
 
@@ -15,9 +16,9 @@ const D = L.disabledReason;
 const F = UI_LABELS.shipping.ftl;
 
 /**
- * Lý do nút "Xác nhận bàn giao" đang khoá, nói ngay dưới nút (R7; docs 09 BR-18 — tất cả hoặc không): chưa có lô, còn kiện
- * phải dỡ, còn kiện chưa quét (số kiện + vài mã), từng đơn chưa được phép đi kèm ai xử lý và liên kết tới đợt thu / lịch
- * giao. Hết chặn thì dòng biến mất và nút mở. Không có lý do thì không hiện gì.
+ * Lý do chưa bàn giao được, nói ngay dưới nút "Xác nhận bàn giao" (R7; docs 09 BR-18 — tất cả hoặc không): chưa có lô, còn
+ * kiện phải dỡ, còn kiện chưa quét (số kiện + vài mã), chưa có mã vận đơn (BR-23), từng đơn chưa được phép đi kèm ai xử lý
+ * và liên kết tới đợt thu / lịch giao. Hết chặn thì dòng biến mất. Không có lý do thì không hiện gì.
  */
 export function HandoverMissing({ load }: { load: Load }) {
   const blockers = handoverBlockers(load);
@@ -32,6 +33,12 @@ export function HandoverMissing({ load }: { load: Load }) {
               return <li key="empty">{D.empty}</li>;
             case "unloadPending":
               return <li key="unload">{F.disabledReason.unloadPending}</li>;
+            case "waybill":
+              return (
+                <li key="waybill">
+                  {isApiBookedLoad(load) ? L.handoverMissing.waybillApi : L.handoverMissing.waybill}
+                </li>
+              );
             case "unscanned":
               return (
                 <li key="unscanned">

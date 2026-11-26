@@ -3,23 +3,15 @@
 import { useState } from "react";
 
 import { LOAD_PLAN_LIMITS, UI_LABELS } from "@/constants";
-import { formatDateTime, formatFixed, formatNumber } from "@/lib/format";
-import { formatM3 } from "@/features/load-planning/lib/dims";
+import { formatNumber } from "@/lib/format";
+import { formatM3Value } from "@/features/load-planning/lib/dims";
 import { sortByReadyAt, totalsOf } from "@/features/load-planning/plan-selectors";
 import { Alert } from "@/components/shared/Alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+
+import { ShipmentTable } from "./ShipmentTable";
 
 import type { CandidateShipment } from "@/features/load-planning/plan-types";
 
@@ -74,7 +66,7 @@ export function ShipmentPicker({
           {totals.shipments > 0 &&
             L.selectedLoad(
               formatNumber(Math.round(totals.weightKg)),
-              formatM3(totals.volumeMm3).replace(/ m³$/, ""),
+              formatM3Value(totals.volumeMm3),
             )}
         </span>
         <Button
@@ -102,72 +94,7 @@ export function ShipmentPicker({
           className="h-8 max-w-sm text-[0.8125rem]"
         />
       )}
-      <div className="border-border-default overflow-x-auto rounded-[var(--r-sm)] border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-8" />
-              <TableHead>{L.shipmentCode}</TableHead>
-              <TableHead>{L.order}</TableHead>
-              <TableHead className="text-right">{L.packageCount}</TableHead>
-              <TableHead className="text-right">{L.weight}</TableHead>
-              <TableHead className="text-right">{L.volume}</TableHead>
-              <TableHead>{L.readyAt}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {shown.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={7} className="text-ink-tertiary text-center text-[0.8125rem]">
-                  {L.searchEmpty}
-                </TableCell>
-              </TableRow>
-            )}
-            {shown.map((candidate) => (
-              <TableRow
-                key={candidate.shipmentId}
-                data-state={selected.has(candidate.shipmentId) ? "selected" : undefined}
-              >
-                <TableCell>
-                  {/* Bọc flex: input ẩn (absolute) của Checkbox nằm cạnh nút thay vì rơi xuống dưới ô, làm bảng
-                      có thanh cuộn dọc thừa */}
-                  <div className="flex">
-                    <Checkbox
-                      checked={selected.has(candidate.shipmentId)}
-                      onCheckedChange={() => onToggle(candidate.shipmentId)}
-                      aria-label={`${L.shipmentCode} ${candidate.code}`}
-                    />
-                  </div>
-                </TableCell>
-                <TableCell className="font-mono text-[0.8125rem]">{candidate.code}</TableCell>
-                <TableCell className="text-[0.8125rem]">
-                  <span className="font-mono">{candidate.orderNumber ?? "—"}</span>
-                  <Badge variant="outline" className="ml-2">
-                    {candidate.allowPartialShipment ? L.partialAllowed : L.partialNotAllowed}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatNumber(candidate.packageCount)}
-                  {candidate.packagesInOtherPlans > 0 && (
-                    <span className="text-warning block text-xs">
-                      {L.inOtherPlans(candidate.packagesInOtherPlans)}
-                    </span>
-                  )}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatFixed(candidate.weightKg, 1)} kg
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatM3(candidate.volumeMm3)}
-                </TableCell>
-                <TableCell className="text-ink-secondary text-[0.8125rem] whitespace-nowrap">
-                  {candidate.readyAt ? formatDateTime(candidate.readyAt) : "—"}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      <ShipmentTable shipments={shown} selected={selected} onToggle={onToggle} />
     </div>
   );
 }

@@ -66,7 +66,7 @@ export function LoadActions({
         )}
       </div>
       {/* R7: vì sao nút khoá, nói ngay dưới nút chứ không chỉ ở `title` (S18-1, FE#291 U45 / U82) */}
-      {handover?.disabledReason && <HandoverMissing load={load} />}
+      {handover && <HandoverMissing load={load} />}
     </div>
   );
 }

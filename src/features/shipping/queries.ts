@@ -1,6 +1,12 @@
-import { LOAD_STATUS, SHARED_QUERY_ROOTS, SHIPPING_LIMITS } from "@/constants";
+import {
+  LOAD_STATUS,
+  SHARED_QUERY_ROOTS,
+  SHIPMENT_PERMISSIONS,
+  SHIPPING_LIMITS,
+} from "@/constants";
 import { useQuery } from "@tanstack/react-query";
 import { QUERY_TIMES } from "@/lib/api/query-client";
+import { useCan } from "@/lib/auth";
 import { createDetailQuery, createListQuery, createQueryKeys } from "@/lib/api/query-factory";
 
 import { getLoad, getManifest, listLoads } from "./api";
@@ -14,7 +20,13 @@ import type { ListCarrierParams } from "./carrier-api";
 import type { ListShipmentParams } from "./shipment-api";
 import type { Carrier, Load, LoadRow, Shipment, ShipmentRow } from "./types";
 
-export const loadKeys = createQueryKeys<ListLoadParams>(SHARED_QUERY_ROOTS.fulfillmentLoads);
+const baseLoadKeys = createQueryKeys<ListLoadParams>(SHARED_QUERY_ROOTS.fulfillmentLoads);
+export const loadKeys = {
+  ...baseLoadKeys,
+  /** Hãng dùng gần nhất của kho (gần đúng) — ô chọn hãng khi đặt xe. */
+  recentCarrier: (warehouseId: string) =>
+    [...baseLoadKeys.all, "recent-carrier", warehouseId] as const,
+};
 export const shipmentKeys = createQueryKeys<ListShipmentParams>("fulfillment-shipments");
 export const carrierKeys = createQueryKeys<ListCarrierParams>("fulfillment-carriers");
 
@@ -36,10 +48,15 @@ export const useLoad = createDetailQuery<Load>(loadKeys, getLoad, {
     query.state.data?.status === LOAD_STATUS.LOADING ? SHIPPING_LIMITS.loadPollMs : false,
 });
 
-/** Hãng dùng gần nhất của kho (từ các chuyến đã bàn giao) — để đưa lên đầu ô chọn hãng khi đặt xe. Lỗi / thiếu quyền → không có gợi ý, không chặn. */
-export function useRecentCarrierId(warehouseId: string | undefined, enabled = true) {
+/**
+ * Hãng dùng gần nhất của kho — GẦN ĐÚNG: hãng có chuyến bàn giao muộn nhất trong 20 chuyến đã bàn giao mà BE liệt kê trước
+ * (BE xếp theo mới tạo nhất, không theo ngày bàn giao) — để đưa lên đầu ô chọn hãng khi đặt xe. Chỉ gọi khi người dùng được
+ * đọc danh sách chuyến; lỗi → không có gợi ý, không chặn.
+ */
+export function useApproxRecentCarrierId(warehouseId: string | undefined) {
+  const canRead = useCan(SHIPMENT_PERMISSIONS.read);
   return useQuery({
-    queryKey: [...loadKeys.all, "recent-carrier", warehouseId ?? ""] as const,
+    queryKey: loadKeys.recentCarrier(warehouseId ?? ""),
     queryFn: async ({ signal }) =>
       latestCarrierId(
         (
@@ -49,7 +66,7 @@ export function useRecentCarrierId(warehouseId: string | undefined, enabled = tr
           )
         ).items,
       ),
-    enabled: enabled && !!warehouseId,
+    enabled: canRead && !!warehouseId,
     ...QUERY_TIMES.master,
     retry: false,
   });

@@ -13,7 +13,8 @@ import {
 import { LOAD_TRANSITIONS, SHIPMENT_TRANSITIONS } from "@/lib/domain/lifecycle";
 
 import { blockedOrder } from "./__fixtures__/ftl-load";
-import { allowedLoadActions, hasLoadAction, isFullyLoaded, loadNoActionReason } from "./lifecycle";
+import { allowedLoadActions, hasLoadAction, isFullyLoaded } from "./lifecycle";
+import { loadNoActionReason } from "./load-no-action-reason";
 import { allowedOutcomes, noOutcomeReason } from "./shipment-lifecycle";
 
 import type { LoadGateState, ShippingActor } from "./lifecycle";

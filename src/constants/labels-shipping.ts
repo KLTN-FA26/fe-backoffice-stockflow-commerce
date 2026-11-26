@@ -132,6 +132,8 @@ export const SHIPPING_UI_LABELS = {
     /** Dòng "Còn thiếu" dưới nút bàn giao (R7): mỗi lý do khoá nút một dòng. */
     handoverMissing: {
       title: "Chưa bàn giao được",
+      waybill: "Chưa có mã vận đơn — nhập ở thẻ Mã vận đơn (hoặc ngay trong hộp xác nhận).",
+      waybillApi: "Chưa có mã vận đơn — hãng sẽ trả mã khi đơn ở hãng được tạo.",
       unscanned: (count: number, codes: string, more: number) =>
         `Còn ${count} kiện chưa quét: ${codes}${more > 0 ? ` và ${more} kiện khác` : ""} — quét nốt, hoặc Quản lý kho huỷ có kiểm soát xe này.`,
       order: "Đơn",
@@ -175,6 +177,7 @@ export const SHIPPING_UI_LABELS = {
       representative: "người ký bên hãng",
       vehiclePlate: "biển số xe",
       signed: "tick hai bên đã ký biên bản",
+      waybill: "mã vận đơn",
     },
     driverName: "Tên tài xế",
     driverNameHint:
@@ -319,6 +322,12 @@ export const SHIPPING_TOAST_MESSAGES = {
  * errorCode BE (`ErrorCode.java`) → câu tiếng Việt. Khi BE nêu tên lô giao
  * (`fieldErrors.shipmentCode`) câu được thêm tiền tố "Lô <mã>".
  */
+/** Mã lỗi hãng mà màn đặt xe rẽ nhánh theo (BE `fieldErrors[].code` của `CARRIER_BOOKING_FAILED`, BE PR #481). */
+export const CARRIER_REFUSAL_CODE = {
+  /** Giờ hẹn lấy hàng ngoài giờ phục vụ của hãng — trỏ vào ô giờ. */
+  INVALID_SERVICE_HOUR: "INVALID_SERVICE_HOUR",
+} as const;
+
 export const SHIPPING_ERROR_MESSAGES = {
   // 400
   HANDOVER_NOT_SIGNED: "Hai bên phải ký biên bản — tick xác nhận đã ký rồi bàn giao lại.",

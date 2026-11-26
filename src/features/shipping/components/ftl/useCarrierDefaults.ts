@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-import { useRecentCarrierId } from "@/features/shipping/queries";
+import { useApproxRecentCarrierId } from "@/features/shipping/queries";
 
 import type { UseFormReturn } from "react-hook-form";
 import type { BookingFormInput, BookingValues, Carrier } from "@/features/shipping/types";
@@ -19,5 +19,5 @@ export function useCarrierDefaults(
     if (only && !form.getValues("carrierId"))
       form.setValue("carrierId", only, { shouldValidate: true });
   }, [only, form]);
-  return useRecentCarrierId(warehouseId).data ?? null;
+  return useApproxRecentCarrierId(warehouseId).data ?? null;
 }

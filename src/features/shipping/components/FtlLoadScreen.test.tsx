@@ -425,6 +425,7 @@ describe("Bàn giao theo xe — kết quả", () => {
   it("xe không phải xe cuối: lô còn READY_TO_DISPATCH hiện 'Chờ xe cuối', lô đã đi hiện 'Đã bàn giao'; tiêu đề 'Xe đã bàn giao'", async () => {
     const user = userEvent.setup();
     const full = loadingFtl({
+      waybillNo: "GHN-250001",
       shipments: [
         loadShipment("SO-1-S1", [ftlParcel("PKG-SO-1-1", true)]),
         loadShipment("SO-2-S1", [ftlParcel("PKG-SO-2-1", true)]),

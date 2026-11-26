@@ -2,7 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { UI_LABELS } from "@/constants";
+import { SHIPPING_ERROR_MESSAGES, UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 import { useRejectedScansStore } from "@/features/shipping/rejected-scans-store";
 import { resetScanIds } from "@/features/shipping/scan-ids";
@@ -70,6 +70,7 @@ const apiBooked = (patch: Partial<Load> = {}) =>
 describe("S18-1: nút Xác nhận bàn giao nói vì sao đang khoá (R7)", () => {
   it("còn đơn chưa thu tiền dù đã quét đủ: nút khoá, dưới nút có số tiền, ai xử lý và liên kết tới đơn", async () => {
     const load = loadingFtl({
+      waybillNo: "GHN-250001",
       shipments: [loadShipment("SO-2-S1", [parcel("PKG-SO-2-1", true)])],
       handoverWarnings: [blockedOrder({ amountDue: 7_560_000 })],
     });
@@ -108,12 +109,97 @@ describe("S18-1: nút Xác nhận bàn giao nói vì sao đang khoá (R7)", () =
   it("hết chặn thì dòng biến mất và nút mở", async () => {
     renderLoad(
       loadingFtl({
+        waybillNo: "GHN-250001",
         shipments: [loadShipment("SO-1-S1", [parcel("PKG-SO-1-1", true)])],
       }),
     );
     await ready();
     expect(screen.getByRole("button", { name: L.load.actions.handover })).toBeEnabled();
     expect(screen.queryByText(L.load.handoverMissing.title)).not.toBeInTheDocument();
+  });
+});
+
+describe("BR-18 / BR-23: lý do chưa bàn giao được không biến mất sau khi quét", () => {
+  it("quét kiện cuối: phản hồi của BE không kèm handoverWarnings, nút vẫn khoá và dòng 'Còn thiếu' còn đó", async () => {
+    const user = userEvent.setup();
+    const unscanned = loadingFtl({
+      waybillNo: "GHN-250001",
+      shipments: [loadShipment("SO-2-S1", [parcel("PKG-SO-2-1", false)])],
+      handoverWarnings: [blockedOrder({ amountDue: 7_560_000 })],
+      version: 4,
+    });
+    // Phản hồi của scan / unscan / tài xế / mã vận đơn KHÔNG có handoverWarnings (chỉ GET và "bắt đầu xếp" có)
+    const scanned: Load = {
+      ...unscanned,
+      loadedPackageCount: 1,
+      handoverWarnings: undefined,
+      shipments: [loadShipment("SO-2-S1", [parcel("PKG-SO-2-1", true)])],
+      version: 5,
+    };
+    renderLoad(unscanned, { post: { [`${PATH}/scans`]: () => scanned } });
+    await ready();
+    expect(screen.getByRole("button", { name: L.load.actions.handover })).toBeDisabled();
+    const input = screen.getByPlaceholderText(/Quét hoặc nhập mã kiện/);
+    await user.type(input, "PKG-SO-2-1{Enter}");
+    await waitFor(() =>
+      expect(screen.getAllByRole("progressbar")[0]).toHaveAttribute("aria-valuenow", "1"),
+    );
+    // Đã đủ kiện, nhưng đơn vẫn chưa được phép đi: nút khoá, lý do vẫn nằm dưới nút
+    expect(screen.getByRole("button", { name: L.load.actions.handover })).toBeDisabled();
+    const lines = screen.getByText(L.load.handoverMissing.title).closest("div") as HTMLElement;
+    expect(lines).toHaveTextContent(/7\.560\.000/);
+    expect(lines).toHaveTextContent("Kế toán lập phiếu thu");
+    expect(screen.queryByText(L.load.handoverMissing.unscanned(1, "PKG-SO-2-1", 0))).toBeNull();
+  });
+
+  it("chưa có mã vận đơn: dòng dưới nút nói nhập ở đâu; trong hộp thoại nút ký khoá và 'Còn thiếu' nêu mã vận đơn", async () => {
+    const user = userEvent.setup();
+    renderLoad(
+      loadingFtl({
+        waybillNo: undefined,
+        shipments: [loadShipment("SO-1-S1", [parcel("PKG-SO-1-1", true)])],
+      }),
+    );
+    await ready();
+    const lines = screen.getByText(L.load.handoverMissing.title).closest("div") as HTMLElement;
+    expect(within(lines).getByText(L.load.handoverMissing.waybill)).toBeInTheDocument();
+    // Nút còn mở để vào hộp thoại nhập mã vận đơn (BE sẽ từ chối nếu ký ngay)
+    await user.click(screen.getByRole("button", { name: L.load.actions.handover }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(within(dialog).getByRole("checkbox", { name: H.signerIsDriver }));
+    await user.click(within(dialog).getByRole("checkbox", { name: H.signedConfirm }));
+    expect(within(dialog).getByRole("button", { name: H.title })).toBeDisabled();
+    expect(
+      within(dialog).getByText(`${H.missing.prefix}: ${H.missing.waybill}`),
+    ).toBeInTheDocument();
+  });
+
+  it("hãng đặt xe qua API chưa có mã vận đơn: câu nói hãng sẽ trả mã, không mời nhập tay", async () => {
+    renderLoad(
+      apiBooked({
+        status: "LOADING",
+        waybillNo: undefined,
+        shipments: [loadShipment("SO-1-S1", [parcel("PKG-SO-1-1", true)])],
+      }),
+    );
+    await ready();
+    expect(screen.getByText(L.load.handoverMissing.waybillApi)).toBeInTheDocument();
+  });
+});
+
+describe("Lỗi hãng ở thẻ 'Đơn ở hãng'", () => {
+  it("lỗi thô '406 CODE' không hiện: chỉ còn lời hãng, hoặc câu chung khi hãng chỉ gửi mã", async () => {
+    renderLoad(
+      apiBooked({
+        status: "PLANNED",
+        carrierBooking: { status: "FAILED", lastError: "406 INVALID_SERVICE_HOUR" },
+      }),
+    );
+    await ready();
+    expect(screen.queryByText(/INVALID_SERVICE_HOUR|406/)).not.toBeInTheDocument();
+    expect(screen.getByText(new RegExp(L.waybill.apiBooking.notice.lastError))).toHaveTextContent(
+      SHIPPING_ERROR_MESSAGES.CARRIER_BOOKING_FAILED,
+    );
   });
 });
 
@@ -267,6 +353,7 @@ describe("S18-4: hộp 'Xe đã bàn giao'", () => {
   it("một câu 'Đã bàn giao N kiện cho <hãng>', nút Xem biên bản và Đóng", async () => {
     const user = userEvent.setup();
     const full = loadingFtl({
+      waybillNo: "GHN-250001",
       shipments: [
         loadShipment("SO-1-S1", [parcel("PKG-SO-1-1", true), parcel("PKG-SO-1-2", true)]),
       ],

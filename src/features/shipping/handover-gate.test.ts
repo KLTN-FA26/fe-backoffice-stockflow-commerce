@@ -7,6 +7,7 @@ import { handoverBlockers } from "./handover-gate";
 const loadWith = (loaded: boolean[], patch = {}) =>
   ftlLoad({
     status: "LOADING",
+    waybillNo: "VD-1",
     shipments: [
       loadShipment(
         "SO-1-S1",
@@ -42,8 +43,17 @@ describe("handoverBlockers — vì sao nút bàn giao khoá (R7, BR-18)", () => 
     ]);
   });
 
+  it("BR-23: chưa có mã vận đơn là một lý do (BE 409 LOAD_WAYBILL_MISSING), kể cả khi đã quét đủ", () => {
+    expect(handoverBlockers(loadWith([true], { waybillNo: undefined }))).toEqual([
+      { kind: "waybill" },
+    ]);
+    expect(handoverBlockers(loadWith([true], { waybillNo: "" }))).toEqual([{ kind: "waybill" }]);
+  });
+
   it("chưa có lô và còn kiện phải dỡ cũng là lý do", () => {
-    expect(handoverBlockers(ftlLoad({ shipments: [] }))).toEqual([{ kind: "empty" }]);
+    expect(handoverBlockers(ftlLoad({ shipments: [], waybillNo: "VD-1" }))).toEqual([
+      { kind: "empty" },
+    ]);
     expect(
       handoverBlockers(loadWith([true], { pendingUnloads: [pendingUnload()] })).map((b) => b.kind),
     ).toEqual(["unloadPending"]);
