@@ -608,6 +608,7 @@ export const MODEL3D_VIEW = {
 /** Màn Thùng hàng (LPN) — search / lọc chữ gọi BE nên debounce (api-conventions §9); cỡ trang ≤ BE `Pages.MAX_PAGE_SIZE`. */
 export const CARTON_LIST_LIMITS = {
   searchDebounceMs: 300,
-  pageSizes: [15, 25, 50, 100] as const,
-  defaultPageSize: 25,
+  // Bộ cỡ trang chuẩn Mode A (data-table-mode-a §5)
+  pageSizes: [10, 15, 20, 50] as const,
+  defaultPageSize: 20,
 } as const;

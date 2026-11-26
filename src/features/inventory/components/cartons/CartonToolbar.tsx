@@ -37,8 +37,9 @@ function summaryItems(filters: CartonFiltersState, warehouses: HeaderFilterOptio
   return [
     {
       label: L.summarySearch,
-      value: state.q.trim() ? `“${state.q}”` : NOT_ENTERED,
-      active: state.q.trim() !== "",
+      // q ngắn chưa được gửi lên BE (đã có Alert nhắc) → chip không coi là đang lọc
+      value: filters.hasSearch ? `“${state.q.trim()}”` : NOT_ENTERED,
+      active: filters.hasSearch,
       onClear: () => set({ q: "" }),
     },
     {

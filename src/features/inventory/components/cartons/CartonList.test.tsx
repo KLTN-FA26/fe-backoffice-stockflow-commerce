@@ -80,7 +80,12 @@ const MANAGER: PermissionCode[] = [
 
 function setup(
   permissions: readonly PermissionCode[],
-  opts: { search?: string; warehouses?: AssignedWarehouse[] } = {},
+  opts: {
+    search?: string;
+    warehouses?: AssignedWarehouse[];
+    /** Ghi đè phản hồi cho một request (trả undefined → dùng mock mặc định). */
+    respond?: (config: AxiosRequestConfig) => { status: number; data: unknown } | undefined;
+  } = {},
 ) {
   vi.spyOn(api, "get").mockImplementation(async (url: string) => {
     if (url === "/identity/me/permissions")
@@ -104,6 +109,8 @@ function setup(
   const request = vi
     .spyOn(api, "request")
     .mockImplementation(async (config: AxiosRequestConfig) => {
+      const override = opts.respond?.(config);
+      if (override) return override;
       if (config.url === "/inventory/stock-packages") return { status: 200, data: page([ROW]) };
       if (config.url === `/inventory/stock-packages/${ROW.lpn}`)
         return {
@@ -249,6 +256,49 @@ describe("Thùng hàng (LPN) — phân quyền (UI-only, BE re-check)", () => {
     const panel = await screen.findByRole("dialog", { name: ROW.lpn });
     expect(await within(panel).findByText(L.detail.historyNoPermission)).toBeInTheDocument();
     expect(request.mock.calls.some(([c]) => c.url === "/inventory/movements")).toBe(false);
+  });
+
+  it("mở link ?lpn= của thùng không tồn tại → báo không tìm thấy thùng, không nói về bộ lọc", async () => {
+    const missing = "LPN-KHONG-CO";
+    setup(MANAGER, {
+      search: `?lpn=${missing}`,
+      respond: (config) =>
+        config.url === `/inventory/stock-packages/${missing}`
+          ? {
+              status: 404,
+              data: { success: false, errorCode: "STOCK_PACKAGE_NOT_FOUND", message: "Not found" },
+            }
+          : undefined,
+    });
+    const panel = await screen.findByRole("dialog", { name: missing });
+    expect(
+      await within(panel).findByText(L.detailErrorCopy.notFoundDescription),
+    ).toBeInTheDocument();
+    expect(within(panel).queryByText(L.errorCopy.notFoundDescription)).not.toBeInTheDocument();
+  });
+
+  it("lịch sử nhiều hơn một trang → báo chỉ hiện các dòng gần nhất", async () => {
+    setup(MANAGER, {
+      search: `?lpn=${ROW.lpn}`,
+      respond: (config) =>
+        config.url === "/inventory/movements"
+          ? { status: 200, data: { ...page([MOVEMENT]), totalElements: 120, totalPages: 3 } }
+          : undefined,
+    });
+    const panel = await screen.findByRole("dialog", { name: ROW.lpn });
+    expect(await within(panel).findByText(L.detail.historyTruncated(1, 120))).toBeInTheDocument();
+  });
+
+  it('search dưới 3 ký tự không tính là đang lọc → empty "chưa có thùng", không phải "lọc không ra"', async () => {
+    const { user } = setup(MANAGER, {
+      respond: (config) =>
+        config.url === "/inventory/stock-packages" ? { status: 200, data: page([]) } : undefined,
+    });
+    expect(await screen.findByText(L.emptyTitle)).toBeInTheDocument();
+    await user.type(screen.getByPlaceholderText(L.searchPlaceholder), "04");
+    expect(await screen.findByText(L.searchTooShort(3))).toBeInTheDocument();
+    expect(screen.getByText(L.emptyTitle)).toBeInTheDocument();
+    expect(screen.queryByText(L.filteredTitle)).not.toBeInTheDocument();
   });
 
   it("người xem bị giới hạn kho → ô lọc kho chỉ có kho được gán", async () => {

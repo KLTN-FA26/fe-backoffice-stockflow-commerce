@@ -1,14 +1,12 @@
 import { z } from "zod";
 
 import { CARTON_FILTER_STATUSES, CARTON_SEARCH_MIN, CARTON_SORTS } from "@/constants";
-import { STOCK_STATUSES } from "@/constants/inventory";
+import { INVENTORY_SORT_DIRECTIONS, STOCK_STATUSES } from "@/constants/inventory";
 
 import { beUuid } from "@/lib/validation/primitives";
 
 import { stockPackageDetailDto, stockPackageDto } from "./quarantine-schemas";
 import { inventoryPageDto } from "./schemas";
-
-const SORT_DIRECTIONS = ["asc", "desc"] as const;
 
 /** BE `Pages.MAX_PAGE_SIZE` — cỡ trang lớn hơn bị 400. */
 const MAX_PAGE_SIZE = 200;
@@ -78,7 +76,7 @@ export const cartonListInput = z
     status: z.array(z.enum(CARTON_FILTER_STATUSES)).optional(),
     stockStatus: z.array(z.enum(STOCK_STATUSES)).optional(),
     sort: z.enum(CARTON_SORTS).optional(),
-    direction: z.enum(SORT_DIRECTIONS).optional(),
+    direction: z.enum(INVENTORY_SORT_DIRECTIONS).optional(),
   })
   // Spring `field,dir`; mặc định tăng dần (FIFO = `receivedAt,asc`, cũ nhất trước)
   .transform(({ sort, direction, ...rest }) => ({

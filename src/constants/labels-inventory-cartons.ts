@@ -95,6 +95,14 @@ export const CARTON_LIST_LABELS = {
     forbiddenDescription: "Bạn không có quyền xem thùng của kho hoặc vị trí này.",
     noReadDescription: "Bạn không có quyền xem danh sách thùng.",
   },
+  /** Panel chi tiết (`?lpn=`): 404 = LPN không có, không phải "bộ lọc không còn" như danh sách. */
+  detailErrorCopy: {
+    pageTitle: "Thùng hàng (LPN)",
+    notFoundTitle: "Không tìm thấy thùng",
+    notFoundDescription: "Không có thùng nào mang mã LPN này — kiểm tra lại link hoặc mã.",
+    forbiddenDescription: "Bạn không có quyền xem thùng này (thùng ở kho ngoài phạm vi của bạn).",
+    noReadDescription: "Bạn không có quyền xem thùng.",
+  },
   openDetail: (lpn: string) => `Xem chi tiết ${lpn}`,
   // Panel chi tiết
   detail: {
@@ -131,6 +139,9 @@ export const CARTON_LIST_LABELS = {
     openTaskLink: "Mở việc",
     viewLocation: "Xem vị trí",
     historyNoPermission: "Bạn không có quyền xem lịch sử di chuyển.",
+    historyTruncated: (shown: number, total: number) =>
+      `Chỉ hiện ${shown} / ${total} biến động gần nhất — các dòng cũ hơn xem ở màn Lịch sử biến động.`,
+    none: "—",
     loadFailed: "Không tải được — thử lại sau.",
   },
 } as const;

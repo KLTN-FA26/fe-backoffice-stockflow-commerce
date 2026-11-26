@@ -21,6 +21,8 @@ import type { CartonDetail } from "@/features/inventory/quarantine-types";
 
 const D = L.detail;
 type Content = NonNullable<CartonDetail["contents"]>[number];
+/** BE không trả id dòng tồn — lô / trạng thái / ngày nhận có thể trùng (cùng null) nên khoá theo thứ tự. */
+type ContentRow = Content & { rowId: string };
 type Hold = CartonDetail["heldFor"][number];
 const empty = (text: string) => <p className="text-ink-tertiary text-xs">{text}</p>;
 const qty = (value: number) => <span className={CELL.number}>{formatNumber(value)}</span>;
@@ -55,7 +57,10 @@ const CONTENT_COLUMNS: ColumnDef<Content>[] = [
  * thùng (docs 20 BR-10: thùng bận thì không kiểm kê / không đổi chỗ được).
  */
 export function CartonWork({ carton }: { carton: CartonDetail }) {
-  const contents = carton.contents ?? [];
+  const contents: ContentRow[] = (carton.contents ?? []).map((c, index) => ({
+    ...c,
+    rowId: String(index),
+  }));
   const task = carton.openTask;
   const taskHref = task ? openTaskHref(task, carton.warehouseCode) : null;
   return (
@@ -67,7 +72,7 @@ export function CartonWork({ carton }: { carton: CartonDetail }) {
           <DataTable
             columns={CONTENT_COLUMNS}
             data={contents}
-            rowKey={(c) => `${c.lotNumber ?? ""}|${c.status}|${c.receivedAt ?? ""}`}
+            rowKey={(c) => c.rowId}
             caption={D.contents}
             pageSize={PAGE_SIZE.sm}
           />

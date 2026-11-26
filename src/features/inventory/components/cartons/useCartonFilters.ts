@@ -1,12 +1,15 @@
 import { parseAsInteger, parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 
-import { CARTON_FILTER_STATUSES, CARTON_LIST_LIMITS, CARTON_SORTS } from "@/constants";
-import { STOCK_STATUSES } from "@/constants/inventory";
+import {
+  CARTON_FILTER_STATUSES,
+  CARTON_LIST_LIMITS,
+  CARTON_SEARCH_MIN,
+  CARTON_SORTS,
+} from "@/constants";
+import { INVENTORY_SORT_DIRECTIONS, STOCK_STATUSES } from "@/constants/inventory";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 
 import type { CartonListParams } from "@/features/inventory/carton-schemas";
-
-const DIRECTIONS = ["asc", "desc"] as const;
 
 const PARSERS = {
   q: parseAsString.withDefault(""),
@@ -18,7 +21,7 @@ const PARSERS = {
   // Vắng = mặc định của BE: thùng còn sống (RECEIVING, IN_STOCK)
   status: parseAsStringLiteral(CARTON_FILTER_STATUSES),
   sort: parseAsStringLiteral(CARTON_SORTS),
-  dir: parseAsStringLiteral(DIRECTIONS),
+  dir: parseAsStringLiteral(INVENTORY_SORT_DIRECTIONS),
   // Trang hiển thị từ 1 trên URL; BE trang từ 0
   page: parseAsInteger.withDefault(1),
   /** Thùng đang mở chi tiết — link gửi đồng nghiệp mở thẳng thùng đó. */
@@ -67,8 +70,10 @@ export function useCartonFilters(pageSize: number) {
     direction: state.dir ?? undefined,
   };
   const hasColumnSearch = [state.sku, state.location, state.lot].some((v) => v.trim() !== "");
+  // q ngắn hơn CARTON_SEARCH_MIN không được gửi (cartonListInput bỏ) → không tính là đang lọc
+  const hasSearch = state.q.trim().length >= CARTON_SEARCH_MIN;
   const hasFilters =
-    state.q.trim() !== "" ||
+    hasSearch ||
     hasColumnSearch ||
     state.warehouse !== null ||
     state.stockStatus !== null ||
@@ -77,6 +82,7 @@ export function useCartonFilters(pageSize: number) {
     state,
     params,
     page,
+    hasSearch,
     hasColumnSearch,
     hasFilters,
     set: (patch: CartonFilterPatch) => void setState({ ...patch, page: null }),

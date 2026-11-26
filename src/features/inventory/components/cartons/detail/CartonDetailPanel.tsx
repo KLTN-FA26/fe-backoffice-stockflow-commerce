@@ -45,7 +45,7 @@ export function CartonDetailPanel({ lpn, onClose }: { lpn: string | null; onClos
         <LoadErrorState
           inline
           error={query.error}
-          copy={L.errorCopy}
+          copy={L.detailErrorCopy}
           onRetry={() => void query.refetch()}
         />
       ) : !carton ? (

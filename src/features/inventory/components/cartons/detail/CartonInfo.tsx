@@ -19,7 +19,7 @@ import type { CartonDetail } from "@/features/inventory/quarantine-types";
 
 const D = L.detail;
 const H = L.column;
-const NONE = "—";
+const NONE = D.none;
 const mono = (text: string) => <span className="font-[family-name:var(--font-mono)]">{text}</span>;
 
 /** Thông tin chung của một thùng (BE `StockPackageDetailResponse`, #454): hàng, kho / vị trí, số lượng, nguồn gốc. */

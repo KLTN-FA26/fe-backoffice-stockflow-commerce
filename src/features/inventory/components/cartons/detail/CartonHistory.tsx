@@ -19,7 +19,7 @@ import type { ColumnDef } from "@/components/shared/DataTable";
 import type { StockMovement } from "@/features/inventory/types";
 
 const D = L.detail;
-const NONE = "—";
+const NONE = D.none;
 
 const COLUMNS: ColumnDef<StockMovement>[] = [
   {
@@ -64,6 +64,8 @@ export function CartonHistory({ lpn }: { lpn: string }) {
   const canRead = useCan(INVENTORY_PERMISSIONS.movementRead);
   const query = useMovements({ page: 0, size: PAGE_SIZE.xl, lpn }, canRead);
   const rows = query.data?.items ?? [];
+  // Chỉ tải một trang (mới nhất trước) — danh sách bị cắt phải báo (data-table-mode-a §4.1)
+  const total = query.data?.totalElements ?? rows.length;
   return (
     <DetailSection title={D.history} icon={History}>
       {!canRead ? (
@@ -75,13 +77,18 @@ export function CartonHistory({ lpn }: { lpn: string }) {
       ) : rows.length === 0 ? (
         <p className="text-ink-tertiary text-xs">{D.noHistory}</p>
       ) : (
-        <DataTable
-          columns={COLUMNS}
-          data={rows}
-          rowKey={(m) => m.movementId}
-          caption={D.history}
-          pageSize={PAGE_SIZE.sm}
-        />
+        <div className="flex flex-col gap-2">
+          {total > rows.length && (
+            <Alert tone="warning">{D.historyTruncated(rows.length, total)}</Alert>
+          )}
+          <DataTable
+            columns={COLUMNS}
+            data={rows}
+            rowKey={(m) => m.movementId}
+            caption={D.history}
+            pageSize={PAGE_SIZE.sm}
+          />
+        </div>
       )}
     </DetailSection>
   );
