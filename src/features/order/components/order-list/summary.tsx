@@ -1,4 +1,5 @@
 import { formatDate } from "@/lib/format/date";
+import { CustomerName } from "@/components/backoffice/CustomerName";
 
 import {
   COLUMN_LABELS,
@@ -18,6 +19,10 @@ export function buildSummaryItems(s: OrderListState): ListSummaryItem[] {
     extra.placedFrom || extra.placedTo
       ? `${extra.placedFrom ? formatDate(extra.placedFrom) : "…"} → ${extra.placedTo ? formatDate(extra.placedTo) : "…"}`
       : "Tất cả";
+  // Tên khách lấy từ chính các dòng đang lọc (BE-15) — chip không bao giờ hiện UUID (R3)
+  const named = extra.customerId
+    ? s.query.data?.items.find((order) => order.customerId === extra.customerId)
+    : undefined;
   const statusLabel = filters.status
     .map((v) => STATUS_OPTIONS.find((o) => o.value === v)?.label ?? v)
     .join(", ");
@@ -37,7 +42,16 @@ export function buildSummaryItems(s: OrderListState): ListSummaryItem[] {
     },
     {
       label: FILTER_LABELS.customer,
-      value: extra.customerId || "Tất cả",
+      value: extra.customerId ? (
+        <CustomerName
+          id={extra.customerId}
+          name={named?.customerName}
+          code={named?.customerCode}
+          link={false}
+        />
+      ) : (
+        "Tất cả"
+      ),
       active: extra.customerId !== "",
       onClear: () => extra.setCustomerId(""),
     },

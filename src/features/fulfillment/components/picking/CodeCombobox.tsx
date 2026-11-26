@@ -5,7 +5,12 @@ import { cn } from "cn";
 import { Check } from "lucide-react";
 
 import { PICK_LINE_LABELS } from "@/constants";
-import { COMBOBOX_ITEM_CLASS, InputCombobox } from "@/components/shared/InputCombobox";
+import { limitComboboxOptions } from "@/components/shared/combobox-options";
+import {
+  COMBOBOX_ITEM_CLASS,
+  ComboboxMoreHint,
+  InputCombobox,
+} from "@/components/shared/InputCombobox";
 import { CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
 
 import type { CodeOption } from "@/features/fulfillment/pick-line-selectors";
@@ -37,6 +42,9 @@ export function CodeCombobox({
   autoFocus?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  // Lọc theo mã ở client, chỉ hiện 10 mã đầu + "Còn N kết quả — gõ thêm" (R1)
+  const { visible, hidden } = limitComboboxOptions(options, search, (option) => option.label);
   const selected = options.find((option) => option.value === value);
   return (
     <InputCombobox
@@ -50,12 +58,16 @@ export function CodeCombobox({
       hasError={hasError}
       describedBy={describedBy}
       autoFocus={autoFocus}
+      search={search}
+      onSearchChange={setSearch}
+      shouldFilter={false}
+      onClear={() => onChange("")}
       mono
     >
       <CommandList>
         <CommandEmpty>{PICK_LINE_LABELS.noCodeMatch}</CommandEmpty>
         <CommandGroup className="p-0">
-          {options.map((option) => (
+          {visible.map((option) => (
             <CommandItem
               key={option.value}
               value={option.label}
@@ -75,6 +87,7 @@ export function CodeCombobox({
             </CommandItem>
           ))}
         </CommandGroup>
+        {hidden > 0 && <ComboboxMoreHint remaining={hidden} />}
       </CommandList>
     </InputCombobox>
   );

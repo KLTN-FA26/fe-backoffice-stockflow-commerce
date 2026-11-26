@@ -38,10 +38,8 @@ export const SEARCH_SCOPE_LABEL = "Mã đơn, người liên hệ / người nh�
 
 /** Nhãn bộ lọc riêng — dùng ở hàng bộ lọc và thanh Cấu hình. */
 export const FILTER_LABELS = {
-  // BE lọc theo UUID khách (`customerId`), không phải mã khách hiển thị
-  customer: "ID khách hàng",
-  customerPlaceholder: "Nhập UUID khách, Enter để lọc",
-  customerInvalid: "ID khách hàng phải là UUID hợp lệ.",
+  // BE lọc theo UUID khách (`customerId`) — người dùng chọn theo tên / MST, không bao giờ gõ UUID (R3)
+  customer: "Khách hàng",
   placedAt: "Ngày đặt",
   from: "Từ ngày",
   to: "Đến ngày",

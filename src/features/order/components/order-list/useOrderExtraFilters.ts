@@ -19,8 +19,8 @@ const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
  * sách). Đổi bộ lọc → về trang 1 (`resetPage`). Chỉ những tham số BE `GET /orders` nhận —
  * không có phương thức thanh toán (BE chưa hỗ trợ lọc theo `paymentTerm`).
  *
- * `customer` trên URL có thể sai (link cũ, gõ tay): giữ nguyên để ô nhập hiện lỗi, nhưng chỉ
- * UUID hợp lệ mới vào `params` / query key — không bao giờ để BE trả 400 cả trang.
+ * `customer` trên URL có thể sai (link cũ, gõ tay): chỉ UUID hợp lệ mới vào `params` / query key — không bao giờ để
+ * BE trả 400 cả trang; giá trị sai bị bỏ qua (ô chọn khách chỉ ghi UUID thật).
  */
 export function useOrderExtraFilters(resetPage: () => void) {
   const [customerRaw, setCustomerId] = useQueryState(
@@ -37,8 +37,7 @@ export function useOrderExtraFilters(resetPage: () => void) {
   );
 
   const customerInput = customerRaw.trim();
-  const customerIdInvalid = customerInput !== "" && !isValidOrderCustomerId(customerInput);
-  const customerId = customerIdInvalid ? "" : customerInput;
+  const customerId = isValidOrderCustomerId(customerInput) ? customerInput : "";
   const from = ISO_DAY.test(placedFrom) ? placedFrom : "";
   const to = ISO_DAY.test(placedTo) ? placedTo : "";
   // BE OrderServiceImpl: placedTo trước placedFrom → 400. Chặn ở FE, không gửi khoảng sai.
@@ -54,9 +53,6 @@ export function useOrderExtraFilters(resetPage: () => void) {
   return {
     /** Khách đang lọc thật (UUID hợp lệ) — "" khi không lọc hoặc giá trị URL sai. */
     customerId,
-    /** Giá trị khách trên URL như người dùng thấy (có thể sai) — để ô nhập hiển thị + báo lỗi. */
-    customerInput,
-    customerIdInvalid,
     placedFrom: from,
     placedTo: to,
     invalidRange,

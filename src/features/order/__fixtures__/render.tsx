@@ -117,7 +117,12 @@ export function mockOrderApiGet(
     });
 }
 
-export function renderOrderScreen(ui: React.ReactElement, searchParams = "") {
+export function renderOrderScreen(
+  ui: React.ReactElement,
+  searchParams = "",
+  /** `hasMemory`: URL giữ giá trị ghi từ UI (không thì bộ chuyển nuqs test trả về `searchParams` ban đầu sau mỗi lần ghi). */
+  options: { hasMemory?: boolean } = {},
+) {
   useAuthStore.setState({
     user: {
       userId: "u-test",
@@ -139,7 +144,7 @@ export function renderOrderScreen(ui: React.ReactElement, searchParams = "") {
   });
   return render(
     <QueryClientProvider client={client}>
-      <NuqsTestingAdapter searchParams={searchParams}>
+      <NuqsTestingAdapter searchParams={searchParams} hasMemory={options.hasMemory}>
         <Suspense fallback={<div>loading</div>}>{ui}</Suspense>
       </NuqsTestingAdapter>
     </QueryClientProvider>,

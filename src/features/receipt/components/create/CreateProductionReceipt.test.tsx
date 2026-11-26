@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ADMIN_ROUTES, RECEIPT_COUNT_LABELS, RECEIPT_ERROR_MESSAGES } from "@/constants";
 import { ApiError } from "@/lib/api/error";
+import { openComboboxList } from "@/test/combobox";
 
 import { HCM_ID, RECEIPT_ID, apiReceipt, apiReceiptPage } from "../../__fixtures__/receipt";
 import {
@@ -77,7 +78,7 @@ describe("Lập phiếu nhập theo Đơn sản xuất (docs 03 §4.1 bước 1)
     const { post, get } = renderList(ROLES.warehouseManager);
 
     await user.click(await screen.findByRole("button", { name: L.button }));
-    await user.click(await screen.findByRole("combobox", { name: L.productionOrder }));
+    await openComboboxList(user, L.productionOrder);
     expect(await screen.findByRole("option", { name: /PRD-20261101-0001/ })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: /PRD-20261101-0003/ })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: /PRD-20261101-0002/ })).not.toBeInTheDocument();
@@ -117,7 +118,7 @@ describe("Lập phiếu nhập theo Đơn sản xuất (docs 03 §4.1 bước 1)
     });
     const listCalls = () => get.mock.calls.filter(([url]) => url === "/production-orders").length;
     await user.click(await screen.findByRole("button", { name: L.button }));
-    await user.click(await screen.findByRole("combobox", { name: L.productionOrder }));
+    await openComboboxList(user, L.productionOrder);
     await user.click(await screen.findByRole("option", { name: /PRD-20261101-0001/ }));
     const before = listCalls();
     await user.click(screen.getByRole("button", { name: L.submit }));

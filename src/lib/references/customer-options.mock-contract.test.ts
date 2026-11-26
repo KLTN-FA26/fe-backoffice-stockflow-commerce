@@ -5,6 +5,7 @@
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { CUSTOMER_OPTIONS_PAGE_SIZE } from "@/constants";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 import { activateMockAdapter } from "@/lib/api/mock-adapter";
@@ -41,10 +42,10 @@ async function apiError(p: Promise<unknown>): Promise<ApiError> {
 }
 
 describe("GET /customers (mock)", () => {
-  it("1 + 12 mặc định: trang 0, 20 khách, envelope chuẩn; mặc định BE sắp createdAt giảm dần", async () => {
+  it("1 + 12 mặc định: trang 0, một trang gợi ý (10 khách), envelope chuẩn; mặc định BE sắp createdAt giảm dần", async () => {
     const first = await fetchCustomerOptions("");
     expect(first).toMatchObject({ page: 0, hasMore: true, totalElements: TOTAL });
-    expect(first.items).toHaveLength(20);
+    expect(first.items).toHaveLength(CUSTOMER_OPTIONS_PAGE_SIZE);
     const byDefault = await rawPage({});
     expect(byDefault.items[0]?.customerId).toBe(mockCustomerId(TOTAL));
     expect(byDefault).toMatchObject({ size: 20, totalPages: 3, hasPrevious: false });

@@ -21,6 +21,7 @@ import {
   resetCustomerPriceMockStore,
 } from "@/lib/api/mock-customer-price-store";
 import { mockCustomerId, resetCustomerMockStore } from "@/lib/api/mock-customer-store";
+import { openComboboxList } from "@/test/combobox";
 
 import { paramsOf, renderCustomerPrices, stubPermissions } from "../__fixtures__/render";
 import { customerPriceKeys } from "../queries";
@@ -143,7 +144,7 @@ describe("chọn khách + URL", () => {
     const get = stubPermissions(ALL);
     render();
     const user = userEvent.setup();
-    await user.click(await screen.findByRole("combobox", { name: L.picker.label }));
+    await openComboboxList(user, L.picker.label);
     const firstPage = await screen.findAllByRole("option", {}, WAIT);
     await user.click(await screen.findByRole("option", { name: L.picker.next }));
     await screen.findByText(L.picker.pageInfo(2, 45), {}, WAIT);
@@ -257,7 +258,7 @@ describe("Enter trong ô chọn khách sau khi tích hợp develop", () => {
     const view = render();
     const user = userEvent.setup();
     const box = await screen.findByRole("combobox", { name: L.picker.label });
-    await user.click(box);
+    await openComboboxList(user, L.picker.label);
     // kết quả của từ khoá rỗng (trang đầu mọi khách) đã hiện
     await screen.findAllByRole("option", {}, WAIT);
     await user.type(box, "khach1@");

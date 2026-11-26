@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { bePage, mockApi, renderScreen } from "@/test/api-screen";
+import { openComboboxList } from "@/test/combobox";
 
 import { CustomerPicker } from "./CustomerPicker";
 
@@ -27,12 +28,21 @@ const MOC_AN = {
   status: "ACTIVE",
 };
 
-function Harness({ onPick, locked }: { onPick: (id: string) => void; locked?: boolean }) {
+function Harness({
+  onPick,
+  locked,
+  mode,
+}: {
+  onPick: (id: string) => void;
+  locked?: boolean;
+  mode?: "pick" | "filter";
+}) {
   const [value, setValue] = useState(locked ? "c-1" : "");
   return (
     <CustomerPicker
       value={value}
       locked={locked}
+      mode={mode}
       onChange={(id) => {
         setValue(id);
         onPick(id);
@@ -41,8 +51,17 @@ function Harness({ onPick, locked }: { onPick: (id: string) => void; locked?: bo
   );
 }
 
-describe("CustomerPicker — InputCombobox chọn khách ACTIVE (BE lọc theo q)", () => {
-  it("gõ tên → BE tìm khách ACTIVE theo q, ↓ + Enter chọn, rồi hiện tên + Đổi khách", async () => {
+function customerParams(api: ReturnType<typeof mockApi>) {
+  return new URLSearchParams(
+    api.get.mock.calls
+      .filter(([url]) => url === "/customers")
+      .map(([, config]) => (config as { params: URLSearchParams }).params)
+      .at(-1),
+  );
+}
+
+describe("CustomerPicker — InputCombobox chọn khách (BE lọc theo q)", () => {
+  it("bấm vào ô không mở danh sách, không gọi BE; gõ → BE tìm khách ACTIVE theo q, ↓ + Enter chọn, ô giữ tên + ✕", async () => {
     const user = userEvent.setup();
     const onPick = vi.fn();
     const api = mockApi("SALES_STAFF", {
@@ -55,32 +74,68 @@ describe("CustomerPicker — InputCombobox chọn khách ACTIVE (BE lọc theo q
     renderScreen(<Harness onPick={onPick} />, "SALES_STAFF");
 
     const box = screen.getByRole("combobox", { name: "Khách hàng" });
+    await user.click(box);
+    expect(box).toHaveAttribute("aria-expanded", "false");
     expect(api.get).not.toHaveBeenCalledWith("/customers", expect.anything());
+
     await user.type(box, "Mộc");
     const option = await screen.findByRole("option", { name: /Công ty Mộc An/ });
-    expect(option).toHaveTextContent("Công ty Mộc An — mua@mocan.vn — MST 0312345678");
-    const params = new URLSearchParams(
-      api.get.mock.calls
-        .filter(([url]) => url === "/customers")
-        .map(([, config]) => (config as { params: URLSearchParams }).params)
-        .at(-1),
-    );
+    // 2 tầng: tên / MST — không còn email, không còn "—" nối chữ
+    expect(within(option).getByText("Công ty Mộc An")).toBeInTheDocument();
+    expect(within(option).getByText("MST 0312345678")).toBeInTheDocument();
+    expect(option).not.toHaveTextContent("mua@mocan.vn");
+    const params = customerParams(api);
     expect(params.get("q")).toBe("Mộc");
     expect(params.get("status")).toBe("ACTIVE");
+    expect(params.get("size")).toBe("10");
 
     await user.keyboard("{ArrowDown}{Enter}");
     expect(onPick).toHaveBeenLastCalledWith("c-1");
-    expect(await screen.findByRole("button", { name: "Đổi khách" })).toBeInTheDocument();
-    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    // Chọn xong: tên nằm trong ô (không biến thành chữ + "Đổi khách"), có ✕ để bỏ chọn
+    expect(screen.getByRole("combobox", { name: "Khách hàng" })).toHaveValue("Công ty Mộc An");
+    expect(screen.queryByRole("button", { name: "Đổi khách" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Bỏ chọn Khách hàng" }));
+    expect(onPick).toHaveBeenLastCalledWith("");
+    expect(screen.getByRole("combobox", { name: "Khách hàng" })).toHaveValue("");
   });
 
-  it("không khớp → nói rõ không có khách hoạt động, không chọn gì", async () => {
+  it("còn nhiều khách hơn số dòng hiện → 'Còn N khách — gõ thêm để thu hẹp'", async () => {
+    const user = userEvent.setup();
+    const many = Array.from({ length: 10 }, (_, i) => ({
+      ...MOC_AN,
+      customerId: `c-${i}`,
+      fullName: `Công ty Mộc ${i}`,
+    }));
+    mockApi("SALES_STAFF", {
+      get: { "/customers": () => ({ ...bePage(many), totalElements: 37, hasNext: true }) },
+    });
+    renderScreen(<Harness onPick={vi.fn()} />, "SALES_STAFF");
+
+    await openComboboxList(user, "Khách hàng");
+    expect(await screen.findAllByRole("option")).toHaveLength(10);
+    expect(screen.getByText("Còn 27 khách — gõ thêm để thu hẹp")).toBeInTheDocument();
+  });
+
+  it("khách không có MST → dòng phụ là email", async () => {
+    const user = userEvent.setup();
+    mockApi("SALES_STAFF", {
+      get: { "/customers": () => bePage([{ ...MOC_AN, taxCode: null }]) },
+    });
+    renderScreen(<Harness onPick={vi.fn()} />, "SALES_STAFF");
+    await openComboboxList(user, "Khách hàng");
+    expect(await screen.findByText("mua@mocan.vn")).toBeInTheDocument();
+  });
+
+  it("không khớp → nói rõ không có khách hoạt động + lối mở hồ sơ khách (tab mới), không chọn gì", async () => {
     const user = userEvent.setup();
     const onPick = vi.fn();
     mockApi("SALES_STAFF", { get: { "/customers": () => bePage([]) } });
     renderScreen(<Harness onPick={onPick} />, "SALES_STAFF");
     await user.type(screen.getByRole("combobox", { name: "Khách hàng" }), "zzz");
     expect(await screen.findByText("Không có khách hoạt động khớp.")).toBeInTheDocument();
+    const link = screen.getByRole("link", { name: "Mở hồ sơ khách" });
+    expect(link).toHaveAttribute("href", "/admin/customers");
+    expect(link).toHaveAttribute("target", "_blank");
     await user.keyboard("{Escape}");
     await waitFor(() =>
       expect(screen.getByRole("combobox", { name: "Khách hàng" })).toHaveAttribute(
@@ -91,11 +146,23 @@ describe("CustomerPicker — InputCombobox chọn khách ACTIVE (BE lọc theo q
     expect(onPick).not.toHaveBeenCalled();
   });
 
-  it("locked (sửa báo giá / mẫu từ báo giá) → chỉ hiện tên khách, không đổi được", async () => {
+  it("chế độ lọc: không ép khách ACTIVE, không dấu *, không lối mở hồ sơ khi không khớp", async () => {
+    const user = userEvent.setup();
+    const api = mockApi("SALES_STAFF", { get: { "/customers": () => bePage([]) } });
+    renderScreen(<Harness onPick={vi.fn()} mode="filter" />, "SALES_STAFF");
+    expect(screen.queryByText(/Chỉ khách đã kích hoạt/)).not.toBeInTheDocument();
+    await user.type(screen.getByRole("combobox", { name: "Khách hàng" }), "zzz");
+    expect(await screen.findByText("Không có khách khớp.")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Mở hồ sơ khách" })).not.toBeInTheDocument();
+    expect(customerParams(api).has("status")).toBe(false);
+  });
+
+  it("locked (sửa báo giá / mẫu từ báo giá) → ô hiện tên khách nhưng khoá, không ✕, không đổi được", async () => {
     mockApi("SALES_STAFF", { get: { "/customers/c-1": () => MOC_AN } });
     renderScreen(<Harness onPick={vi.fn()} locked />, "SALES_STAFF");
-    expect(await screen.findByText("Công ty Mộc An")).toBeInTheDocument();
-    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Đổi khách" })).not.toBeInTheDocument();
+    const box = screen.getByRole("combobox", { name: "Khách hàng" });
+    await waitFor(() => expect(box).toHaveValue("Công ty Mộc An"));
+    expect(box).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Bỏ chọn Khách hàng" })).not.toBeInTheDocument();
   });
 });

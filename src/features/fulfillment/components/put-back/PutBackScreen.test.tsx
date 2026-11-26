@@ -9,6 +9,7 @@ import {
   UI_LABELS,
 } from "@/constants";
 import { ApiError } from "@/lib/api/error";
+import { openComboboxList } from "@/test/combobox";
 
 import {
   LPN_1,
@@ -348,7 +349,7 @@ describe("PutBackDialog — trả một dòng về kệ (BE POST …/put-back)",
     expect(await within(dialog).findByRole("combobox", { name: P.quarantineLocation })).toHaveValue(
       "HN-QC-01",
     );
-    await user.click(within(dialog).getByRole("combobox", { name: P.quarantineLocation }));
+    await openComboboxList(user, P.quarantineLocation);
     expect(screen.queryByRole("option", { name: "HN-A01-01-01-A" })).toBeNull();
     expect(screen.queryByRole("option", { name: "HN-STAGE-01" })).toBeNull();
     await user.keyboard("{Escape}");
@@ -418,7 +419,7 @@ describe("PutBackDialog — trả một dòng về kệ (BE POST …/put-back)",
     const dialog = await openDialog(user);
     const box = await within(dialog).findByRole("combobox", { name: P.location });
     expect(box).toHaveValue("");
-    await user.click(box);
+    await openComboboxList(user, P.location);
     expect(await screen.findByRole("option", { name: "HN-A01-01-02-A" })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "HN-A01-01-01-A" })).toBeNull();
     expect(screen.queryByRole("option", { name: "HN-STAGE-01" })).toBeNull();
