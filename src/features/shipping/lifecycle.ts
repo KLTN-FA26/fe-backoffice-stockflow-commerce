@@ -119,7 +119,9 @@ export type LoadGateState = Pick<
   Load,
   "status" | "shipmentCount" | "expectedPackageCount" | "loadedPackageCount"
 > &
-  Partial<Pick<Load, "pendingUnloads" | "carrierId" | "carrierConnectionType">>;
+  Partial<
+    Pick<Load, "pendingUnloads" | "carrierId" | "carrierConnectionType" | "handoverWarnings">
+  >;
 
 export interface AllowedLoadAction {
   action: LoadAction;
@@ -178,7 +180,11 @@ export function allowedLoadActions(
     if (load.shipmentCount === 0) return { action, disabledReason: D.empty };
     // BE 409 LOAD_UNLOAD_PENDING: kiện của đơn đã huỷ còn trên xe thì chưa ký được
     if (hasPendingUnloads(load)) return { action, disabledReason: F.disabledReason.unloadPending };
-    return isFullyLoaded(load) ? { action } : { action, disabledReason: D.notFullyLoaded };
+    if (!isFullyLoaded(load)) return { action, disabledReason: D.notFullyLoaded };
+    // BR-18 (docs 09): có đơn chưa được phép đi thì BE từ chối cả xe (409 LOAD_HANDOVER_BLOCKED) — khoá nút và nói đơn nào
+    if ((load.handoverWarnings ?? []).length > 0)
+      return { action, disabledReason: D.ordersBlocked };
+    return { action };
   });
 }
 

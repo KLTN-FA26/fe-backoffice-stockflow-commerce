@@ -261,7 +261,7 @@ describe("hãng API đặt xe — tạo mới qua hộp thoại", () => {
     await fill(user, input(dialog, A.webhookAuthValue), AUTH);
 
     await user.click(byName(dialog, S.add));
-    await pick(user, dialog, `${S.vehicleType} 1`, "Xe tải 2,5 tấn (TRUCK-2T5)");
+    await pick(user, dialog, `${S.vehicleType} 1`, "Xe tải 2,5 tấn");
     await pick(user, section(dialog, S.title), `${S.province} 1`, "Thành phố Hồ Chí Minh");
     await fill(user, input(dialog, `${S.carrierCity} 1`), "SGN");
     await fill(user, input(dialog, `${S.serviceCode} 1`), "SGN-2T5");
@@ -395,7 +395,7 @@ describe("hãng API đặt xe — khoá chỉ đi vào", () => {
     await user.click(byName(dialog, SECRET.replaceAria(A.apiKey)));
     await fill(user, input(dialog, A.apiKey), KEY);
     await user.click(byName(dialog, S.add));
-    await pick(user, dialog, `${S.vehicleType} 2`, "Xe tải 2,5 tấn (TRUCK-2T5)");
+    await pick(user, dialog, `${S.vehicleType} 2`, "Xe tải 2,5 tấn");
     await pick(user, section(dialog, S.title), `${S.province} 2`, "Thành phố Hà Nội");
     await fill(user, input(dialog, `${S.carrierCity} 2`), "HAN");
     await fill(user, input(dialog, `${S.serviceCode} 2`), "HAN-2T5");
@@ -477,7 +477,7 @@ describe("hãng API đặt xe — mã dịch vụ, điểm lấy hàng, lý do g
     const dialog = await openEdit(user, "AHAMOVE");
     await loaded(dialog);
     expect(within(dialog).getByRole("combobox", { name: `${S.vehicleType} 1` })).toHaveTextContent(
-      "Xe tải 1,25 tấn (TRUCK-1T25)",
+      "Xe tải 1,25 tấn",
     );
     expect(
       within(section(dialog, S.title)).getByRole("combobox", { name: `${S.province} 1` }),
@@ -519,7 +519,7 @@ describe("hãng API đặt xe — mã dịch vụ, điểm lấy hàng, lý do g
     const dialog = await openEdit(user, "AHAMOVE");
     await loaded(dialog);
     await user.click(byName(dialog, S.add));
-    await pick(user, dialog, `${S.vehicleType} 2`, "Xe tải 1,25 tấn (TRUCK-1T25)");
+    await pick(user, dialog, `${S.vehicleType} 2`, "Xe tải 1,25 tấn");
     await pick(user, section(dialog, S.title), `${S.province} 2`, "Thành phố Hồ Chí Minh");
     await fill(user, input(dialog, `${S.carrierCity} 2`), "SGN");
     await fill(user, input(dialog, `${S.serviceCode} 2`), "KHAC");

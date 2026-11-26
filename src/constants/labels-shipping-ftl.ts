@@ -28,7 +28,10 @@ export const SHIPPING_FTL_LABELS = {
     lastCancelledAt: "lúc",
     waybill: "Mã vận đơn",
     waybillPending: "Chưa có",
-    connection: "Kiểu kết nối hãng",
+    connection: "Cách đặt xe",
+    automaticVia: (carrier: string) => `Đặt xe tự động qua ${carrier}`,
+    waitCarrier: "Chờ hãng cập nhật",
+    plateAtHandover: "Nhập khi ký bàn giao",
     enterDriver: "Nhập tài xế",
     editDriver: "Sửa tài xế",
   },
@@ -45,7 +48,7 @@ export const SHIPPING_FTL_LABELS = {
     title: "Đặt xe",
     rebookTitle: "Sửa thông tin đặt xe",
     description:
-      "Ghi lại xe đã đặt với hãng (đặt ngoài hệ thống, gửi hãng mã chuyến nội bộ). Biển số, tài xế, mã vận đơn nhập nếu đã có; bổ sung sau qua webhook, file hoặc nhập tay — nhưng phải có mã vận đơn trước khi ký bàn giao.",
+      "Ghi lại xe đã đặt với hãng bên ngoài hệ thống — nhập biển số, tài xế, mã vận đơn nếu đã có (mã vận đơn bắt buộc có trước khi ký bàn giao).",
     carrier: "Hãng vận chuyển",
     vehiclePlate: "Biển số xe",
     driverName: "Tên tài xế",
@@ -170,8 +173,10 @@ export const SHIPPING_FTL_LABELS = {
     shipmentStatus: { HANDED_OVER: "Đã bàn giao", READY_TO_DISPATCH: "Chờ xe cuối" },
     description:
       "Hai bên đã ký biên bản giấy của riêng xe này. Lô chở trên nhiều xe chỉ chuyển Đã bàn giao ở xe cuối cùng chở lô đó; kế hoạch xếp xe chuyển Đã xuất khi mọi xe đã đi.",
-    doneDescription:
-      "Xe đã chuyển sang Đã bàn giao. Lô chỉ chuyển Đã bàn giao ở xe cuối cùng của lô; các lô trên xe này:",
+    doneSummary: (packages: number, carrier: string) =>
+      `Đã bàn giao ${packages} kiện cho ${carrier}.`,
+    doneCarrierFallback: "hãng vận chuyển",
+    doneLots: "Lô chỉ chuyển Đã bàn giao ở xe cuối cùng của lô. Các lô trên xe này:",
   },
   disabledReason: {
     unloadPending: "Còn kiện của đơn đã huỷ trên xe — dỡ xuống trước khi bàn giao.",

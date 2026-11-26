@@ -125,7 +125,7 @@ describe("ShipmentList — lô giao chờ xuất", () => {
     await screen.findByText("SO-1-S1");
     await user.click(screen.getByRole("combobox", { name: L.shipments.carrierFilter }));
     await user.click(
-      await screen.findByRole("option", { name: new RegExp(CARRIERS[1]?.code ?? "VTP") }),
+      await screen.findByRole("option", { name: new RegExp(CARRIERS[1]?.name ?? "Viettel Post") }),
     );
     await waitFor(() => {
       const calls = get.mock.calls.filter(([url]) => url === "/fulfillment/shipments");

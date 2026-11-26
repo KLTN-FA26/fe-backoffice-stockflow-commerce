@@ -6,6 +6,7 @@ import { formatDateTime } from "@/lib/format/date";
 import { useWarehouseDirectory } from "@/lib/references/warehouse-options";
 import { StatusDot } from "@/components/shared/StatusDot";
 
+import { formatPhone } from "../../format-phone";
 import { InfoItem, LoadProgress } from "../primitives";
 
 import type { Load } from "@/features/shipping/types";
@@ -43,11 +44,20 @@ export function LoadInfoCard({
         />
         <InfoItem
           label={F.carrier}
-          value={load.carrierName ? `${load.carrierCode ?? ""} ${load.carrierName}`.trim() : "—"}
+          value={
+            load.carrierName ? (
+              <span title={load.carrierCode ?? undefined}>{load.carrierName}</span>
+            ) : (
+              "—"
+            )
+          }
         />
         <InfoItem label={F.vehiclePlate} value={load.vehiclePlate ?? "—"} mono />
         <InfoItem label={F.driverName} value={load.driverName ?? "—"} />
-        <InfoItem label={F.driverPhone} value={load.driverPhone ?? "—"} mono />
+        <InfoItem
+          label={F.driverPhone}
+          value={load.driverPhone ? formatPhone(load.driverPhone) : "—"}
+        />
         <InfoItem label={W.number} value={load.waybillNo ?? "—"} mono />
         <InfoItem label={L.startedAt} value={dt(load.loadingStartedAt)} />
         {load.dispatchedAt && (

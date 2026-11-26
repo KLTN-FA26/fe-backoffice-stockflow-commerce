@@ -6,7 +6,7 @@ import { LOAD_STATUS } from "@/constants";
 
 import { isApiBooking } from "./booking";
 
-import type { Load, PendingUnload } from "./types";
+import type { Load, LoadRow, PendingUnload } from "./types";
 
 /** Kiện của đơn đã huỷ còn trên xe (BE `pendingUnloads`; vắng = không có). */
 export function pendingUnloadsOf(load: Pick<Load, "pendingUnloads">): readonly PendingUnload[] {
@@ -38,4 +38,20 @@ export function isApiBookedLoad(load: Pick<Load, "carrierConnectionType">): bool
 /** Chuyến đã có mã vận đơn (BR-23: bắt buộc trước khi ký bàn giao). */
 export function hasWaybill(load: Pick<Load, "waybillNo">): boolean {
   return !!load.waybillNo;
+}
+
+/**
+ * Hãng được dùng gần nhất của một kho: hãng của chuyến đã bàn giao muộn nhất trong các chuyến đưa vào (S17-3 — hãng dùng
+ * gần nhất lên đầu ô chọn). Chuyến chưa bàn giao / chưa có hãng bỏ qua; không có thì `null`.
+ */
+export function latestCarrierId(
+  loads: readonly Pick<LoadRow, "carrierId" | "dispatchedAt">[],
+): string | null {
+  let best: { id: string; at: number } | null = null;
+  for (const row of loads) {
+    const at = row.dispatchedAt ? Date.parse(row.dispatchedAt) : Number.NaN;
+    if (!row.carrierId || Number.isNaN(at)) continue;
+    if (!best || at > best.at) best = { id: row.carrierId, at };
+  }
+  return best?.id ?? null;
 }

@@ -8,6 +8,7 @@ import { hasLoadAction } from "@/features/shipping/lifecycle";
 import { loadingSheetOf } from "@/features/shipping/loading-sheet-lifecycle";
 import { Button } from "@/components/ui/button";
 
+import { HandoverMissing } from "./HandoverMissing";
 import { LoadingSheetButton } from "./LoadingSheetButton";
 import { useShippingActor } from "../useShippingActor";
 
@@ -39,29 +40,33 @@ export function LoadActions({
   const controlledCancel = hasLoadAction(actions, "controlledCancel");
   const sheet = loadingSheetOf(load, useShippingActor());
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      {controlledCancel && (
-        <Button variant="outline" size="sm" onClick={onControlledCancel}>
-          <ShieldAlert className="size-3.5" /> {CC.cancelButton}
+    <div className="flex flex-col items-end gap-1.5">
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        {controlledCancel && (
+          <Button variant="outline" size="sm" onClick={onControlledCancel}>
+            <ShieldAlert className="size-3.5" /> {CC.cancelButton}
+          </Button>
+        )}
+        {sheet && <LoadingSheetButton {...sheet} />}
+        <Button variant="outline" size="sm" asChild>
+          <Link href={ADMIN_ROUTES.loads.manifest(load.loadId)}>
+            <ClipboardList className="size-3.5" /> {A.manifest}
+          </Link>
         </Button>
-      )}
-      {sheet && <LoadingSheetButton {...sheet} />}
-      <Button variant="outline" size="sm" asChild>
-        <Link href={ADMIN_ROUTES.loads.manifest(load.loadId)}>
-          <ClipboardList className="size-3.5" /> {A.manifest}
-        </Link>
-      </Button>
-      {handover && (
-        <Button
-          size="sm"
-          className={PRIMARY}
-          disabled={!!handover.disabledReason}
-          title={handover.disabledReason}
-          onClick={onHandover}
-        >
-          <Truck className="size-3.5" /> {A.handover}
-        </Button>
-      )}
+        {handover && (
+          <Button
+            size="sm"
+            className={PRIMARY}
+            disabled={!!handover.disabledReason}
+            title={handover.disabledReason}
+            onClick={onHandover}
+          >
+            <Truck className="size-3.5" /> {A.handover}
+          </Button>
+        )}
+      </div>
+      {/* R7: vì sao nút khoá, nói ngay dưới nút chứ không chỉ ở `title` (S18-1, FE#291 U45 / U82) */}
+      {handover?.disabledReason && <HandoverMissing load={load} />}
     </div>
   );
 }

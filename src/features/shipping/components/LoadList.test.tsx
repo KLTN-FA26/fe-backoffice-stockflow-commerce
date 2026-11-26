@@ -65,7 +65,8 @@ describe("LoadList — chuyến xe", () => {
       "href",
       `/admin/loads/${LOAD_ID}`,
     );
-    expect(screen.getByText("Giao Hàng Nhanh")).toBeInTheDocument();
+    // Tên hãng ở dòng chuyến và ở ô lọc hãng đang chọn (ô chỉ còn tên, R3)
+    expect(screen.getAllByText("Giao Hàng Nhanh")).toHaveLength(2);
     expect(screen.getByText("51C-628.14")).toBeInTheDocument();
     expect(screen.getByText("Lê Văn Xế")).toBeInTheDocument();
     await waitFor(() => {

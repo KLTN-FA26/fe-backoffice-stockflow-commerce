@@ -110,7 +110,7 @@ describe("Chuyến nguyên xe — xe của kế hoạch và đặt xe", () => {
     // Chưa chọn hãng → chưa gửi được
     expect(within(dialog).getByRole("button", { name: F.bookDialog.submit })).toBeDisabled();
     await user.click(within(dialog).getByRole("combobox"));
-    await user.click(await screen.findByRole("option", { name: /GHN/ }));
+    await user.click(await screen.findByRole("option", { name: /Giao Hàng Nhanh/ }));
     await user.type(within(dialog).getByLabelText(F.bookDialog.vehiclePlate), "51C-628.14");
     await user.type(within(dialog).getByLabelText(F.bookDialog.driverName), "Lê Văn Xế");
     await user.click(within(dialog).getByRole("button", { name: F.bookDialog.submit }));
@@ -135,7 +135,7 @@ describe("Chuyến nguyên xe — xe của kế hoạch và đặt xe", () => {
     await user.click(await screen.findByRole("button", { name: F.booking.book }));
     const dialog = await screen.findByRole("dialog");
     await user.click(within(dialog).getByRole("combobox"));
-    await user.click(await screen.findByRole("option", { name: /VTP/ }));
+    await user.click(await screen.findByRole("option", { name: /Viettel Post/ }));
     await user.click(within(dialog).getByRole("button", { name: F.bookDialog.submit }));
     expect(await within(dialog).findByText(ERR.CARRIER_INACTIVE)).toBeInTheDocument();
   });
@@ -144,7 +144,7 @@ describe("Chuyến nguyên xe — xe của kế hoạch và đặt xe", () => {
     const user = userEvent.setup();
     renderFtl(ACTORS.warehouseStaff, ftlLoad());
     await ready();
-    expect(screen.getAllByText("GHN Giao Hàng Nhanh").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Giao Hàng Nhanh").length).toBeGreaterThan(0);
     await user.click(screen.getByRole("button", { name: F.booking.rebook }));
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByLabelText(F.bookDialog.vehiclePlate)).toHaveValue("51C-628.14");
@@ -257,7 +257,7 @@ describe("Chuyến nguyên xe — xe của kế hoạch và đặt xe", () => {
     ]) {
       expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
     }
-    expect(screen.getAllByText("GHN Giao Hàng Nhanh").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Giao Hàng Nhanh").length).toBeGreaterThan(0);
   });
 
   it("xe huỷ sau khi đã đặt: nhắc huỷ xe đã đặt với nhà xe, kèm hãng / biển số và lý do tự huỷ", async () => {
@@ -445,7 +445,7 @@ describe("Bàn giao theo xe — kết quả", () => {
       within(dialog).getByLabelText(L.handover.representative, { exact: false }),
       "Anh Tài",
     );
-    await user.click(within(dialog).getByRole("checkbox"));
+    await user.click(within(dialog).getByRole("checkbox", { name: L.handover.signedConfirm }));
     await user.click(within(dialog).getByRole("button", { name: L.handover.title }));
     const result = await screen.findByRole("dialog", { name: new RegExp(F.handover.doneTitle) });
     const rows = within(result).getAllByRole("listitem");

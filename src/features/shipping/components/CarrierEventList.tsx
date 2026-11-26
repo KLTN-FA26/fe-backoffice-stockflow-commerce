@@ -9,6 +9,7 @@ import {
   UI_LABELS,
 } from "@/constants";
 import { CARRIER_EVENT_ALL_FILTER } from "@/features/shipping/carrier-event-lifecycle";
+import { useActiveCarriers } from "@/features/shipping/queries";
 import { useCan } from "@/lib/auth";
 import { DataTable } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -82,7 +83,14 @@ function CarrierEventListContent() {
   const s = useCarrierEventListState(canRead);
   const { query } = s;
   const page = query.data;
-  const columns = buildCarrierEventColumns((row) => s.openEvent(row.eventId), canLink);
+  // Tên hãng cho cột "Hãng" (R3: tên trước, mã ở chú thích); thiếu quyền đọc danh mục thì cột chỉ còn mã
+  const carriers = useActiveCarriers({}, { enabled: useCan(SHIPMENT_PERMISSIONS.read) });
+  const carrierNames = new Map(carriers.data?.items.map((c) => [c.carrierId, c.name]));
+  const columns = buildCarrierEventColumns(
+    (row) => s.openEvent(row.eventId),
+    canLink,
+    (row) => (row.carrierId ? carrierNames.get(row.carrierId) : undefined),
+  );
 
   let body: React.ReactNode;
   if (!canRead) {

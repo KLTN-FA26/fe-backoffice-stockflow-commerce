@@ -5,6 +5,7 @@ import { apiLoad } from "./__fixtures__/load";
 import {
   hasPendingUnloads,
   isAutoCancelled,
+  latestCarrierId,
   hasWaybill,
   isApiBookedLoad,
   needsCarrierBookingCancel,
@@ -52,5 +53,23 @@ describe("ftl-selectors", () => {
     expect(isAutoCancelled({ cancelReason: "Auto-Cancelled: y" })).toBe(true);
     expect(isAutoCancelled({ cancelReason: "Hãng huỷ" })).toBe(false);
     expect(isAutoCancelled({})).toBe(false);
+  });
+});
+
+describe("latestCarrierId (S17-3: hãng dùng gần nhất của kho lên đầu)", () => {
+  it("là hãng của chuyến bàn giao muộn nhất; chuyến chưa bàn giao hoặc chưa có hãng bỏ qua", () => {
+    expect(
+      latestCarrierId([
+        { carrierId: "car-a", dispatchedAt: "2026-11-20T03:00:00Z" },
+        { carrierId: "car-b", dispatchedAt: "2026-11-24T03:00:00Z" },
+        { carrierId: "car-c", dispatchedAt: undefined },
+        { carrierId: undefined, dispatchedAt: "2026-11-25T03:00:00Z" },
+      ]),
+    ).toBe("car-b");
+  });
+
+  it("không chuyến nào đủ điều kiện → null", () => {
+    expect(latestCarrierId([])).toBeNull();
+    expect(latestCarrierId([{ carrierId: "car-a", dispatchedAt: undefined }])).toBeNull();
   });
 });

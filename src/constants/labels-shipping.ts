@@ -129,9 +129,17 @@ export const SHIPPING_UI_LABELS = {
       handover: "Xác nhận bàn giao",
       refresh: "Tải lại",
     },
+    /** Dòng "Còn thiếu" dưới nút bàn giao (R7): mỗi lý do khoá nút một dòng. */
+    handoverMissing: {
+      title: "Chưa bàn giao được",
+      unscanned: (count: number, codes: string, more: number) =>
+        `Còn ${count} kiện chưa quét: ${codes}${more > 0 ? ` và ${more} kiện khác` : ""} — quét nốt, hoặc Quản lý kho huỷ có kiểm soát xe này.`,
+      order: "Đơn",
+    },
     disabledReason: {
       empty: "Chuyến chưa có lô giao nào — không có gì để bàn giao.",
       notFullyLoaded: "Còn kiện chưa quét lên xe.",
+      ordersBlocked: "Có đơn trên xe chưa được phép đi — xem lý do ngay dưới nút.",
     },
     noActions: {
       viewOnly:
@@ -157,7 +165,17 @@ export const SHIPPING_UI_LABELS = {
     title: "Xác nhận bàn giao",
     description:
       "Hai bên đã ký biên bản giấy của riêng xe này. Chuyến chuyển sang Đã bàn giao; mỗi lô chỉ chuyển Đã bàn giao ở xe cuối cùng chở nó.",
-    representative: "Người ký bên hãng (tài xế)",
+    representative: "Người ký bên hãng",
+    signerIsDriver: "Người ký là tài xế",
+    moreOpen: "Thêm SĐT tài xế, mã biên bản, ghi chú (không bắt buộc)",
+    /** Dòng "Còn thiếu" của hộp thoại ký bàn giao: ô nào còn khoá nút xác nhận. */
+    missing: {
+      prefix: "Còn thiếu",
+      driverName: "tên tài xế",
+      representative: "người ký bên hãng",
+      vehiclePlate: "biển số xe",
+      signed: "tick hai bên đã ký biên bản",
+    },
     driverName: "Tên tài xế",
     driverNameHint:
       "Chuyến chưa có tên tài xế — bắt buộc nhập trước khi ký (lưu vào chuyến trước khi ký).",

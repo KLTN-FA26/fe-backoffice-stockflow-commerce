@@ -7,10 +7,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { LOAD_STATUS, SHIPPING_LIMITS, UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 import { bookingRequestBody, isApiBooking, moveStop } from "@/features/shipping/booking";
-import { shippingErrorMessage } from "@/features/shipping/errors";
+import { carrierRefusalCode, shippingErrorMessage } from "@/features/shipping/errors";
 import { bookingInputSchema } from "@/features/shipping/input-schemas";
 import { useBookLoad } from "@/features/shipping/ftl-mutations";
-import { useActiveCarriers } from "@/features/shipping/queries";
+import { useActiveCarriers, useRecentCarrierId } from "@/features/shipping/queries";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,6 +43,8 @@ export function BookingDialog({ load, onClose }: { load: Load; onClose: () => vo
   // Callback mức hook: ghi cache đưa chuyến sang VEHICLE_BOOKED có thể gỡ hộp thoại trước callback của `mutate`
   const book = useBookLoad({ onSuccess: onClose });
   const { data: carriers } = useActiveCarriers({});
+  // Hãng dùng gần nhất của kho lên đầu ô chọn (S17-3)
+  const recentCarrierId = useRecentCarrierId(load.warehouseId).data ?? null;
   const [serverError, setServerError] = useState<string | null>(null);
   const [stops, setStops] = useState<string[]>(() => load.shipments.map((s) => s.shipmentId));
   const form = useForm<BookingFormInput, unknown, BookingValues>({
@@ -70,6 +72,12 @@ export function BookingDialog({ load, onClose }: { load: Load; onClose: () => vo
     [form],
   );
   const carrierId = useWatch({ control: form.control, name: "carrierId" });
+  // Chỉ một hãng đang dùng → chọn sẵn (R6, S17-3); chuyến đã chọn hãng (đặt lại) thì giữ hãng đó
+  const onlyCarrierId = carriers?.items.length === 1 ? (carriers.items[0]?.carrierId ?? "") : "";
+  useEffect(() => {
+    if (onlyCarrierId && !form.getValues("carrierId"))
+      form.setValue("carrierId", onlyCarrierId, { shouldValidate: true });
+  }, [onlyCarrierId, form]);
   // Kiểu kết nối của hãng đang chọn; hãng không còn trong danh sách đang dùng thì lấy theo chuyến đã đặt
   const chosen = carriers?.items.find((carrier) => carrier.carrierId === carrierId);
   const api = isApiBooking(
@@ -88,6 +96,9 @@ export function BookingDialog({ load, onClose }: { load: Load; onClose: () => vo
         onError: (error) => {
           setServerError(shippingErrorMessage(error));
           if (!(error instanceof ApiError)) return;
+          // Giờ hẹn ngoài giờ phục vụ của hãng: chỉ vào ô giờ (câu đầy đủ của BE đã ở trên)
+          if (carrierRefusalCode(error) === "INVALID_SERVICE_HOUR")
+            form.setError("pickupAt", { type: "server", message: A.pickupAtOutOfHours });
           for (const name of SERVER_FIELDS) {
             const message = error.fieldErrors?.[name];
             if (message) form.setError(name, { type: "server", message });
@@ -149,6 +160,7 @@ export function BookingDialog({ load, onClose }: { load: Load; onClose: () => vo
                 value={field.value || null}
                 onChange={(next) => field.onChange(next ?? "")}
                 currentName={load.carrierName}
+                firstId={recentCarrierId}
                 // Docs 09 BR-16: đổi hãng chỉ bằng huỷ đặt xe rồi đặt lại — UI-only, BE re-check (409)
                 disabled={load.status === LOAD_STATUS.VEHICLE_BOOKED}
               />

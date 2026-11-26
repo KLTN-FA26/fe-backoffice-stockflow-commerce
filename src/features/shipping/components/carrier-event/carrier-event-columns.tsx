@@ -52,6 +52,8 @@ function resolutionCell(row: CarrierEventRow) {
 export function buildCarrierEventColumns(
   open: (row: CarrierEventRow) => void,
   canLink: boolean,
+  /** Tên hãng của sự kiện nếu tra được; không thì cột chỉ còn mã hãng. */
+  carrierName: (row: CarrierEventRow) => string | undefined = () => undefined,
 ): ColumnDef<CarrierEventRow>[] {
   return [
     {
@@ -69,7 +71,14 @@ export function buildCarrierEventColumns(
     {
       key: C.CARRIER,
       header: E.column.carrier,
-      cell: (row) => <StackText main={row.carrierCode} sub={E.source[row.source]} mono />,
+      cell: (row) => {
+        const name = carrierName(row);
+        return (
+          <span title={row.carrierCode ?? undefined}>
+            <StackText main={name ?? row.carrierCode} sub={E.source[row.source]} mono={!name} />
+          </span>
+        );
+      },
     },
     textCell<CarrierEventRow>(C.KIND, E.column.kind, (row) => (row.kind ? E.kind[row.kind] : "")),
     {

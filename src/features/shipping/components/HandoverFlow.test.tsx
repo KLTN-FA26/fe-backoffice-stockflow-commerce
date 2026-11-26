@@ -61,6 +61,16 @@ async function openDialog(user: ReturnType<typeof userEvent.setup>) {
   return screen.getByRole("dialog");
 }
 
+/** Người ký là tài xế: sao chép tên tài xế đã có sang ô người ký (trước đây hộp thoại tự điền sẵn). */
+async function tickSignerIsDriver(user: ReturnType<typeof userEvent.setup>, dialog: HTMLElement) {
+  await user.click(within(dialog).getByRole("checkbox", { name: H.signerIsDriver }));
+}
+
+/** Mở khối thông tin không bắt buộc (SĐT, mã biên bản, ghi chú). */
+async function openMore(user: ReturnType<typeof userEvent.setup>, dialog: HTMLElement) {
+  await user.click(within(dialog).getByRole("button", { name: H.moreOpen }));
+}
+
 describe("nút bàn giao", () => {
   it("khoá có lý do khi còn kiện chưa quét; mở khi đủ", async () => {
     renderHandover(apiLoad(), () => apiLoad());
@@ -78,23 +88,84 @@ describe("nút bàn giao", () => {
 });
 
 describe("hộp thoại bàn giao", () => {
-  it("điền sẵn tài xế / biển số của chuyến; nút xác nhận khoá tới khi tick đã ký", async () => {
+  it("điền sẵn biển số / SĐT của chuyến; người ký KHÔNG tự điền; nút xác nhận khoá tới khi tick đã ký", async () => {
     const user = userEvent.setup();
     renderHandover(ready({ driverPhone: "0903111222" }), () => ready());
     const dialog = await openDialog(user);
-    expect(within(dialog).getByLabelText(H.representative, { exact: false })).toHaveValue(
-      "Lê Văn Xế",
-    );
+    // Docs 09 §4.2 bước 8: người ký KHÔNG tự điền từ tên tài xế — chỉ hộp kiểm "Người ký là tài xế" mới sao chép
+    expect(within(dialog).getByLabelText(H.representative, { exact: false })).toHaveValue("");
     expect(within(dialog).getByLabelText(H.vehiclePlate, { exact: false })).toHaveValue(
       "51C-628.14",
     );
+    // SĐT đã về từ hãng thì khối thông tin thêm mở sẵn
     expect(within(dialog).getByLabelText(H.driverPhone, { exact: false })).toHaveValue(
       "0903111222",
     );
     const submit = within(dialog).getByRole("button", { name: H.title });
     expect(submit).toBeDisabled();
-    await user.click(within(dialog).getByRole("checkbox"));
+    await user.click(within(dialog).getByRole("checkbox", { name: H.signedConfirm }));
+    // Vẫn thiếu người ký
+    expect(submit).toBeDisabled();
+    expect(
+      within(dialog).getByText(`${H.missing.prefix}: ${H.missing.representative}`),
+    ).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("checkbox", { name: H.signerIsDriver }));
     await waitFor(() => expect(submit).toBeEnabled());
+    expect(within(dialog).queryByText(new RegExp(`^${H.missing.prefix}`))).not.toBeInTheDocument();
+  });
+
+  describe("UX-Q6: hộp kiểm 'Người ký là tài xế' (docs 09 §4.2 bước 8, PR docs #55)", () => {
+    const representative = (dialog: HTMLElement) =>
+      within(dialog).getByLabelText(H.representative, { exact: false });
+
+    it("chỉ khi tick: tên tài xế được sao chép sang người ký và vẫn sửa được; bỏ tick thì xoá phần đã sao chép", async () => {
+      const user = userEvent.setup();
+      renderHandover(ready(), () => ready());
+      const dialog = await openDialog(user);
+      expect(representative(dialog)).toHaveValue("");
+      await user.click(within(dialog).getByRole("checkbox", { name: H.signerIsDriver }));
+      expect(representative(dialog)).toHaveValue("Lê Văn Xế");
+      // Sửa được: người ký có thể là người khác của hãng
+      await user.type(representative(dialog), " (đại diện)");
+      expect(representative(dialog)).toHaveValue("Lê Văn Xế (đại diện)");
+      await user.click(within(dialog).getByRole("checkbox", { name: H.signerIsDriver }));
+      // Đã sửa tay nên không xoá chữ của nhân viên
+      expect(representative(dialog)).toHaveValue("Lê Văn Xế (đại diện)");
+    });
+
+    it("bỏ tick khi ô người ký vẫn là bản sao thì xoá ô (không để lại tên tài xế)", async () => {
+      const user = userEvent.setup();
+      renderHandover(ready(), () => ready());
+      const dialog = await openDialog(user);
+      const box = within(dialog).getByRole("checkbox", { name: H.signerIsDriver });
+      await user.click(box);
+      expect(representative(dialog)).toHaveValue("Lê Văn Xế");
+      await user.click(box);
+      expect(representative(dialog)).toHaveValue("");
+    });
+
+    it("chuyến chưa có tên tài xế: tick rồi nhập tên tài xế ở hộp thoại → người ký theo tên đó", async () => {
+      const user = userEvent.setup();
+      mockShippingApi(ACTORS.warehouseStaff, {
+        get: { [PATH]: () => ready({ driverName: undefined }) },
+      });
+      renderShippingScreen(<LoadScreen id={LOAD_ID} />);
+      const dialog = await openDialog(user);
+      await user.click(within(dialog).getByRole("checkbox", { name: H.signerIsDriver }));
+      await user.type(within(dialog).getByLabelText(H.driverName, { exact: false }), "Trần Lái");
+      await waitFor(() => expect(representative(dialog)).toHaveValue("Trần Lái"));
+    });
+
+    it("ký với người ký là tài xế: thân ký mang tên tài xế ở carrierRepresentative", async () => {
+      const user = userEvent.setup();
+      const { post } = renderHandover(ready(), () => ready({ status: "DISPATCHED" }));
+      const dialog = await openDialog(user);
+      await user.click(within(dialog).getByRole("checkbox", { name: H.signerIsDriver }));
+      await user.click(within(dialog).getByRole("checkbox", { name: H.signedConfirm }));
+      await user.click(within(dialog).getByRole("button", { name: H.title }));
+      await waitFor(() => expect(post).toHaveBeenCalled());
+      expect(post.mock.calls[0]?.[1]).toMatchObject({ carrierRepresentative: "Lê Văn Xế" });
+    });
   });
 
   it("chuyến chưa ghi biển số → biển số bắt buộc", async () => {
@@ -102,7 +173,7 @@ describe("hộp thoại bàn giao", () => {
     renderHandover(ready({ vehiclePlate: undefined }), () => ready());
     const dialog = await openDialog(user);
     await user.type(within(dialog).getByLabelText(H.representative, { exact: false }), "Anh Tài");
-    await user.click(within(dialog).getByRole("checkbox"));
+    await user.click(within(dialog).getByRole("checkbox", { name: H.signedConfirm }));
     expect(within(dialog).getByRole("button", { name: H.title })).toBeDisabled();
     await user.type(within(dialog).getByLabelText(H.vehiclePlate, { exact: false }), "51D-1");
     await waitFor(() =>
@@ -124,7 +195,7 @@ describe("hộp thoại bàn giao", () => {
       renderShippingScreen(<LoadScreen id={LOAD_ID} />);
       const dialog = await openDialog(user);
       await user.type(within(dialog).getByLabelText(H.representative, { exact: false }), "Anh Tài");
-      await user.click(within(dialog).getByRole("checkbox"));
+      await user.click(within(dialog).getByRole("checkbox", { name: H.signedConfirm }));
       const submit = within(dialog).getByRole("button", { name: H.title });
       expect(submit).toBeDisabled();
       await user.type(
@@ -147,6 +218,7 @@ describe("hộp thoại bàn giao", () => {
       const user = userEvent.setup();
       renderHandover(ready(), () => ready());
       const dialog = await openDialog(user);
+      await tickSignerIsDriver(user, dialog);
       expect(within(dialog).queryByLabelText(H.driverName, { exact: false })).toBeNull();
     });
 
@@ -166,7 +238,7 @@ describe("hộp thoại bàn giao", () => {
       const dialog = await openDialog(user);
       await user.type(within(dialog).getByLabelText(H.representative, { exact: false }), "Anh Tài");
       await user.type(within(dialog).getByLabelText(H.driverName, { exact: false }), "Lê Văn Hãng");
-      await user.click(within(dialog).getByRole("checkbox"));
+      await user.click(within(dialog).getByRole("checkbox", { name: H.signedConfirm }));
       await user.click(within(dialog).getByRole("button", { name: H.title }));
       await waitFor(() =>
         expect(put).toHaveBeenCalledWith(`${PATH}/driver`, { driverName: "Lê Văn Hãng" }),
@@ -181,7 +253,8 @@ describe("hộp thoại bàn giao", () => {
         throw new ApiError(409, "LOAD_DRIVER_MISSING", "en");
       });
       const dialog = await openDialog(user);
-      await user.click(within(dialog).getByRole("checkbox"));
+      await tickSignerIsDriver(user, dialog);
+      await user.click(within(dialog).getByRole("checkbox", { name: H.signedConfirm }));
       await user.click(within(dialog).getByRole("button", { name: H.title }));
       expect(await within(dialog).findByRole("alert")).toHaveTextContent(ERR.LOAD_DRIVER_MISSING);
     });
@@ -201,7 +274,7 @@ describe("hộp thoại bàn giao", () => {
       const dialog = await openDialog(user);
       await user.type(within(dialog).getByLabelText(H.representative, { exact: false }), "Anh Tài");
       await user.type(within(dialog).getByLabelText(H.driverName, { exact: false }), "Lái");
-      await user.click(within(dialog).getByRole("checkbox"));
+      await user.click(within(dialog).getByRole("checkbox", { name: H.signedConfirm }));
       await user.click(within(dialog).getByRole("button", { name: H.title }));
       expect(await within(dialog).findByRole("alert")).toHaveTextContent(
         ERR.INVALID_LOAD_TRANSITION,
@@ -223,6 +296,7 @@ describe("hộp thoại bàn giao", () => {
     });
     const { post } = renderHandover(ready(), () => dispatched);
     const dialog = await openDialog(user);
+    await openMore(user, dialog);
     await user.clear(within(dialog).getByLabelText(H.representative, { exact: false }));
     await user.type(
       within(dialog).getByLabelText(H.representative, { exact: false }),
@@ -230,7 +304,7 @@ describe("hộp thoại bàn giao", () => {
     );
     await user.type(within(dialog).getByLabelText(H.signatureRef, { exact: false }), "BB-2026-9");
     await user.type(within(dialog).getByLabelText(H.note), "Hàng dễ vỡ");
-    await user.click(within(dialog).getByRole("checkbox"));
+    await user.click(within(dialog).getByRole("checkbox", { name: H.signedConfirm }));
     await user.click(within(dialog).getByRole("button", { name: H.title }));
 
     await waitFor(() => expect(post).toHaveBeenCalledTimes(1));
@@ -273,7 +347,8 @@ describe("hộp thoại bàn giao", () => {
       throw new ApiError(409, "ORDER_BALANCE_NOT_PAID", "en", { shipmentCode: "SO-2-S1" });
     });
     const dialog = await openDialog(user);
-    await user.click(within(dialog).getByRole("checkbox"));
+    await tickSignerIsDriver(user, dialog);
+    await user.click(within(dialog).getByRole("checkbox", { name: H.signedConfirm }));
     await user.click(within(dialog).getByRole("button", { name: H.title }));
     const message = `Lô SO-2-S1: ${ERR.ORDER_BALANCE_NOT_PAID}`;
     expect(await within(dialog).findByText(message)).toBeInTheDocument();
@@ -301,23 +376,24 @@ describe("hộp thoại bàn giao", () => {
     });
     renderShippingScreen(<LoadScreen id={LOAD_ID} />);
     const dialog = await openDialog(user);
+    await openMore(user, dialog);
     const rep = within(dialog).getByLabelText(H.representative, { exact: false });
     await user.clear(rep);
     await user.type(rep, "Trần Văn Tài");
     await user.type(within(dialog).getByLabelText(H.signatureRef, { exact: false }), "BB-9");
-    await user.click(within(dialog).getByRole("checkbox"));
+    await user.click(within(dialog).getByRole("checkbox", { name: H.signedConfirm }));
     await user.click(within(dialog).getByRole("button", { name: H.title }));
     expect(await within(dialog).findByText(ERR.OPTIMISTIC_LOCK)).toBeInTheDocument();
     // Hộp thoại còn nguyên, ô đã nhập còn, tick đã ký bị bỏ → nút khoá tới khi hai bên xem lại và tick lại
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     expect(rep).toHaveValue("Trần Văn Tài");
     expect(within(dialog).getByLabelText(H.signatureRef, { exact: false })).toHaveValue("BB-9");
-    expect(within(dialog).getByRole("checkbox")).not.toBeChecked();
+    expect(within(dialog).getByRole("checkbox", { name: H.signedConfirm })).not.toBeChecked();
     expect(within(dialog).getByRole("button", { name: H.title })).toBeDisabled();
     await waitFor(() =>
       expect(get.mock.calls.filter(([url]) => url === PATH).length).toBeGreaterThan(1),
     );
-    await user.click(within(dialog).getByRole("checkbox"));
+    await user.click(within(dialog).getByRole("checkbox", { name: H.signedConfirm }));
     await user.click(within(dialog).getByRole("button", { name: H.title }));
     await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
     expect(post.mock.calls[1]?.[1]).toMatchObject({
@@ -333,7 +409,8 @@ describe("hộp thoại bàn giao", () => {
       throw new ApiError(409, "ORDER_UNMAPPED_REASON", "en", { shipmentCode: "SO-2-S1" });
     });
     const dialog = await openDialog(user);
-    await user.click(within(dialog).getByRole("checkbox"));
+    await tickSignerIsDriver(user, dialog);
+    await user.click(within(dialog).getByRole("checkbox", { name: H.signedConfirm }));
     await user.click(within(dialog).getByRole("button", { name: H.title }));
     const message = `Lô SO-2-S1: ${ERR.shipmentRefused}`;
     expect(await within(dialog).findByText(message)).toBeInTheDocument();
@@ -348,7 +425,8 @@ describe("hộp thoại bàn giao", () => {
       throw new ApiError(400, "HANDOVER_NOT_SIGNED", "en");
     });
     const dialog = await openDialog(user);
-    await user.click(within(dialog).getByRole("checkbox"));
+    await tickSignerIsDriver(user, dialog);
+    await user.click(within(dialog).getByRole("checkbox", { name: H.signedConfirm }));
     await user.click(within(dialog).getByRole("button", { name: H.title }));
     expect(await within(dialog).findByText(ERR.HANDOVER_NOT_SIGNED)).toBeInTheDocument();
     expect(screen.getByRole("dialog")).toBeInTheDocument();
@@ -360,7 +438,8 @@ describe("hộp thoại bàn giao", () => {
       throw new ApiError(400, "VALIDATION_FAILED", "en", { signatureRef: "quá dài" });
     });
     const dialog = await openDialog(user);
-    await user.click(within(dialog).getByRole("checkbox"));
+    await tickSignerIsDriver(user, dialog);
+    await user.click(within(dialog).getByRole("checkbox", { name: H.signedConfirm }));
     await user.click(within(dialog).getByRole("button", { name: H.title }));
     expect(await within(dialog).findByText("quá dài")).toBeInTheDocument();
     expect(within(dialog).getByText(ERR.VALIDATION_FAILED)).toBeInTheDocument();
@@ -370,6 +449,7 @@ describe("hộp thoại bàn giao", () => {
     const user = userEvent.setup();
     const { post } = renderHandover(ready(), () => ready());
     const dialog = await openDialog(user);
+    await tickSignerIsDriver(user, dialog);
     const submit = within(dialog).getByRole("button", { name: H.title });
     expect(submit).toBeDisabled();
     await user.click(submit);
@@ -380,8 +460,9 @@ describe("hộp thoại bàn giao", () => {
     const user = userEvent.setup();
     renderHandover(ready(), () => ready());
     const dialog = await openDialog(user);
+    await tickSignerIsDriver(user, dialog);
     await user.clear(within(dialog).getByLabelText(H.representative, { exact: false }));
-    await user.click(within(dialog).getByRole("checkbox"));
+    await user.click(within(dialog).getByRole("checkbox", { name: H.signedConfirm }));
     expect(within(dialog).getByRole("button", { name: H.title })).toBeDisabled();
   });
 });
@@ -409,6 +490,7 @@ describe("chuyến chưa có mã vận đơn (BR-23)", () => {
     const user = userEvent.setup();
     renderHandover(noWaybill(), () => ready());
     const dialog = await openDialog(user);
+    await tickSignerIsDriver(user, dialog);
     expect(within(dialog).getByText(M.title)).toBeInTheDocument();
     expect(within(dialog).getByText(M.description)).toBeInTheDocument();
     expect(within(dialog).queryByText(M.apiManaged)).not.toBeInTheDocument();
@@ -424,6 +506,7 @@ describe("chuyến chưa có mã vận đơn (BR-23)", () => {
     const user = userEvent.setup();
     renderHandover(ready(), () => ready());
     const dialog = await openDialog(user);
+    await tickSignerIsDriver(user, dialog);
     expect(within(dialog).queryByText(M.title)).not.toBeInTheDocument();
     expect(within(dialog).queryByRole("button", { name: M.enter })).not.toBeInTheDocument();
   });
@@ -434,6 +517,7 @@ describe("chuyến chưa có mã vận đơn (BR-23)", () => {
       ready(),
     );
     const dialog = await openDialog(user);
+    await tickSignerIsDriver(user, dialog);
     expect(within(dialog).getByText(M.title)).toBeInTheDocument();
     expect(within(dialog).getByText(M.apiManaged)).toBeInTheDocument();
     expect(within(dialog).queryByRole("button", { name: M.enter })).not.toBeInTheDocument();
@@ -445,8 +529,9 @@ describe("chuyến chưa có mã vận đơn (BR-23)", () => {
       throw new ApiError(409, "LOAD_WAYBILL_MISSING", "en");
     });
     const dialog = await openDialog(user);
+    await tickSignerIsDriver(user, dialog);
     expect(within(dialog).queryByText(M.title)).not.toBeInTheDocument();
-    await user.click(within(dialog).getByRole("checkbox"));
+    await user.click(within(dialog).getByRole("checkbox", { name: H.signedConfirm }));
     await user.click(within(dialog).getByRole("button", { name: H.title }));
     expect(await within(dialog).findByText(M.title)).toBeInTheDocument();
     expect(within(dialog).queryByText(ERR.LOAD_WAYBILL_MISSING)).not.toBeInTheDocument();
@@ -475,9 +560,11 @@ describe("BE chặn cả xe (409 LOAD_HANDOVER_BLOCKED, BR-18)", () => {
     const user = userEvent.setup();
     const spies = renderHandover(ready(), blocked(details));
     const dialog = await openDialog(user);
+    await tickSignerIsDriver(user, dialog);
+    await openMore(user, dialog);
     const rep = within(dialog).getByLabelText(H.representative, { exact: false });
     await user.type(within(dialog).getByLabelText(H.signatureRef, { exact: false }), "BB-7");
-    await user.click(within(dialog).getByRole("checkbox"));
+    await user.click(within(dialog).getByRole("checkbox", { name: H.signedConfirm }));
     await user.click(within(dialog).getByRole("button", { name: H.title }));
     return { user, dialog, rep, ...spies };
   }
@@ -598,7 +685,8 @@ describe("BE chặn cả xe (409 LOAD_HANDOVER_BLOCKED, BR-18)", () => {
       return ready({ status: "DISPATCHED" });
     });
     const dialog = await openDialog(user);
-    await user.click(within(dialog).getByRole("checkbox"));
+    await tickSignerIsDriver(user, dialog);
+    await user.click(within(dialog).getByRole("checkbox", { name: H.signedConfirm }));
     await user.click(within(dialog).getByRole("button", { name: H.title }));
     expect(await within(dialog).findByText(B.title)).toBeInTheDocument();
     await user.click(within(dialog).getByRole("button", { name: H.title }));

@@ -18,6 +18,7 @@ import { RejectedScansNotice } from "../load/RejectedScans";
 import { HandoverBlockedNotice } from "./HandoverBlockedNotice";
 import { HANDOVER_SERVER_FIELDS, HandoverFields } from "./HandoverFields";
 import { MissingWaybillNotice } from "./MissingWaybillNotice";
+import { useSignerIsDriver } from "./useSignerIsDriver";
 
 import type { HandoverRefusal } from "@/features/shipping/errors";
 import type {
@@ -72,7 +73,8 @@ export function HandoverDialog({
     resolver: zodResolver(schema),
     mode: "onChange",
     defaultValues: {
-      carrierRepresentative: load.driverName ?? "",
+      // KHÔNG điền sẵn từ tên tài xế (docs 09 §4.2 bước 8): chỉ hộp kiểm "Người ký là tài xế" mới sao chép sang
+      carrierRepresentative: "",
       driverName: "",
       vehiclePlate: load.vehiclePlate ?? "",
       driverPhone: load.driverPhone ?? "",
@@ -80,6 +82,7 @@ export function HandoverDialog({
       note: "",
     },
   });
+  const signerIsDriver = useSignerIsDriver(form, load.driverName);
   // Sửa bất kỳ ô nào → lỗi máy chủ của lần gửi trước không còn đúng
   useEffect(
     () =>
@@ -169,7 +172,7 @@ export function HandoverDialog({
           <MissingWaybillNotice apiManaged={isApiBookedLoad(load)} onEnter={onEnterWaybill} />
         )}
         {blockedOrders && <HandoverBlockedNotice orders={blockedOrders} />}
-        <HandoverFields form={form} load={load} />
+        <HandoverFields form={form} load={load} signerIsDriver={signerIsDriver} />
       </FormDialogBody>
     </FormDialog>
   );

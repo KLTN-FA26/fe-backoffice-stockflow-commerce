@@ -4,6 +4,7 @@ import { QUERY_TIMES } from "@/lib/api/query-client";
 import { createDetailQuery, createListQuery, createQueryKeys } from "@/lib/api/query-factory";
 
 import { getLoad, getManifest, listLoads } from "./api";
+import { latestCarrierId } from "./ftl-selectors";
 import { listCarriers } from "./carrier-api";
 import { getShipment, listShipments } from "./shipment-api";
 import { getWaybillHistory, listImportWarehouses } from "./waybill-api";
@@ -34,6 +35,25 @@ export const useLoad = createDetailQuery<Load>(loadKeys, getLoad, {
   refetchInterval: (query) =>
     query.state.data?.status === LOAD_STATUS.LOADING ? SHIPPING_LIMITS.loadPollMs : false,
 });
+
+/** Hãng dùng gần nhất của kho (từ các chuyến đã bàn giao) — để đưa lên đầu ô chọn hãng khi đặt xe. Lỗi / thiếu quyền → không có gợi ý, không chặn. */
+export function useRecentCarrierId(warehouseId: string | undefined, enabled = true) {
+  return useQuery({
+    queryKey: [...loadKeys.all, "recent-carrier", warehouseId ?? ""] as const,
+    queryFn: async ({ signal }) =>
+      latestCarrierId(
+        (
+          await listLoads(
+            { warehouseId, status: LOAD_STATUS.DISPATCHED, size: SHIPPING_LIMITS.recentLoadsSize },
+            signal,
+          )
+        ).items,
+      ),
+    enabled: enabled && !!warehouseId,
+    ...QUERY_TIMES.master,
+    retry: false,
+  });
+}
 
 export function useManifest(loadId: string, enabled = true) {
   return useQuery({
