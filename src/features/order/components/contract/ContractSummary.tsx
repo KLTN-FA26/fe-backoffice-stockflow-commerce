@@ -47,7 +47,7 @@ export function ContractSummary({
       </span>,
     ],
     [
-      "Thuế",
+      "Thuế GTGT (VAT)",
       <span key="t" className={MONO}>
         {money(contract.totals.taxAmount)}
       </span>,
