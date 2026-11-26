@@ -48,7 +48,7 @@ export const RECEIPT_COUNT_LABELS = {
   },
   // BE chỉ cấp `production-orders:READ` cho quản lý kho trở lên — thiếu quyền thì không chọn / đọc được Đơn sản xuất
   noProductionRead:
-    "Cần quyền xem Đơn sản xuất (production-orders:READ) để chọn đơn và lấy dòng cần đếm — liên hệ quản trị.",
+    "Tài khoản chưa được xem Đơn sản xuất nên chưa chọn được đơn và lấy dòng cần đếm — liên hệ quản trị để được cấp quyền.",
   count: {
     title: "Kiểm đếm theo thùng",
     description:
@@ -83,7 +83,7 @@ export const RECEIPT_COUNT_LABELS = {
     locationPlaceholder: "Chọn khu",
     noReceivingArea: "Kho chưa có khu nhận hàng (RECEIVING)",
     noLocationRead:
-      "Cần quyền xem vị trí kho (warehouse-locations:READ) để chọn khu nhận hàng — liên hệ quản trị.",
+      "Tài khoản chưa được xem vị trí kho nên chưa chọn được khu nhận hàng — liên hệ quản trị để được cấp quyền.",
     areasLoadError: "Không tải được danh sách khu nhận hàng của kho",
     removeCarton: (lpn: string) => `Bỏ thùng ${lpn}`,
     restoreCarton: (lpn: string) => `Giữ lại thùng ${lpn}`,

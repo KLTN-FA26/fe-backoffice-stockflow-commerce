@@ -54,7 +54,7 @@ export const DELIVERY_SCHEDULE_LABELS = {
   changedAt: (when: string) => `lúc ${when}`,
   changedBy: (name: string) => `bởi ${name}`,
   /** Ghi chú cuối panel — để người đọc biết vì sao nút bị ẩn khi thiếu quyền. */
-  readOnly: "Chỉ Sale (sales-contracts:UPDATE) mới dời được cửa sổ giao.",
+  readOnly: "Chỉ nhân viên Sale mới đổi được cửa sổ giao.",
 } as const;
 
 export const WINDOW_CHANGE_LABELS = {
@@ -101,7 +101,7 @@ export const WINDOW_CHANGE_LABELS = {
     rateLimited: "Đã tải lên quá nhiều tệp trong giờ này — thử lại sau.",
     batchGone:
       "Đợt giao không còn nhận được bằng chứng (đã bàn giao, đã đóng hoặc không còn). Tải lại trang.",
-    forbidden: "Bạn không có quyền đính kèm bằng chứng (sales-contracts:UPDATE).",
+    forbidden: "Bạn không có quyền đính kèm bằng chứng — chỉ nhân viên Sale làm được.",
     storageUnavailable: "Kho lưu trữ tệp tạm thời không dùng được — thử lại sau ít phút.",
     network: "Không kết nối được — kiểm tra mạng rồi thử lại.",
     storageRefused:

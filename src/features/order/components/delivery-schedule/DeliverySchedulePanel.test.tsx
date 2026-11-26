@@ -209,7 +209,9 @@ describe("Dời cửa sổ giao — action-gating theo mã quyền BE (≥ 3 vai
       expect(
         within(card).queryByRole("button", { name: "Dời cửa sổ giao" }),
       ).not.toBeInTheDocument();
-      expect(within(card).getByText(/Chỉ Sale \(sales-contracts:UPDATE\)/)).toBeInTheDocument();
+      expect(
+        within(card).getByText(/Chỉ nhân viên Sale mới đổi được cửa sổ giao/),
+      ).toBeInTheDocument();
       vi.restoreAllMocks();
       document.body.innerHTML = "";
     }
@@ -219,7 +221,9 @@ describe("Dời cửa sổ giao — action-gating theo mã quyền BE (≥ 3 vai
     await renderSchedule(WF4_PERMISSION_SETS.warehouseManager);
     const card = await panel();
     expect(within(card).queryByRole("button", { name: "Dời cửa sổ giao" })).not.toBeInTheDocument();
-    expect(within(card).getByText(/Chỉ Sale \(sales-contracts:UPDATE\)/)).toBeInTheDocument();
+    expect(
+      within(card).getByText(/Chỉ nhân viên Sale mới đổi được cửa sổ giao/),
+    ).toBeInTheDocument();
   });
 
   it("không có sales-order-delivery-batches:READ (kể cả khi đọc được hợp đồng) → không hiện panel và KHÔNG gọi API lịch giao", async () => {

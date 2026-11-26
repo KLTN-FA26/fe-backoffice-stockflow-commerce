@@ -198,7 +198,9 @@ describe("lỗi 400 theo ô, in-dòng, kho rỗng, ô kho", () => {
       throw new ApiError(403, "FORBIDDEN", "x");
     });
     const { dialog } = await openReleaseDialog();
-    expect(await within(dialog).findByText(/warehouse-warehouses:READ/)).toBeInTheDocument();
+    expect(
+      await within(dialog).findByText(/Tài khoản chưa được xem danh sách kho/),
+    ).toBeInTheDocument();
     expect(within(dialog).getByRole("combobox", { name: /Kho xuất hàng/ })).toBeDisabled();
     expect(within(dialog).getByRole("button", { name: "Xuất kho" })).toBeDisabled();
   });

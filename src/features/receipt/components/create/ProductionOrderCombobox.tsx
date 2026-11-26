@@ -92,7 +92,7 @@ export function ProductionOrderCombobox({
                       {order.code}
                     </span>
                     {/* Khoảng trắng giữa hai tầng: trình đọc màn hình đọc "mã, rồi thông tin", không dính liền */}{" "}
-                    <span className="text-ink-tertiary truncate text-xs tabular-nums">
+                    <span className="text-ink-tertiary text-xs leading-snug tabular-nums">
                       {L.optionSub({
                         producer: order.producerName,
                         skus: skusOf(order),

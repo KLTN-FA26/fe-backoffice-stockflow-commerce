@@ -458,7 +458,7 @@ describe("Release đơn — danh sách kho lỗi", () => {
       new ApiError(403, "FORBIDDEN", "Forbidden"),
     );
     expect(await within(dialog).findByRole("alert")).toHaveTextContent(
-      "Bạn chưa có quyền xem danh sách kho (warehouse-warehouses:READ) — nhờ quản trị cấp quyền",
+      "Tài khoản chưa được xem danh sách kho — nhờ quản trị cấp quyền",
     );
     expect(within(dialog).queryByText("Không tải được danh sách kho.")).not.toBeInTheDocument();
     // vẫn dùng được: khe ước tính; chưa có kho nên chưa release được; huỷ đóng được
@@ -473,7 +473,9 @@ describe("Release đơn — danh sách kho lỗi", () => {
     expect(await within(dialog).findByRole("alert")).toHaveTextContent(
       "Không tải được danh sách kho.",
     );
-    expect(within(dialog).queryByText(/warehouse-warehouses:READ/)).not.toBeInTheDocument();
+    expect(
+      within(dialog).queryByText(/Tài khoản chưa được xem danh sách kho/),
+    ).not.toBeInTheDocument();
   });
 });
 
