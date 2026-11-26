@@ -129,6 +129,7 @@ import { WORKSPACE_PERMISSIONS } from "@/features/warehouse-map/components/works
 import { usePermissionChecker } from "@/lib/auth/components/Can";
 import { useAppStore } from "@/lib/store/use-app-store";
 import { useBreadcrumbLabelStore } from "@/lib/store/use-breadcrumb-labels";
+import { HEADER_ACTIONS_ID } from "@/components/shared/HeaderActions";
 
 import { notificationItemAction } from "@/components/backoffice/notification-item-action";
 import { Logo } from "@/components/shared/Logo";
@@ -890,7 +891,9 @@ function BackofficeSidebar() {
         />
       </SidebarContent>
 
-      <SidebarFooterBar />
+      <SidebarFooterBar
+        extra={<NotificationBell side="right" itemAction={notificationItemAction} />}
+      />
       {/* Vạch mảnh ở mép phải: rê chuột hiện, bấm để thu gọn / mở rộng */}
       <SidebarRail />
     </Sidebar>
@@ -974,7 +977,8 @@ export function BackofficeShell({ children }: { children: React.ReactNode }) {
                 ))}
               </nav>
             </div>
-            <NotificationBell itemAction={notificationItemAction} />
+            {/* Nút hành động chính của trang (`HeaderActions`) ở góc phải topbar */}
+            <div id={HEADER_ACTIONS_ID} className="relative ml-auto flex items-center gap-2" />
           </header>
 
           {/* Content */}

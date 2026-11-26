@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { PackageCheck } from "lucide-react";
+import { Eye, PackageCheck } from "lucide-react";
 
 import { ADMIN_ROUTES, PUTAWAY_COLUMNS as C, PUTAWAY_LABELS, PUTAWAY_SOURCE } from "@/constants";
 import { formatNumber } from "@/lib/format";
 import { isPutawayTaskClosed } from "@/features/putaway/lifecycle";
 
-import { CELL, EmptyCell, statusCell, ViewAction } from "@/components/shared/column-helpers";
+import { CELL, EmptyCell, statusCell } from "@/components/shared/column-helpers";
+import { RowActionsMenu } from "@/components/shared/RowActionsMenu";
 
 import type { ColumnDef } from "@/components/shared/DataTable";
 import type { PutawayTask } from "@/features/putaway/types";
@@ -32,23 +33,19 @@ function SourceCell({ row }: { row: PutawayTask }) {
   return <span className={CELL.text}>{L.source[row.source]}</span>;
 }
 
-/** Cất được → icon cất thùng; đã xong / không còn thao tác → icon xem. Cùng một đích: màn cất một thùng. */
+/** Menu "⋯": cất được → "Cất thùng"; đã xong / không còn thao tác → "Xem chi tiết". Cùng một đích: màn cất một thùng. */
 function ActionCell({ row, href }: { row: PutawayTask; href: string }) {
   const lpn = row.lpn ?? row.id;
-  // Nút là `flex` nên `text-right` của ô không đẩy được — bọc `justify-end` để thẳng mép với tiêu đề cột
-  if (isPutawayTaskClosed(row.status)) {
-    return (
-      <div className="flex justify-end">
-        <ViewAction label={L.view(lpn)} href={href} />
-      </div>
-    );
-  }
+  const closed = isPutawayTaskClosed(row.status);
   return (
-    <div className="flex justify-end">
-      <Link href={href} aria-label={L.putAway(lpn)} className={CELL.action}>
-        <PackageCheck className="text-dot-positive size-3.5" />
-      </Link>
-    </div>
+    <RowActionsMenu
+      label={`Thao tác — ${lpn}`}
+      actions={[
+        closed
+          ? { label: "Xem chi tiết", icon: Eye, href }
+          : { label: "Cất thùng", icon: PackageCheck, href },
+      ]}
+    />
   );
 }
 
@@ -112,6 +109,7 @@ export function putawayColumns(
       key: C.ACTION,
       header: col.action,
       align: "right",
+      className: "w-20",
       cell: (row) => <ActionCell row={row} href={taskHref(row.id)} />,
     },
   };

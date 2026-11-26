@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { UserCog } from "lucide-react";
+import { Eye, UserCog } from "lucide-react";
 
 import { FULFILLMENT_COLUMNS, UI_LABELS } from "@/constants";
 import { allowedFulfillmentActions } from "@/features/fulfillment/lifecycle";
-import { CELL, dateCell, statusCell, ViewAction } from "@/components/shared/column-helpers";
+import { CELL, dateCell, statusCell } from "@/components/shared/column-helpers";
+import { RowActionsMenu } from "@/components/shared/RowActionsMenu";
 
 import { assigneeLabel, orderLabel, taskCode } from "../primitives";
 import { COLUMN_LABELS } from "./constants";
@@ -90,29 +91,30 @@ export function buildTaskColumns({
     dateTimeCell(C.PACKED_AT, (row) => row.packedAt),
     {
       key: C.ACTIONS,
-      header: "",
-      // Nút xem luôn có (dòng cao chuẩn 43px); nút giao việc chỉ khi lifecycle cho phép
+      header: "Thao tác",
+      align: "right",
+      className: "w-20",
+      // Xem luôn có; giao việc chỉ khi lifecycle cho phép
       cell: (row) => {
         const canAssign =
           scope === "picking" &&
           allowedFulfillmentActions(row, actor).some((a) => a.code === "assign");
         return (
-          <div className="flex items-center gap-1.5">
-            <ViewAction label={`Xem task ${taskCode(row.taskId)}`} href={detailHref(row.taskId)} />
-            {canAssign && (
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onAssign(row);
-                }}
-                className={CELL.action}
-                aria-label={`${UI_LABELS.fulfillment.action.assign} task ${taskCode(row.taskId)}`}
-              >
-                <UserCog className="size-3.5" />
-              </button>
-            )}
-          </div>
+          <RowActionsMenu
+            label={`Thao tác — task ${taskCode(row.taskId)}`}
+            actions={[
+              { label: "Xem chi tiết", icon: Eye, href: detailHref(row.taskId) },
+              ...(canAssign
+                ? [
+                    {
+                      label: UI_LABELS.fulfillment.action.assign,
+                      icon: UserCog,
+                      onSelect: () => onAssign(row),
+                    },
+                  ]
+                : []),
+            ]}
+          />
         );
       },
     },

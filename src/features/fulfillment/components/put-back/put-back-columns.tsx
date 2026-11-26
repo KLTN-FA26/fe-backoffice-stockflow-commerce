@@ -6,8 +6,8 @@ import { Undo2 } from "lucide-react";
 import { PICK_LINE_LABELS, PUT_BACK_LABELS } from "@/constants";
 import { formatDateTime } from "@/lib/format/date";
 import { CELL, numberCell } from "@/components/shared/column-helpers";
+import { RowActionsMenu } from "@/components/shared/RowActionsMenu";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 
 import type { PutBackRow } from "@/features/fulfillment/types";
 import type { ColumnDef } from "@/components/shared/DataTable";
@@ -92,20 +92,12 @@ export function putBackColumns({
       key: "actions",
       header: COL.actions,
       align: "right",
+      className: "w-20",
       cell: (row) => (
-        <Button
-          type="button"
-          variant="outline"
-          size="xs"
-          aria-label={P.actionFor(row.sku, row.orderNumber)}
-          onClick={(event) => {
-            event.stopPropagation();
-            onPutBack(row);
-          }}
-          className="border-border-default rounded-[var(--r-sm)]"
-        >
-          <Undo2 className="text-dot-info size-3" /> {P.action}
-        </Button>
+        <RowActionsMenu
+          label={`Thao tác — ${row.sku} · ${row.orderNumber}`}
+          actions={[{ label: P.action, icon: Undo2, onSelect: () => onPutBack(row) }]}
+        />
       ),
     },
   ];

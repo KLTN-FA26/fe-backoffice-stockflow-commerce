@@ -32,7 +32,7 @@ export const CANCELLATION_REQUEST_LABELS = {
     reason: "Lý do khách nêu",
     requestedAt: "Gửi lúc",
     status: "Trạng thái",
-    actions: "Quyết định",
+    actions: "Thao tác",
   },
   /** Hàng đợi yêu cầu huỷ (BO-UX-34/36). */
   queue: {

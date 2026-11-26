@@ -11,7 +11,7 @@ import { FormField, fieldA11y } from "@/components/shared/FormField";
 import { FORM_SELECT_CLASS, FORM_TEXTAREA_CLASS } from "@/components/shared/form-control-classes";
 import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/shared/combobox-select";
 import { Textarea } from "@/components/ui/textarea";
 
 import type { PlanFormValues } from "../cycle-count-plan-form";

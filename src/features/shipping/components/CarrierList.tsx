@@ -15,7 +15,7 @@ import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { TOOLBAR_ACTION_CLASS } from "@/components/shared/ListToolbar";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/shared/combobox-select";
 
 import { buildCarrierColumns } from "./carrier/carrier-columns";
 import { CarrierFormDialog } from "./carrier/CarrierFormDialog";

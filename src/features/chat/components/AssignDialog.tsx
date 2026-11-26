@@ -3,7 +3,15 @@
 import { useState } from "react";
 
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
-import { FORM_INPUT_CLASS, FormField } from "@/components/shared/FormField";
+import { FormField } from "@/components/shared/FormField";
+import { FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
+import {
+  Select,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/shared/combobox-select";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { Textarea } from "@/components/ui/textarea";
 
 import { chatErrorMessage, useAssignConversation, useChatFailure } from "../mutations";
@@ -60,21 +68,19 @@ export function AssignDialog({
           }
         >
           <FormField id="assign-agent" label="Sale nhận" required>
-            <select
-              id="assign-agent"
-              value={agentId}
-              disabled={agents.isPending}
-              onChange={(event) => setAgentId(event.target.value)}
-              className={`${FORM_INPUT_CLASS} border px-2`}
-            >
-              <option value="">{agents.isPending ? "Đang tải…" : "Chọn Sale"}</option>
-              {choices.map((agent) => (
-                <option key={agent.userId} value={agent.userId}>
-                  {agent.name}
-                  {agent.online ? " · đang trực tuyến" : ""}
-                </option>
-              ))}
-            </select>
+            <Select value={agentId} disabled={agents.isPending} onValueChange={setAgentId}>
+              <SelectTrigger id="assign-agent" className={FORM_SELECT_CLASS}>
+                <SelectValue placeholder={agents.isPending ? "Đang tải…" : "Chọn Sale"} />
+              </SelectTrigger>
+              <TitledSelectContent title="Sale nhận">
+                {choices.map((agent) => (
+                  <SelectItem key={agent.userId} value={agent.userId}>
+                    {agent.name}
+                    {agent.online ? " · đang trực tuyến" : ""}
+                  </SelectItem>
+                ))}
+              </TitledSelectContent>
+            </Select>
           </FormField>
           <FormField id="assign-note" label="Ghi chú cho người nhận" hint="Không bắt buộc.">
             <Textarea

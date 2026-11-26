@@ -14,7 +14,10 @@ export const QUOTE_REQUEST_COPY: LoadErrorCopy = {
   noReadDescription: "Tài khoản của bạn chưa có quyền xem yêu cầu báo giá thiết kế.",
 };
 
-/** Lựa chọn của ô lọc trạng thái, chung cho danh sách đơn lẻ và dự án; "Tất cả" do `FilterSelect` tự thêm. */
+/**
+ * Lựa chọn lọc trạng thái (cột "Trạng thái" của bảng "Bộ lọc" và lọc trên header cột), chung cho danh sách đơn lẻ và dự
+ * án. BE nhận MỘT giá trị: chọn một, bỏ chọn = "Tất cả".
+ */
 export const QUOTE_REQUEST_STATUS_OPTIONS: readonly { value: QuoteRequestStatus; label: string }[] =
   (["OPEN", "CLOSED"] as const).map((value) => ({
     value,

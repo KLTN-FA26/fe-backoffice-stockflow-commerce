@@ -37,8 +37,7 @@ import {
   CREDIT_HOLD_COLUMNS,
   CREDIT_HOLD_LOCKED_COLUMNS,
 } from "./columns";
-import { CreditApproveAction } from "./CreditApproveAction";
-import { CreditRejectAction } from "./CreditRejectAction";
+import { CreditHoldRowActions } from "./CreditHoldRowActions";
 import { RefundDueNotice } from "./RefundDueNotice";
 
 import type { CreditHold } from "../../types";
@@ -102,12 +101,12 @@ function CreditHoldListContent() {
       (a) => a.code,
     );
     return (
-      <div className="flex justify-end gap-1.5">
-        {codes.includes("credit-approve") && <CreditApproveAction order={row.order} compact />}
-        {codes.includes("credit-reject") && (
-          <CreditRejectAction order={row.order} compact onRejected={setRejected} />
-        )}
-      </div>
+      <CreditHoldRowActions
+        order={row.order}
+        canApprove={codes.includes("credit-approve")}
+        canReject={codes.includes("credit-reject")}
+        onRejected={setRejected}
+      />
     );
   }, canOpenOrders);
   const columnState = useColumnVisibility(
