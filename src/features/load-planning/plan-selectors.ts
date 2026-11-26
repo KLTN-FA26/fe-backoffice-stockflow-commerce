@@ -68,6 +68,38 @@ export function unplacedLinesOf(parcels: readonly PlanParcel[]): UnplacedLine[] 
   return [...lines.values()];
 }
 
+/**
+ * Tên sản phẩm theo `partName` (SKU) từ `packages[]` của kế hoạch — chú giải 3D và bảng kiện tra tên ở đây vì bố cục xe
+ * (`layouts`) chỉ có SKU (BE PR #488). Kiện chưa có tên (BE cũ) bỏ qua; hai kiện cùng SKU thì tên đầu tiên.
+ */
+export function productNamesByPart(
+  parcels: readonly Pick<PlanParcel, "partName" | "productName">[],
+): ReadonlyMap<string, string> {
+  const names = new Map<string, string>();
+  for (const parcel of parcels)
+    if (parcel.productName && !names.has(parcel.partName))
+      names.set(parcel.partName, parcel.productName);
+  return names;
+}
+
+/** Lô giao khớp ô tìm: mã lô, số đơn, tên khách hoặc tỉnh giao (không phân biệt hoa thường). */
+export function shipmentMatches(
+  candidate: Pick<
+    CandidateShipment,
+    "code" | "orderNumber" | "customerName" | "deliveryProvinceName"
+  >,
+  query: string,
+): boolean {
+  const needle = query.trim().toLowerCase();
+  if (!needle) return true;
+  return [
+    candidate.code,
+    candidate.orderNumber,
+    candidate.customerName,
+    candidate.deliveryProvinceName,
+  ].some((value) => (value ?? "").toLowerCase().includes(needle));
+}
+
 /** Có xe nào cần tính lại (bị bỏ kiện khi đơn bị huỷ). */
 export const vehiclesNeedingRecalculation = (plan: Pick<PlanDetail, "vehicles">): number[] =>
   plan.vehicles.filter((vehicle) => vehicle.needsRecalculation).map((vehicle) => vehicle.seq);
@@ -77,6 +109,8 @@ export interface FillLineOption {
   orderLineId: string;
   shipmentCode: string;
   sku: string;
+  /** Tên sản phẩm của dòng (BE PR #488), vắng khi chưa rõ. */
+  productName?: string;
   packages: number;
 }
 
@@ -97,6 +131,7 @@ export function fillLineOptions(
           orderLineId: parcel.orderLineId,
           shipmentCode: candidate.code,
           sku: parcel.partName,
+          ...(parcel.productName ? { productName: parcel.productName } : {}),
           packages: 1,
         });
     }

@@ -334,6 +334,64 @@ describe("LoadPlanCreate — lập kế hoạch rồi tính xếp xe", () => {
     expect(screen.queryByText(new RegExp(`^${L.missingPrefix}`))).not.toBeInTheDocument();
   });
 
+  it("S16-2 (BE PR #488): customer and province columns appear only when the BE sends them, and the search covers them", async () => {
+    const user = userEvent.setup();
+    const many = Array.from({ length: 5 }, (_, i) =>
+      candidateFixture({
+        shipmentId: `s-${i}`,
+        code: `SO-2026110${i}-S1`,
+        orderNumber: `SO-2026110${i}`,
+        customerName: i === 3 ? "Quán Trà Sữa Mây" : `Khách ${i}`,
+        deliveryProvinceName: i === 3 ? "Đà Nẵng" : "Hà Nội",
+      }),
+    );
+    renderCreate(ACTORS.dispatcher, undefined, undefined, many);
+    await screen.findByText("SO-20261100-S1");
+    expect(screen.getByRole("columnheader", { name: L.customer })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: L.province })).toBeInTheDocument();
+    expect(screen.getByText("Quán Trà Sữa Mây")).toBeInTheDocument();
+    await user.type(screen.getByRole("searchbox", { name: L.searchPlaceholder }), "đà nẵng");
+    expect(
+      screen.getAllByRole("checkbox", { name: new RegExp(`^${L.shipmentCode} `) }),
+    ).toHaveLength(1);
+    expect(screen.getByText("SO-20261103-S1")).toBeInTheDocument();
+    await user.clear(screen.getByRole("searchbox", { name: L.searchPlaceholder }));
+    await user.type(screen.getByRole("searchbox", { name: L.searchPlaceholder }), "trà sữa");
+    expect(
+      screen.getAllByRole("checkbox", { name: new RegExp(`^${L.shipmentCode} `) }),
+    ).toHaveLength(1);
+  });
+
+  it("before BE #488 (no customer / province fields) the table has no empty columns", async () => {
+    renderCreate(ACTORS.dispatcher);
+    await screen.findByText(candidateFixture().code);
+    expect(screen.queryByRole("columnheader", { name: L.customer })).not.toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: L.province })).not.toBeInTheDocument();
+  });
+
+  it("S16-4 (BE PR #488): the filler list shows the product name next to the SKU when present", async () => {
+    const base = candidateFixture();
+    const candidate = candidateFixture({
+      packages: base.packages.map((p) => ({
+        ...p,
+        orderLineId: "LINE-A",
+        partName: "SKU-A",
+        productName: "Ly giấy 2 lớp 12oz",
+      })),
+    });
+    renderCreate(ACTORS.dispatcher, undefined, candidate);
+    const user = userEvent.setup();
+    await user.click(
+      await screen.findByRole("checkbox", { name: `${L.shipmentCode} ${candidate.code}` }),
+    );
+    await user.click(screen.getByRole("radio", { name: /Ưu tiên \+ hàng chèn/ }));
+    expect(
+      await screen.findByText(
+        L.fillLine(candidate.code, "SKU-A", base.packages.length, "Ly giấy 2 lớp 12oz"),
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("R6: a warehouse with exactly one shipment to plan has it chosen already", async () => {
     renderCreate(ACTORS.dispatcher, undefined, undefined, [candidateFixture()]);
     const box = await screen.findByRole("checkbox", {

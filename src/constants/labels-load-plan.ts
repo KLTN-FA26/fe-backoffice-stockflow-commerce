@@ -116,6 +116,8 @@ export const LOAD_PLAN_UI_LABELS = {
     clearAll: "Bỏ chọn",
     shipmentCode: "Lô giao",
     order: "Đơn hàng",
+    customer: "Khách hàng",
+    province: "Tỉnh giao",
     packageCount: "Số kiện",
     weight: "Khối lượng",
     volume: "Thể tích",
@@ -127,7 +129,7 @@ export const LOAD_PLAN_UI_LABELS = {
       `Đã chọn ${shipments} lô · ${packages} kiện`,
     /** Nối sau `selectedSummary`: tổng tải đang chọn để so với tải trọng xe. */
     selectedLoad: (weight: string, volume: string) => ` · ${weight} kg · ${volume} m³`,
-    searchPlaceholder: "Tìm theo mã lô giao hoặc số đơn",
+    searchPlaceholder: "Tìm theo mã lô giao, số đơn, khách hàng hoặc tỉnh giao",
     searchEmpty: "Không có lô nào khớp.",
     vehicleTypesTitle: "Loại xe",
     vehicleTypesHint:
@@ -152,8 +154,8 @@ export const LOAD_PLAN_UI_LABELS = {
     fillHint:
       "Tick dòng đơn là hàng chèn; dòng không tick là hàng chính. Hàng chèn không mở thêm xe, phần không vừa chờ kế hoạch sau.",
     fillEmpty: "Chọn lô giao để thấy các dòng đơn.",
-    fillLine: (shipmentCode: string, sku: string, packages: number) =>
-      `${shipmentCode} · ${sku} · ${packages} kiện`,
+    fillLine: (shipmentCode: string, sku: string, packages: number, productName?: string) =>
+      [shipmentCode, sku, productName, `${packages} kiện`].filter(Boolean).join(" · "),
     fillAria: (shipmentCode: string, sku: string) => `Hàng chèn: ${shipmentCode} · ${sku}`,
     note: "Ghi chú",
     notePlaceholder: "Ghi chú cho kế hoạch (không bắt buộc)",

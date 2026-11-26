@@ -18,16 +18,28 @@ import type { CandidateShipment } from "@/features/load-planning/plan-types";
 
 const L = UI_LABELS.loadPlan.createForm;
 
-/** Cột của bảng lô chờ xuất (cột đầu là ô tick, không nhãn); số cột cho dòng "không có lô nào khớp". */
-const COLUMNS: readonly { label: string; right?: boolean }[] = [
-  { label: "" },
-  { label: L.shipmentCode },
-  { label: L.order },
-  { label: L.packageCount, right: true },
-  { label: L.weight, right: true },
-  { label: L.volume, right: true },
-  { label: L.readyAt },
-];
+interface Column {
+  label: string;
+  right?: boolean;
+}
+
+/**
+ * Cột của bảng lô chờ xuất (cột đầu là ô tick, không nhãn); số cột cho dòng "không có lô nào khớp". Cột "Khách hàng" và
+ * "Tỉnh giao" chỉ hiện khi BE gửi (BE PR #488) — BE cũ thì bảng như trước, không có cột trống.
+ */
+function columnsOf(hasCustomer: boolean, hasProvince: boolean): readonly Column[] {
+  return [
+    { label: "" },
+    { label: L.shipmentCode },
+    { label: L.order },
+    ...(hasCustomer ? [{ label: L.customer }] : []),
+    ...(hasProvince ? [{ label: L.province }] : []),
+    { label: L.packageCount, right: true },
+    { label: L.weight, right: true },
+    { label: L.volume, right: true },
+    { label: L.readyAt },
+  ];
+}
 
 /** Bảng lô giao ứng viên: tick chọn, mã lô, đơn (kèm có cho giao một phần không), số kiện, khối lượng, thể tích, giờ sẵn sàng. */
 export function ShipmentTable({
@@ -39,6 +51,9 @@ export function ShipmentTable({
   selected: ReadonlySet<string>;
   onToggle: (shipmentId: string) => void;
 }) {
+  const hasCustomer = shipments.some((c) => !!c.customerName);
+  const hasProvince = shipments.some((c) => !!c.deliveryProvinceName);
+  const COLUMNS = columnsOf(hasCustomer, hasProvince);
   return (
     <div className="border-border-default overflow-x-auto rounded-[var(--r-sm)] border">
       <Table>
@@ -88,6 +103,14 @@ export function ShipmentTable({
                   {candidate.allowPartialShipment ? L.partialAllowed : L.partialNotAllowed}
                 </Badge>
               </TableCell>
+              {hasCustomer && (
+                <TableCell className="text-[0.8125rem]">{candidate.customerName ?? "—"}</TableCell>
+              )}
+              {hasProvince && (
+                <TableCell className="text-[0.8125rem] whitespace-nowrap">
+                  {candidate.deliveryProvinceName ?? "—"}
+                </TableCell>
+              )}
               <TableCell className="text-right tabular-nums">
                 {formatNumber(candidate.packageCount)}
                 {candidate.packagesInOtherPlans > 0 && (

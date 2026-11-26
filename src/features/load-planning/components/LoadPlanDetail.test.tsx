@@ -192,6 +192,30 @@ describe("LoadPlanDetail — hiển thị", () => {
     expect(screen.getAllByText(LOAD_PLANNING_LABELS.metrics.utilization).length).toBeGreaterThan(0);
   });
 
+  it("S16-4 (BE PR #488): the 3D legend and the item table show the product name beside the SKU, looked up in packages[] by partName", async () => {
+    const base = planFixture();
+    renderDetail(
+      ACTORS.viewOnly,
+      planFixture({
+        packages: base.packages.map((p) =>
+          p.partName === "Khay giấy" ? { ...p, productName: "Khay giấy 2 lớp in logo" } : p,
+        ),
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.getAllByText(/Khay giấy 2 lớp in logo/).length).toBeGreaterThan(1),
+    );
+    // Chưa có tên (BE cũ hoặc SKU khác): chỉ còn SKU
+    expect(screen.getAllByText("Ống ly giấy").length).toBeGreaterThan(0);
+    expect(screen.queryByText(/· undefined|· null/)).not.toBeInTheDocument();
+  });
+
+  it("without productName (BE before #488) the legend shows only the SKU", async () => {
+    renderDetail(ACTORS.viewOnly);
+    await screen.findAllByText("Số kiện đã xếp theo xe");
+    expect(screen.queryByText("Khay giấy 2 lớp in logo")).not.toBeInTheDocument();
+  });
+
   it("switches between vehicles; a vehicle that needs recalculation carries a badge and a page notice", async () => {
     const user = userEvent.setup();
     renderDetail(ACTORS.dispatcher, TWO_VEHICLES);

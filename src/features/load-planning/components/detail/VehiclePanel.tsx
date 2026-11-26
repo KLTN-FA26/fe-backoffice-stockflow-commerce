@@ -32,6 +32,7 @@ export function VehiclePanel({
   pending,
   onRecalculate,
   onDrop,
+  productNames,
 }: {
   planId: string;
   vehicle: PlanVehicle;
@@ -45,6 +46,8 @@ export function VehiclePanel({
   pending: boolean;
   onRecalculate: () => void;
   onDrop: () => void;
+  /** Tên sản phẩm theo SKU cho chú giải 3D. */
+  productNames?: ReadonlyMap<string, string>;
 }) {
   const stats: [string, string][] = [
     [L.vehicleParcels, formatNumber(vehicle.packageCount)],
@@ -110,6 +113,7 @@ export function VehiclePanel({
               a.localeCompare(b, "vi"),
             )}
             colorMap={colorMap}
+            productNames={productNames}
           />
         </>
       ) : (

@@ -83,7 +83,7 @@ export function PlanInputsFields({
             idPrefix={idPrefix}
             options={fillLineOptions(candidates.data ?? [], inputs.shipments).map((o) => ({
               orderLineId: o.orderLineId,
-              label: L.fillLine(o.shipmentCode, o.sku, o.packages),
+              label: L.fillLine(o.shipmentCode, o.sku, o.packages, o.productName),
               ariaLabel: L.fillAria(o.shipmentCode, o.sku),
             }))}
             ticked={inputs.fillLines}

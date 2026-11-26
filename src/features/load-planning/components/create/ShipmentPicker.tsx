@@ -5,7 +5,7 @@ import { useState } from "react";
 import { LOAD_PLAN_LIMITS, UI_LABELS } from "@/constants";
 import { formatNumber } from "@/lib/format";
 import { formatM3Value } from "@/features/load-planning/lib/dims";
-import { sortByReadyAt, totalsOf } from "@/features/load-planning/plan-selectors";
+import { shipmentMatches, sortByReadyAt, totalsOf } from "@/features/load-planning/plan-selectors";
 import { Alert } from "@/components/shared/Alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,13 +50,7 @@ export function ShipmentPicker({
   if (!candidates || candidates.length === 0)
     return <p className="text-ink-tertiary text-sm">{L.shipmentsEmpty}</p>;
   const totals = totalsOf(candidates, selected);
-  const needle = query.trim().toLowerCase();
-  const shown = sortByReadyAt(candidates).filter(
-    (c) =>
-      !needle ||
-      c.code.toLowerCase().includes(needle) ||
-      (c.orderNumber ?? "").toLowerCase().includes(needle),
-  );
+  const shown = sortByReadyAt(candidates).filter((c) => shipmentMatches(c, query));
   const allSelected = candidates.every((c) => selected.has(c.shipmentId));
   return (
     <div className="space-y-2">
