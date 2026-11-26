@@ -53,12 +53,13 @@ describe("Hàng đợi yêu cầu huỷ — gate theo mã quyền BE", () => {
     expect(screen.getByText("Khách hoãn dự án")).toBeInTheDocument();
     // BO-UX-34: không còn cột "Trạng thái" (hàng đợi luôn PENDING)
     expect(screen.queryByRole("columnheader", { name: "Trạng thái" })).not.toBeInTheDocument();
-    // BO-UX-36: nút mang số đơn; "Duyệt huỷ" tông nguy hiểm
-    const approve = screen.getByRole("button", { name: `Duyệt huỷ — ${apiOrder.orderNumber}` });
-    expect(approve.className).toContain("text-danger");
-    expect(
-      screen.getByRole("button", { name: `Từ chối — ${apiOrder.orderNumber}` }),
-    ).toBeInTheDocument();
+    // BO-UX-36: menu "⋯" của dòng mang số đơn; "Duyệt huỷ" tông nguy hiểm
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: `Thao tác — ${apiOrder.orderNumber}` }));
+    const menu = await screen.findByRole("dialog");
+    const approve = within(menu).getByRole("button", { name: "Duyệt huỷ" });
+    expect(within(approve).getByText("Duyệt huỷ")).toHaveClass("text-danger");
+    expect(within(menu).getByRole("button", { name: "Từ chối" })).toBeInTheDocument();
   });
 
   it("BO-UX-34: khách, tổng đơn, đã thu, trạng thái đơn đọc từ đơn khi BE chưa gửi R5-6; R5-6 có thì dùng luôn", async () => {
@@ -108,6 +109,7 @@ describe("Hàng đợi yêu cầu huỷ — gate theo mã quyền BE", () => {
   it("chỉ đọc (không …:UPDATE) → thấy hàng nhưng không có nút quyết định", async () => {
     await renderQueue(WF4_PERMISSION_SETS.salesReadOnly);
     await screen.findByRole("link", { name: apiOrder.orderNumber });
+    expect(screen.queryByRole("button", { name: /^Thao tác —/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Duyệt huỷ/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Từ chối/ })).not.toBeInTheDocument();
   });
@@ -147,6 +149,7 @@ describe("Hàng đợi yêu cầu huỷ — gate theo mã quyền BE", () => {
       ]),
     );
     await screen.findAllByRole("link", { name: apiOrder.orderNumber });
+    expect(screen.queryByRole("button", { name: /^Thao tác —/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Duyệt huỷ/ })).not.toBeInTheDocument();
   });
 });
@@ -175,8 +178,9 @@ describe("Hàng đợi yêu cầu huỷ — duyệt / từ chối từ hàng", (
     await renderQueue(WF4_PERMISSION_SETS.sales);
     const user = userEvent.setup();
     await user.click(
-      await screen.findByRole("button", { name: `Duyệt huỷ — ${apiOrder.orderNumber}` }),
+      await screen.findByRole("button", { name: `Thao tác — ${apiOrder.orderNumber}` }),
     );
+    await user.click(await screen.findByRole("button", { name: "Duyệt huỷ" }));
     const dialog = await screen.findByRole("dialog");
     await waitFor(() => expect(dialog).toHaveTextContent(new RegExp(apiOrder.orderNumber)));
     await user.click(within(dialog).getByRole("button", { name: "Duyệt và huỷ đơn" }));
@@ -201,8 +205,9 @@ describe("Hàng đợi yêu cầu huỷ — duyệt / từ chối từ hàng", (
     );
     const user = userEvent.setup();
     await user.click(
-      await screen.findByRole("button", { name: `Duyệt huỷ — ${apiOrder.orderNumber}` }),
+      await screen.findByRole("button", { name: `Thao tác — ${apiOrder.orderNumber}` }),
     );
+    await user.click(await screen.findByRole("button", { name: "Duyệt huỷ" }));
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText("Khách đã trả")).toBeInTheDocument();
     expect(within(dialog).getByText(/8\.586\.000/)).toBeInTheDocument();

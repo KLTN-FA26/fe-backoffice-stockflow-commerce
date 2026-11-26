@@ -54,10 +54,10 @@ describe("ProductOpenReferencesCard — chứng từ còn mở luôn hiện ở 
     renderCard(status);
     expect(screen.getByRole("heading", { name: new RegExp(L.title) })).toBeInTheDocument();
     expect(await screen.findByText("PO-1")).toBeInTheDocument();
-    const list = screen.getByRole("list");
-    expect(within(list).getByText("ORD-9")).toBeInTheDocument();
-    expect(within(list).getByText(/Dòng Đơn sản xuất/)).toBeInTheDocument();
-    expect(within(list).getByText(/Dòng đơn bán/)).toBeInTheDocument();
+    const table = screen.getByRole("table");
+    expect(within(table).getByText("ORD-9")).toBeInTheDocument();
+    expect(within(table).getByText(/Dòng Đơn sản xuất/)).toBeInTheDocument();
+    expect(within(table).getByText(/Dòng đơn bán/)).toBeInTheDocument();
   });
 
   it.each([PRODUCT_STATUS.DRAFT, PRODUCT_STATUS.PENDING_APPROVAL])(

@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { apiError, mockApi, renderScreen } from "@/test/api-screen";
+import { pickOption } from "@/test/ui-actions";
 
 import { QuoteCreate, QuoteEdit } from "..";
 import {
@@ -73,8 +74,7 @@ describe("Quote form — round 5", () => {
   it("BO-UX-14 / BO-UX-4: tiers show visible column headers and the price is grouped with ₫", async () => {
     renderCreate();
     const select = await screen.findByLabelText(/SKU riêng của khách/);
-    await within(select).findByRole("option", { name: new RegExp(SKU) });
-    await userEvent.selectOptions(select, SKU);
+    await pickOption(userEvent.setup(), select, new RegExp(SKU));
     await userEvent.click(await screen.findByRole("button", { name: /Dùng giá gợi ý/ }));
     const table = screen.getByRole("table", { name: "Bậc giá" });
     expect(within(table).getByRole("columnheader", { name: "Từ (thùng)" })).toBeVisible();
@@ -86,8 +86,7 @@ describe("Quote form — round 5", () => {
   it("BO-UX-16: with units per carton and tax rate on the customer SKU, the total is previewed before saving", async () => {
     renderCreate({ unitsPerCarton: 1000, taxRate: 10 });
     const select = await screen.findByLabelText(/SKU riêng của khách/);
-    await within(select).findByRole("option", { name: new RegExp(SKU) });
-    await userEvent.selectOptions(select, SKU);
+    await pickOption(userEvent.setup(), select, new RegExp(SKU));
     await userEvent.type(screen.getByLabelText(/Số thùng/), "60");
     expect(await screen.findByText(/= 60\.000 cái \(1\.000 cái\/thùng\)/)).toBeInTheDocument();
     const preview = screen.getByRole("complementary", { name: "Tạm tính" });
@@ -100,8 +99,7 @@ describe("Quote form — round 5", () => {
   it("BO-UX-16: without those fields (older BE) the preview still waits for the save", async () => {
     renderCreate();
     const select = await screen.findByLabelText(/SKU riêng của khách/);
-    await within(select).findByRole("option", { name: new RegExp(SKU) });
-    await userEvent.selectOptions(select, SKU);
+    await pickOption(userEvent.setup(), select, new RegExp(SKU));
     await userEvent.type(screen.getByLabelText(/Số thùng/), "60");
     expect(screen.getByText("Quy đổi ra cái hiện sau khi lưu nháp.")).toBeInTheDocument();
     expect(

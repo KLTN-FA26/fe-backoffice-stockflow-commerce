@@ -38,10 +38,7 @@ afterEach(() => vi.restoreAllMocks());
 /** The "File khuôn tham chiếu" card, once the saved configuration is shown. */
 async function section() {
   await findStatus("Đang dùng");
-  const title = await screen.findByRole("button", SECTION);
-  const card = title.closest("section");
-  if (!card) throw new Error("reference section not found");
-  return within(card);
+  return within(await screen.findByRole("region", SECTION));
 }
 
 describe("File khuôn tham chiếu (BD-7)", () => {

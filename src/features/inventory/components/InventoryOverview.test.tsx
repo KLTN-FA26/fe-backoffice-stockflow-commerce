@@ -6,6 +6,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 
 import { INVENTORY_LABELS, INVENTORY_MESSAGES } from "@/constants/inventory";
 import { INVENTORY_OVERVIEW_PERMISSIONS, WAREHOUSE_PERMISSIONS } from "@/constants/permissions";
+import { pickOption } from "@/test/ui-actions";
 
 import {
   OVERVIEW_RESERVATION,
@@ -154,7 +155,7 @@ describe("warehouse stock items", () => {
     const items = await region(/Tồn theo vị trí và lô/);
     await user.click(await within(items).findByRole("button", { name: INVENTORY_LABELS.next }));
     await waitFor(() => expect(sentTo(stockItemsPath).at(-1)?.searchParams.get("page")).toBe("1"));
-    await user.selectOptions(within(items).getByLabelText(INVENTORY_LABELS.perPage), "50");
+    await pickOption(user, within(items).getByLabelText(INVENTORY_LABELS.perPage), "50");
     await waitFor(() =>
       expect(Object.fromEntries(sentTo(stockItemsPath).at(-1)?.searchParams ?? [])).toMatchObject({
         page: "0",

@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -6,7 +6,7 @@ import { toast } from "@/components/shared/Toast";
 import { apiError, bePage, mockApi, renderScreen } from "@/test/api-screen";
 import "@/test/jsdom-popover";
 
-import { ProjectQuoteRequestList } from "..";
+import { ProjectQuoteRequestDetail, ProjectQuoteRequestList } from "..";
 
 const push = vi.fn();
 vi.mock("next/navigation", () => ({
@@ -60,7 +60,7 @@ function projectRequest(overrides: Record<string, unknown> = {}) {
 async function openClose(user: ReturnType<typeof userEvent.setup>) {
   await user.click(await screen.findByRole("button", { name: "Thao tác khác — Bộ ly Tết" }));
   const menu = await screen.findByRole("dialog");
-  await user.click(within(menu).getByRole("button", { name: "Đóng — Bộ ly Tết" }));
+  await user.click(within(menu).getByRole("button", { name: "Đóng" }));
   return screen.findByRole("dialog", { name: "Đóng yêu cầu báo giá?" });
 }
 
@@ -70,9 +70,18 @@ describe("Yêu cầu báo giá dự án (BE #451)", () => {
     renderScreen(<ProjectQuoteRequestList />, "SALES_STAFF");
 
     expect(await screen.findByText("Đã duyệt 1/2")).toBeInTheDocument();
+
+    // Từng dòng (trạng thái thiết kế + lý do trả lại) nằm ở trang chi tiết yêu cầu
+    cleanup();
+    renderScreen(
+      <ProjectQuoteRequestDetail requestId={REQUEST_ID} />,
+      "SALES_STAFF",
+      `?customer=${CUSTOMER_ID}`,
+    );
     expect(
-      screen.getByRole("button", { name: "Lý do trả lại — Ly B: Logo sát mép" }),
+      await screen.findByRole("button", { name: "Lý do trả lại — Ly B: Logo sát mép" }),
     ).toBeInTheDocument();
+    expect(screen.getByText("Đã duyệt 1/2")).toBeInTheDocument();
   });
 
   it("closing asks for a reason and sends it: nothing is sent without one", async () => {
@@ -145,7 +154,11 @@ describe("Yêu cầu báo giá dự án (BE #451)", () => {
       },
     });
     renderScreen(<ProjectQuoteRequestList />, "SALES_STAFF");
-    await userEvent.setup().click(await screen.findByRole("button", { name: /^Lập báo giá — / }));
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Thao tác khác — Bộ ly Tết" }));
+    await user.click(
+      within(await screen.findByRole("dialog")).getByRole("button", { name: "Lập báo giá" }),
+    );
     await waitFor(() =>
       expect(error).toHaveBeenCalledWith("Chưa lập báo giá được: còn thiết kế chưa duyệt (Ly B)."),
     );

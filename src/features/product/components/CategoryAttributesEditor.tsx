@@ -277,6 +277,38 @@ function Editor({
           })}
         </div>
       )}
+      {/* Vai trò / bắt buộc / thứ tự / gỡ chỉ đổi bộ đang hiển thị — lưu cả bộ (PUT thay thế) */}
+      {canEdit && (
+        <div className="flex justify-end">
+          <Button
+            type="button"
+            size="sm"
+            disabled={replace.isPending}
+            onClick={() => {
+              setError(null);
+              replace.mutate(
+                {
+                  categoryId,
+                  attributes: rows.map((r, i) => ({
+                    attributeId: r.attributeId,
+                    defaultRole: r.defaultRole,
+                    required: r.required,
+                    sortOrder: i,
+                  })),
+                },
+                { onError: (e) => setError(attributeErrorMessage(e, "category")) },
+              );
+            }}
+          >
+            {replace.isPending ? "Đang lưu…" : "Lưu bộ thuộc tính"}
+          </Button>
+        </div>
+      )}
+      {error && (
+        <p role="alert" className="text-danger text-xs">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

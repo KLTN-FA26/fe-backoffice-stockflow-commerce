@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { UI_LABELS, VEHICLE_TYPE_ERROR_MESSAGES } from "@/constants";
 import { ApiError } from "@/lib/api/error";
+import { clickRowAction, openRowMenu } from "@/test/ui-actions";
 
 import { VT_20DC_ID, apiCustomTruck, apiVehicleType } from "../__fixtures__/vehicle-type";
 import {
@@ -28,6 +29,16 @@ const ROWS = [apiVehicleType(), apiCustomTruck()];
 
 /** Bản dòng 20DC mà BE trả cho GET chi tiết — đổi giữa chừng để mô phỏng người khác sửa. */
 const latest: { current: VehicleType } = { current: apiVehicleType() };
+
+/** Dòng của loại xe `code` trong bảng (để mở đúng menu "⋯" của dòng đó). */
+async function rowOf(code: string) {
+  return (await screen.findByText(code)).closest("tr") as HTMLElement;
+}
+
+/** Bấm thao tác `action` trong menu "⋯" của dòng `code`. */
+async function rowAction(action: string, code = "20DC") {
+  await clickRowAction(userEvent.setup(), action, await rowOf(code));
+}
 
 function renderList(actor: TestActor, search = "", rows: VehicleType[] = ROWS) {
   latest.current = rows.find((row) => row.vehicleTypeId === VT_20DC_ID) ?? apiVehicleType();
@@ -120,8 +131,9 @@ describe("VehicleTypeList — cổng quyền theo mã", () => {
     renderList(ACTORS.warehouseManager);
     await screen.findByText("20DC");
     expect(screen.getByRole("button", { name: L.create })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: `${L.edit} 20DC` })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: `${L.deactivate} 20DC` })).toBeInTheDocument();
+    const menu = within(await openRowMenu(userEvent.setup(), await rowOf("20DC")));
+    expect(menu.getByRole("button", { name: L.edit })).toBeEnabled();
+    expect(menu.getByRole("button", { name: L.deactivate })).toBeEnabled();
   });
 
   it("cột thao tác chỉ có khi có quyền cập nhật: chỉ xem thì ẩn hẳn, không để cột trống", async () => {
@@ -138,8 +150,10 @@ describe("VehicleTypeList — cổng quyền theo mã", () => {
     renderList(ACTORS.viewOnly);
     await userEvent.click(await screen.findByText("Container 20' Dry (20DC)"));
     expect(screen.queryByRole("button", { name: L.create })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: `${L.edit} 20DC` })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: `${L.deactivate} 20DC` })).not.toBeInTheDocument();
+    // Không có quyền cập nhật: dòng không có menu "⋯" (không Sửa / Ngừng dùng)
+    expect(screen.queryByRole("button", { name: /^Thao tác/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: L.edit })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: L.deactivate })).not.toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
@@ -159,7 +173,7 @@ describe("VehicleTypeList — cổng quyền theo mã", () => {
 describe("VehicleTypeList — ngừng dùng / dùng lại", () => {
   it("xác nhận ngừng dùng: PUT đủ trường của dòng, status INACTIVE, version đã đọc", async () => {
     const { put } = renderList(ACTORS.warehouseManager);
-    await userEvent.click(await screen.findByRole("button", { name: `${L.deactivate} 20DC` }));
+    await rowAction(L.deactivate);
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText(new RegExp(L.confirm.deactivateTitle))).toBeInTheDocument();
     await userEvent.click(within(dialog).getByRole("button", { name: L.deactivate }));
@@ -188,7 +202,7 @@ describe("VehicleTypeList — ngừng dùng / dùng lại", () => {
     const { put } = renderList(ACTORS.warehouseManager, "", [
       apiVehicleType({ doorWidthMm: null, doorHeightMm: null }),
     ]);
-    await userEvent.click(await screen.findByRole("button", { name: `${L.deactivate} 20DC` }));
+    await rowAction(L.deactivate);
     await userEvent.click(
       within(await screen.findByRole("dialog")).getByRole("button", { name: L.deactivate }),
     );
@@ -202,7 +216,7 @@ describe("VehicleTypeList — ngừng dùng / dùng lại", () => {
     const { put } = renderList(ACTORS.warehouseManager, "", [
       apiVehicleType({ status: "INACTIVE" }),
     ]);
-    await userEvent.click(await screen.findByRole("button", { name: `${L.activate} 20DC` }));
+    await rowAction(L.activate);
     await userEvent.click(
       within(await screen.findByRole("dialog")).getByRole("button", { name: L.activate }),
     );
@@ -212,7 +226,7 @@ describe("VehicleTypeList — ngừng dùng / dùng lại", () => {
 
   it("OPTIMISTIC_LOCK: bấm xác nhận lần nữa gửi version mới đã tải lại, không lặp 409", async () => {
     const { put } = renderList(ACTORS.warehouseManager);
-    await userEvent.click(await screen.findByRole("button", { name: `${L.deactivate} 20DC` }));
+    await rowAction(L.deactivate);
     const dialog = await screen.findByRole("dialog");
     // Người khác sửa 20DC trước: BE đã ở version 1
     latest.current = apiVehicleType({ version: 1, availableCount: 7 });
@@ -238,7 +252,7 @@ describe("VehicleTypeList — ngừng dùng / dùng lại", () => {
   it("OPTIMISTIC_LOCK: báo trong dialog bằng tiếng Việt, dialog giữ nguyên", async () => {
     const { put } = renderList(ACTORS.warehouseManager);
     put.mockRejectedValueOnce(new ApiError(409, "OPTIMISTIC_LOCK", "changed"));
-    await userEvent.click(await screen.findByRole("button", { name: `${L.deactivate} 20DC` }));
+    await rowAction(L.deactivate);
     await userEvent.click(
       within(await screen.findByRole("dialog")).getByRole("button", { name: L.deactivate }),
     );

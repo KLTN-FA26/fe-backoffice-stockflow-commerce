@@ -4,9 +4,14 @@ import { useState } from "react";
 import { focusManager } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ORDER_PERMISSIONS, SALES_CONTRACT_PERMISSIONS } from "@/constants";
+import {
+  CONTRACT_MILESTONE_LABELS,
+  ORDER_PERMISSIONS,
+  SALES_CONTRACT_PERMISSIONS,
+} from "@/constants";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
+import { pickOption } from "@/test/ui-actions";
 
 import {
   CONTRACT_LINE_ID,
@@ -181,12 +186,13 @@ describe("WF-02 N10 — đổi mốc khỏi ON_SIGNING", () => {
     const milestone = screen.getByRole("combobox", { name: "Đợt 1 — mốc" });
     const days = screen.getByRole("textbox", { name: "Đợt 1 — số ngày" });
     expect(days).toHaveValue("3");
-    await userEvent.selectOptions(milestone, "AFTER_DELIVERY");
+    const user = userEvent.setup();
+    await pickOption(user, milestone, CONTRACT_MILESTONE_LABELS.AFTER_DELIVERY);
     expect(days).toHaveValue("");
     await userEvent.type(days, "7");
-    await userEvent.selectOptions(milestone, "ON_SIGNING");
+    await pickOption(user, milestone, CONTRACT_MILESTONE_LABELS.ON_SIGNING);
     expect(days).toHaveValue("7");
-    await userEvent.selectOptions(milestone, "AFTER_DELIVERY");
+    await pickOption(user, milestone, CONTRACT_MILESTONE_LABELS.AFTER_DELIVERY);
     expect(days).toHaveValue("7");
   });
 });
@@ -479,7 +485,11 @@ describe("WF-02 BO-7 — hợp đồng: đợt đã qua, huỷ bởi người kh
     renderSection(() => contractDraft);
     await userEvent.click(await screen.findByRole("button", { name: /Sửa/ }));
     await userEvent.click(screen.getByRole("button", { name: "Thêm đợt thanh toán" }));
-    await userEvent.selectOptions(screen.getByLabelText("Đợt 4 — mốc"), "ON_SIGNING");
+    await pickOption(
+      userEvent.setup(),
+      screen.getByLabelText("Đợt 4 — mốc"),
+      CONTRACT_MILESTONE_LABELS.ON_SIGNING,
+    );
     expect(screen.getByLabelText("Đợt 4 — số ngày")).toHaveValue("3");
   });
 });
