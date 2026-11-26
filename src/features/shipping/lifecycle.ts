@@ -1,13 +1,10 @@
 /**
- * Shipping — action-gating chuyến xe (feature-architecture §6).
- *
- * Bảng `LOAD_TRANSITIONS` (lib/domain, BE `LoadStatus`). Mọi chuyến là MỘT XE của kế hoạch xếp xe (giao nguyên chuyến,
- * docs 09 BR-08) — không còn `mode`, không còn thêm / bớt lô hay huỷ chuyến tay. Mỗi endpoint gate bằng một mã quyền
+ * Shipping — action-gating chuyến xe (feature-architecture §6). Bảng `LOAD_TRANSITIONS` (lib/domain, BE `LoadStatus`). Mọi chuyến là MỘT XE của kế hoạch xếp xe (docs 09 BR-08) —
+ * không còn `mode`, không còn thêm / bớt lô hay huỷ chuyến tay. Mỗi endpoint gate bằng một mã quyền
  * (BE `@RequiresPermission`): đặt xe, huỷ đặt xe, bắt đầu xếp, quét, dỡ kiện, nhập mã vận đơn, bàn giao =
  * `fulfillment-dispatch:UPDATE`; huỷ có kiểm soát MỘT xe và xác nhận dỡ không quét =
  * `fulfillment-controlled-cancellations:UPDATE` (SCRUM-474, BR-14); SỬA mã vận đơn sau khi chuyến rời kho cần thêm
- * `fulfillment-waybill-corrections:UPDATE` (BR-24). UI-only — Backend phải re-check (trạng thái chuyến, kiện thuộc
- * biên bản, quyền + phạm vi kho).
+ * `fulfillment-waybill-corrections:UPDATE` (BR-24). UI-only — Backend phải re-check (trạng thái chuyến, kiện, quyền, kho).
  */
 
 import {
@@ -101,8 +98,8 @@ export const LOAD_ACTIONS: readonly LoadAction[] = [
     alsoPermission: FULFILLMENT_WAYBILL_CORRECTION_PERMISSIONS.update,
     fromStatuses: [DISPATCHED],
   },
-  // Quét dỡ cả trên xe đã huỷ có kiểm soát: kiện của nó bị khoá tới khi dỡ (SCRUM-474 UNLOAD-DESIGN điểm 4)
-  // PLANNED: hãng huỷ đơn khi xe đang xếp — kiện đã quét phải dỡ về khu xuất trước khi đặt xe lại (RTM-LOADCANCEL2)
+  // Quét dỡ cả trên xe đã huỷ có kiểm soát (SCRUM-474 UNLOAD-DESIGN điểm 4: kiện bị khoá tới khi dỡ); PLANNED: hãng huỷ
+  // đơn khi xe đang xếp — dỡ kiện đã quét về khu xuất trước khi đặt xe lại (RTM-LOADCANCEL2)
   { code: "unload", permission: UPDATE, fromStatuses: [LOADING, CANCELLED, PLANNED] },
   // SCRUM-474 UNLOAD-DESIGN điểm 2, 5, 6: huỷ có kiểm soát MỘT xe đang xếp hàng, và xác nhận dỡ kiện không quét (nhãn
   // hỏng) — chung MỘT mã quyền của quản lý kho. Backend phải re-check (BR-14).
@@ -115,13 +112,12 @@ export const LOAD_ACTIONS: readonly LoadAction[] = [
   { code: "overrideUnload", permission: CONTROLLED, fromStatuses: [LOADING, CANCELLED] },
 ];
 
+type GateOptional = "pendingUnloads" | "carrierId" | "carrierConnectionType" | "handoverWarnings";
 export type LoadGateState = Pick<
   Load,
   "status" | "shipmentCount" | "expectedPackageCount" | "loadedPackageCount"
 > &
-  Partial<
-    Pick<Load, "pendingUnloads" | "carrierId" | "carrierConnectionType" | "handoverWarnings">
-  >;
+  Partial<Pick<Load, GateOptional>>;
 
 export interface AllowedLoadAction {
   action: LoadAction;
@@ -181,10 +177,8 @@ export function allowedLoadActions(
     // BE 409 LOAD_UNLOAD_PENDING: kiện của đơn đã huỷ còn trên xe thì chưa ký được
     if (hasPendingUnloads(load)) return { action, disabledReason: F.disabledReason.unloadPending };
     if (!isFullyLoaded(load)) return { action, disabledReason: D.notFullyLoaded };
-    // BR-18 (docs 09): có đơn chưa được phép đi thì BE từ chối cả xe (409 LOAD_HANDOVER_BLOCKED) — khoá nút và nói đơn nào
-    if ((load.handoverWarnings ?? []).length > 0)
-      return { action, disabledReason: D.ordersBlocked };
-    return { action };
+    const blocked = (load.handoverWarnings ?? []).length > 0; // BR-18: BE từ chối cả xe (409 LOAD_HANDOVER_BLOCKED)
+    return blocked ? { action, disabledReason: D.ordersBlocked } : { action };
   });
 }
 
