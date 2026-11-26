@@ -2,13 +2,17 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import { EINVOICE_ROUTES } from "@/constants/einvoice";
+import { EINVOICE_LABELS } from "@/constants/labels-einvoice";
+import { formatDate } from "@/lib/format/date";
+import { useDeliveredShipmentsOfOrder } from "@/lib/references/order-shipments";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
-import { FormField, fieldA11y } from "@/components/shared/FormField";
-import { Input } from "@/components/ui/input";
+import { FormField } from "@/components/shared/FormField";
+import { FormSelect } from "@/components/shared/FormSelect";
+import { SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { applyEInvoiceFieldErrors, einvoiceErrorMessage } from "../errors";
 import { drawUpInputSchema } from "../input-schemas";
@@ -18,11 +22,15 @@ import type { z } from "zod";
 
 type Values = z.input<typeof drawUpInputSchema>;
 const DRAW_UP_FIELDS = ["shipmentId"] as const;
+const D = EINVOICE_LABELS.drawUp;
+/** Radix Select không nhận giá trị rỗng → "phần phí còn lại" (không gắn lô giao) dùng giá trị riêng. */
+const REMAINDER_VALUE = "__remainder__";
 
 function DrawUpForm({ orderId, onClose }: { orderId: string; onClose: () => void }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const drawUp = useDrawUpEInvoice();
+  const shipments = useDeliveredShipmentsOfOrder(orderId);
   const form = useForm<Values>({
     resolver: zodResolver(drawUpInputSchema),
     defaultValues: { orderId, shipmentId: "" },
@@ -48,9 +56,9 @@ function DrawUpForm({ orderId, onClose }: { orderId: string; onClose: () => void
 
   return (
     <FormDialogBody
-      title="Lập hoá đơn nháp"
-      description="Lập lại nháp cho một lần giao đã giao thành công mà nháp đã bị huỷ, hoặc để trống mã lần giao để lập hoá đơn cho phần phí còn lại (phí vận chuyển, phí khuôn chưa lên hoá đơn nào) sau khi đóng phần chưa giao."
-      submitLabel="Lập nháp"
+      title={D.title}
+      description={D.description}
+      submitLabel={D.submit}
       canSubmit
       isPending={drawUp.isPending}
       error={error}
@@ -59,14 +67,35 @@ function DrawUpForm({ orderId, onClose }: { orderId: string; onClose: () => void
     >
       <FormField
         id="drawup-shipment"
-        label="Mã lần giao (shipment ID)"
+        label={D.shipmentLabel}
         error={form.formState.errors.shipmentId?.message}
+        hint={shipments.isPending ? undefined : D.shipmentHint}
       >
-        <Input
-          autoFocus
-          placeholder="Để trống = phần phí còn lại"
-          {...fieldA11y("drawup-shipment", form.formState.errors.shipmentId?.message)}
-          {...form.register("shipmentId")}
+        <Controller
+          control={form.control}
+          name="shipmentId"
+          render={({ field }) => (
+            <FormSelect
+              value={field.value ? field.value : REMAINDER_VALUE}
+              onValueChange={(value) => field.onChange(value === REMAINDER_VALUE ? "" : value)}
+            >
+              <SelectTrigger id="drawup-shipment" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={REMAINDER_VALUE}>{D.remainderOption}</SelectItem>
+                {(shipments.data ?? []).map((shipment) => (
+                  <SelectItem key={shipment.shipmentId} value={shipment.shipmentId}>
+                    {shipment.code}
+                    {shipment.outcomeAt
+                      ? ` · ${D.deliveredOn(formatDate(shipment.outcomeAt))}`
+                      : ""}
+                    {shipment.packageCount ? ` · ${D.cartons(shipment.packageCount)}` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </FormSelect>
+          )}
         />
       </FormField>
     </FormDialogBody>

@@ -100,6 +100,18 @@ export const EXTERNAL_REDUCTION_BASIS_LABELS = {
 
 export const EINVOICE_LABELS = {
   navGroup: "Hoá đơn",
+  /** Hộp "Lập hoá đơn nháp" — chọn lô giao đã giao thành công thay vì gõ mã (UX audit S21-1). */
+  drawUp: {
+    title: "Lập hoá đơn nháp",
+    description:
+      "Lập lại nháp cho một lô giao đã giao thành công mà nháp đã bị huỷ, hoặc chọn “Phần phí còn lại” để lập hoá đơn cho phí vận chuyển, phí khuôn chưa lên hoá đơn nào sau khi đóng phần chưa giao.",
+    submit: "Lập nháp",
+    shipmentLabel: "Lô giao",
+    shipmentHint: "Chỉ hiện các lô giao của đơn này đã giao thành công.",
+    remainderOption: "Phần phí còn lại (không gắn lô giao)",
+    deliveredOn: (date: string) => `giao ${date}`,
+    cartons: (count: number) => `${count} thùng`,
+  },
   list: {
     navLabel: "Hoá đơn điện tử",
     pageTitle: "Hoá đơn điện tử",
