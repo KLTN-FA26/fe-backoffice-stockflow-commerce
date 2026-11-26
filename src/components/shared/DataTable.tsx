@@ -101,6 +101,11 @@ interface DataTableProps<T> {
    * ≤ 10 dòng (mặc định chỉ cuộn nội bộ khi > 10 dòng).
    */
   stickyHeader?: boolean;
+  /**
+   * Bảng đứng cạnh một thẻ bên phải (cột hẹp, vd các đợt thanh toán của đơn): ô sát hơn (10px thay vì 14px mỗi bên) để
+   * đủ chỗ cho mọi cột — cột nằm ngoài khung bị cắt cụt là lỗi, không phải để cuộn (WF4 UX R8).
+   */
+  dense?: boolean;
   /** Nội dung khi không có dòng (vd EmptyState "lọc không ra") — giữ header để còn chỉnh lọc trong cột. */
   emptyState?: ReactNode;
 }
@@ -123,6 +128,7 @@ export function DataTable<T>({
   serverSorting,
   className,
   stickyHeader = false,
+  dense = false,
   emptyState,
 }: DataTableProps<T>) {
   const [sortKey, setSortKey] = useState<string | null>(null);
@@ -252,6 +258,7 @@ export function DataTable<T>({
                   className={cn(
                     "text-ink-secondary text-xs font-semibold",
                     col.align === "right" && "text-right",
+                    dense && "px-2.5",
                     col.sticky === "right" && `${STICKY_RIGHT} bg-bg-subtle`,
                     col.headerClassName,
                   )}
@@ -336,6 +343,7 @@ export function DataTable<T>({
                         key={col.key}
                         className={cn(
                           "text-[0.8125rem]",
+                          dense && "px-2.5",
                           col.align === "right" && "text-right tabular-nums",
                           col.sticky === "right" && `${STICKY_RIGHT} ${STICKY_RIGHT_BODY_BG}`,
                           col.className,
