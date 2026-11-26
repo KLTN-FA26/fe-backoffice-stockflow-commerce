@@ -53,7 +53,7 @@ const get = (invoice: Record<string, unknown>) => ({
 async function fillReduction(dialog: HTMLElement) {
   await userEvent.type(within(dialog).getByLabelText(/Ký hiệu/), "C26TAB");
   await userEvent.type(within(dialog).getByLabelText(/Số hoá đơn/), "12");
-  await openDatePicker(userEvent.setup(), within(dialog).getByLabelText(/Ngày hoá đơn/));
+  await openDatePicker(userEvent.setup(), within(dialog).getByLabelText(/^Ngày hoá đơn/));
   await userEvent.click(await screen.findByRole("button", { name: "Hôm nay" }));
   await userEvent.upload(
     within(dialog).getByLabelText(/Bản PDF/),

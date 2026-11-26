@@ -94,7 +94,7 @@ describe("ProductionOrderDetail — action-gating (docs 17 §5.3, BR-23 chốt l
     );
     await user.click(await screen.findByRole("button", { name: A.accept }));
     const dialog = await screen.findByRole("dialog");
-    await pickDate(user, within(dialog).getByLabelText(new RegExp(D.expectedDate)), EXPECTED);
+    await pickDate(user, within(dialog).getByLabelText(new RegExp(`^${D.expectedDate}`)), EXPECTED);
     await user.type(
       within(dialog).getByLabelText(new RegExp(D.acceptNote)),
       "  anh Hùng xác nhận qua Zalo  ",

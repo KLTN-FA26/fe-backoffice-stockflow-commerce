@@ -243,7 +243,7 @@ describe("Record signed — round 5", () => {
     renderSection(() => contractSent);
     await userEvent.click(await screen.findByRole("button", { name: /Ghi nhận đã ký/ }));
     const dialog = await screen.findByRole("dialog");
-    expect(within(dialog).getByLabelText(/Ngày ký/).tagName).toBe("INPUT");
+    expect(within(dialog).getByLabelText(/^Ngày ký/).tagName).toBe("INPUT");
   });
 
   it("L-11: a file the customer sent in the chat can be used as the signed copy", async () => {

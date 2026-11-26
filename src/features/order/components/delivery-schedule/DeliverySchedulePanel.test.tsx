@@ -264,8 +264,8 @@ describe("Dời cửa sổ giao — form kiểm BR-28 rồi gửi đúng WindowC
     start = inDays(40),
     end = inDays(43),
   ) {
-    await pickDate(user, within(dialog).getByLabelText(/Từ ngày/), start);
-    await pickDate(user, within(dialog).getByLabelText(/Đến ngày/), end);
+    await pickDate(user, within(dialog).getByLabelText(/^Từ ngày/), start);
+    await pickDate(user, within(dialog).getByLabelText(/^Đến ngày/), end);
     await pickOrderSelectOption(user, /Lý do/, /Bên bán giao trễ/);
     await user.type(within(dialog).getByRole("textbox", { name: /Ghi chú/ }), "  Xưởng in trễ  ");
     await user.click(within(dialog).getByRole("radio", { name: "Tin nhắn chat của khách" }));
@@ -317,7 +317,7 @@ describe("Dời cửa sổ giao — form kiểm BR-28 rồi gửi đúng WindowC
 
   it("lịch khoá các ngày trong quá khứ (BR-28: cửa sổ mới không ở quá khứ)", async () => {
     const { user, dialog } = await openDialog();
-    await openDatePicker(user, within(dialog).getByLabelText(/Từ ngày/));
+    await openDatePicker(user, within(dialog).getByLabelText(/^Từ ngày/));
     const grid = await screen.findByRole("grid");
     const disabled = within(grid)
       .getAllByRole("gridcell")
@@ -327,9 +327,9 @@ describe("Dời cửa sổ giao — form kiểm BR-28 rồi gửi đúng WindowC
 
   it("chọn ngày kết thúc rồi dời ngày bắt đầu qua nó → báo 'Ngày kết thúc không được trước ngày bắt đầu'", async () => {
     const { user, dialog } = await openDialog();
-    await pickDate(user, within(dialog).getByLabelText(/Từ ngày/), inDays(40));
-    await pickDate(user, within(dialog).getByLabelText(/Đến ngày/), inDays(41));
-    await pickDate(user, within(dialog).getByLabelText(/Từ ngày/), inDays(45));
+    await pickDate(user, within(dialog).getByLabelText(/^Từ ngày/), inDays(40));
+    await pickDate(user, within(dialog).getByLabelText(/^Đến ngày/), inDays(41));
+    await pickDate(user, within(dialog).getByLabelText(/^Từ ngày/), inDays(45));
     expect(
       await within(dialog).findByText("Ngày kết thúc không được trước ngày bắt đầu"),
     ).toBeInTheDocument();
@@ -360,8 +360,8 @@ describe("Dời cửa sổ giao — lý do BE từ chối bằng tiếng Việt"
       within(card).getAllByRole("button", { name: "Dời cửa sổ giao" })[1] as HTMLElement,
     );
     const dialog = await screen.findByRole("dialog");
-    await pickDate(user, within(dialog).getByLabelText(/Từ ngày/), inDays(40));
-    await pickDate(user, within(dialog).getByLabelText(/Đến ngày/), inDays(43));
+    await pickDate(user, within(dialog).getByLabelText(/^Từ ngày/), inDays(40));
+    await pickDate(user, within(dialog).getByLabelText(/^Đến ngày/), inDays(43));
     await pickOrderSelectOption(user, /Lý do/, /Khách xin dời/);
     await user.type(within(dialog).getByRole("textbox", { name: /Ghi chú/ }), "Khách xin dời");
     await user.click(within(dialog).getByRole("radio", { name: "Tin nhắn chat của khách" }));
