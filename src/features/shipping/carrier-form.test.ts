@@ -6,6 +6,7 @@ import {
   hasSavedWebhookSecret,
   savedConnectionOf,
 } from "./carrier-form";
+import { carrierInputSchema } from "./carrier-schemas";
 
 import type { Carrier, CarrierValues } from "./types";
 
@@ -117,12 +118,39 @@ describe("carrierFormDefaults", () => {
       status: "INACTIVE",
       connectionType: "WEBHOOK_LOAD",
       webhookSecret: "",
-      apiEnvironment: "STAGING",
+      apiEnvironment: "",
       apiAccount: "",
       apiKey: "",
       webhookAuthHeader: "",
       webhookAuthValue: "",
     });
+  });
+
+  it("S01-6: môi trường mặc định 'Thử nghiệm' CHỈ cho hãng mới; hãng đã lưu không có môi trường vẫn để trống và vẫn bị báo bắt buộc", () => {
+    expect(carrierFormDefaults(null).apiEnvironment).toBe("STAGING");
+    const saved = carrier({
+      connection: {
+        connectionType: "API_BOOKING",
+        apiAccount: "0901234567",
+        apiKeyConfigured: true,
+      },
+    });
+    const defaults = carrierFormDefaults(saved);
+    expect(defaults.apiEnvironment).toBe("");
+    const parsed = carrierInputSchema({
+      secretRequired: false,
+      saved: savedConnectionOf(saved),
+    }).safeParse({ ...defaults, connectionType: "API_BOOKING" });
+    expect(parsed.success).toBe(false);
+    expect(
+      parsed.success ? [] : parsed.error.issues.map((issue) => String(issue.path[0])),
+    ).toContain("apiEnvironment");
+    // Đã có môi trường thì giữ nguyên
+    expect(
+      carrierFormDefaults(
+        carrier({ connection: { connectionType: "API_BOOKING", apiEnvironment: "PRODUCTION" } }),
+      ).apiEnvironment,
+    ).toBe("PRODUCTION");
   });
 
   it("hãng API đặt xe: điền sẵn môi trường, tài khoản, header; KHÔNG có khoá API / giá trị xác thực (chỉ đi vào)", () => {
