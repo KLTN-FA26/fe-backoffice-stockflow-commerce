@@ -12,12 +12,16 @@ import { toast } from "@/components/shared/Toast";
 import { apiOrder, apiOrderPartialShipment, apiPartialOrder } from "../__fixtures__/order";
 import { DETAIL_PATH, renderDetail } from "../__fixtures__/detail";
 import { ORDER_PERMISSION_SETS } from "../__fixtures__/render";
+import { openOrderDetailTabInFile } from "../__fixtures__/render";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 afterEach(() => vi.restoreAllMocks());
 
 const PARTIAL_PATH = `${DETAIL_PATH}/partial-shipment`;
+
+// Các khối được kiểm nằm ở tab "delivery" của trang chi tiết đơn (`OrderDetailTabs`)
+openOrderDetailTabInFile("delivery");
 
 describe("OrderDetail — Giao một phần (sales-order-partial-shipments:UPDATE)", () => {
   it("SALES_STAFF + cờ tắt → hiện trạng thái, bấm 'Cho phép giao một phần' + ghi chú → PUT {allowed: true, note}", async () => {

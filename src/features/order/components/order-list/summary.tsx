@@ -12,7 +12,7 @@ import {
 import type { ListSummaryItem } from "@/components/shared/ListToolbar";
 import type { OrderListState } from "./useOrderListState";
 
-/** Thanh "Cấu hình" dưới toolbar (data-table-mode-a §3). Không có "Search trong cột" vì server không hỗ trợ. */
+/** Thanh "Cấu hình" dưới toolbar (data-table-mode-a §3); lọc chữ ở header cột gom vào "Search trong cột". */
 export function buildSummaryItems(s: OrderListState): ListSummaryItem[] {
   const { filters, extra } = s;
   const dateRange =
@@ -34,6 +34,20 @@ export function buildSummaryItems(s: OrderListState): ListSummaryItem[] {
       onClear: () => void filters.setQ(""),
     },
     { label: "Trường search", value: SEARCH_SCOPE_LABEL },
+    {
+      label: "Search trong cột",
+      value:
+        [
+          extra.numberText.trim() && `Mã đơn “${extra.numberText.trim()}”`,
+          extra.recipientText.trim() && `Người nhận “${extra.recipientText.trim()}”`,
+          (extra.totalFrom || extra.totalTo) &&
+            `Tổng tiền ${extra.totalFrom || "…"}–${extra.totalTo || "…"}`,
+        ]
+          .filter(Boolean)
+          .join(", ") || "Chưa dùng",
+      active: extra.columnTextActive,
+      onClear: extra.clearColumnText,
+    },
     {
       label: "Trạng thái",
       value: statusLabel || "Tất cả",

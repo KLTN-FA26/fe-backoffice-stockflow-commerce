@@ -57,7 +57,11 @@ describe("CustomerDetail — action gating by real role permissions", () => {
       "href",
       "/admin/quotes/create?customerId=c-1",
     );
-    expect(screen.getByRole("button", { name: /Sửa/ })).toBeInTheDocument();
+    // "Chỉnh sửa" ở đầu khung hồ sơ (backoffice-erp-ui B11); menu "⋯" chỉ có "Báo giá của khách" — không có quyền đổi
+    // trạng thái thì không có "Tạm khoá"
+    expect(screen.getByRole("button", { name: /Chỉnh sửa/ })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Thao tác khác với khách hàng" }));
+    expect(await screen.findByRole("link", { name: /Báo giá của khách/ })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Tạm khoá" })).not.toBeInTheDocument();
     expect(await screen.findByText("30 ngày")).toBeInTheDocument();
   });
@@ -77,6 +81,11 @@ describe("CustomerDetail — action gating by real role permissions", () => {
       },
     });
     renderScreen(<CustomerDetail id="c-1" />, "SALES_STAFF");
+    // Khách chờ kích hoạt: tab "Lời mời portal" mở sẵn (việc tiếp theo là lời mời)
+    expect(await screen.findByRole("tab", { name: "Lời mời portal" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
     expect(await screen.findByText("Gửi email thất bại")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Tạo báo giá/ })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: /Gửi lại lời mời/ }));
@@ -86,6 +95,10 @@ describe("CustomerDetail — action gating by real role permissions", () => {
   it("ECOMMERCE_ADMIN: may suspend/close an active customer, cannot create quotes", async () => {
     mockApi("ECOMMERCE_ADMIN", routes({ ...pending, status: "ACTIVE" }));
     renderScreen(<CustomerDetail id="c-1" />, "ECOMMERCE_ADMIN");
+    // Bước phá huỷ gom vào menu "⋯" của header đối tượng
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Thao tác khác với khách hàng" }),
+    );
     expect(await screen.findByRole("button", { name: "Tạm khoá" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Đóng tài khoản" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Tạo báo giá/ })).not.toBeInTheDocument();

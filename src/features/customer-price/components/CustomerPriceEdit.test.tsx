@@ -324,7 +324,7 @@ describe("luồng thật qua mock", () => {
     stubPermissions(EDITOR);
     render(`customerId=${C}`);
     const user = userEvent.setup();
-    await user.click(await screen.findByRole("button", { name: F.create }, WAIT));
+    await user.click(await screen.findByRole("button", { name: L.toolbar.createAria }, WAIT));
     await user.type(screen.getByLabelText(F.sku), "SKU-001-WHT-L");
     await user.type(qty(1), "3");
     await user.type(price(1), "123456789012345");
