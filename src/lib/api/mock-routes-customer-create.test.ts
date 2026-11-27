@@ -142,6 +142,29 @@ describe("mock POST /customers — người phụ trách (chốt 28/11)", () => 
     expect(after.items.find((l) => l.id === lead?.id)?.status).toBe("CONVERTED");
   });
 
+  it("P4: a salesperson creating a unit of another salesperson's company is refused, naming them", async () => {
+    const other = (await mockSalesRoster()).find((p) => p.id !== mockActorId(SALES));
+    expect(other).toBeTruthy();
+    actAs(MANAGER);
+    const company = values({ taxCode: "0398765432", salesOwnerId: other?.id ?? "" });
+    await createCustomer(company);
+    actAs(SALES);
+    const refusal = await createCustomer(values({ taxCode: "0398765432-001" })).catch(
+      (error: unknown) => error,
+    );
+    expect(refusal).toBeInstanceOf(ApiError);
+    expect(refusal).toMatchObject({
+      code: "CUSTOMER_OWNED_BY_OTHER_SALES",
+      details: { salesOwnerId: other?.id, salesOwnerName: other?.name },
+    });
+    // Quản lý tạo đơn vị đó được (giao cho người phụ trách công ty)
+    actAs(MANAGER);
+    const unit = await createCustomer(
+      values({ taxCode: "0398765432-001", salesOwnerId: other?.id ?? "" }),
+    );
+    expect(unit.customer.taxCode).toBe("0398765432-001");
+  });
+
   it("BR-S14: no tax code and no exemption → CUSTOMER_TAX_CODE_REQUIRED", async () => {
     actAs(SALES);
     expect(await codeOf(createCustomer(values({ taxCode: "" })))).toBe(

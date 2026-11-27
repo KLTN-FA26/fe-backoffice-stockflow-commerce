@@ -134,8 +134,14 @@ describe("Tạo khách — cảnh báo khách trùng (BR-S14, tình huống 16)"
             {
               customerId: "c-1",
               fullName: "Quán Cà Phê Nhỏ (cũ)",
-              matchedOn: ["email", "name"],
+              matchedOn: ["EMAIL", "NAME"],
               salesOwnerName: "Trần Văn Sales",
+            },
+            {
+              customerId: "c-2",
+              fullName: "Công ty Mẹ",
+              matchedOn: ["TAX_CODE_ROOT"],
+              salesOwnerName: "Lê Thị Bán",
             },
           ],
         },
@@ -150,6 +156,10 @@ describe("Tạo khách — cảnh báo khách trùng (BR-S14, tình huống 16)"
       "/admin/customers/c-1",
     );
     expect(panel.getByText(/Trùng email, tên · do Trần Văn Sales phụ trách/)).toBeInTheDocument();
+    // Review P4: cùng MST gốc không phải "trùng" — một đơn vị khác của cùng công ty
+    expect(
+      panel.getByText(/— Cùng công ty \(MST gốc\) · do Lê Thị Bán phụ trách/),
+    ).toBeInTheDocument();
     // Debounce: sau khi gõ xong, một lần hỏi mang đủ các ô đã nhập.
     await waitFor(() => {
       const call = api.get.mock.calls.findLast(([url]) => url === "/customers/duplicates");
@@ -158,6 +168,31 @@ describe("Tạo khách — cảnh báo khách trùng (BR-S14, tình huống 16)"
         name: "Quán Cà Phê Nhỏ",
       });
     });
+  });
+
+  it("P4: a unit of a company another Sales looks after → refusal names that Sales, on the tax code", async () => {
+    const api = mockApi("SALES_STAFF", {
+      post: {
+        "/customers": () => {
+          throw apiError(409, "CUSTOMER_OWNED_BY_OTHER_SALES", undefined, "Khách do Lê Thị Bán", {
+            salesOwnerId: "s-9",
+            salesOwnerName: "Lê Thị Bán",
+          });
+        },
+      },
+    });
+    renderScreen(<CustomerCreate />, "SALES_STAFF");
+    await fillRequired();
+    await userEvent.type(screen.getByLabelText(/Mã số thuế/), "0312345678-002");
+    await userEvent.click(screen.getByRole("button", { name: SUBMIT }));
+    expect(
+      await screen.findByText(
+        "Công ty này (cùng MST gốc) do Lê Thị Bán phụ trách. Nhờ Lê Thị Bán hoặc Sales Manager tạo đơn vị này.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText(/Mã số thuế/)).toHaveAttribute("aria-invalid", "true");
+    expect(api.post).toHaveBeenCalledTimes(1);
+    expect(replace).not.toHaveBeenCalled();
   });
 
   it("fallback: the duplicates endpoint is missing → no panel, the form still submits", async () => {

@@ -9,15 +9,23 @@ import type { CustomerDuplicate } from "@/features/customer/duplicates";
 
 const L = CUSTOMER_CREATE_OWNER_LABELS.duplicates;
 
-/** "Trùng MST, SĐT" — khoá BE lạ thì giữ nguyên. */
-function matchedText(matchedOn: readonly string[]): string | null {
-  if (matchedOn.length === 0) return null;
-  return `${L.matchedPrefix} ${matchedOn.map((key) => L.matchedOn[key] ?? key).join(", ")}`;
+const TAX_CODE_ROOT = "TAX_CODE_ROOT";
+
+/** "Trùng MST, SĐT" (khoá BE lạ giữ nguyên) và "Cùng công ty (MST gốc)" — không phải trùng, là cùng tổ chức. */
+function matchedFacts(matchedOn: readonly string[]): string[] {
+  const same = matchedOn.filter((key) => key !== TAX_CODE_ROOT);
+  return [
+    ...(same.length
+      ? [`${L.matchedPrefix} ${same.map((key) => L.matchedOn[key] ?? key).join(", ")}`]
+      : []),
+    ...(matchedOn.includes(TAX_CODE_ROOT) ? [L.taxCodeRoot] : []),
+  ];
 }
 
 /**
  * Cảnh báo khách có thể trùng khi tạo hồ sơ (BR-S14, tình huống 16): mỗi khách khớp một dòng — tên (link tới hồ sơ), trùng
- * ô nào, ai đang phụ trách. Chỉ cảnh báo, không chặn (trùng MST BE tự chặn).
+ * ô nào hay cùng công ty (MST gốc), ai đang phụ trách. Chỉ cảnh báo, không chặn (trùng MST BE tự chặn; Sale tạo đơn vị của
+ * công ty do Sale khác phụ trách thì BE từ chối).
  */
 export function DuplicatePanel({ matches }: { matches: readonly CustomerDuplicate[] }) {
   if (matches.length === 0) return null;
@@ -29,9 +37,9 @@ export function DuplicatePanel({ matches }: { matches: readonly CustomerDuplicat
         <ul className="mt-2 space-y-1">
           {matches.map((match) => {
             const facts = [
-              matchedText(match.matchedOn),
+              ...matchedFacts(match.matchedOn),
               match.salesOwnerName ? L.owner(match.salesOwnerName) : L.noOwner,
-            ].filter((fact): fact is string => fact !== null);
+            ];
             return (
               <li key={match.customerId} className="text-[0.8125rem]">
                 <Link

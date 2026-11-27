@@ -1,7 +1,8 @@
 /**
  * Mock route — phần màn BO-2 cần của Sale phụ trách khách (HOP-DONG-API sales-owner, BE-A):
- * - `GET /customers/duplicates` — trùng MST / SĐT / email / tên chuẩn hoá trên dữ liệu mock khách; tên người phụ trách
- *   lấy từ store chung (`mock-sales-owner-store`), như thẻ khách và danh sách.
+ * - `GET /customers/duplicates` — trùng MST / SĐT / email / tên chuẩn hoá, hoặc cùng MST gốc 10 số (`TAX_CODE_ROOT`, đơn vị
+ *   khác của cùng tổ chức) trên dữ liệu mock khách; khoá `matchedOn` là enum BE (`CustomerDuplicates.On`); tên người phụ
+ *   trách lấy từ store chung (`mock-sales-owner-store`), như thẻ khách và danh sách.
  * - `GET /identity/users/{id}/handover-summary` — số khách đang phụ trách (store chung), hội thoại mở (chat mock) và lead
  *   đang mở (store lead) của người đó.
  * `GET /customers/{id}/sales-owner` KHÔNG ở đây: một route duy nhất trong `mock-routes-sales-owner.ts` cho mọi màn (thẻ
@@ -16,6 +17,7 @@ import { mockActorId } from "./mock-display-names";
 import { ownerView } from "./mock-routes-sales-owner";
 import { openLeadCountOf } from "./mock-routes-sales-work";
 import { isUuidText, ok, pathParams, queryOf } from "./mock-route-utils";
+import { taxCodeRoot } from "./mock-tax-code";
 import { salesOwnerStore } from "./mock-sales-owner-store";
 
 import type { AxiosRequestConfig } from "axios";
@@ -36,15 +38,18 @@ const digits = (value: string | null) => (value ?? "").replace(/\D/g, "");
 function matchedOn(customer: MockCustomer, query: URLSearchParams): string[] {
   const keys: string[] = [];
   const taxCode = query.get("taxCode");
-  if (taxCode && customer.taxCode && digits(customer.taxCode) === digits(taxCode))
-    keys.push("taxCode");
+  if (taxCode && customer.taxCode) {
+    const root = taxCodeRoot(taxCode);
+    if (digits(customer.taxCode) === digits(taxCode)) keys.push("TAX_CODE");
+    else if (root && taxCodeRoot(customer.taxCode) === root) keys.push("TAX_CODE_ROOT");
+  }
   const phone = query.get("phone");
   if (phone && customer.phone && digits(customer.phone).endsWith(digits(phone).slice(-9)))
-    keys.push("phone");
+    keys.push("PHONE");
   const email = query.get("email");
-  if (email && customer.email.toLowerCase() === email.trim().toLowerCase()) keys.push("email");
+  if (email && customer.email.toLowerCase() === email.trim().toLowerCase()) keys.push("EMAIL");
   const name = query.get("name");
-  if (name && normalName(customer.fullName).includes(normalName(name))) keys.push("name");
+  if (name && normalName(customer.fullName).includes(normalName(name))) keys.push("NAME");
   return keys;
 }
 

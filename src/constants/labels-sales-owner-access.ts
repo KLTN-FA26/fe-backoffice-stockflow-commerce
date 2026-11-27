@@ -64,13 +64,24 @@ export const CUSTOMER_CREATE_OWNER_LABELS = {
   ownerUnavailable: "Chưa tải được danh sách Sale. Tải lại trang để chọn người phụ trách.",
   ownerSelf: "Bạn sẽ là Sale phụ trách của khách này.",
   fromLead: "Tạo từ khách tiềm năng — người phụ trách là Sale được giao khách tiềm năng đó.",
+  /**
+   * BR-S12 khi tạo khách: một đơn vị khác của cùng tổ chức (cùng MST gốc 10 số) đã có Sale khác phụ trách — BE từ chối
+   * `CUSTOMER_OWNED_BY_OTHER_SALES` kèm `details.salesOwnerName`.
+   */
+  relatedOwnedByOther: (name: string) =>
+    `Công ty này (cùng MST gốc) do ${name} phụ trách. Nhờ ${name} hoặc Sales Manager tạo đơn vị này.`,
+  relatedOwnedByOtherUnnamed:
+    "Công ty này (cùng MST gốc) do Sale khác phụ trách. Nhờ người đó hoặc Sales Manager tạo đơn vị này.",
   duplicates: {
     title: "Có thể đã có khách này",
     description: "Kiểm tra trước khi tạo, tránh tạo trùng hồ sơ.",
-    matchedOn: { taxCode: "MST", phone: "SĐT", email: "email", name: "tên" } as Record<
+    /** `matchedOn` của BE (`CustomerDuplicates.On`); `TAX_CODE_ROOT` có câu riêng (`taxCodeRoot`). */
+    matchedOn: { TAX_CODE: "MST", PHONE: "SĐT", EMAIL: "email", NAME: "tên" } as Record<
       string,
       string
     >,
+    /** Cùng MST gốc 10 số, khác MST: công ty mẹ của một đơn vị, hoặc một đơn vị khác của cùng công ty. */
+    taxCodeRoot: "Cùng công ty (MST gốc)",
     matchedPrefix: "Trùng",
     owner: (name: string) => `do ${name} phụ trách`,
     noOwner: "chưa có người phụ trách",

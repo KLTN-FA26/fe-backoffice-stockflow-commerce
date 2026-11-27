@@ -67,8 +67,22 @@ describe("mock sales owner (HOP-DONG-API BE-A)", () => {
   it("BR-S14: duplicates match on email and name, never on nothing", async () => {
     const customer = allMockCustomers()[0];
     const byEmail = await findCustomerDuplicates({ email: customer.email });
-    expect(byEmail[0]).toMatchObject({ customerId: customer.customerId, matchedOn: ["email"] });
+    expect(byEmail[0]).toMatchObject({ customerId: customer.customerId, matchedOn: ["EMAIL"] });
     expect(await findCustomerDuplicates({ name: "khong-co-ten-nay-xyz" })).toEqual([]);
+  });
+
+  it("P4: another unit of the same organisation matches on TAX_CODE_ROOT, the same tax code on TAX_CODE", async () => {
+    const customer = allMockCustomers().find((c) => c.taxCode && /^\d{10}/.test(c.taxCode));
+    const root = customer?.taxCode?.slice(0, 10) ?? "";
+    expect(root).toHaveLength(10);
+    const unit = await findCustomerDuplicates({ taxCode: `${root}-999` });
+    expect(unit.find((m) => m.customerId === customer?.customerId)?.matchedOn).toEqual([
+      "TAX_CODE_ROOT",
+    ]);
+    const same = await findCustomerDuplicates({ taxCode: customer?.taxCode ?? "" });
+    expect(same.find((m) => m.customerId === customer?.customerId)?.matchedOn).toEqual([
+      "TAX_CODE",
+    ]);
   });
 
   it("BR-S08: handover summary is served by the mock, not the BFF", async () => {

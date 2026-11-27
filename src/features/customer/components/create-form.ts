@@ -51,6 +51,8 @@ export const FIELD_BY_ERROR: Readonly<Record<string, keyof CustomerCreateFormVal
   SALES_OWNER_NOT_ASSIGNABLE: "salesOwnerId",
   // Chốt 28/11: Manager / quản trị tạo khách mà chưa chọn Sale phụ trách.
   SALES_OWNER_REQUIRED: "salesOwnerId",
+  // BR-S12: đơn vị cùng MST gốc đã do Sale khác phụ trách — sửa ở ô MST hoặc nhờ người đó tạo.
+  CUSTOMER_OWNED_BY_OTHER_SALES: "taxCode",
 };
 
 export function isFormField(name: string): name is keyof CustomerCreateFormValues {

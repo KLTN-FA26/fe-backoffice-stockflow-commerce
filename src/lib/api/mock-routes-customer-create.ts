@@ -5,18 +5,22 @@
  * - người phụ trách (BR-S02, §10.7, chốt 28/11 — khách mới luôn có người phụ trách): lead → Sale của lead
  *   (`LEAD_CONVERTED`); Sale tạo → chính họ (`CREATED_BY_SALES`); người điều phối (`customer-sales-owners:UPDATE`) phải
  *   chọn một Sale (400 `SALES_OWNER_REQUIRED`); người được chọn không phải Sale đang làm → 422
- *   `SALES_OWNER_NOT_ASSIGNABLE`.
+ *   `SALES_OWNER_NOT_ASSIGNABLE`;
+ * - BR-S12 (review P4): Sale (không phải người điều phối) tạo một đơn vị của tổ chức mà Sale khác đang phụ trách (cùng MST
+ *   gốc 10 số, khác MST) → 409 `CUSTOMER_OWNED_BY_OTHER_SALES` kèm `details.salesOwnerName`.
  * Khách mới vào `mock-customer-store` (PENDING_ACTIVATION) và store người phụ trách, nên thấy ngay ở danh sách / thẻ khách.
  */
 
 import { CUSTOMER_PERMISSIONS } from "@/constants";
-import { SALES_OWNER_PERMISSIONS } from "@/constants/sales-owner";
+import { SALES_OWNER_ERROR_CODES, SALES_OWNER_PERMISSIONS } from "@/constants/sales-owner";
 
 import { registerMockRoute } from "./mock-adapter";
 import { chatCaller } from "./mock-chat-store";
 import { addMockCustomer, allMockCustomers, normaliseTaxCode } from "./mock-customer-store";
+import { ownerView } from "./mock-routes-sales-owner";
 import { mockLead } from "./mock-routes-sales-work";
 import { bodyOf, fail, ok, text, validationFailed } from "./mock-route-utils";
+import { taxCodeRoot } from "./mock-tax-code";
 import {
   callerWith,
   mockSalesId,
@@ -112,8 +116,29 @@ async function createRoute(config: AxiosRequestConfig) {
     );
   const owner = await firstOwner(body, caller, manager);
   if ("status" in owner) return owner;
-  if (!(await mockSalesRoster()).some((p) => p.id === owner.ownerId))
+  const roster = await mockSalesRoster();
+  if (!roster.some((p) => p.id === owner.ownerId))
     return fail(422, "SALES_OWNER_NOT_ASSIGNABLE", "This person cannot look after customers");
+  // P4: một đơn vị khác của cùng tổ chức đã có Sale đang làm khác phụ trách → chỉ người đó hoặc quản lý tạo
+  const root = taxCode ? taxCodeRoot(taxCode) : null;
+  if (root && !manager) {
+    for (const related of live.filter((c) => c.taxCode && taxCodeRoot(c.taxCode) === root)) {
+      const view = await ownerView(related.customerId);
+      if (
+        view?.state === "ASSIGNED" &&
+        view.salesOwnerId &&
+        view.salesOwnerId !== owner.ownerId &&
+        roster.some((p) => p.id === view.salesOwnerId)
+      )
+        return fail(
+          409,
+          SALES_OWNER_ERROR_CODES.ownedByOther,
+          `Khách này do ${view.salesOwnerName ?? "Sale khác"} phụ trách.`,
+          [],
+          { salesOwnerId: view.salesOwnerId, salesOwnerName: view.salesOwnerName },
+        );
+    }
+  }
 
   const now = new Date();
   const customer = {

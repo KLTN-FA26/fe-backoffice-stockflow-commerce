@@ -3,7 +3,12 @@
  * nên FE chọn câu theo `errorCode`).
  */
 
+import { CUSTOMER_CREATE_OWNER_LABELS } from "@/constants";
+import { SALES_OWNER_ERROR_CODES } from "@/constants/sales-owner";
+
+import { ApiError } from "@/lib/api/error";
 import { apiErrorMessage, apiFieldErrors } from "@/lib/api/error-message";
+import { salesOwnerNameOf } from "@/lib/references/sales-owner-access";
 
 import type { LegalProfileValues } from "./types";
 
@@ -33,6 +38,20 @@ export const CUSTOMER_ERROR_MESSAGES: Readonly<Record<string, string>> = {
 
 export function customerErrorMessage(error: unknown): string {
   return apiErrorMessage(error, CUSTOMER_ERROR_MESSAGES);
+}
+
+/**
+ * Lỗi của form tạo khách. Riêng `CUSTOMER_OWNED_BY_OTHER_SALES`: khi TẠO khách, BE chỉ trả mã này vì một đơn vị khác của
+ * cùng tổ chức (cùng MST gốc) đã do Sale khác phụ trách (BR-S12) — câu nêu tên từ `details.salesOwnerName`.
+ */
+export function customerCreateErrorMessage(error: unknown): string {
+  if (error instanceof ApiError && error.code === SALES_OWNER_ERROR_CODES.ownedByOther) {
+    const name = salesOwnerNameOf(error);
+    return name
+      ? CUSTOMER_CREATE_OWNER_LABELS.relatedOwnedByOther(name)
+      : CUSTOMER_CREATE_OWNER_LABELS.relatedOwnedByOtherUnnamed;
+  }
+  return customerErrorMessage(error);
 }
 
 /**

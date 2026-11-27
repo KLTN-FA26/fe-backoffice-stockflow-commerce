@@ -17,7 +17,7 @@ import { usePermissionChecker } from "@/lib/auth/components/Can";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 
 import { useCustomerDuplicates } from "@/features/customer/duplicates";
-import { customerErrorMessage } from "@/features/customer/errors";
+import { customerCreateErrorMessage } from "@/features/customer/errors";
 import { useCreateCustomer } from "@/features/customer/mutations";
 import { customerCreateSchemaFor } from "@/features/customer/schemas";
 
@@ -87,7 +87,7 @@ function CustomerCreateForm() {
         if (field && (field !== "salesOwnerId" || ownerShown)) {
           setError(
             field,
-            { type: "server", message: customerErrorMessage(error) },
+            { type: "server", message: customerCreateErrorMessage(error) },
             { shouldFocus: true },
           );
           mapped = true;
@@ -98,7 +98,7 @@ function CustomerCreateForm() {
             mapped = true;
           }
         }
-        if (!mapped) setFormError(customerErrorMessage(error));
+        if (!mapped) setFormError(customerCreateErrorMessage(error));
       },
     });
   };

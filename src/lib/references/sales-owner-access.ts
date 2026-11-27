@@ -126,6 +126,11 @@ function ownerNameFromError(error: ApiError): string | null {
   return ownerDetailsSchema.parse(error.details ?? {}).salesOwnerName?.trim() || null;
 }
 
+/** `details.salesOwnerName` của một lỗi BE bất kỳ (vd tạo khách bị từ chối vì đơn vị cùng MST gốc), nếu có. */
+export function salesOwnerNameOf(error: unknown): string | null {
+  return error instanceof ApiError ? ownerNameFromError(error) : null;
+}
+
 /**
  * MỘT chỗ đổi hai lỗi phụ trách của BE (`CUSTOMER_OWNED_BY_OTHER_SALES`, `CUSTOMER_UNASSIGNED_CLAIM_ONLY`) thành câu cho
  * mọi màn — báo giá, hợp đồng, chat, hộp yêu cầu báo giá, và đổi người phụ trách (`ownerChangeErrorMessage`). `null` khi
