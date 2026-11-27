@@ -2,6 +2,7 @@
 
 import { LoaderCircle, WandSparkles } from "lucide-react";
 
+import { ORDER_CONTRACT_LABELS } from "@/constants/labels-order-contract";
 import { useUnsavedChangesWarning } from "@/hooks/use-unsaved-changes";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { DiscardChangesButton } from "@/components/shared/DiscardChangesButton";
@@ -17,6 +18,8 @@ import { useContractEditor } from "./useContractEditor";
 
 import type { SalesContract } from "../../sales-contract-schemas";
 import type { Order } from "../../types";
+
+const T = ORDER_CONTRACT_LABELS.terms;
 
 /** Sửa hợp đồng nháp (`PUT /orders/{id}/contract` kèm `version`). */
 export function ContractEditor({
@@ -97,27 +100,47 @@ export function ContractEditor({
       <div className="grid gap-3 md:grid-cols-2">
         <FormField
           id="contract-samples"
-          label="Số lần in mẫu miễn phí"
+          label={T.rounds.label}
+          required
           error={errors.freeSampleRounds?.message}
         >
-          <Input
-            {...form.register("freeSampleRounds")}
-            {...fieldA11y("contract-samples", errors.freeSampleRounds?.message)}
-            inputMode="numeric"
-            className={FORM_INPUT_CLASS}
-          />
+          <div className="relative">
+            <Input
+              {...form.register("freeSampleRounds")}
+              {...fieldA11y("contract-samples", errors.freeSampleRounds?.message)}
+              inputMode="numeric"
+              autoComplete="off"
+              className={`${FORM_INPUT_CLASS} pr-10`}
+            />
+            <span
+              aria-hidden="true"
+              className="text-ink-secondary pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-xs"
+            >
+              {T.rounds.unit}
+            </span>
+          </div>
         </FormField>
         <FormField
           id="contract-return"
-          label="Thời hạn khiếu nại (ngày)"
+          label={T.returnWindow.label}
+          required
           error={errors.returnWindowDays?.message}
         >
-          <Input
-            {...form.register("returnWindowDays")}
-            {...fieldA11y("contract-return", errors.returnWindowDays?.message)}
-            inputMode="numeric"
-            className={FORM_INPUT_CLASS}
-          />
+          <div className="relative">
+            <Input
+              {...form.register("returnWindowDays")}
+              {...fieldA11y("contract-return", errors.returnWindowDays?.message)}
+              inputMode="numeric"
+              autoComplete="off"
+              className={`${FORM_INPUT_CLASS} pr-12`}
+            />
+            <span
+              aria-hidden="true"
+              className="text-ink-secondary pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-xs"
+            >
+              {T.returnWindow.unit}
+            </span>
+          </div>
         </FormField>
       </div>
       <div className="flex justify-end gap-2">

@@ -12,7 +12,11 @@ import {
   contractOrderDto,
   contractSent,
 } from "../../__fixtures__/contract";
-import { mockOrderApiGet, renderOrderScreen } from "../../__fixtures__/render";
+import {
+  mockOrderApiGet,
+  pickOrderSelectOption,
+  renderOrderScreen,
+} from "../../__fixtures__/render";
 import { toOrder } from "../../api";
 import { dueRuleText } from "../../sales-contract-rules";
 import { orderDtoSchema } from "../../schemas";
@@ -124,6 +128,53 @@ describe("Contract editor — round 5", () => {
     await user.click(within(group).getByRole("radio", { name: "% tổng đơn" }));
     expect(screen.getByLabelText("Đợt 1 — giá trị")).toHaveValue("");
     expect(await screen.findByText("% từ 0,01 đến 100 (2 số lẻ)")).toBeInTheDocument();
+  });
+
+  it("S06-2: the ₫ | % group is one Tab stop and the arrows move the choice", async () => {
+    renderSection(() => contractDraft);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: /Sửa/ }));
+    const group = screen.getByRole("radiogroup", { name: "Đợt 1 — tính theo" });
+    const [amount, percent] = within(group).getAllByRole("radio");
+    expect(percent).toHaveAttribute("tabindex", "0");
+    expect(amount).toHaveAttribute("tabindex", "-1");
+    (percent as HTMLElement).focus();
+    await user.keyboard("{ArrowLeft}");
+    expect(amount).toBeChecked();
+    expect(amount).toHaveFocus();
+  });
+
+  it("S01-18: milestone and delivery batch are the one Select (Radix); the batch box is off for ON_SIGNING", async () => {
+    renderSection(() => contractDraft);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: /Sửa/ }));
+    // (Radix keeps an aria-hidden native <select> for form posts; a visible native one would not be hidden.)
+    expect(document.querySelector("form select:not([aria-hidden])")).toBeNull();
+    // Row 1 is ON_SIGNING: nothing to tie to a delivery batch.
+    expect(screen.getByRole("combobox", { name: "Đợt 1 — đợt giao" })).toBeDisabled();
+    await pickOrderSelectOption(user, "Đợt 1 — mốc", "Sau giao");
+    expect(screen.getByRole("combobox", { name: "Đợt 1 — đợt giao" })).toBeEnabled();
+    await pickOrderSelectOption(user, "Đợt 1 — đợt giao", "Đợt giao 2");
+    expect(screen.getByText("Hạn = ngày giao đợt 2 + hạn tín dụng của khách")).toBeInTheDocument();
+    // Back to "no batch": the dash item stands for the empty value.
+    await pickOrderSelectOption(user, "Đợt 1 — đợt giao", "—");
+    expect(screen.getByText("Hạn = ngày giao + hạn tín dụng của khách")).toBeInTheDocument();
+  });
+
+  it("S06-8: the two terms at the end are required (red star) with their unit inside the box; the view says 'lần' too", async () => {
+    renderSection(() => contractDraft);
+    expect(await screen.findByText("2 lần")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /Sửa/ }));
+    for (const [label, unit] of [
+      [/Số lần in mẫu miễn phí/, "lần"],
+      [/Thời hạn khiếu nại/, "ngày"],
+    ] as const) {
+      const box = screen.getByLabelText(label);
+      expect(box).toHaveValue(unit === "lần" ? "2" : "7");
+      const field = box.closest("div")?.parentElement as HTMLElement;
+      expect(field).toHaveTextContent("*");
+      expect(within(field).getByText(unit)).toBeInTheDocument();
+    }
   });
 
   it("BO-UX-4: an amount is grouped as it is typed; a % row keeps a plain percent field", async () => {

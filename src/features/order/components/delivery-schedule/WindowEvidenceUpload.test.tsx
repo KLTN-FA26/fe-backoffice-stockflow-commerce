@@ -1,6 +1,6 @@
 /**
  * Dời cửa sổ giao — bằng chứng khách đồng ý là TỆP (docs 17 BR-28; BE `…/window-change/evidence/uploads` → PUT lên kho →
- * `evidenceUploadId`): chọn tệp thì tải ngay có tiến độ, lỗi tiếng Việt, đúng MỘT bằng chứng (tệp HOẶC mã tin nhắn).
+ * `evidenceUploadId`): chọn tệp thì tải ngay có tiến độ, lỗi tiếng Việt, bằng chứng chỉ là tệp (S06-9).
  */
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -14,7 +14,6 @@ import { pickDate } from "@/test/date-picker";
 import { pickOrderSelectOption } from "../../__fixtures__/render";
 import {
   BATCH_2,
-  CONSENT_MESSAGE,
   SCHEDULE_PATH,
   WF4_PERMISSION_SETS,
   apiBatch,
@@ -104,16 +103,13 @@ const submitButton = (dialog: HTMLElement) =>
   within(dialog).getByRole("button", { name: "Dời cửa sổ giao" });
 
 describe("Bằng chứng — mặc định là tệp", () => {
-  it("chọn 'Tệp đính kèm' sẵn, có gợi ý loại / cỡ tệp, chưa có ô mã tin nhắn; nút gửi khoá", async () => {
+  it("S06-9: chỉ có tệp — không có lựa chọn tin nhắn chat, có gợi ý loại / cỡ tệp; nút gửi khoá", async () => {
     const { dialog } = await openDialog();
-    expect(within(dialog).getByRole("radio", { name: /Tệp đính kèm/ })).toBeChecked();
-    expect(
-      within(dialog).getByRole("radio", { name: "Tin nhắn chat của khách" }),
-    ).not.toBeChecked();
+    expect(within(dialog).queryByRole("radio")).not.toBeInTheDocument();
+    expect(within(dialog).queryByLabelText(/Mã tin nhắn của khách/)).not.toBeInTheDocument();
     expect(dialog).toHaveTextContent(
       /PDF, Word, Excel hoặc ảnh JPEG \/ PNG chụp văn bản, tối đa 25 MB/,
     );
-    expect(within(dialog).queryByLabelText(/Mã tin nhắn của khách/)).not.toBeInTheDocument();
     expect(submitButton(dialog)).toBeDisabled();
   });
 
@@ -304,29 +300,6 @@ describe("Bằng chứng — lỗi bằng tiếng Việt, không toast", () => {
 });
 
 describe("Bằng chứng — đúng MỘT loại, và lỗi khi gắn tệp", () => {
-  it("đã tải tệp rồi đổi sang tin nhắn chat → chỉ gửi evidenceMessageId (không kèm evidenceUploadId)", async () => {
-    const { user, post, dialog } = await openDialog();
-    await fillRest(user, dialog);
-    await user.upload(fileInput(dialog), pdf());
-    await within(dialog).findByText(/Đã tải lên/);
-    await user.click(within(dialog).getByRole("radio", { name: "Tin nhắn chat của khách" }));
-    expect(within(dialog).queryByLabelText("Tệp bằng chứng")).not.toBeInTheDocument();
-    // Chưa nhập mã tin nhắn → chưa gửi được dù đã có tệp
-    await waitFor(() => expect(submitButton(dialog)).toBeDisabled());
-    await user.type(within(dialog).getByLabelText(/Mã tin nhắn của khách/), CONSENT_MESSAGE);
-    await waitFor(() => expect(submitButton(dialog)).toBeEnabled());
-    await user.click(submitButton(dialog));
-    await waitFor(() =>
-      expect(post).toHaveBeenCalledWith(WINDOW_PATH, expect.anything(), expect.anything()),
-    );
-    const body = post.mock.calls.find((call) => call[0] === WINDOW_PATH)?.[1] as Record<
-      string,
-      unknown
-    >;
-    expect(body).toMatchObject({ evidenceMessageId: CONSENT_MESSAGE });
-    expect(body).not.toHaveProperty("evidenceUploadId");
-  });
-
   it.each([
     [415, "UNSUPPORTED_MEDIA_TYPE", /Nội dung tệp bằng chứng không đúng loại tệp/],
     [400, "VALIDATION_FAILED", /tệp đã tải lên đầy đủ/],

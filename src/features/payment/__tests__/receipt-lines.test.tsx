@@ -116,6 +116,31 @@ describe("Receipt dialog — the installment it was opened from (S07-3)", () => 
   });
 });
 
+describe("Receipt dialog — what Sale types (S07-4)", () => {
+  it("the statement reference shows an example, the amount does not repeat the ₫, the note says it is optional", async () => {
+    const { dialog } = await openDialog([due]);
+    expect(dialog.getByLabelText(/Mã tham chiếu sao kê/)).toHaveAttribute(
+      "placeholder",
+      "Ví dụ: FT26313123456",
+    );
+    expect(dialog.getByLabelText(/^Số tiền$|^Số tiền \*/)).toBeInTheDocument();
+    expect(dialog.queryByText("Số tiền (₫)")).toBeNull();
+    expect(dialog.getByLabelText(/Ghi chú \(không bắt buộc\)/)).toBeInTheDocument();
+  });
+
+  it("a pasted statement reference loses the spaces and line breaks around it; typing is left alone", async () => {
+    const { dialog } = await openDialog([due]);
+    const reference = dialog.getByLabelText(/Mã tham chiếu sao kê/) as HTMLInputElement;
+    await userEvent.click(reference);
+    await userEvent.paste("  FT26313123456\n");
+    expect(reference).toHaveValue("FT26313123456");
+    // A reference typed with an inner space keeps it (the pattern allows spaces).
+    await userEvent.clear(reference);
+    await userEvent.type(reference, "FT 26313");
+    expect(reference).toHaveValue("FT 26313");
+  });
+});
+
 describe("After 'Lập phiếu thu' (S07-5)", () => {
   it("says the amount and the statement reference, and keeps a link to the receipt on the page", async () => {
     const success = vi.spyOn(toast, "success");

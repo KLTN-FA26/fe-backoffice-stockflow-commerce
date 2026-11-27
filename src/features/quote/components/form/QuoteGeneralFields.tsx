@@ -86,9 +86,9 @@ export function QuoteGeneralFields({
       </FormField>
       <FormField
         id="quote-delivery"
-        label="Ngày giao khách yêu cầu"
+        label={`Ngày giao khách yêu cầu ${QUOTE_FORM_LABELS.optional}`}
         error={errors.requestedDeliveryDate?.message}
-        hint="Tuỳ chọn, không ở quá khứ."
+        hint="Không ở quá khứ."
       >
         <Controller
           control={control}
@@ -108,7 +108,7 @@ export function QuoteGeneralFields({
       </FormField>
       <FormField
         id="quote-terms"
-        label="Điều khoản"
+        label={`Điều khoản ${QUOTE_FORM_LABELS.optional}`}
         error={errors.terms?.message}
         className="md:col-span-2"
       >

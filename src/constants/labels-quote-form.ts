@@ -1,6 +1,9 @@
 /** Chữ của form báo giá và hộp thoại gửi / tạo đơn (docs 14 §4.1). */
 
 export const QUOTE_FORM_LABELS = {
+  /** Hậu tố nhãn của ô không bắt buộc (S01-14): ô bắt buộc có dấu * đỏ, ô tuỳ chọn ghi rõ. */
+  optional: "(không bắt buộc)",
+  shippingFeeHint: "Để trống nếu không thu phí vận chuyển.",
   sku: {
     label: "Sản phẩm (SKU riêng)",
     placeholder: "Chọn sản phẩm…",

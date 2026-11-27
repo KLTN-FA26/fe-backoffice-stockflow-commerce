@@ -134,7 +134,7 @@ describe("Quote form — round 5", () => {
       },
     });
     renderScreen(<QuoteEdit id={QUOTE_ID} />, "SALES_STAFF");
-    await userEvent.type(await screen.findByLabelText("Điều khoản"), " thêm");
+    await userEvent.type(await screen.findByLabelText(/^Điều khoản/), " thêm");
     await userEvent.click(screen.getByRole("button", { name: "Bỏ thay đổi" }));
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText("Bỏ các thay đổi chưa lưu?")).toBeInTheDocument();

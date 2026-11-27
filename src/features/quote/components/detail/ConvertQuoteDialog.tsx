@@ -10,11 +10,17 @@ import { formatAddress, useCustomerAddressOptions } from "@/lib/references/custo
 import { quoteErrorMessage } from "@/features/quote/errors";
 import { useConvertQuote } from "@/features/quote/mutations";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
-import { FORM_INPUT_CLASS, FormField } from "@/components/shared/FormField";
+import { FormField } from "@/components/shared/FormField";
+import { FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
+import { FormSelect } from "@/components/shared/FormSelect";
 import { Notice } from "@/components/shared/Notice";
+import { SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import type { CustomerAddressRef } from "@/lib/references/customer-lookup";
 import type { Quote } from "@/features/quote/types";
+
+/** Radix Select has no empty value: stands for "" = the default address (the BE takes it). */
+const DEFAULT_ADDRESS = "default";
 
 /** Nhãn ngắn trong ô chọn: người nhận và nơi giao; địa chỉ đầy đủ viết ở dòng dưới ô (không bị cắt chữ). */
 function shortAddress(address: CustomerAddressRef): string {
@@ -58,26 +64,32 @@ function AddressField({
     );
   return (
     <FormField id={id} label={label} hint={chosen ? formatAddress(chosen) : undefined}>
-      <select
-        id={id}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        aria-describedby={chosen ? `${id}-hint` : undefined}
-        className={`${FORM_INPUT_CLASS} border px-2`}
+      <FormSelect
+        value={value || DEFAULT_ADDRESS}
+        onValueChange={(next) => onChange(next === DEFAULT_ADDRESS ? "" : next)}
       >
-        <option value="">
-          {fallback
-            ? `Mặc định — ${shortAddress(fallback)}`
-            : QUOTE_FORM_LABELS.convert.defaultAddress}
-        </option>
-        {addresses
-          .filter((address) => !address.defaultAddress)
-          .map((address) => (
-            <option key={address.addressId} value={address.addressId}>
-              {shortAddress(address)}
-            </option>
-          ))}
-      </select>
+        <SelectTrigger
+          id={id}
+          aria-describedby={chosen ? `${id}-hint` : undefined}
+          className={FORM_SELECT_CLASS}
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={DEFAULT_ADDRESS}>
+            {fallback
+              ? `Mặc định — ${shortAddress(fallback)}`
+              : QUOTE_FORM_LABELS.convert.defaultAddress}
+          </SelectItem>
+          {addresses
+            .filter((address) => !address.defaultAddress)
+            .map((address) => (
+              <SelectItem key={address.addressId} value={address.addressId}>
+                {shortAddress(address)}
+              </SelectItem>
+            ))}
+        </SelectContent>
+      </FormSelect>
     </FormField>
   );
 }

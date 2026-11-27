@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { mockApi, renderScreen } from "@/test/api-screen";
+import "@/test/jsdom-popover";
 
 import { QuoteDetail } from "..";
 import { CUSTOMER, CUSTOMER_ID, QUOTE_ACCEPTED, QUOTE_ID, SKU } from "../__fixtures__/quote-ds02";
@@ -129,13 +130,17 @@ describe("Quote detail — round 5", () => {
     });
     await userEvent.click(await screen.findByRole("button", { name: "Tạo đơn" }));
     const dialog = await screen.findByRole("dialog");
-    const select = within(dialog).getByLabelText("Địa chỉ giao hàng");
+    // S01-18: the one Select component (Radix), not a native <select>.
+    const select = await within(dialog).findByRole("combobox", { name: "Địa chỉ giao hàng" });
     // S03-2: a short label inside the box (recipient — ward, province); the full address is written under it.
-    const first = await within(select).findByRole("option", {
-      name: "Mặc định — Kho A — Bến Nghé, TP Hồ Chí Minh",
-    });
-    expect(first).toHaveValue("");
-    expect(within(select).getAllByRole("option")).toHaveLength(2);
+    expect(select).toHaveTextContent("Mặc định — Kho A — Bến Nghé, TP Hồ Chí Minh");
+    await userEvent.click(select);
+    const options = await screen.findAllByRole("option");
+    expect(options.map((option) => option.textContent)).toEqual([
+      "Mặc định — Kho A — Bến Nghé, TP Hồ Chí Minh",
+      "Kho A — Bến Nghé, TP Hồ Chí Minh",
+    ]);
+    await userEvent.keyboard("{Escape}");
     expect(dialog.textContent).toContain("Kho A, 12 Nguyễn Huệ, Bến Nghé, TP Hồ Chí Minh");
     expect(dialog.textContent).not.toContain("★");
   });

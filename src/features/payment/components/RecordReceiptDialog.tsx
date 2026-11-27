@@ -16,6 +16,7 @@ import { useRecordReceipt } from "../mutations";
 import { todayInVietnam } from "../input-schemas";
 import { useReceiptForm } from "../useReceiptForm";
 
+import { pasteTrimmed } from "./paste-trim";
 import { ReceiptLinesEditor } from "./ReceiptLinesEditor";
 
 import type { Installment, PaymentReceipt } from "../types";
@@ -85,8 +86,15 @@ function RecordReceiptForm({
             autoFocus
             maxLength={PAYMENT_LIMITS.referenceMax}
             className={FORM_INPUT_CLASS}
+            placeholder={L.referencePlaceholder}
+            autoComplete="off"
             {...fieldA11y("receipt-reference", errors.reference?.message, true)}
             {...form.register("reference")}
+            onPaste={(event) =>
+              pasteTrimmed(event, (value) =>
+                form.setValue("reference", value, { shouldDirty: true, shouldValidate: true }),
+              )
+            }
           />
         </FormField>
         <FormField

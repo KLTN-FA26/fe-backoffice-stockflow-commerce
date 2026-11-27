@@ -16,7 +16,11 @@ import {
   contractOrderDto,
   contractSent,
 } from "../../__fixtures__/contract";
-import { mockOrderApiGet, renderOrderScreen } from "../../__fixtures__/render";
+import {
+  mockOrderApiGet,
+  pickOrderSelectOption,
+  renderOrderScreen,
+} from "../../__fixtures__/render";
 import { toOrder } from "../../api";
 import { orderDtoSchema } from "../../schemas";
 
@@ -197,15 +201,14 @@ describe("WF-02 N10 — đổi mốc khỏi ON_SIGNING", () => {
   it("số ngày mặc định 3 bị xoá; số ngày do người dùng nhập khác 3 được giữ", async () => {
     renderSection(() => contractDraft);
     await userEvent.click(await screen.findByRole("button", { name: /Sửa/ }));
-    const milestone = screen.getByRole("combobox", { name: "Đợt 1 — mốc" });
     const days = screen.getByRole("textbox", { name: "Đợt 1 — số ngày" });
     expect(days).toHaveValue("3");
-    await userEvent.selectOptions(milestone, "AFTER_DELIVERY");
+    await pickOrderSelectOption(userEvent, "Đợt 1 — mốc", "Sau giao");
     expect(days).toHaveValue("");
     await userEvent.type(days, "7");
-    await userEvent.selectOptions(milestone, "ON_SIGNING");
+    await pickOrderSelectOption(userEvent, "Đợt 1 — mốc", "Khi ký");
     expect(days).toHaveValue("7");
-    await userEvent.selectOptions(milestone, "AFTER_DELIVERY");
+    await pickOrderSelectOption(userEvent, "Đợt 1 — mốc", "Sau giao");
     expect(days).toHaveValue("7");
   });
 });
@@ -221,7 +224,7 @@ describe("WF-02 mục 7 — form cũ không ghi đè bản mới", () => {
     let current: unknown = contractDraft;
     renderSection(() => current);
     await userEvent.click(await screen.findByRole("button", { name: /Sửa/ }));
-    const samples = await screen.findByLabelText("Số lần in mẫu miễn phí");
+    const samples = await screen.findByLabelText(/Số lần in mẫu miễn phí/);
     await userEvent.clear(samples);
     await userEvent.type(samples, "3");
     current = newer;
@@ -233,13 +236,13 @@ describe("WF-02 mục 7 — form cũ không ghi đè bản mới", () => {
     await openWhileNewerArrives();
     expect(await screen.findByText(/vừa được người khác lưu/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Lưu hợp đồng" })).toBeDisabled();
-    expect(screen.getByLabelText("Số lần in mẫu miễn phí")).toHaveValue("3");
+    expect(screen.getByLabelText(/Số lần in mẫu miễn phí/)).toHaveValue("3");
   });
 
   it("bấm Tải lại → form mang giá trị bản mới, Lưu gửi version mới", async () => {
     await openWhileNewerArrives();
     await userEvent.click(await screen.findByRole("button", { name: "Tải lại theo bản mới" }));
-    expect(screen.getByLabelText("Số lần in mẫu miễn phí")).toHaveValue("7");
+    expect(screen.getByLabelText(/Số lần in mẫu miễn phí/)).toHaveValue("7");
     expect(screen.queryByText(/vừa được người khác lưu/)).not.toBeInTheDocument();
     const put = vi.spyOn(api, "put").mockResolvedValue({ data: newer });
     await userEvent.click(screen.getByRole("button", { name: "Lưu hợp đồng" }));
@@ -516,7 +519,7 @@ describe("WF-02 BO-7 — hợp đồng: đợt đã qua, huỷ bởi người kh
     renderSection(() => contractDraft);
     await userEvent.click(await screen.findByRole("button", { name: /Sửa/ }));
     await userEvent.click(screen.getByRole("button", { name: "Thêm đợt thanh toán" }));
-    await userEvent.selectOptions(screen.getByLabelText("Đợt 4 — mốc"), "ON_SIGNING");
+    await pickOrderSelectOption(userEvent, "Đợt 4 — mốc", "Khi ký");
     expect(screen.getByLabelText("Đợt 4 — số ngày")).toHaveValue("3");
   });
 });

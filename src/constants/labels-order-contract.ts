@@ -24,6 +24,11 @@ export const ORDER_CONTRACT_LABELS = {
       "Hợp đồng có đợt trả sau giao hàng nhưng khách chưa có hạn mức công nợ do Kế toán duyệt. Nhờ Kế toán cấp hạn mức, hoặc bấm Sửa để đổi đợt đó sang Trước giao. Xong thì gửi lại hợp đồng.",
   },
   sendRefusedFields: "Huỷ hộp thoại, bấm Sửa để chỉnh rồi gửi lại.",
+  /** Hai điều khoản số cuối hợp đồng (S06-8): bắt buộc (dấu *), đơn vị là hậu tố trong ô. */
+  terms: {
+    rounds: { label: "Số lần in mẫu miễn phí", unit: "lần" },
+    returnWindow: { label: "Thời hạn khiếu nại", unit: "ngày" },
+  },
   plan: {
     name: "Tên đợt",
     milestone: "Mốc",
