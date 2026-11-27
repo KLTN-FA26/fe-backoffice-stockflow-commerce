@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 
-import { BANK_TRANSACTION_ROUTES } from "@/constants/bank-transaction";
+import { BANK_TRANSACTION_LABELS, BANK_TRANSACTION_ROUTES } from "@/constants/bank-transaction";
 import { formatDateTime } from "@/lib/format/date";
 import { formatMoney } from "@/lib/format/money";
 
@@ -13,14 +13,18 @@ import { BankTransactionStatusDot, MONO } from "./primitives";
 import type { ColumnDef } from "@/components/shared/DataTable";
 import type { BankTransaction } from "../types";
 
-/** 5 cột dữ liệu — ngày giao dịch là link sang chi tiết. */
+/**
+ * 5 cột dữ liệu — ngày giao dịch là link sang chi tiết (bấm cả dòng cũng mở chi tiết, `onRowClick`); cột "Thao tác"
+ * do trang thêm (`rowActionsColumn`).
+ */
 export const BANK_TRANSACTION_COLUMNS: ColumnDef<BankTransaction>[] = [
   {
     key: "transactionAt",
-    header: "Thời điểm",
+    header: BANK_TRANSACTION_LABELS.columnTime,
     cell: (row) => (
       <Link
         href={BANK_TRANSACTION_ROUTES.detail(row.id)}
+        onClick={(event) => event.stopPropagation()}
         className={`${MONO} text-accent-text text-[0.8125rem] font-medium hover:underline`}
       >
         {formatDateTime(row.transactionAt ?? row.receivedAt)}

@@ -21,18 +21,26 @@ import type { BankTransaction } from "../types";
 
 /**
  * Gán giao dịch chờ xử lý vào đợt của MỘT khách → BE lập phiếu thu (mã tham chiếu, ngày nhận lấy từ giao dịch). Điền sẵn
- * khách / đợt gợi ý của giao dịch. Tổng ≤ số tiền giao dịch (BE BANK_TRANSACTION_OVER_ASSIGNED); phần dư xử lý ở phần
- * mềm kế toán (15 BR-06).
+ * khách / đợt gợi ý của giao dịch, hoặc đợt Kế toán bấm "Gắn" trong khối "Đợt có thể khớp" (`initial`). Tổng ≤ số tiền
+ * giao dịch (BE BANK_TRANSACTION_OVER_ASSIGNED); phần dư xử lý ở phần mềm kế toán (15 BR-06). Ô khách là ô lọc
+ * (`mode="filter"`): nhận tiền của mọi khách, không phải luật "chỉ khách đã kích hoạt portal" của form báo giá.
  */
 export function AssignDialog({
   transaction,
+  initial,
   onClose,
 }: {
   transaction: BankTransaction;
+  /** Đợt chọn sẵn (khối "Đợt có thể khớp"); thiếu → khách / đợt gợi ý của giao dịch. */
+  initial?: { customerId: string; installmentId: string };
   onClose: () => void;
 }) {
   const assign = useAssignBankTransaction();
-  const [customerId, setCustomerId] = useState(transaction.customerId ?? "");
+  const start = initial ?? {
+    customerId: transaction.customerId ?? "",
+    installmentId: transaction.installmentId ?? "",
+  };
+  const [customerId, setCustomerId] = useState(start.customerId);
   // installmentId → số tiền đang nhập (chuỗi để giữ đúng thứ người dùng gõ). Chưa chạm vào → điền sẵn đợt gợi ý của
   // giao dịch, CHỈ khi đợt đó còn nhận tiền, với min(số tiền giao dịch, còn phải thu) — đợt gợi ý NOT_PAYABLE không
   // được tính / gửi ngầm mà Kế toán không có dòng để bỏ.
@@ -43,8 +51,8 @@ export function AssignDialog({
   const installments = useCustomerInstallments(customerId || null, true);
   const payable = payableInstallments(installments.data ?? []);
   const suggested =
-    !touched && customerId === transaction.customerId
-      ? payable.find((row) => row.installmentId === transaction.installmentId)
+    !touched && customerId === start.customerId
+      ? payable.find((row) => row.installmentId === start.installmentId)
       : undefined;
   const effective = touched
     ? amounts
@@ -86,6 +94,7 @@ export function AssignDialog({
       >
         <CustomerPicker
           idPrefix="bank-assign"
+          mode="filter"
           value={customerId}
           onChange={(id) => {
             setCustomerId(id);
@@ -103,6 +112,7 @@ export function AssignDialog({
               setAmounts(next);
             }}
             remaining={transaction.amount - total}
+            transactionAmount={transaction.amount}
           />
         )}
         <p

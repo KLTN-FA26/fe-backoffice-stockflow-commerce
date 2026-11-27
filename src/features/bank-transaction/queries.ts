@@ -9,6 +9,7 @@ import {
   getBankTransaction,
   listBankTransactions,
   listCustomerInstallments,
+  listOwingInstallments,
   type ListBankTransactionParams,
 } from "./api";
 
@@ -17,6 +18,7 @@ import type { BankTransaction } from "./types";
 export const bankTransactionKeys = {
   ...createQueryKeys<ListBankTransactionParams>("bank-transactions"),
   installments: (customerId: string) => ["bank-transactions", "installments", customerId] as const,
+  owingInstallments: () => ["bank-transactions", "installments", "owing"] as const,
 };
 
 export const useBankTransactions = createListQuery<BankTransaction, ListBankTransactionParams>(
@@ -35,6 +37,16 @@ export function useCustomerInstallments(customerId: string | null, enabled: bool
     queryKey: bankTransactionKeys.installments(customerId ?? ""),
     queryFn: ({ signal }) => listCustomerInstallments(customerId ?? "", signal),
     enabled: enabled && !!customerId,
+    ...QUERY_TIMES.list,
+  });
+}
+
+/** Đợt đã đến hạn còn phải thu của mọi khách — gợi ý đợt cùng số tiền khi giao dịch không nhận ra khách. */
+export function useOwingInstallments(enabled: boolean) {
+  return useQuery({
+    queryKey: bankTransactionKeys.owingInstallments(),
+    queryFn: ({ signal }) => listOwingInstallments(signal),
+    enabled,
     ...QUERY_TIMES.list,
   });
 }
