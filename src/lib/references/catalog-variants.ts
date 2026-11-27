@@ -8,6 +8,7 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 
+import { COMBOBOX_MAX_ROWS } from "@/constants";
 import { api } from "@/lib/api/client";
 import { QUERY_TIMES } from "@/lib/api/query-client";
 
@@ -20,8 +21,8 @@ export const CUSTOMER_SKU_SIGNATURE_PREFIX = "OWNED-SKU:";
 export const isCustomerOwnedSku = (variant: { attributeSignature?: string | null }): boolean =>
   variant.attributeSignature?.startsWith(CUSTOMER_SKU_SIGNATURE_PREFIX) ?? false;
 
-/** Số sản phẩm mỗi lần tìm — `Pages.DEFAULT_PAGE_SIZE` của BE. */
-const PRODUCT_OPTIONS_PAGE_SIZE = 20;
+/** Số sản phẩm mỗi lần tìm — bằng số dòng tối đa của ô chọn (`COMBOBOX_MAX_ROWS`); còn nữa thì nhắc gõ thêm. */
+const PRODUCT_OPTIONS_PAGE_SIZE = COMBOBOX_MAX_ROWS;
 /** BE giới hạn trang 200 (`Pages.MAX_PAGE_SIZE`); một trang là đủ cho ô chọn quy cách. */
 const VARIANT_PAGE_SIZE = 200;
 
@@ -32,7 +33,16 @@ const productOptionSchema = z.object({
 });
 export type ProductOption = z.infer<typeof productOptionSchema>;
 
-const productOptionPageSchema = z.object({ items: z.array(productOptionSchema) });
+const productOptionPageSchema = z.object({
+  items: z.array(productOptionSchema),
+  totalElements: z.number().int().min(0).optional(),
+});
+
+/** Một lần tìm sản phẩm: trang đầu + tổng số khớp (để báo "Còn N kết quả — gõ thêm"). */
+export interface ProductOptionPage {
+  items: ProductOption[];
+  total: number;
+}
 
 const catalogVariantSchema = z.object({
   variantId: z.string(),
@@ -51,11 +61,15 @@ export const catalogVariantKeys = {
   variants: (productId: string) => [...catalogVariantKeys.all, "variants", productId] as const,
 };
 
-export async function fetchProductOptions(q: string, signal?: AbortSignal) {
+export async function fetchProductOptions(
+  q: string,
+  signal?: AbortSignal,
+): Promise<ProductOptionPage> {
   const params = new URLSearchParams({ page: "0", size: String(PRODUCT_OPTIONS_PAGE_SIZE) });
   if (q.trim()) params.set("q", q.trim());
   const { data } = await api.get<unknown>("/products", { params, signal });
-  return productOptionPageSchema.parse(data).items;
+  const page = productOptionPageSchema.parse(data);
+  return { items: page.items, total: page.totalElements ?? page.items.length };
 }
 
 /**
