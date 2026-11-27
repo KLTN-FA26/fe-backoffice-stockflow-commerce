@@ -46,9 +46,9 @@ async function openDialog(items: unknown[], post: () => unknown = () => receiptJ
     post: { "/payment-receipts": post },
   });
   renderPaymentScreen(<InstallmentList />);
-  await userEvent.click(
-    (await screen.findAllByRole("button", { name: /^Lập phiếu thu — / }))[0] as HTMLElement,
-  );
+  // "Lập phiếu thu" is an item of the row menu "⋯" (repo rule backoffice-erp-ui §A.6); take the first row's menu.
+  await userEvent.click((await screen.findAllByRole("button", { name: /^Thao tác — / }))[0]!);
+  await userEvent.click(await screen.findByRole("button", { name: "Lập phiếu thu" }));
   return { api, dialog: within(await screen.findByRole("dialog")) };
 }
 
@@ -185,7 +185,8 @@ describe("After 'Lập phiếu thu' from a load's handover block (S07-5)", () =>
       post: { "/payment-receipts": () => receiptJson() },
     });
     renderPaymentScreen(<OrderInstallmentsView orderId="ord-13" />, search);
-    await userEvent.click(await screen.findByRole("button", { name: /^Lập phiếu thu — / }));
+    await userEvent.click(await screen.findByRole("button", { name: /^Thao tác — / }));
+    await userEvent.click(await screen.findByRole("button", { name: "Lập phiếu thu" }));
     const dialog = within(await screen.findByRole("dialog"));
     await userEvent.type(dialog.getByLabelText(/Mã tham chiếu sao kê/), "FT26313123456");
     await userEvent.click(dialog.getByRole("button", { name: "Lập phiếu thu" }));
