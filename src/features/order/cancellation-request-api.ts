@@ -56,6 +56,8 @@ export function toCancellationRequest(dto: CancellationRequestDto): Cancellation
     decidedAt: dto.decidedAt ?? null,
     decisionNote: dto.decisionNote ?? null,
     retainedPercent: dto.retainedPercent ?? null,
+    requestedByName: dto.requestedByName ?? null,
+    decidedByName: dto.decidedByName ?? null,
     orderNumber: dto.orderNumber ?? null,
     customerName: dto.customerName ?? null,
     orderTotal: dto.orderTotal ?? null,

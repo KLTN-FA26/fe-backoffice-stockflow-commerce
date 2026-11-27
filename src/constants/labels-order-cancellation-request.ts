@@ -78,6 +78,9 @@ export const CANCELLATION_REQUEST_LABELS = {
     decidedAt: (when: string) => `Quyết định lúc ${when}`,
     customerNote: "Ghi chú của khách",
     decisionNote: "Ghi chú quyết định",
+    /** Tên người gửi / người quyết BE kèm (`requestedByName` / `decidedByName`, issue #286). */
+    requestedBy: "Người gửi",
+    decidedBy: "Người quyết",
     retained: (percent: string) => `Giữ ${percent}% số tiền đã thu`,
     history: "Các yêu cầu trước",
   },

@@ -124,3 +124,58 @@ describe("Danh sách báo giá — menu ⋯ của dòng (backoffice-erp-ui A6)",
     );
   });
 });
+
+describe("Danh sách báo giá — tên kèm id (#286)", () => {
+  const customerCalls = (get: ReturnType<typeof mockApi>["get"]) =>
+    get.mock.calls.filter(([url]) => String(url).startsWith("/customers"));
+
+  it("tên khách + số đơn lấy từ dòng BE → không gọi GET /customers/{id} cho từng dòng", async () => {
+    const rows = [
+      {
+        ...QUOTE_ROW,
+        customerName: "Khách hàng demo",
+        customerCode: "0399990001",
+        convertedOrderNumber: "SO-20261120-900001",
+      },
+      {
+        ...QUOTE_ROW,
+        id: "q-2",
+        quoteNumber: "QT-2",
+        customerId: "d0938090-20ac-ae0d-e6ce-aae90663ac33",
+        customerName: "Công ty CP Trà Sữa Mây",
+        status: "DRAFT",
+        convertedOrderId: null,
+      },
+    ];
+    // Không mock `/customers/...` — gọi tới là ném lỗi
+    const api = mockApi("SALES_STAFF", { get: { "/quotes": () => bePage(rows) } });
+    renderScreen(<QuoteList />, "SALES_STAFF");
+    const first = (await screen.findByRole("link", { name: /QT-20261120-9001/ })).closest("tr");
+    const second = screen.getByRole("link", { name: /QT-2$/ }).closest("tr");
+    expect(
+      within(first as HTMLElement).getByRole("link", { name: "Khách hàng demo" }),
+    ).toBeInTheDocument();
+    expect(within(second as HTMLElement).getByText("Công ty CP Trà Sữa Mây")).toBeInTheDocument();
+    expect(
+      within(first as HTMLElement).getByRole("link", { name: "SO-20261120-900001" }),
+    ).toHaveAttribute("href", `/admin/orders/${QUOTE_ROW.convertedOrderId}`);
+    expect(customerCalls(api.get)).toHaveLength(0);
+  });
+
+  it("BE thiếu tên → mã khách, thiếu cả mã → nhãn trung tính; vẫn không tra khách, không UUID", async () => {
+    const rows = [
+      { ...QUOTE_ROW, customerCode: "0399990001" },
+      { ...QUOTE_ROW, id: "q-2", quoteNumber: "QT-2", convertedOrderId: null },
+    ];
+    const api = mockApi("SALES_STAFF", { get: { "/quotes": () => bePage(rows) } });
+    renderScreen(<QuoteList />, "SALES_STAFF");
+    const first = (await screen.findByRole("link", { name: /QT-20261120-9001/ })).closest("tr");
+    const second = screen.getByRole("link", { name: /QT-2$/ }).closest("tr");
+    expect(within(first as HTMLElement).getByText("0399990001")).toBeInTheDocument();
+    expect(within(second as HTMLElement).getByText("Khách hàng")).toBeInTheDocument();
+    expect(screen.queryByText(CUSTOMER_ID)).toBeNull();
+    // Chưa có số đơn → link chung "Mở đơn"
+    expect(within(first as HTMLElement).getByRole("link", { name: "Mở đơn" })).toBeInTheDocument();
+    expect(customerCalls(api.get)).toHaveLength(0);
+  });
+});

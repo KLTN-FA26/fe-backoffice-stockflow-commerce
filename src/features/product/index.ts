@@ -63,7 +63,13 @@ export type { ProductAction } from "./lifecycle";
 export { mediaCapabilities, productChangeGate } from "./product-capabilities";
 export type { MediaCapabilities, ProductChangeGate } from "./product-capabilities";
 
-export { categoryName, formatVnd, shouldFlagProductRow, taxClassLabel } from "./selectors";
+export {
+  categoryName,
+  formatVnd,
+  productCategoryLabel,
+  shouldFlagProductRow,
+  taxClassLabel,
+} from "./selectors";
 
 export {
   PRODUCT_DRAFT_FORM_DEFAULTS,

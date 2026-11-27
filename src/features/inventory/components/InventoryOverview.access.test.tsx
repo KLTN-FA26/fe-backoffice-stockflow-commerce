@@ -74,7 +74,7 @@ describe("Inventory Overview access", () => {
   it("reservation-only: opens and reads holds by SKU without any stock, ATP or alert request", async () => {
     open([reservationRead]);
     await lookUp("CUP-PP-500");
-    expect(await screen.findByText(OVERVIEW_RESERVATION.orderId)).toBeInTheDocument();
+    expect(await screen.findByText(OVERVIEW_RESERVATION.orderNumber)).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: INVENTORY_LABELS.stockLevelsTitle })).toBeNull();
     expect(sentTo("/inventory/reservations")).toHaveLength(1);
     expect(sentTo("/inventory/reservations")[0]).toContain("sku=CUP-PP-500");
@@ -294,7 +294,7 @@ describe("permission failures and revocation", () => {
   it("revoking stock and reservation reads prevents later requests", async () => {
     open([stockRead, reservationRead]);
     await lookUp("CUP-PP-500");
-    await screen.findByText(OVERVIEW_RESERVATION.orderId);
+    await screen.findByText(OVERVIEW_RESERVATION.orderNumber);
     server.use(inventoryPermissions([]));
     act(() => {
       focusManager.setFocused(false);

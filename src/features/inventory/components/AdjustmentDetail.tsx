@@ -4,6 +4,7 @@ import { INVENTORY_LABELS } from "@/constants/inventory";
 import { INVENTORY_PERMISSIONS } from "@/constants/permissions";
 
 import { formatDateTime } from "@/lib/format/date";
+import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
 
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { StatusDot } from "@/components/shared/StatusDot";
@@ -26,6 +27,8 @@ export function AdjustmentDetail({ id }: { id: string }) {
 
 function AdjustmentDetailContent({ id }: { id: string }) {
   const query = useAdjustment(id);
+  // Breadcrumb hiện mã phiếu thay đoạn UUID trên URL
+  useBreadcrumbLabel(id, query.data?.number);
   if (query.isLoading) return <PageSkeleton variant="detail" />;
   if (query.isError)
     return <InventoryError error={query.error} retry={() => void query.refetch()} />;
@@ -40,9 +43,13 @@ function AdjustmentDetailContent({ id }: { id: string }) {
     [INVENTORY_LABELS.adjustmentDelta, formatAdjustmentDelta(item)],
     [INVENTORY_LABELS.reason, adjustmentReasonLabel(item.reason)],
     [INVENTORY_LABELS.note, item.note],
-    [INVENTORY_LABELS.requestedBy, item.requestedBy],
+    // Issue #286: BE trả tên cạnh id người; BE cũ / người lạ thì vẫn hiện id như trước
+    [INVENTORY_LABELS.requestedBy, item.requestedByName ?? item.requestedBy],
     [INVENTORY_LABELS.requestedAt, formatDateTime(item.requestedAt)],
-    [INVENTORY_LABELS.decidedBy, item.decidedBy],
+    ...(item.countedBy
+      ? ([[INVENTORY_LABELS.countedBy, item.countedByName ?? item.countedBy]] as const)
+      : []),
+    [INVENTORY_LABELS.decidedBy, item.decidedByName ?? item.decidedBy],
     [INVENTORY_LABELS.decidedAt, item.decidedAt ? formatDateTime(item.decidedAt) : null],
     [INVENTORY_LABELS.postedAt, item.postedAt ? formatDateTime(item.postedAt) : null],
     [INVENTORY_LABELS.withdrawnAt, item.withdrawnAt ? formatDateTime(item.withdrawnAt) : null],

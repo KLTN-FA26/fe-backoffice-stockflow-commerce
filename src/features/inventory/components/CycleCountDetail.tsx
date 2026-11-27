@@ -6,6 +6,7 @@ import { WORKSPACE_PATHS } from "@/constants";
 import { CYCLE_COUNT_PERMISSIONS } from "@/constants/permissions";
 
 import { usePermissionChecker } from "@/lib/auth";
+import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
 import { InWorkspaceWarehouse } from "@/lib/workspace";
 
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
@@ -34,6 +35,8 @@ export function CycleCountDetail({ id }: { id: string }) {
 
 function CycleCountDetailContent({ id }: { id: string }) {
   const query = useCycleCount(id);
+  // Breadcrumb hiện mã phiếu kiểm kê thay đoạn UUID trên URL
+  useBreadcrumbLabel(id, query.data?.countNumber);
   if (query.isLoading) return <PageSkeleton variant="detail" />;
   if (query.isError)
     return <InventoryError error={query.error} retry={() => void query.refetch()} />;

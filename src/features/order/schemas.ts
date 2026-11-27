@@ -298,6 +298,9 @@ export const orderDtoSchema = z.object({
   paymentTerm: orderPaymentTermDtoSchema.nullish(),
   /** Kho xuất — null tới khi release (SCRUM-423). */
   warehouseId: z.string().nullish(),
+  /** Mã + tên kho xuất BE kèm cạnh id (issue #286) — người không có quyền đọc kho vẫn thấy tên. */
+  warehouseCode: z.string().nullish(),
+  warehouseName: z.string().nullish(),
   releasedAt: z.string().nullish(),
   creditTermDays: z.number().int().nullish(),
   balancePolicy: orderBalancePolicyDtoSchema.nullish(),

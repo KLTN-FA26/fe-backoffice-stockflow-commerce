@@ -8,7 +8,6 @@ import { LifecycleSteps, ProfileFact, ProfileFrame } from "@/components/shared/O
 import { canChangeShippingAddress } from "../shipping-address";
 
 import { orderLifecycle } from "./order-lifecycle-steps";
-import { OrderWarehouseName } from "./OrderWarehouseName";
 
 import { OrderShippingAddressAction } from "./OrderShippingAddressAction";
 
@@ -119,8 +118,20 @@ export function OrderInfoCard({ order, can }: OrderInfoCardProps) {
         )}
       </ProfileFact>
       <ProfileFact label="Kho xuất">
+        {/* Issue #286: tên + mã kho BE kèm trên đơn — không tải cả danh mục kho, người thiếu quyền đọc kho vẫn thấy tên */}
         {order.warehouseId ? (
-          <OrderWarehouseName warehouseId={order.warehouseId} />
+          <>
+            <span className="block truncate">
+              {order.warehouseName ?? order.warehouseCode ?? (
+                <span className="text-ink-secondary">Đã chọn kho xuất</span>
+              )}
+            </span>
+            {order.warehouseName && order.warehouseCode && (
+              <span className="text-ink-secondary block font-[family-name:var(--font-mono)] text-xs font-normal">
+                {order.warehouseCode}
+              </span>
+            )}
+          </>
         ) : (
           "Chưa chọn kho xuất"
         )}

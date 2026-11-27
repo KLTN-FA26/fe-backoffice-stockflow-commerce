@@ -22,7 +22,9 @@ const {
   pushMock,
   refetchMock,
   transitionMutateMock,
+  useCategoriesMock,
 } = vi.hoisted(() => ({
+  useCategoriesMock: vi.fn(() => ({ data: { items: [] }, isLoading: false })),
   transitionMutateMock: vi.fn(),
   useProductMock: vi.fn(),
   discontinueMutateMock: vi.fn(),
@@ -48,7 +50,7 @@ vi.mock("@/features/product", async () => {
     ...actual,
     useProduct: useProductMock,
     useVariants: () => ({ data: [], isLoading: false }),
-    useCategories: () => ({ data: { items: [] }, isLoading: false }),
+    useCategories: useCategoriesMock,
     useTransitionProduct: () => ({ ...idle, mutate: transitionMutateMock }),
     usePublishProduct: () => idle,
     useUnpublishProduct: () => idle,
@@ -564,5 +566,24 @@ describe("ProductDetail — lỗi tải: chỉ 404 mới là không tìm thấy 
     renderError(new ApiError(403, "FORBIDDEN", "Forbidden"));
     expect(await screen.findByText(UI_LABELS.loadError.forbiddenTitle)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: UI_LABELS.common.retry })).not.toBeInTheDocument();
+  });
+});
+
+describe("ProductDetail — tên cạnh id (issue #286)", () => {
+  it("hiện categoryName của sản phẩm, không tải danh sách danh mục chỉ để tra tên", async () => {
+    useProductMock.mockReturnValue({
+      data: {
+        ...product(PRODUCT_STATUS.PUBLISHED),
+        categoryId: "cat-1",
+        categoryName: "Ly giấy 2 lớp",
+      },
+      isLoading: false,
+      refetch: refetchMock,
+    });
+    await renderDetail();
+    const profile = screen.getByRole("region", { name: "Hồ sơ sản phẩm" });
+    expect(within(profile).getByText("Ly giấy 2 lớp")).toBeInTheDocument();
+    expect(within(profile).queryByText("cat-1")).not.toBeInTheDocument();
+    expect(useCategoriesMock).not.toHaveBeenCalled();
   });
 });

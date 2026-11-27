@@ -120,6 +120,49 @@ describe("ProductHistory — GET /products/{id}/versions", () => {
     expect(screen.queryByText("m-1")).not.toBeInTheDocument();
   });
 
+  it("issue #286: hiện subjectSku + subjectLabel BE trả kèm, không cần bảng tra biến thể", async () => {
+    installApi({
+      permissions: [],
+      get: (url) =>
+        url === versionsUrl
+          ? page([
+              entry({
+                changeType: "VARIANT_UPDATED",
+                subjectType: "VARIANT",
+                subjectId: "v-9",
+                subjectSku: "CUP-16OZ",
+                subjectLabel: "Ly 16oz trắng",
+              }),
+              entry({
+                changeType: "MEDIA",
+                subjectType: "MEDIA",
+                subjectId: "m-9",
+                subjectSku: "CUP-16OZ",
+                subjectLabel: "mat-truoc.jpg",
+                changedFields: ["published"],
+              }),
+              // Đối tượng đã xoá: BE không trả cả hai → không lộ id thô
+              entry({ changeType: "MEDIA", subjectType: "MEDIA", subjectId: "m-gone" }),
+            ])
+          : undefined,
+    });
+    // Không truyền skuById — tên lấy từ chính dòng lịch sử
+    renderApp(<ProductHistory productId={PRODUCT} />);
+    expect(await screen.findByText("Ly 16oz trắng")).toBeInTheDocument();
+    expect(screen.getAllByText("CUP-16OZ")).toHaveLength(2);
+    expect(screen.getByText("mat-truoc.jpg")).toBeInTheDocument();
+    expect(screen.getByText("Đã xoá")).toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent(/v-9|m-9|m-gone/);
+
+    // Lọc cột Biến thể theo SKU BE trả: dòng đối tượng đã xoá biến mất
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Lọc biến thể" }));
+    await user.click(await screen.findByRole("option", { name: "CUP-16OZ" }));
+    await waitFor(() => expect(screen.queryByText("Đã xoá")).not.toBeInTheDocument());
+    expect(screen.getByText("Ly 16oz trắng")).toBeInTheDocument();
+    expect(screen.getByText("mat-truoc.jpg")).toBeInTheDocument();
+  });
+
   it("lịch sử trống: trạng thái trống riêng, không phải lỗi", async () => {
     installApi({ permissions: [], get: (url) => (url === versionsUrl ? page([]) : undefined) });
     renderApp(<ProductHistory productId={PRODUCT} />);

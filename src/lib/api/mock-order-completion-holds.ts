@@ -11,8 +11,11 @@ export interface MockCompletionHold {
   note: string | null;
   heldAt: string;
   heldBy: string | null;
+  /** Tên người giữ / người gỡ BE kèm cạnh id (issue #286). */
+  heldByName: string | null;
   releasedAt: string | null;
   releasedBy: string | null;
+  releasedByName: string | null;
   releaseNote: string | null;
 }
 

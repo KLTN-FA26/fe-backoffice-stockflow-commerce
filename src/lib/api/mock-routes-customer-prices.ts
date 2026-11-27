@@ -47,12 +47,22 @@ const normaliseSku = (raw: string): string | null => {
   return SKU.test(code) ? code : null;
 };
 
+function namedCustomer(customerId: string) {
+  const customer = findMockCustomer(customerId);
+  return {
+    ...(customer ? { customerName: customer.fullName } : {}),
+    ...(customer?.taxCode ? { customerCode: customer.taxCode } : {}),
+  };
+}
+
 /**
  * BE `CustomerPriceResponse`: MOQ = bậc đầu; đơn giá về số JSON như Jackson ghi `BigDecimal`. Mock không có giá cũ
  * theo cái nên `measure` luôn CARTON (bậc theo số thùng, 13 BR-05).
  */
 const toWire = (p: MockCustomerPrice) => ({
   customerId: p.customerId,
+  // #286: tên / mã khách kèm id (mã = mã số thuế như `wf02OrderResponse`); null bị bỏ như Jackson `non_null`
+  ...namedCustomer(p.customerId),
   sku: p.sku,
   measure: "CARTON",
   moq: p.tiers[0]?.minQuantity ?? 0,

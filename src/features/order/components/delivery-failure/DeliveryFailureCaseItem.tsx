@@ -54,6 +54,28 @@ export function DeliveryFailureCaseItem({
             <dd className="text-ink-primary tabular-nums">{L.units(units, held)}</dd>
           </>
         )}
+        {failure.decidedAt && (
+          <>
+            <dt className="text-ink-secondary">{L.decidedBy}</dt>
+            <dd className="text-ink-primary">
+              {failure.decidedByName ?? "—"}
+              <span className="text-ink-tertiary tabular-nums">
+                {` · ${L.decidedAt(formatDateTime(failure.decidedAt))}`}
+              </span>
+            </dd>
+          </>
+        )}
+        {failure.releasedAt && (
+          <>
+            <dt className="text-ink-secondary">{L.releasedBy}</dt>
+            <dd className="text-ink-primary">
+              {failure.releasedByName ?? "—"}
+              <span className="text-ink-tertiary tabular-nums">
+                {` · ${formatDateTime(failure.releasedAt)}`}
+              </span>
+            </dd>
+          </>
+        )}
         {showsDecisionNote(failure) && (
           <>
             <dt className="text-ink-secondary">{L.decisionNote}</dt>

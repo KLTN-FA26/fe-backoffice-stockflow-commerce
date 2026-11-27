@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { categoryName, shouldFlagProductRow, taxClassLabel } from "./selectors";
+import {
+  categoryName,
+  productCategoryLabel,
+  shouldFlagProductRow,
+  taxClassLabel,
+} from "./selectors";
 
 import type { Category, Product } from "./types";
 
@@ -19,6 +24,13 @@ describe("Product Master presentation", () => {
     expect(categoryName("c-1", categories)).toBe("Ly giấy");
     expect(categoryName(null, categories)).toBe("Chưa chọn danh mục");
     expect(categoryName("c-404", categories)).toBe("—");
+  });
+
+  it("issue #286: category name comes from the product DTO (`categoryName`), no list lookup", () => {
+    expect(productCategoryLabel({ categoryId: "c-1", categoryName: "Ly giấy" })).toBe("Ly giấy");
+    expect(productCategoryLabel({ categoryId: null })).toBe("Chưa chọn danh mục");
+    // BE bỏ trường null (NON_NULL) → không hiện UUID thô
+    expect(productCategoryLabel({ categoryId: "c-1" })).toBe("—");
   });
 
   it("flags products needing attention: waiting for approval, suspended or discontinued", () => {

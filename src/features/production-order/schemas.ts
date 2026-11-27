@@ -34,6 +34,8 @@ export const productionOrderHistoryDto = z.object({
   to: productionOrderStatusSchema,
   reason: z.string().nullish(),
   by: z.string().nullish(),
+  /** #286: tên người chuyển kèm id; vắng (hệ thống / BE cũ) → nhãn dự phòng. */
+  byName: z.string().nullish(),
   at: z.string(),
 });
 
@@ -67,10 +69,18 @@ export const productionOrderDto = z.object({
   id: z.string(),
   code: z.string(),
   salesOrderId: z.string(),
+  /** #286: các trường tên / số kèm id — BE bỏ khi null nên đều tuỳ chọn, đọc kèm fallback. */
+  salesOrderNumber: z.string().nullish(),
   deliveryBatchId: z.string(),
   customerId: z.string().nullish(),
+  customerName: z.string().nullish(),
+  customerCode: z.string().nullish(),
   producerId: z.string(),
+  producerName: z.string().nullish(),
+  producerCode: z.string().nullish(),
   receivingWarehouseId: z.string(),
+  receivingWarehouseCode: z.string().nullish(),
+  receivingWarehouseName: z.string().nullish(),
   needByDate: z.string(),
   status: productionOrderStatusSchema,
   sampleApprovalRequired: z.boolean(),
@@ -78,14 +88,17 @@ export const productionOrderDto = z.object({
   sampleWaiverReason: z.string().nullish(),
   note: z.string().nullish(),
   drawnUpBy: z.string(),
+  drawnUpByName: z.string().nullish(),
   // Chỉ còn ở đơn trước 2026-11-20 (bỏ bước duyệt, docs 17 BR-23) — BE vẫn trả cho đơn cũ
   submittedAt: z.string().nullish(),
   approvedBy: z.string().nullish(),
+  approvedByName: z.string().nullish(),
   approvedAt: z.string().nullish(),
   returnedReason: z.string().nullish(),
   sentAt: z.string().nullish(),
   /** Người gửi cho đơn vị sản xuất (đơn trước 2026-11-20: người duyệt). */
   sentBy: z.string().nullish(),
+  sentByName: z.string().nullish(),
   productionStartedAt: z.string().nullish(),
   expectedCompletionDate: z.string().nullish(),
   /** Ghi chú khi ghi nhận nhận đơn (docs 17 §4.3 bước 8) — ghi một lần. */

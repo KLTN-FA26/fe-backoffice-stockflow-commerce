@@ -134,10 +134,20 @@ export const priceReviewDtoSchema = z.object({
   lines: z.array(priceCheckLineDtoSchema).default([]),
 });
 
+/**
+ * #286: BE kèm tên / mã khách bên cạnh `customerId` (null bị bỏ khỏi JSON) — màn hình hiện tên, không tra
+ * `GET /customers/{id}` mỗi dòng. Thiếu thì đọc lùi về mã, rồi nhãn trung tính.
+ */
+const customerNames = {
+  customerName: omittedOrNull(z.string()),
+  customerCode: omittedOrNull(z.string()),
+};
+
 export const quoteDtoSchema = z.object({
   id: z.string(),
   quoteNumber: z.string(),
   customerId: z.string(),
+  ...customerNames,
   status: z.enum(QUOTE_API_STATUSES),
   revision: z.number().int(),
   validUntil: z.string(),
@@ -154,8 +164,11 @@ export const quoteDtoSchema = z.object({
   acceptedTotal: omittedOrNull(z.number()),
   sentAt: omittedOrNull(z.string()),
   sentBy: omittedOrNull(z.string()),
+  /** #286: tên người gửi / người trả lời (nhân viên, hoặc tài khoản khách) kèm id. */
+  sentByName: omittedOrNull(z.string()),
   respondedAt: omittedOrNull(z.string()),
   respondedBy: omittedOrNull(z.string()),
+  respondedByName: omittedOrNull(z.string()),
   customerFeedback: omittedOrNull(z.string()),
   cancellationReason: omittedOrNull(z.string()),
   convertedOrder: omittedOrNull(
@@ -170,6 +183,7 @@ export const quoteDtoSchema = z.object({
   history: z.array(quoteTransitionDtoSchema).default([]),
   createdAt: z.string(),
   createdBy: omittedOrNull(z.string()),
+  createdByName: omittedOrNull(z.string()),
   version: z.number().int(),
   /** 14 BR-10: bản nháp đang chờ Quản lý kinh doanh duyệt giá (vẫn `DRAFT`, khoá sửa / gửi). */
   priceReviewPending: z.boolean().default(false),
@@ -182,11 +196,14 @@ export const quoteRowDtoSchema = z.object({
   id: z.string(),
   quoteNumber: z.string(),
   customerId: z.string(),
+  ...customerNames,
   status: z.enum(QUOTE_API_STATUSES),
   revision: z.number().int(),
   validUntil: z.string(),
   sentAt: omittedOrNull(z.string()),
   convertedOrderId: omittedOrNull(z.string()),
+  /** #286: số đơn đã tạo từ báo giá — cột "Đơn đã tạo" hiện số đơn thay cho link chung. */
+  convertedOrderNumber: omittedOrNull(z.string()),
   createdAt: z.string(),
   version: z.number().int(),
   /**

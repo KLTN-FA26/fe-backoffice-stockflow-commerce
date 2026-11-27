@@ -38,6 +38,9 @@ export type PriceMeasure = (typeof PRICE_MEASURES)[number];
  */
 export const beCustomerPriceSchema = z.object({
   customerId: z.string().min(1),
+  /** #286: tên / mã khách BE kèm id (null bị bỏ khỏi JSON) — hiện tên khách mà không cần `customer-customers:READ`. */
+  customerName: omittedOrNull(z.string()),
+  customerCode: omittedOrNull(z.string()),
   sku: z.string().min(1),
   measure: z.enum(PRICE_MEASURES),
   moq: z.number().int().min(L.minQuantityMin),

@@ -115,6 +115,8 @@ export function toOrder(dto: OrderDto): Order {
     creditTermDays: dto.creditTermDays ?? null,
     balancePolicy: dto.balancePolicy ?? null,
     warehouseId: dto.warehouseId ?? null,
+    warehouseCode: dto.warehouseCode ?? null,
+    warehouseName: dto.warehouseName ?? null,
     releasedAt: dto.releasedAt ?? null,
     cancellation: cancellation
       ? {
