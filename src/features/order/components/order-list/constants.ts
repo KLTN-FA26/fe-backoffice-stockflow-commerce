@@ -16,6 +16,7 @@ export const DEFAULT_COLUMNS = [
   "placedAt",
   "totalAmount",
   "status",
+  "nextStep",
   "actions",
 ];
 
@@ -60,8 +61,24 @@ export const COLUMN_LABELS: Record<string, string> = {
   placedAt: "Ngày đặt",
   totalAmount: "Tổng tiền",
   status: "Trạng thái",
+  nextStep: "Việc tiếp theo",
   actions: "Thao tác",
 };
+
+/**
+ * "Việc tiếp theo" của một dòng — chỉ suy ra từ field `GET /orders` đã trả (trạng thái, lý do giữ, kho xuất). Tiền đã thu /
+ * còn phải thu KHÔNG có trên dòng danh sách (nằm ở các đợt của hợp đồng, `GET /installments/orders/{id}`), nên không hiện.
+ */
+export const NEXT_STEP_LABELS = {
+  draft: "Lập hợp đồng",
+  pendingContract: "Chờ khách ký hợp đồng",
+  pendingPayment: "Chờ khách trả đợt khi ký",
+  chooseWarehouse: "Chọn kho xuất",
+  creditHold: "Chờ Kế toán duyệt công nợ",
+  deliveryFailedHold: "Quyết định hồ sơ giao thất bại",
+  otherHold: "Xử lý lý do giữ đơn",
+  deliveryFailed: "Xử lý giao thất bại",
+} as const;
 
 /**
  * 19 trạng thái BE (ORDER_STATUSES, PR #133). KHÔNG có `UNKNOWN`: đó là trạng thái chỉ để đọc

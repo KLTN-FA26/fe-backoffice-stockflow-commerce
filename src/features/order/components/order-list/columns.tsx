@@ -10,6 +10,7 @@ import { rowActionsColumn } from "@/components/shared/RowActionsMenu";
 
 import { COLUMN_LABELS } from "./constants";
 import { CustomerCell } from "./CustomerCell";
+import { orderListNextStep } from "./next-step";
 
 import type { ColumnDef } from "@/components/shared/DataTable";
 import type { Order } from "../../types";
@@ -40,6 +41,8 @@ export function buildOrderColumns(onFilterCustomer: (customerId: string) => void
     {
       key: "customer",
       header: COLUMN_LABELS.customer,
+      // bo-17: tên công ty dài xuống tối đa hai dòng thay vì cắt ở 160px; bảng 1440px không phải cuộn ngang.
+      className: "min-w-52 whitespace-normal",
       cell: (row) => (
         <CustomerCell
           customerId={row.customerId}
@@ -74,6 +77,22 @@ export function buildOrderColumns(onFilterCustomer: (customerId: string) => void
         withIcon: true,
       }),
       key: "status",
+    },
+    // bo-17: việc tiếp theo suy ra từ trạng thái / lý do giữ / kho xuất của dòng. Đã thu / còn phải thu không có trên
+    // dòng `GET /orders` (ở các đợt của hợp đồng) nên danh sách chưa có cột thanh toán.
+    {
+      key: "nextStep",
+      header: COLUMN_LABELS.nextStep,
+      // Câu ngắn được xuống dòng — bảng 1440px không phải cuộn ngang vì cột này.
+      className: "min-w-36 whitespace-normal",
+      cell: (row) => {
+        const step = orderListNextStep(row);
+        return step ? (
+          <span className="text-ink-secondary text-[0.8125rem]">{step}</span>
+        ) : (
+          <span className="text-ink-tertiary text-xs">—</span>
+        );
+      },
     },
     // Thao tác của dòng gom vào menu "⋯" (backoffice-erp-ui A6)
     rowActionsColumn<Order>((row) => ({
