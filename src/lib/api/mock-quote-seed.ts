@@ -262,13 +262,13 @@ export const WF02_SKUS: readonly Wf02Sku[] = [
 export const wf02Sku = (sku: string): Wf02Sku | undefined =>
   WF02_SKUS.find((s) => s.sku === sku.trim().toUpperCase());
 
-/** `GET /customer-skus?customerId=&productId=` — SKU riêng của khách (BE `CustomerSku`, không gồm field nội bộ). */
+/** `GET /customer-skus?customerId=&productId=` — SKU riêng của khách, đúng hình BE `CustomerSkuResponse` (id tên `id`). */
 export function wf02CustomerSkus(customerId: string, productId: string | null) {
   return WF02_SKUS.filter(
     (s) =>
       s.ownerCustomerId === customerId.toLowerCase() && (!productId || s.productId === productId),
   ).map((s) => ({
-    variantId: s.variantId,
+    id: s.variantId,
     productId: s.productId,
     sku: s.sku,
     name: s.name,
