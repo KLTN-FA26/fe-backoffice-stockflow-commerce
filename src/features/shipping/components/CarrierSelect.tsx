@@ -68,8 +68,12 @@ export function CarrierSelect({
         {allowNone && <SelectItem value={NONE}>{noneLabel}</SelectItem>}
         {!known && value && <SelectItem value={value}>{currentName ?? value}</SelectItem>}
         {carriers.map((carrier) => (
-          // Tên hãng, không "AHAMOVE Ahamove": mã chỉ ở chú thích khi rê chuột (R3)
-          <SelectItem key={carrier.carrierId} value={carrier.carrierId} title={carrier.code}>
+          // Tên hãng, không "AHAMOVE Ahamove" (R3): mã không hiện, chỉ để gõ mã vẫn tìm ra hãng
+          <SelectItem
+            key={carrier.carrierId}
+            value={carrier.carrierId}
+            textValue={`${carrier.name} ${carrier.code}`}
+          >
             {carrier.name}
           </SelectItem>
         ))}
