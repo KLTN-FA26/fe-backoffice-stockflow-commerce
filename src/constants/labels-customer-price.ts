@@ -63,6 +63,7 @@ export const CUSTOMER_PRICE_UI_LABELS = {
     previous: "Trang trước",
     next: "Trang sau",
     pageInfo: (page: number, total: number) => `Trang ${page} — ${total} khách`,
+    more: (remaining: number) => `Còn ${remaining} khách ở các trang sau — gõ thêm để thu hẹp`,
   },
   customer: {
     clear: "Bỏ chọn khách",

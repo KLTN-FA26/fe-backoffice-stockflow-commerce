@@ -227,34 +227,32 @@ describe("InstallmentList — what the accountant sees (docs 15 §5.1)", () => {
     expect(await screen.findByText("Có quá nhiều khách khớp — gõ cụ thể hơn")).toBeInTheDocument();
   });
 
-  it("WF-02 35: picking an order in the search box filters /installments by orderId; the accountant never asks /customers", async () => {
-    const api = mockPaymentApi(ACCOUNTANT_GRANTS, {
-      get: {
-        ...listRoutes([due]),
-        "/orders": () =>
-          bePage([
-            {
-              orderId: "ord-13",
-              orderNumber: "SO-20261108-000013",
-              customerId: "cust-9",
-              customerName: "Công ty Bao Bì An Phát",
-            },
-          ]),
-      },
-    });
+  it("TU-3: one plain search box only (no second order combobox); the typed text goes to the one existing search=", async () => {
+    const api = mockPaymentApi(ACCOUNTANT_GRANTS, { get: listRoutes([due]) });
     renderPaymentScreen(<InstallmentList />);
-    await userEvent.type(await screen.findByRole("combobox", { name: /Tìm đơn/ }), "SO-2026");
-    await userEvent.click(await screen.findByRole("option", { name: /SO-20261108-000013/ }));
+    expect(await screen.findByRole("textbox", { name: /Tìm khách/ })).toBeInTheDocument();
+    // The old second field "Tìm đơn (số đơn, tên liên hệ, SĐT)" is gone; nothing opens a list or asks /orders.
+    expect(screen.queryByRole("combobox", { name: /Tìm đơn/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    await userEvent.type(screen.getByRole("textbox", { name: /Tìm khách/ }), "tra sua");
+    await waitFor(() => {
+      const calls = api.get.mock.calls.filter(([url]) => url === "/installments");
+      expect((calls.at(-1)?.[1] as { params: URLSearchParams }).params.get("search")).toBe(
+        "tra sua",
+      );
+    });
+    expect(api.get.mock.calls.some(([url]) => url === "/orders")).toBe(false);
+  });
+
+  it("WF-02 35: an old ?orderId= link still filters by orderId, names the order in the chip, one click narrows to its customer", async () => {
+    const api = mockPaymentApi(ACCOUNTANT_GRANTS, { get: listRoutes([due]) });
+    renderPaymentScreen(<InstallmentList />, "?orderId=ord-13");
     await waitFor(() => {
       const calls = api.get.mock.calls.filter(([url]) => url === "/installments");
       expect((calls.at(-1)?.[1] as { params: URLSearchParams }).params.get("orderId")).toBe(
         "ord-13",
       );
     });
-    const search = api.get.mock.calls.find(([url]) => url === "/orders")?.[1] as {
-      params: URLSearchParams;
-    };
-    expect(search.params.get("search")).toBe("SO-2026");
     // The chip names the order (from the filtered rows), then one click narrows to the order's customer.
     expect(
       await screen.findByText("SO-20261108-000013", { selector: "span.font-mono" }),
