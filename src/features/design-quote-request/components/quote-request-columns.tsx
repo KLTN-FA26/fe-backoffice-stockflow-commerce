@@ -171,7 +171,7 @@ export function RequestStatus({ row }: { row: QuoteRequest }) {
 
 // Tên khách dài cắt bằng "…" (đủ tên ở tooltip của ô) để bảng vừa màn 1440px (bo-01).
 const customerCell = (row: QuoteRequest) => (
-  <span className="block max-w-[14rem] truncate" title={row.customerName ?? undefined}>
+  <span className="block max-w-[11rem] truncate" title={row.customerName ?? undefined}>
     <CustomerName id={row.customerId} name={row.customerName} />
   </span>
 );
@@ -246,7 +246,7 @@ function DesignNameCell({
   canOpenDesign: boolean;
 }) {
   return (
-    <span className="flex max-w-[18rem] min-w-0 flex-col">
+    <span className="flex max-w-[14rem] min-w-0 flex-col">
       {canOpenDesign ? (
         <Link
           href={ADMIN_ROUTES.designs.detail(row.designId)}
@@ -385,7 +385,7 @@ export function projectQuoteRequestColumns(
         <Link
           href={viewHref(row)}
           title={row.projectName}
-          className="text-accent-text block max-w-[18rem] truncate font-medium hover:underline"
+          className="text-accent-text block max-w-[14rem] truncate font-medium hover:underline"
         >
           {row.projectName}
         </Link>
