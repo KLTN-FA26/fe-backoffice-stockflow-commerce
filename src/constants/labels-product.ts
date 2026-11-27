@@ -52,13 +52,11 @@ export const PRODUCT_UI_LABELS = {
     // Tên ô như nhãn trên form — dùng khi liệt kê ô bị đổi (mã sản phẩm bất biến nên không có)
     fields: {
       name: "Tên sản phẩm",
-      nameEn: "Tên tiếng Anh",
       brandId: "Thương hiệu",
       categoryId: "Danh mục",
       taxClass: "Nhóm thuế",
       shortDescription: "Mô tả ngắn",
-      description: "Mô tả tiếng Việt",
-      descriptionEn: "Mô tả tiếng Anh",
+      description: "Mô tả",
     },
     checking:
       "Sản phẩm vừa được người khác sửa — đang tải bản mới nhất để so với nội dung bạn nhập…",
@@ -102,7 +100,6 @@ export const PRODUCT_UI_LABELS = {
   description: {
     title: "Mô tả",
     empty: "Chưa có mô tả",
-    emptyVi: "Chưa có mô tả tiếng Việt",
   },
   // Dòng thời gian vòng đời ở cột phải
   lifecycle: {

@@ -105,7 +105,7 @@ export function ProductWizardView({
               />
             </div>
             <div hidden={step !== "description"}>
-              <ProductDescriptionFields form={form} />
+              <ProductDescriptionFields form={form} productId={isEditing ? productId : undefined} />
             </div>
             {!isEditing && (
               <div hidden={step !== "axes"}>

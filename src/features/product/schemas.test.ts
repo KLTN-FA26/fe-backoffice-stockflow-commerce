@@ -55,11 +55,9 @@ describe("BE ProductStatus (INACTIVE = tạm ngưng)", () => {
 describe("update / discontinue request bodies carry the version", () => {
   const update = {
     name: "Ly",
-    nameEn: "Cup",
     categoryId: "cat-1",
     brandId: "brand-1",
     description: "",
-    descriptionEn: "",
     taxClass: "STANDARD",
     kind: "STANDARD",
   };

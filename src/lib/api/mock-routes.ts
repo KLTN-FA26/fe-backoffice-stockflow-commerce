@@ -39,12 +39,10 @@ interface CreateProductMockBody {
   productId?: unknown;
   code?: unknown;
   name?: unknown;
-  nameEn?: unknown;
   brandId?: unknown;
   categoryId?: unknown;
   shortDescription?: unknown;
   description?: unknown;
-  descriptionEn?: unknown;
   taxClass?: unknown;
   kind?: unknown;
   reason?: unknown;
@@ -198,7 +196,6 @@ export function registerAllMockRoutes(): void {
 
     if (!productId) fieldErrors.productId = "Nhập mã sản phẩm";
     if (!readString(body.name)) fieldErrors.name = "Nhập tên sản phẩm";
-    if (!readString(body.nameEn)) fieldErrors.nameEn = "Nhập tên tiếng Anh";
     if (!readString(body.categoryId)) fieldErrors.categoryId = "Chọn danh mục";
     if (Object.keys(fieldErrors).length > 0) return validationFailed(fieldErrors);
     const brand = findMockBrand(readString(body.brandId));
@@ -240,7 +237,8 @@ export function registerAllMockRoutes(): void {
     const product: MockProduct = {
       productId,
       name: readString(body.name),
-      nameEn: readString(body.nameEn) || readString(body.name),
+      // BE bỏ tên / mô tả tiếng Anh (V20270106000200); kiểu `Product` của mock-data (không sửa) còn bắt hai trường.
+      nameEn: readString(body.name),
       slug: slugify(readString(body.name) || productId),
       // BE `ProductKind`: hệ thống gán CUSTOMIZABLE, request không có `kind` (kltn-docs 01 §3, BR-19).
       type: "Customizable",
@@ -248,7 +246,7 @@ export function registerAllMockRoutes(): void {
       status: "Draft",
       shortDescription: readString(body.shortDescription) || undefined,
       description: readString(body.description),
-      descriptionEn: readString(body.descriptionEn),
+      descriptionEn: "",
       images: [],
       // Kiểu `Product` của mock-data (không sửa) còn bắt trường này; BE không còn giá cơ sở
       basePrice: 0,
@@ -297,11 +295,11 @@ export function registerAllMockRoutes(): void {
       ...current,
       version: (current.version ?? 0) + 1,
       name: readString(body.name),
-      nameEn: readString(body.nameEn),
+      nameEn: readString(body.name),
       categoryId: readString(body.categoryId),
       shortDescription: readString(body.shortDescription) || undefined,
       description: readString(body.description),
-      descriptionEn: readString(body.descriptionEn),
+      descriptionEn: "",
       brand: brand?.name ?? "",
       brandId: brand?.brandId ?? null,
       // Loại không đổi được (BE `UpdateProductRequest` không có `kind`)
@@ -668,12 +666,10 @@ async function transitionMockProduct(
 function changedProductFields(before: MockProduct, after: MockProduct): string[] {
   const pairs: [string, unknown, unknown][] = [
     ["name", before.name, after.name],
-    ["nameEn", before.nameEn, after.nameEn],
     ["brandId", before.brandId ?? null, after.brandId ?? null],
     ["categoryId", before.categoryId, after.categoryId],
     ["shortDescription", before.shortDescription ?? "", after.shortDescription ?? ""],
     ["description", before.description, after.description],
-    ["descriptionEn", before.descriptionEn, after.descriptionEn],
     ["taxClass", before.taxClass, after.taxClass],
     ["kind", before.type, after.type],
   ];

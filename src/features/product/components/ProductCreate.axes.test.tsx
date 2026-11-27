@@ -61,7 +61,6 @@ const created = {
   productId: "11111111-1111-4111-8111-111111111111",
   code: "CUP",
   name: "Ly",
-  nameEn: "Cup",
   taxClass: "STANDARD",
   kind: "STANDARD",
   status: "DRAFT",
@@ -107,7 +106,6 @@ afterEach(() => vi.restoreAllMocks());
 async function fillMaster(user: ReturnType<typeof userEvent.setup>, code = "cup") {
   await user.type(await screen.findByLabelText(/Mã sản phẩm/), code);
   await user.type(screen.getByLabelText(/^Tên sản phẩm/), "Ly");
-  await user.type(screen.getByLabelText(/Tên tiếng Anh/), "Cup");
   await pickOption(user, /Thương hiệu/, "Thương hiệu A");
   await pickTreeOption(user, /Danh mục/, "Ly giấy");
 }

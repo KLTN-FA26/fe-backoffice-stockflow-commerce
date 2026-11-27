@@ -38,12 +38,10 @@ const beProduct = {
   productId: PRODUCT,
   code: "TOTE",
   name: "Túi tote",
-  nameEn: "Tote bag",
   brandId: BRAND,
   categoryId: CATEGORY,
   shortDescription: "",
   description: "",
-  descriptionEn: "",
   taxClass: "STANDARD",
   kind: "STANDARD",
   status: "DRAFT",
@@ -87,7 +85,6 @@ function setup(permission: string, post?: () => unknown) {
 async function fillMaster(user: ReturnType<typeof userEvent.setup>) {
   await user.type(await screen.findByLabelText(/Mã sản phẩm/), "tote");
   await user.type(screen.getByLabelText(/^Tên sản phẩm/), "Túi tote");
-  await user.type(screen.getByLabelText(/Tên tiếng Anh/), "Tote bag");
   await pickOption(user, /Thương hiệu/, "Thương hiệu A");
   await pickTreeOption(user, /Danh mục/, "Ly giấy");
 }

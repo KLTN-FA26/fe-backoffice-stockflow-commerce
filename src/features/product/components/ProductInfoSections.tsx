@@ -5,6 +5,7 @@ import { FileText, Layers } from "lucide-react";
 import { UI_LABELS } from "@/constants";
 import { formatDate } from "@/lib/format/date";
 import { categoryName, taxClassLabel } from "@/features/product";
+import { RichTextView } from "@/components/shared/RichTextView";
 import { StatusDot } from "@/components/shared/StatusDot";
 
 import { InfoRow, Section } from "./ProductSection";
@@ -33,11 +34,10 @@ export function ProductGeneralSection({
             {product.code ?? product.productId}
           </span>
         </InfoRow>
-        {/* Trang chi tiết không có tiêu đề — tên sản phẩm (BE `name` / `nameEn`) nằm ở đây */}
+        {/* Trang chi tiết không có tiêu đề — tên sản phẩm (BE `name`) nằm ở đây */}
         <InfoRow label={F.name}>
           <span className="font-medium">{product.name}</span>
         </InfoRow>
-        {product.nameEn && <InfoRow label={F.nameEn}>{product.nameEn}</InfoRow>}
         <InfoRow label="Danh mục">{categoryName(product.categoryId, categories)}</InfoRow>
         <InfoRow label="Thương hiệu">{product.brand}</InfoRow>
         <InfoRow label="Thuế">{taxClassLabel(product.taxClass)}</InfoRow>
@@ -63,20 +63,11 @@ export function ProductGeneralSection({
   );
 }
 
-/** "Mô tả" tiếng Việt + tiếng Anh; rỗng thì nói rõ thay vì để mục trống trơn. */
+/** "Mô tả": HTML của Tiptap (ADR-0013), lọc lại qua RichTextView; rỗng thì nói rõ thay vì để mục trống trơn. */
 export function ProductDescriptionSection({ product }: { product: Product }) {
-  const vi = product.description.trim();
-  const en = product.descriptionEn.trim();
   return (
     <Section title={D.title} icon={FileText}>
-      {vi || en ? (
-        <>
-          <p className="text-ink-secondary text-[0.8125rem] leading-relaxed">{vi || D.emptyVi}</p>
-          {en && <p className="text-ink-tertiary mt-1.5 text-xs italic">{en}</p>}
-        </>
-      ) : (
-        <p className="text-ink-tertiary text-[0.8125rem]">{D.empty}</p>
-      )}
+      <RichTextView html={product.description} empty={D.empty} />
     </Section>
   );
 }

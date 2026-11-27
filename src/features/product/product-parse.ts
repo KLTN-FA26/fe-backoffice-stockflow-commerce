@@ -44,7 +44,6 @@ function toProduct(dto: ProductMasterDto): Product {
     productId: dto.productId,
     code: dto.code,
     name: dto.name,
-    nameEn: dto.nameEn || dto.name,
     // Chỉ khi BE có slug — không bịa slug từ tên.
     ...(dto.slug ? { slug: dto.slug } : {}),
     type: dto.kind === "CUSTOMIZABLE" ? "Customizable" : "Standard",
@@ -53,7 +52,6 @@ function toProduct(dto: ProductMasterDto): Product {
     version: dto.version,
     shortDescription: dto.shortDescription ?? undefined,
     description: dto.description ?? "",
-    descriptionEn: dto.descriptionEn ?? "",
     // BE PR #71: ảnh thuộc biến thể (`/variants/{id}/media`), không còn trên dòng sản phẩm.
     images: [],
     taxClass: dto.taxClass.toLowerCase(),

@@ -60,6 +60,8 @@ interface MockVariant {
   obsoletedAt: string | null;
   version: number;
   options: MockOption[];
+  /** Mô tả riêng (ADR-0013): HTML của Tiptap; thiếu / null = dùng mô tả của sản phẩm. */
+  description?: string | null;
 }
 
 /**
@@ -753,6 +755,21 @@ export function registerVariantMockRoutes(): void {
   registerMockRoute("POST", "/products/:id/variants/:variantId/activation", transition("ACTIVE"));
   registerMockRoute("POST", "/products/:id/variants/:variantId/blocking", transition("BLOCKED"));
   registerMockRoute("POST", "/products/:id/variants/:variantId/obsoletion", transition("OBSOLETE"));
+
+  // BE `PUT …/variants/{id}/description` (ADR-0013): `html` rỗng / null gỡ mô tả. BE lọc HTML; mock giữ nguyên.
+  registerMockRoute("PUT", "/products/:id/variants/:variantId/description", async (config) => {
+    const variant = await find(config);
+    if (!variant) return variantNotFound();
+    const html = str(body(config).html).trim() || null;
+    if (html !== (variant.description ?? null)) {
+      Object.assign(variant, { description: html, version: variant.version + 1 });
+      recordMockHistory(variant.productId, "VARIANT_UPDATED", {
+        subjectId: variant.variantId,
+        changedFields: ["description"],
+      });
+    }
+    return ok(toResponse(variant));
+  });
 
   registerMockRoute("GET", "/products/:id/variants/:variantId/media", async (config) => {
     const variant = await find(config);

@@ -110,9 +110,9 @@ describe("VariantMediaGallery — biến thể ngừng dùng: không tải ảnh
   });
 });
 
-// BE `ProductMediaService.publish`: người tải ảnh lên không tự xuất bản được (409 SELF_APPROVAL_NOT_ALLOWED).
+// BE bỏ duyệt bốn mắt cho ảnh biến thể (ADR-0012): người tải ảnh lên tự xuất bản được.
 // `uploadedBy` của BE là username.
-describe("VariantMediaGallery — duyệt bốn mắt: người tải lên không được chọn ảnh của mình để xuất bản", () => {
+describe("VariantMediaGallery — người tải lên tự xuất bản ảnh của mình (ADR-0012)", () => {
   // `renderApp` signs in as username "test".
   function setupUploadedBy(uploadedBy: string) {
     installApi({
@@ -132,21 +132,20 @@ describe("VariantMediaGallery — duyệt bốn mắt: người tải lên khôn
     />
   );
 
-  it("ảnh do chính mình tải: không có ô chọn, có câu nói người khác cần xuất bản", async () => {
-    setupUploadedBy("test");
-    renderApp(gallery);
-    expect(await screen.findByText(/người khác cần xuất bản/)).toBeInTheDocument();
-    expect(screen.queryByRole("checkbox", { name: /để xuất bản/ })).not.toBeInTheDocument();
-  });
-
-  it("ảnh do người khác tải: chọn được để xuất bản", async () => {
-    setupUploadedBy("admin");
-    renderApp(gallery);
-    expect(
-      await screen.findByRole("checkbox", { name: "Chọn ảnh m-new.png để xuất bản" }),
-    ).toBeInTheDocument();
-    expect(screen.queryByText(/người khác cần xuất bản/)).not.toBeInTheDocument();
-  });
+  it.each([
+    ["chính mình", "test"],
+    ["người khác", "admin"],
+  ])(
+    "ảnh do %s tải: chọn được để xuất bản, không còn câu đòi người khác",
+    async (_, uploadedBy) => {
+      setupUploadedBy(uploadedBy);
+      renderApp(gallery);
+      expect(
+        await screen.findByRole("checkbox", { name: "Chọn ảnh m-new.png để xuất bản" }),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/người khác cần xuất bản/)).not.toBeInTheDocument();
+    },
+  );
 });
 
 describe("VariantMediaGallery — thẻ nhỏ cột phải: trạng thái là chấm màu, không phải nhãn chữ che ảnh", () => {

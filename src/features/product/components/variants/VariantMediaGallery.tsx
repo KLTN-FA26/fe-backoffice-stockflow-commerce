@@ -7,7 +7,6 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useAuthStore } from "@/lib/auth/auth-store";
 
 import { variantErrorMessage } from "../../variant-errors";
 import {
@@ -31,8 +30,8 @@ const ACCEPT = "image/jpeg,image/png,image/webp";
 const MAX_BYTES = 10 * 1024 * 1024;
 
 /**
- * Ảnh của một biến thể (BE PR #71). Ảnh mới riêng tư cho tới khi được xuất bản; người xuất bản
- * phải khác người tải lên (BE 409 SELF_APPROVAL_NOT_ALLOWED) và sản phẩm phải đã duyệt. Các cờ
+ * Ảnh của một biến thể (BE PR #71). Ảnh mới riêng tư cho tới khi được xuất bản; sản phẩm phải đã duyệt.
+ * Người tải lên tự xuất bản được — BE bỏ duyệt bốn mắt (ADR-0012). Các cờ
  * `can*` lấy từ `mediaCapabilities` (product-capabilities.ts), không tự suy từ trạng thái ở đây.
  */
 export function VariantMediaGallery({
@@ -57,7 +56,6 @@ export function VariantMediaGallery({
   compact?: boolean;
 }) {
   const query = useVariantMedia(productId, variantId);
-  const me = useAuthStore((state) => state.user);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState<VariantMedia | null>(null);
   const [describing, setDescribing] = useState<VariantMedia | null>(null);
@@ -68,10 +66,6 @@ export function VariantMediaGallery({
   const remove = useDeleteVariantMedia();
   const makePrimary = useMakePrimaryMedia();
   const target = { productId, variantId };
-  // BE `uploadedBy` là username (khác `publishedBy` là UUID); người tải lên không được tự xuất bản
-  // (409 SELF_APPROVAL_NOT_ALLOWED) nên không cho chọn ảnh đó. UI-only — BE vẫn kiểm lại.
-  const uploadedByMe = (m: VariantMedia) =>
-    Boolean(me && m.uploadedBy && (m.uploadedBy === me.username || m.uploadedBy === me.userId));
   const fail = (context: Parameters<typeof variantErrorMessage>[1]) => (e: unknown) =>
     toast.error("Không thực hiện được", variantErrorMessage(e, context));
 
@@ -106,7 +100,7 @@ export function VariantMediaGallery({
             <li key={m.mediaId} className="space-y-1">
               <label className="relative block">
                 <Thumb productId={productId} variantId={variantId} media={m} />
-                {!compact && canPublish && !m.published && !uploadedByMe(m) && (
+                {!compact && canPublish && !m.published && (
                   <Checkbox
                     aria-label={`Chọn ảnh ${m.originalName ?? m.mediaId} để xuất bản`}
                     checked={selected.has(m.mediaId)}
@@ -125,11 +119,6 @@ export function VariantMediaGallery({
                   </span>
                 )}
               </label>
-              {!compact && canPublish && !m.published && uploadedByMe(m) && (
-                <p className="text-ink-tertiary text-[0.6875rem]">
-                  Bạn đã tải ảnh này lên — người khác cần xuất bản (duyệt bốn mắt).
-                </p>
-              )}
               {!compact && (
                 <div className="flex flex-wrap items-center gap-1">
                   {canManage && !m.primary && (
