@@ -3,6 +3,7 @@
 import { WandSparkles } from "lucide-react";
 
 import { QUOTE_PRICE_REVIEW_LABELS } from "@/constants";
+import { QUOTE_FORM_LABELS } from "@/constants/labels-quote-form";
 import { formatMoney } from "@/lib/format/money";
 import { lineAmount } from "@/features/quote/selectors";
 import { Button } from "@/components/ui/button";
@@ -37,7 +38,15 @@ export function SuggestionBar({
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[0.8125rem]">
       <span className="text-ink-secondary">
-        MOQ: <strong className={`text-ink-primary ${NUM}`}>{moq ?? "—"}</strong> thùng
+        {QUOTE_FORM_LABELS.minCartons.label}:{" "}
+        {moq == null ? (
+          <span className="text-ink-tertiary">{QUOTE_FORM_LABELS.minCartons.none}</span>
+        ) : (
+          <>
+            <strong className={`text-ink-primary ${NUM}`}>{moq}</strong>{" "}
+            {QUOTE_FORM_LABELS.minCartons.unit}
+          </>
+        )}
       </span>
       {loading && <span className="text-ink-tertiary">Đang tải giá gợi ý…</span>}
       {sku && !loading && !suggestion && !failed && (
@@ -97,7 +106,9 @@ export function LinePreview({
       Tạm tính:{" "}
       {unitPrice == null ? (
         <span className="text-ink-tertiary">
-          {moq && cartons > 0 && cartons < moq ? `dưới MOQ ${moq} thùng` : "chưa đủ dữ liệu"}
+          {moq && cartons > 0 && cartons < moq
+            ? `dưới mức tối thiểu ${moq} thùng`
+            : "chưa đủ dữ liệu"}
         </span>
       ) : (
         <>

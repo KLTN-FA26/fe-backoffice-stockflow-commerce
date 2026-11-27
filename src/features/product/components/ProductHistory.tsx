@@ -86,6 +86,7 @@ export function ProductHistory({
     occurredAt: (
       <HeaderDateRangeFilter
         label="thời gian"
+        quickKind="past"
         from={from}
         to={to}
         onChange={(range) => {

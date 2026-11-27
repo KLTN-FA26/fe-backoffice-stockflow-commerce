@@ -354,7 +354,7 @@ describe("Credit hold — vị thế tín dụng của khách", { timeout: DIALO
     const panel = await within(dialog).findByRole("region", { name: "Vị thế tín dụng của khách" });
     expect(panel).toHaveTextContent(/300\.000\.000/);
     expect(panel).toHaveTextContent(/Có quá hạn: 41\.195\.000/);
-    expect(panel).toHaveTextContent(/cũ nhất từ ngày 2 thg 11, 2026/);
+    expect(panel).toHaveTextContent(/cũ nhất từ ngày 02\/11\/2026/);
     expect(callsTo(get, POSITION_PATH)).toBe(1);
   });
 

@@ -22,9 +22,12 @@ const B = UI_LABELS.shipping.waybill.blocked;
 export function HandoverReasonLink({
   orderId,
   reasonCode,
+  load,
 }: {
   orderId: string;
   reasonCode: string | null | undefined;
+  /** Chuyến đang bàn giao: màn thanh toán nhớ nó để có nút "Quay lại chuyến" sau khi lập phiếu thu (S07-5). */
+  load?: { loadId: string; code: string };
 }) {
   const canCollect = useCan(PAYMENT_INSTALLMENT_PERMISSIONS.read);
   const canReadSchedule = useCan(ORDER_DELIVERY_BATCH_PERMISSIONS.read);
@@ -32,7 +35,13 @@ export function HandoverReasonLink({
 
   if (reasonCode === "ORDER_BALANCE_NOT_PAID" && canCollect) {
     return (
-      <Link href={PAYMENT_ROUTES.installments.ofOrder(orderId)} className="ml-1 underline">
+      <Link
+        href={PAYMENT_ROUTES.installments.ofOrder(
+          orderId,
+          load && { loadId: load.loadId, loadCode: load.code },
+        )}
+        className="ml-1 underline"
+      >
         {B.linkCollectPayment}
       </Link>
     );

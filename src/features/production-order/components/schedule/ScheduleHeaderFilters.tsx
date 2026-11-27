@@ -9,7 +9,7 @@ import {
 import { ColumnFilterButton, HeaderOptionFilter } from "@/components/shared/ColumnHeaderFilter";
 
 import { shortId } from "../parts";
-import { AlertsFilter, DateRangeFilter } from "./ScheduleFilterControls";
+import { DateRangeFilter } from "./ScheduleFilterControls";
 
 import type { ReactNode } from "react";
 import type { HeaderFilterOption } from "@/components/shared/ColumnHeaderFilter";
@@ -84,13 +84,11 @@ export function scheduleHeaderFilters(
       [C.ORDER]: order(col.order),
       [C.WAREHOUSE]: warehouse(col.warehouse),
       [C.NEED_BY]: <DateRangeFilter state={state} label={col.needBy} />,
-      [C.ALERTS]: <AlertsFilter state={state} label={col.alerts} />,
     },
     batches: {
       [B.ORDER]: order(D.orderNumber),
       [B.WINDOW]: <DateRangeFilter state={state} label={D.window} />,
       [B.WAREHOUSE]: warehouse(D.warehouse),
-      [B.ALERTS]: <AlertsFilter state={state} label={D.alerts} />,
     },
   };
 }

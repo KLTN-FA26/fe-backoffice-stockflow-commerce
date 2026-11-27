@@ -110,6 +110,7 @@ function HistoryBody({ id }: { id: string }) {
         occurredAt: (
           <HeaderDateRangeFilter
             label="thời gian"
+            quickKind="past"
             from={f.ohFrom}
             to={f.ohTo}
             onChange={({ from, to }) => set({ ohFrom: from, ohTo: to })}

@@ -5,7 +5,7 @@ import { COLUMN_LABELS, DEFAULT_COLUMNS, SEARCH_SCOPE_LABEL } from "./constants"
 import type { ListSummaryItem } from "@/components/shared/ListToolbar";
 import type { InventoryItemListState } from "./useInventoryItemListState";
 
-/** Thanh "Cấu hình" dưới toolbar (data-table-mode-a §3); lọc cột chỉ hiện viên khi đang dùng. */
+/** Thanh "Cấu hình" dưới toolbar (data-table-mode-a §3); lọc cột chỉ hiện viên khi đang dùng. Không có "Tìm trong cột" vì BE không hỗ trợ. */
 const S = UI_LABELS.inventoryItem.summary;
 
 export function buildSummaryItems(s: InventoryItemListState): ListSummaryItem[] {

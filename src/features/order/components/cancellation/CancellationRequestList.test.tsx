@@ -109,10 +109,11 @@ describe("Hàng đợi yêu cầu huỷ — gate theo mã quyền BE", () => {
 
   it("chỉ đọc (không …:UPDATE) → thấy hàng nhưng không có nút quyết định", async () => {
     await renderQueue(WF4_PERMISSION_SETS.salesReadOnly);
-    await screen.findByRole("link", { name: apiOrder.orderNumber });
-    expect(screen.queryByRole("button", { name: /^Thao tác —/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^Duyệt huỷ/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^Từ chối/ })).not.toBeInTheDocument();
+    const row = (await screen.findByRole("link", { name: apiOrder.orderNumber })).closest("tr")!;
+    // Trong HÀNG: nút chọn nhanh trạng thái "Từ chối" của thanh công cụ không phải nút quyết định
+    expect(within(row).queryByRole("button", { name: /^Thao tác —/ })).not.toBeInTheDocument();
+    expect(within(row).queryByRole("button", { name: /^Duyệt huỷ/ })).not.toBeInTheDocument();
+    expect(within(row).queryByRole("button", { name: /^Từ chối/ })).not.toBeInTheDocument();
   });
 
   it("Kế toán / quản lý kho (không …:READ) → chặn trang, KHÔNG gọi API hàng đợi", async () => {

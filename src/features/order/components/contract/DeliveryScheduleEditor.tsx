@@ -3,12 +3,15 @@
 import { Controller, useFieldArray, useWatch } from "react-hook-form";
 import { Plus, Trash2 } from "lucide-react";
 
+import { toLocalIsoDate } from "@/lib/format/date";
 import { DatePicker } from "@/components/shared/DatePicker";
 import { FORM_INPUT_CLASS, fieldA11y } from "@/components/shared/FormField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 import { cartonGaps } from "../../sales-contract-rules";
+
+import { RequiredMark } from "../FormFieldError";
 
 import type { UseFormReturn } from "react-hook-form";
 import type { ContractFormValues } from "../../sales-contract-form";
@@ -25,7 +28,7 @@ function FieldError({ id, message }: { id?: string; message?: string }) {
 }
 
 /**
- * Lịch giao nhiều đợt: cửa sổ từ – đến, số thùng từng dòng đơn. F-04.2: hiện ngay "còn thiếu / dư X thùng"
+ * Lịch giao nhiều đợt: cửa sổ từ – đến (bắt buộc trước khi gửi hợp đồng), số thùng từng dòng đơn. F-04.2: hiện ngay "còn thiếu / dư X thùng"
  * theo từng SKU (Σ thùng các đợt = số thùng dòng đơn) — chỉ báo sớm, BE vẫn kiểm (DELIVERY_SCHEDULE_INVALID).
  */
 export function DeliveryScheduleEditor({
@@ -39,6 +42,8 @@ export function DeliveryScheduleEditor({
   const batches = useFieldArray({ control, name: "deliverySchedule" });
   const schedule = useWatch({ control, name: "deliverySchedule" }) ?? [];
   const gaps = cartonGaps(lines, schedule);
+  // Ngày theo giờ Việt Nam: cửa sổ giao không bắt đầu trước hôm nay khi gửi hợp đồng (docs 14 BR-23).
+  const today = toLocalIsoDate(new Date().toISOString());
   const errors = formState.errors.deliverySchedule;
   const listError = errors?.root?.message ?? errors?.message;
 
@@ -63,10 +68,15 @@ export function DeliveryScheduleEditor({
                 const id = `batch-${i}-${key}`;
                 const message = batchErrors?.[key]?.message;
                 const label = key === "windowStart" ? "Từ ngày" : "Đến ngày";
+                const start = schedule[i]?.windowStart ?? "";
+                const end = schedule[i]?.windowEnd ?? "";
+                // Đợt sau bắt đầu không sớm hơn đợt trước (BR-23).
+                const previous = (i > 0 ? schedule[i - 1]?.windowStart : "") ?? "";
+                const earliest = previous > today ? previous : today;
                 return (
                   <div key={key} className="w-44">
                     <label htmlFor={id} className="text-ink-secondary text-xs">
-                      {label}
+                      {label} <RequiredMark />
                     </label>
                     <Controller
                       control={control}
@@ -78,6 +88,9 @@ export function DeliveryScheduleEditor({
                           onChange={date.onChange}
                           onBlur={date.onBlur}
                           clearable
+                          // Chặn chéo như biểu mẫu dời cửa sổ: "Đến ngày" không trước "Từ ngày", "Từ ngày" không sau "Đến ngày".
+                          min={key === "windowStart" ? earliest : start || earliest}
+                          max={key === "windowStart" ? end || undefined : undefined}
                           {...fieldA11y(id, message)}
                           aria-label={`Đợt ${i + 1} ${label.toLowerCase()}`}
                         />
@@ -158,7 +171,13 @@ export function DeliveryScheduleEditor({
           batches.append({
             windowStart: "",
             windowEnd: "",
-            lines: lines.map((line) => ({ orderLineId: line.lineId, cartons: "0" })),
+            // Đợt mới điền sẵn số thùng CÒN LẠI của từng dòng đơn (Σ các đợt = số thùng dòng đơn, BR-23).
+            lines: lines.map((line) => ({
+              orderLineId: line.lineId,
+              cartons: String(
+                Math.max(0, -(gaps.find((gap) => gap.orderLineId === line.lineId)?.diff ?? 0)),
+              ),
+            })),
           })
         }
       >

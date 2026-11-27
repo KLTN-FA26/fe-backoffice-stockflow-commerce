@@ -53,7 +53,7 @@ const HELD_ID = "aaaaaaaa-0000-4000-8000-00000000000a";
 /** Người không còn trong danh sách người của kho (`assignees`) — lọc từ link cũ. */
 const GONE_USER_ID = "bbbbbbbb-0000-4000-8000-00000000000b";
 const STATUS_TOOL = "Lọc trạng thái";
-const COLUMNS_TOOL = "Ẩn hiện cột";
+const COLUMNS_TOOL = "Chọn cột hiển thị";
 const ASSIGNEE_FILTER = `Lọc ${FILTER.assignee}`;
 
 const OTHER_WAREHOUSE_ID = "wh-hn-0002";
@@ -306,7 +306,7 @@ describe("Tạo task lấy hàng", () => {
     const option = await screen.findByRole("option", { name: /SO-20261010-000431/ });
     expect(option).toHaveTextContent("Nguyễn Hoài Nam");
     expect(option).toHaveTextContent("2 dòng · 5 sản phẩm");
-    expect(option).toHaveTextContent("Đặt 9 thg 10, 2026");
+    expect(option).toHaveTextContent("Đặt 09/10/2026");
     await user.click(option);
     await pickSelectOption(user, "Người được gán", /Hoàng Anh Tuấn/);
     await user.click(within(dialog).getByRole("button", { name: fulfillment.action.create }));
@@ -466,7 +466,10 @@ describe("PickingList — lọc trạng thái / kho / người được gán (UR
     expect(screen.queryByText(OTHER_PICKER_ID, { exact: false })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: `Xoá ${FILTER.assignee}` }));
     await waitFor(() => expect(lastListParams(get)).not.toHaveProperty("assignedUserId"));
-    expect(screen.getByText(`${FILTER.assignee}: ${FILTER.allAssignees}`)).toBeInTheDocument();
+    // Hết lọc → thanh Cấu hình biến mất, không còn chip "Tất cả người"
+    expect(
+      screen.queryByText(`${FILTER.assignee}: ${FILTER.allAssignees}`),
+    ).not.toBeInTheDocument();
   });
 
   it("?assignee= người không còn trong kho, không còn task → header vẫn có nút lọc, nhãn người đang lọc, không hiện id", async () => {
@@ -502,8 +505,8 @@ describe("PickingList — lọc trạng thái / kho / người được gán (UR
     });
     await screen.findByRole("link", { name: "3F4A5B6C" });
     await user.click(await screen.findByRole("button", { name: ASSIGNEE_FILTER }));
-    // cmdk ghi đè aria-label của ô tìm → tìm theo placeholder
-    await user.type(screen.getByPlaceholderText(FILTER.assigneeSearch), "Tuấn");
+    // Ít người (≤ 10) → danh sách không có ô tìm, chọn thẳng
+    expect(screen.queryByPlaceholderText(FILTER.assigneeSearch)).not.toBeInTheDocument();
     await user.click(screen.getByRole("option", { name: /Hoàng Anh Tuấn/ }));
     await waitFor(() =>
       expect(lastListParams(get)).toMatchObject({ assignedUserId: PICKER_ID, page: 0 }),
@@ -531,8 +534,8 @@ describe("PickingList — lọc trạng thái / kho / người được gán (UR
     await user.click(screen.getByRole("button", { name: "Đặt lại" }));
     // Bỏ lọc → về khoá query ban đầu (đã có trong cache), không cần gọi lại — kiểm URL + chip
     await waitFor(() => expect(urls.at(-1)).not.toContain("status="));
-    expect(screen.getByText(`${FILTER.status}: ${FILTER.allStatuses}`)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Đặt lại" })).toBeDisabled();
+    expect(screen.queryByText(`${FILTER.status}: ${FILTER.allStatuses}`)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Đặt lại" })).not.toBeInTheDocument();
   });
 
   it("lọc ra 0 dòng → 'Không có task khớp bộ lọc' + Bỏ lọc, khác trạng thái chưa có task", async () => {
@@ -552,7 +555,7 @@ describe("PickingList — lọc trạng thái / kho / người được gán (UR
     });
     await screen.findByRole("link", { name: "3F4A5B6C" });
     expect(lastListParams(get)).not.toHaveProperty("status");
-    expect(screen.getByText(`${FILTER.status}: ${FILTER.allStatuses}`)).toBeInTheDocument();
+    expect(screen.queryByText(`${FILTER.status}: ${FILTER.allStatuses}`)).not.toBeInTheDocument();
   });
 
   it("kho của tab ngoài phạm vi → 403 OUT_OF_DATA_SCOPE: câu báo + đường chọn kho khác", async () => {
@@ -579,7 +582,8 @@ describe("PickingList — ẩn hiện cột (data-table-mode-a §4.2)", () => {
     const user = userEvent.setup();
     renderList(<PickingList />, IDENTITIES.warehouseManager);
     await screen.findByRole("link", { name: "3F4A5B6C" });
-    expect(screen.getByText(`${FILTER.columns}: 6/9`)).toBeInTheDocument();
+    // Cột chưa đổi → chưa có chip (thanh Cấu hình chỉ hiện khi có gì đang bật)
+    expect(screen.queryByText(`${FILTER.columns}: 6/9`)).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: COLUMNS_TOOL }));
     // Cột mã task (link sang chi tiết) luôn hiện — không tắt được
@@ -593,7 +597,7 @@ describe("PickingList — ẩn hiện cột (data-table-mode-a §4.2)", () => {
     await user.keyboard("{Escape}");
     await user.click(screen.getByRole("button", { name: `Xoá ${FILTER.columns}` }));
     expect(header(FIELD.assignee)).toBeInTheDocument();
-    expect(screen.getByText(`${FILTER.columns}: 6/9`)).toBeInTheDocument();
+    expect(screen.queryByText(`${FILTER.columns}: 6/9`)).not.toBeInTheDocument();
   });
 
   it("cấu hình đã lưu có key lạ, thiếu cột khoá → bỏ key lạ, giữ Mã task + Thao tác", async () => {

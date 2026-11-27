@@ -1,13 +1,12 @@
 "use client";
 
 import { Controller, useWatch } from "react-hook-form";
-import { Plus, Trash2 } from "lucide-react";
 
 import { QUOTE_FEE_LABELS } from "@/constants";
+import { QUOTE_FORM_LABELS } from "@/constants/labels-quote-form";
 import { Card } from "@/components/shared/Card";
 import { FormField, fieldA11y } from "@/components/shared/FormField";
 import { MoneyInput } from "@/components/shared/MoneyInput";
-import { Button } from "@/components/ui/button";
 
 import type { UseFormReturn } from "react-hook-form";
 import type { QuoteFormValues } from "@/features/quote/types";
@@ -16,11 +15,11 @@ import type { QuoteFormValues } from "@/features/quote/types";
  * Phí của báo giá (14 BR-17, BR-20):
  * - Phí khuôn / bản in: BE tự thêm cho SKU sản xuất lần đầu khi lưu nháp; Sale chỉ nhập tiền (0 = miễn phí),
  *   bắt buộc trước khi gửi. Không cho thêm tay (SKU đã từng sản xuất không có phí khuôn).
- * - Phí vận chuyển: tối đa một dòng, số tiền > 0.
+ * - Phí vận chuyển: tối đa một dòng, số tiền > 0; ô hiện sẵn, để trống = không thu.
  */
 export function QuoteFeesEditor({ form }: { form: UseFormReturn<QuoteFormValues> }) {
   const { control, formState, setValue } = form;
-  const [plateFees, hasShippingFee] = useWatch({ control, name: ["plateFees", "hasShippingFee"] });
+  const plateFees = useWatch({ control, name: "plateFees" });
   const errors = formState.errors;
 
   return (
@@ -62,55 +61,33 @@ export function QuoteFeesEditor({ form }: { form: UseFormReturn<QuoteFormValues>
           </FormField>
         );
       })}
-      {hasShippingFee ? (
-        <div className="flex items-start gap-2">
-          <FormField
-            id="shipping-fee"
-            label={QUOTE_FEE_LABELS.SHIPPING_FEE}
-            required
-            error={errors.shippingFee?.message}
-            className="flex-1"
-          >
-            <Controller
-              control={control}
-              name="shippingFee"
-              render={({ field }) => (
-                <MoneyInput
-                  name={field.name}
-                  ref={field.ref}
-                  value={field.value}
-                  onChange={field.onChange}
-                  onBlur={field.onBlur}
-                  echo
-                  {...fieldA11y("shipping-fee", errors.shippingFee?.message)}
-                />
-              )}
+      {/* S02-5: ô phí vận chuyển hiện sẵn; để trống = không thu (14 BR-20: tối đa một dòng, số tiền > 0). */}
+      <FormField
+        id="shipping-fee"
+        label={`${QUOTE_FEE_LABELS.SHIPPING_FEE} ${QUOTE_FORM_LABELS.optional}`}
+        error={errors.shippingFee?.message}
+        hint={QUOTE_FORM_LABELS.shippingFeeHint}
+      >
+        <Controller
+          control={control}
+          name="shippingFee"
+          render={({ field }) => (
+            <MoneyInput
+              name={field.name}
+              ref={field.ref}
+              value={field.value}
+              onChange={(digits) => {
+                field.onChange(digits);
+                // Có số tiền = có dòng phí vận chuyển; trống = không thu.
+                setValue("hasShippingFee", digits !== "", { shouldDirty: true });
+              }}
+              onBlur={field.onBlur}
+              echo
+              {...fieldA11y("shipping-fee", errors.shippingFee?.message, true)}
             />
-          </FormField>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="mt-5"
-            aria-label="Bỏ phí vận chuyển"
-            onClick={() => {
-              setValue("hasShippingFee", false, { shouldDirty: true });
-              setValue("shippingFee", "", { shouldDirty: true, shouldValidate: true });
-            }}
-          >
-            <Trash2 className="size-4" />
-          </Button>
-        </div>
-      ) : (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => setValue("hasShippingFee", true, { shouldDirty: true })}
-        >
-          <Plus className="size-3.5" /> Thêm phí vận chuyển
-        </Button>
-      )}
+          )}
+        />
+      </FormField>
     </Card>
   );
 }

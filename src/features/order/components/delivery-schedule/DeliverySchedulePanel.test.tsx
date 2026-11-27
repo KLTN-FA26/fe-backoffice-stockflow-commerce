@@ -9,14 +9,16 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ORDER_PERMISSIONS, SALES_CONTRACT_PERMISSIONS } from "@/constants";
 import { api } from "@/lib/api/client";
+import { storageClient } from "@/lib/api/direct-upload";
 import { ApiError } from "@/lib/api/error";
 import { toast } from "@/components/shared/Toast";
-import { pickDate } from "@/test/date-picker";
+import { openDatePicker, pickDate } from "@/test/date-picker";
 
 import { formatWindowRange } from "../../delivery-window-rules";
 import { apiOrder } from "../../__fixtures__/order";
 import { pickOrderSelectOption } from "../../__fixtures__/render";
 import {
+  BATCH_1,
   BATCH_2,
   CONSENT_MESSAGE,
   SCHEDULE_PATH,
@@ -36,6 +38,33 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 afterEach(() => vi.restoreAllMocks());
 
 const WINDOW_PATH = (batchId: string) => `${SCHEDULE_PATH}/${batchId}/window-change`;
+const UPLOAD_ID = "u-1";
+/** `api.post` answers the evidence upload slot as the BE does, and everything else with `result` (or throws it). */
+function mockPost(result: unknown) {
+  vi.spyOn(storageClient, "request").mockResolvedValue({ status: 200 });
+  return vi.spyOn(api, "post").mockImplementation(async (url: string) => {
+    if (url.endsWith("/evidence/uploads"))
+      return {
+        data: {
+          uploadId: UPLOAD_ID,
+          method: "PUT",
+          url: `https://bucket.s3.amazonaws.com/incoming/${UPLOAD_ID}`,
+          headers: { "Content-Type": "application/pdf" },
+          expiresAt: "2026-11-12T10:15:00Z",
+        },
+      };
+    if (result instanceof Error) throw result;
+    return { data: result };
+  });
+}
+/** Evidence is a file only (S06-9): pick one and wait until it is uploaded. */
+async function attachEvidence(user: ReturnType<typeof userEvent.setup>, dialog: HTMLElement) {
+  await user.upload(
+    within(dialog).getByLabelText("Tệp bằng chứng"),
+    new File(["abc"], "xac-nhan.pdf", { type: "application/pdf" }),
+  );
+  await within(dialog).findByText(/Đã tải lên: xac-nhan\.pdf/);
+}
 const KEY = { headers: { "Idempotency-Key": expect.stringMatching(/^[0-9a-f-]{36}$/) } };
 const apiError = (status: number, code: string) =>
   new ApiError(status, code, "English server message", undefined, "trace-1");
@@ -273,12 +302,11 @@ describe("Dời cửa sổ giao — form kiểm BR-28 rồi gửi đúng WindowC
     start = inDays(40),
     end = inDays(43),
   ) {
-    await pickDate(user, within(dialog).getByLabelText(/Từ ngày/), start);
-    await pickDate(user, within(dialog).getByLabelText(/Đến ngày/), end);
+    await pickDate(user, within(dialog).getByLabelText(/^Từ ngày/), start);
+    await pickDate(user, within(dialog).getByLabelText(/^Đến ngày/), end);
     await pickOrderSelectOption(user, /Lý do/, /Bên bán giao trễ/);
     await user.type(within(dialog).getByRole("textbox", { name: /Ghi chú/ }), "  Xưởng in trễ  ");
-    await user.click(within(dialog).getByRole("radio", { name: "Tin nhắn chat của khách" }));
-    await user.type(within(dialog).getByLabelText(/Mã tin nhắn của khách/), CONSENT_MESSAGE);
+    await attachEvidence(user, dialog);
   }
 
   it("mô tả nói rõ đợt + đơn, gợi ý cửa sổ hiện hành; nút gửi khoá tới khi form hợp lệ", async () => {
@@ -290,8 +318,8 @@ describe("Dời cửa sổ giao — form kiểm BR-28 rồi gửi đúng WindowC
     expect(within(dialog).getByRole("button", { name: "Dời cửa sổ giao" })).toBeDisabled();
   });
 
-  it("form hợp lệ → POST đúng path + body (chỉ evidenceMessageId, ghi chú đã trim) + Idempotency-Key; đóng hộp thoại", async () => {
-    const post = vi.spyOn(api, "post").mockResolvedValue({ data: TWO_BATCHES() });
+  it("form hợp lệ → POST đúng path + body (chỉ evidenceUploadId, ghi chú đã trim) + Idempotency-Key; đóng hộp thoại", async () => {
+    const post = mockPost(TWO_BATCHES());
     const { user, dialog } = await openDialog();
     await fillValid(user, dialog);
     const submit = within(dialog).getByRole("button", { name: "Dời cửa sổ giao" });
@@ -305,7 +333,7 @@ describe("Dời cửa sổ giao — form kiểm BR-28 rồi gửi đúng WindowC
           windowEnd: inDays(43),
           reasonCode: "SELLER_DELAY",
           note: "Xưởng in trễ",
-          evidenceMessageId: CONSENT_MESSAGE,
+          evidenceUploadId: UPLOAD_ID,
         },
         KEY,
       ),
@@ -314,19 +342,23 @@ describe("Dời cửa sổ giao — form kiểm BR-28 rồi gửi đúng WindowC
   });
 
   it("BR-28 giữ thứ tự: dời đợt 1 qua ngày bắt đầu đợt 2 → báo đợt 2, chặn gửi, KHÔNG gọi API", async () => {
-    const post = vi.spyOn(api, "post");
+    const post = mockPost(TWO_BATCHES());
     const { user, dialog } = await openDialog(0);
     await fillValid(user, dialog, inDays(35), inDays(36));
     expect(
       await within(dialog).findByText(/Đợt 2 sẽ bắt đầu trước đợt đứng trước nó/),
     ).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "Dời cửa sổ giao" })).toBeDisabled();
-    expect(post).not.toHaveBeenCalled();
+    expect(post).not.toHaveBeenCalledWith(
+      WINDOW_PATH(BATCH_1),
+      expect.anything(),
+      expect.anything(),
+    );
   });
 
   it("lịch khoá các ngày trong quá khứ (BR-28: cửa sổ mới không ở quá khứ)", async () => {
     const { user, dialog } = await openDialog();
-    await user.click(within(dialog).getByLabelText(/Từ ngày/));
+    await openDatePicker(user, within(dialog).getByLabelText(/^Từ ngày/));
     const grid = await screen.findByRole("grid");
     const disabled = within(grid)
       .getAllByRole("gridcell")
@@ -336,20 +368,20 @@ describe("Dời cửa sổ giao — form kiểm BR-28 rồi gửi đúng WindowC
 
   it("chọn ngày kết thúc rồi dời ngày bắt đầu qua nó → báo 'Ngày kết thúc không được trước ngày bắt đầu'", async () => {
     const { user, dialog } = await openDialog();
-    await pickDate(user, within(dialog).getByLabelText(/Từ ngày/), inDays(40));
-    await pickDate(user, within(dialog).getByLabelText(/Đến ngày/), inDays(41));
-    await pickDate(user, within(dialog).getByLabelText(/Từ ngày/), inDays(45));
+    await pickDate(user, within(dialog).getByLabelText(/^Từ ngày/), inDays(40));
+    await pickDate(user, within(dialog).getByLabelText(/^Đến ngày/), inDays(41));
+    await pickDate(user, within(dialog).getByLabelText(/^Từ ngày/), inDays(45));
     expect(
       await within(dialog).findByText("Ngày kết thúc không được trước ngày bắt đầu"),
     ).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "Dời cửa sổ giao" })).toBeDisabled();
   });
 
-  it("mã tin nhắn không phải UUID → báo lỗi, chặn gửi", async () => {
-    const { user, dialog } = await openDialog();
-    await user.click(within(dialog).getByRole("radio", { name: "Tin nhắn chat của khách" }));
-    await user.type(within(dialog).getByLabelText(/Mã tin nhắn của khách/), "khong-phai-uuid");
-    expect(await within(dialog).findByText("Mã tin nhắn phải là UUID hợp lệ")).toBeInTheDocument();
+  it("S06-9: bằng chứng chỉ là tệp — không còn lựa chọn 'tin nhắn chat' bắt dán UUID; chưa có tệp thì chưa gửi được", async () => {
+    const { dialog } = await openDialog();
+    expect(within(dialog).queryByRole("radio")).not.toBeInTheDocument();
+    expect(within(dialog).queryByLabelText(/Mã tin nhắn của khách/)).not.toBeInTheDocument();
+    expect(within(dialog).getByLabelText("Tệp bằng chứng")).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "Dời cửa sổ giao" })).toBeDisabled();
   });
 
@@ -362,19 +394,18 @@ describe("Dời cửa sổ giao — form kiểm BR-28 rồi gửi đúng WindowC
 
 describe("Dời cửa sổ giao — lý do BE từ chối bằng tiếng Việt", () => {
   async function submitRefusedWith(code: string, status = 409) {
-    vi.spyOn(api, "post").mockRejectedValue(apiError(status, code));
+    mockPost(apiError(status, code));
     const { user } = await renderSchedule();
     const card = await panel();
     await user.click(
       within(card).getAllByRole("button", { name: "Dời cửa sổ giao" })[1] as HTMLElement,
     );
     const dialog = await screen.findByRole("dialog");
-    await pickDate(user, within(dialog).getByLabelText(/Từ ngày/), inDays(40));
-    await pickDate(user, within(dialog).getByLabelText(/Đến ngày/), inDays(43));
+    await pickDate(user, within(dialog).getByLabelText(/^Từ ngày/), inDays(40));
+    await pickDate(user, within(dialog).getByLabelText(/^Đến ngày/), inDays(43));
     await pickOrderSelectOption(user, /Lý do/, /Khách xin dời/);
     await user.type(within(dialog).getByRole("textbox", { name: /Ghi chú/ }), "Khách xin dời");
-    await user.click(within(dialog).getByRole("radio", { name: "Tin nhắn chat của khách" }));
-    await user.type(within(dialog).getByLabelText(/Mã tin nhắn của khách/), CONSENT_MESSAGE);
+    await attachEvidence(user, dialog);
     const submit = within(dialog).getByRole("button", { name: "Dời cửa sổ giao" });
     await waitFor(() => expect(submit).toBeEnabled());
     await user.click(submit);
@@ -403,7 +434,7 @@ describe("Dời cửa sổ giao — lý do BE từ chối bằng tiếng Việt"
     const { dialog } = await submitRefusedWith("VALIDATION_FAILED", 400);
     expect(await within(dialog).findByText(/tin nhắn do chính khách gửi/)).toBeInTheDocument();
     expect(within(dialog).getByText(/trace-1/)).toBeInTheDocument();
-    expect(within(dialog).getByLabelText(/Mã tin nhắn của khách/)).toHaveValue(CONSENT_MESSAGE);
+    expect(within(dialog).getByText(/Đã tải lên: xac-nhan\.pdf/)).toBeInTheDocument();
     expect(within(dialog).queryByText(/English/)).not.toBeInTheDocument();
   });
 

@@ -10,8 +10,9 @@ import { logoutApi } from "@/lib/auth/auth-api";
 import { isBackOfficeActor } from "@/lib/auth/back-office";
 import { useMyPermissions } from "@/lib/auth/me-permissions";
 
-import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Button } from "@/components/ui/button";
+
+import { GateLoader } from "./GateLoader";
 
 import type { ReactNode } from "react";
 
@@ -25,14 +26,9 @@ export function BackOfficeGuard({ children }: { children: ReactNode }) {
   const router = useRouter();
   const query = useMyPermissions();
 
-  // Đang tải vai trò → khung chờ, không hiện shell / nội dung (không nháy rồi mất)
-  if (query.isPending) {
-    return (
-      <main className="bg-bg-base min-h-screen p-[var(--card-pad)]">
-        <PageSkeleton />
-      </main>
-    );
-  }
+  // Đang tải vai trò → tiếp tục đúng loader xe tải của AuthGuard (không đổi sang skeleton cả
+  // trang rồi lại skeleton của route — hai lần loading nối nhau), không hiện shell / nội dung.
+  if (query.isPending) return <GateLoader />;
   if (query.isError && !(query.error instanceof ApiError && query.error.status === 403)) {
     return (
       <main className="bg-bg-base min-h-screen p-[var(--card-pad)]">

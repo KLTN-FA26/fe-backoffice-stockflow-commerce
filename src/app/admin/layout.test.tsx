@@ -9,6 +9,7 @@ import {
   CUSTOMER_PERMISSIONS,
   ORDER_PERMISSIONS,
 } from "@/constants";
+import { AUTH_UI } from "@/constants/auth";
 import { PERMISSION_QUERY } from "@/constants/permissions";
 import { OrderPermissionGate } from "@/features/order/components/OrderPermissionGate";
 import { api } from "@/lib/api/client";
@@ -151,6 +152,16 @@ describe("admin layout — cổng back-office chung (BE ScopeGuards#requireBackO
     expect(screen.queryByText("Admin shell")).not.toBeInTheDocument();
     expect(screen.queryByText(DENIED)).not.toBeInTheDocument();
     expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("đang tải vai trò → cùng loader xe tải với AuthGuard, không chuyển sang skeleton cả trang", () => {
+    signIn();
+    vi.spyOn(api, "get").mockReturnValue(new Promise(() => {}));
+    renderAdmin();
+    // Một loader duy nhất cho cả chuỗi cổng: xe tải → skeleton không-shell → skeleton trang là
+    // hai lần loading nối nhau. Skeleton chỉ xuất hiện khi đã có shell (loading.tsx của route).
+    expect(screen.getByRole("status")).toHaveTextContent(AUTH_UI.verifyingSession);
+    expect(screen.queryByRole("status", { name: "Đang tải nội dung" })).not.toBeInTheDocument();
   });
 
   it("lỗi tải quyền (503) → báo lỗi + Thử lại, không coi là khách hàng", async () => {

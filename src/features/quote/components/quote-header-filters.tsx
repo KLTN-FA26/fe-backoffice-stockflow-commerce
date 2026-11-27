@@ -102,6 +102,7 @@ export function quoteHeaderFilters(state: QuoteListFilters): Partial<Record<stri
     sentAt: (
       <HeaderDateRangeFilter
         label="ngày gửi"
+        quickKind="past"
         from={f.qtSentFrom}
         to={f.qtSentTo}
         onChange={({ from, to }) => set({ qtSentFrom: from, qtSentTo: to })}

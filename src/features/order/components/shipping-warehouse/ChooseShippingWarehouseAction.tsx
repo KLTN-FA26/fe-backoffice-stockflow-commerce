@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 
 import { useChooseShippingWarehouse } from "../../shipping-warehouse-mutations";
 import { cartonTotals, holdOutcome } from "../../shipping-warehouse-rules";
+import { scrollToSection } from "../scroll-to-section";
 import { ORDER_ACTION_BUTTON, useOrderActionDialog } from "../useOrderActionDialog";
 
 import { ChooseShippingWarehouseDialog } from "./ChooseShippingWarehouseDialog";
@@ -59,7 +60,11 @@ export function ChooseShippingWarehouseAction({
             dialog.submit(
               (variables) =>
                 mutate(variables, {
-                  onSuccess: (coverage) => toast.success(successMessageOf(coverage)),
+                  onSuccess: (coverage) => {
+                    toast.success(successMessageOf(coverage));
+                    // S06-4: về thẻ "Kho xuất" — thấy tình trạng giữ hàng vừa có, không dừng giữa trang.
+                    scrollToSection("order-shipping-warehouse");
+                  },
                 }),
               { orderId: order.orderId, warehouseId },
             )

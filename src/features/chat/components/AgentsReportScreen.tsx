@@ -93,6 +93,7 @@ function ReportContent() {
           <div className="flex flex-wrap items-end gap-3">
             <FormField id="report-from" label="Từ ngày">
               <DatePicker
+                quickKind="past"
                 id="report-from"
                 value={from}
                 max={to}
@@ -100,7 +101,13 @@ function ReportContent() {
               />
             </FormField>
             <FormField id="report-to" label="Đến ngày">
-              <DatePicker id="report-to" value={to} min={from} onChange={(v) => void setTo(v)} />
+              <DatePicker
+                quickKind="past"
+                id="report-to"
+                value={to}
+                min={from}
+                onChange={(v) => void setTo(v)}
+              />
             </FormField>
             <p className="text-ink-tertiary pb-2 text-xs">
               Tính theo hội thoại mở trong khoảng này (tối đa 366 ngày).

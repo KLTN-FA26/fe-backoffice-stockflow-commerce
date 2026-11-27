@@ -8,6 +8,23 @@
  */
 export const DATE_PICKER_YEAR_SPAN = { back: 10, ahead: 10 } as const;
 
+/**
+ * Công cụ lọc của `ListToolbar` (WF4 UX S01-4): ít lựa chọn thì hiện sẵn, nhiều mới cần ô tìm.
+ * `statusInlineMax`: từ 2 đến ngần này trạng thái → nút chọn nhanh hiện sẵn trên thanh (không phải bấm biểu tượng phễu rồi tìm).
+ * `listSearchMin`: danh sách chọn (trạng thái / trường tìm / cột) chỉ có ô "Tìm…" khi nhiều hơn ngần này mục (≤ 10 mục nhìn một lượt là thấy).
+ */
+export const LIST_TOOLBAR_LIMITS = { statusInlineMax: 4, listSearchMin: 10 } as const;
+
+/**
+ * Ô ngày / ngày giờ gõ được (`DatePicker`, `DateTimePicker`): `minYear` / `maxYear` là biên mặc định của bộ đọc ngày gõ tay
+ * (ô tự thu hẹp về khoảng năm của lịch, xem `DATE_PICKER_YEAR_SPAN`; năm "26" gõ thiếu không thành năm 0026);
+ * `fallbackTime` là giờ điền sẵn khi chọn một ngày trên lịch mà ô giờ còn trống.
+ */
+export const DATE_INPUT = { minYear: 1900, maxYear: 2999, fallbackTime: "08:00" } as const;
+
+/** Thời gian toast nằm lại (ms): lỗi / cảnh báo lâu hơn để người đọc chậm kịp đọc. */
+export const TOAST_DURATION_MS = { default: 4000, attention: 8000 } as const;
+
 export const ORDER_LIMITS = {
   /** BE `AdminCancelOrderRequest.note` @Size(max = 1000); bắt buộc khi reasonCode = OTHER. */
   cancelNoteMax: 1000,
@@ -171,6 +188,8 @@ export const SHIPPING_LIMITS = {
   waybillNoMax: 64,
   /** Chuỗi giờ hẹn lấy hàng từ ô `datetime-local` (`yyyy-MM-ddTHH:mm`). */
   pickupAtMax: 32,
+  /** Giờ của nút chọn nhanh "Hôm nay / Ngày mai" ở giờ hẹn lấy hàng (giờ bắt đầu ca kho). */
+  quickPickupTime: "08:30",
   /** Hãng: `CarrierRequest` (code 2-32, name ≤ 120, người liên hệ ≤ 120, điện thoại ≤ 32). */
   carrierCodeMin: 2,
   carrierCodeMax: 32,
@@ -188,6 +207,12 @@ export const SHIPPING_LIMITS = {
   /** Chuyến đang xếp hàng (LOADING): tự tải lại để thấy kiện quét từ máy khác. */
   loadPollMs: 15_000,
 } as const;
+
+/**
+ * Hiệu lực mặc định của báo giá mới: hôm nay + 30 ngày, Sale sửa được (owner Tú chốt 2026-11-26, UX-Q2). Docs 14 chỉ nêu
+ * "ngày hết hiệu lực ở tương lai"; số ngày này được ghi vào docs ở PR https://github.com/KLTN-FA26/docs/pull/55.
+ */
+export const QUOTE_DEFAULT_VALIDITY_DAYS = 30;
 
 /**
  * Bậc giá theo thùng — chung cho bảng giá riêng của khách (BE `CustomerPriceRequest`) và giá chuẩn theo quy cách (BE
