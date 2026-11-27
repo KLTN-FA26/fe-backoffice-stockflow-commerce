@@ -4,7 +4,7 @@ import { X } from "lucide-react";
 
 import { CUSTOMER_PRICE_UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
-import { useCustomerRef } from "@/lib/references/customer-options";
+import { useCustomerRef } from "@/lib/references/customer-lookup";
 import { StatusDot } from "@/components/shared/StatusDot";
 import { Button } from "@/components/ui/button";
 
@@ -15,9 +15,9 @@ const NOTE = "text-ink-tertiary text-xs";
 const MONO = "font-[family-name:var(--font-mono)] break-all";
 
 /**
- * Khách đang chọn (id từ URL). Có `customer-customers:READ` → tải tên / liên hệ / trạng thái
- * (`GET /customers/{id}`); không có → chỉ hiện id, không gọi API, không bịa tên. Lỗi tra khách KHÔNG
- * chặn bảng giá (bảng giá tải độc lập theo id).
+ * Khách đang chọn (id từ URL). Có `customer-customers:READ` → tải tên / email / MST / trạng thái
+ * (`GET /customers/{id}`); dưới tên là MST, không phải UUID của khách (rà UI WF-02 bo-16). Không có quyền → chỉ hiện
+ * id, không gọi API, không bịa tên. Lỗi tra khách KHÔNG chặn bảng giá (bảng giá tải độc lập theo id).
  */
 export function SelectedCustomer({
   customerId,
@@ -43,8 +43,11 @@ export function SelectedCustomer({
               <span className="font-semibold">{customer.fullName}</span>
               <StatusDot domain="customer" status={customer.status} />
             </div>
-            <p className={NOTE}>{[customer.email, customer.phone].filter(Boolean).join(" · ")}</p>
-            <p className={`${NOTE} ${MONO}`}>{customer.customerId}</p>
+            <p className={NOTE}>
+              {[customer.taxCode ? C.taxCode(customer.taxCode) : null, customer.email]
+                .filter(Boolean)
+                .join(" · ")}
+            </p>
             {needsStatusWarning(customer.status) && (
               <p role="status" className="text-warning text-xs">
                 {C.statusWarning}
