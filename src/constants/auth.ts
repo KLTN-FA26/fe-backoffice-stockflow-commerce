@@ -68,7 +68,7 @@ export const AUTH_EVENT_STORAGE_KEY = "stockflow:auth:event";
 export const AUTH_UI = {
   bootstrapError: "Không thể xác minh phiên đăng nhập",
   bootstrapErrorHint:
-    "Chưa kết nối được tới máy chủ xác thực. Bạn chưa bị đăng xuất — kiểm tra kết nối mạng rồi thử lại.",
+    "Máy chủ xác thực không phản hồi, bạn chưa bị đăng xuất. Kiểm tra kết nối mạng rồi bấm Thử lại.",
   verifyingSession: "Đang xác minh phiên đăng nhập",
   retry: "Thử lại",
 } as const;

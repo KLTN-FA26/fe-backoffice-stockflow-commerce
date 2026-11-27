@@ -27,7 +27,7 @@ import { changePasswordApi, logoutApi } from "../auth-api";
 import { changePasswordFormSchema } from "../auth-schemas";
 import { useAuthStore } from "../auth-store";
 import { useAuthLifecycle } from "../use-auth-lifecycle";
-import { SessionErrorState } from "./SessionErrorState";
+import { SESSION_ERROR_ACTION_CLASS, SessionErrorState } from "./SessionErrorState";
 
 import type { ChangePasswordFormValues } from "../auth-schemas";
 
@@ -90,7 +90,7 @@ export function ChangePasswordPage() {
         onRetry={retry}
         secondaryAction={
           <Button
-            className="h-10 w-full rounded-[var(--r-md)]"
+            className={SESSION_ERROR_ACTION_CLASS}
             variant="outline"
             onClick={() => void logout()}
           >
