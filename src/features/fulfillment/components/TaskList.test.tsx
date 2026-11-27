@@ -504,8 +504,8 @@ describe("PickingList — lọc trạng thái / kho / người được gán (UR
     });
     await screen.findByRole("link", { name: "3F4A5B6C" });
     await user.click(await screen.findByRole("button", { name: ASSIGNEE_FILTER }));
-    // cmdk ghi đè aria-label của ô tìm → tìm theo placeholder
-    await user.type(screen.getByPlaceholderText(FILTER.assigneeSearch), "Tuấn");
+    // Ít người (≤ 10) → danh sách không có ô tìm, chọn thẳng
+    expect(screen.queryByPlaceholderText(FILTER.assigneeSearch)).not.toBeInTheDocument();
     await user.click(screen.getByRole("option", { name: /Hoàng Anh Tuấn/ }));
     await waitFor(() =>
       expect(lastListParams(get)).toMatchObject({ assignedUserId: PICKER_ID, page: 0 }),
