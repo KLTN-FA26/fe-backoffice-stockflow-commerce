@@ -79,7 +79,6 @@ export const PAYMENT_LABELS = {
     clearFilters: "Bỏ bộ lọc",
     customerChip: "Khách hàng",
     orderChip: "Đơn hàng",
-    orderSearch: "Tìm đơn (số đơn, tên liên hệ, SĐT)",
     filterByOrderCustomer: "Lọc theo khách của đơn",
     emptyTitle: "Chưa có đợt thanh toán",
     emptyDescription:

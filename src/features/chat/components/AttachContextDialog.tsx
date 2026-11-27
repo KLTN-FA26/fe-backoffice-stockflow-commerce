@@ -4,7 +4,15 @@ import { useState } from "react";
 
 import { CHAT_ATTACHABLE_CONTEXTS, CHAT_CONTEXT_LABELS } from "@/constants";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
-import { FORM_INPUT_CLASS, FormField } from "@/components/shared/FormField";
+import { FormField } from "@/components/shared/FormField";
+import { FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
+import {
+  Select,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/shared/combobox-select";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 
 import { chatErrorMessage, useAttachContext } from "../mutations";
 import { attachableDocuments } from "../selectors";
@@ -65,22 +73,25 @@ export function AttachContextDialog({
           }
         >
           <FormField id="attach-kind" label="Loại chứng từ" required>
-            <select
-              id="attach-kind"
+            <Select
               value={kind}
-              onChange={(event) => {
-                const next = toKind(event.target.value);
+              onValueChange={(selected) => {
+                const next = toKind(selected);
                 if (next) setKind(next);
                 setRefId("");
               }}
-              className={`${FORM_INPUT_CLASS} border px-2`}
             >
-              {CHAT_ATTACHABLE_CONTEXTS.map((value) => (
-                <option key={value} value={value}>
-                  {CHAT_CONTEXT_LABELS[value] ?? value}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger id="attach-kind" className={FORM_SELECT_CLASS}>
+                <SelectValue />
+              </SelectTrigger>
+              <TitledSelectContent title="Loại chứng từ">
+                {CHAT_ATTACHABLE_CONTEXTS.map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {CHAT_CONTEXT_LABELS[value] ?? value}
+                  </SelectItem>
+                ))}
+              </TitledSelectContent>
+            </Select>
           </FormField>
           <FormField
             id="attach-document"
@@ -88,20 +99,18 @@ export function AttachContextDialog({
             required
             hint={documents.length === 0 ? "Khách không có chứng từ loại này chưa gắn." : undefined}
           >
-            <select
-              id="attach-document"
-              value={refId}
-              disabled={documents.length === 0}
-              onChange={(event) => setRefId(event.target.value)}
-              className={`${FORM_INPUT_CLASS} border px-2`}
-            >
-              <option value="">Chọn chứng từ</option>
-              {documents.map((document) => (
-                <option key={document.id} value={document.id}>
-                  {document.label}
-                </option>
-              ))}
-            </select>
+            <Select value={refId} disabled={documents.length === 0} onValueChange={setRefId}>
+              <SelectTrigger id="attach-document" className={FORM_SELECT_CLASS}>
+                <SelectValue placeholder="Chọn chứng từ" />
+              </SelectTrigger>
+              <TitledSelectContent title="Chứng từ">
+                {documents.map((document) => (
+                  <SelectItem key={document.id} value={document.id}>
+                    {document.label}
+                  </SelectItem>
+                ))}
+              </TitledSelectContent>
+            </Select>
           </FormField>
         </FormDialogBody>
       )}

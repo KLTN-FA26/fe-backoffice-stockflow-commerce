@@ -9,6 +9,7 @@ import { ORDER_PERMISSION_SETS, mockOrderApiGet, renderOrderScreen } from "../__
 import { OrderDetail } from "./OrderDetail";
 
 import type { PermissionCode } from "@/lib/auth";
+import { openOrderDetailTabInFile } from "../__fixtures__/render";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
@@ -63,6 +64,9 @@ async function renderDetail(permissions: readonly PermissionCode[]) {
   });
   return get;
 }
+
+// Các khối được kiểm nằm ở tab "delivery" của trang chi tiết đơn (`OrderDetailTabs`)
+openOrderDetailTabInFile("delivery");
 
 describe("OrderDetail — file vận đơn & POD cho Sale (docs 09 §2, §7)", () => {
   it("Sale có quyền: thấy POD và file vận đơn của từng lô, bấm tải lấy link mới mỗi lần và mở tab mới", async () => {

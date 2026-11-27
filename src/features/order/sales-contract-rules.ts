@@ -12,10 +12,11 @@ import { DEFAULT_ON_SIGNING_DUE_DAYS } from "./sales-contract-form";
 
 import type { PermissionCode } from "@/lib/auth/me-permissions";
 import type { ContractFormValues } from "./sales-contract-form";
-import type { SalesContract } from "./sales-contract-schemas";
+import type { ContractCreditReviewView, SalesContract } from "./sales-contract-schemas";
 import type { Order } from "./types";
 
-export type ContractAction = "create" | "edit" | "send" | "sign" | "cancel" | "preview";
+export type ContractAction =
+  "create" | "edit" | "send" | "sign" | "cancel" | "preview" | "withdraw-review";
 
 export const CONTRACT_TRANSITIONS = {
   DRAFT: ["SENT", "CANCELLED"],
@@ -28,8 +29,13 @@ export const CONTRACT_TRANSITIONS = {
   UNKNOWN: [],
 } as const satisfies Record<SalesContract["status"], readonly SalesContract["status"][]>;
 
+/**
+ * 15 BR-11 (BE PR #486): nháp đang chờ Kế toán duyệt tín dụng (`creditReview = PENDING`) — BE trả 409
+ * CONTRACT_CREDIT_REVIEW_PENDING cho sửa / gửi lại / gợi ý lịch → bỏ "edit", "send"; Sale có "withdraw-review" để rút
+ * về sửa. Huỷ hợp đồng và xem PDF nháp không bị BE chặn nên giữ.
+ */
 export function allowedContractActions(
-  contract: Pick<SalesContract, "status"> | null,
+  contract: (Pick<SalesContract, "status"> & Partial<Pick<SalesContract, "creditReview">>) | null,
   orderStatus: Order["status"],
   can: (code: PermissionCode) => boolean,
 ): ContractAction[] {
@@ -41,8 +47,12 @@ export function allowedContractActions(
     can(SALES_CONTRACT_PERMISSIONS.create)
   )
     actions.push("create");
+  const reviewPending = status === "DRAFT" && contract?.creditReview === "PENDING";
   if (status === "DRAFT" && can(SALES_CONTRACT_PERMISSIONS.update))
-    actions.push("edit", "send", "cancel");
+    actions.push(
+      ...(reviewPending ? (["withdraw-review"] as const) : (["edit", "send"] as const)),
+      "cancel",
+    );
   if (status === "DRAFT") actions.push("preview");
   if (status === "SENT" && can(SALES_CONTRACT_PERMISSIONS.approve)) actions.push("sign");
   if (status === "SENT" && can(SALES_CONTRACT_PERMISSIONS.update)) actions.push("cancel");
@@ -152,9 +162,23 @@ export function creditWarningText(
   warning: NonNullable<SalesContract["creditWarning"]>,
   format: (amount: number) => string,
 ): string {
+  // 15 BR-11 (BE PR #486): gửi lúc này không tới khách ngay mà phải chờ Kế toán duyệt tín dụng trước.
   if (warning.outcome === "OVERDUE")
-    return "Khách đang có khoản quá hạn. Nếu vẫn gửi và khách ký, đơn sẽ bị treo chờ Kế toán duyệt tín dụng.";
-  return `Phần trả sau giao (${format(warning.afterDelivery ?? 0)}) cộng dư nợ hiện tại (${format(warning.exposure ?? 0)}) vượt hạn mức (${format(warning.creditLimit ?? 0)}). Đơn sẽ bị treo khi ký.`;
+    return "Khách đang có khoản quá hạn. Bấm gửi thì hợp đồng phải chờ Kế toán duyệt tín dụng rồi mới tới khách.";
+  return `Phần trả sau giao (${format(warning.afterDelivery ?? 0)}) cộng dư nợ hiện tại (${format(warning.exposure ?? 0)}) vượt hạn mức (${format(warning.creditLimit ?? 0)}). Bấm gửi thì hợp đồng phải chờ Kế toán duyệt tín dụng rồi mới tới khách.`;
+}
+
+/** Vì sao hợp đồng phải chờ Kế toán (BE `checkOutcome`, số liệu tại lúc gửi duyệt). */
+export function creditReviewReasonText(
+  review: Pick<
+    ContractCreditReviewView,
+    "checkOutcome" | "creditLimit" | "exposure" | "afterDelivery" | "overdueAmount"
+  >,
+  format: (amount: number) => string,
+): string {
+  if (review.checkOutcome === "OVERDUE")
+    return `Khách đang có khoản quá hạn (${format(review.overdueAmount ?? 0)}).`;
+  return `Phần trả sau giao (${format(review.afterDelivery ?? 0)}) cộng dư nợ (${format(review.exposure ?? 0)}) vượt hạn mức (${format(review.creditLimit ?? 0)}).`;
 }
 
 const FIELD_NAMES: Readonly<Record<string, string>> = {

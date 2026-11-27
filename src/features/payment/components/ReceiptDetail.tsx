@@ -25,10 +25,17 @@ import { Button } from "@/components/ui/button";
 
 import { allowedReceiptActions, receiptVoidBlock } from "../lifecycle";
 import { useReceipt } from "../queries";
-import { installmentMilestoneLabel, installmentTitle } from "../selectors";
+import { installmentMilestoneLabel, installmentTitle, isAutomaticReceipt } from "../selectors";
 
 import { RECEIPT_COPY } from "./copy";
-import { CodeLink, DateCell, InfoRow, MoneyCell, ReceiptStatusDot } from "./primitives";
+import {
+  AutomaticReceiptBadge,
+  CodeLink,
+  DateCell,
+  InfoRow,
+  MoneyCell,
+  ReceiptStatusDot,
+} from "./primitives";
 import { VoidReceiptDialog } from "./VoidReceiptDialog";
 
 const R = PAYMENT_LABELS.receipts;
@@ -68,7 +75,12 @@ function ReceiptDetailContent({ id }: { id: string }) {
           <DetailSection title={PAYMENT_LIST_LABELS.generalTitle} icon={FileText}>
             <dl className="grid grid-cols-[minmax(140px,auto)_1fr] gap-x-4 gap-y-2 text-[0.8125rem]">
               <InfoRow label={C.reference}>
-                <span className="text-ink-primary font-mono font-medium">{receipt.reference}</span>
+                <span className="inline-flex items-center gap-2">
+                  <span className="text-ink-primary font-mono font-medium">
+                    {receipt.reference}
+                  </span>
+                  {isAutomaticReceipt(receipt) && <AutomaticReceiptBadge />}
+                </span>
               </InfoRow>
               <InfoRow label={C.customer}>
                 <CustomerName

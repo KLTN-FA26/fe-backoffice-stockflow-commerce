@@ -18,22 +18,20 @@ describe("useOrderExtraFilters — chỉ tham số BE GET /orders nhận mới v
   it("customer UUID hợp lệ → vào params, bộ lọc đang bật", () => {
     const extra = filtersAt(`?customer=${CUSTOMER_UUID}`);
     expect(extra.params.customerId).toBe(CUSTOMER_UUID);
-    expect(extra.customerIdInvalid).toBe(false);
+    expect(extra.customerId).toBe(CUSTOMER_UUID);
     expect(extra.active).toBe(true);
   });
 
-  it("customer sai trên URL → giữ để ô nhập báo lỗi, nhưng KHÔNG vào params / query key", () => {
+  it("customer sai trên URL (link cũ) → bị bỏ qua, KHÔNG vào params / query key", () => {
     const extra = filtersAt("?customer=CUS-0007");
-    expect(extra.customerInput).toBe("CUS-0007");
-    expect(extra.customerIdInvalid).toBe(true);
     expect(extra.params.customerId).toBeUndefined();
     expect(extra.customerId).toBe("");
     expect(extra.active).toBe(false);
   });
 
-  it("không có customer → không lỗi, không lọc", () => {
+  it("không có customer → không lọc", () => {
     const extra = filtersAt("");
-    expect(extra.customerIdInvalid).toBe(false);
+    expect(extra.customerId).toBe("");
     expect(extra.params.customerId).toBeUndefined();
   });
 

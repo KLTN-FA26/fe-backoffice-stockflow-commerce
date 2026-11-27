@@ -24,6 +24,7 @@ import {
 import { apiOrder, apiOrderAt } from "../../__fixtures__/order";
 
 import type { PermissionCode } from "@/lib/auth";
+import { openOrderDetailTabInFile } from "../../__fixtures__/render";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
@@ -43,6 +44,9 @@ async function renderWithPending(
   });
   return { spy, user: userEvent.setup() };
 }
+
+// Các khối được kiểm nằm ở tab "returns" của trang chi tiết đơn (`OrderDetailTabs`)
+openOrderDetailTabInFile("returns");
 
 describe("Yêu cầu huỷ — action-gating theo mã quyền BE (≥ 3 vai)", () => {
   it("Sale (sales-order-cancellations:READ + :UPDATE) thấy yêu cầu đang chờ với nút Duyệt huỷ + Từ chối", async () => {

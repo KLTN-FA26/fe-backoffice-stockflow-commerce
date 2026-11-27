@@ -75,7 +75,7 @@ async function syncTasks(): Promise<Map<string, MockPutawayTask>> {
           lpn: pkg.lpn,
           sku: line.sku ?? "",
           lotNumber: line.lotNumber,
-          quantity: pkg.receivedQty,
+          quantity: pkg.quantity,
           status: "PENDING",
           targetLocationCode: null,
         });
@@ -96,7 +96,7 @@ async function syncTasks(): Promise<Map<string, MockPutawayTask>> {
       lpn: carton.pkg.lpn,
       sku: carton.sku,
       lotNumber: carton.lotNumber,
-      quantity: carton.pkg.receivedQty,
+      quantity: carton.pkg.quantity,
       status: "PENDING",
       targetLocationCode: null,
     });
@@ -185,7 +185,7 @@ export async function freeOf(bin: MockBinPlace) {
   );
   const held = heldAt(bin.locationCode);
   const usedWeight =
-    inside.reduce((sum, c) => sum + cartonWeight(c.pkg.receivedQty), 0) + held.weightKg;
+    inside.reduce((sum, c) => sum + cartonWeight(c.pkg.quantity), 0) + held.weightKg;
   const usedCartons = inside.length + held.cartons;
   return {
     inside,

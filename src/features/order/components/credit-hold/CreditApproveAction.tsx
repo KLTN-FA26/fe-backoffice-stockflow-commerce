@@ -5,6 +5,7 @@ import { CheckCircle2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 
 import { ORDER_LIMITS, UI_LABELS } from "@/constants";
+import { ActionTrigger } from "@/components/shared/ObjectActions";
 import { statusLabelVi } from "@/lib/status-map";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { toast } from "@/components/shared/Toast";
@@ -41,26 +42,43 @@ export function CreditApproveAction({
   order: CreditHoldTarget;
   compact?: boolean;
 }) {
-  // Mutation ở đây (không ở form) để Esc / bấm ra ngoài không đóng dialog khi đang gửi
-  const mutation = useApproveCreditHold();
-  const dialog = usePendingSafeDialog(mutation.isPending);
+  const { show, dialog } = useCreditApproveDialog(order);
   const label = UI_LABELS.order.actions.creditApprove;
   return (
     <>
-      <Button
-        type="button"
-        size="sm"
-        aria-label={compact ? `${label} đơn ${order.orderNumber}` : undefined}
-        className={compact ? "rounded-[var(--r-sm)]" : "w-full rounded-[var(--r-sm)]"}
-        onClick={dialog.show}
-      >
-        <CheckCircle2 className="size-3.5" /> {compact ? "Duyệt" : label}
-      </Button>
+      {compact ? (
+        <Button
+          type="button"
+          size="sm"
+          aria-label={`${label} đơn ${order.orderNumber}`}
+          className="rounded-[var(--r-sm)]"
+          onClick={show}
+        >
+          <CheckCircle2 className="size-3.5" /> Duyệt
+        </Button>
+      ) : (
+        // Trên header đối tượng của đơn: nút chính hoặc mục menu "⋯"
+        <ActionTrigger icon={CheckCircle2} label={label} onClick={show} />
+      )}
+      {dialog}
+    </>
+  );
+}
+
+/** Dialog duyệt tín dụng + hàm mở — hàng đợi gọi từ menu "⋯" của dòng. */
+export function useCreditApproveDialog(order: CreditHoldTarget) {
+  // Mutation ở đây (không ở form) để Esc / bấm ra ngoài không đóng dialog khi đang gửi
+  const mutation = useApproveCreditHold();
+  const dialog = usePendingSafeDialog(mutation.isPending);
+  return {
+    show: dialog.show,
+    isPending: mutation.isPending,
+    dialog: (
       <FormDialog open={dialog.open} onOpenChange={dialog.onOpenChange}>
         <ApproveForm order={order} mutation={mutation} onClose={dialog.close} />
       </FormDialog>
-    </>
-  );
+    ),
+  };
 }
 
 function ApproveForm({

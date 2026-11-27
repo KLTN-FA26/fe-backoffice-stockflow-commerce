@@ -21,7 +21,12 @@ import { resetVariantMockStore } from "@/lib/api/mock-routes-variants";
 import { mockGrantsOf } from "@/lib/api/mock-user-grants";
 import { NAV_GROUPS, useCanSeeNavItem } from "@/components/backoffice/BackofficeShell";
 
-import { renderCustomerPrices, stubPermissions } from "../__fixtures__/render";
+import {
+  clickEditRow,
+  rowMenuName,
+  renderCustomerPrices,
+  stubPermissions,
+} from "../__fixtures__/render";
 import { CustomerPriceList } from "./CustomerPriceList";
 
 vi.mock("@/providers/app-providers", () => ({ useIsMock: () => true }));
@@ -120,12 +125,12 @@ describe("tài khoản demo — dùng màn bảng giá", () => {
       expect(await screen.findByText(SKU, {}, WAIT)).toBeInTheDocument();
       expect(calledWith(get, PRICES).length).toBeGreaterThan(0);
 
-      await user.click(screen.getByRole("button", { name: F.create }));
+      await user.click(screen.getByRole("button", { name: L.toolbar.createAria }));
       expect(await screen.findByText(F.createTitle, {}, WAIT)).toBeInTheDocument();
       await user.keyboard("{Escape}");
       await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
 
-      await user.click(await screen.findByRole("button", { name: F.editRow(SKU) }, WAIT));
+      await clickEditRow(user, SKU);
       expect(await screen.findByText(F.editTitle(SKU), {}, WAIT)).toBeInTheDocument();
     },
   );
@@ -134,8 +139,8 @@ describe("tài khoản demo — dùng màn bảng giá", () => {
     const { user } = signInAs("USER-SALE-01");
     await pickPricedCustomer(user);
     expect(await screen.findByText(SKU, {}, WAIT)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: F.create })).toBeNull();
-    expect(screen.queryByRole("button", { name: F.editRow(SKU) })).toBeNull();
+    expect(screen.getByRole("button", { name: L.toolbar.createAria })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: rowMenuName(SKU) })).toBeNull();
   });
 
   it("F USER-COORD-01 (có READ giá, không VIEW_PAGE / tra khách): không có ô chọn khách, không gọi /customers", async () => {

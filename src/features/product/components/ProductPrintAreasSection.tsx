@@ -1,8 +1,8 @@
 "use client";
 
-import { CuboidIcon as Cube, Printer } from "lucide-react";
+import { CuboidIcon as Cube } from "lucide-react";
 
-import { Section } from "./ProductSection";
+import { DetailPanel } from "@/components/shared/DetailPanel";
 
 import type { PrintArea, Product } from "@/features/product";
 
@@ -16,7 +16,11 @@ const GRID = "text-ink-secondary grid grid-cols-2 gap-x-6 gap-y-1 text-xs sm:gri
 export function ProductPrintAreasSection({ product }: { product: Product }) {
   if (product.type !== "Customizable" || !product.printAreas?.length) return null;
   return (
-    <Section title="Cấu hình tùy chỉnh (Print Areas)" icon={Printer}>
+    <DetailPanel
+      title="Vùng in"
+      count={product.printAreas.length}
+      description="Vùng in và model 3D của sản phẩm in theo thiết kế khách."
+    >
       <div className="space-y-3">
         {product.printAreas.map((area: PrintArea) => (
           <div key={area.printAreaId} className={BOX}>
@@ -70,6 +74,6 @@ export function ProductPrintAreasSection({ product }: { product: Product }) {
           </div>
         </div>
       )}
-    </Section>
+    </DetailPanel>
   );
 }

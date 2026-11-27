@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { CheckCircle2, Circle, XCircle } from "lucide-react";
+import { CheckCircle2, Circle, SearchX, XCircle } from "lucide-react";
 
 import { CYCLE_COUNT_LABELS, CYCLE_COUNT_LINE_STATE } from "@/constants/cycle-count";
 import { INVENTORY_ROUTES } from "@/constants/inventory";
 import { CELL, refCell, textCell } from "@/components/shared/column-helpers";
+import { RowActionsMenu } from "@/components/shared/RowActionsMenu";
 import { StatusDot } from "@/components/shared/StatusDot";
-import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 
 import { lineState, lineVariance } from "../cycle-count-selectors";
@@ -118,20 +118,22 @@ export function buildLineColumns(options: LineColumnOptions): ColumnDef<CycleCou
   if (options.canCount) {
     columns.push({
       key: "actions",
-      header: "",
+      header: "Thao tác",
       align: "right",
+      className: "w-20",
       cell: (line) =>
         line.found === false ? null : (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={options.busyLineId === line.id}
-            aria-label={L.markMissingFor(line.lpn ?? line.locationCode)}
-            onClick={() => options.onMissing(line)}
-          >
-            {L.markMissing}
-          </Button>
+          <RowActionsMenu
+            label={`Thao tác — ${line.lpn ?? line.locationCode}`}
+            actions={[
+              {
+                label: L.markMissingFor(line.lpn ?? line.locationCode),
+                icon: SearchX,
+                disabled: options.busyLineId === line.id,
+                onSelect: () => options.onMissing(line),
+              },
+            ]}
+          />
         ),
     });
   }

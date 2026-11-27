@@ -9,6 +9,7 @@ import {
   renderWf4Detail,
   requestPage,
 } from "../../__fixtures__/wf4";
+import { openOrderDetailTabInFile } from "../../__fixtures__/render";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
@@ -22,6 +23,9 @@ async function openApprove(patch: Record<string, unknown>) {
   await user.click(await screen.findByRole("button", { name: "Duyệt huỷ" }));
   return { user, dialog: await screen.findByRole("dialog") };
 }
+
+// Các khối được kiểm nằm ở tab "returns" của trang chi tiết đơn (`OrderDetailTabs`)
+openOrderDetailTabInFile("returns");
 
 describe("Cancellation fee dialog — round 5 (BO-UX-35)", () => {
   it("shows what the customer paid and that printing has not started; the fee options are locked", async () => {

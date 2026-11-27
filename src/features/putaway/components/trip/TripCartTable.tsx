@@ -9,6 +9,7 @@ import { CELL, EmptyCell, statusCell } from "@/components/shared/column-helpers"
 import { DataTable } from "@/components/shared/DataTable";
 import { DetailSection } from "@/components/shared/DetailSection";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { RowActionsMenu } from "@/components/shared/RowActionsMenu";
 
 import type { ColumnDef } from "@/components/shared/DataTable";
 import type { PutawayTripCarton } from "@/features/putaway/types";
@@ -46,20 +47,22 @@ function columns(
       ? [
           {
             key: C.ACTION,
-            header: "",
+            header: "Thao tác",
             align: "right" as const,
+            className: "w-20",
             cell: (c: PutawayTripCarton) => (
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  aria-label={L.unload(c.lpn)}
-                  disabled={unloadPending}
-                  onClick={() => onUnload(c.lpn)}
-                  className={`${CELL.action} hover:text-danger disabled:opacity-50`}
-                >
-                  <X className="size-3.5" />
-                </button>
-              </div>
+              <RowActionsMenu
+                label={`Thao tác — ${c.lpn}`}
+                actions={[
+                  {
+                    label: L.unload(c.lpn),
+                    icon: X,
+                    disabled: unloadPending,
+                    danger: true,
+                    onSelect: () => onUnload(c.lpn),
+                  },
+                ]}
+              />
             ),
           },
         ]

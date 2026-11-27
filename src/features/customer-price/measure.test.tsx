@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
 import { CUSTOMER_PRICE_ERROR_MESSAGES as E, CUSTOMER_PRICE_UI_LABELS as L } from "@/constants";
@@ -25,12 +26,14 @@ describe("giá khách — measure (BE CustomerPriceResponse, kltn-docs 13 BR-05)
     expect(beCustomerPriceSchema.safeParse(without).success).toBe(false);
   });
 
-  it("giá theo thùng có nút sửa; giá cũ theo cái (UNIT) không có — BE chỉ cho đọc / xoá", () => {
+  it("giá theo thùng có nút sửa; giá cũ theo cái (UNIT) không có — BE chỉ cho đọc / xoá", async () => {
+    const user = userEvent.setup();
     const column = editColumn(() => {});
     const { rerender } = render(<>{column.cell(price("CARTON"))}</>);
-    expect(
-      screen.getByRole("button", { name: L.form.editRow("LY12OZ-C1-01") }),
-    ).toBeInTheDocument();
+    // "Sửa bảng giá" nằm trong menu "⋯" của dòng
+    await user.click(screen.getByRole("button", { name: "Thao tác — LY12OZ-C1-01" }));
+    expect(await screen.findByRole("button", { name: "Sửa bảng giá" })).toBeEnabled();
+    await user.keyboard("{Escape}");
     rerender(<>{column.cell(price("UNIT"))}</>);
     expect(screen.queryByRole("button")).toBeNull();
   });

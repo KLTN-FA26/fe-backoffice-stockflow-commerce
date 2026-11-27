@@ -1,6 +1,7 @@
 import { AUTH_UI } from "@/constants/auth";
 
 import { CarPageLoader } from "@/components/shared/CarPageLoader";
+import { GlassScreen } from "@/components/shared/GlassScreen";
 
 /**
  * Loader duy nhất của chuỗi cổng phía trên shell (AuthGuard → PasswordChangeGuard → AreaGate →
@@ -10,8 +11,8 @@ import { CarPageLoader } from "@/components/shared/CarPageLoader";
  */
 export function GateLoader() {
   return (
-    <main className="bg-bg-base flex min-h-screen items-center justify-center px-6">
+    <GlassScreen>
       <CarPageLoader label={AUTH_UI.verifyingSession} />
-    </main>
+    </GlassScreen>
   );
 }

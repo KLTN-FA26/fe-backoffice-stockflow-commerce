@@ -93,3 +93,42 @@ export const IDENTITY_TOAST_MESSAGES = {
  * không phải kiểm quyền của người gọi.
  */
 export const NON_STAFF_ROLE_CODES: readonly string[] = ["CUSTOMER"];
+
+/**
+ * Tên tiếng Việt của vai trò theo mã BE (`GET /identity/roles` trả `name` tiếng Anh, vd "System Admin").
+ * Tám mã đầu là seed BE hiện tại; các mã sau còn trong mock / docs 00 §2. Mã lạ (vai trò tự tạo) → FE
+ * hiện tên đọc được từ chính mã, không hiện nguyên enum.
+ */
+export const ROLE_CODE_LABELS: Readonly<Record<string, string>> = {
+  SYSTEM_ADMIN: "Quản trị hệ thống",
+  ACCOUNTANT: "Kế toán",
+  CUSTOMER: "Khách hàng",
+  PRODUCTION_COORDINATOR: "Điều phối sản xuất",
+  SALES_MANAGER: "Quản lý bán hàng",
+  SALES_STAFF: "Nhân viên bán hàng",
+  WAREHOUSE_MANAGER: "Quản lý kho",
+  WAREHOUSE_STAFF: "Nhân viên kho",
+  ECOMMERCE_ADMIN: "Quản trị thương mại điện tử",
+  ORDER_COORDINATOR: "Điều phối đơn hàng",
+  INVENTORY_PLANNER: "Hoạch định tồn kho",
+  PROCUREMENT_STAFF: "Nhân viên mua hàng",
+  PRODUCTION_STAFF: "Nhân viên sản xuất",
+  QC_STAFF: "Nhân viên QC",
+};
+
+/** Menu tài khoản ở đáy sidebar (avatar / nút 3 chấm). */
+export const ACCOUNT_MENU_LABELS = {
+  open: "Mở menu tài khoản",
+  options: "Tuỳ chọn tài khoản",
+  fallbackName: "Người dùng",
+  noEmail: "Chưa có thông tin email",
+  roles: "Vai trò",
+  profile: "Hồ sơ cá nhân",
+  settings: "Cài đặt",
+  changePassword: "Đổi mật khẩu",
+  theme: "Giao diện",
+  themeSystem: "Theo hệ thống",
+  themeLight: "Sáng",
+  themeDark: "Tối",
+  logout: "Đăng xuất",
+} as const;

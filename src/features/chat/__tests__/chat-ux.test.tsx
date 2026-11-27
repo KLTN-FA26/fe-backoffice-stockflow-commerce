@@ -4,6 +4,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { formatDate } from "@/lib/format/date";
 import { bePage, mockApi, renderScreen } from "@/test/api-screen";
+import { pickOption } from "@/test/ui-actions";
 
 import { ChatConversationScreen, ChatInbox } from "..";
 import {
@@ -201,7 +202,11 @@ describe("BO-UX-45 — transfer details, previewed and shown to the staff", () =
     const dialog = await screen.findByRole("dialog");
     const preview = within(dialog).getByRole("region", { name: "Khách sẽ nhận thẻ này" });
     expect(preview).toHaveTextContent("Chọn đợt để xem trước thẻ.");
-    await userEvent.selectOptions(within(dialog).getByLabelText(/Đợt thanh toán/), "i-1");
+    await pickOption(
+      userEvent.setup(),
+      within(dialog).getByLabelText(/Đợt thanh toán/),
+      /đợt 1 Đặt cọc khi ký/,
+    );
     expect(await within(preview).findByText("DEMO BANK")).toBeInTheDocument();
     expect(preview).toHaveTextContent("0123456789");
     expect(preview).toHaveTextContent("CONG TY DEMO");
@@ -231,7 +236,11 @@ describe("BO-UX-45 — transfer details, previewed and shown to the staff", () =
       await screen.findByRole("button", { name: "Gửi thông tin chuyển khoản" }),
     );
     const dialog = await screen.findByRole("dialog");
-    await userEvent.selectOptions(within(dialog).getByLabelText(/Đợt thanh toán/), "i-1");
+    await pickOption(
+      userEvent.setup(),
+      within(dialog).getByLabelText(/Đợt thanh toán/),
+      /đợt 1 Đặt cọc khi ký/,
+    );
     expect(await within(dialog).findByText(/Không tải được bản xem trước/)).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "Gửi thẻ cho khách" })).toBeEnabled();
   });

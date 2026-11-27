@@ -17,6 +17,9 @@ import type { ColumnDef } from "@/components/shared/DataTable";
 import type { Order } from "../../types";
 import type { OrderListState } from "./useOrderListState";
 
+/** EmptyState bỏ khung khi nằm trong thân bảng (backoffice-erp-ui A7). */
+const IN_TABLE = "rounded-none border-0 bg-transparent py-10 whitespace-normal";
+
 /**
  * Vùng bảng — tách rõ 4 trạng thái (api-conventions §8): tải lần đầu, lỗi tải, chưa có dữ liệu,
  * lọc không ra kết quả. Lỗi tải KHÔNG bị nuốt thành "Không có dữ liệu".
@@ -31,19 +34,21 @@ export function OrderListBody({ s, columns }: { s: OrderListState; columns: Colu
   }
   if (query.isPending) return <OrderTableSkeleton />;
 
-  if (s.emptyState === "no-orders") {
-    return (
+  const page = query.data;
+  const rows = s.pageFiltered ? page.items.filter(s.rowMatches) : page.items;
+  const invalidPage = s.emptyState === "invalid-page";
+  // Bảng luôn giữ header (còn bỏ lọc ở cột được); chưa có đơn / lọc không ra → thông báo trong thân bảng (A7)
+  const emptyNode =
+    s.emptyState === "no-orders" ? (
       <EmptyState
+        className={IN_TABLE}
         icon={<ClipboardList className="size-8" />}
         title="Chưa có đơn hàng"
         description="Hệ thống chưa ghi nhận đơn hàng nào."
       />
-    );
-  }
-  if (s.emptyState === "no-results" || s.emptyState === "invalid-page") {
-    const invalidPage = s.emptyState === "invalid-page";
-    return (
+    ) : rows.length === 0 ? (
       <EmptyState
+        className={IN_TABLE}
         icon={<ClipboardList className="size-8" />}
         title={invalidPage ? "Trang không còn dữ liệu" : "Không tìm thấy kết quả"}
         description={
@@ -62,21 +67,22 @@ export function OrderListBody({ s, columns }: { s: OrderListState; columns: Colu
           </Button>
         }
       />
-    );
-  }
-
-  const page = query.data;
+    ) : undefined;
   return (
     <>
       {/* Đổi trang/lọc: giữ dữ liệu cũ (keepPreviousData) + thanh mảnh báo đang tải lại (§8) */}
       <RefetchBar active={query.isFetching} label="Đang tải lại danh sách đơn hàng" />
       <DataTable
         columns={columns}
-        data={page.items}
+        data={rows}
         rowKey={(row) => row.orderId}
         // Có caption thì footer (chọn số dòng + "Hiển thị x–y / tổng") luôn hiện, kể cả khi chỉ 1
         // trang — DataTable bỏ qua nội dung caption ở chế độ serverPagination.
-        caption={`Hiển thị ${page.items.length} / ${page.totalElements} đơn hàng`}
+        caption={
+          s.pageFiltered
+            ? `Lọc trong trang đang xem: ${rows.length} / ${page.items.length} đơn`
+            : `Hiển thị ${page.items.length} / ${page.totalElements} đơn hàng`
+        }
         flagRow={shouldFlagOrderRow}
         onRowClick={s.navigateToDetail}
         pageSize={s.config.pageSize}
@@ -92,6 +98,8 @@ export function OrderListBody({ s, columns }: { s: OrderListState; columns: Colu
           onPageSizeChange: s.changePageSize,
         }}
         serverSorting={{ key: s.sort.key, direction: s.sort.direction, onChange: s.changeSort }}
+        stickyHeader
+        emptyState={emptyNode}
       />
     </>
   );

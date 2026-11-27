@@ -3,10 +3,12 @@
 import { INVENTORY_ITEM_PERMISSIONS, UI_LABELS } from "@/constants";
 import { useCan } from "@/lib/auth";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
+import { withHeaderFilters } from "@/components/shared/ColumnHeaderFilter";
 import { ListToolbar } from "@/components/shared/ListToolbar";
 
 import { buildInventoryItemColumns, inventoryItemViewColumn } from "./list/columns";
 import { COLUMN_LABELS, DEFAULT_COLUMNS, LOCKED_COLUMNS } from "./list/constants";
+import { itemHeaderFilters } from "./list/header-filters";
 import { InventoryItemListBody } from "./list/InventoryItemListBody";
 import { buildSummaryItems } from "./list/summary";
 import { useInventoryItemListState } from "./list/useInventoryItemListState";
@@ -22,15 +24,26 @@ function InventoryItemListContent() {
   const canRead = useCan(INVENTORY_ITEM_PERMISSIONS.read);
   const s = useInventoryItemListState(canRead);
   const { filters } = s;
+  // Lọc trên header cột SKU / Mã vạch — khoá URL riêng, không ghi đè ô tìm chính (backoffice-erp-ui A5)
+  const headerFilters = itemHeaderFilters({
+    ...s.columnSearch,
+    onSkuChange: s.setSkuFilter,
+    onBarcodeChange: s.setBarcodeFilter,
+  });
   const visibleColumns = [
-    ...COLUMNS.filter((c) => s.config.visibleColumns.includes(c.key)),
+    ...withHeaderFilters(
+      COLUMNS.filter((c) => s.config.visibleColumns.includes(c.key)),
+      headerFilters,
+    ),
+    // "Thao tác" luôn hiện — không nằm trong COLUMN_OPTIONS của "Ẩn hiện cột"
     inventoryItemViewColumn(),
   ];
 
   return (
     <div className="surface-soft">
       <h1 className="sr-only">{L.title}</h1>
-      {/* Thiếu READ: không có dữ liệu để tìm/lọc → ẩn cả toolbar và thanh Cấu hình */}
+      {/* Không có nút "Tạo mới" trên topbar: hồ sơ tạo tự động cùng biến thể (SKU) sản phẩm.
+          Thiếu READ: không có dữ liệu để tìm/lọc → ẩn cả toolbar và thanh Cấu hình */}
       {canRead && (
         <ListToolbar
           search={filters.q}
@@ -47,6 +60,7 @@ function InventoryItemListContent() {
           summaryItems={buildSummaryItems(s)}
           onResetAll={s.resetAll}
           resetDisabled={!s.hasFilters && !s.hasColumnConfig}
+          controlsIn="summary"
         />
       )}
       <InventoryItemListBody s={s} columns={visibleColumns} />

@@ -94,13 +94,15 @@ describe("OrderInstallmentsView — an order's installments and handover blockin
     const view = renderPaymentScreen(<OrderInstallmentsView orderId="ord-13" />);
     await screen.findByText("Đợt giao 2");
     // Due (batch 1) and Not Due (batch 2, paid early allowed) take money; the paid deposit does not
-    expect(screen.getAllByRole("button", { name: /^Lập phiếu thu — đợt / })).toHaveLength(2);
-    await userEvent.click(screen.getAllByRole("button", { name: /^Lập phiếu thu — đợt / })[0]!);
+    expect(screen.getAllByRole("button", { name: /^Thao tác — đợt / })).toHaveLength(2);
+    await userEvent.click(screen.getAllByRole("button", { name: /^Thao tác — đợt / })[0]!);
+    await userEvent.click(await screen.findByRole("button", { name: "Lập phiếu thu" }));
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
     view.unmount();
     mockPaymentApi(SALES_GRANTS, routes());
     renderPaymentScreen(<OrderInstallmentsView orderId="ord-13" />);
     await screen.findByText("Đợt giao 2");
+    expect(screen.queryByRole("button", { name: /^Thao tác — / })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Lập phiếu thu/ })).not.toBeInTheDocument();
   });
 

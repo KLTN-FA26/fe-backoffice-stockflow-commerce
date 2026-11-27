@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { PRODUCT_TAX_CLASS_PERMISSION } from "@/constants/einvoice";
+import { pickOption } from "@/test/ui-actions";
 
 import {
   ACCOUNTANT_GRANTS,
@@ -82,7 +83,11 @@ describe("D-8: the draft that tells the accountant to assign a tax class offers 
 
     const save = within(dialog).getByRole("button", { name: "Lưu nhóm thuế" });
     expect(save).toBeDisabled();
-    await userEvent.selectOptions(within(dialog).getByLabelText(/Nhóm thuế mới/), "STANDARD");
+    await pickOption(
+      userEvent.setup(),
+      within(dialog).getByLabelText(/Nhóm thuế mới/),
+      "Tiêu chuẩn",
+    );
     expect(save).toBeDisabled();
     await userEvent.type(within(dialog).getByLabelText(/Lý do/), "NĐ 174: ly tre 8%");
     await userEvent.click(save);

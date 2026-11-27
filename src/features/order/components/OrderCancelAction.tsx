@@ -3,12 +3,11 @@
 import { Ban } from "lucide-react";
 
 import { UI_LABELS } from "@/constants";
+import { ActionTrigger } from "@/components/shared/ObjectActions";
 import { FormDialog } from "@/components/shared/FormDialog";
-import { Button } from "@/components/ui/button";
 
 import { useAdminCancelOrder } from "../mutations";
 
-import { DANGER_OUTLINE_BUTTON } from "./button-styles";
 import { CancelForm } from "./OrderCancelForm";
 import { usePendingSafeDialog } from "./usePendingSafeDialog";
 
@@ -27,15 +26,12 @@ export function OrderCancelAction({ order }: { order: CancelOrder }) {
   const dialog = usePendingSafeDialog(mutation.isPending);
   return (
     <>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
+      <ActionTrigger
+        icon={Ban}
+        label={UI_LABELS.order.actions.cancel}
+        danger
         onClick={dialog.show}
-        className={`${DANGER_OUTLINE_BUTTON} w-full`}
-      >
-        <Ban className="size-3.5" /> {UI_LABELS.order.actions.cancel}
-      </Button>
+      />
       <FormDialog open={dialog.open} onOpenChange={dialog.onOpenChange}>
         <CancelForm order={order} mutation={mutation} onClose={dialog.close} />
       </FormDialog>
