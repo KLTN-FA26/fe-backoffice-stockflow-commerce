@@ -11,6 +11,7 @@ import {
   getPortalInvitation,
   listCustomers,
 } from "./api";
+import { getCreditPosition } from "./credit-profile-api";
 
 import type { ListCustomerParams } from "./api";
 import type { Customer } from "./types";
@@ -48,6 +49,16 @@ export function useCreditProfile(id: string, enabled = true) {
   return useQuery({
     queryKey: sub(id, "credit-profile"),
     queryFn: ({ signal }) => getCreditProfile(id, signal),
+    enabled,
+    ...QUERY_TIMES.detail,
+  });
+}
+
+/** Dư nợ / còn dùng được / quá hạn — dưới `detail(id)`: lưu hạn mức (invalidate `customerKeys.all`) tải lại theo. */
+export function useCreditPosition(id: string, enabled = true) {
+  return useQuery({
+    queryKey: sub(id, "credit-position"),
+    queryFn: ({ signal }) => getCreditPosition(id, signal),
     enabled,
     ...QUERY_TIMES.detail,
   });
