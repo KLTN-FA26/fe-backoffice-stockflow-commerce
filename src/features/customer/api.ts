@@ -134,7 +134,10 @@ export async function saveLegalProfile({
   return legalProfileDtoSchema.parse(data);
 }
 
-/** `POST /customers` → 201 khách PENDING_ACTIVATION + lời mời (link KHÔNG bao giờ trả về). */
+/**
+ * `POST /customers` → 201 khách PENDING_ACTIVATION + lời mời (link KHÔNG bao giờ trả về). Trường mới của sales-owner
+ * (`taxCodeExemption` + `taxCodeExemptionReason`, `salesOwnerId`, `leadId`) chỉ gửi khi có giá trị — body cũ không đổi.
+ */
 export async function createCustomer(values: CustomerCreateValues): Promise<InvitedCustomer> {
   const body = {
     companyName: values.companyName.trim(),
@@ -142,6 +145,13 @@ export async function createCustomer(values: CustomerCreateValues): Promise<Invi
     email: values.email.trim(),
     ...(values.taxCode.trim() ? { taxCode: normalizeTaxCode(values.taxCode) } : {}),
     ...(values.phone.trim() ? { phone: values.phone.trim() } : {}),
+    // BR-S14: miễn MST (Sales Manager) — chỉ gửi khi miễn và thật sự không có MST.
+    ...(values.taxCodeExemption && !values.taxCode.trim()
+      ? { taxCodeExemption: true, taxCodeExemptionReason: values.exemptionReason.trim() }
+      : {}),
+    // BR-S02: Manager chọn Sale phụ trách; §10.7: tạo từ khách tiềm năng.
+    ...(values.salesOwnerId ? { salesOwnerId: values.salesOwnerId } : {}),
+    ...(values.leadId ? { leadId: values.leadId } : {}),
   };
   const { data } = await api.post<unknown>(CUSTOMERS, body);
   return invitedCustomerDtoSchema.parse(data);
