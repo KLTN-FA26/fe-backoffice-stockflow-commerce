@@ -14,8 +14,21 @@ import { QUERY_TIMES } from "@/lib/api/query-client";
 import { createMutation } from "@/lib/api/query-factory";
 import { withStaleRefetch } from "@/lib/api/stale-refetch";
 
-/** BE `product.api.CustomerSku`. */
-export const customerSkuSchema = z.object({
+/**
+ * BE `CustomerSkuResponse` names the SKU's id `id` (renamed from `variantId` in V20270105000100); the screens keep
+ * calling it `variantId`. A body that already has `variantId` (older BE, tests) is read as it is. Without this,
+ * every list of a customer's SKUs failed to parse and the quote editor lost all its lines.
+ */
+export function customerSkuIdAsVariantId(value: unknown): unknown {
+  if (value === null || typeof value !== "object" || "variantId" in value || !("id" in value)) {
+    return value;
+  }
+  const { id, ...rest } = value as { id: unknown } & Record<string, unknown>;
+  return { ...rest, variantId: id };
+}
+
+/** BE `product.api.CustomerSku` (`id` read as `variantId`, see {@link customerSkuIdAsVariantId}). */
+const customerSkuFields = z.object({
   variantId: z.string(),
   productId: z.string(),
   sku: z.string(),
@@ -26,7 +39,8 @@ export const customerSkuSchema = z.object({
   sourceSku: z.string().nullish(),
   status: z.enum(["ACTIVE", "BLOCKED", "OBSOLETE"]),
 });
-export type CustomerSku = z.infer<typeof customerSkuSchema>;
+export const customerSkuSchema = z.preprocess(customerSkuIdAsVariantId, customerSkuFields);
+export type CustomerSku = z.infer<typeof customerSkuFields>;
 
 export const customerSkuKeys = {
   all: ["references", "customer-skus"] as const,

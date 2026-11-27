@@ -25,7 +25,13 @@ import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { CELL, statusCell, textCell } from "@/components/shared/column-helpers";
-import { shouldFlagProductRow, useBrands, useCategories, useProducts } from "@/features/product";
+import {
+  productCategoryLabel,
+  shouldFlagProductRow,
+  useBrands,
+  useCategories,
+  useProducts,
+} from "@/features/product";
 import { withHeaderFilters } from "@/components/shared/ColumnHeaderFilter";
 import { HeaderActions, HeaderCreateButton } from "@/components/shared/HeaderActions";
 import { matchesColumnSearch, productHeaderFilters } from "./product-header-filters";
@@ -100,11 +106,6 @@ function productCode(product: Product): string {
   return product.code ?? product.productId;
 }
 
-function categoryName(categoryId: string | null, categories: ReadonlyMap<string, string>): string {
-  if (categoryId === null) return "Chưa chọn danh mục";
-  return categories.get(categoryId) ?? "";
-}
-
 function mergeStoredConfig(
   stored: Partial<ProductsPageConfig>,
   fallback: ProductsPageConfig,
@@ -169,6 +170,8 @@ export function ProductList() {
     brandId: brandFilter ?? undefined,
     sort: `${productSort.key},${productSort.direction}`,
   });
+  // Danh mục chỉ còn cho ô lọc + chip "Danh mục" — tên ở cột lấy `categoryName` trên dòng (issue #286),
+  // nên danh mục tải chậm / lỗi không chặn bảng.
   const categoriesQuery = useCategories({});
 
   const rawProducts = useMemo(
@@ -182,8 +185,8 @@ export function ProductList() {
     [productsQuery.data, debouncedCode, debouncedName],
   );
   const categories = useMemo(() => categoriesQuery.data?.items ?? [], [categoriesQuery.data]);
-  const isLoading = productsQuery.isLoading || categoriesQuery.isLoading;
-  const loadError = productsQuery.error ?? categoriesQuery.error;
+  const isLoading = productsQuery.isLoading;
+  const loadError = productsQuery.error;
   const productPage = productsQuery.data;
   const productPageNumber = productFilters.page;
   const setProductPage = productFilters.setPage;
@@ -201,11 +204,6 @@ export function ProductList() {
       globalSearch: { ...config.products.globalSearch, query: productFilters.q },
     }),
     [config.products, productFilters.q, productFilters.status],
-  );
-
-  const categoryNameMap = useMemo(
-    () => new Map(categories.map((category) => [category.categoryId, category.name.vi])),
-    [categories],
   );
 
   const updateProductsConfig = (
@@ -269,14 +267,9 @@ export function ProductList() {
       ),
     },
     {
-      ...textCell<Product>(
-        "category",
-        "Danh mục",
-        (row) => categoryName(row.categoryId, categoryNameMap) || "—",
-        {
-          color: "secondary",
-        },
-      ),
+      ...textCell<Product>("category", "Danh mục", (row) => productCategoryLabel(row), {
+        color: "secondary",
+      }),
       key: "category",
     },
     statusCell<Product>("status", "Trạng thái", (row) => row.status, "product", {
@@ -355,7 +348,9 @@ export function ProductList() {
       },
       {
         label: "Danh mục",
-        value: categoryFilter ? categoryNameMap.get(categoryFilter) || categoryFilter : "Tất cả",
+        value: categoryFilter
+          ? categories.find((c) => c.categoryId === categoryFilter)?.name.vi || categoryFilter
+          : "Tất cả",
         active: Boolean(categoryFilter),
         onClear: () => changeFacet(setCategoryFilter)(null),
       },

@@ -63,3 +63,15 @@ export function findShipmentByCode(
 ): LoadShipment | undefined {
   return load.shipments.find((shipment) => shipment.code === code);
 }
+
+/**
+ * Nhãn kho từ mã + tên BE trả cạnh `warehouseId` (#286): "HN · Kho Hà Nội"; chỉ có tên → tên; BE cũ chưa trả → null
+ * (ô ghi "—", không bao giờ hiện UUID thô). Không tải danh mục kho chỉ để hiện tên.
+ */
+export function warehouseRefLabel(ref: {
+  warehouseCode?: string | null;
+  warehouseName?: string | null;
+}): string | null {
+  if (!ref.warehouseName) return ref.warehouseCode ?? null;
+  return ref.warehouseCode ? `${ref.warehouseCode} · ${ref.warehouseName}` : ref.warehouseName;
+}

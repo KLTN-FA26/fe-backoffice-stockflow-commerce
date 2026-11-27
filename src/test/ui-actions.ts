@@ -36,7 +36,8 @@ export async function clickRowAction(user: UserEvent, action: Name, scope?: HTML
     const menu = menuId ? document.getElementById(menuId) : null;
     const scoped = menu ? within(menu) : screen;
     const item =
-      scoped.queryByRole("button", { name: action }) ?? scoped.queryByRole("link", { name: action });
+      scoped.queryByRole("button", { name: action }) ??
+      scoped.queryByRole("link", { name: action });
     if (item && trigger.getAttribute("aria-expanded") === "true") {
       await user.click(item);
       return item;

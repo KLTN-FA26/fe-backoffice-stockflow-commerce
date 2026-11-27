@@ -12,6 +12,7 @@ import {
   RETURN_REFUSAL_REASON_LABELS,
 } from "@/constants/labels-return";
 import { RETURN_ROUTES } from "@/constants/returns";
+import { CustomerName } from "@/components/backoffice/CustomerName";
 import { Card } from "@/components/shared/Card";
 
 import { returnOutcome } from "../selectors";
@@ -39,12 +40,8 @@ export function ReturnGeneralCard({ ret }: { ret: ReturnRequest }) {
           <CodeLink href={ADMIN_ROUTES.orders.detail(ret.orderId)}>{ret.orderNumber}</CodeLink>
         </InfoRow>
         <InfoRow label={D.customer}>
-          <Link
-            href={ADMIN_ROUTES.customers.detail(ret.customerId)}
-            className="text-accent-text hover:underline"
-          >
-            {D.viewCustomer}
-          </Link>
+          {/* #286: tên + mã khách BE kèm sẵn — không cần quyền xem khách để thấy tên */}
+          <CustomerName id={ret.customerId} name={ret.customerName} code={ret.customerCode} />
         </InfoRow>
         {/* WF-05 F-20: yêu cầu xử lý xong 0 đồng không bao giờ đọc là "Đã hoàn tiền" */}
         {outcome && <InfoRow label={D.outcome}>{RETURN_OUTCOME_LABELS[outcome]}</InfoRow>}
@@ -53,6 +50,7 @@ export function ReturnGeneralCard({ ret }: { ret: ReturnRequest }) {
         <InfoRow label={D.requestedAt}>
           <When iso={ret.requestedAt} />
         </InfoRow>
+        {ret.requestedByName && <InfoRow label={D.requestedBy}>{ret.requestedByName}</InfoRow>}
         {ret.description && <InfoRow label={D.description}>{ret.description}</InfoRow>}
         {ret.lateClaimReason && <InfoRow label={D.lateClaim}>{ret.lateClaimReason}</InfoRow>}
         {ret.cancellationReason && (
@@ -79,6 +77,7 @@ export function ReturnProgressCard({ ret }: { ret: ReturnRequest }) {
             <InfoRow label={D.decidedAt}>
               <When iso={review.decidedAt} />
             </InfoRow>
+            {review.decidedByName && <InfoRow label={D.decidedBy}>{review.decidedByName}</InfoRow>}
             {review.returnDeadline && ret.status === "AWAITING_RETURN" && (
               <InfoRow label={D.returnDeadline}>
                 <When iso={review.returnDeadline} withTime={false} />
@@ -98,6 +97,9 @@ export function ReturnProgressCard({ ret }: { ret: ReturnRequest }) {
             <InfoRow label={D.receivedAt}>
               <When iso={receipt.receivedAt} />
             </InfoRow>
+            {receipt.receivedByName && (
+              <InfoRow label={D.receivedBy}>{receipt.receivedByName}</InfoRow>
+            )}
             <InfoRow label={D.quarantine}>
               <span className="font-[family-name:var(--font-mono)]">
                 {receipt.locationCode ?? "—"}
@@ -125,6 +127,9 @@ export function ReturnProgressCard({ ret }: { ret: ReturnRequest }) {
             <InfoRow label={D.proposedAt}>
               <When iso={resolution.proposedAt} />
             </InfoRow>
+            {resolution.proposedByName && (
+              <InfoRow label={D.proposedBy}>{resolution.proposedByName}</InfoRow>
+            )}
             {resolution.note && <InfoRow label={D.reviewNote}>{resolution.note}</InfoRow>}
             {ret.refusalReason && (
               <InfoRow label={D.refusalReason}>
@@ -139,6 +144,9 @@ export function ReturnProgressCard({ ret }: { ret: ReturnRequest }) {
                 <InfoRow label={D.settledAt}>
                   <When iso={resolution.settledAt} />
                 </InfoRow>
+                {resolution.settledByName && (
+                  <InfoRow label={D.settledBy}>{resolution.settledByName}</InfoRow>
+                )}
                 <InfoRow label={D.offsetAmount}>
                   <Money amount={resolution.offsetAmount} currency={ret.currency} />
                 </InfoRow>

@@ -113,6 +113,8 @@ export const CYCLE_COUNT_LABELS = {
   assignedToYou: "Giao cho bạn",
   assignedToOther: "Giao cho người khác",
   unassigned: "Chưa giao người đếm",
+  warehouse: "Kho",
+  countedBy: (name: string) => `Đếm bởi ${name}`,
   note: "Ghi chú",
   startedAt: "Bắt đầu đếm",
   completedAt: "Nộp phiếu",

@@ -48,6 +48,9 @@ export const bePutawayTaskSchema = z.object({
   source: z.enum(PUTAWAY_SOURCES),
   // Kho của nhiệm vụ (BE #394, "nên làm") — để link cũ chuyển vào đúng tab theo kho; BE cũ chưa trả
   warehouseId: z.string().nullish(),
+  // Issue #286: mã (prefix) + tên kho cạnh id — dựng link tab kho không cần tải danh mục kho
+  warehouseCode: z.string().nullish(),
+  warehouseName: z.string().nullish(),
 });
 
 export const bePutawayTaskPageSchema = bePageSchema(bePutawayTaskSchema);

@@ -150,11 +150,17 @@ export const RETURN_LABELS = {
     general: "Thông tin chung",
     order: "Đơn hàng",
     customer: "Khách hàng",
-    viewCustomer: "Xem hồ sơ khách",
     reason: "Lý do",
     description: "Mô tả của khách",
     channel: "Nguồn",
     requestedAt: "Gửi lúc",
+    // #286: người thực hiện từng bước (BE kèm `xxxByName`)
+    requestedBy: "Người gửi",
+    decidedBy: "Người quyết định",
+    receivedBy: "Người nhận",
+    proposedBy: "Người đề xuất",
+    settledBy: "Người duyệt",
+    historyActor: (name: string) => `bởi ${name}`,
     lateClaim: "Lý do nhận ngoài hạn",
     lines: "Hàng yêu cầu trả",
     sku: "SKU",
@@ -446,6 +452,8 @@ export const RETURN_RECEIPT_LABELS = {
     rmaShort: "RMA",
     rma: (rma: string) => `RMA ${rma}`,
     shipment: (code: string) => `Chuyến hoàn ${code}`,
+    /** BE chưa kèm `shipmentCode` — không hiện UUID của chuyến. */
+    shipmentUnknown: "Chuyến hoàn về",
   },
   createDialog: {
     title: "Lập phiếu nhập hàng hoàn",

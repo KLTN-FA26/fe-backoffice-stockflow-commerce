@@ -16,6 +16,7 @@ import { CYCLE_COUNT_PERMISSIONS } from "@/constants/permissions";
 import { STOCK_ADJUSTMENT_STATUS } from "@/constants/statuses";
 
 import { registerMockRoute } from "./mock-adapter";
+import { mockStaffName, mockWarehouseNames, withMockStaffNames } from "./mock-display-names";
 import { findMockCarton, listMockCartons } from "./mock-inventory-cartons";
 import { MOCK_WAREHOUSE_ID } from "./mock-routes-goods-receipts-store";
 import {
@@ -122,32 +123,42 @@ function stringList(value: unknown): string[] {
 /** `CycleCountViewMapper`: sổ sách, điều chỉnh và ghi chú chỉ cho ai có APPROVE khi phiếu kiểm mù (BR-07). */
 function view(count: MockCount, decides: boolean) {
   const hide = count.blind && !decides;
+  // Issue #286: mã + tên kho, tên người được giao / người đếm cạnh id (NON_NULL: không biết thì bỏ trường).
+  const { warehouseCode, warehouseName } = mockWarehouseNames(MOCK_WAREHOUSE_ID);
+  const assignedUserName = mockStaffName(count.assignedUserId);
   return {
     id: count.id,
     countNumber: count.countNumber,
     warehouseId: MOCK_WAREHOUSE_ID,
+    ...(warehouseCode ? { warehouseCode } : {}),
+    ...(warehouseName ? { warehouseName } : {}),
     triggerType: count.trigger,
     status: count.status,
     blind: count.blind,
     ...(count.assignedUserId ? { assignedUserId: count.assignedUserId } : {}),
+    ...(assignedUserName ? { assignedUserName } : {}),
     plannedDate: count.plannedDate,
     ...(count.startedAt ? { startedAt: count.startedAt } : {}),
     ...(count.completedAt ? { completedAt: count.completedAt } : {}),
     ...(count.note && !hide ? { note: count.note } : {}),
     createdAt: count.createdAt,
-    lines: count.lines.map((line) => ({
-      id: line.id,
-      locationCode: line.locationCode,
-      sku: line.sku,
-      ...(line.lotNumber ? { lotNumber: line.lotNumber } : {}),
-      stockPackageId: line.stockPackageId,
-      lpn: line.lpn,
-      ...(hide ? {} : { booked: line.booked }),
-      ...(line.found === null ? {} : { found: line.found }),
-      ...(line.countedBy ? { countedBy: line.countedBy, countedAt: line.countedAt } : {}),
-      recountRequired: line.recountRequired,
-      adjustments: hide ? [] : line.adjustmentIds.flatMap((id) => mockAdjustmentView(id) ?? []),
-    })),
+    lines: count.lines.map((line) => {
+      const countedByName = mockStaffName(line.countedBy);
+      return {
+        id: line.id,
+        locationCode: line.locationCode,
+        sku: line.sku,
+        ...(line.lotNumber ? { lotNumber: line.lotNumber } : {}),
+        stockPackageId: line.stockPackageId,
+        lpn: line.lpn,
+        ...(hide ? {} : { booked: line.booked }),
+        ...(line.found === null ? {} : { found: line.found }),
+        ...(line.countedBy ? { countedBy: line.countedBy, countedAt: line.countedAt } : {}),
+        ...(countedByName ? { countedByName } : {}),
+        recountRequired: line.recountRequired,
+        adjustments: hide ? [] : line.adjustmentIds.flatMap((id) => mockAdjustmentView(id) ?? []),
+      };
+    }),
   };
 }
 
@@ -518,17 +529,22 @@ async function recount(config: AxiosRequestConfig) {
 
 export function registerCycleCountMockRoutes(): void {
   const base = CYCLE_COUNT_API.list;
-  registerMockRoute("GET", base, listCounts);
-  registerMockRoute("POST", base, plan);
-  registerMockRoute("GET", `${base}/:id`, async (config) => {
-    const me = await caller();
-    if (!me) return unauthenticated();
-    const loaded = load(config);
-    return loaded.error ?? ok(view(loaded.count, me.can(CYCLE_COUNT_PERMISSIONS.approve)));
-  });
-  registerMockRoute("PUT", `${base}/:id/lines/:lineId/count`, countLine);
-  registerMockRoute("POST", `${base}/:id/lines`, addLine);
-  registerMockRoute("POST", `${base}/:id/submission`, submit);
-  registerMockRoute("POST", `${base}/:id/cancellation`, cancel);
-  registerMockRoute("POST", `${base}/:id/recounts`, recount);
+  // Mọi response mang tên người được giao / người đếm → nạp tên trước (mock-display-names)
+  registerMockRoute("GET", base, withMockStaffNames(listCounts));
+  registerMockRoute("POST", base, withMockStaffNames(plan));
+  registerMockRoute(
+    "GET",
+    `${base}/:id`,
+    withMockStaffNames(async (config) => {
+      const me = await caller();
+      if (!me) return unauthenticated();
+      const loaded = load(config);
+      return loaded.error ?? ok(view(loaded.count, me.can(CYCLE_COUNT_PERMISSIONS.approve)));
+    }),
+  );
+  registerMockRoute("PUT", `${base}/:id/lines/:lineId/count`, withMockStaffNames(countLine));
+  registerMockRoute("POST", `${base}/:id/lines`, withMockStaffNames(addLine));
+  registerMockRoute("POST", `${base}/:id/submission`, withMockStaffNames(submit));
+  registerMockRoute("POST", `${base}/:id/cancellation`, withMockStaffNames(cancel));
+  registerMockRoute("POST", `${base}/:id/recounts`, withMockStaffNames(recount));
 }

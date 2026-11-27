@@ -10,6 +10,7 @@ import { PAYMENT_REFUND_PERMISSIONS, PAYMENT_ROUTES } from "@/constants/payment"
 import { useCan, usePermissionChecker } from "@/lib/auth/components/Can";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
+import { CustomerName } from "@/components/backoffice/CustomerName";
 import { LoadErrorState } from "@/components/backoffice/LoadErrorState";
 import {
   DETAIL_ACTION_CLASS,
@@ -57,6 +58,7 @@ function RefundDetailContent({ orderId }: { orderId: string }) {
   if (query.isPending) return <PageSkeleton variant="detail" />;
   const refund = query.data;
   const canRecord = allowedRefundActions(refund, can).includes("recordRefund");
+  const customer = refund.records?.[0];
 
   return (
     // Trang chi tiết hai cột như báo giá (BO-UX-2): các lần tính và ghi nhận bên trái; số phải hoàn, tình trạng và nút
@@ -93,6 +95,16 @@ function RefundDetailContent({ orderId }: { orderId: string }) {
                   {refund.orderNumber}
                 </Link>
               </InfoRow>
+              {/* #286: khách của đơn lấy từ ghi nhận hoàn (BE kèm tên + mã) — không tra danh mục khách */}
+              {customer && (
+                <InfoRow label={PAYMENT_LABELS.receipts.customerChip}>
+                  <CustomerName
+                    id={customer.customerId}
+                    name={customer.customerName}
+                    code={customer.customerCode}
+                  />
+                </InfoRow>
+              )}
               <InfoRow label={L.refundable}>
                 <MoneyCell amount={refund.refundable} currency={refund.currency} />
               </InfoRow>

@@ -10,7 +10,6 @@ import { formatDateTime } from "@/lib/format/date";
 import { RowActionsMenu } from "@/components/shared/RowActionsMenu";
 import { StatusDot } from "@/components/shared/StatusDot";
 
-import { useOrder } from "../../queries";
 import { cancellationReasonLabel } from "../../selectors";
 import { BACKEND_TO_FE_ORDER_STATUS } from "../../status-map";
 
@@ -62,27 +61,23 @@ function r5OrderStatus(code: string) {
 }
 
 /**
- * Sự thật về đơn của một yêu cầu (BO-UX-34): R5-6 gửi kèm trong dòng; BE chưa gửi → đọc từ đơn (`GET /orders/{id}`, cùng
- * cache với trang chi tiết) khi người dùng có `sales-orders:READ`. Không có cả hai → null, ô ghi "—" (không đoán).
+ * Sự thật về đơn của một yêu cầu (BO-UX-34) — đọc thẳng từ dòng: BE gửi kèm số đơn, tên khách, tổng / đã thu, trạng thái
+ * đơn (R5-6, issue #286), nên không còn gọi `GET /orders/{id}` cho từng dòng (N+1). Thiếu field → null, ô ghi "—" (không
+ * đoán). Dòng yêu cầu không mang tiền tệ của đơn: số tiền hiển thị theo VND (tiền tệ của đơn bán).
  */
-function useRequestOrderFacts(row: CancellationRequest, canOpenOrder: boolean) {
-  const needsOrder =
-    row.orderNumber == null ||
-    row.customerName == null ||
-    row.orderTotal == null ||
-    row.paidTotal == null ||
-    row.orderStatus == null;
-  const order = useOrder(row.orderId, { enabled: canOpenOrder && needsOrder }).data;
+function requestOrderFacts(row: CancellationRequest) {
   return {
-    orderNumber: row.orderNumber ?? order?.orderNumber ?? null,
-    customerName: row.customerName ?? order?.customerName ?? null,
-    total: row.orderTotal ?? order?.totalAmount ?? null,
+    orderNumber: row.orderNumber,
+    customerName: row.customerName,
+    total: row.orderTotal,
     // `OrderResponse` không còn `paidAmount` (4B-10, WF-05 BO-08): chỉ số BE kèm trên dòng yêu cầu
-    paid: row.paidTotal ?? null,
-    currency: order?.currency ?? "VND",
-    status: row.orderStatus ? r5OrderStatus(row.orderStatus) : (order?.status ?? null),
+    paid: row.paidTotal,
+    currency: "VND",
+    status: row.orderStatus ? r5OrderStatus(row.orderStatus) : null,
   };
 }
+
+type RequestOrderFacts = ReturnType<typeof requestOrderFacts>;
 
 /** Mã đơn của dòng — link tới thẻ yêu cầu huỷ trên chi tiết đơn khi mở được đơn. Chưa biết số đơn → chữ trung tính. */
 export function OrderNumberLink({
@@ -92,8 +87,7 @@ export function OrderNumberLink({
   row: CancellationRequest;
   canOpenOrder: boolean;
 }) {
-  const facts = useRequestOrderFacts(row, canOpenOrder);
-  const label = facts.orderNumber ?? Q.unknownOrder;
+  const label = row.orderNumber ?? Q.unknownOrder;
   return canOpenOrder ? (
     <Link
       href={ADMIN_ROUTES.orders.cancellationRequest(row.orderId)}
@@ -107,18 +101,6 @@ export function OrderNumberLink({
       {label}
     </span>
   );
-}
-
-function FactCell({
-  row,
-  canOpenOrder,
-  render,
-}: {
-  row: CancellationRequest;
-  canOpenOrder: boolean;
-  render: (facts: ReturnType<typeof useRequestOrderFacts>) => ReactNode;
-}) {
-  return <>{render(useRequestOrderFacts(row, canOpenOrder))}</>;
 }
 
 /** Ghi chú của khách: 2 dòng, bấm "Xem thêm" để đọc hết (BO-UX-34 — không còn bị cắt một dòng không cách nào mở). */
@@ -162,14 +144,8 @@ function ReasonCell({ row }: { row: CancellationRequest }) {
  * Menu "⋯" Duyệt / Từ chối của một hàng (backoffice-erp-ui A6): tên truy cập mang số đơn; "Duyệt huỷ" chữ đỏ, cuối menu
  * vì nó huỷ đơn (BO-UX-36). Hộp thoại duyệt nhận số đã thu và giai đoạn in (BO-UX-35) từ cùng nguồn với các cột.
  */
-export function RequestRowActions({
-  row,
-  canOpenOrder,
-}: {
-  row: CancellationRequest;
-  canOpenOrder: boolean;
-}) {
-  const { orderNumber, paid, currency } = useRequestOrderFacts(row, canOpenOrder);
+export function RequestRowActions({ row }: { row: CancellationRequest }) {
+  const { orderNumber, paid, currency } = requestOrderFacts(row);
   const ids = { orderId: row.orderId, orderNumber, requestId: row.requestId };
   const reject = useCancellationRejectDialog(ids);
   const approve = useCancellationApproveDialog({
@@ -209,10 +185,8 @@ export function buildCancellationRequestColumns(
   renderActions: (row: CancellationRequest) => ReactNode,
   canOpenOrder: boolean,
 ): RequestColumn[] {
-  const fact = (render: (facts: ReturnType<typeof useRequestOrderFacts>) => ReactNode) =>
-    function Cell(row: CancellationRequest) {
-      return <FactCell row={row} canOpenOrder={canOpenOrder} render={render} />;
-    };
+  const fact = (render: (facts: RequestOrderFacts) => ReactNode) => (row: CancellationRequest) =>
+    render(requestOrderFacts(row));
   return [
     {
       key: "order",

@@ -8,6 +8,22 @@ export function userDisplayName(user: Pick<UserDto, "fullName" | "username">): s
 }
 
 /**
+ * Nhãn các kho đã gán theo thứ tự `warehouseIds`: tên → mã (BE #286 `warehouses`); kho không có cả hai bị bỏ,
+ * không hiện UUID (BO-UX-6). `null` khi BE chưa gửi `warehouses` (bản BE cũ) — UI hiện số kho.
+ */
+export function userWarehouseLabels(
+  user: Pick<UserDto, "warehouseIds" | "warehouses">,
+): string[] | null {
+  if (!user.warehouses) return null;
+  const byId = new Map(user.warehouses.map((warehouse) => [warehouse.warehouseId, warehouse]));
+  return user.warehouseIds.flatMap((id) => {
+    const warehouse = byId.get(id);
+    const label = warehouse?.name ?? warehouse?.code;
+    return label ? [label] : [];
+  });
+}
+
+/**
  * Vai trò gán được cho tài khoản nhân viên — loại vai trò khách hàng (BE `ROLE_NOT_ASSIGNABLE`).
  * Luật về người được gán, không phải kiểm quyền của người gọi.
  */

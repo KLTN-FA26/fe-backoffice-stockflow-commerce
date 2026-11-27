@@ -28,9 +28,53 @@ export function hasCapacityWarning(order: Pick<ProductionOrder, "capacity">): bo
   return Boolean(capacity && (capacity.exceedsProjected || capacity.exceedsIfAllApproved));
 }
 
-/** Mã kho nhận để hiện — bảng sức chứa kèm trong response (Điều phối sản xuất không có quyền đọc danh mục kho). */
-export const receivingWarehouseCode = (order: Pick<ProductionOrder, "capacity">): string | null =>
-  order.capacity?.board.warehouseCode ?? null;
+/**
+ * Mã kho nhận để hiện — BE kèm `receivingWarehouseCode` (#286); BE cũ: bảng sức chứa kèm trong response (Điều phối
+ * sản xuất không có quyền đọc danh mục kho).
+ */
+export const receivingWarehouseCode = (
+  order: Pick<ProductionOrder, "capacity"> &
+    Partial<Pick<ProductionOrder, "receivingWarehouseCode">>,
+): string | null => order.receivingWarehouseCode ?? order.capacity?.board.warehouseCode ?? null;
+
+/** Tên kho nhận (#286 `receivingWarehouseName`, dự phòng tên trong bảng sức chứa); `null` khi không có. */
+export const receivingWarehouseName = (
+  order: Pick<ProductionOrder, "capacity"> &
+    Partial<Pick<ProductionOrder, "receivingWarehouseName">>,
+): string | null => order.receivingWarehouseName ?? order.capacity?.board.warehouseName ?? null;
+
+/** "Mã · Tên" của một đơn vị / kho; thiếu một trong hai thì phần còn lại; không có gì → `null`. */
+export function codeNameLabel(
+  code: string | null | undefined,
+  name: string | null | undefined,
+): string | null {
+  if (code && name) return `${code} · ${name}`;
+  return name || code || null;
+}
+
+/** Nhãn đơn vị sản xuất từ chính dòng (#286 `producerCode` / `producerName`). */
+export const producerLabelOf = (
+  order: Partial<Pick<ProductionOrder, "producerCode" | "producerName">>,
+) => codeNameLabel(order.producerCode, order.producerName);
+
+/**
+ * Nhãn chip lọc đơn vị / kho nhận đọc từ các dòng đã tải (#286) — khi danh mục không đọc được, thay cho mảnh UUID.
+ * `null` khi chưa có dòng nào của id đó.
+ */
+export function filterLabelOnRows(
+  rows: readonly ProductionOrder[] | undefined,
+  filter: { producerId?: string | null; warehouseId?: string | null },
+): string | null {
+  const row = rows?.find((order) =>
+    filter.producerId
+      ? order.producerId === filter.producerId
+      : order.receivingWarehouseId === filter.warehouseId,
+  );
+  if (!row) return null;
+  return filter.producerId
+    ? producerLabelOf(row)
+    : codeNameLabel(receivingWarehouseCode(row), receivingWarehouseName(row));
+}
 
 /** Bản ghi → giá trị form sửa nháp. */
 export function editValuesOf(order: ProductionOrder): ProductionOrderEditValues {

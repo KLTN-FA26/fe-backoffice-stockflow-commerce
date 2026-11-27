@@ -126,6 +126,8 @@ export const PRODUCTION_LABELS = {
     statusFilter: "Trạng thái",
     producerFilter: "Đơn vị sản xuất",
     warehouseFilter: "Kho nhận",
+    /** Chip lọc theo id khi không đọc được danh mục và chưa có dòng nào mang tên — không hiện mảnh UUID (#286). */
+    pickedFilter: "Đã chọn",
     summarySearch: "Tìm trong trang",
     emptyTitle: "Chưa có Đơn sản xuất",
     emptyDescription: "Đơn sản xuất được lập từ đợt giao còn thiếu của đơn bán đã ký hợp đồng.",

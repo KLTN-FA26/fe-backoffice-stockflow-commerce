@@ -78,8 +78,29 @@ async function expireStale(requests: readonly MockCancellationRequest[]): Promis
   }
 }
 
-/** BE `CancellationRequestResponse` — null bị bỏ khỏi JSON ở `ok()`. */
-const toResponse = (request: MockCancellationRequest) => ({ ...request });
+/**
+ * BE `CancellationRequestResponse` — null bị bỏ khỏi JSON ở `ok()`. Kèm sự thật về đơn (R5-6) và tên người gửi / người
+ * quyết (issue #286), suy từ đơn + danh mục khách / nhân viên có sẵn trong mock-data (không thêm bản ghi).
+ */
+async function toResponse(request: MockCancellationRequest) {
+  const { customers, staffUsers } = await import("@/lib/mock-data");
+  const order = await findOrder(request.orderId);
+  const customer = order ? customers.find((c) => c.customerId === order.customerId) : undefined;
+  const staffName = (id: string | null) =>
+    id ? (staffUsers.find((user) => user.userId === id)?.fullName ?? null) : null;
+  return {
+    ...request,
+    requestedByName:
+      customer && request.requestedBy === customer.customerId ? customer.fullName : null,
+    decidedByName: staffName(request.decidedBy),
+    orderNumber: order?.orderNumber ?? null,
+    customerName: customer?.fullName ?? null,
+    orderTotal: order?.grandTotal ?? null,
+    paidTotal: order?.amountPaid ?? null,
+    orderStatus: order ? backendStatus(order) : null,
+    printingStarted: order ? printingStarted(order) : null,
+  };
+}
 
 function readFee(
   value: unknown,
@@ -110,10 +131,8 @@ function registerListRoute(): void {
       .sort((a, b) => b.requestedAt.localeCompare(a.requestedAt));
     const page = Math.max(0, Number(query.get("page") ?? 0) || 0);
     const size = Math.max(1, Number(query.get("size") ?? 20) || 20);
-    return ok({
-      ...pageOf(items, page, size),
-      items: pageOf(items, page, size).items.map(toResponse),
-    });
+    const pageItems = pageOf(items, page, size);
+    return ok({ ...pageItems, items: await Promise.all(pageItems.items.map(toResponse)) });
   });
 }
 
@@ -230,7 +249,7 @@ function registerDecisionRoutes(): void {
         version: request.version + 1,
       };
       saveCancellationRequest(rejected);
-      return ok(toResponse(rejected));
+      return ok(await toResponse(rejected));
     },
   );
 }

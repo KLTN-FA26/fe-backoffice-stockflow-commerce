@@ -108,6 +108,26 @@ describe("ProductActionCard — nút theo trạng thái × vai trò (allowedProd
     expect(buttonNames()).toEqual(["Phê duyệt", "Từ chối"]);
   });
 
+  it("issue #286: BE canApprove=false → ẩn Phê duyệt dù FE không thấy là tự duyệt", () => {
+    // Người gửi duyệt khác người đăng nhập theo id, nhưng BE (nguồn sự thật) nói không duyệt được
+    renderCard(product(PRODUCT_STATUS.PENDING_APPROVAL, { canApprove: false }), APPROVER);
+    expect(buttonNames()).toEqual(["Từ chối"]);
+  });
+
+  it("issue #286: BE canApprove=true → hiện Phê duyệt, không so submittedBy với người đăng nhập", () => {
+    renderCard(
+      product(PRODUCT_STATUS.PENDING_APPROVAL, { canApprove: true }),
+      ECOMMERCE_ADMIN,
+      "u-author",
+    );
+    expect(buttonNames()).toEqual(["Phê duyệt", "Từ chối"]);
+  });
+
+  it("issue #286: canApprove=true nhưng thiếu quyền duyệt phía FE → vẫn không hiện Phê duyệt", () => {
+    renderCard(product(PRODUCT_STATUS.PENDING_APPROVAL, { canApprove: true }), CATALOG_EDITOR);
+    expect(buttonNames()).toEqual([]);
+  });
+
   it("Chờ duyệt + người soạn catalog: không có thao tác nào, có câu giải thích", () => {
     renderCard(product(PRODUCT_STATUS.PENDING_APPROVAL), CATALOG_EDITOR);
     expect(buttonNames()).toEqual([]);

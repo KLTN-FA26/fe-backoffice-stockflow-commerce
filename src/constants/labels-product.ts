@@ -83,6 +83,18 @@ export const PRODUCT_UI_LABELS = {
       "Có ít nhất một ảnh đã xuất bản. Ảnh phải do người khác người tải lên xuất bản.",
     ],
   },
+  // Tên / mã BE trả cạnh id (issue #286) — hiện thay UUID, không tra danh sách chỉ để lấy tên
+  names: {
+    approvedBy: "Người duyệt",
+    noCategory: "Chưa chọn danh mục",
+    missing: "—",
+    mediaUploadedBy: (name: string) => `Tải lên: ${name}`,
+    mediaPublishedBy: (name: string) => `Xuất bản: ${name}`,
+    // Dòng lịch sử của chính sản phẩm (không gắn biến thể / ảnh)
+    historyProductRow: "Sản phẩm",
+    // BE không trả `subjectSku` / `subjectLabel` cho đối tượng đã xoá — không hiện id thô
+    historyDeletedSubject: "Đã xoá",
+  },
   // BE chỉ trả các trường này khi INACTIVE (tạm ngưng) / DISCONTINUED
   statusReason: {
     suspendedAt: "Tạm ngưng từ",

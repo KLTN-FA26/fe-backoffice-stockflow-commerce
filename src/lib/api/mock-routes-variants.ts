@@ -101,6 +101,9 @@ interface MockMedia {
   publishedAt: string | null;
   publishedBy: string | null;
   uploadedBy: string | null;
+  /** Issue #286 — `MediaResponse.publishedByName` / `uploadedByName`. */
+  publishedByName: string | null;
+  uploadedByName: string | null;
   uploadedAt: string | null;
   version: number;
 }
@@ -238,6 +241,9 @@ function newMedia(variantId: string, over: Partial<MockMedia> = {}): MockMedia {
     publishedAt: null,
     publishedBy: null,
     uploadedBy: MOCK_UPLOADER,
+    // Issue #286: cột lưu username → BE trả chính username làm tên
+    publishedByName: null,
+    uploadedByName: MOCK_UPLOADER,
     uploadedAt: now,
     version: 0,
     ...over,
@@ -850,7 +856,12 @@ export function registerVariantMockRoutes(): void {
       }
       const now = new Date().toISOString();
       chosen.forEach((m) =>
-        Object.assign(m, { published: true, publishedAt: now, publishedBy: MOCK_PUBLISHER }),
+        Object.assign(m, {
+          published: true,
+          publishedAt: now,
+          publishedBy: MOCK_PUBLISHER,
+          publishedByName: MOCK_PUBLISHER,
+        }),
       );
       chosen.forEach((m) =>
         recordMockHistory(variant.productId, "MEDIA", { subjectId: m.mediaId }),
@@ -868,7 +879,12 @@ export function registerVariantMockRoutes(): void {
         variant &&
         (media.get(variant.variantId) ?? []).find((m) => m.mediaId === params(config).mediaId);
       if (!target) return fail(404, "MEDIA_NOT_FOUND", "Media not found");
-      Object.assign(target, { published: false, publishedAt: null, publishedBy: null });
+      Object.assign(target, {
+        published: false,
+        publishedAt: null,
+        publishedBy: null,
+        publishedByName: null,
+      });
       recordMockHistory(variant.productId, "MEDIA", { subjectId: target.mediaId });
       return ok(target);
     },
@@ -941,6 +957,29 @@ export async function mockSkuExists(sku: string): Promise<boolean> {
 /** Hồ sơ hàng tồn của biến thể (giữ `version` dùng chung); null khi SKU chưa có hồ sơ. */
 export function mockItemRowOf(variantId: string): MockLogistics | null {
   return logistics.get(variantId) ?? null;
+}
+
+/**
+ * Issue #286 — `ProductVersionResponse.subjectSku` / `subjectLabel` của một dòng lịch sử: biến thể →
+ * SKU + tên biến thể; ảnh → SKU của biến thể + tên file. Đối tượng đã xoá (hoặc id không phải biến thể /
+ * ảnh) → rỗng, như BE.
+ */
+export async function mockHistorySubject(
+  subjectId: string,
+): Promise<{ subjectSku?: string; subjectLabel?: string }> {
+  const variants = await store();
+  const variant = variants.find((v) => v.variantId === subjectId);
+  if (variant) return { subjectSku: variant.sku, subjectLabel: variant.name };
+  for (const [variantId, list] of media) {
+    const image = list.find((m) => m.mediaId === subjectId);
+    if (!image) continue;
+    const owner = variants.find((v) => v.variantId === variantId);
+    return {
+      ...(owner ? { subjectSku: owner.sku } : {}),
+      ...(image.originalName ? { subjectLabel: image.originalName } : {}),
+    };
+  }
+  return {};
 }
 
 /** Biến thể của một sản phẩm (đã sắp theo vị trí). */

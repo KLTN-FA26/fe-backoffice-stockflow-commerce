@@ -143,3 +143,15 @@ export function pickedOnTray(
   const onTray = new Set(tray.map((parcel) => parcel.packageId));
   return new Set([...picked].filter((id) => onTray.has(id)));
 }
+
+/**
+ * Nhãn kho xuất của kế hoạch từ mã + tên BE trả (#286): "HN · Kho Hà Nội"; chỉ có tên → tên; BE cũ chưa trả → null (ô ghi
+ * "—", không bao giờ hiện UUID thô, không tải danh mục kho chỉ để hiện tên).
+ */
+export function planWarehouseLabel(plan: {
+  warehouseCode?: string | null;
+  warehouseName?: string | null;
+}): string | null {
+  if (!plan.warehouseName) return plan.warehouseCode ?? null;
+  return plan.warehouseCode ? `${plan.warehouseCode} · ${plan.warehouseName}` : plan.warehouseName;
+}

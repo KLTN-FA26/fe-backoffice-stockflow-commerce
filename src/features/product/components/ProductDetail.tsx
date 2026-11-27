@@ -15,7 +15,7 @@ import {
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { usePermissionChecker } from "@/lib/auth/components/Can";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
-import { productChangeGate, useCategories, useProduct, useVariants } from "@/features/product";
+import { productChangeGate, useProduct, useVariants } from "@/features/product";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Button } from "@/components/ui/button";
 
@@ -42,15 +42,13 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
   // BE: GET biến thể / trục cần `product-variants:READ` — thiếu thì không gọi, mục báo không có quyền
   const canReadVariants = can(VARIANT_PERMISSIONS.read);
   const variantsQuery = useVariants(productId, canReadVariants);
-  const categoriesQuery = useCategories({});
   const variants = useMemo(() => variantsQuery.data ?? [], [variantsQuery.data]);
   // variantId → SKU cho mục Lịch sử: chỉ dựng lại khi danh sách biến thể đổi, không mỗi lần render.
   const skuById = useMemo(() => new Map(variants.map((v) => [v.variantId, v.sku])), [variants]);
-  const categories = categoriesQuery.data?.items ?? [];
   const product = productQuery.data ?? null;
   const status = useProductStatusActions(product);
 
-  if (productQuery.isLoading || categoriesQuery.isLoading) {
+  if (productQuery.isLoading) {
     return <PageSkeleton variant="detail" />;
   }
   if (!product) {
@@ -85,7 +83,6 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
       <ProductDuplicateList matches={product.possibleDuplicates ?? []} />
       <ProductOverviewPanel
         product={product}
-        categories={categories}
         variants={variants}
         actions={
           // UI-only — BE re-check quyền UPDATE và trạng thái Nháp (`Product.updateDetails`)

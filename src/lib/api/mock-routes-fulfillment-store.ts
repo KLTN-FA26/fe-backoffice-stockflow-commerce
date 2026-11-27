@@ -36,6 +36,8 @@ export type MockDestination = "DISPATCH" | "STAGING";
 
 export interface MockTask {
   taskId: string;
+  /** Số task đọc được `PK-yyyyMMdd-nnnn` (issue #286) — đánh theo ngày tạo task, tăng dần trong ngày. */
+  taskNumber: string;
   orderId: string;
   /** BE PR #136 trả thêm số đơn + kho trên task. */
   orderNumber: string;
@@ -101,6 +103,7 @@ function seedTask(order: Order, spec: SeedSpec): MockTask {
     new Date(new Date(order.placedAt).getTime() + minutes * 60_000).toISOString();
   const task: MockTask = {
     taskId: mockTaskId(order.orderId),
+    taskNumber: "",
     orderId: order.orderId,
     orderNumber: order.orderNumber,
     warehouseId: order.fulfillmentWarehouseId,
@@ -121,6 +124,8 @@ function seedTask(order: Order, spec: SeedSpec): MockTask {
 
 /** userId → tên hiển thị (BE trả `assignedUserName` trên task); nạp cùng lúc với store. */
 const staffNameById = new Map<string, string>();
+/** warehouseId → mã + tên kho (BE kèm `warehouseCode` / `warehouseName` trên task, issue #286). */
+const warehouseById = new Map<string, { warehouseCode: string; warehouseName: string }>();
 
 /**
  * Store task; mỗi lần đọc đồng bộ đơn đã bị huỷ ở mock đơn hàng (BE `OrderCancellationListener` chạy sau sự
@@ -139,8 +144,10 @@ export async function getFulfillmentStore(): Promise<Map<string, MockTask>> {
 
 async function loadStore(): Promise<Map<string, MockTask>> {
   if (store) return store;
-  const { orders, staffUsers } = await import("@/lib/mock-data");
+  const { orders, staffUsers, warehouses } = await import("@/lib/mock-data");
   for (const user of staffUsers) staffNameById.set(user.userId, user.fullName);
+  for (const w of warehouses)
+    warehouseById.set(w.warehouseId, { warehouseCode: w.code, warehouseName: w.name });
   const seeded = new Map<string, MockTask>();
   const used = new Set<OrderStatus>();
   // Seed chỉ đổi trạng thái đơn còn nguyên như mock-data — không ghi đè vòng đời đã đổi trong phiên (vd đơn
@@ -153,6 +160,7 @@ async function loadStore(): Promise<Map<string, MockTask>> {
     if (!spec || used.has(order.status)) continue;
     used.add(order.status);
     const task = seedTask(order, spec);
+    task.taskNumber = nextTaskNumber(task.createdAt, seeded.values());
     seeded.set(task.taskId, task);
     if (!(await untouched(order))) continue;
     if (task.pickStatus === "PENDING") setMockOrderStatus(order.orderId, "PICKING");
@@ -175,6 +183,22 @@ function mockTaskId(seed: string): string {
     hex.slice(16, 20),
     hex.slice(20, 32),
   ].join("-");
+}
+
+const VN_OFFSET_MS = 7 * 60 * 60 * 1000;
+
+/**
+ * BE số task `PK-yyyyMMdd-nnnn`: ngày tạo theo giờ Việt Nam, số thứ tự 4 chữ số tăng dần trong ngày (theo các task đã có).
+ */
+export function nextTaskNumber(createdAt: string, existing: Iterable<MockTask>): string {
+  const day = new Date(new Date(createdAt).getTime() + VN_OFFSET_MS)
+    .toISOString()
+    .slice(0, 10)
+    .replaceAll("-", "");
+  const prefix = `PK-${day}-`;
+  let count = 0;
+  for (const task of existing) if (task.taskNumber.startsWith(prefix)) count += 1;
+  return `${prefix}${String(count + 1).padStart(4, "0")}`;
 }
 
 export function nextTaskId(): string {
@@ -200,7 +224,11 @@ export async function taskLinesOf(task: MockTask) {
 /** `FulfillmentTaskResponse` — field chưa có giá trị bị bỏ (Jackson non_null). */
 export function toTaskResponse(task: MockTask) {
   const { createdAt: _createdAt, ...rest } = task;
-  return { ...rest, assignedUserName: staffNameById.get(task.assignedUserId) };
+  return {
+    ...rest,
+    assignedUserName: staffNameById.get(task.assignedUserId),
+    ...warehouseById.get(task.warehouseId),
+  };
 }
 
 /* ── Người gọi ───────────────────────────────────────────────────────── */

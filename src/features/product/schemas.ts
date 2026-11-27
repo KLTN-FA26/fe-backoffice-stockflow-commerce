@@ -63,6 +63,8 @@ export const productSchema = z.object({
   slug: z.string().min(1).optional(),
   type: productTypeSchema,
   categoryId: z.string().min(1).nullable(),
+  /** BE `ProductResponse.categoryName` (issue #286) — thiếu (BE cũ / null bị bỏ) thì hiện "—". */
+  categoryName: z.string().optional(),
   status: productStatusSchema,
   /** BE `ProductResponse.version` — gửi lại khi sửa / ngừng kinh doanh (409 OPTIMISTIC_LOCK nếu đã đổi). */
   version: z.number().int(),
@@ -83,9 +85,18 @@ export const productSchema = z.object({
   createdAt: z.string(),
   createdBy: z.string(),
   submittedBy: z.string().optional(),
+  /** BE `ProductResponse.submittedByName` / `approvedByName` (issue #286) — tên cạnh id người làm. */
+  submittedByName: z.string().optional(),
   submittedAt: z.string().optional(),
   approvedBy: z.string().optional(),
+  approvedByName: z.string().optional(),
   approvedAt: z.string().optional(),
+  /**
+   * BE `ProductResponse.canApprove` (issue #286): người gọi duyệt được sản phẩm này (PENDING_APPROVAL +
+   * `product-products:APPROVE` + không tự duyệt, trừ người giữ `product-lifecycle:APPROVE`). Thiếu
+   * (BE cũ) → FE tự suy bằng `mayApproveProduct`.
+   */
+  canApprove: z.boolean().optional(),
   suspendedAt: z.string().optional(),
   suspendReason: z.string().optional(),
   discontinuedAt: z.string().optional(),
@@ -168,6 +179,7 @@ export const productMasterDtoSchema = z.object({
   brandId: z.string().nullish(),
   brandName: z.string().nullish(),
   categoryId: z.string().nullish(),
+  categoryName: z.string().nullish(),
   shortDescription: z.string().nullish(),
   description: z.string().nullish(),
   taxClass: z.enum(["STANDARD", "REDUCED", "EXEMPT"]),
@@ -178,9 +190,13 @@ export const productMasterDtoSchema = z.object({
   createdAt: z.string(),
   createdBy: z.string().nullish(),
   submittedBy: z.string().nullish(),
+  submittedByName: z.string().nullish(),
   submittedAt: z.string().nullish(),
   approvedBy: z.string().nullish(),
+  approvedByName: z.string().nullish(),
   approvedAt: z.string().nullish(),
+  /** Issue #286: BE luôn trả; `nullish` để BE cũ không làm hỏng parse. */
+  canApprove: z.boolean().nullish(),
   rejectionReason: z.string().nullish(),
   /** Chỉ có khi INACTIVE (tạm ngưng) / DISCONTINUED — kèm lý do (BE `ck_products_inactive` / `_discontinued`). */
   suspendedAt: z.string().nullish(),

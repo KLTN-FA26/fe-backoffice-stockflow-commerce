@@ -79,6 +79,7 @@ export const ftlLoadFields = {
   vehicleTypeCode: z.string().nullish(),
   bookedAt: isoInstant.nullish(),
   bookedBy: z.string().nullish(),
+  bookedByName: z.string().nullish(),
   bookingCancelledAt: isoInstant.nullish(),
   bookingCancelReason: z.string().nullish(),
   pendingUnloads: z.array(pendingUnloadSchema).nullish(),

@@ -13,6 +13,16 @@ import type { Quote } from "@/features/quote/types";
 
 const DASH = <span className="text-ink-tertiary font-normal">—</span>;
 
+/** Thời điểm kèm tên người làm (#286 `xxxByName`, khi BE trả) — không có tên thì chỉ thời điểm, không hiện id. */
+function AtBy({ at, by }: { at: string; by: string | null | undefined }) {
+  return (
+    <span>
+      <span className="tabular-nums">{formatDateTime(at)}</span>
+      {by && <span className="text-ink-secondary"> · {by}</span>}
+    </span>
+  );
+}
+
 /** Luồng chính (QUOTE_TRANSITIONS): nháp → đã gửi → đã chấp nhận → đã tạo đơn; nhánh rẽ nối thêm làm bước cuối. Nhãn lấy
  * nguyên văn `QUOTE_STATUS_LABELS`. */
 const MAIN = [S.DRAFT, S.SENT, S.ACCEPTED, S.CONVERTED];
@@ -61,7 +71,8 @@ export function QuoteOverviewPanel({ quote }: { quote: Quote }) {
       }
     >
       <ProfileFact label="Khách hàng">
-        <CustomerName id={quote.customerId} />
+        {/* #286: tên / mã khách BE kèm sẵn → không tra `GET /customers/{id}` khi đã có tên */}
+        <CustomerName id={quote.customerId} name={quote.customerName} code={quote.customerCode} />
       </ProfileFact>
       <ProfileFact label="Bản sửa số">
         <span className={MONO}>{quote.revision}</span>
@@ -76,17 +87,13 @@ export function QuoteOverviewPanel({ quote }: { quote: Quote }) {
         {quote.requestedDeliveryDate ? formatDate(quote.requestedDeliveryDate) : DASH}
       </ProfileFact>
       <ProfileFact label="Tạo lúc">
-        <span className="tabular-nums">{formatDateTime(quote.createdAt)}</span>
+        <AtBy at={quote.createdAt} by={quote.createdByName} />
       </ProfileFact>
       <ProfileFact label="Gửi khách">
-        {quote.sentAt ? <span className="tabular-nums">{formatDateTime(quote.sentAt)}</span> : DASH}
+        {quote.sentAt ? <AtBy at={quote.sentAt} by={quote.sentByName} /> : DASH}
       </ProfileFact>
       <ProfileFact label="Khách phản hồi">
-        {quote.respondedAt ? (
-          <span className="tabular-nums">{formatDateTime(quote.respondedAt)}</span>
-        ) : (
-          DASH
-        )}
+        {quote.respondedAt ? <AtBy at={quote.respondedAt} by={quote.respondedByName} /> : DASH}
       </ProfileFact>
       <ProfileFact label="Số dòng">
         <span className="tabular-nums">{quote.lines.length}</span>

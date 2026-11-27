@@ -98,16 +98,31 @@ function HoldDetails({ hold }: { hold: CompletionHold }) {
         )}
         <dt className="text-ink-secondary">{L.heldAt}</dt>
         <dd className="text-ink-primary tabular-nums">{formatDateTime(hold.heldAt)}</dd>
-        {hold.heldBy && (
+        <PersonRow label={L.heldBy} name={hold.heldByName} />
+        {hold.releasedAt && (
           <>
-            <dt className="text-ink-secondary">{L.heldBy}</dt>
-            {/* BE chỉ trả id người giữ (không có tên) — hiện mã, không đoán tên */}
-            <dd className="text-ink-primary truncate font-mono text-xs" title={hold.heldBy}>
-              {hold.heldBy}
-            </dd>
+            <dt className="text-ink-secondary">{L.releasedAt}</dt>
+            <dd className="text-ink-primary tabular-nums">{formatDateTime(hold.releasedAt)}</dd>
+            <PersonRow label={L.releasedBy} name={hold.releasedByName} />
           </>
         )}
       </dl>
     </div>
+  );
+}
+
+/**
+ * Người giữ / người gỡ: tên BE kèm (`heldByName` / `releasedByName`, issue #286). BE chưa gửi tên → bỏ dòng, không hiện
+ * UUID người dùng (BO-UX-6), không đoán tên.
+ */
+function PersonRow({ label, name }: { label: string; name: string | null }) {
+  if (!name) return null;
+  return (
+    <>
+      <dt className="text-ink-secondary">{label}</dt>
+      <dd className="text-ink-primary truncate" title={name}>
+        {name}
+      </dd>
+    </>
   );
 }

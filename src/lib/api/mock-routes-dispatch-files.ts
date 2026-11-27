@@ -20,6 +20,7 @@ import { getDispatchState } from "./mock-dispatch-store";
 import { fail, ok } from "./mock-route-utils";
 import { currentActor, routeParam } from "./mock-routes-fulfillment-store";
 import { parseJsonBody } from "./mock-routes-purchase-orders-store";
+import { loadMockStaffNames, mockStaffName } from "./mock-display-names";
 
 import type { AxiosRequestConfig } from "axios";
 import type { ShippingFileKind } from "@/constants/shipping-files";
@@ -35,6 +36,8 @@ interface MockAttachedFile {
   contentType: string;
   sizeBytes: number;
   uploadedBy: string;
+  /** Tên người tải (#286) — tra từ nhân viên mock / tài khoản đang đăng nhập lúc gắn file; không biết → null. */
+  uploadedByName: string | null;
   uploadedAt: string;
   blob: Blob | null;
 }
@@ -61,12 +64,18 @@ export function resetAttachedFilesMockStore(): void {
 
 const forbidden = () => fail(403, "FORBIDDEN", "Access denied");
 
+async function uploaderName(userId: string): Promise<string | null> {
+  await loadMockStaffNames();
+  return mockStaffName(userId);
+}
+
 const view = (file: MockAttachedFile) => ({
   fileId: file.fileId,
   fileName: file.fileName,
   contentType: file.contentType,
   sizeBytes: file.sizeBytes,
   uploadedBy: file.uploadedBy,
+  uploadedByName: file.uploadedByName,
   uploadedAt: file.uploadedAt,
 });
 
@@ -181,6 +190,7 @@ function registerKind(kind: ShippingFileKind, base: string): void {
       contentType: upload.contentType,
       sizeBytes: upload.sizeBytes,
       uploadedBy: actor.userId,
+      uploadedByName: await uploaderName(actor.userId),
       uploadedAt: new Date().toISOString(),
       blob: upload.received,
     };

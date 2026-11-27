@@ -14,7 +14,12 @@ import { formatDate, formatDateTime } from "@/lib/format/date";
 import { useProducerDirectory } from "@/lib/references/producer-options";
 
 import { useSalesOrderBatches } from "@/features/production-order/queries";
-import { receivingWarehouseCode } from "@/features/production-order/selectors";
+import {
+  codeNameLabel,
+  producerLabelOf,
+  receivingWarehouseCode,
+  receivingWarehouseName,
+} from "@/features/production-order/selectors";
 
 import { CustomerName } from "@/components/backoffice/CustomerName";
 import { EMPTY_CELL } from "@/components/shared/column-helpers";
@@ -26,10 +31,18 @@ import type { ProductionOrder } from "@/features/production-order/types";
 
 const L = PRODUCTION_LABELS.detail;
 
-/** Người thao tác: "Bạn" khi là người đang đăng nhập, còn lại mã nhân viên rút gọn (không có API tra tên cho mọi vai). */
-export function actorLabel(id: string | null | undefined, me: string | null | undefined): string {
-  if (!id) return L.system;
-  return id === me ? L.you : L.userShort(id);
+/**
+ * Người thao tác: "Bạn" khi là người đang đăng nhập; còn lại tên BE kèm sẵn (#286 `xxxByName`); BE cũ không kèm tên →
+ * mã nhân viên rút gọn.
+ */
+export function actorLabel(
+  id: string | null | undefined,
+  me: string | null | undefined,
+  name?: string | null,
+): string {
+  if (!id) return name || L.system;
+  if (id === me) return L.you;
+  return name || L.userShort(id);
 }
 
 const when = (iso: string | null | undefined) => (iso ? formatDateTime(iso) : null);
@@ -47,7 +60,8 @@ export function GeneralCard({
 }) {
   // Thiếu quyền đọc thì không gọi (403 làm tải lại quyền toàn app) — hiện mã rút gọn thay tên
   const can = usePermissionChecker();
-  const producers = useProducerDirectory(can(PRODUCER_PERMISSIONS.read));
+  // #286: BE kèm tên đơn vị → chỉ tra danh mục khi BE cũ chưa kèm
+  const producers = useProducerDirectory(can(PRODUCER_PERMISSIONS.read) && !order.producerName);
   const batches = useSalesOrderBatches(
     order.salesOrderId,
     can(ORDER_DELIVERY_BATCH_PERMISSIONS.read),
@@ -55,10 +69,13 @@ export function GeneralCard({
   const batch = batches.data?.batches.find((b) => b.batchId === order.deliveryBatchId);
   // Người gửi + giờ gửi (docs 17 §4.3 bước 7). Người duyệt / gửi duyệt chỉ có ở đơn trước 2026-11-20 (BR-23 chốt lại)
   const optionalRows: [string, string | null | undefined][] = [
-    [L.sentBy, order.sentBy ? actorLabel(order.sentBy, me) : null],
+    [L.sentBy, order.sentBy ? actorLabel(order.sentBy, me, order.sentByName) : null],
     [L.sentAt, when(order.sentAt)],
     [L.submittedAt, when(order.submittedAt)],
-    [L.approvedBy, order.approvedBy ? actorLabel(order.approvedBy, me) : null],
+    [
+      L.approvedBy,
+      order.approvedBy ? actorLabel(order.approvedBy, me, order.approvedByName) : null,
+    ],
     [L.approvedAt, when(order.approvedAt)],
     [L.acceptanceNote, order.acceptanceNote],
     [L.productionStartedAt, when(order.productionStartedAt)],
@@ -82,7 +99,7 @@ export function GeneralCard({
             href={ADMIN_ROUTES.orders.detail(order.salesOrderId)}
             className="text-accent-text font-[family-name:var(--font-mono)] hover:underline"
           >
-            {batches.data?.orderNumber ?? shortId(order.salesOrderId)}
+            {order.salesOrderNumber ?? batches.data?.orderNumber ?? shortId(order.salesOrderId)}
           </Link>
         </InfoRow>
         <InfoRow label={L.deliveryBatch}>
@@ -91,15 +108,23 @@ export function GeneralCard({
             : EMPTY_CELL}
         </InfoRow>
         <InfoRow label={L.customer}>
-          {order.customerId ? <CustomerName id={order.customerId} /> : EMPTY_CELL}
+          {order.customerId ? (
+            <CustomerName
+              id={order.customerId}
+              name={order.customerName}
+              code={order.customerCode}
+            />
+          ) : (
+            EMPTY_CELL
+          )}
         </InfoRow>
         <InfoRow label={L.producer}>
-          {producerLabel(producers.byId(order.producerId), order.producerId)}
+          {producerLabelOf(order) ??
+            producerLabel(producers.byId(order.producerId), order.producerId)}
         </InfoRow>
         <InfoRow label={L.warehouse}>
-          <span className="font-[family-name:var(--font-mono)]">
-            {receivingWarehouseCode(order) ?? shortId(order.receivingWarehouseId)}
-          </span>
+          {codeNameLabel(receivingWarehouseCode(order), receivingWarehouseName(order)) ??
+            shortId(order.receivingWarehouseId)}
         </InfoRow>
         <InfoRow label={L.needBy}>{formatDate(order.needByDate)}</InfoRow>
         <InfoRow label={L.expected}>
@@ -114,7 +139,9 @@ export function GeneralCard({
         {!order.sampleApprovalRequired && order.sampleWaiverReason && (
           <InfoRow label={L.waiverReason}>{order.sampleWaiverReason}</InfoRow>
         )}
-        <InfoRow label={L.drawnUpBy}>{actorLabel(order.drawnUpBy, me)}</InfoRow>
+        <InfoRow label={L.drawnUpBy}>
+          {actorLabel(order.drawnUpBy, me, order.drawnUpByName)}
+        </InfoRow>
         {optionalRows
           .filter(([, value]) => Boolean(value))
           .map(([label, value]) => (

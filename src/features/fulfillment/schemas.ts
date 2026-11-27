@@ -41,10 +41,15 @@ export const beTaskLineSchema = z.object({
  */
 export const beFulfillmentTaskSchema = z.object({
   taskId: z.string(),
+  /** Số task đọc được `PK-yyyyMMdd-nnnn` (issue #286); vắng ở BE cũ → id rút gọn. */
+  taskNumber: z.string().nullish(),
   orderId: z.string(),
   // BE PR #136 trả thêm số đơn / kho / tên người được gán
   orderNumber: z.string().nullish(),
   warehouseId: z.string().nullish(),
+  /** Mã + tên kho BE kèm cạnh id (issue #286). */
+  warehouseCode: z.string().nullish(),
+  warehouseName: z.string().nullish(),
   assignedUserName: z.string().nullish(),
   // API luôn gán khi tạo (CreateTaskRequest @NotNull), cột DB cho phép null
   assignedUserId: z.string().nullish(),

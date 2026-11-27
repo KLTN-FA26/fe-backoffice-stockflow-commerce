@@ -3,6 +3,8 @@
 import { useRef, useState } from "react";
 import { ImageOff, Pencil, Star, Trash2, Upload } from "lucide-react";
 
+import { UI_LABELS } from "@/constants";
+
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
@@ -28,6 +30,7 @@ const THUMB_EDGE = 256;
 /** BE `FileCategory.PRODUCT_IMAGE`: JPEG / PNG / WebP, tối đa 10 MB. */
 const ACCEPT = "image/jpeg,image/png,image/webp";
 const MAX_BYTES = 10 * 1024 * 1024;
+const N = UI_LABELS.product.names;
 
 /**
  * Ảnh của một biến thể (BE PR #71). Ảnh mới riêng tư cho tới khi được xuất bản; sản phẩm phải đã duyệt.
@@ -119,6 +122,7 @@ export function VariantMediaGallery({
                   </span>
                 )}
               </label>
+              {!compact && <MediaPeople media={m} />}
               {!compact && (
                 <div className="flex flex-wrap items-center gap-1">
                   {canManage && !m.primary && (
@@ -342,5 +346,22 @@ function IconButton({
     >
       {children}
     </Button>
+  );
+}
+
+/**
+ * Ai tải lên / xuất bản ảnh: tên BE trả kèm (`uploadedByName` / `publishedByName`, issue #286 — họ tên
+ * khi cột lưu id, còn không thì username). BE chưa gửi tên → bỏ, không hiện id thô (BO-UX-6).
+ */
+function MediaPeople({ media }: { media: VariantMedia }) {
+  const uploader = media.uploadedByName;
+  const publisher = media.publishedByName;
+  if (!uploader && !(media.published && publisher)) return null;
+  return (
+    <p className="text-ink-tertiary truncate text-[0.6875rem]">
+      {uploader && N.mediaUploadedBy(uploader)}
+      {uploader && media.published && publisher && " · "}
+      {media.published && publisher && N.mediaPublishedBy(publisher)}
+    </p>
   );
 }
