@@ -62,10 +62,10 @@ export function ProducerFields({
       control={form.control}
       name={name}
       render={({ field }) => (
-        <FormField id={`producer-${name}`} label={label} required>
+        <FormField id={`producer-${name}`} label={label} required error={errors[name]?.message}>
           {/* 2 giá trị cố định: hiện sẵn cả hai, một lần bấm (UX audit S01-6) */}
           <SegmentedControl<string>
-            id={`producer-${name}`}
+            {...fieldA11y(`producer-${name}`, errors[name]?.message)}
             label={label}
             value={field.value}
             onChange={(value) => field.onChange(value)}

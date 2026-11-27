@@ -9,6 +9,7 @@ import {
   VEHICLE_TYPE_STATUS_LABELS,
   VEHICLE_TYPE_STATUSES,
 } from "@/constants";
+import { fieldA11y } from "@/components/shared/FormField";
 import { SegmentedControl } from "@/components/shared/SegmentedControl";
 
 import { FormField, TextInput } from "./form-parts";
@@ -101,8 +102,8 @@ export function VehicleTypeFields({
         render={({ field }) => (
           // 2–3 giá trị cố định: hiện sẵn cả hai / ba, một lần bấm (UX audit S01-6)
           <SegmentedControl
-            id={`vt-${name}`}
-            label={L.field[name]}
+            {...fieldA11y(`vt-${name}`, errors[name]?.message, Boolean(opts.hint))}
+            labelledBy={`vt-${name}-label`}
             value={field.value}
             onChange={field.onChange}
             disabled={opts.disabled}

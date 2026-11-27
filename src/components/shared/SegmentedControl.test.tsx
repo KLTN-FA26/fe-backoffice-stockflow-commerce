@@ -41,4 +41,36 @@ describe("SegmentedControl", () => {
     expect(screen.getByRole("radio", { name: "Theo %" })).toHaveAttribute("tabindex", "0");
     expect(screen.queryByRole("radio", { checked: true })).toBeNull();
   });
+
+  it("when the checked option is disabled, the first usable option takes the Tab stop", () => {
+    render(
+      <SegmentedControl
+        label="Tính theo"
+        value="percent"
+        onChange={() => undefined}
+        options={[
+          { value: "percent", label: "Theo %", disabled: true },
+          { value: "amount", label: "Số tiền" },
+        ]}
+      />,
+    );
+    expect(screen.getByRole("radio", { name: "Theo %" })).toHaveAttribute("tabindex", "-1");
+    expect(screen.getByRole("radio", { name: "Số tiền" })).toHaveAttribute("tabindex", "0");
+  });
+
+  it("passes the error and hint wiring through to the group", () => {
+    render(
+      <SegmentedControl
+        label="Tính theo"
+        value="percent"
+        onChange={() => undefined}
+        options={OPTIONS}
+        aria-invalid
+        aria-describedby="x-hint x-error"
+      />,
+    );
+    const group = screen.getByRole("radiogroup", { name: "Tính theo" });
+    expect(group).toHaveAttribute("aria-invalid", "true");
+    expect(group).toHaveAttribute("aria-describedby", "x-hint x-error");
+  });
 });

@@ -111,8 +111,7 @@ export function CancellationFeeFields({
           </Label>
           <NumberInput
             suffix="%"
-            step={ORDER_LIMITS.percentInputStep}
-            inputMode="decimal"
+            decimal
             value={fee.percent}
             onChange={(event) => fee.setPercent(event.target.value)}
             {...fieldA11y(percentId, errors.retainedPercent)}

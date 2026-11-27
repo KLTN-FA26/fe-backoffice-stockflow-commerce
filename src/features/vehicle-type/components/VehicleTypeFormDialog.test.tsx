@@ -149,7 +149,7 @@ describe("VehicleTypeFormDialog — sửa loại xe", () => {
 
   it("loại xe mặc định: mã và loại bị khoá, có gợi ý; loại xe tự thêm đổi được loại", async () => {
     renderDialog(apiVehicleType());
-    const kind = await screen.findByRole("radiogroup", { name: L.field.kind });
+    const kind = await screen.findByRole("radiogroup", { name: new RegExp(`^${L.field.kind}`) });
     expect(
       within(kind)
         .getAllByRole("radio")
@@ -161,7 +161,7 @@ describe("VehicleTypeFormDialog — sửa loại xe", () => {
 
   it("loại xe tự thêm: loại chọn được, chỉ mã bị khoá", async () => {
     renderDialog(apiCustomTruck());
-    const kind = await screen.findByRole("radiogroup", { name: L.field.kind });
+    const kind = await screen.findByRole("radiogroup", { name: new RegExp(`^${L.field.kind}`) });
     expect(
       within(kind)
         .getAllByRole("radio")

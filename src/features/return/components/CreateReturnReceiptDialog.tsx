@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Controller, useForm, useWatch } from "react-hook-form";
@@ -19,16 +19,17 @@ import { useWarehouseOptions } from "@/lib/references/warehouse-options";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { FormField, fieldA11y } from "@/components/shared/FormField";
 import { FORM_TEXTAREA_CLASS } from "@/components/shared/form-control-classes";
-import { SegmentedControl } from "@/components/shared/SegmentedControl";
 import { Textarea } from "@/components/ui/textarea";
 
 import { openDraftReceiptOf, returnErrorMessage } from "../errors";
 import { createReceiptInputSchema } from "../input-schemas";
 import { useCreateReturnReceipt } from "../mutations";
 import { receiptCreatableNow } from "../lifecycle";
+import { useSingleChoiceDefault } from "../use-single-choice-default";
 import { useReceiptSourceReturns, useReturn, useReturnedShipments } from "../queries";
 
 import { PickField } from "./PickField";
+import { ReceiptSourceTypeField } from "./ReceiptSourceTypeField";
 
 import type { CreateReceiptFormValues, ReturnRequest, ReturnRow } from "../types";
 
@@ -66,9 +67,9 @@ function CreateForm({
     },
   });
   const { errors } = form.formState;
-  const [sourceType, warehouseId] = useWatch({
+  const [sourceType, warehouseId, areaCode] = useWatch({
     control: form.control,
-    name: ["sourceType", "warehouseId"],
+    name: ["sourceType", "warehouseId", "quarantineLocationCode"],
   });
   const areas = useWarehouseAreas(
     warehouseId || undefined,
@@ -79,14 +80,10 @@ function CreateForm({
   const onlyWarehouseId = warehouseList.length === 1 ? warehouseList[0]?.warehouseId : undefined;
   const onlyAreaCode = quarantine.length === 1 ? quarantine[0]?.locationCode : undefined;
   // Chỉ có một kho / một khu cách ly để chọn thì chọn sẵn (UX audit S21-2)
-  useEffect(() => {
-    if (onlyWarehouseId && !form.getValues("warehouseId"))
-      form.setValue("warehouseId", onlyWarehouseId);
-  }, [form, onlyWarehouseId]);
-  useEffect(() => {
-    if (onlyAreaCode && !form.getValues("quarantineLocationCode"))
-      form.setValue("quarantineLocationCode", onlyAreaCode);
-  }, [form, onlyAreaCode]);
+  useSingleChoiceDefault(onlyWarehouseId, warehouseId, (id) => form.setValue("warehouseId", id));
+  useSingleChoiceDefault(onlyAreaCode, areaCode, (code) =>
+    form.setValue("quarantineLocationCode", code),
+  );
 
   const submit = form.handleSubmit((values) =>
     create.mutate(
@@ -120,25 +117,7 @@ function CreateForm({
       onCancel={onClose}
       onSubmit={() => void submit()}
     >
-      <Controller
-        control={form.control}
-        name="sourceType"
-        render={({ field }) => (
-          // 2 nguồn cố định: hiện sẵn cả hai, một lần bấm (UX audit S01-6)
-          <FormField id="rr-source-type" label={L.sourceType}>
-            <SegmentedControl<string>
-              id="rr-source-type"
-              label={L.sourceType}
-              value={field.value}
-              onChange={field.onChange}
-              options={[
-                { value: "RMA", label: L.sourceRma },
-                ...(canReadShipments ? [{ value: "SHIPMENT", label: L.sourceShipment }] : []),
-              ]}
-            />
-          </FormField>
-        )}
-      />
+      <ReceiptSourceTypeField control={form.control} canReadShipments={canReadShipments} />
       {sourceType === "RMA" ? (
         <Controller
           control={form.control}

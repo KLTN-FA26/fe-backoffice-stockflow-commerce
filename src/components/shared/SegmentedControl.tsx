@@ -38,7 +38,9 @@ export function SegmentedControl<T extends string>({
   "aria-describedby"?: string;
 }) {
   const enabled = options.filter((option) => !option.disabled);
-  const selectedIndex = options.findIndex((option) => option.value === value);
+  // The checked option, or the first usable one when nothing is checked or the checked one is disabled
+  const checkedOption = options.find((option) => option.value === value && !option.disabled);
+  const tabStop = checkedOption ?? enabled[0];
   const move = (group: HTMLElement | null, from: number, step: 1 | -1) => {
     for (let i = 1; i <= options.length; i += 1) {
       const at = (from + step * i + options.length * i) % options.length;
@@ -74,7 +76,7 @@ export function SegmentedControl<T extends string>({
             aria-checked={checked}
             disabled={off}
             // Một điểm dừng Tab cho cả nhóm: nút đang chọn (hoặc nút đầu dùng được khi chưa chọn)
-            tabIndex={checked || (selectedIndex < 0 && option === enabled[0]) ? 0 : -1}
+            tabIndex={option === tabStop ? 0 : -1}
             onClick={() => onChange(option.value)}
             onKeyDown={(event) => {
               if (event.key === "ArrowRight" || event.key === "ArrowDown") {

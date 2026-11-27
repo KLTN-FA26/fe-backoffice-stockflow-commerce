@@ -54,7 +54,6 @@ export function QuantityLines({
                 </label>
                 <NumberInput
                   id={id}
-                  inputMode="numeric"
                   aria-invalid={!!error}
                   aria-describedby={`${id}-cap`}
                   className={`${FORM_INPUT_CLASS} text-right tabular-nums`}

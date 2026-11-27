@@ -27,4 +27,13 @@ describe("FilePickerField", () => {
     await userEvent.upload(input as HTMLInputElement, file);
     expect(onChange).toHaveBeenCalledWith(file);
   });
+
+  it("capture: chuyển xuống ô tệp để điện thoại mở thẳng máy ảnh; không đặt thì không có", () => {
+    const { container, rerender } = render(
+      <FilePickerField id="f" capture="environment" onChange={() => {}} />,
+    );
+    expect(container.querySelector("input#f")).toHaveAttribute("capture", "environment");
+    rerender(<FilePickerField id="f" onChange={() => {}} />);
+    expect(container.querySelector("input#f")).not.toHaveAttribute("capture");
+  });
 });

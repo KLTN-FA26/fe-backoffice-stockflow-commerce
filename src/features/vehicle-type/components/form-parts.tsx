@@ -34,11 +34,19 @@ export function FormField({
 }) {
   return (
     <div>
-      <Label htmlFor={id} className="text-ink-secondary mb-1 block text-xs font-medium">
+      <Label
+        id={`${id}-label`}
+        htmlFor={id}
+        className="text-ink-secondary mb-1 block text-xs font-medium"
+      >
         {label} {required && <span className="text-danger">*</span>}
       </Label>
       {children}
-      {hint && !error && <p className="text-ink-tertiary mt-1 text-xs">{hint}</p>}
+      {hint && !error && (
+        <p id={`${id}-hint`} className="text-ink-tertiary mt-1 text-xs">
+          {hint}
+        </p>
+      )}
       <FieldError id={`${id}-error`}>{error}</FieldError>
     </div>
   );

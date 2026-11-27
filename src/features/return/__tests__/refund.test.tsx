@@ -66,7 +66,7 @@ describe("propose (Sales, RECEIVED)", () => {
     renderReturnScreen(<ReturnDetail id="ret-1" />);
     await userEvent.click(await screen.findByRole("button", { name: /Đề xuất hoàn tiền/ }));
     const dialog = await screen.findByRole("dialog");
-    expect(within(dialog).getByLabelText(/SL hoàn SKU-CUP-01/)).toHaveValue(18);
+    expect(within(dialog).getByLabelText(/SL hoàn SKU-CUP-01/)).toHaveValue("18");
     expect(within(dialog).getByText("tối đa 18")).toBeInTheDocument();
     await userEvent.click(within(dialog).getByRole("button", { name: "Gửi đề xuất" }));
     await waitFor(() =>

@@ -13,7 +13,6 @@ import { FilePickerField } from "@/components/shared/FilePickerField";
 import { FormField, fieldA11y } from "@/components/shared/FormField";
 import { FORM_TEXTAREA_CLASS } from "@/components/shared/form-control-classes";
 import { Notice } from "@/components/shared/Notice";
-import { NumberInput } from "@/components/shared/NumberInput";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -25,6 +24,7 @@ import { useAddCustody } from "../mutations";
 import { custodyEvidence, evidenceFileProblem } from "../selectors";
 
 import { CustodyNoteActions, CustodyOutcomeText } from "./CustodyNoteActions";
+import { QuantityField } from "./QuantityField";
 import { EMPTY, MONO, When } from "./primitives";
 
 import type { CustodyFormValues, ReturnRequest } from "../types";
@@ -101,11 +101,12 @@ function CustodyForm({ ret }: { ret: ReturnRequest }) {
         />
       </FormField>
       <FormField id="custody-qty" label={C.quantity} required error={errors.quantity?.message}>
-        <NumberInput
-          min={1}
-          inputMode="numeric"
-          {...fieldA11y("custody-qty", errors.quantity?.message)}
-          {...form.register("quantity", { valueAsNumber: true })}
+        <QuantityField
+          control={form.control}
+          name="quantity"
+          inputProps={{
+            ...fieldA11y("custody-qty", errors.quantity?.message),
+          }}
         />
       </FormField>
       <div className="sm:col-span-3">

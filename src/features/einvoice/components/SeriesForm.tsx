@@ -1,14 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
-import { EINVOICE_PROVIDER_CODES } from "@/constants/einvoice";
+import { EINVOICE_LIMITS, EINVOICE_PROVIDER_CODES } from "@/constants/einvoice";
 import { FormField, fieldA11y } from "@/components/shared/FormField";
-import { NumberInput } from "@/components/shared/NumberInput";
+import { FormSelect } from "@/components/shared/FormSelect";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/shared/combobox-select";
 
 import { applyEInvoiceFieldErrors, einvoiceErrorMessage } from "../errors";
 import { seriesInputSchema, seriesInputSchemaFor } from "../input-schemas";
@@ -18,6 +24,11 @@ import type { z } from "zod";
 import type { SeriesInput } from "../types";
 
 type Values = z.input<typeof seriesInputSchema>;
+/** Năm nay và một năm liền kề mỗi bên, trong khoảng BE nhận (`EINVOICE_LIMITS.yearMin..yearMax`). */
+const yearChoices = (current: number) =>
+  [current - 1, current, current + 1].filter(
+    (value) => value >= EINVOICE_LIMITS.yearMin && value <= EINVOICE_LIMITS.yearMax,
+  );
 const SERIES_FIELDS = ["symbol", "year", "providerTemplateCode"] as const;
 
 /**
@@ -62,9 +73,27 @@ export function SeriesForm({ provider }: { provider: string }) {
         />
       </FormField>
       <FormField id="series-year" label="Năm" required error={errors.year?.message}>
-        <NumberInput
-          {...fieldA11y("series-year", errors.year?.message)}
-          {...form.register("year", { valueAsNumber: true })}
+        <Controller
+          control={form.control}
+          name="year"
+          render={({ field }) => (
+            // Năm áp dụng của dải hoá đơn: chọn trong vài năm quanh năm nay, không gõ số (UX audit S01-7)
+            <FormSelect
+              value={String(field.value)}
+              onValueChange={(value) => field.onChange(Number(value))}
+            >
+              <SelectTrigger {...fieldA11y("series-year", errors.year?.message)}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {yearChoices(year).map((choice) => (
+                  <SelectItem key={choice} value={String(choice)}>
+                    {choice}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </FormSelect>
+          )}
         />
       </FormField>
       {!sandbox && (

@@ -17,6 +17,7 @@ const L = UI_LABELS.filePicker;
 export function FilePickerField({
   id,
   accept,
+  capture,
   fileName,
   onChange,
   disabled,
@@ -26,6 +27,8 @@ export function FilePickerField({
 }: {
   id: string;
   accept?: string;
+  /** Trên điện thoại: mở thẳng máy ảnh sau (`environment`) hoặc trước (`user`) thay cho hộp chọn tệp. */
+  capture?: "environment" | "user";
   /** Tên tệp đang chọn (state của nơi dùng); `null` / rỗng = chưa chọn. */
   fileName?: string | null;
   onChange: (file: File | null) => void;
@@ -42,6 +45,7 @@ export function FilePickerField({
         id={id}
         type="file"
         accept={accept}
+        capture={capture}
         disabled={disabled}
         aria-invalid={ariaInvalid}
         aria-describedby={ariaDescribedBy}
