@@ -27,6 +27,7 @@ import { changePasswordApi, logoutApi } from "../auth-api";
 import { changePasswordFormSchema } from "../auth-schemas";
 import { useAuthStore } from "../auth-store";
 import { useAuthLifecycle } from "../use-auth-lifecycle";
+import { SessionErrorState } from "./SessionErrorState";
 
 import type { ChangePasswordFormValues } from "../auth-schemas";
 
@@ -82,24 +83,26 @@ export function ChangePasswordPage() {
     }
   }
 
+  if (bootstrapError && !isAuthenticated)
+    return (
+      <SessionErrorState
+        message={bootstrapError}
+        onRetry={retry}
+        secondaryAction={
+          <Button
+            className="h-10 w-full rounded-[var(--r-md)]"
+            variant="outline"
+            onClick={() => void logout()}
+          >
+            {CHANGE_PASSWORD_UI.logout}
+          </Button>
+        }
+      />
+    );
   if (!isAuthenticated) {
     return (
       <main className="bg-bg-base flex min-h-screen items-center justify-center px-6">
-        {bootstrapError ? (
-          <div role="alert" className="text-ink-primary flex flex-col items-center gap-3 text-sm">
-            {bootstrapError}
-            <div className="flex gap-2">
-              <Button size="sm" onClick={retry}>
-                {AUTH_UI.retry}
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => void logout()}>
-                {CHANGE_PASSWORD_UI.logout}
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <CarPageLoader label={AUTH_UI.verifyingSession} />
-        )}
+        <CarPageLoader label={AUTH_UI.verifyingSession} />
       </main>
     );
   }

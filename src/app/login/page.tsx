@@ -20,10 +20,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState, useTransition } from "react";
 
 import { APP_ROUTES } from "@/constants";
-import { AUTH_UI } from "@/constants/auth";
 
 import { getMockLoginUsersApi, loginApi, mockLoginApi } from "@/lib/auth/auth-api";
 import { useAuthStore } from "@/lib/auth/auth-store";
+import { SessionErrorState } from "@/lib/auth/components/SessionErrorState";
 import { loginErrorMessage } from "@/lib/auth/login-error";
 import { landingFor } from "@/lib/auth/redirect";
 import { useAuthLifecycle } from "@/lib/auth/use-auth-lifecycle";
@@ -147,14 +147,7 @@ function LoginForm() {
   }
 
   if (status === "unknown" && bootstrapError)
-    return (
-      <main className="bg-bg-base flex min-h-screen items-center justify-center">
-        <div role="alert">
-          {bootstrapError}
-          <Button onClick={retry}>{AUTH_UI.retry}</Button>
-        </div>
-      </main>
-    );
+    return <SessionErrorState message={bootstrapError} onRetry={retry} />;
   if (status === "unknown" || isAuthenticated) return <LoginPageFallback />;
 
   const selectedUser = mockUsers.find((user) => user.userId === selectedUserId);

@@ -6,10 +6,10 @@ import { useEffect } from "react";
 import { AUTH_UI } from "@/constants/auth";
 
 import { CarPageLoader } from "@/components/shared/CarPageLoader";
-import { Button } from "@/components/ui/button";
 
 import { loginUrlFor } from "../redirect";
 import { useAuthLifecycle } from "../use-auth-lifecycle";
+import { SessionErrorState } from "./SessionErrorState";
 
 import type { ReactNode } from "react";
 
@@ -30,19 +30,12 @@ export function AuthGuard({ children }: { children: ReactNode }) {
     router.replace(loginUrlFor(`${pathname}${search}`));
   }, [status, router]);
 
+  if (bootstrapError && !isAuthenticated)
+    return <SessionErrorState message={bootstrapError} onRetry={retry} />;
   if (!isAuthenticated) {
     return (
       <main className="bg-bg-base flex min-h-screen items-center justify-center px-6">
-        {bootstrapError ? (
-          <div role="alert" className="text-ink-primary flex flex-col items-center gap-3 text-sm">
-            {bootstrapError}
-            <Button size="sm" onClick={retry}>
-              {AUTH_UI.retry}
-            </Button>
-          </div>
-        ) : (
-          <CarPageLoader label={AUTH_UI.verifyingSession} />
-        )}
+        <CarPageLoader label={AUTH_UI.verifyingSession} />
       </main>
     );
   }
