@@ -33,12 +33,8 @@ export const ORDER_RELEASE_LABELS = {
     hint: "Chỉ xuất kho được đợt giao kế tiếp — máy chủ kiểm khi xuất kho.",
     loading: "Đang tải lịch giao…",
     failed: "Không tải được lịch giao — để trống, máy chủ sẽ xuất kho đợt giao kế tiếp.",
-    option: (
-      seq: number,
-      windowStart: string | null | undefined,
-      windowEnd: string | null | undefined,
-    ) =>
-      `Đợt ${seq}${windowStart || windowEnd ? ` · ${windowStart ?? "…"} → ${windowEnd ?? "…"}` : ""}`,
+    /** `window` là khoảng ngày đã định dạng dd/MM/yyyy (không dán ngày ISO của BE vào chữ); thiếu thì chỉ "Đợt N". */
+    option: (seq: number, window: string | null) => `Đợt ${seq}${window ? ` · ${window}` : ""}`,
     released: "đã có lệnh xuất kho",
     states: {
       AWAITING_STOCK: "Đang chờ hàng",

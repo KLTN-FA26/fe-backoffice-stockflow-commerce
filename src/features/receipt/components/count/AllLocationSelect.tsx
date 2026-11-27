@@ -6,7 +6,12 @@ import { RECEIPT_COUNT_LABELS } from "@/constants";
 import { FormSelect } from "@/components/shared/FormSelect";
 import { FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
 import { Label } from "@/components/ui/label";
-import { SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/shared/combobox-select";
 
 import type { AreaOption } from "@/lib/references/warehouse-layout";
 import type { ReceiptCountFormValues } from "@/features/receipt/types";

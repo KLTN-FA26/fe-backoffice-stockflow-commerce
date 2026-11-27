@@ -388,9 +388,11 @@ describe("Release đơn — chọn đợt giao (docs 17 §4.5, BR-29; cần sale
       ORDER_PERMISSION_SETS.warehouseManager,
       schedule(),
     );
-    expect(await within(dialog).findByRole("combobox", { name: /Đợt giao/ })).toHaveTextContent(
-      /Đợt 1/,
-    );
+    const batchField = await within(dialog).findByRole("combobox", { name: /Đợt giao/ });
+    expect(batchField).toHaveTextContent(/Đợt 1/);
+    // Ngày của đợt hiện dd/MM/yyyy, không phải ngày ISO của BE
+    expect(batchField).toHaveTextContent("01/12/2026 – 05/12/2026");
+    expect(batchField).not.toHaveTextContent("2026-12-01");
     const post = vi.spyOn(api, "post").mockResolvedValue({ data: apiOrder });
     await pickSelectOption(user, /Kho xuất hàng/, "HN01 — Kho Hà Nội");
     await user.click(within(dialog).getByRole("button", { name: "Xuất kho" }));
