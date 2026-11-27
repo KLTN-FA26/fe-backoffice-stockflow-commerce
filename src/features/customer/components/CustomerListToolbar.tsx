@@ -19,6 +19,7 @@ function columnSearchSummary(filters: CustomerListFilters): string {
   const f = filters.columnFilters;
   const parts = [
     f.custName && `Khách hàng “${f.custName}”`,
+    f.custTaxCode && `MST “${f.custTaxCode}”`,
     f.custEmail && `Email “${f.custEmail}”`,
     f.custPhone && `Điện thoại “${f.custPhone}”`,
     (f.custCreatedFrom || f.custCreatedTo) &&
@@ -59,14 +60,14 @@ export function CustomerListToolbar({
           active: q.trim() !== "",
           onClear: () => void filters.filters.setQ(""),
         },
-        { label: "Tìm theo", value: "Tên · Email · SĐT · MST" },
         {
-          label: "Search trong cột",
+          label: "Tìm trong cột",
           value: columnSearchSummary(filters),
           active: filters.hasColumnFilters,
           onClear: () =>
             filters.setColumnFilter({
               custName: "",
+              custTaxCode: "",
               custEmail: "",
               custPhone: "",
               custCreatedFrom: "",

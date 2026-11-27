@@ -25,6 +25,7 @@ export const STATUS_OPTIONS = CUSTOMER_API_STATUSES.map((value) => ({
 
 export const CUSTOMER_COLUMNS = [
   "fullName",
+  "taxCode",
   "email",
   "phone",
   "status",
@@ -36,6 +37,7 @@ export type CustomerColumn = (typeof CUSTOMER_COLUMNS)[number];
 export const CUSTOMER_LOCKED_COLUMNS: readonly CustomerColumn[] = ["fullName", "actions"];
 export const CUSTOMER_COLUMN_LABELS: Record<CustomerColumn, string> = {
   fullName: "Khách hàng",
+  taxCode: "Mã số thuế",
   email: "Email",
   phone: "Điện thoại",
   status: "Trạng thái",
@@ -57,6 +59,12 @@ const DATA_COLUMNS: ColumnDef<Customer>[] = [
         {row.fullName}
       </Link>
     ),
+  },
+  {
+    key: "taxCode",
+    header: "Mã số thuế",
+    className: "whitespace-nowrap",
+    cell: (row) => <span className={`text-ink-secondary ${MONO}`}>{row.taxCode ?? "—"}</span>,
   },
   {
     key: "email",

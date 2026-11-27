@@ -11,18 +11,25 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }));
 
-const row = (id: string, fullName: string, status: string, createdAt: string) => ({
+const row = (
+  id: string,
+  fullName: string,
+  status: string,
+  createdAt: string,
+  taxCode?: string,
+) => ({
   customerId: id,
   userId: `u-${id}`,
   fullName,
   email: `${id}@khach.example`,
   phone: "0912000000",
+  ...(taxCode ? { taxCode } : {}),
   status,
   version: 0,
   createdAt,
 });
 const ROWS = [
-  row("c-1", "Công ty Trà Sữa An", "ACTIVE", "2026-11-20T02:00:00Z"),
+  row("c-1", "Công ty Trà Sữa An", "ACTIVE", "2026-11-20T02:00:00Z", "0312345678"),
   row("c-2", "Công ty Trà Chanh Bình", "PENDING_ACTIVATION", "2026-10-01T02:00:00Z"),
 ];
 
@@ -76,7 +83,7 @@ describe("Danh sách khách hàng — trang danh sách ERP (backoffice-erp-ui A)
     expect(within(menu).queryByRole("link", { name: /Báo giá của khách/ })).toBeNull();
   });
 
-  it("lọc cột Khách hàng: BE thu hẹp bằng q, FE giữ đúng dòng khớp tên, có chip 'Search trong cột'", async () => {
+  it("lọc cột Khách hàng: BE thu hẹp bằng q, FE giữ đúng dòng khớp tên, có chip 'Tìm trong cột'", async () => {
     const api = mockApi("SALES_STAFF", { get: { "/customers": () => bePage(ROWS) } });
     renderScreen(<CustomerList />, "SALES_STAFF");
     await screen.findByText("Công ty Trà Sữa An");
@@ -87,6 +94,22 @@ describe("Danh sách khách hàng — trang danh sách ERP (backoffice-erp-ui A)
     await waitFor(() => expect(screen.queryByText("Công ty Trà Chanh Bình")).toBeNull());
     expect(screen.getByText("Công ty Trà Sữa An")).toBeInTheDocument();
     expect(screen.getByText(/Khách hàng “sua”/)).toBeInTheDocument();
+    expect(screen.getByText("Tìm trong cột")).toBeInTheDocument();
+    expect(screen.queryByText("Search trong cột")).toBeNull();
+  });
+
+  it("bo-29: cột Mã số thuế (khách chưa có MST → —); lọc cột MST thu hẹp bằng q", async () => {
+    const api = mockApi("SALES_STAFF", { get: { "/customers": () => bePage(ROWS) } });
+    renderScreen(<CustomerList />, "SALES_STAFF");
+    await screen.findByText("Công ty Trà Sữa An");
+    expect(screen.getByRole("columnheader", { name: /Mã số thuế/ })).toBeInTheDocument();
+    const rows = screen.getAllByRole("row");
+    expect(within(rows[1] as HTMLElement).getByText("0312345678")).toBeInTheDocument();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: /Lọc mã số thuế/ }));
+    await user.type(screen.getByPlaceholderText("Tìm theo mã số thuế…"), "0312");
+    await waitFor(() => expect(customerCalls(api).at(-1)?.get("q")).toBe("0312"));
+    await waitFor(() => expect(screen.queryByText("Công ty Trà Chanh Bình")).toBeNull());
   });
 
   it("lọc ngày tạo từ link không khớp: header vẫn hiện, 'Bỏ bộ lọc' trả lại dòng", async () => {
