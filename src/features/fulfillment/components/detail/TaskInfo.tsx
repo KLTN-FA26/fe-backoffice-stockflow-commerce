@@ -30,7 +30,7 @@ export function TaskInfo({
 }) {
   const orderText = orderLabel(task.orderId, orderNumber);
   return (
-    <Section title="Thông tin nhiệm vụ">
+    <Section title={UI_LABELS.fulfillment.taskInfoTitle}>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
         {task.taskNumber && <InfoItem label={FIELD.task} mono value={task.taskNumber} />}
         <InfoItem

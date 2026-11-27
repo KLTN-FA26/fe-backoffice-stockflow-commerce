@@ -21,6 +21,8 @@ interface ReleaseWarehouseFieldProps {
   error: string | undefined;
   /** Kho Sale đã chọn cho đơn (docs 17 BR-22: mỗi đơn đúng một kho xuất) — hiện dạng chữ, không bắt chọn lại. */
   chosenWarehouseId?: string | null;
+  /** Tên kho BE kèm sẵn trên đơn (nếu có) — dùng thay cho tra danh mục kho. */
+  chosenWarehouseName?: string | null;
 }
 
 /**
@@ -33,6 +35,7 @@ export function ReleaseWarehouseField({
   onChange,
   error,
   chosenWarehouseId,
+  chosenWarehouseName,
 }: ReleaseWarehouseFieldProps) {
   const L = ORDER_RELEASE_LABELS;
   const id = useId();
@@ -55,11 +58,12 @@ export function ReleaseWarehouseField({
       <div>
         <p className="text-[0.8125rem] font-medium">{L.warehouseLabel}</p>
         <p className="text-ink-primary mt-1 text-[0.875rem]" data-testid="release-chosen-warehouse">
-          {chosen
-            ? chosen.code
-              ? `${chosen.name} (${chosen.code})`
-              : chosen.name
-            : L.chosenWarehouseUnknown}
+          {chosenWarehouseName ??
+            (chosen
+              ? chosen.code
+                ? `${chosen.name} (${chosen.code})`
+                : chosen.name
+              : L.chosenWarehouseUnknown)}
         </p>
         <p className="text-ink-tertiary mt-0.5 text-xs">{L.chosenWarehouseHint}</p>
         {error && (

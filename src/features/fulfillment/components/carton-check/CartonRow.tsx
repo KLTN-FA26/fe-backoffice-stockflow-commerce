@@ -5,7 +5,7 @@ import { formatDateTime } from "@/lib/format/date";
 import { StatusDot } from "@/components/shared/StatusDot";
 
 import { MONO, formatMeasure } from "../primitives";
-import { CartonRowActions } from "./CartonRowActions";
+import { CartonRowActions, PINNED } from "./CartonRowActions";
 
 import type { CartonRemovalReason } from "@/constants";
 import type { CartonRowHandlers } from "./CartonRowActions";
@@ -97,7 +97,7 @@ export function CartonRow({
       {columns.shipment && (
         <td className={`${CODE_TD} text-ink-secondary ${MONO}`}>{shipmentCode ?? "—"}</td>
       )}
-      <td className={TD}>
+      <td className={`${TD} ${PINNED} bg-bg-surface`}>
         <CartonRowActions
           carton={carton}
           actions={actions}

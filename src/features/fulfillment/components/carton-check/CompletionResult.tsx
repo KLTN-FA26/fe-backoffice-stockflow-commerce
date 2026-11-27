@@ -8,6 +8,7 @@ import { formatMoney } from "@/lib/format/money";
 import { Alert } from "@/components/shared/Alert";
 
 import { MONO } from "../primitives";
+import { PaymentDueLink } from "./PaymentDueLink";
 
 import type { CartonCheckSession } from "@/features/fulfillment/carton-check-types";
 import type { FulfillmentTask } from "@/features/fulfillment/types";
@@ -55,6 +56,7 @@ export function CompletionResult({
       {due && due.amountDueBeforeHandover > 0 && (
         <Alert tone="warning" title={N.paymentTitle}>
           {N.paymentDescription(formatMoney(due.amountDueBeforeHandover, due.currency))}
+          <PaymentDueLink orderId={session.orderId} />
         </Alert>
       )}
     </div>

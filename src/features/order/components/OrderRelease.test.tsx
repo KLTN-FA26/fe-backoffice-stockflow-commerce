@@ -235,6 +235,72 @@ describe("Release đơn — chọn sẵn kho Sale đã chọn (GET /orders/{id}/
     );
   });
 
+  it("kho Sale chọn tải SAU khi hộp thoại đã mở → form nhận kho đó, nút Xuất kho mở được, gửi đúng kho", async () => {
+    const get = mockOrderApiGet(
+      [...ORDER_PERMISSION_SETS.warehouseManager, ORDER_SHIPPING_WAREHOUSE_PERMISSIONS.read],
+      {
+        [DETAIL_PATH]: () => apiOrderAt("CONFIRMED"),
+        [HISTORY_PATH]: () => [],
+        "/warehouses": () => WAREHOUSES,
+        [OPTIONS_PATH]: () => ({
+          orderId: apiOrder.orderId,
+          chosenWarehouseId: "wh-hcm",
+          warehouses: [],
+        }),
+      },
+    );
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const base = get.getMockImplementation();
+    get.mockImplementation(async (url: string, config?: unknown) => {
+      if (url === OPTIONS_PATH) await gate;
+      return base?.(url, config as never) as never;
+    });
+    await renderDetailScreen();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Xuất kho" }));
+    const dialog = await screen.findByRole("dialog");
+    // Chưa có kho Sale chọn → còn ô chọn kho, nút khoá
+    expect(within(dialog).getByRole("button", { name: "Xuất kho" })).toBeDisabled();
+    release();
+    expect(await within(dialog).findByTestId("release-chosen-warehouse")).toHaveTextContent(
+      "Kho TP.HCM (HCM01)",
+    );
+    await waitFor(() =>
+      expect(within(dialog).getByRole("button", { name: "Xuất kho" })).toBeEnabled(),
+    );
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: apiOrder });
+    await user.click(within(dialog).getByRole("button", { name: "Xuất kho" }));
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(RELEASE_PATH, { warehouseId: "wh-hcm" }, KEY),
+    );
+  });
+
+  it("đơn có sẵn warehouseName từ BE → hiện tên đó, không cần danh mục kho", async () => {
+    mockOrderApiGet(
+      [...ORDER_PERMISSION_SETS.warehouseManager, ORDER_SHIPPING_WAREHOUSE_PERMISSIONS.read],
+      {
+        [DETAIL_PATH]: () => apiOrderAt("CONFIRMED", { warehouseName: "Kho Hà Nội (BE)" }),
+        [HISTORY_PATH]: () => [],
+        "/warehouses": () => {
+          throw new ApiError(403, "FORBIDDEN", "x");
+        },
+        [OPTIONS_PATH]: () => ({
+          orderId: apiOrder.orderId,
+          chosenWarehouseId: "wh-hn",
+          warehouses: [],
+        }),
+      },
+    );
+    await renderDetailScreen();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Xuất kho" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(await within(dialog).findByTestId("release-chosen-warehouse")).toHaveTextContent(
+      "Kho Hà Nội (BE)",
+    );
+  });
+
   it("Sale chưa chọn kho (null) → ô kho để trống", async () => {
     const { dialog } = await renderWithChosen(null);
     await waitFor(() => expect(warehouseValue(dialog)).toHaveTextContent("Chọn kho"));

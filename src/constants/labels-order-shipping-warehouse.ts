@@ -26,7 +26,7 @@ export const ORDER_SHIPPING_WAREHOUSE_LABELS = {
     full: "Đã giữ đủ hàng — quản lý kho có thể xuất kho cho đơn.",
     partial: (held: number, total: number) =>
       `Đã giữ ${held}/${total} thùng. Phần còn thiếu sẽ được giữ tiếp khi hàng nhập kho.`,
-    nothing: "Chưa giữ được thùng nào. Hàng sẽ được giữ khi nhập kho; phần thiếu cần Đơn sản xuất.",
+    nothing: "Chưa giữ được thùng nào. Hàng sẽ được giữ khi nhập kho; phần thiếu cần đơn sản xuất.",
     lines: "Theo dòng hàng",
     batches: "Theo đợt giao",
     lineHeld: (held: number, total: number) => `${held}/${total} thùng`,
@@ -58,7 +58,7 @@ export const ORDER_SHIPPING_WAREHOUSE_LABELS = {
     exceedsProjected:
       "Không đủ chỗ cho phần phải sản xuất tại kho này. Đây chỉ là cảnh báo, vẫn chọn được.",
     exceedsIfAllApproved:
-      "Nếu các Đơn sản xuất đang chờ duyệt đều được duyệt thì kho này sẽ không đủ chỗ. Đây chỉ là cảnh báo.",
+      "Nếu các đơn sản xuất đang chờ duyệt đều được duyệt thì kho này sẽ không đủ chỗ. Đây chỉ là cảnh báo.",
     singleHint: "Kho này được giữ hàng cho đơn ngay khi chọn.",
   },
   /** Câu báo thành công theo kết quả giữ hàng (toast). */

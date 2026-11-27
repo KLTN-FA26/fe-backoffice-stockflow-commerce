@@ -12,7 +12,6 @@ export const PUTAWAY_LABELS = {
   detailTitle: (lpn: string) => `Cất thùng ${lpn}`,
   searchPlaceholder: "Tìm LPN, SKU, lô, vị trí đang ở…",
   summarySearch: "Tìm kiếm chính",
-  summaryColumnSearch: "Search trong cột",
   summaryColumns: "Cột hiển thị",
   receipt: "Phiếu nhập",
   receiptFilter: "Theo phiếu nhập",
@@ -26,7 +25,6 @@ export const PUTAWAY_LABELS = {
     [C.STATUS]: "Trạng thái",
     [C.ACTION]: "Thao tác",
   } satisfies Record<Column, string>,
-  columnSearch: (label: string) => `Tìm trong cột ${label}`,
   source: {
     RECEIPT: "Phiếu nhập",
     QUARANTINE_RELEASE: "Giải phóng cách ly",
@@ -39,7 +37,7 @@ export const PUTAWAY_LABELS = {
   scanPlaceholder: "Quét hoặc nhập LPN của thùng",
   scanHint: "Quét mã trên nhãn thùng — mở thẳng màn cất thùng đó.",
   scanOpened: (lpn: string) => `Mở thùng ${lpn}`,
-  scanNotFound: (lpn: string) => `Không có thùng ${lpn} đang chờ cất ở kho này.`,
+  scanNotFound: (lpn: string) => `Không có thùng ${lpn} trong danh sách đang xem.`,
   view: (lpn: string) => `Xem thùng ${lpn}`,
   // Lọc theo phiếu: BE trả mọi nhiệm vụ của phiếu, kể cả đã cất (docs 05 §4.2)
   truncated: (shown: number, total: number) =>

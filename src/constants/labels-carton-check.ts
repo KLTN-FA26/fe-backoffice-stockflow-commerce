@@ -92,7 +92,8 @@ export const CARTON_CHECK_UI_LABELS = {
       "Đã có thùng được dán nhãn giao hàng: đơn không huỷ được và không đổi được địa chỉ giao.",
     paymentTitle: "Đơn còn đợt thanh toán phải thu trước khi giao",
     paymentDescription: (amount: string) =>
-      `Còn ${amount} phải thu trước khi bàn giao (đợt thu "Trước khi giao"). Vẫn kiểm thùng và hoàn tất bình thường; bước bàn giao sẽ bị từ chối cho tới khi đợt này đã thu.`,
+      `Còn ${amount} phải thu trước khi bàn giao (đợt thu "Trước khi giao"). Vẫn kiểm thùng và hoàn tất bình thường; bước bàn giao sẽ bị từ chối cho tới khi đợt này đã thu. Kế toán lập phiếu thu cho đợt này.`,
+    paymentLink: "Xem đợt thanh toán",
     unmeasuredTitle: "SKU chưa có quy cách thùng",
     unmeasuredDescription: (skus: string) =>
       `${skus} chưa khai báo kích thước hoặc khối lượng thùng nên thùng của SKU này chưa dán nhãn và chưa hoàn tất được. Quản lý kho bổ sung quy cách thùng ở màn sản phẩm rồi dán nhãn lại.`,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FormProvider, useForm, useWatch } from "react-hook-form";
+import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Save } from "lucide-react";
 
@@ -10,29 +10,17 @@ import { receiptCountInputSchema } from "@/features/receipt/count-schemas";
 import { countFieldErrors, toLinesRequest } from "@/features/receipt/count-selectors";
 import { isStaleReceiptError, receiptErrorMessage } from "@/features/receipt/errors";
 import { useReplaceReceiptLines } from "@/features/receipt/mutations";
-import { ScrollShadowBox } from "@/components/backoffice/ScrollShadowBox";
 import { Alert } from "@/components/shared/Alert";
-import { FormSelect } from "@/components/shared/FormSelect";
-import { FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
 import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-import { CountLineRow } from "./CountLineRow";
+import { AllLocationSelect } from "./AllLocationSelect";
+import { CountLinesTable } from "./CountLinesTable";
 
 import type { AreaOption } from "@/lib/references/warehouse-layout";
 import type { CountRow, GoodsReceipt, ReceiptCountFormValues } from "@/features/receipt/types";
 
 const C = RECEIPT_COUNT_LABELS.count;
-const H = C.headers;
-const HEADERS = [
-  { label: H.sku, right: false },
-  { label: H.production, right: true },
-  { label: H.location, right: false },
-  { label: H.cartons, right: false },
-  { label: H.result, right: false },
-];
 const ACTION = "h-(--action-h) rounded-(--action-radius) px-(--action-px) text-[0.8125rem]";
 
 /**
@@ -91,74 +79,11 @@ export function ReceiptCountForm({
     );
   });
 
-  const rowValues = useWatch({ control: form.control, name: "rows" });
-  // Một khu nhận cho cả phiếu: chọn một lần áp cho mọi dòng; các dòng đã khác nhau thì hiện "Mỗi dòng một khu"
-  const firstLocation = rowValues[0]?.locationCode ?? "";
-  const sharedLocation = rowValues.every((row) => row.locationCode === firstLocation)
-    ? firstLocation
-    : "";
-  const applyLocationToAll = (code: string) =>
-    rowValues.forEach((_, index) =>
-      form.setValue(`rows.${index}.locationCode`, code, { shouldDirty: true }),
-    );
-
   return (
     <FormProvider {...form}>
       <form onSubmit={(event) => void submit(event)} noValidate className="space-y-3">
-        {rows.length > 1 && areas.length > 1 && (
-          <div className="max-w-sm space-y-1">
-            <Label htmlFor="count-all-location" className="text-ink-primary text-[0.8125rem]">
-              {C.allLocation}
-            </Label>
-            <FormSelect value={sharedLocation} onValueChange={applyLocationToAll}>
-              <SelectTrigger id="count-all-location" className={FORM_SELECT_CLASS}>
-                <SelectValue
-                  placeholder={
-                    rowValues.length > 0 && sharedLocation === "" && firstLocation !== ""
-                      ? C.allLocationMixed
-                      : C.allLocationPlaceholder
-                  }
-                />
-              </SelectTrigger>
-              <SelectContent>
-                {areas.map((area) => (
-                  <SelectItem key={area.locationCode} value={area.locationCode}>
-                    {area.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </FormSelect>
-            <p className="text-ink-tertiary text-xs">{C.allLocationHint}</p>
-          </div>
-        )}
-        <ScrollShadowBox>
-          <table className="w-full text-[0.8125rem]">
-            <caption className="sr-only">{C.caption}</caption>
-            <thead className="bg-bg-subtle text-ink-secondary">
-              <tr>
-                {HEADERS.map((h) => (
-                  <th
-                    key={h.label}
-                    scope="col"
-                    className={`px-3 py-2 font-medium whitespace-nowrap ${h.right ? "text-right" : "text-left"}`}
-                  >
-                    {h.label}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row, index) => (
-                <CountLineRow
-                  key={row.productionOrderLineId}
-                  index={index}
-                  areas={areas}
-                  lot={lot}
-                />
-              ))}
-            </tbody>
-          </table>
-        </ScrollShadowBox>
+        {rows.length > 1 && areas.length > 1 && <AllLocationSelect areas={areas} />}
+        <CountLinesTable rows={rows} areas={areas} lot={lot} />
         <p className="text-ink-tertiary text-xs">{C.voidHint}</p>
         {rootError && (
           <p role="alert" className="text-danger text-xs">

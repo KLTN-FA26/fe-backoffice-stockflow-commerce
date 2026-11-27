@@ -64,10 +64,18 @@ export function SampleMediaDialog({
     physicalSampleSentOn: sentOn,
   });
   const sentOnError = round.error?.issues.find((i) => i.path[0] === "physicalSampleSentOn");
+  const fileProblems = sampleFileProblems(files).length > 0;
   const valid =
-    files.length > 0 &&
-    sampleFileProblems(files).length === 0 &&
-    (mode === "add" ? roundId !== undefined : round.success);
+    files.length > 0 && !fileProblems && (mode === "add" ? roundId !== undefined : round.success);
+  // Vì sao nút đang khoá — một dòng ngay dưới các ô, không chỉ nút xám
+  const missing =
+    files.length === 0
+      ? S.missingFile
+      : fileProblems
+        ? S.fixFiles
+        : mode === "reprint" && !reason
+          ? S.missingReason
+          : null;
 
   const submit = async () => {
     setError(null);
@@ -124,6 +132,11 @@ export function SampleMediaDialog({
               clearable
             />
           </FormField>
+        )}
+        {missing && (
+          <p role="status" className="text-ink-secondary text-xs">
+            {missing}
+          </p>
         )}
         {mode !== "add" && willExceedFreeRounds(view, counts) && (
           <Alert tone="warning">{S.willExceed}</Alert>

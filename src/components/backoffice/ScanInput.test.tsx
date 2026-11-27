@@ -115,6 +115,9 @@ describe("ScanInput", () => {
     expect(input).toHaveClass("h-12");
     const button = screen.getByRole("button", { name: "Xác nhận" });
     expect(button).toHaveClass("h-12");
+    // Nút dưới ô, rộng hết cột: ở cột 320px không ép ô quét (placeholder không bị cắt)
+    expect(button).toHaveClass("w-full");
+    expect(input.closest("div")?.parentElement).toContainElement(button);
     await user.type(input, "ABC-9");
     await user.click(button);
     expect(onScan).toHaveBeenCalledWith("ABC-9");

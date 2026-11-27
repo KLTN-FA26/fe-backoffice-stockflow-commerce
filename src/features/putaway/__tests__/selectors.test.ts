@@ -10,7 +10,7 @@ import {
 } from "../selectors";
 import { task } from "./fixtures";
 
-const EMPTY = { q: "", lpn: "", sku: "", location: "" };
+const EMPTY = { q: "" };
 const rows = [
   task({
     id: "a",
@@ -39,16 +39,10 @@ describe("filterPutawayTasks", () => {
     expect(filterPutawayTasks(rows, { ...EMPTY, q: "qc01" }).map((r) => r.id)).toEqual(["b"]);
   });
 
-  it("lọc trong cột kết hợp với nhau (AND)", () => {
-    const out = filterPutawayTasks(rows, { ...EMPTY, sku: "red", location: "rcv" });
-    expect(out.map((r) => r.id)).toEqual(["a", "c"]);
-    expect(filterPutawayTasks(rows, { ...EMPTY, sku: "red", lpn: "lpn-1" })).toEqual([]);
-  });
-
   it("hasTextFilter chỉ bật khi có chữ thật", () => {
     expect(hasTextFilter(EMPTY)).toBe(false);
     expect(hasTextFilter({ ...EMPTY, q: "   " })).toBe(false);
-    expect(hasTextFilter({ ...EMPTY, lpn: "1" })).toBe(true);
+    expect(hasTextFilter({ q: "1" })).toBe(true);
   });
 });
 

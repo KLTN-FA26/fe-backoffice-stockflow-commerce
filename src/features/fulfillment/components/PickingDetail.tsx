@@ -1,6 +1,6 @@
 "use client";
 
-import { FULFILLMENT_PICK_PERMISSIONS, WORKSPACE_PATHS } from "@/constants";
+import { FULFILLMENT_PICK_PERMISSIONS, UI_LABELS, WORKSPACE_PATHS } from "@/constants";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
 import { InWorkspaceWarehouse, useWorkspaceHref } from "@/lib/workspace";
 import { useFulfillmentTask } from "@/features/fulfillment/queries";
@@ -44,7 +44,7 @@ function PickingDetailBody({ id }: { id: string }) {
     // Task của kho khác kho trên URL → chuyển sang đúng kho, không hiện dưới kho sai (spec 2026-11-22 §2)
     <InWorkspaceWarehouse warehouseId={task.warehouseId} path={WORKSPACE_PATHS.pickingTask(id)}>
       <div className="surface-soft surface-compact">
-        <h1 className="sr-only">{`Nhiệm vụ ${taskCode(task)}`}</h1>
+        <h1 className="sr-only">{UI_LABELS.fulfillment.taskTitle(taskCode(task))}</h1>
         <PickingWorkArea
           task={task}
           actor={actor}

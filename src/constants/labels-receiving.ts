@@ -11,5 +11,5 @@ export const RECEIVING_LABELS = {
   emptyDraftTitle: "Kho chưa có phiếu đang nhận",
   emptyAllTitle: "Kho chưa có phiếu nhận",
   emptyDescription:
-    "Hàng về từ đơn vị sản xuất thì lập phiếu nhập theo Đơn sản xuất; phiếu hàng hoàn được lập ở nhóm Nhập kho.",
+    "Hàng về từ đơn vị sản xuất thì lập phiếu nhập theo đơn sản xuất; phiếu hàng hoàn được lập ở nhóm Nhập kho.",
 } as const;

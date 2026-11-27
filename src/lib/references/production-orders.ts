@@ -6,6 +6,7 @@
  */
 
 import { useQueries, useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { z } from "zod";
 
 import {
@@ -121,8 +122,8 @@ function combineReceivable(results: UseQueryResult<ProductionOrderRef[]>[]) {
  * Đơn sản xuất nhận được hàng ở kho người dùng được gán (BE lọc theo kho với người dùng gắn kho). BE chỉ lọc một
  * `status` mỗi lần → gọi song song từng trạng thái nhận được rồi gộp, bỏ đơn chờ duyệt mẫu in (BR-15).
  */
-export function useReceivableProductionOrders(enabled = true) {
-  return useQueries({
+export function useReceivableProductionOrders(enabled = true, warehouseId?: string) {
+  const all = useQueries({
     queries: RECEIVABLE_PRODUCTION_ORDER_STATUSES.map((status) => ({
       queryKey: productionOrderRefKeys.receivable(status),
       queryFn: ({ signal }: { signal: AbortSignal }) => fetchByStatus(status, signal),
@@ -131,6 +132,12 @@ export function useReceivableProductionOrders(enabled = true) {
     })),
     combine: combineReceivable,
   });
+  // Màn nhận hàng của một kho: chỉ đơn về đúng kho đó (kho nhận của Đơn sản xuất), không chọn sẵn đơn của kho khác
+  const data = useMemo(
+    () => (warehouseId ? all.data.filter((o) => o.receivingWarehouseId === warehouseId) : all.data),
+    [all.data, warehouseId],
+  );
+  return { ...all, data };
 }
 
 export async function fetchProductionOrderRef(

@@ -1,15 +1,14 @@
 "use client";
 
-import { useState } from "react";
 import { useWatch } from "react-hook-form";
 
-import { PICK_LINE_ERROR_MESSAGES, PICK_LINE_LABELS, PICK_LINE_LIMITS } from "@/constants";
-import { sameScannedCode } from "@/features/fulfillment/pick-line-selectors";
+import { PICK_LINE_LABELS, PICK_LINE_LIMITS } from "@/constants";
 import { ScanInput } from "@/components/backoffice/ScanInput";
 import { Alert } from "@/components/shared/Alert";
 import { Button } from "@/components/ui/button";
 
-import { MONO } from "../primitives";
+import { PickLineTarget } from "./PickLineTarget";
+import { useLocationScan } from "./useLocationScan";
 import { usePickLineConfirm } from "./usePickLineConfirm";
 
 import type { ScanFeedback } from "@/components/backoffice/ScanInput";
@@ -47,59 +46,29 @@ export function PickLineConfirmCard({
   });
   const { errors } = form.formState;
   const confirmedLocation = useWatch({ control: form.control, name: "locationCode" });
-  const [wrongLocation, setWrongLocation] = useState<ScanFeedback | null>(null);
-
-  const onScanLocation = (code: string) => {
-    if (!sameScannedCode(code, line.locationCode)) {
-      setWrongLocation({
-        tone: "danger",
-        message: PICK_LINE_ERROR_MESSAGES.locationMismatch(line.locationCode),
-        seq: (wrongLocation?.seq ?? 0) + 1,
-      });
-      return;
-    }
-    setWrongLocation(null);
-    form.clearErrors();
-    form.setValue("locationCode", code.trim());
-  };
+  const location = useLocationScan({
+    expected: line.locationCode,
+    current: confirmedLocation,
+    accept: (code) => {
+      form.clearErrors();
+      form.setValue("locationCode", code);
+    },
+    serverMessage: errors.locationCode?.message,
+    serverSeq: errorSeq,
+  });
   const onScanLpn = (code: string) => {
     form.setValue("lpn", code.trim());
     form.clearErrors("lpn");
     void submit();
   };
 
-  const locationFeedback: ScanFeedback | null = confirmedLocation
-    ? { tone: "positive", message: L.locationOk(confirmedLocation) }
-    : errors.locationCode?.message
-      ? { tone: "danger", message: errors.locationCode.message, seq: errorSeq }
-      : wrongLocation;
   const lpnFeedback: ScanFeedback | null = errors.lpn?.message
     ? { tone: "danger", message: errors.lpn.message, seq: errorSeq }
     : null;
 
   return (
     <section className="border-border-default bg-bg-surface space-y-4 rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-(--card-shadow)">
-      <div>
-        <h2 className="text-ink-primary text-sm font-semibold">
-          {L.confirmTitle(line.sequenceNo)}
-        </h2>
-        <dl className="mt-1.5 space-y-1 text-[0.8125rem]">
-          <div className="flex items-baseline justify-between gap-3">
-            <dt className="text-ink-secondary">{L.targetLocation}</dt>
-            <dd className={`text-ink-primary text-base font-semibold ${MONO}`}>
-              {line.locationCode}
-            </dd>
-          </div>
-          <div className="flex items-baseline justify-between gap-3">
-            <dt className="text-ink-secondary">{L.targetLpn}</dt>
-            <dd className={`text-ink-primary font-medium ${MONO}`}>{line.lpn ?? "—"}</dd>
-          </div>
-        </dl>
-        <p className="text-ink-secondary mt-1 text-xs">
-          {line.allocatedQty} × {line.sku}
-          {line.lotNumber ? ` · ${L.lot(line.lotNumber)}` : ""}
-        </p>
-      </div>
+      <PickLineTarget line={line} />
       {!line.lpn && (
         <Alert tone="warning" title={L.noLpn}>
           {null}
@@ -117,9 +86,9 @@ export function PickLineConfirmCard({
         hint={L.scanLocationHint(line.locationCode)}
         maxLength={PICK_LINE_LIMITS.codeMax}
         disabled={!!confirmedLocation}
-        feedback={locationFeedback}
+        feedback={location.feedback}
         submitLabel={confirmedLocation ? undefined : L.scanLocationConfirm}
-        onScan={onScanLocation}
+        onScan={location.onScan}
       />
       {confirmedLocation && (
         <Button

@@ -17,6 +17,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { BackLink } from "@/components/shared/BackLink";
 
 import { useCompletionHold } from "../completion-hold-queries";
+import { drawUpHrefFor } from "../production-link";
 import { useOrder, useOrderProductionOrders } from "../queries";
 import { useSalesContract } from "../sales-contract-queries";
 import { customLineCount, groupProductionOrdersByLine, isPastContract } from "../selectors";
@@ -168,11 +169,7 @@ function OrderDetailContent({
               <LineProductionOrdersView
                 entry={productionByLine.get(line.lineId)}
                 state={productionState}
-                drawUpHref={
-                  can(PRODUCTION_ORDER_PERMISSIONS.create)
-                    ? ADMIN_ROUTES.productionScheduleDrawUpFor(order.orderId)
-                    : undefined
-                }
+                drawUpHref={drawUpHrefFor(order.orderId, can)}
               />
             )}
           />

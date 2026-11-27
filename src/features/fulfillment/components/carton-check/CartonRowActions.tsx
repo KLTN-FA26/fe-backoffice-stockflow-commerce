@@ -16,6 +16,10 @@ const A = UI_LABELS.cartonCheck.action;
 /** Nút trên dòng thùng: cao 32px, 44px trên màn cảm ứng (kho) — không còn nút 24px sát nhau. */
 const ROW_BUTTON = "h-8 gap-1.5 rounded-[var(--r-sm)] px-3 text-[0.8125rem] pointer-coarse:h-11";
 
+/** Cột thao tác ghim mép phải khung cuộn: nút của thùng luôn thấy được ở 1440px dù bảng rộng hơn (như cột thao tác của danh sách nhiệm vụ). */
+export const PINNED =
+  "sticky right-0 shadow-[inset_1px_0_0_var(--table-line),-6px_0_8px_-6px_rgb(0_0_0/0.12)]";
+
 export interface CartonRowHandlers {
   onLabel: (carton: Carton) => void;
   onPrint: (carton: Carton) => void;

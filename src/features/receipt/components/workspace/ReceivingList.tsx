@@ -105,6 +105,7 @@ function ReceivingListContent() {
           action: (
             <CreateReceiptAction
               handleLink={false}
+              warehouseId={warehouse.id}
               detailHref={(id) => href(WORKSPACE_PATHS.receivingReceipt(id))}
             />
           ),

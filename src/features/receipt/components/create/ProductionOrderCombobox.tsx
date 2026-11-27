@@ -28,15 +28,21 @@ export function ProductionOrderCombobox({
   onChange,
   error,
   describedBy,
+  warehouseId,
+  autoFocus = true,
 }: {
   id: string;
   value: string;
   onChange: (productionOrderId: string) => void;
   error?: boolean;
   describedBy?: string;
+  /** Màn nhận hàng của một kho: chỉ đơn về kho này. */
+  warehouseId?: string;
+  /** Mặc định có (hộp Lập phiếu); ô lọc trong danh sách đặt `false`. */
+  autoFocus?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const orders = useReceivableProductionOrders();
+  const orders = useReceivableProductionOrders(true, warehouseId);
   const picked = orders.data.find((order) => order.id === value);
 
   return (
@@ -50,7 +56,7 @@ export function ProductionOrderCombobox({
       ariaLabel={L.productionOrder}
       hasError={error}
       describedBy={describedBy}
-      autoFocus
+      autoFocus={autoFocus}
       mono
     >
       <CommandList>

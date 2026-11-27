@@ -114,11 +114,14 @@ function DetailContent({ taskId }: { taskId: string }) {
                 done && next.task
                   ? {
                       remaining: next.remaining,
-                      href: `${href(WORKSPACE_PATHS.putawayTask(next.task.id))}${
+                      href: href(
                         task.targetLocationCode
-                          ? `?bin=${encodeURIComponent(task.targetLocationCode)}`
-                          : ""
-                      }`,
+                          ? WORKSPACE_PATHS.putawayTaskWithBin(
+                              next.task.id,
+                              task.targetLocationCode,
+                            )
+                          : WORKSPACE_PATHS.putawayTask(next.task.id),
+                      ),
                     }
                   : null
               }

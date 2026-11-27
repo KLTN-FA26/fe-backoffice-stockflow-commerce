@@ -7,12 +7,12 @@ import { useTopUpTask } from "@/features/fulfillment/pick-line-mutations";
 
 import type { ConfirmCode } from "./action-config";
 
-/** Mutation của từng thao tác cần xác nhận trên card thao tác task (khoá theo `ConfirmCode`). */
+/** Mutation của từng thao tác trên card thao tác nhiệm vụ: cần xác nhận (khoá theo `ConfirmCode`) + "Bắt đầu lấy hàng" (bấm một lần). */
 export function useTaskActionMutations() {
   return {
     startPicking: useStartPicking(),
     completePicking: useCompletePicking(),
     moveToDispatch: useMoveToDispatch(),
     topUp: useTopUpTask(),
-  } satisfies Record<ConfirmCode, unknown>;
+  } satisfies Record<ConfirmCode | "startPicking", unknown>;
 }

@@ -26,7 +26,7 @@ export function OrderLinesSection({ lines }: { lines: readonly TaskLine[] | unde
       ) : (
         <div className="border-border-default overflow-hidden rounded-[var(--r-sm)] border">
           <table className="w-full">
-            <caption className="sr-only">Dòng hàng của nhiệm vụ</caption>
+            <caption className="sr-only">{UI_LABELS.fulfillment.taskLinesCaption}</caption>
             <thead className="bg-bg-subtle border-border-default border-b">
               <tr>
                 <th scope="col" className={TH}>

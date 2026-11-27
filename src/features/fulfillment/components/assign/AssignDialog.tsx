@@ -42,8 +42,8 @@ export function AssignDialog({ task, onClose }: { task: FulfillmentTask; onClose
   return (
     <FormDialog open onOpenChange={(open) => !open && onClose()}>
       <FormDialogBody
-        title={`${UI_LABELS.fulfillment.action.assign} nhiệm vụ ${taskCode(task)}`}
-        description="Chỉ gán lại được khi nhiệm vụ chưa bắt đầu lấy hàng. Người được gán phải là nhân viên kho hoặc quản lý kho đang hoạt động."
+        title={UI_LABELS.fulfillment.assignTask(taskCode(task))}
+        description={UI_LABELS.fulfillment.assignDescription}
         submitLabel={UI_LABELS.fulfillment.action.assign}
         canSubmit={canAssign && !unchanged}
         isPending={assign.isPending}

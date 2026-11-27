@@ -5,6 +5,7 @@ import { Factory } from "lucide-react";
 
 import {
   ADMIN_ROUTES,
+  PRODUCTION_LABELS,
   PRODUCTION_ORDER_STATUS_DISPLAY,
   PRODUCTION_ORDER_STATUS_LABELS,
 } from "@/constants";
@@ -115,7 +116,7 @@ export function LineProductionOrdersView({ entry, state, drawUpHref }: LineProdu
           <>
             {" "}
             <Link href={drawUpHref} className="text-accent-text font-medium hover:underline">
-              Lập Đơn sản xuất
+              {PRODUCTION_LABELS.order.drawUpFromOrder}
             </Link>
           </>
         )}

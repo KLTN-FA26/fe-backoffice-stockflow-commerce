@@ -106,7 +106,7 @@ describe("Lập phiếu nhập theo Đơn sản xuất (docs 03 §4.1 bước 1)
     const { post } = renderList(ROLES.warehouseManager);
     await user.click(await screen.findByRole("button", { name: L.button }));
     await user.click(screen.getByRole("button", { name: L.submit }));
-    expect(await screen.findByText("Chọn Đơn sản xuất")).toBeInTheDocument();
+    expect(await screen.findByText("Chọn đơn sản xuất")).toBeInTheDocument();
     expect(post).not.toHaveBeenCalled();
   });
 
@@ -238,11 +238,27 @@ describe("Lập phiếu nhập — chọn Đơn sản xuất dễ hơn (S12-1)",
     expect(screen.queryAllByRole("option")).toHaveLength(0);
   });
 
-  it("mở từ Đơn sản xuất (?productionOrder=) → hộp Lập phiếu mở sẵn, đơn đó đã được chọn", async () => {
+  it("mở từ Đơn sản xuất (?createFor=) → hộp Lập phiếu mở sẵn, đơn đó đã được chọn", async () => {
     renderWith([receivable("po-1", "PRD-A"), receivable("po-2", "PRD-B")], {
-      search: "?productionOrder=po-2",
+      search: "?createFor=po-2",
     });
     const box = await screen.findByRole("combobox", { name: L.productionOrder });
     await waitFor(() => expect(box).toHaveValue("PRD-B"));
+  });
+
+  it("danh sách phiếu: ô chọn Đơn sản xuất (cùng ô với hộp Lập phiếu) lọc phiếu theo đơn đó (S12-8)", async () => {
+    const user = userEvent.setup();
+    const { get } = renderWith([receivable("po-1", "PRD-A"), receivable("po-2", "PRD-B")]);
+    const box = await screen.findByRole("combobox", { name: L.productionOrder });
+    // Không tự focus — chỉ hộp Lập phiếu mới tự focus
+    expect(box).not.toHaveFocus();
+    await user.click(box);
+    await user.click(await screen.findByRole("option", { name: /PRD-B/ }));
+    await waitFor(() => {
+      const last = get.mock.calls.filter(([url]) => url === "/goods-receipts").at(-1)?.[1] as
+        { params?: Record<string, unknown> } | undefined;
+      expect(last?.params).toMatchObject({ productionOrderId: "po-2" });
+    });
+    expect(await screen.findByRole("button", { name: "Bỏ lọc Đơn sản xuất" })).toBeInTheDocument();
   });
 });

@@ -139,14 +139,12 @@ describe("PutawayList (docs 05 §4.2)", () => {
     await waitFor(() => expect(lpnCells()).toHaveLength(3));
   });
 
-  it("lọc trong cột từ URL hiện chip Search trong cột, X trả lại dòng", async () => {
-    const user = userEvent.setup();
+  it("không còn ô lọc trên header cột và tham số cột cũ trong URL bị bỏ qua (S01-5)", async () => {
     setup({ search: "?sku=blue" });
     await screen.findByText("LPN-1");
-    expect(lpnCells()).toEqual(["LPN-1"]);
-    expect(screen.getByText(/SKU “blue”/)).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: `Xoá ${L.summaryColumnSearch}` }));
-    await waitFor(() => expect(lpnCells()).toHaveLength(3));
+    expect(lpnCells()).toHaveLength(3);
+    expect(screen.queryByText(/Search trong cột/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Tìm trong cột/ })).not.toBeInTheDocument();
   });
 
   it("nguồn phiếu nhập là link sang phiếu; giải phóng cách ly là chữ", async () => {

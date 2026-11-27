@@ -10,10 +10,6 @@ import type { PutawayTask } from "./types";
 export interface PutawayTextFilters {
   /** Tìm kiếm chính: LPN, SKU, lô, vị trí đang ở. */
   q: string;
-  /** Search trong cột. */
-  lpn: string;
-  sku: string;
-  location: string;
 }
 
 const needle = (value: string) => value.trim().toLocaleLowerCase("vi");
@@ -28,12 +24,8 @@ export function filterPutawayTasks(
   rows: readonly PutawayTask[],
   filters: PutawayTextFilters,
 ): PutawayTask[] {
-  return rows.filter(
-    (row) =>
-      matches(filters.q, row.lpn, row.sku, row.lotNumber, row.sourceLocationCode) &&
-      matches(filters.lpn, row.lpn) &&
-      matches(filters.sku, row.sku) &&
-      matches(filters.location, row.sourceLocationCode),
+  return rows.filter((row) =>
+    matches(filters.q, row.lpn, row.sku, row.lotNumber, row.sourceLocationCode),
   );
 }
 
@@ -60,7 +52,7 @@ export function nextPendingTask(
 
 /** Có ô lọc chữ nào đang bật (search chính hoặc trong cột). */
 export function hasTextFilter(filters: PutawayTextFilters): boolean {
-  return [filters.q, filters.lpn, filters.sku, filters.location].some((f) => f.trim() !== "");
+  return filters.q.trim() !== "";
 }
 
 /** Thể tích trống (m³) — tối đa 3 chữ số lẻ; null = không giới hạn (tầng chưa có chiều cao, docs 05 BR-03). */

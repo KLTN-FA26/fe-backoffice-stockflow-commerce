@@ -31,6 +31,9 @@ export const WORKSPACE_PATHS = {
   receivingReturn: (receiptId: string) => `receiving/returns/${id(receiptId)}`,
   putaway: "putaway",
   putawayTask: (taskId: string) => `putaway/${id(taskId)}`,
+  /** Thùng kế tiếp sau khi cất xong một thùng, mang theo ô kệ vừa dùng (`?bin=`) để gợi ý dùng lại một chạm. */
+  putawayTaskWithBin: (taskId: string, binCode: string) =>
+    `putaway/${id(taskId)}?bin=${encodeURIComponent(binCode)}`,
   myTrip: "putaway/trip",
   trip: (tripId: string) => `putaway/trips/${id(tripId)}`,
   picking: "picking",
@@ -159,7 +162,7 @@ export const ADMIN_ROUTES = {
     list: `${ADMIN_BASE}/receipts`,
     /** Danh sách phiếu với hộp "Lập phiếu nhập" mở sẵn, đã chọn Đơn sản xuất này (từ chi tiết Đơn sản xuất). */
     createFor: (productionOrderId: string) =>
-      `${ADMIN_BASE}/receipts?productionOrder=${encodeURIComponent(productionOrderId)}`,
+      `${ADMIN_BASE}/receipts?createFor=${encodeURIComponent(productionOrderId)}`,
   },
   /** Cất hàng (docs 05) — danh sách nhiệm vụ theo kho / phiếu nhập và màn cất một thùng. */
   putaway: {
@@ -213,6 +216,9 @@ export const ADMIN_ROUTES = {
     of: (prefix: string) => workspacePage(prefix),
     slotting: (prefix: string) => workspacePage(prefix, WORKSPACE_PATHS.slotting),
     /** Bản đồ mở sẵn một kệ / khu vực (`?selected=` của `useMapUrlState`). */
+    /** Màn Lấy hàng của kho với hộp "Tạo nhiệm vụ lấy hàng" mở sẵn, đã chọn đơn này (`?create=`). */
+    pickingCreate: (prefix: string, orderId: string) =>
+      `${workspacePage(prefix, WORKSPACE_PATHS.picking)}?create=${encodeURIComponent(orderId)}`,
     place: (prefix: string, placeId: string) =>
       `${workspacePage(prefix)}?selected=${encodeURIComponent(placeId)}`,
   },

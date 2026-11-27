@@ -23,7 +23,6 @@ export const PICK_LINE_LABELS = {
   lot: (lot: string) => `Lô ${lot}`,
   location: "Vị trí",
   lpn: "Mã thùng (LPN)",
-  locationPlaceholder: "Chọn vị trí đang đứng",
   // Quét vị trí rồi quét LPN (docs 07 §4.2 bước 5): ô quét lớn, máy quét hoặc gõ tay + Enter — không danh sách chọn
   scanLocation: "Bước 1 · Quét mã vị trí",
   scanLocationPlaceholder: "Quét hoặc nhập mã vị trí đang đứng",
@@ -55,7 +54,6 @@ export const PICK_LINE_LABELS = {
   planLinesFirst: "Tạo danh sách dòng lấy hàng trước khi hoàn tất.",
   onlyAssignee: "Chỉ người được gán mới xác nhận dòng lấy hàng.",
   awaitingPutBack: (count: number) => `Còn ${count} dòng đã lấy chờ trả về kệ.`,
-  locationsUnavailable: "Không tải được sơ đồ vị trí của kho — chỉ hiện vị trí của các dòng.",
   loadError: "Không tải được danh sách dòng lấy hàng.",
   linesUnavailable: "Chưa tải được dòng lấy hàng — bấm Thử lại ở danh sách dòng để hoàn tất.",
   // Báo thiếu thùng (BE `POST …/pick-lines/{lineId}/short`, docs 07 §4.4 bước 9) và phân bổ lại (`…/reallocation`)

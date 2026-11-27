@@ -8,15 +8,15 @@ import { PRODUCTION_RECEIPT_LIMITS } from "./numbers";
 export const RECEIPT_COUNT_LABELS = {
   create: {
     button: "Lập phiếu nhập",
-    title: "Lập phiếu nhập theo Đơn sản xuất",
+    title: "Lập phiếu nhập theo đơn sản xuất",
     description:
-      "Chọn Đơn sản xuất ghi trên phiếu giao của đơn vị sản xuất. Phiếu mở ở trạng thái nháp, kiểm đếm theo thùng ở bước sau.",
+      "Chọn đơn sản xuất ghi trên phiếu giao của đơn vị sản xuất. Phiếu mở ở trạng thái nháp, kiểm đếm theo thùng ở bước sau.",
     productionOrder: "Đơn sản xuất",
-    productionOrderPlaceholder: "Chọn Đơn sản xuất",
-    productionOrderSearch: "Tìm theo mã Đơn sản xuất",
-    productionOrderEmpty: "Không có Đơn sản xuất nào đang nhận được hàng",
-    loading: "Đang tải danh sách Đơn sản xuất…",
-    loadError: "Không tải được danh sách Đơn sản xuất — bấm để thử lại",
+    productionOrderPlaceholder: "Chọn đơn sản xuất",
+    productionOrderSearch: "Tìm theo mã đơn sản xuất",
+    productionOrderEmpty: "Không có đơn sản xuất nào đang nhận được hàng",
+    loading: "Đang tải danh sách đơn sản xuất…",
+    loadError: "Không tải được danh sách đơn sản xuất — bấm để thử lại",
     /** Dòng phụ trong danh sách: đơn vị sản xuất · SKU · thùng còn nhận · ngày giao dự kiến (hoặc ngày cần hàng). */
     optionSub: (parts: {
       producer: string | null | undefined;
@@ -48,12 +48,12 @@ export const RECEIPT_COUNT_LABELS = {
   },
   // BE chỉ cấp `production-orders:READ` cho quản lý kho trở lên — thiếu quyền thì không chọn / đọc được Đơn sản xuất
   noProductionRead:
-    "Tài khoản chưa được xem Đơn sản xuất nên chưa chọn được đơn và lấy dòng cần đếm — liên hệ quản trị để được cấp quyền.",
+    "Tài khoản chưa được xem đơn sản xuất nên chưa chọn được đơn và lấy dòng cần đếm — liên hệ quản trị để được cấp quyền.",
   count: {
     title: "Kiểm đếm theo thùng",
     description:
       "Chọn khu nhận và liệt kê các thùng đúng số cái chuẩn của từng dòng. Thùng lệch số chuẩn hoặc lỗi thì trả lại đơn vị sản xuất.",
-    caption: "Kiểm đếm theo dòng Đơn sản xuất",
+    caption: "Kiểm đếm theo dòng đơn sản xuất",
     headers: {
       sku: "SKU",
       production: "Đã nhận / đặt (thùng)",
@@ -91,7 +91,7 @@ export const RECEIPT_COUNT_LABELS = {
     save: "Lưu kiểm đếm",
     discard: "Bỏ thay đổi",
     dirtyBlocksConfirm: "Còn thay đổi kiểm đếm chưa lưu — lưu trước khi xác nhận",
-    loadError: "Không tải được dòng của Đơn sản xuất",
+    loadError: "Không tải được dòng của đơn sản xuất",
     retry: "Thử lại",
     result: {
       full: "Đủ",
@@ -104,7 +104,7 @@ export const RECEIPT_COUNT_LABELS = {
 
 /** Lỗi validate form lập phiếu / kiểm đếm — hiện inline dưới ô. */
 export const RECEIPT_COUNT_FIELD_MESSAGES = {
-  productionOrderRequired: "Chọn Đơn sản xuất",
+  productionOrderRequired: "Chọn đơn sản xuất",
   deliveryNoteTooLong: `Tối đa ${PRODUCTION_RECEIPT_LIMITS.deliveryNoteMax} ký tự`,
   noteTooLong: `Tối đa ${PRODUCTION_RECEIPT_LIMITS.noteMax} ký tự`,
   locationRequired: "Chọn khu nhận hàng",

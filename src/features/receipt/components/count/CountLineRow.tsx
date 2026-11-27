@@ -6,26 +6,19 @@ import { X } from "lucide-react";
 import { RECEIPT_COUNT_LABELS } from "@/constants";
 import { countRowTotal } from "@/features/receipt/count-schemas";
 import { countResult } from "@/features/receipt/count-selectors";
-import { ToneDot } from "@/components/shared/column-helpers";
 import { FormSelect } from "@/components/shared/FormSelect";
 import { FORM_INPUT_CLASS, FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
 import { Input } from "@/components/ui/input";
 import { SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { FieldError, NUM } from "../primitives";
+import { CountResultCell } from "./CountResultCell";
 
 import type { AreaOption } from "@/lib/references/warehouse-layout";
-import type { CountResult } from "@/features/receipt/count-selectors";
 import type { ReceiptCountFormValues } from "@/features/receipt/types";
 
 const C = RECEIPT_COUNT_LABELS.count;
 const MONO = "font-[family-name:var(--font-mono)]";
-const RESULT_TONE = {
-  full: "positive",
-  short: "warning",
-  over: "danger",
-  none: "muted",
-} as const satisfies Record<CountResult, "positive" | "warning" | "danger" | "muted">;
 
 /**
  * Một dòng Đơn sản xuất trong form kiểm đếm: khu nhận, thùng đã dán nhãn (bấm để bỏ → Void khi lưu), số thùng mới, và
@@ -141,15 +134,7 @@ export function CountLineRow({
         />
         <FieldError id={`${ids.cartons}-error`}>{cartonsError}</FieldError>
       </td>
-      <td className="px-3 py-2">
-        <ToneDot tone={RESULT_TONE[result]} label={C.result[result]} />
-        {total > 0 && (
-          <div className={`text-ink-tertiary mt-0.5 text-xs whitespace-nowrap ${NUM}`}>
-            <div>{C.countedOfOpen(total, row.maxCartons)}</div>
-            <div>{C.unitsOnly(total * row.unitsPerCarton)}</div>
-          </div>
-        )}
-      </td>
+      <CountResultCell row={row} total={total} result={result} />
     </tr>
   );
 }

@@ -101,6 +101,8 @@ export const WAREHOUSE_WORKSPACE_LABELS = {
   notFoundDescription:
     "Kho không còn trong danh mục hoặc bạn chưa được cấp quyền xem — chọn kho khác.",
   backToChooser: "Chọn kho khác",
+  // Kho trên URL không có: liệt kê các kho vào được, bấm là sang đúng trang đó của kho ấy (S12-7)
+  pickOne: "Mở trang này ở một kho đang có:",
   loadFailed: "Không tải được danh sách kho.",
   retry: "Thử lại",
   pages: {

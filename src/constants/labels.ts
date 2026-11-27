@@ -133,7 +133,7 @@ export const UI_LABELS = {
       badge: "Mua hàng (cũ)",
       title: "Phiếu mua hàng cũ",
       description:
-        "Mua hàng đã bỏ khỏi hệ thống: phiếu này chỉ còn để xem; phiếu còn nháp thì chỉ huỷ được. Hàng chỉ còn về theo Đơn sản xuất.",
+        "Mua hàng đã bỏ khỏi hệ thống: phiếu này chỉ còn để xem; phiếu còn nháp thì chỉ huỷ được. Hàng chỉ còn về theo đơn sản xuất.",
       confirmNote: "Phiếu mua hàng cũ không xác nhận được — chỉ huỷ được khi còn nháp.",
     },
     receiptType: {
@@ -174,7 +174,7 @@ export const UI_LABELS = {
     confirmDialog: {
       cancelTitle: "Huỷ phiếu nhận",
       confirmDescription: (number: string) =>
-        `Chốt số của ${number}: các thùng thành tồn đang nhận ở khu nhận hàng, Đơn sản xuất cập nhật SL đã nhận, phiếu chuyển sang cất hàng. Sau khi xác nhận phiếu chỉ còn xem, sai sót phải điều chỉnh tồn.`,
+        `Chốt số của ${number}: các thùng thành tồn đang nhận ở khu nhận hàng, đơn sản xuất cập nhật SL đã nhận, phiếu chuyển sang cất hàng. Sau khi xác nhận phiếu chỉ còn xem, sai sót phải điều chỉnh tồn.`,
       cancelDescription: (number: string) =>
         `Huỷ ${number}? Chỉ phiếu nháp mới huỷ được; thùng đã cấp mã bị huỷ theo. Không thể khôi phục.`,
     },
@@ -310,6 +310,25 @@ export const UI_LABELS = {
       changeDescription: "Chỉ đổi đích được khi nhiệm vụ chưa bắt đầu lấy hàng.",
     },
     self: "Tôi",
+    // Chữ của màn nhiệm vụ lấy hàng (đặt ở đây, không viết thẳng trong component)
+    taskTitle: (code: string) => `Nhiệm vụ ${code}`,
+    taskInfoTitle: "Thông tin nhiệm vụ",
+    taskLinesCaption: "Dòng hàng của nhiệm vụ",
+    taskEmptyTitle: "Chưa có nhiệm vụ lấy hàng",
+    taskTableCaption: (shown: number, total: number) =>
+      `Hiển thị ${shown} / ${total} nhiệm vụ lấy hàng`,
+    viewTask: (code: string) => `Xem nhiệm vụ ${code}`,
+    assignTask: (code: string) => `Gán lại nhiệm vụ ${code}`,
+    assignDescription:
+      "Chỉ gán lại được khi nhiệm vụ chưa bắt đầu lấy hàng. Người được gán phải là nhân viên kho hoặc quản lý kho đang hoạt động.",
+    confirm: {
+      completePicking: (code: string) =>
+        `Xác nhận đã lấy đủ thùng của nhiệm vụ ${code}? Thao tác không hoàn lại được.`,
+      moveToDispatch: (code: string) =>
+        `Chuyển cả nhiệm vụ ${code} từ khu chờ xuất sang khu xuất hàng? Tồn của mọi thùng trong nhiệm vụ sẽ bị trừ và thao tác không hoàn lại được.`,
+      topUp: (code: string) =>
+        `Lấy bổ sung cho nhiệm vụ ${code}? Các thùng đơn đã giữ thêm được đưa vào cùng nhiệm vụ và nhiệm vụ quay lại Đang lấy hàng.`,
+    },
     // Nhãn trường dùng chung giữa cột danh sách, thẻ thông tin và form
     field: {
       task: "Số nhiệm vụ",
@@ -410,8 +429,8 @@ export const RECEIPT_ERROR_MESSAGES = {
   PRODUCTION_ORDER_NOT_RECEIVABLE:
     "Đơn sản xuất không còn nhận được hàng (chưa gửi, đã nhận đủ, đã đóng hoặc huỷ). Dữ liệu đã được tải lại.",
   // BR-02 (docs 03 §6): không nhận quá số thùng Đơn sản xuất đặt, tính cả phiếu nháp
-  RECEIPT_EXCEEDS_PRODUCTION_ORDER: "Số thùng nhận vượt số thùng còn lại của dòng Đơn sản xuất",
-  RECEIPT_LINE_NOT_ON_PRODUCTION_ORDER: "Dòng này không thuộc Đơn sản xuất của phiếu",
+  RECEIPT_EXCEEDS_PRODUCTION_ORDER: "Số thùng nhận vượt số thùng còn lại của dòng đơn sản xuất",
+  RECEIPT_LINE_NOT_ON_PRODUCTION_ORDER: "Dòng này không thuộc đơn sản xuất của phiếu",
   // BR-13 (docs 03 §6): mỗi thùng chứa đúng quy cách của dòng
   RECEIPT_CARTON_NOT_STANDARD: "Thùng phải chứa đúng số lượng chuẩn của quy cách thùng",
   LOCATION_NOT_FOUND: "Không tìm thấy mã vị trí",

@@ -100,7 +100,10 @@ export function buildTaskColumns({
           allowedFulfillmentActions(row, actor).some((a) => a.code === "assign");
         return (
           <div className="flex items-center gap-1.5">
-            <ViewAction label={`Xem nhiệm vụ ${taskCode(row)}`} href={detailHref(row.taskId)} />
+            <ViewAction
+              label={UI_LABELS.fulfillment.viewTask(taskCode(row))}
+              href={detailHref(row.taskId)}
+            />
             {canAssign && (
               <button
                 type="button"
@@ -109,7 +112,7 @@ export function buildTaskColumns({
                   onAssign(row);
                 }}
                 className={CELL.action}
-                aria-label={`${UI_LABELS.fulfillment.action.assign} nhiệm vụ ${taskCode(row)}`}
+                aria-label={UI_LABELS.fulfillment.assignTask(taskCode(row))}
               >
                 <UserCog className="size-3.5" />
               </button>

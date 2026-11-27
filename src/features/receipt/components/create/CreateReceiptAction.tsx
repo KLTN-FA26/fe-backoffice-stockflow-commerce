@@ -22,17 +22,20 @@ const REASON_ID = "gr-create-disabled-reason";
 export function CreateReceiptAction({
   handleLink = true,
   detailHref,
+  warehouseId,
 }: {
-  /** Chỉ một nút trên màn đọc `?productionOrder=` — nút thứ hai (trạng thái trống) đặt `false` để không mở hai hộp. */
+  /** Chỉ một nút trên màn đọc `?createFor=` — nút thứ hai (trạng thái trống) đặt `false` để không mở hai hộp. */
   handleLink?: boolean;
   /** Đường dẫn trang phiếu vừa lập (mặc định nhóm Nhập kho; màn nhận hàng của kho ở lại trong tab kho). */
   detailHref?: (receiptId: string) => string;
+  /** Màn nhận hàng của một kho: chỉ chọn / chọn sẵn Đơn sản xuất về kho này. */
+  warehouseId?: string;
 } = {}) {
   const can = usePermissionChecker();
   const gate = productionReceiptCreateGate(can);
   const [clicked, setClicked] = useState(false);
-  // `?productionOrder=` — mở từ một Đơn sản xuất: hộp Lập mở sẵn với đơn đó đã chọn (bỏ tham số khi đóng)
-  const [linked, setLinked] = useQueryState("productionOrder", parseAsString);
+  // `?createFor=` (khác `?productionOrder=` là bộ lọc danh sách) — mở từ một Đơn sản xuất: hộp Lập mở sẵn với đơn đó đã chọn (bỏ tham số khi đóng)
+  const [linked, setLinked] = useQueryState("createFor", parseAsString);
   const open = clicked || (handleLink && !!linked && !!gate && !gate.disabledReason);
   const close = () => {
     setClicked(false);
@@ -68,6 +71,7 @@ export function CreateReceiptAction({
         onClose={close}
         productionOrderId={handleLink ? (linked ?? undefined) : undefined}
         detailHref={detailHref}
+        warehouseId={warehouseId}
       />
     </>
   );

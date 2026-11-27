@@ -9,6 +9,7 @@ import {
   STOCK_PACKAGE_PERMISSIONS,
   UI_LABELS,
 } from "@/constants";
+import { PAYMENT_INSTALLMENT_PERMISSIONS } from "@/constants/payment";
 import { ApiError } from "@/lib/api/error";
 import { toast } from "@/components/shared/Toast";
 
@@ -630,6 +631,31 @@ describe("CartonCheckStation — action-gating theo quyền và người bắt �
     expect(screen.getByLabelText(L.scan.label)).toBeInTheDocument();
   });
 
+  it("dải 'phải thu trước khi giao' nói Kế toán lập phiếu thu và có link 'Xem đợt thanh toán' khi xem được đợt (S15-3)", async () => {
+    renderCartonCheckStation({
+      identity: {
+        permissions: [
+          ...IDENTITIES.warehouseStaff.permissions,
+          PAYMENT_INSTALLMENT_PERMISSIONS.read,
+        ],
+      },
+      session: startedSession({ paymentDue: { amount: 1500000, currency: "VND" } }),
+    });
+    expect(await screen.findByText(/Kế toán lập phiếu thu/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: L.notice.paymentLink })).toHaveAttribute(
+      "href",
+      expect.stringMatching(/^\/admin\/payment\/installments\/orders\//),
+    );
+  });
+
+  it("không xem được đợt thanh toán → không link, vẫn có câu nói ai xử lý", async () => {
+    renderCartonCheckStation({
+      session: startedSession({ paymentDue: { amount: 1500000, currency: "VND" } }),
+    });
+    expect(await screen.findByText(/Kế toán lập phiếu thu/)).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: L.notice.paymentLink })).toBeNull();
+  });
+
   it("điều phối đơn không có packages:VIEW_PAGE → bị chặn ở cổng route", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     renderCartonCheckStation({ identity: IDENTITIES.orderCoordinator });
@@ -732,6 +758,19 @@ describe("Bảng thùng của đơn — gọn, không cắt cột, một nút ch
       within(row).getByRole("button", { name: L.action.more("LPN000001") }),
     ).toBeInTheDocument();
     expect(within(row).getByRole("button", { name: L.action.remove })).toHaveClass("ml-4");
+  });
+
+  it("cột Thao tác ghim mép phải khung cuộn (nút luôn thấy ở 1440px dù bảng rộng)", async () => {
+    renderCartonCheckStation({ session: allLabeledSession() });
+    const row = await waitForRow("LPN000001");
+    expect(screen.getByRole("columnheader", { name: L.cartons.colActions })).toHaveClass(
+      "sticky",
+      "right-0",
+    );
+    expect(within(row).getByRole("button", { name: L.action.print }).closest("td")).toHaveClass(
+      "sticky",
+      "right-0",
+    );
   });
 
   it("nút trong dòng cao 32px, 44px khi màn cảm ứng (R10)", async () => {

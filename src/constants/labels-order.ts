@@ -251,7 +251,7 @@ export const ORDER_HISTORY_REASON_LABELS: Readonly<Record<string, string>> = {
   // Hợp đồng bị huỷ trước khi ký → đơn quay về nháp để lập lại (BE `Order#withdrawContract`)
   CONTRACT_CANCELLED: "Hợp đồng bị huỷ — đơn quay về nháp",
   INSTALLMENT_PAID: "Đã thu đủ các đợt thanh toán khi ký hợp đồng",
-  PRODUCTION_ORDER_SENT: "Đã gửi Đơn sản xuất",
+  PRODUCTION_ORDER_SENT: "Đã gửi đơn sản xuất",
   CREDIT_APPROVED: "Kế toán duyệt công nợ",
   // Hàng của lần giao thất bại đã về kho (BE `Order#markReturnedToOrigin`)
   RETURNED_TO_ORIGIN: "Hàng giao thất bại đã về lại kho",
@@ -413,7 +413,7 @@ export const ORDER_ERROR_MESSAGES = {
   ORDER_SHIPPING_WAREHOUSE_NOT_ALLOWED:
     "Chỉ chọn được kho xuất cho đơn của hợp đồng đã ký, khi đơn đã xác nhận hoặc đang chờ hàng. Dữ liệu đã được tải lại.",
   ORDER_SHIPPING_WAREHOUSE_LOCKED:
-    "Không đổi được kho xuất nữa: đơn đã giữ hàng ở kho hiện tại, hoặc đã có Đơn sản xuất gửi về kho đó. Dữ liệu đã được tải lại.",
+    "Không đổi được kho xuất nữa: đơn đã giữ hàng ở kho hiện tại, hoặc đã có đơn sản xuất gửi về kho đó. Dữ liệu đã được tải lại.",
   // BE PR #150 — thu phần còn lại ghi công nợ; huỷ / đóng phần còn lại có phí
   BALANCE_CREDIT_LIMIT_EXCEEDED:
     "Phần còn lại ghi công nợ làm công nợ của khách vượt hạn mức. Chọn cách thu khác hoặc nhờ Kế toán nâng hạn mức.",

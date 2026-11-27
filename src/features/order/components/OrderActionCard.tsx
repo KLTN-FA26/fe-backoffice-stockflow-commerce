@@ -1,27 +1,22 @@
-import Link from "next/link";
-
 import {
-  ADMIN_ROUTES,
   CREDIT_HOLD_PERMISSIONS,
   FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS,
-  FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS,
   ORDER_ACTION_LABELS,
   ORDER_HOLD_GUIDANCE,
   ORDER_PERMISSIONS,
   ORDER_RELEASE_BLOCKER_LABELS,
   ORDER_STATUS_UNKNOWN,
-  UI_LABELS,
 } from "@/constants";
 import { StatusDot } from "@/components/shared/StatusDot";
 
-import { ORDER_ACTION_BUTTON } from "./useOrderActionDialog";
-
 import { allowedOrderActions, isOrderTerminal, orderActionContextOf } from "../lifecycle";
+import { createPickingTaskHref } from "../picking-task";
 import { releaseBlockers } from "../release-rules";
 
 import { CreditApproveAction } from "./credit-hold/CreditApproveAction";
 import { CreditRejectAction } from "./credit-hold/CreditRejectAction";
 import { OrderCancelAction } from "./OrderCancelAction";
+import { OrderCreateTaskLink } from "./OrderCreateTaskLink";
 import { OrderHoldNotice } from "./OrderHoldNotice";
 import { OrderNextStep } from "./OrderNextStep";
 import { OrderReleaseAction } from "./OrderReleaseAction";
@@ -134,14 +129,7 @@ export function OrderActionCard({ order, can, estimateSlot }: OrderActionCardPro
   // Lý do biết trước chưa release được (đơn cọc chưa nhận cọc): chỉ cho người có quyền release; nói ra thay vì ẩn nút.
   // UI-only — Backend phải re-check (OrderReleaseService: BR-PRD-09).
   const blockers = can(ORDER_PERMISSIONS.release) ? releaseBlockers(order) : [];
-  // Đã có lệnh xuất kho, chưa lấy hàng: Quản lý kho tạo nhiệm vụ lấy hàng ngay từ đơn — mở màn Lấy hàng của kho xuất với hộp
-  // tạo đã chọn sẵn đơn này. UI-only — Backend phải re-check (fulfillment-task-assignment:CREATE, docs 07 §4.1).
-  const createTaskHref =
-    order.status === "Ready to Fulfill" &&
-    order.warehouseCode &&
-    can(FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS.create)
-      ? `${ADMIN_ROUTES.warehouseMap.page(order.warehouseCode, "picking")}?create=${encodeURIComponent(order.orderId)}`
-      : null;
+  const createTaskHref = createPickingTaskHref(order, can);
 
   return (
     <section
@@ -153,14 +141,7 @@ export function OrderActionCard({ order, can, estimateSlot }: OrderActionCardPro
       </div>
       <OrderNextStep status={order.status} />
       {onHold && <OrderHoldNotice order={order} />}
-      {createTaskHref && (
-        <Link
-          href={createTaskHref}
-          className={`${ORDER_ACTION_BUTTON} bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse mb-2 inline-flex items-center justify-center`}
-        >
-          {UI_LABELS.fulfillment.action.create}
-        </Link>
-      )}
+      {createTaskHref && <OrderCreateTaskLink href={createTaskHref} />}
       {actions.length > 0 ? (
         <div className="space-y-2">
           {has("release") && (

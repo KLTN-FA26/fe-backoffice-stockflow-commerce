@@ -117,7 +117,7 @@ describe("Chưa có Đơn sản xuất → lối mở thẳng hộp Lập (S11-5
       PRODUCTION_ORDER_PERMISSIONS.read,
       PRODUCTION_ORDER_PERMISSIONS.create,
     ]);
-    const link = await screen.findByRole("link", { name: "Lập Đơn sản xuất" });
+    const link = await screen.findByRole("link", { name: "Lập đơn sản xuất" });
     expect(link).toHaveAttribute(
       "href",
       `/admin/production-schedule?tab=batches&drawOrder=${apiOrder.orderId}`,
@@ -130,7 +130,7 @@ describe("Chưa có Đơn sản xuất → lối mở thẳng hộp Lập (S11-5
       PRODUCTION_ORDER_PERMISSIONS.read,
     ]);
     await screen.findByText(/Chưa có đơn sản xuất — Điều phối sản xuất lập/);
-    expect(screen.queryByRole("link", { name: "Lập Đơn sản xuất" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Lập đơn sản xuất" })).not.toBeInTheDocument();
   });
 });
 

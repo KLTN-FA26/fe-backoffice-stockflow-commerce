@@ -32,11 +32,13 @@ function CreateForm({
   onClose,
   productionOrderId = "",
   detailHref = ADMIN_ROUTES.receipts.detail,
+  warehouseId,
 }: {
   onClose: () => void;
   /** Mở từ một Đơn sản xuất: chọn sẵn đơn đó. */
   productionOrderId?: string;
   detailHref?: (receiptId: string) => string;
+  warehouseId?: string;
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +49,7 @@ function CreateForm({
   });
   const { errors } = form.formState;
   // Chỉ có đúng một Đơn sản xuất nhận được hàng → chọn sẵn (R6), người dùng vẫn đổi / xoá được
-  const receivable = useReceivableProductionOrders();
+  const receivable = useReceivableProductionOrders(true, warehouseId);
   const onlyId = receivable.data.length === 1 ? receivable.data[0]?.id : undefined;
   useEffect(() => {
     if (onlyId && !form.getValues("productionOrderId")) {
@@ -91,6 +93,7 @@ function CreateForm({
               id={PO_ID}
               value={field.value}
               onChange={field.onChange}
+              warehouseId={warehouseId}
               error={!!errors.productionOrderId}
               describedBy={fieldA11y(PO_ID, errors.productionOrderId?.message)["aria-describedby"]}
             />
@@ -128,11 +131,13 @@ export function CreateProductionReceiptDialog({
   onClose,
   productionOrderId,
   detailHref,
+  warehouseId,
 }: {
   open: boolean;
   onClose: () => void;
   productionOrderId?: string;
   detailHref?: (receiptId: string) => string;
+  warehouseId?: string;
 }) {
   return (
     <FormDialog open={open} onOpenChange={(next) => !next && onClose()}>
@@ -141,6 +146,7 @@ export function CreateProductionReceiptDialog({
           onClose={onClose}
           productionOrderId={productionOrderId}
           detailHref={detailHref}
+          warehouseId={warehouseId}
         />
       )}
     </FormDialog>

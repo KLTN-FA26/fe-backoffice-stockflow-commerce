@@ -2,11 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import {
-  PICK_LINE_ERROR_MESSAGES as LE,
-  PICK_LINE_LABELS as L,
-  UI_LABELS,
-} from "@/constants";
+import { PICK_LINE_ERROR_MESSAGES as LE, PICK_LINE_LABELS as L, UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 import { toast } from "@/components/shared/Toast";
 
@@ -45,9 +41,9 @@ describe("PickingDetail — action-gating theo trạng thái + quyền + vai tr�
     const user = userEvent.setup();
     const { post } = renderDetail(IDENTITIES.warehouseStaff, apiTask());
 
+    // Bấm một lần là bắt đầu — không hộp xác nhận (S14-8)
     await user.click(await screen.findByRole("button", { name: action.startPicking }));
-    const dialog = await screen.findByRole("dialog");
-    await user.click(within(dialog).getByRole("button", { name: action.startPicking }));
+    expect(screen.queryByRole("dialog")).toBeNull();
 
     await waitFor(() => expect(post).toHaveBeenCalledWith(`${PATH}/picking-start`, undefined));
     // Sau khi tải lại: sang bước xác nhận dòng; chưa đủ dòng nên chưa có Hoàn tất
@@ -258,7 +254,7 @@ describe("PickingDetail — dữ liệu phụ trợ và lỗi", () => {
     expect(screen.queryByText("Hoàn tất")).toBeNull();
   });
 
-  it("lỗi 409 khi bắt đầu (task đã đổi ở nơi khác) → đóng dialog, tải lại task", async () => {
+  it("lỗi 409 khi bắt đầu (nhiệm vụ đã đổi ở nơi khác) → không dialog, tải lại nhiệm vụ", async () => {
     const user = userEvent.setup();
     const spies = mockFulfillmentApi(
       IDENTITIES.warehouseStaff,
@@ -271,9 +267,6 @@ describe("PickingDetail — dữ liệu phụ trợ và lỗi", () => {
     );
     renderFulfillmentScreen(<PickingDetail id={TASK_ID} />);
     await user.click(await screen.findByRole("button", { name: action.startPicking }));
-    await user.click(
-      within(await screen.findByRole("dialog")).getByRole("button", { name: action.startPicking }),
-    );
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     const detailCalls = () => spies.get.mock.calls.filter(([url]) => url === PATH).length;
     await waitFor(() => expect(detailCalls()).toBeGreaterThan(1));
@@ -379,13 +372,13 @@ describe("PickingDetail — xác nhận dòng lấy hàng: quét vị trí + LPN
     expect(confirmCalls(post)).toHaveLength(0);
   });
 
-  it("mã vị trí không phân biệt hoa thường, bỏ khoảng trắng — như BE; gửi đúng mã đã quét", async () => {
+  it("mã vị trí không phân biệt hoa thường, bỏ khoảng trắng — như BE; gửi mã CỦA DÒNG, không phải chữ đã gõ", async () => {
     const user = userEvent.setup();
     const { post } = renderDetail(IDENTITIES.warehouseStaff, picking());
     await screen.findByText(L.confirmTitle(1));
     await fillAndSubmit(user, " hn-a01-01-01-a ", LPN_1);
     await waitFor(() => expect(confirmCalls(post)).toHaveLength(1));
-    expect(confirmCalls(post)[0]?.[1]).toEqual({ locationCode: "hn-a01-01-01-a", lpn: LPN_1 });
+    expect(confirmCalls(post)[0]?.[1]).toEqual({ locationCode: "HN-A01-01-01-A", lpn: LPN_1 });
   });
 
   it("gõ tay không có máy quét: gõ LPN rồi bấm nút Xác nhận dòng", async () => {

@@ -5,6 +5,7 @@ import { ScrollShadowBox } from "@/components/backoffice/ScrollShadowBox";
 import { cartonActions } from "@/features/fulfillment/carton-check-lifecycle";
 
 import { CartonRow } from "./CartonRow";
+import { PINNED } from "./CartonRowActions";
 
 import type { CartonRowHandlers } from "./CartonRowActions";
 import type { CartonCheckAccess } from "@/features/fulfillment/carton-check-lifecycle";
@@ -62,7 +63,11 @@ export function CartonsTable({
               {L.colQty}
             </th>
             {tail.map((header) => (
-              <th key={header} scope="col" className={`${TH} text-left`}>
+              <th
+                key={header}
+                scope="col"
+                className={`${TH} text-left ${header === L.colActions ? `${PINNED} bg-bg-subtle` : ""}`}
+              >
                 {header}
               </th>
             ))}

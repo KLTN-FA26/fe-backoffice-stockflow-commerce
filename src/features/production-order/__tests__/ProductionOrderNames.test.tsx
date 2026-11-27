@@ -237,7 +237,7 @@ describe("Lập phiếu nhập từ Đơn sản xuất (S12-1)", () => {
       permissions: [...PRODUCTION_ACTORS.coordinator, GOODS_RECEIPT_PERMISSIONS.create],
     });
     const link = await screen.findByRole("link", { name: A.createReceipt });
-    expect(link).toHaveAttribute("href", `/admin/receipts?productionOrder=${ID}`);
+    expect(link).toHaveAttribute("href", `/admin/receipts?createFor=${ID}`);
   });
 
   it("thiếu quyền lập phiếu, hoặc đơn chưa nhận được hàng → không có link", async () => {
