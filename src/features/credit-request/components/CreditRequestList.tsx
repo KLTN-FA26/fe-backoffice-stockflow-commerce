@@ -24,7 +24,7 @@ import { useCreditRequests } from "../queries";
 
 import { CREDIT_REQUEST_COPY } from "./copy";
 import { CreateCreditRequestDialog } from "./CreateCreditRequestDialog";
-import { CREDIT_REQUEST_COLUMNS } from "./list-columns";
+import { creditRequestColumns, hasCurrentLimit } from "./list-columns";
 
 import type { CreditRequestApiStatus } from "@/constants/credit-request";
 
@@ -121,7 +121,7 @@ function CreditRequestListContent() {
       <ServerTableBody
         query={query}
         canRead={canRead}
-        columns={CREDIT_REQUEST_COLUMNS}
+        columns={creditRequestColumns(hasCurrentLimit(query.data?.items))}
         rowKey={(row) => row.id}
         onRowClick={(row) => router.push(CREDIT_REQUEST_ROUTES.detail(row.id))}
         noun="đề nghị"
