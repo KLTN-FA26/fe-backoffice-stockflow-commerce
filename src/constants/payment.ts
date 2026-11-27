@@ -239,4 +239,5 @@ export const PAYMENT_STORAGE_KEYS = {
   installmentsColumns: "stockflow:admin:payment:installments:columns",
   receiptsColumns: "stockflow:admin:payment:receipts:columns",
   receivablesConfig: "stockflow:admin:payment:receivables:config",
+  receivablesColumns: "stockflow:admin:payment:receivables:columns",
 } as const;

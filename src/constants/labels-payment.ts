@@ -401,7 +401,21 @@ export const RECEIVABLES_LABELS = {
   over60: "> 60 ngày",
   installmentCount: "Số đợt",
   viewInstallments: "Xem các đợt",
+  viewOwing: "Xem các đợt còn nợ",
   actions: "Thao tác",
+  rowActions: (customer: string) => `Thao tác — ${customer}`,
+  creditLimit: "Hạn mức",
+  noCreditLimit: "Chưa cấp",
+  creditUsed: (percent: number) => `Đã dùng ${percent}%`,
+  creditUsedTitle: "Dư nợ tính hạn mức (còn phải thu + phần sau giao của hàng chưa giao) / hạn mức",
+  /** Chú thích ở header (bo-23): hai cột quá hạn đọc khác nhau. */
+  overdueHint:
+    "Đợt sau giao đã quá hạn trả mà khách chưa trả đủ. Nằm trong “Còn phải thu” và chia theo tuổi nợ 0–30 / 31–60 / > 60 ngày.",
+  signingOverdueHint:
+    "Đợt phải trả khi ký hợp đồng đã quá hạn mà chưa trả đủ. Không nằm trong “Còn phải thu” hay “Quá hạn”, nhưng vẫn chặn hợp đồng mới của khách khi kiểm tra tín dụng.",
+  hintLabel: (column: string) => `Giải thích cột ${column}`,
+  totalsTitle: (customers: number) => `Tổng ${customers} khách`,
+  totalsLabel: "Tổng các cột trên mọi khách đang lọc",
   emptyTitle: "Không có khách nào còn nợ",
   emptyDescription: "Khi đợt thanh toán đến mốc mà khách chưa trả đủ, khách sẽ hiện ở đây.",
   noReadDescription:

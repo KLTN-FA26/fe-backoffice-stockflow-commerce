@@ -155,3 +155,15 @@ export function installmentRef(installment: TitleSource): string {
 export function isAutomaticReceipt(receipt: { recordedBy?: string | null }): boolean {
   return receipt.recordedBy === BANK_FEED_USER_ID;
 }
+
+/**
+ * Phần hạn mức đã dùng của khách, % làm tròn: dư nợ tính hạn mức (BE `exposure` = còn phải thu + phần sau giao của hàng
+ * chưa giao, 15 BR-10) / hạn mức. Null khi khách chưa có hạn mức (hoặc hạn mức 0) hay BE không gửi dư nợ.
+ */
+export function creditUsedPercent(row: {
+  creditLimit?: number | null;
+  exposure?: number | null;
+}): number | null {
+  if (row.creditLimit == null || row.creditLimit <= 0 || row.exposure == null) return null;
+  return Math.round((row.exposure / row.creditLimit) * 100);
+}
