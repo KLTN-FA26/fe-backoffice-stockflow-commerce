@@ -16,6 +16,7 @@ import { useCustomerRef } from "@/lib/references/customer-lookup";
 import { useCustomerCreditPosition } from "@/features/quote/queries";
 import { linePriceVerdict } from "@/features/quote/selectors";
 import { FORM_BAR_ACTION_CLASS } from "@/components/backoffice/FormBottomBar";
+import { SalesOwnerAccessNote } from "@/components/backoffice/SalesOwnerNotes";
 import { Card } from "@/components/shared/Card";
 import { DiscardChangesButton } from "@/components/shared/DiscardChangesButton";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ import { skuLabel } from "./QuoteSkuField";
 import { usePriceReferences } from "./usePriceReferences";
 
 import type { UseFormReturn } from "react-hook-form";
+import type { SalesOwnerAccess } from "@/lib/references/sales-owner-access";
 import type { LinePriceVerdict } from "@/features/quote/selectors";
 import type { CustomerSku, Quote, QuoteFormValues, QuoteTier } from "@/features/quote/types";
 
@@ -179,6 +181,7 @@ export function QuoteSummaryPanel({
   pending,
   stale,
   canSend,
+  ownerAccess,
   onSend,
   onDiscard,
 }: {
@@ -191,6 +194,8 @@ export function QuoteSummaryPanel({
   stale: boolean;
   /** Người dùng được gửi báo giá (`sales-quotes:UPDATE`, UI-only). */
   canSend: boolean;
+  /** BR-S12: người phụ trách của khách đang chọn — chặn Lưu / Gửi khi khách do người khác phụ trách. */
+  ownerAccess?: Pick<SalesOwnerAccess, "blockedReason" | "coverNote">;
   onSend: () => void;
   onDiscard: () => void;
 }) {
@@ -217,6 +222,7 @@ export function QuoteSummaryPanel({
     ];
   });
   const needsApproval = rows.some((row) => row.verdict === "needsApproval");
+  const ownerBlocked = ownerAccess?.blockedReason ?? null;
 
   return (
     <div className="space-y-3">
@@ -237,7 +243,9 @@ export function QuoteSummaryPanel({
           <Button
             type="submit"
             size="sm"
-            disabled={pending || stale}
+            disabled={pending || stale || !!ownerBlocked}
+            title={ownerBlocked ?? undefined}
+            aria-describedby={ownerBlocked ? "quote-owner-blocked" : undefined}
             className={`${FORM_BAR_ACTION_CLASS.primary} w-full justify-center`}
           >
             {pending && <LoaderCircle className="size-3.5 animate-spin" aria-hidden="true" />}
@@ -248,7 +256,8 @@ export function QuoteSummaryPanel({
               type="button"
               variant="outline"
               size="sm"
-              disabled={pending || stale}
+              disabled={pending || stale || !!ownerBlocked}
+              title={ownerBlocked ?? undefined}
               onClick={onSend}
               aria-describedby="quote-save-send-hint"
               className={`${FORM_BAR_ACTION_CLASS.outline} w-full justify-center gap-1.5`}
@@ -264,6 +273,7 @@ export function QuoteSummaryPanel({
             className={`${FORM_BAR_ACTION_CLASS.outline} w-full justify-center`}
           />
         </div>
+        {ownerAccess && <SalesOwnerAccessNote access={ownerAccess} id="quote-owner-blocked" />}
         {canSend && (
           <p id="quote-save-send-hint" className="text-ink-tertiary text-xs">
             {S.saveAndSendHint}
