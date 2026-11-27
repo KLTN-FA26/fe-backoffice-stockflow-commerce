@@ -25,6 +25,8 @@ export interface ListBankTransactionParams extends ListQueryParams {
   /** Ngày ngân hàng ghi, `YYYY-MM-DD` (giờ VN): BE `from` / `to` là Instant, `to` loại trừ. */
   from?: string;
   to?: string;
+  /** bo-25: đúng số tiền (đồng) của giao dịch — BE `amount` (PR #497); BE cũ bỏ qua tham số. */
+  amount?: number;
 }
 
 /** Giờ nghiệp vụ VN — BE lọc `from` / `to` theo Instant. */
@@ -46,9 +48,10 @@ export async function listBankTransactions(
   params: ListBankTransactionParams,
   signal?: AbortSignal,
 ): Promise<PaginatedResponse<BankTransaction>> {
-  const { page = 0, size = PAGE_SIZE.md, status, from, to } = params;
+  const { page = 0, size = PAGE_SIZE.md, status, from, to, amount } = params;
   const query = new URLSearchParams({ page: String(Math.max(0, page)), size: String(size) });
   if (status) query.set("status", status);
+  if (amount != null) query.set("amount", String(amount));
   if (from) query.set("from", dayStartInstant(from));
   if (to) query.set("to", dayAfterStartInstant(to));
   const { data } = await api.get<unknown>(BASE, { params: query, signal });
@@ -80,18 +83,41 @@ export async function ignoreBankTransaction(input: {
   return bankTransactionDtoSchema.parse(data);
 }
 
+/** Số đợt tối đa một lần gợi ý "Đợt có thể khớp" — BE đã lọc đúng số tiền nên thường chỉ vài đợt. */
+const MATCH_PAGE_SIZE = 50;
+
 /**
- * Đợt đã đến hạn còn phải thu của mọi khách (`GET /installments?owing=true`, hạn sớm nhất trước), tối đa một trang
- * 200 dòng — để gợi ý đợt cùng số tiền khi giao dịch không nhận ra khách. BE chưa lọc theo số tiền, nên trả cả tổng để
- * màn nói rõ phạm vi khi vượt 200.
+ * Đợt còn phải thu ĐÚNG bằng `amount` (`GET /installments?outstanding=`, BE PR #497), hạn sớm nhất trước — khối "Đợt có
+ * thể khớp" (bo-26). Giao dịch nhận ra khách → đợt của khách đó (`customerId`, kể cả đợt chưa đến hạn: khách trả trước);
+ * không nhận ra → đợt đã đến hạn còn nợ của mọi khách (`owing=true`). Trả cả tổng để màn nói khi còn đợt ngoài trang.
  */
-export async function listOwingInstallments(
+export async function listMatchingInstallments(
+  params: { amount: number; customerId: string | null },
   signal?: AbortSignal,
 ): Promise<{ items: PayableInstallment[]; totalElements: number }> {
-  const query = new URLSearchParams({ owing: "true", page: "0", size: String(MAX_PAGE_SIZE) });
+  const query = new URLSearchParams({
+    outstanding: String(params.amount),
+    page: "0",
+    size: String(MATCH_PAGE_SIZE),
+  });
+  if (params.customerId) query.set("customerId", params.customerId);
+  else query.set("owing", "true");
   const { data } = await api.get<unknown>("/installments", { params: query, signal });
   const page = payableInstallmentPageSchema.parse(data);
   return { items: page.items, totalElements: page.totalElements };
+}
+
+/**
+ * Tìm đợt theo số hợp đồng / số đơn (hoặc tên / MST khách) của mọi khách — `GET /installments?search=` (bo-27, BE PR
+ * #497 tìm thêm số hợp đồng / số đơn): hộp thoại gán tìm được đợt khi chưa biết khách.
+ */
+export async function searchInstallments(
+  search: string,
+  signal?: AbortSignal,
+): Promise<PayableInstallment[]> {
+  const query = new URLSearchParams({ search, page: "0", size: String(MATCH_PAGE_SIZE) });
+  const { data } = await api.get<unknown>("/installments", { params: query, signal });
+  return payableInstallmentPageSchema.parse(data).items;
 }
 
 /** Đợt của một khách (`GET /installments?customerId=`) — form chỉ giữ đợt còn phải thu. */

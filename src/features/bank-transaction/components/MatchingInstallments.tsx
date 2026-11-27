@@ -10,7 +10,7 @@ import { DetailPanel } from "@/components/shared/DetailPanel";
 import { Skeleton } from "@/components/shared/Skeleton";
 import { Button } from "@/components/ui/button";
 
-import { useCustomerInstallments, useOwingInstallments } from "../queries";
+import { useMatchingInstallments } from "../queries";
 import { matchingInstallments } from "../selectors";
 
 import { AssignDialog } from "./AssignDialog";
@@ -22,23 +22,23 @@ const L = BANK_TRANSACTION_LABELS.matches;
 
 /**
  * "Đợt có thể khớp" (bo-26): các đợt còn phải thu đúng bằng số tiền của giao dịch chờ xử lý, mỗi đợt một nút "Gắn" mở
- * hộp thoại gán đã chọn sẵn đợt đó. BE chưa lọc đợt theo số tiền, nên:
- * - giao dịch nhận ra khách → mọi đợt của khách đó (`customerId`, ≤ 200 — cùng truy vấn với hộp thoại gán);
- * - không nhận ra khách → đợt đã đến hạn còn phải thu của mọi khách (`owing=true`, hạn sớm nhất trước, ≤ 200), lọc số
- *   tiền ở FE và nói rõ phạm vi khi tổng vượt 200.
+ * hộp thoại gán đã chọn sẵn đợt đó. BE lọc đúng số tiền (`GET /installments?outstanding=`, PR #497):
+ * - giao dịch nhận ra khách → đợt của khách đó (`customerId`);
+ * - không nhận ra khách → đợt đã đến hạn còn nợ của mọi khách (`owing=true`).
+ * FE vẫn giữ đúng các đợt còn nhận tiền bằng số tiền (`matchingInstallments`) — BE chưa có tham số thì nó bỏ qua và trả
+ * mọi đợt; khi đó không nói "còn đợt khác" vì tổng không phải số đợt khớp.
  */
 export function MatchingInstallments({ transaction }: { transaction: BankTransaction }) {
   const customerId = transaction.customerId ?? null;
-  const ofCustomer = useCustomerInstallments(customerId, !!customerId);
-  const owing = useOwingInstallments(!customerId);
+  const state = useMatchingInstallments(transaction.amount, customerId);
   const [picked, setPicked] = useState<PayableInstallment | null>(null);
-  const state = customerId ? ofCustomer : owing;
-  const rows = customerId ? (ofCustomer.data ?? []) : (owing.data?.items ?? []);
+  const rows = state.data?.items ?? [];
   const matches = matchingInstallments(rows, transaction.amount);
   const money = (amount: number) => formatMoney(amount, transaction.currency);
+  const filteredByBe = matches.length === rows.length;
   const truncated =
-    !customerId && owing.data && owing.data.totalElements > owing.data.items.length
-      ? L.owingScope(owing.data.items.length, owing.data.totalElements)
+    state.data && filteredByBe && state.data.totalElements > rows.length
+      ? L.moreMatches(rows.length, state.data.totalElements)
       : null;
 
   return (

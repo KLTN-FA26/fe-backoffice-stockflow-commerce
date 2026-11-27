@@ -16,6 +16,7 @@ import { useCustomerInstallments } from "../queries";
 import { assignedTotal, payableInstallments } from "../selectors";
 
 import { InstallmentLines } from "./InstallmentLines";
+import { InstallmentSearch } from "./InstallmentSearch";
 
 import type { BankTransaction } from "../types";
 
@@ -24,6 +25,7 @@ import type { BankTransaction } from "../types";
  * khách / đợt gợi ý của giao dịch, hoặc đợt Kế toán bấm "Gắn" trong khối "Đợt có thể khớp" (`initial`). Tổng ≤ số tiền
  * giao dịch (BE BANK_TRANSACTION_OVER_ASSIGNED); phần dư xử lý ở phần mềm kế toán (15 BR-06). Ô khách là ô lọc
  * (`mode="filter"`): nhận tiền của mọi khách, không phải luật "chỉ khách đã kích hoạt portal" của form báo giá.
+ * Chưa chọn khách → tìm đợt theo số hợp đồng / số đơn trên mọi khách (bo-27); chọn một đợt thì lấy khách của đợt đó.
  */
 export function AssignDialog({
   transaction,
@@ -102,6 +104,18 @@ export function AssignDialog({
             setTouched(true);
           }}
         />
+        {!customerId && (
+          <InstallmentSearch
+            transactionAmount={transaction.amount}
+            onPick={(row) => {
+              setCustomerId(row.customerId);
+              setAmounts({
+                [row.installmentId]: String(Math.min(transaction.amount, row.outstanding)),
+              });
+              setTouched(true);
+            }}
+          />
+        )}
         {customerId && (
           <InstallmentLines
             state={installments}

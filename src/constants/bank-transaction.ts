@@ -85,19 +85,31 @@ export const BANK_TRANSACTION_LABELS = {
   columnTime: "Thời điểm",
   dateFilterLabel: "thời điểm ngân hàng ghi",
   dateChip: "Ngày giao dịch",
+  /** bo-25: lọc đúng số tiền (BE `amount`). */
+  amountFilterLabel: "số tiền",
+  amountFilterField: "Đúng số tiền",
+  amountChip: "Số tiền",
   assign: {
     searchLabel: "Tìm đợt theo số hợp đồng hoặc số đơn",
     searchPlaceholder: "Tìm theo số hợp đồng hoặc số đơn…",
     searchEmpty: "Không có đợt nào khớp số hợp đồng / số đơn đã gõ.",
     amountMatch: "Khớp số tiền",
+    /** bo-27: tìm đợt của mọi khách khi chưa chọn khách (`GET /installments?search=`). */
+    findLabel: "Tìm đợt theo số hợp đồng, số đơn hoặc tên khách",
+    findPlaceholder: "Số hợp đồng, số đơn hoặc tên khách…",
+    findHint: "Hoặc chọn khách ở trên để xem mọi đợt của khách.",
+    findEmpty: "Không có đợt nào còn phải thu khớp từ khoá này.",
+    findError: "Không tìm được đợt.",
+    pick: "Chọn",
+    pickLabel: (contract: string, seq: number) => `Chọn ${contract} đợt ${seq}`,
   },
   matches: {
     title: "Đợt có thể khớp",
     description: (amount: string) => `Đợt còn phải thu đúng bằng ${amount}`,
     descriptionOfCustomer: (amount: string) =>
       `Đợt của khách gợi ý còn phải thu đúng bằng ${amount}`,
-    owingScope: (shown: number, total: number) =>
-      `Chỉ xét ${shown} / ${total} đợt đã đến hạn sớm nhất — chưa thấy đợt cần gán thì mở "Gắn vào đợt" và chọn khách.`,
+    moreMatches: (shown: number, total: number) =>
+      `Hiện ${shown} / ${total} đợt khớp số tiền, hạn sớm nhất trước — chưa thấy đợt cần gán thì mở "Gắn vào đợt" và tìm theo số hợp đồng.`,
     none: "Không có đợt nào còn phải thu đúng bằng số tiền này.",
     noneOwing: "Không có đợt đã đến hạn nào còn phải thu đúng bằng số tiền này.",
     loadError: "Không tải được các đợt để gợi ý.",

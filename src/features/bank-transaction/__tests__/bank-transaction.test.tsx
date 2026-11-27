@@ -293,6 +293,44 @@ describe("bo-25: hàng chờ giao dịch ngân hàng", () => {
   });
 });
 
+describe("bo-25: lọc đúng số tiền", () => {
+  it("?amount= trên URL đi thành amount gửi BE, có chip; số đếm của tab không theo lọc này", async () => {
+    const { get } = mockApi("ACCOUNTANT", {
+      get: { "/bank-transactions": () => bePage([needsReview]) },
+    });
+    renderScreen(<BankTransactionList />, "ACCOUNTANT", "?amount=660000");
+    await screen.findByText("Số tiền lớn hơn số còn phải thu của đợt");
+    expect(tableCalls(get)[0]?.get("amount")).toBe("660000");
+    const count = get.mock.calls.find(
+      (call) => call[0] === "/bank-transactions" && paramsOf(call)?.get("size") === "1",
+    );
+    expect(paramsOf(count)?.has("amount")).toBe(false);
+  });
+
+  it("gõ số tiền ở header cột → gửi BE sau khi ngừng gõ", async () => {
+    const { get } = mockApi("ACCOUNTANT", {
+      get: { "/bank-transactions": () => bePage([needsReview]) },
+    });
+    renderScreen(<BankTransactionList />, "ACCOUNTANT");
+    await screen.findByText("Số tiền lớn hơn số còn phải thu của đợt");
+    await userEvent.click(screen.getByRole("button", { name: "Lọc số tiền" }));
+    await userEvent.type(await screen.findByLabelText("Đúng số tiền"), "660000");
+    await waitFor(() => expect(tableCalls(get).at(-1)?.get("amount")).toBe("660000"));
+  });
+
+  it("BE cũ bỏ qua amount → trang vẫn chỉ hiện giao dịch đúng số tiền", async () => {
+    mockApi("ACCOUNTANT", {
+      get: {
+        "/bank-transactions": () =>
+          bePage([needsReview, { ...needsReview, id: "other", amount: 5_000 }]),
+      },
+    });
+    renderScreen(<BankTransactionList />, "ACCOUNTANT", "?tab=all&amount=660000");
+    await screen.findByRole("button", { name: /^Thao tác — giao dịch 660/ });
+    expect(screen.queryByRole("button", { name: /^Thao tác — giao dịch 5\.000/ })).toBeNull();
+  });
+});
+
 describe("bo-26: chi tiết giao dịch chỉ hiện câu tiếng Việt; gợi ý đợt cùng số tiền", () => {
   it("không hiện reviewNote tiếng Anh; mã lý do lạ → câu chung, không hiện mã", async () => {
     mockApi("ACCOUNTANT", {
@@ -338,6 +376,9 @@ describe("bo-26: chi tiết giao dịch chỉ hiện câu tiếng Việt; gợi 
     expect(within(block).queryByText(/Đợt 2/)).not.toBeInTheDocument();
     const call = get.mock.calls.find((c) => c[0] === "/installments");
     expect(paramsOf(call)?.get("customerId")).toBe(CUSTOMER_ID);
+    // BE lọc đúng số tiền (PR #497); khách nhận ra → cả đợt chưa đến hạn (không owing)
+    expect(paramsOf(call)?.get("outstanding")).toBe("660000");
+    expect(paramsOf(call)?.has("owing")).toBe(false);
     await userEvent.click(
       within(block).getByRole("button", { name: "Gắn vào HD-20261126-0001-1 đợt 3" }),
     );
@@ -355,7 +396,7 @@ describe("bo-26: chi tiết giao dịch chỉ hiện câu tiếng Việt; gợi 
     );
   });
 
-  it("không nhận ra khách: tìm trong đợt đã đến hạn còn nợ (owing=true) và nói rõ phạm vi khi vượt 200", async () => {
+  it("không nhận ra khách: BE lọc đợt đã đến hạn còn nợ đúng số tiền (owing + outstanding), nói khi còn đợt khác", async () => {
     const exact = {
       ...installment,
       installmentId: "exact-2",
@@ -365,16 +406,34 @@ describe("bo-26: chi tiết giao dịch chỉ hiện câu tiếng Việt; gợi 
     const { get } = mockApi("ACCOUNTANT", {
       get: {
         [DETAIL]: () => ({ ...needsReview, customerId: null, installmentId: null }),
-        "/installments": () => ({ ...bePage([installment, exact]), totalElements: 350 }),
+        "/installments": () => ({ ...bePage([exact]), totalElements: 60 }),
       },
     });
     renderScreen(<BankTransactionDetail id={ID} />, "ACCOUNTANT");
     const block = await screen.findByRole("region", { name: "Đợt có thể khớp" });
     expect(await within(block).findByText(/Công ty Trà Xanh/)).toBeInTheDocument();
-    expect(within(block).getByText(/Chỉ xét 2 \/ 350 đợt/)).toBeInTheDocument();
+    expect(within(block).getByText(/Hiện 1 \/ 60 đợt khớp số tiền/)).toBeInTheDocument();
     const call = get.mock.calls.find((c) => c[0] === "/installments");
     expect(paramsOf(call)?.get("owing")).toBe("true");
+    expect(paramsOf(call)?.get("outstanding")).toBe("660000");
     expect(paramsOf(call)?.has("customerId")).toBe(false);
+  });
+
+  it("BE chưa lọc theo số tiền (trước PR #497): FE vẫn chỉ giữ đợt đúng số tiền, không nói 'còn đợt khác'", async () => {
+    const exact = { ...installment, installmentId: "exact-3", outstanding: 660_000 };
+    mockApi("ACCOUNTANT", {
+      get: {
+        [DETAIL]: () => ({ ...needsReview, customerId: null, installmentId: null }),
+        "/installments": () => ({ ...bePage([installment, exact]), totalElements: 350 }),
+      },
+    });
+    renderScreen(<BankTransactionDetail id={ID} />, "ACCOUNTANT");
+    const block = await screen.findByRole("region", { name: "Đợt có thể khớp" });
+    expect(
+      await within(block).findByRole("button", { name: "Gắn vào HD-20261126-0001-1 đợt 2" }),
+    ).toBeInTheDocument();
+    expect(within(block).getAllByRole("button", { name: /^Gắn vào/ })).toHaveLength(1);
+    expect(within(block).queryByText(/đợt khớp số tiền/)).not.toBeInTheDocument();
   });
 
   it("matchingInstallments chỉ giữ đợt còn nhận tiền đúng bằng số tiền", () => {
@@ -436,5 +495,57 @@ describe("bo-27: hộp thoại gán vào đợt", () => {
     );
     expect(within(dialog).getAllByRole("checkbox")).toHaveLength(1);
     expect(within(dialog).getByRole("checkbox")).toHaveAccessibleName("Gán HD-00002 đợt 1");
+  });
+  it("chưa chọn khách: tìm đợt theo số hợp đồng trên mọi khách; 'Chọn' lấy khách của đợt và tick sẵn đợt", async () => {
+    const found = {
+      ...installment,
+      installmentId: "found-1",
+      contractNumber: "HD-20261120-0009-1",
+      orderNumber: "SO-0009",
+      seq: 1,
+      outstanding: 500_000,
+      customerName: "Công ty Trà Xanh",
+    };
+    const { get, post } = mockApi("ACCOUNTANT", {
+      get: {
+        [DETAIL]: () => ({ ...needsReview, customerId: null, installmentId: null }),
+        "/installments": (params) => {
+          const query = params as URLSearchParams;
+          if (query.has("search")) return bePage([found]);
+          if (query.get("customerId") === CUSTOMER_ID) return bePage([found]);
+          return bePage([]);
+        },
+        [`/customers/${CUSTOMER_ID}`]: () => ({
+          customerId: CUSTOMER_ID,
+          name: "Công ty Trà Xanh",
+        }),
+      },
+      post: { [`${DETAIL}/assignment`]: () => ({ ...needsReview, status: "APPLIED" }) },
+    });
+    renderScreen(<BankTransactionDetail id={ID} />, "ACCOUNTANT");
+    await userEvent.click(await screen.findByRole("button", { name: /^Gán vào đợt$/ }));
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.type(
+      within(dialog).getByRole("searchbox", { name: /Tìm đợt theo số hợp đồng, số đơn/ }),
+      "HD-20261120",
+    );
+    await userEvent.click(
+      await within(dialog).findByRole("button", { name: "Chọn HD-20261120-0009-1 đợt 1" }),
+    );
+    const search = get.mock.calls.find(
+      (c) => c[0] === "/installments" && paramsOf(c)?.has("search"),
+    );
+    expect(paramsOf(search)?.get("search")).toBe("HD-20261120");
+    expect(
+      await within(dialog).findByLabelText(/Số tiền gán HD-20261120-0009-1 đợt 1/),
+    ).toHaveValue("500000");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Gán và lập phiếu thu" }));
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(`${DETAIL}/assignment`, {
+        customerId: CUSTOMER_ID,
+        lines: [{ installmentId: "found-1", amount: 500_000 }],
+        note: "",
+      }),
+    );
   });
 });

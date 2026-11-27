@@ -12,6 +12,7 @@ import {
   BANK_TRANSACTION_STORAGE_KEYS,
   BANK_TRANSACTION_TABS,
 } from "@/constants/bank-transaction";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { usePagedList } from "@/hooks/use-paged-list";
 import { useCan, usePermissionChecker } from "@/lib/auth/components/Can";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
@@ -26,6 +27,7 @@ import { rowActionsColumn } from "@/components/shared/RowActionsMenu";
 import { allowedBankTransactionActions } from "../lifecycle";
 import { useBankTransactions } from "../queries";
 
+import { AmountHeaderFilter } from "./AmountHeaderFilter";
 import { AssignDialog } from "./AssignDialog";
 import { BANK_TRANSACTION_COLUMNS } from "./list-columns";
 import { BANK_TRANSACTION_COPY } from "./primitives";
@@ -59,6 +61,10 @@ function BankTransactionListContent() {
   // Ngày ngân hàng ghi (BE `from` / `to`), lọc ở header cột "Thời điểm"
   const [from, setFrom] = useQueryState("from", parseAsString.withDefault(""));
   const [to, setTo] = useQueryState("to", parseAsString.withDefault(""));
+  // Đúng số tiền (BE `amount`, bo-25), lọc ở header cột "Số tiền"; gửi BE sau khi ngừng gõ
+  const [amountParam, setAmount] = useQueryState("amount", parseAsString.withDefault(""));
+  const amount = amountParam.replace(/\D/g, "");
+  const amountQuery = useDebouncedValue(amount, 400);
   const [assigning, setAssigning] = useState<BankTransaction | null>(null);
   const review = tab === "review";
   const query = useBankTransactions(
@@ -68,6 +74,7 @@ function BankTransactionListContent() {
       status: review ? "NEEDS_REVIEW" : undefined,
       from: from || undefined,
       to: to || undefined,
+      amount: amountQuery ? Number(amountQuery) : undefined,
     },
     { enabled: canRead },
   );
@@ -76,11 +83,20 @@ function BankTransactionListContent() {
     { page: 0, size: 1, status: "NEEDS_REVIEW" },
     { enabled: canRead },
   );
-  const hasFilters = !!from || !!to;
+  const hasDates = !!from || !!to;
+  const hasFilters = hasDates || !!amount;
   const clearDates = () => {
     void setFrom("");
     void setTo("");
     paged.resetPage();
+  };
+  const clearAmount = () => {
+    void setAmount("");
+    paged.resetPage();
+  };
+  const clearAll = () => {
+    clearDates();
+    clearAmount();
   };
 
   const tabs = BANK_TRANSACTION_TABS.map((value) => ({
@@ -99,6 +115,15 @@ function BankTransactionListContent() {
           onChange={(range) => {
             void setFrom(range.from);
             void setTo(range.to);
+            paged.resetPage();
+          }}
+        />
+      ),
+      amount: (
+        <AmountHeaderFilter
+          value={amount}
+          onChange={(digits) => {
+            void setAmount(digits);
             paged.resetPage();
           }}
         />
@@ -133,11 +158,17 @@ function BankTransactionListContent() {
             {
               label: L.dateChip,
               value: `${from ? dayLabel(from) : "…"} – ${to ? dayLabel(to) : "…"}`,
-              active: hasFilters,
+              active: hasDates,
               onClear: clearDates,
             },
+            {
+              label: L.amountChip,
+              value: amount ? formatMoney(Number(amount), "VND") : "Tất cả",
+              active: !!amount,
+              onClear: clearAmount,
+            },
           ]}
-          onResetAll={clearDates}
+          onResetAll={clearAll}
           resetDisabled={!hasFilters}
         />
         <ServerTableBody
@@ -149,7 +180,12 @@ function BankTransactionListContent() {
           noun="giao dịch"
           errorCopy={BANK_TRANSACTION_COPY}
           hasFilters={hasFilters}
-          onClearFilters={clearDates}
+          onClearFilters={clearAll}
+          // BE trước PR #497 bỏ qua `amount`: giữ đúng số tiền trên trang (BE mới đã lọc → không bớt dòng nào)
+          rowFilter={{
+            active: !!amountQuery,
+            match: (row) => row.amount === Number(amountQuery),
+          }}
           empty={{
             icon: <ArrowLeftRight className="size-8" />,
             title: review ? L.emptyReviewTitle : L.emptyAllTitle,
@@ -169,7 +205,8 @@ function BankTransactionListContent() {
 
 /**
  * Giao dịch ngân hàng SePay (phần C): hàng chờ Kế toán gán vào đợt hoặc bỏ qua (tab có số đếm); tab Tất cả để tra cứu.
- * Lọc theo ngày ngân hàng ghi ở header cột "Thời điểm" (BE `from` / `to`); BE chưa lọc theo số tiền.
+ * Lọc theo ngày ngân hàng ghi ở header cột "Thời điểm" (BE `from` / `to`) và đúng số tiền ở header cột "Số tiền" (BE
+ * `amount`, bo-25).
  */
 export function BankTransactionList() {
   return (

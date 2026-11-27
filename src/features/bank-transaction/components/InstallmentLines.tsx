@@ -23,7 +23,8 @@ const SEARCH_MIN_ROWS = 6;
 /**
  * Các đợt còn phải thu của khách: tick để gán, số tiền mặc định = min(còn phải thu, phần giao dịch còn lại). Đợt còn phải
  * thu đúng bằng số tiền giao dịch lên đầu kèm nhãn "Khớp số tiền". Khách nhiều đợt → ô tìm theo số hợp đồng / số đơn,
- * lọc trên các đợt đã tải (BE `GET /installments` chưa tìm theo số hợp đồng / số đơn); đợt đã tick luôn hiện.
+ * lọc trên các đợt đã tải của khách (đủ một trang, không gọi lại BE); đợt đã tick luôn hiện. Tìm trên mọi khách khi chưa
+ * chọn khách là `InstallmentSearch`.
  */
 export function InstallmentLines({
   state,
