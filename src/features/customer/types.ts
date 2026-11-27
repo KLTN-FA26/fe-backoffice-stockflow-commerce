@@ -24,6 +24,8 @@ export type CreditProfile = z.infer<typeof creditProfileDtoSchema>;
 export type CreditPosition = z.infer<typeof creditPositionDtoSchema>;
 export type CreditProfileValues = z.infer<typeof creditProfileInputSchema>;
 export type CustomerCreateValues = z.infer<typeof customerCreateInputSchema>;
+/** Giá trị của form tạo khách trước khi parse (các ô mới có mặc định). */
+export type CustomerCreateFormValues = z.input<typeof customerCreateInputSchema>;
 export type CustomerUpdateValues = z.infer<typeof customerUpdateInputSchema>;
 export type LegalProfile = z.infer<typeof legalProfileDtoSchema>;
 export type LegalProfileValues = z.infer<typeof legalProfileInputSchema>;

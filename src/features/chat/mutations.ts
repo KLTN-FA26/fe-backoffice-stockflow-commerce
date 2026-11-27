@@ -5,10 +5,12 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 
+import { SALES_OWNER_ERROR_CODES } from "@/constants";
 import { fileTooLargeMessage } from "@/constants/upload-limits";
 import { isStaleApiError, serverErrorMessage } from "@/lib/api/error-message";
 import { QUERY_ROOTS } from "@/lib/api/query-roots";
 import { createMutation } from "@/lib/api/query-factory";
+import { salesOwnerErrorMessage } from "@/lib/references/sales-owner-access";
 
 import {
   changeStatus,
@@ -89,7 +91,10 @@ export const usePreviewCanned = createMutation(previewCannedResponse, {
  * WF-02: lỗi chat của BE đã là tiếng Việt (PR #365) → hiện nguyên văn. 413 (BFF hoặc BE) chỉ đến từ file đính kèm →
  * nói rõ giới hạn thay cho câu chung "Không thể hoàn tất yêu cầu." của BFF.
  */
-export function chatErrorMessage(error: unknown): string {
+export function chatErrorMessage(error: unknown, ownerName?: string | null): string {
+  // BR-S05 / BR-S12: khách có Sale phụ trách khác (mở hội thoại, nhận hội thoại) → câu nêu người phụ trách.
+  const owned = salesOwnerErrorMessage(error, ownerName);
+  if (owned) return owned;
   return serverErrorMessage(error, {
     PAYLOAD_TOO_LARGE: fileTooLargeMessage("chatAttachment"),
     CHAT_NOT_ASSIGNEE: "Chỉ người phụ trách hội thoại hoặc người giám sát chat làm được việc này.",
@@ -97,15 +102,20 @@ export function chatErrorMessage(error: unknown): string {
 }
 
 /** Lỗi cho biết hội thoại đã đổi người phụ trách → tải lại hội thoại (ngoài các mã chung OPTIMISTIC_LOCK, CONFLICT…). */
-export const CHAT_RELOAD_CODES = ["CHAT_NOT_ASSIGNEE"] as const;
+export const CHAT_RELOAD_CODES = [
+  "CHAT_NOT_ASSIGNEE",
+  // Người phụ trách khách đã đổi so với màn đang hiện (BR-S05, BR-S12).
+  SALES_OWNER_ERROR_CODES.claimOnly,
+  SALES_OWNER_ERROR_CODES.ownedByOther,
+] as const;
 
 /** Lỗi của một thao tác chat → câu hiện cho người dùng; đồng thời tải lại hội thoại khi dữ liệu đã cũ. */
-export function useChatFailure(): (error: unknown) => string {
+export function useChatFailure(ownerName?: string | null): (error: unknown) => string {
   const queryClient = useQueryClient();
   return (error) => {
     if (isStaleApiError(error, CHAT_RELOAD_CODES)) {
       void queryClient.invalidateQueries({ queryKey: chatKeys.all });
     }
-    return chatErrorMessage(error);
+    return chatErrorMessage(error, ownerName);
   };
 }

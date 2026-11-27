@@ -7,6 +7,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 
 import { ADMIN_ROUTES } from "@/constants";
 import { ApiError } from "@/lib/api/error";
+import { isSalesOwnerError } from "@/lib/references/sales-owner-access";
+import { useSalesOwnerAccess } from "@/lib/references/sales-owner-queries";
 import { useUnsavedChangesWarning } from "@/hooks/use-unsaved-changes";
 import { QUOTE_EDIT_LOCK_MESSAGE, quoteErrorMessage } from "@/features/quote/errors";
 import { emptyQuoteForm, toQuoteFormValues } from "@/features/quote/form-body";
@@ -54,6 +56,8 @@ export function useQuoteForm({
   });
   const lines = useFieldArray({ control: form.control, name: "lines" });
   const customerId = useWatch({ control: form.control, name: "customerId" });
+  // BR-S12: khách có người phụ trách khác → không lưu / gửi được (BE 409 CUSTOMER_OWNED_BY_OTHER_SALES). UI-only.
+  const owner = useSalesOwnerAccess(customerId || undefined);
   const create = useCreateQuote();
   const update = useUpdateQuote();
   // Version của bản mà các ô đang hiển thị. `quote` là prop sống: đổi tab thì query tải lại và `quote.version` đổi, còn các
@@ -72,7 +76,8 @@ export function useQuoteForm({
 
   const onError = (error: unknown) => {
     const lock = error instanceof ApiError && error.code === "OPTIMISTIC_LOCK";
-    const message = lock ? QUOTE_EDIT_LOCK_MESSAGE : quoteErrorMessage(error);
+    const message = lock ? QUOTE_EDIT_LOCK_MESSAGE : quoteErrorMessage(error, owner.ownerName);
+    if (isSalesOwnerError(error)) owner.refresh();
     const field = error instanceof ApiError ? FIELD_BY_CODE[error.code] : undefined;
     if (field) form.setError(field, { type: "server", message });
     // 409 QUOTE_BELOW_MOQ: `details.lineNo` (từ 1) → ô số thùng của dòng đó (WF-02 mục 24 / N8).
@@ -117,5 +122,16 @@ export function useQuoteForm({
   const submit = submitWith("detail");
   const submitAndSend = submitWith("send");
 
-  return { form, lines, customerId, pending, submit, submitAndSend, formError, stale, reload };
+  return {
+    form,
+    lines,
+    customerId,
+    owner,
+    pending,
+    submit,
+    submitAndSend,
+    formError,
+    stale,
+    reload,
+  };
 }

@@ -167,6 +167,7 @@ export function QuoteForm({
               pending={q.pending}
               stale={q.stale}
               canSend={canSend}
+              ownerAccess={q.owner}
               onSend={() => void q.submitAndSend()}
               onDiscard={() => router.push(backHref)}
             />

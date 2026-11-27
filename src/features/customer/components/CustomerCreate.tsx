@@ -2,17 +2,20 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LoaderCircle } from "lucide-react";
+import { parseAsString, useQueryStates } from "nuqs";
 
-import { ADMIN_ROUTES, CUSTOMER_PERMISSIONS } from "@/constants";
+import { ADMIN_ROUTES, CUSTOMER_PERMISSIONS, SALES_OWNER_ACCESS_PERMISSIONS } from "@/constants";
 
 import { useUnsavedChangesWarning } from "@/hooks/use-unsaved-changes";
 import { apiFieldErrors } from "@/lib/api/error-message";
 import { ApiError } from "@/lib/api/error";
+import { usePermissionChecker } from "@/lib/auth/components/Can";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 
+import { useCustomerDuplicates } from "@/features/customer/duplicates";
 import { customerErrorMessage } from "@/features/customer/errors";
 import { useCreateCustomer } from "@/features/customer/mutations";
 import { customerCreateInputSchema } from "@/features/customer/schemas";
@@ -24,27 +27,52 @@ import { FORM_INPUT_CLASS, FormField, fieldA11y } from "@/components/shared/Form
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-import { DEFAULTS, FIELD_BY_ERROR, isFormField } from "./create-form";
+import { FIELD_BY_ERROR, PREFILL_FIELDS, isFormField, prefilledDefaults } from "./create-form";
+import { DuplicatePanel } from "./create/DuplicatePanel";
+import { OwnerFields } from "./create/OwnerFields";
+import { TaxCodeFields } from "./create/TaxCodeFields";
 
-import type { CustomerCreateValues } from "@/features/customer/types";
+import type { CustomerCreateFormValues, CustomerCreateValues } from "@/features/customer/types";
 
+const PREFILL_PARSERS = Object.fromEntries(PREFILL_FIELDS.map((field) => [field, parseAsString]));
+
+/**
+ * Tạo khách doanh nghiệp. Sale phụ trách (KE-HOACH sales-owner): MST bắt buộc, Sales Manager được miễn kèm lý do (BR-S14);
+ * cảnh báo khách có thể trùng kèm người đang phụ trách (BR-S14, tình huống 16); Manager chọn Sale phụ trách (BR-S02); điền
+ * sẵn từ khách tiềm năng qua URL (`?companyName=…&leadId=…`, §10.7).
+ */
 function CustomerCreateForm() {
   const router = useRouter();
+  const can = usePermissionChecker();
+  const isManager = can(SALES_OWNER_ACCESS_PERMISSIONS.manage);
+  const [prefill] = useQueryStates(PREFILL_PARSERS);
   const [formError, setFormError] = useState<string | null>(null);
   const [leaveOpen, setLeaveOpen] = useState(false);
-  const form = useForm<CustomerCreateValues>({
+  const form = useForm<CustomerCreateFormValues, unknown, CustomerCreateValues>({
     resolver: zodResolver(customerCreateInputSchema),
-    defaultValues: DEFAULTS,
+    defaultValues: prefilledDefaults(prefill),
     mode: "onTouched",
   });
-  const { register, handleSubmit, setError, formState } = form;
+  const { register, handleSubmit, setError, formState, control } = form;
   const { errors, isDirty } = formState;
   const create = useCreateCustomer();
   useUnsavedChangesWarning(isDirty && !create.isSuccess);
+  const [taxCode, phone, email, name, leadId] = useWatch({
+    control,
+    name: ["taxCode", "phone", "email", "companyName", "leadId"],
+  });
+  const duplicates = useCustomerDuplicates({
+    taxCode: taxCode ?? "",
+    phone: phone ?? "",
+    email: email ?? "",
+    name: name ?? "",
+  });
 
   const onSubmit = (values: CustomerCreateValues) => {
     setFormError(null);
-    create.mutate(values, {
+    // BR-S14: chỉ Manager được miễn MST — Sale thường không gửi cờ miễn dù ô có giá trị cũ.
+    const body = isManager ? values : { ...values, taxCodeExemption: false, salesOwnerId: "" };
+    create.mutate(body, {
       onSuccess: (result) =>
         router.replace(ADMIN_ROUTES.customers.detail(result.customer.customerId)),
       onError: (error) => {
@@ -58,9 +86,9 @@ function CustomerCreateForm() {
           );
           mapped = true;
         }
-        for (const [name, message] of Object.entries(apiFieldErrors(error))) {
-          if (isFormField(name)) {
-            setError(name, { type: "server", message });
+        for (const [fieldName, message] of Object.entries(apiFieldErrors(error))) {
+          if (isFormField(fieldName)) {
+            setError(fieldName, { type: "server", message });
             mapped = true;
           }
         }
@@ -85,6 +113,7 @@ function CustomerCreateForm() {
             {formError}
           </div>
         )}
+        <DuplicatePanel matches={duplicates} />
         <Card className="grid gap-4 sm:grid-cols-2">
           <h2 className="text-ink-primary text-sm font-semibold sm:col-span-2">Doanh nghiệp</h2>
           <FormField
@@ -102,19 +131,7 @@ function CustomerCreateForm() {
               className={FORM_INPUT_CLASS}
             />
           </FormField>
-          <FormField
-            id="customer-taxCode"
-            label="Mã số thuế"
-            error={errors.taxCode?.message}
-            hint="Không bắt buộc. 10 số, 10-3 số, hoặc 12 số CCCD của chủ hộ kinh doanh."
-          >
-            <Input
-              {...register("taxCode")}
-              {...fieldA11y("customer-taxCode", errors.taxCode?.message, true)}
-              inputMode="numeric"
-              className={`${FORM_INPUT_CLASS} font-[family-name:var(--font-mono)] tabular-nums`}
-            />
-          </FormField>
+          <TaxCodeFields form={form} canExempt={isManager} />
         </Card>
 
         <Card className="grid gap-4 sm:grid-cols-2">
@@ -153,6 +170,13 @@ function CustomerCreateForm() {
             />
           </FormField>
         </Card>
+
+        <OwnerFields
+          form={form}
+          isManager={isManager}
+          fromLead={!!leadId}
+          ownerKnown={can(SALES_OWNER_ACCESS_PERMISSIONS.read)}
+        />
 
         <FormBottomBar note="Khách nhận email mời kích hoạt portal; chưa đăng nhập được tới khi tự đặt mật khẩu.">
           <Button

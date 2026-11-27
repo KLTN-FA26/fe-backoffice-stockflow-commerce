@@ -13,6 +13,7 @@ import {
 } from "@/constants";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useCan } from "@/lib/auth";
+import { useSalesOwners } from "@/lib/references/sales-owner-queries";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 import { Card } from "@/components/shared/Card";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -61,6 +62,7 @@ function Inbox({ canRead }: { canRead: boolean }) {
     canRead,
   );
   const filtered = scope !== "all" || !!status;
+  const owners = useSalesOwners(query.data?.items.map((item) => item.customerId) ?? []);
 
   return (
     <>
@@ -104,7 +106,7 @@ function Inbox({ canRead }: { canRead: boolean }) {
       ) : (
         <Card className="divide-y divide-[var(--table-line)] p-0">
           {query.data.items.map((item) => (
-            <InboxRow key={item.id} item={item} />
+            <InboxRow key={item.id} item={item} owner={owners.get(item.customerId)} />
           ))}
         </Card>
       )}

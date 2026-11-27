@@ -12,6 +12,10 @@ export const CUSTOMER_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   INVALID_CUSTOMER_STATUS_TRANSITION: "Khách hàng không thể chuyển sang trạng thái này.",
   CUSTOMER_TAX_CODE_ALREADY_EXISTS: "Mã số thuế này đã thuộc về một khách hàng khác.",
   CUSTOMER_EMAIL_ALREADY_EXISTS: "Đã có khách hàng dùng email này.",
+  // BR-S14 (KE-HOACH sales-owner, D4): MST bắt buộc cho khách mới, trừ khi Sales Manager miễn.
+  CUSTOMER_TAX_CODE_REQUIRED: "Nhập mã số thuế (hộ kinh doanh: số CCCD của chủ hộ).",
+  // BR-S04: chỉ giao cho Sale đang làm.
+  SALES_OWNER_NOT_ASSIGNABLE: "Người này không còn là Sale đang làm. Chọn người khác.",
   USER_EMAIL_ALREADY_EXISTS: "Email này đã được dùng cho một tài khoản khác.",
   PORTAL_INVITATION_INVALID:
     "Lời mời không hợp lệ hoặc không còn sử dụng được. Vui lòng liên hệ bộ phận bán hàng để nhận lời mời mới.",
