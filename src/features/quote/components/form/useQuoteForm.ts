@@ -95,7 +95,7 @@ export function useQuoteForm({
   };
 
   /**
-   * Lưu nháp rồi mở trang báo giá. `send`: mở luôn hộp xác nhận gửi ở trang báo giá (`?send=1`) — gửi cần bản đã lưu
+   * Lưu nháp rồi mở trang báo giá. `send`: mở luôn hộp xác nhận gửi ở trang báo giá (`?send=true`) — gửi cần bản đã lưu
    * (BE tính tổng, thuế và kiểm tra giá trên bản đó), nên Sale vẫn thấy con số chốt trước khi bấm gửi.
    */
   const submitWith = (after: "detail" | "send") =>
@@ -104,7 +104,7 @@ export function useQuoteForm({
       const onSuccess = (saved: Quote) =>
         router.replace(
           after === "send"
-            ? `${ADMIN_ROUTES.quotes.detail(saved.id)}?${QUOTE_SEND_PARAM}=1`
+            ? `${ADMIN_ROUTES.quotes.detail(saved.id)}?${QUOTE_SEND_PARAM}=true`
             : ADMIN_ROUTES.quotes.detail(saved.id),
         );
       if (quote)

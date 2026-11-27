@@ -68,7 +68,7 @@ export function QuoteStaffActions({ quote }: { quote: Quote }) {
   const needsApproval = quote.priceCheck?.needsApproval ?? false;
   const onError = (error: unknown) => toast.error(quoteErrorMessage(error));
   const sendBlocked = sendBlockReason(quote);
-  // "Lưu và gửi" trên form mở trang này với `?send=1`: mở sẵn hộp xác nhận gửi (Sale vẫn bấm xác nhận) khi gửi được;
+  // "Lưu và gửi" trên form mở trang này với `?send=true`: mở sẵn hộp xác nhận gửi (Sale vẫn bấm xác nhận) khi gửi được;
   // chưa gửi được thì lý do hiện dưới nút như thường. Đóng hộp thì bỏ tham số để tải lại trang không mở lại.
   const [sendRequested, setSendRequested] = useQueryState(QUOTE_SEND_PARAM, parseAsBoolean);
   const requested = sendRequested && actions.includes("send") && !sendBlocked ? "send" : null;

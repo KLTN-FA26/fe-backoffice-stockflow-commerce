@@ -118,7 +118,9 @@ describe("Quote form — summary panel (bo-10, bo-13)", () => {
     await user.click(await within(summary()).findByRole("button", { name: "Lưu và gửi khách" }));
     await waitFor(() => expect(api.post).toHaveBeenCalledWith("/quotes", expect.anything()));
     await waitFor(() =>
-      expect(replace).toHaveBeenCalledWith(`/admin/quotes/${QUOTE_DRAFT_PLATE_UNPRICED.id}?send=1`),
+      expect(replace).toHaveBeenCalledWith(
+        `/admin/quotes/${QUOTE_DRAFT_PLATE_UNPRICED.id}?send=true`,
+      ),
     );
   });
 

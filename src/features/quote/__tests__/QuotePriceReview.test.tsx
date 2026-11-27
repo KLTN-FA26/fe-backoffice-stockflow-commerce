@@ -137,6 +137,23 @@ describe("nháp: kiểm tra giá trước khi gửi", () => {
   });
 });
 
+describe("'Lưu và gửi' trên form mở trang báo giá với ?send=true", () => {
+  it("hộp xác nhận gửi mở sẵn khi gửi được", async () => {
+    mockApi("SALES_STAFF", {
+      get: { [detailUrl]: () => DRAFT, [`/customers/${CUSTOMER_ID}`]: () => CUSTOMER },
+    });
+    renderScreen(<QuoteDetail id={QUOTE_ID} />, "SALES_STAFF", "?send=true");
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("Gửi Quản lý kinh doanh duyệt giá?")).toBeVisible();
+  });
+
+  it("không có ?send thì không tự mở", async () => {
+    renderDetail("SALES_STAFF", DRAFT);
+    await screen.findByRole("button", { name: /Gửi duyệt giá/ });
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+});
+
 describe("bo-09: bảng kiểm tra giá gọn khi tất cả đạt", () => {
   const passing = (lineNo: number) => ({
     lineNo,
