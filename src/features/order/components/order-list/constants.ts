@@ -15,6 +15,7 @@ export const DEFAULT_COLUMNS = [
   "recipient",
   "placedAt",
   "totalAmount",
+  "payment",
   "status",
   "nextStep",
   "actions",
@@ -57,15 +58,13 @@ export const COLUMN_LABELS: Record<string, string> = {
   recipient: "Người nhận",
   placedAt: "Ngày đặt",
   totalAmount: "Tổng tiền",
+  payment: "Thanh toán",
   status: "Trạng thái",
   nextStep: "Việc tiếp theo",
   actions: "Thao tác",
 };
 
-/**
- * "Việc tiếp theo" của một dòng — chỉ suy ra từ field `GET /orders` đã trả (trạng thái, lý do giữ, kho xuất). Tiền đã thu /
- * còn phải thu KHÔNG có trên dòng danh sách (nằm ở các đợt của hợp đồng, `GET /installments/orders/{id}`), nên không hiện.
- */
+/** "Việc tiếp theo" của một dòng — chỉ suy ra từ field `GET /orders` đã trả (trạng thái, lý do giữ, kho xuất). */
 export const NEXT_STEP_LABELS = {
   draft: "Lập hợp đồng",
   pendingContract: "Chờ khách ký hợp đồng",
@@ -75,6 +74,14 @@ export const NEXT_STEP_LABELS = {
   deliveryFailedHold: "Quyết định hồ sơ giao thất bại",
   otherHold: "Xử lý lý do giữ đơn",
   deliveryFailed: "Xử lý giao thất bại",
+} as const;
+
+/** Ô "Thanh toán" (audit bo-17): đã thu / còn phải thu của các đợt, phần quá hạn tô đỏ. */
+export const PAYMENT_CELL_LABELS = {
+  paid: "Đã thu",
+  outstanding: "Còn",
+  overdue: "Quá hạn",
+  noContract: "Chưa có hợp đồng",
 } as const;
 
 /**
