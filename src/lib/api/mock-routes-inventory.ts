@@ -53,6 +53,12 @@ import { registerInventoryStockMockRoutes } from "./mock-routes-inventory-stock"
 import { MOCK_AREAS } from "./mock-routes-goods-receipts-store";
 import { isMockStagingArea } from "./mock-routes-warehouse-layout";
 import {
+  MOCK_UUID_PATTERN,
+  mockActorId,
+  mockStaffName,
+  withMockStaffNames,
+} from "./mock-display-names";
+import {
   beError,
   parseJsonBody,
   readParams,
@@ -63,6 +69,9 @@ import {
 import type { AxiosRequestConfig } from "axios";
 import type { MockCarton } from "./mock-inventory-cartons";
 import type { MockFieldError } from "./mock-routes-purchase-orders-store";
+
+// Chuyển sang mock-display-names (dùng chung với tên người làm); giữ export cũ cho các mock khác.
+export { mockActorId };
 
 interface MockAdjustment {
   adjustmentId: string;
@@ -107,6 +116,9 @@ interface MockMovement {
   referenceId: string;
   reason: string | null;
   actorId: string;
+  /** Dòng ADJUSTMENT: người đề nghị (`actorId` là người duyệt) và — với chênh lệch kiểm kê — người đếm. */
+  requestedBy: string | null;
+  countedBy: string | null;
   occurredAt: string;
   seq: number;
 }
@@ -128,7 +140,7 @@ export function resetInventoryMockState(): void {
 
 /* ── Wire helpers ────────────────────────────────────────────────────── */
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_PATTERN = MOCK_UUID_PATTERN;
 const PAGE_SIZE_DEFAULT = 20; // BE Pages.DEFAULT_PAGE_SIZE
 const PAGE_SIZE_MAX = 200; // BE Pages.MAX_PAGE_SIZE
 const CLOSED_STATUSES: readonly string[] = [
@@ -151,23 +163,23 @@ function nonNull<T extends object>(value: T): Partial<T> {
   ) as Partial<T>;
 }
 
-/**
- * Người dùng của phiên mock (cùng nguồn với `/identity/me/permissions`). Id mock-data không
- * phải UUID còn BE luôn trả UUID → đổi ổn định sang UUID; cùng người luôn ra cùng id.
- */
-export function mockActorId(userId: string): string {
-  if (UUID_PATTERN.test(userId)) return userId.toLowerCase();
-  const hex = [0x811c9dc5, 0x9e3779b9, 0x85ebca6b, 0xc2b2ae35]
-    .map((seed) => {
-      let hash = seed >>> 0;
-      for (let index = 0; index < userId.length; index += 1) {
-        hash = Math.imul(hash ^ userId.charCodeAt(index), 16777619) >>> 0;
-      }
-      return hash.toString(16).padStart(8, "0");
-    })
-    .join("");
-  const variant = ((parseInt(hex.charAt(16), 16) & 0x3) | 0x8).toString(16);
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-${variant}${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+/** Issue #286: BE trả tên người làm cạnh id — tên lấy từ nhân viên mock, không biết thì bỏ (NON_NULL). */
+function adjustmentWire(row: MockAdjustment) {
+  return nonNull({
+    ...row,
+    requestedByName: mockStaffName(row.requestedBy),
+    decidedByName: mockStaffName(row.decidedBy),
+    countedByName: mockStaffName(row.countedBy),
+  });
+}
+
+function movementWire(row: MockMovement) {
+  return nonNull({
+    ...row,
+    actorName: mockStaffName(row.actorId),
+    requestedByName: mockStaffName(row.requestedBy),
+    countedByName: mockStaffName(row.countedBy),
+  });
 }
 
 async function currentActor(): Promise<string | null> {
@@ -219,7 +231,7 @@ function readPage(config: AxiosRequestConfig) {
 function pageOf<T extends object>(all: readonly T[], page: number, size: number) {
   const totalPages = Math.ceil(all.length / size);
   return {
-    items: all.slice(page * size, page * size + size).map(nonNull),
+    items: all.slice(page * size, page * size + size),
     page,
     size,
     totalElements: all.length,
@@ -277,7 +289,7 @@ function listAdjustments(config: AxiosRequestConfig) {
     .filter((row) => !sku || row.sku === sku)
     .filter((row) => !location || row.locationCode === location)
     .sort(sort);
-  return ok(pageOf(rows, page, size));
+  return ok(pageOf(rows.map(adjustmentWire), page, size));
 }
 
 /** BE `load`: id phải là UUID (path variable), không có → 404. */
@@ -307,7 +319,7 @@ function requirePending(adjustment: MockAdjustment) {
 function save(adjustment: MockAdjustment, patch: Partial<MockAdjustment>) {
   const next = { ...adjustment, ...patch, version: adjustment.version + 1 };
   adjustments.set(next.adjustmentId, next);
-  return ok(nonNull(next));
+  return ok(adjustmentWire(next));
 }
 
 /** RequestAdjustmentRequest (@Valid) → 400 VALIDATION_FAILED kèm fieldErrors. */
@@ -477,7 +489,7 @@ async function createAdjustment(config: AxiosRequestConfig) {
     seq,
   };
   adjustments.set(adjustment.adjustmentId, adjustment);
-  return ok(nonNull(adjustment), 201);
+  return ok(adjustmentWire(adjustment), 201);
 }
 
 /** Bốn mắt (docs 20 BR-05): người đề nghị không duyệt; với COUNT_VARIANCE, người đã đếm dòng cũng không. */
@@ -529,6 +541,8 @@ async function approve(config: AxiosRequestConfig) {
     referenceId: adjustment.adjustmentId,
     reason: adjustment.reason + (adjustment.note === null ? "" : `: ${adjustment.note}`),
     actorId: actor,
+    requestedBy: adjustment.requestedBy,
+    countedBy: adjustment.countedBy,
     occurredAt: now,
     seq,
   });
@@ -618,7 +632,7 @@ function listMovements(config: AxiosRequestConfig) {
     .filter((row) => !sku || row.sku === sku)
     .filter((row) => !location || row.fromLocation === location || row.toLocation === location)
     .sort((a, b) => b.seq - a.seq);
-  return ok(pageOf(rows, page, size));
+  return ok(pageOf(rows.map(movementWire), page, size));
 }
 
 /* ── Move (POST /inventory/movements) ────────────────────────────────── */
@@ -767,6 +781,8 @@ async function createMove(config: AxiosRequestConfig) {
       referenceId: requestId,
       reason: null,
       actorId: actor,
+      requestedBy: null,
+      countedBy: null,
       occurredAt: now,
       seq,
     });
@@ -778,16 +794,20 @@ async function createMove(config: AxiosRequestConfig) {
 
 export function registerInventoryMockRoutes(): void {
   const one = `${INVENTORY_API.adjustments}/:id`;
-  registerMockRoute("GET", INVENTORY_API.adjustments, listAdjustments);
-  registerMockRoute("POST", INVENTORY_API.adjustments, createAdjustment);
-  registerMockRoute("GET", one, (config) => {
-    const loaded = load(config);
-    return loaded.error ?? ok(nonNull(loaded.adjustment));
-  });
-  registerMockRoute("POST", `${one}/approval`, approve);
-  registerMockRoute("POST", `${one}/rejection`, reject);
-  registerMockRoute("POST", `${one}/withdrawal`, withdraw);
-  registerMockRoute("GET", INVENTORY_API.movements, listMovements);
+  registerMockRoute("GET", INVENTORY_API.adjustments, withMockStaffNames(listAdjustments));
+  registerMockRoute("POST", INVENTORY_API.adjustments, withMockStaffNames(createAdjustment));
+  registerMockRoute(
+    "GET",
+    one,
+    withMockStaffNames((config) => {
+      const loaded = load(config);
+      return loaded.error ?? ok(adjustmentWire(loaded.adjustment));
+    }),
+  );
+  registerMockRoute("POST", `${one}/approval`, withMockStaffNames(approve));
+  registerMockRoute("POST", `${one}/rejection`, withMockStaffNames(reject));
+  registerMockRoute("POST", `${one}/withdrawal`, withMockStaffNames(withdraw));
+  registerMockRoute("GET", INVENTORY_API.movements, withMockStaffNames(listMovements));
   registerInventoryStockMockRoutes();
   registerCycleCountMockRoutes();
   // Trước `GET /inventory/stock-packages/:lpn` của cách ly — adapter lấy route khớp đầu tiên.

@@ -4,6 +4,7 @@ import { PRODUCTION_LABELS, PRODUCTION_ORDER_COLUMNS as C } from "@/constants";
 import { formatNumber } from "@/lib/format";
 
 import {
+  producerLabelOf,
   productionOrderTotals,
   receivingWarehouseCode,
 } from "@/features/production-order/selectors";
@@ -28,14 +29,15 @@ export function buildProductionOrderColumns(
     textCell<ProductionOrder>(
       C.PRODUCER,
       col.producer,
-      (row) => producerLabel(producerOf(row.producerId), row.producerId),
+      // #286: "Mã · Tên" BE kèm trên dòng; BE cũ → tra danh mục đơn vị (nếu đọc được)
+      (row) => producerLabelOf(row) ?? producerLabel(producerOf(row.producerId), row.producerId),
       { color: "primary" },
     ),
     {
       key: C.WAREHOUSE,
       header: col.warehouse,
       cell: (row) => (
-        <span className={CELL.ref}>
+        <span className={CELL.ref} title={row.receivingWarehouseName ?? undefined}>
           {receivingWarehouseCode(row) ?? shortId(row.receivingWarehouseId)}
         </span>
       ),

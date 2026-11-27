@@ -396,6 +396,23 @@ describe("UserDetailPage — roles and warehouses", () => {
     expect(screen.queryByRole("button", { name: "Lưu kho" })).not.toBeInTheDocument();
   });
 
+  it("without warehouse READ it lists the assigned warehouse names from the user (#286)", async () => {
+    setup(
+      {
+        warehouseIds: ["WH-HN", "WH-HCM"],
+        warehouses: [
+          { warehouseId: "WH-HN", code: "HN", name: "Kho Hà Nội" },
+          { warehouseId: "WH-HCM", code: "HCM", name: null },
+        ],
+      },
+      PERMISSION_SETS.noRolesRead.filter((c) => c !== "warehouse-warehouses:READ"),
+    );
+    const list = await screen.findByRole("list", { name: "Kho làm việc" });
+    expect(within(list).getByText("Kho Hà Nội")).toBeInTheDocument();
+    expect(within(list).getByText("HCM")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Lưu kho" })).not.toBeInTheDocument();
+  });
+
   it("shows a warehouse refusal from the BE", async () => {
     const { user } = setup({}, PERMISSION_SETS.editor, {
       [`PUT ${url}/warehouses`]: () => {

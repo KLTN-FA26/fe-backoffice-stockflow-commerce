@@ -71,10 +71,12 @@ export const warehouseStockItemPageDto = inventoryPageDto(warehouseStockItemDto)
 /** GET /stock-items/atp answers a bare integer: zero is an answer, not "not found". */
 export const atpDto = quantity;
 
-/** ReservationRowResponse (SCRUM-462). The backend exposes the order's id, not its number. */
+/** ReservationRowResponse (SCRUM-462). */
 export const reservationRowDto = z.object({
   reservationId: beUuid,
   orderId: beUuid,
+  // Issue #286: the order's number, snapshotted with the hold; absent only for a hold older than its order row.
+  orderNumber: z.string().nullish(),
   stockItemId: beUuid,
   sku: z.string(),
   locationCode: z.string(),

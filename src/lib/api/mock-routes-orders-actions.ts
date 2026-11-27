@@ -7,6 +7,7 @@
  */
 
 import { paginatePage, registerMockRoute } from "./mock-adapter";
+import { mockWarehouseNames } from "./mock-display-names";
 import { MOCK_WAREHOUSE_ID, productionCartonsOf } from "./mock-routes-goods-receipts-store";
 import {
   MOCK_CREDIT_LIMIT,
@@ -196,6 +197,13 @@ function productionCode(order: Order, seq: number): string {
 
 const LEGACY_HCM = "WH-HCM-01";
 
+/** Bỏ trường null — BE `non_null` không gửi chúng. */
+function withoutNulls(fields: Record<string, string | null>): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(fields).filter((entry): entry is [string, string] => entry[1] !== null),
+  );
+}
+
 /**
  * Đơn sản xuất mock của một đơn bán (BE `ProductionOrderResponse`). ASSUMPTION (mock-only): đơn mock có một đợt giao →
  * một Đơn sản xuất gồm mọi dòng tuỳ chỉnh; dòng mock không đặt theo thùng nên coi như 1 cái / thùng. Số thùng đã nhận
@@ -228,13 +236,21 @@ async function productionOrderOf(order: Order) {
       : receivedAll
         ? "RECEIVED"
         : "PARTIALLY_RECEIVED";
+  const receivingId = warehouseId === LEGACY_HCM ? MOCK_WAREHOUSE_ID : warehouseId;
+  const receiving = mockWarehouseNames(receivingId);
   return {
     id: `PRD-${order.orderId}`,
     code: productionCode(order, 1),
     salesOrderId: order.orderId,
     // ASSUMPTION (mock-only): kho `WH-HCM-01` của mock-data không có khu RECEIVING — Đơn sản xuất nhận về kho HCM của
     // store module 06 (`MOCK_WAREHOUSE_ID`, có khu RCV01) để lập phiếu nhập được (docs 03 §3: khu nhận bắt buộc).
-    receivingWarehouseId: warehouseId === LEGACY_HCM ? MOCK_WAREHOUSE_ID : warehouseId,
+    receivingWarehouseId: receivingId,
+    // #286: số đơn bán + mã / tên kho nhận kèm id (kho lạ → bỏ trường như BE `non_null`)
+    salesOrderNumber: order.orderNumber,
+    ...withoutNulls({
+      receivingWarehouseCode: receiving.warehouseCode,
+      receivingWarehouseName: receiving.warehouseName,
+    }),
     status,
     needByDate: order.placedAt.slice(0, 10),
     sampleApprovalRequired: false,

@@ -8,7 +8,7 @@ import { identityErrorMessage } from "@/lib/api/identity-errors";
 
 import { USER_UI } from "../../constants";
 import { useAssignWarehouses } from "../../mutations";
-import { sameSet, toggleValue, warehouseBoundRoles } from "../../selectors";
+import { sameSet, toggleValue, userWarehouseLabels, warehouseBoundRoles } from "../../selectors";
 import { Checklist } from "../Checklist";
 
 import type { RoleOption } from "@/lib/references/role-options";
@@ -18,7 +18,7 @@ import type { UserDto } from "../../types";
 interface WarehousesCardProps {
   user: UserDto;
   canEdit: boolean;
-  /** `null` khi không có quyền đọc danh mục kho: chỉ hiện số kho đang gán, không sửa được. */
+  /** `null` khi không có quyền đọc danh mục kho: chỉ hiện kho đang gán (tên từ `user.warehouses`), không sửa được. */
   items: readonly ChecklistItem[] | null;
   roles: readonly RoleOption[];
 }
@@ -48,10 +48,7 @@ export function WarehousesCard({ user, canEdit, items, roles }: WarehousesCardPr
           emptyText={USER_UI.noWarehousesAtAll}
         />
       ) : (
-        <p className="text-ink-secondary text-[0.8125rem]">
-          {user.warehouseIds.length} kho đang được gán. Bạn không có quyền xem danh mục kho nên
-          không sửa được tại đây.
-        </p>
+        <AssignedWarehouses user={user} />
       )}
       {bound.length > 0 && current.length === 0 && (
         <p role="status" className="text-warning mt-3 text-xs">
@@ -76,5 +73,28 @@ export function WarehousesCard({ user, canEdit, items, roles }: WarehousesCardPr
         </p>
       )}
     </Card>
+  );
+}
+
+/** Kho đang gán, chỉ đọc: tên từ `UserResponse.warehouses` (BE #286); BE cũ → số kho. */
+function AssignedWarehouses({ user }: { user: UserDto }) {
+  const labels = userWarehouseLabels(user);
+  if (!labels || labels.length === 0) {
+    return (
+      <p className="text-ink-secondary text-[0.8125rem]">
+        {USER_UI.warehouseCount(user.warehouseIds.length)} đang được gán.{" "}
+        {USER_UI.assignedWarehousesReadOnly}
+      </p>
+    );
+  }
+  return (
+    <div className="text-[0.8125rem]">
+      <ul aria-label={USER_UI.warehousesLabel} className="text-ink-primary space-y-1">
+        {labels.map((label) => (
+          <li key={label}>{label}</li>
+        ))}
+      </ul>
+      <p className="text-ink-secondary mt-2">{USER_UI.assignedWarehousesReadOnly}</p>
+    </div>
   );
 }

@@ -76,6 +76,9 @@ export const apiCancellationRequest = (patch: Record<string, unknown> = {}) => (
   requestedAt: "2026-11-10T03:00:00Z",
   status: "PENDING",
   version: 0,
+  // R5-6 / issue #286: BE kèm số đơn + tên khách trên dòng — hàng đợi không gọi `GET /orders/{id}` từng dòng
+  orderNumber: apiOrder.orderNumber,
+  customerName: "Nguyễn Hoài Nam",
   ...patch,
 });
 

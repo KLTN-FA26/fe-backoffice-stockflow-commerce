@@ -36,7 +36,7 @@ import type { QuoteDialog as Dialog } from "./QuoteActionDialogs";
 /**
  * Nút back-office theo lifecycle (allowedStaffQuoteActions, plan WF-02 A4):
  * DRAFT → Sửa / Gửi khách / Huỷ; CHANGES_REQUESTED → Mở bản sửa; ACCEPTED → Tạo đơn (Huỷ chỉ khi là báo giá cũ — QD-16 —
- * có dòng SKU ngừng bán — BE-14 — hoặc khách không còn ACTIVE — LC-2; trạng thái khách đọc chung query với tên khách, cần
+ * có dòng SKU ngừng bán — BE-14 — hoặc khách không còn ACTIVE — LC-2; trạng thái khách tra một lần trên trang chi tiết, cần
  * `customer-customers:READ`). Báo giá cũ đã chấp nhận chỉ còn nút Huỷ.
  * 14 BR-10: nháp chờ duyệt giá → Rút lại / Duyệt giá / Từ chối (`PriceReviewActions`) và Huỷ; nháp mà gửi bây giờ sẽ
  * phải chờ duyệt (`priceCheck.needsApproval`) → nút ghi "Gửi duyệt giá" thay cho "Gửi khách".
@@ -48,8 +48,9 @@ export function QuoteStaffActions({ quote }: { quote: Quote }) {
   const [dialog, setDialog] = useState<Dialog>(null);
   const [review, setReview] = useState<PriceReviewDialog>(null);
   const revise = useReviseQuote();
-  // Cùng query key với <CustomerName> trên trang → không gọi thêm API. Không đọc được khách → chỉ còn luật SKU.
-  // UI-only, Backend phải re-check (BE kiểm lại điều kiện huỷ).
+  // Trạng thái khách (LC-2) BE không kèm trong báo giá (#286 chỉ thêm tên / mã) → vẫn tra một lần, chỉ khi ACCEPTED, trên
+  // trang chi tiết (không phải mỗi dòng). Cùng query key với <CustomerName> khi nó phải tra (BE thiếu tên) → không gọi
+  // trùng. Không đọc được khách → chỉ còn luật SKU. UI-only, Backend phải re-check (BE kiểm lại điều kiện huỷ).
   const customer = useCustomerRef(
     quote.customerId,
     quote.status === "ACCEPTED" && can(CUSTOMER_PERMISSIONS.read),

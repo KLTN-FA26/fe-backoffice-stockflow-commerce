@@ -4,27 +4,22 @@ import { FileText, Layers } from "lucide-react";
 
 import { UI_LABELS } from "@/constants";
 import { formatDate } from "@/lib/format/date";
-import { categoryName, taxClassLabel } from "@/features/product";
+import { productCategoryLabel, taxClassLabel } from "@/features/product";
 import { StatusDot } from "@/components/shared/StatusDot";
 
 import { InfoRow, Section } from "./ProductSection";
 
-import type { Category, Product } from "@/features/product";
+import type { Product } from "@/features/product";
 
 const D = UI_LABELS.product.description;
 const F = UI_LABELS.product.edit.fields;
+const N = UI_LABELS.product.names;
 
 /**
  * "Thông tin chung": mã, loại, danh mục, thương hiệu, thuế, trạng thái, người tạo / duyệt. Sửa và lý do
  * tạm ngưng / ngừng kinh doanh nằm ở thẻ trạng thái cột phải (ProductActionCard).
  */
-export function ProductGeneralSection({
-  product,
-  categories,
-}: {
-  product: Product;
-  categories: readonly Category[];
-}) {
+export function ProductGeneralSection({ product }: { product: Product }) {
   return (
     <Section title="Thông tin chung" icon={Layers}>
       <div className="divide-y divide-(--table-line)">
@@ -38,7 +33,7 @@ export function ProductGeneralSection({
           <span className="font-medium">{product.name}</span>
         </InfoRow>
         {product.nameEn && <InfoRow label={F.nameEn}>{product.nameEn}</InfoRow>}
-        <InfoRow label="Danh mục">{categoryName(product.categoryId, categories)}</InfoRow>
+        <InfoRow label="Danh mục">{productCategoryLabel(product)}</InfoRow>
         <InfoRow label="Thương hiệu">{product.brand}</InfoRow>
         <InfoRow label="Thuế">{taxClassLabel(product.taxClass)}</InfoRow>
         <InfoRow label="Trạng thái">
@@ -48,11 +43,8 @@ export function ProductGeneralSection({
         <InfoRow label="Ngày tạo">
           <span className="tabular-nums">{formatDate(product.createdAt)}</span>
         </InfoRow>
-        {product.approvedBy && (
-          <InfoRow label="ID người duyệt">
-            <span className="font-[family-name:var(--font-mono)]">{product.approvedBy}</span>
-          </InfoRow>
-        )}
+        {/* Issue #286: BE trả `approvedByName` cạnh id; chưa có tên thì bỏ dòng, không hiện UUID (BO-UX-6) */}
+        {product.approvedByName && <InfoRow label={N.approvedBy}>{product.approvedByName}</InfoRow>}
         {product.approvedAt && (
           <InfoRow label="Ngày duyệt">
             <span className="tabular-nums">{formatDate(product.approvedAt)}</span>

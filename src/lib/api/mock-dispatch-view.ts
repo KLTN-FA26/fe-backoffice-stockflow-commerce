@@ -11,6 +11,8 @@ import {
   parcelsOn,
 } from "./mock-dispatch-ftl-view";
 
+import { MOCK_DISPATCHER } from "./mock-dispatch-store";
+
 import type {
   DispatchState,
   MockCarrier,
@@ -42,6 +44,12 @@ export const carrierView = (carrier: MockCarrier) => ({
 const carrierOf = (state: DispatchState, id: string | null) =>
   state.carriers.find((c) => c.carrierId === id);
 
+/** BE trả mã + tên kho cạnh `warehouseId` (#286) — lấy từ danh mục kho của mock-data. */
+const warehouseRef = (state: DispatchState, warehouseId: string) => {
+  const warehouse = state.warehouseNames.get(warehouseId);
+  return { warehouseCode: warehouse?.code, warehouseName: warehouse?.name };
+};
+
 /* ── Lô giao ─────────────────────────────────────────────────────────── */
 
 export function shipmentRowView(state: DispatchState, shipment: MockShipment) {
@@ -53,6 +61,7 @@ export function shipmentRowView(state: DispatchState, shipment: MockShipment) {
     orderNumber: shipment.orderNumber,
     taskId: shipment.taskId,
     warehouseId: shipment.warehouseId,
+    ...warehouseRef(state, shipment.warehouseId),
     status: shipment.status,
     packageCount: shipment.parcels.length,
     carrierId: shipment.carrierId,
@@ -110,6 +119,7 @@ export function loadRowView(state: DispatchState, load: MockLoad) {
     loadId: load.loadId,
     code: load.code,
     warehouseId: load.warehouseId,
+    ...warehouseRef(state, load.warehouseId),
     status: load.status,
     carrierId: load.carrierId,
     carrierName: carrier?.name,
@@ -142,6 +152,7 @@ export function loadDetailView(
     loadId: load.loadId,
     code: load.code,
     warehouseId: load.warehouseId,
+    ...warehouseRef(state, load.warehouseId),
     status: load.status,
     carrierId: load.carrierId,
     carrierCode: carrier?.code,
@@ -150,6 +161,8 @@ export function loadDetailView(
     driverName: load.driverName,
     driverPhone: load.driverPhone,
     loadingStartedAt: load.loadingStartedAt,
+    // Mock không lưu người bắt đầu xếp — cùng người kho như `dispatchedByName`
+    loadingStartedByName: load.loadingStartedAt ? MOCK_DISPATCHER : null,
     dispatchedAt: load.dispatchedAt,
     dispatchedByName: load.dispatchedAt ? "Nhân viên kho (mock)" : null,
     carrierRepresentative: load.carrierRepresentative,
@@ -181,6 +194,8 @@ export function loadDetailView(
           loaded: !!scan,
           loadedAt: scan?.loadedAt,
           loadedBy: scan?.loadedBy,
+          // Mock lưu sẵn tên người quét ở `loadedBy`
+          loadedByName: scan?.loadedBy,
         };
       }),
     })),

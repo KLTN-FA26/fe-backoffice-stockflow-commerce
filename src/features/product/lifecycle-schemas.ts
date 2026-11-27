@@ -112,6 +112,12 @@ export const productVersionSchema = z.object({
   subjectType: z.enum([...PRODUCT_CHANGE_SUBJECTS, "UNKNOWN"]).catch("UNKNOWN"),
   /** Biến thể / ảnh / SKU liên quan; trống với bản thân sản phẩm. */
   subjectId: z.string().nullish(),
+  /**
+   * Issue #286: SKU của biến thể và nhãn (tên biến thể / tên file ảnh) của đối tượng — cả hai thiếu với
+   * dòng của chính sản phẩm và với đối tượng đã xoá.
+   */
+  subjectSku: z.string().nullish(),
+  subjectLabel: z.string().nullish(),
   fromStatus: z.string().nullish(),
   toStatus: z.string().nullish(),
   reason: z.string().nullish(),

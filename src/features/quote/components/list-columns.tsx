@@ -5,6 +5,7 @@ import { CalendarX2 } from "lucide-react";
 
 import {
   ADMIN_ROUTES,
+  CUSTOMER_FALLBACK_LABEL,
   QUOTE_API_STATUSES,
   QUOTE_STATUS_BY_API,
   QUOTE_STATUS_LABELS,
@@ -118,7 +119,19 @@ export function buildQuoteColumns(showTotal: boolean): ColumnDef<QuoteRow>[] {
       sortable: true,
       cell: (row) => <QuoteNumberCell row={row} />,
     },
-    { key: "customer", header: L.customer, cell: (row) => <CustomerName id={row.customerId} /> },
+    {
+      key: "customer",
+      header: L.customer,
+      // #286: tên / mã khách BE kèm sẵn trong dòng → luôn có `name`, <CustomerName> không gọi `GET /customers/{id}`
+      // cho từng dòng (N+1). Thiếu cả hai thì nhãn trung tính, không tra.
+      cell: (row) => (
+        <CustomerName
+          id={row.customerId}
+          name={row.customerName ?? row.customerCode ?? CUSTOMER_FALLBACK_LABEL}
+          code={row.customerCode}
+        />
+      ),
+    },
     {
       key: "status",
       header: L.status,
@@ -162,10 +175,14 @@ export function buildQuoteColumns(showTotal: boolean): ColumnDef<QuoteRow>[] {
         row.convertedOrderId ? (
           <Link
             href={ADMIN_ROUTES.orders.detail(row.convertedOrderId)}
-            className="text-accent-text hover:underline"
+            className={
+              row.convertedOrderNumber
+                ? `text-accent-text hover:underline ${MONO}`
+                : "text-accent-text hover:underline"
+            }
             onClick={(event) => event.stopPropagation()}
           >
-            {L.openOrder}
+            {row.convertedOrderNumber ?? L.openOrder}
           </Link>
         ) : (
           <span className="text-ink-tertiary">—</span>

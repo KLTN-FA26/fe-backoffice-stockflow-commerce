@@ -11,6 +11,7 @@ import { Card } from "@/components/shared/Card";
 import {
   invoiceReference,
   lateIssueBadge,
+  originalInvoiceReference,
   rejectionText,
   transactionWatchText,
   warningMessages,
@@ -108,9 +109,9 @@ export function EInvoiceInfoCard({ invoice }: { invoice: EInvoice }) {
           <TypeText type={invoice.type} adjusted={invoice.adjusted} />
         </InfoRow>
         {invoice.originalEInvoiceId && (
-          <InfoRow label="Hoá đơn gốc">
+          <InfoRow label={D.original}>
             <CodeLink href={EINVOICE_ROUTES.detail(invoice.originalEInvoiceId)}>
-              Xem hoá đơn gốc
+              {originalInvoiceReference(invoice) ?? D.viewOriginal}
             </CodeLink>
           </InfoRow>
         )}

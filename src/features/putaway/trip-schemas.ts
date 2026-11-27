@@ -68,6 +68,11 @@ export const beTripSchema = z.object({
   closedBy: z.string().nullish(),
   cartons: z.array(beTripCartonSchema),
   stops: z.array(beTripStopSchema).default([]),
+  // Issue #286: tên người cất / người đóng, mã (prefix) + tên kho cạnh id — NON_NULL bỏ khi không biết
+  operatorName: z.string().nullish(),
+  closedByName: z.string().nullish(),
+  warehouseCode: z.string().nullish(),
+  warehouseName: z.string().nullish(),
 });
 
 /**

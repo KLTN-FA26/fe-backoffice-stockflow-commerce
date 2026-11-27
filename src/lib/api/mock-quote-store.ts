@@ -6,6 +6,7 @@
  */
 
 import { WF02_SEED_ORDERS, findWf02Order, orderTotal } from "./mock-contract-orders";
+import { findMockCustomer } from "./mock-customer-store";
 import { percentOf } from "./mock-quote-money";
 import { priceReviewView } from "./mock-quote-price-review";
 import {
@@ -330,6 +331,23 @@ function complete(totals: Totals) {
   };
 }
 
+/**
+ * #286: tên / mã khách kèm id (mã = mã số thuế như `wf02OrderResponse`) và tên người kèm `xxxBy`. Mock chỉ biết tên tài
+ * khoản khách (họ tên khách của báo giá); nhân viên không có tên trong dữ liệu mock → bỏ (BE `non_null`), không bịa.
+ */
+function namesOf(quote: MockQuote) {
+  const customer = findMockCustomer(quote.customerId);
+  const userName = (userId: string | null) =>
+    customer && userId !== null && customer.userId === userId ? customer.fullName : null;
+  return {
+    customer: {
+      ...(customer ? { customerName: customer.fullName } : {}),
+      ...(customer?.taxCode ? { customerCode: customer.taxCode } : {}),
+    },
+    userName,
+  };
+}
+
 export function quoteView(quote: MockQuote) {
   // BE: báo giá đã qua nháp mà dòng thiếu thuế suất là báo giá trước 4B-3 → thuế 0; chỉ nháp mới "chưa biết"
   const untaxed = quote.status !== "DRAFT" && quote.lines.some((line) => line.taxRate === null);
@@ -390,10 +408,12 @@ export function quoteView(quote: MockQuote) {
   const proposed = complete(proposedTotals);
   const acceptedView = accepted ? complete(acceptedTotals) : null;
   const order = quote.convertedOrderId ? findWf02Order(quote.convertedOrderId) : undefined;
+  const names = namesOf(quote);
   return {
     id: quote.id,
     quoteNumber: quote.quoteNumber,
     customerId: quote.customerId,
+    ...names.customer,
     status: statusAt(quote),
     revision: quote.revision,
     validUntil: quote.validUntil,
@@ -409,8 +429,10 @@ export function quoteView(quote: MockQuote) {
     acceptedTotal: acceptedView?.total ?? null,
     sentAt: quote.sentAt,
     sentBy: quote.sentBy,
+    sentByName: names.userName(quote.sentBy),
     respondedAt: quote.respondedAt,
     respondedBy: quote.respondedBy,
+    respondedByName: names.userName(quote.respondedBy),
     customerFeedback: quote.customerFeedback,
     cancellationReason: quote.cancellationReason,
     convertedOrder: order
@@ -422,9 +444,13 @@ export function quoteView(quote: MockQuote) {
         }
       : null,
     convertedAt: quote.convertedAt,
-    history: quote.history,
+    history: quote.history.map((step) => ({
+      ...step,
+      changedByName: names.userName(step.changedBy),
+    })),
     createdAt: quote.createdAt,
     createdBy: quote.createdBy,
+    createdByName: names.userName(quote.createdBy),
     version: quote.version,
     ...priceReviewView(quote),
   };
@@ -435,11 +461,15 @@ export const quoteRow = (quote: MockQuote) => ({
   id: quote.id,
   quoteNumber: quote.quoteNumber,
   customerId: quote.customerId,
+  ...namesOf(quote).customer,
   status: statusAt(quote),
   revision: quote.revision,
   validUntil: quote.validUntil,
   sentAt: quote.sentAt,
   convertedOrderId: quote.convertedOrderId,
+  convertedOrderNumber: quote.convertedOrderId
+    ? (findWf02Order(quote.convertedOrderId)?.orderNumber ?? null)
+    : null,
   createdAt: quote.createdAt,
   version: quote.version,
   priceReviewPending: quote.priceReviewPending ?? false,

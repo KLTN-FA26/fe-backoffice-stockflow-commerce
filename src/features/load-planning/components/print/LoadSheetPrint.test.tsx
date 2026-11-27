@@ -236,11 +236,16 @@ describe("LoadSheetPrint — booking, unplaced note, bad input", () => {
     expect(screen.queryByText("GHN-998877")).not.toBeInTheDocument();
   });
 
-  it("names the warehouse from the warehouse directory when the load is not booked or cannot be read", async () => {
-    const { get } = renderSheet(ACTORS.viewOnly, planWithLoad("PLANNED"));
+  it("names the warehouse from the plan's code + name when the load is not booked or cannot be read (#286)", async () => {
+    const { get } = renderSheet(ACTORS.viewOnly, {
+      ...planWithLoad("PLANNED"),
+      warehouseCode: "HN",
+      warehouseName: "Kho Hà Nội",
+    });
     await screen.findByRole("heading", { name: L.documentTitle, level: 2 });
     expect(await screen.findByText("HN · Kho Hà Nội")).toBeInTheDocument();
-    expect(get.mock.calls.some(([url]) => url === "/warehouses")).toBe(true);
+    // không tải danh mục kho chỉ để hiện tên
+    expect(get.mock.calls.some(([url]) => url === "/warehouses")).toBe(false);
     // no load to read: no waybill to show, only the dash
     expect(screen.queryByText(H.noWaybill)).not.toBeInTheDocument();
   });

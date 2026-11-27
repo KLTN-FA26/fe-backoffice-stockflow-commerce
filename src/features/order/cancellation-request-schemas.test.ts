@@ -36,6 +36,9 @@ describe("DTO BE → model FE", () => {
       decidedAt: null,
       decisionNote: null,
       retainedPercent: null,
+      // Issue #286: tên người gửi / người quyết vắng ở BE cũ → null
+      requestedByName: null,
+      decidedByName: null,
       // R5-6: absent until the BE ships them — null, never a guessed 0 / false.
       orderNumber: null,
       customerName: null,
@@ -54,9 +57,15 @@ describe("DTO BE → model FE", () => {
         decidedAt: "2026-11-12T04:00:00Z",
         decisionNote: "Đã thoả thuận",
         retainedPercent: 30,
+        requestedBy: "11111111-0000-4000-8000-000000000001",
+        requestedByName: "Nguyễn Hoài Nam",
+        decidedBy: "22222222-0000-4000-8000-000000000002",
+        decidedByName: "Phan Thị Ngọc",
       }),
     );
     expect(decided).toMatchObject({
+      requestedByName: "Nguyễn Hoài Nam",
+      decidedByName: "Phan Thị Ngọc",
       status: "APPROVED",
       retainedPercent: 30,
       decisionNote: "Đã thoả thuận",

@@ -77,7 +77,12 @@ function CustomerPriceListContent() {
         </div>
       )}
       {customerId && (
-        <SelectedCustomer customerId={customerId} canLookup={canLookup} onClear={selection.clear} />
+        <SelectedCustomer
+          customerId={customerId}
+          canLookup={canLookup}
+          canReadPrices={canReadPrices}
+          onClear={selection.clear}
+        />
       )}
       {selection.invalid ? (
         <EmptyState

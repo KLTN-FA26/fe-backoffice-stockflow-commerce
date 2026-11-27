@@ -173,3 +173,56 @@ describe("VariantMediaGallery — thẻ nhỏ cột phải: trạng thái là ch
     expect(screen.queryByText("Riêng tư")).not.toBeInTheDocument();
   });
 });
+
+describe("VariantMediaGallery — tên người tải lên / xuất bản (issue #286)", () => {
+  const gallery = (
+    <VariantMediaGallery
+      productId={PRODUCT}
+      variantId={VARIANT}
+      canUpload={false}
+      canManage={false}
+      canPublish={false}
+      canWithdraw={false}
+    />
+  );
+
+  it("hiện uploadedByName / publishedByName thay id người dùng", async () => {
+    installApi({
+      permissions: [PRODUCT_PERMISSIONS.read],
+      get: (url) =>
+        url === MEDIA_PATH
+          ? [
+              {
+                ...image("m-pub", true),
+                uploadedBy: "u-1111",
+                uploadedByName: "Nguyễn Thị Lan",
+                publishedBy: "u-2222",
+                publishedByName: "Trần Minh Quang",
+              },
+            ]
+          : undefined,
+    });
+    renderApp(gallery);
+    expect(
+      await screen.findByText("Tải lên: Nguyễn Thị Lan · Xuất bản: Trần Minh Quang"),
+    ).toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent(/u-1111|u-2222/);
+  });
+
+  it("BE chưa gửi tên: không hiện id / username thô; ảnh riêng tư không có dòng xuất bản", async () => {
+    installApi({
+      permissions: [PRODUCT_PERMISSIONS.read],
+      get: (url) =>
+        url === MEDIA_PATH
+          ? [
+              { ...image("m-new", false), uploadedBy: "u-3333", uploadedByName: "Lê Văn Bình" },
+              { ...image("m-old", false), uploadedBy: "u-4444" },
+            ]
+          : undefined,
+    });
+    renderApp(gallery);
+    expect(await screen.findByText("Tải lên: Lê Văn Bình")).toBeInTheDocument();
+    expect(screen.queryByText(/Xuất bản:/)).not.toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent(/u-3333|u-4444/);
+  });
+});

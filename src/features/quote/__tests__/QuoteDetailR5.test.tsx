@@ -56,6 +56,32 @@ describe("Quote detail — round 5", () => {
     expect(await table.findByRole("cell", { name: "Trần Văn Sales" })).toBeInTheDocument();
   });
 
+  it("#286: customer name, sender and responder come from the quote — no customer lookup for the name", async () => {
+    const api = mockApi("SALES_STAFF", {
+      get: {
+        [detailUrl]: () => ({
+          ...QUOTE_ACCEPTED,
+          status: "CHANGES_REQUESTED",
+          customerName: "Khách hàng demo",
+          customerCode: "0399990001",
+          sentAt: "2099-11-12T06:00:00Z",
+          sentBy: "aa40c7cb-70b4-2d3a-f730-e2b5a217c662",
+          sentByName: "Trần Văn Sales",
+          respondedAt: "2099-11-13T06:00:00Z",
+          respondedBy: "82c2b7d7-c0ae-51e1-4414-23e2e625febb",
+          respondedByName: "Nguyễn Thị Khách",
+        }),
+      },
+    });
+    renderScreen(<QuoteDetail id={QUOTE_ID} />, "SALES_STAFF");
+    const profile = within(await screen.findByRole("region", { name: "Hồ sơ báo giá" }));
+    expect(profile.getByRole("link", { name: "Khách hàng demo" })).toBeInTheDocument();
+    expect(profile.getByText(/Trần Văn Sales/)).toBeInTheDocument();
+    expect(profile.getByText(/Nguyễn Thị Khách/)).toBeInTheDocument();
+    expect(profile.queryByText(/aa40c7cb/)).toBeNull();
+    expect(api.get.mock.calls.some(([url]) => String(url).startsWith("/customers"))).toBe(false);
+  });
+
   it("BO-UX-19: a sent quote says who waits until when, and links the quote's conversation", async () => {
     const api = renderDetail(
       { ...QUOTE_ACCEPTED, status: "SENT", validUntil: "2099-11-26" },

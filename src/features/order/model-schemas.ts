@@ -138,6 +138,9 @@ export const orderSchema = z.object({
   /** null khi đơn không cọc (hoặc dòng danh sách không mang field này). */
   balancePolicy: orderBalancePolicyDtoSchema.nullable(),
   warehouseId: z.string().nullable(),
+  /** Issue #286: mã + tên kho xuất, null khi BE chưa gửi. */
+  warehouseCode: z.string().nullable(),
+  warehouseName: z.string().nullable(),
   releasedAt: z.string().nullable(),
   cancellation: orderCancellationSchema.nullable(),
   // Vòng đời (BE PR #133)
