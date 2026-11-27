@@ -81,6 +81,9 @@ export const PAYMENT_LABELS = {
     orderChip: "Đơn hàng",
     filterByOrderCustomer: "Lọc theo khách của đơn",
     emptyTitle: "Chưa có đợt thanh toán",
+    emptyQueueTitle: "Không còn đợt nào cần thu",
+    emptyQueueDescription: "Mọi đợt đã đến mốc đều đã thu đủ.",
+    showAll: "Xem mọi đợt",
     emptyDescription:
       "Đợt thanh toán được hệ thống sinh khi hợp đồng chuyển sang Signed — chưa có hợp đồng nào được ký.",
     noReadDescription:
@@ -95,6 +98,13 @@ export const PAYMENT_LABELS = {
     batchTied: (seq: number) => `Đợt giao ${seq}`,
     notTied: "Không gắn đợt giao",
     handoverBlocked: "Đang chặn bàn giao",
+    kpis: {
+      label: "Đợt cần thu",
+      dueToday: "Đến hạn hôm nay",
+      dueWeek: "Đến hạn trong 7 ngày",
+      overdue: "Quá hạn",
+      unavailable: "Không tải được số liệu",
+    },
   },
   columns: {
     contract: "Hợp đồng",
@@ -345,6 +355,7 @@ export const PAYMENT_LIST_LABELS = {
   notUsed: "Chưa dùng",
   all: "Tất cả",
   yes: "Có",
+  no: "Không",
   overdueDays: (days: number) => (days > 0 ? `Quá hạn ${days} ngày` : "Quá hạn"),
   unknownStatus: "Không rõ",
   receivedRange: "Ngày nhận",
@@ -390,7 +401,21 @@ export const RECEIVABLES_LABELS = {
   over60: "> 60 ngày",
   installmentCount: "Số đợt",
   viewInstallments: "Xem các đợt",
+  viewOwing: "Xem các đợt còn nợ",
   actions: "Thao tác",
+  rowActions: (customer: string) => `Thao tác — ${customer}`,
+  creditLimit: "Hạn mức",
+  noCreditLimit: "Chưa cấp",
+  creditUsed: (percent: number) => `Đã dùng ${percent}%`,
+  creditUsedTitle: "Dư nợ tính hạn mức (còn phải thu + phần sau giao của hàng chưa giao) / hạn mức",
+  /** Chú thích ở header (bo-23): hai cột quá hạn đọc khác nhau. */
+  overdueHint:
+    "Đợt sau giao đã quá hạn trả mà khách chưa trả đủ. Nằm trong “Còn phải thu” và chia theo tuổi nợ 0–30 / 31–60 / > 60 ngày.",
+  signingOverdueHint:
+    "Đợt phải trả khi ký hợp đồng đã quá hạn mà chưa trả đủ. Không nằm trong “Còn phải thu” hay “Quá hạn”, nhưng vẫn chặn hợp đồng mới của khách khi kiểm tra tín dụng.",
+  hintLabel: (column: string) => `Giải thích cột ${column}`,
+  totalsTitle: (customers: number) => `Tổng ${customers} khách`,
+  totalsLabel: "Tổng các cột trên mọi khách đang lọc",
   emptyTitle: "Không có khách nào còn nợ",
   emptyDescription: "Khi đợt thanh toán đến mốc mà khách chưa trả đủ, khách sẽ hiện ở đây.",
   noReadDescription:

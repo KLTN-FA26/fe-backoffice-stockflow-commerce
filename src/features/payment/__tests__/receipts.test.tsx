@@ -2,6 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { CUSTOMER_PERMISSIONS } from "@/constants";
 import { api } from "@/lib/api/client";
 import { apiError, bePage } from "@/test/api-screen";
 import { openDatePicker } from "@/test/date-picker";
@@ -461,5 +462,67 @@ describe("WF-02 mục 36 — ngày nhận, tổng, xuất Excel", () => {
     expect(screen.getByRole("button", { name: "Xuất Excel" })).toBeDisabled();
     const sent = spy.get.mock.calls.filter(([url]) => String(url).startsWith("/payment-receipts"));
     expect(sent).toHaveLength(0);
+  });
+});
+
+describe("bo-24: tìm phiếu thu theo khách; cột số dòng ẩn mặc định", () => {
+  const summary = { count: 1, totalAmount: 1, currency: "VND", byCurrency: [] };
+  const CUSTOMER = {
+    customerId: "cust-42",
+    fullName: "Công ty Mộc An",
+    email: "mua@mocan.vn",
+    taxCode: "0312345678",
+    status: "ACTIVE",
+  };
+
+  it("'Các dòng của phiếu thu' (BE danh sách không gửi hợp đồng / đợt của dòng) ẩn mặc định, bật lại được", async () => {
+    mockPaymentApi(ACCOUNTANT_GRANTS, {
+      get: {
+        "/payment-receipts": () => bePage([receiptJson()]),
+        "/payment-receipts/summary": () => summary,
+      },
+    });
+    renderPaymentScreen(<ReceiptList />);
+    await screen.findByText("FT26313123456");
+    expect(
+      screen.queryByRole("columnheader", { name: /Các dòng của phiếu thu/ }),
+    ).not.toBeInTheDocument();
+    localStorage.clear();
+  });
+
+  it("người xem được danh bạ khách chọn khách trong Bộ lọc → gửi customerId của BE", async () => {
+    const api = mockPaymentApi([...ACCOUNTANT_GRANTS, CUSTOMER_PERMISSIONS.read], {
+      get: {
+        "/payment-receipts": () => bePage([receiptJson()]),
+        "/payment-receipts/summary": () => summary,
+        "/customers": () => bePage([CUSTOMER]),
+        "/customers/cust-42": () => CUSTOMER,
+      },
+    });
+    renderPaymentScreen(<ReceiptList />);
+    await screen.findByText("FT26313123456");
+    await userEvent.click(screen.getByRole("button", { name: "Bộ lọc" }));
+    await userEvent.type(await screen.findByRole("combobox", { name: "Khách hàng" }), "Mộc");
+    await userEvent.click(await screen.findByRole("option", { name: /Công ty Mộc An/ }));
+    await waitFor(() => {
+      const calls = api.get.mock.calls.filter(([url]) => url === "/payment-receipts");
+      expect((calls.at(-1)?.[1] as { params: URLSearchParams }).params.get("customerId")).toBe(
+        "cust-42",
+      );
+    });
+  });
+
+  it("không xem được danh bạ khách → không có ô chọn khách (không gọi /customers)", async () => {
+    const api = mockPaymentApi(ACCOUNTANT_GRANTS, {
+      get: {
+        "/payment-receipts": () => bePage([receiptJson()]),
+        "/payment-receipts/summary": () => summary,
+      },
+    });
+    renderPaymentScreen(<ReceiptList />);
+    await screen.findByText("FT26313123456");
+    await userEvent.click(screen.getByRole("button", { name: "Bộ lọc" }));
+    expect(screen.queryByRole("combobox", { name: "Khách hàng" })).not.toBeInTheDocument();
+    expect(api.get.mock.calls.some(([url]) => String(url).startsWith("/customers"))).toBe(false);
   });
 });

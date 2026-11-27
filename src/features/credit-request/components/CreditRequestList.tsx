@@ -91,13 +91,18 @@ function CreditRequestListContent() {
           }}
           onClearStatuses={() => void setStatus(null)}
           hasStatusFilter={!!status}
+          // Chỉ chip của bộ lọc đang bật (bo-28): "Trạng thái: Tất cả" cạnh nút "Lọc trạng thái" là nói một điều hai lần
           summaryItems={[
-            {
-              label: "Trạng thái",
-              value: status ? statusLabel(status) : "Tất cả",
-              active: !!status,
-              onClear: () => void setStatus(null),
-            },
+            ...(status
+              ? [
+                  {
+                    label: "Trạng thái",
+                    value: statusLabel(status),
+                    active: true,
+                    onClear: () => void setStatus(null),
+                  },
+                ]
+              : []),
             ...(customerId
               ? [
                   {

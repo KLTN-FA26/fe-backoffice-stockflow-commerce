@@ -49,7 +49,8 @@ function renderQueue(permissions: readonly PermissionCode[], items: unknown[] = 
     "/orders/contract-credit-reviews": () => page(items),
     [`/orders/credit-position/${CUSTOMER_ID}`]: () => apiCreditPosition,
   });
-  renderOrderScreen(<CreditHoldList />);
+  // bo-21: hàng chờ hợp đồng là tab thứ hai của trang
+  renderOrderScreen(<CreditHoldList />, "?tab=contracts");
 }
 
 async function openDecision(action: "Duyệt" | "Từ chối") {

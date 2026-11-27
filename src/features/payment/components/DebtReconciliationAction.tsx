@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { FileDown } from "lucide-react";
 
 import {
   BUSINESS_DOCUMENT_LABELS,
@@ -17,7 +16,6 @@ import { useCan } from "@/lib/auth/components/Can";
 import { DatePicker } from "@/components/shared/DatePicker";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { FormField } from "@/components/shared/FormField";
-import { Button } from "@/components/ui/button";
 
 import { todayInVietnam } from "../input-schemas";
 
@@ -107,39 +105,32 @@ function ReconciliationForm({
   );
 }
 
+/** Quyền tải biên bản đối chiếu công nợ (UI-only, BE re-check) — để nơi gọi ẩn mục menu khi thiếu quyền. */
+export function useCanReconcileDebt(): boolean {
+  return useCan(SPEC.permission);
+}
+
 /**
- * "Đối chiếu công nợ" của một khách (BE `feat/business-documents` #6, `GET /installments/debt-reconciliation`): chọn kỳ
- * rồi tải biên bản, tên file của BE. Chỉ vai có `payment-installments:READ` thấy nút (Kế toán, Sale, Trưởng phòng KD).
+ * "Đối chiếu công nợ" của một khách (BE `feat/business-documents` #6, `GET /installments/debt-reconciliation`): hộp
+ * thoại chọn kỳ rồi tải biên bản, tên file của BE. Nơi gọi mở / đóng (mục "⋯" của dòng khách) và chỉ cho vai có
+ * `payment-installments:READ` thấy (`useCanReconcileDebt`: Kế toán, Sale, Trưởng phòng KD).
  */
-export function DebtReconciliationAction({
+export function DebtReconciliationDialog({
   customerId,
   customerName,
+  open,
+  onClose,
 }: {
   customerId: string;
   customerName: string;
+  open: boolean;
+  onClose: () => void;
 }) {
-  const allowed = useCan(SPEC.permission);
-  const [open, setOpen] = useState(false);
-  if (!allowed) return null;
   return (
-    // Nằm trong dòng bảng bấm được: sự kiện của nút và của hộp thoại (portal vẫn nổi bọt theo cây React) không được mở
-    // drill-down của dòng
-    <span
-      onClick={(event) => event.stopPropagation()}
-      onKeyDown={(event) => event.stopPropagation()}
-    >
-      <Button type="button" size="xs" variant="outline" onClick={() => setOpen(true)}>
-        <FileDown className="size-3.5" aria-hidden="true" /> {SPEC.label}
-      </Button>
-      <FormDialog open={open} onOpenChange={(next) => !next && setOpen(false)}>
-        {open && (
-          <ReconciliationForm
-            customerId={customerId}
-            customerName={customerName}
-            onClose={() => setOpen(false)}
-          />
-        )}
-      </FormDialog>
-    </span>
+    <FormDialog open={open} onOpenChange={(next) => !next && onClose()}>
+      {open && (
+        <ReconciliationForm customerId={customerId} customerName={customerName} onClose={onClose} />
+      )}
+    </FormDialog>
   );
 }
