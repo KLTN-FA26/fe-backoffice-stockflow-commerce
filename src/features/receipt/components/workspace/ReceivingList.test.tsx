@@ -163,7 +163,7 @@ describe("ReceivingList — Nhận hàng trong tab theo kho (docs 03)", () => {
           .getAllByRole("columnheader")
           .map((cell) => cell.textContent?.trim())
           .filter(Boolean),
-      ).toEqual([COLUMN_LABELS.number, COLUMN_LABELS.status]),
+      ).toEqual([COLUMN_LABELS.number, COLUMN_LABELS.status, "Thao tác"]),
     );
   });
 

@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { PRODUCER_PERMISSIONS, PRODUCTION_LABELS } from "@/constants";
 import { mockProductionApi, renderProductionScreen } from "@/test/production-screen";
+import { clickRowAction } from "@/test/ui-actions";
 
 import { ProducerList } from "../components/ProducerList";
 
@@ -44,7 +45,10 @@ describe("ProducerList (docs 17 §4.3)", () => {
     expect(await screen.findByText("IN-MINHPHAT")).toBeInTheDocument();
     expect(screen.getByText(L.days(14))).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: L.create })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: `${L.edit} IN-MINHPHAT` })).not.toBeInTheDocument();
+    // Không được sửa: dòng không có menu "⋯" nên không có thao tác sửa
+    expect(
+      screen.queryByRole("button", { name: "Thao tác — IN-MINHPHAT" }),
+    ).not.toBeInTheDocument();
   });
 
   it("Điều phối sản xuất ngừng dùng một đơn vị: PUT kèm version đã đọc, không gửi mã", async () => {
@@ -54,7 +58,11 @@ describe("ProducerList (docs 17 §4.3)", () => {
       put: { "/producers/p-1": (_, body) => ({ ...producer, ...(body as object), version: 5 }) },
     });
     renderProductionScreen(<ProducerList />);
-    await user.click(await screen.findByRole("button", { name: `${L.edit} IN-MINHPHAT` }));
+    await clickRowAction(
+      user,
+      L.form.editTitle,
+      (await screen.findByText("IN-MINHPHAT")).closest("tr") as HTMLElement,
+    );
     const dialog = await screen.findByRole("dialog");
     await user.click(within(dialog).getByRole("radio", { name: "Ngừng dùng" }));
     await user.click(within(dialog).getByRole("button", { name: L.form.submitEdit }));

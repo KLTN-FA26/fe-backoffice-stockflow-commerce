@@ -53,9 +53,11 @@ export const designQuoteRequestPageSchema = bePageSchema(designQuoteRequestDtoSc
 export const projectQuoteRequestLineSchema = z.object({
   designId: z.string(),
   designName: z.string(),
+  /** DRAFT = trả lại (kèm `returnReason`), PENDING_REVIEW, APPROVED hoặc ARCHIVED (BE #451, BR-25.2). */
   designStatus: z.enum(DESIGN_STATUSES),
   customerSku: omittedOrNull(z.string()),
   cartons: z.number().int(),
+  returnReason: omittedOrNull(z.string()),
 });
 
 export const projectQuoteRequestDtoSchema = z.object({
@@ -72,8 +74,23 @@ export const projectQuoteRequestDtoSchema = z.object({
   closedBy: omittedOrNull(z.string()),
   ...closedOutcomeFields,
   lines: z.array(projectQuoteRequestLineSchema).default([]),
+  /** Lý do Sale ghi khi đóng không báo giá (BE #451: bắt buộc khi đóng); khách đọc được. */
+  closeReason: omittedOrNull(z.string()),
+  /** Sale lập báo giá khi `approvedCount` = `lineCount` (BR-25.2). Vắng ở BE cũ → tính từ `lines`. */
+  approvedCount: z.number().int().optional(),
+  lineCount: z.number().int().optional(),
 });
 export const projectQuoteRequestPageSchema = bePageSchema(projectQuoteRequestDtoSchema);
+
+/**
+ * Phần của `GET /designs/{id}` (BE `DesignDraftResponse`) mà trang chi tiết yêu cầu dự án cần: ảnh xem trước của từng
+ * thiết kế con. Link ký có hạn — hết hạn thì tải lại.
+ */
+export const designPreviewSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  previewUrl: omittedOrNull(z.string()),
+});
 
 /**
  * Báo giá BE trả sau `…/quote` (cùng dạng `GET /quotes/{id}`); chỉ `id` và `status` cần ở đây. 200 = yêu cầu đã được trả

@@ -17,6 +17,8 @@ export type { SemanticTone };
 
 const TONE: Record<SemanticTone, readonly string[]> = {
   positive: [
+    // Giao dịch ngân hàng đã lập phiếu thu (BE BankTransactionStatus.APPLIED, 15 §4.4 — SePay)
+    "Applied",
     // Sự kiện hãng vận chuyển (BE CarrierEventResult, docs 09 §4.5)
     "APPLIED",
     // Hoá đơn điện tử đã phát hành (BE EInvoiceStatus.ISSUED, docs 21 §5.1)
@@ -142,6 +144,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "ON_CART",
   ],
   warning: [
+    // Giao dịch ngân hàng chờ Kế toán gán / bỏ qua (BE BankTransactionStatus.NEEDS_REVIEW)
+    "Needs Review",
     // Sự kiện hãng vận chuyển (BE CarrierEventResult, docs 09 §4.5)
     "UNMATCHED",
     "NEEDS_REVIEW",
@@ -254,6 +258,10 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Not Due",
   ],
   muted: [
+    // Đề nghị cấp hạn mức người gửi đã rút (BE CreditRequestStatus.WITHDRAWN, 15 §4.3)
+    "Withdrawn",
+    // Giao dịch ngân hàng Kế toán bỏ qua kèm lý do (BE BankTransactionStatus.IGNORED)
+    "Ignored",
     // Thùng trả về hàng chờ cất khi chuyến cất hàng đóng sớm (BE PutawayTripItemStatus.RETURNED)
     "RETURNED",
     // Sự kiện hãng vận chuyển (BE CarrierEventResult, docs 09 §4.5)
@@ -632,6 +640,17 @@ const STATUS_LABEL_VI_BY_DOMAIN: Partial<Record<StatusDomain, Record<string, str
   // Phiếu thu bị huỷ vì ghi sai (docs 15 §4.4) — nhãn chung "Đã vô hiệu" là của module khác
   payment: {
     Voided: "Đã huỷ",
+    // Đề nghị cấp hạn mức (BE CreditRequestStatus, kltn-docs 15 §4.3 bước 9–11a)
+    Submitted: "Chờ ý kiến Sale",
+    "Pending Approval": "Chờ Kế toán duyệt",
+    Approved: "Đã duyệt",
+    Rejected: "Bị từ chối",
+    Withdrawn: "Đã rút",
+    // Giao dịch ngân hàng SePay (BE BankTransactionStatus)
+    Received: "Đang xử lý",
+    Applied: "Đã lập phiếu thu",
+    "Needs Review": "Chờ xử lý",
+    Ignored: "Đã bỏ qua",
   },
   // Yêu cầu trả hàng (BE ReturnStatus — docs 17 §4.10 không có bảng trạng thái RMA riêng)
   rma: {

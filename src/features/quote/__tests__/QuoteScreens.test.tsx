@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { toast } from "@/components/shared/Toast";
 import { useBreadcrumbLabelStore } from "@/lib/store/use-breadcrumb-labels";
 import { apiError, bePage, mockApi, renderScreen } from "@/test/api-screen";
+import { pickOption } from "@/test/ui-actions";
 
 import { QuoteCreate, QuoteDetail, QuoteEdit, QuoteList } from "..";
 import {
@@ -365,9 +366,11 @@ describe("Quote form", () => {
     });
     renderScreen(<QuoteCreate />, "SALES_STAFF");
     const select = await screen.findByLabelText(/SKU riêng của khách/);
-    expect(within(select).queryByRole("option", { name: /LY-CU/ })).not.toBeInTheDocument();
-    await within(select).findByRole("option", { name: new RegExp(SKU) });
-    await userEvent.selectOptions(select, SKU);
+    const user = userEvent.setup();
+    await user.click(select);
+    const option = await screen.findByRole("option", { name: new RegExp(SKU) });
+    expect(screen.queryByRole("option", { name: /LY-CU/ })).not.toBeInTheDocument();
+    await user.click(option);
     await userEvent.click(await screen.findByRole("button", { name: /Dùng giá gợi ý/ }));
     expect(screen.getByLabelText("Đơn giá ₫ một cái (bậc 2)")).toHaveValue("1.150");
     expect(
@@ -398,7 +401,7 @@ describe("Quote form", () => {
     });
     renderScreen(<QuoteEdit id={QUOTE_ID} />, "SALES_STAFF");
     const select = await screen.findByLabelText(/SKU riêng của khách/);
-    expect(select).toHaveValue(SKU);
+    expect(select).toHaveTextContent(SKU);
     releaseSkus([
       {
         variantId: "v1",
@@ -409,8 +412,9 @@ describe("Quote form", () => {
         status: "ACTIVE",
       },
     ]);
-    await within(select).findByRole("option", { name: /Ly 12oz xanh/ });
-    expect(select).toHaveValue(SKU);
+    // the arrived list names the SKU, and the line keeps it selected
+    await waitFor(() => expect(select).toHaveTextContent(/Ly 12oz xanh/));
+    expect(select).toHaveTextContent(SKU);
     expect(useBreadcrumbLabelStore.getState().labels[QUOTE_ID]).toBe(
       QUOTE_DRAFT_PLATE_UNPRICED.quoteNumber,
     );
@@ -485,8 +489,7 @@ describe("Quote form", () => {
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: "Lưu nháp" })); // submitted once
     const select = await screen.findByLabelText(/SKU riêng của khách/);
-    await within(select).findByRole("option", { name: new RegExp(SKU) });
-    await user.selectOptions(select, SKU);
+    await pickOption(user, select, new RegExp(SKU));
     await user.type(screen.getByLabelText(/Số thùng/), "5");
     expect(screen.queryAllByText(/nhập bậc giá đã thoả thuận/)).toHaveLength(0);
     releasePrice({
@@ -519,7 +522,9 @@ describe("Quote form", () => {
     renderScreen(<QuoteCreate />, "SALES_STAFF");
     const user = userEvent.setup();
     const select = await screen.findByLabelText(/SKU riêng của khách/); // the customer is chosen
-    await within(select).findByRole("option", { name: new RegExp(SKU) });
+    await user.click(select);
+    await screen.findByRole("option", { name: new RegExp(SKU) });
+    await user.keyboard("{Escape}");
     await user.click(screen.getByRole("button", { name: "Lưu nháp" })); // submitted once
     // The tiers error of the form schema (no customer price nor standard price → at least one tier), on line 1.
     const TIERS_ERROR =
@@ -558,8 +563,7 @@ describe("Quote form", () => {
     });
     renderScreen(<QuoteCreate />, "SALES_STAFF");
     const select = await screen.findByLabelText(/SKU riêng của khách/);
-    await within(select).findByRole("option", { name: new RegExp(SKU) });
-    await userEvent.selectOptions(select, SKU);
+    await pickOption(userEvent.setup(), select, new RegExp(SKU));
     await userEvent.type(screen.getByLabelText(/Số thùng/), "5");
     expect(await screen.findByText(/Dưới mức tối thiểu 20 thùng của bảng giá/)).toBeVisible();
     await userEvent.click(screen.getByRole("button", { name: "Lưu nháp" }));

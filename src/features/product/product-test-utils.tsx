@@ -10,6 +10,7 @@ import { expect, vi } from "vitest";
 
 import { api } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/auth/auth-store";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 import type { UserEvent } from "@testing-library/user-event";
 import type { ReactElement } from "react";
@@ -126,7 +127,8 @@ export function renderApp(ui: ReactElement, options: { searchParams?: string } =
   const result = render(
     <QueryClientProvider client={client}>
       <NuqsTestingAdapter searchParams={options.searchParams ?? ""} hasMemory>
-        {ui}
+        {/* Nút "Tạo mới" trên topbar (`HeaderCreateButton`) có tooltip — app bọc TooltipProvider ở layout */}
+        <TooltipProvider>{ui}</TooltipProvider>
       </NuqsTestingAdapter>
     </QueryClientProvider>,
   );

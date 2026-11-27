@@ -32,7 +32,6 @@ function inStock(overrides: Partial<ReceiptLineDto> = {}): ReceiptLineDto {
         id: "c0000000-0000-4000-8000-000000000002",
         lpn: "LPN-20261024-000002",
         quantity: 980,
-        receivedQty: 980,
         status: "IN_STOCK",
         locationCode: "HCM-A01-L1-B01",
       }),

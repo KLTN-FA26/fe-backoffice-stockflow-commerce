@@ -6,7 +6,7 @@ import {
   FORM_TEXTAREA_CLASS,
 } from "@/components/shared/form-control-classes";
 import { Input } from "@/components/ui/input";
-import { SelectTrigger } from "@/components/ui/select";
+import { SelectTrigger } from "@/components/shared/combobox-select";
 import { Textarea } from "@/components/ui/textarea";
 
 import type { ComponentProps } from "react";

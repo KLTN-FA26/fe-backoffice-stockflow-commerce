@@ -1,5 +1,6 @@
 /** Selector thuần cho thanh toán theo hợp đồng (docs 15). */
 
+import { BANK_FEED_USER_ID } from "@/constants/bank-transaction";
 import {
   FEE_INSTALLMENT_MILESTONES,
   INSTALLMENT_STATUS_BY_API,
@@ -145,4 +146,12 @@ export function installmentRef(installment: TitleSource): string {
   return installment.milestone && isFeeInstallment(installment)
     ? installmentTitle(installment)
     : `đợt ${installment.seq}`;
+}
+
+/**
+ * Phiếu thu hệ thống tự lập từ chuyển khoản SePay (BE PR #490): người lập là tài khoản "Bank feed (SePay)"
+ * (`BankFeedUser.ID`) → hiện nhãn "Tự động".
+ */
+export function isAutomaticReceipt(receipt: { recordedBy?: string | null }): boolean {
+  return receipt.recordedBy === BANK_FEED_USER_ID;
 }

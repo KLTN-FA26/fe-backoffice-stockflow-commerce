@@ -6,7 +6,7 @@ import {
   WAREHOUSE_LOCATION_COLUMNS as C,
   WAREHOUSE_LOCATION_LABELS as L,
 } from "@/constants";
-import { formatDate, formatFixed, formatNumber } from "@/lib/format";
+import { formatFixed, formatNumber } from "@/lib/format";
 
 import { CopyButton } from "@/components/shared/CopyButton";
 import { CELL, EmptyCell, StackText, ViewAction } from "@/components/shared/column-helpers";
@@ -117,16 +117,6 @@ export function locationColumns(onOpen: (row: LocationRow) => void): ColumnDef<L
       header: H.reserved,
       align: "right",
       cell: (row) => <StockQty stock={row.stock} pick="reserved" />,
-    },
-    {
-      key: C.EXPIRY,
-      header: H.expiry,
-      cell: (row) =>
-        row.stock?.nearestExpiry ? (
-          <span className={CELL.date}>{formatDate(row.stock.nearestExpiry)}</span>
-        ) : (
-          <EmptyCell />
-        ),
     },
     {
       key: C.USES,

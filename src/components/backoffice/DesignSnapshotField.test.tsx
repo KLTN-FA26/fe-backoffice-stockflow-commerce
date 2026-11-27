@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { apiError, mockApi, renderScreen } from "@/test/api-screen";
+import { pickOption } from "@/test/ui-actions";
 
 import { DesignSnapshotField } from "./DesignSnapshotField";
 
@@ -55,6 +56,8 @@ function Harness({
   );
 }
 
+const field = () => screen.getByRole("combobox", { name: /Thiết kế khách đã xác nhận/ });
+
 const render = (role: TestRole, onPick = vi.fn(), sku?: string) =>
   renderScreen(<Harness onPick={onPick} sku={sku} />, role);
 
@@ -77,14 +80,14 @@ describe("DesignSnapshotField — SCRUM-403/449 confirmed designs of the custome
       },
     });
     render("SALES_STAFF", onPick);
-    const option = await screen.findByRole("option", { name: /Logo Mộc An ly 12oz/ });
+    await waitFor(() => expect(field()).toBeEnabled());
     const params = api.get.mock.calls.find(([url]) => url === "/design-snapshots")?.[1] as {
       params: URLSearchParams;
     };
     expect(params.params.get("customerId")).toBe("c-1");
     expect(params.params.get("sku")).toBe("CUP-PAPER-12OZ-WHT");
     expect(screen.queryByPlaceholderText(/UUID/)).not.toBeInTheDocument();
-    await userEvent.selectOptions(screen.getByLabelText(/Thiết kế khách đã xác nhận/), option);
+    await pickOption(userEvent.setup(), field(), /Logo Mộc An ly 12oz/);
     expect(onPick).toHaveBeenCalledWith("snap-1");
     expect(
       await screen.findByRole("img", { name: "Thiết kế khách đã xác nhận: Logo Mộc An ly 12oz" }),
@@ -104,8 +107,11 @@ describe("DesignSnapshotField — SCRUM-403/449 confirmed designs of the custome
     expect(
       await screen.findByText("Khách chưa có thiết kế đã xác nhận cho phôi CUP-PAPER-12OZ-WHT."),
     ).toBeInTheDocument();
-    expect(screen.getByLabelText(/Thiết kế khách đã xác nhận/)).toBeDisabled();
-    await userEvent.click(screen.getByRole("button", { name: "Xem mọi thiết kế của khách" }));
+    expect(field()).toBeDisabled();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Xem mọi thiết kế của khách" }));
+    await waitFor(() => expect(field()).toBeEnabled());
+    await user.click(field());
     expect(await screen.findByRole("option", { name: /Logo Mộc An ly 12oz/ })).toBeInTheDocument();
   });
 
@@ -132,10 +138,8 @@ describe("DesignSnapshotField — SCRUM-403/449 confirmed designs of the custome
       },
     });
     render("SALES_STAFF");
-    await userEvent.selectOptions(
-      screen.getByLabelText(/Thiết kế khách đã xác nhận/),
-      await screen.findByRole("option", { name: /Logo Mộc An ly 12oz/ }),
-    );
+    await waitFor(() => expect(field()).toBeEnabled());
+    await pickOption(userEvent.setup(), field(), /Logo Mộc An ly 12oz/);
     expect(
       await screen.findByText(/không thuộc khách đang chọn, hoặc chưa có ảnh/),
     ).toBeInTheDocument();

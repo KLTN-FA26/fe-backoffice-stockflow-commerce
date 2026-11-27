@@ -29,7 +29,7 @@ import type { Product, ProductAction } from "@/features/product";
 const L = UI_LABELS.product;
 
 // Icon theo hành động — cùng cách thẻ hành động trang chi tiết NCC (`ACTION_ICON`)
-const ACTION_ICON: Record<NonNullable<ProductAction["transition"]>, ReactNode> = {
+export const ACTION_ICON: Record<NonNullable<ProductAction["transition"]>, ReactNode> = {
   submit: <Send className="size-3.5" />,
   approve: <CheckCircle2 className="size-3.5" />,
   reject: <Undo2 className="size-3.5" />,
@@ -55,7 +55,7 @@ const DANGER = `border-danger text-danger hover:text-danger hover:bg-danger/10 d
  * "Phê duyệt" khi chính người đó gửi duyệt mà không được tự duyệt (`mayApproveProduct`, bốn mắt).
  * UI-only — Backend phải re-check.
  */
-function visibleProductActions(
+export function visibleProductActions(
   product: Product,
   can: (permission: PermissionCode) => boolean,
   currentUserId: string | undefined,

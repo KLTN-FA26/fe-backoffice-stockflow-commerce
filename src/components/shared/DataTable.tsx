@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { cn } from "cn";
 import { TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -13,9 +13,54 @@ import {
   SelectLabel,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/components/shared/combobox-select";
 import { ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 import type { ReactNode } from "react";
+
+/** Chiều cao tối thiểu vùng cuộn (rem → px lúc chạy) khi màn quá thấp. */
+const MIN_SCROLL_REM = 15;
+/** Bảng nằm dưới màn đầu: dành phần này cho thanh tiêu đề / topbar khi cuộn tới bảng. */
+const BELOW_FOLD_RESERVE_REM = 6;
+
+/**
+ * `stickyHeader`: vùng cuộn cao vừa đủ để cả bảng lẫn chân (phân trang) nằm trong màn — đo khoảng từ
+ * đầu bảng tới đáy vùng nội dung (`<main>` cuộn được, hoặc cửa sổ), trừ chân bảng và padding đáy. Bảng
+ * nằm thấp (trang chi tiết) thì lấy gần trọn màn để khi cuộn tới vẫn thấy chân. Đo lại khi đổi cỡ.
+ * Gán thẳng `style.maxHeight` (không qua state) — số đo theo màn, không phải giá trị cứng.
+ */
+function useFitScrollArea(enabled: boolean) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const footerRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (!enabled || !el) return;
+    const parent = el.closest("main");
+    const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+    const compute = () => {
+      const footer = footerRef.current?.offsetHeight ?? 0;
+      const top = parent ? parent.getBoundingClientRect().top : 0;
+      const height = parent ? parent.clientHeight : window.innerHeight;
+      const padBottom = parent ? parseFloat(getComputedStyle(parent).paddingBottom) || 0 : 0;
+      // Vị trí đầu bảng trong nội dung của khung cuộn, không phụ thuộc đang cuộn tới đâu.
+      const offset = el.getBoundingClientRect().top - top + (parent?.scrollTop ?? 0);
+      let available = height - offset - footer - padBottom - 2;
+      if (available < MIN_SCROLL_REM * rem * 1.5) {
+        available = height - footer - padBottom - BELOW_FOLD_RESERVE_REM * rem;
+      }
+      el.style.maxHeight = `${Math.max(MIN_SCROLL_REM * rem, Math.floor(available))}px`;
+    };
+    compute();
+    const observer = new ResizeObserver(compute);
+    if (parent) observer.observe(parent);
+    if (parent?.firstElementChild) observer.observe(parent.firstElementChild);
+    window.addEventListener("resize", compute);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", compute);
+    };
+  }, [enabled]);
+  return { scrollRef, footerRef };
+}
 
 /* -------------------------------------------------------------------------- */
 /*  Column config                                                            */
@@ -45,6 +90,14 @@ export interface ColumnDef<T> {
    * rộng hơn màn hình (BO-UX-10, BO-UX-38).
    */
   sticky?: "right";
+}
+
+/**
+ * Cột "Thao tác" (key `actions` hoặc tiêu đề "Thao tác") luôn ghim mép phải (backoffice-erp-ui A6): bảng dài phải cuộn
+ * ngang vẫn thấy nút "⋯" của dòng, không cần khai `sticky` từng bảng. Tiêu đề và nút "⋯" canh giữa cột.
+ */
+function isStickyRight<T>(col: ColumnDef<T>): boolean {
+  return col.sticky === "right" || col.key === "actions" || col.header === "Thao tác";
 }
 
 /** Cột ghim phải: nền đặc (không lộ chữ cột cuộn dưới nó) + vạch đổ bóng trái báo còn nội dung phía sau. */
@@ -127,6 +180,7 @@ export function DataTable<T>({
 }: DataTableProps<T>) {
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const { scrollRef, footerRef } = useFitScrollArea(stickyHeader);
   const [page, setPage] = useState(0);
   const [currentPageSize, setCurrentPageSize] = useState(pageSize);
 
@@ -220,8 +274,10 @@ export function DataTable<T>({
       {/* Khung cuộn tự viết thay cho wrapper `overflow-x-auto` của <Table> shadcn: wrapper đó
           là khung cuộn gần nhất nên header `sticky` dính vào nó (không cuộn dọc) và trôi mất */}
       <div
+        ref={scrollRef}
         className={cn(
           "relative w-full overflow-x-auto",
+          // `stickyHeader`: chiều cao đo theo màn (`useFitScrollArea`) để chân bảng luôn thấy được
           stickyHeader
             ? "max-h-[calc(100svh-12rem)] overflow-y-auto"
             : shouldScroll && "max-h-[520px] overflow-y-auto",
@@ -248,9 +304,9 @@ export function DataTable<T>({
                 <TableHead
                   key={col.key}
                   className={cn(
-                    "text-ink-secondary text-xs font-semibold",
+                    "text-ink-primary text-xs font-semibold",
                     col.align === "right" && "text-right",
-                    col.sticky === "right" && `${STICKY_RIGHT} bg-bg-subtle`,
+                    isStickyRight(col) && `${STICKY_RIGHT} bg-bg-subtle text-center`,
                     col.headerClassName,
                   )}
                 >
@@ -267,7 +323,7 @@ export function DataTable<T>({
                       disabled={!col.sortable}
                       onClick={() => col.sortable && handleSort(col.key)}
                       className={cn(
-                        "text-ink-secondary h-auto min-w-0 justify-start gap-1 rounded-none bg-transparent p-0 text-left text-xs font-semibold hover:bg-transparent",
+                        "text-ink-primary h-auto min-w-0 justify-start gap-1 rounded-none bg-transparent p-0 text-left text-xs font-semibold hover:bg-transparent",
                         col.sortable && "hover:text-ink-primary cursor-pointer select-none",
                         !col.sortable && "cursor-default opacity-100 disabled:opacity-100",
                       )}
@@ -335,7 +391,8 @@ export function DataTable<T>({
                         className={cn(
                           "text-[0.8125rem]",
                           col.align === "right" && "text-right tabular-nums",
-                          col.sticky === "right" && `${STICKY_RIGHT} ${STICKY_RIGHT_BODY_BG}`,
+                          isStickyRight(col) &&
+                            `${STICKY_RIGHT} ${STICKY_RIGHT_BODY_BG} text-center`,
                           col.className,
                         )}
                       >
@@ -351,7 +408,10 @@ export function DataTable<T>({
       </div>
 
       {(caption || totalPages > 1) && (
-        <div className="bg-bg-subtle text-ink-secondary flex flex-wrap items-center justify-between gap-3 border-t border-(--table-line) px-3.5 py-2 text-xs">
+        <div
+          ref={footerRef}
+          className="bg-bg-subtle text-ink-secondary flex flex-wrap items-center justify-between gap-3 border-t border-(--table-line) px-3.5 py-2 text-xs"
+        >
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-1.5">
               <span className="text-ink-tertiary">Dòng/trang</span>

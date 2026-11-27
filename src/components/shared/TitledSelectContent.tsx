@@ -1,12 +1,11 @@
 "use client";
 
-import { SelectContent, SelectGroup, SelectLabel } from "@/components/ui/select";
+import { SelectContent } from "@/components/shared/combobox-select";
 
 import type { ComponentProps, ReactNode } from "react";
 
-/** Style dòng tiêu đề đầu dropdown — dùng chung cho Select và combobox (Popover + Command). */
-const DROPDOWN_TITLE_CLASS =
-  "text-ink-tertiary border-border-default mb-1 border-b px-2 pt-1.5 pb-2 text-xs font-medium";
+/** Style dòng tiêu đề đầu dropdown — cùng dáng tiêu đề cột của bảng "Bộ lọc". */
+const DROPDOWN_TITLE_CLASS = "text-ink-primary px-2 pt-1.5 pb-1 text-sm font-semibold";
 
 interface TitledSelectContentProps extends ComponentProps<typeof SelectContent> {
   /** Tiêu đề ngắn ở đầu danh sách — như tiêu đề popover của toolbar ("Lọc trạng thái"). */
@@ -20,16 +19,13 @@ interface TitledSelectContentProps extends ComponentProps<typeof SelectContent> 
  */
 export function TitledSelectContent({ title, children, ...props }: TitledSelectContentProps) {
   return (
-    <SelectContent {...props}>
-      <SelectGroup>
-        <SelectLabel className={DROPDOWN_TITLE_CLASS}>{title}</SelectLabel>
-        {children}
-      </SelectGroup>
+    <SelectContent title={title} {...props}>
+      {children}
     </SelectContent>
   );
 }
 
 /** Dòng tiêu đề đầu combobox (Popover + Command) — cùng dáng với `TitledSelectContent`. */
 export function DropdownTitle({ children }: { children: ReactNode }) {
-  return <div className={`${DROPDOWN_TITLE_CLASS} mb-0`}>{children}</div>;
+  return <div className={DROPDOWN_TITLE_CLASS}>{children}</div>;
 }

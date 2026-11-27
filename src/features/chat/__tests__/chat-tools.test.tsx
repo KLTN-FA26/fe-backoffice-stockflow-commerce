@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { CHAT_PERMISSIONS } from "@/constants";
 import { bePage, mockApi, renderScreen } from "@/test/api-screen";
+import { pickOption } from "@/test/ui-actions";
 
 import { ChatConversationScreen, ChatInbox } from "..";
 import {
@@ -131,7 +132,11 @@ describe("gắn chứng từ — chỉ chứng từ của chính khách (16 BR-0
     const api = renderConversation({}, { [`${BASE}/contexts`]: () => conversation });
     await userEvent.click(await screen.findByRole("button", { name: "Gắn chứng từ" }));
     const dialog = await screen.findByRole("dialog");
-    await userEvent.selectOptions(within(dialog).getByLabelText(/^Chứng từ/), QUOTE_ID);
+    await pickOption(
+      userEvent.setup(),
+      within(dialog).getByLabelText(/^Chứng từ/),
+      /QT-20261120-9001/,
+    );
     await userEvent.click(within(dialog).getByRole("button", { name: "Gắn" }));
     await waitFor(() =>
       expect(api.post).toHaveBeenCalledWith(`${BASE}/contexts`, { kind: "QUOTE", id: QUOTE_ID }),
@@ -153,9 +158,12 @@ describe("chuyển hội thoại (S11, S15)", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Chuyển cho Sale khác" }));
     const dialog = await screen.findByRole("dialog");
     const select = within(dialog).getByLabelText(/Sale nhận/);
-    await waitFor(() => expect(within(select).getAllByRole("option")).toHaveLength(2));
-    expect(within(select).queryByText(/Sale đang phụ trách/)).not.toBeInTheDocument();
-    await userEvent.selectOptions(select, AGENT_OTHER);
+    await waitFor(() => expect(select).toBeEnabled()); // danh sách Sale đã tải
+    await userEvent.click(select);
+    // chỉ còn Sale B — người đang phụ trách bị bỏ khỏi danh sách
+    await waitFor(() => expect(screen.getAllByRole("option")).toHaveLength(1));
+    expect(screen.queryByRole("option", { name: /Sale đang phụ trách/ })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("option", { name: /Sale B/ }));
     await userEvent.type(within(dialog).getByLabelText(/Ghi chú cho người nhận/), "Khách hỏi giá");
     await userEvent.click(within(dialog).getByRole("button", { name: "Chuyển" }));
     await waitFor(() =>

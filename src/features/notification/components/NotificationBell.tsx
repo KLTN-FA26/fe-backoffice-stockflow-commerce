@@ -24,8 +24,11 @@ const L = NOTIFICATION_LABELS;
 /** `itemAction`: thao tác gắn trên từng thông báo, do màn bọc cung cấp (xem `NotificationItems`). */
 export function NotificationBell({
   itemAction,
+  side = "bottom",
 }: {
   itemAction?: (item: Notification) => ReactNode;
+  /** Hướng mở danh sách: dưới chuông (topbar) hoặc sang phải (đáy sidebar). */
+  side?: "bottom" | "right";
 } = {}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -66,19 +69,21 @@ export function NotificationBell({
           type="button"
           variant="ghost"
           size="icon"
-          className="text-ink-secondary hover:text-ink-primary relative ml-auto size-9 rounded-[var(--r-sm)]"
+          // Nút tròn có viền — cùng kiểu nút 3 chấm của menu tài khoản đứng cạnh ở đáy sidebar
+          className="border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted hover:text-ink-primary aria-expanded:bg-bg-muted aria-expanded:text-ink-primary relative size-7 shrink-0 rounded-full border p-0"
           aria-label={unreadCount ? L.unreadBadge(unreadCount) : L.trigger}
           aria-expanded={open}
         >
-          <Bell aria-hidden="true" className="size-4" />
+          <Bell aria-hidden="true" className="size-3.5" />
           {unreadCount > 0 && (
-            <span className="bg-danger absolute -top-1 -right-1 flex min-h-4 min-w-4 items-center justify-center rounded-full px-1 text-[0.625rem] font-semibold text-white tabular-nums">
+            <span className="bg-danger ring-sidebar absolute -top-1.5 -right-1.5 flex min-h-4 min-w-4 items-center justify-center rounded-full px-1 text-[0.625rem] font-semibold text-white tabular-nums ring-2">
               {unreadCount > 99 ? "99+" : unreadCount}
             </span>
           )}
         </Button>
       </PopoverTrigger>
       <PopoverContent
+        side={side}
         align="end"
         sideOffset={8}
         className="border-border-default bg-bg-surface text-ink-primary w-96 max-w-[calc(100vw-2rem)] gap-0 rounded-[var(--r-md)] border p-0 shadow-[var(--sh-lg)]"

@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
-import { Select, SelectItem, SelectValue } from "@/components/ui/select";
+import { Select, SelectItem, SelectValue } from "@/components/shared/combobox-select";
 import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { Checkbox } from "@/components/ui/checkbox";
 

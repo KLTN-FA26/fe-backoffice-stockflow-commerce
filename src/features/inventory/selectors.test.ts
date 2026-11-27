@@ -9,7 +9,7 @@ import {
 
 import {
   adjustmentReasonLabel,
-  formatSignedQuantity,
+  formatAdjustmentDelta,
   inventoryPageRange,
   movementTypeLabel,
 } from "./selectors";
@@ -56,12 +56,14 @@ describe("movement type label", () => {
       expect(adjustmentReasonLabel(reason)).toBe(reason);
     });
 
+    // ADR-0011 (BE, issue #305): direction + the carton's nominalQty replace the signed quantityDelta.
     it.each([
-      [5, "+5"],
-      [0, "0"],
-      [-5, "-5"],
-    ])("signs quantity %i as %s", (value, text) => {
-      expect(formatSignedQuantity(value)).toBe(text);
+      ["WRITE_OFF", 120, "−1 thùng (−120 cái)"],
+      ["RESTOCK", 1200, "+1 thùng (+1.200 cái)"],
+      ["WRITE_OFF", null, "−1 thùng"],
+      ["FUTURE_DIRECTION", 120, "FUTURE_DIRECTION"],
+    ])("reads %s of a %s-unit carton as %s", (direction, nominalQty, text) => {
+      expect(formatAdjustmentDelta({ direction, nominalQty })).toBe(text);
     });
   });
 });

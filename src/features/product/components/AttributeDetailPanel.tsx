@@ -16,6 +16,8 @@ import { useDeleteAttribute, useDeleteAttributeValue } from "../attribute-querie
 import { holdsValues } from "../attribute-schemas";
 import { AttributeFormDialog } from "./AttributeFormDialog";
 import { AttributeValueFormDialog } from "./AttributeValueFormDialog";
+import { AttributeValuesTable } from "./AttributeValuesTable";
+import { DetailPanel, Fact, FactGrid } from "@/components/shared/DetailPanel";
 
 import type { Attribute, AttributeValue } from "../attribute-schemas";
 
@@ -83,104 +85,76 @@ export function AttributeDetailPanel({
       badge={attribute && <ActiveDot active={attribute.active} />}
     >
       {attribute && (
-        <div className="space-y-6">
-          <section className="space-y-2 text-[0.8125rem]">
-            <Row label="Loại">{DATA_TYPE_LABEL[attribute.dataType]}</Row>
-            <Row label="Đơn vị">{attribute.unit || "—"}</Row>
-            <Row label="Lọc / tìm kiếm">
-              {[attribute.filterable && "Lọc", attribute.searchable && "Tìm kiếm"]
-                .filter(Boolean)
-                .join(", ") || "Không"}
-            </Row>
-            <Row label="Thứ tự">{attribute.sortOrder}</Row>
-            <div className="flex flex-wrap gap-2 pt-2">
-              {canUpdate && (
-                <Button type="button" variant="outline" size="sm" onClick={() => setEditing(true)}>
-                  <Pencil className="size-3.5" /> Sửa
-                </Button>
-              )}
-              {canDelete && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="border-danger text-danger hover:bg-danger/10"
-                  onClick={() => setDeleting("attribute")}
-                >
-                  <Trash2 className="size-3.5" /> Xoá
-                </Button>
-              )}
-            </div>
-          </section>
+        <div className="space-y-4">
+          <DetailPanel
+            title="Thông tin"
+            actions={
+              (canUpdate || canDelete) && (
+                <>
+                  {canUpdate && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setEditing(true)}
+                    >
+                      <Pencil className="size-3.5" aria-hidden /> Sửa
+                    </Button>
+                  )}
+                  {canDelete && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="border-danger text-danger hover:bg-danger/10"
+                      onClick={() => setDeleting("attribute")}
+                    >
+                      <Trash2 className="size-3.5" aria-hidden /> Xoá
+                    </Button>
+                  )}
+                </>
+              )
+            }
+          >
+            <FactGrid columns={2}>
+              <Fact label="Loại">{DATA_TYPE_LABEL[attribute.dataType]}</Fact>
+              <Fact label="Đơn vị">{attribute.unit || "—"}</Fact>
+              <Fact label="Lọc / tìm kiếm">
+                {[attribute.filterable && "Lọc", attribute.searchable && "Tìm kiếm"]
+                  .filter(Boolean)
+                  .join(", ") || "Không"}
+              </Fact>
+              <Fact label="Thứ tự">
+                <span className="tabular-nums">{attribute.sortOrder}</span>
+              </Fact>
+            </FactGrid>
+          </DetailPanel>
 
           {holdsValues(attribute.dataType) ? (
-            <section>
-              <div className="mb-2 flex items-center justify-between">
-                <h3 className="text-ink-primary text-sm font-semibold">
-                  Giá trị ({attribute.values.length})
-                </h3>
-                {canUpdate && (
+            <DetailPanel
+              title="Giá trị"
+              count={attribute.values.length}
+              flush
+              actions={
+                canUpdate && (
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
                     onClick={() => setValueForm({})}
                   >
-                    <Plus className="size-3.5" /> Thêm giá trị
+                    <Plus className="size-3.5" aria-hidden /> Thêm giá trị
                   </Button>
-                )}
-              </div>
-              {attribute.values.length === 0 ? (
-                <p className="text-ink-tertiary text-[0.8125rem]">Chưa có giá trị nào.</p>
-              ) : (
-                <ul className="border-border-default divide-border-default divide-y rounded-[var(--r-sm)] border">
-                  {attribute.values.map((value) => (
-                    <li
-                      key={value.valueId}
-                      className="flex items-center gap-3 px-3 py-2 text-[0.8125rem]"
-                    >
-                      {value.hexColor && (
-                        <span
-                          className="border-border-default size-4 shrink-0 rounded-full border"
-                          style={{ backgroundColor: value.hexColor }}
-                        />
-                      )}
-                      <span className="text-ink-primary flex-1">
-                        {value.label}{" "}
-                        <span className="text-ink-tertiary font-[family-name:var(--font-mono)] text-xs">
-                          {value.code}
-                        </span>
-                      </span>
-                      {!value.active && (
-                        <span className="text-ink-tertiary text-xs">Ngừng dùng</span>
-                      )}
-                      {canUpdate && (
-                        <>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            aria-label={`Sửa giá trị ${value.code}`}
-                            onClick={() => setValueForm({ value })}
-                          >
-                            <Pencil className="size-3.5" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            aria-label={`Xoá giá trị ${value.code}`}
-                            onClick={() => setDeleting(value)}
-                          >
-                            <Trash2 className="size-3.5" />
-                          </Button>
-                        </>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
+                )
+              }
+            >
+              <AttributeValuesTable
+                values={attribute.values}
+                canUpdate={canUpdate}
+                onEdit={(value) => setValueForm({ value })}
+                onDelete={setDeleting}
+              />
+            </DetailPanel>
           ) : (
             <p className="text-ink-tertiary text-[0.8125rem]">
               Thuộc tính loại {DATA_TYPE_LABEL[attribute.dataType].toLowerCase()} nhập giá trị trực
@@ -217,14 +191,5 @@ export function AttributeDetailPanel({
         onConfirm={confirm}
       />
     </SlideOverPanel>
-  );
-}
-
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex gap-3">
-      <span className="text-ink-tertiary w-[120px] shrink-0 text-xs font-medium">{label}</span>
-      <span className="text-ink-primary min-w-0">{children}</span>
-    </div>
   );
 }
