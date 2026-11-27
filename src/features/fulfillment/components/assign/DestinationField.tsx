@@ -4,7 +4,7 @@ import { PICK_DESTINATION, PICK_DESTINATIONS, UI_LABELS } from "@/constants";
 import { stagingAreaOptions } from "@/features/fulfillment/pick-line-selectors";
 import { useWarehouseLocations } from "@/lib/references/warehouse-locations";
 import { Label } from "@/components/ui/label";
-import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/shared/combobox-select";
 import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 
 import { FieldError } from "../primitives";

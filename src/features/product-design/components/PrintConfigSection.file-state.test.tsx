@@ -20,7 +20,7 @@ import { plantTemplate } from "../mock-backend-test-utils";
 import { BAG_BODY } from "../test-fixtures";
 import {
   cupTree,
-  DEFAULTS_TOGGLE,
+  DEFAULTS_SECTION,
   EDIT_BUTTON,
   editStored,
   EMPTY_VARIANT,
@@ -48,7 +48,7 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 async function setSeam(user: ReturnType<typeof userEvent.setup>, seam: string) {
-  await user.click(await screen.findByRole("button", DEFAULTS_TOGGLE));
+  await screen.findByRole("region", DEFAULTS_SECTION);
   const field = screen.getByLabelText("Mép dán (mm)");
   await user.clear(field);
   await user.type(field, seam);
@@ -94,7 +94,7 @@ describe("a template written before files were required (no file)", () => {
       renderSection(EMPTY_VARIANT);
       await editStored(user);
       expect(await screen.findByText("Cấu hình cũ chưa có file 3D")).toBeInTheDocument();
-      await user.click(await screen.findByRole("button", DEFAULTS_TOGGLE));
+      await screen.findByRole("region", DEFAULTS_SECTION);
       const margin = screen.getByLabelText("Lề an toàn (mm)");
       await user.clear(margin);
       await user.type(margin, "6");

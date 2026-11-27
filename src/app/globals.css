@@ -85,9 +85,10 @@
   --z-dropdown-on-dialog: 1160;
   --z-toast: 1200;
   --z-tooltip: 1300;
-  --sh-sm: 0 1px 2px rgba(26, 27, 24, 0.06), 0 1px 3px rgba(26, 27, 24, 0.08);
-  --sh-md: 0 4px 12px rgba(26, 27, 24, 0.08);
-  --sh-lg: 0 12px 32px rgba(26, 27, 24, 0.14);
+  /* Bóng nhẹ hơn 30% so với trước (alpha × 0.7) */
+  --sh-sm: 0 1px 2px rgba(26, 27, 24, 0.042), 0 1px 3px rgba(26, 27, 24, 0.056);
+  --sh-md: 0 4px 12px rgba(26, 27, 24, 0.056);
+  --sh-lg: 0 12px 32px rgba(26, 27, 24, 0.098);
   --card-pad: 16px;
   --card-radius: var(--r-sm);
   /* Bo góc khối nội dung (toolbar, bảng) và màu vạch kẻ dòng bảng — `.surface-soft` đổi lại */
@@ -105,6 +106,8 @@
   --control-text: 0.8125rem;
   --control-radius: var(--r-sm);
   --control-shadow: none;
+  /* Bo góc mọi ô nhập (input, textarea, select, ô tìm kiếm) — bằng khối card / section kiểu mềm */
+  --field-radius: var(--r-md);
   /* Thanh `Cấu hình` dưới toolbar (ListConfigSummary) */
   --summary-bg: color-mix(in srgb, var(--bg-subtle) 70%, transparent);
   /* Nút hành động trên toolbar (xuất, tạo mới…) */
@@ -257,6 +260,13 @@
    TAILWIND v4 @theme — map StockFlow tokens → utility classes + shadcn semantic vars
    ==========================================================================*/
 @theme inline {
+  /* Bóng mặc định của Tailwind (shadcn dùng: popover, dropdown, dialog…) nhẹ hơn 30% (alpha × 0.7) */
+  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.035);
+  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.07), 0 1px 2px -1px rgb(0 0 0 / 0.07);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.07);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.07), 0 4px 6px -4px rgb(0 0 0 / 0.07);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.07), 0 8px 10px -6px rgb(0 0 0 / 0.07);
+
   /* Fonts (set bởi next/font trong layout.tsx) */
   --font-sans: var(--font-sans);
   --font-display: var(--font-display);
@@ -420,6 +430,49 @@
 [data-slot="select-content"],
 [data-slot="popover-content"] {
   z-index: var(--z-dropdown-on-dialog);
+}
+
+/*
+  Ô nhập (input, textarea, select, input-group, nút mở combobox): bo `--field-radius` như khối card / section.
+  shadcn và nhiều chỗ gọi đặt `rounded-lg` / `rounded-[var(--r-sm)]` khác nhau → gom về một token.
+  Đặt NGOÀI @layer để thắng utility của Tailwind v4 mà không cần !important. Ô con trong
+  input-group (`input-group-control`) không bị ảnh hưởng — khung ngoài đã bo.
+*/
+[data-slot="input"],
+[data-slot="textarea"],
+[data-slot="select-trigger"],
+[data-slot="input-group"],
+button[role="combobox"] {
+  border-radius: var(--field-radius);
+}
+
+/*
+  Thanh cuộn mảnh (slim) cho cả app và mọi bảng / vùng cuộn: 6px, thumb bo tròn màu `--border-strong`, track trong suốt,
+  hover đậm lên `--ink-tertiary`. Chromium / Safari dùng `::-webkit-scrollbar`; chỉ trình duyệt KHÔNG có pseudo đó
+  (Firefox) mới đặt `scrollbar-width` — Chromium ≥ 121 thấy `scrollbar-width` thì bỏ qua `::-webkit-scrollbar` (thin ≈ 11px).
+*/
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
+  }
+}
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  background-color: var(--border-strong);
+}
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--ink-tertiary);
+}
+*::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 /*

@@ -71,7 +71,9 @@ export function buildQueueColumns({
     },
     {
       key: "actions",
-      header: "",
+      header: "Thao tác",
+      align: "right",
+      className: "w-20",
       cell: (row) => (
         <ViewAction
           label={`${L.openStation} ${row.orderNumber ?? orderLabel(row.orderId, undefined)}`}

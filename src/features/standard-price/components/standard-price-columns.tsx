@@ -3,7 +3,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import { STANDARD_PRICE_UI_LABELS } from "@/constants";
 import { formatDecimalMoney, formatNumber } from "@/lib/format";
 import { tiersAscending } from "@/lib/pricing/price-tiers";
-import { Button } from "@/components/ui/button";
+import { RowActionsMenu } from "@/components/shared/RowActionsMenu";
 
 import type { ColumnDef } from "@/components/shared/DataTable";
 import type { StandardPrice } from "../schemas";
@@ -67,40 +67,19 @@ export function actionColumn(
 ): ColumnDef<StandardPrice> {
   return {
     key: "actions",
-    header: "",
+    header: "Thao tác",
     align: "right",
+    className: "w-20",
     cell: (p) => (
-      <span className="inline-flex gap-1">
-        {onEdit && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            aria-label={L.form.editRow(p.sku)}
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit(p);
-            }}
-          >
-            <Pencil className="size-3.5" />
-          </Button>
-        )}
-        {onDelete && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="text-danger"
-            aria-label={L.remove.action(p.sku)}
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(p);
-            }}
-          >
-            <Trash2 className="size-3.5" />
-          </Button>
-        )}
-      </span>
+      <RowActionsMenu
+        label={`Thao tác — ${p.sku}`}
+        actions={[
+          ...(onEdit ? [{ label: "Sửa giá chuẩn", icon: Pencil, onSelect: () => onEdit(p) }] : []),
+          ...(onDelete
+            ? [{ label: "Xoá giá chuẩn", icon: Trash2, danger: true, onSelect: () => onDelete(p) }]
+            : []),
+        ]}
+      />
     ),
   };
 }

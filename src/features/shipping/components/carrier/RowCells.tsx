@@ -3,7 +3,7 @@
 import { FormSelect } from "@/components/shared/FormSelect";
 import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { Input } from "@/components/ui/input";
-import { SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SelectItem, SelectTrigger, SelectValue } from "@/components/shared/combobox-select";
 
 import { REQUIRED } from "@/features/shipping/carrier-row-core";
 

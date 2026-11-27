@@ -14,10 +14,16 @@ import { useCan } from "@/lib/auth";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 
 import { ServerTableBody } from "@/components/backoffice/ServerTableBody";
+import { withHeaderFilters } from "@/components/shared/ColumnHeaderFilter";
 
 import { useCloseDesignQuoteRequest } from "../mutations";
 import { useDesignQuoteRequests } from "../queries";
 import { QUOTE_REQUEST_COPY } from "./copy";
+import {
+  matchesQuoteRequestFilters,
+  quoteRequestPageFilterActive,
+  quoteRequestHeaderFilters,
+} from "./quote-request-header-filters";
 import { QuoteRequestToolbar } from "./QuoteRequestToolbar";
 import {
   DESIGN_REQUEST_COLUMN_LABELS,
@@ -45,8 +51,11 @@ function DesignQuoteRequestContent() {
     DESIGN_REQUEST_COLUMNS,
     { defaults: DESIGN_REQUEST_DEFAULT_COLUMNS, locked: DESIGN_REQUEST_LOCKED_COLUMNS },
   );
-  const columns = designQuoteRequestColumns(close, canOpenDesign).filter((column) =>
-    columnState.visible.some((key) => key === column.key),
+  const columns = withHeaderFilters(
+    designQuoteRequestColumns(close, canOpenDesign).filter((column) =>
+      columnState.visible.some((key) => key === column.key),
+    ),
+    quoteRequestHeaderFilters(filters),
   );
 
   return (
@@ -65,10 +74,18 @@ function DesignQuoteRequestContent() {
         canRead
         columns={columns}
         rowKey={(row) => row.id}
-        noun="yêu cầu báo giá"
         errorCopy={QUOTE_REQUEST_COPY}
-        hasFilters={filters.status !== "OPEN" || filters.customerId !== ""}
+        noun="yêu cầu báo giá"
         onClearFilters={filters.clear}
+        hasFilters={
+          filters.status !== "OPEN" ||
+          filters.customerId !== "" ||
+          quoteRequestPageFilterActive(filters)
+        }
+        rowFilter={{
+          active: quoteRequestPageFilterActive(filters),
+          match: (row) => matchesQuoteRequestFilters(row, filters),
+        }}
         empty={{
           icon: <FileText className="size-8" />,
           title: COPY.emptyTitle,
@@ -78,6 +95,7 @@ function DesignQuoteRequestContent() {
         onPageChange={list.goToPage}
         onPageSizeChange={list.changePageSize}
         stickyHeader
+        emptyInTable
       />
     </div>
   );

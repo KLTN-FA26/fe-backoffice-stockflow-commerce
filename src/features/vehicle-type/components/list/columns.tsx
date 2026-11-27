@@ -20,6 +20,7 @@ import {
 } from "@/features/vehicle-type/selectors";
 
 import { CELL, codeCell, ToneDot, textCell } from "@/components/shared/column-helpers";
+import { RowActionsMenu } from "@/components/shared/RowActionsMenu";
 import { Badge } from "@/components/ui/badge";
 
 import type { ColumnDef } from "@/components/shared/DataTable";
@@ -45,41 +46,28 @@ function StatusCell({ status }: { status: VehicleType["status"] }) {
   );
 }
 
-/** Nút sửa / ngừng dùng cuối dòng — chỉ hiện khi có quyền cập nhật (`vehicleTypeActions`). */
+/** Menu "⋯" cuối dòng: Sửa, Dùng lại / Ngừng dùng (chữ đỏ, cuối) — chỉ khi có quyền cập nhật (`vehicleTypeActions`). */
 function RowActions({ row, h }: { row: VehicleType; h: VehicleTypeColumnHandlers }) {
   const actions = h.actionsOf(row);
   const [target] = actions.statusTargets;
-  const toggleLabel = target === VEHICLE_TYPE_STATUS.ACTIVE ? L.activate : L.deactivate;
+  const activating = target === VEHICLE_TYPE_STATUS.ACTIVE;
   return (
-    <div className="flex items-center justify-end gap-1.5">
-      {actions.edit && (
-        <button
-          type="button"
-          aria-label={`${L.edit} ${row.code}`}
-          onClick={(event) => {
-            event.stopPropagation();
-            h.onEdit(row);
-          }}
-          className={CELL.action}
-        >
-          <Pencil className="size-3.5" />
-        </button>
-      )}
-      {target && (
-        <button
-          type="button"
-          aria-label={`${toggleLabel} ${row.code}`}
-          title={toggleLabel}
-          onClick={(event) => {
-            event.stopPropagation();
-            h.onToggleStatus(row);
-          }}
-          className={CELL.action}
-        >
-          <Power className="size-3.5" />
-        </button>
-      )}
-    </div>
+    <RowActionsMenu
+      label={`Thao tác — ${row.code}`}
+      actions={[
+        ...(actions.edit ? [{ label: L.edit, icon: Pencil, onSelect: () => h.onEdit(row) }] : []),
+        ...(target
+          ? [
+              {
+                label: activating ? L.activate : L.deactivate,
+                icon: Power,
+                danger: !activating,
+                onSelect: () => h.onToggleStatus(row),
+              },
+            ]
+          : []),
+      ]}
+    />
   );
 }
 
@@ -136,7 +124,13 @@ export function buildVehicleTypeColumns(h: VehicleTypeColumnHandlers): ColumnDef
       cell: (row) => <span className={CELL.number}>{`${row.gussetMm} ${L.unitMm}`}</span>,
     },
     { key: C.STATUS, header: col.status, cell: (row) => <StatusCell status={row.status} /> },
-    { key: C.ACTIONS, header: "", cell: (row) => <RowActions row={row} h={h} /> },
+    {
+      key: C.ACTIONS,
+      header: col.actions,
+      align: "right",
+      className: "w-20",
+      cell: (row) => <RowActions row={row} h={h} />,
+    },
   ];
   // Chỉ xem: cột thao tác sẽ trống hoàn toàn nên bỏ đi
   return h.showActions ? columns : columns.filter((column) => column.key !== C.ACTIONS);

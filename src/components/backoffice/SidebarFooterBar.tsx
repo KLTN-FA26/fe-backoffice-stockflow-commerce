@@ -173,8 +173,11 @@ function UserMenu() {
   );
 }
 
-/** Đáy sidebar cố định: tài khoản (avatar + tên + vai trò + nút 3 chấm). Ngoài vùng cuộn của menu. */
-export function SidebarFooterBar() {
+/**
+ * Đáy sidebar cố định: tài khoản (avatar + tên + vai trò + nút 3 chấm) và `extra` (chuông thông báo)
+ * cạnh nó. Ngoài vùng cuộn của menu.
+ */
+export function SidebarFooterBar({ extra }: { extra?: ReactNode } = {}) {
   const { state } = useSidebar();
 
   return (
@@ -185,6 +188,7 @@ export function SidebarFooterBar() {
       )}
     >
       <UserMenu />
+      {extra}
     </SidebarFooter>
   );
 }

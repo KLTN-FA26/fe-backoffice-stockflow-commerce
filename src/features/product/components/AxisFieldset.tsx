@@ -5,7 +5,7 @@ import { ArrowDown, ArrowUp, Trash2 } from "lucide-react";
 import { UI_LABELS } from "@/constants";
 
 import { Button } from "@/components/ui/button";
-import { Select, SelectItem, SelectValue } from "@/components/ui/select";
+import { Select, SelectItem, SelectValue } from "@/components/shared/combobox-select";
 import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { Checkbox } from "@/components/ui/checkbox";
 

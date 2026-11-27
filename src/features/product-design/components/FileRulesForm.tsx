@@ -13,7 +13,7 @@ import { FormSelect } from "@/components/shared/FormSelect";
 import { TextField } from "@/components/shared/TextField";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/shared/combobox-select";
 
 import { Choices, OPTION_CLASS } from "./FileRulesChoices";
 import { Fonts } from "./FontsField";

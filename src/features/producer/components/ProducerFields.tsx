@@ -18,7 +18,7 @@ import {
 import { fieldA11y, FormField } from "@/components/shared/FormField";
 import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { Input } from "@/components/ui/input";
-import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/shared/combobox-select";
 import { Textarea } from "@/components/ui/textarea";
 
 import type { UseFormReturn } from "react-hook-form";

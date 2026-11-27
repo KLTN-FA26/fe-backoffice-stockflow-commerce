@@ -12,7 +12,7 @@ import { useChangePlaceStatus } from "@/features/warehouse-map/mutations";
 import { FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
 import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { Button } from "@/components/ui/button";
-import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/shared/combobox-select";
 
 import type { LocationStatus } from "@/features/warehouse-map/types";
 

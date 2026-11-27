@@ -10,6 +10,7 @@ import {
 } from "@/constants";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
+import { pickOption } from "@/test/ui-actions";
 
 import { apiOrder, apiOrderWith } from "../__fixtures__/order";
 import { ORDER_PERMISSION_SETS, mockOrderApiGet, renderOrderScreen } from "../__fixtures__/render";
@@ -190,10 +191,12 @@ describe("WF04 G2 — Đổi địa chỉ giao trên chi tiết đơn (docs 17 �
     await user.click(screen.getByRole("button", { name: L.button }));
     const dialog = await screen.findByRole("dialog");
     const select = await within(dialog).findByLabelText(L.addressLabel);
-    // Chỉ địa chỉ giao (SHIPPING), không có địa chỉ hoá đơn
-    expect(within(select).queryByText(/Kế toán/)).toBeNull();
     expect(within(dialog).getByRole("button", { name: L.submit })).toBeDisabled();
-    await user.selectOptions(select, ADDRESS_ID);
+    await user.click(select);
+    // Chỉ địa chỉ giao (SHIPPING), không có địa chỉ hoá đơn
+    expect(await screen.findByRole("option", { name: /Kho Đa Kao/ })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /Kế toán/ })).toBeNull();
+    await user.click(screen.getByRole("option", { name: /Kho Đa Kao/ }));
     await user.click(within(dialog).getByRole("button", { name: L.submit }));
 
     expect(put).toHaveBeenCalledWith(
@@ -221,7 +224,7 @@ describe("WF04 G2 — Đổi địa chỉ giao trên chi tiết đơn (docs 17 �
 
     await user.click(screen.getByRole("button", { name: L.button }));
     const dialog = await screen.findByRole("dialog");
-    await user.selectOptions(await within(dialog).findByLabelText(L.addressLabel), ADDRESS_ID);
+    await pickOption(user, await within(dialog).findByLabelText(L.addressLabel), /Kho Đa Kao/);
     await user.click(within(dialog).getByRole("button", { name: L.submit }));
 
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());

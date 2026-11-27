@@ -6,7 +6,7 @@ import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { FORM_SELECT_CLASS, FORM_TEXTAREA_CLASS } from "@/components/shared/form-control-classes";
 import { TextField } from "@/components/shared/TextField";
 import { Label } from "@/components/ui/label";
-import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/shared/combobox-select";
 import { Textarea } from "@/components/ui/textarea";
 
 import { DATA_SCOPE_LABELS } from "@/constants";

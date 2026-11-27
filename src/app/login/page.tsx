@@ -35,7 +35,7 @@ import { Logo } from "@/components/shared/Logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/shared/combobox-select";
 import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 
 import type { LoginResponse, MockLoginUser } from "@/lib/auth/auth-api";

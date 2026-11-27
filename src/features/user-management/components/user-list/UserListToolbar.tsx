@@ -3,7 +3,7 @@
 import { ListToolbar } from "@/components/shared/ListToolbar";
 import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
-import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/shared/combobox-select";
 import { UI_LABELS, USER_STATUSES } from "@/constants";
 import { roleLabel } from "@/lib/references/role-options";
 import { statusLabelVi } from "@/lib/status-map";

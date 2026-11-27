@@ -24,8 +24,11 @@ const L = NOTIFICATION_LABELS;
 /** `itemAction`: thao tác gắn trên từng thông báo, do màn bọc cung cấp (xem `NotificationItems`). */
 export function NotificationBell({
   itemAction,
+  side = "bottom",
 }: {
   itemAction?: (item: Notification) => ReactNode;
+  /** Hướng mở danh sách: dưới chuông (topbar) hoặc sang phải (đáy sidebar). */
+  side?: "bottom" | "right";
 } = {}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -66,7 +69,7 @@ export function NotificationBell({
           type="button"
           variant="ghost"
           size="icon"
-          className="text-ink-secondary hover:text-ink-primary relative ml-auto size-9 rounded-[var(--r-sm)]"
+          className="text-ink-secondary hover:text-ink-primary relative size-8 shrink-0 rounded-[var(--r-md)]"
           aria-label={unreadCount ? L.unreadBadge(unreadCount) : L.trigger}
           aria-expanded={open}
         >
@@ -79,6 +82,7 @@ export function NotificationBell({
         </Button>
       </PopoverTrigger>
       <PopoverContent
+        side={side}
         align="end"
         sideOffset={8}
         className="border-border-default bg-bg-surface text-ink-primary w-96 max-w-[calc(100vw-2rem)] gap-0 rounded-[var(--r-md)] border p-0 shadow-[var(--sh-lg)]"

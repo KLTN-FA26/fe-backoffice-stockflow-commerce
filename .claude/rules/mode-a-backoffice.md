@@ -11,6 +11,8 @@ globs:
 
 Nguồn: `src/_design/FRONTEND-AI-RULES.md` §2, §4. Module docs 01–11 + inventory + dashboard.
 
+Bố cục trang danh sách / chi tiết, lọc, ô nhập và tab theo chuẩn ERP: xem [backoffice-erp-ui.md](backoffice-erp-ui.md).
+
 **Tinh thần:** công cụ làm việc, không phải SaaS landing. Lạnh, nghiêm túc, dày đặc dữ liệu.
 Người dùng là nhân viên kho ngồi cả ca — ưu tiên tốc độ thao tác hơn khoảng trắng đẹp.
 

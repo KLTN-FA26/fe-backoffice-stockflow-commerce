@@ -4,7 +4,7 @@ import { X } from "lucide-react";
 
 import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { Label } from "@/components/ui/label";
-import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/shared/combobox-select";
 
 import type { ReactNode } from "react";
 

@@ -3,7 +3,7 @@
 import { FormField } from "@/components/shared/FormField";
 import { FormSelect } from "@/components/shared/FormSelect";
 import { FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
-import { SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/shared/combobox-select";
 
 /** Ô chọn một giá trị trong form (Select + nhãn + lỗi), báo "không có lựa chọn" khi danh sách rỗng. */
 export function PickField({

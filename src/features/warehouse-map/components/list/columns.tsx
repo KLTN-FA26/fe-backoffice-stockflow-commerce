@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { Map as MapIcon } from "lucide-react";
 
 import {
@@ -13,6 +12,7 @@ import {
 import { formatNumber } from "@/lib/format";
 
 import { CELL, codeCell, ToneDot, textCell } from "@/components/shared/column-helpers";
+import { RowActionsMenu } from "@/components/shared/RowActionsMenu";
 import { Badge } from "@/components/ui/badge";
 
 import type { ColumnDef } from "@/components/shared/DataTable";
@@ -71,19 +71,16 @@ export function buildWarehouseColumns({
     },
     {
       key: C.ACTIONS,
-      header: "",
+      header: col.actions,
+      align: "right",
+      className: "w-20",
       cell: (row) => (
-        <div className="flex justify-end">
-          <Link
-            href={ADMIN_ROUTES.warehouseMap.of(row.prefix)}
-            aria-label={`${L.openMap} ${row.prefix}`}
-            title={L.openMap}
-            onClick={(event) => event.stopPropagation()}
-            className={CELL.action}
-          >
-            <MapIcon className="size-3.5" />
-          </Link>
-        </div>
+        <RowActionsMenu
+          label={`Thao tác — ${row.prefix}`}
+          actions={[
+            { label: L.openMap, icon: MapIcon, href: ADMIN_ROUTES.warehouseMap.of(row.prefix) },
+          ]}
+        />
       ),
     },
   ];
