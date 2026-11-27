@@ -52,9 +52,11 @@ export const CARTON_CHECK_UI_LABELS = {
     labelAll: "Dán nhãn các thùng đã quét",
     print: "In nhãn",
     printAll: "In nhãn các thùng đã dán",
-    reprint: "In lại nhãn",
+    reprint: "In lại nhãn giao hàng",
     /** Nhãn LPN (nhãn nhập kho) rách / mất: in lại theo mã LPN rồi quét kiểm (docs 08 §6, 03 §4.1 bước 4). */
-    reprintLpn: "In lại nhãn LPN",
+    reprintLpn: "In lại nhãn LPN thùng",
+    reprintHint: "Nhãn giao hàng rách hoặc mất: tạo phiên bản nhãn mới để dán lên kiện.",
+    reprintLpnHint: "Nhãn LPN nhập kho rách hoặc mất: in lại mã LPN của chính thùng này.",
     remove: "Loại thùng",
     dismiss: "Bỏ qua",
   },
@@ -260,7 +262,7 @@ export const CARTON_CHECK_ERROR_MESSAGES = {
   PACK_STATE_CONFLICT:
     "Trạng thái phiên kiểm thùng hoặc của đơn đã đổi (đơn đang treo, đã huỷ, hoặc thùng đã bị loại) nên không thực hiện được. Dữ liệu đã được tải lại.",
   CARTON_NOT_IN_TASK:
-    "Thùng này không thuộc phần lấy hàng của đơn, hoặc LPN không đọc đúng. Không ghi gì — báo quản lý kho kiểm lại phần lấy hàng và tồn kho.",
+    "Thùng này không thuộc phần lấy hàng của đơn, hoặc LPN không đọc đúng. Không ghi gì — báo Quản lý kho kiểm lại phần lấy hàng. Nếu nhãn rách, nhờ người kiểm thùng hoặc Quản lý kho in lại nhãn LPN ở màn Kiểm thùng.",
   PACKAGE_SHIPPED: "Thùng đã nằm trong shipment nên không loại khỏi đơn được.",
   PACKING_INCOMPLETE:
     "Chưa kiểm đủ thùng: còn thùng chưa dán nhãn, hoặc thiếu thùng so với đơn. Dán nhãn hoặc loại hết thùng còn lại, hoặc chọn giao một phần và ghi lý do.",

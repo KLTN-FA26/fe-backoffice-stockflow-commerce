@@ -2,7 +2,7 @@
 
 import { CheckCircle2 } from "lucide-react";
 
-import { UI_LABELS } from "@/constants";
+import { LOAD_STATUS, UI_LABELS } from "@/constants";
 import { isShipmentComplete } from "@/features/shipping/selectors";
 import { Alert } from "@/components/shared/Alert";
 import { Button } from "@/components/ui/button";
@@ -13,11 +13,13 @@ import { ShipmentParcels } from "./ShipmentParcels";
 
 import type { HandoverRefusal } from "@/features/shipping/errors";
 import type { LoadShipment } from "@/features/shipping/types";
+import type { Load } from "@/features/shipping/types";
 
 const L = UI_LABELS.shipping.load;
 
 interface ShipmentCardProps {
   shipment: LoadShipment;
+  loadStatus: Load["status"];
   /** Lô này chặn việc bàn giao (BE nêu tên lô) → viền đỏ + lý do. */
   refusal?: HandoverRefusal | null;
   canUnscan: boolean;
@@ -32,6 +34,7 @@ interface ShipmentCardProps {
  */
 export function ShipmentCard({
   shipment,
+  loadStatus,
   refusal,
   canUnscan,
   unscanning,
@@ -53,6 +56,9 @@ export function ShipmentCard({
             <span className="text-positive inline-flex items-center gap-1 text-xs font-medium">
               <CheckCircle2 className="size-3.5" aria-hidden /> {L.shipmentComplete}
             </span>
+          )}
+          {loadStatus === LOAD_STATUS.DISPATCHED && shipment.status === "READY_TO_DISPATCH" && (
+            <span className="text-ink-secondary text-xs font-medium">{L.waitingLastVehicle}</span>
           )}
         </div>
         <LoadProgress

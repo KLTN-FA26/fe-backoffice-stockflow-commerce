@@ -25,10 +25,12 @@ import type { QuoteGate } from "./ChatCardView";
  */
 export function MessageList({
   conversationId,
+  customerId,
   latest,
   quoteGate,
 }: {
   conversationId: string;
+  customerId?: string;
   latest: ChatMessagePage;
   quoteGate: QuoteGate;
 }) {
@@ -112,7 +114,12 @@ export function MessageList({
             </li>
           )}
           {items.map((message) => (
-            <MessageItem key={message.id} message={message} quoteGate={quoteGate} />
+            <MessageItem
+              key={message.id}
+              message={message}
+              customerId={customerId}
+              quoteGate={quoteGate}
+            />
           ))}
         </ol>
       </div>

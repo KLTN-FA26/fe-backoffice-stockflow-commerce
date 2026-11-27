@@ -1,11 +1,12 @@
 "use client";
 
-import { Lock, Paperclip } from "lucide-react";
+import { Copy, Lock, Paperclip } from "lucide-react";
 
 import { CHAT_MENTION_LABELS } from "@/constants";
 
 import { openLink } from "@/lib/files/open-blob";
 import { formatDateTime } from "@/lib/format/date";
+import { useWindowEvidenceStore } from "@/lib/store/use-window-evidence-store";
 import { toast } from "@/components/shared/Toast";
 
 import { attachmentLink } from "../api";
@@ -22,13 +23,16 @@ import type { ChatMessage } from "../schemas";
 /** Một tin: khách (trái), Sale / hệ thống (phải), ghi chú nội bộ nền vàng + "Khách không thấy" (16 BR-07). */
 export function MessageItem({
   message,
+  customerId,
   quoteGate,
 }: {
   message: ChatMessage;
+  customerId?: string;
   quoteGate: QuoteGate;
 }) {
   const note = isInternalNote(message);
   const mine = message.senderType !== "CUSTOMER";
+  const selectEvidence = useWindowEvidenceStore((state) => state.select);
   const download = async (attachmentId: string) => {
     try {
       openLink((await attachmentLink(message.conversationId, attachmentId)).url);
@@ -50,6 +54,19 @@ export function MessageItem({
         <div className="text-ink-tertiary flex items-center gap-2 text-xs">
           <span>{message.senderName ?? (message.senderType === "SYSTEM" ? "Hệ thống" : "")}</span>
           <span className="tabular-nums">{formatDateTime(message.sentAt)}</span>
+          {message.senderType === "CUSTOMER" && !message.deleted && customerId && (
+            <button
+              type="button"
+              className="text-accent-text inline-flex items-center gap-1 hover:underline"
+              title="Chọn tin nhắn làm bằng chứng dời cửa sổ giao"
+              onClick={() => {
+                selectEvidence({ customerId, messageId: message.id });
+                toast.success("Đã chọn tin nhắn. Mở đơn của khách để dời cửa sổ giao.");
+              }}
+            >
+              <Copy className="size-3" /> Chọn làm bằng chứng
+            </button>
+          )}
           {note && (
             <span className="text-warning-ink inline-flex items-center gap-1 font-medium">
               <Lock className="size-3" /> Ghi chú nội bộ — Khách không thấy

@@ -10,6 +10,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ORDER_PERMISSIONS, SALES_CONTRACT_PERMISSIONS } from "@/constants";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
+import { useWindowEvidenceStore } from "@/lib/store/use-window-evidence-store";
 import { toast } from "@/components/shared/Toast";
 import { pickDate } from "@/test/date-picker";
 
@@ -32,7 +33,10 @@ import type { PermissionCode } from "@/lib/auth";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  useWindowEvidenceStore.getState().clear();
+});
 
 const WINDOW_PATH = (batchId: string) => `${SCHEDULE_PATH}/${batchId}/window-change`;
 const KEY = { headers: { "Idempotency-Key": expect.stringMatching(/^[0-9a-f-]{36}$/) } };
@@ -249,6 +253,20 @@ describe("Dời cửa sổ giao — action-gating theo mã quyền BE (≥ 3 vai
 });
 
 describe("Dời cửa sổ giao — form kiểm BR-28 rồi gửi đúng WindowChangeRequest", () => {
+  it("U88: tin khách chọn từ chat tự điền vào form của đúng khách", async () => {
+    useWindowEvidenceStore.getState().select({
+      customerId: apiOrder.customerId!,
+      messageId: CONSENT_MESSAGE,
+    });
+    const { user } = await renderSchedule();
+    const card = await panel();
+    await user.click(within(card).getAllByRole("button", { name: "Dời cửa sổ giao" })[0]!);
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("radio", { name: "Tin nhắn chat của khách" })).toBeChecked();
+    expect(within(dialog).getByLabelText("Mã tin nhắn của khách trong chat")).toHaveValue(
+      CONSENT_MESSAGE,
+    );
+  });
   async function openDialog(batchIndex = 1) {
     const { spy, user } = await renderSchedule();
     const card = await panel();

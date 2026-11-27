@@ -5,6 +5,7 @@
  */
 export const ORDER_RELEASE_LABELS = {
   button: "Release đơn",
+  permissionHint: "Chỉ Quản lý kho của kho xuất hoặc System Admin được release đơn.",
   title: "Release đơn cho kho",
   description: (orderNumber: string) =>
     `Chọn kho xuất hàng của đơn ${orderNumber}. Hàng đã giữ được phân bổ vào các thùng (LPN) cụ thể ở kho này và đơn chuyển sang Sẵn sàng thực hiện.`,

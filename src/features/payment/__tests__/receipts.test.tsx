@@ -164,8 +164,8 @@ describe("ReceiptDetail — WF-05 Q-20 voidable from the BE, payment confirmatio
 });
 
 describe("ReceiptDetail — void a wrongly entered receipt (docs 15 §4.4, BR-04)", () => {
-  const routes = (post?: () => unknown) => ({
-    get: { "/payment-receipts/rcp-1": () => detail() },
+  const routes = (post?: () => unknown, receipt = detail()) => ({
+    get: { "/payment-receipts/rcp-1": () => receipt },
     post: {
       "/payment-receipts/rcp-1/void":
         post ?? (() => detail({ status: "VOIDED", voidReason: "Nhầm khách" })),
@@ -185,6 +185,15 @@ describe("ReceiptDetail — void a wrongly entered receipt (docs 15 §4.4, BR-04
         holdOrders: false,
       }),
     );
+  });
+
+  it("U87: names the loading load blocked by a BEFORE_DELIVERY void and hides the irrelevant hold option", async () => {
+    mockPaymentApi(ACCOUNTANT_GRANTS, routes(undefined, detail({ loadingLoadCodes: ["LD-20261127-0001"] })));
+    renderPaymentScreen(<ReceiptDetail id="rcp-1" />);
+    await userEvent.click(await screen.findByRole("button", { name: "Huỷ phiếu thu" }));
+    const dialog = within(await screen.findByRole("dialog"));
+    expect(dialog.getByText(/Huỷ sẽ chặn bàn giao chuyến LD-20261127-0001/)).toBeInTheDocument();
+    expect(dialog.queryByRole("checkbox")).not.toBeInTheDocument();
   });
 
   it("a reason is required — nothing is sent without it", async () => {
@@ -242,13 +251,15 @@ describe("ReceiptDetail — void a wrongly entered receipt (docs 15 §4.4, BR-04
   });
 
   it("BR-13: when the void leaves a confirmed order short, BE asks for the hold; ticking 'Treo đơn' retries with holdOrders", async () => {
+    const signing = detail();
+    const receipt = detail({ lines: [{ ...signing.lines[0], milestone: "ON_SIGNING" }] });
     const post = vi
       .fn()
       .mockImplementationOnce(() => {
         throw apiError(409, "PAYMENT_RECEIPT_VOID_NEEDS_HOLD");
       })
       .mockImplementation(() => detail({ status: "VOIDED" }));
-    const api = mockPaymentApi(ACCOUNTANT_GRANTS, routes(post));
+    const api = mockPaymentApi(ACCOUNTANT_GRANTS, routes(post, receipt));
     renderPaymentScreen(<ReceiptDetail id="rcp-1" />);
     await userEvent.click(await screen.findByRole("button", { name: "Huỷ phiếu thu" }));
     const dialog = within(await screen.findByRole("dialog"));

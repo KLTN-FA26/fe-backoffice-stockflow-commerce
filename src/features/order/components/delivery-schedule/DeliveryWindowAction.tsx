@@ -14,7 +14,7 @@ import { WindowChangeForm } from "./WindowChangeForm";
 import type { DeliveryBatch } from "../../delivery-batch-api";
 
 interface DeliveryWindowActionProps {
-  order: { orderId: string; orderNumber: string };
+  order: { orderId: string; orderNumber: string; customerId?: string | null };
   batch: DeliveryBatch;
   batches: readonly DeliveryBatch[];
 }

@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 
-import { UI_LABELS } from "@/constants";
+import { ADMIN_ROUTES, UI_LABELS } from "@/constants";
 import { primeScanAudio } from "@/hooks/use-scan-tone";
 import { ApiError } from "@/lib/api/error";
 import { isScanQueueFatal, isTransientError } from "@/features/shipping/errors";
@@ -46,6 +47,8 @@ export function ScanPanel({
   const queue = useRef<string[]>([]);
   const busy = useRef(false);
   const [queued, setQueued] = useState(0);
+  const [showCartonCheck, setShowCartonCheck] = useState(false);
+  const [cartonTaskId, setCartonTaskId] = useState<string | null>(null);
 
   // Ref để cleanup lúc unmount gọi được bản `onReject` mới nhất
   const onRejectRef = useRef(onReject);
@@ -77,6 +80,7 @@ export function ScanPanel({
         // BE trả lại câu trả lời cũ cho scanId đã ghi mà không xếp kiện: chỉ báo thành công khi chuyến
         // trả về thật sự có kiện này trên xe
         if (isLabelLoaded(next, packageCode)) {
+          setShowCartonCheck(false);
           const { loaded, expected } = reconcileLoad(next);
           show({
             tone: "positive",
@@ -92,6 +96,15 @@ export function ScanPanel({
           // Response sai hợp đồng (BE có thể đã nhận mã) → không ghi là kiện bị từ chối; bảng tải lại
           show({ tone: "danger", message: `${packageCode} — ${S.invalidResponse}` });
         } else {
+          if (error.code === "PACKAGE_NOT_FOUND" || error.code === "PACKAGE_NOT_READY") {
+            const shipmentCode = error.details?.shipmentCode;
+            const taskId =
+              typeof shipmentCode === "string"
+                ? load.shipments.find((shipment) => shipment.code === shipmentCode)?.taskId
+                : undefined;
+            setCartonTaskId(taskId ?? null);
+            setShowCartonCheck(true);
+          }
           const message = isTransientError(error) ? S.notSent : scanErrorMessage(error, load);
           show({ tone: "danger", message: `${packageCode} — ${message}` });
           onReject([packageCode], message);
@@ -126,14 +139,26 @@ export function ScanPanel({
   };
 
   return (
-    <ScanInput
-      id="load-scan"
-      label={S.label}
-      placeholder={S.placeholder}
-      hint={S.hint}
-      onScan={onScan}
-      pending={queued > 0}
-      feedback={feedback}
-    />
+    <div>
+      <ScanInput
+        id="load-scan"
+        label={S.label}
+        placeholder={S.placeholder}
+        hint={S.hint}
+        onScan={onScan}
+        pending={queued > 0}
+        feedback={feedback}
+      />
+      {showCartonCheck && (
+        <Link
+          href={
+            cartonTaskId ? ADMIN_ROUTES.packing.detail(cartonTaskId) : ADMIN_ROUTES.packing.list
+          }
+          className="text-accent-text mt-2 inline-block text-xs hover:underline"
+        >
+          {S.cartonCheckLink}
+        </Link>
+      )}
+    </div>
   );
 }

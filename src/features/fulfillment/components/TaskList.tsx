@@ -99,6 +99,9 @@ function TaskListContent({ scope }: { scope: FulfillmentScope }) {
         // Không đọc được task → không có gì để lọc, chỉ còn nút tạo (nếu có quyền)
         createAction && <div className="mb-3 flex justify-end">{createAction}</div>
       )}
+      {scope === "picking" && !canCreate && (
+        <p className="text-ink-secondary mb-3 text-xs">{fulfillment.action.createPermissionHint}</p>
+      )}
       <TaskListBody
         s={s}
         columns={withHeaderFilters(columns, {

@@ -111,6 +111,7 @@ export const SHIPPING_UI_LABELS = {
     shipmentsTitle: "Lô giao trên chuyến",
     shipmentLoaded: "kiện lên xe",
     shipmentComplete: "Đủ kiện",
+    waitingLastVehicle: "Đã lên xe này, chờ xe cuối",
     parcels: "Kiện",
     parcelCode: "Mã kiện",
     parcelWeight: "Cân nặng (kg)",
@@ -187,6 +188,7 @@ export const SHIPPING_UI_LABELS = {
     finishPacking: "Hoàn tất đóng gói và niêm phong kiện trước khi quét lên xe.",
     checkShipment: "Quản lý kho kiểm tra trạng thái lô giao trước khi xếp kiện.",
     checkLabel: "Kiểm tra mã trên nhãn và trạng thái thùng ở màn Kiểm thùng.",
+    cartonCheckLink: "Mở màn Kiểm thùng để in lại nhãn",
   },
   /* ── Bàn giao + biên bản ─────────────────────────────────────────── */
   handover: {
@@ -275,6 +277,8 @@ export const SHIPPING_UI_LABELS = {
     handedOverAt: "Bàn giao lúc",
     outcomeAt: "Ghi nhận kết quả lúc",
     failureReason: "Lý do giao thất bại",
+    previousFailureReason: "Lần giao trước thất bại",
+    previousFailureNote: "Ghi chú lần giao trước",
     failureNote: "Ghi chú nội bộ",
     partialNote: "Ghi chú giao một phần",
     wholeOrder: "Bàn giao theo cả đơn (trước khi có chuyến) — kết quả ghi nhận theo đơn.",
@@ -289,11 +293,12 @@ export const SHIPPING_UI_LABELS = {
     outcomeCard: "Kết quả giao",
     carrierCard: "Hãng vận chuyển",
     noActions: {
-      viewOnly: "Bạn chỉ có quyền xem lô giao.",
+      viewOnly:
+        "Bạn chỉ có quyền xem lô giao. Ghi kết quả giao cần quyền của Quản lý kho hoặc System Admin.",
       readyToDispatch: "Lô chưa bàn giao — kết quả giao chỉ ghi nhận sau khi hãng đã nhận hàng.",
       terminal: "Lô đã có kết quả cuối — không còn thao tác.",
       needsApproval:
-        'Ghi kết quả giao ("đã giao", "giao thất bại", "hàng hoàn về kho") cần quyền phê duyệt kết quả giao.',
+        'Ghi kết quả giao ("đã giao", "giao thất bại", "hàng hoàn về kho") cần quyền phê duyệt của Quản lý kho hoặc System Admin.',
     },
     deliveryNote: { button: "Tải biên bản giao nhận", downloading: "Đang tạo biên bản…" },
     outcomeAction: {
@@ -379,7 +384,8 @@ export const SHIPPING_ERROR_MESSAGES = {
   SHIPMENT_STATE_CONFLICT: "Lô giao không làm được thao tác này ở trạng thái hiện tại.",
   ...SHIPPING_OUTCOME_ERROR_MESSAGES,
   // 409 / 404 — hãng và đặt xe
-  CARRIER_INACTIVE: "Hãng này đã ngừng sử dụng — chọn hãng khác.",
+  CARRIER_INACTIVE:
+    "Hãng này đã ngừng sử dụng — chọn hãng khác hoặc nhờ Quản lý kho kích hoạt lại hãng.",
   CARRIER_CODE_EXISTS: "Mã hãng này đã có trong danh mục — dùng mã khác.",
   CARRIER_BOOKS_THROUGH_API:
     "Hãng này đặt xe qua API — nhập giờ hẹn lấy hàng để hệ thống tạo đơn ở hãng, không ghi nhận tay.",
@@ -388,9 +394,9 @@ export const SHIPPING_ERROR_MESSAGES = {
   CARRIER_PICKUP_NOT_CONFIGURED:
     "Hãng chưa khai báo điểm lấy hàng ở kho này — nhờ quản lý kho cấu hình kết nối hãng.",
   CARRIER_SERVICE_NOT_CONFIGURED:
-    "Hãng chưa có mã dịch vụ cho loại xe này ở khu vực của kho — nhờ quản lý kho cấu hình kết nối hãng.",
+    "Hãng chưa có mã dịch vụ cho loại xe này ở khu vực của kho — nhờ Quản lý kho kiểm tra cấu hình. Đổi loại xe, chọn hãng khác, hoặc mở lại kế hoạch để giải phóng lô nếu xe chưa xếp.",
   CARRIER_STOP_OUT_OF_AREA:
-    "Có điểm giao nằm ngoài khu vực hãng phục vụ — chọn hãng khác hoặc huỷ có kiểm soát để dỡ lô đó.",
+    "Có điểm giao nằm ngoài khu vực hãng phục vụ — đổi loại xe, chọn hãng khác, hoặc mở lại kế hoạch để giải phóng lô nếu xe chưa xếp.",
   CARRIER_BOOKING_FAILED: "Hãng từ chối tạo đơn đặt xe.",
   CARRIER_CANCEL_REFUSED:
     "Hãng không huỷ đơn được (tài xế đã lấy hàng) — liên hệ trực tiếp với hãng để xử lý.",
@@ -441,6 +447,7 @@ export const SHIPPING_ERROR_MESSAGES = {
   shipmentRefused:
     "Đơn của lô này không cho phép bàn giao lúc này (đơn huỷ, lô xung đột hoặc vượt số lượng).",
   generic: "Không thực hiện được thao tác. Thử lại sau.",
+  FORBIDDEN: "Bạn chưa có quyền thực hiện thao tác này — nhờ Quản lý kho hoặc Quản trị viên kiểm tra quyền.",
   ...SHIPPING_AFTER_HANDOVER_ERROR_MESSAGES,
 } as const;
 

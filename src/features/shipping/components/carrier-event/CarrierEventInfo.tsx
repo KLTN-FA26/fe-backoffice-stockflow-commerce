@@ -3,6 +3,7 @@
 import Link from "next/link";
 
 import { ADMIN_ROUTES, UI_LABELS } from "@/constants";
+import { carrierEventResultNote } from "@/features/shipping/carrier-event-note";
 import { formatCarrierEventPayload } from "@/features/shipping/carrier-event-payload";
 import { formatDateTime } from "@/lib/format/date";
 import { Alert } from "@/components/shared/Alert";
@@ -29,6 +30,7 @@ export function CarrierEventInfo({
 }) {
   const event = detail.event;
   const payload = formatCarrierEventPayload(detail.payload);
+  const resultNote = carrierEventResultNote(event.resultNote);
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-x-4 gap-y-3">
@@ -86,6 +88,16 @@ export function CarrierEventInfo({
         <h3 className="text-ink-secondary text-xs font-medium">{D.result}</h3>
         <EventResult result={event.result} />
         <p className="text-ink-secondary text-[0.8125rem]">{E.resultMeaning[event.result]}</p>
+        {resultNote && (
+          <p className="text-ink-primary text-[0.8125rem]">
+            {D.reason}: {resultNote}
+          </p>
+        )}
+        {event.loadId && canLink && (
+          <Link href={ADMIN_ROUTES.loads.detail(event.loadId)} className={LINK}>
+            {D.openLoad}
+          </Link>
+        )}
       </section>
       {showGuide && (
         <Alert tone="warning" title={E.guide.title}>

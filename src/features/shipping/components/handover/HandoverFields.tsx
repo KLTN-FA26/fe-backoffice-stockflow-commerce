@@ -3,6 +3,7 @@
 import { Controller } from "react-hook-form";
 
 import { SHIPPING_LIMITS, UI_LABELS } from "@/constants";
+import { isApiBookedLoad } from "@/features/shipping/ftl-selectors";
 import { Checkbox } from "@/components/ui/checkbox";
 
 import { HandoverMissingLine } from "./HandoverMissingLine";
@@ -81,6 +82,13 @@ export function HandoverFields({
         required={!load.vehiclePlate}
         mono
       />
+      {load.vehiclePlate && (
+        <p className="text-ink-tertiary -mt-2 text-xs">
+          {isApiBookedLoad(load)
+            ? UI_LABELS.shipping.ftl.booking.plateFromCarrier
+            : UI_LABELS.shipping.ftl.booking.plateEnteredManually}
+        </p>
+      )}
       <HandoverOptionalFields form={form} load={load} />
       <Controller
         control={form.control}

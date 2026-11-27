@@ -31,8 +31,8 @@ const KINDS: readonly { kind: Kind; label: string }[] = [
 
 /**
  * Bằng chứng khách đồng ý (docs 17 BR-28): ĐÚNG MỘT trong hai — tệp (email, văn bản xác nhận; tải thẳng lên kho) hoặc
- * mã tin nhắn chat do CHÍNH khách gửi trong cuộc chat của khách (đơn này hoặc chưa gắn đơn). BE chưa có endpoint liệt kê
- * tin nhắn nên ô tin nhắn nhận mã dán vào; BE kiểm lại (400 nếu tin của nhân viên / khách khác / đơn khác).
+ * mã tin nhắn chat do CHÍNH khách gửi trong cuộc chat của khách (đơn này hoặc chưa gắn đơn). Người dùng có thể chọn
+ * tin ở chat để form điền sẵn, hoặc dán mã; BE kiểm lại (400 nếu tin của nhân viên / khách khác / đơn khác).
  */
 export function WindowEvidenceField({
   kind,

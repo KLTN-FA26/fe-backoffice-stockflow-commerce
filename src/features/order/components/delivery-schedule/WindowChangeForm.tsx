@@ -6,6 +6,7 @@ import { useForm, useWatch } from "react-hook-form";
 
 import { WINDOW_CHANGE_LABELS as L } from "@/constants";
 import { toLocalIsoDate } from "@/lib/format/date";
+import { useWindowEvidenceStore } from "@/lib/store/use-window-evidence-store";
 import { FormDialogBody } from "@/components/shared/FormDialog";
 
 import { beginWindowEvidenceUpload } from "../../delivery-window-api";
@@ -28,7 +29,7 @@ import type { useChangeDeliveryWindow } from "../../delivery-window-mutations";
 import type { WindowChangeFormInput, WindowChangeValues } from "../../delivery-window-schemas";
 
 interface WindowChangeFormProps {
-  order: { orderId: string; orderNumber: string };
+  order: { orderId: string; orderNumber: string; customerId?: string | null };
   batch: DeliveryBatch;
   /** Mọi đợt của lịch giao — để kiểm thứ tự các đợt (BR-28). */
   batches: readonly DeliveryBatch[];
@@ -42,7 +43,7 @@ const DEFAULTS: WindowChangeFormInput = {
   windowEnd: "",
   reasonCode: "",
   note: "",
-  // Tệp là đường chứng minh chạy được hôm nay (BE chưa có endpoint tin nhắn chat để chọn)
+  // Mặc định dùng tệp; tin nhắn khách chọn ở chat được điền khi mở form của đúng khách.
   evidenceKind: "file",
   evidenceMessageId: "",
   evidenceUploadId: "",
@@ -61,6 +62,10 @@ export function WindowChangeForm({
   onClose,
 }: WindowChangeFormProps) {
   const { mutate, isPending } = mutation;
+  const selectedEvidence = useWindowEvidenceStore((state) => state.selected);
+  const clearSelectedEvidence = useWindowEvidenceStore((state) => state.clear);
+  const matchingEvidence =
+    order.customerId && selectedEvidence?.customerId === order.customerId ? selectedEvidence : null;
   const idPrefix = useId();
   const today = useMemo(() => toLocalIsoDate(new Date().toISOString()), []);
   const schema = useMemo(
@@ -74,7 +79,9 @@ export function WindowChangeForm({
   const form = useForm<WindowChangeFormInput, unknown, WindowChangeValues>({
     resolver: zodResolver(schema),
     mode: "onChange",
-    defaultValues: DEFAULTS,
+    defaultValues: matchingEvidence
+      ? { ...DEFAULTS, evidenceKind: "message", evidenceMessageId: matchingEvidence.messageId }
+      : DEFAULTS,
   });
   const { refusal, clearRefusal, onError, beginSubmit, idempotencyKeyFor, finishAttempt } =
     useOrderActionErrors(windowChangeErrorView, WINDOW_CHANGE_STALE_CODES, onClose, {
@@ -105,6 +112,7 @@ export function WindowChangeForm({
       { ...variables, idempotencyKey: idempotencyKeyFor(variables) },
       {
         onSuccess: () => {
+          clearSelectedEvidence();
           finishAttempt();
           onClose();
         },

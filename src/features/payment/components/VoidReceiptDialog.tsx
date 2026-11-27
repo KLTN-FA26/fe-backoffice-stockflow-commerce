@@ -45,6 +45,13 @@ function VoidReceiptForm({ receipt, onClose }: { receipt: PaymentReceipt; onClos
   const orders = receiptOrders(receipt);
   // Chỉ đợt khi ký làm đơn đã xác nhận quay lại thiếu tiền (15 BR-13): đó là các đơn có thể bị treo.
   const heldOrders = orders.filter((order) => order.onSigning).map((order) => order.orderNumber);
+  const beforeDeliveryOrders = [
+    ...new Set(
+      receipt.lines
+        .filter((line) => line.milestone === "BEFORE_DELIVERY" && line.orderNumber)
+        .map((line) => line.orderNumber),
+    ),
+  ];
   const submit = form.handleSubmit((values) =>
     voidReceipt.mutate(
       { id: receipt.receiptId, ...values },
@@ -80,6 +87,13 @@ function VoidReceiptForm({ receipt, onClose }: { receipt: PaymentReceipt; onClos
           </ul>
         </div>
       )}
+      {beforeDeliveryOrders.length > 0 && (
+        <p className="text-warning-ink text-xs" role="alert">
+          {receipt.loadingLoadCodes.length > 0
+            ? L.loadingLoadWarning(receipt.loadingLoadCodes.join(", "))
+            : L.beforeDeliveryWarning(beforeDeliveryOrders.join(", "))}
+        </p>
+      )}
       <FormField id="void-reason" label={L.reason} required error={errors.reason?.message}>
         <Textarea
           autoFocus
@@ -90,25 +104,27 @@ function VoidReceiptForm({ receipt, onClose }: { receipt: PaymentReceipt; onClos
           {...form.register("reason")}
         />
       </FormField>
-      <div className="space-y-1">
-        <div className="flex items-center gap-2">
-          <Controller
-            control={form.control}
-            name="holdOrders"
-            render={({ field }) => (
-              <Checkbox
-                id="void-hold-orders"
-                checked={field.value}
-                onCheckedChange={(checked) => field.onChange(checked === true)}
-              />
-            )}
-          />
-          <Label htmlFor="void-hold-orders" className="text-[0.8125rem]">
-            {heldOrders.length > 0 ? L.holdOrdersFor(heldOrders.join(", ")) : L.holdOrders}
-          </Label>
+      {heldOrders.length > 0 && (
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <Controller
+              control={form.control}
+              name="holdOrders"
+              render={({ field }) => (
+                <Checkbox
+                  id="void-hold-orders"
+                  checked={field.value}
+                  onCheckedChange={(checked) => field.onChange(checked === true)}
+                />
+              )}
+            />
+            <Label htmlFor="void-hold-orders" className="text-[0.8125rem]">
+              {heldOrders.length > 0 ? L.holdOrdersFor(heldOrders.join(", ")) : L.holdOrders}
+            </Label>
+          </div>
+          <p className="text-ink-secondary text-xs">{L.holdHint}</p>
         </div>
-        <p className="text-ink-secondary text-xs">{L.holdHint}</p>
-      </div>
+      )}
     </FormDialogBody>
   );
 }

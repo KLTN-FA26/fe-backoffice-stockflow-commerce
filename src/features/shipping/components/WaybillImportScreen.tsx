@@ -81,7 +81,7 @@ function ImportBody() {
                 disabled={toApply === 0 || importing}
                 onClick={runImport}
               >
-                {importing ? I.applying : I.apply}
+                {importing ? I.applying : I.applyCount(toApply)}
               </Button>
               {toApply === 0 && <span className="text-ink-tertiary text-xs">{I.noApplicable}</span>}
             </div>
@@ -94,7 +94,7 @@ function ImportBody() {
               {I.resultSummary(result.rowsApplied, result.rowsRejected)}
             </p>
             <p className="text-ink-tertiary text-xs">{I.resultHint}</p>
-            <WaybillImportTable lines={result.lines} />
+            <WaybillImportTable lines={result.lines} applied />
             <Button type="button" variant="outline" size="sm" onClick={reset}>
               {I.another}
             </Button>

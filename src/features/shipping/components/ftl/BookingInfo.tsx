@@ -44,8 +44,24 @@ export function BookingInfo({ load }: { load: Load }) {
       />
       <InfoItem
         label={F.vehiclePlate}
-        value={load.vehiclePlate ?? (waitCarrier ? B.plateAtHandover : "—")}
-        mono={!!load.vehiclePlate}
+        value={
+          load.vehiclePlate ? (
+            <span>
+              <span className="font-mono">{load.vehiclePlate}</span>
+              <span className="text-ink-tertiary block text-xs">
+                {load.status === LOAD_STATUS.DISPATCHED
+                  ? B.plateOnSignedManifest
+                  : waitCarrier
+                    ? B.plateFromCarrier
+                  : B.plateEnteredManually}
+              </span>
+            </span>
+          ) : waitCarrier ? (
+            B.plateAtHandover
+          ) : (
+            "—"
+          )
+        }
       />
       <InfoItem
         label={F.driverName}

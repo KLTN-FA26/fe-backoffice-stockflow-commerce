@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ClipboardList, ShieldAlert, Truck } from "lucide-react";
 
-import { ADMIN_ROUTES, UI_LABELS } from "@/constants";
+import { ADMIN_ROUTES, LOAD_STATUS, UI_LABELS } from "@/constants";
 import { hasLoadAction } from "@/features/shipping/lifecycle";
 import { loadingSheetOf } from "@/features/shipping/loading-sheet-lifecycle";
 import { Button } from "@/components/ui/button";
@@ -67,6 +67,11 @@ export function LoadActions({
       </div>
       {/* R7: vì sao nút khoá, nói ngay dưới nút chứ không chỉ ở `title` (S18-1, FE#291 U45 / U82) */}
       {handover && <HandoverMissing load={load} />}
+      {load.status === LOAD_STATUS.LOADING && !controlledCancel && (
+        <p className="text-ink-secondary max-w-sm text-right text-xs">
+          {CC.managerPermissionHint}
+        </p>
+      )}
     </div>
   );
 }

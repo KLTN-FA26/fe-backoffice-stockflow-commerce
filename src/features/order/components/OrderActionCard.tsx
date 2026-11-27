@@ -5,6 +5,7 @@ import {
   ORDER_HOLD_GUIDANCE,
   ORDER_PERMISSIONS,
   ORDER_RELEASE_BLOCKER_LABELS,
+  ORDER_RELEASE_LABELS,
   ORDER_STATUS_UNKNOWN,
 } from "@/constants";
 import { StatusDot } from "@/components/shared/StatusDot";
@@ -113,6 +114,11 @@ function holdGuidanceFor(
 export function OrderActionCard({ order, can, estimateSlot }: OrderActionCardProps) {
   const actions = allowedOrderActions(order.status, can, orderActionContextOf(order));
   const has = (code: OrderActionCode) => actions.some((a) => a.code === code);
+  const releaseAvailableByStatus = allowedOrderActions(
+    order.status,
+    () => true,
+    orderActionContextOf(order),
+  ).some((action) => action.code === "release");
   const onHold = order.status === "On Hold";
   // Giữ do hệ thống: nói rõ phải xử lý ở đâu thay vì để người dùng tìm nút "Gỡ giữ" không có
   const holdGuidance =
@@ -152,6 +158,9 @@ export function OrderActionCard({ order, can, estimateSlot }: OrderActionCardPro
           {has("admin-cancel") && <OrderCancelAction order={order} />}
         </div>
       ) : null}
+      {releaseAvailableByStatus && !can(ORDER_PERMISSIONS.release) && (
+        <p className="text-ink-secondary mt-2 text-xs">{ORDER_RELEASE_LABELS.permissionHint}</p>
+      )}
       {blockers.length > 0 && (
         <div className="border-border-default bg-bg-subtle mt-3 rounded-[var(--r-sm)] border px-3 py-2 text-xs">
           <p className="text-ink-primary font-medium">{ORDER_RELEASE_BLOCKER_LABELS.title}</p>

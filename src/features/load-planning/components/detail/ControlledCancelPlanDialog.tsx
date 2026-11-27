@@ -52,6 +52,7 @@ export function ControlledCancelPlanDialog({
       error={error}
       onSubmit={submit}
       onClose={onClose}
+      parcelDoesNotFitHint={C.parcelDoesNotFitHint}
     />
   );
 }

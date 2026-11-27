@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { ADMIN_ROUTES, LOAD_PLAN_STATUS, UI_LABELS } from "@/constants";
+import { loadPlanActions } from "@/features/load-planning/lifecycle";
 import { Alert } from "@/components/shared/Alert";
 import { Button } from "@/components/ui/button";
 
@@ -32,6 +33,7 @@ export function PlanNotices({
 }) {
   const canWrite = Object.values(actions).some((value) => value === true);
   const needsRecalc = plan.vehicles.some((vehicle) => vehicle.needsRecalculation);
+  const managerActions = loadPlanActions(plan, { can: () => true });
   // Sau khi chốt, mỗi xe là một chuyến xe (docs 09 §4.2 bước 5): nói bước tiếp và mở thẳng chuyến (S16-6)
   const loads = plan.vehicles.flatMap((vehicle) => (vehicle.load ? [vehicle.load] : []));
   return (
@@ -67,6 +69,10 @@ export function PlanNotices({
         </Alert>
       )}
       {needsRecalc && !final && <Alert tone="warning">{L.needsRecalculationAlert}</Alert>}
+      {((managerActions.cancelControlled && !actions.cancelControlled) ||
+        (managerActions.dropVehicleSeqs.length > 0 && actions.dropVehicleSeqs.length === 0)) && (
+        <Alert tone="info">{UI_LABELS.shipping.ftl.controlledCancel.managerPermissionHint}</Alert>
+      )}
       {final && <Alert tone="info">{L.finalState}</Alert>}
       {!final && !canWrite && <Alert tone="info">{L.viewOnly}</Alert>}
     </div>

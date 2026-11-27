@@ -69,7 +69,7 @@ export const PAYMENT_LABELS = {
     receivablesPreset: "Công nợ phải thu",
     receivablesHint:
       "Mọi đợt đã đến mốc mà chưa trả đủ: sau giao, trước giao, quá hạn, phí huỷ, phí giao thất bại",
-    customerSearch: "Tìm khách (tên hoặc mã số thuế)",
+    customerSearch: "Tìm khách, mã đơn hoặc mã hợp đồng",
     customerSearchTooMany: "Có quá nhiều khách khớp — gõ cụ thể hơn",
     reachedOnly: "Chỉ đợt đã đến mốc",
     overdueOnly: "Chỉ đợt quá hạn",
@@ -225,6 +225,10 @@ export const PAYMENT_LABELS = {
     reason: "Lý do huỷ phiếu thu",
     holdOrders: "Treo đơn nếu huỷ làm đơn đã xác nhận thiếu đợt khi ký",
     holdHint: "Không chọn mà huỷ làm đơn đã xác nhận thiếu đợt khi ký thì thao tác bị từ chối.",
+    beforeDeliveryWarning: (orders: string) =>
+      `Huỷ phiếu thu trước khi giao của đơn ${orders} sẽ chặn bàn giao chuyến đang xếp cho tới khi thu lại đủ tiền. Kiểm tra chuyến của đơn trước khi xác nhận.`,
+    loadingLoadWarning: (codes: string) =>
+      `Huỷ sẽ chặn bàn giao chuyến ${codes} cho tới khi thu lại đủ đợt trước khi giao.`,
     /** BO-UX-40: các đơn của phiếu — đơn nào có thể bị treo. */
     ordersTitle: "Đơn có tiền trong phiếu này",
     holdOrdersFor: (orders: string) => `Treo các đơn ${orders} nếu huỷ làm đơn thiếu đợt khi ký`,

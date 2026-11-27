@@ -1,9 +1,16 @@
 "use client";
 
 import { Ban, CalendarCheck, Play, Pencil, UserRound } from "lucide-react";
+import Link from "next/link";
 
-import { LOAD_STATUS, UI_LABELS } from "@/constants";
+import {
+  ADMIN_ROUTES,
+  FULFILLMENT_CARRIER_EVENT_PERMISSIONS,
+  LOAD_STATUS,
+  UI_LABELS,
+} from "@/constants";
 import { formatDateTime } from "@/lib/format/date";
+import { useCan } from "@/lib/auth";
 import { hasLoadAction } from "@/features/shipping/lifecycle";
 import { isApiBookedLoad } from "@/features/shipping/ftl-selectors";
 import { Alert } from "@/components/shared/Alert";
@@ -49,7 +56,31 @@ export function BookingCard({
   const cancelBooking = hasLoadAction(actions, "cancelBooking");
   const start = hasLoadAction(actions, "startLoading");
   const driver = hasLoadAction(actions, "recordDriver");
+  const canSeeEvents = useCan(FULFILLMENT_CARRIER_EVENT_PERMISSIONS.read);
   const planned = load.status === LOAD_STATUS.PLANNED;
+  if (load.status === LOAD_STATUS.CANCELLED)
+    return (
+      <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
+        <h2 className="text-ink-primary text-[0.9375rem] font-semibold">{B.title}</h2>
+        <p className="text-ink-secondary mt-2 text-[0.8125rem]">{B.cancelled}</p>
+        {(load.cancelReason || load.bookingCancelReason) && (
+          <p className="text-ink-secondary mt-1 text-[0.8125rem]">
+            {B.cancelledReason}: {load.cancelReason ?? load.bookingCancelReason}
+          </p>
+        )}
+        {load.replacementLoadId && (
+          <p className="text-ink-secondary mt-1 text-[0.8125rem]">
+            {B.replacement}: {" "}
+            <Link
+              href={ADMIN_ROUTES.loads.detail(load.replacementLoadId)}
+              className="text-accent-text hover:underline"
+            >
+              {load.replacementLoadCode ?? load.replacementLoadId}
+            </Link>
+          </p>
+        )}
+      </section>
+    );
   return (
     <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
       <div className="mb-3">
@@ -66,6 +97,14 @@ export function BookingCard({
       )}
       <BookingInfo load={load} />
       <DriverSearchNotice load={load} />
+      {canSeeEvents && (
+        <Link
+          href={`${ADMIN_ROUTES.carrierEvents}?load=${encodeURIComponent(load.loadId)}`}
+          className="text-accent-text mt-3 inline-block text-xs hover:underline"
+        >
+          {B.history}
+        </Link>
+      )}
       {(book || cancelBooking || start || driver) && (
         <div className="mt-4 flex flex-wrap items-center gap-2">
           {book && (

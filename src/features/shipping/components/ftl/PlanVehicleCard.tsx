@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { ADMIN_ROUTES, UI_LABELS, VEHICLE_TYPE_PERMISSIONS } from "@/constants";
+import { ADMIN_ROUTES, LOAD_STATUS, UI_LABELS, VEHICLE_TYPE_PERMISSIONS } from "@/constants";
 import { useCan } from "@/lib/auth";
 import { vehicleTypeName } from "@/lib/domain/vehicle-type-name";
 import { useVehicleTypeOptions } from "@/features/shipping/carrier-config-queries";
@@ -24,6 +24,14 @@ export function PlanVehicleCard({ load }: { load: Load }) {
     <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
       <h2 className="text-ink-primary mb-1 text-[0.9375rem] font-semibold">{F.planCard}</h2>
       <p className="text-ink-secondary mb-3 text-[0.8125rem]">{F.planCardHint}</p>
+      {load.status === LOAD_STATUS.PLANNED && load.loadPlanId && (
+        <p className="text-ink-secondary mb-3 text-[0.8125rem]">
+          {F.dropPlannedHint}{" "}
+          <Link href={ADMIN_ROUTES.loadPlans.detail(load.loadPlanId)} className="text-accent-text hover:underline">
+            {load.loadPlanCode ?? F.planCode}
+          </Link>
+        </p>
+      )}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <InfoItem
           label={F.planCode}

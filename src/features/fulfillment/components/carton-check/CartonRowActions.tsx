@@ -53,6 +53,7 @@ export function CartonRowActions({
           type="button"
           size="xs"
           variant="outline"
+          title={A.reprintHint}
           onClick={() => handlers.onReprint(carton)}
         >
           <RotateCcw className="size-3" /> {A.reprint}
@@ -63,6 +64,7 @@ export function CartonRowActions({
           type="button"
           size="xs"
           variant="outline"
+          title={A.reprintLpnHint}
           onClick={() => handlers.onReprintLpn?.(carton)}
         >
           <Barcode className="size-3" /> {A.reprintLpn}

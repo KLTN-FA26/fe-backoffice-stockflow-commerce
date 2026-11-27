@@ -249,7 +249,7 @@ describe("WaybillImportScreen — chọn file và xem trước", () => {
     await previewFile(user);
     await user.upload(screen.getByLabelText(I.fileLabel), csvFile("khac.csv"));
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: I.apply })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Nhập \d+ dòng$/ })).not.toBeInTheDocument();
   });
 
   it("file quá 1 MB bị từ chối ngay phía FE: báo lỗi, 'Xem trước' khóa, không gọi API", async () => {
@@ -291,7 +291,7 @@ describe("WaybillImportScreen — chọn file và xem trước", () => {
     await user.click(screen.getByRole("button", { name: I.preview }));
     await screen.findByText(I.previewTitle, { selector: "h2" });
     expect(callsTo(post, PREVIEW_URL)[0]?.[2]).toMatchObject({ params: { warehouseId: "wh-hn" } });
-    await user.click(screen.getByRole("button", { name: I.apply }));
+    await user.click(screen.getByRole("button", { name: /^Nhập \d+ dòng$/ }));
     await screen.findByText(I.resultTitle);
     expect(callsTo(post, IMPORT_URL)[0]?.[2]).toMatchObject({ params: { warehouseId: "wh-hn" } });
   });
@@ -302,7 +302,7 @@ describe("WaybillImportScreen — chọn file và xem trước", () => {
     await previewFile(user);
     await chooseWarehouse(user, "HCM · Kho TP.HCM");
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: I.apply })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Nhập \d+ dòng$/ })).not.toBeInTheDocument();
   });
 
   it("nhận file Excel .xlsx như CSV: ô chọn file cho phép đuôi .xlsx, xem trước gửi đúng file", async () => {
@@ -371,7 +371,7 @@ describe("WaybillImportScreen — nhập các dòng hợp lệ", () => {
     await user.click(
       screen.getByRole("checkbox", { name: `${I.overwriteConfirm} ${I.line.toLowerCase()} 3` }),
     );
-    await user.click(screen.getByRole("button", { name: I.apply }));
+    await user.click(screen.getByRole("button", { name: /^Nhập \d+ dòng$/ }));
 
     expect(await screen.findByText(I.resultTitle)).toBeInTheDocument();
     const [importCall] = callsTo(post, IMPORT_URL);
@@ -386,14 +386,14 @@ describe("WaybillImportScreen — nhập các dòng hợp lệ", () => {
     // Bảng kết quả: dòng ghi đè không được xác nhận hiện là lỗi kèm lý do; không còn ô tick, không còn nút nhập
     expect(screen.getByText(I.problem.OVERWRITE_NOT_CONFIRMED)).toBeInTheDocument();
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: I.apply })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Nhập \d+ dòng$/ })).not.toBeInTheDocument();
   });
 
   it("không tick dòng ghi đè nào → không gửi overwriteLines (BE từ chối các dòng đó)", async () => {
     const user = userEvent.setup();
     const { post } = renderScreen();
     await previewFile(user);
-    await user.click(screen.getByRole("button", { name: I.apply }));
+    await user.click(screen.getByRole("button", { name: /^Nhập \d+ dòng$/ }));
     await screen.findByText(I.resultTitle);
     const [importCall] = callsTo(post, IMPORT_URL);
     expect((importCall?.[2] as { params?: unknown }).params).toEqual({ warehouseId: "wh-hn" });
@@ -413,7 +413,7 @@ describe("WaybillImportScreen — nhập các dòng hợp lệ", () => {
     await user.click(three);
     await user.click(seven);
     expect(seven).not.toBeChecked();
-    await user.click(screen.getByRole("button", { name: I.apply }));
+    await user.click(screen.getByRole("button", { name: /^Nhập \d+ dòng$/ }));
     await screen.findByText(I.resultTitle);
     expect(callsTo(post, IMPORT_URL)[0]?.[2]).toMatchObject({ params: { overwriteLines: "3" } });
   });
@@ -428,7 +428,7 @@ describe("WaybillImportScreen — nhập các dòng hợp lệ", () => {
       }),
     });
     await previewFile(user);
-    const apply = screen.getByRole("button", { name: I.apply });
+    const apply = screen.getByRole("button", { name: /^Nhập \d+ dòng$/ });
     expect(apply).toBeDisabled();
     expect(screen.getByText(I.noApplicable)).toBeInTheDocument();
     await user.click(
@@ -446,7 +446,7 @@ describe("WaybillImportScreen — nhập các dòng hợp lệ", () => {
     await previewFile(user);
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
     expect(screen.queryByText(I.overwriteHint)).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: I.apply })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /^Nhập \d+ dòng$/ })).toBeDisabled();
     expect(callsTo(post, IMPORT_URL)).toHaveLength(0);
   });
 
@@ -458,7 +458,7 @@ describe("WaybillImportScreen — nhập các dòng hợp lệ", () => {
       },
     });
     await previewFile(user);
-    await user.click(screen.getByRole("button", { name: I.apply }));
+    await user.click(screen.getByRole("button", { name: /^Nhập \d+ dòng$/ }));
     expect(await screen.findByRole("alert")).toHaveTextContent(
       SHIPPING_ERROR_MESSAGES.WAYBILL_IMPORT_INVALID_FILE,
     );
@@ -470,7 +470,7 @@ describe("WaybillImportScreen — nhập các dòng hợp lệ", () => {
     const user = userEvent.setup();
     renderScreen();
     await previewFile(user);
-    await user.click(screen.getByRole("button", { name: I.apply }));
+    await user.click(screen.getByRole("button", { name: /^Nhập \d+ dòng$/ }));
     await screen.findByText(I.resultTitle);
     await user.click(screen.getByRole("button", { name: I.another }));
     expect(screen.queryByText(I.resultTitle)).not.toBeInTheDocument();

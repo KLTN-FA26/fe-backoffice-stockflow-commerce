@@ -3,10 +3,11 @@
 import Link from "next/link";
 
 import { ADMIN_ROUTES, UI_LABELS } from "@/constants";
-import { handoverBlockReasons } from "@/features/shipping/handover-blocks";
+import { handoverBlockReasons, handoverReasonCodes } from "@/features/shipping/handover-blocks";
 import { Alert } from "@/components/shared/Alert";
 
 import { BlockReasons } from "../handover/HandoverBlockedNotice";
+import { HandoverReasonLink } from "../handover/HandoverReasonLink";
 
 import type { HandoverWarning } from "@/features/shipping/types";
 
@@ -34,6 +35,13 @@ export function HandoverWarningsNotice({ warnings }: { warnings: readonly Handov
               {order.orderNumber}
             </Link>
             <BlockReasons reasons={handoverBlockReasons(order)} />
+            {handoverReasonCodes(order).map((reasonCode) => (
+              <HandoverReasonLink
+                key={reasonCode}
+                orderId={order.orderId}
+                reasonCode={reasonCode}
+              />
+            ))}
           </li>
         ))}
       </ul>

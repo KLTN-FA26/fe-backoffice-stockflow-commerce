@@ -7,7 +7,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { CARRIER_REFUSAL_CODE, LOAD_STATUS, SHIPPING_LIMITS, UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 import { bookingRequestBody, isApiBooking, moveStop } from "@/features/shipping/booking";
-import { carrierRefusalCode, shippingErrorMessage } from "@/features/shipping/errors";
+import {
+  carrierRefusalCode,
+  shippingErrorMessage,
+  waybillDuplicateMessage,
+} from "@/features/shipping/errors";
 import { bookingInputSchema } from "@/features/shipping/input-schemas";
 import { useBookLoad } from "@/features/shipping/ftl-mutations";
 import { useActiveCarriers } from "@/features/shipping/queries";
@@ -43,7 +47,8 @@ type TextField = Exclude<(typeof SERVER_FIELDS)[number], "carrierId">;
 export function BookingDialog({ load, onClose }: { load: Load; onClose: () => void }) {
   // Callback mức hook: ghi cache đưa chuyến sang VEHICLE_BOOKED có thể gỡ hộp thoại trước callback của `mutate`
   const book = useBookLoad({ onSuccess: onClose });
-  const { data: carriers } = useActiveCarriers({});
+  const carrierQuery = useActiveCarriers({});
+  const carriers = carrierQuery.data;
   const [serverError, setServerError] = useState<string | null>(null);
   const [stops, setStops] = useState<string[]>(() => load.shipments.map((s) => s.shipmentId));
   const form = useForm<BookingFormInput, unknown, BookingValues>({
@@ -90,12 +95,23 @@ export function BookingDialog({ load, onClose }: { load: Load; onClose: () => vo
         onError: (error) => {
           setServerError(shippingErrorMessage(error));
           if (!(error instanceof ApiError)) return;
+          if (error.code === "CARRIER_INACTIVE") {
+            form.setValue("carrierId", "", { shouldValidate: true });
+            void carrierQuery.refetch();
+          }
           // Giờ hẹn ngoài giờ phục vụ của hãng: chỉ vào ô giờ (câu đầy đủ của BE đã ở trên)
           if (carrierRefusalCode(error) === CARRIER_REFUSAL_CODE.INVALID_SERVICE_HOUR)
             form.setError("pickupAt", { type: "server", message: A.pickupAtOutOfHours });
           for (const name of SERVER_FIELDS) {
             const message = error.fieldErrors?.[name];
-            if (message) form.setError(name, { type: "server", message });
+            if (message)
+              form.setError(name, {
+                type: "server",
+                message:
+                  name === "waybillNo" && error.code === "WAYBILL_DUPLICATE"
+                    ? waybillDuplicateMessage(error)
+                    : message,
+              });
           }
         },
       },

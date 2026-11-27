@@ -40,6 +40,7 @@ export function LoadShipments({ load, canUnscan, refusal, onDismissRefusal }: Lo
         <ShipmentCard
           key={shipment.shipmentId}
           shipment={shipment}
+          loadStatus={load.status}
           refusal={activeRefusal?.shipmentCode === shipment.code ? activeRefusal : null}
           canUnscan={canUnscan}
           unscanning={unscan.isPending}
