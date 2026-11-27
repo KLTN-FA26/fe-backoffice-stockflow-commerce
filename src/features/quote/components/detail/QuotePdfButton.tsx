@@ -1,23 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { FileDown, LoaderCircle } from "lucide-react";
+import { FileDown } from "lucide-react";
 
 import { openBlob } from "@/lib/files/open-blob";
 import { getQuotePdf } from "@/features/quote/api";
-import { Button } from "@/components/ui/button";
+import { ActionTrigger } from "@/components/shared/ObjectActions";
 
 import type { Quote } from "@/features/quote/types";
 
-/** `GET /quotes/{id}/document` → mở PDF ở tab mới. */
+/** `GET /quotes/{id}/document` → mở PDF ở tab mới. Mục "Tải PDF" của menu "⋯" trên header báo giá. */
 export function QuotePdfButton({
   quote,
   onError,
-  className,
 }: {
   quote: Pick<Quote, "id" | "quoteNumber">;
   onError: (error: unknown) => void;
-  className?: string;
 }) {
   const [downloading, setDownloading] = useState(false);
   const download = async () => {
@@ -31,20 +29,11 @@ export function QuotePdfButton({
     }
   };
   return (
-    <Button
-      type="button"
-      size="sm"
-      variant="outline"
-      disabled={downloading}
+    <ActionTrigger
+      icon={FileDown}
+      label="Tải PDF"
+      loading={downloading}
       onClick={() => void download()}
-      className={className}
-    >
-      {downloading ? (
-        <LoaderCircle className="size-3.5 animate-spin" />
-      ) : (
-        <FileDown className="size-3.5" />
-      )}{" "}
-      Tải PDF
-    </Button>
+    />
   );
 }

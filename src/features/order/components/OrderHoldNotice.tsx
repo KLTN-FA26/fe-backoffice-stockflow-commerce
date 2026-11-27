@@ -30,7 +30,7 @@ export function OrderHoldNotice({ order }: OrderHoldNoticeProps) {
     : null;
 
   return (
-    <div className="border-warning bg-warning/10 mb-3 rounded-[var(--r-sm)] border p-3 text-[0.8125rem]">
+    <div className="border-warning bg-warning/10 w-full rounded-[var(--r-sm)] border p-3 text-left text-[0.8125rem]">
       <div className="text-ink-primary flex items-center gap-1.5 font-semibold">
         <PauseCircle className="text-warning size-3.5" aria-hidden="true" /> Đơn đang tạm giữ
       </div>

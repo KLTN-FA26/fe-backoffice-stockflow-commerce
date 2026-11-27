@@ -4,7 +4,6 @@ import { onlineManager } from "@tanstack/react-query";
 import { use } from "react";
 
 import {
-  ADMIN_ROUTES,
   ORDER_PERMISSIONS,
   PRODUCTION_ORDER_PERMISSIONS,
   SALES_CONTRACT_PERMISSIONS,
@@ -13,32 +12,21 @@ import { usePermissionChecker } from "@/lib/auth";
 import { formatDateTime } from "@/lib/format/date";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
 import { DelayAlertsPanel } from "@/components/backoffice/DelayAlertsPanel";
-import { PageHeader } from "@/components/shared/PageHeader";
-import { BackLink } from "@/components/shared/BackLink";
+import { ObjectHeader } from "@/components/shared/ObjectPage";
+import { StatusDot } from "@/components/shared/StatusDot";
 
 import { useCompletionHold } from "../completion-hold-queries";
 import { useOrder, useOrderProductionOrders } from "../queries";
 import { useSalesContract } from "../sales-contract-queries";
 import { customLineCount, groupProductionOrdersByLine, isPastContract } from "../selectors";
 
-import { CancellationRequestCard } from "./cancellation/CancellationRequestCard";
-import { CompletionHoldCard } from "./completion-hold/CompletionHoldCard";
-import { OrderContractSection } from "./contract/OrderContractSection";
-import { OrderDeliveryFailureSection } from "./delivery-failure/OrderDeliveryFailureSection";
-import { DeliverySchedulePanel } from "./delivery-schedule/DeliverySchedulePanel";
 import { OrderActionCard } from "./OrderActionCard";
-import { OrderEstimateCard } from "./OrderEstimateCard";
-import { OrderFinanceCard } from "./OrderFinanceCard";
+import { OrderDetailTabs } from "./OrderDetailTabs";
 import { OrderInfoCard } from "./OrderInfoCard";
-import { OrderHistory } from "./OrderHistory";
 import { OrderLines } from "./OrderLines";
 import { OrderLoadError } from "./OrderLoadError";
-import { OrderPartialShipmentCard } from "./OrderPartialShipmentCard";
 import { OrderPermissionGate } from "./OrderPermissionGate";
-import { OrderShippingWarehouseCard } from "./OrderShippingWarehouseCard";
 import { LineProductionOrdersView, ProductionStatusNotice } from "./OrderProductionOrders";
-import { OrderDeliveryDocuments } from "./OrderDeliveryDocuments";
-import { OrderShipments } from "./OrderShipments";
 import { OrderDetailSkeleton } from "./OrderSkeletons";
 
 import type { OrderEstimateSlot } from "../estimate-slot";
@@ -138,7 +126,7 @@ function OrderDetailContent({
       : production.isPending
         ? "loading"
         : "ready";
-  // BO-UX-22: công ty khách ở phần đầu trang (người nhận hàng nằm ở thẻ Thông tin).
+  // BO-UX-22: công ty khách ở phần đầu trang (người nhận hàng nằm ở khung hồ sơ).
   const subtitle = [order.customerName ?? order.recipientName, formatDateTime(order.placedAt)]
     .filter(Boolean)
     .join(" · ");
@@ -146,90 +134,80 @@ function OrderDetailContent({
   const fulfilmentStage = isPastContract(order.status);
 
   return (
-    <>
-      <PageHeader
-        title={order.orderNumber}
-        subtitle={subtitle}
-        actions={<BackLink href={ADMIN_ROUTES.orders.list} />}
+    // Object page ERP (backoffice-erp-ui B10): header đối tượng (mã đơn, trạng thái, khách · ngày đặt, thao tác) → khung hồ
+    // sơ (vòng đời, thông số, mốc) → dòng hàng hiện thẳng → tab Hợp đồng / Giao hàng / Thanh toán / Trả hàng & huỷ / Lịch sử
+    // (như trang chi tiết sản phẩm — không trải dài mọi khối từ trên xuống).
+    <div className="surface-soft surface-compact">
+      <ObjectHeader
+        name={order.orderNumber}
+        code={order.orderId}
+        codeLabel="ID đơn hàng"
+        status={<StatusDot domain="order" status={order.status} size="sm" withIcon />}
+        meta={<span>{subtitle}</span>}
+        actions={<OrderActionCard order={order} can={can} estimateSlot={estimateSlot} />}
       />
+      <OrderInfoCard order={order} can={can} />
 
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="min-w-0 space-y-5">
-          {/* Cờ trễ của đơn (docs 17 §4.12 bước 49) — không chặn thao tác nào */}
-          <DelayAlertsPanel salesOrderId={order.orderId} />
-          {hasCustomLines && (
-            <ProductionStatusNotice query={production} canRead={canReadProduction} />
+      {/* Dữ liệu xem / thao tác nhiều nhất hiện thẳng: cờ trễ, tình trạng sản xuất, dòng hàng */}
+      <div className="mb-6 space-y-5">
+        {/* Cờ trễ của đơn (docs 17 §4.12 bước 49) — không chặn thao tác nào */}
+        <DelayAlertsPanel salesOrderId={order.orderId} />
+        {hasCustomLines && (
+          <ProductionStatusNotice query={production} canRead={canReadProduction} />
+        )}
+        <OrderLines
+          lines={order.lines}
+          currency={order.currency}
+          hasShipments={order.shipments.length > 0}
+          renderCustomLineExtra={(line) => (
+            <LineProductionOrdersView
+              entry={productionByLine.get(line.lineId)}
+              state={productionState}
+            />
           )}
-          <OrderLines
-            lines={order.lines}
-            currency={order.currency}
-            hasShipments={order.shipments.length > 0}
-            renderCustomLineExtra={(line) => (
-              <LineProductionOrdersView
-                entry={productionByLine.get(line.lineId)}
-                state={productionState}
-              />
-            )}
-          />
-          <OrderContractSection order={order} can={can} />
-          <DeliverySchedulePanel order={order} can={can} />
-          <OrderDeliveryFailureSection order={order} can={can} />
-          {settlementSlot?.({
-            orderId: order.orderId,
-            orderNumber: order.orderNumber,
-            status: order.status,
-            deliveredAt: order.deliveredAt ?? null,
-            completedAt: order.completedAt ?? null,
-            closedAt: order.closedAt ?? null,
-            deliveredShipmentIds: order.shipments
-              .filter((shipment) => shipment.status === "DELIVERED")
-              .map((shipment) => shipment.shipmentId),
-            completionHeld: completionHold.isSuccess ? completionHold.data !== null : null,
-            settlementReadiness: order.settlementReadiness,
-            returnWindowDays: contractReturnWindowDays,
-          })}
-          {returnsSlot?.({
-            orderId: order.orderId,
-            orderNumber: order.orderNumber,
-            status: order.status,
-            deliveredAt: order.deliveredAt ?? null,
-            lines: order.lines.map((line) => ({
-              lineId: line.lineId,
-              sku: line.sku,
-              deliveredQuantity:
-                line.deliveredQuantity ?? line.quantity - (line.cancelledQuantity ?? 0),
-              customPrinted: line.isCustom,
-            })),
-            shipments: order.shipments
-              .filter((shipment) => shipment.status === "DELIVERED")
-              .map((shipment) => ({
-                shipmentId: shipment.shipmentId,
-                deliveredAt: shipment.outcomeAt ?? null,
-                lines: shipment.lines,
-              })),
-            returnWindowDays: contractReturnWindowDays,
-          })}
-          <OrderHistory orderId={order.orderId} />
-        </div>
-
-        <div className="space-y-5">
-          {/* BO-UX-22: trạng thái + việc tiếp theo, rồi khách và tiền, rồi kho / giao hàng / chứng từ. */}
-          <OrderActionCard order={order} can={can} estimateSlot={estimateSlot} />
-          <CancellationRequestCard order={order} can={can} />
-          <OrderInfoCard order={order} can={can} />
-          <OrderFinanceCard order={order} can={can} />
-          <OrderShippingWarehouseCard order={order} can={can} />
-          {fulfilmentStage && (
-            <>
-              <CompletionHoldCard order={order} can={can} />
-              <OrderEstimateCard order={order} estimateSlot={estimateSlot} />
-              <OrderPartialShipmentCard order={order} can={can} />
-              <OrderShipments order={order} />
-              <OrderDeliveryDocuments orderId={order.orderId} />
-            </>
-          )}
-        </div>
+        />
       </div>
-    </>
+      <OrderDetailTabs
+        order={order}
+        can={can}
+        estimateSlot={estimateSlot}
+        fulfilmentStage={fulfilmentStage}
+        settlement={settlementSlot?.({
+          orderId: order.orderId,
+          orderNumber: order.orderNumber,
+          status: order.status,
+          deliveredAt: order.deliveredAt ?? null,
+          completedAt: order.completedAt ?? null,
+          closedAt: order.closedAt ?? null,
+          deliveredShipmentIds: order.shipments
+            .filter((shipment) => shipment.status === "DELIVERED")
+            .map((shipment) => shipment.shipmentId),
+          completionHeld: completionHold.isSuccess ? completionHold.data !== null : null,
+          settlementReadiness: order.settlementReadiness,
+          returnWindowDays: contractReturnWindowDays,
+        })}
+        returns={returnsSlot?.({
+          orderId: order.orderId,
+          orderNumber: order.orderNumber,
+          status: order.status,
+          deliveredAt: order.deliveredAt ?? null,
+          lines: order.lines.map((line) => ({
+            lineId: line.lineId,
+            sku: line.sku,
+            deliveredQuantity:
+              line.deliveredQuantity ?? line.quantity - (line.cancelledQuantity ?? 0),
+            customPrinted: line.isCustom,
+          })),
+          shipments: order.shipments
+            .filter((shipment) => shipment.status === "DELIVERED")
+            .map((shipment) => ({
+              shipmentId: shipment.shipmentId,
+              deliveredAt: shipment.outcomeAt ?? null,
+              lines: shipment.lines,
+            })),
+          returnWindowDays: contractReturnWindowDays,
+        })}
+      />
+    </div>
   );
 }
