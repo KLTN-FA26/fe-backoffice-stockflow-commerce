@@ -445,7 +445,7 @@ export const RETURN_RECEIPT_LABELS = {
   source: {
     rmaShort: "RMA",
     rma: (rma: string) => `RMA ${rma}`,
-    shipment: (code: string) => `Lô hoàn về ${code}`,
+    shipment: (code: string) => `Lô giao hoàn về ${code}`,
   },
   createDialog: {
     title: "Lập phiếu nhập hàng hoàn",

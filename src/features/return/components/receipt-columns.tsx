@@ -11,7 +11,7 @@ import type { ReturnReceiptRow } from "../types";
 
 const C = RETURN_RECEIPT_LABELS.columns;
 
-/** Phiếu nhập hàng hoàn: số phiếu, nguồn (RMA / lô hoàn về), đơn, số thùng, mốc thời gian, trạng thái. */
+/** Phiếu nhập hàng hoàn: số phiếu, nguồn (RMA / lô giao hoàn về), đơn, số thùng, mốc thời gian, trạng thái. */
 export const RETURN_RECEIPT_COLUMNS: ColumnDef<ReturnReceiptRow>[] = [
   {
     key: "number",
