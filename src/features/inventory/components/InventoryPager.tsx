@@ -4,6 +4,13 @@ import { useId } from "react";
 
 import { INVENTORY_LABELS, INVENTORY_PAGE_SIZES } from "@/constants/inventory";
 
+import {
+  Select,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/shared/combobox-select";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 
@@ -42,19 +49,25 @@ export function InventoryPager({ data, id, pending, size, setSize, setPage }: In
     <footer className="border-border-default bg-bg-subtle flex items-center justify-between gap-[var(--el-gap)] border-t p-[var(--card-pad)]">
       <div className="flex items-center gap-[var(--el-gap)]">
         <Label htmlFor={selectId}>{INVENTORY_LABELS.perPage}</Label>
-        <select
-          id={selectId}
-          value={size}
-          onChange={(event) => setSize(Number(event.target.value))}
+        <Select
+          value={String(size)}
+          onValueChange={(next) => setSize(Number(next))}
           disabled={pending}
-          className="border-border-default bg-bg-surface focus-visible:ring-brand rounded-[var(--r-sm)] border p-[calc(var(--el-gap)/2)] focus-visible:ring-2"
         >
-          {INVENTORY_PAGE_SIZES.map((value) => (
-            <option key={value} value={value}>
-              {value}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger
+            id={selectId}
+            className="border-border-default bg-bg-surface focus-visible:ring-brand rounded-[var(--r-sm)] border p-[calc(var(--el-gap)/2)] focus-visible:ring-2"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <TitledSelectContent title={INVENTORY_LABELS.perPage}>
+            {INVENTORY_PAGE_SIZES.map((value) => (
+              <SelectItem key={value} value={String(value)}>
+                {value}
+              </SelectItem>
+            ))}
+          </TitledSelectContent>
+        </Select>
         <span className="text-ink-secondary tabular-nums">
           {INVENTORY_LABELS.showing} {range.first}–{range.last} / {range.total}
         </span>

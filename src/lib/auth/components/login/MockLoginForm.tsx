@@ -4,10 +4,15 @@ import { LoaderCircle } from "lucide-react";
 
 import { LOGIN_UI } from "@/constants/labels-login";
 
+import {
+  Select,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/shared/combobox-select";
 import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import type { MockLoginUser } from "../../auth-api";
 

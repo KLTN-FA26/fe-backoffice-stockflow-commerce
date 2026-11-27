@@ -4,7 +4,15 @@ import { PAYMENT_LABELS } from "@/constants/labels-payment";
 import { PAYMENT_ROUTES } from "@/constants/payment";
 import { CustomerName } from "@/components/backoffice/CustomerName";
 
-import { CodeLink, DateCell, MoneyCell, ReceiptStatusDot } from "./primitives";
+import { isAutomaticReceipt } from "../selectors";
+
+import {
+  AutomaticReceiptBadge,
+  CodeLink,
+  DateCell,
+  MoneyCell,
+  ReceiptStatusDot,
+} from "./primitives";
 
 import type { ColumnDef } from "@/components/shared/DataTable";
 import type { PaymentReceipt } from "../types";
@@ -41,7 +49,10 @@ export const RECEIPT_COLUMNS: ColumnDef<PaymentReceipt>[] = [
     key: "reference",
     header: C.reference,
     cell: (row) => (
-      <CodeLink href={PAYMENT_ROUTES.receipts.detail(row.receiptId)}>{row.reference}</CodeLink>
+      <span className="inline-flex items-center gap-2">
+        <CodeLink href={PAYMENT_ROUTES.receipts.detail(row.receiptId)}>{row.reference}</CodeLink>
+        {isAutomaticReceipt(row) && <AutomaticReceiptBadge />}
+      </span>
     ),
   },
   {

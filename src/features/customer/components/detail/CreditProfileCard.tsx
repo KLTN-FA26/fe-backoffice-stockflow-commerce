@@ -5,6 +5,8 @@ import Link from "next/link";
 import { Wallet } from "lucide-react";
 import { parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
 
+import { CREDIT_REQUEST_PERMISSIONS, CREDIT_REQUEST_ROUTES } from "@/constants/credit-request";
+import { useCan } from "@/lib/auth/components/Can";
 import { formatMoney } from "@/lib/format/money";
 import { useCreditProfile } from "@/features/customer/queries";
 import { DETAIL_ACTION_CLASS, DetailSection, InfoRow } from "@/components/shared/DetailSection";
@@ -71,8 +73,16 @@ export function CreditProfileCard({
     if (window.location.hash === `#${CREDIT_PROFILE_ANCHOR}`) anchor.current?.scrollIntoView();
   }, []);
 
+  // A2 (BE PR #490): Sale không sửa hạn mức trực tiếp mà gửi đề nghị thay khách cho Kế toán duyệt. Form tạo nằm ở
+  // trang đề nghị (`?create=<customerId>`) — không import feature khác. UI-only, Backend re-check (CREATE).
+  const canRequest = useCan(CREDIT_REQUEST_PERMISSIONS.create);
   const data = profile.data;
-  const edit =
+  const request = canRequest ? (
+    <Button asChild variant="outline" size="sm" className={DETAIL_ACTION_CLASS.outline}>
+      <Link href={CREDIT_REQUEST_ROUTES.createFor(customerId)}>Đề nghị cấp hạn mức</Link>
+    </Button>
+  ) : null;
+  const editButton =
     canApprove && data ? (
       <Button
         type="button"
@@ -83,6 +93,13 @@ export function CreditProfileCard({
       >
         {data.configured ? "Sửa hạn mức" : "Cấp hạn mức công nợ"}
       </Button>
+    ) : null;
+  const edit =
+    request || editButton ? (
+      <>
+        {request}
+        {editButton}
+      </>
     ) : undefined;
 
   return (

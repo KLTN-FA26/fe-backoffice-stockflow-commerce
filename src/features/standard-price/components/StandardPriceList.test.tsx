@@ -46,14 +46,18 @@ describe("Giá chuẩn — action gating (3 vai trò, 13 BR-04)", () => {
     expect(within(table).getByText("Ly giấy 2 lớp in logo (demo)")).toBeInTheDocument();
     expect(within(table).getByText(/Từ 10 thùng: 1\.300/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Thêm giá chuẩn/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: `Sửa giá chuẩn ${CUP}` })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: `Xoá giá chuẩn ${CUP}` })).toBeInTheDocument();
+    // sửa / xoá nằm trong menu "⋯" của dòng
+    await userEvent.setup().click(screen.getByRole("button", { name: `Thao tác — ${CUP}` }));
+    const menu = await screen.findByRole("dialog");
+    expect(within(menu).getByRole("button", { name: "Sửa giá chuẩn" })).toBeEnabled();
+    expect(within(menu).getByRole("button", { name: "Xoá giá chuẩn" })).toBeEnabled();
   });
 
   it("Sales: chỉ xem — không có nút thêm / sửa / xoá", async () => {
     setup("SALES_STAFF");
     expect(await screen.findByRole("table")).toBeVisible();
     expect(screen.queryByRole("button", { name: /Thêm giá chuẩn/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: `Thao tác — ${CUP}` })).toBeNull();
     expect(screen.queryByRole("button", { name: `Sửa giá chuẩn ${CUP}` })).toBeNull();
     expect(screen.queryByRole("button", { name: `Xoá giá chuẩn ${CUP}` })).toBeNull();
   });
@@ -122,7 +126,8 @@ describe("Giá chuẩn — tạo / sửa / xoá", () => {
       put: { [`${LIST}/${CUP}`]: () => ({ ...CUP_PRICE, version: 3 }) },
     });
     const user = userEvent.setup();
-    await user.click(await screen.findByRole("button", { name: `Sửa giá chuẩn ${CUP}` }));
+    await user.click(await screen.findByRole("button", { name: `Thao tác — ${CUP}` }));
+    await user.click(await screen.findByRole("button", { name: "Sửa giá chuẩn" }));
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).queryByLabelText("SKU quy cách")).toBeNull();
     const price = within(dialog).getByLabelText("Bậc 1 — Đơn giá / cái (VND)");
@@ -145,7 +150,8 @@ describe("Giá chuẩn — tạo / sửa / xoá", () => {
     setup("SALES_MANAGER");
     const remove = vi.spyOn(api, "delete").mockResolvedValue({ data: null });
     const user = userEvent.setup();
-    await user.click(await screen.findByRole("button", { name: `Xoá giá chuẩn ${CUP}` }));
+    await user.click(await screen.findByRole("button", { name: `Thao tác — ${CUP}` }));
+    await user.click(await screen.findByRole("button", { name: "Xoá giá chuẩn" }));
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText(`Xoá giá chuẩn của ${CUP}?`)).toBeVisible();
     await user.click(within(dialog).getByRole("button", { name: "Xoá giá chuẩn" }));

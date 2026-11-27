@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { ShieldCheck } from "lucide-react";
 
 import { DESIGN_REVIEW_LABELS, PREFLIGHT_CODE_LABELS } from "@/constants";
 
@@ -9,15 +8,17 @@ import { designReviewErrorMessage } from "@/features/design-review/errors";
 import { useArtifactPreflight } from "@/features/design-review/queries";
 import { labelOf } from "@/features/design-review/selectors";
 
-import { DetailSection } from "@/components/shared/DetailSection";
+import { DetailPanel } from "@/components/shared/DetailPanel";
 import { Notice } from "@/components/shared/Notice";
 import { Button } from "@/components/ui/button";
+
+import { DESIGN_DETAIL_LABELS as L } from "../copy";
 
 import type { DesignArtifact } from "@/features/design-review/types";
 
 /**
  * Kiểm tra file in (`PRINT_READY`). BE kiểm lại từ đầu mỗi lần (chậm) → chỉ chạy khi người duyệt bấm. Không đạt chỉ cảnh
- * báo — BE không chặn duyệt theo kết quả này.
+ * báo — BE không chặn duyệt theo kết quả này. Nút chạy / thử lại nằm bên phải thanh tiêu đề panel (B13).
  */
 export function PreflightPanel({
   designId,
@@ -28,29 +29,24 @@ export function PreflightPanel({
 }) {
   const [requested, setRequested] = useState(false);
   const query = useArtifactPreflight(designId, printFile?.artifactId, requested);
+  const action = !printFile ? null : !requested ? (
+    <Button type="button" size="sm" variant="outline" onClick={() => setRequested(true)}>
+      {L.preflightRun}
+    </Button>
+  ) : query.isError ? (
+    <Button type="button" size="sm" variant="outline" onClick={() => void query.refetch()}>
+      {L.preflightRetry}
+    </Button>
+  ) : null;
 
   return (
-    <DetailSection title="Kiểm tra file in" icon={ShieldCheck}>
+    <DetailPanel title={L.preflight} description={L.preflightDescription} actions={action}>
       {!printFile ? (
         <p className="text-ink-tertiary text-[0.8125rem]">Chưa có file in để kiểm tra.</p>
       ) : !requested ? (
-        <div className="flex items-center gap-3">
-          <p className="text-ink-secondary flex-1 text-[0.8125rem]">
-            Kiểm tra font, độ phân giải, hệ màu và tràn lề của file in. Có thể mất vài giây.
-          </p>
-          <Button type="button" size="sm" variant="outline" onClick={() => setRequested(true)}>
-            Chạy kiểm tra
-          </Button>
-        </div>
+        <p className="text-ink-secondary text-[0.8125rem]">{L.preflightIdle}</p>
       ) : query.isError ? (
-        <div className="flex items-center gap-3">
-          <p className="text-danger flex-1 text-[0.8125rem]">
-            {designReviewErrorMessage(query.error)}
-          </p>
-          <Button type="button" size="sm" variant="outline" onClick={() => void query.refetch()}>
-            Thử lại
-          </Button>
-        </div>
+        <p className="text-danger text-[0.8125rem]">{designReviewErrorMessage(query.error)}</p>
       ) : !query.data ? (
         <p className="text-ink-tertiary text-[0.8125rem]">Đang kiểm tra file in…</p>
       ) : (
@@ -80,6 +76,6 @@ export function PreflightPanel({
           )}
         </div>
       )}
-    </DetailSection>
+    </DetailPanel>
   );
 }

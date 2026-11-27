@@ -12,6 +12,7 @@ import { inventoryItemCapabilities } from "../../lifecycle";
 import { useInventoryItem } from "../../queries";
 import { ItemDetailError } from "./ItemDetailError";
 import { ItemLogisticsCard } from "./ItemLogisticsCard";
+import { ItemObjectHeader } from "./ItemObjectHeader";
 import { ItemStockRulesCard } from "./ItemStockRulesCard";
 
 export type ItemEditing = "logistics" | null;
@@ -37,21 +38,19 @@ function InventoryItemDetailContent({ id }: { id: string }) {
   const done = () => setEditing(null);
 
   return (
-    // Giao diện kiểu Vercel như chi tiết sản phẩm (globals.css `.surface-soft`). Không hiện tiêu đề —
-    // breadcrumb topbar đã có SKU và link về danh sách; h1 giữ cho screen reader.
+    // Object page ERP như chi tiết sản phẩm (backoffice-erp-ui B9): header đối tượng → khung hồ sơ
+    // (logistics, sửa được) → chính sách tồn cố định (chỉ đọc). Hai nhóm đều ít dữ liệu và luôn cần
+    // xem nên hiện thẳng, không tách tab. Nền `.surface-soft` như trang danh sách.
     <div className="surface-soft surface-compact">
-      <h1 className="sr-only">{item.sku}</h1>
-      {/* Logistics (sửa được) cạnh chính sách tồn cố định (chỉ đọc) */}
-      <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <ItemLogisticsCard
-          item={item}
-          editing={editing}
-          canEdit={canEdit}
-          onEdit={() => setEditing("logistics")}
-          onDone={done}
-        />
-        <ItemStockRulesCard />
-      </div>
+      <ItemObjectHeader item={item} />
+      <ItemLogisticsCard
+        item={item}
+        editing={editing}
+        canEdit={canEdit}
+        onEdit={() => setEditing("logistics")}
+        onDone={done}
+      />
+      <ItemStockRulesCard />
     </div>
   );
 }

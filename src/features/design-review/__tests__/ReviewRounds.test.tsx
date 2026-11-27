@@ -66,6 +66,11 @@ function open(post: Record<string, () => unknown> = {}, data: unknown = round())
 }
 
 const approveAllButton = () => screen.findByRole("button", { name: /Duyệt tất cả/ });
+/** Bảng "Thiết kế trong vòng" (dữ liệu chính của trang, hiện thẳng). */
+const designsPanel = () => screen.findByRole("region", { name: "Thiết kế trong vòng" });
+/** Dòng của bảng `scope` chứa chữ `text`. */
+const rowWith = (scope: HTMLElement, text: string) =>
+  within(scope).getByText(text).closest("tr") as HTMLElement;
 
 async function runApproveAll(user: ReturnType<typeof userEvent.setup>) {
   await user.click(await approveAllButton());
@@ -164,7 +169,7 @@ describe("Chi tiết vòng duyệt", () => {
     );
     expect(api.get.mock.calls.filter((c) => c[0] === roundUrl)).toHaveLength(1);
     const result = screen.getByRole("region", { name: "Kết quả duyệt tất cả" });
-    expect(within(result).getByText("Đã duyệt — SKU riêng KH-LY-A")).toBeInTheDocument();
+    expect(rowWith(result, "Ly A")).toHaveTextContent("Đã duyệt — SKU riêng KH-LY-A");
   });
 
   it("một thiết kế NOT_APPROVED → dòng đó hiện message, thẻ vẫn 'Đang chờ', nút vẫn bật với 1 thiết kế", async () => {
@@ -198,9 +203,9 @@ describe("Chi tiết vòng duyệt", () => {
     expect(within(result).getByText("Không duyệt được")).toBeInTheDocument();
     expect(await approveAllButton()).toHaveTextContent("Duyệt tất cả (1)");
     expect(await approveAllButton()).toBeEnabled();
-    const cardB = within(screen.getByRole("list")).getByText("Ly B").closest("li");
-    expect(cardB).not.toBeNull();
-    expect(within(cardB as HTMLElement).getByText("Đang chờ")).toBeInTheDocument();
+    const rowB = rowWith(await designsPanel(), "Ly B");
+    expect(rowB).not.toBeNull();
+    expect(within(rowB).getByText("Đang chờ")).toBeInTheDocument();
     expect(api.post).toHaveBeenCalledTimes(1);
   });
 
@@ -275,26 +280,43 @@ describe("Chi tiết vòng duyệt", () => {
 
   it("vòng đã đóng → không có nút Duyệt tất cả", async () => {
     open({}, round({ closedAt: "2026-11-20T01:00:00Z" }));
-    expect(await screen.findByText(/Đã đóng lúc/)).toBeInTheDocument();
+    // Hồ sơ vòng: "Đóng lúc" có giờ đóng (vòng mở thì là "—")
+    const closedAt = await screen.findByText("Đóng lúc");
+    expect(closedAt.nextElementSibling).toHaveTextContent(/\d/);
     expect(screen.queryByRole("button", { name: /Duyệt tất cả/ })).not.toBeInTheDocument();
   });
 
-  it("design bị trả lại (design vắng) → thẻ chỉ hiện 'Đã trả lại', không ảnh", async () => {
+  it("design bị trả lại (design vắng) → dòng chỉ hiện 'Đã trả lại', không ảnh, không thao tác", async () => {
     open();
-    const cards = await screen.findAllByRole("listitem");
-    const returned = cards.find((card) => within(card).queryByText("Đã trả lại"));
-    expect(returned).toBeDefined();
-    const card = returned as HTMLElement;
-    expect(within(card).queryByRole("img")).not.toBeInTheDocument();
-    expect(within(card).queryByRole("link")).not.toBeInTheDocument();
-    expect(card.textContent).toBe("Đã trả lại");
+    const panel = await designsPanel();
+    const returned = rowWith(panel, "Đã trả lại");
+    expect(within(returned).queryByRole("img")).not.toBeInTheDocument();
+    expect(within(returned).queryByRole("link")).not.toBeInTheDocument();
+    expect(within(returned).queryByRole("button")).not.toBeInTheDocument();
+    // Không có tên / sản phẩm / SKU của thiết kế: chỉ nhãn trung tính và "—"
+    expect(within(returned).getByText("Thiết kế chưa đặt tên")).toBeInTheDocument();
+    expect(returned.textContent?.replace(/—/g, "")).toBe("Thiết kế chưa đặt tênĐã trả lại");
   });
 
   it("thẻ còn chờ dẫn tới chi tiết thiết kế kèm ?round=", async () => {
     open();
-    const links = await screen.findAllByRole("link", { name: "Xem & quyết định" });
-    expect(links).toHaveLength(2);
-    expect(links[0]).toHaveAttribute("href", `/admin/designs/review-queue/${D1}?round=${ROUND_ID}`);
+    // Chỉ hai thiết kế còn chờ có menu "⋯" với "Xem & quyết định"
+    const menus = await within(await designsPanel()).findAllByRole("button", {
+      name: /^Thao tác — /,
+    });
+    expect(menus.map((menu) => menu.getAttribute("aria-label"))).toEqual([
+      "Thao tác — Ly A",
+      "Thao tác — Ly B",
+    ]);
+    const user = userEvent.setup();
+    for (const [index, id] of [D1, D2].entries()) {
+      await user.click(menus[index] as HTMLElement);
+      expect(await screen.findByRole("link", { name: "Xem & quyết định" })).toHaveAttribute(
+        "href",
+        `/admin/designs/review-queue/${id}?round=${ROUND_ID}`,
+      );
+      await user.keyboard("{Escape}");
+    }
   });
 
   it("hết giờ / mất kết nối: không gửi lại, tải lại vòng", async () => {

@@ -23,7 +23,8 @@ import { CUSTOMIZATION_TEMPLATE_PERMISSIONS as TEMPLATE } from "@/constants/perm
 import {
   allowNone,
   canWith,
-  DEFAULTS_TOGGLE,
+  DEFAULTS_SECTION,
+  RULES_SECTION,
   EDIT_BUTTON,
   editStored,
   EMPTY_VARIANT,
@@ -41,7 +42,6 @@ vi.setConfig({ testTimeout: 60_000 });
 configure({ asyncUtilTimeout: 45_000 });
 
 const SAVE = { name: "Lưu cấu hình in" };
-const FILE_RULES_TOGGLE = { name: "Ràng buộc file" };
 
 beforeAll(() => {
   activateMockAdapter();
@@ -64,7 +64,7 @@ afterEach(() => vi.restoreAllMocks());
 
 async function openAdvancedAndSetSeam(user: ReturnType<typeof userEvent.setup>, seam: string) {
   await editStored(user);
-  await user.click(await screen.findByRole("button", DEFAULTS_TOGGLE));
+  await screen.findByRole("region", DEFAULTS_SECTION);
   const field = screen.getByLabelText("Mép dán (mm)");
   await user.clear(field);
   await user.type(field, seam);
@@ -311,7 +311,7 @@ describe("PrintConfigSection: a save that changes only a default", () => {
     const user = userEvent.setup();
     renderSection();
     await editStored(user);
-    await user.click(await screen.findByRole("button", FILE_RULES_TOGGLE));
+    await screen.findByRole("region", RULES_SECTION);
     const only = screen.getByRole("radio", { name: "Chỉ các font được chọn" });
     await waitFor(() => expect(only).toBeEnabled());
     await user.click(only);
@@ -326,7 +326,7 @@ describe("PrintConfigSection: a save that changes only a default", () => {
     const user = userEvent.setup();
     renderSection();
     await editStored(user);
-    await user.click(await screen.findByRole("button", FILE_RULES_TOGGLE));
+    await screen.findByRole("region", RULES_SECTION);
     const only = screen.getByRole("radio", { name: "Chỉ các font được chọn" });
     // Unavailable until GET /design-fonts answers: it starts with the list's first font.
     await waitFor(() => expect(only).toBeEnabled());
@@ -347,7 +347,7 @@ describe("PrintConfigSection: a save that changes only a default", () => {
     const user = userEvent.setup();
     renderSection();
     await editStored(user);
-    await user.click(await screen.findByRole("button", FILE_RULES_TOGGLE));
+    await screen.findByRole("region", RULES_SECTION);
     const dpi = screen.getByLabelText("Độ phân giải tối thiểu (dpi)");
     await user.clear(dpi);
     await user.type(dpi, "450");
@@ -379,7 +379,7 @@ describe("PrintConfigSection: a save that changes only a default", () => {
     const user = userEvent.setup();
     renderSection();
     await editStored(user);
-    await user.click(await screen.findByRole("button", FILE_RULES_TOGGLE));
+    await screen.findByRole("region", RULES_SECTION);
     const noLimit = await screen.findByRole("checkbox", { name: "Không giới hạn" });
     expect(noLimit).toBeChecked();
     await user.click(noLimit);
@@ -408,7 +408,7 @@ describe("PrintConfigSection: a save that changes only a default", () => {
     );
     // A stored save goes back to the view mode: edit again.
     await editStored(user);
-    await user.click(await screen.findByRole("button", DEFAULTS_TOGGLE));
+    await screen.findByRole("region", DEFAULTS_SECTION);
     const seam = screen.getByLabelText("Mép dán (mm)");
     await user.clear(seam);
     await user.type(seam, "7");
@@ -429,7 +429,7 @@ describe("PrintConfigSection: a save that changes only a default", () => {
     await screen.findByRole("button", EDIT_BUTTON); // the save went back to the view mode
     // A stored save goes back to the view mode: edit again.
     await editStored(user);
-    await user.click(await screen.findByRole("button", DEFAULTS_TOGGLE));
+    await screen.findByRole("region", DEFAULTS_SECTION);
     const seam = screen.getByLabelText("Mép dán (mm)");
     await user.clear(seam);
     await user.type(seam, "7");
@@ -500,7 +500,7 @@ describe("PrintConfigSection: a save that changes only a default", () => {
     const user = userEvent.setup();
     renderSection();
     await editStored(user);
-    await user.click(await screen.findByRole("button", DEFAULTS_TOGGLE));
+    await screen.findByRole("region", DEFAULTS_SECTION);
     const bleed = screen.getByLabelText("Tràn lề (mm)");
     await user.clear(bleed);
     await user.type(bleed, "25");

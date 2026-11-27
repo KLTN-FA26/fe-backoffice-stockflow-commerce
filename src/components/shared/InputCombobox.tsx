@@ -118,7 +118,7 @@ function ComboboxField({
         <div
           ref={anchorRef}
           className={cn(
-            "bg-bg-surface relative flex h-8 w-full items-center rounded-[var(--r-sm)] border transition-colors",
+            "bg-bg-surface relative flex h-8 w-full items-center rounded-(--field-radius) border transition-colors",
             "has-disabled:bg-bg-muted has-disabled:cursor-not-allowed",
             hasError
               ? "border-danger focus-within:ring-danger/20 focus-within:ring-3"

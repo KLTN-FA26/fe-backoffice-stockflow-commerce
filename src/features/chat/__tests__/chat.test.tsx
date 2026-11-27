@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { CHAT_PERMISSIONS } from "@/constants";
 import { formatMoney } from "@/lib/format/money";
 import { bePage, mockApi, renderScreen } from "@/test/api-screen";
+import { pickOption } from "@/test/ui-actions";
 
 import { ChatConversationScreen, ChatInbox } from "..";
 import {
@@ -132,7 +133,11 @@ describe("TC-F13 phía Sale — thẻ và ghi chú", () => {
       await screen.findByRole("button", { name: "Gửi thông tin chuyển khoản" }),
     );
     const dialog = await screen.findByRole("dialog");
-    await userEvent.selectOptions(within(dialog).getByLabelText(/Đợt thanh toán/), "i-1");
+    await pickOption(
+      userEvent.setup(),
+      within(dialog).getByLabelText(/Đợt thanh toán/),
+      /đợt 1 Đặt cọc khi ký/,
+    );
     await userEvent.click(within(dialog).getByLabelText(/Nhắc công nợ/));
     await userEvent.click(within(dialog).getByRole("button", { name: "Gửi thẻ cho khách" }));
     await waitFor(() =>
@@ -177,11 +182,12 @@ describe("hộp chuyển khoản — số còn phải thu (BE-6)", () => {
       await screen.findByRole("button", { name: "Gửi thông tin chuyển khoản" }),
     );
     const dialog = await screen.findByRole("dialog");
+    await userEvent.click(within(dialog).getByLabelText(/Đợt thanh toán/));
     expect(
-      within(dialog).getByRole("option", { name: new RegExp(formatMoney(8_000_000, "VND")) }),
+      await screen.findByRole("option", { name: new RegExp(formatMoney(8_000_000, "VND")) }),
     ).toBeInTheDocument();
     expect(
-      within(dialog).getByRole("option", { name: new RegExp(formatMoney(4_000_000, "VND")) }),
+      screen.getByRole("option", { name: new RegExp(formatMoney(4_000_000, "VND")) }),
     ).toBeInTheDocument();
   });
 });

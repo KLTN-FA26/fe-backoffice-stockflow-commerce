@@ -14,8 +14,7 @@ import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { useCan, usePermissionChecker } from "@/lib/auth/components/Can";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 import { ServerTableBody } from "@/components/backoffice/ServerTableBody";
-import { TOOLBAR_ACTION_CLASS } from "@/components/shared/ListToolbar";
-import { Button } from "@/components/ui/button";
+import { RowActionsMenu } from "@/components/shared/RowActionsMenu";
 
 import { allowedInstallmentActions } from "../lifecycle";
 import { installmentRef } from "../selectors";
@@ -48,21 +47,17 @@ function InstallmentListContent() {
   );
   const columns = buildInstallmentColumns((row) =>
     allowedInstallmentActions(row, can).includes("recordReceipt") ? (
-      <Button
-        type="button"
-        size="xs"
-        variant="outline"
-        className={TOOLBAR_ACTION_CLASS}
-        // Tên truy cập mang hợp đồng + đợt: mỗi dòng một nút "Lập phiếu thu" phân biệt được (BO-UX-11)
-        aria-label={`${PAYMENT_LABELS.receipts.createAction} — ${row.contractNumber} ${installmentRef(row)}`}
-        onClick={(event) => {
-          event.stopPropagation();
-          setRecording(row);
-        }}
-      >
-        <ReceiptText className="size-3.5" aria-hidden="true" />{" "}
-        {PAYMENT_LABELS.receipts.createAction}
-      </Button>
+      // Tên truy cập mang hợp đồng + đợt: mỗi dòng một menu phân biệt được (BO-UX-11)
+      <RowActionsMenu
+        label={`Thao tác — ${row.contractNumber} ${installmentRef(row)}`}
+        actions={[
+          {
+            label: PAYMENT_LABELS.receipts.createAction,
+            icon: ReceiptText,
+            onSelect: () => setRecording(row),
+          },
+        ]}
+      />
     ) : null,
   ).filter((column) => columnState.visible.some((key) => key === column.key));
 

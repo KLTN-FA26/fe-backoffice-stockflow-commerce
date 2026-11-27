@@ -55,6 +55,15 @@ function openDetail(role: TestRole, post: RouteTable = {}, design?: unknown, sea
 const detailGets = (api: ReturnType<typeof mockApi>) =>
   api.get.mock.calls.filter((call) => call[0] === detailUrl).length;
 
+/** Khối "File đã gửi" (bộ file đang chờ duyệt) — tên file in còn hiện ở khối kiểm tra file in. */
+const filesPanel = () => screen.findByRole("region", { name: "File đã gửi" });
+/** Danh sách bộ file đang chờ duyệt (bản mới nhất mỗi loại) — danh sách đầu của "File đã gửi". */
+const currentFiles = async () => {
+  const panel = await filesPanel();
+  await within(panel).findAllByRole("list");
+  return within(panel).getAllByRole("list")[0] as HTMLElement;
+};
+
 async function confirmApprove(user: ReturnType<typeof userEvent.setup>) {
   await user.click(await screen.findByRole("button", { name: "Duyệt" }));
   const dialog = await screen.findByRole("dialog");
@@ -216,7 +225,7 @@ describe("Màn quyết định", () => {
       },
     });
     const user = userEvent.setup();
-    expect(await screen.findByText("print_ready.pdf")).toBeInTheDocument();
+    expect(within(await currentFiles()).getByText("print_ready.pdf")).toBeInTheDocument();
     await confirmApprove(user);
     // Hộp thoại đóng, nhắc xem lại; tải lại MỌI dữ liệu của thiết kế (file, lịch sử), không chỉ chi tiết.
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
@@ -362,8 +371,9 @@ describe("Màn quyết định", () => {
     mockApi("PRODUCTION_COORDINATOR", { get: routes });
     renderScreen(<DesignReviewDetail id={DESIGN_ID} />, "PRODUCTION_COORDINATOR");
 
-    const history = (await screen.findByText("Lịch sử")).closest("section");
-    if (!history) throw new Error("history section not found");
+    // Lịch sử là một tab (bảng) dưới phần đang duyệt
+    await userEvent.setup().click(await screen.findByRole("tab", { name: /^Lịch sử/ }));
+    const history = await screen.findByRole("tabpanel");
     const panel = within(history);
     expect(await panel.findByText("In đúng màu Pantone")).toBeInTheDocument();
     expect(panel.getByText("Logo bị mờ")).toBeInTheDocument();
@@ -398,11 +408,14 @@ describe("Màn quyết định", () => {
     });
     renderScreen(<DesignReviewDetail id={DESIGN_ID} />, "PRODUCTION_COORDINATOR");
     const user = userEvent.setup();
-    expect(await screen.findByText("print_ready.pdf")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Các lần gửi trước (2)" })).toHaveAttribute(
-      "aria-expanded",
-      "false",
-    );
+    // Bản mới nhất mỗi loại: 3 file, mỗi loại một lần
+    const current = within(await currentFiles());
+    expect(current.getAllByRole("listitem")).toHaveLength(3);
+    expect(current.getByText("print_ready.pdf")).toBeInTheDocument();
+    // Lần gửi trước tách riêng ngay dưới (không thu gọn — B15), có số lượng
+    const previous = within(await filesPanel()).getByRole("heading", { name: /Các lần gửi trước/ });
+    expect(previous).toHaveTextContent("Các lần gửi trước 2");
+    expect(within(await filesPanel()).getAllByRole("list")[1]?.children).toHaveLength(2);
     const preflightCalls = () =>
       api.get.mock.calls.filter((c) => String(c[0]).endsWith("/preflight"));
     expect(preflightCalls()).toHaveLength(0);

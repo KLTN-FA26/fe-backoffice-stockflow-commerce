@@ -71,90 +71,110 @@ const rowLabel = (label: string, orderNumber: string | null, compact: boolean | 
  * Duyệt yêu cầu huỷ (`POST …/cancellation-requests/{id}/approval`, docs 17 §4.8 bước 28, 30): huỷ đơn ngay, kèm phí nếu
  * có. Hiện khi yêu cầu `PENDING` và người dùng có `sales-order-cancellations:UPDATE` (UI-only — Backend phải re-check:
  * @RequiresPermission + ORDER_NOT_CANCELLABLE sau thùng dán nhãn đầu tiên, BR-12). Dialog chỉ mount khi mở nên mỗi lần mở
- * là một lần thử mới (form và Idempotency-Key sạch).
+ * là một lần thử mới (form và Idempotency-Key sạch). Hook trả `show` + `dialog` để hàng đợi mở từ menu "⋯" của dòng.
  */
-export function CancellationApproveAction({
+export function useCancellationApproveDialog({
   orderId,
   orderNumber,
   requestId,
-  compact,
   facts,
-}: DecisionProps) {
+}: Omit<DecisionProps, "compact">) {
   const L = CANCELLATION_REQUEST_LABELS.approve;
   const dialog = useOrderActionDialog(APPROVE);
   const { mutate, isPending } = useApproveCancellationRequest(dialog.hookOptions);
   const fee = useCancellationFee();
+  return {
+    show: dialog.show,
+    isPending,
+    dialog: dialog.open ? (
+      <OrderReasonDialog
+        title={L.title}
+        description={L.description(orderLabel(orderNumber))}
+        submitLabel={L.submit}
+        noteLabel={L.noteLabel}
+        noteMax={ORDER_LIMITS.cancellationDecisionNoteMax}
+        schema={approveCancellationSchema}
+        extra={{
+          values: fee.values,
+          render: (errors) => <CancellationFeeFields fee={fee} errors={errors} facts={facts} />,
+        }}
+        isPending={isPending}
+        error={dialog.error}
+        onSubmit={(values) => dialog.submit(mutate, { orderId, requestId, ...values })}
+        onClose={dialog.close}
+      />
+    ) : null,
+  };
+}
+
+/** Nút "Duyệt huỷ" + dialog (thẻ yêu cầu huỷ trên chi tiết đơn). */
+export function CancellationApproveAction({ compact, ...props }: DecisionProps) {
+  const L = CANCELLATION_REQUEST_LABELS.approve;
+  const { show, dialog } = useCancellationApproveDialog(props);
   return (
     <>
       <Button
         type="button"
         variant="outline"
         size="sm"
-        onClick={dialog.show}
-        aria-label={rowLabel(L.button, orderNumber, compact)}
+        onClick={show}
+        aria-label={rowLabel(L.button, props.orderNumber, compact)}
         className={BUTTON(compact, true)}
       >
         <CircleCheck className="size-3.5" aria-hidden="true" /> {L.button}
       </Button>
-      {dialog.open && (
-        <OrderReasonDialog
-          title={L.title}
-          description={L.description(orderLabel(orderNumber))}
-          submitLabel={L.submit}
-          noteLabel={L.noteLabel}
-          noteMax={ORDER_LIMITS.cancellationDecisionNoteMax}
-          schema={approveCancellationSchema}
-          extra={{
-            values: fee.values,
-            render: (errors) => <CancellationFeeFields fee={fee} errors={errors} facts={facts} />,
-          }}
-          isPending={isPending}
-          error={dialog.error}
-          onSubmit={(values) => dialog.submit(mutate, { orderId, requestId, ...values })}
-          onClose={dialog.close}
-        />
-      )}
+      {dialog}
     </>
   );
 }
 
 /** Từ chối yêu cầu huỷ (`…/rejection`): lý do BẮT BUỘC — khách đọc được (docs 17 §4.8 bước 28). */
-export function CancellationRejectAction({
+export function useCancellationRejectDialog({
   orderId,
   orderNumber,
   requestId,
-  compact,
-}: DecisionProps) {
+}: Omit<DecisionProps, "compact" | "facts">) {
   const L = CANCELLATION_REQUEST_LABELS.reject;
   const dialog = useOrderActionDialog(REJECT);
   const { mutate, isPending } = useRejectCancellationRequest(dialog.hookOptions);
+  return {
+    show: dialog.show,
+    isPending,
+    dialog: dialog.open ? (
+      <OrderReasonDialog
+        title={L.title}
+        description={L.description(orderLabel(orderNumber))}
+        submitLabel={L.submit}
+        noteLabel={L.noteLabel}
+        noteMax={ORDER_LIMITS.cancellationDecisionNoteMax}
+        noteAlwaysRequired
+        schema={rejectCancellationSchema}
+        isPending={isPending}
+        error={dialog.error}
+        onSubmit={(values) => dialog.submit(mutate, { orderId, requestId, ...values })}
+        onClose={dialog.close}
+      />
+    ) : null,
+  };
+}
+
+/** Nút "Từ chối" + dialog (thẻ yêu cầu huỷ trên chi tiết đơn). */
+export function CancellationRejectAction({ compact, ...props }: DecisionProps) {
+  const L = CANCELLATION_REQUEST_LABELS.reject;
+  const { show, dialog } = useCancellationRejectDialog(props);
   return (
     <>
       <Button
         type="button"
         variant="outline"
         size="sm"
-        onClick={dialog.show}
-        aria-label={rowLabel(L.button, orderNumber, compact)}
+        onClick={show}
+        aria-label={rowLabel(L.button, props.orderNumber, compact)}
         className={BUTTON(compact)}
       >
         <CircleX className="size-3.5" aria-hidden="true" /> {L.button}
       </Button>
-      {dialog.open && (
-        <OrderReasonDialog
-          title={L.title}
-          description={L.description(orderLabel(orderNumber))}
-          submitLabel={L.submit}
-          noteLabel={L.noteLabel}
-          noteMax={ORDER_LIMITS.cancellationDecisionNoteMax}
-          noteAlwaysRequired
-          schema={rejectCancellationSchema}
-          isPending={isPending}
-          error={dialog.error}
-          onSubmit={(values) => dialog.submit(mutate, { orderId, requestId, ...values })}
-          onClose={dialog.close}
-        />
-      )}
+      {dialog}
     </>
   );
 }

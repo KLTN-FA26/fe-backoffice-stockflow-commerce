@@ -21,7 +21,17 @@ export interface QuoteRequestView {
   desiredDeliveryDate: string | null;
   quoteId: string | null;
   quoteNumber: string | null;
-  lines: { designName: string | null; cartons: number | null; designStatus: string | null }[];
+  lines: {
+    designName: string | null;
+    cartons: number | null;
+    designStatus: string | null;
+    returnReason: string | null;
+  }[];
+  /** Project request (BE #451): "Đã duyệt x/y"; `null` when the card does not say. */
+  approvedCount: number | null;
+  lineCount: number | null;
+  /** Why Sales closed it without a quote (BE #451), which the customer reads too. */
+  closeReason: string | null;
 }
 
 export function quoteRequestView(card: ChatCard): QuoteRequestView {
@@ -42,7 +52,11 @@ export function quoteRequestView(card: ChatCard): QuoteRequestView {
       designName: str(line.designName),
       cartons: num(line.cartons),
       designStatus: str(line.designStatus),
+      returnReason: str(line.returnReason),
     })),
+    approvedCount: project ? num(p.approvedCount) : null,
+    lineCount: project ? (num(p.lineCount) ?? lines.length) : null,
+    closeReason: str(p.closeReason),
   };
 }
 

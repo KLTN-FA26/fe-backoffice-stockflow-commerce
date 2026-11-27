@@ -4,9 +4,20 @@ import { WAREHOUSE_PERMISSIONS } from "@/constants";
 import { useCan } from "@/lib/auth/components/Can";
 import { useWarehouseAreas } from "@/lib/references/warehouse-layout";
 import { FORM_INPUT_CLASS, FormField, fieldA11y } from "@/components/shared/FormField";
+import { FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
+import {
+  Select,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/shared/combobox-select";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { Input } from "@/components/ui/input";
 
 import type { AreaType } from "@/lib/references/warehouse-layout";
+
+/** Giá trị đại diện cho "" (không chọn) — SelectItem không nhận value rỗng. */
+const EMPTY_LOCATION = "__none__";
 
 /**
  * Chọn vị trí trong kho của lệnh: có quyền xem sơ đồ → danh sách khu đúng loại; không có (QC,
@@ -51,29 +62,34 @@ export function LocationField({
   return (
     <FormField id={id} label={label} required={required} error={error} hint={hint}>
       {loading ? (
-        <select
-          {...fieldA11y(id, error, !!hint)}
-          disabled
-          aria-busy
-          className={`${FORM_INPUT_CLASS} border px-2`}
-        >
-          <option>Đang tải vị trí…</option>
-        </select>
+        <Select disabled>
+          <SelectTrigger {...fieldA11y(id, error, !!hint)} aria-busy className={FORM_SELECT_CLASS}>
+            <SelectValue placeholder="Đang tải vị trí…" />
+          </SelectTrigger>
+        </Select>
       ) : options.length ? (
-        <select
-          {...fieldA11y(id, error, !!hint)}
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          className={`${FORM_INPUT_CLASS} border px-2`}
-          autoFocus={autoFocus}
+        <Select
+          value={value === "" ? EMPTY_LOCATION : value}
+          onValueChange={(next) => onChange(next === EMPTY_LOCATION ? "" : next)}
         >
-          <option value="">{required ? "— Chọn vị trí —" : "— Để hệ thống chọn —"}</option>
-          {options.map((option) => (
-            <option key={option.locationCode} value={option.locationCode}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger
+            {...fieldA11y(id, error, !!hint)}
+            className={FORM_SELECT_CLASS}
+            autoFocus={autoFocus}
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <TitledSelectContent title={label}>
+            <SelectItem value={EMPTY_LOCATION}>
+              {required ? "— Chọn vị trí —" : "— Để hệ thống chọn —"}
+            </SelectItem>
+            {options.map((option) => (
+              <SelectItem key={option.locationCode} value={option.locationCode}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </TitledSelectContent>
+        </Select>
       ) : (
         <Input
           {...fieldA11y(id, error, !!hint)}

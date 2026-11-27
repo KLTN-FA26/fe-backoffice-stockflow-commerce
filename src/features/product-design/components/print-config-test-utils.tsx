@@ -26,8 +26,10 @@ export const CHANGE_FILE = "Đổi file .glb";
 /** The file input, whatever its look: present means the person may choose a file. */
 export const FILE_INPUT =
   /^(Chọn hoặc kéo thả file \.glb|Chọn file \.glb khác để thay|Đổi file \.glb)$/;
-/** The title button of the defaults card (closed until opened). */
-export const DEFAULTS_TOGGLE = { name: "Số không lấy từ file 3D (cần xác nhận với nhà in)" };
+/** The defaults card (a region named by its title, always open). */
+export const DEFAULTS_SECTION = { name: "Số không lấy từ file 3D (cần xác nhận với nhà in)" };
+/** The file rules card (a region named by its title, always open). */
+export const RULES_SECTION = { name: "Ràng buộc file" };
 /** The page band: who the page is about, the configuration's status, activate / stop and the save. */
 export const STATUS_CARD = { name: "Biến thể và trạng thái cấu hình in" };
 export const CHOSEN_FILE = { name: "File đã chọn" };

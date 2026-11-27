@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 
+import { BANK_TRANSACTION_LABELS } from "@/constants/bank-transaction";
 import { PAYMENT_LABELS, REFUND_STATUS_LABELS } from "@/constants/labels-payment";
 import {
   INSTALLMENT_DISPLAY_STATUS_BY_API,
@@ -28,6 +29,18 @@ import type {
 import type { Installment } from "../types";
 
 const EMPTY = PAYMENT_LABELS.empty;
+
+/** Nhãn "Tự động" cho phiếu thu hệ thống lập từ chuyển khoản SePay (`isAutomaticReceipt`). */
+export function AutomaticReceiptBadge() {
+  return (
+    <span
+      title={BANK_TRANSACTION_LABELS.automaticTitle}
+      className="border-border-default bg-bg-subtle text-ink-secondary inline-flex items-center rounded-(--r-sm) border px-1.5 py-px text-[0.6875rem] font-medium"
+    >
+      {BANK_TRANSACTION_LABELS.automatic}
+    </span>
+  );
+}
 
 export function MoneyCell({ amount, currency }: { amount: number; currency: string }) {
   return <span className={MONO}>{formatMoney(amount, currency)}</span>;

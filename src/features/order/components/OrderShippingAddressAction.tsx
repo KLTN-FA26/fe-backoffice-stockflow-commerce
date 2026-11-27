@@ -2,13 +2,21 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { MapPin } from "lucide-react";
-import { useForm, useWatch } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 
 import { CUSTOMER_ADDRESS_PERMISSIONS, ORDER_SHIPPING_ADDRESS_LABELS } from "@/constants";
 import { useCan } from "@/lib/auth/components/Can";
 import { formatAddress, useCustomerAddressOptions } from "@/lib/references/customer-lookup";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
-import { FORM_INPUT_CLASS, FormField } from "@/components/shared/FormField";
+import { FormField } from "@/components/shared/FormField";
+import { FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
+import {
+  Select,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/shared/combobox-select";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { Button } from "@/components/ui/button";
 
 import { shippingAddressChangeSchema } from "../input-schemas";
@@ -16,7 +24,7 @@ import { useChangeShippingAddress } from "../mutations";
 
 import { useOrderActionDialog } from "./useOrderActionDialog";
 
-import type { UseFormRegisterReturn } from "react-hook-form";
+import type { Control } from "react-hook-form";
 import type { ShippingAddressChangeValues } from "../input-schemas";
 import type { Order } from "../types";
 
@@ -28,11 +36,11 @@ type ActionOrder = Pick<Order, "orderId" | "orderNumber" | "customerId">;
 /** Ô chọn địa chỉ giao trong sổ địa chỉ của khách (docs 14 §4.2 bước 9) — chỉ địa chỉ loại SHIPPING. */
 function AddressChoice({
   customerId,
-  field,
+  control,
   error,
 }: {
   customerId: string;
-  field: UseFormRegisterReturn<"shippingAddressId">;
+  control: Control<ShippingAddressChangeValues>;
   error: string | undefined;
 }) {
   // UI-only — Backend phải re-check (@RequiresPermission customer-addresses:READ, CustomerAddressController)
@@ -48,14 +56,24 @@ function AddressChoice({
   }
   return (
     <FormField id={FIELD_ID} label={L.addressLabel} error={error}>
-      <select id={FIELD_ID} {...field} className={`${FORM_INPUT_CLASS} border px-2`}>
-        <option value="">{L.addressPlaceholder}</option>
-        {shipping.map((address) => (
-          <option key={address.addressId} value={address.addressId}>
-            {`${formatAddress(address)} · ${address.phone}${address.defaultAddress ? ` (${L.defaultMark})` : ""}`}
-          </option>
-        ))}
-      </select>
+      <Controller
+        control={control}
+        name="shippingAddressId"
+        render={({ field }) => (
+          <Select name={field.name} value={field.value} onValueChange={field.onChange}>
+            <SelectTrigger id={FIELD_ID} onBlur={field.onBlur} className={FORM_SELECT_CLASS}>
+              <SelectValue placeholder={L.addressPlaceholder} />
+            </SelectTrigger>
+            <TitledSelectContent title={L.addressLabel}>
+              {shipping.map((address) => (
+                <SelectItem key={address.addressId} value={address.addressId}>
+                  {`${formatAddress(address)} · ${address.phone}${address.defaultAddress ? ` (${L.defaultMark})` : ""}`}
+                </SelectItem>
+              ))}
+            </TitledSelectContent>
+          </Select>
+        )}
+      />
     </FormField>
   );
 }
@@ -105,7 +123,7 @@ export function OrderShippingAddressAction({ order }: { order: ActionOrder }) {
         >
           <AddressChoice
             customerId={customerId}
-            field={form.register("shippingAddressId")}
+            control={form.control}
             error={form.formState.errors.shippingAddressId?.message}
           />
         </FormDialogBody>

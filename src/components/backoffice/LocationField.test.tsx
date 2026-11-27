@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { apiError, mockApi, renderScreen } from "@/test/api-screen";
+import { pickOption } from "@/test/ui-actions";
 
 import { LocationField } from "./LocationField";
 
@@ -49,24 +50,31 @@ describe("LocationField — chọn khu trong kho của lệnh", () => {
     render("WAREHOUSE_STAFF");
     const busy = await screen.findByRole("combobox", { name: /Khu sản xuất nhận phôi/ });
     expect(busy).toBeDisabled();
-    expect(screen.getByRole("option", { name: "Đang tải vị trí…" })).toBeInTheDocument();
+    expect(busy).toHaveTextContent("Đang tải vị trí…");
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
 
     release();
+    await waitFor(() =>
+      expect(screen.getByRole("combobox", { name: /Khu sản xuất nhận phôi/ })).toBeEnabled(),
+    );
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("combobox", { name: /Khu sản xuất nhận phôi/ }));
     expect(await screen.findByRole("option", { name: "HCM-PRD01 — Xưởng in" })).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: /Khu sản xuất nhận phôi/ })).toBeEnabled();
   });
 
   it("có sơ đồ → chỉ liệt kê khu đúng loại, chọn được", async () => {
     const onPick = vi.fn();
     mockApi("WAREHOUSE_MANAGER", { get: { [LAYOUT]: () => AREAS } });
     render("WAREHOUSE_MANAGER", onPick);
+    const user = userEvent.setup();
+    const combobox = () => screen.getByRole("combobox", { name: /Khu sản xuất nhận phôi/ });
+    await waitFor(() => expect(combobox()).toBeEnabled());
+    const field = combobox();
+    await user.click(field);
     await screen.findByRole("option", { name: "HCM-PRD01 — Xưởng in" });
     expect(screen.queryByRole("option", { name: /HCM-PACK01/ })).not.toBeInTheDocument();
-    await userEvent.selectOptions(
-      screen.getByRole("combobox", { name: /Khu sản xuất nhận phôi/ }),
-      "HCM-PRD01",
-    );
+    await user.keyboard("{Escape}");
+    await pickOption(user, field, "HCM-PRD01 — Xưởng in");
     expect(onPick).toHaveBeenLastCalledWith("HCM-PRD01");
   });
 

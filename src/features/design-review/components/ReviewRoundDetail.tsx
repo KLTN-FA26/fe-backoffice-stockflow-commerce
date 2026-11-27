@@ -12,18 +12,28 @@ import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
 import { designReviewErrorMessage, isUncertainOutcome } from "@/features/design-review/errors";
 import { useApproveRound } from "@/features/design-review/mutations";
 import { useReviewRound } from "@/features/design-review/queries";
-import { pendingInRound, ROUND_APPROVE_BATCH_MAX } from "@/features/design-review/selectors";
+import {
+  pendingInRound,
+  ROUND_APPROVE_BATCH_MAX,
+  roundProgress,
+  waitingSince,
+} from "@/features/design-review/selectors";
 
 import { CustomerName } from "@/components/backoffice/CustomerName";
 import { LoadErrorState } from "@/components/backoffice/LoadErrorState";
-import { BackLink } from "@/components/shared/BackLink";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Button } from "@/components/ui/button";
 
-import { REVIEW_ROUNDS_COPY } from "./copy";
+import { REVIEW_ROUNDS_COPY, ROUND_DETAIL_LABELS as L } from "./copy";
+import {
+  LifecycleSteps,
+  ObjectHeader,
+  ProfileFact,
+  ProfileFrame,
+} from "@/components/shared/ObjectPage";
 import { RoundApprovalResult } from "./RoundApprovalResult";
-import { RoundDesignCard } from "./RoundDesignCard";
+import { RoundDesignsPanel } from "./RoundDesignsPanel";
 
 import type { RoundApprovalOutcome } from "@/features/design-review/types";
 
@@ -34,6 +44,7 @@ function ReviewRoundDetailContent({ roundId }: { roundId: string }) {
   const [confirming, setConfirming] = useState(false);
   const [outcomes, setOutcomes] = useState<RoundApprovalOutcome[] | null>(null);
   const [dialogError, setDialogError] = useState<string | null>(null);
+  const [now] = useState(() => new Date());
   useBreadcrumbLabel(roundId, query.data?.projectName);
   const back = { href: ADMIN_ROUTES.designReviewRounds.list, label: "Về danh sách vòng duyệt" };
 
@@ -54,6 +65,8 @@ function ReviewRoundDetailContent({ roundId }: { roundId: string }) {
   const rest = pending.length - batch.length;
   const open = round.closedAt == null;
   const running = approve.isPending;
+  const progress = roundProgress(round);
+  const tabular = (text: string) => <span className="tabular-nums">{text}</span>;
 
   const submit = () => {
     setDialogError(null);
@@ -77,38 +90,61 @@ function ReviewRoundDetailContent({ roundId }: { roundId: string }) {
   };
 
   return (
-    <div className="surface-soft surface-compact space-y-5">
+    <div className="surface-soft surface-compact">
       {/* Đang duyệt: khoá cả trang (hộp xác nhận nằm ngoài vùng này). */}
-      <div inert={running} className="space-y-5">
-        <header className="flex flex-wrap items-start justify-between gap-3">
-          <div className="space-y-1">
-            <BackLink href={back.href} label={back.label} />
-            <h1 className="text-ink-primary text-lg font-semibold">{round.projectName}</h1>
-            <p className="text-ink-secondary text-[0.8125rem]">
-              <CustomerName id={round.customerId} name={round.customerName} /> · Gửi lúc{" "}
-              <span className="tabular-nums">{formatDateTime(round.submittedAt)}</span> ·{" "}
-              {open
-                ? DESIGN_ROUND_LABELS.statusOpen
-                : `${DESIGN_ROUND_LABELS.statusClosed} lúc ${formatDateTime(round.closedAt ?? "")}`}
-            </p>
-          </div>
-          {open && canApprove && (
-            <Button disabled={pending.length === 0} onClick={() => setConfirming(true)}>
-              {DESIGN_ROUND_LABELS.approveAll} ({pending.length})
-            </Button>
-          )}
-        </header>
-        {outcomes && <RoundApprovalResult result={outcomes} round={round} />}
-        <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {round.designs.map((entry) => (
-            <RoundDesignCard
-              key={entry.designId}
-              entry={entry}
-              roundId={roundId}
-              onRefreshPreview={() => void query.refetch()}
+      <div inert={running}>
+        {/* Object page ERP (backoffice-erp-ui B10): header đối tượng → khung hồ sơ → bảng thiết kế hiện thẳng. */}
+        <ObjectHeader
+          name={round.projectName}
+          code={round.id}
+          codeLabel={L.code}
+          status={
+            open
+              ? { tone: "PENDING_APPROVAL", label: DESIGN_ROUND_LABELS.statusOpen }
+              : { tone: "CLOSED", label: DESIGN_ROUND_LABELS.statusClosed }
+          }
+          actions={
+            open && canApprove ? (
+              <Button size="sm" disabled={pending.length === 0} onClick={() => setConfirming(true)}>
+                {DESIGN_ROUND_LABELS.approveAll} ({pending.length})
+              </Button>
+            ) : undefined
+          }
+        />
+        <ProfileFrame
+          label={L.profile}
+          head={
+            <LifecycleSteps
+              label={L.lifecycle}
+              steps={[DESIGN_ROUND_LABELS.statusOpen, DESIGN_ROUND_LABELS.statusClosed]}
+              current={open ? 0 : 1}
             />
-          ))}
-        </ul>
+          }
+        >
+          <ProfileFact label={L.customer}>
+            <CustomerName id={round.customerId} name={round.customerName} />
+          </ProfileFact>
+          <ProfileFact label={L.submittedAt}>
+            {tabular(formatDateTime(round.submittedAt))}
+          </ProfileFact>
+          <ProfileFact label={L.waiting}>
+            {open ? (waitingSince({ reviewRequestedAt: round.submittedAt }, now) ?? "—") : "—"}
+          </ProfileFact>
+          <ProfileFact label={L.closedAt}>
+            {round.closedAt ? tabular(formatDateTime(round.closedAt)) : "—"}
+          </ProfileFact>
+          <ProfileFact label={L.designCount}>{tabular(String(round.designs.length))}</ProfileFact>
+          <ProfileFact label={L.approved}>{tabular(String(progress.approved))}</ProfileFact>
+          <ProfileFact label={L.returned}>{tabular(String(progress.returned))}</ProfileFact>
+          <ProfileFact label={L.waitingCount}>{tabular(String(progress.waiting))}</ProfileFact>
+        </ProfileFrame>
+        {outcomes && <RoundApprovalResult result={outcomes} round={round} />}
+        <RoundDesignsPanel
+          roundId={roundId}
+          designs={round.designs}
+          canApprove={canApprove}
+          onRefreshPreview={() => void query.refetch()}
+        />
       </div>
       <ConfirmDialog
         open={confirming}

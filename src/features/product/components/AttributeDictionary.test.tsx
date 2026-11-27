@@ -5,6 +5,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ATTRIBUTE_PERMISSIONS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 
+import { clickRowAction } from "@/test/ui-actions";
+
 import { installApi, pickOption, pickTreeOption, renderApp } from "../product-test-utils";
 import { AttributeDictionary } from "./AttributeDictionary";
 
@@ -58,11 +60,33 @@ const page = (items: unknown[]) => ({
   hasPrevious: false,
 });
 
+/** Một dòng BE `CategoryAttributeResponse` của bộ đã lưu. */
+const savedRow = (
+  attribute: { attributeId: string; code: string; name: string; dataType: string },
+  defaultRole: string,
+  sortOrder = 0,
+) => ({
+  attributeId: attribute.attributeId,
+  attributeCode: attribute.code,
+  attributeName: attribute.name,
+  dataType: attribute.dataType,
+  attributeActive: true,
+  defaultRole,
+  required: false,
+  sortOrder,
+});
+
 afterEach(() => vi.restoreAllMocks());
 
 function setup(
   permissions: readonly string[],
-  over: { post?: (u: string, b: unknown) => unknown; del?: (u: string) => unknown } = {},
+  over: {
+    post?: (u: string, b: unknown) => unknown;
+    put?: (u: string, b: unknown) => unknown;
+    del?: (u: string) => unknown;
+    /** Bộ thuộc tính đã lưu của danh mục cat-1 (BE `CategoryAttributeResponse[]`). */
+    categorySet?: unknown[];
+  } = {},
 ) {
   return installApi({
     permissions,
@@ -87,10 +111,11 @@ function setup(
           },
         ]);
       }
-      if (url === "/categories/cat-1/attributes") return [];
+      if (url === "/categories/cat-1/attributes") return over.categorySet ?? [];
       return undefined;
     },
     post: (url, body) => over.post?.(url, body),
+    put: (url, body) => over.put?.(url, body),
     delete: (url) => over.del?.(url),
   });
 }
@@ -105,7 +130,7 @@ describe("AttributeDictionary — danh sách + lọc", () => {
     expect(row).toHaveTextContent("Đang dùng");
     expect(within(row).getByText("2")).toBeInTheDocument();
     expect(screen.getByText("Khối lượng").closest("tr")).toHaveTextContent("Số");
-    expect(screen.queryByRole("button", { name: /Thêm thuộc tính/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Tạo mới thuộc tính" })).not.toBeInTheDocument();
   });
 
   it("lọc theo loại gửi dataType lên BE (lọc phía server), kèm size tối đa", async () => {
@@ -113,8 +138,9 @@ describe("AttributeDictionary — danh sách + lọc", () => {
     const user = userEvent.setup();
     renderApp(<AttributeDictionary />);
     await screen.findByText("COLOR");
-    await user.click(screen.getByRole("button", { name: "Lọc thuộc tính" }));
-    await user.click(await screen.findByRole("option", { name: "Màu sắc" }));
+    await user.click(screen.getByRole("button", { name: "Bộ lọc" }));
+    const typeColumn = await screen.findByRole("region", { name: "Loại" });
+    await user.click(within(typeColumn).getByRole("option", { name: "Màu sắc" }));
     await waitFor(() => expect(screen.queryByText("WEIGHT")).not.toBeInTheDocument());
     const lastParams = get.mock.calls.filter((c) => c[0] === "/attributes").at(-1)?.[1] as {
       params: URLSearchParams;
@@ -153,7 +179,7 @@ describe("AttributeDictionary — tạo, sửa, giá trị, xoá", () => {
     });
     const user = userEvent.setup();
     renderApp(<AttributeDictionary />);
-    await user.click(await screen.findByRole("button", { name: /Thêm thuộc tính/ }));
+    await user.click(await screen.findByRole("button", { name: "Tạo mới thuộc tính" }));
     const dialog = await screen.findByRole("dialog", { name: "Thêm thuộc tính" });
     expect(within(dialog).getByRole("button", { name: "Thêm thuộc tính" })).toBeDisabled();
     await user.type(within(dialog).getByLabelText(/^Mã/), "new_attr");
@@ -177,7 +203,7 @@ describe("AttributeDictionary — tạo, sửa, giá trị, xoá", () => {
     setup(ALL);
     const user = userEvent.setup();
     renderApp(<AttributeDictionary />);
-    await user.click(await screen.findByRole("button", { name: /Thêm thuộc tính/ }));
+    await user.click(await screen.findByRole("button", { name: "Tạo mới thuộc tính" }));
     const dialog = await screen.findByRole("dialog", { name: "Thêm thuộc tính" });
     await user.type(within(dialog).getByLabelText(/^Mã/), "bad-code");
     expect(within(dialog).getByText(/Mã chỉ gồm chữ, số và '_'/)).toBeInTheDocument();
@@ -190,8 +216,10 @@ describe("AttributeDictionary — tạo, sửa, giá trị, xoá", () => {
     renderApp(<AttributeDictionary />);
     await user.click(await screen.findByText("COLOR"));
     const panel = await screen.findByRole("dialog");
-    expect(within(panel).getByText("Giá trị (2)")).toBeInTheDocument();
-    expect(within(panel).getByText("Ngừng dùng", { selector: "span.text-xs" })).toBeInTheDocument();
+    const values = within(panel).getByRole("region", { name: "Giá trị" });
+    expect(within(values).getByRole("heading", { name: /^Giá trị\s*2$/ })).toBeInTheDocument();
+    const oldRow = within(values).getByText("OLD").closest("tr") as HTMLElement;
+    expect(oldRow).toHaveTextContent("Ngừng dùng");
 
     await user.click(within(panel).getByRole("button", { name: /Thêm giá trị/ }));
     const form = await screen.findByRole("dialog", { name: "Thêm giá trị cho Màu sắc" });
@@ -218,7 +246,7 @@ describe("AttributeDictionary — tạo, sửa, giá trị, xoá", () => {
     renderApp(<AttributeDictionary />);
     await user.click(await screen.findByText("WEIGHT"));
     const panel = await screen.findByRole("dialog");
-    expect(within(panel).queryByText(/Giá trị \(/)).not.toBeInTheDocument();
+    expect(within(panel).queryByRole("region", { name: "Giá trị" })).not.toBeInTheDocument();
     expect(within(panel).getByText(/nhập giá trị trực tiếp trên sản phẩm/)).toBeInTheDocument();
   });
 
@@ -249,7 +277,11 @@ describe("AttributeDictionary — tạo, sửa, giá trị, xoá", () => {
     renderApp(<AttributeDictionary />);
     await user.click(await screen.findByText("COLOR"));
     const panel = await screen.findByRole("dialog");
-    await user.click(within(panel).getByRole("button", { name: "Xoá giá trị WHT" }));
+    await clickRowAction(
+      user,
+      "Xoá giá trị",
+      within(panel).getByText("WHT").closest("tr") as HTMLElement,
+    );
     const confirm = await screen.findByRole("dialog", { name: "Xoá giá trị?" });
     await user.click(within(confirm).getByRole("button", { name: "Xoá" }));
     await waitFor(() =>
@@ -273,18 +305,17 @@ describe("AttributeDictionary — tạo, sửa, giá trị, xoá", () => {
 
 describe("AttributeDictionary — bộ thuộc tính theo danh mục", () => {
   it("tab Theo danh mục: chọn danh mục, thêm thuộc tính (SELECT / COLOR mặc định là trục) và lưu cả bộ", async () => {
-    const put = vi.fn(() => []);
-    const base = setup(ALL);
-    const { api } = await import("@/lib/api/client");
-    vi.spyOn(api, "put").mockImplementation(async (url: string, body?: unknown) => ({
-      data: (put as (u: string, b: unknown) => unknown)(url, body),
-    }));
+    const put = vi.fn((_url: string, _body: unknown) => []);
+    const base = setup(ALL, { put });
     const user = userEvent.setup();
     renderApp(<AttributeDictionary />, { searchParams: "?tab=categories" });
     await pickTreeOption(user, "Danh mục", "Ly giấy");
     expect(await screen.findByText("Danh mục này chưa có thuộc tính gợi ý.")).toBeInTheDocument();
-    await pickOption(user, "Thêm thuộc tính cho danh mục", /COLOR\)/);
-    await user.click(screen.getByRole("button", { name: "Lưu bộ thuộc tính" }));
+    // Nút "Tạo mới" trên topbar mở popup chọn thuộc tính; "Lưu" ghi cả bộ kèm thuộc tính mới.
+    await user.click(screen.getByRole("button", { name: "Tạo mới thuộc tính cho danh mục" }));
+    const dialog = await screen.findByRole("dialog", { name: "Thêm thuộc tính cho danh mục" });
+    await pickOption(user, "Thuộc tính cần thêm", /COLOR\)/);
+    await user.click(within(dialog).getByRole("button", { name: "Lưu" }));
     await waitFor(() =>
       expect(put).toHaveBeenCalledWith("/categories/cat-1/attributes", {
         attributes: [
@@ -296,17 +327,37 @@ describe("AttributeDictionary — bộ thuộc tính theo danh mục", () => {
   });
 
   it("thuộc tính loại số chỉ được đặt vai trò Mô tả (không chọn được Trục biến thể)", async () => {
-    setup(ALL);
+    setup(ALL, { categorySet: [savedRow(weight, "DESCRIPTIVE")] });
     const user = userEvent.setup();
     renderApp(<AttributeDictionary />, { searchParams: "?tab=categories" });
     await pickTreeOption(user, "Danh mục", "Ly giấy");
-    await pickOption(user, "Thêm thuộc tính cho danh mục", /WEIGHT\)/);
     const role = await screen.findByRole("combobox", { name: /Vai trò của Khối lượng/ });
     expect(role).toHaveTextContent("Mô tả");
     await user.click(role);
     expect(await screen.findByRole("option", { name: "Trục biến thể" })).toHaveAttribute(
       "aria-disabled",
       "true",
+    );
+  });
+
+  it("sửa bộ đã lưu (bắt buộc / gỡ) rồi Lưu bộ thuộc tính gửi cả bộ đang hiển thị", async () => {
+    const put = vi.fn((_url: string, _body: unknown) => []);
+    setup(ALL, {
+      put,
+      categorySet: [savedRow(color, "VARIANT_AXIS", 0), savedRow(weight, "DESCRIPTIVE", 1)],
+    });
+    const user = userEvent.setup();
+    renderApp(<AttributeDictionary />, { searchParams: "?tab=categories" });
+    await pickTreeOption(user, "Danh mục", "Ly giấy");
+    await user.click(await screen.findByRole("button", { name: "Gỡ Khối lượng" }));
+    await user.click(screen.getByRole("checkbox", { name: "Bắt buộc" }));
+    await user.click(screen.getByRole("button", { name: "Lưu bộ thuộc tính" }));
+    await waitFor(() =>
+      expect(put).toHaveBeenCalledWith("/categories/cat-1/attributes", {
+        attributes: [
+          { attributeId: "a-color", defaultRole: "VARIANT_AXIS", required: true, sortOrder: 0 },
+        ],
+      }),
     );
   });
 });

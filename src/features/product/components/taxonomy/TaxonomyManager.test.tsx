@@ -87,7 +87,7 @@ describe("TaxonomyManager — tab Thương hiệu (gate product-products, Produc
     const { post } = setup(PRODUCT_ROLES.ecommerceAdmin, "", {
       post: { "/brands": () => ({ ...gildan, brandId: "b-new", code: "HANES", name: "Hanes" }) },
     });
-    await user.click(await screen.findByRole("button", { name: /Tạo thương hiệu/ }));
+    await user.click(await screen.findByRole("button", { name: "Tạo mới thương hiệu" }));
     const dialog = await screen.findByRole("dialog");
     await user.type(within(dialog).getByLabelText(/Mã/), " hanes ");
     await user.type(within(dialog).getByLabelText(/Tên/), "Hanes");
@@ -110,7 +110,7 @@ describe("TaxonomyManager — tab Thương hiệu (gate product-products, Produc
         },
       },
     });
-    await user.click(await screen.findByRole("button", { name: /Tạo thương hiệu/ }));
+    await user.click(await screen.findByRole("button", { name: "Tạo mới thương hiệu" }));
     const dialog = await screen.findByRole("dialog");
     await user.type(within(dialog).getByLabelText(/Mã/), "gildan");
     await user.type(within(dialog).getByLabelText(/Tên/), "Gildan 2");
@@ -166,7 +166,7 @@ describe("TaxonomyManager — tab Thương hiệu (gate product-products, Produc
     setup(PRODUCT_ROLES.readOnly);
     await user.click(await screen.findByText("GILDAN"));
     const dialog = await screen.findByRole("dialog", { name: /Thương hiệu GILDAN/ });
-    expect(screen.queryByRole("button", { name: /Tạo thương hiệu/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Tạo mới thương hiệu" })).not.toBeInTheDocument();
     expect(within(dialog).getByLabelText(/Tên/)).toBeDisabled();
     expect(within(dialog).queryByRole("button", { name: "Lưu" })).not.toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "Đóng" })).toBeInTheDocument();
@@ -225,7 +225,7 @@ describe("TaxonomyManager — tab Danh mục", () => {
     const { post } = setup(PRODUCT_ROLES.ecommerceAdmin, "?tab=categories", {
       post: { "/categories": () => ({ ...tshirt, categoryId: "c-polo", code: "POLO" }) },
     });
-    await user.click(await screen.findByRole("button", { name: /Tạo danh mục/ }));
+    await user.click(await screen.findByRole("button", { name: "Tạo mới danh mục" }));
     const dialog = await screen.findByRole("dialog");
     await user.type(within(dialog).getByLabelText(/Mã/), "polo");
     await user.type(within(dialog).getByLabelText(/^Tên/), "Áo polo");
@@ -244,7 +244,7 @@ describe("TaxonomyManager — tab Danh mục", () => {
     const { get } = setup(PRODUCT_ROLES.ecommerceAdmin, "?tab=categories");
     await screen.findByText("APPAREL");
     const before = get.mock.calls.filter(([url]) => url === "/categories").length;
-    await user.click(screen.getByRole("button", { name: /Tạo danh mục/ }));
+    await user.click(screen.getByRole("button", { name: "Tạo mới danh mục" }));
     await screen.findByRole("dialog");
     await pickTreeOption(user, /Danh mục cha/, "Thời trang");
     expect(get.mock.calls.filter(([url]) => url === "/categories")).toHaveLength(before);
@@ -256,7 +256,7 @@ describe("TaxonomyManager — tab Danh mục", () => {
       categories: [apparel, { ...tshirt, active: false }],
     });
     await screen.findByText("APPAREL");
-    await user.click(screen.getByRole("button", { name: /Tạo danh mục/ }));
+    await user.click(screen.getByRole("button", { name: "Tạo mới danh mục" }));
     await screen.findByRole("dialog");
     await user.click(await screen.findByRole("combobox", { name: /Danh mục cha/ }));
     // Gõ tìm để hiện mọi nhánh: đã ngưng thì không có trong cây, kể cả khi tìm đúng tên
@@ -350,7 +350,7 @@ describe("TaxonomyManager — tab Danh mục", () => {
       }),
     });
     renderApp(<TaxonomyManager />, { searchParams: "?tab=categories" });
-    await user.click(await screen.findByRole("button", { name: /Tạo danh mục/ }));
+    await user.click(await screen.findByRole("button", { name: "Tạo mới danh mục" }));
     const dialog = await screen.findByRole("dialog");
     expect(
       await within(dialog).findByText(/Không tải được danh sách danh mục/),

@@ -290,6 +290,7 @@ export {
   WAREHOUSE_MAP_3D,
   WAREHOUSE_CAPACITY_LIMITS,
   WAREHOUSE_MAP_LIMITS,
+  CARTON_LIST_LIMITS,
 } from "./numbers";
 export {
   ORDER_CANCELLATION_REASON_CODES,
@@ -445,6 +446,7 @@ export {
   WAREHOUSE_CAPACITY_COLUMNS,
   WAREHOUSE_COLUMNS,
   WAREHOUSE_LOCATION_COLUMNS,
+  CARTON_LIST_COLUMNS,
 } from "./table";
 export {
   CARRIER_BOOKING_STATUSES,
@@ -668,3 +670,12 @@ export {
   WAREHOUSE_LOCATION_LABELS,
 } from "./labels-warehouse-locations";
 export type { LocationKind, LocationStockFilter } from "./labels-warehouse-locations";
+export {
+  CARTON_FILTER_STATUSES,
+  CARTON_LIST_LABELS,
+  CARTON_OPEN_TASK_TYPES,
+  CARTON_SEARCH_MIN,
+  CARTON_SORTS,
+  CARTON_SOURCES,
+} from "./labels-inventory-cartons";
+export type { CartonOpenTaskType, CartonSort, CartonSource } from "./labels-inventory-cartons";
