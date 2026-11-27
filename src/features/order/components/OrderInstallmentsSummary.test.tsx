@@ -15,6 +15,7 @@ import { apiOrder, apiOrderAt } from "../__fixtures__/order";
 import { mockOrderApiGet, ORDER_PERMISSION_SETS, renderOrderScreen } from "../__fixtures__/render";
 
 import type { PermissionCode } from "@/lib/auth";
+import { openOrderDetailTabInFile } from "../__fixtures__/render";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
@@ -56,6 +57,9 @@ async function renderOrder(permissions: readonly PermissionCode[], installments:
 }
 
 const block = () => screen.getByRole("heading", { name: "Thanh toán" }).closest("section")!;
+
+// Các khối được kiểm nằm ở tab "payment" của trang chi tiết đơn (`OrderDetailTabs`)
+openOrderDetailTabInFile("payment");
 
 describe("Khối Thanh toán — các đợt thanh toán của đơn", () => {
   it("có payment-installments:READ → số đợt, đã thu / tổng, trạng thái từng đợt bằng tiếng Việt", async () => {

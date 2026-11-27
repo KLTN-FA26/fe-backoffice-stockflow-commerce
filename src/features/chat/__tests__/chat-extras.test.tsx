@@ -6,7 +6,7 @@ import { ADMIN_ROUTES, CHAT_PERMISSIONS } from "@/constants";
 import { api } from "@/lib/api/client";
 import { NAV_GROUPS } from "@/components/backoffice/BackofficeShell";
 import { ROLE_PERMISSIONS, apiError, bePage, mockApi, renderScreen } from "@/test/api-screen";
-import { pickOption } from "@/test/ui-actions";
+import { clickRowAction, openRowMenu, pickOption } from "@/test/ui-actions";
 
 import { AgentsReportScreen, CannedResponsesScreen, ChatConversationScreen, ChatInbox } from "..";
 import {
@@ -20,6 +20,13 @@ import {
 } from "../__fixtures__/chat";
 import { chatMessageSchema } from "../schemas";
 import { csatShares, defaultReportRange, reportRangeError } from "../selectors";
+
+/** Dòng bảng chứa chữ `text` (để mở đúng menu "⋯" của dòng đó). */
+const rowOf = (text: string) => {
+  const row = screen.getByText(text).closest("tr");
+  if (!row) throw new Error(`Không thấy dòng "${text}"`);
+  return row;
+};
 
 const push = vi.fn();
 vi.mock("next/navigation", () => ({
@@ -287,6 +294,19 @@ describe("Câu trả lời mẫu", () => {
     expect((call?.[1] as { params: unknown }).params).toEqual({ q: "chao", category: "Mở đầu" });
   });
 
+  it("lọc cột Phạm vi = Của tôi → chỉ còn mẫu riêng, không gọi lại BE", async () => {
+    grant(...CANNED_ALL.slice(0, 1));
+    const spy = mockApi("SALES_STAFF", { get: { [CANNED]: () => [team, own] } });
+    renderScreen(<CannedResponsesScreen />, "SALES_STAFF");
+    await screen.findByText("Giờ làm việc");
+    const before = spy.get.mock.calls.filter(([url]) => url === CANNED).length;
+    await userEvent.click(screen.getByRole("button", { name: "Lọc phạm vi" }));
+    await userEvent.click(await screen.findByRole("option", { name: /Của tôi/ }));
+    await waitFor(() => expect(screen.queryByText("Giờ làm việc")).not.toBeInTheDocument());
+    expect(screen.getByText("Chào khách")).toBeInTheDocument();
+    expect(spy.get.mock.calls.filter(([url]) => url === CANNED)).toHaveLength(before);
+  });
+
   it("không có mẫu → trạng thái rỗng; BE lỗi → câu lỗi + Thử lại", async () => {
     grant(CHAT_PERMISSIONS.cannedViewPage);
     let fail = true;
@@ -315,7 +335,7 @@ describe("Câu trả lời mẫu", () => {
   it("thêm → POST đúng body (khoảng trắng cắt, phím tắt chữ thường); không có ô Dùng chung", async () => {
     grant(...CANNED_ALL);
     const spy = renderCanned();
-    await userEvent.click(await screen.findByRole("button", { name: /Thêm câu mẫu/ }));
+    await userEvent.click(await screen.findByRole("button", { name: "Tạo mới câu trả lời mẫu" }));
     expect(screen.queryByLabelText(/Dùng chung/)).not.toBeInTheDocument();
     await userEvent.type(screen.getByLabelText(/Tiêu đề/), "  Cảm ơn  ");
     await userEvent.type(screen.getByLabelText(/Nội dung/), "Cảm ơn {{customerName}");
@@ -332,7 +352,7 @@ describe("Câu trả lời mẫu", () => {
   it("phím tắt sai luật → báo lỗi ở ô, không gọi POST", async () => {
     grant(...CANNED_ALL);
     const spy = renderCanned();
-    await userEvent.click(await screen.findByRole("button", { name: /Thêm câu mẫu/ }));
+    await userEvent.click(await screen.findByRole("button", { name: "Tạo mới câu trả lời mẫu" }));
     await userEvent.type(screen.getByLabelText(/Tiêu đề/), "A");
     await userEvent.type(screen.getByLabelText(/Nội dung/), "B");
     await userEvent.type(screen.getByLabelText("Phím tắt"), "-sai khoảng trắng");
@@ -344,7 +364,7 @@ describe("Câu trả lời mẫu", () => {
   it("người giám sát thấy ô Dùng chung và gửi shared:true", async () => {
     grant(...CANNED_ALL, CHAT_PERMISSIONS.supervise);
     const spy = renderCanned();
-    await userEvent.click(await screen.findByRole("button", { name: /Thêm câu mẫu/ }));
+    await userEvent.click(await screen.findByRole("button", { name: "Tạo mới câu trả lời mẫu" }));
     await userEvent.type(screen.getByLabelText(/Tiêu đề/), "Chính sách");
     await userEvent.type(screen.getByLabelText(/Nội dung/), "Nội dung chính sách");
     await userEvent.click(screen.getByRole("checkbox", { name: /Dùng chung/ }));
@@ -359,9 +379,13 @@ describe("Câu trả lời mẫu", () => {
     grant(...CANNED_ALL);
     const spy = renderCanned();
     await screen.findByText("Chào khách");
-    expect(screen.queryByRole("button", { name: "Sửa Giờ làm việc" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Xoá Giờ làm việc" })).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Sửa Chào khách" }));
+    // Mẫu dùng chung: mục Sửa / Xoá trong menu "⋯" khoá, kèm lý do
+    const shared = await openRowMenu(userEvent.setup(), rowOf("Giờ làm việc"));
+    expect(within(shared).getByRole("button", { name: /Sửa câu mẫu/ })).toBeDisabled();
+    expect(within(shared).getByRole("button", { name: /Xoá câu mẫu/ })).toBeDisabled();
+    expect(within(shared).getAllByText(/chỉ người giám sát/)).not.toHaveLength(0);
+    await userEvent.keyboard("{Escape}");
+    await clickRowAction(userEvent.setup(), /Sửa câu mẫu/, rowOf("Chào khách"));
     const title = screen.getByLabelText(/Tiêu đề/);
     await userEvent.clear(title);
     await userEvent.type(title, "Chào khách mới");
@@ -380,7 +404,8 @@ describe("Câu trả lời mẫu", () => {
         throw apiError(409, "OPTIMISTIC_LOCK", undefined, "Câu trả lời mẫu đã đổi, hãy tải lại.");
       },
     });
-    await userEvent.click(await screen.findByRole("button", { name: "Sửa Chào khách" }));
+    await screen.findByText("Chào khách");
+    await clickRowAction(userEvent.setup(), /Sửa câu mẫu/, rowOf("Chào khách"));
     await userEvent.click(screen.getByRole("button", { name: "Lưu" }));
     expect(await screen.findByText("Câu trả lời mẫu đã đổi, hãy tải lại.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Lưu" })).toBeInTheDocument();
@@ -393,7 +418,8 @@ describe("Câu trả lời mẫu", () => {
       put: { [`${CANNED}/cr-team`]: () => team },
     });
     renderScreen(<CannedResponsesScreen />, "SALES_STAFF");
-    await userEvent.click(await screen.findByRole("button", { name: "Sửa Giờ làm việc" }));
+    await screen.findByText("Giờ làm việc");
+    await clickRowAction(userEvent.setup(), /Sửa câu mẫu/, rowOf("Giờ làm việc"));
     expect(screen.queryByRole("checkbox", { name: /Dùng chung/ })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Lưu" }));
     await waitFor(() => expect(spy.put).toHaveBeenCalled());
@@ -404,7 +430,8 @@ describe("Câu trả lời mẫu", () => {
     grant(...CANNED_ALL, CHAT_PERMISSIONS.supervise);
     renderCanned();
     const remove = vi.spyOn(api, "delete").mockResolvedValue({ data: null });
-    await userEvent.click(await screen.findByRole("button", { name: "Xoá Giờ làm việc" }));
+    await screen.findByText("Giờ làm việc");
+    await clickRowAction(userEvent.setup(), /Xoá câu mẫu/, rowOf("Giờ làm việc"));
     expect(remove).not.toHaveBeenCalled();
     await userEvent.click(
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Xoá" }),

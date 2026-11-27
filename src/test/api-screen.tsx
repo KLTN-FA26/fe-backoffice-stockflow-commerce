@@ -14,6 +14,7 @@ import { vi } from "vitest";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 import { useAuthStore } from "@/lib/auth/auth-store";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 import type { AssignedWarehouse, MyPermissions, PermissionCode } from "@/lib/auth";
 
@@ -285,7 +286,10 @@ export function renderScreen(ui: React.ReactElement, role: TestRole, searchParam
   const view = render(
     <QueryClientProvider client={client}>
       <NuqsTestingAdapter searchParams={searchParams} hasMemory>
-        <Suspense fallback={<div>loading</div>}>{ui}</Suspense>
+        {/* Nút "Tạo mới" trên topbar (`HeaderCreateButton`) có tooltip — app bọc TooltipProvider ở layout */}
+        <TooltipProvider>
+          <Suspense fallback={<div>loading</div>}>{ui}</Suspense>
+        </TooltipProvider>
       </NuqsTestingAdapter>
     </QueryClientProvider>,
   );

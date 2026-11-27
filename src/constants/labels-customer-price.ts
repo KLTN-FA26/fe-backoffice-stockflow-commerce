@@ -98,6 +98,19 @@ export const CUSTOMER_PRICE_UI_LABELS = {
     retry: "Thử lại",
     refreshFailed: "Không làm mới được bảng giá — đang hiện dữ liệu đã tải trước đó.",
   },
+  /** Thanh tìm + cấu hình kiểu Vercel, nút "Tạo mới" trên thanh breadcrumb (backoffice-erp-ui A). */
+  toolbar: {
+    createAria: "Tạo mới bảng giá",
+    createTooltip: "Thêm bảng giá cho khách đang chọn",
+    createDenied: "Bạn không có quyền thêm bảng giá.",
+    pickCustomerFirst: "Chọn khách hàng trước khi thêm bảng giá.",
+    searchSummary: "Tìm kiếm chính",
+    searchFields: "Trường search",
+    searchFieldsValue: "SKU",
+    columnSearch: "Search trong cột",
+    unused: "Chưa dùng",
+    skuFilter: "Tìm theo SKU…",
+  },
   form: {
     create: "Thêm bảng giá",
     edit: "Sửa bảng giá",

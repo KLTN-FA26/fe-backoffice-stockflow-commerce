@@ -1,16 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { Eye } from "lucide-react";
 
 import { ADMIN_ROUTES } from "@/constants";
 import { formatMoney } from "@/lib/format";
-import {
-  CELL,
-  dateCell,
-  stackCell,
-  statusCell,
-  viewColumn,
-} from "@/components/shared/column-helpers";
+import { CELL, dateCell, stackCell, statusCell } from "@/components/shared/column-helpers";
+import { rowActionsColumn } from "@/components/shared/RowActionsMenu";
 
 import { COLUMN_LABELS } from "./constants";
 import { CustomerCell } from "./CustomerCell";
@@ -21,7 +17,8 @@ import type { Order } from "../../types";
 type OrderColumn = ColumnDef<Order> & { key: string };
 
 /**
- * Cột bảng đơn hàng. Sort phía server; không có search trong cột (server không hỗ trợ).
+ * Cột bảng đơn hàng. Sort phía server đúng whitelist BE (mã đơn, ngày đặt, tổng tiền, trạng thái) — Khách hàng / Người
+ * nhận BE không sort được nên không có nút sort. Lọc trên header gắn ở `order-header-filters`.
  * `onFilterCustomer`: lọc nhanh theo khách của dòng (hiện tên khách BE kèm sẵn, BE-15).
  */
 export function buildOrderColumns(onFilterCustomer: (customerId: string) => void): OrderColumn[] {
@@ -78,9 +75,12 @@ export function buildOrderColumns(onFilterCustomer: (customerId: string) => void
       }),
       key: "status",
     },
-    viewColumn<Order>((row) => ({
-      label: `Xem chi tiết đơn ${row.orderNumber}`,
-      href: ADMIN_ROUTES.orders.detail(row.orderId),
+    // Thao tác của dòng gom vào menu "⋯" (backoffice-erp-ui A6)
+    rowActionsColumn<Order>((row) => ({
+      label: `Thao tác — ${row.orderNumber}`,
+      actions: [
+        { label: "Xem chi tiết", icon: Eye, href: ADMIN_ROUTES.orders.detail(row.orderId) },
+      ],
     })),
   ];
 }
