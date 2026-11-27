@@ -29,7 +29,7 @@ export function isCreditRequestOpen(status: CreditRequestStatus): boolean {
 }
 
 export function allowedCreditRequestActions(
-  request: Pick<CreditRequest, "status" | "submittedBy" | "recommendedBy">,
+  request: Pick<CreditRequest, "status" | "source" | "submittedBy" | "recommendedBy">,
   can: (code: PermissionCode) => boolean,
   userId: string | null,
 ): CreditRequestAction[] {
@@ -41,8 +41,9 @@ export function allowedCreditRequestActions(
   // BE CREDIT_REQUEST_SELF_DECISION: người gửi / người ghi ý kiến không tự quyết → ẩn nút thay vì để 409
   if (request.status === "PENDING_APPROVAL" && can(CREDIT_REQUEST_PERMISSIONS.approve) && !involved)
     actions.push("approve", "reject");
-  if (open && !!userId && userId === request.submittedBy && can(CREDIT_REQUEST_PERMISSIONS.create))
-    actions.push("withdraw");
+  // BE `CreditRequest.withdrawByStaff`: chỉ đề nghị Sale gửi thay khách (`SALES`), đúng người đã gửi
+  const filedByMe = request.source === "SALES" && !!userId && userId === request.submittedBy;
+  if (open && filedByMe && can(CREDIT_REQUEST_PERMISSIONS.create)) actions.push("withdraw");
   if (open && can(CREDIT_REQUEST_PERMISSIONS.create)) actions.push("attach");
   return actions;
 }

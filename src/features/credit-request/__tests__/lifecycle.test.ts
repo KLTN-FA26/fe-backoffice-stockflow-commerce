@@ -58,6 +58,10 @@ describe("allowedCreditRequestActions — 3 vai", () => {
     ]);
     expect(allowedCreditRequestActions(parse(submitted), accountant, ACCOUNTANT_ID)).toEqual([]);
   });
+  it("BE withdrawByStaff: đề nghị khách tự gửi (PORTAL) thì Sale không rút được", () => {
+    const portal = parse({ ...pendingApproval, source: "PORTAL", submittedBy: "sale-1" });
+    expect(allowedCreditRequestActions(portal, sales, "sale-1")).not.toContain("withdraw");
+  });
   it("BE CREDIT_REQUEST_SELF_DECISION: người ghi ý kiến không tự quyết", () => {
     const own = parse({ ...pendingApproval, recommendedBy: ACCOUNTANT_ID });
     expect(allowedCreditRequestActions(own, accountant, ACCOUNTANT_ID)).toEqual([]);

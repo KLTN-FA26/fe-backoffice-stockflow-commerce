@@ -38,7 +38,10 @@ export function ApproveDialog({
     resolver: zodResolver(approveInputFor(request.requestedLimit)),
     mode: "onChange",
     defaultValues: {
-      approvedLimit: String(request.salesRecommendedLimit ?? request.requestedLimit),
+      // Mức Sale đề xuất có thể cao hơn mức xin (BE không chặn) — điền sẵn không vượt mức xin
+      approvedLimit: String(
+        Math.min(request.salesRecommendedLimit ?? request.requestedLimit, request.requestedLimit),
+      ),
       approvedTermDays: String(request.requestedTermDays),
       note: "",
     },
