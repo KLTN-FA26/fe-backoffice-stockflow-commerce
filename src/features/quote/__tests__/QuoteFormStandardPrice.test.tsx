@@ -100,9 +100,9 @@ describe("Quote form — giá chuẩn khi khách chưa có giá riêng", () => {
   it("S01-14: optional boxes say so, required ones keep the red star", async () => {
     setup();
     await screen.findByText("Ly 12oz xanh");
-    expect(screen.getByLabelText(/Ngày giao khách yêu cầu \(không bắt buộc\)/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Ngày giao khách yêu cầu \(không bắt buộc\)/)).toBeInTheDocument();
     expect(screen.getByLabelText(/^Điều khoản \(không bắt buộc\)/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Hiệu lực đến hết ngày/)).toBeInTheDocument();
-    expect(screen.queryByLabelText(/Hiệu lực đến hết ngày \(không bắt buộc\)/)).toBeNull();
+    expect(screen.getByLabelText(/^Hiệu lực đến hết ngày/)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/^Hiệu lực đến hết ngày \(không bắt buộc\)/)).toBeNull();
   });
 });

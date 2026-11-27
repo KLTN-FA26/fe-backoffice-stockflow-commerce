@@ -258,7 +258,10 @@ describe("Contract send — what is missing is said before the click (S06-3, R7)
     }));
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: /Sửa/ }));
-    const batch = screen.getByLabelText("Đợt 1 từ ngày").closest("div") as HTMLElement;
+    // The date field is the typable picker of #303 (input + calendar button in their own box): climb to the field
+    // that carries the visible "Từ ngày" label.
+    let batch = screen.getByLabelText("Đợt 1 từ ngày").parentElement as HTMLElement;
+    while (!within(batch).queryByText("Từ ngày") && batch.parentElement) batch = batch.parentElement;
     expect(within(batch).getByText("Từ ngày").textContent).toContain("*");
     await user.click(screen.getByRole("button", { name: /Thêm đợt giao/ }));
     expect(screen.getByLabelText("Đợt 2 — LY-GIAY-DEMO-12OZ-XANH (thùng)")).toHaveValue("30");
