@@ -8,7 +8,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 
 import { listCustomers } from "@/features/customer/api";
 import { listTemporaryBatches, transferCustomers } from "@/features/sales-owner/api";
-import { listCovers, listLeads } from "@/features/sales-owner/work-api";
+import { createCover, listCovers, listLeads } from "@/features/sales-owner/work-api";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 import { useAuthStore } from "@/lib/auth/auth-store";
@@ -17,7 +17,8 @@ import { changeSalesOwner, getSalesOwnerDetail } from "@/lib/references/sales-ow
 import { fetchSalesWorkload } from "@/lib/references/sales-workload";
 
 import { activateMockAdapter } from "./mock-adapter";
-import { resetSalesOwnerMockStore } from "./mock-sales-owner-store";
+import { mockActorId } from "./mock-display-names";
+import { mockSalesRoster, resetSalesOwnerMockStore } from "./mock-sales-owner-store";
 import { resetSalesWorkMockStore } from "./mock-routes-sales-work";
 
 const originalAdapter = api.defaults.adapter;
@@ -145,6 +146,25 @@ describe("mock sales-owner", () => {
         }),
       ),
     ).toBe("SALES_OWNER_TRANSFER_TOO_LARGE");
+  });
+
+  it("review S3: Sale chỉ thấy lịch mình vắng hoặc mình lo thay; quản lý thấy mọi lịch", async () => {
+    const me = mockActorId("USER-SALE-01");
+    const others = (await mockSalesRoster()).filter((p) => p.id !== me);
+    expect(others.length).toBeGreaterThanOrEqual(2);
+    await createCover({
+      userId: others[0]?.id ?? "",
+      coverUserId: others[1]?.id ?? "",
+      from: "2099-01-01",
+      to: "2099-01-10",
+      reason: "Việc riêng",
+    });
+    const all = (await listCovers({})) ?? [];
+    actAs("USER-SALE-01");
+    const mine = (await listCovers({})) ?? [];
+    const visible = all.filter((c) => c.userId === me || c.coverUserId === me);
+    expect(mine.map((c) => c.id)).toEqual(visible.map((c) => c.id));
+    expect(mine.length).toBeLessThan(all.length);
   });
 
   it("Sale không có customer-sales-owners:UPDATE → 403; chỉ thấy lead của mình", async () => {

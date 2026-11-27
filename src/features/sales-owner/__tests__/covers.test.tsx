@@ -149,6 +149,30 @@ describe("Lịch người thay (BR-S07, D7)", () => {
     );
   });
 
+  it("review S3: Sale chỉ thấy lịch của mình (mô tả nói rõ); lịch không có lý do hiện '—'", async () => {
+    mockSalesOwnerApi("SALES_STAFF", { get: get() });
+    renderScreen(<CoversPage />, "SALES_STAFF");
+    const panel = await screen.findByRole("region", { name: "Lịch người thay" });
+    expect(
+      within(panel).getByText(/^Lịch bạn vắng hoặc bạn lo thay cho người khác\./),
+    ).toBeInTheDocument();
+    const noReason = within(panel).getByText("Sale Chi").closest("tr") as HTMLElement;
+    expect(within(noReason).getAllByRole("cell")[4]).toHaveTextContent("—");
+  });
+
+  it("Sale chưa có lịch nào → câu trống nói về lịch của chính họ; quản lý → câu chung", async () => {
+    mockSalesOwnerApi("SALES_STAFF", { get: get({ "/staff-covers": () => [] }) });
+    const view = renderScreen(<CoversPage />, "SALES_STAFF");
+    expect(
+      await screen.findByText("Bạn chưa có lịch vắng hay lịch lo thay cho ai."),
+    ).toBeInTheDocument();
+    view.unmount();
+    vi.restoreAllMocks();
+    mockSalesOwnerApi("SALES_MANAGER", { get: get({ "/staff-covers": () => [] }) });
+    renderScreen(<CoversPage />, "SALES_MANAGER");
+    expect(await screen.findByText("Chưa có lịch người thay nào.")).toBeInTheDocument();
+  });
+
   it("không có staff-covers:READ (Kế toán) → không vào được; không CREATE → không có nút lập", async () => {
     mockSalesOwnerApi("ACCOUNTANT", { get: get() });
     const view = renderScreen(<CoversPage />, "ACCOUNTANT");

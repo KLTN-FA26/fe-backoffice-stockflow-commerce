@@ -59,7 +59,12 @@ function CoversContent() {
       <DetailPanel
         title={SALES_OWNER_LABELS.nav.covers}
         count={query.data.length}
-        description="Sale vắng (nghỉ phép ≤ 60 ngày) thì người thay nhận mọi việc với khách của họ; hết lịch tự trả về."
+        description={
+          // Hợp đồng (review S3): ngoài quản lý, BE chỉ trả lịch mà người xem là người vắng hoặc người thay
+          isManager
+            ? "Sale vắng (nghỉ phép ≤ 60 ngày) thì người thay nhận mọi việc với khách của họ; hết lịch tự trả về."
+            : "Lịch bạn vắng hoặc bạn lo thay cho người khác. Người thay nhận mọi việc với khách của Sale vắng; hết lịch tự trả về."
+        }
         actions={
           <>
             <ToolbarSwitch
@@ -93,7 +98,11 @@ function CoversContent() {
             },
           })}
           rowKey={(cover) => cover.id}
-          emptyState="Chưa có lịch người thay nào."
+          emptyState={
+            isManager
+              ? "Chưa có lịch người thay nào."
+              : "Bạn chưa có lịch vắng hay lịch lo thay cho ai."
+          }
         />
       </DetailPanel>
       {creating && (
@@ -129,7 +138,10 @@ function CoversContent() {
   );
 }
 
-/** "Lịch người thay" (`/admin/sales/covers`, BR-S07) — Sale và quản lý (`staff-covers:READ`). */
+/**
+ * "Lịch người thay" (`/admin/sales/covers`, BR-S07) — Sale và quản lý (`staff-covers:READ`). Quản lý thấy mọi lịch; Sale
+ * chỉ thấy lịch mình vắng hoặc mình lo thay, và BE có thể bỏ `reason` (cột "Lý do" hiện "—").
+ */
 export function CoversPage() {
   return (
     <PermissionBoundary permissions={[STAFF_COVER_PERMISSIONS.read]} variant="list">

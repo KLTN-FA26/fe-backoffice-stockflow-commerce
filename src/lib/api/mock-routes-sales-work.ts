@@ -160,12 +160,18 @@ export async function activeCoverOf(userId: string) {
     : null;
 }
 
+/**
+ * Review S3: quản lý (`customer-sales-owners:UPDATE`) thấy mọi lịch; người khác chỉ lịch mình là người vắng hoặc người
+ * thay, và lý do chỉ hiện cho hai người đó và quản lý (nên ở đây luôn kèm lý do).
+ */
 async function listCovers(config: AxiosRequestConfig) {
   const caller = await callerWith(STAFF_COVER_PERMISSIONS.read);
   if (typeof caller !== "string") return caller;
   const query = queryOf(config);
+  const manager = (await chatCaller())?.can(SALES_OWNER_PERMISSIONS.update) ?? false;
   const rows = (await state()).covers.filter(
     (c) =>
+      (manager || c.userId === caller || c.coverUserId === caller) &&
       (!query.get("userId") || c.userId === query.get("userId")) &&
       (query.get("active") !== "true" || (!c.cancelledAt && c.to >= today())),
   );
