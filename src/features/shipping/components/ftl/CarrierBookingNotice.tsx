@@ -1,5 +1,10 @@
 import { UI_LABELS } from "@/constants";
-import { isAutoCancelled, needsCarrierBookingCancel } from "@/features/shipping/ftl-selectors";
+import { CARRIER_BOOKING_STATUS } from "@/constants/statuses";
+import {
+  isApiBookedLoad,
+  isAutoCancelled,
+  needsCarrierBookingCancel,
+} from "@/features/shipping/ftl-selectors";
 import { Alert } from "@/components/shared/Alert";
 
 import type { Load } from "@/features/shipping/types";
@@ -8,11 +13,31 @@ const N = UI_LABELS.shipping.ftl.bookingToCancel;
 const F = UI_LABELS.shipping.field;
 
 /**
- * Chuyến nguyên xe đã huỷ sau khi đã đặt xe (kế hoạch mở lại / huỷ, hoặc hệ thống tự huỷ vì xe không còn gì
- * để chở): đặt xe ở ngoài hệ thống vẫn còn → nhắc điều phối huỷ với nhà xe (BE `carrierBookingToCancel`).
+ * Chuyến nguyên xe đã huỷ sau khi đặt xe: hãng API do hệ thống huỷ và theo dõi kết quả;
+ * đặt xe thủ công thì điều phối liên hệ hãng (BE `carrierBookingToCancel`).
  */
 export function CarrierBookingNotice({ load }: { load: Load }) {
   if (!needsCarrierBookingCancel(load)) return null;
+  const api = isApiBookedLoad(load);
+  const status = load.carrierBooking?.status;
+  if (api && status === CARRIER_BOOKING_STATUS.FAILED) return null; // Hãng từ chối đặt xe: không có đơn để huỷ.
+  const failed =
+    status === CARRIER_BOOKING_STATUS.CANCEL_FAILED ||
+    status === CARRIER_BOOKING_STATUS.UNCONFIRMED;
+  const title = !api
+    ? N.title
+    : status === CARRIER_BOOKING_STATUS.CANCELLED
+      ? N.apiCancelledTitle
+      : failed
+        ? N.apiFailedTitle
+        : N.apiCancellingTitle;
+  const body = !api
+    ? N.body
+    : status === CARRIER_BOOKING_STATUS.CANCELLED
+      ? N.apiCancelled
+      : failed
+        ? N.apiFailed
+        : N.apiCancelling;
   const carrier = load.carrierName ? `${load.carrierCode ?? ""} ${load.carrierName}`.trim() : null;
   const details = [
     carrier && `${F.carrier}: ${carrier}`,
@@ -21,8 +46,8 @@ export function CarrierBookingNotice({ load }: { load: Load }) {
     load.driverPhone && `${F.driverPhone}: ${load.driverPhone}`,
   ].filter(Boolean);
   return (
-    <Alert tone="warning" title={N.title}>
-      <p>{N.body}</p>
+    <Alert tone={api && !failed ? "info" : "warning"} title={title}>
+      <p>{body}</p>
       {details.length > 0 && <p className="mt-1">{details.join(" · ")}</p>}
       {/* Lý do tự huỷ do BE viết bằng tiếng Anh → chỉ hiện câu tiếng Việt; lý do do người nhập thì hiện nguyên văn */}
       {isAutoCancelled(load) ? (

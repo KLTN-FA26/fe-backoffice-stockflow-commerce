@@ -17,6 +17,7 @@ export const SHIPPING_FTL_LABELS = {
     hintPlanned:
       "Đặt xe với hãng (gửi hãng mã chuyến nội bộ), rồi ghi nhận hãng, biển số, tài xế ở đây.",
     hintBooked: "Xe đã đặt. Khi xe tới kho, bấm bắt đầu xếp hàng.",
+    hintFindingDriver: "Đơn đã tạo ở hãng — đang chờ hãng tìm tài xế trước khi xe tới kho.",
     hintLocked: "Đã bắt đầu xếp hàng — không đổi hoặc huỷ đặt xe được nữa.",
     bookedAt: "Đặt lúc",
     notBooked: "Chưa đặt xe",
@@ -31,6 +32,8 @@ export const SHIPPING_FTL_LABELS = {
     connection: "Cách đặt xe",
     automaticVia: (carrier: string) => `Đặt xe tự động qua ${carrier}`,
     waitCarrier: "Chờ hãng cập nhật",
+    findingDriver: "Hãng đang tìm tài xế cho chuyến này.",
+    driverReleased: (at: string) => `Tài xế đã huỷ lúc ${at} — đang chờ hãng tìm tài xế mới.`,
     plateAtHandover: "Nhập khi ký bàn giao",
     enterDriver: "Nhập tài xế",
     editDriver: "Sửa tài xế",
@@ -73,6 +76,14 @@ export const SHIPPING_FTL_LABELS = {
   bookingToCancel: {
     title: "Nhớ huỷ xe đã đặt với nhà xe",
     body: "Chuyến này đã huỷ nhưng xe vẫn còn đặt ở ngoài hệ thống — hãy liên hệ hãng để huỷ.",
+    apiCancellingTitle: "Đang huỷ ở hãng…",
+    apiCancelling:
+      "Hệ thống đang huỷ đơn đặt xe ở hãng. Trạng thái sẽ tự cập nhật khi hãng trả lời.",
+    apiCancelledTitle: "Đã huỷ ở hãng",
+    apiCancelled: "Đơn đặt xe của chuyến này đã được huỷ ở hãng.",
+    apiFailedTitle: "Chưa huỷ được ở hãng",
+    apiFailed:
+      "Hãng chưa huỷ đơn đặt xe. Điều phối liên hệ hãng để xử lý và kiểm tra lại trạng thái.",
     autoCancelled: "Hệ thống tự huỷ chuyến này vì xe không còn gì để chở (các đơn trên xe đã huỷ).",
     reason: "Lý do huỷ:",
   },

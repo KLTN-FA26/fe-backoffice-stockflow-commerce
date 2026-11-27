@@ -95,6 +95,8 @@ export const ftlLoadFields = {
   /** Kiểu kết nối của hãng đã đặt (vắng khi chưa đặt xe). */
   carrierConnectionType: carrierConnectionTypeSchema.nullish(),
   carrierBooking: carrierBookingSchema.nullish(),
+  /** Lần gần nhất hãng báo tài xế huỷ chuyến đã được áp dụng; trả cùng chi tiết chuyến cho mọi người xem chuyến. */
+  driverReleasedAt: isoInstant.nullish(),
   /** Chỉ có trong câu trả lời của "bắt đầu xếp" và khi còn đơn chưa được phép đi (BE bỏ khi rỗng). */
   handoverWarnings: z.array(handoverWarningSchema).nullish(),
 };

@@ -327,7 +327,7 @@ describe("Chuyến nguyên xe — quét kiện của riêng xe", () => {
     );
     const input = await screen.findByLabelText(L.scan.label);
     await user.type(input, "pkg-so-3-1{Enter}");
-    const expected = `Kiện này thuộc xe số ${OTHER_VEHICLE.seq} (${OTHER_VEHICLE.loadCode}) — không xếp lên xe này.`;
+    const expected = `Chuyến ${FTL_ID} · kế hoạch LP-2026-0001 · xe số 1: Kiện thuộc xe số ${OTHER_VEHICLE.seq} · chuyến ${OTHER_VEHICLE.loadCode} — mang tới đúng chuyến trước khi xếp.`;
     await waitFor(() =>
       expect(screen.getByRole("alert")).toHaveTextContent(`PKG-SO-3-1 — ${expected}`),
     );
@@ -337,13 +337,15 @@ describe("Chuyến nguyên xe — quét kiện của riêng xe", () => {
     expect(screen.getByText(`— ${expected}`)).toBeInTheDocument();
   });
 
-  it("thiếu thông tin xe trong lỗi → câu chung của PACKAGE_NOT_IN_LOAD", async () => {
+  it("thiếu thông tin xe trong lỗi → chỉ hướng dẫn quản lý kho kiểm tra kế hoạch", async () => {
     const user = userEvent.setup();
     const { post } = renderFtl(ACTORS.warehouseStaff, loadingFtl());
     post.mockRejectedValueOnce(new ApiError(409, "PACKAGE_NOT_IN_LOAD", "en"));
     await user.type(await screen.findByLabelText(L.scan.label), "PKG-X-1{Enter}");
     await waitFor(() =>
-      expect(screen.getByRole("alert")).toHaveTextContent(ERR.PACKAGE_NOT_IN_LOAD),
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "Kiện không thuộc chuyến này — Quản lý kho kiểm tra kế hoạch và lô giao.",
+      ),
     );
   });
 

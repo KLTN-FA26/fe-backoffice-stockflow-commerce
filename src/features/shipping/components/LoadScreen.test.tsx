@@ -2,7 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { SHIPPING_ERROR_MESSAGES as ERR, UI_LABELS } from "@/constants";
+import { UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 import { useRejectedScansStore } from "@/features/shipping/rejected-scans-store";
 import { resetScanIds } from "@/features/shipping/scan-ids";
@@ -233,7 +233,9 @@ describe("LoadScreen — quét kiện", () => {
     const input = await screen.findByLabelText(L.scan.label);
     await user.type(input, "PKG-X{Enter}");
     await waitFor(() =>
-      expect(screen.getByRole("alert")).toHaveTextContent(`PKG-X — ${ERR.PACKAGE_ALREADY_LOADED}`),
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "PKG-X — Chuyến LOAD-2026-0001 · kế hoạch LP-2026-0001 · xe số 1: Kiện đã nằm trên chuyến xe khác",
+      ),
     );
     await user.type(input, "PKG-X{Enter}");
     await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
