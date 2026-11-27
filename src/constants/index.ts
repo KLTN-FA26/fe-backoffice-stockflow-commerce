@@ -687,3 +687,13 @@ export {
   CARTON_SOURCES,
 } from "./labels-inventory-cartons";
 export type { CartonOpenTaskType, CartonSort, CartonSource } from "./labels-inventory-cartons";
+export {
+  CUSTOMER_CREATE_OWNER_LABELS,
+  SALES_ASSIGNMENT_PATH,
+  SALES_OWNER_ACCESS_LABELS,
+  SALES_OWNER_ACCESS_PERMISSIONS,
+  SALES_OWNER_API,
+  SALES_OWNER_ERROR_CODES,
+  SALES_OWNER_STATES,
+} from "./labels-sales-owner-access";
+export type { SalesOwnerState } from "./labels-sales-owner-access";
