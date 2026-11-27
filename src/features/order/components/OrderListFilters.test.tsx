@@ -5,7 +5,6 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { CUSTOMER_PERMISSIONS } from "@/constants";
 import { api } from "@/lib/api/client";
 import { bePage } from "@/test/api-screen";
-import { openComboboxList } from "@/test/combobox";
 
 import { apiOrder, apiOrderPage } from "../__fixtures__/order";
 import { ORDER_PERMISSION_SETS, mockOrderApiGet, renderOrderScreen } from "../__fixtures__/render";
@@ -37,8 +36,7 @@ function renderList(
     "/customers": () => bePage([MOC_AN]),
     [`/customers/${CUSTOMER_UUID}`]: () => MOC_AN,
   });
-  // hasMemory: URL giữ giá trị vừa ghi (mặc định bộ chuyển test trả về URL ban đầu → ô chọn khách tự quay lại giá trị cũ)
-  return renderOrderScreen(<OrderList />, searchParams, { hasMemory: true });
+  return renderOrderScreen(<OrderList />, searchParams);
 }
 
 function listQueries(): URLSearchParams[] {
@@ -66,34 +64,6 @@ function neverSent(key: string): boolean {
 const FILTER_FLOW_TIMEOUT_MS = 15_000;
 const FILTER_SUITE = "OrderList — lọc khách / ngày đặt (URL), đúng hợp đồng BE GET /orders";
 
-/**
- * Nhập cả chuỗi bằng paste thay vì gõ từng phím (36 ký tự UUID) — cùng sự kiện onChange, nhưng
- * không phụ thuộc tải máy khi chạy song song cả bộ test (như `cancelWith` của OrderDetail).
- */
-async function fill(input: HTMLElement, value: string) {
-  await userEvent.clear(input);
-  await userEvent.click(input);
-  await userEvent.paste(value);
-}
-const INVALID_MESSAGE = "ID khách hàng phải là UUID hợp lệ.";
-
-/** Lọc khách nằm trong popover của header cột Khách hàng (backoffice-erp-ui A5): mở popover. */
-async function openCustomerFilter() {
-  await userEvent.click(await screen.findByRole("button", { name: "Lọc khách hàng" }));
-}
-
-/** Vai trò đọc được danh sách khách: ô chọn khách theo tên trong popover. */
-async function customerBox() {
-  await openCustomerFilter();
-  return screen.findByRole("combobox", { name: "Khách hàng" });
-}
-
-/** Vai trò không đọc được danh sách khách: ô nhập UUID dự phòng trong popover. */
-async function customerIdInput() {
-  await openCustomerFilter();
-  return screen.findByPlaceholderText("Nhập UUID khách, Enter để lọc");
-}
-
 const creditOrder = {
   ...apiOrder,
   paymentTerm: "CREDIT" as const,
@@ -106,6 +76,8 @@ const prepaidOrder = {
   paymentTerm: "PREPAID" as const,
 };
 
+afterEach(() => vi.restoreAllMocks());
+
 beforeAll(() => {
   // jsdom không có ResizeObserver / scrollIntoView mà `cmdk` (ô chọn khách) dùng
   globalThis.ResizeObserver ??= class {
@@ -117,8 +89,15 @@ beforeAll(() => {
 });
 afterEach(() => vi.restoreAllMocks());
 
+/** Ô chọn khách nằm trong popover lọc của header cột Khách hàng (backoffice-erp-ui A5): mở rồi trả về ô chọn. */
+async function openCustomerFilter(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(await screen.findByRole("button", { name: "Lọc khách hàng" }));
+  return screen.findByRole("combobox", { name: "Khách hàng" });
+}
+
 describe(FILTER_SUITE, { timeout: FILTER_FLOW_TIMEOUT_MS }, () => {
   it("URL ?customer(UUID)&from&to → gửi customerId, placedFrom, placedTo; ô hiện TÊN khách, không hiện UUID", async () => {
+    const user = userEvent.setup();
     renderList(
       () => apiOrderPage([creditOrder]),
       `?customer=${CUSTOMER_UUID}&from=2026-06-01&to=2026-06-30`,
@@ -128,11 +107,23 @@ describe(FILTER_SUITE, { timeout: FILTER_FLOW_TIMEOUT_MS }, () => {
     const query = lastListQuery();
     expect(query.get("placedFrom")).toBe("2026-06-01");
     expect(query.get("placedTo")).toBe("2026-06-30");
-    const box = await customerBox();
+    const box = await openCustomerFilter(user);
     await waitFor(() => expect(box).toHaveValue("Công ty Mộc An"));
     expect(screen.queryByText(CUSTOMER_UUID)).not.toBeInTheDocument();
-    // Thanh Cấu hình cũng ghi tên khách, không ghi UUID
     expect(screen.queryByDisplayValue(CUSTOMER_UUID)).not.toBeInTheDocument();
+  });
+
+  it("chip 'Khách hàng' của thanh Cấu hình ghi TÊN khách (lấy từ dòng đơn), không ghi UUID", async () => {
+    renderList(
+      () =>
+        apiOrderPage([{ ...apiOrder, customerId: CUSTOMER_UUID, customerName: "Công ty Mộc An" }]),
+      `?customer=${CUSTOMER_UUID}`,
+    );
+
+    expect(await screen.findByText(apiOrder.orderNumber)).toBeInTheDocument();
+    // Chip trong thanh Cấu hình: nhãn "Khách hàng" + tên (không phải UUID)
+    await waitFor(() => expect(document.body.textContent).toMatch(/Khách hàng:?\s*Công ty Mộc An/));
+    expect(document.body.textContent).not.toContain(CUSTOMER_UUID);
   });
 
   it("khoảng ngày ngược (đến < từ) trên link → báo lỗi trên bảng, KHÔNG gửi placedFrom/placedTo", async () => {
@@ -147,11 +138,12 @@ describe(FILTER_SUITE, { timeout: FILTER_FLOW_TIMEOUT_MS }, () => {
   });
 
   it("A. chưa lọc → ô chọn khách trống, không gửi customerId, không có ô nhập UUID", async () => {
+    const user = userEvent.setup();
     renderList(() => apiOrderPage([apiOrder]));
 
     expect(await screen.findByText(apiOrder.orderNumber)).toBeInTheDocument();
-    expect(await customerBox()).toHaveValue("");
-    expect(screen.queryByPlaceholderText("Nhập UUID khách, Enter để lọc")).not.toBeInTheDocument();
+    expect(await openCustomerFilter(user)).toHaveValue("");
+    expect(screen.queryByLabelText("ID khách hàng")).not.toBeInTheDocument();
     expect(neverSent("customerId")).toBe(true);
   });
 
@@ -159,7 +151,7 @@ describe(FILTER_SUITE, { timeout: FILTER_FLOW_TIMEOUT_MS }, () => {
     const user = userEvent.setup();
     renderList(() => apiOrderPage([apiOrder]), "?page=3");
 
-    const box = await customerBox();
+    const box = await openCustomerFilter(user);
     await user.type(box, "Mộc");
     await user.click(await screen.findByRole("option", { name: /Công ty Mộc An/ }));
 
@@ -171,10 +163,9 @@ describe(FILTER_SUITE, { timeout: FILTER_FLOW_TIMEOUT_MS }, () => {
   it("B2. bấm mũi tên → danh sách khách; lọc khách không ép ACTIVE", async () => {
     const user = userEvent.setup();
     renderList(() => apiOrderPage([apiOrder]));
-    expect(await screen.findByText(apiOrder.orderNumber)).toBeInTheDocument();
-    await openCustomerFilter();
 
-    await openComboboxList(user, "Khách hàng");
+    await openCustomerFilter(user);
+    await user.click(screen.getByRole("button", { name: "Mở danh sách Khách hàng" }));
     expect(await screen.findByRole("option", { name: /Công ty Mộc An/ })).toBeInTheDocument();
     const call = vi
       .mocked(api.get)
@@ -183,45 +174,12 @@ describe(FILTER_SUITE, { timeout: FILTER_FLOW_TIMEOUT_MS }, () => {
     expect((call?.[1] as { params: URLSearchParams }).params.has("status")).toBe(false);
   });
 
-  it("D. vai trò không đọc được khách: UUID sai dạng → bị từ chối", async () => {
-    renderList(() => apiOrderPage([apiOrder]), "", ORDER_PERMISSION_SETS.salesStaff);
-    const input = await customerIdInput();
-
-    for (const bad of [
-      "550e8400-e29b-41d4-a716-44665544000",
-      "550e8400e29b41d4a716446655440000",
-      "zzze8400-e29b-41d4-a716-446655440000",
-      "12345",
-    ]) {
-      await fill(input, bad);
-      await userEvent.keyboard("{Enter}");
-      expect(await screen.findByText(INVALID_MESSAGE)).toBeInTheDocument();
-    }
-    expect(neverSent("customerId")).toBe(true);
-  });
-
-  it("E. vai trò không đọc được khách: sai → sửa thành UUID hợp lệ → hết lỗi, bộ lọc được áp", async () => {
-    renderList(() => apiOrderPage([apiOrder]), "", ORDER_PERMISSION_SETS.salesStaff);
-    const input = await customerIdInput();
-
-    await userEvent.type(input, "abc{Enter}");
-    expect(await screen.findByText(INVALID_MESSAGE)).toBeInTheDocument();
-
-    await fill(input, CUSTOMER_UUID);
-    // Kiểm lại theo phím: lỗi tắt ngay khi giá trị hợp lệ
-    expect(screen.queryByText(INVALID_MESSAGE)).not.toBeInTheDocument();
-    await userEvent.keyboard("{Enter}");
-
-    await waitFor(() => expect(lastListQuery().get("customerId")).toBe(CUSTOMER_UUID));
-    expect(input).not.toHaveAttribute("aria-invalid");
-  });
-
   it("C. ✕ bỏ chọn khách → bỏ customerId khỏi truy vấn", async () => {
     const user = userEvent.setup();
     renderList(() => apiOrderPage([apiOrder]), `?customer=${CUSTOMER_UUID}`);
-    await customerBox();
     await waitFor(() => expect(lastListQuery().get("customerId")).toBe(CUSTOMER_UUID));
 
+    await openCustomerFilter(user);
     await user.click(await screen.findByRole("button", { name: "Bỏ chọn Khách hàng" }));
 
     await waitFor(() => expect(lastListQuery().has("customerId")).toBe(false));
@@ -230,16 +188,29 @@ describe(FILTER_SUITE, { timeout: FILTER_FLOW_TIMEOUT_MS }, () => {
     );
   });
 
-  it("G. URL mang sẵn customer sai (link cũ CUS-0007) → báo trên bảng, KHÔNG gửi BE, danh sách vẫn tải", async () => {
+  it("C2. nút 'Xoá' của popover lọc cột → bỏ customerId", async () => {
+    const user = userEvent.setup();
+    renderList(() => apiOrderPage([apiOrder]), `?customer=${CUSTOMER_UUID}`);
+    await waitFor(() => expect(lastListQuery().get("customerId")).toBe(CUSTOMER_UUID));
+
+    await openCustomerFilter(user);
+    await user.click(screen.getByRole("button", { name: "Xoá" }));
+
+    await waitFor(() => expect(lastListQuery().has("customerId")).toBe(false));
+  });
+
+  it("G. URL mang sẵn customer sai (link cũ CUS-0007) → bỏ qua, KHÔNG gửi BE, không báo lỗi, danh sách vẫn tải", async () => {
+    const user = userEvent.setup();
     renderList(() => apiOrderPage([apiOrder]), "?customer=CUS-0007");
 
     expect(await screen.findByText(apiOrder.orderNumber)).toBeInTheDocument();
-    expect(screen.getByRole("alert")).toHaveTextContent("không hợp lệ");
-    expect(await customerBox()).toHaveValue("");
+    expect(await openCustomerFilter(user)).toHaveValue("");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(neverSent("customerId")).toBe(true);
   });
 
-  it("vai trò không có quyền đọc khách (điều phối / kế toán) → không có ô chọn khách theo tên; chip Cấu hình ghi tên khách từ dòng đơn, không UUID", async () => {
+  it("vai trò không có quyền đọc khách (điều phối / kế toán) → popover không có ô chọn, chỉ dòng chỉ sang nút lọc ở dòng; chip ghi tên khách, không UUID", async () => {
+    const user = userEvent.setup();
     renderList(
       () => apiOrderPage([{ ...apiOrder, customerName: "Công ty Bao Bì An Phát" }]),
       `?customer=${apiOrder.customerId}`,
@@ -247,7 +218,10 @@ describe(FILTER_SUITE, { timeout: FILTER_FLOW_TIMEOUT_MS }, () => {
     );
 
     expect(await screen.findByText(apiOrder.orderNumber)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Lọc khách hàng" }));
     expect(screen.queryByRole("combobox", { name: "Khách hàng" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: /khách/i })).not.toBeInTheDocument();
+    expect(await screen.findByText(/bấm biểu tượng phễu cạnh tên khách/)).toBeInTheDocument();
     expect(neverSent("customerId")).toBe(false);
     expect(screen.queryByText(String(apiOrder.customerId))).not.toBeInTheDocument();
     expect(await screen.findAllByText(/Công ty Bao Bì An Phát/)).not.toHaveLength(0);

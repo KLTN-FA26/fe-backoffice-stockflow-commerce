@@ -100,6 +100,7 @@ export function QuoteHistory({ history }: { history: QuoteTransition[] }) {
     changedAt: (
       <HeaderDateRangeFilter
         label="thời gian"
+        quickKind="past"
         from={f.qhFrom}
         to={f.qhTo}
         onChange={({ from, to }) => set({ qhFrom: from, qhTo: to })}

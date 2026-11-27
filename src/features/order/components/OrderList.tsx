@@ -89,17 +89,15 @@ function OrderListContent() {
           hasColumnConfig={s.hasColumnConfig}
           summaryItems={buildSummaryItems(s)}
           onResetAll={s.resetAll}
-          resetDisabled={
-            !s.hasFilters && !s.hasColumnConfig && s.sort.key === null && !s.extra.customerIdInvalid
-          }
+          resetDisabled={!s.hasFilters && !s.hasColumnConfig && s.sort.key === null}
           controlsIn="summary"
         />
       )}
-      {/* Bộ lọc trên URL sai (link cũ / gõ tay) không gửi BE — nói rõ, vì ô nhập nằm trong popover của header cột */}
-      {canRead && (s.extra.invalidRange || s.extra.customerIdInvalid) && (
+      {/* Khoảng ngày sai trên URL (link cũ / gõ tay) không gửi BE — nói rõ, vì ô lọc nằm trong popover của header cột.
+          `?customer=` không phải UUID thì bị bỏ qua im lặng: không có ô gõ UUID để sửa. */}
+      {canRead && s.extra.invalidRange && (
         <div role="alert" className="text-danger mb-2 space-y-0.5 text-xs">
-          {s.extra.invalidRange && <p>{FILTER_LABELS.invalidRange}</p>}
-          {s.extra.customerIdInvalid && <p>{FILTER_LABELS.customerLinkInvalid}</p>}
+          <p>{FILTER_LABELS.invalidRange}</p>
         </div>
       )}
       <OrderListBody s={s} columns={visibleColumns} />

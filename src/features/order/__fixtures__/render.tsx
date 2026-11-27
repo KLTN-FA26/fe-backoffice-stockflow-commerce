@@ -151,12 +151,7 @@ export function clickOrderDetailTab(name: string) {
   fireEvent.click(screen.getByRole("tab", { name }));
 }
 
-export function renderOrderScreen(
-  ui: React.ReactElement,
-  searchParams = defaultSearch,
-  /** `hasMemory`: URL giữ giá trị ghi từ UI (mặc định bật; tắt thì bộ chuyển nuqs test trả về `searchParams` ban đầu sau mỗi lần ghi). */
-  options: { hasMemory?: boolean } = {},
-) {
+export function renderOrderScreen(ui: React.ReactElement, searchParams = defaultSearch) {
   useAuthStore.setState({
     user: {
       userId: "u-test",
@@ -178,7 +173,7 @@ export function renderOrderScreen(
   });
   return render(
     <QueryClientProvider client={client}>
-      <NuqsTestingAdapter searchParams={searchParams} hasMemory={options.hasMemory ?? true}>
+      <NuqsTestingAdapter searchParams={searchParams} hasMemory>
         <Suspense fallback={<div>loading</div>}>{ui}</Suspense>
       </NuqsTestingAdapter>
     </QueryClientProvider>,

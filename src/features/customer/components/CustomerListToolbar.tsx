@@ -48,6 +48,8 @@ export function CustomerListToolbar({
       onSearchChange={(value) => void filters.filters.setQ(value)}
       searchPlaceholder="Tìm theo tên, email, SĐT (+84…) hoặc MST"
       statusOptions={STATUS_OPTIONS}
+      // Trạng thái đã lọc được trên header cột → không thêm nút chọn nhanh
+      statusInHeader
       selectedStatuses={status ? [status] : []}
       onToggleStatus={(value) => filters.setStatus(status === value ? null : value)}
       onClearStatuses={() => filters.setStatus(null)}
@@ -61,7 +63,7 @@ export function CustomerListToolbar({
         },
         { label: "Tìm theo", value: "Tên · Email · SĐT · MST" },
         {
-          label: "Search trong cột",
+          label: "Tìm trong cột",
           value: columnSearchSummary(filters),
           active: filters.hasColumnFilters,
           onClear: () =>
