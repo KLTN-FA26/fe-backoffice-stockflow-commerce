@@ -92,11 +92,19 @@ describe("Tạo khách — MST bắt buộc (KE-HOACH BR-S14, D4)", () => {
   it("BR-S14: a Sales Manager exempts the tax code with a required reason", async () => {
     const api = mockApi(
       "SALES_MANAGER",
-      { get: { "/customers/sales-agents": () => [] }, post: { "/customers": () => created } },
+      {
+        get: { "/customers/sales-agents": () => [salesAgent("s-1", "Trần Văn Sales")] },
+        post: { "/customers": () => created },
+      },
       { extra: MANAGER },
     );
     renderScreen(<CustomerCreate />, "SALES_MANAGER");
     await fillRequired();
+    await pickOption(
+      userEvent.setup(),
+      await screen.findByRole("combobox", { name: /Người phụ trách/ }),
+      "Trần Văn Sales",
+    );
     await userEvent.click(screen.getByRole("checkbox", { name: /Miễn MST/ }));
     await userEvent.click(screen.getByRole("button", { name: SUBMIT }));
     expect(await screen.findByText("Nhập lý do miễn MST")).toBeInTheDocument();
@@ -110,6 +118,7 @@ describe("Tạo khách — MST bắt buộc (KE-HOACH BR-S14, D4)", () => {
         email: "an@example.com",
         taxCodeExemption: true,
         taxCodeExemptionReason: "Hộ kinh doanh chưa có MST",
+        salesOwnerId: "s-1",
       }),
     );
   });
@@ -188,7 +197,7 @@ describe("Tạo khách — người phụ trách và khách tiềm năng (BR-S02
         "Tạo từ khách tiềm năng — người phụ trách là Sale được giao khách tiềm năng đó.",
       ),
     ).toBeInTheDocument();
-    expect(screen.queryByRole("combobox", { name: "Người phụ trách" })).toBeNull();
+    expect(screen.queryByRole("combobox", { name: /Người phụ trách/ })).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: SUBMIT }));
     await waitFor(() =>
       expect(api.post).toHaveBeenCalledWith("/customers", {
@@ -201,7 +210,7 @@ describe("Tạo khách — người phụ trách và khách tiềm năng (BR-S02
     );
   });
 
-  it("BR-S02: a Sales Manager picks the owner", async () => {
+  it("BR-S02: a Sales Manager picks the owner (required, 2026-11-28)", async () => {
     const api = mockApi(
       "SALES_MANAGER",
       {
@@ -218,11 +227,9 @@ describe("Tạo khách — người phụ trách và khách tiềm năng (BR-S02
     renderScreen(<CustomerCreate />, "SALES_MANAGER");
     await fillRequired();
     await userEvent.type(screen.getByLabelText(/Mã số thuế/), "0312345678");
-    await pickOption(
-      userEvent.setup(),
-      await screen.findByRole("combobox", { name: "Người phụ trách" }),
-      "Trần Văn Sales",
-    );
+    const picker = await screen.findByRole("combobox", { name: /Người phụ trách/ });
+    expect(screen.getByText("Người phụ trách").closest("label")).toHaveTextContent("(bắt buộc)");
+    await pickOption(userEvent.setup(), picker, "Trần Văn Sales");
     await userEvent.click(screen.getByRole("button", { name: SUBMIT }));
     await waitFor(() =>
       expect(api.post).toHaveBeenCalledWith(
@@ -232,7 +239,7 @@ describe("Tạo khách — người phụ trách và khách tiềm năng (BR-S02
     );
   });
 
-  it("BR-S02 / case 2: the manager may leave the owner empty (no salesOwnerId sent)", async () => {
+  it("2026-11-28: the manager must pick an owner — empty → field error, nothing is posted", async () => {
     const api = mockApi(
       "SALES_MANAGER",
       {
@@ -244,10 +251,65 @@ describe("Tạo khách — người phụ trách và khách tiềm năng (BR-S02
     renderScreen(<CustomerCreate />, "SALES_MANAGER");
     await fillRequired();
     await userEvent.type(screen.getByLabelText(/Mã số thuế/), "0312345678");
-    await screen.findByRole("combobox", { name: "Người phụ trách" });
+    const picker = await screen.findByRole("combobox", { name: /Người phụ trách/ });
+    expect(screen.queryByRole("option", { name: /Để trống/ })).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: SUBMIT }));
-    await waitFor(() => expect(api.post).toHaveBeenCalled());
-    expect(api.post.mock.calls[0]?.[1]).not.toHaveProperty("salesOwnerId");
+    expect(await screen.findByText("Chọn Sale phụ trách khách này.")).toBeInTheDocument();
+    expect(picker).toHaveAttribute("aria-invalid", "true");
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it("2026-11-28: BE 400 SALES_OWNER_REQUIRED → message on the owner field", async () => {
+    mockApi(
+      "SALES_MANAGER",
+      {
+        get: { "/customers/sales-agents": () => [salesAgent("s-1", "Trần Văn Sales")] },
+        post: {
+          "/customers": () => {
+            throw apiError(400, "SALES_OWNER_REQUIRED");
+          },
+        },
+      },
+      { extra: MANAGER },
+    );
+    renderScreen(<CustomerCreate />, "SALES_MANAGER");
+    await fillRequired();
+    await userEvent.type(screen.getByLabelText(/Mã số thuế/), "0312345678");
+    const picker = await screen.findByRole("combobox", { name: /Người phụ trách/ });
+    await pickOption(userEvent.setup(), picker, "Trần Văn Sales");
+    await userEvent.click(screen.getByRole("button", { name: SUBMIT }));
+    expect(await screen.findByText("Chọn Sale phụ trách khách này.")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: /Người phụ trách/ })).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("2026-11-28: the Sales list cannot load → the manager is told, nothing is posted", async () => {
+    const api = mockApi(
+      "SALES_MANAGER",
+      {
+        get: {
+          "/customers/sales-agents": () => {
+            throw apiError(500, "INTERNAL_ERROR");
+          },
+        },
+        post: { "/customers": () => created },
+      },
+      { extra: MANAGER },
+    );
+    renderScreen(<CustomerCreate />, "SALES_MANAGER");
+    await fillRequired();
+    await userEvent.type(screen.getByLabelText(/Mã số thuế/), "0312345678");
+    expect(
+      await screen.findByText(
+        "Chưa tải được danh sách Sale. Tải lại trang để chọn người phụ trách.",
+      ),
+    ).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: SUBMIT }));
+    expect(await screen.findByText("Chọn Sale phụ trách khách này.")).toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
   });
 
   it("D42 dự phòng: sales-agents 404 → người trả lời chat, bỏ chính quản lý đang tạo", async () => {
@@ -269,7 +331,7 @@ describe("Tạo khách — người phụ trách và khách tiềm năng (BR-S02
     );
     renderScreen(<CustomerCreate />, "SALES_MANAGER");
     const user = userEvent.setup();
-    await user.click(await screen.findByRole("combobox", { name: "Người phụ trách" }));
+    await user.click(await screen.findByRole("combobox", { name: /Người phụ trách/ }));
     expect(await screen.findByRole("option", { name: "Trần Văn Sales" })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "Quản lý đang tạo" })).toBeNull();
   });

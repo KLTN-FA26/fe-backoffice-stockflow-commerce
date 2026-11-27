@@ -56,8 +56,12 @@ export const CUSTOMER_CREATE_OWNER_LABELS = {
   exemptionReasonRequired: "Nhập lý do miễn MST",
   ownerSection: "Sale phụ trách",
   ownerLabel: "Người phụ trách",
-  ownerNone: "Để trống (Sales Manager giao sau)",
-  ownerHint: "Để trống thì khách vào danh sách cần giao người phụ trách.",
+  ownerPlaceholder: "Chọn Sale",
+  // Chốt 28/11: khách mới luôn có người phụ trách; quản lý / quản trị tạo khách thì phải chọn một Sale đang làm.
+  ownerHint: "Chọn Sale đang làm sẽ lo khách này.",
+  ownerRequired: "Chọn Sale phụ trách khách này.",
+  ownerLoading: "Đang tải danh sách Sale…",
+  ownerUnavailable: "Chưa tải được danh sách Sale. Tải lại trang để chọn người phụ trách.",
   ownerSelf: "Bạn sẽ là Sale phụ trách của khách này.",
   fromLead: "Tạo từ khách tiềm năng — người phụ trách là Sale được giao khách tiềm năng đó.",
   duplicates: {

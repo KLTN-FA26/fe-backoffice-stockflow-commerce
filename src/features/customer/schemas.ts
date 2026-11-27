@@ -149,7 +149,8 @@ export const TAX_CODE_EXEMPTION_REASON_MAX = 500;
  * Sale phụ trách khách (KE-HOACH sales-owner 2026-11-27, đã duyệt 28/11):
  * - BR-S14 (D4): MST bắt buộc cho khách mới, trừ khi Sales Manager miễn (hộ kinh doanh / ngoại lệ) và ghi lý do — BE 400
  *   CUSTOMER_TAX_CODE_REQUIRED; quyền miễn chỉ Manager (`customer-sales-owners:UPDATE`), BE kiểm lại.
- * - BR-S02: Manager chọn được Sale phụ trách (`salesOwnerId`, để trống = chưa có người phụ trách); Sale tạo thì là chính họ.
+ * - BR-S02: Sale tạo thì là chính họ; Manager / quản trị phải chọn Sale phụ trách (`salesOwnerId`, chốt 28/11: khách mới
+ *   luôn có người phụ trách — BE 400 SALES_OWNER_REQUIRED), xem `customerCreateSchemaFor`.
  * - §10.7: tạo từ khách tiềm năng (`leadId`) → người phụ trách là Sale được giao lead, lead CONVERTED (BE).
  * Ô mới có mặc định để dữ liệu cũ (chỉ năm ô) vẫn parse được.
  */
@@ -184,6 +185,23 @@ export const customerCreateInputSchema = z
     if (values.taxCodeExemption && values.exemptionReason === "")
       ctx.addIssue({ code: "custom", path: ["exemptionReason"], message: "Nhập lý do miễn MST" });
   });
+
+/**
+ * Schema của form tạo khách theo người tạo. `ownerRequired` (người có `customer-sales-owners:UPDATE`: Sales Manager,
+ * quản trị): phải chọn Sale phụ trách, trừ khi tạo từ khách tiềm năng (người phụ trách là Sale của lead). Chốt 28/11 —
+ * UI-only, BE kiểm lại (400 SALES_OWNER_REQUIRED).
+ */
+export function customerCreateSchemaFor(ownerRequired: boolean) {
+  if (!ownerRequired) return customerCreateInputSchema;
+  return customerCreateInputSchema.superRefine((values, ctx) => {
+    if (values.leadId === "" && values.salesOwnerId === "")
+      ctx.addIssue({
+        code: "custom",
+        path: ["salesOwnerId"],
+        message: "Chọn Sale phụ trách khách này.",
+      });
+  });
+}
 
 export const customerUpdateInputSchema = z.object({
   fullName: z.string().trim().min(1, "Nhập tên công ty / cửa hàng").max(200, "Tối đa 200 ký tự"),

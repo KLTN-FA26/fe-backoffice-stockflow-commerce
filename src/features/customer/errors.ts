@@ -16,6 +16,8 @@ export const CUSTOMER_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   CUSTOMER_TAX_CODE_REQUIRED: "Nhập mã số thuế (hộ kinh doanh: số CCCD của chủ hộ).",
   // BR-S04: chỉ giao cho Sale đang làm.
   SALES_OWNER_NOT_ASSIGNABLE: "Người này không còn là Sale đang làm. Chọn người khác.",
+  // Chốt 28/11: khách mới luôn có người phụ trách.
+  SALES_OWNER_REQUIRED: "Chọn Sale phụ trách khách này.",
   USER_EMAIL_ALREADY_EXISTS: "Email này đã được dùng cho một tài khoản khác.",
   PORTAL_INVITATION_INVALID:
     "Lời mời không hợp lệ hoặc không còn sử dụng được. Vui lòng liên hệ bộ phận bán hàng để nhận lời mời mới.",

@@ -35,7 +35,7 @@ interface Cover {
   reason: string;
   cancelledAt: string | null;
 }
-interface Lead {
+export interface Lead {
   id: string;
   companyName: string;
   taxCode: string;
@@ -49,6 +49,7 @@ interface Lead {
   createdAt: string;
   contactNote?: string;
   disqualifyReason?: string;
+  customerId?: string;
 }
 interface Request {
   id: string;
@@ -133,6 +134,11 @@ function coverStatus(c: Cover): string {
   if (c.cancelledAt) return "CANCELLED";
   if (c.to < today()) return "ENDED";
   return c.from > today() ? "UPCOMING" : "ACTIVE";
+}
+
+/** §10.7: lead mà `POST /customers` (mock) chuyển thành khách; cùng một đối tượng, route tạo khách đổi trạng thái. */
+export async function mockLead(leadId: string): Promise<Lead | null> {
+  return (await state()).leads.find((l) => l.id === leadId) ?? null;
 }
 
 /** Lead đang mở (ASSIGNED / CONTACTED) của một Sale — cho `handover-summary` (D44). */

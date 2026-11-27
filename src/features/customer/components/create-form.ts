@@ -49,6 +49,8 @@ export const FIELD_BY_ERROR: Readonly<Record<string, keyof CustomerCreateFormVal
   USER_EMAIL_ALREADY_EXISTS: "email",
   // BR-S04: người được chọn không còn là Sale đang làm.
   SALES_OWNER_NOT_ASSIGNABLE: "salesOwnerId",
+  // Chốt 28/11: Manager / quản trị tạo khách mà chưa chọn Sale phụ trách.
+  SALES_OWNER_REQUIRED: "salesOwnerId",
 };
 
 export function isFormField(name: string): name is keyof CustomerCreateFormValues {

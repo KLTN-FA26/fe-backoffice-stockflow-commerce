@@ -1,9 +1,11 @@
 /**
  * Mock routes — khách hàng (BE `CustomerController`): `GET /customers` (phân trang, `q`, `status`,
- * `segmentId`, `sort`) và `GET /customers/{customerId}`. Danh sách che mã số thuế
+ * `segmentId`, `sort`) và `GET /customers/{customerId}`; tạo khách `POST /customers` ở
+ * `mock-routes-customer-create`. Danh sách che mã số thuế
  * (`toMaskedResponse`); chi tiết trả nguyên. Lỗi theo `GlobalExceptionHandler` / `Pages` / `SortWhitelist`.
  */
 import { registerMockRoute } from "./mock-adapter";
+import { registerCustomerCreateMockRoute } from "./mock-routes-customer-create";
 import {
   registerSalesOwnerMockRoutes,
   salesOwnerFields,
@@ -127,4 +129,5 @@ export function registerCustomerMockRoutes(): void {
   registerSalesOwnerMockRoutes();
   registerMockRoute("GET", "/customers", listRoute);
   registerMockRoute("GET", "/customers/:customerId", detailRoute);
+  registerCustomerCreateMockRoute();
 }

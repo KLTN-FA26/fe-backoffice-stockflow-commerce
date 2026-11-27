@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -19,7 +19,7 @@ import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 import { useCustomerDuplicates } from "@/features/customer/duplicates";
 import { customerErrorMessage } from "@/features/customer/errors";
 import { useCreateCustomer } from "@/features/customer/mutations";
-import { customerCreateInputSchema } from "@/features/customer/schemas";
+import { customerCreateSchemaFor } from "@/features/customer/schemas";
 
 import { FORM_BAR_ACTION_CLASS, FormBottomBar } from "@/components/backoffice/FormBottomBar";
 import { Card } from "@/components/shared/Card";
@@ -39,8 +39,9 @@ const PREFILL_PARSERS = Object.fromEntries(PREFILL_FIELDS.map((field) => [field,
 
 /**
  * Tạo khách doanh nghiệp. Sale phụ trách (KE-HOACH sales-owner): MST bắt buộc, Sales Manager được miễn kèm lý do (BR-S14);
- * cảnh báo khách có thể trùng kèm người đang phụ trách (BR-S14, tình huống 16); Manager chọn Sale phụ trách (BR-S02); điền
- * sẵn từ khách tiềm năng qua URL (`?companyName=…&leadId=…`, §10.7).
+ * cảnh báo khách có thể trùng kèm người đang phụ trách (BR-S14, tình huống 16); Manager / quản trị bắt buộc chọn Sale phụ
+ * trách (BR-S02, chốt 28/11: khách mới luôn có người phụ trách); điền sẵn từ khách tiềm năng qua URL
+ * (`?companyName=…&leadId=…`, §10.7).
  */
 function CustomerCreateForm() {
   const router = useRouter();
@@ -49,8 +50,10 @@ function CustomerCreateForm() {
   const [prefill] = useQueryStates(PREFILL_PARSERS);
   const [formError, setFormError] = useState<string | null>(null);
   const [leaveOpen, setLeaveOpen] = useState(false);
+  // Quyền đọc xong sau lần render đầu: resolver theo `isManager` hiện tại (RHF đọc lại options mỗi lần render).
+  const resolver = useMemo(() => zodResolver(customerCreateSchemaFor(isManager)), [isManager]);
   const form = useForm<CustomerCreateFormValues, unknown, CustomerCreateValues>({
-    resolver: zodResolver(customerCreateInputSchema),
+    resolver,
     defaultValues: prefilledDefaults(prefill),
     mode: "onTouched",
   });
@@ -78,8 +81,10 @@ function CustomerCreateForm() {
         router.replace(ADMIN_ROUTES.customers.detail(result.customer.customerId)),
       onError: (error) => {
         const field = error instanceof ApiError ? FIELD_BY_ERROR[error.code] : undefined;
+        // Ô người phụ trách chỉ hiện cho người điều phối tạo khách không từ lead; khác thì nói ở dòng lỗi chung.
+        const ownerShown = isManager && !values.leadId;
         let mapped = false;
-        if (field) {
+        if (field && (field !== "salesOwnerId" || ownerShown)) {
           setError(
             field,
             { type: "server", message: customerErrorMessage(error) },
