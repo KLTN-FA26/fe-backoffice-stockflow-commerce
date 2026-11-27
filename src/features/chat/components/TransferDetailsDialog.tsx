@@ -5,7 +5,15 @@ import { useState } from "react";
 import { CHAT_TRANSFER_LABELS } from "@/constants";
 import { formatMoney } from "@/lib/format/money";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
-import { FORM_INPUT_CLASS, FormField } from "@/components/shared/FormField";
+import { FormField } from "@/components/shared/FormField";
+import { FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
+import {
+  Select,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/shared/combobox-select";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { Notice } from "@/components/shared/Notice";
 
 import { transferViewFromInstructions } from "../card-view";
@@ -88,20 +96,19 @@ export function TransferDetailsDialog({
           }
         >
           <FormField id="transfer-installment" label="Đợt thanh toán" required>
-            <select
-              id="transfer-installment"
-              value={installmentId}
-              onChange={(event) => setInstallmentId(event.target.value)}
-              className={`${FORM_INPUT_CLASS} border px-2`}
-            >
-              <option value="">Chọn đợt</option>
-              {installments.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.contractNumber ?? item.orderNumber} — đợt {item.seq} {item.name}:{" "}
-                  {formatMoney(owedOf(item), item.currency)}
-                </option>
-              ))}
-            </select>
+            <Select value={installmentId} onValueChange={setInstallmentId}>
+              <SelectTrigger id="transfer-installment" className={FORM_SELECT_CLASS}>
+                <SelectValue placeholder="Chọn đợt" />
+              </SelectTrigger>
+              <TitledSelectContent title="Đợt thanh toán">
+                {installments.map((item) => (
+                  <SelectItem key={item.id} value={item.id}>
+                    {item.contractNumber ?? item.orderNumber} — đợt {item.seq} {item.name}:{" "}
+                    {formatMoney(owedOf(item), item.currency)}
+                  </SelectItem>
+                ))}
+              </TitledSelectContent>
+            </Select>
           </FormField>
           <label className="text-ink-primary flex items-center gap-2 text-[0.8125rem]">
             <input

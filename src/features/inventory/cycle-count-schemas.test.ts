@@ -43,7 +43,7 @@ describe("cycle count response contract (backend develop df34c338)", () => {
               {
                 id: "d0000001-0000-4000-8000-0000000000d1",
                 number: "ADJ-20261112-0001",
-                quantityDelta: -120,
+                direction: "WRITE_OFF",
                 status: "PENDING_APPROVAL",
               },
             ],
@@ -52,7 +52,7 @@ describe("cycle count response contract (backend develop df34c338)", () => {
       }),
     );
     expect(parsed.lines[0]).toMatchObject({ booked: true, found: false });
-    expect(parsed.lines[0]?.adjustments?.[0]).toMatchObject({ quantityDelta: -120 });
+    expect(parsed.lines[0]?.adjustments?.[0]).toMatchObject({ direction: "WRITE_OFF" });
   });
 
   it("keeps an unknown status and source verbatim so one newer code does not hide a whole page", () => {

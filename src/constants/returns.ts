@@ -359,5 +359,6 @@ export const RETURN_LIMITS = {
 
 export const RETURN_STORAGE_KEYS = {
   listConfig: "stockflow:admin:orders:returns:config",
+  listColumns: "stockflow:admin:orders:returns:columns",
   receiptsConfig: "stockflow:admin:receipts:returns:config",
 } as const;

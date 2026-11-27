@@ -2,7 +2,7 @@
  * BE `PrintConfigRules` on the screen: a value the BE would refuse shows its sentence on its input, before anything is
  * sent. The seeded variant is the sample cup (90 / 60 / 110 mm, band at 6 and 8 mm: a band 97.018 mm high).
  */
-import { configure, screen, waitFor } from "@testing-library/react";
+import { configure, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -12,13 +12,12 @@ import { resetProductMockStore } from "@/lib/api/mock-product-store";
 import { resetPrintConfigMockStore } from "@/lib/api/mock-routes-print-configs";
 import { resetVariantMockStore } from "@/lib/api/mock-routes-variants";
 
-import { DEFAULTS_TOGGLE, editStored, renderSection, saveStored } from "./print-config-test-utils";
+import { DEFAULTS_SECTION, editStored, renderSection, saveStored } from "./print-config-test-utils";
 
 vi.setConfig({ testTimeout: 60_000 });
 configure({ asyncUtilTimeout: 45_000 });
 
 const SAVE = { name: "Lưu cấu hình in" };
-const ADVANCED = DEFAULTS_TOGGLE;
 
 beforeAll(() => activateMockAdapter());
 beforeEach(() => {
@@ -43,7 +42,7 @@ describe("PrintConfigSection: BE PrintConfigRules before the save", () => {
     const user = userEvent.setup();
     renderSection();
     await editStored(user);
-    await user.click(await screen.findByRole("button", ADVANCED));
+    await screen.findByRole("region", DEFAULTS_SECTION);
     const field = await typeInto(user, "Lề an toàn (mm)", "48.51");
     await user.click(screen.getByRole("button", SAVE));
 
@@ -61,20 +60,18 @@ describe("PrintConfigSection: BE PrintConfigRules before the save", () => {
     });
   });
 
-  it("MAX_SEAM_MM: a seam over 100 mm is refused; the closed panel opens again to show it", async () => {
+  it("MAX_SEAM_MM: a seam over 100 mm is refused on its field (the defaults card is always open)", async () => {
     const put = vi.spyOn(api, "put");
     const user = userEvent.setup();
     renderSection();
     await editStored(user);
-    await user.click(await screen.findByRole("button", ADVANCED));
+    const defaults = await screen.findByRole("region", DEFAULTS_SECTION);
     await typeInto(user, "Mép dán (mm)", "100.01");
-    await user.click(screen.getByRole("button", ADVANCED)); // closed again (the card animates shut)
-    await waitFor(() => expect(screen.queryByLabelText("Mép dán (mm)")).not.toBeInTheDocument());
 
     await user.click(screen.getByRole("button", SAVE));
     expect(await screen.findByText("Tối đa 100 mm.")).toBeInTheDocument();
     expect(screen.getByLabelText("Mép dán (mm)")).toHaveAttribute("aria-invalid", "true");
-    expect(screen.getByRole("button", ADVANCED)).toHaveAttribute("aria-expanded", "true");
+    expect(within(defaults).getByLabelText("Mép dán (mm)")).toBeVisible();
     expect(put).not.toHaveBeenCalled();
   });
 });

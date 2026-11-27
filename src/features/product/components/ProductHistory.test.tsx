@@ -66,9 +66,9 @@ describe("ProductHistory — GET /products/{id}/versions", () => {
           : undefined,
     });
     renderApp(<ProductHistory productId={PRODUCT} />);
-    expect(
-      await screen.findByText("Tạm ngưng", { selector: "div.font-medium" }),
-    ).toBeInTheDocument();
+    // cột "Loại thay đổi" + cột "Nội dung thay đổi" (từ → đến)
+    expect(await screen.findByRole("cell", { name: "Tạm ngưng" })).toBeInTheDocument();
+    expect(screen.getByRole("cell", { name: /^Đã duyệt.*Tạm ngưng$/ })).toBeInTheDocument();
     expect(screen.getByText("Đã duyệt")).toBeInTheDocument();
     expect(screen.getByText("Kiểm tra chất lượng")).toBeInTheDocument();
     expect(screen.getByText("Tên, Danh mục")).toBeInTheDocument();
@@ -138,20 +138,22 @@ describe("ProductHistory — GET /products/{id}/versions", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(/Không tải được lịch sử thay đổi/);
   });
 
-  it("phân trang phía server: gửi page (từ 0) và size; đổi cỡ trang về trang đầu", async () => {
+  it("tải một lần tối đa 200 dòng (trần trang BE) rồi phân trang ở FE: đổi trang không gọi lại API", async () => {
+    const items = [
+      entry({ changeType: "CREATED", action: "CREATE", occurredAt: "2026-02-01T08:30:00Z" }),
+      ...Array.from({ length: 24 }, (_, i) =>
+        entry({
+          changeType: "SUBMITTED",
+          occurredAt: `2026-01-${String(i + 1).padStart(2, "0")}T08:30:00Z`,
+        }),
+      ),
+    ];
     const get = installApi({
       permissions: [],
-      get: (url, config) => {
-        if (url !== versionsUrl) return undefined;
-        const { page: p } = (config as { params: { page: number } }).params;
-        return page([entry({ changeType: p === 0 ? "CREATED" : "SUBMITTED", action: "CREATE" })], {
-          page: p,
-          totalElements: 25,
-          totalPages: 3,
-          hasNext: p < 2,
-          hasPrevious: p > 0,
-        });
-      },
+      get: (url) =>
+        url === versionsUrl
+          ? page(items, { size: 200, totalElements: 230, totalPages: 2, hasNext: true })
+          : undefined,
     }).get;
     const user = userEvent.setup();
     renderApp(<ProductHistory productId={PRODUCT} />);
@@ -160,11 +162,19 @@ describe("ProductHistory — GET /products/{id}/versions", () => {
       get.mock.calls
         .filter((c) => c[0] === versionsUrl)
         .map((c) => (c[1] as { params: unknown }).params);
-    expect(calls()[0]).toEqual({ page: 0, size: 10 });
-    await user.click(screen.getByRole("button", { name: /Trang sau|Sau|›|>/ }));
-    await waitFor(() => expect(calls().at(-1)).toEqual({ page: 1, size: 10 }));
-    expect(await screen.findByText("Gửi duyệt")).toBeInTheDocument();
-    expect(within(document.body).queryByText("Tạo sản phẩm")).not.toBeInTheDocument();
+    expect(calls()).toEqual([{ page: 0, size: 200 }]);
+    // trang đầu 10 dòng (+ hàng tiêu đề)
+    expect(within(screen.getByRole("table")).getAllByRole("row")).toHaveLength(11);
+    // BE có nhiều hơn 200 dòng: báo rõ phạm vi lọc
+    expect(
+      screen.getByText(/Đang xem và lọc trên 25 thay đổi gần nhất trong tổng 230/),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Sau" }));
+    await waitFor(() =>
+      expect(within(document.body).queryByText("Tạo sản phẩm")).not.toBeInTheDocument(),
+    );
+    expect(screen.getAllByText("Gửi duyệt").length).toBeGreaterThan(0);
+    expect(calls()).toHaveLength(1);
   });
 });
 

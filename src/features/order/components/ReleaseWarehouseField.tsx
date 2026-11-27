@@ -12,7 +12,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/components/shared/combobox-select";
 
 interface ReleaseWarehouseFieldProps {
   value: string;

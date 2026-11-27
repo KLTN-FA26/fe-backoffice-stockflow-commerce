@@ -9,53 +9,28 @@ import {
   CANCELLATION_REQUEST_LABELS,
   CANCELLATION_REQUEST_PERMISSIONS,
   ORDER_PERMISSIONS,
-  PAGE_SIZE,
-  STORAGE_KEYS,
 } from "@/constants";
-import {
-  columnSummaryItem,
-  columnToolbarProps,
-  useColumnVisibility,
-} from "@/hooks/use-column-visibility";
-import { usePageConfig } from "@/hooks/use-page-config";
 import { usePermissionChecker } from "@/lib/auth";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
 import { DataTable } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { ListToolbar } from "@/components/shared/ListToolbar";
 import { RefetchBar } from "@/components/shared/RefetchBar";
 
 import { allowedCancellationRequestActions } from "../../cancellation-request-lifecycle";
+import { matchesCancellationRequest } from "../../list-filters";
 import { useCancellationRequests } from "../../queries";
+import { FilteredEmpty } from "../FilteredEmpty";
 import { OrderLoadError } from "../OrderLoadError";
 import { OrderPermissionGate } from "../OrderPermissionGate";
 import { OrderTableSkeleton } from "../OrderSkeletons";
 
-import {
-  buildCancellationRequestColumns,
-  CANCELLATION_QUEUE_COLUMNS,
-  CANCELLATION_QUEUE_LABELS,
-  CANCELLATION_QUEUE_LOCKED,
-  RequestRowActions,
-} from "./columns";
+import { CancellationRequestToolbar } from "./CancellationRequestToolbar";
+import { buildCancellationRequestColumns, RequestRowActions } from "./columns";
+import { queueColumns } from "./queue-columns";
+import { useCancellationFilters } from "./useCancellationFilters";
+import { PAGE_SIZE_OPTIONS, useQueuePrefs } from "./useQueuePrefs";
 
 const L = CANCELLATION_REQUEST_LABELS;
-const PAGE_SIZE_OPTIONS: number[] = [PAGE_SIZE.sm, PAGE_SIZE.md, PAGE_SIZE.lg, PAGE_SIZE.xl];
-interface RequestPageConfig {
-  pageSize: number;
-}
-const DEFAULT_CONFIG: RequestPageConfig = { pageSize: PAGE_SIZE.md };
-
-/** Bỏ page size lạ trong localStorage cũ. */
-function mergeConfig(
-  stored: Partial<RequestPageConfig>,
-  fallback: RequestPageConfig,
-): RequestPageConfig {
-  return stored.pageSize && PAGE_SIZE_OPTIONS.includes(stored.pageSize)
-    ? { pageSize: stored.pageSize }
-    : fallback;
-}
-
 /** Segment cuối của route — breadcrumb hiện tên trang thay vì "cancellation-requests". */
 const ROUTE_SEGMENT = ADMIN_ROUTES.orders.cancellationRequests.split("/").at(-1);
 
@@ -79,13 +54,10 @@ function CancellationRequestListContent() {
   // UI-only — Backend phải re-check (CancellationRequestController @RequiresPermission READ / UPDATE)
   const canOpenOrder = can(ORDER_PERMISSIONS.read);
   const [page, setPage] = useQueryState("page", parseAsInteger.withDefault(1));
-  const { config, updateConfig } = usePageConfig<RequestPageConfig>(
-    STORAGE_KEYS.adminCancellationRequestsConfig,
-    DEFAULT_CONFIG,
-    mergeConfig,
-  );
+  const { config, updateConfig, columnState } = useQueuePrefs();
+  const filters = useCancellationFilters();
   const query = useCancellationRequests({
-    status: "PENDING",
+    status: filters.status,
     page: Math.max(0, page - 1),
     size: config.pageSize,
   });
@@ -96,31 +68,22 @@ function CancellationRequestListContent() {
       ) : null,
     canOpenOrder,
   );
-  const columnState = useColumnVisibility(
-    STORAGE_KEYS.adminCancellationRequestsColumns,
-    CANCELLATION_QUEUE_COLUMNS,
-    { locked: CANCELLATION_QUEUE_LOCKED },
-  );
-  const visibleColumns = columns.filter((column) =>
-    columnState.visible.some((key) => key === column.key),
-  );
+  const visibleColumns = queueColumns(columns, columnState.visible, filters);
+  const items = query.data?.items ?? [];
+  // BE không có tham số tìm → ô tìm + lọc cột chỉ xét trang đang xem; gõ chữ không gọi lại API
+  const rows = filters.rowFilterActive
+    ? items.filter((row) => matchesCancellationRequest(row, filters.q, filters.columns.values))
+    : items;
 
   return (
     <div className="surface-soft">
-      {/* Trang danh sách kiểu Vercel (data-table-mode-a §1): không tiêu đề / nút quay lại — breadcrumb là tên trang. */}
       <h1 className="sr-only">{L.title}</h1>
-      {/* BE chỉ lọc theo trạng thái / đơn (hàng đợi luôn PENDING): không có search — toolbar còn Ẩn hiện cột. */}
-      <ListToolbar
-        {...columnToolbarProps(columnState, CANCELLATION_QUEUE_LABELS, CANCELLATION_QUEUE_COLUMNS)}
-        summaryItems={[columnSummaryItem(columnState)]}
-        onResetAll={columnState.reset}
-        resetDisabled={!columnState.hasColumnConfig}
-      />
+      <CancellationRequestToolbar filters={filters} columns={columnState} />
       {query.isError ? (
         <OrderLoadError inline error={query.error} onRetry={() => void query.refetch()} />
       ) : query.isPending ? (
         <OrderTableSkeleton />
-      ) : query.data.totalElements === 0 ? (
+      ) : query.data.totalElements === 0 && !filters.active ? (
         <EmptyState
           icon={<Ban className="size-8" />}
           title={L.empty.title}
@@ -131,7 +94,13 @@ function CancellationRequestListContent() {
           <RefetchBar active={query.isFetching} label="Đang tải lại danh sách" />
           <DataTable
             columns={visibleColumns}
-            data={query.data.items}
+            data={rows}
+            emptyState={
+              <FilteredEmpty
+                description={filters.rowFilterActive ? L.list.noMatch : L.list.noMatchStatus}
+                onClear={filters.clear}
+              />
+            }
             rowKey={(row) => row.requestId}
             stickyHeader
             // Mở dòng = tới thẻ yêu cầu huỷ trên chi tiết đơn (đủ bối cảnh: tiền, sản xuất, lịch sử) — BO-UX-34
@@ -140,8 +109,12 @@ function CancellationRequestListContent() {
                 ? (row) => router.push(ADMIN_ROUTES.orders.cancellationRequest(row.orderId))
                 : undefined
             }
-            flagRow={() => true}
-            caption={L.caption(query.data.items.length, query.data.totalElements)}
+            flagRow={(row) => row.status === "PENDING"}
+            caption={
+              filters.rowFilterActive
+                ? L.list.pageCaption(rows.length, items.length)
+                : L.caption(items.length, query.data.totalElements)
+            }
             pageSize={config.pageSize}
             pageSizeOptions={PAGE_SIZE_OPTIONS}
             serverPagination={{

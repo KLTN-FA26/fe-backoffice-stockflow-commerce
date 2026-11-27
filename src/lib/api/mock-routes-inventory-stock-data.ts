@@ -9,6 +9,9 @@
  *   - Kho dùng đúng id + mã của danh bạ kho mock (`/warehouses`, mock-data `warehouses`). Id đó
  *     không phải UUID như BE; mã kho là tiền tố mã vị trí (`HN01-A01-01-A`).
  * Không mô phỏng hàng gia công (BR-PRD-15 BE chưa làm) và không có ngưỡng tồn theo kho.
+ *
+ * ADR-0011 (BE, issue #305): tồn tính theo thùng nguyên. Mỗi dòng tồn mock là một thùng, nên `*Cartons` của dòng là
+ * 1 hoặc 0; số thùng của mức tồn theo kho là số dòng tương ứng, ghi sẵn. Thùng đã rời kho không có `status`.
  */
 
 export const MOCK_STOCK_WAREHOUSES = [
@@ -26,7 +29,10 @@ export interface MockStockRow {
   onHand: number;
   reserved: number;
   available: number;
-  status: string;
+  onHandCartons: number;
+  reservedCartons: number;
+  availableCartons: number;
+  status: string | null;
   receivedAt: string | null;
 }
 
@@ -38,6 +44,11 @@ export interface MockStockLevel {
   reserved: number;
   allocated: number;
   atp: number;
+  onHandCartons: number;
+  availableCartons: number;
+  reservedCartons: number;
+  allocatedCartons: number;
+  atpCartons: number;
 }
 
 export interface MockReservation {
@@ -48,9 +59,9 @@ export interface MockReservation {
   locationCode: string;
   lotNumber: string | null;
   quantity: number;
+  cartons: number;
   status: string;
   reservedAt: string;
-  expiresAt: string | null;
   releaseReason: string | null;
   closedAt: string | null;
 }
@@ -75,6 +86,9 @@ export const MOCK_STOCK_ROWS: readonly MockStockRow[] = [
     onHand: 120,
     reserved: 20,
     available: 100,
+    onHandCartons: 1,
+    reservedCartons: 1,
+    availableCartons: 1,
     status: "AVAILABLE",
     receivedAt: "2026-08-01T02:00:00Z",
   }),
@@ -84,6 +98,9 @@ export const MOCK_STOCK_ROWS: readonly MockStockRow[] = [
     onHand: 200,
     reserved: 0,
     available: 200,
+    onHandCartons: 1,
+    reservedCartons: 0,
+    availableCartons: 1,
     status: "AVAILABLE",
     receivedAt: "2026-09-10T02:00:00Z",
   }),
@@ -95,6 +112,9 @@ export const MOCK_STOCK_ROWS: readonly MockStockRow[] = [
     onHand: 15,
     reserved: 5,
     available: 0,
+    onHandCartons: 1,
+    reservedCartons: 1,
+    availableCartons: 0,
     status: "AVAILABLE",
     receivedAt: "2026-06-20T02:00:00Z",
   }),
@@ -104,6 +124,9 @@ export const MOCK_STOCK_ROWS: readonly MockStockRow[] = [
     onHand: 50,
     reserved: 0,
     available: 0,
+    onHandCartons: 1,
+    reservedCartons: 0,
+    availableCartons: 0,
     status: "INBOUND",
     receivedAt: "2026-10-15T02:00:00Z",
   }),
@@ -114,17 +137,23 @@ export const MOCK_STOCK_ROWS: readonly MockStockRow[] = [
     onHand: 30,
     reserved: 0,
     available: 30,
+    onHandCartons: 1,
+    reservedCartons: 0,
+    availableCartons: 1,
     status: "AVAILABLE",
     receivedAt: null,
   }),
-  // Dòng rỗng: BE chỉ trả khi includeEmpty=true.
+  // Thùng đã rời kho: BE chỉ trả khi includeEmpty=true, và không có trạng thái tồn (ADR-0011 bước 3d).
   row(6, CUP, "HN01-A03-01-A", {
     lotNumber: "L2560",
     expiryDate: "2026-12-01",
     onHand: 0,
     reserved: 0,
     available: 0,
-    status: "AVAILABLE",
+    onHandCartons: 0,
+    reservedCartons: 0,
+    availableCartons: 0,
+    status: null,
     receivedAt: "2026-05-02T02:00:00Z",
   }),
   // Giữ chỗ hết toàn bộ → ATP kho HCM01 bằng 0 dù còn hàng thực tế.
@@ -134,6 +163,9 @@ export const MOCK_STOCK_ROWS: readonly MockStockRow[] = [
     onHand: 80,
     reserved: 80,
     available: 0,
+    onHandCartons: 1,
+    reservedCartons: 1,
+    availableCartons: 0,
     status: "AVAILABLE",
     receivedAt: "2026-09-01T02:00:00Z",
   }),
@@ -143,6 +175,9 @@ export const MOCK_STOCK_ROWS: readonly MockStockRow[] = [
     onHand: 10,
     reserved: 0,
     available: 0,
+    onHandCartons: 1,
+    reservedCartons: 0,
+    availableCartons: 0,
     status: "QUARANTINE",
     receivedAt: "2026-09-01T02:00:00Z",
   }),
@@ -152,6 +187,9 @@ export const MOCK_STOCK_ROWS: readonly MockStockRow[] = [
     onHand: 40,
     reserved: 0,
     available: 0,
+    onHandCartons: 1,
+    reservedCartons: 0,
+    availableCartons: 0,
     status: "DAMAGED",
     receivedAt: "2026-07-07T02:00:00Z",
   }),
@@ -161,6 +199,9 @@ export const MOCK_STOCK_ROWS: readonly MockStockRow[] = [
     onHand: 25,
     reserved: 5,
     available: 20,
+    onHandCartons: 1,
+    reservedCartons: 1,
+    availableCartons: 1,
     status: "AVAILABLE",
     receivedAt: "2026-07-07T02:00:00Z",
   }),
@@ -171,6 +212,9 @@ export const MOCK_STOCK_ROWS: readonly MockStockRow[] = [
     onHand: 8,
     reserved: 0,
     available: 0,
+    onHandCartons: 1,
+    reservedCartons: 0,
+    availableCartons: 0,
     status: "EXPIRED",
     receivedAt: "2026-05-15T02:00:00Z",
   }),
@@ -180,6 +224,9 @@ export const MOCK_STOCK_ROWS: readonly MockStockRow[] = [
     onHand: 12,
     reserved: 0,
     available: 0,
+    onHandCartons: 1,
+    reservedCartons: 0,
+    availableCartons: 0,
     status: "BLOCKED",
     receivedAt: "2026-08-20T02:00:00Z",
   }),
@@ -194,6 +241,11 @@ export const MOCK_STOCK_LEVELS: readonly MockStockLevel[] = [
     reserved: 80,
     allocated: 0,
     atp: 0,
+    onHandCartons: 2,
+    availableCartons: 1,
+    reservedCartons: 1,
+    allocatedCartons: 0,
+    atpCartons: 0,
   },
   {
     sku: CUP,
@@ -203,6 +255,11 @@ export const MOCK_STOCK_LEVELS: readonly MockStockLevel[] = [
     reserved: 25,
     allocated: 0,
     atp: 330,
+    onHandCartons: 6,
+    availableCartons: 3,
+    reservedCartons: 2,
+    allocatedCartons: 0,
+    atpCartons: 2,
   },
   {
     sku: LID,
@@ -212,8 +269,26 @@ export const MOCK_STOCK_LEVELS: readonly MockStockLevel[] = [
     reserved: 5,
     allocated: 0,
     atp: 20,
+    onHandCartons: 2,
+    availableCartons: 1,
+    reservedCartons: 1,
+    allocatedCartons: 0,
+    atpCartons: 0,
   },
-  { sku: LID, warehouseCode: "HN01", onHand: 12, available: 0, reserved: 0, allocated: 0, atp: 0 },
+  {
+    sku: LID,
+    warehouseCode: "HN01",
+    onHand: 12,
+    available: 0,
+    reserved: 0,
+    allocated: 0,
+    atp: 0,
+    onHandCartons: 1,
+    availableCartons: 0,
+    reservedCartons: 0,
+    allocatedCartons: 0,
+    atpCartons: 0,
+  },
 ];
 
 function hold(
@@ -251,61 +326,61 @@ export const MOCK_RESERVATIONS: readonly MockReservation[] = [
   hold(1, r1, {
     orderId: id(201),
     quantity: 20,
+    cartons: 1,
     status: "HELD",
     reservedAt: "2026-10-14T02:00:00Z",
-    expiresAt: "2026-10-17T02:00:00Z",
     ...open,
   }),
-  // Đơn đã thanh toán: giữ chỗ được ghim, `expiresAt` bị bỏ.
+  // Đơn đã thanh toán: giữ chỗ được ghim.
   hold(2, r3, {
     orderId: id(202),
     quantity: 5,
+    cartons: 1,
     status: "HELD",
     reservedAt: "2026-09-28T02:00:00Z",
-    expiresAt: null,
     ...open,
   }),
   hold(3, r7, {
     orderId: id(203),
     quantity: 80,
+    cartons: 1,
     status: "HELD",
     reservedAt: "2026-10-15T02:00:00Z",
-    expiresAt: null,
     ...open,
   }),
   hold(4, r1, {
     orderId: id(204),
     quantity: 10,
+    cartons: 1,
     status: "RELEASED",
     reservedAt: "2026-10-10T02:00:00Z",
-    expiresAt: null,
     releaseReason: "PAYMENT_FAILED",
     closedAt: "2026-10-11T02:00:00Z",
   }),
   hold(5, r2, {
     orderId: id(205),
     quantity: 12,
+    cartons: 1,
     status: "CONSUMED",
     reservedAt: "2026-10-05T02:00:00Z",
-    expiresAt: null,
     ...open,
     closedAt: "2026-10-06T02:00:00Z",
   }),
   hold(6, r10, {
     orderId: id(206),
     quantity: 3,
+    cartons: 1,
     status: "EXPIRED",
     reservedAt: "2026-10-01T02:00:00Z",
-    expiresAt: "2026-10-02T02:00:00Z",
     releaseReason: "RESERVATION_EXPIRED",
     closedAt: "2026-10-02T02:05:00Z",
   }),
   hold(7, r10, {
     orderId: id(207),
     quantity: 5,
+    cartons: 1,
     status: "HELD",
     reservedAt: "2026-10-12T02:00:00Z",
-    expiresAt: "2026-10-19T02:00:00Z",
     ...open,
   }),
 ];

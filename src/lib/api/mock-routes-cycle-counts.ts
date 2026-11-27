@@ -427,7 +427,6 @@ async function submit(config: AxiosRequestConfig) {
   for (const line of count.lines) {
     const carton = cartons.get(line.id);
     if (!carton || line.found === line.booked) continue;
-    const delta = line.found ? carton.pkg.nominalQty : -carton.pkg.nominalQty;
     line.adjustmentIds.push(
       openMockCountVariance({
         stockPackageId: line.stockPackageId,
@@ -435,7 +434,8 @@ async function submit(config: AxiosRequestConfig) {
         locationCode: line.locationCode,
         sku: line.sku,
         lotNumber: line.lotNumber,
-        quantityDelta: delta,
+        direction: line.found ? "RESTOCK" : "WRITE_OFF",
+        nominalQty: carton.pkg.nominalQty,
         lineId: line.id,
         requestedBy: me.actor,
         countedBy: line.countedBy,

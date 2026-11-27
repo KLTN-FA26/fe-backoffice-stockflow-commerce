@@ -8,11 +8,22 @@ describe("beReceiptLineSchema — thùng có LPN (BE GoodsReceiptResponse.Line, 
     const line = beReceiptLineSchema.parse(cartonLine());
     expect(line.unitOfMeasure).toBe("CARTON");
     expect(line.looseQuantity).toBe(3010);
-    expect(line.packages.map((p) => [p.lpn, p.receivedQty, p.nominalQty])).toEqual([
-      ["LPN-20261024-000001", 1000, 1000],
-      ["LPN-20261024-000002", 980, 1000],
+    expect(line.packages.map((p) => [p.lpn, p.quantity, p.nominalQty, p.countedAt])).toEqual([
+      ["LPN-20261024-000001", 1000, 1000, "2026-10-24T03:00:00Z"],
+      ["LPN-20261024-000002", 980, 1000, "2026-10-24T03:00:00Z"],
     ]);
     expect(line.units[0]).toMatchObject({ unitOfMeasure: "PCS", base: true, factor: 1 });
+  });
+
+  // ADR-0011 (BE, issue #305): `countedAt` thay `receivedQty`; null khi thùng mới dán nhãn.
+  it("thùng mới dán nhãn chưa đếm → countedAt null", () => {
+    const labelled = cartonLine();
+    const [first] = labelled.packages;
+    const line = beReceiptLineSchema.parse({
+      ...labelled,
+      packages: [{ ...first, countedAt: null }],
+    });
+    expect(line.packages[0]?.countedAt).toBeNull();
   });
 
   it("dòng không gửi packages / units → mảng rỗng", () => {

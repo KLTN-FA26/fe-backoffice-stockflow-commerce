@@ -131,17 +131,21 @@ describe("InstallmentList — what the accountant sees (docs 15 §5.1)", () => {
     mockPaymentApi(ACCOUNTANT_GRANTS, { get: listRoutes() });
     renderPaymentScreen(<InstallmentList />);
     await screen.findAllByText("Đến hạn");
-    // Due + Overdue take money; the Paid one does not — each button names its contract and installment (BO-UX-11)
-    expect(screen.getAllByRole("button", { name: /^Lập phiếu thu — / })).toHaveLength(2);
-    expect(
-      screen.getByRole("button", { name: "Lập phiếu thu — HD-20261108-000013-1 đợt 4" }),
-    ).toBeInTheDocument();
+    // Due + Overdue take money; the Paid one does not — each row menu "⋯" names its contract and installment
+    // (BO-UX-11) and holds "Lập phiếu thu"
+    expect(screen.getAllByRole("button", { name: /^Thao tác — / })).toHaveLength(2);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Thao tác — HD-20261108-000013-1 đợt 4" }),
+    );
+    const menu = await screen.findByRole("dialog");
+    expect(within(menu).getByRole("button", { name: "Lập phiếu thu" })).toBeEnabled();
   });
 
   it("sales can read the installments but gets no receipt button", async () => {
     mockPaymentApi(SALES_GRANTS, { get: listRoutes() });
     renderPaymentScreen(<InstallmentList />);
     await screen.findAllByText("Đến hạn");
+    expect(screen.queryByRole("button", { name: /^Thao tác — / })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Lập phiếu thu/ })).not.toBeInTheDocument();
   });
 
@@ -282,7 +286,8 @@ describe("Record a receipt from a due installment (WF4 X03: pay BEFORE_DELIVERY 
 
   async function openDialog() {
     renderPaymentScreen(<InstallmentList />);
-    await userEvent.click(await screen.findByRole("button", { name: /^Lập phiếu thu — / }));
+    await userEvent.click(await screen.findByRole("button", { name: /^Thao tác — / }));
+    await userEvent.click(await screen.findByRole("button", { name: "Lập phiếu thu" }));
     return within(await screen.findByRole("dialog"));
   }
 

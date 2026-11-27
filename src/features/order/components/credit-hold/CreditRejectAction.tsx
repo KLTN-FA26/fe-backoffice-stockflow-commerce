@@ -41,9 +41,7 @@ export function CreditRejectAction({
   /** Hàng đợi: dòng biến mất khi tải lại → màn cha giữ kết quả để hiện số phải hoàn. */
   onRejected?: (order: CreditHoldTarget) => void;
 }) {
-  // Mutation ở đây (không ở form) để Esc / bấm ra ngoài không đóng dialog khi đang gửi
-  const mutation = useRejectCreditHold();
-  const dialog = usePendingSafeDialog(mutation.isPending);
+  const { show, dialog } = useCreditRejectDialog(order, onRejected);
   const label = UI_LABELS.order.actions.creditReject;
   return (
     <>
@@ -53,10 +51,27 @@ export function CreditRejectAction({
         size="sm"
         aria-label={compact ? `${label} duyệt công nợ đơn ${order.orderNumber}` : undefined}
         className={`${DANGER_OUTLINE_BUTTON} ${compact ? "" : "w-full"}`}
-        onClick={dialog.show}
+        onClick={show}
       >
         <XCircle className="size-3.5" /> {label}
       </Button>
+      {dialog}
+    </>
+  );
+}
+
+/** Dialog từ chối tín dụng + hàm mở — hàng đợi gọi từ menu "⋯" của dòng. */
+export function useCreditRejectDialog(
+  order: CreditHoldTarget,
+  onRejected?: (order: CreditHoldTarget) => void,
+) {
+  // Mutation ở đây (không ở form) để Esc / bấm ra ngoài không đóng dialog khi đang gửi
+  const mutation = useRejectCreditHold();
+  const dialog = usePendingSafeDialog(mutation.isPending);
+  return {
+    show: dialog.show,
+    isPending: mutation.isPending,
+    dialog: (
       <FormDialog open={dialog.open} onOpenChange={dialog.onOpenChange}>
         <RejectForm
           order={order}
@@ -65,8 +80,8 @@ export function CreditRejectAction({
           onRejected={onRejected}
         />
       </FormDialog>
-    </>
-  );
+    ),
+  };
 }
 
 function RejectForm({

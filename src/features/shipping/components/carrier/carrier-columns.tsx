@@ -1,7 +1,10 @@
 "use client";
 
+import { Pencil } from "lucide-react";
+
 import { CARRIER_COLUMNS, UI_LABELS } from "@/constants";
-import { CELL, EmptyCell, viewColumn } from "@/components/shared/column-helpers";
+import { CELL, EmptyCell } from "@/components/shared/column-helpers";
+import { rowActionsColumn } from "@/components/shared/RowActionsMenu";
 
 import type { ColumnDef } from "@/components/shared/DataTable";
 import type { Carrier } from "@/features/shipping/types";
@@ -52,9 +55,9 @@ export function buildCarrierColumns(
   ];
   if (onEdit) {
     columns.push({
-      ...viewColumn<Carrier>((row) => ({
-        label: C.editAria(row.code),
-        onOpen: () => onEdit(row),
+      ...rowActionsColumn<Carrier>((row) => ({
+        label: `Thao tác — ${row.code}`,
+        actions: [{ label: C.editAria(row.code), icon: Pencil, onSelect: () => onEdit(row) }],
       })),
       key: CARRIER_COLUMNS.ACTIONS,
       header: C.column.actions,

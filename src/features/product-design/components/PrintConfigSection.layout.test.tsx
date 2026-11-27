@@ -17,7 +17,7 @@ import {
   CHANGE_FILE,
   CHOSEN_FILE,
   cupTree,
-  DEFAULTS_TOGGLE,
+  DEFAULTS_SECTION,
   EDIT_BUTTON,
   editStored,
   EMPTY_VARIANT,
@@ -162,33 +162,29 @@ describe("the chosen file", () => {
 });
 
 describe("the defaults card", () => {
-  it("is closed by default under its plain title, and opens to the note and the fields", async () => {
+  it("is always open under its plain title, with the note and the fields", async () => {
     const user = userEvent.setup();
     renderSection();
     await editStored(user);
-    const toggle = await screen.findByRole("button", DEFAULTS_TOGGLE);
-    expect(toggle).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByLabelText("Mép dán (mm)")).not.toBeInTheDocument();
-    expect(screen.queryByText(/File 3D không cho biết mép dán/)).not.toBeInTheDocument();
+    const card = within(await screen.findByRole("region", DEFAULTS_SECTION));
+    expect(screen.queryByRole("button", DEFAULTS_SECTION)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Nâng cao/ })).not.toBeInTheDocument();
-
-    await user.click(toggle);
-    expect(toggle).toHaveAttribute("aria-expanded", "true");
     expect(
-      screen.getByText(
+      card.getByText(
         "File 3D không cho biết mép dán, vành miệng, chất liệu và lề in. Hệ thống điền sẵn số thường dùng; hãy kiểm lại với nhà sản xuất hoặc nhà in trước khi lưu.",
       ),
     ).toBeInTheDocument();
     for (const field of ["Lề an toàn (mm)", "Tràn lề (mm)", "Mép dán (mm)", "Vành miệng ly (mm)"]) {
-      expect(screen.getByLabelText(field)).toBeInTheDocument();
+      expect(card.getByLabelText(field)).toBeInTheDocument();
     }
-    expect(screen.getByLabelText("Chất liệu ly")).toBeInTheDocument();
+    expect(card.getByLabelText("Chất liệu ly")).toBeInTheDocument();
   });
 
   it("is not there for a read-only viewer", async () => {
     renderSection({ can: readOnly });
     await findStatus("Đang dùng");
-    expect(screen.queryByRole("button", DEFAULTS_TOGGLE)).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", DEFAULTS_SECTION)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Mép dán (mm)")).not.toBeInTheDocument();
   });
 });
 
@@ -204,7 +200,7 @@ describe("the status card's save", () => {
     expect(save).toHaveAttribute("type", "submit");
     expect(save).toBeDisabled();
 
-    await user.click(screen.getByRole("button", DEFAULTS_TOGGLE));
+    expect(screen.getByRole("region", DEFAULTS_SECTION)).toBeVisible();
     const seam = screen.getByLabelText("Mép dán (mm)");
     await user.clear(seam);
     await user.type(seam, "6{Enter}");
@@ -246,7 +242,7 @@ describe("view and edit of a stored configuration", () => {
     expect(
       screen.queryByRole("table", { name: "Số không lấy từ file 3D" }),
     ).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", DEFAULTS_TOGGLE));
+    expect(screen.getByRole("region", DEFAULTS_SECTION)).toBeVisible();
     const seam = screen.getByLabelText("Mép dán (mm)");
     await user.clear(seam);
     await user.type(seam, "6");
@@ -256,7 +252,7 @@ describe("view and edit of a stored configuration", () => {
     expect(put).not.toHaveBeenCalled();
     // The dropped edit is gone: editing again starts from the stored value.
     await editStored(user);
-    await user.click(screen.getByRole("button", DEFAULTS_TOGGLE));
+    expect(screen.getByRole("region", DEFAULTS_SECTION)).toBeVisible();
     expect(screen.getByLabelText("Mép dán (mm)")).toHaveValue(8);
   });
 
@@ -264,7 +260,7 @@ describe("view and edit of a stored configuration", () => {
     const user = userEvent.setup();
     renderSection();
     await editStored(user);
-    await user.click(await screen.findByRole("button", DEFAULTS_TOGGLE));
+    await screen.findByRole("region", DEFAULTS_SECTION);
     const seam = screen.getByLabelText("Mép dán (mm)");
     expect(screen.queryByText(/^Đang lưu:/)).not.toBeInTheDocument();
     await user.clear(seam);
