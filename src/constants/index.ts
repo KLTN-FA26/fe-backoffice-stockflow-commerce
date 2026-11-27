@@ -270,6 +270,7 @@ export {
 } from "./load-planning";
 export type { LayoutOrientation, PlacementRule, ViewKind } from "./load-planning";
 export {
+  COMBOBOX_MAX_ROWS,
   CUSTOMER_OPTIONS_PAGE_SIZE,
   CUSTOMER_PRICE_LIMITS,
   DATE_INPUT,

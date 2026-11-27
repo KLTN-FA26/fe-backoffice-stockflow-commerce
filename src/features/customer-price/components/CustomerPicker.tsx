@@ -2,10 +2,14 @@
 
 import { useState } from "react";
 
-import { CUSTOMER_PRICE_UI_LABELS } from "@/constants";
+import { CUSTOMER_OPTIONS_PAGE_SIZE, CUSTOMER_PRICE_UI_LABELS } from "@/constants";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useCustomerOptions } from "@/lib/references/customer-options";
-import { COMBOBOX_ITEM_CLASS, InputCombobox } from "@/components/shared/InputCombobox";
+import {
+  COMBOBOX_ITEM_CLASS,
+  ComboboxMoreHint,
+  InputCombobox,
+} from "@/components/shared/InputCombobox";
 import { StatusDot } from "@/components/shared/StatusDot";
 import { CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
 
@@ -119,6 +123,14 @@ export function CustomerPicker({
           </CommandGroup>
         )}
       </CommandList>
+      {/* Số khách còn lại SAU trang đang xem (cùng nút Trang sau) — phần trang còn lại báo ở dòng "Trang N — M khách" */}
+      {data && data.hasMore && (
+        <ComboboxMoreHint
+          label={P.more(
+            Math.max(0, data.totalElements - (data.page + 1) * CUSTOMER_OPTIONS_PAGE_SIZE),
+          )}
+        />
+      )}
     </InputCombobox>
   );
 }

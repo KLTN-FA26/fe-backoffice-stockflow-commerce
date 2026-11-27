@@ -35,6 +35,8 @@ interface InventoryItemComboboxProps {
   /** Dòng giải thích đầu dropdown (vd danh mục NCC quá dài nên không ẩn hết SKU đã có). */
   notice?: ReactNode;
   contentClassName?: string;
+  /** Có thì ô hiện nút ✕ để bỏ SKU đang chọn (caller đặt lại giá trị về rỗng). */
+  onClear?: () => void;
 }
 
 /**
@@ -56,6 +58,7 @@ export function InventoryItemCombobox({
   holdResults = false,
   notice,
   contentClassName,
+  onClear,
 }: InventoryItemComboboxProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -83,6 +86,7 @@ export function InventoryItemCombobox({
       describedBy={describedBy}
       autoFocus={autoFocus}
       mono
+      onClear={onClear}
       onBlur={onBlur}
       contentClassName={contentClassName}
     >

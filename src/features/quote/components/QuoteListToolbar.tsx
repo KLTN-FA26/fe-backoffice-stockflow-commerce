@@ -60,7 +60,7 @@ export function QuoteListToolbar({
               idPrefix="quote-list"
               value={customerId}
               onChange={state.setCustomerId}
-              optional
+              mode="filter"
             />
           </section>
           {priceReview.column}
