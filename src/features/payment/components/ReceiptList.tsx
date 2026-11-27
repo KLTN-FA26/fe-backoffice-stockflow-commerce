@@ -26,6 +26,7 @@ import { ReceiptSummaryBar } from "./ReceiptSummaryBar";
 import {
   RECEIPT_COLUMN_KEYS,
   RECEIPT_COLUMNS,
+  RECEIPT_DEFAULT_COLUMNS,
   RECEIPT_LOCKED_COLUMNS,
   RECEIPT_SORTABLE,
 } from "./receipt-columns";
@@ -64,7 +65,7 @@ function ReceiptListContent() {
   const columnState = useColumnVisibility(
     PAYMENT_STORAGE_KEYS.receiptsColumns,
     RECEIPT_COLUMN_KEYS,
-    { locked: RECEIPT_LOCKED_COLUMNS },
+    { defaults: RECEIPT_DEFAULT_COLUMNS, locked: RECEIPT_LOCKED_COLUMNS },
   );
   const columns = RECEIPT_COLUMNS.filter((column) =>
     columnState.visible.some((key) => key === column.key),
@@ -109,6 +110,10 @@ function ReceiptListContent() {
           customerName={named?.customerName}
           customerCode={named?.customerCode}
           onClearCustomer={() => void setCustomerId("")}
+          onCustomerChange={(value) => {
+            void setCustomerId(value);
+            paged.resetPage();
+          }}
           hasFilters={hasFilters}
           onClear={clearAll}
           columns={columnState}

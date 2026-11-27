@@ -34,6 +34,13 @@ export const RECEIPT_COLUMN_KEYS = [
 ] as const;
 export type ReceiptColumn = (typeof RECEIPT_COLUMN_KEYS)[number];
 export const RECEIPT_LOCKED_COLUMNS: readonly ReceiptColumn[] = ["reference"];
+/**
+ * "Các dòng của phiếu thu" ẩn mặc định (bo-24): danh sách của BE chỉ gửi số tiền mỗi dòng, không kèm hợp đồng / đợt
+ * (`lines[].contractNumber` … null ngoài trang chi tiết), nên cột chỉ đếm được số dòng — gần như luôn là 1.
+ */
+export const RECEIPT_DEFAULT_COLUMNS: readonly ReceiptColumn[] = RECEIPT_COLUMN_KEYS.filter(
+  (column) => column !== "lines",
+);
 export const RECEIPT_COLUMN_LABELS: Record<ReceiptColumn, string> = {
   reference: C.reference,
   customer: C.customer,

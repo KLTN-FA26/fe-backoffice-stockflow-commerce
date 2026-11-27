@@ -3,10 +3,13 @@
 import Link from "next/link";
 
 import { PAYMENT_LABELS, PAYMENT_LIST_LABELS as LL } from "@/constants/labels-payment";
+import { CUSTOMER_PERMISSIONS } from "@/constants";
 import { PAYMENT_ROUTES, RECEIPT_API_STATUSES } from "@/constants/payment";
 import { columnSummaryItem, columnToolbarProps } from "@/hooks/use-column-visibility";
+import { useCan } from "@/lib/auth/components/Can";
 import { formatDate } from "@/lib/format/date";
 import { CustomerName } from "@/components/backoffice/CustomerName";
+import { CustomerPicker } from "@/components/backoffice/CustomerPicker";
 import { FilterSelect } from "@/components/backoffice/FilterSelect";
 import { DatePicker } from "@/components/shared/DatePicker";
 import { ListToolbar } from "@/components/shared/ListToolbar";
@@ -38,8 +41,9 @@ function dayLabel(iso: string): string {
 
 /**
  * Toolbar phiếu thu (BE `GET /payment-receipts`, BO-UX-2/7): search chính là mã tham chiếu sao kê (khớp chính xác);
- * nút Lọc — trạng thái (BE nhận một giá trị); hàng facet — khoảng ngày nhận (lỗi khoảng ngược báo tại ô); Ẩn hiện cột;
- * chip Cấu hình cho từng bộ lọc, kể cả khách đến từ link.
+ * nút Lọc — trạng thái (BE nhận một giá trị) và khách (bo-24: tìm theo tên / MST bằng ô chọn khách, gửi `customerId`
+ * của BE; chỉ khi xem được danh bạ khách); hàng facet — khoảng ngày nhận (lỗi khoảng ngược báo tại ô); Ẩn hiện cột;
+ * chip Cấu hình cho từng bộ lọc, kể cả khách đến từ link. BE chưa tìm theo số đơn / số hợp đồng.
  */
 export function ReceiptFilters({
   reference,
@@ -55,6 +59,7 @@ export function ReceiptFilters({
   customerName,
   customerCode,
   onClearCustomer,
+  onCustomerChange,
   hasFilters,
   onClear,
   columns,
@@ -74,10 +79,13 @@ export function ReceiptFilters({
   customerName?: string | null;
   customerCode?: string | null;
   onClearCustomer: () => void;
+  onCustomerChange: (customerId: string) => void;
   hasFilters: boolean;
   onClear: () => void;
   columns: ColumnVisibility<ReceiptColumn>;
 }) {
+  // Ô chọn khách tìm trong danh bạ khách (`GET /customers`) — UI-only, BE re-check customer-customers:READ
+  const canPickCustomer = useCan(CUSTOMER_PERMISSIONS.read);
   const summary: ListSummaryItem[] = [
     {
       label: LL.searchMain,
@@ -120,8 +128,11 @@ export function ReceiptFilters({
       tools={
         <ToolbarFilterPopover
           label={LL.filters}
-          active={!!status}
-          onClear={() => onStatusChange(null)}
+          active={!!status || !!customerId}
+          onClear={() => {
+            onStatusChange(null);
+            onClearCustomer();
+          }}
         >
           <FilterSelect
             id="receipt-status"
@@ -131,6 +142,14 @@ export function ReceiptFilters({
             options={STATUS_OPTIONS}
             onChange={onStatusChange}
           />
+          {canPickCustomer && (
+            <CustomerPicker
+              idPrefix="receipt-filter"
+              mode="filter"
+              value={customerId}
+              onChange={onCustomerChange}
+            />
+          )}
         </ToolbarFilterPopover>
       }
       facets={
