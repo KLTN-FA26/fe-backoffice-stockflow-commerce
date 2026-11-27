@@ -12,7 +12,8 @@ import { Textarea } from "@/components/ui/textarea";
 
 import { bankTransactionErrorMessage, useAssignBankTransaction } from "../mutations";
 import { assignInputFor } from "../schemas";
-import { assignedTotal } from "../selectors";
+import { useCustomerInstallments } from "../queries";
+import { assignedTotal, payableInstallments } from "../selectors";
 
 import { InstallmentLines } from "./InstallmentLines";
 
@@ -32,17 +33,27 @@ export function AssignDialog({
 }) {
   const assign = useAssignBankTransaction();
   const [customerId, setCustomerId] = useState(transaction.customerId ?? "");
-  // installmentId → số tiền đang nhập (chuỗi để giữ đúng thứ người dùng gõ). Đợt gợi ý của giao dịch điền sẵn cả số
-  // tiền giao dịch; vượt số còn phải thu thì BE trả PAYMENT_RECEIPT_EXCEEDS_OUTSTANDING, Kế toán sửa lại.
-  const [amounts, setAmounts] = useState<Record<string, string>>(() =>
-    transaction.installmentId ? { [transaction.installmentId]: String(transaction.amount) } : {},
-  );
+  // installmentId → số tiền đang nhập (chuỗi để giữ đúng thứ người dùng gõ). Chưa chạm vào → điền sẵn đợt gợi ý của
+  // giao dịch, CHỈ khi đợt đó còn nhận tiền, với min(số tiền giao dịch, còn phải thu) — đợt gợi ý NOT_PAYABLE không
+  // được tính / gửi ngầm mà Kế toán không có dòng để bỏ.
+  const [amounts, setAmounts] = useState<Record<string, string>>({});
+  const [touched, setTouched] = useState(false);
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const lines = Object.entries(amounts).map(([installmentId, amount]) => ({
-    installmentId,
-    amount,
-  }));
+  const installments = useCustomerInstallments(customerId || null, true);
+  const payable = payableInstallments(installments.data ?? []);
+  const suggested =
+    !touched && customerId === transaction.customerId
+      ? payable.find((row) => row.installmentId === transaction.installmentId)
+      : undefined;
+  const effective = touched
+    ? amounts
+    : suggested
+      ? { [suggested.installmentId]: String(Math.min(transaction.amount, suggested.outstanding)) }
+      : {};
+  const lines = Object.entries(effective)
+    .filter(([id]) => payable.some((row) => row.installmentId === id))
+    .map(([installmentId, amount]) => ({ installmentId, amount }));
   const parsed = assignInputFor(transaction.amount).safeParse({ customerId, lines, note });
   const total = assignedTotal(lines);
   const over = total > transaction.amount;
@@ -79,13 +90,18 @@ export function AssignDialog({
           onChange={(id) => {
             setCustomerId(id);
             setAmounts({});
+            setTouched(true);
           }}
         />
         {customerId && (
           <InstallmentLines
-            customerId={customerId}
-            amounts={amounts}
-            onChange={setAmounts}
+            state={installments}
+            rows={payable}
+            amounts={effective}
+            onChange={(next) => {
+              setTouched(true);
+              setAmounts(next);
+            }}
             remaining={transaction.amount - total}
           />
         )}

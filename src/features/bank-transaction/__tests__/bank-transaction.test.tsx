@@ -122,6 +122,44 @@ describe("Chi tiết giao dịch — gán / bỏ qua", () => {
     );
   });
 
+  it("Đợt gợi ý được điền sẵn min(số tiền giao dịch, còn phải thu)", async () => {
+    mockApi("ACCOUNTANT", {
+      get: {
+        [DETAIL]: () => needsReview,
+        "/installments": () => bePage([installment]),
+        [`/customers/${CUSTOMER_ID}`]: () => ({
+          customerId: CUSTOMER_ID,
+          name: "Công ty Ly Giấy Xanh",
+        }),
+      },
+    });
+    renderScreen(<BankTransactionDetail id={ID} />, "ACCOUNTANT");
+    await userEvent.click(await screen.findByRole("button", { name: /Gán vào đợt/ }));
+    const dialog = await screen.findByRole("dialog");
+    expect(await within(dialog).findByLabelText(/Số tiền gán/)).toHaveValue("600000");
+  });
+
+  it("NOT_PAYABLE: đợt gợi ý đã trả đủ → không tính, không gửi ngầm; nút khoá tới khi chọn đợt", async () => {
+    mockApi("ACCOUNTANT", {
+      get: {
+        [DETAIL]: () => ({ ...needsReview, reviewReason: "NOT_PAYABLE" }),
+        "/installments": () => bePage([{ ...installment, status: "PAID", outstanding: 0 }]),
+        [`/customers/${CUSTOMER_ID}`]: () => ({
+          customerId: CUSTOMER_ID,
+          name: "Công ty Ly Giấy Xanh",
+        }),
+      },
+    });
+    renderScreen(<BankTransactionDetail id={ID} />, "ACCOUNTANT");
+    await userEvent.click(await screen.findByRole("button", { name: /Gán vào đợt/ }));
+    const dialog = await screen.findByRole("dialog");
+    expect(
+      await within(dialog).findByText("Khách không có đợt nào còn phải thu."),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByText(/Đã gán 0/)).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Gán và lập phiếu thu" })).toBeDisabled();
+  });
+
   it("Gán vượt số tiền giao dịch → báo ngay, khoá nút", async () => {
     mockApi("ACCOUNTANT", {
       get: {

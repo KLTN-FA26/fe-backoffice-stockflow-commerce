@@ -7,35 +7,36 @@ import { Skeleton } from "@/components/shared/Skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 
-import { useCustomerInstallments } from "../queries";
-import { payableInstallments } from "../selectors";
-
 import { MONO } from "./primitives";
+
+import type { PayableInstallment } from "../types";
 
 /** Các đợt còn phải thu của khách: tick để gán, số tiền mặc định = min(còn phải thu, phần giao dịch còn lại). */
 export function InstallmentLines({
-  customerId,
+  state,
+  rows,
   amounts,
   onChange,
   remaining,
 }: {
-  customerId: string;
+  /** Trạng thái tải các đợt của khách (`useCustomerInstallments`, do hộp thoại giữ). */
+  state: { isPending: boolean; isError: boolean; refetch: () => unknown };
+  /** Đợt còn nhận tiền (`payableInstallments`). */
+  rows: readonly PayableInstallment[];
   amounts: Record<string, string>;
   onChange: (next: Record<string, string>) => void;
   remaining: number;
 }) {
-  const query = useCustomerInstallments(customerId, true);
-  if (query.isPending) return <Skeleton className="h-20" />;
-  if (query.isError)
+  if (state.isPending) return <Skeleton className="h-20" />;
+  if (state.isError)
     return (
       <p role="alert" className="text-danger text-[0.8125rem]">
         Không tải được các đợt của khách.{" "}
-        <button type="button" className="underline" onClick={() => void query.refetch()}>
+        <button type="button" className="underline" onClick={() => void state.refetch()}>
           Thử lại
         </button>
       </p>
     );
-  const rows = payableInstallments(query.data);
   if (rows.length === 0)
     return (
       <p className="text-ink-tertiary text-[0.8125rem]">Khách không có đợt nào còn phải thu.</p>

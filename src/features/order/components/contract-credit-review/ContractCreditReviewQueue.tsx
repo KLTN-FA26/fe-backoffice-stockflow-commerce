@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FileClock } from "lucide-react";
 import { parseAsInteger, useQueryState } from "nuqs";
+import { useState } from "react";
 
 import { ADMIN_ROUTES, CUSTOMER_FALLBACK_LABEL, PAGE_SIZE } from "@/constants";
 import { formatMoney } from "@/lib/format/money";
@@ -106,7 +107,9 @@ export function ContractCreditReviewQueue({
   canDecide: boolean;
 }) {
   const [page, setPage] = useQueryState("reviewPage", parseAsInteger.withDefault(1));
-  const query = useContractCreditReviews({ page: Math.max(0, page - 1), size: PAGE_SIZE.md });
+  // Số dòng / trang: sở thích tạm của bảng phụ này (không lên URL, state-persistence)
+  const [size, setSize] = useState<number>(PAGE_SIZE.md);
+  const query = useContractCreditReviews({ page: Math.max(0, page - 1), size });
 
   return (
     <section aria-labelledby="contract-credit-reviews-title" className="mt-6 space-y-2">
@@ -132,6 +135,7 @@ export function ContractCreditReviewQueue({
             columns={columns(canOpenOrders, canDecide)}
             data={query.data.items}
             rowKey={(row) => row.reviewId}
+            pageSize={size}
             caption={`Hiển thị ${query.data.items.length} / ${query.data.totalElements} hợp đồng`}
             emptyState={
               <EmptyState
@@ -149,7 +153,10 @@ export function ContractCreditReviewQueue({
               hasNext: query.data.hasNext,
               hasPrevious: query.data.hasPrevious,
               onPageChange: (p) => void setPage(p + 1),
-              onPageSizeChange: () => void setPage(1),
+              onPageSizeChange: (next) => {
+                setSize(next);
+                void setPage(1);
+              },
             }}
           />
         </>
