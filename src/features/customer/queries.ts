@@ -13,6 +13,7 @@ import {
 } from "./api";
 import { getCreditPosition } from "./credit-profile-api";
 import { listCustomerOrders, listCustomerQuotes } from "./documents-api";
+import { listCreditPositions, listSalesContacts } from "./list-extras-api";
 
 import type { ListCustomerParams } from "./api";
 import type { CustomerDocumentsParams } from "./documents-api";
@@ -93,6 +94,31 @@ export function useCustomerOrders(params: CustomerDocumentsParams, enabled = tru
     queryKey: [...sub(params.customerId, "orders"), params.page, params.size] as const,
     queryFn: ({ signal }) => listCustomerOrders(params, signal),
     enabled,
+    placeholderData: keepPreviousData,
+    ...QUERY_TIMES.list,
+  });
+}
+
+/**
+ * bo-29: hạn mức / dư nợ của các khách trên trang đang xem — dưới `customerKeys.all` (lưu hạn mức invalidate theo).
+ * `data === null`: không dùng được (không quyền / BE chưa có) → danh sách ẩn cột.
+ */
+export function useCreditPositions(customerIds: readonly string[], enabled = true) {
+  return useQuery({
+    queryKey: [...customerKeys.all, "credit-positions", [...customerIds].sort()] as const,
+    queryFn: ({ signal }) => listCreditPositions(customerIds, signal),
+    enabled: enabled && customerIds.length > 0,
+    placeholderData: keepPreviousData,
+    ...QUERY_TIMES.list,
+  });
+}
+
+/** bo-29: sale liên hệ gần nhất (người gửi báo giá / hợp đồng gần nhất) của các khách trên trang. */
+export function useSalesContacts(customerIds: readonly string[], enabled = true) {
+  return useQuery({
+    queryKey: [...customerKeys.all, "sales-contacts", [...customerIds].sort()] as const,
+    queryFn: ({ signal }) => listSalesContacts(customerIds, signal),
+    enabled: enabled && customerIds.length > 0,
     placeholderData: keepPreviousData,
     ...QUERY_TIMES.list,
   });
