@@ -28,6 +28,17 @@ describe("Danh sách đề nghị cấp hạn mức", () => {
     expect(params.get("customerId")).toBe(submitted.customerId);
   });
 
+  it("bo-28: không lọc trạng thái → không có chip 'Trạng thái Tất cả' lặp lại nút lọc; lọc từ URL → chip có X", async () => {
+    mockApi("ACCOUNTANT", { get: { "/credit-requests": () => bePage([pendingApproval]) } });
+    const view = renderScreen(<CreditRequestList />, "ACCOUNTANT");
+    await screen.findByRole("link", { name: "Công ty Ly Giấy Xanh" });
+    expect(screen.queryByText("Tất cả")).not.toBeInTheDocument();
+    view.unmount();
+    mockApi("ACCOUNTANT", { get: { "/credit-requests": () => bePage([pendingApproval]) } });
+    renderScreen(<CreditRequestList />, "ACCOUNTANT", "?status=PENDING_APPROVAL");
+    expect(await screen.findByRole("button", { name: "Xoá Trạng thái" })).toBeInTheDocument();
+  });
+
   it("?create= (lối từ trang khách, A2) mở form tạo cho Sale", async () => {
     mockApi("SALES_STAFF", { get: { "/credit-requests": () => bePage([]) } });
     renderScreen(
