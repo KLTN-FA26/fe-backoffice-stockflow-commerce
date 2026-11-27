@@ -17,7 +17,8 @@ export interface MockReceiptPackage {
   id: string;
   lpn: string;
   quantity: number;
-  receivedQty: number;
+  /** ADR-0011 (BE, issue #305): lúc thùng được đếm — thay `receivedQty`; null khi thùng mới dán nhãn. */
+  countedAt: string | null;
   nominalQty: number;
   status: MockStockPackageStatus;
   locationCode: string | null;
@@ -57,12 +58,12 @@ export function shownPackages(line: Pick<MockReceiptLine, "packages">): MockRece
   return (line.packages ?? []).filter((p) => p.status !== "VOID");
 }
 
-/** Các field thùng của `GoodsReceiptResponse.Line`, như BE `view()`: phần lẻ = SL dòng − Σ `receivedQty`. */
+/** Các field thùng của `GoodsReceiptResponse.Line`, như BE `view()`: phần lẻ = SL dòng − Σ SL trong thùng. */
 export function cartonLineView(line: MockReceiptLine) {
   const packages = shownPackages(line);
   return {
     unitOfMeasure: line.unitOfMeasure ?? null,
-    looseQuantity: line.quantity - packages.reduce((sum, p) => sum + p.receivedQty, 0),
+    looseQuantity: line.quantity - packages.reduce((sum, p) => sum + p.quantity, 0),
     packages,
     units: mockUnitsOf(line.sku),
     orderedUnitOfMeasure: null,
@@ -212,7 +213,7 @@ export function applyCartonCounts(
         );
       const measured = {
         quantity: carton.quantity,
-        receivedQty: carton.quantity,
+        countedAt: now.toISOString(),
         nominalQty: unit?.factor ?? 1,
         locationCode: line.locationCode,
       };

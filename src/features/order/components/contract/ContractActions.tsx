@@ -79,7 +79,7 @@ export function ContractActions({
   actions: readonly ContractAction[];
   onEdit: () => void;
   onSigned: () => void;
-  /** Hộp thoại đang mở — do khối cha giữ để banner cảnh báo mở được "Vẫn gửi". */
+  /** Hộp thoại đang mở — do khối cha giữ để banner cảnh báo mở được "Gửi Kế toán duyệt". */
   dialog: ContractDialog;
   setDialog: (dialog: ContractDialog) => void;
   /** Phụ lục / biên bản thanh lý mở được chưa (`contractPapers`). */
@@ -149,13 +149,13 @@ export function ContractActions({
       <ConfirmDialog
         open={dialog === "send"}
         onOpenChange={(next) => !next && close()}
-        title={warning ? "Vẫn gửi hợp đồng?" : "Gửi hợp đồng cho khách?"}
+        title={warning ? "Gửi hợp đồng cho Kế toán duyệt?" : "Gửi hợp đồng cho khách?"}
         description={
           warning
-            ? `${creditWarningText(warning, money)} Hợp đồng vẫn được gửi; Kế toán quyết định khi khách ký.`
+            ? `${creditWarningText(warning, money)} Hợp đồng chưa tới khách cho tới khi Kế toán duyệt; trong lúc chờ không sửa được.`
             : "Đơn chuyển sang Chờ ký hợp đồng. Muốn sửa sau khi gửi phải huỷ hợp đồng rồi lập lại."
         }
-        confirmLabel={warning ? "Vẫn gửi" : "Gửi hợp đồng"}
+        confirmLabel={warning ? "Gửi Kế toán duyệt" : "Gửi hợp đồng"}
         variant="default"
         loading={send.isPending}
         closeOnConfirm={false}
@@ -166,8 +166,9 @@ export function ContractActions({
             {
               onSuccess: (sent) => {
                 close();
-                if (sent.creditWarning)
-                  toast.warning(`Đã gửi hợp đồng. ${creditWarningText(sent.creditWarning, money)}`);
+                // 15 BR-11 (BE PR #486): 200 nhưng KHÔNG gửi — vẫn DRAFT, creditReview PENDING chờ Kế toán.
+                if (sent.creditReview === "PENDING")
+                  toast.warning("Hợp đồng chưa được gửi: đang chờ Kế toán duyệt tín dụng.");
                 else toast.success("Đã gửi hợp đồng cho khách.");
               },
               // Giữ hộp thoại mở, hiện lỗi kèm fieldErrors ngay trong đó (dialog modal che phần còn lại).

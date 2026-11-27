@@ -72,7 +72,6 @@ export const PROJECT_REQUEST_COLUMNS = [
   "customer",
   "designs",
   "cartons",
-  "lines",
   "delivery",
   "requestedAt",
   "status",
@@ -88,14 +87,13 @@ export const PROJECT_REQUEST_COLUMN_LABELS: Record<ProjectRequestColumn, string>
   customer: C.customer,
   designs: C.designs,
   cartons: C.totalCartons,
-  lines: C.lines,
   delivery: C.delivery,
   requestedAt: C.requestedAt,
   status: C.status,
   actions: C.actions,
 };
 
-function DesignStatusDot({ status }: { status: DesignStatus }) {
+export function DesignStatusDot({ status }: { status: DesignStatus }) {
   return (
     <StatusDot
       domain="order"
@@ -106,7 +104,7 @@ function DesignStatusDot({ status }: { status: DesignStatus }) {
 }
 
 /** Lý do trả lại của thiết kế: icon có tooltip trên ô trạng thái (cột riêng ẩn mặc định — thường trống). */
-function ReturnReasonIcon({ reason, name }: { reason: string; name: string }) {
+export function ReturnReasonIcon({ reason, name }: { reason: string; name: string }) {
   return (
     <TooltipProvider>
       <Tooltip>
@@ -129,7 +127,7 @@ function ReturnReasonIcon({ reason, name }: { reason: string; name: string }) {
  * Trạng thái yêu cầu; đóng vì đã có báo giá (R5-5 `closedOutcome=QUOTED`) → "Đã báo giá QT-…" dẫn tới báo giá, thay vì
  * chỉ "Đã đóng".
  */
-function RequestStatus({ row }: { row: QuoteRequest }) {
+export function RequestStatus({ row }: { row: QuoteRequest }) {
   const quoted = row.status === "CLOSED" && row.closedOutcome === "QUOTED" && row.quoteId;
   const returnReason = "returnReason" in row ? row.returnReason : null;
   return (
@@ -155,6 +153,11 @@ function RequestStatus({ row }: { row: QuoteRequest }) {
       {returnReason && "designName" in row && (
         <ReturnReasonIcon reason={returnReason} name={row.designName} />
       )}
+      {"closeReason" in row && row.closeReason && row.closedOutcome === "CLOSED_BY_STAFF" && (
+        <span className="text-ink-tertiary line-clamp-2 max-w-[14rem] text-xs">
+          {COPY.closeReason}: {row.closeReason}
+        </span>
+      )}
     </span>
   );
 }
@@ -174,13 +177,33 @@ const requestedAtCell = (row: QuoteRequest) => (
   <span className="text-ink-secondary tabular-nums">{formatDateTime(row.requestedAt)}</span>
 );
 
+/** So sánh cho sắp xếp ở FE — chỉ sắp các dòng của trang đang xem (BE không nhận tham số sort). */
+const byText =
+  <T,>(get: (row: T) => string | null | undefined) =>
+  (a: T, b: T) =>
+    (get(a) ?? "").localeCompare(get(b) ?? "", "vi");
+const byNumber =
+  <T,>(get: (row: T) => number) =>
+  (a: T, b: T) =>
+    get(a) - get(b);
+const SORT_NAME_DESIGN = byText<DesignQuoteRequest>((row) => row.designName);
+const SORT_CUSTOMER = byText<QuoteRequest>((row) => row.customerName);
+const SORT_DELIVERY = byText<QuoteRequest>((row) => row.desiredDeliveryDate);
+const SORT_REQUESTED = byText<QuoteRequest>((row) => row.requestedAt);
+const SORT_STATUS = byText<QuoteRequest>((row) => row.status);
+export const totalCartons = (row: ProjectQuoteRequest) =>
+  row.lines.reduce((sum, line) => sum + line.cartons, 0);
+
 /** Cột thao tác ghim phải: nút chính luôn thấy được dù bảng cuộn ngang (BO-UX-10). */
-const actionsColumn = <T extends QuoteRequest>(close: CloseRequestMutation): ColumnDef<T> => ({
+const actionsColumn = <T extends QuoteRequest>(
+  close: CloseRequestMutation,
+  viewHref?: (row: T) => string,
+): ColumnDef<T> => ({
   key: "actions",
   header: C.actions,
   align: "right",
   sticky: "right",
-  cell: (row) => <QuoteRequestActions row={row} close={close} />,
+  cell: (row) => <QuoteRequestActions row={row} close={close} viewHref={viewHref?.(row)} />,
 });
 
 /** Tên thiết kế dẫn tới trang thiết kế khi người dùng mở được (`design-designs:VIEW_PAGE`). */
@@ -212,29 +235,69 @@ export function designQuoteRequestColumns(
     {
       key: "design",
       header: C.design,
+      sortable: true,
+      compare: SORT_NAME_DESIGN,
       cell: (row) => <DesignNameCell row={row} canOpenDesign={canOpenDesign} />,
     },
     {
       key: "designStatus",
       header: C.designStatus,
+      sortable: true,
+      compare: byText((row) => row.designStatus),
       cell: (row) => <DesignStatusDot status={row.designStatus} />,
     },
-    { key: "customer", header: C.customer, cell: customerCell },
-    { key: "sku", header: C.sku, cell: (row) => <span className={MONO}>{row.sku}</span> },
+    {
+      key: "customer",
+      header: C.customer,
+      sortable: true,
+      compare: SORT_CUSTOMER,
+      cell: customerCell,
+    },
+    {
+      key: "sku",
+      header: C.sku,
+      sortable: true,
+      compare: byText((row) => row.sku),
+      cell: (row) => <span className={MONO}>{row.sku}</span>,
+    },
     {
       key: "customerSku",
       header: C.customerSku,
+      sortable: true,
+      compare: byText((row) => row.customerSku),
       cell: (row) => (row.customerSku ? <span className={MONO}>{row.customerSku}</span> : DASH),
     },
     {
       key: "cartons",
       header: C.cartons,
       align: "right",
+      sortable: true,
+      compare: byNumber((row) => row.cartons),
       cell: (row) => <span className="tabular-nums">{row.cartons}</span>,
     },
-    { key: "delivery", header: C.delivery, align: "right", cell: deliveryCell },
-    { key: "requestedAt", header: C.requestedAt, align: "right", cell: requestedAtCell },
-    { key: "status", header: C.status, cell: (row) => <RequestStatus row={row} /> },
+    {
+      key: "delivery",
+      header: C.delivery,
+      align: "right",
+      sortable: true,
+      compare: SORT_DELIVERY,
+      cell: deliveryCell,
+    },
+    {
+      key: "requestedAt",
+      header: C.requestedAt,
+      align: "right",
+      sortable: true,
+      compare: SORT_REQUESTED,
+      cell: requestedAtCell,
+    },
+    {
+      key: "status",
+      header: C.status,
+      sortable: true,
+      compare: SORT_STATUS,
+      cell: (row) => <RequestStatus row={row} />,
+    },
     {
       key: "returnReason",
       header: C.returnReason,
@@ -252,51 +315,86 @@ export function designQuoteRequestColumns(
   ];
 }
 
-/** Các dòng của yêu cầu dự án, thu gọn: "tên · SKU riêng × thùng". */
-function ProjectLines({ row }: { row: ProjectQuoteRequest }) {
-  return (
-    <ul className="text-ink-secondary flex flex-col gap-0.5 text-[0.8125rem]">
-      {row.lines.map((line) => (
-        <li key={line.designId}>
-          {line.designName} · <span className={MONO}>{line.customerSku ?? "—"}</span> ×{" "}
-          <span className="tabular-nums">{line.cartons}</span>
-        </li>
-      ))}
-    </ul>
-  );
+/** "Đã duyệt x/y": BE trả `approvedCount` / `lineCount` (BE #451); BE cũ thì đếm từ dòng. */
+export function approvedProgress(row: ProjectQuoteRequest): { approved: number; total: number } {
+  return {
+    approved:
+      row.approvedCount ?? row.lines.filter((line) => line.designStatus === "APPROVED").length,
+    total: row.lineCount ?? row.lines.length,
+  };
 }
 
 /** Cột của hộp yêu cầu báo giá dự án (xem `PROJECT_REQUEST_COLUMNS`). */
 export function projectQuoteRequestColumns(
   close: CloseRequestMutation,
+  viewHref: (row: ProjectQuoteRequest) => string,
 ): ColumnDef<ProjectQuoteRequest>[] {
   return [
     {
       key: "project",
       header: C.project,
+      sortable: true,
+      compare: byText((row) => row.projectName),
       cell: (row) => <span className="text-ink-primary font-medium">{row.projectName}</span>,
     },
-    { key: "customer", header: C.customer, cell: customerCell },
+    {
+      key: "customer",
+      header: C.customer,
+      sortable: true,
+      compare: SORT_CUSTOMER,
+      cell: customerCell,
+    },
     {
       key: "designs",
       header: C.designs,
       align: "right",
-      cell: (row) => <span className="tabular-nums">{row.lines.length}</span>,
+      sortable: true,
+      compare: byNumber((row) => approvedProgress(row).total),
+      cell: (row) => {
+        const { approved, total } = approvedProgress(row);
+        return (
+          <span className="inline-flex flex-col items-end">
+            <span className="tabular-nums">{total}</span>
+            <span
+              className={`text-xs tabular-nums ${approved === total ? "text-dot-positive" : "text-ink-tertiary"}`}
+            >
+              {COPY.approvedOf(approved, total)}
+            </span>
+          </span>
+        );
+      },
     },
     {
       key: "cartons",
       header: C.totalCartons,
       align: "right",
-      cell: (row) => (
-        <span className="tabular-nums">
-          {row.lines.reduce((sum, line) => sum + line.cartons, 0)}
-        </span>
-      ),
+      sortable: true,
+      compare: byNumber(totalCartons),
+      cell: (row) => <span className="tabular-nums">{totalCartons(row)}</span>,
     },
-    { key: "lines", header: C.lines, cell: (row) => <ProjectLines row={row} /> },
-    { key: "delivery", header: C.delivery, align: "right", cell: deliveryCell },
-    { key: "requestedAt", header: C.requestedAt, align: "right", cell: requestedAtCell },
-    { key: "status", header: C.status, cell: (row) => <RequestStatus row={row} /> },
-    actionsColumn(close),
+    {
+      key: "delivery",
+      header: C.delivery,
+      align: "right",
+      sortable: true,
+      compare: SORT_DELIVERY,
+      cell: deliveryCell,
+    },
+    {
+      key: "requestedAt",
+      header: C.requestedAt,
+      align: "right",
+      sortable: true,
+      compare: SORT_REQUESTED,
+      cell: requestedAtCell,
+    },
+    {
+      key: "status",
+      header: C.status,
+      sortable: true,
+      compare: SORT_STATUS,
+      cell: (row) => <RequestStatus row={row} />,
+    },
+    actionsColumn(close, viewHref),
   ];
 }

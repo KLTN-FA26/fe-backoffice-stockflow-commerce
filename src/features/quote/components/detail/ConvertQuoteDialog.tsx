@@ -13,13 +13,14 @@ import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { FormField } from "@/components/shared/FormField";
 import { FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
 import { FormSelect } from "@/components/shared/FormSelect";
+import { SelectItem, SelectTrigger, SelectValue } from "@/components/shared/combobox-select";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { Notice } from "@/components/shared/Notice";
-import { SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import type { CustomerAddressRef } from "@/lib/references/customer-lookup";
 import type { Quote } from "@/features/quote/types";
 
-/** Radix Select has no empty value: stands for "" = the default address (the BE takes it). */
+/** A select item has no empty value: stands for "" = the default address (the BE takes it). */
 const DEFAULT_ADDRESS = "default";
 
 /** Nhãn ngắn trong ô chọn: người nhận và nơi giao; địa chỉ đầy đủ viết ở dòng dưới ô (không bị cắt chữ). */
@@ -75,7 +76,7 @@ function AddressField({
         >
           <SelectValue />
         </SelectTrigger>
-        <SelectContent>
+        <TitledSelectContent title={label}>
           <SelectItem value={DEFAULT_ADDRESS}>
             {fallback
               ? `Mặc định — ${shortAddress(fallback)}`
@@ -88,7 +89,7 @@ function AddressField({
                 {shortAddress(address)}
               </SelectItem>
             ))}
-        </SelectContent>
+        </TitledSelectContent>
       </FormSelect>
     </FormField>
   );

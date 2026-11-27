@@ -173,7 +173,8 @@ describe("stock adjustment response contract", () => {
     number: "ADJ-1",
     locationCode: "HCM-A01-1-A",
     sku: "CUP-PP-500",
-    quantityDelta: -3,
+    direction: "WRITE_OFF",
+    nominalQty: 3,
     reason: "DAMAGED",
     status: "PENDING_APPROVAL",
     requestedBy: "00000000-0000-4000-8000-000000000003",
@@ -225,11 +226,25 @@ describe("stock adjustment response contract", () => {
     );
   });
 
+  // ADR-0011 (BE, issue #305): the signed `quantityDelta` is gone; `direction` is read open like reason/status.
+  it("reads the direction and the carton's units, and keeps an unknown direction verbatim", () => {
+    expect(stockAdjustmentDto.parse(adjustment)).toMatchObject({
+      direction: "WRITE_OFF",
+      nominalQty: 3,
+    });
+    expect(stockAdjustmentDto.parse({ ...adjustment, direction: "SPLIT" }).direction).toBe("SPLIT");
+    const { direction: _direction, ...withoutDirection } = adjustment;
+    expect(stockAdjustmentDto.safeParse({ ...withoutDirection, quantityDelta: -3 }).success).toBe(
+      false,
+    );
+  });
+
   it("reads the carton and the cycle count line a COUNT_VARIANCE came from", () => {
     const parsed = stockAdjustmentDto.parse({
       ...adjustment,
       reason: "COUNT_VARIANCE",
-      quantityDelta: -120,
+      direction: "WRITE_OFF",
+      nominalQty: 120,
       stockPackageId: "00000000-0000-4000-8000-0000000000a1",
       cycleCountLineId: "00000000-0000-4000-8000-0000000000a2",
     });

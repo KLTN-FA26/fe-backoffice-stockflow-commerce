@@ -28,6 +28,19 @@ export const COLUMN_LABELS: Record<string, string> = {
   [INVENTORY_ITEM_COLUMNS.BARCODE]: F.barcode,
 };
 
+/** Cột thao tác cuối dòng — luôn hiện, không nằm trong "Ẩn hiện cột" (backoffice-erp-ui A6). */
+export const ACTIONS_COLUMN = { key: "actions", header: "Thao tác" } as const;
+
+/** Lọc trên header cột (backoffice-erp-ui A5) — khoá URL riêng, không ghi đè ô tìm chính `q`. */
+export const COLUMN_FILTER_KEYS = { sku: "itemSku", barcode: "itemBarcode" } as const;
+
+export const COLUMN_FILTER_COPY = {
+  skuLabel: F.sku,
+  skuPlaceholder: `Tìm theo ${F.sku}…`,
+  barcodeLabel: F.barcode.toLowerCase(),
+  barcodePlaceholder: `Tìm theo ${F.barcode.toLowerCase()}…`,
+} as const;
+
 /** BE search quét SKU và mã vạch. */
 export const SEARCH_SCOPE_LABEL = `${F.sku}, ${F.barcode.toLowerCase()}`;
 

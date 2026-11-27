@@ -1,6 +1,7 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import {
@@ -192,7 +193,9 @@ function renderSection(props: { acceptsChanges?: boolean } = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <Harness {...props} />
+      <NuqsTestingAdapter hasMemory>
+        <Harness {...props} />
+      </NuqsTestingAdapter>
     </QueryClientProvider>,
   );
 }
@@ -290,7 +293,7 @@ describe("VariantsSection — biến thể thật (BE PR #71), không còn bản
     const user = userEvent.setup();
     mockBe([PRODUCT_PERMISSIONS.read, VARIANT_PERMISSIONS.create]);
     renderSection();
-    const title = await screen.findByRole("button", { name: /^Biến thể \(1\)/ });
+    const title = await screen.findByRole("heading", { name: /^Biến thể \(1\)/ });
     const titleRow = title.parentElement;
     if (!titleRow) throw new Error("thiếu dòng tiêu đề mục Biến thể");
     expect(

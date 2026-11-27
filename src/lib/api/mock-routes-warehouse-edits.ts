@@ -211,7 +211,7 @@ function stockRowsAt(codes: readonly string[], cartons: readonly MockCarton[]) {
         onHand: 0,
         status: isMockQuarantined(carton.pkg.lpn) ? "QUARANTINE" : "AVAILABLE",
       };
-      line.onHand += carton.pkg.receivedQty;
+      line.onHand += carton.pkg.quantity;
       lines.set(key, line);
     }
     if (lines.size === 0) return [{ locationCode }];

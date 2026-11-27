@@ -7,12 +7,15 @@ import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { ORDER_PERMISSIONS, SALES_CONTRACT_PERMISSIONS } from "@/constants";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
+import { toast } from "@/components/shared/Toast";
 
 import {
   CONTRACT_LINE_ID,
   CONTRACT_ORDER_ID,
   contractDraft,
   contractDraftOverdue,
+  contractDraftPendingReview,
+  contractDraftReviewRejected,
   contractOrderDto,
   contractSent,
 } from "../../__fixtures__/contract";
@@ -101,15 +104,66 @@ describe("Hợp đồng — đọc (B1)", () => {
     expect(screen.queryByRole("button", { name: /Gửi hợp đồng/ })).not.toBeInTheDocument();
   });
 
-  it("DS-02b: cảnh báo OVERDUE trên bản nháp → banner + 'Vẫn gửi' mở hộp thoại nhắc lại", async () => {
+  it("DS-02b: cảnh báo OVERDUE trên bản nháp → banner + 'Gửi Kế toán duyệt' mở hộp thoại nhắc lại (15 BR-11)", async () => {
     renderSection(() => contractDraftOverdue);
     expect(await screen.findByText(/Khách đang có khoản quá hạn/)).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Vẫn gửi" }));
+    await userEvent.click(screen.getByRole("button", { name: "Gửi Kế toán duyệt" }));
     const dialog = await screen.findByRole("dialog");
     expect(
-      within(dialog).getByText(/đơn sẽ bị treo chờ Kế toán duyệt tín dụng/),
+      within(dialog).getByText(/phải chờ Kế toán duyệt tín dụng rồi mới tới khách/),
     ).toBeInTheDocument();
-    expect(within(dialog).getByRole("button", { name: "Vẫn gửi" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Gửi Kế toán duyệt" })).toBeInTheDocument();
+  });
+});
+
+describe("15 BR-11 — hợp đồng chờ Kế toán duyệt tín dụng (BE PR #486)", () => {
+  it("Gửi trả 200 creditReview PENDING → báo 'chưa được gửi', không báo đã gửi", async () => {
+    renderSection(() => contractDraftOverdue);
+    vi.spyOn(api, "post").mockResolvedValue({ data: contractDraftPendingReview });
+    const warning = vi.spyOn(toast, "warning").mockImplementation(() => "");
+    const success = vi.spyOn(toast, "success").mockImplementation(() => "");
+    await userEvent.click(await screen.findByRole("button", { name: "Gửi Kế toán duyệt" }));
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Gửi Kế toán duyệt" }));
+    await waitFor(() =>
+      expect(warning).toHaveBeenCalledWith(
+        "Hợp đồng chưa được gửi: đang chờ Kế toán duyệt tín dụng.",
+      ),
+    );
+    expect(success).not.toHaveBeenCalledWith("Đã gửi hợp đồng cho khách.");
+  });
+
+  it("PENDING → banner chờ duyệt, khoá Sửa / Gửi, 'Rút đề nghị' gửi version hiện tại", async () => {
+    renderSection(() => contractDraftPendingReview);
+    expect(await screen.findByText(/Đang chờ Kế toán duyệt tín dụng/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Sửa$/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Gửi hợp đồng/ })).not.toBeInTheDocument();
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: contractDraftReviewRejected });
+    await userEvent.click(screen.getByRole("button", { name: "Rút đề nghị" }));
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Rút đề nghị" }));
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(`${PATH}/credit-review/withdrawal`, { version: 1 }),
+    );
+  });
+
+  it("PENDING + thiếu quyền sales-contracts:UPDATE → không có 'Rút đề nghị'", async () => {
+    renderSection(() => contractDraftPendingReview, draftOrder, [
+      ORDER_PERMISSIONS.viewPage,
+      ORDER_PERMISSIONS.read,
+      SALES_CONTRACT_PERMISSIONS.read,
+    ]);
+    expect(await screen.findByText(/Đang chờ Kế toán duyệt tín dụng/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Rút đề nghị" })).not.toBeInTheDocument();
+  });
+
+  it("lượt gần nhất REJECTED, không còn chờ → hiện lý do từ chối, Sửa / Gửi mở lại", async () => {
+    renderSection(() => contractDraftReviewRejected);
+    expect(await screen.findByText("Kế toán đã từ chối duyệt tín dụng.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Lý do: Giảm phần trả sau giao xuống dưới 10 triệu."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Gửi hợp đồng/ })).toBeInTheDocument();
   });
 });
 

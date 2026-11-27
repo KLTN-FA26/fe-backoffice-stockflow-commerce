@@ -10,7 +10,12 @@ import { CARRIER_EVENT_ALL_FILTER } from "@/features/shipping/carrier-event-life
 import { useCan } from "@/lib/auth";
 import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { Label } from "@/components/ui/label";
-import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/shared/combobox-select";
 
 import { CarrierSelect } from "../CarrierSelect";
 

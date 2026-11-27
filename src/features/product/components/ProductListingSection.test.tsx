@@ -36,6 +36,13 @@ function setup(permissions: string[], data = listing(), put?: () => unknown) {
   });
 }
 
+/** Panel "Thông tin cửa hàng" và nút "Sửa" trên thanh tiêu đề của nó. */
+const panel = () => screen.getByRole("region", { name: "Thông tin cửa hàng" });
+const editButton = async () =>
+  within(await screen.findByRole("region", { name: "Thông tin cửa hàng" })).findByRole("button", {
+    name: "Sửa",
+  });
+
 describe("ProductListingSection — GET/PUT /products/{id}/ecommerce", () => {
   it("hiện slug, SEO, trạng thái hiển thị; chỉ đọc thì không có nút sửa", async () => {
     setup([PRODUCT_PERMISSIONS.read]);
@@ -43,9 +50,7 @@ describe("ProductListingSection — GET/PUT /products/{id}/ecommerce", () => {
     expect(await screen.findByText("ly-giay")).toBeInTheDocument();
     expect(screen.getByText("Chưa hiển thị")).toBeInTheDocument();
     expect(screen.getByText("Chưa đặt")).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: /Sửa thông tin cửa hàng/ }),
-    ).not.toBeInTheDocument();
+    expect(within(panel()).queryByRole("button", { name: "Sửa" })).not.toBeInTheDocument();
   });
 
   it("projectionPending nhắc rằng thay đổi chưa lên cửa hàng", async () => {
@@ -58,7 +63,7 @@ describe("ProductListingSection — GET/PUT /products/{id}/ecommerce", () => {
     const { put } = setup([PRODUCT_PERMISSIONS.read, PRODUCT_PERMISSIONS.update]);
     const user = userEvent.setup();
     renderApp(<ProductListingSection productId={PRODUCT} status="Approved" />);
-    await user.click(await screen.findByRole("button", { name: /Sửa thông tin cửa hàng/ }));
+    await user.click(await editButton());
     const dialog = await screen.findByRole("dialog", { name: "Thông tin cửa hàng" });
     const slug = within(dialog).getByLabelText(/Đường dẫn/);
     await user.clear(slug);
@@ -80,7 +85,7 @@ describe("ProductListingSection — GET/PUT /products/{id}/ecommerce", () => {
     setup([PRODUCT_PERMISSIONS.update]);
     const user = userEvent.setup();
     renderApp(<ProductListingSection productId={PRODUCT} status="Approved" />);
-    await user.click(await screen.findByRole("button", { name: /Sửa thông tin cửa hàng/ }));
+    await user.click(await editButton());
     const dialog = await screen.findByRole("dialog", { name: "Thông tin cửa hàng" });
     const slug = within(dialog).getByLabelText(/Đường dẫn/);
     await user.clear(slug);
@@ -95,7 +100,7 @@ describe("ProductListingSection — GET/PUT /products/{id}/ecommerce", () => {
     });
     const user = userEvent.setup();
     renderApp(<ProductListingSection productId={PRODUCT} status="Approved" />);
-    await user.click(await screen.findByRole("button", { name: /Sửa thông tin cửa hàng/ }));
+    await user.click(await editButton());
     const dialog = await screen.findByRole("dialog", { name: "Thông tin cửa hàng" });
     await user.click(within(dialog).getByRole("button", { name: "Lưu" }));
     expect(await within(dialog).findByRole("alert")).toHaveTextContent(
@@ -109,7 +114,7 @@ describe("ProductListingSection — GET/PUT /products/{id}/ecommerce", () => {
     });
     const user = userEvent.setup();
     renderApp(<ProductListingSection productId={PRODUCT} status="Published" />);
-    await user.click(await screen.findByRole("button", { name: /Sửa thông tin cửa hàng/ }));
+    await user.click(await editButton());
     const dialog = await screen.findByRole("dialog", { name: "Thông tin cửa hàng" });
     await user.click(within(dialog).getByRole("button", { name: "Lưu" }));
     const alert = await within(dialog).findByRole("alert");
@@ -122,9 +127,7 @@ describe("ProductListingSection — GET/PUT /products/{id}/ecommerce", () => {
     setup([PRODUCT_PERMISSIONS.update]);
     renderApp(<ProductListingSection productId={PRODUCT} status="Discontinued" />);
     await screen.findByText("ly-giay");
-    expect(
-      screen.queryByRole("button", { name: /Sửa thông tin cửa hàng/ }),
-    ).not.toBeInTheDocument();
+    expect(within(panel()).queryByRole("button", { name: "Sửa" })).not.toBeInTheDocument();
   });
 
   it("CONFLICT: lấy lại listing (và sản phẩm) để lần lưu sau mang revision đúng", async () => {
@@ -139,7 +142,7 @@ describe("ProductListingSection — GET/PUT /products/{id}/ecommerce", () => {
     });
     const user = userEvent.setup();
     renderApp(<ProductListingSection productId={PRODUCT} status="Approved" />);
-    await user.click(await screen.findByRole("button", { name: /Sửa thông tin cửa hàng/ }));
+    await user.click(await editButton());
     const dialog = await screen.findByRole("dialog", { name: "Thông tin cửa hàng" });
     const loads = () =>
       get.mock.calls.filter((c) => c[0] === `/products/${PRODUCT}/ecommerce`).length;

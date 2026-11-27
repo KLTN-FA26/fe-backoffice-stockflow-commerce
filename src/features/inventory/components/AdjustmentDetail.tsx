@@ -37,7 +37,7 @@ function AdjustmentDetailContent({ id }: { id: string }) {
     [INVENTORY_LABELS.sku, item.sku],
     [INVENTORY_LABELS.location, item.locationCode],
     [INVENTORY_LABELS.lot, item.lotNumber],
-    [INVENTORY_LABELS.quantityDelta, formatAdjustmentDelta(item)],
+    [INVENTORY_LABELS.adjustmentDelta, formatAdjustmentDelta(item)],
     [INVENTORY_LABELS.reason, adjustmentReasonLabel(item.reason)],
     [INVENTORY_LABELS.note, item.note],
     [INVENTORY_LABELS.requestedBy, item.requestedBy],

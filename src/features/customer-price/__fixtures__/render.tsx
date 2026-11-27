@@ -7,13 +7,14 @@
 
 import { Suspense, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { vi } from "vitest";
 
 import { api } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/auth/auth-store";
 
+import type { UserEvent } from "@testing-library/user-event";
 import type { OnUrlUpdateFunction } from "nuqs/adapters/testing";
 
 // jsdom thiếu ResizeObserver / scrollIntoView / pointer capture mà Radix Popover / Sheet dùng.
@@ -91,4 +92,15 @@ export function renderCustomerPrices(ui: React.ReactElement, search = "") {
   /** Đổi URL từ ngoài component (Back / Forward / dán link). */
   const navigate = (next: string) => act(() => setSearch(next));
   return { ...result, client, urlUpdates, navigate };
+}
+
+/** Tên truy cập của nút "⋯" trên dòng giá của `sku` (`editColumn` → `RowActionsMenu`). */
+export const rowMenuName = (sku: string) => `Thao tác — ${sku}`;
+
+/** "Sửa bảng giá" nằm trong menu "⋯" của dòng: mở menu của `sku` rồi bấm mục sửa. */
+export async function clickEditRow(user: UserEvent, sku: string) {
+  await user.click(
+    await screen.findByRole("button", { name: rowMenuName(sku) }, { timeout: 5_000 }),
+  );
+  await user.click(await screen.findByRole("button", { name: "Sửa bảng giá" }));
 }

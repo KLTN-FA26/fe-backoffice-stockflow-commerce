@@ -8,7 +8,12 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
 import { Button } from "@/components/ui/button";
-import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/shared/combobox-select";
 import { identityErrorMessage } from "@/lib/api/identity-errors";
 import { roleLabel } from "@/lib/references/role-options";
 

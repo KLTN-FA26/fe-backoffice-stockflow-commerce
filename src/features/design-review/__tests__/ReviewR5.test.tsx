@@ -51,13 +51,11 @@ function open(get: RouteTable, post: RouteTable = {}) {
 }
 
 describe("Design review — round 5", () => {
-  it("BO-UX-9: the preview comes before the general information", async () => {
+  it("BO-UX-9: the preview comes before the submitted files (object page: profile → preview | files)", async () => {
     open(routes());
-    const general = await screen.findByText("Thông tin chung");
+    const files = await screen.findByText("File đã gửi");
     const preview = screen.getByText("Màu in thật có thể khác màn hình.");
-    expect(
-      preview.compareDocumentPosition(general) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
+    expect(preview.compareDocumentPosition(files) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("BO-UX-8: opening 'Duyệt' runs the print-file check; blocking findings need an explicit tick", async () => {

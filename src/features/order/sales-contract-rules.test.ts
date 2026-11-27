@@ -59,6 +59,19 @@ describe("trạng thái hợp đồng mới / lạ (WF-05 F-3, BO-11)", () => {
   });
 });
 
+describe("allowedContractActions — chờ Kế toán duyệt tín dụng (15 BR-11, BE PR #486)", () => {
+  it("DRAFT + creditReview PENDING: bỏ Sửa / Gửi, có Rút đề nghị; Huỷ và xem PDF giữ", () => {
+    expect(
+      allowedContractActions({ status: "DRAFT", creditReview: "PENDING" }, "Draft", sales),
+    ).toEqual(["withdraw-review", "cancel", "preview"]);
+  });
+  it("DRAFT + creditReview NONE như cũ", () => {
+    expect(
+      allowedContractActions({ status: "DRAFT", creditReview: "NONE" }, "Draft", sales),
+    ).toEqual(["edit", "send", "cancel", "preview"]);
+  });
+});
+
 describe("allowedContractActions — 3 vai", () => {
   it("Sale: chưa có hợp đồng + đơn Nháp → lập; DRAFT → sửa / gửi / huỷ; SENT → ký / huỷ", () => {
     expect(allowedContractActions(null, "Draft", sales)).toEqual(["create"]);

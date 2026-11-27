@@ -115,6 +115,40 @@ export const contractSent = {
 };
 
 /** DS-02b: khách quá hạn — BE gắn cảnh báo vào bản nháp. */
+/** 15 BR-11 (BE PR #486): Sale bấm Gửi, kiểm tín dụng OVER_LIMIT → vẫn DRAFT, chờ Kế toán duyệt. */
+const pendingReview = {
+  id: "77777777-0000-4000-8000-000000000001",
+  outcome: "PENDING",
+  checkOutcome: "OVER_LIMIT",
+  creditLimit: 300_000_000,
+  exposure: 290_000_000,
+  afterDelivery: 27_142_500,
+  overdueAmount: 0,
+  contractVersion: 1,
+  submittedAt: "2026-11-26T03:00:00Z",
+  submittedBy: "11111111-0000-4000-8000-000000000009",
+};
+
+export const contractDraftPendingReview = {
+  ...contractDraft,
+  version: 1,
+  creditReview: "PENDING",
+  latestCreditReview: pendingReview,
+};
+
+export const contractDraftReviewRejected = {
+  ...contractDraft,
+  version: 2,
+  creditReview: "NONE",
+  latestCreditReview: {
+    ...pendingReview,
+    outcome: "REJECTED",
+    decidedAt: "2026-11-26T05:00:00Z",
+    decidedBy: "11111111-0000-4000-8000-000000000010",
+    note: "Giảm phần trả sau giao xuống dưới 10 triệu.",
+  },
+};
+
 export const contractDraftOverdue = {
   ...contractDraft,
   creditWarning: {

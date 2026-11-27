@@ -52,6 +52,22 @@ describe("CreditProfileCard — cấp / sửa hạn mức (AUTH-6)", () => {
     expect(screen.queryByRole("button", { name: /hạn mức/ })).not.toBeInTheDocument();
   });
 
+  it("A2: Sale (customer-credit-requests:CREATE) có lối tạo đề nghị thay khách; Kế toán thì không", async () => {
+    mockApi("SALES_STAFF", { get: { [PATH]: () => configured } });
+    renderCard("SALES_STAFF", false);
+    expect(await screen.findByRole("link", { name: "Đề nghị cấp hạn mức" })).toHaveAttribute(
+      "href",
+      `/admin/payment/credit-requests?create=${CUSTOMER}`,
+    );
+  });
+
+  it("A2: Kế toán không thấy lối tạo đề nghị", async () => {
+    mockApi("ACCOUNTANT", { get: { [PATH]: () => configured } });
+    renderCard("ACCOUNTANT", true);
+    await screen.findByText("Khách lâu năm");
+    expect(screen.queryByRole("link", { name: "Đề nghị cấp hạn mức" })).not.toBeInTheDocument();
+  });
+
   it("?creditProfile=edit không mở hộp thoại khi thiếu quyền duyệt", async () => {
     mockApi("SALES_STAFF", { get: { [PATH]: () => configured } });
     renderCard("SALES_STAFF", false, "?creditProfile=edit");

@@ -25,7 +25,7 @@ import { resetCustomerMockStore } from "@/lib/api/mock-customer-store";
 import { resetVariantMockStore } from "@/lib/api/mock-routes-variants";
 import { toast } from "@/components/shared/Toast";
 
-import { renderCustomerPrices, stubPermissions } from "../__fixtures__/render";
+import { clickEditRow, renderCustomerPrices, stubPermissions } from "../__fixtures__/render";
 import { updateCustomerPrice } from "../api";
 import { CustomerPriceList } from "./CustomerPriceList";
 
@@ -117,7 +117,7 @@ async function startCreate(user: User, sku = FREE_SKU) {
 }
 
 async function startEdit(user: User, newPrice = "88000") {
-  await user.click(await screen.findByRole("button", { name: F.editRow(SKU) }, WAIT));
+  await clickEditRow(user, SKU);
   await waitFor(() => expect(price(1)).toBeInTheDocument(), WAIT);
   await user.clear(price(1));
   await user.type(price(1), newPrice);
@@ -220,7 +220,7 @@ describe("5B.5 sửa — đang PUT", () => {
     stubPermissions(EDITOR);
     render(`customerId=${A}`);
     const user = setupUser();
-    await user.click(await screen.findByRole("button", { name: F.editRow(SKU) }, WAIT));
+    await clickEditRow(user, SKU);
     await waitFor(() => expect(price(1)).toBeInTheDocument(), WAIT);
     // người khác lưu trước (qua route mock thật): server lên version 3
     await updateCustomerPrice({
@@ -324,7 +324,7 @@ describe("5B.5a đóng dialog ngay lúc request vừa bắt đầu", () => {
     const put = dismissOnStart("put", escape);
     render(`customerId=${A}`);
     const user = setupUser();
-    await user.click(await screen.findByRole("button", { name: F.editRow(SKU) }, WAIT));
+    await clickEditRow(user, SKU);
     await waitFor(() => expect(price(1)).toBeInTheDocument(), WAIT);
     await user.clear(price(1));
     await user.type(price(1), "88000");

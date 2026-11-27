@@ -130,7 +130,7 @@ describe("Quote detail — round 5", () => {
     });
     await userEvent.click(await screen.findByRole("button", { name: "Tạo đơn" }));
     const dialog = await screen.findByRole("dialog");
-    // S01-18: the one Select component (Radix), not a native <select>.
+    // S01-18: the one Select component (combobox-select), not a native <select>.
     const select = await within(dialog).findByRole("combobox", { name: "Địa chỉ giao hàng" });
     // S03-2: a short label inside the box (recipient — ward, province); the full address is written under it.
     expect(select).toHaveTextContent("Mặc định — Kho A — Bến Nghé, TP Hồ Chí Minh");

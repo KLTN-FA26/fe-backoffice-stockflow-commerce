@@ -181,6 +181,13 @@ export function buildCreditHoldColumns(
         ),
     },
     { key: "waiting", header: L.waiting, cell: (r) => <WaitingCell row={r} /> },
-    { key: "actions", header: L.actions, align: "right", sticky: "right", cell: renderActions },
+    {
+      key: "actions",
+      header: L.actions,
+      align: "right",
+      sticky: "right",
+      className: "w-20",
+      cell: renderActions,
+    },
   ];
 }

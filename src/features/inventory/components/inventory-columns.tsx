@@ -52,8 +52,8 @@ export function buildAdjustmentColumns(): ColumnDef<StockAdjustment>[] {
       withTime: true,
     }),
     {
-      key: "quantityDelta",
-      header: L.quantityDelta,
+      key: "direction",
+      header: L.adjustmentDelta,
       align: "right",
       cell: (row) => <span className={CELL.number}>{formatAdjustmentDelta(row)}</span>,
     },

@@ -17,6 +17,31 @@ import type { ReturnRow } from "../types";
 
 const C = RETURN_LABELS.columns;
 
+/** Cột bật / tắt được ở công cụ "Ẩn hiện cột". Cột Hoá đơn của tab Kế toán luôn hiện (không nằm trong danh sách). */
+export const RETURN_LIST_COLUMNS = [
+  "rma",
+  "order",
+  "reason",
+  "channel",
+  "requestedAt",
+  "deadline",
+  "settlement",
+  "status",
+] as const;
+export type ReturnListColumn = (typeof RETURN_LIST_COLUMNS)[number];
+/** Số RMA là link sang chi tiết — luôn hiện. */
+export const RETURN_LIST_LOCKED: readonly ReturnListColumn[] = ["rma"];
+export const RETURN_LIST_COLUMN_LABELS: Record<ReturnListColumn, string> = {
+  rma: C.rma,
+  order: C.order,
+  reason: C.reason,
+  channel: C.channel,
+  requestedAt: C.requestedAt,
+  deadline: C.deadline,
+  settlement: C.settlement,
+  status: C.status,
+};
+
 /** Hàng đợi yêu cầu trả hàng (docs 17 §4.10): số RMA, đơn, lý do, nguồn, hạn gửi hàng, giá trị hoàn, trạng thái. */
 export const RETURN_COLUMNS: ColumnDef<ReturnRow>[] = [
   {

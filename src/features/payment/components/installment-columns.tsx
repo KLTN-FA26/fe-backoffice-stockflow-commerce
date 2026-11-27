@@ -217,6 +217,7 @@ export function buildInstallmentColumns(
       header: C.actions,
       align: "right",
       sticky: "right",
+      className: "w-20",
       cell: actions,
     });
   return columns.filter((column) => !omit.some((key) => key === column.key));

@@ -8,10 +8,11 @@ import { ORDER_CONTRACT_LABELS } from "@/constants/labels-order-contract";
 import { FORM_INPUT_CLASS, fieldA11y } from "@/components/shared/FormField";
 import { FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
 import { FormSelect } from "@/components/shared/FormSelect";
+import { SelectItem, SelectTrigger, SelectValue } from "@/components/shared/combobox-select";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { MoneyInput } from "@/components/shared/MoneyInput";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { DEFAULT_ON_SIGNING_DUE_DAYS } from "../../sales-contract-form";
 import { dueRuleText } from "../../sales-contract-rules";
@@ -22,7 +23,7 @@ import type { UseFormReturn } from "react-hook-form";
 import type { ContractFormValues } from "../../sales-contract-form";
 
 const P = ORDER_CONTRACT_LABELS.plan;
-/** Radix Select has no empty value: stands for "no batch". */
+/** A select item has no empty value: stands for "no batch". */
 const NO_BATCH = "none";
 const NUM = `${FORM_INPUT_CLASS} text-right font-[family-name:var(--font-mono)] tabular-nums`;
 
@@ -114,13 +115,13 @@ export function PaymentPlanRow({
                 >
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <TitledSelectContent title={P.milestone}>
                   {CONTRACT_MILESTONES.map((value) => (
                     <SelectItem key={value} value={value}>
                       {CONTRACT_MILESTONE_LABELS[value]}
                     </SelectItem>
                   ))}
-                </SelectContent>
+                </TitledSelectContent>
               </FormSelect>
             )}
           />
@@ -223,7 +224,7 @@ export function PaymentPlanRow({
             name={`paymentPlan.${index}.deliveryBatchSeq`}
             render={({ field }) => (
               <FormSelect
-                // Radix has no empty item: "none" stands for "not tied to a batch" (the form keeps "").
+                // A select item has no empty value: "none" stands for "not tied to a batch" (the form keeps "").
                 value={field.value || NO_BATCH}
                 onValueChange={(value) => field.onChange(value === NO_BATCH ? "" : value)}
                 disabled={milestone === "ON_SIGNING"}
@@ -235,14 +236,14 @@ export function PaymentPlanRow({
                 >
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <TitledSelectContent title={P.batch}>
                   <SelectItem value={NO_BATCH}>—</SelectItem>
                   {Array.from({ length: batchCount }).map((_, seq) => (
                     <SelectItem key={seq} value={String(seq + 1)}>
                       Đợt giao {seq + 1}
                     </SelectItem>
                   ))}
-                </SelectContent>
+                </TitledSelectContent>
               </FormSelect>
             )}
           />

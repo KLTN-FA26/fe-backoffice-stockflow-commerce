@@ -18,7 +18,6 @@ import { useDesignArtifacts } from "@/features/design-review/queries";
 import { designDecisionInputSchema } from "@/features/design-review/schemas";
 import { currentSubmission } from "@/features/design-review/selectors";
 
-import { DETAIL_ACTION_CLASS } from "@/components/shared/DetailSection";
 import { Notice } from "@/components/shared/Notice";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -101,30 +100,34 @@ export function ReviewActions({
     dialog === "approve" && isDesignErrorCode(decide.error, DESIGN_RETURN_SUGGEST_CODES);
 
   return (
-    <div className="space-y-2">
-      {actions.map((action) => (
-        <Button
-          key={action.code}
-          type="button"
-          size="sm"
-          variant={action.code === "approve" ? "default" : "ghost"}
-          disabled={decide.isPending}
-          onClick={() => open(action.code)}
-          className={
-            action.code === "approve" ? DETAIL_ACTION_CLASS.primary : DETAIL_ACTION_CLASS.danger
-          }
-        >
-          {action.code === "approve" ? (
-            <CheckCircle2 className="size-3.5" />
-          ) : (
-            <Undo2 className="size-3.5" />
-          )}
-          {action.label}
-        </Button>
-      ))}
+    // Đầu trang (object header): nút quyết định nằm ngang bên phải, "Duyệt" nền đậm; dòng phụ căn phải dưới nút.
+    <div className="flex max-w-md flex-col items-stretch gap-2 lg:items-end">
+      <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+        {/* "Trả lại" là quyết định thường của người duyệt (không phải việc nguy hiểm) → hiện thẳng, không vào "⋯". */}
+        {[...actions]
+          .sort((a, b) => (a.code === "approve" ? 1 : 0) - (b.code === "approve" ? 1 : 0))
+          .map((action) => (
+            <Button
+              key={action.code}
+              type="button"
+              size="sm"
+              variant={action.code === "approve" ? "default" : "outline"}
+              disabled={decide.isPending}
+              onClick={() => open(action.code)}
+              className="gap-1.5"
+            >
+              {action.code === "approve" ? (
+                <CheckCircle2 className="size-3.5" aria-hidden />
+              ) : (
+                <Undo2 className="size-3.5" aria-hidden />
+              )}
+              {action.label}
+            </Button>
+          ))}
+      </div>
       {/* Vùng đọc cho trình đọc màn hình nằm trong hộp thoại đang mở; dòng này chỉ để nhìn. */}
       {decide.isPending && (
-        <p className="text-ink-secondary text-center text-xs">{DESIGN_REVIEW_LABELS.deciding}</p>
+        <p className="text-ink-secondary text-xs lg:text-right">{DESIGN_REVIEW_LABELS.deciding}</p>
       )}
       {staleNotice && (
         <Notice tone="warning" live>
@@ -133,7 +136,7 @@ export function ReviewActions({
       )}
       {decide.fromQueue && (
         // BO-UX-9: duyệt liền tay — sau quyết định sang thẳng thiết kế kế tiếp của hàng đợi.
-        <div className="flex items-start gap-2 pt-1">
+        <div className="flex items-start gap-2 lg:justify-end">
           <Checkbox
             id="review-open-next"
             checked={openNext}
