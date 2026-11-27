@@ -5,6 +5,8 @@
  */
 
 import {
+  SALES_OWNER_ERROR_CODES,
+  SALES_OWNER_LIMITS,
   SALES_OWNER_PERMISSIONS,
   SALES_WORKLOAD_PERMISSIONS,
   STAFF_COVER_PERMISSIONS,
@@ -118,15 +120,41 @@ async function getHistory(config: AxiosRequestConfig) {
   return ok(pageOf(named, Number(query.get("page") ?? 0), Number(query.get("size") ?? 20)));
 }
 
-/** BR-S09: chia đều vòng tròn; khách không còn thuộc Sale A bị bỏ qua; chạy lại cùng `requestId` trả kết quả cũ. */
+/** Nội dung của một yêu cầu chuyển (trừ `requestId`), thứ tự khách / người nhận không tính. */
+function transferFingerprint(body: Record<string, unknown>): string {
+  const list = (value: unknown) => (Array.isArray(value) ? value.map(String).sort() : null);
+  return JSON.stringify([
+    text(body.fromUserId),
+    list(body.toUserIds),
+    list(body.customerIds),
+    text(body.reason),
+    text(body.note),
+    body.temporary === true,
+    body.notifyCustomer !== false,
+  ]);
+}
+
+/**
+ * BR-S09: chia đều vòng tròn; khách không còn thuộc Sale A bị bỏ qua; chạy lại cùng `requestId` và cùng nội dung trả kết
+ * quả cũ, khác nội dung → 409 `SALES_OWNER_TRANSFER_REQUEST_REUSED`; quá 500 khách (chọn tên hay cả sổ) → 422
+ * `SALES_OWNER_TRANSFER_TOO_LARGE`.
+ */
 async function transfer(config: AxiosRequestConfig) {
   const caller = await callerWith(SALES_OWNER_PERMISSIONS.update);
   if (typeof caller !== "string") return caller;
   const body = bodyOf(config);
   const s = await salesOwnerStore();
   const requestId = text(body.requestId);
+  const fingerprint = transferFingerprint(body);
   const replay = s.batches.find((b) => b.requestId === requestId);
-  if (replay) return ok(replay.result);
+  if (replay)
+    return replay.fingerprint === fingerprint
+      ? ok(replay.result)
+      : fail(
+          409,
+          SALES_OWNER_ERROR_CODES.transferRequestReused,
+          "Mã yêu cầu này đã dùng cho một lần chuyển khác; vui lòng gửi lại với mã mới",
+        );
   const from = text(body.fromUserId);
   const to = Array.isArray(body.toUserIds) ? body.toUserIds.map(String) : [];
   const roster = await mockSalesRoster();
@@ -135,6 +163,12 @@ async function transfer(config: AxiosRequestConfig) {
   if (!text(body.reason)) return fail(400, "SALES_OWNER_CHANGE_REASON_REQUIRED", "Cần lý do.");
   const picked = Array.isArray(body.customerIds) ? body.customerIds.map(String) : null;
   const ids = picked ?? [...s.owners].filter(([, o]) => o.ownerId === from).map(([id]) => id);
+  if (ids.length > SALES_OWNER_LIMITS.transferMax)
+    return fail(
+      422,
+      SALES_OWNER_ERROR_CODES.transferTooLarge,
+      "Mỗi lần chuyển tối đa 500 khách; vui lòng chia thành nhiều lần và chọn khách cho từng lần",
+    );
   const batchId = mockSalesId("ba7c0000");
   const skipped: { customerId: string; reason: string }[] = [];
   const moved: string[] = [];
@@ -154,6 +188,7 @@ async function transfer(config: AxiosRequestConfig) {
   s.batches.unshift({
     batchId,
     requestId,
+    fingerprint,
     fromUserId: from,
     toUserIds: to,
     customerIds: moved,

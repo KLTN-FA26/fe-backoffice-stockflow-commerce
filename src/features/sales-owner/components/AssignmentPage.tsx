@@ -52,6 +52,9 @@ function AssignmentContent() {
     );
   const rows = mergeWorkload(sales.data, chat.data);
   const options = rows.map(toSalesOption);
+  const customerCounts = new Map(
+    rows.flatMap((row) => (row.customers == null ? [] : [[row.userId, row.customers] as const])),
+  );
 
   return (
     // §10.4: bảng tải hiện thẳng (dùng nhiều nhất), dưới là lô chuyển tạm và khách cần giao
@@ -107,6 +110,7 @@ function AssignmentContent() {
           }
           targets={targets.options ?? []}
           fromUserId={transfer.from}
+          customerCounts={customerCounts}
           onClose={() => setTransfer(null)}
         />
       )}

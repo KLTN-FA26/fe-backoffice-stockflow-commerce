@@ -1,5 +1,7 @@
 /** Phân công khách — hàm thuần (không side effect). */
 
+import { SALES_OWNER_LIMITS } from "@/constants/sales-owner";
+
 import type { SalesWorkloadRow } from "@/lib/references/sales-workload";
 import type { ChatWorkloadRow, StaffCover } from "./types";
 
@@ -65,4 +67,15 @@ export const COVER_STATE_LABELS: Record<CoverState, string> = {
 /** Hôm nay theo giờ Việt Nam, `yyyy-MM-dd`. */
 export function todayInVietnam(now: Date = new Date()): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }).format(now);
+}
+
+/**
+ * Chọn "mọi khách" của một Sale đang phụ trách hơn 500 khách (bảng tải): BE từ chối cả lô (BR-S09,
+ * `SALES_OWNER_TRANSFER_TOO_LARGE`) → cảnh báo trước và không gửi. Không biết số khách → để BE kiểm.
+ */
+export function overTransferCap(
+  scope: "all" | "picked",
+  sourceCustomers: number | null | undefined,
+): boolean {
+  return scope === "all" && (sourceCustomers ?? 0) > SALES_OWNER_LIMITS.transferMax;
 }

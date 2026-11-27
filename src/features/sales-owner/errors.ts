@@ -3,6 +3,8 @@
  * của BE (`serverErrorMessage`).
  */
 
+import { SALES_OWNER_ERROR_CODES, SALES_OWNER_LIMITS } from "@/constants/sales-owner";
+
 import { serverErrorMessage } from "@/lib/api/error-message";
 import { OWNER_CHANGE_ERROR_MESSAGES, ownerChangeErrorMessage } from "@/lib/references/sales-owner";
 
@@ -33,6 +35,10 @@ const TRANSFER_MESSAGES: Readonly<Record<string, string>> = {
   SALES_OWNER_NOT_ASSIGNABLE: "Có Sale nhận không còn làm. Bỏ người đó khỏi danh sách nhận.",
   IDEMPOTENT_REQUEST_IN_PROGRESS:
     "Lô này đang chạy. Chờ một chút rồi bấm lại — không bị chuyển hai lần.",
+  // BR-S09: cùng requestId, nội dung khác lần trước — hộp thoại sinh khoá mới (TransferDialog)
+  [SALES_OWNER_ERROR_CODES.transferRequestReused]:
+    "Yêu cầu chuyển này đã được gửi với nội dung khác. Mở lại hộp thoại để tạo yêu cầu mới.",
+  [SALES_OWNER_ERROR_CODES.transferTooLarge]: `Mỗi lần chỉ chuyển tối đa ${SALES_OWNER_LIMITS.transferMax} khách. Hãy chọn từng nhóm khách để chuyển.`,
 };
 
 export const coverErrorMessage = (e: unknown) => serverErrorMessage(e, COVER_MESSAGES);

@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -8,6 +8,7 @@ import { agentsOf, mockSalesOwnerApi, workloadRow } from "@/test/sales-owner-scr
 import { clickRowAction, pickOption } from "@/test/ui-actions";
 
 import { AssignmentPage } from "../components/AssignmentPage";
+import { CheckList } from "../components/CheckList";
 
 import type { RouteTable } from "@/test/api-screen";
 
@@ -198,6 +199,120 @@ describe("Chuyển khách… (BR-S09, §10.1, ca #9)", () => {
         reason: "WORKLOAD",
       }),
     );
+  });
+});
+
+describe("Chuyển khách — tối đa 500 khách một lô, khoá đã dùng (BR-S09)", () => {
+  async function fill(dialog: HTMLElement, user: ReturnType<typeof userEvent.setup>, from: RegExp) {
+    await pickOption(user, /Từ Sale/, from);
+    await user.click(within(dialog).getByRole("checkbox", { name: /Sale Bình/ }));
+    await pickOption(user, /Lý do/, "Sale nghỉ việc");
+  }
+
+  it("SALES_OWNER_TRANSFER_REQUEST_REUSED → câu tiếng Việt và lần bấm sau dùng requestId mới", async () => {
+    let calls = 0;
+    const api = mockSalesOwnerApi("SALES_MANAGER", {
+      get: get(),
+      post: {
+        "/customers/sales-owner-transfers": () => {
+          calls += 1;
+          if (calls === 1) throw apiError(409, "SALES_OWNER_TRANSFER_REQUEST_REUSED");
+          return { batchId: "b-9", moved: 2, skipped: [] };
+        },
+      },
+    });
+    renderScreen(<AssignmentPage />, "SALES_MANAGER");
+    await userEvent.click(within(await board()).getByRole("button", { name: /Chuyển khách/ }));
+    const dialog = await screen.findByRole("dialog");
+    const user = userEvent.setup();
+    await fill(dialog, user, /^Sale An/);
+    await user.click(within(dialog).getByRole("button", { name: "Chuyển" }));
+    expect(
+      await within(dialog).findByText(
+        "Yêu cầu chuyển này đã được gửi với nội dung khác. Mở lại hộp thoại để tạo yêu cầu mới.",
+      ),
+    ).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Chuyển" }));
+    expect(await screen.findByText(/Đã chuyển 2 khách/)).toBeInTheDocument();
+    const ids = api.post.mock.calls.map((c) => (c[1] as { requestId: string }).requestId);
+    expect(ids).toHaveLength(2);
+    expect(ids[1]).not.toBe(ids[0]);
+  });
+
+  it("SALES_OWNER_TRANSFER_TOO_LARGE → câu tiếng Việt", async () => {
+    mockSalesOwnerApi("SALES_MANAGER", {
+      get: get(),
+      post: {
+        "/customers/sales-owner-transfers": () => {
+          throw apiError(422, "SALES_OWNER_TRANSFER_TOO_LARGE");
+        },
+      },
+    });
+    renderScreen(<AssignmentPage />, "SALES_MANAGER");
+    await userEvent.click(within(await board()).getByRole("button", { name: /Chuyển khách/ }));
+    const dialog = await screen.findByRole("dialog");
+    const user = userEvent.setup();
+    await fill(dialog, user, /^Sale An/);
+    await user.click(within(dialog).getByRole("button", { name: "Chuyển" }));
+    expect(
+      await within(dialog).findByText(
+        "Mỗi lần chỉ chuyển tối đa 500 khách. Hãy chọn từng nhóm khách để chuyển.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("Sale nguồn hơn 500 khách + 'tất cả' → cảnh báo, không gửi; chọn một phần khách thì gửi được", async () => {
+    const big = [workloadRow("s-big", "Sale Lớn", { customers: 620 }), ...WORKLOAD];
+    const api = mockSalesOwnerApi("SALES_MANAGER", {
+      get: get({
+        "/sales/workload": () => big,
+        "/customers/sales-agents": () => agentsOf(big),
+      }),
+      post: {
+        "/customers/sales-owner-transfers": () => ({ batchId: "b-3", moved: 1, skipped: [] }),
+      },
+    });
+    renderScreen(<AssignmentPage />, "SALES_MANAGER");
+    await userEvent.click(within(await board()).getByRole("button", { name: /Chuyển khách/ }));
+    const dialog = await screen.findByRole("dialog");
+    const user = userEvent.setup();
+    await fill(dialog, user, /^Sale Lớn/);
+    expect(
+      within(dialog).getByText(/Sale này đang phụ trách 620 khách — mỗi lần chỉ chuyển tối đa 500/),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Chuyển" })).toBeDisabled();
+    expect(api.post).not.toHaveBeenCalled();
+    await user.click(within(dialog).getByRole("radio", { name: "Chọn một phần khách" }));
+    expect(within(dialog).queryByText(/đang phụ trách 620 khách/)).toBeNull();
+    await user.click(await within(dialog).findByRole("checkbox", { name: "Công ty Cần Giao" }));
+    expect(within(dialog).getByText("Đã chọn 1/500")).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Chuyển" }));
+    await waitFor(() =>
+      expect(api.post.mock.calls[0]?.[1]).toMatchObject({
+        fromUserId: "s-big",
+        customerIds: ["c-9"],
+      }),
+    );
+  });
+
+  it("danh sách chọn có giới hạn: đủ số tối đa thì ô chưa tick bị khoá", async () => {
+    const onChange = vi.fn();
+    const options = ["a", "b", "c"].map((value) => ({ value, label: `Khách ${value}` }));
+    render(
+      <CheckList
+        id="t"
+        label="Khách"
+        options={options}
+        selected={["a", "b"]}
+        onChange={onChange}
+        max={2}
+      />,
+    );
+    expect(screen.getByRole("checkbox", { name: "Khách c" })).toBeDisabled();
+    expect(screen.getByRole("checkbox", { name: "Khách a" })).toBeEnabled();
+    expect(screen.getByText("Đã chọn 2/2 — đã đủ số tối đa")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("checkbox", { name: "Khách a" }));
+    expect(onChange).toHaveBeenCalledWith(["b"]);
   });
 });
 

@@ -50,6 +50,8 @@ export interface MockHistory {
 export interface MockBatch {
   batchId: string;
   requestId: string;
+  /** Nội dung yêu cầu (BE V20270128000470): cùng `requestId` mà khác nội dung → `SALES_OWNER_TRANSFER_REQUEST_REUSED`. */
+  fingerprint: string;
   fromUserId: string;
   toUserIds: string[];
   customerIds: string[];

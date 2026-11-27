@@ -111,6 +111,42 @@ describe("mock sales-owner", () => {
     expect(left.items).toHaveLength(0);
   });
 
+  it("BR-S09: cùng requestId mà khác nội dung → SALES_OWNER_TRANSFER_REQUEST_REUSED, không chuyển", async () => {
+    const workload = (await fetchSalesWorkload()) ?? [];
+    const [from, to, third] = workload.map((row) => row.userId);
+    const body = {
+      requestId: "req-2",
+      fromUserId: from ?? "",
+      toUserIds: [to ?? ""],
+      reason: "WORKLOAD" as const,
+      note: "",
+      temporary: false,
+      notifyCustomer: true,
+    };
+    await transferCustomers(body);
+    expect(
+      await codeOf(transferCustomers({ ...body, toUserIds: [third ?? to ?? ""], note: "khác" })),
+    ).toBe("SALES_OWNER_TRANSFER_REQUEST_REUSED");
+  });
+
+  it("BR-S09: hơn 500 khách trong một lô → SALES_OWNER_TRANSFER_TOO_LARGE", async () => {
+    const workload = (await fetchSalesWorkload()) ?? [];
+    expect(
+      await codeOf(
+        transferCustomers({
+          requestId: "req-3",
+          fromUserId: workload[0]?.userId ?? "",
+          toUserIds: [workload[1]?.userId ?? ""],
+          customerIds: Array.from({ length: 501 }, (_, i) => `c-${i}`),
+          reason: "WORKLOAD",
+          note: "",
+          temporary: false,
+          notifyCustomer: true,
+        }),
+      ),
+    ).toBe("SALES_OWNER_TRANSFER_TOO_LARGE");
+  });
+
   it("Sale không có customer-sales-owners:UPDATE → 403; chỉ thấy lead của mình", async () => {
     actAs("USER-SALE-01");
     expect(

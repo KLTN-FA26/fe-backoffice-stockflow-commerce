@@ -6,14 +6,16 @@ import {
   SALES_OWNER_CHANGE_REASON_LABELS,
   SALES_OWNER_LABELS,
 } from "@/constants/labels-sales-owner";
-import { TRANSFER_REASONS } from "@/constants/sales-owner";
+import { SALES_OWNER_LIMITS, TRANSFER_REASONS } from "@/constants/sales-owner";
 
 import { ChoiceField } from "@/components/backoffice/ChoiceField";
 import { NoteField } from "@/components/backoffice/NoteField";
 import { SalesPickerField, salesOptionLabel } from "@/components/backoffice/SalesPickerField";
 import { CheckboxField } from "@/components/shared/CheckboxField";
+import { Notice } from "@/components/shared/Notice";
 
 import { useCustomersOf } from "../queries";
+import { overTransferCap } from "../selectors";
 
 import { CheckList } from "./CheckList";
 
@@ -31,12 +33,15 @@ export function TransferFields({
   form,
   sales,
   targets,
+  sourceCustomers,
 }: {
   form: UseFormReturn<TransferValues>;
   /** "Từ Sale" — có thể là người đã nghỉ (BR-S08: giao lại khách của họ). */
   sales: readonly SalesOption[];
   /** "Sang Sale" — chỉ Sale giao được (D42). */
   targets: readonly SalesOption[];
+  /** Số khách của Sale nguồn trên bảng tải; `null` = không biết (BE tự chặn lô quá lớn). */
+  sourceCustomers: number | null;
 }) {
   const { errors } = form.formState;
   const [from, scope] = useWatch({ control: form.control, name: ["fromUserId", "scope"] });
@@ -88,6 +93,12 @@ export function TransferFields({
           ))}
         </div>
       </fieldset>
+      {overTransferCap(scope, sourceCustomers) && (
+        <Notice tone="warning" live>
+          Sale này đang phụ trách {sourceCustomers} khách — mỗi lần chỉ chuyển tối đa{" "}
+          {SALES_OWNER_LIMITS.transferMax} khách. Chọn “Chọn một phần khách” để chuyển từng nhóm.
+        </Notice>
+      )}
       {scope === "picked" && (
         <Controller
           control={form.control}
@@ -102,6 +113,7 @@ export function TransferFields({
               }))}
               selected={field.value}
               onChange={field.onChange}
+              max={SALES_OWNER_LIMITS.transferMax}
               error={errors.customerIds?.message}
               empty={customers.isPending ? "Đang tải khách…" : "Sale này chưa phụ trách khách nào."}
             />

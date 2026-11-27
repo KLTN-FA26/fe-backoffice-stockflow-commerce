@@ -45,6 +45,10 @@ export const SALES_OWNER_ERROR_CODES = {
   claimOnly: "CUSTOMER_UNASSIGNED_CLAIM_ONLY",
   /** 400: thiếu mã số thuế khi tạo khách (BR-S14). */
   taxCodeRequired: "CUSTOMER_TAX_CODE_REQUIRED",
+  /** 409: cùng `requestId` mà nội dung lô chuyển khác lần trước → phải sinh khoá mới (BR-S09). */
+  transferRequestReused: "SALES_OWNER_TRANSFER_REQUEST_REUSED",
+  /** 422: một lô chuyển quá `SALES_OWNER_LIMITS.transferMax` khách, dù chọn tên hay cả sổ (BR-S09). */
+  transferTooLarge: "SALES_OWNER_TRANSFER_TOO_LARGE",
 } as const;
 
 /* ── Đường dẫn API (hợp đồng §Endpoints) ── */
@@ -133,6 +137,8 @@ export const SALES_OWNER_LIMITS = {
   textMax: 1000,
   /** Sức chứa khách mới mỗi tháng (D13): số nguyên ≥ 0; trống = không giới hạn. */
   capacityMax: 999,
+  /** BR-S09: một lô chuyển tối đa 500 khách, chọn tên hay cả sổ (BE `SALES_OWNER_TRANSFER_TOO_LARGE`). */
+  transferMax: 500,
 } as const;
 
 /* ── Route ── */

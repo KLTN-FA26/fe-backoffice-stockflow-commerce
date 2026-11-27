@@ -40,6 +40,13 @@ export const transferInputSchema = z
     // BR-S09: "chọn tất cả hay một phần khách"
     if (v.scope === "picked" && v.customerIds.length === 0)
       ctx.addIssue({ code: "custom", path: ["customerIds"], message: "Chọn ít nhất một khách" });
+    // BR-S09: một lô tối đa 500 khách (BE SALES_OWNER_TRANSFER_TOO_LARGE)
+    if (v.scope === "picked" && v.customerIds.length > SALES_OWNER_LIMITS.transferMax)
+      ctx.addIssue({
+        code: "custom",
+        path: ["customerIds"],
+        message: `Mỗi lần chuyển tối đa ${SALES_OWNER_LIMITS.transferMax} khách`,
+      });
     // BR-S03: chọn "Khác" thì ghi rõ lý do
     if (v.reason === "OTHER" && v.note === "")
       ctx.addIssue({ code: "custom", path: ["note"], message: "Ghi rõ lý do khi chọn “Khác”" });
