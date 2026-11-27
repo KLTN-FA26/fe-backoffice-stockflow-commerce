@@ -75,6 +75,14 @@ describe("CartonCheckStation — phiên chưa bắt đầu (Pending)", () => {
     expect(screen.getByRole("button", { name: L.action.start })).toBeEnabled();
   });
 
+  it("số lô nằm dưới SKU trong cùng một ô (bảng không có cột Lô riêng)", async () => {
+    renderCartonCheckStation({
+      session: withFirst(apiSession(), { lotNumber: "PRD-20261126-0005" }),
+    });
+    expect(await screen.findByText(L.cartons.lotLine("PRD-20261126-0005"))).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Lô" })).toBeNull();
+  });
+
   it("lối sang màn lấy hàng của task ở lại trong kho của tab", async () => {
     renderCartonCheckStation();
     expect(

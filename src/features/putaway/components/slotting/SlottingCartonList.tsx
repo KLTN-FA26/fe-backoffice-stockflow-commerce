@@ -30,7 +30,7 @@ export function SlottingCartonList({
   onSelect: (taskId: string) => void;
 }) {
   const [q, setQ] = useState("");
-  const rows = filterPutawayTasks(tasks, { q, lpn: "", sku: "", location: "" });
+  const rows = filterPutawayTasks(tasks, { q });
   return (
     <section className={DETAIL_CARD_CLASS} aria-labelledby="slotting-cartons">
       <DetailCardTitle icon={Boxes}>

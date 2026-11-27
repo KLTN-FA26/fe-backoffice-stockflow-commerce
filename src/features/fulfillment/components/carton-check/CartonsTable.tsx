@@ -14,7 +14,7 @@ import type { Carton, CartonCheckSession } from "@/features/fulfillment/carton-c
 const L = UI_LABELS.cartonCheck.cartons;
 // Tiêu đề không bẻ dòng ("Dài × rộng × cao" không còn bị xếp dọc từng chữ)
 const TH = "text-ink-secondary px-3 py-2 text-xs font-medium whitespace-nowrap";
-const TEXT_COLUMNS = [L.colNo, L.colLpn, L.colSku, L.colLot];
+const TEXT_COLUMNS = [L.colNo, L.colLpn, L.colSku];
 
 /** Bảng thùng của phiên; thao tác mỗi dòng theo `cartonActions` (trạng thái thùng + bảng chuyển trạng thái + quyền). */
 export function CartonsTable({

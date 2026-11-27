@@ -58,8 +58,14 @@ export function CartonRow({
     <tr className="border-border-default border-b last:border-b-0">
       <td className={`${CODE_TD} text-ink-secondary ${MONO}`}>{carton.packageNo}</td>
       <td className={`${CODE_TD} text-ink-primary ${MONO}`}>{carton.lpn}</td>
-      <td className={`${CODE_TD} ${MONO}`}>{carton.sku}</td>
-      <td className={`${CODE_TD} text-ink-secondary ${MONO}`}>{carton.lotNumber ?? "—"}</td>
+      <td className={CODE_TD}>
+        <span className={MONO}>{carton.sku}</span>
+        {carton.lotNumber && (
+          <span className={`text-ink-tertiary block text-xs ${MONO}`}>
+            {L.lotLine(carton.lotNumber)}
+          </span>
+        )}
+      </td>
       <td className={`${TD} text-right ${MONO}`}>{carton.quantity}</td>
       <td className={TD}>
         <StatusDot domain="pack" status={carton.status} />
