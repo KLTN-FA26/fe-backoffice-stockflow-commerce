@@ -38,6 +38,9 @@ export function ShipmentParcels({
             <th scope="col" className="px-3 py-2 text-left font-medium">
               {L.parcelLoadedAt}
             </th>
+            <th scope="col" className="px-3 py-2 text-left font-medium">
+              {L.parcelLoadedBy}
+            </th>
             {canUnscan && <th scope="col" className="w-px px-3 py-2" />}
           </tr>
         </thead>
@@ -54,6 +57,9 @@ export function ShipmentParcels({
                 className={`px-3 py-2 tabular-nums ${parcel.loaded ? "text-ink-secondary" : "text-warning"}`}
               >
                 {parcel.loaded && parcel.loadedAt ? formatTime(parcel.loadedAt) : L.notLoaded}
+              </td>
+              <td className="text-ink-secondary px-3 py-2">
+                {parcel.loaded ? (parcel.loadedByName ?? "—") : "—"}
               </td>
               {canUnscan && (
                 <td className="px-3 py-1 text-right">

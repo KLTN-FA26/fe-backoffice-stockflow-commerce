@@ -51,24 +51,18 @@ describe("bookingNeedsFetch", () => {
 });
 
 describe("warehouseLabelOf", () => {
-  const directory = [
-    { warehouseId: "w1", code: "HN", name: "Kho Hà Nội" },
-    { warehouseId: "w2", code: "", name: "Kho phụ" },
-  ];
-
   it("prefers the name the dispatch load carries", () => {
-    expect(warehouseLabelOf({ ...BOOKING, warehouseName: "Kho từ chuyến" }, directory, "w1")).toBe(
-      "Kho từ chuyến",
-    );
+    expect(
+      warehouseLabelOf({ ...BOOKING, warehouseName: "Kho từ chuyến" }, "HN · Kho Hà Nội"),
+    ).toBe("Kho từ chuyến");
   });
 
-  it("falls back to the directory by the plan's warehouse id, with its code when it has one", () => {
-    expect(warehouseLabelOf(null, directory, "w1")).toBe("HN · Kho Hà Nội");
-    expect(warehouseLabelOf(BOOKING, directory, "w2")).toBe("Kho phụ");
+  it("falls back to the plan's warehouse code + name (#286)", () => {
+    expect(warehouseLabelOf(null, "HN · Kho Hà Nội")).toBe("HN · Kho Hà Nội");
+    expect(warehouseLabelOf({ ...BOOKING, warehouseName: null }, "Kho phụ")).toBe("Kho phụ");
   });
 
   it("is null when neither knows the warehouse — never the raw id", () => {
-    expect(warehouseLabelOf(null, directory, "w9")).toBeNull();
-    expect(warehouseLabelOf(null, undefined, "w1")).toBeNull();
+    expect(warehouseLabelOf(null, null)).toBeNull();
   });
 });

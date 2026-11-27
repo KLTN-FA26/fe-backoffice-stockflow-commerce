@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 
-import { einvoiceStatusLabel } from "../selectors";
+import { einvoiceStatusLabel, orderNumberOnRows } from "../selectors";
 
 import type { ReactNode } from "react";
 import type { EInvoiceListState } from "./useEInvoiceListState";
@@ -103,7 +103,9 @@ export function EInvoiceFilters({ s, actions }: { s: EInvoiceListState; actions?
       </div>
       {s.orderId && (
         <FilterChip label={L.orderChip} onClear={() => s.setOrderId("")}>
-          <span className="font-mono">{s.orderId.slice(0, 13)}</span>
+          <span className="font-mono">
+            {orderNumberOnRows(s.query.data?.items, s.orderId) ?? L.orderChipUnknown}
+          </span>
         </FilterChip>
       )}
       {s.customerId && (

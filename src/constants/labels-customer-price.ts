@@ -69,9 +69,8 @@ export const CUSTOMER_PRICE_UI_LABELS = {
     loading: "Đang tải thông tin khách hàng…",
     failed: "Không tải được thông tin khách hàng.",
     notFound: "Không tìm thấy khách hàng này.",
-    // Thiếu `customer-customers:READ`: chỉ có id từ đường dẫn
-    noLookupPermission:
-      "Bạn không có quyền xem danh sách khách hàng — chỉ hiện mã định danh, không tải được tên.",
+    // Thiếu `customer-customers:READ` và bảng giá chưa cho tên khách (#286): không tải được tên, không hiện UUID
+    noLookupPermission: "Bạn không có quyền xem danh sách khách hàng — không tải được tên khách.",
     noSelection: "Chọn một khách hàng để xem bảng giá riêng.",
     noSelectionRestricted:
       "Bạn không có quyền tra cứu khách hàng. Mở trang bằng đường dẫn có sẵn mã khách (customerId) để xem bảng giá.",

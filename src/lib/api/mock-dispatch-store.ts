@@ -175,7 +175,7 @@ export interface DispatchState {
   carriers: MockCarrier[];
   shipments: Map<string, MockShipment>;
   loads: Map<string, MockLoad>;
-  warehouseNames: Map<string, { name: string; address: string }>;
+  warehouseNames: Map<string, { code: string; name: string; address: string }>;
 }
 
 export const MOCK_DISPATCHER = "Nhân viên kho (mock)";
@@ -229,6 +229,7 @@ async function buildState(): Promise<DispatchState> {
       warehouses.map((w) => [
         w.warehouseId,
         {
+          code: w.code,
           name: w.name,
           address: `${w.address.street}, ${w.address.district}, ${w.address.province}`,
         },

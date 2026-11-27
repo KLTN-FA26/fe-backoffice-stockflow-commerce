@@ -34,6 +34,29 @@ export function invoiceReference(
 }
 
 /**
+ * Số đơn cho chip lọc theo đơn: lấy từ các dòng đã tải (BE kèm `orderNumber`) — không tra thêm, không mảnh UUID.
+ * `null` khi chưa có dòng nào của đơn đó (UI hiện nhãn trung tính).
+ */
+export function orderNumberOnRows(
+  rows: readonly Pick<EInvoiceListItem, "orderId" | "orderNumber">[] | undefined,
+  orderId: string,
+): string | null {
+  return rows?.find((row) => row.orderId === orderId && row.orderNumber)?.orderNumber ?? null;
+}
+
+/**
+ * Ký hiệu-số của hoá đơn gốc (#286 `originalEInvoiceSymbol` / `originalEInvoiceNumber`), cùng cách đệm số như
+ * `invoiceReference`. `null` khi BE chưa kèm (gốc chưa có số / BE cũ) — UI hiện nhãn trung tính, không UUID.
+ */
+export function originalInvoiceReference(
+  invoice: Pick<EInvoice, "originalEInvoiceSymbol" | "originalEInvoiceNumber">,
+): string | null {
+  const { originalEInvoiceSymbol: symbol, originalEInvoiceNumber: number } = invoice;
+  if (!symbol || number == null) return null;
+  return `${symbol}-${String(number).padStart(7, "0")}`;
+}
+
+/**
  * Câu tiếng Việt của một cảnh báo BE — cảnh báo lưu trên hoá đơn, hoặc điều BE kiểm lại lúc phát hành tay
  * (`EINVOICE_ISSUE_CHECKS`, F-16); mã lạ → câu chung (BE có thể thêm loại mới).
  */

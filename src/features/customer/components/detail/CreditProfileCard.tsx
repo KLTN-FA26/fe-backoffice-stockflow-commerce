@@ -20,6 +20,7 @@ import type { CreditProfile } from "@/features/customer/types";
 
 /** Neo của thẻ — đơn bị giữ vì công nợ dẫn tới `?creditProfile=edit#credit-profile`. */
 const CREDIT_PROFILE_ANCHOR = "credit-profile";
+const APPROVED_BY_LABEL = "Người duyệt";
 
 function rowsOf(data: CreditProfile) {
   return [
@@ -41,6 +42,8 @@ function rowsOf(data: CreditProfile) {
           },
         ]
       : []),
+    // #286: ai duyệt hạn mức — BE kèm tên; vắng thì không hiện dòng
+    ...(data.approvedByName ? [{ label: APPROVED_BY_LABEL, value: data.approvedByName }] : []),
     ...(data.note ? [{ label: "Ghi chú", value: data.note }] : []),
     ...(!data.configured ? [{ label: "Ghi chú", value: "Chưa cấu hình hạn mức công nợ" }] : []),
   ];

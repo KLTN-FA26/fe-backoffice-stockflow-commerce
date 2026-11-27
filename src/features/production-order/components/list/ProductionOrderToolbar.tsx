@@ -11,6 +11,8 @@ import {
   UI_LABELS,
 } from "@/constants";
 
+import { filterLabelOnRows } from "@/features/production-order/selectors";
+
 import { FilterSelect } from "@/components/backoffice/FilterSelect";
 import {
   ListToolbar,
@@ -33,8 +35,9 @@ interface Option {
   label: string;
 }
 
-const labelOf = (options: Option[], value: string | null) =>
-  value ? (options.find((o) => o.value === value)?.label ?? value.slice(0, 8)) : L.all;
+/** Nhãn chip: danh mục → tên trên dòng đã tải (#286) → nhãn trung tính; không mảnh UUID. */
+const labelOf = (options: Option[], value: string | null, onRows: () => string | null) =>
+  value ? (options.find((o) => o.value === value)?.label ?? onRows() ?? L.pickedFilter) : L.all;
 
 /**
  * Toolbar danh sách Đơn sản xuất (Mode A): tìm trong trang, lọc trạng thái (BE nhận MỘT trạng thái), facet đơn vị /
@@ -77,13 +80,17 @@ export function ProductionOrderToolbar({
         },
         {
           label: L.producerFilter,
-          value: labelOf(producerOptions, s.producerId),
+          value: labelOf(producerOptions, s.producerId, () =>
+            filterLabelOnRows(s.query.data?.items, { producerId: s.producerId }),
+          ),
           active: s.producerId !== null,
           onClear: () => s.setProducerId(null),
         },
         {
           label: L.warehouseFilter,
-          value: labelOf(warehouseOptions, s.warehouseId),
+          value: labelOf(warehouseOptions, s.warehouseId, () =>
+            filterLabelOnRows(s.query.data?.items, { warehouseId: s.warehouseId }),
+          ),
           active: s.warehouseId !== null,
           onClear: () => s.setWarehouseId(null),
         },

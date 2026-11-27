@@ -4,7 +4,7 @@
  * bước (`loading-steps.ts`), danh sách kiện. Hàm thuần — không đụng DOM, không gọi API.
  */
 
-import { unplacedLinesOf, unplacedParcels } from "../plan-selectors";
+import { planWarehouseLabel, unplacedLinesOf, unplacedParcels } from "../plan-selectors";
 import { formatNominalCm, mmToCm } from "./dims";
 import { itemKey } from "./item-rows";
 import { buildLoadingSteps } from "./loading-steps";
@@ -65,8 +65,10 @@ export interface PrintUnplaced {
 }
 
 export interface PrintSheet {
-  /** Kho xuất của kế hoạch (kế hoạch chỉ mang id; tên tra ở danh mục kho hoặc từ chuyến). */
+  /** Kho xuất của kế hoạch. */
   warehouseId: string;
+  /** "Mã · tên" kho xuất do BE trả cạnh id (#286); BE cũ chưa trả → null. */
+  warehouseLabel: string | null;
   vehicle: PlanVehicle;
   layout: Layout;
   lines: PrintLine[];
@@ -171,6 +173,7 @@ export function buildPrintSheet(
   }));
   return {
     warehouseId: plan.warehouseId,
+    warehouseLabel: planWarehouseLabel(plan),
     vehicle,
     layout,
     lines: linesOf(layout, letters),

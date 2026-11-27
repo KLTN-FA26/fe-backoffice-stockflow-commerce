@@ -19,7 +19,7 @@ import type { StockReservation } from "../types";
 const { missing } = INVENTORY_LABELS;
 const time = (value?: string | null) => (value ? formatDateTime(value) : missing);
 
-/** Backend reservation rows as sent: the order's id (no order number exists), dashes for omitted fields. */
+/** Backend reservation rows as sent: the order number (issue #286; dash when an old hold has none — never the raw id), dashes for omitted fields. */
 export function ReservationsTable({ items }: { items: readonly StockReservation[] }) {
   return (
     <Table>
@@ -49,7 +49,7 @@ export function ReservationsTable({ items }: { items: readonly StockReservation[
       <TableBody>
         {items.map((hold) => (
           <TableRow key={hold.reservationId}>
-            <TableCell className="font-mono text-xs">{hold.orderId}</TableCell>
+            <TableCell className="font-mono text-xs">{hold.orderNumber ?? missing}</TableCell>
             <TableCell className="font-mono">{hold.locationCode}</TableCell>
             <TableCell className="font-mono">{hold.lotNumber ?? missing}</TableCell>
             <TableCell className="text-right font-mono tabular-nums">

@@ -74,6 +74,8 @@ export const creditProfileDtoSchema = z.object({
   creditTermDays: z.number().int().nullish(),
   currency: z.string(),
   approvedBy: z.string().nullish(),
+  /** #286: tên người duyệt hạn mức kèm id — BE bỏ khi null. */
+  approvedByName: z.string().nullish(),
   approvedAt: z.string().nullish(),
   note: z.string().nullish(),
   version: z.number().int(),

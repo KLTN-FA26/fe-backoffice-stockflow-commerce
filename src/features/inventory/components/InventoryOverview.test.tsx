@@ -134,7 +134,9 @@ describe("carton figures", () => {
       INVENTORY_LABELS.viewWarehouse,
     ]);
     const holds = await region(INVENTORY_LABELS.reservationsTitle);
-    const hold = (await within(holds).findByText(OVERVIEW_RESERVATION.orderId)).closest("tr");
+    const hold = (await within(holds).findByText(OVERVIEW_RESERVATION.orderNumber)).closest("tr");
+    // Issue #286: cột "Đơn" hiện số đơn, không UUID đơn
+    expect(within(holds).queryByText(OVERVIEW_RESERVATION.orderId)).not.toBeInTheDocument();
     expect(within(hold as HTMLElement).getByText("1 thùng")).toBeInTheDocument();
     expect(within(hold as HTMLElement).getByText("20 cái")).toBeInTheDocument();
     await openWarehouse(user, "HN01");
@@ -252,7 +254,7 @@ describe("reservations", () => {
       }),
     });
     const holds = await region(INVENTORY_LABELS.reservationsTitle);
-    const row = (await within(holds).findByText(OVERVIEW_RESERVATION.orderId)).closest("tr");
+    const row = (await within(holds).findByText(OVERVIEW_RESERVATION.orderNumber)).closest("tr");
     expect(within(row as HTMLElement).getAllByText(INVENTORY_LABELS.missing)).toHaveLength(3);
     await user.click(within(holds).getByRole("button", { name: INVENTORY_LABELS.next }));
     await waitFor(() =>

@@ -1,9 +1,9 @@
 "use client";
 
 import { UI_LABELS } from "@/constants";
-import { isAutoCancelled } from "@/features/shipping/ftl-selectors";
 import { formatDateTime } from "@/lib/format/date";
-import { useWarehouseDirectory } from "@/lib/references/warehouse-options";
+import { isAutoCancelled } from "@/features/shipping/ftl-selectors";
+import { warehouseRefLabel } from "@/features/shipping/selectors";
 import { StatusDot } from "@/components/shared/StatusDot";
 
 import { InfoItem, LoadProgress } from "../primitives";
@@ -24,8 +24,6 @@ export function LoadInfoCard({
   /** Nút thao tác của chuyến (trang không còn tiêu đề) — cạnh trạng thái. */
   actions?: React.ReactNode;
 }) {
-  const { data: warehouses } = useWarehouseDirectory();
-  const warehouse = warehouses?.find((w) => w.warehouseId === load.warehouseId);
   return (
     <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-(--card-shadow)">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -37,10 +35,8 @@ export function LoadInfoCard({
       </div>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <InfoItem label={L.code} value={load.code} mono />
-        <InfoItem
-          label={F.warehouse}
-          value={warehouse ? `${warehouse.code} · ${warehouse.name}` : load.warehouseId}
-        />
+        {/* Mã + tên kho do BE trả (#286) — không tải danh mục kho; BE cũ chưa trả thì "—", không hiện UUID */}
+        <InfoItem label={F.warehouse} value={warehouseRefLabel(load) ?? "—"} />
         <InfoItem
           label={F.carrier}
           value={load.carrierName ? `${load.carrierCode ?? ""} ${load.carrierName}`.trim() : "—"}
@@ -50,6 +46,9 @@ export function LoadInfoCard({
         <InfoItem label={F.driverPhone} value={load.driverPhone ?? "—"} mono />
         <InfoItem label={W.number} value={load.waybillNo ?? "—"} mono />
         <InfoItem label={L.startedAt} value={dt(load.loadingStartedAt)} />
+        {load.loadingStartedAt && (
+          <InfoItem label={L.startedBy} value={load.loadingStartedByName ?? "—"} />
+        )}
         {load.dispatchedAt && (
           <>
             <InfoItem label={L.dispatchedAt} value={dt(load.dispatchedAt)} />

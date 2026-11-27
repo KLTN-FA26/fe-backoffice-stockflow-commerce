@@ -1,7 +1,7 @@
 /**
  * Shipping — zod DTO file đính kèm (BE `WaybillFileResponse`, `PodFileResponse`, `WaybillFileResponse.Link`; docs 09 §4.4,
- * §4.3 bước 2, BR-28). BE bỏ null khỏi JSON nên trường tuỳ chọn khai `.nullish()`. `uploadedBy` chỉ là id người tải (BE
- * chưa trả tên) — không hiển thị.
+ * §4.3 bước 2, BR-28). BE bỏ null khỏi JSON nên trường tuỳ chọn khai `.nullish()`. `uploadedBy` là id người tải;
+ * `uploadedByName` (#286) là tên để hiển thị — BE cũ chưa trả thì vắng.
  */
 
 import { z } from "zod";
@@ -15,6 +15,7 @@ export const beAttachedFileSchema = z.object({
   contentType: z.string().nullish(),
   sizeBytes: z.number().int().min(0),
   uploadedBy: z.string().nullish(),
+  uploadedByName: z.string().nullish(),
   uploadedAt: isoInstant,
 });
 

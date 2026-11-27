@@ -84,6 +84,9 @@ export const einvoiceDtoSchema = z.object({
   deliveryBatchId: z.string().nullish(),
   customerId: z.string(),
   originalEInvoiceId: z.string().nullish(),
+  /** #286: ký hiệu + số của hoá đơn gốc kèm id — vắng khi gốc chưa có số (hoặc BE cũ). */
+  originalEInvoiceSymbol: z.string().nullish(),
+  originalEInvoiceNumber: z.number().int().nullish(),
   provider: z.string().nullish(),
   templateCode: z.string().nullish(),
   symbol: z.string().nullish(),
@@ -339,6 +342,8 @@ export const errorNoticeDtoSchema = z.object({
   responseMessage: z.string().nullish(),
   respondedAt: z.string().nullish(),
   recordedBy: z.string().nullish(),
+  /** #286: tên người lập thông báo — vắng thì không hiện. */
+  recordedByName: z.string().nullish(),
   recordedAt: z.string(),
   formName: z.string().nullish(),
 });
