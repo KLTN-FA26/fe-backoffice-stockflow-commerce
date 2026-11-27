@@ -9,7 +9,7 @@ import {
 } from "@/constants/labels-sales-owner";
 
 import { formatDateTime } from "@/lib/format/date";
-import { useSalesOwnerHistory } from "@/lib/references/sales-owner";
+import { salesOwnerHistoryNote, useSalesOwnerHistory } from "@/lib/references/sales-owner";
 
 import { DataTable } from "@/components/shared/DataTable";
 import { Skeleton } from "@/components/shared/Skeleton";
@@ -49,7 +49,7 @@ const COLUMNS: ColumnDef<SalesOwnerHistoryEntry>[] = [
     key: "note",
     header: "Ghi chú",
     className: "min-w-56 text-ink-secondary whitespace-normal",
-    cell: (row) => row.note || "—",
+    cell: (row) => salesOwnerHistoryNote(row.note) ?? "—",
   },
   {
     key: "changedBy",

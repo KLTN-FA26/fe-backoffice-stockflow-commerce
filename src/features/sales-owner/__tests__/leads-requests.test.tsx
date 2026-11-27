@@ -157,9 +157,32 @@ describe("Khách tiềm năng (§10.3, §10.4, §10.7)", () => {
             toStatus: "ASSIGNED",
             fromUserId: "s-b",
             toUserId: "s-b",
-            note: "The form was sent again: company Công ty L1; contact Anh Minh; phone 0912345678; e-mail minh@x.vn",
+            note: "The form was sent again: company Công ty L1; tax code 0312345678; contact Anh Minh (Giám đốc); e-mail minh@x.vn; province Hà Nội; interests CUP",
             changedAt: "2026-11-27T03:00:00Z",
             kind: "RESUBMITTED",
+          },
+          {
+            fromStatus: "ASSIGNED",
+            toStatus: "NEW",
+            fromUserId: "s-b",
+            note: "The salesperson's account was locked or disabled: back to the managers' queue",
+            changedAt: "2026-11-27T04:00:00Z",
+            kind: "CHANGE",
+          },
+          {
+            fromStatus: "NEW",
+            toStatus: "ASSIGNED",
+            toUserId: "s-c",
+            toName: "Sale Chi",
+            note: "Some future English system note",
+            changedAt: "2026-11-27T05:00:00Z",
+            kind: "CHANGE",
+          },
+          {
+            fromStatus: "ASSIGNED",
+            toStatus: "SNOOZED",
+            changedAt: "2026-11-27T06:00:00Z",
+            kind: "CHANGE",
           },
         ],
       }),
@@ -173,12 +196,31 @@ describe("Khách tiềm năng (§10.3, §10.4, §10.7)", () => {
       "Khách gửi form",
       "Giao cho Sale Bình",
       "Khách gửi lại form",
+      "Trả về hàng chờ",
+      "Giao cho Sale Chi",
+      "Đã giao → Trạng thái khác",
     ]);
     expect(within(items[1] as HTMLElement).getByText("Quản Lý")).toBeInTheDocument();
-    expect(within(items[2] as HTMLElement).getByText("Hệ thống")).toBeInTheDocument();
+    const resubmitted = within(items[2] as HTMLElement);
+    expect(resubmitted.getByText("Hệ thống")).toBeInTheDocument();
+    // Ghi chú tiếng Anh của BE đọc thành các ô tiếng Việt; ô trống (SĐT) bỏ qua
+    const facts = resubmitted
+      .getAllByRole("term")
+      .map((dt) => [dt.textContent, dt.nextElementSibling?.textContent]);
+    expect(facts).toEqual([
+      ["Công ty", "Công ty L1"],
+      ["Người liên hệ", "Anh Minh (Giám đốc)"],
+      ["Email", "minh@x.vn"],
+    ]);
     expect(
-      within(items[2] as HTMLElement).getByText(/contact Anh Minh; phone 0912345678/),
+      within(items[3] as HTMLElement).getByText(
+        "Tài khoản của Sale được giao đã bị khoá hoặc vô hiệu hoá — khách tiềm năng về lại hàng chờ của quản lý.",
+      ),
     ).toBeInTheDocument();
+    // Không câu tiếng Anh nào của BE lọt ra màn hình
+    expect(history).not.toHaveTextContent(
+      /sent again|tax code|locked or disabled|future English|SNOOZED/,
+    );
     expect(api.get).toHaveBeenCalledWith("/leads/L1/history", expect.anything());
   });
 

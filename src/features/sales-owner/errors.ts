@@ -47,10 +47,14 @@ export const requestErrorMessage = (e: unknown) => ownerChangeErrorMessage(e, RE
 export const transferErrorMessage = (e: unknown) => ownerChangeErrorMessage(e, TRANSFER_MESSAGES);
 export const settingsErrorMessage = (e: unknown) => ownerChangeErrorMessage(e);
 
-/** Lý do BE bỏ qua một khách trong lô (BR-S09); mã lạ hiện nguyên văn. */
+/** Lý do BE bỏ qua một khách trong lô (BR-S09; BE `SalesOwnerTransfers.Skip`, đủ bốn mã). */
 export const SKIP_REASON_LABELS: Readonly<Record<string, string>> = {
   OWNER_CHANGED: "Khách vừa được đổi người phụ trách trong lúc chuyển",
   NOT_OWNED_BY_SOURCE: "Khách không còn thuộc Sale này",
   CUSTOMER_NOT_FOUND: "Không tìm thấy khách",
   REASSIGNED_SINCE: "Khách đã được chuyển tiếp cho người khác",
 };
+
+/** Mã lý do lạ (BE thêm sau) không hiện nguyên văn tiếng Anh. */
+export const skipReasonLabel = (reason: string | null | undefined): string =>
+  (reason && SKIP_REASON_LABELS[reason]) || "Không rõ lý do";

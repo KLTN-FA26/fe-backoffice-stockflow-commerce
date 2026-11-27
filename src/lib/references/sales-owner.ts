@@ -62,6 +62,19 @@ export const salesOwnerHistoryEntrySchema = z.object({
   batchId: z.string().nullish(),
 });
 export const salesOwnerHistoryPageSchema = bePageSchema(salesOwnerHistoryEntrySchema);
+
+/**
+ * Ghi chú hệ thống BE ghi bằng tiếng Anh vào lịch sử người phụ trách (hằng số cố định) → câu tiếng Việt. Hiện có một:
+ * dòng `BACKFILL` của migration điền người phụ trách ban đầu (V20270128000145). Ghi chú do người gõ giữ nguyên.
+ */
+const SYSTEM_HISTORY_NOTES: Readonly<Record<string, string>> = {
+  "From the newest sent quote or contract": "Theo báo giá hoặc hợp đồng gửi gần nhất",
+};
+
+export function salesOwnerHistoryNote(note: string | null | undefined): string | null {
+  const text = note?.trim();
+  return text ? (SYSTEM_HISTORY_NOTES[text] ?? text) : null;
+}
 export type SalesOwnerHistoryEntry = z.infer<typeof salesOwnerHistoryEntrySchema>;
 export type SalesOwnerHistoryPage = z.infer<typeof salesOwnerHistoryPageSchema>;
 

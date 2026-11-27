@@ -2,7 +2,7 @@
 
 import { Notice } from "@/components/shared/Notice";
 
-import { SKIP_REASON_LABELS } from "../errors";
+import { skipReasonLabel } from "../errors";
 
 import type { TransferResult } from "../types";
 
@@ -28,7 +28,7 @@ export function TransferResultView({
                 {names?.get(item.customerId) ?? item.customerId}
               </span>
               {" — "}
-              {item.reason ? (SKIP_REASON_LABELS[item.reason] ?? item.reason) : "Không rõ lý do"}
+              {skipReasonLabel(item.reason)}
             </li>
           ))}
         </ul>

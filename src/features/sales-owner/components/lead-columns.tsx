@@ -2,7 +2,6 @@
 
 import { Ban, History, PhoneCall, UserPlus, UserRoundPlus } from "lucide-react";
 
-import { LEAD_INTEREST_LABELS, LEAD_STATUS_LABELS } from "@/constants/labels-sales-owner";
 import { customerCreateFromLead } from "@/constants/sales-owner";
 
 import { formatDate } from "@/lib/format/date";
@@ -11,6 +10,7 @@ import { CELL, ToneDot } from "@/components/shared/column-helpers";
 import { rowActionsColumn } from "@/components/shared/RowActionsMenu";
 
 import { leadActions } from "../lifecycle";
+import { leadInterestsLabel, leadStatusLabel } from "../selectors";
 
 import type { LeadStatus } from "@/constants/sales-owner";
 import type { ColumnDef } from "@/components/shared/DataTable";
@@ -25,9 +25,6 @@ const TONE: Record<LeadStatus, "info" | "warning" | "positive" | "muted" | "neut
   CONVERTED: "positive",
   DISQUALIFIED: "muted",
 };
-
-export const leadStatusLabel = (status: string) =>
-  LEAD_STATUS_LABELS[status as LeadStatus] ?? status;
 
 const DATA: ColumnDef<Lead>[] = [
   {
@@ -60,8 +57,7 @@ const DATA: ColumnDef<Lead>[] = [
     key: "interests",
     header: "Quan tâm",
     className: "min-w-32 whitespace-normal",
-    cell: (l) =>
-      (l.interests ?? []).map((code) => LEAD_INTEREST_LABELS[code] ?? code).join(", ") || "—",
+    cell: (l) => leadInterestsLabel(l.interests),
   },
   {
     key: "volume",

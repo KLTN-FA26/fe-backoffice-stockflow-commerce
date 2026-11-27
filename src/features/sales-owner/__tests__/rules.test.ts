@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { customerCreateFromLead } from "@/constants/sales-owner";
 
+import { salesOwnerHistoryNote } from "@/lib/references/sales-owner";
 import { salesWorkloadRowSchema, suggestLeastLoaded } from "@/lib/references/sales-workload";
 import { workloadRow } from "@/test/sales-owner-screen";
 
@@ -13,7 +14,15 @@ import {
   leadActions,
   OWNER_CHANGE_REQUEST_TRANSITIONS,
 } from "../lifecycle";
-import { coverState, mergeWorkload } from "../selectors";
+import { skipReasonLabel } from "../errors";
+import {
+  coverState,
+  leadHistoryLine,
+  leadInterestsLabel,
+  mergeWorkload,
+  parseLeadResubmission,
+} from "../selectors";
+import { leadHistoryEntrySchema } from "../schemas";
 import { leadSchema, ownerChangeRequestSchema, staffCoverSchema } from "../schemas";
 
 const lead = (status: string, assignedTo: string | null = null) =>
@@ -184,5 +193,83 @@ describe("Chuyển lead thành khách (§10.7) — link form tạo khách", () =
       taxCode: "0312345678",
       contactName: "Chị Lan",
     });
+  });
+});
+
+describe("không hiện tiếng Anh của BE (ghi chú hệ thống, mã lạ)", () => {
+  const PREFIX = "The form was sent again: company ";
+
+  it("đọc ghi chú RESUBMITTED đúng dấu phân cách của BE `LeadService.resubmissionNote`", () => {
+    expect(
+      parseLeadResubmission(
+        `${PREFIX}Công ty A; tax code 0312345678-001; contact Chị Lan (Kế toán); phone 0909 000 111; e-mail lan@a.vn; province Hà Nội; interests CUP, BOX; monthly volume 5000; note gọi buổi sáng; phone 1`,
+      ),
+    ).toEqual({
+      company: "Công ty A",
+      contact: "Chị Lan (Kế toán)",
+      phone: "0909 000 111",
+      email: "lan@a.vn",
+    });
+    // Chỉ công ty + người liên hệ (các phần khác BE bỏ khi trống)
+    expect(parseLeadResubmission(`${PREFIX}Quán B; contact Anh Tư`)).toEqual({
+      company: "Quán B",
+      contact: "Anh Tư",
+      phone: null,
+      email: null,
+    });
+  });
+
+  it("không đúng định dạng → null (màn hình chỉ hiện 'Khách gửi lại form')", () => {
+    expect(parseLeadResubmission(null)).toBeNull();
+    expect(parseLeadResubmission("Customer sent the form twice")).toBeNull();
+    expect(parseLeadResubmission(`${PREFIX}Công ty A; phone 0909000111`)).toBeNull();
+    expect(parseLeadResubmission(`${PREFIX}Công ty A; contact Lan; phone call me`)).toBeNull();
+    expect(parseLeadResubmission(`${PREFIX}Công ty A; contact Lan; e-mail none`)).toBeNull();
+  });
+
+  const entry = (row: Record<string, unknown>) =>
+    leadHistoryEntrySchema.parse({ changedAt: "2026-11-27T00:00:00Z", ...row });
+
+  it("ghi chú hệ thống đã biết → tiếng Việt; ghi chú người gõ giữ; ghi chú lạ ẩn; RESUBMITTED không hiện nguyên văn", () => {
+    expect(
+      leadHistoryLine(
+        entry({
+          fromStatus: "CONTACTED",
+          toStatus: "NEW",
+          note: "The salesperson's account was locked or disabled: back to the managers' queue",
+        }),
+      ).note,
+    ).toMatch(/^Tài khoản của Sale được giao đã bị khoá/);
+    expect(
+      leadHistoryLine(entry({ fromStatus: "ASSIGNED", toStatus: "CONTACTED", note: "Đã gọi" }))
+        .note,
+    ).toBe("Đã gọi");
+    expect(
+      leadHistoryLine(entry({ fromStatus: "NEW", toStatus: "ASSIGNED", note: "Assigned by rule" }))
+        .note,
+    ).toBeNull();
+    const bad = leadHistoryLine(entry({ kind: "RESUBMITTED", toStatus: "NEW", note: "garbled" }));
+    expect(bad).toMatchObject({ title: "Khách gửi lại form", note: null, resubmission: null });
+  });
+
+  it("mã lạ: lý do bỏ qua → 'Không rõ lý do'; trạng thái → 'Trạng thái khác'; nhóm hàng lạ bỏ qua", () => {
+    expect(skipReasonLabel("OWNER_CHANGED")).toBe(
+      "Khách vừa được đổi người phụ trách trong lúc chuyển",
+    );
+    expect(skipReasonLabel("SOMETHING_NEW")).toBe("Không rõ lý do");
+    expect(skipReasonLabel(null)).toBe("Không rõ lý do");
+    expect(leadHistoryLine(entry({ fromStatus: "ASSIGNED", toStatus: "PAUSED" })).title).toBe(
+      "Đã giao → Trạng thái khác",
+    );
+    expect(leadInterestsLabel(["CUP", "GADGET"])).toBe("Ly");
+    expect(leadInterestsLabel(["GADGET"])).toBe("—");
+  });
+
+  it("lịch sử người phụ trách: ghi chú BACKFILL của migration → tiếng Việt; ghi chú người gõ giữ nguyên", () => {
+    expect(salesOwnerHistoryNote("From the newest sent quote or contract")).toBe(
+      "Theo báo giá hoặc hợp đồng gửi gần nhất",
+    );
+    expect(salesOwnerHistoryNote("Khách xin đổi")).toBe("Khách xin đổi");
+    expect(salesOwnerHistoryNote("  ")).toBeNull();
   });
 });

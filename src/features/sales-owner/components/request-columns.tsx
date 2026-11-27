@@ -15,13 +15,14 @@ import { CELL, ToneDot } from "@/components/shared/column-helpers";
 import { rowActionsColumn } from "@/components/shared/RowActionsMenu";
 
 import { canDecideRequest } from "../lifecycle";
+import { UNKNOWN_STATUS_LABEL } from "../selectors";
 
 import type { OwnerChangeRequestStatus } from "@/constants/sales-owner";
 import type { ColumnDef } from "@/components/shared/DataTable";
 import type { OwnerChangeRequest } from "../types";
 
 export const requestStatusLabel = (status: string) =>
-  OWNER_CHANGE_REQUEST_STATUS_LABELS[status as OwnerChangeRequestStatus] ?? status;
+  OWNER_CHANGE_REQUEST_STATUS_LABELS[status as OwnerChangeRequestStatus] ?? UNKNOWN_STATUS_LABEL;
 
 const TONE: Record<OwnerChangeRequestStatus, "warning" | "positive" | "muted" | "neutral"> = {
   PENDING: "warning",
@@ -77,7 +78,8 @@ export function requestColumns(
     {
       key: "reason",
       header: "Lý do",
-      cell: (r) => (r.reason ? (OWNER_CHANGE_REQUEST_REASON_LABELS[r.reason] ?? r.reason) : "—"),
+      // Mã lý do lạ (BE thêm sau) → "Khác", không hiện mã tiếng Anh
+      cell: (r) => (r.reason ? (OWNER_CHANGE_REQUEST_REASON_LABELS[r.reason] ?? "Khác") : "—"),
     },
     {
       key: "note",

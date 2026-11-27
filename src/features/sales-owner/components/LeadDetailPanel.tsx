@@ -1,18 +1,37 @@
 "use client";
 
-import { LEAD_INTEREST_LABELS } from "@/constants/labels-sales-owner";
-
 import { formatDate, formatDateTime } from "@/lib/format/date";
 
 import { DetailPanel, Fact, FactGrid } from "@/components/shared/DetailPanel";
 import { SlideOverPanel } from "@/components/shared/SlideOverPanel";
 
 import { useLeadHistory } from "../queries";
-import { leadHistoryLine } from "../selectors";
-
-import { leadStatusLabel } from "./lead-columns";
+import { leadHistoryLine, leadInterestsLabel, leadStatusLabel } from "../selectors";
 
 import type { Lead } from "../types";
+import type { LeadResubmission } from "../selectors";
+
+/** Thông tin liên hệ của lần khách gửi lại form (ô trống bỏ qua). */
+function ResubmittedFields({ form }: { form: LeadResubmission }) {
+  const fields = [
+    ["Công ty", form.company],
+    ["Người liên hệ", form.contact],
+    ["Điện thoại", form.phone],
+    ["Email", form.email],
+  ] as const;
+  return (
+    <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-0.5 pt-0.5 text-xs">
+      {fields.map(([label, value]) =>
+        value ? (
+          <div key={label} className="contents">
+            <dt className="text-ink-tertiary">{label}</dt>
+            <dd className="text-ink-secondary break-words">{value}</dd>
+          </div>
+        ) : null,
+      )}
+    </dl>
+  );
+}
 
 function LeadHistory({ leadId }: { leadId: string }) {
   const history = useLeadHistory(leadId);
@@ -44,6 +63,7 @@ function LeadHistory({ leadId }: { leadId: string }) {
                 {line.note}
               </p>
             )}
+            {line.resubmission && <ResubmittedFields form={line.resubmission} />}
           </li>
         );
       })}
@@ -77,11 +97,7 @@ export function LeadDetailPanel({ lead, onClose }: { lead: Lead | null; onClose:
               <Fact label="Điện thoại">{lead.phone ?? "—"}</Fact>
               <Fact label="Email">{lead.email ?? "—"}</Fact>
               <Fact label="Tỉnh / thành">{lead.province ?? "—"}</Fact>
-              <Fact label="Quan tâm">
-                {(lead.interests ?? [])
-                  .map((code) => LEAD_INTEREST_LABELS[code] ?? code)
-                  .join(", ") || "—"}
-              </Fact>
+              <Fact label="Quan tâm">{leadInterestsLabel(lead.interests)}</Fact>
               <Fact label="Sản lượng / tháng">
                 {lead.monthlyVolume == null ? "—" : String(lead.monthlyVolume)}
               </Fact>

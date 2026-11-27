@@ -24,9 +24,10 @@ import { ServerTableBody } from "@/components/backoffice/ServerTableBody";
 import { ListToolbar } from "@/components/shared/ListToolbar";
 
 import { useLeads } from "../queries";
+import { leadStatusLabel } from "../selectors";
 
 import { LEADS_COPY } from "./copy";
-import { leadColumns, leadStatusLabel } from "./lead-columns";
+import { leadColumns } from "./lead-columns";
 import { LeadDetailPanel } from "./LeadDetailPanel";
 import { LeadAssignDialog, LeadContactDialog, LeadDisqualifyDialog } from "./LeadDialogs";
 
