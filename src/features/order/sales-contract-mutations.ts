@@ -10,6 +10,7 @@ import { serverErrorMessage } from "@/lib/api/error-message";
 import { QUERY_ROOTS } from "@/lib/api/query-roots";
 import { createMutation } from "@/lib/api/query-factory";
 import { withStaleRefetch } from "@/lib/api/stale-refetch";
+import { salesOwnerErrorMessage } from "@/lib/references/sales-owner-access";
 
 import {
   approveContractCredit,
@@ -83,7 +84,13 @@ export const useRejectContractCredit = contractMutation(
  * WF-02: BE trả message tiếng Việt → hiện nguyên văn; khoá lạc quan → câu "đã tải lại". 413 (BFF hoặc BE) chỉ đến từ
  * file scan đã ký → nói rõ giới hạn thay cho câu chung "Không thể hoàn tất yêu cầu." của BFF.
  */
-export function contractErrorMessage(error: unknown): string {
+/**
+ * `ownerName`: người phụ trách khách màn đang biết — câu BR-S12 (409 CUSTOMER_OWNED_BY_OTHER_SALES) nêu đúng tên dù BE
+ * không gửi kèm.
+ */
+export function contractErrorMessage(error: unknown, ownerName?: string | null): string {
+  const owned = salesOwnerErrorMessage(error, ownerName);
+  if (owned) return owned;
   return serverErrorMessage(error, {
     OPTIMISTIC_LOCK: "Dữ liệu vừa thay đổi, đã tải lại.",
     SALES_CONTRACT_NOT_FOUND: "Hợp đồng vừa bị huỷ, đã tải lại.",
