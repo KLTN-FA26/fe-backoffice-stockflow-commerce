@@ -11,13 +11,11 @@ const product = (patch: Partial<Product> = {}): Product => ({
   productId: "p-1",
   code: "TOTE",
   name: "Túi tote",
-  nameEn: "Tote bag",
   type: "Standard",
   categoryId: "cat-1",
   status: PRODUCT_STATUS.DRAFT,
   version: 1,
   description: "",
-  descriptionEn: "",
   images: [],
   taxClass: "standard",
   brand: "A",
@@ -32,7 +30,7 @@ describe("conflictingFields — 409 khi sửa sản phẩm", () => {
     const base = product();
     const latest = product({ description: "Mô tả của người khác", version: 2 });
     const input = { ...productToDraftForm(base), name: "Bản của tôi" };
-    expect(conflictingFields(base, latest, input)).toEqual(["Mô tả tiếng Việt"]);
+    expect(conflictingFields(base, latest, input)).toEqual(["Mô tả"]);
   });
 
   it("không nêu ô chỉ người dùng sửa, hay ô server đổi trùng đúng giá trị người dùng nhập", () => {
@@ -54,9 +52,7 @@ describe("conflictingFields — 409 khi sửa sản phẩm", () => {
   });
 
   it("thiếu bản gốc → so thẳng bản mới với nội dung đang nhập", () => {
-    const latest = product({ nameEn: "Bag", version: 2 });
-    expect(conflictingFields(undefined, latest, productToDraftForm(product()))).toEqual([
-      "Tên tiếng Anh",
-    ]);
+    const latest = product({ description: "<p>Túi vải</p>", version: 2 });
+    expect(conflictingFields(undefined, latest, productToDraftForm(product()))).toEqual(["Mô tả"]);
   });
 });

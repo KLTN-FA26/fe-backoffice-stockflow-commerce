@@ -36,7 +36,6 @@ export function ProductReviewStep({
     // Mã hiện viết hoa như BE lưu (`ProductWebMapper`: code.toUpperCase()) và như SKU xem trước
     [L.wizard.fields.productCode, values.productCode.trim().toUpperCase() || "—", true],
     [L.wizard.fields.name, values.name || "—"],
-    [L.edit.fields.nameEn, values.nameEn || "—"],
     [
       L.edit.fields.categoryId,
       values.categoryId ? categoryName(values.categoryId, categories) : "—",

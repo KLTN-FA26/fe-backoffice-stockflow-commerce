@@ -35,13 +35,11 @@ type Field = keyof ProductDraftFormValues;
 const FIELD_STEP: Record<Field, ProductStepKey> = {
   productCode: "info",
   name: "info",
-  nameEn: "info",
   brandId: "info",
   categoryId: "info",
   taxClass: "info",
   shortDescription: "description",
   description: "description",
-  descriptionEn: "description",
 };
 
 const ORDER = PRODUCT_CREATE_STEPS.map((s) => s.key);

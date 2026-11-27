@@ -256,6 +256,7 @@ export function activateMockAdapter(): void {
     import("./mock-routes-orders"),
     import("./mock-routes-goods-receipts"),
     import("./mock-routes-variants"),
+    import("./mock-routes-product-images"),
     import("./mock-routes-uom-conversions"),
     import("./mock-routes-customer-skus"),
     import("./mock-routes-customers"),
@@ -291,6 +292,7 @@ export function activateMockAdapter(): void {
       { registerOrderMockRoutes },
       { registerGoodsReceiptMockRoutes },
       { registerVariantMockRoutes },
+      { registerProductImageMockRoutes },
       { registerUomConversionMockRoutes },
       { registerCustomerSkuMockRoutes },
       { registerCustomerMockRoutes },
@@ -334,6 +336,7 @@ export function activateMockAdapter(): void {
       registerReturnReceiptMockRoutes();
       registerGoodsReceiptMockRoutes();
       registerVariantMockRoutes();
+      registerProductImageMockRoutes();
       registerUomConversionMockRoutes();
       registerCustomerSkuMockRoutes();
       registerCustomerMockRoutes();
