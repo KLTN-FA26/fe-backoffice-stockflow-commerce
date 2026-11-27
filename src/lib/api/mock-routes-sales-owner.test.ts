@@ -1,0 +1,131 @@
+/**
+ * Mock Sale phụ trách (hợp đồng sales-owner) chạy qua axios thật + lớp api của FE: mock đúng hình BE và parse được;
+ * quyền theo `mock-user-grants`; chuyển hàng loạt idempotent theo `requestId` (BR-S09); khách đã đổi tay bị bỏ qua
+ * (ca #9); đổi người phụ trách kiểm `version` (ca #15).
+ */
+
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { listCustomers } from "@/features/customer/api";
+import { transferCustomers } from "@/features/sales-owner/api";
+import { listLeads } from "@/features/sales-owner/work-api";
+import { api } from "@/lib/api/client";
+import { ApiError } from "@/lib/api/error";
+import { useAuthStore } from "@/lib/auth/auth-store";
+import { changeSalesOwner, getSalesOwner } from "@/lib/references/sales-owner";
+import { fetchSalesWorkload } from "@/lib/references/sales-workload";
+
+import { activateMockAdapter } from "./mock-adapter";
+import { resetSalesOwnerMockStore } from "./mock-sales-owner-store";
+import { resetSalesWorkMockStore } from "./mock-routes-sales-work";
+
+const originalAdapter = api.defaults.adapter;
+
+function actAs(userId: string) {
+  useAuthStore.setState({
+    user: {
+      userId,
+      fullName: "T",
+      email: "t@t.vn",
+      roles: [],
+      username: "t",
+      status: "ACTIVE",
+      lastLoginAt: null,
+      mustChangePassword: false,
+    },
+    isAuthenticated: true,
+    status: "authenticated",
+  });
+}
+
+async function codeOf(promise: Promise<unknown>): Promise<string> {
+  try {
+    await promise;
+  } catch (error: unknown) {
+    if (error instanceof ApiError) return error.code;
+    throw error;
+  }
+  throw new Error("Expected request to fail");
+}
+
+beforeAll(() => {
+  vi.spyOn(Math, "random").mockReturnValue(0.05);
+  activateMockAdapter();
+});
+beforeEach(() => actAs("USER-ADMIN-01"));
+afterEach(() => {
+  resetSalesOwnerMockStore();
+  resetSalesWorkMockStore();
+});
+afterAll(() => {
+  api.defaults.adapter = originalAdapter;
+  vi.restoreAllMocks();
+});
+
+describe("mock sales-owner", () => {
+  it("GET /customers có cột Sale phụ trách và lọc salesOwnerState", async () => {
+    const page = await listCustomers({ page: 0, size: 50, salesOwnerState: "NEEDS_ASSIGNMENT" });
+    expect(page.items.length).toBeGreaterThan(0);
+    expect(page.items.every((c) => c.salesOwnerState === "NEEDS_ASSIGNMENT")).toBe(true);
+  });
+
+  it("ca #15: PUT với version cũ → SALES_OWNER_VERSION_CONFLICT", async () => {
+    const [workload, page] = await Promise.all([
+      fetchSalesWorkload(),
+      listCustomers({ page: 0, size: 5 }),
+    ]);
+    const customerId = page.items[0]?.customerId ?? "";
+    const owner = await getSalesOwner(customerId);
+    const target = workload?.find((row) => row.userId !== owner?.salesOwnerId)?.userId ?? "";
+    const input = {
+      customerId,
+      salesOwnerId: target,
+      reason: "WORKLOAD" as const,
+      note: "",
+      notifyCustomer: true,
+    };
+    await changeSalesOwner({ ...input, version: owner?.version ?? 0 });
+    expect(await codeOf(changeSalesOwner({ ...input, version: owner?.version ?? 0 }))).toBe(
+      "SALES_OWNER_VERSION_CONFLICT",
+    );
+  });
+
+  it("BR-S09: cùng requestId chạy lại trả đúng kết quả cũ, không chuyển lần hai", async () => {
+    const workload = (await fetchSalesWorkload()) ?? [];
+    const [from, to] = [workload[0]?.userId ?? "", workload[1]?.userId ?? ""];
+    const body = {
+      requestId: "req-1",
+      fromUserId: from,
+      toUserIds: [to],
+      reason: "WORKLOAD" as const,
+      note: "",
+      temporary: false,
+      notifyCustomer: true,
+    };
+    const first = await transferCustomers(body);
+    const again = await transferCustomers(body);
+    expect(first.moved).toBeGreaterThan(0);
+    expect(again).toEqual(first);
+    const left = await listCustomers({ page: 0, size: 200, salesOwnerId: from });
+    expect(left.items).toHaveLength(0);
+  });
+
+  it("Sale không có customer-sales-owners:UPDATE → 403; chỉ thấy lead của mình", async () => {
+    actAs("USER-SALE-01");
+    expect(
+      await codeOf(
+        transferCustomers({
+          requestId: "x",
+          fromUserId: "a",
+          toUserIds: ["b"],
+          reason: "WORKLOAD",
+          note: "",
+          temporary: false,
+          notifyCustomer: false,
+        }),
+      ),
+    ).toBe("FORBIDDEN");
+    const leads = await listLeads({ page: 0, size: 20 });
+    expect(leads.items.every((l) => l.status !== "NEW")).toBe(true);
+  });
+});

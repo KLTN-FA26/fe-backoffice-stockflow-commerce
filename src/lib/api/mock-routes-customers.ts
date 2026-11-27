@@ -5,6 +5,11 @@
  */
 import { registerMockRoute } from "./mock-adapter";
 import {
+  registerSalesOwnerMockRoutes,
+  salesOwnerFields,
+  salesOwnerFilter,
+} from "./mock-routes-sales-owner";
+import {
   CUSTOMER_SORT_FIELDS,
   MOCK_CUSTOMER_STATUSES,
   allMockCustomers,
@@ -62,7 +67,7 @@ const toResponse = (c: MockCustomer, masked: boolean) => ({
   taxCode: masked ? maskTaxCode(c.taxCode) : c.taxCode,
 });
 
-function listRoute(config: AxiosRequestConfig) {
+async function listRoute(config: AxiosRequestConfig) {
   const query = queryOf(config);
   const page = intParam(query.get("page"));
   const size = intParam(query.get("size"));
@@ -85,14 +90,23 @@ function listRoute(config: AxiosRequestConfig) {
     return unsupported(`Unknown customer status ${status}`);
   }
   const q = query.get("q") ?? "";
+  // Sale phụ trách (hợp đồng sales-owner BE-A): lọc `mine` / `salesOwnerState` / `salesOwnerId`, dòng có `salesOwner*`
+  const ownedBy = await salesOwnerFilter(query);
   const rows = allMockCustomers().filter(
     (c) =>
       matchesSearch(c, q) &&
       (!segmentId || c.segmentId === segmentId.toLowerCase()) &&
-      (!status || c.status === status),
+      (!status || c.status === status) &&
+      ownedBy(c.customerId),
   );
-  const sorted = sortCustomers(rows, sort).map((c) => toResponse(c, true));
-  return ok(pageOf(sorted, pageNumber, pageSize));
+  const result = pageOf(sortCustomers(rows, sort), pageNumber, pageSize);
+  const items = await Promise.all(
+    result.items.map(async (c) => ({
+      ...toResponse(c, true),
+      ...(await salesOwnerFields(c.customerId)),
+    })),
+  );
+  return ok({ ...result, items });
 }
 
 function detailRoute(config: AxiosRequestConfig) {
@@ -105,6 +119,8 @@ function detailRoute(config: AxiosRequestConfig) {
 }
 
 export function registerCustomerMockRoutes(): void {
+  // Sale phụ trách: `/customers/sales-owner-transfers` phải khớp trước `/customers/:customerId`
+  registerSalesOwnerMockRoutes();
   registerMockRoute("GET", "/customers", listRoute);
   registerMockRoute("GET", "/customers/:customerId", detailRoute);
 }
