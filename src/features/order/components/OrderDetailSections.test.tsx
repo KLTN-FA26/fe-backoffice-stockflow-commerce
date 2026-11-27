@@ -244,3 +244,42 @@ describe("OrderDetail — lịch sử trạng thái", () => {
     expect(within(history).queryByText(/CUSTOMER_REQUEST/)).not.toBeInTheDocument();
   });
 });
+
+describe("OrderDetail — tab Thanh toán trước hợp đồng ký (bo-18)", () => {
+  it("đơn Nháp: không dựng khối thanh toán / hoá đơn / hoàn tất, chỉ một dòng nói khi nào có", async () => {
+    const settlement = vi.fn(() => <p>Khối thanh toán hoá đơn</p>);
+    mockOrderApiGet(ORDER_PERMISSION_SETS.salesStaff, {
+      [DETAIL_PATH]: () => ({ ...apiOrder, status: "DRAFT" }),
+    });
+    await act(async () => {
+      renderOrderScreen(
+        <OrderDetail
+          params={Promise.resolve({ id: apiOrder.orderId })}
+          settlementSlot={settlement}
+        />,
+      );
+    });
+    await screen.findByRole("tab", { name: "Thanh toán" });
+    clickOrderDetailTab("Thanh toán");
+    expect(await screen.findByText(/hiện ở đây sau khi khách ký hợp đồng/)).toBeInTheDocument();
+    expect(screen.queryByText("Khối thanh toán hoá đơn")).not.toBeInTheDocument();
+  });
+
+  it("đơn đã xác nhận: khối thanh toán / hoá đơn hiện như trước", async () => {
+    const settlement = vi.fn(() => <p>Khối thanh toán hoá đơn</p>);
+    mockOrderApiGet(ORDER_PERMISSION_SETS.salesStaff, {
+      [DETAIL_PATH]: () => ({ ...apiOrder, status: "CONFIRMED" }),
+    });
+    await act(async () => {
+      renderOrderScreen(
+        <OrderDetail
+          params={Promise.resolve({ id: apiOrder.orderId })}
+          settlementSlot={settlement}
+        />,
+      );
+    });
+    await screen.findByRole("tab", { name: "Thanh toán" });
+    clickOrderDetailTab("Thanh toán");
+    expect(await screen.findByText("Khối thanh toán hoá đơn")).toBeInTheDocument();
+  });
+});

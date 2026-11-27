@@ -36,5 +36,47 @@ export const ORDER_CONTRACT_LABELS = {
     days: "Hạn (ngày)",
     batch: "Gắn đợt giao",
     amountMode: { amount: "Số tiền (₫)", percent: "% tổng đơn" },
+    /** bo-20: số tiền một đợt tính theo % quy ra (theo tổng có thuế; phần lẻ BE dồn đợt cuối). */
+    percentAmount: (amount: string) => `≈ ${amount}`,
+  },
+  /**
+   * bo-19: xác nhận trước khi lập hợp đồng nháp — bấm là BE lập ngay (`POST /orders/{id}/contract` không body: một đợt giao
+   * cho cả đơn, lịch thanh toán mặc định của khách, số lần in mẫu theo cấu hình).
+   */
+  create: {
+    title: (orderNumber: string) => `Lập hợp đồng nháp cho đơn ${orderNumber}?`,
+    description:
+      "Hệ thống lập ngay một hợp đồng nháp theo mặc định. Hợp đồng chưa gửi cho khách: bạn xem lại, sửa rồi mới gửi.",
+    total: "Tổng đơn (có thuế)",
+    lines: "Số dòng hàng",
+    batches: "Lịch giao",
+    batchesValue: "1 đợt giao cho cả đơn (sửa được)",
+    plan: "Lịch thanh toán",
+    planValue: "Theo mặc định của khách (sửa được)",
+    confirm: "Lập hợp đồng",
+    cancel: "Huỷ",
+    /** Ngay sau khi lập: mời xem lại trước khi gửi. */
+    created: (contractNumber: string) =>
+      `Đã lập hợp đồng nháp ${contractNumber}. Xem lại lịch giao và lịch thanh toán bên dưới, xem trước PDF, sửa nếu cần rồi mới gửi cho khách.`,
+  },
+  history: { show: "Xem lịch sử hợp đồng", hide: "Ẩn lịch sử hợp đồng" },
+  /**
+   * bo-20: công nợ của khách cạnh lịch thanh toán (BE `GET /orders/credit-position/{customerId}`) — phần trả sau giao của
+   * hợp đồng này cộng dư nợ so với hạn mức, như BE kiểm khi gửi (15 BR-10, BR-11).
+   */
+  credit: {
+    title: "Công nợ của khách",
+    limit: "Hạn mức",
+    noCredit: "Không bán trả sau",
+    exposure: "Dư nợ hiện tại",
+    deferred: "Hợp đồng này trả sau giao",
+    remaining: "Còn lại sau hợp đồng",
+    over: (amount: string) =>
+      `Vượt hạn mức ${amount}: bấm gửi thì hợp đồng phải chờ Kế toán duyệt tín dụng rồi mới tới khách.`,
+    overdue: (amount: string) =>
+      `Khách đang có khoản quá hạn ${amount}: hợp đồng có đợt trả sau giao phải chờ Kế toán duyệt rồi mới tới khách.`,
+    loading: "Đang tải công nợ của khách…",
+    error: "Không tải được công nợ của khách.",
+    retry: "Thử lại",
   },
 } as const;
