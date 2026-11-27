@@ -22,7 +22,10 @@ export const stockAdjustmentDto = z.object({
   locationCode: z.string(),
   sku: z.string(),
   lotNumber: z.string().nullish(),
-  quantityDelta: z.number().int(),
+  // ADR-0011 (BE refactor/inventory-carton-only-stock, step 1): `direction` (WRITE_OFF | RESTOCK) thay
+  // `quantityDelta` — phiếu luôn đúng một thùng (docs 20 BR-14). Đọc mở như `reason`; số đơn vị là `nominalQty`.
+  direction: z.string(),
+  nominalQty: z.number().int().nonnegative().nullish(),
   reason: z.string(),
   note: z.string().nullish(),
   status: z.string(),
@@ -49,6 +52,8 @@ export const stockMovementDto = z.object({
   lotNumber: z.string().nullish(),
   fromLocation: z.string().nullish(),
   toLocation: z.string().nullish(),
+  // ADR-0011 (BE step 2): một `lpn` thay `fromLpn` / `toLpn` — thùng của dòng sổ; vắng khi dòng không gắn thùng.
+  lpn: z.string().nullish(),
   quantity: z.number().int().positive(),
   status: z.string().nullish(),
   toStatus: z.string().nullish(),

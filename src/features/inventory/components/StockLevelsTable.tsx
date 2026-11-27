@@ -1,7 +1,5 @@
 import { INVENTORY_LABELS } from "@/constants/inventory";
 
-import { formatNumber } from "@/lib/format/number";
-
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -13,15 +11,18 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+import { CartonQuantity } from "./CartonQuantity";
+
 import type { StockLevel } from "../types";
 
-// Every quantity is the backend's own figure (StockLevelResponse); none is derived from another.
+// Every figure is the backend's own (StockLevelResponse); none is derived from another. ADR-0011: the counted
+// cartons are the main figure, the base units beside them are secondary.
 const QUANTITIES = [
-  ["onHand", INVENTORY_LABELS.onHand],
-  ["available", INVENTORY_LABELS.available],
-  ["reserved", INVENTORY_LABELS.reserved],
-  ["allocated", INVENTORY_LABELS.allocated],
-  ["atp", INVENTORY_LABELS.atp],
+  ["onHand", "onHandCartons", INVENTORY_LABELS.onHand],
+  ["available", "availableCartons", INVENTORY_LABELS.available],
+  ["reserved", "reservedCartons", INVENTORY_LABELS.reserved],
+  ["allocated", "allocatedCartons", INVENTORY_LABELS.allocated],
+  ["atp", "atpCartons", INVENTORY_LABELS.atp],
 ] as const;
 
 export function StockLevelsTable({
@@ -39,7 +40,7 @@ export function StockLevelsTable({
       <TableHeader className="bg-bg-subtle">
         <TableRow>
           <TableHead scope="col">{INVENTORY_LABELS.warehouse}</TableHead>
-          {QUANTITIES.map(([key, label]) => (
+          {QUANTITIES.map(([key, , label]) => (
             <TableHead key={key} scope="col" className="text-right">
               {label}
             </TableHead>
@@ -55,9 +56,9 @@ export function StockLevelsTable({
           return (
             <TableRow key={level.warehouseCode} data-state={selected ? "selected" : undefined}>
               <TableCell className="font-mono">{level.warehouseCode}</TableCell>
-              {QUANTITIES.map(([key]) => (
-                <TableCell key={key} className="text-right font-mono tabular-nums">
-                  {formatNumber(level[key])}
+              {QUANTITIES.map(([key, cartonsKey]) => (
+                <TableCell key={key} className="text-right">
+                  <CartonQuantity cartons={level[cartonsKey]} units={level[key]} />
                 </TableCell>
               ))}
               <TableCell className="text-right">

@@ -114,6 +114,16 @@ function movementPage(items: unknown[]) {
 }
 
 describe("stock movement response contract", () => {
+  // ADR-0011 step 2: one `lpn` replaces `fromLpn` / `toLpn`.
+  it("reads the carton of a ledger line as one lpn", () => {
+    const [line] = movementPageDto.parse(
+      movementPage([{ ...movement, lpn: "LPN-20261110-000001", fromLpn: "X", toLpn: "Y" }]),
+    ).items;
+    expect(line?.lpn).toBe("LPN-20261110-000001");
+    expect(line).not.toHaveProperty("fromLpn");
+    expect(line).not.toHaveProperty("toLpn");
+  });
+
   it.each(["STATUS_CHANGE", "PICK", "PUT_BACK"])("parses a current %s row", (type) => {
     expect(movementPageDto.parse(movementPage([{ ...movement, type }])).items[0]?.type).toBe(type);
   });
@@ -173,7 +183,8 @@ describe("stock adjustment response contract", () => {
     number: "ADJ-1",
     locationCode: "HCM-A01-1-A",
     sku: "CUP-PP-500",
-    quantityDelta: -3,
+    direction: "WRITE_OFF",
+    nominalQty: 3,
     reason: "DAMAGED",
     status: "PENDING_APPROVAL",
     requestedBy: "00000000-0000-4000-8000-000000000003",
@@ -186,6 +197,15 @@ describe("stock adjustment response contract", () => {
       reason: "DAMAGED",
       status: "PENDING_APPROVAL",
     });
+  });
+
+  // ADR-0011 step 1: `direction` replaces `quantityDelta`; the carton's units are its `nominalQty`.
+  it("reads the direction of the whole carton, not a quantity", () => {
+    const parsed = stockAdjustmentDto.parse({ ...adjustment, quantityDelta: -3 });
+    expect(parsed).toMatchObject({ direction: "WRITE_OFF", nominalQty: 3 });
+    expect(parsed).not.toHaveProperty("quantityDelta");
+    const { direction: _direction, ...withoutDirection } = adjustment;
+    expect(stockAdjustmentDto.safeParse(withoutDirection).success).toBe(false);
   });
 
   it("keeps unknown reason and status verbatim", () => {
@@ -229,7 +249,7 @@ describe("stock adjustment response contract", () => {
     const parsed = stockAdjustmentDto.parse({
       ...adjustment,
       reason: "COUNT_VARIANCE",
-      quantityDelta: -120,
+      direction: "WRITE_OFF",
       stockPackageId: "00000000-0000-4000-8000-0000000000a1",
       cycleCountLineId: "00000000-0000-4000-8000-0000000000a2",
     });

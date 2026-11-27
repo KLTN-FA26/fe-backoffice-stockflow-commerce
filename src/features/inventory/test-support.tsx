@@ -24,7 +24,8 @@ export function adjustmentFixture(overrides: Partial<StockAdjustment> = {}) {
     number: "TEST-ADJUSTMENT",
     locationCode: "HCM-A01-1-A",
     sku: "CUP-PP-500",
-    quantityDelta: -3,
+    direction: "WRITE_OFF",
+    nominalQty: 3,
     reason: "DAMAGED",
     status: "PENDING_APPROVAL",
     requestedBy: crypto.randomUUID(),
@@ -164,6 +165,12 @@ export const OVERVIEW_LEVELS = [
     reserved: 80,
     allocated: 0,
     atp: 0,
+    // ADR-0011 step 3e: counted cartons, always set
+    onHandCartons: 2,
+    availableCartons: 1,
+    reservedCartons: 1,
+    allocatedCartons: 0,
+    atpCartons: 0,
   },
   {
     sku: "CUP-PP-500",
@@ -173,6 +180,11 @@ export const OVERVIEW_LEVELS = [
     reserved: 25,
     allocated: 0,
     atp: 330,
+    onHandCartons: 6,
+    availableCartons: 3,
+    reservedCartons: 2,
+    allocatedCartons: 0,
+    atpCartons: 2,
   },
 ];
 
@@ -199,6 +211,9 @@ export const OVERVIEW_STOCK_ITEMS = [
     onHand: 200,
     reserved: 0,
     available: 200,
+    onHandCartons: 1,
+    reservedCartons: 0,
+    availableCartons: 1,
     status: "AVAILABLE",
     receivedAt: "2026-09-10T02:00:00Z",
   },
@@ -209,6 +224,9 @@ export const OVERVIEW_STOCK_ITEMS = [
     onHand: 30,
     reserved: 0,
     available: 30,
+    onHandCartons: 1,
+    reservedCartons: 0,
+    availableCartons: 1,
     status: "AVAILABLE",
   },
 ];
@@ -220,6 +238,7 @@ export const OVERVIEW_RESERVATION = {
   sku: "CUP-PP-500",
   locationCode: "HN01-A01-02-B",
   quantity: 20,
+  cartons: 1,
   status: "HELD",
   reservedAt: "2026-10-14T02:00:00Z",
 };

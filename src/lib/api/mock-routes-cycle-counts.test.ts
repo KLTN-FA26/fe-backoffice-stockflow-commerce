@@ -208,13 +208,14 @@ describe("WF4-X01: the carton is not on the shelf (docs 20 §4.2, §4.3)", () =>
     const reviewed = await getCycleCount(count.id);
     const variance = reviewed.lines.find((line) => line.id === missing.id)?.adjustments;
     expect(variance).toHaveLength(1);
-    expect(variance?.[0]).toMatchObject({ quantityDelta: -120, status: "PENDING_APPROVAL" });
+    expect(variance?.[0]).toMatchObject({ direction: "WRITE_OFF", status: "PENDING_APPROVAL" });
     expect(reviewed.lines.find((line) => line.id === found.id)?.adjustments).toEqual([]);
     const adjustmentId = variance?.[0]?.id ?? "";
     expect(await getAdjustment(adjustmentId)).toMatchObject({
       reason: "COUNT_VARIANCE",
       sku,
-      quantityDelta: -120,
+      direction: "WRITE_OFF",
+      nominalQty: 120,
       requestedBy: mockActorId(COUNTER),
       cycleCountLineId: missing.id,
     });

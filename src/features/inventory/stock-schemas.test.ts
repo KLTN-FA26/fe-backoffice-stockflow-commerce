@@ -27,6 +27,11 @@ const level = {
   reserved: 25,
   allocated: 0,
   atp: 330,
+  onHandCartons: 6,
+  availableCartons: 3,
+  reservedCartons: 2,
+  allocatedCartons: 0,
+  atpCartons: 2,
 };
 
 const stockItem = {
@@ -38,6 +43,9 @@ const stockItem = {
   onHand: 120,
   reserved: 20,
   available: 100,
+  onHandCartons: 1,
+  reservedCartons: 1,
+  availableCartons: 0,
   status: "AVAILABLE",
   receivedAt: "2026-08-01T02:00:00Z",
 };
@@ -49,6 +57,7 @@ const reservation = {
   sku: "CUP-PP-500",
   locationCode: "HN01-A01-01-A",
   quantity: 20,
+  cartons: 1,
   status: "HELD",
   reservedAt: "2026-10-14T02:00:00Z",
 };
@@ -77,6 +86,13 @@ describe("StockLevelResponse", () => {
     expect(parsed?.atp).not.toBe(level.available - level.reserved);
   });
 
+  // ADR-0011 step 3e: carton figures are counted by the backend and always set.
+  it("requires every carton figure", () => {
+    const { atpCartons: _atp, ...withoutAtpCartons } = level;
+    expect(stockLevelsDto.safeParse([withoutAtpCartons]).success).toBe(false);
+    expect(stockLevelsDto.safeParse([{ ...level, onHandCartons: null }]).success).toBe(false);
+  });
+
   it("rejects non-integer quantities", () => {
     expect(stockLevelsDto.safeParse([{ ...level, onHand: 1.5 }]).success).toBe(false);
     expect(stockLevelsDto.safeParse([{ ...level, atp: "330" }]).success).toBe(false);
@@ -97,9 +113,18 @@ describe("WarehouseStockItemResponse", () => {
   });
 
   it("accepts a row masked during a cycle count: quantities absent, flag true (SCRUM-146)", () => {
-    const { onHand: _o, reserved: _r, available: _a, ...bare } = stockItem;
+    const {
+      onHand: _o,
+      reserved: _r,
+      available: _a,
+      onHandCartons: _oc,
+      reservedCartons: _rc,
+      availableCartons: _ac,
+      ...bare
+    } = stockItem;
     const parsed = warehouseStockItemDto.parse({ ...bare, hiddenDuringCount: true });
     expect(parsed.hiddenDuringCount).toBe(true);
+    expect(parsed.onHandCartons).toBeUndefined();
     expect(parsed.onHand).toBeUndefined();
     expect(parsed.reserved).toBeUndefined();
     expect(parsed.available).toBeUndefined();
@@ -165,9 +190,10 @@ describe("ReservationRowResponse", () => {
     expect(reservationRowDto.parse(released).releaseReason).toBe(releaseReason);
   });
 
-  it("accepts an omitted lot, expiresAt, releaseReason and closedAt on a pinned live hold", () => {
+  it("accepts an omitted lot, releaseReason and closedAt on a pinned live hold", () => {
     const parsed = reservationRowDto.parse(reservation);
-    expect(parsed.expiresAt).toBeUndefined();
+    // ADR-0011 step 3c: `expiresAt` is gone from the hold.
+    expect(parsed).not.toHaveProperty("expiresAt");
     expect(parsed.releaseReason).toBeUndefined();
     expect(parsed.closedAt).toBeUndefined();
     expect(parsed).not.toHaveProperty("orderNumber");

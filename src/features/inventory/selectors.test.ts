@@ -9,7 +9,7 @@ import {
 
 import {
   adjustmentReasonLabel,
-  formatSignedQuantity,
+  formatAdjustmentDelta,
   inventoryPageRange,
   movementTypeLabel,
 } from "./selectors";
@@ -56,12 +56,15 @@ describe("movement type label", () => {
       expect(adjustmentReasonLabel(reason)).toBe(reason);
     });
 
+    // ADR-0011: one whole carton per adjustment, signed by `direction`; units come from `nominalQty`.
     it.each([
-      [5, "+5"],
-      [0, "0"],
-      [-5, "-5"],
-    ])("signs quantity %i as %s", (value, text) => {
-      expect(formatSignedQuantity(value)).toBe(text);
+      ["WRITE_OFF", 120, "−1 thùng (−120 cái)"],
+      ["RESTOCK", 1200, "+1 thùng (+1.200 cái)"],
+      ["WRITE_OFF", null, "−1 thùng"],
+      ["RESTOCK", undefined, "+1 thùng"],
+      ["FUTURE_DIRECTION", 120, "FUTURE_DIRECTION"],
+    ] as const)("reads %s with %s units as %s", (direction, nominalQty, text) => {
+      expect(formatAdjustmentDelta({ direction, nominalQty })).toBe(text);
     });
   });
 });

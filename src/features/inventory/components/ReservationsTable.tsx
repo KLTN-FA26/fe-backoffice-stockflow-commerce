@@ -1,7 +1,6 @@
 import { INVENTORY_LABELS } from "@/constants/inventory";
 
 import { formatDateTime } from "@/lib/format/date";
-import { formatNumber } from "@/lib/format/number";
 
 import {
   Table,
@@ -12,6 +11,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+
+import { CartonQuantity } from "./CartonQuantity";
 
 import type { StockReservation } from "../types";
 
@@ -32,7 +33,6 @@ export function ReservationsTable({ items }: { items: readonly StockReservation[
             INVENTORY_LABELS.quantity,
             INVENTORY_LABELS.status,
             INVENTORY_LABELS.reservedAt,
-            INVENTORY_LABELS.holdExpiresAt,
             INVENTORY_LABELS.releaseReason,
             INVENTORY_LABELS.closedAt,
           ].map((label) => (
@@ -52,12 +52,11 @@ export function ReservationsTable({ items }: { items: readonly StockReservation[
             <TableCell className="font-mono text-xs">{hold.orderId}</TableCell>
             <TableCell className="font-mono">{hold.locationCode}</TableCell>
             <TableCell className="font-mono">{hold.lotNumber ?? missing}</TableCell>
-            <TableCell className="text-right font-mono tabular-nums">
-              {formatNumber(hold.quantity)}
+            <TableCell className="text-right">
+              <CartonQuantity cartons={hold.cartons} units={hold.quantity} />
             </TableCell>
             <TableCell className="font-mono text-xs">{hold.status}</TableCell>
             <TableCell className="tabular-nums">{time(hold.reservedAt)}</TableCell>
-            <TableCell className="tabular-nums">{time(hold.expiresAt)}</TableCell>
             <TableCell className="font-mono text-xs">{hold.releaseReason ?? missing}</TableCell>
             <TableCell className="tabular-nums">{time(hold.closedAt)}</TableCell>
           </TableRow>

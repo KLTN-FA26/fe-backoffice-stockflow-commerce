@@ -36,7 +36,7 @@ function carton(overrides: Record<string, unknown> = {}, stockStatus = "AVAILABL
     lpn: "LPN-20261110-000001",
     sku: "CUP-PP-500",
     nominalQty: 120,
-    receivedQty: 120,
+    countedAt: "2026-11-10T02:00:00Z",
     lotNumber: "PO-1001",
     onHand: 120,
     reserved: 0,

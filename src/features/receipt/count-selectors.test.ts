@@ -52,14 +52,12 @@ function countedReceipt() {
             cartonPackage({
               lpn: "LPN-20261024-000001",
               quantity: 50,
-              receivedQty: 50,
               nominalQty: 50,
             }),
             cartonPackage({
               id: "c-2",
               lpn: "LPN-20261024-000002",
               quantity: 50,
-              receivedQty: 50,
               nominalQty: 50,
             }),
           ],

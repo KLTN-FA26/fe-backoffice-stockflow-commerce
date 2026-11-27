@@ -1,5 +1,6 @@
 import {
   INVENTORY_LABELS,
+  STOCK_ADJUSTMENT_DIRECTION,
   STOCK_ADJUSTMENT_REASON_LABELS,
   STOCK_ADJUSTMENT_REASONS,
   STOCK_MOVEMENT_LABELS,
@@ -29,20 +30,21 @@ export function adjustmentReasonLabel(reason: string): string {
   return known ? STOCK_ADJUSTMENT_REASON_LABELS[known] : reason;
 }
 
-// Adjustment deltas carry their direction: +5 writes stock up, -5 writes it down.
-export function formatSignedQuantity(value: number): string {
-  return value > 0 ? `+${value}` : String(value);
-}
-
-// Docs 20 BR-14: a carton adjustment is one whole carton, so its delta reads "−1 thùng (−120 cái)". A
-// phiếu without a carton (recorded before counts were by carton) keeps the signed unit quantity.
+// Docs 20 BR-14 + ADR-0011: an adjustment is one whole carton with a `direction`, so it reads "−1 thùng (−120 cái)"
+// — the units are the carton's `nominalQty`, left out when absent. A newer direction code is shown verbatim.
 export function formatAdjustmentDelta(adjustment: {
-  quantityDelta: number;
-  stockPackageId?: string | null;
+  direction: string;
+  nominalQty?: number | null;
 }): string {
-  return adjustment.stockPackageId && adjustment.quantityDelta !== 0
-    ? INVENTORY_LABELS.cartonWholeDelta(adjustment.quantityDelta)
-    : formatSignedQuantity(adjustment.quantityDelta);
+  const sign =
+    adjustment.direction === STOCK_ADJUSTMENT_DIRECTION.WRITE_OFF
+      ? "−"
+      : adjustment.direction === STOCK_ADJUSTMENT_DIRECTION.RESTOCK
+        ? "+"
+        : null;
+  return sign
+    ? INVENTORY_LABELS.cartonWholeDelta(sign, adjustment.nominalQty)
+    : adjustment.direction;
 }
 
 // Use backend page metadata, never totals calculated from the current page.

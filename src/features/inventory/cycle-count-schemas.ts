@@ -43,7 +43,8 @@ export const cycleCountSummaryDto = z.object({
 export const cycleCountLineAdjustmentDto = z.object({
   id: beUuid,
   number: z.string(),
-  quantityDelta: z.number().int(),
+  // ADR-0011 (BE step 1): `direction` (WRITE_OFF | RESTOCK) thay `quantityDelta`; đọc mở.
+  direction: z.string(),
   status: z.string(),
 });
 

@@ -61,12 +61,23 @@ describe("stock levels", () => {
     const levels = await levelsRegion();
     const row = (await within(levels).findByText("HN01")).closest("tr");
     expect(row).not.toBeNull();
-    // atp 330 is the backend's figure: not available − reserved (350 − 25).
+    // ADR-0011: counted cartons first, units beside them. atp 330 / 2 thùng are the backend's figures:
+    // not available − reserved (350 − 25).
+    const both = (cartons: number, units: number) =>
+      `${INVENTORY_LABELS.cartonCount(cartons)}${INVENTORY_LABELS.unitCount(units)}`;
     expect(
       within(row as HTMLElement)
         .getAllByRole("cell")
         .map((cell) => cell.textContent),
-    ).toEqual(["HN01", "423", "350", "25", "0", "330", INVENTORY_LABELS.viewWarehouse]);
+    ).toEqual([
+      "HN01",
+      both(6, 423),
+      both(3, 350),
+      both(2, 25),
+      both(0, 0),
+      both(2, 330),
+      INVENTORY_LABELS.viewWarehouse,
+    ]);
     expect(within(levels).queryByLabelText(INVENTORY_LABELS.perPage)).toBeNull();
   });
 
@@ -192,7 +203,12 @@ describe("reservations", () => {
     });
     const holds = await region(INVENTORY_LABELS.reservationsTitle);
     const row = (await within(holds).findByText(OVERVIEW_RESERVATION.orderId)).closest("tr");
-    expect(within(row as HTMLElement).getAllByText(INVENTORY_LABELS.missing)).toHaveLength(4);
+    // lot, release reason, closedAt — `expiresAt` is gone (ADR-0011 step 3c)
+    expect(within(row as HTMLElement).getAllByText(INVENTORY_LABELS.missing)).toHaveLength(3);
+    expect(
+      within(row as HTMLElement).getByText(INVENTORY_LABELS.cartonCount(1)),
+    ).toBeInTheDocument();
+    expect(within(holds).queryByRole("columnheader", { name: "Hết hạn giữ" })).toBeNull();
     await user.click(within(holds).getByRole("button", { name: INVENTORY_LABELS.next }));
     await waitFor(() =>
       expect(sentTo("/inventory/reservations").at(-1)?.searchParams.get("page")).toBe("1"),
@@ -329,9 +345,15 @@ describe("slots hidden during a cycle count (SCRUM-146)", () => {
     expect(
       within(maskedRow as HTMLElement).getByText(INVENTORY_LABELS.hiddenDuringCount),
     ).toBeInTheDocument();
-    expect(within(maskedRow as HTMLElement).queryByText(/^\d+$/)).toBeNull();
+    expect(within(maskedRow as HTMLElement).queryByText(/thùng|đơn vị/)).toBeNull();
     const normalRow = screen.getByText("HN01-A02-01-A").closest("tr");
-    expect(within(normalRow as HTMLElement).getAllByText("30").length).toBeGreaterThan(0);
+    // ADR-0011: one row is one carton — 1 thùng, its units secondary.
+    expect(
+      within(normalRow as HTMLElement).getAllByText(INVENTORY_LABELS.cartonCount(1)).length,
+    ).toBeGreaterThan(0);
+    expect(
+      within(normalRow as HTMLElement).getAllByText(INVENTORY_LABELS.unitCount(30)).length,
+    ).toBeGreaterThan(0);
     expect(screen.getAllByText(INVENTORY_LABELS.hiddenDuringCount)).toHaveLength(1);
   });
 });

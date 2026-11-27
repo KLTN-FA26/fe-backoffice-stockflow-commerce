@@ -122,6 +122,10 @@ export const STOCK_ADJUSTMENT_DIRECTION_LABELS = {
   WRITE_OFF: "Ghi giảm cả thùng",
   RESTOCK: "Nạp lại thùng đã mất",
 } as const satisfies Record<(typeof STOCK_ADJUSTMENT_DIRECTIONS)[number], string>;
+export const STOCK_ADJUSTMENT_DIRECTION = {
+  WRITE_OFF: "WRITE_OFF",
+  RESTOCK: "RESTOCK",
+} as const satisfies Record<(typeof STOCK_ADJUSTMENT_DIRECTIONS)[number], string>;
 
 // Backend develop 0f18f24 StockMovement.MovementType — the values GET /movements?type= accepts.
 // Responses carry `type` as a String and may hold values newer than this list.
@@ -186,15 +190,18 @@ export const INVENTORY_LABELS = {
   adjustmentDetail: "Chi tiết điều chỉnh",
   adjustmentNumber: "Mã điều chỉnh",
   adjustmentReason: "Lý do điều chỉnh",
-  quantityDelta: "Chênh lệch",
+  adjustmentDelta: "Chênh lệch",
   carton: "Thùng",
   lpn: "LPN thùng",
   lpnPlaceholder: "Quét hoặc nhập LPN, ví dụ LPN-20261110-000001",
   lpnHelp: "Mỗi phiếu điều chỉnh đúng một thùng — không điều chỉnh một phần thùng.",
   direction: "Chiều điều chỉnh",
   chooseDirection: "Chọn chiều điều chỉnh",
-  cartonWholeDelta: (delta: number) =>
-    `${delta > 0 ? "+" : "−"}1 thùng (${delta > 0 ? "+" : "−"}${Math.abs(delta).toLocaleString("vi-VN")} cái)`,
+  // ADR-0011 (BE): phiếu ghi `direction`, không còn `quantityDelta`; số đơn vị là `nominalQty` của thùng.
+  cartonWholeDelta: (sign: "+" | "−", units?: number | null) =>
+    units == null
+      ? `${sign}1 thùng`
+      : `${sign}1 thùng (${sign}${units.toLocaleString("vi-VN")} cái)`,
   countVarianceNoWithdraw: "Chênh lệch kiểm kê chỉ được duyệt hoặc từ chối, không rút lại.",
   status: "Trạng thái",
   requestedAt: "Ngày yêu cầu",
@@ -270,6 +277,9 @@ export const INVENTORY_LABELS = {
   hiddenDuringCountHint: "Số tồn được ẩn trong lúc kiểm kê",
   allocated: "Đã phân bổ",
   atp: "ATP",
+  // ADR-0011 (BE): tồn đếm theo thùng — số thùng là số chính, số đơn vị cơ sở là thông tin phụ.
+  cartonCount: (cartons: number) => `${cartons.toLocaleString("vi-VN")} thùng`,
+  unitCount: (units: number) => `${units.toLocaleString("vi-VN")} đơn vị`,
   noStockLevels: "SKU này không có tồn kho",
   noStockLevelsDescription: "Kiểm tra lại mã SKU hoặc phạm vi kho bạn được xem.",
   viewWarehouse: "Xem chi tiết",
@@ -290,7 +300,6 @@ export const INVENTORY_LABELS = {
   reservationsTitle: "Giữ chỗ",
   order: "Mã đơn hàng",
   reservedAt: "Giữ lúc",
-  holdExpiresAt: "Hết hạn giữ",
   releaseReason: "Lý do giải phóng",
   closedAt: "Đóng lúc",
   noReservations: "SKU này không có giữ chỗ nào",

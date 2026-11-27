@@ -20,6 +20,9 @@ import { inventoryPageDto } from "./schemas";
 // in schemas.ts: one newer code must not invalidate a whole page. Request filters stay strict.
 
 const quantity = z.number().int();
+// ADR-0011 (BE refactor/inventory-carton-only-stock, step 3e): tồn đếm theo thùng — số thùng là số BE đếm, không còn
+// null (trước đây là đơn vị ÷ số chuẩn của SKU). Đơn vị cơ sở là thông tin phụ.
+const cartons = z.number().int();
 // Warehouse ids come from the shared warehouse directory (lib/references), which reads them as
 // open strings; the mock directory's ids are not UUIDs. The backend validates the UUID itself.
 const warehouseId = z.string().min(1);
@@ -33,6 +36,12 @@ export const stockLevelDto = z.object({
   reserved: quantity,
   allocated: quantity,
   atp: quantity,
+  onHandCartons: cartons,
+  availableCartons: cartons,
+  reservedCartons: cartons,
+  allocatedCartons: cartons,
+  // BE tính ATP thùng theo từng số chuẩn của thùng — không suy ra từ `atp`.
+  atpCartons: cartons,
 });
 export const stockLevelsDto = z.array(stockLevelDto);
 
@@ -48,6 +57,10 @@ export const warehouseStockItemDto = z.object({
   onHand: quantity.optional(),
   reserved: quantity.optional(),
   available: quantity.optional(),
+  // ADR-0011 step 3e: mỗi dòng là một thùng → 1 hoặc 0; vắng / null chỉ khi `hiddenDuringCount`.
+  onHandCartons: cartons.nullish(),
+  reservedCartons: cartons.nullish(),
+  availableCartons: cartons.nullish(),
   hiddenDuringCount: z.boolean().default(false),
   status: z.string(),
   receivedAt: z.iso.datetime().nullish(),
@@ -66,9 +79,10 @@ export const reservationRowDto = z.object({
   locationCode: z.string(),
   lotNumber: z.string().nullish(),
   quantity,
+  // ADR-0011 step 3e: số thùng giữ chỗ, bên cạnh `quantity` (đơn vị cơ sở). `expiresAt` đã bỏ (step 3c) — luôn null.
+  cartons,
   status: z.string(),
   reservedAt: z.iso.datetime(),
-  expiresAt: z.iso.datetime().nullish(),
   releaseReason: z.string().nullish(),
   closedAt: z.iso.datetime().nullish(),
 });

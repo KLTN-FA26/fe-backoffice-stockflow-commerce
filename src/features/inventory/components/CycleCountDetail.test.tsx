@@ -325,7 +325,7 @@ describe("the manager's view (docs 20 §4.2 d–e, BR-07)", () => {
     booked: true,
     found: false,
     adjustments: [
-      { id: ADJ, number: "ADJ-20261112-0001", quantityDelta: -120, status: "REJECTED" },
+      { id: ADJ, number: "ADJ-20261112-0001", direction: "WRITE_OFF", status: "REJECTED" },
     ],
   });
   const postedLine = cycleCountLineFixture({

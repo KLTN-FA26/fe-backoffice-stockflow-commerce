@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { apiLine, apiReceipt, cartonLine } from "./__fixtures__/receipt";
+import { apiLine, apiReceipt, cartonLine, cartonPackage } from "./__fixtures__/receipt";
 import { beGoodsReceiptSchema, beReceiptLineSchema } from "./schemas";
 
 describe("beReceiptLineSchema — thùng có LPN (BE GoodsReceiptResponse.Line, SCRUM-473)", () => {
@@ -8,10 +8,20 @@ describe("beReceiptLineSchema — thùng có LPN (BE GoodsReceiptResponse.Line, 
     const line = beReceiptLineSchema.parse(cartonLine());
     expect(line.unitOfMeasure).toBe("CARTON");
     expect(line.looseQuantity).toBe(3010);
-    expect(line.packages.map((p) => [p.lpn, p.receivedQty, p.nominalQty])).toEqual([
+    expect(line.packages.map((p) => [p.lpn, p.quantity, p.nominalQty])).toEqual([
       ["LPN-20261024-000001", 1000, 1000],
       ["LPN-20261024-000002", 980, 1000],
     ]);
+    // ADR-0011 step 3a: `countedAt` thay `receivedQty`.
+    expect(line.packages[0]?.countedAt).toBe("2026-10-24T02:00:00Z");
+    expect(line.packages[0]).not.toHaveProperty("receivedQty");
+  });
+
+  it("thùng mới dán nhãn chưa đếm → countedAt null (ADR-0011 step 3a)", () => {
+    const line = beReceiptLineSchema.parse(
+      cartonLine({ packages: [cartonPackage({ countedAt: null })] }),
+    );
+    expect(line.packages[0]?.countedAt).toBeNull();
     expect(line.units[0]).toMatchObject({ unitOfMeasure: "PCS", base: true, factor: 1 });
   });
 

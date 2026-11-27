@@ -8,6 +8,8 @@
  *     và atp chỉ hàng AVAILABLE chưa hết hạn). Mock không tự cộng lại.
  *   - Kho dùng đúng id + mã của danh bạ kho mock (`/warehouses`, mock-data `warehouses`). Id đó
  *     không phải UUID như BE; mã kho là tiền tố mã vị trí (`HN01-A01-01-A`).
+ * ADR-0011 (BE step 3e): tồn đếm theo thùng — mỗi dòng tồn là một thùng (`*Cartons` 1 hoặc 0); mức tồn kho ghi sẵn
+ * số thùng như BE đếm; mỗi giữ chỗ nằm trên đúng một thùng (`cartons` = 1). `expiresAt` của giữ chỗ đã bỏ (step 3c).
  * Không mô phỏng hàng gia công (BR-PRD-15 BE chưa làm) và không có ngưỡng tồn theo kho.
  */
 
@@ -26,6 +28,9 @@ export interface MockStockRow {
   onHand: number;
   reserved: number;
   available: number;
+  onHandCartons: number;
+  reservedCartons: number;
+  availableCartons: number;
   status: string;
   receivedAt: string | null;
 }
@@ -38,6 +43,11 @@ export interface MockStockLevel {
   reserved: number;
   allocated: number;
   atp: number;
+  onHandCartons: number;
+  availableCartons: number;
+  reservedCartons: number;
+  allocatedCartons: number;
+  atpCartons: number;
 }
 
 export interface MockReservation {
@@ -48,9 +58,9 @@ export interface MockReservation {
   locationCode: string;
   lotNumber: string | null;
   quantity: number;
+  cartons: number;
   status: string;
   reservedAt: string;
-  expiresAt: string | null;
   releaseReason: string | null;
   closedAt: string | null;
 }
@@ -63,9 +73,27 @@ function row(
   n: number,
   sku: string,
   locationCode: string,
-  values: Omit<MockStockRow, "stockItemId" | "sku" | "locationCode">,
+  values: Omit<
+    MockStockRow,
+    | "stockItemId"
+    | "sku"
+    | "locationCode"
+    | "onHandCartons"
+    | "reservedCartons"
+    | "availableCartons"
+  >,
 ): MockStockRow {
-  return { stockItemId: id(n), sku, locationCode, ...values };
+  // Một dòng = một thùng: còn hàng → 1 thùng; thùng có giữ chỗ không còn khả dụng.
+  const reserved = values.reserved > 0 ? 1 : 0;
+  return {
+    stockItemId: id(n),
+    sku,
+    locationCode,
+    ...values,
+    onHandCartons: values.onHand > 0 ? 1 : 0,
+    reservedCartons: reserved,
+    availableCartons: values.available > 0 && !reserved ? 1 : 0,
+  };
 }
 
 export const MOCK_STOCK_ROWS: readonly MockStockRow[] = [
@@ -194,6 +222,11 @@ export const MOCK_STOCK_LEVELS: readonly MockStockLevel[] = [
     reserved: 80,
     allocated: 0,
     atp: 0,
+    onHandCartons: 2,
+    availableCartons: 1,
+    reservedCartons: 1,
+    allocatedCartons: 0,
+    atpCartons: 0,
   },
   {
     sku: CUP,
@@ -203,6 +236,11 @@ export const MOCK_STOCK_LEVELS: readonly MockStockLevel[] = [
     reserved: 25,
     allocated: 0,
     atp: 330,
+    onHandCartons: 6,
+    availableCartons: 3,
+    reservedCartons: 2,
+    allocatedCartons: 0,
+    atpCartons: 2,
   },
   {
     sku: LID,
@@ -212,8 +250,26 @@ export const MOCK_STOCK_LEVELS: readonly MockStockLevel[] = [
     reserved: 5,
     allocated: 0,
     atp: 20,
+    onHandCartons: 2,
+    availableCartons: 1,
+    reservedCartons: 1,
+    allocatedCartons: 0,
+    atpCartons: 0,
   },
-  { sku: LID, warehouseCode: "HN01", onHand: 12, available: 0, reserved: 0, allocated: 0, atp: 0 },
+  {
+    sku: LID,
+    warehouseCode: "HN01",
+    onHand: 12,
+    available: 0,
+    reserved: 0,
+    allocated: 0,
+    atp: 0,
+    onHandCartons: 1,
+    availableCartons: 0,
+    reservedCartons: 0,
+    allocatedCartons: 0,
+    atpCartons: 0,
+  },
 ];
 
 function hold(
@@ -221,11 +277,12 @@ function hold(
   stock: MockStockRow,
   values: Omit<
     MockReservation,
-    "reservationId" | "stockItemId" | "sku" | "locationCode" | "lotNumber"
+    "reservationId" | "stockItemId" | "sku" | "locationCode" | "lotNumber" | "cartons"
   >,
 ): MockReservation {
   return {
     reservationId: id(100 + n),
+    cartons: 1,
     stockItemId: stock.stockItemId,
     sku: stock.sku,
     locationCode: stock.locationCode,
@@ -253,16 +310,14 @@ export const MOCK_RESERVATIONS: readonly MockReservation[] = [
     quantity: 20,
     status: "HELD",
     reservedAt: "2026-10-14T02:00:00Z",
-    expiresAt: "2026-10-17T02:00:00Z",
     ...open,
   }),
-  // Đơn đã thanh toán: giữ chỗ được ghim, `expiresAt` bị bỏ.
+  // Đơn đã thanh toán: giữ chỗ được ghim.
   hold(2, r3, {
     orderId: id(202),
     quantity: 5,
     status: "HELD",
     reservedAt: "2026-09-28T02:00:00Z",
-    expiresAt: null,
     ...open,
   }),
   hold(3, r7, {
@@ -270,7 +325,6 @@ export const MOCK_RESERVATIONS: readonly MockReservation[] = [
     quantity: 80,
     status: "HELD",
     reservedAt: "2026-10-15T02:00:00Z",
-    expiresAt: null,
     ...open,
   }),
   hold(4, r1, {
@@ -278,7 +332,6 @@ export const MOCK_RESERVATIONS: readonly MockReservation[] = [
     quantity: 10,
     status: "RELEASED",
     reservedAt: "2026-10-10T02:00:00Z",
-    expiresAt: null,
     releaseReason: "PAYMENT_FAILED",
     closedAt: "2026-10-11T02:00:00Z",
   }),
@@ -287,7 +340,6 @@ export const MOCK_RESERVATIONS: readonly MockReservation[] = [
     quantity: 12,
     status: "CONSUMED",
     reservedAt: "2026-10-05T02:00:00Z",
-    expiresAt: null,
     ...open,
     closedAt: "2026-10-06T02:00:00Z",
   }),
@@ -296,7 +348,6 @@ export const MOCK_RESERVATIONS: readonly MockReservation[] = [
     quantity: 3,
     status: "EXPIRED",
     reservedAt: "2026-10-01T02:00:00Z",
-    expiresAt: "2026-10-02T02:00:00Z",
     releaseReason: "RESERVATION_EXPIRED",
     closedAt: "2026-10-02T02:05:00Z",
   }),
@@ -305,7 +356,6 @@ export const MOCK_RESERVATIONS: readonly MockReservation[] = [
     quantity: 5,
     status: "HELD",
     reservedAt: "2026-10-12T02:00:00Z",
-    expiresAt: "2026-10-19T02:00:00Z",
     ...open,
   }),
 ];

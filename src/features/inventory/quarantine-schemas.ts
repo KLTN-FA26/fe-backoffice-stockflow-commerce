@@ -22,7 +22,8 @@ export const stockPackageDetailDto = z.object({
   sku: z.string(),
   unitOfMeasure: z.string().nullish(),
   nominalQty: z.number().int().nonnegative(),
-  receivedQty: z.number().int().nonnegative().nullish(),
+  // ADR-0011 (BE step 3a): `countedAt` thay `receivedQty` — null khi thùng mới chỉ dán nhãn.
+  countedAt: z.iso.datetime().nullish(),
   lotNumber: z.string().nullish(),
   onHand: z.number().int().nonnegative(),
   reserved: z.number().int().nonnegative(),
@@ -56,7 +57,7 @@ export const stockPackageDto = z.object({
   sku: z.string(),
   unitOfMeasure: z.string().nullish(),
   nominalQty: z.number().int().nonnegative(),
-  receivedQty: z.number().int().nonnegative().nullish(),
+  countedAt: z.iso.datetime().nullish(),
   lotNumber: z.string().nullish(),
   onHand: z.number().int().nonnegative(),
   reserved: z.number().int().nonnegative(),

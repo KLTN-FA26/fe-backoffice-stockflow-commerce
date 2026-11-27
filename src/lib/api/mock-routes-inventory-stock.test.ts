@@ -72,6 +72,11 @@ describe("stock levels", () => {
       reserved: 25,
       allocated: 0,
       atp: 330,
+      onHandCartons: 6,
+      availableCartons: 3,
+      reservedCartons: 2,
+      allocatedCartons: 0,
+      atpCartons: 2,
     });
   });
 

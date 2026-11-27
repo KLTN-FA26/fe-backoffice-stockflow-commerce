@@ -39,7 +39,7 @@ export function productionProgress(
 
 export function apiLine(overrides: Partial<ReceiptLineDto> = {}): ReceiptLineDto {
   const quantity = overrides.quantity ?? 100;
-  const inCartons = (overrides.packages ?? []).reduce((sum, p) => sum + p.receivedQty, 0);
+  const inCartons = (overrides.packages ?? []).reduce((sum, p) => sum + p.quantity, 0);
   return {
     unitOfMeasure: null,
     looseQuantity: quantity - inCartons,
@@ -72,7 +72,7 @@ export function cartonPackage(overrides: Partial<ReceiptPackageDto> = {}): Recei
     id: "c0000000-0000-4000-8000-000000000001",
     lpn: "LPN-20261024-000001",
     quantity: 1000,
-    receivedQty: 1000,
+    countedAt: "2026-10-24T02:00:00Z",
     nominalQty: 1000,
     status: "RECEIVING",
     locationCode: "HCM-RCV01",
@@ -95,7 +95,6 @@ export function cartonLine(overrides: Partial<ReceiptLineDto> = {}): ReceiptLine
         id: "c0000000-0000-4000-8000-000000000002",
         lpn: "LPN-20261024-000002",
         quantity: 980,
-        receivedQty: 980,
       }),
     ],
     ...overrides,

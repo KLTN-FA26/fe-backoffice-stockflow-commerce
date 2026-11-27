@@ -50,6 +50,11 @@ describe("getStockLevels", () => {
       reserved: 25,
       allocated: 0,
       atp: 330,
+      onHandCartons: 6,
+      availableCartons: 3,
+      reservedCartons: 2,
+      allocatedCartons: 0,
+      atpCartons: 2,
     };
     answer(INVENTORY_API.stockLevels, [level]);
     expect(await getStockLevels({ sku: "  cup-pp-500 " })).toEqual([level]);

@@ -6,7 +6,6 @@ import { INVENTORY_LABELS } from "@/constants/inventory";
 import { PAGE_SIZE } from "@/constants/table";
 
 import { formatDate, formatDateTime } from "@/lib/format/date";
-import { formatNumber } from "@/lib/format/number";
 
 import { EmptyState } from "@/components/shared/EmptyState";
 import { HiddenDuringCountBadge } from "@/components/shared/HiddenDuringCountBadge";
@@ -22,6 +21,7 @@ import {
 } from "@/components/ui/table";
 
 import { useWarehouseStockItems } from "../queries";
+import { CartonQuantity } from "./CartonQuantity";
 import { InventoryError } from "./InventoryFeedback";
 import { InventoryPager } from "./InventoryPager";
 
@@ -107,15 +107,22 @@ export function WarehouseStockItems({
                       </TableCell>
                     ) : (
                       <>
-                        <TableCell className="text-right font-mono tabular-nums">
-                          {item.onHand === undefined ? missing : formatNumber(item.onHand)}
-                        </TableCell>
-                        <TableCell className="text-right font-mono tabular-nums">
-                          {item.reserved === undefined ? missing : formatNumber(item.reserved)}
-                        </TableCell>
-                        <TableCell className="text-right font-mono tabular-nums">
-                          {item.available === undefined ? missing : formatNumber(item.available)}
-                        </TableCell>
+                        {/* ADR-0011: một dòng là một thùng — số thùng (1 / 0) là số chính */}
+                        {(
+                          [
+                            ["onHand", item.onHandCartons, item.onHand],
+                            ["reserved", item.reservedCartons, item.reserved],
+                            ["available", item.availableCartons, item.available],
+                          ] as const
+                        ).map(([key, cartons, units]) => (
+                          <TableCell key={key} className="text-right">
+                            {cartons == null ? (
+                              missing
+                            ) : (
+                              <CartonQuantity cartons={cartons} units={units} />
+                            )}
+                          </TableCell>
+                        ))}
                       </>
                     )}
                     <TableCell className="tabular-nums">
