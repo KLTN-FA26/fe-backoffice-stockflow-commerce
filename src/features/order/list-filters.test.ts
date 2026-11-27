@@ -18,6 +18,8 @@ const request = (patch: Partial<CancellationRequest> = {}): CancellationRequest 
   decidedAt: null,
   decisionNote: null,
   retainedPercent: null,
+  requestedByName: null,
+  decidedByName: null,
   orderNumber: "SO-20261101-000001",
   customerName: "Công ty Sao Mai",
   orderTotal: null,

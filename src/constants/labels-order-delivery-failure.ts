@@ -102,6 +102,8 @@ export const DELIVERY_FAILURE_LABELS = {
     receipt: (number: string) => `Phiếu ${number}`,
     openedAt: (when: string) => `Nhận về lúc ${when}`,
     decidedAt: (when: string) => `Quyết định lúc ${when}`,
+    decidedBy: "Người quyết định",
+    releasedBy: "Người cho giao lại",
     decisionNote: "Ghi chú quyết định",
     failureNote: "Ghi chú của hãng / kho",
     failedTripFee: "Phí chuyến giao hỏng (đơn cũ)",

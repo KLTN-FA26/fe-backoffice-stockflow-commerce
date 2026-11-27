@@ -4,22 +4,14 @@ import { PRODUCTION_LABELS, PRODUCTION_ORDER_COLUMNS as C } from "@/constants";
 import { formatNumber } from "@/lib/format";
 
 import {
+  producerLabelOf,
   productionOrderTotals,
   receivingWarehouseCode,
-  receivingWarehouseName,
 } from "@/features/production-order/selectors";
 
-import {
-  CELL,
-  codeCell,
-  dateCell,
-  EmptyCell,
-  StackText,
-  textCell,
-  ToneDot,
-} from "@/components/shared/column-helpers";
+import { CELL, codeCell, dateCell, textCell, ToneDot } from "@/components/shared/column-helpers";
 
-import { producerLabel, ProductionStatusDot } from "../parts";
+import { producerLabel, ProductionStatusDot, shortId } from "../parts";
 
 import type { ProducerRef } from "@/lib/references/producer-options";
 import type { ColumnDef } from "@/components/shared/DataTable";
@@ -37,19 +29,18 @@ export function buildProductionOrderColumns(
     textCell<ProductionOrder>(
       C.PRODUCER,
       col.producer,
-      (row) => producerLabel(producerOf(row.producerId), row.producerName),
+      // #286: "Mã · Tên" BE kèm trên dòng; BE cũ → tra danh mục đơn vị (nếu đọc được)
+      (row) => producerLabelOf(row) ?? producerLabel(producerOf(row.producerId), row.producerId),
       { color: "primary" },
     ),
     {
       key: C.WAREHOUSE,
       header: col.warehouse,
-      // Tên kho (BE kèm sẵn, FE#286), mã nhỏ ở dòng dưới — không còn mã trần "BDG" / "HNI"
-      cell: (row) => {
-        const name = receivingWarehouseName(row);
-        if (!name) return <EmptyCell />;
-        const code = receivingWarehouseCode(row);
-        return <StackText main={name} sub={code && code !== name ? code : undefined} />;
-      },
+      cell: (row) => (
+        <span className={CELL.ref} title={row.receivingWarehouseName ?? undefined}>
+          {receivingWarehouseCode(row) ?? shortId(row.receivingWarehouseId)}
+        </span>
+      ),
     },
     dateCell<ProductionOrder>(C.NEED_BY, col.needBy, (row) => row.needByDate),
     dateCell<ProductionOrder>(C.EXPECTED, col.expected, (row) => row.expectedCompletionDate),
@@ -79,10 +70,10 @@ export function buildProductionOrderColumns(
     {
       key: C.STATUS,
       header: col.status,
+      cell: (row) => <ProductionStatusDot status={row.status} />,
       // Ghim phải + không xuống dòng: bảng rộng hơn màn hình vẫn thấy đủ nhãn trạng thái ("Đang sản xuất"), không bị cắt
       sticky: "right",
       className: "whitespace-nowrap",
-      cell: (row) => <ProductionStatusDot status={row.status} />,
     },
   ];
 }

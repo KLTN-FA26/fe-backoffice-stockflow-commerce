@@ -22,18 +22,25 @@ import type { PermissionCode } from "@/lib/auth";
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 /**
- * "Kho xuất" trên trang chi tiết: tên kho tra qua GET /warehouses (warehouse-warehouses:READ). Live BE
- * 5683fe14: ORDER_COORDINATOR chưa có quyền này (BE V20261022000100 bổ sung) → mỗi lần mở đơn đều 403
- * và hiện UUID trần. Thiếu quyền thì không gọi API, báo không xem được tên; có quyền thì hiện tên kho.
+ * "Kho xuất" trên trang chi tiết: tên + mã kho BE kèm sẵn trên `OrderResponse` (issue #286) — không tải cả danh mục kho
+ * (`GET /warehouses`) chỉ để hiện tên, người thiếu quyền đọc kho vẫn thấy tên. Không bao giờ hiện UUID kho.
  */
 
 const DETAIL_PATH = `/orders/${apiOrder.orderId}`;
 const WAREHOUSE_ID = "8f8f8f8f-0000-4000-8000-000000000001";
-const released = apiOrderWith({ status: "READY_TO_FULFILL", warehouseId: WAREHOUSE_ID });
+const released = apiOrderWith({
+  status: "READY_TO_FULFILL",
+  warehouseId: WAREHOUSE_ID,
+  warehouseCode: "HN01",
+  warehouseName: "Kho Hà Nội",
+});
 
-async function renderDetail(permissions: readonly PermissionCode[]) {
+async function renderDetail(
+  permissions: readonly PermissionCode[],
+  patch: Record<string, unknown> = {},
+) {
   const get = mockOrderApiGet(permissions, {
-    [DETAIL_PATH]: () => released,
+    [DETAIL_PATH]: () => ({ ...released, ...patch }),
     [`${DETAIL_PATH}/history`]: () => [],
     "/warehouses": () => ({ items: [{ id: WAREHOUSE_ID, prefix: "HN", name: "Kho Hà Nội" }] }),
   });
@@ -86,40 +93,39 @@ describe("OrderInfoCard — Khách hàng hiện tên, không UUID (QA A5, BE-15)
   });
 });
 
-describe("OrderInfoCard — Kho xuất theo quyền warehouse-warehouses:READ", () => {
-  it("thiếu quyền (Coordinator trước BE V20261022000100) → không gọi GET /warehouses, báo không xem được tên", async () => {
+describe("OrderInfoCard — Kho xuất đọc tên/mã BE kèm trên đơn (issue #286)", () => {
+  it("BE trả warehouseName + warehouseCode → hiện tên và mã, KHÔNG gọi GET /warehouses (kể cả khi thiếu quyền kho)", async () => {
     const get = await renderDetail(ORDER_PERMISSION_SETS.coordinator);
 
-    const fallback = await screen.findByText(/tài khoản chưa có quyền xem tên kho/);
-    // BO-UX-6: không UUID kho, kể cả trong tooltip
-    expect(fallback).not.toHaveAttribute("title");
+    expect(await screen.findByText("Kho Hà Nội")).toBeInTheDocument();
+    expect(screen.getByText("HN01")).toBeInTheDocument();
+    expect(screen.queryByText(/chưa có quyền xem tên kho/)).not.toBeInTheDocument();
     expect(screen.queryByText(WAREHOUSE_ID)).not.toBeInTheDocument();
     expect(warehouseCalls(get)).toHaveLength(0);
   });
 
-  it("có quyền → tra danh mục kho (mọi trạng thái) và hiện tên kho", async () => {
+  it("có quyền đọc kho vẫn không tải danh mục kho chỉ để hiện tên", async () => {
     const get = await renderDetail([
       ...ORDER_PERMISSION_SETS.coordinator,
       WAREHOUSE_PERMISSIONS.read,
     ]);
 
     expect(await screen.findByText("Kho Hà Nội")).toBeInTheDocument();
-    expect(screen.queryByText(/chưa có quyền xem tên kho/)).not.toBeInTheDocument();
-    const [call] = warehouseCalls(get);
-    const params = (call?.[1] as { params: URLSearchParams }).params;
-    expect(params.get("status")).toBeNull();
+    expect(warehouseCalls(get)).toHaveLength(0);
   });
 
-  it("có quyền nhưng kho không có trong danh mục → nhãn trung tính, không UUID kho (BO-UX-6)", async () => {
-    mockOrderApiGet([...ORDER_PERMISSION_SETS.coordinator, WAREHOUSE_PERMISSIONS.read], {
-      [DETAIL_PATH]: () => released,
-      [`${DETAIL_PATH}/history`]: () => [],
-      "/warehouses": () => ({ items: [] }),
+  it("BE cũ chỉ trả mã kho → hiện mã", async () => {
+    await renderDetail(ORDER_PERMISSION_SETS.coordinator, { warehouseName: null });
+
+    expect(await screen.findByText("HN01")).toBeInTheDocument();
+    expect(screen.queryByText(WAREHOUSE_ID)).not.toBeInTheDocument();
+  });
+
+  it("BE không trả tên lẫn mã → nhãn trung tính, không UUID kho (BO-UX-6)", async () => {
+    await renderDetail([...ORDER_PERMISSION_SETS.coordinator, WAREHOUSE_PERMISSIONS.read], {
+      warehouseName: null,
+      warehouseCode: null,
     });
-    await act(async () => {
-      renderOrderScreen(<OrderDetail params={Promise.resolve({ id: apiOrder.orderId })} />);
-    });
-    await screen.findByRole("heading", { name: apiOrder.orderNumber });
 
     expect(await screen.findByText("Đã chọn kho xuất")).not.toHaveAttribute("title");
     expect(screen.queryByText(WAREHOUSE_ID)).not.toBeInTheDocument();

@@ -6,7 +6,7 @@
 
 import { z } from "zod";
 
-import { PRODUCTION_ORDER_STATUSES } from "@/constants";
+import { PRODUCER_CHANNELS, PRODUCTION_ORDER_STATUSES } from "@/constants";
 import { bePageSchema } from "@/lib/api/page-schema";
 
 /** BE `BigDecimal` → số JSON; nhận cả chuỗi số, chặn NaN. */
@@ -34,7 +34,7 @@ export const productionOrderHistoryDto = z.object({
   to: productionOrderStatusSchema,
   reason: z.string().nullish(),
   by: z.string().nullish(),
-  /** Họ tên người thao tác (FE#286); vắng khi hệ thống chuyển hoặc tài khoản không còn. */
+  /** #286: tên người chuyển kèm id; vắng (hệ thống / BE cũ) → nhãn dự phòng. */
   byName: z.string().nullish(),
   at: z.string(),
 });
@@ -69,10 +69,18 @@ export const productionOrderDto = z.object({
   id: z.string(),
   code: z.string(),
   salesOrderId: z.string(),
+  /** #286: các trường tên / số kèm id — BE bỏ khi null nên đều tuỳ chọn, đọc kèm fallback. */
+  salesOrderNumber: z.string().nullish(),
   deliveryBatchId: z.string(),
   customerId: z.string().nullish(),
+  customerName: z.string().nullish(),
+  customerCode: z.string().nullish(),
   producerId: z.string(),
+  producerName: z.string().nullish(),
+  producerCode: z.string().nullish(),
   receivingWarehouseId: z.string(),
+  receivingWarehouseCode: z.string().nullish(),
+  receivingWarehouseName: z.string().nullish(),
   needByDate: z.string(),
   status: productionOrderStatusSchema,
   sampleApprovalRequired: z.boolean(),
@@ -80,14 +88,17 @@ export const productionOrderDto = z.object({
   sampleWaiverReason: z.string().nullish(),
   note: z.string().nullish(),
   drawnUpBy: z.string(),
+  drawnUpByName: z.string().nullish(),
   // Chỉ còn ở đơn trước 2026-11-20 (bỏ bước duyệt, docs 17 BR-23) — BE vẫn trả cho đơn cũ
   submittedAt: z.string().nullish(),
   approvedBy: z.string().nullish(),
+  approvedByName: z.string().nullish(),
   approvedAt: z.string().nullish(),
   returnedReason: z.string().nullish(),
   sentAt: z.string().nullish(),
   /** Người gửi cho đơn vị sản xuất (đơn trước 2026-11-20: người duyệt). */
   sentBy: z.string().nullish(),
+  sentByName: z.string().nullish(),
   productionStartedAt: z.string().nullish(),
   expectedCompletionDate: z.string().nullish(),
   /** Ghi chú khi ghi nhận nhận đơn (docs 17 §4.3 bước 8) — ghi một lần. */
@@ -100,18 +111,46 @@ export const productionOrderDto = z.object({
   lines: z.array(productionOrderLineDto),
   history: z.array(productionOrderHistoryDto).nullish(),
   version: z.number().int(),
-  // Tên đi kèm id (BE FE#286): hiện tên thay UUID / mã. `.nullish()` vì BE `non_null` bỏ trường khi không tra được.
-  salesOrderNumber: z.string().nullish(),
-  customerName: z.string().nullish(),
-  customerCode: z.string().nullish(),
-  producerName: z.string().nullish(),
-  receivingWarehouseCode: z.string().nullish(),
-  receivingWarehouseName: z.string().nullish(),
-  drawnUpByName: z.string().nullish(),
-  approvedByName: z.string().nullish(),
-  sentByName: z.string().nullish(),
 });
 
 export const productionOrderPageDto = bePageSchema(productionOrderDto);
 
-export * from "./dispatch-schemas";
+/** BE `DownloadLink` — link vài phút, không log. */
+export const downloadLinkDto = z.object({ url: z.string(), expiresAt: z.string().nullish() });
+
+/** BE `ProductionOrderMessageAttempt`. */
+export const dispatchMessageDto = z.object({
+  message: z.string(),
+  status: z.string(),
+  attemptedAt: z.string().nullish(),
+  sentAt: z.string().nullish(),
+  failure: z.string().nullish(),
+  attemptNumber: z.number().int(),
+  recipient: z.string().nullish(),
+  generation: z.number().int(),
+});
+
+/** BE `ProductionOrderDispatch`: kênh, phiếu đã gửi (vắng khi chưa duyệt) và các lần gửi mail. */
+export const dispatchDto = z.object({
+  channel: z.enum(PRODUCER_CHANNELS),
+  slip: z
+    .object({ sha256: z.string(), sizeBytes: z.number().int(), createdAt: z.string() })
+    .nullish(),
+  messages: bePageSchema(dispatchMessageDto),
+});
+
+/** Phần lịch giao của đơn bán FE cần để hiện số đơn + cửa sổ giao (`GET /orders/{id}/delivery-batches`). */
+export const salesOrderBatchesDto = z.object({
+  orderId: z.string(),
+  orderNumber: z.string().nullish(),
+  batches: z
+    .array(
+      z.object({
+        batchId: z.string(),
+        seq: z.number().int(),
+        windowStart: z.string().nullish(),
+        windowEnd: z.string().nullish(),
+      }),
+    )
+    .default([]),
+});

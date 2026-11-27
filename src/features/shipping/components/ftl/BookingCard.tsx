@@ -78,7 +78,10 @@ export function BookingCard({
           <InfoItem label={B.connection} value={CONNECTION[load.carrierConnectionType]} />
         )}
         {booked && load.bookedAt && (
-          <InfoItem label={B.bookedAt} value={formatDateTime(load.bookedAt)} />
+          <>
+            <InfoItem label={B.bookedAt} value={formatDateTime(load.bookedAt)} />
+            <InfoItem label={B.bookedBy} value={load.bookedByName ?? "—"} />
+          </>
         )}
       </div>
       {(book || cancelBooking || start || driver) && (

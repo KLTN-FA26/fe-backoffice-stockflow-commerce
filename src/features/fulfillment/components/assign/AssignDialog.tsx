@@ -42,7 +42,7 @@ export function AssignDialog({ task, onClose }: { task: FulfillmentTask; onClose
   return (
     <FormDialog open onOpenChange={(open) => !open && onClose()}>
       <FormDialogBody
-        title={UI_LABELS.fulfillment.assignTask(taskCode(task))}
+        title={UI_LABELS.fulfillment.assignTask(taskCode(task.taskId, task.taskNumber))}
         description={UI_LABELS.fulfillment.assignDescription}
         submitLabel={UI_LABELS.fulfillment.action.assign}
         canSubmit={canAssign && !unchanged}

@@ -128,6 +128,8 @@ export const PRODUCTION_LABELS = {
     statusFilter: "Trạng thái",
     producerFilter: "Đơn vị sản xuất",
     warehouseFilter: "Kho nhận",
+    /** Chip lọc theo id khi không đọc được danh mục và chưa có dòng nào mang tên — không hiện mảnh UUID (#286). */
+    pickedFilter: "Đã chọn",
     summarySearch: "Tìm trong trang",
     emptyTitle: "Chưa có đơn sản xuất",
     emptyDescription: "Đơn sản xuất được lập từ đợt giao còn thiếu của đơn bán đã ký hợp đồng.",
@@ -185,6 +187,7 @@ export const PRODUCTION_LABELS = {
     historyEmpty: "Chưa có lịch sử.",
     system: "Hệ thống",
     you: "Bạn",
+    userShort: (id: string) => `NV ${id.slice(0, 8)}`,
     youNamed: (name: string) => `${name} (bạn)`,
     // Đơn cũ / tài khoản không còn: không hiện mã nhân viên
     unknownUser: "Nhân viên",

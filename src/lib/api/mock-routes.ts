@@ -14,6 +14,7 @@ import {
   deleteMockProduct,
   findMockProduct,
   saveMockProduct,
+  withProductNames,
 } from "./mock-product-store";
 import {
   beProductStatus,
@@ -27,6 +28,7 @@ import {
   activateMockDraftVariants,
   createMockProductMatrix,
   deleteMockProductVariants,
+  mockHistorySubject,
   mockOpenReferences,
   obsoleteMockVariants,
 } from "./mock-routes-variants";
@@ -141,7 +143,8 @@ export function registerAllMockRoutes(): void {
     return {
       status: 200,
       data: {
-        items: filtered.slice(start, start + pageSize),
+        // Issue #286: dòng danh sách kèm `categoryName` / tên người làm / `canApprove`
+        items: await Promise.all(filtered.slice(start, start + pageSize).map(withProductNames)),
         page,
         size: pageSize,
         totalElements,
@@ -186,7 +189,7 @@ export function registerAllMockRoutes(): void {
     const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
     const product = await findMockProduct(id);
     if (!product) return { status: 404, data: { message: "Product not found" }, headers: {} };
-    return { status: 200, data: withBrandId(product), headers: {} };
+    return { status: 200, data: await withProductNames(withBrandId(product)), headers: {} };
   });
 
   // POST /products
@@ -275,7 +278,7 @@ export function registerAllMockRoutes(): void {
 
     createdProducts.push(product);
     recordMockHistory(productId, "CREATED", { toStatus: "DRAFT" });
-    return { status: 201, data: product, headers: {} };
+    return { status: 201, data: await withProductNames(product), headers: {} };
   });
 
   registerMockRoute("PUT", "/products/:id", async (config) => {
@@ -315,7 +318,7 @@ export function registerAllMockRoutes(): void {
     saveMockProduct(updated);
     const changed = changedProductFields(current, updated);
     if (changed.length > 0) recordMockHistory(id, "UPDATED", { changedFields: changed });
-    return { status: 200, data: updated, headers: {} };
+    return { status: 200, data: await withProductNames(updated), headers: {} };
   });
 
   registerProductTransitionRoutes();
@@ -597,7 +600,15 @@ function registerProductLifecycleRoutes(): void {
     const query = queryOf(config);
     const page = Math.max(0, Number(query.get("page")) || 0);
     const size = Math.min(200, Math.max(1, Number(query.get("size")) || 20));
-    return ok(mockHistoryPage(id, page, size));
+    const result = mockHistoryPage(id, page, size);
+    // Issue #286: SKU / nhãn của đối tượng tra lúc đọc — đối tượng đã xoá thì không có (như BE)
+    const items = await Promise.all(
+      result.items.map(async (entry) => ({
+        ...entry,
+        ...(entry.subjectId ? await mockHistorySubject(entry.subjectId) : {}),
+      })),
+    );
+    return ok({ ...result, items });
   });
 }
 
@@ -661,7 +672,11 @@ async function transitionMockProduct(
       reason: entry.reason,
     });
   }
-  return { status: 200, data: voidResponse ? null : transitioned, headers: {} };
+  return {
+    status: 200,
+    data: voidResponse ? null : await withProductNames(transitioned),
+    headers: {},
+  };
 }
 
 /** Tên các trường mà một lần sửa nháp đã đổi — như `Product.updateDetails` trả về cho lịch sử. */

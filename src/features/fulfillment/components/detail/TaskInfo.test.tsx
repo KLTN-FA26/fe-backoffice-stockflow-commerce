@@ -1,11 +1,14 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import { UI_LABELS } from "@/constants";
+
 import { TaskInfo } from "./TaskInfo";
 
 import type { FulfillmentActor } from "@/features/fulfillment/lifecycle";
 import type { FulfillmentTask } from "@/features/fulfillment/types";
 
+const FIELD = UI_LABELS.fulfillment.field;
 const TASK_ID = "3f2b8c1e-5a4d-4b7e-9c11-0d2e6a7f8b90";
 const ORDER_ID = "9a1c7e2d-0b3f-4c55-8e6a-1f2d3c4b5a69";
 
@@ -17,9 +20,22 @@ const task = {
 } as unknown as FulfillmentTask;
 
 describe("TaskInfo", () => {
-  it("không hiện dòng 'Mã task' và không lộ UUID của task (BE chưa có mã task đọc được)", () => {
+  it("BE gửi taskNumber → dòng số nhiệm vụ hiện số task PK-yyyyMMdd-nnnn, không lộ UUID (issue #286)", () => {
+    render(
+      <TaskInfo
+        task={{ ...task, taskNumber: "PK-20261121-0007" }}
+        actor={actor}
+        orderNumber="SO-20261121-000001"
+      />,
+    );
+    expect(screen.getByText(FIELD.task)).toBeInTheDocument();
+    expect(screen.getByText("PK-20261121-0007")).toBeInTheDocument();
+    expect(document.body.textContent).not.toContain(TASK_ID);
+  });
+
+  it("BE cũ chưa gửi taskNumber → không hiện dòng số nhiệm vụ và không lộ UUID của task", () => {
     render(<TaskInfo task={task} actor={actor} orderNumber="SO-20261121-000001" />);
-    expect(screen.queryByText("Mã task")).not.toBeInTheDocument();
+    expect(screen.queryByText(FIELD.task)).not.toBeInTheDocument();
     expect(document.body.textContent).not.toContain(TASK_ID);
     expect(screen.getByText("SO-20261121-000001")).toBeInTheDocument();
   });

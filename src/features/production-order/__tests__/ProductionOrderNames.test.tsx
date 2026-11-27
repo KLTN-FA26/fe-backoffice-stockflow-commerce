@@ -87,16 +87,15 @@ describe("Chi tiết Đơn sản xuất — tên thay mã / UUID (S11-1, FE#286)
     );
     expect(await screen.findByText("SO-20261126-000012")).toBeInTheDocument();
     expect(screen.getByText("Công ty TNHH Trà Sữa Mây")).toBeInTheDocument();
-    expect(screen.getByText("Kho Hà Nội")).toBeInTheDocument();
-    // Người đang đăng nhập là người lập: tên + (bạn), không còn chữ "Bạn" trơ trọi
-    expect(screen.getAllByText("Võ Thị Điều Phối (bạn)").length).toBeGreaterThan(0);
-    expect(screen.queryByText(PRODUCTION_LABELS.detail.you)).toBeNull();
-    // Không còn mã nhân viên rút gọn kiểu "NV 2c112e51"
+    // Tên kho kèm mã ("HNI · Kho Hà Nội"), không phải UUID
+    expect(screen.getByText(/Kho Hà Nội/)).toBeInTheDocument();
+    // Người đang đăng nhập là người lập: "Bạn"; không có mã nhân viên rút gọn kiểu "NV 2c112e51"
+    expect(screen.getAllByText(PRODUCTION_LABELS.detail.you).length).toBeGreaterThan(0);
     expect(screen.queryByText(/^NV [0-9a-f]{8}/)).toBeNull();
     expect(screen.getByText(productionOrder().code)).toHaveClass("whitespace-nowrap");
   });
 
-  it("thiếu tên (đơn cũ): người khác là 'Nhân viên', không UUID; kho '—'", async () => {
+  it("thiếu tên (đơn cũ): người khác là mã nhân viên rút gọn, không UUID đầy đủ", async () => {
     setup(
       productionOrder({
         drawnUpBy: "99999999-9999-4999-8999-999999999999",
@@ -105,8 +104,12 @@ describe("Chi tiết Đơn sản xuất — tên thay mã / UUID (S11-1, FE#286)
       }),
     );
     await screen.findByText(productionOrder().code);
-    expect(screen.getAllByText(PRODUCTION_LABELS.detail.unknownUser).length).toBeGreaterThan(0);
-    expect(screen.queryByText(/99999999/)).toBeNull();
+    expect(
+      screen.getAllByText(
+        PRODUCTION_LABELS.detail.userShort("99999999-9999-4999-8999-999999999999"),
+      ).length,
+    ).toBeGreaterThan(0);
+    expect(screen.queryByText(/99999999-9999/)).toBeNull();
   });
 
   it("đơn vị sản xuất: danh mục (mã · tên) khi đọc được, thiếu quyền thì dùng tên BE kèm sẵn", async () => {
@@ -120,7 +123,7 @@ describe("Chi tiết Đơn sản xuất — tên thay mã / UUID (S11-1, FE#286)
 });
 
 describe("Danh sách Đơn sản xuất — tên kho, trạng thái không bị cắt (S11-7)", () => {
-  it("cột Kho nhận hiện tên kho (mã nhỏ dưới); cột Trạng thái ghim phải, không xuống dòng", async () => {
+  it("cột Kho nhận hiện tên kho; cột Trạng thái ghim phải, không xuống dòng", async () => {
     mockProductionApi(PRODUCTION_ACTORS.coordinator, {
       get: {
         "/production-orders": () =>
@@ -130,8 +133,8 @@ describe("Danh sách Đơn sản xuất — tên kho, trạng thái không bị 
       },
     });
     renderProductionScreen(<ProductionOrderList />, COORDINATOR_ID);
-    expect(await screen.findByText("Kho Hà Nội")).toBeInTheDocument();
-    expect(screen.getByText("HNI")).toBeInTheDocument();
+    // Cột Kho nhận hiện mã kho (HNI), tên đầy đủ ở chú thích khi rê chuột
+    expect(await screen.findByText("HNI")).toHaveAttribute("title", "Kho Hà Nội");
     const status = screen.getByRole("columnheader", { name: "Trạng thái" });
     expect(status).toHaveClass("sticky");
   });

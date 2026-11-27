@@ -51,13 +51,13 @@ Một hàng data-dense: search input bên trái → icon công cụ → nút exp
 - **Không** dùng title/tile lớn trong toolbar — tránh section trống và cao.
 - Công cụ bổ trợ dùng `<Popover>` + `<Command>` + `<Checkbox>` + `<Button>`:
 
-| Công cụ                   | Icon           | Tone                                                |
-| ------------------------- | -------------- | --------------------------------------------------- |
-| Lọc trạng thái/facet      | `<Filter>`     | icon `--dot-info`                                   |
-| Chọn phạm vi tìm (`Tìm theo`) | `<ListFilter>` | icon `--dot-special`                            |
-| Chọn cột hiển thị         | `<Columns3>`   | icon `--dot-warning`                                |
-| Xuất Excel                | icon + text    | nền trắng, chữ `ink.primary`, icon `--dot-positive` |
-| Xoá/bulk destructive      | —              | `danger`                                            |
+| Công cụ                       | Icon           | Tone                                                |
+| ----------------------------- | -------------- | --------------------------------------------------- |
+| Lọc trạng thái/facet          | `<Filter>`     | icon `--dot-info`                                   |
+| Chọn phạm vi tìm (`Tìm theo`) | `<ListFilter>` | icon `--dot-special`                                |
+| Chọn cột hiển thị             | `<Columns3>`   | icon `--dot-warning`                                |
+| Xuất Excel                    | icon + text    | nền trắng, chữ `ink.primary`, icon `--dot-positive` |
+| Xoá/bulk destructive          | —              | `danger`                                            |
 
 - **Ít lựa chọn thì hiện sẵn, không giấu sau biểu tượng** (WF4 UX S01-4): lọc trạng thái có 2–4 giá trị → nút chọn
   nhanh nằm trên thanh (`ListToolbar` tự làm, `LIST_TOOLBAR_LIMITS.statusInlineMax`); lọc hai trạng thái kiểu "Chỉ cảnh
@@ -77,12 +77,12 @@ Tất cả / 6/6". Mỗi chip là `<Badge variant="outline">` nền `bg.subtle` 
 
 Nhãn chip dùng tiếng Việt, không chữ kỹ thuật (`Search`, `field`, `table`, `Void`):
 
-| Chip               | Nghĩa                                   |
-| ------------------ | --------------------------------------- |
-| `Tìm kiếm chính`   | query của ô tìm ở toolbar               |
-| `Tìm trong cột`    | filter nhập từ header từng cột          |
-| `Cột hiển thị`     | số cột đang bật / tổng (chỉ khi đổi)    |
-| `Trạng thái`…      | facet/status đang chọn                  |
+| Chip             | Nghĩa                                |
+| ---------------- | ------------------------------------ |
+| `Tìm kiếm chính` | query của ô tìm ở toolbar            |
+| `Tìm trong cột`  | filter nhập từ header từng cột       |
+| `Cột hiển thị`   | số cột đang bật / tổng (chỉ khi đổi) |
+| `Trạng thái`…    | facet/status đang chọn               |
 
 Nút `Đặt lại` bên phải reset toàn bộ config của page (chữ đậm `--dot-info`, nền `--dot-info` ~10%).
 Thông tin chỉ để đọc (vd phạm vi tìm của ô tìm kiếm) **không** thành chip — nằm ở công cụ `Tìm theo`.

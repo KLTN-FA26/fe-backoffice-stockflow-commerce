@@ -47,7 +47,10 @@ function CartonCheckStationBody({
   });
   const session = sessionQuery.data;
   const listHref = useWorkspaceHref()(WORKSPACE_PATHS.packing);
-  useBreadcrumbLabel(id, session ? (session.orderNumber ?? taskCode(session)) : undefined);
+  useBreadcrumbLabel(
+    id,
+    session ? (session.orderNumber ?? taskCode(session.taskId, session.taskNumber)) : undefined,
+  );
 
   if (!canRead)
     return <FulfillmentLoadError scope="packing" error={null} kind="no-read" listHref={listHref} />;
@@ -75,7 +78,7 @@ function CartonCheckStationBody({
     // Phiên của kho khác kho trên URL → chuyển sang đúng kho (spec 2026-11-22 §2)
     <InWorkspaceWarehouse warehouseId={session.warehouseId} path={WORKSPACE_PATHS.packingTask(id)}>
       <div className="surface-soft surface-compact">
-        <h1 className="sr-only">{`${cartonCheck.stationTitle} — ${session.orderNumber ?? taskCode(session)}`}</h1>
+        <h1 className="sr-only">{`${cartonCheck.stationTitle} — ${session.orderNumber ?? taskCode(session.taskId, session.taskNumber)}`}</h1>
         {sessionQuery.isError && (
           <Alert tone="warning" className="mb-3 print:hidden">
             {cartonCheck.notice.refetchFailed}{" "}

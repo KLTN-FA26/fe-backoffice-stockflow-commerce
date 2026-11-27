@@ -2,7 +2,7 @@
 
 import { Ban, History } from "lucide-react";
 
-import { PAYMENT_LABELS } from "@/constants/labels-payment";
+import { PAYMENT_LABELS, PAYMENT_LIST_LABELS } from "@/constants/labels-payment";
 import { BUSINESS_DOCUMENT_PATHS } from "@/lib/api/business-documents";
 import { formatDateTime } from "@/lib/format/date";
 import { DocumentDownloadButton } from "@/components/backoffice/DocumentDownloadButton";
@@ -62,10 +62,18 @@ export function RefundRecords({
                 )}
               </div>
               {record.note && <p className="text-ink-secondary">{record.note}</p>}
+              {record.recordedByName && (
+                <p className="text-ink-secondary">
+                  {PAYMENT_LIST_LABELS.recordedBy}: {record.recordedByName}
+                </p>
+              )}
               {record.status === "VOIDED" && (
                 <p className="text-ink-tertiary">
                   {L.voidInfo}: {record.voidReason ?? PAYMENT_LABELS.empty}
                   {record.voidedAt ? ` · ${formatDateTime(record.voidedAt)}` : ""}
+                  {record.voidedByName
+                    ? ` · ${PAYMENT_LIST_LABELS.voidedBy}: ${record.voidedByName}`
+                    : ""}
                 </p>
               )}
             </li>

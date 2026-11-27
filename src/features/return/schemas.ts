@@ -110,6 +110,8 @@ export const heldCartonDtoSchema = z.object({
 
 export const returnReviewDtoSchema = z.object({
   decidedBy: z.string().nullish(),
+  /** #286: tên người quyết định kèm id — BE bỏ khi null, đọc kèm fallback. */
+  decidedByName: z.string().nullish(),
   decidedAt: z.string().nullish(),
   note: z.string().nullish(),
   rejectionReason: z.string().nullish(),
@@ -124,12 +126,14 @@ export const returnParcelDtoSchema = z.object({
   receiptNumber: z.string().nullish(),
   locationCode: z.string().nullish(),
   receivedBy: z.string().nullish(),
+  receivedByName: z.string().nullish(),
   receivedAt: z.string().nullish(),
 });
 
 /** `goodsReceiptId` = phiếu đầu tiên (không đổi); người / lúc / khu theo lần về gần nhất. */
 export const returnReceiptRefDtoSchema = z.object({
   receivedBy: z.string().nullish(),
+  receivedByName: z.string().nullish(),
   receivedAt: z.string().nullish(),
   locationCode: z.string().nullish(),
   goodsReceiptId: z.string().nullish(),
@@ -141,9 +145,11 @@ export const returnResolutionDtoSchema = z.object({
   moneyMode: z.string().nullish(),
   settlementAmount: z.number().nullish(),
   proposedBy: z.string().nullish(),
+  proposedByName: z.string().nullish(),
   proposedAt: z.string().nullish(),
   note: z.string().nullish(),
   settledBy: z.string().nullish(),
+  settledByName: z.string().nullish(),
   settledAt: z.string().nullish(),
   offsetAmount: z.number().nullish(),
   refundedAmount: z.number().nullish(),
@@ -165,6 +171,8 @@ export const returnHistoryDtoSchema = z.object({
   to: z.string(),
   reason: z.string().nullish(),
   actorId: z.string().nullish(),
+  /** #286: tên người thực hiện bước; vắng (hệ thống / BE cũ) → không hiện người. */
+  actorName: z.string().nullish(),
   occurredAt: z.string(),
 });
 
@@ -174,6 +182,9 @@ export const returnRequestDtoSchema = z.object({
   orderId: z.string(),
   orderNumber: z.string(),
   customerId: z.string(),
+  /** #286: tên + mã khách kèm id — kế toán / kho thấy tên mà không cần quyền xem khách. */
+  customerName: z.string().nullish(),
+  customerCode: z.string().nullish(),
   /** Lô giao đã giao mà hàng trả thuộc về (WF-05 TH-1); null với đơn giao không qua lô. */
   shipmentId: z.string().nullish(),
   status,
@@ -182,6 +193,7 @@ export const returnRequestDtoSchema = z.object({
   requestedResolution: z.string().nullish(),
   channel,
   requestedBy: z.string().nullish(),
+  requestedByName: z.string().nullish(),
   requestedAt: z.string(),
   lateClaimReason: z.string().nullish(),
   currency: z.string(),

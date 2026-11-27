@@ -14,30 +14,35 @@ import { formatDate, formatDateTime } from "@/lib/format/date";
 import { useProducerDirectory } from "@/lib/references/producer-options";
 
 import { useSalesOrderBatches } from "@/features/production-order/queries";
-import { receivingWarehouseName } from "@/features/production-order/selectors";
+import {
+  codeNameLabel,
+  producerLabelOf,
+  receivingWarehouseCode,
+  receivingWarehouseName,
+} from "@/features/production-order/selectors";
 
 import { CustomerName } from "@/components/backoffice/CustomerName";
 import { EMPTY_CELL } from "@/components/shared/column-helpers";
 import { DetailSection, InfoRow } from "@/components/shared/DetailSection";
 
-import { formatWindow, producerLabel, ProductionStatusDot } from "../parts";
+import { formatWindow, producerLabel, ProductionStatusDot, shortId } from "../parts";
 
 import type { ProductionOrder } from "@/features/production-order/types";
 
 const L = PRODUCTION_LABELS.detail;
 
 /**
- * Người thao tác: họ tên BE kèm sẵn (FE#286), thêm "(bạn)" khi là người đang đăng nhập. Chưa có tên (đơn cũ, tài khoản
- * không còn) thì "Bạn" cho chính mình, còn người khác nêu chung "Nhân viên" — không hiện mã nhân viên.
+ * Người thao tác: "Bạn" khi là người đang đăng nhập; còn lại tên BE kèm sẵn (#286 `xxxByName`); BE cũ không kèm tên →
+ * mã nhân viên rút gọn.
  */
 export function actorLabel(
   id: string | null | undefined,
   me: string | null | undefined,
   name?: string | null,
 ): string {
-  if (!id) return L.system;
-  if (name) return id === me ? L.youNamed(name) : name;
-  return id === me ? L.you : L.unknownUser;
+  if (!id) return name || L.system;
+  if (id === me) return L.you;
+  return name || L.userShort(id);
 }
 
 const when = (iso: string | null | undefined) => (iso ? formatDateTime(iso) : null);
@@ -55,7 +60,8 @@ export function GeneralCard({
 }) {
   // Thiếu quyền đọc thì không gọi (403 làm tải lại quyền toàn app) — hiện mã rút gọn thay tên
   const can = usePermissionChecker();
-  const producers = useProducerDirectory(can(PRODUCER_PERMISSIONS.read));
+  // #286: BE kèm tên đơn vị → chỉ tra danh mục khi BE cũ chưa kèm
+  const producers = useProducerDirectory(can(PRODUCER_PERMISSIONS.read) && !order.producerName);
   const batches = useSalesOrderBatches(
     order.salesOrderId,
     can(ORDER_DELIVERY_BATCH_PERMISSIONS.read),
@@ -96,7 +102,7 @@ export function GeneralCard({
             href={ADMIN_ROUTES.orders.detail(order.salesOrderId)}
             className="text-accent-text font-[family-name:var(--font-mono)] hover:underline"
           >
-            {order.salesOrderNumber ?? batches.data?.orderNumber ?? L.salesOrderFallback}
+            {order.salesOrderNumber ?? batches.data?.orderNumber ?? shortId(order.salesOrderId)}
           </Link>
         </InfoRow>
         <InfoRow label={L.deliveryBatch}>
@@ -116,9 +122,13 @@ export function GeneralCard({
           )}
         </InfoRow>
         <InfoRow label={L.producer}>
-          {producerLabel(producers.byId(order.producerId), order.producerName)}
+          {producerLabelOf(order) ??
+            producerLabel(producers.byId(order.producerId), order.producerId)}
         </InfoRow>
-        <InfoRow label={L.warehouse}>{receivingWarehouseName(order) ?? EMPTY_CELL}</InfoRow>
+        <InfoRow label={L.warehouse}>
+          {codeNameLabel(receivingWarehouseCode(order), receivingWarehouseName(order)) ??
+            shortId(order.receivingWarehouseId)}
+        </InfoRow>
         <InfoRow label={L.needBy}>{formatDate(order.needByDate)}</InfoRow>
         <InfoRow label={L.expected}>
           {order.expectedCompletionDate ? formatDate(order.expectedCompletionDate) : EMPTY_CELL}

@@ -422,6 +422,20 @@ export interface MockRemainderClosure {
 
 const states = new Map<string, MockOrderState>();
 
+/**
+ * Mã + tên kho theo id (issue #286: BE kèm `warehouseCode` / `warehouseName` cạnh `warehouseId`). `toOrderResponse` chạy
+ * đồng bộ nên danh mục kho được ghi nhớ khi `findOrder` nạp mock-data; chưa nạp → bỏ field (như BE cũ).
+ */
+const warehouseRefs = new Map<string, { warehouseCode: string; warehouseName: string }>();
+
+function rememberWarehouses(
+  list: readonly { warehouseId: string; code: string; name: string }[],
+): void {
+  if (warehouseRefs.size > 0) return;
+  for (const w of list)
+    warehouseRefs.set(w.warehouseId, { warehouseCode: w.code, warehouseName: w.name });
+}
+
 /** Xoá MỌI trạng thái phiên (vòng đời, công nợ, release, huỷ, lịch sử) — test gọi giữa các ca. */
 export function resetOrderMockStore(): void {
   states.clear();
@@ -1013,6 +1027,8 @@ export function toOrderResponse(order: Order) {
     billingAddress: null,
     paymentTerm: term,
     warehouseId,
+    warehouseCode: warehouseId ? (warehouseRefs.get(warehouseId)?.warehouseCode ?? null) : null,
+    warehouseName: warehouseId ? (warehouseRefs.get(warehouseId)?.warehouseName ?? null) : null,
     releasedAt: state.releasedAt ?? null,
     paidAmount: order.amountPaid,
     depositRequired: depositRequiredOf(order, state, term),
@@ -1130,6 +1146,7 @@ export function bodyString(body: Record<string, unknown>, key: string): string {
 }
 
 export async function findOrder(id: string): Promise<Order | undefined> {
-  const { orders } = await import("@/lib/mock-data");
+  const { orders, warehouses } = await import("@/lib/mock-data");
+  rememberWarehouses(warehouses);
   return orders.find((o) => o.orderId === id);
 }

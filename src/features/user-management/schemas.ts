@@ -20,6 +20,13 @@ export const userStatusChangeSchema = z.object({
   changedAt: z.string(),
 });
 
+/** Một kho đã gán, kèm mã + tên (BE #286) — BE cũ không gửi mảng này, đọc `warehouseIds` làm fallback. */
+export const userWarehouseSchema = z.object({
+  warehouseId: z.string().min(1),
+  code: z.string().nullish(),
+  name: z.string().nullish(),
+});
+
 /** BE `UserResponse` (PR #72 + `warehouseIds` của PR #73). Trường rỗng bị BE bỏ khỏi JSON (non_null). */
 export const userDtoSchema = z.object({
   userId: z.string().min(1),
@@ -29,6 +36,8 @@ export const userDtoSchema = z.object({
   status: userStatusSchema,
   roles: z.array(z.string()).default([]),
   warehouseIds: z.array(z.string()).default([]),
+  /** Kho đã gán kèm mã + tên (BE #286): hiển thị tên mà không phải tải cả danh mục kho. */
+  warehouses: z.array(userWarehouseSchema).optional(),
   mustChangePassword: z.boolean().default(false),
   lockedUntil: z.string().nullish(),
   lastLoginAt: z.string().nullish(),

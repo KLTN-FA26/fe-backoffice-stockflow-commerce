@@ -19,6 +19,7 @@ export const SHIPPING_FTL_LABELS = {
     hintBooked: "Xe đã đặt. Khi xe tới kho, bấm bắt đầu xếp hàng.",
     hintLocked: "Đã bắt đầu xếp hàng — không đổi hoặc huỷ đặt xe được nữa.",
     bookedAt: "Đặt lúc",
+    bookedBy: "Người đặt xe",
     notBooked: "Chưa đặt xe",
     book: "Đặt xe",
     rebook: "Sửa thông tin đặt xe",

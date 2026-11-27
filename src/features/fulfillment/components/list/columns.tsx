@@ -51,7 +51,7 @@ export function buildTaskColumns({
           className={`${CELL.code} hover:underline`}
           onClick={(event) => event.stopPropagation()}
         >
-          {taskCode(row)}
+          {taskCode(row.taskId, row.taskNumber)}
         </Link>
       ),
     },
@@ -101,7 +101,7 @@ export function buildTaskColumns({
           allowedFulfillmentActions(row, actor).some((a) => a.code === "assign");
         return (
           <RowActionsMenu
-            label={`Thao tác — task ${taskCode(row)}`}
+            label={`Thao tác — task ${taskCode(row.taskId, row.taskNumber)}`}
             actions={[
               { label: "Xem chi tiết", icon: Eye, href: detailHref(row.taskId) },
               ...(canAssign

@@ -86,12 +86,9 @@ export function InfoItem({
   );
 }
 
-/**
- * Số nhiệm vụ hiển thị: `taskNumber` "PK-yyyyMMdd-nnnn" BE trả kèm (FE#286). Bản BE cũ chưa có thì mã rút gọn của id —
- * chỉ là đường lùi, không phải thứ người dùng phải đọc.
- */
-export function taskCode(task: { taskId: string; taskNumber?: string | null }): string {
-  return task.taskNumber || shortId(task.taskId);
+/** Mã task hiển thị: số task BE (`PK-yyyyMMdd-nnnn`, issue #286); BE cũ chưa gửi → id rút gọn. */
+export function taskCode(taskId: string, taskNumber?: string | null): string {
+  return taskNumber || shortId(taskId);
 }
 
 /** Số đơn BE trả kèm task (SCRUM-466); thiếu thì id rút gọn (kèm `title` là id đầy đủ ở nơi dùng). */

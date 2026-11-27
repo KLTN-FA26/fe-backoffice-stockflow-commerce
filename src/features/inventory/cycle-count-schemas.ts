@@ -26,6 +26,10 @@ const cycleCountHeader = {
   status: z.string(),
   blind: z.boolean(),
   assignedUserId: beUuid.nullish(),
+  // Issue #286 (BE develop): tên người được giao, mã (prefix) + tên kho cạnh id — NON_NULL bỏ khi không biết.
+  assignedUserName: z.string().nullish(),
+  warehouseCode: z.string().nullish(),
+  warehouseName: z.string().nullish(),
   plannedDate: z.string().nullish(),
   startedAt: z.iso.datetime().nullish(),
   completedAt: z.iso.datetime().nullish(),
@@ -59,6 +63,7 @@ export const cycleCountLineDto = z.object({
   booked: z.boolean().nullish(),
   found: z.boolean().nullish(),
   countedBy: beUuid.nullish(),
+  countedByName: z.string().nullish(),
   countedAt: z.iso.datetime().nullish(),
   recountRequired: z.boolean(),
   adjustments: z.array(cycleCountLineAdjustmentDto).nullish(),

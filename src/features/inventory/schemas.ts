@@ -40,6 +40,12 @@ export const stockAdjustmentDto = z.object({
   // Docs 20 BR-14: một phiếu điều chỉnh đúng một thùng. Có `cycleCountLineId` khi phiếu do kiểm kê sinh ra.
   stockPackageId: beUuid.nullish(),
   cycleCountLineId: beUuid.nullish(),
+  // Issue #286 (BE develop): người đếm dòng kiểm kê sinh ra phiếu, và tên hiển thị cạnh từng id người — NON_NULL bỏ
+  // khi không biết người đó; màn đọc với fallback về id.
+  countedBy: beUuid.nullish(),
+  requestedByName: z.string().nullish(),
+  decidedByName: z.string().nullish(),
+  countedByName: z.string().nullish(),
 });
 
 // Source: backend develop 0f18f24 StockMovementResponse. `type`, `status`,
@@ -64,6 +70,11 @@ export const stockMovementDto = z.object({
   occurredAt: z.iso.datetime(),
   /** Tên hiển thị của `actorId` (BE trả sẵn); null với dòng hệ thống. */
   actorName: z.string().nullish(),
+  // Issue #286: chỉ dòng ADJUSTMENT — người đề nghị (`actorId` là người duyệt) và, với chênh lệch kiểm kê, người đếm.
+  requestedBy: beUuid.nullish(),
+  requestedByName: z.string().nullish(),
+  countedBy: beUuid.nullish(),
+  countedByName: z.string().nullish(),
 });
 
 // RequestAdjustmentRequest (docs 20 §4.3, BR-04, BR-14): một thùng theo LPN, chiều, lý do — không có số lượng.

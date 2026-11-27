@@ -10,7 +10,14 @@ import { LOAD_STATUSES } from "@/constants";
 import { bePageSchema } from "@/lib/api/page-schema";
 
 import { ftlLoadFields, ftlManifestFields, ftlRowFields } from "./ftl-schemas";
-import { count, isoInstant, measure, shipmentStatusSchema, tolerantEnum } from "./schemas";
+import {
+  count,
+  isoInstant,
+  measure,
+  shipmentStatusSchema,
+  tolerantEnum,
+  warehouseRefFields,
+} from "./schemas";
 
 /** `LoadStatus` — giá trị lạ → UNKNOWN (không thao tác nào được mở). */
 export const loadStatusSchema = tolerantEnum(LOAD_STATUSES);
@@ -20,6 +27,7 @@ export const beLoadRowSchema = z.object({
   loadId: z.string(),
   code: z.string(),
   warehouseId: z.string(),
+  ...warehouseRefFields,
   status: loadStatusSchema,
   carrierId: z.string().nullish(),
   carrierName: z.string().nullish(),
@@ -46,6 +54,8 @@ export const beLoadParcelSchema = z.object({
   loaded: z.boolean(),
   loadedAt: isoInstant.nullish(),
   loadedBy: z.string().nullish(),
+  /** Tên người quét kiện lên xe (#286) — BE cũ chưa trả thì vắng. */
+  loadedByName: z.string().nullish(),
 });
 
 /** BE `LoadResponse.Shipment` — một lô giao trên xe; `taskId`: task đóng gói của đơn. */
@@ -69,6 +79,7 @@ export const beLoadSchema = z.object({
   loadId: z.string(),
   code: z.string(),
   warehouseId: z.string(),
+  ...warehouseRefFields,
   status: loadStatusSchema,
   carrierId: z.string().nullish(),
   carrierCode: z.string().nullish(),
@@ -78,6 +89,7 @@ export const beLoadSchema = z.object({
   driverPhone: z.string().nullish(),
   loadingStartedAt: isoInstant.nullish(),
   loadingStartedBy: z.string().nullish(),
+  loadingStartedByName: z.string().nullish(),
   dispatchedAt: isoInstant.nullish(),
   dispatchedBy: z.string().nullish(),
   dispatchedByName: z.string().nullish(),

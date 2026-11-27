@@ -74,6 +74,9 @@ export const bePlanRowSchema = z.object({
   loadPlanId: z.string(),
   code: z.string(),
   warehouseId: z.string(),
+  /** Mã + tên kho (#286) — đọc được cả khi không có quyền danh mục kho; BE cũ chưa trả thì vắng. */
+  warehouseCode: z.string().nullish(),
+  warehouseName: z.string().nullish(),
   status: z.enum(LOAD_PLAN_STATUSES),
   selectionMode: z.enum(LOAD_PLAN_SELECTION_MODES),
   shipmentCount: z.number().int(),
@@ -156,6 +159,9 @@ export const bePlanDetailSchema = z.object({
   loadPlanId: z.string(),
   code: z.string(),
   warehouseId: z.string(),
+  /** Mã + tên kho (#286) — đọc được cả khi không có quyền danh mục kho; BE cũ chưa trả thì vắng. */
+  warehouseCode: z.string().nullish(),
+  warehouseName: z.string().nullish(),
   selectionMode: z.enum(LOAD_PLAN_SELECTION_MODES),
   status: z.enum(LOAD_PLAN_STATUSES),
   note: z.string().nullish(),
