@@ -116,22 +116,24 @@
   --card-border: 1px solid var(--border-default);
 }
 
-/* Mode A · Dark */
+/* Mode A · Dark — thang xám trung tính kiểu Vercel (chốt 2026-11-27): nền gần đen, chữ sáng rõ,
+   bớt "mờ" so với bộ cũ (#0e0f11 / #17181b, chữ phụ #a8aaa3 ngả ấm). */
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg-base: #0e0f11;
-  --bg-surface: #17181b;
-  --bg-subtle: #1f2124;
-  --bg-sidebar: #1f2124;
-  --bg-muted: #2a2c30;
-  --border-default: #2e3034;
-  --border-strong: #3d4045;
-  --ink-primary: #f4f4f1;
-  --ink-secondary: #a8aaa3;
-  /* #9a9c95: 6.39:1 trên bg.surface, 5.04:1 trên bg.muted (cũ #76786f: 3.96 / 3.12). */
-  --ink-tertiary: #9a9c95;
-  --ink-inverse: #1a1b18;
-  --brand: #f4f4f1;
+  --bg-base: #0a0a0a;
+  --bg-surface: #111111;
+  --bg-subtle: #161616;
+  --bg-sidebar: #0a0a0a;
+  --bg-muted: #1f1f1f;
+  --border-default: #262626;
+  --border-strong: #363636;
+  --ink-primary: #ededed;
+  /* #a1a1a1: 7.3:1 trên bg.surface, 6.4:1 trên bg.muted. */
+  --ink-secondary: #a1a1a1;
+  /* #8f8f8f: 5.8:1 trên bg.surface, 5.1:1 trên bg.muted (WCAG 1.4.3 ≥ 4.5). */
+  --ink-tertiary: #8f8f8f;
+  --ink-inverse: #0a0a0a;
+  --brand: #ededed;
   --brand-hover: #ffffff;
   --accent: #4ea6f0;
   /* 6.79:1 trên bg.surface, 5.35:1 trên bg.muted. */
