@@ -27,6 +27,7 @@ import { INSTALLMENT_COPY } from "./copy";
 import { InstallmentStatusCell } from "./installment-columns";
 import { CodeLink, DateCell, MoneyCell, ReceiptStatusDot } from "./primitives";
 import { InstallmentInfoCard } from "./InstallmentInfoCard";
+import { useRecordedReceipt } from "./ReceiptRecordedNotice";
 import { RecordReceiptDialog } from "./RecordReceiptDialog";
 
 const L = PAYMENT_LABELS.detail;
@@ -37,6 +38,7 @@ function InstallmentDetailContent({ id }: { id: string }) {
   const query = useInstallment(id, { enabled: canRead });
   useBreadcrumbLabel(id, query.data?.contractNumber);
   const [recording, setRecording] = useState(false);
+  const recorded = useRecordedReceipt();
   const back = { href: PAYMENT_ROUTES.installments.list };
   if (!canRead)
     return <LoadErrorState error={null} kind="no-read" copy={INSTALLMENT_COPY} back={back} />;
@@ -60,6 +62,7 @@ function InstallmentDetailContent({ id }: { id: string }) {
       <h1 className="sr-only">{`${PAYMENT_LABELS.installments.pageTitle} ${i.contractNumber}`}</h1>
       <div className={DETAIL_GRID_CLASS}>
         <div className="min-w-0 space-y-5">
+          {recorded.notice}
           <InstallmentInfoCard installment={i} />
           <DetailSection title={L.receiptsTitle} icon={ReceiptText}>
             {(i.receipts ?? []).length === 0 ? (
@@ -121,7 +124,11 @@ function InstallmentDetailContent({ id }: { id: string }) {
           </section>
         </div>
       </div>
-      <RecordReceiptDialog installment={recording ? i : null} onClose={() => setRecording(false)} />
+      <RecordReceiptDialog
+        installment={recording ? i : null}
+        onClose={() => setRecording(false)}
+        onRecorded={recorded.onRecorded}
+      />
     </div>
   );
 }

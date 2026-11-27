@@ -209,6 +209,12 @@ export const SHIPPING_LIMITS = {
 } as const;
 
 /**
+ * Hiệu lực mặc định của báo giá mới: hôm nay + 30 ngày, Sale sửa được (owner Tú chốt 2026-11-26, UX-Q2). Docs 14 chỉ nêu
+ * "ngày hết hiệu lực ở tương lai"; số ngày này được ghi vào docs ở PR https://github.com/KLTN-FA26/docs/pull/55.
+ */
+export const QUOTE_DEFAULT_VALIDITY_DAYS = 30;
+
+/**
  * Bậc giá theo thùng — chung cho bảng giá riêng của khách (BE `CustomerPriceRequest`) và giá chuẩn theo quy cách (BE
  * `StandardPriceRequest`, cùng `PriceTiers`): `@NotEmpty @Size(max = 20) tiers`, `Tier.@Min(1) int minQuantity`,
  * `@Size(max = 500) note`, `SellingPrice` (VND số nguyên dương, tối đa 16 chữ số phần nguyên).
