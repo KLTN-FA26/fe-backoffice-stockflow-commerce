@@ -121,7 +121,7 @@ async function countLines(receipt: MockReceipt, order: MockProductionOrder, raws
     const kept = new Set(raw.lpns);
     const measured = {
       quantity: orderLine.unitsPerCarton,
-      receivedQty: orderLine.unitsPerCarton,
+      countedAt: now.toISOString(),
       nominalQty: orderLine.unitsPerCarton,
       locationCode: raw.locationCode,
     };

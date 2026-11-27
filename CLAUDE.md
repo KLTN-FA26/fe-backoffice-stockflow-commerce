@@ -46,6 +46,19 @@ Tài liệu nguồn đầy đủ (bảng dài, phụ lục): `src/_design/FRONTE
 Mỗi task = 1 module = 1 PR, theo Refactor Playbook §13 (9 bước) — dùng `/module <tên>`.
 Route `/admin/*` cho Mode A, storefront cho Mode B. Tên feature folder theo Phụ lục B.
 
+### BẮT BUỘC trước khi code — checkout từ `develop`
+
+Mọi task bắt đầu từ `develop` **mới nhất**, không code tiếp trên nhánh cũ hay `main`:
+
+```bash
+git fetch origin develop
+git checkout -b <loại>/<tên-ngắn> origin/develop   # loại: feat | fix | chore | refactor
+```
+
+- Đang có thay đổi chưa commit → commit/stash trước, không mang sang nhánh mới.
+- Task kéo dài → trước khi push, `git fetch origin develop && git merge origin/develop` để bắt kịp, giải xung đột rồi chạy lại verify bên dưới.
+- PR luôn nhắm vào `develop`.
+
 ### BẮT BUỘC trước khi báo "xong"
 
 Dự án dùng **pnpm** — KHÔNG `npm install` (crash trên cây symlink pnpm).

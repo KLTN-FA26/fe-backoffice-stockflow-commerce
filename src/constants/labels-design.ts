@@ -155,6 +155,8 @@ export const DESIGN_REASON_MAX = 2000;
 export const DESIGN_REVIEW_STORAGE_KEYS = {
   queueConfig: "stockflow:admin:designs:review-queue:config",
   roundsConfig: "stockflow:admin:design-review-rounds:config",
+  queueColumns: "stockflow:admin:designs:review-queue:columns",
+  roundsColumns: "stockflow:admin:design-review-rounds:columns",
   quoteRequestsConfig: "stockflow:admin:design-quote-requests:config",
   projectQuoteRequestsConfig: "stockflow:admin:design-project-quote-requests:config",
   quoteRequestsColumns: "stockflow:admin:design-quote-requests:columns",
@@ -175,15 +177,28 @@ export const DESIGN_QUOTE_REQUEST_LABELS = {
   statusAll: "Tất cả",
   openChat: "Mở chat",
   createQuote: "Lập báo giá",
+  viewDetail: "Xem chi tiết",
   close: "Đóng",
   noConversation: "Khách chưa có hội thoại về thiết kế này",
   noConversationProject: "Khách chưa có hội thoại về dự án này",
   quoteNotApproved: "Thiết kế chưa được duyệt hoặc chưa có SKU riêng — chưa lập báo giá được.",
+  /** BE #451: lập báo giá dự án khi còn dòng chưa duyệt (`details.designIds`). */
+  quoteNotApprovedNamed: (names: string) =>
+    `Chưa lập báo giá được: còn thiết kế chưa duyệt (${names}).`,
   quoteRequestClosed: "Yêu cầu đã được đóng mà không lập báo giá.",
   closeTitle: "Đóng yêu cầu báo giá?",
   closeDescription:
     "Đóng yêu cầu này khi đã báo giá hoặc đã thống nhất với khách ngoài chat. Khách sẽ phải gửi yêu cầu mới cho lần sau.",
   closed: "Đã đóng yêu cầu báo giá",
+  /** Đóng yêu cầu dự án không báo giá: lý do bắt buộc, khách đọc được (BE #451). */
+  closeProjectDescription:
+    "Đóng yêu cầu báo giá dự án này mà không lập báo giá. Khách sẽ đọc được lý do bạn ghi dưới đây.",
+  closeReasonLabel: "Lý do đóng",
+  closeReasonPlaceholder:
+    "Ví dụ: khách chưa sửa thiết kế bị trả lại, đã thống nhất qua điện thoại…",
+  closeReasonRequired: "Nhập lý do đóng (tối đa 1000 ký tự).",
+  closeReason: "Lý do đóng",
+  approvedOf: (approved: number, total: number) => `Đã duyệt ${approved}/${total}`,
   // Why "Lập báo giá" is off, without repeating the design status shown beside it.
   blockedPending: "Lập được sau khi duyệt",
   blockedDraft: "Đợi khách gửi lại",
@@ -206,7 +221,8 @@ export const DESIGN_QUOTE_REQUEST_LABELS = {
     requestedAt: "Yêu cầu lúc",
     status: "Trạng thái",
     returnReason: "Lý do trả lại",
-    actions: "Hành động",
+    /** Cột thao tác: tiêu đề "Thao tác", không ẩn được (backoffice-erp-ui §6). */
+    actions: "Thao tác",
     project: "Dự án",
     designs: "Số thiết kế",
     totalCartons: "Tổng số thùng",

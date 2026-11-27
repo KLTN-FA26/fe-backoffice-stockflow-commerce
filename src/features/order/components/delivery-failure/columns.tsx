@@ -11,6 +11,24 @@ import type { DeliveryFailureCase } from "../../delivery-failure-schemas";
 const C = DELIVERY_FAILURE_LABELS.columns;
 const MONO = "font-[family-name:var(--font-mono)] text-[0.8125rem]";
 
+export const DELIVERY_FAILURE_COLUMNS = [
+  "order",
+  "receipt",
+  "reason",
+  "openedAt",
+  "status",
+] as const;
+export type DeliveryFailureColumn = (typeof DELIVERY_FAILURE_COLUMNS)[number];
+/** Cột mã đơn (link sang chi tiết) luôn hiện. */
+export const DELIVERY_FAILURE_LOCKED: readonly DeliveryFailureColumn[] = ["order"];
+export const DELIVERY_FAILURE_COLUMN_LABELS: Record<DeliveryFailureColumn, string> = {
+  order: C.order,
+  receipt: C.receipt,
+  reason: C.reason,
+  openedAt: C.openedAt,
+  status: C.status,
+};
+
 /**
  * Cột lịch sử lô hàng hoàn về (WF-05 BO-01) — chỉ đọc: không còn "Giao lại"; "Huỷ phần chưa giao" của đơn cũ nằm trong
  * chi tiết đơn (cần lý do giữ của đơn, dòng ở đây không có).

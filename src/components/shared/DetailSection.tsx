@@ -1,10 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { ChevronDown, ChevronRight } from "lucide-react";
-
-import { Button } from "@/components/ui/button";
+import { useId } from "react";
 
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
@@ -47,72 +43,44 @@ export function DetailCardTitle({
 }
 
 /**
- * Nút tiêu đề của mục: chữ như tiêu đề, không nền ở mọi trạng thái. Biến thể `ghost` tô `bg-muted` khi hover và khi
- * `aria-expanded` (dành cho nút mở menu) — ở đây mục mở là trạng thái thường, nên bỏ nền đó; vòng focus của nút giữ nguyên.
- */
-export const DETAIL_SECTION_TOGGLE_CLASS =
-  "text-ink-primary hover:text-accent aria-expanded:text-ink-primary aria-expanded:hover:text-accent h-auto flex-1 justify-start gap-2 bg-transparent p-0 text-left text-[0.9375rem] font-semibold hover:bg-transparent active:bg-transparent aria-expanded:bg-transparent dark:hover:bg-transparent dark:aria-expanded:bg-transparent";
-
-/**
- * Mục thu gọn được của trang chi tiết; `actions` nằm trên dòng tiêu đề, chỉ hiện khi mục mở. Nút tiêu đề báo
- * `aria-expanded`, và mục mang tên của tiêu đề (vùng `region`) cho screen reader.
+ * Mục của trang chi tiết: tiêu đề (icon + chữ) và `actions` trên cùng một dòng, nội dung luôn hiện —
+ * không còn thu gọn / mở rộng (dữ liệu chi tiết cần thấy ngay, không phải bấm mở). Mục mang tên của
+ * tiêu đề (`aria-labelledby`) cho screen reader. `bare`: không khung thẻ (viền, nền, bóng, padding) —
+ * dùng khi nội dung đã tự có khung (bảng) hoặc nằm trong khung chung của trang.
+ *
+ * `defaultOpen` / `forceOpen` giữ trong kiểu để chỗ gọi cũ không phải sửa; mục luôn mở.
  */
 export function DetailSection({
   title,
   icon: Icon,
-  defaultOpen = true,
-  forceOpen = false,
   actions,
+  bare = false,
   children,
 }: {
   title: string;
   icon?: LucideIcon;
+  /** Bỏ qua — mục luôn mở. */
   defaultOpen?: boolean;
-  /** Giữ mục mở khi `true` (ví dụ một ô bên trong đang báo lỗi), dù người dùng đã đóng. */
+  /** Bỏ qua — mục luôn mở. */
   forceOpen?: boolean;
   actions?: ReactNode;
+  bare?: boolean;
   children: ReactNode;
 }) {
-  const [toggled, setOpen] = useState(defaultOpen);
-  const open = toggled || forceOpen;
   const titleId = useId();
-  const panelId = useId();
   return (
-    <section aria-labelledby={titleId} className={DETAIL_CARD_CLASS}>
-      <div className="mb-3 flex items-center gap-2">
-        <Button
+    <section aria-labelledby={titleId} className={bare ? undefined : DETAIL_CARD_CLASS}>
+      <div className="mb-3 flex min-h-8 items-center gap-2">
+        <h2
           id={titleId}
-          type="button"
-          variant="ghost"
-          aria-expanded={open}
-          aria-controls={open ? panelId : undefined}
-          onClick={() => setOpen(!open)}
-          className={DETAIL_SECTION_TOGGLE_CLASS}
+          className="text-ink-primary flex flex-1 items-center gap-2 text-[0.9375rem] font-semibold"
         >
-          {Icon && <Icon className="text-accent size-3.5" />}
+          {Icon && <Icon className="text-accent size-3.5" aria-hidden />}
           {title}
-          {open ? (
-            <ChevronDown className="text-ink-tertiary size-3.5" />
-          ) : (
-            <ChevronRight className="text-ink-tertiary size-3.5" />
-          )}
-        </Button>
-        {actions && open && <div className="flex items-center gap-2">{actions}</div>}
+        </h2>
+        {actions && <div className="flex items-center gap-2">{actions}</div>}
       </div>
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div
-            id={panelId}
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-hidden"
-          >
-            {children}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {children}
     </section>
   );
 }

@@ -176,7 +176,7 @@ const warehouseStockItems = route((params, config) => {
       (!location || row.locationCode.startsWith(location)) &&
       (!sku || row.sku === sku) &&
       (!lot || row.lotNumber === lot) &&
-      (!statuses || statuses.includes(row.status)) &&
+      (!statuses || (row.status !== null && statuses.includes(row.status))) &&
       (includeEmpty || row.onHand > 0),
   );
   return ok(pageOf(sortRows(rows, sort), params));

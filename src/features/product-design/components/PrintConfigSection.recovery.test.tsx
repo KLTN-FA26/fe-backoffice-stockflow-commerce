@@ -17,7 +17,7 @@ import {
   allowAll,
   bagTree,
   cupTree,
-  DEFAULTS_TOGGLE,
+  DEFAULTS_SECTION,
   editStored,
   EMPTY_VARIANT,
   FILE_INPUT,
@@ -46,7 +46,7 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 async function setSeam(user: ReturnType<typeof userEvent.setup>, value: string) {
-  await user.click(await screen.findByRole("button", DEFAULTS_TOGGLE));
+  await screen.findByRole("region", DEFAULTS_SECTION);
   const seam = screen.getByLabelText("Mép dán (mm)");
   await user.clear(seam);
   await user.type(seam, value);
@@ -119,7 +119,7 @@ describe("discarding a chosen file", () => {
     await user.click(screen.getByRole("button", { name: "Bỏ file" }));
     await waitFor(() => expect(screen.queryByText("Nhận ra: Túi")).not.toBeInTheDocument());
 
-    await user.click(screen.getByRole("button", DEFAULTS_TOGGLE));
+    expect(screen.getByRole("region", DEFAULTS_SECTION)).toBeVisible();
     const rim = screen.getByLabelText("Vành miệng ly (mm)");
     await user.clear(rim);
     await user.type(rim, "4");

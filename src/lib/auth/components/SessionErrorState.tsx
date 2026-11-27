@@ -5,6 +5,7 @@ import { useId } from "react";
 
 import { AUTH_UI } from "@/constants/auth";
 
+import { GlassScreen } from "@/components/shared/GlassScreen";
 import { Button } from "@/components/ui/button";
 
 import type { ReactNode } from "react";
@@ -27,7 +28,7 @@ export const SESSION_ERROR_ACTION_CLASS = "h-8 rounded-[var(--r-md)] px-3 text-[
 export function SessionErrorState({ message, onRetry, secondaryAction }: SessionErrorStateProps) {
   const titleId = useId();
   return (
-    <main className="bg-bg-base flex min-h-screen items-center justify-center px-6">
+    <GlassScreen>
       <section
         role="alert"
         aria-labelledby={titleId}
@@ -48,6 +49,6 @@ export function SessionErrorState({ message, onRetry, secondaryAction }: Session
           </Button>
         </footer>
       </section>
-    </main>
+    </GlassScreen>
   );
 }

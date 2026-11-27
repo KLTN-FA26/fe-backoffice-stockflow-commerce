@@ -112,7 +112,14 @@ export const RETURN_LABELS = {
   vatAdjustmentHint:
     "Trả hàng đã hoàn tiền trên đơn có hoá đơn đã phát hành: Kế toán phát hành hoá đơn điều chỉnh giảm (nháp do hệ thống lập).",
   searchPlaceholder: "Tìm số RMA hoặc mã đơn",
+  /** Lọc trên header cột (data-table-mode-a §4.1) — BE không có tham số lý do / nguồn: chỉ xét trang đang xem. */
+  headerFilter: {
+    reasonSearch: "Tìm lý do…",
+    channelSearch: "Tìm nguồn…",
+    empty: "Không có lựa chọn",
+  },
   statusAll: "Mọi trạng thái",
+  statusFilter: "Trạng thái",
   clearFilters: "Bỏ bộ lọc",
   emptyTitle: "Chưa có yêu cầu trả hàng",
   emptyDescription:

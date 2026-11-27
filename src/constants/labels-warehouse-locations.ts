@@ -28,7 +28,6 @@ const COLUMN: Record<LocationColumn, string> = {
   skus: "SKU",
   onHand: "Tồn (cái)",
   reserved: "Đang giữ (cái)",
-  expiry: "Hạn dùng gần nhất",
   actions: "Thao tác",
 };
 

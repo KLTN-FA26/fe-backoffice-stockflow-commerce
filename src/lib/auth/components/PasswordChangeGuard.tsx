@@ -7,6 +7,7 @@ import { APP_ROUTES } from "@/constants";
 import { AUTH_UI } from "@/constants/auth";
 
 import { CarPageLoader } from "@/components/shared/CarPageLoader";
+import { GlassScreen } from "@/components/shared/GlassScreen";
 
 import { useAuthStore } from "../auth-store";
 
@@ -28,9 +29,9 @@ export function PasswordChangeGuard({ children }: { children: ReactNode }) {
 
   if (mustChange) {
     return (
-      <main className="bg-bg-base flex min-h-screen items-center justify-center px-6">
+      <GlassScreen>
         <CarPageLoader label={AUTH_UI.verifyingSession} />
-      </main>
+      </GlassScreen>
     );
   }
   return children;

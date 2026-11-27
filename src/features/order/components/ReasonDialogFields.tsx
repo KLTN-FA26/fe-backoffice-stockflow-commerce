@@ -10,7 +10,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/components/shared/combobox-select";
 import { Textarea } from "@/components/ui/textarea";
 
 export interface OrderReasonOption {

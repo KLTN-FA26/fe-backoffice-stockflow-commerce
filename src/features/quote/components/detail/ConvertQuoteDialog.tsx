@@ -9,10 +9,21 @@ import { formatAddress, useCustomerAddressOptions } from "@/lib/references/custo
 import { quoteErrorMessage } from "@/features/quote/errors";
 import { useConvertQuote } from "@/features/quote/mutations";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
-import { FORM_INPUT_CLASS, FormField } from "@/components/shared/FormField";
+import { FormField } from "@/components/shared/FormField";
+import { FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
+import {
+  Select,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/shared/combobox-select";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { Notice } from "@/components/shared/Notice";
 
 import type { Quote } from "@/features/quote/types";
+
+/** Đại diện cho "" (địa chỉ mặc định) — SelectItem không nhận value rỗng. */
+const DEFAULT_ADDRESS = "__default__";
 
 function AddressSelect({
   id,
@@ -35,22 +46,28 @@ function AddressSelect({
     : (defaultLabel ?? undefined);
   return (
     <FormField id={id} label={label} hint={chosen}>
-      <select
-        id={id}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        aria-describedby={chosen ? `${id}-hint` : undefined}
-        className={`${FORM_INPUT_CLASS} border px-2`}
+      <Select
+        value={value === "" ? DEFAULT_ADDRESS : value}
+        onValueChange={(next) => onChange(next === DEFAULT_ADDRESS ? "" : next)}
       >
-        <option value="">
-          {defaultLabel ? `Mặc định — ${defaultLabel}` : "Địa chỉ mặc định của khách"}
-        </option>
-        {options.map((option) => (
-          <option key={option.id} value={option.id}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+        <SelectTrigger
+          id={id}
+          aria-describedby={chosen ? `${id}-hint` : undefined}
+          className={FORM_SELECT_CLASS}
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <TitledSelectContent title={label}>
+          <SelectItem value={DEFAULT_ADDRESS}>
+            {defaultLabel ? `Mặc định — ${defaultLabel}` : "Địa chỉ mặc định của khách"}
+          </SelectItem>
+          {options.map((option) => (
+            <SelectItem key={option.id} value={option.id}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </TitledSelectContent>
+      </Select>
     </FormField>
   );
 }

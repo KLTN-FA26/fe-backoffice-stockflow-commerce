@@ -14,7 +14,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/components/shared/combobox-select";
 
 import { applyEInvoiceFieldErrors, einvoiceErrorMessage } from "../errors";
 import { providerAccountInputSchema } from "../input-schemas";

@@ -109,8 +109,9 @@ describe("ProductAttributesSection — GET /products/{id}/attributes", () => {
     setup([]);
     renderSection("Approved");
     expect(await screen.findByText("Trắng")).toBeInTheDocument();
-    expect(screen.getByText("Cũ")).toBeInTheDocument();
-    expect(screen.getByText("(đã vô hiệu)")).toBeInTheDocument();
+    // giá trị đã vô hiệu: gạch ngang, chú thích "Đã vô hiệu" (title) thay chữ "(đã vô hiệu)"
+    expect(screen.getByTitle("Đã vô hiệu")).toHaveTextContent("Cũ");
+    expect(screen.getByTitle("Đã vô hiệu")).toHaveClass("line-through");
     expect(screen.getByText("Cotton")).toBeInTheDocument();
     expect(screen.getByText("1.5 kg")).toBeInTheDocument();
     expect(screen.getByText("Không")).toBeInTheDocument();

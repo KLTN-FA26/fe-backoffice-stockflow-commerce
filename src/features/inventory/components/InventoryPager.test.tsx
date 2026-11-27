@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { INVENTORY_LABELS } from "@/constants/inventory";
+import { pickOption } from "@/test/ui-actions";
 
 import { adjustmentFixture } from "../test-support";
 import { InventoryPager } from "./InventoryPager";
@@ -63,7 +64,7 @@ describe("InventoryPager", () => {
     await user.click(screen.getByRole("button", { name: INVENTORY_LABELS.next }));
     // Backend page 1 (zero-based) is UI page 2: previous → 1, next → 3.
     expect(setPage.mock.calls).toEqual([[1], [3]]);
-    await user.selectOptions(screen.getByLabelText(INVENTORY_LABELS.perPage), "50");
+    await pickOption(user, screen.getByLabelText(INVENTORY_LABELS.perPage), "50");
     expect(setSize).toHaveBeenCalledWith(50);
   });
 

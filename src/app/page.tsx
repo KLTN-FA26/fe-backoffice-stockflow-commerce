@@ -1,5 +1,7 @@
 import { HomeFooter, HomeHero, HomeIllustration } from "@/features/home";
 
+import { DotBackdrop } from "@/components/shared/DotBackdrop";
+
 /**
  * Trang chủ tĩnh, là cổng vào hệ thống — không scene 3D.
  *
@@ -9,11 +11,13 @@ import { HomeFooter, HomeHero, HomeIllustration } from "@/features/home";
  * cắt mất footer.
  *
  * Ảnh minh hoạ chỉ hiện từ `lg` trở lên: dưới ngưỡng đó không đủ chỗ cho hai cột,
- * và trang chủ ưu tiên phần chữ + CTA.
+ * và trang chủ ưu tiên phần chữ + CTA. Nền chấm + đốm màu mờ (cùng `DotBackdrop` với trang đăng nhập)
+ * (không khung kính — hero đứng thẳng trên nền).
  */
 export default function Home() {
   return (
-    <div className="bg-bg-base text-ink-primary flex h-dvh flex-col overflow-hidden">
+    <div className="bg-bg-base text-ink-primary relative isolate flex h-dvh flex-col overflow-hidden">
+      <DotBackdrop glowClassName="h-[min(520px,80vh)] w-[min(1000px,95vw)]" />
       <main className="mx-auto flex min-h-0 w-full max-w-5xl flex-1 items-center gap-12 overflow-y-auto px-5 py-8 sm:px-6 lg:px-8">
         <HomeHero />
         <div className="hidden shrink-0 lg:block">

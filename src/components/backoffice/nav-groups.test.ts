@@ -5,6 +5,8 @@
 import { describe, expect, it } from "vitest";
 
 import { ADMIN_ROUTES, NAV_GROUP_LABELS, PRODUCTION_LABELS, UI_LABELS } from "@/constants";
+import { BANK_TRANSACTION_ROUTES } from "@/constants/bank-transaction";
+import { CREDIT_REQUEST_ROUTES } from "@/constants/credit-request";
 import { EINVOICE_ROUTES } from "@/constants/einvoice";
 import { INVENTORY_ROUTES } from "@/constants/inventory";
 import { PAYMENT_LABELS } from "@/constants/labels-payment";
@@ -84,6 +86,8 @@ describe("NAV_GROUPS — chia tab theo docs 00 §3", () => {
     expect(hrefsOf(NAV_GROUP_LABELS.inventory)).toEqual([
       INVENTORY_ROUTES.overview,
       INVENTORY_ROUTES.adjustments,
+      // Tra cứu thùng LPN (docs 20 §4.1) — module 20 sở hữu
+      INVENTORY_ROUTES.cartons,
       INVENTORY_ROUTES.quarantine,
       INVENTORY_ROUTES.movements,
     ]);
@@ -106,8 +110,10 @@ describe("NAV_GROUPS — chia tab theo docs 00 §3", () => {
       PAYMENT_ROUTES.installments.list,
       PAYMENT_ROUTES.receivables,
       PAYMENT_ROUTES.receipts.list,
+      BANK_TRANSACTION_ROUTES.list,
       PAYMENT_ROUTES.refunds.list,
       ADMIN_ROUTES.orders.creditHolds,
+      CREDIT_REQUEST_ROUTES.list,
       EINVOICE_ROUTES.list,
       EINVOICE_ROUTES.register,
       EINVOICE_ROUTES.settings,

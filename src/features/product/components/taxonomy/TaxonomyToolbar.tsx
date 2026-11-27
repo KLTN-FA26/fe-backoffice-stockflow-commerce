@@ -3,22 +3,17 @@
 import { UI_LABELS } from "@/constants";
 import { ListToolbar } from "@/components/shared/ListToolbar";
 
+import { TAXONOMY_STATUS_LABEL, TAXONOMY_STATUS_OPTIONS } from "./taxonomy-header-filters";
+
 import type { ReactNode } from "react";
 import type { TaxonomyListState, TaxonomyStatusFilter } from "./useTaxonomyListState";
 
 const L = UI_LABELS.taxonomy;
-const STATUS_LABEL: Record<TaxonomyStatusFilter, string> = {
-  active: L.active,
-  inactive: L.inactive,
-};
-const STATUS_OPTIONS = (Object.keys(STATUS_LABEL) as TaxonomyStatusFilter[]).map((value) => ({
-  value,
-  label: STATUS_LABEL[value],
-}));
 
 /**
- * Toolbar data-table Mode A cho hai tab: tìm theo mã / tên, lọc trạng thái (BE nhận MỘT `active`
- * nên là chọn một), ẩn hiện cột, thanh cấu hình.
+ * Toolbar data-table Mode A cho hai tab (kiểu Vercel, như trang Sản phẩm): hàng tìm kiếm chỉ còn ô
+ * tìm theo mã / tên; nút "Bộ lọc" (trạng thái — BE nhận MỘT `active` nên là chọn một) + "Ẩn hiện cột"
+ * nằm đầu thanh cấu hình (`controlsIn="summary"`). Nút tạo mới nằm trên topbar (`TaxonomyManager`).
  */
 export function TaxonomyToolbar({
   s,
@@ -26,7 +21,6 @@ export function TaxonomyToolbar({
   columnLabels,
   lockedColumn,
   tools,
-  actions,
 }: {
   s: TaxonomyListState;
   searchPlaceholder: string;
@@ -34,8 +28,6 @@ export function TaxonomyToolbar({
   lockedColumn: string;
   /** Công cụ riêng của tab (mở / thu gọn cây danh mục). */
   tools?: ReactNode;
-  /** Nút hành động của trang (Thêm thương hiệu / danh mục). */
-  actions?: ReactNode;
 }) {
   const allColumns = Object.keys(columnLabels);
   return (
@@ -43,7 +35,7 @@ export function TaxonomyToolbar({
       search={s.q}
       onSearchChange={s.setQ}
       searchPlaceholder={searchPlaceholder}
-      statusOptions={STATUS_OPTIONS}
+      statusOptions={TAXONOMY_STATUS_OPTIONS}
       selectedStatuses={s.status ? [s.status] : []}
       onToggleStatus={(value) => s.setStatus(s.status === value ? null : value)}
       onClearStatuses={() => s.setStatus(null)}
@@ -57,19 +49,30 @@ export function TaxonomyToolbar({
       onResetColumns={s.resetColumns}
       hasColumnConfig={s.hasColumnConfig}
       tools={tools}
-      actions={actions}
       summaryItems={[
         {
           label: "Tìm kiếm chính",
-          value: s.q || "—",
+          value: s.q || "Chưa dùng",
           active: Boolean(s.q),
           onClear: () => s.setQ(""),
         },
         {
           label: L.field.active,
-          value: s.status ? STATUS_LABEL[s.status] : L.allStatuses,
+          value: s.status ? TAXONOMY_STATUS_LABEL[s.status] : L.allStatuses,
           active: Boolean(s.status),
           onClear: () => s.setStatus(null),
+        },
+        {
+          label: L.field.code,
+          value: s.code || "Chưa nhập",
+          active: Boolean(s.code),
+          onClear: () => s.setCode(""),
+        },
+        {
+          label: L.field.name,
+          value: s.name || "Chưa nhập",
+          active: Boolean(s.name),
+          onClear: () => s.setName(""),
         },
         {
           label: "Cột hiển thị",
@@ -82,7 +85,9 @@ export function TaxonomyToolbar({
         s.resetFilters();
         s.resetColumns();
       }}
-      resetDisabled={!s.filtered && !s.hasColumnConfig}
+      // Đang gõ (chưa qua debounce) cũng tính là có lọc để "Đặt lại" bấm được ngay
+      resetDisabled={!s.filtered && !s.code && !s.name && !s.q && !s.hasColumnConfig}
+      controlsIn="summary"
     />
   );
 }

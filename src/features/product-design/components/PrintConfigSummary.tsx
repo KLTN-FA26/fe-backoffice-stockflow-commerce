@@ -1,4 +1,5 @@
 import { Save } from "lucide-react";
+import { cn } from "cn";
 
 import { PRINT_CONFIG_SCREEN_LABELS } from "@/constants/labels-print-config";
 import { DetailSection } from "@/components/shared/DetailSection";
@@ -40,10 +41,7 @@ export function PrintConfigSummary({
   const { model } = config;
   const stored = model ? defaultsFor(model.kind, config) : null;
   return (
-    <DetailSection
-      title={PRINT_CONFIG_SCREEN_LABELS.cards.saved}
-      icon={Save}
-    >
+    <DetailSection title={PRINT_CONFIG_SCREEN_LABELS.cards.saved} icon={Save}>
       {/* Sized by its column, not by the screen: the card sits in the wide view column or under the narrow work one. */}
       <div className="@container space-y-4">
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[0.8125rem]">
@@ -61,7 +59,9 @@ export function PrintConfigSummary({
         </dl>
 
         {model && stored && (
-          <div className="grid gap-3 @xl:grid-cols-2">
+          <div
+            className={cn("grid items-start gap-3 @xl:grid-cols-2", !editing && "@5xl:grid-cols-3")}
+          >
             <ValueTable
               caption={TEXT.measuredTitle}
               rows={figureRows(model).map(({ label, value }) => ({

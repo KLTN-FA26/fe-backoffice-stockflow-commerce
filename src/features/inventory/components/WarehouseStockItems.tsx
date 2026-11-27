@@ -6,7 +6,6 @@ import { INVENTORY_LABELS } from "@/constants/inventory";
 import { PAGE_SIZE } from "@/constants/table";
 
 import { formatDate, formatDateTime } from "@/lib/format/date";
-import { formatNumber } from "@/lib/format/number";
 
 import { EmptyState } from "@/components/shared/EmptyState";
 import { HiddenDuringCountBadge } from "@/components/shared/HiddenDuringCountBadge";
@@ -22,6 +21,7 @@ import {
 } from "@/components/ui/table";
 
 import { useWarehouseStockItems } from "../queries";
+import { CartonFigure } from "./CartonFigure";
 import { InventoryError } from "./InventoryFeedback";
 import { InventoryPager } from "./InventoryPager";
 
@@ -100,7 +100,7 @@ export function WarehouseStockItems({
                     <TableCell className="tabular-nums">
                       {item.expiryDate ? formatDate(item.expiryDate) : missing}
                     </TableCell>
-                    <TableCell className="font-mono text-xs">{item.status}</TableCell>
+                    <TableCell className="font-mono text-xs">{item.status ?? missing}</TableCell>
                     {item.hiddenDuringCount ? (
                       <TableCell colSpan={3} className="text-right">
                         <HiddenDuringCountBadge />
@@ -108,13 +108,13 @@ export function WarehouseStockItems({
                     ) : (
                       <>
                         <TableCell className="text-right font-mono tabular-nums">
-                          {item.onHand === undefined ? missing : formatNumber(item.onHand)}
+                          <CartonFigure cartons={item.onHandCartons} units={item.onHand} />
                         </TableCell>
                         <TableCell className="text-right font-mono tabular-nums">
-                          {item.reserved === undefined ? missing : formatNumber(item.reserved)}
+                          <CartonFigure cartons={item.reservedCartons} units={item.reserved} />
                         </TableCell>
                         <TableCell className="text-right font-mono tabular-nums">
-                          {item.available === undefined ? missing : formatNumber(item.available)}
+                          <CartonFigure cartons={item.availableCartons} units={item.available} />
                         </TableCell>
                       </>
                     )}

@@ -165,9 +165,10 @@ describe("ReservationRowResponse", () => {
     expect(reservationRowDto.parse(released).releaseReason).toBe(releaseReason);
   });
 
-  it("accepts an omitted lot, expiresAt, releaseReason and closedAt on a pinned live hold", () => {
+  it("accepts an omitted lot, releaseReason and closedAt on a pinned live hold", () => {
     const parsed = reservationRowDto.parse(reservation);
-    expect(parsed.expiresAt).toBeUndefined();
+    // ADR-0011 (BE, issue #305): `expiresAt` is gone from the hold.
+    expect(parsed).not.toHaveProperty("expiresAt");
     expect(parsed.releaseReason).toBeUndefined();
     expect(parsed.closedAt).toBeUndefined();
     expect(parsed).not.toHaveProperty("orderNumber");
