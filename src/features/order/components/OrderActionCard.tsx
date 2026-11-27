@@ -7,9 +7,11 @@ import {
   ORDER_RELEASE_BLOCKER_LABELS,
   ORDER_STATUS_UNKNOWN,
 } from "@/constants";
+import { PAYMENT_INSTALLMENT_PERMISSIONS } from "@/constants/payment";
 import { StatusDot } from "@/components/shared/StatusDot";
 
 import { allowedOrderActions, isOrderTerminal, orderActionContextOf } from "../lifecycle";
+import { useOrderInstallmentsSummary } from "../queries";
 import { releaseBlockers } from "../release-rules";
 
 import { CreditApproveAction } from "./credit-hold/CreditApproveAction";
@@ -111,6 +113,12 @@ function holdGuidanceFor(
  * CreditHoldService, Order#requireNotPacked).
  */
 export function OrderActionCard({ order, can, estimateSlot }: OrderActionCardProps) {
+  const canRelease = can(ORDER_PERMISSIONS.release);
+  // BE tính `onSigningPaid` từ mọi đợt ON_SIGNING. Quản lý kho thiếu quyền đọc installments vẫn cần lời giải thích.
+  const payment = useOrderInstallmentsSummary(order.orderId, {
+    enabled:
+      canRelease && can(PAYMENT_INSTALLMENT_PERMISSIONS.read) && order.status === "Pending Payment",
+  });
   const actions = allowedOrderActions(order.status, can, orderActionContextOf(order));
   const has = (code: OrderActionCode) => actions.some((a) => a.code === code);
   const onHold = order.status === "On Hold";
@@ -124,9 +132,9 @@ export function OrderActionCard({ order, can, estimateSlot }: OrderActionCardPro
       ? ORDER_ACTION_LABELS.shipmentsHint
       : null;
   const guidance = holdGuidance ?? shipmentsHint;
-  // Lý do biết trước chưa release được (đơn cọc chưa nhận cọc): chỉ cho người có quyền release; nói ra thay vì ẩn nút.
-  // UI-only — Backend phải re-check (OrderReleaseService: BR-PRD-09).
-  const blockers = can(ORDER_PERMISSIONS.release) ? releaseBlockers(order) : [];
+  // Lý do biết trước chưa release được: chỉ cho người có quyền release; nói ra thay vì ẩn nút.
+  // UI-only — Backend phải re-check (docs 07 BR-01, 15 BR-07, 17 BR-02).
+  const blockers = canRelease ? releaseBlockers(order, payment.data) : [];
 
   return (
     <section
