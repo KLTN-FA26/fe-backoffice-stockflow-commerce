@@ -10,12 +10,14 @@ import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
 import { loadPlanActions } from "@/features/load-planning/lifecycle";
 import { isFinalLoadPlan } from "@/features/load-planning/plan-selectors";
 import { useLoadPlan, useLoadPlanLayouts } from "@/features/load-planning/queries";
+import { Alert } from "@/components/shared/Alert";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 
 import { PlacementEditorGate } from "./editor/PlacementEditorGate";
 
 import { DetailLoadError } from "./detail/DetailLoadError";
 import { PlanActions } from "./detail/PlanActions";
+import { useDirectCalculate } from "./detail/useDirectCalculate";
 import { PlanBody } from "./detail/PlanBody";
 import { PlanDialogs } from "./detail/PlanDialogs";
 import { PlanHeaderCard } from "./detail/PlanHeaderCard";
@@ -37,6 +39,7 @@ function DetailBody({ id }: { id: string }) {
   // Chỉnh xếp tay (PR F5): thay phần tab bằng trình soạn tới khi lưu hoặc thoát
   const [editing, setEditing] = useState(false);
   useBreadcrumbLabel(id, plan?.code);
+  const direct = useDirectCalculate(id, setNotice);
 
   if (!canRead) return <DetailLoadError error={null} kind="no-read" />;
   if (query.isPending) {
@@ -70,10 +73,23 @@ function DetailBody({ id }: { id: string }) {
         warehouseLabel={warehouseLabel}
         actions={
           editing ? null : (
-            <PlanActions actions={actions} onOpen={setDialog} onEdit={() => setEditing(true)} />
+            <PlanActions
+              actions={actions}
+              // Chưa có bố cục thì tính ngay, không hỏi "sẽ thay thế bố cục" (S16-5)
+              onOpen={(kind) =>
+                kind === "calculate" && plan.vehicles.length === 0 ? direct.run() : setDialog(kind)
+              }
+              onEdit={() => setEditing(true)}
+              calculating={direct.pending}
+            />
           )
         }
       />
+      {direct.pending && (
+        <div role="status">
+          <Alert tone="info">{UI_LABELS.loadPlan.detail.calculating}</Alert>
+        </div>
+      )}
       <PlanNotices
         plan={plan}
         actions={actions}

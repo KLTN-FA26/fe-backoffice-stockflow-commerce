@@ -43,7 +43,7 @@ export const SHIPPING_UI_LABELS = {
     carrierPlaceholder: "Chọn hãng",
     vehiclePlate: "Biển số xe",
     driverName: "Tài xế",
-    driverPhone: "SĐT tài xế",
+    driverPhone: "Điện thoại tài xế",
     note: "Ghi chú",
     weight: "Cân nặng",
     weightUnit: "kg",
@@ -155,12 +155,12 @@ export const SHIPPING_UI_LABELS = {
     placeholder: "Quét hoặc nhập mã kiện rồi nhấn Enter",
     hint: "Ô quét luôn sẵn sàng nhận mã — dùng máy quét mã vạch hoặc gõ tay.",
     accepted: "Đã lên xe",
-    notLoaded: "Máy chủ chưa xếp kiện này lên xe — quét lại.",
+    notLoaded: "Chưa ghi được kiện này lên xe, hãy quét lại.",
     rejectedTitle: "Mã quét không thành công — chưa lên xe",
     clearRejected: "Xoá danh sách",
     notSent: "Chưa gửi được — quét lại cùng mã để thử lại.",
     invalidResponse:
-      "Máy chủ trả dữ liệu sai định dạng — kiểm tra bảng kiện trước khi quét lại, báo kỹ thuật.",
+      "Chưa ghi được kiện này lên xe, hãy quét lại. Nếu vẫn lỗi, nhìn bảng kiện bên dưới xem kiện đã lên xe chưa.",
   },
   /* ── Bàn giao + biên bản ─────────────────────────────────────────── */
   handover: {
@@ -169,7 +169,7 @@ export const SHIPPING_UI_LABELS = {
       "Hai bên đã ký biên bản giấy của riêng xe này. Chuyến chuyển sang Đã bàn giao; mỗi lô chỉ chuyển Đã bàn giao ở xe cuối cùng chở nó.",
     representative: "Người ký bên hãng",
     signerIsDriver: "Người ký là tài xế",
-    moreOpen: "Thêm SĐT tài xế, mã biên bản, ghi chú (không bắt buộc)",
+    moreOpen: "Thêm điện thoại tài xế, mã biên bản, ghi chú (không bắt buộc)",
     /** Dòng "Còn thiếu" của hộp thoại ký bàn giao: ô nào còn khoá nút xác nhận. */
     missing: {
       prefix: "Còn thiếu",
@@ -183,7 +183,7 @@ export const SHIPPING_UI_LABELS = {
     driverNameHint:
       "Chuyến chưa có tên tài xế — bắt buộc nhập trước khi ký (lưu vào chuyến trước khi ký).",
     vehiclePlate: "Biển số xe",
-    driverPhone: "SĐT tài xế",
+    driverPhone: "Điện thoại tài xế",
     signatureRef: "Mã / số biên bản giấy đã ký",
     signatureRefHint: "Không bắt buộc — dùng để đối chiếu bản giấy hoặc bản scan.",
     note: "Ghi chú bàn giao",

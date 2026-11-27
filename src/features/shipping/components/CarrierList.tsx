@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Plus, Truck } from "lucide-react";
 
-import { SHIPMENT_PERMISSIONS, PAGE_SIZE, UI_LABELS } from "@/constants";
+import { SHIPMENT_PERMISSIONS, UI_LABELS } from "@/constants";
 import { useCan } from "@/lib/auth";
 import { carrierActions } from "@/features/shipping/carrier-lifecycle";
 import { DataTable } from "@/components/shared/DataTable";
@@ -19,7 +19,7 @@ import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/
 
 import { buildCarrierColumns } from "./carrier/carrier-columns";
 import { CarrierFormDialog } from "./carrier/CarrierFormDialog";
-import { useCarrierListState } from "./carrier/useCarrierListState";
+import { CARRIER_PAGE_SIZES, useCarrierListState } from "./carrier/useCarrierListState";
 import { RefetchErrorNotice } from "./primitives";
 import { ShippingLoadError } from "./ShippingLoadError";
 import { ShippingPermissionGate } from "./ShippingPermissionGate";
@@ -90,8 +90,8 @@ function CarrierListContent() {
           data={page.items}
           rowKey={(row) => row.carrierId}
           caption={`${UI_LABELS.common.showing} ${page.items.length} / ${page.totalElements} ${C.listCaption}`}
-          pageSize={PAGE_SIZE.md}
-          pageSizeOptions={[PAGE_SIZE.md]}
+          pageSize={s.pageSize}
+          pageSizeOptions={CARRIER_PAGE_SIZES}
           serverPagination={{
             page: page.page,
             size: page.size,
@@ -100,7 +100,7 @@ function CarrierListContent() {
             hasNext: page.hasNext,
             hasPrevious: page.hasPrevious,
             onPageChange: (p) => s.setPage(p + 1),
-            onPageSizeChange: () => undefined,
+            onPageSizeChange: s.changePageSize,
           }}
         />
       </>

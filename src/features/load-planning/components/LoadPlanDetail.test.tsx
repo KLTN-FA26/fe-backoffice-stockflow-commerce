@@ -605,6 +605,40 @@ describe("LoadPlanDetail — cổng quyền và trạng thái", () => {
     expect(screen.getByText(L.noVehicles)).toBeInTheDocument();
   });
 
+  it("S16-5: a draft with no layout calculates at once, no 'will replace the layout' dialog, and says it is calculating", async () => {
+    const user = userEvent.setup();
+    let release: (plan: PlanDetail) => void = () => undefined;
+    const draft = planFixture({
+      status: "DRAFT",
+      vehicles: [],
+      packages: [],
+      packageCount: 0,
+      placedCount: 0,
+      version: 3,
+    });
+    const { post } = renderDetail(ACTORS.dispatcher, draft);
+    post.mockImplementationOnce(
+      () => new Promise((resolve) => (release = (plan) => resolve({ data: plan }))),
+    );
+    await user.click(await screen.findByRole("button", { name: L.actions.calculate }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(await screen.findByText(L.calculating)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: L.actions.calculating })).toBeDisabled();
+    expect(post.mock.calls.find(([url]) => url === `${PATH}/calculation`)?.[1]).toEqual({
+      expectedVersion: 3,
+    });
+    release(planFixture({ status: "PLANNED", version: 4 }));
+    await waitFor(() => expect(screen.queryByText(L.calculating)).not.toBeInTheDocument());
+  });
+
+  it("S16-5: with a layout already there, calculating still asks before replacing it", async () => {
+    const user = userEvent.setup();
+    renderDetail(ACTORS.dispatcher);
+    await planAction(user, L.actions.calculate).then((button) => button && user.click(button));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(D.calculate.description)).toBeInTheDocument();
+  });
+
   it("confirm is shown but disabled while the unplaced parcels are not acknowledged (BR-13)", async () => {
     renderDetail(ACTORS.dispatcher, planWithUnplaced());
     expect(await screen.findByRole("button", { name: L.actions.confirm })).toBeDisabled();
