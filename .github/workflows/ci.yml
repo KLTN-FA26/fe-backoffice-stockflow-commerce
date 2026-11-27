@@ -27,7 +27,8 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Bộ test đã chạy 16–21 phút (27/11/2026): 20 phút làm job bị huỷ giữa chừng, không ra xanh / đỏ.
+    timeout-minutes: 40
 
     steps:
       - uses: actions/checkout@v4

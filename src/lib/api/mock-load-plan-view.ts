@@ -101,12 +101,29 @@ export function layoutView(vehicle: MockPlanVehicle) {
   };
 }
 
+/** Mã + tên kho của mock-data theo id — nạp một lần (`loadPlanWarehouseRefs`) trước khi route dựng response. */
+const warehouseRefs = new Map<string, { code: string; name: string }>();
+
+/** Nạp danh mục kho của mock-data (import động như mọi store mock) để view đồng bộ đọc được mã + tên kho. */
+export async function loadPlanWarehouseRefs(): Promise<void> {
+  if (warehouseRefs.size > 0) return;
+  const { warehouses } = await import("@/lib/mock-data");
+  for (const w of warehouses) warehouseRefs.set(w.warehouseId, { code: w.code, name: w.name });
+}
+
+/** BE trả mã + tên kho cạnh `warehouseId` (#286); kho lạ → vắng như BE bỏ null. */
+const warehouseRef = (warehouseId: string) => {
+  const warehouse = warehouseRefs.get(warehouseId);
+  return { warehouseCode: warehouse?.code, warehouseName: warehouse?.name };
+};
+
 export function planRow(plan: MockPlan) {
   const held = heldParcels(plan);
   return {
     loadPlanId: plan.loadPlanId,
     code: plan.code,
     warehouseId: plan.warehouseId,
+    ...warehouseRef(plan.warehouseId),
     status: plan.status,
     sourceType: "ORDER",
     selectionMode: plan.selectionMode,
@@ -129,6 +146,7 @@ export function planDetail(plan: MockPlan) {
     loadPlanId: plan.loadPlanId,
     code: plan.code,
     warehouseId: plan.warehouseId,
+    ...warehouseRef(plan.warehouseId),
     sourceType: "ORDER",
     selectionMode: plan.selectionMode,
     status: plan.status,

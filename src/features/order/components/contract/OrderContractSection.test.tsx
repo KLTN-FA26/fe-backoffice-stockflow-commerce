@@ -2,17 +2,12 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { focusManager } from "@tanstack/react-query";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
-import {
-  CONTRACT_MILESTONE_LABELS,
-  ORDER_PERMISSIONS,
-  SALES_CONTRACT_PERMISSIONS,
-} from "@/constants";
+import { ORDER_PERMISSIONS, SALES_CONTRACT_PERMISSIONS } from "@/constants";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 import { toast } from "@/components/shared/Toast";
-import { pickOption } from "@/test/ui-actions";
 
 import {
   CONTRACT_LINE_ID,
@@ -24,7 +19,11 @@ import {
   contractOrderDto,
   contractSent,
 } from "../../__fixtures__/contract";
-import { mockOrderApiGet, renderOrderScreen } from "../../__fixtures__/render";
+import {
+  mockOrderApiGet,
+  pickOrderSelectOption,
+  renderOrderScreen,
+} from "../../__fixtures__/render";
 import { toOrder } from "../../api";
 import { orderDtoSchema } from "../../schemas";
 
@@ -211,6 +210,25 @@ describe("TC-F04-02 — editor lịch giao / lịch thanh toán", () => {
     expect(screen.getByText("Lịch giao không hợp lệ.")).toBeInTheDocument();
   });
 
+  it("S06-4: sau khi lưu hợp đồng, trang cuộn về đầu khối Hợp đồng (thấy nút Gửi hợp đồng và trạng thái)", async () => {
+    const scrollIntoView = vi.fn();
+    const original = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scrollIntoView;
+    onTestFinished(() => {
+      Element.prototype.scrollIntoView = original;
+    });
+    renderSection(() => contractDraft);
+    await userEvent.click(await screen.findByRole("button", { name: /Sửa/ }));
+    vi.spyOn(api, "put").mockResolvedValue({ data: contractDraft });
+    await userEvent.click(screen.getByRole("button", { name: "Lưu hợp đồng" }));
+    await waitFor(() => expect(scrollIntoView).toHaveBeenCalled());
+    const target = scrollIntoView.mock.contexts[0] as HTMLElement;
+    expect(target.id).toBe("contract");
+    expect(scrollIntoView).toHaveBeenCalledWith(expect.objectContaining({ block: "start" }));
+    // The editor is closed and the summary with its actions is what the user lands on.
+    expect(await screen.findByRole("button", { name: /Gửi hợp đồng/ })).toBeInTheDocument();
+  });
+
   it("đợt % → body percent; BEFORE_DELIVERY không gửi số ngày", async () => {
     renderSection(() => contractDraft);
     await userEvent.click(await screen.findByRole("button", { name: /Sửa/ }));
@@ -237,16 +255,14 @@ describe("WF-02 N10 — đổi mốc khỏi ON_SIGNING", () => {
   it("số ngày mặc định 3 bị xoá; số ngày do người dùng nhập khác 3 được giữ", async () => {
     renderSection(() => contractDraft);
     await userEvent.click(await screen.findByRole("button", { name: /Sửa/ }));
-    const milestone = screen.getByRole("combobox", { name: "Đợt 1 — mốc" });
     const days = screen.getByRole("textbox", { name: "Đợt 1 — số ngày" });
     expect(days).toHaveValue("3");
-    const user = userEvent.setup();
-    await pickOption(user, milestone, CONTRACT_MILESTONE_LABELS.AFTER_DELIVERY);
+    await pickOrderSelectOption(userEvent, "Đợt 1 — mốc", "Sau giao");
     expect(days).toHaveValue("");
     await userEvent.type(days, "7");
-    await pickOption(user, milestone, CONTRACT_MILESTONE_LABELS.ON_SIGNING);
+    await pickOrderSelectOption(userEvent, "Đợt 1 — mốc", "Khi ký");
     expect(days).toHaveValue("7");
-    await pickOption(user, milestone, CONTRACT_MILESTONE_LABELS.AFTER_DELIVERY);
+    await pickOrderSelectOption(userEvent, "Đợt 1 — mốc", "Sau giao");
     expect(days).toHaveValue("7");
   });
 });
@@ -262,7 +278,7 @@ describe("WF-02 mục 7 — form cũ không ghi đè bản mới", () => {
     let current: unknown = contractDraft;
     renderSection(() => current);
     await userEvent.click(await screen.findByRole("button", { name: /Sửa/ }));
-    const samples = await screen.findByLabelText("Số lần in mẫu miễn phí");
+    const samples = await screen.findByLabelText(/Số lần in mẫu miễn phí/);
     await userEvent.clear(samples);
     await userEvent.type(samples, "3");
     current = newer;
@@ -274,13 +290,13 @@ describe("WF-02 mục 7 — form cũ không ghi đè bản mới", () => {
     await openWhileNewerArrives();
     expect(await screen.findByText(/vừa được người khác lưu/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Lưu hợp đồng" })).toBeDisabled();
-    expect(screen.getByLabelText("Số lần in mẫu miễn phí")).toHaveValue("3");
+    expect(screen.getByLabelText(/Số lần in mẫu miễn phí/)).toHaveValue("3");
   });
 
   it("bấm Tải lại → form mang giá trị bản mới, Lưu gửi version mới", async () => {
     await openWhileNewerArrives();
     await userEvent.click(await screen.findByRole("button", { name: "Tải lại theo bản mới" }));
-    expect(screen.getByLabelText("Số lần in mẫu miễn phí")).toHaveValue("7");
+    expect(screen.getByLabelText(/Số lần in mẫu miễn phí/)).toHaveValue("7");
     expect(screen.queryByText(/vừa được người khác lưu/)).not.toBeInTheDocument();
     const put = vi.spyOn(api, "put").mockResolvedValue({ data: newer });
     await userEvent.click(screen.getByRole("button", { name: "Lưu hợp đồng" }));
@@ -392,6 +408,24 @@ describe("WF-02 audit — gợi ý số tiền, gửi, file ký", () => {
     expect(await screen.findByText(/Lịch giao đang sửa chưa lưu/)).toBeInTheDocument();
     expect(get.mock.calls.some(([url]) => url === SUGGESTION)).toBe(false);
   });
+
+  it.each([
+    ["CUSTOMER_NOT_ACTIVE", /Khách hàng chưa ở trạng thái Hoạt động.*Quản lý kinh doanh/],
+    ["PAYMENT_SCHEDULE_NEEDS_CREDIT", /chưa có hạn mức công nợ do Kế toán duyệt.*Trước giao/],
+  ])(
+    "R7: gửi bị BE từ chối vì %s → câu nói vì sao và ai gỡ ngay trong hộp thoại, không phải câu BE trơ",
+    async (code, expected) => {
+      renderSection(() => contractDraft);
+      vi.spyOn(api, "post").mockRejectedValue(new ApiError(409, code, "English BE sentence."));
+      await userEvent.click(await screen.findByRole("button", { name: /Gửi hợp đồng/ }));
+      const dialog = await screen.findByRole("dialog");
+      await userEvent.click(within(dialog).getByRole("button", { name: "Gửi hợp đồng" }));
+      expect(await within(dialog).findByText(expected)).toBeInTheDocument();
+      expect(within(dialog).queryByText("English BE sentence.")).toBeNull();
+      // The dialog stays open so Sale can read it, and no "edit and resend" tail that does not apply.
+      expect(within(dialog).queryByText(/Huỷ hộp thoại, bấm Sửa/)).toBeNull();
+    },
+  );
 
   it("mục 8: gửi bị từ chối → hộp thoại giữ mở, hiện từng fieldErrors theo tên đợt", async () => {
     renderSection(() => contractDraft);
@@ -539,11 +573,7 @@ describe("WF-02 BO-7 — hợp đồng: đợt đã qua, huỷ bởi người kh
     renderSection(() => contractDraft);
     await userEvent.click(await screen.findByRole("button", { name: /Sửa/ }));
     await userEvent.click(screen.getByRole("button", { name: "Thêm đợt thanh toán" }));
-    await pickOption(
-      userEvent.setup(),
-      screen.getByLabelText("Đợt 4 — mốc"),
-      CONTRACT_MILESTONE_LABELS.ON_SIGNING,
-    );
+    await pickOrderSelectOption(userEvent, "Đợt 4 — mốc", "Khi ký");
     expect(screen.getByLabelText("Đợt 4 — số ngày")).toHaveValue("3");
   });
 });

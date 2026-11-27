@@ -27,6 +27,7 @@ import {
   INSTALLMENT_LOCKED_COLUMNS,
 } from "./installment-columns";
 import { InstallmentFilters } from "./InstallmentFilters";
+import { useRecordedReceipt } from "./ReceiptRecordedNotice";
 import { RecordReceiptDialog } from "./RecordReceiptDialog";
 import { useInstallmentListState } from "./useInstallmentListState";
 
@@ -40,6 +41,7 @@ function InstallmentListContent() {
   const canRead = useCan(PAYMENT_INSTALLMENT_PERMISSIONS.read);
   const s = useInstallmentListState(canRead);
   const [recording, setRecording] = useState<Installment | null>(null);
+  const recorded = useRecordedReceipt();
   const columnState = useColumnVisibility(
     PAYMENT_STORAGE_KEYS.installmentsColumns,
     INSTALLMENT_COLUMNS,
@@ -64,6 +66,7 @@ function InstallmentListContent() {
   return (
     <div className="surface-soft">
       <h1 className="sr-only">{L.pageTitle}</h1>
+      {recorded.notice && <div className="mb-3">{recorded.notice}</div>}
       {canRead && <InstallmentFilters s={s} columns={columnState} />}
       <ServerTableBody
         query={s.query}
@@ -87,7 +90,11 @@ function InstallmentListContent() {
         sorting={s.sorting}
         stickyHeader
       />
-      <RecordReceiptDialog installment={recording} onClose={() => setRecording(null)} />
+      <RecordReceiptDialog
+        installment={recording}
+        onClose={() => setRecording(null)}
+        onRecorded={recorded.onRecorded}
+      />
     </div>
   );
 }

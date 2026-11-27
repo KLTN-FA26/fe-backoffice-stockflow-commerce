@@ -1,24 +1,28 @@
 "use client";
 
 import { useState } from "react";
-import { RotateCw } from "lucide-react";
+import { ReceiptText, RotateCw } from "lucide-react";
 
 import { CUSTOMER_PRICE_UI_LABELS } from "@/constants";
+import { withHeaderFilters } from "@/components/shared/ColumnHeaderFilter";
 import { DataTable } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { SearchBar } from "@/components/shared/SearchBar";
+import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Button } from "@/components/ui/button";
 
 import { customerPriceErrorKind } from "../errors";
 import { useCustomerPrices } from "../queries";
-import { filterPricesBySku } from "../selectors";
+import { filterPricesBySku, matchesPriceColumns } from "../selectors";
 import { CustomerPriceDetail } from "./CustomerPriceDetail";
+import { CustomerPriceToolbar, usePriceTableState } from "./CustomerPriceToolbar";
 import { CUSTOMER_PRICE_COLUMNS, editColumn } from "./price-columns";
+import { priceHeaderFilters } from "./price-header-filters";
 
 const L = CUSTOMER_PRICE_UI_LABELS;
 const T = L.table;
-const NOTE = "text-ink-tertiary text-xs";
 const PAGE_SIZE = 10;
+/** EmptyState bỏ khung khi nằm trong thân bảng (backoffice-erp-ui A7). */
+const IN_TABLE = "rounded-none border-0 bg-transparent py-10 whitespace-normal";
 
 /**
  * Giá riêng của MỘT khách (BE `GET /catalog/customer-prices?customerId=` — mảng thường, không phân trang).
@@ -43,11 +47,18 @@ export function CustomerPriceTable({
   onEdit?: (sku: string) => void;
 }) {
   const query = useCustomerPrices(customerId, canRead);
-  const [filter, setFilter] = useState("");
+  const table = usePriceTableState();
+  const { columns } = table;
   const [openSku, setOpenSku] = useState<string | null>(null);
 
   if (!canRead) return <EmptyState title={T.readDenied} />;
-  if (query.isPending) return <p className={NOTE}>{T.loading}</p>;
+  if (query.isPending)
+    return (
+      <div role="status">
+        <span className="sr-only">{T.loading}</span>
+        <PageSkeleton variant="list" />
+      </div>
+    );
   const prices = query.data;
   const retry = (
     <Button
@@ -78,7 +89,9 @@ export function CustomerPriceTable({
     );
   }
 
-  const rows = filterPricesBySku(prices, filter);
+  const rows = filterPricesBySku(prices, table.q).filter((p) =>
+    matchesPriceColumns(p, table.columnFilters),
+  );
   const open = prices.find((p) => p.sku === openSku) ?? null;
   return (
     <div className="space-y-3">
@@ -89,39 +102,44 @@ export function CustomerPriceTable({
           {retry}
         </div>
       )}
-      {prices.length === 0 ? (
-        <EmptyState title={T.noPrices} description={T.noPricesHint} />
-      ) : (
-        <>
-          <SearchBar
-            value={filter}
-            onChange={setFilter}
-            placeholder={T.filter}
-            className="max-w-sm"
-          />
-          {rows.length === 0 ? (
+      <CustomerPriceToolbar state={table} />
+      {/* Bảng luôn giữ header; khách chưa có giá / lọc không ra → thông báo trong thân bảng (backoffice-erp-ui A7) */}
+      <DataTable
+        data={rows}
+        columns={withHeaderFilters(
+          (onEdit
+            ? [...CUSTOMER_PRICE_COLUMNS, editColumn(onEdit)]
+            : CUSTOMER_PRICE_COLUMNS
+          ).filter((column) => columns.visible.some((key) => key === column.key)),
+          priceHeaderFilters(table),
+        )}
+        rowKey={(p) => p.sku}
+        caption={T.caption}
+        pageSize={PAGE_SIZE}
+        stickyHeader
+        onRowClick={(p) => setOpenSku(p.sku)}
+        emptyState={
+          prices.length === 0 ? (
             <EmptyState
+              className={IN_TABLE}
+              icon={<ReceiptText className="size-8" />}
+              title={T.noPrices}
+              description={T.noPricesHint}
+            />
+          ) : rows.length === 0 ? (
+            <EmptyState
+              className={IN_TABLE}
+              icon={<ReceiptText className="size-8" />}
               title={T.noMatch}
               action={
-                <Button type="button" variant="outline" size="sm" onClick={() => setFilter("")}>
+                <Button type="button" variant="outline" size="sm" onClick={table.clear}>
                   {T.clearFilter}
                 </Button>
               }
             />
-          ) : (
-            <DataTable
-              data={rows}
-              columns={
-                onEdit ? [...CUSTOMER_PRICE_COLUMNS, editColumn(onEdit)] : CUSTOMER_PRICE_COLUMNS
-              }
-              rowKey={(p) => p.sku}
-              caption={T.caption}
-              pageSize={PAGE_SIZE}
-              onRowClick={(p) => setOpenSku(p.sku)}
-            />
-          )}
-        </>
-      )}
+          ) : undefined
+        }
+      />
       <CustomerPriceDetail
         customerId={customerId}
         price={open}

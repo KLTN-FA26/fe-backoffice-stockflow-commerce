@@ -414,6 +414,57 @@ describe("movement ledger screen", () => {
     expect(screen.queryByText(INVENTORY_LABELS.loadError)).not.toBeInTheDocument();
   });
 
+  it("issue #286: shows who did each line by name — never the user id; system lines say so", async () => {
+    const approver = crypto.randomUUID();
+    const row = { sku: "CUP-PP-500", quantity: 1, occurredAt: "2026-10-11T00:00:00Z" };
+    server.use(
+      http.get(endpoint, () =>
+        HttpResponse.json({
+          success: true,
+          data: {
+            ...emptyPage,
+            items: [
+              {
+                ...row,
+                movementId: crypto.randomUUID(),
+                type: "ADJUSTMENT",
+                referenceType: "STOCK_ADJUSTMENT",
+                actorId: approver,
+                actorName: "Trần Minh Quang",
+                requestedBy: crypto.randomUUID(),
+                requestedByName: "Nguyễn Thị Lan",
+                countedBy: crypto.randomUUID(),
+                countedByName: "Lê Văn Bình",
+              },
+              {
+                ...row,
+                movementId: crypto.randomUUID(),
+                type: "STATUS_CHANGE",
+                referenceType: "EXPIRY_SWEEP",
+              },
+            ],
+            totalElements: 2,
+            totalPages: 1,
+          },
+        }),
+      ),
+    );
+    renderHistory();
+    const table = await screen.findByRole("table");
+    expect(
+      within(table).getByRole("columnheader", { name: INVENTORY_LABELS.actor }),
+    ).toBeInTheDocument();
+    expect(within(table).getByText("Trần Minh Quang")).toBeInTheDocument();
+    expect(
+      within(table).getByText(INVENTORY_LABELS.requestedByLine("Nguyễn Thị Lan")),
+    ).toBeInTheDocument();
+    expect(
+      within(table).getByText(INVENTORY_LABELS.countedByLine("Lê Văn Bình")),
+    ).toBeInTheDocument();
+    expect(within(table).getByText(INVENTORY_LABELS.systemActor)).toBeInTheDocument();
+    expect(table).not.toHaveTextContent(approver);
+  });
+
   it("offers exactly the backend movement types and sends the chosen one", async () => {
     const types = vi.fn();
     server.use(

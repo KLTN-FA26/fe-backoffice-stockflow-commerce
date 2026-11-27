@@ -1,29 +1,12 @@
 /**
  * Shipping — thời điểm giao Quản lý kho nhập khi ghi tay "đã giao" (docs 09 §4.3 bước 2; 21 e-invoice §4.1: ngày lập
- * hoá đơn = ngày giao hãng báo lại). Ô `datetime-local` (`yyyy-MM-ddTHH:mm`) theo giờ Việt Nam, như giờ hẹn lấy hàng
+ * hoá đơn = ngày giao hãng báo lại). Ô ngày giờ (`DateTimePicker`, giá trị `yyyy-MM-ddTHH:mm`) theo giờ Việt Nam, như giờ hẹn lấy hàng
  * ở `booking.ts`. Pure — không gọi mạng. BE (`SHIPMENT_DELIVERY_TIME_*`) kiểm lại mọi luật dưới đây.
  */
 
 import { SHIPPING_DELIVERY_TIME_MESSAGES as M } from "@/constants";
 
 import { pickupInstant } from "./booking";
-
-const TZ = "Asia/Ho_Chi_Minh";
-
-/** Instant ISO → `yyyy-MM-ddTHH:mm` theo giờ Việt Nam (giá trị / `min` / `max` của ô `datetime-local`). */
-export function toLocalInput(iso: string | Date): string {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: TZ,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(new Date(iso));
-  const get = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
-  return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}`;
-}
 
 /**
  * Lỗi của thời điểm giao nhập vào, hoặc `null` nếu dùng được. Rỗng = không nhập (BE lấy lúc ghi nhận) nên không lỗi.

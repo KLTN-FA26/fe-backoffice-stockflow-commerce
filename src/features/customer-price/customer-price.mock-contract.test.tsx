@@ -114,8 +114,11 @@ describe("GET danh sách (mock)", () => {
       params: new URLSearchParams({ customerId: A }),
     });
     const first = data[0] ?? {};
+    // #286: tên / mã khách kèm id (khách mock có tên + mã số thuế)
     expect(Object.keys(first).sort()).toEqual([
+      "customerCode",
       "customerId",
+      "customerName",
       "measure",
       "moq",
       "note",

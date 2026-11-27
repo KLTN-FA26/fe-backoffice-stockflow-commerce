@@ -49,3 +49,55 @@ export function filterPricesBySku(
 /** Khách ngừng hoạt động / bị khoá: vẫn chọn được (BE nhận giá ở mọi trạng thái), chỉ cảnh báo. */
 export const needsStatusWarning = (status: string): boolean =>
   status === "INACTIVE" || status === "BLOCKED";
+
+/** Lọc trên header cột của bảng giá một khách — chuỗi chữ số trên URL, rỗng = không chặn đầu đó. */
+export interface PriceColumnFilters {
+  sku: string;
+  moqFrom: string;
+  moqTo: string;
+  tiersFrom: string;
+  tiersTo: string;
+  lowestFrom: string;
+  lowestTo: string;
+  highestFrom: string;
+  highestTo: string;
+}
+
+/** Bỏ số 0 đầu để so theo chuỗi chữ số như `compareWholeDigits` ("0790" → "790"). */
+const wholeDigits = (text: string) => text.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
+
+/** Số lượng (số nguyên nhỏ) nằm trong khoảng. */
+function inNumberRange(value: number, from: string, to: string): boolean {
+  const lo = wholeDigits(from);
+  const hi = wholeDigits(to);
+  return (lo === "" || value >= Number(lo)) && (hi === "" || value <= Number(hi));
+}
+
+/** Tiền (chuỗi chữ số VND) nằm trong khoảng — so theo chuỗi, không qua `Number`. */
+function inMoneyRange(value: string, from: string, to: string): boolean {
+  const lo = wholeDigits(from);
+  const hi = wholeDigits(to);
+  return (
+    (lo === "" || compareWholeDigits(value, lo) >= 0) &&
+    (hi === "" || compareWholeDigits(value, hi) <= 0)
+  );
+}
+
+/**
+ * Dòng giá khớp mọi lọc cột: SKU chứa chữ (chuẩn hoá như BE), MOQ / số bậc / giá thấp nhất / cao nhất trong khoảng. Giá có
+ * bậc không chính xác (`exact` sai) không khớp khi đang lọc giá — không trình bày số không chắc chắn như số đã lọc.
+ */
+export function matchesPriceColumns(price: CustomerPrice, f: PriceColumnFilters): boolean {
+  const sku = f.sku.trim().toUpperCase();
+  if (sku !== "" && !price.sku.includes(sku)) return false;
+  if (!inNumberRange(price.moq, f.moqFrom, f.moqTo)) return false;
+  if (!inNumberRange(price.tiers.length, f.tiersFrom, f.tiersTo)) return false;
+  const filteringPrice = Boolean(f.lowestFrom || f.lowestTo || f.highestFrom || f.highestTo);
+  if (!filteringPrice) return true;
+  const range = priceRange(price);
+  return (
+    range.exact &&
+    inMoneyRange(range.lowest, f.lowestFrom, f.lowestTo) &&
+    inMoneyRange(range.highest, f.highestFrom, f.highestTo)
+  );
+}

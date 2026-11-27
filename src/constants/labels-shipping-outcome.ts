@@ -19,6 +19,7 @@ export const SHIPPING_OUTCOME_DIALOG_EXTRA = {
   packagesCount: (count: number) => `${count} kiện`,
   audit: "Hệ thống lưu người ghi nhận và thời điểm ghi nhận.",
   deliveredAt: "Thời điểm giao",
+  deliveredNow: "Bây giờ",
   deliveredAtHint:
     "Giờ hãng báo đã giao (giờ Việt Nam); để nguyên là lúc ghi nhận. Đây là ngày giao của đơn: ngày lập hoá đơn nháp của lô và mốc tính hạn các đợt thanh toán sau giao.",
   reasonGroup: "Lý do",

@@ -1,19 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { cn } from "cn";
 import { ShieldAlert } from "lucide-react";
 
 import { ADMIN_ROUTES, CREDIT_HOLD_PERMISSIONS, ORDER_PERMISSIONS, UI_LABELS } from "@/constants";
 import { useCan } from "@/lib/auth";
 
-import { ListToolbar, TOOLBAR_ACTION_CLASS } from "@/components/shared/ListToolbar";
+import { withHeaderFilters } from "@/components/shared/ColumnHeaderFilter";
+import { HeaderActions } from "@/components/shared/HeaderActions";
+import { ListToolbar } from "@/components/shared/ListToolbar";
 import { Button } from "@/components/ui/button";
 
 import { buildOrderColumns } from "./order-list/columns";
-import { COLUMN_LABELS, DEFAULT_COLUMNS, STATUS_OPTIONS } from "./order-list/constants";
+import {
+  COLUMN_LABELS,
+  DEFAULT_COLUMNS,
+  FILTER_LABELS,
+  STATUS_OPTIONS,
+} from "./order-list/constants";
 import { OrderListBody } from "./order-list/OrderListBody";
-import { OrderListFilters } from "./order-list/OrderListFilters";
+import { orderHeaderFilters } from "./order-list/order-header-filters";
 import { buildSummaryItems } from "./order-list/summary";
 import { useOrderListState } from "./order-list/useOrderListState";
 import { OrderPermissionGate } from "./OrderPermissionGate";
@@ -42,18 +48,14 @@ function OrderListContent() {
   const canSeeCreditHolds = useCan(CREDIT_HOLD_PERMISSIONS.viewPage);
   const s = useOrderListState(canRead);
   const columns = buildOrderColumns(s.extra.setCustomerId);
-  const visibleColumns = columns.filter((c) => s.config.visibleColumns.includes(c.key));
+  const visibleColumns = withHeaderFilters(
+    columns.filter((c) => s.config.visibleColumns.includes(c.key)),
+    orderHeaderFilters(s),
+  );
   const { filters } = s;
+  // Lối sang hàng đợi giữ tín dụng nằm trên thanh breadcrumb (backoffice-erp-ui A1/A2: hàng tìm chỉ còn ô tìm)
   const creditHoldsLink = canSeeCreditHolds ? (
-    <Button
-      asChild
-      variant="outline"
-      size="sm"
-      className={cn(
-        "border-border-default bg-bg-surface text-ink-primary hover:bg-bg-muted",
-        TOOLBAR_ACTION_CLASS,
-      )}
-    >
+    <Button asChild variant="ghost" size="sm" className="text-ink-primary gap-2 font-medium">
       <Link href={ADMIN_ROUTES.orders.creditHolds}>
         <ShieldAlert className="text-dot-warning size-3.5" aria-hidden="true" />
         {UI_LABELS.order.creditHoldsTitle}
@@ -65,6 +67,7 @@ function OrderListContent() {
     <div className="surface-soft">
       {/* Trang danh sách kiểu Vercel (data-table-mode-a §1): không tiêu đề hiển thị — breadcrumb là tên trang. */}
       <h1 className="sr-only">{UI_LABELS.order.pageTitle}</h1>
+      {creditHoldsLink && <HeaderActions>{creditHoldsLink}</HeaderActions>}
       {/* Thiếu READ: không có dữ liệu để tìm/lọc → ẩn toolbar + thanh Cấu hình */}
       {canRead && (
         <ListToolbar
@@ -87,12 +90,15 @@ function OrderListContent() {
           summaryItems={buildSummaryItems(s)}
           onResetAll={s.resetAll}
           resetDisabled={!s.hasFilters && !s.hasColumnConfig && s.sort.key === null}
-          actions={creditHoldsLink}
+          controlsIn="summary"
         />
       )}
-      {canRead && <OrderListFilters s={s} />}
-      {!canRead && creditHoldsLink && (
-        <div className="mb-3 flex justify-end">{creditHoldsLink}</div>
+      {/* Khoảng ngày sai trên URL (link cũ / gõ tay) không gửi BE — nói rõ, vì ô lọc nằm trong popover của header cột.
+          `?customer=` không phải UUID thì bị bỏ qua im lặng: không có ô gõ UUID để sửa. */}
+      {canRead && s.extra.invalidRange && (
+        <div role="alert" className="text-danger mb-2 space-y-0.5 text-xs">
+          <p>{FILTER_LABELS.invalidRange}</p>
+        </div>
       )}
       <OrderListBody s={s} columns={visibleColumns} />
     </div>

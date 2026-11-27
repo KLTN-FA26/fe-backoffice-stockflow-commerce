@@ -65,6 +65,15 @@ export const beCarrierSchema = z.object({
 
 export const beCarrierPageSchema = bePageSchema(beCarrierSchema);
 
+/**
+ * Mã + tên kho BE trả cạnh `warehouseId` (#286) — đọc được cả khi không có quyền xem danh mục kho, nên FE không phải tải
+ * `/warehouses` chỉ để hiện tên. BE bỏ null khỏi JSON → vắng khi BE cũ chưa trả.
+ */
+export const warehouseRefFields = {
+  warehouseCode: z.string().nullish(),
+  warehouseName: z.string().nullish(),
+};
+
 /* ── Lô giao ─────────────────────────────────────────────────────────── */
 
 /** BE `ShipmentRowResponse` — không còn `deliveryMode` / COD (chỉ giao nguyên chuyến, không thu hộ — docs 09 BR-08). */
@@ -75,6 +84,7 @@ export const beShipmentRowSchema = z.object({
   orderId: z.string(),
   orderNumber: z.string().nullish(),
   warehouseId: z.string(),
+  ...warehouseRefFields,
   status: shipmentStatusSchema,
   packageCount: count,
   /** Task xuất kho / đóng gói của đơn — đích của lối "in lại nhãn" (BE #137 bổ sung). */

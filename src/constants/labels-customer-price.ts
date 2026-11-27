@@ -63,15 +63,15 @@ export const CUSTOMER_PRICE_UI_LABELS = {
     previous: "Trang trước",
     next: "Trang sau",
     pageInfo: (page: number, total: number) => `Trang ${page} — ${total} khách`,
+    more: (remaining: number) => `Còn ${remaining} khách ở các trang sau — gõ thêm để thu hẹp`,
   },
   customer: {
     clear: "Bỏ chọn khách",
     loading: "Đang tải thông tin khách hàng…",
     failed: "Không tải được thông tin khách hàng.",
     notFound: "Không tìm thấy khách hàng này.",
-    // Thiếu `customer-customers:READ`: chỉ có id từ đường dẫn
-    noLookupPermission:
-      "Bạn không có quyền xem danh sách khách hàng — chỉ hiện mã định danh, không tải được tên.",
+    // Thiếu `customer-customers:READ` và bảng giá chưa cho tên khách (#286): không tải được tên, không hiện UUID
+    noLookupPermission: "Bạn không có quyền xem danh sách khách hàng — không tải được tên khách.",
     noSelection: "Chọn một khách hàng để xem bảng giá riêng.",
     noSelectionRestricted:
       "Bạn không có quyền tra cứu khách hàng. Mở trang bằng đường dẫn có sẵn mã khách (customerId) để xem bảng giá.",
@@ -97,6 +97,19 @@ export const CUSTOMER_PRICE_UI_LABELS = {
     loadFailed: "Không tải được bảng giá của khách hàng. Vui lòng thử lại.",
     retry: "Thử lại",
     refreshFailed: "Không làm mới được bảng giá — đang hiện dữ liệu đã tải trước đó.",
+  },
+  /** Thanh tìm + cấu hình kiểu Vercel, nút "Tạo mới" trên thanh breadcrumb (backoffice-erp-ui A). */
+  toolbar: {
+    createAria: "Tạo mới bảng giá",
+    createTooltip: "Thêm bảng giá cho khách đang chọn",
+    createDenied: "Bạn không có quyền thêm bảng giá.",
+    pickCustomerFirst: "Chọn khách hàng trước khi thêm bảng giá.",
+    searchSummary: "Tìm kiếm chính",
+    searchFields: "Trường search",
+    searchFieldsValue: "SKU",
+    columnSearch: "Search trong cột",
+    unused: "Chưa dùng",
+    skuFilter: "Tìm theo SKU…",
   },
   form: {
     create: "Thêm bảng giá",

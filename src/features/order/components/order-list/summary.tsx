@@ -1,4 +1,5 @@
 import { formatDate } from "@/lib/format/date";
+import { CustomerName } from "@/components/backoffice/CustomerName";
 
 import {
   COLUMN_LABELS,
@@ -11,13 +12,17 @@ import {
 import type { ListSummaryItem } from "@/components/shared/ListToolbar";
 import type { OrderListState } from "./useOrderListState";
 
-/** Thanh "Cấu hình" dưới toolbar (data-table-mode-a §3). Không có "Search trong cột" vì server không hỗ trợ. */
+/** Thanh "Cấu hình" dưới toolbar (data-table-mode-a §3); lọc chữ ở header cột gom vào "Tìm trong cột". */
 export function buildSummaryItems(s: OrderListState): ListSummaryItem[] {
   const { filters, extra } = s;
   const dateRange =
     extra.placedFrom || extra.placedTo
       ? `${extra.placedFrom ? formatDate(extra.placedFrom) : "…"} → ${extra.placedTo ? formatDate(extra.placedTo) : "…"}`
       : "Tất cả";
+  // Tên khách lấy từ chính các dòng đang lọc (BE-15) — chip không bao giờ hiện UUID (R3)
+  const named = extra.customerId
+    ? s.query.data?.items.find((order) => order.customerId === extra.customerId)
+    : undefined;
   const statusLabel = filters.status
     .map((v) => STATUS_OPTIONS.find((o) => o.value === v)?.label ?? v)
     .join(", ");
@@ -28,7 +33,21 @@ export function buildSummaryItems(s: OrderListState): ListSummaryItem[] {
       active: filters.q.trim() !== "",
       onClear: () => void filters.setQ(""),
     },
-    { label: "Trường search", value: SEARCH_SCOPE_LABEL },
+    { label: "Tìm theo", value: SEARCH_SCOPE_LABEL },
+    {
+      label: "Tìm trong cột",
+      value:
+        [
+          extra.numberText.trim() && `Mã đơn “${extra.numberText.trim()}”`,
+          extra.recipientText.trim() && `Người nhận “${extra.recipientText.trim()}”`,
+          (extra.totalFrom || extra.totalTo) &&
+            `Tổng tiền ${extra.totalFrom || "…"}–${extra.totalTo || "…"}`,
+        ]
+          .filter(Boolean)
+          .join(", ") || "Chưa dùng",
+      active: extra.columnTextActive,
+      onClear: extra.clearColumnText,
+    },
     {
       label: "Trạng thái",
       value: statusLabel || "Tất cả",
@@ -37,7 +56,16 @@ export function buildSummaryItems(s: OrderListState): ListSummaryItem[] {
     },
     {
       label: FILTER_LABELS.customer,
-      value: extra.customerId || "Tất cả",
+      value: extra.customerId ? (
+        <CustomerName
+          id={extra.customerId}
+          name={named?.customerName}
+          code={named?.customerCode}
+          link={false}
+        />
+      ) : (
+        "Tất cả"
+      ),
       active: extra.customerId !== "",
       onClear: () => extra.setCustomerId(""),
     },

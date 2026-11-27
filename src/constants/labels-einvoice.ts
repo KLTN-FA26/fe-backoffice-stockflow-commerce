@@ -132,6 +132,8 @@ export const EINVOICE_LABELS = {
     issuedFrom: "Ngày lập từ",
     issuedTo: "đến",
     orderChip: "Đơn hàng",
+    /** Chip lọc theo đơn khi chưa có dòng nào mang số đơn — không hiện UUID. */
+    orderChipUnknown: "Đơn đã chọn",
     customerChip: "Khách hàng",
     clearFilters: "Bỏ bộ lọc",
     drawUp: "Lập nháp",
@@ -162,6 +164,10 @@ export const EINVOICE_LABELS = {
     providerCalls: "Nhật ký gọi nhà cung cấp",
     corrections: "Điều chỉnh / thay thế",
     errorNotices: "Thông báo sai sót",
+    /** #286: hoá đơn gốc của hoá đơn điều chỉnh / thay thế — ký hiệu + số do BE kèm. */
+    original: "Hoá đơn gốc",
+    viewOriginal: "Xem hoá đơn gốc",
+    recordedBy: (name: string) => `bởi ${name}`,
     signature: "Chữ ký số",
     /** WF-05 F-13: hoá đơn ghi lại từ cổng NCC, không phát hành qua API. */
     issuedViaPortal: "Ghi lại từ cổng nhà cung cấp",

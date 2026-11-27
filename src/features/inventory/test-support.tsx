@@ -217,6 +217,7 @@ export const OVERVIEW_STOCK_ITEMS = [
 export const OVERVIEW_RESERVATION = {
   reservationId: "0e380000-0000-4000-8000-000000000101",
   orderId: "0e380000-0000-4000-8000-000000000201",
+  orderNumber: "SO-20261014-000001",
   stockItemId: "0e380000-0000-4000-8000-000000000002",
   sku: "CUP-PP-500",
   locationCode: "HN01-A01-02-B",

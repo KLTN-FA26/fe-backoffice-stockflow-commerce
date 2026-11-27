@@ -19,7 +19,12 @@ import {
   apiPickLines,
 } from "../../__fixtures__/pick-lines";
 import { REALLOCATED_BIN, linePath, renderPickingDetail } from "../../__fixtures__/picking-detail";
-import { IDENTITIES, pickInputComboboxOption, pickSelectOption } from "../../__fixtures__/render";
+import {
+  IDENTITIES,
+  pickInputComboboxOption,
+  pickSelectOption,
+  scanInputComboboxCode,
+} from "../../__fixtures__/render";
 import { OTHER_PICKER_ID, apiTask } from "../../__fixtures__/task";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
@@ -96,6 +101,15 @@ describe("Báo thiếu thùng — người được gán (BE POST …/short, X-S
     renderPickingDetail(IDENTITIES.warehouseStaff, picking());
     await openShortDialog(user);
     await pickInputComboboxOption(user, L.location, "HN-A01-01-01-A");
+    expect(screen.getByRole("combobox", { name: L.shortReason })).toHaveFocus();
+  });
+
+  it("quét đủ mã vị trí + Enter (không bấm option) → chọn đúng mã đó, con trỏ sang ô Lý do", async () => {
+    const user = userEvent.setup();
+    renderPickingDetail(IDENTITIES.warehouseStaff, picking());
+    await openShortDialog(user);
+    await scanInputComboboxCode(user, L.location, "HN-A01-01-01-A");
+    expect(screen.getByRole("combobox", { name: L.location })).toHaveValue("HN-A01-01-01-A");
     expect(screen.getByRole("combobox", { name: L.shortReason })).toHaveFocus();
   });
 

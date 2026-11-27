@@ -158,6 +158,9 @@ export const refundRecordDtoSchema = z.object({
   orderId: z.string(),
   orderNumber: z.string(),
   customerId: z.string(),
+  /** #286: tên + mã khách kèm id; BE bỏ khi null → đọc kèm fallback. */
+  customerName: z.string().nullish(),
+  customerCode: z.string().nullish(),
   amount: z.number(),
   currency: z.string(),
   refundedOn: z.string(),
@@ -169,6 +172,9 @@ export const refundRecordDtoSchema = z.object({
   voidedBy: z.string().nullish(),
   voidedAt: z.string().nullish(),
   voidReason: z.string().nullish(),
+  /** #286: tên người ghi nhận / người huỷ — vắng thì không hiện. */
+  recordedByName: z.string().nullish(),
+  voidedByName: z.string().nullish(),
 });
 
 const settlementDtoSchema = z.object({

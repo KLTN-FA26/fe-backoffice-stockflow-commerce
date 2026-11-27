@@ -78,6 +78,12 @@ export function buildLineColumns(options: LineColumnOptions): ColumnDef<CycleCou
             {line.recountRequired && (
               <span className="text-ink-tertiary">({L.recountRequired})</span>
             )}
+            {/* Issue #286: tên người đếm BE kèm dòng (`countedByName`) */}
+            {line.countedByName && (
+              <span className="text-ink-tertiary font-normal">
+                · {L.countedBy(line.countedByName)}
+              </span>
+            )}
           </span>
         );
       },

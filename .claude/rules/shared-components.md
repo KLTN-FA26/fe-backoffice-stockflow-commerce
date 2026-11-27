@@ -39,10 +39,23 @@ floating cart/chat) · `<PageContainer>` (max-width + padding theo mode).
 
 ## Form
 
+`<DatePicker>` / `<DateTimePicker>` — ô ngày `dd/MM/yyyy` và ngày giờ `dd/MM/yyyy HH:mm` (24 giờ) **gõ được** + nút lịch +
+nút chọn nhanh (Hôm nay, +7 ngày, "Sớm nhất"…). Tab đi tiếp không bật lịch. **Không dùng** `<input type="date">` /
+`datetime-local` gốc (kiểu Mỹ `mm/dd/yyyy`, AM/PM). Giá trị vẫn là `YYYY-MM-DD` / `YYYY-MM-DDTHH:mm` giờ Việt Nam. Hiển
+thị ngày nơi khác dùng `formatDate` / `formatDateTime` (`lib/format`), không tự gọi `Intl` với `dateStyle`.
+
 `<InputCombobox>` — combobox **gõ thẳng vào ô input** (kiểu shadcn Combobox): ô input là trigger,
 danh sách xổ ngay dưới, ↑/↓ + Enter chọn, Esc đóng. **Bắt buộc** cho mọi combobox chọn-một có tìm
 kiếm; không dùng Popover + `CommandInput` (ô tìm nằm trong popover) nữa. Item dùng
 `COMBOBOX_ITEM_CLASS`; BE lọc → `shouldFilter={false}` + `search` / `onSearchChange`.
+Luật mở (R1, WF4 UX audit): danh sách **chỉ mở khi gõ ≥ 1 ký tự hoặc bấm nút mũi tên** (Alt+↓ cho bàn phím) —
+bấm vào thân ô, Enter, ↑/↓ **không** mở, bấm chỉ đặt con trỏ. Giá trị đang chọn **giữ nguyên trong ô** (mở ra không
+xoá chữ); truyền `onClear` để có nút ✕ bỏ chọn. Danh sách tối đa `COMBOBOX_MAX_ROWS` (10) dòng: BE lọc → `size` =
+`COMBOBOX_MAX_ROWS`, danh sách tải sẵn ở client → `limitComboboxOptions`; còn nữa thì thêm `<ComboboxMoreHint>`
+("Còn N kết quả — gõ thêm"). Mỗi dòng 2 tầng (tên đậm / mã · thông tin phụ, `truncate`, không bẻ chữ) — dùng
+`flex min-w-0 flex-col` bên trong `CommandItem`. Chọn khách: dùng `<CustomerPicker>` (`mode="pick"` chỉ khách ACTIVE,
+`mode="filter"` cho bộ lọc danh sách), không tự dựng. Ô lọc bảng bằng chữ tự do là ô tìm thường (`ListToolbar`), không
+phải combobox; không bao giờ bắt gõ UUID / id nội bộ (R2, R3).
 
 ## Phản hồi
 

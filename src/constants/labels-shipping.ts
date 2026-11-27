@@ -98,6 +98,7 @@ export const SHIPPING_UI_LABELS = {
     back: "Danh sách chuyến",
     info: "Thông tin chuyến",
     startedAt: "Bắt đầu xếp lúc",
+    startedBy: "Người bắt đầu xếp",
     dispatchedAt: "Bàn giao lúc",
     dispatchedBy: "Người bàn giao",
     representative: "Người ký bên hãng",
@@ -115,6 +116,7 @@ export const SHIPPING_UI_LABELS = {
     parcelCode: "Mã kiện",
     parcelWeight: "Cân nặng (kg)",
     parcelLoadedAt: "Lên xe lúc",
+    parcelLoadedBy: "Người quét",
     notLoaded: "Chưa lên xe",
     unscan: "Gỡ khỏi xe",
     unscanAria: "Gỡ kiện khỏi xe",
@@ -399,6 +401,7 @@ export const SHIPPING_FIELD_MESSAGES = {
   required: "Bắt buộc",
   warehouseRequired: "Chọn kho",
   carrierRequired: "Chọn hãng vận chuyển",
+  pickupAtInvalid: "Giờ hẹn chưa đúng — nhập ngày/tháng/năm giờ:phút (24 giờ), vd 27/11/2026 08:30",
   cancelBookingReasonRequired: "Nhập lý do huỷ đặt xe",
   // SCRUM-474 UNLOAD-DESIGN điểm 7: mã lý do + ghi chú
   controlledReasonCodeRequired: "Chọn lý do huỷ",

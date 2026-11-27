@@ -55,6 +55,8 @@ export const deliveryFailureCaseSchema = z
     closure,
     openedAt: z.string(),
     decidedBy: z.string().nullish(),
+    /** Tên người quyết (#286) — BE cũ chưa trả thì vắng. */
+    decidedByName: z.string().nullish(),
     decidedAt: z.string().nullish(),
     decisionNote: z.string().nullish(),
     failedTripFee: z.number().nullish(),
@@ -62,6 +64,9 @@ export const deliveryFailureCaseSchema = z
     carrierClaim: z.boolean().nullish(),
     readyForRelease: z.boolean().nullish(),
     releasedAt: z.string().nullish(),
+    releasedBy: z.string().nullish(),
+    /** Tên Quản lý kho đã release hàng để giao lại (#286) — BE cũ chưa trả thì vắng. */
+    releasedByName: z.string().nullish(),
     redeliveryShipmentId: z.string().nullish(),
     redeliveredAt: z.string().nullish(),
     closedAt: z.string().nullish(),
@@ -89,6 +94,9 @@ export const deliveryFailureCaseSchema = z
     receiptNumber: dto.receiptNumber ?? null,
     failureNote: dto.failureNote ?? null,
     decidedAt: dto.decidedAt ?? null,
+    decidedByName: dto.decidedByName ?? null,
+    releasedAt: dto.releasedAt ?? null,
+    releasedByName: dto.releasedByName ?? null,
     decisionNote: dto.decisionNote ?? null,
     failedTripFee: dto.failedTripFee ?? null,
     carrierClaim: dto.carrierClaim ?? false,

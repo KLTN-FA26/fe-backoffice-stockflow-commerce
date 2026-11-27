@@ -86,9 +86,9 @@ export function InfoItem({
   );
 }
 
-/** Mã task hiển thị — BE chỉ có UUID, chưa có số task đọc được. */
-export function taskCode(taskId: string): string {
-  return shortId(taskId);
+/** Mã task hiển thị: số task BE (`PK-yyyyMMdd-nnnn`, issue #286); BE cũ chưa gửi → id rút gọn. */
+export function taskCode(taskId: string, taskNumber?: string | null): string {
+  return taskNumber || shortId(taskId);
 }
 
 /** Số đơn BE trả kèm task (SCRUM-466); thiếu thì id rút gọn (kèm `title` là id đầy đủ ở nơi dùng). */

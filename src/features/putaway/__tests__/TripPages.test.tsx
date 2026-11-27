@@ -222,6 +222,22 @@ describe("TripPage — chuyến theo id", () => {
     expect(screen.queryByRole("button", { name: L.close.force })).not.toBeInTheDocument();
   });
 
+  it("issue #286: chuyến kèm warehouseCode → link sang kho đó, không tải danh mục kho", async () => {
+    const { get } = setup("WAREHOUSE_STAFF", {
+      ...GOING,
+      warehouseId: "wh-1",
+      warehouseCode: "HCM",
+      warehouseName: "Kho Hồ Chí Minh",
+    });
+    renderScreen(inTab(<MyTripPage />, BD), "WAREHOUSE_STAFF");
+    expect(await screen.findByText("Bạn đang có chuyến mở ở kho HCM")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: L.elsewhere.open })).toHaveAttribute(
+      "href",
+      "/admin/warehouse-map/HCM/putaway/trip",
+    );
+    expect(get.mock.calls.some(([url]) => url === "/warehouses")).toBe(false);
+  });
+
   it("chuyến theo id thuộc kho khác kho của tab → báo, không render chuyến", async () => {
     setup("WAREHOUSE_MANAGER", { ...GOING, operatorId: "someone" });
     renderScreen(inTab(<TripPage tripId="trip-1" />, BD), "WAREHOUSE_MANAGER");

@@ -34,6 +34,9 @@ export function ReturnHistoryCard({ history }: { history: readonly ReturnHistory
               {entry.reason && (
                 <span className="text-ink-secondary">{historyReasonText(entry.reason)}</span>
               )}
+              {entry.actorName && (
+                <span className="text-ink-tertiary">{D.historyActor(entry.actorName)}</span>
+              )}
             </li>
           ))}
         </ol>

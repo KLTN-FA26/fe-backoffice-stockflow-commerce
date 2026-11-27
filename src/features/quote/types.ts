@@ -33,7 +33,7 @@ export interface QuoteTotals {
 export type QuoteTier = z.infer<typeof tierDtoSchema>;
 export type QuoteRow = z.infer<typeof quoteRowDtoSchema>;
 export type QuoteTransition = z.infer<typeof quoteTransitionDtoSchema>;
-export type CustomerSku = z.infer<typeof customerSkuDtoSchema>;
+export type CustomerSku = z.output<typeof customerSkuDtoSchema>;
 export type CustomerPrice = z.infer<typeof customerPriceDtoSchema>;
 export type QuoteFormValues = z.input<typeof quoteFormSchema>;
 export type QuoteFormOutput = z.output<typeof quoteFormSchema>;

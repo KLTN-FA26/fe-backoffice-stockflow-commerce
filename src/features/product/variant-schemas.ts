@@ -100,6 +100,9 @@ export const beMediaSchema = z.object({
   publishedAt: z.string().nullish(),
   publishedBy: z.string().nullish(),
   uploadedBy: z.string().nullish(),
+  /** Issue #286: họ tên khi cột lưu id, còn không thì username — thiếu thì không hiện người làm. */
+  publishedByName: z.string().nullish(),
+  uploadedByName: z.string().nullish(),
   uploadedAt: z.string().nullish(),
   version: z.number().int(),
 });

@@ -64,7 +64,7 @@ function CancellationRequestListContent() {
   const columns = buildCancellationRequestColumns(
     (row) =>
       allowedCancellationRequestActions(row.status, can).length > 0 ? (
-        <RequestRowActions row={row} canOpenOrder={canOpenOrder} />
+        <RequestRowActions row={row} />
       ) : null,
     canOpenOrder,
   );

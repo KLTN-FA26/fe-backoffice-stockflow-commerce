@@ -52,21 +52,23 @@ const DANGER = `border-danger text-danger hover:text-danger hover:bg-danger/10 d
 
 /**
  * Nút chuyển trạng thái hiện cho người dùng: `allowedProductActions` (trạng thái + quyền), bỏ
- * "Phê duyệt" khi chính người đó gửi duyệt mà không được tự duyệt (`mayApproveProduct`, bốn mắt).
- * UI-only — Backend phải re-check.
+ * "Phê duyệt" khi người gọi không được duyệt sản phẩm này.
+ *
+ * Duyệt được hay không lấy từ `ProductResponse.canApprove` của BE (issue #286 — BE đã tính trạng thái,
+ * quyền `product-products:APPROVE` và luật bốn mắt BR-PRD-003) thay vì so `submittedBy` với id người
+ * đăng nhập. BE cũ chưa trả trường này → mới tự suy bằng `mayApproveProduct`. Vẫn giao với
+ * `allowedProductActions` để nút không hiện ở trạng thái / quyền FE biết là sai.
+ * UI-only — Backend phải re-check (409 SELF_APPROVAL_NOT_ALLOWED).
  */
 export function visibleProductActions(
   product: Product,
   can: (permission: PermissionCode) => boolean,
   currentUserId: string | undefined,
 ): readonly ProductAction[] {
+  const approvable =
+    product.canApprove ?? mayApproveProduct(product.submittedBy, currentUserId, can);
   return allowedProductActions(product.status, can).filter(
-    (action) =>
-      action.transition &&
-      !(
-        action.transition === "approve" &&
-        !mayApproveProduct(product.submittedBy, currentUserId, can)
-      ),
+    (action) => action.transition && !(action.transition === "approve" && !approvable),
   );
 }
 

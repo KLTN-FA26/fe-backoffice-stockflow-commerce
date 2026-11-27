@@ -40,7 +40,7 @@ export function HistoryCard({
                 <p className="text-ink-secondary whitespace-pre-line">{entry.reason}</p>
               )}
               <p className="text-ink-tertiary text-xs tabular-nums">
-                {actorLabel(entry.by, me)} · {formatDateTime(entry.at)}
+                {actorLabel(entry.by, me, entry.byName)} · {formatDateTime(entry.at)}
               </p>
             </li>
           ))}

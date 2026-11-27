@@ -26,6 +26,7 @@ import {
   forbidden,
   getFulfillmentStore,
   nextTaskId,
+  nextTaskNumber,
   orderClosedError,
   outOfScope,
   outOfWarehouseScope,
@@ -251,6 +252,7 @@ function registerAssignmentRoutes(): void {
     const now = new Date().toISOString();
     const task: MockTask = {
       taskId: nextTaskId(),
+      taskNumber: nextTaskNumber(now, store.values()),
       orderId,
       orderNumber: order.orderNumber,
       warehouseId: order.fulfillmentWarehouseId,

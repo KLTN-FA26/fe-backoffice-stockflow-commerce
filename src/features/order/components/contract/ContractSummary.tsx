@@ -1,5 +1,6 @@
 "use client";
 
+import { ORDER_CONTRACT_LABELS } from "@/constants/labels-order-contract";
 import { formatDate, formatDateTime } from "@/lib/format/date";
 import { formatMoney } from "@/lib/format/money";
 
@@ -58,7 +59,10 @@ export function ContractSummary({
         {money(contract.totals.totalAmount)}
       </strong>,
     ],
-    ["Số lần in mẫu miễn phí", contract.freeSampleRounds],
+    [
+      "Số lần in mẫu miễn phí",
+      `${contract.freeSampleRounds} ${ORDER_CONTRACT_LABELS.terms.rounds.unit}`,
+    ],
     [
       "Thời hạn khiếu nại",
       contract.returnWindowDays != null
