@@ -3,7 +3,7 @@
  * lịch sử dời; action-gating "Dời cửa sổ giao" theo trạng thái đợt + mã quyền BE (`sales-order-delivery-batches:READ` / `sales-contracts:UPDATE`);
  * form dời kiểm BR-28 trước khi gửi; lý do BE từ chối bằng tiếng Việt.
  */
-import { screen, waitFor, within } from "@testing-library/react";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -29,6 +29,7 @@ import {
 } from "../../__fixtures__/wf4";
 
 import type { PermissionCode } from "@/lib/auth";
+import { openOrderDetailTabInFile } from "../../__fixtures__/render";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
@@ -64,6 +65,9 @@ async function renderSchedule(
 }
 
 const panel = async () => await screen.findByRole("region", { name: "Lịch giao" });
+
+// Các khối được kiểm nằm ở tab "delivery" của trang chi tiết đơn (`OrderDetailTabs`)
+openOrderDetailTabInFile("delivery");
 
 describe("Lịch giao — hiển thị (docs 17 §5.5)", () => {
   it("đợt giao: cửa sổ hiệu lực, trạng thái hiển thị, đã release hay chưa, thùng theo SKU (đã giữ / cần)", async () => {
@@ -184,7 +188,8 @@ describe("Lịch giao — hiển thị (docs 17 §5.5)", () => {
     await waitFor(() => expect(api.get).toHaveBeenCalledWith(SCHEDULE_PATH, expect.anything()));
     expect(screen.queryByRole("region", { name: "Lịch giao" })).not.toBeInTheDocument();
     vi.restoreAllMocks();
-    document.body.innerHTML = "";
+    // Gỡ trang đầu đúng cách (không xoá DOM tay — portal của menu "⋯" trên header còn đang dựng)
+    cleanup();
     await renderSchedule(WF4_PERMISSION_SETS.sales, () => {
       throw apiError(500, "INTERNAL_ERROR");
     });

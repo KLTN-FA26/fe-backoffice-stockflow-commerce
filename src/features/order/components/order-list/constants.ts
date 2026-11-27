@@ -42,6 +42,9 @@ export const FILTER_LABELS = {
   customer: "ID khách hàng",
   customerPlaceholder: "Nhập UUID khách, Enter để lọc",
   customerInvalid: "ID khách hàng phải là UUID hợp lệ.",
+  /** Link mang sẵn `?customer=` sai: báo trên bảng (ô nhập nằm trong popover lọc cột Khách hàng). */
+  customerLinkInvalid:
+    "Bộ lọc khách hàng trên đường dẫn không phải UUID — chưa áp dụng. Sửa ở nút lọc của cột Khách hàng.",
   placedAt: "Ngày đặt",
   from: "Từ ngày",
   to: "Đến ngày",

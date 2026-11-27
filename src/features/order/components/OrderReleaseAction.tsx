@@ -8,11 +8,10 @@ import {
   ORDER_RELEASE_LABELS,
   ORDER_SHIPPING_WAREHOUSE_PERMISSIONS,
 } from "@/constants";
-import { Button } from "@/components/ui/button";
+import { ActionTrigger } from "@/components/shared/ObjectActions";
 
 import { useChosenShippingWarehouse } from "../queries";
 import { OrderReleaseDialog } from "./OrderReleaseDialog";
-import { ORDER_ACTION_BUTTON } from "./useOrderActionDialog";
 
 import type { PermissionCode } from "@/lib/auth";
 import type { OrderEstimateSlot } from "../estimate-slot";
@@ -37,15 +36,11 @@ export function OrderReleaseAction({ order, can, estimateSlot }: OrderReleaseAct
   });
   return (
     <>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
+      <ActionTrigger
+        icon={PackageCheck}
+        label={ORDER_RELEASE_LABELS.button}
         onClick={() => setOpen(true)}
-        className={ORDER_ACTION_BUTTON}
-      >
-        <PackageCheck className="size-3.5" /> {ORDER_RELEASE_LABELS.button}
-      </Button>
+      />
       {open && (
         <OrderReleaseDialog
           order={order}

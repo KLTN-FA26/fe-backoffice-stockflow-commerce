@@ -7,8 +7,9 @@ import { ApiError } from "@/lib/api/error";
 
 import { apiCreditPosition, apiOrder, apiOrderPage } from "../__fixtures__/order";
 import {
-  ORDER_PERMISSION_SETS,
   mockOrderApiGet,
+  ORDER_PERMISSION_SETS,
+  orderAction,
   pickOrderSelectOption,
   renderOrderScreen,
 } from "../__fixtures__/render";
@@ -84,16 +85,16 @@ async function renderDetail(order: OrderDto) {
 }
 
 async function submitCancel(user: User) {
-  await user.click(await screen.findByRole("button", { name: "Huỷ đơn" }));
+  await user.click(await orderAction("Huỷ đơn"));
   await pickOrderSelectOption(user, /Lý do huỷ/, "Khách yêu cầu");
   const dialog = screen.getByRole("dialog");
   await user.click(within(dialog).getByRole("button", { name: "Huỷ đơn" }));
   return dialog;
 }
 
-/** Hộp thoại release của PR #74 (`OrderReleaseDialog`): ô "Kho xuất hàng", nút gửi "Release đơn". */
+/** Hộp thoại release của PR #74 (`OrderReleaseDialog`): ô "Kho xuất hàng", nút gửi "Xuất kho". */
 async function submitRelease(user: User) {
-  await user.click(await screen.findByRole("button", { name: "Xuất kho" }));
+  await user.click(await orderAction("Xuất kho"));
   await pickOrderSelectOption(user, /Kho xuất hàng/, /HN — Kho Hà Nội/);
   const dialog = screen.getByRole("dialog");
   await user.click(within(dialog).getByRole("button", { name: "Xuất kho" }));
@@ -199,7 +200,7 @@ describe("Huỷ đơn — dialog khi đang gửi", { timeout: DIALOG_FLOW_TIMEOU
       await renderDetail(apiOrder);
       const post = vi.spyOn(api, "post");
 
-      await user.click(await screen.findByRole("button", { name: "Huỷ đơn" }));
+      await user.click(await orderAction("Huỷ đơn"));
       await screen.findByRole("dialog");
       await tryDismiss(user, how);
 
@@ -320,7 +321,7 @@ describe("Bấm đúp nút gửi → đúng 1 request", { timeout: DIALOG_FLOW_T
     const user = setupUser();
     await renderDetail(apiOrder);
     const post = slowPost({ ...apiOrder, status: "CANCELLED" });
-    await user.click(await screen.findByRole("button", { name: "Huỷ đơn" }));
+    await user.click(await orderAction("Huỷ đơn"));
     await pickOrderSelectOption(user, /Lý do huỷ/, "Khách yêu cầu");
     await user.dblClick(
       within(screen.getByRole("dialog")).getByRole("button", { name: "Huỷ đơn" }),
@@ -333,7 +334,7 @@ describe("Bấm đúp nút gửi → đúng 1 request", { timeout: DIALOG_FLOW_T
     const user = setupUser();
     await renderDetail(confirmed);
     const post = slowPost({ ...confirmed, status: "READY_TO_FULFILL" });
-    await user.click(await screen.findByRole("button", { name: "Xuất kho" }));
+    await user.click(await orderAction("Xuất kho"));
     await pickOrderSelectOption(user, /Kho xuất hàng/, /HN — Kho Hà Nội/);
     await user.dblClick(
       within(screen.getByRole("dialog")).getByRole("button", { name: "Xuất kho" }),

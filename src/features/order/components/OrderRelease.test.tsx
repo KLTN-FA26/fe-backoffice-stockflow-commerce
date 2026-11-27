@@ -29,6 +29,7 @@ import {
 
 import type { PermissionCode } from "@/lib/auth";
 import type { OrderEstimateSlot } from "../estimate-slot";
+import { clickOrderDetailTab } from "../__fixtures__/render";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
@@ -576,6 +577,8 @@ describe("Release đơn — khe 'Ước tính xếp xe'", () => {
       [HISTORY_PATH]: () => [],
     });
     await renderDetailScreen(slot);
+    await screen.findByRole("tab", { name: "Giao hàng" });
+    clickOrderDetailTab("Giao hàng");
     expect(await screen.findByText("khe ước tính")).toBeInTheDocument();
     expect(slot).toHaveBeenCalledWith({
       orderId: apiOrder.orderId,

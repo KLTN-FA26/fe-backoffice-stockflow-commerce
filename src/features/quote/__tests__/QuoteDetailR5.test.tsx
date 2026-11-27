@@ -50,7 +50,9 @@ describe("Quote detail — round 5", () => {
       ...QUOTE_ACCEPTED.history.slice(1),
     ];
     renderDetail({ ...QUOTE_ACCEPTED, history });
-    expect(await screen.findByText(/· Trần Văn Sales/)).toBeInTheDocument();
+    // Bảng lịch sử có cột "Người thực hiện"
+    const table = within(await screen.findByRole("region", { name: "Lịch sử" }));
+    expect(await table.findByRole("cell", { name: "Trần Văn Sales" })).toBeInTheDocument();
   });
 
   it("BO-UX-19: a sent quote says who waits until when, and links the quote's conversation", async () => {

@@ -1,6 +1,7 @@
 /**
  * Màn chi tiết đơn — lịch sử đơn có quyết định giao một phần (BE PR #150).
  */
+import { ORDER_HISTORY_LABELS } from "@/constants";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -11,10 +12,25 @@ import { ApiError } from "@/lib/api/error";
 import { apiOrder, apiOrderPartialShipment } from "../__fixtures__/order";
 import { HISTORY_PATH, renderDetail } from "../__fixtures__/detail";
 import { ORDER_PERMISSION_SETS } from "../__fixtures__/render";
+import { openOrderDetailTabInFile } from "../__fixtures__/render";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 afterEach(() => vi.restoreAllMocks());
+
+/** Hàng dữ liệu của bảng lịch sử đơn (bỏ hàng tiêu đề). */
+async function historyRows(history: HTMLElement): Promise<HTMLTableRowElement[]> {
+  const rows = await within(history).findAllByRole("row");
+  return rows.slice(1) as HTMLTableRowElement[];
+}
+/** Loại mục (cột "Loại") của một hàng lịch sử → khoá `kind` như BE map. */
+function kindOf(row: HTMLTableRowElement): string | undefined {
+  const label = row.cells[1]?.textContent ?? "";
+  return Object.entries(ORDER_HISTORY_LABELS.kinds).find(([, text]) => text === label)?.[0];
+}
+
+// Các khối được kiểm nằm ở tab "history" của trang chi tiết đơn (`OrderDetailTabs`)
+openOrderDetailTabInFile("history");
 
 describe("OrderDetail — Lịch sử đơn có quyết định giao một phần", () => {
   const HISTORY = [
@@ -59,9 +75,9 @@ describe("OrderDetail — Lịch sử đơn có quyết định giao một phầ
     );
 
     const history = await screen.findByRole("region", { name: "Lịch sử đơn" });
-    const items = await within(history).findAllByRole("listitem");
+    const items = await historyRows(history);
     expect(items).toHaveLength(4);
-    expect(items.map((item) => item.getAttribute("data-kind"))).toEqual([
+    expect(items.map((item) => kindOf(item))).toEqual([
       "status-change",
       "status-change",
       "partial-shipment",
@@ -70,7 +86,7 @@ describe("OrderDetail — Lịch sử đơn có quyết định giao một phầ
 
     const on = items[2] as HTMLElement;
     expect(within(on).getByText("Bật giao một phần")).toBeInTheDocument();
-    expect(within(on).getByText(/Bởi Sale An/)).toBeInTheDocument();
+    expect(within(on).getByText("Sale An")).toBeInTheDocument();
     expect(within(on).getByText("Khách đồng ý nhận hàng sẵn trước")).toBeInTheDocument();
     expect(within(on).getByText(/2026|21\/10|10\/21/)).toBeInTheDocument();
 
@@ -84,7 +100,7 @@ describe("OrderDetail — Lịch sử đơn có quyết định giao một phầ
     expect(within(moved).queryByText(/giao một phần/)).not.toBeInTheDocument();
     expect(within(moved).getByText("Chờ thanh toán")).toBeInTheDocument();
     expect(within(moved).getByText("Đã xác nhận")).toBeInTheDocument();
-    expect(within(moved).getByText(/Bởi Kế toán B/)).toBeInTheDocument();
+    expect(within(moved).getByText("Kế toán B")).toBeInTheDocument();
     // Bước đầu (from null) ghi "Đặt đơn"
     expect(within(items[0] as HTMLElement).getByText("Đặt đơn")).toBeInTheDocument();
   });
@@ -188,8 +204,8 @@ describe("OrderDetail — Lịch sử đơn có quyết định giao một phầ
     );
 
     const history = await screen.findByRole("region", { name: "Lịch sử đơn" });
-    const items = await within(history).findAllByRole("listitem");
-    expect(items.map((item) => item.getAttribute("data-kind"))).toEqual([
+    const items = await historyRows(history);
+    expect(items.map((item) => kindOf(item))).toEqual([
       "status-change",
       "remainder-closure",
       "remainder-closure",
@@ -200,7 +216,7 @@ describe("OrderDetail — Lịch sử đơn có quyết định giao một phầ
     expect(
       within(closed).getByText("Đóng phần còn lại: Hết hàng, không cung cấp được"),
     ).toBeInTheDocument();
-    expect(within(closed).getByText(/Bởi Sale An/)).toBeInTheDocument();
+    expect(within(closed).getByText("Sale An")).toBeInTheDocument();
     expect(within(closed).getByText("hết nắp")).toBeInTheDocument();
 
     // không ghi chú thì không hiện dòng "Ghi chú"
@@ -246,13 +262,16 @@ describe("OrderDetail — Lịch sử đơn có quyết định giao một phầ
     );
     vi.spyOn(api, "put").mockResolvedValue({ data: apiOrder });
     const user = userEvent.setup();
-    await screen.findAllByRole("listitem");
+    await screen.findAllByRole("row");
     const historyCalls = () =>
       vi.mocked(api.get).mock.calls.filter(([url]) => url === HISTORY_PATH).length;
     const before = historyCalls();
 
-    await user.click(screen.getByRole("button", { name: "Cho phép giao một phần" }));
+    // Bật giao một phần ở tab Giao hàng, rồi quay lại tab Lịch sử: lịch sử đã bị đánh dấu cũ nên tải lại
+    await user.click(screen.getByRole("tab", { name: "Giao hàng" }));
+    await user.click(await screen.findByRole("button", { name: "Cho phép giao một phần" }));
     await user.click(screen.getByRole("button", { name: "Cho phép" }));
+    await user.click(screen.getByRole("tab", { name: "Lịch sử" }));
 
     await waitFor(() => expect(historyCalls()).toBeGreaterThan(before));
   });

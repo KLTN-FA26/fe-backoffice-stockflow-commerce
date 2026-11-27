@@ -29,6 +29,7 @@ import {
 
 import type { PermissionCode } from "@/lib/auth";
 import type { OrderDto } from "../types";
+import { openOrderDetailTabInFile } from "../__fixtures__/render";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
@@ -69,6 +70,9 @@ async function openDialog() {
   await within(dialog).findByRole("radiogroup", { name: "Kho xuất hàng" });
   return { user, dialog };
 }
+
+// Các khối được kiểm nằm ở tab "delivery" của trang chi tiết đơn (`OrderDetailTabs`)
+openOrderDetailTabInFile("delivery");
 
 describe("thẻ Kho xuất — gate theo trạng thái và mã quyền", () => {
   it("Sale (READ + UPDATE), đơn Đã xác nhận chưa chọn kho → thẻ nói chưa chọn + nút Chọn kho xuất", async () => {

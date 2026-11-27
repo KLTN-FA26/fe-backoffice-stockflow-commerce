@@ -10,13 +10,13 @@ import {
   ORDER_MANUAL_HOLD_REASONS,
   ORDER_HOLD_REASON_LABELS,
 } from "@/constants";
-import { Button } from "@/components/ui/button";
+import { ActionTrigger } from "@/components/shared/ObjectActions";
 
 import { deliveryFailureSchema, holdOrderSchema, resolveOrderHoldSchema } from "../input-schemas";
 import { useHoldOrder, useRecordDeliveryFailure, useResolveOrderHold } from "../mutations";
 
 import { OrderReasonDialog } from "./OrderReasonDialog";
-import { ORDER_ACTION_BUTTON, toReasonOptions, useOrderActionDialog } from "./useOrderActionDialog";
+import { toReasonOptions, useOrderActionDialog } from "./useOrderActionDialog";
 
 import type { Order } from "../types";
 
@@ -28,15 +28,7 @@ export function OrderHoldAction({ order }: { order: ActionOrder }) {
   const labels = ORDER_ACTION_LABELS.hold;
   return (
     <>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        onClick={dialog.show}
-        className={ORDER_ACTION_BUTTON}
-      >
-        <PauseCircle className="size-3.5" /> {labels.button}
-      </Button>
+      <ActionTrigger icon={PauseCircle} label={labels.button} onClick={dialog.show} />
       {dialog.open && (
         <OrderReasonDialog
           title={labels.title}
@@ -63,15 +55,7 @@ export function OrderResolveHoldAction({ order }: { order: ActionOrder }) {
   const labels = ORDER_ACTION_LABELS.resolveHold;
   return (
     <>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        onClick={dialog.show}
-        className={ORDER_ACTION_BUTTON}
-      >
-        <CircleCheck className="size-3.5" /> {labels.button}
-      </Button>
+      <ActionTrigger icon={CircleCheck} label={labels.button} onClick={dialog.show} />
       {dialog.open && (
         <OrderReasonDialog
           title={labels.title}
@@ -97,15 +81,7 @@ export function OrderDeliveryFailureAction({ order }: { order: ActionOrder }) {
   const labels = ORDER_ACTION_LABELS.deliveryFailure;
   return (
     <>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        onClick={dialog.show}
-        className={ORDER_ACTION_BUTTON}
-      >
-        <PackageX className="size-3.5" /> {labels.button}
-      </Button>
+      <ActionTrigger icon={PackageX} label={labels.button} onClick={dialog.show} />
       {dialog.open && (
         <OrderReasonDialog
           title={labels.title}

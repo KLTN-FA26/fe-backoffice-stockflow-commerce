@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { XCircle } from "lucide-react";
 
 import { ORDER_LIMITS, UI_LABELS } from "@/constants";
+import { ActionTrigger } from "@/components/shared/ObjectActions";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -45,16 +46,20 @@ export function CreditRejectAction({
   const label = UI_LABELS.order.actions.creditReject;
   return (
     <>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        aria-label={compact ? `${label} duyệt công nợ đơn ${order.orderNumber}` : undefined}
-        className={`${DANGER_OUTLINE_BUTTON} ${compact ? "" : "w-full"}`}
-        onClick={show}
-      >
-        <XCircle className="size-3.5" /> {label}
-      </Button>
+      {compact ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          aria-label={`${label} duyệt công nợ đơn ${order.orderNumber}`}
+          className={DANGER_OUTLINE_BUTTON}
+          onClick={show}
+        >
+          <XCircle className="size-3.5" /> {label}
+        </Button>
+      ) : (
+        <ActionTrigger icon={XCircle} label={label} danger onClick={show} />
+      )}
       {dialog}
     </>
   );

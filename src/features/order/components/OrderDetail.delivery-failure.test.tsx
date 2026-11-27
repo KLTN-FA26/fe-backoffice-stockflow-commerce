@@ -15,6 +15,7 @@ import { ORDER_PERMISSION_SETS, mockOrderApiGet, renderOrderScreen } from "../__
 import { OrderDetail } from "./OrderDetail";
 
 import type { PermissionCode } from "@/lib/auth";
+import { openOrderDetailTabInFile } from "../__fixtures__/render";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 afterEach(() => vi.restoreAllMocks());
@@ -70,6 +71,9 @@ async function renderWith(
   });
   return screen.findByRole("region", { name: "Lô hàng hoàn về" });
 }
+
+// Các khối được kiểm nằm ở tab "delivery" của trang chi tiết đơn (`OrderDetailTabs`)
+openOrderDetailTabInFile("delivery");
 
 describe("OrderDetail — Lô hàng hoàn về (WF-05 BO-01)", () => {
   it("đơn cũ giữ vì DELIVERY_FAILED → nhãn giữ ghi rõ đơn cũ, không nói 'giao lại', không có Gỡ giữ", async () => {

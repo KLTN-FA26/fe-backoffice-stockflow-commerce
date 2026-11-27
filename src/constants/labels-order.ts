@@ -308,6 +308,23 @@ export const ORDER_HISTORY_LABELS = {
   by: "Bởi",
   noteLabel: "Ghi chú",
   statusMoved: "Chuyển trạng thái",
+  /** Bảng lịch sử (dạng bảng như lịch sử sản phẩm): cột "Loại" theo `kind` của mục. */
+  kinds: {
+    "status-change": "Đổi trạng thái",
+    "partial-shipment": "Giao một phần",
+    "remainder-closure": "Đóng phần còn lại",
+    "delivery-mode": "Hình thức giao",
+    "address-change": "Địa chỉ giao",
+    "refund-voided": "Phiếu hoàn tiền",
+    unknown: "Khác",
+  },
+  columns: {
+    occurredAt: "Thời gian",
+    kind: "Loại",
+    detail: "Nội dung",
+    actor: "Người thực hiện",
+    note: "Ghi chú",
+  },
 } as const;
 
 /* ── Đóng phần còn lại kèm phí thoả thuận (BE PR #150) ───────────────── */

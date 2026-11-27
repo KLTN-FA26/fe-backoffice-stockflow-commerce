@@ -11,6 +11,8 @@ import {
   findConversationAbout,
   findConversationOfCustomer,
 } from "@/lib/references/chat-lookup";
+import { HeaderActions } from "@/components/shared/HeaderActions";
+import { Button } from "@/components/ui/button";
 
 import type { ChatContextKind } from "@/lib/references/chat-lookup";
 
@@ -21,7 +23,8 @@ export type RelatedConversationTarget =
 /**
  * Link "Hội thoại liên quan" trên trang đơn / báo giá / khách (WF-02 BO-11a, mục 38). Chỉ hiện khi đã có hội thoại
  * (BE `GET /chat/conversations?contextKind&contextId` hoặc `?customerId`); không có, đang tải hay lỗi thì không hiện
- * gì — không tự mở hội thoại mới ở đây. Chat dùng chung `chat-conversations:READ`.
+ * gì — không tự mở hội thoại mới ở đây. Chat dùng chung `chat-conversations:READ`. Là nút trên thanh breadcrumb (kiểu
+ * Vercel, như nút "Tạo mới" / "Đơn chờ duyệt công nợ" — backoffice-erp-ui A1 / D23), không chiếm dòng riêng trên trang.
  */
 export function RelatedConversationLink({ target }: { target: RelatedConversationTarget }) {
   const canRead = useCan(CHAT_PERMISSIONS.read);
@@ -36,14 +39,13 @@ export function RelatedConversationLink({ target }: { target: RelatedConversatio
   });
   if (!canRead || !query.data) return null;
   return (
-    <div className="flex justify-end pb-2">
-      <Link
-        href={ADMIN_ROUTES.chat.detail(query.data)}
-        className="text-accent-text focus-visible:ring-ring inline-flex min-h-9 items-center gap-1.5 rounded-md text-sm hover:underline focus-visible:ring-2 focus-visible:outline-none"
-      >
-        <MessagesSquare className="size-4" aria-hidden="true" />
-        Hội thoại liên quan
-      </Link>
-    </div>
+    <HeaderActions>
+      <Button asChild variant="ghost" size="sm" className="text-ink-primary gap-2 font-medium">
+        <Link href={ADMIN_ROUTES.chat.detail(query.data)}>
+          <MessagesSquare className="size-4" aria-hidden="true" />
+          Hội thoại liên quan
+        </Link>
+      </Button>
+    </HeaderActions>
   );
 }
