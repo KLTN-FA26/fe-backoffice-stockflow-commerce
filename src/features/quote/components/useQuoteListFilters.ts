@@ -72,6 +72,8 @@ export function useQuoteListFilters() {
     serverSearch: filters.debouncedQ.trim() || number || undefined,
     hasColumnFilters,
     hasFilters: list.hasBaseFilters || !!customerId || !!priceReview.value || hasColumnFilters,
+    /** Chỉ đang xem hàng chờ "Chờ duyệt giá", không lọc gì thêm (bo-14: rỗng là "không có gì chờ", không phải "không khớp"). */
+    queueOnly: !!priceReview.value && !list.hasBaseFilters && !customerId && !hasColumnFilters,
     setCustomerId: (next: string) => {
       void setCustomerIdState(next || null);
       void filters.setPage(1);

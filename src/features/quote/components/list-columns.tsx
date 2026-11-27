@@ -3,12 +3,7 @@
 import Link from "next/link";
 import { CalendarX2 } from "lucide-react";
 
-import {
-  ADMIN_ROUTES,
-  QUOTE_API_STATUSES,
-  QUOTE_STATUS_BY_API,
-  QUOTE_STATUS_LABELS,
-} from "@/constants";
+import { ADMIN_ROUTES, QUOTE_API_STATUSES, QUOTE_STATUS_LABELS } from "@/constants";
 
 import { formatMoney } from "@/lib/format";
 import { formatDate, formatDateTime } from "@/lib/format/date";
@@ -18,7 +13,7 @@ import { isExpired } from "@/features/quote/selectors";
 import { CustomerName } from "@/components/backoffice/CustomerName";
 import { StatusDot } from "@/components/shared/StatusDot";
 
-import { MONO, QUOTE_LIST_LABELS as L, quoteStatusLabel } from "./copy";
+import { MONO, QUOTE_LIST_LABELS as L, QUOTE_STATUS_TONE_KEY, quoteStatusLabel } from "./copy";
 import { PriceReviewBadge } from "./price-review/PriceReviewBadge";
 
 import type { ColumnDef } from "@/components/shared/DataTable";
@@ -67,7 +62,7 @@ function QuoteStatusCell({ row }: { row: QuoteRow }) {
     <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-0.5">
       <StatusDot
         domain="order"
-        status={QUOTE_STATUS_BY_API[row.status]}
+        status={QUOTE_STATUS_TONE_KEY[row.status]}
         label={QUOTE_STATUS_LABELS[row.status]}
       />
       {row.status === "DRAFT" && row.priceReviewPending && <PriceReviewBadge />}

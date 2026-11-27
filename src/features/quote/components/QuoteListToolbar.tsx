@@ -80,7 +80,7 @@ export function QuoteListToolbar({
         },
         { label: "Tìm theo", value: "Số báo giá" },
         {
-          label: "Search trong cột",
+          label: "Tìm trong cột",
           value: columnSearchSummary(state),
           active: state.hasColumnFilters,
           onClear: state.clearColumnFilters,
