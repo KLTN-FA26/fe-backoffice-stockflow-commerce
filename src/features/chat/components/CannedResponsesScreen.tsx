@@ -1,86 +1,32 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { MessageSquareText, Pencil, Plus, Trash2 } from "lucide-react";
-import { parseAsString, useQueryState } from "nuqs";
+import { useState } from "react";
+import { MessageSquareText } from "lucide-react";
 
-import { CHAT_PERMISSIONS } from "@/constants";
-import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { CHAT_CANNED_LABELS as L, CHAT_PERMISSIONS } from "@/constants";
 import { useCan } from "@/lib/auth";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
-import { Card } from "@/components/shared/Card";
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { withHeaderFilters } from "@/components/shared/ColumnHeaderFilter";
+import { DataTable } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { HeaderActions, HeaderCreateButton } from "@/components/shared/HeaderActions";
+import { ListToolbar } from "@/components/shared/ListToolbar";
 import { Notice } from "@/components/shared/Notice";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
-import { SearchBar } from "@/components/shared/SearchBar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 
-import { chatErrorMessage, useDeleteCannedResponse } from "../mutations";
+import { chatErrorMessage } from "../mutations";
 import { useCannedResponses } from "../queries";
 
+import { cannedColumns, cannedHeaderFilters, matchesCannedColumns } from "./canned-columns";
 import { CannedResponseDialog } from "./CannedResponseDialog";
+import { DeleteCannedDialog } from "./DeleteCannedDialog";
+import { useCannedFilters } from "./useCannedFilters";
 
 import type { CannedResponse } from "../schemas";
 
-/** Ô tìm / lọc nhóm: gõ → 300 ms → URL (`q`, `category`). */
-function useUrlFilter(key: string) {
-  const [value, setValue] = useQueryState(key, parseAsString.withDefault(""));
-  const [draft, setDraft] = useState(value);
-  const debounced = useDebouncedValue(draft, 300).trim();
-  useEffect(() => {
-    if (debounced !== value) void setValue(debounced || null);
-  }, [debounced, value, setValue]);
-  return { value, draft, setDraft };
-}
-
-function CannedRow({
-  item,
-  canUpdate,
-  canDelete,
-  onEdit,
-  onDelete,
-}: {
-  item: CannedResponse;
-  canUpdate: boolean;
-  canDelete: boolean;
-  onEdit: () => void;
-  onDelete: () => void;
-}) {
-  return (
-    <li className="flex flex-wrap items-start justify-between gap-3 px-[var(--card-pad)] py-3">
-      <div className="min-w-0 flex-1 space-y-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-ink-primary text-[0.875rem] font-medium">{item.title}</span>
-          {item.shortcut && (
-            <span className="text-ink-tertiary font-[family-name:var(--font-mono)] text-xs">
-              /{item.shortcut}
-            </span>
-          )}
-          {item.category && <Badge variant="outline">{item.category}</Badge>}
-          {item.shared && <Badge variant="secondary">Dùng chung</Badge>}
-        </div>
-        <p className="text-ink-secondary line-clamp-3 text-[0.8125rem] whitespace-pre-line">
-          {item.body}
-        </p>
-      </div>
-      <div className="flex gap-1">
-        {canUpdate && (
-          <Button size="sm" variant="outline" onClick={onEdit} aria-label={`Sửa ${item.title}`}>
-            <Pencil className="size-3.5" /> Sửa
-          </Button>
-        )}
-        {canDelete && (
-          <Button size="sm" variant="outline" onClick={onDelete} aria-label={`Xoá ${item.title}`}>
-            <Trash2 className="size-3.5" /> Xoá
-          </Button>
-        )}
-      </div>
-    </li>
-  );
-}
+/** EmptyState bỏ khung khi nằm trong thân bảng (backoffice-erp-ui A7). */
+const IN_TABLE = "rounded-none border-0 bg-transparent py-10 whitespace-normal";
 
 function CannedContent() {
   const canCreate = useCan(CHAT_PERMISSIONS.cannedCreate);
@@ -88,94 +34,96 @@ function CannedContent() {
   const canDelete = useCan(CHAT_PERMISSIONS.cannedDelete);
   const canShare = useCan(CHAT_PERMISSIONS.supervise);
   const canRead = useCan(CHAT_PERMISSIONS.cannedRead);
-  const search = useUrlFilter("q");
-  const category = useUrlFilter("category");
-  const list = useCannedResponses(search.value, canRead, category.value);
-  const remove = useDeleteCannedResponse();
+  const filters = useCannedFilters();
+  const list = useCannedResponses(filters.serverQ, canRead, filters.serverCategory);
   const [editing, setEditing] = useState<CannedResponse | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [deleting, setDeleting] = useState<CannedResponse | null>(null);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-  const filtered = !!search.value || !!category.value;
-  // Mẫu dùng chung chỉ người giám sát sửa / xoá được (BE `requireChangeableBy`); mẫu riêng thì chủ của nó.
-  const can = (item: CannedResponse, allowed: boolean) => allowed && (!item.shared || canShare);
+  const { filtered, clear } = filters;
+  /** Mở form: `null` = thêm mới, có mẫu = sửa. */
+  const openForm = (item: CannedResponse | null) => {
+    setEditing(item);
+    setFormOpen(true);
+  };
+  const rows = list.data?.filter((item) => matchesCannedColumns(item, filters.columns)) ?? [];
+  const columns = withHeaderFilters(
+    cannedColumns({ canUpdate, canDelete, canShare, onEdit: openForm, onDelete: setDeleting }),
+    cannedHeaderFilters(filters.category, filters.setCategory, filters.columns, filters.setColumn),
+  );
 
   return (
-    <div className="surface-soft space-y-3">
-      <h1 className="sr-only">Câu trả lời mẫu</h1>
+    // Trang danh sách kiểu Vercel (backoffice-erp-ui A): không tiêu đề hiển thị, nút tạo mới trên thanh breadcrumb.
+    <div className="surface-soft">
+      <h1 className="sr-only">{L.title}</h1>
+      <HeaderActions>
+        <HeaderCreateButton
+          onClick={() => canCreate && openForm(null)}
+          disabled={!canCreate}
+          aria-label={L.createAria}
+          tooltip={canCreate ? L.createTooltip : L.createDenied}
+        />
+      </HeaderActions>
       {!canRead ? (
-        <Notice tone="warning">Bạn chưa có quyền xem câu trả lời mẫu.</Notice>
+        <Notice tone="warning">{L.readDenied}</Notice>
       ) : (
         <>
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-              <SearchBar
-                aria-label="Tìm câu trả lời mẫu"
-                placeholder="Tìm theo tiêu đề, nội dung, phím tắt…"
-                value={search.draft}
-                onChange={search.setDraft}
-                className="max-w-md"
-              />
-              <Input
-                aria-label="Lọc theo nhóm"
-                placeholder="Nhóm"
-                value={category.draft}
-                onChange={(event) => category.setDraft(event.target.value)}
-                className="h-9 w-40 rounded-[var(--r-sm)] text-[0.8125rem]"
-              />
-            </div>
-            {canCreate && (
-              <Button
-                size="sm"
-                onClick={() => {
-                  setEditing(null);
-                  setFormOpen(true);
-                }}
-              >
-                <Plus className="size-3.5" /> Thêm câu mẫu
-              </Button>
-            )}
-          </div>
+          <ListToolbar<never, never, never>
+            controlsIn="summary"
+            search={filters.q}
+            onSearchChange={filters.setQ}
+            searchPlaceholder={L.searchPlaceholder}
+            summaryItems={[
+              {
+                label: L.searchSummary,
+                value: filters.q.trim() ? `“${filters.q}”` : L.unused,
+                active: !!filters.q.trim(),
+                onClear: () => filters.setQ(""),
+              },
+              { label: L.searchFields, value: L.searchFieldsValue },
+              {
+                label: L.columnSearch,
+                value: filters.columnSummary,
+                active: filters.columnSearchActive,
+                onClear: filters.clearColumnSearch,
+              },
+            ]}
+            onResetAll={clear}
+            resetDisabled={!filtered}
+          />
           {list.isPending ? (
             <PageSkeleton variant="list" />
           ) : list.isError ? (
             <Notice tone="danger">
               {chatErrorMessage(list.error)}{" "}
               <Button size="sm" variant="outline" onClick={() => void list.refetch()}>
-                Thử lại
+                {L.retry}
               </Button>
             </Notice>
-          ) : list.data.length === 0 ? (
-            <EmptyState
-              icon={<MessageSquareText className="size-8" />}
-              title={filtered ? "Không có câu mẫu khớp" : "Chưa có câu trả lời mẫu"}
-              description={
-                filtered
-                  ? "Thử đổi từ khoá hoặc bỏ lọc nhóm."
-                  : "Câu mẫu giúp trả lời nhanh những câu hỏi lặp lại."
+          ) : (
+            <DataTable
+              data={rows}
+              columns={columns}
+              rowKey={(item) => item.id}
+              caption={L.caption}
+              stickyHeader
+              emptyState={
+                rows.length > 0 ? undefined : (
+                  <EmptyState
+                    className={IN_TABLE}
+                    icon={<MessageSquareText className="size-8" />}
+                    title={filtered ? L.noMatchTitle : L.emptyTitle}
+                    description={filtered ? L.noMatchDescription : L.emptyDescription}
+                    action={
+                      filtered ? (
+                        <Button type="button" variant="outline" size="sm" onClick={clear}>
+                          {L.clearFilters}
+                        </Button>
+                      ) : undefined
+                    }
+                  />
+                )
               }
             />
-          ) : (
-            <Card className="p-0">
-              <ul aria-label="Câu trả lời mẫu" className="divide-y divide-[var(--table-line)]">
-                {list.data.map((item) => (
-                  <CannedRow
-                    key={item.id}
-                    item={item}
-                    canUpdate={can(item, canUpdate)}
-                    canDelete={can(item, canDelete)}
-                    onEdit={() => {
-                      setEditing(item);
-                      setFormOpen(true);
-                    }}
-                    onDelete={() => {
-                      setDeleteError(null);
-                      setDeleting(item);
-                    }}
-                  />
-                ))}
-              </ul>
-            </Card>
           )}
           <CannedResponseDialog
             open={formOpen}
@@ -183,27 +131,7 @@ function CannedContent() {
             canShare={canShare}
             onOpenChange={setFormOpen}
           />
-          <ConfirmDialog
-            open={!!deleting}
-            onOpenChange={(next) => !next && setDeleting(null)}
-            title="Xoá câu trả lời mẫu?"
-            description={`"${deleting?.title ?? ""}" sẽ được lưu trữ, phím tắt dùng lại được.`}
-            confirmLabel="Xoá"
-            variant="danger"
-            loading={remove.isPending}
-            closeOnConfirm={false}
-            error={deleteError}
-            onConfirm={() => {
-              if (!deleting) return;
-              remove.mutate(
-                { id: deleting.id },
-                {
-                  onSuccess: () => setDeleting(null),
-                  onError: (failure) => setDeleteError(chatErrorMessage(failure)),
-                },
-              );
-            }}
-          />
+          <DeleteCannedDialog item={deleting} onClose={() => setDeleting(null)} />
         </>
       )}
     </div>

@@ -99,6 +99,7 @@ export function DesignHistoryPanel({ designId }: { designId: string }) {
     at: (
       <HeaderDateRangeFilter
         label="thời gian"
+        quickKind="past"
         from={from}
         to={to}
         onChange={(range) => {

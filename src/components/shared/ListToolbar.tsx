@@ -84,6 +84,11 @@ export interface ListToolbarProps<
    * Không đặt vào thanh `Cấu hình`: thanh đó chỉ hiện khi có bộ lọc đang bật.
    */
   note?: ReactNode;
+  /**
+   * Cột Trạng thái của bảng đã có bộ lọc ngay trên header (`ColumnHeaderFilter`) → không hiện thêm nút chọn nhanh
+   * trạng thái (trùng chức năng); giữ biểu tượng phễu + khung chọn như trước.
+   */
+  statusInHeader?: boolean;
   /** Hàng facet nghiệp vụ dưới toolbar (kho, vị trí, loại…) — chỉ trang có bộ lọc thêm. */
   facets?: ReactNode;
   /**
@@ -326,6 +331,7 @@ export function ListToolbar<Status extends string, Field extends string, Column 
   onExport,
   summaryItems,
   note,
+  statusInHeader = false,
   facets,
   filterPanel,
   hasPanelFilter = false,
@@ -341,10 +347,11 @@ export function ListToolbar<Status extends string, Field extends string, Column 
   const canUseColumns = Boolean(columnOptions?.length && onToggleColumn);
   const hasPanel = filterPanel !== undefined && filterPanel !== null;
   // 2–4 trạng thái: nút chọn nhanh hiện sẵn; nhiều hơn mới là biểu tượng phễu + khung chọn. Trang có `filterPanel`
-  // giữ bảng "Bộ lọc" (trạng thái là một cột của bảng) nên không dùng nút nhanh.
+  // giữ bảng "Bộ lọc" (trạng thái là một cột của bảng); cột Trạng thái đã có lọc trên header (`statusInHeader`) cũng không dùng nút nhanh.
   const statusInline =
     canUseStatus &&
     !hasPanel &&
+    !statusInHeader &&
     statusOptions!.length >= 2 &&
     statusOptions!.length <= LIST_TOOLBAR_LIMITS.statusInlineMax;
   const filterLabel = hasPanel ? "Bộ lọc" : L.status;
@@ -439,7 +446,9 @@ export function ListToolbar<Status extends string, Field extends string, Column 
               </div>
             ) : (
               <Command>
-                {needsSearch(statusOptions!.length) && <CommandInput placeholder={L.statusSearch} />}
+                {needsSearch(statusOptions!.length) && (
+                  <CommandInput placeholder={L.statusSearch} />
+                )}
                 <CommandList>
                   <CommandEmpty>{L.statusNone}</CommandEmpty>
                   <CommandGroup>

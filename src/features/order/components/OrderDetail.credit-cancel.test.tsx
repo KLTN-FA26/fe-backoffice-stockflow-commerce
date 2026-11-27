@@ -9,7 +9,7 @@ import { api } from "@/lib/api/client";
 
 import { apiOrder, apiOrderWith, apiPartialOrder } from "../__fixtures__/order";
 import { renderDetail } from "../__fixtures__/detail";
-import { ORDER_PERMISSION_SETS } from "../__fixtures__/render";
+import { ORDER_PERMISSION_SETS, orderAction, orderActionOrNull } from "../__fixtures__/render";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
@@ -38,7 +38,7 @@ describe("OrderDetail — huỷ đơn khi hàng có sẵn đã đóng trước h
     await renderDetail(ORDER_PERMISSION_SETS.coordinator, () =>
       apiOrderWith({ status: "IN_PRODUCTION", packedAt }),
     );
-    expect(await screen.findByRole("button", { name: "Huỷ đơn" })).toBeInTheDocument();
+    expect(await orderAction("Huỷ đơn")).toBeInTheDocument();
   });
 
   it("đã có lô rời kho → không còn nút Huỷ đơn", async () => {
@@ -53,6 +53,6 @@ describe("OrderDetail — huỷ đơn khi hàng có sẵn đã đóng trước h
     await waitFor(() =>
       expect(api.get).toHaveBeenCalledWith("/identity/me/permissions", expect.anything()),
     );
-    expect(screen.queryByRole("button", { name: "Huỷ đơn" })).not.toBeInTheDocument();
+    expect(await orderActionOrNull("Huỷ đơn")).toBeNull();
   });
 });

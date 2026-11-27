@@ -82,6 +82,7 @@ export function quoteRequestHeaderFilters(
     requestedAt: (
       <HeaderDateRangeFilter
         label="ngày yêu cầu"
+        quickKind="past"
         from={f.qrRequestedFrom}
         to={f.qrRequestedTo}
         onChange={({ from, to }) => set({ qrRequestedFrom: from, qrRequestedTo: to })}
