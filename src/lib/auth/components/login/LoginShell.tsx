@@ -51,7 +51,7 @@ export function LoginShell({ isMock, children }: LoginShellProps) {
     <div className="bg-bg-base relative isolate flex min-h-screen flex-col overflow-hidden">
       <DotBackdrop />
 
-      <header className="absolute top-0 right-0 z-10 flex items-center gap-3 px-5 py-4 sm:px-8">
+      <header className="absolute top-0 right-0 flex items-center gap-3 px-5 py-4 sm:px-8">
         {isMock && (
           <span className="border-warning/30 bg-bg-surface/80 text-warning-ink rounded-full border px-2.5 py-0.5 text-xs font-medium backdrop-blur-sm">
             {LOGIN_UI.demoBadge}
@@ -64,7 +64,7 @@ export function LoginShell({ isMock, children }: LoginShellProps) {
         <ThemeToggle />
       </header>
 
-      <main className="relative flex flex-1 items-center justify-center px-4 pt-16 pb-10 sm:py-10 [@media(max-height:680px)]:py-4">
+      <main className="flex flex-1 items-center justify-center px-4 pt-16 pb-10 sm:py-10 [@media(max-height:680px)]:py-4">
         <div
           className={cn(
             GLASS_PANEL_CLASS,
@@ -86,7 +86,7 @@ export function LoginShell({ isMock, children }: LoginShellProps) {
 
           {children}
 
-          <div className="border-border-default/70 text-ink-tertiary mt-6 flex items-center justify-between gap-3 border-t pt-4 text-xs">
+          <div className="border-border-default/70 text-ink-secondary mt-6 flex items-center justify-between gap-3 border-t pt-4 text-xs">
             <span className="flex items-center gap-1.5">
               <ShieldCheck className="text-positive size-3.5 shrink-0" aria-hidden="true" />
               {LOGIN_UI.footerNotice}

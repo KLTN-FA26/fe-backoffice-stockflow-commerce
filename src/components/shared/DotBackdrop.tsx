@@ -1,4 +1,7 @@
+"use client";
+
 import { cn } from "cn";
+import { useId } from "react";
 
 /**
  * Nền chấm + đốm màu mờ, dùng chung cho các trang ngoài shell (trang chủ, đăng nhập).
@@ -22,15 +25,17 @@ interface DotBackdropProps {
 }
 
 export function DotBackdrop({ glowClassName = "size-[min(560px,90vw)]" }: DotBackdropProps) {
+  // Id riêng mỗi instance — hai backdrop cùng lúc trong DOM không đụng `url(#…)` của nhau.
+  const patternId = useId();
   return (
     <div className="pointer-events-none absolute inset-0 -z-10" aria-hidden="true">
       <svg className="text-border-strong absolute inset-0 size-full" shapeRendering="crispEdges">
         <defs>
-          <pattern id="dot-backdrop" width={DOT_GAP} height={DOT_GAP} patternUnits="userSpaceOnUse">
+          <pattern id={patternId} width={DOT_GAP} height={DOT_GAP} patternUnits="userSpaceOnUse">
             <rect width="2" height="2" fill="currentColor" />
           </pattern>
         </defs>
-        <rect width="100%" height="100%" fill="url(#dot-backdrop)" />
+        <rect width="100%" height="100%" fill={`url(#${patternId})`} />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
         <div className={cn("relative", glowClassName)}>

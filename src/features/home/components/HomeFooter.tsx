@@ -14,7 +14,7 @@ export function HomeFooter() {
 
   return (
     <footer className={cn(GLASS_BAR_CLASS, "border-border-default/70 shrink-0 border-t")}>
-      <div className="text-ink-tertiary mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-3 text-xs sm:px-6 lg:px-8">
+      <div className="text-ink-secondary mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-3 text-xs sm:px-6 lg:px-8">
         <span>{HOME_COPY.footerLeft}</span>
         <div className="flex items-center gap-4">
           <span className="hidden sm:inline">{HOME_COPY.footerRight}</span>

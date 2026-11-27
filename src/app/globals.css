@@ -136,7 +136,7 @@
   --brand: #ededed;
   --brand-hover: #ffffff;
   --accent: #4ea6f0;
-  /* 6.79:1 trên bg.surface, 5.35:1 trên bg.muted. */
+  /* 7.23:1 trên bg.surface, 6.31:1 trên bg.muted. */
   --accent-text: #4ea6f0;
   --warning-ink: #f5a524;
   --positive-ink: #3cc47a;

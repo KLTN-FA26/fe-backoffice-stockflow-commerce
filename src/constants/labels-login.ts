@@ -8,7 +8,8 @@ export const LOGIN_UI = {
   themeToLight: "Chuyển sang giao diện sáng",
   themeToDark: "Chuyển sang giao diện tối",
   title: "Đăng nhập",
-  description: "Dùng tài khoản do quản trị viên cấp.",
+  description:
+    "Nhân viên dùng tài khoản do quản trị viên cấp; khách hàng doanh nghiệp dùng email đã kích hoạt.",
   mockDescription: "Chọn một tài khoản nhân sự để truy cập dữ liệu demo.",
   loading: "Đang tải trang đăng nhập",
   usernameLabel: "Tên đăng nhập",

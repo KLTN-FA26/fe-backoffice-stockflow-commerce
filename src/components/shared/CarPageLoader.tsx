@@ -55,7 +55,7 @@ export function CarPageLoader({
   return (
     <div role="status" className={cn("flex flex-col items-center gap-3", className)}>
       <style>{STYLES}</style>
-      <svg viewBox="0 0 200 92" className="h-auto w-56" aria-hidden="true" focusable="false">
+      <svg viewBox="0 0 200 86" className="h-auto w-56" aria-hidden="true" focusable="false">
         {/* Speed lines behind the truck */}
         <g className="stroke-accent" strokeWidth={2.5} strokeLinecap="round" opacity={0.55}>
           <path className="cpl-speed" d="M8 30h16" />
@@ -135,13 +135,13 @@ export function CarPageLoader({
         </g>
         {/* Road: solid base and scrolling lane dashes */}
         <path
-          d="M4 86h192"
+          d="M4 80h192"
           className="stroke-border-default"
           strokeWidth={2}
           strokeLinecap="round"
         />
         <path
-          d="M4 86h192"
+          d="M4 80h192"
           className="cpl-road stroke-ink-tertiary"
           strokeWidth={2}
           strokeLinecap="round"

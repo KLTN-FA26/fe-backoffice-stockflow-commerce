@@ -48,6 +48,9 @@ beforeEach(() => {
 });
 afterEach(() => {
   useAuthStore.getState().logout(false);
+  // Test đổi theme không được để lại dark (store persist + data-theme trên <html>) cho test sau.
+  useAppStore.getState().setTheme("system");
+  localStorage.clear();
   vi.clearAllMocks();
 });
 async function submit() {
