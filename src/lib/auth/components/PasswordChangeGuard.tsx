@@ -4,11 +4,9 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 import { APP_ROUTES } from "@/constants";
-import { AUTH_UI } from "@/constants/auth";
-
-import { CarPageLoader } from "@/components/shared/CarPageLoader";
 
 import { useAuthStore } from "../auth-store";
+import { GateLoader } from "./GateLoader";
 
 import type { ReactNode } from "react";
 
@@ -26,12 +24,6 @@ export function PasswordChangeGuard({ children }: { children: ReactNode }) {
     if (mustChange) router.replace(APP_ROUTES.changePassword);
   }, [mustChange, router]);
 
-  if (mustChange) {
-    return (
-      <main className="bg-bg-base flex min-h-screen items-center justify-center px-6">
-        <CarPageLoader label={AUTH_UI.verifyingSession} />
-      </main>
-    );
-  }
+  if (mustChange) return <GateLoader />;
   return children;
 }
