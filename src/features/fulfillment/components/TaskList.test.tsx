@@ -31,6 +31,7 @@ import {
   bePage,
   taskCandidate,
 } from "../__fixtures__/task";
+import { openOrderList } from "../__fixtures__/order-combobox";
 import { CreateTaskDialog } from "./assign/CreateTaskDialog";
 import { PickingList } from "./TaskList";
 
@@ -301,7 +302,7 @@ describe("Tạo task lấy hàng", () => {
     await user.click(await screen.findByRole("button", { name: fulfillment.action.create }));
     const dialog = await screen.findByRole("dialog");
     // Mỗi lựa chọn: số đơn, tên khách, số dòng / số lượng, ngày đặt
-    await user.click(await screen.findByRole("combobox", { name: "Đơn hàng" }));
+    await openOrderList(user);
     const option = await screen.findByRole("option", { name: /SO-20261010-000431/ });
     expect(option).toHaveTextContent("Nguyễn Hoài Nam");
     expect(option).toHaveTextContent("2 dòng · 5 sản phẩm");

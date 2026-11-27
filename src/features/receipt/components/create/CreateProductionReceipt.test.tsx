@@ -184,6 +184,19 @@ function renderWith(
   return spies;
 }
 
+/**
+ * Mở danh sách ô Đơn sản xuất bằng cách GÕ vài ký tự đầu của mã: ô chỉ mở khi gõ (R1 — bấm vào thân ô chỉ đặt con trỏ),
+ * và cách này cũng đúng khi ô vẫn mở khi bấm. Gõ xong danh sách đã lọc theo chữ đó.
+ */
+async function openByTyping(
+  user: ReturnType<typeof userEvent.setup>,
+  box: HTMLElement,
+  text: string,
+) {
+  await user.click(box);
+  await user.type(box, text);
+}
+
 describe("Lập phiếu nhập — chọn Đơn sản xuất dễ hơn (S12-1)", () => {
   it("chỉ có một Đơn sản xuất nhận được hàng → chọn sẵn, lập luôn không phải chọn lại", async () => {
     const user = userEvent.setup();
@@ -206,7 +219,7 @@ describe("Lập phiếu nhập — chọn Đơn sản xuất dễ hơn (S12-1)",
     await user.click(await screen.findByRole("button", { name: L.button }));
     const box = await screen.findByRole("combobox", { name: L.productionOrder });
     expect(box).toHaveValue("");
-    await user.click(box);
+    await openByTyping(user, box, "PRD");
     const option = await screen.findByRole("option", { name: /PRD-A/ });
     expect(option).toHaveTextContent("Xưởng In Ly Giấy Long Xuyên");
     expect(option).toHaveTextContent("LYG12-DA1-0318800259-01");
@@ -222,7 +235,11 @@ describe("Lập phiếu nhập — chọn Đơn sản xuất dễ hơn (S12-1)",
       receivable("po-3", "PRD-OPEN2"),
     ]);
     await user.click(await screen.findByRole("button", { name: L.button }));
-    await user.click(await screen.findByRole("combobox", { name: L.productionOrder }));
+    await openByTyping(
+      user,
+      await screen.findByRole("combobox", { name: L.productionOrder }),
+      "PRD",
+    );
     expect(await screen.findByRole("option", { name: /PRD-OPEN\b/ })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: /PRD-FULL/ })).toBeNull();
   });
@@ -231,7 +248,11 @@ describe("Lập phiếu nhập — chọn Đơn sản xuất dễ hơn (S12-1)",
     const user = userEvent.setup();
     renderWith([], { failList: true });
     await user.click(await screen.findByRole("button", { name: L.button }));
-    await user.click(await screen.findByRole("combobox", { name: L.productionOrder }));
+    await openByTyping(
+      user,
+      await screen.findByRole("combobox", { name: L.productionOrder }),
+      "PRD",
+    );
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent(L.loadError);
     expect(within(alert).getByRole("button", { name: L.retry })).toBeInTheDocument();
@@ -252,7 +273,7 @@ describe("Lập phiếu nhập — chọn Đơn sản xuất dễ hơn (S12-1)",
     const box = await screen.findByRole("combobox", { name: L.productionOrder });
     // Không tự focus — chỉ hộp Lập phiếu mới tự focus
     expect(box).not.toHaveFocus();
-    await user.click(box);
+    await openByTyping(user, box, "PRD-B");
     await user.click(await screen.findByRole("option", { name: /PRD-B/ }));
     await waitFor(() => {
       const last = get.mock.calls.filter(([url]) => url === "/goods-receipts").at(-1)?.[1] as

@@ -24,6 +24,7 @@ import {
   bePage,
   taskCandidate,
 } from "../__fixtures__/task";
+import { expectOrderPrefilled, openOrderList } from "../__fixtures__/order-combobox";
 import { CreateTaskDialog } from "./assign/CreateTaskDialog";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
@@ -66,7 +67,7 @@ describe("Tạo task — đơn đang chờ hàng", () => {
     Element.prototype.hasPointerCapture ??= () => false;
     Element.prototype.releasePointerCapture ??= () => {};
     Element.prototype.scrollIntoView ??= () => {};
-    await user.click(await within(dialog).findByRole("combobox", { name: "Đơn hàng" }));
+    await openOrderList(user);
     expect(
       await screen.findByRole("option", {
         name: new RegExp(UI_LABELS.fulfillment.candidate.awaitingStock),
@@ -91,7 +92,7 @@ describe("Tạo task — đơn đang chờ hàng", () => {
 
   it("Sale đã cho giao một phần → chọn được khu xuất hàng (mặc định)", async () => {
     const { user, dialog, post } = await openDialog(awaiting(true));
-    await pickSelectOption(user, "Đơn hàng", /SO-20261010-000431/);
+    await expectOrderPrefilled("SO-20261010-000431");
     await pickSelectOption(user, "Người được gán", /Hoàng Anh Tuấn/);
     expect(within(dialog).getByRole("radio", { name: new RegExp(D.DISPATCH) })).toBeEnabled();
     expect(within(dialog).queryByText(D.awaitingStockStagingOnly)).toBeNull();
@@ -109,7 +110,7 @@ describe("Tạo task — đơn đang chờ hàng", () => {
     const { user, dialog } = await openDialog(awaiting(true), () => {
       throw new ApiError(409, "PICK_AWAITING_STOCK_DESTINATION", "English");
     });
-    await pickSelectOption(user, "Đơn hàng", /SO-20261010-000431/);
+    await expectOrderPrefilled("SO-20261010-000431");
     await pickSelectOption(user, "Người được gán", /Hoàng Anh Tuấn/);
     await user.click(submit(dialog));
     expect(
