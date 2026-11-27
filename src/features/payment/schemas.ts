@@ -106,7 +106,10 @@ export const receiptLineDtoSchema = z.object({
   milestone: milestone.nullish(),
 });
 
-/** BE `PaymentReceiptResponse`; `lines` có cả ở danh sách (mỗi dòng không kèm thông tin đợt). */
+/**
+ * BE `PaymentReceiptResponse`; `lines` có cả ở danh sách. Từ BE PR #497 dòng của danh sách cũng kèm hợp đồng / đơn / đợt
+ * (bo-24); BE cũ để null ngoài trang chi tiết.
+ */
 export const receiptDtoSchema = z.object({
   receiptId: z.string(),
   customerId: z.string(),

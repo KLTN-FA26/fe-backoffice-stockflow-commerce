@@ -158,7 +158,15 @@ export const PAYMENT_LABELS = {
     navLabel: "Phiếu thu",
     pageTitle: "Phiếu thu",
     createAction: "Lập phiếu thu",
-    searchPlaceholder: "Mã tham chiếu sao kê (khớp chính xác)",
+    /** bo-24: BE `search` — tên / MST khách, số hợp đồng, số đơn (PR #497). */
+    searchPlaceholder: "Tìm theo khách, MST, số hợp đồng hoặc số đơn",
+    /** Mã tham chiếu sao kê vẫn là bộ lọc riêng, khớp chính xác (BE `reference`). */
+    referenceLabel: "Mã tham chiếu",
+    referencePlaceholder: "Mã sao kê, khớp chính xác",
+    referenceChip: "Mã tham chiếu",
+    /** Cột "Hợp đồng · Đợt" (bo-24): các đợt phiếu thu đã trả, từ `lines[]` của danh sách. */
+    installmentsColumn: "Hợp đồng · Đợt",
+    moreInstallments: (count: number) => `+${count} đợt`,
     createHint:
       "Lập phiếu thu từ danh sách đợt thanh toán: mở đợt cần ghi tiền rồi chọn “Lập phiếu thu”.",
     emptyTitle: "Chưa có phiếu thu",

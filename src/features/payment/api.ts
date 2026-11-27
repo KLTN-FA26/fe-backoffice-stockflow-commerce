@@ -112,6 +112,11 @@ export interface ListReceiptParams extends ListQueryParams {
   status?: ReceiptApiStatus;
   /** Mã tham chiếu sao kê — BE khớp chính xác. */
   reference?: string;
+  /**
+   * bo-24 (BE PR #497): một phần tên / MST khách, số hợp đồng hoặc số đơn của đợt phiếu đã trả. Danh sách, `/summary` và
+   * `/export` cùng nhận; BE cũ bỏ qua.
+   */
+  search?: string;
   /** `YYYY-MM-DD`, gồm cả hai đầu; từ > đến thì BE trả 400 `VALIDATION_FAILED` nên FE chặn trước. */
   receivedFrom?: string;
   receivedTo?: string;
@@ -132,13 +137,14 @@ export async function listReceipts(
 /** Bộ lọc chung của danh sách, `/summary` và `/export` (BE `ReceiptFilter`). */
 export type ReceiptFilterParams = Pick<
   ListReceiptParams,
-  "customerId" | "status" | "reference" | "receivedFrom" | "receivedTo"
+  "customerId" | "status" | "reference" | "search" | "receivedFrom" | "receivedTo"
 >;
 
 function receiptFilterQuery(params: ReceiptFilterParams, query = new URLSearchParams()) {
   if (params.customerId) query.set("customerId", params.customerId);
   if (params.status) query.set("status", params.status);
   if (params.reference?.trim()) query.set("reference", params.reference.trim());
+  if (params.search?.trim()) query.set("search", params.search.trim());
   if (params.receivedFrom) query.set("receivedFrom", params.receivedFrom);
   if (params.receivedTo) query.set("receivedTo", params.receivedTo);
   return query;

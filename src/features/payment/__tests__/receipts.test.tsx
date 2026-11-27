@@ -465,7 +465,7 @@ describe("WF-02 mục 36 — ngày nhận, tổng, xuất Excel", () => {
   });
 });
 
-describe("bo-24: tìm phiếu thu theo khách; cột số dòng ẩn mặc định", () => {
+describe("bo-24: tìm phiếu thu theo khách / hợp đồng / đơn; cột Hợp đồng · Đợt", () => {
   const summary = { count: 1, totalAmount: 1, currency: "VND", byCurrency: [] };
   const CUSTOMER = {
     customerId: "cust-42",
@@ -475,7 +475,52 @@ describe("bo-24: tìm phiếu thu theo khách; cột số dòng ẩn mặc đị
     status: "ACTIVE",
   };
 
-  it("'Các dòng của phiếu thu' (BE danh sách không gửi hợp đồng / đợt của dòng) ẩn mặc định, bật lại được", async () => {
+  it("dòng của danh sách kèm hợp đồng / đợt (BE PR #497) → cột 'Hợp đồng · Đợt' thay cột đếm dòng", async () => {
+    mockPaymentApi(ACCOUNTANT_GRANTS, {
+      get: {
+        "/payment-receipts": () =>
+          bePage([
+            detail({
+              lines: [
+                {
+                  installmentId: "inst-2",
+                  amount: 20_000_000,
+                  contractNumber: "HD-20261108-000013-1",
+                  orderNumber: "SO-20261108-000013",
+                  seq: 2,
+                  name: "Trả trước khi nhận đợt giao 1",
+                },
+                {
+                  installmentId: "inst-3",
+                  amount: 5_000_000,
+                  contractNumber: "HD-20261108-000013-1",
+                  orderNumber: "SO-20261108-000013",
+                  seq: 3,
+                  name: "Còn lại",
+                },
+              ],
+            }),
+          ]),
+        "/payment-receipts/summary": () => summary,
+      },
+    });
+    renderPaymentScreen(<ReceiptList />);
+    await screen.findByText("FT26313123456");
+    expect(screen.getByRole("columnheader", { name: "Hợp đồng · Đợt" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("columnheader", { name: /Các dòng của phiếu thu/ }),
+    ).not.toBeInTheDocument();
+    const cell = screen.getByText("HD-20261108-000013-1 · Đợt 2");
+    expect(within(cell).getByText("+1 đợt")).toBeInTheDocument();
+    expect(cell.closest("[title]")).toHaveAttribute(
+      "title",
+      expect.stringContaining("HD-20261108-000013-1 · Đợt 3 — Còn lại"),
+    );
+    expect(screen.getByText("SO-20261108-000013")).toBeInTheDocument();
+    localStorage.clear();
+  });
+
+  it("BE cũ (dòng không kèm hợp đồng) → không có cột 'Hợp đồng · Đợt'", async () => {
     mockPaymentApi(ACCOUNTANT_GRANTS, {
       get: {
         "/payment-receipts": () => bePage([receiptJson()]),
@@ -484,10 +529,40 @@ describe("bo-24: tìm phiếu thu theo khách; cột số dòng ẩn mặc đị
     });
     renderPaymentScreen(<ReceiptList />);
     await screen.findByText("FT26313123456");
-    expect(
-      screen.queryByRole("columnheader", { name: /Các dòng của phiếu thu/ }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Hợp đồng · Đợt" })).not.toBeInTheDocument();
     localStorage.clear();
+  });
+
+  it("ô tìm chính gửi `search` cho danh sách và /summary; mã tham chiếu nằm trong Bộ lọc, vẫn khớp chính xác", async () => {
+    const api = mockPaymentApi(ACCOUNTANT_GRANTS, {
+      get: {
+        "/payment-receipts": () => bePage([receiptJson()]),
+        "/payment-receipts/summary": () => summary,
+      },
+    });
+    renderPaymentScreen(<ReceiptList />);
+    await screen.findByText("FT26313123456");
+    const paramsOf = (url: string) =>
+      api.get.mock.calls
+        .filter(([called]) => called === url)
+        .map(([, config]) => (config as { params: URLSearchParams }).params);
+    await userEvent.type(
+      screen.getByPlaceholderText("Tìm theo khách, MST, số hợp đồng hoặc số đơn"),
+      "HD-2026",
+    );
+    await waitFor(() =>
+      expect(paramsOf("/payment-receipts").at(-1)?.get("search")).toBe("HD-2026"),
+    );
+    await waitFor(() =>
+      expect(paramsOf("/payment-receipts/summary").at(-1)?.get("search")).toBe("HD-2026"),
+    );
+    expect(paramsOf("/payment-receipts").at(-1)?.has("reference")).toBe(false);
+
+    await userEvent.click(screen.getByRole("button", { name: "Bộ lọc" }));
+    await userEvent.type(await screen.findByLabelText("Mã tham chiếu"), "FT263");
+    await waitFor(() =>
+      expect(paramsOf("/payment-receipts").at(-1)?.get("reference")).toBe("FT263"),
+    );
   });
 
   it("người xem được danh bạ khách chọn khách trong Bộ lọc → gửi customerId của BE", async () => {

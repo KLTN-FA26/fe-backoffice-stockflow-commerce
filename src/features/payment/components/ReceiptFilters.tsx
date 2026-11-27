@@ -14,6 +14,7 @@ import { FilterSelect } from "@/components/backoffice/FilterSelect";
 import { DatePicker } from "@/components/shared/DatePicker";
 import { ListToolbar } from "@/components/shared/ListToolbar";
 import { ToolbarFilterPopover } from "@/components/shared/ToolbarFilterPopover";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 import { receiptStatusLabel } from "../selectors";
@@ -40,12 +41,15 @@ function dayLabel(iso: string): string {
 }
 
 /**
- * Toolbar phiếu thu (BE `GET /payment-receipts`, BO-UX-2/7): search chính là mã tham chiếu sao kê (khớp chính xác);
- * nút Lọc — trạng thái (BE nhận một giá trị) và khách (bo-24: tìm theo tên / MST bằng ô chọn khách, gửi `customerId`
- * của BE; chỉ khi xem được danh bạ khách); hàng facet — khoảng ngày nhận (lỗi khoảng ngược báo tại ô); Ẩn hiện cột;
- * chip Cấu hình cho từng bộ lọc, kể cả khách đến từ link. BE chưa tìm theo số đơn / số hợp đồng.
+ * Toolbar phiếu thu (BE `GET /payment-receipts`, BO-UX-2/7): search chính là BE `search` (bo-24, PR #497: tên / MST
+ * khách, số hợp đồng, số đơn); nút Lọc — mã tham chiếu sao kê (khớp chính xác), trạng thái (BE nhận một giá trị) và
+ * khách (ô chọn khách, gửi `customerId`; chỉ khi xem được danh bạ khách); hàng facet — khoảng ngày nhận (lỗi khoảng ngược
+ * báo tại ô); Ẩn hiện cột; chip Cấu hình cho từng bộ lọc, kể cả khách đến từ link.
  */
 export function ReceiptFilters({
+  search,
+  onSearchChange,
+  linesNamed = true,
   reference,
   onReferenceChange,
   status,
@@ -64,6 +68,10 @@ export function ReceiptFilters({
   onClear,
   columns,
 }: {
+  search: string;
+  onSearchChange: (value: string) => void;
+  /** Trang có cột "Hợp đồng · Đợt" (BE kèm hợp đồng trên dòng); không thì bỏ khỏi popover Ẩn hiện cột. */
+  linesNamed?: boolean;
   reference: string;
   onReferenceChange: (value: string) => void;
   status: ReceiptApiStatus | null;
@@ -89,6 +97,12 @@ export function ReceiptFilters({
   const summary: ListSummaryItem[] = [
     {
       label: LL.searchMain,
+      value: search.trim() ? `“${search}”` : LL.notUsed,
+      active: search.trim() !== "",
+      onClear: () => onSearchChange(""),
+    },
+    {
+      label: L.referenceChip,
       value: reference.trim() ? `“${reference}”` : LL.notUsed,
       active: reference.trim() !== "",
       onClear: () => onReferenceChange(""),
@@ -121,19 +135,38 @@ export function ReceiptFilters({
 
   return (
     <ListToolbar
-      search={reference}
-      onSearchChange={onReferenceChange}
+      search={search}
+      onSearchChange={onSearchChange}
       searchPlaceholder={L.searchPlaceholder}
-      {...columnToolbarProps(columns, RECEIPT_COLUMN_LABELS, RECEIPT_COLUMN_KEYS)}
+      {...columnToolbarProps(
+        columns,
+        RECEIPT_COLUMN_LABELS,
+        linesNamed
+          ? RECEIPT_COLUMN_KEYS
+          : RECEIPT_COLUMN_KEYS.filter((column) => column !== "installments"),
+      )}
       tools={
         <ToolbarFilterPopover
           label={LL.filters}
-          active={!!status || !!customerId}
+          active={!!status || !!customerId || reference.trim() !== ""}
           onClear={() => {
+            onReferenceChange("");
             onStatusChange(null);
             onClearCustomer();
           }}
         >
+          <div className="flex items-center gap-2">
+            <Label htmlFor="receipt-reference" className="text-ink-secondary text-[0.8125rem]">
+              {L.referenceLabel}
+            </Label>
+            <Input
+              id="receipt-reference"
+              value={reference}
+              placeholder={L.referencePlaceholder}
+              onChange={(event) => onReferenceChange(event.target.value)}
+              className="border-border-default bg-bg-surface h-8 w-[11rem] rounded-[var(--r-sm)] text-[0.8125rem]"
+            />
+          </div>
           <FilterSelect
             id="receipt-status"
             label={LL.status}
