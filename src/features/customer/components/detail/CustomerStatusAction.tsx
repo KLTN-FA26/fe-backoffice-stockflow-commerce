@@ -1,17 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { Lock, LockOpen, RotateCcw, UserX } from "lucide-react";
 
 import { useChangeCustomerStatus } from "@/features/customer/mutations";
-import {
-  CUSTOMER_ACTION_TARGET,
-  REASON_REQUIRED,
-  allowedCustomerActions,
-} from "@/features/customer/lifecycle";
+import { CUSTOMER_ACTION_TARGET, REASON_REQUIRED } from "@/features/customer/lifecycle";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { DETAIL_ACTION_CLASS } from "@/components/shared/DetailSection";
-import { Button } from "@/components/ui/button";
+import { ActionTrigger } from "@/components/shared/ObjectActions";
 
+import type { LucideIcon } from "lucide-react";
 import type { CustomerStatusAction } from "@/features/customer/lifecycle";
 import type { Customer } from "@/features/customer/types";
 
@@ -47,54 +44,55 @@ const COPY: Record<
   },
 };
 
+const ICON: Record<CustomerStatusAction, LucideIcon> = {
+  suspend: Lock,
+  reactivate: LockOpen,
+  close: UserX,
+  reopen: RotateCcw,
+};
+
+/** Bước phá huỷ (tạm khoá / đóng) — chữ đỏ trong menu "⋯". */
+export const isDangerCustomerAction = (action: CustomerStatusAction) => COPY[action].danger;
+
 /**
- * Thao tác đổi trạng thái — chỉ hiện các bước bảng vòng đời cho phép (lifecycle.ts). Nút xếp dọc trong thẻ hành
- * động cột phải; bước phá huỷ (tạm khoá / đóng) tô đỏ.
+ * Một thao tác đổi trạng thái (bước bảng vòng đời cho phép — lifecycle.ts): nút / mục menu qua `ActionTrigger` (đổi dáng
+ * theo chỗ đặt trên header đối tượng) + `ConfirmDialog` của nó. UI-only — Backend phải re-check.
  */
-export function CustomerStatusActions({
+export function CustomerStatusAction({
   customer,
-  canChangeStatus,
+  action,
 }: {
   customer: Customer;
-  canChangeStatus: boolean;
+  action: CustomerStatusAction;
 }) {
-  const [pending, setPending] = useState<CustomerStatusAction | null>(null);
+  const [open, setOpen] = useState(false);
   const change = useChangeCustomerStatus();
-  const actions = allowedCustomerActions(customer.status, canChangeStatus);
-  if (actions.length === 0) return null;
-  const copy = pending ? COPY[pending] : null;
-
+  const copy = COPY[action];
   return (
     <>
-      {actions.map((action) => (
-        <Button
-          key={action}
-          type="button"
-          size="sm"
-          variant={COPY[action].danger ? "ghost" : "outline"}
-          className={COPY[action].danger ? DETAIL_ACTION_CLASS.danger : DETAIL_ACTION_CLASS.outline}
-          onClick={() => setPending(action)}
-        >
-          {COPY[action].label}
-        </Button>
-      ))}
-      {pending && copy && (
+      <ActionTrigger
+        icon={ICON[action]}
+        label={copy.label}
+        danger={copy.danger}
+        onClick={() => setOpen(true)}
+      />
+      {open && (
         <ConfirmDialog
           open
-          onOpenChange={(open) => !open && setPending(null)}
+          onOpenChange={(next) => !next && setOpen(false)}
           title={copy.title}
           description={copy.description}
           confirmLabel={copy.label}
           variant={copy.danger ? "danger" : "default"}
-          requireReason={REASON_REQUIRED.has(pending)}
+          requireReason={REASON_REQUIRED.has(action)}
           reasonLabel="Lý do"
           reasonMaxLength={1000}
           loading={change.isPending}
           closeOnConfirm={false}
           onConfirm={(reason) =>
             change.mutate(
-              { id: customer.customerId, status: CUSTOMER_ACTION_TARGET[pending], reason },
-              { onSuccess: () => setPending(null) },
+              { id: customer.customerId, status: CUSTOMER_ACTION_TARGET[action], reason },
+              { onSuccess: () => setOpen(false) },
             )
           }
         />

@@ -39,9 +39,10 @@ export const QUOTE_COLUMNS = [
   "validUntil",
   "sentAt",
   "order",
+  "actions",
 ] as const;
 export type QuoteColumn = (typeof QUOTE_COLUMNS)[number];
-export const QUOTE_LOCKED_COLUMNS: readonly QuoteColumn[] = ["quoteNumber"];
+export const QUOTE_LOCKED_COLUMNS: readonly QuoteColumn[] = ["quoteNumber", "actions"];
 export const QUOTE_COLUMN_LABELS: Record<QuoteColumn, string> = {
   quoteNumber: L.number,
   customer: L.customer,
@@ -50,6 +51,7 @@ export const QUOTE_COLUMN_LABELS: Record<QuoteColumn, string> = {
   validUntil: L.validUntil,
   sentAt: L.sentAt,
   order: L.order,
+  actions: "Thao tác",
 };
 
 /** Báo giá đã gửi mà quá hạn hiệu lực (job chưa kịp chuyển EXPIRED): khách không còn chấp nhận được. */
