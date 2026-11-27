@@ -13,7 +13,7 @@ import { resetProductMockStore } from "@/lib/api/mock-product-store";
 import { resetPrintConfigMockStore } from "@/lib/api/mock-routes-print-configs";
 import { resetVariantMockStore } from "@/lib/api/mock-routes-variants";
 
-import { DEFAULTS_TOGGLE, editStored, renderSection } from "./print-config-test-utils";
+import { DEFAULTS_SECTION, editStored, renderSection } from "./print-config-test-utils";
 
 vi.mock("./save-input", async (importOriginal) => ({
   ...(await importOriginal<object>()),
@@ -41,7 +41,7 @@ describe("a save that cannot be prepared", () => {
     const user = userEvent.setup();
     renderSection();
     await editStored(user);
-    await user.click(await screen.findByRole("button", DEFAULTS_TOGGLE));
+    await screen.findByRole("region", DEFAULTS_SECTION);
     const seam = screen.getByLabelText("Mép dán (mm)");
     await user.clear(seam);
     await user.type(seam, "6");

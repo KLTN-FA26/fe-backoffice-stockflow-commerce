@@ -20,18 +20,16 @@ import { useDesign, useDesignArtifacts } from "@/features/design-review/queries"
 import { currentSubmission } from "@/features/design-review/selectors";
 
 import { LoadErrorState } from "@/components/backoffice/LoadErrorState";
-import { DETAIL_CARD_CLASS, DETAIL_GRID_CLASS } from "@/components/shared/DetailSection";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
-import { StatusDot } from "@/components/shared/StatusDot";
 
-import { DESIGN_DETAIL_COPY } from "./copy";
-import { DesignGeneral } from "./detail/DesignGeneral";
-import { DesignHistoryPanel } from "./detail/DesignHistoryPanel";
+import { DESIGN_DETAIL_COPY, DESIGN_DETAIL_LABELS } from "./copy";
+import { DesignDetailTabs } from "./detail/DesignDetailTabs";
+import { DesignOverviewPanel } from "./detail/DesignOverviewPanel";
 import { DesignPreview } from "./detail/DesignPreview";
 import { PreflightPanel } from "./detail/PreflightPanel";
-import { QuoteRequestsPanel } from "./detail/QuoteRequestsPanel";
 import { ReviewActions } from "./detail/ReviewActions";
 import { SubmittedFiles } from "./detail/SubmittedFiles";
+import { ObjectHeader } from "@/components/shared/ObjectPage";
 
 import type { Design } from "@/features/design-review/types";
 
@@ -77,32 +75,35 @@ function DesignReviewDetailContent({ id }: { id: string }) {
   const design = query.data;
 
   return (
-    // Trang chi tiết kiểu Vercel (globals.css `.surface-soft`): không tiêu đề hiển thị, breadcrumb có tên thiết kế.
+    // Object page ERP (backoffice-erp-ui B10): header đối tượng (tên, mã, trạng thái, nút quyết định) → khung hồ sơ →
+    // thứ đang duyệt (ảnh | bộ file, kiểm tra file in) hiện thẳng → tab Yêu cầu báo giá / Lịch sử (cùng mẫu trang sản phẩm).
     <div className="surface-soft surface-compact">
-      <h1 className="sr-only">Thiết kế {design.name}</h1>
-      <div className={DETAIL_GRID_CLASS}>
-        <div className="min-w-0 space-y-5">
-          {/* BO-UX-9: thứ đang duyệt lên trước, thông tin chung ngay dưới. */}
+      <ObjectHeader
+        name={design.name}
+        code={design.id}
+        codeLabel={DESIGN_DETAIL_LABELS.code}
+        status={{
+          tone: DESIGN_STATUS_TONE_KEY[design.status],
+          label: DESIGN_STATUS_LABELS[design.status] ?? design.status,
+        }}
+        meta={
+          design.projectId ? (
+            <span className="text-ink-tertiary">{DESIGN_REVIEW_LABELS.inProject}</span>
+          ) : undefined
+        }
+        actions={<ReviewActions design={design} decide={decide} />}
+      />
+      <DesignOverviewPanel design={design} now={now} />
+      {/* Thứ đang duyệt hiện thẳng: ảnh xem trước (2/5) | bộ file + kiểm tra file in (3/5, đủ chỗ cho tên file). */}
+      <div className="grid items-start gap-5 lg:grid-cols-5">
+        <div className="min-w-0 lg:col-span-2">
           <DesignPreview design={design} onRefresh={() => void query.refetch()} />
-          <DesignGeneral design={design} now={now} />
-          <FilesBlocks design={design} />
-          <QuoteRequestsPanel designId={design.id} />
         </div>
-        <div className="space-y-5">
-          <section className={DETAIL_CARD_CLASS}>
-            <div className="mb-4 flex justify-center">
-              <StatusDot
-                domain="order"
-                status={DESIGN_STATUS_TONE_KEY[design.status]}
-                label={DESIGN_STATUS_LABELS[design.status]}
-                size="md"
-              />
-            </div>
-            <ReviewActions design={design} decide={decide} />
-          </section>
-          <DesignHistoryPanel designId={design.id} />
+        <div className="min-w-0 space-y-5 lg:col-span-3">
+          <FilesBlocks design={design} />
         </div>
       </div>
+      <DesignDetailTabs designId={design.id} />
     </div>
   );
 }

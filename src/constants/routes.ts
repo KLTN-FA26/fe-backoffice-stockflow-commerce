@@ -104,6 +104,9 @@ export const ADMIN_ROUTES = {
   },
   designProjectQuoteRequests: {
     list: `${ADMIN_BASE}/design-project-quote-requests`,
+    /** BE không có GET theo id → kèm `customer` để tải yêu cầu của khách rồi tìm theo id. */
+    detail: (requestId: string, customerId: string) =>
+      `${ADMIN_BASE}/design-project-quote-requests/${encodeURIComponent(requestId)}?customer=${encodeURIComponent(customerId)}`,
   },
   /** Quản lý tài khoản nhân viên — BE `UserManagementController` (PR #72, SCRUM-458). */
   users: {

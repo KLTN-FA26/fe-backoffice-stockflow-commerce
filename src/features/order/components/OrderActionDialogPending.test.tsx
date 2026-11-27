@@ -117,8 +117,16 @@ function renderCreditList() {
   renderOrderScreen(<CreditHoldList />);
 }
 
+/** Duyệt / từ chối nằm trong menu "⋯" của dòng (`CreditHoldRowActions` → `RowActionsMenu`). */
+async function clickCreditAction(user: User, action: "Duyệt công nợ" | "Từ chối") {
+  await user.click(
+    await screen.findByRole("button", { name: `Thao tác — ${apiOrder.orderNumber}` }),
+  );
+  await user.click(await screen.findByRole("button", { name: action }));
+}
+
 async function submitApprove(user: User) {
-  await user.click(await screen.findByRole("button", { name: /^Duyệt công nợ đơn/ }));
+  await clickCreditAction(user, "Duyệt công nợ");
   const dialog = await screen.findByRole("dialog");
   await user.type(within(dialog).getByLabelText(/Ghi chú duyệt/), "Khách đã cam kết");
   await user.click(within(dialog).getByRole("button", { name: "Duyệt" }));
@@ -126,7 +134,7 @@ async function submitApprove(user: User) {
 }
 
 async function submitReject(user: User) {
-  await user.click(await screen.findByRole("button", { name: /^Từ chối duyệt công nợ đơn/ }));
+  await clickCreditAction(user, "Từ chối");
   const dialog = await screen.findByRole("dialog");
   await screen.findByRole("region", { name: "Vị thế tín dụng của khách" });
   await user.type(within(dialog).getByLabelText(/Ghi chú/), "Không đủ điều kiện");
@@ -338,7 +346,7 @@ describe("Bấm đúp nút gửi → đúng 1 request", { timeout: DIALOG_FLOW_T
     const user = setupUser();
     renderCreditList();
     const post = slowPost({ ...heldOrder, status: "CONFIRMED" });
-    await user.click(await screen.findByRole("button", { name: /^Duyệt công nợ đơn/ }));
+    await clickCreditAction(user, "Duyệt công nợ");
     const dialog = await screen.findByRole("dialog");
     await user.type(within(dialog).getByLabelText(/Ghi chú duyệt/), "OK");
     await user.dblClick(within(dialog).getByRole("button", { name: "Duyệt" }));
@@ -350,7 +358,7 @@ describe("Bấm đúp nút gửi → đúng 1 request", { timeout: DIALOG_FLOW_T
     const user = setupUser();
     renderCreditList();
     const post = slowPost({ ...heldOrder, status: "CANCELLED" });
-    await user.click(await screen.findByRole("button", { name: /^Từ chối duyệt công nợ đơn/ }));
+    await clickCreditAction(user, "Từ chối");
     const dialog = await screen.findByRole("dialog");
     await screen.findByRole("region", { name: "Vị thế tín dụng của khách" });
     await user.type(within(dialog).getByLabelText(/Ghi chú/), "Không đủ điều kiện");

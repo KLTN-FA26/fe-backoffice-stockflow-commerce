@@ -7,6 +7,14 @@ import { Trash2 } from "lucide-react";
 import { moqOf, tierPrice } from "@/features/quote/selectors";
 import { Card } from "@/components/shared/Card";
 import { FORM_INPUT_CLASS, FormField, fieldA11y } from "@/components/shared/FormField";
+import { FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
+import {
+  Select,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/shared/combobox-select";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -101,26 +109,27 @@ export function QuoteLineEditor({
             control={control}
             name={`lines.${index}.sku`}
             render={({ field }) => (
-              <select
-                name={field.name}
-                ref={field.ref}
-                value={field.value ?? ""}
-                onChange={field.onChange}
-                onBlur={field.onBlur}
-                {...fieldA11y(`${prefix}-sku`, errors?.sku?.message)}
-                className={`${FORM_INPUT_CLASS} border px-2 font-[family-name:var(--font-mono)]`}
-              >
-                <option value="">Chọn SKU</option>
-                {field.value && !skus.some((option) => option.sku === field.value) && (
-                  <option value={field.value}>{field.value}</option>
-                )}
-                {skus.map((option) => (
-                  <option key={option.variantId} value={option.sku}>
-                    {option.sku}
-                    {option.name ? ` — ${option.name}` : ""}
-                  </option>
-                ))}
-              </select>
+              <Select name={field.name} value={field.value ?? ""} onValueChange={field.onChange}>
+                <SelectTrigger
+                  ref={field.ref}
+                  onBlur={field.onBlur}
+                  {...fieldA11y(`${prefix}-sku`, errors?.sku?.message)}
+                  className={`${FORM_SELECT_CLASS} font-[family-name:var(--font-mono)]`}
+                >
+                  <SelectValue placeholder="Chọn SKU" />
+                </SelectTrigger>
+                <TitledSelectContent title="SKU riêng của khách">
+                  {field.value && !skus.some((option) => option.sku === field.value) && (
+                    <SelectItem value={field.value}>{field.value}</SelectItem>
+                  )}
+                  {skus.map((option) => (
+                    <SelectItem key={option.variantId} value={option.sku}>
+                      {option.sku}
+                      {option.name ? ` — ${option.name}` : ""}
+                    </SelectItem>
+                  ))}
+                </TitledSelectContent>
+              </Select>
             )}
           />
         </FormField>

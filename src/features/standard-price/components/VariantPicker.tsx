@@ -7,7 +7,14 @@ import { Check } from "lucide-react";
 import { STANDARD_PRICE_UI_LABELS } from "@/constants";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useCatalogVariants, useProductOptions } from "@/lib/references/catalog-variants";
-import { FORM_INPUT_CLASS } from "@/components/shared/form-control-classes";
+import { FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
+import {
+  Select,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/shared/combobox-select";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { COMBOBOX_ITEM_CLASS, InputCombobox } from "@/components/shared/InputCombobox";
 import { CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
 import { Label } from "@/components/ui/label";
@@ -105,33 +112,37 @@ export function VariantPicker({
         <Label htmlFor="sp-variant" className="text-ink-secondary text-xs font-medium">
           {P.variant}
         </Label>
-        <select
-          id="sp-variant"
+        <Select
           value={choices.some((v) => v.sku === value) ? value : ""}
           disabled={!product || variants.isPending || choices.length === 0}
-          onChange={(event) => event.target.value && onSelect(event.target.value)}
-          className={`${FORM_INPUT_CLASS} border px-2`}
+          onValueChange={(next) => next && onSelect(next)}
         >
-          <option value="">
-            {!product
-              ? P.variantPlaceholder
-              : variants.isPending
-                ? P.variantLoading
-                : variants.isError
-                  ? P.variantFailed
-                  : choices.length === 0
-                    ? P.variantEmpty
-                    : P.variantPlaceholder}
-          </option>
-          {choices.map((variant) => {
-            const taken = priced.has(variant.sku.toUpperCase());
-            return (
-              <option key={variant.variantId} value={variant.sku} disabled={taken}>
-                {`${variant.sku} — ${variant.name}${taken ? ` (${P.variantPriced})` : ""}`}
-              </option>
-            );
-          })}
-        </select>
+          <SelectTrigger id="sp-variant" className={FORM_SELECT_CLASS}>
+            <SelectValue
+              placeholder={
+                !product
+                  ? P.variantPlaceholder
+                  : variants.isPending
+                    ? P.variantLoading
+                    : variants.isError
+                      ? P.variantFailed
+                      : choices.length === 0
+                        ? P.variantEmpty
+                        : P.variantPlaceholder
+              }
+            />
+          </SelectTrigger>
+          <TitledSelectContent title={P.variant}>
+            {choices.map((variant) => {
+              const taken = priced.has(variant.sku.toUpperCase());
+              return (
+                <SelectItem key={variant.variantId} value={variant.sku} disabled={taken}>
+                  {`${variant.sku} — ${variant.name}${taken ? ` (${P.variantPriced})` : ""}`}
+                </SelectItem>
+              );
+            })}
+          </TitledSelectContent>
+        </Select>
       </div>
     </div>
   );

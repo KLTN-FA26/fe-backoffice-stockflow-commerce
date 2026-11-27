@@ -73,6 +73,17 @@ export const DELIVERY_FAILURE_LABELS = {
   },
   loadFailed: "Không tải được danh sách lô hàng hoàn về.",
   caption: (shown: number) => `${shown} hồ sơ, mới nhất trước`,
+  /** Toolbar + lọc trên header cột (data-table-mode-a §2, §4.1). Danh sách tải một lần (≤ `listLimit`). */
+  list: {
+    search: "Tìm mã đơn, phiếu nhận hàng hoàn, lý do, ghi chú…",
+    columnSearch: (label: string) => `Tìm theo ${label.toLocaleLowerCase("vi")}…`,
+    statusFilter: "Trạng thái",
+    statusAll: "Tất cả",
+    reasonSearch: "Tìm lý do…",
+    reasonEmpty: "Không có lý do",
+    noMatch: "Không có hồ sơ nào khớp từ khoá hoặc bộ lọc hiện tại.",
+    filteredCaption: (shown: number, total: number) => `${shown} / ${total} hồ sơ khớp bộ lọc`,
+  },
   /** Máy chủ trả tối đa `listLimit` hồ sơ, cũ nhất trước — chạm trần thì các hồ sơ mới nhất có thể bị thiếu. */
   truncated: (limit: number) =>
     `Đang hiện ${limit} hồ sơ đầu tiên máy chủ trả về; hồ sơ mới hơn có thể chưa hiện. Mở chi tiết đơn để xem hồ sơ của một đơn.`,

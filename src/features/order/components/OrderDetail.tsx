@@ -18,6 +18,7 @@ import { BackLink } from "@/components/shared/BackLink";
 
 import { useCompletionHold } from "../completion-hold-queries";
 import { drawUpHrefFor } from "../production-link";
+import { useLiveOrderPayment } from "../live-payment";
 import { useOrder, useOrderProductionOrders } from "../queries";
 import { useSalesContract } from "../sales-contract-queries";
 import { customLineCount, groupProductionOrdersByLine, isPastContract } from "../selectors";
@@ -110,6 +111,8 @@ function OrderDetailContent({
   });
   // Breadcrumb hiện mã đơn (SO-…) thay vì orderId (UUID của BE), như NCC
   useBreadcrumbLabel(id, query.data?.orderNumber);
+  // Đơn "Chờ thanh toán": tiền về qua bank feed thì đơn tự sang "Đã xác nhận" — trang tự hỏi lại, không cần F5
+  useLiveOrderPayment(id, query.data);
 
   if (!canRead) return <OrderLoadError error={null} kind="no-read" />;
 

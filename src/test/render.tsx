@@ -1,17 +1,21 @@
 /**
- * Test render helper — wraps components in all required providers.
+ * Test render helper — wraps components in all required providers
+ * (QueryClient + ThemeProvider, như root layout).
  */
 
-import React from "react";
-import { render, type RenderOptions } from "@testing-library/react";
 import { QueryClientProvider } from "@tanstack/react-query";
+import { render, type RenderOptions } from "@testing-library/react";
+import React from "react";
+
 import { makeQueryClient } from "@/lib/api/query-client";
+
+import { ThemeProvider } from "@/components/theme-provider";
 
 function AllProviders({ children }: { children: React.ReactNode }) {
   const queryClient = makeQueryClient();
   return (
     <QueryClientProvider client={queryClient}>
-      {children}
+      <ThemeProvider>{children}</ThemeProvider>
     </QueryClientProvider>
   );
 }

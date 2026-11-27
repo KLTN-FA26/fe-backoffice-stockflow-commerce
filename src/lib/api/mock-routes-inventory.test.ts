@@ -136,8 +136,9 @@ describe("adjustment flow through the real client", () => {
       requestedBy: mockActorId(ACTOR_A),
       sku: seeded.sku,
       locationCode: "HCM-A01-1-A",
-      // BR-14: the whole carton (its standard count), never a number the person typed
-      quantityDelta: -120,
+      // BR-14 + ADR-0011: the whole carton written off (its standard count), never a number the person typed
+      direction: "WRITE_OFF",
+      nominalQty: 120,
       reason: "DAMAGED",
       version: 0,
     });
@@ -193,12 +194,18 @@ describe("adjustment flow through the real client", () => {
       reason: "OTHER",
       note: "Tìm thấy sau khi kiểm kê",
     });
-    expect(created).toMatchObject({ quantityDelta: 120, locationCode: "HCM-A01-1-C" });
+    expect(created).toMatchObject({
+      direction: "RESTOCK",
+      nominalQty: 120,
+      locationCode: "HCM-A01-1-C",
+    });
     actAs(ACTOR_B);
     await approveAdjustment(created.adjustmentId);
     const [line] = (await listMovements({ page: 0, size: 20 })).items;
     expect(line).toMatchObject({
       toLocation: "HCM-A01-1-C",
+      // ADR-0011 (BE, issue #305): one `lpn` on the ledger line, no fromLpn / toLpn.
+      lpn: CARTON_LOST,
       quantity: 120,
       reason: "OTHER: Tìm thấy sau khi kiểm kê",
     });

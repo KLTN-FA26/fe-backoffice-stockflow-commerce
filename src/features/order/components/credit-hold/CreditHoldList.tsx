@@ -26,6 +26,7 @@ import { ListToolbar } from "@/components/shared/ListToolbar";
 import { RefetchBar } from "@/components/shared/RefetchBar";
 
 import { allowedOrderActions, orderActionContextOf } from "../../lifecycle";
+import { ContractCreditReviewQueue } from "../contract-credit-review/ContractCreditReviewQueue";
 import { useCreditHolds } from "../../queries";
 import { OrderLoadError } from "../OrderLoadError";
 import { OrderPermissionGate } from "../OrderPermissionGate";
@@ -37,8 +38,7 @@ import {
   CREDIT_HOLD_COLUMNS,
   CREDIT_HOLD_LOCKED_COLUMNS,
 } from "./columns";
-import { CreditApproveAction } from "./CreditApproveAction";
-import { CreditRejectAction } from "./CreditRejectAction";
+import { CreditHoldRowActions } from "./CreditHoldRowActions";
 import { RefundDueNotice } from "./RefundDueNotice";
 
 import type { CreditHold } from "../../types";
@@ -65,7 +65,8 @@ function mergeConfig(
 const ROUTE_SEGMENT = ADMIN_ROUTES.orders.creditHolds.split("/").at(-1);
 
 /**
- * Hàng đợi đơn công nợ vượt hạn mức (SCRUM-427, `GET /orders/credit-holds`, cũ nhất trước).
+ * Hàng đợi đơn công nợ vượt hạn mức (SCRUM-427, `GET /orders/credit-holds`, cũ nhất trước) + hợp đồng chờ duyệt tín
+ * dụng trước khi gửi (`ContractCreditReviewQueue`).
  * Sales / Coordinator xem; chỉ ACCOUNTANT (sales-order-credit-holds:APPROVE) duyệt / từ chối.
  */
 export function CreditHoldList() {
@@ -102,12 +103,12 @@ function CreditHoldListContent() {
       (a) => a.code,
     );
     return (
-      <div className="flex justify-end gap-1.5">
-        {codes.includes("credit-approve") && <CreditApproveAction order={row.order} compact />}
-        {codes.includes("credit-reject") && (
-          <CreditRejectAction order={row.order} compact onRejected={setRejected} />
-        )}
-      </div>
+      <CreditHoldRowActions
+        order={row.order}
+        canApprove={codes.includes("credit-approve")}
+        canReject={codes.includes("credit-reject")}
+        onRejected={setRejected}
+      />
     );
   }, canOpenOrders);
   const columnState = useColumnVisibility(
@@ -175,6 +176,13 @@ function CreditHoldListContent() {
             }}
           />
         </>
+      )}
+      {/* 15 BR-11 (BE PR #486): cùng quyền READ / APPROVE với đơn treo — không có quyền mới */}
+      {canRead && (
+        <ContractCreditReviewQueue
+          canOpenOrders={canOpenOrders}
+          canDecide={can(CREDIT_HOLD_PERMISSIONS.approve)}
+        />
       )}
     </div>
   );

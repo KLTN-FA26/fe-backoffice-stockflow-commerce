@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { DELAY_ALERT_LABELS, PRODUCTION_LABELS, STORAGE_KEYS } from "@/constants";
 import { mockProductionApi, renderProductionScreen } from "@/test/production-screen";
+import { openRowMenu } from "@/test/ui-actions";
 
 import { ProductionSchedule } from "../components/schedule/ProductionSchedule";
 import {
@@ -258,16 +259,19 @@ describe("ProductionSchedule (docs 17 §4.12)", () => {
   it("Điều phối sản xuất có nút Lập ở đợt còn thiếu", async () => {
     setup(PRODUCTION_ACTORS.coordinator);
     await screen.findByText("SO-2026-0050");
-    expect(
-      within(await panel()).getByRole("button", { name: new RegExp(`^${D.action} SO-2026-0050`) }),
-    ).toBeInTheDocument();
+    // Menu "⋯" của đợt còn thiếu có mục lập lệnh sản xuất
+    const trigger = within(await panel()).getByRole("button", {
+      name: /^Thao tác — SO-2026-0050/,
+    });
+    const menu = await openRowMenu(userEvent.setup(), trigger.closest("tr") as HTMLElement);
+    expect(within(menu).getByRole("button", { name: D.dialogTitle })).toBeEnabled();
   });
 
   it("Sales Manager xem được tab Cần lập nhưng không có nút Lập", async () => {
     setup(PRODUCTION_ACTORS.salesManager, "?tab=batches");
     await screen.findByText("SO-2026-0050");
     expect(
-      within(await panel()).queryByRole("button", { name: new RegExp(`^${D.action} `) }),
+      within(await panel()).queryByRole("button", { name: /^Thao tác/ }),
     ).not.toBeInTheDocument();
   });
 

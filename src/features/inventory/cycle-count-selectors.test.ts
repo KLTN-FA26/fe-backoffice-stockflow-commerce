@@ -14,7 +14,7 @@ import { cycleCountLineFixture as line } from "./test-support";
 const adjustment = (status: string) => ({
   id: crypto.randomUUID(),
   number: "ADJ-1",
-  quantityDelta: -120,
+  direction: "WRITE_OFF",
   status,
 });
 

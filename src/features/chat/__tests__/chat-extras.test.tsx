@@ -6,6 +6,7 @@ import { ADMIN_ROUTES, CHAT_PERMISSIONS } from "@/constants";
 import { api } from "@/lib/api/client";
 import { NAV_GROUPS } from "@/components/backoffice/BackofficeShell";
 import { ROLE_PERMISSIONS, apiError, bePage, mockApi, renderScreen } from "@/test/api-screen";
+import { pickOption } from "@/test/ui-actions";
 
 import { AgentsReportScreen, CannedResponsesScreen, ChatConversationScreen, ChatInbox } from "..";
 import {
@@ -191,9 +192,10 @@ describe("Mở hội thoại mới", () => {
     const spy = renderInbox(() => created);
     await pickCustomer();
     await userEvent.type(screen.getByLabelText("Chủ đề"), "Báo giá ly");
-    await userEvent.selectOptions(
+    await pickOption(
+      userEvent.setup(),
       await screen.findByLabelText("Chứng từ"),
-      await screen.findByRole("option", { name: /QT-20261120-9001/ }),
+      /QT-20261120-9001/,
     );
     await userEvent.type(screen.getByLabelText("Tin đầu tiên"), "Chào anh, em gửi báo giá");
     await userEvent.click(screen.getByRole("button", { name: "Mở hội thoại" }));

@@ -79,7 +79,7 @@ function savedWith(lpns: string[]): GoodsReceiptApiDto {
       apiLine({
         quantity: lpns.length * 50,
         packages: lpns.map((lpn, i) =>
-          cartonPackage({ id: `c-${i}`, lpn, quantity: 50, receivedQty: 50, nominalQty: 50 }),
+          cartonPackage({ id: `c-${i}`, lpn, quantity: 50, nominalQty: 50 }),
         ),
         production: productionProgress({
           thisReceiptCartons: lpns.length,

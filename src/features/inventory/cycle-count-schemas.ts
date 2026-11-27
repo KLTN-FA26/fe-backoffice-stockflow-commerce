@@ -43,7 +43,8 @@ export const cycleCountSummaryDto = z.object({
 export const cycleCountLineAdjustmentDto = z.object({
   id: beUuid,
   number: z.string(),
-  quantityDelta: z.number().int(),
+  // ADR-0011 (BE, issue #305): WRITE_OFF / RESTOCK of the line's carton replaces `quantityDelta`. Open String.
+  direction: z.string(),
   status: z.string(),
 });
 

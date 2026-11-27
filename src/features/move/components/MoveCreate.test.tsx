@@ -51,7 +51,7 @@ function carton(lpn: string, patch: Record<string, unknown> = {}) {
     sku: "SOFA-3S-GREY",
     unitOfMeasure: "CARTON",
     nominalQty: 10,
-    receivedQty: 10,
+    countedAt: "2026-11-10T02:00:00Z",
     lotNumber: "LOT-7",
     onHand: 10,
     reserved: 0,

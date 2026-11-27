@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 
 /** Class ô nhập chuẩn (mẫu `supplier-form/fields.tsx`): viền token, focus theo brand của mode. */
 export const FORM_INPUT_CLASS =
-  "border-border-default bg-bg-surface text-ink-primary placeholder:text-ink-tertiary focus-visible:border-brand focus-visible:ring-brand/20 h-9 rounded-[var(--r-sm)] text-[0.8125rem] shadow-none";
+  "border-border-default bg-bg-surface text-ink-primary placeholder:text-ink-tertiary focus-visible:border-brand focus-visible:ring-brand/20 h-9 rounded-(--field-radius) text-[0.8125rem] shadow-none";
 
 /** Props a11y cho input: id khớp label, aria-invalid + aria-describedby trỏ tới dòng lỗi / gợi ý. */
 export function fieldA11y(id: string, error?: string, hint?: boolean) {

@@ -11,6 +11,7 @@ import {
 } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 import { toast } from "@/components/shared/Toast";
+import { clickRowAction, openRowMenu } from "@/test/ui-actions";
 
 import {
   IDENTITIES,
@@ -89,6 +90,13 @@ function renderList(
   return { ...spies, urls };
 }
 
+/** Dòng của task (theo link mã task) — khoanh vùng menu "⋯" của dòng đó. */
+const rowOf = (code: string) => {
+  const row = screen.getByRole("link", { name: code }).closest("tr");
+  if (!row) throw new Error(`Không thấy dòng task ${code}`);
+  return row;
+};
+
 const listCalls = (get: ReturnType<typeof mockFulfillmentApi>["get"]) =>
   get.mock.calls.filter(([url]) => url === "/fulfillment/tasks");
 const lastListParams = (get: ReturnType<typeof mockFulfillmentApi>["get"]) =>
@@ -166,7 +174,7 @@ describe("PickingList — danh sách task theo BE (phân trang + lọc)", () => 
     expect(await screen.findByText("Nguyễn Văn Đạt")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: fulfillment.action.create })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /Gán lại nhiệm vụ 3F4A5B6C/ }));
+    await clickRowAction(user, fulfillment.action.assign, rowOf("3F4A5B6C"));
     const dialog = await screen.findByRole("dialog");
     await pickSelectOption(user, "Người được gán", /Hoàng Anh Tuấn/);
     // Danh sách người nhận lấy theo kho của task, không qua /identity/users
@@ -189,7 +197,8 @@ describe("PickingList — danh sách task theo BE (phân trang + lọc)", () => 
       apiTask({ assignedUserId: OTHER_PICKER_ID }),
     ]);
 
-    await user.click(await screen.findByRole("button", { name: /Gán lại nhiệm vụ/ }));
+    await screen.findByRole("link", { name: "3F4A5B6C" });
+    await clickRowAction(user, fulfillment.action.assign, rowOf("3F4A5B6C"));
     const dialog = await screen.findByRole("dialog");
     await pickSelectOption(user, "Người được gán", /Nguyễn Văn Đạt/);
     expect(within(dialog).getByRole("alert")).toHaveTextContent(fulfillment.alreadyAssigned);
@@ -203,7 +212,8 @@ describe("PickingList — danh sách task theo BE (phân trang + lọc)", () => 
       apiTask({ assignedUserId: OTHER_PICKER_ID }),
     ]);
 
-    await user.click(await screen.findByRole("button", { name: /Gán lại nhiệm vụ/ }));
+    await screen.findByRole("link", { name: "3F4A5B6C" });
+    await clickRowAction(user, fulfillment.action.assign, rowOf("3F4A5B6C"));
     const dialog = await screen.findByRole("dialog");
     await pickSelectOption(user, "Người được gán", /Hoàng Anh Tuấn/);
     expect(within(dialog).queryByText(fulfillment.noAssignTitle)).toBeNull();
@@ -232,12 +242,22 @@ describe("PickingList — danh sách task theo BE (phân trang + lọc)", () => 
   });
 
   it("điều phối đơn: gán được task còn Pending, không gán task đang lấy hàng", async () => {
+    const user = userEvent.setup();
     renderList(<PickingList />, IDENTITIES.orderCoordinator, [
       apiTask(),
       apiTask({ taskId: HELD_ID, pickStatus: "PICKING" }),
     ]);
     await screen.findByRole("link", { name: "3F4A5B6C" });
-    expect(screen.getAllByRole("button", { name: /Gán lại nhiệm vụ/ })).toHaveLength(1);
+    const offered: boolean[] = [];
+    for (const trigger of screen.getAllByRole("button", { name: /^Thao tác — task/ })) {
+      await user.click(trigger);
+      const menu = await screen.findByRole("dialog");
+      offered.push(
+        within(menu).queryByRole("button", { name: fulfillment.action.assign }) !== null,
+      );
+      await user.keyboard("{Escape}");
+    }
+    expect(offered).toEqual([true, false]);
   });
 
   it("QC theo seed BE không có VIEW_PAGE → bị chặn ở cổng route, không gọi API task", async () => {
@@ -586,7 +606,10 @@ describe("PickingList — ẩn hiện cột (data-table-mode-a §4.2)", () => {
     expect(header(FIELD.task)).toBeInTheDocument();
     expect(header(FIELD.order)).toBeInTheDocument();
     // Cột thao tác vẫn còn → nút gán lại vẫn có
-    expect(screen.getByRole("button", { name: /Gán lại nhiệm vụ 3F4A5B6C/ })).toBeInTheDocument();
+    const menu = await openRowMenu(userEvent.setup(), rowOf("3F4A5B6C"));
+    expect(
+      within(menu).getByRole("button", { name: fulfillment.action.assign }),
+    ).toBeInTheDocument();
     expect(screen.getByText(`${FILTER.columns}: 2/9`)).toBeInTheDocument();
   });
 });

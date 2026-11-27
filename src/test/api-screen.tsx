@@ -27,6 +27,11 @@ export const ROLE_PERMISSIONS = {
     "customer-customers:APPROVE",
     "customer-credit-profiles:VIEW_PAGE",
     "customer-credit-profiles:READ",
+    // V20270102000100 (BE PR #490): Sale gửi đề nghị cấp hạn mức thay khách và ghi ý kiến
+    "customer-credit-requests:VIEW_PAGE",
+    "customer-credit-requests:READ",
+    "customer-credit-requests:CREATE",
+    "customer-credit-requests:UPDATE",
     "customer-legal-profiles:READ",
     "customer-legal-profiles:UPDATE",
     "customer-addresses:READ",
@@ -182,6 +187,13 @@ export const ROLE_PERMISSIONS = {
     "sales-order-credit-holds:VIEW_PAGE",
     "sales-order-credit-holds:READ",
     "sales-order-credit-holds:APPROVE",
+    // V20270102000100 / V20270103000100 (BE PR #490): duyệt đề nghị hạn mức; hàng chờ chuyển khoản SePay
+    "customer-credit-requests:VIEW_PAGE",
+    "customer-credit-requests:READ",
+    "customer-credit-requests:APPROVE",
+    "payment-bank-transactions:VIEW_PAGE",
+    "payment-bank-transactions:READ",
+    "payment-bank-transactions:UPDATE",
   ],
   CUSTOMER: [
     "customer-customers:VIEW_PAGE",

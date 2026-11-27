@@ -9,7 +9,12 @@ import { countResult } from "@/features/receipt/count-selectors";
 import { FormSelect } from "@/components/shared/FormSelect";
 import { FORM_INPUT_CLASS, FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
 import { Input } from "@/components/ui/input";
-import { SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/shared/combobox-select";
 
 import { FieldError, NUM } from "../primitives";
 import { CountResultCell } from "./CountResultCell";

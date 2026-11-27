@@ -9,8 +9,8 @@ import { creditWarningText } from "../../sales-contract-rules";
 import type { SalesContract } from "../../sales-contract-schemas";
 
 /**
- * Cảnh báo tín dụng trên hợp đồng nháp (BE `creditWarning`, 15 BR-11 — cảnh báo, không chặn): hai hướng
- * "Sửa lịch thanh toán" (mở editor) / "Vẫn gửi" (hộp thoại gửi nhắc lại cảnh báo).
+ * Cảnh báo tín dụng trên hợp đồng nháp (BE `creditWarning`, 15 BR-11 — cảnh báo, không chặn): GỬI lúc này sẽ phải chờ
+ * Kế toán duyệt (BE PR #486). Hai hướng "Sửa lịch thanh toán" (mở editor) / "Gửi Kế toán duyệt" (hộp thoại gửi).
  */
 export function ContractCreditWarning({
   contract,
@@ -39,7 +39,7 @@ export function ContractCreditWarning({
           )}
           {onSend && (
             <Button type="button" size="sm" variant="outline" onClick={onSend}>
-              Vẫn gửi
+              Gửi Kế toán duyệt
             </Button>
           )}
         </div>

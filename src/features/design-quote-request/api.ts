@@ -7,6 +7,7 @@ import { api } from "@/lib/api/client";
 
 import {
   createdQuoteSchema,
+  designPreviewSchema,
   designQuoteRequestPageSchema,
   projectQuoteRequestPageSchema,
 } from "./schemas";
@@ -14,6 +15,7 @@ import {
 import type { PaginatedResponse } from "@/lib/api/query-factory";
 import type {
   CreatedQuote,
+  DesignPreview,
   DesignQuoteRequest,
   ProjectQuoteRequest,
   QuoteRequestStatus,
@@ -72,13 +74,20 @@ export async function listProjectQuoteRequests(
   return projectQuoteRequestPageSchema.parse(data);
 }
 
+/** Ảnh xem trước của một thiết kế con (BE `GET /designs/{id}`). */
+export async function getDesignPreview(id: string, signal?: AbortSignal): Promise<DesignPreview> {
+  const { data } = await api.get<unknown>(`/designs/${encodeURIComponent(id)}`, { signal });
+  return designPreviewSchema.parse(data);
+}
+
 /** Idempotent: đóng yêu cầu đã đóng vẫn 200. */
 export async function closeDesignQuoteRequest(id: string): Promise<void> {
   await api.post(closure(DESIGN_REQUESTS, id));
 }
 
-export async function closeProjectQuoteRequest(id: string): Promise<void> {
-  await api.post(closure(PROJECT_REQUESTS, id));
+/** Đóng không báo giá kèm lý do khách đọc được (BE #451: `{reason}` bắt buộc, 1–1000 ký tự; thiếu → 400). */
+export async function closeProjectQuoteRequest(id: string, reason: string): Promise<void> {
+  await api.post(closure(PROJECT_REQUESTS, id), { reason: reason.trim() });
 }
 
 const quoteOf = (base: string, id: string) => `${base}/${encodeURIComponent(id)}/quote`;

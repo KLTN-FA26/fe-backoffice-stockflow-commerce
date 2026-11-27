@@ -15,7 +15,12 @@ import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { FormField } from "@/components/shared/FormField";
 import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
-import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/shared/combobox-select";
 
 import type { ProducerRef } from "@/lib/references/producer-options";
 import type { ShortDeliveryBatch } from "@/features/production-order/schedule-schemas";

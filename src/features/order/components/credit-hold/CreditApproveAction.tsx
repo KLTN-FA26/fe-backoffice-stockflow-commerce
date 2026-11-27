@@ -41,9 +41,7 @@ export function CreditApproveAction({
   order: CreditHoldTarget;
   compact?: boolean;
 }) {
-  // Mutation ở đây (không ở form) để Esc / bấm ra ngoài không đóng dialog khi đang gửi
-  const mutation = useApproveCreditHold();
-  const dialog = usePendingSafeDialog(mutation.isPending);
+  const { show, dialog } = useCreditApproveDialog(order);
   const label = UI_LABELS.order.actions.creditApprove;
   return (
     <>
@@ -52,15 +50,29 @@ export function CreditApproveAction({
         size="sm"
         aria-label={compact ? `${label} đơn ${order.orderNumber}` : undefined}
         className={compact ? "rounded-[var(--r-sm)]" : "w-full rounded-[var(--r-sm)]"}
-        onClick={dialog.show}
+        onClick={show}
       >
         <CheckCircle2 className="size-3.5" /> {compact ? "Duyệt" : label}
       </Button>
+      {dialog}
+    </>
+  );
+}
+
+/** Dialog duyệt tín dụng + hàm mở — hàng đợi gọi từ menu "⋯" của dòng. */
+export function useCreditApproveDialog(order: CreditHoldTarget) {
+  // Mutation ở đây (không ở form) để Esc / bấm ra ngoài không đóng dialog khi đang gửi
+  const mutation = useApproveCreditHold();
+  const dialog = usePendingSafeDialog(mutation.isPending);
+  return {
+    show: dialog.show,
+    isPending: mutation.isPending,
+    dialog: (
       <FormDialog open={dialog.open} onOpenChange={dialog.onOpenChange}>
         <ApproveForm order={order} mutation={mutation} onClose={dialog.close} />
       </FormDialog>
-    </>
-  );
+    ),
+  };
 }
 
 function ApproveForm({

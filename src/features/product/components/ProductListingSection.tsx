@@ -12,6 +12,7 @@ import { listingErrorMessage } from "../listing-errors";
 import { useListing, useRefreshOnConflict, useSaveListing } from "../listing-queries";
 import { listingFormSchema, normalizeSlug } from "../listing-schemas";
 import { ProductInput, ProductTextarea } from "./form-controls";
+import { DetailPanel, Fact, FactGrid } from "@/components/shared/DetailPanel";
 import { Field } from "./variants/Field";
 
 import type { Listing, ListingFormValues } from "../listing-schemas";
@@ -44,41 +45,42 @@ export function ProductListingSection({
   }
   const listing = query.data;
   return (
-    <div className="space-y-3">
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-[0.8125rem]">
-        <Item label="Đường dẫn (slug)" value={listing.slug || "Chưa đặt"} mono />
-        <Item
-          label="Hiển thị trên cửa hàng"
-          value={listing.published ? "Đang hiển thị" : "Chưa hiển thị"}
-        />
-        <Item label="Tiêu đề SEO" value={listing.seoTitle || "Chưa đặt"} />
-        <Item label="Mô tả SEO" value={listing.seoDescription || "Chưa đặt"} />
-      </dl>
+    <DetailPanel
+      title="Thông tin cửa hàng"
+      description="Đường dẫn và SEO của sản phẩm trên cửa hàng — cần có trước khi xuất bản."
+      actions={
+        canEdit && (
+          <Button type="button" variant="outline" size="sm" onClick={() => setEditing(true)}>
+            <Pencil className="size-3.5" aria-hidden /> Sửa
+          </Button>
+        )
+      }
+    >
+      <FactGrid columns={4}>
+        <Fact label="Đường dẫn (slug)" mono>
+          {listing.slug || "Chưa đặt"}
+        </Fact>
+        <Fact label="Hiển thị trên cửa hàng">
+          {listing.published ? "Đang hiển thị" : "Chưa hiển thị"}
+        </Fact>
+        <Fact label="Tiêu đề SEO">
+          <span className="line-clamp-3">{listing.seoTitle || "Chưa đặt"}</span>
+        </Fact>
+        <Fact label="Mô tả SEO">
+          <span className="line-clamp-3">{listing.seoDescription || "Chưa đặt"}</span>
+        </Fact>
+      </FactGrid>
       {listing.projectionPending && (
-        <p className="text-warning text-xs">
+        <p className="text-warning mt-4 text-xs">
           Thay đổi vừa lưu đang được cập nhật lên cửa hàng, sẽ hiển thị sau ít phút.
         </p>
-      )}
-      {canEdit && (
-        <Button type="button" variant="outline" size="sm" onClick={() => setEditing(true)}>
-          <Pencil className="size-3.5" /> Sửa thông tin cửa hàng
-        </Button>
       )}
       <FormDialog open={editing} onOpenChange={setEditing}>
         {editing && (
           <ListingForm productId={productId} listing={listing} onDone={() => setEditing(false)} />
         )}
       </FormDialog>
-    </div>
-  );
-}
-
-function Item({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
-  return (
-    <div>
-      <dt className="text-ink-tertiary text-xs">{label}</dt>
-      <dd className={mono ? "font-[family-name:var(--font-mono)]" : "line-clamp-3"}>{value}</dd>
-    </div>
+    </DetailPanel>
   );
 }
 

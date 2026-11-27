@@ -10,7 +10,14 @@ import { apiErrorMessage } from "@/lib/api/error-message";
 import { useCan } from "@/lib/auth/components/Can";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { FormField } from "@/components/shared/FormField";
-import { FORM_INPUT_CLASS } from "@/components/shared/form-control-classes";
+import { FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
+import {
+  Select,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/shared/combobox-select";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -68,19 +75,18 @@ function ProductRow({ product, onDone }: { product: ProductTaxClass; onDone: () 
         </div>
       </div>
       <FormField id={`${id}-class`} label="Nhóm thuế mới" required>
-        <select
-          id={`${id}-class`}
-          value={taxClass}
-          onChange={(event) => setTaxClass(event.target.value as TaxClass | "")}
-          className={`${FORM_INPUT_CLASS} border px-2`}
-        >
-          <option value="">Chọn nhóm thuế</option>
-          {TAX_CLASSES.map((value) => (
-            <option key={value} value={value}>
-              {LABELS[value]}
-            </option>
-          ))}
-        </select>
+        <Select value={taxClass} onValueChange={(next) => setTaxClass(next as TaxClass)}>
+          <SelectTrigger id={`${id}-class`} className={FORM_SELECT_CLASS}>
+            <SelectValue placeholder="Chọn nhóm thuế" />
+          </SelectTrigger>
+          <TitledSelectContent title="Nhóm thuế mới">
+            {TAX_CLASSES.map((value) => (
+              <SelectItem key={value} value={value}>
+                {LABELS[value]}
+              </SelectItem>
+            ))}
+          </TitledSelectContent>
+        </Select>
       </FormField>
       <FormField id={`${id}-reason`} label="Lý do" required>
         <Textarea
