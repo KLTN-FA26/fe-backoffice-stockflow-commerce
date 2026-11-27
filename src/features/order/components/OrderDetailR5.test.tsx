@@ -162,7 +162,7 @@ describe("Order detail — round 5", () => {
     await screen.findByRole("tab", { name: "Thanh toán" });
     clickOrderDetailTab("Thanh toán");
     expect(await screen.findByText("quá hạn 3 ngày")).toBeInTheDocument();
-    expect(screen.getByText(/hạn 20 thg 11, 2026/)).toBeInTheDocument();
+    expect(screen.getByText(/hạn 20\/11\/2026/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Xem các đợt" })).toHaveAttribute(
       "href",
       `/admin/payment/installments/orders/${apiOrder.orderId}`,

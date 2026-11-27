@@ -140,6 +140,7 @@ export function ReceiptFilters({
               {L.receivedFrom}
             </Label>
             <DatePicker
+              quickKind="past"
               id="receipt-received-from"
               value={receivedFrom}
               onChange={onReceivedFromChange}
@@ -152,6 +153,7 @@ export function ReceiptFilters({
               {L.receivedTo}
             </Label>
             <DatePicker
+              quickKind="past"
               id="receipt-received-to"
               value={receivedTo}
               onChange={onReceivedToChange}

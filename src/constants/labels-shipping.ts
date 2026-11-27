@@ -426,6 +426,7 @@ export const SHIPPING_FIELD_MESSAGES = {
   required: "Bắt buộc",
   warehouseRequired: "Chọn kho",
   carrierRequired: "Chọn hãng vận chuyển",
+  pickupAtInvalid: "Giờ hẹn chưa đúng — nhập ngày/tháng/năm giờ:phút (24 giờ), vd 27/11/2026 08:30",
   cancelBookingReasonRequired: "Nhập lý do huỷ đặt xe",
   // SCRUM-474 UNLOAD-DESIGN điểm 7: mã lý do + ghi chú
   controlledReasonCodeRequired: "Chọn lý do huỷ",

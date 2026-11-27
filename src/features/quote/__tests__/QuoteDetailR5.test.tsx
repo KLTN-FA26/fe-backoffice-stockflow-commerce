@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { mockApi, renderScreen } from "@/test/api-screen";
+import "@/test/jsdom-popover";
 
 import { QuoteDetail } from "..";
 import { CUSTOMER, CUSTOMER_ID, QUOTE_ACCEPTED, QUOTE_ID, SKU } from "../__fixtures__/quote-ds02";
@@ -66,7 +67,7 @@ describe("Quote detail — round 5", () => {
       },
     );
     expect(
-      await screen.findByText("Chờ khách phản hồi trong chat, đến hết 26 thg 11, 2099."),
+      await screen.findByText("Chờ khách phản hồi trong chat, đến hết 26/11/2099."),
     ).toBeInTheDocument();
     expect(await screen.findByRole("link", { name: "Mở hội thoại" })).toHaveAttribute(
       "href",
@@ -131,13 +132,78 @@ describe("Quote detail — round 5", () => {
     });
     await userEvent.click(await screen.findByRole("button", { name: "Tạo đơn" }));
     const dialog = await screen.findByRole("dialog");
-    const select = within(dialog).getByLabelText("Địa chỉ giao hàng");
-    // the default address is the one chosen, written out
-    await waitFor(() => expect(select).toHaveTextContent(/^Mặc định — Kho A, 12 Nguyễn Huệ/));
+    // S01-18: the one Select component (combobox-select), not a native <select>.
+    const select = await within(dialog).findByRole("combobox", { name: "Địa chỉ giao hàng" });
+    // S03-2: a short label inside the box (recipient — ward, province); the full address is written under it.
+    expect(select).toHaveTextContent("Mặc định — Kho A — Bến Nghé, TP Hồ Chí Minh");
     await userEvent.click(select);
-    const first = await screen.findByRole("option", { name: /^Mặc định — Kho A, 12 Nguyễn Huệ/ });
-    expect(screen.getAllByRole("option")).toHaveLength(2);
-    expect(screen.getAllByRole("option")[0]).toBe(first);
+    const options = await screen.findAllByRole("option");
+    expect(options.map((option) => option.textContent)).toEqual([
+      "Mặc định — Kho A — Bến Nghé, TP Hồ Chí Minh",
+      "Kho A — Bến Nghé, TP Hồ Chí Minh",
+    ]);
+    await userEvent.keyboard("{Escape}");
+    expect(dialog.textContent).toContain("Kho A, 12 Nguyễn Huệ, Bến Nghé, TP Hồ Chí Minh");
     expect(dialog.textContent).not.toContain("★");
+  });
+
+  it("S03-2: a customer with a single address gets plain text, not a box to choose from", async () => {
+    renderDetail(QUOTE_ACCEPTED, {
+      [`/customers/${CUSTOMER_ID}/addresses`]: () => [
+        {
+          addressId: "a1",
+          type: "SHIPPING",
+          recipientName: "Kho A",
+          phone: "0900000000",
+          line1: "12 Nguyễn Huệ",
+          wardName: "Bến Nghé",
+          provinceName: "TP Hồ Chí Minh",
+          defaultAddress: true,
+        },
+      ],
+    });
+    await userEvent.click(await screen.findByRole("button", { name: "Tạo đơn" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(
+      await within(dialog).findByText("Kho A, 12 Nguyễn Huệ, Bến Nghé, TP Hồ Chí Minh"),
+    ).toBeInTheDocument();
+    expect(within(dialog).queryByLabelText("Địa chỉ giao hàng")).toBeNull();
+  });
+
+  it("S03-2: one address of a type that is not marked default is sent by its id, not left to a default the BE does not have", async () => {
+    const lone = (type: string, id: string) => ({
+      addressId: id,
+      type,
+      recipientName: "Kho A",
+      phone: "0900000000",
+      line1: "12 Nguyễn Huệ",
+      wardName: "Bến Nghé",
+      provinceName: "TP Hồ Chí Minh",
+      defaultAddress: false,
+    });
+    const api = mockApi("SALES_STAFF", {
+      get: {
+        [detailUrl]: () => QUOTE_ACCEPTED,
+        [`/customers/${CUSTOMER_ID}`]: () => CUSTOMER,
+        [`/customers/${CUSTOMER_ID}/addresses`]: () => [
+          lone("SHIPPING", "ship-1"),
+          lone("BILLING", "bill-1"),
+        ],
+      },
+      post: { [`${detailUrl}/conversion`]: () => ({ ...QUOTE_ACCEPTED, status: "CONVERTED" }) },
+    });
+    renderScreen(<QuoteDetail id={QUOTE_ID} />, "SALES_STAFF");
+    await userEvent.click(await screen.findByRole("button", { name: "Tạo đơn" }));
+    const dialog = await screen.findByRole("dialog");
+    // Plain text of that address, nothing to choose.
+    expect(
+      await within(dialog).findAllByText("Kho A, 12 Nguyễn Huệ, Bến Nghé, TP Hồ Chí Minh"),
+    ).toHaveLength(2);
+    await userEvent.click(within(dialog).getByRole("button", { name: "Tạo đơn" }));
+    await waitFor(() => expect(api.post).toHaveBeenCalled());
+    expect(api.post.mock.calls[0]?.[1]).toMatchObject({
+      shippingAddressId: "ship-1",
+      billingAddressId: "bill-1",
+    });
   });
 });

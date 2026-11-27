@@ -62,6 +62,7 @@ export function customerHeaderFilters(
     createdAt: (
       <HeaderDateRangeFilter
         label="ngày tạo"
+        quickKind="past"
         from={f.custCreatedFrom}
         to={f.custCreatedTo}
         onChange={({ from, to }) => set({ custCreatedFrom: from, custCreatedTo: to })}

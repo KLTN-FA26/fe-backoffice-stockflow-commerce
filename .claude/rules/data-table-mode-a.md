@@ -54,11 +54,14 @@ Một hàng data-dense: search input bên trái → icon công cụ → nút exp
 | Công cụ                   | Icon           | Tone                                                |
 | ------------------------- | -------------- | --------------------------------------------------- |
 | Lọc trạng thái/facet      | `<Filter>`     | icon `--dot-info`                                   |
-| Chọn phạm vi search field | `<ListFilter>` | icon `--dot-special`                                |
-| Ẩn/hiện cột               | `<Columns3>`   | icon `--dot-warning`                                |
+| Chọn phạm vi tìm (`Tìm theo`) | `<ListFilter>` | icon `--dot-special`                            |
+| Chọn cột hiển thị         | `<Columns3>`   | icon `--dot-warning`                                |
 | Xuất Excel                | icon + text    | nền trắng, chữ `ink.primary`, icon `--dot-positive` |
 | Xoá/bulk destructive      | —              | `danger`                                            |
 
+- **Ít lựa chọn thì hiện sẵn, không giấu sau biểu tượng** (WF4 UX S01-4): lọc trạng thái có 2–4 giá trị → nút chọn
+  nhanh nằm trên thanh (`ListToolbar` tự làm, `LIST_TOOLBAR_LIMITS.statusInlineMax`); lọc hai trạng thái kiểu "Chỉ cảnh
+  báo" → `ToolbarSwitch` trong `tools`. Danh sách chọn (trạng thái / `Tìm theo` / cột) chỉ có ô "Tìm…" khi > 10 mục.
 - Mặc định button công cụ nền/viền **trung tính**, chỉ icon có màu tone (thang tươi `--dot-*`).
 - **Active state chỉ bật khi config thật sự khác mặc định** (border tone + bg tone ~10%).
   `open`, `focus-visible`, hover, auto-highlight của `cmdk` **không được** trông như active.
@@ -67,25 +70,27 @@ Một hàng data-dense: search input bên trái → icon công cụ → nút exp
 
 Thanh compact `Cấu hình` dưới toolbar (`ListConfigSummary`) — **vẫn là khung có viền**: nền
 `--summary-bg` (trắng), bo `--section-radius`, bóng `--card-shadow`. Không dùng card lớn nhiều khoảng trống.
-Mỗi nhóm là `<Badge variant="outline">` nền `bg.subtle` có nút `X` mini để reset riêng nhóm đó.
 
-Phải tách rõ 5 loại (đừng gộp):
+**Chỉ hiện khi có gì đang bật** (WF4 UX S01-3): `resetDisabled` = không có lọc / sắp xếp / cột đổi so với mặc định →
+thanh **không vẽ**. Khi hiện, chỉ có chip của nhóm **đang bật** (`active: true`) — không còn dòng "Chưa dùng / Chưa nhập /
+Tất cả / 6/6". Mỗi chip là `<Badge variant="outline">` nền `bg.subtle` có nút `X` mini để bỏ riêng nhóm đó.
 
-| Badge              | Nghĩa                               |
-| ------------------ | ----------------------------------- |
-| `Search chính`     | query của search bar                |
-| `Trường search`    | các field mà search chính đang quét |
-| `Search trong cột` | filter nhập từ header từng cột      |
-| `Cột hiển thị`     | số cột đang bật / tổng              |
-| `Trạng thái`       | facet/status đang chọn              |
+Nhãn chip dùng tiếng Việt, không chữ kỹ thuật (`Search`, `field`, `table`, `Void`):
 
-Nút `Đặt lại` bên phải reset toàn bộ config của page. Khi **bấm được** (config khác mặc định):
-chữ đậm `--dot-info`, nền `--dot-info` ~10% để người dùng thấy ngay; không có gì để đặt lại → xám mờ.
+| Chip               | Nghĩa                                   |
+| ------------------ | --------------------------------------- |
+| `Tìm kiếm chính`   | query của ô tìm ở toolbar               |
+| `Tìm trong cột`    | filter nhập từ header từng cột          |
+| `Cột hiển thị`     | số cột đang bật / tổng (chỉ khi đổi)    |
+| `Trạng thái`…      | facet/status đang chọn                  |
+
+Nút `Đặt lại` bên phải reset toàn bộ config của page (chữ đậm `--dot-info`, nền `--dot-info` ~10%).
+Thông tin chỉ để đọc (vd phạm vi tìm của ô tìm kiếm) **không** thành chip — nằm ở công cụ `Tìm theo`.
 
 ## 4. Search chính vs search trong cột — đừng nhầm
 
-- **Search chính**: input ở toolbar, lọc rộng theo các field trong `Trường search`.
-- `Trường search` chỉ là **scope** của search chính. Đừng gọi là "Global search" trong UI —
+- **Search chính**: input ở toolbar, lọc rộng theo các thông tin trong `Tìm theo`.
+- `Tìm theo` chỉ là **phạm vi** của search chính. Đừng gọi là "Global search" trong UI —
   dễ nhầm với search trong cột.
 - **Search trong cột**: header **không** render input thường trực. Header chỉ có
   label + sort + icon filter nhỏ. Click icon mở `<Popover>` chứa `<Input>` nền trắng + nút `Xoá`.
@@ -121,13 +126,13 @@ gắn vào cột bằng `withHeaderFilters(columns, { [COLUMN_KEY]: <…/> })` (
 - Hai bảng trên một trang cùng chịu một bộ lọc BE (kho, khoảng ngày…) → nút lọc hiện ở cột tương ứng
   của **cả hai** bảng, chung một state.
 - Mỗi bộ lọc đang bật có **chip** trong thanh `Cấu hình` (§3) với nút X bỏ riêng; lọc chữ trong cột gom
-  vào chip `Search trong cột` (vd `Đơn sản xuất “0002”, Đơn bán “SO-…”`). Ngày trên URL sai định dạng
+  vào chip `Tìm trong cột` (vd `Đơn sản xuất “0002”, Đơn bán “SO-…”`). Ngày trên URL sai định dạng
   → chip hiện nguyên chữ (`formatDate` ném lỗi với ngày không hợp lệ).
 - Nhãn, placeholder (`columnSearch(label)`) vào `constants/labels-*.ts`; key cột lấy từ `*_COLUMNS`.
 
-### 4.2 Ẩn hiện cột
+### 4.2 Chọn cột hiển thị
 
-Mọi trang danh sách có > 5 cột dữ liệu phải có công cụ `Columns3` (`Ẩn hiện cột`) của `ListToolbar`.
+Mọi trang danh sách có > 5 cột dữ liệu phải có công cụ `Columns3` (`Chọn cột hiển thị`) của `ListToolbar`.
 Mẫu: `schedule/useScheduleColumns.ts`, `receipt/.../ReceiptList.tsx`.
 
 - Truyền `ListToolbar` đủ bộ: `columnOptions` · `selectedColumns` · `defaultColumns` · `lockedColumns` ·
@@ -138,7 +143,7 @@ Mẫu: `schedule/useScheduleColumns.ts`, `receipt/.../ReceiptList.tsx`.
 - **Cột khoá** (`lockedColumns`): cột mã/link sang chi tiết và cột thao tác — luôn hiện, toggle bỏ qua.
 - Hàm `merge` của config: bỏ key cột lạ (cột đã gỡ), thêm lại cột khoá, rỗng → mặc định, giữ đúng
   thứ tự cột gốc.
-- Chip `Cột hiển thị: x/y` (đếm không tính cột thao tác) có X về mặc định; `Đặt lại` reset cả cột;
+- Chip `Cột hiển thị: x/y` (đếm không tính cột thao tác) chỉ hiện khi cột đã đổi, có X về mặc định; `Đặt lại` reset cả cột;
   `resetDisabled` chỉ khi **không** có filter **và** cột đang mặc định.
 - Ẩn cột đang có lọc → bộ lọc vẫn áp, vẫn còn chip để bỏ.
 
@@ -182,7 +187,7 @@ dùng `bg.surface` cho đồng bộ với table body.
 - Trong `<CommandItem>`, checkbox là tín hiệu chọn **duy nhất** — không thêm dấu check phụ bên phải.
 - Tắt/giảm auto highlight của `cmdk` (`data-selected`) để không trông như selected thật.
   Hover dùng `bg.muted` nhẹ.
-- Popover title ngắn, rõ chức năng: `Lọc trạng thái`, `Trường tìm kiếm`, `Ẩn hiện cột`.
+- Popover title ngắn, rõ chức năng: `Lọc trạng thái`, `Tìm theo`, `Chọn cột hiển thị`.
 - Footer popover: reset/mặc định bên trái, áp dụng bên phải.
 
 ## State lưu ở đâu

@@ -75,6 +75,7 @@ export function SalesRangeFilter({
           {L.from}
         </Label>
         <DatePicker
+          quickKind="past"
           id="sales-range-from"
           value={draft.from}
           aria-invalid={error !== null}
@@ -88,6 +89,7 @@ export function SalesRangeFilter({
           {L.to}
         </Label>
         <DatePicker
+          quickKind="past"
           id="sales-range-to"
           value={draft.to}
           aria-invalid={error !== null}

@@ -6,7 +6,6 @@ import { PRODUCTION_LABELS } from "@/constants";
 
 import { HeaderFilterPopover } from "@/components/shared/ColumnHeaderFilter";
 import { DatePicker } from "@/components/shared/DatePicker";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 
 import type { ScheduleFiltersState } from "./useScheduleFilters";
@@ -47,25 +46,6 @@ export function DateRangeFilter({ state, label }: { state: ScheduleFiltersState;
           aria-invalid={invalid}
         />
         {state.rangeInvalid && <p className="text-danger text-xs">{L.rangeInvalid}</p>}
-      </div>
-    </HeaderFilterPopover>
-  );
-}
-
-export function AlertsFilter({ state, label }: { state: ScheduleFiltersState; label: string }) {
-  const id = useId();
-  const { filters, set } = state;
-  return (
-    <HeaderFilterPopover label={label} active={filters.alertsOnly}>
-      <div className="flex items-center gap-2">
-        <Checkbox
-          id={id}
-          checked={filters.alertsOnly}
-          onCheckedChange={(checked) => set({ alertsOnly: checked === true })}
-        />
-        <Label htmlFor={id} className={LABEL_CLASS}>
-          {L.alertsOnly}
-        </Label>
       </div>
     </HeaderFilterPopover>
   );

@@ -3,10 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
-import { PageSkeleton } from "@/components/shared/PageSkeleton";
-
 import { useAuthStore } from "../auth-store";
 import { homeAreaFor, homeFor } from "../redirect";
+import { GateLoader } from "./GateLoader";
 
 import type { ReactNode } from "react";
 import type { AppArea } from "../redirect";
@@ -24,6 +23,6 @@ export function AreaGate({ area, children }: { area: AppArea; children: ReactNod
     if (wrongArea && roles) router.replace(homeFor(roles));
   }, [wrongArea, roles, router]);
 
-  if (roles === undefined || wrongArea) return <PageSkeleton />;
+  if (roles === undefined || wrongArea) return <GateLoader />;
   return children;
 }

@@ -2,10 +2,13 @@
 
 import { RotateCcw, Settings2, X } from "lucide-react";
 
+import { UI_LABELS } from "@/constants";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 import type { ReactNode } from "react";
+
+const L = UI_LABELS.listToolbar;
 
 export interface ListSummaryItem {
   label: string;
@@ -24,8 +27,10 @@ interface ListConfigSummaryProps {
 }
 
 /**
- * Thanh `Cấu hình` dưới toolbar danh sách Mode A (data-table-mode-a §3): mỗi nhóm cấu hình là một
- * badge có nút X để reset riêng, nút `Đặt lại` reset toàn bộ. Không chứa nghiệp vụ.
+ * Thanh `Cấu hình` dưới toolbar danh sách Mode A (data-table-mode-a §3): CHỈ hiện khi có bộ lọc / sắp xếp / cột đổi so
+ * với mặc định (`resetDisabled` = không có gì để đặt lại → không vẽ gì, WF4 UX S01-3). Mỗi nhóm đang bật là một badge có
+ * nút X để bỏ riêng; nhóm chưa bật ("Tất cả", "Chưa nhập", "6/6") không hiện. Nút `Đặt lại` reset toàn bộ.
+ * Không chứa nghiệp vụ.
  */
 export function ListConfigSummary({
   items,
@@ -43,34 +48,37 @@ export function ListConfigSummary({
       />
     );
   }
+  if (resetDisabled) return null;
   return (
     <div className="border-border-default relative mb-3 flex flex-wrap items-center gap-2 rounded-(--section-radius) border bg-(--summary-bg) px-3 py-2 text-[0.8125rem] shadow-(--card-shadow)">
       <div className="text-ink-primary mr-1 flex items-center gap-2 font-medium">
         <Settings2 className="text-accent size-3.5" />
-        Cấu hình
+        {L.configBar}
       </div>
       <div className="flex min-w-0 flex-1 flex-wrap gap-2">
-        {items.map((item) => (
-          <Badge
-            key={item.label}
-            variant="outline"
-            className="bg-bg-subtle text-ink-secondary gap-1"
-          >
-            {item.label}: {item.value}
-            {item.active && item.onClear && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-xs"
-                onClick={item.onClear}
-                aria-label={item.clearLabel ?? `Xoá ${item.label}`}
-                className="text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary size-4 rounded-full p-0"
-              >
-                <X className="size-3" />
-              </Button>
-            )}
-          </Badge>
-        ))}
+        {items
+          .filter((item) => item.active)
+          .map((item) => (
+            <Badge
+              key={item.label}
+              variant="outline"
+              className="bg-bg-subtle text-ink-secondary gap-1"
+            >
+              {item.label}: {item.value}
+              {item.active && item.onClear && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-xs"
+                  onClick={item.onClear}
+                  aria-label={item.clearLabel ?? `Xoá ${item.label}`}
+                  className="text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary size-4 rounded-full p-0"
+                >
+                  <X className="size-3" />
+                </Button>
+              )}
+            </Badge>
+          ))}
       </div>
       <Button
         type="button"
@@ -82,7 +90,7 @@ export function ListConfigSummary({
         className="text-ink-tertiary enabled:bg-dot-info/10 enabled:text-accent-text enabled:hover:bg-dot-info/15 enabled:hover:text-accent-text ml-auto rounded-[var(--r-sm)] enabled:font-semibold"
       >
         <RotateCcw className="size-3" />
-        Đặt lại
+        {L.resetAll}
       </Button>
     </div>
   );
@@ -132,7 +140,7 @@ function SummaryWithControls({
         className="text-ink-tertiary enabled:text-accent-text enabled:hover:bg-dot-info/10 enabled:hover:text-accent-text ml-auto rounded-full enabled:font-semibold"
       >
         <RotateCcw className="size-3" />
-        Đặt lại
+        {L.resetAll}
       </Button>
     </div>
   );

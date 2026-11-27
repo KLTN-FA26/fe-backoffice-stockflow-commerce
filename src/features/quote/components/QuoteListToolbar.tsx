@@ -78,9 +78,9 @@ export function QuoteListToolbar({
           active: filters.q.trim() !== "",
           onClear: () => void filters.setQ(""),
         },
-        { label: "Trường search", value: "Số báo giá" },
+        { label: "Tìm theo", value: "Số báo giá" },
         {
-          label: "Search trong cột",
+          label: "Tìm trong cột",
           value: columnSearchSummary(state),
           active: state.hasColumnFilters,
           onClear: state.clearColumnFilters,

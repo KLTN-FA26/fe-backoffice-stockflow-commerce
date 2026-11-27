@@ -43,7 +43,8 @@ export function AutomaticReceiptBadge() {
 }
 
 export function MoneyCell({ amount, currency }: { amount: number; currency: string }) {
-  return <span className={MONO}>{formatMoney(amount, currency)}</span>;
+  // Số tiền không bao giờ xuống dòng giữa chừng ("3.628.800 ₫" không tách "₫" sang dòng sau)
+  return <span className={`${MONO} whitespace-nowrap`}>{formatMoney(amount, currency)}</span>;
 }
 
 export function DateCell({ iso }: { iso: string | null | undefined }) {

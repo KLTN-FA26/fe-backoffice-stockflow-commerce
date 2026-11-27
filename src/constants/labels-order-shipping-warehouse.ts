@@ -13,7 +13,9 @@ export const ORDER_SHIPPING_WAREHOUSE_LABELS = {
     none: "Chưa chọn kho xuất",
     noneHint:
       "Chọn kho xuất để giữ hàng cho đơn. Quản lý kho chỉ release được khi đơn đã giữ đủ thùng ở kho xuất.",
-    chosen: (warehouse: string) => `Kho xuất: ${warehouse}`,
+    /** Có tên (BE#488) thì "Kho xuất: Kho Hà Nội (HAN)", không thì chỉ mã như BE cũ. */
+    chosen: (code: string, name?: string | null) =>
+      name && name !== code ? `Kho xuất: ${name} (${code})` : `Kho xuất: ${code}`,
     chosenUnknown: "đã chọn",
     loading: "Đang tải tình trạng giữ hàng…",
     failed: "Không tải được tình trạng giữ hàng của đơn.",
@@ -45,6 +47,13 @@ export const ORDER_SHIPPING_WAREHOUSE_LABELS = {
     submit: "Chọn kho và giữ hàng",
     failedTitle: "Không chọn được kho xuất",
     recommended: "Gợi ý",
+    /** Lý do kho đầu danh sách được gợi ý (docs 17 §4.2 bước 2). */
+    recommendedBecause: {
+      holdsEveryLine: "Gợi ý vì đủ hàng cho mọi dòng",
+      roomForProduction: "Gợi ý vì còn chỗ nhiều nhất cho phần phải sản xuất",
+    },
+    details: "Chi tiết",
+    warehouseCode: "Mã kho",
     current: "Đang chọn",
     holdsEveryLine: "Đủ hàng",
     available: (cartons: number, total: number) => `Có sẵn ${cartons}/${total} thùng`,

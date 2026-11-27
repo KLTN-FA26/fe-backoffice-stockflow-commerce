@@ -6,21 +6,45 @@
 
 const TZ = "Asia/Ho_Chi_Minh";
 
-/** e.g. "15 thg 3, 2026" */
-export function formatDate(iso: string): string {
-  return new Intl.DateTimeFormat("vi-VN", {
-    dateStyle: "medium",
+type Part = "day" | "month" | "year" | "hour" | "minute";
+
+/**
+ * Date parts in Vietnam time. `Intl` throws a RangeError for an invalid date — callers rely on that
+ * (a hand-edited URL date is shown as raw text instead).
+ */
+function partsOf(date: Date, withTime: boolean): Record<Part, string> {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    ...(withTime ? { hour: "2-digit", minute: "2-digit", hourCycle: "h23" as const } : {}),
     timeZone: TZ,
-  }).format(new Date(iso));
+  }).formatToParts(date);
+  const value = (type: Part) => parts.find((p) => p.type === type)?.value ?? "";
+  return {
+    day: value("day"),
+    month: value("month"),
+    year: value("year"),
+    hour: value("hour"),
+    minute: value("minute"),
+  };
 }
 
-/** e.g. "15 thg 3, 2026 14:30" */
+/**
+ * House format (WF4 UX R4): dates are dd/MM/yyyy and date-times dd/MM/yyyy HH:mm on a 24-hour clock, in
+ * Vietnam time. ICU's vi-VN `dateStyle` gives "15 thg 3, 2026" (and puts the time first), so the parts are
+ * assembled here instead of trusting a locale style. Same output as the storefront's `formatDate`.
+ */
+/** e.g. "15/03/2026". A plain `YYYY-MM-DD` is that calendar day; an instant is its day in Vietnam. */
+export function formatDate(iso: string): string {
+  const { day, month, year } = partsOf(new Date(iso), false);
+  return `${day}/${month}/${year}`;
+}
+
+/** e.g. "15/03/2026 14:30" (24-hour clock). */
 export function formatDateTime(iso: string): string {
-  return new Intl.DateTimeFormat("vi-VN", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: TZ,
-  }).format(new Date(iso));
+  const { day, month, year, hour, minute } = partsOf(new Date(iso), true);
+  return `${day}/${month}/${year} ${hour}:${minute}`;
 }
 
 /** e.g. "14:30:05" */
