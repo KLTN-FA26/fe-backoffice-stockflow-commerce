@@ -42,6 +42,7 @@ export function orderHeaderFilters(s: OrderListState): Partial<Record<string, Re
     placedAt: (
       <HeaderDateRangeFilter
         label="ngày đặt"
+        quickKind="past"
         from={extra.placedFrom}
         to={extra.placedTo}
         onChange={extra.setPlacedRange}

@@ -156,9 +156,12 @@ describe("UserListPage — filters and paging go to the server", () => {
     await screen.findByText("lan.nguyen");
     expect(api.of("get", "/identity/users")[0]?.params?.get("page")).toBe("2");
 
-    await user.click(screen.getByRole("button", { name: "Lọc trạng thái" }));
-    await user.click(await screen.findByRole("option", { name: "Đã khoá" }));
-    await user.keyboard("{Escape}");
+    // Ít trạng thái → nút chọn nhanh hiện sẵn trên thanh
+    await user.click(
+      within(screen.getByRole("group", { name: "Lọc trạng thái" })).getByRole("button", {
+        name: "Đã khoá",
+      }),
+    );
     await waitFor(() => {
       const last = api.of("get", "/identity/users").at(-1)?.params;
       expect(last?.get("status")).toBe("LOCKED");

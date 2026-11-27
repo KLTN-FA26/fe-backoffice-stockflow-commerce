@@ -84,6 +84,7 @@ export function EInvoiceFilters({ s, actions }: { s: EInvoiceListState; actions?
           {L.issuedFrom}
         </Label>
         <DatePicker
+          quickKind="past"
           id="einvoice-from"
           value={s.issuedFrom}
           onChange={s.setIssuedFrom}
@@ -94,6 +95,7 @@ export function EInvoiceFilters({ s, actions }: { s: EInvoiceListState; actions?
           {L.issuedTo}
         </Label>
         <DatePicker
+          quickKind="past"
           id="einvoice-to"
           value={s.issuedTo}
           onChange={s.setIssuedTo}

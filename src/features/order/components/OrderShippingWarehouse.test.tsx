@@ -18,6 +18,7 @@ import { apiOrder, apiOrderAt } from "../__fixtures__/order";
 import { mockOrderApiGet, renderOrderScreen } from "../__fixtures__/render";
 import {
   apiCoverage,
+  apiOption,
   apiOptions,
   CHOOSE_PATH,
   COVERAGE_PATH,
@@ -46,13 +47,13 @@ const NOT_HELD = apiCoverage(
 
 async function renderOrder(
   permissions: readonly PermissionCode[],
-  options: { order?: OrderDto; coverage?: unknown } = {},
+  options: { order?: OrderDto; coverage?: unknown; warehouses?: unknown } = {},
 ) {
   mockOrderApiGet(permissions, {
     [DETAIL_PATH]: () => options.order ?? apiOrderAt("CONFIRMED"),
     [HISTORY_PATH]: () => [],
     [COVERAGE_PATH]: () => options.coverage ?? NOT_HELD,
-    [OPTIONS_PATH]: () => apiOptions(),
+    [OPTIONS_PATH]: () => options.warehouses ?? apiOptions(),
   });
   await act(async () => {
     renderOrderScreen(<OrderDetail params={Promise.resolve({ id: apiOrder.orderId })} />);
@@ -101,6 +102,34 @@ describe("thẻ Kho xuất — gate theo trạng thái và mã quyền", () => {
     expect(await within(region).findByText("Kho xuất: HCM01")).toBeInTheDocument();
     expect(within(region).getByText(/Đã giữ đủ hàng/)).toBeInTheDocument();
     expect(within(region).queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("BE#488: kho có tên → 'Kho xuất: <tên> (mã)'; BE cũ chưa có tên → chỉ mã", async () => {
+    await renderOrder(SHIPPING_PERMISSION_SETS.warehouseManager, {
+      coverage: {
+        ...apiCoverage([
+          [8, 8],
+          [4, 4],
+        ]),
+        warehouseName: "Kho TP.HCM",
+      },
+    });
+    expect(
+      await within(await card()).findByText("Kho xuất: Kho TP.HCM (HCM01)"),
+    ).toBeInTheDocument();
+  });
+
+  it("tên kho trùng mã thì không lặp lại", async () => {
+    await renderOrder(SHIPPING_PERMISSION_SETS.warehouseManager, {
+      coverage: {
+        ...apiCoverage([
+          [8, 8],
+          [4, 4],
+        ]),
+        warehouseName: "HCM01",
+      },
+    });
+    expect(await within(await card()).findByText("Kho xuất: HCM01")).toBeInTheDocument();
   });
 
   it("không có mã kho xuất nào → không có thẻ và không gọi API kho xuất", async () => {
@@ -164,42 +193,112 @@ describe("thẻ Kho xuất — gate theo trạng thái và mã quyền", () => {
 });
 
 describe("hộp thoại chọn kho — tồn và sức chứa từng kho (17 §4.2 bước 2, BR-25)", () => {
-  it("liệt kê các kho theo thứ tự gợi ý: kho đầu có nhãn Gợi ý + Đủ hàng; kho thiếu chỗ có cảnh báo không chặn", async () => {
+  it("S10-1: mỗi kho là tên kho + hai số docs đòi; kho đầu nói lý do gợi ý; mã kho và số từng dòng ở 'Chi tiết'; cảnh báo thiếu chỗ không chặn", async () => {
     await renderOrder(SHIPPING_PERMISSION_SETS.sale);
     const { dialog } = await openDialog();
     const radios = within(dialog).getAllByRole("radio");
     expect(radios).toHaveLength(2);
-    const [hcm, hn] = radios.map((radio) => radio.closest("label") as HTMLElement) as [
+    const [hcm, hn] = radios.map((radio) => radio.closest("label")?.parentElement) as [
       HTMLElement,
       HTMLElement,
     ];
-    expect(hcm).toHaveTextContent("HCM01 — Kho TP.HCM");
-    expect(hcm).toHaveTextContent("Gợi ý");
-    expect(hcm).toHaveTextContent("Đủ hàng");
+    // Tên kho, không phải "HCM01 — …"; lý do theo docs 17 §4.2 bước 2.
+    expect(within(hcm).getByText("Kho TP.HCM")).toBeInTheDocument();
+    expect(hcm.querySelector("label")).not.toHaveTextContent("HCM01");
+    expect(hcm).toHaveTextContent("Gợi ý vì đủ hàng cho mọi dòng");
+    // Hai số chính: tồn khả dụng (thùng) và còn trống dự kiến (m³).
     expect(hcm).toHaveTextContent("Có sẵn 12/12 thùng");
-    expect(hcm).toHaveTextContent("CUP-12OZ-ACME: 8/8 thùng");
-    expect(hcm).toHaveTextContent("Còn trống dự kiến120,5 m³");
+    expect(hcm).toHaveTextContent("Còn trống dự kiến: 120,5 m³");
+    // Mã kho, từng dòng và các số sức chứa khác nằm trong "Chi tiết", gập sẵn.
+    const details = hcm.querySelector("details") as HTMLDetailsElement;
+    expect(details.open).toBe(false);
+    expect(within(details).getByText("Chi tiết")).toBeInTheDocument();
+    expect(details).toHaveTextContent("Mã kho: HCM01");
+    expect(details).toHaveTextContent("CUP-12OZ-ACME: 8/8 thùng");
+    expect(details).toHaveTextContent("Chờ duyệt10 m³");
     expect(hcm).not.toHaveTextContent("Không đủ chỗ");
 
-    expect(hn).toHaveTextContent("HN01 — Kho Hà Nội");
+    expect(within(hn).getByText("Kho Hà Nội")).toBeInTheDocument();
     expect(hn).not.toHaveTextContent("Gợi ý");
     expect(hn).toHaveTextContent("Có sẵn 5/12 thùng");
-    expect(hn).toHaveTextContent("CUP-12OZ-ACME: 3/8 thùng");
-    expect(hn).toHaveTextContent("Cần cho phần phải sản xuất1,25 m³");
+    expect(hn.querySelector("details")).toHaveTextContent("CUP-12OZ-ACME: 3/8 thùng");
+    expect(hn.querySelector("details")).toHaveTextContent("Cần cho phần phải sản xuất1,25 m³");
+    // Cảnh báo luôn hiện (ngoài "Chi tiết"), không chặn: vẫn chọn được kho thiếu chỗ.
+    expect(hn.querySelector("details")).not.toHaveTextContent(/Không đủ chỗ/);
     expect(hn).toHaveTextContent(
       /Không đủ chỗ cho phần phải sản xuất.*chỉ là cảnh báo, vẫn chọn được/,
     );
-    // Cảnh báo không chặn: vẫn chọn được kho thiếu chỗ
     expect(within(hn).getByRole("radio")).toBeEnabled();
   });
 
-  it("chưa chọn kho → nút Chọn kho và giữ hàng bị khoá; chọn rồi mới bấm được", async () => {
+  it("S10-1: kho gợi ý được chọn sẵn — nút bấm được ngay, Sale vẫn phải bấm xác nhận", async () => {
     await renderOrder(SHIPPING_PERMISSION_SETS.sale);
+    const { dialog } = await openDialog();
+    await waitFor(() =>
+      expect(within(dialog).getByRole("radio", { name: /Kho TP\.HCM/ })).toBeChecked(),
+    );
+    expect(within(dialog).getByRole("radio", { name: /Kho Hà Nội/ })).not.toBeChecked();
+    expect(within(dialog).getByRole("button", { name: "Chọn kho và giữ hàng" })).toBeEnabled();
+  });
+
+  it("S10-1: kho đầu không đủ hàng nhưng còn chỗ cho phần phải sản xuất → lý do 'còn chỗ nhiều nhất'", async () => {
+    await renderOrder(SHIPPING_PERMISSION_SETS.sale, {
+      warehouses: apiOptions(null, [
+        apiOption({
+          holdsEveryLine: false,
+          availableCartons: 5,
+          projectedFreeM3: 40,
+          neededM3: 10,
+          exceedsProjected: false,
+        }),
+        apiOption({
+          warehouseId: WH_HN,
+          warehouseCode: "HN01",
+          warehouseName: "Kho Hà Nội",
+          holdsEveryLine: false,
+          availableCartons: 3,
+          projectedFreeM3: 5,
+          neededM3: 10,
+          exceedsProjected: true,
+        }),
+      ]),
+    });
+    const { dialog } = await openDialog();
+    expect(
+      await within(dialog).findByText("Gợi ý vì còn chỗ nhiều nhất cho phần phải sản xuất"),
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(within(dialog).getByRole("radio", { name: /Kho TP\.HCM/ })).toBeChecked(),
+    );
+  });
+
+  it("S10-1: không kho nào đủ hàng hay đủ chỗ (docs không xếp hạng) → không gợi ý, không chọn sẵn; chọn rồi mới bấm được", async () => {
+    const noRoom = (patch: Record<string, unknown>) =>
+      apiOption({ holdsEveryLine: false, exceedsProjected: true, neededM3: 9, ...patch });
+    await renderOrder(SHIPPING_PERMISSION_SETS.sale, {
+      warehouses: apiOptions(null, [
+        noRoom({}),
+        noRoom({ warehouseId: WH_HN, warehouseCode: "HN01", warehouseName: "Kho Hà Nội" }),
+      ]),
+    });
     const { user, dialog } = await openDialog();
+    expect(within(dialog).queryByText(/^Gợi ý vì/)).toBeNull();
     const submit = within(dialog).getByRole("button", { name: "Chọn kho và giữ hàng" });
+    expect(within(dialog).getByRole("radio", { name: /Kho TP\.HCM/ })).not.toBeChecked();
     expect(submit).toBeDisabled();
-    await user.click(within(dialog).getByRole("radio", { name: /HCM01/ }));
+    await user.click(within(dialog).getByRole("radio", { name: /Kho TP\.HCM/ }));
     expect(submit).toBeEnabled();
+  });
+
+  it("S10-1: chỉ một kho → chọn sẵn kho đó và nói giữ hàng ngay khi chọn", async () => {
+    await renderOrder(SHIPPING_PERMISSION_SETS.sale, {
+      warehouses: apiOptions(null, [apiOption()]),
+    });
+    const { dialog } = await openDialog();
+    await waitFor(() => expect(within(dialog).getByRole("radio")).toBeChecked());
+    expect(
+      within(dialog).getByText("Kho này được giữ hàng cho đơn ngay khi chọn."),
+    ).toBeInTheDocument();
   });
 
   it("danh sách kho nằm trong vùng cuộn của hộp thoại (DialogScrollArea)", async () => {
@@ -226,13 +325,15 @@ describe("hộp thoại chọn kho — tồn và sức chứa từng kho (17 §4
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: "Đổi kho xuất" }));
     const dialog = await screen.findByRole("dialog");
-    const hn = (await within(dialog).findByRole("radio", { name: /HN01/ })).closest("label");
+    const hn = (await within(dialog).findByRole("radio", { name: /Kho Hà Nội/ })).closest("label");
     expect(hn).toHaveTextContent("Đang chọn");
+    // Đang đổi kho: không chọn sẵn kho gợi ý — đổi là việc Sale chủ động.
+    expect(within(dialog).getByRole("radio", { name: /Kho TP\.HCM/ })).not.toBeChecked();
   });
 });
 
 describe("chọn kho → PUT /orders/{id}/shipping-warehouse, báo kết quả giữ hàng", () => {
-  async function choose(response: unknown, label: RegExp = /HCM01/) {
+  async function choose(response: unknown, label: RegExp = /Kho TP\.HCM/) {
     await renderOrder(SHIPPING_PERMISSION_SETS.sale);
     const { user, dialog } = await openDialog();
     const put = vi.spyOn(api, "put");
@@ -298,7 +399,7 @@ describe("chọn kho → PUT /orders/{id}/shipping-warehouse, báo kết quả g
         [3, 8],
         [2, 4],
       ]),
-      /HN01/,
+      /Kho Hà Nội/,
     );
     await waitFor(() => expect(put).toHaveBeenCalledWith(CHOOSE_PATH, { warehouseId: WH_HN }, KEY));
   });
@@ -331,7 +432,7 @@ describe("chọn kho → PUT /orders/{id}/shipping-warehouse, báo kết quả g
     expect(
       await within(dialog).findByText("Không tìm thấy kho đã chọn. Chọn lại kho."),
     ).toBeInTheDocument();
-    expect(within(dialog).getByRole("radio", { name: /HCM01/ })).toBeChecked();
+    expect(within(dialog).getByRole("radio", { name: /Kho TP\.HCM/ })).toBeChecked();
   });
 
   it("lỗi mạng → giữ hộp thoại, câu tiếng Việt chung", async () => {
@@ -343,7 +444,7 @@ describe("chọn kho → PUT /orders/{id}/shipping-warehouse, báo kết quả g
     await renderOrder(SHIPPING_PERMISSION_SETS.sale);
     const { user, dialog } = await openDialog();
     const put = vi.spyOn(api, "put").mockImplementation(() => new Promise(() => undefined));
-    await user.click(within(dialog).getByRole("radio", { name: /HCM01/ }));
+    await user.click(within(dialog).getByRole("radio", { name: /Kho TP\.HCM/ }));
     const submit = within(dialog).getByRole("button", { name: "Chọn kho và giữ hàng" });
     await user.dblClick(submit);
     expect(put).toHaveBeenCalledTimes(1);

@@ -3,7 +3,18 @@
  * Thuần — không gọi API.
  */
 
+import { addDays, format, parseISO } from "date-fns";
+
+import { QUOTE_DEFAULT_VALIDITY_DAYS } from "@/constants/numbers";
+
+import { todayVn } from "./form-schemas";
+
 import type { Quote, QuoteFormOutput, QuoteFormValues, QuoteLineFormValues } from "./types";
+
+/** Ngày hết hiệu lực điền sẵn (`YYYY-MM-DD`, giờ VN). */
+export function defaultValidUntil(today = todayVn()): string {
+  return format(addDays(parseISO(today), QUOTE_DEFAULT_VALIDITY_DAYS), "yyyy-MM-dd");
+}
 
 /** Ngày hết hiệu lực (theo giờ VN) → Instant cuối ngày. */
 export function endOfDayVn(day: string): string {
@@ -59,7 +70,7 @@ export const EMPTY_LINE: QuoteLineFormValues = {
 export function emptyQuoteForm(customerId = ""): QuoteFormValues {
   return {
     customerId,
-    validUntil: "",
+    validUntil: defaultValidUntil(),
     requestedDeliveryDate: "",
     terms: "",
     lines: [EMPTY_LINE],

@@ -22,13 +22,10 @@ const COLUMN_OPTIONS = DATA_COLUMNS.map((value) => ({
 /** Chip thanh `Cấu hình` (data-table-mode-a §3): mỗi nhóm một chip, X bỏ riêng nhóm đó. */
 function summaryItems(
   s: TaskListState,
-  scopeNote: string,
   labels: TaskFilterLabels,
   showAssignee: boolean,
 ): ListSummaryItem[] {
   return [
-    // Phạm vi do BE quyết theo mã quyền — chỉ để đọc, không bỏ được
-    { label: F.scope, value: scopeNote },
     {
       label: F.status,
       value: labels.status ?? F.allStatuses,
@@ -90,7 +87,9 @@ export function TaskListToolbar({
       onToggleColumn={s.toggleColumn}
       onResetColumns={s.resetColumns}
       hasColumnConfig={s.hasColumnConfig}
-      summaryItems={summaryItems(s, scopeNote, labels, showAssignee)}
+      // Phạm vi do BE quyết theo quyền — chỉ để đọc: một dòng chữ luôn hiện, không phải chip của thanh Cấu hình
+      note={`${F.scope}: ${scopeNote}`}
+      summaryItems={summaryItems(s, labels, showAssignee)}
       actions={actions}
       onResetAll={() => {
         s.clearFilters();

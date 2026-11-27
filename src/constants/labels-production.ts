@@ -128,7 +128,7 @@ export const PRODUCTION_LABELS = {
     warehouseFilter: "Kho nhận",
     /** Chip lọc theo id khi không đọc được danh mục và chưa có dòng nào mang tên — không hiện mảnh UUID (#286). */
     pickedFilter: "Đã chọn",
-    summarySearch: "Search trong trang",
+    summarySearch: "Tìm trong trang",
     emptyTitle: "Chưa có Đơn sản xuất",
     emptyDescription: "Đơn sản xuất được lập từ đợt giao còn thiếu của đơn bán đã ký hợp đồng.",
     errorCopy: errorCopy("Đơn sản xuất", "Đơn sản xuất"),
@@ -365,7 +365,7 @@ export const PRODUCTION_LABELS = {
     pageTitle: "Lịch sản xuất",
     searchPlaceholder: "Tìm theo mã Đơn sản xuất, đơn bán, đơn vị, kho, SKU…",
     summarySearch: "Tìm kiếm chính",
-    summaryColumnSearch: "Search trong cột",
+    summaryColumnSearch: "Tìm trong cột",
     summaryColumns: "Cột hiển thị",
     // Hai tab theo việc của Điều phối sản xuất (docs 17 §4.12 bước 47): việc phải làm trước, việc theo dõi sau
     tabs: { batches: "Cần lập Đơn sản xuất", orders: "Đơn sản xuất đang mở" },
@@ -376,6 +376,8 @@ export const PRODUCTION_LABELS = {
     from: "Từ ngày",
     to: "Đến ngày",
     alertsOnly: "Chỉ dòng có cảnh báo",
+    /** Công tắc hiện sẵn trên thanh công cụ (thay hộp tích trong lọc cột Cảnh báo). */
+    alertsSwitch: "Chỉ cảnh báo",
     all: "Tất cả",
     optionSearch: "Gõ để tìm…",
     optionEmpty: "Không có lựa chọn khớp",

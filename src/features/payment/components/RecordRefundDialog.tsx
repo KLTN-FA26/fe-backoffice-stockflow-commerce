@@ -18,6 +18,7 @@ import { paymentErrorMessage } from "../errors";
 import { useRecordRefund } from "../mutations";
 import { buildRefundRecordInputSchema, todayInVietnam } from "../input-schemas";
 
+import { pasteTrimmed } from "./paste-trim";
 import { RefundPayee } from "./RefundPayee";
 
 import type { OrderRefund, RefundRecordFormValues, RefundRecordInput } from "../types";
@@ -115,8 +116,15 @@ function RecordRefundForm({ refund, onClose }: { refund: OrderRefund; onClose: (
         <Input
           maxLength={PAYMENT_LIMITS.referenceMax}
           className={FORM_INPUT_CLASS}
+          placeholder={L.referencePlaceholder}
+          autoComplete="off"
           {...fieldA11y("refund-reference", errors.reference?.message)}
           {...form.register("reference")}
+          onPaste={(event) =>
+            pasteTrimmed(event, (value) =>
+              form.setValue("reference", value, { shouldDirty: true, shouldValidate: true }),
+            )
+          }
         />
       </FormField>
       <FormField id="refund-note" label={L.note} error={errors.note?.message}>

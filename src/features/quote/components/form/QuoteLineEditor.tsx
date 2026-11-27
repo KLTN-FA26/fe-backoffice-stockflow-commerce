@@ -7,18 +7,11 @@ import { Trash2 } from "lucide-react";
 import { moqOf, tierPrice } from "@/features/quote/selectors";
 import { Card } from "@/components/shared/Card";
 import { FORM_INPUT_CLASS, FormField, fieldA11y } from "@/components/shared/FormField";
-import { FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
-import {
-  Select,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/shared/combobox-select";
-import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 import { LinePreview, SuggestionBar } from "./LinePriceHints";
+import { QuoteSkuField } from "./QuoteSkuField";
 import { TierEditor } from "./TierEditor";
 import { useLinePriceSuggestion } from "./useLinePriceSuggestion";
 
@@ -60,6 +53,15 @@ export function QuoteLineEditor({
     control,
     name: [`lines.${index}.sku`, `lines.${index}.cartons`, `lines.${index}.tiers`],
   });
+  const allLines = useWatch({ control, name: "lines" });
+  const takenElsewhere = new Set(
+    (allLines ?? []).filter((_, other) => other !== index).map((line) => line.sku),
+  );
+  // R6: khách chỉ có một SKU báo giá được → chọn sẵn, không bắt chọn (Sale chỉ thấy chữ).
+  const onlySku = skus.length === 1 ? (skus[0]?.sku ?? "") : "";
+  useEffect(() => {
+    if (onlySku && !sku) setValue(`lines.${index}.sku`, onlySku);
+  }, [onlySku, sku, index, setValue]);
   // Giá riêng của khách, không có thì giá chuẩn của quy cách (13 BR-04 / BR-05 sửa ngày 2026-11-26)
   const price = useLinePriceSuggestion(customerId, sku, skus);
   const suggestion = price.suggestion;
@@ -97,42 +99,29 @@ export function QuoteLineEditor({
         )}
       </div>
       <div className="grid gap-3 md:grid-cols-2">
-        <FormField
-          id={`${prefix}-sku`}
-          label="SKU riêng của khách"
-          required
-          error={errors?.sku?.message}
-        >
-          {/* Select có kiểm soát: danh sách SKU tải sau form, một <select> chỉ `register` thì hiện trống dù
-              giá trị form vẫn là SKU của dòng (WF-02 audit). SKU của dòng chưa có trong danh sách vẫn có option. */}
-          <Controller
-            control={control}
-            name={`lines.${index}.sku`}
-            render={({ field }) => (
-              <Select name={field.name} value={field.value ?? ""} onValueChange={field.onChange}>
-                <SelectTrigger
-                  ref={field.ref}
-                  onBlur={field.onBlur}
-                  {...fieldA11y(`${prefix}-sku`, errors?.sku?.message)}
-                  className={`${FORM_SELECT_CLASS} font-[family-name:var(--font-mono)]`}
-                >
-                  <SelectValue placeholder="Chọn SKU" />
-                </SelectTrigger>
-                <TitledSelectContent title="SKU riêng của khách">
-                  {field.value && !skus.some((option) => option.sku === field.value) && (
-                    <SelectItem value={field.value}>{field.value}</SelectItem>
-                  )}
-                  {skus.map((option) => (
-                    <SelectItem key={option.variantId} value={option.sku}>
-                      {option.sku}
-                      {option.name ? ` — ${option.name}` : ""}
-                    </SelectItem>
-                  ))}
-                </TitledSelectContent>
-              </Select>
-            )}
-          />
-        </FormField>
+        <Controller
+          control={control}
+          name={`lines.${index}.sku`}
+          render={({ field }) => (
+            <QuoteSkuField
+              id={`${prefix}-sku`}
+              value={field.value ?? ""}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              // BE: mỗi SKU chỉ một dòng — dòng này chỉ thấy SKU chưa dùng ở dòng khác (và SKU của chính nó).
+              options={skus.filter(
+                (option) => option.sku === field.value || !takenElsewhere.has(option.sku),
+              )}
+              // Read-only only while the line is empty or already holds that SKU: a value the list does not have stays visible.
+              onlyOption={
+                skus.length === 1 && (!field.value || field.value === skus[0]?.sku)
+                  ? (skus[0] ?? null)
+                  : null
+              }
+              error={errors?.sku?.message}
+            />
+          )}
+        />
         <FormField
           id={`${prefix}-cartons`}
           label="Số thùng"

@@ -118,7 +118,7 @@ describe("AttachedFilesCard — danh sách", () => {
     const row = within(screen.getByText("van-don-hang-NB.pdf").closest("tr") as HTMLElement);
     expect(row.getByText("PDF")).toBeInTheDocument();
     expect(row.getByText("47 KB")).toBeInTheDocument();
-    expect(row.getByText(/thg 11, 2026/)).toBeInTheDocument();
+    expect(row.getByText(/\/11\/2026/)).toBeInTheDocument();
     const second = within(screen.getByText("bang-ke.xlsx").closest("tr") as HTMLElement);
     expect(second.getByText("Excel")).toBeInTheDocument();
     expect(second.getByText("5,0 MB")).toBeInTheDocument();

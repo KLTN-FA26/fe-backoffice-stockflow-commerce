@@ -4,6 +4,7 @@ import { useId } from "react";
 
 import { ORDER_LIMITS, ORDER_REMAINDER_FEE_LABELS } from "@/constants";
 import { formatMoney } from "@/lib/format";
+import { MoneyInput } from "@/components/shared/MoneyInput";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -62,15 +63,13 @@ export function RemainderFeeFields({
             <Label htmlFor={amountId} className="text-[0.8125rem]">
               {L.amount} <span className="text-danger">*</span>
             </Label>
-            <Input
+            {/* R5: số tiền dùng MoneyInput — chấm nghìn khi gõ, hậu tố ₫, không nhập số lẻ. */}
+            <MoneyInput
               id={amountId}
-              type="text"
-              inputMode="numeric"
-              autoComplete="off"
               value={fee.amount}
-              onChange={(event) => fee.setAmount(event.target.value)}
+              onChange={fee.setAmount}
               aria-invalid={errors["agreedFee.amount"] ? true : undefined}
-              className={`${FIELD} mt-1 tabular-nums`}
+              className="mt-1"
             />
             {Number.isFinite(parseFeeAmount(fee.amount)) && (
               <p className="text-ink-secondary mt-1 text-xs tabular-nums">

@@ -64,6 +64,38 @@ export const UI_LABELS = {
     more: (remaining: number) => `Còn ${remaining} khách — gõ thêm để thu hẹp`,
     taxCode: (taxCode: string) => `MST ${taxCode}`,
   },
+  // Thanh công cụ danh sách dùng chung (components/shared/ListToolbar, ListConfigSummary) — nhãn không dùng chữ kỹ thuật
+  listToolbar: {
+    configBar: "Cấu hình",
+    resetAll: "Đặt lại",
+    status: "Lọc trạng thái",
+    statusHint: "Chọn trạng thái cần hiển thị.",
+    statusSearch: "Tìm trạng thái...",
+    statusNone: "Không có trạng thái phù hợp.",
+    clearFilter: "Xoá lọc",
+    searchBy: "Tìm theo",
+    searchByHint: "Chọn thông tin mà ô tìm kiếm sẽ tìm trong đó.",
+    searchBySearch: "Tìm thông tin...",
+    searchByNone: "Không có mục phù hợp.",
+    searchByDefault: "Mặc định",
+    searchByAll: "Chọn tất cả",
+    columns: "Chọn cột hiển thị",
+    columnsHint: "Chọn các cột muốn xem trong bảng.",
+    columnsSearch: "Tìm cột...",
+    columnsNone: "Không có cột phù hợp.",
+    columnsShowAll: "Hiện tất cả",
+    bulkDelete: "Xoá đã chọn",
+    export: "Xuất Excel",
+  },
+  // Trang "Không tìm thấy" (app/not-found, app/admin/not-found)
+  notFound: {
+    title: "Không tìm thấy trang",
+    description:
+      "Đường dẫn này không có trang nào, hoặc trang đã được chuyển đi. Anh/chị chọn nơi muốn đến tiếp theo.",
+    home: "Về trang chủ",
+    admin: "Về trang quản trị",
+    myOrders: "Đơn hàng của tôi",
+  },
   // Ô chọn tệp dùng chung (components/shared/FilePickerField)
   filePicker: {
     choose: "Chọn tệp",
@@ -72,9 +104,42 @@ export const UI_LABELS = {
   },
   // Ô chọn ngày dùng chung (components/shared/DatePicker)
   datePicker: {
-    placeholder: "Chọn ngày",
+    /** Ô gõ được: dd/MM/yyyy — người dùng gõ liền 8 chữ số, dấu "/" tự thêm. */
+    placeholder: "dd/mm/yyyy",
+    openCalendar: "Mở lịch",
+    /** Tên nút lịch khi biết nhãn của ô: "Mở lịch – Từ ngày". */
+    openCalendarFor: (label: string) => `Mở lịch – ${label}`,
+    yesterday: "Hôm qua",
     today: "Hôm nay",
+    tomorrow: "Ngày mai",
+    nextWeek: "+7 ngày",
+    lastWeek: "7 ngày trước",
     clear: "Xoá ngày",
+    /** Lý do chữ khi ngày gõ không nhận được. */
+    incomplete: "Nhập đủ ngày/tháng/năm, ví dụ 25/11/2026",
+    invalid: (minYear: number, maxYear: number) =>
+      `Ngày không hợp lệ — ngày có thật, năm từ ${minYear} đến ${maxYear}`,
+    outOfRange: (from: string | null, to: string | null) =>
+      from && to
+        ? `Chọn ngày từ ${from} đến ${to}`
+        : from
+          ? `Chọn ngày từ ${from} trở đi`
+          : `Chọn ngày đến hết ${to}`,
+  },
+  // Ô ngày giờ dùng chung (components/shared/DateTimePicker): dd/MM/yyyy HH:mm, 24 giờ
+  dateTimePicker: {
+    placeholder: "dd/mm/yyyy hh:mm",
+    openCalendar: "Mở lịch",
+    openCalendarFor: (label: string) => `Mở lịch – ${label}`,
+    time: "Giờ (24 giờ)",
+    timeFor: (label: string) => `Giờ (24 giờ) – ${label}`,
+    timePlaceholder: "hh:mm",
+    done: "Xong",
+    clear: "Xoá",
+    now: "Bây giờ",
+    incomplete: "Nhập đủ ngày giờ, ví dụ 27/11/2026 08:30 (24 giờ)",
+    invalid: "Ngày giờ không hợp lệ — ngày có thật, giờ từ 00:00 đến 23:59",
+    outOfRange: "Ngày giờ nằm ngoài khoảng cho phép",
   },
   // Ô nhập tiền dùng chung (components/shared/MoneyInput)
   moneyInput: {

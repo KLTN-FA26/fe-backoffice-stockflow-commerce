@@ -66,6 +66,8 @@ export const shippingCoverageSchema = z.object({
   orderId: z.string(),
   warehouseId: z.string().nullish(),
   warehouseCode: z.string().nullish(),
+  /** Optional (BE#488): absent from an older BE, then the card shows the code only. */
+  warehouseName: z.string().nullish(),
   fullyHeld: z.boolean(),
   lines: z.array(shippingLineCoverageSchema).default([]),
   batches: z.array(shippingBatchCoverageSchema).default([]),
