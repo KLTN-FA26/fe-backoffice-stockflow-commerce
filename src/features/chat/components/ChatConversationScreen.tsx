@@ -75,7 +75,7 @@ function ConversationContent({ id }: { id: string }) {
   return (
     <div className="surface-soft surface-compact">
       <h1 className="sr-only">Hội thoại {data.subject ?? data.customerName}</h1>
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
         <Card className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>

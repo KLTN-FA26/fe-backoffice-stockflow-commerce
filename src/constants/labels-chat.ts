@@ -292,3 +292,39 @@ export const CHAT_CANNED_LABELS = {
   clearFilters: "Bỏ bộ lọc",
   retry: "Thử lại",
 } as const;
+
+/** UI/UX bo-32, bo-33: dòng hộp thư và khối chứng từ đang mở ở panel khách. */
+export const CHAT_INBOX_LABELS = {
+  overdue: "Quá hạn",
+  unassigned: "Chưa phân công",
+  orderStatus: (orderNumber: string, status: string) => `Đơn ${orderNumber}: ${status}`,
+  shipment: "Lô giao",
+  openDocuments: "Báo giá / đơn đang mở",
+  noOpenDocuments: "Không có báo giá hay đơn đang mở.",
+  installments: "Đợt còn phải thu",
+  noInstallments: "Không có.",
+  installment: (seq: number) => `đợt ${seq}`,
+  dueOn: (date: string) => `hạn ${date}`,
+} as const;
+
+/**
+ * Báo giá còn chờ khách / Sale (BE `QuoteStatus`): nháp, đã gửi, yêu cầu sửa, đã chấp nhận chưa lên đơn. Hết hiệu lực,
+ * đã huỷ, đã tạo đơn là xong.
+ */
+export const CHAT_OPEN_QUOTE_STATUSES: readonly string[] = [
+  "DRAFT",
+  "SENT",
+  "CHANGES_REQUESTED",
+  "ACCEPTED",
+];
+
+/** Đơn đã xong (BE `OrderStatus`): đã giao, hoàn tất, huỷ, đóng, trả / hoàn tiền — mọi trạng thái khác là đang chạy. */
+export const CHAT_CLOSED_ORDER_STATUSES: readonly string[] = [
+  "DELIVERED",
+  "COMPLETED",
+  "CANCELLED",
+  "CLOSED",
+  "RETURNED",
+  "REFUNDED",
+  "PARTIALLY_REFUNDED",
+];
