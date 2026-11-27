@@ -61,8 +61,7 @@ export function useOrderExtraFilters(resetPage: () => void) {
   );
 
   const customerInput = customerRaw.trim();
-  const customerIdInvalid = customerInput !== "" && !isValidOrderCustomerId(customerInput);
-  const customerId = customerIdInvalid ? "" : customerInput;
+  const customerId = isValidOrderCustomerId(customerInput) ? customerInput : "";
   const from = ISO_DAY.test(placedFrom) ? placedFrom : "";
   const to = ISO_DAY.test(placedTo) ? placedTo : "";
   // BE OrderServiceImpl: placedTo trước placedFrom → 400. Chặn ở FE, không gửi khoảng sai.
@@ -78,9 +77,6 @@ export function useOrderExtraFilters(resetPage: () => void) {
   return {
     /** Khách đang lọc thật (UUID hợp lệ) — "" khi không lọc hoặc giá trị URL sai. */
     customerId,
-    /** Giá trị khách trên URL như người dùng thấy (có thể sai) — ô nhập UUID dự phòng + câu báo link sai. */
-    customerInput,
-    customerIdInvalid,
     placedFrom: from,
     placedTo: to,
     invalidRange,

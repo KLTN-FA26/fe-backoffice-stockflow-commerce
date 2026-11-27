@@ -3,6 +3,7 @@
 import { cn } from "cn";
 import { Filter } from "lucide-react";
 
+import { LIST_TOOLBAR_LIMITS } from "@/constants";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -19,6 +20,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 
 import type { ReactNode } from "react";
 import type { ColumnDef } from "./DataTable";
+
+/** Ô "Tìm…" trong danh sách chọn chỉ cần khi có nhiều mục (≤ 10 mục nhìn một lượt là thấy hết) — cùng ngưỡng với `ListToolbar`. */
+const needsSearch = (count: number) => count > LIST_TOOLBAR_LIMITS.listSearchMin;
 
 /**
  * Nút lọc nhỏ cạnh tên cột (data-table-mode-a §4 "Tìm trong cột"): bấm mở popover chứa ô lọc; đang lọc → icon
@@ -141,7 +145,7 @@ export function HeaderOptionFilter({
       className="w-72"
     >
       <Command className="h-auto rounded-none! bg-transparent p-0">
-        <CommandInput placeholder={searchPlaceholder} autoFocus />
+        {needsSearch(options.length) && <CommandInput placeholder={searchPlaceholder} autoFocus />}
         <CommandList className="max-h-64 pt-1">
           <CommandEmpty>{emptyLabel}</CommandEmpty>
           <CommandGroup>
@@ -201,7 +205,7 @@ export function HeaderMultiOptionFilter({
       className="w-72"
     >
       <Command className="h-auto rounded-none! bg-transparent p-0">
-        <CommandInput placeholder={searchPlaceholder} autoFocus />
+        {needsSearch(options.length) && <CommandInput placeholder={searchPlaceholder} autoFocus />}
         <CommandList className="max-h-64 pt-1">
           <CommandEmpty>{emptyLabel}</CommandEmpty>
           <CommandGroup>
@@ -241,11 +245,14 @@ export function HeaderDateRangeFilter({
   from,
   to,
   onChange,
+  quickKind,
 }: {
   label: string;
   from: string;
   to: string;
   onChange: (range: { from: string; to: string }) => void;
+  /** Nút chọn nhanh trong lịch: `past` cho cột ngày đã xảy ra (ngày đặt, ngày tạo, lịch sử) — không gợi ý ngày tương lai. */
+  quickKind?: "past" | "future";
 }) {
   return (
     <HeaderFilterPopover
@@ -262,6 +269,7 @@ export function HeaderDateRangeFilter({
             max={to || undefined}
             onChange={(value) => onChange({ from: value, to })}
             placeholder="Không giới hạn"
+            quickKind={quickKind}
             clearable
           />
         </label>
@@ -272,6 +280,7 @@ export function HeaderDateRangeFilter({
             min={from || undefined}
             onChange={(value) => onChange({ from, to: value })}
             placeholder="Không giới hạn"
+            quickKind={quickKind}
             clearable
           />
         </label>

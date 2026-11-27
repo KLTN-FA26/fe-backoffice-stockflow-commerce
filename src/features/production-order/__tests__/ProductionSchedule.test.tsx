@@ -200,7 +200,8 @@ describe("ProductionSchedule (docs 17 §4.12)", () => {
     await user.click(
       within(await panel()).getByRole("button", { name: `Lọc ${L.column.producer}` }),
     );
-    await user.type(screen.getByPlaceholderText(L.optionSearch), "Minh");
+    // Ít đơn vị (≤ 10) → danh sách không có ô tìm, chọn thẳng
+    expect(screen.queryByPlaceholderText(L.optionSearch)).not.toBeInTheDocument();
     await user.click(screen.getByRole("option", { name: /IN-MINHPHAT · In Minh Phát/ }));
     await waitFor(() => expect(lastScheduleParams(get)).toMatchObject({ producerId: PRODUCER_ID }));
   });
