@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { DELAY_ALERT_LABELS, PRODUCTION_LABELS, STORAGE_KEYS } from "@/constants";
 import { mockProductionApi, renderProductionScreen } from "@/test/production-screen";
-import { openRowMenu } from "@/test/ui-actions";
+import { clickRowAction, openRowMenu } from "@/test/ui-actions";
 
 import { ProductionSchedule } from "../components/schedule/ProductionSchedule";
 import {
@@ -353,11 +353,8 @@ describe("ProductionSchedule (docs 17 §4.12)", () => {
       });
       renderProductionScreen(<ProductionSchedule />, "u-test", "?tab=batches");
       await screen.findByText("SO-2026-0050");
-      await user.click(
-        within(await panel()).getByRole("button", {
-          name: new RegExp(`^${D.action} SO-2026-0050`),
-        }),
-      );
+      // Thao tác của dòng nằm trong menu "⋯" (backoffice-erp-ui A6)
+      await clickRowAction(user, D.dialogTitle, await panel());
       return { user, dialog: await screen.findByRole("dialog") };
     }
 

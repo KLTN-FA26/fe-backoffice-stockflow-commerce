@@ -56,8 +56,8 @@ export const CARTON_CHECK_UI_LABELS = {
     /** Nhãn LPN (nhãn nhập kho) rách / mất: in lại theo mã LPN rồi quét kiểm (docs 08 §6, 03 §4.1 bước 4). */
     reprintLpn: "In lại nhãn LPN",
     remove: "Loại thùng",
-    /** Trình đơn "…" của dòng thùng (in lại nhãn…). */
-    more: (lpn: string) => `Thao tác khác cho thùng ${lpn}`,
+    /** Nút "⋯" của dòng thùng: mọi thao tác của thùng (dán / in / in lại nhãn, loại thùng). */
+    more: (lpn: string) => `Thao tác — thùng ${lpn}`,
     dismiss: "Bỏ qua",
   },
   status: {

@@ -83,6 +83,8 @@ export function ScanInput({
             className={cn(
               // `dark:bg-bg-surface`: Input shadcn có `dark:bg-input/30` đè nền + màu phản hồi ở dark mode
               "border-border-default bg-bg-surface dark:bg-bg-surface focus-visible:border-brand focus-visible:ring-brand/20 h-12 rounded-[var(--r-sm)] pr-10 pl-11 font-[family-name:var(--font-mono)] text-base tracking-wide md:text-base",
+              // Gợi ý nhỏ, chữ thường: mã quét to dễ đọc, còn câu gợi ý không bị cắt cụt ở ô hẹp
+              "placeholder:font-sans placeholder:text-sm placeholder:tracking-normal",
               tone?.field,
             )}
           />

@@ -6,6 +6,7 @@ import { PUTAWAY_LABELS, STORAGE_KEYS } from "@/constants";
 import { PERMISSION_UI } from "@/constants/permissions";
 import { WorkspaceWarehouseProvider } from "@/lib/workspace";
 import { mockApi, renderScreen } from "@/test/api-screen";
+import { openRowMenu } from "@/test/ui-actions";
 
 import { PutawayList } from "../components/PutawayList";
 import { task } from "./fixtures";
@@ -195,11 +196,33 @@ describe("PutawayList (docs 05 §4.2)", () => {
     expect(push).not.toHaveBeenCalled();
   });
 
-  it("nút thao tác trong bảng có chữ 'Cất' (không chỉ biểu tượng)", async () => {
-    setup();
+  it("thao tác của dòng gom vào một menu '⋯': đang chờ cất → 'Cất thùng', đã xong → 'Xem chi tiết'; không nút rời", async () => {
+    const user = userEvent.setup();
+    setup({
+      rows: [
+        task({ id: "t-1", lpn: "LPN-1" }),
+        task({ id: "t-2", lpn: "LPN-2", status: "DONE", left: 0 }),
+      ],
+    });
     await screen.findByText("LPN-1");
-    expect(screen.getAllByRole("link", { name: /^Cất thùng LPN-/ })[0]).toHaveTextContent(
-      L.putAwayShort,
+    const rowOf = (lpn: string) => screen.getByText(lpn).closest("tr") as HTMLElement;
+    // Không còn nút / liên kết "Cất", "Xem" nằm rời trong ô: chỉ có nút "⋯" của dòng
+    expect(within(rowOf("LPN-1")).queryByRole("link", { name: /^Cất thùng/ })).toBeNull();
+    const trigger = within(rowOf("LPN-1")).getByRole("button", { name: /^Thao tác — LPN-1/ });
+    // Máy tính bảng ở kho: nút "⋯" 44px khi màn cảm ứng
+    expect(trigger).toHaveClass("pointer-coarse:size-11");
+
+    const menu = await openRowMenu(user, rowOf("LPN-1"));
+    expect(within(menu).getByRole("link", { name: "Cất thùng" })).toHaveAttribute(
+      "href",
+      expect.stringContaining("/putaway/t-1"),
+    );
+    await user.keyboard("{Escape}");
+
+    const doneMenu = await openRowMenu(user, rowOf("LPN-2"));
+    expect(within(doneMenu).getByRole("link", { name: "Xem chi tiết" })).toHaveAttribute(
+      "href",
+      expect.stringContaining("/putaway/t-2"),
     );
   });
 });
