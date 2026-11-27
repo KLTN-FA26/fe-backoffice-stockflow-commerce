@@ -22,6 +22,7 @@ import {
   inDays,
   renderWf4Detail,
 } from "../../__fixtures__/wf4";
+import { openOrderDetailTabInFile } from "../../__fixtures__/render";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
@@ -102,6 +103,9 @@ async function fillRest(user: User, dialog: HTMLElement) {
 const fileInput = (dialog: HTMLElement) => within(dialog).getByLabelText("Tệp bằng chứng");
 const submitButton = (dialog: HTMLElement) =>
   within(dialog).getByRole("button", { name: "Dời cửa sổ giao" });
+
+// Các khối được kiểm nằm ở tab "delivery" của trang chi tiết đơn (`OrderDetailTabs`)
+openOrderDetailTabInFile("delivery");
 
 describe("Bằng chứng — mặc định là tệp", () => {
   it("chọn 'Tệp đính kèm' sẵn, có gợi ý loại / cỡ tệp, chưa có ô mã tin nhắn; nút gửi khoá", async () => {

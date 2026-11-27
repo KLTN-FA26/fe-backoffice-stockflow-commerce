@@ -270,6 +270,7 @@ export {
 } from "./load-planning";
 export type { LayoutOrientation, PlacementRule, ViewKind } from "./load-planning";
 export {
+  COMBOBOX_MAX_ROWS,
   CUSTOMER_OPTIONS_PAGE_SIZE,
   CUSTOMER_PRICE_LIMITS,
   DATE_INPUT,
@@ -605,6 +606,7 @@ export {
   CHAT_CARD_STATE_LABELS,
   CHAT_CARD_STATE_TONE_KEY,
   CHAT_COMPOSER_LABELS,
+  CHAT_CANNED_LABELS,
   CHAT_CONTEXT_LABELS,
   CHAT_CONVERSATION_STATUSES,
   CHAT_ENDED_STATUSES,

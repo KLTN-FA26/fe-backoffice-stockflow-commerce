@@ -2,51 +2,36 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { parseAsString, useQueryState } from "nuqs";
-import { cn } from "cn";
 import { FileSignature, Plus } from "lucide-react";
 
-import { ADMIN_ROUTES, QUOTE_API_STATUSES, QUOTE_PERMISSIONS, STORAGE_KEYS } from "@/constants";
+import { ADMIN_ROUTES, QUOTE_PERMISSIONS, STORAGE_KEYS } from "@/constants";
+import { PERMISSION_UI } from "@/constants/permissions";
 
-import {
-  columnSummaryItem,
-  columnToolbarProps,
-  useColumnVisibility,
-} from "@/hooks/use-column-visibility";
-import { useServerList } from "@/hooks/use-server-list";
+import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { useCan } from "@/lib/auth";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 
 import { useQuotes } from "@/features/quote/queries";
 
-import { CustomerName } from "@/components/backoffice/CustomerName";
 import { ServerTableBody } from "@/components/backoffice/ServerTableBody";
-import {
-  ListToolbar,
-  TOOLBAR_ACTION_CLASS,
-  TOOLBAR_PRIMARY_CLASS,
-} from "@/components/shared/ListToolbar";
+import { withHeaderFilters } from "@/components/shared/ColumnHeaderFilter";
+import { HeaderActions, HeaderCreateButton } from "@/components/shared/HeaderActions";
+import { TOOLBAR_PRIMARY_CLASS } from "@/components/shared/ListToolbar";
 import { Button } from "@/components/ui/button";
 
-import { QUOTE_COPY, quoteStatusLabel } from "./copy";
-import {
-  buildQuoteColumns,
-  QUOTE_COLUMN_LABELS,
-  QUOTE_COLUMNS,
-  QUOTE_LOCKED_COLUMNS,
-  SORTABLE,
-  STATUS_OPTIONS,
-} from "./list-columns";
-import { usePriceReviewFilter } from "./price-review/usePriceReviewFilter";
+import { QUOTE_COPY } from "./copy";
+import { buildQuoteColumns, QUOTE_COLUMNS, QUOTE_LOCKED_COLUMNS, SORTABLE } from "./list-columns";
+import { quoteHeaderFilters } from "./quote-header-filters";
+import { quoteActionsColumn } from "./quote-row-actions";
+import { QuoteListToolbar } from "./QuoteListToolbar";
+import { useQuoteListFilters } from "./useQuoteListFilters";
 
 function QuoteListContent() {
   const router = useRouter();
   const canRead = useCan(QUOTE_PERMISSIONS.read);
   const canCreate = useCan(QUOTE_PERMISSIONS.create);
-  const list = useServerList(STORAGE_KEYS.adminQuotesConfig, QUOTE_API_STATUSES);
-  const { filters } = list;
-  const [customerId, setCustomerId] = useQueryState("customerId", parseAsString.withDefault(""));
-  const priceReview = usePriceReviewFilter(() => void filters.setPage(1));
+  const state = useQuoteListFilters();
+  const { list, filters, customerId } = state;
   const [sortKey, sortDir] = filters.sort.split(",");
   const sortActive = SORTABLE.has(sortKey ?? "");
   const direction = sortDir === "asc" ? ("asc" as const) : ("desc" as const);
@@ -54,11 +39,11 @@ function QuoteListContent() {
     {
       page: list.apiPage,
       size: list.pageSize,
-      search: filters.debouncedQ,
+      search: state.serverSearch,
       status: filters.status,
       customerId: customerId || undefined,
       sort: sortActive ? `${sortKey},${direction}` : undefined,
-      priceReview: priceReview.value,
+      priceReview: state.priceReview.value,
     },
     { enabled: canRead },
   );
@@ -67,83 +52,30 @@ function QuoteListContent() {
   });
   // R5-2: BE chưa trả `total` cho dòng nào của trang → không có cột "Tổng có thuế" (không hiện cột toàn "—").
   const showTotal = query.data?.items.some((row) => row.total != null) ?? false;
-  const columns = buildQuoteColumns(showTotal).filter((column) =>
-    columnState.visible.some((key) => key === column.key),
+  const columns = withHeaderFilters(
+    [...buildQuoteColumns(showTotal), quoteActionsColumn()].filter((column) =>
+      columnState.visible.some((key) => key === column.key),
+    ),
+    quoteHeaderFilters(state),
   );
-  const hasFilters = list.hasBaseFilters || !!customerId || !!priceReview.value;
-  const clearAll = () => {
-    filters.reset();
-    void setCustomerId(null);
-    priceReview.clear();
-  };
   const createHref = customerId
     ? ADMIN_ROUTES.quotes.createForCustomer(customerId)
     : ADMIN_ROUTES.quotes.create;
-  const createButton = canCreate ? (
-    <Button asChild size="sm" className={cn(TOOLBAR_PRIMARY_CLASS, TOOLBAR_ACTION_CLASS)}>
-      <Link href={createHref}>
-        <Plus className="size-3.5" /> Tạo báo giá
-      </Link>
-    </Button>
-  ) : undefined;
 
   return (
-    // Giao diện kiểu Vercel như danh sách sản phẩm (globals.css `.surface-soft`). Không hiện tiêu đề —
-    // tên trang nằm ở breadcrumb topbar; h1 giữ cho screen reader.
+    // Trang danh sách kiểu Vercel (backoffice-erp-ui A): không tiêu đề hiển thị — tên trang ở breadcrumb; h1 cho
+    // screen reader. Nút tạo mới nằm trên thanh breadcrumb.
     <div className="surface-soft">
       <h1 className="sr-only">{QUOTE_COPY.pageTitle}</h1>
-      {canRead ? (
-        <ListToolbar
-          search={filters.q}
-          onSearchChange={(value) => void filters.setQ(value)}
-          searchPlaceholder="Tìm theo số báo giá (QT-…)"
-          statusOptions={STATUS_OPTIONS}
-          selectedStatuses={filters.status}
-          onToggleStatus={list.toggleStatus}
-          onClearStatuses={() => void filters.setStatus([])}
-          hasStatusFilter={filters.status.length > 0}
-          {...columnToolbarProps(columnState, QUOTE_COLUMN_LABELS, QUOTE_COLUMNS)}
-          summaryItems={[
-            {
-              label: "Tìm kiếm chính",
-              value: filters.q.trim() ? `“${filters.q}”` : "Chưa dùng",
-              active: filters.q.trim() !== "",
-              onClear: () => void filters.setQ(""),
-            },
-            { label: "Tìm theo", value: "Số báo giá" },
-            {
-              label: "Trạng thái",
-              value: filters.status.map(quoteStatusLabel).join(", ") || "Tất cả",
-              active: filters.status.length > 0,
-              onClear: () => void filters.setStatus([]),
-            },
-            {
-              label: "Khách hàng",
-              value: customerId ? <CustomerName id={customerId} link={false} /> : "Tất cả",
-              active: !!customerId,
-              onClear: () => {
-                void setCustomerId(null);
-                void filters.setPage(1);
-              },
-            },
-            priceReview.summaryItem,
-            columnSummaryItem(columnState),
-          ]}
-          onResetAll={() => {
-            clearAll();
-            columnState.reset();
-          }}
-          resetDisabled={!hasFilters && !filters.sort && !columnState.hasColumnConfig}
-          actions={
-            <>
-              {priceReview.toggle}
-              {createButton}
-            </>
-          }
+      <HeaderActions>
+        <HeaderCreateButton
+          onClick={() => canCreate && router.push(createHref)}
+          disabled={!canCreate}
+          aria-label="Tạo mới báo giá"
+          tooltip={canCreate ? "Tạo báo giá" : PERMISSION_UI.quoteCreateDenied}
         />
-      ) : (
-        createButton && <div className="mb-3 flex justify-end">{createButton}</div>
-      )}
+      </HeaderActions>
+      {canRead && <QuoteListToolbar state={state} columns={columnState} />}
       <ServerTableBody
         query={query}
         canRead={canRead}
@@ -155,18 +87,26 @@ function QuoteListContent() {
         }
         noun="báo giá"
         errorCopy={QUOTE_COPY}
-        hasFilters={hasFilters}
-        onClearFilters={clearAll}
+        hasFilters={state.hasFilters}
+        onClearFilters={state.clear}
+        rowFilter={state.rowFilter}
         empty={{
           icon: <FileSignature className="size-8" />,
           title: "Chưa có báo giá",
-          description: "Tạo báo giá nháp từ hồ sơ khách hàng hoặc nút Tạo báo giá.",
-          action: createButton,
+          description: "Tạo báo giá nháp từ hồ sơ khách hàng hoặc nút Tạo mới.",
+          action: canCreate ? (
+            <Button asChild size="sm" className={TOOLBAR_PRIMARY_CLASS}>
+              <Link href={createHref}>
+                <Plus className="size-3.5" /> Tạo báo giá đầu tiên
+              </Link>
+            </Button>
+          ) : undefined,
         }}
         pageSize={list.pageSize}
         onPageChange={list.goToPage}
         onPageSizeChange={list.changePageSize}
         stickyHeader
+        emptyInTable
         sorting={{
           key: sortActive ? (sortKey ?? null) : null,
           direction,

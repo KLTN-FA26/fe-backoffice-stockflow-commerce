@@ -36,6 +36,34 @@ export const UI_LABELS = {
     /** Badge thanh Cấu hình khi ô search chưa có nội dung. */
     notEntered: "Chưa nhập",
   },
+  // Ô chọn có tìm dùng chung (components/shared/InputCombobox) — luật R1 của WF4 UX audit
+  combobox: {
+    /** Nút ✕ xoá giá trị đang chọn trong ô. */
+    clear: (label: string) => `Bỏ chọn ${label}`,
+    /** Nút mũi tên mở danh sách (bấm vào thân ô chỉ đặt con trỏ). */
+    open: (label: string) => `Mở danh sách ${label}`,
+    /** Dòng cuối danh sách khi còn kết quả không hiện hết (biết số). */
+    more: (remaining: number) => `Còn ${remaining} kết quả — gõ thêm để thu hẹp`,
+    /** Như trên khi BE chỉ báo còn trang sau, không báo số. */
+    moreUnknown: "Còn kết quả khác — gõ thêm để thu hẹp",
+  },
+  // Ô chọn khách back-office (components/backoffice/CustomerPicker, WF4 UX audit TU-2 / S02-6)
+  customerPicker: {
+    label: "Khách hàng",
+    placeholder: "Chọn khách hàng…",
+    searchPlaceholder: "Gõ tên khách hoặc mã số thuế…",
+    requiredHint: "Chỉ khách đã kích hoạt portal (Hoạt động) mới nhận báo giá / làm mẫu.",
+    searching: "Đang tìm…",
+    loadFailed: "Không tải được danh sách khách.",
+    /** Chọn khách cho việc mới — chỉ khách ACTIVE. */
+    emptyActive: "Không có khách hoạt động khớp.",
+    /** Bộ lọc danh sách — mọi trạng thái khách. */
+    emptyAny: "Không có khách khớp.",
+    openProfileHint: "Khách chưa kích hoạt?",
+    openProfile: "Mở hồ sơ khách",
+    more: (remaining: number) => `Còn ${remaining} khách — gõ thêm để thu hẹp`,
+    taxCode: (taxCode: string) => `MST ${taxCode}`,
+  },
   // Thanh công cụ danh sách dùng chung (components/shared/ListToolbar, ListConfigSummary) — nhãn không dùng chữ kỹ thuật
   listToolbar: {
     configBar: "Cấu hình",

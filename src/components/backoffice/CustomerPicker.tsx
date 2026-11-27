@@ -1,22 +1,46 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 
+import { ADMIN_ROUTES, CUSTOMER_FALLBACK_LABEL, UI_LABELS } from "@/constants";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import { useActiveCustomerSearch } from "@/lib/references/customer-lookup";
-import { CustomerName } from "@/components/backoffice/CustomerName";
+import { useCustomerRef, useCustomerSearch } from "@/lib/references/customer-lookup";
 import { FormField, fieldA11y } from "@/components/shared/FormField";
-import { COMBOBOX_ITEM_CLASS, InputCombobox } from "@/components/shared/InputCombobox";
+import {
+  COMBOBOX_ITEM_CLASS,
+  ComboboxMoreHint,
+  InputCombobox,
+} from "@/components/shared/InputCombobox";
 import { CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
+
+import type { CustomerRef } from "@/lib/references/customer-lookup";
 
 // Debounce ô tìm 300ms (PRODUCTION-FRONTEND-RULES §9)
 const SEARCH_DEBOUNCE_MS = 300;
 const STATUS_ROW = "text-[0.8125rem] px-3 py-2";
+// Khung danh sách rộng ≥ 28rem (không bẻ chữ theo bề rộng ô hẹp), không tràn màn hình nhỏ
+const LIST_CLASS = "min-w-[28rem] max-w-[calc(100vw-2rem)]";
+
+const L = UI_LABELS.customerPicker;
 
 /**
- * Chọn khách ACTIVE cho báo giá / yêu cầu mẫu (BE từ chối khách chưa kích hoạt / bị khoá:
- * CUSTOMER_NOT_ACTIVE). `InputCombobox` gõ thẳng vào ô, BE lọc theo `q` (tên, email, MST);
- * ↑/↓ + Enter chọn, Esc đóng. Đã chọn → hiện tên khách + "Đổi khách".
+ * Dòng phụ của khách: "MST · tỉnh" (tỉnh giao mặc định, BE#488 — chỉ có khi có `customer-addresses:READ`, BE cũ không
+ * trả). Thiếu cả hai (khách cá nhân, không địa chỉ) thì email để phân biệt hai người trùng tên.
+ */
+function customerSubline(customer: CustomerRef): string {
+  const parts = [
+    customer.taxCode ? L.taxCode(customer.taxCode) : null,
+    customer.defaultShippingProvinceName || null,
+  ].filter((part) => part !== null);
+  return parts.length > 0 ? parts.join(" · ") : customer.email;
+}
+
+/**
+ * Chọn khách cho báo giá / yêu cầu mẫu (`mode="pick"`: chỉ khách ACTIVE — BE từ chối khách chưa kích hoạt / bị khoá:
+ * CUSTOMER_NOT_ACTIVE) hoặc lọc danh sách (`mode="filter"`: mọi trạng thái, không dấu `*`, không câu về portal).
+ * `InputCombobox`: chỉ mở khi gõ ≥ 1 ký tự hoặc bấm mũi tên; BE tìm theo `q` (tên, email, MST), mỗi lần tối đa 10
+ * khách + "Còn N khách — gõ thêm". Mỗi dòng 2 tầng (tên / MST). Đã chọn → tên khách nằm trong ô kèm ✕ để bỏ chọn.
  */
 export function CustomerPicker({
   value,
@@ -24,7 +48,7 @@ export function CustomerPicker({
   error,
   locked,
   idPrefix = "picker",
-  optional = false,
+  mode = "pick",
 }: {
   value: string;
   onChange: (customerId: string) => void;
@@ -33,84 +57,91 @@ export function CustomerPicker({
   locked?: boolean;
   idPrefix?: string;
   /**
-   * Bộ lọc của trang danh sách (L-5): không dấu `*`, không câu "Chỉ khách đã kích hoạt portal…" — câu đó là luật của
-   * form báo giá / làm mẫu, không phải của việc lọc.
+   * `filter` = bộ lọc của trang danh sách (L-5): không dấu `*`, không câu "Chỉ khách đã kích hoạt portal…" (luật của
+   * form báo giá / làm mẫu, không phải của việc lọc), không ép khách ACTIVE.
    */
-  optional?: boolean;
+  mode?: "pick" | "filter";
 }) {
+  const filterMode = mode === "filter";
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
+  // Khách vừa chọn trong ô — hiện tên ngay, không chờ `GET /customers/{id}`
+  const [picked, setPicked] = useState<CustomerRef | null>(null);
   const debounced = useDebouncedValue(q, SEARCH_DEBOUNCE_MS);
-  const search = useActiveCustomerSearch(debounced, open && !locked && !value);
+  // Đang gõ (q có chữ) mà chữ chưa qua debounce → chưa gọi BE: tránh một lần tải danh sách không lọc rồi mới thu hẹp
+  const waitingForTyping = q.trim() !== "" && debounced.trim() === "";
+  const search = useCustomerSearch(debounced, {
+    enabled: open && !locked && !waitingForTyping,
+    activeOnly: !filterMode,
+  });
+  const ref = useCustomerRef(value, !!value && picked?.customerId !== value);
   const searchId = `${idPrefix}-customer-search`;
 
-  if (locked || value)
-    return (
-      <div className="flex min-w-0 flex-col gap-1">
-        <span className="text-ink-secondary text-xs font-medium">
-          Khách hàng
-          {!optional && (
-            <>
-              {" "}
-              <span className="text-danger" aria-hidden="true">
-                *
-              </span>
-            </>
-          )}
-        </span>
-        <div className="flex items-center gap-3 text-[0.8125rem]">
-          <CustomerName id={value} />
-          {!locked && (
-            <button
-              type="button"
-              className="text-accent-text hover:underline"
-              onClick={() => onChange("")}
-            >
-              Đổi khách
-            </button>
-          )}
-        </div>
-      </div>
-    );
+  const name = !value
+    ? ""
+    : picked?.customerId === value
+      ? picked.fullName
+      : // Đang tải tên → để trống (hiện gợi ý "Chọn khách hàng…"), không hiện nhãn "Khách hàng" như đã chọn xong;
+        // tải xong mà không có tên (thiếu quyền tra khách / lỗi) mới dùng nhãn trung tính
+        (ref.data?.fullName ?? (ref.isPending ? "" : CUSTOMER_FALLBACK_LABEL));
+  const items = search.data?.items ?? [];
+  const remaining = (search.data?.total ?? 0) - items.length;
+  const a11y = fieldA11y(searchId, error, !filterMode);
+  // Chữ đang gõ chưa phải kết quả đang hiện (chờ debounce) → khoá dòng: Enter không chọn nhầm khách của lần tìm trước
+  const stale = q !== debounced;
 
-  const items = search.data ?? [];
-  const a11y = fieldA11y(searchId, error, !optional);
   return (
     <FormField
       id={searchId}
-      label="Khách hàng"
-      required={!optional}
+      label={L.label}
+      required={!filterMode}
       error={error}
-      hint={
-        optional
-          ? undefined
-          : "Chỉ khách đã kích hoạt portal (Hoạt động) mới nhận báo giá / làm mẫu."
-      }
+      hint={filterMode ? undefined : L.requiredHint}
+      className={filterMode ? "w-72 max-w-full" : undefined}
     >
       <InputCombobox
         id={searchId}
         open={open}
         onOpenChange={setOpen}
-        displayValue=""
-        placeholder="Chọn khách hàng…"
-        searchPlaceholder="Tìm tên, email hoặc MST…"
-        ariaLabel="Khách hàng"
+        displayValue={name}
+        placeholder={L.placeholder}
+        searchPlaceholder={L.searchPlaceholder}
+        ariaLabel={L.label}
         // BE lọc theo `q` → tắt lọc phía cmdk
         search={q}
         onSearchChange={setQ}
         shouldFilter={false}
+        disabled={locked}
+        onClear={locked ? undefined : () => onChange("")}
         hasError={!!error}
         describedBy={a11y["aria-describedby"]}
+        contentClassName={LIST_CLASS}
       >
-        <CommandList>
-          {search.isPending && <p className={`text-ink-tertiary ${STATUS_ROW}`}>Đang tìm…</p>}
+        {/* Cao tối đa 24rem (~8 dòng 2 tầng, tối đa 10 dòng thì cuộn); dòng "Còn N khách" nằm NGOÀI vùng cuộn nên luôn thấy */}
+        <CommandList className="max-h-96">
+          {search.isPending && <p className={`text-ink-tertiary ${STATUS_ROW}`}>{L.searching}</p>}
           {search.isError && (
             <p role="alert" className={`text-danger ${STATUS_ROW}`}>
-              Không tải được danh sách khách.
+              {L.loadFailed}
             </p>
           )}
           {search.isSuccess && items.length === 0 && (
-            <p className={`text-ink-tertiary ${STATUS_ROW}`}>Không có khách hoạt động khớp.</p>
+            <div className={`text-ink-tertiary ${STATUS_ROW}`}>
+              <p>{filterMode ? L.emptyAny : L.emptyActive}</p>
+              {!filterMode && (
+                <p className="mt-1 text-xs">
+                  {L.openProfileHint} {/* Tab mới: không làm mất form đang nhập dở */}
+                  <Link
+                    href={ADMIN_ROUTES.customers.list}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-accent-text hover:underline"
+                  >
+                    {L.openProfile}
+                  </Link>
+                </p>
+              )}
+            </div>
           )}
           {items.length > 0 && (
             <CommandGroup>
@@ -118,22 +149,31 @@ export function CustomerPicker({
                 <CommandItem
                   key={customer.customerId}
                   value={customer.customerId}
+                  disabled={stale}
                   onSelect={() => {
+                    setPicked(customer);
                     onChange(customer.customerId);
+                    setQ("");
                     setOpen(false);
                   }}
                   className={COMBOBOX_ITEM_CLASS}
                 >
-                  <span className="text-ink-primary font-medium">{customer.fullName}</span>
-                  <span className="text-ink-tertiary"> — {customer.email}</span>
-                  {customer.taxCode && (
-                    <span className="text-ink-tertiary"> — MST {customer.taxCode}</span>
-                  )}
+                  <div className="flex min-w-0 flex-1 flex-col">
+                    <span className="text-ink-primary truncate font-medium">
+                      {customer.fullName}
+                    </span>
+                    <span className="text-ink-tertiary truncate text-xs">
+                      {customerSubline(customer)}
+                    </span>
+                  </div>
                 </CommandItem>
               ))}
             </CommandGroup>
           )}
         </CommandList>
+        {items.length > 0 && remaining > 0 && (
+          <ComboboxMoreHint remaining={remaining} label={L.more(remaining)} />
+        )}
       </InputCombobox>
     </FormField>
   );

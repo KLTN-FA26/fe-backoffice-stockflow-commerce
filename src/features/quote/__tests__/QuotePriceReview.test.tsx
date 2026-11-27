@@ -95,6 +95,12 @@ function renderDetail(
   return api;
 }
 
+/** Mở menu "⋯" trên header báo giá (luôn có — ít nhất "Tải PDF"). */
+async function openMoreActions() {
+  await userEvent.click(await screen.findByRole("button", { name: "Thao tác khác với báo giá" }));
+  await screen.findByRole("button", { name: "Tải PDF" });
+}
+
 describe("nháp: kiểm tra giá trước khi gửi", () => {
   it("bảng bậc giá ghi giá tham chiếu, nguồn, phần trăm thấp hơn; gửi sẽ chuyển Quản lý kinh doanh duyệt", async () => {
     const success = vi.spyOn(toast, "success");
@@ -138,6 +144,8 @@ describe("nháp chờ duyệt giá — action gating", () => {
     });
     expect(await screen.findByText("Chờ duyệt giá")).toBeVisible();
     expect(screen.getByText(/Trần Văn Sales gửi duyệt lúc/)).toBeVisible();
+    // Mở menu "⋯" để kiểm cả việc nằm trong menu (nút chính ở ngoài cũng vẫn thấy)
+    await openMoreActions();
     expect(screen.queryByRole("link", { name: /Sửa/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /Gửi khách|Gửi duyệt giá/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /Duyệt giá/ })).toBeNull();
@@ -156,7 +164,10 @@ describe("nháp chờ duyệt giá — action gating", () => {
       [`${detailUrl}/price-approval`]: () => ({ ...PENDING, status: "SENT", version: 3 }),
     });
     expect(await screen.findByText("Giá gửi duyệt")).toBeVisible();
+    await openMoreActions();
     expect(screen.queryByRole("button", { name: /Rút lại/ })).toBeNull();
+    await userEvent.keyboard("{Escape}");
+    // "Duyệt giá" là nút chính (nền đậm) ngoài menu
     await userEvent.click(screen.getByRole("button", { name: /Duyệt giá/ }));
     const dialog = await screen.findByRole("dialog");
     await userEvent.type(within(dialog).getByLabelText("Ghi chú cho Sales"), "Khách lớn");
@@ -173,7 +184,8 @@ describe("nháp chờ duyệt giá — action gating", () => {
     const api = renderDetail("SALES_MANAGER", PENDING, {
       [`${detailUrl}/price-rejection`]: () => ({ ...DRAFT, version: 3 }),
     });
-    await userEvent.click(await screen.findByRole("button", { name: /Từ chối/ }));
+    await openMoreActions();
+    await userEvent.click(screen.getByRole("button", { name: /Từ chối/ }));
     const dialog = await screen.findByRole("dialog");
     const confirm = within(dialog).getByRole("button", { name: "Từ chối giá" });
     expect(confirm).toBeDisabled();
@@ -190,6 +202,7 @@ describe("nháp chờ duyệt giá — action gating", () => {
   it("bốn mắt: Quản lý kinh doanh là người gửi duyệt → không có nút duyệt / từ chối", async () => {
     renderDetail("SALES_MANAGER", { ...PENDING, priceReview: review({ submittedBy: "u-test" }) });
     expect(await screen.findByText(/Bạn là người gửi duyệt báo giá này/)).toBeVisible();
+    await openMoreActions();
     expect(screen.queryByRole("button", { name: /Duyệt giá/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /Từ chối/ })).toBeNull();
   });
@@ -212,7 +225,7 @@ describe("kết quả lần duyệt gần nhất", () => {
 });
 
 describe("danh sách báo giá", () => {
-  it("dòng chờ duyệt giá có nhãn; nút 'Chờ duyệt giá' lọc priceReview=PENDING", async () => {
+  it("dòng chờ duyệt giá có nhãn; cột 'Duyệt giá' của bảng Bộ lọc lọc priceReview=PENDING", async () => {
     const api = mockApi("SALES_MANAGER", {
       get: {
         "/quotes": () => bePage([{ ...QUOTE_ROW, status: "DRAFT", priceReviewPending: true }]),
@@ -226,7 +239,9 @@ describe("danh sách báo giá", () => {
         .filter((c) => c[0] === "/quotes")
         .map((c) => (c[1] as { params: URLSearchParams }).params.get("priceReview"));
     expect(params()).toEqual([null]);
-    await userEvent.click(screen.getByRole("button", { name: /Chờ duyệt giá/ }));
+    await userEvent.click(screen.getByRole("button", { name: /^Bộ lọc/ }));
+    const panel = await screen.findByRole("region", { name: "Duyệt giá" });
+    await userEvent.click(within(panel).getByRole("option", { name: /Chờ duyệt giá/ }));
     await waitFor(() => expect(params()).toContain("PENDING"));
   });
 });

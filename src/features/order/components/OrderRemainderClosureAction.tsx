@@ -8,7 +8,7 @@ import {
   ORDER_REMAINDER_CLOSURE_LABELS,
   ORDER_REMAINDER_CLOSURE_REASONS,
 } from "@/constants";
-import { Button } from "@/components/ui/button";
+import { ActionTrigger } from "@/components/shared/ObjectActions";
 
 import { remainderClosureSchema } from "../input-schemas";
 import { useCloseOrderRemainder } from "../mutations";
@@ -30,18 +30,15 @@ export function OrderRemainderClosureAction({ order }: { order: ActionOrder }) {
   const labels = ORDER_ACTION_LABELS.remainderClosure;
   return (
     <>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
+      <ActionTrigger
+        icon={Scissors}
+        label={labels.button}
+        danger
         onClick={() => {
           fee.reset();
           dialog.show();
         }}
-        className="border-danger text-danger hover:bg-danger/10 w-full rounded-[var(--r-sm)] border bg-transparent px-3 py-2 text-[0.8125rem] font-medium"
-      >
-        <Scissors className="size-3.5" /> {labels.button}
-      </Button>
+      />
       {dialog.open && (
         <OrderReasonDialog
           title={labels.title}

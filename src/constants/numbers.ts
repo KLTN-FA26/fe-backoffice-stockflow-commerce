@@ -228,15 +228,24 @@ export const CUSTOMER_PRICE_LIMITS = PRICE_TIER_LIMITS;
 /** Duyệt giá báo giá — BE `QuoteRequests.PriceApproval.note` / `PriceRejection.reason` (`@Size(max = 500)`). */
 export const QUOTE_PRICE_REVIEW_LIMITS = { noteMax: 500 } as const;
 
-/** Số khách mỗi trang gợi ý ở ô chọn khách (`GET /customers?q=`) — `Pages.DEFAULT_PAGE_SIZE` của BE (tối đa 200). */
+/**
+ * Số dòng tối đa một ô chọn có tìm (`InputCombobox`) hiện cùng lúc — còn nữa thì nhắc "Còn N kết quả — gõ thêm"
+ * (luật R1, WF4 UX audit: 8–10 dòng, người dùng thu hẹp bằng cách gõ thay vì cuộn).
+ */
+export const COMBOBOX_MAX_ROWS = 10;
+
+/**
+ * Số khách mỗi trang gợi ý ở ô chọn khách có phân trang của màn Bảng giá khách hàng (`GET /customers?q=&page=`) —
+ * `Pages.DEFAULT_PAGE_SIZE` của BE (tối đa 200). Giữ 20 (ô này có nút Trang trước / sau, không cắt còn
+ * `COMBOBOX_MAX_ROWS` như các ô không phân trang).
+ */
 export const CUSTOMER_OPTIONS_PAGE_SIZE = 20;
 
 /**
- * Số gợi ý mỗi lần tìm hồ sơ hàng tồn/**
- * Số gợi ý mỗi lần tìm hồ sơ hàng tồn (`GET /inventory/items?q=`) ở ô chọn SKU — bằng
- * `Pages.DEFAULT_PAGE_SIZE` của BE (tối đa `Pages.MAX_PAGE_SIZE` 200); gõ thêm để thu hẹp.
+ * Số gợi ý mỗi lần tìm hồ sơ hàng tồn (`GET /inventory/items?q=`) ở ô chọn SKU — bằng `COMBOBOX_MAX_ROWS`
+ * (BE nhận tối đa `Pages.MAX_PAGE_SIZE` 200); gõ thêm để thu hẹp.
  */
-export const INVENTORY_ITEM_OPTIONS_PAGE_SIZE = 20;
+export const INVENTORY_ITEM_OPTIONS_PAGE_SIZE = COMBOBOX_MAX_ROWS;
 
 /**
  * Giới hạn danh mục loại xe — `VehicleTypeRequest` / `ck_vehicle_type_*` của BE PR #153. Kích thước

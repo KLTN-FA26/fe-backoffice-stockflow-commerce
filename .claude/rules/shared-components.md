@@ -48,6 +48,14 @@ thị ngày nơi khác dùng `formatDate` / `formatDateTime` (`lib/format`), kh�
 danh sách xổ ngay dưới, ↑/↓ + Enter chọn, Esc đóng. **Bắt buộc** cho mọi combobox chọn-một có tìm
 kiếm; không dùng Popover + `CommandInput` (ô tìm nằm trong popover) nữa. Item dùng
 `COMBOBOX_ITEM_CLASS`; BE lọc → `shouldFilter={false}` + `search` / `onSearchChange`.
+Luật mở (R1, WF4 UX audit): danh sách **chỉ mở khi gõ ≥ 1 ký tự hoặc bấm nút mũi tên** (Alt+↓ cho bàn phím) —
+bấm vào thân ô, Enter, ↑/↓ **không** mở, bấm chỉ đặt con trỏ. Giá trị đang chọn **giữ nguyên trong ô** (mở ra không
+xoá chữ); truyền `onClear` để có nút ✕ bỏ chọn. Danh sách tối đa `COMBOBOX_MAX_ROWS` (10) dòng: BE lọc → `size` =
+`COMBOBOX_MAX_ROWS`, danh sách tải sẵn ở client → `limitComboboxOptions`; còn nữa thì thêm `<ComboboxMoreHint>`
+("Còn N kết quả — gõ thêm"). Mỗi dòng 2 tầng (tên đậm / mã · thông tin phụ, `truncate`, không bẻ chữ) — dùng
+`flex min-w-0 flex-col` bên trong `CommandItem`. Chọn khách: dùng `<CustomerPicker>` (`mode="pick"` chỉ khách ACTIVE,
+`mode="filter"` cho bộ lọc danh sách), không tự dựng. Ô lọc bảng bằng chữ tự do là ô tìm thường (`ListToolbar`), không
+phải combobox; không bao giờ bắt gõ UUID / id nội bộ (R2, R3).
 
 ## Phản hồi
 

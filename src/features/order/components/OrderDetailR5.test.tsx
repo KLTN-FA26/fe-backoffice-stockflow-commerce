@@ -12,6 +12,7 @@ import { OrderDetail } from "./OrderDetail";
 import type { PermissionCode } from "@/lib/auth";
 import type { RouteHandler } from "../__fixtures__/render";
 import type { OrderDto } from "../types";
+import { clickOrderDetailTab } from "../__fixtures__/render";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
@@ -68,14 +69,18 @@ describe("Order detail — round 5", () => {
 
   it("BO-UX-22: past the contract, the warehouse cards come back", async () => {
     await renderDetail({ ...apiOrder, status: "CONFIRMED", allowPartialShipment: false });
+    await screen.findByRole("tab", { name: "Giao hàng" });
+    clickOrderDetailTab("Giao hàng");
     expect(await screen.findByRole("region", { name: "Giao một phần" })).toBeInTheDocument();
     expect(screen.queryByText(/Bước tiếp theo:/)).not.toBeInTheDocument();
   });
 
-  it("BO-UX-22: status and actions, then customer and money, then warehouse cards", async () => {
+  it("BO-UX-22: status and actions (header), then the order profile, then warehouse cards", async () => {
     await renderDetail({ ...apiOrder, status: "CONFIRMED", allowPartialShipment: false });
+    await screen.findByRole("tab", { name: "Giao hàng" });
+    clickOrderDetailTab("Giao hàng");
     const action = screen.getByRole("region", { name: "Thao tác đơn" });
-    const info = screen.getByRole("heading", { name: "Thông tin" });
+    const info = screen.getByRole("region", { name: "Hồ sơ đơn hàng" });
     const partial = await screen.findByRole("region", { name: "Giao một phần" });
     expect(action.compareDocumentPosition(info) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(info.compareDocumentPosition(partial) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -154,6 +159,8 @@ describe("Order detail — round 5", () => {
       },
       [...ORDER_PERMISSION_SETS.salesStaff, PAYMENT_INSTALLMENT_PERMISSIONS.read],
     );
+    await screen.findByRole("tab", { name: "Thanh toán" });
+    clickOrderDetailTab("Thanh toán");
     expect(await screen.findByText("quá hạn 3 ngày")).toBeInTheDocument();
     expect(screen.getByText(/hạn 20\/11\/2026/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Xem các đợt" })).toHaveAttribute(

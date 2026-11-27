@@ -9,7 +9,12 @@ import {
   orderedCartonsOf,
   useReceivableProductionOrders,
 } from "@/lib/references/production-orders";
-import { COMBOBOX_ITEM_CLASS, InputCombobox } from "@/components/shared/InputCombobox";
+import { limitComboboxOptions } from "@/components/shared/combobox-options";
+import {
+  COMBOBOX_ITEM_CLASS,
+  ComboboxMoreHint,
+  InputCombobox,
+} from "@/components/shared/InputCombobox";
 import { CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
 
 const L = RECEIPT_COUNT_LABELS.create;
@@ -33,8 +38,11 @@ export function ProductionOrderCombobox({
   describedBy?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
   const orders = useReceivableProductionOrders();
   const picked = orders.data.find((order) => order.id === value);
+  // Lọc theo mã ở client, chỉ hiện 10 đơn đầu + "Còn N kết quả — gõ thêm" (R1)
+  const { visible, hidden } = limitComboboxOptions(orders.data, search, (order) => order.code);
 
   return (
     <InputCombobox
@@ -47,6 +55,10 @@ export function ProductionOrderCombobox({
       ariaLabel={L.productionOrder}
       hasError={error}
       describedBy={describedBy}
+      search={search}
+      onSearchChange={setSearch}
+      shouldFilter={false}
+      onClear={() => onChange("")}
       autoFocus
       mono
     >
@@ -68,7 +80,7 @@ export function ProductionOrderCombobox({
             )}
             {!orders.isError && <CommandEmpty>{L.productionOrderEmpty}</CommandEmpty>}
             <CommandGroup>
-              {orders.data.map((order) => (
+              {visible.map((order) => (
                 <CommandItem
                   key={order.id}
                   value={order.code}
@@ -78,11 +90,11 @@ export function ProductionOrderCombobox({
                     setOpen(false);
                   }}
                 >
-                  <div className="flex min-w-0 flex-1 items-baseline justify-between gap-3">
+                  <div className="flex min-w-0 flex-1 flex-col">
                     <span className="truncate font-[family-name:var(--font-mono)]">
                       {order.code}
                     </span>
-                    <span className="text-ink-tertiary shrink-0 text-xs tabular-nums">
+                    <span className="text-ink-tertiary truncate text-xs tabular-nums">
                       {L.optionMeta(openCartonsOf(order), orderedCartonsOf(order))}
                       {order.needByDate ? ` · ${formatDate(order.needByDate)}` : ""}
                     </span>
@@ -93,6 +105,7 @@ export function ProductionOrderCombobox({
           </>
         )}
       </CommandList>
+      {hidden > 0 && <ComboboxMoreHint remaining={hidden} />}
     </InputCombobox>
   );
 }

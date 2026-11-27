@@ -1,4 +1,5 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { bePage, mockApi, renderScreen } from "@/test/api-screen";
@@ -79,5 +80,47 @@ describe("Danh sách báo giá — giá trị và hiệu lực (BO-UX-12, BO-UX-
     expect(within(expiredRow as HTMLElement).getByText("Hết hiệu lực")).toBeInTheDocument();
     const validRow = screen.getByRole("link", { name: /QT-20261120-9002/ }).closest("tr");
     expect(within(validRow as HTMLElement).queryByText("Hết hiệu lực")).toBeNull();
+  });
+});
+
+describe("Danh sách báo giá — menu ⋯ của dòng (backoffice-erp-ui A6)", () => {
+  const rows = [
+    { ...QUOTE_ROW, id: "q-1", quoteNumber: "QT-1", status: "DRAFT", convertedOrderId: null },
+    { ...QUOTE_ROW, id: "q-2", quoteNumber: "QT-2", status: "CONVERTED", convertedOrderId: "o-9" },
+  ];
+  const menuOf = async (quoteNumber: string) => {
+    mockApi("SALES_STAFF", { get: { "/quotes": () => bePage(rows), ...customer } });
+    renderScreen(<QuoteList />, "SALES_STAFF");
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: `Thao tác — ${quoteNumber}` }));
+    return screen.findByRole("dialog");
+  };
+
+  it("nháp → chỉ 'Xem chi tiết' (sửa làm ở chi tiết: dòng không có cờ legacy)", async () => {
+    const menu = await menuOf("QT-1");
+    expect(within(menu).getByRole("link", { name: /Xem chi tiết/ })).toHaveAttribute(
+      "href",
+      "/admin/quotes/q-1",
+    );
+    expect(within(menu).queryByRole("link", { name: /Sửa/ })).toBeNull();
+  });
+
+  it("lọc cột 'Đơn đã tạo' = Đã tạo đơn → chỉ còn dòng đã có đơn (lọc trang đang xem)", async () => {
+    mockApi("SALES_STAFF", { get: { "/quotes": () => bePage(rows), ...customer } });
+    renderScreen(<QuoteList />, "SALES_STAFF");
+    await screen.findByText("QT-1");
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Lọc đơn đã tạo" }));
+    await user.click(await screen.findByRole("option", { name: /Đã tạo đơn/ }));
+    await waitFor(() => expect(screen.queryByText("QT-1")).not.toBeInTheDocument());
+    expect(screen.getByText("QT-2")).toBeInTheDocument();
+  });
+
+  it("đã tạo đơn → có 'Mở đơn' tới đơn hàng", async () => {
+    const menu = await menuOf("QT-2");
+    expect(within(menu).getByRole("link", { name: /Mở đơn/ })).toHaveAttribute(
+      "href",
+      "/admin/orders/o-9",
+    );
   });
 });

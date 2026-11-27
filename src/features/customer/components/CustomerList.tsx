@@ -2,45 +2,42 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { cn } from "cn";
 import { Plus, Users } from "lucide-react";
 
-import {
-  ADMIN_ROUTES,
-  CUSTOMER_API_STATUSES,
-  CUSTOMER_PERMISSIONS,
-  CUSTOMER_STATUS_BY_API,
-  STORAGE_KEYS,
-} from "@/constants";
+import { ADMIN_ROUTES, CUSTOMER_PERMISSIONS, QUOTE_PERMISSIONS, STORAGE_KEYS } from "@/constants";
+import { PERMISSION_UI } from "@/constants/permissions";
 
-import { useServerList } from "@/hooks/use-server-list";
+import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { useCan } from "@/lib/auth";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
-import { STATUS_LABEL_VI } from "@/lib/domain/status-map";
 
 import { useCustomers } from "@/features/customer/queries";
 
 import { ServerTableBody } from "@/components/backoffice/ServerTableBody";
-import {
-  ListToolbar,
-  TOOLBAR_ACTION_CLASS,
-  TOOLBAR_PRIMARY_CLASS,
-} from "@/components/shared/ListToolbar";
+import { withHeaderFilters } from "@/components/shared/ColumnHeaderFilter";
+import { HeaderActions, HeaderCreateButton } from "@/components/shared/HeaderActions";
+import { TOOLBAR_PRIMARY_CLASS } from "@/components/shared/ListToolbar";
 import { Button } from "@/components/ui/button";
 
 import { CUSTOMER_COPY } from "./copy";
-import { STATUS_OPTIONS, COLUMNS, SORTABLE } from "./list-columns";
-
-import type { CustomerApiStatus } from "@/constants";
+import { customerHeaderFilters } from "./customer-header-filters";
+import { CustomerListToolbar } from "./CustomerListToolbar";
+import {
+  buildCustomerColumns,
+  CUSTOMER_COLUMNS,
+  CUSTOMER_LOCKED_COLUMNS,
+  SORTABLE,
+} from "./list-columns";
+import { useCustomerListFilters } from "./useCustomerListFilters";
 
 function CustomerListContent() {
   const router = useRouter();
   const canRead = useCan(CUSTOMER_PERMISSIONS.read);
   const canCreate = useCan(CUSTOMER_PERMISSIONS.create);
-  const list = useServerList(STORAGE_KEYS.adminCustomersConfig, CUSTOMER_API_STATUSES);
-  const { filters } = list;
-  // BE nhận MỘT trạng thái (CustomerStatus.valueOf) → lọc trạng thái chọn đơn.
-  const status: CustomerApiStatus | undefined = filters.status[0];
+  const readQuote = useCan(QUOTE_PERMISSIONS.read);
+  const createQuote = useCan(QUOTE_PERMISSIONS.create);
+  const state = useCustomerListFilters();
+  const { list, filters } = state;
   const [sortKey, sortDir] = filters.sort.split(",");
   const sort = SORTABLE.has(sortKey ?? "")
     ? { key: sortKey ?? null, direction: sortDir === "asc" ? ("asc" as const) : ("desc" as const) }
@@ -49,81 +46,65 @@ function CustomerListContent() {
     {
       page: list.apiPage,
       size: list.pageSize,
-      q: filters.debouncedQ,
-      status,
+      q: state.serverQ,
+      status: state.status,
       sort: sort.key ? `${sort.key},${sort.direction}` : undefined,
     },
     { enabled: canRead },
   );
-
-  const createButton = canCreate ? (
-    <Button asChild size="sm" className={cn(TOOLBAR_PRIMARY_CLASS, TOOLBAR_ACTION_CLASS)}>
-      <Link href={ADMIN_ROUTES.customers.create}>
-        <Plus className="size-3.5" /> Tạo khách hàng
-      </Link>
-    </Button>
-  ) : undefined;
+  const columnState = useColumnVisibility(STORAGE_KEYS.adminCustomersColumns, CUSTOMER_COLUMNS, {
+    locked: CUSTOMER_LOCKED_COLUMNS,
+  });
+  const columns = withHeaderFilters(
+    buildCustomerColumns({ readQuote, createQuote }).filter((column) =>
+      columnState.visible.some((key) => key === column.key),
+    ),
+    customerHeaderFilters(state),
+  );
 
   return (
-    // Giao diện kiểu Vercel như danh sách sản phẩm (globals.css `.surface-soft`). Không hiện tiêu đề —
-    // tên trang nằm ở breadcrumb topbar; h1 giữ cho screen reader.
+    // Trang danh sách kiểu Vercel (backoffice-erp-ui A): không tiêu đề hiển thị — tên trang ở breadcrumb; h1 cho
+    // screen reader. Nút tạo mới nằm trên thanh breadcrumb.
     <div className="surface-soft">
       <h1 className="sr-only">{CUSTOMER_COPY.pageTitle}</h1>
-      {canRead ? (
-        <ListToolbar
-          search={filters.q}
-          onSearchChange={(value) => void filters.setQ(value)}
-          searchPlaceholder="Tìm theo tên, email, SĐT (+84…) hoặc MST"
-          statusOptions={STATUS_OPTIONS}
-          selectedStatuses={filters.status}
-          onToggleStatus={(value) => void filters.setStatus(status === value ? [] : [value])}
-          onClearStatuses={() => void filters.setStatus([])}
-          hasStatusFilter={filters.status.length > 0}
-          summaryItems={[
-            {
-              label: "Tìm kiếm chính",
-              value: filters.q.trim() ? `“${filters.q}”` : "Chưa dùng",
-              active: filters.q.trim() !== "",
-              onClear: () => void filters.setQ(""),
-            },
-            { label: "Tìm theo", value: "Tên · Email · SĐT · MST" },
-            {
-              label: "Trạng thái",
-              value: status
-                ? (STATUS_LABEL_VI[CUSTOMER_STATUS_BY_API[status]] ?? status)
-                : "Tất cả",
-              active: !!status,
-              onClear: () => void filters.setStatus([]),
-            },
-          ]}
-          onResetAll={() => filters.reset()}
-          resetDisabled={!list.hasBaseFilters && !filters.sort}
-          actions={createButton}
+      <HeaderActions>
+        <HeaderCreateButton
+          onClick={() => canCreate && router.push(ADMIN_ROUTES.customers.create)}
+          disabled={!canCreate}
+          aria-label="Tạo mới khách hàng"
+          tooltip={canCreate ? "Tạo khách hàng" : PERMISSION_UI.customerCreateDenied}
         />
-      ) : (
-        createButton && <div className="mb-3 flex justify-end">{createButton}</div>
-      )}
+      </HeaderActions>
+      {canRead && <CustomerListToolbar filters={state} columns={columnState} />}
       <ServerTableBody
         query={query}
         canRead={canRead}
-        columns={COLUMNS}
+        columns={columns}
         rowKey={(row) => row.customerId}
         onRowClick={(row) => router.push(ADMIN_ROUTES.customers.detail(row.customerId))}
         flagRow={(row) => row.status === "PENDING_ACTIVATION"}
         noun="khách hàng"
         errorCopy={CUSTOMER_COPY}
-        hasFilters={list.hasBaseFilters}
-        onClearFilters={() => filters.reset()}
+        hasFilters={state.hasFilters}
+        onClearFilters={state.clear}
+        rowFilter={{ active: state.hasColumnFilters, match: state.matches }}
         empty={{
           icon: <Users className="size-8" />,
           title: "Chưa có khách hàng",
           description: "Sales tạo khách doanh nghiệp và gửi lời mời kích hoạt portal.",
-          action: createButton,
+          action: canCreate ? (
+            <Button asChild size="sm" className={TOOLBAR_PRIMARY_CLASS}>
+              <Link href={ADMIN_ROUTES.customers.create}>
+                <Plus className="size-3.5" /> Tạo khách hàng đầu tiên
+              </Link>
+            </Button>
+          ) : undefined,
         }}
         pageSize={list.pageSize}
         onPageChange={list.goToPage}
         onPageSizeChange={list.changePageSize}
         stickyHeader
+        emptyInTable
         sorting={{
           key: sort.key,
           direction: sort.direction,
