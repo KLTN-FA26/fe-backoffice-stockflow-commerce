@@ -11,7 +11,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 
-import { SALES_OWNER_ACCESS_PERMISSIONS, SALES_OWNER_API } from "@/constants";
+import { SALES_OWNER_API, SALES_WORKLOAD_PERMISSIONS } from "@/constants/sales-owner";
 import { api } from "@/lib/api/client";
 import { usePermissionChecker } from "@/lib/auth/components/Can";
 
@@ -65,7 +65,7 @@ export const handoverSummaryKey = (userId: string) =>
 /** Chỉ tải khi hộp xác nhận khoá / vô hiệu hoá mở (`enabled`); mỗi lần mở đọc lại số mới. */
 export function useHandoverSummary(userId: string, enabled: boolean) {
   const can = usePermissionChecker();
-  const readWorkload = can(SALES_OWNER_ACCESS_PERMISSIONS.workload);
+  const readWorkload = can(SALES_WORKLOAD_PERMISSIONS.read);
   return useQuery({
     queryKey: handoverSummaryKey(userId),
     queryFn: ({ signal }) => fetchHandoverSummary(userId, readWorkload, signal),

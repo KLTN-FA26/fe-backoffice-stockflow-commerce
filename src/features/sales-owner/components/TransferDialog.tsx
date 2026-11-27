@@ -29,11 +29,14 @@ import type { TransferResult } from "../types";
  */
 export function TransferDialog({
   sales,
+  targets,
   fromUserId = "",
   onClose,
 }: {
-  /** Sale đang làm (bảng tải) + người cũ của khách cần giao, nếu mở từ đó. */
+  /** Ô "Từ Sale": Sale đang làm (bảng tải) + người cũ của khách cần giao, nếu mở từ đó. */
   sales: readonly SalesOption[];
+  /** Ô "Sang Sale": chỉ Sale giao được (D42, `useAssignableSales`). */
+  targets: readonly SalesOption[];
   fromUserId?: string;
   onClose: () => void;
 }) {
@@ -56,7 +59,7 @@ export function TransferDialog({
       notifyCustomer: true,
     },
   });
-  const names = new Map(sales.map((option) => [option.userId, option.name]));
+  const names = new Map([...targets, ...sales].map((option) => [option.userId, option.name]));
   const submit = form.handleSubmit((values) => {
     setError(null);
     // Tên khách đã tải (chọn một phần) — để báo khách bị bỏ qua bằng tên thay vì id
@@ -114,7 +117,7 @@ export function TransferDialog({
         onSubmit={() => void submit()}
         onCancel={onClose}
       >
-        <TransferFields form={form} sales={sales} />
+        <TransferFields form={form} sales={sales} targets={targets} />
       </FormDialogBody>
     </FormDialog>
   );

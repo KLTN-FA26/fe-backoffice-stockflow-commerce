@@ -7,7 +7,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { LoaderCircle } from "lucide-react";
 import { parseAsString, useQueryStates } from "nuqs";
 
-import { ADMIN_ROUTES, CUSTOMER_PERMISSIONS, SALES_OWNER_ACCESS_PERMISSIONS } from "@/constants";
+import { ADMIN_ROUTES, CUSTOMER_PERMISSIONS } from "@/constants";
+import { SALES_OWNER_PERMISSIONS } from "@/constants/sales-owner";
 
 import { useUnsavedChangesWarning } from "@/hooks/use-unsaved-changes";
 import { apiFieldErrors } from "@/lib/api/error-message";
@@ -44,7 +45,7 @@ const PREFILL_PARSERS = Object.fromEntries(PREFILL_FIELDS.map((field) => [field,
 function CustomerCreateForm() {
   const router = useRouter();
   const can = usePermissionChecker();
-  const isManager = can(SALES_OWNER_ACCESS_PERMISSIONS.manage);
+  const isManager = can(SALES_OWNER_PERMISSIONS.update);
   const [prefill] = useQueryStates(PREFILL_PARSERS);
   const [formError, setFormError] = useState<string | null>(null);
   const [leaveOpen, setLeaveOpen] = useState(false);
@@ -175,7 +176,7 @@ function CustomerCreateForm() {
           form={form}
           isManager={isManager}
           fromLead={!!leadId}
-          ownerKnown={can(SALES_OWNER_ACCESS_PERMISSIONS.read)}
+          ownerKnown={can(SALES_OWNER_PERMISSIONS.read)}
         />
 
         <FormBottomBar note="Khách nhận email mời kích hoạt portal; chưa đăng nhập được tới khi tự đặt mật khẩu.">

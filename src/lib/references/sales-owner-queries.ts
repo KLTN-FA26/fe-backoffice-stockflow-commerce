@@ -10,7 +10,7 @@
 
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { SALES_OWNER_ACCESS_PERMISSIONS, SALES_OWNER_API } from "@/constants";
+import { SALES_OWNER_API, SALES_OWNER_PERMISSIONS } from "@/constants/sales-owner";
 
 import { api } from "@/lib/api/client";
 import { QUERY_TIMES } from "@/lib/api/query-client";
@@ -47,13 +47,13 @@ const ownerQuery = (customerId: string, enabled: boolean) => ({
 /** Người phụ trách của một khách; `data` vắng khi không đọc được. */
 export function useSalesOwner(customerId: string | null | undefined) {
   const can = usePermissionChecker();
-  return useQuery(ownerQuery(customerId ?? "", can(SALES_OWNER_ACCESS_PERMISSIONS.read)));
+  return useQuery(ownerQuery(customerId ?? "", can(SALES_OWNER_PERMISSIONS.read)));
 }
 
 /** Người phụ trách của nhiều khách (hộp thư, hộp yêu cầu báo giá): mỗi khách một lần đọc, dùng chung cache. */
 export function useSalesOwners(customerIds: readonly string[]): ReadonlyMap<string, SalesOwner> {
   const can = usePermissionChecker();
-  const enabled = can(SALES_OWNER_ACCESS_PERMISSIONS.read);
+  const enabled = can(SALES_OWNER_PERMISSIONS.read);
   const ids = [...new Set(customerIds.filter(Boolean))];
   const results = useQueries({ queries: ids.map((id) => ownerQuery(id, enabled)) });
   const owners = new Map<string, SalesOwner>();
@@ -78,7 +78,7 @@ export function useSalesOwnerAccess(customerId: string | null | undefined): Sale
   const meId = useAuthStore((state) => state.user?.userId ?? null);
   const queryClient = useQueryClient();
   const query = useSalesOwner(customerId);
-  const access = salesOwnerAccessOf(query.data, meId, can(SALES_OWNER_ACCESS_PERMISSIONS.manage));
+  const access = salesOwnerAccessOf(query.data, meId, can(SALES_OWNER_PERMISSIONS.update));
   return {
     ...access,
     refresh: () => {

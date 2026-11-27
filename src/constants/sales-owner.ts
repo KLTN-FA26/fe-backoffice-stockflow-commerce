@@ -36,6 +36,38 @@ export const OWNER_CHANGE_REQUEST_PERMISSIONS = {
   approve: "sales-owner-change-requests:APPROVE",
 } as const;
 
+/* ── Mã lỗi (hợp đồng §Error codes, bundle en/vi) dùng để rẽ nhánh trên FE ── */
+
+export const SALES_OWNER_ERROR_CODES = {
+  /** 409: Sale khác chủ động làm việc trên khách có chủ (BR-S12); `details.salesOwnerName` nêu tên người phụ trách. */
+  ownedByOther: "CUSTOMER_OWNED_BY_OTHER_SALES",
+  /** 409: "Nhận" hội thoại của khách đã có chủ (BR-S05, tình huống 18); `details.salesOwnerName` như trên. */
+  claimOnly: "CUSTOMER_UNASSIGNED_CLAIM_ONLY",
+  /** 400: thiếu mã số thuế khi tạo khách (BR-S14). */
+  taxCodeRequired: "CUSTOMER_TAX_CODE_REQUIRED",
+} as const;
+
+/* ── Đường dẫn API (hợp đồng §Endpoints) ── */
+
+export const SALES_OWNER_API = {
+  owner: (customerId: string) => `/customers/${encodeURIComponent(customerId)}/sales-owner`,
+  history: (customerId: string) =>
+    `/customers/${encodeURIComponent(customerId)}/sales-owner-history`,
+  duplicates: "/customers/duplicates",
+  /**
+   * D42: Sale giao được làm người phụ trách / người thay — chỉ SALES_STAFF đang làm (`customer-sales-owners:READ` hoặc
+   * `staff-covers:READ`). Mọi ô chọn người phụ trách, người thay, người nhận lead dùng nguồn này.
+   */
+  salesAgents: "/customers/sales-agents",
+  workload: "/sales/workload",
+  handoverSummary: (userId: string) =>
+    `/identity/users/${encodeURIComponent(userId)}/handover-summary`,
+  chatWorkload: "/chat/agents/workload",
+  /** Nguồn dự phòng của ô chọn Sale khi BE chưa có `salesAgents` (gồm cả quản lý / admin — FE lọc bớt). */
+  chatAgents: "/chat/agents",
+  chatStaff: "/chat/staff",
+} as const;
+
 /* ── Enum (hợp đồng §Enums, lưu STRING có CHECK ở DB) ── */
 
 export const SALES_OWNER_STATES = ["ASSIGNED", "NEEDS_ASSIGNMENT", "UNASSIGNED"] as const;

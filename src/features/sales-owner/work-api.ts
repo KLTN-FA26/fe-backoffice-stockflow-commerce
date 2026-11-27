@@ -4,8 +4,8 @@
  */
 
 import { api } from "@/lib/api/client";
+import { orUnavailable } from "@/lib/references/sales-workload";
 
-import { orUnavailable } from "./api";
 import {
   leadPageSchema,
   leadSchema,

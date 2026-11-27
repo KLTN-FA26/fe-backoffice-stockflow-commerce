@@ -17,6 +17,7 @@ import {
 import { usePagedList } from "@/hooks/use-paged-list";
 import { useAuthStore, useCan } from "@/lib/auth";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
+import { useAssignableSales } from "@/lib/references/sales-agents";
 import { useSalesWorkload } from "@/lib/references/sales-workload";
 
 import { ServerTableBody } from "@/components/backoffice/ServerTableBody";
@@ -43,6 +44,8 @@ function LeadsContent() {
   const isManager = useCan(SALES_OWNER_PERMISSIONS.update);
   const canWorkload = useCan(SALES_WORKLOAD_PERMISSIONS.read);
   const canCreateCustomer = useCan(CUSTOMER_PERMISSIONS.create);
+  // D42: người nhận lead là Sale giao được; bảng tải chỉ để gợi ý người còn trống nhất
+  const sales = useAssignableSales(isManager && canUpdate);
   const workload = useSalesWorkload(isManager && canUpdate && canWorkload);
   const paged = usePagedList(SALES_OWNER_STORAGE_KEYS.leadsConfig, NO_SORT);
   const [status, setStatus] = useQueryState("status", parseAsStringLiteral(LEAD_STATUSES));
@@ -111,7 +114,12 @@ function LeadsContent() {
         emptyInTable
       />
       {open?.action === "assign" && (
-        <LeadAssignDialog lead={open.lead} workload={workload.data ?? []} onClose={close} />
+        <LeadAssignDialog
+          lead={open.lead}
+          sales={sales.options ?? []}
+          workload={workload.data ?? []}
+          onClose={close}
+        />
       )}
       {open?.action === "contact" && <LeadContactDialog lead={open.lead} onClose={close} />}
       {open?.action === "disqualify" && <LeadDisqualifyDialog lead={open.lead} onClose={close} />}

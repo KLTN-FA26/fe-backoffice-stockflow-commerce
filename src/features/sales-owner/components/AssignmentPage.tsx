@@ -8,6 +8,7 @@ import { SALES_OWNER_PERMISSIONS, SALES_WORKLOAD_PERMISSIONS } from "@/constants
 
 import { useCan } from "@/lib/auth";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
+import { useAssignableSales } from "@/lib/references/sales-agents";
 import { toSalesOption, useSalesWorkload } from "@/lib/references/sales-workload";
 
 import { LoadErrorState } from "@/components/backoffice/LoadErrorState";
@@ -35,6 +36,7 @@ function AssignmentContent() {
   // Thao tác ghi cần customer-sales-owners:UPDATE (BR-S01) — UI-only, Backend phải re-check
   const canUpdate = useCan(SALES_OWNER_PERMISSIONS.update);
   const sales = useSalesWorkload();
+  const targets = useAssignableSales(canUpdate);
   const chat = useChatWorkload();
   const [transfer, setTransfer] = useState<Transfer | null>(null);
   const [settings, setSettings] = useState<BoardRow | null>(null);
@@ -92,7 +94,7 @@ function AssignmentContent() {
         onTransferAllOf={(owner) =>
           setTransfer({
             from: owner.userId,
-            extra: { ...owner, paused: false, onLeave: false, coverName: null },
+            extra: { ...owner, paused: false, onLeave: false, coverName: null, coverUntil: null },
           })
         }
       />
@@ -103,6 +105,7 @@ function AssignmentContent() {
               ? [transfer.extra, ...options]
               : options
           }
+          targets={targets.options ?? []}
           fromUserId={transfer.from}
           onClose={() => setTransfer(null)}
         />

@@ -6,6 +6,7 @@ import { ORDER_PERMISSIONS, SALES_CONTRACT_PERMISSIONS } from "@/constants";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 import { toast } from "@/components/shared/Toast";
+import { SALES_OWNER_MANAGE as MANAGE, SALES_OWNER_READ as READ } from "@/test/sales-owner-screen";
 
 import { CONTRACT_ORDER_ID, contractDraft, contractOrderDto } from "../../__fixtures__/contract";
 import { mockOrderApiGet, renderOrderScreen } from "../../__fixtures__/render";
@@ -16,8 +17,6 @@ import { OrderContractSection } from "./OrderContractSection";
 
 import type { PermissionCode } from "@/lib/auth";
 
-const READ: PermissionCode = "customer-sales-owners:READ";
-const MANAGE: PermissionCode = "customer-sales-owners:UPDATE";
 const SALES: PermissionCode[] = [
   ORDER_PERMISSIONS.viewPage,
   ORDER_PERMISSIONS.read,

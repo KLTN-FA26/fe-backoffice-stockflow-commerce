@@ -7,7 +7,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 
-import { SALES_OWNER_API } from "@/constants";
+import { SALES_OWNER_API } from "@/constants/sales-owner";
 import { api } from "@/lib/api/client";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 

@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { apiError, renderScreen } from "@/test/api-screen";
 import { pickDate } from "@/test/date-picker";
-import { mockSalesOwnerApi, workloadRow } from "@/test/sales-owner-screen";
+import { mockSalesOwnerApi, salesAgent, workloadRow } from "@/test/sales-owner-screen";
 import { clickRowAction, openRowMenu, pickOption } from "@/test/ui-actions";
 
 import { CoversPage } from "../components/CoversPage";
@@ -46,9 +46,11 @@ const COVERS = [
 ];
 const get = (extra: RouteTable = {}): RouteTable => ({
   "/staff-covers": () => COVERS,
-  "/chat/agents": () => [
-    { userId: "u-test", name: "Test", online: true },
-    { userId: "s-b", name: "Sale Bình", online: false },
+  // D42: người vắng / người thay lấy từ Sale giao được
+  "/customers/sales-agents": () => [
+    salesAgent("u-test", "Test"),
+    salesAgent("s-b", "Sale Bình"),
+    salesAgent("s-c", "Sale Chi"),
   ],
   "/sales/workload": () => [workloadRow("s-b", "Sale Bình"), workloadRow("s-c", "Sale Chi")],
   ...extra,

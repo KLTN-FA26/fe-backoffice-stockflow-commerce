@@ -10,15 +10,16 @@
 
 import { z } from "zod";
 
-import { SALES_OWNER_ACCESS_LABELS as L, SALES_OWNER_ERROR_CODES } from "@/constants";
+import { SALES_OWNER_ACCESS_LABELS as L } from "@/constants";
+import { SALES_OWNER_ERROR_CODES } from "@/constants/sales-owner";
 
 import { ApiError } from "@/lib/api/error";
 import { serverMessageOf } from "@/lib/api/error-message";
 import { formatDate } from "@/lib/format/date";
 
 /**
- * BE `GET /customers/{id}/sales-owner`. Mọi trường mới đọc lỏng (BE song song): thiếu / lạ thì coi như không biết, không
- * làm hỏng trang.
+ * BE `GET /customers/{id}/sales-owner` — schema gốc, đọc lỏng (BE song song): thiếu / lạ thì coi như không biết, không làm
+ * hỏng trang. Thẻ "Sale phụ trách" (đọc để sửa) chặt thêm từ đây: `salesOwnerDetailSchema` (`sales-owner.ts`).
  */
 export const salesOwnerSchema = z.object({
   customerId: z.string().nullish(),
@@ -118,22 +119,18 @@ export function salesOwnerLine(owner: SalesOwner | null | undefined): string | n
   return owner.state === "NEEDS_ASSIGNMENT" ? L.needsAssignment(name) : L.unassigned;
 }
 
-const ownerDetailsSchema = z
-  .object({
-    salesOwnerName: z.string().nullish(),
-    ownerName: z.string().nullish(),
-  })
-  .catch({});
+const ownerDetailsSchema = z.object({ salesOwnerName: z.string().nullish() }).catch({});
 
-/** Tên người phụ trách BE gửi kèm lỗi (`details`), nếu có. */
+/** Tên người phụ trách BE gửi kèm lỗi (hợp đồng: `details.salesOwnerName`), nếu có. */
 function ownerNameFromError(error: ApiError): string | null {
-  const details = ownerDetailsSchema.parse(error.details ?? {});
-  return details.salesOwnerName?.trim() || details.ownerName?.trim() || null;
+  return ownerDetailsSchema.parse(error.details ?? {}).salesOwnerName?.trim() || null;
 }
 
 /**
- * Câu cho hai lỗi phụ trách của BE, hoặc `null` khi lỗi khác (nơi gọi dùng câu của mình). Tên lấy theo thứ tự: tên màn
- * đã biết → `details` của BE → câu của BE (đã nêu tên) → câu chung.
+ * MỘT chỗ đổi hai lỗi phụ trách của BE (`CUSTOMER_OWNED_BY_OTHER_SALES`, `CUSTOMER_UNASSIGNED_CLAIM_ONLY`) thành câu cho
+ * mọi màn — báo giá, hợp đồng, chat, hộp yêu cầu báo giá, và đổi người phụ trách (`ownerChangeErrorMessage`). `null` khi
+ * lỗi khác (nơi gọi dùng câu của mình). Tên lấy theo thứ tự: tên màn đã biết → `details.salesOwnerName` của BE → câu của
+ * BE (đã nêu tên) → câu chung.
  */
 export function salesOwnerErrorMessage(
   error: unknown,

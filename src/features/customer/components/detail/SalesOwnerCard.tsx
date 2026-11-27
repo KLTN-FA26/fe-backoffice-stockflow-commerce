@@ -6,7 +6,7 @@ import { UserRoundCog } from "lucide-react";
 import { SALES_OWNER_LABELS } from "@/constants/labels-sales-owner";
 
 import { formatDate } from "@/lib/format/date";
-import { useSalesOwner } from "@/lib/references/sales-owner";
+import { useSalesOwnerDetail } from "@/lib/references/sales-owner";
 
 import { ChangeSalesOwnerDialog } from "@/components/backoffice/ChangeSalesOwnerDialog";
 import { SalesOwnerStateBadge } from "@/components/backoffice/SalesOwnerBadge";
@@ -15,11 +15,11 @@ import { Notice } from "@/components/shared/Notice";
 import { Skeleton } from "@/components/shared/Skeleton";
 import { Button } from "@/components/ui/button";
 
-import type { SalesOwner } from "@/lib/references/sales-owner";
+import type { SalesOwnerDetail } from "@/lib/references/sales-owner";
 
 const L = SALES_OWNER_LABELS.card;
 
-function OwnerFacts({ owner }: { owner: SalesOwner }) {
+function OwnerFacts({ owner }: { owner: SalesOwnerDetail }) {
   const assigned = owner.state === "ASSIGNED";
   return (
     <FactGrid columns={3}>
@@ -60,7 +60,7 @@ export function SalesOwnerCard({
   customerName: string;
   canUpdate: boolean;
 }) {
-  const query = useSalesOwner(customerId);
+  const query = useSalesOwnerDetail(customerId);
   const [open, setOpen] = useState(false);
   if (query.data === null) return null;
   const owner = query.data;
@@ -98,7 +98,10 @@ export function SalesOwnerCard({
             <OwnerFacts owner={owner} />
             {owner.cover && (
               <Notice tone="info">
-                {L.coverLine(owner.cover.name, formatDate(owner.cover.until))}
+                {L.coverLine(
+                  owner.cover.name ?? "—",
+                  owner.cover.until ? formatDate(owner.cover.until) : null,
+                )}
               </Notice>
             )}
           </div>

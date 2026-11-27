@@ -6,7 +6,7 @@ import { Controller, useForm } from "react-hook-form";
 
 import { SALES_OWNER_LIMITS } from "@/constants/sales-owner";
 
-import { suggestLeastLoaded, toSalesOption } from "@/lib/references/sales-workload";
+import { suggestLeastLoaded } from "@/lib/references/sales-workload";
 
 import { SalesPickerField } from "@/components/backoffice/SalesPickerField";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -19,25 +19,31 @@ import { leadErrorMessage } from "../errors";
 import { leadAssignInputSchema } from "../inputs";
 import { useAssignLead, useContactLead, useDisqualifyLead } from "../mutations";
 
-import type { SalesWorkloadRow } from "@/lib/references/sales-workload";
+import type { SalesOption, SalesWorkloadRow } from "@/lib/references/sales-workload";
 import type { Lead } from "../types";
 
 /**
- * Giao lead (§10.4, §10.7): điền sẵn Sale còn trống nhất trong số Sale không tạm dừng (`suggestLeastLoaded`) — quản lý
- * vẫn đổi được.
+ * Giao lead (§10.4, §10.7): chỉ Sale giao được (D42); điền sẵn Sale còn trống nhất trong số đó, không tạm dừng
+ * (`suggestLeastLoaded` trên bảng tải) — quản lý vẫn đổi được.
  */
 export function LeadAssignDialog({
   lead,
+  sales,
   workload,
   onClose,
 }: {
   lead: Lead;
+  /** `useAssignableSales`. */
+  sales: readonly SalesOption[];
+  /** Bảng tải — chỉ để gợi ý. */
   workload: readonly SalesWorkloadRow[];
   onClose: () => void;
 }) {
   const assign = useAssignLead();
   const [error, setError] = useState<string | null>(null);
-  const suggested = suggestLeastLoaded(workload);
+  const options = sales.filter((option) => option.userId !== lead.assignedTo);
+  const ids = new Set(options.map((option) => option.userId));
+  const suggested = suggestLeastLoaded(workload.filter((row) => ids.has(row.userId)));
   const form = useForm<{ salesUserId: string }>({
     resolver: zodResolver(leadAssignInputSchema),
     defaultValues: { salesUserId: lead.assignedTo ? "" : (suggested?.userId ?? "") },
@@ -71,7 +77,7 @@ export function LeadAssignDialog({
               required
               value={field.value}
               onChange={field.onChange}
-              options={workload.filter((row) => row.userId !== lead.assignedTo).map(toSalesOption)}
+              options={options}
               suggestedId={suggested?.userId}
               hint={
                 suggested ? `Gợi ý: ${suggested.name} (ít khách nhất, không tạm dừng).` : undefined

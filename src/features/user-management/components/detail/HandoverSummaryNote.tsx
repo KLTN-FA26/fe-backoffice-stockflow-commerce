@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 
-import { SALES_ASSIGNMENT_PATH, SALES_OWNER_ACCESS_LABELS } from "@/constants";
+import { SALES_OWNER_ACCESS_LABELS } from "@/constants";
+import { SALES_ROUTES } from "@/constants/sales-owner";
 import { Notice } from "@/components/shared/Notice";
 
 import { hasHandover, useHandoverSummary } from "../../handover-summary";
@@ -35,7 +36,7 @@ export function HandoverSummaryNote({
         )}
       </span>
       <Link
-        href={SALES_ASSIGNMENT_PATH}
+        href={SALES_ROUTES.assignment}
         className="text-accent-text mt-1 inline-block font-medium hover:underline"
       >
         {L.link}

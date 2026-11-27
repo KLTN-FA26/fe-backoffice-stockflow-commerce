@@ -75,7 +75,7 @@ export const transferResultSchema = z.object({
     .transform((v) => v ?? []),
 });
 
-/** Lô chuyển tạm (§10.1) — đề xuất thêm vào hợp đồng: `GET /customers/sales-owner-transfers?temporary=true`. */
+/** Lô chuyển tạm (§10.1; hợp đồng, phần BO-1): `GET /customers/sales-owner-transfers?temporary=true`. */
 export const transferBatchSchema = z.object({
   batchId: z.string(),
   fromUserId: z.string().nullish(),

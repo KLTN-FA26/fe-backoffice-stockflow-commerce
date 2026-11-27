@@ -2,6 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { SALES_WORKLOAD_PERMISSIONS } from "@/constants/sales-owner";
 import { ApiError } from "@/lib/api/error";
 
 import { PERMISSION_SETS, renderIdentityScreen, stubIdentityApi } from "../__fixtures__/render";
@@ -72,7 +73,7 @@ describe("Khoá / vô hiệu hoá tài khoản Sale — việc đang phụ trác
         [SUMMARY]: () => ({ customers: 4 }),
         "GET /chat/agents/workload": () => [{ userId: ID, openConversations: 5 }],
       },
-      [...PERMISSION_SETS.editor, "sales-workload:READ"],
+      [...PERMISSION_SETS.editor, SALES_WORKLOAD_PERMISSIONS.read],
     );
     const dialog = await openDialog(user, "Khoá tài khoản");
     expect(

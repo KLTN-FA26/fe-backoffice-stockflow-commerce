@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { toast } from "@/components/shared/Toast";
 import { apiError, mockApi, renderScreen } from "@/test/api-screen";
+import { SALES_OWNER_MANAGE as MANAGE, SALES_OWNER_READ as READ } from "@/test/sales-owner-screen";
 import "@/test/jsdom-popover";
 
 import { QuoteDetail, QuoteEdit } from "..";
@@ -29,8 +30,6 @@ const ME = "u-test";
 const OTHER = "aa40c7cb-70b4-2d3a-f730-e2b5a217c662";
 const OTHER_NAME = "Trần Văn Sales";
 const BLOCKED = `Khách này do ${OTHER_NAME} phụ trách. Nhờ ${OTHER_NAME} hoặc Sales Manager.`;
-const READ: PermissionCode = "customer-sales-owners:READ";
-const MANAGE: PermissionCode = "customer-sales-owners:UPDATE";
 const MORE = "Thao tác khác với báo giá";
 
 const detailUrl = `/quotes/${QUOTE_ID}`;

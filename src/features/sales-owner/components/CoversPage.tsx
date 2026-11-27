@@ -3,17 +3,12 @@
 import { useState } from "react";
 import { CalendarPlus } from "lucide-react";
 
-import { CHAT_PERMISSIONS } from "@/constants";
 import { SALES_OWNER_LABELS } from "@/constants/labels-sales-owner";
-import {
-  SALES_OWNER_PERMISSIONS,
-  SALES_WORKLOAD_PERMISSIONS,
-  STAFF_COVER_PERMISSIONS,
-} from "@/constants/sales-owner";
+import { SALES_OWNER_PERMISSIONS, STAFF_COVER_PERMISSIONS } from "@/constants/sales-owner";
 
 import { useAuthStore, useCan } from "@/lib/auth";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
-import { useSalesOptions } from "@/lib/references/sales-workload";
+import { useAssignableSales } from "@/lib/references/sales-agents";
 
 import { LoadErrorState } from "@/components/backoffice/LoadErrorState";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -41,9 +36,8 @@ function CoversContent() {
   // Quản lý: lập / huỷ lịch cho mọi người (BR-S07). UI-only — Backend phải re-check
   // (hợp đồng: "Manager" trên FE = người có customer-sales-owners:UPDATE)
   const isManager = useCan(SALES_OWNER_PERMISSIONS.update);
-  const canWorkload = useCan(SALES_WORKLOAD_PERMISSIONS.read);
-  const canChat = useCan(CHAT_PERMISSIONS.read);
-  const sales = useSalesOptions({ workload: canWorkload, agents: canChat });
+  // D42: người vắng / người thay chỉ là Sale đang làm
+  const sales = useAssignableSales(canCreate);
   const [activeOnly, setActiveOnly] = useState(true);
   const query = useCovers({ active: activeOnly || undefined });
   const [creating, setCreating] = useState(false);

@@ -2,29 +2,37 @@
 
 import { SALES_OWNER_LABELS } from "@/constants/labels-sales-owner";
 
+import { formatDate } from "@/lib/format/date";
+
 import { ChoiceField } from "./ChoiceField";
 
 import type { SalesOption } from "@/lib/references/sales-workload";
 
 const L = SALES_OWNER_LABELS.picker;
 
-/** "Nguyễn A · tạm dừng nhận khách · đang nghỉ (B lo thay)" — người chọn thấy trạng thái trước khi giao. */
+function leaveNote(option: SalesOption): string | null {
+  if (!option.onLeave) return null;
+  if (option.coverName) return `${L.onLeave} (${L.coverBy(option.coverName)})`;
+  return option.coverUntil ? L.onLeaveUntil(formatDate(option.coverUntil)) : L.onLeave;
+}
+
+/**
+ * "Nguyễn A · tạm dừng nhận khách · đang nghỉ (B lo thay)" / "· đang nghỉ tới 05/12/2026" — người chọn thấy trạng thái
+ * trước khi giao.
+ */
 export function salesOptionLabel(option: SalesOption, suggested = false): string {
   const notes = [
     suggested ? L.suggested : null,
     option.paused ? L.paused : null,
-    option.onLeave
-      ? option.coverName
-        ? `${L.onLeave} (${L.coverBy(option.coverName)})`
-        : L.onLeave
-      : null,
+    leaveNote(option),
   ].filter(Boolean);
   return [option.name, ...notes].join(" · ");
 }
 
 /**
- * Ô chọn một Sale (combobox gõ để lọc). Tạm dừng / đang nghỉ vẫn chọn được — chỉ là thông tin (BR-S04 chỉ cấm tài khoản
- * không còn làm; BE kiểm `SALES_OWNER_NOT_ASSIGNABLE`).
+ * Ô chọn một Sale (combobox gõ để lọc). Danh sách lấy từ `useAssignableSales` (D42: chỉ SALES_STAFF đang làm). Tạm dừng /
+ * đang nghỉ vẫn chọn được — chỉ là thông tin (BR-S04 chỉ cấm tài khoản không còn làm; BE kiểm
+ * `SALES_OWNER_NOT_ASSIGNABLE`).
  */
 export function SalesPickerField({
   options,

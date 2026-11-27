@@ -35,15 +35,21 @@ export function compareNullable(a: number | null | undefined, b: number | null |
   return a - b;
 }
 
-export type CoverState = "UPCOMING" | "ACTIVE" | "ENDED" | "CANCELLED";
+const COVER_STATES = ["UPCOMING", "ACTIVE", "ENDED", "CANCELLED"] as const;
+export type CoverState = (typeof COVER_STATES)[number];
+
+const isCoverState = (value: string | undefined): value is CoverState =>
+  COVER_STATES.some((state) => state === value);
 
 /**
- * Trạng thái lịch thay theo ngày (BR-S07: hết lịch tự trả về, không cần làm gì). BE trả `status` thì dùng; không thì suy
- * từ `cancelledAt` và khoảng ngày so với hôm nay (`yyyy-MM-dd`, giờ Việt Nam).
+ * Trạng thái lịch thay theo ngày (BR-S07: hết lịch tự trả về, không cần làm gì). BE trả `status` (hợp đồng, phần BO-1:
+ * `ACTIVE` / `UPCOMING` / `ENDED` / `CANCELLED`) thì dùng; không có hoặc lạ thì suy từ `cancelledAt` và khoảng ngày so với
+ * hôm nay (`yyyy-MM-dd`, giờ Việt Nam).
  */
 export function coverState(cover: StaffCover, today: string): CoverState {
   const status = cover.status?.toUpperCase();
   if (status === "CANCELLED" || cover.cancelledAt) return "CANCELLED";
+  if (isCoverState(status)) return status;
   if (cover.to < today) return "ENDED";
   if (cover.from > today) return "UPCOMING";
   return "ACTIVE";

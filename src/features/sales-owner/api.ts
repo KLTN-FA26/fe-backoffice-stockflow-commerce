@@ -8,7 +8,7 @@ import { z } from "zod";
 import { SALES_OWNER_STATES } from "@/constants/sales-owner";
 
 import { api } from "@/lib/api/client";
-import { isUnavailableError } from "@/lib/references/sales-workload";
+import { orUnavailable } from "@/lib/references/sales-workload";
 
 import {
   assignmentSettingsSchema,
@@ -22,15 +22,6 @@ import type { SalesOwnerChangeReason, SalesOwnerState } from "@/constants/sales-
 import type { ChatWorkloadRow, TransferBatch, TransferResult } from "./types";
 
 const TRANSFERS = "/customers/sales-owner-transfers";
-
-export async function orUnavailable<T>(load: () => Promise<T>): Promise<T | null> {
-  try {
-    return await load();
-  } catch (error) {
-    if (isUnavailableError(error)) return null;
-    throw error;
-  }
-}
 
 /** BE-B `GET /chat/agents/workload` — hội thoại mở / trễ hạn theo Sale; ghép vào bảng tải theo `userId`. */
 export function listChatWorkload(signal?: AbortSignal): Promise<ChatWorkloadRow[] | null> {
@@ -66,8 +57,8 @@ export async function returnTransferBatch(batchId: string): Promise<TransferResu
 }
 
 /**
- * Lô chuyển tạm còn trả được — ĐỀ XUẤT thêm vào hợp đồng (`GET /customers/sales-owner-transfers?temporary=true`): hợp
- * đồng có trả lô nhưng chưa có cách liệt kê lô. BE chưa có → `null`, phần "Lô chuyển tạm" ẩn.
+ * Lô chuyển tạm còn trả được (hợp đồng "Additions from back office BO-1": `GET /customers/sales-owner-transfers
+ * ?temporary=true`, `customer-sales-owners:UPDATE`). BE chưa có → `null`, phần "Lô chuyển tạm" ẩn.
  */
 export function listTemporaryBatches(signal?: AbortSignal): Promise<TransferBatch[] | null> {
   return orUnavailable(async () => {

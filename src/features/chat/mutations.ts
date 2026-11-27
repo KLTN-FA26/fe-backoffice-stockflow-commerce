@@ -5,7 +5,7 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 
-import { SALES_OWNER_ERROR_CODES } from "@/constants";
+import { SALES_OWNER_ERROR_CODES } from "@/constants/sales-owner";
 import { fileTooLargeMessage } from "@/constants/upload-limits";
 import { isStaleApiError, serverErrorMessage } from "@/lib/api/error-message";
 import { QUERY_ROOTS } from "@/lib/api/query-roots";

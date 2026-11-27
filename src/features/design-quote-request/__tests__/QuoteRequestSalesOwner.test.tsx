@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { toast } from "@/components/shared/Toast";
 import { apiError, bePage, mockApi, renderScreen } from "@/test/api-screen";
+import { SALES_OWNER_MANAGE as MANAGE, SALES_OWNER_READ as READ } from "@/test/sales-owner-screen";
 import "@/test/jsdom-popover";
 
 import { DesignQuoteRequestList, ProjectQuoteRequestList } from "..";
@@ -26,8 +27,6 @@ const REQUEST_ID = "0q000000-0000-7000-8000-000000000001";
 const PROJECT_REQUEST_ID = "0q000000-0000-7000-8000-000000000002";
 const CUSTOMER_ID = "0c000000-0000-7000-8000-000000000009";
 const OWNER_URL = `/customers/${CUSTOMER_ID}/sales-owner`;
-const READ: PermissionCode = "customer-sales-owners:READ";
-const MANAGE: PermissionCode = "customer-sales-owners:UPDATE";
 const OTHER_NAME = "Trần Văn Sales";
 const BLOCKED = `Khách này do ${OTHER_NAME} phụ trách. Nhờ ${OTHER_NAME} hoặc Sales Manager.`;
 

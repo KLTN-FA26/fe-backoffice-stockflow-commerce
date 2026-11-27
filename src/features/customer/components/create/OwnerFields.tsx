@@ -3,7 +3,8 @@
 import { Controller } from "react-hook-form";
 
 import { CUSTOMER_CREATE_OWNER_LABELS as L } from "@/constants";
-import { useSalesOwnerOptions } from "@/features/customer/owner-options";
+import { useAssignableSales } from "@/lib/references/sales-agents";
+import { salesOptionLabel } from "@/components/backoffice/SalesPickerField";
 import { Card } from "@/components/shared/Card";
 import { FormField } from "@/components/shared/FormField";
 import { FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
@@ -24,7 +25,8 @@ const NONE = "__none__";
 /**
  * Sale phụ trách của khách mới:
  * - tạo từ khách tiềm năng (`fromLead`) → người được giao lead (§10.7), không chọn;
- * - Sales Manager (`isManager`) → chọn một Sale đang làm, hoặc để trống (BR-S02, tình huống 2);
+ * - Sales Manager (`isManager`) → chọn một Sale giao được (D42: SALES_STAFF đang làm, `useAssignableSales`), hoặc để
+ *   trống (BR-S02, tình huống 2);
  * - Sale → chính họ (BR-S02, tình huống 1), chỉ nói khi tính năng có (`ownerKnown`).
  * UI-only — Backend phải re-check (422 SALES_OWNER_NOT_ASSIGNABLE).
  */
@@ -39,7 +41,7 @@ export function OwnerFields({
   fromLead: boolean;
   ownerKnown: boolean;
 }) {
-  const options = useSalesOwnerOptions(isManager && !fromLead);
+  const sales = useAssignableSales(isManager && !fromLead);
   const error = form.formState.errors.salesOwnerId?.message;
   if (fromLead)
     return (
@@ -54,7 +56,8 @@ export function OwnerFields({
       </Card>
     ) : null;
   // Không tải được danh sách Sale → không có ô chọn (khách tạo ra chưa có người phụ trách, Manager giao sau).
-  if (!options.isSuccess) return null;
+  if (!sales.options) return null;
+  const options = [...sales.options].sort((a, b) => a.name.localeCompare(b.name, "vi"));
   return (
     <Card className="grid gap-4 sm:grid-cols-2">
       <h2 className="text-ink-primary text-sm font-semibold sm:col-span-2">{L.ownerSection}</h2>
@@ -76,9 +79,9 @@ export function OwnerFields({
               </SelectTrigger>
               <TitledSelectContent title={L.ownerLabel}>
                 <SelectItem value={NONE}>{L.ownerNone}</SelectItem>
-                {options.data.map((option) => (
+                {options.map((option) => (
                   <SelectItem key={option.userId} value={option.userId}>
-                    {option.name}
+                    {salesOptionLabel(option)}
                   </SelectItem>
                 ))}
               </TitledSelectContent>

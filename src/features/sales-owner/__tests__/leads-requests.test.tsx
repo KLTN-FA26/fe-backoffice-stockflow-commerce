@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { apiError, bePage, renderScreen } from "@/test/api-screen";
-import { mockSalesOwnerApi, workloadRow } from "@/test/sales-owner-screen";
+import { agentsOf, mockSalesOwnerApi, workloadRow } from "@/test/sales-owner-screen";
 import { clickRowAction, openRowMenu } from "@/test/ui-actions";
 
 import { LeadsPage } from "../components/LeadsPage";
@@ -45,6 +45,7 @@ describe("Khách tiềm năng (§10.3, §10.4, §10.7)", () => {
   const leads = (rows: unknown[], extra: RouteTable = {}): RouteTable => ({
     "/leads": () => bePage(rows),
     "/sales/workload": () => WORKLOAD,
+    "/customers/sales-agents": () => agentsOf(WORKLOAD),
     ...extra,
   });
 
@@ -173,7 +174,7 @@ describe("Yêu cầu đổi Sale (BR-S15, §10.5)", () => {
   });
   const get = (rows: unknown[]): RouteTable => ({
     "/sales-owner-change-requests": () => bePage(rows),
-    "/sales/workload": () => WORKLOAD,
+    "/customers/sales-agents": () => agentsOf(WORKLOAD),
   });
 
   it("dòng: Sale hiện tại, Sale khách muốn + cờ đã liên hệ gần đây, lý do, ghi chú", async () => {

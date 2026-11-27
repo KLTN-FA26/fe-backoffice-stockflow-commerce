@@ -4,6 +4,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { apiError, mockApi, renderScreen } from "@/test/api-screen";
 import { pickOption } from "@/test/ui-actions";
+import {
+  SALES_OWNER_MANAGE as MANAGE,
+  SALES_OWNER_READ as READ,
+  salesAgent,
+} from "@/test/sales-owner-screen";
 import "@/test/jsdom-popover";
 
 import { CustomerCreate } from "../components/CustomerCreate";
@@ -18,8 +23,6 @@ afterEach(() => {
   replace.mockReset();
 });
 
-const READ: PermissionCode = "customer-sales-owners:READ";
-const MANAGE: PermissionCode = "customer-sales-owners:UPDATE";
 /** Sales Manager theo HOP-DONG-API: tạo khách + giao người phụ trách. */
 const MANAGER: PermissionCode[] = ["customer-customers:CREATE", READ, MANAGE];
 const SUBMIT = /Tạo khách và gửi lời mời/;
@@ -89,7 +92,7 @@ describe("Tạo khách — MST bắt buộc (KE-HOACH BR-S14, D4)", () => {
   it("BR-S14: a Sales Manager exempts the tax code with a required reason", async () => {
     const api = mockApi(
       "SALES_MANAGER",
-      { get: { "/chat/agents": () => [] }, post: { "/customers": () => created } },
+      { get: { "/customers/sales-agents": () => [] }, post: { "/customers": () => created } },
       { extra: MANAGER },
     );
     renderScreen(<CustomerCreate />, "SALES_MANAGER");
@@ -170,7 +173,7 @@ describe("Tạo khách — người phụ trách và khách tiềm năng (BR-S02
   it("§10.7: prefilled from the lead link; leadId is posted and the owner comes from the lead", async () => {
     const api = mockApi(
       "SALES_MANAGER",
-      { get: { "/chat/agents": () => [] }, post: { "/customers": () => created } },
+      { get: { "/customers/sales-agents": () => [] }, post: { "/customers": () => created } },
       { extra: MANAGER },
     );
     renderScreen(
@@ -203,9 +206,9 @@ describe("Tạo khách — người phụ trách và khách tiềm năng (BR-S02
       "SALES_MANAGER",
       {
         get: {
-          "/chat/agents": () => [
-            { userId: "s-1", name: "Trần Văn Sales", online: true },
-            { userId: "s-2", name: "Lê Thị B", online: false },
+          "/customers/sales-agents": () => [
+            salesAgent("s-1", "Trần Văn Sales"),
+            salesAgent("s-2", "Lê Thị B"),
           ],
         },
         post: { "/customers": () => created },
@@ -233,7 +236,7 @@ describe("Tạo khách — người phụ trách và khách tiềm năng (BR-S02
     const api = mockApi(
       "SALES_MANAGER",
       {
-        get: { "/chat/agents": () => [{ userId: "s-1", name: "Trần Văn Sales", online: true }] },
+        get: { "/customers/sales-agents": () => [salesAgent("s-1", "Trần Văn Sales")] },
         post: { "/customers": () => created },
       },
       { extra: MANAGER },
@@ -245,5 +248,29 @@ describe("Tạo khách — người phụ trách và khách tiềm năng (BR-S02
     await userEvent.click(screen.getByRole("button", { name: SUBMIT }));
     await waitFor(() => expect(api.post).toHaveBeenCalled());
     expect(api.post.mock.calls[0]?.[1]).not.toHaveProperty("salesOwnerId");
+  });
+
+  it("D42 dự phòng: sales-agents 404 → người trả lời chat, bỏ chính quản lý đang tạo", async () => {
+    mockApi(
+      "SALES_MANAGER",
+      {
+        get: {
+          "/customers/sales-agents": () => {
+            throw apiError(404, "NOT_FOUND");
+          },
+          "/chat/agents": () => [
+            { userId: "s-1", name: "Trần Văn Sales", online: true },
+            { userId: "u-test", name: "Quản lý đang tạo", online: true },
+          ],
+        },
+        post: { "/customers": () => created },
+      },
+      { extra: MANAGER },
+    );
+    renderScreen(<CustomerCreate />, "SALES_MANAGER");
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("combobox", { name: "Người phụ trách" }));
+    expect(await screen.findByRole("option", { name: "Trần Văn Sales" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Quản lý đang tạo" })).toBeNull();
   });
 });

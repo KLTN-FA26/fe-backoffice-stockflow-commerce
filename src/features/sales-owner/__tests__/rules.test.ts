@@ -76,6 +76,14 @@ describe("Lịch người thay (BR-S07, D7)", () => {
       "CANCELLED",
     );
   });
+  it("hợp đồng: status của BE thắng ngày của máy (lệch múi giờ / đồng hồ); status lạ thì suy theo ngày", () => {
+    expect(coverState(cover("2026-12-01", "2026-12-10", { status: "ENDED" }), "2026-12-05")).toBe(
+      "ENDED",
+    );
+    expect(coverState(cover("2026-12-01", "2026-12-10", { status: "PAUSED" }), "2026-12-05")).toBe(
+      "ACTIVE",
+    );
+  });
   it("tối đa 60 ngày tính cả hai đầu; ngày 61 bị chặn", () => {
     expect(coverInputSchema.safeParse({ ...base, to: "2027-01-29" }).success).toBe(true);
     const tooLong = coverInputSchema.safeParse({ ...base, to: "2027-01-30" });

@@ -1,17 +1,16 @@
 /**
- * Danh sách Sale đang làm cho ô chọn người phụ trách / người thay / người nhận lead (kế hoạch sales-owner §10.4). Đặt ở
- * `lib/references` để trang khách (`features/customer`) và các màn phân công (`features/sales-owner`) dùng chung mà không
- * import chéo feature.
- *
- * - Quản lý (`sales-workload:READ`): `GET /sales/workload` — mỗi Sale đang làm một dòng, kèm tạm dừng / sức chứa / nghỉ
- *   phép / số khách (hợp đồng BE-C "Workload").
- * - Sale (không có bảng tải): `GET /chat/agents` — người trả lời khách được (tên, trực tuyến), đủ để chọn người thay.
+ * Bảng tải Sale (kế hoạch sales-owner §10.4; hợp đồng BE-C "Workload"): `GET /sales/workload` — mỗi Sale đang làm một
+ * dòng, kèm tạm dừng / sức chứa / nghỉ phép / số khách; cho bảng "Phân công khách" và gợi ý Sale còn trống nhất. Ô CHỌN
+ * Sale không đọc từ đây mà từ `sales-agents.ts` (D42). Đặt ở `lib/references` để trang khách (`features/customer`) và các
+ * màn phân công (`features/sales-owner`) dùng chung mà không import chéo feature.
  *
  * Endpoint mới: trả 400 / 403 / 404 (BE chưa có, không quyền) → `null` = không dùng được, màn hình ẩn phần đó.
  */
 
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
+
+import { SALES_OWNER_API } from "@/constants/sales-owner";
 
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
@@ -42,8 +41,6 @@ export const salesWorkloadRowSchema = z.object({
 export const salesWorkloadSchema = z.array(salesWorkloadRowSchema);
 export type SalesWorkloadRow = z.infer<typeof salesWorkloadRowSchema>;
 
-const chatAgentSchema = z.object({ userId: z.string(), name: z.string() });
-
 /** Một Sale trong ô chọn: trạng thái tạm dừng / nghỉ để người chọn thấy trước khi giao. */
 export interface SalesOption {
   userId: string;
@@ -51,12 +48,16 @@ export interface SalesOption {
   paused: boolean;
   onLeave: boolean;
   coverName: string | null;
+  /** Nghỉ tới ngày nào (`GET /customers/sales-agents`, bảng tải). */
+  coverUntil?: string | null;
 }
 
 export const salesWorkloadKeys = {
   all: ["sales-workload"] as const,
   board: () => [...salesWorkloadKeys.all, "board"] as const,
   agents: () => [...salesWorkloadKeys.all, "chat-agents"] as const,
+  /** D42 `GET /customers/sales-agents` — dưới `all`: lịch thay / cài đặt phân công đổi thì tải lại. */
+  assignable: () => [...salesWorkloadKeys.all, "assignable"] as const,
 };
 
 /** 400 / 403 / 404 của endpoint mới = chưa dùng được (BE chưa có hoặc không quyền), không phải lỗi trang. */
@@ -64,7 +65,8 @@ export function isUnavailableError(error: unknown): boolean {
   return error instanceof ApiError && [400, 403, 404].includes(error.status);
 }
 
-async function orUnavailable<T>(load: () => Promise<T>): Promise<T | null> {
+/** Đọc endpoint mới: 400 / 403 / 404 → `null` (chưa dùng được), lỗi khác ném tiếp. */
+export async function orUnavailable<T>(load: () => Promise<T>): Promise<T | null> {
   try {
     return await load();
   } catch (error) {
@@ -75,18 +77,8 @@ async function orUnavailable<T>(load: () => Promise<T>): Promise<T | null> {
 
 export function fetchSalesWorkload(signal?: AbortSignal): Promise<SalesWorkloadRow[] | null> {
   return orUnavailable(async () => {
-    const { data } = await api.get<unknown>("/sales/workload", { signal });
+    const { data } = await api.get<unknown>(SALES_OWNER_API.workload, { signal });
     return salesWorkloadSchema.parse(data);
-  });
-}
-
-async function fetchChatAgents(signal?: AbortSignal): Promise<SalesOption[] | null> {
-  return orUnavailable(async () => {
-    const { data } = await api.get<unknown>("/chat/agents", { signal });
-    return z
-      .array(chatAgentSchema)
-      .parse(data)
-      .map((agent) => ({ ...agent, paused: false, onLeave: false, coverName: null }));
   });
 }
 
@@ -106,30 +98,8 @@ export const toSalesOption = (row: SalesWorkloadRow): SalesOption => ({
   paused: row.paused,
   onLeave: row.onLeave,
   coverName: row.coverName ?? null,
+  coverUntil: row.coverUntil ?? null,
 });
-
-/**
- * Sale cho ô chọn: bảng tải khi người dùng xem được (có trạng thái tạm dừng / nghỉ), không thì danh sách người trả lời
- * chat. `options === null`: không có nguồn nào dùng được.
- */
-export function useSalesOptions({ workload, agents }: { workload: boolean; agents: boolean }) {
-  const board = useSalesWorkload(workload);
-  const chat = useQuery({
-    queryKey: salesWorkloadKeys.agents(),
-    queryFn: ({ signal }) => fetchChatAgents(signal),
-    enabled: agents && !workload,
-    ...QUERY_TIMES.master,
-  });
-  const source = workload ? board : agents ? chat : null;
-  const options: SalesOption[] | null | undefined = !source
-    ? null
-    : workload
-      ? board.data === undefined
-        ? undefined
-        : (board.data?.map(toSalesOption) ?? null)
-      : chat.data;
-  return { options, isPending: !!source && source.isPending, isError: !!source?.isError };
-}
 
 /**
  * Gợi ý Sale còn trống nhất (§10.4: "gợi ý Sale còn trống nhất trong số Sale không tạm dừng; Manager vẫn là người

@@ -1,7 +1,12 @@
 /**
- * Sale phụ trách của MỘT khách (hợp đồng API BE-A): đọc, đổi, lịch sử. Ở `lib/references` vì trang khách
+ * Sale phụ trách của MỘT khách (hợp đồng API BE-A): đọc để sửa, đổi, lịch sử. Ở `lib/references` vì trang khách
  * (`features/customer`) và màn "Phân công khách" (`features/sales-owner`, giao nhanh khách cần giao) cùng dùng, không
  * import chéo feature. Khoá query nằm dưới root `customers` → mọi thao tác làm mới khách cũng làm mới phần này.
+ *
+ * Hai cách đọc cùng một endpoint, hai khoá: ở đây bản ghi ĐỂ SỬA (`version` bắt buộc — thiếu thì không đổi được);
+ * `sales-owner-queries.ts` đọc lỏng để chặn nút ở báo giá / hợp đồng / chat (`version` vắng vẫn dùng được). Cùng một schema
+ * gốc (`salesOwnerSchema`) và cùng câu lỗi (`salesOwnerErrorMessage`); đổi người phụ trách làm mới root `customers` nên
+ * cả hai khoá tải lại.
  *
  * Endpoint mới trả 400 / 403 / 404 (BE chưa có, không quyền) → `null`: màn hình ẩn thẻ / tab, không vỡ trang.
  */
@@ -9,7 +14,11 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 
-import { SALES_OWNER_CHANGE_REASONS, SALES_OWNER_STATES } from "@/constants/sales-owner";
+import {
+  SALES_OWNER_API,
+  SALES_OWNER_CHANGE_REASONS,
+  SALES_OWNER_STATES,
+} from "@/constants/sales-owner";
 
 import { api } from "@/lib/api/client";
 import { serverErrorMessage } from "@/lib/api/error-message";
@@ -19,7 +28,8 @@ import { createMutation } from "@/lib/api/query-factory";
 import { QUERY_ROOTS } from "@/lib/api/query-roots";
 import { withStaleRefetch } from "@/lib/api/stale-refetch";
 
-import { isUnavailableError, salesWorkloadKeys } from "./sales-workload";
+import { salesOwnerErrorMessage, salesOwnerSchema } from "./sales-owner-access";
+import { orUnavailable, salesWorkloadKeys } from "./sales-workload";
 
 import type { SalesOwnerChangeReason } from "@/constants/sales-owner";
 
@@ -27,18 +37,16 @@ import type { SalesOwnerChangeReason } from "@/constants/sales-owner";
 const ownerState = z.enum(SALES_OWNER_STATES).nullish().catch(null);
 const changeReason = z.enum(SALES_OWNER_CHANGE_REASONS).nullish().catch(null);
 
-export const salesOwnerDtoSchema = z.object({
+/**
+ * Bản ghi để sửa: schema gốc chặt thêm `customerId`, `state` (enum) và `version`. NEEDS_ASSIGNMENT: người cũ (tài khoản
+ * đã khoá) vẫn được giữ để biết lịch sử.
+ */
+export const salesOwnerDetailSchema = salesOwnerSchema.extend({
   customerId: z.string(),
-  /** NEEDS_ASSIGNMENT: người cũ (tài khoản đã khoá) vẫn được giữ để biết lịch sử. */
-  salesOwnerId: z.string().nullish(),
-  salesOwnerName: z.string().nullish(),
-  active: z.boolean().nullish(),
   state: ownerState,
-  since: z.string().nullish(),
-  cover: z.object({ userId: z.string(), name: z.string(), until: z.string() }).nullish(),
   version: z.number().int(),
 });
-export type SalesOwner = z.infer<typeof salesOwnerDtoSchema>;
+export type SalesOwnerDetail = z.infer<typeof salesOwnerDetailSchema>;
 
 export const salesOwnerHistoryEntrySchema = z.object({
   id: z.string(),
@@ -57,27 +65,16 @@ export const salesOwnerHistoryPageSchema = bePageSchema(salesOwnerHistoryEntrySc
 export type SalesOwnerHistoryEntry = z.infer<typeof salesOwnerHistoryEntrySchema>;
 export type SalesOwnerHistoryPage = z.infer<typeof salesOwnerHistoryPageSchema>;
 
-const byId = (id: string) => `/customers/${encodeURIComponent(id)}`;
-
 export const salesOwnerKeys = {
   one: (customerId: string) => [...QUERY_ROOTS.customers, "sales-owner", customerId] as const,
   history: (customerId: string, page: number, size: number) =>
     [...QUERY_ROOTS.customers, "sales-owner-history", customerId, page, size] as const,
 };
 
-async function orNull<T>(load: () => Promise<T>): Promise<T | null> {
-  try {
-    return await load();
-  } catch (error) {
-    if (isUnavailableError(error)) return null;
-    throw error;
-  }
-}
-
-export function getSalesOwner(customerId: string, signal?: AbortSignal) {
-  return orNull(async () => {
-    const { data } = await api.get<unknown>(`${byId(customerId)}/sales-owner`, { signal });
-    return salesOwnerDtoSchema.parse(data);
+export function getSalesOwnerDetail(customerId: string, signal?: AbortSignal) {
+  return orUnavailable(async () => {
+    const { data } = await api.get<unknown>(SALES_OWNER_API.owner(customerId), { signal });
+    return salesOwnerDetailSchema.parse(data);
   });
 }
 
@@ -87,8 +84,8 @@ export function getSalesOwnerHistory(
   size: number,
   signal?: AbortSignal,
 ) {
-  return orNull(async () => {
-    const { data } = await api.get<unknown>(`${byId(customerId)}/sales-owner-history`, {
+  return orUnavailable(async () => {
+    const { data } = await api.get<unknown>(SALES_OWNER_API.history(customerId), {
       params: { page, size },
       signal,
     });
@@ -108,17 +105,17 @@ export interface ChangeSalesOwnerInput {
 
 /** `PUT /customers/{id}/sales-owner` (BR-S01, BR-S03). */
 export async function changeSalesOwner({ customerId, ...body }: ChangeSalesOwnerInput) {
-  const { data } = await api.put<unknown>(`${byId(customerId)}/sales-owner`, {
+  const { data } = await api.put<unknown>(SALES_OWNER_API.owner(customerId), {
     ...body,
     note: body.note.trim(),
   });
-  return salesOwnerDtoSchema.safeParse(data).data ?? null;
+  return salesOwnerDetailSchema.safeParse(data).data ?? null;
 }
 
-export function useSalesOwner(customerId: string, enabled = true) {
+export function useSalesOwnerDetail(customerId: string, enabled = true) {
   return useQuery({
     queryKey: salesOwnerKeys.one(customerId),
-    queryFn: ({ signal }) => getSalesOwner(customerId, signal),
+    queryFn: ({ signal }) => getSalesOwnerDetail(customerId, signal),
     enabled: enabled && !!customerId,
     ...QUERY_TIMES.detail,
   });
@@ -142,9 +139,13 @@ export function useSalesOwnerHistory(
 /** Mã báo "bản đang xem đã cũ" → tải lại người phụ trách trước khi hiện lỗi (ca #15). */
 export const SALES_OWNER_STALE_CODES = ["SALES_OWNER_VERSION_CONFLICT", "OPTIMISTIC_LOCK"] as const;
 
-/** Đổi người phụ trách: làm mới khách (thẻ, lịch sử, danh sách) và bảng tải. Lỗi hiện trong hộp thoại. */
+/**
+ * Đổi người phụ trách: làm mới root `customers` — thẻ, lịch sử, danh sách VÀ khoá đọc lỏng của chế độ chặt
+ * (`salesOwnerAccessKeys`, cũng dưới root này) để nút báo giá / hợp đồng / chat mở hay khoá theo người mới — cùng bảng tải
+ * và danh sách Sale giao được. Lỗi hiện trong hộp thoại.
+ */
 export const useChangeSalesOwner = withStaleRefetch(
-  createMutation<ChangeSalesOwnerInput, SalesOwner | null>(changeSalesOwner, {
+  createMutation<ChangeSalesOwnerInput, SalesOwnerDetail | null>(changeSalesOwner, {
     invalidate: [QUERY_ROOTS.customers, salesWorkloadKeys.all],
     successMessage: "Đã đổi người phụ trách.",
     showErrorToast: false,
@@ -153,8 +154,11 @@ export const useChangeSalesOwner = withStaleRefetch(
   SALES_OWNER_STALE_CODES,
 );
 
-/** Mã lỗi hợp đồng (§Error codes) → câu tiếng Việt; `CUSTOMER_OWNED_BY_OTHER_SALES` giữ câu BE (nêu tên người). */
-export const SALES_OWNER_ERROR_MESSAGES: Readonly<Record<string, string>> = {
+/**
+ * Mã lỗi của thao tác ĐỔI người phụ trách (hợp đồng §Error codes) → câu tiếng Việt. Riêng cho đổi / chuyển / quyết yêu
+ * cầu: `OPTIMISTIC_LOCK`, `FORBIDDEN` ở đây nói về người phụ trách, nên không dùng cho báo giá / hợp đồng.
+ */
+export const OWNER_CHANGE_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   SALES_OWNER_NOT_ASSIGNABLE:
     "Người này không phải Sale đang làm nên không giao được. Chọn Sale khác.",
   SALES_OWNER_VERSION_CONFLICT:
@@ -166,6 +170,13 @@ export const SALES_OWNER_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   FORBIDDEN: "Chỉ Sales Manager hoặc quản trị viên được đổi người phụ trách.",
 };
 
-export function salesOwnerErrorMessage(error: unknown): string {
-  return serverErrorMessage(error, SALES_OWNER_ERROR_MESSAGES);
+/**
+ * Lỗi của thao tác đổi người phụ trách: hai lỗi chế độ chặt (nêu tên người phụ trách) qua `salesOwnerErrorMessage` — một
+ * chỗ duy nhất cho mọi màn —, còn lại theo `messages` (mặc định `OWNER_CHANGE_ERROR_MESSAGES`) rồi câu của BE.
+ */
+export function ownerChangeErrorMessage(
+  error: unknown,
+  messages: Readonly<Record<string, string>> = OWNER_CHANGE_ERROR_MESSAGES,
+): string {
+  return salesOwnerErrorMessage(error) ?? serverErrorMessage(error, messages);
 }

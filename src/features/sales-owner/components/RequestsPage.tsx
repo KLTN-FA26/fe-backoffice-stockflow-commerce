@@ -14,7 +14,7 @@ import {
 import { usePagedList } from "@/hooks/use-paged-list";
 import { useCan } from "@/lib/auth";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
-import { useSalesWorkload } from "@/lib/references/sales-workload";
+import { useAssignableSales } from "@/lib/references/sales-agents";
 
 import { ServerTableBody } from "@/components/backoffice/ServerTableBody";
 import { ListToolbar } from "@/components/shared/ListToolbar";
@@ -37,7 +37,8 @@ const STATUS_OPTIONS = OWNER_CHANGE_REQUEST_STATUSES.map((value) => ({
 function RequestsContent() {
   // Quyết yêu cầu: sales-owner-change-requests:APPROVE (SM, SA) — UI-only, Backend phải re-check
   const canApprove = useCan(OWNER_CHANGE_REQUEST_PERMISSIONS.approve);
-  const workload = useSalesWorkload(canApprove);
+  // D42: người phụ trách mới là Sale giao được
+  const sales = useAssignableSales(canApprove);
   const paged = usePagedList(SALES_OWNER_STORAGE_KEYS.requestsConfig, NO_SORT);
   const [status, setStatus] = useQueryState(
     "status",
@@ -109,7 +110,7 @@ function RequestsContent() {
       {open?.action === "approve" && (
         <ApproveRequestDialog
           request={open.request}
-          workload={workload.data ?? []}
+          sales={sales.options ?? []}
           onClose={() => setOpen(null)}
         />
       )}

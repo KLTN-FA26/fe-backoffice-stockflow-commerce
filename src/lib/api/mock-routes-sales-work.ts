@@ -60,6 +60,7 @@ interface Request {
   status: string;
   createdAt: string;
   decisionNote?: string;
+  decidedAt?: string;
 }
 
 const day = (offset: number) =>
@@ -127,6 +128,20 @@ async function state() {
 const today = () => day(0);
 const coverActive = (c: Cover) => !c.cancelledAt && c.from <= today() && c.to >= today();
 
+/** Hợp đồng (phần BO-1): trạng thái lịch thay `ACTIVE` / `UPCOMING` / `ENDED` / `CANCELLED`. */
+function coverStatus(c: Cover): string {
+  if (c.cancelledAt) return "CANCELLED";
+  if (c.to < today()) return "ENDED";
+  return c.from > today() ? "UPCOMING" : "ACTIVE";
+}
+
+/** Lead đang mở (ASSIGNED / CONTACTED) của một Sale — cho `handover-summary` (D44). */
+export async function openLeadCountOf(userId: string): Promise<number> {
+  return (await state()).leads.filter(
+    (l) => l.assignedTo === userId && (l.status === "ASSIGNED" || l.status === "CONTACTED"),
+  ).length;
+}
+
 /** Người đang lo thay cho `userId` hôm nay (thẻ khách, bảng tải). */
 export async function activeCoverOf(userId: string) {
   const cover = (await state()).covers.find((c) => c.userId === userId && coverActive(c));
@@ -154,7 +169,7 @@ async function listCovers(config: AxiosRequestConfig) {
         ...c,
         userName: await mockPersonName(c.userId),
         coverUserName: await mockPersonName(c.coverUserId),
-        status: c.cancelledAt ? "CANCELLED" : null,
+        status: coverStatus(c),
       })),
     ),
   );
@@ -281,6 +296,7 @@ function decide(approve: boolean) {
     }
     request.status = approve ? "APPROVED" : "REJECTED";
     request.decisionNote = text(body.note);
+    request.decidedAt = new Date().toISOString();
     return ok(request);
   };
 }

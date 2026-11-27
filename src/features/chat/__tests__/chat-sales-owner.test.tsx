@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { toast } from "@/components/shared/Toast";
 import { apiError, bePage, mockApi, renderScreen } from "@/test/api-screen";
+import { SALES_OWNER_READ as READ } from "@/test/sales-owner-screen";
 
 import { ChatConversationScreen, ChatInbox } from "..";
 import {
@@ -17,8 +18,6 @@ import {
 } from "../__fixtures__/chat";
 import { chatErrorMessage } from "../mutations";
 
-import type { PermissionCode } from "@/lib/auth";
-
 const push = vi.fn();
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push, replace: vi.fn() }),
@@ -30,7 +29,6 @@ afterEach(() => {
   push.mockReset();
 });
 
-const READ: PermissionCode = "customer-sales-owners:READ";
 const BASE = `/chat/conversations/${CONVERSATION_ID}`;
 const OWNER_URL = `/customers/${CUSTOMER_ID}/sales-owner`;
 const OTHER_NAME = "Trần Văn Sales";

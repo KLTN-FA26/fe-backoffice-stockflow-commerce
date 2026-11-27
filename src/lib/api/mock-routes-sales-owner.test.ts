@@ -7,12 +7,13 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { listCustomers } from "@/features/customer/api";
-import { transferCustomers } from "@/features/sales-owner/api";
-import { listLeads } from "@/features/sales-owner/work-api";
+import { listTemporaryBatches, transferCustomers } from "@/features/sales-owner/api";
+import { listCovers, listLeads } from "@/features/sales-owner/work-api";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 import { useAuthStore } from "@/lib/auth/auth-store";
-import { changeSalesOwner, getSalesOwner } from "@/lib/references/sales-owner";
+import { fetchSalesAgents } from "@/lib/references/sales-agents";
+import { changeSalesOwner, getSalesOwnerDetail } from "@/lib/references/sales-owner";
 import { fetchSalesWorkload } from "@/lib/references/sales-workload";
 
 import { activateMockAdapter } from "./mock-adapter";
@@ -75,7 +76,7 @@ describe("mock sales-owner", () => {
       listCustomers({ page: 0, size: 5 }),
     ]);
     const customerId = page.items[0]?.customerId ?? "";
-    const owner = await getSalesOwner(customerId);
+    const owner = await getSalesOwnerDetail(customerId);
     const target = workload?.find((row) => row.userId !== owner?.salesOwnerId)?.userId ?? "";
     const input = {
       customerId,
@@ -127,5 +128,24 @@ describe("mock sales-owner", () => {
     ).toBe("FORBIDDEN");
     const leads = await listLeads({ page: 0, size: 20 });
     expect(leads.items.every((l) => l.status !== "NEW")).toBe(true);
+  });
+
+  it("D42: GET /customers/sales-agents = Sale đang làm, không người điều phối; Sale cũng đọc được", async () => {
+    const agents = (await fetchSalesAgents()) ?? [];
+    const workload = (await fetchSalesWorkload()) ?? [];
+    expect(agents.map((a) => a.userId)).toEqual(workload.map((w) => w.userId));
+    expect(agents.some((a) => a.onLeave && a.coverUntil)).toBe(true);
+    actAs("USER-SALE-01");
+    expect((await fetchSalesAgents())?.length).toBe(agents.length);
+  });
+
+  it("hợp đồng: lịch thay có status; lô tạm chỉ cho người có customer-sales-owners:UPDATE", async () => {
+    const covers = (await listCovers({})) ?? [];
+    expect(
+      covers.every((c) => ["ACTIVE", "UPCOMING", "ENDED", "CANCELLED"].includes(c.status ?? "")),
+    ).toBe(true);
+    expect(await listTemporaryBatches()).toEqual([]);
+    actAs("USER-SALE-01");
+    expect(await listTemporaryBatches()).toBeNull();
   });
 });

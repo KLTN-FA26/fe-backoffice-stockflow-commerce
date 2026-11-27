@@ -4,7 +4,7 @@
  */
 
 import { serverErrorMessage } from "@/lib/api/error-message";
-import { SALES_OWNER_ERROR_MESSAGES } from "@/lib/references/sales-owner";
+import { OWNER_CHANGE_ERROR_MESSAGES, ownerChangeErrorMessage } from "@/lib/references/sales-owner";
 
 const COVER_MESSAGES: Readonly<Record<string, string>> = {
   STAFF_COVER_OVERLAP:
@@ -23,13 +23,13 @@ const LEAD_MESSAGES: Readonly<Record<string, string>> = {
 };
 
 const REQUEST_MESSAGES: Readonly<Record<string, string>> = {
-  ...SALES_OWNER_ERROR_MESSAGES,
+  ...OWNER_CHANGE_ERROR_MESSAGES,
   CONFLICT: "Yêu cầu vừa được quyết định, đã tải lại.",
   FORBIDDEN: "Chỉ Sales Manager hoặc quản trị viên quyết yêu cầu đổi Sale.",
 };
 
 const TRANSFER_MESSAGES: Readonly<Record<string, string>> = {
-  ...SALES_OWNER_ERROR_MESSAGES,
+  ...OWNER_CHANGE_ERROR_MESSAGES,
   SALES_OWNER_NOT_ASSIGNABLE: "Có Sale nhận không còn làm. Bỏ người đó khỏi danh sách nhận.",
   IDEMPOTENT_REQUEST_IN_PROGRESS:
     "Lô này đang chạy. Chờ một chút rồi bấm lại — không bị chuyển hai lần.",
@@ -37,10 +37,9 @@ const TRANSFER_MESSAGES: Readonly<Record<string, string>> = {
 
 export const coverErrorMessage = (e: unknown) => serverErrorMessage(e, COVER_MESSAGES);
 export const leadErrorMessage = (e: unknown) => serverErrorMessage(e, LEAD_MESSAGES);
-export const requestErrorMessage = (e: unknown) => serverErrorMessage(e, REQUEST_MESSAGES);
-export const transferErrorMessage = (e: unknown) => serverErrorMessage(e, TRANSFER_MESSAGES);
-export const settingsErrorMessage = (e: unknown) =>
-  serverErrorMessage(e, SALES_OWNER_ERROR_MESSAGES);
+export const requestErrorMessage = (e: unknown) => ownerChangeErrorMessage(e, REQUEST_MESSAGES);
+export const transferErrorMessage = (e: unknown) => ownerChangeErrorMessage(e, TRANSFER_MESSAGES);
+export const settingsErrorMessage = (e: unknown) => ownerChangeErrorMessage(e);
 
 /** Lý do BE bỏ qua một khách trong lô (BR-S09); mã lạ hiện nguyên văn. */
 export const SKIP_REASON_LABELS: Readonly<Record<string, string>> = {

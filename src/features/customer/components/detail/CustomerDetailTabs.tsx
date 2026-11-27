@@ -10,7 +10,7 @@ import {
 } from "@/constants";
 import { SALES_OWNER_LABELS } from "@/constants/labels-sales-owner";
 import { SALES_OWNER_PERMISSIONS } from "@/constants/sales-owner";
-import { useSalesOwner } from "@/lib/references/sales-owner";
+import { useSalesOwnerDetail } from "@/lib/references/sales-owner";
 import { canResendInvitation, canViewInvitation } from "@/features/customer/lifecycle";
 import { PageTabPanel, PageTabs } from "@/components/shared/PageTabs";
 
@@ -53,7 +53,7 @@ export function CustomerDetailTabs({
   // Tab không có quyền xem thì ẩn (B12). Báo giá / đơn của khách: BE `GET /quotes`, `GET /orders` lọc `customerId`.
   // Lịch sử phụ trách: cần `customer-sales-owners:READ`; BE chưa có endpoint (`null`) → ẩn tab.
   const canReadOwner = can(SALES_OWNER_PERMISSIONS.read);
-  const owner = useSalesOwner(customer.customerId, canReadOwner);
+  const owner = useSalesOwnerDetail(customer.customerId, canReadOwner);
   const visible: Record<TabKey, boolean> = {
     profile: true,
     quotes: can(QUOTE_PERMISSIONS.read),

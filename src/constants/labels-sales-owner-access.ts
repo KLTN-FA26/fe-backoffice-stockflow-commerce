@@ -1,48 +1,8 @@
 /**
- * Sale phụ trách khách — phần "ai được làm gì" (KE-HOACH sales-owner 2026-11-27, BR-S05, BR-S08, BR-S12, BR-S14; hợp
- * đồng API `HOP-DONG-API.md`). Mã quyền, mã lỗi, đường dẫn API và câu chữ dùng chung cho báo giá, hợp đồng, chat, hộp
- * yêu cầu báo giá, khoá tài khoản và form tạo khách. File riêng, import qua `@/constants`.
+ * Sale phụ trách khách — câu chữ phần "ai được làm gì" (KE-HOACH sales-owner 2026-11-27, BR-S05, BR-S08, BR-S12, BR-S14;
+ * hợp đồng API `HOP-DONG-API.md`) cho báo giá, hợp đồng, chat, hộp yêu cầu báo giá, khoá tài khoản và form tạo khách.
+ * Import qua `@/constants`. Mã quyền, mã lỗi, đường dẫn API, enum và route ở MỘT chỗ: `@/constants/sales-owner`.
  */
-
-/** Mã quyền mới của BE (HOP-DONG-API "Permissions"). */
-export const SALES_OWNER_ACCESS_PERMISSIONS = {
-  /** Đọc người phụ trách của khách (`GET /customers/{id}/sales-owner`): Sales, Sales Manager, Kế toán, Admin. */
-  read: "customer-sales-owners:READ",
-  /** Giao / đổi người phụ trách: Sales Manager, Admin — cũng là dấu hiệu "người quản lý" của BR-S12. */
-  manage: "customer-sales-owners:UPDATE",
-  /** Bảng tải của Sales Manager (`GET /chat/agents/workload`). */
-  workload: "sales-workload:READ",
-} as const;
-
-/** BE `SalesOwnerState`. */
-export const SALES_OWNER_STATES = ["ASSIGNED", "NEEDS_ASSIGNMENT", "UNASSIGNED"] as const;
-export type SalesOwnerState = (typeof SALES_OWNER_STATES)[number];
-
-/** Mã lỗi của BE (bundle en/vi). */
-export const SALES_OWNER_ERROR_CODES = {
-  /** 409: Sale khác chủ động làm việc trên khách có chủ (BR-S12). */
-  ownedByOther: "CUSTOMER_OWNED_BY_OTHER_SALES",
-  /** 409: "Nhận" hội thoại của khách đã có chủ (BR-S05, tình huống 18). */
-  claimOnly: "CUSTOMER_UNASSIGNED_CLAIM_ONLY",
-  /** 400: thiếu mã số thuế khi tạo khách (BR-S14). */
-  taxCodeRequired: "CUSTOMER_TAX_CODE_REQUIRED",
-} as const;
-
-/** Đường dẫn API mới (BE-A). */
-export const SALES_OWNER_API = {
-  owner: (customerId: string) => `/customers/${encodeURIComponent(customerId)}/sales-owner`,
-  duplicates: "/customers/duplicates",
-  handoverSummary: (userId: string) =>
-    `/identity/users/${encodeURIComponent(userId)}/handover-summary`,
-  chatWorkload: "/chat/agents/workload",
-  /** Người trả lời khách được — nguồn ô "Sale phụ trách" của form tạo khách (BR-S04: chỉ giao cho Sale đang làm). */
-  agents: "/chat/agents",
-} as const;
-
-/**
- * Màn "Phân công khách" của BO-1 (`/admin/sales/assignment`). Để ở đây tới khi `ADMIN_ROUTES` có mục `sales` (BO-1 thêm).
- */
-export const SALES_ASSIGNMENT_PATH = "/admin/sales/assignment";
 
 /** Câu chữ — ngắn, không thuật ngữ. */
 export const SALES_OWNER_ACCESS_LABELS = {

@@ -30,9 +30,13 @@ const SCOPES = [
 export function TransferFields({
   form,
   sales,
+  targets,
 }: {
   form: UseFormReturn<TransferValues>;
+  /** "Từ Sale" — có thể là người đã nghỉ (BR-S08: giao lại khách của họ). */
   sales: readonly SalesOption[];
+  /** "Sang Sale" — chỉ Sale giao được (D42). */
+  targets: readonly SalesOption[];
 }) {
   const { errors } = form.formState;
   const [from, scope] = useWatch({ control: form.control, name: ["fromUserId", "scope"] });
@@ -64,7 +68,7 @@ export function TransferFields({
           <CheckList
             id="transfer-to"
             label="Sang Sale (nhiều người thì chia đều)"
-            options={sales
+            options={targets
               .filter((option) => option.userId !== from)
               .map((option) => ({ value: option.userId, label: salesOptionLabel(option) }))}
             selected={field.value}

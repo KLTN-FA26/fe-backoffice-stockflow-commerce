@@ -2,7 +2,10 @@
  * Mock Sale phụ trách khách (hợp đồng API sales-owner, BE-A / BE-B / BE-C) — chỉ USE_MOCK=true. Người: Sale trả lời chat
  * của mock (`chatPeople`, cùng nguồn `/chat/agents`); khách: 45 khách của `mock-customer-store`. Một store trong bộ nhớ,
  * gieo lần đầu dùng: khách chia vòng cho các Sale, vài khách "Cần giao" (người cũ là tài khoản seed không còn trả lời
- * chat) và "Chưa có người phụ trách", mỗi khách một dòng lịch sử `BACKFILL`.
+ * chat) và "Chưa có người phụ trách", mỗi khách một dòng lịch sử `BACKFILL`. Hai khách của seed WF-02 (khách demo, Trà
+ * Sữa Mây — báo giá / hợp đồng mock trỏ tới, không nằm trong `/customers`) theo đúng quy tắc điền dữ liệu của BE: người gửi
+ * chứng từ gần nhất (`demo.sales`). MỘT store cho thẻ khách, danh sách, màn phân công và các màn chế độ chặt (báo giá, hợp
+ * đồng, chat, hộp yêu cầu báo giá), nên một khách có cùng một người phụ trách ở mọi màn.
  */
 
 import { SALES_OWNER_PERMISSIONS } from "@/constants/sales-owner";
@@ -67,6 +70,8 @@ interface Store {
 }
 
 let store: Store | null = null;
+/** Ngày điền dữ liệu của hai khách seed WF-02. */
+const SEED_SINCE = "2026-11-20T02:00:00Z";
 let sequence = 0;
 
 export function resetSalesOwnerMockStore(): void {
@@ -142,6 +147,27 @@ export async function salesOwnerStore(): Promise<Store> {
         : [],
     );
   });
+  // Quy tắc điền dữ liệu của BE (hợp đồng "Backfill rule"): người gửi báo giá / hợp đồng gần nhất trong seed WF-02
+  for (const customerId of [CHAT_SEED.demoCustomer, CHAT_SEED.traSuaMay]) {
+    owners.set(customerId, {
+      ownerId: CHAT_SEED.sales,
+      state: "ASSIGNED",
+      since: SEED_SINCE,
+      version: 0,
+    });
+    history.set(customerId, [
+      {
+        id: mockSalesId("5a1e0000"),
+        fromUserId: null,
+        toUserId: CHAT_SEED.sales,
+        reason: "BACKFILL",
+        note: null,
+        changedById: null,
+        changedAt: SEED_SINCE,
+        batchId: null,
+      },
+    ]);
+  }
   store = { owners, history, batches: [], settings: new Map() };
   return store;
 }

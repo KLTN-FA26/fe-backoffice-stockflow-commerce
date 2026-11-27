@@ -4,7 +4,11 @@
  * `mock-user-grants` (như `@RequiresPermission`); lỗi theo mã của hợp đồng.
  */
 
-import { SALES_OWNER_PERMISSIONS, SALES_WORKLOAD_PERMISSIONS } from "@/constants/sales-owner";
+import {
+  SALES_OWNER_PERMISSIONS,
+  SALES_WORKLOAD_PERMISSIONS,
+  STAFF_COVER_PERMISSIONS,
+} from "@/constants/sales-owner";
 
 import { registerMockRoute } from "./mock-adapter";
 import { chatCaller, chatState, firstResponseOverdue, isEndedStatus } from "./mock-chat-store";
@@ -21,7 +25,8 @@ import {
 
 import type { AxiosRequestConfig } from "axios";
 
-async function ownerView(customerId: string) {
+/** `GET /customers/{id}/sales-owner` của một khách — cũng là tên người phụ trách ở `/customers/duplicates`. */
+export async function ownerView(customerId: string) {
   const s = await salesOwnerStore();
   const owner = s.owners.get(customerId);
   if (!owner) return null;
@@ -163,13 +168,15 @@ async function transfer(config: AxiosRequestConfig) {
   return ok(result);
 }
 
-async function listBatches() {
-  const caller = await callerWith(SALES_OWNER_PERMISSIONS.read);
+/** Hợp đồng (phần BO-1): `?temporary=true`, `customer-sales-owners:UPDATE`. */
+async function listBatches(config: AxiosRequestConfig) {
+  const caller = await callerWith(SALES_OWNER_PERMISSIONS.update);
   if (typeof caller !== "string") return caller;
   const s = await salesOwnerStore();
+  const temporaryOnly = queryOf(config).get("temporary") === "true";
   const rows = await Promise.all(
     s.batches
-      .filter((b) => b.temporary)
+      .filter((b) => !temporaryOnly || b.temporary)
       .map(async (b) => ({
         batchId: b.batchId,
         fromUserId: b.fromUserId,
@@ -177,7 +184,7 @@ async function listBatches() {
         toNames: (await Promise.all(b.toUserIds.map(mockPersonName))).filter(Boolean),
         reason: b.reason,
         note: b.note,
-        temporary: true,
+        temporary: b.temporary,
         createdAt: b.createdAt,
         createdByName: await mockPersonName(b.createdById),
         moved: b.customerIds.length,
@@ -246,6 +253,31 @@ async function workload() {
   return ok(rows);
 }
 
+/**
+ * D42 `GET /customers/sales-agents` (`customer-sales-owners:READ` hoặc `staff-covers:READ`): Sale đang làm, không người
+ * điều phối (`mockSalesRoster`) — cùng người mà `PUT …/sales-owner` / chuyển lô / lịch thay nhận.
+ */
+async function salesAgents() {
+  const caller = await chatCaller();
+  if (!caller) return fail(401, "UNAUTHORIZED", "Unauthorized");
+  if (!caller.can(SALES_OWNER_PERMISSIONS.read) && !caller.can(STAFF_COVER_PERMISSIONS.read))
+    return fail(403, "FORBIDDEN", "Bạn không có quyền thực hiện thao tác này.");
+  const s = await salesOwnerStore();
+  const rows = await Promise.all(
+    (await mockSalesRoster()).map(async (p) => {
+      const cover = await activeCoverOf(p.id);
+      return {
+        userId: p.id,
+        name: p.name,
+        paused: s.settings.get(p.id)?.paused ?? false,
+        onLeave: !!cover,
+        coverUntil: cover?.until ?? null,
+      };
+    }),
+  );
+  return ok(rows);
+}
+
 /** BE-B: hội thoại chưa kết thúc / trễ phản hồi đầu theo Sale đang phụ trách. */
 async function chatWorkload() {
   const caller = await callerWith(SALES_WORKLOAD_PERMISSIONS.read);
@@ -278,6 +310,7 @@ async function putSettings(config: AxiosRequestConfig) {
 
 export function registerSalesOwnerMockRoutes(): void {
   // Trước `/customers/:customerId` (khớp theo thứ tự đăng ký)
+  registerMockRoute("GET", "/customers/sales-agents", salesAgents);
   registerMockRoute("GET", "/customers/sales-owner-transfers", listBatches);
   registerMockRoute("POST", "/customers/sales-owner-transfers", transfer);
   registerMockRoute("POST", "/customers/sales-owner-transfers/:batchId/return", returnBatch);

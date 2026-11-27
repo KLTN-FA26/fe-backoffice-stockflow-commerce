@@ -6,8 +6,6 @@ import { Controller, useForm } from "react-hook-form";
 
 import { SALES_OWNER_LIMITS } from "@/constants/sales-owner";
 
-import { toSalesOption } from "@/lib/references/sales-workload";
-
 import { SalesPickerField } from "@/components/backoffice/SalesPickerField";
 import { NoteField } from "@/components/backoffice/NoteField";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -20,7 +18,7 @@ import { useApproveOwnerChangeRequest, useRejectOwnerChangeRequest } from "../mu
 
 import { RECENTLY_CONTACTED_WARNING } from "./request-columns";
 
-import type { SalesWorkloadRow } from "@/lib/references/sales-workload";
+import type { SalesOption } from "@/lib/references/sales-workload";
 import type { ApproveRequestValues } from "../inputs";
 import type { OwnerChangeRequest } from "../types";
 
@@ -30,18 +28,17 @@ import type { OwnerChangeRequest } from "../types";
  */
 export function ApproveRequestDialog({
   request,
-  workload,
+  sales,
   onClose,
 }: {
   request: OwnerChangeRequest;
-  workload: readonly SalesWorkloadRow[];
+  /** Sale giao được (D42, `useAssignableSales`). */
+  sales: readonly SalesOption[];
   onClose: () => void;
 }) {
   const approve = useApproveOwnerChangeRequest();
   const [error, setError] = useState<string | null>(null);
-  const options = workload
-    .filter((row) => row.userId !== request.currentOwnerId)
-    .map(toSalesOption);
+  const options = sales.filter((option) => option.userId !== request.currentOwnerId);
   const preferred = options.some((o) => o.userId === request.preferredSalesUserId)
     ? (request.preferredSalesUserId ?? "")
     : "";

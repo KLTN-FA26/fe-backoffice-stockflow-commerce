@@ -2,8 +2,8 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { bePage, renderScreen } from "@/test/api-screen";
-import { mockSalesOwnerApi } from "@/test/sales-owner-screen";
+import { apiError, bePage, renderScreen } from "@/test/api-screen";
+import { mockSalesOwnerApi, salesAgent } from "@/test/sales-owner-screen";
 
 import { CustomerList } from "../components/CustomerList";
 
@@ -87,8 +87,57 @@ describe("Danh sách khách — cột và lọc 'Sale phụ trách' (BR-S11)", (
     );
   });
 
-  it("lọc cột theo một Sale → salesOwnerId (danh sách Sale từ người trả lời chat khi không có bảng tải)", async () => {
-    const api = mockSalesOwnerApi("SALES_STAFF", routes);
+  it("D42: lọc theo Sale dùng danh sách Sale giao được (GET /customers/sales-agents)", async () => {
+    const api = mockSalesOwnerApi("SALES_STAFF", {
+      get: {
+        ...routes.get,
+        "/customers/sales-agents": () => [salesAgent("s-c", "Sale Chi")],
+      },
+    });
+    renderScreen(<CustomerList />, "SALES_STAFF");
+    await screen.findByText("Công ty An");
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: /Lọc sale phụ trách/ }));
+    await user.click(await screen.findByRole("option", { name: /Sale Chi/ }));
+    await waitFor(() => expect(lastParams(api).get("salesOwnerId")).toBe("s-c"));
+    expect(screen.queryByRole("option", { name: /Sale Bình/ })).toBeNull();
+    expect(api.get.mock.calls.some((c) => c[0] === "/chat/agents")).toBe(false);
+  });
+
+  it("D42 dự phòng: sales-agents 404 → người trả lời chat, bỏ người điều phối (theo /chat/staff)", async () => {
+    mockSalesOwnerApi("SALES_STAFF", {
+      get: {
+        ...routes.get,
+        "/customers/sales-agents": () => {
+          throw apiError(404, "NOT_FOUND");
+        },
+        "/chat/agents": () => [
+          { userId: "s-a", name: "Sale An", online: true },
+          { userId: "m-1", name: "Quản lý Minh", online: true },
+        ],
+        "/chat/staff": () => [
+          { id: "s-a", name: "Sale An", roles: [{ code: "SALES_STAFF", name: "Sale" }] },
+          { id: "m-1", name: "Quản lý Minh", roles: [{ code: "SALES_MANAGER", name: "QL" }] },
+        ],
+      },
+    });
+    renderScreen(<CustomerList />, "SALES_STAFF");
+    await screen.findByText("Công ty An");
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: /Lọc sale phụ trách/ }));
+    expect(await screen.findByRole("option", { name: /Sale An/ })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /Quản lý Minh/ })).toBeNull();
+  });
+
+  it("lọc cột theo một Sale → salesOwnerId (sales-agents 404: danh sách Sale từ người trả lời chat khi không có bảng tải)", async () => {
+    const api = mockSalesOwnerApi("SALES_STAFF", {
+      get: {
+        ...routes.get,
+        "/customers/sales-agents": () => {
+          throw apiError(404, "NOT_FOUND");
+        },
+      },
+    });
     renderScreen(<CustomerList />, "SALES_STAFF");
     await screen.findByText("Công ty An");
     const user = userEvent.setup();

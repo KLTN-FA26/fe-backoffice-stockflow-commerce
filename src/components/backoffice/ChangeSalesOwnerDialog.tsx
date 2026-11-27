@@ -11,15 +11,12 @@ import {
 import { MANUAL_CHANGE_REASONS } from "@/constants/sales-owner";
 
 import {
-  salesOwnerErrorMessage,
+  ownerChangeErrorMessage,
   useChangeSalesOwner,
-  useSalesOwner,
+  useSalesOwnerDetail,
 } from "@/lib/references/sales-owner";
-import {
-  suggestLeastLoaded,
-  toSalesOption,
-  useSalesWorkload,
-} from "@/lib/references/sales-workload";
+import { useAssignableSales } from "@/lib/references/sales-agents";
+import { suggestLeastLoaded, useSalesWorkload } from "@/lib/references/sales-workload";
 
 import { CheckboxField } from "@/components/shared/CheckboxField";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
@@ -36,9 +33,9 @@ const L = SALES_OWNER_LABELS.dialog;
 
 /**
  * "Đổi người phụ trách" (BR-S01, BR-S03, BR-S04, BR-S06, D3) — chỉ người có `customer-sales-owners:UPDATE` mở được
- * (UI-only; BE kiểm lại). Danh sách Sale lấy từ bảng tải (thấy ai đang tạm dừng / nghỉ); gửi kèm `version` của người
- * phụ trách đang xem — hai quản lý cùng đổi thì người sau nhận `SALES_OWNER_VERSION_CONFLICT`, hộp thoại tải lại bản
- * mới và giữ nguyên lựa chọn để làm lại (ca #15).
+ * (UI-only; BE kiểm lại). Danh sách Sale: chỉ Sale giao được (D42, `useAssignableSales`), thấy ai đang tạm dừng / nghỉ;
+ * gợi ý Sale còn trống nhất lấy từ bảng tải. Gửi kèm `version` của người phụ trách đang xem — hai quản lý cùng đổi thì
+ * người sau nhận `SALES_OWNER_VERSION_CONFLICT`, hộp thoại tải lại bản mới và giữ nguyên lựa chọn để làm lại (ca #15).
  */
 export function ChangeSalesOwnerDialog({
   customerId,
@@ -54,15 +51,19 @@ export function ChangeSalesOwnerDialog({
   /** Khách chưa có / cần giao người phụ trách: tiêu đề "Giao người phụ trách", gợi ý Sale còn trống nhất. */
   assign?: boolean;
 }) {
-  const owner = useSalesOwner(customerId);
-  const workload = useSalesWorkload();
+  const owner = useSalesOwnerDetail(customerId);
+  const sales = useAssignableSales();
+  const workload = useSalesWorkload(assign);
   const change = useChangeSalesOwner();
   const [error, setError] = useState<string | null>(null);
   const current = owner.data;
   const currentOwnerId =
     current?.state === "ASSIGNED" && current.active ? current.salesOwnerId : null;
-  const rows = workload.data ?? [];
-  const suggested = assign ? suggestLeastLoaded(rows) : null;
+  const options = sales.options ?? [];
+  const assignable = new Set(options.map((option) => option.userId));
+  const suggested = assign
+    ? suggestLeastLoaded((workload.data ?? []).filter((row) => assignable.has(row.userId)))
+    : null;
   const form = useForm<ChangeSalesOwnerValues>({
     resolver: zodResolver(
       changeSalesOwnerSchema({
@@ -74,8 +75,8 @@ export function ChangeSalesOwnerDialog({
     defaultValues: { salesOwnerId: "", reason: defaultReason, note: "", notifyCustomer: true },
   });
   const { errors } = form.formState;
-  const loading = owner.isPending || workload.isPending;
-  const unavailable = !loading && (!current || workload.data === null);
+  const loading = owner.isPending || sales.isPending;
+  const unavailable = !loading && (!current || !sales.options);
   const submit = form.handleSubmit((values) => {
     if (!current) return;
     setError(null);
@@ -88,7 +89,7 @@ export function ChangeSalesOwnerDialog({
         notifyCustomer: values.notifyCustomer,
         version: current.version,
       },
-      { onSuccess: onClose, onError: (e) => setError(salesOwnerErrorMessage(e)) },
+      { onSuccess: onClose, onError: (e) => setError(ownerChangeErrorMessage(e)) },
     );
   });
 
@@ -114,7 +115,7 @@ export function ChangeSalesOwnerDialog({
               required
               value={field.value}
               onChange={field.onChange}
-              options={rows.map(toSalesOption)}
+              options={options}
               suggestedId={suggested?.userId}
               error={errors.salesOwnerId?.message}
             />

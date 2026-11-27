@@ -76,7 +76,8 @@ export const SALES_OWNER_LABELS = {
     formerOwner: "Người cũ",
     left: "(đã nghỉ)",
     none: "Chưa có",
-    coverLine: (name: string, until: string) => `Đang có ${name} lo thay tới ${until}.`,
+    coverLine: (name: string, until: string | null) =>
+      until ? `Đang có ${name} lo thay tới ${until}.` : `Đang có ${name} lo thay.`,
     loadError: "Không tải được người phụ trách.",
   },
   history: {
@@ -95,6 +96,8 @@ export const SALES_OWNER_LABELS = {
     paused: "tạm dừng nhận khách",
     onLeave: "đang nghỉ",
     coverBy: (name: string) => `${name} lo thay`,
+    /** D42 `GET /customers/sales-agents` trả ngày về, không trả tên người thay. */
+    onLeaveUntil: (until: string) => `đang nghỉ tới ${until}`,
     empty: "Không có Sale đang làm.",
     suggested: "gợi ý",
   },

@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { apiError, bePage, renderScreen } from "@/test/api-screen";
-import { mockSalesOwnerApi, workloadRow } from "@/test/sales-owner-screen";
+import { agentsOf, mockSalesOwnerApi, workloadRow } from "@/test/sales-owner-screen";
 import { pickOption } from "@/test/ui-actions";
 
 import { CustomerDetail } from "../components/CustomerDetail";
@@ -37,7 +37,11 @@ const owner = (extra: Record<string, unknown> = {}) => ({
 const WORKLOAD = [
   workloadRow("s-a", "Sale An"),
   workloadRow("s-b", "Sale Bình", { paused: true }),
-  workloadRow("s-c", "Sale Chi", { onLeave: true, coverName: "Sale Bình" }),
+  workloadRow("s-c", "Sale Chi", {
+    onLeave: true,
+    coverName: "Sale Bình",
+    coverUntil: "2026-12-05",
+  }),
 ];
 
 function get(extra: RouteTable = {}, ownerDto: unknown = owner()): RouteTable {
@@ -46,6 +50,7 @@ function get(extra: RouteTable = {}, ownerDto: unknown = owner()): RouteTable {
     "/customers/c-1/status-history": () => [],
     "/customers/c-1/sales-owner": () => ownerDto,
     "/customers/c-1/sales-owner-history": () => bePage([]),
+    "/customers/sales-agents": () => agentsOf(WORKLOAD),
     "/sales/workload": () => WORKLOAD,
     ...extra,
   };
@@ -151,14 +156,50 @@ describe("Hộp 'Đổi người phụ trách' (BR-S01, BR-S03, BR-S04, D3, ca #
     return { api, dialog };
   }
 
-  it("danh sách Sale hiện tạm dừng / đang nghỉ (ai lo thay)", async () => {
+  it("danh sách Sale hiện tạm dừng / đang nghỉ (tới ngày nào)", async () => {
     const { dialog } = await openDialog();
     await userEvent.click(within(dialog).getByRole("combobox", { name: /Sale phụ trách mới/ }));
     expect(
       await screen.findByRole("option", { name: "Sale Bình · tạm dừng nhận khách" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("option", { name: "Sale Chi · đang nghỉ (Sale Bình lo thay)" }),
+      screen.getByRole("option", { name: "Sale Chi · đang nghỉ tới 05/12/2026" }),
+    ).toBeInTheDocument();
+  });
+
+  it("D42: chỉ Sale giao được (GET /customers/sales-agents) — người chỉ có trên bảng tải không được chọn", async () => {
+    const api = mockSalesOwnerApi("SALES_MANAGER", {
+      get: get({ "/customers/sales-agents": () => agentsOf(WORKLOAD.slice(0, 2)) }),
+    });
+    renderScreen(<CustomerDetail id="c-1" />, "SALES_MANAGER");
+    const region = await card();
+    await userEvent.click(
+      await within(region).findByRole("button", { name: /Đổi người phụ trách/ }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.click(within(dialog).getByRole("combobox", { name: /Sale phụ trách mới/ }));
+    expect(await screen.findByRole("option", { name: /^Sale Bình/ })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /^Sale Chi/ })).toBeNull();
+    expect(api.get.mock.calls.some((c) => c[0] === "/sales/workload")).toBe(false);
+  });
+
+  it("D42 dự phòng: BE chưa có sales-agents (404) → bảng tải, kèm ai lo thay", async () => {
+    mockSalesOwnerApi("SALES_MANAGER", {
+      get: get({
+        "/customers/sales-agents": () => {
+          throw apiError(404, "NOT_FOUND");
+        },
+      }),
+    });
+    renderScreen(<CustomerDetail id="c-1" />, "SALES_MANAGER");
+    const region = await card();
+    await userEvent.click(
+      await within(region).findByRole("button", { name: /Đổi người phụ trách/ }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.click(within(dialog).getByRole("combobox", { name: /Sale phụ trách mới/ }));
+    expect(
+      await screen.findByRole("option", { name: "Sale Chi · đang nghỉ (Sale Bình lo thay)" }),
     ).toBeInTheDocument();
   });
 

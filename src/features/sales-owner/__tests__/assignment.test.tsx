@@ -2,8 +2,9 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { SALES_WORKLOAD_PERMISSIONS } from "@/constants/sales-owner";
 import { apiError, bePage, renderScreen } from "@/test/api-screen";
-import { mockSalesOwnerApi, workloadRow } from "@/test/sales-owner-screen";
+import { agentsOf, mockSalesOwnerApi, workloadRow } from "@/test/sales-owner-screen";
 import { clickRowAction, pickOption } from "@/test/ui-actions";
 
 import { AssignmentPage } from "../components/AssignmentPage";
@@ -34,6 +35,7 @@ const unowned = (state: string) => [
 function get(extra: RouteTable = {}): RouteTable {
   return {
     "/sales/workload": () => WORKLOAD,
+    "/customers/sales-agents": () => agentsOf(WORKLOAD),
     "/chat/agents/workload": () => [
       { userId: "s-a", openConversations: 5, overdueConversations: 2 },
     ],
@@ -72,7 +74,7 @@ describe("Phân công khách — bảng tải (§10.4)", () => {
   });
 
   it("chỉ đọc (không có customer-sales-owners:UPDATE) → không có nút 'Chuyển khách…'", async () => {
-    mockSalesOwnerApi("SALES_MANAGER", { get: get() }, ["sales-workload:READ"]);
+    mockSalesOwnerApi("SALES_MANAGER", { get: get() }, [SALES_WORKLOAD_PERMISSIONS.read]);
     renderScreen(<AssignmentPage />, "SALES_MANAGER");
     const region = await board();
     expect(within(region).queryByRole("button", { name: /Chuyển khách/ })).toBeNull();
@@ -110,6 +112,23 @@ describe("Chuyển khách… (BR-S09, §10.1, ca #9)", () => {
     await pickOption(user, /Lý do/, "Tạm thời — chờ Sale quay lại");
     expect(within(dialog).getByRole("checkbox", { name: /Lô tạm/ })).toBeChecked();
     expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it("D42: 'Sang Sale' chỉ có Sale giao được (sales-agents); 'Từ Sale' vẫn có người trên bảng tải", async () => {
+    mockSalesOwnerApi("SALES_MANAGER", {
+      get: get({ "/customers/sales-agents": () => agentsOf(WORKLOAD.slice(0, 2)) }),
+    });
+    renderScreen(<AssignmentPage />, "SALES_MANAGER");
+    await userEvent.click(within(await board()).getByRole("button", { name: /Chuyển khách/ }));
+    const dialog = await screen.findByRole("dialog");
+    const user = userEvent.setup();
+    // Sale Chi còn trên bảng tải (chuyển khách ĐI được) nhưng không phải Sale giao được (D42)
+    await user.click(within(dialog).getByRole("combobox", { name: /Từ Sale/ }));
+    expect(await screen.findByRole("option", { name: /^Sale Chi/ })).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    await pickOption(user, /Từ Sale/, /^Sale An/);
+    expect(within(dialog).getByRole("checkbox", { name: /Sale Bình/ })).toBeInTheDocument();
+    expect(within(dialog).queryByRole("checkbox", { name: /Sale Chi/ })).toBeNull();
   });
 
   it("BR-S09: gửi requestId MỘT lần mỗi lần mở — bấm lại sau lỗi dùng đúng khoá; mở lại là khoá mới", async () => {
