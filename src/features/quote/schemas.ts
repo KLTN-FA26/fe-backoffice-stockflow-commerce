@@ -223,6 +223,16 @@ export const quoteRowDtoSchema = z.object({
 export const quotePageDtoSchema = bePageSchema(quoteRowDtoSchema);
 
 /**
+ * BE `QuoteStatusCountsResponse` (`GET /quotes/status-counts`, audit bo-06, BE PR #497): số báo giá theo trạng thái dưới
+ * cùng bộ lọc của danh sách — số trên tab là độ dài danh sách nó mở. `byStatus` đọc lỏng (khoá trạng thái mới không vỡ).
+ */
+export const quoteStatusCountsDtoSchema = z.object({
+  byStatus: z.record(z.string(), z.number()),
+  total: z.number(),
+  priceReviewPending: z.number().default(0),
+});
+
+/**
  * SKU riêng của khách — BE `CustomerSkuResponse` (`GET /customer-skus?customerId=`); BE gọi id là `id`, màn hình gọi
  * `variantId` (`customerSkuIdAsVariantId`).
  */

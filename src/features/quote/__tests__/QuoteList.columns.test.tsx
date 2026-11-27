@@ -2,7 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { bePage, mockApi, renderScreen } from "@/test/api-screen";
+import { apiError, bePage, mockApi, renderScreen } from "@/test/api-screen";
 
 import { QuoteList } from "..";
 import { CUSTOMER, CUSTOMER_ID, QUOTE_ROW } from "../__fixtures__/quote-ds02";
@@ -217,6 +217,61 @@ describe("Danh sách báo giá — tab nhanh và hàng chờ (bo-06, bo-14)", ()
     await waitFor(() =>
       expect(statusParams(api).at(-1)).toEqual({ status: "", priceReview: "PENDING" }),
     );
+  });
+
+  it("số trên tab và trên hàng chờ duyệt giá (GET /quotes/status-counts) — cùng tìm kiếm, không kèm trạng thái", async () => {
+    const user = userEvent.setup();
+    const api = mockApi("SALES_STAFF", {
+      get: {
+        "/quotes": () => bePage([QUOTE_ROW]),
+        "/quotes/status-counts": () => ({
+          byStatus: {
+            DRAFT: 3,
+            SENT: 5,
+            CHANGES_REQUESTED: 1,
+            ACCEPTED: 2,
+            EXPIRED: 4,
+            CANCELLED: 0,
+            CONVERTED: 7,
+          },
+          total: 22,
+          priceReviewPending: 2,
+        }),
+        ...customer,
+      },
+    });
+    renderScreen(<QuoteList />, "SALES_STAFF", "?q=QT-2026");
+    const tabs = await screen.findByRole("tablist", { name: "Lọc nhanh theo trạng thái" });
+    expect(await within(tabs).findByRole("tab", { name: /^Tất cả\s*22$/ })).toBeInTheDocument();
+    expect(within(tabs).getByRole("tab", { name: /^Chờ duyệt giá\s*2$/ })).toBeInTheDocument();
+    expect(within(tabs).getByRole("tab", { name: /^Đã tạo đơn\s*7$/ })).toBeInTheDocument();
+
+    await user.click(within(tabs).getByRole("tab", { name: /^Chờ duyệt giá\s*2$/ }));
+    await waitFor(() =>
+      expect(statusParams(api).at(-1)).toEqual({ status: "", priceReview: "PENDING" }),
+    );
+    for (const call of api.get.mock.calls.filter(([url]) => url === "/quotes/status-counts")) {
+      const params = (call[1] as { params: URLSearchParams }).params;
+      expect(params.get("search")).toBe("QT-2026");
+      expect(params.has("status")).toBe(false);
+      expect(params.has("priceReview")).toBe(false);
+    }
+  });
+
+  it("BE chưa có /quotes/status-counts (400) → tab không số, danh sách vẫn chạy", async () => {
+    mockApi("SALES_STAFF", {
+      get: {
+        "/quotes": () => bePage([QUOTE_ROW]),
+        "/quotes/status-counts": () => {
+          throw apiError(400, "INVALID_PARAMETER");
+        },
+        ...customer,
+      },
+    });
+    renderScreen(<QuoteList />, "SALES_STAFF");
+    const tabs = await screen.findByRole("tablist", { name: "Lọc nhanh theo trạng thái" });
+    await screen.findByText(QUOTE_ROW.quoteNumber);
+    expect(within(tabs).getByRole("tab", { name: "Tất cả" })).toBeInTheDocument();
   });
 
   it("hàng chờ duyệt giá rỗng nói 'không có gì chờ', không phải 'không khớp từ khoá'", async () => {

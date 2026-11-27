@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 import { QUERY_TIMES } from "@/lib/api/query-client";
 import { createDetailQuery, createListQuery, createQueryKeys } from "@/lib/api/query-factory";
@@ -8,18 +8,33 @@ import {
   getCustomerCreditPosition,
   getCustomerPrice,
   getQuote,
+  getQuoteStatusCounts,
   getStandardPriceSuggestion,
   listCustomerSkus,
   listQuotes,
 } from "./api";
 
-import type { ListQuoteParams } from "./api";
+import type { ListQuoteParams, QuoteStatusCountParams } from "./api";
 import type { Quote, QuoteRow } from "./types";
 
 export const quoteKeys = createQueryKeys<ListQuoteParams>("quotes");
 
 export const useQuotes = createListQuery<QuoteRow, ListQuoteParams>(quoteKeys, listQuotes);
 export const useQuote = createDetailQuery<Quote>(quoteKeys, getQuote);
+
+/**
+ * Số trên tab trạng thái của danh sách (audit bo-06). Khoá nằm dưới `["quotes", "list"]`: mọi chỗ làm mới danh sách
+ * (invalidate `quoteKeys.all` sau thao tác) làm mới luôn số đếm; cùng độ tươi với danh sách.
+ */
+export function useQuoteStatusCounts(params: QuoteStatusCountParams, enabled = true) {
+  return useQuery({
+    queryKey: [...quoteKeys.all, "list", "status-counts", params] as const,
+    queryFn: ({ signal }) => getQuoteStatusCounts(params, signal),
+    enabled,
+    placeholderData: keepPreviousData,
+    ...QUERY_TIMES.list,
+  });
+}
 
 export const customerSkuKeys = {
   all: ["customer-skus"] as const,

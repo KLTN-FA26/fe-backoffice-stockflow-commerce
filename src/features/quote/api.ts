@@ -15,6 +15,7 @@ import {
   quoteCreditPositionSchema,
   quoteDtoSchema,
   quotePageDtoSchema,
+  quoteStatusCountsDtoSchema,
   standardPriceSuggestionSchema,
 } from "./schemas";
 
@@ -27,6 +28,7 @@ import type {
   QuoteCreditPosition,
   QuoteFormOutput,
   QuoteRow,
+  QuoteStatusCounts,
   StandardPriceSuggestion,
 } from "./types";
 
@@ -61,6 +63,34 @@ export async function listQuotes(
   if (params.priceReview) query.set("priceReview", params.priceReview);
   const { data } = await api.get<unknown>(QUOTES, { params: query, signal });
   return quotePageDtoSchema.parse(data);
+}
+
+/** Bộ lọc của số đếm theo trạng thái — cùng tên tham số với danh sách (không có trang / sắp xếp). */
+export type QuoteStatusCountParams = Pick<
+  ListQuoteParams,
+  "search" | "status" | "customerId" | "priceReview"
+>;
+
+/**
+ * `GET /quotes/status-counts` (audit bo-06): số báo giá theo trạng thái, tổng và số nháp chờ duyệt giá, cùng bộ lọc và
+ * phạm vi với danh sách. `null` = không có số (400 / 404: BE chưa có endpoint — PR #497 chưa vào; 403) → tab không số.
+ */
+export async function getQuoteStatusCounts(
+  params: QuoteStatusCountParams,
+  signal?: AbortSignal,
+): Promise<QuoteStatusCounts | null> {
+  const query = new URLSearchParams();
+  if (params.search?.trim()) query.set("search", params.search.trim());
+  for (const status of params.status ?? []) query.append("status", status);
+  if (params.customerId) query.set("customerId", params.customerId);
+  if (params.priceReview) query.set("priceReview", params.priceReview);
+  try {
+    const { data } = await api.get<unknown>(`${QUOTES}/status-counts`, { params: query, signal });
+    return quoteStatusCountsDtoSchema.parse(data);
+  } catch (error) {
+    if (error instanceof ApiError && [400, 403, 404].includes(error.status)) return null;
+    throw error;
+  }
 }
 
 export async function getQuote(id: string, signal?: AbortSignal): Promise<Quote> {

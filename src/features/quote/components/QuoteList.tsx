@@ -11,7 +11,7 @@ import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { useCan } from "@/lib/auth";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 
-import { useQuotes } from "@/features/quote/queries";
+import { useQuotes, useQuoteStatusCounts } from "@/features/quote/queries";
 
 import { ServerTableBody } from "@/components/backoffice/ServerTableBody";
 import { withHeaderFilters } from "@/components/shared/ColumnHeaderFilter";
@@ -48,6 +48,12 @@ function QuoteListContent() {
     },
     { enabled: canRead },
   );
+  // bo-06: số trên tab — cùng tìm kiếm / khách của danh sách, KHÔNG kèm trạng thái / duyệt giá (chính tab đổi hai lọc đó;
+  // kèm vào thì mọi tab khác thành 0).
+  const counts = useQuoteStatusCounts(
+    { search: state.serverSearch, customerId: customerId || undefined },
+    canRead,
+  );
   const columnState = useColumnVisibility(STORAGE_KEYS.adminQuotesColumns, QUOTE_COLUMNS, {
     locked: QUOTE_LOCKED_COLUMNS,
   });
@@ -76,7 +82,7 @@ function QuoteListContent() {
           tooltip={canCreate ? "Tạo báo giá" : PERMISSION_UI.quoteCreateDenied}
         />
       </HeaderActions>
-      {canRead && <QuoteStatusTabs state={state} />}
+      {canRead && <QuoteStatusTabs state={state} counts={counts.data} />}
       {canRead && <QuoteListToolbar state={state} columns={columnState} />}
       <ServerTableBody
         query={query}
