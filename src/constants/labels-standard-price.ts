@@ -50,6 +50,23 @@ export const STANDARD_PRICE_UI_LABELS = {
     tierLine: (minQuantity: string, price: string) => `Từ ${minQuantity} thùng: ${price}/cái`,
     unnamed: "—",
   },
+  /** Thanh tìm + cấu hình kiểu Vercel và lọc header cột (backoffice-erp-ui A). */
+  toolbar: {
+    createTooltip: "Thêm giá chuẩn cho quy cách",
+    createDenied: "Bạn không có quyền thêm giá chuẩn.",
+    searchSummary: "Tìm kiếm chính",
+    searchFields: "Trường search",
+    searchFieldsValue: "SKU · Sản phẩm · Quy cách",
+    columnSearch: "Search trong cột",
+    unused: "Chưa dùng",
+    skuFilter: "Tìm theo SKU quy cách…",
+    productFilter: "Tìm theo tên sản phẩm…",
+    variantFilter: "Tìm theo quy cách…",
+    /** Lọc cột Bậc giá: dòng có ít nhất một bậc có đơn giá trong khoảng. */
+    priceFilterLabel: "đơn giá (có bậc trong khoảng)",
+    columnSummary: (sku: string, product: string) =>
+      [sku && `SKU “${sku}”`, product && `Sản phẩm “${product}”`].filter(Boolean).join(", "),
+  },
   form: {
     create: "Thêm giá chuẩn",
     createTitle: "Thêm giá chuẩn cho quy cách",

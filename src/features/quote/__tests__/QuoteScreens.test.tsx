@@ -62,6 +62,19 @@ const revisionDraft = {
   ],
 };
 
+/** "Huỷ báo giá" là việc nguy hiểm → nằm trong menu "⋯" của header đối tượng (backoffice-erp-ui B10). */
+const MORE = "Thao tác khác với báo giá";
+async function openCancel(name: string) {
+  await userEvent.click(await screen.findByRole("button", { name: MORE }));
+  await userEvent.click(await screen.findByRole("button", { name }));
+}
+/** Có mục huỷ `name` trong menu "⋯" không (menu luôn có — ít nhất "Tải PDF"). */
+async function cancelVisible(name: string): Promise<boolean> {
+  await userEvent.click(await screen.findByRole("button", { name: MORE }));
+  await screen.findByRole("button", { name: "Tải PDF" });
+  return screen.queryByRole("button", { name }) !== null;
+}
+
 describe("Quote list", () => {
   it("real rows, Vietnamese status, status filter as repeated params (page 0-based)", async () => {
     const api = mockApi("SALES_STAFF", {
@@ -149,7 +162,7 @@ describe("Quote detail", () => {
       get: { [detailUrl]: () => priced, [`/customers/${CUSTOMER_ID}`]: () => CUSTOMER },
     });
     renderScreen(<QuoteDetail id={QUOTE_ID} />, "SALES_STAFF");
-    await userEvent.click(await screen.findByRole("button", { name: "Huỷ báo giá" }));
+    await openCancel("Huỷ báo giá");
     const dialog = await screen.findByRole("dialog");
     expect(
       within(dialog).getByText(
@@ -260,7 +273,7 @@ describe("Quote detail", () => {
     });
     renderScreen(<QuoteDetail id={QUOTE_ID} />, "SALES_STAFF");
     await screen.findByRole("button", { name: "Tạo đơn" });
-    expect(screen.queryByRole("button", { name: "Huỷ báo giá đã chấp nhận" }) !== null).toBe(shown);
+    expect(await cancelVisible("Huỷ báo giá đã chấp nhận")).toBe(shown);
   });
 
   it.each([
@@ -277,7 +290,7 @@ describe("Quote detail", () => {
     renderScreen(<QuoteDetail id={QUOTE_ID} />, "SALES_STAFF");
     await screen.findByRole("button", { name: "Tạo đơn" });
     await screen.findByText(CUSTOMER.fullName);
-    expect(screen.queryByRole("button", { name: "Huỷ báo giá đã chấp nhận" }) !== null).toBe(shown);
+    expect(await cancelVisible("Huỷ báo giá đã chấp nhận")).toBe(shown);
   });
 
   it("LC-2: the cancel dialog of an accepted quote names both reasons and needs a reason", async () => {
@@ -288,7 +301,7 @@ describe("Quote detail", () => {
       },
     });
     renderScreen(<QuoteDetail id={QUOTE_ID} />, "SALES_STAFF");
-    await userEvent.click(await screen.findByRole("button", { name: "Huỷ báo giá đã chấp nhận" }));
+    await openCancel("Huỷ báo giá đã chấp nhận");
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText(/khách không còn hoạt động/)).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "Huỷ báo giá" })).toBeDisabled();
@@ -303,7 +316,7 @@ describe("Quote detail", () => {
     });
     renderScreen(<QuoteDetail id={QUOTE_ID} />, "SALES_STAFF");
     expect(await screen.findByText(/huỷ báo giá này rồi lập báo giá mới/)).toBeInTheDocument();
-    await userEvent.click(await screen.findByRole("button", { name: "Huỷ báo giá đã chấp nhận" }));
+    await openCancel("Huỷ báo giá đã chấp nhận");
     expect(screen.queryByRole("button", { name: "Tạo đơn" })).not.toBeInTheDocument();
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText(/Báo giá cũ .* không tạo đơn được/)).toBeInTheDocument();

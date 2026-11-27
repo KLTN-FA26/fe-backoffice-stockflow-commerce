@@ -21,7 +21,7 @@ import type { ReactNode } from "react";
 import type { ColumnDef } from "./DataTable";
 
 /**
- * Nút lọc nhỏ cạnh tên cột (data-table-mode-a §4 "Search trong cột"): bấm mở popover chứa ô lọc; đang lọc → icon
+ * Nút lọc nhỏ cạnh tên cột (data-table-mode-a §4 "Tìm trong cột"): bấm mở popover chứa ô lọc; đang lọc → icon
  * tone `info`. Đặt vào `ColumnDef.headerFilter`. Không chứa nghiệp vụ — nội dung popover do caller truyền.
  */
 export function HeaderFilterPopover({
@@ -275,6 +275,59 @@ export function HeaderDateRangeFilter({
             clearable
           />
         </label>
+      </div>
+    </HeaderFilterPopover>
+  );
+}
+
+/**
+ * Lọc theo khoảng số trong cột số lượng / tiền: "Từ" – "Đến" (chuỗi chữ số, rỗng = không chặn đầu đó). Chỉ nhận chữ số —
+ * caller tự so sánh (số lượng qua `Number`, tiền là chuỗi chữ số thì so theo chuỗi). Không chứa nghiệp vụ.
+ */
+export function HeaderNumberRangeFilter({
+  label,
+  from,
+  to,
+  onChange,
+  unit,
+}: {
+  label: string;
+  from: string;
+  to: string;
+  onChange: (range: { from: string; to: string }) => void;
+  /** Đơn vị hiện sau nhãn ô, vd "thùng", "₫". */
+  unit?: string;
+}) {
+  const digits = (value: string) => value.replace(/\D/g, "");
+  const field = (key: "from" | "to", text: string, value: string) => (
+    <label className="grid gap-1">
+      <span className="text-ink-tertiary text-xs">
+        {text}
+        {unit ? ` (${unit})` : ""}
+      </span>
+      <Input
+        value={value}
+        inputMode="numeric"
+        placeholder="Không giới hạn"
+        aria-label={`${text} — ${label}`}
+        onChange={(event) => {
+          const next = digits(event.target.value);
+          onChange(key === "from" ? { from: next, to } : { from, to: next });
+        }}
+        className="bg-bg-surface h-8 text-[0.8125rem] tabular-nums"
+      />
+    </label>
+  );
+  return (
+    <HeaderFilterPopover
+      label={label}
+      active={Boolean(from || to)}
+      onClear={() => onChange({ from: "", to: "" })}
+      className="w-72"
+    >
+      <div className="grid grid-cols-2 gap-2 px-1 pt-1">
+        {field("from", "Từ", from)}
+        {field("to", "Đến", to)}
       </div>
     </HeaderFilterPopover>
   );

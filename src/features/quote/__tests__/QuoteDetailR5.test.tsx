@@ -51,7 +51,9 @@ describe("Quote detail — round 5", () => {
       ...QUOTE_ACCEPTED.history.slice(1),
     ];
     renderDetail({ ...QUOTE_ACCEPTED, history });
-    expect(await screen.findByText(/· Trần Văn Sales/)).toBeInTheDocument();
+    // Bảng lịch sử có cột "Người thực hiện"
+    const table = within(await screen.findByRole("region", { name: "Lịch sử" }));
+    expect(await table.findByRole("cell", { name: "Trần Văn Sales" })).toBeInTheDocument();
   });
 
   it("BO-UX-19: a sent quote says who waits until when, and links the quote's conversation", async () => {
@@ -65,7 +67,7 @@ describe("Quote detail — round 5", () => {
       },
     );
     expect(
-      await screen.findByText("Chờ khách phản hồi trong chat, đến hết 26 thg 11, 2099."),
+      await screen.findByText("Chờ khách phản hồi trong chat, đến hết 26/11/2099."),
     ).toBeInTheDocument();
     expect(await screen.findByRole("link", { name: "Mở hội thoại" })).toHaveAttribute(
       "href",

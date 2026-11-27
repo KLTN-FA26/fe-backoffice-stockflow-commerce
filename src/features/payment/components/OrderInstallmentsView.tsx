@@ -122,6 +122,7 @@ function OrderInstallmentsContent({ orderId }: { orderId: string }) {
               columns={columns}
               data={order.installments}
               rowKey={(row) => row.installmentId}
+              dense
               pageSize={50}
               caption={`${order.installments.length} ${PAYMENT_LABELS.installments.pageTitle.toLowerCase()}`}
             />

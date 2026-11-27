@@ -63,12 +63,14 @@ function renderCreate(
 describe("Quote form — round 5", () => {
   it("BO-UX-3: validity and wanted delivery are date pickers (dd/MM/yyyy), not native date inputs", async () => {
     renderCreate();
-    const valid = await screen.findByLabelText(/Hiệu lực đến hết ngày/);
-    expect(valid.tagName).toBe("BUTTON");
-    // S02-2: filled in with today + 30 days (owner decision UX-Q2), still editable through the picker.
-    expect(valid).not.toHaveTextContent("Chọn ngày");
+    const valid = await screen.findByLabelText(/^Hiệu lực đến hết ngày/);
+    // Ô gõ dd/mm/yyyy (không phải ô date gốc, không phải nút trơ)
+    expect(valid.tagName).toBe("INPUT");
+    expect(valid).toHaveAttribute("placeholder", "dd/mm/yyyy");
+    // S02-2: filled in with today + 30 days (owner decision UX-Q2), still editable.
+    expect(valid).not.toHaveValue("");
     expect(screen.getByText("Còn 30 ngày kể từ hôm nay.")).toBeInTheDocument();
-    expect(screen.getByLabelText(/Ngày giao khách yêu cầu/).tagName).toBe("BUTTON");
+    expect(screen.getByLabelText(/^Ngày giao khách yêu cầu/).tagName).toBe("INPUT");
     expect(document.querySelector('input[type="date"]')).toBeNull();
   });
 

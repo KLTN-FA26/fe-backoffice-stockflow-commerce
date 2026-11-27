@@ -53,7 +53,7 @@ export function quoteNextStep(quote: Quote, canApprovePrice = false): string {
   }
 }
 
-/** Bước tiếp theo + "Mở hội thoại" + "Lập báo giá mới" (EXPIRED / CANCELLED / SENT đã quá hạn) trong thẻ trạng thái. */
+/** Bước tiếp theo + "Mở hội thoại" + "Lập báo giá mới" (EXPIRED / CANCELLED / SENT đã quá hạn) ở cuối khung hồ sơ. */
 export function QuoteNextStep({ quote }: { quote: Quote }) {
   const canChat = useCan(CHAT_PERMISSIONS.read);
   const canCreate = useCan(QUOTE_PERMISSIONS.create);
@@ -68,10 +68,8 @@ export function QuoteNextStep({ quote }: { quote: Quote }) {
     quote.status === "CANCELLED" ||
     (quote.status === "SENT" && isExpired(quote.validUntil));
   return (
-    <div className="space-y-2">
-      <p className="text-ink-secondary text-center text-xs">
-        {quoteNextStep(quote, canApprovePrice)}
-      </p>
+    <div className="flex flex-wrap items-center justify-between gap-2 [&>a]:w-auto">
+      <p className="text-ink-secondary text-[0.8125rem]">{quoteNextStep(quote, canApprovePrice)}</p>
       {conversation.data && (
         <Button asChild size="sm" variant="outline" className={DETAIL_ACTION_CLASS.outline}>
           <Link href={ADMIN_ROUTES.chat.detail(conversation.data)}>

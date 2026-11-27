@@ -21,6 +21,7 @@ import {
   inDays,
   renderWf4Detail,
 } from "../../__fixtures__/wf4";
+import { openOrderDetailTabInFile } from "../../__fixtures__/render";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
@@ -92,8 +93,8 @@ async function openDialog(
 type User = ReturnType<typeof userEvent.setup>;
 
 async function fillRest(user: User, dialog: HTMLElement) {
-  await pickDate(user, within(dialog).getByLabelText(/Từ ngày/), inDays(40));
-  await pickDate(user, within(dialog).getByLabelText(/Đến ngày/), inDays(43));
+  await pickDate(user, within(dialog).getByLabelText(/^Từ ngày/), inDays(40));
+  await pickDate(user, within(dialog).getByLabelText(/^Đến ngày/), inDays(43));
   await pickOrderSelectOption(user, /Lý do/, /Khách xin dời/);
   await user.type(within(dialog).getByRole("textbox", { name: /Ghi chú/ }), "Khách gửi email");
 }
@@ -101,6 +102,9 @@ async function fillRest(user: User, dialog: HTMLElement) {
 const fileInput = (dialog: HTMLElement) => within(dialog).getByLabelText("Tệp bằng chứng");
 const submitButton = (dialog: HTMLElement) =>
   within(dialog).getByRole("button", { name: "Dời cửa sổ giao" });
+
+// Các khối được kiểm nằm ở tab "delivery" của trang chi tiết đơn (`OrderDetailTabs`)
+openOrderDetailTabInFile("delivery");
 
 describe("Bằng chứng — mặc định là tệp", () => {
   it("S06-9: chỉ có tệp — không có lựa chọn tin nhắn chat, có gợi ý loại / cỡ tệp; nút gửi khoá", async () => {

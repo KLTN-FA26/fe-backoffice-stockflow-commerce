@@ -240,10 +240,9 @@ describe("adjustment queue", () => {
     );
     renderInventory(<AdjustmentList />);
     await screen.findByText(INVENTORY_LABELS.noAdjustments);
-    // Lọc trạng thái qua nút Filter của toolbar chuẩn (popover chọn một)
-    await userEvent.click(screen.getByRole("button", { name: "Lọc trạng thái" }));
-    // Chỉ lấy option trong popover (trang còn ô chọn "Dòng/trang" của InventoryPager)
-    const options = within(await screen.findByRole("listbox")).getAllByRole("option");
+    // Bốn trạng thái → nút chọn nhanh hiện sẵn trên thanh công cụ (không phải mở popover có ô tìm)
+    const group = screen.getByRole("group", { name: "Lọc trạng thái" });
+    const options = within(group).getAllByRole("button");
     expect(options.map((option) => option.textContent)).toEqual([
       "Chờ duyệt",
       "Đã ghi sổ",
@@ -251,7 +250,7 @@ describe("adjustment queue", () => {
       "Đã rút yêu cầu",
     ]);
     expect(screen.queryByText("NCC từ chối")).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("option", { name: "Từ chối" }));
+    await userEvent.click(within(group).getByRole("button", { name: "Từ chối" }));
     await waitFor(() => expect(statuses).toHaveBeenLastCalledWith("REJECTED"));
   });
 

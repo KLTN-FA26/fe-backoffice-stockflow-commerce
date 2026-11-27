@@ -205,13 +205,13 @@ describe("ProductionSchedule (docs 17 §4.12)", () => {
     await waitFor(() => expect(lastScheduleParams(get)).toMatchObject({ producerId: PRODUCER_ID }));
   });
 
-  it("bật Chỉ dòng có cảnh báo ở header cột Cảnh báo của tab Cần lập → gửi alertsOnly cho BE", async () => {
+  it("công tắc Chỉ cảnh báo hiện sẵn trên thanh công cụ → bật gửi alertsOnly cho BE", async () => {
     const user = userEvent.setup();
     const { get } = setup();
     await screen.findByText("SO-2026-0050");
-    await user.click(within(await panel()).getByRole("button", { name: `Lọc ${D.alerts}` }));
-    await user.click(screen.getByRole("checkbox", { name: L.alertsOnly }));
+    await user.click(screen.getByRole("switch", { name: L.alertsSwitch }));
     await waitFor(() => expect(lastScheduleParams(get)).toMatchObject({ alertsOnly: true }));
+    expect(screen.getByRole("switch", { name: L.alertsSwitch })).toBeChecked();
   });
 
   describe("ẩn hiện cột (tab Đơn sản xuất đang mở)", () => {
@@ -223,7 +223,7 @@ describe("ProductionSchedule (docs 17 §4.12)", () => {
       const warehouseHeader = () =>
         within(orders).queryByRole("columnheader", { name: new RegExp(`^${L.column.warehouse}`) });
       expect(warehouseHeader()).toBeInTheDocument();
-      await user.click(screen.getByRole("button", { name: "Ẩn hiện cột" }));
+      await user.click(screen.getByRole("button", { name: "Chọn cột hiển thị" }));
       await user.click(screen.getByRole("option", { name: L.column.warehouse }));
       expect(warehouseHeader()).not.toBeInTheDocument();
       expect(screen.getByText(`${L.summaryColumns}: 9/10`)).toBeInTheDocument();
@@ -235,7 +235,7 @@ describe("ProductionSchedule (docs 17 §4.12)", () => {
     it("tab Cần lập không có công cụ ẩn hiện cột", async () => {
       setup();
       await screen.findByText("SO-2026-0050");
-      expect(screen.queryByRole("button", { name: "Ẩn hiện cột" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Chọn cột hiển thị" })).not.toBeInTheDocument();
       expect(screen.queryByText(new RegExp(`^${L.summaryColumns}`))).not.toBeInTheDocument();
     });
 

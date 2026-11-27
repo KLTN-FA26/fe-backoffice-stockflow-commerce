@@ -152,8 +152,10 @@ describe("VehicleTypeList — cổng quyền theo mã", () => {
     expect(screen.queryByRole("button", { name: L.create })).not.toBeInTheDocument();
     // Không có quyền cập nhật: dòng không có menu "⋯" (không Sửa / Ngừng dùng)
     expect(screen.queryByRole("button", { name: /^Thao tác/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: L.edit })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: L.deactivate })).not.toBeInTheDocument();
+    // Trong BẢNG: nút chọn nhanh trạng thái "Ngừng dùng" của thanh công cụ không phải thao tác của dòng
+    const table = within(screen.getByRole("table"));
+    expect(table.queryByRole("button", { name: L.edit })).not.toBeInTheDocument();
+    expect(table.queryByRole("button", { name: L.deactivate })).not.toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 

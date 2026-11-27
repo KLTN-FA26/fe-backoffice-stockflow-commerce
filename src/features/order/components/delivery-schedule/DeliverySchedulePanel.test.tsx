@@ -3,7 +3,7 @@
  * lịch sử dời; action-gating "Dời cửa sổ giao" theo trạng thái đợt + mã quyền BE (`sales-order-delivery-batches:READ` / `sales-contracts:UPDATE`);
  * form dời kiểm BR-28 trước khi gửi; lý do BE từ chối bằng tiếng Việt.
  */
-import { screen, waitFor, within } from "@testing-library/react";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -12,7 +12,7 @@ import { api } from "@/lib/api/client";
 import { storageClient } from "@/lib/api/direct-upload";
 import { ApiError } from "@/lib/api/error";
 import { toast } from "@/components/shared/Toast";
-import { pickDate } from "@/test/date-picker";
+import { openDatePicker, pickDate } from "@/test/date-picker";
 
 import { formatWindowRange } from "../../delivery-window-rules";
 import { apiOrder } from "../../__fixtures__/order";
@@ -31,6 +31,7 @@ import {
 } from "../../__fixtures__/wf4";
 
 import type { PermissionCode } from "@/lib/auth";
+import { openOrderDetailTabInFile } from "../../__fixtures__/render";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
@@ -93,6 +94,9 @@ async function renderSchedule(
 }
 
 const panel = async () => await screen.findByRole("region", { name: "Lịch giao" });
+
+// Các khối được kiểm nằm ở tab "delivery" của trang chi tiết đơn (`OrderDetailTabs`)
+openOrderDetailTabInFile("delivery");
 
 describe("Lịch giao — hiển thị (docs 17 §5.5)", () => {
   it("đợt giao: cửa sổ hiệu lực, trạng thái hiển thị, đã release hay chưa, thùng theo SKU (đã giữ / cần)", async () => {
@@ -213,7 +217,8 @@ describe("Lịch giao — hiển thị (docs 17 §5.5)", () => {
     await waitFor(() => expect(api.get).toHaveBeenCalledWith(SCHEDULE_PATH, expect.anything()));
     expect(screen.queryByRole("region", { name: "Lịch giao" })).not.toBeInTheDocument();
     vi.restoreAllMocks();
-    document.body.innerHTML = "";
+    // Gỡ trang đầu đúng cách (không xoá DOM tay — portal của menu "⋯" trên header còn đang dựng)
+    cleanup();
     await renderSchedule(WF4_PERMISSION_SETS.sales, () => {
       throw apiError(500, "INTERNAL_ERROR");
     });
@@ -293,8 +298,8 @@ describe("Dời cửa sổ giao — form kiểm BR-28 rồi gửi đúng WindowC
     start = inDays(40),
     end = inDays(43),
   ) {
-    await pickDate(user, within(dialog).getByLabelText(/Từ ngày/), start);
-    await pickDate(user, within(dialog).getByLabelText(/Đến ngày/), end);
+    await pickDate(user, within(dialog).getByLabelText(/^Từ ngày/), start);
+    await pickDate(user, within(dialog).getByLabelText(/^Đến ngày/), end);
     await pickOrderSelectOption(user, /Lý do/, /Bên bán giao trễ/);
     await user.type(within(dialog).getByRole("textbox", { name: /Ghi chú/ }), "  Xưởng in trễ  ");
     await attachEvidence(user, dialog);
@@ -349,7 +354,7 @@ describe("Dời cửa sổ giao — form kiểm BR-28 rồi gửi đúng WindowC
 
   it("lịch khoá các ngày trong quá khứ (BR-28: cửa sổ mới không ở quá khứ)", async () => {
     const { user, dialog } = await openDialog();
-    await user.click(within(dialog).getByLabelText(/Từ ngày/));
+    await openDatePicker(user, within(dialog).getByLabelText(/^Từ ngày/));
     const grid = await screen.findByRole("grid");
     const disabled = within(grid)
       .getAllByRole("gridcell")
@@ -359,9 +364,9 @@ describe("Dời cửa sổ giao — form kiểm BR-28 rồi gửi đúng WindowC
 
   it("chọn ngày kết thúc rồi dời ngày bắt đầu qua nó → báo 'Ngày kết thúc không được trước ngày bắt đầu'", async () => {
     const { user, dialog } = await openDialog();
-    await pickDate(user, within(dialog).getByLabelText(/Từ ngày/), inDays(40));
-    await pickDate(user, within(dialog).getByLabelText(/Đến ngày/), inDays(41));
-    await pickDate(user, within(dialog).getByLabelText(/Từ ngày/), inDays(45));
+    await pickDate(user, within(dialog).getByLabelText(/^Từ ngày/), inDays(40));
+    await pickDate(user, within(dialog).getByLabelText(/^Đến ngày/), inDays(41));
+    await pickDate(user, within(dialog).getByLabelText(/^Từ ngày/), inDays(45));
     expect(
       await within(dialog).findByText("Ngày kết thúc không được trước ngày bắt đầu"),
     ).toBeInTheDocument();
@@ -392,8 +397,8 @@ describe("Dời cửa sổ giao — lý do BE từ chối bằng tiếng Việt"
       within(card).getAllByRole("button", { name: "Dời cửa sổ giao" })[1] as HTMLElement,
     );
     const dialog = await screen.findByRole("dialog");
-    await pickDate(user, within(dialog).getByLabelText(/Từ ngày/), inDays(40));
-    await pickDate(user, within(dialog).getByLabelText(/Đến ngày/), inDays(43));
+    await pickDate(user, within(dialog).getByLabelText(/^Từ ngày/), inDays(40));
+    await pickDate(user, within(dialog).getByLabelText(/^Đến ngày/), inDays(43));
     await pickOrderSelectOption(user, /Lý do/, /Khách xin dời/);
     await user.type(within(dialog).getByRole("textbox", { name: /Ghi chú/ }), "Khách xin dời");
     await attachEvidence(user, dialog);

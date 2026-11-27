@@ -4,7 +4,11 @@ import { useState } from "react";
 
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useOrderSearch } from "@/lib/references/order-lookup";
-import { COMBOBOX_ITEM_CLASS, InputCombobox } from "@/components/shared/InputCombobox";
+import {
+  COMBOBOX_ITEM_CLASS,
+  ComboboxMoreHint,
+  InputCombobox,
+} from "@/components/shared/InputCombobox";
 import { CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
 
 import type { OrderRef } from "@/lib/references/order-lookup";
@@ -32,7 +36,8 @@ export function OrderPicker({
   const [q, setQ] = useState("");
   const debounced = useDebouncedValue(q, SEARCH_DEBOUNCE_MS);
   const search = useOrderSearch(debounced, open);
-  const items = search.data ?? [];
+  const items = search.data?.items ?? [];
+  const remaining = (search.data?.total ?? 0) - items.length;
   const typed = debounced.trim() !== "";
   return (
     <div className="w-64 max-w-full">
@@ -74,17 +79,22 @@ export function OrderPicker({
                   }}
                   className={COMBOBOX_ITEM_CLASS}
                 >
-                  <span className="text-ink-primary font-mono font-medium">
-                    {order.orderNumber}
-                  </span>
-                  {order.customerName && (
-                    <span className="text-ink-tertiary"> · {order.customerName}</span>
-                  )}
+                  <div className="flex min-w-0 flex-1 flex-col">
+                    <span className="text-ink-primary truncate font-mono font-medium">
+                      {order.orderNumber}
+                    </span>
+                    {order.customerName && (
+                      <span className="text-ink-tertiary truncate text-xs">
+                        {order.customerName}
+                      </span>
+                    )}
+                  </div>
                 </CommandItem>
               ))}
             </CommandGroup>
           )}
         </CommandList>
+        {items.length > 0 && remaining > 0 && <ComboboxMoreHint remaining={remaining} />}
       </InputCombobox>
     </div>
   );

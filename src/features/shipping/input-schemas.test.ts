@@ -117,6 +117,19 @@ describe("deliveryOutcomeInputSchema", () => {
 });
 
 describe("bookingInputSchema — đặt xe (BE BookingRequest)", () => {
+  it("giờ hẹn gõ tay: chỉ nhận yyyy-MM-ddTHH:mm; chữ dở / ngày 31/11 không bị coi là 'bỏ trống = sớm nhất'", () => {
+    const base = { carrierId: "c1" };
+    expect(bookingInputSchema.parse({ ...base, pickupAt: "2026-11-27T08:30" }).pickupAt).toBe(
+      "2026-11-27T08:30",
+    );
+    expect(bookingInputSchema.parse({ ...base, pickupAt: "" }).pickupAt).toBeUndefined();
+    for (const typed of ["31/11/2026 08:30", "27/11", "2026-11-27", "2026-11-27 08:30"]) {
+      expect(firstMessage(bookingInputSchema.safeParse({ ...base, pickupAt: typed }))).toBe(
+        MSG.pickupAtInvalid,
+      );
+    }
+  });
+
   it("chỉ hãng là bắt buộc; biển số, tài xế, SĐT tuỳ chọn, cắt khoảng trắng, rỗng → vắng", () => {
     expect(firstMessage(bookingInputSchema.safeParse({ carrierId: "" }))).toBe(MSG.carrierRequired);
     expect(

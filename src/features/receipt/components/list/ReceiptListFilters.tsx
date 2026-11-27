@@ -25,6 +25,7 @@ export function ReceiptListFilters({ s }: { s: ReceiptListState }) {
           Ngày nhận từ
         </Label>
         <DatePicker
+          quickKind="past"
           id="receipt-from"
           value={s.receivedFrom}
           max={s.receivedTo || undefined}
@@ -38,6 +39,7 @@ export function ReceiptListFilters({ s }: { s: ReceiptListState }) {
           đến
         </Label>
         <DatePicker
+          quickKind="past"
           id="receipt-to"
           value={s.receivedTo}
           min={s.receivedFrom || undefined}

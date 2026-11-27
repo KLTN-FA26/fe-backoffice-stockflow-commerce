@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -6,6 +6,7 @@ import { UI_LABELS } from "@/constants";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 import { formatDate } from "@/lib/format/date";
+import { HEADER_ACTIONS_ID } from "@/components/shared/HeaderActions";
 
 import { apiOrder, apiOrderPage } from "../__fixtures__/order";
 import { ORDER_PERMISSION_SETS, mockOrderApiGet, renderOrderScreen } from "../__fixtures__/render";
@@ -38,7 +39,7 @@ function lastListQuery(): URLSearchParams {
 afterEach(() => vi.restoreAllMocks());
 
 describe("OrderList — bố cục trang danh sách (BO-UX-2)", () => {
-  it("không tiêu đề / phụ đề hiển thị; h1 sr-only; link hàng đợi công nợ nằm trong toolbar", async () => {
+  it("không tiêu đề / phụ đề hiển thị; h1 sr-only; link hàng đợi công nợ trên thanh breadcrumb, không ở hàng tìm", async () => {
     mockOrderApiGet([...ORDER_PERMISSION_SETS.salesStaff, "sales-order-credit-holds:VIEW_PAGE"], {
       "/orders": () => apiOrderPage([apiOrder]),
     });
@@ -46,10 +47,12 @@ describe("OrderList — bố cục trang danh sách (BO-UX-2)", () => {
     await screen.findByText(apiOrder.orderNumber);
     expect(screen.getByRole("heading", { level: 1, name: "Đơn hàng" })).toHaveClass("sr-only");
     expect(screen.queryByText(/Theo dõi đơn bán/)).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: UI_LABELS.order.creditHoldsTitle })).toHaveAttribute(
-      "href",
-      "/admin/orders/credit-holds",
-    );
+    const link = screen.getByRole("link", { name: UI_LABELS.order.creditHoldsTitle });
+    expect(link).toHaveAttribute("href", "/admin/orders/credit-holds");
+    // backoffice-erp-ui A1/A2: nút của trang ở `#header-actions` (topbar), hàng tìm chỉ còn ô tìm
+    const slot = document.getElementById(HEADER_ACTIONS_ID);
+    if (!slot) throw new Error("thiếu #header-actions");
+    expect(within(slot).getByRole("link", { name: UI_LABELS.order.creditHoldsTitle })).toBe(link);
   });
 });
 

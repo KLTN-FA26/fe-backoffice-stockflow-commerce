@@ -13,6 +13,7 @@ import { vi } from "vitest";
 
 import { api } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/auth/auth-store";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 import type { UserEvent } from "@testing-library/user-event";
 import type { OnUrlUpdateFunction } from "nuqs/adapters/testing";
@@ -82,7 +83,10 @@ export function renderCustomerPrices(ui: React.ReactElement, search = "") {
     return (
       <QueryClientProvider client={client}>
         <NuqsTestingAdapter searchParams={current} hasMemory onUrlUpdate={onUrlUpdate}>
-          <Suspense fallback={<div>loading</div>}>{ui}</Suspense>
+          {/* Nút "Tạo mới" trên topbar (`HeaderCreateButton`) có tooltip — app bọc TooltipProvider ở layout */}
+          <TooltipProvider>
+            <Suspense fallback={<div>loading</div>}>{ui}</Suspense>
+          </TooltipProvider>
         </NuqsTestingAdapter>
       </QueryClientProvider>
     );

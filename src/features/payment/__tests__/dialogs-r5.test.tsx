@@ -46,7 +46,7 @@ describe("Receipt dialog — round 5 (BO-UX-39, BO-UX-4)", () => {
     ).toBeInTheDocument();
     expect(dialog.getByLabelText(/Số tiền/)).toHaveValue("25.000.000");
     // The chosen installment shows its due day and what it still owes.
-    expect(dialog.getAllByText(/hạn 20 thg 11, 2026 · còn 25\.000\.000/).length).toBeGreaterThan(0);
+    expect(dialog.getAllByText(/hạn 20\/11\/2026 · còn 25\.000\.000/).length).toBeGreaterThan(0);
   });
 });
 
