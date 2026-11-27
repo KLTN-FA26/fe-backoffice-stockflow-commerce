@@ -13,7 +13,12 @@ import { FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { FormField } from "@/components/shared/FormField";
 import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
-import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/shared/combobox-select";
 
 import type { ShortDeliveryBatch } from "@/features/production-order/schedule-schemas";
 

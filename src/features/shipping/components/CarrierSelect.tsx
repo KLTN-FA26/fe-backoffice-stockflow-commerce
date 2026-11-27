@@ -4,7 +4,7 @@ import { UI_LABELS } from "@/constants";
 import { useActiveCarriers } from "@/features/shipping/queries";
 import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { FormSelect } from "@/components/shared/FormSelect";
-import { SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SelectItem, SelectTrigger, SelectValue } from "@/components/shared/combobox-select";
 
 const NONE = "__none__";
 const L = UI_LABELS.shipping;

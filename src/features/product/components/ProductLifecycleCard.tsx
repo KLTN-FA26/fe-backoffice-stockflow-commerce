@@ -97,3 +97,57 @@ export function ProductLifecycleCard({ status }: { status: ProductStatus }) {
     </section>
   );
 }
+
+/**
+ * Vòng đời nằm ngang ở đầu khung hồ sơ sản phẩm: các bước nối bằng vạch, bước đã qua chấm xanh,
+ * bước hiện tại chấm accent + chữ đậm, bước sau chữ mờ. Cùng thứ tự bước với `ProductLifecycleCard`.
+ */
+export function ProductLifecycleStepper({ status }: { status: ProductStatus }) {
+  const steps = lifecycleSteps(status);
+  return (
+    <ol aria-label={L.title} className="flex min-w-0 flex-wrap items-center gap-y-2">
+      {steps.map((step, index) => (
+        <li
+          key={step.status}
+          aria-current={step.current ? "step" : undefined}
+          className="flex items-center"
+        >
+          <span className="flex items-center gap-2">
+            <span
+              aria-hidden
+              className={cn(
+                "size-2.5 shrink-0 rounded-full",
+                step.current
+                  ? "bg-accent ring-accent/25 ring-4"
+                  : step.done
+                    ? "bg-positive"
+                    : "bg-bg-muted ring-border-strong ring-1",
+              )}
+            />
+            <span
+              className={cn(
+                "text-[0.8125rem] whitespace-nowrap",
+                step.current
+                  ? "text-ink-primary font-semibold"
+                  : step.done
+                    ? "text-ink-secondary"
+                    : "text-ink-tertiary",
+              )}
+            >
+              {statusLabelVi(step.status, "product") ?? step.status}
+            </span>
+          </span>
+          {index < steps.length - 1 && (
+            <span
+              aria-hidden
+              className={cn(
+                "mx-3 h-px w-8 shrink-0",
+                steps[index + 1]?.done ? "bg-positive" : "bg-border-default",
+              )}
+            />
+          )}
+        </li>
+      ))}
+    </ol>
+  );
+}

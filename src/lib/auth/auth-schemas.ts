@@ -1,10 +1,12 @@
 import { z } from "zod";
 
 import { CHANGE_PASSWORD_UI, PASSWORD_LIMITS } from "@/constants/auth";
+import { LOGIN_UI } from "@/constants/labels-login";
 
+/** Dùng chung cho form đăng nhập (zodResolver — lỗi hiện dưới ô) và BFF (`safeParse` body). */
 export const loginRequestSchema = z.object({
-  username: z.string().trim().min(1),
-  password: z.string().min(1),
+  username: z.string().trim().min(1, LOGIN_UI.usernameRequired),
+  password: z.string().min(1, LOGIN_UI.passwordRequired),
 });
 
 // BE develop: identity/internal/controller/dto/MeResponse.java and MeController.me.

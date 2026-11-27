@@ -12,6 +12,7 @@ import {
 import { producerContact } from "@/features/producer/selectors";
 
 import { CELL, codeCell, StackText, textCell, ToneDot } from "@/components/shared/column-helpers";
+import { RowActionsMenu } from "@/components/shared/RowActionsMenu";
 
 import type { ColumnDef } from "@/components/shared/DataTable";
 import type { Producer } from "@/features/producer/types";
@@ -57,21 +58,14 @@ export function buildProducerColumns(
     ...columns,
     {
       key: C.ACTIONS,
-      header: "",
+      header: col.actions,
+      align: "right",
+      className: "w-20",
       cell: (row) => (
-        <div className="flex justify-end">
-          <button
-            type="button"
-            aria-label={`${L.edit} ${row.code}`}
-            onClick={(event) => {
-              event.stopPropagation();
-              onEdit(row);
-            }}
-            className={CELL.action}
-          >
-            <Pencil className="size-3.5" />
-          </button>
-        </div>
+        <RowActionsMenu
+          label={`Thao tác — ${row.code}`}
+          actions={[{ label: L.form.editTitle, icon: Pencil, onSelect: () => onEdit(row) }]}
+        />
       ),
     },
   ];

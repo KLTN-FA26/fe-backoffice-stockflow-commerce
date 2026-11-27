@@ -29,26 +29,26 @@ Tailwind class sinh ra từ đó. Không khai báo màu ở nơi khác.
 
 | Token            | Light     | Dark      | Vai trò                       |
 | ---------------- | --------- | --------- | ----------------------------- |
-| `bg.base`        | `#F6F6F6` | `#0E0F11` | nền trang, app shell          |
-| `bg.surface`     | `#FFFFFF` | `#17181B` | card, panel, table body       |
-| `bg.subtle`      | `#F7F8FA` | `#1F2124` | header bảng, toolbar          |
-| `bg.sidebar`     | `#FAFAFA` | `#1F2124` | nền sidebar back-office       |
-| `bg.muted`       | `#EEF0F3` | `#2A2C30` | hover, selected nhẹ, disabled |
-| `border.default` | `#DADDE1` | `#2E3034` | viền card, ô nhập             |
-| `border.strong`  | `#C5CAD1` | `#3D4045` | viền focus, divider           |
+| `bg.base`        | `#F6F6F6` | `#0A0A0A` | nền trang, app shell          |
+| `bg.surface`     | `#FFFFFF` | `#111111` | card, panel, table body       |
+| `bg.subtle`      | `#F7F8FA` | `#161616` | header bảng, toolbar          |
+| `bg.sidebar`     | `#FAFAFA` | `#0A0A0A` | nền sidebar back-office       |
+| `bg.muted`       | `#EEF0F3` | `#1F1F1F` | hover, selected nhẹ, disabled |
+| `border.default` | `#DADDE1` | `#262626` | viền card, ô nhập             |
+| `border.strong`  | `#C5CAD1` | `#363636` | viền focus, divider           |
 
 ## Chữ (ink)
 
 | Token           | Light     | Dark      | Vai trò                       |
 | --------------- | --------- | --------- | ----------------------------- |
-| `ink.primary`   | `#1A1B18` | `#F4F4F1` | chữ chính, heading            |
-| `ink.secondary` | `#5C5E58` | `#A8AAA3` | mô tả, phụ đề                 |
-| `ink.tertiary`  | `#6B6E68` | `#9A9C95` | placeholder, meta             |
-| `ink.inverse`   | `#FFFFFF` | `#1A1B18` | chữ trên nền accent           |
+| `ink.primary`   | `#1A1B18` | `#EDEDED` | chữ chính, heading            |
+| `ink.secondary` | `#5C5E58` | `#A1A1A1` | mô tả, phụ đề                 |
+| `ink.tertiary`  | `#6B6E68` | `#8F8F8F` | placeholder, meta             |
+| `ink.inverse`   | `#FFFFFF` | `#0A0A0A` | chữ trên nền accent           |
 | `accent.text`   | `#1565C0` | `#4EA6F0` | chữ link (`text-accent-text`) |
 
 Mọi màu chữ ≥ 4.5:1 (WCAG 1.4.3, BO-UX-1): `ink.tertiary` 5.18:1 trên trắng / 4.54:1 trên `bg.muted`
-(dark 6.39 / 5.04); `accent.text` 5.75:1 (dark 6.79). `text-accent` (#1E88E5, 3.68:1) chỉ cho icon / viền,
+(dark 5.84 / 5.10); `accent.text` 5.75:1 (dark 7.23). `text-accent` (#1E88E5, 3.68:1) chỉ cho icon / viền,
 **không** cho chữ link. `text-warning` / `text-positive` (2.94 / 3.49:1) **không** dùng cho chữ: tông nằm ở
 chấm / icon, chữ màu ink. Buộc phải tô chữ theo tông → `text-warning-ink` / `text-positive-ink` (5.4:1).
 
@@ -164,7 +164,7 @@ Cả **hai** theme đều phải hỗ trợ light + dark. Bảng token ở trên
 - `<ThemeProvider>` bọc ở root layout, class `dark` trên `<html>`.
 - Chuyển light/dark bằng **CSS variable**, KHÔNG re-render component.
 - Mặc định theo `prefers-color-scheme`, có nút toggle ở topbar (A) / header (B).
-- Dark back-office: nền `#0E0F11`, chữ `#F4F4F1` (**không phải trắng tuyệt đối** —
+- Dark back-office (thang xám trung tính kiểu Vercel, chốt 2026-11-27): nền `#0A0A0A`, chữ `#EDEDED` (**không phải trắng tuyệt đối** —
   giảm contrast gắt), semantic tone giữ nguyên nhưng hạ saturation nhẹ.
 - Dark storefront: nền `#17130F` (đen ấm), chữ `#F3EBE1` (kem), caramel sáng hơn `#C98D4E`.
 

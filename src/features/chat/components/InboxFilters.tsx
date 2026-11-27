@@ -6,12 +6,22 @@ import {
   CHAT_INBOX_SCOPES,
   CHAT_STATUS_LABELS,
 } from "@/constants";
+import {
+  Select,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/shared/combobox-select";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { Button } from "@/components/ui/button";
 
 import type { ChatConversationStatus, ChatInboxScope } from "@/constants";
 
 const SELECT =
-  "border-border-default bg-bg-surface h-10 rounded-[var(--control-radius)] border px-2 text-[0.8125rem]";
+  "border-border-default bg-bg-surface h-10 rounded-[var(--control-radius)] border px-2 text-[0.8125rem] data-[size=default]:h-10";
+
+/** Đại diện cho "đang mở (mặc định)" = status null — SelectItem không nhận value rỗng. */
+const DEFAULT_STATUS = "__default__";
 
 const toStatus = (value: string): ChatConversationStatus | null =>
   CHAT_CONVERSATION_STATUSES.find((status) => status === value) ?? null;
@@ -45,19 +55,22 @@ export function InboxFilters({
           </Button>
         ))}
       </div>
-      <select
-        aria-label="Trạng thái"
-        className={SELECT}
-        value={status ?? ""}
-        onChange={(event) => onStatus(toStatus(event.target.value))}
+      <Select
+        value={status ?? DEFAULT_STATUS}
+        onValueChange={(next) => onStatus(next === DEFAULT_STATUS ? null : toStatus(next))}
       >
-        <option value="">Đang mở (mặc định)</option>
-        {CHAT_CONVERSATION_STATUSES.map((value) => (
-          <option key={value} value={value}>
-            {CHAT_STATUS_LABELS[value]}
-          </option>
-        ))}
-      </select>
+        <SelectTrigger aria-label="Trạng thái" className={SELECT}>
+          <SelectValue />
+        </SelectTrigger>
+        <TitledSelectContent title="Trạng thái">
+          <SelectItem value={DEFAULT_STATUS}>Đang mở (mặc định)</SelectItem>
+          {CHAT_CONVERSATION_STATUSES.map((value) => (
+            <SelectItem key={value} value={value}>
+              {CHAT_STATUS_LABELS[value]}
+            </SelectItem>
+          ))}
+        </TitledSelectContent>
+      </Select>
     </div>
   );
 }

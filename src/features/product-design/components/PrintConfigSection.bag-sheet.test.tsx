@@ -17,7 +17,7 @@ import { blobBytes } from "@/lib/crypto/blob-bytes";
 
 import {
   bagTree,
-  DEFAULTS_TOGGLE,
+  DEFAULTS_SECTION,
   EMPTY_VARIANT,
   glbFile,
   loaderOf,
@@ -46,7 +46,7 @@ async function chooseBagWithFold40() {
   await screen.findByText("Chưa có cấu hình in");
   await user.upload(screen.getByLabelText(/Chọn hoặc kéo thả file/), glbFile());
   await screen.findByText("Nhận ra: Túi");
-  await user.click(screen.getByRole("button", DEFAULTS_TOGGLE));
+  expect(screen.getByRole("region", DEFAULTS_SECTION)).toBeVisible();
   const fold = screen.getByLabelText("Gập miệng túi (mm)");
   await user.clear(fold);
   await user.type(fold, "40");

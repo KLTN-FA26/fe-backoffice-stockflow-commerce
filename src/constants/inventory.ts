@@ -118,6 +118,10 @@ export const STOCK_ADJUSTMENT_REASON = {
 
 // BE `AdjustmentDirection` (docs 20 §4.3): ghi giảm cả thùng, hoặc nạp lại thùng `Lost` tìm được.
 export const STOCK_ADJUSTMENT_DIRECTIONS = ["WRITE_OFF", "RESTOCK"] as const;
+export const STOCK_ADJUSTMENT_DIRECTION = {
+  WRITE_OFF: "WRITE_OFF",
+  RESTOCK: "RESTOCK",
+} as const satisfies Record<(typeof STOCK_ADJUSTMENT_DIRECTIONS)[number], string>;
 export const STOCK_ADJUSTMENT_DIRECTION_LABELS = {
   WRITE_OFF: "Ghi giảm cả thùng",
   RESTOCK: "Nạp lại thùng đã mất",
@@ -168,6 +172,8 @@ export const INVENTORY_ROUTES = {
   adjustments: "/admin/inventory/adjustments",
   createAdjustment: "/admin/inventory/adjustments/create",
   adjustment: (id: string) => `/admin/inventory/adjustments/${encodeURIComponent(id)}`,
+  /** Thùng hàng (LPN) — tra cứu mọi thùng (docs 20 §4.1); `?lpn=` mở sẵn chi tiết một thùng. */
+  cartons: "/admin/inventory/cartons",
   // Cách ly / gỡ cách ly thùng (docs 20 §4.8): LPN trên URL `?lpn=`.
   quarantine: "/admin/inventory/quarantine",
 } as const;
@@ -186,15 +192,17 @@ export const INVENTORY_LABELS = {
   adjustmentDetail: "Chi tiết điều chỉnh",
   adjustmentNumber: "Mã điều chỉnh",
   adjustmentReason: "Lý do điều chỉnh",
-  quantityDelta: "Chênh lệch",
+  adjustmentDelta: "Chênh lệch",
   carton: "Thùng",
   lpn: "LPN thùng",
   lpnPlaceholder: "Quét hoặc nhập LPN, ví dụ LPN-20261110-000001",
   lpnHelp: "Mỗi phiếu điều chỉnh đúng một thùng — không điều chỉnh một phần thùng.",
   direction: "Chiều điều chỉnh",
   chooseDirection: "Chọn chiều điều chỉnh",
-  cartonWholeDelta: (delta: number) =>
-    `${delta > 0 ? "+" : "−"}1 thùng (${delta > 0 ? "+" : "−"}${Math.abs(delta).toLocaleString("vi-VN")} cái)`,
+  cartonWholeDelta: (sign: "+" | "−", units: number | null) =>
+    units === null
+      ? `${sign}1 thùng`
+      : `${sign}1 thùng (${sign}${units.toLocaleString("vi-VN")} cái)`,
   countVarianceNoWithdraw: "Chênh lệch kiểm kê chỉ được duyệt hoặc từ chối, không rút lại.",
   status: "Trạng thái",
   requestedAt: "Ngày yêu cầu",
@@ -248,6 +256,9 @@ export const INVENTORY_LABELS = {
   reference: "Chứng từ nguồn",
   reason: "Lý do",
   missing: "—",
+  // ADR-0011 (BE, issue #305): cartons are the main stock figure, units the secondary one.
+  cartonCount: (count: number) => `${count.toLocaleString("vi-VN")} thùng`,
+  unitCount: (count: number) => `${count.toLocaleString("vi-VN")} cái`,
   statusTransition: "→",
   filtered: "Đang áp dụng bộ lọc",
   offline: "Mất kết nối — thay đổi chưa được lưu.",
@@ -290,7 +301,6 @@ export const INVENTORY_LABELS = {
   reservationsTitle: "Giữ chỗ",
   order: "Mã đơn hàng",
   reservedAt: "Giữ lúc",
-  holdExpiresAt: "Hết hạn giữ",
   releaseReason: "Lý do giải phóng",
   closedAt: "Đóng lúc",
   noReservations: "SKU này không có giữ chỗ nào",

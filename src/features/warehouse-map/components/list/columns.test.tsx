@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
 import { WAREHOUSE_COLUMNS } from "@/constants";
@@ -40,11 +41,13 @@ describe("danh mục kho đánh dấu kho không được gán (spec §5.3)", ()
     expect(screen.queryByText("Không được gán")).not.toBeInTheDocument();
   });
 
-  it("nút mở bản đồ vẫn có cho kho không được gán (bản đồ không giới hạn theo kho được gán — 06)", () => {
+  it("nút mở bản đồ vẫn có cho kho không được gán (bản đồ không giới hạn theo kho được gán — 06)", async () => {
+    const user = userEvent.setup();
     const columns = buildWarehouseColumns({ canOpenMap: true, isAssigned: () => false });
     const actions = columns.find((c) => c.key === WAREHOUSE_COLUMNS.ACTIONS);
     render(<>{actions?.cell?.(warehouse("wh-hcm", "HCM", "Kho Hồ Chí Minh"))}</>);
-    expect(screen.getByRole("link", { name: "Mở bản đồ HCM" })).toHaveAttribute(
+    await user.click(screen.getByRole("button", { name: "Thao tác — HCM" }));
+    expect(await screen.findByRole("link", { name: "Mở bản đồ" })).toHaveAttribute(
       "href",
       "/admin/warehouse-map/HCM",
     );

@@ -14,6 +14,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "./DatePicker";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 import type { ReactNode } from "react";
@@ -53,16 +54,24 @@ export function HeaderFilterPopover({
           <Filter className="size-3.5" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="start" className={cn("w-64 p-3", className)}>
-        <div className="text-ink-primary mb-2 text-xs font-medium">Lọc {label}</div>
-        {children}
-        {onClear && (
-          <div className="mt-2 flex justify-end">
-            <Button type="button" variant="outline" size="xs" onClick={onClear} disabled={!active}>
+      {/* Cùng dáng một cột của bảng "Bộ lọc": tiêu đề đậm + "Xoá" bên phải, nội dung không có khung lồng */}
+      <PopoverContent align="start" className={cn("w-64 gap-0 px-1.5 py-2", className)}>
+        <div className="flex items-center justify-between gap-2 px-2 pb-1">
+          <p className="text-ink-primary text-sm font-semibold">Lọc {label}</p>
+          {onClear && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              onClick={onClear}
+              disabled={!active}
+              className="text-ink-tertiary hover:text-ink-primary"
+            >
               Xoá
             </Button>
-          </div>
-        )}
+          )}
+        </div>
+        {children}
       </PopoverContent>
     </Popover>
   );
@@ -82,14 +91,16 @@ export function ColumnFilterButton({
 }) {
   return (
     <HeaderFilterPopover label={label} active={Boolean(value.trim())} onClear={() => onChange("")}>
-      <Input
-        value={value}
-        placeholder={placeholder}
-        aria-label={placeholder}
-        autoFocus
-        onChange={(event) => onChange(event.target.value)}
-        className="bg-bg-surface h-8 rounded-[var(--r-sm)] text-[0.75rem]"
-      />
+      <div className="px-1 pt-1">
+        <Input
+          value={value}
+          placeholder={placeholder}
+          aria-label={placeholder}
+          autoFocus
+          onChange={(event) => onChange(event.target.value)}
+          className="bg-bg-surface h-8 text-[0.8125rem]"
+        />
+      </div>
     </HeaderFilterPopover>
   );
 }
@@ -129,9 +140,9 @@ export function HeaderOptionFilter({
       onClear={() => onChange(null)}
       className="w-72"
     >
-      <Command className="border-border-default rounded-[var(--r-sm)] border">
+      <Command className="h-auto rounded-none! bg-transparent p-0">
         <CommandInput placeholder={searchPlaceholder} autoFocus />
-        <CommandList className="max-h-56">
+        <CommandList className="max-h-64 pt-1">
           <CommandEmpty>{emptyLabel}</CommandEmpty>
           <CommandGroup>
             {options.map((option) => {
@@ -157,6 +168,114 @@ export function HeaderOptionFilter({
           </CommandGroup>
         </CommandList>
       </Command>
+    </HeaderFilterPopover>
+  );
+}
+
+/**
+ * Lọc NHIỀU giá trị trong cột (BE nhận danh sách, vd trạng thái): tick / bỏ tick từng giá trị, popover
+ * vẫn mở. Cùng dáng `HeaderOptionFilter`.
+ */
+export function HeaderMultiOptionFilter({
+  label,
+  values,
+  options,
+  onToggle,
+  onClear,
+  searchPlaceholder,
+  emptyLabel,
+}: {
+  label: string;
+  values: readonly string[];
+  options: readonly HeaderFilterOption[];
+  onToggle: (value: string) => void;
+  onClear: () => void;
+  searchPlaceholder: string;
+  emptyLabel: string;
+}) {
+  return (
+    <HeaderFilterPopover
+      label={label}
+      active={values.length > 0}
+      onClear={onClear}
+      className="w-72"
+    >
+      <Command className="h-auto rounded-none! bg-transparent p-0">
+        <CommandInput placeholder={searchPlaceholder} autoFocus />
+        <CommandList className="max-h-64 pt-1">
+          <CommandEmpty>{emptyLabel}</CommandEmpty>
+          <CommandGroup>
+            {options.map((option) => {
+              const checked = values.includes(option.value);
+              return (
+                <CommandItem
+                  key={option.value}
+                  value={option.value}
+                  keywords={[option.label]}
+                  onSelect={() => onToggle(option.value)}
+                  className={ITEM_CLASS}
+                >
+                  <Checkbox
+                    checked={checked}
+                    tabIndex={-1}
+                    aria-hidden
+                    className="pointer-events-none"
+                  />
+                  <span className="truncate">{option.label}</span>
+                </CommandItem>
+              );
+            })}
+          </CommandGroup>
+        </CommandList>
+      </Command>
+    </HeaderFilterPopover>
+  );
+}
+
+/**
+ * Lọc theo khoảng ngày trong cột thời gian: "Từ ngày" – "Đến ngày" (`YYYY-MM-DD`, rỗng = không chặn
+ * đầu đó). Ngày đến không chọn được trước ngày từ và ngược lại.
+ */
+export function HeaderDateRangeFilter({
+  label,
+  from,
+  to,
+  onChange,
+}: {
+  label: string;
+  from: string;
+  to: string;
+  onChange: (range: { from: string; to: string }) => void;
+}) {
+  return (
+    <HeaderFilterPopover
+      label={label}
+      active={Boolean(from || to)}
+      onClear={() => onChange({ from: "", to: "" })}
+      className="w-72"
+    >
+      <div className="grid gap-2 px-1 pt-1">
+        <label className="grid gap-1">
+          <span className="text-ink-tertiary text-xs">Từ ngày</span>
+          <DatePicker
+            value={from}
+            max={to || undefined}
+            onChange={(value) => onChange({ from: value, to })}
+            placeholder="Không giới hạn"
+            clearable
+          />
+        </label>
+        <label className="grid gap-1">
+          <span className="text-ink-tertiary text-xs">Đến ngày</span>
+          <DatePicker
+            value={to}
+            min={from || undefined}
+            onChange={(value) => onChange({ from, to: value })}
+            placeholder="Không giới hạn"
+            clearable
+          />
+        </label>
+      </div>
     </HeaderFilterPopover>
   );
 }

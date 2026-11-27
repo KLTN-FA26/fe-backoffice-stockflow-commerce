@@ -1,12 +1,11 @@
 "use client";
 
-import { Select } from "@/components/ui/select";
+import { Select } from "@/components/shared/combobox-select";
 
 /**
- * `Select` cho ô gắn form (react-hook-form `Controller`). Radix Select gọi `onValueChange("")` khi
- * giá trị được đặt sau lúc mount (form đổ dữ liệu bằng `reset`, vd trang sửa) mà danh sách option
- * chưa dựng — làm mất giá trị đã có và đánh dấu form "đã sửa". Radix không cho `SelectItem` có value
- * rỗng nên "" không bao giờ là lựa chọn thật của người dùng → bỏ qua. Không sửa `components/ui/*`.
+ * `Select` (combobox gõ để lọc, `combobox-select`) cho ô gắn form (react-hook-form `Controller`).
+ * "" không bao giờ là lựa chọn thật của người dùng (mục không có value rỗng) → bỏ qua, để giá trị
+ * form đổ vào bằng `reset` (vd trang sửa) không bị xoá và form không bị đánh dấu "đã sửa".
  */
 export function FormSelect({ onValueChange, ...props }: React.ComponentProps<typeof Select>) {
   return (

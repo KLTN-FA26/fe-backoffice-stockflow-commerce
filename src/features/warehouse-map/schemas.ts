@@ -179,7 +179,6 @@ export const locationStockDto = bePageSchema(
       locationCode: z.string(),
       sku: z.string().nullish(),
       lotNumber: z.string().nullish(),
-      expiryDate: z.string().nullish(),
       onHand: beDecimal.nullish(),
       reserved: beDecimal.nullish(),
       hiddenDuringCount: z.boolean().nullish(),

@@ -335,6 +335,8 @@ describe("CarrierList — thêm hãng", () => {
 
 describe("CarrierList — sửa hãng", () => {
   const openEdit = async (user: User, code: string) => {
+    // Sửa hãng nằm trong menu "⋯" của dòng
+    await user.click(await screen.findByRole("button", { name: `Thao tác — ${code}` }));
     await user.click(await screen.findByRole("button", { name: C.editAria(code) }));
     return dialogOf();
   };
@@ -481,10 +483,12 @@ describe("CarrierList — quyền", () => {
   it("quản lý kho (fulfillment-carriers:UPDATE) thấy 'Thêm hãng' và nút sửa trên từng dòng", async () => {
     renderList(ACTORS.warehouseManager);
     expect(await screen.findByRole("button", { name: C.create })).toBeInTheDocument();
+    const user = userEvent.setup();
     for (const carrier of LIST) {
-      expect(
-        await screen.findByRole("button", { name: C.editAria(carrier.code) }),
-      ).toBeInTheDocument();
+      // Mỗi dòng có menu "⋯" với mục sửa hãng đang bật
+      await user.click(await screen.findByRole("button", { name: `Thao tác — ${carrier.code}` }));
+      expect(await screen.findByRole("button", { name: C.editAria(carrier.code) })).toBeEnabled();
+      await user.keyboard("{Escape}");
     }
   });
 
@@ -502,6 +506,10 @@ describe("CarrierList — quyền", () => {
         screen.queryByRole("button", { name: new RegExp(F.editTitle) }),
       ).not.toBeInTheDocument();
       for (const carrier of LIST) {
+        // Không có menu "⋯" trên dòng nên không mở được thao tác sửa
+        expect(
+          screen.queryByRole("button", { name: `Thao tác — ${carrier.code}` }),
+        ).not.toBeInTheDocument();
         expect(
           screen.queryByRole("button", { name: C.editAria(carrier.code) }),
         ).not.toBeInTheDocument();

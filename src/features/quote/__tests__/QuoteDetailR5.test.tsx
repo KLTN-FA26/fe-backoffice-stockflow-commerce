@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -130,11 +130,12 @@ describe("Quote detail — round 5", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Tạo đơn" }));
     const dialog = await screen.findByRole("dialog");
     const select = within(dialog).getByLabelText("Địa chỉ giao hàng");
-    const first = await within(select).findByRole("option", {
-      name: /^Mặc định — Kho A, 12 Nguyễn Huệ/,
-    });
-    expect(first).toHaveValue("");
-    expect(within(select).getAllByRole("option")).toHaveLength(2);
+    // the default address is the one chosen, written out
+    await waitFor(() => expect(select).toHaveTextContent(/^Mặc định — Kho A, 12 Nguyễn Huệ/));
+    await userEvent.click(select);
+    const first = await screen.findByRole("option", { name: /^Mặc định — Kho A, 12 Nguyễn Huệ/ });
+    expect(screen.getAllByRole("option")).toHaveLength(2);
+    expect(screen.getAllByRole("option")[0]).toBe(first);
     expect(dialog.textContent).not.toContain("★");
   });
 });

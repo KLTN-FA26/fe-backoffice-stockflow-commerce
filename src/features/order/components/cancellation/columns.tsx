@@ -2,17 +2,22 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { CircleCheck, CircleX } from "lucide-react";
 
 import { ADMIN_ROUTES, CANCELLATION_REQUEST_LABELS, ORDER_STATUS_UNKNOWN } from "@/constants";
 import { formatMoney } from "@/lib/format";
 import { formatDateTime } from "@/lib/format/date";
+import { RowActionsMenu } from "@/components/shared/RowActionsMenu";
 import { StatusDot } from "@/components/shared/StatusDot";
 
 import { useOrder } from "../../queries";
 import { cancellationReasonLabel } from "../../selectors";
 import { BACKEND_TO_FE_ORDER_STATUS } from "../../status-map";
 
-import { CancellationApproveAction, CancellationRejectAction } from "./CancellationDecisionActions";
+import {
+  useCancellationApproveDialog,
+  useCancellationRejectDialog,
+} from "./CancellationDecisionActions";
 
 import type { ReactNode } from "react";
 import type { ColumnDef } from "@/components/shared/DataTable";
@@ -154,8 +159,8 @@ function ReasonCell({ row }: { row: CancellationRequest }) {
 }
 
 /**
- * Nút Duyệt / Từ chối của một hàng: tên truy cập mang số đơn; "Duyệt huỷ" tông nguy hiểm vì nó huỷ đơn (BO-UX-36).
- * Hộp thoại duyệt nhận số đã thu và giai đoạn in (BO-UX-35) từ cùng nguồn với các cột.
+ * Menu "⋯" Duyệt / Từ chối của một hàng (backoffice-erp-ui A6): tên truy cập mang số đơn; "Duyệt huỷ" chữ đỏ, cuối menu
+ * vì nó huỷ đơn (BO-UX-36). Hộp thoại duyệt nhận số đã thu và giai đoạn in (BO-UX-35) từ cùng nguồn với các cột.
  */
 export function RequestRowActions({
   row,
@@ -165,22 +170,34 @@ export function RequestRowActions({
   canOpenOrder: boolean;
 }) {
   const { orderNumber, paid, currency } = useRequestOrderFacts(row, canOpenOrder);
+  const ids = { orderId: row.orderId, orderNumber, requestId: row.requestId };
+  const reject = useCancellationRejectDialog(ids);
+  const approve = useCancellationApproveDialog({
+    ...ids,
+    facts: { paidTotal: paid, printingStarted: row.printingStarted, currency },
+  });
   return (
-    <div className="flex justify-end gap-1.5" onClick={(event) => event.stopPropagation()}>
-      <CancellationRejectAction
-        compact
-        orderId={row.orderId}
-        orderNumber={orderNumber}
-        requestId={row.requestId}
-      />
-      <CancellationApproveAction
-        compact
-        orderId={row.orderId}
-        orderNumber={orderNumber}
-        requestId={row.requestId}
-        facts={{ paidTotal: paid, printingStarted: row.printingStarted, currency }}
-      />
-    </div>
+    <RowActionsMenu
+      label={`Thao tác — ${orderNumber ?? Q.unknownOrder}`}
+      actions={[
+        {
+          label: CANCELLATION_REQUEST_LABELS.reject.button,
+          icon: CircleX,
+          disabled: reject.isPending,
+          onSelect: reject.show,
+        },
+        {
+          label: CANCELLATION_REQUEST_LABELS.approve.button,
+          icon: CircleCheck,
+          disabled: approve.isPending,
+          danger: true,
+          onSelect: approve.show,
+        },
+      ]}
+    >
+      {reject.dialog}
+      {approve.dialog}
+    </RowActionsMenu>
   );
 }
 
@@ -256,6 +273,13 @@ export function buildCancellationRequestColumns(
         </span>
       ),
     },
-    { key: "actions", header: L.actions, align: "right", sticky: "right", cell: renderActions },
+    {
+      key: "actions",
+      header: L.actions,
+      align: "right",
+      sticky: "right",
+      className: "w-20",
+      cell: renderActions,
+    },
   ];
 }

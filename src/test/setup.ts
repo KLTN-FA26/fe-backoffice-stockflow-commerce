@@ -22,3 +22,21 @@ if (typeof window !== "undefined" && !window.matchMedia) {
       dispatchEvent: () => false,
     }) as MediaQueryList;
 }
+
+/**
+ * Polyfill jsdom cho popover / cmdk (`combobox-select`, menu "⋯" của dòng) — mọi select của back-office giờ là
+ * combobox nên nạp chung cho mọi file test.
+ */
+import "./jsdom-popover";
+
+/**
+ * Chỗ đặt nút trên thanh breadcrumb (`HeaderActions` portal vào `#header-actions` của topbar). Test dựng trang lẻ không có
+ * topbar → dựng sẵn chỗ đặt để nút "Tạo mới" vẫn có trong DOM.
+ */
+import { HEADER_ACTIONS_ID } from "@/components/shared/HeaderActions";
+
+if (typeof document !== "undefined" && !document.getElementById(HEADER_ACTIONS_ID)) {
+  const slot = document.createElement("div");
+  slot.id = HEADER_ACTIONS_ID;
+  document.body.appendChild(slot);
+}

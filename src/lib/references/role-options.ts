@@ -8,6 +8,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 
+import { ROLE_CODE_LABELS } from "@/constants";
 import { api } from "@/lib/api/client";
 import { QUERY_TIMES } from "@/lib/api/query-client";
 
@@ -45,4 +46,15 @@ export function useRoleOptions(enabled = true) {
 /** Tên hiển thị của vai trò theo mã; không có trong danh mục thì giữ nguyên mã. */
 export function roleLabel(roles: readonly RoleOption[] | undefined, code: string): string {
   return roles?.find((role) => role.code === code)?.name ?? code;
+}
+
+/**
+ * Tên tiếng Việt của vai trò theo mã, không cần gọi API (menu tài khoản: mọi người đều xem được, kể cả khi
+ * thiếu `identity-roles:READ`). Mã lạ → bỏ gạch dưới, viết hoa chữ đầu ("SHIFT_LEAD" → "Shift lead").
+ */
+export function roleDisplayName(code: string): string {
+  const known = ROLE_CODE_LABELS[code];
+  if (known) return known;
+  const words = code.toLocaleLowerCase("vi").split("_").filter(Boolean).join(" ");
+  return words ? words.charAt(0).toLocaleUpperCase("vi") + words.slice(1) : code;
 }

@@ -198,6 +198,8 @@ async function pick(user: User, dialog: HTMLElement, trigger: string | RegExp, o
 }
 
 async function openEdit(user: User, code: string) {
+  // Sửa hãng nằm trong menu "⋯" của dòng
+  await user.click(await screen.findByRole("button", { name: `Thao tác — ${code}` }));
   await user.click(await screen.findByRole("button", { name: C.editAria(code) }));
   return dialogOf();
 }
@@ -785,6 +787,8 @@ describe("hãng API đặt xe — quyền", () => {
     async (_name, actor) => {
       const { get, put, post } = renderApi({ actor });
       await screen.findByText("Ahamove");
+      // Không có quyền sửa: dòng không có menu "⋯" (không mở được thao tác sửa)
+      expect(screen.queryByRole("button", { name: "Thao tác — AHAMOVE" })).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: C.editAria("AHAMOVE") })).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: C.create })).not.toBeInTheDocument();
       expect(get.mock.calls.some(([url]) => String(url).includes("service-codes"))).toBe(false);

@@ -21,7 +21,12 @@ import { resetVariantMockStore } from "@/lib/api/mock-routes-variants";
 import { mockGrantsOf } from "@/lib/api/mock-user-grants";
 import { NAV_GROUPS, useCanSeeNavItem } from "@/components/backoffice/BackofficeShell";
 
-import { renderCustomerPrices, stubPermissions } from "../__fixtures__/render";
+import {
+  clickEditRow,
+  rowMenuName,
+  renderCustomerPrices,
+  stubPermissions,
+} from "../__fixtures__/render";
 import { CustomerPriceList } from "./CustomerPriceList";
 
 vi.mock("@/providers/app-providers", () => ({ useIsMock: () => true }));
@@ -125,7 +130,7 @@ describe("tài khoản demo — dùng màn bảng giá", () => {
       await user.keyboard("{Escape}");
       await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
 
-      await user.click(await screen.findByRole("button", { name: F.editRow(SKU) }, WAIT));
+      await clickEditRow(user, SKU);
       expect(await screen.findByText(F.editTitle(SKU), {}, WAIT)).toBeInTheDocument();
     },
   );
@@ -135,7 +140,7 @@ describe("tài khoản demo — dùng màn bảng giá", () => {
     await pickPricedCustomer(user);
     expect(await screen.findByText(SKU, {}, WAIT)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: F.create })).toBeNull();
-    expect(screen.queryByRole("button", { name: F.editRow(SKU) })).toBeNull();
+    expect(screen.queryByRole("button", { name: rowMenuName(SKU) })).toBeNull();
   });
 
   it("F USER-COORD-01 (có READ giá, không VIEW_PAGE / tra khách): không có ô chọn khách, không gọi /customers", async () => {
