@@ -5,6 +5,7 @@ import { createDetailQuery, createListQuery, createQueryKeys } from "@/lib/api/q
 
 import {
   findQuoteConversationId,
+  getCustomerCreditPosition,
   getCustomerPrice,
   getQuote,
   getStandardPriceSuggestion,
@@ -78,5 +79,15 @@ export function useQuoteConversationId(
     queryFn: ({ signal }) => findQuoteConversationId(quote, signal),
     enabled,
     ...QUERY_TIMES.master,
+  });
+}
+
+/** Hạn mức / dư nợ của khách cho khung tóm tắt form báo giá; `enabled` gồm quyền `customer-credit-profiles:READ`. */
+export function useCustomerCreditPosition(customerId: string | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: [...quoteKeys.all, "credit-position", customerId ?? ""] as const,
+    queryFn: ({ signal }) => getCustomerCreditPosition(customerId ?? "", signal),
+    enabled: enabled && !!customerId,
+    ...QUERY_TIMES.detail,
   });
 }

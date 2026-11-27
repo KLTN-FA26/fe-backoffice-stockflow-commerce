@@ -8,6 +8,7 @@ import type {
   priceCheckLineDtoSchema,
   priceCheckTierDtoSchema,
   priceReviewDtoSchema,
+  quoteCreditPositionSchema,
   quoteDtoSchema,
   quoteFeeDtoSchema,
   quoteLineDtoSchema,
@@ -43,3 +44,4 @@ export type PriceCheckLine = z.infer<typeof priceCheckLineDtoSchema>;
 export type PriceCheckTier = z.infer<typeof priceCheckTierDtoSchema>;
 export type PriceReview = z.infer<typeof priceReviewDtoSchema>;
 export type StandardPriceSuggestion = z.infer<typeof standardPriceSuggestionSchema>;
+export type QuoteCreditPosition = z.infer<typeof quoteCreditPositionSchema>;

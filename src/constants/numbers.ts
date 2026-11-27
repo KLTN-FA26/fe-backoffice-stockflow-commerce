@@ -235,6 +235,19 @@ export const CUSTOMER_PRICE_LIMITS = PRICE_TIER_LIMITS;
 export const QUOTE_PRICE_REVIEW_LIMITS = { noteMax: 500 } as const;
 
 /**
+ * Ngưỡng duyệt giá mặc định của BE (`stockflow.order.quote.price-approval-percent`, mặc định 10; 14 BR-10): bậc giá thấp
+ * hơn giá tham chiếu QUÁ ngưỡng này thì báo giá chờ Quản lý kinh doanh duyệt. Form chỉ dùng để XEM TRƯỚC khi báo giá
+ * chưa có `priceCheck.thresholdPercent` (báo giá mới, chưa lưu) — BE quyết định lại lúc gửi.
+ */
+export const QUOTE_PRICE_APPROVAL_DEFAULT_PERCENT = 10;
+
+/**
+ * Yêu cầu báo giá đang mở đã chờ bao lâu thì tô (rà UI WF-02 bo-01): từ `warnHours` giờ → cam, từ `longHours` → đỏ.
+ * ASSUMPTION: kltn-docs chưa có SLA phản hồi yêu cầu báo giá; 1 ngày / 3 ngày là mốc tạm, chủ dự án chỉnh khi chốt SLA.
+ */
+export const QUOTE_REQUEST_WAIT_HOURS = { warn: 24, long: 72 } as const;
+
+/**
  * Số dòng tối đa một ô chọn có tìm (`InputCombobox`) hiện cùng lúc — còn nữa thì nhắc "Còn N kết quả — gõ thêm"
  * (luật R1, WF4 UX audit: 8–10 dòng, người dùng thu hẹp bằng cách gõ thay vì cuộn).
  */

@@ -145,3 +145,82 @@ export function isPriceReviewSubmitter(
   if (!quote.priceReviewPending || !userId || review?.outcome !== "PENDING") return false;
   return !!review.submittedBy && review.submittedBy.toLowerCase() === userId.toLowerCase();
 }
+
+/**
+ * Giá tham chiếu của một dòng mà form đang biết (14 BR-10, BE `QuotePriceCheck`): `own` = bậc giá riêng của khách cho SKU,
+ * `standard` = bậc giá chuẩn của quy cách. `null` = biết chắc là không có; `undefined` = chưa biết (đang tải, lỗi, không
+ * được xem giá chuẩn, hoặc không cần hỏi vì đã có giá riêng).
+ */
+export interface PriceReferences {
+  own: readonly QuoteTier[] | null | undefined;
+  standard: readonly QuoteTier[] | null | undefined;
+}
+
+/**
+ * Kết quả xem trước của một bậc giá: `ok` = đạt, `over` = thấp hơn tham chiếu quá ngưỡng (cần duyệt), `noReference` = không
+ * có giá tham chiếu ở bậc này (cần duyệt), `unknown` = form chưa đủ dữ liệu để nói (BE kiểm khi gửi).
+ */
+export type TierPriceVerdict =
+  | {
+      kind: "ok" | "over";
+      referencePrice: number;
+      source: "CUSTOMER_PRICE" | "STANDARD_PRICE";
+      /** Dương = thấp hơn tham chiếu, âm = cao hơn; 2 chữ số thập phân như BE. */
+      discountPercent: number;
+    }
+  | { kind: "noReference" }
+  | { kind: "unknown" };
+
+/**
+ * Xem trước luật duyệt giá cho MỘT bậc, đúng cách BE `QuotePriceCheck.of` tính: bậc đọc ở chính số thùng bắt đầu của nó;
+ * tham chiếu là giá riêng của khách ở số thùng đó, không có thì giá chuẩn của quy cách; cần duyệt khi
+ * (tham chiếu − giá) × 100 > ngưỡng × tham chiếu, hoặc không có tham chiếu. Giá cao hơn tham chiếu luôn đạt. Chỉ để XEM
+ * TRƯỚC — BE quyết định lại lúc gửi.
+ */
+export function checkTierPrice(
+  tier: QuoteTier,
+  references: PriceReferences,
+  thresholdPercent: number,
+): TierPriceVerdict {
+  if (references.own === undefined) return { kind: "unknown" };
+  const fromOwn = references.own ? tierPrice(references.own, tier.minQuantity) : null;
+  let referencePrice = fromOwn;
+  let source: "CUSTOMER_PRICE" | "STANDARD_PRICE" = "CUSTOMER_PRICE";
+  if (referencePrice === null) {
+    // Không có giá riêng ở bậc này → BE lấy giá chuẩn; form chưa hỏi giá chuẩn thì chưa nói được.
+    if (references.standard === undefined) return { kind: "unknown" };
+    referencePrice = references.standard ? tierPrice(references.standard, tier.minQuantity) : null;
+    source = "STANDARD_PRICE";
+  }
+  if (referencePrice === null || referencePrice <= 0) return { kind: "noReference" };
+  const below = (referencePrice - tier.unitPrice) * 100;
+  return {
+    kind: below > thresholdPercent * referencePrice ? "over" : "ok",
+    referencePrice,
+    source,
+    discountPercent: Math.round((below / referencePrice) * 100) / 100,
+  };
+}
+
+/** Kết luận xem trước của một dòng báo giá trên form. */
+export type LinePriceVerdict = "ok" | "needsApproval" | "unknown" | "noPrice";
+
+/**
+ * Gộp kết quả các bậc của một dòng: có bậc cần duyệt (thấp quá ngưỡng / không tham chiếu) → `needsApproval`; còn bậc chưa
+ * biết → `unknown`. Dòng bỏ trống bậc giá thì BE tự lấy giá riêng / giá chuẩn (13 BR-04 / BR-05) — đạt khi có giá đó,
+ * `noPrice` khi không có, `unknown` khi chưa biết.
+ */
+export function linePriceVerdict(
+  tiers: readonly QuoteTier[],
+  references: PriceReferences,
+  thresholdPercent: number,
+): LinePriceVerdict {
+  if (tiers.length === 0) {
+    if (references.own) return "ok";
+    if (references.own === undefined || references.standard === undefined) return "unknown";
+    return references.standard ? "ok" : "noPrice";
+  }
+  const verdicts = tiers.map((tier) => checkTierPrice(tier, references, thresholdPercent).kind);
+  if (verdicts.some((kind) => kind === "over" || kind === "noReference")) return "needsApproval";
+  return verdicts.some((kind) => kind === "unknown") ? "unknown" : "ok";
+}

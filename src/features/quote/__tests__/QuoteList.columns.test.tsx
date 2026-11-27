@@ -179,3 +179,63 @@ describe("Danh sách báo giá — tên kèm id (#286)", () => {
     expect(customerCalls(api.get)).toHaveLength(0);
   });
 });
+
+describe("Danh sách báo giá — tab nhanh và hàng chờ (bo-06, bo-14)", () => {
+  const statusParams = (api: ReturnType<typeof mockApi>) =>
+    api.get.mock.calls
+      .filter(([url]) => url === "/quotes")
+      .map((call) => {
+        const params = (call[1] as { params: URLSearchParams }).params;
+        return {
+          status: params.getAll("status").join(","),
+          priceReview: params.get("priceReview"),
+        };
+      });
+
+  it("tab nhanh đổi lọc trạng thái / chờ duyệt giá trên BE", async () => {
+    const user = userEvent.setup();
+    const api = mockApi("SALES_STAFF", {
+      get: { "/quotes": () => bePage([QUOTE_ROW]), ...customer },
+    });
+    renderScreen(<QuoteList />, "SALES_STAFF");
+    const tabs = await screen.findByRole("tablist", { name: "Lọc nhanh theo trạng thái" });
+    expect(within(tabs).getByRole("tab", { name: "Tất cả" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+
+    await user.click(within(tabs).getByRole("tab", { name: "Khách yêu cầu sửa" }));
+    await waitFor(() =>
+      expect(statusParams(api).at(-1)).toEqual({ status: "CHANGES_REQUESTED", priceReview: null }),
+    );
+    expect(within(tabs).getByRole("tab", { name: "Khách yêu cầu sửa" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+
+    await user.click(within(tabs).getByRole("tab", { name: "Chờ duyệt giá" }));
+    await waitFor(() =>
+      expect(statusParams(api).at(-1)).toEqual({ status: "", priceReview: "PENDING" }),
+    );
+  });
+
+  it("hàng chờ duyệt giá rỗng nói 'không có gì chờ', không phải 'không khớp từ khoá'", async () => {
+    mockApi("SALES_MANAGER", { get: { "/quotes": () => bePage([]), ...customer } });
+    renderScreen(<QuoteList />, "SALES_MANAGER", "?priceReview=PENDING");
+    expect(await screen.findByText("Không có báo giá nào chờ duyệt giá")).toBeInTheDocument();
+    expect(screen.queryByText("Không tìm thấy kết quả")).toBeNull();
+  });
+
+  it("'Yêu cầu sửa' là cam 'cần xử lý', không đỏ như lỗi", async () => {
+    mockApi("SALES_STAFF", {
+      get: {
+        "/quotes": () => bePage([{ ...QUOTE_ROW, status: "CHANGES_REQUESTED" }]),
+        ...customer,
+      },
+    });
+    renderScreen(<QuoteList />, "SALES_STAFF");
+    const status = await screen.findByText("Yêu cầu sửa", { selector: "span" });
+    expect(status.querySelector(".bg-dot-warning")).not.toBeNull();
+    expect(status.querySelector(".bg-dot-danger")).toBeNull();
+  });
+});
