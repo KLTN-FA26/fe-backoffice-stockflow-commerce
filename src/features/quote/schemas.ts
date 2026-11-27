@@ -245,3 +245,16 @@ export const standardPriceSuggestionSchema = z.object({
   moq: z.number().int(),
   tiers: z.array(tierDtoSchema),
 });
+
+/**
+ * Phần của BE `CreditPositionResponse` (`GET /orders/credit-position/{customerId}`, `customer-credit-profiles:READ`) mà
+ * khung tóm tắt của form báo giá hiện (rà UI WF-02 bo-10): hạn mức, dư nợ phần trả sau giao, còn dùng được, quá hạn.
+ * Jackson non_null: hạn mức / còn dùng vắng khi khách không được bán trả sau.
+ */
+export const quoteCreditPositionSchema = z.object({
+  creditLimit: omittedOrNull(z.number()),
+  exposure: z.number(),
+  availableCredit: omittedOrNull(z.number()),
+  hasOverdue: z.boolean(),
+  overdueAmount: omittedOrNull(z.number()),
+});

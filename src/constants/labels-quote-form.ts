@@ -39,6 +39,14 @@ export const QUOTE_FORM_LABELS = {
     customer: "Khách hàng",
     taxCode: (code: string) => `MST ${code}`,
     customerCode: (code: string) => `Mã KH ${code}`,
+    credit: {
+      limit: "Hạn mức công nợ",
+      exposure: "Dư nợ trả sau giao",
+      available: "Còn dùng được",
+      noCredit: "Không bán trả sau",
+      overdue: (amount: string) =>
+        `Có ${amount} quá hạn — hợp đồng ký lúc này sẽ chờ Kế toán duyệt.`,
+    },
     checkTitle: "Kiểm tra giá",
     allOk: (ok: number, total: number) => `${ok}/${total} dòng đạt giá`,
     needsApproval: (count: number) => `${count} dòng cần Quản lý kinh doanh duyệt giá`,

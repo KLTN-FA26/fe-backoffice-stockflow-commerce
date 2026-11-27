@@ -3,11 +3,17 @@
 import { useWatch } from "react-hook-form";
 import { LoaderCircle, Send } from "lucide-react";
 
-import { CUSTOMER_PERMISSIONS } from "@/constants";
+import {
+  CUSTOMER_CREDIT_PROFILE_PERMISSIONS,
+  CUSTOMER_FALLBACK_LABEL,
+  CUSTOMER_PERMISSIONS,
+} from "@/constants";
 import { QUOTE_FORM_LABELS } from "@/constants/labels-quote-form";
 import { formatDecimal } from "@/lib/format";
+import { formatMoney } from "@/lib/format/money";
 import { useCan } from "@/lib/auth";
 import { useCustomerRef } from "@/lib/references/customer-lookup";
+import { useCustomerCreditPosition } from "@/features/quote/queries";
 import { linePriceVerdict } from "@/features/quote/selectors";
 import { FORM_BAR_ACTION_CLASS } from "@/components/backoffice/FormBottomBar";
 import { Card } from "@/components/shared/Card";
@@ -32,21 +38,62 @@ function toTiers(values: QuoteFormValues["lines"][number]["tiers"] | undefined):
     .filter((tier) => tier.minQuantity > 0 && tier.unitPrice > 0);
 }
 
-/** Khách của báo giá: tên, MST (khi xem được khách), mã khách (BE trả trên báo giá đã lưu). */
+/**
+ * Hạn mức / dư nợ của khách (BE `CreditPositionResponse`) khi người dùng được xem công nợ khách
+ * (`customer-credit-profiles:READ`, UI-only). Không tải được thì không hiện — không chặn việc lập báo giá.
+ */
+function CreditFacts({ customerId }: { customerId: string }) {
+  const canRead = useCan(CUSTOMER_CREDIT_PROFILE_PERMISSIONS.read);
+  const query = useCustomerCreditPosition(customerId, canRead);
+  const credit = query.data;
+  if (!credit) return null;
+  const money = (value: number) => formatMoney(value, "VND");
+  return (
+    <dl className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-0.5 pt-1 text-xs">
+      {credit.creditLimit == null ? (
+        <>
+          <dt className="text-ink-secondary">{S.credit.limit}</dt>
+          <dd className="text-ink-tertiary text-right">{S.credit.noCredit}</dd>
+        </>
+      ) : (
+        <>
+          <dt className="text-ink-secondary">{S.credit.limit}</dt>
+          <dd className={`text-right ${MONO}`}>{money(credit.creditLimit)}</dd>
+          <dt className="text-ink-secondary">{S.credit.exposure}</dt>
+          <dd className={`text-right ${MONO}`}>{money(credit.exposure)}</dd>
+          <dt className="text-ink-secondary">{S.credit.available}</dt>
+          <dd className={`text-ink-primary text-right font-medium ${MONO}`}>
+            {money(credit.availableCredit ?? 0)}
+          </dd>
+        </>
+      )}
+      {credit.hasOverdue && (
+        <dd className="text-warning-ink col-span-2 pt-0.5 font-medium">
+          {S.credit.overdue(money(credit.overdueAmount ?? 0))}
+        </dd>
+      )}
+    </dl>
+  );
+}
+
+/**
+ * Khách của báo giá: tên, MST (khi xem được khách), mã khách (BE trả trên báo giá đã lưu), hạn mức / dư nợ (khi xem được
+ * công nợ).
+ */
 function CustomerCard({ customerId, quote }: { customerId: string; quote?: Quote }) {
   const canRead = useCan(CUSTOMER_PERMISSIONS.read);
   const ref = useCustomerRef(customerId, canRead);
-  const name = ref.data?.fullName ?? quote?.customerName ?? null;
+  const name = ref.data?.fullName ?? quote?.customerName ?? CUSTOMER_FALLBACK_LABEL;
   const facts = [
     ref.data?.taxCode ? S.taxCode(ref.data.taxCode) : null,
     quote?.customerCode ? S.customerCode(quote.customerCode) : null,
   ].filter((fact): fact is string => fact !== null);
-  if (!name && facts.length === 0) return null;
   return (
     <Card className="space-y-1">
       <h2 className="text-ink-secondary text-xs font-medium">{S.customer}</h2>
-      {name && <p className="text-ink-primary text-sm font-semibold break-words">{name}</p>}
+      <p className="text-ink-primary text-sm font-semibold break-words">{name}</p>
       {facts.length > 0 && <p className="text-ink-secondary text-xs">{facts.join(" · ")}</p>}
+      <CreditFacts customerId={customerId} />
     </Card>
   );
 }

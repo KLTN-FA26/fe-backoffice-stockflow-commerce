@@ -12,6 +12,7 @@ import { toQuoteBody } from "./form-body";
 import {
   customerPriceDtoSchema,
   customerSkuListDtoSchema,
+  quoteCreditPositionSchema,
   quoteDtoSchema,
   quotePageDtoSchema,
   standardPriceSuggestionSchema,
@@ -23,6 +24,7 @@ import type {
   CustomerPrice,
   CustomerSku,
   Quote,
+  QuoteCreditPosition,
   QuoteFormOutput,
   QuoteRow,
   StandardPriceSuggestion,
@@ -211,4 +213,20 @@ export async function findQuoteConversationId(
     (await first({ contextKind: "QUOTE", contextId: quote.id })) ??
     (await first({ customerId: quote.customerId }))
   );
+}
+
+/**
+ * Hạn mức và dư nợ của khách (`GET /orders/credit-position/{customerId}`, BE `CreditHoldController#position`,
+ * `customer-credit-profiles:READ` — Sales có) cho khung tóm tắt của form báo giá: Sale thấy trước khi gửi khách đã dùng
+ * bao nhiêu hạn mức, còn khoản quá hạn không.
+ */
+export async function getCustomerCreditPosition(
+  customerId: string,
+  signal?: AbortSignal,
+): Promise<QuoteCreditPosition> {
+  const { data } = await api.get<unknown>(
+    `/orders/credit-position/${encodeURIComponent(customerId)}`,
+    { signal },
+  );
+  return quoteCreditPositionSchema.parse(data);
 }

@@ -86,6 +86,30 @@ describe("Quote form — summary panel (bo-10, bo-13)", () => {
     expect(within(summary()).getByRole("button", { name: "Lưu và gửi duyệt giá" })).toBeVisible();
   });
 
+  it("shows the customer's credit limit, balance and overdue amount when the BE gives them", async () => {
+    mockApi("SALES_STAFF", {
+      get: {
+        [`/customers/${CUSTOMER_ID}`]: () => CUSTOMER,
+        "/customer-skus": () => [SKU_ROW],
+        [`/catalog/customer-prices/${CUSTOMER_ID}/${SKU}`]: () => PRICE,
+        [`/orders/credit-position/${CUSTOMER_ID}`]: () => ({
+          customerId: CUSTOMER_ID,
+          creditLimit: 500_000_000,
+          exposure: 180_000_000,
+          availableCredit: 320_000_000,
+          currency: "VND",
+          hasOverdue: true,
+          overdueAmount: 7_048_620,
+        }),
+      },
+    });
+    renderScreen(<QuoteCreate />, "SALES_STAFF");
+    await screen.findByText("Ly 12oz xanh");
+    expect(await within(summary()).findByText(/500\.000\.000/)).toBeInTheDocument();
+    expect(within(summary()).getByText(/320\.000\.000/)).toBeInTheDocument();
+    expect(within(summary()).getByText(/7\.048\.620 .* quá hạn/)).toBeInTheDocument();
+  });
+
   it("'Lưu và gửi' saves the draft, then opens the quote with the send confirmation", async () => {
     const user = userEvent.setup();
     const api = renderCreate();
