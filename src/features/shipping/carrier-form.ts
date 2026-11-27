@@ -39,8 +39,7 @@ export function carrierFormDefaults(carrier: Carrier | null): CarrierFormInput {
     status: carrier?.status === "INACTIVE" ? "INACTIVE" : "ACTIVE",
     connectionType: type && type !== "UNKNOWN" ? type : CARRIER_CONNECTION_TYPE.MANUAL,
     webhookSecret: "",
-    // Chưa chọn thì mặc định "Thử nghiệm": sai môi trường chỉ làm gọi API lỗi, không đặt xe thật (UX audit S01-6)
-    apiEnvironment: environment === "PRODUCTION" ? "PRODUCTION" : "STAGING",
+    apiEnvironment: environment === "STAGING" || environment === "PRODUCTION" ? environment : "",
     apiAccount: connection?.apiAccount ?? "",
     apiKey: "",
     webhookAuthHeader: connection?.webhookAuthHeader ?? "",

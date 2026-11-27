@@ -48,8 +48,8 @@ export const CARRIER_CONFIG_LABELS = {
     environment: "Môi trường",
     environmentPlaceholder: "Chọn môi trường",
     environmentOption: {
-      STAGING: "Thử nghiệm",
-      PRODUCTION: "Chạy thật",
+      STAGING: "Thử nghiệm (staging)",
+      PRODUCTION: "Chạy thật (production)",
     },
     account: "Tài khoản ở hãng",
     accountHint:
@@ -74,11 +74,6 @@ export const CARRIER_CONFIG_LABELS = {
     keepAria: (label: string) => `Giữ ${label.toLowerCase()} hiện tại`,
     replaceHint: "Nhập khoá mới. Để trống thì giữ khoá đã lưu.",
     notSaved: "Chưa lưu",
-    // Xem lại khoá đang gõ để chắc không gõ nhầm (UX audit S20-1); khoá đã lưu thì vẫn không bao giờ hiện lại
-    show: "Hiện",
-    hide: "Ẩn",
-    showAria: (label: string) => `Hiện ${label.toLowerCase()} đang gõ`,
-    hideAria: (label: string) => `Ẩn ${label.toLowerCase()} đang gõ`,
   },
   table: {
     add: "Thêm dòng",

@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { Check, Eye, EyeOff } from "lucide-react";
+import { Check } from "lucide-react";
 
 import { UI_LABELS } from "@/constants";
 import { Button } from "@/components/ui/button";
@@ -45,7 +44,6 @@ export function SecretField({
   maxLength: number;
 }) {
   const showInput = !saved || replacing || mustReplace;
-  const [visible, setVisible] = useState(false);
   return (
     <div>
       <Label htmlFor={id} className="text-ink-secondary mb-1 block text-xs font-medium">
@@ -55,7 +53,7 @@ export function SecretField({
         <div className="flex items-center gap-2">
           <Input
             id={id}
-            type={visible ? "text" : "password"}
+            type="password"
             autoComplete="new-password"
             maxLength={maxLength}
             aria-invalid={error ? true : undefined}
@@ -63,30 +61,12 @@ export function SecretField({
             className={`${fieldClass(!!error)} ${MONO}`}
             {...registration}
           />
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => setVisible((current) => !current)}
-            aria-pressed={visible}
-            aria-label={visible ? S.hideAria(label) : S.showAria(label)}
-            title={visible ? S.hide : S.show}
-          >
-            {visible ? (
-              <EyeOff className="size-4" aria-hidden />
-            ) : (
-              <Eye className="size-4" aria-hidden />
-            )}
-          </Button>
           {saved && !mustReplace && (
             <Button
               type="button"
               variant="ghost"
               size="sm"
-              onClick={() => {
-                setVisible(false);
-                onKeep();
-              }}
+              onClick={onKeep}
               aria-label={S.keepAria(label)}
             >
               {S.keep}
