@@ -81,6 +81,9 @@ export const PAYMENT_LABELS = {
     orderChip: "Đơn hàng",
     filterByOrderCustomer: "Lọc theo khách của đơn",
     emptyTitle: "Chưa có đợt thanh toán",
+    emptyQueueTitle: "Không còn đợt nào cần thu",
+    emptyQueueDescription: "Mọi đợt đã đến mốc đều đã thu đủ.",
+    showAll: "Xem mọi đợt",
     emptyDescription:
       "Đợt thanh toán được hệ thống sinh khi hợp đồng chuyển sang Signed — chưa có hợp đồng nào được ký.",
     noReadDescription:
@@ -95,6 +98,13 @@ export const PAYMENT_LABELS = {
     batchTied: (seq: number) => `Đợt giao ${seq}`,
     notTied: "Không gắn đợt giao",
     handoverBlocked: "Đang chặn bàn giao",
+    kpis: {
+      label: "Đợt cần thu",
+      dueToday: "Đến hạn hôm nay",
+      dueWeek: "Đến hạn trong 7 ngày",
+      overdue: "Quá hạn",
+      unavailable: "Không tải được số liệu",
+    },
   },
   columns: {
     contract: "Hợp đồng",
@@ -345,6 +355,7 @@ export const PAYMENT_LIST_LABELS = {
   notUsed: "Chưa dùng",
   all: "Tất cả",
   yes: "Có",
+  no: "Không",
   overdueDays: (days: number) => (days > 0 ? `Quá hạn ${days} ngày` : "Quá hạn"),
   unknownStatus: "Không rõ",
   receivedRange: "Ngày nhận",
