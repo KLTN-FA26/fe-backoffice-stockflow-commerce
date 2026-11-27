@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -10,15 +10,9 @@ import { loginApi } from "@/lib/auth/auth-api";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useAppStore } from "@/lib/store/use-app-store";
 
-import { ThemeProvider } from "@/components/theme-provider";
+import { renderWithProviders } from "@/test/render";
 
 import LoginPage from "./page";
-
-import type { ReactNode } from "react";
-
-const withTheme = {
-  wrapper: ({ children }: { children: ReactNode }) => <ThemeProvider>{children}</ThemeProvider>,
-};
 
 const { replace, refresh } = vi.hoisted(() => ({ replace: vi.fn(), refresh: vi.fn() }));
 vi.mock("next/navigation", () => ({
@@ -55,7 +49,7 @@ afterEach(() => {
 });
 async function submit() {
   const actor = userEvent.setup();
-  render(<LoginPage />, withTheme);
+  renderWithProviders(<LoginPage />);
   await actor.type(screen.getByLabelText("Tên đăng nhập"), "staff.username");
   await actor.type(screen.getByLabelText("Mật khẩu", { exact: true }), "secret");
   await actor.click(screen.getByRole("button", { name: "Đăng nhập vào hệ thống" }));
@@ -112,7 +106,7 @@ describe("BFF login form", () => {
   );
   it("validates empty fields with zod (Vietnamese inline errors, no native bubble, no API call)", async () => {
     const actor = userEvent.setup();
-    render(<LoginPage />, withTheme);
+    renderWithProviders(<LoginPage />);
     await actor.click(screen.getByRole("button", { name: "Đăng nhập vào hệ thống" }));
     expect(await screen.findByText(LOGIN_UI.usernameRequired)).toBeInTheDocument();
     expect(screen.getByText(LOGIN_UI.passwordRequired)).toBeInTheDocument();
@@ -127,7 +121,7 @@ describe("BFF login form", () => {
   });
   it("treats a whitespace-only username as empty", async () => {
     const actor = userEvent.setup();
-    render(<LoginPage />, withTheme);
+    renderWithProviders(<LoginPage />);
     await actor.type(screen.getByLabelText("Tên đăng nhập"), "   ");
     await actor.type(screen.getByLabelText("Mật khẩu", { exact: true }), "secret");
     await actor.click(screen.getByRole("button", { name: "Đăng nhập vào hệ thống" }));
@@ -137,14 +131,14 @@ describe("BFF login form", () => {
   it("toggles light/dark from the header button", async () => {
     useAppStore.getState().setTheme("light");
     const actor = userEvent.setup();
-    render(<LoginPage />, withTheme);
+    renderWithProviders(<LoginPage />);
     await actor.click(screen.getByRole("button", { name: LOGIN_UI.themeToDark }));
     expect(useAppStore.getState().theme).toBe("dark");
     expect(screen.getByRole("button", { name: LOGIN_UI.themeToLight })).toBeInTheDocument();
   });
   it("routes an already server-verified identity to the callback", async () => {
     useAuthStore.getState().login(user, false);
-    render(<LoginPage />, withTheme);
+    renderWithProviders(<LoginPage />);
     await waitFor(() => expect(replace).toHaveBeenCalledWith("/admin/products"));
     expect(screen.queryByLabelText("Tên đăng nhập")).not.toBeInTheDocument();
   });
