@@ -40,6 +40,39 @@ describe("ReturnList", () => {
     ]);
   });
 
+  it("status filter (URL) narrows the open tab to the picked statuses on the BE", async () => {
+    const list = vi.fn((_params: unknown) => bePage([returnRowJson()]));
+    mockReturnApi(SALES_GRANTS, { get: { "/returns": (params) => list(params) } });
+    renderReturnScreen(<ReturnList />, "?status=REQUESTED,RESOLVED");
+    await screen.findByRole("link", { name: "RMA-20261110-0001" });
+    const params = list.mock.calls.at(-1)?.[0] as URLSearchParams;
+    // RESOLVED is not an open status → dropped while the "Đang xử lý" tab is active
+    expect(params.getAll("status")).toEqual(["REQUESTED"]);
+    expect(screen.getByRole("button", { name: "Xoá Trạng thái" })).toBeInTheDocument();
+  });
+
+  it("reason header filter narrows the loaded page without calling the BE again", async () => {
+    const list = vi.fn((_params: unknown) =>
+      bePage([
+        returnRowJson(),
+        returnRowJson({ id: "ret-2", rmaNumber: "RMA-20261110-0002", reasonCode: "WRONG_ITEM" }),
+      ]),
+    );
+    mockReturnApi(SALES_GRANTS, { get: { "/returns": (params) => list(params) } });
+    renderReturnScreen(<ReturnList />);
+    await screen.findByRole("link", { name: "RMA-20261110-0002" });
+    const calls = list.mock.calls.length;
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: "Lọc lý do" }));
+    await user.click(await screen.findByRole("option", { name: /Giao sai hàng/ }));
+
+    expect(screen.queryByRole("link", { name: "RMA-20261110-0001" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "RMA-20261110-0002" })).toBeInTheDocument();
+    expect(screen.getByText("Lý do “Giao sai hàng”")).toBeInTheDocument();
+    expect(list.mock.calls.length).toBe(calls);
+  });
+
   it("BE-23: a row with receiptDraftOpen links the warehouse to the draft being counted", async () => {
     const drafts = vi.fn((_params: unknown) =>
       bePage([
