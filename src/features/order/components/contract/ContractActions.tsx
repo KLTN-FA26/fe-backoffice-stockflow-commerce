@@ -65,7 +65,11 @@ function SendError({ error }: { error: unknown }) {
   );
 }
 
-/** Nút hợp đồng theo trạng thái (`allowedContractActions`) + tải PDF / bản đã gửi / bản đã ký. */
+/**
+ * Nút hợp đồng theo trạng thái (`allowedContractActions`) + tải PDF / bản đã gửi / bản đã ký.
+ * `reviewFirst` (bo-19, hợp đồng vừa lập): "Sửa" là nút chính, rồi "Xem trước PDF", "Gửi hợp đồng" thành nút phụ — vẫn bấm
+ * được, vẫn khoá theo lý do của #304 (`sendBlockers`).
+ */
 export function ContractActions({
   contract,
   actions,
@@ -74,6 +78,8 @@ export function ContractActions({
   dialog,
   setDialog,
   papers = { appendix: false, liquidation: false },
+  reviewFirst = false,
+  onPreviewed,
 }: {
   contract: SalesContract;
   actions: readonly ContractAction[];
@@ -84,6 +90,10 @@ export function ContractActions({
   setDialog: (dialog: ContractDialog) => void;
   /** Phụ lục / biên bản thanh lý mở được chưa (`contractPapers`). */
   papers?: { appendix: boolean; liquidation: boolean };
+  /** Hợp đồng vừa lập, chưa xem lại: mời xem lại trước, "Gửi hợp đồng" lùi thành nút phụ (bo-19). */
+  reviewFirst?: boolean;
+  /** Đã mở bản xem trước PDF. */
+  onPreviewed?: () => void;
 }) {
   const send = useSendSalesContract();
   const cancel = useCancelSalesContract();
@@ -99,28 +109,31 @@ export function ContractActions({
   const blocked = sendBlockersText(
     sendBlockers(contract, toLocalIsoDate(new Date().toISOString())),
   );
+  const sendButton = actions.includes("send") && (
+    <Button
+      size="sm"
+      variant={reviewFirst ? "outline" : "default"}
+      disabled={!!blocked}
+      aria-describedby={blocked ? "contract-send-blocked" : undefined}
+      onClick={() => setDialog("send")}
+    >
+      <Send className="size-3.5" /> Gửi hợp đồng
+    </Button>
+  );
 
   return (
     <div className="w-full space-y-1.5">
       <div className="flex w-full flex-wrap items-center gap-2">
-        {/* BO-UX-27: việc chính trước (Gửi / Ghi nhận đã ký), rồi Sửa, rồi tải PDF; Huỷ hợp đồng cuối, tách riêng. */}
-        {actions.includes("send") && (
-          <Button
-            size="sm"
-            disabled={!!blocked}
-            aria-describedby={blocked ? "contract-send-blocked" : undefined}
-            onClick={() => setDialog("send")}
-          >
-            <Send className="size-3.5" /> Gửi hợp đồng
-          </Button>
-        )}
+        {/* BO-UX-27: việc chính trước (Gửi / Ghi nhận đã ký), rồi Sửa, rồi tải PDF; Huỷ hợp đồng cuối, tách riêng.
+            bo-19: hợp đồng vừa lập thì xem lại trước — Sửa, Xem trước PDF, rồi mới Gửi. */}
+        {!reviewFirst && sendButton}
         {actions.includes("sign") && (
           <Button size="sm" onClick={() => setDialog("sign")}>
             <Signature className="size-3.5" /> Ghi nhận đã ký
           </Button>
         )}
         {actions.includes("edit") && (
-          <Button size="sm" variant="outline" onClick={onEdit}>
+          <Button size="sm" variant={reviewFirst ? "default" : "outline"} onClick={onEdit}>
             <Pencil className="size-3.5" /> Sửa
           </Button>
         )}
@@ -129,7 +142,9 @@ export function ContractActions({
           canPreview={actions.includes("preview")}
           onError={onError}
           papers={papers}
+          onPreviewed={onPreviewed}
         />
+        {reviewFirst && sendButton}
         {actions.includes("cancel") && (
           <Button
             size="sm"
