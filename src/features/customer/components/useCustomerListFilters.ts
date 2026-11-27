@@ -1,6 +1,6 @@
 "use client";
 
-import { parseAsString, useQueryState, useQueryStates } from "nuqs";
+import { parseAsBoolean, parseAsString, useQueryState, useQueryStates } from "nuqs";
 
 import { CUSTOMER_API_STATUSES, STORAGE_KEYS } from "@/constants";
 
@@ -51,6 +51,11 @@ export function useCustomerListFilters() {
   const { filters } = list;
   const [columnFilters, setColumnFilters] = useQueryStates(COLUMN_FILTER_PARSERS);
   const [owner, setOwner] = useQueryState("owner", parseAsString.withDefault(""));
+  // D41: lọc "Thiếu MST" ở BE (`taxCodeMissing=true`)
+  const [taxCodeMissing, setTaxCodeMissing] = useQueryState(
+    "taxCodeMissing",
+    parseAsBoolean.withDefault(false),
+  );
   const name = useDebouncedValue(columnFilters.custName, 300).trim();
   const taxCode = useDebouncedValue(columnFilters.custTaxCode, 300).trim();
   const email = useDebouncedValue(columnFilters.custEmail, 300).trim();
@@ -68,12 +73,18 @@ export function useCustomerListFilters() {
     /** `q` gửi BE: ô tìm chính, không có thì chữ của ô lọc cột đầu tiên đang dùng. */
     serverQ: filters.debouncedQ.trim() || name || taxCode || email || phone || undefined,
     hasColumnFilters,
-    hasFilters: list.hasBaseFilters || hasColumnFilters || owner !== "",
+    hasFilters: list.hasBaseFilters || hasColumnFilters || owner !== "" || taxCodeMissing,
     /** Lọc Sale phụ trách đang chọn (`""` = không lọc) và tham số gửi BE. */
     owner,
     ownerParams: ownerParams(owner),
     setOwner: (next: string) => {
       void setOwner(next || null);
+      void filters.setPage(1);
+    },
+    /** D41: chỉ khách "Thiếu MST". */
+    taxCodeMissing,
+    setTaxCodeMissing: (on: boolean) => {
+      void setTaxCodeMissing(on || null);
       void filters.setPage(1);
     },
     setStatus: (next: CustomerApiStatus | null) => void filters.setStatus(next ? [next] : []),
@@ -95,6 +106,7 @@ export function useCustomerListFilters() {
       filters.reset();
       void setColumnFilters(null);
       void setOwner(null);
+      void setTaxCodeMissing(null);
     },
   };
 }

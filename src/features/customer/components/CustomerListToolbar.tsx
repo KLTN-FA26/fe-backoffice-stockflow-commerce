@@ -42,6 +42,7 @@ export function CustomerListToolbar({
   columns,
   unavailable = [],
   owners,
+  taxCodeFlag = false,
 }: {
   filters: CustomerListFilters;
   columns: ColumnVisibility<CustomerColumn>;
@@ -49,6 +50,8 @@ export function CustomerListToolbar({
   unavailable?: readonly CustomerColumn[];
   /** Có khi người dùng đọc được Sale phụ trách: công tắc "Khách của tôi" / "Cần giao người phụ trách" (BR-S11). */
   owners?: { sales: readonly SalesOption[] };
+  /** D41: BE gửi cờ `taxCodeMissing` → công tắc "Thiếu MST". */
+  taxCodeFlag?: boolean;
 }) {
   const { status, owner } = filters;
   const ownerLabel = ownerFilterOptions(owners?.sales ?? []).find((o) => o.value === owner)?.label;
@@ -59,18 +62,29 @@ export function CustomerListToolbar({
       {...columnToolbarProps(columns, CUSTOMER_COLUMN_LABELS, shown)}
       controlsIn="summary"
       tools={
-        owners && (
+        (owners || taxCodeFlag) && (
           <>
-            <ToolbarSwitch
-              label={SALES_OWNER_LABELS.list.mine}
-              checked={owner === OWNER_FILTER_MINE}
-              onCheckedChange={(on) => filters.setOwner(on ? OWNER_FILTER_MINE : "")}
-            />
-            <ToolbarSwitch
-              label={SALES_OWNER_LABELS.list.needsAssignment}
-              checked={owner === OWNER_FILTER_NEEDS}
-              onCheckedChange={(on) => filters.setOwner(on ? OWNER_FILTER_NEEDS : "")}
-            />
+            {owners && (
+              <>
+                <ToolbarSwitch
+                  label={SALES_OWNER_LABELS.list.mine}
+                  checked={owner === OWNER_FILTER_MINE}
+                  onCheckedChange={(on) => filters.setOwner(on ? OWNER_FILTER_MINE : "")}
+                />
+                <ToolbarSwitch
+                  label={SALES_OWNER_LABELS.list.needsAssignment}
+                  checked={owner === OWNER_FILTER_NEEDS}
+                  onCheckedChange={(on) => filters.setOwner(on ? OWNER_FILTER_NEEDS : "")}
+                />
+              </>
+            )}
+            {taxCodeFlag && (
+              <ToolbarSwitch
+                label={SALES_OWNER_LABELS.list.taxCodeMissing}
+                checked={filters.taxCodeMissing}
+                onCheckedChange={filters.setTaxCodeMissing}
+              />
+            )}
           </>
         )
       }
@@ -111,6 +125,16 @@ export function CustomerListToolbar({
           active: !!status,
           onClear: () => filters.setStatus(null),
         },
+        ...(filters.taxCodeMissing
+          ? [
+              {
+                label: SALES_OWNER_LABELS.list.taxCodeMissing,
+                value: SALES_OWNER_LABELS.list.taxCodeMissingHint,
+                active: true,
+                onClear: () => filters.setTaxCodeMissing(false),
+              },
+            ]
+          : []),
         ...(owner
           ? [
               {

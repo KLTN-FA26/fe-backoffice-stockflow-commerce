@@ -18,6 +18,7 @@ import {
   LIST_EXTRA_COPY,
   SALES_OWNER_COLUMN,
   SalesContactCell,
+  TaxCodeCell,
 } from "./list-extra-cells";
 
 import type { ColumnDef } from "@/components/shared/DataTable";
@@ -78,7 +79,7 @@ const DATA_COLUMNS: ColumnDef<Customer>[] = [
     key: "taxCode",
     header: "Mã số thuế",
     className: "whitespace-nowrap",
-    cell: (row) => <span className={`text-ink-secondary ${MONO}`}>{row.taxCode ?? "—"}</span>,
+    cell: (row) => <TaxCodeCell customer={row} className={`text-ink-secondary ${MONO}`} />,
   },
   {
     key: "email",

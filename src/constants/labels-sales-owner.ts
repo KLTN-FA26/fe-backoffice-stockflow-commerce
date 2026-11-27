@@ -91,6 +91,9 @@ export const SALES_OWNER_LABELS = {
     mine: "Khách của tôi",
     needsAssignment: "Cần giao người phụ trách",
     bySales: "Sale phụ trách",
+    /** D41: khách cũ chưa có MST — không bắt bổ sung, chỉ gắn cờ (lọc `taxCodeMissing=true`). */
+    taxCodeMissing: "Thiếu MST",
+    taxCodeMissingHint: "Khách cũ chưa có mã số thuế",
   },
   picker: {
     paused: "tạm dừng nhận khách",

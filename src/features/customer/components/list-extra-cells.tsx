@@ -7,6 +7,7 @@ import { SALES_OWNER_LABELS } from "@/constants/labels-sales-owner";
 
 import { SalesOwnerStateBadge } from "@/components/backoffice/SalesOwnerBadge";
 import { CELL, EmptyCell } from "@/components/shared/column-helpers";
+import { Badge } from "@/components/ui/badge";
 
 import type { ColumnDef } from "@/components/shared/DataTable";
 import type { CreditPosition, Customer, SalesContact } from "@/features/customer/types";
@@ -100,3 +101,18 @@ export const SALES_OWNER_COLUMN: ColumnDef<Customer> = {
   className: "min-w-40 whitespace-normal",
   cell: (row) => <SalesOwnerCell customer={row} />,
 };
+
+/** Mã số thuế; khách cũ thiếu MST (D41, cờ `taxCodeMissing`) → nhãn nhỏ "Thiếu MST". BE cũ không gửi cờ → như trước. */
+export function TaxCodeCell({ customer, className }: { customer: Customer; className: string }) {
+  if (customer.taxCodeMissing)
+    return (
+      <Badge
+        variant="outline"
+        className="text-[0.6875rem]"
+        title={SALES_OWNER_LABELS.list.taxCodeMissingHint}
+      >
+        {SALES_OWNER_LABELS.list.taxCodeMissing}
+      </Badge>
+    );
+  return <span className={className}>{customer.taxCode ?? "—"}</span>;
+}

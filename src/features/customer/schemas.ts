@@ -32,6 +32,8 @@ export const customerDtoSchema = z.object({
   salesOwnerActive: z.boolean().nullish(),
   salesOwnerState: z.enum(SALES_OWNER_STATES).nullish().catch(null),
   salesOwnerSince: z.string().nullish(),
+  // D41 (hợp đồng sales-owner, quyết định 28/11): khách cũ không có MST mang cờ, không bị bắt bổ sung. Vắng = BE cũ
+  taxCodeMissing: z.boolean().nullish(),
 });
 
 export const customerPageDtoSchema = bePageSchema(customerDtoSchema);

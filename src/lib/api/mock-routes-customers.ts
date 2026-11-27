@@ -92,17 +92,21 @@ async function listRoute(config: AxiosRequestConfig) {
   const q = query.get("q") ?? "";
   // Sale phụ trách (hợp đồng sales-owner BE-A): lọc `mine` / `salesOwnerState` / `salesOwnerId`, dòng có `salesOwner*`
   const ownedBy = await salesOwnerFilter(query);
+  // D41: khách cũ thiếu MST mang cờ `taxCodeMissing`; lọc `taxCodeMissing=true`
+  const taxCodeMissing = query.get("taxCodeMissing") === "true";
   const rows = allMockCustomers().filter(
     (c) =>
       matchesSearch(c, q) &&
       (!segmentId || c.segmentId === segmentId.toLowerCase()) &&
       (!status || c.status === status) &&
-      ownedBy(c.customerId),
+      ownedBy(c.customerId) &&
+      (!taxCodeMissing || c.taxCode === null),
   );
   const result = pageOf(sortCustomers(rows, sort), pageNumber, pageSize);
   const items = await Promise.all(
     result.items.map(async (c) => ({
       ...toResponse(c, true),
+      taxCodeMissing: c.taxCode === null,
       ...(await salesOwnerFields(c.customerId)),
     })),
   );

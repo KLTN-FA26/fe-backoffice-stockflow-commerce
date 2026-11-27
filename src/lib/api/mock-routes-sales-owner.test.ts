@@ -139,6 +139,14 @@ describe("mock sales-owner", () => {
     expect((await fetchSalesAgents())?.length).toBe(agents.length);
   });
 
+  it("D41: GET /customers có taxCodeMissing và lọc taxCodeMissing=true", async () => {
+    const all = await listCustomers({ page: 0, size: 50 });
+    expect(all.items.every((c) => typeof c.taxCodeMissing === "boolean")).toBe(true);
+    const missing = await listCustomers({ page: 0, size: 50, taxCodeMissing: true });
+    expect(missing.items.length).toBeGreaterThan(0);
+    expect(missing.items.every((c) => c.taxCodeMissing === true && !c.taxCode)).toBe(true);
+  });
+
   it("hợp đồng: lịch thay có status; lô tạm chỉ cho người có customer-sales-owners:UPDATE", async () => {
     const covers = (await listCovers({})) ?? [];
     expect(

@@ -51,6 +51,8 @@ export interface ListCustomerParams extends ListQueryParams {
   salesOwnerState?: SalesOwnerState;
   /** Khách của một Sale. */
   salesOwnerId?: string;
+  /** D41: chỉ khách "Thiếu MST". */
+  taxCodeMissing?: boolean;
 }
 
 export async function listCustomers(
@@ -67,6 +69,7 @@ export async function listCustomers(
   if (params.mine) query.set("mine", "true");
   if (params.salesOwnerState) query.set("salesOwnerState", params.salesOwnerState);
   if (params.salesOwnerId) query.set("salesOwnerId", params.salesOwnerId);
+  if (params.taxCodeMissing) query.set("taxCodeMissing", "true");
   const { data } = await api.get<unknown>(CUSTOMERS, { params: query, signal });
   return customerPageDtoSchema.parse(data);
 }

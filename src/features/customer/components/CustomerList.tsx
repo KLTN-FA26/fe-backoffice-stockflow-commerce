@@ -58,10 +58,15 @@ function CustomerListContent() {
       status: state.status,
       sort: sort.key ? `${sort.key},${sort.direction}` : undefined,
       ...state.ownerParams,
+      ...(state.taxCodeMissing ? { taxCodeMissing: true } : {}),
     },
     { enabled: canRead },
   );
   const { canRead: canReadOwner, sales } = useCustomerOwners();
+  // D41: BE cũ không gửi `taxCodeMissing` → không có cờ, không có lọc (đang lọc thì giữ công tắc để tắt được)
+  const taxCodeFlag =
+    state.taxCodeMissing ||
+    (query.data?.items ?? []).some((row) => typeof row.taxCodeMissing === "boolean");
   // bo-29: hạn mức / dư nợ và sale liên hệ gần nhất — mỗi thứ MỘT lần gọi cho id của trang đang xem. Không có quyền đọc
   // hạn mức → không gọi, không có cột (BE cũng trả 403); BE chưa có endpoint → `null`, cũng không có cột.
   const canReadCredit = useCan(CUSTOMER_CREDIT_PROFILE_PERMISSIONS.read);
@@ -103,6 +108,7 @@ function CustomerListContent() {
           columns={columnState}
           unavailable={unavailable}
           owners={canReadOwner ? { sales } : undefined}
+          taxCodeFlag={taxCodeFlag}
         />
       )}
       <ServerTableBody

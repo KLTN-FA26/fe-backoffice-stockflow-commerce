@@ -166,3 +166,32 @@ describe("Danh sách khách — cột và lọc 'Sale phụ trách' (BR-S11)", (
     expect(api.get.mock.calls.some((c) => c[0] === "/chat/agents")).toBe(false);
   });
 });
+
+describe("Danh sách khách — 'Thiếu MST' (D41)", () => {
+  const flagged = [
+    row("c-1", "Công ty An", { taxCode: "0312345678", taxCodeMissing: false }),
+    row("c-2", "Hộ kinh doanh Bình", { taxCodeMissing: true }),
+  ];
+
+  it("D41: dòng thiếu MST có nhãn 'Thiếu MST'; công tắc 'Thiếu MST' → taxCodeMissing=true", async () => {
+    const api = mockSalesOwnerApi("SALES_STAFF", {
+      get: { ...routes.get, "/customers": () => bePage(flagged) },
+    });
+    renderScreen(<CustomerList />, "SALES_STAFF");
+    await screen.findByText("Công ty An");
+    const [, first, second] = screen.getAllByRole("row");
+    expect(within(first as HTMLElement).queryByText("Thiếu MST")).toBeNull();
+    expect(within(second as HTMLElement).getByText("Thiếu MST")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("switch", { name: "Thiếu MST" }));
+    await waitFor(() => expect(lastParams(api).get("taxCodeMissing")).toBe("true"));
+  });
+
+  it("D41: BE cũ không gửi taxCodeMissing → không nhãn, không công tắc, không tham số", async () => {
+    const api = mockSalesOwnerApi("SALES_STAFF", routes);
+    renderScreen(<CustomerList />, "SALES_STAFF");
+    await screen.findByText("Công ty An");
+    expect(screen.queryByText("Thiếu MST")).toBeNull();
+    expect(screen.queryByRole("switch", { name: "Thiếu MST" })).toBeNull();
+    expect(lastParams(api).get("taxCodeMissing")).toBeNull();
+  });
+});
