@@ -154,7 +154,9 @@ describe("Credit hold — danh sách (SCRUM-427)", () => {
     [
       "thiếu quyền xem trang khách",
       [
-        ...ORDER_PERMISSION_SETS.accountant.filter((code) => code !== CUSTOMER_PERMISSIONS.viewPage),
+        ...ORDER_PERMISSION_SETS.accountant.filter(
+          (code) => code !== CUSTOMER_PERMISSIONS.viewPage,
+        ),
         CREDIT_PROFILE_PERMISSIONS.approve,
       ],
     ],
@@ -200,7 +202,9 @@ describe("Credit hold — danh sách (SCRUM-427)", () => {
       // checkedAt 2026-09-07 → 66 ngày chờ
       expect(within(row).getByText("66 ngày")).toBeInTheDocument();
       expect(screen.getByRole("columnheader", { name: "Quá hạn hiện tại" })).toBeInTheDocument();
-      expect(screen.getByRole("columnheader", { name: "Thao tác" }).className).toContain("sticky");
+      expect(screen.getAllByRole("columnheader", { name: "Thao tác" })[0].className).toContain(
+        "sticky",
+      );
     } finally {
       vi.useRealTimers();
     }

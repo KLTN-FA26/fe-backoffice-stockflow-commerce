@@ -30,6 +30,7 @@ import {
 
 import { ContractActions } from "./ContractActions";
 import { CancelledContractNotice } from "./CancelledContractNotice";
+import { ContractCreditReviewNotice } from "./ContractCreditReviewNotice";
 import { ContractCreditWarning } from "./ContractCreditWarning";
 import { ContractEditor } from "./ContractEditor";
 import { ContractHistory } from "./ContractHistory";
@@ -145,7 +146,11 @@ export function OrderContractSection({
             )}
             {contract && contract.status !== "CANCELLED" && (
               <>
-                {contract.status === "DRAFT" && (
+                <ContractCreditReviewNotice
+                  contract={contract}
+                  canWithdraw={actions.includes("withdraw-review")}
+                />
+                {contract.status === "DRAFT" && contract.creditReview !== "PENDING" && (
                   <ContractCreditWarning
                     contract={contract}
                     onEdit={actions.includes("edit") ? () => setEditing(true) : undefined}
@@ -161,7 +166,7 @@ export function OrderContractSection({
                   setDialog={setDialog}
                   papers={contractPapers(contract, order.status)}
                 />
-                {editing && contract.status === "DRAFT" ? (
+                {editing && contract.status === "DRAFT" && contract.creditReview !== "PENDING" ? (
                   <ContractEditor
                     contract={contract}
                     order={order}

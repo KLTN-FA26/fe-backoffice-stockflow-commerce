@@ -111,6 +111,19 @@ export function mockOrderApiGet(
       if (!handler && url.endsWith("/history")) return { data: [] };
       // Giữ hoàn tất (WF-05 GH-2): mặc định đơn không bị giữ (BE trả data null)
       if (!handler && url.endsWith("/completion-hold")) return { data: null };
+      // Hợp đồng chờ duyệt tín dụng (15 BR-11): mặc định hàng chờ rỗng — test về hàng chờ khai báo handler riêng
+      if (!handler && url === "/orders/contract-credit-reviews")
+        return {
+          data: {
+            items: [],
+            page: 0,
+            size: 15,
+            totalElements: 0,
+            totalPages: 0,
+            hasNext: false,
+            hasPrevious: false,
+          },
+        };
       if (!handler) throw new Error(`Không có mock cho GET ${url}`);
       const params = config?.params instanceof URLSearchParams ? config.params : undefined;
       return { data: handler(params) };
