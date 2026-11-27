@@ -125,7 +125,7 @@ describe("tài khoản demo — dùng màn bảng giá", () => {
       expect(await screen.findByText(SKU, {}, WAIT)).toBeInTheDocument();
       expect(calledWith(get, PRICES).length).toBeGreaterThan(0);
 
-      await user.click(screen.getByRole("button", { name: F.create }));
+      await user.click(screen.getByRole("button", { name: L.toolbar.createAria }));
       expect(await screen.findByText(F.createTitle, {}, WAIT)).toBeInTheDocument();
       await user.keyboard("{Escape}");
       await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
@@ -139,7 +139,7 @@ describe("tài khoản demo — dùng màn bảng giá", () => {
     const { user } = signInAs("USER-SALE-01");
     await pickPricedCustomer(user);
     expect(await screen.findByText(SKU, {}, WAIT)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: F.create })).toBeNull();
+    expect(screen.getByRole("button", { name: L.toolbar.createAria })).toBeDisabled();
     expect(screen.queryByRole("button", { name: rowMenuName(SKU) })).toBeNull();
   });
 

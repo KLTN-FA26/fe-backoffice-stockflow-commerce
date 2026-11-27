@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Plus } from "lucide-react";
 
 import {
   PRODUCT_PERMISSIONS,
@@ -11,12 +10,13 @@ import {
 } from "@/constants";
 import { useCan } from "@/lib/auth";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
-import { Button } from "@/components/ui/button";
+import { HeaderActions, HeaderCreateButton } from "@/components/shared/HeaderActions";
 
 import { useStandardPrices } from "../queries";
 import { pricedSkus } from "../selectors";
 import { StandardPriceFormDialog, targetKey } from "./StandardPriceFormDialog";
 import { StandardPriceTable } from "./StandardPriceTable";
+import { useStandardPriceFilters } from "./useStandardPriceFilters";
 
 import type { StandardPriceTarget } from "./StandardPriceFormDialog";
 
@@ -37,18 +37,24 @@ function StandardPriceListContent() {
   const canReadVariants = useCan(VARIANT_PERMISSIONS.read);
   const query = useStandardPrices(canRead);
   const [target, setTarget] = useState<StandardPriceTarget | null>(null);
+  const filters = useStandardPriceFilters();
 
   return (
-    // Trang danh sách kiểu Vercel (mode-a-backoffice §3 loại trang): không title hiển thị, tên ở breadcrumb
-    <div className="surface-soft space-y-4">
+    // Trang danh sách kiểu Vercel (backoffice-erp-ui A): không title / phụ đề hiển thị — tên ở breadcrumb; h1 và lời
+    // giới thiệu giữ cho screen reader. Nút tạo mới nằm trên thanh breadcrumb.
+    <div className="surface-soft">
       <h1 className="sr-only">{L.title}</h1>
-      <p className="text-ink-secondary max-w-3xl text-[0.8125rem]">{L.intro}</p>
-      {canCreate && (
-        <Button type="button" size="sm" onClick={() => setTarget({ mode: "create" })}>
-          <Plus className="size-3.5" /> {L.form.create}
-        </Button>
-      )}
+      <p className="sr-only">{L.intro}</p>
+      <HeaderActions>
+        <HeaderCreateButton
+          onClick={() => canCreate && setTarget({ mode: "create" })}
+          disabled={!canCreate}
+          aria-label="Tạo mới giá chuẩn"
+          tooltip={canCreate ? L.toolbar.createTooltip : L.toolbar.createDenied}
+        />
+      </HeaderActions>
       <StandardPriceTable
+        filters={filters}
         query={query}
         canRead={canRead}
         canDelete={canDelete}
