@@ -16,6 +16,9 @@ import { useCreateQuote, useUpdateQuote } from "@/features/quote/mutations";
 import type { Path } from "react-hook-form";
 import type { Quote, QuoteFormOutput, QuoteFormValues } from "@/features/quote/types";
 
+/** Tham số URL của trang báo giá: mở sẵn hộp xác nhận gửi sau khi "Lưu và gửi" trên form. */
+export const QUOTE_SEND_PARAM = "send";
+
 /** `lines[2].cartons` (BE) → `lines.2.cartons` (react-hook-form). */
 export function toFormPath(field: string): string {
   return field.replace(/\[(\d+)\]/g, ".$1");
@@ -91,16 +94,28 @@ export function useQuoteForm({
     if (!field) setFormError(message);
   };
 
-  const submit = form.handleSubmit((values) => {
-    setFormError(null);
-    const onSuccess = (saved: Quote) => router.replace(ADMIN_ROUTES.quotes.detail(saved.id));
-    if (quote)
-      update.mutate(
-        { id: quote.id, version: baseVersion ?? quote.version, values },
-        { onSuccess, onError },
-      );
-    else create.mutate({ requestId, values }, { onSuccess, onError });
-  });
+  /**
+   * Lưu nháp rồi mở trang báo giá. `send`: mở luôn hộp xác nhận gửi ở trang báo giá (`?send=1`) — gửi cần bản đã lưu
+   * (BE tính tổng, thuế và kiểm tra giá trên bản đó), nên Sale vẫn thấy con số chốt trước khi bấm gửi.
+   */
+  const submitWith = (after: "detail" | "send") =>
+    form.handleSubmit((values) => {
+      setFormError(null);
+      const onSuccess = (saved: Quote) =>
+        router.replace(
+          after === "send"
+            ? `${ADMIN_ROUTES.quotes.detail(saved.id)}?${QUOTE_SEND_PARAM}=1`
+            : ADMIN_ROUTES.quotes.detail(saved.id),
+        );
+      if (quote)
+        update.mutate(
+          { id: quote.id, version: baseVersion ?? quote.version, values },
+          { onSuccess, onError },
+        );
+      else create.mutate({ requestId, values }, { onSuccess, onError });
+    });
+  const submit = submitWith("detail");
+  const submitAndSend = submitWith("send");
 
-  return { form, lines, customerId, pending, submit, formError, stale, reload };
+  return { form, lines, customerId, pending, submit, submitAndSend, formError, stale, reload };
 }

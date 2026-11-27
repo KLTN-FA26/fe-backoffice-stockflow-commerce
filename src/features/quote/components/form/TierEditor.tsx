@@ -1,20 +1,58 @@
 "use client";
 
-import { Controller, useFieldArray } from "react-hook-form";
+import { Controller, useFieldArray, useWatch } from "react-hook-form";
 import { Plus, Trash2 } from "lucide-react";
 
+import { QUOTE_PRICE_REVIEW_LABELS } from "@/constants";
 import { QUOTE_FORM_LABELS } from "@/constants/labels-quote-form";
+import { formatDecimal } from "@/lib/format";
+import { formatMoney } from "@/lib/format/money";
+import { checkTierPrice } from "@/features/quote/selectors";
 import { FORM_INPUT_CLASS } from "@/components/shared/FormField";
 import { MoneyInput } from "@/components/shared/MoneyInput";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 import type { Control, FieldErrors, UseFormRegister } from "react-hook-form";
+import type { PriceReferences, TierPriceVerdict } from "@/features/quote/selectors";
 import type { QuoteFormValues } from "@/features/quote/types";
 
 const T = QUOTE_FORM_LABELS.tiers;
+const R = QUOTE_FORM_LABELS.reference;
 const NUM = `${FORM_INPUT_CLASS} text-right font-[family-name:var(--font-mono)] tabular-nums`;
 const TH = "text-ink-secondary px-1 pb-1 text-left text-xs font-medium";
+
+/**
+ * Giá tham chiếu ngay dưới ô đơn giá của một bậc (14 BR-10): Sale thấy trước khi gửi bậc nào sẽ phải chờ duyệt — xanh =
+ * đạt, cam = cần Quản lý kinh doanh duyệt. Chưa đủ dữ liệu (đang tải, không xem được giá chuẩn) thì không hiện gì.
+ */
+function TierReferenceHint({ id, verdict }: { id: string; verdict: TierPriceVerdict }) {
+  if (verdict.kind === "unknown") return null;
+  if (verdict.kind === "noReference")
+    return (
+      <p id={id} className="text-warning-ink mt-1 text-xs">
+        {R.noReference}
+      </p>
+    );
+  const { discountPercent: diff } = verdict;
+  const gap =
+    diff > 0
+      ? R.below(formatDecimal(diff, 2))
+      : diff < 0
+        ? R.above(formatDecimal(-diff, 2))
+        : R.equal;
+  const over = verdict.kind === "over";
+  return (
+    <p id={id} className={`mt-1 text-xs ${over ? "text-warning-ink" : "text-positive-ink"}`}>
+      {R.label(
+        formatMoney(verdict.referencePrice, "VND"),
+        QUOTE_PRICE_REVIEW_LABELS.source[verdict.source],
+      )}{" "}
+      · <span className="font-medium">{gap}</span>
+      {over && ` — ${R.needsApproval}`}
+    </p>
+  );
+}
 
 /**
  * Bậc giá của một dòng: từ N thùng trở lên → đơn giá VND / cái; bậc thấp nhất là MOQ (14 BR-08). Bảng có tiêu đề cột
@@ -25,30 +63,42 @@ export function TierEditor({
   control,
   register,
   errors,
+  references,
+  thresholdPercent,
 }: {
   lineIndex: number;
   control: Control<QuoteFormValues>;
   register: UseFormRegister<QuoteFormValues>;
   errors?: FieldErrors<QuoteFormValues>["lines"];
+  /** Giá tham chiếu của dòng (giá riêng / giá chuẩn) để hiện cạnh từng bậc. */
+  references: PriceReferences;
+  /** Ngưỡng duyệt giá (%), xem `QuoteForm`. */
+  thresholdPercent: number;
 }) {
   const tiers = useFieldArray({ control, name: `lines.${lineIndex}.tiers` });
+  const values = useWatch({ control, name: `lines.${lineIndex}.tiers` });
+  const verdictOf = (tierIndex: number): TierPriceVerdict => {
+    const value = values?.[tierIndex];
+    const minQuantity = Number(value?.minQuantity);
+    const unitPrice = Number(value?.unitPrice);
+    if (!(minQuantity > 0) || !(unitPrice > 0)) return { kind: "unknown" };
+    return checkTierPrice({ minQuantity, unitPrice }, references, thresholdPercent);
+  };
   const lineErrors = errors?.[lineIndex];
   const listError = lineErrors?.tiers?.root?.message ?? lineErrors?.tiers?.message;
   const captionId = `line-${lineIndex}-tiers-caption`;
+  const moqHintId = `line-${lineIndex}-tiers-moq`;
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1.5">
       <p id={captionId} className="text-ink-secondary text-xs font-medium">
         Bậc giá
       </p>
       {tiers.fields.length > 0 && (
-        <table
-          aria-labelledby={captionId}
-          className="w-full max-w-xl border-separate border-spacing-y-1"
-        >
+        <table aria-labelledby={captionId} className="w-full max-w-2xl border-collapse">
           <thead>
             <tr>
-              <th scope="col" className={TH}>
+              <th scope="col" className={`${TH} w-40`}>
                 {T.from}
               </th>
               <th scope="col" className={TH}>
@@ -66,9 +116,11 @@ export function TierEditor({
               const priceId = `line-${lineIndex}-tier-${tierIndex}-price`;
               const minError = tierErrors?.minQuantity?.message;
               const priceError = tierErrors?.unitPrice?.message;
+              const verdict = verdictOf(tierIndex);
+              const hintId = verdict.kind === "unknown" ? "" : `${priceId}-reference`;
               return (
                 <tr key={field.id} className="align-top">
-                  <td className="pr-2">
+                  <td className="pr-2 pb-1.5">
                     <label htmlFor={minId} className="sr-only">
                       Từ số thùng (bậc {tierIndex + 1})
                     </label>
@@ -79,7 +131,7 @@ export function TierEditor({
                         inputMode="numeric"
                         aria-invalid={minError ? true : undefined}
                         aria-describedby={
-                          [minError ? `${minId}-error` : "", tierIndex === 0 ? `${minId}-moq` : ""]
+                          [minError ? `${minId}-error` : "", tierIndex === 0 ? moqHintId : ""]
                             .filter(Boolean)
                             .join(" ") || undefined
                         }
@@ -92,18 +144,13 @@ export function TierEditor({
                         thùng
                       </span>
                     </div>
-                    {tierIndex === 0 && (
-                      <p id={`${minId}-moq`} className="text-ink-secondary mt-1 text-xs">
-                        {T.firstIsMinimum}
-                      </p>
-                    )}
                     {minError && (
                       <p id={`${minId}-error`} className="text-danger mt-1 text-xs">
                         {minError}
                       </p>
                     )}
                   </td>
-                  <td className="pr-2">
+                  <td className="pr-2 pb-1.5">
                     <label htmlFor={priceId} className="sr-only">
                       Đơn giá ₫ một cái (bậc {tierIndex + 1})
                     </label>
@@ -119,7 +166,11 @@ export function TierEditor({
                           onChange={price.onChange}
                           onBlur={price.onBlur}
                           aria-invalid={priceError ? true : undefined}
-                          aria-describedby={priceError ? `${priceId}-error` : undefined}
+                          aria-describedby={
+                            [priceError ? `${priceId}-error` : "", hintId]
+                              .filter(Boolean)
+                              .join(" ") || undefined
+                          }
                         />
                       )}
                     />
@@ -128,8 +179,9 @@ export function TierEditor({
                         {priceError}
                       </p>
                     )}
+                    <TierReferenceHint id={hintId} verdict={verdict} />
                   </td>
-                  <td>
+                  <td className="pb-1.5">
                     <Button
                       type="button"
                       variant="ghost"
@@ -144,6 +196,14 @@ export function TierEditor({
               );
             })}
           </tbody>
+          {/* Chú thích MOQ dưới cả bảng, không chen giữa hai hàng bậc giá (bo-10). */}
+          <tfoot>
+            <tr>
+              <td colSpan={3} id={moqHintId} className="text-ink-tertiary px-1 text-xs">
+                {T.firstIsMinimum}
+              </td>
+            </tr>
+          </tfoot>
         </table>
       )}
       {listError && (

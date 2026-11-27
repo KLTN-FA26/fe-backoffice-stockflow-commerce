@@ -36,7 +36,8 @@ export function SuggestionBar({
   onUse: (tiers: { minQuantity: string; unitPrice: string }[]) => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[0.8125rem]">
+    // Cột hẹp cạnh bảng bậc giá (màn rộng), xếp dọc: MOQ → giá gợi ý → câu nhắc.
+    <div className="bg-bg-subtle flex flex-col items-start gap-2 rounded-(--r-md) p-3 text-[0.8125rem]">
       <span className="text-ink-secondary">
         {QUOTE_FORM_LABELS.minCartons.label}:{" "}
         {moq == null ? (

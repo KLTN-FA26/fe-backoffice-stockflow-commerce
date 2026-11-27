@@ -73,7 +73,9 @@ describe("Quote line — SKU box (S02-1)", () => {
     await user.click(option);
     expect(box).toHaveValue("Ly 16oz đỏ");
     // The code stays readable under the box once chosen.
-    expect(screen.getByText("LY-16OZ-DO")).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("region", { name: "Các dòng báo giá" })).getByText("LY-16OZ-DO"),
+    ).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /Thêm dòng/ }));
     const boxes = await screen.findAllByRole("combobox", { name: /Sản phẩm \(SKU riêng\)/ });

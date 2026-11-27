@@ -172,6 +172,9 @@ export const quoteDtoSchema = z.object({
   createdAt: z.string(),
   createdBy: omittedOrNull(z.string()),
   version: z.number().int(),
+  /** BE `QuoteResponse.customerName` / `customerCode`: tên và mã khách trên báo giá (null với khách không còn biết). */
+  customerName: omittedOrNull(z.string()),
+  customerCode: omittedOrNull(z.string()),
   /** 14 BR-10: bản nháp đang chờ Quản lý kinh doanh duyệt giá (vẫn `DRAFT`, khoá sửa / gửi). */
   priceReviewPending: z.boolean().default(false),
   priceReview: omittedOrNull(priceReviewDtoSchema),
