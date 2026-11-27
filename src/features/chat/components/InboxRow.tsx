@@ -8,17 +8,26 @@ import {
   CHAT_STATUS_LABELS,
   CHAT_STATUS_TONE_KEY,
 } from "@/constants";
+import { CHAT_INBOX_LABELS } from "@/constants/labels-chat";
 import { formatDateTime } from "@/lib/format/date";
 import { StatusDot } from "@/components/shared/StatusDot";
 
+import { inboxTime, messagePreview } from "../inbox-view";
+
 import type { ChatConversation } from "../schemas";
+
+/** Tone đỏ của `status-map` cho "Quá hạn" — cùng dáng chấm + chữ với trạng thái hội thoại (bo-32). */
+const OVERDUE_TONE_KEY = "Overdue";
 
 /**
  * Một dòng hộp thư: chủ đề, khách, người phụ trách, tin cuối, quá hạn, số chưa đọc, trạng thái. Chưa đọc (BO-UX-47):
- * chủ đề và tin cuối in đậm, số chưa đọc đọc thành "n tin chưa đọc" (không phải con số trần).
+ * chủ đề và tin cuối in đậm, số chưa đọc đọc thành "n tin chưa đọc" (không phải con số trần). Tin cuối không lộ mã trạng
+ * thái của BE, giờ ngắn một dòng (bo-32); trạng thái và "Quá hạn" xếp chồng trong một cột cùng kiểu chấm + chữ.
  */
 export function InboxRow({ item }: { item: ChatConversation }) {
   const unread = item.unread > 0;
+  const overdue = item.firstResponseOverdue || item.resolutionOverdue;
+  const preview = item.lastMessage ? messagePreview(item.lastMessage) : null;
   return (
     <Link
       href={ADMIN_ROUTES.chat.detail(item.id)}
@@ -31,26 +40,31 @@ export function InboxRow({ item }: { item: ChatConversation }) {
         <div
           className={`truncate text-xs ${unread ? "text-ink-primary font-semibold" : "text-ink-tertiary"}`}
         >
-          {item.customerName} · {item.assignedAgentName ?? "Chưa phân công"}
-          {item.lastMessage?.body ? ` · ${item.lastMessage.body}` : ""}
+          {item.customerName} · {item.assignedAgentName ?? CHAT_INBOX_LABELS.unassigned}
+          {preview ? ` · ${preview}` : ""}
         </div>
       </div>
-      {(item.firstResponseOverdue || item.resolutionOverdue) && (
-        <span className="text-danger text-xs font-medium">Quá hạn</span>
-      )}
       {unread && (
-        <span className="bg-brand text-ink-inverse rounded-full px-2 text-xs tabular-nums">
+        <span className="bg-brand text-ink-inverse shrink-0 rounded-full px-2 text-xs tabular-nums">
           <span aria-hidden>{item.unread}</span>
           <span className="sr-only">{CHAT_A11Y_LABELS.unreadBadge(item.unread)}</span>
         </span>
       )}
-      <StatusDot
-        domain="order"
-        status={CHAT_STATUS_TONE_KEY[item.status]}
-        label={CHAT_STATUS_LABELS[item.status]}
-      />
-      <span className="text-ink-tertiary w-32 text-right text-xs tabular-nums">
-        {item.lastMessageAt ? formatDateTime(item.lastMessageAt) : ""}
+      <div className="flex w-32 shrink-0 flex-col items-start gap-0.5">
+        <StatusDot
+          domain="order"
+          status={CHAT_STATUS_TONE_KEY[item.status]}
+          label={CHAT_STATUS_LABELS[item.status]}
+        />
+        {overdue && (
+          <StatusDot domain="order" status={OVERDUE_TONE_KEY} label={CHAT_INBOX_LABELS.overdue} />
+        )}
+      </div>
+      <span
+        className="text-ink-tertiary w-20 shrink-0 text-right text-xs whitespace-nowrap tabular-nums"
+        title={item.lastMessageAt ? formatDateTime(item.lastMessageAt) : undefined}
+      >
+        {item.lastMessageAt ? inboxTime(item.lastMessageAt) : ""}
       </span>
     </Link>
   );

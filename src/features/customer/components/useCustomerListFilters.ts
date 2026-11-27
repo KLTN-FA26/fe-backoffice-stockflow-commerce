@@ -15,6 +15,7 @@ import type { Customer } from "@/features/customer/types";
 /** Khoá URL của lọc header cột — tách khỏi ô tìm chính (`q`), không trùng `status` / `page` / `sort`. */
 const COLUMN_FILTER_PARSERS = {
   custName: parseAsString.withDefault(""),
+  custTaxCode: parseAsString.withDefault(""),
   custEmail: parseAsString.withDefault(""),
   custPhone: parseAsString.withDefault(""),
   custCreatedFrom: parseAsString.withDefault(""),
@@ -36,6 +37,7 @@ export function useCustomerListFilters() {
   const { filters } = list;
   const [columnFilters, setColumnFilters] = useQueryStates(COLUMN_FILTER_PARSERS);
   const name = useDebouncedValue(columnFilters.custName, 300).trim();
+  const taxCode = useDebouncedValue(columnFilters.custTaxCode, 300).trim();
   const email = useDebouncedValue(columnFilters.custEmail, 300).trim();
   const phone = useDebouncedValue(columnFilters.custPhone, 300).trim();
   const { custCreatedFrom: createdFrom, custCreatedTo: createdTo } = columnFilters;
@@ -49,7 +51,7 @@ export function useCustomerListFilters() {
     status,
     columnFilters,
     /** `q` gửi BE: ô tìm chính, không có thì chữ của ô lọc cột đầu tiên đang dùng. */
-    serverQ: filters.debouncedQ.trim() || name || email || phone || undefined,
+    serverQ: filters.debouncedQ.trim() || name || taxCode || email || phone || undefined,
     hasColumnFilters,
     hasFilters: list.hasBaseFilters || hasColumnFilters,
     setStatus: (next: CustomerApiStatus | null) => void filters.setStatus(next ? [next] : []),
@@ -63,6 +65,7 @@ export function useCustomerListFilters() {
     /** Dòng khớp lọc cột (chỉ xét trang đang xem). */
     matches: (row: Customer) =>
       textIncludes(row.fullName, name) &&
+      textIncludes(row.taxCode ?? "", taxCode) &&
       textIncludes(row.email, email) &&
       textIncludes(row.phone ?? "", phone) &&
       inRange(toLocalIsoDate(row.createdAt), createdFrom, createdTo),

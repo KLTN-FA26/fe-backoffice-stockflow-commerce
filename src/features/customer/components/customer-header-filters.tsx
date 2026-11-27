@@ -14,7 +14,7 @@ import type { CustomerListFilters } from "./useCustomerListFilters";
 /**
  * Lọc trên header cột (backoffice-erp-ui §5) của danh sách khách hàng:
  * - Trạng thái → `status` của BE (MỘT giá trị: chọn một), cùng khoá URL với bảng "Bộ lọc".
- * - Khách hàng / Email / Điện thoại (gõ chữ) → BE thu hẹp bằng `q`, FE lọc đúng cột trên trang đang xem.
+ * - Khách hàng / Mã số thuế / Email / Điện thoại (gõ chữ) → BE thu hẹp bằng `q`, FE lọc đúng cột trên trang đang xem.
  * - Ngày tạo (khoảng ngày) → BE không có tham số, chỉ lọc trang đang xem.
  */
 export function customerHeaderFilters(
@@ -29,6 +29,14 @@ export function customerHeaderFilters(
         value={f.custName}
         placeholder="Tìm theo tên khách hàng…"
         onChange={(value) => set({ custName: value })}
+      />
+    ),
+    taxCode: (
+      <ColumnFilterButton
+        label="mã số thuế"
+        value={f.custTaxCode}
+        placeholder="Tìm theo mã số thuế…"
+        onChange={(value) => set({ custTaxCode: value })}
       />
     ),
     email: (
