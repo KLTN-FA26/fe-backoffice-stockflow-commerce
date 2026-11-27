@@ -47,11 +47,9 @@ async function draftVariant() {
   const product = await createProduct({
     code: `UOM-${Date.now()}-${n}`,
     name: "Sản phẩm quy cách thùng",
-    nameEn: "Carton product",
     categoryId: category?.categoryId ?? "",
     brandId: brand?.brandId ?? "",
     description: "",
-    descriptionEn: "",
     taxClass: "STANDARD",
   });
   const [variant] = await listVariants(product.productId);

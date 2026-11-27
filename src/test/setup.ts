@@ -40,3 +40,17 @@ if (typeof document !== "undefined" && !document.getElementById(HEADER_ACTIONS_I
   slot.id = HEADER_ACTIONS_ID;
   document.body.appendChild(slot);
 }
+
+/**
+ * jsdom không đo layout: ProseMirror (ô soạn mô tả Tiptap, `RichTextEditor`) gọi `getClientRects` /
+ * `getBoundingClientRect` trên Range / Text và `document.elementFromPoint` khi đặt con trỏ, cuộn hay toggle định dạng.
+ * Trả hình chữ nhật rỗng để test chạy, không báo lỗi không bắt.
+ */
+if (typeof window !== "undefined") {
+  // DOMRectList không có constructor công khai trong jsdom: một danh sách rỗng đủ cho ProseMirror (chỉ đọc length / [0]).
+  const emptyRects = (): DOMRectList =>
+    Object.assign([], { item: () => null }) as unknown as DOMRectList;
+  Range.prototype.getClientRects ??= emptyRects;
+  Range.prototype.getBoundingClientRect ??= () => new DOMRect();
+  document.elementFromPoint ??= () => null;
+}

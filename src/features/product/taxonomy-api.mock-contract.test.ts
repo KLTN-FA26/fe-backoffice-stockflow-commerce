@@ -173,11 +173,9 @@ describe("liên kết với sản phẩm", () => {
     const product = await createProduct({
       code: `TAXO-${Date.now()}`,
       name: "Ly giấy",
-      nameEn: "Paper cup",
       categoryId: newCategory.categoryId,
       brandId: newBrand.brandId,
       description: "",
-      descriptionEn: "",
       taxClass: "STANDARD",
     });
     expect(product).toMatchObject({ brandId: newBrand.brandId, brand: "Hanes" });

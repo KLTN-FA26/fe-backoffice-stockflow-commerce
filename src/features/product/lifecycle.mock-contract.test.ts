@@ -60,11 +60,9 @@ async function draft() {
   return createProduct({
     code: `LIFE-${Date.now()}-${counter}`,
     name: "Sản phẩm vòng đời",
-    nameEn: "Lifecycle product",
     categoryId: category?.categoryId ?? "",
     brandId: brand?.brandId ?? "",
     description: "",
-    descriptionEn: "",
     taxClass: "STANDARD",
   });
 }
@@ -260,11 +258,9 @@ describe("lịch sử thay đổi", () => {
     const product = await draft();
     const body = {
       name: "Tên mới",
-      nameEn: product.nameEn,
       categoryId: product.categoryId ?? "",
       brandId: product.brandId ?? "",
       description: "",
-      descriptionEn: "",
       taxClass: "STANDARD" as const,
       kind: "STANDARD" as const,
     };

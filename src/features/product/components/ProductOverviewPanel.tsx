@@ -2,6 +2,7 @@
 
 import { formatDate } from "@/lib/format/date";
 import { countVariantsByStatus, productCategoryLabel, taxClassLabel } from "@/features/product";
+import { RichTextView } from "@/components/shared/RichTextView";
 
 import { ProductLifecycleStepper } from "./ProductLifecycleCard";
 
@@ -47,8 +48,6 @@ export function ProductOverviewPanel({
   actions?: ReactNode;
 }) {
   const counts = countVariantsByStatus(variants);
-  const description = product.description.trim();
-  const descriptionEn = product.descriptionEn.trim();
   return (
     <section
       aria-label="Hồ sơ sản phẩm"
@@ -84,18 +83,8 @@ export function ProductOverviewPanel({
       </dl>
       <div className="border-t border-(--table-line) px-4 py-3">
         <p className="text-ink-tertiary mb-1 text-xs">Mô tả</p>
-        {description || descriptionEn ? (
-          <>
-            <p className="text-ink-primary max-w-[75ch] text-[0.8125rem] leading-relaxed">
-              {description || "Chưa có mô tả tiếng Việt."}
-            </p>
-            {descriptionEn && (
-              <p className="text-ink-tertiary mt-1 max-w-[75ch] text-xs">{descriptionEn}</p>
-            )}
-          </>
-        ) : (
-          <p className="text-ink-tertiary text-[0.8125rem]">Chưa có mô tả.</p>
-        )}
+        {/* Mô tả là HTML của Tiptap (ADR-0013) — RichTextView lọc lại trước khi hiện */}
+        <RichTextView html={product.description} />
       </div>
     </section>
   );
