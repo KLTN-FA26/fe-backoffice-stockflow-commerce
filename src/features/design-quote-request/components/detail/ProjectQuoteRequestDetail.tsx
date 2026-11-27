@@ -15,6 +15,7 @@ import { formatDate, formatDateTime } from "@/lib/format/date";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
 
 import { CustomerName } from "@/components/backoffice/CustomerName";
+import { SalesOwnerLine } from "@/components/backoffice/SalesOwnerNotes";
 import { LoadErrorState } from "@/components/backoffice/LoadErrorState";
 import { DetailPanel } from "@/components/shared/DetailPanel";
 import {
@@ -82,6 +83,7 @@ function DetailBody({ request }: { request: ProjectQuoteRequest }) {
       >
         <ProfileFact label={C.customer}>
           <CustomerName id={request.customerId} name={request.customerName} />
+          <SalesOwnerLine customerId={request.customerId} />
         </ProfileFact>
         <ProfileFact label={C.designs}>
           <span className={approved === total ? "text-dot-positive" : undefined}>
