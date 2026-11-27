@@ -2,7 +2,7 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { mockApi, renderScreen } from "@/test/api-screen";
+import { bePage, mockApi, renderScreen } from "@/test/api-screen";
 
 import { CustomerDetail } from "../components/CustomerDetail";
 
@@ -110,5 +110,60 @@ describe("CustomerDetail — action gating by real role permissions", () => {
     renderScreen(<CustomerDetail id="c-1" />, "ORDER_COORDINATOR");
     expect(await screen.findByText("Không có quyền truy cập")).toBeInTheDocument();
     expect(api.get).not.toHaveBeenCalledWith("/customers/c-1", expect.anything());
+  });
+
+  it("bo-30: tab Báo giá / Đơn hàng liệt kê chứng từ của khách (lọc customerId), link tới từng chứng từ", async () => {
+    const quote = {
+      id: "q-1",
+      quoteNumber: "QT-20261124-7022",
+      customerId: "c-1",
+      status: "SENT",
+      revision: 2,
+      validUntil: "2026-12-01T00:00:00Z",
+      createdAt: "2026-11-24T02:00:00Z",
+      version: 1,
+      total: 16_446_780,
+      priceReviewPending: false,
+    };
+    const order = {
+      orderId: "o-1",
+      orderNumber: "SO-20261126-000001",
+      customerId: "c-1",
+      status: "DELIVERED",
+      totalAmount: 32_000_000,
+      currency: "VND",
+      placedAt: "2026-11-26T02:00:00Z",
+    };
+    const base = routes({ ...pending, status: "ACTIVE" });
+    const api = mockApi("SALES_STAFF", {
+      get: { ...base.get, "/quotes": () => bePage([quote]), "/orders": () => bePage([order]) },
+    });
+    renderScreen(<CustomerDetail id="c-1" />, "SALES_STAFF", "?tab=quotes");
+    expect(await screen.findByRole("link", { name: /QT-20261124-7022/ })).toHaveAttribute(
+      "href",
+      "/admin/quotes/q-1",
+    );
+    expect(screen.getByText("Đã gửi")).toBeInTheDocument();
+    const quoteCall = api.get.mock.calls.find((c) => c[0] === "/quotes");
+    expect((quoteCall?.[1] as { params: URLSearchParams }).params.get("customerId")).toBe("c-1");
+
+    await userEvent.click(screen.getByRole("tab", { name: "Đơn hàng" }));
+    expect(await screen.findByRole("link", { name: "SO-20261126-000001" })).toHaveAttribute(
+      "href",
+      "/admin/orders/o-1",
+    );
+    expect(screen.getByText("Đã giao")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Mở danh sách đơn của khách" })).toHaveAttribute(
+      "href",
+      "/admin/orders?customer=c-1",
+    );
+  });
+
+  it("bo-30: không có quyền đọc báo giá / đơn → không có tab đó", async () => {
+    mockApi("ECOMMERCE_ADMIN", routes({ ...pending, status: "ACTIVE" }));
+    renderScreen(<CustomerDetail id="c-1" />, "ECOMMERCE_ADMIN");
+    expect(await screen.findByRole("tab", { name: "Pháp lý & công nợ" })).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Báo giá" })).toBeNull();
+    expect(screen.queryByRole("tab", { name: "Đơn hàng" })).toBeNull();
   });
 });

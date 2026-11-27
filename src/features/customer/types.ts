@@ -1,6 +1,7 @@
 import type { z } from "zod";
 
 import type { creditPositionDtoSchema, creditProfileInputSchema } from "./credit-profile-schemas";
+import type { customerOrderRowSchema, customerQuoteRowSchema } from "./documents-schemas";
 import type {
   creditProfileDtoSchema,
   customerCreateInputSchema,
@@ -26,3 +27,5 @@ export type CustomerUpdateValues = z.infer<typeof customerUpdateInputSchema>;
 export type LegalProfile = z.infer<typeof legalProfileDtoSchema>;
 export type LegalProfileValues = z.infer<typeof legalProfileInputSchema>;
 export type PortalActivationValues = z.infer<typeof portalActivationInputSchema>;
+export type CustomerQuoteRow = z.infer<typeof customerQuoteRowSchema>;
+export type CustomerOrderRow = z.infer<typeof customerOrderRowSchema>;

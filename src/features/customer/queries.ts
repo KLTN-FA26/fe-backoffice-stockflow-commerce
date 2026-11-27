@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 import { QUERY_TIMES } from "@/lib/api/query-client";
 import { createDetailQuery, createListQuery, createQueryKeys } from "@/lib/api/query-factory";
@@ -12,8 +12,10 @@ import {
   listCustomers,
 } from "./api";
 import { getCreditPosition } from "./credit-profile-api";
+import { listCustomerOrders, listCustomerQuotes } from "./documents-api";
 
 import type { ListCustomerParams } from "./api";
+import type { CustomerDocumentsParams } from "./documents-api";
 import type { Customer } from "./types";
 
 export const customerKeys = createQueryKeys<ListCustomerParams>("customers");
@@ -71,5 +73,27 @@ export function useLegalProfile(id: string, enabled = true) {
     queryFn: ({ signal }) => getLegalProfile(id, signal),
     enabled,
     ...QUERY_TIMES.detail,
+  });
+}
+
+/** Báo giá của khách (bo-30) — dưới `detail(id)`: đổi khách / trạng thái thì tải lại cùng trang. */
+export function useCustomerQuotes(params: CustomerDocumentsParams, enabled = true) {
+  return useQuery({
+    queryKey: [...sub(params.customerId, "quotes"), params.page, params.size] as const,
+    queryFn: ({ signal }) => listCustomerQuotes(params, signal),
+    enabled,
+    placeholderData: keepPreviousData,
+    ...QUERY_TIMES.list,
+  });
+}
+
+/** Đơn của khách (bo-30). */
+export function useCustomerOrders(params: CustomerDocumentsParams, enabled = true) {
+  return useQuery({
+    queryKey: [...sub(params.customerId, "orders"), params.page, params.size] as const,
+    queryFn: ({ signal }) => listCustomerOrders(params, signal),
+    enabled,
+    placeholderData: keepPreviousData,
+    ...QUERY_TIMES.list,
   });
 }
