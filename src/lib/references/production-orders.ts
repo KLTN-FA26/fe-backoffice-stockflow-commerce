@@ -7,11 +7,9 @@
 
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
-import { z } from "zod";
 
 import {
   PAGE_SIZE,
-  PRODUCTION_ORDER_STATUSES,
   RECEIVABLE_PRODUCTION_ORDER_STATUSES,
   SAMPLE_GATED_PRODUCTION_ORDER_STATUSES,
   SHARED_QUERY_ROOTS,
@@ -19,35 +17,16 @@ import {
 import { api } from "@/lib/api/client";
 import { QUERY_TIMES } from "@/lib/api/query-client";
 
+import {
+  productionOrderRefPageSchema,
+  productionOrderRefSchema,
+} from "./production-order-ref-schemas";
+
 import type { UseQueryResult } from "@tanstack/react-query";
 import type { ProductionOrderStatus } from "@/constants";
+import type { ProductionOrderRef } from "./production-order-ref-schemas";
 
-/** Dòng Đơn sản xuất (BE `ProductionOrderResponse.Line`) — chỉ phần phiếu nhập cần: số thùng đặt / đã nhận. */
-const productionLineRefSchema = z.object({
-  id: z.string(),
-  sku: z.string(),
-  cartons: z.number().int(),
-  unitsPerCarton: z.number().int(),
-  receivedCartons: z.number().int(),
-});
-
-const productionOrderRefSchema = z.object({
-  id: z.string(),
-  code: z.string(),
-  status: z.enum(PRODUCTION_ORDER_STATUSES),
-  receivingWarehouseId: z.string(),
-  sampleApprovalRequired: z.boolean(),
-  needByDate: z.string().nullish(),
-  /** Ngày đơn vị sản xuất báo xong (ngày giao dự kiến) — ghi khi nhận đơn. */
-  expectedCompletionDate: z.string().nullish(),
-  /** Tên đơn vị sản xuất do BE kèm sẵn (FE#286) — dòng danh sách nêu tên, không cần quyền đọc danh mục đơn vị. */
-  producerName: z.string().nullish(),
-  lines: z.array(productionLineRefSchema).default([]),
-});
-const productionOrderRefPageSchema = z.object({ items: z.array(productionOrderRefSchema) });
-
-export type ProductionOrderRef = z.infer<typeof productionOrderRefSchema>;
-export type ProductionLineRef = z.infer<typeof productionLineRefSchema>;
+export type { ProductionLineRef, ProductionOrderRef } from "./production-order-ref-schemas";
 
 export const productionOrderRefKeys = {
   receivable: (status: ProductionOrderStatus) =>

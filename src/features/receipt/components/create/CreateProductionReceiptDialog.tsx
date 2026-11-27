@@ -5,17 +5,15 @@ import { useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
-import { ADMIN_ROUTES, PRODUCTION_RECEIPT_LIMITS, RECEIPT_COUNT_LABELS } from "@/constants";
+import { ADMIN_ROUTES, RECEIPT_COUNT_LABELS } from "@/constants";
 import { useReceivableProductionOrders } from "@/lib/references/production-orders";
 import { productionReceiptCreateInputSchema } from "@/features/receipt/count-schemas";
 import { receiptErrorMessage } from "@/features/receipt/errors";
 import { useCreateProductionReceipt } from "@/features/receipt/mutations";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { FormField, fieldA11y } from "@/components/shared/FormField";
-import { FORM_INPUT_CLASS, FORM_TEXTAREA_CLASS } from "@/components/shared/form-control-classes";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 
+import { CreateReceiptNoteFields } from "./CreateReceiptNoteFields";
 import { ProductionOrderCombobox } from "./ProductionOrderCombobox";
 
 import type {
@@ -25,8 +23,6 @@ import type {
 
 const L = RECEIPT_COUNT_LABELS.create;
 const PO_ID = "gr-production-order";
-const NOTE_ID = "gr-delivery-note";
-const REMARK_ID = "gr-note";
 
 function CreateForm({
   onClose,
@@ -100,24 +96,7 @@ function CreateForm({
           )}
         />
       </FormField>
-      <FormField id={NOTE_ID} label={L.deliveryNote} error={errors.deliveryNote?.message}>
-        <Input
-          placeholder={L.deliveryNotePlaceholder}
-          maxLength={PRODUCTION_RECEIPT_LIMITS.deliveryNoteMax}
-          className={FORM_INPUT_CLASS}
-          {...fieldA11y(NOTE_ID, errors.deliveryNote?.message)}
-          {...form.register("deliveryNote")}
-        />
-      </FormField>
-      <FormField id={REMARK_ID} label={L.note} error={errors.note?.message}>
-        <Textarea
-          rows={2}
-          maxLength={PRODUCTION_RECEIPT_LIMITS.noteMax}
-          className={FORM_TEXTAREA_CLASS}
-          {...fieldA11y(REMARK_ID, errors.note?.message)}
-          {...form.register("note")}
-        />
-      </FormField>
+      <CreateReceiptNoteFields form={form} />
     </FormDialogBody>
   );
 }
