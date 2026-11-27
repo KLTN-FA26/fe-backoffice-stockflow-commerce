@@ -5,6 +5,7 @@ import { Printer } from "lucide-react";
 
 import { RECEIPT_CARTON_LABELS as L, STOCK_PACKAGE_STATUS_BY_API } from "@/constants";
 import { usePermissionChecker } from "@/lib/auth";
+import { formatDateTime } from "@/lib/format/date";
 import { canPrintCartonLabels } from "@/features/receipt/carton-actions";
 import { liveCartons, liveSelection } from "@/features/receipt/carton-selectors";
 import { SlideOverPanel } from "@/components/shared/SlideOverPanel";
@@ -22,7 +23,7 @@ const H = L.headers;
 const MONO = "font-[family-name:var(--font-mono)]";
 
 /**
- * Thùng của một dòng nhận (issue #104): LPN, SL đếm được, SL hiện còn, danh nghĩa, trạng thái, vị trí. Ai có quyền in
+ * Thùng của một dòng nhận (issue #104): LPN, lúc đếm, SL hiện còn, danh nghĩa, trạng thái, vị trí. Ai có quyền in
  * nhãn thì chọn thùng để in lại, hoặc in cả dòng.
  */
 export function LineCartonsPanel({
@@ -90,8 +91,8 @@ export function LineCartonsPanel({
               <th scope="col" className="px-2 py-2 text-left font-medium">
                 {H.lpn}
               </th>
-              <th scope="col" className="px-2 py-2 text-right font-medium">
-                {H.received}
+              <th scope="col" className="px-2 py-2 text-left font-medium">
+                {H.countedAt}
               </th>
               <th scope="col" className="px-2 py-2 text-right font-medium">
                 {H.now}
@@ -122,7 +123,9 @@ export function LineCartonsPanel({
                   </td>
                 )}
                 <td className={`px-2 py-2 ${MONO}`}>{carton.lpn}</td>
-                <td className={`px-2 py-2 ${NUM}`}>{carton.receivedQty}</td>
+                <td className="px-2 py-2 tabular-nums">
+                  {carton.countedAt ? formatDateTime(carton.countedAt) : L.notCounted}
+                </td>
                 <td className={`px-2 py-2 ${NUM}`}>{carton.quantity}</td>
                 <td className={`text-ink-secondary px-2 py-2 ${NUM}`}>{carton.nominalQty}</td>
                 <td className="px-2 py-2">

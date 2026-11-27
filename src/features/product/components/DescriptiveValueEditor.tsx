@@ -1,6 +1,6 @@
 "use client";
 
-import { Select, SelectItem, SelectValue } from "@/components/ui/select";
+import { Select, SelectItem, SelectValue } from "@/components/shared/combobox-select";
 import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { Checkbox } from "@/components/ui/checkbox";
 

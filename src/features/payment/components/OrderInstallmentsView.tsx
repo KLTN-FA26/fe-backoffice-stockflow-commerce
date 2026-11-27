@@ -20,7 +20,7 @@ import {
   DetailSection,
 } from "@/components/shared/DetailSection";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
-import { Button } from "@/components/ui/button";
+import { RowActionsMenu } from "@/components/shared/RowActionsMenu";
 
 import { allowedInstallmentActions } from "../lifecycle";
 import { useOrderInstallments } from "../queries";
@@ -66,16 +66,16 @@ function OrderInstallmentsContent({ orderId }: { orderId: string }) {
   const columns = buildInstallmentColumns(
     (row) =>
       allowedInstallmentActions(row, can).includes("recordReceipt") ? (
-        <Button
-          type="button"
-          size="xs"
-          variant="outline"
-          aria-label={`${PAYMENT_LABELS.receipts.createAction} — ${installmentRef(row)}`}
-          onClick={() => setRecording(row)}
-        >
-          <ReceiptText className="size-3.5" aria-hidden="true" />{" "}
-          {PAYMENT_LABELS.receipts.createAction}
-        </Button>
+        <RowActionsMenu
+          label={`Thao tác — ${installmentRef(row)}`}
+          actions={[
+            {
+              label: PAYMENT_LABELS.receipts.createAction,
+              icon: ReceiptText,
+              onSelect: () => setRecording(row),
+            },
+          ]}
+        />
       ) : null,
     ["contract", "order", "customer"],
   ).map((column) => ({ ...column, sortable: false }));

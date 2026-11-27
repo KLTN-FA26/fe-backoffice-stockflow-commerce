@@ -228,8 +228,9 @@ describe("cycle count list (docs 20 §4.2, §5.2)", () => {
     expect(
       screen.getByRole("columnheader", { name: CYCLE_COUNT_LABELS.number }),
     ).toBeInTheDocument();
+    // Cột "Thao tác" (menu "⋯" mở phiếu) không nằm trong ẩn / hiện cột — vẫn còn
     expect(
-      screen.getByRole("link", { name: `${CYCLE_COUNT_LABELS.open} CC-COL-1` }),
+      screen.getByRole("button", { name: `${CYCLE_COUNT_LABELS.open} CC-COL-1` }),
     ).toBeInTheDocument();
     expect(screen.getByText(`${CYCLE_COUNT_LABELS.summaryColumns}: 6/7`)).toBeInTheDocument();
     // Sở thích cá nhân → localStorage, không lên URL, không gọi lại API

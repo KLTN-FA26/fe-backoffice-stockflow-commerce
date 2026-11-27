@@ -157,7 +157,7 @@ describe("Bảng sức chứa — danh sách kho (docs 06 §4.6 bước 3)", () 
           .getAllByRole("columnheader")
           .map((cell) => cell.textContent?.trim())
           .filter(Boolean),
-      ).toEqual([L.column.warehouse, L.column.occupied]),
+      ).toEqual([L.column.warehouse, L.column.occupied, "Thao tác"]),
     );
     expect(screen.getByText("Cột hiển thị: 2/8")).toBeInTheDocument();
   });

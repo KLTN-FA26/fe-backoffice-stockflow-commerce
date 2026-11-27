@@ -9,7 +9,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/components/shared/combobox-select";
 
 import { FieldError, FormField, TextInput } from "../../shared/form-parts";
 

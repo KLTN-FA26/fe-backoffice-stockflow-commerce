@@ -192,7 +192,7 @@ describe("Danh sách vị trí — quản lý kho ở kho được gán", () => 
     await user.click(screen.getByRole("button", { name: "Chọn cột hiển thị" }));
     await user.click(screen.getByRole("option", { name: L.column.zone }));
     expect(header(L.column.zone)).not.toBeInTheDocument();
-    expect(screen.getByText(`${L.summaryColumns}: 12/13`)).toBeInTheDocument();
+    expect(screen.getByText(`${L.summaryColumns}: 11/12`)).toBeInTheDocument();
     await user.keyboard("{Escape}");
     await user.click(screen.getByRole("button", { name: `Xoá ${L.summaryColumns}` }));
     expect(header(L.column.zone)).toBeInTheDocument();

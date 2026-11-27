@@ -48,8 +48,8 @@ async function summary(config: AxiosRequestConfig) {
       totalUnits: 0,
     };
     line.wholeCartons += 1;
-    line.wholeCartonUnits += pkg.receivedQty;
-    line.totalUnits += pkg.receivedQty;
+    line.wholeCartonUnits += pkg.quantity;
+    line.totalUnits += pkg.quantity;
     lines.set(key, line);
   }
   return { status: 200, data: { success: true, data: [...lines.values()] }, headers: {} };

@@ -14,7 +14,7 @@ import { resetVariantMockStore } from "@/lib/api/mock-routes-variants";
 import {
   bagTree,
   CHOSEN_FILE,
-  DEFAULTS_TOGGLE,
+  DEFAULTS_SECTION,
   editStored,
   EMPTY_VARIANT,
   FILE_INPUT,
@@ -84,7 +84,7 @@ describe("the file against the model that will be saved", () => {
   it("a top fold typed in the defaults keeps the file clean (it is added on the face height)", async () => {
     await chooseBag({});
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", DEFAULTS_TOGGLE));
+    expect(screen.getByRole("region", DEFAULTS_SECTION)).toBeVisible();
     const fold = screen.getByLabelText("Gập miệng túi (mm)");
     await user.clear(fold);
     await user.type(fold, "40");
@@ -131,7 +131,7 @@ describe("the name of the file, and what the screen never shows", () => {
     renderSection({ loadModel: () => new Promise(() => {}) });
     const user = userEvent.setup();
     await editStored(user);
-    await user.click(await screen.findByRole("button", DEFAULTS_TOGGLE));
+    await screen.findByRole("region", DEFAULTS_SECTION);
     const seam = screen.getByLabelText("Mép dán (mm)");
     await user.clear(seam);
     await user.type(seam, "6");

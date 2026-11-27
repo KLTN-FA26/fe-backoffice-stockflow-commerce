@@ -35,8 +35,9 @@ describe("Receipt dialog — round 5 (BO-UX-39, BO-UX-4)", () => {
     });
     mockPaymentApi(ACCOUNTANT_GRANTS, { get: { "/installments": () => bePage([due]) } });
     renderPaymentScreen(<InstallmentList />);
-    // The row button names its contract and installment (BO-UX-11), so match the prefix.
-    await userEvent.click(await screen.findByRole("button", { name: /^Lập phiếu thu — / }));
+    // The row menu "⋯" names its contract and installment (BO-UX-11), so match the prefix.
+    await userEvent.click(await screen.findByRole("button", { name: /^Thao tác — / }));
+    await userEvent.click(await screen.findByRole("button", { name: "Lập phiếu thu" }));
     const dialog = within(await screen.findByRole("dialog"));
     expect(
       dialog.getByRole("heading", {

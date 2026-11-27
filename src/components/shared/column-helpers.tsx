@@ -1,11 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { cn } from "cn";
 import { Eye } from "lucide-react";
 
 import { formatDate, formatDateTime } from "@/lib/format/date";
 
+import { RowActionsMenu } from "@/components/shared/RowActionsMenu";
 import { StatusDot } from "@/components/shared/StatusDot";
 import { Button } from "@/components/ui/button";
 
@@ -307,7 +307,12 @@ export function ToneDot({
   );
 }
 
-/** Nút xem cuối dòng (icon Eye 28px). `href` → link sang trang chi tiết; không thì gọi `onOpen`. */
+const VIEW_DETAIL_LABEL = "Xem chi tiết";
+
+/**
+ * Thao tác "Xem chi tiết" cuối dòng — nút "⋯" mở menu chữ (backoffice-erp-ui A6). `label` là tên truy cập của nút "⋯"
+ * (nên kèm mã / tên dòng). `href` → mục menu là link sang trang chi tiết; không thì gọi `onOpen`.
+ */
 export function ViewAction({
   label,
   href,
@@ -317,37 +322,24 @@ export function ViewAction({
   href?: string;
   onOpen?: () => void;
 }) {
-  if (href) {
-    return (
-      <Link
-        href={href}
-        aria-label={label}
-        onClick={(e) => e.stopPropagation()}
-        className={CELL.action}
-      >
-        <Eye className="size-3.5" />
-      </Link>
-    );
-  }
   return (
-    <button
-      type="button"
-      aria-label={label}
-      onClick={(e) => {
-        e.stopPropagation();
-        onOpen?.();
-      }}
-      className={CELL.action}
-    >
-      <Eye className="size-3.5" />
-    </button>
+    <RowActionsMenu
+      label={label}
+      actions={[{ label: VIEW_DETAIL_LABEL, icon: Eye, href, onSelect: href ? undefined : onOpen }]}
+    />
   );
 }
 
-/** Cột hành động chuẩn: cuối bảng, header rỗng, không nằm trong ẩn / hiện cột. */
+/** Cột hành động chuẩn: cuối bảng, tiêu đề "Thao tác", menu "⋯"; không nằm trong ẩn / hiện cột. */
 export function viewColumn<T>(
   getAction: (row: T) => { label: string; href?: string; onOpen?: () => void },
   key = "actions",
 ): ColumnDef<T> {
-  return { key, header: "", cell: (row) => <ViewAction {...getAction(row)} /> };
+  return {
+    key,
+    header: "Thao tác",
+    align: "right",
+    className: "w-20",
+    cell: (row) => <ViewAction {...getAction(row)} />,
+  };
 }

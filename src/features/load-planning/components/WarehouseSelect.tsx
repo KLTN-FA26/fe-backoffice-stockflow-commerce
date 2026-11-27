@@ -4,7 +4,7 @@ import { UI_LABELS } from "@/constants";
 import { useWarehouseDirectory } from "@/lib/references/warehouse-options";
 import { FormSelect } from "@/components/shared/FormSelect";
 import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
-import { SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SelectItem, SelectTrigger, SelectValue } from "@/components/shared/combobox-select";
 
 const L = UI_LABELS.loadPlan;
 const ALL = "__all__";

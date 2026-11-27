@@ -12,11 +12,14 @@ import {
 import { useAppStore } from "@/lib/store/use-app-store";
 
 export type ColorTheme = "light" | "dark";
-type ThemePreference = ColorTheme | "system";
+export type ThemePreference = ColorTheme | "system";
 
 interface ThemeContextValue {
   /** Theme đã resolve (system → light/dark thật) — dùng để render UI. */
   theme: ColorTheme;
+  /** Lựa chọn của người dùng: theo hệ thống, sáng hoặc tối (nút chọn 3 mức ở menu tài khoản). */
+  preference: ThemePreference;
+  setPreference: (preference: ThemePreference) => void;
   toggleTheme: () => void;
 }
 
@@ -132,7 +135,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, [theme, setPreference]);
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+    <ThemeContext.Provider value={{ theme, preference, setPreference, toggleTheme }}>
       {/* Script chống flash — render ngay trong head */}
       <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       {children}

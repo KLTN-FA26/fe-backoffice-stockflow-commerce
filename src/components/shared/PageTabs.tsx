@@ -13,9 +13,10 @@ export interface PageTabItem<T extends string> {
 }
 
 /**
- * Thanh tab dùng chung — kiểu Tabs mặc định của shadcn/ui (khung nền `bg.muted`, tab đang chọn là
- * ô nền `bg.surface` có bóng nhẹ), map sang token của dự án. Không thêm `components/ui/tabs` vì
- * thư mục đó là shadcn nguyên bản (hook chặn sửa) — chỉ lấy style.
+ * Thanh tab dùng chung — kiểu gạch chân (như tab của Vercel): vạch kẻ mảnh suốt chiều ngang, tab
+ * đang chọn chữ đậm màu + gạch dưới 2px màu chữ chính, tab khác chữ phụ, rê chuột thì đậm lên. Chỉ
+ * chữ, không icon (`icon` giữ trong kiểu để chỗ gọi cũ không phải sửa). Không thêm `components/ui/tabs`
+ * vì thư mục đó là shadcn nguyên bản (hook chặn sửa).
  *
  * Tab đang chọn do trang giữ — thường trên URL (`?tab=`, state-persistence.md). ARIA tablist + phím
  * mũi tên trái / phải (Mode A: thao tác không cần chuột). Đi cặp với `PageTabPanel` cùng `idPrefix`.
@@ -41,7 +42,7 @@ export function PageTabs<T extends string>({
       role="tablist"
       aria-label={ariaLabel}
       className={cn(
-        "bg-bg-muted text-ink-secondary mb-4 inline-flex h-9 w-fit items-center gap-0.5 rounded-lg p-[3px]",
+        "border-border-default text-ink-secondary mb-4 flex w-full items-end gap-1 border-b",
         className,
       )}
       onKeyDown={(e) => {
@@ -54,7 +55,6 @@ export function PageTabs<T extends string>({
     >
       {tabs.map((tab) => {
         const active = tab.value === value;
-        const Icon = tab.icon;
         return (
           <button
             key={tab.value}
@@ -67,19 +67,20 @@ export function PageTabs<T extends string>({
             tabIndex={active ? 0 : -1}
             onClick={() => onChange(tab.value)}
             className={cn(
-              "focus-visible:ring-border-strong inline-flex h-full items-center justify-center gap-1.5 rounded-md border border-transparent px-3 text-[0.8125rem] font-medium whitespace-nowrap transition-[color,box-shadow,background-color] focus-visible:ring-2 focus-visible:outline-none",
+              "focus-visible:ring-border-strong relative -mb-px inline-flex h-10 items-center justify-center gap-1.5 rounded-t-md px-3 text-sm whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:outline-none",
+              // Gạch dưới tab đang chọn đè lên vạch kẻ của cả thanh
+              "after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:rounded-full",
               active
-                ? "bg-bg-surface text-ink-primary border-border-default shadow-sm"
-                : "hover:text-ink-primary",
+                ? "text-ink-primary after:bg-ink-primary font-medium"
+                : "hover:text-ink-primary after:bg-transparent",
             )}
           >
-            {Icon && <Icon className="size-3.5" />}
             {tab.label}
             {tab.count !== undefined && (
               <span
                 className={cn(
                   "rounded-full px-1.5 py-0.5 text-[0.625rem] font-semibold tabular-nums",
-                  active ? "bg-brand text-ink-inverse" : "bg-bg-surface text-ink-tertiary",
+                  active ? "bg-brand text-ink-inverse" : "bg-bg-muted text-ink-tertiary",
                 )}
               >
                 {tab.count}

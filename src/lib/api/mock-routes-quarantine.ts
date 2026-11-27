@@ -11,6 +11,13 @@
 import { QUARANTINE_API } from "@/constants/quarantine";
 
 import { registerMockRoute } from "./mock-adapter";
+import {
+  compareLookup,
+  LOOKUP_SEARCH_MIN,
+  lookupContext,
+  lookupFields,
+  matchesLookup,
+} from "./mock-carton-lookup";
 import { registerLocationSummaryMockRoute } from "./mock-routes-location-summary";
 import {
   findMockCarton,
@@ -22,6 +29,7 @@ import {
 } from "./mock-inventory-cartons";
 import { hasPendingMockAdjustment } from "./mock-routes-inventory";
 import { MOCK_AREAS } from "./mock-routes-goods-receipts-store";
+import { getWarehouseStore } from "./mock-warehouse-store";
 import { beError, isRecord, parseJsonBody, readString } from "./mock-routes-purchase-orders-store";
 
 import type { AxiosRequestConfig } from "axios";
@@ -56,9 +64,9 @@ function detail(carton: MockCarton) {
     sku: carton.sku,
     unitOfMeasure: "CARTON",
     nominalQty: pkg.nominalQty,
-    receivedQty: pkg.receivedQty,
+    ...(pkg.countedAt ? { countedAt: pkg.countedAt } : {}),
     ...(carton.lotNumber ? { lotNumber: carton.lotNumber } : {}),
-    onHand: holding ? pkg.receivedQty : 0,
+    onHand: holding ? pkg.quantity : 0,
     reserved: 0,
     status: pkg.status,
     ...(pkg.locationCode ? { locationCode: pkg.locationCode } : {}),
@@ -67,7 +75,7 @@ function detail(carton: MockCarton) {
           {
             ...(carton.lotNumber ? { lotNumber: carton.lotNumber } : {}),
             status: stockStatus,
-            onHand: pkg.receivedQty,
+            onHand: pkg.quantity,
             reserved: 0,
           },
         ]
@@ -84,9 +92,9 @@ function row(carton: MockCarton) {
     sku: carton.sku,
     unitOfMeasure: "CARTON",
     nominalQty: pkg.nominalQty,
-    receivedQty: pkg.receivedQty,
+    ...(pkg.countedAt ? { countedAt: pkg.countedAt } : {}),
     ...(carton.lotNumber ? { lotNumber: carton.lotNumber } : {}),
-    onHand: holding ? pkg.receivedQty : 0,
+    onHand: holding ? pkg.quantity : 0,
     reserved: 0,
     status: pkg.status,
     ...(pkg.locationCode ? { locationCode: pkg.locationCode } : {}),
@@ -94,6 +102,13 @@ function row(carton: MockCarton) {
 }
 
 const LIVE = ["RECEIVING", "IN_STOCK"];
+
+/** Tham số lặp lại (`status=A&status=B`) — mảng hoặc một giá trị; vắng → null. */
+function listParam(value: unknown): string[] | null {
+  if (Array.isArray(value)) return value.map((item) => readString(item)).filter(Boolean);
+  const single = readString(value);
+  return single ? [single] : null;
+}
 const SIZE_DEFAULT = 20;
 const SIZE_MAX = 100;
 
@@ -109,22 +124,37 @@ async function list(config: AxiosRequestConfig) {
     return beError(400, "UNSUPPORTED_PARAMETER", "Unsupported parameter value");
   const location = readString(params.location).toUpperCase();
   const sku = readString(params.sku).toUpperCase();
-  const statuses = Array.isArray(params.status)
-    ? params.status.map((value) => readString(value))
-    : readString(params.status)
-      ? [readString(params.status)]
-      : LIVE;
+  const q = readString(params.q).trim();
+  // BE #461: q ngắn hơn 3 ký tự → 400 VALIDATION_FAILED
+  if (q && q.length < LOOKUP_SEARCH_MIN)
+    return beError(400, "VALIDATION_FAILED", "Invalid request data", [
+      { field: "q", message: "q must have at least 3 characters", code: "Size" },
+    ]);
+  const statuses = listParam(params.status) ?? LIVE;
+  const warehouseId = readString(params.warehouseId);
+  const warehouse = warehouseId ? getWarehouseStore().warehouses.get(warehouseId) : undefined;
+  if (warehouseId && !warehouse) return beError(404, "WAREHOUSE_NOT_FOUND", "Warehouse not found");
+  const context = await lookupContext();
+  const filters = {
+    warehouseCode: warehouse?.prefix.toUpperCase() ?? null,
+    lotNumber: readString(params.lotNumber).toUpperCase(),
+    q,
+    stockStatuses: listParam(params.stockStatus),
+  };
   const rows = (await listMockCartons())
     .filter(
       (carton) =>
         statuses.includes(carton.pkg.status) &&
         (!location || (carton.pkg.locationCode ?? "").toUpperCase() === location) &&
-        (!sku || carton.sku.toUpperCase() === sku),
+        (!sku || carton.sku.toUpperCase() === sku) &&
+        matchesLookup(carton, filters),
     )
-    .sort((a, b) => a.pkg.lpn.localeCompare(b.pkg.lpn));
+    .sort(compareLookup(readString(params.sort), context));
   const totalPages = Math.ceil(rows.length / size);
   return ok({
-    items: rows.slice(page * size, page * size + size).map(row),
+    items: rows
+      .slice(page * size, page * size + size)
+      .map((carton) => ({ ...row(carton), ...lookupFields(carton, context) })),
     page,
     size,
     totalElements: rows.length,
@@ -202,7 +232,8 @@ export function registerQuarantineMockRoutes(): void {
   registerLocationSummaryMockRoute();
   registerMockRoute("GET", `${STOCK_PACKAGES}/:lpn`, async (config) => {
     const loaded = await load(config);
-    return loaded.error ?? ok(detail(loaded.carton));
+    if (loaded.error) return loaded.error;
+    return ok({ ...detail(loaded.carton), ...lookupFields(loaded.carton, await lookupContext()) });
   });
   registerMockRoute("POST", `${STOCK_PACKAGES}/:lpn/quarantine`, quarantine);
   registerMockRoute("POST", `${STOCK_PACKAGES}/:lpn/quarantine-release`, release);

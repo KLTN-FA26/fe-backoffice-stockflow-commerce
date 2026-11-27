@@ -8,6 +8,14 @@ import { ApiError } from "@/lib/api/error";
 import { CustomerPicker } from "@/components/backoffice/CustomerPicker";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { FORM_INPUT_CLASS, FormField } from "@/components/shared/FormField";
+import { FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
+import {
+  Select,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/shared/combobox-select";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -20,6 +28,8 @@ import type { ChatAttachableContext } from "@/constants";
 const SUBJECT_MAX = 200;
 const TEXT_MAX = 4000;
 const NO_CONTEXT = "";
+/** Đại diện cho NO_CONTEXT trong ô chọn — SelectItem không nhận value rỗng. */
+const NO_CONTEXT_ITEM = "__none__";
 
 const toKind = (value: string): ChatAttachableContext | null =>
   CHAT_ATTACHABLE_CONTEXTS.find((kind) => kind === value) ?? null;
@@ -117,22 +127,25 @@ function OpenConversationForm({ onClose: close }: { onClose: () => void }) {
       {customerId && (
         <>
           <FormField id="chat-open-kind" label="Về chứng từ" hint="Không bắt buộc.">
-            <select
-              id="chat-open-kind"
+            <Select
               value={kind}
-              onChange={(event) => {
-                const next = toKind(event.target.value);
+              onValueChange={(selected) => {
+                const next = toKind(selected);
                 if (next) setKind(next);
                 setRefId(NO_CONTEXT);
               }}
-              className={`${FORM_INPUT_CLASS} border px-2`}
             >
-              {CHAT_ATTACHABLE_CONTEXTS.map((value) => (
-                <option key={value} value={value}>
-                  {CHAT_CONTEXT_LABELS[value] ?? value}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger id="chat-open-kind" className={FORM_SELECT_CLASS}>
+                <SelectValue />
+              </SelectTrigger>
+              <TitledSelectContent title="Về chứng từ">
+                {CHAT_ATTACHABLE_CONTEXTS.map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {CHAT_CONTEXT_LABELS[value] ?? value}
+                  </SelectItem>
+                ))}
+              </TitledSelectContent>
+            </Select>
           </FormField>
           <FormField
             id="chat-open-document"
@@ -144,22 +157,25 @@ function OpenConversationForm({ onClose: close }: { onClose: () => void }) {
                 : undefined
             }
           >
-            <select
-              id="chat-open-document"
-              value={refId}
+            <Select
+              value={refId === NO_CONTEXT ? NO_CONTEXT_ITEM : refId}
               disabled={overview.isPending || documents.length === 0}
-              onChange={(event) => setRefId(event.target.value)}
-              className={`${FORM_INPUT_CLASS} border px-2`}
+              onValueChange={(next) => setRefId(next === NO_CONTEXT_ITEM ? NO_CONTEXT : next)}
             >
-              <option value={NO_CONTEXT}>
-                {overview.isPending ? "Đang tải…" : "Không gắn chứng từ"}
-              </option>
-              {documents.map((document) => (
-                <option key={document.id} value={document.id}>
-                  {document.label}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger id="chat-open-document" className={FORM_SELECT_CLASS}>
+                <SelectValue />
+              </SelectTrigger>
+              <TitledSelectContent title="Chứng từ">
+                <SelectItem value={NO_CONTEXT_ITEM}>
+                  {overview.isPending ? "Đang tải…" : "Không gắn chứng từ"}
+                </SelectItem>
+                {documents.map((document) => (
+                  <SelectItem key={document.id} value={document.id}>
+                    {document.label}
+                  </SelectItem>
+                ))}
+              </TitledSelectContent>
+            </Select>
           </FormField>
         </>
       )}

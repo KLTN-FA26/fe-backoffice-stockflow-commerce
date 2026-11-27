@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Download, Eye, Files } from "lucide-react";
+import { Download, Eye } from "lucide-react";
 
 import { DESIGN_ARTIFACT_ROLE_LABELS } from "@/constants";
 
@@ -13,9 +13,11 @@ import { useArtifactLink, useFetchArtifactLink } from "@/features/design-review/
 import { fileSizeLabel, labelOf } from "@/features/design-review/selectors";
 
 import { SignedFilePreview } from "@/components/backoffice/SignedFilePreview";
-import { DetailSection } from "@/components/shared/DetailSection";
+import { DetailPanel } from "@/components/shared/DetailPanel";
 import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
+
+import { DESIGN_DETAIL_LABELS as L } from "../copy";
 
 import type { DesignArtifact } from "@/features/design-review/types";
 import type { Submission } from "@/features/design-review/selectors";
@@ -73,7 +75,10 @@ function ArtifactRow({
   );
 }
 
-/** Bộ file đang chờ duyệt (bản mới nhất mỗi loại) + "Các lần gửi trước" thu gọn. */
+/**
+ * Bộ file đang chờ duyệt (bản mới nhất mỗi loại) + "Các lần gửi trước" luôn hiện ngay dưới (backoffice-erp-ui B15: không
+ * thu gọn mục). Nút Xem / Ẩn chỉ bật trình xem của một file.
+ */
 export function SubmittedFiles({
   designId,
   submission,
@@ -82,7 +87,6 @@ export function SubmittedFiles({
   submission: Submission;
 }) {
   const [viewing, setViewing] = useState<string | null>(null);
-  const [showPrevious, setShowPrevious] = useState(false);
   const fetchLink = useFetchArtifactLink(designId);
   const download = (artifactId: string) =>
     void fetchLink(artifactId).then(
@@ -108,26 +112,21 @@ export function SubmittedFiles({
   const viewed = all.find((artifact) => artifact.artifactId === viewing);
 
   return (
-    <DetailSection title="File đã gửi" icon={Files}>
+    <DetailPanel title={L.files} count={submission.current.length} description={L.filesDescription}>
       {submission.current.length === 0 ? (
-        <p className="text-ink-tertiary text-[0.8125rem]">Khách chưa gửi file nào.</p>
+        <p className="text-ink-tertiary text-[0.8125rem]">{L.noFiles}</p>
       ) : (
         <ul className="divide-y divide-(--table-line)">{submission.current.map(row)}</ul>
       )}
       {submission.previous.length > 0 && (
-        <div className="mt-2">
-          <Button
-            type="button"
-            size="xs"
-            variant="ghost"
-            aria-expanded={showPrevious}
-            onClick={() => setShowPrevious((open) => !open)}
-          >
-            Các lần gửi trước ({submission.previous.length})
-          </Button>
-          {showPrevious && (
-            <ul className="divide-y divide-(--table-line)">{submission.previous.map(row)}</ul>
-          )}
+        <div className="mt-3 border-t border-(--table-line) pt-3">
+          <h3 className="text-ink-secondary text-xs font-semibold">
+            {L.previousFiles}{" "}
+            <span className="text-ink-tertiary font-normal tabular-nums">
+              {submission.previous.length}
+            </span>
+          </h3>
+          <ul className="divide-y divide-(--table-line)">{submission.previous.map(row)}</ul>
         </div>
       )}
       {viewed && (
@@ -135,6 +134,6 @@ export function SubmittedFiles({
           <ArtifactViewer designId={designId} artifact={viewed} />
         </div>
       )}
-    </DetailSection>
+    </DetailPanel>
   );
 }

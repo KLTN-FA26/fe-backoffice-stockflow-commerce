@@ -5,6 +5,14 @@ import { Trash2 } from "lucide-react";
 
 import { CONTRACT_MILESTONE_LABELS, CONTRACT_MILESTONES } from "@/constants";
 import { FORM_INPUT_CLASS, fieldA11y } from "@/components/shared/FormField";
+import { FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
+import {
+  Select,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/shared/combobox-select";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { MoneyInput } from "@/components/shared/MoneyInput";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +23,9 @@ import { dueRuleText } from "../../sales-contract-rules";
 import type { UseFormReturn } from "react-hook-form";
 import type { ContractFormValues } from "../../sales-contract-form";
 
-const SELECT = `${FORM_INPUT_CLASS} w-full border px-2`;
+const SELECT = FORM_SELECT_CLASS;
+/** Đại diện cho "" (chưa gắn đợt giao) — SelectItem không nhận value rỗng. */
+const NO_BATCH = "__none__";
 const NUM = `${FORM_INPUT_CLASS} text-right font-[family-name:var(--font-mono)] tabular-nums`;
 const TD = "px-1 pt-1 align-top";
 
@@ -72,41 +82,63 @@ export function PaymentPlanRow({
           <FieldError id={id("name")} message={e?.name?.message} />
         </td>
         <td className={TD}>
-          <select
-            {...register(`paymentPlan.${index}.milestone`, {
-              // N10: an ON_SIGNING row left without a number of days defaults to the BE's 3 days. Moving
-              // away from ON_SIGNING drops that untouched default so AFTER_DELIVERY falls back to the credit term.
-              onChange: (event: { target: { value: string } }) => {
-                const path = `paymentPlan.${index}.dueDays` as const;
-                const current = getValues(path);
-                if (event.target.value === "ON_SIGNING" && !current)
-                  setValue(path, String(DEFAULT_ON_SIGNING_DUE_DAYS));
-                else if (
-                  event.target.value !== "ON_SIGNING" &&
-                  current === String(DEFAULT_ON_SIGNING_DUE_DAYS)
-                )
-                  setValue(path, "");
-              },
-            })}
-            aria-label={`Đợt ${n} — mốc`}
-            className={SELECT}
-          >
-            {CONTRACT_MILESTONES.map((value) => (
-              <option key={value} value={value}>
-                {CONTRACT_MILESTONE_LABELS[value]}
-              </option>
-            ))}
-          </select>
+          <Controller
+            control={control}
+            name={`paymentPlan.${index}.milestone`}
+            render={({ field }) => (
+              <Select
+                name={field.name}
+                value={field.value}
+                onValueChange={(next) => {
+                  field.onChange(next);
+                  // N10: an ON_SIGNING row left without a number of days defaults to the BE's 3 days. Moving
+                  // away from ON_SIGNING drops that untouched default so AFTER_DELIVERY falls back to the credit term.
+                  const path = `paymentPlan.${index}.dueDays` as const;
+                  const current = getValues(path);
+                  if (next === "ON_SIGNING" && !current)
+                    setValue(path, String(DEFAULT_ON_SIGNING_DUE_DAYS));
+                  else if (next !== "ON_SIGNING" && current === String(DEFAULT_ON_SIGNING_DUE_DAYS))
+                    setValue(path, "");
+                }}
+              >
+                <SelectTrigger
+                  aria-label={`Đợt ${n} — mốc`}
+                  onBlur={field.onBlur}
+                  className={SELECT}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <TitledSelectContent title="Mốc thanh toán">
+                  {CONTRACT_MILESTONES.map((value) => (
+                    <SelectItem key={value} value={value}>
+                      {CONTRACT_MILESTONE_LABELS[value]}
+                    </SelectItem>
+                  ))}
+                </TitledSelectContent>
+              </Select>
+            )}
+          />
         </td>
         <td className={TD}>
-          <select
-            {...register(`paymentPlan.${index}.mode`)}
-            aria-label={`Đợt ${n} — tính theo`}
-            className={SELECT}
-          >
-            <option value="amount">Số tiền (₫)</option>
-            <option value="percent">% tổng đơn</option>
-          </select>
+          <Controller
+            control={control}
+            name={`paymentPlan.${index}.mode`}
+            render={({ field }) => (
+              <Select name={field.name} value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger
+                  aria-label={`Đợt ${n} — tính theo`}
+                  onBlur={field.onBlur}
+                  className={SELECT}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <TitledSelectContent title="Tính theo">
+                  <SelectItem value="amount">Số tiền (₫)</SelectItem>
+                  <SelectItem value="percent">% tổng đơn</SelectItem>
+                </TitledSelectContent>
+              </Select>
+            )}
+          />
         </td>
         <td className={TD}>
           <Controller
@@ -161,20 +193,35 @@ export function PaymentPlanRow({
           <FieldError id={id("days")} message={e?.dueDays?.message} />
         </td>
         <td className={TD}>
-          <select
-            {...register(`paymentPlan.${index}.deliveryBatchSeq`)}
-            {...fieldA11y(id("batch"), e?.deliveryBatchSeq?.message)}
-            aria-label={`Đợt ${n} — đợt giao`}
-            disabled={milestone === "ON_SIGNING"}
-            className={SELECT}
-          >
-            <option value="">—</option>
-            {Array.from({ length: batchCount }).map((_, seq) => (
-              <option key={seq} value={String(seq + 1)}>
-                Đợt giao {seq + 1}
-              </option>
-            ))}
-          </select>
+          <Controller
+            control={control}
+            name={`paymentPlan.${index}.deliveryBatchSeq`}
+            render={({ field }) => (
+              <Select
+                name={field.name}
+                value={field.value === "" ? NO_BATCH : field.value}
+                disabled={milestone === "ON_SIGNING"}
+                onValueChange={(next) => field.onChange(next === NO_BATCH ? "" : next)}
+              >
+                <SelectTrigger
+                  {...fieldA11y(id("batch"), e?.deliveryBatchSeq?.message)}
+                  aria-label={`Đợt ${n} — đợt giao`}
+                  onBlur={field.onBlur}
+                  className={SELECT}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <TitledSelectContent title="Đợt giao">
+                  <SelectItem value={NO_BATCH}>—</SelectItem>
+                  {Array.from({ length: batchCount }).map((_, seq) => (
+                    <SelectItem key={seq} value={String(seq + 1)}>
+                      Đợt giao {seq + 1}
+                    </SelectItem>
+                  ))}
+                </TitledSelectContent>
+              </Select>
+            )}
+          />
           <FieldError id={id("batch")} message={e?.deliveryBatchSeq?.message} />
         </td>
         <td className={TD}>

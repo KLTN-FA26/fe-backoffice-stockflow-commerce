@@ -179,7 +179,8 @@ describe("quarantine and release (docs 20 §4.8)", () => {
     expect(asked).toMatchObject({
       status: "PENDING_APPROVAL",
       locationCode: QUARANTINE_AREA,
-      quantityDelta: -120,
+      direction: "WRITE_OFF",
+      nominalQty: 120,
     });
     actAs("MOCK-MANAGER-B");
     await approveAdjustment(asked.adjustmentId);

@@ -111,11 +111,13 @@ describe("CartonCheckQueue — hàng chờ kiểm thùng", () => {
   it("nút Mở trạm là link; bấm hàng → sang trạm kiểm thùng của task", async () => {
     const user = userEvent.setup();
     renderQueue([queueRow()]);
-    const open = await screen.findByRole("link", { name: new RegExp(L.openStation) });
+    await user.click(await screen.findByRole("button", { name: new RegExp(L.openStation) }));
+    const open = await screen.findByRole("link", { name: "Xem chi tiết" });
     expect(open).toHaveAttribute(
       "href",
       "/admin/warehouse-map/HCM/packing/3f2c9a10-7b1d-4e55-9c0a-1d2e3f4a5b6c",
     );
+    await user.keyboard("{Escape}");
     await user.click(screen.getByText("SO-20261010-000431"));
     expect(push).toHaveBeenCalledWith(
       "/admin/warehouse-map/HCM/packing/3f2c9a10-7b1d-4e55-9c0a-1d2e3f4a5b6c",

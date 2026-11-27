@@ -102,7 +102,9 @@ const openRow = async (user: ReturnType<typeof userEvent.setup>, index: number) 
   const buttons = await screen.findAllByRole("button", { name: new RegExp(E.openRow) });
   const button = buttons[index];
   if (!button) throw new Error(`Không có dòng ${index}`);
+  // Nút "⋯" cuối dòng mở menu, mục "Xem chi tiết" mở hộp thoại sự kiện
   await user.click(button);
+  await user.click(await screen.findByRole("button", { name: "Xem chi tiết" }));
   return screen.findByRole("dialog");
 };
 

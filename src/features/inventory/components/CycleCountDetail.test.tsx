@@ -11,6 +11,7 @@ import {
 } from "@/constants/cycle-count";
 import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
 import { CYCLE_COUNT_PERMISSIONS, INVENTORY_PERMISSIONS } from "@/constants/permissions";
+import { clickRowAction } from "@/test/ui-actions";
 
 import {
   cycleCountFixture,
@@ -223,12 +224,14 @@ describe("blind count by a counter (docs 20 §4.2 b, BR-07)", () => {
       }),
     );
     renderInventory(<CycleCountDetail id={count.id} />);
-    await userEvent.click(await screen.findByRole("button", { name: L.markMissingFor(LPN) }));
+    await screen.findByRole("button", { name: `Thao tác — ${LPN}` });
+    await clickRowAction(userEvent.setup(), L.markMissingFor(LPN));
     await waitFor(() => expect(bodies).toHaveBeenCalledWith({ found: false }));
     const row = screen.getByText(LPN).closest("tr");
     if (!row) throw new Error("line not rendered");
     expect(await within(row).findByText(L.lineState.missing)).toBeInTheDocument();
-    // Once not found, the button is gone from that line.
+    // Once not found, the action menu is gone from that line.
+    expect(screen.queryByRole("button", { name: `Thao tác — ${LPN}` })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: L.markMissingFor(LPN) })).not.toBeInTheDocument();
   });
 
@@ -312,7 +315,8 @@ describe("blind count by a counter (docs 20 §4.2 b, BR-07)", () => {
       ),
     );
     renderInventory(<CycleCountDetail id={count.id} />);
-    await userEvent.click(await screen.findByRole("button", { name: L.markMissingFor(LPN) }));
+    await screen.findByRole("button", { name: `Thao tác — ${LPN}` });
+    await clickRowAction(userEvent.setup(), L.markMissingFor(LPN));
     expect(await screen.findByText(CYCLE_COUNT_ERROR_MESSAGES.notAssignee)).toBeInTheDocument();
   });
 });
@@ -325,7 +329,7 @@ describe("the manager's view (docs 20 §4.2 d–e, BR-07)", () => {
     booked: true,
     found: false,
     adjustments: [
-      { id: ADJ, number: "ADJ-20261112-0001", quantityDelta: -120, status: "REJECTED" },
+      { id: ADJ, number: "ADJ-20261112-0001", direction: "WRITE_OFF", status: "REJECTED" },
     ],
   });
   const postedLine = cycleCountLineFixture({

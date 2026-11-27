@@ -33,7 +33,7 @@ export async function seedMockCartons(specs: readonly SeedCarton[]) {
         id,
         lpn: spec.lpn,
         quantity: nominalQty,
-        receivedQty: nominalQty,
+        countedAt: "2026-11-10T02:00:00Z",
         nominalQty,
         status: spec.status ?? "IN_STOCK",
         locationCode: spec.location,

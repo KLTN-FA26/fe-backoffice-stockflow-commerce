@@ -39,6 +39,16 @@ const hold = {
 const APPROVE_PATH = `/orders/${apiOrder.orderId}/credit-approval`;
 const REJECT_PATH = `/orders/${apiOrder.orderId}/credit-rejection`;
 
+/** Duyệt / từ chối nằm trong menu "⋯" của dòng (`CreditHoldRowActions` → `RowActionsMenu`). */
+async function clickCreditAction(
+  user: ReturnType<typeof userEvent.setup>,
+  action: "Duyệt công nợ" | "Từ chối",
+  orderNumber: string = apiOrder.orderNumber,
+) {
+  await user.click(await screen.findByRole("button", { name: `Thao tác — ${orderNumber}` }));
+  await user.click(await screen.findByRole("button", { name: action }));
+}
+
 const positionPath = (customerId: string | null | undefined) =>
   `/orders/credit-position/${customerId}`;
 const POSITION_PATH = positionPath(apiOrder.customerId);
@@ -112,8 +122,14 @@ describe("Credit hold — danh sách (SCRUM-427)", () => {
   it("ACCOUNTANT (APPROVE) thấy Duyệt / Từ chối; mã đơn không là link (không có quyền sales-orders)", async () => {
     renderList(ORDER_PERMISSION_SETS.accountant);
 
-    expect(await screen.findByRole("button", { name: /^Duyệt công nợ đơn/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^Từ chối duyệt công nợ đơn/ })).toBeInTheDocument();
+    const user = userEvent.setup();
+    await user.click(
+      await screen.findByRole("button", { name: `Thao tác — ${apiOrder.orderNumber}` }),
+    );
+    const menu = await screen.findByRole("dialog");
+    expect(within(menu).getByRole("button", { name: "Duyệt công nợ" })).toBeEnabled();
+    expect(within(menu).getByRole("button", { name: "Từ chối" })).toBeEnabled();
+    await user.keyboard("{Escape}");
     // G. mã đơn vẫn hiện nhưng không là link tới trang đơn bị chặn
     expect(screen.getByText(apiOrder.orderNumber)).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: apiOrder.orderNumber })).not.toBeInTheDocument();
@@ -159,6 +175,8 @@ describe("Credit hold — danh sách (SCRUM-427)", () => {
       "href",
       ADMIN_ROUTES.orders.detail(apiOrder.orderId),
     );
+    // không quyền duyệt / từ chối → dòng không có menu "⋯" nào
+    expect(screen.queryByRole("button", { name: /^Thao tác —/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Duyệt công nợ/ })).not.toBeInTheDocument();
     // F. trang danh sách kiểu Vercel: không tiêu đề / nút "← Đơn hàng" — breadcrumb và sidebar dẫn về đơn (BO-UX-2)
     expect(screen.queryByRole("link", { name: /Đơn hàng/ })).not.toBeInTheDocument();
@@ -184,7 +202,9 @@ describe("Credit hold — danh sách (SCRUM-427)", () => {
       // checkedAt 2026-09-07 → 66 ngày chờ
       expect(within(row).getByText("66 ngày")).toBeInTheDocument();
       expect(screen.getByRole("columnheader", { name: "Quá hạn hiện tại" })).toBeInTheDocument();
-      expect(screen.getByRole("columnheader", { name: "Thao tác" }).className).toContain("sticky");
+      expect(screen.getAllByRole("columnheader", { name: "Thao tác" })[0].className).toContain(
+        "sticky",
+      );
     } finally {
       vi.useRealTimers();
     }
@@ -238,7 +258,7 @@ describe("Credit hold — duyệt / từ chối", { timeout: DIALOG_FLOW_TIMEOUT
       .spyOn(api, "post")
       .mockResolvedValue({ data: { ...heldOrder, status: "CONFIRMED" } });
 
-    await user.click(await screen.findByRole("button", { name: /^Duyệt công nợ đơn/ }));
+    await clickCreditAction(user, "Duyệt công nợ");
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByRole("button", { name: "Duyệt" })).toBeDisabled();
     await user.type(within(dialog).getByLabelText(/Ghi chú duyệt/), "  Khách đã cam kết  ");
@@ -271,7 +291,7 @@ describe("Credit hold — duyệt / từ chối", { timeout: DIALOG_FLOW_TIMEOUT
       .spyOn(api, "post")
       .mockResolvedValue({ data: { ...heldOrder, status: "CANCELLED" } });
 
-    await user.click(await screen.findByRole("button", { name: /^Từ chối duyệt công nợ đơn/ }));
+    await clickCreditAction(user, "Từ chối");
     const dialog = await screen.findByRole("dialog");
     expect(
       within(dialog).getByText(/sẽ bị huỷ\. Tiền đã thu \(nếu có\) chuyển thành số tiền phải hoàn/),
@@ -292,7 +312,7 @@ describe("Credit hold — duyệt / từ chối", { timeout: DIALOG_FLOW_TIMEOUT
     const get = renderList(ORDER_PERMISSION_SETS.accountant);
     vi.spyOn(api, "post").mockRejectedValue(new ApiError(409, "ORDER_NOT_ON_CREDIT_HOLD", "x"));
 
-    await user.click(await screen.findByRole("button", { name: /^Duyệt công nợ đơn/ }));
+    await clickCreditAction(user, "Duyệt công nợ");
     await user.type(await screen.findByLabelText(/Ghi chú duyệt/), "Ok");
     const before = get.mock.calls.filter(([url]) => url === "/orders/credit-holds").length;
     await user.click(screen.getByRole("button", { name: "Duyệt" }));
@@ -309,9 +329,7 @@ describe("Credit hold — duyệt / từ chối", { timeout: DIALOG_FLOW_TIMEOUT
 /* ── Vị thế tín dụng (GET /orders/credit-position/{customerId}, BE CreditPositionResponse) ── */
 
 async function openReject(user: ReturnType<typeof userEvent.setup>, orderNumber: string) {
-  await user.click(
-    await screen.findByRole("button", { name: `Từ chối duyệt công nợ đơn ${orderNumber}` }),
-  );
+  await clickCreditAction(user, "Từ chối", orderNumber);
   return screen.findByRole("dialog");
 }
 
@@ -350,7 +368,7 @@ describe("Credit hold — vị thế tín dụng của khách", { timeout: DIALO
     const post = vi
       .spyOn(api, "post")
       .mockResolvedValue({ data: { ...heldOrder, status: "CONFIRMED" } });
-    await user.click(await screen.findByRole("button", { name: /^Duyệt công nợ đơn/ }));
+    await clickCreditAction(user, "Duyệt công nợ");
     const dialog = await screen.findByRole("dialog");
     expect(
       await within(dialog).findByText(/Không tải được công nợ hiện tại của khách/),
@@ -460,7 +478,7 @@ describe(
           note: "note is required",
         }),
       );
-      await user.click(await screen.findByRole("button", { name: /^Duyệt công nợ đơn/ }));
+      await clickCreditAction(user, "Duyệt công nợ");
       const dialog = await screen.findByRole("dialog");
       await user.type(within(dialog).getByLabelText(/Ghi chú duyệt/), "Ok");
       await user.click(within(dialog).getByRole("button", { name: "Duyệt" }));
@@ -549,7 +567,7 @@ describe("Credit hold — Idempotency-Key", { timeout: DIALOG_FLOW_TIMEOUT_MS },
     await within(rejectDialog).findByText(/đang được xử lý ở nơi khác/);
     await user.click(within(rejectDialog).getByRole("button", { name: "Huỷ" }));
 
-    await user.click(await screen.findByRole("button", { name: /^Duyệt công nợ đơn/ }));
+    await clickCreditAction(user, "Duyệt công nợ");
     const approve = await screen.findByRole("dialog");
     await user.type(within(approve).getByLabelText(/Ghi chú duyệt/), "Ok");
     await user.click(within(approve).getByRole("button", { name: "Duyệt" }));

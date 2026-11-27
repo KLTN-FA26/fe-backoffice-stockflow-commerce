@@ -7,7 +7,12 @@ import { RETURN_LIMITS, RETURN_OPENABLE_REASONS } from "@/constants/returns";
 import { FormField, fieldA11y } from "@/components/shared/FormField";
 import { FormSelect } from "@/components/shared/FormSelect";
 import { FORM_SELECT_CLASS, FORM_TEXTAREA_CLASS } from "@/components/shared/form-control-classes";
-import { SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/shared/combobox-select";
 import { Textarea } from "@/components/ui/textarea";
 
 import type { ReactNode } from "react";

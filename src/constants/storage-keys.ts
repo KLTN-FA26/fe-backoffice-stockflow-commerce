@@ -12,6 +12,7 @@ export const STORAGE_KEYS = {
   adminCreditHoldsColumns: "stockflow:admin:orders:credit-holds:columns",
   adminCancellationRequestsConfig: "stockflow:admin:orders:cancellation-requests:config",
   adminCancellationRequestsColumns: "stockflow:admin:orders:cancellation-requests:columns",
+  adminDeliveryFailuresColumns: "stockflow:admin:orders:delivery-failures:columns",
   adminPackingConfig: "stockflow:admin:packing:config",
   adminPickingConfig: "stockflow:admin:picking:config",
   adminCustomersConfig: "stockflow:admin:customers:config",
@@ -33,6 +34,8 @@ export const STORAGE_KEYS = {
   adminWarehouseCapacityConfig: "stockflow:admin:warehouse-capacity:config",
   /** Danh sách vị trí của kho (tab Kho) — cột đang hiện, số dòng / trang; dùng chung mọi kho. */
   adminWarehouseLocationsConfig: "stockflow:admin:warehouse-map:locations:config",
+  /** Thùng hàng (LPN) — cột đang hiện, số dòng / trang. */
+  adminInventoryCartonsConfig: "stockflow:admin:inventory:cartons:config",
   adminLoadPlansConfig: "stockflow:admin:load-plans:config",
   /** sessionStorage — `requestId` của lần lập kế hoạch xếp xe (BE trả lại kế hoạch cũ khi gửi lại cùng id). */
   loadPlanRequest: "stockflow:admin:load-plans:create-request",

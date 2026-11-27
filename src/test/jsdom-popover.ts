@@ -7,9 +7,12 @@ globalThis.ResizeObserver ??= class {
   unobserve() {}
   disconnect() {}
 };
-Element.prototype.hasPointerCapture ??= () => false;
-Element.prototype.setPointerCapture ??= () => {};
-Element.prototype.releasePointerCapture ??= () => {};
-Element.prototype.scrollIntoView ??= () => {};
+// Test chạy môi trường node (không có DOM) cũng nạp setup chung → chỉ vá khi có `Element`.
+if (typeof Element !== "undefined") {
+  Element.prototype.hasPointerCapture ??= () => false;
+  Element.prototype.setPointerCapture ??= () => {};
+  Element.prototype.releasePointerCapture ??= () => {};
+  Element.prototype.scrollIntoView ??= () => {};
+}
 
 export {};

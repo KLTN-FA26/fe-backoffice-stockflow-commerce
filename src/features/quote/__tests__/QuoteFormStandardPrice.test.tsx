@@ -2,11 +2,12 @@
  * 13 BR-04 (sửa ngày 2026-11-26): dòng báo giá của SKU mà khách chưa có giá riêng gợi ý giá chuẩn của quy cách SKU được
  * làm từ đó — được để trống bậc giá (BE tự lấy giá chuẩn), như với giá riêng của khách.
  */
-import { screen, within } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { apiError, mockApi, renderScreen } from "@/test/api-screen";
+import { pickOption } from "@/test/ui-actions";
 
 import { QuoteCreate } from "..";
 import { CUSTOMER, CUSTOMER_ID, SKU } from "../__fixtures__/quote-ds02";
@@ -58,8 +59,7 @@ describe("Quote form — giá chuẩn khi khách chưa có giá riêng", () => {
     const api = setup();
     const user = userEvent.setup();
     const select = await screen.findByLabelText(/SKU riêng của khách/);
-    await within(select).findByRole("option", { name: new RegExp(SKU) });
-    await user.selectOptions(select, SKU);
+    await pickOption(user, select, new RegExp(SKU));
     expect(
       await screen.findByRole("button", { name: "Dùng giá gợi ý (giá chuẩn)" }),
     ).toBeInTheDocument();
