@@ -51,6 +51,17 @@ export interface Lead {
   disqualifyReason?: string;
   customerId?: string;
 }
+/** Một dòng `customer.lead_history` (BE `LeadChange`): `RESUBMITTED` = khách gửi lại form, nội dung ở `note`. */
+interface LeadChange {
+  fromStatus: string | null;
+  toStatus: string;
+  fromUserId: string | null;
+  toUserId: string | null;
+  note: string | null;
+  changedById: string | null;
+  changedAt: string;
+  kind: "CHANGE" | "RESUBMITTED";
+}
 interface Request {
   id: string;
   customerId: string;
@@ -66,10 +77,42 @@ interface Request {
 
 const day = (offset: number) =>
   new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
-let work: { covers: Cover[]; leads: Lead[]; requests: Request[] } | null = null;
+let work: {
+  covers: Cover[];
+  leads: Lead[];
+  history: Map<string, LeadChange[]>;
+  requests: Request[];
+} | null = null;
 
 export function resetSalesWorkMockStore(): void {
   work = null;
+}
+
+function change(
+  fromStatus: string | null,
+  toStatus: string,
+  fromUserId: string | null,
+  toUserId: string | null,
+  note: string | null,
+  changedById: string | null,
+  changedAt: string,
+): LeadChange {
+  return {
+    fromStatus,
+    toStatus,
+    fromUserId,
+    toUserId,
+    note,
+    changedById,
+    changedAt,
+    kind: "CHANGE",
+  };
+}
+
+/** Như BE `LeadService.resubmissionNote`: nội dung lần gửi sau (người liên hệ, SĐT, email khác lần đầu). */
+function resubmissionNote(l: Lead): string {
+  const domain = l.email.split("@")[1] ?? "doanhnghiep-demo.vn";
+  return `The form was sent again: company ${l.companyName}; tax code ${l.taxCode}; contact Anh Minh (Giám đốc); phone 0912345678; e-mail minh@${domain}`;
 }
 
 async function state() {
@@ -90,7 +133,50 @@ async function state() {
     assignedTo,
     createdAt: new Date(Date.now() - n * 3_600_000).toISOString(),
   });
+  const leads = [
+    lead(1, "Công ty TNHH Trà Sữa Lá Xanh", "NEW", null),
+    lead(2, "Quán Cà Phê Gió Sớm", "NEW", null),
+    lead(3, "Công ty CP Bánh Ngọt Mùa Thu", "ASSIGNED", a || null),
+    lead(4, "Cửa hàng Kem Tuyết Trắng", "CONTACTED", a || null),
+  ];
+  const history = new Map(
+    leads.map((l, i) => {
+      const at = (hours: number) =>
+        new Date(Date.parse(l.createdAt) + hours * 3_600_000).toISOString();
+      const rows: LeadChange[] = [change(null, "NEW", null, null, null, null, l.createdAt)];
+      if (l.assignedTo)
+        rows.push(change("NEW", "ASSIGNED", null, l.assignedTo, null, null, at(0.2)));
+      if (l.status === "CONTACTED")
+        rows.push(
+          change(
+            "ASSIGNED",
+            "CONTACTED",
+            l.assignedTo,
+            l.assignedTo,
+            "Đã gọi, hẹn gửi mẫu",
+            l.assignedTo,
+            at(0.5),
+          ),
+        );
+      // §10.7 (review P5): cùng doanh nghiệp gửi lại form trong 24 giờ — giữ trên lịch sử, lead không đổi
+      if (i === 0)
+        rows.push({
+          ...change(
+            l.status,
+            l.status,
+            l.assignedTo,
+            l.assignedTo,
+            resubmissionNote(l),
+            null,
+            at(0.4),
+          ),
+          kind: "RESUBMITTED",
+        });
+      return [l.id, rows] as const;
+    }),
+  );
   work = {
+    history,
     covers:
       a && b && a !== b
         ? [
@@ -105,12 +191,7 @@ async function state() {
             },
           ]
         : [],
-    leads: [
-      lead(1, "Công ty TNHH Trà Sữa Lá Xanh", "NEW", null),
-      lead(2, "Quán Cà Phê Gió Sớm", "NEW", null),
-      lead(3, "Công ty CP Bánh Ngọt Mùa Thu", "ASSIGNED", a || null),
-      lead(4, "Cửa hàng Kem Tuyết Trắng", "CONTACTED", a || null),
-    ],
+    leads,
     requests: customers.slice(0, 2).map((c, i) => ({
       id: mockSalesId("4e90e000"),
       customerId: c.customerId,
@@ -139,6 +220,23 @@ function coverStatus(c: Cover): string {
 /** §10.7: lead mà `POST /customers` (mock) chuyển thành khách; cùng một đối tượng, route tạo khách đổi trạng thái. */
 export async function mockLead(leadId: string): Promise<Lead | null> {
   return (await state()).leads.find((l) => l.id === leadId) ?? null;
+}
+
+/** §10.7: `POST /customers` (mock) chuyển lead thành khách — đổi trạng thái và ghi lịch sử như BE `Lead.convert`. */
+export async function convertMockLead(
+  leadId: string,
+  customerId: string,
+  by: string,
+): Promise<void> {
+  const w = await state();
+  const lead = w.leads.find((l) => l.id === leadId);
+  if (!lead) return;
+  const at = new Date().toISOString();
+  w.history
+    .get(lead.id)
+    ?.push(change(lead.status, "CONVERTED", lead.assignedTo, lead.assignedTo, null, by, at));
+  lead.status = "CONVERTED";
+  lead.customerId = customerId;
 }
 
 /** Lead đang mở (ASSIGNED / CONTACTED) của một Sale — cho `handover-summary` (D44). */
@@ -252,14 +350,51 @@ function leadStep(
   return async (config: AxiosRequestConfig) => {
     const caller = await callerWith(SALES_LEAD_PERMISSIONS.update);
     if (typeof caller !== "string") return caller;
-    const lead = (await state()).leads.find((l) => l.id === pathParams(config).id);
+    const w = await state();
+    const lead = w.leads.find((l) => l.id === pathParams(config).id);
     if (!lead) return fail(404, "NOT_FOUND", "Không tìm thấy khách tiềm năng.");
     if (!allowed.includes(lead.status))
       return fail(409, "LEAD_ALREADY_HANDLED", "Lead đã được xử lý.");
-    apply(lead, bodyOf(config));
+    const before = { status: lead.status, assignedTo: lead.assignedTo };
+    const body = bodyOf(config);
+    apply(lead, body);
     lead.status = next;
+    w.history
+      .get(lead.id)
+      ?.push(
+        change(
+          before.status,
+          next,
+          before.assignedTo,
+          lead.assignedTo,
+          text(body.note) || text(body.reason) || null,
+          caller,
+          new Date().toISOString(),
+        ),
+      );
     return ok({ ...lead, assignedToName: await mockPersonName(lead.assignedTo) });
   };
+}
+
+/** `GET /leads/{id}/history` (cũ trước) — cùng quyền xem như danh sách: quản lý mọi lead, Sale lead của mình. */
+async function leadHistory(config: AxiosRequestConfig) {
+  const caller = await callerWith(SALES_LEAD_PERMISSIONS.read);
+  if (typeof caller !== "string") return caller;
+  const w = await state();
+  const lead = w.leads.find((l) => l.id === pathParams(config).id);
+  const manager = (await chatCaller())?.can(SALES_OWNER_PERMISSIONS.update) ?? false;
+  if (!lead || (!manager && lead.assignedTo !== caller))
+    return fail(404, "LEAD_NOT_FOUND", "Không tìm thấy khách tiềm năng.");
+  return ok(
+    await Promise.all(
+      (w.history.get(lead.id) ?? []).map(async (row) => ({
+        ...row,
+        fromName: await mockPersonName(row.fromUserId),
+        toName: await mockPersonName(row.toUserId),
+        changedByName: await mockPersonName(row.changedById),
+      })),
+    ),
+  );
 }
 
 async function listRequests(config: AxiosRequestConfig) {
@@ -318,6 +453,7 @@ export function registerSalesWorkMockRoutes(): void {
   registerMockRoute("POST", "/staff-covers", createCover);
   registerMockRoute("POST", "/staff-covers/:id/cancellation", cancelCover);
   registerMockRoute("GET", "/leads", listLeads);
+  registerMockRoute("GET", "/leads/:id/history", leadHistory);
   registerMockRoute(
     "PUT",
     "/leads/:id/assignment",

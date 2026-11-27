@@ -27,6 +27,7 @@ import { useLeads } from "../queries";
 
 import { LEADS_COPY } from "./copy";
 import { leadColumns, leadStatusLabel } from "./lead-columns";
+import { LeadDetailPanel } from "./LeadDetailPanel";
 import { LeadAssignDialog, LeadContactDialog, LeadDisqualifyDialog } from "./LeadDialogs";
 
 import type { LeadStatus } from "@/constants/sales-owner";
@@ -55,6 +56,7 @@ function LeadsContent() {
     status: status ?? undefined,
   });
   const [open, setOpen] = useState<{ action: LeadAction; lead: Lead } | null>(null);
+  const [detail, setDetail] = useState<Lead | null>(null);
   const close = () => setOpen(null);
   const clear = () => {
     void setStatus(null);
@@ -92,10 +94,13 @@ function LeadsContent() {
       <ServerTableBody
         query={query}
         canRead
-        columns={leadColumns({ userId, canUpdate, isManager, canCreateCustomer }, (action, lead) =>
-          setOpen({ action, lead }),
+        columns={leadColumns(
+          { userId, canUpdate, isManager, canCreateCustomer },
+          (action, lead) => setOpen({ action, lead }),
+          setDetail,
         )}
         rowKey={(lead) => lead.id}
+        onRowClick={setDetail}
         noun="khách tiềm năng"
         errorCopy={LEADS_COPY}
         hasFilters={!!status}
@@ -123,6 +128,7 @@ function LeadsContent() {
       )}
       {open?.action === "contact" && <LeadContactDialog lead={open.lead} onClose={close} />}
       {open?.action === "disqualify" && <LeadDisqualifyDialog lead={open.lead} onClose={close} />}
+      <LeadDetailPanel lead={detail} onClose={() => setDetail(null)} />
     </div>
   );
 }

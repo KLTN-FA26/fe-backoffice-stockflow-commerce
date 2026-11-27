@@ -1,9 +1,11 @@
 /** Phân công khách — hàm thuần (không side effect). */
 
+import { LEAD_STATUS_LABELS } from "@/constants/labels-sales-owner";
 import { SALES_OWNER_LIMITS } from "@/constants/sales-owner";
 
+import type { LeadStatus } from "@/constants/sales-owner";
 import type { SalesWorkloadRow } from "@/lib/references/sales-workload";
-import type { ChatWorkloadRow, StaffCover } from "./types";
+import type { ChatWorkloadRow, LeadHistoryEntry, StaffCover } from "./types";
 
 export interface BoardRow extends SalesWorkloadRow {
   openConversations: number | null;
@@ -78,4 +80,47 @@ export function overTransferCap(
   sourceCustomers: number | null | undefined,
 ): boolean {
   return scope === "all" && (sourceCustomers ?? 0) > SALES_OWNER_LIMITS.transferMax;
+}
+
+const leadStatus = (status: string | null | undefined) =>
+  status ? (LEAD_STATUS_LABELS[status as LeadStatus] ?? status) : "—";
+
+/**
+ * Một dòng lịch sử lead để đọc (§10.7): `title` việc gì, `note` ghi chú / nội dung form gửi lại, `by` ai làm (vắng =
+ * hệ thống: form công khai, khoá tài khoản trả lead về hàng chờ). `RESUBMITTED`: khách gửi lại form, lead không đổi.
+ */
+export function leadHistoryLine(entry: LeadHistoryEntry): {
+  title: string;
+  note: string | null;
+  by: string;
+} {
+  const note = entry.note?.trim() || null;
+  const by = entry.changedByName?.trim() || "Hệ thống";
+  if (entry.kind === "RESUBMITTED") return { title: "Khách gửi lại form", note, by };
+  if (!entry.fromStatus) return { title: "Khách gửi form", note, by };
+  const reassigned = !!entry.fromUserId && entry.fromUserId !== entry.toUserId;
+  switch (entry.toStatus) {
+    case "ASSIGNED":
+      return {
+        title: entry.toName
+          ? reassigned
+            ? `Giao lại cho ${entry.toName} (trước: ${entry.fromName ?? "Sale khác"})`
+            : `Giao cho ${entry.toName}`
+          : leadStatus(entry.toStatus),
+        note,
+        by,
+      };
+    case "NEW":
+      return { title: "Trả về hàng chờ", note, by };
+    case "CONTACTED":
+    case "CONVERTED":
+    case "DISQUALIFIED":
+      return { title: leadStatus(entry.toStatus), note, by };
+    default:
+      return {
+        title: `${leadStatus(entry.fromStatus)} → ${leadStatus(entry.toStatus)}`,
+        note,
+        by,
+      };
+  }
 }

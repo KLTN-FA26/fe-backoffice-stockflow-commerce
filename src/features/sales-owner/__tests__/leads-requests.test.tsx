@@ -137,6 +137,68 @@ describe("Khách tiềm năng (§10.3, §10.4, §10.7)", () => {
     }
   });
 
+  it("§10.7: bấm dòng mở chi tiết + lịch sử; RESUBMITTED hiện 'Khách gửi lại form' kèm liên hệ lần đó", async () => {
+    const api = mockSalesOwnerApi("SALES_MANAGER", {
+      get: leads([lead("L1", "ASSIGNED", "s-b")], {
+        "/leads/L1/history": () => [
+          { toStatus: "NEW", changedAt: "2026-11-27T01:00:00Z", kind: "CHANGE" },
+          {
+            fromStatus: "NEW",
+            toStatus: "ASSIGNED",
+            toUserId: "s-b",
+            toName: "Sale Bình",
+            changedById: "m-1",
+            changedByName: "Quản Lý",
+            changedAt: "2026-11-27T02:00:00Z",
+            kind: "CHANGE",
+          },
+          {
+            fromStatus: "ASSIGNED",
+            toStatus: "ASSIGNED",
+            fromUserId: "s-b",
+            toUserId: "s-b",
+            note: "The form was sent again: company Công ty L1; contact Anh Minh; phone 0912345678; e-mail minh@x.vn",
+            changedAt: "2026-11-27T03:00:00Z",
+            kind: "RESUBMITTED",
+          },
+        ],
+      }),
+    });
+    renderScreen(<LeadsPage />, "SALES_MANAGER");
+    const user = userEvent.setup();
+    await user.click(await screen.findByText("Công ty L1"));
+    const history = await screen.findByRole("list", { name: "Lịch sử khách tiềm năng" });
+    const items = within(history).getAllByRole("listitem");
+    expect(items.map((li) => within(li).getAllByText(/./)[0]?.textContent)).toEqual([
+      "Khách gửi form",
+      "Giao cho Sale Bình",
+      "Khách gửi lại form",
+    ]);
+    expect(within(items[1] as HTMLElement).getByText("Quản Lý")).toBeInTheDocument();
+    expect(within(items[2] as HTMLElement).getByText("Hệ thống")).toBeInTheDocument();
+    expect(
+      within(items[2] as HTMLElement).getByText(/contact Anh Minh; phone 0912345678/),
+    ).toBeInTheDocument();
+    expect(api.get).toHaveBeenCalledWith("/leads/L1/history", expect.anything());
+  });
+
+  it("menu luôn có 'Xem chi tiết và lịch sử'; lịch sử chưa xem được (404) → báo, không vỡ", async () => {
+    mockSalesOwnerApi("SALES_STAFF", {
+      get: leads([lead("L4", "CONVERTED", "u-test")], {
+        "/leads/L4/history": () => {
+          throw apiError(404, "NOT_FOUND");
+        },
+      }),
+    });
+    renderScreen(<LeadsPage />, "SALES_STAFF");
+    const user = userEvent.setup();
+    await screen.findByText("Công ty L4");
+    await clickRowAction(user, "Xem chi tiết và lịch sử", rowOf("Công ty L4"));
+    expect(
+      await screen.findByText("Chưa xem được lịch sử của khách tiềm năng này."),
+    ).toBeInTheDocument();
+  });
+
   it("lọc trạng thái trên URL → tham số status; BE chưa có (404) → 'Chưa dùng được', không vỡ trang", async () => {
     const api = mockSalesOwnerApi("SALES_MANAGER", { get: leads([lead("L1", "NEW")]) });
     const view = renderScreen(<LeadsPage />, "SALES_MANAGER", "?status=NEW");

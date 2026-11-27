@@ -7,6 +7,7 @@
 import { z } from "zod";
 
 import {
+  LEAD_HISTORY_KINDS,
   LEAD_STATUSES,
   OWNER_CHANGE_REQUEST_STATUSES,
   SALES_OWNER_CHANGE_REASONS,
@@ -126,6 +127,29 @@ export const leadSchema = z.object({
   createdAt: z.string().nullish(),
 });
 export const leadPageSchema = pageOf(leadSchema);
+
+/**
+ * Một dòng `GET /leads/{id}/history` (cũ trước). `fromStatus` vắng = lần gửi form đầu. `kind` vắng / lạ → coi như
+ * `CHANGE`; `RESUBMITTED`: khách gửi lại form, `note` là nội dung form mới (công ty, MST, người liên hệ, SĐT, email…).
+ */
+export const leadHistoryEntrySchema = z.object({
+  fromStatus: z.string().nullish(),
+  toStatus: z.string().nullish(),
+  fromUserId: z.string().nullish(),
+  fromName: z.string().nullish(),
+  toUserId: z.string().nullish(),
+  toName: z.string().nullish(),
+  note: z.string().nullish(),
+  changedById: z.string().nullish(),
+  changedByName: z.string().nullish(),
+  changedAt: z.string(),
+  kind: z
+    .enum(LEAD_HISTORY_KINDS)
+    .nullish()
+    .catch(null)
+    .transform((v) => v ?? "CHANGE"),
+});
+export const leadHistorySchema = listOf(leadHistoryEntrySchema);
 
 /* ── Lịch người thay (BR-S07) ── */
 

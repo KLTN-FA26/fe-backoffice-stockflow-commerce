@@ -18,7 +18,7 @@ import { registerMockRoute } from "./mock-adapter";
 import { chatCaller } from "./mock-chat-store";
 import { addMockCustomer, allMockCustomers, normaliseTaxCode } from "./mock-customer-store";
 import { ownerView } from "./mock-routes-sales-owner";
-import { mockLead } from "./mock-routes-sales-work";
+import { convertMockLead, mockLead } from "./mock-routes-sales-work";
 import { bodyOf, fail, ok, text, validationFailed } from "./mock-route-utils";
 import { taxCodeRoot } from "./mock-tax-code";
 import {
@@ -160,13 +160,7 @@ async function createRoute(config: AxiosRequestConfig) {
     changedById: caller,
     batchId: null,
   });
-  if (owner.leadId) {
-    const lead = await mockLead(owner.leadId);
-    if (lead) {
-      lead.status = "CONVERTED";
-      lead.customerId = customer.customerId;
-    }
-  }
+  if (owner.leadId) await convertMockLead(owner.leadId, customer.customerId, caller);
   return ok(
     {
       customer,

@@ -15,7 +15,7 @@ import {
   listTemporaryBatches,
   listUnownedCustomers,
 } from "./api";
-import { listCovers, listLeads, listOwnerChangeRequests } from "./work-api";
+import { getLeadHistory, listCovers, listLeads, listOwnerChangeRequests } from "./work-api";
 
 import type { OwnerChangeRequestStatus, SalesOwnerState } from "@/constants/sales-owner";
 import type { LeadListParams } from "./work-api";
@@ -27,6 +27,8 @@ export const salesOwnerFeatureKeys = {
   unowned: (state: string, page: number, size: number) =>
     [...QUERY_ROOTS.customers, "unowned", state, page, size] as const,
   leads: ["sales-leads"] as const,
+  /** Dưới `leads`: giao / liên hệ / loại làm mới cả lịch sử. */
+  leadHistory: (id: string) => [...salesOwnerFeatureKeys.leads, "history", id] as const,
   covers: ["staff-covers"] as const,
   requests: ["sales-owner-change-requests"] as const,
 };
@@ -79,6 +81,15 @@ export function useLeads(params: LeadListParams, enabled = true) {
     enabled,
     placeholderData: keepPreviousData,
     ...QUERY_TIMES.list,
+  });
+}
+
+export function useLeadHistory(id: string, enabled = true) {
+  return useQuery({
+    queryKey: K.leadHistory(id),
+    queryFn: ({ signal }) => getLeadHistory(id, signal),
+    enabled: enabled && !!id,
+    ...QUERY_TIMES.detail,
   });
 }
 

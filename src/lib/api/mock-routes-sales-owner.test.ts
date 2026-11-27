@@ -8,7 +8,13 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 
 import { listCustomers } from "@/features/customer/api";
 import { listTemporaryBatches, transferCustomers } from "@/features/sales-owner/api";
-import { createCover, listCovers, listLeads } from "@/features/sales-owner/work-api";
+import {
+  contactLead,
+  createCover,
+  getLeadHistory,
+  listCovers,
+  listLeads,
+} from "@/features/sales-owner/work-api";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 import { useAuthStore } from "@/lib/auth/auth-store";
@@ -165,6 +171,26 @@ describe("mock sales-owner", () => {
     const visible = all.filter((c) => c.userId === me || c.coverUserId === me);
     expect(mine.map((c) => c.id)).toEqual(visible.map((c) => c.id));
     expect(mine.length).toBeLessThan(all.length);
+  });
+
+  it("§10.7: lịch sử lead — lần gửi form, khách gửi lại (RESUBMITTED, kèm liên hệ), rồi thao tác của Sale", async () => {
+    const leads = await listLeads({ page: 0, size: 20 });
+    const first = leads.items.find((l) => l.companyName.includes("Lá Xanh"));
+    const history = (await getLeadHistory(first?.id ?? "")) ?? [];
+    // Jackson non_null: lần gửi form đầu không có `fromStatus`
+    expect(history[0]?.fromStatus ?? null).toBeNull();
+    expect(history[0]).toMatchObject({ toStatus: "NEW", kind: "CHANGE" });
+    const resubmitted = history.find((row) => row.kind === "RESUBMITTED");
+    expect(resubmitted?.note).toMatch(/contact .*phone .*e-mail/);
+    const assigned = leads.items.find((l) => l.status === "ASSIGNED");
+    await contactLead({ id: assigned?.id ?? "", note: "Đã gọi" });
+    const after = (await getLeadHistory(assigned?.id ?? "")) ?? [];
+    expect(after.at(-1)).toMatchObject({
+      fromStatus: "ASSIGNED",
+      toStatus: "CONTACTED",
+      note: "Đã gọi",
+      kind: "CHANGE",
+    });
   });
 
   it("Sale không có customer-sales-owners:UPDATE → 403; chỉ thấy lead của mình", async () => {

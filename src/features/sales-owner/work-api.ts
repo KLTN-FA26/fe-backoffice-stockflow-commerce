@@ -7,6 +7,7 @@ import { api } from "@/lib/api/client";
 import { orUnavailable } from "@/lib/references/sales-workload";
 
 import {
+  leadHistorySchema,
   leadPageSchema,
   leadSchema,
   ownerChangeRequestPageSchema,
@@ -42,6 +43,14 @@ export async function listLeads(params: LeadListParams, signal?: AbortSignal) {
 }
 
 const parseLead = (data: unknown) => leadSchema.safeParse(data).data ?? null;
+
+/** `GET /leads/{id}/history` — cùng quyền xem như lead. BE chưa có / không quyền → `null`, phần lịch sử báo chưa xem được. */
+export function getLeadHistory(id: string, signal?: AbortSignal) {
+  return orUnavailable(async () => {
+    const { data } = await api.get<unknown>(one(LEADS, id, "/history"), { signal });
+    return leadHistorySchema.parse(data);
+  });
+}
 
 export async function assignLead(input: { id: string; salesUserId: string }) {
   const { data } = await api.put<unknown>(one(LEADS, input.id, "/assignment"), {

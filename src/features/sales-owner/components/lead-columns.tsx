@@ -1,6 +1,6 @@
 "use client";
 
-import { Ban, PhoneCall, UserPlus, UserRoundPlus } from "lucide-react";
+import { Ban, History, PhoneCall, UserPlus, UserRoundPlus } from "lucide-react";
 
 import { LEAD_INTEREST_LABELS, LEAD_STATUS_LABELS } from "@/constants/labels-sales-owner";
 import { customerCreateFromLead } from "@/constants/sales-owner";
@@ -118,9 +118,11 @@ function menu(lead: Lead, allowed: LeadAction[], open: (action: LeadAction, lead
   return items;
 }
 
+/** `onDetail`: "Xem chi tiết và lịch sử" — luôn có, kể cả lead đã xử lý xong (bấm dòng cũng mở). */
 export function leadColumns(
   ctx: Parameters<typeof leadActions>[1],
   open: (action: LeadAction, lead: Lead) => void,
+  onDetail: (lead: Lead) => void,
 ): ColumnDef<Lead>[] {
   return [
     ...DATA,
@@ -128,15 +130,18 @@ export function leadColumns(
       const items = menu(lead, leadActions(lead, ctx), open);
       return {
         label: `Thao tác — ${lead.companyName}`,
-        actions: items.length
-          ? items
-          : [
-              {
-                label: "Không có thao tác",
-                disabled: true,
-                hint: "Lead đã xử lý xong hoặc không phải của bạn.",
-              },
-            ],
+        actions: [
+          { label: "Xem chi tiết và lịch sử", icon: History, onSelect: () => onDetail(lead) },
+          ...(items.length
+            ? items
+            : [
+                {
+                  label: "Không có thao tác",
+                  disabled: true,
+                  hint: "Lead đã xử lý xong hoặc không phải của bạn.",
+                },
+              ]),
+        ],
       };
     }),
   ];

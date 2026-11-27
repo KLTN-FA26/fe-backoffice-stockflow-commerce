@@ -113,6 +113,13 @@ export const TRANSFER_REASONS = [
 export const LEAD_STATUSES = ["NEW", "ASSIGNED", "CONTACTED", "CONVERTED", "DISQUALIFIED"] as const;
 export type LeadStatus = (typeof LEAD_STATUSES)[number];
 
+/**
+ * Một dòng lịch sử lead (`GET /leads/{id}/history`): `CHANGE` đổi trạng thái / Sale; `RESUBMITTED` cùng doanh nghiệp gửi
+ * lại form trong 24 giờ — lead không đổi, nội dung form mới ở `note` (§10.7).
+ */
+export const LEAD_HISTORY_KINDS = ["CHANGE", "RESUBMITTED"] as const;
+export type LeadHistoryKind = (typeof LEAD_HISTORY_KINDS)[number];
+
 export const OWNER_CHANGE_REQUEST_STATUSES = [
   "PENDING",
   "APPROVED",
