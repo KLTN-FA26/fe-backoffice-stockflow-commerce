@@ -3,9 +3,13 @@
 import { formatDate } from "@/lib/format/date";
 import { formatMoney } from "@/lib/format/money";
 
+import { SALES_OWNER_LABELS } from "@/constants/labels-sales-owner";
+
+import { SalesOwnerStateBadge } from "@/components/backoffice/SalesOwnerBadge";
 import { CELL, EmptyCell } from "@/components/shared/column-helpers";
 
-import type { CreditPosition, SalesContact } from "@/features/customer/types";
+import type { ColumnDef } from "@/components/shared/DataTable";
+import type { CreditPosition, Customer, SalesContact } from "@/features/customer/types";
 
 /** Nhãn của hai cột phụ (audit bo-29). */
 export const LIST_EXTRA_COPY = {
@@ -48,7 +52,7 @@ export function CreditPositionCell({ position }: { position: CreditPosition | un
 }
 
 /**
- * Người đã gửi báo giá / hợp đồng gần nhất cho khách — không phải người phụ trách khách (chưa có trường đó). Tài khoản đã
+ * Người đã gửi báo giá / hợp đồng gần nhất cho khách — không phải người phụ trách khách (cột "Sale phụ trách"). Tài khoản đã
  * khoá thì thêm "(đã nghỉ)"; rê chuột xem chứng từ và ngày.
  */
 export function SalesContactCell({ contact }: { contact: SalesContact | undefined }) {
@@ -67,3 +71,32 @@ export function SalesContactCell({ contact }: { contact: SalesContact | undefine
     </span>
   );
 }
+
+/**
+ * Sale phụ trách lưu trên hồ sơ khách (sales-owner): tên (thêm "(đã nghỉ)" khi tài khoản không còn làm), hoặc nhãn
+ * "Cần giao người phụ trách" / "Chưa có người phụ trách" khi khách chưa có người. BE chưa trả trường → "—".
+ */
+export function SalesOwnerCell({ customer }: { customer: Customer }) {
+  const state = customer.salesOwnerState;
+  if (state === "NEEDS_ASSIGNMENT" || state === "UNASSIGNED")
+    return <SalesOwnerStateBadge state={state} />;
+  if (!customer.salesOwnerName) return <EmptyCell />;
+  return (
+    <span
+      className={CELL.text}
+      title={customer.salesOwnerSince ? `Từ ${formatDate(customer.salesOwnerSince)}` : undefined}
+    >
+      {customer.salesOwnerName}
+      {customer.salesOwnerActive === false && (
+        <span className={CELL.sub}> {SALES_OWNER_LABELS.card.left}</span>
+      )}
+    </span>
+  );
+}
+
+export const SALES_OWNER_COLUMN: ColumnDef<Customer> = {
+  key: "salesOwner",
+  header: SALES_OWNER_LABELS.list.column,
+  className: "min-w-40 whitespace-normal",
+  cell: (row) => <SalesOwnerCell customer={row} />,
+};

@@ -4,7 +4,8 @@
  * - `GET /orders/credit-positions?customerIds=…` (`customer-credit-profiles:READ`): mỗi phần tử như
  *   `GET /orders/credit-position/{customerId}` → dùng lại `creditPositionDtoSchema`;
  * - `GET /orders/sales-contacts?customerIds=…` (`customer-customers:READ`): người đã gửi báo giá / hợp đồng gần nhất của
- *   khách. KHÔNG phải "sale phụ trách" — khách chưa có người phụ trách riêng.
+ *   khách. KHÔNG phải "Sale phụ trách" — người phụ trách lưu trên chính dòng khách (`salesOwner*`, sales-owner); cột này
+ *   giữ riêng, ẩn được (D9: đổi tên "Liên hệ gần nhất").
  */
 
 import { z } from "zod";

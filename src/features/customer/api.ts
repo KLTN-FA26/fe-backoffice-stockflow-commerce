@@ -20,6 +20,7 @@ import {
 } from "./schemas";
 
 import type { CustomerApiStatus } from "@/constants";
+import type { SalesOwnerState } from "@/constants/sales-owner";
 import type { ListQueryParams, PaginatedResponse } from "@/lib/api/query-factory";
 import type {
   CreditProfile,
@@ -44,6 +45,12 @@ export interface ListCustomerParams extends ListQueryParams {
   status?: CustomerApiStatus;
   /** `fullName|email|createdAt|status[,asc|desc]`. */
   sort?: string;
+  /** Sale phụ trách (hợp đồng sales-owner BE-A): "Khách của tôi" (BR-S11). */
+  mine?: boolean;
+  /** "Cần giao người phụ trách" = `NEEDS_ASSIGNMENT`. */
+  salesOwnerState?: SalesOwnerState;
+  /** Khách của một Sale. */
+  salesOwnerId?: string;
 }
 
 export async function listCustomers(
@@ -57,6 +64,9 @@ export async function listCustomers(
   if (params.q?.trim()) query.set("q", params.q.trim());
   if (params.status) query.set("status", params.status);
   if (params.sort) query.set("sort", params.sort);
+  if (params.mine) query.set("mine", "true");
+  if (params.salesOwnerState) query.set("salesOwnerState", params.salesOwnerState);
+  if (params.salesOwnerId) query.set("salesOwnerId", params.salesOwnerId);
   const { data } = await api.get<unknown>(CUSTOMERS, { params: query, signal });
   return customerPageDtoSchema.parse(data);
 }

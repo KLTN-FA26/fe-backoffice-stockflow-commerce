@@ -9,6 +9,7 @@
 import { z } from "zod";
 
 import { CUSTOMER_API_STATUSES } from "@/constants";
+import { SALES_OWNER_STATES } from "@/constants/sales-owner";
 import { bePageSchema } from "@/lib/api/page-schema";
 
 /* ── DTO ─────────────────────────────────────────────────────────────── */
@@ -25,6 +26,12 @@ export const customerDtoSchema = z.object({
   status: z.enum(CUSTOMER_API_STATUSES),
   version: z.number().int(),
   createdAt: z.string(),
+  // Sale phụ trách (hợp đồng sales-owner, BE-A): mới, đọc lỏng — BE chưa trả thì vắng; trạng thái lạ → null
+  salesOwnerId: z.string().nullish(),
+  salesOwnerName: z.string().nullish(),
+  salesOwnerActive: z.boolean().nullish(),
+  salesOwnerState: z.enum(SALES_OWNER_STATES).nullish().catch(null),
+  salesOwnerSince: z.string().nullish(),
 });
 
 export const customerPageDtoSchema = bePageSchema(customerDtoSchema);
