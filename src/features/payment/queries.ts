@@ -20,6 +20,7 @@ import type {
   ListReceiptParams,
   ListReceivableParams,
   ListRefundParams,
+  ReceivablePage,
   ReceiptFilterParams,
 } from "./api";
 import type {
@@ -82,7 +83,7 @@ export const usePayableInstallmentsOf = (customerId: string | null | undefined, 
   });
 
 /** Công nợ theo khách (R5-11). Không thử lại khi 404: BE chưa có endpoint là trạng thái ổn định, trang lùi về đợt. */
-export const useReceivables = createListQuery<Receivable, ListReceivableParams>(
+export const useReceivables = createListQuery<Receivable, ListReceivableParams, ReceivablePage>(
   receivableKeys,
   listReceivables,
 );

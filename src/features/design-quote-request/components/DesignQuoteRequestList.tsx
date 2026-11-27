@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import { FileText } from "lucide-react";
 
 import {
@@ -36,6 +38,8 @@ import { QuoteRequestTabs } from "./QuoteRequestTabs";
 import { useQuoteRequestFilters } from "./useQuoteRequestFilters";
 
 function DesignQuoteRequestContent() {
+  // Mốc "Đã chờ …" của trang (bo-01): chốt lúc mở trang, không đổi mỗi lần vẽ lại.
+  const [now] = useState(() => new Date());
   const filters = useQuoteRequestFilters(DESIGN_REVIEW_STORAGE_KEYS.quoteRequestsConfig);
   const { list } = filters;
   const query = useDesignQuoteRequests({
@@ -52,7 +56,7 @@ function DesignQuoteRequestContent() {
     { defaults: DESIGN_REQUEST_DEFAULT_COLUMNS, locked: DESIGN_REQUEST_LOCKED_COLUMNS },
   );
   const columns = withHeaderFilters(
-    designQuoteRequestColumns(close, canOpenDesign).filter((column) =>
+    designQuoteRequestColumns(close, canOpenDesign, now).filter((column) =>
       columnState.visible.some((key) => key === column.key),
     ),
     quoteRequestHeaderFilters(filters),

@@ -12,9 +12,11 @@ import { formatDate } from "@/lib/format/date";
 import { rowActionsColumn } from "@/components/shared/RowActionsMenu";
 import { StatusDot } from "@/components/shared/StatusDot";
 
+import { CreditPositionCell, LIST_EXTRA_COPY, SalesContactCell } from "./list-extra-cells";
+
 import type { ColumnDef } from "@/components/shared/DataTable";
 import type { RowAction } from "@/components/shared/RowActionsMenu";
-import type { Customer } from "@/features/customer/types";
+import type { CreditPosition, Customer, SalesContact } from "@/features/customer/types";
 
 export const MONO = "font-[family-name:var(--font-mono)] text-[0.8125rem] tabular-nums";
 
@@ -25,9 +27,12 @@ export const STATUS_OPTIONS = CUSTOMER_API_STATUSES.map((value) => ({
 
 export const CUSTOMER_COLUMNS = [
   "fullName",
+  "taxCode",
   "email",
   "phone",
   "status",
+  "credit",
+  "salesContact",
   "createdAt",
   "actions",
 ] as const;
@@ -36,9 +41,12 @@ export type CustomerColumn = (typeof CUSTOMER_COLUMNS)[number];
 export const CUSTOMER_LOCKED_COLUMNS: readonly CustomerColumn[] = ["fullName", "actions"];
 export const CUSTOMER_COLUMN_LABELS: Record<CustomerColumn, string> = {
   fullName: "Khách hàng",
+  taxCode: "Mã số thuế",
   email: "Email",
   phone: "Điện thoại",
   status: "Trạng thái",
+  credit: LIST_EXTRA_COPY.creditHeader,
+  salesContact: LIST_EXTRA_COPY.salesHeader,
   createdAt: "Ngày tạo",
   actions: "Thao tác",
 };
@@ -57,6 +65,12 @@ const DATA_COLUMNS: ColumnDef<Customer>[] = [
         {row.fullName}
       </Link>
     ),
+  },
+  {
+    key: "taxCode",
+    header: "Mã số thuế",
+    className: "whitespace-nowrap",
+    cell: (row) => <span className={`text-ink-secondary ${MONO}`}>{row.taxCode ?? "—"}</span>,
   },
   {
     key: "email",
@@ -121,12 +135,55 @@ function customerActions(
   return actions;
 }
 
-export function buildCustomerColumns(can: {
-  readQuote: boolean;
-  createQuote: boolean;
-}): ColumnDef<Customer>[] {
+/**
+ * Dữ liệu của hai cột phụ (bo-29), đọc một lần cho cả trang. `null` = không dùng được (không quyền / BE chưa có) → không
+ * có cột; `undefined` = đang tải.
+ */
+export interface CustomerListExtras {
+  creditPositions: Map<string, CreditPosition> | null | undefined;
+  salesContacts: Map<string, SalesContact> | null | undefined;
+}
+
+/** Cột phụ không có dữ liệu để hiện → bỏ hẳn khỏi bảng và khỏi popover ẩn / hiện cột. */
+export function unavailableCustomerColumns(extras: CustomerListExtras): CustomerColumn[] {
   return [
-    ...DATA_COLUMNS,
+    ...(extras.creditPositions === null ? (["credit"] as const) : []),
+    ...(extras.salesContacts === null ? (["salesContact"] as const) : []),
+  ];
+}
+
+function extraColumns(extras: CustomerListExtras): ColumnDef<Customer>[] {
+  return [
+    {
+      key: "credit",
+      header: LIST_EXTRA_COPY.creditHeader,
+      align: "right",
+      cell: (row) => <CreditPositionCell position={extras.creditPositions?.get(row.customerId)} />,
+    },
+    {
+      key: "salesContact",
+      header: LIST_EXTRA_COPY.salesHeader,
+      className: "min-w-36 whitespace-normal",
+      cell: (row) =>
+        extras.salesContacts ? (
+          <SalesContactCell contact={extras.salesContacts.get(row.customerId)} />
+        ) : (
+          <span className="text-ink-tertiary">—</span>
+        ),
+    },
+  ];
+}
+
+export function buildCustomerColumns(
+  can: { readQuote: boolean; createQuote: boolean },
+  extras: CustomerListExtras = { creditPositions: null, salesContacts: null },
+): ColumnDef<Customer>[] {
+  const hidden = unavailableCustomerColumns(extras);
+  const dataColumns = [...DATA_COLUMNS];
+  // Hai cột phụ đứng trước "Ngày tạo"
+  dataColumns.splice(dataColumns.length - 1, 0, ...extraColumns(extras));
+  return [
+    ...dataColumns.filter((column) => !hidden.some((key) => key === column.key)),
     rowActionsColumn<Customer>((row) => ({
       label: `Thao tác — ${row.fullName}`,
       actions: customerActions(row, can),

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Pencil, Undo2, XCircle } from "lucide-react";
+import { parseAsBoolean, useQueryState } from "nuqs";
 
 import {
   ADMIN_ROUTES,
@@ -23,6 +24,7 @@ import {
 import { ActionTrigger, ObjectActions } from "@/components/shared/ObjectActions";
 import { toast } from "@/components/shared/Toast";
 
+import { QUOTE_SEND_PARAM } from "../form/useQuoteForm";
 import { QuoteActionDialogs } from "./QuoteActionDialogs";
 import { quoteActionTrigger } from "./quote-action-triggers";
 import { QuotePdfButton } from "./QuotePdfButton";
@@ -66,8 +68,16 @@ export function QuoteStaffActions({ quote }: { quote: Quote }) {
   );
   const needsApproval = quote.priceCheck?.needsApproval ?? false;
   const onError = (error: unknown) => toast.error(quoteErrorMessage(error));
-  const close = () => setDialog(null);
   const sendBlocked = sendBlockReason(quote);
+  // "Lưu và gửi" trên form mở trang này với `?send=true`: mở sẵn hộp xác nhận gửi (Sale vẫn bấm xác nhận) khi gửi được;
+  // chưa gửi được thì lý do hiện dưới nút như thường. Đóng hộp thì bỏ tham số để tải lại trang không mở lại.
+  const [sendRequested, setSendRequested] = useQueryState(QUOTE_SEND_PARAM, parseAsBoolean);
+  const requested = sendRequested && actions.includes("send") && !sendBlocked ? "send" : null;
+  const openDialog = dialog ?? requested;
+  const close = () => {
+    setDialog(null);
+    if (sendRequested) void setSendRequested(null);
+  };
 
   const selfReview =
     quote.priceReviewPending && submittedByMe && can(QUOTE_PRICE_APPROVAL_PERMISSIONS.approve);
@@ -138,7 +148,7 @@ export function QuoteStaffActions({ quote }: { quote: Quote }) {
 
       <QuoteActionDialogs
         quote={quote}
-        dialog={dialog}
+        dialog={openDialog}
         review={review}
         revise={revise}
         onClose={close}

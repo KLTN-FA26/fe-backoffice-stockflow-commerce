@@ -85,4 +85,6 @@ export const CREDIT_REQUEST_LABELS = {
   forbiddenDescription: "Bạn không có quyền xem đề nghị cấp hạn mức.",
   noReadDescription: "Tài khoản của bạn chưa được cấp quyền đọc đề nghị cấp hạn mức.",
   source: { PORTAL: "Khách gửi", SALES: "Sale gửi thay" } as Readonly<Record<string, string>>,
+  /** bo-28: khách chưa có hạn mức (vế trái của "Hạn mức hiện tại → xin"). */
+  noCurrentLimit: "Chưa có",
 } as const;

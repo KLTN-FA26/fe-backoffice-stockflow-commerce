@@ -262,6 +262,14 @@ describe("trạng thái", () => {
     expect(await screen.findByText(L.customer.failed, {}, WAIT)).toBeInTheDocument();
   });
 
+  it("bo-16: dưới tên khách là MST / email, không phải UUID của khách", async () => {
+    stubPermissions(ALL);
+    render(`customerId=${A}`);
+    const section = await screen.findByRole("region", { name: L.field.customer });
+    await waitFor(() => expect(section.querySelector(".font-semibold")).not.toBeNull(), WAIT);
+    expect(section).not.toHaveTextContent(A);
+  });
+
   it("khách INACTIVE mở bằng link vẫn xem được, có cảnh báo", async () => {
     stubPermissions(ALL);
     render(`customerId=${mockCustomerId(5)}`);

@@ -483,6 +483,9 @@ export const ORDER_FINANCE_LABELS = {
   net: "Tạm tính (trước thuế)",
   tax: "Thuế GTGT",
   effectiveTotal: "Giá trị sau khi đóng phần còn lại",
+  /** bo-18: đơn chưa có hợp đồng ký thì chưa có đợt thanh toán / hoá đơn — không hiện khối trống. */
+  settlementBeforeContract:
+    "Đợt thanh toán, hoá đơn điện tử và điều kiện hoàn tất hiện ở đây sau khi khách ký hợp đồng.",
   feeKinds: {
     PLATE_FEE: "Phí khuôn / bản in",
     SHIPPING_FEE: "Phí vận chuyển",

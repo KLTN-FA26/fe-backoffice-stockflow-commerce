@@ -5,6 +5,7 @@ import { Trash2 } from "lucide-react";
 
 import { CONTRACT_MILESTONE_LABELS, CONTRACT_MILESTONES } from "@/constants";
 import { ORDER_CONTRACT_LABELS } from "@/constants/labels-order-contract";
+import { formatMoney } from "@/lib/format/money";
 import { FORM_INPUT_CLASS, fieldA11y } from "@/components/shared/FormField";
 import { FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
 import { FormSelect } from "@/components/shared/FormSelect";
@@ -15,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 import { DEFAULT_ON_SIGNING_DUE_DAYS } from "../../sales-contract-form";
-import { dueRuleText } from "../../sales-contract-rules";
+import { dueRuleText, planEntryAmount } from "../../sales-contract-rules";
 
 import { AmountModeToggle } from "./AmountModeToggle";
 
@@ -38,6 +39,7 @@ function FieldError({ id, message }: { id: string; message?: string }) {
 /**
  * Một đợt thanh toán là một thẻ hai dòng (BO-UX-26, S06-2): tên + mốc + xoá; giá trị (nút ₫ | % cạnh ô) + số ngày sau
  * mốc + đợt giao gắn kèm; dưới thẻ là quy tắc ra hạn ("Hạn = ngày ký + 3 ngày"). Lỗi gắn vào ô qua `fieldA11y`.
+ * bo-20: đợt tính theo % hiện số tiền tương ứng ngay dưới ô (theo tổng có thuế, như tổng các đợt).
  */
 export function PaymentPlanRow({
   form,
@@ -45,24 +47,34 @@ export function PaymentPlanRow({
   batchCount,
   canRemove,
   onRemove,
+  totalWithTax,
+  currency,
 }: {
   form: UseFormReturn<ContractFormValues>;
   index: number;
   batchCount: number;
   canRemove: boolean;
   onRemove: () => void;
+  /** Tổng đơn có thuế — quy % ra tiền. */
+  totalWithTax: number;
+  currency: string;
 }) {
   const { register, formState, control, getValues, setValue } = form;
   const e = formState.errors.paymentPlan?.[index];
-  const [milestone, mode, dueDays, batchSeq] = useWatch({
+  const [milestone, mode, dueDays, batchSeq, value] = useWatch({
     control,
     name: [
       `paymentPlan.${index}.milestone`,
       `paymentPlan.${index}.mode`,
       `paymentPlan.${index}.dueDays`,
       `paymentPlan.${index}.deliveryBatchSeq`,
+      `paymentPlan.${index}.value`,
     ],
   });
+  const percentAmount =
+    mode === "percent" && Number(value) > 0
+      ? formatMoney(planEntryAmount({ mode, value }, totalWithTax), currency)
+      : null;
   const id = (field: string) => `plan-${index}-${field}`;
   const n = index + 1;
   const valueError = e?.value?.message ?? e?.message;
@@ -198,6 +210,11 @@ export function PaymentPlanRow({
               />
             </div>
           </div>
+          {percentAmount && (
+            <p className="text-ink-secondary mt-1 text-right text-xs tabular-nums">
+              {P.percentAmount(percentAmount)}
+            </p>
+          )}
           <FieldError id={id("value")} message={valueError} />
         </div>
         <div className="min-w-0">

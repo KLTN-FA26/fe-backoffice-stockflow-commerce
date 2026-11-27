@@ -1,4 +1,4 @@
-import { QUOTE_STATUS_LABELS } from "@/constants";
+import { QUOTE_STATUS_BY_API, QUOTE_STATUS_LABELS } from "@/constants";
 
 import type { QuoteApiStatus } from "@/constants";
 import type { LoadErrorCopy } from "@/components/backoffice/LoadErrorState";
@@ -16,6 +16,15 @@ export function quoteStatusLabel(status: QuoteApiStatus): string {
   return QUOTE_STATUS_LABELS[status];
 }
 
+/**
+ * Khoá màu (`StatusDot`) của trạng thái báo giá. "Yêu cầu sửa" là việc Sale cần làm tiếp (mở bản sửa), không phải lỗi:
+ * cam "cần xử lý" như "Waiting on Internal", không đỏ (rà UI WF-02 bo-06).
+ */
+export const QUOTE_STATUS_TONE_KEY = {
+  ...QUOTE_STATUS_BY_API,
+  CHANGES_REQUESTED: "Waiting on Internal",
+} as const satisfies Record<QuoteApiStatus, string>;
+
 export const MONO = "font-[family-name:var(--font-mono)] text-[0.8125rem] tabular-nums";
 
 /** Nhãn của danh sách báo giá. */
@@ -32,4 +41,22 @@ export const QUOTE_LIST_LABELS = {
   expired: "Hết hiệu lực",
   revision: (revision: number) => `b${revision}`,
   moreLines: (count: number) => `+${count} dòng`,
+} as const;
+
+/** Tab nhanh theo trạng thái trên danh sách báo giá (bo-06). */
+export const QUOTE_LIST_TABS = {
+  ariaLabel: "Lọc nhanh theo trạng thái",
+  all: "Tất cả",
+  DRAFT: "Nháp",
+  priceReview: "Chờ duyệt giá",
+  SENT: "Đã gửi",
+  CHANGES_REQUESTED: "Khách yêu cầu sửa",
+  ACCEPTED: "Đã chấp nhận",
+  CONVERTED: "Đã tạo đơn",
+} as const;
+
+/** Hàng chờ "Chờ duyệt giá" rỗng (bo-14): câu của hàng chờ, không phải câu "không khớp từ khoá". */
+export const QUOTE_PRICE_REVIEW_QUEUE_EMPTY = {
+  title: "Không có báo giá nào chờ duyệt giá",
+  description: "Báo giá Sale gửi duyệt giá sẽ hiện ở đây để Quản lý kinh doanh duyệt hoặc từ chối.",
 } as const;

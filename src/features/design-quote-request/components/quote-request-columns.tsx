@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { MessageSquareWarning } from "lucide-react";
+import { Clock, MessageSquareWarning } from "lucide-react";
 
 import {
   ADMIN_ROUTES,
@@ -18,11 +18,13 @@ import { CELL } from "@/components/shared/column-helpers";
 import { StatusDot } from "@/components/shared/StatusDot";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
+import { waitingOf } from "../selectors";
 import { QuoteRequestActions } from "./QuoteRequestActions";
 
 import type { DesignStatus } from "@/constants";
 import type { ColumnDef } from "@/components/shared/DataTable";
 import type { CloseRequestMutation } from "./QuoteRequestActions";
+import type { WaitLevel } from "../selectors";
 import type { DesignQuoteRequest, ProjectQuoteRequest, QuoteRequest } from "../types";
 
 const MONO = "font-[family-name:var(--font-mono)] text-[0.8125rem] tabular-nums";
@@ -46,11 +48,16 @@ export const DESIGN_REQUEST_COLUMNS = [
 export type DesignRequestColumn = (typeof DESIGN_REQUEST_COLUMNS)[number];
 /**
  * Ẩn mặc định (BO-UX-10): trạng thái thiết kế (lý do chưa lập báo giá đã nằm cạnh nút), SKU phôi, lý do trả lại (hiện
- * thành icon trên ô trạng thái). Bật lại được qua `Ẩn hiện cột`.
+ * thành icon trên ô trạng thái), SKU riêng (đã ở dòng phụ dưới tên thiết kế — bảng vừa 1440px, bo-01). Bật lại được qua
+ * `Ẩn hiện cột`.
  */
 export const DESIGN_REQUEST_DEFAULT_COLUMNS: readonly DesignRequestColumn[] =
   DESIGN_REQUEST_COLUMNS.filter(
-    (column) => column !== "designStatus" && column !== "sku" && column !== "returnReason",
+    (column) =>
+      column !== "designStatus" &&
+      column !== "sku" &&
+      column !== "returnReason" &&
+      column !== "customerSku",
   );
 export const DESIGN_REQUEST_LOCKED_COLUMNS: readonly DesignRequestColumn[] = ["design", "actions"];
 export const DESIGN_REQUEST_COLUMN_LABELS: Record<DesignRequestColumn, string> = {
@@ -162,8 +169,11 @@ export function RequestStatus({ row }: { row: QuoteRequest }) {
   );
 }
 
+// Tên khách dài cắt bằng "…" (đủ tên ở tooltip của ô) để bảng vừa màn 1440px (bo-01).
 const customerCell = (row: QuoteRequest) => (
-  <CustomerName id={row.customerId} name={row.customerName} />
+  <span className="block max-w-[11rem] truncate" title={row.customerName ?? undefined}>
+    <CustomerName id={row.customerId} name={row.customerName} />
+  </span>
 );
 
 const deliveryCell = (row: QuoteRequest) =>
@@ -173,9 +183,27 @@ const deliveryCell = (row: QuoteRequest) =>
     DASH
   );
 
-const requestedAtCell = (row: QuoteRequest) => (
-  <span className="text-ink-secondary tabular-nums">{formatDateTime(row.requestedAt)}</span>
-);
+const WAIT_CLASS: Record<WaitLevel, string> = {
+  normal: "text-ink-tertiary",
+  warn: "text-warning-ink font-medium",
+  long: "text-danger font-medium",
+};
+
+/** Giờ gửi + "Đã chờ …" của yêu cầu đang mở (bo-01): chờ lâu tô cam / đỏ, kèm icon và chữ (không chỉ màu). */
+const requestedAtCell = (row: QuoteRequest, now: Date) => {
+  const waiting = waitingOf(row, now);
+  return (
+    <span className="inline-flex flex-col items-end gap-0.5">
+      <span className="text-ink-secondary tabular-nums">{formatDateTime(row.requestedAt)}</span>
+      {waiting && (
+        <span className={`inline-flex items-center gap-1 text-xs ${WAIT_CLASS[waiting.level]}`}>
+          <Clock className="size-3" aria-hidden="true" />
+          {waiting.label}
+        </span>
+      )}
+    </span>
+  );
+};
 
 /** So sánh cho sắp xếp ở FE — chỉ sắp các dòng của trang đang xem (BE không nhận tham số sort). */
 const byText =
@@ -206,7 +234,10 @@ const actionsColumn = <T extends QuoteRequest>(
   cell: (row) => <QuoteRequestActions row={row} close={close} viewHref={viewHref?.(row)} />,
 });
 
-/** Tên thiết kế dẫn tới trang thiết kế khi người dùng mở được (`design-designs:VIEW_PAGE`). */
+/**
+ * Tên thiết kế dẫn tới trang thiết kế khi người dùng mở được (`design-designs:VIEW_PAGE`); SKU riêng ở dòng phụ. Tên dài
+ * cắt bằng "…" (đủ tên ở tooltip) để bảng vừa màn 1440px (bo-01).
+ */
 function DesignNameCell({
   row,
   canOpenDesign,
@@ -214,15 +245,27 @@ function DesignNameCell({
   row: DesignQuoteRequest;
   canOpenDesign: boolean;
 }) {
-  return canOpenDesign ? (
-    <Link
-      href={ADMIN_ROUTES.designs.detail(row.designId)}
-      className="text-accent-text font-medium hover:underline"
-    >
-      {row.designName}
-    </Link>
-  ) : (
-    <span className="text-ink-primary font-medium">{row.designName}</span>
+  return (
+    <span className="flex max-w-[14rem] min-w-0 flex-col">
+      {canOpenDesign ? (
+        <Link
+          href={ADMIN_ROUTES.designs.detail(row.designId)}
+          title={row.designName}
+          className="text-accent-text truncate font-medium hover:underline"
+        >
+          {row.designName}
+        </Link>
+      ) : (
+        <span title={row.designName} className="text-ink-primary truncate font-medium">
+          {row.designName}
+        </span>
+      )}
+      {row.customerSku && (
+        <span className="text-ink-tertiary truncate font-[family-name:var(--font-mono)] text-xs">
+          {row.customerSku}
+        </span>
+      )}
+    </span>
   );
 }
 
@@ -230,6 +273,7 @@ function DesignNameCell({
 export function designQuoteRequestColumns(
   close: CloseRequestMutation,
   canOpenDesign: boolean,
+  now: Date,
 ): ColumnDef<DesignQuoteRequest>[] {
   return [
     {
@@ -289,7 +333,7 @@ export function designQuoteRequestColumns(
       align: "right",
       sortable: true,
       compare: SORT_REQUESTED,
-      cell: requestedAtCell,
+      cell: (row) => requestedAtCell(row, now),
     },
     {
       key: "status",
@@ -328,6 +372,7 @@ export function approvedProgress(row: ProjectQuoteRequest): { approved: number; 
 export function projectQuoteRequestColumns(
   close: CloseRequestMutation,
   viewHref: (row: ProjectQuoteRequest) => string,
+  now: Date,
 ): ColumnDef<ProjectQuoteRequest>[] {
   return [
     {
@@ -335,7 +380,16 @@ export function projectQuoteRequestColumns(
       header: C.project,
       sortable: true,
       compare: byText((row) => row.projectName),
-      cell: (row) => <span className="text-ink-primary font-medium">{row.projectName}</span>,
+      // Tên dự án dẫn tới trang chi tiết yêu cầu, như tên thiết kế ở tab đơn lẻ (bo-04).
+      cell: (row) => (
+        <Link
+          href={viewHref(row)}
+          title={row.projectName}
+          className="text-accent-text block max-w-[14rem] truncate font-medium hover:underline"
+        >
+          {row.projectName}
+        </Link>
+      ),
     },
     {
       key: "customer",
@@ -386,7 +440,7 @@ export function projectQuoteRequestColumns(
       align: "right",
       sortable: true,
       compare: SORT_REQUESTED,
-      cell: requestedAtCell,
+      cell: (row) => requestedAtCell(row, now),
     },
     {
       key: "status",

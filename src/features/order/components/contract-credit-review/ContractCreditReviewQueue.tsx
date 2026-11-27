@@ -102,9 +102,12 @@ function columns(canOpenOrders: boolean, canDecide: boolean): ColumnDef<Contract
 export function ContractCreditReviewQueue({
   canOpenOrders,
   canDecide,
+  bare = false,
 }: {
   canOpenOrders: boolean;
   canDecide: boolean;
+  /** Nằm trong tab có tên + số đếm (trang đơn treo tín dụng, bo-21): bỏ tiêu đề riêng của khối. */
+  bare?: boolean;
 }) {
   const [page, setPage] = useQueryState("reviewPage", parseAsInteger.withDefault(1));
   // Số dòng / trang: sở thích tạm của bảng phụ này (không lên URL, state-persistence)
@@ -112,18 +115,23 @@ export function ContractCreditReviewQueue({
   const query = useContractCreditReviews({ page: Math.max(0, page - 1), size });
 
   return (
-    <section aria-labelledby="contract-credit-reviews-title" className="mt-6 space-y-2">
-      <h2
-        id="contract-credit-reviews-title"
-        className="text-ink-primary flex items-center gap-2 text-sm font-semibold"
-      >
-        <FileClock className="size-3.5" /> Hợp đồng chờ duyệt trước khi gửi
-        {query.data && (
-          <span className="text-ink-tertiary font-normal tabular-nums">
-            ({query.data.totalElements})
-          </span>
-        )}
-      </h2>
+    <section
+      aria-labelledby={bare ? undefined : "contract-credit-reviews-title"}
+      className={bare ? "space-y-2" : "mt-6 space-y-2"}
+    >
+      {!bare && (
+        <h2
+          id="contract-credit-reviews-title"
+          className="text-ink-primary flex items-center gap-2 text-sm font-semibold"
+        >
+          <FileClock className="size-3.5" /> Hợp đồng chờ duyệt trước khi gửi
+          {query.data && (
+            <span className="text-ink-tertiary font-normal tabular-nums">
+              ({query.data.totalElements})
+            </span>
+          )}
+        </h2>
+      )}
       {query.isError ? (
         <OrderLoadError inline error={query.error} onRetry={() => void query.refetch()} />
       ) : query.isPending ? (

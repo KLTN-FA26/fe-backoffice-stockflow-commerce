@@ -78,6 +78,11 @@ export const creditRequestDtoSchema = z.object({
   version: z.number().int(),
   files: z.array(creditRequestFileSchema).nullish(),
   review: creditRequestReviewSchema.nullish(),
+  /**
+   * bo-28 (BE PR #497): hạn mức hiện tại của khách, cạnh hạn mức xin — trên dòng danh sách và chi tiết back office.
+   * null = khách chưa có hạn mức; vắng = BE cũ (danh sách giữ cột "Hạn mức xin" như trước).
+   */
+  currentCreditLimit: z.number().nullish(),
 });
 
 export const creditRequestPageDtoSchema = bePageSchema(creditRequestDtoSchema);

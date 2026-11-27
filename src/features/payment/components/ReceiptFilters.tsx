@@ -3,14 +3,18 @@
 import Link from "next/link";
 
 import { PAYMENT_LABELS, PAYMENT_LIST_LABELS as LL } from "@/constants/labels-payment";
+import { CUSTOMER_PERMISSIONS } from "@/constants";
 import { PAYMENT_ROUTES, RECEIPT_API_STATUSES } from "@/constants/payment";
 import { columnSummaryItem, columnToolbarProps } from "@/hooks/use-column-visibility";
+import { useCan } from "@/lib/auth/components/Can";
 import { formatDate } from "@/lib/format/date";
 import { CustomerName } from "@/components/backoffice/CustomerName";
+import { CustomerPicker } from "@/components/backoffice/CustomerPicker";
 import { FilterSelect } from "@/components/backoffice/FilterSelect";
 import { DatePicker } from "@/components/shared/DatePicker";
 import { ListToolbar } from "@/components/shared/ListToolbar";
 import { ToolbarFilterPopover } from "@/components/shared/ToolbarFilterPopover";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 import { receiptStatusLabel } from "../selectors";
@@ -37,11 +41,15 @@ function dayLabel(iso: string): string {
 }
 
 /**
- * Toolbar phiếu thu (BE `GET /payment-receipts`, BO-UX-2/7): search chính là mã tham chiếu sao kê (khớp chính xác);
- * nút Lọc — trạng thái (BE nhận một giá trị); hàng facet — khoảng ngày nhận (lỗi khoảng ngược báo tại ô); Ẩn hiện cột;
- * chip Cấu hình cho từng bộ lọc, kể cả khách đến từ link.
+ * Toolbar phiếu thu (BE `GET /payment-receipts`, BO-UX-2/7): search chính là BE `search` (bo-24, PR #497: tên / MST
+ * khách, số hợp đồng, số đơn); nút Lọc — mã tham chiếu sao kê (khớp chính xác), trạng thái (BE nhận một giá trị) và
+ * khách (ô chọn khách, gửi `customerId`; chỉ khi xem được danh bạ khách); hàng facet — khoảng ngày nhận (lỗi khoảng ngược
+ * báo tại ô); Ẩn hiện cột; chip Cấu hình cho từng bộ lọc, kể cả khách đến từ link.
  */
 export function ReceiptFilters({
+  search,
+  onSearchChange,
+  linesNamed = true,
   reference,
   onReferenceChange,
   status,
@@ -55,10 +63,15 @@ export function ReceiptFilters({
   customerName,
   customerCode,
   onClearCustomer,
+  onCustomerChange,
   hasFilters,
   onClear,
   columns,
 }: {
+  search: string;
+  onSearchChange: (value: string) => void;
+  /** Trang có cột "Hợp đồng · Đợt" (BE kèm hợp đồng trên dòng); không thì bỏ khỏi popover Ẩn hiện cột. */
+  linesNamed?: boolean;
   reference: string;
   onReferenceChange: (value: string) => void;
   status: ReceiptApiStatus | null;
@@ -74,13 +87,22 @@ export function ReceiptFilters({
   customerName?: string | null;
   customerCode?: string | null;
   onClearCustomer: () => void;
+  onCustomerChange: (customerId: string) => void;
   hasFilters: boolean;
   onClear: () => void;
   columns: ColumnVisibility<ReceiptColumn>;
 }) {
+  // Ô chọn khách tìm trong danh bạ khách (`GET /customers`) — UI-only, BE re-check customer-customers:READ
+  const canPickCustomer = useCan(CUSTOMER_PERMISSIONS.read);
   const summary: ListSummaryItem[] = [
     {
       label: LL.searchMain,
+      value: search.trim() ? `“${search}”` : LL.notUsed,
+      active: search.trim() !== "",
+      onClear: () => onSearchChange(""),
+    },
+    {
+      label: L.referenceChip,
       value: reference.trim() ? `“${reference}”` : LL.notUsed,
       active: reference.trim() !== "",
       onClear: () => onReferenceChange(""),
@@ -113,16 +135,38 @@ export function ReceiptFilters({
 
   return (
     <ListToolbar
-      search={reference}
-      onSearchChange={onReferenceChange}
+      search={search}
+      onSearchChange={onSearchChange}
       searchPlaceholder={L.searchPlaceholder}
-      {...columnToolbarProps(columns, RECEIPT_COLUMN_LABELS, RECEIPT_COLUMN_KEYS)}
+      {...columnToolbarProps(
+        columns,
+        RECEIPT_COLUMN_LABELS,
+        linesNamed
+          ? RECEIPT_COLUMN_KEYS
+          : RECEIPT_COLUMN_KEYS.filter((column) => column !== "installments"),
+      )}
       tools={
         <ToolbarFilterPopover
           label={LL.filters}
-          active={!!status}
-          onClear={() => onStatusChange(null)}
+          active={!!status || !!customerId || reference.trim() !== ""}
+          onClear={() => {
+            onReferenceChange("");
+            onStatusChange(null);
+            onClearCustomer();
+          }}
         >
+          <div className="flex items-center gap-2">
+            <Label htmlFor="receipt-reference" className="text-ink-secondary text-[0.8125rem]">
+              {L.referenceLabel}
+            </Label>
+            <Input
+              id="receipt-reference"
+              value={reference}
+              placeholder={L.referencePlaceholder}
+              onChange={(event) => onReferenceChange(event.target.value)}
+              className="border-border-default bg-bg-surface h-8 w-[11rem] rounded-[var(--r-sm)] text-[0.8125rem]"
+            />
+          </div>
           <FilterSelect
             id="receipt-status"
             label={LL.status}
@@ -131,6 +175,14 @@ export function ReceiptFilters({
             options={STATUS_OPTIONS}
             onChange={onStatusChange}
           />
+          {canPickCustomer && (
+            <CustomerPicker
+              idPrefix="receipt-filter"
+              mode="filter"
+              value={customerId}
+              onChange={onCustomerChange}
+            />
+          )}
         </ToolbarFilterPopover>
       }
       facets={

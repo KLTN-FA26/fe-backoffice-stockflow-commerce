@@ -11,10 +11,13 @@ import {
   SALES_CONTRACT_STATUS_LABELS,
   SALES_CONTRACT_STATUS_TONE_KEY,
 } from "@/constants";
+import { ORDER_CONTRACT_LABELS } from "@/constants/labels-order-contract";
 import { PAYMENT_INSTALLMENT_PERMISSIONS } from "@/constants/payment";
 import { ApiError } from "@/lib/api/error";
 import { toLocalIsoDate } from "@/lib/format/date";
+import { formatMoney } from "@/lib/format/money";
 import { Card } from "@/components/shared/Card";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Notice } from "@/components/shared/Notice";
 import { StatusDot } from "@/components/shared/StatusDot";
 import { toast } from "@/components/shared/Toast";
@@ -46,7 +49,14 @@ import type { PermissionCode } from "@/lib/auth/me-permissions";
 import type { Order } from "../../types";
 import type { ContractDialog } from "./ContractActions";
 
-/** Khối "Hợp đồng" của chi tiết đơn (WF-02 pha B, docs 14 §4.3 bước 11–16), neo `#contract`. */
+const C = ORDER_CONTRACT_LABELS.create;
+const H = ORDER_CONTRACT_LABELS.history;
+
+/**
+ * Khối "Hợp đồng" của chi tiết đơn (WF-02 pha B, docs 14 §4.3 bước 11–16), neo `#contract`.
+ * bo-19: "Lập hợp đồng" hỏi lại trước (BE lập ngay bản nháp theo mặc định); vừa lập xong thì việc đầu tiên là xem lại
+ * ("Sửa" / "Xem trước PDF"), "Gửi hợp đồng" lùi thành nút phụ cho tới khi Sale lưu lại hợp đồng hoặc xem trước PDF.
+ */
 export function OrderContractSection({
   order,
   can,
@@ -60,6 +70,9 @@ export function OrderContractSection({
   const [editing, setEditing] = useState(false);
   const [signed, setSigned] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [confirmCreate, setConfirmCreate] = useState(false);
+  /** Vừa lập trong phiên này, chưa lưu lại / chưa xem PDF — mời xem lại trước khi gửi (bo-19). */
+  const [reviewFirst, setReviewFirst] = useState(false);
   const [dialog, setDialog] = useState<ContractDialog>(null);
   const [legalMissing, setLegalMissing] = useState<string | null>(null);
   const contract = query.data ?? null;
@@ -79,8 +92,12 @@ export function OrderContractSection({
     create.mutate(
       { orderId: order.orderId },
       {
-        onSuccess: () => setEditing(true),
+        onSuccess: () => {
+          setConfirmCreate(false);
+          setReviewFirst(true);
+        },
         onError: (error) => {
+          setConfirmCreate(false);
           // Khách chưa có hồ sơ pháp lý: không chỉ toast, dẫn Sale tới nơi nhập (không import `features/customer`).
           if (error instanceof ApiError && error.code === "CUSTOMER_LEGAL_PROFILE_MISSING")
             setLegalMissing(contractErrorMessage(error));
@@ -105,13 +122,30 @@ export function OrderContractSection({
               </span>
             )}
           </h2>
-          {contract && (
-            <StatusDot
-              domain="order"
-              status={SALES_CONTRACT_STATUS_TONE_KEY[contract.status]}
-              label={SALES_CONTRACT_STATUS_LABELS[contract.status]}
-            />
-          )}
+          <div className="flex items-center gap-3">
+            {contract && (
+              <StatusDot
+                domain="order"
+                status={SALES_CONTRACT_STATUS_TONE_KEY[contract.status]}
+                label={SALES_CONTRACT_STATUS_LABELS[contract.status]}
+              />
+            )}
+            {/* bo-18 / bo-20: MỘT chỗ mở lịch sử, trên đầu khối — không dính vào nút "Lập hợp đồng". */}
+            {query.isSuccess && (
+              <button
+                type="button"
+                className="text-accent-text text-xs hover:underline"
+                aria-expanded={showHistory}
+                aria-controls="contract-history"
+                onClick={() => setShowHistory((v) => !v)}
+              >
+                {showHistory ? H.hide : H.show}
+              </button>
+            )}
+          </div>
+        </div>
+        <div id="contract-history">
+          {showHistory && <ContractHistory orderId={order.orderId} />}
         </div>
         {outcome && <Notice tone="positive">{outcome}</Notice>}
         {query.isPending || query.isError ? (
@@ -146,12 +180,48 @@ export function OrderContractSection({
               </Notice>
             )}
             {actions.includes("create") && (
-              <Button size="sm" disabled={create.isPending} onClick={startContract}>
-                {contract ? "Lập hợp đồng mới" : "Lập hợp đồng"}
-              </Button>
+              <div>
+                <Button
+                  size="sm"
+                  disabled={create.isPending}
+                  onClick={() => setConfirmCreate(true)}
+                >
+                  {contract ? "Lập hợp đồng mới" : "Lập hợp đồng"}
+                </Button>
+              </div>
             )}
+            <ConfirmDialog
+              open={confirmCreate}
+              onOpenChange={(next) => !next && !create.isPending && setConfirmCreate(false)}
+              title={C.title(order.orderNumber)}
+              description={C.description}
+              confirmLabel={C.confirm}
+              cancelLabel={C.cancel}
+              variant="default"
+              loading={create.isPending}
+              closeOnConfirm={false}
+              onConfirm={startContract}
+            >
+              <dl className="border-border-default grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-[var(--r-sm)] border px-3 py-2 text-[0.8125rem]">
+                <dt className="text-ink-secondary">{C.total}</dt>
+                <dd className="text-ink-primary text-right font-medium tabular-nums">
+                  {formatMoney(order.totalAmount, order.currency)}
+                </dd>
+                <dt className="text-ink-secondary">{C.lines}</dt>
+                <dd className="text-ink-primary text-right tabular-nums">{order.lines.length}</dd>
+                <dt className="text-ink-secondary">{C.batches}</dt>
+                <dd className="text-ink-primary text-right">{C.batchesValue}</dd>
+                <dt className="text-ink-secondary">{C.plan}</dt>
+                <dd className="text-ink-primary text-right">{C.planValue}</dd>
+              </dl>
+            </ConfirmDialog>
             {contract && contract.status !== "CANCELLED" && (
               <>
+                {reviewFirst && contract.status === "DRAFT" && (
+                  <Notice tone="positive" live>
+                    {C.created(contract.contractNumber)}
+                  </Notice>
+                )}
                 <ContractCreditReviewNotice
                   contract={contract}
                   canWithdraw={actions.includes("withdraw-review")}
@@ -175,6 +245,8 @@ export function OrderContractSection({
                   dialog={dialog}
                   setDialog={setDialog}
                   papers={contractPapers(contract, order.status)}
+                  reviewFirst={reviewFirst}
+                  onPreviewed={() => setReviewFirst(false)}
                 />
                 {editing && contract.status === "DRAFT" && contract.creditReview !== "PENDING" ? (
                   <ContractEditor
@@ -183,6 +255,7 @@ export function OrderContractSection({
                     onDone={() => setEditing(false)}
                     onSaved={() => {
                       setEditing(false);
+                      setReviewFirst(false);
                       // S06-4: về đầu khối hợp đồng — thấy ngay nút "Gửi hợp đồng" và trạng thái, không phải cuộn tìm.
                       scrollToSection("contract");
                     }}
@@ -195,18 +268,6 @@ export function OrderContractSection({
                 )}
               </>
             )}
-            <button
-              type="button"
-              className="text-accent-text text-xs hover:underline"
-              aria-expanded={showHistory}
-              aria-controls="contract-history"
-              onClick={() => setShowHistory((v) => !v)}
-            >
-              {showHistory ? "Ẩn lịch sử hợp đồng" : "Xem lịch sử hợp đồng"}
-            </button>
-            <div id="contract-history">
-              {showHistory && <ContractHistory orderId={order.orderId} />}
-            </div>
           </>
         )}
       </section>

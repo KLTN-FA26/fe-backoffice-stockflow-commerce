@@ -19,6 +19,7 @@ function columnSearchSummary(filters: CustomerListFilters): string {
   const f = filters.columnFilters;
   const parts = [
     f.custName && `Khách hàng “${f.custName}”`,
+    f.custTaxCode && `MST “${f.custTaxCode}”`,
     f.custEmail && `Email “${f.custEmail}”`,
     f.custPhone && `Điện thoại “${f.custPhone}”`,
     (f.custCreatedFrom || f.custCreatedTo) &&
@@ -34,15 +35,19 @@ function columnSearchSummary(filters: CustomerListFilters): string {
 export function CustomerListToolbar({
   filters,
   columns,
+  unavailable = [],
 }: {
   filters: CustomerListFilters;
   columns: ColumnVisibility<CustomerColumn>;
+  /** Cột phụ không có dữ liệu (bo-29: không quyền / BE chưa có) — không liệt kê trong popover ẩn / hiện cột. */
+  unavailable?: readonly CustomerColumn[];
 }) {
   const { status } = filters;
   const q = filters.filters.q;
+  const shown = CUSTOMER_COLUMNS.filter((c) => !unavailable.includes(c));
   return (
     <ListToolbar<CustomerApiStatus, never, CustomerColumn>
-      {...columnToolbarProps(columns, CUSTOMER_COLUMN_LABELS, CUSTOMER_COLUMNS)}
+      {...columnToolbarProps(columns, CUSTOMER_COLUMN_LABELS, shown)}
       controlsIn="summary"
       search={q}
       onSearchChange={(value) => void filters.filters.setQ(value)}
@@ -61,7 +66,6 @@ export function CustomerListToolbar({
           active: q.trim() !== "",
           onClear: () => void filters.filters.setQ(""),
         },
-        { label: "Tìm theo", value: "Tên · Email · SĐT · MST" },
         {
           label: "Tìm trong cột",
           value: columnSearchSummary(filters),
@@ -69,6 +73,7 @@ export function CustomerListToolbar({
           onClear: () =>
             filters.setColumnFilter({
               custName: "",
+              custTaxCode: "",
               custEmail: "",
               custPhone: "",
               custCreatedFrom: "",

@@ -10,6 +10,18 @@ import type { TestRole } from "@/test/api-screen";
 
 const CUSTOMER = "c-1";
 const PATH = `/customers/${CUSTOMER}/credit-profile`;
+const POSITION = `/orders/credit-position/${CUSTOMER}`;
+const position = {
+  customerId: CUSTOMER,
+  creditLimit: 50_000_000,
+  creditTermDays: 30,
+  exposure: 12_000_000,
+  availableCredit: 38_000_000,
+  currency: "VND",
+  hasOverdue: true,
+  overdueAmount: 7_048_620,
+  oldestOverdueDueDate: "2026-11-17",
+};
 
 const unconfigured = {
   customerId: CUSTOMER,
@@ -39,6 +51,34 @@ function renderCard(role: TestRole, canApprove: boolean, searchParams = "") {
 afterEach(() => vi.restoreAllMocks());
 
 describe("CreditProfileCard — cấp / sửa hạn mức (AUTH-6)", () => {
+  it("bo-31: dư nợ, còn dùng được, quá hạn cạnh hạn mức và kỳ hạn (GET /orders/credit-position)", async () => {
+    mockApi("SALES_STAFF", { get: { [PATH]: () => configured, [POSITION]: () => position } });
+    renderCard("SALES_STAFF", false);
+    expect(await screen.findByText("Dư nợ hiện tại")).toBeInTheDocument();
+    expect(screen.getByText("Còn dùng được")).toBeInTheDocument();
+    expect(screen.getByText(/12\.000\.000/)).toBeInTheDocument();
+    expect(screen.getByText(/38\.000\.000/)).toBeInTheDocument();
+    expect(screen.getByText(/7\.048\.620/)).toBeInTheDocument();
+    expect(screen.getByText("Cũ nhất từ 17/11/2026")).toBeInTheDocument();
+  });
+
+  it("bo-31: không tải được dư nợ → báo lỗi kèm Thử lại, hạn mức vẫn hiện", async () => {
+    mockApi("SALES_STAFF", { get: { [PATH]: () => configured } });
+    renderCard("SALES_STAFF", false);
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Không tải được dư nợ của khách.");
+    expect(within(alert).getByRole("button", { name: "Thử lại" })).toBeInTheDocument();
+    expect(screen.getByText("30 ngày")).toBeInTheDocument();
+  });
+
+  it("bo-31: hai nút ở thanh tiêu đề thẻ (không kéo giãn hết bề ngang)", async () => {
+    mockApi("SALES_STAFF", { get: { [PATH]: () => configured, [POSITION]: () => position } });
+    renderCard("SALES_STAFF", false);
+    const link = await screen.findByRole("link", { name: "Đề nghị cấp hạn mức" });
+    expect(link.closest("header")).not.toBeNull();
+    expect(link.className).not.toMatch(/\bw-full\b/);
+  });
+
   it("Kế toán, chưa cấu hình → nút Cấp hạn mức công nợ", async () => {
     mockApi("ACCOUNTANT", { get: { [PATH]: () => unconfigured } });
     renderCard("ACCOUNTANT", true);

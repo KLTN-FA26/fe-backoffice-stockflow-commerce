@@ -16,8 +16,10 @@ interface CustomerCellProps {
 }
 
 /**
- * Tên khách (mã khách ở dòng phụ / tooltip) + nút lọc nhanh theo khách. Bộ lọc BE chỉ nhận UUID →
+ * Tên khách (mã khách ở tooltip) + nút lọc nhanh theo khách. Bộ lọc BE chỉ nhận UUID →
  * id không phải UUID (vd dữ liệu mock `CUS-…`) chỉ hiển thị, không có nút lọc.
+ * bo-17: tên dài xuống tối đa hai dòng (quá nữa mới cắt, bản đầy đủ ở tooltip) thay vì cắt ở 160px; phễu chỉ hiện khi rê
+ * chuột qua dòng hoặc khi nút có focus bàn phím — không còn một phễu trên mỗi dòng. Nút vẫn trong thứ tự tab, có tên truy cập.
  */
 export function CustomerCell({
   customerId,
@@ -33,15 +35,16 @@ export function CustomerCell({
   // Tooltip chỉ mang tên / mã khách, không UUID
   const title = [customerName, customerCode].filter(Boolean).join(" · ") || undefined;
   return (
-    <span className="flex items-center gap-1">
-      <span className="text-ink-secondary max-w-40 truncate text-[0.8125rem]" title={title}>
+    // Phễu nổi ở mép phải ô (không chiếm chỗ của tên khi đang ẩn), nền theo nền dòng đang rê chuột
+    <span className="relative block">
+      <span className="text-ink-secondary line-clamp-2 text-[0.8125rem] break-words" title={title}>
         {label}
       </span>
       {isValidOrderCustomerId(customerId) && (
         <Button
           variant="ghost"
           size="icon-xs"
-          className="text-ink-tertiary hover:text-ink-primary"
+          className="text-ink-tertiary hover:text-ink-primary bg-bg-subtle hover:bg-bg-muted absolute top-1/2 right-0 -translate-y-1/2 opacity-0 transition-opacity group-hover/row:opacity-100 focus-visible:opacity-100"
           // Không tên / mã: "khách này" — không đọc UUID cho trình đọc màn hình (BO-UX-6)
           aria-label={`Lọc đơn của khách ${customerName || customerCode || "này"}`}
           onClick={(event) => {

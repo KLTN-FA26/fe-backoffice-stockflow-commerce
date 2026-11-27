@@ -40,5 +40,12 @@ export function usePriceReviewFilter(onChange: () => void) {
     active: !!value,
     onClear: clear,
   };
-  return { value: value ?? undefined, column, summaryItem, clear: () => void setValue(null) };
+  return {
+    value: value ?? undefined,
+    column,
+    summaryItem,
+    clear: () => void setValue(null),
+    /** Bật lọc "Chờ duyệt giá" (tab nhanh của danh sách); trang do nơi gọi đặt lại. */
+    select: () => void setValue("PENDING"),
+  };
 }

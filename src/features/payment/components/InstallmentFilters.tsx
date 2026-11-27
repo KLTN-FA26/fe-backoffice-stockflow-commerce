@@ -125,7 +125,7 @@ export function InstallmentFilters({
   if (s.overdue !== null)
     summary.push({
       label: LL.overdue,
-      value: LL.yes,
+      value: s.overdue ? LL.yes : LL.no,
       active: true,
       onClear: () => void s.setOverdue(null),
     });
@@ -252,10 +252,10 @@ export function InstallmentFilters({
         }
         summaryItems={summary}
         onResetAll={() => {
-          s.clearFilters();
+          s.resetToDefault();
           columns.reset();
         }}
-        resetDisabled={!s.hasFilters && !columns.hasColumnConfig && !s.sorting.key}
+        resetDisabled={!s.changedFromDefault && !columns.hasColumnConfig && !s.apiSort}
       />
       {searchTooBroad && (
         <p role="alert" className="text-danger -mt-2 mb-3 text-[0.75rem]">
