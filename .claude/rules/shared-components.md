@@ -39,6 +39,11 @@ floating cart/chat) · `<PageContainer>` (max-width + padding theo mode).
 
 ## Form
 
+`<DatePicker>` / `<DateTimePicker>` — ô ngày `dd/MM/yyyy` và ngày giờ `dd/MM/yyyy HH:mm` (24 giờ) **gõ được** + nút lịch +
+nút chọn nhanh (Hôm nay, +7 ngày, "Sớm nhất"…). Tab đi tiếp không bật lịch. **Không dùng** `<input type="date">` /
+`datetime-local` gốc (kiểu Mỹ `mm/dd/yyyy`, AM/PM). Giá trị vẫn là `YYYY-MM-DD` / `YYYY-MM-DDTHH:mm` giờ Việt Nam. Hiển
+thị ngày nơi khác dùng `formatDate` / `formatDateTime` (`lib/format`), không tự gọi `Intl` với `dateStyle`.
+
 `<InputCombobox>` — combobox **gõ thẳng vào ô input** (kiểu shadcn Combobox): ô input là trigger,
 danh sách xổ ngay dưới, ↑/↓ + Enter chọn, Esc đóng. **Bắt buộc** cho mọi combobox chọn-một có tìm
 kiếm; không dùng Popover + `CommandInput` (ô tìm nằm trong popover) nữa. Item dùng

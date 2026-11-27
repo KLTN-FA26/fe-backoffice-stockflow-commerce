@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api } from "@/lib/api/client";
 import { apiError, bePage } from "@/test/api-screen";
+import { openDatePicker } from "@/test/date-picker";
 
 import { ReceiptDetail, ReceiptList } from "..";
 import {
@@ -362,7 +363,7 @@ describe("WF-02 mục 36 — ngày nhận, tổng, xuất Excel", () => {
     expect(first.get("receivedFrom")).toBe("2026-11-10");
     expect(first.get("receivedTo")).toBe("2026-11-30");
     expect(first.get("page")).toBe("2");
-    await userEvent.click(screen.getByLabelText(/Nhận từ ngày/));
+    await openDatePicker(userEvent.setup(), screen.getByLabelText(/^Nhận từ ngày/));
     const day = await screen.findByRole("gridcell", { name: /15/ });
     await userEvent.click(within(day).getByRole("button"));
     await waitFor(() => expect(listCalls().at(-1)?.get("receivedFrom")).toBe("2026-11-15"));
@@ -456,7 +457,7 @@ describe("WF-02 mục 36 — ngày nhận, tổng, xuất Excel", () => {
     const spy = mockPaymentApi(ACCOUNTANT_GRANTS, routes());
     renderPaymentScreen(<ReceiptList />, "?receivedFrom=2026-11-30&receivedTo=2026-11-10");
     expect(await screen.findByText("Từ ngày phải trước hoặc bằng Đến ngày")).toBeInTheDocument();
-    expect(screen.getByLabelText(/Nhận từ ngày/)).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByLabelText(/^Nhận từ ngày/)).toHaveAttribute("aria-invalid", "true");
     expect(screen.getByRole("button", { name: "Xuất Excel" })).toBeDisabled();
     const sent = spy.get.mock.calls.filter(([url]) => String(url).startsWith("/payment-receipts"));
     expect(sent).toHaveLength(0);

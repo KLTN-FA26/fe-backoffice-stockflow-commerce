@@ -154,6 +154,11 @@ interface DataTableProps<T> {
    * ≤ 10 dòng (mặc định chỉ cuộn nội bộ khi > 10 dòng).
    */
   stickyHeader?: boolean;
+  /**
+   * Bảng đứng cạnh một thẻ bên phải (cột hẹp, vd các đợt thanh toán của đơn): ô sát hơn (10px thay vì 14px mỗi bên) để
+   * đủ chỗ cho mọi cột — cột nằm ngoài khung bị cắt cụt là lỗi, không phải để cuộn (WF4 UX R8).
+   */
+  dense?: boolean;
   /** Nội dung khi không có dòng (vd EmptyState "lọc không ra") — giữ header để còn chỉnh lọc trong cột. */
   emptyState?: ReactNode;
 }
@@ -176,6 +181,7 @@ export function DataTable<T>({
   serverSorting,
   className,
   stickyHeader = false,
+  dense = false,
   emptyState,
 }: DataTableProps<T>) {
   const [sortKey, setSortKey] = useState<string | null>(null);
@@ -276,7 +282,9 @@ export function DataTable<T>({
       <div
         ref={scrollRef}
         className={cn(
-          "relative w-full overflow-x-auto",
+          // Thanh cuộn ngang luôn thấy được (mảnh, bo tròn): macOS ẩn thanh cuộn hệ thống nên cột nằm ngoài khung trông như
+          // bị cắt cụt, không ai biết còn cột để cuộn tới (WF4 UX R8). Không đặt `scrollbar-width` — Chrome sẽ bỏ qua style webkit.
+          "[&::-webkit-scrollbar-thumb]:bg-border-strong relative w-full overflow-x-auto [&::-webkit-scrollbar]:block [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-button]:hidden [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent",
           // `stickyHeader`: chiều cao đo theo màn (`useFitScrollArea`) để chân bảng luôn thấy được
           stickyHeader
             ? "max-h-[calc(100svh-12rem)] overflow-y-auto"
@@ -306,6 +314,7 @@ export function DataTable<T>({
                   className={cn(
                     "text-ink-primary text-xs font-semibold",
                     col.align === "right" && "text-right",
+                    dense && "px-2.5",
                     isStickyRight(col) && `${STICKY_RIGHT} bg-bg-subtle text-center`,
                     col.headerClassName,
                   )}
@@ -390,6 +399,7 @@ export function DataTable<T>({
                         key={col.key}
                         className={cn(
                           "text-[0.8125rem]",
+                          dense && "px-2.5",
                           col.align === "right" && "text-right tabular-nums",
                           isStickyRight(col) &&
                             `${STICKY_RIGHT} ${STICKY_RIGHT_BODY_BG} text-center`,

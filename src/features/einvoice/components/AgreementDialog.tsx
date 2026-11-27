@@ -59,7 +59,7 @@ function AgreementForm({ invoice, onClose }: { invoice: EInvoice; onClose: () =>
         />
       </FormField>
       <FormField id="agreement-date" label="Ngày ký" required>
-        <DatePicker id="agreement-date" value={date} onChange={setDate} />
+        <DatePicker quickKind="past" id="agreement-date" value={date} onChange={setDate} />
       </FormField>
       <FormField id="agreement-file" label="Tệp PDF đã ký" required>
         <FilePickerField

@@ -94,8 +94,8 @@ async function openDialog(
 type User = ReturnType<typeof userEvent.setup>;
 
 async function fillRest(user: User, dialog: HTMLElement) {
-  await pickDate(user, within(dialog).getByLabelText(/Từ ngày/), inDays(40));
-  await pickDate(user, within(dialog).getByLabelText(/Đến ngày/), inDays(43));
+  await pickDate(user, within(dialog).getByLabelText(/^Từ ngày/), inDays(40));
+  await pickDate(user, within(dialog).getByLabelText(/^Đến ngày/), inDays(43));
   await pickOrderSelectOption(user, /Lý do/, /Khách xin dời/);
   await user.type(within(dialog).getByRole("textbox", { name: /Ghi chú/ }), "Khách gửi email");
 }

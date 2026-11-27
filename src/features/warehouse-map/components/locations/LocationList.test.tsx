@@ -189,7 +189,7 @@ describe("Danh sách vị trí — quản lý kho ở kho được gán", () => 
   it("tắt một cột → header biến mất, chip x/y; X đưa cột về", async () => {
     const { user } = setup(MANAGER);
     await screen.findByRole("button", { name: "HCM-A01-1-A" });
-    await user.click(screen.getByRole("button", { name: "Ẩn hiện cột" }));
+    await user.click(screen.getByRole("button", { name: "Chọn cột hiển thị" }));
     await user.click(screen.getByRole("option", { name: L.column.zone }));
     expect(header(L.column.zone)).not.toBeInTheDocument();
     expect(screen.getByText(`${L.summaryColumns}: 11/12`)).toBeInTheDocument();

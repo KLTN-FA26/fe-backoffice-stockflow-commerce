@@ -17,6 +17,8 @@ import {
 /** Mã vạch kiện chỉ gồm ký tự ASCII in được, không khoảng trắng. */
 const PRINTABLE_ASCII = /^[\x21-\x7E]+$/;
 const L = SHIPPING_LIMITS;
+/** `yyyy-MM-ddTHH:mm` — dạng giờ hẹn mà `pickupInstant()` đổi sang Instant. */
+const PICKUP_AT_SHAPE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
 
 /** Ô tuỳ chọn: cắt khoảng trắng, rỗng → `undefined` (BE bỏ qua field vắng, không nhận chuỗi rỗng). */
 export const optionalText = (max: number) =>
@@ -99,7 +101,11 @@ export const bookingInputSchema = z.object({
   driverName: optionalText(L.driverNameMax),
   driverPhone: optionalText(L.driverPhoneMax),
   waybillNo: optionalWaybillNo,
-  pickupAt: optionalText(L.pickupAtMax),
+  // Ô giờ hẹn gõ tay (`DateTimePicker`): chữ chưa thành `yyyy-MM-ddTHH:mm` (dở, 31/11, 25:00) báo lỗi ở ô thay vì
+  // bị coi là "bỏ trống = càng sớm càng tốt" và gửi đi với một giờ người dùng không chọn.
+  pickupAt: optionalText(L.pickupAtMax).refine((value) => !value || PICKUP_AT_SHAPE.test(value), {
+    message: MSG.pickupAtInvalid,
+  }),
 });
 
 /**

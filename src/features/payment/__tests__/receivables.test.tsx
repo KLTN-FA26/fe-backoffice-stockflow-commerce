@@ -65,10 +65,10 @@ describe("Công nợ phải thu theo khách (BO-UX-37, R5-11)", () => {
     expect(within(row).getByText(/30\.000\.000/)).toBeInTheDocument();
     expect(within(row).getByText(/15\.000\.000/)).toBeInTheDocument();
     expect(within(row).getByText(/^5\.000\.000/)).toBeInTheDocument();
-    expect(within(row).getByText(/1 thg 10, 2026/)).toBeInTheDocument();
+    expect(within(row).getByText(/01\/10\/2026/)).toBeInTheDocument();
     expect(within(row).getByText(/MST 0312345678/)).toBeInTheDocument();
     expect(row).toHaveAttribute("data-flagged", "true");
-    await userEvent.click(within(row).getByText(/1 thg 10, 2026/));
+    await userEvent.click(within(row).getByText(/01\/10\/2026/));
     expect(nav.push).toHaveBeenCalledWith(
       "/admin/payment/installments?owing=true&customerId=cust-9",
     );

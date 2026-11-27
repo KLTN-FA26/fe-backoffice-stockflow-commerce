@@ -104,6 +104,8 @@ export function buildInstallmentColumns(
     {
       key: "installment",
       header: C.installment,
+      // Tên đợt dài ("2 — Thanh toán sau đợt 1") được xuống dòng để nhường chỗ cho các cột số tiền
+      className: "min-w-28 whitespace-normal",
       // Trang một đơn bỏ cột hợp đồng (link chi tiết): tên đợt thành link thay
       cell: (row) =>
         omit.includes("contract") ? (
