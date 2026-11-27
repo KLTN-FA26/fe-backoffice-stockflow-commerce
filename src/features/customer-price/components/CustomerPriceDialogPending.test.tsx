@@ -107,7 +107,7 @@ async function tryEveryDismissal(user: User, sent: string[]) {
 }
 
 async function startCreate(user: User, sku = FREE_SKU) {
-  await user.click(await screen.findByRole("button", { name: F.create }, WAIT));
+  await user.click(await screen.findByRole("button", { name: L.toolbar.createAria }, WAIT));
   await screen.findByRole("dialog");
   await user.type(screen.getByLabelText(F.sku), sku);
   await user.type(qty(1), "1");
@@ -283,7 +283,7 @@ describe("5B.5a đóng dialog ngay lúc request vừa bắt đầu", () => {
   }
 
   async function fillCreate(user: User) {
-    await user.click(await screen.findByRole("button", { name: F.create }, WAIT));
+    await user.click(await screen.findByRole("button", { name: L.toolbar.createAria }, WAIT));
     await screen.findByRole("dialog");
     await user.type(screen.getByLabelText(F.sku), FREE_SKU);
     await user.type(qty(1), "1");
@@ -346,7 +346,7 @@ describe("5B.5a đóng dialog ngay lúc request vừa bắt đầu", () => {
     const post = vi.spyOn(api, "post");
     render(`customerId=${C}`);
     const user = setupUser();
-    await user.click(await screen.findByRole("button", { name: F.create }, WAIT));
+    await user.click(await screen.findByRole("button", { name: L.toolbar.createAria }, WAIT));
     await screen.findByRole("dialog");
     await user.type(screen.getByLabelText(F.sku), "sku with spaces");
     await user.keyboard("{Enter}");

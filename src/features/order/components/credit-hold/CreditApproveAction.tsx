@@ -5,6 +5,7 @@ import { CheckCircle2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 
 import { ORDER_LIMITS, UI_LABELS } from "@/constants";
+import { ActionTrigger } from "@/components/shared/ObjectActions";
 import { statusLabelVi } from "@/lib/status-map";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { toast } from "@/components/shared/Toast";
@@ -45,15 +46,20 @@ export function CreditApproveAction({
   const label = UI_LABELS.order.actions.creditApprove;
   return (
     <>
-      <Button
-        type="button"
-        size="sm"
-        aria-label={compact ? `${label} đơn ${order.orderNumber}` : undefined}
-        className={compact ? "rounded-[var(--r-sm)]" : "w-full rounded-[var(--r-sm)]"}
-        onClick={show}
-      >
-        <CheckCircle2 className="size-3.5" /> {compact ? "Duyệt" : label}
-      </Button>
+      {compact ? (
+        <Button
+          type="button"
+          size="sm"
+          aria-label={`${label} đơn ${order.orderNumber}`}
+          className="rounded-[var(--r-sm)]"
+          onClick={show}
+        >
+          <CheckCircle2 className="size-3.5" /> Duyệt
+        </Button>
+      ) : (
+        // Trên header đối tượng của đơn: nút chính hoặc mục menu "⋯"
+        <ActionTrigger icon={CheckCircle2} label={label} onClick={show} />
+      )}
       {dialog}
     </>
   );

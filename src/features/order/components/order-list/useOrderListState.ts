@@ -2,8 +2,10 @@ import { useCallback } from "react";
 import { useRouter } from "next/navigation";
 
 import { ADMIN_ROUTES, STORAGE_KEYS } from "@/constants";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { usePageConfig } from "@/hooks/use-page-config";
 import { useUrlFilters } from "@/hooks/use-url-filters";
+import { textIncludes } from "@/lib/text-match";
 
 import { useOrders } from "../../queries";
 
@@ -48,12 +50,16 @@ export function useOrderListState(canRead = true) {
   );
   const extra = useOrderExtraFilters(() => void filters.setPage(1));
   const sort = parseSort(filters.sort);
+  // Lọc chữ trên header cột: BE chỉ có một `search` (mã đơn / người liên hệ / người nhận / SĐT) — ô tìm chính ưu tiên;
+  // trống thì gửi chữ của ô lọc cột để BE thu hẹp, rồi FE lọc đúng cột trên trang đang xem (`rowMatches`).
+  const numberText = useDebouncedValue(extra.numberText, 300).trim();
+  const recipientText = useDebouncedValue(extra.recipientText, 300).trim();
   const query = useOrders(
     {
       // URL đánh số trang từ 1, BE PageResponse từ 0
       page: Math.max(0, filters.page - 1),
       size: config.pageSize,
-      search: filters.debouncedQ,
+      search: filters.debouncedQ.trim() || numberText || recipientText || undefined,
       status: filters.status,
       ...extra.params,
       sort: sort.key ? `${sort.key},${sort.direction}` : undefined,
@@ -72,6 +78,16 @@ export function useOrderListState(canRead = true) {
       : page.items.length === 0
         ? "invalid-page"
         : "none";
+
+  /** Dòng khớp lọc chữ của header cột (chỉ xét trang đang xem). */
+  const totalFrom = extra.totalFrom === "" ? null : Number(extra.totalFrom);
+  const totalTo = extra.totalTo === "" ? null : Number(extra.totalTo);
+  const rowMatches = (order: Order) =>
+    (totalFrom === null || order.totalAmount >= totalFrom) &&
+    (totalTo === null || order.totalAmount <= totalTo) &&
+    textIncludes(order.orderNumber, numberText) &&
+    (textIncludes(order.recipientName, recipientText) ||
+      textIncludes(order.recipientPhone, recipientText));
 
   const navigateToDetail = useCallback(
     (order: Order) => router.push(ADMIN_ROUTES.orders.detail(order.orderId)),
@@ -128,6 +144,10 @@ export function useOrderListState(canRead = true) {
     sort,
     hasFilters,
     emptyState,
+    rowMatches,
+    /** Có lọc chỉ chạy ở FE → chú thích bảng nói rõ phạm vi. */
+    pageFiltered:
+      numberText !== "" || recipientText !== "" || extra.totalFrom !== "" || extra.totalTo !== "",
     visibleColumnCount,
     hasColumnConfig: visibleColumnCount !== DEFAULT_COLUMNS.length - 1,
     updateConfig,

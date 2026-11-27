@@ -7,8 +7,9 @@ import { ApiError } from "@/lib/api/error";
 
 import { apiOrder, apiOrderWith, apiPartialOrder } from "../__fixtures__/order";
 import {
-  ORDER_PERMISSION_SETS,
   mockOrderApiGet,
+  ORDER_PERMISSION_SETS,
+  orderAction,
   pickSelectOption,
   renderOrderScreen,
 } from "../__fixtures__/render";
@@ -106,7 +107,7 @@ async function openDialog(c: ActionCase) {
     renderOrderScreen(<OrderDetail params={Promise.resolve({ id: apiOrder.orderId })} />);
   });
   const user = userEvent.setup();
-  await user.click(await screen.findByRole("button", { name: c.name }));
+  await user.click(await orderAction(c.name));
   const dialog = await screen.findByRole("dialog");
   return { user, dialog, get };
 }

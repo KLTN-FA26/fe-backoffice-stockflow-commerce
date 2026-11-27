@@ -16,8 +16,10 @@ import { toast } from "@/components/shared/Toast";
 
 import { apiGuestOrder, apiOrder, apiOrderWith, apiPartialOrder } from "../__fixtures__/order";
 import {
-  ORDER_PERMISSION_SETS,
   mockOrderApiGet,
+  ORDER_PERMISSION_SETS,
+  orderAction,
+  orderActionOrNull,
   pickOrderSelectOption,
   pickSelectOption,
   renderOrderScreen,
@@ -27,6 +29,7 @@ import { OrderDetail } from "./OrderDetail";
 
 import type { PermissionCode } from "@/lib/auth";
 import type { OrderDto } from "../types";
+import { clickOrderDetailTab } from "../__fixtures__/render";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
@@ -85,12 +88,12 @@ describe("OrderDetail — action-gating theo mã quyền + trạng thái BE", ()
     await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => apiOrder);
 
     expect(await screen.findByRole("heading", { name: apiOrder.orderNumber })).toBeInTheDocument();
-    expect(await screen.findByRole("button", { name: "Huỷ đơn" })).toBeInTheDocument();
+    expect(await orderAction("Huỷ đơn")).toBeInTheDocument();
   });
 
   it("SALES_STAFF (sales-order-cancellations:UPDATE, BE V20261013000200) → có nút Huỷ đơn", async () => {
     await renderDetail(ORDER_PERMISSION_SETS.salesStaff, () => apiOrder);
-    expect(await screen.findByRole("button", { name: "Huỷ đơn" })).toBeInTheDocument();
+    expect(await orderAction("Huỷ đơn")).toBeInTheDocument();
   });
 
   it("chỉ có quyền đọc (không có sales-order-cancellations:UPDATE) → không có nút Huỷ đơn", async () => {
@@ -100,7 +103,7 @@ describe("OrderDetail — action-gating theo mã quyền + trạng thái BE", ()
     await waitFor(() =>
       expect(api.get).toHaveBeenCalledWith("/identity/me/permissions", expect.anything()),
     );
-    expect(screen.queryByRole("button", { name: "Huỷ đơn" })).not.toBeInTheDocument();
+    expect(await orderActionOrNull("Huỷ đơn")).toBeNull();
   });
 
   it("BR-ORD-004: có quyền huỷ nhưng đơn SHIPPED → không có nút Huỷ đơn", async () => {
@@ -110,7 +113,7 @@ describe("OrderDetail — action-gating theo mã quyền + trạng thái BE", ()
     await waitFor(() =>
       expect(api.get).toHaveBeenCalledWith("/identity/me/permissions", expect.anything()),
     );
-    expect(screen.queryByRole("button", { name: "Huỷ đơn" })).not.toBeInTheDocument();
+    expect(await orderActionOrNull("Huỷ đơn")).toBeNull();
   });
 
   it("breadcrumb dùng mã đơn (SO-…) thay vì orderId UUID", async () => {
@@ -189,8 +192,8 @@ describe("OrderDetail — card thao tác giải thích khi không có nút", () 
 
   it("đơn PICKING + Sales (sales-order-holds:UPDATE + quyền huỷ) → có Huỷ đơn và Giữ đơn", async () => {
     await renderDetail(ORDER_PERMISSION_SETS.salesStaff, () => withStatus("PICKING"));
-    expect(await screen.findByRole("button", { name: "Huỷ đơn" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Giữ đơn" })).toBeInTheDocument();
+    expect(await orderAction("Huỷ đơn")).toBeInTheDocument();
+    expect(await orderAction("Giữ đơn")).toBeInTheDocument();
   });
 
   it("đơn ON_HOLD (giữ tay) + người không có sales-order-holds:UPDATE → giải thích cần quyền khác, không nói 'đã bàn giao'", async () => {
@@ -216,7 +219,7 @@ type User = ReturnType<typeof userEvent.setup>;
 
 /** Mở dialog huỷ, chọn mã lý do (+ ghi chú) rồi bấm Huỷ đơn trong dialog. */
 async function cancelWith(user: User, reason: RegExp | string, note = "") {
-  await user.click(await screen.findByRole("button", { name: "Huỷ đơn" }));
+  await user.click(await orderAction("Huỷ đơn"));
   await pickOrderSelectOption(user, /Lý do huỷ/, reason);
   const dialog = screen.getByRole("dialog");
   if (note) {
@@ -258,7 +261,7 @@ describe(
       const user = userEvent.setup();
       await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => apiOrder);
 
-      await user.click(await screen.findByRole("button", { name: "Huỷ đơn" }));
+      await user.click(await orderAction("Huỷ đơn"));
       const dialog = screen.getByRole("dialog");
       expect(within(dialog).getByRole("button", { name: "Huỷ đơn" })).toBeDisabled();
       await pickOrderSelectOption(user, /Lý do huỷ/, "Lý do khác");
@@ -281,7 +284,7 @@ describe(
       });
       const post = vi.spyOn(api, "post").mockResolvedValue({ data: withStatus("CANCELLED") });
 
-      await user.click(await screen.findByRole("button", { name: "Huỷ đơn" }));
+      await user.click(await orderAction("Huỷ đơn"));
       const dialog = screen.getByRole("dialog");
       // BE PrintRunService#onOrderCancelled: LSX chưa in huỷ, đang in / gia công ngoài bị treo. Form không gửi
       // phí → không được nói "tính phí sản xuất" mâu thuẫn với ghi chú hoàn toàn bộ tiền đã thu bên dưới
@@ -316,7 +319,7 @@ describe(
         paidAmount: 200_000,
       }));
 
-      await user.click(await screen.findByRole("button", { name: "Huỷ đơn" }));
+      await user.click(await orderAction("Huỷ đơn"));
       const dialog = screen.getByRole("dialog");
       expect(within(dialog).queryByText(/tạo yêu cầu hoàn tiền/)).not.toBeInTheDocument();
     });
@@ -327,7 +330,7 @@ describe(
         apiOrderWith({ status: "ON_HOLD", holdReason: "FRAUD", statusBeforeHold: "PICKING" }),
       );
 
-      await user.click(await screen.findByRole("button", { name: "Huỷ đơn" }));
+      await user.click(await orderAction("Huỷ đơn"));
       expect(within(screen.getByRole("dialog")).getByText(/put-back/)).toBeInTheDocument();
     });
 
@@ -557,6 +560,8 @@ describe("OrderDetail — hiển thị vòng đời (BE PR #133)", () => {
         amountDueBeforeHandover: 0,
       }),
     );
+    await screen.findByRole("tab", { name: "Thanh toán" });
+    clickOrderDetailTab("Thanh toán");
 
     await screen.findByRole("heading", { name: apiOrder.orderNumber });
     expect(screen.getByText("Đóng gói xong")).toBeInTheDocument();
@@ -571,6 +576,8 @@ describe("OrderDetail — hiển thị vòng đời (BE PR #133)", () => {
 
   it("danh sách lô giao với trạng thái từng lô và số lượng giao từng dòng", async () => {
     await renderDetail(ORDER_PERMISSION_SETS.readOnly, () => apiPartialOrder);
+    await screen.findByRole("tab", { name: "Giao hàng" });
+    clickOrderDetailTab("Giao hàng");
 
     expect(await screen.findByRole("region", { name: "Lô giao" })).toBeInTheDocument();
     expect(screen.getByText("Lô 1")).toBeInTheDocument();
@@ -585,6 +592,8 @@ describe("OrderDetail — hiển thị vòng đời (BE PR #133)", () => {
       [...ORDER_PERMISSION_SETS.readOnly, SHIPMENT_PERMISSIONS.read],
       () => apiPartialOrder,
     );
+    await screen.findByRole("tab", { name: "Giao hàng" });
+    clickOrderDetailTab("Giao hàng");
 
     const link = await screen.findByRole("link", { name: "Xem lô giao 1" });
     expect(link).toHaveTextContent("Lô 1");
@@ -596,6 +605,8 @@ describe("OrderDetail — hiển thị vòng đời (BE PR #133)", () => {
 
   it("thiếu quyền đọc lô giao → chỉ hiện chữ 'Lô 1', không dẫn tới trang bị từ chối", async () => {
     await renderDetail(ORDER_PERMISSION_SETS.readOnly, () => apiPartialOrder);
+    await screen.findByRole("tab", { name: "Giao hàng" });
+    clickOrderDetailTab("Giao hàng");
 
     await screen.findByText("Lô 1");
     expect(screen.queryByRole("link", { name: /Xem lô giao/ })).not.toBeInTheDocument();
@@ -606,7 +617,7 @@ describe("OrderDetail — Giữ đơn", () => {
   it("người không có sales-order-holds:UPDATE không thấy 'Giữ đơn'; Sales thì thấy", async () => {
     await renderDetail(CANCEL_ONLY, () => withStatus("PICKING"));
     await screen.findByRole("heading", { name: apiOrder.orderNumber });
-    expect(screen.queryByRole("button", { name: "Giữ đơn" })).not.toBeInTheDocument();
+    expect(await orderActionOrNull("Giữ đơn")).toBeNull();
   });
 
   it("chọn lý do + ghi chú → POST /hold {reasonCode, note}, đóng dialog", async () => {
@@ -614,7 +625,7 @@ describe("OrderDetail — Giữ đơn", () => {
     const post = vi.spyOn(api, "post").mockResolvedValue({ data: apiOrder });
     const user = userEvent.setup();
 
-    await user.click(await screen.findByRole("button", { name: "Giữ đơn" }));
+    await user.click(await orderAction("Giữ đơn"));
     await pickSelectOption(user, /Lý do giữ/, "Sai địa chỉ / hãng vận chuyển không giao tới");
     await user.type(screen.getByLabelText(/Ghi chú/), "  Sai phường  ");
     await user.click(screen.getByRole("button", { name: "Giữ đơn", hidden: false }));
@@ -636,7 +647,7 @@ describe("OrderDetail — Giữ đơn", () => {
     const post = vi.spyOn(api, "post").mockResolvedValue({ data: apiOrder });
     const user = userEvent.setup();
 
-    await user.click(await screen.findByRole("button", { name: "Giữ đơn" }));
+    await user.click(await orderAction("Giữ đơn"));
     await pickSelectOption(user, /Lý do giữ/, "Lý do khác");
     await user.click(screen.getAllByRole("button", { name: "Giữ đơn" }).at(-1) as HTMLElement);
 
@@ -651,7 +662,7 @@ describe("OrderDetail — Giữ đơn", () => {
     const post = vi.spyOn(api, "post").mockResolvedValue({ data: apiOrder });
     const user = userEvent.setup();
 
-    await user.click(await screen.findByRole("button", { name: "Giữ đơn" }));
+    await user.click(await orderAction("Giữ đơn"));
     await user.click(screen.getAllByRole("button", { name: "Giữ đơn" }).at(-1) as HTMLElement);
     expect(await screen.findByRole("alert")).toHaveTextContent("Chọn lý do");
     expect(post).not.toHaveBeenCalled();
@@ -670,7 +681,7 @@ describe("OrderDetail — Giữ đơn", () => {
     const toastError = vi.spyOn(toast, "error");
     const user = userEvent.setup();
 
-    await user.click(await screen.findByRole("button", { name: "Giữ đơn" }));
+    await user.click(await orderAction("Giữ đơn"));
     await pickSelectOption(user, /Lý do giữ/, "Vấn đề thanh toán");
     await user.click(screen.getAllByRole("button", { name: "Giữ đơn" }).at(-1) as HTMLElement);
 
@@ -696,7 +707,7 @@ describe("OrderDetail — Giữ đơn: Idempotency-Key theo lần thử", () => 
       .mockResolvedValueOnce({ data: withStatus("ON_HOLD") });
     const user = userEvent.setup();
 
-    await user.click(await screen.findByRole("button", { name: "Giữ đơn" }));
+    await user.click(await orderAction("Giữ đơn"));
     await pickSelectOption(user, /Lý do giữ/, "Vấn đề thanh toán");
     const submit = () =>
       user.click(screen.getAllByRole("button", { name: "Giữ đơn" }).at(-1) as HTMLElement);
@@ -727,7 +738,7 @@ describe("OrderDetail — Gỡ giữ", () => {
     const post = vi.spyOn(api, "post").mockResolvedValue({ data: apiOrder });
     const user = userEvent.setup();
 
-    await user.click(await screen.findByRole("button", { name: "Gỡ giữ" }));
+    await user.click(await orderAction("Gỡ giữ"));
     // Bắt buộc ghi chú: gửi trống bị chặn
     await user.click(screen.getAllByRole("button", { name: "Gỡ giữ" }).at(-1) as HTMLElement);
     expect(await screen.findByText("Hãy ghi cách đã xử lý")).toBeInTheDocument();
@@ -750,16 +761,16 @@ describe("OrderDetail — Gỡ giữ", () => {
     await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => held("CREDIT"));
 
     expect(await screen.findByText(/Duyệt hoặc từ chối ở màn duyệt công nợ/)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Gỡ giữ" })).not.toBeInTheDocument();
+    expect(await orderActionOrNull("Gỡ giữ")).toBeNull();
     // Vẫn huỷ được (ON_HOLD → CANCELLED)
-    expect(screen.getByRole("button", { name: "Huỷ đơn" })).toBeInTheDocument();
+    expect(await orderAction("Huỷ đơn")).toBeInTheDocument();
   });
 
   it("giữ do DESIGN_MISMATCH (lịch sử cũ) → vẫn đọc được lý do, không có nút Gỡ giữ", async () => {
     await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => held("DESIGN_MISMATCH"));
 
     expect(await screen.findByText("Sai lệch thiết kế (luồng cũ)")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Gỡ giữ" })).not.toBeInTheDocument();
+    expect(await orderActionOrNull("Gỡ giữ")).toBeNull();
   });
 
   it("ORDER_NOT_ON_HOLD → câu tiếng Việt", async () => {
@@ -768,7 +779,7 @@ describe("OrderDetail — Gỡ giữ", () => {
     const toastError = vi.spyOn(toast, "error");
     const user = userEvent.setup();
 
-    await user.click(await screen.findByRole("button", { name: "Gỡ giữ" }));
+    await user.click(await orderAction("Gỡ giữ"));
     await user.type(screen.getByLabelText(/Cách đã xử lý/), "ok");
     await user.click(screen.getAllByRole("button", { name: "Gỡ giữ" }).at(-1) as HTMLElement);
 
@@ -783,7 +794,7 @@ describe("OrderDetail — Ghi giao thất bại", () => {
     const post = vi.spyOn(api, "post").mockResolvedValue({ data: apiOrder });
     const user = userEvent.setup();
 
-    await user.click(await screen.findByRole("button", { name: "Ghi giao thất bại" }));
+    await user.click(await orderAction("Ghi giao thất bại"));
     await pickSelectOption(user, /Lý do giao thất bại/, "Khách vắng mặt");
     await user.click(
       screen.getAllByRole("button", { name: "Ghi giao thất bại" }).at(-1) as HTMLElement,
@@ -806,7 +817,7 @@ describe("OrderDetail — Ghi giao thất bại", () => {
     );
 
     expect(await screen.findByText(/kết quả giao được ghi theo từng lô/)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Ghi giao thất bại" })).not.toBeInTheDocument();
+    expect(await orderActionOrNull("Ghi giao thất bại")).toBeNull();
   });
 
   it("ORDER_DELIVERY_VIA_SHIPMENT (BE từ chối) → câu tiếng Việt", async () => {
@@ -817,7 +828,7 @@ describe("OrderDetail — Ghi giao thất bại", () => {
     const toastError = vi.spyOn(toast, "error");
     const user = userEvent.setup();
 
-    await user.click(await screen.findByRole("button", { name: "Ghi giao thất bại" }));
+    await user.click(await orderAction("Ghi giao thất bại"));
     await pickSelectOption(user, /Lý do giao thất bại/, "Khách từ chối nhận");
     await user.click(
       screen.getAllByRole("button", { name: "Ghi giao thất bại" }).at(-1) as HTMLElement,
@@ -834,7 +845,7 @@ describe("OrderDetail — Đóng phần còn lại", () => {
     const post = vi.spyOn(api, "post").mockResolvedValue({ data: apiOrder });
     const user = userEvent.setup();
 
-    expect(await screen.findByRole("button", { name: "Giữ đơn" })).toBeInTheDocument();
+    expect(await orderAction("Giữ đơn")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Đóng phần còn lại" }));
     await pickSelectOption(user, /Lý do đóng/, "Lý do khác");
     await user.type(screen.getByLabelText(/Ghi chú/), "Hết hàng cả kho");
@@ -857,14 +868,14 @@ describe("OrderDetail — Đóng phần còn lại", () => {
   it("chỉ có cancellations:UPDATE (không có holds:UPDATE) đóng được nhưng không có Giữ đơn", async () => {
     await renderDetail(CANCEL_ONLY, () => apiPartialOrder);
 
-    expect(await screen.findByRole("button", { name: "Đóng phần còn lại" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Giữ đơn" })).not.toBeInTheDocument();
+    expect(await orderAction("Đóng phần còn lại")).toBeInTheDocument();
+    expect(await orderActionOrNull("Giữ đơn")).toBeNull();
   });
 
   it("chỉ đọc → không có nút; đơn không phải PARTIALLY_FULFILLED → không có nút", async () => {
     await renderDetail(ORDER_PERMISSION_SETS.readOnly, () => apiPartialOrder);
     await screen.findByRole("heading", { name: apiOrder.orderNumber });
-    expect(screen.queryByRole("button", { name: "Đóng phần còn lại" })).not.toBeInTheDocument();
+    expect(await orderActionOrNull("Đóng phần còn lại")).toBeNull();
   });
 });
 
@@ -915,15 +926,15 @@ describe("OrderDetail — huỷ khi đã đóng gói (BE Order#requireNotPacked)
       }),
     );
 
-    expect(await screen.findByRole("button", { name: "Gỡ giữ" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Huỷ đơn" })).not.toBeInTheDocument();
+    expect(await orderAction("Gỡ giữ")).toBeInTheDocument();
+    expect(await orderActionOrNull("Huỷ đơn")).toBeNull();
   });
 
   it("đơn ON_HOLD giữ từ PICKING (chưa packedAt) → vẫn huỷ được", async () => {
     await renderDetail(ORDER_PERMISSION_SETS.coordinator, () =>
       apiOrderWith({ status: "ON_HOLD", holdReason: "FRAUD", statusBeforeHold: "PICKING" }),
     );
-    expect(await screen.findByRole("button", { name: "Huỷ đơn" })).toBeInTheDocument();
+    expect(await orderAction("Huỷ đơn")).toBeInTheDocument();
   });
 });
 
@@ -938,7 +949,7 @@ describe("OrderDetail — giữ đơn không rõ lý do", () => {
       expect(
         await screen.findByText(/Không xác định được lý do giữ — chưa thể gỡ giữ/),
       ).toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: "Gỡ giữ" })).not.toBeInTheDocument();
+      expect(await orderActionOrNull("Gỡ giữ")).toBeNull();
     },
   );
 
@@ -978,8 +989,8 @@ describe("OrderDetail — hồi quy tích hợp (credit hold / packed / UNKNOWN 
     );
     expect(await screen.findByRole("button", { name: /Duyệt công nợ/ })).toBeInTheDocument();
     // Không có quyền huỷ / giữ → không có nút nào khác
-    expect(screen.queryByRole("button", { name: "Huỷ đơn" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Gỡ giữ" })).not.toBeInTheDocument();
+    expect(await orderActionOrNull("Huỷ đơn")).toBeNull();
+    expect(await orderActionOrNull("Gỡ giữ")).toBeNull();
   });
 
   it("4. trạng thái UNKNOWN → không có nút thao tác nào kể cả với Coordinator", async () => {
@@ -989,7 +1000,7 @@ describe("OrderDetail — hồi quy tích hợp (credit hold / packed / UNKNOWN 
     expect(within(card).queryAllByRole("button")).toHaveLength(0);
   });
 
-  it("7. Đơn sản xuất theo dòng in và lô giao cùng hiện trên một trang chi tiết", async () => {
+  it("7. Đơn sản xuất theo dòng in (dưới dòng hàng) và lô giao (tab Giao hàng) trên cùng trang chi tiết", async () => {
     const lineId = apiPartialOrder.lines[0]?.lineId ?? "";
     // Chỉ đọc đơn + đọc Đơn sản xuất (production-orders:READ — BE ProductionOrderController#list)
     mockOrderApiGet([...ORDER_PERMISSION_SETS.readOnly, PRODUCTION_ORDER_PERMISSIONS.read], {
@@ -1041,7 +1052,8 @@ describe("OrderDetail — hồi quy tích hợp (credit hold / packed / UNKNOWN 
     expect(
       await screen.findByRole("listitem", { name: "Đơn sản xuất PRD-20261020-0001" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Lô giao" })).toBeInTheDocument();
+    clickOrderDetailTab("Giao hàng");
+    expect(await screen.findByRole("region", { name: "Lô giao" })).toBeInTheDocument();
     expect(screen.getByText("Đã bàn giao:")).toBeInTheDocument();
   });
 

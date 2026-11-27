@@ -1,11 +1,10 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { CUSTOMER_PERMISSIONS } from "@/constants";
 import { api } from "@/lib/api/client";
 import { bePage } from "@/test/api-screen";
-import { openComboboxList } from "@/test/combobox";
 
 import { apiOrder, apiOrderPage } from "../__fixtures__/order";
 import { ORDER_PERMISSION_SETS, mockOrderApiGet, renderOrderScreen } from "../__fixtures__/render";
@@ -37,8 +36,7 @@ function renderList(
     "/customers": () => bePage([MOC_AN]),
     [`/customers/${CUSTOMER_UUID}`]: () => MOC_AN,
   });
-  // hasMemory: URL giữ giá trị vừa ghi (mặc định bộ chuyển test trả về URL ban đầu → ô chọn khách tự quay lại giá trị cũ)
-  return renderOrderScreen(<OrderList />, searchParams, { hasMemory: true });
+  return renderOrderScreen(<OrderList />, searchParams);
 }
 
 function listQueries(): URLSearchParams[] {
@@ -78,6 +76,8 @@ const prepaidOrder = {
   paymentTerm: "PREPAID" as const,
 };
 
+afterEach(() => vi.restoreAllMocks());
+
 beforeAll(() => {
   // jsdom không có ResizeObserver / scrollIntoView mà `cmdk` (ô chọn khách) dùng
   globalThis.ResizeObserver ??= class {
@@ -89,8 +89,15 @@ beforeAll(() => {
 });
 afterEach(() => vi.restoreAllMocks());
 
+/** Ô chọn khách nằm trong popover lọc của header cột Khách hàng (backoffice-erp-ui A5): mở rồi trả về ô chọn. */
+async function openCustomerFilter(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(await screen.findByRole("button", { name: "Lọc khách hàng" }));
+  return screen.findByRole("combobox", { name: "Khách hàng" });
+}
+
 describe(FILTER_SUITE, { timeout: FILTER_FLOW_TIMEOUT_MS }, () => {
   it("URL ?customer(UUID)&from&to → gửi customerId, placedFrom, placedTo; ô hiện TÊN khách, không hiện UUID", async () => {
+    const user = userEvent.setup();
     renderList(
       () => apiOrderPage([creditOrder]),
       `?customer=${CUSTOMER_UUID}&from=2026-06-01&to=2026-06-30`,
@@ -100,14 +107,26 @@ describe(FILTER_SUITE, { timeout: FILTER_FLOW_TIMEOUT_MS }, () => {
     const query = lastListQuery();
     expect(query.get("placedFrom")).toBe("2026-06-01");
     expect(query.get("placedTo")).toBe("2026-06-30");
-    const box = await screen.findByRole("combobox", { name: "Khách hàng" });
+    const box = await openCustomerFilter(user);
     await waitFor(() => expect(box).toHaveValue("Công ty Mộc An"));
     expect(screen.queryByText(CUSTOMER_UUID)).not.toBeInTheDocument();
-    // Thanh Cấu hình cũng ghi tên khách, không ghi UUID
     expect(screen.queryByDisplayValue(CUSTOMER_UUID)).not.toBeInTheDocument();
   });
 
-  it("khoảng ngày ngược (đến < từ) → báo lỗi inline, KHÔNG gửi placedFrom/placedTo", async () => {
+  it("chip 'Khách hàng' của thanh Cấu hình ghi TÊN khách (lấy từ dòng đơn), không ghi UUID", async () => {
+    renderList(
+      () =>
+        apiOrderPage([{ ...apiOrder, customerId: CUSTOMER_UUID, customerName: "Công ty Mộc An" }]),
+      `?customer=${CUSTOMER_UUID}`,
+    );
+
+    expect(await screen.findByText(apiOrder.orderNumber)).toBeInTheDocument();
+    // Chip trong thanh Cấu hình: nhãn "Khách hàng" + tên (không phải UUID)
+    await waitFor(() => expect(document.body.textContent).toMatch(/Khách hàng:?\s*Công ty Mộc An/));
+    expect(document.body.textContent).not.toContain(CUSTOMER_UUID);
+  });
+
+  it("khoảng ngày ngược (đến < từ) trên link → báo lỗi trên bảng, KHÔNG gửi placedFrom/placedTo", async () => {
     renderList(() => apiOrderPage([apiOrder]), "?from=2026-06-30&to=2026-06-01");
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Ngày kết thúc phải sau");
@@ -119,10 +138,11 @@ describe(FILTER_SUITE, { timeout: FILTER_FLOW_TIMEOUT_MS }, () => {
   });
 
   it("A. chưa lọc → ô chọn khách trống, không gửi customerId, không có ô nhập UUID", async () => {
+    const user = userEvent.setup();
     renderList(() => apiOrderPage([apiOrder]));
 
     expect(await screen.findByText(apiOrder.orderNumber)).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Khách hàng" })).toHaveValue("");
+    expect(await openCustomerFilter(user)).toHaveValue("");
     expect(screen.queryByLabelText("ID khách hàng")).not.toBeInTheDocument();
     expect(neverSent("customerId")).toBe(true);
   });
@@ -131,7 +151,7 @@ describe(FILTER_SUITE, { timeout: FILTER_FLOW_TIMEOUT_MS }, () => {
     const user = userEvent.setup();
     renderList(() => apiOrderPage([apiOrder]), "?page=3");
 
-    const box = await screen.findByRole("combobox", { name: "Khách hàng" });
+    const box = await openCustomerFilter(user);
     await user.type(box, "Mộc");
     await user.click(await screen.findByRole("option", { name: /Công ty Mộc An/ }));
 
@@ -144,7 +164,8 @@ describe(FILTER_SUITE, { timeout: FILTER_FLOW_TIMEOUT_MS }, () => {
     const user = userEvent.setup();
     renderList(() => apiOrderPage([apiOrder]));
 
-    await openComboboxList(user, "Khách hàng");
+    await openCustomerFilter(user);
+    await user.click(screen.getByRole("button", { name: "Mở danh sách Khách hàng" }));
     expect(await screen.findByRole("option", { name: /Công ty Mộc An/ })).toBeInTheDocument();
     const call = vi
       .mocked(api.get)
@@ -158,6 +179,7 @@ describe(FILTER_SUITE, { timeout: FILTER_FLOW_TIMEOUT_MS }, () => {
     renderList(() => apiOrderPage([apiOrder]), `?customer=${CUSTOMER_UUID}`);
     await waitFor(() => expect(lastListQuery().get("customerId")).toBe(CUSTOMER_UUID));
 
+    await openCustomerFilter(user);
     await user.click(await screen.findByRole("button", { name: "Bỏ chọn Khách hàng" }));
 
     await waitFor(() => expect(lastListQuery().has("customerId")).toBe(false));
@@ -166,16 +188,29 @@ describe(FILTER_SUITE, { timeout: FILTER_FLOW_TIMEOUT_MS }, () => {
     );
   });
 
+  it("C2. nút 'Xoá' của popover lọc cột → bỏ customerId", async () => {
+    const user = userEvent.setup();
+    renderList(() => apiOrderPage([apiOrder]), `?customer=${CUSTOMER_UUID}`);
+    await waitFor(() => expect(lastListQuery().get("customerId")).toBe(CUSTOMER_UUID));
+
+    await openCustomerFilter(user);
+    await user.click(screen.getByRole("button", { name: "Xoá" }));
+
+    await waitFor(() => expect(lastListQuery().has("customerId")).toBe(false));
+  });
+
   it("G. URL mang sẵn customer sai (link cũ CUS-0007) → bỏ qua, KHÔNG gửi BE, không báo lỗi, danh sách vẫn tải", async () => {
+    const user = userEvent.setup();
     renderList(() => apiOrderPage([apiOrder]), "?customer=CUS-0007");
 
     expect(await screen.findByText(apiOrder.orderNumber)).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Khách hàng" })).toHaveValue("");
+    expect(await openCustomerFilter(user)).toHaveValue("");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(neverSent("customerId")).toBe(true);
   });
 
-  it("vai trò không có quyền đọc khách (điều phối / kế toán) → không có ô chọn khách; chip Cấu hình ghi tên khách từ dòng đơn, không UUID", async () => {
+  it("vai trò không có quyền đọc khách (điều phối / kế toán) → popover không có ô chọn, chỉ dòng chỉ sang nút lọc ở dòng; chip ghi tên khách, không UUID", async () => {
+    const user = userEvent.setup();
     renderList(
       () => apiOrderPage([{ ...apiOrder, customerName: "Công ty Bao Bì An Phát" }]),
       `?customer=${apiOrder.customerId}`,
@@ -183,7 +218,10 @@ describe(FILTER_SUITE, { timeout: FILTER_FLOW_TIMEOUT_MS }, () => {
     );
 
     expect(await screen.findByText(apiOrder.orderNumber)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Lọc khách hàng" }));
     expect(screen.queryByRole("combobox", { name: "Khách hàng" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: /khách/i })).not.toBeInTheDocument();
+    expect(await screen.findByText(/bấm biểu tượng phễu cạnh tên khách/)).toBeInTheDocument();
     expect(neverSent("customerId")).toBe(false);
     expect(screen.queryByText(String(apiOrder.customerId))).not.toBeInTheDocument();
     expect(await screen.findAllByText(/Công ty Bao Bì An Phát/)).not.toHaveLength(0);
@@ -245,3 +283,77 @@ describe("OrderList — KHÔNG có bộ lọc phương thức thanh toán (BE GE
     expect(screen.queryByText("Ghi công nợ")).not.toBeInTheDocument();
   });
 });
+
+describe(
+  "OrderList — lọc / sắp xếp trên header cột (backoffice-erp-ui A5)",
+  { timeout: FILTER_FLOW_TIMEOUT_MS },
+  () => {
+    const other = {
+      ...apiOrder,
+      orderId: "2c7a8d2f-5d6e-4a2b-8b88-3f4e7a2e3b22",
+      orderNumber: "SO-20260908-000999",
+    };
+
+    it("lọc cột Mã đơn: BE thu hẹp bằng search, FE giữ đúng dòng khớp mã, chip 'Search trong cột'", async () => {
+      renderList(() => apiOrderPage([apiOrder, other]));
+      await screen.findByText(other.orderNumber);
+      await userEvent.click(screen.getByRole("button", { name: "Lọc mã đơn" }));
+      await userEvent.type(screen.getByPlaceholderText("Tìm theo mã đơn…"), "000999");
+      await waitFor(() => expect(lastListQuery().get("search")).toBe("000999"), { timeout: 3000 });
+      await waitFor(() => expect(screen.queryByText(apiOrder.orderNumber)).not.toBeInTheDocument());
+      expect(screen.getByText(other.orderNumber)).toBeInTheDocument();
+      expect(screen.getByText(/Mã đơn “000999”/)).toBeInTheDocument();
+    });
+
+    it("lọc khoảng Tổng tiền (BE không có tham số) → chỉ lọc trang đang xem, không gửi BE", async () => {
+      renderList(() =>
+        apiOrderPage([apiOrder, { ...other, totalAmount: apiOrder.totalAmount + 1 }]),
+      );
+      await screen.findByText(other.orderNumber);
+      await userEvent.click(screen.getByRole("button", { name: "Lọc tổng tiền" }));
+      await userEvent.type(
+        screen.getByRole("textbox", { name: "Từ — tổng tiền" }),
+        String(apiOrder.totalAmount + 1),
+      );
+      await waitFor(() => expect(screen.queryByText(apiOrder.orderNumber)).not.toBeInTheDocument());
+      expect(screen.getByText(other.orderNumber)).toBeInTheDocument();
+      expect(listQueries().every((q) => ![...q.keys()].some((k) => /total/i.test(k)))).toBe(true);
+    });
+
+    it("lọc cột Trạng thái trên header → gửi status lặp tham số (chọn nhiều)", async () => {
+      renderList(() => apiOrderPage([apiOrder]));
+      await screen.findByText(apiOrder.orderNumber);
+      const statusHeader = screen.getByRole("columnheader", { name: /Trạng thái/ });
+      await userEvent.click(within(statusHeader).getByRole("button", { name: "Lọc trạng thái" }));
+      await userEvent.click(await screen.findByRole("option", { name: /Nháp/ }));
+      await waitFor(() => expect(lastListQuery().getAll("status")).toEqual(["DRAFT"]));
+    });
+
+    it("Khách hàng / Người nhận không có nút sắp xếp (BE LIST_SORT không có); Mã đơn có", async () => {
+      renderList(() => apiOrderPage([apiOrder]));
+      await screen.findByText(apiOrder.orderNumber);
+      // Nhãn cột là nút sort; cột BE không sort được thì nút bị khoá
+      const label = (name: string) =>
+        within(screen.getByRole("columnheader", { name: new RegExp(name) })).getByRole("button", {
+          name,
+        });
+      expect(label("Mã đơn")).toBeEnabled();
+      expect(label("Ngày đặt")).toBeEnabled();
+      expect(label("Tổng tiền")).toBeEnabled();
+      // Mọi cột dữ liệu đều có nút lọc trên header
+      for (const name of [
+        "Mã đơn",
+        "Khách hàng",
+        "Người nhận",
+        "Ngày đặt",
+        "Tổng tiền",
+        "Trạng thái",
+      ]) {
+        const header = screen.getByRole("columnheader", { name: new RegExp(name) });
+        expect(within(header).getByRole("button", { name: /^Lọc / })).toBeInTheDocument();
+      }
+      expect(label("Khách hàng")).toBeDisabled();
+      expect(label("Người nhận")).toBeDisabled();
+    });
+  },
+);

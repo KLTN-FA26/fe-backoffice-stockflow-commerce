@@ -10,7 +10,7 @@ import { ApiError } from "@/lib/api/error";
 
 import { apiPartialOrder } from "../__fixtures__/order";
 import { DETAIL_PATH, renderDetail } from "../__fixtures__/detail";
-import { ORDER_PERMISSION_SETS, pickSelectOption } from "../__fixtures__/render";
+import { ORDER_PERMISSION_SETS, orderAction, pickSelectOption } from "../__fixtures__/render";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
@@ -22,7 +22,7 @@ describe("OrderDetail — Đóng phần còn lại kèm phí đã thoả thuận
   const WITH_KEY = { headers: { "Idempotency-Key": expect.any(String) } };
 
   async function openClosureDialog(user: ReturnType<typeof userEvent.setup>) {
-    await user.click(await screen.findByRole("button", { name: "Đóng phần còn lại" }));
+    await user.click(await orderAction("Đóng phần còn lại"));
     await pickSelectOption(user, /Lý do đóng/, "Khách yêu cầu");
   }
   const submit = (user: ReturnType<typeof userEvent.setup>) =>
@@ -160,7 +160,7 @@ describe("OrderDetail — Đóng phần còn lại kèm phí đã thoả thuận
     await openClosureDialog(user);
     await fillFee(user);
     await user.click(screen.getByRole("button", { name: "Huỷ" }));
-    await user.click(screen.getByRole("button", { name: "Đóng phần còn lại" }));
+    await user.click(await orderAction("Đóng phần còn lại"));
 
     expect(screen.getByRole("checkbox", { name: /Giữ một khoản phí/ })).not.toBeChecked();
     expect(screen.queryByLabelText(/Số tiền phí/)).not.toBeInTheDocument();
