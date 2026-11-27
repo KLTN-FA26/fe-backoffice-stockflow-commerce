@@ -15,6 +15,7 @@ import {
 
 import { bePageSchema } from "@/lib/api/page-schema";
 import { omittedOrNull } from "@/lib/validation/primitives";
+import { customerSkuIdAsVariantId } from "@/lib/references/customer-skus";
 
 /* ── DTO ─────────────────────────────────────────────────────────────── */
 
@@ -218,8 +219,11 @@ export const quoteRowDtoSchema = z.object({
 });
 export const quotePageDtoSchema = bePageSchema(quoteRowDtoSchema);
 
-/** SKU riêng của khách — BE `product.api.CustomerSku` (`GET /customer-skus?customerId=`). */
-export const customerSkuDtoSchema = z.object({
+/**
+ * SKU riêng của khách — BE `CustomerSkuResponse` (`GET /customer-skus?customerId=`); BE gọi id là `id`, màn hình gọi
+ * `variantId` (`customerSkuIdAsVariantId`).
+ */
+const customerSkuDtoFields = z.object({
   variantId: z.string(),
   productId: z.string(),
   sku: z.string(),
@@ -233,6 +237,7 @@ export const customerSkuDtoSchema = z.object({
   unitsPerCarton: omittedOrNull(z.number().int()),
   taxRate: omittedOrNull(z.number()),
 });
+export const customerSkuDtoSchema = z.preprocess(customerSkuIdAsVariantId, customerSkuDtoFields);
 export const customerSkuListDtoSchema = z.array(customerSkuDtoSchema);
 
 /** Giá riêng của khách cho một SKU — BE `CustomerPriceResponse` (404 = chưa có giá riêng). */
