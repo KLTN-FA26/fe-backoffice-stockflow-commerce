@@ -227,7 +227,7 @@ describe("Đặt xe — hãng đặt xe qua API (BR-29)", () => {
     const { post } = renderLoad(ACTORS.warehouseStaff, twoStops(), { booking: () => apiBooked() });
     await user.click(await screen.findByRole("button", { name: F.booking.book }));
     const dialog = await screen.findByRole("dialog");
-    await chooseCarrier(user, /AHAMOVE/);
+    await chooseCarrier(user, /Ahamove/);
     const field = within(dialog).getByLabelText(A.pickupAt);
     await user.type(field, "311120260830");
     expect(await within(dialog).findByText(FIELD_MSG.pickupAtInvalid)).toBeInTheDocument();
