@@ -471,12 +471,8 @@ describe("CarrierList — quyền", () => {
     const user = userEvent.setup();
     for (const carrier of LIST) {
       // Mỗi dòng có menu "⋯" với mục sửa hãng đang bật
-      await user.click(
-        await screen.findByRole("button", { name: `Thao tác — ${carrier.code}` }),
-      );
-      expect(
-        await screen.findByRole("button", { name: C.editAria(carrier.code) }),
-      ).toBeEnabled();
+      await user.click(await screen.findByRole("button", { name: `Thao tác — ${carrier.code}` }));
+      expect(await screen.findByRole("button", { name: C.editAria(carrier.code) })).toBeEnabled();
       await user.keyboard("{Escape}");
     }
   });

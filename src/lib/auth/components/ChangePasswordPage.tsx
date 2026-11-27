@@ -19,6 +19,7 @@ import { ApiError } from "@/lib/api/error";
 
 import { CarPageLoader } from "@/components/shared/CarPageLoader";
 import { CheckboxField } from "@/components/shared/CheckboxField";
+import { GlassScreen } from "@/components/shared/GlassScreen";
 import { TextField } from "@/components/shared/TextField";
 import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
@@ -84,7 +85,7 @@ export function ChangePasswordPage() {
 
   if (!isAuthenticated) {
     return (
-      <main className="bg-bg-base flex min-h-screen items-center justify-center px-6">
+      <GlassScreen>
         {bootstrapError ? (
           <div role="alert" className="text-ink-primary flex flex-col items-center gap-3 text-sm">
             {bootstrapError}
@@ -100,7 +101,7 @@ export function ChangePasswordPage() {
         ) : (
           <CarPageLoader label={AUTH_UI.verifyingSession} />
         )}
-      </main>
+      </GlassScreen>
     );
   }
 

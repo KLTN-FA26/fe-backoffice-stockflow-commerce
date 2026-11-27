@@ -103,7 +103,7 @@ function UserMenu() {
           onClick={() => setOpen((o) => !o)}
           aria-label="Tuỳ chọn tài khoản"
           aria-expanded={open}
-          className="text-ink-secondary hover:bg-bg-muted hover:text-ink-primary size-8 shrink-0 rounded-[var(--r-md)] bg-transparent p-0"
+          className="border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted hover:text-ink-primary aria-expanded:bg-bg-muted aria-expanded:text-ink-primary size-8 shrink-0 rounded-full border p-0"
         >
           <Ellipsis className="size-3.5" />
         </Button>

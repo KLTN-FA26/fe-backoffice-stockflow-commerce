@@ -6,7 +6,12 @@ import { CARRIER_STATUSES, SHIPPING_LIMITS, UI_LABELS } from "@/constants";
 import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/shared/combobox-select";
+import {
+  Select,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/shared/combobox-select";
 
 import { FieldError, MONO, fieldClass } from "../primitives";
 

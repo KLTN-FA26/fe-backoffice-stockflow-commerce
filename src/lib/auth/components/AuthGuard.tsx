@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import { AUTH_UI } from "@/constants/auth";
 
 import { CarPageLoader } from "@/components/shared/CarPageLoader";
+import { GlassScreen } from "@/components/shared/GlassScreen";
 import { Button } from "@/components/ui/button";
 
 import { loginUrlFor } from "../redirect";
@@ -32,7 +33,7 @@ export function AuthGuard({ children }: { children: ReactNode }) {
 
   if (!isAuthenticated) {
     return (
-      <main className="bg-bg-base flex min-h-screen items-center justify-center px-6">
+      <GlassScreen>
         {bootstrapError ? (
           <div role="alert" className="text-ink-primary flex flex-col items-center gap-3 text-sm">
             {bootstrapError}
@@ -43,7 +44,7 @@ export function AuthGuard({ children }: { children: ReactNode }) {
         ) : (
           <CarPageLoader label={AUTH_UI.verifyingSession} />
         )}
-      </main>
+      </GlassScreen>
     );
   }
   return children;
