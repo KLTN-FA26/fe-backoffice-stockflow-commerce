@@ -67,7 +67,7 @@ export function quoteHeaderFilters(state: QuoteListFilters): Partial<Record<stri
             idPrefix="quote-header"
             value={state.customerId}
             onChange={state.setCustomerId}
-            optional
+            mode="filter"
           />
         </div>
       </HeaderFilterPopover>
