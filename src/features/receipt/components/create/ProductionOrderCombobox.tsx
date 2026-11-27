@@ -10,8 +10,13 @@ import {
   skusOf,
   useReceivableProductionOrders,
 } from "@/lib/references/production-orders";
+import { limitComboboxOptions } from "@/components/shared/combobox-options";
 import { Button } from "@/components/ui/button";
-import { COMBOBOX_ITEM_CLASS, InputCombobox } from "@/components/shared/InputCombobox";
+import {
+  COMBOBOX_ITEM_CLASS,
+  ComboboxMoreHint,
+  InputCombobox,
+} from "@/components/shared/InputCombobox";
 import { CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
 
 const L = RECEIPT_COUNT_LABELS.create;
@@ -42,8 +47,15 @@ export function ProductionOrderCombobox({
   autoFocus?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
   const orders = useReceivableProductionOrders(true, warehouseId);
   const picked = orders.data.find((order) => order.id === value);
+  // Lọc ở client (gõ mã đơn, đơn vị sản xuất hoặc SKU), chỉ hiện 10 đơn đầu + "Còn N kết quả — gõ thêm" (R1)
+  const { visible, hidden } = limitComboboxOptions(
+    orders.data,
+    search,
+    (order) => [order.code, order.producerName ?? "", ...skusOf(order)],
+  );
 
   return (
     <InputCombobox
@@ -56,6 +68,10 @@ export function ProductionOrderCombobox({
       ariaLabel={L.productionOrder}
       hasError={error}
       describedBy={describedBy}
+      search={search}
+      onSearchChange={setSearch}
+      shouldFilter={false}
+      onClear={() => onChange("")}
       autoFocus={autoFocus}
       mono
     >
@@ -81,7 +97,7 @@ export function ProductionOrderCombobox({
             )}
             {!orders.isError && <CommandEmpty>{L.productionOrderEmpty}</CommandEmpty>}
             <CommandGroup>
-              {orders.data.map((order) => (
+              {visible.map((order) => (
                 <CommandItem
                   key={order.id}
                   // Gõ mã đơn, đơn vị sản xuất hoặc SKU đều tìm ra đơn
@@ -115,6 +131,7 @@ export function ProductionOrderCombobox({
           </>
         )}
       </CommandList>
+      {hidden > 0 && <ComboboxMoreHint remaining={hidden} />}
     </InputCombobox>
   );
 }

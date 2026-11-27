@@ -63,7 +63,7 @@ export function QuoteRequestToolbar<C extends string>({
             idPrefix={idPrefix}
             value={filters.customerId}
             onChange={filters.setCustomerId}
-            optional
+            mode="filter"
           />
         </section>
       }
