@@ -294,6 +294,18 @@ describe("Chế độ mở rộng (focusMode) và nút thu / mở sidebar", () =
     expect(useAppStore.getState().focusMode).toBe(false);
     expect(toggle("Thu nhỏ sidebar")).toBeInTheDocument();
   });
+
+  it("thu nhỏ sidebar → ẩn hẳn (không còn cột icon), nút trên topbar mở lại", async () => {
+    await renderShell([]);
+    await userEvent.click(toggle("Thu nhỏ sidebar"));
+    const sidebar = document.querySelector<HTMLElement>('[data-slot="sidebar"][data-state]');
+    expect(sidebar).toHaveAttribute("data-state", "collapsed");
+    expect(sidebar).toHaveAttribute("data-collapsible", "offcanvas");
+    // Không render bản cột icon (nút kính lúp "Tìm nhanh") — nội dung giữ nguyên bản mở rộng
+    expect(screen.queryByRole("button", { name: "Tìm nhanh" })).not.toBeInTheDocument();
+    await userEvent.click(toggle("Mở rộng sidebar"));
+    expect(sidebar).toHaveAttribute("data-state", "expanded");
+  });
 });
 
 describe("sidebar parent entries follow their visible items", () => {
@@ -329,18 +341,6 @@ describe("sidebar parent entries follow their visible items", () => {
     await renderShell([IDENTITY_PERMISSIONS.rbacRead, IDENTITY_PERMISSIONS.usersRead]);
     await showRoot();
     expect(parent("Hệ thống")).toBeInTheDocument();
-  });
-
-  it("collapsed sidebar renders no separator for a group with no visible item", async () => {
-    await renderShell([]);
-    await userEvent.click(screen.getByRole("button", { name: "Thu nhỏ sidebar" }));
-    // Thu gọn: mỗi nhóm là một khối (vạch ngăn + icon) — khối nào cũng phải có ít nhất một link
-    const menu = sidebar().querySelector<HTMLElement>('[data-sidebar="menu"]');
-    if (!menu) throw new Error("Collapsed menu not rendered");
-    const groups = menu.querySelectorAll<HTMLElement>(":scope > *");
-    expect(groups.length).toBeGreaterThan(0);
-    for (const group of groups)
-      expect(within(group).queryAllByRole("link").length).toBeGreaterThan(0);
   });
 });
 

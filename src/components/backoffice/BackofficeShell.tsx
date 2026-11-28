@@ -1,6 +1,5 @@
 "use client";
 
-import { cn } from "cn";
 import {
   ArrowLeftRight,
   Ban,
@@ -39,7 +38,6 @@ import {
   PenTool,
   RadioTower,
   ReceiptText,
-  Search as SearchIcon,
   ShieldCheck,
   ShieldAlert,
   UserCog,
@@ -828,41 +826,8 @@ function SidebarCollapseButton() {
   );
 }
 
-/** Sidebar thu gọn: icon kính lúp — bấm thì mở rộng sidebar và đưa con trỏ vào ô search. */
-function SidebarSearchIcon() {
-  const { toggleSidebar } = useSidebar();
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          onClick={() => {
-            toggleSidebar();
-            requestAnimationFrame(() =>
-              document
-                .querySelector<HTMLInputElement>(
-                  `input[aria-label="${UI_LABELS.shell.globalSearch}"]`,
-                )
-                ?.focus(),
-            );
-          }}
-          className="text-ink-secondary hover:bg-bg-muted hover:text-ink-primary size-8 rounded-[var(--r-sm)] bg-transparent"
-          aria-label={UI_LABELS.shell.quickSearch}
-        >
-          <SearchIcon className="size-3.5" />
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent side="right">{UI_LABELS.shell.quickSearchHint}</TooltipContent>
-    </Tooltip>
-  );
-}
-
 function BackofficeSidebar() {
   const pathname = usePathname();
-  const { state } = useSidebar();
-  const collapsed = state === "collapsed";
 
   const chatBadge = useStaffChatBadge();
   // Chỉ chat có số đếm thật của BE (S22) — không bịa số "cần chú ý" cho module khác.
@@ -878,40 +843,28 @@ function BackofficeSidebar() {
   );
 
   return (
+    // Thu nhỏ = ẩn hẳn (offcanvas), không còn cột icon — mở lại bằng nút trên topbar / Ctrl+B
     <Sidebar
-      collapsible="icon"
+      collapsible="offcanvas"
       className="border-border-default [&_[data-slot=sidebar-inner]]:bg-sidebar border-r"
     >
-      <SidebarHeader
-        className={cn("shrink-0 gap-2", collapsed ? "items-center px-0 py-2" : "px-2 py-2")}
-      >
-        {/* Logo + tên app ở đầu sidebar; thu gọn chỉ còn logo (alt = tên thương hiệu) */}
-        <div
-          className={cn(
-            "text-ink-primary flex h-9 items-center gap-2 text-base font-bold tracking-tight",
-            collapsed ? "justify-center" : "px-1",
-          )}
-        >
-          <Logo variant="mark" height={28} decorative={!collapsed} />
+      <SidebarHeader className="shrink-0 gap-2 px-2 py-2">
+        {/* Logo + tên app ở đầu sidebar */}
+        <div className="text-ink-primary flex h-9 items-center gap-2 px-1 text-base font-bold tracking-tight">
+          <Logo variant="mark" height={28} decorative />
           {/* "Commerce" nhạt hơn để tên dài không lấn logo — chữ lấy từ BRAND.wordmark */}
-          {!collapsed && (
-            <span className="truncate">
-              {BRAND.wordmark.primary}
-              {BRAND.wordmark.accent}
-              <span className="text-ink-secondary font-medium">{BRAND.wordmark.suffix}</span>
-            </span>
-          )}
+          <span className="truncate">
+            {BRAND.wordmark.primary}
+            {BRAND.wordmark.accent}
+            <span className="text-ink-secondary font-medium">{BRAND.wordmark.suffix}</span>
+          </span>
         </div>
-        {collapsed ? (
-          <SidebarSearchIcon />
-        ) : (
-          // Ô search toàn cục dưới tên app, dùng hết chiều rộng sidebar
-          <SearchBar
-            placeholder={UI_LABELS.shell.quickSearchHint}
-            className="min-w-0"
-            aria-label={UI_LABELS.shell.globalSearch}
-          />
-        )}
+        {/* Ô search toàn cục dưới tên app, dùng hết chiều rộng sidebar */}
+        <SearchBar
+          placeholder={UI_LABELS.shell.quickSearchHint}
+          className="min-w-0"
+          aria-label={UI_LABELS.shell.globalSearch}
+        />
       </SidebarHeader>
 
       {/* Nav: item cha mở/đóng kiểu Vercel. Scrollbar mảnh, không có nút mũi tên — chỉ dùng
@@ -922,7 +875,6 @@ function BackofficeSidebar() {
           activeHref={activeHref}
           canSeeItem={canSeeItem}
           warningCounts={warningCounts}
-          collapsed={collapsed}
         />
       </SidebarContent>
 
@@ -969,7 +921,6 @@ export function BackofficeShell({ children }: { children: React.ReactNode }) {
         style={
           {
             "--sidebar-width": "240px",
-            "--sidebar-width-icon": "60px",
           } as React.CSSProperties
         }
       >

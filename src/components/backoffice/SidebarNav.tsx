@@ -15,13 +15,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 
-import {
-  ITEM_ACTIVE,
-  ITEM_IDLE,
-  NAV_ROW as ROW,
-  SidebarNavCollapsed,
-  WarnBadge,
-} from "./SidebarNavCollapsed";
+import { ITEM_ACTIVE, ITEM_IDLE, NAV_ROW as ROW, WarnBadge } from "./SidebarNavParts";
 
 import type { NavGroup, NavItem } from "./BackofficeShell";
 
@@ -31,7 +25,6 @@ interface SidebarNavProps {
   activeHref: string | undefined;
   canSeeItem: (item: NavItem) => boolean;
   warningCounts: Record<string, number>;
-  collapsed: boolean;
 }
 
 // Đổi màn cha ↔ con: trượt + mờ nhẹ 150ms (Mode A), tắt khi giảm chuyển động
@@ -42,15 +35,9 @@ const PANEL_IN =
  * Menu sidebar kiểu Vercel (drill-down): màn gốc là các item cha; bấm một item cha thì danh sách
  * được thay bằng các item con của nó, đầu có nút quay lại màn gốc. Đang ở trang thuộc nhóm nào thì
  * mở sẵn màn con của nhóm đó. Nhóm chỉ có một item thấy được → item đó là link thẳng ở màn gốc.
- * Sidebar thu gọn → danh sách icon phẳng như cũ (tooltip từng item).
+ * Sidebar thu nhỏ thì ẩn hẳn (offcanvas) — không có bản cột icon.
  */
-export function SidebarNav({
-  groups,
-  activeHref,
-  canSeeItem,
-  warningCounts,
-  collapsed,
-}: SidebarNavProps) {
+export function SidebarNav({ groups, activeHref, canSeeItem, warningCounts }: SidebarNavProps) {
   const visible = groups
     .map((group) => ({ ...group, items: group.items.filter(canSeeItem) }))
     .filter((group) => group.items.length > 0);
@@ -64,12 +51,6 @@ export function SidebarNav({
   if (activeGroup !== lastActive) {
     setLastActive(activeGroup);
     setPanel(activeGroup);
-  }
-
-  if (collapsed) {
-    return (
-      <SidebarNavCollapsed groups={visible} activeHref={activeHref} warningCounts={warningCounts} />
-    );
   }
 
   const current = visible.find((g) => g.title === panel && g.items.length > 1);
