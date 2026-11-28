@@ -14,7 +14,7 @@ import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { useCan, usePermissionChecker } from "@/lib/auth/components/Can";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 import { ServerTableBody } from "@/components/backoffice/ServerTableBody";
-import { TOOLBAR_ACTION_CLASS } from "@/components/shared/ListToolbar";
+import { RowActionsMenu } from "@/components/shared/RowActionsMenu";
 import { Button } from "@/components/ui/button";
 
 import { allowedInstallmentActions } from "../lifecycle";
@@ -28,6 +28,8 @@ import {
   INSTALLMENT_LOCKED_COLUMNS,
 } from "./installment-columns";
 import { InstallmentFilters } from "./InstallmentFilters";
+import { InstallmentKpis } from "./InstallmentKpis";
+import { useRecordedReceipt } from "./ReceiptRecordedNotice";
 import { RecordReceiptDialog } from "./RecordReceiptDialog";
 import { useInstallmentListState } from "./useInstallmentListState";
 
@@ -41,6 +43,7 @@ function InstallmentListContent() {
   const canRead = useCan(PAYMENT_INSTALLMENT_PERMISSIONS.read);
   const s = useInstallmentListState(canRead);
   const [recording, setRecording] = useState<Installment | null>(null);
+  const recorded = useRecordedReceipt();
   const columnState = useColumnVisibility(
     PAYMENT_STORAGE_KEYS.installmentsColumns,
     INSTALLMENT_COLUMNS,
@@ -48,27 +51,25 @@ function InstallmentListContent() {
   );
   const columns = buildInstallmentColumns((row) =>
     allowedInstallmentActions(row, can).includes("recordReceipt") ? (
-      <Button
-        type="button"
-        size="xs"
-        variant="outline"
-        className={TOOLBAR_ACTION_CLASS}
-        // Tên truy cập mang hợp đồng + đợt: mỗi dòng một nút "Lập phiếu thu" phân biệt được (BO-UX-11)
-        aria-label={`${PAYMENT_LABELS.receipts.createAction} — ${row.contractNumber} ${installmentRef(row)}`}
-        onClick={(event) => {
-          event.stopPropagation();
-          setRecording(row);
-        }}
-      >
-        <ReceiptText className="size-3.5" aria-hidden="true" />{" "}
-        {PAYMENT_LABELS.receipts.createAction}
-      </Button>
+      // Tên truy cập mang hợp đồng + đợt: mỗi dòng một menu phân biệt được (BO-UX-11)
+      <RowActionsMenu
+        label={`Thao tác — ${row.contractNumber} ${installmentRef(row)}`}
+        actions={[
+          {
+            label: PAYMENT_LABELS.receipts.createAction,
+            icon: ReceiptText,
+            onSelect: () => setRecording(row),
+          },
+        ]}
+      />
     ) : null,
   ).filter((column) => columnState.visible.some((key) => key === column.key));
 
   return (
     <div className="surface-soft">
       <h1 className="sr-only">{L.pageTitle}</h1>
+      {recorded.notice && <div className="mb-3">{recorded.notice}</div>}
+      <InstallmentKpis canRead={canRead} />
       {canRead && <InstallmentFilters s={s} columns={columnState} />}
       <ServerTableBody
         query={s.query}
@@ -79,20 +80,37 @@ function InstallmentListContent() {
         flagRow={(row) => row.overdue}
         noun="đợt thanh toán"
         errorCopy={INSTALLMENT_COPY}
-        hasFilters={s.hasFilters}
+        hasFilters={s.hasFilters && !s.defaultQueue}
         onClearFilters={s.clearFilters}
-        empty={{
-          icon: <CalendarClock className="size-8" />,
-          title: L.emptyTitle,
-          description: L.emptyDescription,
-        }}
+        empty={
+          s.defaultQueue
+            ? {
+                icon: <CalendarClock className="size-8" />,
+                title: L.emptyQueueTitle,
+                description: L.emptyQueueDescription,
+                action: (
+                  <Button type="button" variant="outline" size="sm" onClick={s.clearFilters}>
+                    {L.showAll}
+                  </Button>
+                ),
+              }
+            : {
+                icon: <CalendarClock className="size-8" />,
+                title: L.emptyTitle,
+                description: L.emptyDescription,
+              }
+        }
         pageSize={s.pageSize}
         onPageChange={s.goToPage}
         onPageSizeChange={s.changePageSize}
         sorting={s.sorting}
         stickyHeader
       />
-      <RecordReceiptDialog installment={recording} onClose={() => setRecording(null)} />
+      <RecordReceiptDialog
+        installment={recording}
+        onClose={() => setRecording(null)}
+        onRecorded={recorded.onRecorded}
+      />
     </div>
   );
 }

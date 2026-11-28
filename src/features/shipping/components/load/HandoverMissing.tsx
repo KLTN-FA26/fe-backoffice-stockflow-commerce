@@ -63,6 +63,7 @@ export function HandoverMissing({ load }: { load: Load }) {
                     <HandoverReasonLink
                       key={reasonCode}
                       orderId={blocker.order.orderId}
+                      load={{ loadId: load.loadId, code: load.code }}
                       reasonCode={reasonCode}
                     />
                   ))}

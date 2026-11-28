@@ -255,3 +255,76 @@ export const CHAT_A11Y_LABELS = {
   newMessage: (sender: string, preview: string) => `Tin mới từ ${sender}: ${preview}`,
   unreadBadge: (count: number) => `${count} tin chưa đọc`,
 } as const;
+
+/** Trang "Câu trả lời mẫu" — bảng ERP (backoffice-erp-ui A). */
+export const CHAT_CANNED_LABELS = {
+  title: "Câu trả lời mẫu",
+  createAria: "Tạo mới câu trả lời mẫu",
+  createTooltip: "Thêm câu trả lời mẫu",
+  createDenied: "Bạn không có quyền thêm câu trả lời mẫu.",
+  readDenied: "Bạn chưa có quyền xem câu trả lời mẫu.",
+  searchPlaceholder: "Tìm theo tiêu đề, nội dung, phím tắt…",
+  searchSummary: "Tìm kiếm chính",
+  searchFields: "Trường search",
+  searchFieldsValue: "Tiêu đề · Nội dung · Phím tắt",
+  columnSearch: "Search trong cột",
+  unused: "Chưa dùng",
+  categoryFilter: "Tìm theo nhóm…",
+  titleFilter: "Tìm theo tiêu đề hoặc phím tắt…",
+  bodyFilter: "Tìm trong nội dung…",
+  columns: {
+    title: "Tiêu đề",
+    category: "Nhóm",
+    scope: "Phạm vi",
+    body: "Nội dung",
+    actions: "Thao tác",
+  },
+  shared: "Dùng chung",
+  own: "Của tôi",
+  edit: "Sửa câu mẫu",
+  remove: "Xoá câu mẫu",
+  sharedLocked: "Mẫu dùng chung — chỉ người giám sát sửa / xoá được.",
+  caption: "Câu trả lời mẫu của bạn và mẫu dùng chung",
+  emptyTitle: "Chưa có câu trả lời mẫu",
+  emptyDescription: "Câu mẫu giúp trả lời nhanh những câu hỏi lặp lại.",
+  noMatchTitle: "Không có câu mẫu khớp",
+  noMatchDescription: "Thử đổi từ khoá hoặc bỏ lọc nhóm.",
+  clearFilters: "Bỏ bộ lọc",
+  retry: "Thử lại",
+} as const;
+
+/** UI/UX bo-32, bo-33: dòng hộp thư và khối chứng từ đang mở ở panel khách. */
+export const CHAT_INBOX_LABELS = {
+  overdue: "Quá hạn",
+  unassigned: "Chưa phân công",
+  orderStatus: (orderNumber: string, status: string) => `Đơn ${orderNumber}: ${status}`,
+  shipment: "Lô giao",
+  openDocuments: "Báo giá / đơn đang mở",
+  noOpenDocuments: "Không có báo giá hay đơn đang mở.",
+  installments: "Đợt còn phải thu",
+  noInstallments: "Không có.",
+  installment: (seq: number) => `đợt ${seq}`,
+  dueOn: (date: string) => `hạn ${date}`,
+} as const;
+
+/**
+ * Báo giá còn chờ khách / Sale (BE `QuoteStatus`): nháp, đã gửi, yêu cầu sửa, đã chấp nhận chưa lên đơn. Hết hiệu lực,
+ * đã huỷ, đã tạo đơn là xong.
+ */
+export const CHAT_OPEN_QUOTE_STATUSES: readonly string[] = [
+  "DRAFT",
+  "SENT",
+  "CHANGES_REQUESTED",
+  "ACCEPTED",
+];
+
+/** Đơn đã xong (BE `OrderStatus`): đã giao, hoàn tất, huỷ, đóng, trả / hoàn tiền — mọi trạng thái khác là đang chạy. */
+export const CHAT_CLOSED_ORDER_STATUSES: readonly string[] = [
+  "DELIVERED",
+  "COMPLETED",
+  "CANCELLED",
+  "CLOSED",
+  "RETURNED",
+  "REFUNDED",
+  "PARTIALLY_REFUNDED",
+];

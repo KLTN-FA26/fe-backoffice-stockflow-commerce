@@ -17,7 +17,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/components/shared/combobox-select";
 import { Textarea } from "@/components/ui/textarea";
 import { formatMoney } from "@/lib/format";
 import { formatDate } from "@/lib/format/date";
@@ -298,7 +298,12 @@ function ExternalReductionForm({ invoice, onClose }: { invoice: EInvoice; onClos
       </div>
       <div className="grid gap-3 md:grid-cols-3">
         <FormField id="reduction-date" label="Ngày hoá đơn" required error={fieldErrors.issueDate}>
-          <DatePicker id="reduction-date" value={issueDate} onChange={setIssueDate} />
+          <DatePicker
+            quickKind="past"
+            id="reduction-date"
+            value={issueDate}
+            onChange={setIssueDate}
+          />
         </FormField>
         <FormField
           id="reduction-tax-code"

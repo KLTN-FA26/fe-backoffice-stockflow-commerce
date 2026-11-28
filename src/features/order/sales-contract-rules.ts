@@ -7,15 +7,17 @@
  */
 
 import { SALES_CONTRACT_PERMISSIONS, SALES_CONTRACT_SIGNED_STATUSES } from "@/constants";
+import { ORDER_CONTRACT_LABELS } from "@/constants/labels-order-contract";
 
 import { DEFAULT_ON_SIGNING_DUE_DAYS } from "./sales-contract-form";
 
 import type { PermissionCode } from "@/lib/auth/me-permissions";
 import type { ContractFormValues } from "./sales-contract-form";
-import type { SalesContract } from "./sales-contract-schemas";
+import type { ContractCreditReviewView, SalesContract } from "./sales-contract-schemas";
 import type { Order } from "./types";
 
-export type ContractAction = "create" | "edit" | "send" | "sign" | "cancel" | "preview";
+export type ContractAction =
+  "create" | "edit" | "send" | "sign" | "cancel" | "preview" | "withdraw-review";
 
 export const CONTRACT_TRANSITIONS = {
   DRAFT: ["SENT", "CANCELLED"],
@@ -28,8 +30,13 @@ export const CONTRACT_TRANSITIONS = {
   UNKNOWN: [],
 } as const satisfies Record<SalesContract["status"], readonly SalesContract["status"][]>;
 
+/**
+ * 15 BR-11 (BE PR #486): nháp đang chờ Kế toán duyệt tín dụng (`creditReview = PENDING`) — BE trả 409
+ * CONTRACT_CREDIT_REVIEW_PENDING cho sửa / gửi lại / gợi ý lịch → bỏ "edit", "send"; Sale có "withdraw-review" để rút
+ * về sửa. Huỷ hợp đồng và xem PDF nháp không bị BE chặn nên giữ.
+ */
 export function allowedContractActions(
-  contract: Pick<SalesContract, "status"> | null,
+  contract: (Pick<SalesContract, "status"> & Partial<Pick<SalesContract, "creditReview">>) | null,
   orderStatus: Order["status"],
   can: (code: PermissionCode) => boolean,
 ): ContractAction[] {
@@ -41,12 +48,32 @@ export function allowedContractActions(
     can(SALES_CONTRACT_PERMISSIONS.create)
   )
     actions.push("create");
+  const reviewPending = status === "DRAFT" && contract?.creditReview === "PENDING";
   if (status === "DRAFT" && can(SALES_CONTRACT_PERMISSIONS.update))
-    actions.push("edit", "send", "cancel");
+    actions.push(
+      ...(reviewPending ? (["withdraw-review"] as const) : (["edit", "send"] as const)),
+      "cancel",
+    );
   if (status === "DRAFT") actions.push("preview");
   if (status === "SENT" && can(SALES_CONTRACT_PERMISSIONS.approve)) actions.push("sign");
   if (status === "SENT" && can(SALES_CONTRACT_PERMISSIONS.update)) actions.push("cancel");
   return actions;
+}
+
+/**
+ * BR-S12 (KE-HOACH sales-owner, chế độ chặt): lập / sửa / gửi / huỷ hợp đồng chỉ người phụ trách khách, người lo thay và
+ * Sales Manager làm được trên khách có chủ. Ghi nhận đã ký, xem PDF, rút duyệt tín dụng: không đổi. Backend phải re-check
+ * (409 CUSTOMER_OWNED_BY_OTHER_SALES).
+ */
+export const OWNER_GATED_CONTRACT_ACTIONS: readonly ContractAction[] = [
+  "create",
+  "edit",
+  "send",
+  "cancel",
+];
+
+export function isOwnerGatedContractAction(action: ContractAction): boolean {
+  return OWNER_GATED_CONTRACT_ACTIONS.includes(action);
 }
 
 /** Đơn không còn giao / thu gì thêm — BE `ContractPaperService.ended` (COMPLETED, CANCELLED, CLOSED, REFUNDED, PARTIALLY_REFUNDED). */
@@ -139,12 +166,32 @@ export function dueRuleText(entry: {
   }
 }
 
+/** Một đợt thanh toán quy ra tiền (xem trước; % quy theo tổng có thuế, phần lẻ BE dồn đợt cuối). */
+export function planEntryAmount(
+  entry: Pick<ContractFormValues["paymentPlan"][number], "mode" | "value">,
+  totalWithTax: number,
+): number {
+  const value = Number(entry.value) || 0;
+  return entry.mode === "percent" ? Math.round((totalWithTax * value) / 100) : value;
+}
+
 /** Tổng các đợt thanh toán quy ra tiền (xem trước; % quy theo tổng có thuế, phần lẻ BE dồn đợt cuối). */
 export function planTotal(plan: ContractFormValues["paymentPlan"], totalWithTax: number): number {
-  return plan.reduce((sum, entry) => {
-    const value = Number(entry.value) || 0;
-    return sum + (entry.mode === "percent" ? Math.round((totalWithTax * value) / 100) : value);
-  }, 0);
+  return plan.reduce((sum, entry) => sum + planEntryAmount(entry, totalWithTax), 0);
+}
+
+/**
+ * Phần hợp đồng này trả sau giao — đúng số BE dùng để kiểm hạn mức khi gửi (`SalesContractService.creditCheck`: tổng
+ * các đợt mốc AFTER_DELIVERY; 15 BR-10, BR-11). 0 = lịch không xin công nợ, BE không kiểm.
+ */
+export function planDeferredAmount(
+  plan: ContractFormValues["paymentPlan"],
+  totalWithTax: number,
+): number {
+  return planTotal(
+    plan.filter((entry) => entry.milestone === "AFTER_DELIVERY"),
+    totalWithTax,
+  );
 }
 
 /** Thông báo cảnh báo tín dụng (15 BR-11) theo `outcome` của BE. */
@@ -152,9 +199,23 @@ export function creditWarningText(
   warning: NonNullable<SalesContract["creditWarning"]>,
   format: (amount: number) => string,
 ): string {
+  // 15 BR-11 (BE PR #486): gửi lúc này không tới khách ngay mà phải chờ Kế toán duyệt tín dụng trước.
   if (warning.outcome === "OVERDUE")
-    return "Khách đang có khoản quá hạn. Nếu vẫn gửi và khách ký, đơn sẽ bị treo chờ Kế toán duyệt tín dụng.";
-  return `Phần trả sau giao (${format(warning.afterDelivery ?? 0)}) cộng dư nợ hiện tại (${format(warning.exposure ?? 0)}) vượt hạn mức (${format(warning.creditLimit ?? 0)}). Đơn sẽ bị treo khi ký.`;
+    return "Khách đang có khoản quá hạn. Bấm gửi thì hợp đồng phải chờ Kế toán duyệt tín dụng rồi mới tới khách.";
+  return `Phần trả sau giao (${format(warning.afterDelivery ?? 0)}) cộng dư nợ hiện tại (${format(warning.exposure ?? 0)}) vượt hạn mức (${format(warning.creditLimit ?? 0)}). Bấm gửi thì hợp đồng phải chờ Kế toán duyệt tín dụng rồi mới tới khách.`;
+}
+
+/** Vì sao hợp đồng phải chờ Kế toán (BE `checkOutcome`, số liệu tại lúc gửi duyệt). */
+export function creditReviewReasonText(
+  review: Pick<
+    ContractCreditReviewView,
+    "checkOutcome" | "creditLimit" | "exposure" | "afterDelivery" | "overdueAmount"
+  >,
+  format: (amount: number) => string,
+): string {
+  if (review.checkOutcome === "OVERDUE")
+    return `Khách đang có khoản quá hạn (${format(review.overdueAmount ?? 0)}).`;
+  return `Phần trả sau giao (${format(review.afterDelivery ?? 0)}) cộng dư nợ (${format(review.exposure ?? 0)}) vượt hạn mức (${format(review.creditLimit ?? 0)}).`;
 }
 
 const FIELD_NAMES: Readonly<Record<string, string>> = {
@@ -216,6 +277,34 @@ export function passedBatches(
 export function passedBatchesText(passed: readonly { seq: number }[]): string | null {
   if (passed.length === 0) return null;
   return `Đợt giao ${passed.map((batch) => batch.seq).join(", ")} đã qua — sau khi ký dùng 'Dời cửa sổ giao' ở khối Lịch giao để đặt lại.`;
+}
+
+/**
+ * Gửi hợp đồng cần mọi đợt giao có cửa sổ giao và không đợt nào bắt đầu trước hôm nay (docs 14 §4.3 bước 11, BR-23; BE
+ * `ContractTerms.requireWindows`). Tính trước để nút "Gửi hợp đồng" khoá kèm lý do, thay vì để Sale bấm rồi mới nghe lỗi.
+ * `today` là "YYYY-MM-DD" theo Asia/Ho_Chi_Minh. UI-only — BE vẫn kiểm lại.
+ */
+export function sendBlockers(
+  contract: Pick<SalesContract, "deliverySchedule">,
+  today: string,
+): { missing: number[]; past: number[] } {
+  const missing: number[] = [];
+  const past: number[] = [];
+  contract.deliverySchedule.forEach((batch, index) => {
+    const seq = batch.seq ?? index + 1;
+    if (!batch.windowStart) missing.push(seq);
+    else if (batch.windowStart < today) past.push(seq);
+  });
+  return { missing, past };
+}
+
+/** Một dòng "Còn thiếu: …" dưới nút Gửi hợp đồng (R7); `null` khi gửi được. */
+export function sendBlockersText(blockers: { missing: number[]; past: number[] }): string | null {
+  const parts: string[] = [];
+  if (blockers.missing.length > 0)
+    parts.push(ORDER_CONTRACT_LABELS.sendBlocked.missing(blockers.missing));
+  if (blockers.past.length > 0) parts.push(ORDER_CONTRACT_LABELS.sendBlocked.past(blockers.past));
+  return parts.length > 0 ? parts.join(" ") : null;
 }
 
 /** Mục 29: BE `FileCategory.DOCUMENT` — pdf, docx, xlsx, jpeg, png (else 415). `.webp` is not accepted. */

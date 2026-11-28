@@ -47,6 +47,7 @@ const COMMON = {
     type: "Loại",
     size: "Dung lượng",
     uploadedAt: "Tải lên lúc",
+    uploadedBy: "Người tải lên",
     actions: "Thao tác",
   },
   typeOther: "Tệp",

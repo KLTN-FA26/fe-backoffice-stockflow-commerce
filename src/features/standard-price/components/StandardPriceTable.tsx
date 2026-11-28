@@ -1,27 +1,28 @@
 "use client";
 
 import { useState } from "react";
-import { RotateCw } from "lucide-react";
+import { RotateCw, Tags } from "lucide-react";
 
 import { STANDARD_PRICE_UI_LABELS } from "@/constants";
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { withHeaderFilters } from "@/components/shared/ColumnHeaderFilter";
 import { DataTable } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { SearchBar } from "@/components/shared/SearchBar";
-import { toast } from "@/components/shared/Toast";
+import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Button } from "@/components/ui/button";
 
-import { standardPriceErrorKind, standardPriceErrorMessage } from "../errors";
-import { useDeleteStandardPrice } from "../mutations";
-import { filterStandardPrices } from "../selectors";
+import { standardPriceErrorKind } from "../errors";
+import { DeleteStandardPriceDialog } from "./DeleteStandardPriceDialog";
 import { actionColumn, STANDARD_PRICE_COLUMNS } from "./standard-price-columns";
+import { standardPriceHeaderFilters, StandardPriceToolbar } from "./StandardPriceToolbar";
 
 import type { StandardPrice } from "../schemas";
+import type { StandardPriceFilters } from "./useStandardPriceFilters";
 
 const L = STANDARD_PRICE_UI_LABELS;
 const T = L.table;
-const NOTE = "text-ink-tertiary text-xs";
 const PAGE_SIZE = 15;
+/** EmptyState bỏ khung khi nằm trong thân bảng (backoffice-erp-ui A7). */
+const IN_TABLE = "rounded-none border-0 bg-transparent py-10 whitespace-normal";
 
 interface PricesQuery {
   data: StandardPrice[] | undefined;
@@ -34,26 +35,32 @@ interface PricesQuery {
 
 /**
  * Danh sách giá chuẩn (BE `GET /catalog/standard-prices` — mảng thường, không phân trang). Lọc + phân trang phía FE.
- * Nút sửa / xoá chỉ có khi người dùng có quyền (UI-only, BE re-check); xoá hỏi lại trước.
+ * Thao tác sửa / xoá trong menu "⋯" chỉ có khi người dùng có quyền (UI-only, BE re-check); xoá hỏi lại trước. Bảng luôn
+ * giữ header (còn bỏ lọc ở cột được); chưa có dữ liệu / lọc không ra thì thông báo nằm trong thân bảng.
  */
 export function StandardPriceTable({
   query,
   canRead,
   onEdit,
   canDelete,
+  filters,
 }: {
   query: PricesQuery;
   canRead: boolean;
   onEdit?: (price: StandardPrice) => void;
   canDelete: boolean;
+  filters: StandardPriceFilters;
 }) {
-  const [filter, setFilter] = useState("");
   const [removing, setRemoving] = useState<StandardPrice | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const remove = useDeleteStandardPrice();
 
   if (!canRead) return <EmptyState title={T.readDenied} />;
-  if (query.isPending) return <p className={NOTE}>{T.loading}</p>;
+  if (query.isPending)
+    return (
+      <div role="status">
+        <span className="sr-only">{T.loading}</span>
+        <PageSkeleton variant="list" />
+      </div>
+    );
   const retry = (
     <Button
       type="button"
@@ -76,14 +83,15 @@ export function StandardPriceTable({
       </div>
     );
   }
-  const rows = filterStandardPrices(prices, filter);
+  const rows = filters.apply(prices);
   const withActions = onEdit || canDelete;
-  const columns = withActions
-    ? [
-        ...STANDARD_PRICE_COLUMNS,
-        actionColumn(onEdit, canDelete ? (p) => (setError(null), setRemoving(p)) : undefined),
-      ]
+  const allColumns = withActions
+    ? [...STANDARD_PRICE_COLUMNS, actionColumn(onEdit, canDelete ? setRemoving : undefined)]
     : STANDARD_PRICE_COLUMNS;
+  const columns = withHeaderFilters(
+    allColumns.filter((column) => filters.columns.visible.some((key) => key === column.key)),
+    standardPriceHeaderFilters(filters),
+  );
 
   return (
     <div className="space-y-3">
@@ -93,60 +101,37 @@ export function StandardPriceTable({
           {retry}
         </div>
       )}
-      {prices.length === 0 ? (
-        <EmptyState title={T.empty} description={T.emptyHint} />
-      ) : (
-        <>
-          <SearchBar
-            value={filter}
-            onChange={setFilter}
-            placeholder={T.filter}
-            className="max-w-sm"
-          />
-          {rows.length === 0 ? (
+      <StandardPriceToolbar filters={filters} />
+      <DataTable
+        data={rows}
+        columns={columns}
+        rowKey={(p) => p.sku}
+        caption={T.caption}
+        pageSize={PAGE_SIZE}
+        stickyHeader
+        emptyState={
+          prices.length === 0 ? (
             <EmptyState
+              className={IN_TABLE}
+              icon={<Tags className="size-8" />}
+              title={T.empty}
+              description={T.emptyHint}
+            />
+          ) : rows.length === 0 ? (
+            <EmptyState
+              className={IN_TABLE}
+              icon={<Tags className="size-8" />}
               title={T.noMatch}
               action={
-                <Button type="button" variant="outline" size="sm" onClick={() => setFilter("")}>
+                <Button type="button" variant="outline" size="sm" onClick={filters.clear}>
                   {T.clearFilter}
                 </Button>
               }
             />
-          ) : (
-            <DataTable
-              data={rows}
-              columns={columns}
-              rowKey={(p) => p.sku}
-              caption={T.caption}
-              pageSize={PAGE_SIZE}
-            />
-          )}
-        </>
-      )}
-      <ConfirmDialog
-        open={removing !== null}
-        onOpenChange={(open) => !open && setRemoving(null)}
-        title={L.remove.title(removing?.sku ?? "")}
-        description={L.remove.description}
-        confirmLabel={L.remove.confirm}
-        variant="danger"
-        loading={remove.isPending}
-        closeOnConfirm={false}
-        error={error}
-        onConfirm={() =>
-          removing &&
-          remove.mutate(
-            { sku: removing.sku, version: removing.version },
-            {
-              onSuccess: () => {
-                toast.success(L.remove.deleted);
-                setRemoving(null);
-              },
-              onError: (e) => setError(standardPriceErrorMessage(e)),
-            },
-          )
+          ) : undefined
         }
       />
+      <DeleteStandardPriceDialog price={removing} onClose={() => setRemoving(null)} />
     </div>
   );
 }

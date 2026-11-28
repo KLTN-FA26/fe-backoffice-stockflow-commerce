@@ -60,6 +60,11 @@ export function ErrorNoticesCard({
               <span className="text-ink-secondary tabular-nums">
                 {formatDateTime(notice.recordedAt)}
               </span>
+              {notice.recordedByName && (
+                <span className="text-ink-tertiary">
+                  {EINVOICE_LABELS.detail.recordedBy(notice.recordedByName)}
+                </span>
+              )}
               <span className="font-medium">{STATUS[notice.status]}</span>
               {canSend && (notice.status === "DRAFT" || notice.status === "SENT") && (
                 <Button

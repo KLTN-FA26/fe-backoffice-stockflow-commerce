@@ -26,8 +26,10 @@ import { ReceiptSummaryBar } from "./ReceiptSummaryBar";
 import {
   RECEIPT_COLUMN_KEYS,
   RECEIPT_COLUMNS,
+  RECEIPT_DEFAULT_COLUMNS,
   RECEIPT_LOCKED_COLUMNS,
   RECEIPT_SORTABLE,
+  receiptLinesNamed,
 } from "./receipt-columns";
 
 const L = PAYMENT_LABELS.receipts;
@@ -37,6 +39,8 @@ function ReceiptListContent() {
   const canRead = useCan(PAYMENT_RECEIPT_PERMISSIONS.read);
   const paged = usePagedList(PAYMENT_STORAGE_KEYS.receiptsConfig, RECEIPT_SORTABLE);
   const [status, setStatus] = useQueryState("status", parseAsStringLiteral(RECEIPT_API_STATUSES));
+  // bo-24: ô tìm chính = BE `search` (khách, MST, số hợp đồng, số đơn); mã tham chiếu sao kê là bộ lọc riêng, khớp chính xác
+  const [q, setQ] = useQueryState("q", parseAsString.withDefault(""));
   const [reference, setReference] = useQueryState("reference", parseAsString.withDefault(""));
   const [customerId, setCustomerId] = useQueryState("customerId", parseAsString.withDefault(""));
   const [receivedFrom, setReceivedFrom] = useQueryState(
@@ -45,11 +49,13 @@ function ReceiptListContent() {
   );
   const [receivedTo, setReceivedTo] = useQueryState("receivedTo", parseAsString.withDefault(""));
   const debouncedReference = useDebouncedValue(reference, 300);
+  const debouncedQ = useDebouncedValue(q, 300);
   // BE answers a reversed range with 400 VALIDATION_FAILED: flag it at the field and send nothing (ISO dates sort as text).
   const rangeInverted = !!receivedFrom && !!receivedTo && receivedFrom > receivedTo;
   const filter = {
     status: status ?? undefined,
     reference: debouncedReference.trim() || undefined,
+    search: debouncedQ.trim() || undefined,
     customerId: customerId || undefined,
     receivedFrom: receivedFrom || undefined,
     receivedTo: receivedTo || undefined,
@@ -59,18 +65,23 @@ function ReceiptListContent() {
     { enabled: canRead && !rangeInverted },
   );
   const hasFilters =
-    !!status || !!reference.trim() || !!customerId || !!receivedFrom || !!receivedTo;
+    !!status || !!q.trim() || !!reference.trim() || !!customerId || !!receivedFrom || !!receivedTo;
   const named = query.data?.items.find((row) => row.customerId === customerId);
   const columnState = useColumnVisibility(
     PAYMENT_STORAGE_KEYS.receiptsColumns,
     RECEIPT_COLUMN_KEYS,
-    { locked: RECEIPT_LOCKED_COLUMNS },
+    { defaults: RECEIPT_DEFAULT_COLUMNS, locked: RECEIPT_LOCKED_COLUMNS },
   );
-  const columns = RECEIPT_COLUMNS.filter((column) =>
-    columnState.visible.some((key) => key === column.key),
+  // BE trước PR #497 không kèm hợp đồng / đợt trên dòng của danh sách → không có cột "Hợp đồng · Đợt"
+  const linesNamed = receiptLinesNamed(query.data?.items);
+  const columns = RECEIPT_COLUMNS.filter(
+    (column) =>
+      columnState.visible.some((key) => key === column.key) &&
+      (linesNamed || column.key !== "installments"),
   );
   const clearAll = () => {
     void setStatus(null);
+    void setQ("");
     void setReference("");
     void setCustomerId("");
     void setReceivedFrom("");
@@ -84,6 +95,12 @@ function ReceiptListContent() {
       <h1 className="sr-only">{L.pageTitle}</h1>
       {canRead && (
         <ReceiptFilters
+          search={q}
+          onSearchChange={(value) => {
+            void setQ(value);
+            paged.resetPage();
+          }}
+          linesNamed={linesNamed}
           reference={reference}
           onReferenceChange={(value) => {
             void setReference(value);
@@ -109,6 +126,10 @@ function ReceiptListContent() {
           customerName={named?.customerName}
           customerCode={named?.customerCode}
           onClearCustomer={() => void setCustomerId("")}
+          onCustomerChange={(value) => {
+            void setCustomerId(value);
+            paged.resetPage();
+          }}
           hasFilters={hasFilters}
           onClear={clearAll}
           columns={columnState}
@@ -142,7 +163,10 @@ function ReceiptListContent() {
   );
 }
 
-/** Danh sách phiếu thu (docs 15 §5.3): lọc theo trạng thái, mã tham chiếu sao kê, ngày nhận, khách; tổng + xuất Excel. */
+/**
+ * Danh sách phiếu thu (docs 15 §5.3): tìm theo khách / MST / số hợp đồng / số đơn, lọc theo trạng thái, mã tham chiếu sao
+ * kê, ngày nhận, khách; tổng + xuất Excel cùng bộ lọc.
+ */
 export function ReceiptList() {
   return (
     <PermissionBoundary permissions={[PAYMENT_RECEIPT_PERMISSIONS.viewPage]} variant="list">

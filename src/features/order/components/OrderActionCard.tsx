@@ -1,20 +1,21 @@
+import { Fragment } from "react";
+
 import {
-  CREDIT_HOLD_PERMISSIONS,
   FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS,
   ORDER_ACTION_LABELS,
-  ORDER_HOLD_GUIDANCE,
   ORDER_PERMISSIONS,
   ORDER_RELEASE_BLOCKER_LABELS,
   ORDER_RELEASE_LABELS,
-  ORDER_STATUS_UNKNOWN,
 } from "@/constants";
-import { StatusDot } from "@/components/shared/StatusDot";
 
-import { allowedOrderActions, isOrderTerminal, orderActionContextOf } from "../lifecycle";
+import { ObjectActions } from "@/components/shared/ObjectActions";
+
+import { allowedOrderActions, orderActionContextOf } from "../lifecycle";
 import { releaseBlockers } from "../release-rules";
 
 import { CreditApproveAction } from "./credit-hold/CreditApproveAction";
 import { CreditRejectAction } from "./credit-hold/CreditRejectAction";
+import { DANGER_ORDER, holdGuidanceFor, noActionReason, PRIMARY_ORDER } from "./order-action-rules";
 import { OrderCancelAction } from "./OrderCancelAction";
 import { OrderHoldNotice } from "./OrderHoldNotice";
 import { OrderNextStep } from "./OrderNextStep";
@@ -29,7 +30,7 @@ import {
 import type { PermissionCode } from "@/lib/auth";
 import type { OrderEstimateSlot } from "../estimate-slot";
 import type { OrderActionCode } from "../lifecycle";
-import type { Order, OrderReadStatus } from "../types";
+import type { Order } from "../types";
 
 interface OrderActionCardProps {
   order: Order;
@@ -38,74 +39,9 @@ interface OrderActionCardProps {
   estimateSlot?: OrderEstimateSlot;
 }
 
-/** Trạng thái đã đóng gói / bàn giao — BE không cho huỷ (BR-ORD-004), xử lý qua luồng trả hàng. */
-const PACKED_ONWARDS: readonly OrderReadStatus[] = [
-  "Packed",
-  "Partially Fulfilled",
-  "Shipped",
-  "Delivery Failed",
-  "Delivered",
-  "Return Requested",
-  "Returned",
-  "Refunded",
-  "Partially Refunded",
-];
-
-/** Mã quyền ghi bất kỳ trên đơn — thiếu hết thì người xem chỉ đọc. */
-const WRITE_PERMISSIONS: readonly PermissionCode[] = [
-  ORDER_PERMISSIONS.cancel,
-  ORDER_PERMISSIONS.hold,
-  FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS.approve,
-  ORDER_PERMISSIONS.release,
-  CREDIT_HOLD_PERMISSIONS.approve,
-];
-
 /**
- * Vì sao không có nút thao tác — theo trạng thái + quyền, để người dùng không tưởng là lỗi. Không nói
- * "đã bàn giao" với đơn chỉ đang lấy hàng / tạm giữ.
- */
-function noActionReason(order: Pick<Order, "status">, can: OrderActionCardProps["can"]): string {
-  // Trạng thái BE mới FE chưa hỗ trợ — không đoán thao tác (không phải "đã kết thúc")
-  if (order.status === ORDER_STATUS_UNKNOWN) {
-    return "Trạng thái đơn chưa được hỗ trợ — không có thao tác.";
-  }
-  if (isOrderTerminal(order.status)) return "Đơn đã kết thúc — không còn thao tác.";
-  if (!WRITE_PERMISSIONS.some(can)) return "Bạn chỉ có quyền xem đơn hàng.";
-  if (order.status === "On Hold") {
-    return "Đơn đang tạm giữ — việc gỡ giữ / duyệt cần quyền khác với quyền của bạn.";
-  }
-  // BR-ORD-004: từ PACKED hàng đã đóng — không huỷ được, đi luồng trả hàng
-  if (PACKED_ONWARDS.includes(order.status)) {
-    return "Đơn đã đóng gói / bàn giao vận chuyển — không huỷ được, xử lý qua luồng trả hàng.";
-  }
-  return "Không có thao tác nào bạn được phép làm ở trạng thái này.";
-}
-
-/**
- * Vì sao không có nút "Gỡ giữ" khi đơn bị giữ: giữ do hệ thống → nói xử lý ở đâu; lý do không rõ
- * (BE thêm mã mới / không trả `holdReason`) → không đoán, báo chưa gỡ được. Giữ do điều phối viên mà
- * người xem thiếu quyền thì không cần giải thích thêm.
- */
-function holdGuidanceFor(
-  order: Pick<Order, "holdReason">,
-  can: (code: PermissionCode) => boolean,
-): string | null {
-  switch (order.holdReason) {
-    case "CREDIT":
-      return ORDER_HOLD_GUIDANCE.CREDIT;
-    // WF-05 GH-1: BE ORDER_DELIVERY_FAILURE_USE_DECISION — gỡ bằng quyết định hồ sơ giao thất bại
-    case "DELIVERY_FAILED":
-      return ORDER_HOLD_GUIDANCE.DELIVERY_FAILED;
-    case null:
-    case "UNKNOWN":
-      return can(ORDER_PERMISSIONS.hold) ? ORDER_HOLD_GUIDANCE.UNRESOLVABLE : null;
-    default:
-      return null;
-  }
-}
-
-/**
- * Card trạng thái + thao tác ở cột phải trang chi tiết (cùng bố cục ActionCard của NCC).
+ * Thao tác của đơn trên header đối tượng (backoffice-erp-ui B10): nút xếp thành hàng bên phải, dưới là việc tiếp theo,
+ * thông báo tạm giữ, lý do chưa release được. Trạng thái nằm ở dòng mã đơn của header nên không lặp lại ở đây.
  * Nút do `allowedOrderActions` quyết MỘT lần (trạng thái + mã quyền + ngữ cảnh đơn: lý do giữ, đã chia
  * lô, đã đóng gói, giữ công nợ) — không rải điều kiện vòng đời trong JSX.
  * UI-only gating — Backend phải re-check (bảng chuyển trạng thái BE PR #133, OrderReleaseService,
@@ -133,36 +69,57 @@ export function OrderActionCard({ order, can, estimateSlot }: OrderActionCardPro
   // Lý do biết trước chưa release được (đơn cọc chưa nhận cọc): chỉ cho người có quyền release; nói ra thay vì ẩn nút.
   // UI-only — Backend phải re-check (OrderReleaseService: BR-PRD-09).
   const blockers = can(ORDER_PERMISSIONS.release) ? releaseBlockers(order) : [];
+  // MỘT nút chính theo việc tiếp theo; còn lại vào menu "⋯" — việc thường trước, việc phá huỷ (chữ đỏ) cuối
+  const primary = PRIMARY_ORDER.find(has);
+  const menuCodes = [...PRIMARY_ORDER, ...DANGER_ORDER].filter(
+    (code) => has(code) && code !== primary,
+  );
+  const render = (code: OrderActionCode) => {
+    switch (code) {
+      case "release":
+        return <OrderReleaseAction order={order} can={can} estimateSlot={estimateSlot} />;
+      case "credit-approve":
+        return <CreditApproveAction order={order} />;
+      case "resolve-hold":
+        return <OrderResolveHoldAction order={order} />;
+      case "delivery-failure":
+        return <OrderDeliveryFailureAction order={order} />;
+      case "hold":
+        return <OrderHoldAction order={order} />;
+      case "credit-reject":
+        return <CreditRejectAction order={order} />;
+      case "remainder-closure":
+        return <OrderRemainderClosureAction order={order} />;
+      case "admin-cancel":
+        return <OrderCancelAction order={order} />;
+      default:
+        return null;
+    }
+  };
 
   return (
     <section
       aria-label="Thao tác đơn"
-      className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]"
+      className="flex w-full max-w-xl flex-col gap-2 text-left lg:items-end lg:text-right"
     >
-      <div className="mb-4 flex justify-center">
-        <StatusDot domain="order" status={order.status} size="md" withIcon />
-      </div>
+      {actions.length > 0 && (
+        <ObjectActions
+          menuLabel="Thao tác khác với đơn hàng"
+          hasMenu={menuCodes.length > 0}
+          primary={primary ? render(primary) : undefined}
+        >
+          {menuCodes.map((code) => (
+            <Fragment key={code}>{render(code)}</Fragment>
+          ))}
+        </ObjectActions>
+      )}
       <OrderNextStep status={order.status} />
       {onHold && <OrderHoldNotice order={order} />}
-      {actions.length > 0 ? (
-        <div className="space-y-2">
-          {has("release") && (
-            <OrderReleaseAction order={order} can={can} estimateSlot={estimateSlot} />
-          )}
-          {has("credit-approve") && <CreditApproveAction order={order} />}
-          {has("credit-reject") && <CreditRejectAction order={order} />}
-          {has("hold") && <OrderHoldAction order={order} />}
-          {has("resolve-hold") && <OrderResolveHoldAction order={order} />}
-          {has("delivery-failure") && <OrderDeliveryFailureAction order={order} />}
-          {has("remainder-closure") && <OrderRemainderClosureAction order={order} />}
-          {has("admin-cancel") && <OrderCancelAction order={order} />}
-        </div>
-      ) : null}
       {releaseAvailableByStatus && !can(ORDER_PERMISSIONS.release) && (
         <p className="text-ink-secondary mt-2 text-xs">{ORDER_RELEASE_LABELS.permissionHint}</p>
       )}
       {blockers.length > 0 && (
-        <div className="border-border-default bg-bg-subtle mt-3 rounded-[var(--r-sm)] border px-3 py-2 text-xs">
+        <div className="border-border-default bg-bg-subtle rounded-[var(--r-sm)] border px-3 py-2 text-left text-xs">
           <p className="text-ink-primary font-medium">{ORDER_RELEASE_BLOCKER_LABELS.title}</p>
           <ul className="text-ink-secondary mt-1 space-y-0.5">
             {blockers.map((blocker) => (
@@ -171,9 +128,10 @@ export function OrderActionCard({ order, can, estimateSlot }: OrderActionCardPro
           </ul>
         </div>
       )}
-      {guidance && <p className="text-ink-secondary mt-3 text-center text-xs">{guidance}</p>}
+      {guidance && <p className="text-ink-secondary text-xs">{guidance}</p>}
       {actions.length === 0 && blockers.length === 0 && !guidance && (
-        <p className="text-ink-tertiary text-center text-xs">{noActionReason(order, can)}</p>
+        // Không hiện chữ trên header (nút "⋯" / nút chính đã đủ); screen reader vẫn được nghe vì sao không có thao tác
+        <p className="sr-only">{noActionReason(order, can)}</p>
       )}
     </section>
   );

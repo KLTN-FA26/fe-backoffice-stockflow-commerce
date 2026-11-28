@@ -7,6 +7,7 @@ import { OrderDetail } from "./OrderDetail";
 
 import type { RouteHandler } from "../__fixtures__/render";
 import type { OrderDto } from "../types";
+import { clickOrderDetailTab } from "../__fixtures__/render";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
@@ -31,6 +32,12 @@ async function renderDetail(order: OrderDto, routes: Record<string, RouteHandler
 }
 
 afterEach(() => vi.restoreAllMocks());
+
+/** Hàng dữ liệu của bảng lịch sử đơn (bỏ hàng tiêu đề). */
+async function historyRows(history: HTMLElement): Promise<HTMLTableRowElement[]> {
+  const rows = await within(history).findAllByRole("row");
+  return rows.slice(1) as HTMLTableRowElement[];
+}
 
 describe("OrderDetail — dòng hàng sẵn / dòng in + giữ hàng", () => {
   it("docs 14 BR-02: dòng có design snapshot gắn nhãn 'Hàng in theo thiết kế', dòng còn lại 'Hàng sẵn'", async () => {
@@ -84,6 +91,8 @@ describe("OrderDetail — thanh toán / cọc / công nợ / huỷ", () => {
       ],
     };
     await renderDetail(apiOrder, { [DETAIL_PATH]: () => wire });
+    await screen.findByRole("tab", { name: "Thanh toán" });
+    clickOrderDetailTab("Thanh toán");
 
     const card = await financeCard();
     expect(card.getByText("Tạm tính (trước thuế)")).toBeInTheDocument();
@@ -99,6 +108,8 @@ describe("OrderDetail — thanh toán / cọc / công nợ / huỷ", () => {
 
   it("BE không gửi netAmount / taxAmount / fees → không dòng nào, không '0 ₫' bịa", async () => {
     await renderDetail(apiOrder);
+    await screen.findByRole("tab", { name: "Thanh toán" });
+    clickOrderDetailTab("Thanh toán");
     const card = await financeCard();
     expect(card.queryByText("Tạm tính (trước thuế)")).not.toBeInTheDocument();
     expect(card.queryByText("Thuế GTGT")).not.toBeInTheDocument();
@@ -113,6 +124,8 @@ describe("OrderDetail — thanh toán / cọc / công nợ / huỷ", () => {
       holdReason: "CREDIT",
       depositRequired: 105_000,
     });
+    await screen.findByRole("tab", { name: "Thanh toán" });
+    clickOrderDetailTab("Thanh toán");
 
     const card = await financeCard();
     expect(card.queryByText("Tiền cọc")).not.toBeInTheDocument();
@@ -132,6 +145,8 @@ describe("OrderDetail — thanh toán / cọc / công nợ / huỷ", () => {
         retainedAmount: 0,
       },
     });
+    await screen.findByRole("tab", { name: "Thanh toán" });
+    clickOrderDetailTab("Thanh toán");
 
     expect(await screen.findByText("Hết hàng, không thể giao")).toBeInTheDocument();
     expect(screen.getByText("Hết phôi")).toBeInTheDocument();
@@ -148,6 +163,8 @@ describe("OrderDetail — thanh toán / cọc / công nợ / huỷ", () => {
         retainedAmount: 0,
       },
     });
+    await screen.findByRole("tab", { name: "Thanh toán" });
+    clickOrderDetailTab("Thanh toán");
 
     expect(await screen.findByText("Khách yêu cầu")).toBeInTheDocument();
     expect(screen.queryByText("Ghi chú huỷ")).not.toBeInTheDocument();
@@ -164,6 +181,8 @@ describe("OrderDetail — thanh toán / cọc / công nợ / huỷ", () => {
         retainedAmount: 0,
       },
     });
+    await screen.findByRole("tab", { name: "Thanh toán" });
+    clickOrderDetailTab("Thanh toán");
 
     expect(await screen.findByText("FRAUD_REVIEW")).toBeInTheDocument();
     expect(screen.getByText("kiểm tra lại")).toBeInTheDocument();
@@ -192,9 +211,11 @@ describe("OrderDetail — lịch sử trạng thái", () => {
         ],
       },
     );
+    await screen.findByRole("tab", { name: "Lịch sử" });
+    clickOrderDetailTab("Lịch sử");
 
     const history = await screen.findByRole("region", { name: "Lịch sử đơn" });
-    const items = await within(history).findAllByRole("listitem");
+    const items = await historyRows(history);
     expect(items).toHaveLength(2);
     expect(within(items[0] as HTMLElement).getByText("Đặt đơn")).toBeInTheDocument();
     expect(within(items[1] as HTMLElement).getByText("Đã nhận đủ cọc")).toBeInTheDocument();
@@ -215,9 +236,50 @@ describe("OrderDetail — lịch sử trạng thái", () => {
         ],
       },
     );
+    await screen.findByRole("tab", { name: "Lịch sử" });
+    clickOrderDetailTab("Lịch sử");
 
     const history = await screen.findByRole("region", { name: "Lịch sử đơn" });
     expect(await within(history).findByText("Khách yêu cầu — khách đổi ý")).toBeInTheDocument();
     expect(within(history).queryByText(/CUSTOMER_REQUEST/)).not.toBeInTheDocument();
+  });
+});
+
+describe("OrderDetail — tab Thanh toán trước hợp đồng ký (bo-18)", () => {
+  it("đơn Nháp: không dựng khối thanh toán / hoá đơn / hoàn tất, chỉ một dòng nói khi nào có", async () => {
+    const settlement = vi.fn(() => <p>Khối thanh toán hoá đơn</p>);
+    mockOrderApiGet(ORDER_PERMISSION_SETS.salesStaff, {
+      [DETAIL_PATH]: () => ({ ...apiOrder, status: "DRAFT" }),
+    });
+    await act(async () => {
+      renderOrderScreen(
+        <OrderDetail
+          params={Promise.resolve({ id: apiOrder.orderId })}
+          settlementSlot={settlement}
+        />,
+      );
+    });
+    await screen.findByRole("tab", { name: "Thanh toán" });
+    clickOrderDetailTab("Thanh toán");
+    expect(await screen.findByText(/hiện ở đây sau khi khách ký hợp đồng/)).toBeInTheDocument();
+    expect(screen.queryByText("Khối thanh toán hoá đơn")).not.toBeInTheDocument();
+  });
+
+  it("đơn đã xác nhận: khối thanh toán / hoá đơn hiện như trước", async () => {
+    const settlement = vi.fn(() => <p>Khối thanh toán hoá đơn</p>);
+    mockOrderApiGet(ORDER_PERMISSION_SETS.salesStaff, {
+      [DETAIL_PATH]: () => ({ ...apiOrder, status: "CONFIRMED" }),
+    });
+    await act(async () => {
+      renderOrderScreen(
+        <OrderDetail
+          params={Promise.resolve({ id: apiOrder.orderId })}
+          settlementSlot={settlement}
+        />,
+      );
+    });
+    await screen.findByRole("tab", { name: "Thanh toán" });
+    clickOrderDetailTab("Thanh toán");
+    expect(await screen.findByText("Khối thanh toán hoá đơn")).toBeInTheDocument();
   });
 });

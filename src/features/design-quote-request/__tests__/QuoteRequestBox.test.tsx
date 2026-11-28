@@ -72,12 +72,24 @@ function projectRequest(overrides: Record<string, unknown> = {}) {
 }
 
 const CONVERSATIONS = "/chat/conversations";
-/** Nút của dòng mang tên dòng (BO-UX-11): "Lập báo giá — Túi giấy kraft". */
-const CREATE = /^Lập báo giá — /;
-/** Mở menu "…" của dòng rồi trả về các nút trong menu (popover, ngoài bảng). */
+/** Mục "Lập báo giá" của menu "⋯" (tên kèm dòng phụ lý do khi đang tắt). */
+const CREATE = /^Lập báo giá/;
+/** Mở menu "⋯" của dòng (tên nút mang tên dòng) rồi trả về menu (popover, ngoài bảng). */
 async function openMenu(user: ReturnType<typeof userEvent.setup>, name = "Túi giấy kraft") {
   await user.click(await screen.findByRole("button", { name: `Thao tác khác — ${name}` }));
   return screen.findByRole("dialog");
+}
+/** Nút "Lập báo giá" hiện thẳng trên dòng khi lập được (rà UI WF-02 bo-02), không trong menu "⋯". */
+const createButton = (name = "Túi giấy kraft") =>
+  screen.findByRole("button", { name: `Lập báo giá — ${name}` });
+/** Bấm "Lập báo giá" trên dòng. */
+async function clickCreate(name = "Túi giấy kraft") {
+  await userEvent.setup().click(await createButton(name));
+}
+/** Chọn một trạng thái trong cột "Trạng thái" của bảng "Bộ lọc" (danh sách tick). */
+async function pickStatus(user: ReturnType<typeof userEvent.setup>, label: string) {
+  const column = await screen.findByRole("region", { name: "Trạng thái" });
+  await user.click(within(column).getByRole("option", { name: label }));
 }
 /** Mở popover Bộ lọc của toolbar (Radix Select bên trong cần các hàm con trỏ jsdom không có). */
 async function openFilters(user: ReturnType<typeof userEvent.setup>) {
@@ -122,18 +134,26 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
       return within(row);
     };
     await screen.findByText("Ly giấy");
-    // Nút chính của dòng là "Lập báo giá"; "Đóng" nằm trong menu "…" — tên mang tên dòng.
-    expect(rowOf("Túi giấy kraft").getByRole("button", { name: "Lập báo giá — Túi giấy kraft" }));
+    // "Lập báo giá" là nút riêng trên dòng; các thao tác khác trong menu "⋯" — tên nút mang tên dòng.
+    expect(await createButton()).toBeEnabled();
     const menu = await openMenu(user);
-    await user.click(within(menu).getByRole("button", { name: "Đóng — Túi giấy kraft" }));
+    expect(within(menu).queryByRole("button", { name: CREATE })).toBeNull();
+    await user.click(within(menu).getByRole("button", { name: "Đóng" }));
     const dialog = await screen.findByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: "Đóng" }));
     // The modal confirm stays open while pending: open each row's menu through it (fireEvent ignores pointer-events).
     const closeOf = async (name: string) => {
-      fireEvent.click(
-        rowOf(name).getByRole("button", { name: `Thao tác khác — ${name}`, hidden: true }),
-      );
-      return screen.findByRole("button", { name: `Đóng — ${name}`, hidden: true });
+      const trigger = rowOf(name).getByRole("button", {
+        name: `Thao tác khác — ${name}`,
+        hidden: true,
+      });
+      fireEvent.click(trigger);
+      const rowMenu = await waitFor(() => {
+        const content = document.getElementById(trigger.getAttribute("aria-controls") ?? "");
+        if (!content) throw new Error(`menu of ${name} is not open`);
+        return content;
+      });
+      return within(rowMenu).getByRole("button", { name: "Đóng", hidden: true });
     };
     await waitFor(async () => expect(await closeOf("Túi giấy kraft")).toBeDisabled());
     expect(await closeOf("Ly giấy")).toBeEnabled();
@@ -154,16 +174,19 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
     renderScreen(<DesignQuoteRequestList />, "SALES_STAFF");
     const user = userEvent.setup();
     const menu = await openMenu(user);
-    await user.click(within(menu).getByRole("button", { name: "Đóng — Túi giấy kraft" }));
+    await user.click(within(menu).getByRole("button", { name: "Đóng" }));
     const dialog = await screen.findByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: "Đóng" }));
     await waitFor(() => expect(api.post).toHaveBeenCalledWith(closureUrl));
     await waitFor(() => expect(callsTo(api.get, "/design-quote-requests")).toHaveLength(2));
-    // CLOSED: chỉ còn "Mở chat" làm nút chính, không còn menu "…" (không còn gì khác để làm).
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    // CLOSED: menu "⋯" chỉ còn "Mở chat" — không còn "Đóng" lẫn "Lập báo giá".
+    const closedMenu = await openMenu(user);
     await waitFor(() =>
-      expect(screen.queryByRole("button", { name: /^Thao tác khác/ })).toBeNull(),
+      expect(within(closedMenu).queryByRole("button", { name: "Đóng" })).toBeNull(),
     );
-    expect(screen.getByRole("button", { name: "Mở chat — Túi giấy kraft" })).toBeEnabled();
+    expect(within(closedMenu).queryByRole("button", { name: CREATE })).toBeNull();
+    expect(within(closedMenu).getByRole("button", { name: "Mở chat" })).toBeEnabled();
   });
 
   it("thiếu quyền UPDATE hoặc đã CLOSED thì không có hành động Đóng", () => {
@@ -186,17 +209,12 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
     });
     renderScreen(<DesignQuoteRequestList />, "SALES_STAFF");
     const user = userEvent.setup();
-    // Chưa lập được: nút chính là "Mở chat"; "Lập báo giá" tắt nằm trong menu kèm lý do, lý do cũng ở icon cạnh nút.
-    expect(await screen.findByRole("button", { name: "Mở chat — Túi giấy kraft" })).toBeEnabled();
-    expect(
-      screen.getByRole("button", {
-        name: "Lập báo giá chưa được — Túi giấy kraft: Lập được sau khi duyệt",
-      }),
-    ).toBeInTheDocument();
+    // Chưa lập được: "Mở chat" bật; "Lập báo giá" tắt vẫn hiện trong menu, lý do ở dòng phụ.
     const menu = await openMenu(user);
-    expect(
-      within(menu).getByRole("button", { name: "Lập báo giá — Túi giấy kraft" }),
-    ).toBeDisabled();
+    expect(within(menu).getByRole("button", { name: "Mở chat" })).toBeEnabled();
+    const create = within(menu).getByRole("button", { name: CREATE });
+    expect(create).toBeDisabled();
+    expect(create).toHaveTextContent(/^Lập báo giáLập được sau khi duyệt$/);
     const hints = quoteRequestActions(
       request({ designStatus: "PENDING_REVIEW" }) as never,
       () => true,
@@ -226,7 +244,7 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
     renderScreen(<DesignQuoteRequestList />, "SALES_STAFF");
     const user = userEvent.setup();
     const menu = await openMenu(user);
-    await user.click(within(menu).getByRole("button", { name: "Mở chat — Túi giấy kraft" }));
+    await user.click(within(menu).getByRole("button", { name: "Mở chat" }));
     await waitFor(() => expect(push).toHaveBeenCalledWith(`/admin/chat/${CONVERSATION_ID}`));
     const query = (callsTo(api.get, CONVERSATIONS)[0]?.[1] as { params: URLSearchParams }).params;
     expect(query.get("contextKind")).toBe("DESIGN");
@@ -246,7 +264,7 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
     renderScreen(<DesignQuoteRequestList />, "SALES_STAFF");
     const user = userEvent.setup();
     const menu = await openMenu(user);
-    await user.click(within(menu).getByRole("button", { name: "Mở chat — Túi giấy kraft" }));
+    await user.click(within(menu).getByRole("button", { name: "Mở chat" }));
     await waitFor(() =>
       expect(info).toHaveBeenCalledWith("Khách chưa có hội thoại về thiết kế này"),
     );
@@ -260,7 +278,7 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
       post: { [quoteUrl]: () => ({ id: QUOTE_ID, quoteNumber: "Q-1", status: "DRAFT" }) },
     });
     renderScreen(<DesignQuoteRequestList />, "SALES_STAFF");
-    await userEvent.setup().click(await screen.findByRole("button", { name: CREATE }));
+    await clickCreate();
     await waitFor(() => expect(push).toHaveBeenCalledWith(`/admin/quotes/${QUOTE_ID}/edit`));
     expect(api.post).toHaveBeenCalledWith(quoteUrl);
     // Không còn tìm hội thoại chat để lập báo giá.
@@ -275,7 +293,7 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
       post: { [quoteUrl]: () => ({ id: QUOTE_ID, status: "DRAFT" }) },
     });
     renderScreen(<ProjectQuoteRequestList />, "SALES_STAFF");
-    await userEvent.setup().click(await screen.findByRole("button", { name: CREATE }));
+    await clickCreate("Bộ ly Tết");
     await waitFor(() => expect(push).toHaveBeenCalledWith(`/admin/quotes/${QUOTE_ID}/edit`));
     expect(api.post).toHaveBeenCalledWith(quoteUrl);
     await waitFor(() => expect(callsTo(api.get, "/design-project-quote-requests")).toHaveLength(2));
@@ -289,7 +307,7 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
       },
     });
     renderScreen(<DesignQuoteRequestList />, "SALES_STAFF");
-    await userEvent.setup().click(await screen.findByRole("button", { name: CREATE }));
+    await clickCreate();
     await waitFor(() => expect(push).toHaveBeenCalledWith(`/admin/quotes/${QUOTE_ID}`));
   });
 
@@ -305,8 +323,9 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
       },
     });
     renderScreen(<DesignQuoteRequestList />, "SALES_STAFF");
-    await userEvent.setup().click(await screen.findByRole("button", { name: CREATE }));
-    await waitFor(() => expect(screen.getByRole("button", { name: CREATE })).toBeDisabled());
+    await clickCreate();
+    // Trong lúc đang gọi: nút "Lập báo giá" của dòng tắt
+    await waitFor(async () => expect(await createButton()).toBeDisabled());
     release({ id: QUOTE_ID, status: "DRAFT" });
     await waitFor(() => expect(push).toHaveBeenCalled());
   });
@@ -330,7 +349,7 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
         },
       });
       renderScreen(<DesignQuoteRequestList />, "SALES_STAFF");
-      await userEvent.setup().click(await screen.findByRole("button", { name: CREATE }));
+      await clickCreate();
       await waitFor(() => expect(error).toHaveBeenCalledWith(message));
       expect(push).not.toHaveBeenCalled();
       // The row was stale (the button shows only on an OPEN, ready row): reload it.
@@ -349,7 +368,7 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
       },
     });
     renderScreen(<ProjectQuoteRequestList />, "SALES_STAFF");
-    await userEvent.setup().click(await screen.findByRole("button", { name: CREATE }));
+    await clickCreate("Bộ ly Tết");
     await waitFor(() => expect(callsTo(api.get, "/design-project-quote-requests")).toHaveLength(2));
     expect(push).not.toHaveBeenCalled();
   });
@@ -365,7 +384,7 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
       },
     });
     renderScreen(<DesignQuoteRequestList />, "SALES_STAFF");
-    await userEvent.setup().click(await screen.findByRole("button", { name: CREATE }));
+    await clickCreate();
     await waitFor(() => expect(push).toHaveBeenCalledWith(`/admin/quotes/${QUOTE_ID}`));
   });
 
@@ -380,7 +399,7 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
       },
     });
     renderScreen(<DesignQuoteRequestList />, "SALES_STAFF");
-    await userEvent.setup().click(await screen.findByRole("button", { name: CREATE }));
+    await clickCreate();
     await waitFor(() => expect(error).toHaveBeenCalledWith("Không tìm thấy bản ghi."));
     expect(push).not.toHaveBeenCalled();
   });
@@ -396,7 +415,7 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
       },
     });
     renderScreen(<DesignQuoteRequestList />, "SALES_STAFF");
-    await userEvent.setup().click(await screen.findByRole("button", { name: CREATE }));
+    await clickCreate();
     await waitFor(() =>
       expect(error).toHaveBeenCalledWith("Bạn không có quyền thực hiện thao tác này."),
     );
@@ -431,8 +450,7 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
     await screen.findByText("Túi giấy kraft");
     const user = userEvent.setup();
     await openFilters(user);
-    await user.click(screen.getByRole("combobox", { name: /Trạng thái/ }));
-    await user.click(await screen.findByRole("option", { name: "Đã đóng" }));
+    await pickStatus(user, "Đã đóng");
     await waitFor(() => {
       const last = callsTo(api.get, "/design-quote-requests").at(-1)?.[1] as { params: Params };
       expect(last.params).toMatchObject({ status: "CLOSED", page: 0 });
@@ -450,7 +468,8 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
     const open = renderScreen(<ProjectQuoteRequestList />, "SALES_STAFF");
     expect(await screen.findByText("Bộ ly Tết")).toBeInTheDocument();
     expect(sent()[0]).toEqual({ page: 0, size: expect.any(Number), status: "OPEN" });
-    expect(screen.getByText(/TRASEN-CUP-01/)).toBeInTheDocument();
+    // Các dòng của dự án nằm ở trang chi tiết; danh sách hiện tiến độ duyệt
+    expect(screen.getByText("Đã duyệt 1/1")).toBeInTheDocument();
     open.unmount();
     api.get.mockClear();
     renderScreen(<ProjectQuoteRequestList />, "SALES_STAFF", "?status=ALL");
@@ -466,8 +485,7 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
     await screen.findByText("Bộ ly Tết");
     const user = userEvent.setup();
     await openFilters(user);
-    await user.click(screen.getByRole("combobox", { name: /Trạng thái/ }));
-    await user.click(await screen.findByRole("option", { name: "Đã đóng" }));
+    await pickStatus(user, "Đã đóng");
     await waitFor(() => {
       const last = callsTo(api.get, "/design-project-quote-requests").at(-1)?.[1] as {
         params: Params;

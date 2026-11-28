@@ -32,8 +32,9 @@ export function OrderShippingWarehouseCard({ order, can }: OrderShippingWarehous
   const locked = isWarehouseLocked(coverage.data);
   return (
     <section
+      id="order-shipping-warehouse"
       aria-label={L.title}
-      className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]"
+      className="border-border-default bg-bg-surface scroll-mt-20 rounded-[var(--card-radius)] border p-[var(--card-pad)]"
     >
       <h2 className="text-ink-primary mb-2 text-[0.9375rem] font-semibold">{L.title}</h2>
       {coverage.isPending && <p className="text-ink-secondary text-xs">{L.loading}</p>}
@@ -45,7 +46,13 @@ export function OrderShippingWarehouseCard({ order, can }: OrderShippingWarehous
       {coverage.data && (
         <>
           <p className="text-ink-primary text-[0.8125rem] font-medium">
-            {hasChosen ? L.chosen(coverage.data.warehouseCode ?? L.chosenUnknown) : L.none}
+            {hasChosen
+              ? coverage.data.warehouseCode
+                ? L.chosen(coverage.data.warehouseCode, coverage.data.warehouseName)
+                : coverage.data.warehouseName
+                  ? L.chosen(coverage.data.warehouseName)
+                  : L.chosen(L.chosenUnknown)
+              : L.none}
           </p>
           {hasChosen ? (
             <CoverageSummary coverage={coverage.data} />

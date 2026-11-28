@@ -5,7 +5,12 @@ import { SearchBar } from "@/components/shared/SearchBar";
 import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/shared/combobox-select";
 
 import { CarrierSelect } from "../CarrierSelect";
 import { WarehouseSelect } from "../WarehouseSelect";

@@ -61,10 +61,8 @@ describe("CustomerSkusCard — SKU riêng của khách (BE GET /customer-skus)",
     const link = await screen.findByRole("link", { name: "LY12OZ-C1-01" });
     expect(link).toHaveAttribute("href", "/admin/products/p-1");
     expect(screen.getByText("Từ quy cách LY12OZ-TRANG")).toBeInTheDocument();
-    // Nút duy nhất là tiêu đề mục (thu gọn / mở) — không có nút chuyển trạng thái SKU.
-    expect(screen.getAllByRole("button")).toEqual([
-      screen.getByRole("button", { name: "SKU riêng của khách" }),
-    ]);
+    // Mục không còn thu gọn / mở — chỉ xem thì không có nút nào (không có nút chuyển trạng thái SKU).
+    expect(screen.queryAllByRole("button")).toEqual([]);
     const params = get.mock.calls[0]?.[1]?.params as URLSearchParams;
     expect(get.mock.calls[0]?.[0]).toBe("/customer-skus");
     expect(params.get("customerId")).toBe(CUSTOMER);
@@ -96,5 +94,29 @@ describe("CustomerSkusCard — SKU riêng của khách (BE GET /customer-skus)",
     const dialog = await screen.findByRole("dialog", { name: /Tạm chặn SKU LY12OZ-C1-01/ });
     await user.click(within(dialog).getByRole("button", { name: "Tạm chặn" }));
     await waitFor(() => expect(post).toHaveBeenCalledWith("/products/p-1/variants/v-1/blocking"));
+  });
+
+  it("BE trả `id` (không có `variantId`, BE #491) → vẫn liệt kê SKU", async () => {
+    const { variantId, ...rest } = sku();
+    setup([{ ...rest, id: variantId }]);
+    expect(await screen.findByRole("link", { name: "LY12OZ-C1-01" })).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("lỗi tải → câu lỗi kèm nút Thử lại, bấm thì tải lại", async () => {
+    const user = userEvent.setup();
+    const get = vi.spyOn(api, "get").mockRejectedValueOnce(new Error("boom"));
+    get.mockResolvedValueOnce({ data: [sku()] });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <CustomerSkusCard customerId={CUSTOMER} canRead canBlock={false} canApprove={false} />
+      </QueryClientProvider>,
+    );
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Không tải được SKU riêng của khách.");
+    await user.click(within(alert).getByRole("button", { name: "Thử lại" }));
+    expect(await screen.findByRole("link", { name: "LY12OZ-C1-01" })).toBeInTheDocument();
+    expect(get).toHaveBeenCalledTimes(2);
   });
 });

@@ -2,20 +2,22 @@ import { describe, expect, it } from "vitest";
 
 import { SHIPPING_DELIVERY_TIME_MESSAGES as M } from "@/constants";
 
-import { deliveredAtToSend, deliveryTimeProblem, toLocalInput } from "./delivery-time";
+import { toLocalDateTime } from "@/lib/format";
+
+import { deliveredAtToSend, deliveryTimeProblem } from "./delivery-time";
 
 // 2026-11-18 10:00 giờ Việt Nam (UTC+7) = 03:00 UTC
 const NOW = new Date("2026-11-18T03:00:00Z");
 const HANDED_OVER = "2026-11-16T01:30:00Z"; // 16/11 08:30 giờ Việt Nam
 
-describe("toLocalInput — Instant → ô datetime-local theo giờ Việt Nam", () => {
+describe("toLocalDateTime — Instant → giá trị ô ngày giờ theo giờ Việt Nam", () => {
   it("đổi UTC sang UTC+7, kể cả khi qua nửa đêm", () => {
-    expect(toLocalInput("2026-11-18T03:00:00Z")).toBe("2026-11-18T10:00");
-    expect(toLocalInput("2026-11-17T18:30:00Z")).toBe("2026-11-18T01:30");
+    expect(toLocalDateTime("2026-11-18T03:00:00Z")).toBe("2026-11-18T10:00");
+    expect(toLocalDateTime("2026-11-17T18:30:00Z")).toBe("2026-11-18T01:30");
   });
 
   it("nửa đêm là 00:xx, không phải 24:xx", () => {
-    expect(toLocalInput("2026-11-17T17:05:00Z")).toBe("2026-11-18T00:05");
+    expect(toLocalDateTime("2026-11-17T17:05:00Z")).toBe("2026-11-18T00:05");
   });
 });
 

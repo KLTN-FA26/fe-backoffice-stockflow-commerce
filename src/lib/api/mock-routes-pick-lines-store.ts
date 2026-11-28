@@ -42,6 +42,11 @@ export interface MockPickLine {
 }
 
 const linesByTask = new Map<string, MockPickLine[]>();
+
+/** Mọi dòng lấy hàng đã dựng (task đã mở) — màn Thùng hàng đọc để biết thùng đang bận lấy hàng. */
+export function listMockPickLines(): MockPickLine[] {
+  return [...linesByTask.values()].flat();
+}
 const idempotent = new Map<string, { body: string; response: MockResponse }>();
 
 export function resetPickLineMockStore(): void {

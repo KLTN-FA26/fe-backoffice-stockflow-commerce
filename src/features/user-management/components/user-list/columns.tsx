@@ -5,7 +5,7 @@ import { formatDateTime } from "@/lib/format/date";
 import { roleLabel } from "@/lib/references/role-options";
 
 import { USER_UI } from "../../constants";
-import { userDisplayName } from "../../selectors";
+import { userDisplayName, userWarehouseLabels } from "../../selectors";
 import { UserStatusBadge } from "../UserStatusBadge";
 
 import type { ColumnDef } from "@/components/shared/DataTable";
@@ -14,18 +14,17 @@ import type { UserDto } from "../../types";
 
 interface ColumnContext {
   roles: readonly RoleOption[];
-  /** warehouseId → tên kho; rỗng khi không có quyền đọc danh mục kho (hiện số lượng). */
-  warehouseNames: ReadonlyMap<string, string>;
 }
 
 const VISIBLE_WAREHOUSES = 2;
 
-function warehouseCell(user: UserDto, names: ReadonlyMap<string, string>) {
+/** Tên kho lấy từ `UserResponse.warehouses` (BE #286) — không tải danh mục kho chỉ để hiển thị. */
+function warehouseCell(user: UserDto) {
   if (user.warehouseIds.length === 0) {
     return <span className="text-ink-tertiary">{USER_UI.noWarehouse}</span>;
   }
-  if (names.size === 0) return `${user.warehouseIds.length} kho`;
-  const labels = user.warehouseIds.map((id) => names.get(id) ?? id);
+  const labels = userWarehouseLabels(user);
+  if (!labels) return USER_UI.warehouseCount(user.warehouseIds.length);
   const extra = labels.length - VISIBLE_WAREHOUSES;
   return (
     <span title={labels.join(", ")}>
@@ -35,7 +34,7 @@ function warehouseCell(user: UserDto, names: ReadonlyMap<string, string>) {
   );
 }
 
-export function buildUserColumns({ roles, warehouseNames }: ColumnContext): ColumnDef<UserDto>[] {
+export function buildUserColumns({ roles }: ColumnContext): ColumnDef<UserDto>[] {
   return [
     {
       key: "username",
@@ -71,7 +70,7 @@ export function buildUserColumns({ roles, warehouseNames }: ColumnContext): Colu
     {
       key: "warehouses",
       header: USER_UI.warehousesShort,
-      cell: (user) => warehouseCell(user, warehouseNames),
+      cell: (user) => warehouseCell(user),
     },
     {
       key: "status",

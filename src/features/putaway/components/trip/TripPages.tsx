@@ -39,7 +39,13 @@ function MyTripContent({ routeMap }: { routeMap?: TripRouteMapSlot }) {
   }
   const refetch = () => void query.refetch();
   if (query.data && query.data.warehouseId !== warehouse.id)
-    return <TripElsewhere warehouseId={query.data.warehouseId} mine />;
+    return (
+      <TripElsewhere
+        warehouseId={query.data.warehouseId}
+        warehouseCode={query.data.warehouseCode}
+        mine
+      />
+    );
   return query.data ? (
     <TripView trip={query.data} onStale={refetch} routeMap={routeMap} />
   ) : (
@@ -64,7 +70,14 @@ function TripContent({ tripId, routeMap }: { tripId: string; routeMap?: TripRout
     );
   }
   if (query.data.warehouseId !== warehouse.id)
-    return <TripElsewhere warehouseId={query.data.warehouseId} tripId={tripId} mine={false} />;
+    return (
+      <TripElsewhere
+        warehouseId={query.data.warehouseId}
+        warehouseCode={query.data.warehouseCode}
+        tripId={tripId}
+        mine={false}
+      />
+    );
   return <TripView trip={query.data} onStale={() => void query.refetch()} routeMap={routeMap} />;
 }
 

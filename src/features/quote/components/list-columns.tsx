@@ -5,8 +5,8 @@ import { CalendarX2 } from "lucide-react";
 
 import {
   ADMIN_ROUTES,
+  CUSTOMER_FALLBACK_LABEL,
   QUOTE_API_STATUSES,
-  QUOTE_STATUS_BY_API,
   QUOTE_STATUS_LABELS,
 } from "@/constants";
 
@@ -18,7 +18,7 @@ import { isExpired } from "@/features/quote/selectors";
 import { CustomerName } from "@/components/backoffice/CustomerName";
 import { StatusDot } from "@/components/shared/StatusDot";
 
-import { MONO, QUOTE_LIST_LABELS as L, quoteStatusLabel } from "./copy";
+import { MONO, QUOTE_LIST_LABELS as L, QUOTE_STATUS_TONE_KEY, quoteStatusLabel } from "./copy";
 import { PriceReviewBadge } from "./price-review/PriceReviewBadge";
 
 import type { ColumnDef } from "@/components/shared/DataTable";
@@ -39,9 +39,10 @@ export const QUOTE_COLUMNS = [
   "validUntil",
   "sentAt",
   "order",
+  "actions",
 ] as const;
 export type QuoteColumn = (typeof QUOTE_COLUMNS)[number];
-export const QUOTE_LOCKED_COLUMNS: readonly QuoteColumn[] = ["quoteNumber"];
+export const QUOTE_LOCKED_COLUMNS: readonly QuoteColumn[] = ["quoteNumber", "actions"];
 export const QUOTE_COLUMN_LABELS: Record<QuoteColumn, string> = {
   quoteNumber: L.number,
   customer: L.customer,
@@ -50,6 +51,7 @@ export const QUOTE_COLUMN_LABELS: Record<QuoteColumn, string> = {
   validUntil: L.validUntil,
   sentAt: L.sentAt,
   order: L.order,
+  actions: "Thao tác",
 };
 
 /** Báo giá đã gửi mà quá hạn hiệu lực (job chưa kịp chuyển EXPIRED): khách không còn chấp nhận được. */
@@ -65,7 +67,7 @@ function QuoteStatusCell({ row }: { row: QuoteRow }) {
     <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-0.5">
       <StatusDot
         domain="order"
-        status={QUOTE_STATUS_BY_API[row.status]}
+        status={QUOTE_STATUS_TONE_KEY[row.status]}
         label={QUOTE_STATUS_LABELS[row.status]}
       />
       {row.status === "DRAFT" && row.priceReviewPending && <PriceReviewBadge />}
@@ -116,7 +118,19 @@ export function buildQuoteColumns(showTotal: boolean): ColumnDef<QuoteRow>[] {
       sortable: true,
       cell: (row) => <QuoteNumberCell row={row} />,
     },
-    { key: "customer", header: L.customer, cell: (row) => <CustomerName id={row.customerId} /> },
+    {
+      key: "customer",
+      header: L.customer,
+      // #286: tên / mã khách BE kèm sẵn trong dòng → luôn có `name`, <CustomerName> không gọi `GET /customers/{id}`
+      // cho từng dòng (N+1). Thiếu cả hai thì nhãn trung tính, không tra.
+      cell: (row) => (
+        <CustomerName
+          id={row.customerId}
+          name={row.customerName ?? row.customerCode ?? CUSTOMER_FALLBACK_LABEL}
+          code={row.customerCode}
+        />
+      ),
+    },
     {
       key: "status",
       header: L.status,
@@ -160,10 +174,14 @@ export function buildQuoteColumns(showTotal: boolean): ColumnDef<QuoteRow>[] {
         row.convertedOrderId ? (
           <Link
             href={ADMIN_ROUTES.orders.detail(row.convertedOrderId)}
-            className="text-accent-text hover:underline"
+            className={
+              row.convertedOrderNumber
+                ? `text-accent-text hover:underline ${MONO}`
+                : "text-accent-text hover:underline"
+            }
             onClick={(event) => event.stopPropagation()}
           >
-            {L.openOrder}
+            {row.convertedOrderNumber ?? L.openOrder}
           </Link>
         ) : (
           <span className="text-ink-tertiary">—</span>

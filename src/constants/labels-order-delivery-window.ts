@@ -72,6 +72,8 @@ export const WINDOW_CHANGE_LABELS = {
   noteLabel: "Ghi chú",
   notePlaceholder: "Ví dụ: khách đồng ý nhận sớm trong chat ngày…",
   evidenceLabel: "Bằng chứng khách đồng ý",
+  /** Chỉ còn đường tệp (S06-9): nhãn khung nói rõ đó là tệp. */
+  evidenceLabelFile: "Bằng chứng khách đồng ý (tệp đính kèm: email, văn bản xác nhận)",
   evidenceKindFile: "Tệp đính kèm (email, văn bản xác nhận)",
   evidenceKindMessage: "Tin nhắn chat của khách",
   evidenceMessageLabel: "Mã tin nhắn của khách trong chat",

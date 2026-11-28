@@ -25,7 +25,6 @@ const backendProduct = {
   productId: ID,
   code: "CUP",
   name: "Ly",
-  nameEn: "Cup",
   taxClass: "STANDARD",
   kind: "STANDARD",
   status: "INACTIVE",

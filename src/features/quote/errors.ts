@@ -6,6 +6,7 @@
 
 import { ApiError } from "@/lib/api/error";
 import { GENERIC_API_ERROR, serverErrorMessage } from "@/lib/api/error-message";
+import { salesOwnerErrorMessage } from "@/lib/references/sales-owner-access";
 
 export const QUOTE_ERROR_OVERRIDES: Readonly<Record<string, string>> = {
   OPTIMISTIC_LOCK: "Dữ liệu vừa thay đổi, đã tải lại.",
@@ -28,7 +29,13 @@ export const QUOTE_ERROR_FALLBACKS: Readonly<Record<string, string>> = {
     "Giá chuẩn đặt cho quy cách của danh mục, không đặt cho SKU riêng của khách.",
 };
 
-export function quoteErrorMessage(error: unknown): string {
+/**
+ * `ownerName`: người phụ trách màn đang biết — để câu BR-S12 (409 CUSTOMER_OWNED_BY_OTHER_SALES) nêu đúng tên dù BE không
+ * gửi kèm.
+ */
+export function quoteErrorMessage(error: unknown, ownerName?: string | null): string {
+  const owned = salesOwnerErrorMessage(error, ownerName);
+  if (owned) return owned;
   const fallback = error instanceof ApiError ? QUOTE_ERROR_FALLBACKS[error.code] : undefined;
   return serverErrorMessage(error, QUOTE_ERROR_OVERRIDES, fallback ?? GENERIC_API_ERROR);
 }

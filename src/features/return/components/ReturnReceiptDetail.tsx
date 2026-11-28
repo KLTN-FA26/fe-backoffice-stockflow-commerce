@@ -158,8 +158,11 @@ function Content({ id, back: backLink }: { id: string; back?: BackLink }) {
                 <CodeLink href={RETURN_ROUTES.detail(receipt.returnRequestId)}>
                   {L.source.rma(receipt.rmaNumber ?? "")}
                 </CodeLink>
+              ) : // #286: mã chuyến BE kèm sẵn; thiếu mã → nhãn trung tính, không hiện UUID
+              receipt.shipmentCode ? (
+                L.source.shipment(receipt.shipmentCode)
               ) : (
-                L.source.shipment(receipt.shipmentCode ?? receipt.shipmentId ?? "")
+                L.source.shipmentUnknown
               )}
             </InfoRow>
             {receipt.orderId && (

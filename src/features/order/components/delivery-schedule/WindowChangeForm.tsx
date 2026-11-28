@@ -90,7 +90,6 @@ export function WindowChangeForm({
     });
   const windowStart = useWatch({ control: form.control, name: "windowStart" });
   const windowEnd = useWatch({ control: form.control, name: "windowEnd" });
-  const evidenceKind = useWatch({ control: form.control, name: "evidenceKind" });
   // Tệp tải xong → id vào form (đủ điều kiện "có bằng chứng"); bắt đầu tệp mới / bỏ tệp → id rỗng
   const { setValue } = form;
   const setUploadId = useCallback(
@@ -144,14 +143,7 @@ export function WindowChangeForm({
         windowEnd={windowEnd}
         idPrefix={idPrefix}
       />
-      <WindowEvidenceField
-        kind={evidenceKind}
-        onKindChange={(kind) => setValue("evidenceKind", kind, { shouldValidate: true })}
-        register={form.register}
-        upload={upload}
-        messageError={form.formState.errors.evidenceMessageId?.message}
-        idPrefix={idPrefix}
-      />
+      <WindowEvidenceField upload={upload} idPrefix={idPrefix} />
       {refusal && <OrderRefusalAlert view={refusal} />}
     </FormDialogBody>
   );

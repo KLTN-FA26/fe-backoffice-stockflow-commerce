@@ -41,7 +41,20 @@ interface ServerTableBodyProps<T> {
   };
   /** Bảng chính của trang danh sách (style Vercel): header dính, thân cuộn trong khung. */
   stickyHeader?: boolean;
+  /**
+   * Trạng thái rỗng (chưa có dữ liệu / lọc không ra / trang vượt) nằm TRONG thân bảng, giữ header và nút lọc ở
+   * header cột (backoffice-erp-ui §7). Mặc định tắt để trang cũ giữ nguyên.
+   */
+  emptyInTable?: boolean;
+  /**
+   * Lọc thêm ở FE trên trang đang xem (ô tìm / lọc cột khi BE không có tham số). `active` → chú thích bảng nói rõ
+   * phạm vi; trang có dòng mà không dòng nào khớp → "Không tìm thấy kết quả".
+   */
+  rowFilter?: { match: (row: T) => boolean; active: boolean };
 }
+
+/** EmptyState bỏ khung khi nằm trong thân bảng. */
+const IN_TABLE_EMPTY_CLASS = "rounded-none border-0 bg-transparent py-10 whitespace-normal";
 
 /**
  * Vùng bảng danh sách phân trang phía server — tách đủ trạng thái (api-conventions §8):
@@ -64,6 +77,8 @@ export function ServerTableBody<T>({
   onPageSizeChange,
   sorting,
   stickyHeader = false,
+  emptyInTable = false,
+  rowFilter,
 }: ServerTableBodyProps<T>) {
   if (!canRead) return <LoadErrorState inline error={null} kind="no-read" copy={errorCopy} />;
   if (query.isError)
@@ -89,19 +104,21 @@ export function ServerTableBody<T>({
     return <PageSkeleton variant="list" />;
   }
   const page = query.data;
-  if (page.totalElements === 0 && !hasFilters)
-    return (
+  const filtering = rowFilter?.active === true;
+  const rows = filtering ? page.items.filter(rowFilter.match) : page.items;
+  const invalidPage = page.totalElements > 0 && page.items.length === 0;
+  const emptyNode =
+    rows.length > 0 ? null : page.totalElements === 0 && !hasFilters ? (
       <EmptyState
+        className={emptyInTable ? IN_TABLE_EMPTY_CLASS : undefined}
         icon={empty.icon}
         title={empty.title}
         description={empty.description}
         action={empty.action}
       />
-    );
-  if (page.totalElements === 0 || page.items.length === 0) {
-    const invalidPage = page.totalElements > 0;
-    return (
+    ) : (
       <EmptyState
+        className={emptyInTable ? IN_TABLE_EMPTY_CLASS : undefined}
         icon={empty.icon}
         title={invalidPage ? "Trang không còn dữ liệu" : "Không tìm thấy kết quả"}
         description={
@@ -121,16 +138,20 @@ export function ServerTableBody<T>({
         }
       />
     );
-  }
+  if (emptyNode && !emptyInTable) return emptyNode;
 
   return (
     <>
       <RefetchBar active={query.isFetching} label={`Đang tải lại danh sách ${noun}`} />
       <DataTable
         columns={columns}
-        data={page.items}
+        data={rows}
         rowKey={rowKey}
-        caption={`Hiển thị ${page.items.length} / ${page.totalElements} ${noun}`}
+        caption={
+          filtering
+            ? `Lọc trong trang đang xem: ${rows.length} / ${page.items.length} ${noun} · tổng ${page.totalElements}`
+            : `Hiển thị ${page.items.length} / ${page.totalElements} ${noun}`
+        }
         flagRow={flagRow}
         onRowClick={onRowClick}
         stickyHeader={stickyHeader}
@@ -147,6 +168,7 @@ export function ServerTableBody<T>({
           onPageSizeChange,
         }}
         serverSorting={sorting}
+        emptyState={emptyNode ?? undefined}
       />
     </>
   );

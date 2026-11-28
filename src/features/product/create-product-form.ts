@@ -19,9 +19,7 @@ export const PRODUCT_DRAFT_FORM_DEFAULTS: ProductDraftFormValues = {
   brandId: "",
   categoryId: "",
   description: "",
-  descriptionEn: "",
   name: "",
-  nameEn: "",
   productCode: "",
   shortDescription: "",
   taxClass: "STANDARD",
@@ -32,9 +30,7 @@ export function productToDraftForm(product: Product): ProductDraftFormValues {
     brandId: product.brandId ?? "",
     categoryId: product.categoryId ?? "",
     description: product.description,
-    descriptionEn: product.descriptionEn,
     name: product.name,
-    nameEn: product.nameEn,
     productCode: product.code ?? product.productId,
     shortDescription: product.shortDescription ?? "",
     taxClass: product.taxClass.toUpperCase() as ProductDraftFormValues["taxClass"],
@@ -53,12 +49,10 @@ export function buildCreateProductInput(
   return {
     code: form.productCode.trim(),
     name: form.name.trim(),
-    nameEn: form.nameEn.trim(),
     categoryId: form.categoryId.trim(),
     brandId: form.brandId.trim(),
     shortDescription: form.shortDescription.trim(),
     description: form.description.trim(),
-    descriptionEn: form.descriptionEn.trim(),
     taxClass: form.taxClass,
     // Chỉ gửi khi có trục — không có thì BE tạo một biến thể mặc định (SKU = mã sản phẩm).
     ...(axes.length > 0 ? { axes: toAxisInputs(axes) } : {}),
@@ -167,7 +161,6 @@ function localizeKnownValidationFields(fieldErrors: CreateProductServerErrors): 
   const messages: Partial<Record<CreateProductServerField, string>> = {
     productCode: "Mã sản phẩm không hợp lệ.",
     name: "Tên sản phẩm không hợp lệ.",
-    nameEn: "Tên tiếng Anh không hợp lệ.",
     brandId: "Thương hiệu không hợp lệ.",
     categoryId: "Danh mục không hợp lệ.",
   };
@@ -194,9 +187,7 @@ function normalizeFieldName(field: string): CreateProductServerField | null {
     case "brandId":
     case "categoryId":
     case "description":
-    case "descriptionEn":
     case "name":
-    case "nameEn":
     case "shortDescription":
     case "taxClass":
       return field;

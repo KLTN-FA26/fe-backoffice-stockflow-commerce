@@ -1,10 +1,10 @@
 /**
- * Class ô nhập Mode A dùng chung cho form back-office: radius sm (4px), viền border.default, nền
- * bg.surface, focus viền brand.ink, `aria-invalid` viền danger. Bọc ngoài shadcn qua `className`
+ * Class ô nhập Mode A dùng chung cho form back-office: bo `--field-radius` (8px, bằng card /
+ * section), viền border.default, nền bg.surface, focus viền brand.ink, `aria-invalid` viền danger. Bọc ngoài shadcn qua `className`
  * thay vì sửa `components/ui/*` (mặc định `rounded-lg`). Không chứa nghiệp vụ.
  */
 const BASE =
-  "border-border-default bg-bg-surface text-ink-primary placeholder:text-ink-tertiary focus-visible:border-brand focus-visible:ring-brand/20 rounded-[var(--r-sm)] text-[0.8125rem] shadow-none aria-invalid:border-danger";
+  "border-border-default bg-bg-surface text-ink-primary placeholder:text-ink-tertiary focus-visible:border-brand focus-visible:ring-brand/20 rounded-(--field-radius) text-[0.8125rem] shadow-none aria-invalid:border-danger";
 
 /** Input một dòng. */
 export const FORM_INPUT_CLASS = `${BASE} h-9`;

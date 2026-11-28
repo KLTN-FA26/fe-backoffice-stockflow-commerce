@@ -57,15 +57,26 @@ export function QuoteRequestCardBody({
           {designStatus && ` · ${designStatus}`}
         </div>
       ) : (
-        <ul className="text-ink-secondary">
-          {view.lines.map((line, i) => (
-            <li key={i}>
-              {line.designName} — {line.cartons} thùng (
-              {designStatusLabel(line.designStatus) ?? CHAT_UNKNOWN_LABELS.designStatus})
-            </li>
-          ))}
-        </ul>
+        <>
+          {view.approvedCount !== null && view.lineCount !== null && (
+            <div className="text-ink-secondary tabular-nums">
+              Đã duyệt {view.approvedCount}/{view.lineCount}
+            </div>
+          )}
+          <ul className="text-ink-secondary">
+            {view.lines.map((line, i) => (
+              <li key={i}>
+                {line.designName} — {line.cartons} thùng (
+                {designStatusLabel(line.designStatus) ?? CHAT_UNKNOWN_LABELS.designStatus})
+                {line.returnReason && (
+                  <span className="text-warning-ink block">Lý do trả lại: {line.returnReason}</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </>
       )}
+      {view.closeReason && <div className="text-ink-tertiary">Lý do đóng: {view.closeReason}</div>}
       {view.returnReason && (
         <div className="text-warning-ink">Lý do trả lại: {view.returnReason}</div>
       )}

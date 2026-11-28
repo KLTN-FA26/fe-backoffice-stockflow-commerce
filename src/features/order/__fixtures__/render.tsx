@@ -5,9 +5,9 @@
 
 import { Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
-import { vi } from "vitest";
+import { afterEach, beforeEach, vi } from "vitest";
 
 import {
   CREDIT_HOLD_PERMISSIONS,
@@ -111,13 +111,47 @@ export function mockOrderApiGet(
       if (!handler && url.endsWith("/history")) return { data: [] };
       // Giữ hoàn tất (WF-05 GH-2): mặc định đơn không bị giữ (BE trả data null)
       if (!handler && url.endsWith("/completion-hold")) return { data: null };
+      // Hợp đồng chờ duyệt tín dụng (15 BR-11): mặc định hàng chờ rỗng — test về hàng chờ khai báo handler riêng
+      if (!handler && url === "/orders/contract-credit-reviews")
+        return {
+          data: {
+            items: [],
+            page: 0,
+            size: 15,
+            totalElements: 0,
+            totalPages: 0,
+            hasNext: false,
+            hasPrevious: false,
+          },
+        };
       if (!handler) throw new Error(`Không có mock cho GET ${url}`);
       const params = config?.params instanceof URLSearchParams ? config.params : undefined;
       return { data: handler(params) };
     });
 }
 
-export function renderOrderScreen(ui: React.ReactElement, searchParams = "") {
+/**
+ * Tab của trang chi tiết đơn (`OrderDetailTabs`, URL `?tab=`) mà mọi lần render trong file test mở sẵn — file chỉ kiểm một
+ * nhóm (huỷ, kho xuất, lịch giao…) gọi `openOrderDetailTabInFile("delivery")` ở đầu file thay vì bấm tab trong từng test.
+ */
+let defaultSearch = "";
+export function openOrderDetailTabInFile(
+  tab: "contract" | "delivery" | "payment" | "returns" | "history",
+) {
+  beforeEach(() => {
+    defaultSearch = `?tab=${tab}`;
+  });
+  afterEach(() => {
+    defaultSearch = "";
+  });
+}
+
+/** Bấm một tab của trang chi tiết đơn (cho test kiểm nhiều nhóm trong một file). */
+export function clickOrderDetailTab(name: string) {
+  fireEvent.click(screen.getByRole("tab", { name }));
+}
+
+export function renderOrderScreen(ui: React.ReactElement, searchParams = defaultSearch) {
   useAuthStore.setState({
     user: {
       userId: "u-test",
@@ -139,7 +173,7 @@ export function renderOrderScreen(ui: React.ReactElement, searchParams = "") {
   });
   return render(
     <QueryClientProvider client={client}>
-      <NuqsTestingAdapter searchParams={searchParams}>
+      <NuqsTestingAdapter searchParams={searchParams} hasMemory>
         <Suspense fallback={<div>loading</div>}>{ui}</Suspense>
       </NuqsTestingAdapter>
     </QueryClientProvider>,
@@ -164,3 +198,28 @@ export async function pickOrderSelectOption(
 
 /** Cùng helper, tên develop dùng trong test vòng đời. */
 export const pickSelectOption = pickOrderSelectOption;
+
+/** Tên truy cập của nút "⋯" trên header đối tượng của đơn (`OrderActionCard` → `ObjectActions`). */
+export const ORDER_MORE_ACTIONS = "Thao tác khác với đơn hàng";
+
+/**
+ * Nút thao tác của đơn trên header: nút chính nằm ngoài, các việc khác trong menu "⋯" (backoffice-erp-ui B10). Trả về nút
+ * ngoài nếu có, không thì mở menu và trả về mục trong menu. Ném lỗi khi không có.
+ */
+export async function orderAction(name: string): Promise<HTMLElement> {
+  const found = await orderActionOrNull(name);
+  if (!found) throw new Error(`Không có thao tác "${name}" trên header đơn`);
+  return found;
+}
+
+/** Như `orderAction` nhưng trả `null` khi không có (để kiểm nút bị ẩn theo quyền / trạng thái). */
+export async function orderActionOrNull(name: string): Promise<HTMLElement | null> {
+  const region = await screen.findByRole("region", { name: "Thao tác đơn" }).catch(() => null);
+  const scope = region ?? document.body;
+  const direct = within(scope).queryByRole("button", { name });
+  if (direct) return direct;
+  const more = within(scope).queryByRole("button", { name: ORDER_MORE_ACTIONS });
+  if (!more) return null;
+  if (more.getAttribute("aria-expanded") !== "true") fireEvent.click(more);
+  return screen.queryByRole("button", { name });
+}

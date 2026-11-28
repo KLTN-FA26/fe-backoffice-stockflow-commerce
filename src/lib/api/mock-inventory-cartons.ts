@@ -15,6 +15,8 @@ export interface MockCarton {
   pkg: MockReceiptPackage;
   sku: string;
   lotNumber: string | null;
+  /** Phiếu nhận thùng về trên đó — vắng với thùng tồn đầu kỳ (đóng tại kho, không qua phiếu). */
+  receipt?: { id: string; number: string; receivedAt: string };
 }
 
 /**
@@ -51,7 +53,7 @@ function seedOpeningCartons(): MockCarton[] {
           id: `mock-opening-${lpn}`,
           lpn,
           quantity: 1,
-          receivedQty: 1,
+          countedAt: "2026-11-11T00:00:00Z",
           nominalQty: 1,
           status: "IN_STOCK" as const,
           locationCode: location,
@@ -111,7 +113,12 @@ export async function listMockCartons(): Promise<MockCarton[]> {
     for (const line of receipt.lines) {
       for (const pkg of line.packages ?? []) {
         if (pkg.status !== "VOID") {
-          cartons.push({ pkg, sku: line.sku ?? "", lotNumber: line.lotNumber });
+          cartons.push({
+            pkg,
+            sku: line.sku ?? "",
+            lotNumber: line.lotNumber,
+            receipt: { id: receipt.id, number: receipt.number, receivedAt: receipt.receivedAt },
+          });
         }
       }
     }

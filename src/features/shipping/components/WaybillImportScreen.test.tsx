@@ -537,3 +537,24 @@ function renderShippingScreenWith(actor: TestActor) {
   const spies = mockShippingApi(actor, {});
   return { ...renderShippingScreen(<WaybillImportScreen />), spies };
 }
+
+describe("kho nhập mã vận đơn (S20-3)", () => {
+  it("chỉ một kho được phép → chọn sẵn, không phải mở danh sách", async () => {
+    mockShippingApi(ACTORS.warehouseStaff, {
+      get: {
+        [TEMPLATE_URL]: () => new Blob(["h"], { type: "text/csv" }),
+        [WAREHOUSES_URL]: () => [IMPORT_WAREHOUSES[0]],
+      },
+    });
+    renderShippingScreen(<WaybillImportScreen />);
+    const select = await screen.findByRole("combobox", { name: I.warehouseLabel });
+    await waitFor(() => expect(select).toHaveTextContent("HN · Kho Hà Nội"));
+  });
+
+  it("nhiều kho → không chọn sẵn", async () => {
+    renderScreen();
+    expect(await screen.findByRole("combobox", { name: I.warehouseLabel })).not.toHaveTextContent(
+      "Kho Hà Nội",
+    );
+  });
+});

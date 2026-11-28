@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -8,6 +8,7 @@ import {
   UI_LABELS,
 } from "@/constants";
 import { ApiError } from "@/lib/api/error";
+import { typeDateTime } from "@/test/date-picker";
 
 import { apiShipment } from "../__fixtures__/load";
 import {
@@ -196,10 +197,11 @@ describe("ShipmentScreen — ghi nhận kết quả giao (BR-02)", () => {
     const user = userEvent.setup();
     renderShipment(ACTORS.orderCoordinator, shipment({ status: "HANDED_OVER" }));
     await user.click(await screen.findByRole("button", { name: L.outcomeAction.DELIVERED }));
-    expect(within(screen.getByRole("dialog")).queryByRole("textbox")).not.toBeInTheDocument();
+    // Đã giao chỉ có ô thời điểm giao (ô gõ ngày giờ), không có ô ghi chú
+    expect(document.getElementById("outcome-note")).toBeNull();
     await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Huỷ" }));
     await user.click(await screen.findByRole("button", { name: L.outcomeAction.DELIVERY_FAILED }));
-    expect(within(screen.getByRole("dialog")).getByRole("textbox")).toBeInTheDocument();
+    expect(document.getElementById("outcome-note")).not.toBeNull();
   });
 
   it("đã giao: xác nhận trong hộp thoại → POST {outcome: DELIVERED}", async () => {
@@ -322,9 +324,9 @@ describe("ShipmentScreen — thời điểm giao khi ghi tay (docs 09 §4.3 bư�
 
   it("có ô thời điểm giao, mặc định bây giờ; chặn từ lúc bàn giao (giờ Việt Nam) đến bây giờ", async () => {
     const { dialog, time } = await openDelivered();
-    expect(time).toHaveAttribute("type", "datetime-local");
-    expect(time).toHaveAttribute("min", "2026-10-21T10:00");
-    expect((time as HTMLInputElement).value).toBe(time.getAttribute("max"));
+    // Ô gõ dd/MM/yyyy HH:mm 24 giờ, không phải ô datetime-local gốc (mm/dd/yyyy, AM/PM)
+    expect(time).toHaveAttribute("type", "text");
+    expect((time as HTMLInputElement).value).toMatch(/^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}$/);
     expect(within(dialog).getByText(O.deliveredAtHint)).toBeInTheDocument();
   });
 
@@ -337,7 +339,7 @@ describe("ShipmentScreen — thời điểm giao khi ghi tay (docs 09 §4.3 bư�
 
   it("nhập giờ hãng báo → gửi Instant ISO của giờ Việt Nam", async () => {
     const { user, dialog, post, time } = await openDelivered();
-    fireEvent.change(time, { target: { value: "2026-10-22T09:15" } });
+    await typeDateTime(user, time, "2026-10-22T09:15");
     await user.click(within(dialog).getByRole("button", { name: O.confirm }));
     await waitFor(() =>
       expect(post).toHaveBeenCalledWith(`${PATH}/delivery-outcome`, {
@@ -350,15 +352,25 @@ describe("ShipmentScreen — thời điểm giao khi ghi tay (docs 09 §4.3 bư�
   });
 
   it("thời điểm ở tương lai → báo lỗi tiếng Việt, nút Ghi nhận bị khoá", async () => {
-    const { dialog, time } = await openDelivered();
-    fireEvent.change(time, { target: { value: "2999-01-01T10:00" } });
+    const { user, dialog, time } = await openDelivered();
+    // Năm sau (trong khoảng năm của lịch): ngày giờ thật nhưng ở tương lai
+    await typeDateTime(user, time, `${new Date().getFullYear() + 1}-01-01T10:00`);
     expect(await within(dialog).findByText(DT.future)).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: O.confirm })).toBeDisabled();
   });
 
+  it("thời điểm gõ sai (31/11/2026 08:30) → báo lỗi, nút Ghi nhận khoá, không gửi deliveredAt", async () => {
+    const { user, dialog, post, time } = await openDelivered();
+    await user.clear(time);
+    await user.type(time, "311120260830");
+    expect(await within(dialog).findByText(DT.invalid)).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: O.confirm })).toBeDisabled();
+    expect(post).not.toHaveBeenCalled();
+  });
+
   it("thời điểm trước lúc bàn giao → báo lỗi, nút Ghi nhận bị khoá", async () => {
-    const { dialog, time } = await openDelivered();
-    fireEvent.change(time, { target: { value: "2026-10-20T09:00" } });
+    const { user, dialog, time } = await openDelivered();
+    await typeDateTime(user, time, "2026-10-20T09:00");
     expect(await within(dialog).findByText(DT.beforeHandover)).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: O.confirm })).toBeDisabled();
   });
@@ -454,9 +466,7 @@ describe("ShipmentScreen — sửa tay kết quả giao (docs 09 §4.3 bước 5
     const save = within(dialog).getByRole("button", { name: C.submit });
     expect(save).toBeDisabled();
     expect(within(dialog).queryAllByRole("radio")).toHaveLength(0);
-    fireEvent.change(within(dialog).getByLabelText(O.deliveredAt), {
-      target: { value: "2026-10-22T09:15" },
-    });
+    await typeDateTime(user, within(dialog).getByLabelText(O.deliveredAt), "2026-10-22T09:15");
     expect(save).toBeDisabled();
     await user.type(within(dialog).getByLabelText(new RegExp(C.reason)), "Tìm thấy ở lễ tân");
     await waitFor(() => expect(save).toBeEnabled());
@@ -483,7 +493,7 @@ describe("ShipmentScreen — sửa tay kết quả giao (docs 09 §4.3 bước 5
       const { post } = renderShipment(ACTORS.warehouseManagerFull, undone());
       await user.click(await screen.findByRole("button", { name: C.action }));
       const dialog = screen.getByRole("dialog");
-      expect(within(dialog).getByLabelText(O.deliveredAt)).toHaveValue("2026-10-22T10:00");
+      expect(within(dialog).getByLabelText(O.deliveredAt)).toHaveValue("22/10/2026 10:00");
       expect(within(dialog).getByText(C.deliveredAtUndoneHint)).toBeInTheDocument();
       expect(within(dialog).queryByText(C.otherDayWarning)).not.toBeInTheDocument();
       await user.type(
@@ -505,9 +515,9 @@ describe("ShipmentScreen — sửa tay kết quả giao (docs 09 §4.3 bước 5
       await user.click(await screen.findByRole("button", { name: C.action }));
       const dialog = screen.getByRole("dialog");
       const field = within(dialog).getByLabelText(O.deliveredAt);
-      fireEvent.change(field, { target: { value: "2026-10-22T15:30" } });
+      await typeDateTime(user, field, "2026-10-22T15:30");
       expect(within(dialog).queryByText(C.otherDayWarning)).not.toBeInTheDocument();
-      fireEvent.change(field, { target: { value: "2026-10-23T09:00" } });
+      await typeDateTime(user, field, "2026-10-23T09:00");
       expect(within(dialog).getByText(C.otherDayWarning)).toBeInTheDocument();
       expect(C.otherDayWarning).toContain("hoá đơn cũ bị giảm về 0 và lập hoá đơn mới");
       await user.type(within(dialog).getByLabelText(new RegExp(C.reason)), "Giao lại hôm sau");

@@ -40,11 +40,8 @@ function paymentMutation<TInput, TResult>(
   );
 }
 
-export const useRecordReceipt = paymentMutation(
-  recordReceipt,
-  "Đã lập phiếu thu.",
-  RECEIPT_INVALIDATION,
-);
+// Không có thông báo nổi chung: nơi gọi (`useRecordedReceipt`) báo số tiền + liên kết phiếu (S07-5).
+export const useRecordReceipt = paymentMutation(recordReceipt, "", RECEIPT_INVALIDATION);
 export const useVoidReceipt = paymentMutation(
   voidReceipt,
   "Đã huỷ phiếu thu.",

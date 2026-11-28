@@ -8,7 +8,9 @@ import type {
   priceCheckLineDtoSchema,
   priceCheckTierDtoSchema,
   priceReviewDtoSchema,
+  quoteCreditPositionSchema,
   quoteDtoSchema,
+  quoteStatusCountsDtoSchema,
   quoteFeeDtoSchema,
   quoteLineDtoSchema,
   quoteRowDtoSchema,
@@ -19,6 +21,7 @@ import type {
 } from "./schemas";
 
 export type Quote = z.infer<typeof quoteDtoSchema>;
+export type QuoteStatusCounts = z.infer<typeof quoteStatusCountsDtoSchema>;
 export type QuoteLine = z.infer<typeof quoteLineDtoSchema>;
 export type QuoteFee = z.infer<typeof quoteFeeDtoSchema>;
 /** Tổng như BE trả — có thể thiếu phí / thuế / tổng khi còn khoản chưa có giá. */
@@ -33,7 +36,7 @@ export interface QuoteTotals {
 export type QuoteTier = z.infer<typeof tierDtoSchema>;
 export type QuoteRow = z.infer<typeof quoteRowDtoSchema>;
 export type QuoteTransition = z.infer<typeof quoteTransitionDtoSchema>;
-export type CustomerSku = z.infer<typeof customerSkuDtoSchema>;
+export type CustomerSku = z.output<typeof customerSkuDtoSchema>;
 export type CustomerPrice = z.infer<typeof customerPriceDtoSchema>;
 export type QuoteFormValues = z.input<typeof quoteFormSchema>;
 export type QuoteFormOutput = z.output<typeof quoteFormSchema>;
@@ -43,3 +46,4 @@ export type PriceCheckLine = z.infer<typeof priceCheckLineDtoSchema>;
 export type PriceCheckTier = z.infer<typeof priceCheckTierDtoSchema>;
 export type PriceReview = z.infer<typeof priceReviewDtoSchema>;
 export type StandardPriceSuggestion = z.infer<typeof standardPriceSuggestionSchema>;
+export type QuoteCreditPosition = z.infer<typeof quoteCreditPositionSchema>;

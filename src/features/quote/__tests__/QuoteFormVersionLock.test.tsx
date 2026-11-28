@@ -66,14 +66,14 @@ describe("WF-02 N2 — form báo giá cũ không ghi đè bản mới", () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     let current: unknown = opened;
     const api = renderEdit(() => current);
-    const terms = await screen.findByLabelText("Điều khoản");
+    const terms = await screen.findByLabelText(/^Điều khoản/);
     await userEvent.clear(terms);
     await userEvent.type(terms, "Điều khoản của tôi");
     current = newer;
     refocusAfterAMinute();
     expect(await screen.findByText(/vừa được người khác lưu/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Lưu báo giá" })).toBeDisabled();
-    expect(screen.getByLabelText("Điều khoản")).toHaveValue("Điều khoản của tôi");
+    expect(screen.getByLabelText(/^Điều khoản/)).toHaveValue("Điều khoản của tôi");
     expect(api.put).not.toHaveBeenCalled();
   });
 
@@ -81,11 +81,11 @@ describe("WF-02 N2 — form báo giá cũ không ghi đè bản mới", () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     let current: unknown = opened;
     const api = renderEdit(() => current, { [detailUrl]: () => newer });
-    await screen.findByLabelText("Điều khoản");
+    await screen.findByLabelText(/^Điều khoản/);
     current = newer;
     refocusAfterAMinute();
     await userEvent.click(await screen.findByRole("button", { name: "Tải lại theo bản mới" }));
-    expect(screen.getByLabelText("Điều khoản")).toHaveValue(SAVED_TERMS);
+    expect(screen.getByLabelText(/^Điều khoản/)).toHaveValue(SAVED_TERMS);
     expect(screen.queryByText(/vừa được người khác lưu/)).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Lưu báo giá" }));
     await waitFor(() => expect(api.put).toHaveBeenCalledTimes(1));
@@ -100,7 +100,7 @@ describe("WF-02 N2 — form báo giá cũ không ghi đè bản mới", () => {
         throw apiError(409, "OPTIMISTIC_LOCK");
       },
     });
-    await screen.findByLabelText("Điều khoản");
+    await screen.findByLabelText(/^Điều khoản/);
     await userEvent.click(screen.getByRole("button", { name: "Lưu báo giá" }));
     expect(await screen.findByText(/vừa được người khác sửa/)).toBeInTheDocument();
     expect(await screen.findByText(/vừa được người khác lưu/)).toBeInTheDocument();
@@ -122,7 +122,7 @@ describe("WF-02 mục 24 / N8 — QUOTE_BELOW_MOQ gắn về ô số thùng củ
         });
       },
     });
-    await screen.findByLabelText("Điều khoản");
+    await screen.findByLabelText(/^Điều khoản/);
     await userEvent.click(screen.getByRole("button", { name: "Lưu báo giá" }));
     const cartons = await screen.findByLabelText(/Số thùng/);
     await waitFor(() => expect(cartons).toBeInvalid());

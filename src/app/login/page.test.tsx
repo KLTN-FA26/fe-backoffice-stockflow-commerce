@@ -1,12 +1,16 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { LOGIN_ERROR_FALLBACK, LOGIN_ERROR_MESSAGES } from "@/constants/auth";
+import { LOGIN_UI } from "@/constants/labels-login";
 
 import { ApiError } from "@/lib/api/error";
 import { loginApi } from "@/lib/auth/auth-api";
 import { useAuthStore } from "@/lib/auth/auth-store";
+import { useAppStore } from "@/lib/store/use-app-store";
+
+import { renderWithProviders } from "@/test/render";
 
 import LoginPage from "./page";
 
@@ -38,11 +42,14 @@ beforeEach(() => {
 });
 afterEach(() => {
   useAuthStore.getState().logout(false);
+  // Test đổi theme không được để lại dark (store persist + data-theme trên <html>) cho test sau.
+  useAppStore.getState().setTheme("system");
+  localStorage.clear();
   vi.clearAllMocks();
 });
 async function submit() {
   const actor = userEvent.setup();
-  render(<LoginPage />);
+  renderWithProviders(<LoginPage />);
   await actor.type(screen.getByLabelText("Tên đăng nhập"), "staff.username");
   await actor.type(screen.getByLabelText("Mật khẩu", { exact: true }), "secret");
   await actor.click(screen.getByRole("button", { name: "Đăng nhập vào hệ thống" }));
@@ -97,9 +104,41 @@ describe("BFF login form", () => {
       expect(refresh).not.toHaveBeenCalled();
     },
   );
+  it("validates empty fields with zod (Vietnamese inline errors, no native bubble, no API call)", async () => {
+    const actor = userEvent.setup();
+    renderWithProviders(<LoginPage />);
+    await actor.click(screen.getByRole("button", { name: "Đăng nhập vào hệ thống" }));
+    expect(await screen.findByText(LOGIN_UI.usernameRequired)).toBeInTheDocument();
+    expect(screen.getByText(LOGIN_UI.passwordRequired)).toBeInTheDocument();
+    expect(screen.getByLabelText("Tên đăng nhập")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByLabelText("Tên đăng nhập")).not.toBeRequired();
+    expect(loginApi).not.toHaveBeenCalled();
+    // Typing clears the field's error (reValidate on change).
+    await actor.type(screen.getByLabelText("Tên đăng nhập"), "staff");
+    await waitFor(() =>
+      expect(screen.queryByText(LOGIN_UI.usernameRequired)).not.toBeInTheDocument(),
+    );
+  });
+  it("treats a whitespace-only username as empty", async () => {
+    const actor = userEvent.setup();
+    renderWithProviders(<LoginPage />);
+    await actor.type(screen.getByLabelText("Tên đăng nhập"), "   ");
+    await actor.type(screen.getByLabelText("Mật khẩu", { exact: true }), "secret");
+    await actor.click(screen.getByRole("button", { name: "Đăng nhập vào hệ thống" }));
+    expect(await screen.findByText(LOGIN_UI.usernameRequired)).toBeInTheDocument();
+    expect(loginApi).not.toHaveBeenCalled();
+  });
+  it("toggles light/dark from the header button", async () => {
+    useAppStore.getState().setTheme("light");
+    const actor = userEvent.setup();
+    renderWithProviders(<LoginPage />);
+    await actor.click(screen.getByRole("button", { name: LOGIN_UI.themeToDark }));
+    expect(useAppStore.getState().theme).toBe("dark");
+    expect(screen.getByRole("button", { name: LOGIN_UI.themeToLight })).toBeInTheDocument();
+  });
   it("routes an already server-verified identity to the callback", async () => {
     useAuthStore.getState().login(user, false);
-    render(<LoginPage />);
+    renderWithProviders(<LoginPage />);
     await waitFor(() => expect(replace).toHaveBeenCalledWith("/admin/products"));
     expect(screen.queryByLabelText("Tên đăng nhập")).not.toBeInTheDocument();
   });

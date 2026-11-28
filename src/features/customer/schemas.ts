@@ -9,6 +9,7 @@
 import { z } from "zod";
 
 import { CUSTOMER_API_STATUSES } from "@/constants";
+import { SALES_OWNER_STATES } from "@/constants/sales-owner";
 import { bePageSchema } from "@/lib/api/page-schema";
 
 /* ── DTO ─────────────────────────────────────────────────────────────── */
@@ -25,6 +26,14 @@ export const customerDtoSchema = z.object({
   status: z.enum(CUSTOMER_API_STATUSES),
   version: z.number().int(),
   createdAt: z.string(),
+  // Sale phụ trách (hợp đồng sales-owner, BE-A): mới, đọc lỏng — BE chưa trả thì vắng; trạng thái lạ → null
+  salesOwnerId: z.string().nullish(),
+  salesOwnerName: z.string().nullish(),
+  salesOwnerActive: z.boolean().nullish(),
+  salesOwnerState: z.enum(SALES_OWNER_STATES).nullish().catch(null),
+  salesOwnerSince: z.string().nullish(),
+  // D41 (hợp đồng sales-owner, quyết định 28/11): khách cũ không có MST mang cờ, không bị bắt bổ sung. Vắng = BE cũ
+  taxCodeMissing: z.boolean().nullish(),
 });
 
 export const customerPageDtoSchema = bePageSchema(customerDtoSchema);
@@ -74,6 +83,8 @@ export const creditProfileDtoSchema = z.object({
   creditTermDays: z.number().int().nullish(),
   currency: z.string(),
   approvedBy: z.string().nullish(),
+  /** #286: tên người duyệt hạn mức kèm id — BE bỏ khi null. */
+  approvedByName: z.string().nullish(),
   approvedAt: z.string().nullish(),
   note: z.string().nullish(),
   version: z.number().int(),
@@ -113,8 +124,8 @@ const optionalPhone = z
   });
 
 /**
- * MST KHÔNG bắt buộc (quyết định 2026-10-12: hộ kinh doanh / cửa hàng nhỏ được thiếu MST).
- * Khi có: 10 số, 10-3 số, hoặc 12 số CCCD của chủ hộ (BE `TaxCode`, V20261017000540).
+ * Dạng MST. Sửa khách: MST vẫn không bắt buộc (quyết định 2026-10-12, khách cũ). Tạo khách mới: bắt buộc từ BR-S14
+ * (KE-HOACH sales-owner, D4 ngày 28/11), xem `customerCreateInputSchema`. Khi có: 10 số, 10-3 số, hoặc 12 số CCCD của chủ hộ (BE `TaxCode`, V20261017000540).
  */
 const TAX_CODE = /^\d{10}(-\d{3})?$|^\d{12}$/;
 export function normalizeTaxCode(raw: string): string {
@@ -131,13 +142,66 @@ const optionalTaxCode = z
 
 /* NEW-FE-1: no payment terms on create (BE CreateBusinessCustomerRequest, 4B-10). Credit is granted
  * afterwards by the credit approver on the customer page (PUT /customers/{id}/credit-profile). */
-export const customerCreateInputSchema = z.object({
-  companyName: z.string().trim().min(1, "Nhập tên công ty / cửa hàng").max(200, "Tối đa 200 ký tự"),
-  taxCode: optionalTaxCode,
-  contactName: z.string().trim().min(1, "Nhập người liên hệ").max(200, "Tối đa 200 ký tự"),
-  email: z.email("Email không hợp lệ").max(320, "Tối đa 320 ký tự"),
-  phone: optionalPhone,
-});
+/** BE: lý do miễn MST tối đa 500 ký tự (như lý do khoá tài khoản / huỷ). */
+export const TAX_CODE_EXEMPTION_REASON_MAX = 500;
+
+/*
+ * Sale phụ trách khách (KE-HOACH sales-owner 2026-11-27, đã duyệt 28/11):
+ * - BR-S14 (D4): MST bắt buộc cho khách mới, trừ khi Sales Manager miễn (hộ kinh doanh / ngoại lệ) và ghi lý do — BE 400
+ *   CUSTOMER_TAX_CODE_REQUIRED; quyền miễn chỉ Manager (`customer-sales-owners:UPDATE`), BE kiểm lại.
+ * - BR-S02: Sale tạo thì là chính họ; Manager / quản trị phải chọn Sale phụ trách (`salesOwnerId`, chốt 28/11: khách mới
+ *   luôn có người phụ trách — BE 400 SALES_OWNER_REQUIRED), xem `customerCreateSchemaFor`.
+ * - §10.7: tạo từ khách tiềm năng (`leadId`) → người phụ trách là Sale được giao lead, lead CONVERTED (BE).
+ * Ô mới có mặc định để dữ liệu cũ (chỉ năm ô) vẫn parse được.
+ */
+export const customerCreateInputSchema = z
+  .object({
+    companyName: z
+      .string()
+      .trim()
+      .min(1, "Nhập tên công ty / cửa hàng")
+      .max(200, "Tối đa 200 ký tự"),
+    taxCode: optionalTaxCode,
+    contactName: z.string().trim().min(1, "Nhập người liên hệ").max(200, "Tối đa 200 ký tự"),
+    email: z.email("Email không hợp lệ").max(320, "Tối đa 320 ký tự"),
+    phone: optionalPhone,
+    taxCodeExemption: z.boolean().default(false),
+    exemptionReason: z
+      .string()
+      .trim()
+      .max(TAX_CODE_EXEMPTION_REASON_MAX, `Tối đa ${TAX_CODE_EXEMPTION_REASON_MAX} ký tự`)
+      .default(""),
+    salesOwnerId: z.string().default(""),
+    leadId: z.string().default(""),
+  })
+  // BR-S14 (KE-HOACH sales-owner §3, D4): không MST thì phải có miễn trừ của Sales Manager kèm lý do.
+  .superRefine((values, ctx) => {
+    if (!values.taxCodeExemption && values.taxCode === "")
+      ctx.addIssue({
+        code: "custom",
+        path: ["taxCode"],
+        message: "Nhập mã số thuế (hộ kinh doanh: số CCCD của chủ hộ).",
+      });
+    if (values.taxCodeExemption && values.exemptionReason === "")
+      ctx.addIssue({ code: "custom", path: ["exemptionReason"], message: "Nhập lý do miễn MST" });
+  });
+
+/**
+ * Schema của form tạo khách theo người tạo. `ownerRequired` (người có `customer-sales-owners:UPDATE`: Sales Manager,
+ * quản trị): phải chọn Sale phụ trách, trừ khi tạo từ khách tiềm năng (người phụ trách là Sale của lead). Chốt 28/11 —
+ * UI-only, BE kiểm lại (400 SALES_OWNER_REQUIRED).
+ */
+export function customerCreateSchemaFor(ownerRequired: boolean) {
+  if (!ownerRequired) return customerCreateInputSchema;
+  return customerCreateInputSchema.superRefine((values, ctx) => {
+    if (values.leadId === "" && values.salesOwnerId === "")
+      ctx.addIssue({
+        code: "custom",
+        path: ["salesOwnerId"],
+        message: "Chọn Sale phụ trách khách này.",
+      });
+  });
+}
 
 export const customerUpdateInputSchema = z.object({
   fullName: z.string().trim().min(1, "Nhập tên công ty / cửa hàng").max(200, "Tối đa 200 ký tự"),

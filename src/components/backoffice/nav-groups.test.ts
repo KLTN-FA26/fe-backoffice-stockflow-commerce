@@ -5,11 +5,14 @@
 import { describe, expect, it } from "vitest";
 
 import { ADMIN_ROUTES, NAV_GROUP_LABELS, PRODUCTION_LABELS, UI_LABELS } from "@/constants";
+import { BANK_TRANSACTION_ROUTES } from "@/constants/bank-transaction";
+import { CREDIT_REQUEST_ROUTES } from "@/constants/credit-request";
 import { EINVOICE_ROUTES } from "@/constants/einvoice";
 import { INVENTORY_ROUTES } from "@/constants/inventory";
 import { PAYMENT_LABELS } from "@/constants/labels-payment";
 import { PAYMENT_ROUTES } from "@/constants/payment";
 import { RETURN_ROUTES } from "@/constants/returns";
+import { SALES_ROUTES } from "@/constants/sales-owner";
 
 import { NAV_GROUPS } from "./BackofficeShell";
 
@@ -53,6 +56,11 @@ describe("NAV_GROUPS — chia tab theo docs 00 §3", () => {
   it("Bán hàng gồm bảng giá nội bộ của khách (13 §4.2) và giá chuẩn (13 BR-04), không nằm ở dữ liệu sản phẩm", () => {
     expect(hrefsOf(NAV_GROUP_LABELS.sales)).toEqual([
       ADMIN_ROUTES.customers.list,
+      // Sale phụ trách khách (sales-owner, hợp đồng "FE screens"): phân công, khách tiềm năng, lịch thay, yêu cầu đổi Sale
+      SALES_ROUTES.assignment,
+      SALES_ROUTES.leads,
+      SALES_ROUTES.covers,
+      SALES_ROUTES.ownerChangeRequests,
       ADMIN_ROUTES.customerPrices.list,
       ADMIN_ROUTES.standardPrices.list,
       ADMIN_ROUTES.quotes.list,
@@ -84,6 +92,8 @@ describe("NAV_GROUPS — chia tab theo docs 00 §3", () => {
     expect(hrefsOf(NAV_GROUP_LABELS.inventory)).toEqual([
       INVENTORY_ROUTES.overview,
       INVENTORY_ROUTES.adjustments,
+      // Tra cứu thùng LPN (docs 20 §4.1) — module 20 sở hữu
+      INVENTORY_ROUTES.cartons,
       INVENTORY_ROUTES.quarantine,
       INVENTORY_ROUTES.movements,
     ]);
@@ -106,8 +116,10 @@ describe("NAV_GROUPS — chia tab theo docs 00 §3", () => {
       PAYMENT_ROUTES.installments.list,
       PAYMENT_ROUTES.receivables,
       PAYMENT_ROUTES.receipts.list,
+      BANK_TRANSACTION_ROUTES.list,
       PAYMENT_ROUTES.refunds.list,
       ADMIN_ROUTES.orders.creditHolds,
+      CREDIT_REQUEST_ROUTES.list,
       EINVOICE_ROUTES.list,
       EINVOICE_ROUTES.register,
       EINVOICE_ROUTES.settings,

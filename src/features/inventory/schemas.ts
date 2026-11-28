@@ -13,16 +13,19 @@ import { STOCK_ADJUSTMENT_STATUSES } from "@/constants/statuses";
 import { beUuid, requiredString } from "@/lib/validation/primitives";
 
 // Source: backend develop df34c338 StockAdjustmentResponse (+ stockPackageId, cycleCountLineId); nullable fields
-// may be omitted by the backend Jackson NON_NULL policy. `reason` and `status`
+// may be omitted by the backend Jackson NON_NULL policy. `reason`, `status` and `direction`
 // are Strings on the wire: read them open so a newer code does not invalidate
 // the response. Write-side enums stay strict in adjustmentCreateInput/list input.
+// ADR-0011 (BE, issue #305): stock is whole cartons — `direction` (WRITE_OFF / RESTOCK) replaces the signed
+// `quantityDelta`; the units the carton stands for are its `nominalQty`.
 export const stockAdjustmentDto = z.object({
   adjustmentId: beUuid,
   number: z.string(),
   locationCode: z.string(),
   sku: z.string(),
   lotNumber: z.string().nullish(),
-  quantityDelta: z.number().int(),
+  direction: z.string(),
+  nominalQty: z.number().int().nonnegative().nullish(),
   reason: z.string(),
   note: z.string().nullish(),
   status: z.string(),
@@ -37,6 +40,12 @@ export const stockAdjustmentDto = z.object({
   // Docs 20 BR-14: một phiếu điều chỉnh đúng một thùng. Có `cycleCountLineId` khi phiếu do kiểm kê sinh ra.
   stockPackageId: beUuid.nullish(),
   cycleCountLineId: beUuid.nullish(),
+  // Issue #286 (BE develop): người đếm dòng kiểm kê sinh ra phiếu, và tên hiển thị cạnh từng id người — NON_NULL bỏ
+  // khi không biết người đó; màn đọc với fallback về id.
+  countedBy: beUuid.nullish(),
+  requestedByName: z.string().nullish(),
+  decidedByName: z.string().nullish(),
+  countedByName: z.string().nullish(),
 });
 
 // Source: backend develop 0f18f24 StockMovementResponse. `type`, `status`,
@@ -49,6 +58,8 @@ export const stockMovementDto = z.object({
   lotNumber: z.string().nullish(),
   fromLocation: z.string().nullish(),
   toLocation: z.string().nullish(),
+  // ADR-0011 (BE, issue #305): one `lpn` per ledger line replaces `fromLpn` / `toLpn`.
+  lpn: z.string().nullish(),
   quantity: z.number().int().positive(),
   status: z.string().nullish(),
   toStatus: z.string().nullish(),
@@ -57,6 +68,13 @@ export const stockMovementDto = z.object({
   reason: z.string().nullish(),
   actorId: beUuid.nullish(),
   occurredAt: z.iso.datetime(),
+  /** Tên hiển thị của `actorId` (BE trả sẵn); null với dòng hệ thống. */
+  actorName: z.string().nullish(),
+  // Issue #286: chỉ dòng ADJUSTMENT — người đề nghị (`actorId` là người duyệt) và, với chênh lệch kiểm kê, người đếm.
+  requestedBy: beUuid.nullish(),
+  requestedByName: z.string().nullish(),
+  countedBy: beUuid.nullish(),
+  countedByName: z.string().nullish(),
 });
 
 // RequestAdjustmentRequest (docs 20 §4.3, BR-04, BR-14): một thùng theo LPN, chiều, lý do — không có số lượng.
@@ -89,10 +107,12 @@ export const movementListInput = z.object({
   type: z.enum(STOCK_MOVEMENT_TYPES).optional(),
   // BE `GET /inventory/movements?warehouseId=` — lịch sử gần đây của kho trong tab theo kho (spec 2026-11-22)
   warehouseId: z.string().optional(),
+  // BE #460 (issue #455): lịch sử một thùng — dòng có thùng đó ở phía đi HOẶC phía đến
+  lpn: z.string().trim().toUpperCase().optional(),
 });
 
 export const adjustmentListInput = movementListInput
-  .omit({ type: true, warehouseId: true })
+  .omit({ type: true, warehouseId: true, lpn: true })
   .extend({
     status: z.enum(STOCK_ADJUSTMENT_STATUSES).optional(),
     sort: z.string().optional(),

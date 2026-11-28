@@ -240,10 +240,9 @@ describe("adjustment queue", () => {
     );
     renderInventory(<AdjustmentList />);
     await screen.findByText(INVENTORY_LABELS.noAdjustments);
-    // Lọc trạng thái qua nút Filter của toolbar chuẩn (popover chọn một)
-    await userEvent.click(screen.getByRole("button", { name: "Lọc trạng thái" }));
-    // Chỉ lấy option trong popover (trang còn ô chọn "Dòng/trang" của InventoryPager)
-    const options = within(await screen.findByRole("listbox")).getAllByRole("option");
+    // Bốn trạng thái → nút chọn nhanh hiện sẵn trên thanh công cụ (không phải mở popover có ô tìm)
+    const group = screen.getByRole("group", { name: "Lọc trạng thái" });
+    const options = within(group).getAllByRole("button");
     expect(options.map((option) => option.textContent)).toEqual([
       "Chờ duyệt",
       "Đã ghi sổ",
@@ -251,7 +250,7 @@ describe("adjustment queue", () => {
       "Đã rút yêu cầu",
     ]);
     expect(screen.queryByText("NCC từ chối")).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("option", { name: "Từ chối" }));
+    await userEvent.click(within(group).getByRole("button", { name: "Từ chối" }));
     await waitFor(() => expect(statuses).toHaveBeenLastCalledWith("REJECTED"));
   });
 
@@ -275,18 +274,25 @@ describe("adjustment queue", () => {
     const carton = "d0000001-0000-4000-8000-0000000000c1";
     const up = adjustmentFixture({
       reason: "FOUND",
-      quantityDelta: 120,
+      direction: "RESTOCK",
+      nominalQty: 120,
       stockPackageId: carton,
       number: "ADJ-UP",
     });
     const variance = adjustmentFixture({
       reason: "COUNT_VARIANCE",
-      quantityDelta: -120,
+      direction: "WRITE_OFF",
+      nominalQty: 120,
       stockPackageId: carton,
       cycleCountLineId: "d0000001-0000-4000-8000-0000000000c2",
       number: "ADJ-COUNT",
     });
-    const legacy = adjustmentFixture({ reason: "SCRAP", quantityDelta: -5, number: "ADJ-OLD" });
+    const legacy = adjustmentFixture({
+      reason: "SCRAP",
+      direction: "WRITE_OFF",
+      nominalQty: null,
+      number: "ADJ-OLD",
+    });
     const future = adjustmentFixture({ reason: "FUTURE_REASON", number: "ADJ-FUTURE" });
     server.use(
       inventoryPermissions([adjustmentViewPage, adjustmentRead]),
@@ -318,12 +324,12 @@ describe("adjustment queue", () => {
     expect(
       within(varianceRow).getByRole("cell", { name: "−1 thùng (−120 cái)" }),
     ).toBeInTheDocument();
-    // A phiếu recorded before counts were by carton has no carton: its unit delta is kept as it is.
+    // ADR-0011: without the carton's nominalQty the delta is still one whole carton, with no unit count.
     const legacyRow = await row("ADJ-OLD");
     expect(
       within(legacyRow).getByRole("cell", { name: "Phế phẩm (phiếu cũ)" }),
     ).toBeInTheDocument();
-    expect(within(legacyRow).getByRole("cell", { name: "-5" })).toBeInTheDocument();
+    expect(within(legacyRow).getByRole("cell", { name: "−1 thùng" })).toBeInTheDocument();
     const futureRow = await row("ADJ-FUTURE");
     expect(within(futureRow).getByRole("cell", { name: "FUTURE_REASON" })).toBeInTheDocument();
     expect(screen.queryByRole("cell", { name: "DAMAGED" })).not.toBeInTheDocument();

@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 
 import { CARRIER_REFUSAL_CODE, LOAD_STATUS, SHIPPING_LIMITS, UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
+import { addDaysIso, toLocalDateTime, todayAt, todayIso } from "@/lib/format";
 import { bookingRequestBody, isApiBooking, moveStop } from "@/features/shipping/booking";
 import {
   carrierRefusalCode,
@@ -15,6 +16,8 @@ import {
 import { bookingInputSchema } from "@/features/shipping/input-schemas";
 import { useBookLoad } from "@/features/shipping/ftl-mutations";
 import { useActiveCarriers } from "@/features/shipping/queries";
+import { DateTimePicker } from "@/components/shared/DateTimePicker";
+import type { QuickDateTime } from "@/components/shared/DateTimePicker";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,6 +31,24 @@ import type { BookingFormInput, BookingValues, Load } from "@/features/shipping/
 
 const D = UI_LABELS.shipping.ftl.bookDialog;
 const A = UI_LABELS.shipping.waybill.apiBooking;
+
+/** Nút chọn nhanh giờ hẹn lấy hàng: sớm nhất (bỏ trống), 08:30 hôm nay (nếu chưa qua), 08:30 ngày mai. */
+function pickupQuickOptions() {
+  const time = SHIPPING_LIMITS.quickPickupTime;
+  const todayAtTime = todayAt(time);
+  const options: QuickDateTime[] = [
+    { label: A.pickupQuickEarliest, value: () => "" },
+    ...(todayAtTime > toLocalDateTime()
+      ? [{ label: A.pickupQuickToday(time), value: () => todayAtTime }]
+      : []),
+    {
+      label: A.pickupQuickTomorrow(time),
+      value: () => `${addDaysIso(todayIso(), 1)}T${time}`,
+    },
+  ];
+  return options;
+}
+
 const SERVER_FIELDS = [
   "carrierId",
   "vehiclePlate",
@@ -36,7 +57,7 @@ const SERVER_FIELDS = [
   "waybillNo",
   "pickupAt",
 ] as const;
-type TextField = Exclude<(typeof SERVER_FIELDS)[number], "carrierId">;
+type TextField = Exclude<(typeof SERVER_FIELDS)[number], "carrierId" | "pickupAt">;
 
 /**
  * Ghi nhận đặt xe (BE `POST loads/{id}/booking`, docs 09 §4.2 bước 6): hãng bắt buộc. Hãng thường — đặt ngoài hệ thống —
@@ -121,7 +142,7 @@ export function BookingDialog({ load, onClose }: { load: Load; onClose: () => vo
     name: TextField,
     label: string,
     max: number,
-    opts: { mono?: boolean; type?: string; hint?: string } = {},
+    opts: { mono?: boolean; hint?: string } = {},
   ) => (
     <div>
       <Label htmlFor={`book-${name}`} className="text-ink-secondary mb-1 block text-xs font-medium">
@@ -129,7 +150,6 @@ export function BookingDialog({ load, onClose }: { load: Load; onClose: () => vo
       </Label>
       <Input
         id={`book-${name}`}
-        type={opts.type}
         maxLength={max}
         autoComplete="off"
         aria-invalid={errors[name] ? true : undefined}
@@ -185,10 +205,38 @@ export function BookingDialog({ load, onClose }: { load: Load; onClose: () => vo
         </div>
         {api ? (
           <>
-            {text("pickupAt", A.pickupAt, SHIPPING_LIMITS.pickupAtMax, {
-              type: "datetime-local",
-              hint: A.pickupAtHint,
-            })}
+            <div>
+              <Label
+                htmlFor="book-pickupAt"
+                className="text-ink-secondary mb-1 block text-xs font-medium"
+              >
+                {A.pickupAt}
+              </Label>
+              <Controller
+                control={form.control}
+                name="pickupAt"
+                render={({ field }) => (
+                  <DateTimePicker
+                    id="book-pickupAt"
+                    value={field.value ?? ""}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    ref={field.ref}
+                    showReason={false}
+                    quick={pickupQuickOptions()}
+                    className="h-8"
+                    aria-invalid={errors.pickupAt ? true : undefined}
+                    aria-describedby={
+                      errors.pickupAt ? "book-pickupAt-error" : "book-pickupAt-hint"
+                    }
+                  />
+                )}
+              />
+              <p id="book-pickupAt-hint" className="text-ink-tertiary mt-1 text-xs">
+                {A.pickupAtHint}
+              </p>
+              <FieldError id="book-pickupAt-error">{errors.pickupAt?.message}</FieldError>
+            </div>
             <BookingStops
               load={load}
               order={stops}

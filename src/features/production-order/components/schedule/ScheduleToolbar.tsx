@@ -4,7 +4,7 @@ import { PRODUCTION_LABELS, UI_LABELS } from "@/constants";
 import { isValidIsoDay } from "@/lib/date-range";
 import { formatDate } from "@/lib/format";
 
-import { ListToolbar } from "@/components/shared/ListToolbar";
+import { ListToolbar, ToolbarSwitch } from "@/components/shared/ListToolbar";
 
 import { LOCKED_SCHEDULE_COLUMNS, SCHEDULE_COLUMNS } from "./useScheduleColumns";
 
@@ -106,6 +106,14 @@ export function ScheduleToolbar({
       search={state.filters.q}
       onSearchChange={(q) => state.set({ q })}
       searchPlaceholder={L.searchPlaceholder}
+      // Lọc hai trạng thái hiện sẵn trên thanh thành công tắc — một lần bấm, không phải mở lọc ở header cột
+      tools={
+        <ToolbarSwitch
+          label={L.alertsSwitch}
+          checked={state.filters.alertsOnly}
+          onCheckedChange={(alertsOnly) => state.set({ alertsOnly })}
+        />
+      }
       {...(columns && {
         columnOptions: COLUMN_OPTIONS,
         selectedColumns: columns.visible,

@@ -5,7 +5,9 @@ import { useEffect } from "react";
 import { CHAT_PERMISSIONS, CHAT_STATUS_LABELS, CHAT_STATUS_TONE_KEY } from "@/constants";
 import { useAuthStore, usePermissionChecker } from "@/lib/auth";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
+import { useSalesOwnerAccess } from "@/lib/references/sales-owner-queries";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
+import { SalesOwnerAccessNote, SalesOwnerLine } from "@/components/backoffice/SalesOwnerNotes";
 import { Card } from "@/components/shared/Card";
 import { Notice } from "@/components/shared/Notice";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
@@ -32,6 +34,7 @@ function ConversationContent({ id }: { id: string }) {
   const meId = useAuthStore((state) => state.user?.userId ?? null);
   const canRead = can(CHAT_PERMISSIONS.read);
   const conversation = useConversation(id, canRead);
+  const owner = useSalesOwnerAccess(conversation.data?.customerId);
   const messages = useMessages(id, canRead);
   // Socket events of this conversation, once the GET found it (A.3).
   useConversationRealtime(id, conversation.isSuccess);
@@ -63,19 +66,20 @@ function ConversationContent({ id }: { id: string }) {
   const actions = staffConversationActions(data, meId, can);
   const tools = staffConversationTools(data, meId, can);
   const hint = can(CHAT_PERMISSIONS.update) ? notInChargeHint(data, meId, can) : null;
+  // BR-S12: lập báo giá từ thẻ yêu cầu chỉ cho người phụ trách khách / người lo thay / Sales Manager (UI-only, BE re-check).
   const quoteGate = {
-    allowed: tools.createQuote,
+    allowed: tools.createQuote && owner.mayAct,
     hint: !can(CHAT_PERMISSIONS.update)
       ? "Bạn chỉ có quyền xem hội thoại này."
       : isEnded(data.status)
         ? "Hội thoại đã kết thúc."
-        : hint,
+        : (hint ?? owner.blockedReason),
   };
 
   return (
     <div className="surface-soft surface-compact">
       <h1 className="sr-only">Hội thoại {data.subject ?? data.customerName}</h1>
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
         <Card className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
@@ -86,6 +90,7 @@ function ConversationContent({ id }: { id: string }) {
                 {data.customerName} ·{" "}
                 {data.assignedAgentName ? `Phụ trách: ${data.assignedAgentName}` : "Chưa phân công"}
               </div>
+              <SalesOwnerLine customerId={data.customerId} />
             </div>
             <StatusDot
               domain="order"
@@ -99,7 +104,9 @@ function ConversationContent({ id }: { id: string }) {
             actions={actions}
             tools={tools}
             blockedHint={isEnded(data.status) ? null : hint}
+            owner={owner}
           />
+          <SalesOwnerAccessNote access={{ blockedReason: null, coverNote: owner.coverNote }} />
           {messages.isPending ? (
             <p className="text-ink-tertiary text-[0.8125rem]">Đang tải tin nhắn…</p>
           ) : messages.isError ? (

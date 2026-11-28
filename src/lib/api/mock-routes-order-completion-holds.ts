@@ -29,9 +29,11 @@ const notFound = () => fail(404, "NOT_FOUND", "Resource not found");
 const invalid = (field: string, message: string) =>
   fail(400, "VALIDATION_FAILED", "Invalid request data", [{ field, message }]);
 
-async function actorId(): Promise<string | null> {
+/** Người gọi của phiên: id + tên hiển thị (BE `heldByName` / `releasedByName`, issue #286). */
+async function actor(): Promise<{ id: string | null; name: string | null }> {
   const { useAuthStore } = await import("@/lib/auth/auth-store");
-  return useAuthStore.getState().user?.userId ?? null;
+  const user = useAuthStore.getState().user;
+  return { id: user?.userId ?? null, name: user?.fullName ?? user?.username ?? null };
 }
 
 export function registerOrderCompletionHoldMockRoutes(): void {
@@ -63,15 +65,18 @@ export function registerOrderCompletionHoldMockRoutes(): void {
         "ORDER_COMPLETION_HOLD_NOT_APPLICABLE",
         `Order ${order.orderId} is ${backendStatus(order)}: its completion cannot be held`,
       );
+    const holder = await actor();
     const hold: MockCompletionHold = {
       id: crypto.randomUUID(),
       orderId: order.orderId,
       reasonCode,
       note,
       heldAt: new Date().toISOString(),
-      heldBy: await actorId(),
+      heldBy: holder.id,
+      heldByName: holder.name,
       releasedAt: null,
       releasedBy: null,
+      releasedByName: null,
       releaseNote: null,
     };
     addCompletionHold(hold);
@@ -88,7 +93,9 @@ export function registerOrderCompletionHoldMockRoutes(): void {
     const hold = openCompletionHoldOf(order.orderId);
     if (!hold) return fail(409, "ORDER_COMPLETION_NOT_HELD", "The order's completion is not held");
     hold.releasedAt = new Date().toISOString();
-    hold.releasedBy = await actorId();
+    const releaser = await actor();
+    hold.releasedBy = releaser.id;
+    hold.releasedByName = releaser.name;
     hold.releaseNote = note;
     return ok(hold);
   });

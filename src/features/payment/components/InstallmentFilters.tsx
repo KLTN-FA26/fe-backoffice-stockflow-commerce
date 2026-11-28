@@ -16,7 +16,6 @@ import { formatDate } from "@/lib/format/date";
 
 import { CustomerName } from "@/components/backoffice/CustomerName";
 import { FilterSelect } from "@/components/backoffice/FilterSelect";
-import { OrderPicker } from "@/components/backoffice/OrderPicker";
 import { DatePicker } from "@/components/shared/DatePicker";
 import { ListToolbar, TOOLBAR_ACTION_CLASS } from "@/components/shared/ListToolbar";
 import { ToolbarFilterPopover } from "@/components/shared/ToolbarFilterPopover";
@@ -57,8 +56,10 @@ function dayLabel(iso: string): string {
  * Toolbar của danh sách đợt thanh toán (BO-UX-38, data-table-mode-a): search chính là ô tìm khách — `search=` của chính
  * `GET /installments` (BE-16: tên hoặc mã số thuế; không gọi danh bạ khách vì kế toán không có quyền, WF-02 mục 35);
  * nút Lọc mở popover (trạng thái, mốc — BE nhận MỘT giá trị —, đã đến mốc, quá hạn, hạn trả trước ngày); "Công nợ phải
- * thu" (`owing=true`, BE-5) là nút bật / tắt; Ẩn hiện cột; mọi bộ lọc đang bật có chip trong thanh Cấu hình. Ô tìm đơn
- * (`GET /orders?search=`) ở hàng facet.
+ * thu" (`owing=true`, BE-5) là nút bật / tắt; Ẩn hiện cột; mọi bộ lọc đang bật có chip trong thanh Cấu hình.
+ * Chỉ MỘT ô tìm (R2/TU-3, WF4 UX audit) — không còn ô chọn đơn thứ hai. Tìm theo số đơn / số hợp đồng cần BE#469 (U81):
+ * khi BE xong, đổi `L.customerSearch` thành "số đơn, số hợp đồng, tên khách hoặc MST". Bộ lọc `orderId` trên URL (link cũ)
+ * vẫn áp, hiện chip kèm nút "Lọc theo khách của đơn".
  */
 export function InstallmentFilters({
   s,
@@ -124,7 +125,7 @@ export function InstallmentFilters({
   if (s.overdue !== null)
     summary.push({
       label: LL.overdue,
-      value: LL.yes,
+      value: s.overdue ? LL.yes : LL.no,
       active: true,
       onClear: () => void s.setOverdue(null),
     });
@@ -238,31 +239,23 @@ export function InstallmentFilters({
           </Button>
         }
         facets={
-          <>
-            <OrderPicker
-              id="installment-order-search"
-              label={L.orderSearch}
-              placeholder={L.orderSearch}
-              onSelect={(order) => void s.setOrderId(order.orderId)}
-            />
-            {ofOrder && !s.customerId && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="xs"
-                onClick={() => void s.setCustomerId(ofOrder.customerId)}
-              >
-                {L.filterByOrderCustomer}
-              </Button>
-            )}
-          </>
+          ofOrder && !s.customerId ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              onClick={() => void s.setCustomerId(ofOrder.customerId)}
+            >
+              {L.filterByOrderCustomer}
+            </Button>
+          ) : undefined
         }
         summaryItems={summary}
         onResetAll={() => {
-          s.clearFilters();
+          s.resetToDefault();
           columns.reset();
         }}
-        resetDisabled={!s.hasFilters && !columns.hasColumnConfig && !s.sorting.key}
+        resetDisabled={!s.changedFromDefault && !columns.hasColumnConfig && !s.apiSort}
       />
       {searchTooBroad && (
         <p role="alert" className="text-danger -mt-2 mb-3 text-[0.75rem]">

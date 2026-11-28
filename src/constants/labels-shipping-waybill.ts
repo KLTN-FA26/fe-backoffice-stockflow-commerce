@@ -169,7 +169,11 @@ export const SHIPPING_WAYBILL_LABELS = {
       "Hệ thống tạo đơn ở hãng khi bạn bấm tạo — nhập giờ hẹn lấy hàng và xác nhận thứ tự các điểm giao.",
     pickupAt: "Giờ hẹn lấy hàng",
     pickupAtOutOfHours: "Giờ này ngoài giờ phục vụ của hãng — chọn giờ khác.",
-    pickupAtHint: "Bỏ trống = lấy hàng càng sớm càng tốt.",
+    pickupAtHint:
+      "Gõ ngày giờ (ngày/tháng/năm, 24 giờ) hoặc bấm nút chọn nhanh. Bỏ trống = lấy hàng càng sớm càng tốt.",
+    pickupQuickEarliest: "Sớm nhất",
+    pickupQuickToday: (time: string) => `Hôm nay ${time}`,
+    pickupQuickTomorrow: (time: string) => `Ngày mai ${time}`,
     stops: "Thứ tự điểm giao",
     stopsHint:
       "Điểm lấy hàng là kho xuất; mỗi lô giao trên xe là một điểm giao, theo thứ tự bạn xác nhận (kế hoạch xếp xe chưa sắp theo thứ tự giao).",

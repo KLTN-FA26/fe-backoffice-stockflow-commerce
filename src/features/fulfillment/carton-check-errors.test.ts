@@ -30,7 +30,7 @@ describe("cartonCheckErrorMessage — mã lỗi BE 4C-6 → câu tiếng Việt"
   it("CARTON_NOT_IN_TASK: LPN lạ / của đơn khác → từ chối, báo quản lý kho kiểm lại phần lấy hàng (docs 08 §4.2)", () => {
     const message = cartonCheckErrorMessage(apiError(409, "CARTON_NOT_IN_TASK"));
     expect(message).toMatch(/không thuộc/);
-    expect(message).toMatch(/quản lý kho/);
+    expect(message).toMatch(/quản lý kho/i);
   });
 
   it("PACKING_TAKEN: nêu tên người đang kiểm khi biết; không biết thì câu chung", () => {

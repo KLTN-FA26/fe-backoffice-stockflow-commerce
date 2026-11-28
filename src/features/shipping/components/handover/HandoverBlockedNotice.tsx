@@ -17,7 +17,14 @@ const B = UI_LABELS.shipping.waybill.blocked;
  * phép đi (`details.orders[]`) kèm lý do — chưa thu đợt trước khi giao (số tiền còn thiếu, đợt giao), chưa tới ngày mở cửa
  * sổ giao (ngày), đơn đang treo. Muốn xe đi mà không có đơn đó thì dỡ kiện của nó bằng huỷ có kiểm soát xe.
  */
-export function HandoverBlockedNotice({ orders }: { orders: readonly HandoverWarning[] }) {
+export function HandoverBlockedNotice({
+  orders,
+  load,
+}: {
+  orders: readonly HandoverWarning[];
+  /** Chuyến đang bàn giao — để liên kết "thu tiền" dẫn về chuyến này sau khi lập phiếu thu. */
+  load?: { loadId: string; code: string };
+}) {
   return (
     <Alert tone="danger" title={B.title}>
       <p>{B.description}</p>
@@ -36,6 +43,7 @@ export function HandoverBlockedNotice({ orders }: { orders: readonly HandoverWar
                 key={reasonCode}
                 orderId={order.orderId}
                 reasonCode={reasonCode}
+                load={load}
               />
             ))}
           </li>

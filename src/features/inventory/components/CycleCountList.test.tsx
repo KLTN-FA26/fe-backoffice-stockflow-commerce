@@ -34,7 +34,7 @@ const { viewPage, read } = CYCLE_COUNT_PERMISSIONS;
 // ListToolbar / ListConfigSummary (shared, unlabelled constants)
 const RESET_ALL = "Đặt lại";
 const STATUS_TOOL = "Lọc trạng thái";
-const COLUMNS_TOOL = "Ẩn hiện cột";
+const COLUMNS_TOOL = "Chọn cột hiển thị";
 const page = (items: unknown[]) => ({
   items,
   page: 0,
@@ -175,22 +175,24 @@ describe("cycle count list (docs 20 §4.2, §5.2)", () => {
     renderInventory(<CycleCountList />);
     await screen.findByText(CYCLE_COUNT_LABELS.noCounts);
     expect(statuses).toHaveBeenLastCalledWith(null);
-    expect(screen.getByRole("button", { name: RESET_ALL })).toBeDisabled();
-    await user.click(screen.getByRole("button", { name: STATUS_TOOL }));
-    const options = within(await screen.findByRole("listbox")).getAllByRole("option");
+    // Chưa lọc gì → không có thanh Cấu hình, không có nút Đặt lại
+    expect(screen.queryByRole("button", { name: RESET_ALL })).not.toBeInTheDocument();
+    // Bốn trạng thái → nút chọn nhanh hiện sẵn trên thanh, không phải bấm biểu tượng phễu
+    const group = screen.getByRole("group", { name: STATUS_TOOL });
+    const options = within(group).getAllByRole("button");
     expect(options.map((option) => option.textContent)).toEqual([
       "Đã lập phiếu",
       "Đang đếm",
       expect.any(String),
       expect.any(String),
     ]);
-    await user.click(screen.getByRole("option", { name: "Đang đếm" }));
+    await user.click(within(group).getByRole("button", { name: "Đang đếm" }));
     await waitFor(() => expect(statuses).toHaveBeenLastCalledWith("IN_PROGRESS"));
     expect(await screen.findByText(INVENTORY_LABELS.noResults)).toBeInTheDocument();
     expect(screen.getByText(`${CYCLE_COUNT_LABELS.status}: Đang đếm`)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: RESET_ALL })).toBeEnabled();
-    // BE nhận một trạng thái: chọn lại cùng option là bỏ lọc
-    await user.click(screen.getByRole("option", { name: "Đang đếm" }));
+    // BE nhận một trạng thái: chọn lại cùng nút là bỏ lọc
+    await user.click(within(group).getByRole("button", { name: "Đang đếm" }));
     await waitFor(() => expect(statuses).toHaveBeenLastCalledWith(null));
     expect(await screen.findByText(CYCLE_COUNT_LABELS.noCounts)).toBeInTheDocument();
   });
@@ -210,7 +212,7 @@ describe("cycle count list (docs 20 §4.2, §5.2)", () => {
     const user = userEvent.setup();
     renderInventory(<CycleCountList />);
     await screen.findByRole("link", { name: "CC-COL-1" });
-    expect(screen.getByText(`${CYCLE_COUNT_LABELS.summaryColumns}: 7/7`)).toBeInTheDocument();
+    expect(screen.queryByText(`${CYCLE_COUNT_LABELS.summaryColumns}: 7/7`)).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: COLUMNS_TOOL }));
     // Mã phiếu là link sang chi tiết — khoá, không tắt được
     expect(await screen.findByRole("option", { name: CYCLE_COUNT_LABELS.number })).toHaveAttribute(
@@ -226,8 +228,9 @@ describe("cycle count list (docs 20 §4.2, §5.2)", () => {
     expect(
       screen.getByRole("columnheader", { name: CYCLE_COUNT_LABELS.number }),
     ).toBeInTheDocument();
+    // Cột "Thao tác" (menu "⋯" mở phiếu) không nằm trong ẩn / hiện cột — vẫn còn
     expect(
-      screen.getByRole("link", { name: `${CYCLE_COUNT_LABELS.open} CC-COL-1` }),
+      screen.getByRole("button", { name: `${CYCLE_COUNT_LABELS.open} CC-COL-1` }),
     ).toBeInTheDocument();
     expect(screen.getByText(`${CYCLE_COUNT_LABELS.summaryColumns}: 6/7`)).toBeInTheDocument();
     // Sở thích cá nhân → localStorage, không lên URL, không gọi lại API
@@ -242,7 +245,8 @@ describe("cycle count list (docs 20 §4.2, §5.2)", () => {
     expect(
       await screen.findByRole("columnheader", { name: CYCLE_COUNT_LABELS.trigger }),
     ).toBeInTheDocument();
-    expect(screen.getByText(`${CYCLE_COUNT_LABELS.summaryColumns}: 7/7`)).toBeInTheDocument();
+    // Cột về mặc định → thanh Cấu hình biến mất cùng chip
+    expect(screen.queryByText(`${CYCLE_COUNT_LABELS.summaryColumns}: 7/7`)).not.toBeInTheDocument();
   });
 
   it("a stored column config with a removed key drops it and keeps the locked number column", async () => {

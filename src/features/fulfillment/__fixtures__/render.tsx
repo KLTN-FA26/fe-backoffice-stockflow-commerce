@@ -207,3 +207,21 @@ export async function pickInputComboboxOption(
   await user.type(box, option);
   await user.click(await screen.findByRole("option", { name: option }));
 }
+
+/**
+ * Quét / gõ đủ một mã vào combobox gõ-thẳng rồi Enter (máy quét kiểu bàn phím): KHÔNG bấm option — danh sách phải chọn
+ * đúng mã đã gõ, kể cả khi có mã dài hơn chứa nó ("A-01-1" so với "A-01-10").
+ */
+export async function scanInputComboboxCode(
+  user: {
+    click: (el: Element) => Promise<void>;
+    type: (el: Element, text: string) => Promise<void>;
+  },
+  label: string | RegExp,
+  code: string,
+) {
+  patchCmdk();
+  const box = await screen.findByRole("combobox", { name: label });
+  await user.click(box);
+  await user.type(box, `${code}{Enter}`);
+}

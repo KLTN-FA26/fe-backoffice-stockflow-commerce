@@ -14,6 +14,7 @@ import { vi } from "vitest";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 import { useAuthStore } from "@/lib/auth/auth-store";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 import type { AssignedWarehouse, MyPermissions, PermissionCode } from "@/lib/auth";
 
@@ -27,6 +28,11 @@ export const ROLE_PERMISSIONS = {
     "customer-customers:APPROVE",
     "customer-credit-profiles:VIEW_PAGE",
     "customer-credit-profiles:READ",
+    // V20270102000100 (BE PR #490): Sale gửi đề nghị cấp hạn mức thay khách và ghi ý kiến
+    "customer-credit-requests:VIEW_PAGE",
+    "customer-credit-requests:READ",
+    "customer-credit-requests:CREATE",
+    "customer-credit-requests:UPDATE",
     "customer-legal-profiles:READ",
     "customer-legal-profiles:UPDATE",
     "customer-addresses:READ",
@@ -182,6 +188,13 @@ export const ROLE_PERMISSIONS = {
     "sales-order-credit-holds:VIEW_PAGE",
     "sales-order-credit-holds:READ",
     "sales-order-credit-holds:APPROVE",
+    // V20270102000100 / V20270103000100 (BE PR #490): duyệt đề nghị hạn mức; hàng chờ chuyển khoản SePay
+    "customer-credit-requests:VIEW_PAGE",
+    "customer-credit-requests:READ",
+    "customer-credit-requests:APPROVE",
+    "payment-bank-transactions:VIEW_PAGE",
+    "payment-bank-transactions:READ",
+    "payment-bank-transactions:UPDATE",
   ],
   CUSTOMER: [
     "customer-customers:VIEW_PAGE",
@@ -222,8 +235,15 @@ export function apiError(
 export function mockApi(
   role: TestRole,
   routes: { get?: RouteTable; post?: RouteTable; put?: RouteTable } = {},
-  /** Phạm vi dữ liệu + kho được gán trả về ở `/identity/me/permissions` (BE #394). Mặc định `ALL`. */
-  me: { dataScope?: MyPermissions["dataScope"]; warehouses?: AssignedWarehouse[] } = {},
+  /**
+   * Phạm vi dữ liệu + kho được gán trả về ở `/identity/me/permissions` (BE #394). Mặc định `ALL`. `extra`: quyền thêm cho
+   * một test (vd quyền mới của BE chưa có trong bộ theo vai trò ở trên).
+   */
+  me: {
+    dataScope?: MyPermissions["dataScope"];
+    warehouses?: AssignedWarehouse[];
+    extra?: readonly PermissionCode[];
+  } = {},
 ) {
   const wrap =
     (table: RouteTable | undefined, method: string) =>
@@ -232,7 +252,7 @@ export function mockApi(
         return {
           data: {
             roles: [role],
-            permissions: [...ROLE_PERMISSIONS[role]],
+            permissions: [...ROLE_PERMISSIONS[role], ...(me.extra ?? [])],
             dataScope: me.dataScope ?? "ALL",
             ...(me.warehouses ? { warehouses: me.warehouses } : {}),
           },
@@ -273,7 +293,10 @@ export function renderScreen(ui: React.ReactElement, role: TestRole, searchParam
   const view = render(
     <QueryClientProvider client={client}>
       <NuqsTestingAdapter searchParams={searchParams} hasMemory>
-        <Suspense fallback={<div>loading</div>}>{ui}</Suspense>
+        {/* Nút "Tạo mới" trên topbar (`HeaderCreateButton`) có tooltip — app bọc TooltipProvider ở layout */}
+        <TooltipProvider>
+          <Suspense fallback={<div>loading</div>}>{ui}</Suspense>
+        </TooltipProvider>
       </NuqsTestingAdapter>
     </QueryClientProvider>,
   );

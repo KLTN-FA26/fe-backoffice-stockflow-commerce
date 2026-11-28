@@ -11,6 +11,7 @@ import { RefetchBar } from "@/components/shared/RefetchBar";
 import { Button } from "@/components/ui/button";
 
 import { PAGE_SIZE_OPTIONS } from "./constants";
+import { inventoryItemTableEmptyState } from "./empty-states";
 
 import type { ColumnDef } from "@/components/shared/DataTable";
 import type { InventoryItemSummary } from "@/features/inventory-item/types";
@@ -27,7 +28,8 @@ const ERROR_COPY = {
 
 /**
  * Vùng bảng — tách rõ các trạng thái (api-conventions §8): tải lần đầu, lỗi tải, chưa có dữ liệu,
- * lọc không ra kết quả, trang vượt quá dữ liệu. Lỗi tải KHÔNG bị nuốt thành "không có dữ liệu".
+ * lọc không ra kết quả, trang vượt quá dữ liệu. Lỗi tải KHÔNG bị nuốt thành "không có dữ liệu". Ba
+ * trạng thái rỗng nằm trong thân bảng, giữ header để còn bỏ lọc cột (backoffice-erp-ui A7).
  */
 export function InventoryItemListBody({
   s,
@@ -66,35 +68,6 @@ export function InventoryItemListBody({
     }
     return <PageSkeleton variant="list" />;
   }
-  if (s.emptyState === "no-items") {
-    return <EmptyState icon={icon} title={L.empty.noItems} description={L.empty.noItemsHint} />;
-  }
-  if (s.emptyState === "no-results") {
-    return (
-      <EmptyState
-        icon={icon}
-        title={L.empty.noResults}
-        action={
-          <Button type="button" variant="outline" size="sm" onClick={() => filters.reset()}>
-            {L.empty.clearFilters}
-          </Button>
-        }
-      />
-    );
-  }
-  if (s.emptyState === "invalid-page") {
-    return (
-      <EmptyState
-        icon={icon}
-        title={L.invalidPage}
-        action={
-          <Button type="button" variant="outline" size="sm" onClick={() => void filters.setPage(1)}>
-            {L.empty.firstPage}
-          </Button>
-        }
-      />
-    );
-  }
 
   const page = query.data;
   return (
@@ -104,9 +77,9 @@ export function InventoryItemListBody({
       <DataTable
         stickyHeader
         columns={columns}
-        data={page.items}
+        data={s.items}
         rowKey={(row) => row.id}
-        caption={L.listCaption(page.items.length, page.totalElements)}
+        caption={L.listCaption(s.items.length, page.totalElements)}
         onRowClick={s.navigateToDetail}
         pageSize={s.config.pageSize}
         pageSizeOptions={PAGE_SIZE_OPTIONS}
@@ -120,6 +93,7 @@ export function InventoryItemListBody({
           onPageChange: (p) => void filters.setPage(p + 1),
           onPageSizeChange: s.changePageSize,
         }}
+        emptyState={inventoryItemTableEmptyState(s)}
       />
     </>
   );

@@ -36,12 +36,10 @@ export function ReturnParcelList({ parcels }: { parcels: readonly ReturnParcel[]
               <span className={MONO}>{parcel.receiptNumber ?? EMPTY}</span>
             )}
             <When iso={parcel.receivedAt} />
-            {parcel.receivedBy && (
+            {/* #286: tên người nhận BE kèm sẵn — không hiện mảnh UUID */}
+            {parcel.receivedByName && (
               <span className="text-ink-secondary">
-                {D.parcelReceiver}{" "}
-                <span className={MONO} title={parcel.receivedBy}>
-                  {parcel.receivedBy.slice(0, 8)}
-                </span>
+                {D.parcelReceiver} <span className="text-ink-primary">{parcel.receivedByName}</span>
               </span>
             )}
             {parcel.goodsReceiptId && (

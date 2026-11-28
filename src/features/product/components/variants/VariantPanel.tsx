@@ -8,6 +8,7 @@ import {
   INVENTORY_ITEM_PERMISSIONS,
   PRODUCT_PERMISSIONS,
   UI_LABELS,
+  VARIANT_PERMISSIONS,
 } from "@/constants";
 import { usePermissionChecker } from "@/lib/auth";
 import { SlideOverPanel } from "@/components/shared/SlideOverPanel";
@@ -15,6 +16,7 @@ import { StatusDot } from "@/components/shared/StatusDot";
 
 import { mediaCapabilities } from "../../product-capabilities";
 import { VariantCartonSpec } from "./VariantCartonSpec";
+import { VariantDescription } from "./VariantDescription";
 import { VariantFormDialog } from "./VariantFormDialog";
 import { VariantMediaGallery } from "./VariantMediaGallery";
 import { VariantOverview } from "./VariantOverview";
@@ -97,6 +99,18 @@ export function VariantPanel({
               canEdit={can(PRODUCT_PERMISSIONS.read) && canUpdate && acceptsChanges && !obsolete}
               canOpenInventoryItem={can(INVENTORY_ITEM_PERMISSIONS.read)}
               open={open}
+            />
+          </section>
+
+          <section>
+            <h3 className="text-ink-primary mb-2 text-sm font-semibold">Mô tả biến thể</h3>
+            {/* `key`: đổi biến thể thì bỏ bản nháp của biến thể trước */}
+            <VariantDescription
+              key={variant.variantId}
+              productId={productId}
+              variant={variant}
+              // BE `ProductVariantService.describe`: `product-variants:UPDATE`, sản phẩm nhận thay đổi
+              canEdit={can(VARIANT_PERMISSIONS.update) && acceptsChanges}
             />
           </section>
 

@@ -26,6 +26,7 @@ export const SHIPPING_FTL_LABELS = {
     replacement: "Chuyến thay thế",
     history: "Xem lịch sử đặt xe / tài xế",
     bookedAt: "Đặt lúc",
+    bookedBy: "Người đặt xe",
     notBooked: "Chưa đặt xe",
     book: "Đặt xe",
     rebook: "Sửa thông tin đặt xe",
@@ -53,7 +54,7 @@ export const SHIPPING_FTL_LABELS = {
     description:
       "Ghi tên tài xế (và số điện thoại) của xe này — bắt buộc có trước khi ký bàn giao. Dùng được cả khi hãng đặt xe qua API chưa báo tài xế; hãng báo lại qua webhook thì tên được thay.",
     driverName: "Tên tài xế",
-    driverPhone: "SĐT tài xế",
+    driverPhone: "Điện thoại tài xế",
     submit: "Lưu tài xế",
   },
   bookDialog: {
@@ -64,7 +65,7 @@ export const SHIPPING_FTL_LABELS = {
     carrier: "Hãng vận chuyển",
     vehiclePlate: "Biển số xe",
     driverName: "Tên tài xế",
-    driverPhone: "SĐT tài xế",
+    driverPhone: "Điện thoại tài xế",
     waybillNo: "Mã vận đơn (nếu hãng đã cấp)",
     submit: "Lưu đặt xe",
   },

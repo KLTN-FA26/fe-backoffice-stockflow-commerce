@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { XCircle } from "lucide-react";
 
 import { ORDER_LIMITS, UI_LABELS } from "@/constants";
+import { ActionTrigger } from "@/components/shared/ObjectActions";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -41,22 +42,41 @@ export function CreditRejectAction({
   /** Hàng đợi: dòng biến mất khi tải lại → màn cha giữ kết quả để hiện số phải hoàn. */
   onRejected?: (order: CreditHoldTarget) => void;
 }) {
-  // Mutation ở đây (không ở form) để Esc / bấm ra ngoài không đóng dialog khi đang gửi
-  const mutation = useRejectCreditHold();
-  const dialog = usePendingSafeDialog(mutation.isPending);
+  const { show, dialog } = useCreditRejectDialog(order, onRejected);
   const label = UI_LABELS.order.actions.creditReject;
   return (
     <>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        aria-label={compact ? `${label} duyệt công nợ đơn ${order.orderNumber}` : undefined}
-        className={`${DANGER_OUTLINE_BUTTON} ${compact ? "" : "w-full"}`}
-        onClick={dialog.show}
-      >
-        <XCircle className="size-3.5" /> {label}
-      </Button>
+      {compact ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          aria-label={`${label} duyệt công nợ đơn ${order.orderNumber}`}
+          className={DANGER_OUTLINE_BUTTON}
+          onClick={show}
+        >
+          <XCircle className="size-3.5" /> {label}
+        </Button>
+      ) : (
+        <ActionTrigger icon={XCircle} label={label} danger onClick={show} />
+      )}
+      {dialog}
+    </>
+  );
+}
+
+/** Dialog từ chối tín dụng + hàm mở — hàng đợi gọi từ menu "⋯" của dòng. */
+export function useCreditRejectDialog(
+  order: CreditHoldTarget,
+  onRejected?: (order: CreditHoldTarget) => void,
+) {
+  // Mutation ở đây (không ở form) để Esc / bấm ra ngoài không đóng dialog khi đang gửi
+  const mutation = useRejectCreditHold();
+  const dialog = usePendingSafeDialog(mutation.isPending);
+  return {
+    show: dialog.show,
+    isPending: mutation.isPending,
+    dialog: (
       <FormDialog open={dialog.open} onOpenChange={dialog.onOpenChange}>
         <RejectForm
           order={order}
@@ -65,8 +85,8 @@ export function CreditRejectAction({
           onRejected={onRejected}
         />
       </FormDialog>
-    </>
-  );
+    ),
+  };
 }
 
 function RejectForm({

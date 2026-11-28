@@ -9,6 +9,7 @@ import { formatDate, formatDateTime, toLocalIsoDate } from "@/lib/format/date";
 
 import { creditHoldSummary } from "../../selectors";
 
+import { CREDIT_HOLD_COPY } from "./copy";
 import { CustomerCell } from "./CustomerCell";
 import { useCustomerCreditPosition } from "./useCustomerCreditPosition";
 
@@ -28,7 +29,6 @@ export const CREDIT_HOLD_COLUMNS = [
   "exposure",
   "creditLimit",
   "creditSummary",
-  "overdue",
   "waiting",
   "actions",
 ] as const;
@@ -37,6 +37,9 @@ export const CREDIT_HOLD_LOCKED_COLUMNS: readonly CreditHoldColumnKey[] = [
   "orderNumber",
   "actions",
 ];
+/** "Ngày đặt" ẩn mặc định ("Chờ duyệt" đã nói đơn chờ bao lâu) — bảng vừa 1440px, không cuộn ngang (bo-21). */
+export const CREDIT_HOLD_DEFAULT_COLUMNS: readonly CreditHoldColumnKey[] =
+  CREDIT_HOLD_COLUMNS.filter((column) => column !== "placedAt");
 export const CREDIT_HOLD_COLUMN_LABELS: Record<CreditHoldColumnKey, string> = {
   orderNumber: "Mã đơn",
   customer: "Khách hàng",
@@ -45,7 +48,6 @@ export const CREDIT_HOLD_COLUMN_LABELS: Record<CreditHoldColumnKey, string> = {
   exposure: "Dư nợ lúc kiểm",
   creditLimit: "Hạn mức",
   creditSummary: "Tình trạng công nợ",
-  overdue: "Quá hạn hiện tại",
   waiting: "Chờ duyệt",
   actions: "Thao tác",
 };
@@ -55,27 +57,44 @@ function money(row: CreditHold, amount: number, className = "text-ink-primary") 
 }
 
 /**
- * Khoản quá hạn HIỆN TẠI của khách (BO-UX-32): "x ₫ · N ngày" (N tính từ đợt quá hạn cũ nhất). Chỉ gọi
+ * Khoản quá hạn HIỆN TẠI của khách (BO-UX-32, bo-21): số tiền + "quá hạn N ngày" (N tính từ đợt quá hạn cũ nhất), nằm
+ * ngay trong ô "Tình trạng công nợ" — không chỉ là chữ đỏ, không cột riêng phải cuộn mới thấy. Chỉ gọi
  * `GET /orders/credit-position/{customerId}` cho dòng giữ vì nợ quá hạn (phần vượt = 0) — dòng vượt hạn mức đã tự nói lý
  * do bằng số vượt, nên hàng đợi không gọi theo từng dòng cho chúng. Cùng query key với panel của hộp thoại duyệt nên mở
  * dialog không gọi lại. Thiếu quyền đọc hồ sơ tín dụng / tải lỗi → "—" (không đoán số).
  */
 function OverdueCell({ row }: { row: CreditHold }) {
   const position = useCustomerCreditPosition(row.order.customerId);
-  if (!position.available || position.isError) return <span className="text-ink-tertiary">—</span>;
+  const title = (
+    <span className="text-danger text-[0.8125rem] font-medium">{CREDIT_HOLD_COPY.overdue}</span>
+  );
+  // Thiếu quyền đọc hồ sơ tín dụng / tải lỗi → chỉ câu tình trạng (không đoán số)
+  if (!position.available || position.isError) return title;
   if (position.isPending || !position.data)
-    return <span className="text-ink-tertiary text-xs">Đang tải…</span>;
+    return (
+      <span className="flex flex-col items-end">
+        {title}
+        <span className="text-ink-tertiary text-xs">{CREDIT_HOLD_COPY.loading}</span>
+      </span>
+    );
   const { overdueAmount, oldestOverdueDueDate, currency } = position.data;
-  if (overdueAmount <= 0) return <span className="text-ink-tertiary text-xs">Không quá hạn</span>;
+  // Lúc kiểm có nợ quá hạn, nay khách đã trả: nói rõ để Kế toán duyệt được
+  if (overdueAmount <= 0)
+    return (
+      <span className="flex flex-col items-end">
+        {title}
+        <span className="text-ink-tertiary text-xs">{CREDIT_HOLD_COPY.overdueCleared}</span>
+      </span>
+    );
   const days = oldestOverdueDueDate ? daysBetween(oldestOverdueDueDate, todayIso()) : null;
   return (
     <span className="flex flex-col items-end">
-      <span className={`${MONEY} text-ink-primary text-[0.8125rem] font-medium`}>
+      <span className={`${MONEY} text-danger text-[0.8125rem] font-medium`}>
         {formatMoney(overdueAmount, currency)}
       </span>
-      {days !== null && days > 0 && (
-        <span className="text-ink-secondary text-xs">quá hạn {days} ngày</span>
-      )}
+      <span className="text-ink-secondary text-xs">
+        {days !== null && days > 0 ? CREDIT_HOLD_COPY.overdueDays(days) : CREDIT_HOLD_COPY.overdue}
+      </span>
     </span>
   );
 }
@@ -162,25 +181,21 @@ export function buildCreditHoldColumns(
         const summary = creditHoldSummary(r);
         return summary.kind === "over-limit" ? (
           <span className="text-danger text-[0.8125rem] font-medium">
-            Vượt hạn mức {money(r, summary.excess, "text-danger")}
+            {CREDIT_HOLD_COPY.overLimit} {money(r, summary.excess, "text-danger")}
           </span>
         ) : (
-          <span className="text-danger text-[0.8125rem] font-medium">Khách có công nợ quá hạn</span>
+          <OverdueCell row={r} />
         );
       },
     },
-    {
-      key: "overdue",
-      header: L.overdue,
-      align: "right",
-      cell: (r) =>
-        creditHoldSummary(r).kind === "overdue" ? (
-          <OverdueCell row={r} />
-        ) : (
-          <span className="text-ink-tertiary">—</span>
-        ),
-    },
     { key: "waiting", header: L.waiting, cell: (r) => <WaitingCell row={r} /> },
-    { key: "actions", header: L.actions, align: "right", sticky: "right", cell: renderActions },
+    {
+      key: "actions",
+      header: L.actions,
+      align: "right",
+      sticky: "right",
+      className: "w-28",
+      cell: renderActions,
+    },
   ];
 }

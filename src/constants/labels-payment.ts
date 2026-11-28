@@ -79,9 +79,11 @@ export const PAYMENT_LABELS = {
     clearFilters: "Bỏ bộ lọc",
     customerChip: "Khách hàng",
     orderChip: "Đơn hàng",
-    orderSearch: "Tìm đơn (số đơn, tên liên hệ, SĐT)",
     filterByOrderCustomer: "Lọc theo khách của đơn",
     emptyTitle: "Chưa có đợt thanh toán",
+    emptyQueueTitle: "Không còn đợt nào cần thu",
+    emptyQueueDescription: "Mọi đợt đã đến mốc đều đã thu đủ.",
+    showAll: "Xem mọi đợt",
     emptyDescription:
       "Đợt thanh toán được hệ thống sinh khi hợp đồng chuyển sang Signed — chưa có hợp đồng nào được ký.",
     noReadDescription:
@@ -96,6 +98,13 @@ export const PAYMENT_LABELS = {
     batchTied: (seq: number) => `Đợt giao ${seq}`,
     notTied: "Không gắn đợt giao",
     handoverBlocked: "Đang chặn bàn giao",
+    kpis: {
+      label: "Đợt cần thu",
+      dueToday: "Đến hạn hôm nay",
+      dueWeek: "Đến hạn trong 7 ngày",
+      overdue: "Quá hạn",
+      unavailable: "Không tải được số liệu",
+    },
   },
   columns: {
     contract: "Hợp đồng",
@@ -149,7 +158,15 @@ export const PAYMENT_LABELS = {
     navLabel: "Phiếu thu",
     pageTitle: "Phiếu thu",
     createAction: "Lập phiếu thu",
-    searchPlaceholder: "Mã tham chiếu sao kê (khớp chính xác)",
+    /** bo-24: BE `search` — tên / MST khách, số hợp đồng, số đơn (PR #497). */
+    searchPlaceholder: "Tìm theo khách, MST, số hợp đồng hoặc số đơn",
+    /** Mã tham chiếu sao kê vẫn là bộ lọc riêng, khớp chính xác (BE `reference`). */
+    referenceLabel: "Mã tham chiếu",
+    referencePlaceholder: "Mã sao kê, khớp chính xác",
+    referenceChip: "Mã tham chiếu",
+    /** Cột "Hợp đồng · Đợt" (bo-24): các đợt phiếu thu đã trả, từ `lines[]` của danh sách. */
+    installmentsColumn: "Hợp đồng · Đợt",
+    moreInstallments: (count: number) => `+${count} đợt`,
     createHint:
       "Lập phiếu thu từ danh sách đợt thanh toán: mở đợt cần ghi tiền rồi chọn “Lập phiếu thu”.",
     emptyTitle: "Chưa có phiếu thu",
@@ -204,19 +221,35 @@ export const PAYMENT_LABELS = {
       "Chỉ ghi phần tiền đã xác định được đợt thanh toán. Phiếu đã lập không sửa được — ghi sai thì huỷ phiếu và lập lại.",
     reference: "Mã tham chiếu sao kê",
     referenceHint: "Mỗi dòng sao kê chỉ ghi một phiếu còn hiệu lực.",
+    /** Chữ gợi ý trong ô (S07-4): chỉ ví dụ, không đặt mặt nạ — docs 15 không quy định định dạng mã sao kê. */
+    referencePlaceholder: "Ví dụ: FT26313123456",
     receivedOn: "Ngày nhận",
-    note: "Ghi chú",
+    note: "Ghi chú (không bắt buộc)",
     linesTitle: "Các đợt được trả",
-    addLine: "Thêm đợt",
+    addLine: "Thêm đợt khác của khách này",
     removeLine: "Bỏ dòng",
+    searchInstallment: "Gõ số đơn, số hợp đồng hoặc tên đợt…",
+    noInstallmentMatch: "Không có đợt nào khớp.",
+    orderGroup: "Đơn",
+    moreInstallments: (count: number) => `Còn ${count} đợt — gõ thêm để thu hẹp`,
     installmentLabel: "Đợt thanh toán",
-    amountLabel: "Số tiền (₫)",
+    amountLabel: "Số tiền",
     outstandingOf: (amount: string) => `Còn phải thu ${amount}`,
     total: "Tổng phiếu thu",
     submit: "Lập phiếu thu",
     noMoreInstallments: "Khách này không còn đợt nào để ghi thêm.",
     loadFailed: "Không tải được các đợt của khách. Đóng hộp thoại rồi thử lại.",
     pickInstallment: "Chọn đợt…",
+    /** Sau khi lập phiếu thu (S07-5): số tiền, liên kết phiếu, và đường quay lại chuyến đang chờ bàn giao. */
+    recorded: {
+      toastTitle: "Đã lập phiếu thu",
+      toastBody: (amount: string, reference: string) => `${amount} — mã sao kê ${reference}`,
+      summary: (amount: string, reference: string) =>
+        `Đã lập phiếu thu ${amount} (mã sao kê ${reference}).`,
+      view: "Xem phiếu thu",
+      backToLoad: (code: string) => `Quay lại chuyến ${code}`,
+      dismiss: "Đóng",
+    },
   },
   voidDialog: {
     title: "Huỷ phiếu thu?",
@@ -295,10 +328,11 @@ export const PAYMENT_LABELS = {
     title: "Ghi nhận đã hoàn tiền",
     description:
       "Nhập sau khi đã chuyển khoản hoàn cho khách. Số tiền không vượt số còn phải hoàn.",
-    amount: "Số tiền đã hoàn (₫)",
+    amount: "Số tiền đã hoàn",
     refundedOn: "Ngày chuyển",
     reference: "Mã tham chiếu sao kê (chiều chi)",
-    note: "Ghi chú",
+    referencePlaceholder: "Ví dụ: FT26313123456",
+    note: "Ghi chú (không bắt buộc)",
     submit: "Ghi nhận đã hoàn",
     /** BO-UX-41: người nhận tiền hoàn. */
     payee: "Người nhận tiền hoàn",
@@ -333,6 +367,7 @@ export const PAYMENT_LIST_LABELS = {
   notUsed: "Chưa dùng",
   all: "Tất cả",
   yes: "Có",
+  no: "Không",
   overdueDays: (days: number) => (days > 0 ? `Quá hạn ${days} ngày` : "Quá hạn"),
   unknownStatus: "Không rõ",
   receivedRange: "Ngày nhận",
@@ -378,7 +413,21 @@ export const RECEIVABLES_LABELS = {
   over60: "> 60 ngày",
   installmentCount: "Số đợt",
   viewInstallments: "Xem các đợt",
+  viewOwing: "Xem các đợt còn nợ",
   actions: "Thao tác",
+  rowActions: (customer: string) => `Thao tác — ${customer}`,
+  creditLimit: "Hạn mức",
+  noCreditLimit: "Chưa cấp",
+  creditUsed: (percent: number) => `Đã dùng ${percent}%`,
+  creditUsedTitle: "Dư nợ tính hạn mức (còn phải thu + phần sau giao của hàng chưa giao) / hạn mức",
+  /** Chú thích ở header (bo-23): hai cột quá hạn đọc khác nhau. */
+  overdueHint:
+    "Đợt sau giao đã quá hạn trả mà khách chưa trả đủ. Nằm trong “Còn phải thu” và chia theo tuổi nợ 0–30 / 31–60 / > 60 ngày.",
+  signingOverdueHint:
+    "Đợt phải trả khi ký hợp đồng đã quá hạn mà chưa trả đủ. Không nằm trong “Còn phải thu” hay “Quá hạn”, nhưng vẫn chặn hợp đồng mới của khách khi kiểm tra tín dụng.",
+  hintLabel: (column: string) => `Giải thích cột ${column}`,
+  totalsTitle: (customers: number) => `Tổng ${customers} khách`,
+  totalsLabel: "Tổng các cột trên mọi khách đang lọc",
   emptyTitle: "Không có khách nào còn nợ",
   emptyDescription: "Khi đợt thanh toán đến mốc mà khách chưa trả đủ, khách sẽ hiện ở đây.",
   noReadDescription:

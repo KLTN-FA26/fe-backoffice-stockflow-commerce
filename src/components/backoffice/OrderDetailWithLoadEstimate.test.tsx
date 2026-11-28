@@ -14,6 +14,7 @@ import { apiOrder, apiOrderAt } from "@/features/order/__fixtures__/order";
 import {
   mockOrderApiGet,
   ORDER_PERMISSION_SETS,
+  clickOrderDetailTab,
   renderOrderScreen,
 } from "@/features/order/__fixtures__/render";
 
@@ -62,6 +63,9 @@ describe("OrderDetailWithLoadEstimate", () => {
       ...ORDER_PERMISSION_SETS.readOnly,
       LOAD_ESTIMATE_PERMISSIONS.read,
     ]);
+    // Thẻ Xếp xe nằm ở tab "Giao hàng" của chi tiết đơn
+    await screen.findByRole("tab", { name: "Giao hàng" });
+    clickOrderDetailTab("Giao hàng");
     const card = await screen.findByRole("region", { name: "Xếp xe" });
     const user = userEvent.setup();
     await user.click(await within(card).findByRole("button", { name: "Ước tính xếp xe" }));
@@ -74,6 +78,7 @@ describe("OrderDetailWithLoadEstimate", () => {
   it("thiếu cả hai mã fulfillment-load-estimates → không có nút (đơn chỉ đọc)", async () => {
     await renderScreen("READY_TO_FULFILL", ORDER_PERMISSION_SETS.readOnly);
     await screen.findByRole("heading", { name: apiOrder.orderNumber });
+    clickOrderDetailTab("Giao hàng");
     // Thiếu quyền ước tính → không có nút (thẻ Xếp xe rỗng, ẩn bằng `empty:hidden`)
     expect(screen.getByRole("region", { name: "Xếp xe" })).toBeEmptyDOMElement();
     expect(screen.queryByRole("button", { name: "Ước tính xếp xe" })).not.toBeInTheDocument();

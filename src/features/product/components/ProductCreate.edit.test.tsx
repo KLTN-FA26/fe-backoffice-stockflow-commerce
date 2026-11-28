@@ -59,13 +59,11 @@ const beProduct = {
   productId: PRODUCT,
   code: "TOTE",
   name: "Túi tote",
-  nameEn: "Tote bag",
   brandId: BRAND,
   brandName: "Thương hiệu A",
   categoryId: DEEP.categoryId,
   shortDescription: "",
   description: "",
-  descriptionEn: "",
   taxClass: "STANDARD",
   kind: "STANDARD",
   status: "DRAFT",
@@ -211,14 +209,16 @@ describe("ProductCreate — sửa bị 409 OPTIMISTIC_LOCK", { timeout: 15_000 }
     await goToLastStep(user);
     await user.click(screen.getByRole("button", { name: "Lưu thay đổi" }));
 
-    expect(await screen.findByText(/người khác đổi: Mô tả tiếng Việt/)).toBeInTheDocument();
+    expect(await screen.findByText(/người khác đổi: Mô tả/)).toBeInTheDocument();
     expect(put).toHaveBeenCalledWith(
       `/products/${PRODUCT}`,
       expect.objectContaining({ version: 1, name: "Bản của tôi" }),
     );
     // Không nạp đè bản server lên công người dùng
     expect(screen.getByLabelText(/^Tên sản phẩm/)).toHaveValue("Bản của tôi");
-    expect(screen.getByLabelText("Mô tả tiếng Việt")).toHaveValue("");
+    // Mô tả là ô soạn rich text (Tiptap, ADR-0013): vẫn trống như người dùng để
+    // (bước Mô tả đang ẩn sau stepper → hidden: true)
+    expect(screen.getByRole("textbox", { name: "Mô tả", hidden: true })).toHaveTextContent("");
 
     await user.click(screen.getByRole("button", { name: "Lưu thay đổi" }));
     // Lưu lại bản của người dùng (mô tả để trống → không gửi), với version mới đã tải lại

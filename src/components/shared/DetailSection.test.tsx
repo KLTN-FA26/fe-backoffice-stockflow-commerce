@@ -1,57 +1,52 @@
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { Layers } from "lucide-react";
 import { describe, expect, it } from "vitest";
 
 import { DetailSection, InfoRow } from "./DetailSection";
 
 describe("DetailSection", () => {
-  it("an open section names its region by the title and says it is expanded", () => {
+  it("names its region by the title and shows its content", () => {
     render(
       <DetailSection title="Thông tin chung" icon={Layers}>
         <InfoRow label="SKU">SKU-1</InfoRow>
       </DetailSection>,
     );
-    const toggle = screen.getByRole("button", { name: "Thông tin chung" });
-    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("heading", { name: "Thông tin chung" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Thông tin chung" })).toHaveTextContent("SKU-1");
   });
 
-  it("a closed section shows nothing until its title is clicked", async () => {
+  it("never collapses: no toggle, and the content shows even when defaultOpen is false", () => {
     render(
       <DetailSection title="Số mặc định" defaultOpen={false}>
         <p>Nội dung</p>
       </DetailSection>,
     );
-    const toggle = screen.getByRole("button", { name: "Số mặc định" });
-    expect(toggle).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByText("Nội dung")).not.toBeInTheDocument();
-    await userEvent.setup().click(toggle);
-    expect(toggle).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByText("Nội dung")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Số mặc định" })).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Số mặc định" })).toHaveTextContent("Nội dung");
   });
 
-  it("the open title has no grey background: the ghost variant's expanded and hover fills are overridden", () => {
+  it("puts the actions on the title row, inside the region", () => {
     render(
-      <DetailSection title="Thông tin chung">
+      <DetailSection title="Biến thể" actions={<button type="button">Thêm biến thể</button>}>
         <p>x</p>
       </DetailSection>,
     );
-    const toggle = screen.getByRole("button", { name: "Thông tin chung" });
-    expect(toggle).toHaveAttribute("aria-expanded", "true");
-    for (const kept of [
-      "aria-expanded:bg-transparent",
-      "hover:bg-transparent",
-      "active:bg-transparent",
-      "aria-expanded:text-ink-primary",
-      "hover:text-accent",
-    ]) {
-      expect(toggle).toHaveClass(kept);
-    }
-    for (const dropped of ["aria-expanded:bg-muted", "hover:bg-muted", "dark:hover:bg-muted/50"]) {
-      expect(toggle).not.toHaveClass(dropped);
-    }
-    // the focus ring of the button stays (a ring, not a fill)
-    expect(toggle).toHaveClass("focus-visible:ring-3");
+    const region = screen.getByRole("region", { name: "Biến thể" });
+    expect(region).toContainElement(screen.getByRole("button", { name: "Thêm biến thể" }));
+  });
+
+  it("a bare section has no card frame; a normal one does", () => {
+    render(
+      <>
+        <DetailSection title="Khung">
+          <p>a</p>
+        </DetailSection>
+        <DetailSection title="Trơn" bare>
+          <p>b</p>
+        </DetailSection>
+      </>,
+    );
+    expect(screen.getByRole("region", { name: "Khung" })).toHaveClass("border", "bg-bg-surface");
+    expect(screen.getByRole("region", { name: "Trơn" })).not.toHaveClass("border");
   });
 });

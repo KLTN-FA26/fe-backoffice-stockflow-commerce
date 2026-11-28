@@ -19,14 +19,18 @@ import type { TaxonomyListState } from "./useTaxonomyListState";
 
 const L = UI_LABELS.taxonomy;
 const icon = <FolderTree className="size-8" />;
+// EmptyState nằm trong thân bảng — bỏ khung (backoffice-erp-ui A7)
+const IN_TABLE = "rounded-none border-0 bg-transparent py-10 whitespace-normal";
 
 /**
  * Vùng bảng của một tab — đủ trạng thái (api-conventions §8): không quyền đọc, lỗi tải, tải lần
- * đầu, chưa có dữ liệu, lọc không ra (hai EmptyState khác nhau), bảng + phân trang phía BE.
+ * đầu; chưa có dữ liệu / lọc không ra (hai EmptyState khác nhau) nằm TRONG thân bảng để header và
+ * nút lọc cột vẫn còn (backoffice-erp-ui A7); bảng + phân trang phía BE.
  */
 export function TaxonomyListBody<T>({
   s,
   query,
+  rows,
   columns,
   rowKey,
   onRowClick,
@@ -36,6 +40,8 @@ export function TaxonomyListBody<T>({
 }: {
   s: TaxonomyListState;
   query: UseQueryResult<PaginatedResponse<T>>;
+  /** Dòng của trang đã qua lọc header cột Mã / Tên. */
+  rows: T[];
   columns: ColumnDef<T>[];
   rowKey: (row: T) => string;
   onRowClick: (row: T) => void;
@@ -61,31 +67,35 @@ export function TaxonomyListBody<T>({
     );
   }
   if (!page) return <PageSkeleton variant="list" />;
-  if (page.totalElements === 0) {
-    return s.filtered ? (
-      <EmptyState
-        icon={icon}
-        title={L.noMatchTitle}
-        description={L.noMatchDescription}
-        action={
-          <Button type="button" variant="outline" size="sm" onClick={s.resetFilters}>
-            {L.clearFilters}
-          </Button>
-        }
-      />
-    ) : (
-      <EmptyState icon={icon} title={emptyTitle} description={emptyDescription} />
-    );
-  }
+  const emptyState = s.filtered ? (
+    <EmptyState
+      className={IN_TABLE}
+      icon={icon}
+      title={L.noMatchTitle}
+      description={L.noMatchDescription}
+      action={
+        <Button type="button" variant="outline" size="sm" onClick={s.resetFilters}>
+          {L.clearFilters}
+        </Button>
+      }
+    />
+  ) : (
+    <EmptyState
+      className={IN_TABLE}
+      icon={icon}
+      title={emptyTitle}
+      description={emptyDescription}
+    />
+  );
   return (
     <>
       <RefetchBar active={query.isFetching} label={`Đang tải lại ${noun}`} />
       <DataTable
         stickyHeader
         columns={columns}
-        data={page.items}
+        data={rows}
         rowKey={rowKey}
-        caption={`Hiển thị ${page.items.length} / ${page.totalElements} ${noun}`}
+        caption={`Hiển thị ${rows.length} / ${page.totalElements} ${noun}`}
         onRowClick={onRowClick}
         pageSize={s.config.pageSize}
         pageSizeOptions={TAXONOMY_PAGE_SIZES}
@@ -99,6 +109,7 @@ export function TaxonomyListBody<T>({
           onPageChange: (p) => void s.setPage(p + 1),
           onPageSizeChange: s.changePageSize,
         }}
+        emptyState={emptyState}
       />
     </>
   );

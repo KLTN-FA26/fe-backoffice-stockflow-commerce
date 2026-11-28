@@ -93,7 +93,7 @@ describe("Huỷ có kiểm soát cả kế hoạch (SCRUM-474 UNLOAD-DESIGN)", (
     renderPlan(ACTORS.manager, planWithVehicle("DISPATCHED"));
     // Đã khoá: lý do (vì sao) nằm ngay dưới tên trong menu, không chỉ khi rê chuột
     expect(await planActionOf(C.cancelButton)).toBeDisabled();
-    expect(screen.getByText(C.plan.disabledVehicleLeft)).toBeInTheDocument();
+    expect(screen.getAllByText(C.plan.disabledVehicleLeft).length).toBeGreaterThan(0);
   });
 
   it("chọn mã lý do + ghi chú → POST /controlled-cancellation {expectedVersion, reasonCode, note}", async () => {

@@ -70,6 +70,8 @@ export const USER_UI = {
   loadFailed: "Không tải được danh sách người dùng.",
   neverSignedIn: "Chưa đăng nhập",
   noWarehouse: "Chưa gán kho",
+  warehouseCount: (count: number) => `${count} kho`,
+  assignedWarehousesReadOnly: "Bạn không có quyền xem danh mục kho nên không sửa được tại đây.",
   noRoles: "Chưa có vai trò",
   selfNotice: "Đây là tài khoản của bạn — hệ thống không cho tự thay đổi tại màn này.",
   mustChangePassword: "Đang dùng mật khẩu tạm — nên đổi sau khi đăng nhập",

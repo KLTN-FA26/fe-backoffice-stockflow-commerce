@@ -93,6 +93,11 @@ export function allMockCustomers(): readonly MockCustomer[] {
   return customers;
 }
 
+/** Khách vừa tạo qua `POST /customers` (mock) — vào cuối danh sách, như một dòng mới của BE. */
+export function addMockCustomer(customer: MockCustomer): void {
+  customers = [...allMockCustomers(), customer];
+}
+
 /**
  * Ngoài 45 khách của danh sách, còn tìm được hai khách của seed demo WF-02 của BE (khách demo, Trà Sữa Mây — báo giá /
  * hợp đồng mock trỏ tới) — để tên khách và giá riêng của họ đọc được. Họ không nằm trong `/customers`.
@@ -103,7 +108,7 @@ export function findMockCustomer(customerId: string): MockCustomer | null {
 }
 
 /** BE `TaxCode.normalise`: bỏ khoảng trắng / dấu chấm; 13 chữ số → 10-3; sai dạng → null (không khớp ai). */
-function normaliseTaxCode(raw: string): string | null {
+export function normaliseTaxCode(raw: string): string | null {
   const compact = raw.trim().replace(/[\s.]/g, "");
   const shaped = /^\d{13}$/.test(compact)
     ? `${compact.slice(0, 10)}-${compact.slice(10)}`

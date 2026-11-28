@@ -10,6 +10,19 @@ export function categoryName(categoryId: string | null, categories: readonly Cat
   return categories.find((category) => category.categoryId === categoryId)?.name.vi ?? "—";
 }
 
+const NAMES = UI_LABELS.product.names;
+
+/**
+ * Danh mục của một sản phẩm đã lưu: tên BE trả kèm (`ProductResponse.categoryName`, issue #286) — không
+ * tải cả danh sách danh mục chỉ để tra tên. BE bỏ trường null → thiếu thì "—".
+ */
+export function productCategoryLabel(
+  product: Pick<Product, "categoryId" | "categoryName">,
+): string {
+  if (product.categoryId === null) return NAMES.noCategory;
+  return product.categoryName || NAMES.missing;
+}
+
 const TAX_CLASS_LABELS: Readonly<Record<string, string>> = UI_LABELS.product.taxClass;
 
 /** `standard` / `STANDARD` (BE `TaxClass`) → "Tiêu chuẩn"; giá trị lạ hiện nguyên văn để không mất dữ liệu. */

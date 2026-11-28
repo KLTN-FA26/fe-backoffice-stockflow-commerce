@@ -9,8 +9,8 @@ import {
   UI_LABELS,
 } from "@/constants";
 import { formatDateTime } from "@/lib/format/date";
-import { useWarehouseDirectory } from "@/lib/references/warehouse-options";
 import { failureNoteIsCarrierWording } from "@/features/shipping/carrier-original-note";
+import { warehouseRefLabel } from "@/features/shipping/selectors";
 import { StatusDot } from "@/components/shared/StatusDot";
 
 import { InfoItem } from "../primitives";
@@ -38,8 +38,6 @@ export function ShipmentInfoCard({
   actions?: React.ReactNode;
 }) {
   const { shipment } = data;
-  const { data: warehouses } = useWarehouseDirectory();
-  const warehouse = warehouses?.find((w) => w.warehouseId === shipment.warehouseId);
   return (
     <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-(--card-shadow)">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -68,10 +66,8 @@ export function ShipmentInfoCard({
           }
           mono
         />
-        <InfoItem
-          label={F.warehouse}
-          value={warehouse ? `${warehouse.code} · ${warehouse.name}` : shipment.warehouseId}
-        />
+        {/* Mã + tên kho do BE trả (#286) — không tải danh mục kho; BE cũ chưa trả thì "—", không hiện UUID */}
+        <InfoItem label={F.warehouse} value={warehouseRefLabel(shipment) ?? "—"} />
         <InfoItem label={L.carrierCard} value={shipment.carrierName ?? F.carrierNone} />
         <InfoItem
           label={L.onLoad}

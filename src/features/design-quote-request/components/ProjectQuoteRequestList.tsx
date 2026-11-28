@@ -1,8 +1,12 @@
 "use client";
 
+import { useState } from "react";
+
+import { useRouter } from "next/navigation";
 import { FolderKanban } from "lucide-react";
 
 import {
+  ADMIN_ROUTES,
   DESIGN_QUOTE_REQUEST_LABELS as COPY,
   DESIGN_QUOTE_REQUEST_PERMISSIONS,
   DESIGN_REVIEW_STORAGE_KEYS,
@@ -12,10 +16,16 @@ import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 
 import { ServerTableBody } from "@/components/backoffice/ServerTableBody";
+import { withHeaderFilters } from "@/components/shared/ColumnHeaderFilter";
 
 import { useCloseProjectQuoteRequest } from "../mutations";
 import { useProjectQuoteRequests } from "../queries";
 import { QUOTE_REQUEST_COPY } from "./copy";
+import {
+  matchesQuoteRequestFilters,
+  quoteRequestPageFilterActive,
+  quoteRequestHeaderFilters,
+} from "./quote-request-header-filters";
 import { QuoteRequestToolbar } from "./QuoteRequestToolbar";
 import {
   PROJECT_REQUEST_COLUMN_LABELS,
@@ -26,7 +36,11 @@ import {
 import { QuoteRequestTabs } from "./QuoteRequestTabs";
 import { useQuoteRequestFilters } from "./useQuoteRequestFilters";
 
+import type { ProjectQuoteRequest } from "../types";
+
 function ProjectQuoteRequestContent() {
+  // Mốc "Đã chờ …" của trang (bo-01): chốt lúc mở trang, không đổi mỗi lần vẽ lại.
+  const [now] = useState(() => new Date());
   const filters = useQuoteRequestFilters(DESIGN_REVIEW_STORAGE_KEYS.projectQuoteRequestsConfig);
   const { list } = filters;
   const query = useProjectQuoteRequests({
@@ -36,13 +50,19 @@ function ProjectQuoteRequestContent() {
     customerId: filters.customerId || undefined,
   });
   const close = useCloseProjectQuoteRequest();
+  const router = useRouter();
+  const detailHref = (row: ProjectQuoteRequest) =>
+    ADMIN_ROUTES.designProjectQuoteRequests.detail(row.id, row.customerId);
   const columnState = useColumnVisibility(
     DESIGN_REVIEW_STORAGE_KEYS.projectQuoteRequestsColumns,
     PROJECT_REQUEST_COLUMNS,
     { locked: PROJECT_REQUEST_LOCKED_COLUMNS },
   );
-  const columns = projectQuoteRequestColumns(close).filter((column) =>
-    columnState.visible.some((key) => key === column.key),
+  const columns = withHeaderFilters(
+    projectQuoteRequestColumns(close, detailHref, now).filter((column) =>
+      columnState.visible.some((key) => key === column.key),
+    ),
+    quoteRequestHeaderFilters(filters),
   );
 
   return (
@@ -61,10 +81,19 @@ function ProjectQuoteRequestContent() {
         canRead
         columns={columns}
         rowKey={(row) => row.id}
-        noun="yêu cầu báo giá dự án"
+        onRowClick={(row) => router.push(detailHref(row))}
         errorCopy={QUOTE_REQUEST_COPY}
-        hasFilters={filters.status !== "OPEN" || filters.customerId !== ""}
+        noun="yêu cầu báo giá dự án"
         onClearFilters={filters.clear}
+        hasFilters={
+          filters.status !== "OPEN" ||
+          filters.customerId !== "" ||
+          quoteRequestPageFilterActive(filters)
+        }
+        rowFilter={{
+          active: quoteRequestPageFilterActive(filters),
+          match: (row) => matchesQuoteRequestFilters(row, filters),
+        }}
         empty={{
           icon: <FolderKanban className="size-8" />,
           title: COPY.projectEmptyTitle,
@@ -74,6 +103,7 @@ function ProjectQuoteRequestContent() {
         onPageChange={list.goToPage}
         onPageSizeChange={list.changePageSize}
         stickyHeader
+        emptyInTable
       />
     </div>
   );

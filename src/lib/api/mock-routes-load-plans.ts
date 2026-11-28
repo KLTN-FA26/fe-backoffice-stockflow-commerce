@@ -23,7 +23,14 @@ import {
   heldPackageIds,
   nextLoadPlan,
 } from "./mock-load-plan-store";
-import { candidateView, layoutView, planDetail, planOf, planRow } from "./mock-load-plan-view";
+import {
+  candidateView,
+  layoutView,
+  loadPlanWarehouseRefs,
+  planDetail,
+  planOf,
+  planRow,
+} from "./mock-load-plan-view";
 import { fail, ok } from "./mock-route-utils";
 import { currentActor, routeParam } from "./mock-routes-fulfillment-store";
 import {
@@ -61,6 +68,7 @@ async function guarded(
   permission: PermissionCode,
   handle: () => MockResponseShape,
 ): Promise<MockResponseShape> {
+  await loadPlanWarehouseRefs();
   return (await currentActor()).can(permission)
     ? handle()
     : fail(403, "FORBIDDEN", "Access denied");

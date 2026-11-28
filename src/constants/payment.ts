@@ -55,8 +55,13 @@ export const PAYMENT_ROUTES = {
     list: `${PAYMENT_BASE}/installments`,
     detail: (id: string) => `${PAYMENT_BASE}/installments/${encodeURIComponent(id)}`,
     /** Các đợt của một đơn (docs 15 §5.2) — segment tĩnh `orders` ưu tiên hơn `[id]`. */
-    ofOrder: (orderId: string) =>
-      `${PAYMENT_BASE}/installments/orders/${encodeURIComponent(orderId)}`,
+    ofOrder: (orderId: string, returnLoad?: { loadId: string; loadCode: string }) =>
+      `${PAYMENT_BASE}/installments/orders/${encodeURIComponent(orderId)}${
+        // Đi từ lý do chặn bàn giao của một chuyến: nhớ chuyến để "Quay lại chuyến" sau khi lập phiếu thu (S07-5).
+        returnLoad
+          ? `?loadId=${encodeURIComponent(returnLoad.loadId)}&loadCode=${encodeURIComponent(returnLoad.loadCode)}`
+          : ""
+      }`,
     byCustomer: (customerId: string) =>
       `${PAYMENT_BASE}/installments?customerId=${encodeURIComponent(customerId)}`,
     /** Công nợ phải thu (BE-5): đợt đã đến mốc và còn nợ (`owing=true`: DUE hoặc PARTIALLY_PAID). */
@@ -234,4 +239,5 @@ export const PAYMENT_STORAGE_KEYS = {
   installmentsColumns: "stockflow:admin:payment:installments:columns",
   receiptsColumns: "stockflow:admin:payment:receipts:columns",
   receivablesConfig: "stockflow:admin:payment:receivables:config",
+  receivablesColumns: "stockflow:admin:payment:receivables:columns",
 } as const;

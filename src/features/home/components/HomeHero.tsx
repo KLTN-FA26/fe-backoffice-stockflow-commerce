@@ -44,7 +44,7 @@ export function HomeHero() {
         <Button
           asChild
           size="lg"
-          className="bg-brand hover:bg-brand-hover text-ink-inverse group h-10 rounded-[var(--r-sm)] px-4 text-sm font-semibold transition-colors"
+          className="bg-brand hover:bg-brand-hover text-ink-inverse group h-10 rounded-full px-5 text-sm font-semibold transition-colors"
         >
           <Link href={APP_ROUTES.login}>
             {HOME_COPY.ctaLabel}

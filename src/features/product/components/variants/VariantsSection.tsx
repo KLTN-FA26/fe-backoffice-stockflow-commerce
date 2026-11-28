@@ -4,13 +4,13 @@ import { useState } from "react";
 
 import { DataTable, type ColumnDef } from "@/components/shared/DataTable";
 import { statusCell, textCell } from "@/components/shared/column-helpers";
+import { withHeaderFilters } from "@/components/shared/ColumnHeaderFilter";
 
 import { variantErrorMessage } from "../../variant-errors";
-import { UI_LABELS } from "@/constants";
 
-import { isCustomerOwnedSku, variantOptionsLabel } from "../../variant-schemas";
 import { GenerateVariantsDialog } from "../GenerateVariantsDialog";
 import { VariantFormDialog } from "./VariantFormDialog";
+import { useVariantTableFilters, variantOptionText } from "./variant-table-filters";
 import { VariantPanel } from "./VariantPanel";
 
 import type { UseQueryResult } from "@tanstack/react-query";
@@ -49,6 +49,7 @@ export function VariantsSection({
   const variants = query.data ?? [];
   // Đọc lại từ danh sách mới nhất: sau khi đổi trạng thái panel thấy ngay giá trị BE trả.
   const selected = variants.find((v) => v.variantId === selectedId) ?? null;
+  const { rows, filters, filtering } = useVariantTableFilters(variants);
 
   const columns: ColumnDef<Variant>[] = [
     textCell<Variant>("sku", "Mã SKU", (row) => row.sku, {
@@ -66,13 +67,7 @@ export function VariantsSection({
       },
     ),
     // SKU riêng của khách không mang tuỳ chọn trục (BE sinh không kèm option) — nêu rõ thay vì "—"
-    textCell<Variant>(
-      "options",
-      "Tuỳ chọn",
-      (row) =>
-        isCustomerOwnedSku(row) ? UI_LABELS.product.variants.customerSku : variantOptionsLabel(row),
-      { color: "secondary" },
-    ),
+    textCell<Variant>("options", "Tuỳ chọn", variantOptionText, { color: "secondary" }),
     statusCell<Variant>("status", "Trạng thái", (row) => row.status, "sku", {
       sortable: true,
       compare: (a, b) => a.status.localeCompare(b.status),
@@ -94,12 +89,17 @@ export function VariantsSection({
         </div>
       ) : (
         <DataTable
-          data={variants}
-          columns={columns}
+          data={rows}
+          columns={withHeaderFilters(columns, filters)}
           rowKey={(row) => row.variantId}
-          caption={`${variants.length} biến thể`}
+          caption={
+            filtering
+              ? `${rows.length} / ${variants.length} biến thể`
+              : `${variants.length} biến thể`
+          }
           onRowClick={(row) => setSelectedId(row.variantId)}
           pageSize={10}
+          emptyState={filtering ? "Không có biến thể nào khớp bộ lọc." : undefined}
         />
       )}
       <VariantPanel

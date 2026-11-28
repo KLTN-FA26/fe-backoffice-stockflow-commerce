@@ -1,0 +1,32 @@
+/** Nhãn hai tab "Báo giá" / "Đơn hàng" của trang chi tiết khách (UI/UX bo-30). */
+export const CUSTOMER_DOCUMENTS_COPY = {
+  quotes: {
+    tab: "Báo giá",
+    noun: "báo giá",
+    number: "Số báo giá",
+    status: "Trạng thái",
+    total: "Tổng có thuế",
+    validUntil: "Hiệu lực đến",
+    order: "Đơn",
+    createdAt: "Ngày tạo",
+    empty: "Khách chưa có báo giá",
+    emptyHint: "Báo giá lập cho khách sẽ hiện ở đây.",
+    openList: "Mở danh sách báo giá của khách",
+    loadError: "Không tải được báo giá của khách.",
+  },
+  orders: {
+    tab: "Đơn hàng",
+    noun: "đơn",
+    number: "Số đơn",
+    status: "Trạng thái",
+    total: "Tổng tiền",
+    placedAt: "Ngày đặt",
+    empty: "Khách chưa có đơn",
+    emptyHint: "Đơn tạo từ báo giá đã chấp nhận sẽ hiện ở đây.",
+    openList: "Mở danh sách đơn của khách",
+    loadError: "Không tải được đơn của khách.",
+  },
+  revision: (n: number) => `bản ${n}`,
+  retry: "Thử lại",
+  total: (count: number, noun: string) => `${count} ${noun}`,
+} as const;

@@ -114,6 +114,9 @@ export const LOAD_PLAN_UI_LABELS = {
     candidatesFailed: "Không tải được danh sách lô giao.",
     selectAll: "Chọn tất cả",
     clearAll: "Bỏ chọn",
+    selectFirst: (limit: number) => `Chọn ${limit} lô sớm nhất`,
+    overLimit: (total: number, limit: number) =>
+      `Kho có ${total} lô chờ xuất nhưng một kế hoạch chỉ nhận tối đa ${limit} lô. Dùng ô tìm để chọn lô cần đi, hoặc "Chọn ${limit} lô sớm nhất"; số còn lại để cho kế hoạch sau.`,
     shipmentCode: "Lô giao",
     order: "Đơn hàng",
     customer: "Khách hàng",
@@ -192,11 +195,13 @@ export const LOAD_PLAN_UI_LABELS = {
     dismiss: "Đóng",
     finalState: "Kế hoạch đã kết thúc, chỉ còn xem.",
     noVehicles: "Chưa có xe nào: tính xếp xe để xem bố cục.",
+    calculating: "Đang tính xếp xe… có thể mất vài giây, kết quả hiện ngay khi xong.",
     layoutsFailed: "Không tải được bố cục xếp xe.",
     tabs: { loading: "Xếp xe", reconciliation: "Đối chiếu" },
     tabsAria: "Nội dung kế hoạch",
     actions: {
       calculate: "Tính xếp xe",
+      calculating: "Đang tính…",
       recalculate: "Tính lại xe",
       editInputs: "Đổi đầu vào",
       confirm: "Chốt kế hoạch",

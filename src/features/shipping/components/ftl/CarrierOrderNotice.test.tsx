@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { UI_LABELS } from "@/constants";
+import { CARRIER_CONNECTION_TYPE, UI_LABELS } from "@/constants";
 import { carrierBookingSchema } from "@/features/shipping/ftl-schemas";
 
 import { plannedLoad } from "../../__fixtures__/ftl-load";
@@ -16,7 +16,12 @@ describe("CarrierOrderNotice — đơn của chuyến ở hãng đặt xe qua AP
     expect(booking.status).toBe("UNCONFIRMED");
 
     const { container } = render(
-      <CarrierOrderNotice load={plannedLoad({ carrierBooking: booking })} />,
+      <CarrierOrderNotice
+        load={plannedLoad({
+          carrierBooking: booking,
+          carrierConnectionType: CARRIER_CONNECTION_TYPE.API_BOOKING,
+        })}
+      />,
     );
 
     expect(
@@ -30,7 +35,12 @@ describe("CarrierOrderNotice — đơn của chuyến ở hãng đặt xe qua AP
     const booking = carrierBookingSchema.parse({ status: "BOOKED", carrierOrderId: "AHA-1" });
 
     const { container } = render(
-      <CarrierOrderNotice load={plannedLoad({ carrierBooking: booking })} />,
+      <CarrierOrderNotice
+        load={plannedLoad({
+          carrierBooking: booking,
+          carrierConnectionType: CARRIER_CONNECTION_TYPE.API_BOOKING,
+        })}
+      />,
     );
 
     expect(screen.getByText(N.status.BOOKED)).toBeInTheDocument();

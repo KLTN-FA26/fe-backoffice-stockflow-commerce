@@ -7,7 +7,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { FormSelect } from "@/components/shared/FormSelect";
 import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { Label } from "@/components/ui/label";
-import { SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SelectItem, SelectTrigger, SelectValue } from "@/components/shared/combobox-select";
 
 import type { ReactNode } from "react";
 import type { UnloadReasonCode } from "@/constants";

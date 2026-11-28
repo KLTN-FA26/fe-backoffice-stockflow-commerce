@@ -14,6 +14,7 @@ import {
   deleteMockProduct,
   findMockProduct,
   saveMockProduct,
+  withProductNames,
 } from "./mock-product-store";
 import {
   beProductStatus,
@@ -27,6 +28,7 @@ import {
   activateMockDraftVariants,
   createMockProductMatrix,
   deleteMockProductVariants,
+  mockHistorySubject,
   mockOpenReferences,
   obsoleteMockVariants,
 } from "./mock-routes-variants";
@@ -39,12 +41,10 @@ interface CreateProductMockBody {
   productId?: unknown;
   code?: unknown;
   name?: unknown;
-  nameEn?: unknown;
   brandId?: unknown;
   categoryId?: unknown;
   shortDescription?: unknown;
   description?: unknown;
-  descriptionEn?: unknown;
   taxClass?: unknown;
   kind?: unknown;
   reason?: unknown;
@@ -141,7 +141,8 @@ export function registerAllMockRoutes(): void {
     return {
       status: 200,
       data: {
-        items: filtered.slice(start, start + pageSize),
+        // Issue #286: dòng danh sách kèm `categoryName` / tên người làm / `canApprove`
+        items: await Promise.all(filtered.slice(start, start + pageSize).map(withProductNames)),
         page,
         size: pageSize,
         totalElements,
@@ -186,7 +187,7 @@ export function registerAllMockRoutes(): void {
     const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
     const product = await findMockProduct(id);
     if (!product) return { status: 404, data: { message: "Product not found" }, headers: {} };
-    return { status: 200, data: withBrandId(product), headers: {} };
+    return { status: 200, data: await withProductNames(withBrandId(product)), headers: {} };
   });
 
   // POST /products
@@ -198,7 +199,6 @@ export function registerAllMockRoutes(): void {
 
     if (!productId) fieldErrors.productId = "Nhập mã sản phẩm";
     if (!readString(body.name)) fieldErrors.name = "Nhập tên sản phẩm";
-    if (!readString(body.nameEn)) fieldErrors.nameEn = "Nhập tên tiếng Anh";
     if (!readString(body.categoryId)) fieldErrors.categoryId = "Chọn danh mục";
     if (Object.keys(fieldErrors).length > 0) return validationFailed(fieldErrors);
     const brand = findMockBrand(readString(body.brandId));
@@ -240,7 +240,8 @@ export function registerAllMockRoutes(): void {
     const product: MockProduct = {
       productId,
       name: readString(body.name),
-      nameEn: readString(body.nameEn) || readString(body.name),
+      // BE bỏ tên / mô tả tiếng Anh (V20270106000200); kiểu `Product` của mock-data (không sửa) còn bắt hai trường.
+      nameEn: readString(body.name),
       slug: slugify(readString(body.name) || productId),
       // BE `ProductKind`: hệ thống gán CUSTOMIZABLE, request không có `kind` (kltn-docs 01 §3, BR-19).
       type: "Customizable",
@@ -248,7 +249,7 @@ export function registerAllMockRoutes(): void {
       status: "Draft",
       shortDescription: readString(body.shortDescription) || undefined,
       description: readString(body.description),
-      descriptionEn: readString(body.descriptionEn),
+      descriptionEn: "",
       images: [],
       // Kiểu `Product` của mock-data (không sửa) còn bắt trường này; BE không còn giá cơ sở
       basePrice: 0,
@@ -275,7 +276,7 @@ export function registerAllMockRoutes(): void {
 
     createdProducts.push(product);
     recordMockHistory(productId, "CREATED", { toStatus: "DRAFT" });
-    return { status: 201, data: product, headers: {} };
+    return { status: 201, data: await withProductNames(product), headers: {} };
   });
 
   registerMockRoute("PUT", "/products/:id", async (config) => {
@@ -297,11 +298,11 @@ export function registerAllMockRoutes(): void {
       ...current,
       version: (current.version ?? 0) + 1,
       name: readString(body.name),
-      nameEn: readString(body.nameEn),
+      nameEn: readString(body.name),
       categoryId: readString(body.categoryId),
       shortDescription: readString(body.shortDescription) || undefined,
       description: readString(body.description),
-      descriptionEn: readString(body.descriptionEn),
+      descriptionEn: "",
       brand: brand?.name ?? "",
       brandId: brand?.brandId ?? null,
       // Loại không đổi được (BE `UpdateProductRequest` không có `kind`)
@@ -315,7 +316,7 @@ export function registerAllMockRoutes(): void {
     saveMockProduct(updated);
     const changed = changedProductFields(current, updated);
     if (changed.length > 0) recordMockHistory(id, "UPDATED", { changedFields: changed });
-    return { status: 200, data: updated, headers: {} };
+    return { status: 200, data: await withProductNames(updated), headers: {} };
   });
 
   registerProductTransitionRoutes();
@@ -597,7 +598,15 @@ function registerProductLifecycleRoutes(): void {
     const query = queryOf(config);
     const page = Math.max(0, Number(query.get("page")) || 0);
     const size = Math.min(200, Math.max(1, Number(query.get("size")) || 20));
-    return ok(mockHistoryPage(id, page, size));
+    const result = mockHistoryPage(id, page, size);
+    // Issue #286: SKU / nhãn của đối tượng tra lúc đọc — đối tượng đã xoá thì không có (như BE)
+    const items = await Promise.all(
+      result.items.map(async (entry) => ({
+        ...entry,
+        ...(entry.subjectId ? await mockHistorySubject(entry.subjectId) : {}),
+      })),
+    );
+    return ok({ ...result, items });
   });
 }
 
@@ -661,19 +670,21 @@ async function transitionMockProduct(
       reason: entry.reason,
     });
   }
-  return { status: 200, data: voidResponse ? null : transitioned, headers: {} };
+  return {
+    status: 200,
+    data: voidResponse ? null : await withProductNames(transitioned),
+    headers: {},
+  };
 }
 
 /** Tên các trường mà một lần sửa nháp đã đổi — như `Product.updateDetails` trả về cho lịch sử. */
 function changedProductFields(before: MockProduct, after: MockProduct): string[] {
   const pairs: [string, unknown, unknown][] = [
     ["name", before.name, after.name],
-    ["nameEn", before.nameEn, after.nameEn],
     ["brandId", before.brandId ?? null, after.brandId ?? null],
     ["categoryId", before.categoryId, after.categoryId],
     ["shortDescription", before.shortDescription ?? "", after.shortDescription ?? ""],
     ["description", before.description, after.description],
-    ["descriptionEn", before.descriptionEn, after.descriptionEn],
     ["taxClass", before.taxClass, after.taxClass],
     ["kind", before.type, after.type],
   ];

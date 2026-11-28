@@ -40,21 +40,24 @@ function request(overrides: Record<string, unknown> = {}) {
 }
 
 const headers = () => screen.getAllByRole("columnheader").map((cell) => cell.textContent);
+/** Viên "Cột hiển thị **x/y**" của hàng cấu hình kiểu Vercel. */
+const columnsChip = () => screen.getByText("Cột hiển thị");
 
 describe("Hộp yêu cầu báo giá — bố cục 1366px (BO-UX-10/11, L-2, L-5)", () => {
-  it("ẩn mặc định Trạng thái thiết kế, SKU phôi, Lý do trả lại; bật lại qua Ẩn hiện cột, chip x/y", async () => {
+  it("ẩn mặc định Trạng thái thiết kế, SKU phôi, Lý do trả lại, SKU riêng (dòng phụ dưới tên); bật lại qua Chọn cột hiển thị, chip x/y", async () => {
     mockApi("SALES_STAFF", { get: { "/design-quote-requests": () => bePage([request()]) } });
     renderScreen(<DesignQuoteRequestList />, "SALES_STAFF");
     await screen.findByText("Cửa hàng Trà Sen");
     expect(headers()).not.toContain("Trạng thái thiết kế");
     expect(headers()).not.toContain("SKU phôi");
     expect(headers()).not.toContain("Lý do trả lại");
-    expect(screen.getByText("Cột hiển thị: 7/10")).toBeInTheDocument();
+    expect(headers()).not.toContain("SKU riêng");
+    expect(columnsChip()).toHaveTextContent("Cột hiển thị6/10");
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: "Ẩn hiện cột" }));
+    await user.click(screen.getByRole("button", { name: "Chọn cột hiển thị" }));
     await user.click(await screen.findByRole("option", { name: "SKU phôi" }));
     await waitFor(() => expect(headers()).toContain("SKU phôi"));
-    expect(screen.getByText("Cột hiển thị: 8/10")).toBeInTheDocument();
+    expect(columnsChip()).toHaveTextContent("Cột hiển thị7/10");
     expect(localStorage.getItem("stockflow:admin:design-quote-requests:columns")).toContain("sku");
   });
 
@@ -63,9 +66,11 @@ describe("Hộp yêu cầu báo giá — bố cục 1366px (BO-UX-10/11, L-2, L-
     renderScreen(<DesignQuoteRequestList />, "SALES_STAFF");
     const link = await screen.findByRole("link", { name: "Túi giấy kraft" });
     expect(link).toHaveAttribute("href", `/admin/designs/review-queue/${DESIGN_ID}`);
-    const actionsHeader = screen.getByRole("columnheader", { name: "Hành động" });
+    const actionsHeader = screen.getByRole("columnheader", { name: "Thao tác" });
     expect(actionsHeader.className).toContain("sticky");
-    const cell = screen.getByRole("button", { name: "Lập báo giá — Túi giấy kraft" }).closest("td");
+    const cell = screen
+      .getByRole("button", { name: "Thao tác khác — Túi giấy kraft" })
+      .closest("td");
     expect(cell?.className).toContain("right-0");
   });
 

@@ -9,8 +9,19 @@ import { useCan } from "@/lib/auth/components/Can";
 import { formatDate } from "@/lib/format/date";
 import { useConfirmedSnapshots } from "@/lib/references/design-lookup";
 import { DesignSnapshotPreview } from "@/components/backoffice/DesignSnapshotPreview";
-import { FORM_INPUT_CLASS, FormField, fieldA11y } from "@/components/shared/FormField";
+import { FormField, fieldA11y } from "@/components/shared/FormField";
+import { FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
+import {
+  Select,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/shared/combobox-select";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { Button } from "@/components/ui/button";
+
+/** Đại diện cho "" (chưa chọn) — SelectItem không nhận value rỗng. */
+const EMPTY_SNAPSHOT = "__none__";
 
 const LIST_ERRORS: Readonly<Record<string, string>> = {
   CUSTOMER_NOT_FOUND: "Không tìm thấy khách hàng này.",
@@ -68,21 +79,27 @@ export function DesignSnapshotField({
     >
       <div className="flex flex-wrap items-start gap-3">
         <div className="min-w-0 flex-1 space-y-2">
-          <select
-            {...fieldA11y(id, error, !!status || list.isFetching)}
-            value={selected ? value : ""}
+          <Select
+            value={selected ? value : EMPTY_SNAPSHOT}
             disabled={!canRead || !customerId || items.length === 0}
-            onChange={(event) => onChange(event.target.value)}
-            className={`${FORM_INPUT_CLASS} w-full border px-2`}
+            onValueChange={(next) => onChange(next === EMPTY_SNAPSHOT ? "" : next)}
           >
-            <option value="">— Chọn thiết kế —</option>
-            {items.map((item) => (
-              <option key={item.snapshotId} value={item.snapshotId}>
-                {item.designName} · xác nhận {formatDate(item.confirmedAt)} ·{" "}
-                {item.checksum.slice(0, 8)}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger
+              {...fieldA11y(id, error, !!status || list.isFetching)}
+              className={FORM_SELECT_CLASS}
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <TitledSelectContent title="Thiết kế khách đã xác nhận">
+              <SelectItem value={EMPTY_SNAPSHOT}>— Chọn thiết kế —</SelectItem>
+              {items.map((item) => (
+                <SelectItem key={item.snapshotId} value={item.snapshotId}>
+                  {item.designName} · xác nhận {formatDate(item.confirmedAt)} ·{" "}
+                  {item.checksum.slice(0, 8)}
+                </SelectItem>
+              ))}
+            </TitledSelectContent>
+          </Select>
           {sku && canRead && customerId && (
             <Button
               type="button"

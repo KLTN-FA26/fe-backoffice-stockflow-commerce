@@ -52,11 +52,9 @@ async function draft(name = "Sản phẩm bán") {
   const product = await createProduct({
     code: `COM-${Date.now()}-${n}`,
     name,
-    nameEn: "Commerce product",
     categoryId: category?.categoryId ?? "",
     brandId: brand?.brandId ?? "",
     description: "",
-    descriptionEn: "",
     taxClass: "STANDARD",
   });
   return { product };

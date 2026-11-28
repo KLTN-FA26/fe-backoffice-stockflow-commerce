@@ -12,7 +12,7 @@ import {
 import { formatDateTime } from "@/lib/format/date";
 import { useCan } from "@/lib/auth";
 import { hasLoadAction } from "@/features/shipping/lifecycle";
-import { isApiBookedLoad } from "@/features/shipping/ftl-selectors";
+import { isApiBookedLoad, isAutoCancelled } from "@/features/shipping/ftl-selectors";
 import { Alert } from "@/components/shared/Alert";
 import { Button } from "@/components/ui/button";
 
@@ -65,7 +65,10 @@ export function BookingCard({
         <p className="text-ink-secondary mt-2 text-[0.8125rem]">{B.cancelled}</p>
         {(load.cancelReason || load.bookingCancelReason) && (
           <p className="text-ink-secondary mt-1 text-[0.8125rem]">
-            {B.cancelledReason}: {load.cancelReason ?? load.bookingCancelReason}
+            {B.cancelledReason}:{" "}
+            {isAutoCancelled(load)
+              ? UI_LABELS.shipping.ftl.bookingToCancel.autoCancelled
+              : (load.cancelReason ?? load.bookingCancelReason)}
           </p>
         )}
         {load.replacementLoadId && (
@@ -115,6 +118,7 @@ export function BookingCard({
               className={planned ? PRIMARY : undefined}
               disabled={!!book.disabledReason}
               title={book.disabledReason}
+              aria-describedby={book.disabledReason ? "booking-disabled-why" : undefined}
               onClick={() => onOpen("book")}
             >
               {planned ? <CalendarCheck className="size-3.5" /> : <Pencil className="size-3.5" />}{" "}
@@ -147,6 +151,12 @@ export function BookingCard({
             </Button>
           )}
         </div>
+      )}
+      {book?.disabledReason && (
+        // S01-13 / R7: lý do khoá nút "Đặt xe" nói ngay dưới, không chỉ ở `title`
+        <p id="booking-disabled-why" className="text-ink-secondary mt-2 text-xs">
+          {book.disabledReason}
+        </p>
       )}
     </section>
   );
