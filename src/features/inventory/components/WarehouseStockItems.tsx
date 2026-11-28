@@ -5,7 +5,7 @@ import { useState } from "react";
 import { INVENTORY_LABELS } from "@/constants/inventory";
 import { PAGE_SIZE } from "@/constants/table";
 
-import { formatDate, formatDateTime } from "@/lib/format/date";
+import { formatDateTime } from "@/lib/format/date";
 
 import { EmptyState } from "@/components/shared/EmptyState";
 import { HiddenDuringCountBadge } from "@/components/shared/HiddenDuringCountBadge";
@@ -27,9 +27,9 @@ import { InventoryPager } from "./InventoryPager";
 
 import type { WarehouseOption } from "@/lib/references/warehouse-options";
 
-// Server-side expiry order (StockBrowsingImpl whitelist). Rows are shown in the order received;
-// where rows without an expiry date fall is the database's choice, not a backend guarantee.
-const EXPIRY_FIRST = { field: "expiryDate", direction: "asc" } as const;
+// Oldest stock first, sorted by the backend (StockBrowsingImpl whitelist). BE d8c7694c dropped expiry
+// and FEFO, so `expiryDate` is no longer sortable nor sent.
+const OLDEST_FIRST = { field: "receivedAt", direction: "asc" } as const;
 const { missing } = INVENTORY_LABELS;
 
 /**
@@ -50,7 +50,7 @@ export function WarehouseStockItems({
     sku,
     page: page - 1,
     size,
-    sort: EXPIRY_FIRST,
+    sort: OLDEST_FIRST,
   });
 
   return (
@@ -78,7 +78,6 @@ export function WarehouseStockItems({
                 <TableRow>
                   <TableHead scope="col">{INVENTORY_LABELS.location}</TableHead>
                   <TableHead scope="col">{INVENTORY_LABELS.lot}</TableHead>
-                  <TableHead scope="col">{INVENTORY_LABELS.expiryDate}</TableHead>
                   <TableHead scope="col">{INVENTORY_LABELS.status}</TableHead>
                   <TableHead scope="col" className="text-right">
                     {INVENTORY_LABELS.onHand}
@@ -97,9 +96,6 @@ export function WarehouseStockItems({
                   <TableRow key={item.stockItemId}>
                     <TableCell className="font-mono">{item.locationCode}</TableCell>
                     <TableCell className="font-mono">{item.lotNumber ?? missing}</TableCell>
-                    <TableCell className="tabular-nums">
-                      {item.expiryDate ? formatDate(item.expiryDate) : missing}
-                    </TableCell>
                     <TableCell className="font-mono text-xs">{item.status ?? missing}</TableCell>
                     {item.hiddenDuringCount ? (
                       <TableCell colSpan={3} className="text-right">

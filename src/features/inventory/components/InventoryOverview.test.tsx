@@ -145,7 +145,7 @@ describe("carton figures", () => {
     expect(
       within(stockRow as HTMLElement)
         .getAllByRole("cell")
-        .slice(4, 7)
+        .slice(3, 6)
         .map((cell) => cell.textContent),
     ).toEqual(["1 thùng200 cái", "0 thùng0 cái", "1 thùng200 cái"]);
   });
@@ -160,7 +160,7 @@ describe("warehouse identity", () => {
       sku: "CUP-PP-500",
       page: "0",
       size: "15",
-      sort: "expiryDate,asc",
+      sort: "receivedAt,asc",
     });
     await waitFor(() => expect(sentTo("/inventory/stock-items/atp")).toHaveLength(1));
     expect(Object.fromEntries(sentTo("/inventory/stock-items/atp")[0]?.searchParams ?? [])).toEqual(
@@ -194,7 +194,7 @@ describe("warehouse identity", () => {
 
 describe("warehouse stock items", () => {
   it("keeps the server's row order and shows missing optional fields as a dash", async () => {
-    // Deliberately not in expiry order: the page must not re-sort what the server returned.
+    // Deliberately not in receivedAt order: the page must not re-sort what the server returned.
     const reversed = [OVERVIEW_STOCK_ITEMS[1], OVERVIEW_STOCK_ITEMS[0]];
     const user = await openFor("CUP-PP-500", { items: overviewPage(reversed) });
     await openWarehouse(user, "HN01");
@@ -202,7 +202,7 @@ describe("warehouse stock items", () => {
     const rows = await within(items).findAllByRole("row");
     expect(rows[1]).toHaveTextContent("HN01-A02-01-A");
     expect(rows[2]).toHaveTextContent("HN01-A01-02-B");
-    expect(within(rows[1] as HTMLElement).getAllByText(INVENTORY_LABELS.missing)).toHaveLength(3);
+    expect(within(rows[1] as HTMLElement).getAllByText(INVENTORY_LABELS.missing)).toHaveLength(2);
   });
 
   it("pages on the server from zero and returns to the first page on a new page size", async () => {

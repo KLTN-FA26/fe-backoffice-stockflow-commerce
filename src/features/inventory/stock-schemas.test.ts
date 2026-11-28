@@ -205,12 +205,24 @@ describe("request inputs", () => {
     const parsed = warehouseStockItemsInput.parse({
       warehouseId: "WH-HN-01",
       status: ["AVAILABLE", "EXPIRED"],
-      sort: { field: "expiryDate", direction: "asc" },
+      sort: { field: "receivedAt", direction: "asc" },
       page: 0,
       size: 20,
     });
     expect(parsed.status).toBe("AVAILABLE,EXPIRED");
-    expect(parsed.sort).toBe("expiryDate,asc");
+    expect(parsed.sort).toBe("receivedAt,asc");
+  });
+
+  // BE d8c7694c dropped expiry and FEFO: `expiryDate` left the sort whitelist (400 UNSUPPORTED_PARAMETER).
+  it("does not offer expiryDate as a sort field any more", () => {
+    expect(
+      warehouseStockItemsInput.safeParse({
+        warehouseId: "WH-HN-01",
+        sort: { field: "expiryDate", direction: "asc" },
+        page: 0,
+        size: 20,
+      }).success,
+    ).toBe(false);
   });
 
   it("refuses values the backend would reject or treat as match-nothing", () => {

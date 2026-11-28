@@ -57,7 +57,6 @@ export const STOCK_ITEM_SORT_FIELDS = [
   "locationCode",
   "sku",
   "lotNumber",
-  "expiryDate",
   "onHand",
   "receivedAt",
 ] as const;
@@ -299,8 +298,7 @@ export const INVENTORY_LABELS = {
   warehouseUnresolved: "Không tìm thấy kho này trong danh mục kho",
   warehouseDetailUnavailable: "Chưa xác định được kho nên chưa xem được chi tiết vị trí và ATP.",
   stockItemsTitle: "Tồn theo vị trí và lô",
-  stockItemsSort: "Sắp xếp theo hạn dùng tăng dần — do máy chủ sắp xếp.",
-  expiryDate: "Hạn dùng",
+  stockItemsSort: "Sắp xếp theo thời điểm nhận, nhận trước lên trước — do máy chủ sắp xếp.",
   receivedAt: "Thời điểm nhận",
   noStockItems: "Kho này không còn dòng tồn nào của SKU",
   atpTitle: "ATP — có thể hứa bán",
