@@ -72,6 +72,8 @@ import {
   RECEIVABLES_REPORT_PERMISSIONS,
 } from "@/constants/payment";
 
+import { RETURN_RECEIPT_APPROVAL_PERMISSIONS } from "@/constants/returns";
+
 import type { PermissionCode } from "@/lib/auth/me-permissions";
 
 // Seed BE V20260903000100: goods-receipts VIEW_PAGE/READ/CREATE/UPDATE cho WAREHOUSE_STAFF,
@@ -383,6 +385,8 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...STANDARD_PRICE_ALL,
     QUOTE_PRICE_APPROVAL_PERMISSIONS.approve,
     ...SALES_OWNER_ALL,
+    // Seed V20261216000050: SYSTEM_ADMIN / WAREHOUSE_MANAGER xác nhận phiếu nhập hàng hoàn có thùng mở / hàng lẻ (Q-18)
+    RETURN_RECEIPT_APPROVAL_PERMISSIONS.approve,
   ],
   "USER-PROC-01": [
     SUPPLIER_PERMISSIONS.viewPage,

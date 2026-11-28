@@ -13,32 +13,38 @@ import { Notice } from "@/components/shared/Notice";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 
-import { returnErrorMessage } from "../errors";
 import { useScanReturnCarton } from "../mutations";
+import { candidateByLpn } from "../receiving";
+import { candidateProblem, countedProblem } from "../scan-checks";
+import { returnScanErrorMessage } from "../scan-errors";
 
-import type { ExpectedCarton } from "../types";
+import { SelectedCartonBox } from "./SelectedCartonBox";
+
+import type { CandidateCarton, ExpectedCarton } from "../types";
 
 const D = RETURN_RECEIPT_LABELS.detail;
 type Feedback = { tone: "positive" | "danger"; text: string };
 
-/** Số đếm của thùng đã mở: số nguyên ≥ 0, không vượt nhãn khi biết thùng (BE `ScanReturnCartonRequest`). */
-function countedProblem(raw: string, label: number | undefined): string | null {
-  const value = Number(raw);
-  if (raw.trim() === "" || !Number.isInteger(value) || value < 0) return D.countedRequired;
-  return label !== undefined && value > label ? D.countedAboveLabel : null;
-}
-
 /**
- * Quét thùng hàng hoàn theo LPN (docs 03 §4.2 bước 10; BE `POST /goods-receipts/returns/{id}/cartons`): ô quét luôn
- * focus (mode-a §4.3), Enter gửi. Tình trạng thùng (móp, ướt…) gõ trước khi quét, gửi kèm thùng kế tiếp. WF-05 TH-4:
- * "Thùng đã mở" mở ô "Số đếm thực tế" (bắt buộc khi bật) — gửi `countedQuantity`; tắt = thùng nguyên, không gửi.
+ * Ghi thùng hàng hoàn vào phiếu (docs 03 §4.2 bước 10; BE `POST /goods-receipts/returns/{id}/cartons`) bằng ba cách, cùng
+ * một đường gửi: máy quét hoặc gõ LPN rồi Enter (ô quét luôn focus, mode-a §4.3), hoặc "Chọn" một thùng ứng viên rồi
+ * "Ghi nhận thùng". Tình trạng thùng (móp, ướt…) gõ trước, gửi kèm thùng kế tiếp. WF-05 TH-4: "Thùng đã mở" mở ô "Số đếm
+ * thực tế" (bắt buộc khi bật, không điền sẵn) — gửi `countedQuantity`; tắt = thùng nguyên, không gửi.
  */
 export function ReturnCartonScan({
   receiptId,
   expectedCartons,
+  candidates,
+  selected = null,
+  onClearSelected,
 }: {
   receiptId: string;
   expectedCartons: readonly ExpectedCarton[];
+  /** Phiếu của yêu cầu trả hàng: thùng ứng viên BE gửi (kiểm trước khi gửi). */
+  candidates?: readonly CandidateCarton[] | null;
+  /** Thùng vừa "Chọn" trong danh sách ứng viên. */
+  selected?: CandidateCarton | null;
+  onClearSelected?: () => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [condition, setCondition] = useState("");
@@ -47,8 +53,12 @@ export function ReturnCartonScan({
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const scan = useScanReturnCarton();
   const onScan = (lpn: string) => {
-    const label = expectedCartons.find((carton) => carton.lpn === lpn)?.quantity;
-    const problem = opened ? countedProblem(counted, label) : null;
+    const candidate = candidateByLpn(candidates, lpn);
+    const label =
+      candidate?.quantity ?? expectedCartons.find((carton) => carton.lpn === lpn)?.quantity;
+    const problem =
+      (opened ? countedProblem(counted, label) : null) ??
+      candidateProblem(candidate, opened, Number(counted));
     if (problem) {
       setFeedback({ tone: "danger", text: `${lpn}: ${problem}` });
       return;
@@ -65,6 +75,7 @@ export function ReturnCartonScan({
           setCondition("");
           setOpened(false);
           setCounted("");
+          onClearSelected?.();
         },
         onError: (failure) => {
           // Số đếm vượt nhãn: BE trả VALIDATION_FAILED chung
@@ -72,7 +83,7 @@ export function ReturnCartonScan({
             countedQuantity !== undefined &&
             failure instanceof ApiError &&
             failure.code === "VALIDATION_FAILED";
-          const text = aboveLabel ? D.countedAboveLabel : returnErrorMessage(failure);
+          const text = aboveLabel ? D.countedAboveLabel : returnScanErrorMessage(failure);
           setFeedback({ tone: "danger", text: `${lpn}: ${text}` });
         },
       },
@@ -85,6 +96,14 @@ export function ReturnCartonScan({
       <h2 className="text-ink-primary flex items-center gap-2 text-sm font-semibold">
         <ScanLine className="size-3.5" aria-hidden /> {D.scan}
       </h2>
+      {selected && (
+        <SelectedCartonBox
+          carton={selected}
+          busy={scan.isPending}
+          onRecord={() => onScan(selected.lpn)}
+          onClear={() => onClearSelected?.()}
+        />
+      )}
       <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <div className="space-y-1">
           <label htmlFor="rr-scan" className="text-ink-secondary text-xs font-medium">

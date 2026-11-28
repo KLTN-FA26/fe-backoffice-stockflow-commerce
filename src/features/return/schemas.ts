@@ -8,6 +8,7 @@ import { z } from "zod";
 
 import {
   RETURN_API_STATUSES,
+  RETURN_CARTON_ELIGIBILITIES,
   RETURN_CHANNELS,
   RETURN_CUSTODY_CHOICES,
   RETURN_CUSTODY_NOTE_CHOICES,
@@ -324,6 +325,31 @@ export const expectedCartonDtoSchema = z.object({
   lotNumber: z.string().nullish(),
   quantity: z.number().int(),
   scanned: z.boolean(),
+  /** WF-05 Q-11 / TH-3: đã về trên một phiếu khác đã xác nhận (chuyến / kiện trước) — không phải thùng thiếu. */
+  receivedEarlier: z.boolean().nullish(),
+});
+
+/**
+ * Tiến độ nhận theo SKU đã duyệt của yêu cầu trả hàng (BE `ReturnReceiptService.ReturnProgress`): đếm theo số lượng, không
+ * theo thùng. `confirmedReceivedQuantity` = trên các phiếu khác đã xác nhận; `currentReceiptQuantity` = trên phiếu này (nháp:
+ * đã ghi, chưa chính thức); `remainingQuantity` = còn được nhận (số BE dùng để chặn khi quét / ghi hàng lẻ).
+ */
+export const returnProgressDtoSchema = z.object({
+  sku: z.string(),
+  approvedQuantity: z.number().int(),
+  confirmedReceivedQuantity: z.number().int(),
+  currentReceiptQuantity: z.number().int(),
+  remainingQuantity: z.number().int(),
+});
+
+/** Thùng của nguồn với phiếu nháp (BE `CandidateCarton`): gợi ý, không phải quyền — BE quyết lại khi quét. */
+export const candidateCartonDtoSchema = z.object({
+  lpn: z.string(),
+  sku: z.string(),
+  lotNumber: z.string().nullish(),
+  quantity: z.number().int(),
+  maxReceivableQuantity: z.number().int(),
+  eligibility: tolerantEnum(RETURN_CARTON_ELIGIBILITIES),
 });
 
 export const returnReceiptDtoSchema = z.object({
@@ -355,6 +381,10 @@ export const returnReceiptDtoSchema = z.object({
    */
   managerConfirmationRequired: z.boolean().nullish(),
   version: z.number().int(),
+  /** Chỉ phiếu của yêu cầu trả hàng; vắng = BE cũ (màn quay về đối chiếu theo thùng). */
+  returnProgress: z.array(returnProgressDtoSchema).nullish(),
+  /** Chỉ phiếu NHÁP của yêu cầu trả hàng. */
+  candidateCartons: z.array(candidateCartonDtoSchema).nullish(),
 });
 
 export const returnReceiptRowDtoSchema = z.object({

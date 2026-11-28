@@ -164,11 +164,14 @@ export function proposedValue(
 
 export interface ScanProgress {
   scanned: number;
+  /** Thùng của nguồn còn phải đối chiếu trên phiếu này — trừ thùng đã về ở phiếu trước. */
   expected: number;
-  /** Thùng của nguồn chưa quét. */
+  /** Thùng của nguồn chưa quét, cũng chưa về ở phiếu nào trước đó. */
   missing: ExpectedCarton[];
   /** Thùng đã quét nhưng không có trong danh sách của nguồn (BE vẫn chặn `RETURN_CARTON_NOT_OF_SOURCE`). */
   extra: number;
+  /** WF-05 Q-11 / TH-3: thùng đã về trên phiếu khác đã xác nhận (chuyến / kiện trước) — không tính là thiếu. */
+  earlier: number;
 }
 
 /** So thùng đã quét với thùng của nguồn (docs 03 §4.2 bước 11) — quét thiếu vẫn xác nhận được. */
@@ -176,11 +179,13 @@ export function scanProgress(
   receipt: Pick<ReturnReceipt, "cartons" | "expectedCartons">,
 ): ScanProgress {
   const expectedLpns = new Set(receipt.expectedCartons.map((carton) => carton.lpn));
+  const earlier = receipt.expectedCartons.filter((c) => !c.scanned && c.receivedEarlier).length;
   return {
     scanned: receipt.cartons.length,
-    expected: receipt.expectedCartons.length,
-    missing: receipt.expectedCartons.filter((carton) => !carton.scanned),
+    expected: receipt.expectedCartons.length - earlier,
+    missing: receipt.expectedCartons.filter((carton) => !carton.scanned && !carton.receivedEarlier),
     extra: receipt.cartons.filter((carton) => !expectedLpns.has(carton.lpn)).length,
+    earlier,
   };
 }
 

@@ -32,6 +32,7 @@ import {
 import { api } from "@/lib/api/client";
 import { uploadFileDirect } from "@/lib/api/direct-upload";
 import { ApiError } from "@/lib/api/error";
+import { useAuthStore } from "@/lib/auth/auth-store";
 
 import { activateMockAdapter } from "./mock-adapter";
 import { resetReturnMockStore } from "./mock-returns-store";
@@ -47,6 +48,28 @@ async function errorOf(promise: Promise<unknown>): Promise<ApiError> {
     throw error;
   }
   throw new Error("Expected request to fail");
+}
+
+/** Phiên mock của một người có quyền xác nhận phiếu có thùng mở / hàng lẻ, không đếm gì trên phiếu. */
+async function asManager<T>(call: () => Promise<T>): Promise<T> {
+  const before = useAuthStore.getState().user;
+  useAuthStore.setState({
+    user: {
+      userId: "USER-ADMIN-01",
+      fullName: "Mock Admin",
+      email: "admin@example.com",
+      roles: ["System Admin"],
+      username: "admin",
+      status: "ACTIVE",
+      lastLoginAt: null,
+      mustChangePassword: false,
+    },
+  });
+  try {
+    return await call();
+  } finally {
+    useAuthStore.setState({ user: before });
+  }
 }
 
 beforeAll(() => {
@@ -184,7 +207,11 @@ describe("WF-05 — goods back in several parcels (TH-3) and opened cartons / lo
     );
     const scanned = await scanReturnCarton({ id: first.id, lpn, countedQuantity: 1 });
     expect(scanned.cartons[0]).toMatchObject({ quantity: 2, countedQuantity: 1, opened: true });
-    await confirmReturnReceipt({ id: first.id });
+    // WF-05 Q-18 (như BE): thùng mở — chỉ Quản lý kho, khác người đếm, xác nhận được
+    expect((await errorOf(confirmReturnReceipt({ id: first.id }))).code).toBe(
+      "RETURN_RECEIPT_MANAGER_CONFIRMATION_REQUIRED",
+    );
+    await asManager(() => confirmReturnReceipt({ id: first.id }));
 
     const partly = await getReturn(approved.id);
     expect(partly.status).toBe("AWAITING_RETURN");
@@ -261,7 +288,7 @@ describe("WF-05 — goods back in several parcels (TH-3) and opened cartons / lo
     const withLoose = await recordLooseLine({ id: second.id, sku, quantity: 1, photoId: photo() });
     // WF-05 Q-18: phiếu nháp có hàng lẻ — chỉ Quản lý kho (khác người đếm) xác nhận
     expect(withLoose.managerConfirmationRequired).toBe(true);
-    const closed = await confirmReturnReceipt({ id: second.id });
+    const closed = await asManager(() => confirmReturnReceipt({ id: second.id }));
     expect(closed.status).toBe("CLOSED");
     expect(closed.looseLines?.[0]?.photoId).toBeTruthy();
     expect(closed.managerConfirmationRequired).toBe(false);
