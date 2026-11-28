@@ -1,7 +1,7 @@
 "use client";
 
-import { UI_LABELS } from "@/constants";
-import { cartonActions } from "@/features/fulfillment/carton-check-lifecycle";
+import { cartonCheckHoldReasonLabel, UI_LABELS } from "@/constants";
+import { cartonActions, cartonLabelHeld } from "@/features/fulfillment/carton-check-lifecycle";
 
 import { CartonRow } from "./CartonRow";
 
@@ -28,6 +28,9 @@ export function CartonsTable({
   labeling: boolean;
   handlers: CartonRowHandlers;
 }) {
+  const heldTitle = session.holdReason
+    ? UI_LABELS.cartonCheck.hold.blocked(cartonCheckHoldReasonLabel(session.holdReason))
+    : undefined;
   const shipmentCode = (id: string | null | undefined) =>
     session.shipments.find((shipment) => shipment.shipmentId === id)?.code;
   return (
@@ -60,6 +63,8 @@ export function CartonsTable({
               shipmentCode={shipmentCode(carton.shipmentId)}
               labeling={labeling}
               handlers={handlers}
+              labelHeld={cartonLabelHeld(carton, session, access)}
+              heldTitle={heldTitle}
             />
           ))}
         </tbody>

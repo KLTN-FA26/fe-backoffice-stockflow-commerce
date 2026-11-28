@@ -42,12 +42,17 @@ export function CartonRow({
   shipmentCode,
   labeling,
   handlers,
+  labelHeld,
+  heldTitle,
 }: {
   carton: Carton;
   actions: CartonActions;
   shipmentCode: string | undefined;
   labeling: boolean;
   handlers: CartonRowHandlers;
+  /** Đơn treo: nút dán nhãn của thùng bị tắt (WF4-K2), `heldTitle` nói lý do. */
+  labelHeld?: boolean;
+  heldTitle?: string;
 }) {
   return (
     <tr className="border-border-default border-b last:border-b-0">
@@ -90,6 +95,8 @@ export function CartonRow({
           actions={actions}
           labeling={labeling}
           handlers={handlers}
+          labelHeld={labelHeld}
+          heldTitle={heldTitle}
         />
       </td>
     </tr>

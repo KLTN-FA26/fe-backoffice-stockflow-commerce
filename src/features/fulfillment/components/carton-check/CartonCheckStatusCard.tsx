@@ -4,7 +4,13 @@ import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight, CheckCircle2, PlayCircle } from "lucide-react";
 
-import { FULFILLMENT_PICK_PERMISSIONS, PACK_STATUS, UI_LABELS, WORKSPACE_PATHS } from "@/constants";
+import {
+  cartonCheckHoldReasonLabel,
+  FULFILLMENT_PICK_PERMISSIONS,
+  PACK_STATUS,
+  UI_LABELS,
+  WORKSPACE_PATHS,
+} from "@/constants";
 import { useWorkspaceHref } from "@/lib/workspace";
 import { formatDateTime } from "@/lib/format/date";
 import { cartonCheckErrorMessage } from "@/features/fulfillment/carton-check-errors";
@@ -112,9 +118,20 @@ export function CartonCheckStatusCard({
           </Button>
         )}
         {access.canWork && (
-          <Button type="button" size="sm" onClick={() => setDialog("complete")} className={BUTTON}>
+          <Button
+            type="button"
+            size="sm"
+            disabled={access.held}
+            onClick={() => setDialog("complete")}
+            className={BUTTON}
+          >
             <CheckCircle2 className="size-3.5" /> {UI_LABELS.cartonCheck.action.complete}
           </Button>
+        )}
+        {access.canWork && session.holdReason && (
+          <p className="text-ink-tertiary text-center text-xs">
+            {UI_LABELS.cartonCheck.hold.blocked(cartonCheckHoldReasonLabel(session.holdReason))}
+          </p>
         )}
         {idle && (waitingPick || (!access.canStart && !access.canWork)) && (
           <p className="text-ink-tertiary text-center text-xs">{idle}</p>

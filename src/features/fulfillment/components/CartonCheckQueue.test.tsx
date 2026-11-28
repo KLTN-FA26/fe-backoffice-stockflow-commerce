@@ -199,3 +199,16 @@ describe("CartonCheckQueue — hàng chờ kiểm thùng", () => {
     expect(await screen.findByText(UI_LABELS.loadError.forbiddenTitle)).toBeInTheDocument();
   });
 });
+
+describe("CartonCheckQueue — đơn đang treo (WF4-K2)", () => {
+  it("đơn treo vẫn nằm trong hàng chờ, kèm lý do treo; đơn không treo không có dòng đó", async () => {
+    renderQueue([
+      queueRow({ taskId: "t-held", orderNumber: "SO-HELD", holdReason: "PAYMENT" }),
+      queueRow({ taskId: "t-free", orderNumber: "SO-FREE" }),
+    ]);
+    expect(await screen.findByText("SO-HELD")).toBeInTheDocument();
+    expect(screen.getByText(L.hold.queueBadge("Vấn đề thanh toán"))).toBeInTheDocument();
+    expect(screen.getByText("SO-FREE")).toBeInTheDocument();
+    expect(screen.getAllByText(/^Treo:/)).toHaveLength(1);
+  });
+});

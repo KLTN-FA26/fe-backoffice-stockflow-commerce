@@ -684,3 +684,31 @@ describe("CartonCheckStation — phiên của kho khác mở trong tab (spec §2
     expect(screen.queryByRole("button", { name: L.action.start })).toBeNull();
   });
 });
+
+describe("CartonCheckStation — đơn đang treo (WF4-K2)", () => {
+  const heldSession = (holdReason: string) =>
+    startedSession({
+      holdReason,
+      cartons: [
+        checkedCarton(),
+        apiCarton({ packageId: "p-2", packageNo: 2, lpn: "LPN000002", orderLineId: LINE_A_ID }),
+      ],
+    });
+
+  it("banner 'Đơn treo – lý do – chờ Sale gỡ treo'; vẫn quét được; dán nhãn và hoàn tất bị tắt, nói lý do", async () => {
+    renderCartonCheckStation({ session: heldSession("ADDRESS") });
+    expect(
+      await screen.findByText(L.hold.banner("Sai địa chỉ / hãng vận chuyển không giao tới")),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText(L.scan.label)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: L.action.complete })).toBeDisabled();
+    expect(within(rowOf("LPN000001")).getByRole("button", { name: L.action.label })).toBeDisabled();
+    expect(screen.getAllByText(/chờ Sale gỡ treo/).length).toBeGreaterThan(0);
+  });
+
+  it("đơn không treo: không có banner, hoàn tất bật", async () => {
+    renderCartonCheckStation({ session: startedSession() });
+    expect(await screen.findByRole("button", { name: L.action.complete })).toBeEnabled();
+    expect(screen.queryByText(/chờ Sale gỡ treo/)).toBeNull();
+  });
+});

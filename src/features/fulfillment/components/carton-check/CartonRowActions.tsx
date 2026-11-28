@@ -25,11 +25,16 @@ export function CartonRowActions({
   actions,
   labeling,
   handlers,
+  labelHeld,
+  heldTitle,
 }: {
   carton: Carton;
   actions: CartonActions;
   labeling: boolean;
   handlers: CartonRowHandlers;
+  /** Đơn treo: hiện nút dán nhãn bị tắt (WF4-K2), `heldTitle` nói lý do. */
+  labelHeld?: boolean;
+  heldTitle?: string;
 }) {
   return (
     <div className="flex flex-wrap gap-1.5">
@@ -40,6 +45,11 @@ export function CartonRowActions({
           disabled={labeling}
           onClick={() => handlers.onLabel(carton)}
         >
+          <Tag className="size-3" /> {A.label}
+        </Button>
+      )}
+      {labelHeld && (
+        <Button type="button" size="xs" disabled title={heldTitle}>
           <Tag className="size-3" /> {A.label}
         </Button>
       )}

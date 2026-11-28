@@ -354,6 +354,9 @@ export const ORDER_ACTION_LABELS = {
     description:
       "Tạm dừng xử lý đơn này. Đơn quay lại đúng bước đang làm khi gỡ giữ. Hàng đã giữ chỗ vẫn được giữ.",
     reasonLabel: "Lý do giữ",
+    // Đã có thùng dán nhãn (BE `firstLabeledAt`): địa chỉ in trên nhãn nên không đổi được nữa (docs 08 BR-04, 17 BR-16)
+    addressLockedWarning:
+      "Đơn đã có thùng dán nhãn nên địa chỉ giao đã khoá, không đổi được. Giữ đơn lý do này chỉ chặn dán nhãn tiếp và hoàn tất kiểm thùng, và chỉ Sale gỡ giữ được.",
     noteLabel: "Ghi chú",
     submit: "Giữ đơn",
     success: "Đã giữ đơn hàng",

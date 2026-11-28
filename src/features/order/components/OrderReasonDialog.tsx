@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { ORDER_ACTION_LABELS } from "@/constants";
+import { Alert } from "@/components/shared/Alert";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 
 import { NoteField, ReasonSelectField, type OrderReasonOption } from "./ReasonDialogFields";
@@ -23,6 +24,8 @@ interface OrderReasonDialogProps<T> {
   noteLabel: string;
   notePlaceholder?: string;
   noteMax: number;
+  /** Cảnh báo hiện dưới ô lý do khi người dùng chọn đúng lý do đó (vd giữ ADDRESS sau khi đã dán nhãn). */
+  reasonWarnings?: Readonly<Record<string, string>>;
   /** Ghi chú luôn bắt buộc (gỡ giữ) — ngược lại chỉ bắt buộc khi chọn "Lý do khác" (schema quyết). */
   noteAlwaysRequired?: boolean;
   /** Schema input — validate `{ reasonCode?, note }` trước khi gửi (BR: OTHER cần ghi chú). */
@@ -46,6 +49,7 @@ export function OrderReasonDialog<T>({
   submitLabel,
   reasonLabel,
   reasons,
+  reasonWarnings,
   noteLabel,
   notePlaceholder,
   noteMax,
@@ -90,6 +94,7 @@ export function OrderReasonDialog<T>({
             }}
           />
         )}
+        {reasonWarnings?.[reasonCode] && <Alert tone="warning">{reasonWarnings[reasonCode]}</Alert>}
         <NoteField
           label={noteLabel}
           placeholder={notePlaceholder}

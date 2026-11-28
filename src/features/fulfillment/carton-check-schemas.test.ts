@@ -126,3 +126,16 @@ describe("phiên kiểm thùng — BE CartonCheckSessionResponse", () => {
     }
   });
 });
+
+describe("holdReason (WF4-K2) — đơn treo vẫn trong hàng chờ và phiên", () => {
+  it("hàng chờ và phiên nhận holdReason; vắng khi không treo", () => {
+    expect(beCartonCheckQueueRowSchema.parse(queueRow({ holdReason: "ADDRESS" })).holdReason).toBe(
+      "ADDRESS",
+    );
+    expect(beCartonCheckQueueRowSchema.parse(queueRow()).holdReason).toBeUndefined();
+    expect(
+      beCartonCheckSessionSchema.parse(startedSession({ holdReason: "PAYMENT" })).holdReason,
+    ).toBe("PAYMENT");
+    expect(beCartonCheckSessionSchema.parse(startedSession()).holdReason).toBeUndefined();
+  });
+});

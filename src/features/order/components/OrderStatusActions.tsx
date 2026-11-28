@@ -22,7 +22,11 @@ import type { Order } from "../types";
 
 type ActionOrder = Pick<Order, "orderId" | "orderNumber">;
 
-export function OrderHoldAction({ order }: { order: ActionOrder }) {
+export function OrderHoldAction({
+  order,
+}: {
+  order: ActionOrder & Partial<Pick<Order, "firstLabeledAt">>;
+}) {
   const dialog = useOrderActionDialog("hold");
   const { mutate, isPending } = useHoldOrder(dialog.hookOptions);
   const labels = ORDER_ACTION_LABELS.hold;
@@ -36,6 +40,10 @@ export function OrderHoldAction({ order }: { order: ActionOrder }) {
           submitLabel={labels.submit}
           reasonLabel={labels.reasonLabel}
           reasons={toReasonOptions(ORDER_MANUAL_HOLD_REASONS, ORDER_HOLD_REASON_LABELS)}
+          // Đã dán nhãn thì địa chỉ đã khoá (BE `firstLabeledAt`, docs 08 BR-04): giữ ADDRESS chỉ chặn dán nhãn tiếp / hoàn tất
+          reasonWarnings={
+            order.firstLabeledAt ? { ADDRESS: labels.addressLockedWarning } : undefined
+          }
           noteLabel={labels.noteLabel}
           noteMax={ORDER_LIMITS.holdNoteMax}
           schema={holdOrderSchema}

@@ -1,7 +1,8 @@
 "use client";
 
-import { UI_LABELS } from "@/constants";
-import { CELL, dateCell, statusCell, ViewAction } from "@/components/shared/column-helpers";
+import { cartonCheckHoldReasonLabel, UI_LABELS } from "@/constants";
+import { CELL, dateCell, ViewAction } from "@/components/shared/column-helpers";
+import { StatusDot } from "@/components/shared/StatusDot";
 
 import { orderLabel } from "../primitives";
 
@@ -17,6 +18,10 @@ export interface QueueColumnContext {
   detailHref: (taskId: string) => string;
 }
 
+/** Đơn đang treo (WF4-K2) vẫn nằm trong hàng chờ nhưng làm mờ — mở trạm vẫn quét kiểm được. */
+const HELD_DIM = "opacity-60";
+const dim = (row: CartonCheckQueueRow) => (row.holdReason ? HELD_DIM : undefined);
+
 /** Cột hàng chờ kiểm thùng — đúng field BE `CartonCheckQueueRowResponse`. */
 export function buildQueueColumns({
   selfId,
@@ -27,7 +32,7 @@ export function buildQueueColumns({
       key: "order",
       header: COLUMNS.order,
       cell: (row) => (
-        <span className={CELL.code} title={row.orderId}>
+        <span className={`${CELL.code} ${dim(row) ?? ""}`} title={row.orderId}>
           {row.orderNumber ?? orderLabel(row.orderId, undefined)}
         </span>
       ),
@@ -38,7 +43,9 @@ export function buildQueueColumns({
     {
       key: "picker",
       header: COLUMNS.picker,
-      cell: (row) => <span className={CELL.name}>{row.pickerName ?? "—"}</span>,
+      cell: (row) => (
+        <span className={`${CELL.name} ${dim(row) ?? ""}`}>{row.pickerName ?? "—"}</span>
+      ),
     },
     {
       key: "starter",
@@ -51,12 +58,27 @@ export function buildQueueColumns({
         );
       },
     },
-    statusCell<CartonCheckQueueRow>("status", COLUMNS.status, (row) => row.status, "pack"),
+    {
+      key: "status",
+      header: COLUMNS.status,
+      cell: (row) => (
+        <div className="flex flex-col gap-0.5">
+          <span className={dim(row)}>
+            <StatusDot domain="pack" status={row.status} size="sm" />
+          </span>
+          {row.holdReason && (
+            <span className="text-warning text-xs">
+              {L.hold.queueBadge(cartonCheckHoldReasonLabel(row.holdReason))}
+            </span>
+          )}
+        </div>
+      ),
+    },
     {
       key: "cartons",
       header: COLUMNS.cartons,
       cell: (row) => (
-        <span className={`${CELL.text} tabular-nums`}>
+        <span className={`${CELL.text} tabular-nums ${dim(row) ?? ""}`}>
           {row.cartonCount === 0
             ? "—"
             : L.cartonsCell(row.checkedCount, row.labeledCount, row.cartonCount)}
