@@ -12,6 +12,8 @@ import { Notice } from "@/components/shared/Notice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+import { ContractTermsEditor } from "./ContractTermsEditor";
+
 import { DeliveryScheduleEditor } from "./DeliveryScheduleEditor";
 import { PaymentPlanEditor } from "./PaymentPlanEditor";
 import { useContractEditor } from "./useContractEditor";
@@ -29,7 +31,7 @@ export function ContractEditor({
   onSaved,
 }: {
   contract: SalesContract;
-  order: Pick<Order, "lines">;
+  order: Pick<Order, "lines" | "customerId">;
   /** Đóng editor khi bỏ thay đổi. */
   onDone: () => void;
   /** Đóng editor sau khi lưu xong; không truyền thì như `onDone`. */
@@ -64,6 +66,9 @@ export function ContractEditor({
         </Notice>
       )}
       <FormErrorNotice message={editor.formError} />
+      {contract.termsReview != null && (
+        <ContractTermsEditor form={form} standardTerms={contract.standardTerms} />
+      )}
       <DeliveryScheduleEditor form={form} lines={order.lines} />
       <div className="flex justify-end">
         <Button
@@ -96,6 +101,7 @@ export function ContractEditor({
         form={form}
         totalWithTax={contract.totals.totalAmount}
         currency={contract.totals.currency}
+        customerId={order.customerId}
       />
       <div className="grid gap-3 md:grid-cols-2">
         <FormField

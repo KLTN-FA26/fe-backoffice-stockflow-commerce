@@ -8,18 +8,18 @@ import {
   ORDER_PERMISSIONS,
   QUOTE_PERMISSIONS,
 } from "@/constants";
-import { formatDate } from "@/lib/format/date";
-import { formatMoney } from "@/lib/format/money";
+import { CHAT_INBOX_LABELS } from "@/constants/labels-chat";
 import { PermittedLink } from "@/components/backoffice/PermittedLink";
 import { Card } from "@/components/shared/Card";
 import { Skeleton } from "@/components/shared/Skeleton";
 import { Button } from "@/components/ui/button";
 
-import { owedOf } from "../lifecycle";
 import { useCustomerOverview } from "../queries";
 import { contextStatusLabel } from "../selectors";
 
 import { AttachContextDialog } from "./AttachContextDialog";
+import { OpenDocuments } from "./OpenDocuments";
+import { OwingInstallments } from "./OwingInstallments";
 import { TransferDetailsDialog } from "./TransferDetailsDialog";
 
 import type { PermissionCode } from "@/lib/auth";
@@ -40,7 +40,8 @@ function contextLink(
 }
 
 /**
- * Panel phải: hồ sơ khách (S16), chứng từ ngữ cảnh + gắn thêm (S13), đợt còn nợ + gửi thẻ chuyển khoản (S18).
+ * Panel phải: hồ sơ khách (S16), chứng từ ngữ cảnh + gắn thêm (S13), báo giá / đơn đang mở (bo-33), đợt còn nợ + gửi
+ * thẻ chuyển khoản (S18). Số tiền luôn trọn một dòng ở mép phải, chữ mô tả xuống dòng bên trái (bo-33).
  */
 export function CustomerPanel({
   conversation,
@@ -116,17 +117,13 @@ export function CustomerPanel({
           </Button>
         )}
       </div>
+      {!overview.isPending && !overview.isError && <OpenDocuments overview={data} />}
       <div className="space-y-1">
-        <h3 className="text-ink-secondary text-xs font-medium">Đợt còn phải thu</h3>
-        {owing.length === 0 && <p className="text-ink-tertiary">Không có.</p>}
-        {owing.map((item) => (
-          <div key={item.id} className={item.overdue ? "text-danger" : undefined}>
-            {item.contractNumber ?? item.orderNumber} — đợt {item.seq}:{" "}
-            {formatMoney(owedOf(item), item.currency)}
-            {item.dueDate && ` · hạn ${formatDate(item.dueDate)}`}
-            {item.overdue && " · quá hạn"}
-          </div>
-        ))}
+        <h3 className="text-ink-secondary text-xs font-medium">{CHAT_INBOX_LABELS.installments}</h3>
+        {owing.length === 0 && (
+          <p className="text-ink-tertiary">{CHAT_INBOX_LABELS.noInstallments}</p>
+        )}
+        <OwingInstallments installments={owing} />
         {canSend && owing.length > 0 && (
           <Button size="sm" variant="outline" onClick={() => setTransfer(true)}>
             Gửi thông tin chuyển khoản

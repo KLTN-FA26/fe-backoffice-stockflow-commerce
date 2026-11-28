@@ -114,8 +114,13 @@ export const LOAD_PLAN_UI_LABELS = {
     candidatesFailed: "Không tải được danh sách lô giao.",
     selectAll: "Chọn tất cả",
     clearAll: "Bỏ chọn",
+    selectFirst: (limit: number) => `Chọn ${limit} lô sớm nhất`,
+    overLimit: (total: number, limit: number) =>
+      `Kho có ${total} lô chờ xuất nhưng một kế hoạch chỉ nhận tối đa ${limit} lô. Dùng ô tìm để chọn lô cần đi, hoặc "Chọn ${limit} lô sớm nhất"; số còn lại để cho kế hoạch sau.`,
     shipmentCode: "Lô giao",
     order: "Đơn hàng",
+    customer: "Khách hàng",
+    province: "Tỉnh giao",
     packageCount: "Số kiện",
     weight: "Khối lượng",
     volume: "Thể tích",
@@ -125,22 +130,35 @@ export const LOAD_PLAN_UI_LABELS = {
     inOtherPlans: (count: number) => `${count} kiện đang ở kế hoạch khác`,
     selectedSummary: (shipments: number, packages: number) =>
       `Đã chọn ${shipments} lô · ${packages} kiện`,
+    /** Nối sau `selectedSummary`: tổng tải đang chọn để so với tải trọng xe. */
+    selectedLoad: (weight: string, volume: string) => ` · ${weight} kg · ${volume} m³`,
+    searchPlaceholder: "Tìm theo mã lô giao, số đơn, khách hàng hoặc tỉnh giao",
+    searchEmpty: "Không có lô nào khớp.",
     vehicleTypesTitle: "Loại xe",
-    vehicleTypesHint: "Chọn các loại xe được dùng; số xe tối đa của mỗi loại là số xe sẵn có.",
+    vehicleTypesHint:
+      "Chọn các loại xe được dùng; số xe tối đa của mỗi loại là số xe sẵn có. Loại vừa tải đã chọn nằm trên cùng.",
+    vehicleTypesHintEstimated:
+      "Đã chọn sẵn loại xe theo ước tính tải của đơn (sửa được). Số xe tối đa của mỗi loại là số xe sẵn có.",
+    recommended: "Gợi ý",
+    vehicleTypesOthers: "Một xe không chở hết tải này — phải dùng nhiều xe",
     vehicleTypesFailed: "Không tải được danh mục loại xe.",
     vehicleTypesEmpty: "Chưa có loại xe nào đang dùng.",
     availableCount: (count: number) => `${count} xe sẵn có`,
     modeTitle: "Chế độ chọn xe",
     /** Dòng thứ sáu của bảng "Chế độ chọn xe" (docs 09 §4.2): không chọn trước khi tính, làm ở trang kế hoạch. */
-    manualMode: "Chỉnh tay",
-    manualModeHint:
-      "Kéo thả kiện trên mô hình 3D rồi tính lại một xe — làm ở trang kế hoạch sau khi tính xếp xe, với mọi chế độ.",
+    manualModeNote:
+      "Muốn kéo thả kiện trên mô hình 3D rồi tính lại một xe (Chỉnh tay): làm ở trang kế hoạch sau khi tính xếp xe, với mọi chế độ.",
+    /** Dòng "Còn thiếu" dưới nút tạo kế hoạch (R7): nêu từng việc chưa làm. */
+    missingPrefix: "Còn thiếu",
+    missingWarehouse: "chọn kho",
+    missingShipments: "chọn ít nhất một lô giao",
+    missingVehicleTypes: "chọn ít nhất một loại xe",
     fillTitle: "Hàng chèn",
     fillHint:
       "Tick dòng đơn là hàng chèn; dòng không tick là hàng chính. Hàng chèn không mở thêm xe, phần không vừa chờ kế hoạch sau.",
     fillEmpty: "Chọn lô giao để thấy các dòng đơn.",
-    fillLine: (shipmentCode: string, sku: string, packages: number) =>
-      `${shipmentCode} · ${sku} · ${packages} kiện`,
+    fillLine: (shipmentCode: string, sku: string, packages: number, productName?: string) =>
+      [shipmentCode, sku, productName, `${packages} kiện`].filter(Boolean).join(" · "),
     fillAria: (shipmentCode: string, sku: string) => `Hàng chèn: ${shipmentCode} · ${sku}`,
     note: "Ghi chú",
     notePlaceholder: "Ghi chú cho kế hoạch (không bắt buộc)",
@@ -175,11 +193,13 @@ export const LOAD_PLAN_UI_LABELS = {
     dismiss: "Đóng",
     finalState: "Kế hoạch đã kết thúc, chỉ còn xem.",
     noVehicles: "Chưa có xe nào: tính xếp xe để xem bố cục.",
+    calculating: "Đang tính xếp xe… có thể mất vài giây, kết quả hiện ngay khi xong.",
     layoutsFailed: "Không tải được bố cục xếp xe.",
     tabs: { loading: "Xếp xe", reconciliation: "Đối chiếu" },
     tabsAria: "Nội dung kế hoạch",
     actions: {
       calculate: "Tính xếp xe",
+      calculating: "Đang tính…",
       recalculate: "Tính lại xe",
       editInputs: "Đổi đầu vào",
       confirm: "Chốt kế hoạch",
@@ -187,6 +207,18 @@ export const LOAD_PLAN_UI_LABELS = {
       cancel: "Huỷ kế hoạch",
       acknowledge: "Để lại các kiện chưa xếp",
       removeShipment: "Gỡ lô giao",
+      more: "Thao tác khác",
+    },
+    confirmed: {
+      title: "Đã chốt kế hoạch",
+      body: "Mỗi xe đã thành một chuyến xe. Bước tiếp theo: đặt xe với hãng ở từng chuyến.",
+      open: (code: string) => `Mở chuyến xe ${code}`,
+    },
+    /** Dòng ngay dưới nút "Chốt kế hoạch" khi nút đang khoá (R7): việc phải làm trước, ngắn, không lặp thông báo đầu trang. */
+    confirmBlocked: {
+      noVehicles: "Chưa chốt được: chưa có xe nào — tính xếp xe trước.",
+      needsRecalculation: "Chưa chốt được: còn xe cần tính lại — mở xe đó rồi bấm Tính lại xe.",
+      unplacedPending: "Chưa chốt được: còn kiện chưa xếp — xác nhận để lại, hoặc đưa vào xe.",
     },
     needsRecalculation: "Cần tính lại",
     needsRecalculationAlert:

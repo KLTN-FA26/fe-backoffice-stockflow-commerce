@@ -26,6 +26,11 @@ export function ServiceCodeCell({
   onChange: (next: string) => void;
   lookup: { enabled: boolean; needsSaved: boolean; needsCity: boolean; onOpen: () => void };
 }) {
+  const lookupWhyDisabled = lookup.needsSaved
+    ? S.lookupNeedsSaved
+    : lookup.needsCity
+      ? S.lookupNeedsCity
+      : null;
   return (
     <td className="px-1.5 py-1 align-top">
       <TextCellBody
@@ -42,15 +47,14 @@ export function ServiceCodeCell({
         size="sm"
         className="mt-0.5 h-auto p-0 text-left text-xs whitespace-normal"
         disabled={!lookup.enabled}
-        title={
-          lookup.needsSaved ? S.lookupNeedsSaved : lookup.needsCity ? S.lookupNeedsCity : undefined
-        }
         aria-label={S.lookupAria(index + 1)}
         onClick={lookup.onOpen}
       >
         <Search aria-hidden />
         {S.lookup}
       </Button>
+      {/* S01-13 / R7: vì sao nút khoá nói ngay dưới nút, không chỉ ở `title` (bàn phím, cảm ứng không thấy) */}
+      {lookupWhyDisabled && <p className="text-ink-tertiary mt-0.5 text-xs">{lookupWhyDisabled}</p>}
     </td>
   );
 }

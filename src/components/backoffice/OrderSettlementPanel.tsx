@@ -35,6 +35,11 @@ const ROW = "flex flex-wrap items-center justify-between gap-x-4 gap-y-1";
 const R = SETTLEMENT_READINESS_LABELS;
 
 type Readiness = NonNullable<OrderSettlementSlotProps["settlementReadiness"]>;
+/** Hai chặn Kế toán gỡ được ngay bằng cách lập nháp: phần phí còn lại, và lô giao đã giao mà chưa có hoá đơn phát hành. */
+const DRAW_UP_BLOCKERS: ReadonlySet<string> = new Set([
+  "SHIPPING_FEE_UNINVOICED",
+  "SHIPMENT_UNINVOICED",
+]);
 
 /** Ngày giờ VN từ instant của BE; chuỗi không parse được hiện nguyên văn (không làm hỏng bảng). */
 const dayOf = (iso: string) => (Number.isNaN(Date.parse(iso)) ? iso : formatDate(iso));
@@ -153,7 +158,7 @@ export function OrderSettlementPanel(props: OrderSettlementSlotProps) {
             <p className="text-ink-tertiary">
               {invoices.isPending
                 ? "Đang tải…"
-                : "Chưa có hoá đơn — nháp được tạo khi một lần giao thành công."}
+                : "Chưa có hoá đơn — nháp được tạo khi một lô giao được giao thành công."}
             </p>
           ) : (
             <ul className="divide-y divide-[var(--table-line)]">
@@ -328,7 +333,7 @@ function ReadinessSection({
                 <CheckRow key={blocker.code} met={false}>
                   {blocker.known ? R.blockers[blocker.code] : R.unknownBlocker(blocker.code)}
                   {detail ? <span className="text-ink-tertiary"> — {detail}</span> : null}
-                  {blocker.code === "SHIPPING_FEE_UNINVOICED" && canDrawUp && (
+                  {DRAW_UP_BLOCKERS.has(blocker.code) && canDrawUp && (
                     <Button
                       type="button"
                       size="xs"
@@ -336,7 +341,9 @@ function ReadinessSection({
                       className="ml-2"
                       onClick={() => setDrawingFor(orderId)}
                     >
-                      {R.drawUpFeeRest}
+                      {blocker.code === "SHIPPING_FEE_UNINVOICED"
+                        ? R.drawUpFeeRest
+                        : R.drawUpShipment}
                     </Button>
                   )}
                 </CheckRow>

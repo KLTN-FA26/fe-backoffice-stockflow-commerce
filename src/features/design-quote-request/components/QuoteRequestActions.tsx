@@ -8,9 +8,11 @@ import { Eye, FileText, MessageSquare, XCircle } from "lucide-react";
 import { DESIGN_QUOTE_REQUEST_LABELS as COPY } from "@/constants";
 
 import { usePermissionChecker } from "@/lib/auth/components/Can";
+import { useSalesOwnerAccess } from "@/lib/references/sales-owner-queries";
 
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { RowActionsMenu } from "@/components/shared/RowActionsMenu";
+import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -42,20 +44,28 @@ const ACTION_ICON: Record<QuoteRequestAction["id"], LucideIcon> = {
 /** BE `DesignProjectQuoteRequestService.MAX_CLOSE_REASON`. */
 const CLOSE_REASON_MAX = 1000;
 
+/** Nút chính "Lập báo giá" — nền brand, cỡ nhỏ trên dòng bảng, cỡ thường trên header trang chi tiết. */
+const PRIMARY_CLASS =
+  "bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse gap-1.5 whitespace-nowrap";
+
 /**
- * Ô "Thao tác" (backoffice-erp-ui A6): một nút "⋯" mở menu chữ gồm mọi thao tác của dòng — "Lập báo giá", "Mở chat",
- * "Đóng" (cuối, chữ đỏ). Thao tác đang tắt vẫn hiện, kèm lý do ở dòng phụ. Tên truy cập của nút kèm tên thiết kế / dự
+ * Ô "Thao tác" (backoffice-erp-ui A6) và nút của header trang chi tiết: "Lập báo giá" là việc chính của hộp yêu cầu nên
+ * hiện thành nút riêng khi lập được (rà UI WF-02 bo-02 — không giấu trong "⋯"); "Mở chat", "Đóng" (cuối, chữ đỏ) và
+ * "Lập báo giá" khi đang tắt (kèm lý do ở dòng phụ) nằm trong menu "⋯". Tên truy cập của các nút kèm tên thiết kế / dự
  * án của dòng. Nút nào hiện, nút nào tắt do `quoteRequestActions` quyết.
  */
 export function QuoteRequestActions({
   row,
   close,
   viewHref,
+  placement = "row",
 }: {
   row: QuoteRequest;
   close: CloseRequestMutation;
   /** Có → mục đầu "Xem chi tiết" dẫn tới trang chi tiết của yêu cầu dự án. */
   viewHref?: string;
+  /** `header` = header trang chi tiết (nút cỡ thường). */
+  placement?: "row" | "header";
 }) {
   const router = useRouter();
   const can = usePermissionChecker();
@@ -69,10 +79,14 @@ export function QuoteRequestActions({
   const navigate = (href: string) => router.push(href);
   const openChat = useOpenChat(navigate);
   const startQuote = useStartQuote(navigate);
-  const actions = quoteRequestActions(row, can);
+  // BR-S12: "Lập báo giá" chỉ cho người phụ trách / người lo thay / Sales Manager khi khách đã có chủ.
+  const owner = useSalesOwnerAccess(row.customerId);
+  const actions = quoteRequestActions(row, can, owner.blockedReason);
   const name = quoteRequestName(row);
   // One close hook for the whole list: only this row's close locks this row.
   const closingThis = close.isPending && close.variables?.id === row.id;
+  const primary = actions.find((action) => action.id === "create-quote" && action.enabled);
+  const menuActions = actions.filter((action) => action !== primary);
 
   const busy = (action: QuoteRequestAction) =>
     (action.id === "open-chat" && openChat.isPending) ||
@@ -91,68 +105,86 @@ export function QuoteRequestActions({
   };
 
   return (
-    <RowActionsMenu
-      label={`${COPY.moreActions} — ${name}`}
-      actions={[
-        ...(viewHref ? [{ label: COPY.viewDetail, icon: Eye, href: viewHref }] : []),
-        ...actions.map((action) => ({
-          label: action.label,
-          icon: ACTION_ICON[action.id],
-          hint: action.hint,
-          disabled: !action.enabled || busy(action),
-          danger: action.id === "close",
-          onSelect: () => run(action.id),
-        })),
-      ]}
+    <div
+      className={`flex items-center gap-1 ${placement === "row" ? "justify-end" : ""}`}
+      onClick={(event) => event.stopPropagation()}
     >
-      <ConfirmDialog
-        open={confirming}
-        onOpenChange={setConfirming}
-        title={COPY.closeTitle}
-        description={needsReason ? COPY.closeProjectDescription : COPY.closeDescription}
-        confirmLabel={COPY.close}
-        variant="default"
-        closeOnConfirm={false}
-        loading={closingThis}
-        error={
-          close.isError && close.variables?.id === row.id
-            ? "Không đóng được yêu cầu. Thử lại."
-            : undefined
-        }
-        onConfirm={() => {
-          if (needsReason && !reasonValid) {
-            setReasonTouched(true);
-            return;
-          }
-          close.mutate(needsReason ? { id: row.id, reason: trimmed } : { id: row.id }, {
-            onSuccess: () => setConfirming(false),
-          });
-        }}
+      {primary && (
+        <Button
+          type="button"
+          size={placement === "row" ? "xs" : "sm"}
+          aria-label={`${primary.label} — ${name}`}
+          disabled={busy(primary)}
+          onClick={() => run(primary.id)}
+          className={PRIMARY_CLASS}
+        >
+          <FileText className="size-3.5" aria-hidden="true" />
+          {primary.label}
+        </Button>
+      )}
+      <RowActionsMenu
+        label={`${COPY.moreActions} — ${name}`}
+        actions={[
+          ...(viewHref ? [{ label: COPY.viewDetail, icon: Eye, href: viewHref }] : []),
+          ...menuActions.map((action) => ({
+            label: action.label,
+            icon: ACTION_ICON[action.id],
+            hint: action.hint,
+            disabled: !action.enabled || busy(action),
+            danger: action.id === "close",
+            onSelect: () => run(action.id),
+          })),
+        ]}
       >
-        {needsReason && (
-          <div className="space-y-1.5">
-            <Label htmlFor={`close-reason-${row.id}`}>{COPY.closeReasonLabel}</Label>
-            <Textarea
-              id={`close-reason-${row.id}`}
-              value={reason}
-              maxLength={CLOSE_REASON_MAX}
-              rows={3}
-              placeholder={COPY.closeReasonPlaceholder}
-              aria-invalid={reasonTouched && !reasonValid ? true : undefined}
-              aria-describedby={
-                reasonTouched && !reasonValid ? `close-reason-${row.id}-error` : undefined
-              }
-              onChange={(event) => setReason(event.target.value)}
-              onBlur={() => setReasonTouched(true)}
-            />
-            {reasonTouched && !reasonValid && (
-              <p id={`close-reason-${row.id}-error`} role="alert" className="text-danger text-xs">
-                {COPY.closeReasonRequired}
-              </p>
-            )}
-          </div>
-        )}
-      </ConfirmDialog>
-    </RowActionsMenu>
+        <ConfirmDialog
+          open={confirming}
+          onOpenChange={setConfirming}
+          title={COPY.closeTitle}
+          description={needsReason ? COPY.closeProjectDescription : COPY.closeDescription}
+          confirmLabel={COPY.close}
+          variant="default"
+          closeOnConfirm={false}
+          loading={closingThis}
+          error={
+            close.isError && close.variables?.id === row.id
+              ? "Không đóng được yêu cầu. Thử lại."
+              : undefined
+          }
+          onConfirm={() => {
+            if (needsReason && !reasonValid) {
+              setReasonTouched(true);
+              return;
+            }
+            close.mutate(needsReason ? { id: row.id, reason: trimmed } : { id: row.id }, {
+              onSuccess: () => setConfirming(false),
+            });
+          }}
+        >
+          {needsReason && (
+            <div className="space-y-1.5">
+              <Label htmlFor={`close-reason-${row.id}`}>{COPY.closeReasonLabel}</Label>
+              <Textarea
+                id={`close-reason-${row.id}`}
+                value={reason}
+                maxLength={CLOSE_REASON_MAX}
+                rows={3}
+                placeholder={COPY.closeReasonPlaceholder}
+                aria-invalid={reasonTouched && !reasonValid ? true : undefined}
+                aria-describedby={
+                  reasonTouched && !reasonValid ? `close-reason-${row.id}-error` : undefined
+                }
+                onChange={(event) => setReason(event.target.value)}
+                onBlur={() => setReasonTouched(true)}
+              />
+              {reasonTouched && !reasonValid && (
+                <p id={`close-reason-${row.id}-error`} role="alert" className="text-danger text-xs">
+                  {COPY.closeReasonRequired}
+                </p>
+              )}
+            </div>
+          )}
+        </ConfirmDialog>
+      </RowActionsMenu>
+    </div>
   );
 }

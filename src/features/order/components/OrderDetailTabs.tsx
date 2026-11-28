@@ -2,6 +2,8 @@
 
 import { parseAsStringLiteral, useQueryState } from "nuqs";
 
+import { ORDER_FINANCE_LABELS } from "@/constants";
+
 import { PageTabPanel, PageTabs } from "@/components/shared/PageTabs";
 
 import { CancellationRequestCard } from "./cancellation/CancellationRequestCard";
@@ -48,7 +50,7 @@ export function OrderDetailTabs({
   order: Order;
   can: (code: PermissionCode) => boolean;
   estimateSlot?: OrderEstimateSlot;
-  /** Đã qua hợp đồng ký — có việc kho / giao hàng. */
+  /** Đã qua hợp đồng ký — có việc kho / giao hàng, đợt thanh toán, hoá đơn. */
   fulfilmentStage: boolean;
   /** Khối "Thanh toán, hoá đơn & hoàn tất" do chỗ ghép truyền vào (`settlement-slot.ts`). */
   settlement: ReactNode;
@@ -96,7 +98,14 @@ export function OrderDetailTabs({
           {tab === "payment" && (
             <>
               <OrderFinanceCard order={order} can={can} />
-              {settlement}
+              {/* bo-18: trước hợp đồng ký chưa có đợt / hoá đơn / hoàn tất — một dòng thay cho khối toàn chữ "chưa có" */}
+              {fulfilmentStage ? (
+                settlement
+              ) : (
+                <p className="text-ink-tertiary text-[0.8125rem]">
+                  {ORDER_FINANCE_LABELS.settlementBeforeContract}
+                </p>
+              )}
             </>
           )}
           {tab === "returns" && (

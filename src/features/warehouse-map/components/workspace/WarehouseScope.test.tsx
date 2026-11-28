@@ -23,10 +23,11 @@ const warehouse = (id: string, prefix: string, name: string): Warehouse => ({
   status: "ACTIVE",
   version: 0,
 });
-const LIST = [
+const ALL = [
   warehouse("wh-hcm", "HCM", "Kho Hồ Chí Minh"),
   warehouse("wh-bd", "BD", "Kho Bình Dương"),
 ];
+const catalog = vi.hoisted(() => ({ items: [] as Warehouse[] }));
 
 const canRead = vi.fn(() => true);
 const permissionsPending = vi.fn(() => false);
@@ -40,7 +41,7 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: navigation.replace }),
 }));
 vi.mock("@/features/warehouse-map/queries", () => ({
-  useWarehouses: () => ({ data: { items: LIST }, isError: false, refetch: vi.fn() }),
+  useWarehouses: () => ({ data: { items: catalog.items }, isError: false, refetch: vi.fn() }),
 }));
 
 function Page() {
@@ -54,6 +55,7 @@ function Page() {
 const page = <Page />;
 
 beforeEach(() => {
+  catalog.items = ALL;
   canRead.mockReturnValue(true);
   permissionsPending.mockReturnValue(false);
   navigation.replace.mockReset();
@@ -85,6 +87,25 @@ describe("trang của một kho theo prefix trên URL", () => {
       "href",
       "/admin/warehouses",
     );
+  });
+
+  it("kho trên URL không có mà có nhiều kho → liệt kê các kho, mỗi link giữ nguyên trang đang mở (S12-7)", () => {
+    navigation.pathname = "/admin/warehouse-map/HAN/putaway/t-1";
+    renderWithProviders(<WarehouseScope prefix="HAN">{page}</WarehouseScope>);
+    expect(screen.getByText("Không có kho HAN")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /BD · Kho Bình Dương/ })).toHaveAttribute(
+      "href",
+      "/admin/warehouse-map/BD/putaway/t-1",
+    );
+    expect(screen.getByRole("link", { name: /HCM · Kho Hồ Chí Minh/ })).toBeInTheDocument();
+    expect(navigation.replace).not.toHaveBeenCalled();
+  });
+
+  it("kho trên URL không có mà chỉ có một kho → tự chuyển sang kho đó, giữ trang", () => {
+    navigation.pathname = "/admin/warehouse-map/HAN/receiving";
+    catalog.items = [warehouse("wh-bd", "BD", "Kho Bình Dương")];
+    renderWithProviders(<WarehouseScope prefix="HAN">{page}</WarehouseScope>);
+    expect(navigation.replace).toHaveBeenCalledWith("/admin/warehouse-map/BD/receiving");
   });
 
   it("prefix chữ thường trên URL → thay URL bằng prefix chuẩn, giữ phần còn lại của đường dẫn", () => {

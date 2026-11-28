@@ -19,12 +19,7 @@ import {
   apiPickLines,
 } from "../../__fixtures__/pick-lines";
 import { REALLOCATED_BIN, linePath, renderPickingDetail } from "../../__fixtures__/picking-detail";
-import {
-  IDENTITIES,
-  pickInputComboboxOption,
-  pickSelectOption,
-  scanInputComboboxCode,
-} from "../../__fixtures__/render";
+import { IDENTITIES, pickSelectOption, scanCode } from "../../__fixtures__/render";
 import { OTHER_PICKER_ID, apiTask } from "../../__fixtures__/task";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
@@ -60,21 +55,19 @@ async function fillShort(
   location: string,
   reason: string,
 ) {
-  await pickInputComboboxOption(user, L.location, location);
+  await scanCode(user, L.shortScanLocation, location, screen.getByRole("dialog"));
   await pickSelectOption(user, L.shortReason, reason);
   await user.click(screen.getByRole("button", { name: L.shortAction }));
 }
 
-/** Xác nhận dòng đang hiện trên thẻ: chọn vị trí qua combobox, quét LPN rồi Enter. */
+/** Xác nhận dòng đang hiện trên thẻ: quét vị trí rồi quét LPN (ô quét lớn, gõ mã + Enter). */
 async function confirmActive(
   user: ReturnType<typeof userEvent.setup>,
   location: string,
   lpn: string,
 ) {
-  await pickInputComboboxOption(user, L.location, location);
-  const input = screen.getByLabelText(L.lpn);
-  await user.clear(input);
-  await user.type(input, `${lpn}{Enter}`);
+  await scanCode(user, L.scanLocation, location);
+  await scanCode(user, L.scanLpn, lpn);
 }
 
 describe("Báo thiếu thùng — người được gán (BE POST …/short, X-SHORT, docs 07 §4.4 bước 9)", () => {
@@ -100,30 +93,35 @@ describe("Báo thiếu thùng — người được gán (BE POST …/short, X-S
     const user = userEvent.setup();
     renderPickingDetail(IDENTITIES.warehouseStaff, picking());
     await openShortDialog(user);
-    await pickInputComboboxOption(user, L.location, "HN-A01-01-01-A");
-    expect(screen.getByRole("combobox", { name: L.shortReason })).toHaveFocus();
-  });
-
-  it("quét đủ mã vị trí + Enter (không bấm option) → chọn đúng mã đó, con trỏ sang ô Lý do", async () => {
-    const user = userEvent.setup();
-    renderPickingDetail(IDENTITIES.warehouseStaff, picking());
-    await openShortDialog(user);
-    await scanInputComboboxCode(user, L.location, "HN-A01-01-01-A");
-    expect(screen.getByRole("combobox", { name: L.location })).toHaveValue("HN-A01-01-01-A");
-    expect(screen.getByRole("combobox", { name: L.shortReason })).toHaveFocus();
+    await scanCode(user, L.shortScanLocation, "HN-A01-01-01-A", screen.getByRole("dialog"));
+    await waitFor(() =>
+      expect(screen.getByRole("combobox", { name: L.shortReason })).toHaveFocus(),
+    );
   });
 
   it("chưa chọn lý do → lỗi form, không gửi", async () => {
     const user = userEvent.setup();
     const { post } = renderPickingDetail(IDENTITIES.warehouseStaff, picking());
     await openShortDialog(user);
-    await pickInputComboboxOption(user, L.location, "HN-A01-01-01-A");
+    await scanCode(user, L.shortScanLocation, "HN-A01-01-01-A", screen.getByRole("dialog"));
     await user.click(screen.getByRole("button", { name: L.shortAction }));
     expect(await screen.findByText(MSG_FIELD.shortReasonRequired)).toBeInTheDocument();
     expect(shortCalls(post)).toHaveLength(0);
   });
 
-  it("BE PICK_LOCATION_MISMATCH → lỗi dưới ô Vị trí, dialog vẫn mở", async () => {
+  it("quét sai vị trí → báo ngay tại ô nêu vị trí đúng, nút báo thiếu khoá, không gọi BE", async () => {
+    const user = userEvent.setup();
+    const { post } = renderPickingDetail(IDENTITIES.warehouseStaff, picking());
+    const dialog = await openShortDialog(user);
+    await scanCode(user, L.shortScanLocation, "HN-STAGE-01", dialog);
+    expect(
+      (await within(dialog).findAllByText(LE.locationMismatch("HN-A01-01-01-A"))).length,
+    ).toBeGreaterThan(0);
+    expect(within(dialog).getByRole("button", { name: L.shortAction })).toBeDisabled();
+    expect(shortCalls(post)).toHaveLength(0);
+  });
+
+  it("BE vẫn từ chối vị trí (PICK_LOCATION_MISMATCH) → lỗi tại ô quét, mở lại để quét lại, dialog vẫn mở", async () => {
     const user = userEvent.setup();
     renderPickingDetail(IDENTITIES.warehouseStaff, picking(), {
       short: () => {
@@ -131,10 +129,11 @@ describe("Báo thiếu thùng — người được gán (BE POST …/short, X-S
       },
     });
     const dialog = await openShortDialog(user);
-    await fillShort(user, "HN-STAGE-01", L.shortReasons.NOT_FOUND);
+    await fillShort(user, "HN-A01-01-01-A", L.shortReasons.NOT_FOUND);
     expect(
-      await within(dialog).findByText(LE.locationMismatch("HN-A01-01-01-A")),
-    ).toBeInTheDocument();
+      (await within(dialog).findAllByText(LE.locationMismatch("HN-A01-01-01-A"))).length,
+    ).toBeGreaterThan(0);
+    expect(within(dialog).getByLabelText(L.shortScanLocation)).toBeEnabled();
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 

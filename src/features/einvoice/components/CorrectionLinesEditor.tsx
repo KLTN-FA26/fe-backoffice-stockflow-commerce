@@ -1,5 +1,6 @@
 "use client";
 
+import { MoneyInput } from "@/components/shared/MoneyInput";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 
@@ -73,13 +74,12 @@ export function CorrectionLinesEditor({
               </td>
               {priced && (
                 <td className={CELL}>
-                  <Input
+                  <MoneyInput
                     aria-label={`Đơn giá dòng ${line.lineNo}`}
-                    inputMode="numeric"
                     disabled={!row.include}
                     value={row.unitPrice}
-                    onChange={(event) => set(index, { unitPrice: event.target.value })}
-                    className="h-8 w-28"
+                    onChange={(digits) => set(index, { unitPrice: digits })}
+                    className="h-8 w-32"
                   />
                 </td>
               )}

@@ -83,7 +83,7 @@ function SignForm({
   return (
     <FormDialogBody
       title={`Ghi nhận đã ký ${contract.contractNumber}`}
-      description="Tải bản scan hợp đồng có chữ ký của khách (PDF, Word, Excel hoặc ảnh JPG/PNG, 1 file, tối đa 25 MB)."
+      description="Tải hợp đồng đã có chữ ký của cả hai bên (PDF, Word, Excel hoặc ảnh JPG/PNG, 1 file, tối đa 25 MB). Kết quả kiểm tra chữ ký sẽ hiện trong mục Chữ ký."
       submitLabel="Ghi nhận đã ký"
       canSubmit={!!file && !fileError && !!signedOn && !dateError}
       isPending={sign.isPending}

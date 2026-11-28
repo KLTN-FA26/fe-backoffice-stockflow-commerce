@@ -251,7 +251,7 @@ export const ORDER_HISTORY_REASON_LABELS: Readonly<Record<string, string>> = {
   // Hợp đồng bị huỷ trước khi ký → đơn quay về nháp để lập lại (BE `Order#withdrawContract`)
   CONTRACT_CANCELLED: "Hợp đồng bị huỷ — đơn quay về nháp",
   INSTALLMENT_PAID: "Đã thu đủ các đợt thanh toán khi ký hợp đồng",
-  PRODUCTION_ORDER_SENT: "Đã gửi Đơn sản xuất",
+  PRODUCTION_ORDER_SENT: "Đã gửi đơn sản xuất",
   CREDIT_APPROVED: "Kế toán duyệt công nợ",
   // Hàng của lần giao thất bại đã về kho (BE `Order#markReturnedToOrigin`)
   RETURNED_TO_ORIGIN: "Hàng giao thất bại đã về lại kho",
@@ -430,7 +430,7 @@ export const ORDER_ERROR_MESSAGES = {
   ORDER_SHIPPING_WAREHOUSE_NOT_ALLOWED:
     "Chỉ chọn được kho xuất cho đơn của hợp đồng đã ký, khi đơn đã xác nhận hoặc đang chờ hàng. Dữ liệu đã được tải lại.",
   ORDER_SHIPPING_WAREHOUSE_LOCKED:
-    "Không đổi được kho xuất nữa: đơn đã giữ hàng ở kho hiện tại, hoặc đã có Đơn sản xuất gửi về kho đó. Dữ liệu đã được tải lại.",
+    "Không đổi được kho xuất nữa: đơn đã giữ hàng ở kho hiện tại, hoặc đã có đơn sản xuất gửi về kho đó. Dữ liệu đã được tải lại.",
   // BE PR #150 — thu phần còn lại ghi công nợ; huỷ / đóng phần còn lại có phí
   BALANCE_CREDIT_LIMIT_EXCEEDED:
     "Phần còn lại ghi công nợ làm công nợ của khách vượt hạn mức. Chọn cách thu khác hoặc nhờ Kế toán nâng hạn mức.",
@@ -446,8 +446,8 @@ export const ORDER_ERROR_MESSAGES = {
   WAREHOUSE_NOT_FOUND: "Không tìm thấy kho đã chọn. Chọn lại kho.",
   WAREHOUSE_INACTIVE: "Kho đã chọn không còn hoạt động. Chọn kho khác.",
   DESIGN_SAMPLE_NOT_APPROVED:
-    "Đơn có thiết kế mới chưa có mẫu thử khách đã duyệt — chưa release được (BR-PRD-08).",
-  ORDER_DEPOSIT_NOT_RECEIVED: "Tiền cọc của đơn chưa về — chưa release được (BR-PRD-09).",
+    "Đơn có thiết kế mới chưa có mẫu thử khách đã duyệt — chưa xuất kho được (BR-PRD-08).",
+  ORDER_DEPOSIT_NOT_RECEIVED: "Tiền cọc của đơn chưa về — chưa xuất kho được (BR-PRD-09).",
 } as const;
 
 export type OrderErrorCode = keyof typeof ORDER_ERROR_MESSAGES;
@@ -483,6 +483,9 @@ export const ORDER_FINANCE_LABELS = {
   net: "Tạm tính (trước thuế)",
   tax: "Thuế GTGT",
   effectiveTotal: "Giá trị sau khi đóng phần còn lại",
+  /** bo-18: đơn chưa có hợp đồng ký thì chưa có đợt thanh toán / hoá đơn — không hiện khối trống. */
+  settlementBeforeContract:
+    "Đợt thanh toán, hoá đơn điện tử và điều kiện hoàn tất hiện ở đây sau khi khách ký hợp đồng.",
   feeKinds: {
     PLATE_FEE: "Phí khuôn / bản in",
     SHIPPING_FEE: "Phí vận chuyển",

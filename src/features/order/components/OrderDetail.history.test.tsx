@@ -128,7 +128,7 @@ describe("OrderDetail — Lịch sử đơn có quyết định giao một phầ
     expect(await within(history).findByText("Đã gửi hợp đồng cho khách")).toBeInTheDocument();
     expect(within(history).getByText("Khách đã ký hợp đồng")).toBeInTheDocument();
     expect(within(history).getByText(/Đã thu đủ các đợt thanh toán/)).toBeInTheDocument();
-    expect(within(history).getByText("Đã gửi Đơn sản xuất")).toBeInTheDocument();
+    expect(within(history).getByText("Đã gửi đơn sản xuất")).toBeInTheDocument();
     expect(within(history).queryByText("CONTRACT_SENT")).not.toBeInTheDocument();
     expect(within(history).getByText("SOMETHING_NEW")).toBeInTheDocument();
   });

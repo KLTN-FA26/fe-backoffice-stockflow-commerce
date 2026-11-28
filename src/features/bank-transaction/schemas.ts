@@ -32,7 +32,7 @@ export const bankTransactionDtoSchema = z.object({
   ]),
   /** Chỉ khi NEEDS_REVIEW — FE dịch (`BANK_TRANSACTION_REVIEW_REASONS`). */
   reviewReason: z.string().nullish(),
-  /** Chi tiết tiếng Anh của hệ thống — hiện phụ. */
+  /** Chi tiết tiếng Anh của hệ thống (nhật ký BE) — KHÔNG hiện trên UI; màn chỉ hiện câu dịch từ `reviewReason`. */
   reviewNote: z.string().nullish(),
   customerId: z.string().nullish(),
   customerCode: z.string().nullish(),
@@ -56,6 +56,9 @@ export const payableInstallmentSchema = z.object({
   contractNumber: z.string(),
   orderNumber: z.string(),
   customerId: z.string(),
+  /** BE-15: tên / mã khách của đợt — gợi ý đợt khớp số tiền khi giao dịch không nhận ra khách. */
+  customerName: z.string().nullish(),
+  customerCode: z.string().nullish(),
   seq: z.number().int(),
   name: z.string(),
   outstanding: z.number(),

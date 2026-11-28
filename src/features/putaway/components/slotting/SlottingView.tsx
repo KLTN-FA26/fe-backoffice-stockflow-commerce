@@ -59,6 +59,7 @@ function Suggestions({ taskId }: { taskId: string }) {
     <PutawaySuggestionsSection
       task={task}
       selected={null}
+      collapsible={false}
       title={L.suggestionsFor(task.lpn ?? task.sku)}
       footer={
         // Chỉ người cất được mới có lối sang màn cất — UI-only, BE re-check quyền khi xác nhận

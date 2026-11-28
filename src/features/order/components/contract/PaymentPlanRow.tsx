@@ -5,24 +5,46 @@ import { Trash2 } from "lucide-react";
 
 import { CONTRACT_MILESTONE_LABELS, CONTRACT_MILESTONES } from "@/constants";
 import { ORDER_CONTRACT_LABELS } from "@/constants/labels-order-contract";
+import { formatMoney } from "@/lib/format/money";
 import { FORM_INPUT_CLASS, fieldA11y } from "@/components/shared/FormField";
 import { FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
 import { FormSelect } from "@/components/shared/FormSelect";
 import { SelectItem, SelectTrigger, SelectValue } from "@/components/shared/combobox-select";
 import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { MoneyInput } from "@/components/shared/MoneyInput";
+import { SegmentedControl, type SegmentedOption } from "@/components/shared/SegmentedControl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 import { DEFAULT_ON_SIGNING_DUE_DAYS } from "../../sales-contract-form";
-import { dueRuleText } from "../../sales-contract-rules";
-
-import { AmountModeToggle } from "./AmountModeToggle";
+import { dueRuleText, planEntryAmount } from "../../sales-contract-rules";
 
 import type { UseFormReturn } from "react-hook-form";
 import type { ContractFormValues } from "../../sales-contract-form";
 
 const P = ORDER_CONTRACT_LABELS.plan;
+type AmountMode = ContractFormValues["paymentPlan"][number]["mode"];
+/** "₫ | %" beside the value box (R2: two fixed values are shown up front). Each button is read as its full name. */
+const AMOUNT_MODE_OPTIONS: readonly SegmentedOption<AmountMode>[] = [
+  {
+    value: "amount",
+    label: (
+      <>
+        <span aria-hidden="true">₫</span>
+        <span className="sr-only">{P.amountMode.amount}</span>
+      </>
+    ),
+  },
+  {
+    value: "percent",
+    label: (
+      <>
+        <span aria-hidden="true">%</span>
+        <span className="sr-only">{P.amountMode.percent}</span>
+      </>
+    ),
+  },
+];
 /** A select item has no empty value: stands for "no batch". */
 const NO_BATCH = "none";
 const NUM = `${FORM_INPUT_CLASS} text-right font-[family-name:var(--font-mono)] tabular-nums`;
@@ -38,6 +60,7 @@ function FieldError({ id, message }: { id: string; message?: string }) {
 /**
  * Một đợt thanh toán là một thẻ hai dòng (BO-UX-26, S06-2): tên + mốc + xoá; giá trị (nút ₫ | % cạnh ô) + số ngày sau
  * mốc + đợt giao gắn kèm; dưới thẻ là quy tắc ra hạn ("Hạn = ngày ký + 3 ngày"). Lỗi gắn vào ô qua `fieldA11y`.
+ * bo-20: đợt tính theo % hiện số tiền tương ứng ngay dưới ô (theo tổng có thuế, như tổng các đợt).
  */
 export function PaymentPlanRow({
   form,
@@ -45,24 +68,34 @@ export function PaymentPlanRow({
   batchCount,
   canRemove,
   onRemove,
+  totalWithTax,
+  currency,
 }: {
   form: UseFormReturn<ContractFormValues>;
   index: number;
   batchCount: number;
   canRemove: boolean;
   onRemove: () => void;
+  /** Tổng đơn có thuế — quy % ra tiền. */
+  totalWithTax: number;
+  currency: string;
 }) {
   const { register, formState, control, getValues, setValue } = form;
   const e = formState.errors.paymentPlan?.[index];
-  const [milestone, mode, dueDays, batchSeq] = useWatch({
+  const [milestone, mode, dueDays, batchSeq, value] = useWatch({
     control,
     name: [
       `paymentPlan.${index}.milestone`,
       `paymentPlan.${index}.mode`,
       `paymentPlan.${index}.dueDays`,
       `paymentPlan.${index}.deliveryBatchSeq`,
+      `paymentPlan.${index}.value`,
     ],
   });
+  const percentAmount =
+    mode === "percent" && Number(value) > 0
+      ? formatMoney(planEntryAmount({ mode, value }, totalWithTax), currency)
+      : null;
   const id = (field: string) => `plan-${index}-${field}`;
   const n = index + 1;
   const valueError = e?.value?.message ?? e?.message;
@@ -144,8 +177,10 @@ export function PaymentPlanRow({
             {P.value}
           </label>
           <div className="flex items-start gap-2">
-            <AmountModeToggle
+            <SegmentedControl
               label={`Đợt ${n} — tính theo`}
+              options={AMOUNT_MODE_OPTIONS}
+              className="shrink-0"
               value={mode}
               onChange={(next) => {
                 if (next === mode) return;
@@ -198,6 +233,11 @@ export function PaymentPlanRow({
               />
             </div>
           </div>
+          {percentAmount && (
+            <p className="text-ink-secondary mt-1 text-right text-xs tabular-nums">
+              {P.percentAmount(percentAmount)}
+            </p>
+          )}
           <FieldError id={id("value")} message={valueError} />
         </div>
         <div className="min-w-0">

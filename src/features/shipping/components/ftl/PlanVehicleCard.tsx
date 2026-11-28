@@ -1,6 +1,9 @@
 import Link from "next/link";
 
-import { ADMIN_ROUTES, UI_LABELS } from "@/constants";
+import { ADMIN_ROUTES, UI_LABELS, VEHICLE_TYPE_PERMISSIONS } from "@/constants";
+import { useCan } from "@/lib/auth";
+import { vehicleTypeName } from "@/lib/domain/vehicle-type-name";
+import { useVehicleTypeOptions } from "@/features/shipping/carrier-config-queries";
 
 import { InfoItem, MONO } from "../primitives";
 
@@ -14,6 +17,9 @@ const F = UI_LABELS.shipping.ftl;
  * kế hoạch (PR F4).
  */
 export function PlanVehicleCard({ load }: { load: Load }) {
+  // Tên loại xe cho người đọc (R3); không đọc được danh mục (thiếu quyền) thì còn mã
+  const types = useVehicleTypeOptions(useCan(VEHICLE_TYPE_PERMISSIONS.read));
+  const type = types.data?.find((t) => t.code === load.vehicleTypeCode);
   return (
     <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
       <h2 className="text-ink-primary mb-1 text-[0.9375rem] font-semibold">{F.planCard}</h2>
@@ -39,7 +45,17 @@ export function PlanVehicleCard({ load }: { load: Load }) {
           label={F.vehicleSeq}
           value={load.vehicleSeq != null ? <span className={MONO}>{load.vehicleSeq}</span> : "—"}
         />
-        <InfoItem label={F.vehicleType} value={load.vehicleTypeCode ?? "—"} mono />
+        <InfoItem
+          label={F.vehicleType}
+          value={
+            type ? (
+              <span title={type.code}>{vehicleTypeName(type)}</span>
+            ) : (
+              (load.vehicleTypeCode ?? "—")
+            )
+          }
+          mono={!type}
+        />
       </div>
     </section>
   );

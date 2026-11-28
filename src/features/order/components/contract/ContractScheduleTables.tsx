@@ -10,6 +10,8 @@ import { formatDate, toLocalIsoDate } from "@/lib/format/date";
 import { dueRuleText } from "../../sales-contract-rules";
 import { installmentDue } from "../../selectors";
 
+import { BatchValueNote } from "./BatchValueNote";
+
 import type { OrderInstallmentsSummary } from "../../installments-summary-api";
 import type { SalesContract } from "../../sales-contract-schemas";
 
@@ -82,6 +84,7 @@ export function ContractScheduleTables({
           ))}
         </tbody>
       </table>
+      <BatchValueNote />
       <table className="w-full text-[0.8125rem]">
         <caption className="text-ink-secondary mb-1 text-left text-xs font-medium">
           Lịch thanh toán

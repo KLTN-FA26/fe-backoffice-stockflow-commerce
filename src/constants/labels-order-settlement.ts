@@ -34,11 +34,11 @@ export const SETTLEMENT_READINESS_LABELS = {
   /** Fallback khi BE chưa trả khối điều kiện (BE cũ): tính tạm ở FE, ghi rõ là ước tính. */
   estimateNote: "Ước tính trên màn hình — máy chủ chưa trả khối điều kiện của đơn.",
   blockers: {
-    NOT_DELIVERED: "Còn lần giao chưa xong (đang giao, giao thất bại hoặc chưa giao)",
+    NOT_DELIVERED: "Còn lô giao chưa xong (đang giao, giao thất bại hoặc chưa giao)",
     RETURN_WINDOW_OPEN: "Chưa hết hạn đổi / trả",
     OWING: "Còn đợt thanh toán chưa trả đủ",
     OPEN_RETURN: "Còn yêu cầu trả hàng đang mở",
-    SHIPMENT_UNINVOICED: "Còn lần giao chưa có hoá đơn điện tử phát hành",
+    SHIPMENT_UNINVOICED: "Còn lô giao chưa có hoá đơn điện tử phát hành",
     // BE-62 / Q-19 (settlement 9e98660b): phần phí còn lại gồm cả phí vận chuyển lẫn phí khuôn chưa hoá đơn nào mang
     SHIPPING_FEE_UNINVOICED: "Phần phí còn lại (vận chuyển, phí khuôn) chưa có hoá đơn phát hành",
     REFUND_OUTSTANDING: "Còn tiền phải hoàn cho khách",
@@ -51,7 +51,7 @@ export const SETTLEMENT_READINESS_LABELS = {
       days === null
         ? `Hết hạn lúc 0 giờ ngày ${when}`
         : `Hết hạn lúc 0 giờ ngày ${when} (${days} ngày theo hợp đồng)`,
-    uninvoiced: (count: number) => `${count} lần giao chưa có hoá đơn phát hành`,
+    uninvoiced: (count: number) => `${count} lô giao chưa có hoá đơn phát hành`,
     held: "Gỡ giữ ở thẻ “Giữ hoàn tất”",
   },
   none: "Đủ điều kiện.",
@@ -66,8 +66,10 @@ export const SETTLEMENT_READINESS_LABELS = {
    */
   deliveryReductionUnissued:
     "Còn bản giảm (giao không thành công) chưa phát hành — không chặn đóng đơn; Kế toán phát hành ở màn hoá đơn.",
-  /** Blocker SHIPPING_FEE_UNINVOICED: lập hoá đơn phần phí còn lại (BE `POST /einvoices {orderId}`, không lần giao). */
+  /** Blocker SHIPPING_FEE_UNINVOICED: lập hoá đơn phần phí còn lại (BE `POST /einvoices {orderId}`, không lô giao). */
   drawUpFeeRest: "Lập hoá đơn phần phí còn lại",
+  /** Blocker SHIPMENT_UNINVOICED: lô giao đã giao mà chưa có hoá đơn phát hành — mở hộp chọn lô (nháp tự động có thể đã bị từ chối). */
+  drawUpShipment: "Lập hoá đơn nháp",
   /** Hàng "Hoàn tiền" khi không có tiền phải hoàn nhưng có phí được miễn / còn thiếu (Q-19). */
   nothingToRefund: "Không có tiền phải hoàn",
   /** Audit r2 M-6: đơn "Hoàn tiền một phần" mà chưa hoàn đồng nào (dữ liệu trước bản sửa BE-45). */

@@ -100,6 +100,23 @@ export function allowedStaffQuoteActions(
   );
 }
 
+/**
+ * BR-S12 (KE-HOACH sales-owner, chế độ chặt): việc chỉ người phụ trách khách, người lo thay và Sales Manager làm được trên
+ * khách có chủ — lập / sửa / gửi / mở bản sửa / huỷ báo giá và rút yêu cầu duyệt giá. Duyệt giá, tạo đơn từ báo giá khách
+ * đã chấp nhận: không đổi (HOP-DONG-API BE-C "Strict checks"). Backend phải re-check (409 CUSTOMER_OWNED_BY_OTHER_SALES).
+ */
+export const OWNER_GATED_QUOTE_ACTIONS: readonly StaffQuoteAction[] = [
+  "edit",
+  "send",
+  "revise",
+  "cancel",
+  "withdrawPriceReview",
+];
+
+export function isOwnerGatedQuoteAction(action: StaffQuoteAction): boolean {
+  return OWNER_GATED_QUOTE_ACTIONS.includes(action);
+}
+
 export const TERMINAL_QUOTE_STATUSES: readonly QuoteApiStatus[] = [
   "EXPIRED",
   "CANCELLED",

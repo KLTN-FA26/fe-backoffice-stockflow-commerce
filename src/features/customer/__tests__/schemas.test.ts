@@ -36,7 +36,8 @@ describe("customerCreateInputSchema — NEW-FE-1: no payment terms on create", (
   it("drops paymentTerm / depositPercent (BE CreateBusinessCustomerRequest has neither)", () => {
     const parsed = customerCreateInputSchema.parse({
       companyName: "Công ty Mộc An",
-      taxCode: "",
+      // BR-S14 (sales-owner, 28/11): MST bắt buộc khi tạo khách — trước đây được để trống.
+      taxCode: "0312345678",
       contactName: "Chị An",
       email: "mua@mocan.vn",
       phone: "",

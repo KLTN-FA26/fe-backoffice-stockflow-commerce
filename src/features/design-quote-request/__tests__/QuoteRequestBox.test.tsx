@@ -79,11 +79,12 @@ async function openMenu(user: ReturnType<typeof userEvent.setup>, name = "Túi g
   await user.click(await screen.findByRole("button", { name: `Thao tác khác — ${name}` }));
   return screen.findByRole("dialog");
 }
-/** Bấm "Lập báo giá" trong menu "⋯" của dòng. */
+/** Nút "Lập báo giá" hiện thẳng trên dòng khi lập được (rà UI WF-02 bo-02), không trong menu "⋯". */
+const createButton = (name = "Túi giấy kraft") =>
+  screen.findByRole("button", { name: `Lập báo giá — ${name}` });
+/** Bấm "Lập báo giá" trên dòng. */
 async function clickCreate(name = "Túi giấy kraft") {
-  const user = userEvent.setup();
-  const menu = await openMenu(user, name);
-  await user.click(within(menu).getByRole("button", { name: CREATE }));
+  await userEvent.setup().click(await createButton(name));
 }
 /** Chọn một trạng thái trong cột "Trạng thái" của bảng "Bộ lọc" (danh sách tick). */
 async function pickStatus(user: ReturnType<typeof userEvent.setup>, label: string) {
@@ -133,9 +134,10 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
       return within(row);
     };
     await screen.findByText("Ly giấy");
-    // Mọi thao tác nằm trong menu "⋯" của dòng — tên nút menu mang tên dòng.
+    // "Lập báo giá" là nút riêng trên dòng; các thao tác khác trong menu "⋯" — tên nút mang tên dòng.
+    expect(await createButton()).toBeEnabled();
     const menu = await openMenu(user);
-    expect(within(menu).getByRole("button", { name: CREATE })).toBeEnabled();
+    expect(within(menu).queryByRole("button", { name: CREATE })).toBeNull();
     await user.click(within(menu).getByRole("button", { name: "Đóng" }));
     const dialog = await screen.findByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: "Đóng" }));
@@ -322,11 +324,8 @@ describe("Hộp yêu cầu báo giá thiết kế", () => {
     });
     renderScreen(<DesignQuoteRequestList />, "SALES_STAFF");
     await clickCreate();
-    // Mở lại menu trong lúc đang gọi: "Lập báo giá" tắt
-    const pendingMenu = await openMenu(userEvent.setup());
-    await waitFor(() =>
-      expect(within(pendingMenu).getByRole("button", { name: CREATE })).toBeDisabled(),
-    );
+    // Trong lúc đang gọi: nút "Lập báo giá" của dòng tắt
+    await waitFor(async () => expect(await createButton()).toBeDisabled());
     release({ id: QUOTE_ID, status: "DRAFT" });
     await waitFor(() => expect(push).toHaveBeenCalled());
   });

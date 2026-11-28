@@ -324,7 +324,7 @@ describe("order API — trạng thái BE mới FE chưa hỗ trợ (forward-comp
     expect(order.paymentTerm).toBeNull();
   });
 
-  it("WF-05 BO-08: field tiền BE đã bỏ (đã thu, trạng thái TT, công nợ, COD) không còn trên model dù BE cũ gửi", () => {
+  it("WF-05 BO-08: field tiền BE đã bỏ (trạng thái TT, công nợ, COD) không còn trên model dù BE cũ gửi", () => {
     const order = toOrder(
       orderDtoSchema.parse({
         ...beOrder,
@@ -339,7 +339,6 @@ describe("order API — trạng thái BE mới FE chưa hỗ trợ (forward-comp
     );
     for (const key of [
       "paymentStatus",
-      "paidAmount",
       "paidInFullAt",
       "billedAmount",
       "amountDue",
@@ -349,6 +348,32 @@ describe("order API — trạng thái BE mới FE chưa hỗ trợ (forward-comp
     }
     expect(order.shipments[0]).not.toHaveProperty("amount");
     expect(order.shipments[0]).not.toHaveProperty("codAmount");
+  });
+
+  it("bo-17: đã thu / còn phải thu / quá hạn của các đợt — null (chưa có đợt) khác vắng (BE trước PR #497)", () => {
+    const withMoney = toOrder(
+      orderDtoSchema.parse({
+        ...beOrder,
+        paidAmount: 100000,
+        outstandingAmount: 250000,
+        overdueAmount: 50000,
+      }),
+    );
+    expect(withMoney).toMatchObject({
+      paidAmount: 100000,
+      outstandingAmount: 250000,
+      overdueAmount: 50000,
+    });
+    const noContract = toOrder(
+      orderDtoSchema.parse({
+        ...beOrder,
+        paidAmount: null,
+        outstandingAmount: null,
+        overdueAmount: null,
+      }),
+    );
+    expect(noContract.paidAmount).toBeNull();
+    expect(toOrder(orderDtoSchema.parse(beOrder)).paidAmount).toBeUndefined();
   });
 
   it("paymentTerm vắng key / null → model null; đã biết giữ nguyên", () => {

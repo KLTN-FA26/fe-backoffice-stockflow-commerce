@@ -23,6 +23,7 @@ import {
   bePage,
   taskCandidate,
 } from "../__fixtures__/task";
+import { expectOrderPrefilled } from "../__fixtures__/order-combobox";
 import { CreateTaskDialog } from "./assign/CreateTaskDialog";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
@@ -56,7 +57,8 @@ async function openDialog(options: {
   renderFulfillmentScreen(<CreateTaskDialog warehouseId={WAREHOUSE_ID} onClose={vi.fn()} />);
   const user = userEvent.setup();
   const dialog = await screen.findByRole("dialog");
-  await pickSelectOption(user, "Đơn hàng", /SO-20261010-000431/);
+  // Chỉ một đơn chờ xuất kho → hộp chọn sẵn đơn đó, chỉ còn chọn người
+  await expectOrderPrefilled("SO-20261010-000431");
   await pickSelectOption(user, "Người được gán", /Hoàng Anh Tuấn/);
   return { ...spies, user, dialog };
 }

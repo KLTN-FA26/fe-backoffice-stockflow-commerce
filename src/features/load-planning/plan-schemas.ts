@@ -27,6 +27,8 @@ export const beDecimal = z.union([z.number(), z.string()]).transform(Number).pip
 export const beParcelSchema = z.object({
   packageId: z.string(),
   labelCode: z.string(),
+  /** LPN của thùng — mã kiện hiện chính (docs 08 §4.3 bước 6); BE cũ chưa trả thì vắng. */
+  lpn: z.string().nullish(),
   shipmentId: z.string(),
   shipmentCode: z.string().nullish(),
   /** SKU; kiện của bộ là `SKU n/N`, kiện hỗn hợp là `SKU1 + SKU2`. */
@@ -45,6 +47,8 @@ export const beParcelSchema = z.object({
   orderLineId: z.string().nullish(),
   /** Hàng chèn của kế hoạch "Ưu tiên + hàng chèn" (RTM-LPGROUP). */
   fill: z.boolean().optional(),
+  /** Tên sản phẩm cạnh SKU (BE PR #488); kiện hỗn hợp nối " + " theo thứ tự `partName`; vắng khi chưa rõ / BE cũ. */
+  productName: z.string().nullish(),
 });
 
 /**
@@ -62,6 +66,9 @@ export const beCandidateShipmentSchema = z.object({
   packageCount: z.number().int(),
   /** Kiện của lô mà kế hoạch khác đang giữ (chỉ xảy ra sau khi một kế hoạch để lại kiện). */
   packagesInOtherPlans: z.number().int(),
+  /** Tên khách và tỉnh giao của lô (BE PR #488); vắng khi BE cũ — màn chỉ hiện khi có. */
+  customerName: z.string().nullish(),
+  deliveryProvinceName: z.string().nullish(),
   weightKg: beDecimal,
   volumeMm3: z.number(),
   packages: z.array(beParcelSchema),

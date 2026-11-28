@@ -108,8 +108,8 @@ describe("Lịch giao — hiển thị (docs 17 §5.5)", () => {
     expect(within(card).getByText("Sẵn sàng")).toBeInTheDocument(); // Ready
     expect(within(card).getByText("Chờ hàng")).toBeInTheDocument(); // Awaiting Stock
     expect(within(card).getByText(formatWindowRange(inDays(10), inDays(14)))).toBeInTheDocument();
-    expect(within(card).getByText(/Đã release/)).toBeInTheDocument();
-    expect(within(card).getByText("Chưa release")).toBeInTheDocument();
+    expect(within(card).getByText(/Đã có lệnh xuất kho/)).toBeInTheDocument();
+    expect(within(card).getByText("Chưa có lệnh xuất kho")).toBeInTheDocument();
     expect(within(card).getByText("TSHIRT-WHT-M")).toBeInTheDocument();
     expect(within(card).getByText("4/4 thùng đã giữ")).toBeInTheDocument();
     expect(within(card).getByText("MUG-RED")).toBeInTheDocument();
@@ -243,7 +243,9 @@ describe("Dời cửa sổ giao — action-gating theo mã quyền BE (≥ 3 vai
       expect(
         within(card).queryByRole("button", { name: "Dời cửa sổ giao" }),
       ).not.toBeInTheDocument();
-      expect(within(card).getByText(/Chỉ Sale \(sales-contracts:UPDATE\)/)).toBeInTheDocument();
+      expect(
+        within(card).getByText(/Chỉ nhân viên Sale mới đổi được cửa sổ giao/),
+      ).toBeInTheDocument();
       vi.restoreAllMocks();
       document.body.innerHTML = "";
     }
@@ -253,7 +255,9 @@ describe("Dời cửa sổ giao — action-gating theo mã quyền BE (≥ 3 vai
     await renderSchedule(WF4_PERMISSION_SETS.warehouseManager);
     const card = await panel();
     expect(within(card).queryByRole("button", { name: "Dời cửa sổ giao" })).not.toBeInTheDocument();
-    expect(within(card).getByText(/Chỉ Sale \(sales-contracts:UPDATE\)/)).toBeInTheDocument();
+    expect(
+      within(card).getByText(/Chỉ nhân viên Sale mới đổi được cửa sổ giao/),
+    ).toBeInTheDocument();
   });
 
   it("không có sales-order-delivery-batches:READ (kể cả khi đọc được hợp đồng) → không hiện panel và KHÔNG gọi API lịch giao", async () => {

@@ -6,10 +6,12 @@
  */
 
 import { fileTooLargeMessage } from "@/constants/upload-limits";
+import { CONTRACT_ESIGN_ERRORS } from "@/constants/contract-esign";
 import { serverErrorMessage } from "@/lib/api/error-message";
 import { QUERY_ROOTS } from "@/lib/api/query-roots";
 import { createMutation } from "@/lib/api/query-factory";
 import { withStaleRefetch } from "@/lib/api/stale-refetch";
+import { salesOwnerErrorMessage } from "@/lib/references/sales-owner-access";
 
 import {
   approveContractCredit,
@@ -24,6 +26,8 @@ import {
   sendSalesContract,
   signSalesContract,
 } from "./sales-contract-api";
+
+import { contractEsignKeys } from "./sales-contract-esign-queries";
 
 import { SIGNED_FILE_TYPE_MESSAGE } from "./sales-contract-rules";
 
@@ -46,7 +50,7 @@ function contractMutation<TInput>(
 ) {
   return withStaleRefetch(
     createMutation<TInput, SalesContract>(fn, {
-      invalidate: [orderKeys.all, ...extra],
+      invalidate: [orderKeys.all, contractEsignKeys.all, ...extra],
       successMessage,
       showErrorToast: false,
     }),
@@ -83,8 +87,15 @@ export const useRejectContractCredit = contractMutation(
  * WF-02: BE trả message tiếng Việt → hiện nguyên văn; khoá lạc quan → câu "đã tải lại". 413 (BFF hoặc BE) chỉ đến từ
  * file scan đã ký → nói rõ giới hạn thay cho câu chung "Không thể hoàn tất yêu cầu." của BFF.
  */
-export function contractErrorMessage(error: unknown): string {
+/**
+ * `ownerName`: người phụ trách khách màn đang biết — câu BR-S12 (409 CUSTOMER_OWNED_BY_OTHER_SALES) nêu đúng tên dù BE
+ * không gửi kèm.
+ */
+export function contractErrorMessage(error: unknown, ownerName?: string | null): string {
+  const owned = salesOwnerErrorMessage(error, ownerName);
+  if (owned) return owned;
   return serverErrorMessage(error, {
+    ...CONTRACT_ESIGN_ERRORS,
     OPTIMISTIC_LOCK: "Dữ liệu vừa thay đổi, đã tải lại.",
     SALES_CONTRACT_NOT_FOUND: "Hợp đồng vừa bị huỷ, đã tải lại.",
     UNSUPPORTED_MEDIA_TYPE: SIGNED_FILE_TYPE_MESSAGE,

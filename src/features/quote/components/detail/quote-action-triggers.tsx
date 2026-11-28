@@ -18,6 +18,8 @@ export function quoteActionTrigger(
   ctx: {
     sendLabel: string;
     sendBlocked: string | null;
+    /** BR-S12: người xem không được làm trên khách này — lý do (tắt Gửi / Mở bản sửa). */
+    ownerBlocked: string | null;
     revising: boolean;
     openDialog: (dialog: QuoteDialog) => void;
     openReview: (dialog: PriceReviewDialog) => void;
@@ -37,8 +39,8 @@ export function quoteActionTrigger(
         <ActionTrigger
           icon={Send}
           label={ctx.sendLabel}
-          disabled={!!ctx.sendBlocked}
-          title={ctx.sendBlocked ?? undefined}
+          disabled={!!ctx.sendBlocked || !!ctx.ownerBlocked}
+          title={ctx.ownerBlocked ?? ctx.sendBlocked ?? undefined}
           onClick={() => ctx.openDialog("send")}
         />
       );
@@ -48,6 +50,8 @@ export function quoteActionTrigger(
           icon={FilePenLine}
           label="Mở bản sửa"
           loading={ctx.revising}
+          disabled={!!ctx.ownerBlocked}
+          title={ctx.ownerBlocked ?? undefined}
           onClick={() => ctx.openDialog("revise")}
         />
       );

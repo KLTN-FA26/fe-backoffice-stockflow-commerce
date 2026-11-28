@@ -7,11 +7,14 @@ import {
   QUOTE_STATUS_LABELS,
   SALES_CONTRACT_STATUS_LABELS,
 } from "@/constants";
+import { CHAT_INBOX_LABELS } from "@/constants/labels-chat";
+import { CONTRACT_TERMS_LABELS } from "@/constants/contract-esign";
 import { formatDate } from "@/lib/format/date";
 import { formatMoney } from "@/lib/format/money";
 import { PermittedLink } from "@/components/backoffice/PermittedLink";
 
 import { isTransferCard, transferViewFromCard } from "../card-view";
+import { chatStatusWord } from "../inbox-view";
 import { payloadNumber, payloadText } from "../selectors";
 
 import { TransferDetails } from "./TransferDetails";
@@ -84,6 +87,9 @@ function ContractBody({ card }: { card: ChatCard }) {
   const orderId = payloadText(card, "orderId");
   const total = payloadNumber(card, "totalAmount");
   const status = label(SALES_CONTRACT_STATUS_LABELS, payloadText(card, "status"));
+  const review = payloadText(card, "termsReview");
+  const reviewLabel =
+    review && review !== "NONE" ? label(CONTRACT_TERMS_LABELS, review) : undefined;
   return (
     <div className="space-y-1">
       {payloadText(card, "number") && (
@@ -95,6 +101,7 @@ function ContractBody({ card }: { card: ChatCard }) {
         </div>
       )}
       {status && <div className="text-ink-secondary">{status}</div>}
+      {reviewLabel && <div className="text-ink-secondary">{reviewLabel}</div>}
       {orderId && (
         <PermittedLink
           permission={ORDER_PERMISSIONS.viewPage}
@@ -109,15 +116,25 @@ function ContractBody({ card }: { card: ChatCard }) {
   );
 }
 
-/** Thẻ khác (hoá đơn, trạng thái đơn, duyệt mẫu…): số chứng từ, số tiền, link tới đơn. */
+/**
+ * Thẻ khác (hoá đơn, trạng thái đơn, duyệt mẫu…): số chứng từ, số tiền, link tới đơn. Thẻ trạng thái đơn ghi trạng thái
+ * lô giao bằng chữ (bo-32: không lộ `DELIVERED`).
+ */
 function OtherBody({ card }: { card: ChatCard }) {
   const number =
     payloadText(card, "number") ?? payloadText(card, "code") ?? payloadText(card, "orderNumber");
+  const rawStatus = card.kind === "ORDER_STATUS" ? payloadText(card, "status") : null;
+  const shipmentStatus = rawStatus ? (chatStatusWord(rawStatus) ?? rawStatus) : null;
   const amount = payloadNumber(card, "grandTotal") ?? payloadNumber(card, "amount");
   const orderId = payloadText(card, "orderId") ?? payloadText(card, "salesOrderId");
   return (
     <div className="space-y-1">
       {number && <div className="font-[family-name:var(--font-mono)]">{number}</div>}
+      {shipmentStatus && (
+        <div className="text-ink-secondary">
+          {CHAT_INBOX_LABELS.shipment}: {shipmentStatus}
+        </div>
+      )}
       {amount != null && (
         <div className="tabular-nums">
           {formatMoney(amount, payloadText(card, "currency") ?? "VND")}

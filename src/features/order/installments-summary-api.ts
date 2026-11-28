@@ -45,6 +45,8 @@ export const orderInstallmentsSummarySchema = z.object({
   paid: z.number(),
   /** Còn phải thu trên các đợt chưa huỷ. */
   outstanding: z.number().nullish(),
+  /** BE tính từ mọi đợt ON_SIGNING (docs 15 BR-07); null khi response cũ chưa có cờ. */
+  onSigningPaid: z.boolean().nullish(),
   /** Phải thu trước khi hàng rời kho: đợt khi ký + trước khi giao còn thiếu (docs 15 BR-07, BR-08). */
   dueBeforeHandover: z.number().nullish(),
   currency: z.string(),

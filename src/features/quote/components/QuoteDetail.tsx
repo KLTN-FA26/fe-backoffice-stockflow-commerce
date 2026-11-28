@@ -2,12 +2,7 @@
 
 import { parseAsStringLiteral, useQueryState } from "nuqs";
 
-import {
-  ADMIN_ROUTES,
-  QUOTE_PERMISSIONS,
-  QUOTE_STATUS_BY_API,
-  QUOTE_STATUS_LABELS,
-} from "@/constants";
+import { ADMIN_ROUTES, QUOTE_PERMISSIONS, QUOTE_STATUS_LABELS } from "@/constants";
 import { useCan } from "@/lib/auth";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
@@ -17,7 +12,7 @@ import { ObjectHeader } from "@/components/shared/ObjectPage";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { PageTabPanel, PageTabs } from "@/components/shared/PageTabs";
 
-import { QUOTE_COPY, QUOTE_LIST_LABELS } from "./copy";
+import { QUOTE_COPY, QUOTE_LIST_LABELS, QUOTE_STATUS_TONE_KEY } from "./copy";
 import { QuoteFeesTotals } from "./detail/QuoteFeesTotals";
 import { QuoteHistory } from "./detail/QuoteHistory";
 import { QuoteLinesTable } from "./detail/QuoteLinesTable";
@@ -63,7 +58,7 @@ function QuoteDetailContent({ id }: { id: string }) {
         code={quote.id}
         codeLabel="ID báo giá"
         status={{
-          tone: QUOTE_STATUS_BY_API[quote.status],
+          tone: QUOTE_STATUS_TONE_KEY[quote.status],
           label: QUOTE_STATUS_LABELS[quote.status],
         }}
         meta={

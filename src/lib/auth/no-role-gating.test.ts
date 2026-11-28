@@ -66,6 +66,10 @@ const PATTERNS: readonly { name: string; regex: RegExp }[] = [
  * Thêm mục mới cần lý do rõ ràng; nếu là quyết định quyền thì dùng mã quyền.
  */
 const ALLOWED: Record<string, string> = {
+  // D42 (chốt 28/11): người được gán làm Sale phụ trách / người thay phải là Nhân viên Sale. Chỉ dùng khi BE chưa có
+  // GET /customers/sales-agents (dự phòng); lọc NGƯỜI ĐƯỢC GÁN theo vai trò, không quyết định quyền của người gọi.
+  "src/lib/references/sales-agents.ts":
+    "D42: lọc người được gán (Sale phụ trách / người thay) theo vai trò Nhân viên Sale khi BE chưa có danh sách Sale",
   "src/lib/auth/redirect.ts":
     "chỉ chọn trang đích sau đăng nhập giữa portal và back-office; mọi API và thao tác vẫn kiểm tra mã quyền tại BE",
   "src/lib/auth/roles.ts":

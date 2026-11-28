@@ -5,11 +5,12 @@ import {
   freeVolumeText,
   freeWeightText,
   hasTextFilter,
+  nextPendingTask,
   sortByLpn,
 } from "../selectors";
 import { task } from "./fixtures";
 
-const EMPTY = { q: "", lpn: "", sku: "", location: "" };
+const EMPTY = { q: "" };
 const rows = [
   task({
     id: "a",
@@ -38,16 +39,10 @@ describe("filterPutawayTasks", () => {
     expect(filterPutawayTasks(rows, { ...EMPTY, q: "qc01" }).map((r) => r.id)).toEqual(["b"]);
   });
 
-  it("lọc trong cột kết hợp với nhau (AND)", () => {
-    const out = filterPutawayTasks(rows, { ...EMPTY, sku: "red", location: "rcv" });
-    expect(out.map((r) => r.id)).toEqual(["a", "c"]);
-    expect(filterPutawayTasks(rows, { ...EMPTY, sku: "red", lpn: "lpn-1" })).toEqual([]);
-  });
-
   it("hasTextFilter chỉ bật khi có chữ thật", () => {
     expect(hasTextFilter(EMPTY)).toBe(false);
     expect(hasTextFilter({ ...EMPTY, q: "   " })).toBe(false);
-    expect(hasTextFilter({ ...EMPTY, lpn: "1" })).toBe(true);
+    expect(hasTextFilter({ q: "1" })).toBe(true);
   });
 });
 
@@ -68,5 +63,26 @@ describe("định dạng chỗ còn trống", () => {
     expect(freeVolumeText(8.304)).toBe("8,304");
     expect(freeVolumeText(8.4)).toBe("8,4");
     expect(freeWeightText(240)).toBe("240");
+  });
+});
+
+describe("nextPendingTask — nút 'Cất thùng tiếp theo (còn N)'", () => {
+  it("lấy thùng chờ cất kế tiếp theo thứ tự LPN, bỏ thùng vừa cất và thùng đã xong", () => {
+    const list = [
+      task({ id: "a", lpn: "LPN-3", status: "PENDING" }),
+      task({ id: "b", lpn: "LPN-1", status: "DONE" }),
+      task({ id: "c", lpn: "LPN-2", status: "PENDING" }),
+      task({ id: "d", lpn: "LPN-0", status: "PENDING" }),
+    ];
+    const next = nextPendingTask(list, "d");
+    expect(next.task?.id).toBe("c");
+    expect(next.remaining).toBe(2);
+  });
+
+  it("không còn thùng nào → task null, còn 0", () => {
+    expect(nextPendingTask([task({ id: "a", status: "DONE" })], "a")).toEqual({
+      task: null,
+      remaining: 0,
+    });
   });
 });

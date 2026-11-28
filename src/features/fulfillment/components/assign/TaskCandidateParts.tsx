@@ -18,16 +18,6 @@ const { candidate: candidateCopy } = fulfillment;
 const customerOf = (candidate: TaskCandidate) =>
   candidate.customerName || candidateCopy.guestCustomer;
 
-/** Hiện trong ô chọn sau khi chọn: số đơn + tên khách. */
-export function CandidateSummary({ candidate }: { candidate: TaskCandidate }) {
-  return (
-    <span className="truncate">
-      <span className={MONO}>{candidate.orderNumber}</span>
-      <span className="text-ink-tertiary"> · {customerOf(candidate)}</span>
-    </span>
-  );
-}
-
 /** Một dòng trong danh sách: số đơn, khách, số dòng / số lượng, ngày đặt, dấu "chờ hàng". */
 export function CandidateOption({ candidate }: { candidate: TaskCandidate }) {
   return (

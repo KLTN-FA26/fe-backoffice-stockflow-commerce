@@ -26,7 +26,6 @@ import type { PermissionCode } from "@/lib/auth";
 import type { Load, LoadApiStatus } from "./types";
 
 const D = UI_LABELS.shipping.load.disabledReason;
-const N = UI_LABELS.shipping.load.noActions;
 const F = UI_LABELS.shipping.ftl;
 const A = UI_LABELS.shipping.afterHandover;
 
@@ -115,11 +114,12 @@ export const LOAD_ACTIONS: readonly LoadAction[] = [
   { code: "overrideUnload", permission: CONTROLLED, fromStatuses: [LOADING, CANCELLED] },
 ];
 
+type GateOptional = "pendingUnloads" | "carrierId" | "carrierConnectionType" | "handoverWarnings";
 export type LoadGateState = Pick<
   Load,
   "status" | "shipmentCount" | "expectedPackageCount" | "loadedPackageCount"
 > &
-  Partial<Pick<Load, "pendingUnloads" | "carrierId" | "carrierConnectionType">>;
+  Partial<Pick<Load, GateOptional>>;
 
 export interface AllowedLoadAction {
   action: LoadAction;
@@ -178,7 +178,9 @@ export function allowedLoadActions(
     if (load.shipmentCount === 0) return { action, disabledReason: D.empty };
     // BE 409 LOAD_UNLOAD_PENDING: kiện của đơn đã huỷ còn trên xe thì chưa ký được
     if (hasPendingUnloads(load)) return { action, disabledReason: F.disabledReason.unloadPending };
-    return isFullyLoaded(load) ? { action } : { action, disabledReason: D.notFullyLoaded };
+    if (!isFullyLoaded(load)) return { action, disabledReason: D.notFullyLoaded };
+    const blocked = (load.handoverWarnings ?? []).length > 0; // BR-18: BE từ chối cả xe (409 LOAD_HANDOVER_BLOCKED)
+    return blocked ? { action, disabledReason: D.ordersBlocked } : { action };
   });
 }
 
@@ -187,13 +189,4 @@ export function hasLoadAction(
   code: LoadActionCode,
 ): AllowedLoadAction | undefined {
   return actions.find(({ action }) => action.code === code);
-}
-
-/** Câu thay cho nút khi không còn thao tác nào (người dùng hiểu vì sao ô quét / nút không có). */
-export function loadNoActionReason(load: Pick<Load, "status">): string {
-  if (load.status === DISPATCHED) return N.dispatched;
-  if (load.status === CANCELLED) return N.cancelled;
-  if (load.status === PLANNED) return F.noActions.planned;
-  if (load.status === VEHICLE_BOOKED) return F.noActions.booked;
-  return N.viewOnly;
 }

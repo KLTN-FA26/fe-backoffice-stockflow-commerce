@@ -23,7 +23,19 @@ export const PICK_LINE_LABELS = {
   lot: (lot: string) => `Lô ${lot}`,
   location: "Vị trí",
   lpn: "Mã thùng (LPN)",
-  locationPlaceholder: "Chọn vị trí đang đứng",
+  // Quét vị trí rồi quét LPN (docs 07 §4.2 bước 5): ô quét lớn, máy quét hoặc gõ tay + Enter — không danh sách chọn
+  scanLocation: "Bước 1 · Quét mã vị trí",
+  scanLocationPlaceholder: "Quét hoặc nhập mã vị trí",
+  scanLocationHint: (expected: string) => `Đến ${expected}, quét mã dán ở vị trí đó.`,
+  scanLocationConfirm: "Xác nhận vị trí",
+  locationOk: (code: string) => `Đúng vị trí ${code}`,
+  rescanLocation: "Quét lại vị trí",
+  scanLpn: "Bước 2 · Quét mã thùng (LPN)",
+  scanLpnPlaceholder: "Quét hoặc nhập mã LPN",
+  scanLpnWaiting: "Quét vị trí trước, rồi mới quét thùng.",
+  scanLpnConfirm: "Xác nhận dòng",
+  shortScanLocation: "Quét mã vị trí để báo thiếu",
+  shortScanHint: (expected: string) => `Quét mã vị trí ${expected} để báo thiếu thùng ở đó.`,
   codeSearch: "Gõ để tìm mã...",
   noCodeMatch: "Không có mã phù hợp.",
   lpnPlaceholder: "Quét hoặc nhập mã LPN của thùng",
@@ -34,15 +46,14 @@ export const PICK_LINE_LABELS = {
   done: (sequenceNo: number) => `Đã lấy dòng #${sequenceNo}`,
   allPicked: "Đã lấy đủ mọi dòng — bấm Hoàn tất lấy hàng.",
   notPlanned: "Danh sách dòng sẽ được tạo khi bắt đầu lấy hàng.",
-  noLines: "Task chưa có dòng lấy hàng nào.",
+  noLines: "Nhiệm vụ chưa có dòng lấy hàng nào.",
   // Task bắt đầu lấy hàng trước khi BE có dòng lấy hàng (SCRUM-267): BE lập dòng khi gọi lại picking-start
   linesNotPlanned:
-    "Task chưa có danh sách dòng lấy hàng (bắt đầu trước khi có lấy hàng theo dòng).",
+    "Nhiệm vụ chưa có danh sách dòng lấy hàng (bắt đầu trước khi có lấy hàng theo dòng).",
   planLines: "Tạo danh sách dòng",
   planLinesFirst: "Tạo danh sách dòng lấy hàng trước khi hoàn tất.",
   onlyAssignee: "Chỉ người được gán mới xác nhận dòng lấy hàng.",
   awaitingPutBack: (count: number) => `Còn ${count} dòng đã lấy chờ trả về kệ.`,
-  locationsUnavailable: "Không tải được sơ đồ vị trí của kho — chỉ hiện vị trí của các dòng.",
   loadError: "Không tải được danh sách dòng lấy hàng.",
   linesUnavailable: "Chưa tải được dòng lấy hàng — bấm Thử lại ở danh sách dòng để hoàn tất.",
   // Báo thiếu thùng (BE `POST …/pick-lines/{lineId}/short`, docs 07 §4.4 bước 9) và phân bổ lại (`…/reallocation`)
@@ -93,10 +104,10 @@ export const PICK_LINE_ERROR_MESSAGES = {
     lpn ? `Sai thùng — dòng này lấy thùng ${lpn}` : "Sai thùng — chỉ quét đúng mã LPN của dòng này",
   lineNotOpen: "Dòng này đã được lấy, báo thiếu hoặc huỷ ở nơi khác. Danh sách đã được tải lại.",
   taskState:
-    "Task không còn ở bước lấy hàng (đơn đã huỷ hoặc task đã hoàn tất). Dữ liệu đã được tải lại.",
-  notAssignee: "Task không còn được gán cho bạn. Dữ liệu đã được tải lại.",
+    "Nhiệm vụ không còn ở bước lấy hàng (đơn đã huỷ hoặc nhiệm vụ đã hoàn tất). Dữ liệu đã được tải lại.",
+  notAssignee: "Nhiệm vụ không còn được gán cho bạn. Dữ liệu đã được tải lại.",
   // 404 ở thao tác không xét người được gán (phân bổ lại — BE reallocateShort): task / đơn / dòng không còn
-  lineMissing: "Task hoặc dòng lấy hàng không còn tồn tại. Dữ liệu đã được tải lại.",
+  lineMissing: "Nhiệm vụ hoặc dòng lấy hàng không còn tồn tại. Dữ liệu đã được tải lại.",
   reservationNotActive: "Phần giữ hàng của dòng này không còn hiệu lực — báo quản lý kho.",
   productionHold: "Hàng của dòng này đang giữ cho sản xuất, không lấy được.",
   policyConflict: "Tồn hiện tại cần đối soát trước khi lấy — báo quản lý kho.",
@@ -118,13 +129,13 @@ export const PUT_BACK_LABELS = {
   action: "Trả về kệ",
   actionFor: (sku: string, orderNumber: string) => `Trả ${sku} của đơn ${orderNumber} về kệ`,
   location: "Vị trí trả",
-  locationPlaceholder: "Chọn bin đang hoạt động",
+  locationPlaceholder: "Chọn ô kệ đang hoạt động",
   /** Thùng bị loại ở trạm kiểm vì hư hỏng (`quarantine`): vào khu cách ly của kho, không về bin (docs 08 §4.2 bước 4). */
   quarantineLocation: "Khu cách ly",
   quarantineLocationPlaceholder: "Chọn khu cách ly đang hoạt động",
   quarantineBadge: "Cách ly",
   /** Không bin nào của kho vừa thùng → cất vào khu tạm (docs 07 BR-12, 05 BR-13). */
-  overflowHint: "Không bin nào của kho vừa thùng này — chọn khu tạm (OVERFLOW) để cất lại.",
+  overflowHint: "Không ô kệ nào của kho vừa thùng này — chọn khu tạm (OVERFLOW) để cất lại.",
   overflowOption: "Khu tạm",
   quarantineHint: "Thùng hư hỏng được loại ở trạm kiểm — cất nguyên thùng vào khu cách ly của kho.",
   lpn: "Mã thùng (LPN)",
@@ -146,7 +157,7 @@ export const PUT_BACK_LABELS = {
   truncated: (shown: number, total: number) =>
     `Đang hiện ${shown}/${total} dòng cũ nhất — trả bớt rồi tải lại để thấy phần còn lại.`,
   // Không tải được sơ đồ kho (thiếu warehouse-locations:READ / mạng) → vẫn trả về bin đã lấy ra; BE tự kiểm bin
-  locationsFallback: "Không tải được sơ đồ kho — chỉ chọn được bin đã lấy ra.",
+  locationsFallback: "Không tải được sơ đồ kho — chỉ chọn được ô kệ đã lấy ra.",
   openQueue: "Mở hàng đợi trả về kệ",
   // Dòng Put Back trong bảng dòng lấy hàng: BE `putBackQty` / `putBackLocationCode` (có thể khác bin lấy ra)
   returnedTo: (qty: number, locationCode: string) => `Đã trả ${qty} về ${locationCode}`,
@@ -168,18 +179,18 @@ export const PUT_BACK_LABELS = {
 
 /** Lỗi `POST …/pick-lines/{lineId}/put-back` và `GET /fulfillment/put-backs`. */
 export const PUT_BACK_ERROR_MESSAGES = {
-  locationInvalid: "Vị trí trả phải là bin đang hoạt động của kho này",
+  locationInvalid: "Vị trí trả phải là ô kệ đang hoạt động của kho này",
   quarantineLocationInvalid: "Thùng hư hỏng phải vào khu cách ly đang hoạt động của kho này",
   // BE PICK_ITEM_MISMATCH khi cất lại: chỉ đúng LPN của dòng mới xác nhận được
   itemMismatch: (lpn: string | null | undefined) =>
     lpn ? `Sai thùng — dòng này trả thùng ${lpn}` : "Sai thùng — quét đúng mã LPN của dòng này",
   // BE CARTON_DOES_NOT_FIT_BIN (422, BR-12): thùng phải vừa bin theo từng chiều
-  doesNotFit: "Thùng không vừa bin này theo kích thước — chọn bin khác",
+  doesNotFit: "Thùng không vừa ô kệ này theo kích thước — chọn ô kệ khác",
   // BE PUT_BACK_OVERFLOW_NOT_ALLOWED (409, BR-12): còn bin nhận được thùng thì chưa được cất vào khu tạm
-  overflowNotAllowed: "Vẫn còn bin nhận được thùng này — cất lại vào bin, không vào khu tạm",
+  overflowNotAllowed: "Vẫn còn ô kệ nhận được thùng này — cất lại vào ô kệ, không vào khu tạm",
   // BE STOCK_PACKAGE_TAKEN_WHOLE: một phần thùng đã đi cách ly lúc kiểm, không cất cả thùng về bin được
   takenWhole:
-    "Một phần thùng đã được lấy ra lúc kiểm nên không cất nguyên thùng về bin được — báo quản lý kho.",
+    "Một phần thùng đã được lấy ra lúc kiểm nên không cất nguyên thùng về ô kệ được — báo quản lý kho.",
   notRequired: "Dòng này đã được trả về kệ hoặc không cần trả. Danh sách đã được tải lại.",
   notFound: "Không tìm thấy dòng này nữa. Danh sách đã được tải lại.",
   outOfScope: "Kho này nằm ngoài phạm vi kho bạn phụ trách.",

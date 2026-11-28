@@ -8,7 +8,9 @@ import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/compon
 const MONO = "font-[family-name:var(--font-mono)] tabular-nums";
 const HEAD = "text-ink-secondary h-9 px-3 text-xs font-semibold";
 const CELL = "px-3 py-2 align-middle";
-const CHOOSE_BASE = "h-7 min-w-16 rounded-[var(--r-sm)] px-2.5 text-xs";
+// Màn cảm ứng (kho): nút chọn cao 44px — ngón tay không chạm nhầm dòng bên cạnh
+const CHOOSE_BASE =
+  "h-7 min-w-16 rounded-[var(--r-sm)] px-2.5 text-xs pointer-coarse:h-11 pointer-coarse:min-w-20";
 // Hai bộ class tách hẳn: `cn` chỉ nối chuỗi, không gộp class trùng thuộc tính (viền / nền)
 const CHOOSE_CLASS = `border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted hover:text-ink-primary ${CHOOSE_BASE}`;
 const CHOSEN_CLASS = `border-brand bg-bg-muted text-ink-primary hover:bg-bg-muted ${CHOOSE_BASE}`;

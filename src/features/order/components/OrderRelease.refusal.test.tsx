@@ -1,11 +1,12 @@
 /**
  * Release đơn — những gì hộp thoại làm khi BE từ chối hoặc tranh chấp (docs 17 BR-02, §4.2 bước 5): thẻ "Chưa release
- * được" cho đơn cọc chưa nhận cọc, đơn đã đổi trạng thái, OPTIMISTIC_LOCK / LOCK_TIMEOUT, Idempotency-Key, lỗi 400
+ * được" cho đợt khi ký chưa thu đủ, đơn đã đổi trạng thái, OPTIMISTIC_LOCK / LOCK_TIMEOUT, Idempotency-Key, lỗi 400
  * `warehouseId` ngay tại ô Kho, kho rỗng, ô kho khoá tới khi tải xong.
  */
 import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { PAYMENT_INSTALLMENT_PERMISSIONS } from "@/constants/payment";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 import { toast } from "@/components/shared/Toast";
@@ -34,38 +35,84 @@ async function submitRelease(error?: ApiError) {
   if (error) post.mockRejectedValue(error);
   else post.mockResolvedValue({ data: apiOrder });
   await pickSelectOption(user, /Kho xuất hàng/, "HN01 — Kho Hà Nội");
-  await user.click(within(dialog).getByRole("button", { name: "Release đơn" }));
+  await user.click(within(dialog).getByRole("button", { name: "Xuất kho" }));
   return { user, dialog, post };
 }
 
-describe("thẻ 'Chưa release được' (đơn cọc chưa nhận cọc) — không chỉ ẩn nút", () => {
-  const awaiting = { paymentTerm: "DEPOSIT", depositRequired: 105_000 };
+describe("thẻ 'Chưa ra lệnh xuất kho được' (đợt ON_SIGNING) — không chỉ ẩn nút", () => {
+  const canReadPayments = [
+    ...ORDER_PERMISSION_SETS.warehouseManager,
+    PAYMENT_INSTALLMENT_PERMISSIONS.read,
+  ];
+  const installments = (onSigningPaid: boolean) => ({
+    paymentStatus: onSigningPaid ? "PAID" : "PARTIALLY_PAID",
+    total: 350_000,
+    paid: onSigningPaid ? 350_000 : 200_000,
+    outstanding: onSigningPaid ? 0 : 150_000,
+    onSigningPaid,
+    currency: "VND",
+    installments: [
+      {
+        installmentId: "i-1",
+        seq: 1,
+        name: "Khi ký",
+        amount: 350_000,
+        paidAmount: onSigningPaid ? 350_000 : 200_000,
+        status: onSigningPaid ? "PAID" : "PARTIALLY_PAID",
+      },
+    ],
+  });
 
-  it("đơn cọc chưa nhận cọc (Pending Payment), người có quyền release → thẻ nêu lý do (không hiện mã quy tắc), không có nút", async () => {
-    await renderConfirmedScreen("PENDING_PAYMENT", awaiting);
-    const card = await screen.findByText("Chưa release được");
+  it("Pending Payment, quản lý kho không đọc được installments → thẻ giải thích và không có nút", async () => {
+    await renderConfirmedScreen("PENDING_PAYMENT", { paymentTerm: undefined });
+    const card = await screen.findByText("Chưa ra lệnh xuất kho được");
     const block = card.closest("div") as HTMLElement;
     expect(block).not.toHaveTextContent(/BR-/);
-    expect(within(block).getByText(/chưa nhận đủ tiền cọc/)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Release đơn" })).not.toBeInTheDocument();
+    expect(within(block).getByText(/chờ thu đủ đợt khi ký/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Xuất kho" })).not.toBeInTheDocument();
   });
 
-  it("cọc đã về (depositReceivedAt) hoặc đơn không phải đơn cọc → không có thẻ", async () => {
-    await renderConfirmedScreen("PENDING_PAYMENT", {
-      ...awaiting,
-      depositReceivedAt: "2026-10-20T01:00:00Z",
-    });
+  it("có quyền đọc, ON_SIGNING chưa thu đủ → thẻ giải thích dù response đơn thiếu paymentTerm", async () => {
+    await renderConfirmedScreen(
+      "PENDING_PAYMENT",
+      { paymentTerm: undefined },
+      canReadPayments,
+      undefined,
+      undefined,
+      () => installments(false),
+    );
+    expect(await screen.findByText("Chưa ra lệnh xuất kho được")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Xuất kho" })).not.toBeInTheDocument();
+  });
+
+  it("có quyền đọc, ON_SIGNING đã thu đủ → không có thẻ blocker", async () => {
+    await renderConfirmedScreen(
+      "PENDING_PAYMENT",
+      { paymentTerm: undefined },
+      canReadPayments,
+      undefined,
+      undefined,
+      () => installments(true),
+    );
     await screen.findByRole("heading", { name: apiOrder.orderNumber });
-    expect(screen.queryByText("Chưa release được")).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(api.get).toHaveBeenCalledWith(
+        `/installments/orders/${apiOrder.orderId}`,
+        expect.anything(),
+      ),
+    );
+    await waitFor(() =>
+      expect(screen.queryByText("Chưa ra lệnh xuất kho được")).not.toBeInTheDocument(),
+    );
   });
 
-  it("người không có sales-order-releases:UPDATE (Sales) không thấy thẻ — họ không release được dù cọc đã về", async () => {
-    await renderConfirmedScreen("PENDING_PAYMENT", awaiting, ORDER_PERMISSION_SETS.salesStaff);
+  it("người không có sales-order-releases:UPDATE (Sales) không thấy thẻ", async () => {
+    await renderConfirmedScreen("PENDING_PAYMENT", {}, ORDER_PERMISSION_SETS.salesStaff);
     await screen.findByRole("heading", { name: apiOrder.orderNumber });
     await waitFor(() =>
       expect(api.get).toHaveBeenCalledWith("/identity/me/permissions", expect.anything()),
     );
-    expect(screen.queryByText("Chưa release được")).not.toBeInTheDocument();
+    expect(screen.queryByText("Chưa ra lệnh xuất kho được")).not.toBeInTheDocument();
   });
 });
 
@@ -75,8 +122,8 @@ describe("lý do BE từ chối hiện trong hộp thoại, kèm mã quy tắc",
     await submitRelease(new ApiError(409, "CONFLICT", "x"));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expect(toastError).toHaveBeenCalledWith(
-      "Không release được đơn",
-      expect.stringMatching(/không còn ở trạng thái được release/),
+      "Không ra lệnh xuất kho được",
+      expect.stringMatching(/không còn ở trạng thái được ra lệnh xuất kho/),
     );
     await waitFor(() => expect(detailCalls()).toBe(2));
   });
@@ -95,7 +142,7 @@ describe("tranh chấp đồng thời — không tự gửi lại, vẫn bấm l
     );
 
     post.mockResolvedValue({ data: apiOrder });
-    await user.click(within(dialog).getByRole("button", { name: "Release đơn" }));
+    await user.click(within(dialog).getByRole("button", { name: "Xuất kho" }));
     await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
   });
 
@@ -106,7 +153,7 @@ describe("tranh chấp đồng thời — không tự gửi lại, vẫn bấm l
     );
     expect(detailCalls()).toBe(1);
     expect(post).toHaveBeenCalledTimes(1);
-    await user.click(within(dialog).getByRole("button", { name: "Release đơn" }));
+    await user.click(within(dialog).getByRole("button", { name: "Xuất kho" }));
     await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
   });
 });
@@ -117,7 +164,7 @@ describe("Idempotency-Key của release", () => {
     const first = keyOfCall(post.mock.calls, 0);
     expect(first).toMatch(/^[0-9a-f-]{36}$/);
     await within(dialog).findByRole("alert");
-    await user.click(within(dialog).getByRole("button", { name: "Release đơn" }));
+    await user.click(within(dialog).getByRole("button", { name: "Xuất kho" }));
     await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
     expect(keyOfCall(post.mock.calls, 1)).toBe(first);
   });
@@ -125,7 +172,7 @@ describe("Idempotency-Key của release", () => {
   it("mất mạng (không biết BE đã chạy chưa) → giữ key cho lần bấm lại", async () => {
     const { user, dialog, post } = await submitRelease(new ApiError(0, "NETWORK_ERROR", "x"));
     await within(dialog).findByRole("alert");
-    await user.click(within(dialog).getByRole("button", { name: "Release đơn" }));
+    await user.click(within(dialog).getByRole("button", { name: "Xuất kho" }));
     await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
     expect(keyOfCall(post.mock.calls, 1)).toBe(keyOfCall(post.mock.calls, 0));
   });
@@ -133,7 +180,7 @@ describe("Idempotency-Key của release", () => {
   it("lỗi BE đã LƯU (403) → bấm lại dùng key MỚI (không bị trả lại mãi lỗi cũ)", async () => {
     const { user, dialog, post } = await submitRelease(new ApiError(403, "FORBIDDEN", "x"));
     await within(dialog).findByRole("alert");
-    await user.click(within(dialog).getByRole("button", { name: "Release đơn" }));
+    await user.click(within(dialog).getByRole("button", { name: "Xuất kho" }));
     await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
     expect(keyOfCall(post.mock.calls, 1)).not.toBe(keyOfCall(post.mock.calls, 0));
   });
@@ -142,7 +189,7 @@ describe("Idempotency-Key của release", () => {
     const { user, dialog, post } = await submitRelease(new ApiError(409, "LOCK_TIMEOUT", "x"));
     await within(dialog).findByRole("alert");
     await pickSelectOption(user, /Kho xuất hàng/, "HCM01 — Kho TP.HCM");
-    await user.click(within(dialog).getByRole("button", { name: "Release đơn" }));
+    await user.click(within(dialog).getByRole("button", { name: "Xuất kho" }));
     await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
     expect(keyOfCall(post.mock.calls, 1)).not.toBe(keyOfCall(post.mock.calls, 0));
   });
@@ -153,7 +200,7 @@ describe("Idempotency-Key của release", () => {
     // mock-get trả lại đơn CONFIRMED nên nút còn: mở lại và gửi lần nữa
     const { user, dialog } = await openReleaseDialog();
     await pickSelectOption(user, /Kho xuất hàng/, "HN01 — Kho Hà Nội");
-    await user.click(within(dialog).getByRole("button", { name: "Release đơn" }));
+    await user.click(within(dialog).getByRole("button", { name: "Xuất kho" }));
     await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
     expect(post.mock.calls[0]?.[0]).toBe(RELEASE_PATH);
     expect(keyOfCall(post.mock.calls, 1)).not.toBe(keyOfCall(post.mock.calls, 0));
@@ -166,7 +213,7 @@ describe("lỗi 400 theo ô, in-dòng, kho rỗng, ô kho", () => {
       new ApiError(400, "VALIDATION_FAILED", "x", { warehouseId: "warehouseId is required" }),
     );
     expect(await within(dialog).findByText("Chọn kho xuất hàng.")).toBeInTheDocument();
-    expect(within(dialog).queryByText("Không release được đơn")).not.toBeInTheDocument();
+    expect(within(dialog).queryByText("Không ra lệnh xuất kho được")).not.toBeInTheDocument();
   });
 
   it("400 có thêm trường lạ → lỗi ô kho VÀ lý do chung", async () => {
@@ -174,7 +221,7 @@ describe("lỗi 400 theo ô, in-dòng, kho rỗng, ô kho", () => {
       new ApiError(400, "VALIDATION_FAILED", "x", { warehouseId: "x", deliveryBatchId: "y" }),
     );
     expect(await within(dialog).findByText("Chọn kho xuất hàng.")).toBeInTheDocument();
-    expect(within(dialog).getByText("Không release được đơn")).toBeInTheDocument();
+    expect(within(dialog).getByText("Không ra lệnh xuất kho được")).toBeInTheDocument();
   });
 
   it("mô tả nói hàng giữ được phân bổ vào thùng LPN; không còn gợi ý dòng in / xưởng in", async () => {
@@ -198,8 +245,10 @@ describe("lỗi 400 theo ô, in-dòng, kho rỗng, ô kho", () => {
       throw new ApiError(403, "FORBIDDEN", "x");
     });
     const { dialog } = await openReleaseDialog();
-    expect(await within(dialog).findByText(/warehouse-warehouses:READ/)).toBeInTheDocument();
+    expect(
+      await within(dialog).findByText(/Tài khoản chưa được xem danh sách kho/),
+    ).toBeInTheDocument();
     expect(within(dialog).getByRole("combobox", { name: /Kho xuất hàng/ })).toBeDisabled();
-    expect(within(dialog).getByRole("button", { name: "Release đơn" })).toBeDisabled();
+    expect(within(dialog).getByRole("button", { name: "Xuất kho" })).toBeDisabled();
   });
 });

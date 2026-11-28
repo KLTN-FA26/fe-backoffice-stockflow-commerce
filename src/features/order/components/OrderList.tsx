@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ShieldAlert } from "lucide-react";
 
 import { ADMIN_ROUTES, CREDIT_HOLD_PERMISSIONS, ORDER_PERMISSIONS, UI_LABELS } from "@/constants";
+import { PAYMENT_INSTALLMENT_PERMISSIONS } from "@/constants/payment";
 import { useCan } from "@/lib/auth";
 
 import { withHeaderFilters } from "@/components/shared/ColumnHeaderFilter";
@@ -28,6 +29,7 @@ const COLUMN_OPTIONS = DEFAULT_COLUMNS.filter((c) => c !== "actions").map((c) =>
   label: COLUMN_LABELS[c] ?? c,
   value: c,
 }));
+const PAYMENT_COLUMN = "payment";
 
 /**
  * Danh sách đơn — phân trang/lọc/sắp xếp phía server, cùng pattern với danh sách NCC.
@@ -46,8 +48,17 @@ function OrderListContent() {
   const canRead = useCan(ORDER_PERMISSIONS.read);
   // UI-only — Backend phải re-check (@RequiresPermission trên OrderController / CreditHoldController)
   const canSeeCreditHolds = useCan(CREDIT_HOLD_PERMISSIONS.viewPage);
+  // bo-17: BE chỉ kèm tiền của các đợt cho người đọc được đợt; trang chưa có field (BE trước PR #497) → không có cột.
+  const canReadInstallments = useCan(PAYMENT_INSTALLMENT_PERMISSIONS.read);
   const s = useOrderListState(canRead);
-  const columns = buildOrderColumns(s.extra.setCustomerId);
+  const paymentReported = s.query.data?.items.some((o) => o.paidAmount !== undefined) ?? false;
+  const hasPaymentColumn = canReadInstallments && paymentReported;
+  const columnOptions = hasPaymentColumn
+    ? COLUMN_OPTIONS
+    : COLUMN_OPTIONS.filter((c) => c.value !== PAYMENT_COLUMN);
+  const columns = buildOrderColumns(s.extra.setCustomerId).filter(
+    (c) => hasPaymentColumn || c.key !== PAYMENT_COLUMN,
+  );
   const visibleColumns = withHeaderFilters(
     columns.filter((c) => s.config.visibleColumns.includes(c.key)),
     orderHeaderFilters(s),
@@ -79,7 +90,7 @@ function OrderListContent() {
           onToggleStatus={s.toggleStatus}
           onClearStatuses={() => void filters.setStatus([])}
           hasStatusFilter={filters.status.length > 0}
-          columnOptions={COLUMN_OPTIONS}
+          columnOptions={columnOptions}
           selectedColumns={s.config.visibleColumns}
           defaultColumns={DEFAULT_COLUMNS}
           lockedColumns={["actions"]}

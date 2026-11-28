@@ -43,6 +43,8 @@ export function usePickLineConfirm({
   const confirm = useConfirmPickLine();
   const [attempt] = useState(() => createIdempotencyAttempt());
   const [banner, setBanner] = useState<string | null>(null);
+  // Tăng mỗi lần BE từ chối — ô quét chớp + đọc lại cả khi cùng một câu lỗi lặp lại
+  const [errorSeq, setErrorSeq] = useState(0);
   const form = useForm<ConfirmPickFormValues, unknown, ConfirmPickValues>({
     resolver: zodResolver(confirmPickInputSchema),
     defaultValues: EMPTY_CONFIRM,
@@ -65,9 +67,10 @@ export function usePickLineConfirm({
           else attempt.reset();
           const result = confirmLineError(error, line);
           if (result.field) {
-            // Sai vị trí → xoá ô để chọn lại; sai LPN → xoá ô để quét lại (R01: quét nhầm thùng của đơn khác)
+            // Sai vị trí → xoá để quét lại vị trí; sai LPN → xoá để quét lại (R01: quét nhầm thùng của đơn khác)
             form.setValue(result.field, "");
             form.setError(result.field, { type: "server", message: result.message });
+            setErrorSeq((n) => n + 1);
             onFieldError?.(result.field);
           } else if (result.stale) {
             toast.error(result.message);
@@ -79,5 +82,5 @@ export function usePickLineConfirm({
     );
   });
 
-  return { form, submit, pending: confirm.isPending, banner };
+  return { form, submit, pending: confirm.isPending, banner, errorSeq };
 }

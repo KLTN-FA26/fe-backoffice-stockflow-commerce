@@ -67,6 +67,29 @@ describe("SampleRoundsCard (docs 17 §4.3 bước 9)", () => {
     );
   });
 
+  it("nút Mở vòng khoá → một dòng nói còn thiếu gì: tệp, rồi lý do in lại (S11-9)", async () => {
+    const user = userEvent.setup();
+    setup(
+      sampleRounds({
+        waitingRoundId: null,
+        rounds: [sampleRound({ result: "REPRINT_REQUESTED", customerNote: "Logo lệch" })],
+      }),
+    );
+    await user.click(await screen.findByRole("button", { name: S.openNext }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(S.missingFile)).toBeInTheDocument();
+    await user.upload(
+      within(dialog).getByLabelText(new RegExp(S.files)),
+      new File(["x"], "vong-2.jpg", { type: "image/jpeg" }),
+    );
+    // Đã có tệp (tên hiện trong danh sách) → còn thiếu lý do in lại
+    expect(within(dialog).getByText("vong-2.jpg")).toBeInTheDocument();
+    expect(within(dialog).queryByText(S.missingFile)).toBeNull();
+    expect(within(dialog).getByText(S.missingReason)).toBeInTheDocument();
+    await user.click(within(dialog).getByLabelText(new RegExp(REPRINT_REASON_LABELS.PRINT_DEFECT)));
+    expect(within(dialog).queryByText(S.missingReason)).toBeNull();
+  });
+
   it.each([
     [
       "mất phản hồi → gửi lại đúng uploadId cũ, không tải lại (BE replay)",

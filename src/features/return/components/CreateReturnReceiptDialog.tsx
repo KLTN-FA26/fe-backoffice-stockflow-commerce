@@ -25,9 +25,11 @@ import { openDraftReceiptOf, returnErrorMessage } from "../errors";
 import { createReceiptInputSchema } from "../input-schemas";
 import { useCreateReturnReceipt } from "../mutations";
 import { receiptCreatableNow } from "../lifecycle";
+import { useSingleChoiceDefault } from "../use-single-choice-default";
 import { useReceiptSourceReturns, useReturn, useReturnedShipments } from "../queries";
 
 import { PickField } from "./PickField";
+import { ReceiptSourceTypeField } from "./ReceiptSourceTypeField";
 
 import type { CreateReceiptFormValues, ReturnRequest, ReturnRow } from "../types";
 
@@ -65,15 +67,23 @@ function CreateForm({
     },
   });
   const { errors } = form.formState;
-  const [sourceType, warehouseId] = useWatch({
+  const [sourceType, warehouseId, areaCode] = useWatch({
     control: form.control,
-    name: ["sourceType", "warehouseId"],
+    name: ["sourceType", "warehouseId", "quarantineLocationCode"],
   });
   const areas = useWarehouseAreas(
     warehouseId || undefined,
     useCan(WAREHOUSE_LOCATION_PERMISSIONS.read),
   );
   const quarantine = (areas.data ?? []).filter((area) => area.type === "QUARANTINE");
+  const warehouseList = warehouses.data ?? [];
+  const onlyWarehouseId = warehouseList.length === 1 ? warehouseList[0]?.warehouseId : undefined;
+  const onlyAreaCode = quarantine.length === 1 ? quarantine[0]?.locationCode : undefined;
+  // Chỉ có một kho / một khu cách ly để chọn thì chọn sẵn (UX audit S21-2)
+  useSingleChoiceDefault(onlyWarehouseId, warehouseId, (id) => form.setValue("warehouseId", id));
+  useSingleChoiceDefault(onlyAreaCode, areaCode, (code) =>
+    form.setValue("quarantineLocationCode", code),
+  );
 
   const submit = form.handleSubmit((values) =>
     create.mutate(
@@ -107,22 +117,7 @@ function CreateForm({
       onCancel={onClose}
       onSubmit={() => void submit()}
     >
-      <Controller
-        control={form.control}
-        name="sourceType"
-        render={({ field }) => (
-          <PickField
-            id="rr-source-type"
-            label={L.sourceType}
-            value={field.value}
-            onChange={(value) => field.onChange(value)}
-            options={[
-              { value: "RMA", label: L.sourceRma },
-              ...(canReadShipments ? [{ value: "SHIPMENT", label: L.sourceShipment }] : []),
-            ]}
-          />
-        )}
-      />
+      <ReceiptSourceTypeField control={form.control} canReadShipments={canReadShipments} />
       {sourceType === "RMA" ? (
         <Controller
           control={form.control}

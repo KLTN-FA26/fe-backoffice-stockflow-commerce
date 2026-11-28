@@ -3,7 +3,12 @@
  * nên FE chọn câu theo `errorCode`).
  */
 
+import { CUSTOMER_CREATE_OWNER_LABELS } from "@/constants";
+import { SALES_OWNER_ERROR_CODES } from "@/constants/sales-owner";
+
+import { ApiError } from "@/lib/api/error";
 import { apiErrorMessage, apiFieldErrors } from "@/lib/api/error-message";
+import { salesOwnerNameOf } from "@/lib/references/sales-owner-access";
 
 import type { LegalProfileValues } from "./types";
 
@@ -12,6 +17,12 @@ export const CUSTOMER_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   INVALID_CUSTOMER_STATUS_TRANSITION: "Khách hàng không thể chuyển sang trạng thái này.",
   CUSTOMER_TAX_CODE_ALREADY_EXISTS: "Mã số thuế này đã thuộc về một khách hàng khác.",
   CUSTOMER_EMAIL_ALREADY_EXISTS: "Đã có khách hàng dùng email này.",
+  // BR-S14 (KE-HOACH sales-owner, D4): MST bắt buộc cho khách mới, trừ khi Sales Manager miễn.
+  CUSTOMER_TAX_CODE_REQUIRED: "Nhập mã số thuế (hộ kinh doanh: số CCCD của chủ hộ).",
+  // BR-S04: chỉ giao cho Sale đang làm.
+  SALES_OWNER_NOT_ASSIGNABLE: "Người này không còn là Sale đang làm. Chọn người khác.",
+  // Chốt 28/11: khách mới luôn có người phụ trách.
+  SALES_OWNER_REQUIRED: "Chọn Sale phụ trách khách này.",
   USER_EMAIL_ALREADY_EXISTS: "Email này đã được dùng cho một tài khoản khác.",
   PORTAL_INVITATION_INVALID:
     "Lời mời không hợp lệ hoặc không còn sử dụng được. Vui lòng liên hệ bộ phận bán hàng để nhận lời mời mới.",
@@ -27,6 +38,20 @@ export const CUSTOMER_ERROR_MESSAGES: Readonly<Record<string, string>> = {
 
 export function customerErrorMessage(error: unknown): string {
   return apiErrorMessage(error, CUSTOMER_ERROR_MESSAGES);
+}
+
+/**
+ * Lỗi của form tạo khách. Riêng `CUSTOMER_OWNED_BY_OTHER_SALES`: khi TẠO khách, BE chỉ trả mã này vì một đơn vị khác của
+ * cùng tổ chức (cùng MST gốc) đã do Sale khác phụ trách (BR-S12) — câu nêu tên từ `details.salesOwnerName`.
+ */
+export function customerCreateErrorMessage(error: unknown): string {
+  if (error instanceof ApiError && error.code === SALES_OWNER_ERROR_CODES.ownedByOther) {
+    const name = salesOwnerNameOf(error);
+    return name
+      ? CUSTOMER_CREATE_OWNER_LABELS.relatedOwnedByOther(name)
+      : CUSTOMER_CREATE_OWNER_LABELS.relatedOwnedByOtherUnnamed;
+  }
+  return customerErrorMessage(error);
 }
 
 /**

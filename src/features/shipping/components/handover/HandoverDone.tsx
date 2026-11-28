@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ADMIN_ROUTES, PACK_SHIPMENT_STATUS_DISPLAY, UI_LABELS } from "@/constants";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { StatusDot } from "@/components/shared/StatusDot";
+import { Button } from "@/components/ui/button";
 
 import { MONO } from "../primitives";
 
@@ -31,13 +32,18 @@ function ShipmentHandoverStatus({ status }: { status: LoadShipment["status"] }) 
   );
 }
 
-/** Kết quả bàn giao: chuyến DISPATCHED và các lô trên xe (lô nào đã bàn giao hẳn, lô nào chờ xe cuối). */
+/**
+ * Kết quả bàn giao: một câu "Đã bàn giao N kiện cho <hãng>" (không lặp "Đã bàn giao" ba lần — S18-4), các lô trên xe, nút
+ * "Xem biên bản" và Đóng. Chuyến DISPATCHED và các lô trên xe (lô nào đã bàn giao hẳn, lô nào chờ xe cuối). */
 export function HandoverDone({ load, onClose }: { load: Load; onClose: () => void }) {
   return (
     <FormDialog open onOpenChange={(next) => !next && onClose()}>
       <FormDialogBody
         title={`${FTL.doneTitle} · ${load.code}`}
-        description={FTL.doneDescription}
+        description={FTL.doneSummary(
+          load.loadedPackageCount,
+          load.carrierName ?? FTL.doneCarrierFallback,
+        )}
         submitLabel={H.close}
         canSubmit
         isPending={false}
@@ -46,7 +52,7 @@ export function HandoverDone({ load, onClose }: { load: Load; onClose: () => voi
         onSubmit={onClose}
         onCancel={onClose}
       >
-        <StatusDot domain="shipment" status={load.status} size="md" withIcon />
+        <p className="text-ink-secondary text-[0.8125rem]">{FTL.doneLots}</p>
         <ul className="space-y-1 text-[0.8125rem]">
           {load.shipments.map((shipment) => (
             <li key={shipment.shipmentId} className="flex items-center gap-3">
@@ -63,12 +69,9 @@ export function HandoverDone({ load, onClose }: { load: Load; onClose: () => voi
             </li>
           ))}
         </ul>
-        <Link
-          href={ADMIN_ROUTES.loads.manifest(load.loadId)}
-          className="text-accent-text text-[0.8125rem] underline"
-        >
-          {H.manifest}
-        </Link>
+        <Button variant="outline" size="sm" asChild>
+          <Link href={ADMIN_ROUTES.loads.manifest(load.loadId)}>{H.manifest}</Link>
+        </Button>
       </FormDialogBody>
     </FormDialog>
   );

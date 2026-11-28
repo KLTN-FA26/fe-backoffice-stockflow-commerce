@@ -5,6 +5,7 @@
 
 import { ORDER_RELEASE_BLOCKER_LABELS } from "@/constants";
 
+import type { OrderInstallmentsSummary } from "./installments-summary-api";
 import type { Order } from "./types";
 
 export type DepositState = "not-applicable" | "awaiting" | "received";
@@ -24,17 +25,20 @@ export interface ReleaseBlocker {
 }
 
 /**
- * docs 19 BR-09 / BE `ORDER_DEPOSIT_NOT_RECEIVED`: đơn cọc chưa nhận cọc nằm ở PENDING_PAYMENT và không release được
- * (BE chỉ release đơn CONFIRMED) — nói rõ lý do thay vì không có nút. UI-only — Backend phải re-check.
+ * docs 07 BR-01, 15 BR-07, 17 BR-02: Pending Payment chờ thu đủ ON_SIGNING và BE chưa cho release.
+ * Khi đọc được các đợt, `onSigningPaid` của BE phân biệt trường hợp tiền đã đủ nhưng trạng thái đơn chưa cập nhật.
+ * Quản lý kho không mặc định có `payment-installments:READ`: dùng trạng thái Pending Payment để giải thích khi
+ * không đọc được chi tiết. UI-only — Backend phải re-check.
  */
 export function releaseBlockers(
-  order: Pick<Order, "status" | "paymentTerm" | "depositReceivedAt">,
+  order: Pick<Order, "status">,
+  payment?: Pick<OrderInstallmentsSummary, "onSigningPaid"> | null,
 ): ReleaseBlocker[] {
-  if (order.status === "Pending Payment" && depositState(order) === "awaiting") {
+  if (order.status === "Pending Payment" && payment?.onSigningPaid !== true) {
     return [
       {
-        rule: ORDER_RELEASE_BLOCKER_LABELS.depositRule,
-        message: ORDER_RELEASE_BLOCKER_LABELS.depositNotReceived,
+        rule: ORDER_RELEASE_BLOCKER_LABELS.onSigningRule,
+        message: ORDER_RELEASE_BLOCKER_LABELS.onSigningPending,
       },
     ];
   }

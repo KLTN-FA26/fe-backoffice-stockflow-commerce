@@ -4,8 +4,8 @@
  * (mọi đơn giao nguyên chuyến, docs 17 BR-16).
  */
 export const ORDER_RELEASE_LABELS = {
-  button: "Release đơn",
-  title: "Release đơn cho kho",
+  button: "Xuất kho",
+  title: "Xuất kho cho đơn",
   description: (orderNumber: string) =>
     `Chọn kho xuất hàng của đơn ${orderNumber}. Hàng đã giữ được phân bổ vào các thùng (LPN) cụ thể ở kho này và đơn chuyển sang Sẵn sàng thực hiện.`,
   warehousesEmpty: "Chưa có kho nào đang hoạt động.",
@@ -14,12 +14,14 @@ export const ORDER_RELEASE_LABELS = {
   warehousesLoading: "Đang tải danh sách kho…",
   warehousesFailed: "Không tải được danh sách kho.",
   /** 403: seed BE chưa cấp `warehouse-warehouses:READ` cho vai trò này — nói rõ mã quyền thay vì "không tải được". */
-  warehousesForbidden:
-    "Bạn chưa có quyền xem danh sách kho (warehouse-warehouses:READ) — nhờ quản trị cấp quyền",
+  warehousesForbidden: "Tài khoản chưa được xem danh sách kho — nhờ quản trị cấp quyền",
   warehouseRequired: "Chọn kho xuất hàng",
-  submit: "Release đơn",
-  success: "Đã release đơn cho kho",
-  failedTitle: "Không release được đơn",
+  // Kho Sale đã chọn cho đơn: hiện chữ, không bắt chọn lại
+  chosenWarehouseUnknown: "Kho Sale đã chọn cho đơn",
+  chosenWarehouseHint: "Sale đã chọn kho này làm kho xuất của đơn.",
+  submit: "Xuất kho",
+  success: "Đã ra lệnh xuất kho cho đơn",
+  failedTitle: "Không ra lệnh xuất kho được",
   /**
    * Cảnh báo khi mở hộp thoại (BE `GET /orders/{id}/release-warnings`, WF4-OVERDUE-WARN, docs 15 §4.3 bước 11): khách
    * có đợt thanh toán quá hạn. Không chặn release — Sale được báo riêng và có thể treo đơn.
@@ -28,16 +30,12 @@ export const ORDER_RELEASE_LABELS = {
   /** Đợt giao của lịch giao (docs 17 §4.5, BR-29): release theo từng đợt, chỉ đợt kế tiếp. */
   batch: {
     label: "Đợt giao",
-    hint: "Chỉ release được đợt giao kế tiếp — máy chủ kiểm khi release.",
+    hint: "Chỉ xuất kho được đợt giao kế tiếp — máy chủ kiểm khi xuất kho.",
     loading: "Đang tải lịch giao…",
-    failed: "Không tải được lịch giao — để trống, máy chủ sẽ release đợt giao kế tiếp.",
-    option: (
-      seq: number,
-      windowStart: string | null | undefined,
-      windowEnd: string | null | undefined,
-    ) =>
-      `Đợt ${seq}${windowStart || windowEnd ? ` · ${windowStart ?? "…"} → ${windowEnd ?? "…"}` : ""}`,
-    released: "đã release",
+    failed: "Không tải được lịch giao — để trống, máy chủ sẽ xuất kho đợt giao kế tiếp.",
+    /** `window` là khoảng ngày đã định dạng dd/MM/yyyy (không dán ngày ISO của BE vào chữ); thiếu thì chỉ "Đợt N". */
+    option: (seq: number, window: string | null) => `Đợt ${seq}${window ? ` · ${window}` : ""}`,
+    released: "đã có lệnh xuất kho",
     states: {
       AWAITING_STOCK: "Đang chờ hàng",
       READY: "Sẵn sàng",
@@ -50,12 +48,12 @@ export const ORDER_RELEASE_LABELS = {
   },
 } as const;
 
-/** Lý do biết trước chưa release được (suy từ dữ liệu đơn) — hiện thay cho nút, không chỉ ẩn nút. */
+/** Lý do biết trước chưa release được (trạng thái đơn + thanh toán) — hiện thay cho nút, không chỉ ẩn nút. */
 export const ORDER_RELEASE_BLOCKER_LABELS = {
-  title: "Chưa release được",
-  /** docs 19 BR-09 / BE ORDER_DEPOSIT_NOT_RECEIVED: đơn cọc phải nhận đủ cọc trước khi release. */
-  depositNotReceived: "Đơn đặt cọc chưa nhận đủ tiền cọc.",
-  depositRule: "BR-PRD-09",
+  title: "Chưa ra lệnh xuất kho được",
+  /** docs 07 BR-01, 15 BR-07, 17 BR-02: Pending Payment chờ thu đủ đợt ON_SIGNING trước khi ra lệnh xuất kho. */
+  onSigningPending: "Đơn còn chờ thu đủ đợt khi ký — Kế toán kiểm tra và lập phiếu thu.",
+  onSigningRule: "BR-07",
 } as const;
 
 /** Lý do máy chủ từ chối release — kèm mã quy tắc để quản lý kho đối chiếu docs. */
@@ -66,26 +64,27 @@ export const ORDER_RELEASE_REFUSAL_LABELS = {
   warehouseMismatchRule: "BR-22",
   /** 409 ORDER_STOCK_NOT_HELD (docs 17 §4.2 bước 3, 5): chỉ release khi hàng của đợt đã giữ đủ thùng ở kho xuất. */
   stockNotHeld:
-    "Hàng của đơn chưa được giữ đủ thùng ở kho xuất. Sale chọn kho xuất và giữ hàng trước, rồi mới release.",
+    "Hàng của đơn chưa được giữ đủ thùng ở kho xuất. Sale chọn kho xuất và giữ hàng trước, rồi mới ra lệnh xuất kho.",
   stockNotHeldRule: "BR-21",
   /** 409 DELIVERY_BATCH_NOT_NEXT (docs 17 BR-29): chỉ release đợt giao kế tiếp. */
-  batchNotNext: "Đây không phải đợt giao kế tiếp của đơn — chỉ release được đợt kế tiếp.",
+  batchNotNext: "Đây không phải đợt giao kế tiếp của đơn — chỉ xuất kho được đợt kế tiếp.",
   batchRule: "BR-29",
   /** 409 DELIVERY_BATCH_ALL_RELEASED (docs 17 BR-29): mọi đợt giao của đơn đã release, không còn đợt nào để release. */
-  batchAllReleased: "Mọi đợt giao của đơn này đã được release — không còn đợt nào để release nữa.",
+  batchAllReleased:
+    "Mọi đợt giao của đơn này đã có lệnh xuất kho — không còn đợt nào để xuất kho nữa.",
   /** 404 DELIVERY_BATCH_NOT_FOUND: đợt không thuộc đơn này. */
   batchNotFound: "Đợt giao này không thuộc đơn. Dữ liệu đã được tải lại.",
   /** 409 ORDER_PRINT_GOODS_NOT_RECEIVED: dòng in cũ (mẫu + thiết kế) chưa nhập kho thì chưa release. */
   printGoodsNotReceived:
-    "Đơn có dòng in theo thiết kế mà hàng in chưa nhập kho. Nhập kho hàng in rồi mới release.",
+    "Đơn có dòng in theo thiết kế mà hàng in chưa nhập kho. Nhập kho hàng in rồi mới ra lệnh xuất kho.",
   printGoodsRule: "docs 07 / 11",
   /** 403 OUT_OF_DATA_SCOPE: người gọi chỉ release cho kho mình được gán (docs 17 BR-03). */
   outOfScope:
-    "Kho này nằm ngoài phạm vi kho bạn phụ trách — chỉ quản lý kho của kho xuất mới release được.",
+    "Kho này nằm ngoài phạm vi kho bạn phụ trách — chỉ quản lý kho của kho xuất mới ra lệnh xuất kho được.",
   outOfScopeRule: "BR-03",
   /** Đơn đã đổi trạng thái từ lúc mở màn (đã release, đang giữ, đã huỷ): dữ liệu được tải lại. */
   notReleasable:
-    "Đơn không còn ở trạng thái được release (đã release, đang tạm giữ hoặc đã huỷ). Dữ liệu đã được tải lại.",
+    "Đơn không còn ở trạng thái được ra lệnh xuất kho (đã có lệnh xuất kho, đang tạm giữ hoặc đã huỷ). Dữ liệu đã được tải lại.",
   notReleasableRule: "BR-02",
   /** Tranh chấp đồng thời (BE `ErrorCode.isRetryable`, 409): giữ hộp thoại, không tự gửi lại. */
   optimisticLock:

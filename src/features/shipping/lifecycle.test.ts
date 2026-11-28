@@ -12,7 +12,9 @@ import {
 } from "@/constants";
 import { LOAD_TRANSITIONS, SHIPMENT_TRANSITIONS } from "@/lib/domain/lifecycle";
 
-import { allowedLoadActions, hasLoadAction, isFullyLoaded, loadNoActionReason } from "./lifecycle";
+import { blockedOrder } from "./__fixtures__/ftl-load";
+import { allowedLoadActions, hasLoadAction, isFullyLoaded } from "./lifecycle";
+import { loadNoActionReason } from "./load-no-action-reason";
 import { allowedOutcomes, noOutcomeReason } from "./shipment-lifecycle";
 
 import type { LoadGateState, ShippingActor } from "./lifecycle";
@@ -270,6 +272,18 @@ describe("allowedLoadActions — bàn giao (BR-18)", () => {
     expect(isFullyLoaded(gate())).toBe(true);
     expect(
       hasLoadAction(allowedLoadActions(gate(), STAFF), "handover")?.disabledReason,
+    ).toBeUndefined();
+  });
+
+  it("BR-18: đủ kiện nhưng còn đơn chưa được phép đi (handoverWarnings) → khoá, không để BE từ chối cả xe", () => {
+    const warned = gate({ handoverWarnings: [blockedOrder()] });
+    expect(hasLoadAction(allowedLoadActions(warned, STAFF), "handover")?.disabledReason).toMatch(
+      /chưa được phép đi/,
+    );
+    // Hết chặn (BE bỏ danh sách khi rỗng) thì nút mở
+    expect(
+      hasLoadAction(allowedLoadActions(gate({ handoverWarnings: [] }), STAFF), "handover")
+        ?.disabledReason,
     ).toBeUndefined();
   });
 

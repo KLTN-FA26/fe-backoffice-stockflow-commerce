@@ -9,6 +9,8 @@ import { PLAN_ID, planFixture, vehicleOfLayout } from "../__fixtures__/plans";
 import {
   LOAD_PLAN_ACTORS as ACTORS,
   mockLoadPlanApi,
+  planAction,
+  planActionOf,
   renderLoadPlanScreen,
 } from "../__fixtures__/render-plan";
 import { LoadPlanDetail } from "./LoadPlanDetail";
@@ -68,10 +70,8 @@ function renderPlan(actor: TestActor, plan: PlanDetail, after?: PlanDetail) {
 describe("Huỷ có kiểm soát cả kế hoạch (SCRUM-474 UNLOAD-DESIGN)", () => {
   it("quản lý kho (mã fulfillment-controlled-cancellations:UPDATE) thấy nút khi xe đang xếp; huỷ thường đã mất", async () => {
     renderPlan(ACTORS.manager, planWithVehicle("LOADING"));
-    expect(await screen.findByRole("button", { name: C.cancelButton })).toBeEnabled();
-    expect(
-      screen.queryByRole("button", { name: UI_LABELS.loadPlan.detail.actions.cancel }),
-    ).not.toBeInTheDocument();
+    expect(await planActionOf(C.cancelButton)).toBeEnabled();
+    expect(await planActionOf(UI_LABELS.loadPlan.detail.actions.cancel)).toBeNull();
   });
 
   it.each([
@@ -80,27 +80,27 @@ describe("Huỷ có kiểm soát cả kế hoạch (SCRUM-474 UNLOAD-DESIGN)", (
   ])("%s không thấy nút huỷ có kiểm soát", async (_name, actor) => {
     renderPlan(actor, planWithVehicle("LOADING"));
     await screen.findByText(/LP-/);
-    expect(screen.queryByRole("button", { name: C.cancelButton })).not.toBeInTheDocument();
+    expect(await planActionOf(C.cancelButton)).toBeNull();
   });
 
   it("chưa xe nào xếp hàng: vẫn là huỷ thường, chưa có nút huỷ có kiểm soát", async () => {
     renderPlan(ACTORS.manager, planWithVehicle("VEHICLE_BOOKED"));
-    expect(
-      await screen.findByRole("button", { name: UI_LABELS.loadPlan.detail.actions.cancel }),
-    ).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: C.cancelButton })).not.toBeInTheDocument();
+    expect(await planActionOf(UI_LABELS.loadPlan.detail.actions.cancel)).toBeInTheDocument();
+    expect(await planActionOf(C.cancelButton)).toBeNull();
   });
 
   it("đã có xe rời kho: nút bị khoá (huỷ từng xe thay vì cả kế hoạch)", async () => {
     renderPlan(ACTORS.manager, planWithVehicle("DISPATCHED"));
-    expect(await screen.findByRole("button", { name: C.cancelButton })).toBeDisabled();
+    // Đã khoá: lý do (vì sao) nằm ngay dưới tên trong menu, không chỉ khi rê chuột
+    expect(await planActionOf(C.cancelButton)).toBeDisabled();
+    expect(screen.getByText(C.plan.disabledVehicleLeft)).toBeInTheDocument();
   });
 
   it("chọn mã lý do + ghi chú → POST /controlled-cancellation {expectedVersion, reasonCode, note}", async () => {
     const user = userEvent.setup();
     const plan = planWithVehicle("LOADING", { version: 7 });
     const { post } = renderPlan(ACTORS.manager, plan, { ...plan, status: "CANCELLED", version: 8 });
-    await user.click(await screen.findByRole("button", { name: C.cancelButton }));
+    await user.click((await planAction(user, C.cancelButton)) as HTMLElement);
     const dialog = await screen.findByRole("dialog");
     const confirm = within(dialog).getByRole("button", { name: C.plan.confirm });
     expect(confirm).toBeDisabled();
@@ -123,13 +123,9 @@ describe("UNLOAD-REOPEN: đã huỷ có kiểm soát một xe thì kế hoạch 
   it("không xe nào đang xếp nhưng không còn nút mở lại / huỷ thường; vẫn còn huỷ có kiểm soát (quản lý kho)", async () => {
     const plan = planWithVehicle("PLANNED", { controlledCancelled: true });
     renderPlan(ACTORS.manager, plan);
-    expect(await screen.findByRole("button", { name: C.cancelButton })).toBeEnabled();
-    expect(
-      screen.queryByRole("button", { name: UI_LABELS.loadPlan.detail.actions.reopen }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: UI_LABELS.loadPlan.detail.actions.cancel }),
-    ).not.toBeInTheDocument();
+    expect(await planActionOf(C.cancelButton)).toBeEnabled();
+    expect(await planActionOf(UI_LABELS.loadPlan.detail.actions.reopen)).toBeNull();
+    expect(await planActionOf(UI_LABELS.loadPlan.detail.actions.cancel)).toBeNull();
   });
 
   it("nhân viên kho (chỉ :UPDATE): không còn nút mở lại / huỷ nào", async () => {
@@ -140,7 +136,7 @@ describe("UNLOAD-REOPEN: đã huỷ có kiểm soát một xe thì kế hoạch 
       UI_LABELS.loadPlan.detail.actions.cancel,
       C.cancelButton,
     ]) {
-      expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
+      expect(await planActionOf(name)).toBeNull();
     }
   });
 });
@@ -264,7 +260,7 @@ describe("Kiện còn phải dỡ khỏi xe của kế hoạch đã huỷ", () =
     );
     // Mã lý do + ghi chú cũng hiện ở thông tin chung của kế hoạch
     expect(screen.getAllByText(/Xe hỏng/).length).toBeGreaterThan(1);
-    expect(screen.queryByRole("button", { name: C.cancelButton })).not.toBeInTheDocument();
+    expect(await planActionOf(C.cancelButton)).toBeNull();
   });
 
   it("hết kiện cần dỡ thì không hiện thẻ", async () => {

@@ -1,14 +1,15 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { LoaderCircle, Plus } from "lucide-react";
+import { Plus, RotateCw } from "lucide-react";
 
-import { ADMIN_ROUTES } from "@/constants";
+import { ADMIN_ROUTES, QUOTE_PERMISSIONS } from "@/constants";
 import { QUOTE_FORM_LABELS } from "@/constants/labels-quote-form";
+import { QUOTE_PRICE_APPROVAL_DEFAULT_PERCENT } from "@/constants/numbers";
+import { useCan } from "@/lib/auth";
 import { EMPTY_LINE } from "@/features/quote/form-body";
 import { useCustomerSkus } from "@/features/quote/queries";
-import { FORM_BAR_ACTION_CLASS, FormBottomBar } from "@/components/backoffice/FormBottomBar";
-import { DiscardChangesButton } from "@/components/shared/DiscardChangesButton";
+import { FORM_BAR_ACTION_CLASS } from "@/components/backoffice/FormBottomBar";
 import { FormErrorNotice } from "@/components/shared/FormErrorNotice";
 import { Notice } from "@/components/shared/Notice";
 import { Button } from "@/components/ui/button";
@@ -17,12 +18,18 @@ import { ChangeRequestNotice } from "./detail/QuoteNotices";
 import { QuoteFeesEditor } from "./form/QuoteFeesEditor";
 import { QuoteGeneralFields } from "./form/QuoteGeneralFields";
 import { QuoteLineEditor } from "./form/QuoteLineEditor";
-import { QuoteTotalsPreview } from "./form/QuoteTotalsPreview";
+import { QuoteSummaryPanel } from "./form/QuoteSummaryPanel";
 import { useQuoteForm } from "./form/useQuoteForm";
 
 import type { CustomerSku, Quote } from "@/features/quote/types";
 
-/** Tạo / sửa báo giá nháp theo thùng. Giá cuối cùng do BE tính; FE chỉ xem trước. */
+const K = QUOTE_FORM_LABELS.skuLoad;
+
+/**
+ * Tạo / sửa báo giá nháp theo thùng. Giá cuối cùng do BE tính; FE chỉ xem trước.
+ * Bố cục (bo-10 / bo-13): màn ≥ xl chia hai cột — trái là form (thông tin chung, các dòng, phí), phải là khung tóm tắt dính
+ * (khách, tạm tính, kiểm tra giá từng dòng, nút lưu / gửi); màn hẹp hơn xếp một cột, khung tóm tắt ở cuối.
+ */
 export function QuoteForm({
   quote,
   initialCustomerId,
@@ -31,6 +38,7 @@ export function QuoteForm({
   initialCustomerId?: string;
 }) {
   const router = useRouter();
+  const canSend = useCan(QUOTE_PERMISSIONS.update);
   const q = useQuoteForm({ quote, initialCustomerId });
   const { form } = q;
   const { errors } = form.formState;
@@ -47,15 +55,16 @@ export function QuoteForm({
   // BE: mỗi SKU chỉ một dòng — hết SKU của khách thì không thêm dòng được nữa. Đang tải danh sách thì chưa khoá.
   const noSkuLeft = !skusQuery.isPending && q.lines.fields.length >= skus.length;
   const backHref = quote ? ADMIN_ROUTES.quotes.detail(quote.id) : ADMIN_ROUTES.quotes.list;
+  // Ngưỡng duyệt giá BE đã dùng cho bản nháp này; báo giá mới chưa có thì lấy mặc định của BE (chỉ để xem trước).
+  const threshold =
+    quote?.priceCheck?.thresholdPercent ??
+    quote?.priceReview?.thresholdPercent ??
+    QUOTE_PRICE_APPROVAL_DEFAULT_PERCENT;
 
   return (
     <div className="surface-soft surface-compact">
       <h1 className="sr-only">{quote ? `Sửa báo giá ${quote.quoteNumber}` : "Tạo báo giá"}</h1>
-      <form
-        onSubmit={(event) => void q.submit(event)}
-        noValidate
-        className="max-w-6xl space-y-4 pb-24"
-      >
+      <form onSubmit={(event) => void q.submit(event)} noValidate className="space-y-4 pb-8">
         {quote?.status === "DRAFT" && <ChangeRequestNotice history={quote.history} />}
         {q.stale && (
           <Notice tone="warning" live>
@@ -74,7 +83,7 @@ export function QuoteForm({
           </Notice>
         )}
         <FormErrorNotice message={q.formError} />
-        <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
+        <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
           <div className="min-w-0 space-y-4">
             <QuoteGeneralFields form={form} customerLocked={!!quote} />
             {!q.customerId ? (
@@ -82,7 +91,26 @@ export function QuoteForm({
                 Chọn khách hàng trước để thêm dòng báo giá.
               </p>
             ) : skusQuery.isError ? (
-              <Notice tone="danger">Không tải được SKU riêng của khách.</Notice>
+              // bo-13: lỗi tải SKU riêng có nút Thử lại và bước tiếp theo, không chặn Sale ở một câu báo lỗi.
+              <Notice tone="danger" live>
+                <span>
+                  {K.failed} {K.next}{" "}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="ml-1 h-7 gap-1.5"
+                    disabled={skusQuery.isFetching}
+                    onClick={() => void skusQuery.refetch()}
+                  >
+                    <RotateCw
+                      className={`size-3.5 ${skusQuery.isFetching ? "animate-spin" : ""}`}
+                      aria-hidden="true"
+                    />
+                    {K.retry}
+                  </Button>
+                </span>
+              </Notice>
             ) : !skusQuery.isPending && skus.length === 0 ? (
               <Notice tone="warning">
                 Khách chưa có SKU riêng đang bán (SKU cấp khi thiết kế được duyệt).
@@ -99,6 +127,7 @@ export function QuoteForm({
                     unitsPerCarton={unitsPerCartonOf(form.getValues(`lines.${index}.sku`))}
                     canRemove={q.lines.fields.length > 1}
                     onRemove={() => q.lines.remove(index)}
+                    thresholdPercent={threshold}
                   />
                 ))}
                 {errors.lines?.root?.message && (
@@ -128,35 +157,22 @@ export function QuoteForm({
             )}
             {q.customerId && <QuoteFeesEditor form={form} />}
           </div>
-          {q.customerId && skus.length > 0 && (
-            <aside aria-label="Tạm tính" className="lg:sticky lg:top-4">
-              <QuoteTotalsPreview
-                form={form}
-                customerId={q.customerId}
-                quote={quote}
-                customerSkus={skus}
-              />
-            </aside>
-          )}
+          <aside aria-label={QUOTE_FORM_LABELS.summary.region} className="xl:sticky xl:top-4">
+            <QuoteSummaryPanel
+              form={form}
+              customerId={q.customerId}
+              quote={quote}
+              customerSkus={skus}
+              thresholdPercent={threshold}
+              pending={q.pending}
+              stale={q.stale}
+              canSend={canSend}
+              ownerAccess={q.owner}
+              onSend={() => void q.submitAndSend()}
+              onDiscard={() => router.push(backHref)}
+            />
+          </aside>
         </div>
-
-        <FormBottomBar note="Giá cuối cùng do hệ thống tính khi lưu; số trên form chỉ để xem trước.">
-          <DiscardChangesButton
-            dirty={form.formState.isDirty}
-            onDiscard={() => router.push(backHref)}
-            size="sm"
-            className={FORM_BAR_ACTION_CLASS.outline}
-          />
-          <Button
-            type="submit"
-            size="sm"
-            disabled={q.pending || q.stale}
-            className={FORM_BAR_ACTION_CLASS.primary}
-          >
-            {q.pending && <LoaderCircle className="size-3.5 animate-spin" aria-hidden="true" />}
-            {quote ? "Lưu báo giá" : "Lưu nháp"}
-          </Button>
-        </FormBottomBar>
       </form>
     </div>
   );

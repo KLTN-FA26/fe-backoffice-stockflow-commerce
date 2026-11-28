@@ -2,51 +2,48 @@
 
 import { useEffect, useRef } from "react";
 import Link from "next/link";
-import { Wallet } from "lucide-react";
 import { parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
 
 import { CREDIT_REQUEST_PERMISSIONS, CREDIT_REQUEST_ROUTES } from "@/constants/credit-request";
 import { useCan } from "@/lib/auth/components/Can";
 import { formatMoney } from "@/lib/format/money";
 import { useCreditProfile } from "@/features/customer/queries";
-import { DETAIL_ACTION_CLASS, DetailSection, InfoRow } from "@/components/shared/DetailSection";
+import { DetailPanel, Fact, FactGrid } from "@/components/shared/DetailPanel";
 import { Notice } from "@/components/shared/Notice";
 import { Skeleton } from "@/components/shared/Skeleton";
 import { Button } from "@/components/ui/button";
 
+import { CreditPositionFacts } from "./CreditPositionFacts";
 import { CreditProfileDialog } from "./CreditProfileDialog";
 
 import type { CreditProfile } from "@/features/customer/types";
 
 /** Neo của thẻ — đơn bị giữ vì công nợ dẫn tới `?creditProfile=edit#credit-profile`. */
 const CREDIT_PROFILE_ANCHOR = "credit-profile";
-const APPROVED_BY_LABEL = "Người duyệt";
+const MUTED = "text-ink-tertiary font-normal";
 
-function rowsOf(data: CreditProfile) {
-  return [
-    ...(data.creditLimit != null
-      ? [
-          {
-            label: "Hạn mức công nợ",
-            value: (
-              <span className="tabular-nums">{formatMoney(data.creditLimit, data.currency)}</span>
-            ),
-          },
-        ]
-      : []),
-    ...(data.creditTermDays != null
-      ? [
-          {
-            label: "Kỳ hạn công nợ",
-            value: <span className="tabular-nums">{data.creditTermDays} ngày</span>,
-          },
-        ]
-      : []),
-    // #286: ai duyệt hạn mức — BE kèm tên; vắng thì không hiện dòng
-    ...(data.approvedByName ? [{ label: APPROVED_BY_LABEL, value: data.approvedByName }] : []),
-    ...(data.note ? [{ label: "Ghi chú", value: data.note }] : []),
-    ...(!data.configured ? [{ label: "Ghi chú", value: "Chưa cấu hình hạn mức công nợ" }] : []),
-  ];
+/** Hạn mức và kỳ hạn đã cấp (chưa cấp → nói rõ, không để ô trống). */
+function ProfileFacts({ data }: { data: CreditProfile }) {
+  return (
+    <>
+      <Fact label="Hạn mức công nợ">
+        {data.creditLimit != null ? (
+          <span className="tabular-nums">{formatMoney(data.creditLimit, data.currency)}</span>
+        ) : (
+          <span className={MUTED}>Chưa cấp</span>
+        )}
+      </Fact>
+      <Fact label="Kỳ hạn công nợ">
+        {data.creditTermDays != null ? (
+          <span className="tabular-nums">{data.creditTermDays} ngày</span>
+        ) : (
+          <span className={MUTED}>—</span>
+        )}
+      </Fact>
+      {/* #286: ai duyệt hạn mức — BE kèm tên; vắng thì không hiện */}
+      {data.approvedByName && <Fact label="Người duyệt">{data.approvedByName}</Fact>}
+    </>
+  );
 }
 
 /**
@@ -81,19 +78,13 @@ export function CreditProfileCard({
   const canRequest = useCan(CREDIT_REQUEST_PERMISSIONS.create);
   const data = profile.data;
   const request = canRequest ? (
-    <Button asChild variant="outline" size="sm" className={DETAIL_ACTION_CLASS.outline}>
+    <Button asChild variant="outline" size="sm">
       <Link href={CREDIT_REQUEST_ROUTES.createFor(customerId)}>Đề nghị cấp hạn mức</Link>
     </Button>
   ) : null;
   const editButton =
     canApprove && data ? (
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className={DETAIL_ACTION_CLASS.outline}
-        onClick={() => void setMode("edit")}
-      >
+      <Button type="button" variant="outline" size="sm" onClick={() => void setMode("edit")}>
         {data.configured ? "Sửa hạn mức" : "Cấp hạn mức công nợ"}
       </Button>
     ) : null;
@@ -107,7 +98,12 @@ export function CreditProfileCard({
 
   return (
     <div id={CREDIT_PROFILE_ANCHOR} ref={anchor} className="scroll-mt-20">
-      <DetailSection title="Hạn mức & kỳ hạn công nợ" icon={Wallet} actions={edit}>
+      {/* DetailPanel (backoffice-erp-ui B13): nút ở thanh tiêu đề, xuống dòng khi hẹp — không tràn sang cột bên. */}
+      <DetailPanel
+        title="Hạn mức & kỳ hạn công nợ"
+        description="Dư nợ và quá hạn tính tại lúc mở trang."
+        actions={edit && <div className="flex flex-wrap justify-end gap-2">{edit}</div>}
+      >
         {returnTo && (
           <Notice tone="info" className="mb-3">
             Bạn đến từ đơn bị giữ vì công nợ.{" "}
@@ -131,15 +127,19 @@ export function CreditProfileCard({
           </p>
         )}
         {data && (
-          <div className="divide-y divide-(--table-line)">
-            {rowsOf(data).map((row, index) => (
-              <InfoRow key={`${row.label}-${index}`} label={row.label}>
-                {row.value}
-              </InfoRow>
-            ))}
+          <div className="space-y-4">
+            <FactGrid columns={3}>
+              <ProfileFacts data={data} />
+              <CreditPositionFacts customerId={customerId} />
+            </FactGrid>
+            {(data.note || !data.configured) && (
+              <p className="text-ink-secondary text-[0.8125rem]">
+                {data.note ?? "Chưa cấu hình hạn mức công nợ"}
+              </p>
+            )}
           </div>
         )}
-      </DetailSection>
+      </DetailPanel>
       <CreditProfileDialog
         customerId={customerId}
         profile={data}

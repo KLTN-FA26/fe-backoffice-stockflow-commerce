@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { MapPin } from "lucide-react";
 
 import { PUTAWAY_DETAIL_LABELS, PUTAWAY_TASK_STATUS } from "@/constants";
@@ -16,6 +17,8 @@ import type { PutawaySuggestion, PutawayTask } from "@/features/putaway/types";
 
 const L = PUTAWAY_DETAIL_LABELS;
 const MONO = "font-[family-name:var(--font-mono)] tabular-nums";
+/** Hiện sẵn 3 ô kệ đầu (gợi ý số 1 đứng đầu); phần còn lại sau "Xem thêm" — 10 dòng gần giống nhau làm mất chỗ quét. */
+const VISIBLE_SUGGESTIONS = 3;
 
 export const SUGGESTION_LABELS: SlottingSuggestionLabels = {
   ...L.suggestionColumns,
@@ -51,6 +54,7 @@ export function PutawaySuggestionsSection({
   onChoose,
   title = L.suggestions,
   footer,
+  collapsible = true,
 }: {
   task: PutawayTask;
   selected: string | null;
@@ -61,8 +65,20 @@ export function PutawaySuggestionsSection({
    * dài, ở 1024px nút bị đẩy tràn khỏi thẻ.
    */
   footer?: ReactNode;
+  /** `true` (mặc định): chỉ 3 ô kệ đầu + "Xem thêm". Trang Gợi ý vị trí đặt `false` để xem đủ danh sách. */
+  collapsible?: boolean;
 }) {
   const done = task.status === PUTAWAY_TASK_STATUS.DONE;
+  const [expanded, setExpanded] = useState(false);
+  const items = suggestionItems(task.suggestions);
+  // Ô kệ đang chọn nằm ngoài 3 dòng đầu thì vẫn hiện (không giấu lựa chọn của người dùng)
+  const visible =
+    !collapsible || expanded || items.length <= VISIBLE_SUGGESTIONS
+      ? items
+      : items.filter(
+          (item, index) => index < VISIBLE_SUGGESTIONS || item.locationCode === selected,
+        );
+  const hidden = items.length - visible.length;
   return (
     <DetailSection title={title} icon={MapPin}>
       {done ? (
@@ -71,11 +87,22 @@ export function PutawaySuggestionsSection({
         <div className="space-y-2">
           <p className="text-ink-secondary text-xs">{L.suggestionsHint}</p>
           <SlottingSuggestionList
-            items={suggestionItems(task.suggestions)}
+            items={visible}
             labels={SUGGESTION_LABELS}
             selected={selected}
             onChoose={onChoose}
           />
+          {collapsible && (hidden > 0 || (expanded && items.length > VISIBLE_SUGGESTIONS)) && (
+            <Button
+              type="button"
+              variant="ghost"
+              aria-expanded={expanded}
+              onClick={() => setExpanded((value) => !value)}
+              className="text-accent-text h-9 px-2 text-[0.8125rem] pointer-coarse:h-11"
+            >
+              {expanded ? L.seeLess : L.seeMore(hidden)}
+            </Button>
+          )}
         </div>
       ) : (
         <Alert tone="warning" title={L.noSuggestion}>

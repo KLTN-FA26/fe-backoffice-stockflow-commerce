@@ -258,6 +258,9 @@ describe("RTM-LOADCANCEL2 — hãng huỷ đơn khi xe đang xếp", () => {
     const book = screen.getByRole("button", { name: L.ftl.booking.book });
     expect(book).toBeDisabled();
     expect(book).toHaveAttribute("title", A.unloadBeforeBooking);
+    // S01-13: lý do cũng nằm ngay dưới nút, không chỉ ở title
+    expect(screen.getAllByText(A.unloadBeforeBooking).length).toBeGreaterThan(0);
+    expect(book).toHaveAccessibleDescription(A.unloadBeforeBooking);
     await user.type(screen.getByLabelText(U.label), "PKG-SO-1-1{Enter}");
     await waitFor(() =>
       expect(post).toHaveBeenCalledWith(`${PATH}/unloads`, { packageCode: "PKG-SO-1-1" }),

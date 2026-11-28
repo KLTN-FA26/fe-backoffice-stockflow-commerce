@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { useForm, useWatch } from "react-hook-form";
 
 import { ORDER_RELEASE_LABELS } from "@/constants";
@@ -22,7 +22,7 @@ import type { ReleaseFormValues } from "../release-schemas";
 import type { Order } from "../types";
 
 interface OrderReleaseDialogProps {
-  order: Pick<Order, "orderId" | "orderNumber" | "lines">;
+  order: Pick<Order, "orderId" | "orderNumber" | "lines"> & { warehouseName?: string | null };
   /** Có `sales-order-delivery-batches:READ` — mới đọc được lịch giao để chọn đợt (xem `ReleaseBatchField`). */
   canChooseBatch: boolean;
   /** Khe "Ước tính xếp xe": nhận kho đang chọn (đơn CONFIRMED chưa có kho). */
@@ -54,6 +54,13 @@ export function OrderReleaseDialog({
     defaultValues: { warehouseId: defaultWarehouseId ?? "", deliveryBatchId: "" },
   });
   const warehouseId = useWatch({ control: form.control, name: "warehouseId" });
+  // Kho Sale chọn có thể về sau khi hộp thoại đã mở (truy vấn tải muộn): đồng bộ vào form, nếu không ô kho trống mà
+  // không có ô chọn để người dùng tự điền → kẹt ở "Chọn kho xuất hàng".
+  useEffect(() => {
+    if (defaultWarehouseId && !form.getValues("warehouseId")) {
+      form.setValue("warehouseId", defaultWarehouseId, { shouldValidate: true });
+    }
+  }, [defaultWarehouseId, form]);
   const batchId = useWatch({ control: form.control, name: "deliveryBatchId" }) ?? "";
   const setBatch = useCallback(
     (value: string) => form.setValue("deliveryBatchId", value, { shouldValidate: true }),
@@ -100,6 +107,8 @@ export function OrderReleaseDialog({
           value={warehouseId}
           onChange={(value) => form.setValue("warehouseId", value, { shouldValidate: true })}
           error={form.formState.errors.warehouseId?.message}
+          chosenWarehouseId={defaultWarehouseId}
+          chosenWarehouseName={order.warehouseName}
         />
         {canChooseBatch && (
           <ReleaseBatchField orderId={order.orderId} value={batchId} onChange={setBatch} />

@@ -5,11 +5,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   CARTON_CHECK_ERROR_MESSAGES,
   CARTON_NOT_CHECKED_MESSAGES,
+  LOAD_PLAN_PERMISSIONS,
   STOCK_PACKAGE_PERMISSIONS,
   UI_LABELS,
 } from "@/constants";
+import { PAYMENT_INSTALLMENT_PERMISSIONS } from "@/constants/payment";
 import { ApiError } from "@/lib/api/error";
 import { toast } from "@/components/shared/Toast";
+import { clickRowAction, openRowMenu } from "@/test/ui-actions";
 
 import {
   CARTON_CHECK_PATH,
@@ -71,6 +74,14 @@ describe("CartonCheckStation — phiên chưa bắt đầu (Pending)", () => {
     expect(screen.queryByLabelText(L.scan.label)).toBeNull();
     expect(screen.queryByRole("button", { name: L.action.complete })).toBeNull();
     expect(screen.getByRole("button", { name: L.action.start })).toBeEnabled();
+  });
+
+  it("số lô nằm dưới SKU trong cùng một ô (bảng không có cột Lô riêng)", async () => {
+    renderCartonCheckStation({
+      session: withFirst(apiSession(), { lotNumber: "PRD-20261126-0005" }),
+    });
+    expect(await screen.findByText(L.cartons.lotLine("PRD-20261126-0005"))).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Lô" })).toBeNull();
   });
 
   it("lối sang màn lấy hàng của task ở lại trong kho của tab", async () => {
@@ -205,9 +216,7 @@ describe("CartonCheckStation — dán nhãn và in PDF (docs 08 §4.3)", () => {
         [PDF]: pdfBlob,
       }),
     });
-    await user.click(
-      await within(await waitForRow("LPN000001")).findByRole("button", { name: L.action.label }),
-    );
+    await clickRowAction(user, L.action.label, await waitForRow("LPN000001"));
     expect(await screen.findByTitle(L.labels.preview)).toHaveAttribute("src", "blob:carton-labels");
     expect(post).toHaveBeenCalledWith(LABELS, { lpns: ["LPN000001"] });
     expect(post).toHaveBeenCalledWith(
@@ -223,10 +232,11 @@ describe("CartonCheckStation — dán nhãn và in PDF (docs 08 §4.3)", () => {
     );
   });
 
-  it("thùng To Check không có nút Dán nhãn; phải quét trước (docs 08 BR-08)", async () => {
+  it("thùng To Check không có thao tác Dán nhãn; phải quét trước (docs 08 BR-08)", async () => {
+    const user = userEvent.setup();
     renderCartonCheckStation({ session: startedSession() });
     await screen.findByText("LPN000001");
-    expect(screen.queryByRole("button", { name: L.action.label })).toBeNull();
+    expect(await rowActionNames(user, "LPN000001")).not.toContain(L.action.label);
     expect(screen.queryByRole("button", { name: new RegExp(L.action.labelAll) })).toBeNull();
   });
 
@@ -247,8 +257,8 @@ describe("CartonCheckStation — dán nhãn và in PDF (docs 08 §4.3)", () => {
     });
     expect(await screen.findByText(L.notice.unmeasuredTitle)).toBeInTheDocument();
     expect(screen.getByText(/MUG-WHT-11 chưa khai báo/)).toBeInTheDocument();
-    // Dòng của SKU thiếu quy cách không có nút Dán nhãn
-    expect(within(rowOf("LPN000002")).queryByRole("button", { name: L.action.label })).toBeNull();
+    // Dòng của SKU thiếu quy cách không có thao tác Dán nhãn
+    expect(await rowActionNames(user, "LPN000002")).not.toContain(L.action.label);
     await user.click(screen.getByRole("button", { name: new RegExp(L.action.labelAll) }));
     await waitFor(() => expect(post).toHaveBeenCalledWith(LABELS, { lpns: ["LPN000001"] }));
   });
@@ -272,7 +282,7 @@ describe("CartonCheckStation — dán nhãn và in PDF (docs 08 §4.3)", () => {
         },
       }),
     });
-    await user.click(await screen.findByRole("button", { name: L.action.label }));
+    await clickRowAction(user, L.action.label, await waitForRow("LPN000001"));
     await waitFor(() =>
       expect(error).toHaveBeenCalledWith(
         expect.stringMatching(/TEE-BLK-M chưa khai báo kích thước/),
@@ -322,9 +332,8 @@ describe("CartonCheckStation — dán nhãn và in PDF (docs 08 §4.3)", () => {
         [PDF]: pdfBlob,
       }),
     });
-    await user.click(
-      await within(await waitForRow("LPN000001")).findByRole("button", { name: L.action.reprint }),
-    );
+    // Mọi thao tác của thùng nằm trong menu "⋯" của dòng
+    await clickRowAction(user, L.action.reprint, await waitForRow("LPN000001"));
     expect(screen.getByText(L.reprint.description(1))).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: L.reprint.submit }));
     expect(await screen.findByTitle(L.labels.preview)).toBeInTheDocument();
@@ -350,18 +359,17 @@ describe("CartonCheckStation — loại thùng hư hỏng (docs 08 §4.2 bước
         },
       }),
     });
-    await user.click(
-      await within(await waitForRow("LPN000001")).findByRole("button", { name: L.action.remove }),
-    );
+    await clickRowAction(user, L.action.remove, await waitForRow("LPN000001"));
     await user.type(screen.getByLabelText(L.remove.note), "Móp góc");
     await user.click(screen.getByRole("button", { name: L.remove.submit }));
     expect(await screen.findByText(L.notice.removedTitle)).toBeInTheDocument();
     expect(post).toHaveBeenCalledWith(cartonPath("LPN000001", "removal"), { note: "Móp góc" });
     expect(within(rowOf("LPN000001")).getByText("Đã loại")).toBeInTheDocument();
-    expect(within(rowOf("LPN000001")).queryByRole("button", { name: L.action.remove })).toBeNull();
+    expect(await rowActionNames(user, "LPN000001")).not.toContain(L.action.remove);
   });
 
-  it("thùng đã vào shipment: BE từ chối (PACKAGE_SHIPPED) → UI không có nút Loại thùng; thùng chưa vào shipment thì có", async () => {
+  it("thùng đã vào shipment: BE từ chối (PACKAGE_SHIPPED) → UI không có thao tác Loại thùng; thùng chưa vào shipment thì có", async () => {
+    const user = userEvent.setup();
     renderCartonCheckStation({
       session: startedSession({
         cartons: [
@@ -380,10 +388,8 @@ describe("CartonCheckStation — loại thùng hư hỏng (docs 08 §4.2 bước
       }),
     });
     await screen.findByText("LPN000001");
-    expect(within(rowOf("LPN000001")).queryByRole("button", { name: L.action.remove })).toBeNull();
-    expect(
-      within(rowOf("LPN000002")).getByRole("button", { name: L.action.remove }),
-    ).toBeInTheDocument();
+    expect(await rowActionNames(user, "LPN000001")).not.toContain(L.action.remove);
+    expect(await rowActionNames(user, "LPN000002")).toContain(L.action.remove);
     expect(within(rowOf("LPN000001")).getByText("SO-1-S1")).toBeInTheDocument();
   });
 });
@@ -393,6 +399,10 @@ describe("CartonCheckStation — hoàn tất (docs 08 §4.4)", () => {
     const user = userEvent.setup();
     const issued = stubUuids();
     const { post } = renderCartonCheckStation({
+      // Quản lý kho có thêm quyền lập kế hoạch xếp xe → hộp kết quả có nút đi tiếp
+      identity: {
+        permissions: [...IDENTITIES.warehouseStaff.permissions, LOAD_PLAN_PERMISSIONS.create],
+      },
       session: allLabeledSession(),
       post: (state) => ({
         [COMPLETION]: () => {
@@ -433,6 +443,11 @@ describe("CartonCheckStation — hoàn tất (docs 08 §4.4)", () => {
     // Cảnh báo BEFORE_DELIVERY chưa thu: số tiền, không chặn
     expect(screen.getByText(L.notice.paymentTitle)).toBeInTheDocument();
     expect(screen.getByText(/2\.500\.000/)).toBeInTheDocument();
+    // Việc kế tiếp: lập kế hoạch xếp xe (S15-2) — quản lý kho có fulfillment-load-plans:CREATE
+    expect(screen.getByRole("link", { name: L.complete.planLoad })).toHaveAttribute(
+      "href",
+      "/admin/load-plans/create",
+    );
   });
 
   it("còn thùng chưa dán nhãn → hộp thoại báo rõ và khoá nút hoàn tất (BE PACKING_INCOMPLETE)", async () => {
@@ -548,8 +563,8 @@ describe("CartonCheckStation — action-gating theo quyền và người bắt �
     expect(await screen.findByText(L.notice.takenTitle("Hoàng Anh Tuấn"))).toBeInTheDocument();
     expect(screen.queryByLabelText(L.scan.label)).toBeNull();
     expect(screen.queryByRole("button", { name: L.action.complete })).toBeNull();
-    expect(screen.queryByRole("button", { name: L.action.label })).toBeNull();
-    expect(screen.queryByRole("button", { name: L.action.remove })).toBeNull();
+    // Người khác đang làm: dòng thùng không có menu thao tác nào
+    expect(screen.queryByRole("button", { name: /^Thao tác — thùng/ })).toBeNull();
     expect(screen.queryByRole("button", { name: L.action.start })).toBeNull();
   });
 
@@ -577,6 +592,7 @@ describe("CartonCheckStation — action-gating theo quyền và người bắt �
   });
 
   it("phiên Completed: không còn thao tác kiểm; vẫn in lại / in nhãn thùng đã dán", async () => {
+    const user = userEvent.setup();
     renderCartonCheckStation({
       session: {
         ...allLabeledSession(),
@@ -587,9 +603,9 @@ describe("CartonCheckStation — action-gating theo quyền và người bắt �
     expect(await screen.findByText(L.notice.readOnlyDone)).toBeInTheDocument();
     expect(screen.queryByLabelText(L.scan.label)).toBeNull();
     expect(screen.queryByRole("button", { name: L.action.complete })).toBeNull();
-    const row = rowOf("LPN000001");
-    expect(within(row).getByRole("button", { name: L.action.reprint })).toBeInTheDocument();
-    expect(within(row).queryByRole("button", { name: L.action.remove })).toBeNull();
+    const names = await rowActionNames(user, "LPN000001");
+    expect(names).toContain(L.action.print);
+    expect(names).not.toContain(L.action.remove);
   });
 
   it("phiên Cancelled (đơn huỷ trước thùng đầu): báo đã đóng, thùng Removed không có thao tác", async () => {
@@ -611,6 +627,31 @@ describe("CartonCheckStation — action-gating theo quyền và người bắt �
     expect(await screen.findByText(L.notice.paymentTitle)).toBeInTheDocument();
     expect(screen.getByText(/1\.500\.000/)).toBeInTheDocument();
     expect(screen.getByLabelText(L.scan.label)).toBeInTheDocument();
+  });
+
+  it("dải 'phải thu trước khi giao' nói Kế toán lập phiếu thu và có link 'Xem đợt thanh toán' khi xem được đợt (S15-3)", async () => {
+    renderCartonCheckStation({
+      identity: {
+        permissions: [
+          ...IDENTITIES.warehouseStaff.permissions,
+          PAYMENT_INSTALLMENT_PERMISSIONS.read,
+        ],
+      },
+      session: startedSession({ paymentDue: { amount: 1500000, currency: "VND" } }),
+    });
+    expect(await screen.findByText(/Kế toán lập phiếu thu/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: L.notice.paymentLink })).toHaveAttribute(
+      "href",
+      expect.stringMatching(/^\/admin\/payment\/installments\/orders\//),
+    );
+  });
+
+  it("không xem được đợt thanh toán → không link, vẫn có câu nói ai xử lý", async () => {
+    renderCartonCheckStation({
+      session: startedSession({ paymentDue: { amount: 1500000, currency: "VND" } }),
+    });
+    expect(await screen.findByText(/Kế toán lập phiếu thu/)).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: L.notice.paymentLink })).toBeNull();
   });
 
   it("điều phối đơn không có packages:VIEW_PAGE → bị chặn ở cổng route", async () => {
@@ -649,24 +690,24 @@ describe("WF04 G1 — In lại nhãn LPN ở trạm kiểm (docs 08 §6 'Nhãn L
     });
     const row = await waitForRow("LPN000001");
 
-    await user.click(within(row).getByRole("button", { name: L.action.reprintLpn }));
+    await clickRowAction(user, L.action.reprintLpn, row);
 
     expect(await screen.findByText("in nhãn LPN000001")).toBeInTheDocument();
     expect(slot).toHaveBeenLastCalledWith(expect.objectContaining({ lpn: "LPN000001" }));
   });
 
-  it("thiếu inventory-stock-packages:CREATE, hoặc màn không có hộp thoại in nhãn thùng: không có nút", async () => {
+  it("thiếu inventory-stock-packages:CREATE, hoặc màn không có hộp thoại in nhãn thùng: không có thao tác", async () => {
+    const user = userEvent.setup();
     renderCartonCheckStation({ session: startedSession(), lpnLabelSlot: () => null });
-    expect(
-      within(await waitForRow("LPN000001")).queryByRole("button", { name: L.action.reprintLpn }),
-    ).toBeNull();
+    await waitForRow("LPN000001");
+    expect(await rowActionNames(user, "LPN000001")).not.toContain(L.action.reprintLpn);
   });
 
-  it("có quyền nhưng không có khe hộp thoại: không có nút", async () => {
+  it("có quyền nhưng không có khe hộp thoại: không có thao tác", async () => {
+    const user = userEvent.setup();
     renderCartonCheckStation({ identity: lpnPrinter, session: startedSession() });
-    expect(
-      within(await waitForRow("LPN000001")).queryByRole("button", { name: L.action.reprintLpn }),
-    ).toBeNull();
+    await waitForRow("LPN000001");
+    expect(await rowActionNames(user, "LPN000001")).not.toContain(L.action.reprintLpn);
   });
 });
 
@@ -676,11 +717,82 @@ async function waitForRow(lpn: string): Promise<HTMLElement> {
   return rowOf(lpn);
 }
 
+/** Tên các thao tác trong menu "⋯" của dòng thùng (rỗng khi dòng không có thao tác nào, tức không có nút "⋯"). */
+async function rowActionNames(user: ReturnType<typeof userEvent.setup>, lpn: string) {
+  const trigger = within(rowOf(lpn)).queryByRole("button", { name: /^Thao tác/ });
+  if (!trigger) return [];
+  const menu = await openRowMenu(user, rowOf(lpn));
+  const names = within(menu)
+    .getAllByRole("button")
+    .map((item) => item.textContent ?? "");
+  await user.keyboard("{Escape}");
+  return names;
+}
+
 describe("CartonCheckStation — phiên của kho khác mở trong tab (spec §2)", () => {
   it("không hiện trạm dưới kho sai", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     renderCartonCheckStation({ session: { ...apiSession(), warehouseId: "wh-khac" } });
     await waitFor(() => expect(replaceSpy).toHaveBeenCalledWith("/admin/warehouse-map"));
     expect(screen.queryByRole("button", { name: L.action.start })).toBeNull();
+  });
+});
+
+describe("Bảng thùng của đơn — gọn, không cắt cột, một nút chính (S15-1)", () => {
+  it("chưa có kích thước / khối lượng / lô giao → ẩn các cột đó; mã không bẻ dòng", async () => {
+    renderCartonCheckStation({ session: startedSession() });
+    const row = await waitForRow("LPN000001");
+    expect(screen.queryByRole("columnheader", { name: L.cartons.colSize })).toBeNull();
+    expect(screen.queryByRole("columnheader", { name: L.cartons.colWeight })).toBeNull();
+    expect(screen.queryByRole("columnheader", { name: L.cartons.colShipment })).toBeNull();
+    expect(screen.getByRole("columnheader", { name: L.cartons.colActions })).toBeInTheDocument();
+    expect(within(row).getByText("LPN000001").closest("td")).toHaveClass("whitespace-nowrap");
+  });
+
+  it("đã dán nhãn (có kích thước, khối lượng) → hiện các cột; tiêu đề không xuống dòng", async () => {
+    renderCartonCheckStation({ session: allLabeledSession() });
+    await waitForRow("LPN000001");
+    const size = screen.getByRole("columnheader", { name: L.cartons.colSize });
+    expect(size).toHaveClass("whitespace-nowrap");
+    expect(screen.getByRole("columnheader", { name: L.cartons.colWeight })).toBeInTheDocument();
+  });
+
+  it("thùng đã dán nhãn: mọi thao tác (In nhãn, In lại nhãn, Loại thùng) gom trong một menu '⋯'; Loại thùng chữ đỏ ở cuối", async () => {
+    const user = userEvent.setup();
+    renderCartonCheckStation({ session: allLabeledSession() });
+    const row = await waitForRow("LPN000001");
+    // Không còn nút rời trong ô (backoffice-erp-ui A6): chỉ có nút "⋯" của thùng
+    expect(within(row).getAllByRole("button")).toHaveLength(1);
+    expect(
+      within(row).getByRole("button", { name: L.action.more("LPN000001") }),
+    ).toBeInTheDocument();
+    const names = await rowActionNames(user, "LPN000001");
+    expect(names).toEqual([L.action.print, L.action.reprint, L.action.remove]);
+    const menu = await openRowMenu(user, row);
+    expect(within(menu).getByText(L.action.remove)).toHaveClass("text-danger");
+  });
+
+  it("cột Thao tác ghim mép phải khung cuộn, chỉ rộng bằng một nút nên không che cột Trạng thái", async () => {
+    renderCartonCheckStation({ session: allLabeledSession() });
+    const row = await waitForRow("LPN000001");
+    expect(screen.getByRole("columnheader", { name: L.cartons.colActions })).toHaveClass(
+      "sticky",
+      "right-0",
+    );
+    expect(
+      within(row)
+        .getByRole("button", { name: L.action.more("LPN000001") })
+        .closest("td"),
+    ).toHaveClass("sticky", "right-0");
+    // Còn đúng một nút ở cột ghim: không có cụm nút ngang che các cột phía trước
+    expect(within(row).getAllByRole("button")).toHaveLength(1);
+  });
+
+  it("nút '⋯' của dòng 44px khi màn cảm ứng (máy tính bảng ở kho)", async () => {
+    renderCartonCheckStation({ session: allLabeledSession() });
+    const row = await waitForRow("LPN000001");
+    expect(within(row).getByRole("button", { name: L.action.more("LPN000001") })).toHaveClass(
+      "pointer-coarse:size-11",
+    );
   });
 });

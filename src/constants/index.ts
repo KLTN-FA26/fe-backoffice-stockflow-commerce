@@ -206,7 +206,11 @@ export {
 } from "./labels-load-plan-editor";
 export { LOAD_PLAN_PRINT_LABELS } from "./labels-load-plan-print";
 export { LOAD_PLANNING_LABELS, PLACEMENT_RULE_LABELS } from "./labels-load-planning";
-export { SHIPPING_ERROR_MESSAGES, SHIPPING_FIELD_MESSAGES } from "./labels-shipping";
+export {
+  CARRIER_REFUSAL_CODE,
+  SHIPPING_ERROR_MESSAGES,
+  SHIPPING_FIELD_MESSAGES,
+} from "./labels-shipping";
 export {
   CARRIER_API_ENVIRONMENTS,
   CARRIER_CONFIG_LIMITS,
@@ -687,3 +691,8 @@ export {
   CARTON_SOURCES,
 } from "./labels-inventory-cartons";
 export type { CartonOpenTaskType, CartonSort, CartonSource } from "./labels-inventory-cartons";
+// Sale phụ trách khách: câu chữ ở đây; mã quyền, mã lỗi, API, enum, route import thẳng `@/constants/sales-owner`
+export {
+  CUSTOMER_CREATE_OWNER_LABELS,
+  SALES_OWNER_ACCESS_LABELS,
+} from "./labels-sales-owner-access";

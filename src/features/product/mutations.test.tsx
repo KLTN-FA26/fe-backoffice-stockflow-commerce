@@ -96,11 +96,9 @@ describe("product mutations also refresh the listing and prices that share its v
       await update.result.current.mutateAsync({
         id: ID,
         name: "A",
-        nameEn: "A",
         categoryId: "c",
         brandId: "b",
         description: "",
-        descriptionEn: "",
         taxClass: "STANDARD",
         version: 3,
       });

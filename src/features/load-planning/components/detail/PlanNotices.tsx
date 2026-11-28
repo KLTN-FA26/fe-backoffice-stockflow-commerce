@@ -1,4 +1,6 @@
-import { UI_LABELS } from "@/constants";
+import Link from "next/link";
+
+import { ADMIN_ROUTES, LOAD_PLAN_STATUS, UI_LABELS } from "@/constants";
 import { Alert } from "@/components/shared/Alert";
 import { Button } from "@/components/ui/button";
 
@@ -30,6 +32,8 @@ export function PlanNotices({
 }) {
   const canWrite = Object.values(actions).some((value) => value === true);
   const needsRecalc = plan.vehicles.some((vehicle) => vehicle.needsRecalculation);
+  // Sau khi chốt, mỗi xe là một chuyến xe (docs 09 §4.2 bước 5): nói bước tiếp và mở thẳng chuyến (S16-6)
+  const loads = plan.vehicles.flatMap((vehicle) => (vehicle.load ? [vehicle.load] : []));
   return (
     <div className="space-y-2 empty:hidden">
       {notice && (
@@ -46,6 +50,20 @@ export function PlanNotices({
           <Button type="button" variant="link" size="sm" className="h-auto p-0" onClick={onRetry}>
             {UI_LABELS.common.retry}
           </Button>
+        </Alert>
+      )}
+      {plan.status === LOAD_PLAN_STATUS.CONFIRMED && loads.length > 0 && (
+        <Alert tone="info" title={L.confirmed.title}>
+          <p>{L.confirmed.body}</p>
+          <p className="mt-1.5 flex flex-wrap gap-2">
+            {loads.map((load) => (
+              <Button key={load.loadId} variant="outline" size="sm" asChild>
+                <Link href={ADMIN_ROUTES.loads.detail(load.loadId)}>
+                  {L.confirmed.open(load.code)}
+                </Link>
+              </Button>
+            ))}
+          </p>
         </Alert>
       )}
       {needsRecalc && !final && <Alert tone="warning">{L.needsRecalculationAlert}</Alert>}

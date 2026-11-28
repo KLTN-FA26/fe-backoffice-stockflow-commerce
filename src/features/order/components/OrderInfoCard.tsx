@@ -103,11 +103,17 @@ export function OrderInfoCard({ order, can }: OrderInfoCardProps) {
       <ProfileFact label="Ngày đặt">
         <span className="tabular-nums">{formatDate(order.placedAt)}</span>
       </ProfileFact>
-      <ProfileFact label="Người nhận">
+      {/* bo-18: chữ dài cắt bằng "…" trong ô (ProfileFact), bản đầy đủ ở tooltip — email không tràn khỏi khung. */}
+      <ProfileFact
+        label="Người nhận"
+        title={[order.recipientName, order.recipientPhone].filter(Boolean).join(" · ") || undefined}
+      >
         {order.recipientName || EMPTY}
         {order.recipientPhone && ` · ${order.recipientPhone}`}
       </ProfileFact>
-      <ProfileFact label="Email">{order.contactEmail ?? EMPTY}</ProfileFact>
+      <ProfileFact label="Email" title={order.contactEmail ?? undefined}>
+        {order.contactEmail ?? EMPTY}
+      </ProfileFact>
       <ProfileFact label="Địa chỉ giao" title={order.shippingAddressText ?? undefined}>
         <span className="block truncate">{order.shippingAddressText ?? EMPTY}</span>
         {/* Ẩn từ thùng đầu tiên dán nhãn (08 BR-04). UI-only — Backend phải re-check (BR-16, ORDER_ADDRESS_LOCKED) */}
@@ -136,7 +142,7 @@ export function OrderInfoCard({ order, can }: OrderInfoCardProps) {
           "Chưa chọn kho xuất"
         )}
       </ProfileFact>
-      <ProfileFact label="Release lúc">
+      <ProfileFact label="Xuất kho lúc">
         {order.releasedAt ? (
           <span className="tabular-nums">{formatDateTime(order.releasedAt)}</span>
         ) : (

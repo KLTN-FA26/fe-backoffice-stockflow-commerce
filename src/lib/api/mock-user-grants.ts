@@ -1,3 +1,4 @@
+import { CONTRACT_ESIGN_PERMISSIONS } from "@/constants/contract-esign";
 /**
  * Quyền của từng tài khoản demo (USE_MOCK=true) — dùng chung cho BFF mock (`/identity/me/permissions`,
  * server) và mock backend phía client (`lib/api/mock-routes-*`, cổng quyền thay `@RequiresPermission`).
@@ -59,6 +60,13 @@ import {
   WAREHOUSE_PERMISSIONS,
 } from "@/constants/permissions";
 import { EINVOICE_PERMISSIONS, EINVOICE_SETTINGS_PERMISSIONS } from "@/constants/einvoice";
+import {
+  OWNER_CHANGE_REQUEST_PERMISSIONS,
+  SALES_LEAD_PERMISSIONS,
+  SALES_OWNER_PERMISSIONS,
+  SALES_WORKLOAD_PERMISSIONS,
+  STAFF_COVER_PERMISSIONS,
+} from "@/constants/sales-owner";
 import {
   PAYMENT_INSTALLMENT_PERMISSIONS,
   PAYMENT_RECEIPT_PERMISSIONS,
@@ -319,10 +327,24 @@ const CONTRACT_SALES = [SALES_CONTRACT_PERMISSIONS.create, SALES_CONTRACT_PERMIS
 // Hồ sơ pháp lý của khách (seed V20261120000100): SALES_STAFF, SALES_MANAGER, ACCOUNTANT, SYSTEM_ADMIN đều READ + UPDATE.
 const LEGAL_PROFILE_ALL = Object.values(CUSTOMER_LEGAL_PROFILE_PERMISSIONS);
 const SALES_WF02 = [...QUOTE_SALES, ...CONTRACT_SALES, ...LEGAL_PROFILE_ALL];
+// Sale phụ trách khách (hợp đồng sales-owner §Permissions): Sale xem người phụ trách, lập / huỷ lịch thay của mình, xử lý
+// lead được giao; quản lý (mock: System Admin) thêm đổi người phụ trách, bảng tải, quyết yêu cầu đổi Sale
+const SALES_OWNER_STAFF = [
+  SALES_OWNER_PERMISSIONS.read,
+  ...Object.values(STAFF_COVER_PERMISSIONS),
+  ...Object.values(SALES_LEAD_PERMISSIONS),
+];
+const SALES_OWNER_ALL = [
+  ...SALES_OWNER_STAFF,
+  SALES_OWNER_PERMISSIONS.update,
+  SALES_WORKLOAD_PERMISSIONS.read,
+  ...Object.values(OWNER_CHANGE_REQUEST_PERMISSIONS),
+];
 
 /** Explicit demo session responses keyed by existing staff IDs, never computed from roles. */
 export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
   "USER-ADMIN-01": [
+    ...Object.values(CONTRACT_ESIGN_PERMISSIONS),
     ...Object.values(SUPPLIER_PERMISSIONS),
     ...Object.values(PO_PERMISSIONS),
     ...Object.values(ORDER_PERMISSIONS),
@@ -362,6 +384,7 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...SALES_WF02,
     ...STANDARD_PRICE_ALL,
     QUOTE_PRICE_APPROVAL_PERMISSIONS.approve,
+    ...SALES_OWNER_ALL,
   ],
   "USER-PROC-01": [
     SUPPLIER_PERMISSIONS.viewPage,
@@ -457,6 +480,7 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...CHAT_AGENT,
     ...SALES_WF02,
     ...STANDARD_PRICE_READ,
+    ...SALES_OWNER_STAFF,
   ],
   "USER-SALE-02": [
     ORDER_PERMISSIONS.viewPage,
@@ -477,6 +501,7 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...CHAT_AGENT,
     ...SALES_WF02,
     ...STANDARD_PRICE_READ,
+    ...SALES_OWNER_STAFF,
   ],
   "USER-SALE-03": [
     ORDER_PERMISSIONS.viewPage,
@@ -497,6 +522,7 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...CHAT_AGENT,
     ...SALES_WF02,
     ...STANDARD_PRICE_READ,
+    ...SALES_OWNER_STAFF,
   ],
   // Seed BE: SALES_STAFF có sales-order-cancellations:UPDATE (huỷ đơn, đóng phần còn lại) và sales-order-holds:UPDATE
   // (giữ / gỡ giữ); ghi giao thất bại ở cấp đơn là fulfillment-delivery-outcomes:APPROVE

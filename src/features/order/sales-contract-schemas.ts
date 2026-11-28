@@ -10,6 +10,8 @@ import { SALES_CONTRACT_STATUSES } from "@/constants";
 
 import { omittedOrNull } from "@/lib/validation/primitives";
 
+import { contractSignatureSchema, contractTermsShape } from "./sales-contract-esign-schemas";
+
 export const contractPartySchema = z.object({
   name: z.string(),
   taxCode: omittedOrNull(z.string()),
@@ -87,6 +89,10 @@ export const contractCreditReviewViewSchema = z.object({
 });
 
 export const salesContractDtoSchema = z.object({
+  ...contractTermsShape,
+  customerSignature: contractSignatureSchema.nullish(),
+  companySignature: contractSignatureSchema.nullish(),
+  verificationCode: z.string().nullish(),
   id: z.string(),
   contractNumber: z.string(),
   orderId: z.string(),

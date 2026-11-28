@@ -21,7 +21,9 @@ export type ContractAction =
 
 export const CONTRACT_TRANSITIONS = {
   DRAFT: ["SENT", "CANCELLED"],
-  SENT: ["SIGNED", "CANCELLED"],
+  // HOP-DONG-API.md Lifecycle (2026-11-28).
+  SENT: ["DRAFT", "CUSTOMER_SIGNED", "SIGNED", "CANCELLED"],
+  CUSTOMER_SIGNED: ["SIGNED", "CANCELLED"],
   // LIQUIDATED: đơn kết thúc mà không giao được gì, đã xong tiền (Q-6, BE-06)
   SIGNED: ["COMPLETED", "LIQUIDATED"],
   COMPLETED: [],
@@ -36,7 +38,9 @@ export const CONTRACT_TRANSITIONS = {
  * về sửa. Huỷ hợp đồng và xem PDF nháp không bị BE chặn nên giữ.
  */
 export function allowedContractActions(
-  contract: (Pick<SalesContract, "status"> & Partial<Pick<SalesContract, "creditReview">>) | null,
+  contract:
+    | (Pick<SalesContract, "status"> & Partial<Pick<SalesContract, "creditReview" | "termsReview">>)
+    | null,
   orderStatus: Order["status"],
   can: (code: PermissionCode) => boolean,
 ): ContractAction[] {
@@ -48,16 +52,42 @@ export function allowedContractActions(
     can(SALES_CONTRACT_PERMISSIONS.create)
   )
     actions.push("create");
+  const termsPending = status === "DRAFT" && contract?.termsReview === "PENDING";
   const reviewPending = status === "DRAFT" && contract?.creditReview === "PENDING";
   if (status === "DRAFT" && can(SALES_CONTRACT_PERMISSIONS.update))
     actions.push(
-      ...(reviewPending ? (["withdraw-review"] as const) : (["edit", "send"] as const)),
+      ...(termsPending
+        ? []
+        : reviewPending
+          ? (["withdraw-review"] as const)
+          : (["edit", "send"] as const)),
       "cancel",
     );
   if (status === "DRAFT") actions.push("preview");
-  if (status === "SENT" && can(SALES_CONTRACT_PERMISSIONS.approve)) actions.push("sign");
-  if (status === "SENT" && can(SALES_CONTRACT_PERMISSIONS.update)) actions.push("cancel");
+  if (
+    (status === "SENT" || status === "CUSTOMER_SIGNED") &&
+    can(SALES_CONTRACT_PERMISSIONS.approve)
+  )
+    actions.push("sign");
+  if ((status === "SENT" || status === "CUSTOMER_SIGNED") && can(SALES_CONTRACT_PERMISSIONS.update))
+    actions.push("cancel");
   return actions;
+}
+
+/**
+ * BR-S12 (KE-HOACH sales-owner, chế độ chặt): lập / sửa / gửi / huỷ hợp đồng chỉ người phụ trách khách, người lo thay và
+ * Sales Manager làm được trên khách có chủ. Ghi nhận đã ký, xem PDF, rút duyệt tín dụng: không đổi. Backend phải re-check
+ * (409 CUSTOMER_OWNED_BY_OTHER_SALES).
+ */
+export const OWNER_GATED_CONTRACT_ACTIONS: readonly ContractAction[] = [
+  "create",
+  "edit",
+  "send",
+  "cancel",
+];
+
+export function isOwnerGatedContractAction(action: ContractAction): boolean {
+  return OWNER_GATED_CONTRACT_ACTIONS.includes(action);
 }
 
 /** Đơn không còn giao / thu gì thêm — BE `ContractPaperService.ended` (COMPLETED, CANCELLED, CLOSED, REFUNDED, PARTIALLY_REFUNDED). */
@@ -150,12 +180,32 @@ export function dueRuleText(entry: {
   }
 }
 
+/** Một đợt thanh toán quy ra tiền (xem trước; % quy theo tổng có thuế, phần lẻ BE dồn đợt cuối). */
+export function planEntryAmount(
+  entry: Pick<ContractFormValues["paymentPlan"][number], "mode" | "value">,
+  totalWithTax: number,
+): number {
+  const value = Number(entry.value) || 0;
+  return entry.mode === "percent" ? Math.round((totalWithTax * value) / 100) : value;
+}
+
 /** Tổng các đợt thanh toán quy ra tiền (xem trước; % quy theo tổng có thuế, phần lẻ BE dồn đợt cuối). */
 export function planTotal(plan: ContractFormValues["paymentPlan"], totalWithTax: number): number {
-  return plan.reduce((sum, entry) => {
-    const value = Number(entry.value) || 0;
-    return sum + (entry.mode === "percent" ? Math.round((totalWithTax * value) / 100) : value);
-  }, 0);
+  return plan.reduce((sum, entry) => sum + planEntryAmount(entry, totalWithTax), 0);
+}
+
+/**
+ * Phần hợp đồng này trả sau giao — đúng số BE dùng để kiểm hạn mức khi gửi (`SalesContractService.creditCheck`: tổng
+ * các đợt mốc AFTER_DELIVERY; 15 BR-10, BR-11). 0 = lịch không xin công nợ, BE không kiểm.
+ */
+export function planDeferredAmount(
+  plan: ContractFormValues["paymentPlan"],
+  totalWithTax: number,
+): number {
+  return planTotal(
+    plan.filter((entry) => entry.milestone === "AFTER_DELIVERY"),
+    totalWithTax,
+  );
 }
 
 /** Thông báo cảnh báo tín dụng (15 BR-11) theo `outcome` của BE. */

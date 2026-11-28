@@ -12,6 +12,9 @@ import { INVENTORY_ROUTES } from "@/constants/inventory";
 import { PAYMENT_LABELS } from "@/constants/labels-payment";
 import { PAYMENT_ROUTES } from "@/constants/payment";
 import { RETURN_ROUTES } from "@/constants/returns";
+import { CONTRACT_ESIGN_PATHS } from "@/constants/contract-esign";
+
+import { SALES_ROUTES } from "@/constants/sales-owner";
 
 import { NAV_GROUPS } from "./BackofficeShell";
 
@@ -55,6 +58,12 @@ describe("NAV_GROUPS — chia tab theo docs 00 §3", () => {
   it("Bán hàng gồm bảng giá nội bộ của khách (13 §4.2) và giá chuẩn (13 BR-04), không nằm ở dữ liệu sản phẩm", () => {
     expect(hrefsOf(NAV_GROUP_LABELS.sales)).toEqual([
       ADMIN_ROUTES.customers.list,
+      CONTRACT_ESIGN_PATHS.route,
+      // Sale phụ trách khách (sales-owner, hợp đồng "FE screens"): phân công, khách tiềm năng, lịch thay, yêu cầu đổi Sale
+      SALES_ROUTES.assignment,
+      SALES_ROUTES.leads,
+      SALES_ROUTES.covers,
+      SALES_ROUTES.ownerChangeRequests,
       ADMIN_ROUTES.customerPrices.list,
       ADMIN_ROUTES.standardPrices.list,
       ADMIN_ROUTES.quotes.list,

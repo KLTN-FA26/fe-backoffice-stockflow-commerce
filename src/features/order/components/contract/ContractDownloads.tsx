@@ -25,11 +25,14 @@ export function ContractDownloads({
   canPreview,
   onError,
   papers = { appendix: false, liquidation: false },
+  onPreviewed,
 }: {
   contract: SalesContract;
   canPreview: boolean;
   onError: (error: unknown) => void;
   papers?: { appendix: boolean; liquidation: boolean };
+  /** Bản xem trước PDF đã mở được (bo-19: hợp đồng vừa lập coi như đã xem lại). */
+  onPreviewed?: () => void;
 }) {
   const [busy, setBusy] = useState<Download | null>(null);
   const run = async (kind: Download, load: () => Promise<void>) => {
@@ -44,6 +47,7 @@ export function ContractDownloads({
   };
   const sent =
     contract.status === "SENT" ||
+    contract.status === "CUSTOMER_SIGNED" ||
     (SALES_CONTRACT_SIGNED_STATUSES as readonly string[]).includes(contract.status);
   const icon = (kind: Download) =>
     busy === kind ? (
@@ -60,12 +64,13 @@ export function ContractDownloads({
           disabled={busy !== null}
           aria-busy={busy === "preview" || undefined}
           onClick={() =>
-            void run("preview", async () =>
+            void run("preview", async () => {
               openBlob(
                 await getContractPreview(contract.orderId),
                 `${contract.contractNumber}.pdf`,
-              ),
-            )
+              );
+              onPreviewed?.();
+            })
           }
         >
           {icon("preview")} Xem trước PDF
