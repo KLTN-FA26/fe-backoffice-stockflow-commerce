@@ -78,3 +78,10 @@ describe("toSafeNotificationPath — e-invoice notices (audit r3 EINV-6)", () =>
     expect(toSafeNotificationPath(`/customers/${customer}`)).toBeNull();
   });
 });
+
+describe("shortage choice card notices (docs 00 §6): link to the order's #shortage section", () => {
+  it("keeps the section anchor", () => {
+    const link = "/admin/orders/0e380000-0000-4000-8000-000000000201#shortage";
+    expect(toSafeNotificationPath(link)).toBe(link);
+  });
+});

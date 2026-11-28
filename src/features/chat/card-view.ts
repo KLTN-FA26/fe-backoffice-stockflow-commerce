@@ -11,6 +11,9 @@ import {
   CHAT_CARD_STATE_TONE_KEY,
   CHAT_QUOTE_ACTED_VIEW,
   CHAT_UNKNOWN_LABELS,
+  SHORTAGE_LABELS,
+  SHORTAGE_STATUS_LABELS,
+  SHORTAGE_STATUS_TONE_KEY,
 } from "@/constants";
 import { FEE_ITEM_NAME_LABELS, INSTALLMENT_MILESTONE_LABELS } from "@/constants/labels-payment";
 import { FEE_INSTALLMENT_SEQ } from "@/constants/payment";
@@ -21,6 +24,14 @@ import type { ChatCard, TransferInstructions } from "./schemas";
 
 export function cardKindLabel(kind: string): string {
   return CHAT_CARD_LABELS[kind] ?? CHAT_UNKNOWN_LABELS.card;
+}
+
+/** Title of a card: its kind, or for a shortage card "Đơn thiếu N thùng" (N from the payload). */
+export function cardTitle(card: Pick<ChatCard, "kind" | "payload">): string {
+  const missing = card.kind === "SHORTAGE_CHOICE" ? card.payload?.missingCartons : null;
+  return typeof missing === "number"
+    ? SHORTAGE_LABELS.cardTitle(missing)
+    : cardKindLabel(card.kind);
 }
 
 /**
@@ -35,6 +46,12 @@ export function cardStateView(card: Pick<ChatCard, "kind" | "state" | "payload">
   const quoteView =
     typeof quoteStatus === "string" ? CHAT_QUOTE_ACTED_VIEW[quoteStatus] : undefined;
   if (quoteView) return quoteView;
+  // Thẻ thiếu thùng: trạng thái nằm ở `payload.status` (SENT / ANSWERED cùng là state OPEN — BE ShortageCardMessages)
+  const shortageStatus = card.kind === "SHORTAGE_CHOICE" ? card.payload?.status : null;
+  if (typeof shortageStatus === "string" && shortageStatus in SHORTAGE_STATUS_LABELS) {
+    const status = shortageStatus as keyof typeof SHORTAGE_STATUS_LABELS;
+    return { label: SHORTAGE_STATUS_LABELS[status], toneKey: SHORTAGE_STATUS_TONE_KEY[status] };
+  }
   const label =
     (card.state === "ACTED" ? CHAT_CARD_ACTED_LABELS[card.kind] : undefined) ??
     CHAT_CARD_STATE_LABELS[card.state] ??

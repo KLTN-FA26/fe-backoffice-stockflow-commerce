@@ -20,6 +20,7 @@ import { registerOrderCompletionHoldMockRoutes } from "./mock-routes-order-compl
 import { registerOrderReleaseMockRoutes } from "./mock-routes-order-release";
 import { registerOrderShippingWarehouseMockRoutes } from "./mock-routes-order-shipping-warehouse";
 import { registerOrderDeliveryFailureMockRoutes } from "./mock-routes-order-delivery-failures";
+import { registerOrderShortageMockRoutes } from "./mock-routes-order-shortage";
 import { registerOrderScheduleMockRoutes } from "./mock-routes-order-schedule";
 import { registerOrderActionMockRoutes } from "./mock-routes-orders-actions";
 import {
@@ -581,6 +582,7 @@ export function registerOrderMockRoutes(): void {
   registerOrderCancellationRequestMockRoutes();
   // `/orders/delivery-failures` (WF-05 GH-1) cũng là segment tĩnh — trước `/orders/:id`
   registerOrderDeliveryFailureMockRoutes();
+  registerOrderShortageMockRoutes();
   registerOrderCompletionHoldMockRoutes();
   registerReadRoutes();
   registerCancellationRoute();

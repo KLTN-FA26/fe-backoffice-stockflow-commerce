@@ -111,6 +111,19 @@ export function mockOrderApiGet(
       if (!handler && url.endsWith("/history")) return { data: [] };
       // Giữ hoàn tất (WF-05 GH-2): mặc định đơn không bị giữ (BE trả data null)
       if (!handler && url.endsWith("/completion-hold")) return { data: null };
+      // Thiếu thùng (docs 17 §4.14): mặc định đơn không treo vì thiếu thùng → khối ẩn; test về thẻ khai báo handler riêng
+      if (!handler && url.endsWith("/shortage"))
+        return {
+          data: {
+            orderId: "o",
+            orderNumber: "SO",
+            sendable: false,
+            notSendable: "NOT_ON_HOLD",
+            lines: [],
+            options: [],
+            history: [],
+          },
+        };
       // Hợp đồng chờ duyệt tín dụng (15 BR-11): mặc định hàng chờ rỗng — test về hàng chờ khai báo handler riêng
       if (!handler && url === "/orders/contract-credit-reviews")
         return {

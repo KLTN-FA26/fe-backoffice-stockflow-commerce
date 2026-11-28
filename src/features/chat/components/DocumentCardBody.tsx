@@ -16,6 +16,7 @@ import { isTransferCard, transferViewFromCard } from "../card-view";
 import { chatStatusWord } from "../inbox-view";
 import { payloadNumber, payloadText } from "../selectors";
 
+import { ShortageCardBody } from "./ShortageCardBody";
 import { TransferDetails } from "./TransferDetails";
 
 import type { ChatCard } from "../schemas";
@@ -153,6 +154,7 @@ function OtherBody({ card }: { card: ChatCard }) {
 export function DocumentCardBody({ card }: { card: ChatCard }) {
   if (card.kind === "QUOTE") return <QuoteBody card={card} />;
   if (card.kind === "CONTRACT") return <ContractBody card={card} />;
+  if (card.kind === "SHORTAGE_CHOICE") return <ShortageCardBody card={card} />;
   if (isTransferCard(card.kind)) return <TransferDetails view={transferViewFromCard(card)} />;
   return <OtherBody card={card} />;
 }
