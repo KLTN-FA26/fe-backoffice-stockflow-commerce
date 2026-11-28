@@ -47,6 +47,7 @@ export function ContractDownloads({
   };
   const sent =
     contract.status === "SENT" ||
+    contract.status === "CUSTOMER_SIGNED" ||
     (SALES_CONTRACT_SIGNED_STATUSES as readonly string[]).includes(contract.status);
   const icon = (kind: Download) =>
     busy === kind ? (

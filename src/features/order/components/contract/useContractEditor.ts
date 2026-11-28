@@ -112,7 +112,11 @@ export function useContractEditor({
   const submit = form.handleSubmit((values) => {
     setFormError(null);
     edit.mutate(
-      { orderId: contract.orderId, version: baseVersion, body: toContractDraftBody(values) },
+      {
+        orderId: contract.orderId,
+        version: baseVersion,
+        body: toContractDraftBody(values, contract.standardTerms),
+      },
       { onSuccess: onSaved, onError },
     );
   });

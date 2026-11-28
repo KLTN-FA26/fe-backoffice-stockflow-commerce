@@ -21,7 +21,9 @@ export type ContractAction =
 
 export const CONTRACT_TRANSITIONS = {
   DRAFT: ["SENT", "CANCELLED"],
-  SENT: ["SIGNED", "CANCELLED"],
+  // HOP-DONG-API.md Lifecycle (2026-11-28).
+  SENT: ["DRAFT", "CUSTOMER_SIGNED", "SIGNED", "CANCELLED"],
+  CUSTOMER_SIGNED: ["SIGNED", "CANCELLED"],
   // LIQUIDATED: đơn kết thúc mà không giao được gì, đã xong tiền (Q-6, BE-06)
   SIGNED: ["COMPLETED", "LIQUIDATED"],
   COMPLETED: [],
@@ -36,7 +38,9 @@ export const CONTRACT_TRANSITIONS = {
  * về sửa. Huỷ hợp đồng và xem PDF nháp không bị BE chặn nên giữ.
  */
 export function allowedContractActions(
-  contract: (Pick<SalesContract, "status"> & Partial<Pick<SalesContract, "creditReview">>) | null,
+  contract:
+    | (Pick<SalesContract, "status"> & Partial<Pick<SalesContract, "creditReview" | "termsReview">>)
+    | null,
   orderStatus: Order["status"],
   can: (code: PermissionCode) => boolean,
 ): ContractAction[] {
@@ -48,15 +52,25 @@ export function allowedContractActions(
     can(SALES_CONTRACT_PERMISSIONS.create)
   )
     actions.push("create");
+  const termsPending = status === "DRAFT" && contract?.termsReview === "PENDING";
   const reviewPending = status === "DRAFT" && contract?.creditReview === "PENDING";
   if (status === "DRAFT" && can(SALES_CONTRACT_PERMISSIONS.update))
     actions.push(
-      ...(reviewPending ? (["withdraw-review"] as const) : (["edit", "send"] as const)),
+      ...(termsPending
+        ? []
+        : reviewPending
+          ? (["withdraw-review"] as const)
+          : (["edit", "send"] as const)),
       "cancel",
     );
   if (status === "DRAFT") actions.push("preview");
-  if (status === "SENT" && can(SALES_CONTRACT_PERMISSIONS.approve)) actions.push("sign");
-  if (status === "SENT" && can(SALES_CONTRACT_PERMISSIONS.update)) actions.push("cancel");
+  if (
+    (status === "SENT" || status === "CUSTOMER_SIGNED") &&
+    can(SALES_CONTRACT_PERMISSIONS.approve)
+  )
+    actions.push("sign");
+  if ((status === "SENT" || status === "CUSTOMER_SIGNED") && can(SALES_CONTRACT_PERMISSIONS.update))
+    actions.push("cancel");
   return actions;
 }
 

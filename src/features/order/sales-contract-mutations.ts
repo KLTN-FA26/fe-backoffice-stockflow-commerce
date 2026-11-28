@@ -6,6 +6,7 @@
  */
 
 import { fileTooLargeMessage } from "@/constants/upload-limits";
+import { CONTRACT_ESIGN_ERRORS } from "@/constants/contract-esign";
 import { serverErrorMessage } from "@/lib/api/error-message";
 import { QUERY_ROOTS } from "@/lib/api/query-roots";
 import { createMutation } from "@/lib/api/query-factory";
@@ -25,6 +26,8 @@ import {
   sendSalesContract,
   signSalesContract,
 } from "./sales-contract-api";
+
+import { contractEsignKeys } from "./sales-contract-esign-queries";
 
 import { SIGNED_FILE_TYPE_MESSAGE } from "./sales-contract-rules";
 
@@ -47,7 +50,7 @@ function contractMutation<TInput>(
 ) {
   return withStaleRefetch(
     createMutation<TInput, SalesContract>(fn, {
-      invalidate: [orderKeys.all, ...extra],
+      invalidate: [orderKeys.all, contractEsignKeys.all, ...extra],
       successMessage,
       showErrorToast: false,
     }),
@@ -92,6 +95,7 @@ export function contractErrorMessage(error: unknown, ownerName?: string | null):
   const owned = salesOwnerErrorMessage(error, ownerName);
   if (owned) return owned;
   return serverErrorMessage(error, {
+    ...CONTRACT_ESIGN_ERRORS,
     OPTIMISTIC_LOCK: "Dữ liệu vừa thay đổi, đã tải lại.",
     SALES_CONTRACT_NOT_FOUND: "Hợp đồng vừa bị huỷ, đã tải lại.",
     UNSUPPORTED_MEDIA_TYPE: SIGNED_FILE_TYPE_MESSAGE,

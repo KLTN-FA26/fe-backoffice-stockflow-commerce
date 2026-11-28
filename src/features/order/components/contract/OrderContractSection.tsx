@@ -29,6 +29,7 @@ import { Button } from "@/components/ui/button";
 import { useOrderInstallmentsSummary } from "../../queries";
 import { contractErrorMessage, useCreateSalesContract } from "../../sales-contract-mutations";
 import { useSalesContract } from "../../sales-contract-queries";
+import { contractTermsNeedApproval } from "../../sales-contract-esign-rules";
 import {
   allowedContractActions,
   contractPapers,
@@ -39,6 +40,11 @@ import {
 } from "../../sales-contract-rules";
 
 import { scrollToSection } from "../scroll-to-section";
+
+import { ContractEsignActions } from "./ContractEsignActions";
+import { ContractEsignBadges } from "./ContractEsignBadges";
+import { ContractRevisions } from "./ContractRevisions";
+import { ContractSignaturePanel } from "./ContractSignaturePanel";
 
 import { ContractActions } from "./ContractActions";
 import { CancelledContractNotice } from "./CancelledContractNotice";
@@ -132,7 +138,7 @@ export function OrderContractSection({
               </span>
             )}
           </h2>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             {contract && (
               <StatusDot
                 domain="order"
@@ -140,6 +146,7 @@ export function OrderContractSection({
                 label={SALES_CONTRACT_STATUS_LABELS[contract.status]}
               />
             )}
+            {contract && <ContractEsignBadges contract={contract} />}
             {/* bo-18 / bo-20: MỘT chỗ mở lịch sử, trên đầu khối — không dính vào nút "Lập hợp đồng". */}
             {query.isSuccess && (
               <button
@@ -246,21 +253,27 @@ export function OrderContractSection({
                   contract={contract}
                   canWithdraw={actions.includes("withdraw-review")}
                 />
-                {contract.status === "DRAFT" && contract.creditReview !== "PENDING" && (
-                  <ContractCreditWarning
-                    contract={contract}
-                    onEdit={
-                      actions.includes("edit") && !ownerBlocked ? () => setEditing(true) : undefined
-                    }
-                    onSend={
-                      actions.includes("send") &&
-                      !ownerBlocked &&
-                      !sendBlockersText(sendBlockers(contract, today))
-                        ? () => setDialog("send")
-                        : undefined
-                    }
-                  />
-                )}
+                {contract.status === "DRAFT" &&
+                  contract.creditReview !== "PENDING" &&
+                  contract.termsReview !== "PENDING" && (
+                    <ContractCreditWarning
+                      contract={contract}
+                      onEdit={
+                        actions.includes("edit") && !ownerBlocked
+                          ? () => setEditing(true)
+                          : undefined
+                      }
+                      onSend={
+                        actions.includes("send") &&
+                        !contractTermsNeedApproval(contract) &&
+                        !ownerBlocked &&
+                        !sendBlockersText(sendBlockers(contract, today))
+                          ? () => setDialog("send")
+                          : undefined
+                      }
+                    />
+                  )}
+                <ContractEsignActions contract={contract} can={can} ownerBlocked={ownerBlocked} />
                 <ContractActions
                   contract={contract}
                   actions={actions}
@@ -273,7 +286,10 @@ export function OrderContractSection({
                   onPreviewed={() => setReviewFirst(false)}
                   owner={owner}
                 />
-                {editing && contract.status === "DRAFT" && contract.creditReview !== "PENDING" ? (
+                {editing &&
+                contract.status === "DRAFT" &&
+                contract.creditReview !== "PENDING" &&
+                contract.termsReview !== "PENDING" ? (
                   <ContractEditor
                     contract={contract}
                     order={order}
@@ -291,6 +307,8 @@ export function OrderContractSection({
                     installments={installments.data?.installments}
                   />
                 )}
+                <ContractRevisions orderId={order.orderId} />
+                <ContractSignaturePanel orderId={order.orderId} />
               </>
             )}
           </>

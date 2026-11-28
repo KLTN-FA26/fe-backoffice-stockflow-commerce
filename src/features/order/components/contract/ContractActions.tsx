@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Pencil, Send, Signature, XCircle } from "lucide-react";
 
 import { ORDER_CONTRACT_LABELS } from "@/constants/labels-order-contract";
+import { CONTRACT_ESIGN_ERRORS } from "@/constants/contract-esign";
 import { ApiError } from "@/lib/api/error";
 
 import { toLocalIsoDate } from "@/lib/format/date";
@@ -24,6 +25,7 @@ import {
   sendBlockers,
   sendBlockersText,
 } from "../../sales-contract-rules";
+import { contractTermsNeedApproval } from "../../sales-contract-esign-rules";
 
 import { ContractDownloads } from "./ContractDownloads";
 import { SignContractDialog } from "./SignContractDialog";
@@ -116,9 +118,9 @@ export function ContractActions({
   const money = (amount: number) => formatMoney(amount, contract.totals.currency);
   const warning = contract.creditWarning;
   // R7 (S06-3): thiếu cửa sổ giao thì khoá nút và nói thiếu gì ngay dưới nút, không để lỗi hiện sau khi xác nhận.
-  const blocked = sendBlockersText(
-    sendBlockers(contract, toLocalIsoDate(new Date().toISOString())),
-  );
+  const blocked = contractTermsNeedApproval(contract)
+    ? CONTRACT_ESIGN_ERRORS.CONTRACT_TERMS_REVIEW_REQUIRED
+    : sendBlockersText(sendBlockers(contract, toLocalIsoDate(new Date().toISOString())));
   const sendButton = actions.includes("send") && (
     <Button
       size="sm"
@@ -189,7 +191,7 @@ export function ContractActions({
         description={
           warning
             ? `${creditWarningText(warning, money)} Hợp đồng chưa tới khách cho tới khi Kế toán duyệt; trong lúc chờ không sửa được.`
-            : "Đơn chuyển sang Chờ ký hợp đồng. Muốn sửa sau khi gửi phải huỷ hợp đồng rồi lập lại."
+            : "Đơn chuyển sang Chờ ký hợp đồng. Khi khách yêu cầu chỉnh sửa, hợp đồng trở về Nháp với phiên bản mới."
         }
         confirmLabel={warning ? "Gửi Kế toán duyệt" : "Gửi hợp đồng"}
         variant="default"

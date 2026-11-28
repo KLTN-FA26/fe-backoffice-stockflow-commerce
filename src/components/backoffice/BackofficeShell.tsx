@@ -1,5 +1,8 @@
 "use client";
 
+import { CONTRACT_ESIGN_PATHS, CONTRACT_ESIGN_LABELS } from "@/constants/contract-esign";
+import { SALES_CONTRACT_PERMISSIONS } from "@/constants/permissions";
+
 import { cn } from "cn";
 import {
   ArrowLeftRight,
@@ -291,6 +294,12 @@ export const NAV_GROUPS: NavGroup[] = [
         href: ADMIN_ROUTES.customers.list,
         icon: Building2,
         permission: CUSTOMER_PERMISSIONS.viewPage,
+      },
+      {
+        label: CONTRACT_ESIGN_LABELS.title,
+        href: CONTRACT_ESIGN_PATHS.route,
+        icon: FileText,
+        permission: SALES_CONTRACT_PERMISSIONS.read,
       },
       // Sale phụ trách khách (sales-owner): các resource mới không có VIEW_PAGE → gate bằng READ của hợp đồng
       {
