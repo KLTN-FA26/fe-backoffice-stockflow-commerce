@@ -13,10 +13,13 @@ import {
   PRODUCTION_ACTORS,
   producerDto,
 } from "../__fixtures__/production-order";
-import { schedule, scheduledOrder } from "../__fixtures__/schedule";
+import { schedule, scheduledOrder, shortBatch } from "../__fixtures__/schedule";
 
 import type { mockProductionApi as MockApi } from "@/test/production-screen";
-import type { ProductionSchedule as ProductionScheduleDto } from "../schedule-schemas";
+import type {
+  ProductionSchedule as ProductionScheduleDto,
+  ShortDeliveryBatch,
+} from "../schedule-schemas";
 
 const L = PRODUCTION_LABELS.schedule;
 const D = PRODUCTION_LABELS.drawUp;
@@ -107,6 +110,15 @@ describe("ProductionSchedule (docs 17 §4.12)", () => {
       expect(await screen.findByText("PRD-20261120-0001")).toBeInTheDocument();
       expect(screen.queryByText("SO-2026-0050")).not.toBeInTheDocument();
     });
+  });
+
+  it("đợt thiếu của đơn chưa chọn kho xuất → dòng hiện 'Chưa chọn kho xuất', màn không vỡ", async () => {
+    const { shippingWarehouseId, shippingWarehouseCode, ...noWarehouse } = shortBatch();
+    void shippingWarehouseId;
+    void shippingWarehouseCode;
+    setupData({ shortBatches: [noWarehouse as ShortDeliveryBatch] });
+    expect(await screen.findByText("SO-2026-0050")).toBeInTheDocument();
+    expect(within(await panel()).getByText("Chưa chọn kho xuất")).toBeInTheDocument();
   });
 
   it("bộ lọc trên URL gửi đúng tham số cho BE", async () => {
