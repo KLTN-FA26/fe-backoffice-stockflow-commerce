@@ -16,6 +16,9 @@ import { PAYMENT_INSTALLMENT_PERMISSIONS } from "@/constants/payment";
 import { ApiError } from "@/lib/api/error";
 import { toLocalIsoDate } from "@/lib/format/date";
 import { formatMoney } from "@/lib/format/money";
+import { isSalesOwnerError } from "@/lib/references/sales-owner-access";
+import { useSalesOwnerAccess } from "@/lib/references/sales-owner-queries";
+import { SalesOwnerAccessNote } from "@/components/backoffice/SalesOwnerNotes";
 import { Card } from "@/components/shared/Card";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Notice } from "@/components/shared/Notice";
@@ -29,6 +32,7 @@ import { useSalesContract } from "../../sales-contract-queries";
 import {
   allowedContractActions,
   contractPapers,
+  isOwnerGatedContractAction,
   sendBlockers,
   sendBlockersText,
   signOutcomeText,
@@ -56,6 +60,8 @@ const H = ORDER_CONTRACT_LABELS.history;
  * Khối "Hợp đồng" của chi tiết đơn (WF-02 pha B, docs 14 §4.3 bước 11–16), neo `#contract`.
  * bo-19: "Lập hợp đồng" hỏi lại trước (BE lập ngay bản nháp theo mặc định); vừa lập xong thì việc đầu tiên là xem lại
  * ("Sửa" / "Xem trước PDF"), "Gửi hợp đồng" lùi thành nút phụ cho tới khi Sale lưu lại hợp đồng hoặc xem trước PDF.
+ * BR-S12 (chế độ chặt): khách do Sale khác phụ trách → Lập / Sửa / Gửi / Huỷ hợp đồng hiện nhưng tắt, kèm lý do; việc vận
+ * hành của đơn (BR-S13) không bị chặn.
  */
 export function OrderContractSection({
   order,
@@ -76,6 +82,9 @@ export function OrderContractSection({
   const [dialog, setDialog] = useState<ContractDialog>(null);
   const [legalMissing, setLegalMissing] = useState<string | null>(null);
   const contract = query.data ?? null;
+  // BR-S12 — UI-only, Backend phải re-check (409 CUSTOMER_OWNED_BY_OTHER_SALES)
+  const owner = useSalesOwnerAccess(order.customerId);
+  const ownerBlocked = owner.blockedReason;
   const today = toLocalIsoDate(new Date().toISOString());
   // BO-UX-28: hợp đồng đã ký → đợt thật (hạn, đã thu / còn), khi người xem đọc được các đợt.
   const signedContract =
@@ -101,7 +110,8 @@ export function OrderContractSection({
           // Khách chưa có hồ sơ pháp lý: không chỉ toast, dẫn Sale tới nơi nhập (không import `features/customer`).
           if (error instanceof ApiError && error.code === "CUSTOMER_LEGAL_PROFILE_MISSING")
             setLegalMissing(contractErrorMessage(error));
-          else toast.error(contractErrorMessage(error));
+          else toast.error(contractErrorMessage(error, owner.ownerName));
+          if (isSalesOwnerError(error)) owner.refresh();
         },
       },
     );
@@ -183,13 +193,23 @@ export function OrderContractSection({
               <div>
                 <Button
                   size="sm"
-                  disabled={create.isPending}
+                  disabled={create.isPending || !!ownerBlocked}
+                  title={ownerBlocked ?? undefined}
+                  aria-describedby={ownerBlocked ? "contract-owner-blocked" : undefined}
                   onClick={() => setConfirmCreate(true)}
                 >
                   {contract ? "Lập hợp đồng mới" : "Lập hợp đồng"}
                 </Button>
               </div>
             )}
+            {/* BR-S12: lý do khi có nút hợp đồng bị tắt vì người phụ trách; người lo thay thấy dòng của mình. */}
+            <SalesOwnerAccessNote
+              id="contract-owner-blocked"
+              access={{
+                blockedReason: actions.some(isOwnerGatedContractAction) ? ownerBlocked : null,
+                coverNote: owner.coverNote,
+              }}
+            />
             <ConfirmDialog
               open={confirmCreate}
               onOpenChange={(next) => !next && !create.isPending && setConfirmCreate(false)}
@@ -229,9 +249,13 @@ export function OrderContractSection({
                 {contract.status === "DRAFT" && contract.creditReview !== "PENDING" && (
                   <ContractCreditWarning
                     contract={contract}
-                    onEdit={actions.includes("edit") ? () => setEditing(true) : undefined}
+                    onEdit={
+                      actions.includes("edit") && !ownerBlocked ? () => setEditing(true) : undefined
+                    }
                     onSend={
-                      actions.includes("send") && !sendBlockersText(sendBlockers(contract, today))
+                      actions.includes("send") &&
+                      !ownerBlocked &&
+                      !sendBlockersText(sendBlockers(contract, today))
                         ? () => setDialog("send")
                         : undefined
                     }
@@ -247,6 +271,7 @@ export function OrderContractSection({
                   papers={contractPapers(contract, order.status)}
                   reviewFirst={reviewFirst}
                   onPreviewed={() => setReviewFirst(false)}
+                  owner={owner}
                 />
                 {editing && contract.status === "DRAFT" && contract.creditReview !== "PENDING" ? (
                   <ContractEditor

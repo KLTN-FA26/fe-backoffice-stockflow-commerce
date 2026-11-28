@@ -8,6 +8,7 @@ import { Eye, FileText, MessageSquare, XCircle } from "lucide-react";
 import { DESIGN_QUOTE_REQUEST_LABELS as COPY } from "@/constants";
 
 import { usePermissionChecker } from "@/lib/auth/components/Can";
+import { useSalesOwnerAccess } from "@/lib/references/sales-owner-queries";
 
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { RowActionsMenu } from "@/components/shared/RowActionsMenu";
@@ -78,7 +79,9 @@ export function QuoteRequestActions({
   const navigate = (href: string) => router.push(href);
   const openChat = useOpenChat(navigate);
   const startQuote = useStartQuote(navigate);
-  const actions = quoteRequestActions(row, can);
+  // BR-S12: "Lập báo giá" chỉ cho người phụ trách / người lo thay / Sales Manager khi khách đã có chủ.
+  const owner = useSalesOwnerAccess(row.customerId);
+  const actions = quoteRequestActions(row, can, owner.blockedReason);
   const name = quoteRequestName(row);
   // One close hook for the whole list: only this row's close locks this row.
   const closingThis = close.isPending && close.variables?.id === row.id;

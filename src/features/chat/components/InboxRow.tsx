@@ -10,10 +10,12 @@ import {
 } from "@/constants";
 import { CHAT_INBOX_LABELS } from "@/constants/labels-chat";
 import { formatDateTime } from "@/lib/format/date";
+import { salesOwnerLine } from "@/lib/references/sales-owner-access";
 import { StatusDot } from "@/components/shared/StatusDot";
 
 import { inboxTime, messagePreview } from "../inbox-view";
 
+import type { SalesOwner } from "@/lib/references/sales-owner-access";
 import type { ChatConversation } from "../schemas";
 
 /** Tone đỏ của `status-map` cho "Quá hạn" — cùng dáng chấm + chữ với trạng thái hội thoại (bo-32). */
@@ -23,8 +25,11 @@ const OVERDUE_TONE_KEY = "Overdue";
  * Một dòng hộp thư: chủ đề, khách, người phụ trách, tin cuối, quá hạn, số chưa đọc, trạng thái. Chưa đọc (BO-UX-47):
  * chủ đề và tin cuối in đậm, số chưa đọc đọc thành "n tin chưa đọc" (không phải con số trần). Tin cuối không lộ mã trạng
  * thái của BE, giờ ngắn một dòng (bo-32); trạng thái và "Quá hạn" xếp chồng trong một cột cùng kiểu chấm + chữ.
+ * Sale phụ trách khách (KE-HOACH sales-owner §6 "hàng chờ chat hiện ai là người phụ trách"): dòng phụ dưới khách — hàng chờ
+ * chỉ có khách chưa có chủ (BR-S05), dòng này cho thấy điều đó.
  */
-export function InboxRow({ item }: { item: ChatConversation }) {
+export function InboxRow({ item, owner }: { item: ChatConversation; owner?: SalesOwner }) {
+  const ownerLine = salesOwnerLine(owner);
   const unread = item.unread > 0;
   const overdue = item.firstResponseOverdue || item.resolutionOverdue;
   const preview = item.lastMessage ? messagePreview(item.lastMessage) : null;
@@ -43,6 +48,7 @@ export function InboxRow({ item }: { item: ChatConversation }) {
           {item.customerName} · {item.assignedAgentName ?? CHAT_INBOX_LABELS.unassigned}
           {preview ? ` · ${preview}` : ""}
         </div>
+        {ownerLine && <div className="text-ink-tertiary truncate text-xs">{ownerLine}</div>}
       </div>
       {unread && (
         <span className="bg-brand text-ink-inverse shrink-0 rounded-full px-2 text-xs tabular-nums">

@@ -687,3 +687,8 @@ export {
   CARTON_SOURCES,
 } from "./labels-inventory-cartons";
 export type { CartonOpenTaskType, CartonSort, CartonSource } from "./labels-inventory-cartons";
+// Sale phụ trách khách: câu chữ ở đây; mã quyền, mã lỗi, API, enum, route import thẳng `@/constants/sales-owner`
+export {
+  CUSTOMER_CREATE_OWNER_LABELS,
+  SALES_OWNER_ACCESS_LABELS,
+} from "./labels-sales-owner-access";

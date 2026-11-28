@@ -60,6 +60,22 @@ export function allowedContractActions(
   return actions;
 }
 
+/**
+ * BR-S12 (KE-HOACH sales-owner, chế độ chặt): lập / sửa / gửi / huỷ hợp đồng chỉ người phụ trách khách, người lo thay và
+ * Sales Manager làm được trên khách có chủ. Ghi nhận đã ký, xem PDF, rút duyệt tín dụng: không đổi. Backend phải re-check
+ * (409 CUSTOMER_OWNED_BY_OTHER_SALES).
+ */
+export const OWNER_GATED_CONTRACT_ACTIONS: readonly ContractAction[] = [
+  "create",
+  "edit",
+  "send",
+  "cancel",
+];
+
+export function isOwnerGatedContractAction(action: ContractAction): boolean {
+  return OWNER_GATED_CONTRACT_ACTIONS.includes(action);
+}
+
 /** Đơn không còn giao / thu gì thêm — BE `ContractPaperService.ended` (COMPLETED, CANCELLED, CLOSED, REFUNDED, PARTIALLY_REFUNDED). */
 const CONTRACT_ENDED_ORDER_STATUSES: readonly Order["status"][] = [
   "Completed",

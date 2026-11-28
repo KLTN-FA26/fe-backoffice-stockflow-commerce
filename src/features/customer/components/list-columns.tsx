@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Eye, FilePlus2, FileText } from "lucide-react";
 
 import { ADMIN_ROUTES, CUSTOMER_API_STATUSES, CUSTOMER_STATUS_BY_API } from "@/constants";
+import { SALES_OWNER_LABELS } from "@/constants/labels-sales-owner";
 import { PERMISSION_UI } from "@/constants/permissions";
 
 import { STATUS_LABEL_VI } from "@/lib/domain/status-map";
@@ -12,7 +13,13 @@ import { formatDate } from "@/lib/format/date";
 import { rowActionsColumn } from "@/components/shared/RowActionsMenu";
 import { StatusDot } from "@/components/shared/StatusDot";
 
-import { CreditPositionCell, LIST_EXTRA_COPY, SalesContactCell } from "./list-extra-cells";
+import {
+  CreditPositionCell,
+  LIST_EXTRA_COPY,
+  SALES_OWNER_COLUMN,
+  SalesContactCell,
+  TaxCodeCell,
+} from "./list-extra-cells";
 
 import type { ColumnDef } from "@/components/shared/DataTable";
 import type { RowAction } from "@/components/shared/RowActionsMenu";
@@ -32,6 +39,7 @@ export const CUSTOMER_COLUMNS = [
   "phone",
   "status",
   "credit",
+  "salesOwner",
   "salesContact",
   "createdAt",
   "actions",
@@ -46,6 +54,7 @@ export const CUSTOMER_COLUMN_LABELS: Record<CustomerColumn, string> = {
   phone: "Điện thoại",
   status: "Trạng thái",
   credit: LIST_EXTRA_COPY.creditHeader,
+  salesOwner: SALES_OWNER_LABELS.list.column,
   salesContact: LIST_EXTRA_COPY.salesHeader,
   createdAt: "Ngày tạo",
   actions: "Thao tác",
@@ -70,7 +79,7 @@ const DATA_COLUMNS: ColumnDef<Customer>[] = [
     key: "taxCode",
     header: "Mã số thuế",
     className: "whitespace-nowrap",
-    cell: (row) => <span className={`text-ink-secondary ${MONO}`}>{row.taxCode ?? "—"}</span>,
+    cell: (row) => <TaxCodeCell customer={row} className={`text-ink-secondary ${MONO}`} />,
   },
   {
     key: "email",
@@ -142,6 +151,8 @@ function customerActions(
 export interface CustomerListExtras {
   creditPositions: Map<string, CreditPosition> | null | undefined;
   salesContacts: Map<string, SalesContact> | null | undefined;
+  /** Sale phụ trách nằm trên chính dòng khách; cột chỉ có khi được đọc (`customer-sales-owners:READ`). */
+  salesOwners?: boolean;
 }
 
 /** Cột phụ không có dữ liệu để hiện → bỏ hẳn khỏi bảng và khỏi popover ẩn / hiện cột. */
@@ -149,6 +160,7 @@ export function unavailableCustomerColumns(extras: CustomerListExtras): Customer
   return [
     ...(extras.creditPositions === null ? (["credit"] as const) : []),
     ...(extras.salesContacts === null ? (["salesContact"] as const) : []),
+    ...(!extras.salesOwners ? (["salesOwner"] as const) : []),
   ];
 }
 
@@ -160,6 +172,7 @@ function extraColumns(extras: CustomerListExtras): ColumnDef<Customer>[] {
       align: "right",
       cell: (row) => <CreditPositionCell position={extras.creditPositions?.get(row.customerId)} />,
     },
+    SALES_OWNER_COLUMN,
     {
       key: "salesContact",
       header: LIST_EXTRA_COPY.salesHeader,
@@ -176,11 +189,11 @@ function extraColumns(extras: CustomerListExtras): ColumnDef<Customer>[] {
 
 export function buildCustomerColumns(
   can: { readQuote: boolean; createQuote: boolean },
-  extras: CustomerListExtras = { creditPositions: null, salesContacts: null },
+  extras: CustomerListExtras = { creditPositions: null, salesContacts: null, salesOwners: false },
 ): ColumnDef<Customer>[] {
   const hidden = unavailableCustomerColumns(extras);
   const dataColumns = [...DATA_COLUMNS];
-  // Hai cột phụ đứng trước "Ngày tạo"
+  // Các cột phụ đứng trước "Ngày tạo"
   dataColumns.splice(dataColumns.length - 1, 0, ...extraColumns(extras));
   return [
     ...dataColumns.filter((column) => !hidden.some((key) => key === column.key)),

@@ -36,6 +36,7 @@ import {
   unavailableCustomerColumns,
 } from "./list-columns";
 import { useCustomerListFilters } from "./useCustomerListFilters";
+import { useCustomerOwners } from "./useCustomerOwners";
 
 function CustomerListContent() {
   const router = useRouter();
@@ -56,9 +57,16 @@ function CustomerListContent() {
       q: state.serverQ,
       status: state.status,
       sort: sort.key ? `${sort.key},${sort.direction}` : undefined,
+      ...state.ownerParams,
+      ...(state.taxCodeMissing ? { taxCodeMissing: true } : {}),
     },
     { enabled: canRead },
   );
+  const { canRead: canReadOwner, sales } = useCustomerOwners();
+  // D41: BE cũ không gửi `taxCodeMissing` → không có cờ, không có lọc (đang lọc thì giữ công tắc để tắt được)
+  const taxCodeFlag =
+    state.taxCodeMissing ||
+    (query.data?.items ?? []).some((row) => typeof row.taxCodeMissing === "boolean");
   // bo-29: hạn mức / dư nợ và sale liên hệ gần nhất — mỗi thứ MỘT lần gọi cho id của trang đang xem. Không có quyền đọc
   // hạn mức → không gọi, không có cột (BE cũng trả 403); BE chưa có endpoint → `null`, cũng không có cột.
   const canReadCredit = useCan(CUSTOMER_CREDIT_PROFILE_PERMISSIONS.read);
@@ -68,6 +76,7 @@ function CustomerListContent() {
   const extras = {
     creditPositions: canReadCredit ? creditPositions.data : null,
     salesContacts: salesContacts.data,
+    salesOwners: canReadOwner,
   };
   const unavailable = unavailableCustomerColumns(extras);
   const columnState = useColumnVisibility(STORAGE_KEYS.adminCustomersColumns, CUSTOMER_COLUMNS, {
@@ -77,7 +86,7 @@ function CustomerListContent() {
     buildCustomerColumns({ readQuote, createQuote }, extras).filter((column) =>
       columnState.visible.some((key) => key === column.key),
     ),
-    customerHeaderFilters(state),
+    customerHeaderFilters(state, sales),
   );
 
   return (
@@ -94,7 +103,13 @@ function CustomerListContent() {
         />
       </HeaderActions>
       {canRead && (
-        <CustomerListToolbar filters={state} columns={columnState} unavailable={unavailable} />
+        <CustomerListToolbar
+          filters={state}
+          columns={columnState}
+          unavailable={unavailable}
+          owners={canReadOwner ? { sales } : undefined}
+          taxCodeFlag={taxCodeFlag}
+        />
       )}
       <ServerTableBody
         query={query}

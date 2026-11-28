@@ -1,6 +1,6 @@
 "use client";
 
-import { parseAsString, useQueryStates } from "nuqs";
+import { parseAsBoolean, parseAsString, useQueryState, useQueryStates } from "nuqs";
 
 import { CUSTOMER_API_STATUSES, STORAGE_KEYS } from "@/constants";
 
@@ -23,6 +23,20 @@ const COLUMN_FILTER_PARSERS = {
 };
 export type CustomerColumnFilterKey = keyof typeof COLUMN_FILTER_PARSERS;
 
+/**
+ * Lọc theo Sale phụ trách (BR-S11) — MỘT khoá URL `owner`, ba lựa chọn loại trừ nhau: `mine` ("Khách của tôi"),
+ * `needs-assignment` ("Cần giao người phụ trách"), hoặc id của một Sale. Lọc ở BE (`mine`, `salesOwnerState`,
+ * `salesOwnerId`).
+ */
+export const OWNER_FILTER_MINE = "mine";
+export const OWNER_FILTER_NEEDS = "needs-assignment";
+
+function ownerParams(owner: string) {
+  if (owner === OWNER_FILTER_MINE) return { mine: true };
+  if (owner === OWNER_FILTER_NEEDS) return { salesOwnerState: "NEEDS_ASSIGNMENT" as const };
+  return owner ? { salesOwnerId: owner } : {};
+}
+
 const inRange = (date: string, from: string, to: string) =>
   (!from || date >= from) && (!to || date <= to);
 
@@ -36,6 +50,12 @@ export function useCustomerListFilters() {
   const list = useServerList(STORAGE_KEYS.adminCustomersConfig, CUSTOMER_API_STATUSES);
   const { filters } = list;
   const [columnFilters, setColumnFilters] = useQueryStates(COLUMN_FILTER_PARSERS);
+  const [owner, setOwner] = useQueryState("owner", parseAsString.withDefault(""));
+  // D41: lọc "Thiếu MST" ở BE (`taxCodeMissing=true`)
+  const [taxCodeMissing, setTaxCodeMissing] = useQueryState(
+    "taxCodeMissing",
+    parseAsBoolean.withDefault(false),
+  );
   const name = useDebouncedValue(columnFilters.custName, 300).trim();
   const taxCode = useDebouncedValue(columnFilters.custTaxCode, 300).trim();
   const email = useDebouncedValue(columnFilters.custEmail, 300).trim();
@@ -53,7 +73,20 @@ export function useCustomerListFilters() {
     /** `q` gửi BE: ô tìm chính, không có thì chữ của ô lọc cột đầu tiên đang dùng. */
     serverQ: filters.debouncedQ.trim() || name || taxCode || email || phone || undefined,
     hasColumnFilters,
-    hasFilters: list.hasBaseFilters || hasColumnFilters,
+    hasFilters: list.hasBaseFilters || hasColumnFilters || owner !== "" || taxCodeMissing,
+    /** Lọc Sale phụ trách đang chọn (`""` = không lọc) và tham số gửi BE. */
+    owner,
+    ownerParams: ownerParams(owner),
+    setOwner: (next: string) => {
+      void setOwner(next || null);
+      void filters.setPage(1);
+    },
+    /** D41: chỉ khách "Thiếu MST". */
+    taxCodeMissing,
+    setTaxCodeMissing: (on: boolean) => {
+      void setTaxCodeMissing(on || null);
+      void filters.setPage(1);
+    },
     setStatus: (next: CustomerApiStatus | null) => void filters.setStatus(next ? [next] : []),
     /** Đặt một hoặc nhiều lọc cột (khoảng ngày đổi cả hai đầu); chuỗi rỗng = bỏ khỏi URL. Về trang 1. */
     setColumnFilter: (values: Partial<Record<CustomerColumnFilterKey, string>>) => {
@@ -72,6 +105,8 @@ export function useCustomerListFilters() {
     clear: () => {
       filters.reset();
       void setColumnFilters(null);
+      void setOwner(null);
+      void setTaxCodeMissing(null);
     },
   };
 }

@@ -14,6 +14,7 @@ import {
 import { formatDate, formatDateTime } from "@/lib/format/date";
 
 import { CustomerName } from "@/components/backoffice/CustomerName";
+import { SalesOwnerLine } from "@/components/backoffice/SalesOwnerNotes";
 import { CELL } from "@/components/shared/column-helpers";
 import { StatusDot } from "@/components/shared/StatusDot";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -173,6 +174,8 @@ export function RequestStatus({ row }: { row: QuoteRequest }) {
 const customerCell = (row: QuoteRequest) => (
   <span className="block max-w-[11rem] truncate" title={row.customerName ?? undefined}>
     <CustomerName id={row.customerId} name={row.customerName} />
+    {/* KE-HOACH sales-owner §10.2: hộp yêu cầu báo giá hiện ai phụ trách khách. */}
+    <SalesOwnerLine customerId={row.customerId} />
   </span>
 );
 
