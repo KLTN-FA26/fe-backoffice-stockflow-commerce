@@ -15,6 +15,7 @@ import type {
   custodyNoteDtoSchema,
   custodyOutcomeDtoSchema,
   customerCustodyDtoSchema,
+  candidateCartonDtoSchema,
   heldCartonDtoSchema,
   expectedCartonDtoSchema,
   returnedShipmentDtoSchema,
@@ -25,6 +26,7 @@ import type {
   returnParcelDtoSchema,
   returnReceiptCartonDtoSchema,
   returnReceiptDtoSchema,
+  returnProgressDtoSchema,
   returnReceiptRowDtoSchema,
   returnRequestDtoSchema,
   returnRowDtoSchema,
@@ -41,6 +43,8 @@ export type ReturnReceiptCarton = z.infer<typeof returnReceiptCartonDtoSchema>;
 export type ReturnLooseLine = z.infer<typeof returnLooseLineDtoSchema>;
 export type ReturnParcel = z.infer<typeof returnParcelDtoSchema>;
 export type ExpectedCarton = z.infer<typeof expectedCartonDtoSchema>;
+export type ReturnProgress = z.infer<typeof returnProgressDtoSchema>;
+export type CandidateCarton = z.infer<typeof candidateCartonDtoSchema>;
 export type CustomerCustodyCarton = z.infer<typeof customerCustodyDtoSchema>;
 export type HeldCarton = z.infer<typeof heldCartonDtoSchema>;
 export type CustodyOutcome = z.infer<typeof custodyOutcomeDtoSchema>;

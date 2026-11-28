@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PackagePlus } from "lucide-react";
 
 import { RETURN_RECEIPT_LABELS } from "@/constants/labels-return";
+import { RETURN_RECEIVING_LABELS } from "@/constants/labels-return-receiving";
 import { RETURN_LIMITS } from "@/constants/returns";
 import { DirectUploadError, uploadFileDirect } from "@/lib/api/direct-upload";
 import { ApiError } from "@/lib/api/error";
@@ -13,6 +14,13 @@ import { Card } from "@/components/shared/Card";
 import { FormField, fieldA11y } from "@/components/shared/FormField";
 import { FORM_INPUT_CLASS } from "@/components/shared/form-control-classes";
 import { Notice } from "@/components/shared/Notice";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/shared/combobox-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -24,9 +32,10 @@ import { loosePhotoProblem } from "../selectors";
 
 import { EMPTY, MONO } from "./primitives";
 
-import type { LooseLineFormValues, ReturnReceipt } from "../types";
+import type { LooseLineFormValues, ReturnProgress, ReturnReceipt } from "../types";
 
 const D = RETURN_RECEIPT_LABELS.detail.loose;
+const RL = RETURN_RECEIVING_LABELS.loose;
 const TH = "py-1 pr-3 font-medium";
 
 /**
@@ -43,7 +52,17 @@ function looseErrorMessage(failure: unknown): string {
   return returnEvidenceErrorMessage(failure);
 }
 
-function LooseLineForm({ receiptId }: { receiptId: string }) {
+/**
+ * WF-05: phiếu của yêu cầu trả hàng có số theo SKU (BE `returnProgress`) → chọn trong các SKU được duyệt kèm số còn nhận
+ * được, không bắt nhớ mã; BE cũ → ô gõ SKU như trước. BE vẫn kiểm SKU và trần.
+ */
+function LooseLineForm({
+  receiptId,
+  approved,
+}: {
+  receiptId: string;
+  approved: readonly ReturnProgress[] | null;
+}) {
   const photoId = useId();
   const photoRef = useRef<HTMLInputElement>(null);
   const controller = useRef<AbortController | null>(null);
@@ -57,6 +76,13 @@ function LooseLineForm({ receiptId }: { receiptId: string }) {
     defaultValues: { sku: "", lotNumber: "", quantity: Number.NaN },
   });
   const { errors } = form.formState;
+  const sku = useWatch({ control: form.control, name: "sku" });
+  const chosen = approved?.find((row) => row.sku === sku);
+  const skuHint = chosen
+    ? chosen.remainingQuantity > 0
+      ? RL.remaining(chosen.remainingQuantity)
+      : RL.noRemaining
+    : undefined;
 
   useEffect(() => () => controller.current?.abort(), []);
 
@@ -101,12 +127,37 @@ function LooseLineForm({ receiptId }: { receiptId: string }) {
       noValidate
     >
       <FormField id="rr-loose-sku" label={D.sku} required error={errors.sku?.message}>
-        <Input
-          maxLength={RETURN_LIMITS.skuMax}
-          className={`${FORM_INPUT_CLASS} font-[family-name:var(--font-mono)]`}
-          {...fieldA11y("rr-loose-sku", errors.sku?.message)}
-          {...form.register("sku")}
-        />
+        {approved ? (
+          <Controller
+            control={form.control}
+            name="sku"
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger
+                  className={`${FORM_INPUT_CLASS} w-full font-[family-name:var(--font-mono)]`}
+                  {...fieldA11y("rr-loose-sku", errors.sku?.message)}
+                >
+                  <SelectValue placeholder={RL.skuPlaceholder} />
+                </SelectTrigger>
+                <SelectContent>
+                  {approved.map((row) => (
+                    <SelectItem key={row.sku} value={row.sku}>
+                      {row.sku} · {RL.remaining(row.remainingQuantity)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+        ) : (
+          <Input
+            maxLength={RETURN_LIMITS.skuMax}
+            className={`${FORM_INPUT_CLASS} font-[family-name:var(--font-mono)]`}
+            {...fieldA11y("rr-loose-sku", errors.sku?.message)}
+            {...form.register("sku")}
+          />
+        )}
+        {skuHint && <p className="text-ink-tertiary mt-1 text-xs">{skuHint}</p>}
       </FormField>
       <FormField id="rr-loose-lot" label={D.lot} error={errors.lotNumber?.message}>
         <Input
@@ -180,7 +231,9 @@ export function ReturnLooseLines({
     <Card className="space-y-3">
       <h2 className="text-ink-primary text-sm font-semibold">{D.title}</h2>
       {editable && <p className="text-ink-tertiary text-xs">{D.hint}</p>}
-      {editable && <LooseLineForm receiptId={receipt.id} />}
+      {editable && (
+        <LooseLineForm receiptId={receipt.id} approved={receipt.returnProgress ?? null} />
+      )}
       {lines.length === 0 ? (
         <p className="text-ink-tertiary text-[0.8125rem]">{D.none}</p>
       ) : (

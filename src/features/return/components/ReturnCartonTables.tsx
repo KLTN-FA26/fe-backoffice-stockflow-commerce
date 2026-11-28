@@ -1,6 +1,7 @@
 "use client";
 
 import { RETURN_RECEIPT_LABELS } from "@/constants/labels-return";
+import { RETURN_RECEIVING_LABELS } from "@/constants/labels-return-receiving";
 import { Card } from "@/components/shared/Card";
 import { Button } from "@/components/ui/button";
 
@@ -12,6 +13,7 @@ import { EMPTY, MONO } from "./primitives";
 import type { ReturnReceipt, ReturnReceiptCarton } from "../types";
 
 const D = RETURN_RECEIPT_LABELS.detail;
+const R = RETURN_RECEIVING_LABELS;
 const TH = "py-1 pr-3 font-medium";
 
 /**
@@ -36,16 +38,22 @@ function CountCell({ carton, draft }: { carton: ReturnReceiptCarton; draft: bool
   );
 }
 
-/** Thùng đã quét (gỡ được khi phiếu nháp) và thùng của nguồn để đối chiếu (docs 03 §4.2 bước 11). */
+/**
+ * Thùng đã quét (gỡ được khi phiếu nháp) và thùng của nguồn để đối chiếu (docs 03 §4.2 bước 11). `byUnits` (phiếu của yêu
+ * cầu trả hàng, BE có `returnProgress`): tiến độ là số lượng SKU ở thẻ "Hàng được duyệt trả", không phải "x / y thùng" —
+ * thùng của chuyến chỉ là ứng viên, nên không liệt kê lại như danh sách phải đủ. Chuyến hoàn về (RTO) giữ đối chiếu thùng.
+ */
 export function ReturnCartonTables({
   receipt,
   onRemove,
   removing,
+  byUnits = false,
 }: {
   receipt: ReturnReceipt;
   /** Có = phiếu nháp và có quyền sửa. */
   onRemove?: (lpn: string) => void;
   removing: boolean;
+  byUnits?: boolean;
 }) {
   const progress = scanProgress(receipt);
   return (
@@ -54,7 +62,9 @@ export function ReturnCartonTables({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-ink-primary text-sm font-semibold">{D.scanned}</h2>
           <span className="text-ink-secondary text-[0.8125rem]">
-            {D.progress(progress.scanned, progress.expected)}
+            {byUnits
+              ? R.recorded.count(progress.scanned)
+              : D.progress(progress.scanned, progress.expected)}
           </span>
         </div>
         {receipt.cartons.length === 0 ? (
@@ -115,11 +125,14 @@ export function ReturnCartonTables({
             </tbody>
           </table>
         )}
-        {progress.missing.length > 0 && receipt.status === "DRAFT" && (
+        {!byUnits && progress.missing.length > 0 && receipt.status === "DRAFT" && (
           <p className="text-ink-tertiary text-xs">{D.shortNote}</p>
         )}
+        {!byUnits && progress.earlier > 0 && (
+          <p className="text-ink-tertiary text-xs">{R.earlier.note(progress.earlier)}</p>
+        )}
       </Card>
-      {receipt.expectedCartons.length > 0 && (
+      {!byUnits && receipt.expectedCartons.length > 0 && (
         <Card className="space-y-3">
           <h2 className="text-ink-primary text-sm font-semibold">{D.expected}</h2>
           <ul className="divide-y divide-[var(--table-line)] text-[0.8125rem]">
@@ -133,7 +146,11 @@ export function ReturnCartonTables({
                   {carton.sku} × {carton.quantity}
                 </span>
                 <span className={carton.scanned ? "text-positive" : "text-ink-tertiary"}>
-                  {carton.scanned ? D.scannedState : D.notScanned}
+                  {carton.scanned
+                    ? D.scannedState
+                    : carton.receivedEarlier
+                      ? R.earlier.state
+                      : D.notScanned}
                 </span>
               </li>
             ))}

@@ -100,6 +100,11 @@ export interface MockReturn {
   }[];
   history: { from: string | null; to: string; reason: string | null; occurredAt: string }[];
   version: number;
+  /**
+   * ASSUMPTION mock-only: thùng của lô giao mà yêu cầu nhắm tới (BE `ShipmentCartons`). Vắng = một thùng mỗi dòng như
+   * trước. Cho thấy thùng chỉ là ứng viên: nhiều thùng cùng SKU, khách gửi lại thùng nào cũng được.
+   */
+  sourceCartons?: { lpn: string; sku: string; lotNumber: string; quantity: number }[];
 }
 
 export interface MockReturnReceipt {
@@ -129,6 +134,9 @@ export interface MockReturnReceipt {
     opened: boolean;
     /** WF-05 Q-18: false = thùng mở không nhập tồn (đặt lúc xác nhận). */
     stockEntered?: boolean | null;
+    /** WF-05 Q-18: người quét / người ghi số đếm — người xác nhận phiếu có thùng mở phải là người khác. */
+    scannedBy?: string | null;
+    countedBy?: string | null;
   }[];
   /** Hàng lẻ không nhãn (WF-05 TH-4) — chỉ phiếu của yêu cầu trả hàng; Q-18: ảnh bắt buộc. */
   looseLines: {
@@ -138,6 +146,7 @@ export interface MockReturnReceipt {
     quantity: number;
     /** Ảnh của phiếu (BE G4 `photoId`). */
     photoId?: string | null;
+    recordedBy?: string | null;
   }[];
   /** Thùng của nguồn (shipment / đơn) — ASSUMPTION mock: LPN sinh theo dòng đơn. */
   source: { lpn: string; sku: string; lotNumber: string; quantity: number }[];
@@ -417,6 +426,14 @@ export function resetReturnMockStore(): void {
         description: "Giao nhầm màu.",
         review: reviewed(),
         receipt: backOn("RRC-SEED-9", "GR-RET-SEED-9", "2026-11-14T04:00:00Z"),
+        // Ba thùng nhãn 2 của lô giao: thùng 1 về mở, đếm 1 (phiếu SEED-9); còn 2 đơn vị — thùng 2 hoặc 3, khách gửi thùng nào
+        // cũng được, nhận nguyên một thùng là đủ
+        sourceCartons: [1, 2, 3].map((n) => ({
+          lpn: `LPN-0016-${n}`,
+          sku: "SKU-002-WHT",
+          lotNumber: "LOT-2026-10",
+          quantity: 2,
+        })),
       },
     ),
     // WF-05 TH-4: thùng về bị mở, đếm rỗng — không đơn vị nào hoàn được, chỉ "Kết thúc không hoàn tiền"
@@ -480,6 +497,7 @@ resetReturnMockStore();
 
 /** Thùng mock của một đơn: một thùng cho mỗi dòng của các yêu cầu (đủ để quét demo). */
 export function sourceCartonsOf(ret: MockReturn) {
+  if (ret.sourceCartons) return ret.sourceCartons.map((carton) => ({ ...carton }));
   return ret.lines.map((l, i) => ({
     lpn: `LPN-${ret.orderId.slice(-4)}-${i + 1}`,
     sku: l.sku,

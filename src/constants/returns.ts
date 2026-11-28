@@ -301,6 +301,29 @@ export const RETURN_RECEIPT_API_STATUSES = [
   "CANCELLED",
 ] as const;
 export type ReturnReceiptApiStatus = (typeof RETURN_RECEIPT_API_STATUSES)[number];
+
+/**
+ * Thùng của nguồn với phiếu nhập hàng hoàn của yêu cầu trả hàng (BE `ReturnCartonEligibility`, WF-05 BE-22, Q-11, Q-18,
+ * Q-4): ba giá trị đầu là ứng viên (được làm ngay), còn lại là lý do loại. Chỉ là gợi ý — BE quyết lại khi quét.
+ */
+export const RETURN_CARTON_ELIGIBILITIES = [
+  "RECEIVABLE",
+  "COUNT_REQUIRED",
+  "ON_THIS_RECEIPT",
+  "SKU_NOT_APPROVED",
+  "APPROVED_QUANTITY_REACHED",
+  "IN_WAREHOUSE",
+  "RETURNED_OPENED",
+  "CUSTOMER_GOODS",
+  "NOT_FOUND",
+] as const;
+export type ReturnCartonEligibility = (typeof RETURN_CARTON_ELIGIBILITIES)[number];
+/** Ứng viên làm ngay được — BE `ReturnCartonEligibility.candidate()`. */
+export const RETURN_CARTON_CANDIDATES: readonly string[] = [
+  "RECEIVABLE",
+  "COUNT_REQUIRED",
+  "ON_THIS_RECEIPT",
+];
 export type ReturnReceiptReadStatus = ReturnReceiptApiStatus | typeof RETURN_UNKNOWN;
 
 /** Chuỗi hiển thị (domain `receipt`). Phiếu hàng hoàn chỉ đi DRAFT → CLOSED / CANCELLED. */

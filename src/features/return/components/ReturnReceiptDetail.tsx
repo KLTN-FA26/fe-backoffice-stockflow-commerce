@@ -32,6 +32,7 @@ import {
   useRemoveReturnCarton,
 } from "../mutations";
 import { useReturnReceipt } from "../queries";
+import { rmaReceiving } from "../receiving";
 
 import {
   CodeLink,
@@ -44,6 +45,7 @@ import {
 import { ReturnCartonScan } from "./ReturnCartonScan";
 import { ReturnCartonTables } from "./ReturnCartonTables";
 import { ReturnLooseLines } from "./ReturnLooseLines";
+import { RmaReceivingPanel } from "./RmaReceivingPanel";
 
 const L = RETURN_RECEIPT_LABELS;
 const D = L.detail;
@@ -90,6 +92,8 @@ function Content({ id, back: backLink }: { id: string; back?: BackLink }) {
     setError(null);
   };
   const onError = (failure: unknown) => setError(returnErrorMessage(failure));
+  // Phiếu của yêu cầu trả hàng: nhận theo số lượng SKU đã duyệt; chuyến hoàn về (RTO) hoặc BE cũ: đối chiếu theo thùng
+  const progress = rmaReceiving(receipt);
 
   return (
     <div className="surface-soft surface-compact space-y-4">
@@ -131,11 +135,20 @@ function Content({ id, back: backLink }: { id: string; back?: BackLink }) {
       )}
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0 space-y-4">
-          {actions.includes("scan") && (
-            <ReturnCartonScan receiptId={receipt.id} expectedCartons={receipt.expectedCartons} />
+          {progress ? (
+            <RmaReceivingPanel
+              receipt={receipt}
+              progress={progress}
+              canScan={actions.includes("scan")}
+            />
+          ) : (
+            actions.includes("scan") && (
+              <ReturnCartonScan receiptId={receipt.id} expectedCartons={receipt.expectedCartons} />
+            )
           )}
           <ReturnCartonTables
             receipt={receipt}
+            byUnits={progress !== null}
             removing={remove.isPending}
             onRemove={
               actions.includes("remove")

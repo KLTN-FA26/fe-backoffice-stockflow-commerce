@@ -16,10 +16,18 @@
  * Phải đăng ký TRƯỚC `/goods-receipts/:id` (mock adapter khớp route đăng ký trước).
  */
 
-import { RETURN_LIMITS } from "@/constants/returns";
+import { RETURN_LIMITS, RETURN_RECEIPT_APPROVAL_PERMISSIONS } from "@/constants/returns";
 
 import { registerMockRoute } from "./mock-adapter";
 import { mockHeldForCustomer } from "./mock-customer-custody";
+import {
+  approvedOf,
+  candidatesOf,
+  cartonState,
+  progressOf,
+  returnOf,
+  unitsBack,
+} from "./mock-return-receiving";
 import {
   mockReceiptOpenable,
   mockReturnReceipts,
@@ -38,6 +46,7 @@ import {
   validationFailed,
 } from "./mock-route-utils";
 import { mockUsableAreaCodes } from "./mock-routes-warehouse-layout";
+import { mockCan } from "./mock-warehouse-rules";
 
 import type { MockReturn, MockReturnReceipt } from "./mock-returns-store";
 
@@ -47,9 +56,18 @@ const byId = (id: string) => mockReturnReceipts().find((r) => r.id === id);
 const notFound = (id: string) => fail(404, "GOODS_RECEIPT_NOT_FOUND", `No receipt ${id}`);
 const notDraft = () => fail(409, "INVALID_RECEIPT_TRANSITION", "The receipt is not a draft");
 
+/** Người đang dùng phiên mock — người quét / đếm / ghi hàng lẻ (BE lấy từ token). */
+async function mockUserId(): Promise<string> {
+  const { useAuthStore } = await import("@/lib/auth/auth-store");
+  return useAuthStore.getState().user?.userId ?? "mock-current-user";
+}
+
 function wire(receipt: MockReturnReceipt) {
   const { source, ...rest } = receipt;
   const scanned = new Set(receipt.cartons.map((c) => c.lpn));
+  const ret = returnOf(receipt);
+  // BE-22: thùng cần đối chiếu là của SKU được duyệt; Q-11: thùng đã về ở phiếu trước không phải thùng thiếu
+  const expected = ret ? source.filter((c) => approvedOf(ret, c.sku) > 0) : source;
   return {
     ...rest,
     // WF-05 Q-4 (audit r2 returns H1): thùng nguyên của yêu cầu không hoàn tiền là hàng giữ hộ khách
@@ -58,7 +76,18 @@ function wire(receipt: MockReturnReceipt) {
       heldForCustomer: mockHeldForCustomer(receipt, carton.lpn),
     })),
     receiptType: "RETURN",
-    expectedCartons: source.map((c) => ({ ...c, scanned: scanned.has(c.lpn) })),
+    expectedCartons: expected.map((c) => ({
+      ...c,
+      scanned: scanned.has(c.lpn),
+      receivedEarlier: !scanned.has(c.lpn) && cartonState(receipt, c.lpn) !== null,
+    })),
+    // BE `ReturnProgress` / `CandidateCarton`: chỉ phiếu của yêu cầu; ứng viên chỉ khi phiếu nháp
+    ...(ret
+      ? {
+          returnProgress: progressOf(receipt),
+          candidateCartons: receipt.status === "DRAFT" ? candidatesOf(receipt) : [],
+        }
+      : {}),
     // WF-05 Q-18 (BE G4 `ReturnReceipt.needsManagerConfirmation`): chỉ phiếu nháp
     managerConfirmationRequired:
       receipt.status === "DRAFT" &&
@@ -129,40 +158,77 @@ async function create(body: Record<string, unknown>) {
   return ok(wire(receipt), 201);
 }
 
-/** Thùng đã về trên một phiếu khác đã xác nhận (BE `RETURN_CARTON_IN_WAREHOUSE`). */
-const alreadyBack = (receipt: MockReturnReceipt, lpn: string) =>
-  mockReturnReceipts().some(
-    (r) => r.id !== receipt.id && r.status === "CLOSED" && r.cartons.some((c) => c.lpn === lpn),
-  );
+/** BE `requireClaimed`: SKU được duyệt và tổng trên các phiếu không huỷ không vượt số duyệt — thùng không chia. */
+function notClaimed(
+  receipt: MockReturnReceipt,
+  sku: string,
+  lpn: string,
+  units: number,
+  already: number,
+) {
+  const approved = approvedOf(returnOf(receipt), sku);
+  const back = approved === 0 ? 0 : unitsBack(receipt, sku) - already;
+  if (approved !== 0 && back + units <= approved) return null;
+  return fail(409, "RETURN_CARTON_NOT_CLAIMED", `${lpn} does not fit the approval`, [], {
+    lpn,
+    sku,
+    approved,
+    alreadyBack: back,
+    units,
+  });
+}
 
-function scan(receipt: MockReturnReceipt, body: Record<string, unknown>) {
+async function scan(receipt: MockReturnReceipt, body: Record<string, unknown>) {
   if (receipt.status !== "DRAFT") return notDraft();
-  const lpn = text(body.lpn);
-  const carton = receipt.source.find((c) => c.lpn === lpn);
-  if (!carton) return fail(409, "RETURN_CARTON_NOT_OF_SOURCE", `${lpn} is not of this source`);
-  if (alreadyBack(receipt, lpn))
-    return fail(409, "RETURN_CARTON_IN_WAREHOUSE", `${lpn} is already back in the warehouse`);
+  const lpn = text(body.lpn).toUpperCase();
+  if (!lpn) return validationFailed("lpn", "must not be blank");
   // WF-05 TH-4: số đếm 0..nhãn; không gửi = nguyên thùng (lần quét lại giữ số đã đếm)
   const raw = body.countedQuantity;
   const counted = typeof raw === "number" ? raw : null;
   if (raw != null && (counted === null || !Number.isInteger(counted) || counted < 0))
     return validationFailed("countedQuantity", "countedQuantity must be zero or more");
-  if (counted !== null && counted > carton.quantity)
-    return validationFailed("countedQuantity", "More than the carton's label");
   const condition = text(body.condition) || null;
+  const userId = await mockUserId();
   const existing = receipt.cartons.find((c) => c.lpn === lpn);
   if (existing) {
+    if (counted !== null && counted > existing.quantity)
+      return validationFailed("countedQuantity", "More than the carton's label");
+    // Audit r2 L6: đếm lại tăng số cũng bị giữ trong số duyệt
+    if (receipt.returnRequestId && counted !== null && counted > existing.countedQuantity) {
+      const refused = notClaimed(receipt, existing.sku, lpn, counted, existing.countedQuantity);
+      if (refused) return refused;
+    }
     existing.condition = condition ?? existing.condition;
-    existing.countedQuantity = counted ?? existing.countedQuantity;
+    if (counted !== null) {
+      existing.countedQuantity = counted;
+      existing.countedBy = userId;
+    }
     existing.opened = existing.countedQuantity < existing.quantity;
   } else {
+    const carton = receipt.source.find((c) => c.lpn.toUpperCase() === lpn);
+    if (!carton) return fail(409, "RETURN_CARTON_NOT_OF_SOURCE", `${lpn} is not of this source`);
+    if (counted !== null && counted > carton.quantity)
+      return validationFailed("countedQuantity", "More than the carton's label");
+    // BE `ReturnCartonEligibility.ofCarton`: đã về, từng về mở, hàng giữ hộ khách
+    const state = cartonState(receipt, carton.lpn);
+    if (state)
+      return fail(409, "RETURN_CARTON_IN_WAREHOUSE", `${lpn} cannot come back`, [], {
+        lpn,
+        reason: state,
+      });
     const units = counted ?? carton.quantity;
+    if (receipt.returnRequestId) {
+      const refused = notClaimed(receipt, carton.sku, lpn, units, 0);
+      if (refused) return refused;
+    }
     receipt.cartons.push({
       ...carton,
       condition,
       scannedAt: now(),
       countedQuantity: units,
       opened: units < carton.quantity,
+      scannedBy: userId,
+      countedBy: userId,
     });
   }
   receipt.version += 1;
@@ -170,7 +236,7 @@ function scan(receipt: MockReturnReceipt, body: Record<string, unknown>) {
 }
 
 /** Hàng lẻ không nhãn (BE `ReturnReceipt.recordLoose`): phiếu nháp của RMA, SKU của đơn, cùng SKU + lô thì thay số. */
-function recordLoose(receipt: MockReturnReceipt, body: Record<string, unknown>) {
+async function recordLoose(receipt: MockReturnReceipt, body: Record<string, unknown>) {
   if (receipt.status !== "DRAFT" || !receipt.returnRequestId) return notDraft();
   const sku = text(body.sku);
   const lotNumber = text(body.lotNumber) || null;
@@ -179,29 +245,28 @@ function recordLoose(receipt: MockReturnReceipt, body: Record<string, unknown>) 
   if (lotNumber && lotNumber.length > 64) return validationFailed("lotNumber", "At most 64");
   if (!Number.isInteger(quantity) || quantity < 1)
     return validationFailed("quantity", "quantity must be at least 1");
-  if (!receipt.source.some((c) => c.sku === sku))
+  const ret = returnOf(receipt);
+  if (!receipt.source.some((c) => c.sku === sku) && !ret?.lines.some((l) => l.sku === sku))
     return validationFailed("sku", `${sku} is not a SKU of the order`);
   // WF-05 Q-18 (BE-43): ảnh bắt buộc; tổng đã về của SKU không vượt số đã duyệt
   const photoId = text(body.photoId);
   if (!receiptPhotos.has(`${receipt.id}:${photoId}`))
     return fail(400, "RETURN_LOOSE_PHOTO_REQUIRED", "A loose line needs a photo of this receipt");
   const held = receipt.looseLines.find((l) => l.sku === sku && l.lotNumber === lotNumber);
-  const ret = mockReturns().find((r) => r.id === receipt.returnRequestId);
-  if (ret) {
-    const ofSku = ret.lines.filter((l) => l.sku === sku);
-    const approved = ofSku.reduce((sum, l) => sum + (l.approvedQuantity ?? 0), 0);
-    const already = ofSku.reduce((sum, l) => sum + (l.receivedQuantity ?? 0), 0);
-    const onReceipt =
-      receipt.cartons.filter((c) => c.sku === sku).reduce((sum, c) => sum + c.countedQuantity, 0) +
-      receipt.looseLines
-        .filter((l) => l.sku === sku && l !== held)
-        .reduce((sum, l) => sum + l.quantity, 0);
-    if (already + onReceipt + quantity > approved)
-      return fail(409, "RETURN_LOOSE_EXCEEDS_APPROVED", "More than approved");
-  }
+  // BE `recordLoose`: mọi phiếu không huỷ của yêu cầu (thùng theo số đếm + hàng lẻ), bỏ dòng đang ghi lại
+  const approved = approvedOf(ret, sku);
+  const back = unitsBack(receipt, sku, held?.id);
+  if (back + quantity > approved)
+    return fail(409, "RETURN_LOOSE_EXCEEDS_APPROVED", "More than approved", [], {
+      sku,
+      approved,
+      alreadyBack: back,
+    });
+  const recordedBy = await mockUserId();
   if (held) {
     held.quantity = quantity;
     held.photoId = photoId;
+    held.recordedBy = recordedBy;
   } else
     receipt.looseLines.push({
       id: nextMockReturnId("RLL"),
@@ -209,6 +274,7 @@ function recordLoose(receipt: MockReturnReceipt, body: Record<string, unknown>) 
       lotNumber,
       quantity,
       photoId,
+      recordedBy,
     });
   receipt.version += 1;
   return ok(wire(receipt));
@@ -265,11 +331,30 @@ function takeParcel(ret: MockReturn, receipt: MockReturnReceipt) {
   ret.version += 1;
 }
 
-function confirm(receipt: MockReturnReceipt) {
+async function confirm(receipt: MockReturnReceipt) {
   if (receipt.status === "CLOSED") return ok(wire(receipt));
   // BE `ReturnReceipt.confirm`: cần ít nhất một thùng hoặc một dòng hàng lẻ
   if (receipt.status !== "DRAFT" || (!receipt.cartons.length && !receipt.looseLines.length))
     return notDraft();
+  // WF-05 Q-18: thùng mở / hàng lẻ — Quản lý kho xác nhận, và không phải người đã đếm
+  if (receipt.looseLines.length > 0 || receipt.cartons.some((c) => c.opened)) {
+    if (!(await mockCan(RETURN_RECEIPT_APPROVAL_PERMISSIONS.approve)))
+      return fail(
+        403,
+        "RETURN_RECEIPT_MANAGER_CONFIRMATION_REQUIRED",
+        "A warehouse manager confirms it",
+      );
+    const userId = await mockUserId();
+    const counted =
+      receipt.cartons.some((c) => c.scannedBy === userId || c.countedBy === userId) ||
+      receipt.looseLines.some((l) => l.recordedBy === userId);
+    if (counted)
+      return fail(
+        409,
+        "RETURN_RECEIPT_SELF_CONFIRMATION",
+        "Confirmed by someone who counted nothing",
+      );
+  }
   receipt.status = "CLOSED";
   const closedAt = now();
   receipt.closedAt = closedAt;
@@ -352,7 +437,7 @@ export function registerReturnReceiptMockRoutes(): void {
       fn: (
         receipt: MockReturnReceipt,
         config: Parameters<typeof bodyOf>[0],
-      ) => ReturnType<typeof ok>,
+      ) => ReturnType<typeof ok> | Promise<ReturnType<typeof ok>>,
     ) =>
     (config: Parameters<typeof bodyOf>[0]) => {
       const id = pathParams(config).id ?? "";
@@ -374,7 +459,9 @@ export function registerReturnReceiptMockRoutes(): void {
     `${BASE}/:id/cartons/:lpn`,
     withReceipt((r, c) => {
       if (r.status !== "DRAFT") return notDraft();
-      r.cartons = r.cartons.filter((carton) => carton.lpn !== pathParams(c).lpn);
+      const lpn = (pathParams(c).lpn ?? "").toUpperCase();
+      // BE `ReturnReceipt.remove`: gỡ khỏi nháp trả lại phần số đã duyệt nó chiếm
+      r.cartons = r.cartons.filter((carton) => carton.lpn.toUpperCase() !== lpn);
       r.version += 1;
       return ok(wire(r));
     }),
