@@ -50,12 +50,12 @@ export const ORDER_RELEASE_LABELS = {
   },
 } as const;
 
-/** Lý do biết trước chưa release được (suy từ dữ liệu đơn) — hiện thay cho nút, không chỉ ẩn nút. */
+/** Lý do biết trước chưa release được (trạng thái đơn + thanh toán) — hiện thay cho nút, không chỉ ẩn nút. */
 export const ORDER_RELEASE_BLOCKER_LABELS = {
   title: "Chưa release được",
-  /** docs 19 BR-09 / BE ORDER_DEPOSIT_NOT_RECEIVED: đơn cọc phải nhận đủ cọc trước khi release. */
-  depositNotReceived: "Đơn đặt cọc chưa nhận đủ tiền cọc.",
-  depositRule: "BR-PRD-09",
+  /** docs 07 BR-01, 15 BR-07, 17 BR-02: Pending Payment chờ thu đủ đợt ON_SIGNING trước khi release. */
+  onSigningPending: "Đơn còn chờ thu đủ đợt khi ký — Kế toán kiểm tra và lập phiếu thu.",
+  onSigningRule: "BR-07",
 } as const;
 
 /** Lý do máy chủ từ chối release — kèm mã quy tắc để quản lý kho đối chiếu docs. */

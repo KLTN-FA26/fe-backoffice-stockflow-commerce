@@ -1,11 +1,12 @@
 /**
  * Release đơn — những gì hộp thoại làm khi BE từ chối hoặc tranh chấp (docs 17 BR-02, §4.2 bước 5): thẻ "Chưa release
- * được" cho đơn cọc chưa nhận cọc, đơn đã đổi trạng thái, OPTIMISTIC_LOCK / LOCK_TIMEOUT, Idempotency-Key, lỗi 400
+ * được" cho đợt khi ký chưa thu đủ, đơn đã đổi trạng thái, OPTIMISTIC_LOCK / LOCK_TIMEOUT, Idempotency-Key, lỗi 400
  * `warehouseId` ngay tại ô Kho, kho rỗng, ô kho khoá tới khi tải xong.
  */
 import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { PAYMENT_INSTALLMENT_PERMISSIONS } from "@/constants/payment";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 import { toast } from "@/components/shared/Toast";
@@ -38,29 +39,73 @@ async function submitRelease(error?: ApiError) {
   return { user, dialog, post };
 }
 
-describe("thẻ 'Chưa release được' (đơn cọc chưa nhận cọc) — không chỉ ẩn nút", () => {
-  const awaiting = { paymentTerm: "DEPOSIT", depositRequired: 105_000 };
+describe("thẻ 'Chưa release được' (đợt ON_SIGNING) — không chỉ ẩn nút", () => {
+  const canReadPayments = [
+    ...ORDER_PERMISSION_SETS.warehouseManager,
+    PAYMENT_INSTALLMENT_PERMISSIONS.read,
+  ];
+  const installments = (onSigningPaid: boolean) => ({
+    paymentStatus: onSigningPaid ? "PAID" : "PARTIALLY_PAID",
+    total: 350_000,
+    paid: onSigningPaid ? 350_000 : 200_000,
+    outstanding: onSigningPaid ? 0 : 150_000,
+    onSigningPaid,
+    currency: "VND",
+    installments: [
+      {
+        installmentId: "i-1",
+        seq: 1,
+        name: "Khi ký",
+        amount: 350_000,
+        paidAmount: onSigningPaid ? 350_000 : 200_000,
+        status: onSigningPaid ? "PAID" : "PARTIALLY_PAID",
+      },
+    ],
+  });
 
-  it("đơn cọc chưa nhận cọc (Pending Payment), người có quyền release → thẻ nêu lý do (không hiện mã quy tắc), không có nút", async () => {
-    await renderConfirmedScreen("PENDING_PAYMENT", awaiting);
+  it("Pending Payment, quản lý kho không đọc được installments → thẻ giải thích và không có nút", async () => {
+    await renderConfirmedScreen("PENDING_PAYMENT", { paymentTerm: undefined });
     const card = await screen.findByText("Chưa release được");
     const block = card.closest("div") as HTMLElement;
     expect(block).not.toHaveTextContent(/BR-/);
-    expect(within(block).getByText(/chưa nhận đủ tiền cọc/)).toBeInTheDocument();
+    expect(within(block).getByText(/chờ thu đủ đợt khi ký/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Release đơn" })).not.toBeInTheDocument();
   });
 
-  it("cọc đã về (depositReceivedAt) hoặc đơn không phải đơn cọc → không có thẻ", async () => {
-    await renderConfirmedScreen("PENDING_PAYMENT", {
-      ...awaiting,
-      depositReceivedAt: "2026-10-20T01:00:00Z",
-    });
-    await screen.findByRole("heading", { name: apiOrder.orderNumber });
-    expect(screen.queryByText("Chưa release được")).not.toBeInTheDocument();
+  it("có quyền đọc, ON_SIGNING chưa thu đủ → thẻ giải thích dù response đơn thiếu paymentTerm", async () => {
+    await renderConfirmedScreen(
+      "PENDING_PAYMENT",
+      { paymentTerm: undefined },
+      canReadPayments,
+      undefined,
+      undefined,
+      () => installments(false),
+    );
+    expect(await screen.findByText("Chưa release được")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Release đơn" })).not.toBeInTheDocument();
   });
 
-  it("người không có sales-order-releases:UPDATE (Sales) không thấy thẻ — họ không release được dù cọc đã về", async () => {
-    await renderConfirmedScreen("PENDING_PAYMENT", awaiting, ORDER_PERMISSION_SETS.salesStaff);
+  it("có quyền đọc, ON_SIGNING đã thu đủ → không có thẻ blocker", async () => {
+    await renderConfirmedScreen(
+      "PENDING_PAYMENT",
+      { paymentTerm: undefined },
+      canReadPayments,
+      undefined,
+      undefined,
+      () => installments(true),
+    );
+    await screen.findByRole("heading", { name: apiOrder.orderNumber });
+    await waitFor(() =>
+      expect(api.get).toHaveBeenCalledWith(
+        `/installments/orders/${apiOrder.orderId}`,
+        expect.anything(),
+      ),
+    );
+    await waitFor(() => expect(screen.queryByText("Chưa release được")).not.toBeInTheDocument());
+  });
+
+  it("người không có sales-order-releases:UPDATE (Sales) không thấy thẻ", async () => {
+    await renderConfirmedScreen("PENDING_PAYMENT", {}, ORDER_PERMISSION_SETS.salesStaff);
     await screen.findByRole("heading", { name: apiOrder.orderNumber });
     await waitFor(() =>
       expect(api.get).toHaveBeenCalledWith("/identity/me/permissions", expect.anything()),
