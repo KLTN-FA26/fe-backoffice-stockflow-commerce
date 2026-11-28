@@ -386,4 +386,15 @@ describe("đơn đang treo (WF4-K2, docs 08 §6): chỉ dán nhãn và hoàn t�
     expect(actions.label).toBe(true);
     expect(cartonLabelHeld(free.cartons[0] as never, free, access)).toBe(false);
   });
+
+  it("phiên mở lại để thay thùng của chuyến đã huỷ (RTM-RTDCANCEL): BE không gửi holdReason nên không bị tắt", () => {
+    // Đơn vẫn treo thiếu hàng ở phía BE nhưng BE bỏ `holdReason` khỏi phiên này: dán nhãn và hoàn tất mở.
+    const replacement = session(
+      apiSession({ status: "IN_PROGRESS", startedBy: STARTER_ID, cartons: [checkedCarton()] }),
+    );
+    const access = cartonCheckAccess(replacement, actorOf(IDENTITIES.warehouseStaff));
+    expect(access.held).toBe(false);
+    expect(cartonActions(replacement.cartons[0] as never, replacement, access).label).toBe(true);
+    expect(cartonLabelHeld(replacement.cartons[0] as never, replacement, access)).toBe(false);
+  });
 });
