@@ -4,16 +4,11 @@ import { useEffect } from "react";
 import { PackageMinus } from "lucide-react";
 
 import { ORDER_PERMISSIONS, SHORTAGE_LABELS } from "@/constants";
-import { formatWindowRange } from "../../delivery-window-rules";
 import { hasShortageContent, liveShortageCard } from "../../shortage-card-lifecycle";
 import { useShortagePreview } from "../../shortage-card-queries";
 
-import { SendShortageCardAction } from "./SendShortageCardAction";
+import { ShortageActive, shortageMissing } from "./ShortageActive";
 import { ShortageHistory } from "./ShortageHistory";
-import { ShortageLinesTable } from "./ShortageLinesTable";
-import { ShortageNextStepActions } from "./ShortageNextStepActions";
-import { ShortageOptionList } from "./ShortageOptionList";
-import { ShortageCardFacts, ShortageCardHeading } from "./ShortageStatusLine";
 
 import type { PermissionCode } from "@/lib/auth";
 import type { Order } from "../../types";
@@ -59,13 +54,7 @@ export function OrderShortageSection({
   if (!preview || !show) return null;
 
   const live = liveShortageCard(preview);
-  const liveStaff =
-    preview.live ?? preview.history.find((h) => h.card.cardId === live?.cardId) ?? null;
-  const batch = live?.batch ?? preview.batch;
-  const missing =
-    live?.missingCartons ?? preview.lines.reduce((sum, l) => sum + l.missingCartons, 0);
-  const lines = live?.lines ?? preview.lines;
-  const options = live?.options ?? preview.options;
+  const active = !!live || preview.sendable;
   const past = preview.history.filter((h) => h.card.cardId !== live?.cardId);
 
   return (
@@ -76,29 +65,13 @@ export function OrderShortageSection({
     >
       <h2 className="text-ink-primary flex items-center gap-1.5 text-[0.9375rem] font-semibold">
         <PackageMinus className="text-warning size-4" aria-hidden="true" /> {L.section}
-        <span className="text-ink-secondary font-normal">· {L.cardTitle(missing)}</span>
+        {active && (
+          <span className="text-ink-secondary font-normal">
+            · {L.cardTitle(shortageMissing(preview))}
+          </span>
+        )}
       </h2>
-      {batch && (
-        <p className="text-ink-secondary text-[0.8125rem]">
-          {L.batch(batch.seq)} · {L.windowOf(formatWindowRange(batch.windowFrom, batch.windowTo))}
-          {batch.moved && ` (${L.windowMoved})`}
-        </p>
-      )}
-      {liveStaff && <ShortageCardHeading card={liveStaff.card} />}
-      <ShortageLinesTable lines={lines} />
-      {batch && (
-        <ShortageOptionList
-          card={{ missingCartons: missing, batch }}
-          options={options}
-          chosen={live?.chosen?.option}
-          expectedDateSource={liveStaff?.expectedDateSource ?? preview.expectedDateSource}
-        />
-      )}
-      {liveStaff && <ShortageCardFacts staff={liveStaff} />}
-      <div className="flex flex-wrap items-start gap-3">
-        {live && <ShortageNextStepActions order={order} card={live} can={can} />}
-        <SendShortageCardAction order={order} preview={preview} can={can} />
-      </div>
+      {active && <ShortageActive order={order} preview={preview} can={can} />}
       <ShortageHistory cards={past} />
     </section>
   );
