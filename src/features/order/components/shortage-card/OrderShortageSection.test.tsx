@@ -2,7 +2,7 @@
  * Mục "Thiếu thùng" trên chi tiết đơn (docs 17 §4.14, BR-33; 16 BR-15): xem trước, gửi thẻ, Thực hiện từng hướng (kèm dời
  * cửa sổ D48), đóng phần còn lại, cổng quyền, lỗi hiện trong hộp thoại, tên thẻ không lộ UUID.
  */
-import { act, screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -170,6 +170,46 @@ describe("OrderShortageSection", () => {
     await waitFor(() => expect(post).toHaveBeenCalled());
     expect(post.mock.calls[0]?.[0]).toBe(`${EXEC}/cancel`);
     expect(post.mock.calls[0]?.[1]).toMatchObject({ note: expect.stringContaining("huỷ đơn") });
+  });
+
+  it("D50: 'Huỷ đơn' giữ phí % → khoá gửi tới khi chọn Bên chịu phí, rồi gửi retainedPercent + feeBearer", async () => {
+    await open(previewOf(answeredCard("CANCEL_ORDER")));
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: {} });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Thực hiện: Huỷ đơn" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(within(dialog).getByRole("radio", { name: "Giữ theo % số tiền đã thu" }));
+    expect(within(dialog).getByRole("button", { name: "Xác nhận thực hiện" })).toBeDisabled();
+    await user.click(within(dialog).getByRole("radio", { name: "Công ty" }));
+    await user.type(within(dialog).getByLabelText(/Giữ lại \(%\)/), "30");
+    await user.click(within(dialog).getByRole("button", { name: "Xác nhận thực hiện" }));
+    await waitFor(() => expect(post).toHaveBeenCalled());
+    expect(post.mock.calls[0]?.[0]).toBe(`${EXEC}/cancel`);
+    expect(post.mock.calls[0]?.[1]).toMatchObject({
+      version: 3,
+      retainedPercent: 30,
+      feeBearer: "COMPANY",
+    });
+  });
+
+  it("'Huỷ đơn' không giữ phí → không gửi feeBearer; thẻ không có Đơn sản xuất đang in → không có ô phí", async () => {
+    const card = answeredCard("CANCEL_ORDER");
+    await open(
+      previewOf({
+        ...card,
+        options: card.options.map((o) =>
+          o.option === "CANCEL_ORDER" ? { ...o, feePossible: false } : o,
+        ),
+      }),
+    );
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: {} });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Thực hiện: Huỷ đơn" }));
+    expect(screen.queryByRole("radio", { name: "Công ty" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Xác nhận thực hiện" }));
+    await waitFor(() => expect(post).toHaveBeenCalled());
+    expect(post.mock.calls[0]?.[1]).not.toHaveProperty("feeBearer");
+    expect(post.mock.calls[0]?.[1]).not.toHaveProperty("retainedPercent");
   });
 
   it("giao một phần: chờ kho kiểm xong → khi đơn Partially Fulfilled hiện 'Đóng phần còn lại'", async () => {

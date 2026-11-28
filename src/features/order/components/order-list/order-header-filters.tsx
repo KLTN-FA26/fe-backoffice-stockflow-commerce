@@ -17,8 +17,8 @@ import type { ReactNode } from "react";
 import type { OrderListState } from "./useOrderListState";
 
 const FEE_BEARER_OPTIONS = [
-  { value: "COMPANY", label: `${FEE_BEARER_LABELS.options.COMPANY} chịu phí` },
-  { value: "CUSTOMER", label: `${FEE_BEARER_LABELS.options.CUSTOMER} chịu phí` },
+  { value: "COMPANY", label: FEE_BEARER_LABELS.optionLabel("COMPANY") },
+  { value: "CUSTOMER", label: FEE_BEARER_LABELS.optionLabel("CUSTOMER") },
 ] as const;
 
 /**

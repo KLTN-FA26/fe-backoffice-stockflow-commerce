@@ -71,8 +71,10 @@ export function buildSummaryItems(s: OrderListState): ListSummaryItem[] {
       onClear: () => extra.setCustomerId(""),
     },
     {
-      label: "Bên chịu phí",
-      value: extra.feeBearer ? `${FEE_BEARER_LABELS.options[extra.feeBearer]} chịu phí` : "Tất cả",
+      label: FEE_BEARER_LABELS.legend,
+      value: extra.feeBearer
+        ? FEE_BEARER_LABELS.optionLabel(extra.feeBearer)
+        : FEE_BEARER_LABELS.all,
       active: extra.feeBearer !== "",
       onClear: () => extra.setFeeBearer(""),
     },

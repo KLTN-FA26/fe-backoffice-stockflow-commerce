@@ -91,8 +91,26 @@ export const executeReduce = (input: ExecuteBase) => execute(input, "reduce-cart
 export const executeShipPart = (input: ExecuteBase & { note?: string }) =>
   execute(input, "ship-part", { note: input.note || undefined });
 
-export const executeCancel = (input: ExecuteBase & { note?: string }) =>
-  execute(input, "cancel", { note: input.note || undefined });
+/**
+ * "Huỷ đơn" trên thẻ: cùng hình dạng yêu cầu huỷ của nhân viên (D50): phí giữ lại là % hoặc số tiền thoả thuận (chọn một),
+ * và `feeBearer` chỉ đi cùng khoản phí (BE 400 nếu có phí mà thiếu bên chịu, hoặc có bên chịu mà không có phí).
+ */
+export const executeCancel = (
+  input: ExecuteBase & {
+    note?: string;
+    retainedPercent?: number;
+    agreedFee?: { amount: number; reason: string; detail: string };
+    feeBearer?: FeeBearer;
+  },
+) => {
+  const hasFee = input.retainedPercent !== undefined || input.agreedFee !== undefined;
+  return execute(input, "cancel", {
+    note: input.note || undefined,
+    ...(input.retainedPercent !== undefined ? { retainedPercent: input.retainedPercent } : {}),
+    ...(input.agreedFee ? { agreedFee: input.agreedFee } : {}),
+    ...(hasFee && input.feeBearer ? { feeBearer: input.feeBearer } : {}),
+  });
+};
 
 export const executeCloseRest = (
   input: ExecuteBase & {

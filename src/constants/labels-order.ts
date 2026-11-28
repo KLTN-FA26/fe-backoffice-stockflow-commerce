@@ -351,9 +351,11 @@ export const ORDER_REMAINDER_FEE_LABELS = {
 export const FEE_BEARERS = ["CUSTOMER", "COMPANY"] as const;
 export type FeeBearer = (typeof FEE_BEARERS)[number];
 
+const FEE_BEARER_NAMES = { CUSTOMER: "Khách", COMPANY: "Công ty" } as const;
+
 export const FEE_BEARER_LABELS = {
   legend: "Bên chịu phí",
-  options: { CUSTOMER: "Khách", COMPANY: "Công ty" },
+  options: FEE_BEARER_NAMES,
   hints: {
     CUSTOMER: "Khách bị tính phí này như thường lệ.",
     COMPANY: "Khách không bị tính phí; khoản này ghi là chi phí công ty để Kế toán xử lý.",
@@ -366,6 +368,10 @@ export const FEE_BEARER_LABELS = {
   filterSearch: "Tìm bên chịu phí…",
   filterEmpty: "Không có lựa chọn",
   badge: "Công ty chịu phí",
+  /** Nhãn một lựa chọn của bộ lọc: "Khách chịu phí" / "Công ty chịu phí". */
+  optionLabel: (bearer: keyof typeof FEE_BEARER_NAMES) => `${FEE_BEARER_NAMES[bearer]} chịu phí`,
+  /** Tóm tắt bộ lọc khi chưa chọn bên nào. */
+  all: "Tất cả",
 } as const;
 
 /* ── Nhãn UI thao tác trạng thái ─────────────────────────────────────── */
