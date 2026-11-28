@@ -166,13 +166,20 @@ describe("Duyệt yêu cầu huỷ — payload đúng ApproveCancellationRequest
     const post = vi.spyOn(api, "post").mockResolvedValue({ data: apiOrderAt("CANCELLED") });
     const { user, dialog } = await openApprove();
     await user.click(within(dialog).getByRole("radio", { name: "Giữ theo % số tiền đã thu" }));
+    // D50: có phí thì phải chọn bên chịu phí (không chọn sẵn) — nút gửi khoá tới lúc đó
+    expect(within(dialog).getByRole("button", { name: "Duyệt và huỷ đơn" })).toBeDisabled();
+    await user.click(within(dialog).getByRole("radio", { name: "Khách" }));
     await user.click(within(dialog).getByRole("button", { name: "Duyệt và huỷ đơn" }));
     expect(await within(dialog).findByText(/Nhập tỷ lệ lớn hơn 0/)).toBeInTheDocument();
     expect(post).not.toHaveBeenCalled();
     await user.type(within(dialog).getByLabelText(/Giữ lại \(%\)/), "30");
     await user.click(within(dialog).getByRole("button", { name: "Duyệt và huỷ đơn" }));
     await waitFor(() =>
-      expect(post).toHaveBeenCalledWith(APPROVAL_PATH, { retainedPercent: 30 }, KEY),
+      expect(post).toHaveBeenCalledWith(
+        APPROVAL_PATH,
+        { retainedPercent: 30, feeBearer: "CUSTOMER" },
+        KEY,
+      ),
     );
   });
 
@@ -182,6 +189,7 @@ describe("Duyệt yêu cầu huỷ — payload đúng ApproveCancellationRequest
     await user.click(
       within(dialog).getByRole("radio", { name: "Giữ theo số tiền thoả thuận với khách" }),
     );
+    await user.click(within(dialog).getByRole("radio", { name: "Công ty" }));
     await user.click(within(dialog).getByRole("button", { name: "Duyệt và huỷ đơn" }));
     expect(await within(dialog).findByText("Nhập số tiền nguyên lớn hơn 0")).toBeInTheDocument();
     expect(post).not.toHaveBeenCalled();
@@ -192,7 +200,10 @@ describe("Duyệt yêu cầu huỷ — payload đúng ApproveCancellationRequest
     await waitFor(() =>
       expect(post).toHaveBeenCalledWith(
         APPROVAL_PATH,
-        { agreedFee: { amount: 500000, reason: "Phôi đã in", detail: "Gọi điện ngày 10/11" } },
+        {
+          agreedFee: { amount: 500000, reason: "Phôi đã in", detail: "Gọi điện ngày 10/11" },
+          feeBearer: "COMPANY",
+        },
         KEY,
       ),
     );

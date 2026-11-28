@@ -1,4 +1,4 @@
-import { ORDER_FINANCE_LABELS } from "@/constants";
+import { FEE_BEARER_LABELS, ORDER_FINANCE_LABELS } from "@/constants";
 import { formatMoney } from "@/lib/format";
 
 import { cancellationReasonLabel, parseCancellationReason } from "../selectors";
@@ -100,6 +100,11 @@ export function OrderFinanceCard({ order, can }: OrderFinanceCardProps) {
             {cancellation.feeAmount !== null && (
               <Row label="Phí thoả thuận">
                 <Money value={cancellation.feeAmount} currency={currency} />
+              </Row>
+            )}
+            {(cancellation.feeBearer === "COMPANY" || cancellation.feeBearer === "CUSTOMER") && (
+              <Row label={FEE_BEARER_LABELS.legend}>
+                {FEE_BEARER_LABELS.options[cancellation.feeBearer]}
               </Row>
             )}
             {cancellation.feeReason && <Row label="Lý do giữ phí">{cancellation.feeReason}</Row>}

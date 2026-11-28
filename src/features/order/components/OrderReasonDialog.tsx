@@ -72,7 +72,7 @@ export function OrderReasonDialog<T>({
         title={title}
         description={description}
         submitLabel={submitLabel}
-        canSubmit
+        canSubmit={extra?.canSubmit ?? true}
         isPending={isPending}
         error={error}
         onSubmit={submit}

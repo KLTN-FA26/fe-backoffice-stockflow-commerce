@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 
-import { ORDER_INSTALLMENTS_LABELS } from "@/constants";
+import { FEE_BEARER_LABELS, ORDER_INSTALLMENTS_LABELS } from "@/constants";
 import {
   INSTALLMENT_STATUS_BY_API,
   ORDER_PAYMENT_STATUS_BY_API,
@@ -69,14 +69,25 @@ export function OrderInstallmentsSummary({
   // BE `paymentStatus` is null only when every installment is cancelled. Then the total and "outstanding" are 0 by
   // construction and mean nothing: show what the customer paid (refund is settled on the refund screen). A cancellation
   // fee still owed keeps a live installment, so `paymentStatus` stays set and "Còn phải thu" stays.
+  // D46/D50: phần phí công ty chịu — khách không bị tính, Kế toán xử lý như chi phí công ty
+  const borne =
+    data.feeBorneByCompany != null && data.feeBorneByCompany > 0 ? (
+      <Row label={FEE_BEARER_LABELS.borneByCompany} className={MONEY}>
+        {formatMoney(data.feeBorneByCompany, currency)}
+      </Row>
+    ) : null;
   if (cancelled && !data.paymentStatus)
     return (
-      <Row label={L.paidWhenCancelled} className={MONEY}>
-        {formatMoney(data.paid, currency)}
-      </Row>
+      <>
+        <Row label={L.paidWhenCancelled} className={MONEY}>
+          {formatMoney(data.paid, currency)}
+        </Row>
+        {borne}
+      </>
     );
   return (
     <>
+      {borne}
       {data.paymentStatus && (
         <Row label={L.paymentStatus}>
           <PaymentStatus status={data.paymentStatus} />

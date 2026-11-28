@@ -15,8 +15,10 @@ import {
   DELIVERY_FAILURE_LIMITS,
   LOST_SHIPMENT_CLOSURE_LABELS,
 } from "@/constants/labels-order-delivery-failure";
-import { ORDER_DELIVERY_FAILURE_REASONS } from "@/constants/labels-order";
+import { FEE_BEARER_LABELS, ORDER_DELIVERY_FAILURE_REASONS } from "@/constants/labels-order";
 import { ORDER_STATUS_UNKNOWN } from "@/constants/statuses";
+
+import { feeBearerSchema } from "./input-schemas";
 
 const V = DELIVERY_FAILURE_LABELS.validation;
 
@@ -139,9 +141,11 @@ export const cancelUndeliveredInputSchema = z
     feeAmount: z.string(),
     feeReason: z.string(),
     feeDetail: z.string(),
+    /** D50: "" = chưa chọn; bắt buộc khi giữ phí, không mặc định. */
+    feeBearer: z.string(),
   })
   .transform((value, ctx) => {
-    if (!value.withFee) return { note: value.note, agreedFee: undefined };
+    if (!value.withFee) return { note: value.note, agreedFee: undefined, feeBearer: undefined };
     const amount = wholeVnd(V.feeInvalid).safeParse(value.feeAmount);
     const reason = value.feeReason.trim();
     const detail = value.feeDetail.trim();
@@ -154,8 +158,16 @@ export const cancelUndeliveredInputSchema = z
     if (detail === "" || detail.length > DELIVERY_FAILURE_LIMITS.feeDetailMax) {
       ctx.addIssue({ code: "custom", path: ["feeDetail"], message: V.feeDetailRequired });
     }
-    if (!amount.success) return z.NEVER;
-    return { note: value.note, agreedFee: { amount: amount.data, reason, detail } };
+    const bearer = feeBearerSchema.safeParse(value.feeBearer);
+    if (!bearer.success) {
+      ctx.addIssue({ code: "custom", path: ["feeBearer"], message: FEE_BEARER_LABELS.required });
+    }
+    if (!amount.success || !bearer.success) return z.NEVER;
+    return {
+      note: value.note,
+      agreedFee: { amount: amount.data, reason, detail },
+      feeBearer: bearer.data,
+    };
   });
 
 export type CancelUndeliveredFormValues = z.input<typeof cancelUndeliveredInputSchema>;
@@ -167,6 +179,7 @@ export const CANCEL_UNDELIVERED_DEFAULTS: CancelUndeliveredFormValues = {
   feeAmount: "",
   feeReason: "",
   feeDetail: "",
+  feeBearer: "",
 };
 
 /* ── Đóng phần thất lạc (Q-12, F-5) ────────────────────────────────── */

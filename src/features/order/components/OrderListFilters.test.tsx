@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { CUSTOMER_PERMISSIONS } from "@/constants";
+import { PAYMENT_INSTALLMENT_PERMISSIONS } from "@/constants/payment";
 import { api } from "@/lib/api/client";
 import { bePage } from "@/test/api-screen";
 
@@ -327,6 +328,33 @@ describe(
       await userEvent.click(within(statusHeader).getByRole("button", { name: "Lọc trạng thái" }));
       await userEvent.click(await screen.findByRole("option", { name: /Nháp/ }));
       await waitFor(() => expect(lastListQuery().getAll("status")).toEqual(["DRAFT"]));
+    });
+
+    it("D50: lọc 'Bên chịu phí' trên cột Thanh toán → gửi feeBearer=COMPANY; dòng có phí công ty chịu hiện huy hiệu", async () => {
+      const borne = {
+        ...apiOrder,
+        paidAmount: 1_000_000,
+        outstandingAmount: 0,
+        overdueAmount: 0,
+        feeBorneByCompany: true,
+      };
+      renderList(() => apiOrderPage([borne]), "", [
+        ...SALES_WITH_CUSTOMERS,
+        PAYMENT_INSTALLMENT_PERMISSIONS.read,
+      ]);
+      await screen.findByText(apiOrder.orderNumber);
+      expect(screen.getByText("Công ty chịu phí")).toBeInTheDocument();
+      expect(lastListQuery().has("feeBearer")).toBe(false);
+      const header = screen.getByRole("columnheader", { name: /Thanh toán/ });
+      await userEvent.click(within(header).getByRole("button", { name: "Lọc bên chịu phí" }));
+      await userEvent.click(await screen.findByRole("option", { name: /Công ty chịu phí/ }));
+      await waitFor(() => expect(lastListQuery().get("feeBearer")).toBe("COMPANY"));
+    });
+
+    it("link cũ ?feeBearer=lạ → bị bỏ qua, không gửi BE", async () => {
+      renderList(() => apiOrderPage([apiOrder]), "?feeBearer=ABC");
+      await screen.findByText(apiOrder.orderNumber);
+      expect(lastListQuery().has("feeBearer")).toBe(false);
     });
 
     it("Khách hàng / Người nhận không có nút sắp xếp (BE LIST_SORT không có); Mã đơn có", async () => {

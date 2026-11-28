@@ -33,6 +33,7 @@ describe("OrderDetail — Đóng phần còn lại kèm phí đã thoả thuận
     await user.type(screen.getByLabelText(/Số tiền phí/), "4.000.000");
     await user.type(screen.getByLabelText(/Lý do giữ phí/), "  Đã in 2 lô  ");
     await user.type(screen.getByLabelText(/Chi tiết đã thoả thuận/), "Khách đồng ý qua điện thoại");
+    await user.click(screen.getByRole("radio", { name: "Khách" }));
   }
 
   it("bật phí → POST kèm agreedFee {amount (số nguyên VND), reason, detail} đã trim", async () => {
@@ -54,7 +55,34 @@ describe("OrderDetail — Đóng phần còn lại kèm phí đã thoả thuận
             reason: "Đã in 2 lô",
             detail: "Khách đồng ý qua điện thoại",
           },
+          feeBearer: "CUSTOMER",
         },
+        WITH_KEY,
+      ),
+    );
+  });
+
+  it("D50: có phí mà chưa chọn bên chịu phí → không chọn sẵn, nút gửi bị khoá; chọn Công ty → feeBearer COMPANY", async () => {
+    await renderDetail(ORDER_PERMISSION_SETS.salesStaff, () => apiPartialOrder);
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: apiPartialOrder });
+    const user = userEvent.setup();
+
+    await openClosureDialog(user);
+    await user.click(screen.getByRole("checkbox", { name: /Giữ một khoản phí/ }));
+    expect(screen.getByRole("radio", { name: "Khách" })).not.toBeChecked();
+    expect(screen.getByRole("radio", { name: "Công ty" })).not.toBeChecked();
+    expect(screen.getAllByRole("button", { name: "Đóng phần còn lại" }).at(-1)).toBeDisabled();
+    await user.type(screen.getByLabelText(/Số tiền phí/), "1000000");
+    await user.type(screen.getByLabelText(/Lý do giữ phí/), "Đã in");
+    await user.type(screen.getByLabelText(/Chi tiết đã thoả thuận/), "Thoả thuận");
+    await user.click(screen.getByRole("radio", { name: "Công ty" }));
+    expect(screen.getByText(/Khách không bị tính phí/)).toBeInTheDocument();
+    await submit(user);
+
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(
+        CLOSURE_PATH,
+        expect.objectContaining({ feeBearer: "COMPANY" }),
         WITH_KEY,
       ),
     );
@@ -104,6 +132,7 @@ describe("OrderDetail — Đóng phần còn lại kèm phí đã thoả thuận
 
     await openClosureDialog(user);
     await user.click(screen.getByRole("checkbox", { name: /Giữ một khoản phí/ }));
+    await user.click(screen.getByRole("radio", { name: "Khách" }));
     await user.type(screen.getByLabelText(/Số tiền phí/), "abc");
     await submit(user);
 

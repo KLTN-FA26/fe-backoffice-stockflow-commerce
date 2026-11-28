@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Eye } from "lucide-react";
 
-import { ADMIN_ROUTES } from "@/constants";
+import { ADMIN_ROUTES, FEE_BEARER_LABELS } from "@/constants";
 import { formatMoney } from "@/lib/format";
 import {
   CELL,
@@ -35,13 +35,21 @@ export function buildOrderColumns(onFilterCustomer: (customerId: string) => void
       header: COLUMN_LABELS.orderNumber,
       sortable: true,
       cell: (row) => (
-        <Link
-          href={ADMIN_ROUTES.orders.detail(row.orderId)}
-          className={`${CELL.code} hover:underline`}
-          onClick={(event) => event.stopPropagation()}
-        >
-          {row.orderNumber}
-        </Link>
+        <div className="flex flex-col items-start gap-0.5">
+          <Link
+            href={ADMIN_ROUTES.orders.detail(row.orderId)}
+            className={`${CELL.code} hover:underline`}
+            onClick={(event) => event.stopPropagation()}
+          >
+            {row.orderNumber}
+          </Link>
+          {/* D50: công ty chịu một khoản phí của đơn — Kế toán thấy ngay ở danh sách */}
+          {row.feeBorneByCompany && (
+            <span className="bg-bg-muted text-ink-secondary border-border-default rounded-[var(--r-sm)] border px-1.5 py-px text-[0.6875rem] font-medium whitespace-nowrap">
+              {FEE_BEARER_LABELS.badge}
+            </span>
+          )}
+        </div>
       ),
     },
     {

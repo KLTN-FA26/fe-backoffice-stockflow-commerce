@@ -58,6 +58,7 @@ export function ShortageCloseRestAction({ order, card, allowed }: ShortageExecut
           schema={remainderClosureSchema}
           extra={{
             values: fee.values,
+            canSubmit: fee.canSubmit,
             render: (errors) => <RemainderFeeFields fee={fee} errors={errors} />,
           }}
           isPending={isPending}

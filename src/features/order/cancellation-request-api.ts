@@ -97,11 +97,12 @@ const decisionPath = (orderId: string, requestId: string, step: "approval" | "re
 export async function approveCancellationRequest(
   input: CancellationDecisionVars<ApproveCancellationValues>,
 ): Promise<Order> {
-  const { orderId, requestId, idempotencyKey, note, retainedPercent, agreedFee } = input;
+  const { orderId, requestId, idempotencyKey, note, retainedPercent, agreedFee, feeBearer } = input;
   const body = {
     ...(note ? { note } : {}),
     ...(retainedPercent !== undefined ? { retainedPercent } : {}),
     ...(agreedFee ? { agreedFee } : {}),
+    ...(feeBearer ? { feeBearer } : {}),
   };
   const { data } = await api.post<unknown>(
     decisionPath(orderId, requestId, "approval"),

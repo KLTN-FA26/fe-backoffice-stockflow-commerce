@@ -187,6 +187,7 @@ export const apiCancelledOrder: OrderDto = {
     reasonCode: "CUSTOMER_REQUEST",
     reason: "CUSTOMER_REQUEST: Khách đổi ý",
     retainedAmount: 50000,
+    feeBearer: "CUSTOMER",
     feeReason: "Đã in",
     feeDetail: "Thoả thuận giữ 50.000 ₫ tiền in",
     feeAmount: 50000,

@@ -1,6 +1,6 @@
 "use client";
 
-import { CANCELLATION_REQUEST_LABELS } from "@/constants";
+import { CANCELLATION_REQUEST_LABELS, FEE_BEARER_LABELS } from "@/constants";
 import { formatMoney } from "@/lib/format";
 
 import { useOrderRefund } from "../../queries";
@@ -68,6 +68,12 @@ export function CancellationSettlementPanel({
             <Row label={L.feeCovered} value={money(settlement.feeCovered)} />
             <Row label={L.refundable} value={money(settlement.refundable)} strong />
             <Row label={L.feeOwed} value={money(settlement.feeOwed)} strong />
+            {(settlement.feeBorneByCompany ?? 0) > 0 && (
+              <Row
+                label={FEE_BEARER_LABELS.borneByCompany}
+                value={money(settlement.feeBorneByCompany)}
+              />
+            )}
           </dl>
           {settlement.feeReason && (
             <p className="text-ink-secondary break-words">

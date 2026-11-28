@@ -57,6 +57,7 @@ describe("Cancellation fee dialog — round 5 (BO-UX-35)", () => {
     await user.click(
       within(dialog).getByRole("radio", { name: "Giữ theo số tiền thoả thuận với khách" }),
     );
+    await user.click(within(dialog).getByRole("radio", { name: "Khách" }));
     await user.click(within(dialog).getByRole("button", { name: "Duyệt và huỷ đơn" }));
     const amount = within(dialog).getByLabelText(/Số tiền phí/);
     expect(amount).toHaveAttribute("aria-invalid", "true");

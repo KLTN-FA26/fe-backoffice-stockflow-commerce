@@ -148,12 +148,22 @@ describe("agreedFeeSchema / remainderClosureSchema — phí đã thoả thuận 
       reasonCode: "OUT_OF_STOCK",
       note: "",
       agreedFee: fee,
+      feeBearer: "COMPANY",
     });
     expect(ok.agreedFee).toEqual(fee);
+    expect(ok.feeBearer).toBe("COMPANY");
+    // D50: có phí mà thiếu bên chịu phí → lỗi ở feeBearer
+    const noBearer = remainderClosureSchema.safeParse({
+      reasonCode: "OUT_OF_STOCK",
+      note: "",
+      agreedFee: fee,
+    });
+    expect(noBearer.error?.issues[0]?.path).toEqual(["feeBearer"]);
     const bad = remainderClosureSchema.safeParse({
       reasonCode: "OUT_OF_STOCK",
       note: "",
       agreedFee: { ...fee, amount: 0 },
+      feeBearer: "CUSTOMER",
     });
     expect(bad.error?.issues[0]?.path).toEqual(["agreedFee", "amount"]);
   });

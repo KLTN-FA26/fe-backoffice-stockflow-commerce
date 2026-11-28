@@ -121,6 +121,7 @@ export function toOrder(dto: OrderDto): Order {
     paidAmount: dto.paidAmount,
     outstandingAmount: dto.outstandingAmount,
     overdueAmount: dto.overdueAmount,
+    feeBorneByCompany: dto.feeBorneByCompany ?? false,
     releasedAt: dto.releasedAt ?? null,
     cancellation: cancellation
       ? {
@@ -130,6 +131,7 @@ export function toOrder(dto: OrderDto): Order {
           feeReason: cancellation.feeReason ?? null,
           feeDetail: cancellation.feeDetail ?? null,
           feeAmount: cancellation.feeAmount ?? null,
+          feeBearer: cancellation.feeBearer ?? null,
         }
       : null,
     allowPartialShipment: dto.allowPartialShipment ?? null,
@@ -160,6 +162,8 @@ export interface ListOrderParams extends ListQueryParams {
   /** `yyyy-MM-dd`, cả hai đầu tính, múi giờ Asia/Ho_Chi_Minh (BE OrderServiceImpl). */
   placedFrom?: string;
   placedTo?: string;
+  /** D50: chỉ đơn có phí do công ty chịu (`COMPANY`) hoặc khách chịu (`CUSTOMER`). */
+  feeBearer?: "COMPANY" | "CUSTOMER";
   /** `field,asc|desc`. */
   sort?: string;
 }
@@ -179,6 +183,7 @@ export function buildOrderListQuery(params: ListOrderParams): URLSearchParams {
   if (customerId && isValidOrderCustomerId(customerId)) query.set("customerId", customerId);
   if (params.placedFrom) query.set("placedFrom", params.placedFrom);
   if (params.placedTo) query.set("placedTo", params.placedTo);
+  if (params.feeBearer) query.set("feeBearer", params.feeBearer);
   if (sort?.trim()) query.set("sort", sort.trim());
   return query;
 }
@@ -274,6 +279,7 @@ export function closeOrderRemainder(input: RemainderClosureInput): Promise<Order
   const body = {
     ...reasonBody(input),
     ...(input.agreedFee ? { agreedFee: input.agreedFee } : {}),
+    ...(input.agreedFee && input.feeBearer ? { feeBearer: input.feeBearer } : {}),
   };
   return postOrderAction(input.id, "/remainder-closure", body, input.idempotencyKey);
 }

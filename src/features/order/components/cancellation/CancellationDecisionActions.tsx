@@ -96,6 +96,7 @@ export function useCancellationApproveDialog({
         schema={approveCancellationSchema}
         extra={{
           values: fee.values,
+          canSubmit: fee.canSubmit,
           render: (errors) => <CancellationFeeFields fee={fee} errors={errors} facts={facts} />,
         }}
         isPending={isPending}

@@ -22,6 +22,7 @@ import { findConversationAbout, findConversationOfCustomer } from "@/lib/referen
 import { orderPath } from "./api";
 import { shortageCardSchema, shortagePreviewSchema } from "./shortage-card-schemas";
 
+import type { FeeBearer } from "@/constants";
 import type { ShortageWaitValues } from "./shortage-card-schemas";
 
 const cardPath = (orderId: string, cardId: string, step: string) =>
@@ -98,10 +99,12 @@ export const executeCloseRest = (
     reasonCode: string;
     note?: string;
     agreedFee?: { amount: number; reason: string; detail: string };
+    feeBearer?: FeeBearer;
   },
 ) =>
   execute(input, "close-rest", {
     reasonCode: input.reasonCode,
     note: input.note || undefined,
     ...(input.agreedFee ? { agreedFee: input.agreedFee } : {}),
+    ...(input.agreedFee && input.feeBearer ? { feeBearer: input.feeBearer } : {}),
   });

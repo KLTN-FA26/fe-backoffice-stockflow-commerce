@@ -4,6 +4,8 @@ import { parseAsString, useQueryState } from "nuqs";
 
 import { isValidOrderCustomerId } from "../../schemas";
 
+import type { FeeBearer } from "@/constants";
+
 /** Khoá URL của bộ lọc riêng trang đơn (ngoài status/q/page/sort của `useUrlFilters`). */
 export const ORDER_FILTER_KEYS = {
   customer: "customer",
@@ -15,6 +17,8 @@ export const ORDER_FILTER_KEYS = {
   /** Khoảng tổng tiền (BE không có tham số → chỉ lọc trang đang xem). */
   totalFrom: "ordTotalFrom",
   totalTo: "ordTotalTo",
+  /** D50: lọc đơn theo bên chịu phí (BE `feeBearer`). */
+  feeBearer: "feeBearer",
 } as const;
 
 /** `yyyy-MM-dd` — đúng định dạng `LocalDate` BE nhận ở `placedFrom/placedTo`. */
@@ -60,6 +64,14 @@ export function useOrderExtraFilters(resetPage: () => void) {
     parseAsString.withDefault(""),
   );
 
+  const [feeBearerRaw, setFeeBearer] = useQueryState(
+    ORDER_FILTER_KEYS.feeBearer,
+    parseAsString.withDefault(""),
+  );
+  // Giá trị lạ trên URL (link cũ, gõ tay) bị bỏ — không bao giờ gửi cho BE (400)
+  const feeBearer: "" | FeeBearer =
+    feeBearerRaw === "COMPANY" || feeBearerRaw === "CUSTOMER" ? feeBearerRaw : "";
+
   const customerInput = customerRaw.trim();
   const customerId = isValidOrderCustomerId(customerInput) ? customerInput : "";
   const from = ISO_DAY.test(placedFrom) ? placedFrom : "";
@@ -80,11 +92,13 @@ export function useOrderExtraFilters(resetPage: () => void) {
     placedFrom: from,
     placedTo: to,
     invalidRange,
+    feeBearer,
     /** Giá trị gửi API — bỏ khách / khoảng ngày sai thay vì để BE trả 400. */
     params: {
       customerId: customerId || undefined,
       placedFrom: invalidRange ? undefined : from || undefined,
       placedTo: invalidRange ? undefined : to || undefined,
+      feeBearer: feeBearer || undefined,
     },
     /** Chữ lọc trên header cột Mã đơn / Người nhận (URL). */
     numberText,
@@ -95,6 +109,7 @@ export function useOrderExtraFilters(resetPage: () => void) {
       numberText.trim() !== "" || recipientText.trim() !== "" || totalFrom !== "" || totalTo !== "",
     active:
       customerId !== "" ||
+      feeBearer !== "" ||
       from !== "" ||
       to !== "" ||
       numberText.trim() !== "" ||
@@ -102,6 +117,7 @@ export function useOrderExtraFilters(resetPage: () => void) {
       totalFrom !== "" ||
       totalTo !== "",
     setCustomerId: withPageReset((v: string) => setCustomerId(v.trim() || null)),
+    setFeeBearer: withPageReset((v: string) => setFeeBearer(v || null)),
     setPlacedFrom: withPageReset((v: string) => setPlacedFrom(v || null)),
     setPlacedTo: withPageReset((v: string) => setPlacedTo(v || null)),
     /** Lọc header cột Ngày đặt đổi cả hai đầu một lần. */
@@ -135,6 +151,7 @@ export function useOrderExtraFilters(resetPage: () => void) {
       void setCustomerId(null);
       void setPlacedFrom(null);
       void setPlacedTo(null);
+      void setFeeBearer(null);
     },
   };
 }

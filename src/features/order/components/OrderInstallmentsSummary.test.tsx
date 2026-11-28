@@ -62,6 +62,14 @@ const block = () => screen.getByRole("heading", { name: "Thanh toán" }).closest
 openOrderDetailTabInFile("payment");
 
 describe("Khối Thanh toán — các đợt thanh toán của đơn", () => {
+  it("D50: BE báo feeBorneByCompany > 0 → dòng 'Phí do công ty chịu' với số tiền; 0 thì không có dòng", async () => {
+    const perms = [...ORDER_PERMISSION_SETS.readOnly, PAYMENT_INSTALLMENT_PERMISSIONS.read];
+    await renderOrder(perms, { ...INSTALLMENTS, feeBorneByCompany: 2_500_000 });
+    const card = within(block());
+    expect(await card.findByText("Phí do công ty chịu")).toBeInTheDocument();
+    expect(card.getByText(/2\.500\.000/)).toBeInTheDocument();
+  });
+
   it("có payment-installments:READ → số đợt, đã thu / tổng, trạng thái từng đợt bằng tiếng Việt", async () => {
     await renderOrder(
       [...ORDER_PERMISSION_SETS.readOnly, PAYMENT_INSTALLMENT_PERMISSIONS.read],

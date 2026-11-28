@@ -135,6 +135,40 @@ describe("OrderDetail — Lô hàng hoàn về (WF-05 BO-01)", () => {
   });
 });
 
+describe("OrderDetail — Huỷ phần chưa giao kèm phí: bên chịu phí (D50)", () => {
+  it("giữ phí → phải chọn bên chịu phí (không chọn sẵn, nút khoá); body mang feeBearer", async () => {
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: [] });
+    const section = await renderWith(ORDER_PERMISSION_SETS.salesStaff, []);
+    await userEvent.click(
+      await within(section).findByRole("button", { name: /Huỷ phần chưa giao/ }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.type(within(dialog).getByLabelText(/Lý do huỷ/), "Khách không nhận lại hàng");
+    await userEvent.click(within(dialog).getByRole("checkbox"));
+    await userEvent.type(within(dialog).getByLabelText(/Số tiền/), "300000");
+    await userEvent.type(within(dialog).getByLabelText(/Lý do giữ/), "Hàng in theo thiết kế");
+    await userEvent.type(within(dialog).getByLabelText(/Nội dung/), "Hai bên thống nhất");
+    expect(within(dialog).getByRole("radio", { name: "Khách" })).not.toBeChecked();
+    expect(within(dialog).getByRole("radio", { name: "Công ty" })).not.toBeChecked();
+    const submitButton = within(dialog).getByRole("button", { name: "Huỷ phần chưa giao" });
+    expect(submitButton).toBeDisabled();
+    await userEvent.click(within(dialog).getByRole("radio", { name: "Công ty" }));
+    await waitFor(() => expect(submitButton).toBeEnabled());
+    await userEvent.click(submitButton);
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(
+        `${FAILURES_PATH}/cancellation`,
+        expect.objectContaining({
+          note: "Khách không nhận lại hàng",
+          feeBearer: "COMPANY",
+          agreedFee: expect.objectContaining({ amount: 300000 }),
+        }),
+        expect.anything(),
+      ),
+    );
+  });
+});
+
 describe("OrderDetail — Đóng phần thất lạc (Q-12, F-5)", () => {
   const lostOrder = apiOrderWith({
     ...apiPartialOrder,

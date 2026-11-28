@@ -12,6 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
+import { FeeBearerField } from "../FeeBearerField";
+
 import type { ReasonDialogErrors } from "../useReasonDialogValidation";
 import type { CancellationFeeMode, CancellationFeeState } from "./useCancellationFee";
 
@@ -164,6 +166,13 @@ export function CancellationFeeFields({
             <FieldError id={detailId} message={errors["agreedFee.detail"]} />
           </div>
         </div>
+      )}
+      {fee.mode !== "none" && (
+        <FeeBearerField
+          value={fee.feeBearer}
+          onChange={fee.setFeeBearer}
+          error={errors.feeBearer}
+        />
       )}
       <FieldError id={`${baseId}-fee`} message={errors.agreedFee} />
     </fieldset>

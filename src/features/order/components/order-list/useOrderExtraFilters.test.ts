@@ -37,7 +37,12 @@ describe("useOrderExtraFilters — chỉ tham số BE GET /orders nhận mới v
 
   it("?term / ?paymentTerm cũ bị bỏ qua — không có trong params, không bật bộ lọc", () => {
     const extra = filtersAt("?term=CREDIT&paymentTerm=NET_30");
-    expect(Object.keys(extra.params).sort()).toEqual(["customerId", "placedFrom", "placedTo"]);
+    expect(Object.keys(extra.params).sort()).toEqual([
+      "customerId",
+      "feeBearer",
+      "placedFrom",
+      "placedTo",
+    ]);
     expect(Object.values(extra.params).every((value) => value === undefined)).toBe(true);
     expect(extra.active).toBe(false);
   });

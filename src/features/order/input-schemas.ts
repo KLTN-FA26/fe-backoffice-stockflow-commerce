@@ -9,6 +9,8 @@ import {
   ORDER_DELIVERY_FAILURE_REASONS,
   ORDER_MANUAL_HOLD_REASONS,
   ORDER_REMAINDER_CLOSURE_REASONS,
+  FEE_BEARERS,
+  FEE_BEARER_LABELS,
   ORDER_REMAINDER_FEE_LABELS,
   ORDER_SHIPPING_ADDRESS_LABELS,
 } from "@/constants/labels-order";
@@ -64,6 +66,9 @@ export const deliveryFailureSchema = reasonWithNote(
   "Ghi chú",
 );
 
+/** Bên chịu phí (D46/D50): `CancellationFeeBearer` của BE. */
+export const feeBearerSchema = z.enum(FEE_BEARERS, { error: FEE_BEARER_LABELS.required });
+
 /**
  * Khoản phí đã thoả thuận khi đóng phần còn lại (`CloseRemainderRequest.agreedFee` = `CancellationFeeRequest`,
  * BE PR #150): số tiền nguyên VND > 0 (BE `Order#requireRemainderFee`: đúng số chữ số thập phân của tiền
@@ -100,10 +105,16 @@ export const remainderClosureSchema = z
       ),
     /** Tuỳ chọn; chỉ sau khi hàng in đã in (BE 409 CANCELLATION_FEE_BEFORE_PRINTING nếu chưa). */
     agreedFee: agreedFeeSchema.optional(),
+    /** D50: bắt buộc khi có phí, không mặc định; BE 400 nếu thiếu (hoặc có mà không có phí). */
+    feeBearer: feeBearerSchema.optional(),
   })
   .refine((value) => value.reasonCode !== "OTHER" || value.note.length > 0, {
     path: ["note"],
     message: NOTE_REQUIRED,
+  })
+  .refine((value) => value.agreedFee === undefined || value.feeBearer !== undefined, {
+    path: ["feeBearer"],
+    message: FEE_BEARER_LABELS.required,
   });
 
 /**

@@ -15,6 +15,8 @@ export type ReasonDialogErrors = Readonly<Record<string, string>>;
 export interface OrderReasonDialogExtra {
   values: Record<string, unknown>;
   render: (errors: ReasonDialogErrors) => ReactNode;
+  /** Mặc định true; false khi ô phụ chưa đủ để gửi (vd có phí mà chưa chọn bên chịu phí). */
+  canSubmit?: boolean;
 }
 
 /** Lỗi kèm dấu vết `extra.values` lúc validate — để biết lỗi ô phụ đã cũ chưa. */
