@@ -236,6 +236,8 @@ export const ORDER_HISTORY_ENTRY_TYPES = [
   "ADDRESS_CHANGE",
   // WF-05 BE-52: phiếu hoàn tiền bị huỷ khi đơn còn yêu cầu trả hàng mở — trạng thái không đổi, `reason` = lý do huỷ
   "REFUND_VOIDED",
+  // WF4-F2C: kho loại một thùng ở trạm kiểm thùng — trạng thái không đổi; `cartonLpn`, `cartonRemovalReason`, `continuesPartial`
+  "CARTON_REMOVAL",
 ] as const;
 
 /**
@@ -304,6 +306,16 @@ export const ORDER_HISTORY_LABELS = {
   addressTo: "Thành",
   /** Mục "Huỷ phiếu hoàn tiền" (`REFUND_VOIDED`, WF-05 BE-52 / TT-3): ghi chú là lý do huỷ của Kế toán. */
   refundVoided: "Huỷ phiếu hoàn tiền",
+  /**
+   * Mục "Loại thùng" (`CARTON_REMOVAL`, WF4-F2C; docs 08 §4.2 bước 4): kho loại thùng ở trạm kiểm thùng. Đơn đã được cho
+   * giao một phần thì đi tiếp theo kiểu giao một phần; chưa thì đơn bị treo chờ Sale quyết. Ghi chú của kho nằm bên dưới.
+   */
+  cartonRemoved: (lpn: string, reason: string | null, continuesPartial: boolean) =>
+    `Kho loại thùng ${lpn}${reason ? ` (${reason})` : ""} – ${
+      continuesPartial ? "giao một phần" : "đơn treo, chờ Sale quyết"
+    }`,
+  /** Lý do loại thùng (BE `CartonCheck.RemovalReason`) — mã lạ không có nhãn thì bỏ phần ngoặc. */
+  cartonRemovalReasons: { DAMAGED: "hư hỏng" } as Readonly<Record<string, string>>,
   unknownEntry: "Thay đổi không rõ",
   by: "Bởi",
   noteLabel: "Ghi chú",
@@ -316,6 +328,7 @@ export const ORDER_HISTORY_LABELS = {
     "delivery-mode": "Hình thức giao",
     "address-change": "Địa chỉ giao",
     "refund-voided": "Phiếu hoàn tiền",
+    "carton-removal": "Loại thùng",
     unknown: "Khác",
   },
   columns: {
