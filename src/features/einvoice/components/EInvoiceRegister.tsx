@@ -79,6 +79,7 @@ function RegisterContent() {
             Từ ngày lập
           </Label>
           <DatePicker
+            quickKind="past"
             id="register-from"
             value={from}
             onChange={(value) => void setFrom(value)}
@@ -90,6 +91,7 @@ function RegisterContent() {
             Đến ngày
           </Label>
           <DatePicker
+            quickKind="past"
             id="register-to"
             value={to}
             onChange={(value) => void setTo(value)}

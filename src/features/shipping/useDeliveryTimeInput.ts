@@ -2,12 +2,9 @@
 
 import { useState } from "react";
 
-import {
-  deliveredAtToSend,
-  deliveryTimeProblem,
-  sameBusinessDay,
-  toLocalInput,
-} from "./delivery-time";
+import { toLocalDateTime } from "@/lib/format";
+
+import { deliveredAtToSend, deliveryTimeProblem, sameBusinessDay } from "./delivery-time";
 
 /**
  * Trạng thái ô thời điểm giao của hộp thoại ghi nhận / sửa kết quả giao: mặc định lúc mở hộp thoại, chỉ gửi `deliveredAt`
@@ -23,12 +20,11 @@ export function useDeliveryTimeInput(
   undone?: string | null,
 ) {
   const [opened] = useState(() => new Date());
-  const [undoneLocal] = useState(() => (undone ? toLocalInput(undone) : null));
-  const [local, setLocal] = useState(() => undoneLocal ?? toLocalInput(opened));
+  const [undoneLocal] = useState(() => (undone ? toLocalDateTime(undone) : null));
+  const [local, setLocal] = useState(() => undoneLocal ?? toLocalDateTime(opened));
   const [edited, setEdited] = useState(false);
   return {
     local,
-    opened,
     /** Ô đang điền theo lần giao bị sửa (BE `undoneDeliveredAt`). */
     restoresUndone: undoneLocal !== null,
     otherDay: active && undoneLocal !== null && !!local && !sameBusinessDay(local, undoneLocal),

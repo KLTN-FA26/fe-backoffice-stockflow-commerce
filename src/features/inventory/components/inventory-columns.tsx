@@ -52,8 +52,8 @@ export function buildAdjustmentColumns(): ColumnDef<StockAdjustment>[] {
       withTime: true,
     }),
     {
-      key: "quantityDelta",
-      header: L.quantityDelta,
+      key: "direction",
+      header: L.adjustmentDelta,
       align: "right",
       cell: (row) => <span className={CELL.number}>{formatAdjustmentDelta(row)}</span>,
     },
@@ -89,5 +89,25 @@ export function buildMovementColumns(): ColumnDef<StockMovement>[] {
     numberCell<StockMovement>("quantity", L.quantity, (row) => row.quantity),
     refCell<StockMovement>("reference", L.reference, (row) => row.referenceType),
     textCell<StockMovement>("reason", L.reason, (row) => row.reason ?? ""),
+    { key: "actor", header: L.actor, cell: (row) => <MovementActor row={row} /> },
   ];
+}
+
+/**
+ * Người làm của dòng sổ (issue #286): tên BE kèm cạnh id; dòng không có người là do hệ thống. Dòng điều chỉnh kèm thêm
+ * người đề nghị và — chênh lệch kiểm kê — người đếm. Không có tên thì "—", không hiện id người dùng.
+ */
+function MovementActor({ row }: { row: StockMovement }) {
+  const main = row.actorName ?? (row.actorId ? L.missing : L.systemActor);
+  return (
+    <span className="flex flex-col">
+      <span className={CELL.text}>{main}</span>
+      {row.requestedByName && (
+        <span className="text-ink-tertiary text-xs">{L.requestedByLine(row.requestedByName)}</span>
+      )}
+      {row.countedByName && (
+        <span className="text-ink-tertiary text-xs">{L.countedByLine(row.countedByName)}</span>
+      )}
+    </span>
+  );
 }

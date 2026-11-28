@@ -3,6 +3,7 @@
 import { Truck } from "lucide-react";
 
 import { ADMIN_ROUTES, UI_LABELS } from "@/constants";
+import { inProgressFirst } from "@/features/shipping/ftl-selectors";
 import { DataTable } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
@@ -94,7 +95,7 @@ function Content({ s, columns }: { s: LoadListState; columns: ColumnDef<LoadRow>
       <DataTable
         stickyHeader
         columns={columns}
-        data={page.items}
+        data={inProgressFirst(page.items)}
         rowKey={(row) => row.loadId}
         caption={`${UI_LABELS.common.showing} ${page.items.length} / ${page.totalElements} ${L.listCaption}`}
         onRowClick={s.navigateToLoad}

@@ -114,7 +114,9 @@ describe("ShipmentList — lô giao chờ xuất", () => {
         "href",
         "/admin/shipments/s1",
       );
+      // Nút "⋯" cuối dòng mở menu, mục "Xem chi tiết" sang chi tiết lô
       await user.click(screen.getByRole("button", { name: `${L.shipments.title} SO-1-S1` }));
+      await user.click(await screen.findByRole("button", { name: "Xem chi tiết" }));
       expect(push).toHaveBeenCalledWith("/admin/shipments/s1");
     },
   );

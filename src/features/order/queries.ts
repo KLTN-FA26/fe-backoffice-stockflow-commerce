@@ -26,6 +26,10 @@ import {
   listCancellationRequests,
   type ListCancellationRequestParams,
 } from "./cancellation-request-api";
+import {
+  listContractCreditReviews,
+  type ListContractCreditReviewParams,
+} from "./contract-credit-review-api";
 import { getDeliverySchedule } from "./delivery-batch-api";
 import { getOrderHistory } from "./history-api";
 import { getOrderInstallmentsSummary } from "./installments-summary-api";
@@ -34,6 +38,7 @@ import { getChosenShippingWarehouseId } from "./shipping-warehouse-api";
 import { isValidOrderCustomerId } from "./schemas";
 
 import type { CancellationRequest, OrderRefundDto } from "./cancellation-request-schemas";
+import type { ContractCreditReview } from "./contract-credit-review-schemas";
 import type { CreditHold, Order, OrderHistoryEntry } from "./types";
 
 /* ── Query keys ──────────────────────────────────────────────────────── */
@@ -47,6 +52,9 @@ export const orderKeys = {
   productionOrders: (id: string) => [...baseOrderKeys.detail(id), "production-orders"] as const,
   creditHolds: (params?: ListCreditHoldParams) =>
     [...baseOrderKeys.all, "credit-holds", params] as const,
+  /** Hợp đồng chờ Kế toán duyệt tín dụng trước khi gửi (15 BR-11) — dưới `orders`: mọi mutation hợp đồng làm mới. */
+  contractCreditReviews: (params?: ListContractCreditReviewParams) =>
+    [...baseOrderKeys.all, "contract-credit-reviews", params] as const,
   /** Lịch giao của đơn (đợt giao) — dưới root `orders`: release xong (invalidate `orderKeys.all`) tự tải lại. */
   deliverySchedule: (id: string) => [...baseOrderKeys.all, "delivery-schedule", id] as const,
   /** Các đợt thanh toán của đơn (khối Thanh toán) — dưới `orders` nên mọi mutation đơn làm mới. */
@@ -79,6 +87,11 @@ function retryTransient(failureCount: number, error: unknown): boolean {
 export const useOrders = createListQuery<Order, ListOrderParams>(orderKeys, listOrders, {
   retry: retryTransient,
 });
+
+export const useContractCreditReviews = createListQuery<
+  ContractCreditReview,
+  ListContractCreditReviewParams
+>({ ...orderKeys, list: orderKeys.contractCreditReviews }, listContractCreditReviews);
 
 export const useCreditHolds = createListQuery<CreditHold, ListCreditHoldParams>(
   { ...orderKeys, list: orderKeys.creditHolds },

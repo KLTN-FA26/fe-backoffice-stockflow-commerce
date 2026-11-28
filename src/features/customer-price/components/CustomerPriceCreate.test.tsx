@@ -52,7 +52,7 @@ const save = () => screen.getByRole("button", { name: F.save });
 type User = ReturnType<typeof userEvent.setup>;
 
 async function openCreate(user: User) {
-  await user.click(await screen.findByRole("button", { name: F.create }, WAIT));
+  await user.click(await screen.findByRole("button", { name: L.toolbar.createAria }, WAIT));
   return screen.findByRole("dialog");
 }
 async function fillTiers(user: User, tiers: [string, string][]) {
@@ -67,11 +67,12 @@ const posts = (post: { mock: { calls: unknown[][] } }) =>
   post.mock.calls.filter(([url]) => String(url).startsWith("/catalog/customer-prices/"));
 
 describe("quyền", () => {
-  it("1 thiếu CREATE → không có nút Thêm bảng giá", async () => {
+  it("1 thiếu CREATE → nút Tạo mới bị khoá", async () => {
     stubPermissions([...BASE, P.update, CUSTOMER_PERMISSIONS.read]);
     render(`customerId=${A}`);
     await screen.findByText("SKU-001-BLK-L", {}, WAIT);
-    expect(screen.queryByRole("button", { name: F.create })).toBeNull();
+    // Nút "Tạo mới" trên thanh breadcrumb vẫn hiện nhưng khoá (tooltip nói lý do)
+    expect(screen.getByRole("button", { name: L.toolbar.createAria })).toBeDisabled();
   });
 
   it("2 thiếu UPDATE → không có nút Sửa bảng giá trên dòng", async () => {

@@ -4,17 +4,17 @@ import { useState } from "react";
 import { ChevronsDownUp, ChevronsUpDown } from "lucide-react";
 
 import { STORAGE_KEYS, TAXONOMY_CATEGORY_COLUMNS, UI_LABELS } from "@/constants";
-import { viewColumn } from "@/components/shared/column-helpers";
+import { withHeaderFilters } from "@/components/shared/ColumnHeaderFilter";
 import { ToolbarIconButton } from "@/components/shared/ListToolbar";
 
 import { useCategoryTreePage } from "../../taxonomy-queries";
-import { CATEGORY_COLUMN_LABELS, buildCategoryColumns } from "./taxonomy-columns";
+import { CATEGORY_COLUMN_LABELS, actionsColumn, buildCategoryColumns } from "./taxonomy-columns";
+import { matchesColumnFilters, taxonomyHeaderFilters } from "./taxonomy-header-filters";
 import { CategoryFormDialog } from "./CategoryFormDialog";
 import { TaxonomyListBody } from "./TaxonomyListBody";
 import { TaxonomyToolbar } from "./TaxonomyToolbar";
 import { useTaxonomyListState } from "./useTaxonomyListState";
 
-import type { ReactNode } from "react";
 import type { CategoryRow } from "./taxonomy-columns";
 
 const L = UI_LABELS.taxonomy;
@@ -26,8 +26,12 @@ const ALL_COLUMNS = Object.values(TAXONOMY_CATEGORY_COLUMNS);
  * mã có '-' / trùng tiền tố hay cha ở trang khác.
  * Bấm dòng để sửa (hoặc xem khi thiếu quyền sửa).
  */
-export function CategoryList({ actions }: { actions?: ReactNode }) {
-  const s = useTaxonomyListState(STORAGE_KEYS.adminTaxonomyCategoriesConfig, ALL_COLUMNS);
+export function CategoryList() {
+  const s = useTaxonomyListState(
+    STORAGE_KEYS.adminTaxonomyCategoriesConfig,
+    ALL_COLUMNS,
+    "category",
+  );
   // Path đang mở — mặc định chỉ thấy danh mục gốc, như duyệt thư mục trên Drive (UI state cục bộ)
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
   const asTree = !s.filtered;
@@ -48,11 +52,15 @@ export function CategoryList({ actions }: { actions?: ReactNode }) {
       else next.add(path);
       return next;
     });
+  const rows = (query.data?.items ?? []).filter((c) => matchesColumnFilters(c, s.columnFilters));
   const columns = [
-    ...buildCategoryColumns(asTree ? { expanded, onToggle: toggle } : null).filter((c) =>
-      s.config.visibleColumns.includes(c.key),
+    ...withHeaderFilters(
+      buildCategoryColumns(asTree ? { expanded, onToggle: toggle } : null).filter((c) =>
+        s.config.visibleColumns.includes(c.key),
+      ),
+      taxonomyHeaderFilters(s, L.categoryNoun),
     ),
-    viewColumn<CategoryRow>((row) => ({
+    actionsColumn<CategoryRow>((row) => ({
       label: `${L.viewRow} ${row.name}`,
       onOpen: () => setSelectedId(row.categoryId),
     })),
@@ -65,7 +73,6 @@ export function CategoryList({ actions }: { actions?: ReactNode }) {
         s={s}
         searchPlaceholder={L.categorySearchPlaceholder}
         columnLabels={CATEGORY_COLUMN_LABELS}
-        actions={actions}
         lockedColumn={TAXONOMY_CATEGORY_COLUMNS.CODE}
         tools={
           // Mở / thu gọn cây: icon cạnh các công cụ khác, chỉ khi đang xem dạng cây
@@ -90,6 +97,7 @@ export function CategoryList({ actions }: { actions?: ReactNode }) {
       <TaxonomyListBody
         s={s}
         query={query}
+        rows={rows}
         columns={columns}
         rowKey={(row) => row.categoryId}
         onRowClick={(row) => setSelectedId(row.categoryId)}

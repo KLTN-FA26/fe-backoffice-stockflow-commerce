@@ -1,6 +1,5 @@
 import { LOAD_PLAN_PRINT_LABELS } from "@/constants";
 import { formatDate, formatNumber, formatPercent } from "@/lib/format";
-import { useWarehouseDirectory } from "@/lib/references/warehouse-options";
 
 import { warehouseLabelOf } from "../../lib/booking-view";
 import { formatNominalCm } from "../../lib/dims";
@@ -45,9 +44,7 @@ export function SheetHeader({
 }) {
   const { vehicle, layout } = sheet;
   const booking = view.kind === "booked" ? view.booking : null;
-  // Tên kho do chuyến trả về thì khỏi hỏi danh mục kho (tài khoản điều phối có thể không có quyền kho).
-  const directory = useWarehouseDirectory(!booking?.warehouseName).data;
-  const warehouse = warehouseLabelOf(booking, directory, sheet.warehouseId);
+  const warehouse = warehouseLabelOf(booking, sheet.warehouseLabel);
   return (
     <header className="space-y-3">
       <div className="flex flex-wrap items-end justify-between gap-2">

@@ -5,7 +5,7 @@ import { Controller } from "react-hook-form";
 import { UI_LABELS } from "@/constants";
 import { FormSelect } from "@/components/shared/FormSelect";
 import { TreeSelect } from "@/components/shared/TreeSelect";
-import { SelectItem, SelectValue } from "@/components/ui/select";
+import { SelectItem, SelectValue } from "@/components/shared/combobox-select";
 import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 
 import { productDraftFormSchema } from "../schemas";

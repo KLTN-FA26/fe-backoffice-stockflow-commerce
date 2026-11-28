@@ -42,6 +42,8 @@ export function ProductVariantsSection({
     <Section
       title={`Biến thể (${query.data?.length ?? 0})`}
       icon={Tag}
+      // Bảng tự có khung — không bọc thêm thẻ quanh tiêu đề + bảng
+      bare
       actions={
         <VariantsActions productId={productId} acceptsChanges={acceptsChanges} onOpen={setDialog} />
       }

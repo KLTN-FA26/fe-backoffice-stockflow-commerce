@@ -120,6 +120,8 @@ describe("beCustomerPriceSchema (BE CustomerPriceResponse)", () => {
   it("đọc đủ field; đơn giá thành chuỗi chính xác", () => {
     expect(beCustomerPriceSchema.parse(dto)).toEqual({
       ...dto,
+      customerName: null,
+      customerCode: null,
       tiers: [
         { minQuantity: 10, unitPrice: "95000", unitPriceExact: true },
         { minQuantity: 100, unitPrice: "90000", unitPriceExact: true },
@@ -133,8 +135,31 @@ describe("beCustomerPriceSchema (BE CustomerPriceResponse)", () => {
     const parsed = beCustomerPriceSchema.parse(withoutNote);
     expect(parsed.note).toBeNull();
     expect(Object.keys(parsed).sort()).toEqual(
-      ["customerId", "measure", "moq", "note", "sku", "tiers", "version"].sort(),
+      [
+        "customerCode",
+        "customerId",
+        "customerName",
+        "measure",
+        "moq",
+        "note",
+        "sku",
+        "tiers",
+        "version",
+      ].sort(),
     );
+  });
+
+  it("#286: đọc tên / mã khách BE kèm id; vắng → null", () => {
+    const named = beCustomerPriceSchema.parse({
+      ...dto,
+      customerName: "Công ty In Ấn",
+      customerCode: "0310000001",
+    });
+    expect(named).toMatchObject({ customerName: "Công ty In Ấn", customerCode: "0310000001" });
+    expect(beCustomerPriceSchema.parse(dto)).toMatchObject({
+      customerName: null,
+      customerCode: null,
+    });
   });
 
   it("đơn giá JSON vượt số nguyên an toàn → đánh dấu không chính xác (đã bị JSON.parse làm tròn)", () => {

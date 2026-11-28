@@ -55,3 +55,24 @@ export function latestCarrierId(
   }
   return best?.id ?? null;
 }
+
+/** Thứ tự hiển thị danh sách chuyến mặc định "Tất cả": chuyến đang xử lý lên đầu, đã bàn giao sau, đã huỷ cuối. */
+const LOAD_LIST_RANK: Record<string, number> = {
+  LOADING: 0,
+  VEHICLE_BOOKED: 1,
+  PLANNED: 2,
+  DISPATCHED: 3,
+  CANCELLED: 4,
+};
+
+/**
+ * Sắp các chuyến của MỘT TRANG: đang xử lý (đang xếp, đã đặt xe, chưa đặt) trước, rồi đã bàn giao, đã huỷ cuối; trong
+ * cùng nhóm giữ thứ tự BE gửi. Chỉ trong trang đang xem — BE sắp thứ tự các trang. Lọc theo một trạng thái thì không đổi gì.
+ */
+export function inProgressFirst<T extends Pick<LoadRow, "status">>(rows: readonly T[]): T[] {
+  const rank = (row: T) => LOAD_LIST_RANK[row.status] ?? LOAD_LIST_RANK.CANCELLED ?? 4;
+  return rows
+    .map((row, index) => ({ row, index }))
+    .sort((a, b) => rank(a.row) - rank(b.row) || a.index - b.index)
+    .map(({ row }) => row);
+}

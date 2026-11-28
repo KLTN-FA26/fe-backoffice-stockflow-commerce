@@ -72,6 +72,12 @@ describe("stock levels", () => {
       reserved: 25,
       allocated: 0,
       atp: 330,
+      // ADR-0011 (BE, issue #305): counted cartons beside the units.
+      onHandCartons: 6,
+      availableCartons: 3,
+      reservedCartons: 2,
+      allocatedCartons: 0,
+      atpCartons: 2,
     });
   });
 

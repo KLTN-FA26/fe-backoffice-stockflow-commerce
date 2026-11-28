@@ -385,3 +385,24 @@ describe("S18-4: hộp 'Xe đã bàn giao'", () => {
     expect(within(result).getByRole("button", { name: H.done.close })).toBeInTheDocument();
   });
 });
+
+describe("S18-5 / S20-3: chữ cho người dùng", () => {
+  it("lỗi quét lên xe không dùng chữ kỹ thuật 'Máy chủ' hay 'báo kỹ thuật'", () => {
+    for (const text of [L.scan.notLoaded, L.scan.invalidResponse]) {
+      expect(text).not.toMatch(/Máy chủ|kỹ thuật/);
+      expect(text).toMatch(/hãy quét lại/);
+    }
+  });
+
+  it("một tên cho số điện thoại tài xế: 'Điện thoại tài xế', không lẫn 'SĐT'", () => {
+    for (const text of [
+      L.field.driverPhone,
+      F.bookDialog.driverPhone,
+      F.driverDialog.driverPhone,
+      H.driverPhone,
+      H.moreOpen,
+    ])
+      expect(text).not.toMatch(/SĐT/);
+    expect(H.driverPhone).toBe("Điện thoại tài xế");
+  });
+});

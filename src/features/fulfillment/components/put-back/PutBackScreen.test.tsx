@@ -9,6 +9,7 @@ import {
   UI_LABELS,
 } from "@/constants";
 import { ApiError } from "@/lib/api/error";
+import { openComboboxList } from "@/test/combobox";
 
 import {
   LPN_1,
@@ -21,6 +22,7 @@ import {
   IDENTITIES,
   mockFulfillmentApi,
   pickInputComboboxOption,
+  scanInputComboboxCode,
   renderFulfillmentScreen,
 } from "../../__fixtures__/render";
 import { TASK_ID, WAREHOUSE_ID, bePage } from "../../__fixtures__/task";
@@ -115,9 +117,18 @@ const putBackCalls = (post: ReturnType<typeof mockFulfillmentApi>["post"]) =>
 const keyOf = (call: unknown[]) =>
   (call[2] as { headers?: Record<string, string> } | undefined)?.headers?.["Idempotency-Key"];
 
-async function openDialog(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(await screen.findByRole("button", { name: P.actionFor("TEE-BLK-M", ORDER) }));
+/** Menu "⋯" của dòng (SKU · số đơn). */
+const rowMenu = (sku: string) => `Thao tác — ${sku} · ${ORDER}`;
+
+/** Mở dialog trả về kệ của dòng `sku` qua menu "⋯" → "Trả về kệ". */
+async function openPutBack(user: ReturnType<typeof userEvent.setup>, sku: string) {
+  await user.click(await screen.findByRole("button", { name: rowMenu(sku) }));
+  await user.click(await screen.findByRole("button", { name: P.action }));
   return screen.findByRole("dialog");
+}
+
+async function openDialog(user: ReturnType<typeof userEvent.setup>) {
+  return openPutBack(user, "TEE-BLK-M");
 }
 
 /** Quét LPN của thùng trong dialog cất lại (ô nhập tự do). */
@@ -341,14 +352,13 @@ describe("PutBackDialog — trả một dòng về kệ (BE POST …/put-back)",
         }),
       ],
     });
-    await user.click(await screen.findByRole("button", { name: P.actionFor("MUG-WHT", ORDER) }));
-    const dialog = await screen.findByRole("dialog");
+    const dialog = await openPutBack(user, "MUG-WHT");
     expect(within(dialog).getByText(P.quarantineHint)).toBeInTheDocument();
     // Chỉ khu QUARANTINE đang dùng được: kho chỉ có một → chọn sẵn; bin không có trong danh sách
     expect(await within(dialog).findByRole("combobox", { name: P.quarantineLocation })).toHaveValue(
       "HN-QC-01",
     );
-    await user.click(within(dialog).getByRole("combobox", { name: P.quarantineLocation }));
+    await openComboboxList(user, P.quarantineLocation);
     expect(screen.queryByRole("option", { name: "HN-A01-01-01-A" })).toBeNull();
     expect(screen.queryByRole("option", { name: "HN-STAGE-01" })).toBeNull();
     await user.keyboard("{Escape}");
@@ -418,10 +428,30 @@ describe("PutBackDialog — trả một dòng về kệ (BE POST …/put-back)",
     const dialog = await openDialog(user);
     const box = await within(dialog).findByRole("combobox", { name: P.location });
     expect(box).toHaveValue("");
-    await user.click(box);
+    await openComboboxList(user, P.location);
     expect(await screen.findByRole("option", { name: "HN-A01-01-02-A" })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "HN-A01-01-01-A" })).toBeNull();
     expect(screen.queryByRole("option", { name: "HN-STAGE-01" })).toBeNull();
+  });
+
+  it("quét đủ mã bin + Enter → chọn đúng bin đó, không chọn bin có mã dài hơn chứa nó", async () => {
+    const user = userEvent.setup();
+    const { post } = renderScreen(IDENTITIES.warehouseStaff, {
+      bins: [
+        { locationCode: "HN-A01-01-02-A1", usable: true },
+        { locationCode: "HN-A01-01-02-A", usable: true },
+        { locationCode: "HN-A01-01-01-A", usable: true },
+      ],
+    });
+    const dialog = await openDialog(user);
+    await scanInputComboboxCode(user, P.location, "HN-A01-01-02-A");
+    expect(within(dialog).getByRole("combobox", { name: P.location })).toHaveValue(
+      "HN-A01-01-02-A",
+    );
+    await scanLpn(user, dialog);
+    await user.click(within(dialog).getByRole("button", { name: P.action }));
+    await waitFor(() => expect(putBackCalls(post)).toHaveLength(1));
+    expect(putBackCalls(post)[0]?.[1]).toMatchObject({ locationCode: "HN-A01-01-02-A" });
   });
 
   it("PUT_BACK_LOCATION_INVALID → lỗi dưới ô Vị trí trả", async () => {
@@ -462,7 +492,8 @@ describe("PutBackDialog — trả một dòng về kệ (BE POST …/put-back)",
   it("không có fulfillment-picking:UPDATE → không có nút Trả về kệ", async () => {
     renderScreen({ permissions: [FULFILLMENT_PICKING_PERMISSIONS.read] });
     expect(await screen.findByText(ORDER)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: P.actionFor("TEE-BLK-M", ORDER) })).toBeNull();
+    expect(screen.queryByRole("button", { name: rowMenu("TEE-BLK-M") })).toBeNull();
+    expect(screen.queryByRole("button", { name: P.action })).toBeNull();
   });
 
   it("điều phối (không có fulfillment-picking:READ) → bị chặn, không gọi hàng đợi", async () => {

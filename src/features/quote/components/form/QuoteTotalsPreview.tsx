@@ -1,17 +1,13 @@
 "use client";
 
-import { useQueries } from "@tanstack/react-query";
 import { useWatch } from "react-hook-form";
 
-import { Card } from "@/components/shared/Card";
-import { QUERY_TIMES } from "@/lib/api/query-client";
 import { formatMoney } from "@/lib/format/money";
-import { getCustomerPrice, getStandardPriceSuggestion } from "@/features/quote/api";
-import { customerSkuKeys } from "@/features/quote/queries";
 import { lineAmount, previewTotals, tierPrice } from "@/features/quote/selectors";
+import { Card } from "@/components/shared/Card";
 
 import type { UseFormReturn } from "react-hook-form";
-import type { PreviewItem } from "@/features/quote/selectors";
+import type { PreviewItem, PriceReferences } from "@/features/quote/selectors";
 import type { CustomerSku, Quote, QuoteFormValues, QuoteTier } from "@/features/quote/types";
 
 const NUM = "tabular-nums font-[family-name:var(--font-mono)]";
@@ -27,56 +23,34 @@ function toTiers(values: QuoteFormValues["lines"][number]["tiers"] | undefined):
  * nhập, không có thì giá riêng của khách, không có nữa thì giá chuẩn của quy cách), phí đã nhập, thuế từng khoản theo thuế suất BE đã điền lần lưu trước, tổng
  * có thuế. Không đoán: một dòng chưa tính được (thiếu giá, dưới MOQ, chưa biết cái/thùng) thì chưa có tiền hàng; một
  * khoản chưa biết thuế suất (dòng / phí mới, chưa lưu) thì thuế và tổng có thuế "tính khi lưu". Số chính thức là của BE.
+ * Giá tham chiếu từng dòng do khung tóm tắt đọc một lần (`usePriceReferences`) và truyền vào.
  */
 export function QuoteTotalsPreview({
   form,
-  customerId,
   quote,
   customerSkus = [],
+  references,
 }: {
   form: UseFormReturn<QuoteFormValues>;
-  customerId: string;
   quote?: Quote;
   /** SKU riêng của khách: `unitsPerCarton` / `taxRate` (R5-4, khi BE trả) cho dòng chưa lưu (BO-UX-16). */
   customerSkus?: readonly CustomerSku[];
+  /** Giá tham chiếu của từng dòng, cùng thứ tự với `lines`. */
+  references: readonly PriceReferences[];
 }) {
   const [lines, plateFees, hasShippingFee, shippingFee] = useWatch({
     control: form.control,
     name: ["lines", "plateFees", "hasShippingFee", "shippingFee"],
   });
   const skus = (lines ?? []).map((line) => line.sku?.trim().toUpperCase() ?? "");
-  // Cùng khoá với `useCustomerPrice` của từng dòng: đọc lại cache, không gọi thêm.
-  const prices = useQueries({
-    queries: skus.map((sku) => ({
-      queryKey: customerSkuKeys.price(customerId, sku),
-      queryFn: ({ signal }: { signal: AbortSignal }) => getCustomerPrice(customerId, sku, signal),
-      enabled: !!customerId && !!sku,
-      ...QUERY_TIMES.master,
-    })),
-  });
-
   const bySku = new Map(customerSkus.map((sku) => [sku.sku.trim().toUpperCase(), sku]));
-  // Giá chuẩn của quy cách (13 BR-04 sửa ngày 2026-11-26): chỉ ĐỌC cache mà từng dòng đã tải (dòng mới hỏi khi khách
-  // không có giá riêng và người dùng được xem giá chuẩn) — không gọi thêm ở đây.
-  const standards = useQueries({
-    queries: skus.map((sku) => {
-      const variantSku = bySku.get(sku)?.sourceSku?.trim().toUpperCase() ?? "";
-      return {
-        queryKey: customerSkuKeys.standardPrice(variantSku),
-        queryFn: ({ signal }: { signal: AbortSignal }) =>
-          getStandardPriceSuggestion(variantSku, signal),
-        enabled: false,
-        ...QUERY_TIMES.master,
-      };
-    }),
-  });
 
   const saved = new Map(quote?.lines.map((line) => [line.sku, line]) ?? []);
   const items: (PreviewItem | null)[] = (lines ?? []).map((line, index) => {
     const known = saved.get(skus[index] ?? "");
     const own = toTiers(line.tiers);
-    const reference = prices[index]?.data ?? standards[index]?.data ?? null;
-    const tiers = own.length ? own : (reference?.tiers ?? []);
+    const reference = references[index]?.own ?? references[index]?.standard ?? [];
+    const tiers = own.length ? own : reference;
     const cartons = Number(line.cartons);
     const unitPrice = tierPrice(tiers, cartons);
     const customerSku = bySku.get(skus[index] ?? "");
@@ -111,13 +85,23 @@ export function QuoteTotalsPreview({
       <h2 className="text-ink-primary text-sm font-semibold">Tạm tính báo giá</h2>
       <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-[0.8125rem]">
         <dt className="text-ink-secondary">Tiền hàng</dt>
-        <dd className={`text-right ${NUM}`}>{priced ? money(totals.subtotal) : "chưa đủ giá"}</dd>
+        <dd className={priced ? `text-right ${NUM}` : "text-ink-tertiary text-right"}>
+          {priced ? money(totals.subtotal) : "chưa đủ giá"}
+        </dd>
         <dt className="text-ink-secondary">Phí</dt>
         <dd className={`text-right ${NUM}`}>{money(totals.fees)}</dd>
         <dt className="text-ink-secondary">Thuế</dt>
-        <dd className={`text-right ${NUM}`}>{taxKnown ? money(totals.tax) : "tính khi lưu"}</dd>
+        <dd className={taxKnown ? `text-right ${NUM}` : "text-ink-tertiary text-right"}>
+          {taxKnown ? money(totals.tax) : "tính khi lưu"}
+        </dd>
         <dt className="text-ink-primary font-semibold">Tổng có thuế</dt>
-        <dd className={`text-ink-primary text-right font-semibold ${NUM}`}>
+        <dd
+          className={
+            taxKnown
+              ? `text-ink-primary text-right font-semibold ${NUM}`
+              : "text-ink-tertiary text-right font-semibold"
+          }
+        >
           {taxKnown ? money(totals.total) : "—"}
         </dd>
       </dl>

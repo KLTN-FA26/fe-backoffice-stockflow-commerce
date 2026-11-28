@@ -7,6 +7,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 
+import { COMBOBOX_MAX_ROWS } from "@/constants";
 import { api } from "@/lib/api/client";
 import { QUERY_TIMES } from "@/lib/api/query-client";
 import { omittedOrNull } from "@/lib/validation/primitives";
@@ -19,7 +20,10 @@ const orderRefSchema = z.object({
   customerName: omittedOrNull(z.string()),
   customerCode: omittedOrNull(z.string()),
 });
-const orderRefPageSchema = z.object({ items: z.array(orderRefSchema) });
+const orderRefPageSchema = z.object({
+  items: z.array(orderRefSchema),
+  totalElements: z.number().int().min(0).optional(),
+});
 
 export type OrderRef = z.infer<typeof orderRefSchema>;
 
@@ -28,14 +32,21 @@ export const orderRefKeys = {
   search: (q: string) => [...orderRefKeys.all, "search", q] as const,
 };
 
+/** Một lần tìm đơn: tối đa `COMBOBOX_MAX_ROWS` đơn + tổng số khớp (để báo "Còn N kết quả — gõ thêm"). */
+export interface OrderSearchResult {
+  items: OrderRef[];
+  total: number;
+}
+
 export function useOrderSearch(q: string, enabled = true) {
   return useQuery({
     queryKey: orderRefKeys.search(q),
-    queryFn: async ({ signal }) => {
-      const params = new URLSearchParams({ page: "0", size: "10" });
+    queryFn: async ({ signal }): Promise<OrderSearchResult> => {
+      const params = new URLSearchParams({ page: "0", size: String(COMBOBOX_MAX_ROWS) });
       params.set("search", q.trim());
       const { data } = await api.get<unknown>("/orders", { params, signal });
-      return orderRefPageSchema.parse(data).items;
+      const page = orderRefPageSchema.parse(data);
+      return { items: page.items, total: page.totalElements ?? page.items.length };
     },
     enabled: enabled && q.trim() !== "",
     ...QUERY_TIMES.list,

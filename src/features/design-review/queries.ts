@@ -43,7 +43,8 @@ export const roundKeys = {
   detail: (id: string) => [...roundKeys.details(), id] as const,
 };
 
-const HISTORY_PAGE: PageParams = { page: 0, size: 50 };
+/** Lịch sử lọc / phân trang ở FE (BE không có tham số lọc) → tải tối đa `Pages.MAX_PAGE_SIZE` dòng mới nhất. */
+const HISTORY_PAGE: PageParams = { page: 0, size: 200 };
 
 export function useReviewQueue(params: PageParams, options?: { enabled?: boolean }) {
   return useQuery({

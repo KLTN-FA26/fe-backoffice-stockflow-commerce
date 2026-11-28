@@ -63,34 +63,38 @@ function renderCreate(
 describe("Quote form — round 5", () => {
   it("BO-UX-3: validity and wanted delivery are date pickers (dd/MM/yyyy), not native date inputs", async () => {
     renderCreate();
-    const valid = await screen.findByLabelText(/Hiệu lực đến hết ngày/);
-    expect(valid.tagName).toBe("BUTTON");
-    expect(valid).toHaveTextContent("Chọn ngày");
-    expect(screen.getByLabelText(/Ngày giao khách yêu cầu/).tagName).toBe("BUTTON");
+    const valid = await screen.findByLabelText(/^Hiệu lực đến hết ngày/);
+    // Ô gõ dd/mm/yyyy (không phải ô date gốc, không phải nút trơ)
+    expect(valid.tagName).toBe("INPUT");
+    expect(valid).toHaveAttribute("placeholder", "dd/mm/yyyy");
+    // S02-2: filled in with today + 30 days (owner decision UX-Q2), still editable.
+    expect(valid).not.toHaveValue("");
+    expect(screen.getByText("Còn 30 ngày kể từ hôm nay.")).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Ngày giao khách yêu cầu/).tagName).toBe("INPUT");
     expect(document.querySelector('input[type="date"]')).toBeNull();
   });
 
   it("BO-UX-14 / BO-UX-4: tiers show visible column headers and the price is grouped with ₫", async () => {
     renderCreate();
-    const select = await screen.findByLabelText(/SKU riêng của khách/);
-    await within(select).findByRole("option", { name: new RegExp(SKU) });
-    await userEvent.selectOptions(select, SKU);
+    // One valid SKU: chosen already, shown as plain text (R6).
+    await screen.findByText("Ly 12oz xanh");
     await userEvent.click(await screen.findByRole("button", { name: /Dùng giá gợi ý/ }));
     const table = screen.getByRole("table", { name: "Bậc giá" });
-    expect(within(table).getByRole("columnheader", { name: "Từ (thùng)" })).toBeVisible();
-    expect(within(table).getByRole("columnheader", { name: "Đơn giá (₫/cái)" })).toBeVisible();
-    expect(within(table).getByText("Bậc đầu = MOQ")).toBeInTheDocument();
+    expect(within(table).getByRole("columnheader", { name: "Từ số thùng" })).toBeVisible();
+    expect(within(table).getByRole("columnheader", { name: "Đơn giá một cái" })).toBeVisible();
+    expect(
+      within(table).getByText("Bậc đầu là số thùng tối thiểu của báo giá"),
+    ).toBeInTheDocument();
     expect(screen.getByLabelText("Đơn giá ₫ một cái (bậc 1)")).toHaveValue("1.250");
   });
 
   it("BO-UX-16: with units per carton and tax rate on the customer SKU, the total is previewed before saving", async () => {
     renderCreate({ unitsPerCarton: 1000, taxRate: 10 });
-    const select = await screen.findByLabelText(/SKU riêng của khách/);
-    await within(select).findByRole("option", { name: new RegExp(SKU) });
-    await userEvent.selectOptions(select, SKU);
+    // One valid SKU: chosen already, shown as plain text (R6).
+    await screen.findByText("Ly 12oz xanh");
     await userEvent.type(screen.getByLabelText(/Số thùng/), "60");
     expect(await screen.findByText(/= 60\.000 cái \(1\.000 cái\/thùng\)/)).toBeInTheDocument();
-    const preview = screen.getByRole("complementary", { name: "Tạm tính" });
+    const preview = screen.getByRole("complementary", { name: "Tóm tắt báo giá" });
     // 60 thùng × 1.000 cái × 1.150 ₫ (bậc 50 thùng của giá riêng), VAT 10%.
     expect(await within(preview).findByText(/69\.000\.000/)).toBeInTheDocument();
     expect(within(preview).getByText(/6\.900\.000/)).toBeInTheDocument();
@@ -99,13 +103,14 @@ describe("Quote form — round 5", () => {
 
   it("BO-UX-16: without those fields (older BE) the preview still waits for the save", async () => {
     renderCreate();
-    const select = await screen.findByLabelText(/SKU riêng của khách/);
-    await within(select).findByRole("option", { name: new RegExp(SKU) });
-    await userEvent.selectOptions(select, SKU);
+    // One valid SKU: chosen already, shown as plain text (R6).
+    await screen.findByText("Ly 12oz xanh");
     await userEvent.type(screen.getByLabelText(/Số thùng/), "60");
     expect(screen.getByText("Quy đổi ra cái hiện sau khi lưu nháp.")).toBeInTheDocument();
     expect(
-      within(screen.getByRole("complementary", { name: "Tạm tính" })).getByText("chưa đủ giá"),
+      within(screen.getByRole("complementary", { name: "Tóm tắt báo giá" })).getByText(
+        "chưa đủ giá",
+      ),
     ).toBeInTheDocument();
   });
 
@@ -117,7 +122,7 @@ describe("Quote form — round 5", () => {
 
   it("BO-UX-5: 'Bỏ thay đổi' leaves at once when nothing changed", async () => {
     renderCreate();
-    await screen.findByLabelText(/SKU riêng của khách/);
+    await screen.findByText("Ly 12oz xanh");
     expect(screen.queryByRole("link", { name: "Huỷ" })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Bỏ thay đổi" }));
     expect(push).toHaveBeenCalledWith("/admin/quotes");
@@ -133,7 +138,7 @@ describe("Quote form — round 5", () => {
       },
     });
     renderScreen(<QuoteEdit id={QUOTE_ID} />, "SALES_STAFF");
-    await userEvent.type(await screen.findByLabelText("Điều khoản"), " thêm");
+    await userEvent.type(await screen.findByLabelText(/^Điều khoản/), " thêm");
     await userEvent.click(screen.getByRole("button", { name: "Bỏ thay đổi" }));
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText("Bỏ các thay đổi chưa lưu?")).toBeInTheDocument();

@@ -130,7 +130,7 @@ export function TaskActionCard({
           open
           onOpenChange={(open) => !open && setDialog(null)}
           title={fulfillment.action[confirming]}
-          description={CONFIRM_COPY[confirming](taskCode(task.taskId))}
+          description={CONFIRM_COPY[confirming](taskCode(task.taskId, task.taskNumber))}
           confirmLabel={fulfillment.action[confirming]}
           variant="default"
           loading={mutations[confirming].isPending}

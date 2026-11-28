@@ -53,12 +53,37 @@ export const contractInstallmentViewSchema = z.object({
   daysOverdue: omittedOrNull(z.number().int()),
 });
 
-/** 15 BR-11: gửi hợp đồng có phần trả sau giao → cảnh báo tín dụng, không chặn. */
+/**
+ * 15 BR-11 (BE 2026-11-26): kiểm tín dụng của hợp đồng nháp không đạt → GỬI sẽ không gửi cho khách mà chuyển Kế toán
+ * duyệt trước (`creditReview = PENDING`). Cảnh báo, không chặn nút Gửi.
+ */
 export const contractCreditWarningSchema = z.object({
   outcome: z.string(),
   creditLimit: omittedOrNull(z.number()),
   exposure: omittedOrNull(z.number()),
   afterDelivery: omittedOrNull(z.number()),
+});
+
+/**
+ * Lượt Kế toán duyệt tín dụng gần nhất của hợp đồng (BE `SalesContracts.CreditReviewView`, PR #486) — số liệu tại lúc
+ * Sale gửi duyệt; `note` là ghi chú khi duyệt hoặc LÝ DO khi từ chối. Chuỗi để không vỡ khi BE thêm giá trị.
+ */
+export const contractCreditReviewViewSchema = z.object({
+  id: z.string(),
+  /** `PENDING` | `APPROVED` | `REJECTED` | `WITHDRAWN`. */
+  outcome: z.string(),
+  /** `OVERDUE` | `OVER_LIMIT` — vì sao phải duyệt. */
+  checkOutcome: z.string(),
+  creditLimit: omittedOrNull(z.number()),
+  exposure: omittedOrNull(z.number()),
+  afterDelivery: omittedOrNull(z.number()),
+  overdueAmount: omittedOrNull(z.number()),
+  contractVersion: z.number().int(),
+  submittedAt: z.string(),
+  submittedBy: omittedOrNull(z.string()),
+  decidedAt: omittedOrNull(z.string()),
+  decidedBy: omittedOrNull(z.string()),
+  note: omittedOrNull(z.string()),
 });
 
 export const salesContractDtoSchema = z.object({
@@ -100,6 +125,15 @@ export const salesContractDtoSchema = z.object({
    * này true — đã ký và có đợt giao đang hiệu lực khác cửa sổ đã ký. Thiếu (BE cũ) → false: không hiện nút.
    */
   appendixAvailable: z.boolean().default(false),
+  /**
+   * 15 BR-11 (BE PR #486): `PENDING` = hợp đồng NHÁP đang chờ Kế toán duyệt tín dụng (gửi bị chuyển duyệt, vẫn
+   * `status = DRAFT`) — khoá sửa / gửi / gợi ý lịch. Nhận biết qua trường này, KHÔNG qua `status`. Thiếu (BE cũ) hoặc
+   * giá trị lạ → `NONE`. Bản của khách luôn `NONE`.
+   */
+  creditReview: z
+    .union([z.enum(["NONE", "PENDING"]), z.string().transform((): "NONE" => "NONE")])
+    .default("NONE"),
+  latestCreditReview: omittedOrNull(contractCreditReviewViewSchema),
 });
 
 export const salesContractHistoryDtoSchema = z.array(salesContractDtoSchema);
@@ -121,4 +155,5 @@ export type SalesContract = z.infer<typeof salesContractDtoSchema>;
 export type ContractBatch = z.infer<typeof contractBatchViewSchema>;
 export type ContractInstallment = z.infer<typeof contractInstallmentViewSchema>;
 export type ContractCreditWarning = z.infer<typeof contractCreditWarningSchema>;
+export type ContractCreditReviewView = z.infer<typeof contractCreditReviewViewSchema>;
 export type PaymentPlanSuggestion = z.infer<typeof paymentPlanSuggestionDtoSchema>;

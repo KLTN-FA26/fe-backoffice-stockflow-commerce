@@ -608,7 +608,7 @@ describe("BE chặn cả xe (409 LOAD_HANDOVER_BLOCKED, BR-18)", () => {
     expect(items[0]).toHaveTextContent(flat(B.unpaidBatch(formatMoney(15_000_000, "VND"), 2)));
     expect(items[0]).toHaveTextContent(/15\.000\.000/);
     expect(items[1]).toHaveTextContent(B.windowNotOpenBatch(formatDate("2026-12-05"), 1));
-    expect(items[1]).toHaveTextContent(/05\/12\/2026|5 thg 12, 2026/);
+    expect(items[1]).toHaveTextContent(/05\/12\/2026/);
     expect(items[2]).toHaveTextContent(B.onHold);
     // Không lặp câu lỗi chung; hộp thoại còn nguyên, các ô đã nhập còn
     expect(within(dialog).queryByText(ERR.LOAD_HANDOVER_BLOCKED)).not.toBeInTheDocument();

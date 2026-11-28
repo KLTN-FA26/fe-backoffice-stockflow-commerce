@@ -8,6 +8,7 @@
 import { PUTAWAY_LIMITS, PUTAWAY_TASK_PERMISSIONS as P } from "@/constants";
 
 import { registerMockRoute } from "./mock-adapter";
+import { mockWarehouseNames } from "./mock-display-names";
 import { mockWarehouseCodeOf } from "./mock-inventory-cartons";
 import {
   areasOfWarehouse,
@@ -69,6 +70,20 @@ export async function toResponse(task: MockPutawayTask, withSuggestions: boolean
     suggestions,
     overflowLocationCodes: overflow,
     source: task.source,
+    // Kho của nhiệm vụ = kho nơi thùng đang đứng (BE #394) + mã / tên kho cạnh id (issue #286)
+    ...warehouseOf(sourceLocationCode),
+  };
+}
+
+/** NON_NULL: kho không xác định được → bỏ cả ba trường. */
+function warehouseOf(sourceLocationCode: string) {
+  const warehouseId = warehouseIdOfCode(sourceLocationCode);
+  if (!warehouseId) return {};
+  const { warehouseCode, warehouseName } = mockWarehouseNames(warehouseId);
+  return {
+    warehouseId,
+    ...(warehouseCode ? { warehouseCode } : {}),
+    ...(warehouseName ? { warehouseName } : {}),
   };
 }
 

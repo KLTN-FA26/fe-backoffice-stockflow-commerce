@@ -180,8 +180,7 @@ describe("LoadPlanDetail — hiển thị", () => {
     expect(type).toHaveAttribute("title", "PICKUP");
     expect(screen.queryByText(/PICKUP \(/)).not.toBeInTheDocument();
     expect(await screen.findByTestId("viewer")).toHaveTextContent("3D xe #1 PICKUP-1T");
-    // Warehouse resolved from the directory, not shown as an id
-    expect(await screen.findByText("HN · Kho Hà Nội")).toBeInTheDocument();
+    // Warehouse name: see the #286 tests below (BE sends code + name; no directory lookup)
   });
 
   it("shows the plan metrics and the per-vehicle item table grouped by SKU and size", async () => {
@@ -308,20 +307,25 @@ describe("LoadPlanDetail — dữ liệu BE bỏ trường null", () => {
     expect(screen.queryByText(L.reconciliation.vehiclesNotCompared)).not.toBeInTheDocument();
   });
 
-  it("a user who may not read the warehouse directory (403) never sees a raw warehouse id", async () => {
-    renderDetail(
+  it("names the warehouse from the code + name BE returns, without loading the warehouse directory (#286)", async () => {
+    const { get } = renderDetail(
       ACTORS.viewOnly,
-      planFixture({ warehouseId: "8f0c5d52-1111-4222-8333-944455556666" }),
-      "",
-      {
-        "/warehouses": () => {
-          throw new ApiError(403, "FORBIDDEN", "Access denied");
-        },
-      },
+      planFixture({ warehouseCode: "HN", warehouseName: "Kho Hà Nội" }),
     );
     expect(await screen.findByText("LP-20261022-0001")).toBeInTheDocument();
     const field = screen.getByText(L.warehouse).closest("div") as HTMLElement;
-    await waitFor(() => expect(within(field).getByText(L.unknownWarehouse)).toBeInTheDocument());
+    expect(within(field).getByText("HN · Kho Hà Nội")).toBeInTheDocument();
+    expect(get.mock.calls.some(([url]) => url === "/warehouses")).toBe(false);
+  });
+
+  it("an older BE without the warehouse name shows a dash, never a raw warehouse id", async () => {
+    renderDetail(
+      ACTORS.viewOnly,
+      planFixture({ warehouseId: "8f0c5d52-1111-4222-8333-944455556666" }),
+    );
+    expect(await screen.findByText("LP-20261022-0001")).toBeInTheDocument();
+    const field = screen.getByText(L.warehouse).closest("div") as HTMLElement;
+    expect(within(field).getByText(L.unknownWarehouse)).toBeInTheDocument();
     expect(screen.queryByText(/8f0c5d52/)).not.toBeInTheDocument();
   });
 });
@@ -603,6 +607,40 @@ describe("LoadPlanDetail — cổng quyền và trạng thái", () => {
     expect(screen.queryByRole("button", { name: L.actions.confirm })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: L.actions.reopen })).not.toBeInTheDocument();
     expect(screen.getByText(L.noVehicles)).toBeInTheDocument();
+  });
+
+  it("S16-5: a draft with no layout calculates at once, no 'will replace the layout' dialog, and says it is calculating", async () => {
+    const user = userEvent.setup();
+    let release: (plan: PlanDetail) => void = () => undefined;
+    const draft = planFixture({
+      status: "DRAFT",
+      vehicles: [],
+      packages: [],
+      packageCount: 0,
+      placedCount: 0,
+      version: 3,
+    });
+    const { post } = renderDetail(ACTORS.dispatcher, draft);
+    post.mockImplementationOnce(
+      () => new Promise((resolve) => (release = (plan) => resolve({ data: plan }))),
+    );
+    await user.click(await screen.findByRole("button", { name: L.actions.calculate }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(await screen.findByText(L.calculating)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: L.actions.calculating })).toBeDisabled();
+    expect(post.mock.calls.find(([url]) => url === `${PATH}/calculation`)?.[1]).toEqual({
+      expectedVersion: 3,
+    });
+    release(planFixture({ status: "PLANNED", version: 4 }));
+    await waitFor(() => expect(screen.queryByText(L.calculating)).not.toBeInTheDocument());
+  });
+
+  it("S16-5: with a layout already there, calculating still asks before replacing it", async () => {
+    const user = userEvent.setup();
+    renderDetail(ACTORS.dispatcher);
+    await planAction(user, L.actions.calculate).then((button) => button && user.click(button));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(D.calculate.description)).toBeInTheDocument();
   });
 
   it("confirm is shown but disabled while the unplaced parcels are not acknowledged (BR-13)", async () => {

@@ -1,7 +1,8 @@
 /**
  * Giữ hoàn tất đơn (WF-05 GH-2) — DTO + input của BE `OrderCompletionHoldController`.
  *
- * DTO `CompletionHoldResponse {id, orderId, reasonCode, note, heldAt, heldBy, releasedAt, releasedBy, releaseNote}`: field
+ * DTO `CompletionHoldResponse {id, orderId, reasonCode, note, heldAt, heldBy, heldByName, releasedAt, releasedBy,
+ * releasedByName, releaseNote}` (tên người kèm cạnh id — issue #286, vắng ở BE cũ): field
  * null bị BỎ khỏi JSON (Jackson non_null) → `.nullish()` rồi chuẩn hoá null. `GET` trả `data: null` khi đơn không bị giữ.
  * Input `CompletionHoldRequest {reasonCode, note?}` / `ReleaseCompletionHoldRequest {note}`.
  */
@@ -30,17 +31,21 @@ export const completionHoldSchema = z
     note: z.string().nullish(),
     heldAt: z.string(),
     heldBy: z.string().nullish(),
+    heldByName: z.string().nullish(),
     /** Còn mở khi `releasedAt` vắng. */
     releasedAt: z.string().nullish(),
     releasedBy: z.string().nullish(),
+    releasedByName: z.string().nullish(),
     releaseNote: z.string().nullish(),
   })
   .transform((dto) => ({
     ...dto,
     note: dto.note ?? null,
     heldBy: dto.heldBy ?? null,
+    heldByName: dto.heldByName ?? null,
     releasedAt: dto.releasedAt ?? null,
     releasedBy: dto.releasedBy ?? null,
+    releasedByName: dto.releasedByName ?? null,
     releaseNote: dto.releaseNote ?? null,
   }));
 

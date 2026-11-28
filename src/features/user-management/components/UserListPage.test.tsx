@@ -25,6 +25,11 @@ const rows = [
     status: "LOCKED",
     roles: ["ROLE_B", "SHIFT_LEAD"],
     warehouseIds: ["WH-HN", "WH-HCM", "WH-OLD"],
+    warehouses: [
+      { warehouseId: "WH-HN", code: "HN", name: "Kho Hà Nội" },
+      { warehouseId: "WH-HCM", code: "HCM", name: "Kho TP.HCM" },
+      { warehouseId: "WH-OLD", code: "OLD", name: "Kho cũ" },
+    ],
     lastLoginAt: null,
   }),
 ];
@@ -104,13 +109,33 @@ describe("UserListPage — table", () => {
     expect(within(plain).getByText("—")).toBeInTheDocument();
   });
 
-  it("shows a warehouse count when the caller cannot read the warehouse directory", async () => {
-    stubIdentityApi([...PERMISSION_SETS.readOnly.slice(0, 2)], {
+  it("reads warehouse names from the row itself — never loads the warehouse directory (#286)", async () => {
+    const api = stubIdentityApi(PERMISSION_SETS.readOnly, {
       "GET /identity/users": () => userPage(rows),
     });
     renderIdentityScreen(<UserListPage />);
     const row = (await screen.findByText("binh.tran")).closest("tr");
-    expect(within(row as HTMLElement).getByText("3 kho")).toBeInTheDocument();
+    expect(within(row as HTMLElement).getByText(/Kho Hà Nội, Kho TP.HCM \+1/)).toHaveAttribute(
+      "title",
+      "Kho Hà Nội, Kho TP.HCM, Kho cũ",
+    );
+    expect(api.of("get", "/warehouses")).toHaveLength(0);
+  });
+
+  it("falls back to the code, then to a count when an older BE omits `warehouses`", async () => {
+    const codeOnly = userFixture({
+      warehouseIds: ["WH-HN"],
+      warehouses: [{ warehouseId: "WH-HN", code: "HN", name: null }],
+    });
+    const legacy = { ...rows[1], warehouses: undefined };
+    stubIdentityApi(PERMISSION_SETS.readOnly, {
+      "GET /identity/users": () => userPage([codeOnly, legacy]),
+    });
+    renderIdentityScreen(<UserListPage />);
+    const legacyRow = (await screen.findByText("binh.tran")).closest("tr") as HTMLElement;
+    expect(within(legacyRow).getByText("3 kho")).toBeInTheDocument();
+    const codeRow = screen.getByText("lan.nguyen").closest("tr") as HTMLElement;
+    expect(within(codeRow).getByText("HN")).toBeInTheDocument();
   });
 
   it("opens the detail page when a row is clicked", async () => {
@@ -131,9 +156,12 @@ describe("UserListPage — filters and paging go to the server", () => {
     await screen.findByText("lan.nguyen");
     expect(api.of("get", "/identity/users")[0]?.params?.get("page")).toBe("2");
 
-    await user.click(screen.getByRole("button", { name: "Lọc trạng thái" }));
-    await user.click(await screen.findByRole("option", { name: "Đã khoá" }));
-    await user.keyboard("{Escape}");
+    // Ít trạng thái → nút chọn nhanh hiện sẵn trên thanh
+    await user.click(
+      within(screen.getByRole("group", { name: "Lọc trạng thái" })).getByRole("button", {
+        name: "Đã khoá",
+      }),
+    );
     await waitFor(() => {
       const last = api.of("get", "/identity/users").at(-1)?.params;
       expect(last?.get("status")).toBe("LOCKED");

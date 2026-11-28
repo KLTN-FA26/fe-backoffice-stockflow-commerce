@@ -42,11 +42,13 @@ export const movementKeys = {
     [...movementKeys.all, "list", warehouseId, params] as const,
 };
 
-export function useMovements(params: MovementListParams) {
+/** `enabled` false khi người xem không có quyền đọc lịch sử (panel thùng) — không gọi API vô ích. */
+export function useMovements(params: MovementListParams, enabled = true) {
   const warehouseId = useAppStore((state) => state.warehouseId);
   return useQuery({
     queryKey: movementKeys.list(params, warehouseId),
     queryFn: ({ signal }) => listMovements(params, signal),
+    enabled,
     placeholderData: (previous, query) =>
       query?.queryKey[2] === warehouseId ? previous : undefined,
   });

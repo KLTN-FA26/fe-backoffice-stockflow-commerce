@@ -41,6 +41,9 @@ function FileRow({
       <td className="text-ink-secondary px-3 py-2 whitespace-nowrap tabular-nums">
         {formatDateTime(file.uploadedAt)}
       </td>
+      <td className="text-ink-secondary px-3 py-2 whitespace-nowrap">
+        {file.uploadedByName ?? "—"}
+      </td>
       <td className="px-3 py-2 text-right">
         <Button
           type="button"
@@ -57,7 +60,7 @@ function FileRow({
   );
 }
 
-/** Bảng file đã đính kèm: tên, loại, dung lượng, thời điểm tải lên, nút Tải xuống mỗi dòng. */
+/** Bảng file đã đính kèm: tên, loại, dung lượng, thời điểm và người tải lên, nút Tải xuống mỗi dòng. */
 export function AttachedFilesTable({
   kind,
   files,
@@ -87,6 +90,9 @@ export function AttachedFilesTable({
             </th>
             <th scope="col" className={TH}>
               {C.columns.uploadedAt}
+            </th>
+            <th scope="col" className={TH}>
+              {C.columns.uploadedBy}
             </th>
             <th scope="col" className="sr-only">
               {C.columns.actions}

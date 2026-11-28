@@ -8,6 +8,23 @@
  */
 export const DATE_PICKER_YEAR_SPAN = { back: 10, ahead: 10 } as const;
 
+/**
+ * Công cụ lọc của `ListToolbar` (WF4 UX S01-4): ít lựa chọn thì hiện sẵn, nhiều mới cần ô tìm.
+ * `statusInlineMax`: từ 2 đến ngần này trạng thái → nút chọn nhanh hiện sẵn trên thanh (không phải bấm biểu tượng phễu rồi tìm).
+ * `listSearchMin`: danh sách chọn (trạng thái / trường tìm / cột) chỉ có ô "Tìm…" khi nhiều hơn ngần này mục (≤ 10 mục nhìn một lượt là thấy).
+ */
+export const LIST_TOOLBAR_LIMITS = { statusInlineMax: 4, listSearchMin: 10 } as const;
+
+/**
+ * Ô ngày / ngày giờ gõ được (`DatePicker`, `DateTimePicker`): `minYear` / `maxYear` là biên mặc định của bộ đọc ngày gõ tay
+ * (ô tự thu hẹp về khoảng năm của lịch, xem `DATE_PICKER_YEAR_SPAN`; năm "26" gõ thiếu không thành năm 0026);
+ * `fallbackTime` là giờ điền sẵn khi chọn một ngày trên lịch mà ô giờ còn trống.
+ */
+export const DATE_INPUT = { minYear: 1900, maxYear: 2999, fallbackTime: "08:00" } as const;
+
+/** Thời gian toast nằm lại (ms): lỗi / cảnh báo lâu hơn để người đọc chậm kịp đọc. */
+export const TOAST_DURATION_MS = { default: 4000, attention: 8000 } as const;
+
 export const ORDER_LIMITS = {
   /** BE `AdminCancelOrderRequest.note` @Size(max = 1000); bắt buộc khi reasonCode = OTHER. */
   cancelNoteMax: 1000,
@@ -171,6 +188,8 @@ export const SHIPPING_LIMITS = {
   waybillNoMax: 64,
   /** Chuỗi giờ hẹn lấy hàng từ ô `datetime-local` (`yyyy-MM-ddTHH:mm`). */
   pickupAtMax: 32,
+  /** Giờ của nút chọn nhanh "Hôm nay / Ngày mai" ở giờ hẹn lấy hàng (giờ bắt đầu ca kho). */
+  quickPickupTime: "08:30",
   /** Hãng: `CarrierRequest` (code 2-32, name ≤ 120, người liên hệ ≤ 120, điện thoại ≤ 32). */
   carrierCodeMin: 2,
   carrierCodeMax: 32,
@@ -194,6 +213,12 @@ export const SHIPPING_LIMITS = {
 } as const;
 
 /**
+ * Hiệu lực mặc định của báo giá mới: hôm nay + 30 ngày, Sale sửa được (owner Tú chốt 2026-11-26, UX-Q2). Docs 14 chỉ nêu
+ * "ngày hết hiệu lực ở tương lai"; số ngày này được ghi vào docs ở PR https://github.com/KLTN-FA26/docs/pull/55.
+ */
+export const QUOTE_DEFAULT_VALIDITY_DAYS = 30;
+
+/**
  * Bậc giá theo thùng — chung cho bảng giá riêng của khách (BE `CustomerPriceRequest`) và giá chuẩn theo quy cách (BE
  * `StandardPriceRequest`, cùng `PriceTiers`): `@NotEmpty @Size(max = 20) tiers`, `Tier.@Min(1) int minQuantity`,
  * `@Size(max = 500) note`, `SellingPrice` (VND số nguyên dương, tối đa 16 chữ số phần nguyên).
@@ -213,15 +238,37 @@ export const CUSTOMER_PRICE_LIMITS = PRICE_TIER_LIMITS;
 /** Duyệt giá báo giá — BE `QuoteRequests.PriceApproval.note` / `PriceRejection.reason` (`@Size(max = 500)`). */
 export const QUOTE_PRICE_REVIEW_LIMITS = { noteMax: 500 } as const;
 
-/** Số khách mỗi trang gợi ý ở ô chọn khách (`GET /customers?q=`) — `Pages.DEFAULT_PAGE_SIZE` của BE (tối đa 200). */
+/**
+ * Ngưỡng duyệt giá mặc định của BE (`stockflow.order.quote.price-approval-percent`, mặc định 10; 14 BR-10): bậc giá thấp
+ * hơn giá tham chiếu QUÁ ngưỡng này thì báo giá chờ Quản lý kinh doanh duyệt. Form chỉ dùng để XEM TRƯỚC khi báo giá
+ * chưa có `priceCheck.thresholdPercent` (báo giá mới, chưa lưu) — BE quyết định lại lúc gửi.
+ */
+export const QUOTE_PRICE_APPROVAL_DEFAULT_PERCENT = 10;
+
+/**
+ * Yêu cầu báo giá đang mở đã chờ bao lâu thì tô (rà UI WF-02 bo-01): từ `warnHours` giờ → cam, từ `longHours` → đỏ.
+ * ASSUMPTION: kltn-docs chưa có SLA phản hồi yêu cầu báo giá; 1 ngày / 3 ngày là mốc tạm, chủ dự án chỉnh khi chốt SLA.
+ */
+export const QUOTE_REQUEST_WAIT_HOURS = { warn: 24, long: 72 } as const;
+
+/**
+ * Số dòng tối đa một ô chọn có tìm (`InputCombobox`) hiện cùng lúc — còn nữa thì nhắc "Còn N kết quả — gõ thêm"
+ * (luật R1, WF4 UX audit: 8–10 dòng, người dùng thu hẹp bằng cách gõ thay vì cuộn).
+ */
+export const COMBOBOX_MAX_ROWS = 10;
+
+/**
+ * Số khách mỗi trang gợi ý ở ô chọn khách có phân trang của màn Bảng giá khách hàng (`GET /customers?q=&page=`) —
+ * `Pages.DEFAULT_PAGE_SIZE` của BE (tối đa 200). Giữ 20 (ô này có nút Trang trước / sau, không cắt còn
+ * `COMBOBOX_MAX_ROWS` như các ô không phân trang).
+ */
 export const CUSTOMER_OPTIONS_PAGE_SIZE = 20;
 
 /**
- * Số gợi ý mỗi lần tìm hồ sơ hàng tồn/**
- * Số gợi ý mỗi lần tìm hồ sơ hàng tồn (`GET /inventory/items?q=`) ở ô chọn SKU — bằng
- * `Pages.DEFAULT_PAGE_SIZE` của BE (tối đa `Pages.MAX_PAGE_SIZE` 200); gõ thêm để thu hẹp.
+ * Số gợi ý mỗi lần tìm hồ sơ hàng tồn (`GET /inventory/items?q=`) ở ô chọn SKU — bằng `COMBOBOX_MAX_ROWS`
+ * (BE nhận tối đa `Pages.MAX_PAGE_SIZE` 200); gõ thêm để thu hẹp.
  */
-export const INVENTORY_ITEM_OPTIONS_PAGE_SIZE = 20;
+export const INVENTORY_ITEM_OPTIONS_PAGE_SIZE = COMBOBOX_MAX_ROWS;
 
 /**
  * Giới hạn danh mục loại xe — `VehicleTypeRequest` / `ck_vehicle_type_*` của BE PR #153. Kích thước
@@ -615,4 +662,12 @@ export const MODEL3D_VIEW = {
   ambientIntensity: 1.2,
   keyLight: { intensity: 1.4, position: [3, 5, 4] },
   fillLight: { intensity: 0.5, position: [-3, 2, -4] },
+} as const;
+
+/** Màn Thùng hàng (LPN) — search / lọc chữ gọi BE nên debounce (api-conventions §9); cỡ trang ≤ BE `Pages.MAX_PAGE_SIZE`. */
+export const CARTON_LIST_LIMITS = {
+  searchDebounceMs: 300,
+  // Bộ cỡ trang chuẩn Mode A (data-table-mode-a §5)
+  pageSizes: [10, 15, 20, 50] as const,
+  defaultPageSize: 20,
 } as const;

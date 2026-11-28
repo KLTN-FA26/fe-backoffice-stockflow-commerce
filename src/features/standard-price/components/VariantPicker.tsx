@@ -7,8 +7,19 @@ import { Check } from "lucide-react";
 import { STANDARD_PRICE_UI_LABELS } from "@/constants";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useCatalogVariants, useProductOptions } from "@/lib/references/catalog-variants";
-import { FORM_INPUT_CLASS } from "@/components/shared/form-control-classes";
-import { COMBOBOX_ITEM_CLASS, InputCombobox } from "@/components/shared/InputCombobox";
+import { FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
+import {
+  Select,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/shared/combobox-select";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
+import {
+  COMBOBOX_ITEM_CLASS,
+  ComboboxMoreHint,
+  InputCombobox,
+} from "@/components/shared/InputCombobox";
 import { CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
 import { Label } from "@/components/ui/label";
 
@@ -40,7 +51,8 @@ export function VariantPicker({
   const term = useDebouncedValue(search, SEARCH_DEBOUNCE_MS);
   const products = useProductOptions(term, open);
   const variants = useCatalogVariants(product?.productId ?? null, true);
-  const items = products.data ?? [];
+  const items = products.data?.items ?? [];
+  const remaining = (products.data?.total ?? 0) - items.length;
   const choices = variants.data ?? [];
 
   return (
@@ -60,6 +72,7 @@ export function VariantPicker({
           search={search}
           onSearchChange={setSearch}
           shouldFilter={false}
+          onClear={() => setProduct(null)}
         >
           <CommandList>
             {items.length === 0 ? (
@@ -76,6 +89,9 @@ export function VariantPicker({
                   <CommandItem
                     key={item.productId}
                     value={item.productId}
+                    // Chữ đang gõ chưa phải kết quả đang hiện (chờ debounce / còn dữ liệu cũ) → khoá dòng: Enter của
+                    // `InputCombobox` chọn mục đầu chưa khoá, không được chọn nhầm sản phẩm của lần tìm trước
+                    disabled={search !== term || products.isPlaceholderData}
                     className={COMBOBOX_ITEM_CLASS}
                     onSelect={() => {
                       setProduct(item);
@@ -88,50 +104,57 @@ export function VariantPicker({
                         product?.productId === item.productId ? "opacity-100" : "opacity-0",
                       )}
                     />
-                    <span className="min-w-0 flex-1 truncate">{item.name}</span>
-                    {item.code && (
-                      <span className="text-ink-tertiary ml-3 font-[family-name:var(--font-mono)] text-[11px]">
-                        {item.code}
-                      </span>
-                    )}
+                    <div className="flex min-w-0 flex-1 flex-col">
+                      <span className="truncate">{item.name}</span>
+                      {item.code && (
+                        <span className="text-ink-tertiary truncate font-[family-name:var(--font-mono)] text-[11px]">
+                          {item.code}
+                        </span>
+                      )}
+                    </div>
                   </CommandItem>
                 ))}
               </CommandGroup>
             )}
           </CommandList>
+          {items.length > 0 && remaining > 0 && <ComboboxMoreHint remaining={remaining} />}
         </InputCombobox>
       </div>
       <div className="space-y-1">
         <Label htmlFor="sp-variant" className="text-ink-secondary text-xs font-medium">
           {P.variant}
         </Label>
-        <select
-          id="sp-variant"
+        <Select
           value={choices.some((v) => v.sku === value) ? value : ""}
           disabled={!product || variants.isPending || choices.length === 0}
-          onChange={(event) => event.target.value && onSelect(event.target.value)}
-          className={`${FORM_INPUT_CLASS} border px-2`}
+          onValueChange={(next) => next && onSelect(next)}
         >
-          <option value="">
-            {!product
-              ? P.variantPlaceholder
-              : variants.isPending
-                ? P.variantLoading
-                : variants.isError
-                  ? P.variantFailed
-                  : choices.length === 0
-                    ? P.variantEmpty
-                    : P.variantPlaceholder}
-          </option>
-          {choices.map((variant) => {
-            const taken = priced.has(variant.sku.toUpperCase());
-            return (
-              <option key={variant.variantId} value={variant.sku} disabled={taken}>
-                {`${variant.sku} — ${variant.name}${taken ? ` (${P.variantPriced})` : ""}`}
-              </option>
-            );
-          })}
-        </select>
+          <SelectTrigger id="sp-variant" className={FORM_SELECT_CLASS}>
+            <SelectValue
+              placeholder={
+                !product
+                  ? P.variantPlaceholder
+                  : variants.isPending
+                    ? P.variantLoading
+                    : variants.isError
+                      ? P.variantFailed
+                      : choices.length === 0
+                        ? P.variantEmpty
+                        : P.variantPlaceholder
+              }
+            />
+          </SelectTrigger>
+          <TitledSelectContent title={P.variant}>
+            {choices.map((variant) => {
+              const taken = priced.has(variant.sku.toUpperCase());
+              return (
+                <SelectItem key={variant.variantId} value={variant.sku} disabled={taken}>
+                  {`${variant.sku} — ${variant.name}${taken ? ` (${P.variantPriced})` : ""}`}
+                </SelectItem>
+              );
+            })}
+          </TitledSelectContent>
+        </Select>
       </div>
     </div>
   );

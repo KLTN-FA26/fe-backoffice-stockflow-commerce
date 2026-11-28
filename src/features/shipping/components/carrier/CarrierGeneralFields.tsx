@@ -3,20 +3,17 @@
 import { Controller } from "react-hook-form";
 
 import { CARRIER_STATUSES, SHIPPING_LIMITS, UI_LABELS } from "@/constants";
-import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { FieldError, MONO, fieldClass } from "../primitives";
+import { CarrierChoice } from "./CarrierChoice";
 
 import type { UseFormReturn } from "react-hook-form";
 import type { CarrierFormInput, CarrierValues } from "@/features/shipping/types";
 
 const C = UI_LABELS.shipping.waybill.carriers;
 const FORM = C.form;
-const TRIGGER =
-  "border-border-default bg-bg-surface h-8 w-full rounded-[var(--r-sm)] text-[0.8125rem]";
 type TextField = "code" | "name" | "contactName" | "contactPhone";
 
 /** Thông tin chung của hãng, hai cột như artboard: mã + tên, người liên hệ + điện thoại, trạng thái. */
@@ -69,28 +66,21 @@ export function CarrierGeneralFields({
         mono: true,
       })}
       <div className="sm:col-span-2">
-        <Label
-          htmlFor="carrier-status"
-          className="text-ink-secondary mb-1 block text-xs font-medium"
-        >
-          {FORM.status}
-        </Label>
+        <p className="text-ink-secondary mb-1 text-xs font-medium">{FORM.status}</p>
         <Controller
           control={form.control}
           name="status"
           render={({ field }) => (
-            <Select value={field.value} onValueChange={field.onChange}>
-              <SelectTrigger id="carrier-status" className={TRIGGER}>
-                <SelectValue />
-              </SelectTrigger>
-              <TitledSelectContent title={FORM.status}>
-                {CARRIER_STATUSES.map((status) => (
-                  <SelectItem key={status} value={status}>
-                    {C.status[status]}
-                  </SelectItem>
-                ))}
-              </TitledSelectContent>
-            </Select>
+            <CarrierChoice
+              id="carrier-status"
+              label={FORM.status}
+              value={field.value}
+              onChange={field.onChange}
+              options={CARRIER_STATUSES.map((status) => ({
+                value: status,
+                label: C.status[status],
+              }))}
+            />
           )}
         />
       </div>

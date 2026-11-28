@@ -44,16 +44,22 @@ export function quoteBlocker(row: QuoteRequest): string | null {
   return BLOCKED_BY_STATUS[row.designStatus] ?? (row.customerSku ? null : COPY.blockedNoSku);
 }
 
+/**
+ * `ownerBlocked`: BR-S12 / KE-HOACH §10.2 (chế độ chặt) — khách có Sale phụ trách khác thì "Lập báo giá" chỉ cho người phụ
+ * trách, người lo thay, Sales Manager; câu lý do do `salesOwnerAccessOf` lập. Khách chưa có chủ: Sale nào cũng lập được.
+ * UI-only — Backend phải re-check (409 CUSTOMER_OWNED_BY_OTHER_SALES).
+ */
 export function quoteRequestActions(
   row: QuoteRequest,
   can: (permission: PermissionCode) => boolean,
+  ownerBlocked: string | null = null,
 ): QuoteRequestAction[] {
   const actions: QuoteRequestAction[] = [];
   const open = row.status === "OPEN";
   if (can(CHAT_PERMISSIONS.read))
     actions.push({ id: "open-chat", label: COPY.openChat, enabled: true });
   if (open && can(QUOTE_PERMISSIONS.create)) {
-    const blocker = quoteBlocker(row);
+    const blocker = ownerBlocked ?? quoteBlocker(row);
     actions.push({
       id: "create-quote",
       label: COPY.createQuote,

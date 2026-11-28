@@ -1,8 +1,9 @@
 "use client";
 
-import { Controller } from "react-hook-form";
-import { addDays, format, parseISO } from "date-fns";
+import { Controller, useWatch } from "react-hook-form";
+import { addDays, differenceInCalendarDays, format, parseISO } from "date-fns";
 
+import { QUOTE_FORM_LABELS } from "@/constants/labels-quote-form";
 import { todayVn } from "@/features/quote/form-schemas";
 import { CustomerPicker } from "@/components/backoffice/CustomerPicker";
 import { Card } from "@/components/shared/Card";
@@ -32,6 +33,11 @@ export function QuoteGeneralFields({
   const { control, formState, register } = form;
   const { errors } = formState;
   const today = todayVn();
+  const validUntil = useWatch({ control, name: "validUntil" });
+  // "còn N ngày" kể từ hôm nay cạnh ô hiệu lực — Sale thấy ngay hạn điền sẵn là bao lâu (R6).
+  const daysLeft = /^\d{4}-\d{2}-\d{2}$/.test(validUntil ?? "")
+    ? differenceInCalendarDays(parseISO(validUntil), parseISO(today))
+    : null;
   return (
     <Card className="grid gap-4 md:grid-cols-2">
       <h2 className="text-ink-primary text-sm font-semibold md:col-span-2">Thông tin chung</h2>
@@ -53,6 +59,11 @@ export function QuoteGeneralFields({
         label="Hiệu lực đến hết ngày"
         required
         error={errors.validUntil?.message}
+        hint={
+          daysLeft !== null && daysLeft > 0
+            ? QUOTE_FORM_LABELS.validity.daysLeft(daysLeft)
+            : undefined
+        }
       >
         <Controller
           control={control}
@@ -64,16 +75,20 @@ export function QuoteGeneralFields({
               onChange={field.onChange}
               onBlur={field.onBlur}
               min={nextDay(today)}
-              {...fieldA11y("quote-valid", errors.validUntil?.message)}
+              {...fieldA11y(
+                "quote-valid",
+                errors.validUntil?.message,
+                daysLeft !== null && daysLeft > 0,
+              )}
             />
           )}
         />
       </FormField>
       <FormField
         id="quote-delivery"
-        label="Ngày giao khách yêu cầu"
+        label={`Ngày giao khách yêu cầu ${QUOTE_FORM_LABELS.optional}`}
         error={errors.requestedDeliveryDate?.message}
-        hint="Tuỳ chọn, không ở quá khứ."
+        hint="Không ở quá khứ."
       >
         <Controller
           control={control}
@@ -93,7 +108,7 @@ export function QuoteGeneralFields({
       </FormField>
       <FormField
         id="quote-terms"
-        label="Điều khoản"
+        label={`Điều khoản ${QUOTE_FORM_LABELS.optional}`}
         error={errors.terms?.message}
         className="md:col-span-2"
       >

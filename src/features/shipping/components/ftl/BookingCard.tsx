@@ -76,6 +76,7 @@ export function BookingCard({
               className={planned ? PRIMARY : undefined}
               disabled={!!book.disabledReason}
               title={book.disabledReason}
+              aria-describedby={book.disabledReason ? "booking-disabled-why" : undefined}
               onClick={() => onOpen("book")}
             >
               {planned ? <CalendarCheck className="size-3.5" /> : <Pencil className="size-3.5" />}{" "}
@@ -108,6 +109,12 @@ export function BookingCard({
             </Button>
           )}
         </div>
+      )}
+      {book?.disabledReason && (
+        // S01-13 / R7: lý do khoá nút "Đặt xe" nói ngay dưới, không chỉ ở `title`
+        <p id="booking-disabled-why" className="text-ink-secondary mt-2 text-xs">
+          {book.disabledReason}
+        </p>
       )}
     </section>
   );

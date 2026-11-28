@@ -21,6 +21,7 @@ import {
 import { OrderDetail } from "./OrderDetail";
 
 import type { PermissionCode } from "@/lib/auth";
+import { openOrderDetailTabInFile } from "../__fixtures__/render";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 afterEach(() => vi.restoreAllMocks());
@@ -57,6 +58,9 @@ async function renderWith(
 }
 
 const card = () => screen.findByRole("region", { name: "Giữ hoàn tất" });
+
+// Các khối được kiểm nằm ở tab "delivery" của trang chi tiết đơn (`OrderDetailTabs`)
+openOrderDetailTabInFile("delivery");
 
 describe("OrderDetail — Giữ hoàn tất (WF-05 GH-2)", () => {
   it("đang giữ → Đang giữ hoàn tất, nhãn lý do, ghi chú, lúc giữ; Sale thấy Gỡ giữ", async () => {

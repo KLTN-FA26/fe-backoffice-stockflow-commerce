@@ -19,7 +19,7 @@ import {
   CHANGE_FILE,
   CHOSEN_FILE,
   cupTree,
-  DEFAULTS_TOGGLE,
+  DEFAULTS_SECTION,
   EMPTY_VARIANT,
   FILE_INPUT,
   findStatus,
@@ -75,7 +75,7 @@ describe("choosing the real sample cup", () => {
     expect(measured.getByRole("row", { name: /Dải in cách đáy.*8,0 mm/ })).toBeInTheDocument();
     // the figures the file cannot tell are only the form below the report, never a second table
     expect(screen.queryByRole("table", { name: /Số hệ thống tự điền/ })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", DEFAULTS_TOGGLE)).toBeInTheDocument();
+    expect(screen.getByRole("region", DEFAULTS_SECTION)).toBeInTheDocument();
     // the file gives the sizes: there is no field to type a manufacturer's figure
     expect(screen.queryByLabelText("Đường kính miệng (mm)")).not.toBeInTheDocument();
     const parts = within(screen.getByRole("table", { name: "Từng phần in trong file" }));

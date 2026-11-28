@@ -23,7 +23,7 @@ import {
 import { resetCustomerMockStore } from "@/lib/api/mock-customer-store";
 import { resetVariantMockStore } from "@/lib/api/mock-routes-variants";
 
-import { renderCustomerPrices, stubPermissions } from "../__fixtures__/render";
+import { clickEditRow, renderCustomerPrices, stubPermissions } from "../__fixtures__/render";
 import { getCustomerPrice, listCustomerPrices, updateCustomerPrice } from "../api";
 import { customerPriceKeys } from "../queries";
 import { beCustomerPriceSchema } from "../schemas";
@@ -57,7 +57,7 @@ const puts = (put: { mock: { calls: unknown[][] } }) =>
   put.mock.calls.filter(([url]) => String(url).startsWith("/catalog/customer-prices/"));
 
 async function openEdit(user: User, sku = SKU) {
-  await user.click(await screen.findByRole("button", { name: F.editRow(sku) }, WAIT));
+  await clickEditRow(user, sku);
   await screen.findByText(F.editTitle(sku), {}, WAIT);
   await waitFor(() => expect(qty(1)).toBeInTheDocument(), WAIT);
 }
@@ -324,7 +324,7 @@ describe("luồng thật qua mock", () => {
     stubPermissions(EDITOR);
     render(`customerId=${C}`);
     const user = userEvent.setup();
-    await user.click(await screen.findByRole("button", { name: F.create }, WAIT));
+    await user.click(await screen.findByRole("button", { name: L.toolbar.createAria }, WAIT));
     await user.type(screen.getByLabelText(F.sku), "SKU-001-WHT-L");
     await user.type(qty(1), "3");
     await user.type(price(1), "123456789012345");

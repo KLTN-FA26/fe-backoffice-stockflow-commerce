@@ -59,16 +59,16 @@ export const productSchema = z.object({
   productId: z.string(),
   code: z.string().optional(),
   name: z.string().min(1),
-  nameEn: z.string().min(1),
   /** Legacy/mock catalog fields. ProductResponse does not provide these in real mode. */
   slug: z.string().min(1).optional(),
   type: productTypeSchema,
   categoryId: z.string().min(1).nullable(),
+  /** BE `ProductResponse.categoryName` (issue #286) — thiếu (BE cũ / null bị bỏ) thì hiện "—". */
+  categoryName: z.string().optional(),
   status: productStatusSchema,
   /** BE `ProductResponse.version` — gửi lại khi sửa / ngừng kinh doanh (409 OPTIMISTIC_LOCK nếu đã đổi). */
   version: z.number().int(),
   description: z.string(),
-  descriptionEn: z.string(),
   images: z.array(z.string()),
   model3dUrl: z.string().optional(),
   // Không có giá bán / công thức giá in: quy cách không có giá (kltn-docs 01 §1, 13 BR-04)
@@ -85,9 +85,18 @@ export const productSchema = z.object({
   createdAt: z.string(),
   createdBy: z.string(),
   submittedBy: z.string().optional(),
+  /** BE `ProductResponse.submittedByName` / `approvedByName` (issue #286) — tên cạnh id người làm. */
+  submittedByName: z.string().optional(),
   submittedAt: z.string().optional(),
   approvedBy: z.string().optional(),
+  approvedByName: z.string().optional(),
   approvedAt: z.string().optional(),
+  /**
+   * BE `ProductResponse.canApprove` (issue #286): người gọi duyệt được sản phẩm này (PENDING_APPROVAL +
+   * `product-products:APPROVE` + không tự duyệt, trừ người giữ `product-lifecycle:APPROVE`). Thiếu
+   * (BE cũ) → FE tự suy bằng `mayApproveProduct`.
+   */
+  canApprove: z.boolean().optional(),
   suspendedAt: z.string().optional(),
   suspendReason: z.string().optional(),
   discontinuedAt: z.string().optional(),
@@ -166,14 +175,13 @@ export const productMasterDtoSchema = z.object({
   productId: z.string().min(1),
   code: z.string(),
   name: z.string(),
-  nameEn: z.string().nullish(),
   slug: z.string().nullish(),
   brandId: z.string().nullish(),
   brandName: z.string().nullish(),
   categoryId: z.string().nullish(),
+  categoryName: z.string().nullish(),
   shortDescription: z.string().nullish(),
   description: z.string().nullish(),
-  descriptionEn: z.string().nullish(),
   taxClass: z.enum(["STANDARD", "REDUCED", "EXEMPT"]),
   kind: z.enum(productKindValues),
   status: beProductStatusSchema,
@@ -182,9 +190,13 @@ export const productMasterDtoSchema = z.object({
   createdAt: z.string(),
   createdBy: z.string().nullish(),
   submittedBy: z.string().nullish(),
+  submittedByName: z.string().nullish(),
   submittedAt: z.string().nullish(),
   approvedBy: z.string().nullish(),
+  approvedByName: z.string().nullish(),
   approvedAt: z.string().nullish(),
+  /** Issue #286: BE luôn trả; `nullish` để BE cũ không làm hỏng parse. */
+  canApprove: z.boolean().nullish(),
   rejectionReason: z.string().nullish(),
   /** Chỉ có khi INACTIVE (tạm ngưng) / DISCONTINUED — kèm lý do (BE `ck_products_inactive` / `_discontinued`). */
   suspendedAt: z.string().nullish(),
@@ -207,7 +219,6 @@ export const createProductSchema = z.object({
     .max(50, "Mã sản phẩm tối đa 50 ký tự")
     .regex(PRODUCT_CODE_PATTERN, "Mã chỉ gồm chữ, số, '_' và '-', bắt đầu bằng chữ hoặc số"),
   name: z.string().trim().min(1, "Nhập tên sản phẩm").max(255, "Tên tối đa 255 ký tự"),
-  nameEn: z.string().trim().min(1, "Nhập tên tiếng Anh").max(300, "Tên tiếng Anh tối đa 300 ký tự"),
   // docs 01 §3 requires category at product creation. The backend accepts null for a draft,
   // but the admin workflow deliberately enforces the stricter business source of truth.
   categoryId: z.string().trim().min(1, "Chọn danh mục"),
@@ -215,7 +226,6 @@ export const createProductSchema = z.object({
   brandId: z.string().trim().min(1, "Chọn thương hiệu"),
   shortDescription: z.string().optional(),
   description: z.string(),
-  descriptionEn: z.string(),
   taxClass: z.enum(["STANDARD", "REDUCED", "EXEMPT"]),
   // Không có `kind`: BE `CreateProductRequest` / `UpdateProductRequest` không nhận (hệ thống gán CUSTOMIZABLE)
   /**
@@ -247,12 +257,10 @@ export const discontinueProductSchema = z.object({
 export const productDraftFormSchema = z.object({
   productCode: createProductSchema.shape.code,
   name: createProductSchema.shape.name,
-  nameEn: createProductSchema.shape.nameEn,
   categoryId: createProductSchema.shape.categoryId,
   brandId: createProductSchema.shape.brandId,
   shortDescription: z.string(),
   description: z.string(),
-  descriptionEn: z.string(),
   taxClass: createProductSchema.shape.taxClass,
 });
 

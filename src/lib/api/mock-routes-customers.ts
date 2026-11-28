@@ -1,9 +1,16 @@
 /**
  * Mock routes — khách hàng (BE `CustomerController`): `GET /customers` (phân trang, `q`, `status`,
- * `segmentId`, `sort`) và `GET /customers/{customerId}`. Danh sách che mã số thuế
+ * `segmentId`, `sort`) và `GET /customers/{customerId}`; tạo khách `POST /customers` ở
+ * `mock-routes-customer-create`. Danh sách che mã số thuế
  * (`toMaskedResponse`); chi tiết trả nguyên. Lỗi theo `GlobalExceptionHandler` / `Pages` / `SortWhitelist`.
  */
 import { registerMockRoute } from "./mock-adapter";
+import { registerCustomerCreateMockRoute } from "./mock-routes-customer-create";
+import {
+  registerSalesOwnerMockRoutes,
+  salesOwnerFields,
+  salesOwnerFilter,
+} from "./mock-routes-sales-owner";
 import {
   CUSTOMER_SORT_FIELDS,
   MOCK_CUSTOMER_STATUSES,
@@ -62,7 +69,7 @@ const toResponse = (c: MockCustomer, masked: boolean) => ({
   taxCode: masked ? maskTaxCode(c.taxCode) : c.taxCode,
 });
 
-function listRoute(config: AxiosRequestConfig) {
+async function listRoute(config: AxiosRequestConfig) {
   const query = queryOf(config);
   const page = intParam(query.get("page"));
   const size = intParam(query.get("size"));
@@ -85,14 +92,27 @@ function listRoute(config: AxiosRequestConfig) {
     return unsupported(`Unknown customer status ${status}`);
   }
   const q = query.get("q") ?? "";
+  // Sale phụ trách (hợp đồng sales-owner BE-A): lọc `mine` / `salesOwnerState` / `salesOwnerId`, dòng có `salesOwner*`
+  const ownedBy = await salesOwnerFilter(query);
+  // D41: khách cũ thiếu MST mang cờ `taxCodeMissing`; lọc `taxCodeMissing=true`
+  const taxCodeMissing = query.get("taxCodeMissing") === "true";
   const rows = allMockCustomers().filter(
     (c) =>
       matchesSearch(c, q) &&
       (!segmentId || c.segmentId === segmentId.toLowerCase()) &&
-      (!status || c.status === status),
+      (!status || c.status === status) &&
+      ownedBy(c.customerId) &&
+      (!taxCodeMissing || c.taxCode === null),
   );
-  const sorted = sortCustomers(rows, sort).map((c) => toResponse(c, true));
-  return ok(pageOf(sorted, pageNumber, pageSize));
+  const result = pageOf(sortCustomers(rows, sort), pageNumber, pageSize);
+  const items = await Promise.all(
+    result.items.map(async (c) => ({
+      ...toResponse(c, true),
+      taxCodeMissing: c.taxCode === null,
+      ...(await salesOwnerFields(c.customerId)),
+    })),
+  );
+  return ok({ ...result, items });
 }
 
 function detailRoute(config: AxiosRequestConfig) {
@@ -105,6 +125,9 @@ function detailRoute(config: AxiosRequestConfig) {
 }
 
 export function registerCustomerMockRoutes(): void {
+  // Sale phụ trách: `/customers/sales-owner-transfers` phải khớp trước `/customers/:customerId`
+  registerSalesOwnerMockRoutes();
   registerMockRoute("GET", "/customers", listRoute);
   registerMockRoute("GET", "/customers/:customerId", detailRoute);
+  registerCustomerCreateMockRoute();
 }

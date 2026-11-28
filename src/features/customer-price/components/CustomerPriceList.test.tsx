@@ -7,6 +7,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  CUSTOMER_FALLBACK_LABEL,
   CUSTOMER_PERMISSIONS,
   CUSTOMER_PRICE_PERMISSIONS,
   CUSTOMER_PRICE_UI_LABELS,
@@ -21,6 +22,7 @@ import {
   resetCustomerPriceMockStore,
 } from "@/lib/api/mock-customer-price-store";
 import { mockCustomerId, resetCustomerMockStore } from "@/lib/api/mock-customer-store";
+import { openComboboxList } from "@/test/combobox";
 
 import { paramsOf, renderCustomerPrices, stubPermissions } from "../__fixtures__/render";
 import { customerPriceKeys } from "../queries";
@@ -90,12 +92,28 @@ describe("quyền", () => {
     expect(get.mock.calls.some(([u]) => String(u).startsWith("/customers"))).toBe(false);
   });
 
-  it("5 có READ giá, thiếu quyền tra khách: link có customerId vẫn xem được giá, chỉ hiện id", async () => {
+  it("5 có READ giá, thiếu quyền tra khách: link có customerId vẫn xem được giá, tên / mã khách lấy từ bảng giá (#286)", async () => {
     const get = stubPermissions([VIEW, READ]);
     render(`customerId=${A}`);
     expect(await sku("SKU-002-WHT")).toBeInTheDocument();
-    expect(screen.getByText(L.customer.noLookupPermission)).toBeInTheDocument();
-    expect(screen.getAllByText(A).length).toBeGreaterThan(0);
+    const selected = screen.getByRole("region", { name: L.field.customer });
+    expect(within(selected).getByText(/In Ấn Sài Gòn/)).toBeInTheDocument();
+    expect(within(selected).getByText("0310000001")).toBeInTheDocument();
+    // Không hiện UUID thô; bảng giá có tên nên không cần câu "thiếu quyền"
+    expect(within(selected).queryByText(A)).toBeNull();
+    expect(within(selected).queryByText(L.customer.noLookupPermission)).toBeNull();
+    expect(get.mock.calls.some(([u]) => String(u).startsWith("/customers"))).toBe(false);
+    // Tên lấy chung query với bảng giá — chỉ một lần gọi danh sách giá
+    expect(calledWith(get, PRICES)).toHaveLength(1);
+  });
+
+  it("5b thiếu quyền tra khách, khách chưa có giá riêng → nhãn trung tính, không UUID", async () => {
+    const get = stubPermissions([VIEW, READ]);
+    render(`customerId=${C}`);
+    const selected = await screen.findByRole("region", { name: L.field.customer });
+    expect(await within(selected).findByText(L.customer.noLookupPermission)).toBeInTheDocument();
+    expect(within(selected).getByText(CUSTOMER_FALLBACK_LABEL)).toBeInTheDocument();
+    expect(within(selected).queryByText(C)).toBeNull();
     expect(get.mock.calls.some(([u]) => String(u).startsWith("/customers"))).toBe(false);
   });
 });
@@ -143,8 +161,13 @@ describe("chọn khách + URL", () => {
     const get = stubPermissions(ALL);
     render();
     const user = userEvent.setup();
-    await user.click(await screen.findByRole("combobox", { name: L.picker.label }));
+    await openComboboxList(user, L.picker.label);
     const firstPage = await screen.findAllByRole("option", {}, WAIT);
+    // Trang 20 khách (không bị cắt còn 10) + còn lại sau trang này
+    expect(calledWith(get, "/customers").every(([, c]) => paramsOf(c).get("size") === "20")).toBe(
+      true,
+    );
+    expect(await screen.findByText(L.picker.more(25))).toBeInTheDocument();
     await user.click(await screen.findByRole("option", { name: L.picker.next }));
     await screen.findByText(L.picker.pageInfo(2, 45), {}, WAIT);
     expect(calledWith(get, "/customers").some(([, c]) => paramsOf(c).get("page") === "1")).toBe(
@@ -239,6 +262,14 @@ describe("trạng thái", () => {
     expect(await screen.findByText(L.customer.failed, {}, WAIT)).toBeInTheDocument();
   });
 
+  it("bo-16: dưới tên khách là MST / email, không phải UUID của khách", async () => {
+    stubPermissions(ALL);
+    render(`customerId=${A}`);
+    const section = await screen.findByRole("region", { name: L.field.customer });
+    await waitFor(() => expect(section.querySelector(".font-semibold")).not.toBeNull(), WAIT);
+    expect(section).not.toHaveTextContent(A);
+  });
+
   it("khách INACTIVE mở bằng link vẫn xem được, có cảnh báo", async () => {
     stubPermissions(ALL);
     render(`customerId=${mockCustomerId(5)}`);
@@ -257,7 +288,7 @@ describe("Enter trong ô chọn khách sau khi tích hợp develop", () => {
     const view = render();
     const user = userEvent.setup();
     const box = await screen.findByRole("combobox", { name: L.picker.label });
-    await user.click(box);
+    await openComboboxList(user, L.picker.label);
     // kết quả của từ khoá rỗng (trang đầu mọi khách) đã hiện
     await screen.findAllByRole("option", {}, WAIT);
     await user.type(box, "khach1@");

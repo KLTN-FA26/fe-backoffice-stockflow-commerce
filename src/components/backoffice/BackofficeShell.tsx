@@ -2,6 +2,7 @@
 
 import { cn } from "cn";
 import {
+  ArrowLeftRight,
   Ban,
   Banknote,
   Building2,
@@ -23,6 +24,7 @@ import {
   FolderTree,
   History as HistoryIcon,
   Landmark,
+  BadgeDollarSign,
   LayoutDashboard,
   ListChecks,
   Map as MapIcon,
@@ -44,12 +46,16 @@ import {
   Settings,
   TableProperties,
   PackageX,
+  ScanBarcode,
   SlidersHorizontal,
   Tag,
   Tags,
   Truck,
   TruckElectric,
   Undo2,
+  UserPlus,
+  UserRoundSearch,
+  UsersRound,
   Warehouse as WarehouseIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -62,6 +68,7 @@ import {
   BRAND,
   CANCELLATION_REQUEST_LABELS,
   CANCELLATION_REQUEST_PERMISSIONS,
+  CARTON_LIST_LABELS,
   CUSTOMER_PERMISSIONS,
   CREDIT_HOLD_PERMISSIONS,
   CUSTOMER_PRICE_PERMISSIONS,
@@ -118,6 +125,24 @@ import {
   RECEIVABLES_REPORT_PERMISSIONS,
 } from "@/constants/payment";
 import { RETURN_ROUTES, RMA_PERMISSIONS } from "@/constants/returns";
+import {
+  BANK_TRANSACTION_LABELS,
+  BANK_TRANSACTION_PERMISSIONS,
+  BANK_TRANSACTION_ROUTES,
+} from "@/constants/bank-transaction";
+import {
+  CREDIT_REQUEST_LABELS,
+  CREDIT_REQUEST_PERMISSIONS,
+  CREDIT_REQUEST_ROUTES,
+} from "@/constants/credit-request";
+import { SALES_OWNER_LABELS } from "@/constants/labels-sales-owner";
+import {
+  OWNER_CHANGE_REQUEST_PERMISSIONS,
+  SALES_LEAD_PERMISSIONS,
+  SALES_ROUTES,
+  SALES_WORKLOAD_PERMISSIONS,
+  STAFF_COVER_PERMISSIONS,
+} from "@/constants/sales-owner";
 
 import { useStaffChatBadge } from "@/features/chat";
 import { NotificationBell } from "@/features/notification";
@@ -129,6 +154,7 @@ import { WORKSPACE_PERMISSIONS } from "@/features/warehouse-map/components/works
 import { usePermissionChecker } from "@/lib/auth/components/Can";
 import { useAppStore } from "@/lib/store/use-app-store";
 import { useBreadcrumbLabelStore } from "@/lib/store/use-breadcrumb-labels";
+import { HEADER_ACTIONS_ID } from "@/components/shared/HeaderActions";
 
 import { notificationItemAction } from "@/components/backoffice/notification-item-action";
 import { Logo } from "@/components/shared/Logo";
@@ -265,6 +291,32 @@ export const NAV_GROUPS: NavGroup[] = [
         href: ADMIN_ROUTES.customers.list,
         icon: Building2,
         permission: CUSTOMER_PERMISSIONS.viewPage,
+      },
+      // Sale phụ trách khách (sales-owner): các resource mới không có VIEW_PAGE → gate bằng READ của hợp đồng
+      {
+        // Chỉ quản lý (`sales-workload:READ`: SALES_MANAGER, SYSTEM_ADMIN)
+        label: SALES_OWNER_LABELS.nav.assignment,
+        href: SALES_ROUTES.assignment,
+        icon: UsersRound,
+        permission: SALES_WORKLOAD_PERMISSIONS.read,
+      },
+      {
+        label: SALES_OWNER_LABELS.nav.leads,
+        href: SALES_ROUTES.leads,
+        icon: UserPlus,
+        permission: SALES_LEAD_PERMISSIONS.read,
+      },
+      {
+        label: SALES_OWNER_LABELS.nav.covers,
+        href: SALES_ROUTES.covers,
+        icon: CalendarClock,
+        permission: STAFF_COVER_PERMISSIONS.read,
+      },
+      {
+        label: SALES_OWNER_LABELS.nav.requests,
+        href: SALES_ROUTES.ownerChangeRequests,
+        icon: UserRoundSearch,
+        permission: OWNER_CHANGE_REQUEST_PERMISSIONS.read,
       },
       {
         label: CUSTOMER_PRICE_UI_LABELS.navLabel,
@@ -459,6 +511,13 @@ export const NAV_GROUPS: NavGroup[] = [
         permission: INVENTORY_PERMISSIONS.adjustmentViewPage,
       },
       {
+        // Tra cứu mọi thùng theo LPN / SKU / vị trí / lô (docs 20 §4.1) — route BE khai báo cho inventory-stock-packages
+        label: CARTON_LIST_LABELS.title,
+        href: INVENTORY_ROUTES.cartons,
+        icon: ScanBarcode,
+        permission: STOCK_PACKAGE_PERMISSIONS.viewPage,
+      },
+      {
         label: QUARANTINE_LABELS.title,
         href: INVENTORY_ROUTES.quarantine,
         icon: PackageX,
@@ -553,6 +612,13 @@ export const NAV_GROUPS: NavGroup[] = [
         permission: PAYMENT_RECEIPT_PERMISSIONS.viewPage,
       },
       {
+        // Chuyển khoản SePay không khớp — hàng chờ của Kế toán (BE `payment-bank-transactions`, PR #490)
+        label: BANK_TRANSACTION_LABELS.navLabel,
+        href: BANK_TRANSACTION_ROUTES.list,
+        icon: ArrowLeftRight,
+        permission: BANK_TRANSACTION_PERMISSIONS.viewPage,
+      },
+      {
         label: PAYMENT_LABELS.refunds.navLabel,
         href: PAYMENT_ROUTES.refunds.list,
         icon: Undo2,
@@ -565,6 +631,13 @@ export const NAV_GROUPS: NavGroup[] = [
         href: ADMIN_ROUTES.orders.creditHolds,
         icon: ShieldAlert,
         permission: CREDIT_HOLD_PERMISSIONS.viewPage,
+      },
+      {
+        // Đề nghị cấp hạn mức (15 §4.3 bước 9–11a): Sale ghi ý kiến, Kế toán duyệt (BE `customer-credit-requests`)
+        label: CREDIT_REQUEST_LABELS.navLabel,
+        href: CREDIT_REQUEST_ROUTES.list,
+        icon: BadgeDollarSign,
+        permission: CREDIT_REQUEST_PERMISSIONS.viewPage,
       },
       {
         // Hoá đơn VAT điện tử theo lần giao (docs 21) — BE `einvoices` (route `/invoicing/einvoices`)
@@ -890,7 +963,9 @@ function BackofficeSidebar() {
         />
       </SidebarContent>
 
-      <SidebarFooterBar />
+      <SidebarFooterBar
+        extra={<NotificationBell side="right" itemAction={notificationItemAction} />}
+      />
       {/* Vạch mảnh ở mép phải: rê chuột hiện, bấm để thu gọn / mở rộng */}
       <SidebarRail />
     </Sidebar>
@@ -974,7 +1049,8 @@ export function BackofficeShell({ children }: { children: React.ReactNode }) {
                 ))}
               </nav>
             </div>
-            <NotificationBell itemAction={notificationItemAction} />
+            {/* Nút hành động chính của trang (`HeaderActions`) ở góc phải topbar */}
+            <div id={HEADER_ACTIONS_ID} className="relative ml-auto flex items-center gap-2" />
           </header>
 
           {/* Content */}

@@ -10,6 +10,7 @@ import {
   QUOTE_PRICE_APPROVAL_PERMISSIONS,
   QUOTE_PRICE_REVIEW_LABELS,
 } from "@/constants";
+import { QUOTE_FORM_LABELS } from "@/constants/labels-quote-form";
 import { useAuthStore } from "@/lib/auth";
 import { useCan } from "@/lib/auth/components/Can";
 import { formatDate } from "@/lib/format/date";
@@ -33,7 +34,10 @@ export function quoteNextStep(quote: Quote, canApprovePrice = false): string {
       : QUOTE_PRICE_REVIEW_LABELS.nextStep.pending;
   switch (quote.status) {
     case "DRAFT":
-      return "Bước tiếp theo: nhập đủ giá và phí, rồi Gửi khách.";
+      // Theo trạng thái thật (`priced` do BE tính): đã đủ giá và phí thì chỉ còn kiểm lại rồi gửi.
+      return quote.priced
+        ? QUOTE_FORM_LABELS.nextStep.readyToSend
+        : QUOTE_FORM_LABELS.nextStep.needPrices;
     case "SENT":
       return `Chờ khách phản hồi trong chat, đến hết ${formatDate(quote.validUntil)}.`;
     case "CHANGES_REQUESTED":
@@ -49,7 +53,7 @@ export function quoteNextStep(quote: Quote, canApprovePrice = false): string {
   }
 }
 
-/** Bước tiếp theo + "Mở hội thoại" + "Lập báo giá mới" (EXPIRED / CANCELLED / SENT đã quá hạn) trong thẻ trạng thái. */
+/** Bước tiếp theo + "Mở hội thoại" + "Lập báo giá mới" (EXPIRED / CANCELLED / SENT đã quá hạn) ở cuối khung hồ sơ. */
 export function QuoteNextStep({ quote }: { quote: Quote }) {
   const canChat = useCan(CHAT_PERMISSIONS.read);
   const canCreate = useCan(QUOTE_PERMISSIONS.create);
@@ -64,10 +68,8 @@ export function QuoteNextStep({ quote }: { quote: Quote }) {
     quote.status === "CANCELLED" ||
     (quote.status === "SENT" && isExpired(quote.validUntil));
   return (
-    <div className="space-y-2">
-      <p className="text-ink-secondary text-center text-xs">
-        {quoteNextStep(quote, canApprovePrice)}
-      </p>
+    <div className="flex flex-wrap items-center justify-between gap-2 [&>a]:w-auto">
+      <p className="text-ink-secondary text-[0.8125rem]">{quoteNextStep(quote, canApprovePrice)}</p>
       {conversation.data && (
         <Button asChild size="sm" variant="outline" className={DETAIL_ACTION_CLASS.outline}>
           <Link href={ADMIN_ROUTES.chat.detail(conversation.data)}>

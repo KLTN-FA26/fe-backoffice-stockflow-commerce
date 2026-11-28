@@ -20,6 +20,7 @@ import {
 } from "./schemas";
 
 import type { CustomerApiStatus } from "@/constants";
+import type { SalesOwnerState } from "@/constants/sales-owner";
 import type { ListQueryParams, PaginatedResponse } from "@/lib/api/query-factory";
 import type {
   CreditProfile,
@@ -44,6 +45,14 @@ export interface ListCustomerParams extends ListQueryParams {
   status?: CustomerApiStatus;
   /** `fullName|email|createdAt|status[,asc|desc]`. */
   sort?: string;
+  /** Sale phụ trách (hợp đồng sales-owner BE-A): "Khách của tôi" (BR-S11). */
+  mine?: boolean;
+  /** "Cần giao người phụ trách" = `NEEDS_ASSIGNMENT`. */
+  salesOwnerState?: SalesOwnerState;
+  /** Khách của một Sale. */
+  salesOwnerId?: string;
+  /** D41: chỉ khách "Thiếu MST". */
+  taxCodeMissing?: boolean;
 }
 
 export async function listCustomers(
@@ -57,6 +66,10 @@ export async function listCustomers(
   if (params.q?.trim()) query.set("q", params.q.trim());
   if (params.status) query.set("status", params.status);
   if (params.sort) query.set("sort", params.sort);
+  if (params.mine) query.set("mine", "true");
+  if (params.salesOwnerState) query.set("salesOwnerState", params.salesOwnerState);
+  if (params.salesOwnerId) query.set("salesOwnerId", params.salesOwnerId);
+  if (params.taxCodeMissing) query.set("taxCodeMissing", "true");
   const { data } = await api.get<unknown>(CUSTOMERS, { params: query, signal });
   return customerPageDtoSchema.parse(data);
 }
@@ -134,7 +147,10 @@ export async function saveLegalProfile({
   return legalProfileDtoSchema.parse(data);
 }
 
-/** `POST /customers` → 201 khách PENDING_ACTIVATION + lời mời (link KHÔNG bao giờ trả về). */
+/**
+ * `POST /customers` → 201 khách PENDING_ACTIVATION + lời mời (link KHÔNG bao giờ trả về). Trường mới của sales-owner
+ * (`taxCodeExemption` + `taxCodeExemptionReason`, `salesOwnerId`, `leadId`) chỉ gửi khi có giá trị — body cũ không đổi.
+ */
 export async function createCustomer(values: CustomerCreateValues): Promise<InvitedCustomer> {
   const body = {
     companyName: values.companyName.trim(),
@@ -142,6 +158,13 @@ export async function createCustomer(values: CustomerCreateValues): Promise<Invi
     email: values.email.trim(),
     ...(values.taxCode.trim() ? { taxCode: normalizeTaxCode(values.taxCode) } : {}),
     ...(values.phone.trim() ? { phone: values.phone.trim() } : {}),
+    // BR-S14: miễn MST (Sales Manager) — chỉ gửi khi miễn và thật sự không có MST.
+    ...(values.taxCodeExemption && !values.taxCode.trim()
+      ? { taxCodeExemption: true, taxCodeExemptionReason: values.exemptionReason.trim() }
+      : {}),
+    // BR-S02: Manager chọn Sale phụ trách; §10.7: tạo từ khách tiềm năng.
+    ...(values.salesOwnerId ? { salesOwnerId: values.salesOwnerId } : {}),
+    ...(values.leadId ? { leadId: values.leadId } : {}),
   };
   const { data } = await api.post<unknown>(CUSTOMERS, body);
   return invitedCustomerDtoSchema.parse(data);

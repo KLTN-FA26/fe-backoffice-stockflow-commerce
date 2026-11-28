@@ -85,9 +85,10 @@
   --z-dropdown-on-dialog: 1160;
   --z-toast: 1200;
   --z-tooltip: 1300;
-  --sh-sm: 0 1px 2px rgba(26, 27, 24, 0.06), 0 1px 3px rgba(26, 27, 24, 0.08);
-  --sh-md: 0 4px 12px rgba(26, 27, 24, 0.08);
-  --sh-lg: 0 12px 32px rgba(26, 27, 24, 0.14);
+  /* Bóng nhẹ hơn 30% so với trước (alpha × 0.7) */
+  --sh-sm: 0 1px 2px rgba(26, 27, 24, 0.042), 0 1px 3px rgba(26, 27, 24, 0.056);
+  --sh-md: 0 4px 12px rgba(26, 27, 24, 0.056);
+  --sh-lg: 0 12px 32px rgba(26, 27, 24, 0.098);
   --card-pad: 16px;
   --card-radius: var(--r-sm);
   /* Bo góc khối nội dung (toolbar, bảng) và màu vạch kẻ dòng bảng — `.surface-soft` đổi lại */
@@ -105,6 +106,8 @@
   --control-text: 0.8125rem;
   --control-radius: var(--r-sm);
   --control-shadow: none;
+  /* Bo góc mọi ô nhập (input, textarea, select, ô tìm kiếm) — bằng khối card / section kiểu mềm */
+  --field-radius: var(--r-md);
   /* Thanh `Cấu hình` dưới toolbar (ListConfigSummary) */
   --summary-bg: color-mix(in srgb, var(--bg-subtle) 70%, transparent);
   /* Nút hành động trên toolbar (xuất, tạo mới…) */
@@ -116,25 +119,27 @@
   --card-border: 1px solid var(--border-default);
 }
 
-/* Mode A · Dark */
+/* Mode A · Dark — thang xám trung tính kiểu Vercel (chốt 2026-11-27): nền gần đen, chữ sáng rõ,
+   bớt "mờ" so với bộ cũ (#0e0f11 / #17181b, chữ phụ #a8aaa3 ngả ấm). */
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg-base: #0e0f11;
-  --bg-surface: #17181b;
-  --bg-subtle: #1f2124;
-  --bg-sidebar: #1f2124;
-  --bg-muted: #2a2c30;
-  --border-default: #2e3034;
-  --border-strong: #3d4045;
-  --ink-primary: #f4f4f1;
-  --ink-secondary: #a8aaa3;
-  /* #9a9c95: 6.39:1 trên bg.surface, 5.04:1 trên bg.muted (cũ #76786f: 3.96 / 3.12). */
-  --ink-tertiary: #9a9c95;
-  --ink-inverse: #1a1b18;
-  --brand: #f4f4f1;
+  --bg-base: #0a0a0a;
+  --bg-surface: #111111;
+  --bg-subtle: #161616;
+  --bg-sidebar: #0a0a0a;
+  --bg-muted: #1f1f1f;
+  --border-default: #262626;
+  --border-strong: #363636;
+  --ink-primary: #ededed;
+  /* #a1a1a1: 7.3:1 trên bg.surface, 6.4:1 trên bg.muted. */
+  --ink-secondary: #a1a1a1;
+  /* #8f8f8f: 5.8:1 trên bg.surface, 5.1:1 trên bg.muted (WCAG 1.4.3 ≥ 4.5). */
+  --ink-tertiary: #8f8f8f;
+  --ink-inverse: #0a0a0a;
+  --brand: #ededed;
   --brand-hover: #ffffff;
   --accent: #4ea6f0;
-  /* 6.79:1 trên bg.surface, 5.35:1 trên bg.muted. */
+  /* 7.23:1 trên bg.surface, 6.31:1 trên bg.muted. */
   --accent-text: #4ea6f0;
   --warning-ink: #f5a524;
   --positive-ink: #3cc47a;
@@ -257,6 +262,13 @@
    TAILWIND v4 @theme — map StockFlow tokens → utility classes + shadcn semantic vars
    ==========================================================================*/
 @theme inline {
+  /* Bóng mặc định của Tailwind (shadcn dùng: popover, dropdown, dialog…) nhẹ hơn 30% (alpha × 0.7) */
+  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.035);
+  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.07), 0 1px 2px -1px rgb(0 0 0 / 0.07);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.07);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.07), 0 4px 6px -4px rgb(0 0 0 / 0.07);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.07), 0 8px 10px -6px rgb(0 0 0 / 0.07);
+
   /* Fonts (set bởi next/font trong layout.tsx) */
   --font-sans: var(--font-sans);
   --font-display: var(--font-display);
@@ -420,6 +432,129 @@
 [data-slot="select-content"],
 [data-slot="popover-content"] {
   z-index: var(--z-dropdown-on-dialog);
+}
+
+/*
+  Ô nhập (input, textarea, select, input-group, nút mở combobox): bo `--field-radius` như khối card / section.
+  shadcn và nhiều chỗ gọi đặt `rounded-lg` / `rounded-[var(--r-sm)]` khác nhau → gom về một token.
+  Đặt NGOÀI @layer để thắng utility của Tailwind v4 mà không cần !important. Ô con trong
+  input-group (`input-group-control`) không bị ảnh hưởng — khung ngoài đã bo.
+*/
+[data-slot="input"],
+[data-slot="textarea"],
+[data-slot="select-trigger"],
+[data-slot="input-group"],
+button[role="combobox"] {
+  border-radius: var(--field-radius);
+}
+
+/*
+  Mô tả rich text (ADR-0013): HTML của Tiptap (StarterKit + Image), dùng cho ô soạn (`RichTextEditor`, ProseMirror) và
+  chỗ hiển thị (`RichTextView`). Dự án không có @tailwindcss/typography nên đặt style tối thiểu ở đây, chỉ bằng token.
+*/
+.rich-text {
+  color: var(--ink-primary);
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.rich-text > * + * {
+  margin-top: 0.5em;
+}
+.rich-text h1,
+.rich-text h2,
+.rich-text h3 {
+  font-weight: 600;
+  line-height: 1.3;
+}
+.rich-text h1 {
+  font-size: 1.25rem;
+}
+.rich-text h2 {
+  font-size: 1.0625rem;
+}
+.rich-text h3 {
+  font-size: 0.9375rem;
+}
+.rich-text ul,
+.rich-text ol {
+  padding-left: 1.25rem;
+}
+.rich-text ul {
+  list-style: disc;
+}
+.rich-text ol {
+  list-style: decimal;
+}
+.rich-text blockquote {
+  border-left: 2px solid var(--border-strong);
+  color: var(--ink-secondary);
+  padding-left: 0.75rem;
+}
+.rich-text code {
+  background: var(--bg-subtle);
+  border-radius: var(--r-sm);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  padding: 0.0625rem 0.25rem;
+}
+.rich-text pre {
+  background: var(--bg-subtle);
+  border-radius: var(--r-sm);
+  overflow-x: auto;
+  padding: 0.5rem 0.75rem;
+}
+.rich-text pre code {
+  background: transparent;
+  padding: 0;
+}
+.rich-text a {
+  color: var(--accent-text);
+  text-decoration: underline;
+}
+.rich-text hr {
+  border-color: var(--border-default);
+}
+.rich-text img {
+  border-radius: var(--r-sm);
+  height: auto;
+  max-width: 100%;
+}
+.rich-text .ProseMirror {
+  min-height: 8rem;
+  outline: none;
+}
+.rich-text .ProseMirror-selectednode {
+  outline: 2px solid var(--border-strong);
+}
+
+/*
+  Thanh cuộn mảnh (slim) cho cả app và mọi bảng / vùng cuộn: 6px, thumb bo tròn màu `--border-strong`, track trong suốt,
+  hover đậm lên `--ink-tertiary`. Chromium / Safari dùng `::-webkit-scrollbar`; chỉ trình duyệt KHÔNG có pseudo đó
+  (Firefox) mới đặt `scrollbar-width` — Chromium ≥ 121 thấy `scrollbar-width` thì bỏ qua `::-webkit-scrollbar` (thin ≈ 11px).
+*/
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
+  }
+}
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  background-color: var(--border-strong);
+}
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--ink-tertiary);
+}
+*::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 /*

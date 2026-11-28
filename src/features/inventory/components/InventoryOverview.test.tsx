@@ -6,8 +6,10 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 
 import { INVENTORY_LABELS, INVENTORY_MESSAGES } from "@/constants/inventory";
 import { INVENTORY_OVERVIEW_PERMISSIONS, WAREHOUSE_PERMISSIONS } from "@/constants/permissions";
+import { pickOption } from "@/test/ui-actions";
 
 import {
+  OVERVIEW_LEVELS,
   OVERVIEW_RESERVATION,
   OVERVIEW_STOCK_ITEMS,
   OVERVIEW_WAREHOUSE,
@@ -88,6 +90,67 @@ describe("stock levels", () => {
   });
 });
 
+// ADR-0011 (BE, issue #305): stock is whole cartons — cartons are the main figure, units under them.
+describe("carton figures", () => {
+  const cartonLevels = OVERVIEW_LEVELS.map((level) =>
+    level.warehouseCode === "HN01"
+      ? {
+          ...level,
+          onHandCartons: 6,
+          availableCartons: 3,
+          reservedCartons: 2,
+          allocatedCartons: 0,
+          atpCartons: 2,
+        }
+      : level,
+  );
+
+  it("shows the counted cartons first, the units second, on levels, stock rows and holds", async () => {
+    const user = await openFor("CUP-PP-500", {
+      levels: cartonLevels,
+      items: overviewPage(
+        OVERVIEW_STOCK_ITEMS.map((item) => ({
+          ...item,
+          onHandCartons: 1,
+          reservedCartons: 0,
+          availableCartons: 1,
+        })),
+      ),
+      reservations: overviewPage([{ ...OVERVIEW_RESERVATION, cartons: 1 }]),
+    });
+    const levels = await levelsRegion();
+    const row = (await within(levels).findByText("HN01")).closest("tr");
+    expect(
+      within(row as HTMLElement)
+        .getAllByRole("cell")
+        .map((cell) => cell.textContent),
+    ).toEqual([
+      "HN01",
+      "6 thùng423 cái",
+      "3 thùng350 cái",
+      "2 thùng25 cái",
+      "0 thùng0 cái",
+      "2 thùng330 cái",
+      INVENTORY_LABELS.viewWarehouse,
+    ]);
+    const holds = await region(INVENTORY_LABELS.reservationsTitle);
+    const hold = (await within(holds).findByText(OVERVIEW_RESERVATION.orderNumber)).closest("tr");
+    // Issue #286: cột "Đơn" hiện số đơn, không UUID đơn
+    expect(within(holds).queryByText(OVERVIEW_RESERVATION.orderId)).not.toBeInTheDocument();
+    expect(within(hold as HTMLElement).getByText("1 thùng")).toBeInTheDocument();
+    expect(within(hold as HTMLElement).getByText("20 cái")).toBeInTheDocument();
+    await openWarehouse(user, "HN01");
+    const items = await region(new RegExp(INVENTORY_LABELS.stockItemsTitle));
+    const stockRow = (await within(items).findByText("HN01-A01-02-B")).closest("tr");
+    expect(
+      within(stockRow as HTMLElement)
+        .getAllByRole("cell")
+        .slice(4, 7)
+        .map((cell) => cell.textContent),
+    ).toEqual(["1 thùng200 cái", "0 thùng0 cái", "1 thùng200 cái"]);
+  });
+});
+
 describe("warehouse identity", () => {
   it("resolves the code through the directory: id to stock items, code to ATP", async () => {
     const user = await openFor("CUP-PP-500");
@@ -154,7 +217,7 @@ describe("warehouse stock items", () => {
     const items = await region(/Tồn theo vị trí và lô/);
     await user.click(await within(items).findByRole("button", { name: INVENTORY_LABELS.next }));
     await waitFor(() => expect(sentTo(stockItemsPath).at(-1)?.searchParams.get("page")).toBe("1"));
-    await user.selectOptions(within(items).getByLabelText(INVENTORY_LABELS.perPage), "50");
+    await pickOption(user, within(items).getByLabelText(INVENTORY_LABELS.perPage), "50");
     await waitFor(() =>
       expect(Object.fromEntries(sentTo(stockItemsPath).at(-1)?.searchParams ?? [])).toMatchObject({
         page: "0",
@@ -191,8 +254,8 @@ describe("reservations", () => {
       }),
     });
     const holds = await region(INVENTORY_LABELS.reservationsTitle);
-    const row = (await within(holds).findByText(OVERVIEW_RESERVATION.orderId)).closest("tr");
-    expect(within(row as HTMLElement).getAllByText(INVENTORY_LABELS.missing)).toHaveLength(4);
+    const row = (await within(holds).findByText(OVERVIEW_RESERVATION.orderNumber)).closest("tr");
+    expect(within(row as HTMLElement).getAllByText(INVENTORY_LABELS.missing)).toHaveLength(3);
     await user.click(within(holds).getByRole("button", { name: INVENTORY_LABELS.next }));
     await waitFor(() =>
       expect(sentTo("/inventory/reservations").at(-1)?.searchParams.get("page")).toBe("1"),

@@ -308,6 +308,23 @@ export const ORDER_HISTORY_LABELS = {
   by: "Bởi",
   noteLabel: "Ghi chú",
   statusMoved: "Chuyển trạng thái",
+  /** Bảng lịch sử (dạng bảng như lịch sử sản phẩm): cột "Loại" theo `kind` của mục. */
+  kinds: {
+    "status-change": "Đổi trạng thái",
+    "partial-shipment": "Giao một phần",
+    "remainder-closure": "Đóng phần còn lại",
+    "delivery-mode": "Hình thức giao",
+    "address-change": "Địa chỉ giao",
+    "refund-voided": "Phiếu hoàn tiền",
+    unknown: "Khác",
+  },
+  columns: {
+    occurredAt: "Thời gian",
+    kind: "Loại",
+    detail: "Nội dung",
+    actor: "Người thực hiện",
+    note: "Ghi chú",
+  },
 } as const;
 
 /* ── Đóng phần còn lại kèm phí thoả thuận (BE PR #150) ───────────────── */
@@ -466,6 +483,9 @@ export const ORDER_FINANCE_LABELS = {
   net: "Tạm tính (trước thuế)",
   tax: "Thuế GTGT",
   effectiveTotal: "Giá trị sau khi đóng phần còn lại",
+  /** bo-18: đơn chưa có hợp đồng ký thì chưa có đợt thanh toán / hoá đơn — không hiện khối trống. */
+  settlementBeforeContract:
+    "Đợt thanh toán, hoá đơn điện tử và điều kiện hoàn tất hiện ở đây sau khi khách ký hợp đồng.",
   feeKinds: {
     PLATE_FEE: "Phí khuôn / bản in",
     SHIPPING_FEE: "Phí vận chuyển",

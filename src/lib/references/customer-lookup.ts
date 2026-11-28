@@ -7,7 +7,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 
-import { CUSTOMER_API_STATUSES } from "@/constants";
+import { COMBOBOX_MAX_ROWS, CUSTOMER_API_STATUSES } from "@/constants";
 import { api } from "@/lib/api/client";
 import { QUERY_TIMES } from "@/lib/api/query-client";
 
@@ -17,15 +17,22 @@ const customerRefSchema = z.object({
   email: z.string(),
   status: z.enum(CUSTOMER_API_STATUSES),
   taxCode: z.string().nullish(),
+  // BE#488: tỉnh giao mặc định — chỉ có khi người gọi có `customer-addresses:READ`; BE cũ chưa trả → bỏ qua
+  defaultShippingProvinceName: z.string().nullish(),
 });
-const customerRefPageSchema = z.object({ items: z.array(customerRefSchema) });
+const customerRefPageSchema = z.object({
+  items: z.array(customerRefSchema),
+  // BE `PageResponse.totalElements` — để ô chọn báo "Còn N khách" khi chỉ hiện trang đầu
+  totalElements: z.number().int().min(0).optional(),
+});
 
 export type CustomerRef = z.infer<typeof customerRefSchema>;
 
 export const customerRefKeys = {
   all: ["references", "customers"] as const,
   one: (id: string) => [...customerRefKeys.all, "one", id] as const,
-  search: (q: string) => [...customerRefKeys.all, "search", q] as const,
+  search: (q: string, activeOnly: boolean) =>
+    [...customerRefKeys.all, "search", activeOnly ? "active" : "any", q] as const,
 };
 
 export async function fetchCustomerRef(id: string, signal?: AbortSignal): Promise<CustomerRef> {
@@ -43,20 +50,32 @@ export function useCustomerRef(id: string | null | undefined, enabled = true) {
   });
 }
 
-/** Ô chọn khách: chỉ khách ACTIVE mới nhận việc mới (BE CUSTOMER_NOT_ACTIVE). */
-export function useActiveCustomerSearch(q: string, enabled = true) {
+/** Một lần tìm khách: tối đa `COMBOBOX_MAX_ROWS` khách + tổng số khớp (để báo "Còn N khách — gõ thêm"). */
+export interface CustomerSearchResult {
+  items: CustomerRef[];
+  /** Tổng số khách khớp (BE `totalElements`); không có thì bằng số khách đang hiện. */
+  total: number;
+}
+
+/**
+ * Ô chọn khách, BE tìm theo `q` (tên, email, SĐT; khớp đúng MST), sắp theo tên. `activeOnly` (mặc định) chỉ lấy khách
+ * ACTIVE — dùng khi chọn khách cho việc mới (BE CUSTOMER_NOT_ACTIVE); bộ lọc danh sách (đơn, yêu cầu báo giá) truyền
+ * `false` để lọc được cả khách đã khoá / chưa kích hoạt.
+ */
+export function useCustomerSearch(q: string, { enabled = true, activeOnly = true } = {}) {
   return useQuery({
-    queryKey: customerRefKeys.search(q),
-    queryFn: async ({ signal }) => {
+    queryKey: customerRefKeys.search(q.trim(), activeOnly),
+    queryFn: async ({ signal }): Promise<CustomerSearchResult> => {
       const params = new URLSearchParams({
         page: "0",
-        size: "20",
-        status: "ACTIVE",
+        size: String(COMBOBOX_MAX_ROWS),
         sort: "fullName,asc",
       });
+      if (activeOnly) params.set("status", "ACTIVE");
       if (q.trim()) params.set("q", q.trim());
       const { data } = await api.get<unknown>("/customers", { params, signal });
-      return customerRefPageSchema.parse(data).items;
+      const page = customerRefPageSchema.parse(data);
+      return { items: page.items, total: page.totalElements ?? page.items.length };
     },
     enabled,
     ...QUERY_TIMES.list,

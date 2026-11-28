@@ -34,11 +34,14 @@ export function PlanActions({
   actions,
   onOpen,
   onEdit,
+  calculating = false,
 }: {
   actions: LoadPlanActions;
   onOpen: (kind: PlanDialogKind) => void;
   /** Mở trình soạn xếp tay (PR F5). */
   onEdit: () => void;
+  /** Đang tính xếp xe (không qua hộp thoại): nút chính khoá, nhãn "Đang tính…". */
+  calculating?: boolean;
 }) {
   const A = L.actions;
   const blocked = actions.confirmBlocked;
@@ -93,8 +96,14 @@ export function PlanActions({
           </Button>
         )}
         {primary === "calculate" && (
-          <Button type="button" size="sm" className={PRIMARY} onClick={() => onOpen("calculate")}>
-            {A.calculate}
+          <Button
+            type="button"
+            size="sm"
+            className={PRIMARY}
+            disabled={calculating}
+            onClick={() => onOpen("calculate")}
+          >
+            {calculating ? A.calculating : A.calculate}
           </Button>
         )}
         <PlanMoreMenu items={menu} label={A.more} />

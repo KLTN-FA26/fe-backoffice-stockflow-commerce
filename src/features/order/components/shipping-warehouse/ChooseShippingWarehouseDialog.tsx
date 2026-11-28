@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useWatch } from "react-hook-form";
 
@@ -7,6 +8,7 @@ import { ORDER_SHIPPING_WAREHOUSE_LABELS } from "@/constants";
 import { DialogScrollArea } from "@/components/shared/DialogScrollArea";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 
+import { defaultWarehouseId } from "../../shipping-warehouse-rules";
 import { chooseShippingWarehouseSchema } from "../../shipping-warehouse-schemas";
 import { useShippingWarehouseOptions } from "../../shipping-warehouse-queries";
 
@@ -39,6 +41,16 @@ function OptionsBody({
   error: string | undefined;
 }) {
   const options = useShippingWarehouseOptions(orderId);
+  // R6 (S10-1): chọn sẵn kho gợi ý (có lý do) hoặc kho duy nhất — một lần, khi danh sách vừa tải; Sale vẫn bấm xác nhận.
+  const preselected = useRef(false);
+  const initial = options.data
+    ? defaultWarehouseId(options.data.warehouses, options.data.chosenWarehouseId)
+    : "";
+  useEffect(() => {
+    if (preselected.current || !initial || value) return;
+    preselected.current = true;
+    onChange(initial);
+  }, [initial, value, onChange]);
   if (options.isPending) return <p className="text-ink-secondary text-[0.8125rem]">{L.loading}</p>;
   if (options.isError) {
     return (

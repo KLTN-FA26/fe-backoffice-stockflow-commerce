@@ -1,12 +1,14 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { Suspense } from "react";
+import { NuqsTestingAdapter } from "nuqs/adapters/testing";
+import { Suspense, type ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PRODUCT_STATUS, UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 import { useBreadcrumbLabelStore } from "@/lib/store/use-breadcrumb-labels";
-import { renderWithProviders } from "@/test/render";
+import { renderWithProviders as renderBase } from "@/test/render";
+import { clickRowAction, openRowMenu } from "@/test/ui-actions";
 
 import type { Product } from "@/features/product";
 
@@ -20,7 +22,9 @@ const {
   pushMock,
   refetchMock,
   transitionMutateMock,
+  useCategoriesMock,
 } = vi.hoisted(() => ({
+  useCategoriesMock: vi.fn(() => ({ data: { items: [] }, isLoading: false })),
   transitionMutateMock: vi.fn(),
   useProductMock: vi.fn(),
   discontinueMutateMock: vi.fn(),
@@ -46,7 +50,7 @@ vi.mock("@/features/product", async () => {
     ...actual,
     useProduct: useProductMock,
     useVariants: () => ({ data: [], isLoading: false }),
-    useCategories: () => ({ data: { items: [] }, isLoading: false }),
+    useCategories: useCategoriesMock,
     useTransitionProduct: () => ({ ...idle, mutate: transitionMutateMock }),
     usePublishProduct: () => idle,
     useUnpublishProduct: () => idle,
@@ -75,17 +79,19 @@ vi.mock("./variants/VariantMediaGallery", () => ({
 
 import { ProductDetail } from "./ProductDetail";
 
+/** Trang chi tiết đọc tab đang mở từ URL (nuqs). */
+const renderWithProviders = (ui: ReactElement) =>
+  renderBase(<NuqsTestingAdapter hasMemory>{ui}</NuqsTestingAdapter>);
+
 const product = (status: Product["status"], version = 3): Product => ({
   productId: "product-1",
   code: "PRD-1",
   name: "Ly giấy",
-  nameEn: "Paper cup",
   type: "Standard",
   categoryId: null,
   status,
   version,
   description: "",
-  descriptionEn: "",
   images: [],
   taxClass: "standard",
   brand: "Brand",
@@ -106,7 +112,8 @@ async function renderDetail() {
       <ProductDetail params={resolvedParams} />
     </Suspense>,
   );
-  return screen.findByRole("button", { name: "Ngừng kinh doanh" });
+  // Ngừng kinh doanh / Tạm ngưng / Xoá / Từ chối (việc nguy hiểm) nằm trong menu "⋯" của header.
+  await screen.findByRole("heading", { level: 1, name: "Ly giấy" });
 }
 
 const noReferences = {
@@ -128,7 +135,8 @@ beforeEach(() => {
 describe("ProductDetail — ngừng kinh doanh cần lý do + version (BE DiscontinueProductRequest)", () => {
   it("mở hộp thoại hỏi lý do, gửi { id, reason, version } của lần đọc", async () => {
     const user = userEvent.setup();
-    await renderDetail().then((button) => user.click(button));
+    await renderDetail();
+    await clickRowAction(user, "Ngừng kinh doanh");
 
     const dialog = await screen.findByRole("dialog", { name: "Ngừng kinh doanh sản phẩm?" });
     const confirm = within(dialog).getByRole("button", { name: "Ngừng kinh doanh" });
@@ -148,7 +156,8 @@ describe("ProductDetail — ngừng kinh doanh cần lý do + version (BE Discon
 
   it("lý do tối đa 500 ký tự (chặn ở ô nhập)", async () => {
     const user = userEvent.setup();
-    await renderDetail().then((button) => user.click(button));
+    await renderDetail();
+    await clickRowAction(user, "Ngừng kinh doanh");
     const dialog = await screen.findByRole("dialog", { name: "Ngừng kinh doanh sản phẩm?" });
     expect(within(dialog).getByRole("textbox")).toHaveAttribute("maxlength", "500");
   });
@@ -160,7 +169,8 @@ describe("ProductDetail — ngừng kinh doanh cần lý do + version (BE Discon
       (_input: unknown, options: { onError: (error: unknown) => void }) =>
         options.onError(Object.assign(new Error("x"), { code: "OPTIMISTIC_LOCK" })),
     );
-    await renderDetail().then((button) => user.click(button));
+    await renderDetail();
+    await clickRowAction(user, "Ngừng kinh doanh");
     const dialog = await screen.findByRole("dialog", { name: "Ngừng kinh doanh sản phẩm?" });
     await user.type(within(dialog).getByRole("textbox"), "Lý do");
     await user.click(within(dialog).getByRole("button", { name: "Ngừng kinh doanh" }));
@@ -174,8 +184,11 @@ describe("ProductDetail — ngừng kinh doanh cần lý do + version (BE Discon
       isLoading: false,
       refetch: refetchMock,
     });
+    const user = userEvent.setup();
     await renderDetail();
     expect(screen.getAllByText("Tạm ngưng").length).toBeGreaterThan(0);
+    const menu = await openRowMenu(user);
+    expect(within(menu).getByRole("button", { name: "Ngừng kinh doanh" })).toBeEnabled();
   });
 });
 
@@ -198,7 +211,8 @@ describe("ProductDetail — hộp thoại ngừng kinh doanh hiện chứng từ
       },
     });
     const user = userEvent.setup();
-    await renderDetail().then((button) => user.click(button));
+    await renderDetail();
+    await clickRowAction(user, "Ngừng kinh doanh");
     const dialog = await screen.findByRole("dialog", { name: "Ngừng kinh doanh sản phẩm?" });
     expect(within(dialog).getByText("PO-1")).toBeInTheDocument();
     expect(within(dialog).getByText("ORD-9")).toBeInTheDocument();
@@ -221,7 +235,8 @@ describe("ProductDetail — hộp thoại ngừng kinh doanh hiện chứng từ
       },
     });
     const user = userEvent.setup();
-    await renderDetail().then((button) => user.click(button));
+    await renderDetail();
+    await clickRowAction(user, "Ngừng kinh doanh");
     const dialog = await screen.findByRole("dialog", { name: "Ngừng kinh doanh sản phẩm?" });
     expect(within(dialog).getByText(/Đang kiểm tra chứng từ còn mở/)).toBeInTheDocument();
     expect(within(dialog).queryByText("PO-OLD")).not.toBeInTheDocument();
@@ -230,7 +245,8 @@ describe("ProductDetail — hộp thoại ngừng kinh doanh hiện chứng từ
   it("không tải được chứng từ vẫn ngừng kinh doanh được", async () => {
     useOpenReferencesMock.mockReturnValue({ isLoading: false, isError: true, data: undefined });
     const user = userEvent.setup();
-    await renderDetail().then((button) => user.click(button));
+    await renderDetail();
+    await clickRowAction(user, "Ngừng kinh doanh");
     const dialog = await screen.findByRole("dialog", { name: "Ngừng kinh doanh sản phẩm?" });
     expect(
       within(dialog).getByText(/Không tải được danh sách chứng từ còn mở/),
@@ -257,7 +273,8 @@ describe("ProductDetail — hộp thoại ngừng kinh doanh hiện chứng từ
         }),
     );
     const user = userEvent.setup();
-    await renderDetail().then((button) => user.click(button));
+    await renderDetail();
+    await clickRowAction(user, "Ngừng kinh doanh");
     const dialog = await screen.findByRole("dialog", { name: "Ngừng kinh doanh sản phẩm?" });
     await user.type(within(dialog).getByRole("textbox"), "Hết mẫu");
     await user.click(within(dialog).getByRole("button", { name: "Ngừng kinh doanh" }));
@@ -280,7 +297,8 @@ describe("ProductDetail — tạm ngưng, tiếp tục, xoá nháp (BE SCRUM-461
         <ProductDetail params={resolvedParams} />
       </Suspense>,
     );
-    await user.click(await screen.findByRole("button", { name: "Tạm ngưng" }));
+    await screen.findByRole("heading", { level: 1, name: "Ly giấy" });
+    await clickRowAction(user, "Tạm ngưng");
     const dialog = await screen.findByRole("dialog", { name: "Tạm ngưng sản phẩm?" });
     const confirm = within(dialog).getByRole("button", { name: "Tạm ngưng" });
     expect(confirm).toBeDisabled();
@@ -339,7 +357,8 @@ describe("ProductDetail — tạm ngưng, tiếp tục, xoá nháp (BE SCRUM-461
         <ProductDetail params={resolvedParams} />
       </Suspense>,
     );
-    await user.click(await screen.findByRole("button", { name: "Xoá sản phẩm" }));
+    await screen.findByRole("heading", { level: 1, name: "Ly giấy" });
+    await clickRowAction(user, "Xoá sản phẩm");
     const dialog = await screen.findByRole("dialog", { name: "Xoá sản phẩm nháp?" });
     expect(deleteMutateMock).not.toHaveBeenCalled();
     await user.click(within(dialog).getByRole("button", { name: "Xoá sản phẩm" }));
@@ -368,7 +387,8 @@ describe("ProductDetail — tạm ngưng, tiếp tục, xoá nháp (BE SCRUM-461
         <ProductDetail params={resolvedParams} />
       </Suspense>,
     );
-    await user.click(await screen.findByRole("button", { name: "Xoá sản phẩm" }));
+    await screen.findByRole("heading", { level: 1, name: "Ly giấy" });
+    await clickRowAction(user, "Xoá sản phẩm");
     const dialog = await screen.findByRole("dialog", { name: "Xoá sản phẩm nháp?" });
     await user.click(within(dialog).getByRole("button", { name: "Xoá sản phẩm" }));
     expect(await within(dialog).findByRole("alert")).toHaveTextContent(/không xoá được/);
@@ -390,7 +410,8 @@ describe("ProductDetail — từ chối duyệt qua hộp thoại có lý do, kh
         <ProductDetail params={resolvedParams} />
       </Suspense>,
     );
-    await user.click(await screen.findByRole("button", { name: "Từ chối" }));
+    await screen.findByRole("heading", { level: 1, name: "Ly giấy" });
+    await clickRowAction(user, "Từ chối");
     const dialog = await screen.findByRole("dialog", { name: "Từ chối duyệt sản phẩm?" });
     const confirm = within(dialog).getByRole("button", { name: "Từ chối" });
     expect(confirm).toBeDisabled();
@@ -408,47 +429,44 @@ describe("ProductDetail — từ chối duyệt qua hộp thoại có lý do, kh
 });
 
 describe("ProductDetail — mục Mô tả", () => {
-  // Mục Mô tả mở sẵn khi vào trang (không phải bấm mới thấy).
+  // Mô tả nằm thẳng trong khung hồ sơ khi vào trang (không phải bấm mới thấy).
   async function openDescription() {
     renderWithProviders(
       <Suspense fallback={null}>
         <ProductDetail params={resolvedParams} />
       </Suspense>,
     );
-    expect(await screen.findByRole("button", { name: "Mô tả" })).toHaveAttribute(
-      "aria-expanded",
-      "true",
-    );
+    expect(await screen.findByText("Mô tả")).toBeVisible();
   }
 
   it("mô tả rỗng (BE không trả / chuỗi trắng): hiện 'Chưa có mô tả', không để mục trống", async () => {
     useProductMock.mockReturnValue({
-      data: { ...product(PRODUCT_STATUS.DRAFT), description: "  ", descriptionEn: "" },
+      data: { ...product(PRODUCT_STATUS.DRAFT), description: "  " },
       isLoading: false,
       refetch: refetchMock,
     });
     await openDescription();
-    expect(await screen.findByText(UI_LABELS.product.description.empty)).toBeInTheDocument();
+    expect(await screen.findByText(`${UI_LABELS.product.description.empty}.`)).toBeInTheDocument();
   });
 
-  it("có mô tả: hiện cả tiếng Việt lẫn tiếng Anh", async () => {
+  it("có mô tả (HTML của Tiptap, ADR-0013): hiện có định dạng, bỏ thẻ ngoài danh sách cho phép", async () => {
     useProductMock.mockReturnValue({
       data: {
         ...product(PRODUCT_STATUS.DRAFT),
-        description: "Ly giấy 2 lớp",
-        descriptionEn: "Double-wall paper cup",
+        description: "<p>Ly giấy <strong>2 lớp</strong></p><script>alert(1)</script>",
       },
       isLoading: false,
       refetch: refetchMock,
     });
     await openDescription();
-    expect(await screen.findByText("Ly giấy 2 lớp")).toBeInTheDocument();
-    expect(screen.getByText("Double-wall paper cup")).toBeInTheDocument();
-    expect(screen.queryByText(UI_LABELS.product.description.empty)).not.toBeInTheDocument();
+    const bold = (await screen.findAllByText("2 lớp"))[0];
+    expect(bold.tagName).toBe("STRONG");
+    expect(bold.closest(".rich-text")?.querySelector("script")).toBeNull();
+    expect(screen.queryByText(`${UI_LABELS.product.description.empty}.`)).not.toBeInTheDocument();
   });
 });
 
-describe("ProductDetail — thẻ Chứng từ còn mở ở cột phải", () => {
+describe("ProductDetail — tab Chứng từ còn mở", () => {
   const renderPage = () =>
     renderWithProviders(
       <Suspense fallback={null}>
@@ -456,16 +474,19 @@ describe("ProductDetail — thẻ Chứng từ còn mở ở cột phải", () =
       </Suspense>,
     );
 
-  it("đã xuất bản: thẻ luôn hiện (không cần mở hộp thoại ngừng kinh doanh)", async () => {
+  it("đã xuất bản: tab luôn có (không cần mở hộp thoại ngừng kinh doanh)", async () => {
     renderPage();
+    await userEvent
+      .setup()
+      .click(await screen.findByRole("tab", { name: UI_LABELS.product.openReferences.title }));
     expect(
-      await screen.findByRole("heading", { name: UI_LABELS.product.openReferences.title }),
+      await screen.findByRole("region", { name: UI_LABELS.product.openReferences.title }),
     ).toBeInTheDocument();
     expect(screen.getByText(UI_LABELS.product.openReferences.empty)).toBeInTheDocument();
     expect(useOpenReferencesMock).toHaveBeenCalledWith("product-1", true, { cached: true });
   });
 
-  it("nháp: không có thẻ", async () => {
+  it("nháp: không có tab", async () => {
     useProductMock.mockReturnValue({
       data: product(PRODUCT_STATUS.DRAFT),
       isLoading: false,
@@ -473,8 +494,12 @@ describe("ProductDetail — thẻ Chứng từ còn mở ở cột phải", () =
     });
     renderPage();
     await screen.findByRole("button", { name: "Gửi duyệt" });
+    expect(screen.getByRole("tab", { name: "Lịch sử" })).toBeInTheDocument();
     expect(
-      screen.queryByRole("heading", { name: UI_LABELS.product.openReferences.title }),
+      screen.queryByRole("tab", { name: UI_LABELS.product.openReferences.title }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("region", { name: UI_LABELS.product.openReferences.title }),
     ).not.toBeInTheDocument();
   });
 });
@@ -491,7 +516,7 @@ describe("ProductDetail — breadcrumb và nhóm thuế", () => {
         <ProductDetail params={resolvedParams} />
       </Suspense>,
     );
-    await screen.findByRole("button", { name: "Ngừng kinh doanh" });
+    await screen.findByRole("heading", { level: 1, name: "Ly giấy" });
     expect(useBreadcrumbLabelStore.getState().labels["product-1"]).toBe("PRD-1");
     expect(screen.getByText("Giảm thuế")).toBeInTheDocument();
     expect(screen.queryByText("reduced")).not.toBeInTheDocument();
@@ -539,5 +564,24 @@ describe("ProductDetail — lỗi tải: chỉ 404 mới là không tìm thấy 
     renderError(new ApiError(403, "FORBIDDEN", "Forbidden"));
     expect(await screen.findByText(UI_LABELS.loadError.forbiddenTitle)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: UI_LABELS.common.retry })).not.toBeInTheDocument();
+  });
+});
+
+describe("ProductDetail — tên cạnh id (issue #286)", () => {
+  it("hiện categoryName của sản phẩm, không tải danh sách danh mục chỉ để tra tên", async () => {
+    useProductMock.mockReturnValue({
+      data: {
+        ...product(PRODUCT_STATUS.PUBLISHED),
+        categoryId: "cat-1",
+        categoryName: "Ly giấy 2 lớp",
+      },
+      isLoading: false,
+      refetch: refetchMock,
+    });
+    await renderDetail();
+    const profile = screen.getByRole("region", { name: "Hồ sơ sản phẩm" });
+    expect(within(profile).getByText("Ly giấy 2 lớp")).toBeInTheDocument();
+    expect(within(profile).queryByText("cat-1")).not.toBeInTheDocument();
+    expect(useCategoriesMock).not.toHaveBeenCalled();
   });
 });

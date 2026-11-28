@@ -5,15 +5,16 @@ import { useRouter } from "next/navigation";
 import { parseAsString, useQueryState } from "nuqs";
 import Link from "next/link";
 import { cn } from "cn";
-import { BarChart3, Package, XCircle, Plus } from "lucide-react";
+import { Eye, Package, Plus, XCircle } from "lucide-react";
 import { ADMIN_ROUTES, PAGE_SIZE, PRODUCT_PERMISSIONS, STORAGE_KEYS } from "@/constants";
 import { PERMISSION_UI } from "@/constants/permissions";
 import { usePageConfig } from "@/hooks/use-page-config";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useUrlFilters } from "@/hooks/use-url-filters";
 import { useCan } from "@/lib/auth/components/Can";
 import { statusLabelVi } from "@/lib/status-map";
+import { RowActionsMenu } from "@/components/shared/RowActionsMenu";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { ListStatsPanel } from "@/components/shared/ListStatsPanel";
 import {
   ListToolbar,
   TOOLBAR_ACTION_CLASS,
@@ -23,8 +24,17 @@ import { DataTable, type ColumnDef } from "@/components/shared/DataTable";
 import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
-import { CELL, statusCell, textCell, ViewAction } from "@/components/shared/column-helpers";
-import { shouldFlagProductRow, useBrands, useCategories, useProducts } from "@/features/product";
+import { CELL, statusCell, textCell } from "@/components/shared/column-helpers";
+import {
+  productCategoryLabel,
+  shouldFlagProductRow,
+  useBrands,
+  useCategories,
+  useProducts,
+} from "@/features/product";
+import { withHeaderFilters } from "@/components/shared/ColumnHeaderFilter";
+import { HeaderActions, HeaderCreateButton } from "@/components/shared/HeaderActions";
+import { matchesColumnSearch, productHeaderFilters } from "./product-header-filters";
 import { PRODUCT_LIST_FILTER_STATUSES, type ProductListFilterStatus } from "@/features/product/api";
 import { getProductListEmptyState } from "@/features/product/product-list-state";
 import { toProductApiPage, toProductUiPage } from "@/features/product/pagination";
@@ -50,7 +60,6 @@ interface TabConfig<
   ColumnSearch extends string,
   Column extends string,
 > {
-  showStats: boolean;
   statuses: Status[];
   globalSearch: { query: string; fields: Field[] };
   columnSearch: Partial<Record<ColumnSearch, string>>;
@@ -75,7 +84,6 @@ const PRODUCT_DEFAULT_COLUMNS: ProductTableColumnKey[] = [
 ];
 const DEFAULT_CONFIG: ProductsPageConfig = {
   products: {
-    showStats: false,
     statuses: ["all"],
     globalSearch: { query: "", fields: ["productId", "name"] },
     columnSearch: {},
@@ -96,11 +104,6 @@ const PRODUCT_COLUMN_LABELS: Record<ProductTableColumnKey, string> = {
 };
 function productCode(product: Product): string {
   return product.code ?? product.productId;
-}
-
-function categoryName(categoryId: string | null, categories: ReadonlyMap<string, string>): string {
-  if (categoryId === null) return "Chưa chọn danh mục";
-  return categories.get(categoryId) ?? "";
 }
 
 function mergeStoredConfig(
@@ -148,24 +151,42 @@ export function ProductList() {
     void set(value);
     void productFilters.setPage(1);
   };
+  // Ô lọc trên header cột Mã SP / Tên — tách khỏi ô tìm chính (`productQ`), mỗi cột một khoá URL.
+  const [codeFilter, setCodeFilter] = useQueryState("productCode", parseAsString.withDefault(""));
+  const [nameFilter, setNameFilter] = useQueryState("productName", parseAsString.withDefault(""));
+  const debouncedCode = useDebouncedValue(codeFilter, 300).trim();
+  const debouncedName = useDebouncedValue(nameFilter, 300).trim();
   const brandsQuery = useBrands();
 
   const productsQuery = useProducts({
     // URL pages are human-facing/one-based; the shared API contract is backend/zero-based.
     page: toProductApiPage(productFilters.page),
     size: productPageSize,
-    q: productFilters.debouncedQ.trim() || undefined,
+    // BE chỉ có một `q` (khớp mã HOẶC tên): ô tìm chính ưu tiên; không có thì gửi chữ của ô lọc cột
+    // để thu hẹp, rồi lọc đúng theo cột ở dưới (`matchesColumnSearch`).
+    q: productFilters.debouncedQ.trim() || debouncedCode || debouncedName || undefined,
     status: productFilters.status.length > 0 ? productFilters.status : undefined,
     categoryId: categoryFilter ?? undefined,
     brandId: brandFilter ?? undefined,
     sort: `${productSort.key},${productSort.direction}`,
   });
+  // Danh mục chỉ còn cho ô lọc + chip "Danh mục" — tên ở cột lấy `categoryName` trên dòng (issue #286),
+  // nên danh mục tải chậm / lỗi không chặn bảng.
   const categoriesQuery = useCategories({});
 
-  const rawProducts = useMemo(() => productsQuery.data?.items ?? [], [productsQuery.data]);
+  const rawProducts = useMemo(
+    () =>
+      (productsQuery.data?.items ?? []).filter((product) =>
+        matchesColumnSearch(product, productCode(product), {
+          code: debouncedCode,
+          name: debouncedName,
+        }),
+      ),
+    [productsQuery.data, debouncedCode, debouncedName],
+  );
   const categories = useMemo(() => categoriesQuery.data?.items ?? [], [categoriesQuery.data]);
-  const isLoading = productsQuery.isLoading || categoriesQuery.isLoading;
-  const loadError = productsQuery.error ?? categoriesQuery.error;
+  const isLoading = productsQuery.isLoading;
+  const loadError = productsQuery.error;
   const productPage = productsQuery.data;
   const productPageNumber = productFilters.page;
   const setProductPage = productFilters.setPage;
@@ -185,11 +206,6 @@ export function ProductList() {
     [config.products, productFilters.q, productFilters.status],
   );
 
-  const categoryNameMap = useMemo(
-    () => new Map(categories.map((category) => [category.categoryId, category.name.vi])),
-    [categories],
-  );
-
   const updateProductsConfig = (
     updater: (current: ProductsPageConfig["products"]) => ProductsPageConfig["products"],
   ) => setConfig((current) => ({ ...current, products: updater(current.products) }));
@@ -197,22 +213,16 @@ export function ProductList() {
     (product: Product) => router.push(ADMIN_ROUTES.products.detail(product.productId)),
     [router],
   );
-  const productStats = useMemo(
-    () => [
-      {
-        label: "Tổng kết quả",
-        value: (productPage?.totalElements ?? 0).toLocaleString("vi-VN"),
-        icon: Package,
-      },
-    ],
-    [productPage?.totalElements],
-  );
-
   const productEmptyState = getProductListEmptyState({
     itemCount: rawProducts.length,
     total: productPage?.totalElements ?? 0,
     search: productFilters.q,
-    statusCount: productFilters.status.length + (categoryFilter ? 1 : 0) + (brandFilter ? 1 : 0),
+    statusCount:
+      productFilters.status.length +
+      (categoryFilter ? 1 : 0) +
+      (brandFilter ? 1 : 0) +
+      (debouncedCode ? 1 : 0) +
+      (debouncedName ? 1 : 0),
   });
 
   const toggleProductStatus = (status: ProductStatusFilter) => {
@@ -257,14 +267,9 @@ export function ProductList() {
       ),
     },
     {
-      ...textCell<Product>(
-        "category",
-        "Danh mục",
-        (row) => categoryName(row.categoryId, categoryNameMap) || "—",
-        {
-          color: "secondary",
-        },
-      ),
+      ...textCell<Product>("category", "Danh mục", (row) => productCategoryLabel(row), {
+        color: "secondary",
+      }),
       key: "category",
     },
     statusCell<Product>("status", "Trạng thái", (row) => row.status, "product", {
@@ -274,12 +279,47 @@ export function ProductList() {
     }) as ColumnDef<Product> & { key: ProductTableColumnKey },
     {
       key: "actions",
-      header: "",
+      header: "Thao tác",
       cell: (row) => (
-        <ViewAction label="Xem chi tiết" href={ADMIN_ROUTES.products.detail(row.productId)} />
+        <RowActionsMenu
+          label={`Thao tác — ${row.name}`}
+          actions={[
+            {
+              label: "Xem chi tiết",
+              icon: Eye,
+              href: ADMIN_ROUTES.products.detail(row.productId),
+            },
+          ]}
+        />
       ),
     },
   ];
+
+  // Nút lọc trên header từng cột — ghi vào cùng URL state với toolbar (q / danh mục / trạng thái).
+  const headerFilters = productHeaderFilters({
+    code: codeFilter,
+    onCodeChange: (value) => {
+      void setCodeFilter(value || null);
+      void productFilters.setPage(1);
+    },
+    name: nameFilter,
+    onNameChange: (value) => {
+      void setNameFilter(value || null);
+      void productFilters.setPage(1);
+    },
+    categoryId: categoryFilter,
+    categoryOptions: categories
+      .filter((category) => category.active !== false)
+      .map((category) => ({ value: category.categoryId, label: category.name.vi })),
+    onCategoryChange: changeFacet(setCategoryFilter),
+    statuses: productFilters.status,
+    statusOptions: PRODUCT_STATUS_OPTIONS.filter((option) => option.value !== "all"),
+    onToggleStatus: (value) => {
+      const status = PRODUCT_LIST_FILTER_STATUSES.find((s) => s === value);
+      if (status) toggleProductStatus(status);
+    },
+    onClearStatuses: () => productFilters.setStatus([]),
+  });
 
   const renderToolbar = () => {
     const pageConfig = productConfig;
@@ -290,11 +330,11 @@ export function ProductList() {
     ).length;
     const hasColumnConfig = visibleColumnCount !== PRODUCT_DEFAULT_COLUMNS.length - 1;
     const hasFacet = Boolean(categoryFilter || brandFilter);
+    const hasColumnSearch = Boolean(codeFilter || nameFilter);
     const hasAnyConfig =
-      hasStatusFilter || hasGlobalSearch || hasFacet || pageConfig.showStats || hasColumnConfig;
+      hasStatusFilter || hasGlobalSearch || hasFacet || hasColumnConfig || hasColumnSearch;
     const brands = brandsQuery.data ?? [];
     const summaryItems: ListSummaryItem[] = [
-      { label: "Stats", value: pageConfig.showStats ? "Đang hiện" : "Đang ẩn" },
       {
         label: "Trạng thái",
         value: pageConfig.statuses
@@ -308,7 +348,9 @@ export function ProductList() {
       },
       {
         label: "Danh mục",
-        value: categoryFilter ? categoryNameMap.get(categoryFilter) || categoryFilter : "Tất cả",
+        value: categoryFilter
+          ? categories.find((c) => c.categoryId === categoryFilter)?.name.vi || categoryFilter
+          : "Tất cả",
         active: Boolean(categoryFilter),
         onClear: () => changeFacet(setCategoryFilter)(null),
       },
@@ -347,10 +389,10 @@ export function ProductList() {
         onToggleStatus={toggleProductStatus}
         onClearStatuses={() => productFilters.setStatus([])}
         hasStatusFilter={hasStatusFilter}
-        columnOptions={PRODUCT_DEFAULT_COLUMNS.map((column) => ({
-          label: PRODUCT_COLUMN_LABELS[column],
-          value: column,
-        }))}
+        // Cột "Thao tác" luôn hiện (không ẩn được) nên không đưa vào danh sách ẩn hiện cột
+        columnOptions={PRODUCT_DEFAULT_COLUMNS.filter((column) => column !== "actions").map(
+          (column) => ({ label: PRODUCT_COLUMN_LABELS[column], value: column }),
+        )}
         selectedColumns={pageConfig.visibleColumns}
         defaultColumns={PRODUCT_DEFAULT_COLUMNS}
         lockedColumns={["actions"]}
@@ -391,8 +433,15 @@ export function ProductList() {
           productFilters.reset();
           void setCategoryFilter(null);
           void setBrandFilter(null);
+          void setCodeFilter(null);
+          void setNameFilter(null);
         }}
-        facets={
+        hasPanelFilter={hasFacet}
+        onClearPanelFilters={() => {
+          changeFacet(setCategoryFilter)(null);
+          changeFacet(setBrandFilter)(null);
+        }}
+        filterPanel={
           <ProductListFacets
             categories={categories}
             brands={brands.filter((b) => b.active || b.brandId === brandFilter)}
@@ -403,42 +452,7 @@ export function ProductList() {
           />
         }
         resetDisabled={!hasAnyConfig}
-        actions={
-          <>
-            <Button
-              type="button"
-              variant={productConfig.showStats ? "secondary" : "outline"}
-              size="sm"
-              onClick={() =>
-                updateProductsConfig((current) => ({ ...current, showStats: !current.showStats }))
-              }
-              className={cn(
-                "border-border-default bg-bg-surface text-ink-primary hover:bg-bg-muted",
-                TOOLBAR_ACTION_CLASS,
-                productConfig.showStats &&
-                  "border-brand bg-brand/10 text-brand hover:bg-brand/10 hover:text-brand border",
-              )}
-            >
-              <BarChart3 className="text-dot-info size-3.5" />
-              {productConfig.showStats ? "Ẩn thống kê" : "Hiện thống kê"}
-            </Button>
-            <Button
-              variant="default"
-              type="button"
-              size="sm"
-              onClick={() => canCreateProduct && router.push(ADMIN_ROUTES.products.create)}
-              disabled={!canCreateProduct}
-              title={canCreateProduct ? "Tạo sản phẩm" : PERMISSION_UI.productCreateDenied}
-              className={cn(
-                "bg-brand !text-ink-inverse hover:bg-brand-hover hover:!text-ink-inverse",
-                TOOLBAR_ACTION_CLASS,
-              )}
-            >
-              <Plus className="size-3.5" />
-              Tạo sản phẩm
-            </Button>
-          </>
-        }
+        controlsIn="summary"
       />
     );
   };
@@ -480,113 +494,125 @@ export function ProductList() {
       {/* Không hiện title/subtitle — tên trang nằm ở breadcrumb topbar; h1 giữ cho screen reader */}
       <h1 className="sr-only">Sản phẩm</h1>
 
-      <ListStatsPanel
-        stats={productStats}
-        open={productConfig.showStats}
-        gridClassName="sm:grid-cols-1"
-      />
+      {/* Nút chính của trang nằm trên thanh breadcrumb (kiểu Vercel) */}
+      <HeaderActions>
+        <HeaderCreateButton
+          onClick={() => canCreateProduct && router.push(ADMIN_ROUTES.products.create)}
+          disabled={!canCreateProduct}
+          aria-label="Tạo mới sản phẩm"
+          tooltip={canCreateProduct ? "Tạo sản phẩm" : PERMISSION_UI.productCreateDenied}
+        />
+      </HeaderActions>
       {renderToolbar()}
-      {productEmptyState === "none" ? (
-        <DataTable
-          data={rawProducts}
-          columns={productColumns.filter((column) =>
-            productConfig.visibleColumns.includes(column.key),
-          )}
-          rowKey={(row) => row.productId}
-          caption={`Hiển thị ${rawProducts.length} sản phẩm`}
-          flagRow={shouldFlagProductRow}
-          onRowClick={navigateToDetail}
-          selectable
-          stickyHeader
-          selectedKeys={prodSelectedKeys}
-          onSelectionChange={setProdSelectedKeys}
-          pageSize={productPageSize}
-          serverPagination={{
-            page: productPage?.page ?? toProductApiPage(productFilters.page),
-            size: productPage?.size ?? productPageSize,
-            totalElements: productPage?.totalElements ?? 0,
-            totalPages: productPage?.totalPages ?? 0,
-            hasNext: productPage?.hasNext ?? false,
-            hasPrevious: productPage?.hasPrevious ?? false,
-            onPageChange: (page) => void productFilters.setPage(toProductUiPage(page)),
-            onPageSizeChange: (pageSize) => {
-              setProductPageSize(pageSize);
+      {/* Bảng luôn giữ header; không có dữ liệu / không khớp lọc thì thông báo nằm trong thân bảng. */}
+      <DataTable
+        data={rawProducts}
+        columns={withHeaderFilters(
+          productColumns.filter((column) => productConfig.visibleColumns.includes(column.key)),
+          headerFilters,
+        )}
+        rowKey={(row) => row.productId}
+        caption={`Hiển thị ${rawProducts.length} sản phẩm`}
+        flagRow={shouldFlagProductRow}
+        onRowClick={navigateToDetail}
+        selectable
+        stickyHeader
+        selectedKeys={prodSelectedKeys}
+        onSelectionChange={setProdSelectedKeys}
+        pageSize={productPageSize}
+        serverPagination={{
+          page: productPage?.page ?? toProductApiPage(productFilters.page),
+          size: productPage?.size ?? productPageSize,
+          totalElements: productPage?.totalElements ?? 0,
+          totalPages: productPage?.totalPages ?? 0,
+          hasNext: productPage?.hasNext ?? false,
+          hasPrevious: productPage?.hasPrevious ?? false,
+          onPageChange: (page) => void productFilters.setPage(toProductUiPage(page)),
+          onPageSizeChange: (pageSize) => {
+            setProductPageSize(pageSize);
+            void productFilters.setPage(1);
+          },
+        }}
+        serverSorting={{
+          key: productSort.key === "code" ? "productId" : productSort.key,
+          direction: productSort.direction,
+          onChange: (key, direction) => {
+            const backendKey = key === "productId" ? "code" : key;
+            if (backendKey === "code" || backendKey === "name" || backendKey === "status") {
+              setProductSort({ key: backendKey, direction });
               void productFilters.setPage(1);
-            },
-          }}
-          serverSorting={{
-            key: productSort.key === "code" ? "productId" : productSort.key,
-            direction: productSort.direction,
-            onChange: (key, direction) => {
-              const backendKey = key === "productId" ? "code" : key;
-              if (backendKey === "code" || backendKey === "name" || backendKey === "status") {
-                setProductSort({ key: backendKey, direction });
-                void productFilters.setPage(1);
+            }
+          },
+        }}
+        emptyState={
+          productEmptyState === "no-products" ? (
+            <EmptyState
+              className="rounded-none border-0 bg-transparent py-10 whitespace-normal"
+              icon={<Package className="size-8" />}
+              title="Chưa có sản phẩm"
+              description="Môi trường hiện tại chưa có Product record nào. Đây là trạng thái dữ liệu trống, không phải lỗi tải."
+              action={
+                canCreateProduct ? (
+                  <Button
+                    type="button"
+                    variant="default"
+                    size="sm"
+                    onClick={() => router.push(ADMIN_ROUTES.products.create)}
+                    className={cn(
+                      "bg-brand !text-ink-inverse hover:bg-brand-hover hover:!text-ink-inverse",
+                      TOOLBAR_ACTION_CLASS,
+                    )}
+                  >
+                    <Plus className="size-3.5" />
+                    Tạo sản phẩm đầu tiên
+                  </Button>
+                ) : undefined
               }
-            },
-          }}
-        />
-      ) : productEmptyState === "no-products" ? (
-        <EmptyState
-          icon={<Package className="size-8" />}
-          title="Chưa có sản phẩm"
-          description="Môi trường hiện tại chưa có Product record nào. Đây là trạng thái dữ liệu trống, không phải lỗi tải."
-          action={
-            canCreateProduct ? (
-              <Button
-                type="button"
-                variant="default"
-                size="sm"
-                onClick={() => router.push(ADMIN_ROUTES.products.create)}
-                className={cn(
-                  "bg-brand !text-ink-inverse hover:bg-brand-hover hover:!text-ink-inverse",
-                  TOOLBAR_ACTION_CLASS,
-                )}
-              >
-                <Plus className="size-3.5" />
-                Tạo sản phẩm đầu tiên
-              </Button>
-            ) : undefined
-          }
-        />
-      ) : productEmptyState === "no-results" ? (
-        <EmptyState
-          icon={<Package className="size-8" />}
-          title="Không tìm thấy kết quả"
-          description="Có dữ liệu sản phẩm, nhưng bộ lọc hoặc từ khoá hiện tại không khớp bản ghi nào."
-          action={
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                updateProductsConfig(() => DEFAULT_CONFIG.products);
-                productFilters.reset();
-              }}
-              className="rounded-[var(--r-sm)]"
-            >
-              Bỏ bộ lọc
-            </Button>
-          }
-        />
-      ) : (
-        <EmptyState
-          icon={<Package className="size-8" />}
-          title="Trang không còn dữ liệu"
-          description="Trang hiện tại nằm ngoài phạm vi kết quả. Hệ thống sẽ quay về trang hợp lệ gần nhất."
-          action={
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => void productFilters.setPage(1)}
-              className="rounded-[var(--r-sm)]"
-            >
-              Về trang đầu
-            </Button>
-          }
-        />
-      )}
+            />
+          ) : productEmptyState === "no-results" ? (
+            <EmptyState
+              className="rounded-none border-0 bg-transparent py-10 whitespace-normal"
+              icon={<Package className="size-8" />}
+              title="Không tìm thấy kết quả"
+              description="Có dữ liệu sản phẩm, nhưng bộ lọc hoặc từ khoá hiện tại không khớp bản ghi nào."
+              action={
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    updateProductsConfig(() => DEFAULT_CONFIG.products);
+                    productFilters.reset();
+                    void setCodeFilter(null);
+                    void setNameFilter(null);
+                  }}
+                  className="rounded-[var(--r-sm)]"
+                >
+                  Bỏ bộ lọc
+                </Button>
+              }
+            />
+          ) : productEmptyState === "none" ? undefined : (
+            <EmptyState
+              className="rounded-none border-0 bg-transparent py-10 whitespace-normal"
+              icon={<Package className="size-8" />}
+              title="Trang không còn dữ liệu"
+              description="Trang hiện tại nằm ngoài phạm vi kết quả. Hệ thống sẽ quay về trang hợp lệ gần nhất."
+              action={
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void productFilters.setPage(1)}
+                  className="rounded-[var(--r-sm)]"
+                >
+                  Về trang đầu
+                </Button>
+              }
+            />
+          )
+        }
+      />
     </div>
   );
 }

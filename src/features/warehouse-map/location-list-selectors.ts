@@ -13,7 +13,6 @@ export interface LocationStock {
   lots: string[];
   onHand: number | null;
   reserved: number | null;
-  nearestExpiry: string | null;
   hidden: boolean;
 }
 
@@ -47,7 +46,6 @@ const EMPTY_STOCK: LocationStock = {
   lots: [],
   onHand: 0,
   reserved: 0,
-  nearestExpiry: null,
   hidden: false,
 };
 
@@ -64,13 +62,11 @@ function stockByCode(rows: readonly LocationStockItem[]): Map<string, LocationSt
     const hidden = items.some((item) => item.hiddenDuringCount === true || item.onHand == null);
     const sum = (pick: (item: LocationStockItem) => number | null | undefined) =>
       hidden ? null : items.reduce((total, item) => total + (pick(item) ?? 0), 0);
-    const expiries = uniqueSorted(items.map((item) => item.expiryDate));
     result.set(code, {
       skus: uniqueSorted(items.map((item) => item.sku)),
       lots: uniqueSorted(items.map((item) => item.lotNumber)),
       onHand: sum((item) => item.onHand),
       reserved: sum((item) => item.reserved),
-      nearestExpiry: expiries[0] ?? null,
       hidden,
     });
   }

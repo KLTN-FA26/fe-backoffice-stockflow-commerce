@@ -8,7 +8,7 @@ import { formatNumber } from "@/lib/format";
 import { withHeaderFilters } from "@/components/shared/ColumnHeaderFilter";
 import { CELL, StackText } from "@/components/shared/column-helpers";
 import { DataTable } from "@/components/shared/DataTable";
-import { Button } from "@/components/ui/button";
+import { RowActionsMenu } from "@/components/shared/RowActionsMenu";
 
 import { formatWindow, shortId } from "../parts";
 
@@ -91,22 +91,14 @@ export function ShortBatchTable({
   if (onDrawUp)
     columns.push({
       key: C.ACTION,
-      header: "",
+      header: "Thao tác",
+      align: "right",
+      className: "w-20",
       cell: (row) => (
-        <div className="flex justify-end">
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            aria-label={`${L.action} ${row.orderNumber} ${L.batch} ${row.seq}`}
-            onClick={(event) => {
-              event.stopPropagation();
-              onDrawUp(row);
-            }}
-          >
-            <Plus className="size-3.5" /> {L.action}
-          </Button>
-        </div>
+        <RowActionsMenu
+          label={`Thao tác — ${row.orderNumber} ${L.batch} ${row.seq}`}
+          actions={[{ label: L.dialogTitle, icon: Plus, onSelect: () => onDrawUp(row) }]}
+        />
       ),
     });
   return (

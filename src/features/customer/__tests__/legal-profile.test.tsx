@@ -41,6 +41,23 @@ describe("LegalProfileCard", () => {
     expect(screen.getByRole("button", { name: "Nhập thông tin pháp lý" })).toBeInTheDocument();
   });
 
+  it("bo-30: tên công ty / MST trùng thông tin khách thì không lặp; khác thì vẫn hiện", async () => {
+    mockApi("SALES_STAFF", { get: { [PATH]: () => profile } });
+    renderScreen(
+      <LegalProfileCard
+        customerId={CUSTOMER}
+        customer={{ fullName: "CÔNG TY BAO BÌ XANH ", taxCode: "0399999999" }}
+        canRead
+        canUpdate
+      />,
+      "SALES_STAFF",
+    );
+    expect(await screen.findByText("12 Nguyễn Huệ, Quận 1")).toBeInTheDocument();
+    expect(screen.queryByText("Tên công ty")).toBeNull();
+    expect(screen.getByText("Mã số thuế")).toBeInTheDocument();
+    expect(screen.getByText("0312345678")).toBeInTheDocument();
+  });
+
   it("shows the saved profile with a Sửa button", async () => {
     mockApi("SALES_STAFF", { get: { [PATH]: () => profile } });
     renderCard();

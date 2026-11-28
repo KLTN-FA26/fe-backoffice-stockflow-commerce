@@ -1,15 +1,14 @@
 "use client";
 
-import { FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
-import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
-import { Label } from "@/components/ui/label";
-import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ListFilterColumn } from "@/components/shared/ListToolbar";
 
 const ALL = "all";
 
 /**
  * Lọc danh sách sản phẩm theo danh mục / thương hiệu — BE `GET /products?categoryId=&brandId=` (UUID, lọc
- * đúng một giá trị). Giá trị sống trên URL (nuqs, ở `ProductList`); đổi lọc đưa về trang 1.
+ * đúng một giá trị). Giá trị sống trên URL (nuqs, ở `ProductList`); đổi lọc đưa về trang 1. Hai cột của bảng
+ * "Bộ lọc" trên toolbar (`ListToolbar.filterPanel`), cùng dáng với cột trạng thái. Mỗi cột chọn một giá trị:
+ * tick giá trị đang chọn lần nữa, hoặc tick "Tất cả", là bỏ lọc.
  */
 export function ProductListFacets({
   categories,
@@ -28,16 +27,18 @@ export function ProductListFacets({
 }) {
   return (
     <>
-      <FacetSelect
-        id="product-category"
-        label="Danh mục"
+      <FacetColumn
+        title="Danh mục"
+        searchPlaceholder="Tìm danh mục..."
+        emptyText="Không có danh mục phù hợp."
         value={categoryId}
         onChange={onCategoryChange}
         options={categories.map((c) => ({ value: c.categoryId, label: c.name.vi }))}
       />
-      <FacetSelect
-        id="product-brand"
-        label="Thương hiệu"
+      <FacetColumn
+        title="Thương hiệu"
+        searchPlaceholder="Tìm thương hiệu..."
+        emptyText="Không có thương hiệu phù hợp."
         value={brandId}
         onChange={onBrandChange}
         options={brands.map((b) => ({ value: b.brandId, label: b.name }))}
@@ -46,37 +47,26 @@ export function ProductListFacets({
   );
 }
 
-function FacetSelect({
-  id,
-  label,
+function FacetColumn({
   value,
   onChange,
   options,
+  ...column
 }: {
-  id: string;
-  label: string;
+  title: string;
+  searchPlaceholder: string;
+  emptyText: string;
   value: string | null;
   onChange: (value: string | null) => void;
   options: { value: string; label: string }[];
 }) {
+  const current = value ?? ALL;
   return (
-    <div className="flex items-center gap-2">
-      <Label htmlFor={id} className="text-ink-secondary text-[0.8125rem]">
-        {label}
-      </Label>
-      <Select value={value ?? ALL} onValueChange={(next) => onChange(next === ALL ? null : next)}>
-        <SelectTrigger id={id} className={`${FORM_SELECT_CLASS} w-[13rem]`}>
-          <SelectValue />
-        </SelectTrigger>
-        <TitledSelectContent title={label}>
-          <SelectItem value={ALL}>Tất cả</SelectItem>
-          {options.map((option) => (
-            <SelectItem key={option.value} value={option.value}>
-              {option.label}
-            </SelectItem>
-          ))}
-        </TitledSelectContent>
-      </Select>
-    </div>
+    <ListFilterColumn
+      {...column}
+      options={[{ value: ALL, label: "Tất cả" }, ...options]}
+      isChecked={(option) => option === current}
+      onSelect={(option) => onChange(option === ALL || option === current ? null : option)}
+    />
   );
 }

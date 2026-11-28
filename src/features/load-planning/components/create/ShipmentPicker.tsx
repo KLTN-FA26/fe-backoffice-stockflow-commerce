@@ -51,7 +51,13 @@ export function ShipmentPicker({
     return <p className="text-ink-tertiary text-sm">{L.shipmentsEmpty}</p>;
   const totals = totalsOf(candidates, selected);
   const shown = sortByReadyAt(candidates).filter((c) => shipmentMatches(c, query));
-  const allSelected = candidates.every((c) => selected.has(c.shipmentId));
+  // S01-17: một kế hoạch nhận tối đa `shipmentsMax` lô; nhiều hơn thì "Chọn tất cả" chỉ lấy các lô sẵn sàng sớm nhất — nói rõ,
+  // không âm thầm cắt
+  const limit = LOAD_PLAN_LIMITS.shipmentsMax;
+  const overLimit = candidates.length > limit;
+  const allSelected = overLimit
+    ? selected.size >= limit
+    : candidates.every((c) => selected.has(c.shipmentId));
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-2">
@@ -71,13 +77,16 @@ export function ShipmentPicker({
             onSetAll(
               allSelected
                 ? []
-                : candidates.slice(0, LOAD_PLAN_LIMITS.shipmentsMax).map((c) => c.shipmentId),
+                : sortByReadyAt(candidates)
+                    .slice(0, limit)
+                    .map((c) => c.shipmentId),
             )
           }
         >
-          {allSelected ? L.clearAll : L.selectAll}
+          {allSelected ? L.clearAll : overLimit ? L.selectFirst(limit) : L.selectAll}
         </Button>
       </div>
+      {overLimit && <Alert tone="info">{L.overLimit(candidates.length, limit)}</Alert>}
       {candidates.length >= LOAD_PLAN_LIMITS.shipmentSearchFrom && (
         <Input
           type="search"

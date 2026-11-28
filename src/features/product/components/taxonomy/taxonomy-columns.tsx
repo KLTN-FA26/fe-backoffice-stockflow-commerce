@@ -1,10 +1,11 @@
 "use client";
 
-import { ChevronDown, ChevronRight, Folder, FolderOpen } from "lucide-react";
+import { ChevronDown, ChevronRight, Eye, Folder, FolderOpen } from "lucide-react";
 
 import { TAXONOMY_BRAND_COLUMNS, TAXONOMY_CATEGORY_COLUMNS, UI_LABELS } from "@/constants";
 
 import { CELL } from "@/components/shared/column-helpers";
+import { rowActionsColumn } from "@/components/shared/RowActionsMenu";
 
 import { ActiveDot } from "../../active-status";
 import { TaxonomyThumb } from "./TaxonomyThumb";
@@ -33,6 +34,22 @@ export const CATEGORY_COLUMN_LABELS: Record<string, string> = {
   [C.SORT_ORDER]: F.sortOrder,
   [C.ACTIVE]: F.active,
 };
+
+/**
+ * Cột thao tác (nút xem / sửa) — tiêu đề "Thao tác", luôn hiện: không nằm trong `*_COLUMN_LABELS`
+ * nên không có trong "Ẩn hiện cột" (backoffice-erp-ui A6).
+ */
+export function actionsColumn<T>(
+  getAction: (row: T) => { label: string; onOpen: () => void },
+): ColumnDef<T> {
+  return rowActionsColumn<T>((row) => {
+    const { label, onOpen } = getAction(row);
+    return {
+      label: `Thao tác — ${label}`,
+      actions: [{ label: "Xem chi tiết", icon: Eye, onSelect: onOpen }],
+    };
+  });
+}
 
 // Cùng style cột mã / tên / trạng thái / nút xem của bảng Sản phẩm (data-table-mode-a)
 const codeCell = (code: string) => <span className={CELL.code}>{code}</span>;

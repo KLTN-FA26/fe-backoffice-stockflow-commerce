@@ -17,6 +17,7 @@ import {
   IDENTITIES,
   mockFulfillmentApi,
   pickInputComboboxOption,
+  scanInputComboboxCode,
   renderFulfillmentScreen,
 } from "../__fixtures__/render";
 import { OTHER_PICKER_ID, TASK_ID, apiTask, apiTaskLines, pickedTask } from "../__fixtures__/task";
@@ -344,6 +345,22 @@ describe("PickingDetail — xác nhận dòng lấy hàng: quét vị trí + LPN
     );
     expect(await screen.findByText(L.done(1))).toBeInTheDocument();
     expect(await screen.findByText(L.confirmTitle(2))).toBeInTheDocument();
+  });
+
+  it("quét đủ mã bin + Enter (không bấm option), rồi quét LPN → POST đúng mã bin đã quét", async () => {
+    const user = userEvent.setup();
+    const { post } = renderDetail(IDENTITIES.warehouseStaff, picking());
+    await screen.findByText(L.confirmTitle(1));
+    await scanInputComboboxCode(user, L.location, "HN-A01-01-01-A");
+    expect(screen.getByRole("combobox", { name: L.location })).toHaveValue("HN-A01-01-01-A");
+    await user.type(screen.getByLabelText(L.lpn), `${LPN_1}{Enter}`);
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(
+        confirmPath(PICK_LINE_1),
+        { locationCode: "HN-A01-01-01-A", lpn: LPN_1 },
+        { headers: { "Idempotency-Key": expect.any(String) } },
+      ),
+    );
   });
 
   it("409 PICK_LOCATION_MISMATCH → lỗi dưới ô Vị trí nêu bin ĐÚNG của dòng, giữ ô LPN", async () => {

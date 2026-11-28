@@ -5,6 +5,8 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { api } from "@/lib/api/client";
 
+import { openComboboxList } from "@/test/combobox";
+
 import { InventoryItemCombobox } from "./InventoryItemCombobox";
 
 const ITEMS = ["AAA-1", "BBB-2", "CCC-3"].map((sku, i) => ({
@@ -53,7 +55,7 @@ describe("InventoryItemCombobox", () => {
   it("mặc định hiện mọi hồ sơ hàng tồn và trả SKU đã chọn", async () => {
     const user = userEvent.setup();
     const onSelect = renderPicker();
-    await user.click(screen.getByRole("combobox", { name: "SKU" }));
+    await openComboboxList(user, "SKU");
     for (const { sku } of ITEMS) {
       expect(await screen.findByRole("option", { name: new RegExp(sku) })).toBeInTheDocument();
     }
@@ -64,7 +66,7 @@ describe("InventoryItemCombobox", () => {
   it("chỉ ẩn SKU khi màn gọi truyền hiddenSkus", async () => {
     const user = userEvent.setup();
     renderPicker({ hiddenSkus: new Set(["BBB-2"]) });
-    await user.click(screen.getByRole("combobox", { name: "SKU" }));
+    await openComboboxList(user, "SKU");
     expect(await screen.findByRole("option", { name: /AAA-1/ })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: /BBB-2/ })).not.toBeInTheDocument();
   });

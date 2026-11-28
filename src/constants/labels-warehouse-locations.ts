@@ -28,7 +28,6 @@ const COLUMN: Record<LocationColumn, string> = {
   skus: "SKU",
   onHand: "Tồn (cái)",
   reserved: "Đang giữ (cái)",
-  expiry: "Hạn dùng gần nhất",
   actions: "Thao tác",
 };
 
@@ -49,8 +48,8 @@ export const WAREHOUSE_LOCATION_LABELS = {
   noCapacity: "Khu vực không tính sức chứa",
   moreSkus: (count: number) => `+${count} SKU`,
   // Thanh Cấu hình
-  summarySearch: "Search chính",
-  summaryColumnSearch: "Search trong cột",
+  summarySearch: "Tìm kiếm chính",
+  summaryColumnSearch: "Tìm trong cột",
   summaryColumns: "Cột hiển thị",
   all: "Tất cả",
   // Thông báo

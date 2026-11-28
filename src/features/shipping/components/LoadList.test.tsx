@@ -101,7 +101,9 @@ describe("LoadList — chuyến xe", () => {
   it("mở chuyến bằng nút xem ở cuối dòng → sang chi tiết chuyến", async () => {
     const user = userEvent.setup();
     renderList(ACTORS.warehouseStaff);
+    // Nút "⋯" cuối dòng mở menu, mục "Xem chi tiết" sang chi tiết chuyến
     await user.click(await screen.findByRole("button", { name: `${L.loads.openRow} ${LOAD_ID}` }));
+    await user.click(await screen.findByRole("button", { name: "Xem chi tiết" }));
     expect(push).toHaveBeenCalledWith(ADMIN_ROUTES.loads.detail(LOAD_ID));
   });
 

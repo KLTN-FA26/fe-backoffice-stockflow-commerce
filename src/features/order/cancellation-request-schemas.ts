@@ -24,12 +24,15 @@ export const cancellationRequestDtoSchema = z.object({
   requestId: z.string(),
   orderId: z.string(),
   requestedBy: z.string().nullish(),
+  /** Issue #286: tên người gửi / người quyết BE kèm cạnh id (vắng ở BE cũ → đọc với fallback). */
+  requestedByName: z.string().nullish(),
   /** BE `CancellationReasonCode` — khách chỉ chọn CUSTOMER_REQUEST / DUPLICATE_ORDER / OTHER (docs 17 §4.8 bước 29). */
   reasonCode: z.string(),
   note: z.string().nullish(),
   requestedAt: z.string(),
   status: z.string(),
   decidedBy: z.string().nullish(),
+  decidedByName: z.string().nullish(),
   decidedAt: z.string().nullish(),
   decisionNote: z.string().nullish(),
   /** Phần trăm tiền đã thu giữ lại khi duyệt (BigDecimal → số). */
@@ -59,6 +62,9 @@ export const cancellationRequestSchema = z.object({
   decidedAt: z.string().nullable(),
   decisionNote: z.string().nullable(),
   retainedPercent: z.number().nullable(),
+  /** Issue #286: tên người gửi / người quyết, null khi BE chưa gửi. */
+  requestedByName: z.string().nullable(),
+  decidedByName: z.string().nullable(),
   /** R5-6, null khi BE chưa gửi. */
   orderNumber: z.string().nullable(),
   customerName: z.string().nullable(),

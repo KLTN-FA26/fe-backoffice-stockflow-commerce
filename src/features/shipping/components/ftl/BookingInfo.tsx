@@ -57,7 +57,10 @@ export function BookingInfo({ load }: { load: Load }) {
       />
       {way && <InfoItem label={B.connection} value={way} />}
       {booked && load.bookedAt && (
-        <InfoItem label={B.bookedAt} value={formatDateTime(load.bookedAt)} />
+        <>
+          <InfoItem label={B.bookedAt} value={formatDateTime(load.bookedAt)} />
+          <InfoItem label={B.bookedBy} value={load.bookedByName ?? "—"} />
+        </>
       )}
     </div>
   );

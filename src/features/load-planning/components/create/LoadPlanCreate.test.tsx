@@ -392,6 +392,28 @@ describe("LoadPlanCreate — lập kế hoạch rồi tính xếp xe", () => {
     ).toBeInTheDocument();
   });
 
+  it("S01-17: more shipments than a plan can take → the limit is said, and 'select all' takes the earliest ones", async () => {
+    const user = userEvent.setup();
+    const many = Array.from({ length: 201 }, (_, i) =>
+      candidateFixture({
+        shipmentId: `s-${i}`,
+        code: `SO-${String(i).padStart(4, "0")}-S1`,
+        orderNumber: `SO-${String(i).padStart(4, "0")}`,
+        readyAt: new Date(Date.UTC(2026, 9, 22, 0, 0, 200 - i)).toISOString(),
+      }),
+    );
+    const { post } = renderCreate(ACTORS.dispatcher, undefined, undefined, many);
+    expect(await screen.findByText(L.overLimit(201, 200))).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: L.selectFirst(200) }));
+    expect(screen.getByText(/Đã chọn 200 lô/)).toBeInTheDocument();
+    // Lô sẵn sàng muộn nhất (i = 0) là lô thứ 201: không được chọn
+    expect(
+      screen.getByRole("checkbox", { name: `${L.shipmentCode} SO-0000-S1` }),
+    ).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: `${L.shipmentCode} SO-0001-S1` })).toBeChecked();
+    expect(post).not.toHaveBeenCalled();
+  });
+
   it("R6: a warehouse with exactly one shipment to plan has it chosen already", async () => {
     renderCreate(ACTORS.dispatcher, undefined, undefined, [candidateFixture()]);
     const box = await screen.findByRole("checkbox", {

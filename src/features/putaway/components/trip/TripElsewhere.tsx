@@ -17,20 +17,24 @@ const L = PUTAWAY_TRIP_LABELS.elsewhere;
  * (`PUTAWAY_TRIP_ALREADY_OPEN`), `GET /putaway-trips/current` không lọc theo kho. Không render chuyến ở đây (màn trong
  * tab chỉ làm việc với kho trên URL) — báo kèm link sang tab của kho đó, không tự chuyển trang. Danh mục kho lỗi → báo
  * lỗi kèm Thử lại; danh mục không có kho của chuyến → vẫn báo, dẫn về bước chọn kho (không để màn trống).
+ * Issue #286: chuyến kèm `warehouseCode` (prefix) → dựng link thẳng, không tải danh mục kho; chỉ BE cũ thiếu mã mới tra.
  */
 export function TripElsewhere({
   warehouseId,
+  warehouseCode,
   tripId,
   mine,
 }: {
   warehouseId: string;
+  /** Prefix kho BE kèm chuyến (issue #286). */
+  warehouseCode?: string | null;
   /** Có id → link sang chính chuyến đó; không → "chuyến của tôi" ở kho đó. */
   tripId?: string;
   mine: boolean;
 }) {
-  const directory = useWarehouseDirectory();
-  if (directory.isPending) return <PageSkeleton variant="detail" />;
-  if (directory.isError)
+  const directory = useWarehouseDirectory(!warehouseCode);
+  if (!warehouseCode && directory.isPending) return <PageSkeleton variant="detail" />;
+  if (!warehouseCode && directory.isError)
     return (
       <LoadErrorState
         error={directory.error}
@@ -38,7 +42,7 @@ export function TripElsewhere({
         onRetry={() => void directory.refetch()}
       />
     );
-  const prefix = directory.data.find((w) => w.warehouseId === warehouseId)?.code;
+  const prefix = warehouseCode || directory.data?.find((w) => w.warehouseId === warehouseId)?.code;
   const title = prefix
     ? mine
       ? L.mine(prefix)
