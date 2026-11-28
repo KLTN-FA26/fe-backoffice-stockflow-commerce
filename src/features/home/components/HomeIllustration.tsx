@@ -18,7 +18,7 @@ export function HomeIllustration() {
       height={560}
       priority
       sizes="(max-width: 1023px) 0px, 40vw"
-      className="h-auto w-full max-w-[420px] select-none"
+      className="h-auto w-full max-w-[420px] drop-shadow-xl select-none"
       draggable={false}
     />
   );

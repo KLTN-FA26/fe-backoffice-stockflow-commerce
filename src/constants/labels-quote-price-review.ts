@@ -54,6 +54,12 @@ export const QUOTE_PRICE_REVIEW_LABELS = {
     threshold: (percent: string) =>
       `Bậc giá thấp hơn giá tham chiếu quá ${percent}%, hoặc chưa có giá tham chiếu, cần Quản lý kinh doanh duyệt. Giá cao hơn giá tham chiếu không cần duyệt.`,
     above: (percent: string) => `cao hơn ${percent}%`,
+    /** bo-09: tóm tắt một dòng thay cho bảng toàn "Đạt". */
+    allOk: (ok: number, total: number) => `${ok}/${total} dòng đạt giá`,
+    someNeedApproval: (count: number, total: number) =>
+      `${count}/${total} dòng cần Quản lý kinh doanh duyệt giá — các dòng này ở đầu bảng.`,
+    showDetails: "Xem chi tiết",
+    hideDetails: "Ẩn chi tiết",
   },
   notice: {
     willNeedApproval:

@@ -132,7 +132,6 @@ export function CorrectionDialog({ data, onClose }: { data: Shipment; onClose: (
                 setServerError(null);
               }}
               handedOverAt={shipment.handedOverAt}
-              now={time.opened}
               error={time.problem}
               hint={time.restoresUndone ? C.deliveredAtUndoneHint : C.deliveredAtCorrectionHint}
             />

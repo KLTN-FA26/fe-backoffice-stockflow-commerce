@@ -43,7 +43,7 @@ export const SHIPPING_UI_LABELS = {
     carrierPlaceholder: "Chọn hãng",
     vehiclePlate: "Biển số xe",
     driverName: "Tài xế",
-    driverPhone: "SĐT tài xế",
+    driverPhone: "Điện thoại tài xế",
     note: "Ghi chú",
     weight: "Cân nặng",
     weightUnit: "kg",
@@ -98,6 +98,7 @@ export const SHIPPING_UI_LABELS = {
     back: "Danh sách chuyến",
     info: "Thông tin chuyến",
     startedAt: "Bắt đầu xếp lúc",
+    startedBy: "Người bắt đầu xếp",
     dispatchedAt: "Bàn giao lúc",
     dispatchedBy: "Người bàn giao",
     representative: "Người ký bên hãng",
@@ -115,6 +116,7 @@ export const SHIPPING_UI_LABELS = {
     parcelCode: "Mã kiện",
     parcelWeight: "Cân nặng (kg)",
     parcelLoadedAt: "Lên xe lúc",
+    parcelLoadedBy: "Người quét",
     notLoaded: "Chưa lên xe",
     unscan: "Gỡ khỏi xe",
     unscanAria: "Gỡ kiện khỏi xe",
@@ -129,9 +131,19 @@ export const SHIPPING_UI_LABELS = {
       handover: "Xác nhận bàn giao",
       refresh: "Tải lại",
     },
+    /** Dòng "Còn thiếu" dưới nút bàn giao (R7): mỗi lý do khoá nút một dòng. */
+    handoverMissing: {
+      title: "Chưa bàn giao được",
+      waybill: "Chưa có mã vận đơn — nhập ở thẻ Mã vận đơn (hoặc ngay trong hộp xác nhận).",
+      waybillApi: "Chưa có mã vận đơn — hãng sẽ trả mã khi đơn ở hãng được tạo.",
+      unscanned: (count: number, codes: string, more: number) =>
+        `Còn ${count} kiện chưa quét: ${codes}${more > 0 ? ` và ${more} kiện khác` : ""} — quét nốt, hoặc Quản lý kho huỷ có kiểm soát xe này.`,
+      order: "Đơn",
+    },
     disabledReason: {
       empty: "Chuyến chưa có lô giao nào — không có gì để bàn giao.",
       notFullyLoaded: "Còn kiện chưa quét lên xe.",
+      ordersBlocked: "Có đơn trên xe chưa được phép đi — xem lý do ngay dưới nút.",
     },
     noActions: {
       viewOnly:
@@ -145,24 +157,35 @@ export const SHIPPING_UI_LABELS = {
     placeholder: "Quét hoặc nhập mã kiện rồi nhấn Enter",
     hint: "Ô quét luôn sẵn sàng nhận mã — dùng máy quét mã vạch hoặc gõ tay.",
     accepted: "Đã lên xe",
-    notLoaded: "Máy chủ chưa xếp kiện này lên xe — quét lại.",
+    notLoaded: "Chưa ghi được kiện này lên xe, hãy quét lại.",
     rejectedTitle: "Mã quét không thành công — chưa lên xe",
     clearRejected: "Xoá danh sách",
     notSent: "Chưa gửi được — quét lại cùng mã để thử lại.",
     invalidResponse:
-      "Máy chủ trả dữ liệu sai định dạng — kiểm tra bảng kiện trước khi quét lại, báo kỹ thuật.",
+      "Chưa ghi được kiện này lên xe, hãy quét lại. Nếu vẫn lỗi, nhìn bảng kiện bên dưới xem kiện đã lên xe chưa.",
   },
   /* ── Bàn giao + biên bản ─────────────────────────────────────────── */
   handover: {
     title: "Xác nhận bàn giao",
     description:
       "Hai bên đã ký biên bản giấy của riêng xe này. Chuyến chuyển sang Đã bàn giao; mỗi lô chỉ chuyển Đã bàn giao ở xe cuối cùng chở nó.",
-    representative: "Người ký bên hãng (tài xế)",
+    representative: "Người ký bên hãng",
+    signerIsDriver: "Người ký là tài xế",
+    moreOpen: "Thêm điện thoại tài xế, mã biên bản, ghi chú (không bắt buộc)",
+    /** Dòng "Còn thiếu" của hộp thoại ký bàn giao: ô nào còn khoá nút xác nhận. */
+    missing: {
+      prefix: "Còn thiếu",
+      driverName: "tên tài xế",
+      representative: "người ký bên hãng",
+      vehiclePlate: "biển số xe",
+      signed: "tick hai bên đã ký biên bản",
+      waybill: "mã vận đơn",
+    },
     driverName: "Tên tài xế",
     driverNameHint:
       "Chuyến chưa có tên tài xế — bắt buộc nhập trước khi ký (lưu vào chuyến trước khi ký).",
     vehiclePlate: "Biển số xe",
-    driverPhone: "SĐT tài xế",
+    driverPhone: "Điện thoại tài xế",
     signatureRef: "Mã / số biên bản giấy đã ký",
     signatureRefHint: "Không bắt buộc — dùng để đối chiếu bản giấy hoặc bản scan.",
     note: "Ghi chú bàn giao",
@@ -301,6 +324,12 @@ export const SHIPPING_TOAST_MESSAGES = {
  * errorCode BE (`ErrorCode.java`) → câu tiếng Việt. Khi BE nêu tên lô giao
  * (`fieldErrors.shipmentCode`) câu được thêm tiền tố "Lô <mã>".
  */
+/** Mã lỗi hãng mà màn đặt xe rẽ nhánh theo (BE `fieldErrors[].code` của `CARRIER_BOOKING_FAILED`, BE PR #481). */
+export const CARRIER_REFUSAL_CODE = {
+  /** Giờ hẹn lấy hàng ngoài giờ phục vụ của hãng — trỏ vào ô giờ. */
+  INVALID_SERVICE_HOUR: "INVALID_SERVICE_HOUR",
+} as const;
+
 export const SHIPPING_ERROR_MESSAGES = {
   // 400
   HANDOVER_NOT_SIGNED: "Hai bên phải ký biên bản — tick xác nhận đã ký rồi bàn giao lại.",
@@ -399,6 +428,7 @@ export const SHIPPING_FIELD_MESSAGES = {
   required: "Bắt buộc",
   warehouseRequired: "Chọn kho",
   carrierRequired: "Chọn hãng vận chuyển",
+  pickupAtInvalid: "Giờ hẹn chưa đúng — nhập ngày/tháng/năm giờ:phút (24 giờ), vd 27/11/2026 08:30",
   cancelBookingReasonRequired: "Nhập lý do huỷ đặt xe",
   // SCRUM-474 UNLOAD-DESIGN điểm 7: mã lý do + ghi chú
   controlledReasonCodeRequired: "Chọn lý do huỷ",

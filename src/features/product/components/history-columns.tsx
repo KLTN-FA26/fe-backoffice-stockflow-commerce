@@ -2,6 +2,7 @@
 
 import { ArrowRight } from "lucide-react";
 
+import { UI_LABELS } from "@/constants";
 import { formatDateTime } from "@/lib/format/date";
 
 import {
@@ -15,6 +16,7 @@ import type { ColumnDef } from "@/components/shared/DataTable";
 import type { ProductVersion } from "../lifecycle-schemas";
 
 const MONO = "font-[family-name:var(--font-mono)]";
+const N = UI_LABELS.product.names;
 
 /** Dòng "từ → đến" của một lần đổi trạng thái; trống nếu dòng không đổi trạng thái. */
 function StatusMove({ entry }: { entry: ProductVersion }) {
@@ -42,8 +44,12 @@ function fieldLabel(field: string): string {
     : changedFieldLabel(field);
 }
 
-/** SKU của biến thể mà dòng lịch sử nói tới (`subjectId` = variantId); dòng của sản phẩm thì rỗng. */
+/**
+ * SKU mà dòng lịch sử nói tới: `subjectSku` BE trả kèm (issue #286); BE cũ chưa có thì tra `skuById`
+ * (`subjectId` = variantId) từ danh sách biến thể trang đã tải sẵn. Dòng của sản phẩm thì rỗng.
+ */
 export function historySku(row: ProductVersion, skuById: ReadonlyMap<string, string>): string {
+  if (row.subjectSku) return row.subjectSku;
   return row.subjectId ? (skuById.get(row.subjectId) ?? "") : "";
 }
 
@@ -72,10 +78,24 @@ export const historyColumns = (
     className: `min-w-32 ${MONO}`,
     cell: (row) => {
       const sku = historySku(row, skuById);
-      return sku ? (
-        <span className="text-ink-primary font-medium">{sku}</span>
-      ) : (
-        <span className="text-ink-tertiary font-[family-name:var(--font-sans)]">Sản phẩm</span>
+      // `subjectLabel` (issue #286): tên biến thể hoặc tên file ảnh — dòng phụ dưới SKU
+      const label = row.subjectLabel;
+      if (!sku && !label) {
+        return (
+          <span className="text-ink-tertiary font-[family-name:var(--font-sans)]">
+            {row.subjectId ? N.historyDeletedSubject : N.historyProductRow}
+          </span>
+        );
+      }
+      return (
+        <div className="space-y-0.5">
+          {sku && <div className="text-ink-primary font-medium">{sku}</div>}
+          {label && (
+            <div className="text-ink-tertiary font-[family-name:var(--font-sans)] text-xs">
+              {label}
+            </div>
+          )}
+        </div>
       );
     },
   },

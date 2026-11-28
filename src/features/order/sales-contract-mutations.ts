@@ -10,7 +10,13 @@ import { serverErrorMessage } from "@/lib/api/error-message";
 import { QUERY_ROOTS } from "@/lib/api/query-roots";
 import { createMutation } from "@/lib/api/query-factory";
 import { withStaleRefetch } from "@/lib/api/stale-refetch";
+import { salesOwnerErrorMessage } from "@/lib/references/sales-owner-access";
 
+import {
+  approveContractCredit,
+  rejectContractCredit,
+  withdrawContractCreditReview,
+} from "./contract-credit-review-api";
 import { orderKeys } from "./queries";
 import {
   cancelSalesContract,
@@ -29,6 +35,9 @@ const STALE_CODES = [
   "SALES_CONTRACT_STATUS_INVALID",
   "SALES_CONTRACT_ORDER_NOT_DRAFT",
   "SALES_CONTRACT_NOT_FOUND",
+  // 15 BR-11: hợp đồng vừa vào / ra khỏi hàng chờ Kế toán ở nơi khác → tải lại để nút đúng trạng thái
+  "CONTRACT_CREDIT_REVIEW_PENDING",
+  "CONTRACT_CREDIT_REVIEW_NOT_PENDING",
 ] as const;
 
 function contractMutation<TInput>(
@@ -58,17 +67,40 @@ export const useSignSalesContract = contractMutation(signSalesContract, undefine
   QUERY_ROOTS.paymentInstallments,
 ]);
 export const useCancelSalesContract = contractMutation(cancelSalesContract, "Đã huỷ hợp đồng.");
+export const useWithdrawContractCreditReview = contractMutation(
+  withdrawContractCreditReview,
+  "Đã rút đề nghị duyệt tín dụng — hợp đồng về Nháp để sửa.",
+);
+export const useApproveContractCredit = contractMutation(
+  approveContractCredit,
+  "Đã duyệt tín dụng — hợp đồng đã được gửi cho khách.",
+);
+export const useRejectContractCredit = contractMutation(
+  rejectContractCredit,
+  "Đã từ chối — hợp đồng về Nháp để Sale sửa lịch thanh toán.",
+);
 
 /**
  * WF-02: BE trả message tiếng Việt → hiện nguyên văn; khoá lạc quan → câu "đã tải lại". 413 (BFF hoặc BE) chỉ đến từ
  * file scan đã ký → nói rõ giới hạn thay cho câu chung "Không thể hoàn tất yêu cầu." của BFF.
  */
-export function contractErrorMessage(error: unknown): string {
+/**
+ * `ownerName`: người phụ trách khách màn đang biết — câu BR-S12 (409 CUSTOMER_OWNED_BY_OTHER_SALES) nêu đúng tên dù BE
+ * không gửi kèm.
+ */
+export function contractErrorMessage(error: unknown, ownerName?: string | null): string {
+  const owned = salesOwnerErrorMessage(error, ownerName);
+  if (owned) return owned;
   return serverErrorMessage(error, {
     OPTIMISTIC_LOCK: "Dữ liệu vừa thay đổi, đã tải lại.",
     SALES_CONTRACT_NOT_FOUND: "Hợp đồng vừa bị huỷ, đã tải lại.",
     UNSUPPORTED_MEDIA_TYPE: SIGNED_FILE_TYPE_MESSAGE,
     PAYLOAD_TOO_LARGE: fileTooLargeMessage("signedContract"),
+    CONTRACT_CREDIT_REVIEW_PENDING:
+      "Hợp đồng đang chờ Kế toán duyệt tín dụng — rút đề nghị trước khi sửa hoặc gửi lại.",
+    CONTRACT_CREDIT_REVIEW_NOT_PENDING: "Hợp đồng không còn chờ duyệt tín dụng, đã tải lại.",
+    CONTRACT_CREDIT_REVIEW_SELF:
+      "Bạn đã gửi duyệt hợp đồng này nên không thể tự duyệt hay từ chối.",
   });
 }
 

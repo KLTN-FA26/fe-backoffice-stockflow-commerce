@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { ADMIN_ROUTES, CUSTOMER_PERMISSIONS } from "@/constants";
+import { QUOTE_FORM_LABELS } from "@/constants/labels-quote-form";
 import { useCan } from "@/lib/auth/components/Can";
 import { formatAddress, useCustomerAddressOptions } from "@/lib/references/customer-lookup";
 import { quoteErrorMessage } from "@/features/quote/errors";
@@ -11,43 +12,61 @@ import { useConvertQuote } from "@/features/quote/mutations";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { FormField } from "@/components/shared/FormField";
 import { FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
-import {
-  Select,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/shared/combobox-select";
+import { FormSelect } from "@/components/shared/FormSelect";
+import { SelectItem, SelectTrigger, SelectValue } from "@/components/shared/combobox-select";
 import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { Notice } from "@/components/shared/Notice";
 
+import type { CustomerAddressRef } from "@/lib/references/customer-lookup";
 import type { Quote } from "@/features/quote/types";
 
-/** Đại diện cho "" (địa chỉ mặc định) — SelectItem không nhận value rỗng. */
-const DEFAULT_ADDRESS = "__default__";
+/** A select item has no empty value: stands for "" = the default address (the BE takes it). */
+const DEFAULT_ADDRESS = "default";
 
-function AddressSelect({
+/** Nhãn ngắn trong ô chọn: người nhận và nơi giao; địa chỉ đầy đủ viết ở dòng dưới ô (không bị cắt chữ). */
+function shortAddress(address: CustomerAddressRef): string {
+  return [
+    address.recipientName,
+    [address.wardName, address.provinceName].filter(Boolean).join(", "),
+  ]
+    .filter(Boolean)
+    .join(" — ");
+}
+
+/**
+ * Địa chỉ của đơn: "" = địa chỉ mặc định (BE tự lấy). Chỉ có một địa chỉ (hoặc chưa tải được sổ địa chỉ) thì không có gì
+ * để chọn → hiện chữ, không hiện ô chọn (R6, S03-2).
+ */
+function AddressField({
   id,
   label,
   value,
   onChange,
-  defaultLabel,
-  options,
+  addresses,
 }: {
   id: string;
   label: string;
   value: string;
   onChange: (value: string) => void;
-  /** Địa chỉ mặc định viết đủ (BO-UX-21), hoặc null khi chưa tải được sổ địa chỉ. */
-  defaultLabel: string | null;
-  options: { id: string; label: string }[];
+  addresses: readonly CustomerAddressRef[];
 }) {
+  const fallback = addresses.find((address) => address.defaultAddress);
   const chosen = value
-    ? options.find((option) => option.id === value)?.label
-    : (defaultLabel ?? undefined);
+    ? addresses.find((address) => address.addressId === value)
+    : (fallback ?? (addresses.length === 1 ? addresses[0] : undefined));
+  if (addresses.length <= 1)
+    return (
+      <div className="flex min-w-0 flex-col gap-1">
+        <span className="text-ink-secondary text-xs font-medium">{label}</span>
+        <p className="text-ink-primary text-[0.8125rem]">
+          {chosen ? formatAddress(chosen) : QUOTE_FORM_LABELS.convert.defaultAddress}
+        </p>
+      </div>
+    );
   return (
-    <FormField id={id} label={label} hint={chosen}>
-      <Select
-        value={value === "" ? DEFAULT_ADDRESS : value}
+    <FormField id={id} label={label} hint={chosen ? formatAddress(chosen) : undefined}>
+      <FormSelect
+        value={value || DEFAULT_ADDRESS}
         onValueChange={(next) => onChange(next === DEFAULT_ADDRESS ? "" : next)}
       >
         <SelectTrigger
@@ -59,15 +78,19 @@ function AddressSelect({
         </SelectTrigger>
         <TitledSelectContent title={label}>
           <SelectItem value={DEFAULT_ADDRESS}>
-            {defaultLabel ? `Mặc định — ${defaultLabel}` : "Địa chỉ mặc định của khách"}
+            {fallback
+              ? `Mặc định — ${shortAddress(fallback)}`
+              : QUOTE_FORM_LABELS.convert.defaultAddress}
           </SelectItem>
-          {options.map((option) => (
-            <SelectItem key={option.id} value={option.id}>
-              {option.label}
-            </SelectItem>
-          ))}
+          {addresses
+            .filter((address) => !address.defaultAddress)
+            .map((address) => (
+              <SelectItem key={address.addressId} value={address.addressId}>
+                {shortAddress(address)}
+              </SelectItem>
+            ))}
         </TitledSelectContent>
-      </Select>
+      </FormSelect>
     </FormField>
   );
 }
@@ -80,17 +103,13 @@ function ConvertForm({ quote, onClose }: { quote: Quote; onClose: () => void }) 
   const [error, setError] = useState<string | null>(null);
   const convert = useConvertQuote();
   const router = useRouter();
-  // "" = địa chỉ mặc định (BE tự lấy): viết nó ra đủ ở lựa chọn đầu, không lặp lại trong danh sách, không dùng ★.
   const ofType = (type: "SHIPPING" | "BILLING") =>
     (addresses.data ?? []).filter((address) => address.type === type);
-  const defaultLabel = (type: "SHIPPING" | "BILLING") => {
-    const fallback = ofType(type).find((address) => address.defaultAddress);
-    return fallback ? formatAddress(fallback) : null;
+  // One address of the type and it is not marked default: the BE would find no default to take, so send it by id.
+  const soleAddressId = (type: "SHIPPING" | "BILLING") => {
+    const only = ofType(type);
+    return only.length === 1 && !only[0]?.defaultAddress ? only[0]?.addressId : undefined;
   };
-  const options = (type: "SHIPPING" | "BILLING") =>
-    ofType(type)
-      .filter((address) => !address.defaultAddress)
-      .map((address) => ({ id: address.addressId, label: formatAddress(address) }));
 
   return (
     <FormDialogBody
@@ -107,8 +126,8 @@ function ConvertForm({ quote, onClose }: { quote: Quote; onClose: () => void }) 
           {
             id: quote.id,
             version: quote.version,
-            shippingAddressId: shipping || undefined,
-            billingAddressId: billing || undefined,
+            shippingAddressId: shipping || soleAddressId("SHIPPING"),
+            billingAddressId: billing || soleAddressId("BILLING"),
           },
           {
             onSuccess: (saved) => {
@@ -127,21 +146,19 @@ function ConvertForm({ quote, onClose }: { quote: Quote; onClose: () => void }) 
           Không tải được sổ địa chỉ — đơn sẽ dùng địa chỉ mặc định của khách.
         </Notice>
       )}
-      <AddressSelect
+      <AddressField
         id="convert-shipping"
         label="Địa chỉ giao hàng"
         value={shipping}
         onChange={setShipping}
-        defaultLabel={defaultLabel("SHIPPING")}
-        options={options("SHIPPING")}
+        addresses={ofType("SHIPPING")}
       />
-      <AddressSelect
+      <AddressField
         id="convert-billing"
         label="Địa chỉ xuất hoá đơn"
         value={billing}
         onChange={setBilling}
-        defaultLabel={defaultLabel("BILLING")}
-        options={options("BILLING")}
+        addresses={ofType("BILLING")}
       />
     </FormDialogBody>
   );

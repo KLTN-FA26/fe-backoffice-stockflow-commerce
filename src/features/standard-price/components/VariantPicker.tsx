@@ -15,7 +15,11 @@ import {
   SelectValue,
 } from "@/components/shared/combobox-select";
 import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
-import { COMBOBOX_ITEM_CLASS, InputCombobox } from "@/components/shared/InputCombobox";
+import {
+  COMBOBOX_ITEM_CLASS,
+  ComboboxMoreHint,
+  InputCombobox,
+} from "@/components/shared/InputCombobox";
 import { CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
 import { Label } from "@/components/ui/label";
 
@@ -47,7 +51,8 @@ export function VariantPicker({
   const term = useDebouncedValue(search, SEARCH_DEBOUNCE_MS);
   const products = useProductOptions(term, open);
   const variants = useCatalogVariants(product?.productId ?? null, true);
-  const items = products.data ?? [];
+  const items = products.data?.items ?? [];
+  const remaining = (products.data?.total ?? 0) - items.length;
   const choices = variants.data ?? [];
 
   return (
@@ -67,6 +72,7 @@ export function VariantPicker({
           search={search}
           onSearchChange={setSearch}
           shouldFilter={false}
+          onClear={() => setProduct(null)}
         >
           <CommandList>
             {items.length === 0 ? (
@@ -83,6 +89,9 @@ export function VariantPicker({
                   <CommandItem
                     key={item.productId}
                     value={item.productId}
+                    // Chữ đang gõ chưa phải kết quả đang hiện (chờ debounce / còn dữ liệu cũ) → khoá dòng: Enter của
+                    // `InputCombobox` chọn mục đầu chưa khoá, không được chọn nhầm sản phẩm của lần tìm trước
+                    disabled={search !== term || products.isPlaceholderData}
                     className={COMBOBOX_ITEM_CLASS}
                     onSelect={() => {
                       setProduct(item);
@@ -95,17 +104,20 @@ export function VariantPicker({
                         product?.productId === item.productId ? "opacity-100" : "opacity-0",
                       )}
                     />
-                    <span className="min-w-0 flex-1 truncate">{item.name}</span>
-                    {item.code && (
-                      <span className="text-ink-tertiary ml-3 font-[family-name:var(--font-mono)] text-[11px]">
-                        {item.code}
-                      </span>
-                    )}
+                    <div className="flex min-w-0 flex-1 flex-col">
+                      <span className="truncate">{item.name}</span>
+                      {item.code && (
+                        <span className="text-ink-tertiary truncate font-[family-name:var(--font-mono)] text-[11px]">
+                          {item.code}
+                        </span>
+                      )}
+                    </div>
                   </CommandItem>
                 ))}
               </CommandGroup>
             )}
           </CommandList>
+          {items.length > 0 && remaining > 0 && <ComboboxMoreHint remaining={remaining} />}
         </InputCombobox>
       </div>
       <div className="space-y-1">

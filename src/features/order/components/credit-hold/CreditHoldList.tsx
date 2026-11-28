@@ -1,7 +1,7 @@
 "use client";
 
 import { ShieldAlert } from "lucide-react";
-import { parseAsInteger, useQueryState } from "nuqs";
+import { parseAsInteger, parseAsStringLiteral, useQueryState } from "nuqs";
 import { useState } from "react";
 
 import {
@@ -23,10 +23,12 @@ import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
 import { DataTable } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ListToolbar } from "@/components/shared/ListToolbar";
+import { PageTabPanel, PageTabs } from "@/components/shared/PageTabs";
 import { RefetchBar } from "@/components/shared/RefetchBar";
 
 import { allowedOrderActions, orderActionContextOf } from "../../lifecycle";
-import { useCreditHolds } from "../../queries";
+import { ContractCreditReviewQueue } from "../contract-credit-review/ContractCreditReviewQueue";
+import { useContractCreditReviews, useCreditHolds } from "../../queries";
 import { OrderLoadError } from "../OrderLoadError";
 import { OrderPermissionGate } from "../OrderPermissionGate";
 import { OrderTableSkeleton } from "../OrderSkeletons";
@@ -35,12 +37,15 @@ import {
   buildCreditHoldColumns,
   CREDIT_HOLD_COLUMN_LABELS,
   CREDIT_HOLD_COLUMNS,
+  CREDIT_HOLD_DEFAULT_COLUMNS,
   CREDIT_HOLD_LOCKED_COLUMNS,
 } from "./columns";
+import { CREDIT_HOLD_COPY, CREDIT_REVIEW_TABS } from "./copy";
 import { CreditHoldRowActions } from "./CreditHoldRowActions";
 import { RefundDueNotice } from "./RefundDueNotice";
 
 import type { CreditHold } from "../../types";
+import type { CreditReviewTab } from "./copy";
 import type { CreditHoldTarget } from "./types";
 
 const TITLE = UI_LABELS.order.creditHoldsTitle;
@@ -64,7 +69,9 @@ function mergeConfig(
 const ROUTE_SEGMENT = ADMIN_ROUTES.orders.creditHolds.split("/").at(-1);
 
 /**
- * Hàng đợi đơn công nợ vượt hạn mức (SCRUM-427, `GET /orders/credit-holds`, cũ nhất trước).
+ * Hai hàng chờ duyệt tín dụng của Kế toán, mỗi hàng một tab có số đếm (bo-21, tab trên URL `?tab=`): đơn công nợ vượt
+ * hạn mức (SCRUM-427, `GET /orders/credit-holds`, cũ nhất trước) và hợp đồng chờ duyệt trước khi gửi
+ * (`ContractCreditReviewQueue`). Số đếm là `totalElements` của một trang 1 dòng mỗi hàng chờ.
  * Sales / Coordinator xem; chỉ ACCOUNTANT (sales-order-credit-holds:APPROVE) duyệt / từ chối.
  */
 export function CreditHoldList() {
@@ -84,6 +91,13 @@ function CreditHoldListContent() {
   const canOpenOrders = can(ORDER_PERMISSIONS.viewPage);
   // Trang trên URL (nuqs); số dòng/trang là sở thích cá nhân → localStorage (state-persistence)
   const [page, setPage] = useQueryState("page", parseAsInteger.withDefault(1));
+  const [tab, setTab] = useQueryState(
+    "tab",
+    parseAsStringLiteral(CREDIT_REVIEW_TABS).withDefault("orders"),
+  );
+  // Số đếm của hai tab — một trang 1 dòng, đọc `totalElements`
+  const holdCount = useCreditHolds({ page: 0, size: 1 }, { enabled: canRead });
+  const reviewCount = useContractCreditReviews({ page: 0, size: 1 }, { enabled: canRead });
   const { config, updateConfig } = usePageConfig<CreditHoldPageConfig>(
     STORAGE_KEYS.adminCreditHoldsConfig,
     DEFAULT_CONFIG,
@@ -91,7 +105,7 @@ function CreditHoldListContent() {
   );
   const query = useCreditHolds(
     { page: Math.max(0, page - 1), size: config.pageSize },
-    { enabled: canRead },
+    { enabled: canRead && tab === "orders" },
   );
   // Đơn vừa từ chối rời hàng đợi khi tải lại → giữ ở đây để hiện số phải hoàn (plan WF-02 C5)
   const [rejected, setRejected] = useState<CreditHoldTarget | null>(null);
@@ -112,7 +126,7 @@ function CreditHoldListContent() {
   const columnState = useColumnVisibility(
     STORAGE_KEYS.adminCreditHoldsColumns,
     CREDIT_HOLD_COLUMNS,
-    { locked: CREDIT_HOLD_LOCKED_COLUMNS },
+    { defaults: CREDIT_HOLD_DEFAULT_COLUMNS, locked: CREDIT_HOLD_LOCKED_COLUMNS },
   );
   const visibleColumns = columns.filter((column) =>
     columnState.visible.some((key) => key === column.key),
@@ -123,57 +137,83 @@ function CreditHoldListContent() {
       {/* Trang danh sách kiểu Vercel (data-table-mode-a §1): không tiêu đề / nút quay lại — breadcrumb là tên trang. */}
       <h1 className="sr-only">{TITLE}</h1>
       {canRead && (
-        // BE `GET /orders/credit-holds` chỉ nhận trang: không có search / lọc — toolbar còn Ẩn hiện cột + Cấu hình.
-        <ListToolbar
-          {...columnToolbarProps(columnState, CREDIT_HOLD_COLUMN_LABELS, CREDIT_HOLD_COLUMNS)}
-          summaryItems={[columnSummaryItem(columnState)]}
-          onResetAll={columnState.reset}
-          resetDisabled={!columnState.hasColumnConfig}
+        <PageTabs<CreditReviewTab>
+          tabs={CREDIT_REVIEW_TABS.map((value) => ({
+            value,
+            label: CREDIT_HOLD_COPY.tabs[value],
+            count: (value === "orders" ? holdCount : reviewCount).data?.totalElements,
+          }))}
+          value={tab}
+          onChange={(next) => void setTab(next)}
+          idPrefix="credit-reviews"
+          ariaLabel={TITLE}
         />
       )}
-      {rejected && (
-        <RefundDueNotice orderId={rejected.orderId} orderNumber={rejected.orderNumber} />
-      )}
-      {!canRead ? (
-        <OrderLoadError inline error={null} kind="no-read" />
-      ) : query.isError ? (
-        <OrderLoadError inline error={query.error} onRetry={() => void query.refetch()} />
-      ) : query.isPending ? (
-        <OrderTableSkeleton />
-      ) : query.data.totalElements === 0 ? (
-        <EmptyState
-          icon={<ShieldAlert className="size-8" />}
-          title="Không có đơn chờ duyệt công nợ"
-          description="Chưa có đơn nào bị giữ vì công nợ."
-        />
+      {tab === "orders" || !canRead ? (
+        <PageTabPanel idPrefix="credit-reviews" value="orders">
+          {canRead && (
+            // BE `GET /orders/credit-holds` chỉ nhận trang: không có search / lọc — toolbar còn Ẩn hiện cột + Cấu hình.
+            <ListToolbar
+              {...columnToolbarProps(columnState, CREDIT_HOLD_COLUMN_LABELS, CREDIT_HOLD_COLUMNS)}
+              summaryItems={[columnSummaryItem(columnState)]}
+              onResetAll={columnState.reset}
+              resetDisabled={!columnState.hasColumnConfig}
+            />
+          )}
+          {rejected && (
+            <RefundDueNotice orderId={rejected.orderId} orderNumber={rejected.orderNumber} />
+          )}
+          {!canRead ? (
+            <OrderLoadError inline error={null} kind="no-read" />
+          ) : query.isError ? (
+            <OrderLoadError inline error={query.error} onRetry={() => void query.refetch()} />
+          ) : query.isPending ? (
+            <OrderTableSkeleton />
+          ) : query.data.totalElements === 0 ? (
+            <EmptyState
+              icon={<ShieldAlert className="size-8" />}
+              title="Không có đơn chờ duyệt công nợ"
+              description="Chưa có đơn nào bị giữ vì công nợ."
+            />
+          ) : (
+            <>
+              <RefetchBar active={query.isFetching} label="Đang tải lại danh sách" />
+              <DataTable
+                columns={visibleColumns}
+                data={query.data.items}
+                stickyHeader
+                rowKey={(row) => row.order.orderId}
+                // Mọi đơn trong hàng đợi đều On Hold — viền cảnh báo như danh sách đơn (data-table-mode-a)
+                flagRow={() => true}
+                caption={`Hiển thị ${query.data.items.length} / ${query.data.totalElements} đơn`}
+                pageSize={config.pageSize}
+                pageSizeOptions={PAGE_SIZE_OPTIONS}
+                serverPagination={{
+                  page: query.data.page,
+                  size: query.data.size,
+                  totalElements: query.data.totalElements,
+                  totalPages: query.data.totalPages,
+                  hasNext: query.data.hasNext,
+                  hasPrevious: query.data.hasPrevious,
+                  onPageChange: (p) => void setPage(p + 1),
+                  onPageSizeChange: (pageSize) => {
+                    updateConfig(() => ({ pageSize }));
+                    void setPage(1);
+                  },
+                }}
+              />
+            </>
+          )}
+        </PageTabPanel>
       ) : (
-        <>
-          <RefetchBar active={query.isFetching} label="Đang tải lại danh sách" />
-          <DataTable
-            columns={visibleColumns}
-            data={query.data.items}
-            stickyHeader
-            rowKey={(row) => row.order.orderId}
-            // Mọi đơn trong hàng đợi đều On Hold — viền cảnh báo như danh sách đơn (data-table-mode-a)
-            flagRow={() => true}
-            caption={`Hiển thị ${query.data.items.length} / ${query.data.totalElements} đơn`}
-            pageSize={config.pageSize}
-            pageSizeOptions={PAGE_SIZE_OPTIONS}
-            serverPagination={{
-              page: query.data.page,
-              size: query.data.size,
-              totalElements: query.data.totalElements,
-              totalPages: query.data.totalPages,
-              hasNext: query.data.hasNext,
-              hasPrevious: query.data.hasPrevious,
-              onPageChange: (p) => void setPage(p + 1),
-              onPageSizeChange: (pageSize) => {
-                updateConfig(() => ({ pageSize }));
-                void setPage(1);
-              },
-            }}
+        // 15 BR-11 (BE PR #486): cùng quyền READ / APPROVE với đơn treo — không có quyền mới
+        <PageTabPanel idPrefix="credit-reviews" value="contracts">
+          <ContractCreditReviewQueue
+            bare
+            canOpenOrders={canOpenOrders}
+            canDecide={can(CREDIT_HOLD_PERMISSIONS.approve)}
           />
-        </>
+        </PageTabPanel>
       )}
     </div>
   );

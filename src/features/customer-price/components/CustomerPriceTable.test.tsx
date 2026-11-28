@@ -11,6 +11,7 @@ import {
   CUSTOMER_PRICE_PERMISSIONS,
   CUSTOMER_PRICE_UI_LABELS,
 } from "@/constants";
+import { api } from "@/lib/api/client";
 import { activateMockAdapter } from "@/lib/api/mock-adapter";
 import {
   OTHER_PRICED_CUSTOMER as B,
@@ -221,5 +222,29 @@ describe("chi tiết bậc giá", () => {
     await userEvent.setup().click(await rowOf("SKU-001-BLK-L"));
     await screen.findByRole("dialog");
     expect(screen.queryByRole("button", { name: /thêm|tạo|sửa|xoá|xóa/i })).toBeNull();
+  });
+});
+
+describe("bảng giá — lọc trên header mọi cột dữ liệu (backoffice-erp-ui A5)", () => {
+  it("mọi cột trừ Ghi chú / Thao tác có nút lọc; lọc khoảng giá thấp nhất thu hẹp dòng + chip, không gọi lại API", async () => {
+    seedTwelve(C, "PG");
+    stubPermissions(ALL);
+    const get = vi.spyOn(api, "get");
+    render(`customerId=${C}`);
+    await table();
+    for (const name of [L.field.sku, L.field.moq, T.tierCount, T.lowest, T.highest]) {
+      const header = screen.getByRole("columnheader", { name: new RegExp(name.split(" (")[0]) });
+      expect(within(header).getByRole("button", { name: /^Lọc / })).toBeInTheDocument();
+    }
+    const note = screen.getByRole("columnheader", { name: new RegExp(L.field.note) });
+    expect(within(note).queryByRole("button", { name: /^Lọc / })).toBeNull();
+
+    const before = get.mock.calls.length;
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: `Lọc ${T.lowest.toLowerCase()}` }));
+    await user.type(screen.getByRole("textbox", { name: /^Từ — / }), "11000");
+    await waitFor(() => expect(skusShown()).toEqual(["PG-11", "PG-12"]), WAIT);
+    expect(screen.getByText(new RegExp(`${T.lowest} 11000–…`))).toBeInTheDocument();
+    expect(get.mock.calls.length).toBe(before);
   });
 });

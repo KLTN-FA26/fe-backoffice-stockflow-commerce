@@ -23,9 +23,12 @@ import type { Layout, UnplacedLine } from "../../types";
 export function VehicleItemTable({
   layouts,
   unplaced = [],
+  productNames,
 }: {
   layouts: readonly Layout[];
   unplaced?: readonly UnplacedLine[];
+  /** Tên sản phẩm theo SKU (từ `packages[]` của kế hoạch); hiện cạnh SKU khi có. */
+  productNames?: ReadonlyMap<string, string>;
 }) {
   const labels = LOAD_PLANNING_LABELS.itemTable;
   const { rows, grandTotal } = buildItemTable(layouts, unplaced);
@@ -63,6 +66,11 @@ export function VehicleItemTable({
                   <span className="font-medium">
                     {row.partName || LOAD_PLANNING_LABELS.unnamed}
                   </span>
+                  {productNames?.get(row.partName) && (
+                    <span className="text-ink-secondary ml-2 text-xs">
+                      {productNames.get(row.partName)}
+                    </span>
+                  )}
                   {row.label && <span className="text-ink-tertiary ml-2 text-xs">{row.label}</span>}
                   <span className="text-ink-tertiary ml-2 text-[11px] tabular-nums">
                     {formatNominalCm(row.origMm)}

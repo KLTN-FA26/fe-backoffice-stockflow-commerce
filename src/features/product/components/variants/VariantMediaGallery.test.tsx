@@ -110,9 +110,9 @@ describe("VariantMediaGallery — biến thể ngừng dùng: không tải ảnh
   });
 });
 
-// BE `ProductMediaService.publish`: người tải ảnh lên không tự xuất bản được (409 SELF_APPROVAL_NOT_ALLOWED).
+// BE bỏ duyệt bốn mắt cho ảnh biến thể (ADR-0012): người tải ảnh lên tự xuất bản được.
 // `uploadedBy` của BE là username.
-describe("VariantMediaGallery — duyệt bốn mắt: người tải lên không được chọn ảnh của mình để xuất bản", () => {
+describe("VariantMediaGallery — người tải lên tự xuất bản ảnh của mình (ADR-0012)", () => {
   // `renderApp` signs in as username "test".
   function setupUploadedBy(uploadedBy: string) {
     installApi({
@@ -132,21 +132,20 @@ describe("VariantMediaGallery — duyệt bốn mắt: người tải lên khôn
     />
   );
 
-  it("ảnh do chính mình tải: không có ô chọn, có câu nói người khác cần xuất bản", async () => {
-    setupUploadedBy("test");
-    renderApp(gallery);
-    expect(await screen.findByText(/người khác cần xuất bản/)).toBeInTheDocument();
-    expect(screen.queryByRole("checkbox", { name: /để xuất bản/ })).not.toBeInTheDocument();
-  });
-
-  it("ảnh do người khác tải: chọn được để xuất bản", async () => {
-    setupUploadedBy("admin");
-    renderApp(gallery);
-    expect(
-      await screen.findByRole("checkbox", { name: "Chọn ảnh m-new.png để xuất bản" }),
-    ).toBeInTheDocument();
-    expect(screen.queryByText(/người khác cần xuất bản/)).not.toBeInTheDocument();
-  });
+  it.each([
+    ["chính mình", "test"],
+    ["người khác", "admin"],
+  ])(
+    "ảnh do %s tải: chọn được để xuất bản, không còn câu đòi người khác",
+    async (_, uploadedBy) => {
+      setupUploadedBy(uploadedBy);
+      renderApp(gallery);
+      expect(
+        await screen.findByRole("checkbox", { name: "Chọn ảnh m-new.png để xuất bản" }),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/người khác cần xuất bản/)).not.toBeInTheDocument();
+    },
+  );
 });
 
 describe("VariantMediaGallery — thẻ nhỏ cột phải: trạng thái là chấm màu, không phải nhãn chữ che ảnh", () => {
@@ -171,5 +170,58 @@ describe("VariantMediaGallery — thẻ nhỏ cột phải: trạng thái là ch
     expect(label).toHaveClass("sr-only");
     expect(screen.getByTitle("Ảnh bìa, riêng tư")).toBeInTheDocument();
     expect(screen.queryByText("Riêng tư")).not.toBeInTheDocument();
+  });
+});
+
+describe("VariantMediaGallery — tên người tải lên / xuất bản (issue #286)", () => {
+  const gallery = (
+    <VariantMediaGallery
+      productId={PRODUCT}
+      variantId={VARIANT}
+      canUpload={false}
+      canManage={false}
+      canPublish={false}
+      canWithdraw={false}
+    />
+  );
+
+  it("hiện uploadedByName / publishedByName thay id người dùng", async () => {
+    installApi({
+      permissions: [PRODUCT_PERMISSIONS.read],
+      get: (url) =>
+        url === MEDIA_PATH
+          ? [
+              {
+                ...image("m-pub", true),
+                uploadedBy: "u-1111",
+                uploadedByName: "Nguyễn Thị Lan",
+                publishedBy: "u-2222",
+                publishedByName: "Trần Minh Quang",
+              },
+            ]
+          : undefined,
+    });
+    renderApp(gallery);
+    expect(
+      await screen.findByText("Tải lên: Nguyễn Thị Lan · Xuất bản: Trần Minh Quang"),
+    ).toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent(/u-1111|u-2222/);
+  });
+
+  it("BE chưa gửi tên: không hiện id / username thô; ảnh riêng tư không có dòng xuất bản", async () => {
+    installApi({
+      permissions: [PRODUCT_PERMISSIONS.read],
+      get: (url) =>
+        url === MEDIA_PATH
+          ? [
+              { ...image("m-new", false), uploadedBy: "u-3333", uploadedByName: "Lê Văn Bình" },
+              { ...image("m-old", false), uploadedBy: "u-4444" },
+            ]
+          : undefined,
+    });
+    renderApp(gallery);
+    expect(await screen.findByText("Tải lên: Lê Văn Bình")).toBeInTheDocument();
+    expect(screen.queryByText(/Xuất bản:/)).not.toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent(/u-3333|u-4444/);
   });
 });

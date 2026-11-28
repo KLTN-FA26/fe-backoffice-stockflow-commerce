@@ -31,6 +31,8 @@ export const COMPLETION_HOLD_LABELS = {
     note: "Ghi chú",
     heldAt: "Giữ lúc",
     heldBy: "Người giữ",
+    releasedAt: "Gỡ lúc",
+    releasedBy: "Người gỡ",
   },
   hold: {
     button: "Giữ hoàn tất",

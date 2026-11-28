@@ -37,8 +37,8 @@ function EntryMeta({ entry }: { entry: OrderHistoryEntry }) {
   );
 }
 
-/** Ghi chú của Sales (hoặc lý do / mã của bước đổi trạng thái). Trống thì không hiện. */
-function EntryNote({ entry }: { entry: OrderHistoryEntry }) {
+/** Ghi chú của mục đã đổi sang chữ người đọc (mã BE → nhãn tiếng Việt); không có thì `null`. */
+export function historyNoteText(entry: OrderHistoryEntry): string | null {
   if (!entry.reason) return null;
   // BE ghi lý do huỷ dạng "CODE: ghi chú" → nhãn tiếng Việt (lý do cũ tự do giữ nguyên)
   // Bước đổi trạng thái do đóng phần còn lại: "REMAINDER_CLOSED_<MÃ>: ghi chú" → nhãn tiếng Việt, không hiện mã thô
@@ -49,6 +49,13 @@ function EntryNote({ entry }: { entry: OrderHistoryEntry }) {
       : entry.kind === "status-change"
         ? (formatRemainderClosedStatusReason(entry.reason) ?? formatHistoryReason(entry.reason))
         : formatClosureNote(entry.reason);
+  return reason;
+}
+
+/** Ghi chú của Sales (hoặc lý do / mã của bước đổi trạng thái). Trống thì không hiện. */
+function EntryNote({ entry }: { entry: OrderHistoryEntry }) {
+  const reason = historyNoteText(entry);
+  if (!reason) return null;
   return (
     <p className="text-ink-secondary mt-1 text-[0.8125rem] break-words whitespace-pre-wrap">
       <span className="text-ink-tertiary">{L.noteLabel}: </span>
@@ -57,7 +64,7 @@ function EntryNote({ entry }: { entry: OrderHistoryEntry }) {
   );
 }
 
-function EntryHead({ entry }: { entry: OrderHistoryEntry }) {
+export function EntryHead({ entry }: { entry: OrderHistoryEntry }) {
   switch (entry.kind) {
     case "partial-shipment":
       // Quyết định của Sales — nổi bật khác hẳn một bước đổi trạng thái (không có from → to)

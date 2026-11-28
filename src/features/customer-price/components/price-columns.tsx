@@ -4,7 +4,7 @@ import { CUSTOMER_PRICE_UI_LABELS } from "@/constants";
 import { formatDecimalMoney, formatNumber } from "@/lib/format";
 import { RowActionsMenu } from "@/components/shared/RowActionsMenu";
 
-import { priceRange } from "../selectors";
+import { compareWholeDigits, priceRange } from "../selectors";
 
 import type { ColumnDef } from "@/components/shared/DataTable";
 import type { CustomerPrice } from "../schemas";
@@ -24,7 +24,17 @@ function rangeCell(price: CustomerPrice, which: "lowest" | "highest") {
   return <span className="tabular-nums">{vnd(range[which])}</span>;
 }
 
-/** Cột bảng giá của một khách — chỉ đọc, không có cột thao tác (sửa / xoá làm ở bước sau). */
+/** Giá có bậc không chính xác xếp sau cùng khi sắp theo giá (không so số không chắc chắn). */
+function compareRange(which: "lowest" | "highest") {
+  return (a: CustomerPrice, b: CustomerPrice) => {
+    const ra = priceRange(a);
+    const rb = priceRange(b);
+    if (ra.exact !== rb.exact) return ra.exact ? -1 : 1;
+    return compareWholeDigits(ra[which], rb[which]);
+  };
+}
+
+/** Cột bảng giá của một khách — sắp xếp được mọi cột trừ Ghi chú (lọc trên header gắn ở `price-header-filters`). */
 export const CUSTOMER_PRICE_COLUMNS: ColumnDef<CustomerPrice>[] = [
   {
     key: "sku",
@@ -49,10 +59,26 @@ export const CUSTOMER_PRICE_COLUMNS: ColumnDef<CustomerPrice>[] = [
     key: "tiers",
     header: L.table.tierCount,
     align: "right",
+    sortable: true,
+    compare: (a, b) => a.tiers.length - b.tiers.length,
     cell: (p) => <span className="tabular-nums">{p.tiers.length}</span>,
   },
-  { key: "lowest", header: L.table.lowest, align: "right", cell: (p) => rangeCell(p, "lowest") },
-  { key: "highest", header: L.table.highest, align: "right", cell: (p) => rangeCell(p, "highest") },
+  {
+    key: "lowest",
+    header: L.table.lowest,
+    align: "right",
+    sortable: true,
+    compare: compareRange("lowest"),
+    cell: (p) => rangeCell(p, "lowest"),
+  },
+  {
+    key: "highest",
+    header: L.table.highest,
+    align: "right",
+    sortable: true,
+    compare: compareRange("highest"),
+    cell: (p) => rangeCell(p, "highest"),
+  },
   {
     key: "note",
     header: L.field.note,

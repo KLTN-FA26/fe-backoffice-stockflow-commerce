@@ -6,9 +6,12 @@ import type { ColorMap } from "@/features/load-planning/lib/palette";
 export function ColorLegend({
   partNames,
   colorMap,
+  productNames,
 }: {
   partNames: readonly string[];
   colorMap: ColorMap;
+  /** Tên sản phẩm theo SKU (từ `packages[]`); hiện cạnh SKU khi có. */
+  productNames?: ReadonlyMap<string, string>;
 }) {
   return (
     <ul className="text-ink-secondary flex flex-wrap gap-x-4 gap-y-1 text-xs">
@@ -20,6 +23,9 @@ export function ColorLegend({
             style={{ backgroundColor: colorOf(colorMap, name) }}
           />
           {name}
+          {productNames?.get(name) && (
+            <span className="text-ink-tertiary">· {productNames.get(name)}</span>
+          )}
         </li>
       ))}
     </ul>

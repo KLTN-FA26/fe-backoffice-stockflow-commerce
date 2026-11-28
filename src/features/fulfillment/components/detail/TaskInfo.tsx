@@ -15,8 +15,8 @@ const DESTINATION = UI_LABELS.fulfillment.destination;
 const dt = (iso: string | null | undefined) => (iso ? formatDateTime(iso) : "—");
 
 /**
- * Thông tin task — chỉ field BE trả; số đơn tra thêm nếu đủ quyền. Không hiện dòng "Mã task": BE chưa có mã task đọc
- * được (chỉ UUID), nên không bịa mã và không để lộ UUID cho người dùng.
+ * Thông tin task — chỉ field BE trả; số đơn tra thêm nếu đủ quyền. Dòng "Mã task" hiện số task BE (`PK-yyyyMMdd-nnnn`,
+ * issue #286); BE cũ chưa gửi số → bỏ dòng, không bịa mã và không để lộ UUID cho người dùng.
  */
 export function TaskInfo({
   task,
@@ -32,6 +32,7 @@ export function TaskInfo({
   return (
     <Section title="Thông tin task">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+        {task.taskNumber && <InfoItem label={FIELD.task} value={task.taskNumber} mono />}
         <InfoItem
           label={FIELD.order}
           mono

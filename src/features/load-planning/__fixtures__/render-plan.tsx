@@ -5,13 +5,15 @@
 
 import { Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { vi } from "vitest";
 
 import {
   FULFILLMENT_CONTROLLED_CANCELLATION_PERMISSIONS,
   LOAD_PLAN_PERMISSIONS,
+  UI_LABELS,
 } from "@/constants";
 import { api } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/auth/auth-store";
@@ -130,3 +132,36 @@ export function renderLoadPlanScreen(ui: React.ReactElement, searchParams = "") 
     </QueryClientProvider>,
   );
 }
+
+const MORE = () => UI_LABELS.loadPlan.detail.actions.more;
+
+/**
+ * Nút hành động của đầu trang kế hoạch theo tên (S16-4): nút chính hiện sẵn, các nút còn lại nằm trong menu "Thao tác
+ * khác" — mở menu nếu cần. Chờ tới 0,5 s cho trang tải xong; `null` khi không có nút (hoặc không có menu).
+ */
+export async function planAction(
+  user: ReturnType<typeof userEvent.setup>,
+  name: string | RegExp,
+): Promise<HTMLElement | null> {
+  try {
+    await waitFor(
+      () => {
+        if (
+          !screen.queryByRole("button", { name }) &&
+          !screen.queryByRole("button", { name: MORE() })
+        )
+          throw new Error("chưa có nút");
+      },
+      { timeout: 500 },
+    );
+  } catch {
+    return null;
+  }
+  const direct = screen.queryByRole("button", { name });
+  if (direct) return direct;
+  await user.click(screen.getByRole("button", { name: MORE() }));
+  return screen.queryByRole("button", { name });
+}
+
+/** Như `planAction` cho test không có sẵn `user`. */
+export const planActionOf = (name: string | RegExp) => planAction(userEvent.setup(), name);

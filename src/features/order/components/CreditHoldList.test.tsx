@@ -39,12 +39,18 @@ const hold = {
 const APPROVE_PATH = `/orders/${apiOrder.orderId}/credit-approval`;
 const REJECT_PATH = `/orders/${apiOrder.orderId}/credit-rejection`;
 
-/** Duyệt / từ chối nằm trong menu "⋯" của dòng (`CreditHoldRowActions` → `RowActionsMenu`). */
+/**
+ * bo-21: "Duyệt" là nút ngay trên dòng; "Từ chối" (huỷ đơn) vẫn trong menu "⋯" của dòng (`CreditHoldRowActions`).
+ */
 async function clickCreditAction(
   user: ReturnType<typeof userEvent.setup>,
   action: "Duyệt công nợ" | "Từ chối",
   orderNumber: string = apiOrder.orderNumber,
 ) {
+  if (action === "Duyệt công nợ") {
+    await user.click(await screen.findByRole("button", { name: `Duyệt công nợ — ${orderNumber}` }));
+    return;
+  }
   await user.click(await screen.findByRole("button", { name: `Thao tác — ${orderNumber}` }));
   await user.click(await screen.findByRole("button", { name: action }));
 }
@@ -60,6 +66,7 @@ function renderList(
 ) {
   const get = mockOrderApiGet(permissions, {
     "/orders/credit-holds": () => apiOrderPage(items as never[]),
+    "/orders/contract-credit-reviews": () => apiOrderPage([]),
     ...positions,
   });
   renderOrderScreen(<CreditHoldList />);
@@ -119,15 +126,20 @@ describe("Credit hold — danh sách (SCRUM-427)", () => {
     expect(screen.queryByText(/Lý do giữ/)).not.toBeInTheDocument();
   });
 
-  it("ACCOUNTANT (APPROVE) thấy Duyệt / Từ chối; mã đơn không là link (không có quyền sales-orders)", async () => {
+  it("ACCOUNTANT (APPROVE) thấy nút Duyệt ngay trên dòng, Từ chối trong ⋯; mã đơn không là link (không có quyền sales-orders)", async () => {
     renderList(ORDER_PERMISSION_SETS.accountant);
 
     const user = userEvent.setup();
+    const row = (await screen.findByText(apiOrder.orderNumber)).closest("tr") as HTMLElement;
+    // bo-21: việc chính của hàng chờ là một nút trên dòng, không phải bấm "⋯" rồi mới thấy
+    expect(
+      within(row).getByRole("button", { name: `Duyệt công nợ — ${apiOrder.orderNumber}` }),
+    ).toBeEnabled();
     await user.click(
       await screen.findByRole("button", { name: `Thao tác — ${apiOrder.orderNumber}` }),
     );
     const menu = await screen.findByRole("dialog");
-    expect(within(menu).getByRole("button", { name: "Duyệt công nợ" })).toBeEnabled();
+    expect(within(menu).queryByRole("button", { name: "Duyệt công nợ" })).not.toBeInTheDocument();
     expect(within(menu).getByRole("button", { name: "Từ chối" })).toBeEnabled();
     await user.keyboard("{Escape}");
     // G. mã đơn vẫn hiện nhưng không là link tới trang đơn bị chặn
@@ -154,7 +166,9 @@ describe("Credit hold — danh sách (SCRUM-427)", () => {
     [
       "thiếu quyền xem trang khách",
       [
-        ...ORDER_PERMISSION_SETS.accountant.filter((code) => code !== CUSTOMER_PERMISSIONS.viewPage),
+        ...ORDER_PERMISSION_SETS.accountant.filter(
+          (code) => code !== CUSTOMER_PERMISSIONS.viewPage,
+        ),
         CREDIT_PROFILE_PERMISSIONS.approve,
       ],
     ],
@@ -183,7 +197,7 @@ describe("Credit hold — danh sách (SCRUM-427)", () => {
     );
   });
 
-  it("BO-UX-32: dòng giữ vì nợ quá hạn có số quá hạn hiện tại + số ngày; cột Chờ duyệt; thao tác ghim phải", async () => {
+  it("BO-UX-32 / bo-21: dòng giữ vì nợ quá hạn hiện số quá hạn hiện tại + số ngày ngay trong ô tình trạng; cột Chờ duyệt; thao tác ghim phải", async () => {
     vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-11-12T03:00:00Z") });
     try {
       renderList(ORDER_PERMISSION_SETS.accountant, [{ ...hold, exposure: 200_000 }], {
@@ -199,8 +213,13 @@ describe("Credit hold — danh sách (SCRUM-427)", () => {
       expect(within(row).getByText("quá hạn 10 ngày")).toBeInTheDocument();
       // checkedAt 2026-09-07 → 66 ngày chờ
       expect(within(row).getByText("66 ngày")).toBeInTheDocument();
-      expect(screen.getByRole("columnheader", { name: "Quá hạn hiện tại" })).toBeInTheDocument();
-      expect(screen.getByRole("columnheader", { name: "Thao tác" }).className).toContain("sticky");
+      // Số quá hạn nằm trong ô "Tình trạng công nợ", không còn cột riêng nằm ngoài màn hình
+      expect(
+        screen.queryByRole("columnheader", { name: "Quá hạn hiện tại" }),
+      ).not.toBeInTheDocument();
+      expect(screen.getAllByRole("columnheader", { name: "Thao tác" })[0].className).toContain(
+        "sticky",
+      );
     } finally {
       vi.useRealTimers();
     }
@@ -350,7 +369,7 @@ describe("Credit hold — vị thế tín dụng của khách", { timeout: DIALO
     const panel = await within(dialog).findByRole("region", { name: "Vị thế tín dụng của khách" });
     expect(panel).toHaveTextContent(/300\.000\.000/);
     expect(panel).toHaveTextContent(/Có quá hạn: 41\.195\.000/);
-    expect(panel).toHaveTextContent(/cũ nhất từ ngày 2 thg 11, 2026/);
+    expect(panel).toHaveTextContent(/cũ nhất từ ngày 02\/11\/2026/);
     expect(callsTo(get, POSITION_PATH)).toBe(1);
   });
 
@@ -595,5 +614,35 @@ describe("Credit hold — Idempotency-Key", { timeout: DIALOG_FLOW_TIMEOUT_MS },
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expect(await screen.findByText("Không có đơn chờ duyệt công nợ")).toBeInTheDocument();
     expect(post).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("bo-21: hai hàng chờ là hai tab có số đếm", () => {
+  it("tab Đơn chờ duyệt / Hợp đồng chờ duyệt trước khi gửi mang số đếm; bấm tab hợp đồng mở hàng chờ hợp đồng", async () => {
+    mockOrderApiGet(ORDER_PERMISSION_SETS.accountant, {
+      "/orders/credit-holds": () => apiOrderPage([hold] as never[]),
+      "/orders/contract-credit-reviews": () => ({ ...apiOrderPage([]), totalElements: 3 }),
+      [POSITION_PATH]: () => apiCreditPosition,
+    });
+    renderOrderScreen(<CreditHoldList />);
+    expect(await screen.findByRole("tab", { name: /Đơn chờ duyệt\s*1/ })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    const contracts = await screen.findByRole("tab", {
+      name: /Hợp đồng chờ duyệt trước khi gửi\s*3/,
+    });
+    await userEvent.click(contracts);
+    expect(await screen.findByText("Không có hợp đồng chờ duyệt")).toBeInTheDocument();
+    expect(screen.queryByText(apiOrder.orderNumber)).not.toBeInTheDocument();
+  });
+
+  it("dòng giữ vì nợ quá hạn mà khách nay đã trả → nói rõ 'Hiện không còn quá hạn'", async () => {
+    renderList(ORDER_PERMISSION_SETS.accountant, [{ ...hold, exposure: 200_000 }], {
+      [POSITION_PATH]: () => ({ ...apiCreditPosition, overdueAmount: 0 }),
+    });
+    const row = (await screen.findByText(apiOrder.orderNumber)).closest("tr") as HTMLElement;
+    expect(await within(row).findByText("Hiện không còn quá hạn")).toBeInTheDocument();
+    expect(within(row).getByText("Khách có công nợ quá hạn")).toBeInTheDocument();
   });
 });

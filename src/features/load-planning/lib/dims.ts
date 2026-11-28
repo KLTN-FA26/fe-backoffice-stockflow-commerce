@@ -73,6 +73,13 @@ export function matchesOrientation(box: LayoutBox, toleranceMm = 1): boolean {
 }
 
 export function formatM3(mm3: number): string {
-  const m3 = mm3 / MM3_PER_M3;
-  return `${m3.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m³`;
+  return `${formatM3Value(mm3)} m³`;
+}
+
+/** Số mét khối, hai số lẻ, không đơn vị: 930_000_000 mm³ → "0,93" (đơn vị do nơi dùng ghi). */
+export function formatM3Value(mm3: number): string {
+  return (mm3 / MM3_PER_M3).toLocaleString("vi-VN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }

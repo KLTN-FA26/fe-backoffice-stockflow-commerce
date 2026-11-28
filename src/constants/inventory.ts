@@ -208,6 +208,14 @@ export const INVENTORY_LABELS = {
   requestedAt: "Ngày yêu cầu",
   requestedBy: "Người yêu cầu",
   decidedBy: "Người quyết định",
+  // Phiếu do kiểm kê sinh ra: người đã đếm dòng đó (cũng không được tự duyệt)
+  countedBy: "Người đếm",
+  // Sổ biến động: người thực hiện; dòng không có người (hệ thống) → "Hệ thống"
+  actor: "Người thực hiện",
+  systemActor: "Hệ thống",
+  // Dòng điều chỉnh: `actorId` là người duyệt, kèm người đề nghị / người đếm ở dòng phụ
+  requestedByLine: (name: string) => `Đề nghị: ${name}`,
+  countedByLine: (name: string) => `Đếm: ${name}`,
   decidedAt: "Thời điểm quyết định",
   postedAt: "Thời điểm ghi sổ",
   withdrawnAt: "Thời điểm rút yêu cầu",

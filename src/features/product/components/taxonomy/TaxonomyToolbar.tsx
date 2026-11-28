@@ -36,6 +36,8 @@ export function TaxonomyToolbar({
       onSearchChange={s.setQ}
       searchPlaceholder={searchPlaceholder}
       statusOptions={TAXONOMY_STATUS_OPTIONS}
+      // Trạng thái đã lọc được trên header cột → không thêm nút chọn nhanh
+      statusInHeader
       selectedStatuses={s.status ? [s.status] : []}
       onToggleStatus={(value) => s.setStatus(s.status === value ? null : value)}
       onClearStatuses={() => s.setStatus(null)}

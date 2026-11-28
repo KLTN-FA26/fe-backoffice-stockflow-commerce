@@ -12,6 +12,14 @@ export const CANCELLATION_REQUEST_STATUS_DISPLAY = {
   EXPIRED: "Expired",
 } as const;
 
+/** BE `CancellationRequestStatus` — giá trị lọc được của `GET /orders/cancellation-requests?status`. */
+export const CANCELLATION_REQUEST_STATUSES = [
+  "PENDING",
+  "APPROVED",
+  "REJECTED",
+  "EXPIRED",
+] as const;
+
 export const CANCELLATION_REQUEST_LABELS = {
   /** Tên mục menu + tiêu đề trang hàng đợi. */
   title: "Yêu cầu huỷ đơn",
@@ -45,6 +53,21 @@ export const CANCELLATION_REQUEST_LABELS = {
     noteClampChars: 120,
   },
   caption: (shown: number, total: number) => `Hiển thị ${shown} / ${total} yêu cầu`,
+  /** Toolbar + lọc trên header cột của hàng đợi (data-table-mode-a §2, §4.1). */
+  list: {
+    /** BE chỉ nhận status / orderId → ô tìm chỉ xét trang đang xem, nói rõ ngay trong ô. */
+    search: "Tìm trong trang đang xem: mã đơn, khách hàng, lý do, ghi chú…",
+    columnSearch: (label: string) => `Tìm theo ${label.toLocaleLowerCase("vi")}…`,
+    reasonSearch: "Tìm lý do…",
+    reasonEmpty: "Không có lý do",
+    statusFilter: "Trạng thái",
+    statusAll: "Tất cả",
+    /** Hàng đợi mặc định chỉ lấy yêu cầu đang chờ — chọn trạng thái khác để xem yêu cầu đã xử lý. */
+    noMatchStatus: "Không có yêu cầu nào ở trạng thái đã chọn.",
+    pageCaption: (shown: number, onPage: number) =>
+      `${shown} / ${onPage} yêu cầu trên trang đang xem khớp bộ lọc`,
+    noMatch: "Không có yêu cầu nào trên trang đang xem khớp từ khoá hoặc bộ lọc.",
+  },
   /** Thẻ "Yêu cầu huỷ" trên trang chi tiết đơn. */
   card: {
     title: "Yêu cầu huỷ của khách",
@@ -55,6 +78,9 @@ export const CANCELLATION_REQUEST_LABELS = {
     decidedAt: (when: string) => `Quyết định lúc ${when}`,
     customerNote: "Ghi chú của khách",
     decisionNote: "Ghi chú quyết định",
+    /** Tên người gửi / người quyết BE kèm (`requestedByName` / `decidedByName`, issue #286). */
+    requestedBy: "Người gửi",
+    decidedBy: "Người quyết",
     retained: (percent: string) => `Giữ ${percent}% số tiền đã thu`,
     history: "Các yêu cầu trước",
   },

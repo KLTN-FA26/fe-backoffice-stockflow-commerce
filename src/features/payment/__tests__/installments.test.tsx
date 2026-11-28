@@ -3,10 +3,12 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ORDER_PERMISSIONS } from "@/constants";
+import { addDays } from "@/lib/date-range";
 import { apiError, bePage } from "@/test/api-screen";
 import "@/test/jsdom-popover";
 
 import { InstallmentList } from "..";
+import { todayInVietnam } from "../input-schemas";
 import {
   ACCOUNTANT_GRANTS,
   PAGE_ONLY_GRANTS,
@@ -51,6 +53,15 @@ const listRoutes = (items: unknown[] = [due, paid, overdue]) => ({
   "/installments": () => bePage(items),
 });
 
+type GetSpy = { mock: { calls: unknown[][] } };
+const paramsOf = (call: unknown[] | undefined) =>
+  (call?.[1] as { params: URLSearchParams } | undefined)?.params;
+/** Lần gọi `/installments` của bảng — bỏ ba lần đếm của dải số liệu đầu trang (`size=1`). */
+const tableCalls = (api: { get: GetSpy }) =>
+  api.get.mock.calls.filter(
+    (call) => call[0] === "/installments" && paramsOf(call)?.get("size") !== "1",
+  );
+
 describe("InstallmentList — the customer is named, not an id (QA A5, BE-15)", () => {
   it("shows the customer name the BE sends and never asks the customer directory the accountant cannot read", async () => {
     const api = mockPaymentApi(ACCOUNTANT_GRANTS, {
@@ -83,27 +94,33 @@ describe("InstallmentList — what the accountant sees (docs 15 §5.1)", () => {
     mockPaymentApi(ACCOUNTANT_GRANTS, { get: listRoutes() });
     renderPaymentScreen(<InstallmentList />);
     const row = (await screen.findAllByText("HD-20261108-000013-1"))[0]!.closest("tr")!;
-    expect(within(row).getByText("Trước khi giao")).toBeInTheDocument();
     expect(within(row).getByText("Đến hạn")).toBeInTheDocument();
+    // bo-22: "Mốc" ẩn mặc định (tên đợt đã nói mốc) — bật lại qua Chọn cột hiển thị
+    expect(within(row).queryByText("Trước khi giao")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Chọn cột hiển thị" }));
+    await userEvent.click(await screen.findByRole("option", { name: "Mốc" }));
+    expect(await within(row).findByText("Trước khi giao")).toBeInTheDocument();
     expect(screen.getByText("Đã thanh toán")).toBeInTheDocument();
     expect(screen.getByText(/^Quá hạn \d+ ngày$/)).toBeInTheDocument();
-    // BO-UX-38: "Đợt giao" ẩn mặc định — bật lại qua Ẩn hiện cột thì thấy đợt giao + chặn bàn giao
+    // BO-UX-38: "Đợt giao" ẩn mặc định — bật lại qua Chọn cột hiển thị thì thấy đợt giao + chặn bàn giao
     expect(within(row).queryByText("Đợt giao 1")).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Ẩn hiện cột" }));
     await userEvent.click(await screen.findByRole("option", { name: "Đợt giao" }));
     expect(await within(row).findByText("Đợt giao 1")).toBeInTheDocument();
     expect(within(row).getByText("Đang chặn bàn giao")).toBeInTheDocument();
     localStorage.clear();
   });
 
-  it("BO-UX-38: 'Hạn trả' and 'Còn phải thu' come before the order and milestone; actions pinned right", async () => {
+  it("BO-UX-38: 'Hạn trả' and 'Còn phải thu' come before the order; 'Đã thu' / 'Mốc' hidden so actions fit; actions pinned right", async () => {
     mockPaymentApi(ACCOUNTANT_GRANTS, { get: listRoutes() });
     renderPaymentScreen(<InstallmentList />);
     await screen.findAllByText("HD-20261108-000013-1");
     const headers = screen.getAllByRole("columnheader").map((cell) => cell.textContent ?? "");
     const at = (name: string) => headers.findIndex((text) => text.startsWith(name));
     expect(at("Hạn trả")).toBeLessThan(at("Đơn hàng"));
-    expect(at("Còn phải thu")).toBeLessThan(at("Mốc"));
+    expect(at("Còn phải thu")).toBeLessThan(at("Đơn hàng"));
+    // bo-22: bảng vừa 1440px — "Đã thu" (= số tiền − còn phải thu) và "Mốc" ẩn mặc định
+    expect(at("Đã thu")).toBe(-1);
+    expect(at("Mốc")).toBe(-1);
     expect(screen.getByRole("columnheader", { name: "Thao tác" }).className).toContain("sticky");
   });
 
@@ -162,10 +179,8 @@ describe("InstallmentList — what the accountant sees (docs 15 §5.1)", () => {
       <InstallmentList />,
       "?owing=true&overdue=true&customerId=cust-9&dueBefore=2026-12-01",
     );
-    await screen.findByText(/^Quá hạn/);
-    const params = api.get.mock.calls.find(([url]) => url === "/installments")?.[1] as {
-      params: URLSearchParams;
-    };
+    await screen.findByText(/^Quá hạn \d+ ngày$/);
+    const params = tableCalls(api)[0]?.[1] as { params: URLSearchParams };
     expect(params.params.has("status")).toBe(false);
     expect(params.params.has("milestone")).toBe(false);
     expect(params.params.has("reached")).toBe(false);
@@ -187,8 +202,7 @@ describe("InstallmentList — what the accountant sees (docs 15 §5.1)", () => {
     renderPaymentScreen(<InstallmentList />, "?owing=true");
     await userEvent.click(await screen.findByRole("button", { name: "Công nợ phải thu" }));
     await waitFor(() => {
-      const calls = api.get.mock.calls.filter(([url]) => url === "/installments");
-      expect((calls.at(-1)?.[1] as { params: URLSearchParams }).params.has("owing")).toBe(false);
+      expect(paramsOf(tableCalls(api).at(-1))?.has("owing")).toBe(false);
     });
     expect(screen.getByRole("button", { name: "Công nợ phải thu" })).toHaveAttribute(
       "aria-pressed",
@@ -199,7 +213,7 @@ describe("InstallmentList — what the accountant sees (docs 15 §5.1)", () => {
   it("BE-16: the customer search box sends search= (debounced) and resets to page 1; /customers is never asked", async () => {
     const api = mockPaymentApi(ACCOUNTANT_GRANTS, { get: listRoutes([due]) });
     renderPaymentScreen(<InstallmentList />);
-    const calls = () => api.get.mock.calls.filter(([url]) => url === "/installments");
+    const calls = () => tableCalls(api);
     await userEvent.type(await screen.findByRole("textbox", { name: /Tìm khách/ }), "an phat");
     await waitFor(() =>
       expect((calls().at(-1)?.[1] as { params: URLSearchParams }).params.get("search")).toBe(
@@ -227,41 +241,39 @@ describe("InstallmentList — what the accountant sees (docs 15 §5.1)", () => {
     expect(await screen.findByText("Có quá nhiều khách khớp — gõ cụ thể hơn")).toBeInTheDocument();
   });
 
-  it("WF-02 35: picking an order in the search box filters /installments by orderId; the accountant never asks /customers", async () => {
-    const api = mockPaymentApi(ACCOUNTANT_GRANTS, {
-      get: {
-        ...listRoutes([due]),
-        "/orders": () =>
-          bePage([
-            {
-              orderId: "ord-13",
-              orderNumber: "SO-20261108-000013",
-              customerId: "cust-9",
-              customerName: "Công ty Bao Bì An Phát",
-            },
-          ]),
-      },
-    });
+  it("TU-3: one plain search box only (no second order combobox); the typed text goes to the one existing search=", async () => {
+    const api = mockPaymentApi(ACCOUNTANT_GRANTS, { get: listRoutes([due]) });
     renderPaymentScreen(<InstallmentList />);
-    await userEvent.type(await screen.findByRole("combobox", { name: /Tìm đơn/ }), "SO-2026");
-    await userEvent.click(await screen.findByRole("option", { name: /SO-20261108-000013/ }));
+    expect(await screen.findByRole("textbox", { name: /Tìm khách/ })).toBeInTheDocument();
+    // The old second field "Tìm đơn (số đơn, tên liên hệ, SĐT)" is gone; nothing opens a list or asks /orders.
+    expect(screen.queryByRole("combobox", { name: /Tìm đơn/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    await userEvent.type(screen.getByRole("textbox", { name: /Tìm khách/ }), "tra sua");
     await waitFor(() => {
-      const calls = api.get.mock.calls.filter(([url]) => url === "/installments");
+      const calls = tableCalls(api);
+      expect((calls.at(-1)?.[1] as { params: URLSearchParams }).params.get("search")).toBe(
+        "tra sua",
+      );
+    });
+    expect(api.get.mock.calls.some(([url]) => url === "/orders")).toBe(false);
+  });
+
+  it("WF-02 35: an old ?orderId= link still filters by orderId, names the order in the chip, one click narrows to its customer", async () => {
+    const api = mockPaymentApi(ACCOUNTANT_GRANTS, { get: listRoutes([due]) });
+    renderPaymentScreen(<InstallmentList />, "?orderId=ord-13");
+    await waitFor(() => {
+      const calls = tableCalls(api);
       expect((calls.at(-1)?.[1] as { params: URLSearchParams }).params.get("orderId")).toBe(
         "ord-13",
       );
     });
-    const search = api.get.mock.calls.find(([url]) => url === "/orders")?.[1] as {
-      params: URLSearchParams;
-    };
-    expect(search.params.get("search")).toBe("SO-2026");
     // The chip names the order (from the filtered rows), then one click narrows to the order's customer.
     expect(
       await screen.findByText("SO-20261108-000013", { selector: "span.font-mono" }),
     ).toBeVisible();
     await userEvent.click(screen.getByRole("button", { name: "Lọc theo khách của đơn" }));
     await waitFor(() => {
-      const calls = api.get.mock.calls.filter(([url]) => url === "/installments");
+      const calls = tableCalls(api);
       expect((calls.at(-1)?.[1] as { params: URLSearchParams }).params.get("customerId")).toBe(
         "cust-9",
       );
@@ -271,7 +283,13 @@ describe("InstallmentList — what the accountant sees (docs 15 §5.1)", () => {
 
   it("empty list vs filtered-out list are two different messages", async () => {
     mockPaymentApi(ACCOUNTANT_GRANTS, { get: listRoutes([]) });
-    const view = renderPaymentScreen(<InstallmentList />);
+    let view = renderPaymentScreen(<InstallmentList />);
+    // Hàng việc mặc định rỗng: không còn gì phải thu — không phải "lọc không ra"
+    expect(await screen.findByText("Không còn đợt nào cần thu")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Xem mọi đợt" })).toBeInTheDocument();
+    view.unmount();
+    mockPaymentApi(ACCOUNTANT_GRANTS, { get: listRoutes([]) });
+    view = renderPaymentScreen(<InstallmentList />, "?owing=false");
     expect(await screen.findByText("Chưa có đợt thanh toán")).toBeInTheDocument();
     view.unmount();
     mockPaymentApi(ACCOUNTANT_GRANTS, { get: listRoutes([]) });
@@ -410,5 +428,75 @@ describe("InstallmentList — order number links only with the order page (AUTH-
       "href",
       `/admin/orders/${due.orderId}`,
     );
+  });
+});
+
+describe("InstallmentList — the accountant's queue by default (bo-22)", () => {
+  it("opens on 'Công nợ phải thu' (owing=true), earliest due first; turning it off stays on the URL as owing=false", async () => {
+    const api = mockPaymentApi(ACCOUNTANT_GRANTS, { get: listRoutes([due, overdue]) });
+    renderPaymentScreen(<InstallmentList />);
+    await screen.findAllByText("HD-20261108-000013-1");
+    expect(paramsOf(tableCalls(api)[0])?.get("owing")).toBe("true");
+    // BE xếp theo hạn trả tăng dần khi không gửi sort — header nói đúng điều đó
+    const dueHeader = screen.getByRole("columnheader", { name: /Hạn trả/ });
+    expect(dueHeader.querySelector(".lucide-chevron-up")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Công nợ phải thu" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Công nợ phải thu" }));
+    await waitFor(() => expect(paramsOf(tableCalls(api).at(-1))?.has("owing")).toBe(false));
+  });
+
+  it("a status, a customer or an order on the URL shows every installment of it (no owing by default)", async () => {
+    const api = mockPaymentApi(ACCOUNTANT_GRANTS, { get: listRoutes([paid]) });
+    renderPaymentScreen(<InstallmentList />, "?customerId=cust-9");
+    await screen.findByText("Đã thanh toán");
+    expect(paramsOf(tableCalls(api)[0])?.has("owing")).toBe(false);
+    expect(paramsOf(tableCalls(api)[0])?.get("customerId")).toBe("cust-9");
+  });
+
+  it("the overdue due date is red with an icon in its cell", async () => {
+    mockPaymentApi(ACCOUNTANT_GRANTS, { get: listRoutes([overdue]) });
+    renderPaymentScreen(<InstallmentList />);
+    const date = await screen.findByText("30/10/2026");
+    expect(date.className).toContain("text-danger");
+  });
+
+  it("counts due today, due within 7 days and overdue from one-row pages of the same endpoint, each a link", async () => {
+    const counts: Record<string, number> = { today: 2, week: 5, overdue: 7 };
+    const api = mockPaymentApi(ACCOUNTANT_GRANTS, {
+      get: {
+        "/installments": (params) => {
+          const p = params as URLSearchParams;
+          if (p.get("size") !== "1") return bePage([due]);
+          const key =
+            p.get("overdue") === "true"
+              ? "overdue"
+              : p.get("dueBefore") === addDays(todayInVietnam(), 1)
+                ? "today"
+                : "week";
+          return { ...bePage([]), totalElements: counts[key] };
+        },
+      },
+    });
+    renderPaymentScreen(<InstallmentList />);
+    const strip = await screen.findByRole("region", { name: "Đợt cần thu" });
+    expect(await within(strip).findByText("7")).toBeInTheDocument();
+    expect(within(strip).getByText("2")).toBeInTheDocument();
+    expect(within(strip).getByText("5")).toBeInTheDocument();
+    const kpiCalls = api.get.mock.calls.filter(
+      (call) => call[0] === "/installments" && paramsOf(call)?.get("size") === "1",
+    );
+    expect(kpiCalls.every((call) => paramsOf(call)?.get("owing") === "true")).toBe(true);
+    expect(within(strip).getByRole("link", { name: /Quá hạn/ })).toHaveAttribute(
+      "href",
+      "/admin/payment/installments?owing=true&overdue=true",
+    );
+    expect(
+      within(strip)
+        .getByRole("link", { name: /hôm nay/ })
+        .getAttribute("href"),
+    ).toContain(`overdue=false&dueBefore=${addDays(todayInVietnam(), 1)}`);
   });
 });

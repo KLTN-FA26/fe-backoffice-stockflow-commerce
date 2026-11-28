@@ -22,7 +22,9 @@ const {
   pushMock,
   refetchMock,
   transitionMutateMock,
+  useCategoriesMock,
 } = vi.hoisted(() => ({
+  useCategoriesMock: vi.fn(() => ({ data: { items: [] }, isLoading: false })),
   transitionMutateMock: vi.fn(),
   useProductMock: vi.fn(),
   discontinueMutateMock: vi.fn(),
@@ -48,7 +50,7 @@ vi.mock("@/features/product", async () => {
     ...actual,
     useProduct: useProductMock,
     useVariants: () => ({ data: [], isLoading: false }),
-    useCategories: () => ({ data: { items: [] }, isLoading: false }),
+    useCategories: useCategoriesMock,
     useTransitionProduct: () => ({ ...idle, mutate: transitionMutateMock }),
     usePublishProduct: () => idle,
     useUnpublishProduct: () => idle,
@@ -85,13 +87,11 @@ const product = (status: Product["status"], version = 3): Product => ({
   productId: "product-1",
   code: "PRD-1",
   name: "Ly giấy",
-  nameEn: "Paper cup",
   type: "Standard",
   categoryId: null,
   status,
   version,
   description: "",
-  descriptionEn: "",
   images: [],
   taxClass: "standard",
   brand: "Brand",
@@ -441,7 +441,7 @@ describe("ProductDetail — mục Mô tả", () => {
 
   it("mô tả rỗng (BE không trả / chuỗi trắng): hiện 'Chưa có mô tả', không để mục trống", async () => {
     useProductMock.mockReturnValue({
-      data: { ...product(PRODUCT_STATUS.DRAFT), description: "  ", descriptionEn: "" },
+      data: { ...product(PRODUCT_STATUS.DRAFT), description: "  " },
       isLoading: false,
       refetch: refetchMock,
     });
@@ -449,19 +449,19 @@ describe("ProductDetail — mục Mô tả", () => {
     expect(await screen.findByText(`${UI_LABELS.product.description.empty}.`)).toBeInTheDocument();
   });
 
-  it("có mô tả: hiện cả tiếng Việt lẫn tiếng Anh", async () => {
+  it("có mô tả (HTML của Tiptap, ADR-0013): hiện có định dạng, bỏ thẻ ngoài danh sách cho phép", async () => {
     useProductMock.mockReturnValue({
       data: {
         ...product(PRODUCT_STATUS.DRAFT),
-        description: "Ly giấy 2 lớp",
-        descriptionEn: "Double-wall paper cup",
+        description: "<p>Ly giấy <strong>2 lớp</strong></p><script>alert(1)</script>",
       },
       isLoading: false,
       refetch: refetchMock,
     });
     await openDescription();
-    expect(await screen.findByText("Ly giấy 2 lớp")).toBeInTheDocument();
-    expect(screen.getByText("Double-wall paper cup")).toBeInTheDocument();
+    const bold = (await screen.findAllByText("2 lớp"))[0];
+    expect(bold.tagName).toBe("STRONG");
+    expect(bold.closest(".rich-text")?.querySelector("script")).toBeNull();
     expect(screen.queryByText(`${UI_LABELS.product.description.empty}.`)).not.toBeInTheDocument();
   });
 });
@@ -564,5 +564,24 @@ describe("ProductDetail — lỗi tải: chỉ 404 mới là không tìm thấy 
     renderError(new ApiError(403, "FORBIDDEN", "Forbidden"));
     expect(await screen.findByText(UI_LABELS.loadError.forbiddenTitle)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: UI_LABELS.common.retry })).not.toBeInTheDocument();
+  });
+});
+
+describe("ProductDetail — tên cạnh id (issue #286)", () => {
+  it("hiện categoryName của sản phẩm, không tải danh sách danh mục chỉ để tra tên", async () => {
+    useProductMock.mockReturnValue({
+      data: {
+        ...product(PRODUCT_STATUS.PUBLISHED),
+        categoryId: "cat-1",
+        categoryName: "Ly giấy 2 lớp",
+      },
+      isLoading: false,
+      refetch: refetchMock,
+    });
+    await renderDetail();
+    const profile = screen.getByRole("region", { name: "Hồ sơ sản phẩm" });
+    expect(within(profile).getByText("Ly giấy 2 lớp")).toBeInTheDocument();
+    expect(within(profile).queryByText("cat-1")).not.toBeInTheDocument();
+    expect(useCategoriesMock).not.toHaveBeenCalled();
   });
 });

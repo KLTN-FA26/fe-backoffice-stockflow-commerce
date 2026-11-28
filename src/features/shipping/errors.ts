@@ -35,6 +35,25 @@ export function wrongVehicleOf(error: unknown): { seq: string; loadCode?: string
   return seq ? { seq, loadCode: error.fieldErrors?.loadCode || undefined } : undefined;
 }
 
+/** Hãng viết lý do dạng "406 INVALID_SERVICE_HOUR: Booking time not valid" (BE `AhamoveGateway`). */
+const DESCRIBED_REFUSAL = /^\d{3}\s+[A-Z][A-Z0-9_]{2,63}(?::\s*([\s\S]*))?$/;
+
+/**
+ * Lý do hãng từ chối khi BE chưa dịch: bỏ phần "406 INVALID_SERVICE_HOUR" (không hiện mã thô — R7), giữ lời của hãng.
+ * Rỗng khi hãng chỉ gửi mã.
+ */
+export function carrierRefusalWords(raw: string): string {
+  const match = DESCRIBED_REFUSAL.exec(raw.trim());
+  return match ? (match[1] ?? "").trim() : raw.trim();
+}
+
+/** Mã lỗi hãng mà BE đã dịch (BE PR #481: `fieldErrors[].code` giữ mã, câu nói kiểm gì / ai làm). */
+export function carrierRefusalCode(error: unknown): string | undefined {
+  return error instanceof ApiError && error.code === "CARRIER_BOOKING_FAILED"
+    ? error.fieldCodes?.carrier
+    : undefined;
+}
+
 /**
  * Câu tiếng Việt cho lỗi; BE nêu tên lô giao thì thêm tiền tố "Lô <mã>". BE gắn `shipmentCode` vào MỌI
  * lỗi phía đơn khi bàn giao (đơn huỷ, lô xung đột, vượt số lượng…): mã chưa biết mà có tên lô vẫn nói
@@ -51,9 +70,14 @@ export function shippingErrorMessage(error: unknown): string {
         )
       : SHIPPING_WRONG_VEHICLE_NO_CODE_MESSAGE.replace("{seq}", wrongVehicle.seq);
   }
-  // Hãng từ chối tạo đơn: BE gửi lý do của hãng ở `fieldErrors.carrier`
+  // Hãng từ chối tạo đơn: BE gửi lý do ở `fieldErrors.carrier`. Mã hãng BE biết thì câu đã là lời hướng dẫn tiếng Việt
+  // (kiểm gì, ai làm) — hiện nguyên văn, không thêm tiền tố, không lặp mã. Mã lạ: lời của hãng, bỏ phần mã thô.
   if (error.code === "CARRIER_BOOKING_FAILED" && error.fieldErrors?.carrier) {
-    return `${SHIPPING_ERROR_MESSAGES.CARRIER_BOOKING_FAILED} Lý do hãng nêu: ${error.fieldErrors.carrier}`;
+    if (carrierRefusalCode(error)) return error.fieldErrors.carrier;
+    const words = carrierRefusalWords(error.fieldErrors.carrier);
+    return words
+      ? `${SHIPPING_ERROR_MESSAGES.CARRIER_BOOKING_FAILED} Lý do hãng nêu: ${words}`
+      : SHIPPING_ERROR_MESSAGES.CARRIER_BOOKING_FAILED;
   }
   const shipmentCode = shipmentCodeOf(error);
   if (!isKnownErrorCode(error.code)) {

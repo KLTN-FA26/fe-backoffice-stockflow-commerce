@@ -3,7 +3,12 @@
 import { UI_LABELS } from "@/constants";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Label } from "@/components/ui/label";
-import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/shared/combobox-select";
+import {
+  Select,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/shared/combobox-select";
 import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 
 import { FieldError } from "../primitives";

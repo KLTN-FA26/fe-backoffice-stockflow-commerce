@@ -14,6 +14,7 @@ import {
   receiptSummaryDtoSchema,
   receivablePageDtoSchema,
   receivableReportDtoSchema,
+  receivableTotalsSchema,
 } from "./schemas";
 
 import type {
@@ -30,6 +31,7 @@ import type {
   ReceiptInput,
   ReceiptSummary,
   Receivable,
+  ReceivableTotals,
   RefundRecordInput,
   VoidInput,
 } from "./types";
@@ -110,6 +112,11 @@ export interface ListReceiptParams extends ListQueryParams {
   status?: ReceiptApiStatus;
   /** Mã tham chiếu sao kê — BE khớp chính xác. */
   reference?: string;
+  /**
+   * bo-24 (BE PR #497): một phần tên / MST khách, số hợp đồng hoặc số đơn của đợt phiếu đã trả. Danh sách, `/summary` và
+   * `/export` cùng nhận; BE cũ bỏ qua.
+   */
+  search?: string;
   /** `YYYY-MM-DD`, gồm cả hai đầu; từ > đến thì BE trả 400 `VALIDATION_FAILED` nên FE chặn trước. */
   receivedFrom?: string;
   receivedTo?: string;
@@ -130,13 +137,14 @@ export async function listReceipts(
 /** Bộ lọc chung của danh sách, `/summary` và `/export` (BE `ReceiptFilter`). */
 export type ReceiptFilterParams = Pick<
   ListReceiptParams,
-  "customerId" | "status" | "reference" | "receivedFrom" | "receivedTo"
+  "customerId" | "status" | "reference" | "search" | "receivedFrom" | "receivedTo"
 >;
 
 function receiptFilterQuery(params: ReceiptFilterParams, query = new URLSearchParams()) {
   if (params.customerId) query.set("customerId", params.customerId);
   if (params.status) query.set("status", params.status);
   if (params.reference?.trim()) query.set("reference", params.reference.trim());
+  if (params.search?.trim()) query.set("search", params.search.trim());
   if (params.receivedFrom) query.set("receivedFrom", params.receivedFrom);
   if (params.receivedTo) query.set("receivedTo", params.receivedTo);
   return query;
@@ -256,12 +264,12 @@ export interface ListReceivableParams extends ListQueryParams {
 export async function listReceivables(
   params: ListReceivableParams,
   signal?: AbortSignal,
-): Promise<PaginatedResponse<Receivable>> {
+): Promise<ReceivablePage> {
   const query = pageQuery(params);
   if (params.search) query.set("search", params.search);
   const { data } = await api.get<unknown>(RECEIVABLES, { params: query, signal });
   const report = receivableReportDtoSchema.parse(data);
-  return receivablePageDtoSchema.parse({
+  const page = receivablePageDtoSchema.parse({
     ...report.rows,
     items: report.rows.items.map((row) => ({
       customerId: row.customerId,
@@ -279,6 +287,27 @@ export async function listReceivables(
         over60: (row.overdue61To90 ?? 0) + (row.overdueOver90 ?? 0),
       },
       installmentCount: row.openItems ?? null,
+      currency: row.currency ?? "VND",
+      creditLimit: row.creditLimit ?? null,
+      exposure: row.exposure ?? null,
     })),
   });
+  const totals = (report.totals ?? []).map((t) =>
+    receivableTotalsSchema.parse({
+      currency: t.currency,
+      customers: t.customers,
+      owed: t.receivable,
+      overdue: t.overdue,
+      signingOverdue: t.signingOverdue ?? 0,
+      aging: {
+        d0to30: t.overdue1To30 ?? 0,
+        d31to60: t.overdue31To60 ?? 0,
+        over60: (t.overdue61To90 ?? 0) + (t.overdueOver90 ?? 0),
+      },
+    }),
+  );
+  return { ...page, totals };
 }
+
+/** Trang công nợ theo khách + tổng các cột trên mọi khách khớp bộ lọc. */
+export type ReceivablePage = PaginatedResponse<Receivable> & { totals: ReceivableTotals[] };

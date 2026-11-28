@@ -5,17 +5,18 @@ import { useState } from "react";
 import { LOAD_PLAN_PERMISSIONS, UI_LABELS } from "@/constants";
 import { useCan, usePermissionChecker } from "@/lib/auth";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
-import { useWarehouseDirectory } from "@/lib/references/warehouse-options";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
 import { loadPlanActions } from "@/features/load-planning/lifecycle";
-import { isFinalLoadPlan } from "@/features/load-planning/plan-selectors";
+import { isFinalLoadPlan, planWarehouseLabel } from "@/features/load-planning/plan-selectors";
 import { useLoadPlan, useLoadPlanLayouts } from "@/features/load-planning/queries";
+import { Alert } from "@/components/shared/Alert";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 
 import { PlacementEditorGate } from "./editor/PlacementEditorGate";
 
 import { DetailLoadError } from "./detail/DetailLoadError";
 import { PlanActions } from "./detail/PlanActions";
+import { useDirectCalculate } from "./detail/useDirectCalculate";
 import { PlanBody } from "./detail/PlanBody";
 import { PlanDialogs } from "./detail/PlanDialogs";
 import { PlanHeaderCard } from "./detail/PlanHeaderCard";
@@ -31,12 +32,12 @@ function DetailBody({ id }: { id: string }) {
   const plan = query.data;
   const hasVehicles = (plan?.vehicles.length ?? 0) > 0;
   const layouts = useLoadPlanLayouts(id, canRead && hasVehicles);
-  const warehouses = useWarehouseDirectory(canRead).data;
   const [dialog, setDialog] = useState<PlanDialogKind | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   // Chỉnh xếp tay (PR F5): thay phần tab bằng trình soạn tới khi lưu hoặc thoát
   const [editing, setEditing] = useState(false);
   useBreadcrumbLabel(id, plan?.code);
+  const direct = useDirectCalculate(id, setNotice);
 
   if (!canRead) return <DetailLoadError error={null} kind="no-read" />;
   if (query.isPending) {
@@ -53,14 +54,9 @@ function DetailBody({ id }: { id: string }) {
     setEditing(false);
     setNotice(UI_LABELS.loadPlan.editor.closedByStatus);
   }
-  const warehouse = warehouses?.find((w) => w.warehouseId === plan.warehouseId);
-  // Kế hoạch chỉ mang `warehouseId`. Danh mục kho (`/warehouses`) có thể 403 với tài khoản không có quyền kho (điều phối
-  // đơn): khi đó "—", không bao giờ hiện UUID thô.
-  const warehouseLabel = warehouse
-    ? warehouse.code
-      ? `${warehouse.code} · ${warehouse.name}`
-      : warehouse.name
-    : UI_LABELS.loadPlan.detail.unknownWarehouse;
+  // BE trả mã + tên kho cạnh `warehouseId` (#286), đọc được cả khi không có quyền danh mục kho; BE cũ chưa trả thì "—",
+  // không bao giờ hiện UUID thô.
+  const warehouseLabel = planWarehouseLabel(plan) ?? UI_LABELS.loadPlan.detail.unknownWarehouse;
   const final = isFinalLoadPlan(plan.status);
 
   return (
@@ -70,10 +66,23 @@ function DetailBody({ id }: { id: string }) {
         warehouseLabel={warehouseLabel}
         actions={
           editing ? null : (
-            <PlanActions actions={actions} onOpen={setDialog} onEdit={() => setEditing(true)} />
+            <PlanActions
+              actions={actions}
+              // Chưa có bố cục thì tính ngay, không hỏi "sẽ thay thế bố cục" (S16-5)
+              onOpen={(kind) =>
+                kind === "calculate" && plan.vehicles.length === 0 ? direct.run() : setDialog(kind)
+              }
+              onEdit={() => setEditing(true)}
+              calculating={direct.pending}
+            />
           )
         }
       />
+      {direct.pending && (
+        <div role="status">
+          <Alert tone="info">{UI_LABELS.loadPlan.detail.calculating}</Alert>
+        </div>
+      )}
       <PlanNotices
         plan={plan}
         actions={actions}

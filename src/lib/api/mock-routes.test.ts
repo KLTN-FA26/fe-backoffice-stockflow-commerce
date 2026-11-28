@@ -41,11 +41,9 @@ afterAll(() => {
 const draftInput = (code: string) => ({
   code,
   name: "Mock product",
-  nameEn: "Mock product",
   categoryId,
   brandId,
   description: "",
-  descriptionEn: "",
   taxClass: "STANDARD" as const,
 });
 

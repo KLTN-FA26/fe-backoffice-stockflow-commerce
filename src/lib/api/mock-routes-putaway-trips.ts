@@ -7,6 +7,7 @@
 import { PUTAWAY_LIMITS, PUTAWAY_TRIP_PERMISSIONS as P } from "@/constants";
 
 import { registerMockRoute } from "./mock-adapter";
+import { withMockStaffNames } from "./mock-display-names";
 import { mockWarehouseCodeOf } from "./mock-inventory-cartons";
 import {
   cartonOf,
@@ -65,15 +66,19 @@ async function ownTrip(config: AxiosRequestConfig) {
 
 const ok = (trip: MockTrip) => beOk(toTripResponse(saveTrip(trip)));
 
+/** Response chuyến mang tên người cất / người đóng (issue #286) → nạp tên trước (mock-display-names). */
+const route = (...[method, pattern, handler]: Parameters<typeof registerMockRoute>) =>
+  registerMockRoute(method, pattern, withMockStaffNames(handler));
+
 function registerRead(): void {
-  registerMockRoute("GET", "/putaway-trips/current", async () => {
+  route("GET", "/putaway-trips/current", async () => {
     const actor = await currentActor();
     if (!actor.can(P.read)) return forbidden();
     const trip = openTripOf(actor.userId);
     // ApiResponse NON_NULL: không có chuyến → envelope không có `data`
     return beOk(trip ? toTripResponse(trip) : undefined);
   });
-  registerMockRoute("GET", "/putaway-trips/:id", async (config) => {
+  route("GET", "/putaway-trips/:id", async (config) => {
     if (!(await currentActor()).can(P.read)) return forbidden();
     const trip = findTrip(param(config, "id"));
     return trip
@@ -83,7 +88,7 @@ function registerRead(): void {
 }
 
 function registerOpen(): void {
-  registerMockRoute("POST", "/putaway-trips", (config) =>
+  route("POST", "/putaway-trips", (config) =>
     withIdempotency(config, async () => {
       const actor = await currentActor();
       if (!actor.can(P.update)) return forbidden();
@@ -114,7 +119,7 @@ function registerOpen(): void {
 }
 
 function registerCart(): void {
-  registerMockRoute("POST", "/putaway-trips/:id/cartons", (config) =>
+  route("POST", "/putaway-trips/:id/cartons", (config) =>
     withIdempotency(config, async () => {
       const own = await ownTrip(config);
       if (own.error) return own.error;
@@ -159,7 +164,7 @@ function registerCart(): void {
       return ok(trip);
     }),
   );
-  registerMockRoute("DELETE", "/putaway-trips/:id/cartons/:lpn", async (config) => {
+  route("DELETE", "/putaway-trips/:id/cartons/:lpn", async (config) => {
     const own = await ownTrip(config);
     if (own.error) return own.error;
     const { trip } = own;
@@ -173,7 +178,7 @@ function registerCart(): void {
 }
 
 function registerRun(): void {
-  registerMockRoute("POST", "/putaway-trips/:id/departure", async (config) => {
+  route("POST", "/putaway-trips/:id/departure", async (config) => {
     const own = await ownTrip(config);
     if (own.error) return own.error;
     const { trip } = own;
@@ -182,7 +187,7 @@ function registerRun(): void {
     await startTrip(trip);
     return ok(trip);
   });
-  registerMockRoute("POST", "/putaway-trips/:id/placements", (config) =>
+  route("POST", "/putaway-trips/:id/placements", (config) =>
     withIdempotency(config, async () => {
       const own = await ownTrip(config);
       if (own.error) return own.error;
@@ -218,7 +223,7 @@ function registerRun(): void {
       return ok(trip);
     }),
   );
-  registerMockRoute("POST", "/putaway-trips/:id/cartons/:lpn/reassignment", async (config) => {
+  route("POST", "/putaway-trips/:id/cartons/:lpn/reassignment", async (config) => {
     const own = await ownTrip(config);
     if (own.error) return own.error;
     const { trip } = own;
@@ -261,14 +266,14 @@ function registerRun(): void {
 }
 
 function registerClose(): void {
-  registerMockRoute("POST", "/putaway-trips/:id/closure", async (config) => {
+  route("POST", "/putaway-trips/:id/closure", async (config) => {
     const own = await ownTrip(config);
     if (own.error) return own.error;
     if (!isOpen(own.trip)) return invalidState();
     closeTripNow(own.trip, own.actor.userId);
     return ok(own.trip);
   });
-  registerMockRoute("POST", "/putaway-trips/:id/forced-closure", async (config) => {
+  route("POST", "/putaway-trips/:id/forced-closure", async (config) => {
     const actor = await currentActor();
     if (!actor.can(P.approve)) return forbidden();
     const trip = findTrip(param(config, "id"));

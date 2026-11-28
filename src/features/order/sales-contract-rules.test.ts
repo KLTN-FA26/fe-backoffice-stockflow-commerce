@@ -20,6 +20,8 @@ import {
   passedBatches,
   passedBatchesText,
   planTotal,
+  sendBlockers,
+  sendBlockersText,
   signOutcomeText,
 } from "./sales-contract-rules";
 import { salesContractDtoSchema } from "./sales-contract-schemas";
@@ -54,6 +56,19 @@ describe("trạng thái hợp đồng mới / lạ (WF-05 F-3, BO-11)", () => {
   it("LIQUIDATED / UNKNOWN → không nút mutating, không 'lập hợp đồng mới'", () => {
     expect(allowedContractActions({ status: "LIQUIDATED" }, "Closed", sales)).toEqual([]);
     expect(allowedContractActions({ status: "UNKNOWN" }, "Draft", sales)).toEqual([]);
+  });
+});
+
+describe("allowedContractActions — chờ Kế toán duyệt tín dụng (15 BR-11, BE PR #486)", () => {
+  it("DRAFT + creditReview PENDING: bỏ Sửa / Gửi, có Rút đề nghị; Huỷ và xem PDF giữ", () => {
+    expect(
+      allowedContractActions({ status: "DRAFT", creditReview: "PENDING" }, "Draft", sales),
+    ).toEqual(["withdraw-review", "cancel", "preview"]);
+  });
+  it("DRAFT + creditReview NONE như cũ", () => {
+    expect(
+      allowedContractActions({ status: "DRAFT", creditReview: "NONE" }, "Draft", sales),
+    ).toEqual(["edit", "send", "cancel", "preview"]);
   });
 });
 
@@ -244,5 +259,43 @@ describe("contractPapers — phụ lục / biên bản thanh lý (BE feat/busine
   it("hợp đồng Hoàn tất / Thanh lý → thanh lý được bất kể trạng thái đơn hiển thị", () => {
     expect(contractPapers({ status: "COMPLETED", ...moved }, "Delivered").liquidation).toBe(true);
     expect(contractPapers({ status: "LIQUIDATED", ...moved }, "Returned").liquidation).toBe(true);
+  });
+});
+
+describe("S06-3 — gửi hợp đồng cần cửa sổ giao đủ và không ở quá khứ (docs 14 BR-23)", () => {
+  const TODAY = "2026-11-26";
+  const batch = (
+    seq: number,
+    windowStart: string | null,
+    windowEnd: string | null = windowStart,
+  ) => ({
+    ...contract.deliverySchedule[0]!,
+    seq,
+    windowStart,
+    windowEnd,
+  });
+  const of = (...batches: ReturnType<typeof batch>[]) => ({ deliverySchedule: batches });
+
+  it("đợt chưa nhập cửa sổ → 'Còn thiếu'", () => {
+    const blockers = sendBlockers(of(batch(1, null, null), batch(2, "2026-12-01")), TODAY);
+    expect(blockers).toEqual({ missing: [1], past: [] });
+    expect(sendBlockersText(blockers)).toBe("Còn thiếu: cửa sổ giao đợt 1.");
+  });
+
+  it("nhiều đợt thiếu gộp một câu", () => {
+    expect(
+      sendBlockersText(sendBlockers(of(batch(1, null, null), batch(2, null, null)), TODAY)),
+    ).toBe("Còn thiếu: cửa sổ giao đợt 1, đợt 2.");
+  });
+
+  it("đợt bắt đầu trước hôm nay → 'Cần sửa'; bắt đầu đúng hôm nay thì được (BE: isBefore(today))", () => {
+    const blockers = sendBlockers(of(batch(1, "2026-11-25"), batch(2, TODAY)), TODAY);
+    expect(blockers).toEqual({ missing: [], past: [1] });
+    expect(sendBlockersText(blockers)).toMatch(/^Cần sửa: cửa sổ giao đợt 1 bắt đầu trước hôm nay/);
+  });
+
+  it("đủ cửa sổ, không ở quá khứ → không có gì chặn", () => {
+    const blockers = sendBlockers(of(batch(1, TODAY), batch(2, "2026-12-10")), TODAY);
+    expect(sendBlockersText(blockers)).toBeNull();
   });
 });

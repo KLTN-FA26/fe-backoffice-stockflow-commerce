@@ -30,9 +30,14 @@ export async function clickRowAction(user: UserEvent, action: Name, scope?: HTML
   const triggers = (scope ? within(scope) : screen).getAllByRole("button", { name: ROW_MENU });
   for (const trigger of triggers) {
     await user.click(trigger);
+    // Tìm TRONG menu vừa mở (theo `aria-controls` của nút "⋯"), không tìm cả trang: nút chọn nhanh trạng thái của thanh
+    // công cụ ("Ngừng dùng", "Từ chối"…) trùng tên với thao tác của dòng.
+    const menuId = trigger.getAttribute("aria-controls");
+    const menu = menuId ? document.getElementById(menuId) : null;
+    const scoped = menu ? within(menu) : screen;
     const item =
-      screen.queryByRole("button", { name: action }) ??
-      screen.queryByRole("link", { name: action });
+      scoped.queryByRole("button", { name: action }) ??
+      scoped.queryByRole("link", { name: action });
     if (item && trigger.getAttribute("aria-expanded") === "true") {
       await user.click(item);
       return item;

@@ -770,6 +770,8 @@ export const PERMISSION_UI = {
   errorTitle: "Không thể tải quyền truy cập",
   retry: "Thử lại",
   productCreateDenied: "Bạn không có quyền tạo sản phẩm.",
+  customerCreateDenied: "Bạn không có quyền tạo khách hàng.",
+  quoteCreateDenied: "Bạn không có quyền tạo báo giá.",
   demoContext: "Chỉ đổi nhãn vai trò demo; quyền vẫn lấy từ phiên đăng nhập.",
   backOfficeDeniedTitle: "Tài khoản không dùng được trang quản trị",
   backOfficeDeniedDescription:

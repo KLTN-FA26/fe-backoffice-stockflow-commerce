@@ -56,6 +56,7 @@ const partlyBack = (over: Record<string, unknown> = {}) =>
           receiptNumber: "GR-RET-0001",
           locationCode: "WH1-QC01",
           receivedBy: "4f1c2d3e-0000-4000-8000-000000000001",
+          receivedByName: "Phạm Thu Hà",
           receivedAt: PARCEL_AT,
         },
       ],
@@ -74,7 +75,9 @@ describe("TH-3 — goods back in parcels", () => {
       "/admin/receipts/returns/gr-1",
     );
     expect(within(parcels).getByText(formatDateTime(PARCEL_AT))).toBeInTheDocument();
-    expect(within(parcels).getByText("4f1c2d3e")).toBeInTheDocument();
+    // #286: người nhận hiện bằng tên BE kèm, không mảnh UUID
+    expect(within(parcels).getByText("Phạm Thu Hà")).toBeInTheDocument();
+    expect(within(parcels).queryByText(/4f1c2d3e/)).not.toBeInTheDocument();
   });
 
   it("a parcel back hides Cancel; Sales mark the goods complete with an optional note", async () => {

@@ -44,7 +44,7 @@ và [data-table-mode-a.md](data-table-mode-a.md).
    `DataTable` tự ghim cột key `actions` hoặc tiêu đề "Thao tác", không cần khai `sticky`.
 7. **Không có kết quả / chưa có dữ liệu** — giữ bảng và header (để còn bỏ lọc ở cột), thông báo nằm
    trong thân bảng qua `DataTable.emptyState` (`EmptyState` bỏ khung: `rounded-none border-0
-   bg-transparent whitespace-normal`). Không thay cả bảng bằng khối trống. Danh sách phân trang server dùng
+bg-transparent whitespace-normal`). Không thay cả bảng bằng khối trống. Danh sách phân trang server dùng
    `ServerTableBody emptyInTable`, không chép lại component.
 8. **Tiêu đề cột** — `ink-primary`, semibold (đã đặt trong `DataTable`).
 9. **Chân bảng luôn thấy được** — bảng danh sách bật `stickyHeader`: `DataTable` tự đo khoảng còn trống
@@ -54,14 +54,14 @@ và [data-table-mode-a.md](data-table-mode-a.md).
 ## B. Trang chi tiết (object page ERP)
 
 10. **Thứ tự trang**: header đối tượng (tên lớn font display, mã mono, trạng thái; nút chuyển trạng
-   thái chính bên phải, việc nguy hiểm gom menu "⋯") → khung hồ sơ → bảng dữ liệu chính hiện thẳng →
-   tab cho các nhóm ít dùng.
+    thái chính bên phải, việc nguy hiểm gom menu "⋯") → khung hồ sơ → bảng dữ liệu chính hiện thẳng →
+    tab cho các nhóm ít dùng.
 11. **Khung hồ sơ** — một khung: đầu khung là vòng đời nằm ngang (stepper) + nút "Chỉnh sửa" bên phải
     cùng hàng; dưới là lưới thông số 4 cột ngăn bằng vạch mảnh (`gap-px` trên nền `--table-line`); cuối
     là mô tả.
 12. **Không gom mọi thứ vào tab** — dữ liệu xem / thao tác thường xuyên (bảng chính) hiện thẳng; nhóm ít
     dữ liệu mà liên quan thì gộp chung một tab; tab không có dữ liệu hoặc không có quyền xem thì ẩn.
-12b. **Dựng bằng component chung** — header đối tượng, khung hồ sơ, ô thông số, stepper dùng `ObjectHeader` /
+    12b. **Dựng bằng component chung** — header đối tượng, khung hồ sơ, ô thông số, stepper dùng `ObjectHeader` /
     `ProfileFrame` / `ProfileFact` / `LifecycleSteps` (`components/shared/ObjectPage.tsx`); tab nhóm ít dùng theo mẫu
     `ProductDetailTabs` (lịch sử, chứng từ, yêu cầu… là **bảng** trong tab, không phải danh sách chữ ở cột phụ).
 13. **Panel thống nhất** — `DetailPanel` / `FactGrid` / `Fact` (`components/shared/DetailPanel.tsx`):

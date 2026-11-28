@@ -1,12 +1,13 @@
 "use client";
 
 import { formatDate } from "@/lib/format/date";
-import { categoryName, countVariantsByStatus, taxClassLabel } from "@/features/product";
+import { countVariantsByStatus, productCategoryLabel, taxClassLabel } from "@/features/product";
+import { RichTextView } from "@/components/shared/RichTextView";
 
 import { ProductLifecycleStepper } from "./ProductLifecycleCard";
 
 import type { ReactNode } from "react";
-import type { Category, Product, Variant } from "@/features/product";
+import type { Product, Variant } from "@/features/product";
 
 const TYPE_LABEL: Record<Product["type"], string> = {
   Standard: "Tiêu chuẩn",
@@ -38,19 +39,15 @@ function UserId({ id }: { id: string }) {
  */
 export function ProductOverviewPanel({
   product,
-  categories,
   variants,
   actions,
 }: {
   product: Product;
-  categories: readonly Category[];
   variants: readonly Variant[];
   /** Nút sửa ở bên phải đầu khung (vd "Chỉnh sửa sản phẩm" khi còn Nháp). */
   actions?: ReactNode;
 }) {
   const counts = countVariantsByStatus(variants);
-  const description = product.description.trim();
-  const descriptionEn = product.descriptionEn.trim();
   return (
     <section
       aria-label="Hồ sơ sản phẩm"
@@ -62,7 +59,8 @@ export function ProductOverviewPanel({
       </div>
       {/* `gap-px` trên nền màu vạch kẻ → đường ngăn 1px giữa các ô; 8 ô lấp đủ hàng ở 2 lẫn 4 cột */}
       <dl className="grid grid-cols-2 gap-px bg-(--table-line) md:grid-cols-4">
-        <Fact label="Danh mục">{categoryName(product.categoryId, categories) || "—"}</Fact>
+        {/* Issue #286: tên danh mục BE trả kèm — không tải danh sách danh mục chỉ để tra tên */}
+        <Fact label="Danh mục">{productCategoryLabel(product)}</Fact>
         <Fact label="Thương hiệu">{product.brand || "—"}</Fact>
         <Fact label="Thuế">{taxClassLabel(product.taxClass)}</Fact>
         <Fact label="Loại sản phẩm">{TYPE_LABEL[product.type]}</Fact>
@@ -85,18 +83,8 @@ export function ProductOverviewPanel({
       </dl>
       <div className="border-t border-(--table-line) px-4 py-3">
         <p className="text-ink-tertiary mb-1 text-xs">Mô tả</p>
-        {description || descriptionEn ? (
-          <>
-            <p className="text-ink-primary max-w-[75ch] text-[0.8125rem] leading-relaxed">
-              {description || "Chưa có mô tả tiếng Việt."}
-            </p>
-            {descriptionEn && (
-              <p className="text-ink-tertiary mt-1 max-w-[75ch] text-xs">{descriptionEn}</p>
-            )}
-          </>
-        ) : (
-          <p className="text-ink-tertiary text-[0.8125rem]">Chưa có mô tả.</p>
-        )}
+        {/* Mô tả là HTML của Tiptap (ADR-0013) — RichTextView lọc lại trước khi hiện */}
+        <RichTextView html={product.description} />
       </div>
     </section>
   );

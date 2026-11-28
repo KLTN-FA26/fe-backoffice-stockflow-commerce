@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { cn } from "cn";
+import { parseAsString, useQueryState } from "nuqs";
 import { CalendarClock, ReceiptText, Wallet } from "lucide-react";
 
 import { ADMIN_ROUTES } from "@/constants";
@@ -15,7 +17,6 @@ import { LoadErrorState } from "@/components/backoffice/LoadErrorState";
 import { DataTable } from "@/components/shared/DataTable";
 import {
   DETAIL_CARD_CLASS,
-  DETAIL_GRID_CLASS,
   DetailCardTitle,
   DetailSection,
 } from "@/components/shared/DetailSection";
@@ -29,11 +30,21 @@ import { installmentRef } from "../selectors";
 import { ORDER_INSTALLMENTS_COPY } from "./copy";
 import { buildInstallmentColumns } from "./installment-columns";
 import { InfoRow, MoneyCell, OrderPaymentStatusDot } from "./primitives";
+import { useRecordedReceipt } from "./ReceiptRecordedNotice";
 import { RecordReceiptDialog } from "./RecordReceiptDialog";
 
 import type { Installment } from "../types";
 
 const O = PAYMENT_LABELS.order;
+/**
+ * Như `DETAIL_GRID_CLASS` nhưng thẻ bên phải rộng 360px (mã đơn / mã hợp đồng không bị ngắt hay tràn khỏi thẻ) và chỉ chia
+ * hai cột từ 1400px: màn hẹp hơn thì thẻ nằm dưới bảng, bảng dùng cả bề ngang nên không cột nào bị cột Thao tác đè (S07-1).
+ */
+const ORDER_INSTALLMENTS_GRID_CLASS =
+  "grid grid-cols-1 gap-5 min-[1400px]:grid-cols-[minmax(0,1fr)_360px]";
+/** Chỉ nhận id / mã chuyến đúng dạng từ URL — liên kết "Quay lại chuyến" không dẫn tới chữ tuỳ ý. */
+const RETURN_ID = /^[0-9a-f-]{8,64}$/i;
+const RETURN_CODE = /^[A-Za-z0-9._-]{1,40}$/;
 
 function OrderInstallmentsContent({ orderId }: { orderId: string }) {
   const canRead = useCan(PAYMENT_INSTALLMENT_PERMISSIONS.read);
@@ -41,6 +52,14 @@ function OrderInstallmentsContent({ orderId }: { orderId: string }) {
   const query = useOrderInstallments(orderId, canRead);
   useBreadcrumbLabel(orderId, query.data?.orderNumber);
   const [recording, setRecording] = useState<Installment | null>(null);
+  // S07-5: đi từ lý do chặn bàn giao của một chuyến (`?loadId=&loadCode=`) thì sau khi lập phiếu có đường quay lại chuyến.
+  const [loadId] = useQueryState("loadId", parseAsString);
+  const [loadCode] = useQueryState("loadCode", parseAsString);
+  const returnLoad =
+    loadId && loadCode && RETURN_ID.test(loadId) && RETURN_CODE.test(loadCode)
+      ? { loadId, loadCode }
+      : null;
+  const recorded = useRecordedReceipt(returnLoad);
   const back = { href: PAYMENT_ROUTES.installments.list };
   if (!canRead)
     return (
@@ -77,8 +96,17 @@ function OrderInstallmentsContent({ orderId }: { orderId: string }) {
           ]}
         />
       ) : null,
-    ["contract", "order", "customer"],
-  ).map((column) => ({ ...column, sortable: false }));
+    // BO-UX-42 + S07-1: hợp đồng, đơn, khách giống nhau ở mọi dòng; "Số tiền" và "Đã thu" bỏ vì đã có "Còn phải thu" (số kế
+    // toán cần khi lập phiếu; tổng đã thu và còn phải thu của đơn ở thẻ bên phải, từng khoản ở trang chi tiết đợt); mốc và
+    // đợt giao gắn kèm xuống dòng phụ của tên đợt — bảng vừa khung, không cột nào bị cột Thao tác đè, không phải cuộn ngang.
+    ["contract", "order", "customer", "amount", "paid", "milestone", "batch"],
+  ).map((column) => ({
+    ...column,
+    sortable: false,
+    // Ô và tiêu đề hẹp hơn mặc định (px-3.5): bảng năm cột vừa khung ở 1366px, không cuộn ngang dưới cột Thao tác (S07-1).
+    className: cn(column.className, "px-2.5"),
+    headerClassName: cn(column.headerClassName, "px-2.5"),
+  }));
   const customer = order.installments[0];
 
   return (
@@ -86,13 +114,15 @@ function OrderInstallmentsContent({ orderId }: { orderId: string }) {
     // (trạng thái, đơn, hợp đồng, khách, số tiền) bên phải.
     <div className="surface-soft surface-compact">
       <h1 className="sr-only">{`${O.summary} ${order.orderNumber}`}</h1>
-      <div className={DETAIL_GRID_CLASS}>
+      <div className={ORDER_INSTALLMENTS_GRID_CLASS}>
         <div className="min-w-0 space-y-5">
+          {recorded.notice}
           <DetailSection title={O.installmentsTitle} icon={CalendarClock}>
             <DataTable
               columns={columns}
               data={order.installments}
               rowKey={(row) => row.installmentId}
+              dense
               pageSize={50}
               caption={`${order.installments.length} ${PAYMENT_LABELS.installments.pageTitle.toLowerCase()}`}
             />
@@ -108,17 +138,18 @@ function OrderInstallmentsContent({ orderId }: { orderId: string }) {
                 <span className="text-ink-tertiary text-xs">{O.noPaymentStatus}</span>
               )}
             </div>
-            <dl className="grid grid-cols-[minmax(110px,auto)_1fr] gap-x-3 gap-y-2 text-[0.8125rem]">
+            {/* Cột nhãn tối đa 7,5rem (nhãn dài tự xuống dòng) để cột giá trị đủ chỗ cho mã đơn / hợp đồng — mã không bị bẻ giữa chừng */}
+            <dl className="grid grid-cols-[minmax(0,7.5rem)_minmax(0,1fr)] gap-x-3 gap-y-2 text-[0.8125rem]">
               <InfoRow label={PAYMENT_LABELS.columns.order}>
                 <Link
                   href={ADMIN_ROUTES.orders.detail(order.orderId)}
-                  className="text-accent-text font-mono hover:underline"
+                  className="text-accent-text font-mono whitespace-nowrap hover:underline"
                 >
                   {order.orderNumber}
                 </Link>
               </InfoRow>
               <InfoRow label={PAYMENT_LABELS.columns.contract}>
-                <span className="font-mono">{order.contractNumber}</span>
+                <span className="font-mono whitespace-nowrap">{order.contractNumber}</span>
               </InfoRow>
               {customer && (
                 <InfoRow label={PAYMENT_LABELS.columns.customer}>
@@ -162,7 +193,11 @@ function OrderInstallmentsContent({ orderId }: { orderId: string }) {
           </section>
         </div>
       </div>
-      <RecordReceiptDialog installment={recording} onClose={() => setRecording(null)} />
+      <RecordReceiptDialog
+        installment={recording}
+        onClose={() => setRecording(null)}
+        onRecorded={recorded.onRecorded}
+      />
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { CARRIER_CONFIG_LIMITS as L, UI_LABELS } from "@/constants";
+import { vehicleTypeName } from "@/lib/domain/vehicle-type-name";
 import { useVehicleTypeOptions } from "@/features/shipping/carrier-config-queries";
 import { emptyServiceCodeRow } from "@/features/shipping/carrier-service-code-rows";
 
@@ -39,7 +40,7 @@ export function CarrierServiceCodeTable({
     setRows(rows.map((row) => (row.key === key ? { ...row, ...change } : row)));
   const options = (vehicleTypes.data ?? []).map((type) => ({
     value: type.vehicleTypeId,
-    label: `${type.name} (${type.code})`,
+    label: vehicleTypeName(type),
   }));
   return (
     <RowsSection

@@ -10,7 +10,7 @@ import { ApiError } from "@/lib/api/error";
 
 import { apiPartialOrder } from "../__fixtures__/order";
 import { DETAIL_PATH, renderDetail } from "../__fixtures__/detail";
-import { ORDER_PERMISSION_SETS, pickSelectOption } from "../__fixtures__/render";
+import { ORDER_PERMISSION_SETS, orderAction, pickSelectOption } from "../__fixtures__/render";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
@@ -22,7 +22,7 @@ describe("OrderDetail — Đóng phần còn lại kèm phí đã thoả thuận
   const WITH_KEY = { headers: { "Idempotency-Key": expect.any(String) } };
 
   async function openClosureDialog(user: ReturnType<typeof userEvent.setup>) {
-    await user.click(await screen.findByRole("button", { name: "Đóng phần còn lại" }));
+    await user.click(await orderAction("Đóng phần còn lại"));
     await pickSelectOption(user, /Lý do đóng/, "Khách yêu cầu");
   }
   const submit = (user: ReturnType<typeof userEvent.setup>) =>
@@ -73,7 +73,7 @@ describe("OrderDetail — Đóng phần còn lại kèm phí đã thoả thuận
     );
   });
 
-  it("số tiền có dấu thập phân → báo lỗi thay vì đọc thành số lớn gấp 100 lần; số hợp lệ hiện bản xem trước", async () => {
+  it("số tiền là ô MoneyInput (chấm nghìn khi gõ, không nhận chữ); để trống thì báo lỗi; số hợp lệ hiện bản xem trước", async () => {
     await renderDetail(ORDER_PERMISSION_SETS.salesStaff, () => apiPartialOrder);
     const post = vi.spyOn(api, "post").mockResolvedValue({ data: apiPartialOrder });
     const user = userEvent.setup();
@@ -83,7 +83,13 @@ describe("OrderDetail — Đóng phần còn lại kèm phí đã thoả thuận
     // fillFee gõ "4.000.000" → bản xem trước đúng số sẽ gửi
     expect(screen.getByText(/Sẽ ghi nhận: .*4\.000\.000/)).toBeInTheDocument();
     await user.clear(screen.getByLabelText(/Số tiền phí/));
-    await user.type(screen.getByLabelText(/Số tiền phí/), "150000.50");
+    await user.type(screen.getByLabelText(/Số tiền phí/), "150000");
+    expect(screen.getByLabelText(/Số tiền phí/)).toHaveValue("150.000");
+    expect(screen.getByText(/Sẽ ghi nhận: .*150\.000/)).toBeInTheDocument();
+    // Letters are not typed into the box at all, so a cleared box is an empty amount.
+    await user.clear(screen.getByLabelText(/Số tiền phí/));
+    await user.type(screen.getByLabelText(/Số tiền phí/), "abc");
+    expect(screen.getByLabelText(/Số tiền phí/)).toHaveValue("");
     expect(screen.queryByText(/Sẽ ghi nhận/)).not.toBeInTheDocument();
     await submit(user);
 
@@ -98,7 +104,7 @@ describe("OrderDetail — Đóng phần còn lại kèm phí đã thoả thuận
 
     await openClosureDialog(user);
     await user.click(screen.getByRole("checkbox", { name: /Giữ một khoản phí/ }));
-    await user.type(screen.getByLabelText(/Số tiền phí/), "12abc");
+    await user.type(screen.getByLabelText(/Số tiền phí/), "abc");
     await submit(user);
 
     expect(await screen.findByText("Nhập số tiền nguyên lớn hơn 0")).toBeInTheDocument();
@@ -160,7 +166,7 @@ describe("OrderDetail — Đóng phần còn lại kèm phí đã thoả thuận
     await openClosureDialog(user);
     await fillFee(user);
     await user.click(screen.getByRole("button", { name: "Huỷ" }));
-    await user.click(screen.getByRole("button", { name: "Đóng phần còn lại" }));
+    await user.click(await orderAction("Đóng phần còn lại"));
 
     expect(screen.getByRole("checkbox", { name: /Giữ một khoản phí/ })).not.toBeChecked();
     expect(screen.queryByLabelText(/Số tiền phí/)).not.toBeInTheDocument();

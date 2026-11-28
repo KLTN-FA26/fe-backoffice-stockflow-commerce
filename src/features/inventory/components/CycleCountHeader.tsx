@@ -24,14 +24,17 @@ export function CycleCountHeader({ count }: { count: CycleCount }) {
   const progress = countProgress(count.lines);
   // Docs 20 BR-07: ai có APPROVE mới thấy sổ sách của phiếu kiểm mù; người đếm thì không.
   const booksHidden = count.blind && !can(CYCLE_COUNT_PERMISSIONS.approve);
+  // Issue #286: BE kèm tên người được giao / tên kho cạnh id — thiếu tên thì nhãn chung, không hiện id
   const assignee = !count.assignedUserId
     ? L.unassigned
     : count.assignedUserId === userId
       ? L.assignedToYou
-      : L.assignedToOther;
+      : (count.assignedUserName ?? L.assignedToOther);
+  const warehouse = count.warehouseName ?? count.warehouseCode ?? null;
   const facts = [
     [L.number, count.countNumber],
     [L.trigger, triggerLabel(count.triggerType)],
+    [L.warehouse, warehouse],
     [L.plannedDate, count.plannedDate ? formatDate(count.plannedDate) : null],
     [L.progress, `${progress.counted}/${progress.total}`],
     [L.blind, count.blind ? L.blindBadge : null],

@@ -1,19 +1,19 @@
 "use client";
 
 import { parseAsStringLiteral, useQueryState } from "nuqs";
-import { Hourglass } from "lucide-react";
 
 import { QUOTE_PRICE_REVIEW_LABELS } from "@/constants";
-import { TOOLBAR_ACTION_CLASS } from "@/components/shared/ListToolbar";
-import { Button } from "@/components/ui/button";
+import { ListFilterColumn } from "@/components/shared/ListToolbar";
 
 const R = QUOTE_PRICE_REVIEW_LABELS;
 /** `?priceReview=PENDING` — hàng chờ duyệt giá của Quản lý kinh doanh (14 BR-10, BE `GET /quotes?priceReview=PENDING`). */
 const PRICE_REVIEW_FILTER = parseAsStringLiteral(["PENDING"] as const);
+const OPTIONS = [{ value: "PENDING" as const, label: R.filter }];
 
 /**
- * Lọc "Chờ duyệt giá" của danh sách báo giá — sống trên URL (nuqs, state-persistence): nút bật / tắt cho toolbar, mục
- * tóm tắt bộ lọc, và `clear` cho "Bỏ lọc". Đổi lọc thì về trang 1 (`onChange`).
+ * Lọc "Chờ duyệt giá" của danh sách báo giá — sống trên URL (nuqs, state-persistence): một cột trong bảng "Bộ lọc"
+ * (backoffice-erp-ui §4 — không đặt nút lọc rời trên hàng tìm kiếm), mục tóm tắt bộ lọc, và `clear` cho "Bỏ lọc". Đổi lọc
+ * thì về trang 1 (`onChange`).
  */
 export function usePriceReviewFilter(onChange: () => void) {
   const [value, setValue] = useQueryState("priceReview", PRICE_REVIEW_FILTER);
@@ -21,20 +21,18 @@ export function usePriceReviewFilter(onChange: () => void) {
     void setValue(null);
     onChange();
   };
-  const toggle = (
-    <Button
-      type="button"
-      size="sm"
-      variant={value ? "default" : "outline"}
-      aria-pressed={!!value}
-      className={TOOLBAR_ACTION_CLASS}
-      onClick={() => {
+  const column = (
+    <ListFilterColumn
+      title={R.filterSummary}
+      searchPlaceholder="Tìm…"
+      emptyText="Không có lựa chọn"
+      options={OPTIONS}
+      isChecked={() => !!value}
+      onSelect={() => {
         void setValue(value ? null : "PENDING");
         onChange();
       }}
-    >
-      <Hourglass className="size-3.5" /> {R.filter}
-    </Button>
+    />
   );
   const summaryItem = {
     label: R.filterSummary,
@@ -42,5 +40,12 @@ export function usePriceReviewFilter(onChange: () => void) {
     active: !!value,
     onClear: clear,
   };
-  return { value: value ?? undefined, toggle, summaryItem, clear: () => void setValue(null) };
+  return {
+    value: value ?? undefined,
+    column,
+    summaryItem,
+    clear: () => void setValue(null),
+    /** Bật lọc "Chờ duyệt giá" (tab nhanh của danh sách); trang do nơi gọi đặt lại. */
+    select: () => void setValue("PENDING"),
+  };
 }

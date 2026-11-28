@@ -55,9 +55,7 @@ describe("Design review — round 5", () => {
     open(routes());
     const files = await screen.findByText("File đã gửi");
     const preview = screen.getByText("Màu in thật có thể khác màn hình.");
-    expect(
-      preview.compareDocumentPosition(files) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
+    expect(preview.compareDocumentPosition(files) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("BO-UX-8: opening 'Duyệt' runs the print-file check; blocking findings need an explicit tick", async () => {

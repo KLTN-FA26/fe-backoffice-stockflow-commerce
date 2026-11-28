@@ -123,6 +123,15 @@ function listItem(i: MockEInvoice) {
   };
 }
 
+function originalRef(originalId: string | null) {
+  const original = originalId ? byId(originalId) : undefined;
+  if (!original?.symbol || original.invoiceNumber == null) return {};
+  return {
+    originalEInvoiceSymbol: original.symbol,
+    originalEInvoiceNumber: original.invoiceNumber,
+  };
+}
+
 function detail(i: MockEInvoice) {
   const earlier = mockEInvoices().find(
     (o) =>
@@ -139,6 +148,8 @@ function detail(i: MockEInvoice) {
     ...listItem(i),
     contractNumber: i.contractNumber,
     originalEInvoiceId: i.originalEInvoiceId,
+    // #286: ký hiệu + số của hoá đơn gốc kèm id (BE bỏ khi null — gốc chưa có số)
+    ...originalRef(i.originalEInvoiceId),
     provider: mockEInvoiceSettings().provider,
     seller: MOCK_SELLER,
     buyer: i.buyer,

@@ -15,12 +15,13 @@ import {
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { usePermissionChecker } from "@/lib/auth/components/Can";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
-import { productChangeGate, useCategories, useProduct, useVariants } from "@/features/product";
+import { productChangeGate, useProduct, useVariants } from "@/features/product";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Button } from "@/components/ui/button";
 
 import { ProductDetailTabs } from "./ProductDetailTabs";
 import { ProductDuplicateList } from "./ProductDuplicateWarning";
+import { ProductImageCard } from "./ProductImageCard";
 import { ProductLifecycleDialogs } from "./ProductLifecycleDialogs";
 import { ProductLoadError } from "./ProductLoadError";
 import { ProductObjectHeader } from "./ProductObjectHeader";
@@ -41,15 +42,13 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
   // BE: GET biến thể / trục cần `product-variants:READ` — thiếu thì không gọi, mục báo không có quyền
   const canReadVariants = can(VARIANT_PERMISSIONS.read);
   const variantsQuery = useVariants(productId, canReadVariants);
-  const categoriesQuery = useCategories({});
   const variants = useMemo(() => variantsQuery.data ?? [], [variantsQuery.data]);
   // variantId → SKU cho mục Lịch sử: chỉ dựng lại khi danh sách biến thể đổi, không mỗi lần render.
   const skuById = useMemo(() => new Map(variants.map((v) => [v.variantId, v.sku])), [variants]);
-  const categories = categoriesQuery.data?.items ?? [];
   const product = productQuery.data ?? null;
   const status = useProductStatusActions(product);
 
-  if (productQuery.isLoading || categoriesQuery.isLoading) {
+  if (productQuery.isLoading) {
     return <PageSkeleton variant="detail" />;
   }
   if (!product) {
@@ -84,7 +83,6 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
       <ProductDuplicateList matches={product.possibleDuplicates ?? []} />
       <ProductOverviewPanel
         product={product}
-        categories={categories}
         variants={variants}
         actions={
           // UI-only — BE re-check quyền UPDATE và trạng thái Nháp (`Product.updateDetails`)
@@ -98,6 +96,13 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
           ) : undefined
         }
       />
+      {/* Ảnh riêng của sản phẩm (ADR-0012) — ảnh thẻ storefront; UI-only, BE re-check quyền và trạng thái */}
+      <div className="mb-6">
+        <ProductImageCard
+          productId={product.productId}
+          canEdit={can(PRODUCT_PERMISSIONS.update) && gate.acceptsChanges}
+        />
+      </div>
       {/* Biến thể — dữ liệu xem / thao tác nhiều nhất nên nằm thẳng trên trang, không giấu vào tab */}
       <div className="mb-6">
         <ProductVariantsSection

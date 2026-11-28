@@ -111,7 +111,6 @@ export function OutcomeDialog({ data, outcome, onClose }: OutcomeDialogProps) {
                 setServerError(null);
               }}
               handedOverAt={shipment.handedOverAt}
-              now={time.opened}
               error={time.problem}
             />
           )}

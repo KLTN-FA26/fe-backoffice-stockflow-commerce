@@ -11,7 +11,8 @@ const L = CANCELLATION_REQUEST_LABELS.card;
 
 /**
  * Một yêu cầu huỷ của khách: trạng thái (docs 17 §5.4), lý do + ghi chú khách nêu, thời điểm gửi, và — khi đã quyết —
- * ghi chú quyết định + phần trăm giữ lại. Chỉ hiển thị dữ liệu BE trả, không suy diễn.
+ * ghi chú quyết định + phần trăm giữ lại; tên người gửi / người quyết khi BE kèm (issue #286). Chỉ hiển thị dữ liệu BE
+ * trả, không suy diễn — BE chưa gửi tên thì bỏ dòng, không hiện id.
  */
 export function CancellationRequestSummary({ request }: { request: CancellationRequest }) {
   return (
@@ -23,6 +24,12 @@ export function CancellationRequestSummary({ request }: { request: CancellationR
         </span>
       </div>
       <p className="text-ink-primary font-medium">{cancellationReasonLabel(request.reasonCode)}</p>
+      {request.requestedByName && (
+        <p className="text-ink-secondary break-words">
+          <span className="text-ink-tertiary">{L.requestedBy}: </span>
+          {request.requestedByName}
+        </p>
+      )}
       {request.note && (
         <p className="text-ink-secondary break-words">
           <span className="text-ink-tertiary">{L.customerNote}: </span>
@@ -38,6 +45,12 @@ export function CancellationRequestSummary({ request }: { request: CancellationR
       {request.retainedPercent !== null && request.retainedPercent > 0 && (
         <p className="text-ink-secondary tabular-nums">
           {L.retained(String(request.retainedPercent))}
+        </p>
+      )}
+      {request.decidedByName && (
+        <p className="text-ink-secondary break-words">
+          <span className="text-ink-tertiary">{L.decidedBy}: </span>
+          {request.decidedByName}
         </p>
       )}
       {request.decidedAt && (

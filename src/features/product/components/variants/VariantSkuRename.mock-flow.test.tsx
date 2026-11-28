@@ -66,11 +66,9 @@ async function draftVariant(): Promise<{ productId: string; variant: Variant }> 
   const product = await createProduct({
     code: `RN-${Date.now().toString(36)}-${seq}`.toUpperCase(),
     name: "Sản phẩm đổi SKU",
-    nameEn: "Rename product",
     categoryId: category?.categoryId ?? "",
     brandId: brand?.brandId ?? "",
     description: "",
-    descriptionEn: "",
     taxClass: "STANDARD",
   });
   const [variant] = await listVariants(product.productId);

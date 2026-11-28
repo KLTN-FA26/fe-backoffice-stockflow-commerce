@@ -88,7 +88,10 @@ export function CustomerSkusCard({
         <p className={NOTE}>Đang tải SKU riêng…</p>
       ) : query.isError ? (
         <p role="alert" className="text-danger text-xs">
-          Không tải được SKU riêng của khách.
+          Không tải được SKU riêng của khách.{" "}
+          <button type="button" className="underline" onClick={() => void query.refetch()}>
+            Thử lại
+          </button>
         </p>
       ) : query.data.length === 0 ? (
         <p className={NOTE}>

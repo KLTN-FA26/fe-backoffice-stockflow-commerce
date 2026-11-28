@@ -15,6 +15,7 @@ import { formatDate, formatDateTime } from "@/lib/format/date";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
 
 import { CustomerName } from "@/components/backoffice/CustomerName";
+import { SalesOwnerLine } from "@/components/backoffice/SalesOwnerNotes";
 import { LoadErrorState } from "@/components/backoffice/LoadErrorState";
 import { DetailPanel } from "@/components/shared/DetailPanel";
 import {
@@ -55,12 +56,14 @@ function DetailBody({ request }: { request: ProjectQuoteRequest }) {
   return (
     // Object page ERP (backoffice-erp-ui B10–B12), cùng mẫu trang sản phẩm: header → khung hồ sơ → dữ liệu chính.
     <div className="surface-soft surface-compact">
+      {/* BE không có mã yêu cầu người đọc được: thay UUID bằng ngày khách gửi (bo-05). "Lập báo giá" là nút chính của
+          header khi lập được (bước hiện tại), các việc khác trong "⋯". */}
       <ObjectHeader
         name={request.projectName}
-        code={request.id}
-        codeLabel="Mã yêu cầu"
+        code={formatDate(request.requestedAt)}
+        codeLabel="Yêu cầu gửi ngày"
         status={<RequestStatus row={request} />}
-        actions={<QuoteRequestActions row={request} close={close} />}
+        actions={<QuoteRequestActions row={request} close={close} placement="header" />}
       />
       <ProfileFrame
         label="Hồ sơ yêu cầu báo giá"
@@ -80,6 +83,7 @@ function DetailBody({ request }: { request: ProjectQuoteRequest }) {
       >
         <ProfileFact label={C.customer}>
           <CustomerName id={request.customerId} name={request.customerName} />
+          <SalesOwnerLine customerId={request.customerId} />
         </ProfileFact>
         <ProfileFact label={C.designs}>
           <span className={approved === total ? "text-dot-positive" : undefined}>

@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { Plus } from "lucide-react";
 
 import {
   CUSTOMER_PERMISSIONS,
@@ -14,6 +13,7 @@ import { useCan } from "@/lib/auth";
 import { useCustomerRef } from "@/lib/references/customer-options";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { HeaderActions, HeaderCreateButton } from "@/components/shared/HeaderActions";
 import { Button } from "@/components/ui/button";
 
 import { CustomerPicker } from "./CustomerPicker";
@@ -53,21 +53,36 @@ function CustomerPriceListContent() {
   const formCustomer = useCustomerRef(target?.customerId ?? null, canLookup);
 
   return (
-    // Trang danh sách kiểu Vercel (mode-a-backoffice §3 loại trang): không title hiển thị, tên ở breadcrumb
+    // Trang danh sách kiểu Vercel (backoffice-erp-ui A): không title hiển thị, tên ở breadcrumb; nút tạo mới trên thanh
+    // breadcrumb — khoá kèm lý do khi chưa chọn khách hoặc thiếu quyền.
     <div className="surface-soft space-y-4">
       <h1 className="sr-only">{L.title}</h1>
+      <HeaderActions>
+        <HeaderCreateButton
+          onClick={() => customerId && canCreate && setTarget({ mode: "create", customerId })}
+          disabled={!customerId || !canCreate}
+          aria-label={L.toolbar.createAria}
+          tooltip={
+            !canCreate
+              ? L.toolbar.createDenied
+              : !customerId
+                ? L.toolbar.pickCustomerFirst
+                : L.toolbar.createTooltip
+          }
+        />
+      </HeaderActions>
       {canLookup && (
         <div className="max-w-xl">
           <CustomerPicker displayValue="" onSelect={selection.select} />
         </div>
       )}
       {customerId && (
-        <SelectedCustomer customerId={customerId} canLookup={canLookup} onClear={selection.clear} />
-      )}
-      {customerId && canCreate && (
-        <Button type="button" size="sm" onClick={() => setTarget({ mode: "create", customerId })}>
-          <Plus className="size-3.5" /> {L.form.create}
-        </Button>
+        <SelectedCustomer
+          customerId={customerId}
+          canLookup={canLookup}
+          canReadPrices={canReadPrices}
+          onClear={selection.clear}
+        />
       )}
       {selection.invalid ? (
         <EmptyState

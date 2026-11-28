@@ -12,7 +12,12 @@ import { FORM_INPUT_CLASS, FORM_SELECT_CLASS } from "@/components/shared/form-co
 import { ListToolbar } from "@/components/shared/ListToolbar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/shared/combobox-select";
+import {
+  Select,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/shared/combobox-select";
 import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 
 import type { useInventoryListFilters } from "../use-list-filters";

@@ -5,6 +5,7 @@
  * ASSUMPTION (mock): chỗ giữ không tự nhả sau 30 phút — mock không chạy bộ quét hết hạn.
  */
 
+import { mockStaffName, mockWarehouseNames } from "./mock-display-names";
 import {
   areasOfWarehouse,
   cartonOf,
@@ -231,6 +232,11 @@ export function toTripResponse(trip: MockTrip) {
     lastActivityAt: trip.lastActivityAt,
     closedAt: trip.closedAt,
     closedBy: trip.status === "CLOSED" ? trip.closedBy : null,
+    // Issue #286: tên người cất / người đóng, mã + tên kho cạnh id
+    operatorName: mockStaffName(trip.operatorId),
+    closedByName: trip.status === "CLOSED" ? mockStaffName(trip.closedBy) : null,
+    warehouseCode: trip.warehouseCode,
+    warehouseName: mockWarehouseNames(trip.warehouseId).warehouseName,
     cartons: trip.cartons.map((c) => ({
       putawayTaskId: c.putawayTaskId,
       lpn: c.lpn,

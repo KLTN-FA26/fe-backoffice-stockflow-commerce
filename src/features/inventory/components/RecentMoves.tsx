@@ -22,7 +22,6 @@ import { InventoryError } from "./InventoryFeedback";
 import { buildMovementColumns } from "./inventory-columns";
 
 import type { ReactNode } from "react";
-import type { ListSummaryItem } from "@/components/shared/ListToolbar";
 
 // Mọi dòng đều là MOVE (chip "Loại biến động" đã nói) — bỏ cột loại để bảng gọn, đỡ cuộn ngang
 const MOVEMENT_COLUMNS = buildMovementColumns().filter((column) => column.key !== "type");
@@ -30,11 +29,8 @@ const SECONDARY_ACTION_CLASS = cn(
   "border-border-default bg-bg-surface text-ink-primary hover:bg-bg-muted",
   TOOLBAR_ACTION_CLASS,
 );
-// Danh sách cố định (loại MOVE, kho của tab, N lần gần nhất) — chip chỉ để đọc, không có gì để đặt lại
-const SUMMARY: ListSummaryItem[] = [
-  { label: INVENTORY_LABELS.movementType, value: STOCK_MOVEMENT_LABELS.MOVE },
-  { label: MOVE_LABELS.recentShown, value: MOVE_LABELS.recentShownValue(MOVE_LIMITS.recentSize) },
-];
+// Danh sách cố định (loại MOVE, kho của tab, N lần gần nhất) — một dòng chữ để đọc, không phải chip của thanh Cấu hình
+const NOTE = `${INVENTORY_LABELS.movementType}: ${STOCK_MOVEMENT_LABELS.MOVE} · ${MOVE_LABELS.recentShown}: ${MOVE_LABELS.recentShownValue(MOVE_LIMITS.recentSize)}`;
 
 /**
  * Danh sách chính của trang Di chuyển nội bộ: các lần chuyển vị trí gần đây của một kho — sổ kho lọc `type=MOVE` +
@@ -56,7 +52,8 @@ export function RecentMoves({
   return (
     <>
       <ListToolbar
-        summaryItems={SUMMARY}
+        summaryItems={[]}
+        note={NOTE}
         onResetAll={() => undefined}
         resetDisabled
         actions={

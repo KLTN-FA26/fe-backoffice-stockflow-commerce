@@ -183,7 +183,6 @@ const input = (dialog: HTMLElement, label: string) =>
   within(dialog).getByLabelText(label, { selector: "input", exact: false });
 /** Nhãn của ô bắt buộc có thêm dấu sao: khớp theo phần đầu. */
 const section = (dialog: HTMLElement, name: string) => within(dialog).getByRole("region", { name });
-const startsWith = (label: string) => new RegExp(`^${label}`);
 const byName = (dialog: HTMLElement, name: string) => within(dialog).getByRole("button", { name });
 const bodyOf = (spy: { mock: { calls: unknown[][] } }, index = -1): Record<string, unknown> => {
   const body = spy.mock.calls.at(index)?.[1];
@@ -219,11 +218,16 @@ describe("hãng API đặt xe — tạo mới qua hộp thoại", () => {
     const dialog = await dialogOf();
     await fill(user, input(dialog, F.code), "ahm-2");
     await fill(user, input(dialog, F.name), "Ahamove 2");
-    expect(within(dialog).getAllByRole("radio")).toHaveLength(3);
     await user.click(within(dialog).getByRole("radio", { name: C.connectionType.API_BOOKING }));
+    // S20-1 / S01-6: môi trường mặc định "Thử nghiệm", không còn chữ "staging"; hai giá trị là nút chọn hiện sẵn
+    expect(within(dialog).getByRole("radio", { name: A.environmentOption.STAGING })).toBeChecked();
+    expect(
+      within(dialog).getByRole("radio", { name: A.environmentOption.PRODUCTION }),
+    ).not.toBeChecked();
+    expect(within(dialog).queryByText(/staging/i)).not.toBeInTheDocument();
     const save = byName(dialog, F.create);
     expect(save).toBeDisabled();
-    await pick(user, dialog, startsWith(A.environment), A.environmentOption.STAGING);
+    await user.click(within(dialog).getByRole("radio", { name: A.environmentOption.STAGING }));
     await fill(user, input(dialog, A.account), "0911111111");
     await fill(user, input(dialog, A.apiKey), KEY);
     await fill(user, input(dialog, A.webhookAuthHeader), "apikey");
@@ -256,14 +260,14 @@ describe("hãng API đặt xe — tạo mới qua hộp thoại", () => {
     await fill(user, input(dialog, F.code), "ahm-2");
     await fill(user, input(dialog, F.name), "Ahamove 2");
     await user.click(within(dialog).getByRole("radio", { name: C.connectionType.API_BOOKING }));
-    await pick(user, dialog, startsWith(A.environment), A.environmentOption.PRODUCTION);
+    await user.click(within(dialog).getByRole("radio", { name: A.environmentOption.PRODUCTION }));
     await fill(user, input(dialog, A.account), "0911111111");
     await fill(user, input(dialog, A.apiKey), KEY);
     await fill(user, input(dialog, A.webhookAuthHeader), "Authorization");
     await fill(user, input(dialog, A.webhookAuthValue), AUTH);
 
     await user.click(byName(dialog, S.add));
-    await pick(user, dialog, `${S.vehicleType} 1`, "Xe tải 2,5 tấn (TRUCK-2T5)");
+    await pick(user, dialog, `${S.vehicleType} 1`, "Xe tải 2,5 tấn");
     await pick(user, section(dialog, S.title), `${S.province} 1`, "Thành phố Hồ Chí Minh");
     await fill(user, input(dialog, `${S.carrierCity} 1`), "SGN");
     await fill(user, input(dialog, `${S.serviceCode} 1`), "SGN-2T5");
@@ -316,7 +320,7 @@ describe("hãng API đặt xe — tạo mới qua hộp thoại", () => {
     await fill(user, input(dialog, F.code), "ahm-2");
     await fill(user, input(dialog, F.name), "Ahamove 2");
     await user.click(within(dialog).getByRole("radio", { name: C.connectionType.API_BOOKING }));
-    await pick(user, dialog, startsWith(A.environment), A.environmentOption.STAGING);
+    await user.click(within(dialog).getByRole("radio", { name: A.environmentOption.STAGING }));
     await fill(user, input(dialog, A.account), "0911111111");
     await fill(user, input(dialog, A.apiKey), KEY);
     await fill(user, input(dialog, A.webhookAuthHeader), "apikey");
@@ -339,9 +343,7 @@ describe("hãng API đặt xe — khoá chỉ đi vào", () => {
     expect(dialog.querySelectorAll("input[type=password]")).toHaveLength(0);
     expect(input(dialog, A.webhookAuthHeader)).toHaveValue("apikey");
     expect(input(dialog, A.account)).toHaveValue("0900000000");
-    expect(
-      within(dialog).getByRole("combobox", { name: startsWith(A.environment) }),
-    ).toHaveTextContent(A.environmentOption.STAGING);
+    expect(within(dialog).getByRole("radio", { name: A.environmentOption.STAGING })).toBeChecked();
     // Không bản nào của khoá nằm trong DOM
     expect(dialog.innerHTML).not.toContain(KEY);
   });
@@ -397,7 +399,7 @@ describe("hãng API đặt xe — khoá chỉ đi vào", () => {
     await user.click(byName(dialog, SECRET.replaceAria(A.apiKey)));
     await fill(user, input(dialog, A.apiKey), KEY);
     await user.click(byName(dialog, S.add));
-    await pick(user, dialog, `${S.vehicleType} 2`, "Xe tải 2,5 tấn (TRUCK-2T5)");
+    await pick(user, dialog, `${S.vehicleType} 2`, "Xe tải 2,5 tấn");
     await pick(user, section(dialog, S.title), `${S.province} 2`, "Thành phố Hà Nội");
     await fill(user, input(dialog, `${S.carrierCity} 2`), "HAN");
     await fill(user, input(dialog, `${S.serviceCode} 2`), "HAN-2T5");
@@ -417,7 +419,7 @@ describe("hãng API đặt xe — khoá chỉ đi vào", () => {
     await loaded(dialog);
     const save = byName(dialog, F.save);
     await waitFor(() => expect(save).toBeEnabled());
-    await pick(user, dialog, startsWith(A.environment), A.environmentOption.PRODUCTION);
+    await user.click(within(dialog).getByRole("radio", { name: A.environmentOption.PRODUCTION }));
     expect(await within(dialog).findByText(A.apiKeyChangeNeedsNew)).toBeVisible();
     expect(input(dialog, A.apiKey)).toHaveValue("");
     expect(save).toBeDisabled();
@@ -479,7 +481,7 @@ describe("hãng API đặt xe — mã dịch vụ, điểm lấy hàng, lý do g
     const dialog = await openEdit(user, "AHAMOVE");
     await loaded(dialog);
     expect(within(dialog).getByRole("combobox", { name: `${S.vehicleType} 1` })).toHaveTextContent(
-      "Xe tải 1,25 tấn (TRUCK-1T25)",
+      "Xe tải 1,25 tấn",
     );
     expect(
       within(section(dialog, S.title)).getByRole("combobox", { name: `${S.province} 1` }),
@@ -521,7 +523,7 @@ describe("hãng API đặt xe — mã dịch vụ, điểm lấy hàng, lý do g
     const dialog = await openEdit(user, "AHAMOVE");
     await loaded(dialog);
     await user.click(byName(dialog, S.add));
-    await pick(user, dialog, `${S.vehicleType} 2`, "Xe tải 1,25 tấn (TRUCK-1T25)");
+    await pick(user, dialog, `${S.vehicleType} 2`, "Xe tải 1,25 tấn");
     await pick(user, section(dialog, S.title), `${S.province} 2`, "Thành phố Hồ Chí Minh");
     await fill(user, input(dialog, `${S.carrierCity} 2`), "SGN");
     await fill(user, input(dialog, `${S.serviceCode} 2`), "KHAC");
@@ -632,7 +634,7 @@ describe("hãng API đặt xe — lưu một phần và lỗi", () => {
     await fill(user, input(dialog, F.code), "ahm-2");
     await fill(user, input(dialog, F.name), "Ahamove 2");
     await user.click(within(dialog).getByRole("radio", { name: C.connectionType.API_BOOKING }));
-    await pick(user, dialog, startsWith(A.environment), A.environmentOption.STAGING);
+    await user.click(within(dialog).getByRole("radio", { name: A.environmentOption.STAGING }));
     await fill(user, input(dialog, A.account), "0911111111");
     await fill(user, input(dialog, A.apiKey), KEY);
     await fill(user, input(dialog, A.webhookAuthHeader), "apikey");
@@ -769,6 +771,8 @@ describe("hãng API đặt xe — tra dịch vụ của hãng (gọi API hãng, 
     await user.click(byName(dialog, S.add));
     await fill(user, input(dialog, `${S.carrierCity} 1`), "SGN");
     expect(byName(dialog, S.lookupAria(1))).toBeDisabled();
+    // S01-13: lý do khoá nút nói ngay dưới nút (không chỉ ở title)
+    expect(within(dialog).getByText(S.lookupNeedsSaved)).toBeVisible();
     expect(callsTo(get, `${LIST_URL}/car-ahm/services`)).toHaveLength(0);
     expect(get.mock.calls.some(([url]) => String(url).endsWith("/services"))).toBe(false);
   });
@@ -784,9 +788,7 @@ describe("hãng API đặt xe — quyền", () => {
       const { get, put, post } = renderApi({ actor });
       await screen.findByText("Ahamove");
       // Không có quyền sửa: dòng không có menu "⋯" (không mở được thao tác sửa)
-      expect(
-        screen.queryByRole("button", { name: "Thao tác — AHAMOVE" }),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Thao tác — AHAMOVE" })).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: C.editAria("AHAMOVE") })).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: C.create })).not.toBeInTheDocument();
       expect(get.mock.calls.some(([url]) => String(url).includes("service-codes"))).toBe(false);

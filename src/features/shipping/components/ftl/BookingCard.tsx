@@ -6,22 +6,16 @@ import { LOAD_STATUS, UI_LABELS } from "@/constants";
 import { formatDateTime } from "@/lib/format/date";
 import { hasLoadAction } from "@/features/shipping/lifecycle";
 import { Alert } from "@/components/shared/Alert";
-import { StatusDot } from "@/components/shared/StatusDot";
 import { Button } from "@/components/ui/button";
 
-import { InfoItem } from "../primitives";
+import { BookingInfo } from "./BookingInfo";
 
 import type { AllowedLoadAction } from "@/features/shipping/lifecycle";
 import type { Load } from "@/features/shipping/types";
 
 const B = UI_LABELS.shipping.ftl.booking;
-const F = UI_LABELS.shipping.field;
 const PRIMARY =
   "bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse rounded-[var(--r-sm)]";
-
-export type BookingDialogKind = "book" | "cancelBooking" | "startLoading" | "driver";
-
-const CONNECTION = UI_LABELS.shipping.waybill.carriers.connectionType;
 
 function hint(load: Load): string {
   if (load.status === LOAD_STATUS.PLANNED) return B.hintPlanned;
@@ -29,10 +23,14 @@ function hint(load: Load): string {
   return B.hintLocked;
 }
 
+export type BookingDialogKind = "book" | "cancelBooking" | "startLoading" | "driver";
+
 /**
  * Đặt xe của một xe trong kế hoạch (docs 09 §4.2 bước 5): hãng, biển số, tài xế đã đặt ở ngoài hệ thống,
  * và các bước PLANNED → VEHICLE_BOOKED → LOADING. Nút gate theo `allowedLoadActions` (quyền + trạng thái);
- * sau khi bắt đầu xếp hàng thẻ chỉ còn để xem. Backend phải re-check (BR-14).
+ * sau khi bắt đầu xếp hàng thẻ chỉ còn để xem. Backend phải re-check (BR-14). Trạng thái chuyến đã ở thẻ thông tin đầu
+ * trang nên thẻ không lặp lại; MỘT nút chính mỗi bước (S17-5). Hãng đặt xe qua API: tài xế "Chờ hãng cập nhật", biển số
+ * nhập khi ký bàn giao (hãng không gửi — docs 09 §4.2 bước 6).
  */
 export function BookingCard({
   load,
@@ -48,12 +46,10 @@ export function BookingCard({
   const start = hasLoadAction(actions, "startLoading");
   const driver = hasLoadAction(actions, "recordDriver");
   const planned = load.status === LOAD_STATUS.PLANNED;
-  const booked = load.status !== LOAD_STATUS.PLANNED && load.status !== LOAD_STATUS.CANCELLED;
   return (
     <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+      <div className="mb-3">
         <h2 className="text-ink-primary text-[0.9375rem] font-semibold">{B.title}</h2>
-        <StatusDot domain="shipment" status={load.status} size="md" withIcon />
       </div>
       <p className="text-ink-secondary mb-3 text-[0.8125rem]">{hint(load)}</p>
       {planned && load.bookingCancelReason && (
@@ -64,23 +60,7 @@ export function BookingCard({
           : {load.bookingCancelReason}
         </Alert>
       )}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <InfoItem
-          label={F.carrier}
-          value={
-            load.carrierName ? `${load.carrierCode ?? ""} ${load.carrierName}`.trim() : B.notBooked
-          }
-        />
-        <InfoItem label={F.vehiclePlate} value={load.vehiclePlate ?? "—"} mono />
-        <InfoItem label={F.driverName} value={load.driverName ?? "—"} />
-        <InfoItem label={F.driverPhone} value={load.driverPhone ?? "—"} mono />
-        {load.carrierConnectionType && (
-          <InfoItem label={B.connection} value={CONNECTION[load.carrierConnectionType]} />
-        )}
-        {booked && load.bookedAt && (
-          <InfoItem label={B.bookedAt} value={formatDateTime(load.bookedAt)} />
-        )}
-      </div>
+      <BookingInfo load={load} />
       {(book || cancelBooking || start || driver) && (
         <div className="mt-4 flex flex-wrap items-center gap-2">
           {book && (
@@ -91,6 +71,7 @@ export function BookingCard({
               className={planned ? PRIMARY : undefined}
               disabled={!!book.disabledReason}
               title={book.disabledReason}
+              aria-describedby={book.disabledReason ? "booking-disabled-why" : undefined}
               onClick={() => onOpen("book")}
             >
               {planned ? <CalendarCheck className="size-3.5" /> : <Pencil className="size-3.5" />}{" "}
@@ -98,13 +79,7 @@ export function BookingCard({
             </Button>
           )}
           {driver && (
-            <Button
-              type="button"
-              size="sm"
-              variant={load.driverName ? "outline" : "default"}
-              className={load.driverName ? undefined : PRIMARY}
-              onClick={() => onOpen("driver")}
-            >
+            <Button type="button" size="sm" variant="outline" onClick={() => onOpen("driver")}>
               <UserRound className="size-3.5" /> {load.driverName ? B.editDriver : B.enterDriver}
             </Button>
           )}
@@ -129,6 +104,12 @@ export function BookingCard({
             </Button>
           )}
         </div>
+      )}
+      {book?.disabledReason && (
+        // S01-13 / R7: lý do khoá nút "Đặt xe" nói ngay dưới, không chỉ ở `title`
+        <p id="booking-disabled-why" className="text-ink-secondary mt-2 text-xs">
+          {book.disabledReason}
+        </p>
       )}
     </section>
   );

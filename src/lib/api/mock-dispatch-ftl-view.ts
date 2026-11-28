@@ -23,6 +23,8 @@ export function ftlDetailFields(load: MockLoad, carrier: MockCarrier | undefined
     vehicleTypeCode: ftl.vehicleTypeCode,
     bookedAt: ftl.bookedAt,
     bookedBy: ftl.bookedBy,
+    // Mock lưu sẵn tên người đặt xe ở `bookedBy`
+    bookedByName: ftl.bookedBy,
     bookingCancelledAt: ftl.bookingCancelledAt,
     bookingCancelReason: ftl.bookingCancelReason,
     pendingUnloads: ftl.pendingUnloads,

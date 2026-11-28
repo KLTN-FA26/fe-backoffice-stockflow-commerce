@@ -7,8 +7,9 @@ import { ApiError } from "@/lib/api/error";
 
 import { apiCreditPosition, apiOrder, apiOrderPage } from "../__fixtures__/order";
 import {
-  ORDER_PERMISSION_SETS,
   mockOrderApiGet,
+  ORDER_PERMISSION_SETS,
+  orderAction,
   pickOrderSelectOption,
   renderOrderScreen,
 } from "../__fixtures__/render";
@@ -84,7 +85,7 @@ async function renderDetail(order: OrderDto) {
 }
 
 async function submitCancel(user: User) {
-  await user.click(await screen.findByRole("button", { name: "Huỷ đơn" }));
+  await user.click(await orderAction("Huỷ đơn"));
   await pickOrderSelectOption(user, /Lý do huỷ/, "Khách yêu cầu");
   const dialog = screen.getByRole("dialog");
   await user.click(within(dialog).getByRole("button", { name: "Huỷ đơn" }));
@@ -93,7 +94,7 @@ async function submitCancel(user: User) {
 
 /** Hộp thoại release của PR #74 (`OrderReleaseDialog`): ô "Kho xuất hàng", nút gửi "Release đơn". */
 async function submitRelease(user: User) {
-  await user.click(await screen.findByRole("button", { name: "Release đơn" }));
+  await user.click(await orderAction("Release đơn"));
   await pickOrderSelectOption(user, /Kho xuất hàng/, /HN — Kho Hà Nội/);
   const dialog = screen.getByRole("dialog");
   await user.click(within(dialog).getByRole("button", { name: "Release đơn" }));
@@ -112,13 +113,20 @@ function renderCreditList() {
           orderAmount: 350_000,
         },
       ] as never[]),
+    "/orders/contract-credit-reviews": () => apiOrderPage([]),
     [`/orders/credit-position/${apiOrder.customerId}`]: () => apiCreditPosition,
   });
   renderOrderScreen(<CreditHoldList />);
 }
 
-/** Duyệt / từ chối nằm trong menu "⋯" của dòng (`CreditHoldRowActions` → `RowActionsMenu`). */
+/** bo-21: "Duyệt" là nút trên dòng; "Từ chối" trong menu "⋯" của dòng (`CreditHoldRowActions`). */
 async function clickCreditAction(user: User, action: "Duyệt công nợ" | "Từ chối") {
+  if (action === "Duyệt công nợ") {
+    await user.click(
+      await screen.findByRole("button", { name: `Duyệt công nợ — ${apiOrder.orderNumber}` }),
+    );
+    return;
+  }
   await user.click(
     await screen.findByRole("button", { name: `Thao tác — ${apiOrder.orderNumber}` }),
   );
@@ -199,7 +207,7 @@ describe("Huỷ đơn — dialog khi đang gửi", { timeout: DIALOG_FLOW_TIMEOU
       await renderDetail(apiOrder);
       const post = vi.spyOn(api, "post");
 
-      await user.click(await screen.findByRole("button", { name: "Huỷ đơn" }));
+      await user.click(await orderAction("Huỷ đơn"));
       await screen.findByRole("dialog");
       await tryDismiss(user, how);
 
@@ -320,7 +328,7 @@ describe("Bấm đúp nút gửi → đúng 1 request", { timeout: DIALOG_FLOW_T
     const user = setupUser();
     await renderDetail(apiOrder);
     const post = slowPost({ ...apiOrder, status: "CANCELLED" });
-    await user.click(await screen.findByRole("button", { name: "Huỷ đơn" }));
+    await user.click(await orderAction("Huỷ đơn"));
     await pickOrderSelectOption(user, /Lý do huỷ/, "Khách yêu cầu");
     await user.dblClick(
       within(screen.getByRole("dialog")).getByRole("button", { name: "Huỷ đơn" }),
@@ -333,7 +341,7 @@ describe("Bấm đúp nút gửi → đúng 1 request", { timeout: DIALOG_FLOW_T
     const user = setupUser();
     await renderDetail(confirmed);
     const post = slowPost({ ...confirmed, status: "READY_TO_FULFILL" });
-    await user.click(await screen.findByRole("button", { name: "Release đơn" }));
+    await user.click(await orderAction("Release đơn"));
     await pickOrderSelectOption(user, /Kho xuất hàng/, /HN — Kho Hà Nội/);
     await user.dblClick(
       within(screen.getByRole("dialog")).getByRole("button", { name: "Release đơn" }),

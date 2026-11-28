@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import { useRouter } from "next/navigation";
 import { FolderKanban } from "lucide-react";
 
@@ -37,6 +39,8 @@ import { useQuoteRequestFilters } from "./useQuoteRequestFilters";
 import type { ProjectQuoteRequest } from "../types";
 
 function ProjectQuoteRequestContent() {
+  // Mốc "Đã chờ …" của trang (bo-01): chốt lúc mở trang, không đổi mỗi lần vẽ lại.
+  const [now] = useState(() => new Date());
   const filters = useQuoteRequestFilters(DESIGN_REVIEW_STORAGE_KEYS.projectQuoteRequestsConfig);
   const { list } = filters;
   const query = useProjectQuoteRequests({
@@ -55,7 +59,7 @@ function ProjectQuoteRequestContent() {
     { locked: PROJECT_REQUEST_LOCKED_COLUMNS },
   );
   const columns = withHeaderFilters(
-    projectQuoteRequestColumns(close, detailHref).filter((column) =>
+    projectQuoteRequestColumns(close, detailHref, now).filter((column) =>
       columnState.visible.some((key) => key === column.key),
     ),
     quoteRequestHeaderFilters(filters),

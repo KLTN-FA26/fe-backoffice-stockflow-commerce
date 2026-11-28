@@ -39,6 +39,11 @@ export const beVariantSchema = z.object({
   options: z.array(beVariantOptionSchema).default([]),
   /** BE PR #119: hồ sơ hàng tồn của SKU (`/inventory/items/{id}`); null khi SKU chưa có hồ sơ. */
   inventoryItemId: z.string().nullish(),
+  /**
+   * Mô tả riêng của biến thể: HTML của Tiptap đã được BE lọc (ADR-0013). `null` = chưa có — storefront dùng mô tả
+   * của sản phẩm.
+   */
+  description: z.string().nullish(),
 });
 export type Variant = z.infer<typeof beVariantSchema>;
 
@@ -100,6 +105,9 @@ export const beMediaSchema = z.object({
   publishedAt: z.string().nullish(),
   publishedBy: z.string().nullish(),
   uploadedBy: z.string().nullish(),
+  /** Issue #286: họ tên khi cột lưu id, còn không thì username — thiếu thì không hiện người làm. */
+  publishedByName: z.string().nullish(),
+  uploadedByName: z.string().nullish(),
   uploadedAt: z.string().nullish(),
   version: z.number().int(),
 });
