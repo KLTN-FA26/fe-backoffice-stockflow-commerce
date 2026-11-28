@@ -100,6 +100,26 @@ export const EXTERNAL_REDUCTION_BASIS_LABELS = {
 
 export const EINVOICE_LABELS = {
   navGroup: "Hoá đơn",
+  /** Hộp "Lập hoá đơn nháp" — chọn lô giao đã giao thành công thay vì gõ mã (UX audit S21-1). */
+  drawUp: {
+    title: "Lập hoá đơn nháp",
+    description:
+      "Lập lại nháp cho một lô giao đã giao thành công mà nháp đã bị huỷ, hoặc chọn “Phần phí còn lại” để lập hoá đơn cho phí vận chuyển, phí khuôn chưa lên hoá đơn nào sau khi đóng phần chưa giao.",
+    submit: "Lập nháp",
+    shipmentLabel: "Lô giao",
+    shipmentHint: "Các lô giao của đơn này đã giao thành công (kể cả lô chưa có hoá đơn hoặc nháp đã huỷ).",
+    remainderOption: "Phần phí còn lại (không gắn lô giao)",
+    invoiceState: (status: string) => `hoá đơn ${status.toLowerCase()}`,
+    noInvoice: "chưa có hoá đơn",
+    byDate: (date: string) => `Lô giao ngày ${date}`,
+    truncated: (shown: number, total: number) =>
+      `Chỉ đọc được ${shown} trong ${total} hoá đơn của đơn nên danh sách lô giao có thể thiếu.`,
+    orderLabel: "Đơn hàng",
+    orderPlaceholder: "Tìm số đơn, tên người liên hệ, SĐT…",
+    orderHint: "Chọn đơn trước, rồi chọn lô giao đã giao thành công của đơn đó.",
+    orderChosen: (orderNumber: string) => `Đơn ${orderNumber}`,
+    changeOrder: "Đổi đơn",
+  },
   list: {
     navLabel: "Hoá đơn điện tử",
     pageTitle: "Hoá đơn điện tử",
@@ -118,8 +138,7 @@ export const EINVOICE_LABELS = {
     clearFilters: "Bỏ bộ lọc",
     drawUp: "Lập nháp",
     emptyTitle: "Chưa có hoá đơn điện tử",
-    emptyDescription:
-      "Hoá đơn nháp được hệ thống tạo khi một lần giao thành công (shipment Delivered).",
+    emptyDescription: "Hoá đơn nháp được hệ thống tạo khi một lô giao được giao thành công.",
     noReadDescription:
       "Bạn được mở trang nhưng chưa có quyền xem hoá đơn điện tử. Liên hệ quản trị để được cấp.",
   },
@@ -127,7 +146,7 @@ export const EINVOICE_LABELS = {
     reference: "Số hoá đơn",
     type: "Loại",
     order: "Đơn hàng",
-    shipment: "Lần giao",
+    shipment: "Lô giao",
     buyer: "Bên mua",
     issueDate: "Ngày lập",
     dueAt: "Hạn phát hành",

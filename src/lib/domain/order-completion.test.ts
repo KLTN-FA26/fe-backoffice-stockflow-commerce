@@ -48,7 +48,7 @@ describe("completionChecks (docs 17 §4.6 bước 21 + BE WF-05 plan §4)", () =
     );
     const missing = completionChecks(facts({ invoicedShipmentIds: ["s-1"] }), now);
     expect(met(missing).invoiced).toBe(false);
-    expect(missing[3]?.detail).toBe("Còn 1 lần giao chưa có hoá đơn phát hành");
+    expect(missing[3]?.detail).toBe("Còn 1 lô giao chưa có hoá đơn phát hành");
   });
 });
 

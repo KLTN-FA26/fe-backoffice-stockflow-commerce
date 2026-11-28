@@ -96,7 +96,7 @@ describe("EInvoiceList (docs 21 §4.1–4.2)", () => {
     expect(screen.getByRole("checkbox", { name: "Hoá đơn lập trễ" })).toBeChecked();
   });
 
-  it("offers drawing a draft up only for an order, and only to who may create", async () => {
+  it("offers drawing a draft up, with or without an order filter, and only to who may create", async () => {
     mockEInvoiceApi(ACCOUNTANT_GRANTS, routes());
     const { unmount } = renderEInvoiceScreen(<EInvoiceList />, "?orderId=ord-13");
     expect(await screen.findByRole("button", { name: /Lập nháp/ })).toBeInTheDocument();

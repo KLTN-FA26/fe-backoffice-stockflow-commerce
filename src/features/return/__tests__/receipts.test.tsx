@@ -206,6 +206,25 @@ describe("ReturnReceiptDetail", () => {
     );
   });
 
+  it("fills the carton condition from a quick button (UX audit S21-2)", async () => {
+    const scan = vi.fn((_body: unknown) => receiptJson());
+    mockReturnApi(WAREHOUSE_GRANTS, {
+      get: { "/goods-receipts/returns/gr-1": () => receiptJson() },
+      post: { "/goods-receipts/returns/gr-1/cartons": (_p, body) => scan(body) },
+    });
+    const user = userEvent.setup();
+    renderReturnScreen(<ReturnReceiptDetail id="gr-1" />);
+    await screen.findByText("Đã quét 0 / 2 thùng");
+    await user.click(
+      within(screen.getByRole("group", { name: "Chọn nhanh" })).getByRole("button", {
+        name: "Ướt",
+      }),
+    );
+    expect(screen.getByLabelText(/Tình trạng thùng/)).toHaveValue("Ướt");
+    await user.type(screen.getByLabelText("LPN"), "LPN-0001{Enter}");
+    await waitFor(() => expect(scan).toHaveBeenCalledWith({ lpn: "LPN-0001", condition: "Ướt" }));
+  });
+
   it("confirms a draft with cartons; a closed receipt has no actions", async () => {
     const confirm = vi.fn(() => receiptJson({ status: "CLOSED" }));
     const withCarton = receiptJson({

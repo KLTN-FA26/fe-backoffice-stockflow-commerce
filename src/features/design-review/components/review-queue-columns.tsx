@@ -109,7 +109,8 @@ export function reviewQueueColumns(now: Date, onRefreshPreview: () => void): Col
       compare: byText((row) => [row.productName, row.variantName].filter(Boolean).join(" · ")),
       cell: (row) => (
         <span className="text-ink-secondary">
-          {[row.productName, row.variantName].filter(Boolean).join(" · ") || "—"}
+          {/* Biến thể trùng tên sản phẩm thì chỉ ghi một lần, không "X · X" (UX audit S09-2) */}
+          {[...new Set([row.productName, row.variantName].filter(Boolean))].join(" · ") || "—"}
         </span>
       ),
     },

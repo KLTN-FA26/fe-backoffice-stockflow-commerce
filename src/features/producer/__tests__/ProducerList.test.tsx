@@ -64,8 +64,7 @@ describe("ProducerList (docs 17 §4.3)", () => {
       (await screen.findByText("IN-MINHPHAT")).closest("tr") as HTMLElement,
     );
     const dialog = await screen.findByRole("dialog");
-    await user.click(within(dialog).getByRole("combobox", { name: new RegExp(L.form.status) }));
-    await user.click(await screen.findByRole("option", { name: "Ngừng dùng" }));
+    await user.click(within(dialog).getByRole("radio", { name: "Ngừng dùng" }));
     await user.click(within(dialog).getByRole("button", { name: L.form.submitEdit }));
     await waitFor(() => expect(put).toHaveBeenCalled());
     const [, body] = put.mock.calls[0] ?? [];

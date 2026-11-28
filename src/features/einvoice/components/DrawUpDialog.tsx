@@ -1,89 +1,69 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 
-import { EINVOICE_ROUTES } from "@/constants/einvoice";
+import { EINVOICE_LABELS } from "@/constants/labels-einvoice";
+import { OrderPicker } from "@/components/backoffice/OrderPicker";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
-import { FormField, fieldA11y } from "@/components/shared/FormField";
-import { Input } from "@/components/ui/input";
 
-import { applyEInvoiceFieldErrors, einvoiceErrorMessage } from "../errors";
-import { drawUpInputSchema } from "../input-schemas";
-import { useDrawUpEInvoice } from "../mutations";
+import { DrawUpForm } from "./DrawUpForm";
 
-import type { z } from "zod";
+const D = EINVOICE_LABELS.drawUp;
 
-type Values = z.input<typeof drawUpInputSchema>;
-const DRAW_UP_FIELDS = ["shipmentId"] as const;
-
-function DrawUpForm({ orderId, onClose }: { orderId: string; onClose: () => void }) {
-  const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
-  const drawUp = useDrawUpEInvoice();
-  const form = useForm<Values>({
-    resolver: zodResolver(drawUpInputSchema),
-    defaultValues: { orderId, shipmentId: "" },
-  });
-  const submit = form.handleSubmit((values) =>
-    drawUp.mutate(
-      { orderId: values.orderId, shipmentId: values.shipmentId?.trim() || undefined },
-      {
-        onSuccess: (invoice) => {
-          onClose();
-          router.push(EINVOICE_ROUTES.detail(invoice.id));
-        },
-        // BO-10: lỗi từng ô của BE hiện dưới ô đó
-        onError: (failure) => {
-          const mapped = applyEInvoiceFieldErrors(failure, DRAW_UP_FIELDS, (field, message) =>
-            form.setError(field, { type: "server", message }),
-          );
-          if (!mapped) setError(einvoiceErrorMessage(failure));
-        },
-      },
-    ),
-  );
-
+function DrawUpContent({ orderId, onClose }: { orderId: string | null; onClose: () => void }) {
+  const [picked, setPicked] = useState<{ orderId: string; orderNumber: string } | null>(null);
+  const chosenId = orderId ?? picked?.orderId ?? null;
+  if (chosenId) {
+    return (
+      <DrawUpForm
+        orderId={chosenId}
+        orderNumber={orderId ? undefined : picked?.orderNumber}
+        onChangeOrder={orderId ? undefined : () => setPicked(null)}
+        onClose={onClose}
+      />
+    );
+  }
+  // Không có đơn sẵn (mở từ danh sách chưa lọc theo đơn): chọn đơn trước, không bao giờ gõ id (UX audit R3)
   return (
     <FormDialogBody
-      title="Lập hoá đơn nháp"
-      description="Lập lại nháp cho một lần giao đã giao thành công mà nháp đã bị huỷ, hoặc để trống mã lần giao để lập hoá đơn cho phần phí còn lại (phí vận chuyển, phí khuôn chưa lên hoá đơn nào) sau khi đóng phần chưa giao."
-      submitLabel="Lập nháp"
-      canSubmit
-      isPending={drawUp.isPending}
-      error={error}
+      title={D.title}
+      description={D.orderHint}
+      submitLabel={D.submit}
+      canSubmit={false}
+      isPending={false}
+      error={null}
       onCancel={onClose}
-      onSubmit={() => void submit()}
+      onSubmit={() => undefined}
     >
-      <FormField
-        id="drawup-shipment"
-        label="Mã lần giao (shipment ID)"
-        error={form.formState.errors.shipmentId?.message}
-      >
-        <Input
-          autoFocus
-          placeholder="Để trống = phần phí còn lại"
-          {...fieldA11y("drawup-shipment", form.formState.errors.shipmentId?.message)}
-          {...form.register("shipmentId")}
-        />
-      </FormField>
+      <OrderPicker
+        id="drawup-order"
+        label={D.orderLabel}
+        placeholder={D.orderPlaceholder}
+        onSelect={(order) => setPicked({ orderId: order.orderId, orderNumber: order.orderNumber })}
+      />
     </FormDialogBody>
   );
 }
 
-/** Lập nháp thủ công cho một đơn (BE `POST /einvoices`); trả về nháp đang hiệu lực nếu đã có. */
+/**
+ * Lập nháp thủ công cho một đơn (BE `POST /einvoices`); trả về nháp đang hiệu lực nếu đã có. Có `orderId` thì vào thẳng
+ * bước chọn lô giao; `chooseOrder` (không có đơn sẵn) thì chọn đơn trước.
+ */
 export function DrawUpDialog({
   orderId,
+  chooseOrder = false,
   onClose,
 }: {
   orderId: string | null;
+  chooseOrder?: boolean;
   onClose: () => void;
 }) {
   return (
-    <FormDialog open={orderId !== null} onOpenChange={(open) => !open && onClose()}>
-      {orderId && <DrawUpForm orderId={orderId} onClose={onClose} />}
+    <FormDialog
+      open={orderId !== null || chooseOrder}
+      onOpenChange={(open) => !open && onClose()}
+    >
+      {(orderId !== null || chooseOrder) && <DrawUpContent orderId={orderId} onClose={onClose} />}
     </FormDialog>
   );
 }

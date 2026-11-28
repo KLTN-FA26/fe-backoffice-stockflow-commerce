@@ -111,10 +111,10 @@ export function completionChecks(facts: CompletionFacts, now = new Date()): Comp
     },
     {
       key: "invoiced",
-      label: "Mọi lần giao đã có hoá đơn điện tử phát hành",
+      label: "Mọi lô giao đã có hoá đơn điện tử phát hành",
       met: missing.length === 0,
       detail:
-        missing.length > 0 ? `Còn ${missing.length} lần giao chưa có hoá đơn phát hành` : undefined,
+        missing.length > 0 ? `Còn ${missing.length} lô giao chưa có hoá đơn phát hành` : undefined,
     },
     ...holdCheck(facts.completionHeld),
   ];

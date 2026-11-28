@@ -12,9 +12,12 @@ import { FORM_INPUT_CLASS } from "@/components/shared/form-control-classes";
 import { Notice } from "@/components/shared/Notice";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/shared/NumberInput";
 
 import { returnErrorMessage } from "../errors";
 import { useScanReturnCarton } from "../mutations";
+
+import { CartonConditionButtons } from "./CartonConditionButtons";
 
 import type { ExpectedCarton } from "../types";
 
@@ -116,6 +119,7 @@ export function ReturnCartonScan({
             value={condition}
             onChange={(event) => setCondition(event.target.value)}
           />
+          <CartonConditionButtons value={condition} onChange={setCondition} />
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -128,12 +132,9 @@ export function ReturnCartonScan({
             <label htmlFor="rr-counted" className="text-ink-secondary text-xs font-medium">
               {D.counted}
             </label>
-            <Input
+            <NumberInput
               id="rr-counted"
-              type="number"
-              inputMode="numeric"
-              min={0}
-              step={1}
+              grouped
               required
               className={`${FORM_INPUT_CLASS} w-24 tabular-nums`}
               value={counted}
