@@ -2,6 +2,7 @@ import { cn } from "cn";
 
 import { LOAD_PLAN_PRINT_LABELS } from "@/constants";
 import { formatNumber } from "@/lib/format";
+import { ParcelCode } from "@/components/shared/ParcelCode";
 
 import { formatKg } from "../../lib/print-labels";
 import { EMPTY, LetterChip, PRINT_EXACT, TABLE_FRAME, TD, TH } from "./primitives";
@@ -69,7 +70,9 @@ export function ParcelTable({
               className="border-border-default break-inside-avoid border-t"
             >
               {showStep && <td className={cn(TD, "tabular-nums")}>{parcel.step}</td>}
-              <td className={cn(TD, "font-mono")}>{parcel.labelCode}</td>
+              <td className={cn(TD, "font-mono")}>
+                <ParcelCode lpn={parcel.lpn} labelCode={parcel.labelCode} />
+              </td>
               <td className={TD}>
                 <span className="inline-flex items-center gap-1.5">
                   <LetterChip letter={parcel.letter} color={colorOf(parcel.partName)} />

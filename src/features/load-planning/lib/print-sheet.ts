@@ -20,7 +20,9 @@ export interface PrintParcel {
   /** Bước xếp (từ 1) mà kiện này thuộc về. */
   step: number;
   ref: string;
-  /** Mã nhãn dán trên kiện; kiện không tra được trong kế hoạch thì dùng nhãn của hộp. */
+  /** LPN của thùng (docs 08 §4.3 bước 6) — mã chính; null khi BE chưa trả. */
+  lpn: string | null;
+  /** Mã nhãn dán trên kiện, in nhỏ dưới LPN; kiện không tra được trong kế hoạch thì dùng nhãn của hộp. */
   labelCode: string;
   partName: string;
   /** Chữ cái ký hiệu mặt hàng, trùng chữ in trên ảnh 3D. */
@@ -93,6 +95,7 @@ function parcelRow(
     step,
     ref: box.ref,
     labelCode: parcel?.labelCode ?? box.label,
+    lpn: parcel?.lpn ?? null,
     partName: box.partName,
     letter: context.letters.get(box.partName) ?? "",
     orderNo: parcel ? (context.orders.get(parcel.shipmentId) ?? parcel.shipmentCode ?? null) : null,
