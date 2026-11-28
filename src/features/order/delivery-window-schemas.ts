@@ -3,8 +3,8 @@
  * docs 17 §4.5, BR-28). Hai lớp tách bạch: DTO lịch giao ở `delivery-batch-schemas.ts`, input ở đây.
  *
  * Bằng chứng khách đồng ý (BR-28): BE nhận ĐÚNG MỘT trong hai — tệp đã tải lên (`evidenceUploadId`, luồng ở
- * `useEvidenceUpload`) hoặc tin nhắn chat khách gửi (`evidenceMessageId`; BE chưa có endpoint liệt kê tin nhắn nên người
- * dùng dán mã). Form giữ `evidenceKind` + cả hai ô; đầu ra chỉ mang ô của kind đang chọn.
+ * `useEvidenceUpload`) hoặc tin nhắn chat khách gửi (`evidenceMessageId`, chọn trong danh sách tin của khách do BE liệt kê). Form giữ
+ * `evidenceKind` + cả hai ô; đầu ra chỉ mang ô của kind đang chọn.
  */
 
 import { z } from "zod";
@@ -52,7 +52,7 @@ export function buildWindowChangeSchema(rules: WindowChangeRules) {
         .min(1, L.noteRequired)
         .max(ORDER_LIMITS.windowChangeNoteMax, L.noteTooLong),
       evidenceKind: z.enum(["file", "message"]),
-      // Mã tin nhắn: trống được (đang chọn tệp); đã nhập thì phải là UUID
+      // Mã tin nhắn đã chọn từ danh sách: trống được (đang chọn tệp); có thì phải là UUID
       evidenceMessageId: z
         .string()
         .trim()

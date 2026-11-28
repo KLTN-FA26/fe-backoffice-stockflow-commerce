@@ -4,9 +4,14 @@
  * Body `WindowChangeRequest`: {windowStart, windowEnd, reasonCode, note, evidenceUploadId | evidenceMessageId} (đúng một
  * bằng chứng). Trả lịch giao hiệu lực mới (`Schedule`) kèm lịch sử dời.
  *
+ * Bằng chứng là tin nhắn chat của khách: GET …/window-change/evidence/messages (`sales-contracts:UPDATE`) liệt kê tin
+ * khách đã gửi (mới nhất trước, chữ + giờ), người dùng chọn một rồi `evidenceMessageId` đi trong request đổi cửa sổ.
+ *
  * Bằng chứng là tệp: POST …/window-change/evidence/uploads (`sales-contracts:UPDATE`) xin đường tải thẳng lên kho
  * (`lib/api/direct-upload.ts`), rồi `evidenceUploadId` đi trong request đổi cửa sổ.
  */
+
+import { z } from "zod";
 
 import { api } from "@/lib/api/client";
 import { uploadSlotSchema } from "@/lib/api/direct-upload";
@@ -62,4 +67,33 @@ export async function beginWindowEvidenceUpload(
     { signal },
   );
   return uploadSlotSchema.parse(data);
+}
+
+/**
+ * Một tin nhắn của khách dùng được làm bằng chứng (BE `DeliveryBatchService.ConsentMessageView`): `kind` TEXT | ATTACHMENT,
+ * `text` null khi tin chỉ có tệp, `subject` = chủ đề cuộc chat của tin nhắn.
+ */
+export const consentMessageSchema = z.object({
+  messageId: z.string(),
+  kind: z.string().nullish(),
+  text: z.string().nullish(),
+  subject: z.string().nullish(),
+  sentAt: z.string(),
+});
+export type ConsentMessage = z.infer<typeof consentMessageSchema>;
+
+/** Tin nhắn của khách trong chat về đơn này (hoặc chưa gắn đơn), mới nhất trước — để Sale chọn làm bằng chứng. */
+export async function getWindowConsentMessages(
+  orderId: string,
+  batchId: string,
+  signal?: AbortSignal,
+): Promise<ConsentMessage[]> {
+  const { data } = await api.get<unknown>(
+    orderPath(
+      orderId,
+      `/delivery-batches/${encodeURIComponent(batchId)}/window-change/evidence/messages`,
+    ),
+    { signal },
+  );
+  return z.array(consentMessageSchema).parse(data);
 }

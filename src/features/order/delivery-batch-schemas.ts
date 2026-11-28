@@ -15,6 +15,15 @@ export const DELIVERY_BATCH_STATES = [
   "CLOSED",
 ] as const;
 
+/** BE `DeliveryBatchService.EvidenceMessage`: `text` rỗng khi tin chỉ có tệp hoặc khách đã thu hồi tin sau đó. */
+export const beEvidenceMessageSchema = z.object({
+  kind: z.string().nullish(),
+  text: z.string().nullish(),
+  sentAt: z.string().nullish(),
+  /** Khách đã thu hồi tin sau khi Sale dùng làm bằng chứng: chữ và tệp không còn hiện với ai. */
+  deleted: z.boolean().nullish(),
+});
+
 /** BE `DeliveryBatchService.WindowChangeView` — một lần dời cửa sổ (BR-28): cửa sổ cũ / mới, lý do, bằng chứng, người. */
 export const beWindowChangeSchema = z.object({
   id: z.string(),
@@ -28,6 +37,8 @@ export const beWindowChangeSchema = z.object({
   /** Bằng chứng là tệp: tên tệp; là tin nhắn chat: id tin nhắn — đúng một trong hai (BR-28). */
   evidenceFileName: z.string().nullish(),
   evidenceMessageId: z.string().nullish(),
+  /** Tin nhắn dùng làm bằng chứng như đang đọc được (BE `EvidenceMessage`): nội dung + giờ gửi — màn hiện cái này, không hiện id. */
+  evidenceMessage: beEvidenceMessageSchema.nullish(),
   changedBy: z.string().nullish(),
   /** Tên người dời (BE #342, staff read; docs 17 BR-28 / §5.2) — thiếu thì không hiện gì, không bao giờ hiện id. */
   changedByName: z.string().nullish(),

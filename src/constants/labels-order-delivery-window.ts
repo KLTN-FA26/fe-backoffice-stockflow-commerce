@@ -49,7 +49,14 @@ export const DELIVERY_SCHEDULE_LABELS = {
   lockedHint: "Đợt đã có thùng bàn giao (hoặc đã đóng) — cửa sổ giao không dời được.",
   history: "Lịch sử dời cửa sổ",
   historyEntry: (oldRange: string, newRange: string) => `${oldRange} → ${newRange}`,
-  evidenceMessage: (id: string) => `Tin nhắn chat của khách (${id})`,
+  /** Bằng chứng là tin nhắn chat của khách: nêu nội dung và giờ gửi, không bao giờ hiện mã tin nhắn. */
+  evidenceMessage: (when: string) => `Tin nhắn chat của khách lúc ${when}`,
+  /** BE chưa gửi nội dung tin (bản BE cũ): vẫn nêu là tin nhắn chat của khách, không hiện mã. */
+  evidenceMessageGeneric: "Tin nhắn chat của khách",
+  evidenceMessageText: (text: string) => `“${text}”`,
+  /** Tin có tệp mà không có chữ, hoặc tin khách đã thu hồi sau khi Sale dùng làm bằng chứng. */
+  evidenceMessageAttachment: "Tệp khách gửi trong chat",
+  evidenceMessageGone: "Khách đã thu hồi tin nhắn này",
   evidenceFile: (name: string) => `Tệp: ${name}`,
   changedAt: (when: string) => `lúc ${when}`,
   changedBy: (name: string) => `bởi ${name}`,
@@ -71,15 +78,26 @@ export const WINDOW_CHANGE_LABELS = {
   reasonPlaceholder: "Chọn lý do",
   noteLabel: "Ghi chú",
   notePlaceholder: "Ví dụ: khách đồng ý nhận sớm trong chat ngày…",
+  /** BR-28: bằng chứng là MỘT trong hai — tệp hoặc tin nhắn chat do chính khách gửi. */
   evidenceLabel: "Bằng chứng khách đồng ý",
-  /** Chỉ còn đường tệp (S06-9): nhãn khung nói rõ đó là tệp. */
-  evidenceLabelFile: "Bằng chứng khách đồng ý (tệp đính kèm: email, văn bản xác nhận)",
   evidenceKindFile: "Tệp đính kèm (email, văn bản xác nhận)",
-  evidenceKindMessage: "Tin nhắn chat của khách",
-  evidenceMessageLabel: "Mã tin nhắn của khách trong chat",
-  evidenceMessageHint:
-    "Tin nhắn do chính khách gửi, trong cuộc chat của khách (về đơn này hoặc chưa gắn đơn) — tin của nhân viên hoặc của khách khác không được nhận.",
-  evidenceMessagePlaceholder: "Dán mã tin nhắn (UUID)",
+  evidenceKindMessage: "Tin nhắn của khách",
+  /** Chọn tin nhắn của khách trong chat (BE `…/window-change/evidence/messages`, docs 17 BR-28). */
+  message: {
+    label: "Tin nhắn khách đã đồng ý",
+    placeholder: "Chọn tin nhắn của khách",
+    searchPlaceholder: "Gõ để tìm trong tin nhắn của khách",
+    hint: "Chỉ hiện tin do chính khách gửi trong chat của khách (về đơn này hoặc chưa gắn đơn), mới nhất trước.",
+    loading: "Đang tải tin nhắn của khách…",
+    loadError: "Không tải được tin nhắn của khách. Bấm để thử lại.",
+    empty:
+      "Khách chưa có tin nhắn nào dùng được — chọn “Tệp đính kèm” để đính email hoặc văn bản xác nhận.",
+    noMatch: "Không có tin nhắn nào khớp.",
+    attachmentOnly: "Tệp khách gửi trong chat",
+    optionMeta: (when: string, subject: string | null) => (subject ? `${when} · ${subject}` : when),
+    forbidden:
+      "Bạn không có quyền xem tin nhắn của khách để làm bằng chứng (sales-contracts:UPDATE).",
+  },
   /** Bằng chứng là tệp (BE: tải thẳng lên kho rồi gửi `evidenceUploadId`, docs 17 BR-28). */
   file: {
     label: "Tệp bằng chứng",
@@ -118,9 +136,9 @@ export const WINDOW_CHANGE_LABELS = {
   reasonRequired: "Chọn mã lý do",
   noteRequired: "Ghi chú là bắt buộc",
   noteTooLong: "Ghi chú tối đa 1000 ký tự",
-  evidenceRequired: "Nhập mã tin nhắn chat làm bằng chứng khách đồng ý",
+  evidenceRequired: "Chọn tin nhắn của khách làm bằng chứng khách đồng ý",
   evidenceFileRequired: "Chọn tệp bằng chứng và chờ tải lên xong",
-  evidenceInvalid: "Mã tin nhắn phải là UUID hợp lệ",
+  evidenceInvalid: "Tin nhắn đã chọn không hợp lệ — chọn lại tin nhắn của khách",
   /** Thứ tự các đợt (BR-28): đợt sau không bắt đầu sớm hơn đợt trước. */
   orderViolation: (seq: number) =>
     `Đợt ${seq} sẽ bắt đầu trước đợt đứng trước nó — hãy dời cả các đợt sau.`,

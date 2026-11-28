@@ -5,7 +5,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api } from "@/lib/api/client";
 
-import { beginWindowEvidenceUpload, changeDeliveryWindow } from "./delivery-window-api";
+import {
+  beginWindowEvidenceUpload,
+  changeDeliveryWindow,
+  getWindowConsentMessages,
+} from "./delivery-window-api";
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -140,5 +144,34 @@ describe("beginWindowEvidenceUpload — POST …/window-change/evidence/uploads"
   it("slot sai hợp đồng bị từ chối", async () => {
     vi.spyOn(api, "post").mockResolvedValue({ data: { uploadId: "u-1" } });
     await expect(beginWindowEvidenceUpload("o", "b", declaration)).rejects.toThrow();
+  });
+});
+
+describe("getWindowConsentMessages — GET …/window-change/evidence/messages", () => {
+  it("gọi đúng đường dẫn (id mã hoá) và parse danh sách tin của khách, giữ thứ tự mới nhất trước", async () => {
+    const get = vi.spyOn(api, "get").mockResolvedValue({
+      data: [
+        {
+          messageId: "m-2",
+          kind: "TEXT",
+          text: "Em đồng ý nhận sớm",
+          subject: "Lịch giao",
+          sentAt: "2026-11-28T03:00:00Z",
+        },
+        { messageId: "m-1", kind: "ATTACHMENT", sentAt: "2026-11-27T03:00:00Z" },
+      ],
+    });
+    const messages = await getWindowConsentMessages("o 1", "b/1");
+    expect(get).toHaveBeenCalledWith(
+      "/orders/o%201/delivery-batches/b%2F1/window-change/evidence/messages",
+      { signal: undefined },
+    );
+    expect(messages.map((m) => m.messageId)).toEqual(["m-2", "m-1"]);
+    expect(messages[1]?.text).toBeUndefined();
+  });
+
+  it("thiếu messageId / sentAt → lỗi hợp đồng (ZodError), không đoán", async () => {
+    vi.spyOn(api, "get").mockResolvedValue({ data: [{ text: "x" }] });
+    await expect(getWindowConsentMessages("o-1", "b-1")).rejects.toThrow();
   });
 });

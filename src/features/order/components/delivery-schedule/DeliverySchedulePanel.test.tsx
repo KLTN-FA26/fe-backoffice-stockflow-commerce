@@ -57,7 +57,7 @@ function mockPost(result: unknown) {
     return { data: result };
   });
 }
-/** Evidence is a file only (S06-9): pick one and wait until it is uploaded. */
+/** Evidence as a file (the default kind): pick one and wait until it is uploaded. */
 async function attachEvidence(user: ReturnType<typeof userEvent.setup>, dialog: HTMLElement) {
   await user.upload(
     within(dialog).getByLabelText("Tệp bằng chứng"),
@@ -156,6 +156,12 @@ describe("Lịch giao — hiển thị (docs 17 §5.5)", () => {
               reason: "SELLER_DELAY",
               note: "Xưởng in trễ một tuần",
               evidenceMessageId: CONSENT_MESSAGE,
+              evidenceMessage: {
+                kind: "TEXT",
+                text: "Bên em đồng ý nhận đợt 2 muộn một tuần",
+                sentAt: "2026-11-11T07:30:00Z",
+                deleted: false,
+              },
               changedBy: "5b1c0a52-9d3e-4a54-8f1f-0d6f7b8a9c01",
               changedByName: "Nguyễn Hải Yến",
               changedAt: "2026-11-11T08:00:00Z",
@@ -189,9 +195,10 @@ describe("Lịch giao — hiển thị (docs 17 §5.5)", () => {
     ).toBeInTheDocument();
     expect(within(card).getByText(/Bên bán giao trễ/)).toBeInTheDocument();
     expect(within(card).getByText("Xưởng in trễ một tuần")).toBeInTheDocument();
-    expect(
-      within(card).getByText(`Tin nhắn chat của khách (${CONSENT_MESSAGE})`),
-    ).toBeInTheDocument();
+    // Bằng chứng tin nhắn: giờ gửi + nội dung khách viết, không bao giờ hiện mã tin nhắn
+    expect(within(card).getByText(/^Tin nhắn chat của khách lúc /)).toBeInTheDocument();
+    expect(within(card).getByText("“Bên em đồng ý nhận đợt 2 muộn một tuần”")).toBeInTheDocument();
+    expect(card.textContent).not.toContain(CONSENT_MESSAGE);
     expect(within(card).getByText(/Khách xin dời/)).toBeInTheDocument();
     expect(within(card).getByText("Tệp: xac-nhan.pdf")).toBeInTheDocument();
     // Người dời (docs 17 BR-28): có tên thì hiện "· bởi <tên>"; thiếu tên thì không hiện, không lộ id
@@ -373,10 +380,11 @@ describe("Dời cửa sổ giao — form kiểm BR-28 rồi gửi đúng WindowC
     expect(within(dialog).getByRole("button", { name: "Dời cửa sổ giao" })).toBeDisabled();
   });
 
-  it("S06-9: bằng chứng chỉ là tệp — không còn lựa chọn 'tin nhắn chat' bắt dán UUID; chưa có tệp thì chưa gửi được", async () => {
+  it("bằng chứng: chọn tệp hoặc tin nhắn của khách (không bắt dán mã); mặc định là tệp, chưa có bằng chứng thì chưa gửi được", async () => {
     const { dialog } = await openDialog();
-    expect(within(dialog).queryByRole("radio")).not.toBeInTheDocument();
-    expect(within(dialog).queryByLabelText(/Mã tin nhắn của khách/)).not.toBeInTheDocument();
+    expect(within(dialog).getAllByRole("radio")).toHaveLength(2);
+    expect(within(dialog).getByRole("radio", { name: /Tệp đính kèm/ })).toBeChecked();
+    expect(within(dialog).queryByLabelText(/Mã tin nhắn/)).not.toBeInTheDocument();
     expect(within(dialog).getByLabelText("Tệp bằng chứng")).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "Dời cửa sổ giao" })).toBeDisabled();
   });
