@@ -107,7 +107,8 @@ export const EINVOICE_LABELS = {
       "Lập lại nháp cho một lô giao đã giao thành công mà nháp đã bị huỷ, hoặc chọn “Phần phí còn lại” để lập hoá đơn cho phí vận chuyển, phí khuôn chưa lên hoá đơn nào sau khi đóng phần chưa giao.",
     submit: "Lập nháp",
     shipmentLabel: "Lô giao",
-    shipmentHint: "Các lô giao của đơn này đã giao thành công (kể cả lô chưa có hoá đơn hoặc nháp đã huỷ).",
+    shipmentHint:
+      "Các lô giao của đơn này đã giao thành công (kể cả lô chưa có hoá đơn hoặc nháp đã huỷ).",
     remainderOption: "Phần phí còn lại (không gắn lô giao)",
     invoiceState: (status: string) => `hoá đơn ${status.toLowerCase()}`,
     noInvoice: "chưa có hoá đơn",

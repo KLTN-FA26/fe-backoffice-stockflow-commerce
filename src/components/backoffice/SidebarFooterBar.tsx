@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { cn } from "cn";
 import { Ellipsis } from "lucide-react";
 
 import { ACCOUNT_MENU_LABELS as L, APP_ROUTES } from "@/constants";
@@ -10,14 +9,14 @@ import { logoutApi } from "@/lib/auth/auth-api";
 import { useAuthStore } from "@/lib/auth/auth-store";
 
 import { Button } from "@/components/ui/button";
-import { SidebarFooter, useSidebar } from "@/components/ui/sidebar";
+import { SidebarFooter } from "@/components/ui/sidebar";
 
 import { AccountMenuPanel, UserAvatar } from "./AccountMenuPanel";
 
 import type { ReactNode } from "react";
 
 const MENU =
-  "border-border-default bg-bg-surface absolute bottom-full z-[801] mb-2 w-64 overflow-hidden rounded-[var(--r-md)] border shadow-[var(--sh-lg)]";
+  "border-border-default bg-bg-surface absolute bottom-full left-0 z-[801] mb-2 w-64 overflow-hidden rounded-[var(--r-md)] border shadow-[var(--sh-lg)]";
 
 /** Nút tròn có viền ở đáy sidebar (3 chấm, chuông) — cùng một kiểu. */
 export const FOOTER_ROUND_BUTTON =
@@ -25,8 +24,6 @@ export const FOOTER_ROUND_BUTTON =
 
 /** Popup mở lên trên từ đáy sidebar; lớp phủ trong suốt để bấm ra ngoài thì đóng, Esc cũng đóng. */
 function UpMenu({ onClose, children }: { onClose: () => void; children: ReactNode }) {
-  const { state } = useSidebar();
-
   useEffect(() => {
     function handleKey(event: KeyboardEvent) {
       if (event.key === "Escape") onClose();
@@ -38,9 +35,7 @@ function UpMenu({ onClose, children }: { onClose: () => void; children: ReactNod
   return (
     <>
       <div className="fixed inset-0 z-[800]" onClick={onClose} />
-      <div className={cn(MENU, state === "collapsed" ? "bottom-0 left-full mb-0 ml-2" : "left-0")}>
-        {children}
-      </div>
+      <div className={MENU}>{children}</div>
     </>
   );
 }
@@ -51,8 +46,6 @@ function UpMenu({ onClose, children }: { onClose: () => void; children: ReactNod
  */
 function UserMenu() {
   const router = useRouter();
-  const { state } = useSidebar();
-  const collapsed = state === "collapsed";
   const currentUser = useAuthStore((s) => s.user);
   const name = currentUser?.fullName ?? L.fallbackName;
   const [open, setOpen] = useState(false);
@@ -73,41 +66,31 @@ function UserMenu() {
   }
 
   return (
-    <div className={cn("relative", !collapsed && "flex min-w-0 flex-1 items-center gap-1")}>
+    <div className="relative flex min-w-0 flex-1 items-center gap-1">
       <Button
         type="button"
         variant="ghost"
         onClick={() => setOpen((o) => !o)}
         aria-label={L.open}
         aria-expanded={open}
-        title={collapsed ? name : undefined}
-        className={cn(
-          "hover:bg-bg-muted h-auto bg-transparent transition-colors",
-          collapsed
-            ? "size-7 rounded-full p-0"
-            : "min-w-0 flex-1 shrink justify-start gap-2 rounded-[var(--r-sm)] px-1 py-0.5",
-        )}
+        className="hover:bg-bg-muted h-auto min-w-0 flex-1 shrink justify-start gap-2 rounded-[var(--r-sm)] bg-transparent px-1 py-0.5 transition-colors"
       >
         <UserAvatar name={name} />
         {/* Chỉ tên cạnh avatar (vai trò xem trong menu) — căn giữa theo chiều dọc với avatar */}
-        {!collapsed && (
-          <span className="text-ink-primary min-w-0 truncate text-xs leading-none font-medium">
-            {name}
-          </span>
-        )}
+        <span className="text-ink-primary min-w-0 truncate text-xs leading-none font-medium">
+          {name}
+        </span>
       </Button>
-      {!collapsed && (
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={() => setOpen((o) => !o)}
-          aria-label={L.options}
-          aria-expanded={open}
-          className={FOOTER_ROUND_BUTTON}
-        >
-          <Ellipsis className="size-3.5" />
-        </Button>
-      )}
+      <Button
+        type="button"
+        variant="ghost"
+        onClick={() => setOpen((o) => !o)}
+        aria-label={L.options}
+        aria-expanded={open}
+        className={FOOTER_ROUND_BUTTON}
+      >
+        <Ellipsis className="size-3.5" />
+      </Button>
       {open && (
         <UpMenu onClose={() => setOpen(false)}>
           <AccountMenuPanel
@@ -129,15 +112,8 @@ function UserMenu() {
  * cạnh nó. Ngoài vùng cuộn của menu.
  */
 export function SidebarFooterBar({ extra }: { extra?: ReactNode } = {}) {
-  const { state } = useSidebar();
-
   return (
-    <SidebarFooter
-      className={cn(
-        "border-border-default shrink-0 border-t px-2 py-1.5",
-        state === "collapsed" ? "flex-col items-center gap-1" : "flex-row items-center gap-1",
-      )}
-    >
+    <SidebarFooter className="border-border-default shrink-0 flex-row items-center gap-1 border-t px-2 py-1.5">
       <UserMenu />
       {extra}
     </SidebarFooter>

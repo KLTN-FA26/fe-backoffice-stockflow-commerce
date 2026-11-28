@@ -1,4 +1,3 @@
-
 import { formatMoney } from "@/lib/format";
 import { NumberInput } from "@/components/shared/NumberInput";
 import { Label } from "@/components/ui/label";

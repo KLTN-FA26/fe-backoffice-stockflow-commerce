@@ -5,7 +5,7 @@ import { cn } from "cn";
 
 import { UI_LABELS } from "@/constants";
 
-import { ITEM_ACTIVE, ITEM_IDLE, NAV_ROW } from "@/components/backoffice/SidebarNavCollapsed";
+import { ITEM_ACTIVE, ITEM_IDLE, NAV_ROW } from "@/components/backoffice/SidebarNavParts";
 import { SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 
 import { usePanelWarehouse } from "./use-panel-warehouse";

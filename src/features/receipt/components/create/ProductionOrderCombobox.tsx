@@ -51,11 +51,11 @@ export function ProductionOrderCombobox({
   const orders = useReceivableProductionOrders(true, warehouseId);
   const picked = orders.data.find((order) => order.id === value);
   // Lọc ở client (gõ mã đơn, đơn vị sản xuất hoặc SKU), chỉ hiện 10 đơn đầu + "Còn N kết quả — gõ thêm" (R1)
-  const { visible, hidden } = limitComboboxOptions(
-    orders.data,
-    search,
-    (order) => [order.code, order.producerName ?? "", ...skusOf(order)],
-  );
+  const { visible, hidden } = limitComboboxOptions(orders.data, search, (order) => [
+    order.code,
+    order.producerName ?? "",
+    ...skusOf(order),
+  ]);
 
   return (
     <InputCombobox
