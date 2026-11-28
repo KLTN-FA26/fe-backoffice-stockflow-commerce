@@ -109,20 +109,23 @@ describe("warehouse stock items", () => {
     expect(withEmpty.totalElements).toBe(7);
   });
 
-  it("sorts by expiry date on the server, rows without expiry last", async () => {
+  it("sorts by receivedAt on the server and refuses expiryDate (BE d8c7694c)", async () => {
     const page = await listWarehouseStockItems({
       ...base,
       size: 20,
-      sort: { field: "expiryDate", direction: "asc" },
+      sort: { field: "receivedAt", direction: "asc" },
     });
-    expect(page.items.map((item) => item.expiryDate ?? null)).toEqual([
-      "2026-09-15",
-      "2026-10-01",
-      "2026-11-05",
-      "2027-03-01",
-      "2027-06-01",
-      null,
-    ]);
+    const received = page.items.map((item) => item.receivedAt ?? null);
+    expect(received.filter(Boolean)).toEqual([...received.filter(Boolean)].sort());
+    await expect(
+      inventoryRequest(
+        {
+          url: `/inventory/warehouses/${base.warehouseId}/stock-items`,
+          params: { sort: "expiryDate,asc" },
+        },
+        z.unknown(),
+      ),
+    ).rejects.toMatchObject({ status: 400 });
   });
 
   it("filters by status and omits null fields like Jackson NON_NULL", async () => {

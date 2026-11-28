@@ -105,7 +105,7 @@ describe("useWarehouseStockItems", () => {
       status: ["AVAILABLE" as const],
       page: 1,
       size: 20,
-      sort: { field: "expiryDate" as const, direction: "asc" as const },
+      sort: { field: "receivedAt" as const, direction: "asc" as const },
     };
     const { result } = renderHook(() => useWarehouseStockItems(params), { wrapper });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
@@ -123,7 +123,7 @@ describe("useWarehouseStockItems", () => {
         status: "AVAILABLE",
         page: 1,
         size: 20,
-        sort: "expiryDate,asc",
+        sort: "receivedAt,asc",
       },
     ]);
   });

@@ -74,7 +74,7 @@ describe("listWarehouseStockItems", () => {
       status: ["AVAILABLE", "EXPIRED"],
       page: 0,
       size: 20,
-      sort: { field: "expiryDate", direction: "asc" },
+      sort: { field: "receivedAt", direction: "asc" },
     });
     expect(seen?.pathname).toBe("/api/backend/inventory/warehouses/WH-HN-01/stock-items");
     expect(query()).toEqual([
@@ -82,7 +82,7 @@ describe("listWarehouseStockItems", () => {
       ["status", "AVAILABLE,EXPIRED"],
       ["page", "0"],
       ["size", "20"],
-      ["sort", "expiryDate,asc"],
+      ["sort", "receivedAt,asc"],
     ]);
     expect(seen?.search).not.toContain("status%5B%5D");
   });
