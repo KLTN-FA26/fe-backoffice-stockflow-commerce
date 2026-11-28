@@ -59,10 +59,7 @@ export function DrawUpDialog({
   onClose: () => void;
 }) {
   return (
-    <FormDialog
-      open={orderId !== null || chooseOrder}
-      onOpenChange={(open) => !open && onClose()}
-    >
+    <FormDialog open={orderId !== null || chooseOrder} onOpenChange={(open) => !open && onClose()}>
       {(orderId !== null || chooseOrder) && <DrawUpContent orderId={orderId} onClose={onClose} />}
     </FormDialog>
   );

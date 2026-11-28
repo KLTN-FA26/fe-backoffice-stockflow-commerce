@@ -183,7 +183,6 @@ export const UI_LABELS = {
     appName: "StockFlowCommerce",
     navBack: "Quay lại",
     globalSearch: "Tìm toàn cục",
-    quickSearch: "Tìm nhanh",
     quickSearchHint: "Tìm nhanh (⌘K)",
     /** Gốc breadcrumb (trước là chữ "Back-office"). */
     breadcrumbRoot: "Trang quản trị",
