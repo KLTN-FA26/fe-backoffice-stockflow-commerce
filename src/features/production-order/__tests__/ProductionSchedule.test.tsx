@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { DELAY_ALERT_LABELS, PRODUCTION_LABELS, STORAGE_KEYS } from "@/constants";
 import { mockProductionApi, renderProductionScreen } from "@/test/production-screen";
-import { openRowMenu } from "@/test/ui-actions";
+import { clickRowAction, openRowMenu } from "@/test/ui-actions";
 
 import { ProductionSchedule } from "../components/schedule/ProductionSchedule";
 import {
@@ -304,5 +304,100 @@ describe("ProductionSchedule (docs 17 §4.12)", () => {
     expect(screen.queryByText(L.ordersEmptyTitle)).not.toBeInTheDocument();
     await user.click(button);
     await waitFor(() => expect(lastScheduleParams(get)).toMatchObject({ alertsOnly: undefined }));
+  });
+
+  describe("mở từ đơn bán (?drawOrder=) — hộp Lập mở sẵn (S11-5)", () => {
+    it("đúng một đợt còn thiếu của đơn đó → hộp 'Lập Đơn sản xuất' mở thẳng, không phải bấm 'Lập' ở dòng", async () => {
+      setup(PRODUCTION_ACTORS.coordinator, "?tab=batches&drawOrder=so-2");
+      const dialog = await screen.findByRole("dialog");
+      expect(within(dialog).getByText(D.dialogDescription("SO-2026-0050", 2))).toBeInTheDocument();
+    });
+
+    it("kèm ?drawBatch= → chọn đúng đợt; đợt không có → để danh sách, không mở hộp", async () => {
+      setupData(
+        {
+          shortBatches: [
+            shortBatch({ seq: 1, deliveryBatchId: "b-1" }),
+            shortBatch({ seq: 2, deliveryBatchId: "b-2" }),
+          ],
+        },
+        "?tab=batches&drawOrder=so-2&drawBatch=2",
+      );
+      const dialog = await screen.findByRole("dialog");
+      expect(within(dialog).getByText(D.dialogDescription("SO-2026-0050", 2))).toBeInTheDocument();
+    });
+
+    it("nhiều đợt cùng đơn mà không chỉ rõ đợt → không đoán, hiện danh sách", async () => {
+      setupData(
+        {
+          shortBatches: [
+            shortBatch({ seq: 1, deliveryBatchId: "b-1" }),
+            shortBatch({ seq: 2, deliveryBatchId: "b-2" }),
+          ],
+        },
+        "?tab=batches&drawOrder=so-2",
+      );
+      expect((await screen.findAllByText("SO-2026-0050")).length).toBeGreaterThan(0);
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+
+    it("không có quyền lập → không mở hộp", async () => {
+      setup(PRODUCTION_ACTORS.salesManager, "?tab=batches&drawOrder=so-2");
+      await screen.findByText("SO-2026-0050");
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("hộp Lập Đơn sản xuất — đơn vị sản xuất (S11-4)", () => {
+    const producer = (index: number) => ({
+      ...producerDto,
+      id: `00000000-0000-4000-8000-0000000000${String(index).padStart(2, "0")}`,
+      code: `XUONG-${index}`,
+      name: `Xưởng In Số ${index}`,
+    });
+
+    async function openDrawUp(producers: unknown[]) {
+      const user = userEvent.setup();
+      mockProductionApi(PRODUCTION_ACTORS.coordinator, {
+        get: {
+          "/production-schedule": () => schedule(),
+          "/producers": () => bePage(producers),
+        },
+      });
+      renderProductionScreen(<ProductionSchedule />, "u-test", "?tab=batches");
+      await screen.findByText("SO-2026-0050");
+      // Thao tác của dòng nằm trong menu "⋯" (backoffice-erp-ui A6)
+      await clickRowAction(user, D.dialogTitle, await panel());
+      return { user, dialog: await screen.findByRole("dialog") };
+    }
+
+    it("chỉ một đơn vị đang dùng → chọn sẵn, nút Lập mở ngay", async () => {
+      const { dialog } = await openDrawUp([producerDto]);
+      await waitFor(() =>
+        expect(
+          within(dialog).getByRole("combobox", { name: new RegExp(D.producer) }),
+        ).toHaveTextContent("In Minh Phát"),
+      );
+      expect(within(dialog).getByRole("button", { name: D.submit })).toBeEnabled();
+    });
+
+    it("nhiều đơn vị (≤ 10) → Select không chọn sẵn", async () => {
+      const { dialog } = await openDrawUp([producer(1), producer(2)]);
+      expect(
+        within(dialog).getByRole("combobox", { name: new RegExp(D.producer) }),
+      ).toHaveTextContent(PRODUCTION_LABELS.edit.producerPlaceholder);
+      expect(within(dialog).getByRole("button", { name: D.submit })).toBeDisabled();
+    });
+
+    it("hơn 10 đơn vị → ô gõ để tìm theo mã hoặc tên", async () => {
+      const { user, dialog } = await openDrawUp(
+        Array.from({ length: 12 }, (_, i) => producer(i + 1)),
+      );
+      const box = within(dialog).getByRole("combobox", { name: new RegExp(D.producer) });
+      await user.click(box);
+      await user.type(box, "số 11");
+      expect(await screen.findByRole("option", { name: /Xưởng In Số 11/ })).toBeInTheDocument();
+      expect(screen.queryByRole("option", { name: /Xưởng In Số 3\b/ })).toBeNull();
+    });
   });
 });

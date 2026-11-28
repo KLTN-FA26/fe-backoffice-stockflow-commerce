@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { cn } from "cn";
+import { parseAsString, useQueryState } from "nuqs";
 import { Plus } from "lucide-react";
 
 import {
@@ -65,6 +66,9 @@ function TaskListContent({ scope }: { scope: FulfillmentScope }) {
   const [assigning, setAssigning] = useState<FulfillmentTask | null>(null);
   const [creating, setCreating] = useState(false);
   const canCreate = scope === "picking" && canCreateTask(actor);
+  // `?create=<orderId>` — từ nút "Tạo nhiệm vụ lấy hàng" ở chi tiết đơn: hộp tạo mở sẵn với đơn đó đã chọn
+  const [createFor, setCreateFor] = useQueryState("create", parseAsString);
+  const linkedCreate = !!createFor && canCreate;
   const href = useWorkspaceHref();
   const columns = buildTaskColumns({
     scope,
@@ -106,8 +110,15 @@ function TaskListContent({ scope }: { scope: FulfillmentScope }) {
         })}
       />
       {assigning && <AssignDialog task={assigning} onClose={() => setAssigning(null)} />}
-      {creating && (
-        <CreateTaskDialog warehouseId={s.warehouse} onClose={() => setCreating(false)} />
+      {(creating || linkedCreate) && (
+        <CreateTaskDialog
+          warehouseId={s.warehouse}
+          initialOrderId={createFor ?? ""}
+          onClose={() => {
+            setCreating(false);
+            if (createFor) void setCreateFor(null);
+          }}
+        />
       )}
     </div>
   );

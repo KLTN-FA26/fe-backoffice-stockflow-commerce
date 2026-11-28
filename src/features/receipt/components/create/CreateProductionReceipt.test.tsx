@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -135,7 +135,7 @@ describe("Lập phiếu nhập theo Đơn sản xuất (docs 03 §4.1 bước 1)
     const { post } = renderList(ROLES.warehouseManager);
     await user.click(await screen.findByRole("button", { name: L.button }));
     await user.click(screen.getByRole("button", { name: L.submit }));
-    expect(await screen.findByText("Chọn Đơn sản xuất")).toBeInTheDocument();
+    expect(await screen.findByText("Chọn đơn sản xuất")).toBeInTheDocument();
     expect(post).not.toHaveBeenCalled();
   });
 
@@ -169,5 +169,146 @@ describe("Lập phiếu nhập theo Đơn sản xuất (docs 03 §4.1 bước 1)
     renderList(ROLES.reader);
     await screen.findByRole("link", { name: "GR-20261009-0001" });
     expect(screen.queryByRole("button", { name: L.button })).not.toBeInTheDocument();
+  });
+});
+
+/** Đơn tuỳ biến cho các ca chọn sẵn / dòng hai tầng (S12-1). */
+function receivable(id: string, code: string, extra: Record<string, unknown> = {}, received = 4) {
+  return {
+    ...productionOrder(id, code, "IN_PRODUCTION"),
+    producerName: "Xưởng In Ly Giấy Long Xuyên",
+    expectedCompletionDate: "2026-12-05",
+    lines: [
+      {
+        id: `${id}-L1`,
+        sku: "LYG12-DA1-0318800259-01",
+        cartons: 10,
+        unitsPerCarton: 1000,
+        receivedCartons: received,
+      },
+    ],
+    ...extra,
+  };
+}
+
+function renderWith(
+  orders: unknown[],
+  options: { search?: string; failList?: boolean; onCreate?: (body: unknown) => unknown } = {},
+) {
+  const spies = mockReceiptApi(
+    ROLES.warehouseManager,
+    {
+      "/goods-receipts": () => apiReceiptPage(),
+      "/production-orders": (params) => {
+        if (options.failList) throw new ApiError(500, "INTERNAL", "x");
+        return bePage((params as { status: string }).status === "IN_PRODUCTION" ? orders : []);
+      },
+    },
+    {
+      "/goods-receipts/production": (_p, body) =>
+        options.onCreate ? options.onCreate(body) : apiReceipt(),
+    },
+  );
+  renderReceiptScreen(<ReceiptList />, options.search ?? "");
+  return spies;
+}
+
+/**
+ * Mở danh sách ô Đơn sản xuất bằng cách GÕ vài ký tự đầu của mã: ô chỉ mở khi gõ (R1 — bấm vào thân ô chỉ đặt con trỏ),
+ * và cách này cũng đúng khi ô vẫn mở khi bấm. Gõ xong danh sách đã lọc theo chữ đó.
+ */
+async function openByTyping(
+  user: ReturnType<typeof userEvent.setup>,
+  box: HTMLElement,
+  text: string,
+) {
+  await user.click(box);
+  await user.type(box, text);
+}
+
+describe("Lập phiếu nhập — chọn Đơn sản xuất dễ hơn (S12-1)", () => {
+  it("chỉ có một Đơn sản xuất nhận được hàng → chọn sẵn, lập luôn không phải chọn lại", async () => {
+    const user = userEvent.setup();
+    const { post } = renderWith([receivable("po-1", "PRD-20261126-0001")]);
+    await user.click(await screen.findByRole("button", { name: L.button }));
+    const box = await screen.findByRole("combobox", { name: L.productionOrder });
+    await waitFor(() => expect(box).toHaveValue("PRD-20261126-0001"));
+    await user.click(screen.getByRole("button", { name: L.submit }));
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(
+        "/goods-receipts/production",
+        expect.objectContaining({ productionOrderId: "po-1" }),
+      ),
+    );
+  });
+
+  it("nhiều đơn → không chọn sẵn; mỗi dòng hai tầng: mã / đơn vị SX · SKU · thùng còn · ngày giao dự kiến", async () => {
+    const user = userEvent.setup();
+    renderWith([receivable("po-1", "PRD-A"), receivable("po-2", "PRD-B")]);
+    await user.click(await screen.findByRole("button", { name: L.button }));
+    const box = await screen.findByRole("combobox", { name: L.productionOrder });
+    expect(box).toHaveValue("");
+    await openByTyping(user, box, "PRD");
+    const option = await screen.findByRole("option", { name: /PRD-A/ });
+    expect(option).toHaveTextContent("Xưởng In Ly Giấy Long Xuyên");
+    expect(option).toHaveTextContent("LYG12-DA1-0318800259-01");
+    expect(option).toHaveTextContent("còn 6/10 thùng");
+    expect(option).toHaveTextContent(/giao dự kiến/);
+  });
+
+  it("đơn đã nhập đủ thùng thì không còn trong danh sách", async () => {
+    const user = userEvent.setup();
+    renderWith([
+      receivable("po-1", "PRD-FULL", {}, 10),
+      receivable("po-2", "PRD-OPEN"),
+      receivable("po-3", "PRD-OPEN2"),
+    ]);
+    await user.click(await screen.findByRole("button", { name: L.button }));
+    await openByTyping(
+      user,
+      await screen.findByRole("combobox", { name: L.productionOrder }),
+      "PRD",
+    );
+    expect(await screen.findByRole("option", { name: /PRD-OPEN\b/ })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /PRD-FULL/ })).toBeNull();
+  });
+
+  it("lỗi tải nằm riêng trên danh sách, có nút Thử lại — không phải một dòng đơn để chọn", async () => {
+    const user = userEvent.setup();
+    renderWith([], { failList: true });
+    await user.click(await screen.findByRole("button", { name: L.button }));
+    await openByTyping(
+      user,
+      await screen.findByRole("combobox", { name: L.productionOrder }),
+      "PRD",
+    );
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(L.loadError);
+    expect(within(alert).getByRole("button", { name: L.retry })).toBeInTheDocument();
+    expect(screen.queryAllByRole("option")).toHaveLength(0);
+  });
+
+  it("mở từ Đơn sản xuất (?createFor=) → hộp Lập phiếu mở sẵn, đơn đó đã được chọn", async () => {
+    renderWith([receivable("po-1", "PRD-A"), receivable("po-2", "PRD-B")], {
+      search: "?createFor=po-2",
+    });
+    const box = await screen.findByRole("combobox", { name: L.productionOrder });
+    await waitFor(() => expect(box).toHaveValue("PRD-B"));
+  });
+
+  it("danh sách phiếu: ô chọn Đơn sản xuất (cùng ô với hộp Lập phiếu) lọc phiếu theo đơn đó (S12-8)", async () => {
+    const user = userEvent.setup();
+    const { get } = renderWith([receivable("po-1", "PRD-A"), receivable("po-2", "PRD-B")]);
+    const box = await screen.findByRole("combobox", { name: L.productionOrder });
+    // Không tự focus — chỉ hộp Lập phiếu mới tự focus
+    expect(box).not.toHaveFocus();
+    await openByTyping(user, box, "PRD-B");
+    await user.click(await screen.findByRole("option", { name: /PRD-B/ }));
+    await waitFor(() => {
+      const last = get.mock.calls.filter(([url]) => url === "/goods-receipts").at(-1)?.[1] as
+        { params?: Record<string, unknown> } | undefined;
+      expect(last?.params).toMatchObject({ productionOrderId: "po-2" });
+    });
+    expect(await screen.findByRole("button", { name: "Bỏ lọc Đơn sản xuất" })).toBeInTheDocument();
   });
 });

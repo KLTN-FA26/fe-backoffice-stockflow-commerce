@@ -60,6 +60,8 @@ export function useScanInput(
 
   return {
     value,
+    /** Gửi mã đang gõ như bấm Enter — cho nút "Xác nhận" cạnh ô (gõ tay trên máy tính bảng). */
+    submit,
     onChange: (event: ChangeEvent<HTMLInputElement>) => setValue(event.target.value),
     // "Luôn focus": bấm vào vùng trống / dòng bảng (không phải ô nhập, nút, dialog) → trả focus về ô
     // quét, nếu không mã quét kế tiếp rơi vào `body` và mất. Focus sang phần tử tương tác thì để yên.

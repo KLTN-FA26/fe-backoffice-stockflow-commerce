@@ -6,12 +6,19 @@ import { PUTAWAY_LABELS, STORAGE_KEYS } from "@/constants";
 import { PERMISSION_UI } from "@/constants/permissions";
 import { WorkspaceWarehouseProvider } from "@/lib/workspace";
 import { mockApi, renderScreen } from "@/test/api-screen";
+import { openRowMenu } from "@/test/ui-actions";
 
 import { PutawayList } from "../components/PutawayList";
 import { task } from "./fixtures";
 
 import type { TestRole } from "@/test/api-screen";
 import type { PutawayTask } from "../types";
+
+const push = vi.fn();
+vi.mock("next/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/navigation")>()),
+  useRouter: () => ({ push, replace: vi.fn(), prefetch: vi.fn() }),
+}));
 
 const L = PUTAWAY_LABELS;
 const HCM = { id: "wh-1", prefix: "HCM", name: "Kho Hồ Chí Minh" };
@@ -66,6 +73,7 @@ const lpnCells = () =>
 afterEach(() => {
   vi.restoreAllMocks();
   window.localStorage.clear();
+  push.mockReset();
 });
 
 describe("PutawayList (docs 05 §4.2)", () => {
@@ -132,14 +140,12 @@ describe("PutawayList (docs 05 §4.2)", () => {
     await waitFor(() => expect(lpnCells()).toHaveLength(3));
   });
 
-  it("lọc trong cột từ URL hiện chip Search trong cột, X trả lại dòng", async () => {
-    const user = userEvent.setup();
+  it("không còn ô lọc trên header cột và tham số cột cũ trong URL bị bỏ qua (S01-5)", async () => {
     setup({ search: "?sku=blue" });
     await screen.findByText("LPN-1");
-    expect(lpnCells()).toEqual(["LPN-1"]);
-    expect(screen.getByText(/SKU “blue”/)).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: `Xoá ${L.summaryColumnSearch}` }));
-    await waitFor(() => expect(lpnCells()).toHaveLength(3));
+    expect(lpnCells()).toHaveLength(3);
+    expect(screen.queryByText(/Search trong cột/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Tìm trong cột/ })).not.toBeInTheDocument();
   });
 
   it("nguồn phiếu nhập là link sang phiếu; giải phóng cách ly là chữ", async () => {
@@ -169,5 +175,54 @@ describe("PutawayList (docs 05 §4.2)", () => {
     const spies = setup({ role: "QC_STAFF" });
     expect(await screen.findByText(PERMISSION_UI.deniedTitle)).toBeInTheDocument();
     expect(taskCalls(spies)).toHaveLength(0);
+  });
+
+  it("ô quét LPN ngay trên danh sách: quét LPN (không phân biệt hoa thường) → mở đúng thùng đó (S13-2)", async () => {
+    const user = userEvent.setup();
+    setup();
+    await screen.findByText("LPN-1");
+    const scan = screen.getByLabelText(L.scanLabel);
+    expect(scan).toHaveClass("h-12");
+    await user.type(scan, "lpn-2{Enter}");
+    expect(push).toHaveBeenCalledWith("/admin/warehouse-map/HCM/putaway/t-2");
+  });
+
+  it("quét LPN không có trong danh sách chờ cất → báo ngay tại ô quét, không chuyển trang", async () => {
+    const user = userEvent.setup();
+    setup();
+    await screen.findByText("LPN-1");
+    await user.type(screen.getByLabelText(L.scanLabel), "LPN-404{Enter}");
+    expect((await screen.findAllByText(L.scanNotFound("LPN-404"))).length).toBeGreaterThan(0);
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("thao tác của dòng gom vào một menu '⋯': đang chờ cất → 'Cất thùng', đã xong → 'Xem chi tiết'; không nút rời", async () => {
+    const user = userEvent.setup();
+    setup({
+      rows: [
+        task({ id: "t-1", lpn: "LPN-1" }),
+        task({ id: "t-2", lpn: "LPN-2", status: "DONE", left: 0 }),
+      ],
+    });
+    await screen.findByText("LPN-1");
+    const rowOf = (lpn: string) => screen.getByText(lpn).closest("tr") as HTMLElement;
+    // Không còn nút / liên kết "Cất", "Xem" nằm rời trong ô: chỉ có nút "⋯" của dòng
+    expect(within(rowOf("LPN-1")).queryByRole("link", { name: /^Cất thùng/ })).toBeNull();
+    const trigger = within(rowOf("LPN-1")).getByRole("button", { name: /^Thao tác — LPN-1/ });
+    // Máy tính bảng ở kho: nút "⋯" 44px khi màn cảm ứng
+    expect(trigger).toHaveClass("pointer-coarse:size-11");
+
+    const menu = await openRowMenu(user, rowOf("LPN-1"));
+    expect(within(menu).getByRole("link", { name: "Cất thùng" })).toHaveAttribute(
+      "href",
+      expect.stringContaining("/putaway/t-1"),
+    );
+    await user.keyboard("{Escape}");
+
+    const doneMenu = await openRowMenu(user, rowOf("LPN-2"));
+    expect(within(doneMenu).getByRole("link", { name: "Xem chi tiết" })).toHaveAttribute(
+      "href",
+      expect.stringContaining("/putaway/t-2"),
+    );
   });
 });

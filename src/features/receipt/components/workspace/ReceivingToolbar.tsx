@@ -1,9 +1,11 @@
 "use client";
 
-import { RECEIPT_COLUMNS as C, RECEIVING_LABELS } from "@/constants";
+import { RECEIPT_COLUMNS as C, RECEIVING_LABELS, WORKSPACE_PATHS } from "@/constants";
 import { columnSummaryItem, columnToolbarProps } from "@/hooks/use-column-visibility";
+import { useWorkspaceHref, useWorkspaceWarehouse } from "@/lib/workspace";
 import { ListToolbar } from "@/components/shared/ListToolbar";
 
+import { CreateReceiptAction } from "../create/CreateReceiptAction";
 import { COLUMN_LABELS } from "../list/constants";
 
 import type { ColumnVisibility } from "@/hooks/use-column-visibility";
@@ -50,8 +52,13 @@ export function ReceivingToolbar({
   columns: ColumnVisibility<ReceivingColumn>;
 }) {
   const filtered = tab !== DEFAULT_RECEIVING_TAB;
+  const href = useWorkspaceHref();
+  const warehouseId = useWorkspaceWarehouse().id;
+  const detailHref = (id: string) => href(WORKSPACE_PATHS.receivingReceipt(id));
   return (
     <ListToolbar<ReceivingTab, string, ReceivingColumn>
+      // Lập phiếu nhập ngay tại màn nhận hàng của kho — không phải sang nhóm Nhập kho (S12-2)
+      actions={<CreateReceiptAction detailHref={detailHref} warehouseId={warehouseId} />}
       statusOptions={TAB_OPTIONS}
       selectedStatuses={[tab]}
       onToggleStatus={onTabChange}

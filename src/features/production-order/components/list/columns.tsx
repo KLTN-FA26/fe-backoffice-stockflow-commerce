@@ -71,6 +71,9 @@ export function buildProductionOrderColumns(
       key: C.STATUS,
       header: col.status,
       cell: (row) => <ProductionStatusDot status={row.status} />,
+      // Ghim phải + không xuống dòng: bảng rộng hơn màn hình vẫn thấy đủ nhãn trạng thái ("Đang sản xuất"), không bị cắt
+      sticky: "right",
+      className: "whitespace-nowrap",
     },
   ];
 }

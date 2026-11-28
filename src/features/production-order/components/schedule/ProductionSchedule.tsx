@@ -1,7 +1,5 @@
 "use client";
 
-import { useState } from "react";
-
 import {
   PRODUCER_PERMISSIONS,
   PRODUCTION_LABELS,
@@ -32,11 +30,10 @@ import { ScheduleEmpty } from "./ScheduleEmpty";
 import { scheduleHeaderFilters, withCurrent } from "./ScheduleHeaderFilters";
 import { ScheduleSections, ScheduleTabBar } from "./ScheduleSections";
 import { ScheduleToolbar } from "./ScheduleToolbar";
+import { useDrawUpLink } from "./useDrawUpLink";
 import { useScheduleColumns } from "./useScheduleColumns";
 import { useScheduleFilters } from "./useScheduleFilters";
 import { useScheduleTab } from "./useScheduleTab";
-
-import type { ShortDeliveryBatch } from "@/features/production-order/schedule-schemas";
 
 const L = PRODUCTION_LABELS.schedule;
 
@@ -48,7 +45,6 @@ function ScheduleContent() {
   const schedule = useProductionSchedule(filters.params, canRead);
   const producers = useProducerDirectory(can(PRODUCER_PERMISSIONS.read));
   const warehouses = useWarehouseDirectory(can(WAREHOUSE_PERMISSIONS.read));
-  const [batch, setBatch] = useState<ShortDeliveryBatch | null>(null);
   const canDrawUp = can(PRODUCTION_ORDER_PERMISSIONS.create);
 
   const data = schedule.data;
@@ -56,6 +52,7 @@ function ScheduleContent() {
     ? filterScheduledOrders(byNeedByDate(data.productionOrders), filters.text)
     : [];
   const batches = data ? filterShortBatches(byWindowStart(data.shortBatches), filters.text) : [];
+  const drawUp = useDrawUpLink(data?.shortBatches, canDrawUp);
   // Đếm theo dữ liệu BE trả về, không theo search chữ — gõ tìm không được làm nhảy tab mặc định. Lỗi tải → không
   // còn chờ dữ liệu nữa, chọn luôn tab mặc định thay vì giữ chỗ mãi.
   const { tab, setTab } = useScheduleTab(
@@ -121,14 +118,14 @@ function ScheduleContent() {
                 batches={batches}
                 headerFilters={headerFilters}
                 empty={empty}
-                onDrawUp={canDrawUp ? setBatch : undefined}
+                onDrawUp={canDrawUp ? drawUp.pick : undefined}
                 visibleColumns={columns.visible}
               />
             </div>
           </>
         )}
       </div>
-      {batch && <DrawUpDialog batch={batch} onClose={() => setBatch(null)} />}
+      {drawUp.open && <DrawUpDialog batch={drawUp.open} onClose={drawUp.close} />}
     </>
   );
 }

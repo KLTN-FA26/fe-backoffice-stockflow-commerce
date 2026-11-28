@@ -20,6 +20,14 @@ vi.mock("next/navigation", async (importOriginal) => ({
 }));
 
 const L = PUTAWAY_DETAIL_LABELS;
+const MANY = task({
+  suggestions: Array.from({ length: 10 }, (_, index) => ({
+    locationCode: `HCM-A01-1-${String.fromCharCode(65 + index)}`,
+    reason: "EMPTY" as const,
+    freeVolumeM3: null,
+    freeWeightKg: null,
+  })),
+});
 const SUGGESTED = task({
   suggestions: [
     { locationCode: "HCM-A01-1-A", reason: "SAME_LOT", freeVolumeM3: 8.304, freeWeightKg: 240 },
@@ -80,7 +88,7 @@ describe("PutawayTaskDetail — action-gating (≥ 3 vai trò)", () => {
     expect(await screen.findByText(L.doneTitle)).toBeInTheDocument();
     expect(screen.getAllByText("HCM-B01-1-A").length).toBeGreaterThan(0);
     expect(submitButton()).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Chọn bin/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Chọn ô kệ/ })).not.toBeInTheDocument();
   });
 });
 
@@ -113,7 +121,7 @@ describe("PutawayTaskDetail — bin gợi ý + xác nhận (docs 05 §4.3–4.4)
     const { post } = setup("WAREHOUSE_STAFF");
     await user.click(await screen.findByRole("button", { name: L.submit }));
     expect(await screen.findByText("Quét LPN của thùng")).toBeInTheDocument();
-    expect(screen.getByText("Quét mã bin")).toBeInTheDocument();
+    expect(screen.getByText("Quét mã ô kệ")).toBeInTheDocument();
     expect(post).not.toHaveBeenCalled();
   });
 
@@ -186,5 +194,110 @@ describe("PutawayTaskDetail — kho của nhiệm vụ khác kho của tab (spec
     setup("WAREHOUSE_STAFF", { ...SUGGESTED, warehouseId: "wh-1" });
     expect(await screen.findByRole("button", { name: L.submit })).toBeInTheDocument();
     expect(replace).not.toHaveBeenCalled();
+  });
+});
+
+describe("PutawayTaskDetail — gợi ý gọn + nút một chạm (S13-1)", () => {
+  it("10 gợi ý → chỉ 3 ô kệ đầu + 'Xem thêm 7 ô kệ'; bấm để xem đủ rồi thu gọn", async () => {
+    const user = userEvent.setup();
+    setup("WAREHOUSE_STAFF", MANY);
+    expect(await screen.findByRole("button", { name: L.chooseBin("HCM-A01-1-A") })).toBeVisible();
+    expect(screen.getByRole("button", { name: L.chooseBin("HCM-A01-1-C") })).toBeVisible();
+    expect(screen.queryByRole("button", { name: L.chooseBin("HCM-A01-1-D") })).toBeNull();
+    await user.click(screen.getByRole("button", { name: L.seeMore(7) }));
+    expect(screen.getByRole("button", { name: L.chooseBin("HCM-A01-1-J") })).toBeVisible();
+    await user.click(screen.getByRole("button", { name: L.seeLess }));
+    expect(screen.queryByRole("button", { name: L.chooseBin("HCM-A01-1-J") })).toBeNull();
+  });
+
+  it("nút một chạm 'Dùng <gợi ý số 1>' cạnh ô quét ô kệ: bấm mới điền, không tự điền", async () => {
+    const user = userEvent.setup();
+    setup("WAREHOUSE_STAFF", MANY);
+    const field = await screen.findByLabelText(L.locationField);
+    expect(field).toHaveValue("");
+    await user.click(screen.getByRole("button", { name: L.takeAlternative("HCM-A01-1-A") }));
+    expect(field).toHaveValue("HCM-A01-1-A");
+  });
+
+  it("ô quét lớn cao 48px, nút xác nhận cao 44px (R10)", async () => {
+    setup("WAREHOUSE_STAFF", MANY);
+    expect(await screen.findByLabelText(L.lpnField)).toHaveClass("h-12");
+    expect(screen.getByLabelText(L.locationField)).toHaveClass("h-12");
+    expect(screen.getByRole("button", { name: L.submit })).toHaveClass("h-11");
+  });
+});
+
+describe("PutawayTaskDetail — cất xong thì đi tiếp thùng sau (S13-2)", () => {
+  it("Done + còn thùng chờ cất → nút 'Cất thùng tiếp theo (còn N)' mang theo ô kệ vừa dùng", async () => {
+    mockApi("WAREHOUSE_STAFF", {
+      get: {
+        "/putaway-tasks/t-1": () =>
+          task({ status: "DONE", left: 0, targetLocationCode: "HCM-A01-1-A" }),
+        "/putaway-tasks": () => ({
+          items: [
+            task({ id: "t-1", lpn: "LPN-1", status: "DONE" }),
+            task({ id: "t-2", lpn: "LPN-2", status: "PENDING" }),
+            task({ id: "t-3", lpn: "LPN-3", status: "PENDING" }),
+          ],
+          page: 0,
+          size: 200,
+          totalElements: 3,
+          totalPages: 1,
+          hasNext: false,
+          hasPrevious: false,
+        }),
+      },
+    });
+    renderScreen(
+      <WorkspaceWarehouseProvider value={{ id: "wh-1", prefix: "HCM", name: "Kho Hồ Chí Minh" }}>
+        <PutawayTaskDetail taskId="t-1" />
+      </WorkspaceWarehouseProvider>,
+      "WAREHOUSE_STAFF",
+    );
+    const next = await screen.findByRole("link", { name: L.nextCarton(2) });
+    expect(next).toHaveAttribute("href", "/admin/warehouse-map/HCM/putaway/t-2?bin=HCM-A01-1-A");
+    // Còn ≥ 2 thùng → chỉ lối sang Chuyến cất hàng (mỗi thùng vẫn quét riêng — BR-08)
+    expect(screen.getByRole("link", { name: L.openTrip })).toBeInTheDocument();
+  });
+
+  it("Done + hết thùng chờ → về danh sách, không nút 'tiếp theo'", async () => {
+    mockApi("WAREHOUSE_STAFF", {
+      get: {
+        "/putaway-tasks/t-1": () =>
+          task({ status: "DONE", left: 0, targetLocationCode: "HCM-A01-1-A" }),
+        "/putaway-tasks": () => ({
+          items: [task({ id: "t-1", status: "DONE" })],
+          page: 0,
+          size: 200,
+          totalElements: 1,
+          totalPages: 1,
+          hasNext: false,
+          hasPrevious: false,
+        }),
+      },
+    });
+    renderScreen(
+      <WorkspaceWarehouseProvider value={{ id: "wh-1", prefix: "HCM", name: "Kho Hồ Chí Minh" }}>
+        <PutawayTaskDetail taskId="t-1" />
+      </WorkspaceWarehouseProvider>,
+      "WAREHOUSE_STAFF",
+    );
+    expect(await screen.findByText(L.nextCartonLast)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: L.backToList })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Cất thùng tiếp theo/ })).toBeNull();
+  });
+
+  it("mở bằng ?bin= (từ nút tiếp theo) → có nút một chạm 'Dùng … (vừa cất)'", async () => {
+    mockApi("WAREHOUSE_STAFF", { get: { "/putaway-tasks/t-1": () => SUGGESTED } });
+    renderScreen(
+      <WorkspaceWarehouseProvider value={{ id: "wh-1", prefix: "HCM", name: "Kho Hồ Chí Minh" }}>
+        <PutawayTaskDetail taskId="t-1" />
+      </WorkspaceWarehouseProvider>,
+      "WAREHOUSE_STAFF",
+      "?bin=HCM-A09-9-Z",
+    );
+    expect(
+      await screen.findByRole("button", { name: L.takeLast("HCM-A09-9-Z") }),
+    ).toBeInTheDocument();
   });
 });

@@ -1,22 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Controller, useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 
-import { PICK_LINE_LABELS, TOAST_MESSAGES } from "@/constants";
+import { PICK_LINE_LABELS, PICK_LINE_LIMITS, TOAST_MESSAGES } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 import { createIdempotencyAttempt } from "@/lib/api/idempotency";
 import { shortPickError } from "@/features/fulfillment/pick-line-errors";
 import { useReportShortPick } from "@/features/fulfillment/pick-line-mutations";
 import { shortPickInputSchema } from "@/features/fulfillment/pick-line-schemas";
+import { ScanInput } from "@/components/backoffice/ScanInput";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { toast } from "@/components/shared/Toast";
 
-import { CodeField } from "./CodeField";
 import { ShortPickReasonField } from "./ShortPickReasonField";
+import { useLocationScan } from "./useLocationScan";
 
-import type { CodeOption } from "@/features/fulfillment/pick-line-selectors";
 import type { PickLine, ShortPickFormValues, ShortPickValues } from "@/features/fulfillment/types";
 
 const L = PICK_LINE_LABELS;
@@ -24,7 +24,6 @@ const L = PICK_LINE_LABELS;
 export interface ShortPickProps {
   taskId: string;
   line: PickLine;
-  locationOptions: readonly CodeOption[];
   /** Báo thiếu xong — màn bỏ câu "Đã lấy dòng …" của lần xác nhận trước. */
   onReported?: () => void;
 }
@@ -38,7 +37,6 @@ export interface ShortPickProps {
 export function ShortPickDialog({
   taskId,
   line,
-  locationOptions,
   onReported,
   onClose,
 }: ShortPickProps & { onClose: () => void }) {
@@ -50,7 +48,26 @@ export function ShortPickDialog({
     defaultValues: { locationCode: "" },
   });
   const { errors } = form.formState;
-
+  // Thùng đã về khu chờ xuất thì quét khu chờ, không phải ô kệ lấy ra (BE `PickList.expectedAt`)
+  const expectedLocation = line.stagedLocationCode ?? line.locationCode;
+  const scannedLocation = useWatch({ control: form.control, name: "locationCode" });
+  const [serverSeq, setServerSeq] = useState(0);
+  const location = useLocationScan({
+    expected: expectedLocation,
+    current: scannedLocation,
+    accept: (code) => {
+      form.clearErrors("locationCode");
+      form.setValue("locationCode", code);
+    },
+    reject: () => form.setValue("locationCode", ""),
+    serverMessage: errors.locationCode?.message,
+    serverSeq,
+  });
+  // Quét xong vị trí → sang ô lý do, như thẻ xác nhận dòng (không cần chuột). Sau khi ô quét đã khoá: ô quét tự giành
+  // lại focus ngay sau mỗi lần quét nên không đưa focus đi trong lúc xử lý mã được.
+  useEffect(() => {
+    if (scannedLocation) document.getElementById("short-reason")?.focus();
+  }, [scannedLocation]);
   const submit = form.handleSubmit((values) => {
     if (report.isPending) return;
     setServerError(null);
@@ -69,6 +86,11 @@ export function ShortPickDialog({
           else attempt.reset();
           const result = shortPickError(error, line);
           if (result.field) {
+            // BE từ chối vị trí → mở lại ô quét để quét lại
+            if (result.field === "locationCode") {
+              form.setValue("locationCode", "");
+              setServerSeq((n) => n + 1);
+            }
             form.setError(result.field, { type: "server", message: result.message });
           } else if (result.stale) {
             toast.error(result.message);
@@ -93,32 +115,22 @@ export function ShortPickDialog({
           line.allocatedQty,
         )}
         submitLabel={L.shortAction}
-        canSubmit
+        canSubmit={!!scannedLocation}
         isPending={report.isPending}
         error={serverError}
         onSubmit={() => void submit()}
         onCancel={onClose}
       >
-        <Controller
-          control={form.control}
-          name="locationCode"
-          render={({ field }) => (
-            <CodeField
-              id="short-location"
-              label={L.location}
-              placeholder={L.locationPlaceholder}
-              options={locationOptions}
-              value={field.value}
-              error={errors.locationCode?.message}
-              autoFocus
-              onChange={(value) => {
-                field.onChange(value);
-                form.clearErrors("locationCode");
-                // Chọn xong vị trí → sang ô lý do, như thẻ xác nhận dòng (không cần chuột)
-                document.getElementById("short-reason")?.focus();
-              }}
-            />
-          )}
+        <ScanInput
+          id="short-location"
+          label={L.shortScanLocation}
+          placeholder={L.scanLocationPlaceholder}
+          hint={L.shortScanHint(expectedLocation)}
+          maxLength={PICK_LINE_LIMITS.codeMax}
+          disabled={!!scannedLocation}
+          feedback={location.feedback}
+          submitLabel={scannedLocation ? undefined : L.scanLocationConfirm}
+          onScan={location.onScan}
         />
         <ShortPickReasonField
           control={form.control}

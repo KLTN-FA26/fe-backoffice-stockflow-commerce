@@ -1,12 +1,20 @@
 "use client";
 
-import { PUTAWAY_LABELS, PUTAWAY_TASK_PERMISSIONS, WORKSPACE_PATHS } from "@/constants";
+import { parseAsString, useQueryState } from "nuqs";
+
+import {
+  PUTAWAY_LABELS,
+  PUTAWAY_TASK_PERMISSIONS,
+  PUTAWAY_TASK_STATUS,
+  WORKSPACE_PATHS,
+} from "@/constants";
 import { usePermissionChecker } from "@/lib/auth";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
-import { InWorkspaceWarehouse, useWorkspaceHref } from "@/lib/workspace";
+import { InWorkspaceWarehouse, useWorkspaceHref, useWorkspaceWarehouse } from "@/lib/workspace";
 import { putawayTaskGate } from "@/features/putaway/lifecycle";
-import { usePutawayTask } from "@/features/putaway/queries";
+import { usePutawayTask, usePutawayTasks } from "@/features/putaway/queries";
+import { nextPendingTask } from "@/features/putaway/selectors";
 
 import { LoadErrorState } from "@/components/backoffice/LoadErrorState";
 import { DETAIL_GRID_CLASS } from "@/components/shared/DetailSection";
@@ -31,6 +39,8 @@ function ConfirmLayout({ task, onStale }: { task: PutawayTask; onStale: () => vo
     onStale,
   });
   const selected = confirm.form.watch("locationCode");
+  // Ô kệ vừa dùng cho thùng trước (`?bin=` của nút "Cất thùng tiếp theo") — gợi ý dùng lại một chạm
+  const [lastBin] = useQueryState("bin", parseAsString);
   return (
     <div className={DETAIL_GRID_CLASS}>
       <div className="min-w-0 space-y-5">
@@ -49,8 +59,9 @@ function ConfirmLayout({ task, onStale }: { task: PutawayTask; onStale: () => vo
           }}
         />
       </div>
-      <div className="space-y-5">
-        <PutawayConfirmCard task={task} confirm={confirm} />
+      {/* Màn hẹp (một cột): thẻ quét / xác nhận lên đầu trang, không nằm cuối (S01-12) */}
+      <div className="order-first space-y-5 lg:order-none">
+        <PutawayConfirmCard task={task} confirm={confirm} lastBin={lastBin} />
       </div>
     </div>
   );
@@ -59,8 +70,14 @@ function ConfirmLayout({ task, onStale }: { task: PutawayTask; onStale: () => vo
 function DetailContent({ taskId }: { taskId: string }) {
   const can = usePermissionChecker();
   const query = usePutawayTask(taskId);
-  const listHref = useWorkspaceHref()(WORKSPACE_PATHS.putaway);
+  const href = useWorkspaceHref();
+  const listHref = href(WORKSPACE_PATHS.putaway);
   const task = query.data;
+  // Thùng đã cất xong: tìm thùng chờ cất kế tiếp của kho để đi tiếp một chạm, không quay lại danh sách (S13-2)
+  const warehouseId = useWorkspaceWarehouse().id;
+  const done = task?.status === PUTAWAY_TASK_STATUS.DONE;
+  const pending = usePutawayTasks({ warehouseId }, { enabled: done });
+  const next = nextPendingTask(done ? (pending.data?.items ?? []) : [], taskId);
   useBreadcrumbLabel(taskId, task?.lpn ?? undefined);
 
   if (query.isLoading) return <PageSkeleton variant="detail" />;
@@ -90,7 +107,27 @@ function DetailContent({ taskId }: { taskId: string }) {
             <PutawaySuggestionsSection task={task} selected={null} />
           </div>
           <div className="space-y-5">
-            <PutawayStateCard task={task} reason={gate.reason} />
+            <PutawayStateCard
+              task={task}
+              reason={gate.reason}
+              next={
+                done && next.task
+                  ? {
+                      remaining: next.remaining,
+                      href: href(
+                        task.targetLocationCode
+                          ? WORKSPACE_PATHS.putawayTaskWithBin(
+                              next.task.id,
+                              task.targetLocationCode,
+                            )
+                          : WORKSPACE_PATHS.putawayTask(next.task.id),
+                      ),
+                    }
+                  : null
+              }
+              listHref={listHref}
+              tripHref={href(WORKSPACE_PATHS.myTrip)}
+            />
           </div>
         </div>
       )}

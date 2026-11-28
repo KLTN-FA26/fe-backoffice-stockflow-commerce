@@ -105,7 +105,11 @@ export function TaskActionCard({
               variant={isSecondaryCode(action.code) ? "outline" : "default"}
               size="sm"
               disabled={pending}
-              onClick={() => setDialog(action.code)}
+              onClick={() =>
+                action.code === "startPicking"
+                  ? mutations.startPicking.mutate(task.taskId, callbacks)
+                  : setDialog(action.code)
+              }
               className={BUTTON}
             >
               <Icon className="size-3.5" /> {action.label}

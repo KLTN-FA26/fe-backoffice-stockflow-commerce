@@ -107,7 +107,7 @@ describe("evidenceUploadErrorMessage — tải tệp bằng chứng", () => {
     [429, "RATE_LIMITED", /quá nhiều tệp/],
     [404, "DELIVERY_BATCH_NOT_FOUND", /không còn nhận được bằng chứng/],
     [409, "CONFLICT", /không còn nhận được bằng chứng/],
-    [403, "FORBIDDEN", /sales-contracts:UPDATE/],
+    [403, "FORBIDDEN", /chỉ nhân viên Sale/],
     [0, "NETWORK_ERROR", /Không kết nối được/],
     [503, "STORAGE_ERROR", /Kho lưu trữ tệp tạm thời/],
     [500, "SOMETHING_NEW", /Kho lưu trữ tệp tạm thời/],

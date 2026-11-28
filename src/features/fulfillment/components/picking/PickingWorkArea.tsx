@@ -4,11 +4,9 @@ import { useState } from "react";
 import { CheckCircle2 } from "lucide-react";
 
 import { FULFILLMENT_PICK_PERMISSIONS, PICK_LINE_LABELS, PICK_STATUS } from "@/constants";
-import { useWarehouseLocations } from "@/lib/references/warehouse-locations";
 import {
   canConfirmPickLines,
   canReportShort,
-  canReportStagedShort,
   canViewPutBacks,
   isConfirmableLine,
   pickLineAction,
@@ -17,7 +15,6 @@ import {
   linesComplete,
   nextOpenLine,
   pickIncompleteReason,
-  pickLocationOptions,
 } from "@/features/fulfillment/pick-line-selectors";
 import { usePickLines } from "@/features/fulfillment/queries";
 
@@ -50,12 +47,6 @@ export function PickingWorkArea({
   const lines = usePickLines(task.taskId, actor.can(FULFILLMENT_PICK_PERMISSIONS.read));
   // UI-only — Backend phải re-check (picking:UPDATE + người được gán; phân bổ lại: task-assignment:UPDATE)
   const canConfirm = canConfirmPickLines(task, actor);
-  // Thùng đã về khu chờ xuất cũng báo thiếu được, kể cả khi task đã `Staged` (docs 20 §4.9 bước 4)
-  const canReportStaged = canReportStagedShort(task, actor);
-  const locations = useWarehouseLocations(
-    task.warehouseId ?? undefined,
-    canConfirm || canReportStaged,
-  );
   const [selectedId, setSelectedId] = useState<string | undefined>();
   // Câu "Đã lấy dòng …" chỉ nói thao tác vừa làm: báo thiếu / phân bổ lại xong thì bỏ
   const [lastDone, setLastDone] = useState<string | null>(null);
@@ -68,7 +59,6 @@ export function PickingWorkArea({
   // Chưa tải xong dòng thì chưa cho hoàn tất (BE requireAllPicked)
   const complete = !!data && linesComplete(data, task);
   const incompleteReason = pickIncompleteReason(data, lines.isError, task);
-  const locationOptions = pickLocationOptions(locations.data, data ?? []);
   // Mỗi dòng tự xét (`pickLineAction`): phân bổ lại / bù thùng, hoặc báo thiếu thùng đã về khu chờ xuất
   const lineActionOf = (line: PickLine) => {
     const action = pickLineAction(task, actor, line);
@@ -76,13 +66,7 @@ export function PickingWorkArea({
       return <ReallocateButton taskId={task.taskId} line={line} onReallocated={clearDone} />;
     }
     return action === "reportShort" ? (
-      <ShortPickAction
-        compact
-        taskId={task.taskId}
-        line={line}
-        locationOptions={locationOptions}
-        onReported={clearDone}
-      />
+      <ShortPickAction compact taskId={task.taskId} line={line} onReported={clearDone} />
     ) : null;
   };
   const onConfirmed = (line: PickLine) => {
@@ -107,7 +91,8 @@ export function PickingWorkArea({
         />
         {info}
       </div>
-      <div className="space-y-5">
+      {/* Màn hẹp (một cột): thẻ xác nhận dòng + thao tác nhiệm vụ lên đầu, không nằm dưới bảng dòng (S01-12) */}
+      <div className="order-first space-y-5 xl:order-none">
         {canConfirm && lastDone && (
           <p role="status" className="text-positive flex items-center gap-1.5 text-[0.8125rem]">
             <CheckCircle2 className="size-4" /> {lastDone}
@@ -118,17 +103,10 @@ export function PickingWorkArea({
             key={active.lineId}
             taskId={task.taskId}
             line={active}
-            locationOptions={locationOptions}
-            locationsUnavailable={locations.isError}
             onConfirmed={onConfirmed}
             extraActions={
               canReportShort(task, actor) && (
-                <ShortPickAction
-                  taskId={task.taskId}
-                  line={active}
-                  locationOptions={locationOptions}
-                  onReported={clearDone}
-                />
+                <ShortPickAction taskId={task.taskId} line={active} onReported={clearDone} />
               )
             }
           />

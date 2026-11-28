@@ -12,7 +12,7 @@ const TH = "text-ink-secondary px-3 py-2 text-left text-xs font-medium";
 const TD = "px-3 py-2 text-[0.8125rem]";
 
 /**
- * Dòng hàng của task — BE trả kèm `GET /fulfillment/tasks/{id}` (`lines`, SCRUM-466), không cần quyền đọc
+ * Dòng hàng của nhiệm vụ — BE trả kèm `GET /fulfillment/tasks/{id}` (`lines`, SCRUM-466), không cần quyền đọc
  * đơn hàng. Chỉ để xem: SKU + SL đặt. BR-06 (docs 07 §6): dòng tuỳ chỉnh không lấy thành phẩm từ kệ.
  */
 export function OrderLinesSection({ lines }: { lines: readonly TaskLine[] | undefined }) {
@@ -26,7 +26,7 @@ export function OrderLinesSection({ lines }: { lines: readonly TaskLine[] | unde
       ) : (
         <div className="border-border-default overflow-hidden rounded-[var(--r-sm)] border">
           <table className="w-full">
-            <caption className="sr-only">Dòng hàng của task</caption>
+            <caption className="sr-only">{UI_LABELS.fulfillment.taskLinesCaption}</caption>
             <thead className="bg-bg-subtle border-border-default border-b">
               <tr>
                 <th scope="col" className={TH}>

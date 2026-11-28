@@ -49,24 +49,6 @@ export function nextOpenLine(lines: readonly PickLine[]): PickLine | undefined {
 }
 
 /**
- * Vị trí chọn được khi lấy hàng: mọi vị trí có mã của kho (bin + khu chứa, kể cả đang không dùng
- * được — hàng giữ có thể nằm ở bin vừa bị khoá) hợp với vị trí của các dòng (cả khu chờ xuất của dòng Staged), để vẫn
- * xác nhận / báo thiếu được khi không tải được sơ đồ kho.
- */
-export function pickLocationOptions(
-  locations: readonly WarehouseLocation[] | undefined,
-  lines: readonly PickLine[],
-): CodeOption[] {
-  const codes = new Set<string>([
-    ...(locations ?? []).map((location) => location.locationCode),
-    ...lines.map((line) => line.locationCode),
-    // Thùng ở khu chờ xuất: báo thiếu quét đúng khu chờ (BE `PickList.expectedAt`)
-    ...lines.flatMap((line) => (line.stagedLocationCode ? [line.stagedLocationCode] : [])),
-  ]);
-  return [...codes].sort().map((code) => ({ value: code, label: code }));
-}
-
-/**
  * Task đang lấy hàng mà chưa có dòng dù đơn còn dòng hàng sẵn: task bắt đầu trước khi BE có dòng lấy hàng.
  * BE `requireAllPicked` từ chối hoàn tất (409 PICK_LINES_INCOMPLETE) và chỉ lập dòng khi gọi lại picking-start
  * (`FulfillmentServiceImpl#startPicking` → `planLines`, task đang PICKING được trả nguyên trạng).
@@ -188,4 +170,13 @@ export function stagingAreaOptions(
       (location) => location.kind === "AREA" && location.areaType === "STAGING" && location.usable,
     )
     .map((location) => ({ value: location.locationCode, label: location.locationCode }));
+}
+
+/**
+ * Mã quét khớp mã vị trí / LPN của dòng — cắt khoảng trắng, không phân biệt hoa thường: đúng cách BE so (BE `PickList#sameCode`
+ * — mã vị trí và LPN lưu chữ hoa, máy quét hay bàn phím gửi chữ nào cũng được). FE chỉ so để báo sai ngay tại ô quét; BE
+ * vẫn kiểm lại khi xác nhận.
+ */
+export function sameScannedCode(scanned: string, expected: string): boolean {
+  return scanned.trim().toUpperCase() === expected.trim().toUpperCase();
 }

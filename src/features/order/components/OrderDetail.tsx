@@ -16,6 +16,7 @@ import { ObjectHeader } from "@/components/shared/ObjectPage";
 import { StatusDot } from "@/components/shared/StatusDot";
 
 import { useCompletionHold } from "../completion-hold-queries";
+import { drawUpHrefFor } from "../production-link";
 import { useLiveOrderPayment } from "../live-payment";
 import { useOrder, useOrderProductionOrders } from "../queries";
 import { useSalesContract } from "../sales-contract-queries";
@@ -166,6 +167,7 @@ function OrderDetailContent({
             <LineProductionOrdersView
               entry={productionByLine.get(line.lineId)}
               state={productionState}
+              drawUpHref={drawUpHrefFor(order.orderId, can)}
             />
           )}
         />

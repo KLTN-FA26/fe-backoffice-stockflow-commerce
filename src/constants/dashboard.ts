@@ -51,7 +51,7 @@ export const DASHBOARD_LABELS = {
   subtitle: "Theo dõi vận hành kho, đơn hàng và tồn kho.",
   ordersPending: "Đơn chờ xử lý",
   receiptsProcessing: "Phiếu nhận đang xử lý",
-  picksOpen: "Task lấy hàng đang mở",
+  picksOpen: "Nhiệm vụ lấy hàng đang mở",
   loading: "…",
   unavailable: "—",
   unavailableHint: "Không tải được",

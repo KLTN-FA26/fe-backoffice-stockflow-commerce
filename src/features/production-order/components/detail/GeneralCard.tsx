@@ -89,8 +89,11 @@ export function GeneralCard({
     <DetailSection title={L.general} icon={Info}>
       <div className="grid grid-cols-1 gap-x-6 md:grid-cols-2">
         <InfoRow label={PRODUCTION_LABELS.order.column.code}>
-          <span className="inline-flex items-center gap-3">
-            <span className="font-[family-name:var(--font-mono)] font-medium">{order.code}</span>
+          {/* Mã luôn một dòng; trạng thái xuống dòng dưới để cột hẹp không bẻ mã giữa chừng */}
+          <span className="flex flex-col items-start gap-1">
+            <span className="font-[family-name:var(--font-mono)] font-medium whitespace-nowrap">
+              {order.code}
+            </span>
             <ProductionStatusDot status={order.status} />
           </span>
         </InfoRow>

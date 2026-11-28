@@ -3,7 +3,13 @@ import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ADMIN_ROUTES, RECEIVING_LABELS, STORAGE_KEYS, WORKSPACE_PATHS } from "@/constants";
+import {
+  ADMIN_ROUTES,
+  RECEIPT_COUNT_LABELS,
+  RECEIVING_LABELS,
+  STORAGE_KEYS,
+  WORKSPACE_PATHS,
+} from "@/constants";
 import { WorkspaceWarehouseProvider } from "@/lib/workspace";
 
 import { HCM_ID, RECEIPT_ID, apiReceipt, apiReceiptPage } from "../../__fixtures__/receipt";
@@ -195,5 +201,67 @@ describe("ReceivingList — Nhận hàng trong tab theo kho (docs 03)", () => {
     );
     expect(listCalls(get)).toHaveLength(0);
     expect(screen.queryByRole("group", { name: "Lọc trạng thái" })).not.toBeInTheDocument();
+  });
+});
+
+describe("ReceivingList — Lập phiếu nhập ngay tại màn nhận hàng của kho (S12-2)", () => {
+  it("quản lý kho có nút 'Lập phiếu nhập' trên thanh công cụ; nhân viên chỉ đọc thì không", async () => {
+    renderTab(ROLES.warehouseManager);
+    expect(
+      await screen.findByRole("button", { name: RECEIPT_COUNT_LABELS.create.button }),
+    ).toBeInTheDocument();
+  });
+
+  it("kho chưa có phiếu: trạng thái trống có nút 'Lập phiếu nhập', toolbar vẫn còn nút của nó", async () => {
+    renderTab(ROLES.warehouseManager, apiReceiptPage([]));
+    expect(await screen.findByText(L.emptyDraftTitle)).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("button", { name: RECEIPT_COUNT_LABELS.create.button }),
+    ).toHaveLength(2);
+  });
+
+  it("không có goods-receipts:CREATE → không nút nào", async () => {
+    renderTab(ROLES.reader);
+    await screen.findByText(NUMBER);
+    expect(screen.queryByRole("button", { name: RECEIPT_COUNT_LABELS.create.button })).toBeNull();
+  });
+
+  it("hộp Lập phiếu trong tab kho chỉ liệt kê Đơn sản xuất về đúng kho đó và chỉ chọn sẵn trong kho đó (không nhầm kho khác)", async () => {
+    const order = (id: string, code: string, warehouseId: string) => ({
+      id,
+      code,
+      status: "IN_PRODUCTION",
+      receivingWarehouseId: warehouseId,
+      sampleApprovalRequired: false,
+      lines: [{ id: `${id}-l`, sku: "SKU-A", cartons: 5, unitsPerCarton: 10, receivedCartons: 0 }],
+    });
+    mockReceiptApi(ROLES.warehouseManager, {
+      "/goods-receipts": () => apiReceiptPage(),
+      "/production-orders": (params) =>
+        (params as { status?: string }).status === "IN_PRODUCTION"
+          ? {
+              items: [
+                order("po-hcm", "PRD-HCM-1", HCM_ID),
+                order("po-other", "PRD-OTHER-1", "00000000-0000-4000-8000-0000000000ff"),
+              ],
+            }
+          : { items: [] },
+    });
+    const user = userEvent.setup();
+    renderReceiptScreen(
+      <WorkspaceWarehouseProvider value={HCM}>
+        <ReceivingList />
+      </WorkspaceWarehouseProvider>,
+    );
+    await user.click(
+      await screen.findByRole("button", { name: RECEIPT_COUNT_LABELS.create.button }),
+    );
+    const box = await screen.findByRole("combobox", {
+      name: RECEIPT_COUNT_LABELS.create.productionOrder,
+    });
+    // Trong tab kho HCM chỉ có một đơn của kho này → chọn sẵn đơn đó, không phải đơn kho khác
+    await waitFor(() => expect(box).toHaveValue("PRD-HCM-1"));
+    await user.click(box);
+    expect(screen.queryByRole("option", { name: /PRD-OTHER-1/ })).toBeNull();
   });
 });

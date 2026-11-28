@@ -81,7 +81,7 @@ describe("Lấy bổ sung — action-gating (docs 07 §4.3 bước 7)", () => {
     );
     await user.click(await screen.findByRole("button", { name: action.topUp }));
     const dialog = await screen.findByRole("dialog");
-    expect(dialog).toHaveTextContent(/cùng task/);
+    expect(dialog).toHaveTextContent(/cùng nhiệm vụ/);
     await user.click(within(dialog).getByRole("button", { name: action.topUp }));
     await waitFor(() => expect(post).toHaveBeenCalledWith(`${TASK_PATH}/top-up`));
     await waitFor(() => expect(screen.queryByRole("button", { name: action.topUp })).toBeNull());

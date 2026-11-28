@@ -13,6 +13,7 @@ import {
 } from "@/components/shared/combobox-select";
 
 import { nextBatchToRelease } from "../delivery-batch-api";
+import { formatWindowRange } from "../delivery-window-rules";
 import { useDeliverySchedule } from "../queries";
 
 const L = ORDER_RELEASE_LABELS.batch;
@@ -55,7 +56,13 @@ export function ReleaseBatchField({ orderId, value, onChange }: ReleaseBatchFiel
         <SelectContent>
           {batches.map((batch) => (
             <SelectItem key={batch.batchId} value={batch.batchId} disabled={!!batch.releasedAt}>
-              {L.option(batch.seq, batch.windowStart, batch.windowEnd)} · {L.states[batch.state]}
+              {L.option(
+                batch.seq,
+                batch.windowStart || batch.windowEnd
+                  ? formatWindowRange(batch.windowStart, batch.windowEnd)
+                  : null,
+              )}{" "}
+              · {L.states[batch.state]}
               {batch.releasedAt ? ` · ${L.released}` : ""}
               {batch.lines.length > 0 &&
                 ` · ${L.held(
