@@ -1,7 +1,5 @@
-import { ORDER_LIMITS } from "@/constants";
-
 import { formatMoney } from "@/lib/format";
-import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/shared/NumberInput";
 import { Label } from "@/components/ui/label";
 
 import { retainedAmountPreview } from "../selectors";
@@ -39,11 +37,10 @@ export function RetainedPercentField({
         Giữ lại (%) từ {formatMoney(paidAmount, currency)} đã thu
       </Label>
       <div className="flex items-center gap-3">
-        <Input
+        <NumberInput
+          suffix="%"
           id="cancel-retained"
-          type="number"
-          step={ORDER_LIMITS.percentInputStep}
-          inputMode="decimal"
+          decimal
           placeholder="0"
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? "cancel-retained-error" : undefined}

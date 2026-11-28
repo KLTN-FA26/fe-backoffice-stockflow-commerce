@@ -10,20 +10,10 @@ import {
   PRODUCTION_LABELS,
 } from "@/constants";
 
-import {
-  FORM_INPUT_CLASS,
-  FORM_SELECT_CLASS,
-  FORM_TEXTAREA_CLASS,
-} from "@/components/shared/form-control-classes";
+import { FORM_INPUT_CLASS, FORM_TEXTAREA_CLASS } from "@/components/shared/form-control-classes";
 import { fieldA11y, FormField } from "@/components/shared/FormField";
-import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
+import { SegmentedControl } from "@/components/shared/SegmentedControl";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/shared/combobox-select";
 import { Textarea } from "@/components/ui/textarea";
 
 import type { UseFormReturn } from "react-hook-form";
@@ -72,19 +62,15 @@ export function ProducerFields({
       control={form.control}
       name={name}
       render={({ field }) => (
-        <FormField id={`producer-${name}`} label={label} required>
-          <Select value={field.value} onValueChange={(value) => field.onChange(value)}>
-            <SelectTrigger id={`producer-${name}`} className={FORM_SELECT_CLASS}>
-              <SelectValue />
-            </SelectTrigger>
-            <TitledSelectContent title={label}>
-              {values.map((value) => (
-                <SelectItem key={value} value={value}>
-                  {labels[value]}
-                </SelectItem>
-              ))}
-            </TitledSelectContent>
-          </Select>
+        <FormField id={`producer-${name}`} label={label} required error={errors[name]?.message}>
+          {/* 2 giá trị cố định: hiện sẵn cả hai, một lần bấm (UX audit S01-6) */}
+          <SegmentedControl<string>
+            {...fieldA11y(`producer-${name}`, errors[name]?.message)}
+            label={label}
+            value={field.value}
+            onChange={(value) => field.onChange(value)}
+            options={values.map((value) => ({ value, label: labels[value] }))}
+          />
         </FormField>
       )}
     />

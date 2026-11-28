@@ -117,10 +117,8 @@ describe("OrderSettlementPanel (WF-05 BO-10)", () => {
     expect(row(/Hết hạn đổi \/ trả/)).toHaveAttribute("data-met", "true");
     expect(row(/Mọi đợt thanh toán/)).toHaveAttribute("data-met", "false");
     expect(row(/Không có yêu cầu trả hàng/)).toHaveAttribute("data-met", "true");
-    expect(row(/Mọi lần giao đã có hoá đơn/)).toHaveAttribute("data-met", "false");
-    expect(
-      within(checks).getByText(/Còn 1 lần giao chưa có hoá đơn phát hành/),
-    ).toBeInTheDocument();
+    expect(row(/Mọi lô giao đã có hoá đơn/)).toHaveAttribute("data-met", "false");
+    expect(within(checks).getByText(/Còn 1 lô giao chưa có hoá đơn phát hành/)).toBeInTheDocument();
     expect(row(/Không bị Sale giữ hoàn tất/)).toHaveAttribute("data-met", "true");
   });
 
@@ -170,7 +168,7 @@ describe("OrderSettlementPanel (WF-05 BO-10)", () => {
     expect(within(checks).getByText(/Chưa hết hạn đổi \/ trả/)).toBeInTheDocument();
     expect(within(checks).getByText(/14 ngày theo hợp đồng/)).toBeInTheDocument();
     expect(within(checks).queryByText(/Mọi đợt thanh toán/)).not.toBeInTheDocument();
-    expect(within(checks).queryByText(/lần giao chưa có hoá đơn/)).not.toBeInTheDocument();
+    expect(within(checks).queryByText(/lô giao chưa có hoá đơn/)).not.toBeInTheDocument();
     expect(within(checks).queryByText(/Ước tính/)).not.toBeInTheDocument();
   });
 
@@ -195,7 +193,7 @@ describe("OrderSettlementPanel (WF-05 BO-10)", () => {
     const checks = await screen.findByRole("region", { name: "Điều kiện hoàn tất" });
     expect(within(checks).getByText(/tự đóng đơn sau hoàn tiền/)).toBeInTheDocument();
     expect(within(checks).getByText(/Còn tiền phải hoàn cho khách/)).toBeInTheDocument();
-    expect(within(checks).getByText(/1 lần giao chưa có hoá đơn phát hành/)).toBeInTheDocument();
+    expect(within(checks).getByText(/1 lô giao chưa có hoá đơn phát hành/)).toBeInTheDocument();
     expect(
       within(checks).getByText(/Điều kiện khác chưa đạt \(SOMETHING_NEW\)/),
     ).toBeInTheDocument();
@@ -414,6 +412,46 @@ describe("audit r3 (BE r3b): EINV-7 information line, LM-2 fee-rest draw-up", ()
       expect(api.post).toHaveBeenCalledWith(
         "/einvoices",
         expect.objectContaining({ orderId: "ord-13", shipmentId: undefined }),
+      ),
+    );
+  });
+
+  it("SHIPMENT_UNINVOICED offers the draw-up too: a delivered shipment whose automatic draft was refused can be picked and posted", async () => {
+    const user = userEvent.setup();
+    const api = mockEInvoiceApi(ALL, {
+      get: {
+        ...routes(0, []).get,
+        "/orders/ord-13": () => ({
+          orderId: "ord-13",
+          shipments: [
+            { shipmentId: "shp-7", status: "DELIVERED", outcomeAt: "2026-11-12T03:00:00Z" },
+          ],
+        }),
+      },
+      post: { "/einvoices": () => detailJson({ id: "e-new", status: "DRAFT" }) },
+    });
+    renderEInvoiceScreen(
+      <OrderSettlementPanel
+        {...props}
+        status="Delivered"
+        settlementReadiness={readiness({
+          branch: "COMPLETION",
+          uninvoicedShipmentIds: ["shp-7"],
+          blockers: [{ code: "SHIPMENT_UNINVOICED", known: true }],
+        })}
+      />,
+    );
+    await user.click(
+      await screen.findByRole("button", { name: SETTLEMENT_READINESS_LABELS.drawUpShipment }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    await user.click(await within(dialog).findByRole("combobox", { name: /Lô giao/ }));
+    await user.click(await screen.findByRole("option", { name: /chưa có hoá đơn/ }));
+    await user.click(within(dialog).getByRole("button", { name: "Lập nháp" }));
+    await waitFor(() =>
+      expect(api.post).toHaveBeenCalledWith(
+        "/einvoices",
+        expect.objectContaining({ orderId: "ord-13", shipmentId: "shp-7" }),
       ),
     );
   });

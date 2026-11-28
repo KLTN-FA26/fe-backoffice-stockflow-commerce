@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect } from "react";
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
 import { ADMIN_ROUTES, UI_LABELS } from "@/constants";
@@ -12,6 +11,8 @@ import { useWarehouseByPrefix } from "@/features/warehouse-map/workspace";
 
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Button } from "@/components/ui/button";
+
+import { WarehouseNotFound } from "./WarehouseNotFound";
 
 import type { ReactNode } from "react";
 import type { useWorkspaceWarehouses } from "@/features/warehouse-map/workspace";
@@ -84,18 +85,18 @@ export function WarehouseScope({ prefix, children }: { prefix: string; children:
   const status = <WarehouseListStatus workspace={workspace} />;
   // Kiểm quyền trước: danh sách kho có thể còn trong cache dù quyền đọc đã bị gỡ
   if (workspace.permissionsPending || !workspace.canRead || !workspace.warehouses) return status;
-  if (!workspace.warehouse)
+  if (!workspace.warehouse) {
+    const from = `${ADMIN_ROUTES.warehouseMap.root}/${encodeURIComponent(prefix)}`;
+    const subPath = pathname.startsWith(from) ? pathname.slice(from.length + 1) : "";
     return (
-      <EmptyState
-        title={W.notFoundTitle(prefix.toUpperCase())}
-        description={W.notFoundDescription}
-        action={
-          <Button asChild size="sm">
-            <Link href={ADMIN_ROUTES.warehouses.list}>{W.backToChooser}</Link>
-          </Button>
-        }
+      <WarehouseNotFound
+        prefix={prefix}
+        warehouses={workspace.warehouses}
+        subPath={subPath}
+        onlyChoice={(target) => router.replace(target)}
       />
     );
+  }
   const { id, name } = workspace.warehouse;
   return (
     <WorkspaceWarehouseProvider value={{ id, prefix: workspace.warehouse.prefix, name }}>

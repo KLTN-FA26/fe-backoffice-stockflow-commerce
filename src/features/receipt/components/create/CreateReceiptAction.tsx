@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { parseAsString, useQueryState } from "nuqs";
 import { Plus } from "lucide-react";
 
 import { RECEIPT_COUNT_LABELS } from "@/constants";
@@ -18,10 +19,28 @@ const REASON_ID = "gr-create-disabled-reason";
  * Nút "Lập phiếu nhập" trong `ListToolbar actions` (data-table-mode-a §1). Gate qua `productionReceiptCreateGate`:
  * không có quyền lập phiếu → không hiện; thiếu quyền đọc Đơn sản xuất → hiện nút khoá, lý do ở tooltip + sr-only.
  */
-export function CreateReceiptAction() {
+export function CreateReceiptAction({
+  handleLink = true,
+  detailHref,
+  warehouseId,
+}: {
+  /** Chỉ một nút trên màn đọc `?createFor=` — nút thứ hai (trạng thái trống) đặt `false` để không mở hai hộp. */
+  handleLink?: boolean;
+  /** Đường dẫn trang phiếu vừa lập (mặc định nhóm Nhập kho; màn nhận hàng của kho ở lại trong tab kho). */
+  detailHref?: (receiptId: string) => string;
+  /** Màn nhận hàng của một kho: chỉ chọn / chọn sẵn Đơn sản xuất về kho này. */
+  warehouseId?: string;
+} = {}) {
   const can = usePermissionChecker();
   const gate = productionReceiptCreateGate(can);
-  const [open, setOpen] = useState(false);
+  const [clicked, setClicked] = useState(false);
+  // `?createFor=` (khác `?productionOrder=` là bộ lọc danh sách) — mở từ một Đơn sản xuất: hộp Lập mở sẵn với đơn đó đã chọn (bỏ tham số khi đóng)
+  const [linked, setLinked] = useQueryState("createFor", parseAsString);
+  const open = clicked || (handleLink && !!linked && !!gate && !gate.disabledReason);
+  const close = () => {
+    setClicked(false);
+    if (handleLink && linked) void setLinked(null);
+  };
   if (!gate) return null;
   const reason = gate.disabledReason;
 
@@ -32,7 +51,7 @@ export function CreateReceiptAction() {
           type="button"
           disabled={!!reason}
           aria-describedby={reason ? REASON_ID : undefined}
-          onClick={() => setOpen(true)}
+          onClick={() => setClicked(true)}
           className={cn(
             "bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse",
             TOOLBAR_ACTION_CLASS,
@@ -47,7 +66,13 @@ export function CreateReceiptAction() {
           {reason}
         </span>
       )}
-      <CreateProductionReceiptDialog open={open} onClose={() => setOpen(false)} />
+      <CreateProductionReceiptDialog
+        open={open}
+        onClose={close}
+        productionOrderId={handleLink ? (linked ?? undefined) : undefined}
+        detailHref={detailHref}
+        warehouseId={warehouseId}
+      />
     </>
   );
 }

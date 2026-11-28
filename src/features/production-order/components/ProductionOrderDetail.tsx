@@ -63,7 +63,7 @@ function DetailContent({ id }: { id: string }) {
           )}
         </div>
         <aside className="flex flex-col gap-5">
-          <ActionsCard order={order} actions={actions} />
+          <ActionsCard order={order} actions={actions} dispatch={dispatch.data} />
           <HistoryCard history={order.history ?? []} me={me} />
         </aside>
       </div>

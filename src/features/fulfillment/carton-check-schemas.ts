@@ -32,6 +32,7 @@ export const cartonCheckStatusSchema = tolerantEnum(PACK_API_STATUSES);
 /** BE `CartonCheckQueueRowResponse` — một đơn đã lấy hàng xong đang chờ ở khu xuất hàng (docs 08 §4.1 bước 1). */
 export const beCartonCheckQueueRowSchema = z.object({
   taskId: z.string(),
+  taskNumber: z.string().nullish(),
   orderId: z.string(),
   orderNumber: z.string().nullish(),
   warehouseId: z.string().nullish(),
@@ -129,6 +130,7 @@ export const beCartonPaymentDueSchema = z.object({
 /** BE `CartonCheckSessionResponse` — câu trả lời của start / session / carton-checks / carton-labels / reprint / removal. */
 export const beCartonCheckSessionSchema = z.object({
   taskId: z.string(),
+  taskNumber: z.string().nullish(),
   orderId: z.string(),
   orderNumber: z.string().nullish(),
   warehouseId: z.string().nullish(),

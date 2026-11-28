@@ -5,6 +5,8 @@ import { formatMoney } from "@/lib/format/money";
 import { Alert } from "@/components/shared/Alert";
 import { removedCartons } from "@/features/fulfillment/carton-check-selectors";
 
+import { PaymentDueLink } from "./PaymentDueLink";
+
 import type { CartonCheckAccess } from "@/features/fulfillment/carton-check-lifecycle";
 import type { CartonCheckSession } from "@/features/fulfillment/carton-check-types";
 
@@ -70,6 +72,7 @@ export function CartonCheckNotices({
       {due && due.amount > 0 && (
         <Alert tone="warning" title={N.paymentTitle}>
           {N.paymentDescription(formatMoney(due.amount, due.currency))}
+          <PaymentDueLink orderId={session.orderId} />
         </Alert>
       )}
     </>

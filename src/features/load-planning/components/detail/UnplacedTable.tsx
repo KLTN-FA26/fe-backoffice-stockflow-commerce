@@ -3,6 +3,7 @@
 import { LOAD_PLAN_UNPLACED_REASON_LABELS, UI_LABELS } from "@/constants";
 import { formatFixed } from "@/lib/format";
 import { formatNominalCm } from "@/features/load-planning/lib/dims";
+import { parcelDisplayCode } from "@/components/shared/ParcelCode";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
@@ -50,7 +51,7 @@ export function UnplacedTable({
                   <Checkbox
                     checked={selected.has(parcel.packageId)}
                     onCheckedChange={() => onToggle(parcel.packageId)}
-                    aria-label={`${U.selectToReturn}: ${parcel.labelCode}`}
+                    aria-label={`${U.selectToReturn}: ${parcelDisplayCode(parcel)}`}
                   />
                 </TableCell>
               )}
@@ -59,7 +60,9 @@ export function UnplacedTable({
                 {parcel.productName && (
                   <span className="text-ink-secondary ml-2 text-xs">{parcel.productName}</span>
                 )}
-                <span className="text-ink-tertiary ml-2 font-mono text-xs">{parcel.labelCode}</span>
+                <span className="text-ink-tertiary ml-2 font-mono text-xs">
+                  {parcelDisplayCode(parcel)}
+                </span>
               </TableCell>
               <TableCell className="text-warning text-[0.8125rem]">
                 {parcel.unplacedReason

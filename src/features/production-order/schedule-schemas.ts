@@ -45,7 +45,8 @@ export const shortDeliveryBatchDto = z.object({
   salesOrderId: z.string(),
   orderNumber: z.string(),
   customerId: z.string().nullish(),
-  shippingWarehouseId: z.string(),
+  /** Vắng khi đơn Xác nhận chưa chọn kho xuất (BE bỏ trường) — dòng hiện "Chưa chọn kho xuất". */
+  shippingWarehouseId: z.string().nullish(),
   shippingWarehouseCode: z.string().nullish(),
   deliveryBatchId: z.string(),
   seq: z.number().int(),

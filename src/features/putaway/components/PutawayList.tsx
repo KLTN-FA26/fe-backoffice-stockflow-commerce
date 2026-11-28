@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  PUTAWAY_COLUMNS as C,
-  PUTAWAY_LABELS,
-  PUTAWAY_TASK_PERMISSIONS,
-  WORKSPACE_PATHS,
-} from "@/constants";
+import { PUTAWAY_LABELS, PUTAWAY_TASK_PERMISSIONS, WORKSPACE_PATHS } from "@/constants";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 import { useWorkspaceHref } from "@/lib/workspace";
 import { usePutawayTasks } from "@/features/putaway/queries";
@@ -13,39 +8,18 @@ import { filterPutawayTasks, sortByLpn } from "@/features/putaway/selectors";
 
 import { LoadErrorState } from "@/components/backoffice/LoadErrorState";
 import { Alert } from "@/components/shared/Alert";
-import { ColumnFilterButton, withHeaderFilters } from "@/components/shared/ColumnHeaderFilter";
 import { DataTable } from "@/components/shared/DataTable";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { RefetchBar } from "@/components/shared/RefetchBar";
 
 import { putawayColumns } from "./putaway-columns";
 import { PutawayEmpty } from "./PutawayEmpty";
+import { PutawayScanBar } from "./PutawayScanBar";
 import { PutawayToolbar } from "./PutawayToolbar";
 import { usePutawayColumns } from "./usePutawayColumns";
 import { usePutawayFilters } from "./usePutawayFilters";
 
-import type { PutawayFiltersState } from "./usePutawayFilters";
-
 const L = PUTAWAY_LABELS;
-
-/** Lọc chữ trên header cột — chỉ lọc dòng đã tải, không gọi lại API (data-table-mode-a §4.1). */
-function headerFilters({ filters, set }: PutawayFiltersState) {
-  const text = (label: string, value: string, onChange: (next: string) => void) => (
-    <ColumnFilterButton
-      label={label}
-      value={value}
-      placeholder={L.columnSearch(label)}
-      onChange={onChange}
-    />
-  );
-  return {
-    [C.LPN]: text(L.column.lpn, filters.lpn, (lpn) => set({ lpn })),
-    [C.SKU]: text(L.column.sku, filters.sku, (sku) => set({ sku })),
-    [C.SOURCE_LOCATION]: text(L.column.sourceLocation, filters.location, (location) =>
-      set({ location }),
-    ),
-  };
-}
 
 function PutawayContent() {
   const state = usePutawayFilters();
@@ -60,6 +34,7 @@ function PutawayContent() {
   return (
     <>
       <PutawayToolbar state={state} columns={columns} />
+      {data && data.items.length > 0 && <PutawayScanBar tasks={data.items} />}
       {query.isError ? (
         <LoadErrorState
           inline
@@ -82,9 +57,8 @@ function PutawayContent() {
             />
             <DataTable
               data={rows}
-              columns={withHeaderFilters(
-                putawayColumns(columns.visible, (id) => href(WORKSPACE_PATHS.putawayTask(id))),
-                headerFilters(state),
+              columns={putawayColumns(columns.visible, (id) =>
+                href(WORKSPACE_PATHS.putawayTask(id)),
               )}
               rowKey={(row) => row.id}
               caption={L.title}

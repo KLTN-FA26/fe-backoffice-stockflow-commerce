@@ -2,9 +2,16 @@
 
 import { useState } from "react";
 
-import { PRODUCTION_LABELS } from "@/constants";
+import Link from "next/link";
+
+import { ADMIN_ROUTES, GOODS_RECEIPT_PERMISSIONS, PRODUCTION_LABELS } from "@/constants";
+import { usePermissionChecker } from "@/lib/auth";
+import { isReceivableProductionOrder, openCartonsOf } from "@/lib/references/production-orders";
 
 import { hasMutatingAction } from "@/features/production-order/lifecycle";
+import { latestMailFailed } from "@/features/production-order/selectors";
+
+import { Alert } from "@/components/shared/Alert";
 
 import {
   DETAIL_ACTION_CLASS,
@@ -19,7 +26,7 @@ import { ConfirmActionDialog } from "./ConfirmActionDialog";
 import { ExpectedDateDialog } from "./ExpectedDateDialog";
 
 import type { ProductionOrderActions } from "@/features/production-order/lifecycle";
-import type { ProductionOrder } from "@/features/production-order/types";
+import type { ProductionOrder, ProductionOrderDispatch } from "@/features/production-order/types";
 import type { ConfirmActionKind } from "./ConfirmActionDialog";
 import type { ExpectedDateMode } from "./ExpectedDateDialog";
 
@@ -66,11 +73,21 @@ const BUTTONS: ButtonSpec[] = [
 export function ActionsCard({
   order,
   actions,
+  dispatch,
 }: {
   order: ProductionOrder;
   actions: ProductionOrderActions;
+  /** Phiếu + lịch sử mail đã gửi — có thì cảnh báo ngay dưới trạng thái khi thư lỗi. */
+  dispatch?: ProductionOrderDispatch;
 }) {
   const [dialog, setDialog] = useState<Dialog | null>(null);
+  const can = usePermissionChecker();
+  // Nhận được hàng và còn thùng chưa nhập → lập phiếu nhập ngay từ đây, hộp mở sẵn với đơn này (S12-1).
+  // UI-only — Backend phải re-check (docs 03 BR-01, BR-15; goods-receipts:CREATE)
+  const canReceive =
+    can(GOODS_RECEIPT_PERMISSIONS.create) &&
+    isReceivableProductionOrder(order) &&
+    openCartonsOf(order) > 0;
   const visible = BUTTONS.filter((button) => actions[button.key]);
   const close = () => setDialog(null);
 
@@ -79,6 +96,11 @@ export function ActionsCard({
       <DetailCardTitle>
         <ProductionStatusDot status={order.status} size="md" />
       </DetailCardTitle>
+      {latestMailFailed(dispatch) && (
+        <Alert tone="warning" className="mb-3">
+          {PRODUCTION_LABELS.dispatch.mailFailed}
+        </Alert>
+      )}
       {hasMutatingAction(actions) && (
         <div className="flex flex-col gap-2">
           {visible.map((button) => (
@@ -99,6 +121,14 @@ export function ActionsCard({
             </Button>
           ))}
         </div>
+      )}
+      {canReceive && (
+        <Link
+          href={ADMIN_ROUTES.receipts.createFor(order.id)}
+          className={`${DETAIL_ACTION_CLASS.outline} mt-2 inline-flex items-center justify-center`}
+        >
+          {A.createReceipt}
+        </Link>
       )}
       {actions.startBlockedBySample && (
         <p className="text-ink-secondary mt-2 text-xs">{A.sampleBlocksStart}</p>

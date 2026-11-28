@@ -27,7 +27,7 @@ export interface RowAction {
 }
 
 const ITEM_CLASS =
-  "hover:bg-bg-muted text-ink-primary flex w-full items-start gap-2 rounded-(--r-sm) px-2.5 py-1.5 text-left text-[0.8125rem] focus-visible:bg-bg-muted focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-transparent";
+  "hover:bg-bg-muted text-ink-primary flex w-full items-start gap-2 rounded-(--r-sm) px-2.5 py-1.5 text-left text-[0.8125rem] focus-visible:bg-bg-muted focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-transparent pointer-coarse:min-h-11 pointer-coarse:items-center";
 
 /**
  * Cột "Thao tác" cuối dòng (backoffice-erp-ui A6): MỘT nút "⋯", bấm mở menu các thao tác bằng chữ. Bấm trong menu
@@ -54,7 +54,8 @@ export function RowActionsMenu({
             variant="ghost"
             size="icon-sm"
             aria-label={label}
-            className="text-ink-secondary hover:text-ink-primary data-[state=open]:bg-bg-muted"
+            // 44px trên màn cảm ứng (máy tính bảng ở kho): thao tác chính của dòng nằm sau nút này
+            className="text-ink-secondary hover:text-ink-primary data-[state=open]:bg-bg-muted pointer-coarse:size-11"
           >
             <MoreHorizontal className="size-4" aria-hidden />
           </Button>

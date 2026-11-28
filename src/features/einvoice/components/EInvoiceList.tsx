@@ -27,7 +27,7 @@ function EInvoiceListContent() {
   const canRead = useCan(EINVOICE_PERMISSIONS.read);
   const canCreate = useCan(EINVOICE_PERMISSIONS.create);
   const s = useEInvoiceListState(canRead);
-  const [drawingFor, setDrawingFor] = useState<string | null>(null);
+  const [drawing, setDrawing] = useState(false);
 
   return (
     <div className="surface-soft">
@@ -36,12 +36,12 @@ function EInvoiceListContent() {
         <EInvoiceFilters
           s={s}
           actions={
-            canCreate && s.orderId ? (
+            canCreate ? (
               <Button
                 type="button"
                 size="sm"
                 className={TOOLBAR_ACTION_CLASS}
-                onClick={() => setDrawingFor(s.orderId)}
+                onClick={() => setDrawing(true)}
               >
                 <FilePlus2 className="size-3.5" /> {L.drawUp}
               </Button>
@@ -70,7 +70,11 @@ function EInvoiceListContent() {
         onPageSizeChange={s.changePageSize}
         sorting={s.sorting}
       />
-      <DrawUpDialog orderId={drawingFor} onClose={() => setDrawingFor(null)} />
+      <DrawUpDialog
+        orderId={drawing && s.orderId ? s.orderId : null}
+        chooseOrder={drawing && !s.orderId}
+        onClose={() => setDrawing(false)}
+      />
     </div>
   );
 }

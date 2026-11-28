@@ -2,6 +2,7 @@
  * Hàm thuần của màn cất hàng — lọc chữ phía FE (BE không có tìm kiếm), định dạng sức chứa còn trống.
  */
 
+import { PUTAWAY_TASK_STATUS } from "@/constants";
 import { formatDecimal } from "@/lib/format/number";
 
 import type { PutawayTask } from "./types";
@@ -9,10 +10,6 @@ import type { PutawayTask } from "./types";
 export interface PutawayTextFilters {
   /** Tìm kiếm chính: LPN, SKU, lô, vị trí đang ở. */
   q: string;
-  /** Search trong cột. */
-  lpn: string;
-  sku: string;
-  location: string;
 }
 
 const needle = (value: string) => value.trim().toLocaleLowerCase("vi");
@@ -27,12 +24,8 @@ export function filterPutawayTasks(
   rows: readonly PutawayTask[],
   filters: PutawayTextFilters,
 ): PutawayTask[] {
-  return rows.filter(
-    (row) =>
-      matches(filters.q, row.lpn, row.sku, row.lotNumber, row.sourceLocationCode) &&
-      matches(filters.lpn, row.lpn) &&
-      matches(filters.sku, row.sku) &&
-      matches(filters.location, row.sourceLocationCode),
+  return rows.filter((row) =>
+    matches(filters.q, row.lpn, row.sku, row.lotNumber, row.sourceLocationCode),
   );
 }
 
@@ -43,9 +36,23 @@ export function sortByLpn(rows: readonly PutawayTask[]): PutawayTask[] {
   return [...rows].sort((a, b) => (a.lpn ?? "").localeCompare(b.lpn ?? "", "vi"));
 }
 
+/**
+ * Thùng chờ cất kế tiếp sau thùng vừa cất (theo thứ tự LPN như danh sách) và số thùng còn chờ — cho nút "Cất thùng tiếp
+ * theo (còn N)". Mỗi thùng vẫn cất riêng, quét riêng (docs 05 BR-08): đây chỉ là lối đi tiếp, không cất hàng loạt.
+ */
+export function nextPendingTask(
+  rows: readonly PutawayTask[],
+  currentId: string,
+): { task: PutawayTask | null; remaining: number } {
+  const pending = sortByLpn(
+    rows.filter((row) => row.status === PUTAWAY_TASK_STATUS.PENDING && row.id !== currentId),
+  );
+  return { task: pending[0] ?? null, remaining: pending.length };
+}
+
 /** Có ô lọc chữ nào đang bật (search chính hoặc trong cột). */
 export function hasTextFilter(filters: PutawayTextFilters): boolean {
-  return [filters.q, filters.lpn, filters.sku, filters.location].some((f) => f.trim() !== "");
+  return filters.q.trim() !== "";
 }
 
 /** Thể tích trống (m³) — tối đa 3 chữ số lẻ; null = không giới hạn (tầng chưa có chiều cao, docs 05 BR-03). */

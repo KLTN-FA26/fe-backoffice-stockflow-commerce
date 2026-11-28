@@ -5,6 +5,7 @@
  */
 
 import { SHIPPING_LIMITS } from "@/constants";
+import { parcelDisplayCode } from "@/components/shared/ParcelCode";
 
 import { hasPendingUnloads, hasWaybill } from "./ftl-selectors";
 
@@ -39,7 +40,7 @@ export function handoverBlockers(load: GateLoad): HandoverBlocker[] {
     const codes = load.shipments
       .flatMap((shipment) => shipment.packages)
       .filter((parcel) => !parcel.loaded)
-      .map((parcel) => parcel.labelCode);
+      .map(parcelDisplayCode);
     const shown = codes.slice(0, SHIPPING_LIMITS.unscannedListed);
     blockers.push({
       kind: "unscanned",

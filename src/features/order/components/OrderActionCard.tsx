@@ -11,6 +11,7 @@ import { PAYMENT_INSTALLMENT_PERMISSIONS } from "@/constants/payment";
 import { ObjectActions } from "@/components/shared/ObjectActions";
 
 import { allowedOrderActions, orderActionContextOf } from "../lifecycle";
+import { createPickingTaskHref } from "../picking-task";
 import { useOrderInstallmentsSummary } from "../queries";
 import { releaseBlockers } from "../release-rules";
 
@@ -18,6 +19,7 @@ import { CreditApproveAction } from "./credit-hold/CreditApproveAction";
 import { CreditRejectAction } from "./credit-hold/CreditRejectAction";
 import { DANGER_ORDER, holdGuidanceFor, noActionReason, PRIMARY_ORDER } from "./order-action-rules";
 import { OrderCancelAction } from "./OrderCancelAction";
+import { OrderCreateTaskLink } from "./OrderCreateTaskLink";
 import { OrderHoldNotice } from "./OrderHoldNotice";
 import { OrderNextStep } from "./OrderNextStep";
 import { OrderReleaseAction } from "./OrderReleaseAction";
@@ -68,11 +70,13 @@ export function OrderActionCard({ order, can, estimateSlot }: OrderActionCardPro
       ? ORDER_ACTION_LABELS.shipmentsHint
       : null;
   const guidance = holdGuidance ?? shipmentsHint;
-  // Lý do biết trước chưa release được: chỉ cho người có quyền release; nói ra thay vì ẩn nút.
+  // Lý do biết trước chưa ra lệnh xuất kho được: chỉ cho người có quyền release; nói ra thay vì ẩn nút.
   // UI-only — Backend phải re-check (docs 07 BR-01, 15 BR-07, 17 BR-02).
   const blockers = canRelease ? releaseBlockers(order, payment.data) : [];
+  // Đơn đã có lệnh xuất kho mà chưa có nhiệm vụ lấy hàng: việc tiếp theo là tạo nhiệm vụ (quản lý kho của kho xuất)
+  const createTaskHref = createPickingTaskHref(order, can);
   // MỘT nút chính theo việc tiếp theo; còn lại vào menu "⋯" — việc thường trước, việc phá huỷ (chữ đỏ) cuối
-  const primary = PRIMARY_ORDER.find(has);
+  const primary = createTaskHref ? undefined : PRIMARY_ORDER.find(has);
   const menuCodes = [...PRIMARY_ORDER, ...DANGER_ORDER].filter(
     (code) => has(code) && code !== primary,
   );
@@ -104,11 +108,17 @@ export function OrderActionCard({ order, can, estimateSlot }: OrderActionCardPro
       aria-label="Thao tác đơn"
       className="flex w-full max-w-xl flex-col gap-2 text-left lg:items-end lg:text-right"
     >
-      {actions.length > 0 && (
+      {(actions.length > 0 || createTaskHref) && (
         <ObjectActions
           menuLabel="Thao tác khác với đơn hàng"
           hasMenu={menuCodes.length > 0}
-          primary={primary ? render(primary) : undefined}
+          primary={
+            createTaskHref ? (
+              <OrderCreateTaskLink href={createTaskHref} />
+            ) : primary ? (
+              render(primary)
+            ) : undefined
+          }
         >
           {menuCodes.map((code) => (
             <Fragment key={code}>{render(code)}</Fragment>
@@ -128,7 +138,7 @@ export function OrderActionCard({ order, can, estimateSlot }: OrderActionCardPro
         </div>
       )}
       {guidance && <p className="text-ink-secondary text-xs">{guidance}</p>}
-      {actions.length === 0 && blockers.length === 0 && !guidance && (
+      {actions.length === 0 && blockers.length === 0 && !guidance && !createTaskHref && (
         // Không hiện chữ trên header (nút "⋯" / nút chính đã đủ); screen reader vẫn được nghe vì sao không có thao tác
         <p className="sr-only">{noActionReason(order, can)}</p>
       )}

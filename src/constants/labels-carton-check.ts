@@ -41,7 +41,7 @@ export const CARTON_CHECK_UI_LABELS = {
     starter: "Người kiểm",
     status: "Trạng thái",
     cartons: "Thùng",
-    shipments: "Shipment",
+    shipments: "Lô giao",
   },
   noStarter: "Chưa bắt đầu",
   /**
@@ -72,6 +72,8 @@ export const CARTON_CHECK_UI_LABELS = {
     /** Nhãn LPN (nhãn nhập kho) rách / mất: in lại theo mã LPN rồi quét kiểm (docs 08 §6, 03 §4.1 bước 4). */
     reprintLpn: "In lại nhãn LPN",
     remove: "Loại thùng",
+    /** Nút "⋯" của dòng thùng: mọi thao tác của thùng (dán / in / in lại nhãn, loại thùng). */
+    more: (lpn: string) => `Thao tác — thùng ${lpn}`,
     dismiss: "Bỏ qua",
   },
   status: {
@@ -106,7 +108,8 @@ export const CARTON_CHECK_UI_LABELS = {
       "Đã có thùng được dán nhãn giao hàng: đơn không huỷ được và không đổi được địa chỉ giao.",
     paymentTitle: "Đơn còn đợt thanh toán phải thu trước khi giao",
     paymentDescription: (amount: string) =>
-      `Còn ${amount} phải thu trước khi bàn giao (đợt thu "Trước khi giao"). Vẫn kiểm thùng và hoàn tất bình thường; bước bàn giao sẽ bị từ chối cho tới khi đợt này đã thu.`,
+      `Còn ${amount} phải thu trước khi bàn giao (đợt thu "Trước khi giao"). Vẫn kiểm thùng và hoàn tất bình thường; bước bàn giao sẽ bị từ chối cho tới khi đợt này đã thu. Kế toán lập phiếu thu cho đợt này.`,
+    paymentLink: "Xem đợt thanh toán",
     unmeasuredTitle: "SKU chưa có quy cách thùng",
     unmeasuredDescription: (skus: string) =>
       `${skus} chưa khai báo kích thước hoặc khối lượng thùng nên thùng của SKU này chưa dán nhãn và chưa hoàn tất được. Quản lý kho bổ sung quy cách thùng ở màn sản phẩm rồi dán nhãn lại.`,
@@ -125,7 +128,7 @@ export const CARTON_CHECK_UI_LABELS = {
     checked: "Đã quét",
     labeled: "Đã dán nhãn",
     removed: "Đã loại",
-    shipped: "Đã vào shipment",
+    shipped: "Đã vào lô giao",
     labeledUnits: "SL đã dán nhãn",
     missing: "Còn thiếu",
     done: "Đủ",
@@ -144,17 +147,17 @@ export const CARTON_CHECK_UI_LABELS = {
     title: "Thùng của đơn",
     description:
       "Mỗi thùng là một kiện giao: Chờ kiểm → Đã kiểm → Đã dán nhãn. Kích thước và khối lượng lấy theo quy cách thùng của SKU, không nhập tay.",
-    empty: "Phần lấy hàng của task chưa có thùng nào.",
+    empty: "Phần lấy hàng của nhiệm vụ chưa có thùng nào.",
     colNo: "#",
     colLpn: "LPN",
-    colSku: "SKU",
-    colLot: "Lô",
+    colSku: "SKU / lô",
+    lotLine: (lot: string) => `Lô ${lot}`,
     colQty: "Số cái",
     colStatus: "Trạng thái",
     colLabel: "Nhãn",
     colSize: "Dài × rộng × cao",
     colWeight: "Khối lượng",
-    colShipment: "Shipment",
+    colShipment: "Lô giao",
     colActions: "Thao tác",
     labelVersion: (version: number) => `v${version}`,
     noLabel: "—",
@@ -186,7 +189,7 @@ export const CARTON_CHECK_UI_LABELS = {
   labels: {
     title: "Nhãn giao hàng",
     descriptionAll:
-      "Nhãn giao hàng của mọi thùng đã dán nhãn chưa vào shipment — một trang 100 × 150 mm mỗi thùng.",
+      "Nhãn giao hàng của mọi thùng đã dán nhãn chưa vào lô giao — một trang 100 × 150 mm mỗi thùng.",
     descriptionLpns: (lpns: string) =>
       `Nhãn giao hàng của thùng ${lpns} — một trang 100 × 150 mm mỗi thùng.`,
     preview: "Xem trước nhãn giao hàng",
@@ -201,9 +204,9 @@ export const CARTON_CHECK_UI_LABELS = {
   complete: {
     title: "Hoàn tất kiểm thùng",
     description:
-      "Các thùng đã dán nhãn chưa vào shipment sẽ gom thành một shipment Ready to Dispatch để bàn giao; mã shipment hiện ngay sau khi hoàn tất.",
+      "Các thùng đã dán nhãn chưa vào lô giao sẽ gom thành một lô giao Sẵn sàng giao để bàn giao; mã lô giao hiện ngay sau khi hoàn tất.",
     modeFull: "Đủ thùng cả đơn",
-    modeFullHint: "Mọi thùng đã Labeled hoặc Removed và đủ số cái của đợt giao.",
+    modeFullHint: "Mọi thùng đã dán nhãn hoặc đã loại, và đủ số cái của đợt giao.",
     modePartial: "Giao một phần",
     modePartialHint:
       "Giao trước các thùng đã dán nhãn; phần còn lại kiểm tiếp khi thùng được lấy bổ sung. Cần Sale cho phép giao một phần.",
@@ -213,7 +216,7 @@ export const CARTON_CHECK_UI_LABELS = {
     notePlaceholder: "Vd: thùng hư hỏng đã loại, khách đồng ý nhận trước",
     pendingTitle: "Còn thùng chưa dán nhãn",
     pendingDescription: (lpns: string) =>
-      `Dán nhãn hoặc loại ${lpns} trước khi hoàn tất — mọi thùng phải Labeled hoặc Removed.`,
+      `Dán nhãn hoặc loại ${lpns} trước khi hoàn tất — mọi thùng phải đã dán nhãn hoặc đã loại.`,
     nothingTitle: "Chưa có thùng nào đã dán nhãn",
     nothingDescription: "Dán nhãn ít nhất một thùng (hoặc kiểm đủ rồi dán nhãn) để có gì mà giao.",
     missingTitle: "Dòng còn thiếu",
@@ -221,19 +224,21 @@ export const CARTON_CHECK_UI_LABELS = {
       `${sku}: ${labeled}/${wanted} cái đã dán nhãn`,
     submitFull: "Hoàn tất kiểm thùng",
     submitPartial: "Giao một phần",
-    resultTitle: "Đã tạo shipment",
+    resultTitle: "Đã tạo lô giao",
     resultCartons: (count: number) => `${count} thùng`,
-    resultFull: "Đã kiểm đủ thùng — đơn đã Packed.",
+    resultFull: "Đã kiểm đủ thùng — đơn đã đóng gói.",
     resultPartial:
-      "Đã giao một phần — phiên vẫn In Progress; phần còn lại kiểm tiếp khi thùng được lấy bổ sung.",
-    resultLoading: "Đang tải shipment vừa tạo…",
+      "Đã giao một phần — phiên kiểm vẫn đang mở; phần còn lại kiểm tiếp khi thùng được lấy bổ sung.",
+    resultLoading: "Đang tải lô giao vừa tạo…",
+    // Bước tiếp theo ngay trong hộp kết quả (S15-2): lập kế hoạch xếp xe cho lô vừa tạo
+    planLoad: "Lập kế hoạch xếp xe",
     close: "Đóng",
   },
   shipments: {
-    title: "Shipment đã tạo",
+    title: "Lô giao đã tạo",
     description:
-      "Mỗi lần hoàn tất tạo một shipment; lập kế hoạch xe và bàn giao ở màn Xếp xe & bàn giao.",
-    code: "Mã shipment",
+      "Mỗi lần hoàn tất tạo một lô giao; lập kế hoạch xe và bàn giao ở màn Xếp xe & bàn giao.",
+    code: "Mã lô giao",
     status: "Trạng thái",
     cartons: "Số thùng",
     readyAt: "Sẵn sàng lúc",
@@ -249,9 +254,9 @@ export const CARTON_CHECK_TOAST_MESSAGES = {
   labeled: "Đã dán nhãn các thùng",
   reprinted: "Đã in lại nhãn — nhãn cũ vô hiệu",
   removed: "Đã loại thùng — thùng chờ cất vào khu cách ly",
-  shipped: "Đã tạo shipment",
+  shipped: "Đã tạo lô giao",
   shippedPartial: "Đã giao một phần — phần còn lại kiểm tiếp khi thùng được lấy bổ sung",
-  packed: "Đã kiểm đủ thùng — đơn đã Packed",
+  packed: "Đã kiểm đủ thùng — đơn đã đóng gói",
 } as const;
 
 /** Lỗi nhập ở form quét / loại thùng / hoàn tất — hiện inline dưới ô. */
@@ -268,7 +273,7 @@ export const CARTON_CHECK_FIELD_MESSAGES = {
  */
 export const CARTON_CHECK_ERROR_MESSAGES = {
   // 404: task không có (kho ngoài phạm vi trả 403 OUT_OF_DATA_SCOPE, không phải 404)
-  NOT_FOUND: "Không tìm thấy task kiểm thùng. Dữ liệu đã được tải lại.",
+  NOT_FOUND: "Không tìm thấy nhiệm vụ kiểm thùng. Dữ liệu đã được tải lại.",
   PACKING_NOT_READY:
     "Chưa lấy hàng xong — kiểm thùng chỉ bắt đầu khi mọi thùng đã ở khu xuất hàng. Thùng ở khu chờ xuất thì quản lý kho phải chuyển cả tác vụ sang khu xuất hàng.",
   PACKING_TAKEN:
@@ -280,13 +285,13 @@ export const CARTON_CHECK_ERROR_MESSAGES = {
     "Đơn đang treo nên chưa dán nhãn hoặc hoàn tất kiểm thùng được — hỏi Sale gỡ treo (kèm ghi chú) rồi làm tiếp.",
   CARTON_NOT_IN_TASK:
     "Thùng này không thuộc phần lấy hàng của đơn, hoặc LPN không đọc đúng. Không ghi gì — báo quản lý kho kiểm lại phần lấy hàng và tồn kho.",
-  PACKAGE_SHIPPED: "Thùng đã nằm trong shipment nên không loại khỏi đơn được.",
+  PACKAGE_SHIPPED: "Thùng đã nằm trong lô giao nên không loại khỏi đơn được.",
   PACKING_INCOMPLETE:
     "Chưa kiểm đủ thùng: còn thùng chưa dán nhãn, hoặc thiếu thùng so với đơn. Dán nhãn hoặc loại hết thùng còn lại, hoặc chọn giao một phần và ghi lý do.",
   // Đơn chưa được Sale cho phép giao một phần: kho không tự quyết
   PACK_PARTIAL_NOT_ALLOWED:
     "Đơn chưa được phép giao một phần — dán nhãn đủ mọi thùng, hoặc nhờ Sale bật cho phép giao một phần trên đơn.",
-  PACK_NOTHING_TO_SHIP: "Chưa có thùng nào đã dán nhãn đang chờ vào shipment.",
+  PACK_NOTHING_TO_SHIP: "Chưa có thùng nào đã dán nhãn đang chờ vào lô giao.",
   OUT_OF_DATA_SCOPE: "Đơn này thuộc kho ngoài phạm vi bạn được thao tác.",
   ORDER_CANCELLED: "Đơn hàng đã huỷ nên phiên kiểm thùng đã đóng.",
 } as const;

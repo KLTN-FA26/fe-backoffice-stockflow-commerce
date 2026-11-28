@@ -35,7 +35,7 @@ describe("releaseErrorView — mã quy tắc + chi tiết (BE OrderReleaseServic
     expect(view.detail).toMatch(VIETNAMESE);
     expect(view.detail).not.toContain("English");
     expect(view.traceId).toBe("t-1");
-    expect(view.title).toBe("Không release được đơn");
+    expect(view.title).toBe("Không ra lệnh xuất kho được");
   });
 
   it("mã của luồng cũ (mẫu thiết kế, tiền cọc, FTL + COD) đã bỏ — rơi về lỗi chung, không còn mã quy tắc riêng", () => {

@@ -6,11 +6,10 @@
  */
 
 import { useQueries, useQuery } from "@tanstack/react-query";
-import { z } from "zod";
+import { useMemo } from "react";
 
 import {
   PAGE_SIZE,
-  PRODUCTION_ORDER_STATUSES,
   RECEIVABLE_PRODUCTION_ORDER_STATUSES,
   SAMPLE_GATED_PRODUCTION_ORDER_STATUSES,
   SHARED_QUERY_ROOTS,
@@ -18,31 +17,16 @@ import {
 import { api } from "@/lib/api/client";
 import { QUERY_TIMES } from "@/lib/api/query-client";
 
+import {
+  productionOrderRefPageSchema,
+  productionOrderRefSchema,
+} from "./production-order-ref-schemas";
+
 import type { UseQueryResult } from "@tanstack/react-query";
 import type { ProductionOrderStatus } from "@/constants";
+import type { ProductionOrderRef } from "./production-order-ref-schemas";
 
-/** Dòng Đơn sản xuất (BE `ProductionOrderResponse.Line`) — chỉ phần phiếu nhập cần: số thùng đặt / đã nhận. */
-const productionLineRefSchema = z.object({
-  id: z.string(),
-  sku: z.string(),
-  cartons: z.number().int(),
-  unitsPerCarton: z.number().int(),
-  receivedCartons: z.number().int(),
-});
-
-const productionOrderRefSchema = z.object({
-  id: z.string(),
-  code: z.string(),
-  status: z.enum(PRODUCTION_ORDER_STATUSES),
-  receivingWarehouseId: z.string(),
-  sampleApprovalRequired: z.boolean(),
-  needByDate: z.string().nullish(),
-  lines: z.array(productionLineRefSchema).default([]),
-});
-const productionOrderRefPageSchema = z.object({ items: z.array(productionOrderRefSchema) });
-
-export type ProductionOrderRef = z.infer<typeof productionOrderRefSchema>;
-export type ProductionLineRef = z.infer<typeof productionLineRefSchema>;
+export type { ProductionLineRef, ProductionOrderRef } from "./production-order-ref-schemas";
 
 export const productionOrderRefKeys = {
   receivable: (status: ProductionOrderStatus) =>
@@ -87,6 +71,11 @@ async function fetchByStatus(
   return productionOrderRefPageSchema.parse(data).items;
 }
 
+/** SKU của đơn, mỗi mã một lần, theo thứ tự dòng — dòng danh sách chọn Đơn sản xuất nêu hàng đang nhận. */
+export function skusOf(order: Pick<ProductionOrderRef, "lines">): string[] {
+  return [...new Set(order.lines.map((line) => line.sku))];
+}
+
 /** Hạn cần sớm nhất lên đầu; đơn chưa có hạn xếp cuối (không chen trước đơn gấp). */
 function byNeedByDate(a: ProductionOrderRef, b: ProductionOrderRef): number {
   if (!a.needByDate || !b.needByDate) return Number(!a.needByDate) - Number(!b.needByDate);
@@ -99,6 +88,8 @@ function combineReceivable(results: UseQueryResult<ProductionOrderRef[]>[]) {
     data: results
       .flatMap((result) => result.data ?? [])
       .filter(isReceivableProductionOrder)
+      // Chỉ đơn còn thùng chưa nhập — đơn đã nhập đủ không còn gì để lập phiếu
+      .filter((order) => openCartonsOf(order) > 0)
       .sort(byNeedByDate),
     isPending: results.some((result) => result.isPending),
     isError: results.some((result) => result.isError),
@@ -110,8 +101,8 @@ function combineReceivable(results: UseQueryResult<ProductionOrderRef[]>[]) {
  * Đơn sản xuất nhận được hàng ở kho người dùng được gán (BE lọc theo kho với người dùng gắn kho). BE chỉ lọc một
  * `status` mỗi lần → gọi song song từng trạng thái nhận được rồi gộp, bỏ đơn chờ duyệt mẫu in (BR-15).
  */
-export function useReceivableProductionOrders(enabled = true) {
-  return useQueries({
+export function useReceivableProductionOrders(enabled = true, warehouseId?: string) {
+  const all = useQueries({
     queries: RECEIVABLE_PRODUCTION_ORDER_STATUSES.map((status) => ({
       queryKey: productionOrderRefKeys.receivable(status),
       queryFn: ({ signal }: { signal: AbortSignal }) => fetchByStatus(status, signal),
@@ -120,6 +111,12 @@ export function useReceivableProductionOrders(enabled = true) {
     })),
     combine: combineReceivable,
   });
+  // Màn nhận hàng của một kho: chỉ đơn về đúng kho đó (kho nhận của Đơn sản xuất), không chọn sẵn đơn của kho khác
+  const data = useMemo(
+    () => (warehouseId ? all.data.filter((o) => o.receivingWarehouseId === warehouseId) : all.data),
+    [all.data, warehouseId],
+  );
+  return { ...all, data };
 }
 
 export async function fetchProductionOrderRef(

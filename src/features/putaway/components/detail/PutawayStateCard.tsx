@@ -1,9 +1,14 @@
 "use client";
 
-import { CircleCheck, Info } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, CircleCheck, Info } from "lucide-react";
 
 import { PUTAWAY_DETAIL_LABELS } from "@/constants";
-import { DETAIL_CARD_CLASS, DetailCardTitle } from "@/components/shared/DetailSection";
+import {
+  DETAIL_ACTION_CLASS,
+  DETAIL_CARD_CLASS,
+  DetailCardTitle,
+} from "@/components/shared/DetailSection";
 
 import type { PutawayTaskGate } from "@/features/putaway/lifecycle";
 import type { PutawayTask } from "@/features/putaway/types";
@@ -18,9 +23,16 @@ const MONO = "font-[family-name:var(--font-mono)] tabular-nums";
 export function PutawayStateCard({
   task,
   reason,
+  next,
+  listHref,
+  tripHref,
 }: {
   task: PutawayTask;
   reason: Extract<PutawayTaskGate, { canConfirm: false }>["reason"];
+  /** Thùng chờ cất kế tiếp của kho (đã cất xong thùng này): nút đi tiếp một chạm, mang theo ô kệ vừa dùng. */
+  next?: { remaining: number; href: string } | null;
+  listHref?: string;
+  tripHref?: string;
 }) {
   if (reason === "done") {
     return (
@@ -34,7 +46,39 @@ export function PutawayStateCard({
             </dd>
           </div>
         </dl>
-        <p className="text-ink-secondary text-xs">{L.doneNote}</p>
+        <p className="text-ink-secondary mb-3 text-xs">{L.doneNote}</p>
+        {next ? (
+          <div className="space-y-2">
+            <Link
+              href={next.href}
+              className={`${DETAIL_ACTION_CLASS.primary} inline-flex h-11 items-center justify-center gap-2 text-sm`}
+            >
+              {L.nextCarton(next.remaining)}
+              <ArrowRight className="size-4" />
+            </Link>
+            {/* Nhiều thùng cùng lúc: chuyến cất hàng (docs 05 §4.5) — mỗi thùng vẫn quét riêng (BR-08) */}
+            {next.remaining >= 2 && tripHref && (
+              <p className="text-ink-secondary text-xs">
+                {L.tripHint}{" "}
+                <Link href={tripHref} className="text-accent-text font-medium hover:underline">
+                  {L.openTrip}
+                </Link>
+              </p>
+            )}
+          </div>
+        ) : (
+          listHref && (
+            <div className="space-y-2">
+              <p className="text-ink-secondary text-xs">{L.nextCartonLast}</p>
+              <Link
+                href={listHref}
+                className={`${DETAIL_ACTION_CLASS.outline} inline-flex h-11 items-center justify-center text-sm`}
+              >
+                {L.backToList}
+              </Link>
+            </div>
+          )
+        )}
       </section>
     );
   }

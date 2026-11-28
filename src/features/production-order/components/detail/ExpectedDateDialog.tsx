@@ -23,6 +23,8 @@ import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { fieldA11y, FormField } from "@/components/shared/FormField";
 import { Textarea } from "@/components/ui/textarea";
 
+import { QuickDateButtons } from "./QuickDateButtons";
+
 import type { ExpectedDateValues, ProductionOrder } from "@/features/production-order/types";
 
 const D = PRODUCTION_LABELS.dialogs;
@@ -117,6 +119,12 @@ export function ExpectedDateDialog({
             )}
           />
         </FormField>
+        <QuickDateButtons
+          needByDate={order.needByDate}
+          value={date}
+          required={mode !== "start"}
+          onPick={(day) => form.setValue("date", day, { shouldValidate: true, shouldDirty: true })}
+        />
         {date && date > order.needByDate && (
           <Alert tone="warning">{D.later(formatDate(order.needByDate))}</Alert>
         )}

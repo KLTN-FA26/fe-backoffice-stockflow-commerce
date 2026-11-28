@@ -23,9 +23,9 @@ export const EINVOICE_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   // docs 21 BR-06: tên, mã số thuế, địa chỉ bên mua bắt buộc trước khi phát hành
   EINVOICE_BUYER_PROFILE_INCOMPLETE:
     "Thiếu tên, mã số thuế hoặc địa chỉ bên mua. Nhờ Sale bổ sung hồ sơ khách rồi bấm “Làm mới bên mua”.",
-  EINVOICE_NOT_INVOICEABLE: "Lần giao này chưa giao thành công nên chưa lập được hoá đơn.",
+  EINVOICE_NOT_INVOICEABLE: "Lô giao này chưa giao thành công nên chưa lập được hoá đơn.",
   EINVOICE_DELIVERY_TIME_MISSING:
-    "Lần giao chưa có thời điểm giao thành công để ghi ngày lập. Nhờ Quản lý kho ghi nhận trước.",
+    "Lô giao chưa có thời điểm giao thành công để ghi ngày lập. Nhờ Quản lý kho ghi nhận trước.",
   EINVOICE_SERIES_NOT_CONFIGURED:
     "Chưa cấu hình ký hiệu hoá đơn cho năm của hoá đơn. Nhờ Quản trị hệ thống cấu hình.",
   // BE `findEarlierSubmitting`: hoá đơn cùng NCC / mẫu số / ký hiệu, ngày lập sớm hơn, đang SUBMITTING —

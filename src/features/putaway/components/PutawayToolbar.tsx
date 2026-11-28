@@ -22,29 +22,16 @@ import type { PutawayFiltersState } from "./usePutawayFilters";
 
 const L = PUTAWAY_LABELS;
 const COLUMN_OPTIONS = PUTAWAY_DATA_COLUMNS.map((value) => ({ value, label: L.column[value] }));
-const quoted = (label: string, value: string) => (value.trim() ? `${label} “${value}”` : null);
 
 /** Chip thanh `Cấu hình` (data-table-mode-a §3): mỗi nhóm một chip, X bỏ riêng nhóm đó. */
 function summaryItems(state: PutawayFiltersState, columns: PutawayColumnsState): ListSummaryItem[] {
   const { filters, set } = state;
-  const col = L.column;
-  const columnSearch = [
-    quoted(col.lpn, filters.lpn),
-    quoted(col.sku, filters.sku),
-    quoted(col.sourceLocation, filters.location),
-  ].filter((part): part is string => part !== null);
   return [
     {
       label: L.summarySearch,
       value: filters.q.trim() ? `“${filters.q}”` : UI_LABELS.common.notEntered,
       active: filters.q.trim() !== "",
       onClear: () => set({ q: "" }),
-    },
-    {
-      label: L.summaryColumnSearch,
-      value: columnSearch.length > 0 ? columnSearch.join(", ") : UI_LABELS.common.notEntered,
-      active: state.hasColumnSearch,
-      onClear: () => set({ lpn: "", sku: "", location: "" }),
     },
     ...(filters.receipt
       ? [
@@ -67,7 +54,7 @@ function summaryItems(state: PutawayFiltersState, columns: PutawayColumnsState):
 
 /**
  * Toolbar danh sách cất hàng (Mode A, style Vercel): search chính (lọc client — BE không có tìm kiếm), ẩn hiện cột,
- * thanh `Cấu hình`. Kho là kho của tab — không có ô chọn kho. Lọc theo LPN / SKU / vị trí nằm trên header cột.
+ * thanh `Cấu hình`. Kho là kho của tab — không có ô chọn kho. Một ô tìm duy nhất cho LPN / SKU / lô / vị trí.
  */
 export function PutawayToolbar({
   state,

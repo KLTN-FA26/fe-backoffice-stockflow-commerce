@@ -23,28 +23,25 @@ const { fulfillment } = UI_LABELS;
 type FieldErrors = Partial<Record<"orderId" | "assignedUserId" | "stagingLocationCode", string>>;
 
 /**
- * Đưa một đơn vào xuất kho, chọn đích lấy hàng (khu xuất hàng / khu chờ xuất) và gán người lấy hàng (BE
- * `POST /fulfillment/tasks`, docs 07 §4.1 bước 2). BR-01 (docs 07 §6): chỉ picking khi đơn đã release — BE chỉ nhận
- * đơn READY_TO_FULFILL; đơn CONFIRMED phải được quản lý kho release trước. Đơn đang chờ hàng đã giữ được một phần
- * thùng (docs 07 §4.1 bước 1) lấy trước phần đó: về khu chờ xuất, hoặc sang khu xuất hàng khi Sale đã cho phép giao
- * một phần (bước 2, 17 §4.4 bước 15) — chưa cho thì khoá đích khu xuất hàng.
- * Danh sách đơn đọc từ `GET /fulfillment/task-candidates` (BE PR #151, cần `fulfillment-task-assignment:CREATE`)
- * thay cho `GET /orders` (cần `sales-orders:READ` — quản lý kho không có). Người nhận vẫn lấy từ
- * `GET /fulfillment/assignees` (cần `fulfillment-task-assignment:UPDATE`).
+ * Tạo nhiệm vụ lấy hàng (BE `POST /fulfillment/tasks`, docs 07 §4.1 bước 2): chọn đơn (đã có lệnh xuất kho, hoặc đơn chờ
+ * hàng lấy trước phần đã giữ), đích lấy hàng (BR-01) và người lấy hàng; chọn sẵn khi chỉ có một đơn / một người.
  */
 export function CreateTaskDialog({
   onClose,
   warehouseId: tabWarehouseId,
+  initialOrderId = "",
 }: {
   onClose: () => void;
-  /** Kho của tab theo kho — chỉ đơn xuất từ kho này (BE `task-candidates?warehouseId=` lọc). */
+  /** Kho của tab — chỉ đơn xuất từ kho này. */
   warehouseId: string;
+  /** Mở từ chi tiết đơn: chọn sẵn đơn đó. */
+  initialOrderId?: string;
 }) {
   const canCreate = useCan(FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS.create);
   const canAssign = useCan(FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS.update);
   const candidates = useTaskCandidates(canCreate, tabWarehouseId);
   const create = useCreateFulfillmentTask();
-  const [orderId, setOrderId] = useState("");
+  const [pickedOrderId, setPickedOrderId] = useState(initialOrderId);
   const [assignedUserId, setAssignedUserId] = useState("");
   const [destination, setDestination] = useState<PickDestination>(PICK_DESTINATION.DISPATCH);
   const [stagingChoice, setStagingChoice] = useState("");
@@ -58,10 +55,11 @@ export function CreateTaskDialog({
   };
 
   const options = candidates.data?.items ?? [];
+  const orderId = pickedOrderId || (options.length === 1 ? (options[0]?.orderId ?? "") : "");
   const selected = options.find((order) => order.orderId === orderId);
-  // Người nhận và khu chờ xuất theo kho của đơn đã chọn (BE `GET /fulfillment/assignees?warehouseId=`)
-  const warehouseId = selected?.warehouseId;
-  // Docs 07 §4.1 bước 2: đơn chờ hàng chưa được giao một phần → chỉ khu chờ xuất (Backend phải re-check)
+  // Người nhận / khu chờ xuất theo kho của đơn; chưa chọn đơn thì kho của tab (người nhận hiện sẵn, không khoá)
+  const warehouseId = selected?.warehouseId ?? tabWarehouseId;
+  // Docs 07 §4.1 bước 2: đơn chờ hàng chưa giao một phần → chỉ khu chờ xuất (BE re-check)
   const stagingOnly = prePickStagingOnly(selected);
   const target = stagingOnly ? PICK_DESTINATION.STAGING : destination;
   const stagingArea = useStagingArea(warehouseId, target, stagingChoice);
@@ -113,7 +111,7 @@ export function CreateTaskDialog({
             error={errors.orderId}
             onChange={(value) =>
               edit(() => {
-                setOrderId(value);
+                setPickedOrderId(value);
                 // Đổi đơn có thể đổi kho → danh sách người nhận khác, bỏ lựa chọn cũ
                 setAssignedUserId("");
                 setStagingChoice("");

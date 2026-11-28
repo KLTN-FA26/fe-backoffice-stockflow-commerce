@@ -142,7 +142,7 @@ export function OrderInfoCard({ order, can }: OrderInfoCardProps) {
           "Chưa chọn kho xuất"
         )}
       </ProfileFact>
-      <ProfileFact label="Release lúc">
+      <ProfileFact label="Xuất kho lúc">
         {order.releasedAt ? (
           <span className="tabular-nums">{formatDateTime(order.releasedAt)}</span>
         ) : (

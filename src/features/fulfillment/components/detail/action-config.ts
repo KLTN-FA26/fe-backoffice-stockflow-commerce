@@ -1,5 +1,6 @@
 import { ArrowRightLeft, CheckCircle2, PackageCheck, PackagePlus, UserCog } from "lucide-react";
 
+import { UI_LABELS } from "@/constants";
 import { allowedTaskActions } from "@/features/fulfillment/pick-line-lifecycle";
 
 import type {
@@ -38,7 +39,11 @@ export function scopeActions(
   );
 }
 
-const CONFIRM_CODES = ["startPicking", "completePicking", "moveToDispatch", "topUp"] as const;
+/**
+ * Thao tác có hộp xác nhận: hoàn tất / chuyển khu / lấy bổ sung (không hoàn lại được). "Bắt đầu lấy hàng" là thao tác thường
+ * → bấm một lần là bắt đầu, không hỏi lại (S14-8).
+ */
+const CONFIRM_CODES = ["completePicking", "moveToDispatch", "topUp"] as const;
 export type ConfirmCode = (typeof CONFIRM_CODES)[number];
 
 export function isConfirmCode(code: FulfillmentActionCode | null): code is ConfirmCode {
@@ -50,19 +55,11 @@ export function isSecondaryCode(code: FulfillmentActionCode): boolean {
   return code === "assign" || code === "changeDestination";
 }
 
+/** Câu hỏi xác nhận từng thao tác (chữ ở `UI_LABELS.fulfillment.confirm`). Docs 07 §4.2 bước 6 (đích DISPATCH / STAGING), §4.3 bước 7–8. */
 export const CONFIRM_COPY: Record<ConfirmCode, (code: string) => string> = {
-  startPicking: (code) =>
-    `Bắt đầu lấy hàng cho task ${code}? Sau khi bắt đầu, task không gán lại được cho người khác.`,
-  // Đích DISPATCH: thùng mang về khu xuất hàng, phần kiểm thùng mở (docs 07 §4.2 bước 6); đích STAGING: thùng ở khu
-  // chờ xuất, task chuyển Staged. Câu chung cho cả hai, không nói "khu đóng gói" (khu đó đã gộp vào khu xuất hàng).
-  completePicking: (code) =>
-    `Xác nhận đã lấy đủ thùng của task ${code}? Thao tác không hoàn lại được.`,
-  // Docs 07 §4.3 bước 8: trừ tồn các thùng ở khu chờ xuất, ghi sổ PICK — không hoàn lại được
-  moveToDispatch: (code) =>
-    `Chuyển cả task ${code} từ khu chờ xuất sang khu xuất hàng? Tồn của mọi thùng trong task sẽ bị trừ và thao tác không hoàn lại được.`,
-  // Docs 07 §4.3 bước 7: thùng còn thiếu đã về kho thêm vào cùng task, giữ đích của task; task quay lại Đang lấy hàng
-  topUp: (code) =>
-    `Lấy bổ sung cho task ${code}? Các thùng đơn đã giữ thêm được đưa vào cùng task và task quay lại Đang lấy hàng.`,
+  completePicking: UI_LABELS.fulfillment.confirm.completePicking,
+  moveToDispatch: UI_LABELS.fulfillment.confirm.moveToDispatch,
+  topUp: UI_LABELS.fulfillment.confirm.topUp,
 };
 
 export const ACTION_ICON: Partial<Record<FulfillmentActionCode, typeof CheckCircle2>> = {

@@ -84,12 +84,16 @@ describe("OrderDetailWithLoadEstimate", () => {
     expect(screen.queryByRole("button", { name: "Ước tính xếp xe" })).not.toBeInTheDocument();
   });
 
-  it("đơn CONFIRMED: nút ước tính nằm trong hộp thoại release, khoá tới khi chọn kho", async () => {
+  it("đơn CONFIRMED: nút ước tính nằm trong hộp thoại xuất kho, khoá tới khi chọn kho", async () => {
     mockOrderApiGet([...ORDER_PERMISSION_SETS.warehouseManager, LOAD_ESTIMATE_PERMISSIONS.create], {
       [DETAIL_PATH]: () => apiOrderAt("CONFIRMED"),
       [HISTORY_PATH]: () => [],
       "/warehouses": () => ({
-        items: [{ id: "wh-hn", prefix: "HN01", name: "Kho Hà Nội", status: "ACTIVE" }],
+        // Hai kho đang hoạt động: chỉ có một kho thì hộp Xuất kho chọn sẵn (R6), không còn trạng thái "chưa chọn kho"
+        items: [
+          { id: "wh-hn", prefix: "HN01", name: "Kho Hà Nội", status: "ACTIVE" },
+          { id: "wh-hcm", prefix: "HCM1", name: "Kho Hồ Chí Minh", status: "ACTIVE" },
+        ],
       }),
       [TYPES]: () => ({
         items: [],
@@ -107,7 +111,7 @@ describe("OrderDetailWithLoadEstimate", () => {
       );
     });
     const user = userEvent.setup();
-    await user.click(await screen.findByRole("button", { name: "Release đơn" }));
+    await user.click(await screen.findByRole("button", { name: "Xuất kho" }));
     const dialog = await screen.findByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: "Ước tính xếp xe" }));
     // ngăn kéo mở TRÊN hộp thoại release (Radix ẩn hộp thoại bên dưới khỏi cây truy cập); chưa chọn kho nên khoá nút

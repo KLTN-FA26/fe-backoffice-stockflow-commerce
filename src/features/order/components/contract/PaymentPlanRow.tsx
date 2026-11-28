@@ -12,18 +12,39 @@ import { FormSelect } from "@/components/shared/FormSelect";
 import { SelectItem, SelectTrigger, SelectValue } from "@/components/shared/combobox-select";
 import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { MoneyInput } from "@/components/shared/MoneyInput";
+import { SegmentedControl, type SegmentedOption } from "@/components/shared/SegmentedControl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 import { DEFAULT_ON_SIGNING_DUE_DAYS } from "../../sales-contract-form";
 import { dueRuleText, planEntryAmount } from "../../sales-contract-rules";
 
-import { AmountModeToggle } from "./AmountModeToggle";
-
 import type { UseFormReturn } from "react-hook-form";
 import type { ContractFormValues } from "../../sales-contract-form";
 
 const P = ORDER_CONTRACT_LABELS.plan;
+type AmountMode = ContractFormValues["paymentPlan"][number]["mode"];
+/** "₫ | %" beside the value box (R2: two fixed values are shown up front). Each button is read as its full name. */
+const AMOUNT_MODE_OPTIONS: readonly SegmentedOption<AmountMode>[] = [
+  {
+    value: "amount",
+    label: (
+      <>
+        <span aria-hidden="true">₫</span>
+        <span className="sr-only">{P.amountMode.amount}</span>
+      </>
+    ),
+  },
+  {
+    value: "percent",
+    label: (
+      <>
+        <span aria-hidden="true">%</span>
+        <span className="sr-only">{P.amountMode.percent}</span>
+      </>
+    ),
+  },
+];
 /** A select item has no empty value: stands for "no batch". */
 const NO_BATCH = "none";
 const NUM = `${FORM_INPUT_CLASS} text-right font-[family-name:var(--font-mono)] tabular-nums`;
@@ -156,8 +177,10 @@ export function PaymentPlanRow({
             {P.value}
           </label>
           <div className="flex items-start gap-2">
-            <AmountModeToggle
+            <SegmentedControl
               label={`Đợt ${n} — tính theo`}
+              options={AMOUNT_MODE_OPTIONS}
+              className="shrink-0"
               value={mode}
               onChange={(next) => {
                 if (next === mode) return;

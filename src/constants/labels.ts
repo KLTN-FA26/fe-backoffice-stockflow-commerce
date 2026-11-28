@@ -213,12 +213,12 @@ export const UI_LABELS = {
   order: {
     pageTitle: "Đơn hàng",
     cancelFailedTitle: "Không huỷ được đơn",
-    releaseRefusedTitle: "Không release được đơn",
+    releaseRefusedTitle: "Không ra lệnh xuất kho được",
     creditFailedTitle: "Không xử lý được đơn chờ duyệt công nợ",
     creditHoldsTitle: "Đơn chờ duyệt công nợ",
     // Nhãn nút thao tác — dùng chung lifecycle (ORDER_ACTIONS) và component
     actions: {
-      release: "Release đơn",
+      release: "Xuất kho",
       creditApprove: "Duyệt công nợ",
       creditReject: "Từ chối",
       cancel: "Huỷ đơn",
@@ -245,7 +245,7 @@ export const UI_LABELS = {
       badge: "Mua hàng (cũ)",
       title: "Phiếu mua hàng cũ",
       description:
-        "Mua hàng đã bỏ khỏi hệ thống: phiếu này chỉ còn để xem; phiếu còn nháp thì chỉ huỷ được. Hàng chỉ còn về theo Đơn sản xuất.",
+        "Mua hàng đã bỏ khỏi hệ thống: phiếu này chỉ còn để xem; phiếu còn nháp thì chỉ huỷ được. Hàng chỉ còn về theo đơn sản xuất.",
       confirmNote: "Phiếu mua hàng cũ không xác nhận được — chỉ huỷ được khi còn nháp.",
     },
     receiptType: {
@@ -260,7 +260,7 @@ export const UI_LABELS = {
     // Card thao tác khi không còn nút cấp phiếu
     noActions: {
       viewOnly: "Bạn chỉ có quyền xem phiếu nhận.",
-      inPutaway: "Đang chờ cất hàng lên vị trí lưu trữ (putaway).",
+      inPutaway: "Đang chờ cất hàng lên vị trí lưu trữ.",
       openPutaway: "Xem việc cất hàng của phiếu",
     },
     noCountLines: "Chưa có dòng kiểm đếm.",
@@ -278,13 +278,15 @@ export const UI_LABELS = {
     // Cột tiến độ thùng theo dòng Đơn sản xuất (4A-5)
     productionProgress: {
       header: "Thùng theo Đơn SX",
-      thisReceipt: (cartons: number) => `phiếu này ${cartons}`,
-      remaining: (cartons: number) => `còn ${cartons}`,
+      // Có đơn vị "thùng" để số "10/10" không đứng trần
+      cartonsOfOrdered: (received: number, ordered: number) => `${received}/${ordered} thùng`,
+      thisReceipt: (cartons: number) => `phiếu này ${cartons} thùng`,
+      remaining: (cartons: number) => `còn ${cartons} thùng`,
     },
     confirmDialog: {
       cancelTitle: "Huỷ phiếu nhận",
       confirmDescription: (number: string) =>
-        `Chốt số của ${number}: các thùng thành tồn Inbound ở khu nhận hàng, Đơn sản xuất cập nhật SL đã nhận, phiếu chuyển sang cất hàng. Sau khi xác nhận phiếu chỉ còn xem, sai sót phải điều chỉnh tồn.`,
+        `Chốt số của ${number}: các thùng thành tồn đang nhận ở khu nhận hàng, đơn sản xuất cập nhật SL đã nhận, phiếu chuyển sang cất hàng. Sau khi xác nhận phiếu chỉ còn xem, sai sót phải điều chỉnh tồn.`,
       cancelDescription: (number: string) =>
         `Huỷ ${number}? Chỉ phiếu nháp mới huỷ được; thùng đã cấp mã bị huỷ theo. Không thể khôi phục.`,
     },
@@ -302,22 +304,23 @@ export const UI_LABELS = {
   cartonCheck: CARTON_CHECK_UI_LABELS,
   fulfillment: {
     pickingTitle: "Lấy hàng",
-    pickingSubtitle: "Task xuất kho theo đơn: gán nhân viên, bắt đầu và hoàn tất lấy hàng.",
+    pickingSubtitle: "Nhiệm vụ lấy hàng theo đơn: gán nhân viên, bắt đầu và hoàn tất lấy hàng.",
     packingTitle: "Kiểm thùng & dán nhãn giao hàng",
     packingSubtitle:
-      "Quét LPN từng thùng, dán nhãn giao hàng, loại thùng hư hỏng và hoàn tất thành shipment.",
-    notFoundTitle: "Không tìm thấy task xuất kho",
+      "Quét LPN từng thùng, dán nhãn giao hàng, loại thùng hư hỏng và hoàn tất thành lô giao.",
+    notFoundTitle: "Không tìm thấy nhiệm vụ lấy hàng",
     // BE trả 404 (không phải 403) khi task không được gán cho người gọi
-    notFoundDescription: "Task không tồn tại, hoặc không được gán cho bạn nên bạn không xem được.",
+    notFoundDescription:
+      "Nhiệm vụ không tồn tại, hoặc không được gán cho bạn nên bạn không xem được.",
     // Link cũ tới task mà BE không trả kho (`warehouseId` null) — không biết mở trong tab của kho nào
-    noWarehouseTitle: "Task chưa gắn kho",
+    noWarehouseTitle: "Nhiệm vụ chưa gắn kho",
     noWarehouseDescription:
-      "Không xác định được kho của task nên không mở được trong tab theo kho. Chọn kho đang làm việc để mở task.",
+      "Không xác định được kho của nhiệm vụ nên không mở được trong tab theo kho. Chọn kho đang làm việc để mở nhiệm vụ.",
     forbiddenDescription: "Tài khoản của bạn chưa được cấp quyền mở màn hình này.",
     noReadDescription:
-      "Bạn được mở trang nhưng chưa được cấp quyền xem task xuất kho. Liên hệ quản trị để được cấp.",
+      "Bạn được mở trang nhưng chưa được cấp quyền xem nhiệm vụ lấy hàng. Liên hệ quản trị để được cấp.",
     action: {
-      create: "Tạo task lấy hàng",
+      create: "Tạo nhiệm vụ lấy hàng",
       assign: "Gán lại",
       changeDestination: "Đổi đích",
       startPicking: "Bắt đầu lấy hàng",
@@ -341,8 +344,8 @@ export const UI_LABELS = {
       filteredAssignee: "Người đang lọc",
       clear: "Bỏ lọc",
       clearWarehouse: "Bỏ lọc kho",
-      noMatchTitle: "Không có task khớp bộ lọc",
-      noMatchDescription: "Thử bỏ bớt bộ lọc để xem thêm task.",
+      noMatchTitle: "Không có nhiệm vụ khớp bộ lọc",
+      noMatchDescription: "Thử bỏ bớt bộ lọc để xem thêm nhiệm vụ.",
       outOfScope: "Kho này nằm ngoài phạm vi dữ liệu của bạn.",
       assigneesFailed: "Không tải được danh sách người được gán.",
       // Lọc người được gán trên header cột (data-table-mode-a §4.1)
@@ -350,44 +353,46 @@ export const UI_LABELS = {
       assigneeEmpty: "Không có người phù hợp.",
       // Chip thanh "Cấu hình" — phạm vi dữ liệu do BE quyết theo mã quyền (task-oversight:READ)
       scope: "Phạm vi",
-      scopeAll: "mọi task",
-      scopeOwn: "task được gán cho bạn",
+      scopeAll: "mọi nhiệm vụ",
+      scopeOwn: "nhiệm vụ được gán cho bạn",
       columns: "Cột hiển thị",
       actions: "Thao tác",
     },
     // Dialog tạo task: đơn chờ xuất kho đọc từ GET /fulfillment/task-candidates (cần fulfillment-task-assignment:CREATE)
     // Docs 07 §4.1 bước 1–2: đơn đã release, hoặc đơn chờ hàng lấy trước phần đã giữ
     createDescription:
-      "Chọn đơn đã release (sẵn sàng xuất kho), hoặc đơn đang chờ hàng để lấy trước phần đã có, và gán nhân viên lấy hàng. Mỗi đơn chỉ có một task.",
-    noCreateTitle: "Chưa đủ quyền tạo task lấy hàng",
+      "Chọn đơn đã có lệnh xuất kho, hoặc đơn đang chờ hàng để lấy trước phần đã có, và gán nhân viên lấy hàng. Mỗi đơn chỉ có một nhiệm vụ.",
+    noCreateTitle: "Chưa đủ quyền tạo nhiệm vụ lấy hàng",
     noCreateDescription:
-      "Tài khoản chưa được cấp quyền tạo task xuất kho — liên hệ quản trị để được cấp.",
+      "Tài khoản chưa được cấp quyền tạo nhiệm vụ lấy hàng — liên hệ quản trị để được cấp.",
     candidate: {
       fieldLabel: "Đơn hàng",
       loading: "Đang tải đơn hàng…",
       placeholder: "Chọn đơn hàng",
+      search: "Gõ số đơn hoặc tên khách…",
+      noMatch: "Không có đơn nào khớp.",
       empty: "Không có đơn nào chờ xuất kho",
       emptyTitle: "Chưa có đơn nào chờ xuất kho",
       emptyDescription:
-        "Chỉ đơn đã release (sẵn sàng xuất kho) và chưa có task — kể cả đợt giao kế tiếp đã release — hoặc đơn đang chờ hàng đã giữ được một phần thùng mới hiện ở đây. Đơn mới xác nhận cần release trước.",
+        "Chỉ đơn đã có lệnh xuất kho và chưa có nhiệm vụ — kể cả đợt giao kế tiếp đã có lệnh xuất kho — hoặc đơn đang chờ hàng đã giữ được một phần thùng mới hiện ở đây. Đơn mới xác nhận cần ra lệnh xuất kho trước.",
       // Docs 07 §4.1 bước 1: đơn Awaiting Stock có thùng đã giữ — lấy trước phần đã có
       awaitingStock: "Chờ hàng",
       loadFailed: "Không tải được danh sách đơn hàng chờ xuất kho.",
       guestCustomer: "Khách vãng lai",
       truncated: (shown: number, total: number) =>
-        `Chỉ hiện ${shown}/${total} đơn cũ nhất đang chờ — tạo task cho các đơn này trước để thấy tiếp.`,
+        `Chỉ hiện ${shown}/${total} đơn cũ nhất đang chờ — tạo nhiệm vụ cho các đơn này trước để thấy tiếp.`,
       summary: (lineCount: number, totalQuantity: number) =>
         `${lineCount} dòng · ${totalQuantity} sản phẩm`,
       placed: (date: string) => `Đặt ${date}`,
     },
-    noAssignTitle: "Chưa đủ quyền chọn người nhận task",
+    noAssignTitle: "Chưa đủ quyền chọn người nhận nhiệm vụ",
     noAssignDescription:
-      "Danh sách người nhận task chỉ hiện cho tài khoản được cấp quyền gán task — liên hệ quản trị để được cấp.",
-    alreadyAssigned: "Task đang được gán cho người này — chọn người khác để gán lại.",
-    noTaskLines: "Task chưa có dòng hàng.",
+      "Danh sách người nhận nhiệm vụ chỉ hiện cho tài khoản được cấp quyền gán nhiệm vụ — liên hệ quản trị để được cấp.",
+    alreadyAssigned: "Nhiệm vụ đang được gán cho người này — chọn người khác để gán lại.",
+    noTaskLines: "Nhiệm vụ chưa có dòng hàng.",
     noActions: {
-      viewOnly: "Bạn chỉ có quyền xem task này.",
-      notAssignee: "Chỉ nhân viên được gán mới thao tác được trên task này.",
+      viewOnly: "Bạn chỉ có quyền xem nhiệm vụ này.",
+      notAssignee: "Chỉ nhân viên được gán mới thao tác được trên nhiệm vụ này.",
       waitingPick: "Chưa lấy hàng xong nên chưa đóng gói được.",
       // Task Staged: thùng giữ riêng ở khu chờ xuất, chỉ quản lý kho (task-assignment:UPDATE) chuyển được (docs 07 §4.3)
       waitingDispatch: "Thùng đang ở khu chờ xuất — chờ quản lý kho chuyển sang khu xuất hàng.",
@@ -413,13 +418,32 @@ export const UI_LABELS = {
       awaitingStockStagingOnly:
         "Đơn đang chờ hàng: lấy trước phần đã có về khu chờ xuất. Chỉ lấy sang khu xuất hàng khi Sale đã cho phép giao một phần.",
       // Dialog "Đổi đích" của task Pending (BE `PUT …/destination`, docs 07 §4.1 bước 3, BR-08)
-      changeTitle: (taskCode: string) => `Đổi đích task ${taskCode}`,
-      changeDescription: "Chỉ đổi đích được khi task chưa bắt đầu lấy hàng.",
+      changeTitle: (taskCode: string) => `Đổi đích nhiệm vụ ${taskCode}`,
+      changeDescription: "Chỉ đổi đích được khi nhiệm vụ chưa bắt đầu lấy hàng.",
     },
     self: "Tôi",
+    // Chữ của màn nhiệm vụ lấy hàng (đặt ở đây, không viết thẳng trong component)
+    taskTitle: (code: string) => `Nhiệm vụ ${code}`,
+    taskInfoTitle: "Thông tin nhiệm vụ",
+    taskLinesCaption: "Dòng hàng của nhiệm vụ",
+    taskEmptyTitle: "Chưa có nhiệm vụ lấy hàng",
+    taskTableCaption: (shown: number, total: number) =>
+      `Hiển thị ${shown} / ${total} nhiệm vụ lấy hàng`,
+    viewTask: (code: string) => `Xem nhiệm vụ ${code}`,
+    assignTask: (code: string) => `Gán lại nhiệm vụ ${code}`,
+    assignDescription:
+      "Chỉ gán lại được khi nhiệm vụ chưa bắt đầu lấy hàng. Người được gán phải là nhân viên kho hoặc quản lý kho đang hoạt động.",
+    confirm: {
+      completePicking: (code: string) =>
+        `Xác nhận đã lấy đủ thùng của nhiệm vụ ${code}? Thao tác không hoàn lại được.`,
+      moveToDispatch: (code: string) =>
+        `Chuyển cả nhiệm vụ ${code} từ khu chờ xuất sang khu xuất hàng? Tồn của mọi thùng trong nhiệm vụ sẽ bị trừ và thao tác không hoàn lại được.`,
+      topUp: (code: string) =>
+        `Lấy bổ sung cho nhiệm vụ ${code}? Các thùng đơn đã giữ thêm được đưa vào cùng nhiệm vụ và nhiệm vụ quay lại Đang lấy hàng.`,
+    },
     // Nhãn trường dùng chung giữa cột danh sách, thẻ thông tin và form
     field: {
-      task: "Mã task",
+      task: "Số nhiệm vụ",
       order: "Đơn hàng",
       assignee: "Người được gán",
       pick: "Lấy hàng",
@@ -441,12 +465,12 @@ export const UI_LABELS = {
  */
 export const FULFILLMENT_ERROR_MESSAGES = {
   // 404 ở thao tác: task không có hoặc người gọi không phải người được gán
-  notAssignee: "Task không tồn tại hoặc không được gán cho bạn. Dữ liệu đã được tải lại.",
+  notAssignee: "Nhiệm vụ không tồn tại hoặc không được gán cho bạn. Dữ liệu đã được tải lại.",
   // 409 chung: pick/pack/đơn đã đổi trạng thái ở nơi khác (hoặc đơn đã huỷ → task đóng)
   stale:
-    "Task hoặc đơn hàng đã đổi trạng thái nên không thực hiện được thao tác này. Dữ liệu đã được tải lại.",
+    "Nhiệm vụ hoặc đơn hàng đã đổi trạng thái nên không thực hiện được thao tác này. Dữ liệu đã được tải lại.",
   createConflict:
-    "Chỉ đơn đã release (sẵn sàng xuất kho) mới đưa vào xuất kho; đơn mới xác nhận phải được quản lý kho release trước.",
+    "Chỉ đơn đã có lệnh xuất kho mới tạo được nhiệm vụ lấy hàng; đơn mới xác nhận phải được quản lý kho xuất kho trước.",
   // 422 STAGING_AREA_INVALID: khu chờ xuất không phải khu đang hoạt động của kho xuất (docs 07 §4.1 bước 2)
   STAGING_AREA_INVALID: "Chọn khu chờ xuất đang hoạt động của kho xuất của đơn.",
   // 409 PICK_ORDER_ON_HOLD khi chuyển sang khu xuất hàng: đơn đang treo (docs 07 §6 "Đơn đang treo khi task Staged")
@@ -461,20 +485,21 @@ export const FULFILLMENT_ERROR_MESSAGES = {
     "Đơn còn chờ hàng nên thùng ở lại khu chờ xuất — chờ đủ hàng rồi lấy bổ sung, hoặc Sale cho phép giao một phần.",
   // 409 khi lấy bổ sung: task đã huỷ hoặc đã hoàn tất kiểm thùng (thùng đã thành shipment) — docs 07 §4.3 bước 7
   topUpConflict:
-    "Task không còn nhận thêm thùng (đã huỷ hoặc đã hoàn tất kiểm thùng). Dữ liệu đã được tải lại.",
+    "Nhiệm vụ không còn nhận thêm thùng (đã huỷ hoặc đã hoàn tất kiểm thùng). Dữ liệu đã được tải lại.",
   dispatchConflict:
-    "Task không còn ở trạng thái Đã tập kết (khu chờ xuất) nên không chuyển được. Dữ liệu đã được tải lại.",
+    "Nhiệm vụ không còn ở trạng thái Đã tập kết (khu chờ xuất) nên không chuyển được. Dữ liệu đã được tải lại.",
   orderNotFound: "Không tìm thấy đơn hàng",
-  assignConflict: "Chỉ gán lại được khi task chưa bắt đầu lấy hàng. Dữ liệu đã được tải lại.",
+  assignConflict: "Chỉ gán lại được khi nhiệm vụ chưa bắt đầu lấy hàng. Dữ liệu đã được tải lại.",
   // 409 PICK_TASK_STATE_CONFLICT khi đổi đích: task đã bắt đầu lấy hàng (docs 07 §4.1 bước 3, BR-08)
-  destinationConflict: "Chỉ đổi đích được khi task chưa bắt đầu lấy hàng. Dữ liệu đã được tải lại.",
+  destinationConflict:
+    "Chỉ đổi đích được khi nhiệm vụ chưa bắt đầu lấy hàng. Dữ liệu đã được tải lại.",
   assigneeInvalid: "Người được gán phải là nhân viên kho hoặc quản lý kho đang hoạt động",
   VALIDATION_FAILED: "Dữ liệu không hợp lệ",
   FORBIDDEN: "Bạn không có quyền thực hiện thao tác này",
   // Danh sách đơn chờ xuất kho (GET /fulfillment/task-candidates): 403 thiếu quyền tạo task, 403 kho ngoài
   // phạm vi dữ liệu, 404 kho không tồn tại
   candidatesForbidden:
-    "Bạn chưa được cấp quyền tạo task xuất kho nên không xem được đơn chờ xuất kho.",
+    "Bạn chưa được cấp quyền tạo nhiệm vụ lấy hàng nên không xem được đơn chờ xuất kho.",
   OUT_OF_DATA_SCOPE:
     "Kho này nằm ngoài phạm vi dữ liệu của bạn — bạn chỉ xem được đơn của kho mình phụ trách.",
   warehouseNotFound: "Không tìm thấy kho.",
@@ -484,8 +509,8 @@ export const FULFILLMENT_ERROR_MESSAGES = {
     "Hàng giữ cho đơn đang nằm ở kho khác kho xuất — cần lệnh chuyển kho đưa hàng về đúng kho rồi mới lấy hàng.",
   // 409 khi hoàn tất mà BE còn dòng chưa lấy (BE `PickList.requireAllPicked` / task chưa lập dòng)
   PICK_LINES_INCOMPLETE: "Còn dòng chưa lấy xong nên chưa hoàn tất được. Dữ liệu đã được tải lại.",
-  OPTIMISTIC_LOCK: "Task vừa được người khác cập nhật. Dữ liệu đã được tải lại, hãy thử lại.",
-  LOCK_TIMEOUT: "Task đang được người khác thao tác. Thử lại sau giây lát.",
+  OPTIMISTIC_LOCK: "Nhiệm vụ vừa được người khác cập nhật. Dữ liệu đã được tải lại, hãy thử lại.",
+  LOCK_TIMEOUT: "Nhiệm vụ đang được người khác thao tác. Thử lại sau giây lát.",
   STORAGE_ERROR: "Kho lưu trữ file thiết kế đang không truy cập được. Thử lại sau.",
   NETWORK_ERROR: "Không kết nối được máy chủ",
   generic: "Không thực hiện được thao tác. Vui lòng thử lại.",
@@ -516,8 +541,8 @@ export const RECEIPT_ERROR_MESSAGES = {
   PRODUCTION_ORDER_NOT_RECEIVABLE:
     "Đơn sản xuất không còn nhận được hàng (chưa gửi, đã nhận đủ, đã đóng hoặc huỷ). Dữ liệu đã được tải lại.",
   // BR-02 (docs 03 §6): không nhận quá số thùng Đơn sản xuất đặt, tính cả phiếu nháp
-  RECEIPT_EXCEEDS_PRODUCTION_ORDER: "Số thùng nhận vượt số thùng còn lại của dòng Đơn sản xuất",
-  RECEIPT_LINE_NOT_ON_PRODUCTION_ORDER: "Dòng này không thuộc Đơn sản xuất của phiếu",
+  RECEIPT_EXCEEDS_PRODUCTION_ORDER: "Số thùng nhận vượt số thùng còn lại của dòng đơn sản xuất",
+  RECEIPT_LINE_NOT_ON_PRODUCTION_ORDER: "Dòng này không thuộc đơn sản xuất của phiếu",
   // BR-13 (docs 03 §6): mỗi thùng chứa đúng quy cách của dòng
   RECEIPT_CARTON_NOT_STANDARD: "Thùng phải chứa đúng số lượng chuẩn của quy cách thùng",
   LOCATION_NOT_FOUND: "Không tìm thấy mã vị trí",
@@ -567,7 +592,7 @@ export const TOAST_MESSAGES = {
   },
   order: {
     cancelled: "Đã huỷ đơn hàng",
-    released: "Đã release đơn cho kho",
+    released: "Đã ra lệnh xuất kho cho đơn",
     creditApproved: "Đã duyệt công nợ",
     creditRejected: "Đã từ chối duyệt công nợ",
   },
@@ -587,17 +612,17 @@ export const TOAST_MESSAGES = {
   role: IDENTITY_TOAST_MESSAGES.role,
   inventoryItem: INVENTORY_ITEM_TOAST_MESSAGES,
   fulfillment: {
-    created: "Đã tạo task lấy hàng",
+    created: "Đã tạo nhiệm vụ lấy hàng",
     // BE trả lại task đã có của đơn (vẫn 201) thay vì tạo mới
-    alreadyExists: "Đơn này đã có task và đang gán cho người khác — không tạo task mới",
-    assigned: "Đã gán task",
+    alreadyExists: "Đơn này đã có nhiệm vụ và đang gán cho người khác — không tạo nhiệm vụ mới",
+    assigned: "Đã gán nhiệm vụ",
     destinationChanged: "Đã đổi đích lấy hàng",
     pickingStarted: "Đã bắt đầu lấy hàng",
     pickingCompleted: "Đã hoàn tất lấy hàng",
     // Chuyển cả tác vụ từ khu chờ xuất sang khu xuất hàng (BE `POST …/dispatch-transfer`, docs 07 §4.3 bước 8)
-    movedToDispatch: "Đã chuyển task sang khu xuất hàng — tồn đã được trừ",
+    movedToDispatch: "Đã chuyển nhiệm vụ sang khu xuất hàng — tồn đã được trừ",
     // Lấy bổ sung (BE `POST …/top-up`, docs 07 §4.3 bước 7): thùng còn thiếu đã về kho thêm vào cùng task
-    toppedUp: "Đã thêm thùng vào task — task quay lại lấy hàng",
+    toppedUp: "Đã thêm thùng vào nhiệm vụ — nhiệm vụ quay lại lấy hàng",
     // Phân bổ lại dòng thiếu (BE `POST …/pick-lines/{lineId}/reallocation`, PR #147)
     lineReallocated: "Đã phân bổ lại dòng thiếu",
     linesPlanned: "Đã tạo danh sách dòng lấy hàng",

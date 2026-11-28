@@ -1,6 +1,6 @@
 "use client";
 
-import { useId } from "react";
+import { useEffect, useId } from "react";
 
 import { ORDER_RELEASE_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
@@ -19,6 +19,10 @@ interface ReleaseWarehouseFieldProps {
   onChange: (warehouseId: string) => void;
   /** Lỗi của ô (zod hoặc 400 `warehouseId` của BE). */
   error: string | undefined;
+  /** Kho Sale đã chọn cho đơn (docs 17 BR-22: mỗi đơn đúng một kho xuất) — hiện dạng chữ, không bắt chọn lại. */
+  chosenWarehouseId?: string | null;
+  /** Tên kho BE kèm sẵn trên đơn (nếu có) — dùng thay cho tra danh mục kho. */
+  chosenWarehouseName?: string | null;
 }
 
 /**
@@ -26,11 +30,50 @@ interface ReleaseWarehouseFieldProps {
  * `warehouse-warehouses:READ`) nói rõ mã quyền; lỗi khác "Không tải được"; danh sách rỗng báo riêng. Hộp thoại vẫn dùng
  * được (huỷ, xem ước tính). UI-only — Backend phải re-check.
  */
-export function ReleaseWarehouseField({ value, onChange, error }: ReleaseWarehouseFieldProps) {
+export function ReleaseWarehouseField({
+  value,
+  onChange,
+  error,
+  chosenWarehouseId,
+  chosenWarehouseName,
+}: ReleaseWarehouseFieldProps) {
   const L = ORDER_RELEASE_LABELS;
   const id = useId();
   const warehouses = useWarehouseOptions();
   const forbidden = warehouses.error instanceof ApiError && warehouses.error.status === 403;
+  // Chưa có kho Sale chọn mà hệ thống chỉ có đúng một kho đang hoạt động → chọn sẵn kho đó (R6)
+  const onlyId =
+    !chosenWarehouseId && warehouses.data?.length === 1
+      ? warehouses.data[0]?.warehouseId
+      : undefined;
+  useEffect(() => {
+    if (onlyId && !value) onChange(onlyId);
+  }, [onlyId, value, onChange]);
+
+  if (chosenWarehouseId) {
+    const chosen = warehouses.data?.find(
+      (warehouse) => warehouse.warehouseId === chosenWarehouseId,
+    );
+    return (
+      <div>
+        <p className="text-[0.8125rem] font-medium">{L.warehouseLabel}</p>
+        <p className="text-ink-primary mt-1 text-[0.875rem]" data-testid="release-chosen-warehouse">
+          {chosenWarehouseName ??
+            (chosen
+              ? chosen.code
+                ? `${chosen.name} (${chosen.code})`
+                : chosen.name
+              : L.chosenWarehouseUnknown)}
+        </p>
+        <p className="text-ink-tertiary mt-0.5 text-xs">{L.chosenWarehouseHint}</p>
+        {error && (
+          <p role="alert" className="text-danger mt-1 text-xs">
+            {error}
+          </p>
+        )}
+      </div>
+    );
+  }
   return (
     <div>
       <Label htmlFor={id} className="text-[0.8125rem]">

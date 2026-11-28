@@ -258,7 +258,7 @@ describe("Bằng chứng — lỗi bằng tiếng Việt, không toast", () => {
     [413, "PAYLOAD_TOO_LARGE", /Máy chủ từ chối vì tệp quá lớn/],
     [429, "RATE_LIMITED", /quá nhiều tệp trong giờ này/],
     [404, "DELIVERY_BATCH_NOT_FOUND", /Đợt giao không còn nhận được bằng chứng/],
-    [403, "FORBIDDEN", /sales-contracts:UPDATE/],
+    [403, "FORBIDDEN", /chỉ nhân viên Sale/],
     [503, "STORAGE_ERROR", /Kho lưu trữ tệp tạm thời không dùng được/],
   ])(
     "xin đường tải bị BE từ chối %s %s → câu Việt trong hộp thoại, giữ hộp thoại",

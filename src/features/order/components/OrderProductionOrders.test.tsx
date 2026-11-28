@@ -1,6 +1,7 @@
 import { act, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { PRODUCTION_ORDER_PERMISSIONS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 
 import { apiOrder } from "../__fixtures__/order";
@@ -108,6 +109,30 @@ const productionCalls = (get: Awaited<ReturnType<typeof renderDetail>>) =>
   get.mock.calls.filter(([url]) => url === PRODUCTION_PATH);
 
 afterEach(() => vi.restoreAllMocks());
+
+describe("Chưa có Đơn sản xuất → lối mở thẳng hộp Lập (S11-5)", () => {
+  it("người có production-orders:CREATE thấy link 'Lập Đơn sản xuất' trỏ tới lịch với đơn này", async () => {
+    await renderDetail(customOrder, () => page([]), [
+      ...ORDER_PERMISSION_SETS.salesStaff,
+      PRODUCTION_ORDER_PERMISSIONS.read,
+      PRODUCTION_ORDER_PERMISSIONS.create,
+    ]);
+    const link = await screen.findByRole("link", { name: "Lập đơn sản xuất" });
+    expect(link).toHaveAttribute(
+      "href",
+      `/admin/production-schedule?tab=batches&drawOrder=${apiOrder.orderId}`,
+    );
+  });
+
+  it("không có quyền lập → chỉ câu giải thích, không link", async () => {
+    await renderDetail(customOrder, () => page([]), [
+      ...ORDER_PERMISSION_SETS.salesStaff,
+      PRODUCTION_ORDER_PERMISSIONS.read,
+    ]);
+    await screen.findByText(/Chưa có đơn sản xuất — Điều phối sản xuất lập/);
+    expect(screen.queryByRole("link", { name: "Lập đơn sản xuất" })).not.toBeInTheDocument();
+  });
+});
 
 describe("OrderDetail — Đơn sản xuất theo dòng in (docs 17 §4.3)", () => {
   it("gửi đúng request BE: salesOrderId = orderId, cũ nhất trước, cỡ trang tối đa 200", async () => {

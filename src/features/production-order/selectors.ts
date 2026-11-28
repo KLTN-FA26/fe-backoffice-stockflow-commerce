@@ -1,6 +1,11 @@
 /** Selector thuần của Đơn sản xuất — không side effect, test được không cần React. */
 
-import type { EditInput, ProductionOrder, ProductionOrderEditValues } from "./types";
+import type {
+  EditInput,
+  ProductionOrder,
+  ProductionOrderDispatch,
+  ProductionOrderEditValues,
+} from "./types";
 
 export interface ProductionOrderTotals {
   cartons: number;
@@ -146,4 +151,16 @@ export function matchesProductionOrder(order: ProductionOrder, query: string): b
 export function shortageFromMessage(message: string | undefined): number | null {
   const match = message?.match(/lacks (\d+) carton/);
   return match ? Number(match[1]) : null;
+}
+
+/**
+ * Lần gửi mail gần nhất tới đơn vị sản xuất có lỗi không (kênh Email): đơn vẫn ghi "Đã gửi" dù thư lỗi (BE#477), nên
+ * màn nhắc ngay cạnh trạng thái. Lần mới nhất = thế hệ gửi lại lớn nhất rồi số lần thử lớn nhất.
+ */
+export function latestMailFailed(dispatch: ProductionOrderDispatch | undefined): boolean {
+  if (!dispatch || dispatch.channel === "PDF") return false;
+  const latest = [...dispatch.messages.items].sort(
+    (a, b) => b.generation - a.generation || b.attemptNumber - a.attemptNumber,
+  )[0];
+  return latest?.status === "FAILED";
 }

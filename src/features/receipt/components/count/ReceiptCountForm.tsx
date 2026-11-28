@@ -14,20 +14,13 @@ import { Alert } from "@/components/shared/Alert";
 import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
 
-import { CountLineRow } from "./CountLineRow";
+import { AllLocationSelect } from "./AllLocationSelect";
+import { CountLinesTable } from "./CountLinesTable";
 
 import type { AreaOption } from "@/lib/references/warehouse-layout";
 import type { CountRow, GoodsReceipt, ReceiptCountFormValues } from "@/features/receipt/types";
 
 const C = RECEIPT_COUNT_LABELS.count;
-const H = C.headers;
-const HEADERS = [
-  { label: H.sku, right: false },
-  { label: H.production, right: true },
-  { label: H.location, right: false },
-  { label: H.cartons, right: false },
-  { label: H.result, right: false },
-];
 const ACTION = "h-(--action-h) rounded-(--action-radius) px-(--action-px) text-[0.8125rem]";
 
 /**
@@ -89,34 +82,8 @@ export function ReceiptCountForm({
   return (
     <FormProvider {...form}>
       <form onSubmit={(event) => void submit(event)} noValidate className="space-y-3">
-        <div className="border-border-default overflow-x-auto rounded-[var(--r-sm)] border">
-          <table className="w-full text-[0.8125rem]">
-            <caption className="sr-only">{C.caption}</caption>
-            <thead className="bg-bg-subtle text-ink-secondary">
-              <tr>
-                {HEADERS.map((h) => (
-                  <th
-                    key={h.label}
-                    scope="col"
-                    className={`px-3 py-2 font-medium whitespace-nowrap ${h.right ? "text-right" : "text-left"}`}
-                  >
-                    {h.label}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row, index) => (
-                <CountLineRow
-                  key={row.productionOrderLineId}
-                  index={index}
-                  areas={areas}
-                  lot={lot}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {rows.length > 1 && areas.length > 1 && <AllLocationSelect areas={areas} />}
+        <CountLinesTable rows={rows} areas={areas} lot={lot} />
         <p className="text-ink-tertiary text-xs">{C.voidHint}</p>
         {rootError && (
           <p role="alert" className="text-danger text-xs">

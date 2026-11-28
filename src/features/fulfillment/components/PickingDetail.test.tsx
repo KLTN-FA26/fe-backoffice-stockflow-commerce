@@ -2,24 +2,13 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import {
-  FULFILLMENT_FIELD_MESSAGES as MSG_FIELD,
-  PICK_LINE_ERROR_MESSAGES as LE,
-  PICK_LINE_LABELS as L,
-  UI_LABELS,
-} from "@/constants";
+import { PICK_LINE_ERROR_MESSAGES as LE, PICK_LINE_LABELS as L, UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 import { toast } from "@/components/shared/Toast";
 
 import { LPN_1, LPN_2, PICK_LINE_1, apiPickLines } from "../__fixtures__/pick-lines";
 import { linePath, renderPickingDetail as renderDetail } from "../__fixtures__/picking-detail";
-import {
-  IDENTITIES,
-  mockFulfillmentApi,
-  pickInputComboboxOption,
-  scanInputComboboxCode,
-  renderFulfillmentScreen,
-} from "../__fixtures__/render";
+import { IDENTITIES, mockFulfillmentApi, renderFulfillmentScreen } from "../__fixtures__/render";
 import { OTHER_PICKER_ID, TASK_ID, apiTask, apiTaskLines, pickedTask } from "../__fixtures__/task";
 import { PickingDetail } from "./PickingDetail";
 
@@ -52,9 +41,9 @@ describe("PickingDetail — action-gating theo trạng thái + quyền + vai tr�
     const user = userEvent.setup();
     const { post } = renderDetail(IDENTITIES.warehouseStaff, apiTask());
 
+    // Bấm một lần là bắt đầu — không hộp xác nhận (S14-8)
     await user.click(await screen.findByRole("button", { name: action.startPicking }));
-    const dialog = await screen.findByRole("dialog");
-    await user.click(within(dialog).getByRole("button", { name: action.startPicking }));
+    expect(screen.queryByRole("dialog")).toBeNull();
 
     await waitFor(() => expect(post).toHaveBeenCalledWith(`${PATH}/picking-start`, undefined));
     // Sau khi tải lại: sang bước xác nhận dòng; chưa đủ dòng nên chưa có Hoàn tất
@@ -194,7 +183,7 @@ describe("PickingDetail — action-gating theo trạng thái + quyền + vai tr�
     expect(await screen.findByRole("button", { name: action.assign })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: action.startPicking })).toBeNull();
     // Dòng hàng đi kèm task (SCRUM-466) — không phụ thuộc quyền đọc đơn
-    const orderLines = await screen.findByRole("table", { name: /Dòng hàng của task/ });
+    const orderLines = await screen.findByRole("table", { name: /Dòng hàng của nhiệm vụ/ });
     expect(within(orderLines).getByText("TEE-BLK-M")).toBeInTheDocument();
   });
 
@@ -224,7 +213,7 @@ describe("PickingDetail — dữ liệu phụ trợ và lỗi", () => {
       ...apiTask(),
       lines: apiTaskLines,
     });
-    const table = await screen.findByRole("table", { name: /Dòng hàng của task/ });
+    const table = await screen.findByRole("table", { name: /Dòng hàng của nhiệm vụ/ });
     const rows = within(table).getAllByRole("row");
     expect(rows).toHaveLength(4);
     expect(within(rows[1] as HTMLElement).getByText("TEE-BLK-M")).toBeInTheDocument();
@@ -236,7 +225,7 @@ describe("PickingDetail — dữ liệu phụ trợ và lỗi", () => {
     expect(get.mock.calls.some(([url]) => String(url).startsWith("/orders"))).toBe(false);
   });
 
-  it("task chưa kèm dòng → câu 'Task chưa có dòng hàng.'", async () => {
+  it("nhiệm vụ chưa kèm dòng → câu 'Nhiệm vụ chưa có dòng hàng.'", async () => {
     renderDetail(IDENTITIES.warehouseStaff, apiTask());
     expect(await screen.findByText(fulfillment.noTaskLines)).toBeInTheDocument();
   });
@@ -265,7 +254,7 @@ describe("PickingDetail — dữ liệu phụ trợ và lỗi", () => {
     expect(screen.queryByText("Hoàn tất")).toBeNull();
   });
 
-  it("lỗi 409 khi bắt đầu (task đã đổi ở nơi khác) → đóng dialog, tải lại task", async () => {
+  it("lỗi 409 khi bắt đầu (nhiệm vụ đã đổi ở nơi khác) → không dialog, tải lại nhiệm vụ", async () => {
     const user = userEvent.setup();
     const spies = mockFulfillmentApi(
       IDENTITIES.warehouseStaff,
@@ -278,9 +267,6 @@ describe("PickingDetail — dữ liệu phụ trợ và lỗi", () => {
     );
     renderFulfillmentScreen(<PickingDetail id={TASK_ID} />);
     await user.click(await screen.findByRole("button", { name: action.startPicking }));
-    await user.click(
-      within(await screen.findByRole("dialog")).getByRole("button", { name: action.startPicking }),
-    );
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     const detailCalls = () => spies.get.mock.calls.filter(([url]) => url === PATH).length;
     await waitFor(() => expect(detailCalls()).toBeGreaterThan(1));
@@ -295,15 +281,20 @@ describe("PickingDetail — xác nhận dòng lấy hàng: quét vị trí + LPN
   const confirmCalls = (post: ReturnType<typeof mockFulfillmentApi>["post"]) =>
     post.mock.calls.filter(([url]) => url === confirmPath(PICK_LINE_1));
 
+  // Ô quét lớn (ScanInput): máy quét hoặc gõ tay rồi Enter; vị trí trước, LPN sau (docs 07 §4.2 bước 5)
+  async function scanLocation(user: ReturnType<typeof userEvent.setup>, location: string) {
+    await user.type(screen.getByLabelText(L.scanLocation), `${location}{Enter}`);
+  }
+  async function scanLpn(user: ReturnType<typeof userEvent.setup>, lpn: string) {
+    await user.type(await screen.findByLabelText(L.scanLpn), `${lpn}{Enter}`);
+  }
   async function fillAndSubmit(
     user: ReturnType<typeof userEvent.setup>,
     location: string,
     lpn: string,
   ) {
-    await pickInputComboboxOption(user, L.location, location);
-    const input = screen.getByLabelText(L.lpn);
-    await user.clear(input);
-    await user.type(input, `${lpn}{Enter}`);
+    await scanLocation(user, location);
+    await scanLpn(user, lpn);
   }
 
   it("thẻ xác nhận nói rõ bin cần đến và LPN cần lấy; KHÔNG có ô số lượng / mã hàng", async () => {
@@ -331,9 +322,9 @@ describe("PickingDetail — xác nhận dòng lấy hàng: quét vị trí + LPN
     expect(within(rows[1] as HTMLElement).getByText(LPN_2)).toBeInTheDocument();
   });
 
-  it("người được gán: chọn vị trí qua combobox, quét LPN → POST confirmation {locationCode, lpn} + Idempotency-Key", async () => {
+  it("người được gán: quét vị trí rồi LPN → POST confirmation {locationCode, lpn} + Idempotency-Key", async () => {
     const user = userEvent.setup();
-    const { post } = renderDetail(IDENTITIES.warehouseStaff, picking());
+    const { post } = renderDetail(IDENTITIES.warehouseStaff, picking(), {});
     expect(await screen.findByText(L.confirmTitle(1))).toBeInTheDocument();
     await fillAndSubmit(user, "HN-A01-01-01-A", LPN_1);
     await waitFor(() =>
@@ -347,23 +338,70 @@ describe("PickingDetail — xác nhận dòng lấy hàng: quét vị trí + LPN
     expect(await screen.findByText(L.confirmTitle(2))).toBeInTheDocument();
   });
 
-  it("quét đủ mã bin + Enter (không bấm option), rồi quét LPN → POST đúng mã bin đã quét", async () => {
+  it("vị trí là ô quét lớn, không phải danh sách chọn mọi vị trí của kho (TU-5)", async () => {
+    const { get } = renderDetail(IDENTITIES.warehouseStaff, picking());
+    await screen.findByText(L.confirmTitle(1));
+    expect(screen.queryByRole("combobox")).toBeNull();
+    // Cao ≥ 44px (R10): ô quét dùng h-12 (48px)
+    expect(screen.getByLabelText(L.scanLocation)).toHaveClass("h-12");
+    expect(screen.getByLabelText(L.scanLpn)).toHaveClass("h-12");
+    // Không đọc sơ đồ kho để dựng danh sách — lỗi sơ đồ không còn ảnh hưởng việc lấy hàng
+    expect(get.mock.calls.some(([url]) => String(url).includes("/layout"))).toBe(false);
+  });
+
+  it("chưa quét vị trí thì ô LPN bị khoá; quét xong vị trí đúng → mở ô LPN", async () => {
+    const user = userEvent.setup();
+    renderDetail(IDENTITIES.warehouseStaff, picking());
+    await screen.findByText(L.confirmTitle(1));
+    expect(screen.getByLabelText(L.scanLpn)).toBeDisabled();
+    await scanLocation(user, "HN-A01-01-01-A");
+    expect((await screen.findAllByText(L.locationOk("HN-A01-01-01-A"))).length).toBeGreaterThan(0);
+    expect(screen.getByLabelText(L.scanLpn)).toBeEnabled();
+    expect(screen.getByLabelText(L.scanLpn)).toHaveFocus();
+  });
+
+  it("quét sai vị trí → báo ngay tại ô nêu vị trí ĐÚNG của dòng, không sang bước LPN, không gọi BE", async () => {
     const user = userEvent.setup();
     const { post } = renderDetail(IDENTITIES.warehouseStaff, picking());
     await screen.findByText(L.confirmTitle(1));
-    await scanInputComboboxCode(user, L.location, "HN-A01-01-01-A");
-    expect(screen.getByRole("combobox", { name: L.location })).toHaveValue("HN-A01-01-01-A");
-    await user.type(screen.getByLabelText(L.lpn), `${LPN_1}{Enter}`);
-    await waitFor(() =>
-      expect(post).toHaveBeenCalledWith(
-        confirmPath(PICK_LINE_1),
-        { locationCode: "HN-A01-01-01-A", lpn: LPN_1 },
-        { headers: { "Idempotency-Key": expect.any(String) } },
-      ),
-    );
+    await scanLocation(user, "HN-STAGE-01");
+    expect(
+      (await screen.findAllByText(LE.locationMismatch("HN-A01-01-01-A"))).length,
+    ).toBeGreaterThan(0);
+    expect(screen.getByLabelText(L.scanLpn)).toBeDisabled();
+    expect(confirmCalls(post)).toHaveLength(0);
   });
 
-  it("409 PICK_LOCATION_MISMATCH → lỗi dưới ô Vị trí nêu bin ĐÚNG của dòng, giữ ô LPN", async () => {
+  it("mã vị trí không phân biệt hoa thường, bỏ khoảng trắng — như BE; gửi mã CỦA DÒNG, không phải chữ đã gõ", async () => {
+    const user = userEvent.setup();
+    const { post } = renderDetail(IDENTITIES.warehouseStaff, picking());
+    await screen.findByText(L.confirmTitle(1));
+    await fillAndSubmit(user, " hn-a01-01-01-a ", LPN_1);
+    await waitFor(() => expect(confirmCalls(post)).toHaveLength(1));
+    expect(confirmCalls(post)[0]?.[1]).toEqual({ locationCode: "HN-A01-01-01-A", lpn: LPN_1 });
+  });
+
+  it("gõ tay không có máy quét: gõ LPN rồi bấm nút Xác nhận dòng", async () => {
+    const user = userEvent.setup();
+    const { post } = renderDetail(IDENTITIES.warehouseStaff, picking());
+    await screen.findByText(L.confirmTitle(1));
+    await scanLocation(user, "HN-A01-01-01-A");
+    await user.type(await screen.findByLabelText(L.scanLpn), LPN_1);
+    await user.click(screen.getByRole("button", { name: L.scanLpnConfirm }));
+    await waitFor(() => expect(confirmCalls(post)).toHaveLength(1));
+  });
+
+  it("bấm 'Quét lại vị trí' → ô vị trí mở lại, ô LPN khoá", async () => {
+    const user = userEvent.setup();
+    renderDetail(IDENTITIES.warehouseStaff, picking());
+    await screen.findByText(L.confirmTitle(1));
+    await scanLocation(user, "HN-A01-01-01-A");
+    await user.click(await screen.findByRole("button", { name: L.rescanLocation }));
+    expect(screen.getByLabelText(L.scanLocation)).toBeEnabled();
+    expect(screen.getByLabelText(L.scanLpn)).toBeDisabled();
+  });
+
+  it("BE vẫn từ chối vị trí (409 PICK_LOCATION_MISMATCH) → lỗi tại ô vị trí, ô mở lại để quét lại", async () => {
     const user = userEvent.setup();
     const { post } = renderDetail(IDENTITIES.warehouseStaff, picking(), {
       confirm: () => {
@@ -371,16 +409,16 @@ describe("PickingDetail — xác nhận dòng lấy hàng: quét vị trí + LPN
       },
     });
     await screen.findByText(L.confirmTitle(1));
-    await fillAndSubmit(user, "HN-STAGE-01", LPN_1);
-    expect(await screen.findByText(LE.locationMismatch("HN-A01-01-01-A"))).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: L.location })).toHaveValue("");
-    expect(screen.getByLabelText(L.lpn)).toHaveValue(LPN_1);
-    // Quét lại vị trí phải rơi vào ô Vị trí, không phải ô LPN vừa Enter
-    expect(screen.getByRole("combobox", { name: L.location })).toHaveFocus();
+    await fillAndSubmit(user, "HN-A01-01-01-A", LPN_1);
+    expect(
+      (await screen.findAllByText(LE.locationMismatch("HN-A01-01-01-A"))).length,
+    ).toBeGreaterThan(0);
+    expect(screen.getByLabelText(L.scanLocation)).toBeEnabled();
+    expect(screen.getByLabelText(L.scanLocation)).toHaveFocus();
     expect(confirmCalls(post)).toHaveLength(1);
   });
 
-  it("409 PICK_ITEM_MISMATCH (quét SKU / LPN của đơn khác) → lỗi dưới ô LPN nêu LPN ĐÚNG của dòng, xoá ô để quét lại", async () => {
+  it("409 PICK_ITEM_MISMATCH (quét SKU / LPN của đơn khác) → lỗi dưới ô LPN nêu LPN ĐÚNG của dòng, ô trống để quét lại", async () => {
     const user = userEvent.setup();
     renderDetail(IDENTITIES.warehouseStaff, picking(), {
       confirm: () => {
@@ -389,34 +427,23 @@ describe("PickingDetail — xác nhận dòng lấy hàng: quét vị trí + LPN
     });
     await screen.findByText(L.confirmTitle(1));
     await fillAndSubmit(user, "HN-A01-01-01-A", "LPN-OF-ANOTHER-ORDER");
-    expect(await screen.findByText(LE.itemMismatch(LPN_1))).toBeInTheDocument();
-    expect(screen.getByLabelText(L.lpn)).toHaveFocus();
-    expect(screen.getByLabelText(L.lpn)).toHaveValue("");
+    expect((await screen.findAllByText(LE.itemMismatch(LPN_1))).length).toBeGreaterThan(0);
+    expect(screen.getByLabelText(L.scanLpn)).toHaveFocus();
+    expect(screen.getByLabelText(L.scanLpn)).toHaveValue("");
   });
 
-  it("LPN trống → FE bắt nhập, không gọi BE", async () => {
-    const user = userEvent.setup();
-    const { post } = renderDetail(IDENTITIES.warehouseStaff, picking());
-    await screen.findByText(L.confirmTitle(1));
-    await pickInputComboboxOption(user, L.location, "HN-A01-01-01-A");
-    await user.click(screen.getByRole("button", { name: L.submit }));
-    expect(await screen.findByText(MSG_FIELD.lpnRequired)).toBeInTheDocument();
-    expect(confirmCalls(post)).toHaveLength(0);
-  });
-
-  it("bấm gửi hai lần khi đang chờ → chỉ một POST", async () => {
+  it("quét hai lần khi đang chờ → chỉ một POST", async () => {
     const user = userEvent.setup();
     const { post } = renderDetail(IDENTITIES.warehouseStaff, picking(), {
       confirm: () => new Promise(() => {}),
     });
     await screen.findByText(L.confirmTitle(1));
     await fillAndSubmit(user, "HN-A01-01-01-A", LPN_1);
-    await user.click(screen.getByRole("button", { name: L.submit }));
-    await user.type(screen.getByLabelText(L.lpn), "{Enter}");
+    await scanLpn(user, LPN_1);
     expect(confirmCalls(post)).toHaveLength(1);
   });
 
-  it("lỗi mạng rồi gửi lại cùng nội dung → cùng Idempotency-Key; sửa LPN → key mới", async () => {
+  it("lỗi mạng rồi quét lại cùng nội dung → cùng Idempotency-Key; LPN khác → key mới", async () => {
     const user = userEvent.setup();
     const { post } = renderDetail(IDENTITIES.warehouseStaff, picking(), {
       confirm: () => {
@@ -426,17 +453,16 @@ describe("PickingDetail — xác nhận dòng lấy hàng: quét vị trí + LPN
     await screen.findByText(L.confirmTitle(1));
     await fillAndSubmit(user, "HN-A01-01-01-A", LPN_1);
     expect(await screen.findByText(LE.network)).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: L.submit }));
-    const input = screen.getByLabelText(L.lpn);
-    await user.clear(input);
-    await user.type(input, `${LPN_2}{Enter}`);
+    await scanLpn(user, LPN_1);
+    await waitFor(() => expect(confirmCalls(post)).toHaveLength(2));
+    await scanLpn(user, LPN_2);
     await waitFor(() => expect(confirmCalls(post)).toHaveLength(3));
     const calls = confirmCalls(post);
     expect(keyOf(calls[1] as unknown[])).toBe(keyOf(calls[0] as unknown[]));
     expect(keyOf(calls[2] as unknown[])).not.toBe(keyOf(calls[0] as unknown[]));
   });
 
-  it("PICK_TASK_STATE_CONFLICT → báo + tải lại task và dòng", async () => {
+  it("PICK_TASK_STATE_CONFLICT → báo + tải lại nhiệm vụ và dòng", async () => {
     const user = userEvent.setup();
     const error = vi.spyOn(toast, "error").mockImplementation(() => "");
     const { get } = renderDetail(IDENTITIES.warehouseStaff, picking(), {
@@ -451,18 +477,6 @@ describe("PickingDetail — xác nhận dòng lấy hàng: quét vị trí + LPN
     await waitFor(() => expect(error).toHaveBeenCalledWith(LE.taskState));
     await waitFor(() => expect(reads(PATH)).toBeGreaterThan(before.task));
     await waitFor(() => expect(reads(`${PATH}/pick-lines`)).toBeGreaterThan(before.lines));
-  });
-
-  it("không tải được sơ đồ kho (403) → vẫn chọn được vị trí của các dòng, có ghi chú", async () => {
-    const user = userEvent.setup();
-    const { post } = renderDetail(IDENTITIES.warehouseStaff, picking(), {
-      layout: () => {
-        throw new ApiError(403, "FORBIDDEN", "Access denied");
-      },
-    });
-    expect(await screen.findByText(L.locationsUnavailable)).toBeInTheDocument();
-    await fillAndSubmit(user, "HN-A01-01-01-A", LPN_1);
-    await waitFor(() => expect(confirmCalls(post)).toHaveLength(1));
   });
 
   it("Chọn dòng khác trong bảng → thẻ xác nhận đổi sang dòng đó", async () => {

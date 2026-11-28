@@ -9,17 +9,12 @@ import {
   VEHICLE_TYPE_STATUS_LABELS,
   VEHICLE_TYPE_STATUSES,
 } from "@/constants";
-import { FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
-import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
-import {
-  Select,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/shared/combobox-select";
+import { fieldA11y } from "@/components/shared/FormField";
+import { SegmentedControl } from "@/components/shared/SegmentedControl";
 
 import { FormField, TextInput } from "./form-parts";
 import { VolumePreview } from "./VolumePreview";
+import { formatMetres } from "../selectors";
 
 import type { UseFormReturn } from "react-hook-form";
 import type { VehicleTypeFormInput, VehicleTypeFormValues } from "@/features/vehicle-type/types";
@@ -44,6 +39,14 @@ export function VehicleTypeFields({
   preset?: boolean;
 }) {
   const errors = form.formState.errors;
+  // Nhập mm nhưng nơi khác hiện mét: dưới ô các cạnh (mm) nhắc quy đổi "= 5,898 m" (UX audit S20-2)
+  const metresOf = (name: TextName): string | undefined => {
+    if (!name.endsWith("Mm")) return undefined;
+    const raw = String(form.watch(name) ?? "").trim();
+    return /^\d+$/.test(raw) && Number(raw) > 0
+      ? `= ${formatMetres(Number(raw))} ${L.unitM}`
+      : undefined;
+  };
   const text = (
     name: TextName,
     opts: { required?: boolean; hint?: string; numeric?: boolean; disabled?: boolean } = {},
@@ -52,7 +55,15 @@ export function VehicleTypeFields({
       id={`vt-${name}`}
       label={L.field[name]}
       required={opts.required}
-      hint={opts.hint}
+      hint={
+        opts.hint || metresOf(name) ? (
+          <>
+            {opts.hint ? <span>{opts.hint}</span> : null}
+            {opts.hint && metresOf(name) ? " · " : null}
+            {metresOf(name) ? <span>{metresOf(name)}</span> : null}
+          </>
+        ) : undefined
+      }
       error={errors[name]?.message}
     >
       <TextInput
@@ -89,18 +100,15 @@ export function VehicleTypeFields({
         control={form.control}
         name={name}
         render={({ field }) => (
-          <Select value={field.value} onValueChange={field.onChange} disabled={opts.disabled}>
-            <SelectTrigger id={`vt-${name}`} className={FORM_SELECT_CLASS}>
-              <SelectValue />
-            </SelectTrigger>
-            <TitledSelectContent title={L.field[name]}>
-              {options.map((value) => (
-                <SelectItem key={value} value={value}>
-                  {labels[value]}
-                </SelectItem>
-              ))}
-            </TitledSelectContent>
-          </Select>
+          // 2–3 giá trị cố định: hiện sẵn cả hai / ba, một lần bấm (UX audit S01-6)
+          <SegmentedControl
+            {...fieldA11y(`vt-${name}`, errors[name]?.message, Boolean(opts.hint))}
+            labelledBy={`vt-${name}-label`}
+            value={field.value}
+            onChange={field.onChange}
+            disabled={opts.disabled}
+            options={options.map((value) => ({ value, label: labels[value] ?? value }))}
+          />
         )}
       />
     </FormField>

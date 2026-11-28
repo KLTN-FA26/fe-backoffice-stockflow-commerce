@@ -9,6 +9,7 @@ import { RETURN_LABELS } from "@/constants/labels-return";
 import { RETURN_LIMITS } from "@/constants/returns";
 import { DirectUploadError, uploadFileDirect } from "@/lib/api/direct-upload";
 import { Card } from "@/components/shared/Card";
+import { FilePickerField } from "@/components/shared/FilePickerField";
 import { FormField, fieldA11y } from "@/components/shared/FormField";
 import { FORM_TEXTAREA_CLASS } from "@/components/shared/form-control-classes";
 import { Notice } from "@/components/shared/Notice";
@@ -23,6 +24,7 @@ import { useAddCustody } from "../mutations";
 import { custodyEvidence, evidenceFileProblem } from "../selectors";
 
 import { CustodyNoteActions, CustodyOutcomeText } from "./CustodyNoteActions";
+import { QuantityField } from "./QuantityField";
 import { EMPTY, MONO, When } from "./primitives";
 
 import type { CustodyFormValues, ReturnRequest } from "../types";
@@ -99,12 +101,12 @@ function CustodyForm({ ret }: { ret: ReturnRequest }) {
         />
       </FormField>
       <FormField id="custody-qty" label={C.quantity} required error={errors.quantity?.message}>
-        <Input
-          type="number"
-          min={1}
-          inputMode="numeric"
-          {...fieldA11y("custody-qty", errors.quantity?.message)}
-          {...form.register("quantity", { valueAsNumber: true })}
+        <QuantityField
+          control={form.control}
+          name="quantity"
+          inputProps={{
+            ...fieldA11y("custody-qty", errors.quantity?.message),
+          }}
         />
       </FormField>
       <div className="sm:col-span-3">
@@ -120,15 +122,13 @@ function CustodyForm({ ret }: { ret: ReturnRequest }) {
       </div>
       <div className="sm:col-span-2">
         <FormField id={photoId} label={C.photo} required error={photoError ?? undefined}>
-          <input
-            ref={photoRef}
-            type="file"
+          <FilePickerField
+            inputRef={photoRef}
             accept={RETURN_LIMITS.evidenceTypes.join(",")}
+            fileName={photo?.name}
             disabled={busy}
-            className="text-[0.8125rem]"
             {...fieldA11y(photoId, photoError ?? undefined)}
-            onChange={(event) => {
-              const file = event.target.files?.[0] ?? null;
+            onChange={(file) => {
               setPhoto(file);
               setPhotoError(file ? evidenceFileProblem(file) : null);
             }}

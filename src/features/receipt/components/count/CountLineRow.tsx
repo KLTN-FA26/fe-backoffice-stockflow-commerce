@@ -6,7 +6,6 @@ import { X } from "lucide-react";
 import { RECEIPT_COUNT_LABELS } from "@/constants";
 import { countRowTotal } from "@/features/receipt/count-schemas";
 import { countResult } from "@/features/receipt/count-selectors";
-import { ToneDot } from "@/components/shared/column-helpers";
 import { FormSelect } from "@/components/shared/FormSelect";
 import { FORM_INPUT_CLASS, FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
 import { Input } from "@/components/ui/input";
@@ -18,19 +17,13 @@ import {
 } from "@/components/shared/combobox-select";
 
 import { FieldError, NUM } from "../primitives";
+import { CountResultCell } from "./CountResultCell";
 
 import type { AreaOption } from "@/lib/references/warehouse-layout";
-import type { CountResult } from "@/features/receipt/count-selectors";
 import type { ReceiptCountFormValues } from "@/features/receipt/types";
 
 const C = RECEIPT_COUNT_LABELS.count;
 const MONO = "font-[family-name:var(--font-mono)]";
-const RESULT_TONE = {
-  full: "positive",
-  short: "warning",
-  over: "danger",
-  none: "muted",
-} as const satisfies Record<CountResult, "positive" | "warning" | "danger" | "muted">;
 
 /**
  * Một dòng Đơn sản xuất trong form kiểm đếm: khu nhận, thùng đã dán nhãn (bấm để bỏ → Void khi lưu), số thùng mới, và
@@ -56,13 +49,14 @@ export function CountLineRow({
 
   return (
     <tr className="border-t border-(--table-line) align-top">
-      <th scope="row" className="px-3 py-2 text-left font-normal">
+      {/* SKU / lô không bẻ dòng: cột SKU đủ rộng, bảng cuộn ngang (có bóng mép) thay vì ép mã xuống 3 dòng */}
+      <th scope="row" className="px-3 py-2 text-left font-normal whitespace-nowrap">
         <div className={`text-ink-primary ${MONO}`}>{row.sku}</div>
         <div className="text-ink-tertiary text-xs">{C.lot(lot)}</div>
       </th>
-      <td className={`px-3 py-2 ${NUM}`}>
+      <td className={`px-3 py-2 whitespace-nowrap ${NUM}`}>
         <div className="text-ink-primary">
-          {row.receivedCartons}/{row.orderedCartons}
+          {C.receivedOfOrdered(row.receivedCartons, row.orderedCartons)}
         </div>
         <div className="text-ink-tertiary text-xs">{C.openCartons(row.maxCartons)}</div>
         <div className="text-ink-tertiary text-xs">{C.perCarton(row.unitsPerCarton)}</div>
@@ -126,6 +120,11 @@ export function CountLineRow({
         )}
         <label htmlFor={ids.cartons} className="text-ink-secondary mb-1 block text-xs">
           {C.newCartons}
+          {row.existing.length > 0 && (
+            <span className="text-ink-tertiary block">
+              {C.existingCartons(row.existing.length)}
+            </span>
+          )}
         </label>
         <Input
           type="number"
@@ -140,14 +139,7 @@ export function CountLineRow({
         />
         <FieldError id={`${ids.cartons}-error`}>{cartonsError}</FieldError>
       </td>
-      <td className="px-3 py-2">
-        <ToneDot tone={RESULT_TONE[result]} label={C.result[result]} />
-        {total > 0 && (
-          <div className={`text-ink-tertiary mt-0.5 text-xs ${NUM}`}>
-            {C.cartonsAndUnits(total, total * row.unitsPerCarton)}
-          </div>
-        )}
-      </td>
+      <CountResultCell row={row} total={total} result={result} />
     </tr>
   );
 }

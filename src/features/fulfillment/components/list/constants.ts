@@ -45,17 +45,8 @@ export const LOCKED_COLUMNS: string[] = [C.TASK, C.ACTIONS];
 export const DATA_COLUMNS: string[] = ALL_COLUMNS.filter((c) => c !== C.ACTIONS);
 
 const DEFAULT_COLUMNS: Record<FulfillmentScope, string[]> = {
-  picking: [
-    C.TASK,
-    C.ORDER,
-    C.ASSIGNEE,
-    C.PICK_STATUS,
-    C.PACK_STATUS,
-    C.ASSIGNED_AT,
-    C.STARTED_AT,
-    C.PICKED_AT,
-    C.ACTIONS,
-  ],
+  // Ba cột ngày giờ cùng một giờ gán lặp nhau trên mọi dòng — mặc định chỉ "Ngày gán", hai cột kia bật khi cần
+  picking: [C.TASK, C.ORDER, C.ASSIGNEE, C.PICK_STATUS, C.PACK_STATUS, C.ASSIGNED_AT, C.ACTIONS],
   packing: [
     C.TASK,
     C.ORDER,

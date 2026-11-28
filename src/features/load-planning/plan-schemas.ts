@@ -27,6 +27,8 @@ export const beDecimal = z.union([z.number(), z.string()]).transform(Number).pip
 export const beParcelSchema = z.object({
   packageId: z.string(),
   labelCode: z.string(),
+  /** LPN của thùng — mã kiện hiện chính (docs 08 §4.3 bước 6); BE cũ chưa trả thì vắng. */
+  lpn: z.string().nullish(),
   shipmentId: z.string(),
   shipmentCode: z.string().nullish(),
   /** SKU; kiện của bộ là `SKU n/N`, kiện hỗn hợp là `SKU1 + SKU2`. */

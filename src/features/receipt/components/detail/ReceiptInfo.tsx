@@ -39,7 +39,7 @@ export function ReceiptInfo({ receipt }: { receipt: GoodsReceipt }) {
           value={person(receipt.confirmedBy, receipt.confirmedByName)}
         />
         <InfoItem label="Ngày đóng" value={dt(receipt.closedAt)} />
-        <InfoItem label="Ghi chú" value={receipt.note ?? "—"} />
+        <InfoItem label="Ghi chú" value={receipt.note ?? "—"} wrap />
       </div>
     </Section>
   );

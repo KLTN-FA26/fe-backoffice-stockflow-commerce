@@ -125,8 +125,7 @@ describe("Lô giao sau bàn giao — bước do hãng báo, sửa lý do thất 
     const { post } = render(MANAGER, returned(), () => fixed);
     await user.click(await screen.findByRole("button", { name: C.button }));
     const dialog = await screen.findByRole("dialog");
-    await user.click(within(dialog).getByRole("combobox"));
-    await user.click(await screen.findByRole("option", { name: "Khách từ chối nhận" }));
+    await user.click(within(dialog).getByRole("radio", { name: "Khách từ chối nhận" }));
     const save = within(dialog).getByRole("button", { name: C.confirm });
     expect(save).toBeDisabled();
     await user.type(
@@ -147,8 +146,7 @@ describe("Lô giao sau bàn giao — bước do hãng báo, sửa lý do thất 
     post.mockRejectedValueOnce(new ApiError(409, "SHIPMENT_FAILURE_REASON_LOCKED", "en"));
     await user.click(screen.getByRole("button", { name: C.button }));
     const again = await screen.findByRole("dialog");
-    await user.click(within(again).getByRole("combobox"));
-    await user.click(await screen.findByRole("option", { name: "Hàng hư hỏng" }));
+    await user.click(within(again).getByRole("radio", { name: "Hàng hư hỏng" }));
     await user.type(within(again).getByLabelText(new RegExp(C.reasonLabel)), "x");
     await user.click(within(again).getByRole("button", { name: C.confirm }));
     expect(await within(again).findByRole("alert")).toHaveTextContent(

@@ -1,18 +1,20 @@
 "use client";
 
 import { cartonCheckHoldReasonLabel, UI_LABELS } from "@/constants";
+import { ScrollShadowBox } from "@/components/backoffice/ScrollShadowBox";
 import { cartonActions, cartonLabelHeld } from "@/features/fulfillment/carton-check-lifecycle";
 
 import { CartonRow } from "./CartonRow";
+import { PINNED } from "./CartonRowActions";
 
 import type { CartonRowHandlers } from "./CartonRowActions";
 import type { CartonCheckAccess } from "@/features/fulfillment/carton-check-lifecycle";
 import type { Carton, CartonCheckSession } from "@/features/fulfillment/carton-check-types";
 
 const L = UI_LABELS.cartonCheck.cartons;
-const TH = "text-ink-secondary px-3 py-2 text-xs font-medium";
-const TEXT_COLUMNS = [L.colNo, L.colLpn, L.colSku, L.colLot];
-const TAIL_COLUMNS = [L.colStatus, L.colLabel, L.colSize, L.colWeight, L.colShipment, L.colActions];
+// Tiêu đề không bẻ dòng ("Dài × rộng × cao" không còn bị xếp dọc từng chữ)
+const TH = "text-ink-secondary px-3 py-2 text-xs font-medium whitespace-nowrap";
+const TEXT_COLUMNS = [L.colNo, L.colLpn, L.colSku];
 
 /** Bảng thùng của phiên; thao tác mỗi dòng theo `cartonActions` (trạng thái thùng + bảng chuyển trạng thái + quyền). */
 export function CartonsTable({
@@ -33,8 +35,24 @@ export function CartonsTable({
     : undefined;
   const shipmentCode = (id: string | null | undefined) =>
     session.shipments.find((shipment) => shipment.shipmentId === id)?.code;
+  // Cột chưa có dữ liệu ở bất kỳ thùng nào thì ẩn (toàn "—" chỉ làm bảng rộng thêm và đẩy nút thao tác ra ngoài khung)
+  const columns = {
+    size: cartons.some(
+      (carton) => carton.lengthCm != null && carton.widthCm != null && carton.heightCm != null,
+    ),
+    weight: cartons.some((carton) => carton.weightKg != null),
+    shipment: cartons.some((carton) => !!shipmentCode(carton.shipmentId)),
+  };
+  const tail = [
+    L.colStatus,
+    L.colLabel,
+    ...(columns.size ? [L.colSize] : []),
+    ...(columns.weight ? [L.colWeight] : []),
+    ...(columns.shipment ? [L.colShipment] : []),
+    L.colActions,
+  ];
   return (
-    <div className="border-border-default overflow-x-auto rounded-[var(--r-sm)] border">
+    <ScrollShadowBox>
       <table className="w-full">
         <caption className="sr-only">{L.title}</caption>
         <thead className="bg-bg-subtle border-border-default border-b">
@@ -47,8 +65,12 @@ export function CartonsTable({
             <th scope="col" className={`${TH} text-right`}>
               {L.colQty}
             </th>
-            {TAIL_COLUMNS.map((header) => (
-              <th key={header} scope="col" className={`${TH} text-left`}>
+            {tail.map((header) => (
+              <th
+                key={header}
+                scope="col"
+                className={`${TH} text-left ${header === L.colActions ? `${PINNED} bg-bg-subtle` : ""}`}
+              >
                 {header}
               </th>
             ))}
@@ -65,10 +87,11 @@ export function CartonsTable({
               handlers={handlers}
               labelHeld={cartonLabelHeld(carton, session, access)}
               heldTitle={heldTitle}
+              columns={columns}
             />
           ))}
         </tbody>
       </table>
-    </div>
+    </ScrollShadowBox>
   );
 }

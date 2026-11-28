@@ -606,3 +606,15 @@ button[role="combobox"] {
   --action-h: 2.125rem;
   --action-px: 0.75rem;
 }
+
+/* Màn cảm ứng (máy tính bảng ở kho): vùng chạm tối thiểu 44px cho nút hành động và ô nhập dùng biến token
+   (R10 — nút / ô quét màn kho). Chuột và bàn phím giữ cỡ gọn như trên. */
+@media (pointer: coarse) {
+  :root,
+  .surface-soft,
+  .surface-soft.surface-compact {
+    --action-h: 2.75rem;
+    --control-h: 2.75rem;
+    --control-size: 2.75rem;
+  }
+}

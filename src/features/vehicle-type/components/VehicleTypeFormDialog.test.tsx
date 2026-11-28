@@ -140,6 +140,8 @@ describe("VehicleTypeFormDialog — sửa loại xe", () => {
     expect(field(L.field.code)).toBeDisabled();
     expect(field(L.field.code)).toHaveValue("20DC");
     expect(field(L.field.innerLengthMm)).toHaveValue("5898");
+    // Nhập mm nhưng nơi khác hiện mét: dưới ô có quy đổi (UX audit S20-2)
+    expect(screen.getByText("= 5,898 m")).toBeInTheDocument();
     expect(field(L.field.maxPayloadKg)).toHaveValue("28200");
     expect(field(L.field.status)).toBeInTheDocument();
     expect(screen.getByText("33,20 m³")).toBeInTheDocument();
@@ -147,16 +149,24 @@ describe("VehicleTypeFormDialog — sửa loại xe", () => {
 
   it("loại xe mặc định: mã và loại bị khoá, có gợi ý; loại xe tự thêm đổi được loại", async () => {
     renderDialog(apiVehicleType());
-    const kind = await screen.findByRole("combobox", { name: new RegExp(`^${L.field.kind}`) });
-    expect(kind).toBeDisabled();
+    const kind = await screen.findByRole("radiogroup", { name: new RegExp(`^${L.field.kind}`) });
+    expect(
+      within(kind)
+        .getAllByRole("radio")
+        .every((radio) => radio.hasAttribute("disabled")),
+    ).toBe(true);
     expect(field(L.field.code)).toBeDisabled();
     expect(screen.getByText(L.form.presetLockedHint)).toBeInTheDocument();
   });
 
   it("loại xe tự thêm: loại chọn được, chỉ mã bị khoá", async () => {
     renderDialog(apiCustomTruck());
-    const kind = await screen.findByRole("combobox", { name: new RegExp(`^${L.field.kind}`) });
-    expect(kind).toBeEnabled();
+    const kind = await screen.findByRole("radiogroup", { name: new RegExp(`^${L.field.kind}`) });
+    expect(
+      within(kind)
+        .getAllByRole("radio")
+        .every((radio) => radio.hasAttribute("disabled")),
+    ).toBe(false);
     expect(field(L.field.code)).toBeDisabled();
     expect(screen.queryByText(L.form.presetLockedHint)).not.toBeInTheDocument();
   });

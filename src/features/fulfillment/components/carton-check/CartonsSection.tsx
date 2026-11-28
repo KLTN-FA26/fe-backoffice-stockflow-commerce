@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Printer, Tag } from "lucide-react";
+import { Printer } from "lucide-react";
 
-import { cartonCheckHoldReasonLabel, UI_LABELS } from "@/constants";
+import { UI_LABELS } from "@/constants";
 import { labelableCartons, printableCartons } from "@/features/fulfillment/carton-check-lifecycle";
 import { cartonCheckErrorMessage } from "@/features/fulfillment/carton-check-errors";
 import { useLabelCartons } from "@/features/fulfillment/carton-check-mutations";
@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 
 import { Section } from "../primitives";
 import { CartonsTable } from "./CartonsTable";
+import { LabelAllButton } from "./LabelAllButton";
 import { RemoveCartonDialog } from "./RemoveCartonDialog";
 import { ReprintLabelDialog } from "./ReprintLabelDialog";
 import { ShippingLabelsDialog } from "./ShippingLabelsDialog";
@@ -48,8 +49,6 @@ export function CartonsSection({
   const label = useLabelCartons();
   const cartons = sortedCartons(session);
   const labelable = access.canWork ? labelableCartons(session) : [];
-  // Đơn treo (WF4-K2): nút dán nhãn hiện nhưng tắt, lý do nằm ở chữ nhỏ cạnh nút — không giấu thao tác
-  const heldReason = access.held ? session.holdReason : null;
   const printable = access.canPrint ? printableCartons(session) : [];
 
   const runLabel = (lpns: readonly string[]) =>
@@ -73,24 +72,13 @@ export function CartonsSection({
       description={L.cartons.description}
       actions={
         <>
-          {labelable.length > 0 && (
-            <Button
-              type="button"
-              size="xs"
-              disabled={label.isPending || access.held}
-              title={
-                heldReason ? L.hold.blocked(cartonCheckHoldReasonLabel(heldReason)) : undefined
-              }
-              onClick={() => runLabel(labelable.map((carton) => carton.lpn))}
-            >
-              <Tag className="size-3" /> {L.action.labelAll} ({labelable.length})
-            </Button>
-          )}
-          {heldReason && labelable.length > 0 && (
-            <p className="text-ink-tertiary basis-full text-xs">
-              {L.hold.blocked(cartonCheckHoldReasonLabel(heldReason))}
-            </p>
-          )}
+          <LabelAllButton
+            count={labelable.length}
+            pending={label.isPending}
+            access={access}
+            holdReason={access.held ? session.holdReason : null}
+            onLabel={() => runLabel(labelable.map((carton) => carton.lpn))}
+          />
           {printable.length > 0 && (
             <Button
               type="button"

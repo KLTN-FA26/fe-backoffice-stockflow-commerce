@@ -7,9 +7,11 @@ import { formatDate } from "@/lib/format/date";
 import {
   openCartonsOf,
   orderedCartonsOf,
+  skusOf,
   useReceivableProductionOrders,
 } from "@/lib/references/production-orders";
 import { limitComboboxOptions } from "@/components/shared/combobox-options";
+import { Button } from "@/components/ui/button";
 import {
   COMBOBOX_ITEM_CLASS,
   ComboboxMoreHint,
@@ -19,6 +21,7 @@ import { CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/componen
 
 const L = RECEIPT_COUNT_LABELS.create;
 const NOTE = "text-ink-tertiary px-3 py-1.5 text-xs";
+const dayOf = (iso: string | null | undefined) => (iso ? formatDate(iso) : null);
 
 /**
  * Chọn Đơn sản xuất nhận được hàng (BR-01 / BR-15, docs 03 §6) — gõ thẳng mã đơn vào ô. Danh sách nhỏ (đơn đang mở ở
@@ -30,19 +33,29 @@ export function ProductionOrderCombobox({
   onChange,
   error,
   describedBy,
+  warehouseId,
+  autoFocus = true,
 }: {
   id: string;
   value: string;
   onChange: (productionOrderId: string) => void;
   error?: boolean;
   describedBy?: string;
+  /** Màn nhận hàng của một kho: chỉ đơn về kho này. */
+  warehouseId?: string;
+  /** Mặc định có (hộp Lập phiếu); ô lọc trong danh sách đặt `false`. */
+  autoFocus?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const orders = useReceivableProductionOrders();
+  const orders = useReceivableProductionOrders(true, warehouseId);
   const picked = orders.data.find((order) => order.id === value);
-  // Lọc theo mã ở client, chỉ hiện 10 đơn đầu + "Còn N kết quả — gõ thêm" (R1)
-  const { visible, hidden } = limitComboboxOptions(orders.data, search, (order) => order.code);
+  // Lọc ở client (gõ mã đơn, đơn vị sản xuất hoặc SKU), chỉ hiện 10 đơn đầu + "Còn N kết quả — gõ thêm" (R1)
+  const { visible, hidden } = limitComboboxOptions(orders.data, search, (order) => [
+    order.code,
+    order.producerName ?? "",
+    ...skusOf(order),
+  ]);
 
   return (
     <InputCombobox
@@ -59,7 +72,7 @@ export function ProductionOrderCombobox({
       onSearchChange={setSearch}
       shouldFilter={false}
       onClear={() => onChange("")}
-      autoFocus
+      autoFocus={autoFocus}
       mono
     >
       <CommandList>
@@ -67,36 +80,49 @@ export function ProductionOrderCombobox({
           <p className={NOTE}>{L.loading}</p>
         ) : (
           <>
-            {/* Một trạng thái tải lỗi không che các đơn đã tải được — vẫn hiện danh sách, kèm mục thử lại */}
+            {/* Lỗi tải nằm riêng trên danh sách (không phải một dòng đơn để chọn); đơn đã tải được vẫn hiện bên dưới */}
             {orders.isError && (
-              <CommandItem
-                value="retry"
-                forceMount
-                className={COMBOBOX_ITEM_CLASS}
-                onSelect={() => orders.refetch()}
-              >
-                {L.loadError}
-              </CommandItem>
+              <div role="alert" className="text-danger flex items-center gap-2 px-3 py-2 text-xs">
+                <span className="min-w-0 flex-1">{L.loadError}</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="xs"
+                  onClick={() => orders.refetch()}
+                  className="shrink-0"
+                >
+                  {L.retry}
+                </Button>
+              </div>
             )}
             {!orders.isError && <CommandEmpty>{L.productionOrderEmpty}</CommandEmpty>}
             <CommandGroup>
               {visible.map((order) => (
                 <CommandItem
                   key={order.id}
-                  value={order.code}
+                  // Gõ mã đơn, đơn vị sản xuất hoặc SKU đều tìm ra đơn
+                  value={`${order.code} ${order.producerName ?? ""} ${skusOf(order).join(" ")}`}
                   className={COMBOBOX_ITEM_CLASS}
                   onSelect={() => {
                     onChange(order.id);
                     setOpen(false);
                   }}
                 >
+                  {/* Hai tầng: mã Đơn sản xuất / đơn vị · SKU · thùng còn nhận · ngày giao dự kiến */}
                   <div className="flex min-w-0 flex-1 flex-col">
                     <span className="truncate font-[family-name:var(--font-mono)]">
                       {order.code}
                     </span>
-                    <span className="text-ink-tertiary truncate text-xs tabular-nums">
-                      {L.optionMeta(openCartonsOf(order), orderedCartonsOf(order))}
-                      {order.needByDate ? ` · ${formatDate(order.needByDate)}` : ""}
+                    {/* Khoảng trắng giữa hai tầng: trình đọc màn hình đọc "mã, rồi thông tin", không dính liền */}{" "}
+                    <span className="text-ink-tertiary text-xs leading-snug tabular-nums">
+                      {L.optionSub({
+                        producer: order.producerName,
+                        skus: skusOf(order),
+                        remaining: openCartonsOf(order),
+                        ordered: orderedCartonsOf(order),
+                        expected: dayOf(order.expectedCompletionDate),
+                        needBy: dayOf(order.needByDate),
+                      })}
                     </span>
                   </div>
                 </CommandItem>
