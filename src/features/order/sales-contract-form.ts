@@ -9,6 +9,8 @@ import { z } from "zod";
 import { CONTRACT_MILESTONES } from "@/constants";
 import { RETURN_LIMITS } from "@/constants/returns";
 
+import { contractTermsFormShape } from "./sales-contract-esign-schemas";
+
 import type { SalesContract } from "./sales-contract-schemas";
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -34,6 +36,7 @@ const installmentSchema = z.object({
 
 export const contractFormSchema = z
   .object({
+    ...contractTermsFormShape,
     freeSampleRounds: z.string().trim().regex(INT, "Số nguyên ≥ 0"),
     returnWindowDays: z
       .string()
@@ -139,8 +142,34 @@ const onSigningDefault = (entry: { milestone: string; dueDays: string }) =>
   entry.milestone === "ON_SIGNING" && !entry.dueDays;
 
 /** Body `Draft` (không gồm `version`). */
-export function toContractDraftBody(values: ContractFormOutput) {
+export function toContractDraftBody(
+  values: ContractFormOutput,
+  standardTerms?: SalesContract["standardTerms"],
+) {
   return {
+    ...(values.specialTerms !== undefined
+      ? {
+          specialTerms: values.specialTerms,
+          penaltyPercent: values.penaltyPercent
+            ? Number(values.penaltyPercent)
+            : (standardTerms?.penaltyPercent ?? null),
+          quantityTolerancePercent: values.quantityTolerancePercent
+            ? Number(values.quantityTolerancePercent)
+            : (standardTerms?.quantityTolerancePercent ?? null),
+          warrantyMonths: values.warrantyMonths
+            ? Number(values.warrantyMonths)
+            : (standardTerms?.warrantyMonths ?? null),
+          sellerSigner: {
+            name: values.sellerSignerName || null,
+            title: values.sellerSignerTitle || null,
+            authorizationRef: values.authorizationRef || null,
+          },
+          buyerSigner: {
+            name: values.buyerSignerName || null,
+            title: values.buyerSignerTitle || null,
+          },
+        }
+      : {}),
     freeSampleRounds: Number(values.freeSampleRounds),
     returnWindowDays: Number(values.returnWindowDays),
     deliverySchedule: values.deliverySchedule.map((batch) => ({
@@ -197,6 +226,22 @@ export function toContractForm(
   orderLineIds: readonly string[],
 ): ContractFormValues {
   return {
+    ...(contract.termsReview != null
+      ? {
+          specialTerms: contract.specialTerms ?? "",
+          penaltyPercent: contract.penaltyPercent != null ? String(contract.penaltyPercent) : "",
+          quantityTolerancePercent:
+            contract.quantityTolerancePercent != null
+              ? String(contract.quantityTolerancePercent)
+              : "",
+          warrantyMonths: contract.warrantyMonths != null ? String(contract.warrantyMonths) : "",
+          sellerSignerName: contract.sellerSigner?.name ?? "",
+          sellerSignerTitle: contract.sellerSigner?.title ?? "",
+          authorizationRef: contract.sellerSigner?.authorizationRef ?? "",
+          buyerSignerName: contract.buyerSigner?.name ?? "",
+          buyerSignerTitle: contract.buyerSigner?.title ?? "",
+        }
+      : {}),
     freeSampleRounds: String(contract.freeSampleRounds),
     returnWindowDays: String(contract.returnWindowDays ?? DEFAULT_RETURN_WINDOW_DAYS),
     deliverySchedule: contract.deliverySchedule.map((batch) => ({

@@ -12,6 +12,8 @@ import { Notice } from "@/components/shared/Notice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+import { ContractTermsEditor } from "./ContractTermsEditor";
+
 import { DeliveryScheduleEditor } from "./DeliveryScheduleEditor";
 import { PaymentPlanEditor } from "./PaymentPlanEditor";
 import { useContractEditor } from "./useContractEditor";
@@ -64,6 +66,9 @@ export function ContractEditor({
         </Notice>
       )}
       <FormErrorNotice message={editor.formError} />
+      {contract.termsReview != null && (
+        <ContractTermsEditor form={form} standardTerms={contract.standardTerms} />
+      )}
       <DeliveryScheduleEditor form={form} lines={order.lines} />
       <div className="flex justify-end">
         <Button

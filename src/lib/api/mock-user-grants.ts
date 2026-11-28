@@ -1,3 +1,4 @@
+import { CONTRACT_ESIGN_PERMISSIONS } from "@/constants/contract-esign";
 /**
  * Quyền của từng tài khoản demo (USE_MOCK=true) — dùng chung cho BFF mock (`/identity/me/permissions`,
  * server) và mock backend phía client (`lib/api/mock-routes-*`, cổng quyền thay `@RequiresPermission`).
@@ -343,6 +344,7 @@ const SALES_OWNER_ALL = [
 /** Explicit demo session responses keyed by existing staff IDs, never computed from roles. */
 export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
   "USER-ADMIN-01": [
+    ...Object.values(CONTRACT_ESIGN_PERMISSIONS),
     ...Object.values(SUPPLIER_PERMISSIONS),
     ...Object.values(PO_PERMISSIONS),
     ...Object.values(ORDER_PERMISSIONS),

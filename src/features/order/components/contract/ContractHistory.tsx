@@ -5,6 +5,8 @@ import { formatDateTime } from "@/lib/format/date";
 import { formatMoney } from "@/lib/format/money";
 import { StatusDot } from "@/components/shared/StatusDot";
 
+import { ContractEsignBadges } from "./ContractEsignBadges";
+
 import { useSalesContractHistory } from "../../sales-contract-queries";
 
 /** Lịch sử hợp đồng của đơn (`GET …/contract/history`) — mọi bản, kể cả bản đã huỷ. */
@@ -33,6 +35,7 @@ export function ContractHistory({ orderId }: { orderId: string }) {
             status={SALES_CONTRACT_STATUS_TONE_KEY[version.status]}
             label={SALES_CONTRACT_STATUS_LABELS[version.status]}
           />
+          <ContractEsignBadges contract={version} />
           <span className="tabular-nums">
             {formatMoney(version.totals.totalAmount, version.totals.currency)}
           </span>

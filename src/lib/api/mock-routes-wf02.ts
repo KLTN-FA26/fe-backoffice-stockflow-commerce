@@ -5,6 +5,9 @@
  */
 import { registerBusinessDocumentMockRoutes } from "./mock-routes-business-documents";
 import { registerChatMockRoutes } from "./mock-routes-chat";
+import { registerContractEsignMockRoutes } from "./mock-routes-contract-esign";
+import { registerContractListMockRoutes } from "./mock-routes-contract-list";
+
 import { registerContractMockRoutes } from "./mock-routes-contracts";
 import { registerLegalProfileMockRoutes } from "./mock-routes-legal-profile";
 import { registerQuoteMockRoutes } from "./mock-routes-quotes";
@@ -14,6 +17,8 @@ export function registerWf02MockRoutes(): void {
   registerBusinessDocumentMockRoutes();
   registerQuoteMockRoutes();
   registerContractMockRoutes();
+  registerContractEsignMockRoutes();
+  registerContractListMockRoutes();
   registerLegalProfileMockRoutes();
   registerChatMockRoutes();
 }

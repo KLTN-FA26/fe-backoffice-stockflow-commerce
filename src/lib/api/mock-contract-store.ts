@@ -5,6 +5,8 @@
  * seed của khách, cộng phần trả sau giao chưa trả của các hợp đồng ký trong phiên (mock thanh toán).
  */
 
+import { contractEsignView } from "./mock-contract-esign";
+
 import { SALES_CONTRACT_SIGNED_STATUSES } from "@/constants";
 
 import {
@@ -303,6 +305,7 @@ export function contractView(
 ) {
   const values = batchValues(order, contract.schedule);
   return {
+    ...contractEsignView(contract),
     id: contract.id,
     contractNumber: contract.contractNumber,
     orderId: contract.orderId,

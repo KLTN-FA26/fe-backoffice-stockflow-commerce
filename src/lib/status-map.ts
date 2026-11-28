@@ -90,6 +90,7 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Receiving",
     // Bán hàng B2B & sản xuất (BE d215f6e)
     "Sent",
+    "CUSTOMER_SIGNED",
     "Repeat Design",
     "Preparing",
     "Shipping",
@@ -144,6 +145,7 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "ON_CART",
   ],
   warning: [
+    "Nonstandard",
     // Giao dịch ngân hàng chờ Kế toán gán / bỏ qua (BE BankTransactionStatus.NEEDS_REVIEW)
     "Needs Review",
     // Sự kiện hãng vận chuyển (BE CarrierEventResult, docs 09 §4.5)
@@ -524,6 +526,8 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   Hold: "Tạm dừng (Hold)",
   "Changes Requested": "Yêu cầu sửa",
   // Bán hàng B2B & sản xuất (BE d215f6e)
+  CUSTOMER_SIGNED: "Khách đã ký",
+  Nonstandard: "Khác chuẩn",
   Sent: "Đã gửi khách",
   Expired: "Hết hiệu lực",
   Submitted: "Đã gửi sản xuất",

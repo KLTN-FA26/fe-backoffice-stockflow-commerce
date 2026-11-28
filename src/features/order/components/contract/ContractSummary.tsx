@@ -6,6 +6,8 @@ import { formatMoney } from "@/lib/format/money";
 
 import { DEFAULT_RETURN_WINDOW_DAYS } from "../../sales-contract-form";
 
+import { ContractTermsSummary } from "./ContractTermsSummary";
+
 import { ContractScheduleTables } from "./ContractScheduleTables";
 
 import type { ReactNode } from "react";
@@ -75,6 +77,9 @@ export function ContractSummary({
     ...(contract.signedOn
       ? [["Ngày ký", formatDate(contract.signedOn)] as [string, ReactNode]]
       : []),
+    ...(contract.customerSignedAt
+      ? [["Khách ký lúc", formatDateTime(contract.customerSignedAt)] as [string, ReactNode]]
+      : []),
     ...(contract.signedFileName
       ? [["File đã ký", contract.signedFileName] as [string, ReactNode]]
       : []),
@@ -96,6 +101,7 @@ export function ContractSummary({
           </div>
         ))}
       </dl>
+      <ContractTermsSummary contract={contract} />
       <ContractScheduleTables contract={contract} money={money} installments={installments} />
     </div>
   );

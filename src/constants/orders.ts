@@ -139,6 +139,7 @@ export type OrderPaymentReadStatus = (typeof ORDER_PAYMENT_READ_STATUSES)[number
 export const SALES_CONTRACT_STATUSES = [
   "DRAFT",
   "SENT",
+  "CUSTOMER_SIGNED",
   "SIGNED",
   "COMPLETED",
   "LIQUIDATED",
@@ -150,6 +151,7 @@ export type SalesContractReadStatus = SalesContractStatus | "UNKNOWN";
 export const SALES_CONTRACT_STATUS_LABELS = {
   DRAFT: "Nháp",
   SENT: "Đã gửi",
+  CUSTOMER_SIGNED: "Khách đã ký",
   SIGNED: "Đã ký",
   COMPLETED: "Hoàn tất",
   LIQUIDATED: "Thanh lý",
@@ -160,6 +162,7 @@ export const SALES_CONTRACT_STATUS_LABELS = {
 export const SALES_CONTRACT_STATUS_TONE_KEY = {
   DRAFT: "Draft",
   SENT: "Sent",
+  CUSTOMER_SIGNED: "CUSTOMER_SIGNED",
   SIGNED: "Confirmed",
   COMPLETED: "Completed",
   LIQUIDATED: "Closed",

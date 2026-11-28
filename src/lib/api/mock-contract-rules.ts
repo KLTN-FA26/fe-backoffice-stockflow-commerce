@@ -5,6 +5,14 @@
  * toán), huỷ (đơn về DRAFT). Thứ tự kiểm như BE: hình body → đơn → hợp đồng → version → trạng thái → luật lịch.
  */
 
+import {
+  contractEsignState,
+  requireTermsUnlocked,
+  requireTermsApproved,
+  recordContractRevision,
+  saveContractEsignTerms,
+} from "./mock-contract-esign";
+
 import { CONTRACT_MILESTONES } from "@/constants";
 
 import {
@@ -136,6 +144,7 @@ function requireStatus(contract: MockContract, wanted: MockContract["status"], v
 /** BE `requireRevisable`: hợp đồng nháp của đơn nháp. */
 export function requireRevisable(contract: MockContract, order: Wf02Order): void {
   requireStatus(contract, "DRAFT", "edited");
+  requireTermsUnlocked(contract);
   requireDraftOrder(order);
 }
 
@@ -325,6 +334,7 @@ export async function editContract(orderId: string, body: Record<string, unknown
     draft.paymentPlan ?? contract.plan.map(entryOf),
     ...creditArgs(order),
   );
+  saveContractEsignTerms(contract, body);
   const rounds = draft.freeSampleRounds ?? contract.freeSampleRounds;
   requireRounds(rounds);
   Object.assign(contract, {
@@ -370,6 +380,8 @@ export async function sendContract(orderId: string, body: Record<string, unknown
     ]);
   const { order, contract } = await loadContract(orderId, version);
   requireStatus(contract, "DRAFT", "sent");
+  requireTermsUnlocked(contract);
+  requireTermsApproved(contract);
   requireDraftOrder(order);
   requireWindows(contract.schedule, vnDay());
   requireCreditFor(order, contract);
@@ -380,6 +392,7 @@ export async function sendContract(orderId: string, body: Record<string, unknown
     sentDocumentKey: `documents/${contract.contractNumber}.pdf`,
     version: contract.version + 1,
   });
+  recordContractRevision(contract);
   sendContractOf(order);
   return { order, contract };
 }
@@ -457,7 +470,7 @@ export async function signContract(
     : undefined;
   if (replay) return { order: await orderOf(orderId), contract: replay };
   const { order, contract } = await loadContract(orderId, signature.version);
-  requireStatus(contract, "SENT", "signed");
+  if (contract.status !== "CUSTOMER_SIGNED") requireStatus(contract, "SENT", "signed");
   const today = vnDay();
   const sentDay = contract.sentAt ? vnDay(new Date(contract.sentAt)) : today;
   if (signature.signedOn > today || signature.signedOn < sentDay)
@@ -475,6 +488,29 @@ export async function signContract(
     signedWithKey: idempotencyKey,
     version: contract.version + 1,
   });
+  const evidence = contractEsignState(contract);
+  const inspection = {
+    kind: "SCAN" as const,
+    valid: false,
+    coversWholeDocument: false,
+    matchesSentDocument: false,
+    chainChecked: false as const,
+    signers: [],
+  };
+  evidence.signatures.customer = {
+    method: "STAFF_RECORDED",
+    signerName: evidence.buyerSigner?.name ?? contract.buyer.representative ?? "",
+    signerTitle: evidence.buyerSigner?.title ?? contract.buyer.representativeTitle ?? "",
+    signedAt,
+    inspection,
+  };
+  evidence.signatures.company = {
+    method: "STAFF_RECORDED",
+    signerName: evidence.sellerSigner?.name ?? contract.seller.representative ?? "",
+    signerTitle: evidence.sellerSigner?.title ?? contract.seller.representativeTitle ?? "",
+    signedAt,
+    inspection,
+  };
   const check = creditCheckOf(order, contract);
   const paysOnSigning = contract.plan.some((i) => i.milestone === "ON_SIGNING");
   contractSignedOf(order, !!check && check.outcome !== "WITHIN_LIMIT", paysOnSigning);
@@ -515,7 +551,11 @@ export async function cancelContract(orderId: string, body: Record<string, unkno
     errors.push({ field: "reason", message: "Cần lý do (tối đa 500 ký tự).", code: "Size" });
   if (errors.length > 0) refuseInvalid(VALIDATION_MESSAGE, errors);
   const { order, contract } = await loadContract(orderId, version ?? -1);
-  if (contract.status !== "DRAFT" && contract.status !== "SENT")
+  if (
+    contract.status !== "DRAFT" &&
+    contract.status !== "SENT" &&
+    contract.status !== "CUSTOMER_SIGNED"
+  )
     conflict(
       "SALES_CONTRACT_STATUS_INVALID",
       `Hợp đồng ${contract.contractNumber} đang ở trạng thái ${contract.status}: chỉ huỷ được hợp đồng nháp hoặc đã gửi.`,

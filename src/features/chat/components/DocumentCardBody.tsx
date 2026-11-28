@@ -8,6 +8,7 @@ import {
   SALES_CONTRACT_STATUS_LABELS,
 } from "@/constants";
 import { CHAT_INBOX_LABELS } from "@/constants/labels-chat";
+import { CONTRACT_TERMS_LABELS } from "@/constants/contract-esign";
 import { formatDate } from "@/lib/format/date";
 import { formatMoney } from "@/lib/format/money";
 import { PermittedLink } from "@/components/backoffice/PermittedLink";
@@ -86,6 +87,9 @@ function ContractBody({ card }: { card: ChatCard }) {
   const orderId = payloadText(card, "orderId");
   const total = payloadNumber(card, "totalAmount");
   const status = label(SALES_CONTRACT_STATUS_LABELS, payloadText(card, "status"));
+  const review = payloadText(card, "termsReview");
+  const reviewLabel =
+    review && review !== "NONE" ? label(CONTRACT_TERMS_LABELS, review) : undefined;
   return (
     <div className="space-y-1">
       {payloadText(card, "number") && (
@@ -97,6 +101,7 @@ function ContractBody({ card }: { card: ChatCard }) {
         </div>
       )}
       {status && <div className="text-ink-secondary">{status}</div>}
+      {reviewLabel && <div className="text-ink-secondary">{reviewLabel}</div>}
       {orderId && (
         <PermittedLink
           permission={ORDER_PERMISSIONS.viewPage}
