@@ -21,6 +21,7 @@ import { toLocalIsoDate } from "@/lib/format/date";
 
 import { registerMockRoute } from "./mock-adapter";
 import {
+  MOCK_CONSENT_MESSAGES,
   MOCK_DOCUMENT_MAX_BYTES,
   MOCK_DOCUMENT_TYPES,
   MOCK_STAFF_MESSAGE_ID,
@@ -130,7 +131,11 @@ function scheduleOf(order: Order) {
         })),
       windowChanges: windowChangesOf(order.orderId)
         .filter((change) => change.batchId === batch.batchId)
-        .map(({ batchId: _batchId, ...change }) => change),
+        .map(({ batchId: _batchId, ...change }) => ({
+          ...change,
+          // BE `EvidenceMessage`: nội dung + giờ gửi của tin dùng làm bằng chứng (không chỉ id)
+          ...(change.evidenceMessageId ? { evidenceMessage: evidenceMessageOf(change) } : {}),
+        })),
     };
   });
   return {
@@ -139,6 +144,21 @@ function scheduleOf(order: Order) {
     contractNumber: `HD-${order.orderNumber}`,
     batches,
   };
+}
+
+const MINUTE_MS = 60_000;
+
+/** Tin nhắn mà một lần dời trích làm bằng chứng, như BE đọc ra: nội dung có sẵn trong mock, hoặc chỉ giờ khi mã lạ. */
+function evidenceMessageOf(change: { evidenceMessageId: string | null; changedAt: string }) {
+  const known = MOCK_CONSENT_MESSAGES.find((m) => m.messageId === change.evidenceMessageId);
+  return known
+    ? {
+        kind: known.kind,
+        text: known.text,
+        sentAt: new Date(Date.now() - known.minutesAgo * MINUTE_MS).toISOString(),
+        deleted: false,
+      }
+    : { kind: "TEXT", text: null, sentAt: change.changedAt, deleted: false };
 }
 
 /** BR-28 "giữ thứ tự": ngày bắt đầu hiệu lực không giảm theo `seq`, khi đợt `batch` bắt đầu `start`. */
@@ -161,6 +181,27 @@ export function registerOrderScheduleMockRoutes(): void {
   });
 
   registerEvidenceUploadRoutes();
+
+  // BE `DeliveryBatchController#consentMessages`: `sales-contracts:UPDATE`, đơn / đợt phải có (404), mới nhất trước
+  registerMockRoute(
+    "GET",
+    "/orders/:id/delivery-batches/:batchId/window-change/evidence/messages",
+    async (config) => {
+      if (!(await hasMockPermission(SALES_CONTRACT_PERMISSIONS.update)))
+        return fail(403, "FORBIDDEN", "Access denied");
+      const { id = "", batchId = "" } = pathParams(config);
+      const order = await findOrder(id);
+      if (!order) return notFound();
+      if (!batchesOf(order).some((b) => b.batchId === batchId))
+        return fail(404, "DELIVERY_BATCH_NOT_FOUND", "Delivery batch not found on this order");
+      return ok(
+        MOCK_CONSENT_MESSAGES.map(({ minutesAgo, ...message }) => ({
+          ...message,
+          sentAt: new Date(Date.now() - minutesAgo * MINUTE_MS).toISOString(),
+        })),
+      );
+    },
+  );
 
   registerMockRoute(
     "POST",

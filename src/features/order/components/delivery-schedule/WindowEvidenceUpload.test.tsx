@@ -1,6 +1,6 @@
 /**
- * Dời cửa sổ giao — bằng chứng khách đồng ý là TỆP (docs 17 BR-28; BE `…/window-change/evidence/uploads` → PUT lên kho →
- * `evidenceUploadId`): chọn tệp thì tải ngay có tiến độ, lỗi tiếng Việt, bằng chứng chỉ là tệp (S06-9).
+ * Dời cửa sổ giao — bằng chứng khách đồng ý là TỆP (hoặc tin nhắn của khách: `WindowEvidenceMessage.test.tsx`) (docs 17 BR-28; BE `…/window-change/evidence/uploads` → PUT lên kho →
+ * `evidenceUploadId`): chọn tệp thì tải ngay có tiến độ, lỗi tiếng Việt, lựa chọn bằng chứng mặc định là tệp.
  */
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -107,10 +107,13 @@ const submitButton = (dialog: HTMLElement) =>
 openOrderDetailTabInFile("delivery");
 
 describe("Bằng chứng — mặc định là tệp", () => {
-  it("S06-9: chỉ có tệp — không có lựa chọn tin nhắn chat, có gợi ý loại / cỡ tệp; nút gửi khoá", async () => {
+  it("mặc định là tệp (có thể đổi sang tin nhắn của khách), có gợi ý loại / cỡ tệp; nút gửi khoá", async () => {
     const { dialog } = await openDialog();
-    expect(within(dialog).queryByRole("radio")).not.toBeInTheDocument();
-    expect(within(dialog).queryByLabelText(/Mã tin nhắn của khách/)).not.toBeInTheDocument();
+    expect(within(dialog).getAllByRole("radio")).toHaveLength(2);
+    expect(within(dialog).getByRole("radio", { name: /Tệp đính kèm/ })).toBeChecked();
+    expect(within(dialog).getByRole("radio", { name: "Tin nhắn của khách" })).not.toBeChecked();
+    // Không bao giờ bắt gõ / dán mã tin nhắn
+    expect(within(dialog).queryByLabelText(/Mã tin nhắn/)).not.toBeInTheDocument();
     expect(dialog).toHaveTextContent(
       /PDF, Word, Excel hoặc ảnh JPEG \/ PNG chụp văn bản, tối đa 25 MB/,
     );

@@ -10,6 +10,7 @@ import { getDeliverySchedule } from "@/features/order/delivery-batch-api";
 import {
   beginWindowEvidenceUpload,
   changeDeliveryWindow,
+  getWindowConsentMessages,
 } from "@/features/order/delivery-window-api";
 import { uploadFileDirect } from "./direct-upload";
 import { api } from "@/lib/api/client";
@@ -19,7 +20,7 @@ import { toLocalIsoDate } from "@/lib/format/date";
 import { orders } from "@/lib/mock-data";
 
 import { activateMockAdapter } from "./mock-adapter";
-import { MOCK_STAFF_MESSAGE_ID } from "./mock-order-delivery-schedule";
+import { MOCK_CONSENT_MESSAGES, MOCK_STAFF_MESSAGE_ID } from "./mock-order-delivery-schedule";
 import { resetOrderMockStore, seedLifecycle } from "./mock-routes-orders";
 
 const originalAdapter = api.defaults.adapter;
@@ -476,5 +477,37 @@ describe("bằng chứng là tệp — xin đường tải, PUT, gắn (BE Stage
       evidenceMessageId: CONSENT,
     });
     expect((await captureError(both)).status).toBe(400);
+  });
+});
+
+describe("GET …/window-change/evidence/messages — tin nhắn khách dùng làm bằng chứng (BR-28)", () => {
+  it("liệt kê tin của khách mới nhất trước (chữ + giờ); thiếu quyền → 403; đợt / đơn lạ → 404", async () => {
+    const order = orderWith("Ready to Fulfill");
+    const batchId = (await getDeliverySchedule(order.orderId)).batches[1]?.batchId ?? "";
+    const messages = await getWindowConsentMessages(order.orderId, batchId);
+    expect(messages.map((m) => m.messageId)).toEqual(MOCK_CONSENT_MESSAGES.map((m) => m.messageId));
+    const times = messages.map((m) => Date.parse(m.sentAt));
+    expect(times).toEqual([...times].sort((a, b) => b - a));
+    expect(messages[0]?.text).toMatch(/đồng ý nhận/);
+    expect(messages[1]).toMatchObject({ kind: "ATTACHMENT" });
+    expect(messages[1]?.text ?? null).toBeNull();
+
+    expect(
+      (await captureError(getWindowConsentMessages(order.orderId, crypto.randomUUID()))).code,
+    ).toBe("DELIVERY_BATCH_NOT_FOUND");
+    expect((await captureError(getWindowConsentMessages("ORD-NONE", batchId))).status).toBe(404);
+    actAs("USER-ACC-01");
+    expect((await captureError(getWindowConsentMessages(order.orderId, batchId))).status).toBe(403);
+  });
+
+  it("dời bằng tin nhắn đã chọn → lịch sử có nội dung + giờ gửi của tin (không chỉ id)", async () => {
+    const order = orderWith("Ready to Fulfill");
+    const batchId = (await getDeliverySchedule(order.orderId)).batches[1]?.batchId ?? "";
+    const picked = MOCK_CONSENT_MESSAGES[0];
+    const schedule = await move(order.orderId, batchId, { evidenceMessageId: picked?.messageId });
+    const change = schedule.batches[1]?.windowChanges[0];
+    expect(change?.evidenceMessageId).toBe(picked?.messageId);
+    expect(change?.evidenceMessage).toMatchObject({ kind: "TEXT", text: picked?.text });
+    expect(change?.evidenceMessage?.sentAt).toBeTruthy();
   });
 });

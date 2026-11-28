@@ -123,6 +123,7 @@ describe("đăng ký route — mỗi METHOD + PATH đúng một chủ", () => {
     "GET /orders/:id/delivery-batches",
     "POST /orders/:id/delivery-batches/:batchId/window-change",
     "POST /orders/:id/delivery-batches/:batchId/window-change/evidence/uploads",
+    "GET /orders/:id/delivery-batches/:batchId/window-change/evidence/messages",
     // "Kho đối tượng" của mock: nhận PUT tệp bằng chứng (đường tải cùng origin)
     "PUT /__mock-storage/:uploadId",
     // Yêu cầu huỷ của khách + kết quả tất toán (`mock-routes-order-cancellation-requests.ts`, docs 17 §4.8)

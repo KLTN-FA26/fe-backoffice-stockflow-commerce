@@ -66,7 +66,7 @@ describe("buildWindowChangeSchema (BR-28)", () => {
     expect(messagesOf({ note: "x".repeat(1001) })).toEqual([L.noteTooLong]);
   });
 
-  it("bằng chứng là tin nhắn chat: bắt buộc có mã và phải là UUID", () => {
+  it("bằng chứng là tin nhắn chat: bắt buộc chọn một tin (mã hợp lệ, không cần gõ)", () => {
     expect(messagesOf({ evidenceMessageId: "" })).toEqual([L.evidenceRequired]);
     expect(messagesOf({ evidenceMessageId: "khong-phai-uuid" })).toEqual([L.evidenceInvalid]);
   });

@@ -42,7 +42,7 @@ const DEFAULTS: WindowChangeFormInput = {
   windowEnd: "",
   reasonCode: "",
   note: "",
-  // Chỉ có tệp (S06-9): chọn tin nhắn chat cần BE liệt kê tin nhắn của khách; schema vẫn giữ nhánh đó
+  // Mặc định là tệp; "Tin nhắn của khách" chọn trong danh sách BE liệt kê (BR-28)
   evidenceKind: "file",
   evidenceMessageId: "",
   evidenceUploadId: "",
@@ -83,10 +83,21 @@ export function WindowChangeForm({
     });
   const windowStart = useWatch({ control: form.control, name: "windowStart" });
   const windowEnd = useWatch({ control: form.control, name: "windowEnd" });
+  const evidenceKind = useWatch({ control: form.control, name: "evidenceKind" });
+  const evidenceMessageId = useWatch({ control: form.control, name: "evidenceMessageId" });
   // Tệp tải xong → id vào form (đủ điều kiện "có bằng chứng"); bắt đầu tệp mới / bỏ tệp → id rỗng
   const { setValue } = form;
   const setUploadId = useCallback(
     (uploadId: string) => setValue("evidenceUploadId", uploadId, { shouldValidate: true }),
+    [setValue],
+  );
+  const setEvidenceKind = useCallback(
+    (kind: WindowChangeFormInput["evidenceKind"]) =>
+      setValue("evidenceKind", kind, { shouldValidate: true }),
+    [setValue],
+  );
+  const setEvidenceMessage = useCallback(
+    (messageId: string) => setValue("evidenceMessageId", messageId, { shouldValidate: true }),
     [setValue],
   );
   const upload = useEvidenceUpload(
@@ -135,7 +146,17 @@ export function WindowChangeForm({
         windowEnd={windowEnd}
         idPrefix={idPrefix}
       />
-      <WindowEvidenceField upload={upload} idPrefix={idPrefix} />
+      <WindowEvidenceField
+        kind={evidenceKind}
+        onKindChange={setEvidenceKind}
+        upload={upload}
+        order={order}
+        batchId={batch.batchId}
+        messageId={evidenceMessageId}
+        onMessageChange={setEvidenceMessage}
+        messageError={form.formState.errors.evidenceMessageId?.message}
+        idPrefix={idPrefix}
+      />
       {refusal && <OrderRefusalAlert view={refusal} />}
     </FormDialogBody>
   );

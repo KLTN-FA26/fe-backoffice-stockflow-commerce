@@ -51,6 +51,40 @@ export const mockBatchIdOf = (order: Pick<Order, "orderId">) => mockBatchIdAt(or
  */
 export const MOCK_STAFF_MESSAGE_ID = "00000000-0000-4000-8000-0000000000aa";
 
+/** Tin nhắn chat mock của khách (BE `ConsentMessages.customerMessages`): mới nhất trước, mọi đơn dùng chung (mock-only). */
+export interface MockConsentMessage {
+  messageId: string;
+  kind: "TEXT" | "ATTACHMENT";
+  text: string | null;
+  subject: string | null;
+  /** Số phút trước bây giờ — giờ gửi tính khi đọc nên luôn nằm trong quá khứ gần. */
+  minutesAgo: number;
+}
+
+export const MOCK_CONSENT_MESSAGES: readonly MockConsentMessage[] = [
+  {
+    messageId: "3f6c9a52-8a63-4f1c-9d3a-6f4f2a1b7c11",
+    kind: "TEXT",
+    text: "Bên em đồng ý nhận đợt 2 sớm hơn lịch, anh chị giao giúp em vào đầu tuần sau nhé.",
+    subject: "Lịch giao đợt 2",
+    minutesAgo: 35,
+  },
+  {
+    messageId: "3f6c9a52-8a63-4f1c-9d3a-6f4f2a1b7c12",
+    kind: "ATTACHMENT",
+    text: null,
+    subject: "Lịch giao đợt 2",
+    minutesAgo: 190,
+  },
+  {
+    messageId: "3f6c9a52-8a63-4f1c-9d3a-6f4f2a1b7c13",
+    kind: "TEXT",
+    text: "Cho em hỏi đơn này giao đợt đầu được chưa ạ?",
+    subject: null,
+    minutesAgo: 2_900,
+  },
+];
+
 const DAY_MS = 86_400_000;
 const addDays = (iso: string, days: number) =>
   toLocalIsoDate(new Date(new Date(iso).getTime() + days * DAY_MS).toISOString());
