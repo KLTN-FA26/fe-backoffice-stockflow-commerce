@@ -73,7 +73,7 @@ describe("SHORTAGE_CHOICE card — staff view", () => {
   });
 
   it("no code yet → 'Thẻ thiếu thùng ngày …', never the card UUID", async () => {
-    show({ ...baseCard, number: null });
+    show({ ...baseCard, code: null });
     expect(await screen.findByText(/Thẻ thiếu thùng ngày 28\/11\/2026/)).toBeInTheDocument();
     expect(screen.queryByText(new RegExp(baseCard.cardId))).not.toBeInTheDocument();
   });
