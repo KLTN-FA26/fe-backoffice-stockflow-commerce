@@ -13,9 +13,19 @@ const I = UI_LABELS.shipping.waybill.import;
 const TH = "px-3 py-2 text-left font-medium whitespace-nowrap";
 
 /** Lý do một dòng không áp dụng được; mã vận đơn trùng thì nêu chuyến đang giữ mã (BR-23). */
-function problemText(line: WaybillImportLine): string | null {
+function problemText(line: WaybillImportLine, lines: readonly WaybillImportLine[]): string | null {
   if (!line.problem) return null;
   const text = I.problem[line.problem];
+  if (line.problem === "DUPLICATE_IN_FILE" || line.problem === "LOAD_REPEATED") {
+    const duplicate = lines.find(
+      (other) =>
+        other.line !== line.line &&
+        (line.problem === "LOAD_REPEATED"
+          ? other.loadCode === line.loadCode
+          : other.waybillNo === line.waybillNo),
+    );
+    return duplicate ? `${text} ${I.duplicateLine(duplicate.line)}` : text;
+  }
   return line.problem === "DUPLICATE_IN_CARRIER" && line.holderCode
     ? `${text} (${I.heldBy} ${line.holderCode})`
     : text;
@@ -28,10 +38,13 @@ function problemText(line: WaybillImportLine): string | null {
 export function WaybillImportTable({
   lines,
   overwrite,
+  applied = false,
   onToggleOverwrite,
 }: {
   lines: readonly WaybillImportLine[];
   overwrite?: ReadonlySet<number>;
+  /** Kết quả sau khi nhập, thay nhãn dự kiến bằng kết quả thực tế. */
+  applied?: boolean;
   onToggleOverwrite?: (line: number) => void;
 }) {
   const selectable = !!onToggleOverwrite;
@@ -68,7 +81,7 @@ export function WaybillImportTable({
         </thead>
         <tbody>
           {lines.map((line) => {
-            const problem = problemText(line);
+            const problem = problemText(line, lines);
             const isError = line.outcome === "ERROR";
             return (
               <tr key={line.line} className="border-border-default border-t align-top">
@@ -95,14 +108,20 @@ export function WaybillImportTable({
                 <td className="px-3 py-2">
                   <span
                     className={
-                      isError
+                      applied && line.outcome === "SAME"
+                        ? "text-ink-secondary font-medium"
+                        : isError
                         ? "text-danger font-medium"
                         : line.outcome === "OVERWRITE"
                           ? "text-warning font-medium"
                           : "text-positive font-medium"
                     }
                   >
-                    {I.outcome[line.outcome]}
+                    {applied
+                      ? line.outcome === "ERROR" || line.outcome === "SAME"
+                        ? I.outcome.NOT_APPLIED
+                        : I.outcome.APPLIED
+                      : I.outcome[line.outcome]}
                   </span>
                   {problem && <div className="text-danger mt-0.5 text-xs">{problem}</div>}
                 </td>

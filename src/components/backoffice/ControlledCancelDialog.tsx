@@ -28,6 +28,7 @@ interface ControlledCancelDialogProps {
   error: string | null;
   onSubmit: (values: ControlledCancelValues) => void;
   onClose: () => void;
+  parcelDoesNotFitHint?: string;
   /** Phần thêm dưới ô lý do (ví dụ chọn lô giao gỡ khỏi xe) — bên gọi quản lý state. */
   children?: ReactNode;
 }
@@ -45,6 +46,7 @@ export function ControlledCancelDialog({
   error,
   onSubmit,
   onClose,
+  parcelDoesNotFitHint,
   children,
 }: ControlledCancelDialogProps) {
   const [reasonCode, setReasonCode] = useState<UnloadReasonCode | undefined>(undefined);
@@ -88,6 +90,9 @@ export function ControlledCancelDialog({
           </TitledSelectContent>
         </FormSelect>
         <p className="text-ink-tertiary text-xs">{C.noteHint}</p>
+        {reasonCode === "KIEN_KHONG_VUA" && parcelDoesNotFitHint && (
+          <p className="text-warning-ink text-xs">{parcelDoesNotFitHint}</p>
+        )}
       </div>
       {children}
     </ConfirmDialog>

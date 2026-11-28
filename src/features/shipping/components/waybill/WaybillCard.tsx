@@ -106,6 +106,11 @@ export function WaybillCard({
         </Alert>
       )}
       {hasNumber && apiManaged && <p className="text-ink-secondary mt-2 text-xs">{W.apiManaged}</p>}
+      {!apiManaged && !editAction && (
+        <p className="text-ink-secondary mt-2 text-xs">
+          {dispatched ? W.correctionPermissionHint : W.editPermissionHint}
+        </p>
+      )}
       {historyOpen && (
         <div className="mt-3">
           <WaybillHistory loadId={load.loadId} />

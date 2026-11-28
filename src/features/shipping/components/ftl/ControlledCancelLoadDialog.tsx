@@ -52,6 +52,7 @@ export function ControlledCancelLoadDialog({ load, onClose }: { load: Load; onCl
       error={error}
       onSubmit={submit}
       onClose={onClose}
+      parcelDoesNotFitHint={C.parcelDoesNotFitHint}
     >
       <RemovedShipmentsField
         shipments={load.shipments}

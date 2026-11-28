@@ -127,6 +127,11 @@ export function PlanActions({
           )}
         </p>
       )}
+      {actions.cancelControlled && actions.cancelControlledBlocked && (
+        <p className="text-ink-secondary max-w-sm text-right text-xs">
+          {CC.plan.disabledVehicleLeft}
+        </p>
+      )}
     </div>
   );
 }

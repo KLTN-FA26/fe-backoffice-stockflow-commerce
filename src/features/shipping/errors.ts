@@ -54,6 +54,14 @@ export function carrierRefusalCode(error: unknown): string | undefined {
     : undefined;
 }
 
+/** BE hiện trả câu tiếng Anh ở `fieldErrors.waybillNo`; chỉ lấy mã chuyến khi mẫu được nhận diện. */
+export function waybillDuplicateMessage(error: ApiError): string {
+  const holder = /^load (LD-[^\s]+) has it$/i.exec(error.fieldErrors?.waybillNo ?? "")?.[1];
+  return holder
+    ? `Chuyến ${holder} đã dùng mã vận đơn này — chọn mã khác.`
+    : SHIPPING_ERROR_MESSAGES.WAYBILL_DUPLICATE;
+}
+
 /**
  * Câu tiếng Việt cho lỗi; BE nêu tên lô giao thì thêm tiền tố "Lô <mã>". BE gắn `shipmentCode` vào MỌI
  * lỗi phía đơn khi bàn giao (đơn huỷ, lô xung đột, vượt số lượng…): mã chưa biết mà có tên lô vẫn nói
@@ -61,6 +69,7 @@ export function carrierRefusalCode(error: unknown): string | undefined {
  */
 export function shippingErrorMessage(error: unknown): string {
   if (!(error instanceof ApiError)) return SHIPPING_ERROR_MESSAGES.generic;
+  if (error.code === "WAYBILL_DUPLICATE") return waybillDuplicateMessage(error);
   const wrongVehicle = wrongVehicleOf(error);
   if (wrongVehicle) {
     return wrongVehicle.loadCode

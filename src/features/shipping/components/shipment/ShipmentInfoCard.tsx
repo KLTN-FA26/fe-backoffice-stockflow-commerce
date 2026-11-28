@@ -89,12 +89,19 @@ export function ShipmentInfoCard({
         <InfoItem label={L.handedOverAt} value={dt(shipment.handedOverAt)} />
         <InfoItem label={L.outcomeAt} value={dt(shipment.outcomeAt)} />
         {shipment.failureReason && (
-          <InfoItem label={L.failureReason} value={failureLabel(shipment.failureReason)} />
+          <InfoItem
+            label={shipment.status === "DELIVERED" ? L.previousFailureReason : L.failureReason}
+            value={failureLabel(shipment.failureReason)}
+          />
         )}
       </div>
       {data.failureNote && (
         <p className="text-ink-secondary mt-3 text-[0.8125rem]">
-          {failureNoteIsCarrierWording(data) ? A.carrierOriginalReason : L.failureNote}:{" "}
+          {shipment.status === "DELIVERED"
+            ? L.previousFailureNote
+            : failureNoteIsCarrierWording(data)
+              ? A.carrierOriginalReason
+              : L.failureNote}:{" "}
           {data.failureNote}
         </p>
       )}

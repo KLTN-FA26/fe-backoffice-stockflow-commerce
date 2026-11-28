@@ -75,10 +75,11 @@ describe("Chuyến nguyên xe — xe của kế hoạch và đặt xe", () => {
     renderFtl(ACTORS.warehouseManager, plannedLoad());
     await ready();
     const card = screen.getByRole("heading", { name: F.planCard }).closest("section");
-    expect(within(card as HTMLElement).getByRole("link", { name: "LP-2026-0001" })).toHaveAttribute(
-      "href",
-      "/admin/load-plans/lp-1",
-    );
+    expect(
+      within(card as HTMLElement)
+        .getAllByRole("link", { name: "LP-2026-0001" })
+        .some((link) => link.getAttribute("href") === "/admin/load-plans/lp-1"),
+    ).toBe(true);
     expect(within(card as HTMLElement).getByText("TRUCK-1T25")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: F.booking.book })).toBeInTheDocument();
     expect(screen.queryByLabelText(L.scan.label)).not.toBeInTheDocument();

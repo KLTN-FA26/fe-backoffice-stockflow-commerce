@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 
 import { LOAD_STATUS, SHIPPING_LIMITS, TOAST_MESSAGES, UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
-import { shippingErrorMessage } from "@/features/shipping/errors";
+import { shippingErrorMessage, waybillDuplicateMessage } from "@/features/shipping/errors";
 import { waybillInputSchema } from "@/features/shipping/input-schemas";
 import { useRecordWaybill } from "@/features/shipping/waybill-mutations";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
@@ -84,7 +84,14 @@ export function WaybillDialog({ load, onClose }: { load: Load; onClose: () => vo
           if (!(error instanceof ApiError)) return;
           for (const name of SERVER_FIELDS) {
             const message = error.fieldErrors?.[name];
-            if (message) form.setError(name, { type: "server", message });
+            if (message)
+              form.setError(name, {
+                type: "server",
+                message:
+                  name === "waybillNo" && error.code === "WAYBILL_DUPLICATE"
+                    ? waybillDuplicateMessage(error)
+                    : message,
+              });
           }
         },
       },

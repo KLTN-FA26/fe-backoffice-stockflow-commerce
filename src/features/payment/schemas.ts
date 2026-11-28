@@ -127,6 +127,8 @@ export const receiptDtoSchema = z.object({
   voidedAt: z.string().nullish(),
   voidReason: z.string().nullish(),
   lines: z.array(receiptLineDtoSchema),
+  /** Các chuyến đang xếp của đơn có đợt BEFORE_DELIVERY trong phiếu (BE WF4 U87). */
+  loadingLoadCodes: z.array(z.string()).default([]),
   /** R5-8 (BE round 5, có thể chưa có): tên người lập / người huỷ — không có thì không hiện dòng đó. */
   recordedByName: z.string().nullish(),
   voidedByName: z.string().nullish(),

@@ -16,7 +16,7 @@ import type { PermissionCode } from "@/lib/auth";
 import type { Order } from "../../types";
 
 interface DeliverySchedulePanelProps {
-  order: Pick<Order, "orderId" | "orderNumber">;
+  order: Pick<Order, "orderId" | "orderNumber" | "customerId">;
   can: (code: PermissionCode) => boolean;
 }
 

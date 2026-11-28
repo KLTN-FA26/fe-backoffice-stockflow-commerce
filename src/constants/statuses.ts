@@ -370,13 +370,24 @@ export const LOAD_STATUS = {
  * BE `UnloadReasonCode` — lý do huỷ có kiểm soát sau khi đã bắt đầu xếp hàng (SCRUM-474 UNLOAD-DESIGN điểm 7,
  * docs 09 BR-14): xe hỏng, sai xe, kiện không vừa, khác. Luôn kèm ghi chú.
  */
-export const UNLOAD_REASON_CODES = ["XE_HONG", "SAI_XE", "KIEN_KHONG_VUA", "KHAC"] as const;
+export const UNLOAD_REASON_CODES = [
+  "XE_HONG",
+  "SAI_XE",
+  "KIEN_KHONG_VUA",
+  "THUNG_HU",
+  "CHUA_THU_TIEN",
+  "KHONG_CO_XE_THAY",
+  "KHAC",
+] as const;
 export type UnloadReasonCode = (typeof UNLOAD_REASON_CODES)[number];
 
 export const UNLOAD_REASON_CODE = {
   XE_HONG: "XE_HONG",
   SAI_XE: "SAI_XE",
   KIEN_KHONG_VUA: "KIEN_KHONG_VUA",
+  THUNG_HU: "THUNG_HU",
+  CHUA_THU_TIEN: "CHUA_THU_TIEN",
+  KHONG_CO_XE_THAY: "KHONG_CO_XE_THAY",
   KHAC: "KHAC",
 } as const satisfies Record<string, UnloadReasonCode>;
 

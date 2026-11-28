@@ -1,4 +1,4 @@
-import { SHIPPING_ERROR_MESSAGES, UI_LABELS } from "@/constants";
+import { CARRIER_CONNECTION_TYPE, SHIPPING_ERROR_MESSAGES, UI_LABELS } from "@/constants";
 import { carrierRefusalWords } from "@/features/shipping/errors";
 import { formatDateTime } from "@/lib/format/date";
 import { Alert } from "@/components/shared/Alert";
@@ -16,7 +16,8 @@ const N = UI_LABELS.shipping.waybill.apiBooking.notice;
  */
 export function CarrierOrderNotice({ load }: { load: Load }) {
   const booking = load.carrierBooking;
-  if (!booking) return null;
+  // Đặt lại với hãng khác: đơn cũ vẫn còn trong lịch sử nhưng không còn là đơn hiện tại của chuyến.
+  if (!booking || load.carrierConnectionType !== CARRIER_CONNECTION_TYPE.API_BOOKING) return null;
   const problem =
     booking.status === "FAILED" ||
     booking.status === "UNCONFIRMED" ||

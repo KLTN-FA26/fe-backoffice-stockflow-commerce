@@ -121,6 +121,8 @@ export const LOAD_PLAN_UI_LABELS = {
     order: "Đơn hàng",
     customer: "Khách hàng",
     province: "Tỉnh giao",
+    carrierAreaHint: (provinces: string) =>
+      `Tỉnh giao đã chọn: ${provinces}. Trước khi xác nhận kế hoạch, kiểm tra vùng phục vụ của hãng dự kiến; hãng chỉ giao nội tỉnh sẽ từ chối điểm ngoài tỉnh của kho. Có thể đổi loại xe, chọn hãng khác hoặc mở lại kế hoạch khi xe chưa xếp.`,
     packageCount: "Số kiện",
     weight: "Khối lượng",
     volume: "Thể tích",
@@ -350,7 +352,7 @@ export const LOAD_PLAN_TOAST_MESSAGES = {
 /** Mã lỗi BE (`ErrorCode`, PR #161) → câu tiếng Việt. `generic` là câu dự phòng. */
 export const LOAD_PLAN_ERROR_MESSAGES = {
   generic: "Không thực hiện được. Vui lòng thử lại.",
-  FORBIDDEN: "Bạn không có quyền thực hiện thao tác này.",
+  FORBIDDEN: "Bạn chưa có quyền thực hiện thao tác này — nhờ Quản lý kho hoặc Quản trị viên kiểm tra quyền.",
   OPTIMISTIC_LOCK:
     "Người khác vừa thay đổi kế hoạch này. Đã tải lại dữ liệu mới nhất — kiểm tra rồi thử lại.",
   LOAD_PLAN_NOT_FOUND: "Không tìm thấy kế hoạch xếp xe.",

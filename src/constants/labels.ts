@@ -318,6 +318,7 @@ export const UI_LABELS = {
       "Bạn được mở trang nhưng chưa được cấp quyền xem task xuất kho. Liên hệ quản trị để được cấp.",
     action: {
       create: "Tạo task lấy hàng",
+      createPermissionHint: "Chỉ Quản lý kho hoặc System Admin được tạo task lấy hàng.",
       assign: "Gán lại",
       changeDestination: "Đổi đích",
       startPicking: "Bắt đầu lấy hàng",

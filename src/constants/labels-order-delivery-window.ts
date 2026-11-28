@@ -78,8 +78,8 @@ export const WINDOW_CHANGE_LABELS = {
   evidenceKindMessage: "Tin nhắn chat của khách",
   evidenceMessageLabel: "Mã tin nhắn của khách trong chat",
   evidenceMessageHint:
-    "Tin nhắn do chính khách gửi, trong cuộc chat của khách (về đơn này hoặc chưa gắn đơn) — tin của nhân viên hoặc của khách khác không được nhận.",
-  evidenceMessagePlaceholder: "Dán mã tin nhắn (UUID)",
+    "Trong chat, bấm Chọn làm bằng chứng trên tin của khách rồi mở form này để mã tự điền. Bạn cũng có thể dán mã; tin của nhân viên hoặc khách khác không được nhận.",
+  evidenceMessagePlaceholder: "Dán mã đã sao chép từ chat",
   /** Bằng chứng là tệp (BE: tải thẳng lên kho rồi gửi `evidenceUploadId`, docs 17 BR-28). */
   file: {
     label: "Tệp bằng chứng",

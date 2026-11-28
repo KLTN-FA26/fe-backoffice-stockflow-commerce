@@ -21,6 +21,10 @@ export const SHIPPING_WAYBILL_LABELS = {
     record: "Nhập mã vận đơn",
     edit: "Sửa mã vận đơn",
     correct: "Sửa mã vận đơn (sau khi rời kho)",
+    editPermissionHint:
+      "Cần quyền xếp xe & bàn giao để nhập hoặc sửa mã vận đơn; nhờ Quản lý kho hoặc System Admin cấp quyền.",
+    correctionPermissionHint:
+      "Chỉ Quản lý kho hoặc System Admin có quyền sửa mã vận đơn sau khi xe rời kho.",
     importLink: "Nhập từ file",
     history: "Lịch sử mã vận đơn",
     historyEmpty: "Chưa có thay đổi nào.",
@@ -90,6 +94,8 @@ export const SHIPPING_WAYBILL_LABELS = {
       SAME: "Không đổi",
       ERROR: "Lỗi",
       UNKNOWN: "Không rõ",
+      APPLIED: "Đã áp dụng",
+      NOT_APPLIED: "Không áp dụng",
     },
     problem: {
       MISSING_FIELDS: "Thiếu mã chuyến hoặc mã vận đơn.",
@@ -108,7 +114,9 @@ export const SHIPPING_WAYBILL_LABELS = {
       UNKNOWN: "Dòng không áp dụng được.",
     },
     heldBy: "chuyến",
+    duplicateLine: (line: number) => `Trùng với dòng ${line} trong file.`,
     apply: "Nhập các dòng hợp lệ",
+    applyCount: (count: number) => `Nhập ${count} dòng`,
     applying: "Đang nhập…",
     resultTitle: "Đã nhập file",
     resultSummary: (applied: number, rejected: number) =>

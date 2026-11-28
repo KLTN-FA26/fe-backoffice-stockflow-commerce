@@ -123,6 +123,7 @@ export const SHIPPING_EVENT_LABELS = {
     signatureOk: "Hợp lệ",
     signatureBad: "Không hợp lệ",
     result: "Kết quả xử lý",
+    reason: "Lý do cụ thể",
     payload: "Nội dung hãng gửi",
     payloadHint: "Chỉ xem. Thông tin xác thực trong nội dung (nếu có) đã được hệ thống ẩn.",
     payloadEmpty: "Không có nội dung.",

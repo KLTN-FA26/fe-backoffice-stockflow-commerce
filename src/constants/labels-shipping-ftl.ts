@@ -11,6 +11,8 @@ export const SHIPPING_FTL_LABELS = {
   planCard: "Xe của kế hoạch xếp xe",
   planCardHint:
     "Chuyến do kế hoạch xếp xe tạo ra: kiện của xe này do kế hoạch xếp. Thay đổi danh sách kiện phải đi qua kế hoạch.",
+  dropPlannedHint:
+    "Nếu các xe khác đã rời kho mà xe này chưa thể đi, Quản lý kho có thể bỏ xe khỏi kế hoạch ở màn kế hoạch xếp xe.",
   /* ── Đặt xe ─────────────────────────────────────────────────────── */
   booking: {
     title: "Đặt xe với hãng",
@@ -19,6 +21,10 @@ export const SHIPPING_FTL_LABELS = {
     hintBooked: "Xe đã đặt. Khi xe tới kho, bấm bắt đầu xếp hàng.",
     hintFindingDriver: "Đơn đã tạo ở hãng — đang chờ hãng tìm tài xế trước khi xe tới kho.",
     hintLocked: "Đã bắt đầu xếp hàng — không đổi hoặc huỷ đặt xe được nữa.",
+    cancelled: "Chuyến đã huỷ",
+    cancelledReason: "Lý do",
+    replacement: "Chuyến thay thế",
+    history: "Xem lịch sử đặt xe / tài xế",
     bookedAt: "Đặt lúc",
     bookedBy: "Người đặt xe",
     notBooked: "Chưa đặt xe",
@@ -36,6 +42,9 @@ export const SHIPPING_FTL_LABELS = {
     findingDriver: "Hãng đang tìm tài xế cho chuyến này.",
     driverReleased: (at: string) => `Tài xế đã huỷ lúc ${at} — đang chờ hãng tìm tài xế mới.`,
     plateAtHandover: "Nhập khi ký bàn giao",
+    plateOnSignedManifest: "Biển số trên biên bản đã ký",
+    plateFromCarrier: "Biển số do hãng gửi",
+    plateEnteredManually: "Biển số nhập thủ công",
     enterDriver: "Nhập tài xế",
     editDriver: "Sửa tài xế",
   },
@@ -126,6 +135,9 @@ export const SHIPPING_FTL_LABELS = {
       XE_HONG: "Xe hỏng",
       SAI_XE: "Sai xe",
       KIEN_KHONG_VUA: "Kiện không vừa",
+      THUNG_HU: "Thùng bị hư",
+      CHUA_THU_TIEN: "Chưa thu đủ tiền",
+      KHONG_CO_XE_THAY: "Không có xe thay thế",
       KHAC: "Khác",
     },
     reasonCodeLabel: "Lý do",
@@ -133,10 +145,13 @@ export const SHIPPING_FTL_LABELS = {
     noteLabel: "Ghi chú",
     noteHint: "Ghi rõ chuyện gì đã xảy ra (bắt buộc, tối đa 500 ký tự).",
     cancelButton: "Huỷ có kiểm soát",
+    managerPermissionHint: "Chỉ Quản lý kho hoặc System Admin được huỷ có kiểm soát hoặc bỏ xe khỏi kế hoạch.",
     vehicle: {
       title: "Huỷ có kiểm soát xe",
       description:
-        "Xe hỏng hoặc sai xe: chuyến này bị huỷ ngay, các kiện đã quét lên xe bị khoá cho tới khi từng kiện được quét dỡ xuống. Một chuyến mới (Chưa đặt xe) với cùng sơ đồ xếp được tạo thay thế để đặt xe khác — hoặc sơ đồ tính lại nếu gỡ lô giao khỏi xe; các xe còn lại của kế hoạch vẫn đi tiếp.",
+        "Xe hỏng, sai xe hoặc kiện không vừa: chuyến này bị huỷ ngay, các kiện đã quét lên xe bị khoá cho tới khi từng kiện được quét dỡ xuống. Một chuyến mới (Chưa đặt xe) với cùng sơ đồ xếp được tạo thay thế để đặt xe khác — hoặc sơ đồ tính lại nếu gỡ lô giao khỏi xe; các xe còn lại của kế hoạch vẫn đi tiếp.",
+      parcelDoesNotFitHint:
+        "Kiểm tra lại kích thước, tải trọng và sơ đồ xếp. Nếu lô không thể đi trên xe thay thế, gỡ lô khỏi xe để giải phóng lô lập kế hoạch mới.",
       confirm: "Huỷ xe này",
       cardTitle: "Xe gặp sự cố?",
       cardHint:
@@ -149,6 +164,8 @@ export const SHIPPING_FTL_LABELS = {
       confirm: "Huỷ kế hoạch",
       disabledVehicleLeft:
         "Đã có xe rời kho nên không huỷ cả kế hoạch được — huỷ có kiểm soát từng xe còn lại ở màn chuyến của xe đó.",
+      parcelDoesNotFitHint:
+        "Kiểm tra lại kích thước, tải trọng và sơ đồ xếp trước khi lập kế hoạch mới cho các lô.",
       pendingTitle: "Kiện còn phải dỡ khỏi xe",
       pendingDescription:
         "Các kiện này còn nằm trên xe (đơn đã huỷ hoặc xe đã huỷ có kiểm soát) và bị khoá cho tới khi được quét dỡ xuống. Mở chuyến của xe để quét từng kiện (hoặc để quản lý kho xác nhận khi nhãn hỏng).",

@@ -117,6 +117,7 @@ function ConversationContent({ id }: { id: string }) {
             <MessageList
               key={id}
               conversationId={id}
+              customerId={data.customerId}
               latest={messages.data}
               quoteGate={quoteGate}
             />

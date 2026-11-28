@@ -5,6 +5,7 @@ import {
   ORDER_ACTION_LABELS,
   ORDER_PERMISSIONS,
   ORDER_RELEASE_BLOCKER_LABELS,
+  ORDER_RELEASE_LABELS,
 } from "@/constants";
 
 import { ObjectActions } from "@/components/shared/ObjectActions";
@@ -49,6 +50,11 @@ interface OrderActionCardProps {
 export function OrderActionCard({ order, can, estimateSlot }: OrderActionCardProps) {
   const actions = allowedOrderActions(order.status, can, orderActionContextOf(order));
   const has = (code: OrderActionCode) => actions.some((a) => a.code === code);
+  const releaseAvailableByStatus = allowedOrderActions(
+    order.status,
+    () => true,
+    orderActionContextOf(order),
+  ).some((action) => action.code === "release");
   const onHold = order.status === "On Hold";
   // Giữ do hệ thống: nói rõ phải xử lý ở đâu thay vì để người dùng tìm nút "Gỡ giữ" không có
   const holdGuidance =
@@ -109,6 +115,9 @@ export function OrderActionCard({ order, can, estimateSlot }: OrderActionCardPro
       )}
       <OrderNextStep status={order.status} />
       {onHold && <OrderHoldNotice order={order} />}
+      {releaseAvailableByStatus && !can(ORDER_PERMISSIONS.release) && (
+        <p className="text-ink-secondary mt-2 text-xs">{ORDER_RELEASE_LABELS.permissionHint}</p>
+      )}
       {blockers.length > 0 && (
         <div className="border-border-default bg-bg-subtle rounded-[var(--r-sm)] border px-3 py-2 text-left text-xs">
           <p className="text-ink-primary font-medium">{ORDER_RELEASE_BLOCKER_LABELS.title}</p>
