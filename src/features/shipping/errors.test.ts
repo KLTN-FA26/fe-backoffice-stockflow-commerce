@@ -4,6 +4,8 @@ import { SHIPPING_ERROR_MESSAGES, UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 
 import {
+  carrierRefusalCode,
+  carrierRefusalWords,
   handoverRefusalOf,
   isScanQueueFatal,
   isStaleLoadError,
@@ -93,6 +95,39 @@ describe("shippingErrorMessage — mọi mã lỗi BE có câu tiếng Việt", 
         `Lô SO-9-S1: ${SHIPPING_ERROR_MESSAGES.shipmentRefused}`,
       );
     }
+  });
+
+  it("S17-2: lỗi hãng BE đã dịch (BE #481, mã giữ ở fieldErrors[].code) hiện NGUYÊN VĂN, không tiền tố, không lặp mã thô", () => {
+    const advice =
+      "Giờ hẹn lấy hàng không nằm trong giờ phục vụ của hãng. Nhân viên kho chọn giờ hẹn khác rồi bấm “Tạo đơn ở hãng” lại.";
+    const translated = new ApiError(
+      422,
+      "CARRIER_BOOKING_FAILED",
+      advice,
+      { carrier: advice },
+      undefined,
+      { carrier: "INVALID_SERVICE_HOUR" },
+    );
+    expect(shippingErrorMessage(translated)).toBe(advice);
+    expect(carrierRefusalCode(translated)).toBe("INVALID_SERVICE_HOUR");
+  });
+
+  it("S17-2: lỗi hãng chưa dịch ('406 INVALID_SERVICE_HOUR: Booking time not valid') không hiện mã thô — còn lời của hãng", () => {
+    const raw = err("CARRIER_BOOKING_FAILED", 422, {
+      carrier: "406 INVALID_SERVICE_HOUR: Booking time not valid",
+    });
+    const text = shippingErrorMessage(raw);
+    expect(text).toBe(
+      `${SHIPPING_ERROR_MESSAGES.CARRIER_BOOKING_FAILED} Lý do hãng nêu: Booking time not valid`,
+    );
+    expect(text).not.toMatch(/406|INVALID_SERVICE_HOUR/);
+    // Hãng chỉ gửi mã: chỉ câu chung
+    expect(
+      shippingErrorMessage(err("CARRIER_BOOKING_FAILED", 422, { carrier: "400 INVALID_LOCATION" })),
+    ).toBe(SHIPPING_ERROR_MESSAGES.CARRIER_BOOKING_FAILED);
+    expect(carrierRefusalWords("400 INVALID_LOCATION: Failed")).toBe("Failed");
+    expect(carrierRefusalWords("Hết xe tải")).toBe("Hết xe tải");
+    expect(carrierRefusalCode(raw)).toBeUndefined();
   });
 
   it("hãng từ chối tạo đơn: nối lý do hãng nêu; không có lý do thì chỉ câu chung của mã", () => {

@@ -45,6 +45,8 @@ export const beParcelSchema = z.object({
   orderLineId: z.string().nullish(),
   /** Hàng chèn của kế hoạch "Ưu tiên + hàng chèn" (RTM-LPGROUP). */
   fill: z.boolean().optional(),
+  /** Tên sản phẩm cạnh SKU (BE PR #488); kiện hỗn hợp nối " + " theo thứ tự `partName`; vắng khi chưa rõ / BE cũ. */
+  productName: z.string().nullish(),
 });
 
 /**
@@ -62,6 +64,9 @@ export const beCandidateShipmentSchema = z.object({
   packageCount: z.number().int(),
   /** Kiện của lô mà kế hoạch khác đang giữ (chỉ xảy ra sau khi một kế hoạch để lại kiện). */
   packagesInOtherPlans: z.number().int(),
+  /** Tên khách và tỉnh giao của lô (BE PR #488); vắng khi BE cũ — màn chỉ hiện khi có. */
+  customerName: z.string().nullish(),
+  deliveryProvinceName: z.string().nullish(),
   weightKg: beDecimal,
   volumeMm3: z.number(),
   packages: z.array(beParcelSchema),

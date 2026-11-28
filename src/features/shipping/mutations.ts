@@ -29,6 +29,16 @@ export const LOAD_LIST_KEY = [...loadKeys.all, "list"] as const;
 const T = TOAST_MESSAGES.shipping;
 
 /**
+ * Quét / gỡ quét / tài xế / mã vận đơn trả chuyến KHÔNG kèm `handoverWarnings` (BE chỉ tính ở GET và "bắt đầu xếp"): ghi
+ * thẳng response sẽ làm mất danh sách đơn chưa được phép đi, nút bàn giao mở ra rồi BE từ chối cả xe. Response không có thì
+ * giữ danh sách đã có trong cache; lần tải chi tiết kế tiếp (định kỳ khi đang xếp) tính lại.
+ */
+function withKnownWarnings(load: Load, cached: Load | undefined): Load {
+  if (load.handoverWarnings != null || !cached?.handoverWarnings) return load;
+  return { ...load, handoverWarnings: cached.handoverWarnings };
+}
+
+/**
  * Bọc mutation trả `Load`: ghi response vào cache chi tiết (không bản cũ hơn) và tải lại khi gặp lỗi
  * dữ liệu cũ. `loadIdOf` có thì huỷ GET chi tiết đang chạy của đúng chuyến đó trước khi gửi — GET về
  * SAU response sẽ ghi đè bằng bản cũ (kiện vừa quét nhảy về "Chưa lên xe", bàn giao dùng version cũ
@@ -52,7 +62,7 @@ export function withLoadCache<TInput>(
         // GET bắt đầu TRONG lúc POST chạy mang bản cũ hơn response này → huỷ trước khi ghi cache
         await queryClient.cancelQueries({ queryKey: loadKeys.detail(load.loadId) });
         queryClient.setQueryData<Load>(loadKeys.detail(load.loadId), (cached) =>
-          cached && cached.version > load.version ? cached : load,
+          cached && cached.version > load.version ? cached : withKnownWarnings(load, cached),
         );
         void queryClient.invalidateQueries({ queryKey: manifestKey(load.loadId) });
         options?.onSuccess?.(load, ...rest);

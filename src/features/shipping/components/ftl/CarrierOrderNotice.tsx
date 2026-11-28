@@ -1,4 +1,5 @@
-import { UI_LABELS } from "@/constants";
+import { SHIPPING_ERROR_MESSAGES, UI_LABELS } from "@/constants";
+import { carrierRefusalWords } from "@/features/shipping/errors";
 import { formatDateTime } from "@/lib/format/date";
 import { Alert } from "@/components/shared/Alert";
 
@@ -44,8 +45,10 @@ export function CarrierOrderNotice({ load }: { load: Load }) {
         </span>
       )}
       {booking.lastError && (
+        // BE đã dịch lỗi hãng biết mã (BE #481); lỗi còn "406 CODE: …" thô thì bỏ phần mã, chỉ còn mã thì câu chung (R7)
         <p className="mt-1">
-          {N.lastError}: {booking.lastError}
+          {N.lastError}:{" "}
+          {carrierRefusalWords(booking.lastError) || SHIPPING_ERROR_MESSAGES.CARRIER_BOOKING_FAILED}
         </p>
       )}
     </Alert>

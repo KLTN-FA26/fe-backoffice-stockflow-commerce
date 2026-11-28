@@ -206,7 +206,11 @@ export {
 } from "./labels-load-plan-editor";
 export { LOAD_PLAN_PRINT_LABELS } from "./labels-load-plan-print";
 export { LOAD_PLANNING_LABELS, PLACEMENT_RULE_LABELS } from "./labels-load-planning";
-export { SHIPPING_ERROR_MESSAGES, SHIPPING_FIELD_MESSAGES } from "./labels-shipping";
+export {
+  CARRIER_REFUSAL_CODE,
+  SHIPPING_ERROR_MESSAGES,
+  SHIPPING_FIELD_MESSAGES,
+} from "./labels-shipping";
 export {
   CARRIER_API_ENVIRONMENTS,
   CARRIER_CONFIG_LIMITS,

@@ -13,7 +13,7 @@ import {
   stoolButtons,
 } from "../../__fixtures__/editor-screen";
 import { unplacedParcel } from "../../__fixtures__/plans";
-import { LOAD_PLAN_ACTORS as ACTORS } from "../../__fixtures__/render-plan";
+import { LOAD_PLAN_ACTORS as ACTORS, planActionOf } from "../../__fixtures__/render-plan";
 
 import type { Server } from "../../__fixtures__/editor-screen";
 
@@ -114,7 +114,7 @@ describe("lưu bị 409 OPTIMISTIC_LOCK", () => {
     expect(second.vehicles[0].boxes.map((b) => b.zMm)).toEqual(
       first.vehicles[0].boxes.map((b) => b.zMm),
     );
-    expect(await screen.findByRole("button", { name: E.open })).toBeInTheDocument();
+    expect(await planActionOf(E.open)).toBeInTheDocument();
   });
 
   it("'Tải lại' drops the local edit and shows the server's version as the new starting point", async () => {
@@ -222,7 +222,7 @@ describe("lưu bị từ chối vì dữ liệu cũ theo cách khác", () => {
     await editAndSave(user);
     expect(await screen.findByText(E.closedByStatus)).toBeInTheDocument();
     expect(screen.queryByRole("toolbar", { name: E.toolbar.group })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: E.open })).not.toBeInTheDocument();
+    expect(await planActionOf(E.open)).toBeNull();
   });
 
   it("BE's 'package missing' (the plan gained a parcel) is explained, not shown as a generic failure", async () => {
@@ -258,7 +258,7 @@ describe("thoát khi còn thay đổi chưa lưu", () => {
     await user.click(screen.getByRole("button", { name: E.exit }));
     dialog = await screen.findByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: E.discard.confirm }));
-    expect(await screen.findByRole("button", { name: E.open })).toBeInTheDocument();
+    expect(await planActionOf(E.open)).toBeInTheDocument();
     expect(putCalls(view.put)).toHaveLength(0);
   });
 });

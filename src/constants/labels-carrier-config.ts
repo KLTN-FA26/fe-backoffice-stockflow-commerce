@@ -48,8 +48,8 @@ export const CARRIER_CONFIG_LABELS = {
     environment: "Môi trường",
     environmentPlaceholder: "Chọn môi trường",
     environmentOption: {
-      STAGING: "Thử nghiệm (staging)",
-      PRODUCTION: "Chạy thật (production)",
+      STAGING: "Thử nghiệm",
+      PRODUCTION: "Chạy thật",
     },
     account: "Tài khoản ở hãng",
     accountHint:
@@ -60,7 +60,7 @@ export const CARRIER_CONFIG_LABELS = {
       "Đổi môi trường hoặc tài khoản thì phải nhập lại khoá API của tài khoản đó.",
     webhookAuthHeader: "Tên header xác thực webhook",
     webhookAuthHeaderHint:
-      "Header mà hãng gửi kèm thông tin xác thực khi báo sự kiện, ví dụ apikey hoặc Authorization.",
+      "Webhook là cách hãng tự báo sự kiện (nhận đơn, lấy hàng, giao) về hệ thống; header là dòng xác thực hãng gửi kèm mỗi lần báo, ví dụ apikey hoặc Authorization.",
     webhookAuthValue: "Giá trị xác thực webhook",
     webhookAuthValueHint: `Toàn bộ giá trị mong đợi trong header đó (${L.webhookAuthValueMin}–${L.webhookAuthValueMax} ký tự, không có khoảng trắng đầu / cuối).`,
     rotationUnderWay:
@@ -74,6 +74,11 @@ export const CARRIER_CONFIG_LABELS = {
     keepAria: (label: string) => `Giữ ${label.toLowerCase()} hiện tại`,
     replaceHint: "Nhập khoá mới. Để trống thì giữ khoá đã lưu.",
     notSaved: "Chưa lưu",
+    // Xem lại khoá đang gõ để chắc không gõ nhầm (UX audit S20-1); khoá đã lưu thì vẫn không bao giờ hiện lại
+    show: "Hiện",
+    hide: "Ẩn",
+    showAria: (label: string) => `Hiện ${label.toLowerCase()} đang gõ`,
+    hideAria: (label: string) => `Ẩn ${label.toLowerCase()} đang gõ`,
   },
   table: {
     add: "Thêm dòng",
