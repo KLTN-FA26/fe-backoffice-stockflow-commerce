@@ -20,6 +20,14 @@ describe("lịch sản xuất (docs 17 §4.12 bước 47)", () => {
     expect(parsed.productionOrders[0]?.alerts).toEqual([]);
   });
 
+  it("đợt thiếu của đơn chưa chọn kho xuất (BE bỏ shippingWarehouseId) vẫn parse được", () => {
+    const { shippingWarehouseId, shippingWarehouseCode, ...noWarehouse } = shortBatch();
+    void shippingWarehouseId;
+    void shippingWarehouseCode;
+    const parsed = productionScheduleDto.parse({ ...schedule(), shortBatches: [noWarehouse] });
+    expect(parsed.shortBatches[0]?.shippingWarehouseId).toBeUndefined();
+  });
+
   it("Đơn sản xuất xếp theo ngày cần hàng, cùng ngày theo mã", () => {
     const rows = byNeedByDate([
       scheduledOrder({ id: "b", code: "PRD-B", needByDate: "2026-12-10" }),

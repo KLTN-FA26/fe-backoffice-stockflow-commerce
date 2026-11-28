@@ -2,7 +2,11 @@
 
 import { Plus } from "lucide-react";
 
-import { PRODUCTION_LABELS, SHORT_BATCH_COLUMNS as C } from "@/constants";
+import {
+  ORDER_SHIPPING_WAREHOUSE_LABELS,
+  PRODUCTION_LABELS,
+  SHORT_BATCH_COLUMNS as C,
+} from "@/constants";
 import { formatNumber } from "@/lib/format";
 
 import { withHeaderFilters } from "@/components/shared/ColumnHeaderFilter";
@@ -67,7 +71,10 @@ export function ShortBatchTable({
       header: L.warehouse,
       cell: (row) => (
         <span className={CELL.ref}>
-          {row.shippingWarehouseCode ?? shortId(row.shippingWarehouseId)}
+          {row.shippingWarehouseCode ??
+            (row.shippingWarehouseId
+              ? shortId(row.shippingWarehouseId)
+              : ORDER_SHIPPING_WAREHOUSE_LABELS.card.none)}
         </span>
       ),
     },
