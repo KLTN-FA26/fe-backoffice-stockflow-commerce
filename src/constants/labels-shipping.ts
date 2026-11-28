@@ -162,7 +162,7 @@ export const SHIPPING_UI_LABELS = {
     clearRejected: "Xoá danh sách",
     notSent: "Chưa gửi được — quét lại cùng mã để thử lại.",
     invalidResponse:
-      "Máy chủ trả dữ liệu sai định dạng — kiểm tra bảng kiện trước khi quét lại, báo kỹ thuật.",
+      "Chưa ghi được kiện này lên xe, hãy quét lại. Nếu vẫn lỗi, nhìn bảng kiện bên dưới xem kiện đã lên xe chưa.",
     context: (trip: string, plan?: string | null, vehicle?: number | null) =>
       [
         `Chuyến ${trip}`,
