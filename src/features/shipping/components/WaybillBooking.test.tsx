@@ -128,7 +128,7 @@ describe("Đặt xe — hãng thường (MANUAL / WEBHOOK_LOAD)", () => {
     });
     await user.click(await screen.findByRole("button", { name: F.booking.book }));
     const dialog = await screen.findByRole("dialog");
-    await chooseCarrier(user, /GHN/);
+    await chooseCarrier(user, /Giao Hàng Nhanh/);
     expect(within(dialog).queryByLabelText(A.pickupAt)).not.toBeInTheDocument();
     expect(within(dialog).queryByText(A.stops)).not.toBeInTheDocument();
     await user.type(within(dialog).getByLabelText(F.bookDialog.vehiclePlate), "51C-628.14");
@@ -152,7 +152,7 @@ describe("Đặt xe — hãng thường (MANUAL / WEBHOOK_LOAD)", () => {
     renderLoad(ACTORS.warehouseStaff, plannedLoad());
     await user.click(await screen.findByRole("button", { name: F.booking.book }));
     const dialog = await screen.findByRole("dialog");
-    await chooseCarrier(user, /VTP/);
+    await chooseCarrier(user, /Viettel Post/);
     expect(within(dialog).getByLabelText(F.bookDialog.waybillNo)).toBeInTheDocument();
     expect(within(dialog).queryByLabelText(A.pickupAt)).not.toBeInTheDocument();
   });
@@ -162,7 +162,7 @@ describe("Đặt xe — hãng thường (MANUAL / WEBHOOK_LOAD)", () => {
     const { post } = renderLoad(ACTORS.warehouseStaff, plannedLoad());
     await user.click(await screen.findByRole("button", { name: F.booking.book }));
     const dialog = await screen.findByRole("dialog");
-    await chooseCarrier(user, /GHN/);
+    await chooseCarrier(user, /Giao Hàng Nhanh/);
     await user.type(within(dialog).getByLabelText(F.bookDialog.waybillNo), "GHN 777");
     expect(within(dialog).getByRole("button", { name: F.bookDialog.submit })).toBeDisabled();
     expect(post).not.toHaveBeenCalled();
@@ -176,7 +176,7 @@ describe("Đặt xe — hãng đặt xe qua API (BR-29)", () => {
     await user.click(await screen.findByRole("button", { name: F.booking.book }));
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByLabelText(F.bookDialog.vehiclePlate)).toBeInTheDocument();
-    await chooseCarrier(user, /AHAMOVE/);
+    await chooseCarrier(user, /Ahamove/);
     for (const label of [
       F.bookDialog.vehiclePlate,
       F.bookDialog.driverName,
@@ -205,7 +205,7 @@ describe("Đặt xe — hãng đặt xe qua API (BR-29)", () => {
     });
     await user.click(await screen.findByRole("button", { name: F.booking.book }));
     const dialog = await screen.findByRole("dialog");
-    await chooseCarrier(user, /AHAMOVE/);
+    await chooseCarrier(user, /Ahamove/);
     await typeDateTime(user, within(dialog).getByLabelText(A.pickupAt), "2026-11-12T09:30");
     await user.click(within(dialog).getByRole("button", { name: A.downAria("SO-1-S1") }));
     const stops = within(dialog).getAllByRole("listitem");
@@ -227,7 +227,7 @@ describe("Đặt xe — hãng đặt xe qua API (BR-29)", () => {
     const { post } = renderLoad(ACTORS.warehouseStaff, twoStops(), { booking: () => apiBooked() });
     await user.click(await screen.findByRole("button", { name: F.booking.book }));
     const dialog = await screen.findByRole("dialog");
-    await chooseCarrier(user, /AHAMOVE/);
+    await chooseCarrier(user, /Ahamove/);
     const field = within(dialog).getByLabelText(A.pickupAt);
     await user.type(field, "311120260830");
     expect(await within(dialog).findByText(FIELD_MSG.pickupAtInvalid)).toBeInTheDocument();
@@ -251,7 +251,7 @@ describe("Đặt xe — hãng đặt xe qua API (BR-29)", () => {
     const user = userEvent.setup();
     const { post } = renderLoad(ACTORS.warehouseStaff, twoStops(), { booking: () => apiBooked() });
     await user.click(await screen.findByRole("button", { name: F.booking.book }));
-    await chooseCarrier(user, /AHAMOVE/);
+    await chooseCarrier(user, /Ahamove/);
     await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: A.submit }));
     await waitFor(() => expect(post).toHaveBeenCalledTimes(1));
     expect(sent(post.mock.calls[0]?.[1])).toEqual({
@@ -280,7 +280,7 @@ describe("Đặt xe — hãng đặt xe qua API (BR-29)", () => {
     );
     await user.click(await screen.findByRole("button", { name: F.booking.book }));
     const dialog = await screen.findByRole("dialog");
-    await chooseCarrier(user, /AHAMOVE/);
+    await chooseCarrier(user, /Ahamove/);
     await user.click(within(dialog).getByRole("button", { name: A.submit }));
     expect(
       await within(dialog).findByText(`${ERR.CARRIER_BOOKING_FAILED} Lý do hãng nêu: Hết xe tải`),

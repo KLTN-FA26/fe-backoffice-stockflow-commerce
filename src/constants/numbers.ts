@@ -206,6 +206,10 @@ export const SHIPPING_LIMITS = {
   scanFeedbackMs: 1500,
   /** Chuyến đang xếp hàng (LOADING): tự tải lại để thấy kiện quét từ máy khác. */
   loadPollMs: 15_000,
+  /** Số chuyến đã bàn giao gần nhất của kho đọc để biết hãng dùng gần nhất (ô chọn hãng khi đặt xe). */
+  recentLoadsSize: 20,
+  /** Số mã kiện chưa quét liệt kê dưới nút bàn giao (còn lại ghi "và N kiện khác"). */
+  unscannedListed: 5,
 } as const;
 
 /**
@@ -233,6 +237,19 @@ export const CUSTOMER_PRICE_LIMITS = PRICE_TIER_LIMITS;
 
 /** Duyệt giá báo giá — BE `QuoteRequests.PriceApproval.note` / `PriceRejection.reason` (`@Size(max = 500)`). */
 export const QUOTE_PRICE_REVIEW_LIMITS = { noteMax: 500 } as const;
+
+/**
+ * Ngưỡng duyệt giá mặc định của BE (`stockflow.order.quote.price-approval-percent`, mặc định 10; 14 BR-10): bậc giá thấp
+ * hơn giá tham chiếu QUÁ ngưỡng này thì báo giá chờ Quản lý kinh doanh duyệt. Form chỉ dùng để XEM TRƯỚC khi báo giá
+ * chưa có `priceCheck.thresholdPercent` (báo giá mới, chưa lưu) — BE quyết định lại lúc gửi.
+ */
+export const QUOTE_PRICE_APPROVAL_DEFAULT_PERCENT = 10;
+
+/**
+ * Yêu cầu báo giá đang mở đã chờ bao lâu thì tô (rà UI WF-02 bo-01): từ `warnHours` giờ → cam, từ `longHours` → đỏ.
+ * ASSUMPTION: kltn-docs chưa có SLA phản hồi yêu cầu báo giá; 1 ngày / 3 ngày là mốc tạm, chủ dự án chỉnh khi chốt SLA.
+ */
+export const QUOTE_REQUEST_WAIT_HOURS = { warn: 24, long: 72 } as const;
 
 /**
  * Số dòng tối đa một ô chọn có tìm (`InputCombobox`) hiện cùng lúc — còn nữa thì nhắc "Còn N kết quả — gõ thêm"
@@ -341,6 +358,8 @@ export const LOAD_PLAN_LIMITS = {
   estimateTolerancePct: 10,
   /** Số loại xe tải về một lần cho ô chọn loại xe (danh mục tối đa vài chục). */
   vehicleTypePickerSize: 100,
+  /** Từ ngần này lô ứng viên trở lên, màn lập kế hoạch mới hiện ô tìm lô (ít hơn thì cả bảng nằm gọn trên màn). */
+  shipmentSearchFrom: 5,
   /** `LoadPlacementsRequest.vehicles` @Size(max = 100). */
   placementVehiclesMax: 100,
   /** `LoadPlacementsRequest.Vehicle.boxes` và `tray` @Size(max = 2000). */

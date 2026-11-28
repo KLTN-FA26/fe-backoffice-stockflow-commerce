@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FileSignature, Plus } from "lucide-react";
+import { FileSignature, Hourglass, Plus } from "lucide-react";
 
 import { ADMIN_ROUTES, QUOTE_PERMISSIONS, STORAGE_KEYS } from "@/constants";
 import { PERMISSION_UI } from "@/constants/permissions";
@@ -11,7 +11,7 @@ import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { useCan } from "@/lib/auth";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 
-import { useQuotes } from "@/features/quote/queries";
+import { useQuotes, useQuoteStatusCounts } from "@/features/quote/queries";
 
 import { ServerTableBody } from "@/components/backoffice/ServerTableBody";
 import { withHeaderFilters } from "@/components/shared/ColumnHeaderFilter";
@@ -19,11 +19,12 @@ import { HeaderActions, HeaderCreateButton } from "@/components/shared/HeaderAct
 import { TOOLBAR_PRIMARY_CLASS } from "@/components/shared/ListToolbar";
 import { Button } from "@/components/ui/button";
 
-import { QUOTE_COPY } from "./copy";
+import { QUOTE_COPY, QUOTE_PRICE_REVIEW_QUEUE_EMPTY } from "./copy";
 import { buildQuoteColumns, QUOTE_COLUMNS, QUOTE_LOCKED_COLUMNS, SORTABLE } from "./list-columns";
 import { quoteHeaderFilters } from "./quote-header-filters";
 import { quoteActionsColumn } from "./quote-row-actions";
 import { QuoteListToolbar } from "./QuoteListToolbar";
+import { QuoteStatusTabs } from "./QuoteStatusTabs";
 import { useQuoteListFilters } from "./useQuoteListFilters";
 
 function QuoteListContent() {
@@ -46,6 +47,12 @@ function QuoteListContent() {
       priceReview: state.priceReview.value,
     },
     { enabled: canRead },
+  );
+  // bo-06: số trên tab — cùng tìm kiếm / khách của danh sách, KHÔNG kèm trạng thái / duyệt giá (chính tab đổi hai lọc đó;
+  // kèm vào thì mọi tab khác thành 0).
+  const counts = useQuoteStatusCounts(
+    { search: state.serverSearch, customerId: customerId || undefined },
+    canRead,
   );
   const columnState = useColumnVisibility(STORAGE_KEYS.adminQuotesColumns, QUOTE_COLUMNS, {
     locked: QUOTE_LOCKED_COLUMNS,
@@ -75,6 +82,7 @@ function QuoteListContent() {
           tooltip={canCreate ? "Tạo báo giá" : PERMISSION_UI.quoteCreateDenied}
         />
       </HeaderActions>
+      {canRead && <QuoteStatusTabs state={state} counts={counts.data} />}
       {canRead && <QuoteListToolbar state={state} columns={columnState} />}
       <ServerTableBody
         query={query}
@@ -87,21 +95,26 @@ function QuoteListContent() {
         }
         noun="báo giá"
         errorCopy={QUOTE_COPY}
-        hasFilters={state.hasFilters}
+        // Hàng chờ "Chờ duyệt giá" rỗng là "không có gì chờ", không phải "không khớp từ khoá" (bo-14).
+        hasFilters={state.hasFilters && !state.queueOnly}
         onClearFilters={state.clear}
         rowFilter={state.rowFilter}
-        empty={{
-          icon: <FileSignature className="size-8" />,
-          title: "Chưa có báo giá",
-          description: "Tạo báo giá nháp từ hồ sơ khách hàng hoặc nút Tạo mới.",
-          action: canCreate ? (
-            <Button asChild size="sm" className={TOOLBAR_PRIMARY_CLASS}>
-              <Link href={createHref}>
-                <Plus className="size-3.5" /> Tạo báo giá đầu tiên
-              </Link>
-            </Button>
-          ) : undefined,
-        }}
+        empty={
+          state.queueOnly
+            ? { icon: <Hourglass className="size-8" />, ...QUOTE_PRICE_REVIEW_QUEUE_EMPTY }
+            : {
+                icon: <FileSignature className="size-8" />,
+                title: "Chưa có báo giá",
+                description: "Tạo báo giá nháp từ hồ sơ khách hàng hoặc nút Tạo mới.",
+                action: canCreate ? (
+                  <Button asChild size="sm" className={TOOLBAR_PRIMARY_CLASS}>
+                    <Link href={createHref}>
+                      <Plus className="size-3.5" /> Tạo báo giá đầu tiên
+                    </Link>
+                  </Button>
+                ) : undefined,
+              }
+        }
         pageSize={list.pageSize}
         onPageChange={list.goToPage}
         onPageSizeChange={list.changePageSize}

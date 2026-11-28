@@ -6,11 +6,13 @@ import {
   ORDER_PERMISSIONS,
   ORDER_RELEASE_BLOCKER_LABELS,
 } from "@/constants";
+import { PAYMENT_INSTALLMENT_PERMISSIONS } from "@/constants/payment";
 
 import { ObjectActions } from "@/components/shared/ObjectActions";
 
 import { allowedOrderActions, orderActionContextOf } from "../lifecycle";
 import { createPickingTaskHref } from "../picking-task";
+import { useOrderInstallmentsSummary } from "../queries";
 import { releaseBlockers } from "../release-rules";
 
 import { CreditApproveAction } from "./credit-hold/CreditApproveAction";
@@ -49,6 +51,12 @@ interface OrderActionCardProps {
  * CreditHoldService, Order#requireNotPacked).
  */
 export function OrderActionCard({ order, can, estimateSlot }: OrderActionCardProps) {
+  const canRelease = can(ORDER_PERMISSIONS.release);
+  // BE tính `onSigningPaid` từ mọi đợt ON_SIGNING. Quản lý kho thiếu quyền đọc installments vẫn cần lời giải thích.
+  const payment = useOrderInstallmentsSummary(order.orderId, {
+    enabled:
+      canRelease && can(PAYMENT_INSTALLMENT_PERMISSIONS.read) && order.status === "Pending Payment",
+  });
   const actions = allowedOrderActions(order.status, can, orderActionContextOf(order));
   const has = (code: OrderActionCode) => actions.some((a) => a.code === code);
   const onHold = order.status === "On Hold";
@@ -62,9 +70,9 @@ export function OrderActionCard({ order, can, estimateSlot }: OrderActionCardPro
       ? ORDER_ACTION_LABELS.shipmentsHint
       : null;
   const guidance = holdGuidance ?? shipmentsHint;
-  // Lý do biết trước chưa release được (đơn cọc chưa nhận cọc): chỉ cho người có quyền release; nói ra thay vì ẩn nút.
-  // UI-only — Backend phải re-check (OrderReleaseService: BR-PRD-09).
-  const blockers = can(ORDER_PERMISSIONS.release) ? releaseBlockers(order) : [];
+  // Lý do biết trước chưa ra lệnh xuất kho được: chỉ cho người có quyền release; nói ra thay vì ẩn nút.
+  // UI-only — Backend phải re-check (docs 07 BR-01, 15 BR-07, 17 BR-02).
+  const blockers = canRelease ? releaseBlockers(order, payment.data) : [];
   // Đơn đã có lệnh xuất kho mà chưa có nhiệm vụ lấy hàng: việc tiếp theo là tạo nhiệm vụ (quản lý kho của kho xuất)
   const createTaskHref = createPickingTaskHref(order, can);
   // MỘT nút chính theo việc tiếp theo; còn lại vào menu "⋯" — việc thường trước, việc phá huỷ (chữ đỏ) cuối

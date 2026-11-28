@@ -25,7 +25,7 @@ function columnSearchSummary({ columnFilters: f }: QuoteListFilters): string {
     range("Tổng có thuế", f.qtTotalFrom, f.qtTotalTo),
     f.qtOrder && (f.qtOrder === "yes" ? "Đã tạo đơn" : "Chưa tạo đơn"),
   ].filter(Boolean);
-  return parts.join(", ") || "Chưa dùng";
+  return parts.join(", ");
 }
 
 /**
@@ -71,20 +71,28 @@ export function QuoteListToolbar({
         state.setCustomerId("");
         priceReview.clear();
       }}
+      // bo-06: chỉ hiện ô tìm / tìm trong cột khi đang dùng — không có viên "Chưa dùng" hay "Tìm theo" (chữ kỹ thuật).
       summaryItems={[
-        {
-          label: "Tìm kiếm chính",
-          value: filters.q.trim() ? `“${filters.q}”` : "Chưa dùng",
-          active: filters.q.trim() !== "",
-          onClear: () => void filters.setQ(""),
-        },
-        { label: "Tìm theo", value: "Số báo giá" },
-        {
-          label: "Tìm trong cột",
-          value: columnSearchSummary(state),
-          active: state.hasColumnFilters,
-          onClear: state.clearColumnFilters,
-        },
+        ...(filters.q.trim()
+          ? [
+              {
+                label: "Tìm kiếm chính",
+                value: `“${filters.q}”`,
+                active: true,
+                onClear: () => void filters.setQ(""),
+              },
+            ]
+          : []),
+        ...(state.hasColumnFilters
+          ? [
+              {
+                label: "Tìm trong cột",
+                value: columnSearchSummary(state),
+                active: true,
+                onClear: state.clearColumnFilters,
+              },
+            ]
+          : []),
         {
           label: "Trạng thái",
           value: filters.status.map(quoteStatusLabel).join(", ") || "Tất cả",

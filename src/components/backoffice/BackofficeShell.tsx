@@ -53,6 +53,9 @@ import {
   Truck,
   TruckElectric,
   Undo2,
+  UserPlus,
+  UserRoundSearch,
+  UsersRound,
   Warehouse as WarehouseIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -132,6 +135,14 @@ import {
   CREDIT_REQUEST_PERMISSIONS,
   CREDIT_REQUEST_ROUTES,
 } from "@/constants/credit-request";
+import { SALES_OWNER_LABELS } from "@/constants/labels-sales-owner";
+import {
+  OWNER_CHANGE_REQUEST_PERMISSIONS,
+  SALES_LEAD_PERMISSIONS,
+  SALES_ROUTES,
+  SALES_WORKLOAD_PERMISSIONS,
+  STAFF_COVER_PERMISSIONS,
+} from "@/constants/sales-owner";
 
 import { useStaffChatBadge } from "@/features/chat";
 import { NotificationBell } from "@/features/notification";
@@ -280,6 +291,32 @@ export const NAV_GROUPS: NavGroup[] = [
         href: ADMIN_ROUTES.customers.list,
         icon: Building2,
         permission: CUSTOMER_PERMISSIONS.viewPage,
+      },
+      // Sale phụ trách khách (sales-owner): các resource mới không có VIEW_PAGE → gate bằng READ của hợp đồng
+      {
+        // Chỉ quản lý (`sales-workload:READ`: SALES_MANAGER, SYSTEM_ADMIN)
+        label: SALES_OWNER_LABELS.nav.assignment,
+        href: SALES_ROUTES.assignment,
+        icon: UsersRound,
+        permission: SALES_WORKLOAD_PERMISSIONS.read,
+      },
+      {
+        label: SALES_OWNER_LABELS.nav.leads,
+        href: SALES_ROUTES.leads,
+        icon: UserPlus,
+        permission: SALES_LEAD_PERMISSIONS.read,
+      },
+      {
+        label: SALES_OWNER_LABELS.nav.covers,
+        href: SALES_ROUTES.covers,
+        icon: CalendarClock,
+        permission: STAFF_COVER_PERMISSIONS.read,
+      },
+      {
+        label: SALES_OWNER_LABELS.nav.requests,
+        href: SALES_ROUTES.ownerChangeRequests,
+        icon: UserRoundSearch,
+        permission: OWNER_CHANGE_REQUEST_PERMISSIONS.read,
       },
       {
         label: CUSTOMER_PRICE_UI_LABELS.navLabel,

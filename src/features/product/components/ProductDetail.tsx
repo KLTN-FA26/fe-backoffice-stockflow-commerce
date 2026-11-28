@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 
 import { ProductDetailTabs } from "./ProductDetailTabs";
 import { ProductDuplicateList } from "./ProductDuplicateWarning";
+import { ProductImageCard } from "./ProductImageCard";
 import { ProductLifecycleDialogs } from "./ProductLifecycleDialogs";
 import { ProductLoadError } from "./ProductLoadError";
 import { ProductObjectHeader } from "./ProductObjectHeader";
@@ -95,6 +96,13 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
           ) : undefined
         }
       />
+      {/* Ảnh riêng của sản phẩm (ADR-0012) — ảnh thẻ storefront; UI-only, BE re-check quyền và trạng thái */}
+      <div className="mb-6">
+        <ProductImageCard
+          productId={product.productId}
+          canEdit={can(PRODUCT_PERMISSIONS.update) && gate.acceptsChanges}
+        />
+      </div>
       {/* Biến thể — dữ liệu xem / thao tác nhiều nhất nên nằm thẳng trên trang, không giấu vào tab */}
       <div className="mb-6">
         <ProductVariantsSection

@@ -16,6 +16,9 @@ import {
   loadPlanStatusTone,
   pickedOnTray,
   summarizePlan,
+  orderIdsOf,
+  productNamesByPart,
+  shipmentMatches,
   totalsOf,
   unplacedLinesOf,
   unplacedParcels,
@@ -90,15 +93,51 @@ describe("summaries", () => {
 
   it("totals the selected shipments, leaving out parcels another plan holds", () => {
     const candidates = [
-      { shipmentId: "a", packageCount: 10, packagesInOtherPlans: 2 },
-      { shipmentId: "b", packageCount: 5, packagesInOtherPlans: 0 },
+      {
+        shipmentId: "a",
+        orderId: "o1",
+        packageCount: 10,
+        packagesInOtherPlans: 2,
+        weightKg: 95,
+        volumeMm3: 930_000_000,
+      },
+      {
+        shipmentId: "b",
+        orderId: "o1",
+        packageCount: 5,
+        packagesInOtherPlans: 0,
+        weightKg: 40,
+        volumeMm3: 100_000_000,
+      },
     ];
-    expect(totalsOf(candidates, new Set(["a"]))).toEqual({ shipments: 1, packages: 8 });
+    expect(totalsOf(candidates, new Set(["a"]))).toEqual({
+      shipments: 1,
+      packages: 8,
+      weightKg: 95,
+      volumeMm3: 930_000_000,
+    });
     expect(totalsOf(candidates, new Set(["a", "b", "zzz"]))).toEqual({
       shipments: 2,
       packages: 13,
+      weightKg: 135,
+      volumeMm3: 1_030_000_000,
     });
-    expect(totalsOf(candidates, new Set())).toEqual({ shipments: 0, packages: 0 });
+    expect(totalsOf(candidates, new Set())).toEqual({
+      shipments: 0,
+      packages: 0,
+      weightKg: 0,
+      volumeMm3: 0,
+    });
+  });
+
+  it("lists each order of the chosen shipments once (one load estimate per order)", () => {
+    const candidates = [
+      { shipmentId: "a", orderId: "o1" },
+      { shipmentId: "b", orderId: "o1" },
+      { shipmentId: "c", orderId: "o2" },
+    ];
+    expect(orderIdsOf(candidates, new Set(["a", "b", "c"]))).toEqual(["o1", "o2"]);
+    expect(orderIdsOf(candidates, new Set(["c"]))).toEqual(["o2"]);
   });
 });
 
@@ -140,5 +179,44 @@ describe("fillLineOptions / fillLinesToSend — hàng chèn theo dòng đơn (RT
     expect(fillLinesToSend("PRIORITY_FILL", new Set(["B", "GONE"]), options)).toEqual(["B"]);
     expect(fillLinesToSend("PRIORITY_FILL", new Set(), options)).toEqual([]);
     expect(fillLinesToSend("SINGLE_TYPE", new Set(["B"]), options)).toBeUndefined();
+  });
+});
+
+describe("productNamesByPart (BE PR #488: productName beside the SKU)", () => {
+  it("maps SKU to product name from packages[], first name wins, parcels without a name are skipped", () => {
+    const names = productNamesByPart([
+      { partName: "SKU-A", productName: "Ly giấy 12oz" },
+      { partName: "SKU-A", productName: "khác" },
+      { partName: "SKU-B", productName: undefined },
+      { partName: "SKU-C", productName: null },
+      { partName: "SKU-D + SKU-E", productName: "Khay + Nắp" },
+    ]);
+    expect(names.get("SKU-A")).toBe("Ly giấy 12oz");
+    expect(names.has("SKU-B")).toBe(false);
+    expect(names.has("SKU-C")).toBe(false);
+    expect(names.get("SKU-D + SKU-E")).toBe("Khay + Nắp");
+  });
+
+  it("is empty for an old BE that sends no productName", () => {
+    expect(productNamesByPart([{ partName: "SKU-A" }]).size).toBe(0);
+  });
+});
+
+describe("shipmentMatches", () => {
+  const shipment = {
+    code: "SO-1-S1",
+    orderNumber: "SO-1",
+    customerName: "Quán Trà Sữa Mây",
+    deliveryProvinceName: "Hà Nội",
+  };
+  it("matches the code, order number, customer name or province, ignoring case", () => {
+    for (const q of ["so-1-s", "SO-1", "trà sữa", "hà nội", "  MÂY "])
+      expect(shipmentMatches(shipment, q)).toBe(true);
+    expect(shipmentMatches(shipment, "Đà Nẵng")).toBe(false);
+    expect(shipmentMatches(shipment, "")).toBe(true);
+  });
+  it("still works when the BE sends no customer or province", () => {
+    expect(shipmentMatches({ code: "SO-2-S1", orderNumber: undefined }, "so-2")).toBe(true);
+    expect(shipmentMatches({ code: "SO-2-S1", orderNumber: undefined }, "hà nội")).toBe(false);
   });
 });

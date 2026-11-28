@@ -1,7 +1,8 @@
 "use client";
 
 import { LOAD_STATUS } from "@/constants";
-import { loadNoActionReason, hasLoadAction } from "@/features/shipping/lifecycle";
+import { hasLoadAction } from "@/features/shipping/lifecycle";
+import { loadNoActionReason } from "@/features/shipping/load-no-action-reason";
 import { hasPendingUnloads } from "@/features/shipping/ftl-selectors";
 import { loadedLabelCodes } from "@/features/shipping/selectors";
 import { Alert } from "@/components/shared/Alert";

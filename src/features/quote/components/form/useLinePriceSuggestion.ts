@@ -7,6 +7,7 @@ import { useCan } from "@/lib/auth/components/Can";
 import { useCustomerPrice, useStandardPriceSuggestion } from "@/features/quote/queries";
 
 import type { QuotePriceSource } from "@/constants";
+import type { PriceReferences } from "@/features/quote/selectors";
 import type { CustomerSku, QuoteTier } from "@/features/quote/types";
 
 export interface LinePriceSuggestion {
@@ -44,8 +45,17 @@ export function useLinePriceSuggestion(
           : null,
     [ownData, ownMissing, standardData],
   );
+  // Giá tham chiếu để xem trước luật duyệt giá (14 BR-10) — cùng quy tắc `usePriceReferences` của khung tóm tắt.
+  const references = useMemo<PriceReferences>(() => {
+    if (!code || !own.isSuccess) return { own: undefined, standard: undefined };
+    if (ownData) return { own: ownData.tiers, standard: undefined };
+    if (!sourceSku) return { own: null, standard: null };
+    if (!canReadStandard || !standard.isSuccess) return { own: null, standard: undefined };
+    return { own: null, standard: standardData?.tiers ?? null };
+  }, [code, own.isSuccess, ownData, sourceSku, canReadStandard, standard.isSuccess, standardData]);
   return {
     suggestion,
+    references,
     loading: own.isFetching || standard.isFetching,
     failed: own.isError || standard.isError,
   };

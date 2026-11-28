@@ -20,10 +20,11 @@ const PREVIEW_CONTENT_TYPE = "image/png";
 function LinePreview({ line }: { line: ProjectQuoteRequestLine }) {
   const preview = useDesignPreview(line.designId);
   if (preview.isPending) return <Skeleton className="h-56 w-full rounded-none" />;
+  // Không có ảnh: một dải mỏng thay cho khung ảnh cao (bo-05) — thẻ không chiếm nửa màn hình chỉ để báo "chưa có ảnh".
   if (preview.isError || !preview.data.previewUrl)
     return (
-      <div className="bg-bg-subtle text-ink-tertiary flex h-56 flex-col items-center justify-center gap-1.5 text-xs">
-        <ImageOff className="size-5" aria-hidden />
+      <div className="bg-bg-subtle text-ink-tertiary flex h-10 items-center gap-1.5 px-3 text-xs">
+        <ImageOff className="size-4" aria-hidden />
         {preview.isError ? "Không tải được ảnh xem trước" : "Chưa có ảnh xem trước"}
       </div>
     );

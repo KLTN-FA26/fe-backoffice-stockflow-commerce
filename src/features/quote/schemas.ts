@@ -186,6 +186,9 @@ export const quoteDtoSchema = z.object({
   createdBy: omittedOrNull(z.string()),
   createdByName: omittedOrNull(z.string()),
   version: z.number().int(),
+  /** BE `QuoteResponse.customerName` / `customerCode`: tên và mã khách trên báo giá (null với khách không còn biết). */
+  customerName: omittedOrNull(z.string()),
+  customerCode: omittedOrNull(z.string()),
   /** 14 BR-10: bản nháp đang chờ Quản lý kinh doanh duyệt giá (vẫn `DRAFT`, khoá sửa / gửi). */
   priceReviewPending: z.boolean().default(false),
   priceReview: omittedOrNull(priceReviewDtoSchema),
@@ -218,6 +221,16 @@ export const quoteRowDtoSchema = z.object({
   priceReviewPending: z.boolean().default(false),
 });
 export const quotePageDtoSchema = bePageSchema(quoteRowDtoSchema);
+
+/**
+ * BE `QuoteStatusCountsResponse` (`GET /quotes/status-counts`, audit bo-06, BE PR #497): số báo giá theo trạng thái dưới
+ * cùng bộ lọc của danh sách — số trên tab là độ dài danh sách nó mở. `byStatus` đọc lỏng (khoá trạng thái mới không vỡ).
+ */
+export const quoteStatusCountsDtoSchema = z.object({
+  byStatus: z.record(z.string(), z.number()),
+  total: z.number(),
+  priceReviewPending: z.number().default(0),
+});
 
 /**
  * SKU riêng của khách — BE `CustomerSkuResponse` (`GET /customer-skus?customerId=`); BE gọi id là `id`, màn hình gọi
@@ -258,4 +271,17 @@ export const standardPriceSuggestionSchema = z.object({
   sku: z.string(),
   moq: z.number().int(),
   tiers: z.array(tierDtoSchema),
+});
+
+/**
+ * Phần của BE `CreditPositionResponse` (`GET /orders/credit-position/{customerId}`, `customer-credit-profiles:READ`) mà
+ * khung tóm tắt của form báo giá hiện (rà UI WF-02 bo-10): hạn mức, dư nợ phần trả sau giao, còn dùng được, quá hạn.
+ * Jackson non_null: hạn mức / còn dùng vắng khi khách không được bán trả sau.
+ */
+export const quoteCreditPositionSchema = z.object({
+  creditLimit: omittedOrNull(z.number()),
+  exposure: z.number(),
+  availableCredit: omittedOrNull(z.number()),
+  hasOverdue: z.boolean(),
+  overdueAmount: omittedOrNull(z.number()),
 });

@@ -4,6 +4,8 @@ import { CARRIER_STATUSES, PAGE_SIZE } from "@/constants";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useCarriers } from "@/features/shipping/queries";
 
+/** Số dòng một trang của danh mục hãng. */
+export const CARRIER_PAGE_SIZES: number[] = [PAGE_SIZE.sm, PAGE_SIZE.md, PAGE_SIZE.lg];
 const STATUS_FILTERS = [...CARRIER_STATUSES, "ALL"] as const;
 
 export type CarrierListEmptyState = "none" | "no-carriers" | "no-results" | "invalid-page";
@@ -16,11 +18,14 @@ export function useCarrierListState(canRead: boolean) {
     "status",
     parseAsStringLiteral(STATUS_FILTERS).withDefault("ALL"),
   );
+  // Số dòng một trang chọn được (S20-3): trên URL như trang và bộ lọc
+  const [size, setSize] = useQueryState("size", parseAsInteger.withDefault(PAGE_SIZE.md));
+  const pageSize = CARRIER_PAGE_SIZES.includes(size) ? size : PAGE_SIZE.md;
   const debouncedQ = useDebouncedValue(q, 300);
   const query = useCarriers(
     {
       page: Math.max(0, page - 1),
-      size: PAGE_SIZE.md,
+      size: pageSize,
       search: debouncedQ,
       status: status === "ALL" ? undefined : status,
     },
@@ -38,6 +43,11 @@ export function useCarrierListState(canRead: boolean) {
     query,
     q,
     status,
+    pageSize,
+    changePageSize: (next: number) => {
+      void setSize(next === PAGE_SIZE.md ? null : next);
+      void setPage(1);
+    },
     hasFilters,
     emptyState,
     setPage: (value: number) => void setPage(value),

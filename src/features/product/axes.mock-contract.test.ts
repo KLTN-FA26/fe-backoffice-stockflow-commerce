@@ -92,11 +92,9 @@ async function baseInput(axes?: AxisInput[], code = `AXP-${uid()}`) {
   return {
     code,
     name: "Sản phẩm trục",
-    nameEn: "Axes product",
     categoryId: category?.categoryId ?? "",
     brandId: brand?.brandId ?? "",
     description: "",
-    descriptionEn: "",
     taxClass: "STANDARD" as const,
     kind: "STANDARD" as const,
     ...(axes ? { axes } : {}),

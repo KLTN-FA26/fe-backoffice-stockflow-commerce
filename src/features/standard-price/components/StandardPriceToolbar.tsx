@@ -37,35 +37,42 @@ export function StandardPriceToolbar({ filters }: { filters: StandardPriceFilter
       search={filters.spQ}
       onSearchChange={(value) => filters.set({ spQ: value })}
       searchPlaceholder={L.table.filter}
+      // Chỉ hiện ô tìm / tìm trong cột khi đang dùng — không có viên "Chưa dùng" hay "Trường search" (rà UI WF-02 bo-15).
       summaryItems={[
-        {
-          label: B.searchSummary,
-          value: filters.spQ.trim() ? `“${filters.spQ}”` : B.unused,
-          active: filters.spQ.trim() !== "",
-          onClear: () => filters.set({ spQ: "" }),
-        },
-        { label: B.searchFields, value: B.searchFieldsValue },
-        {
-          label: B.columnSearch,
-          value:
-            [
-              B.columnSummary(filters.spSku, filters.spProduct),
-              filters.spVariant.trim() && `${L.field.variant} “${filters.spVariant.trim()}”`,
-              (filters.spPriceFrom || filters.spPriceTo) &&
-                `${L.field.tiers} ${filters.spPriceFrom || "…"}–${filters.spPriceTo || "…"}`,
+        ...(filters.spQ.trim()
+          ? [
+              {
+                label: B.searchSummary,
+                value: `“${filters.spQ}”`,
+                active: true,
+                onClear: () => filters.set({ spQ: "" }),
+              },
             ]
-              .filter(Boolean)
-              .join(", ") || B.unused,
-          active: filters.hasColumnFilters,
-          onClear: () =>
-            filters.set({
-              spSku: "",
-              spProduct: "",
-              spVariant: "",
-              spPriceFrom: "",
-              spPriceTo: "",
-            }),
-        },
+          : []),
+        ...(filters.hasColumnFilters
+          ? [
+              {
+                label: B.columnSearch,
+                value: [
+                  B.columnSummary(filters.spSku, filters.spProduct),
+                  filters.spVariant.trim() && `${L.field.variant} “${filters.spVariant.trim()}”`,
+                  (filters.spPriceFrom || filters.spPriceTo) &&
+                    `${L.field.tiers} ${filters.spPriceFrom || "…"}–${filters.spPriceTo || "…"}`,
+                ]
+                  .filter(Boolean)
+                  .join(", "),
+                active: true,
+                onClear: () =>
+                  filters.set({
+                    spSku: "",
+                    spProduct: "",
+                    spVariant: "",
+                    spPriceFrom: "",
+                    spPriceTo: "",
+                  }),
+              },
+            ]
+          : []),
         columnSummaryItem(columns),
       ]}
       onResetAll={() => {

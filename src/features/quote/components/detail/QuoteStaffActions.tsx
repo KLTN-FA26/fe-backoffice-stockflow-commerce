@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Pencil, Undo2, XCircle } from "lucide-react";
+import { parseAsBoolean, useQueryState } from "nuqs";
 
 import {
   ADMIN_ROUTES,
@@ -12,17 +13,21 @@ import {
 import { useAuthStore } from "@/lib/auth";
 import { usePermissionChecker } from "@/lib/auth/components/Can";
 import { useCustomerRef } from "@/lib/references/customer-lookup";
+import { useSalesOwnerAccess } from "@/lib/references/sales-owner-queries";
+import { isSalesOwnerError } from "@/lib/references/sales-owner-access";
 import { quoteErrorMessage } from "@/features/quote/errors";
-import { allowedStaffQuoteActions } from "@/features/quote/lifecycle";
+import { allowedStaffQuoteActions, isOwnerGatedQuoteAction } from "@/features/quote/lifecycle";
 import { useReviseQuote } from "@/features/quote/mutations";
 import {
   canCancelAcceptedQuote,
   isPriceReviewSubmitter,
   sendBlockReason,
 } from "@/features/quote/selectors";
+import { SalesOwnerAccessNote } from "@/components/backoffice/SalesOwnerNotes";
 import { ActionTrigger, ObjectActions } from "@/components/shared/ObjectActions";
 import { toast } from "@/components/shared/Toast";
 
+import { QUOTE_SEND_PARAM } from "../form/useQuoteForm";
 import { QuoteActionDialogs } from "./QuoteActionDialogs";
 import { quoteActionTrigger } from "./quote-action-triggers";
 import { QuotePdfButton } from "./QuotePdfButton";
@@ -42,6 +47,8 @@ import type { QuoteDialog as Dialog } from "./QuoteActionDialogs";
  * phải chờ duyệt (`priceCheck.needsApproval`) → nút ghi "Gửi duyệt giá" thay cho "Gửi khách".
  * Tải PDF luôn có cho người đọc được báo giá (trong menu "⋯"). Bốn mắt: người gửi duyệt mà có quyền duyệt thấy câu giải
  * thích thay cho nút duyệt.
+ * BR-S12 (chế độ chặt): khách có người phụ trách khác → Sửa / Gửi / Mở bản sửa / Huỷ / Rút duyệt giá vẫn hiện nhưng tắt, lý
+ * do ở chú thích và dòng dưới nút; người lo thay thấy "Bạn đang lo thay cho …". Duyệt giá, tạo đơn không bị chặn.
  */
 export function QuoteStaffActions({ quote }: { quote: Quote }) {
   const can = usePermissionChecker();
@@ -65,9 +72,25 @@ export function QuoteStaffActions({ quote }: { quote: Quote }) {
     { pending: quote.priceReviewPending, submittedByMe },
   );
   const needsApproval = quote.priceCheck?.needsApproval ?? false;
-  const onError = (error: unknown) => toast.error(quoteErrorMessage(error));
-  const close = () => setDialog(null);
+  // BR-S12 — UI-only, Backend phải re-check (409 CUSTOMER_OWNED_BY_OTHER_SALES)
+  const owner = useSalesOwnerAccess(quote.customerId);
+  const ownerBlocked = owner.blockedReason;
+  const gated = (action: StaffQuoteAction) => !!ownerBlocked && isOwnerGatedQuoteAction(action);
+  const onError = (error: unknown) => {
+    toast.error(quoteErrorMessage(error, owner.ownerName));
+    if (isSalesOwnerError(error)) owner.refresh();
+  };
   const sendBlocked = sendBlockReason(quote);
+  // "Lưu và gửi" trên form mở trang này với `?send=true`: mở sẵn hộp xác nhận gửi (Sale vẫn bấm xác nhận) khi gửi được;
+  // chưa gửi được thì lý do hiện dưới nút như thường. Đóng hộp thì bỏ tham số để tải lại trang không mở lại.
+  const [sendRequested, setSendRequested] = useQueryState(QUOTE_SEND_PARAM, parseAsBoolean);
+  const requested =
+    sendRequested && actions.includes("send") && !sendBlocked && !ownerBlocked ? "send" : null;
+  const openDialog = dialog ?? requested;
+  const close = () => {
+    setDialog(null);
+    if (sendRequested) void setSendRequested(null);
+  };
 
   const selfReview =
     quote.priceReviewPending && submittedByMe && can(QUOTE_PRICE_APPROVAL_PERMISSIONS.approve);
@@ -82,6 +105,7 @@ export function QuoteStaffActions({ quote }: { quote: Quote }) {
     quoteActionTrigger(action, {
       sendLabel,
       sendBlocked,
+      ownerBlocked,
       revising: revise.isPending,
       openDialog: setDialog,
       openReview: setReview,
@@ -96,7 +120,13 @@ export function QuoteStaffActions({ quote }: { quote: Quote }) {
         primary={primary ? trigger(primary) : undefined}
       >
         {show("edit") && (
-          <ActionTrigger icon={Pencil} label="Sửa" href={ADMIN_ROUTES.quotes.edit(quote.id)} />
+          <ActionTrigger
+            icon={Pencil}
+            label="Sửa"
+            href={ADMIN_ROUTES.quotes.edit(quote.id)}
+            disabled={gated("edit")}
+            title={gated("edit") ? (ownerBlocked ?? undefined) : undefined}
+          />
         )}
         {show("send") && trigger("send")}
         {show("revise") && trigger("revise")}
@@ -106,6 +136,8 @@ export function QuoteStaffActions({ quote }: { quote: Quote }) {
           <ActionTrigger
             icon={Undo2}
             label={QUOTE_PRICE_REVIEW_LABELS.action.withdraw}
+            disabled={gated("withdrawPriceReview")}
+            title={gated("withdrawPriceReview") ? (ownerBlocked ?? undefined) : undefined}
             onClick={() => setReview("withdrawPriceReview")}
           />
         )}
@@ -123,11 +155,21 @@ export function QuoteStaffActions({ quote }: { quote: Quote }) {
             icon={XCircle}
             label={quote.status === "ACCEPTED" ? "Huỷ báo giá đã chấp nhận" : "Huỷ báo giá"}
             danger
+            disabled={gated("cancel")}
+            title={gated("cancel") ? (ownerBlocked ?? undefined) : undefined}
             onClick={() => setDialog("cancel")}
           />
         )}
       </ObjectActions>
-      {sendBlocked && actions.includes("send") && (
+      {/* BR-S12: lý do tắt chỉ khi có nút bị tắt vì người phụ trách; người lo thay luôn thấy dòng của mình. */}
+      <SalesOwnerAccessNote
+        access={{
+          blockedReason: actions.some(isOwnerGatedQuoteAction) ? ownerBlocked : null,
+          coverNote: owner.coverNote,
+        }}
+        className="lg:[&>p]:justify-end"
+      />
+      {sendBlocked && !ownerBlocked && actions.includes("send") && (
         <p className="text-ink-tertiary text-xs lg:text-right">{sendBlocked}</p>
       )}
       {selfReview && (
@@ -138,7 +180,7 @@ export function QuoteStaffActions({ quote }: { quote: Quote }) {
 
       <QuoteActionDialogs
         quote={quote}
-        dialog={dialog}
+        dialog={openDialog}
         review={review}
         revise={revise}
         onClose={close}

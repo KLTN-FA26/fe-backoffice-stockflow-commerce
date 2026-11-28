@@ -111,6 +111,18 @@ describe("CarrierList — danh sách", () => {
     });
   });
 
+  it("S20-3: số dòng một trang chọn được (?size) và gửi đúng cho BE; giá trị lạ thì về cỡ mặc định", async () => {
+    const { get } = renderList(ACTORS.warehouseStaff, { search: `?size=${PAGE_SIZE.lg}` });
+    await screen.findByText("Giao Hàng Nhanh");
+    await waitFor(() => expect(lastListParams(get)).toMatchObject({ size: PAGE_SIZE.lg }));
+  });
+
+  it("S20-3: ?size lạ (không nằm trong danh sách cỡ trang) → cỡ mặc định", async () => {
+    const { get } = renderList(ACTORS.warehouseStaff, { search: "?size=7" });
+    await screen.findByText("Giao Hàng Nhanh");
+    await waitFor(() => expect(lastListParams(get)).toMatchObject({ size: PAGE_SIZE.md }));
+  });
+
   it("bộ lọc trên URL: ?q & ?status gửi đúng search / status cho BE; 'Xoá bộ lọc' gỡ cả hai", async () => {
     const user = userEvent.setup();
     const { get } = renderList(ACTORS.warehouseStaff, { search: "?q=ghn&status=INACTIVE" });
@@ -339,8 +351,9 @@ describe("CarrierList — sửa hãng", () => {
     expect(field(dialog, F.contactName)).toHaveValue("Liên hệ GHN");
     await user.clear(field(dialog, F.name));
     await user.type(field(dialog, F.name), "GHN Express");
-    await user.click(within(dialog).getByRole("combobox", { name: F.status }));
-    await user.click(await screen.findByRole("option", { name: C.status.INACTIVE }));
+    // Trạng thái là nút chọn hiện sẵn (S01-6): một lần bấm, không danh sách thả
+    expect(within(dialog).getByRole("radio", { name: C.status.ACTIVE })).toBeChecked();
+    await user.click(within(dialog).getByRole("radio", { name: C.status.INACTIVE }));
     await user.click(within(dialog).getByRole("button", { name: F.save }));
     await waitFor(() => expect(put).toHaveBeenCalledTimes(1));
     expect(put.mock.calls[0]?.[0]).toBe(`${LIST_URL}/car-ghn`);
@@ -358,7 +371,9 @@ describe("CarrierList — sửa hãng", () => {
     const user = userEvent.setup();
     renderList(ACTORS.warehouseManager);
     const dialog = await openEdit(user, "GHN");
-    const radios = within(dialog).getAllByRole("radio");
+    const radios = (["MANUAL", "WEBHOOK_LOAD", "API_BOOKING"] as const).map((type) =>
+      within(dialog).getByRole("radio", { name: C.connectionType[type] }),
+    );
     expect(radios.map((radio) => radio.getAttribute("aria-checked"))).toEqual([
       "true",
       "false",

@@ -29,7 +29,7 @@ export function ContractEditor({
   onSaved,
 }: {
   contract: SalesContract;
-  order: Pick<Order, "lines">;
+  order: Pick<Order, "lines" | "customerId">;
   /** Đóng editor khi bỏ thay đổi. */
   onDone: () => void;
   /** Đóng editor sau khi lưu xong; không truyền thì như `onDone`. */
@@ -96,6 +96,7 @@ export function ContractEditor({
         form={form}
         totalWithTax={contract.totals.totalAmount}
         currency={contract.totals.currency}
+        customerId={order.customerId}
       />
       <div className="grid gap-3 md:grid-cols-2">
         <FormField

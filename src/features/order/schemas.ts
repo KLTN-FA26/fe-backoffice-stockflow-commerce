@@ -301,6 +301,13 @@ export const orderDtoSchema = z.object({
   /** Mã + tên kho xuất BE kèm cạnh id (issue #286) — người không có quyền đọc kho vẫn thấy tên. */
   warehouseCode: z.string().nullish(),
   warehouseName: z.string().nullish(),
+  /**
+   * Audit bo-17 (BE PR #497): đã thu / còn phải thu / quá hạn của các đợt — chỉ có ở dòng `GET /orders`, cho người đọc
+   * được đợt (`payment-installments:READ`). null = đơn chưa có đợt (chưa ký hợp đồng) hoặc không được đọc; vắng = BE cũ.
+   */
+  paidAmount: z.number().nullish(),
+  outstandingAmount: z.number().nullish(),
+  overdueAmount: z.number().nullish(),
   releasedAt: z.string().nullish(),
   creditTermDays: z.number().int().nullish(),
   balancePolicy: orderBalancePolicyDtoSchema.nullish(),

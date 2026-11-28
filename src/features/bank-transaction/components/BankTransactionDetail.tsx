@@ -24,6 +24,7 @@ import { useBankTransaction } from "../queries";
 import { reviewReasonText } from "../selectors";
 
 import { BankTransactionActions } from "./BankTransactionActions";
+import { MatchingInstallments } from "./MatchingInstallments";
 import { BANK_TRANSACTION_COPY, BankTransactionStatusDot, MONO } from "./primitives";
 
 const DASH = "—";
@@ -48,6 +49,7 @@ function BankTransactionDetailContent({ id }: { id: string }) {
     );
   if (!t) return <PageSkeleton variant="detail" />;
   const reason = reviewReasonText(t.reviewReason);
+  const actions = allowedBankTransactionActions(t.status, can);
 
   return (
     <div className="surface-soft surface-compact space-y-5">
@@ -57,17 +59,12 @@ function BankTransactionDetailContent({ id }: { id: string }) {
         codeLabel="Mã giao dịch SePay"
         status={<BankTransactionStatusDot status={t.status} />}
         meta={<span>{t.source === "CATCH_UP" ? "Đối soát bù" : "Webhook"}</span>}
-        actions={
-          <BankTransactionActions
-            transaction={t}
-            actions={allowedBankTransactionActions(t.status, can)}
-          />
-        }
+        actions={<BankTransactionActions transaction={t} actions={actions} />}
       />
+      {/* Chỉ câu tiếng Việt dịch từ mã lý do — `reviewNote` là chữ tiếng Anh của hệ thống, không hiện (bo-26) */}
       {t.status === "NEEDS_REVIEW" && reason && (
         <Notice tone="warning">
           <p className="font-medium">{reason}</p>
-          {t.reviewNote && <p className="text-ink-tertiary mt-1 text-xs">{t.reviewNote}</p>}
         </Notice>
       )}
       <DetailPanel title="Giao dịch">
@@ -100,6 +97,7 @@ function BankTransactionDetailContent({ id }: { id: string }) {
           {t.content ?? DASH}
         </p>
       </DetailPanel>
+      {actions.includes("assign") && <MatchingInstallments transaction={t} />}
       {(t.status === "APPLIED" || t.status === "IGNORED") && (
         <DetailPanel title="Kết quả">
           <FactGrid>

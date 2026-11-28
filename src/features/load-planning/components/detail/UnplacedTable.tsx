@@ -56,6 +56,9 @@ export function UnplacedTable({
               )}
               <TableCell className="text-[0.8125rem]">
                 <span className="font-medium">{parcel.partName}</span>
+                {parcel.productName && (
+                  <span className="text-ink-secondary ml-2 text-xs">{parcel.productName}</span>
+                )}
                 <span className="text-ink-tertiary ml-2 font-mono text-xs">{parcel.labelCode}</span>
               </TableCell>
               <TableCell className="text-warning text-[0.8125rem]">

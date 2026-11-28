@@ -149,7 +149,6 @@ function productBody<T extends Omit<UpdateProductInput, "version">>(input: T): T
     ...input,
     shortDescription: input.shortDescription?.trim() || undefined,
     description: input.description.trim() || undefined,
-    descriptionEn: input.descriptionEn.trim() || undefined,
   } as T;
 }
 

@@ -113,13 +113,20 @@ function renderCreditList() {
           orderAmount: 350_000,
         },
       ] as never[]),
+    "/orders/contract-credit-reviews": () => apiOrderPage([]),
     [`/orders/credit-position/${apiOrder.customerId}`]: () => apiCreditPosition,
   });
   renderOrderScreen(<CreditHoldList />);
 }
 
-/** Duyệt / từ chối nằm trong menu "⋯" của dòng (`CreditHoldRowActions` → `RowActionsMenu`). */
+/** bo-21: "Duyệt" là nút trên dòng; "Từ chối" trong menu "⋯" của dòng (`CreditHoldRowActions`). */
 async function clickCreditAction(user: User, action: "Duyệt công nợ" | "Từ chối") {
+  if (action === "Duyệt công nợ") {
+    await user.click(
+      await screen.findByRole("button", { name: `Duyệt công nợ — ${apiOrder.orderNumber}` }),
+    );
+    return;
+  }
   await user.click(
     await screen.findByRole("button", { name: `Thao tác — ${apiOrder.orderNumber}` }),
   );

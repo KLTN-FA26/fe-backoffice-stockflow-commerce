@@ -60,6 +60,22 @@ export function allowedContractActions(
   return actions;
 }
 
+/**
+ * BR-S12 (KE-HOACH sales-owner, chế độ chặt): lập / sửa / gửi / huỷ hợp đồng chỉ người phụ trách khách, người lo thay và
+ * Sales Manager làm được trên khách có chủ. Ghi nhận đã ký, xem PDF, rút duyệt tín dụng: không đổi. Backend phải re-check
+ * (409 CUSTOMER_OWNED_BY_OTHER_SALES).
+ */
+export const OWNER_GATED_CONTRACT_ACTIONS: readonly ContractAction[] = [
+  "create",
+  "edit",
+  "send",
+  "cancel",
+];
+
+export function isOwnerGatedContractAction(action: ContractAction): boolean {
+  return OWNER_GATED_CONTRACT_ACTIONS.includes(action);
+}
+
 /** Đơn không còn giao / thu gì thêm — BE `ContractPaperService.ended` (COMPLETED, CANCELLED, CLOSED, REFUNDED, PARTIALLY_REFUNDED). */
 const CONTRACT_ENDED_ORDER_STATUSES: readonly Order["status"][] = [
   "Completed",
@@ -150,12 +166,32 @@ export function dueRuleText(entry: {
   }
 }
 
+/** Một đợt thanh toán quy ra tiền (xem trước; % quy theo tổng có thuế, phần lẻ BE dồn đợt cuối). */
+export function planEntryAmount(
+  entry: Pick<ContractFormValues["paymentPlan"][number], "mode" | "value">,
+  totalWithTax: number,
+): number {
+  const value = Number(entry.value) || 0;
+  return entry.mode === "percent" ? Math.round((totalWithTax * value) / 100) : value;
+}
+
 /** Tổng các đợt thanh toán quy ra tiền (xem trước; % quy theo tổng có thuế, phần lẻ BE dồn đợt cuối). */
 export function planTotal(plan: ContractFormValues["paymentPlan"], totalWithTax: number): number {
-  return plan.reduce((sum, entry) => {
-    const value = Number(entry.value) || 0;
-    return sum + (entry.mode === "percent" ? Math.round((totalWithTax * value) / 100) : value);
-  }, 0);
+  return plan.reduce((sum, entry) => sum + planEntryAmount(entry, totalWithTax), 0);
+}
+
+/**
+ * Phần hợp đồng này trả sau giao — đúng số BE dùng để kiểm hạn mức khi gửi (`SalesContractService.creditCheck`: tổng
+ * các đợt mốc AFTER_DELIVERY; 15 BR-10, BR-11). 0 = lịch không xin công nợ, BE không kiểm.
+ */
+export function planDeferredAmount(
+  plan: ContractFormValues["paymentPlan"],
+  totalWithTax: number,
+): number {
+  return planTotal(
+    plan.filter((entry) => entry.milestone === "AFTER_DELIVERY"),
+    totalWithTax,
+  );
 }
 
 /** Thông báo cảnh báo tín dụng (15 BR-11) theo `outcome` của BE. */

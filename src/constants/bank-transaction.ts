@@ -32,7 +32,7 @@ export const BANK_TRANSACTION_STATUS_BY_API = {
 export const BANK_TRANSACTION_TABS = ["review", "all"] as const;
 export type BankTransactionTab = (typeof BANK_TRANSACTION_TABS)[number];
 
-/** Bản dịch `reviewReason` (handoff C). Mã lạ hiện nguyên mã. */
+/** Bản dịch `reviewReason` (handoff C). Mã lạ → câu chung; không bao giờ hiện chữ BE (`reviewNote` tiếng Anh). */
 export const BANK_TRANSACTION_REVIEW_REASONS: Readonly<Record<string, string>> = {
   NO_INSTALLMENT_NAMED: "Nội dung không có mã hợp đồng và mã đợt",
   SEVERAL_INSTALLMENTS: "Nội dung nhắc nhiều đợt, hoặc không rõ là hợp đồng nào",
@@ -40,7 +40,7 @@ export const BANK_TRANSACTION_REVIEW_REASONS: Readonly<Record<string, string>> =
   NOT_PAYABLE: "Đợt đã trả đủ hoặc đã huỷ, hoặc đơn đã huỷ",
   OVERPAYMENT: "Số tiền lớn hơn số còn phải thu của đợt",
   OTHER_ACCOUNT: "Tiền vào tài khoản khác với tài khoản nhận",
-  REFUSED: "Không lập được phiếu thu (xem chi tiết)",
+  REFUSED: "Hệ thống không tự lập được phiếu thu, cần gán tay",
   RECEIPT_VOIDED: "Phiếu thu lập từ giao dịch này đã bị huỷ, cần gán lại hoặc bỏ qua",
 };
 
@@ -77,5 +77,47 @@ export const BANK_TRANSACTION_LABELS = {
   forbiddenDescription: "Bạn không có quyền xem giao dịch ngân hàng.",
   noReadDescription: "Tài khoản của bạn chưa được cấp quyền đọc giao dịch ngân hàng.",
   automatic: "Tự động",
+  /** `reviewReason` lạ (BE thêm mã mới chưa dịch). */
+  reviewReasonFallback: "Cần Kế toán xem lại giao dịch",
+  rowActions: (amount: string) => `Thao tác — giao dịch ${amount}`,
+  viewDetail: "Xem chi tiết",
+  assignAction: "Gắn vào đợt",
+  columnTime: "Thời điểm",
+  dateFilterLabel: "thời điểm ngân hàng ghi",
+  dateChip: "Ngày giao dịch",
+  /** bo-25: lọc đúng số tiền (BE `amount`). */
+  amountFilterLabel: "số tiền",
+  amountFilterField: "Đúng số tiền",
+  amountChip: "Số tiền",
+  assign: {
+    searchLabel: "Tìm đợt theo số hợp đồng hoặc số đơn",
+    searchPlaceholder: "Tìm theo số hợp đồng hoặc số đơn…",
+    searchEmpty: "Không có đợt nào khớp số hợp đồng / số đơn đã gõ.",
+    amountMatch: "Khớp số tiền",
+    /** bo-27: tìm đợt của mọi khách khi chưa chọn khách (`GET /installments?search=`). */
+    findLabel: "Tìm đợt theo số hợp đồng, số đơn hoặc tên khách",
+    findPlaceholder: "Số hợp đồng, số đơn hoặc tên khách…",
+    findHint: "Hoặc chọn khách ở trên để xem mọi đợt của khách.",
+    findEmpty: "Không có đợt nào còn phải thu khớp từ khoá này.",
+    findError: "Không tìm được đợt.",
+    pick: "Chọn",
+    pickLabel: (contract: string, seq: number) => `Chọn ${contract} đợt ${seq}`,
+  },
+  matches: {
+    title: "Đợt có thể khớp",
+    description: (amount: string) => `Đợt còn phải thu đúng bằng ${amount}`,
+    descriptionOfCustomer: (amount: string) =>
+      `Đợt của khách gợi ý còn phải thu đúng bằng ${amount}`,
+    moreMatches: (shown: number, total: number) =>
+      `Hiện ${shown} / ${total} đợt khớp số tiền, hạn sớm nhất trước — chưa thấy đợt cần gán thì mở "Gắn vào đợt" và tìm theo số hợp đồng.`,
+    none: "Không có đợt nào còn phải thu đúng bằng số tiền này.",
+    noneOwing: "Không có đợt đã đến hạn nào còn phải thu đúng bằng số tiền này.",
+    loadError: "Không tải được các đợt để gợi ý.",
+    retry: "Thử lại",
+    assign: "Gắn",
+    assignLabel: (contract: string, seq: number) => `Gắn vào ${contract} đợt ${seq}`,
+    installment: (seq: number, name: string) => `Đợt ${seq} — ${name}`,
+    due: (date: string) => `hạn ${date}`,
+  },
   automaticTitle: "Hệ thống tự lập từ chuyển khoản (Bank feed SePay)",
 } as const;

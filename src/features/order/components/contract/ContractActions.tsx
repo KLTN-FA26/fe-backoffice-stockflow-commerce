@@ -8,6 +8,7 @@ import { ApiError } from "@/lib/api/error";
 
 import { toLocalIsoDate } from "@/lib/format/date";
 import { formatMoney } from "@/lib/format/money";
+import { isSalesOwnerError } from "@/lib/references/sales-owner-access";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ import {
 import { ContractDownloads } from "./ContractDownloads";
 import { SignContractDialog } from "./SignContractDialog";
 
+import type { SalesOwnerAccessState } from "@/lib/references/sales-owner-queries";
 import type { ContractAction } from "../../sales-contract-rules";
 import type { SalesContract } from "../../sales-contract-schemas";
 
@@ -36,7 +38,7 @@ export type ContractDialog = "send" | "sign" | "cancel" | null;
  * Lỗi gửi hợp đồng TRONG hộp thoại: câu của BE + từng `fieldErrors[]` (vd cửa sổ giao ở quá khứ —
  * `deliverySchedule[0].windowStart`) theo tên đợt, để Sale biết sửa ô nào (WF-02 audit, mục 8).
  */
-function SendError({ error }: { error: unknown }) {
+function SendError({ error, ownerName }: { error: unknown; ownerName?: string | null }) {
   const fields = error instanceof ApiError ? (error.fieldErrorList ?? []) : [];
   // Refused for something the contract does not show beforehand (customer not active, no credit now): say why and who
   // unblocks, in the dialog (R7) — not the bare BE sentence.
@@ -49,7 +51,7 @@ function SendError({ error }: { error: unknown }) {
   if (refusal) return <p>{refusal}</p>;
   return (
     <div className="space-y-1">
-      <p>{contractErrorMessage(error)}</p>
+      <p>{contractErrorMessage(error, ownerName)}</p>
       {fields.length > 0 && (
         <ul className="list-disc space-y-0.5 pl-5">
           {fields.map((entry, index) => (
@@ -65,7 +67,11 @@ function SendError({ error }: { error: unknown }) {
   );
 }
 
-/** Nút hợp đồng theo trạng thái (`allowedContractActions`) + tải PDF / bản đã gửi / bản đã ký. */
+/**
+ * Nút hợp đồng theo trạng thái (`allowedContractActions`) + tải PDF / bản đã gửi / bản đã ký.
+ * `reviewFirst` (bo-19, hợp đồng vừa lập): "Sửa" là nút chính, rồi "Xem trước PDF", "Gửi hợp đồng" thành nút phụ — vẫn bấm
+ * được, vẫn khoá theo lý do của #304 (`sendBlockers`).
+ */
 export function ContractActions({
   contract,
   actions,
@@ -74,6 +80,9 @@ export function ContractActions({
   dialog,
   setDialog,
   papers = { appendix: false, liquidation: false },
+  reviewFirst = false,
+  onPreviewed,
+  owner,
 }: {
   contract: SalesContract;
   actions: readonly ContractAction[];
@@ -84,6 +93,12 @@ export function ContractActions({
   setDialog: (dialog: ContractDialog) => void;
   /** Phụ lục / biên bản thanh lý mở được chưa (`contractPapers`). */
   papers?: { appendix: boolean; liquidation: boolean };
+  /** Hợp đồng vừa lập, chưa xem lại: mời xem lại trước, "Gửi hợp đồng" lùi thành nút phụ (bo-19). */
+  reviewFirst?: boolean;
+  /** Đã mở bản xem trước PDF. */
+  onPreviewed?: () => void;
+  /** BR-S12: người phụ trách của khách — tắt Sửa / Gửi / Huỷ khi người xem không được làm. */
+  owner?: Pick<SalesOwnerAccessState, "blockedReason" | "ownerName" | "refresh">;
 }) {
   const send = useSendSalesContract();
   const cancel = useCancelSalesContract();
@@ -92,35 +107,52 @@ export function ContractActions({
     setSendError(null);
     setDialog(null);
   };
-  const onError = (error: unknown) => toast.error(contractErrorMessage(error));
+  const ownerBlocked = owner?.blockedReason ?? null;
+  const ownerTitle = ownerBlocked ?? undefined;
+  const onError = (error: unknown) => {
+    toast.error(contractErrorMessage(error, owner?.ownerName));
+    if (isSalesOwnerError(error)) owner?.refresh();
+  };
   const money = (amount: number) => formatMoney(amount, contract.totals.currency);
   const warning = contract.creditWarning;
   // R7 (S06-3): thiếu cửa sổ giao thì khoá nút và nói thiếu gì ngay dưới nút, không để lỗi hiện sau khi xác nhận.
   const blocked = sendBlockersText(
     sendBlockers(contract, toLocalIsoDate(new Date().toISOString())),
   );
+  const sendButton = actions.includes("send") && (
+    <Button
+      size="sm"
+      variant={reviewFirst ? "outline" : "default"}
+      disabled={!!blocked || !!ownerBlocked}
+      title={ownerTitle}
+      aria-describedby={
+        ownerBlocked ? "contract-owner-blocked" : blocked ? "contract-send-blocked" : undefined
+      }
+      onClick={() => setDialog("send")}
+    >
+      <Send className="size-3.5" /> Gửi hợp đồng
+    </Button>
+  );
 
   return (
     <div className="w-full space-y-1.5">
       <div className="flex w-full flex-wrap items-center gap-2">
-        {/* BO-UX-27: việc chính trước (Gửi / Ghi nhận đã ký), rồi Sửa, rồi tải PDF; Huỷ hợp đồng cuối, tách riêng. */}
-        {actions.includes("send") && (
-          <Button
-            size="sm"
-            disabled={!!blocked}
-            aria-describedby={blocked ? "contract-send-blocked" : undefined}
-            onClick={() => setDialog("send")}
-          >
-            <Send className="size-3.5" /> Gửi hợp đồng
-          </Button>
-        )}
+        {/* BO-UX-27: việc chính trước (Gửi / Ghi nhận đã ký), rồi Sửa, rồi tải PDF; Huỷ hợp đồng cuối, tách riêng.
+            bo-19: hợp đồng vừa lập thì xem lại trước — Sửa, Xem trước PDF, rồi mới Gửi. */}
+        {!reviewFirst && sendButton}
         {actions.includes("sign") && (
           <Button size="sm" onClick={() => setDialog("sign")}>
             <Signature className="size-3.5" /> Ghi nhận đã ký
           </Button>
         )}
         {actions.includes("edit") && (
-          <Button size="sm" variant="outline" onClick={onEdit}>
+          <Button
+            size="sm"
+            variant={reviewFirst ? "default" : "outline"}
+            disabled={!!ownerBlocked}
+            title={ownerTitle}
+            onClick={onEdit}
+          >
             <Pencil className="size-3.5" /> Sửa
           </Button>
         )}
@@ -129,19 +161,23 @@ export function ContractActions({
           canPreview={actions.includes("preview")}
           onError={onError}
           papers={papers}
+          onPreviewed={onPreviewed}
         />
+        {reviewFirst && sendButton}
         {actions.includes("cancel") && (
           <Button
             size="sm"
             variant="ghost"
             className="text-danger hover:text-danger border-border-default ml-auto border-l pl-3"
+            disabled={!!ownerBlocked}
+            title={ownerTitle}
             onClick={() => setDialog("cancel")}
           >
             <XCircle className="size-3.5" /> Huỷ hợp đồng
           </Button>
         )}
       </div>
-      {actions.includes("send") && blocked && (
+      {actions.includes("send") && blocked && !ownerBlocked && (
         <p id="contract-send-blocked" className="text-warning-ink text-xs">
           {blocked}
         </p>
@@ -159,7 +195,7 @@ export function ContractActions({
         variant="default"
         loading={send.isPending}
         closeOnConfirm={false}
-        error={sendError ? <SendError error={sendError} /> : undefined}
+        error={sendError ? <SendError error={sendError} ownerName={owner?.ownerName} /> : undefined}
         onConfirm={() =>
           send.mutate(
             { orderId: contract.orderId, version: contract.version },
@@ -172,7 +208,10 @@ export function ContractActions({
                 else toast.success("Đã gửi hợp đồng cho khách.");
               },
               // Giữ hộp thoại mở, hiện lỗi kèm fieldErrors ngay trong đó (dialog modal che phần còn lại).
-              onError: setSendError,
+              onError: (error) => {
+                setSendError(error);
+                if (isSalesOwnerError(error)) owner?.refresh();
+              },
             },
           )
         }

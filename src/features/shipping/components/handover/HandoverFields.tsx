@@ -4,11 +4,10 @@ import { Controller } from "react-hook-form";
 
 import { SHIPPING_LIMITS, UI_LABELS } from "@/constants";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 
-import { FieldError, MONO, fieldClass } from "../primitives";
+import { HandoverMissingLine } from "./HandoverMissingLine";
+import { HandoverOptionalFields } from "./HandoverOptionalFields";
+import { HandoverTextField } from "./HandoverTextField";
 
 import type { UseFormReturn } from "react-hook-form";
 import type { HandoverFormInput, HandoverValues, Load } from "@/features/shipping/types";
@@ -23,79 +22,66 @@ export const HANDOVER_SERVER_FIELDS = [
   "note",
 ] as const;
 
-type TextField = (typeof HANDOVER_SERVER_FIELDS)[number];
-
-/** Các ô của biên bản bàn giao: người ký bên hãng, xe, SĐT, mã biên bản giấy, ghi chú, xác nhận đã ký. */
+/**
+ * Các ô của biên bản bàn giao. Bắt buộc (hiện sẵn): tên tài xế (nếu chuyến chưa có), người ký bên hãng kèm hộp kiểm
+ * "Người ký là tài xế", biển số (nếu chưa có), xác nhận đã ký; ô không bắt buộc gập lại (`HandoverOptionalFields`); dòng
+ * "Còn thiếu" nói ô nào còn khoá nút xác nhận (`HandoverMissingLine`).
+ */
 export function HandoverFields({
   form,
   load,
+  signerIsDriver,
+  noWaybill,
 }: {
   form: UseFormReturn<HandoverFormInput, unknown, HandoverValues>;
   load: Load;
+  signerIsDriver: { checked: boolean; onChange: (checked: boolean) => void };
+  /** Chuyến chưa có mã vận đơn: BE từ chối ký (BR-23) — dòng "Còn thiếu" nêu mã vận đơn. */
+  noWaybill: boolean;
 }) {
-  const errors = form.formState.errors;
-  const text = (
-    name: Exclude<TextField, "note">,
-    label: string,
-    max: number,
-    opts: { required?: boolean; mono?: boolean; autoFocus?: boolean } = {},
-  ) => (
-    <div>
-      <Label
-        htmlFor={`handover-${name}`}
-        className="text-ink-secondary mb-1 block text-xs font-medium"
-      >
-        {label} {opts.required && <span className="text-danger">*</span>}
-      </Label>
-      <Input
-        id={`handover-${name}`}
-        autoFocus={opts.autoFocus}
-        maxLength={max}
-        aria-invalid={errors[name] ? true : undefined}
-        aria-describedby={errors[name] ? `handover-${name}-error` : undefined}
-        className={`${fieldClass(!!errors[name])} ${opts.mono ? MONO : ""}`}
-        {...form.register(name)}
-      />
-      <FieldError id={`handover-${name}-error`}>{errors[name]?.message}</FieldError>
-    </div>
-  );
-
   return (
     <>
       {!load.driverName && (
         <>
-          {text("driverName", H.driverName, SHIPPING_LIMITS.driverNameMax, { required: true })}
+          <HandoverTextField
+            form={form}
+            name="driverName"
+            label={H.driverName}
+            max={SHIPPING_LIMITS.driverNameMax}
+            required
+          />
           <p className="text-ink-tertiary -mt-2 text-xs">{H.driverNameHint}</p>
         </>
       )}
-      {text("carrierRepresentative", H.representative, SHIPPING_LIMITS.carrierRepresentativeMax, {
-        required: true,
-        autoFocus: true,
-      })}
-      {text("vehiclePlate", H.vehiclePlate, SHIPPING_LIMITS.vehiclePlateMax, {
-        required: !load.vehiclePlate,
-        mono: true,
-      })}
-      {text("driverPhone", H.driverPhone, SHIPPING_LIMITS.driverPhoneMax, { mono: true })}
-      {text("signatureRef", H.signatureRef, SHIPPING_LIMITS.signatureRefMax)}
-      <p className="text-ink-tertiary -mt-2 text-xs">{H.signatureRefHint}</p>
-      <div>
-        <Label
-          htmlFor="handover-note"
-          className="text-ink-secondary mb-1 block text-xs font-medium"
-        >
-          {H.note}
-        </Label>
-        <Textarea
-          id="handover-note"
-          rows={2}
-          maxLength={SHIPPING_LIMITS.noteMax}
-          aria-invalid={errors.note ? true : undefined}
-          className="border-border-default bg-bg-surface rounded-[var(--r-sm)] text-[0.8125rem]"
-          {...form.register("note")}
+      <HandoverTextField
+        form={form}
+        name="carrierRepresentative"
+        label={H.representative}
+        max={SHIPPING_LIMITS.carrierRepresentativeMax}
+        required
+        autoFocus
+      />
+      {/* Docs 09 §4.2 bước 8 (PR docs #55): chỉ khi tick, tên tài xế mới được sao chép sang ô người ký (sửa được) */}
+      <label
+        htmlFor="handover-signer-is-driver"
+        className="-mt-1 flex items-center gap-2 text-[0.8125rem]"
+      >
+        <Checkbox
+          id="handover-signer-is-driver"
+          checked={signerIsDriver.checked}
+          onCheckedChange={(checked) => signerIsDriver.onChange(checked === true)}
         />
-        <FieldError>{errors.note?.message}</FieldError>
-      </div>
+        <span className="text-ink-primary">{H.signerIsDriver}</span>
+      </label>
+      <HandoverTextField
+        form={form}
+        name="vehiclePlate"
+        label={H.vehiclePlate}
+        max={SHIPPING_LIMITS.vehiclePlateMax}
+        required={!load.vehiclePlate}
+        mono
+      />
+      <HandoverOptionalFields form={form} load={load} />
       <Controller
         control={form.control}
         name="signed"
@@ -115,6 +101,7 @@ export function HandoverFields({
       <p id="handover-signed-hint" className="text-ink-tertiary -mt-1 pl-6 text-xs">
         {H.signedHint}
       </p>
+      <HandoverMissingLine form={form} load={load} noWaybill={noWaybill} />
     </>
   );
 }

@@ -102,6 +102,25 @@ export const UI_LABELS = {
     change: "Đổi tệp",
     none: "Chưa chọn tệp",
   },
+  // Ô soạn mô tả rich text (components/shared/RichTextEditor) — HTML của Tiptap, BE lọc lại (ADR-0013)
+  richText: {
+    toolbar: "Định dạng mô tả",
+    bold: "In đậm",
+    italic: "In nghiêng",
+    underline: "Gạch chân",
+    strike: "Gạch ngang",
+    heading2: "Tiêu đề lớn",
+    heading3: "Tiêu đề nhỏ",
+    bulletList: "Danh sách chấm",
+    orderedList: "Danh sách số",
+    quote: "Trích dẫn",
+    image: "Chèn ảnh",
+    uploading: "Đang tải ảnh…",
+    undo: "Hoàn tác",
+    redo: "Làm lại",
+    empty: "Chưa có mô tả.",
+    imageError: "Không tải được ảnh lên. Thử lại hoặc chọn ảnh khác.",
+  },
   // Ô chọn ngày dùng chung (components/shared/DatePicker)
   datePicker: {
     /** Ô gõ được: dd/MM/yyyy — người dùng gõ liền 8 chữ số, dấu "/" tự thêm. */

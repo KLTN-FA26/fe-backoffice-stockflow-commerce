@@ -59,7 +59,6 @@ export const productSchema = z.object({
   productId: z.string(),
   code: z.string().optional(),
   name: z.string().min(1),
-  nameEn: z.string().min(1),
   /** Legacy/mock catalog fields. ProductResponse does not provide these in real mode. */
   slug: z.string().min(1).optional(),
   type: productTypeSchema,
@@ -70,7 +69,6 @@ export const productSchema = z.object({
   /** BE `ProductResponse.version` — gửi lại khi sửa / ngừng kinh doanh (409 OPTIMISTIC_LOCK nếu đã đổi). */
   version: z.number().int(),
   description: z.string(),
-  descriptionEn: z.string(),
   images: z.array(z.string()),
   model3dUrl: z.string().optional(),
   // Không có giá bán / công thức giá in: quy cách không có giá (kltn-docs 01 §1, 13 BR-04)
@@ -177,7 +175,6 @@ export const productMasterDtoSchema = z.object({
   productId: z.string().min(1),
   code: z.string(),
   name: z.string(),
-  nameEn: z.string().nullish(),
   slug: z.string().nullish(),
   brandId: z.string().nullish(),
   brandName: z.string().nullish(),
@@ -185,7 +182,6 @@ export const productMasterDtoSchema = z.object({
   categoryName: z.string().nullish(),
   shortDescription: z.string().nullish(),
   description: z.string().nullish(),
-  descriptionEn: z.string().nullish(),
   taxClass: z.enum(["STANDARD", "REDUCED", "EXEMPT"]),
   kind: z.enum(productKindValues),
   status: beProductStatusSchema,
@@ -223,7 +219,6 @@ export const createProductSchema = z.object({
     .max(50, "Mã sản phẩm tối đa 50 ký tự")
     .regex(PRODUCT_CODE_PATTERN, "Mã chỉ gồm chữ, số, '_' và '-', bắt đầu bằng chữ hoặc số"),
   name: z.string().trim().min(1, "Nhập tên sản phẩm").max(255, "Tên tối đa 255 ký tự"),
-  nameEn: z.string().trim().min(1, "Nhập tên tiếng Anh").max(300, "Tên tiếng Anh tối đa 300 ký tự"),
   // docs 01 §3 requires category at product creation. The backend accepts null for a draft,
   // but the admin workflow deliberately enforces the stricter business source of truth.
   categoryId: z.string().trim().min(1, "Chọn danh mục"),
@@ -231,7 +226,6 @@ export const createProductSchema = z.object({
   brandId: z.string().trim().min(1, "Chọn thương hiệu"),
   shortDescription: z.string().optional(),
   description: z.string(),
-  descriptionEn: z.string(),
   taxClass: z.enum(["STANDARD", "REDUCED", "EXEMPT"]),
   // Không có `kind`: BE `CreateProductRequest` / `UpdateProductRequest` không nhận (hệ thống gán CUSTOMIZABLE)
   /**
@@ -263,12 +257,10 @@ export const discontinueProductSchema = z.object({
 export const productDraftFormSchema = z.object({
   productCode: createProductSchema.shape.code,
   name: createProductSchema.shape.name,
-  nameEn: createProductSchema.shape.nameEn,
   categoryId: createProductSchema.shape.categoryId,
   brandId: createProductSchema.shape.brandId,
   shortDescription: z.string(),
   description: z.string(),
-  descriptionEn: z.string(),
   taxClass: createProductSchema.shape.taxClass,
 });
 

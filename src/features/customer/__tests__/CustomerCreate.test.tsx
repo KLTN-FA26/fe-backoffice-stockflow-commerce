@@ -37,7 +37,8 @@ const created = (companyName: string) => ({
 });
 
 describe("CustomerCreate (SCRUM-451)", () => {
-  it("NEW-FE-1: tax code optional; no payment-term or deposit section; posts real fields only", async () => {
+  // BR-S14 (sales-owner, 28/11) đổi hành vi có chủ đích: MST thành bắt buộc, nên test nhập MST.
+  it("NEW-FE-1: no payment-term or deposit section; posts real fields only", async () => {
     const api = mockApi("SALES_STAFF", {
       post: {
         "/customers": (_params, body) => created((body as { companyName: string }).companyName),
@@ -48,6 +49,7 @@ describe("CustomerCreate (SCRUM-451)", () => {
     expect(screen.queryByRole("radio")).not.toBeInTheDocument();
     expect(screen.queryByText("Điều khoản thanh toán")).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/Tỷ lệ cọc/)).not.toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText(/Mã số thuế/), "0312345678");
 
     await userEvent.click(screen.getByRole("button", { name: /Tạo khách và gửi lời mời/ }));
     await waitFor(() => expect(replace).toHaveBeenCalledWith("/admin/customers/c-9"));
@@ -55,6 +57,7 @@ describe("CustomerCreate (SCRUM-451)", () => {
       companyName: "Quán Cà Phê Nhỏ",
       contactName: "Nguyễn An",
       email: "an@example.com",
+      taxCode: "0312345678",
     });
   });
 

@@ -94,7 +94,7 @@ describe("Quote form — round 5", () => {
     await screen.findByText("Ly 12oz xanh");
     await userEvent.type(screen.getByLabelText(/Số thùng/), "60");
     expect(await screen.findByText(/= 60\.000 cái \(1\.000 cái\/thùng\)/)).toBeInTheDocument();
-    const preview = screen.getByRole("complementary", { name: "Tạm tính" });
+    const preview = screen.getByRole("complementary", { name: "Tóm tắt báo giá" });
     // 60 thùng × 1.000 cái × 1.150 ₫ (bậc 50 thùng của giá riêng), VAT 10%.
     expect(await within(preview).findByText(/69\.000\.000/)).toBeInTheDocument();
     expect(within(preview).getByText(/6\.900\.000/)).toBeInTheDocument();
@@ -108,7 +108,9 @@ describe("Quote form — round 5", () => {
     await userEvent.type(screen.getByLabelText(/Số thùng/), "60");
     expect(screen.getByText("Quy đổi ra cái hiện sau khi lưu nháp.")).toBeInTheDocument();
     expect(
-      within(screen.getByRole("complementary", { name: "Tạm tính" })).getByText("chưa đủ giá"),
+      within(screen.getByRole("complementary", { name: "Tóm tắt báo giá" })).getByText(
+        "chưa đủ giá",
+      ),
     ).toBeInTheDocument();
   });
 

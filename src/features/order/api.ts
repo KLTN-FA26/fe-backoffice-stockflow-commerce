@@ -117,6 +117,10 @@ export function toOrder(dto: OrderDto): Order {
     warehouseId: dto.warehouseId ?? null,
     warehouseCode: dto.warehouseCode ?? null,
     warehouseName: dto.warehouseName ?? null,
+    // Giữ `undefined` (BE chưa có field) khác `null` (đơn chưa có đợt): danh sách dựa vào đó để ẩn cột Thanh toán.
+    paidAmount: dto.paidAmount,
+    outstandingAmount: dto.outstandingAmount,
+    overdueAmount: dto.overdueAmount,
     releasedAt: dto.releasedAt ?? null,
     cancellation: cancellation
       ? {

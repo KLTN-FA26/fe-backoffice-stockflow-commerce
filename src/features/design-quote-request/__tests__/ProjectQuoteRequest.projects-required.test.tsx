@@ -155,10 +155,7 @@ describe("Yêu cầu báo giá dự án (BE #451)", () => {
     });
     renderScreen(<ProjectQuoteRequestList />, "SALES_STAFF");
     const user = userEvent.setup();
-    await user.click(await screen.findByRole("button", { name: "Thao tác khác — Bộ ly Tết" }));
-    await user.click(
-      within(await screen.findByRole("dialog")).getByRole("button", { name: "Lập báo giá" }),
-    );
+    await user.click(await screen.findByRole("button", { name: "Lập báo giá — Bộ ly Tết" }));
     await waitFor(() =>
       expect(error).toHaveBeenCalledWith("Chưa lập báo giá được: còn thiết kế chưa duyệt (Ly B)."),
     );

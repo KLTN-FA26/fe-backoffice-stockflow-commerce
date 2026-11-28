@@ -32,10 +32,15 @@ describe("bộ lọc trạng thái danh sách đơn (BE PR #133)", () => {
 });
 
 describe("cột mặc định (WF-05 BO-08)", () => {
-  it("không còn Phương thức TT / Thanh toán — BE không trả trên đơn (4B-10), luôn hiện “—”", () => {
+  it("không còn Phương thức TT / trạng thái thanh toán của đơn — BE không trả trên đơn (4B-10)", () => {
     expect(DEFAULT_COLUMNS).not.toContain("paymentTerm");
     expect(DEFAULT_COLUMNS).not.toContain("paymentStatus");
     expect(COLUMN_LABELS).not.toHaveProperty("paymentTerm");
     expect(COLUMN_LABELS).not.toHaveProperty("paymentStatus");
+  });
+
+  it("bo-17: cột Thanh toán (đã thu / còn phải thu của các đợt) ẩn được như các cột khác", () => {
+    expect(DEFAULT_COLUMNS).toContain("payment");
+    expect(COLUMN_LABELS.payment).toBe("Thanh toán");
   });
 });

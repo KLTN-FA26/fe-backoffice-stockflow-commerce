@@ -2,31 +2,43 @@
 
 import { useEffect, useRef } from "react";
 import Link from "next/link";
-import { Scale } from "lucide-react";
 import { parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
 
 import { useLegalProfile } from "@/features/customer/queries";
-import { DETAIL_ACTION_CLASS, DetailSection, InfoRow } from "@/components/shared/DetailSection";
+import { DetailPanel, Fact, FactGrid } from "@/components/shared/DetailPanel";
 import { Notice } from "@/components/shared/Notice";
 import { Skeleton } from "@/components/shared/Skeleton";
 import { Button } from "@/components/ui/button";
 
 import { LegalProfileDialog } from "./LegalProfileDialog";
 
-import type { LegalProfile } from "@/features/customer/types";
+import type { Customer, LegalProfile } from "@/features/customer/types";
 
 const MONO = "font-[family-name:var(--font-mono)] tabular-nums";
 /** Neo của thẻ — trang đơn dẫn tới `?legalProfile=edit#legal-profile`. */
 const LEGAL_PROFILE_ANCHOR = "legal-profile";
 
-function rowsOf(profile: LegalProfile) {
+const same = (a: string | null | undefined, b: string | null | undefined) =>
+  !!a && !!b && a.trim().toLocaleLowerCase("vi") === b.trim().toLocaleLowerCase("vi");
+
+/**
+ * Dòng của hồ sơ pháp lý. Tên công ty / mã số thuế trùng tên và MST của khách (đã ở đầu trang và khung hồ sơ) thì không
+ * lặp lại (UI/UX bo-30); khác thì hiện, vì hợp đồng và hoá đơn in theo bản pháp lý.
+ */
+function rowsOf(profile: LegalProfile, customer?: Pick<Customer, "fullName" | "taxCode">) {
   const bank = profile.bankAccount;
   return [
-    { label: "Tên công ty", value: profile.companyName },
-    {
-      label: "Mã số thuế",
-      value: profile.taxCode ? <span className={MONO}>{profile.taxCode}</span> : "Chưa có",
-    },
+    ...(same(profile.companyName, customer?.fullName)
+      ? []
+      : [{ label: "Tên công ty", value: profile.companyName }]),
+    ...(profile.taxCode && same(profile.taxCode, customer?.taxCode)
+      ? []
+      : [
+          {
+            label: "Mã số thuế",
+            value: profile.taxCode ? <span className={MONO}>{profile.taxCode}</span> : "Chưa có",
+          },
+        ]),
     { label: "Địa chỉ đăng ký kinh doanh", value: profile.registeredAddress },
     { label: "Người đại diện", value: profile.representativeName },
     { label: "Chức vụ", value: profile.representativeTitle },
@@ -58,10 +70,13 @@ function rowsOf(profile: LegalProfile) {
  */
 export function LegalProfileCard({
   customerId,
+  customer,
   canRead,
   canUpdate,
 }: {
   customerId: string;
+  /** Tên và MST đang hiện ở đầu trang — dòng pháp lý trùng thì bỏ. */
+  customer?: Pick<Customer, "fullName" | "taxCode">;
   canRead: boolean;
   canUpdate: boolean;
 }) {
@@ -78,20 +93,18 @@ export function LegalProfileCard({
 
   const data = profile.data;
   const edit = canUpdate ? (
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      className={DETAIL_ACTION_CLASS.outline}
-      onClick={() => void setMode("edit")}
-    >
+    <Button type="button" variant="outline" size="sm" onClick={() => void setMode("edit")}>
       {data ? "Sửa" : "Nhập thông tin pháp lý"}
     </Button>
   ) : null;
 
   return (
     <div id={LEGAL_PROFILE_ANCHOR} ref={anchor} className="scroll-mt-20">
-      <DetailSection title="Thông tin pháp lý" icon={Scale} actions={data ? edit : undefined}>
+      <DetailPanel
+        title="Thông tin pháp lý"
+        description="In trên hợp đồng và hoá đơn."
+        actions={data ? edit : undefined}
+      >
         {returnTo && (
           <Notice tone={data ? "positive" : "info"} className="mb-3">
             {data
@@ -125,15 +138,15 @@ export function LegalProfileCard({
           </div>
         )}
         {data && (
-          <div className="divide-y divide-(--table-line)">
-            {rowsOf(data).map((row) => (
-              <InfoRow key={row.label} label={row.label}>
+          <FactGrid columns={3}>
+            {rowsOf(data, customer).map((row) => (
+              <Fact key={row.label} label={row.label}>
                 {row.value}
-              </InfoRow>
+              </Fact>
             ))}
-          </div>
+          </FactGrid>
         )}
-      </DetailSection>
+      </DetailPanel>
       <LegalProfileDialog
         customerId={customerId}
         profile={data ?? null}
