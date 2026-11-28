@@ -160,6 +160,7 @@ describe("chuyến là một xe của kế hoạch xếp xe", () => {
         carrierBookingToCancel: true,
         waybillNo: "GHN-1",
         carrierConnectionType: "WEBHOOK_LOAD",
+        driverReleasedAt: "2026-11-25T07:00:00Z",
       }),
     );
     expect(load).toMatchObject({
@@ -170,6 +171,7 @@ describe("chuyến là một xe của kế hoạch xếp xe", () => {
       carrierBookingToCancel: true,
       waybillNo: "GHN-1",
       carrierConnectionType: "WEBHOOK_LOAD",
+      driverReleasedAt: "2026-11-25T07:00:00Z",
     });
     expect(load.pendingUnloads?.[0]).toMatchObject({
       labelCode: "PKG-SO-9-1",

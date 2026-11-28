@@ -5,10 +5,12 @@ import { Ban, CalendarCheck, Play, Pencil, UserRound } from "lucide-react";
 import { LOAD_STATUS, UI_LABELS } from "@/constants";
 import { formatDateTime } from "@/lib/format/date";
 import { hasLoadAction } from "@/features/shipping/lifecycle";
+import { isApiBookedLoad } from "@/features/shipping/ftl-selectors";
 import { Alert } from "@/components/shared/Alert";
 import { Button } from "@/components/ui/button";
 
 import { BookingInfo } from "./BookingInfo";
+import { DriverSearchNotice } from "./DriverSearchNotice";
 
 import type { AllowedLoadAction } from "@/features/shipping/lifecycle";
 import type { Load } from "@/features/shipping/types";
@@ -19,6 +21,8 @@ const PRIMARY =
 
 function hint(load: Load): string {
   if (load.status === LOAD_STATUS.PLANNED) return B.hintPlanned;
+  if (load.status === LOAD_STATUS.VEHICLE_BOOKED && isApiBookedLoad(load) && !load.driverName)
+    return B.hintFindingDriver;
   if (load.status === LOAD_STATUS.VEHICLE_BOOKED) return B.hintBooked;
   return B.hintLocked;
 }
@@ -61,6 +65,7 @@ export function BookingCard({
         </Alert>
       )}
       <BookingInfo load={load} />
+      <DriverSearchNotice load={load} />
       {(book || cancelBooking || start || driver) && (
         <div className="mt-4 flex flex-wrap items-center gap-2">
           {book && (

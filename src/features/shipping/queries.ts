@@ -4,13 +4,14 @@ import {
   SHIPMENT_PERMISSIONS,
   SHIPPING_LIMITS,
 } from "@/constants";
+import { CARRIER_BOOKING_STATUS } from "@/constants/statuses";
 import { useQuery } from "@tanstack/react-query";
 import { QUERY_TIMES } from "@/lib/api/query-client";
 import { useCan } from "@/lib/auth";
 import { createDetailQuery, createListQuery, createQueryKeys } from "@/lib/api/query-factory";
 
 import { getLoad, getManifest, listLoads } from "./api";
-import { latestCarrierId } from "./ftl-selectors";
+import { isApiBookedLoad, latestCarrierId } from "./ftl-selectors";
 import { listCarriers } from "./carrier-api";
 import { getShipment, listShipments } from "./shipment-api";
 import { getWaybillHistory, listImportWarehouses } from "./waybill-api";
@@ -40,12 +41,27 @@ export const importWarehouseKey = () => [...loadKeys.all, "waybill-import-wareho
 export const useLoads = createListQuery<LoadRow, ListLoadParams>(loadKeys, listLoads);
 
 /**
- * Chi tiết chuyến: đang xếp hàng (LOADING) thì tự tải lại định kỳ — kiện quét từ máy khác hiện ra và
- * nút bàn giao tự mở khi đủ kiện, không cần F5. Chuyến khác trạng thái thì thôi.
+ * Chi tiết chuyến: đang xếp hàng thì tải lại kiện quét từ máy khác; chuyến API đã huỷ còn đơn ở hãng thì
+ * tải lại tới khi hãng xác nhận huỷ (hoặc lỗi), không để người dùng đợi một phút mà không thấy tiến trình.
+ * Chuyến đã đặt qua API cũng tải lại để nhận tài xế mới / sự kiện tài xế huỷ qua webhook.
  */
 export const useLoad = createDetailQuery<Load>(loadKeys, getLoad, {
-  refetchInterval: (query) =>
-    query.state.data?.status === LOAD_STATUS.LOADING ? SHIPPING_LIMITS.loadPollMs : false,
+  refetchInterval: (query) => {
+    const load = query.state.data;
+    if (load?.status === LOAD_STATUS.LOADING) return SHIPPING_LIMITS.loadPollMs;
+    if (load?.status === LOAD_STATUS.VEHICLE_BOOKED && isApiBookedLoad(load))
+      return SHIPPING_LIMITS.loadPollMs;
+    if (
+      load?.status === LOAD_STATUS.CANCELLED &&
+      isApiBookedLoad(load) &&
+      load.carrierBookingToCancel &&
+      ([CARRIER_BOOKING_STATUS.BOOKED, CARRIER_BOOKING_STATUS.REQUESTED] as const).some(
+        (status) => load.carrierBooking?.status === status,
+      )
+    )
+      return SHIPPING_LIMITS.loadPollMs;
+    return false;
+  },
 });
 
 /**

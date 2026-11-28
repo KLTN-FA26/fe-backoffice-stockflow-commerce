@@ -411,6 +411,15 @@ export const CARRIER_BOOKING_STATUSES = [
   "CANCELLED",
   "CANCEL_FAILED",
 ] as const;
+export type CarrierBookingStatus = (typeof CARRIER_BOOKING_STATUSES)[number];
+export const CARRIER_BOOKING_STATUS = {
+  REQUESTED: "REQUESTED",
+  BOOKED: "BOOKED",
+  FAILED: "FAILED",
+  UNCONFIRMED: "UNCONFIRMED",
+  CANCELLED: "CANCELLED",
+  CANCEL_FAILED: "CANCEL_FAILED",
+} as const satisfies Record<string, CarrierBookingStatus>;
 
 /** BE `WaybillChangeResponse.source` — ai điền mã vận đơn (docs 09 §4.4). */
 export const WAYBILL_SOURCES = ["MANUAL", "FILE", "WEBHOOK", "API"] as const;

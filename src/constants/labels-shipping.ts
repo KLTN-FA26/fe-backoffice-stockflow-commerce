@@ -163,6 +163,32 @@ export const SHIPPING_UI_LABELS = {
     notSent: "Chưa gửi được — quét lại cùng mã để thử lại.",
     invalidResponse:
       "Chưa ghi được kiện này lên xe, hãy quét lại. Nếu vẫn lỗi, nhìn bảng kiện bên dưới xem kiện đã lên xe chưa.",
+    context: (trip: string, plan?: string | null, vehicle?: number | null) =>
+      [
+        `Chuyến ${trip}`,
+        plan ? `kế hoạch ${plan}` : null,
+        vehicle != null ? `xe số ${vehicle}` : null,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+    target: (plan?: string | null, vehicle?: string | null, trip?: string | null) =>
+      [
+        plan ? `kế hoạch ${plan}` : null,
+        vehicle ? `xe số ${vehicle}` : null,
+        trip ? `chuyến ${trip}` : null,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+    wrongTrip: (target: string) => `Kiện thuộc ${target} — mang tới đúng chuyến trước khi xếp.`,
+    wrongTripUnknown: "Kiện không thuộc chuyến này — Quản lý kho kiểm tra kế hoạch và lô giao.",
+    alreadyLoaded: (trip: string) => `Kiện đã ở chuyến ${trip} — không xếp lên chuyến này.`,
+    unloadFirst: (trip: string) => `Kiện còn ở chuyến ${trip} — quét dỡ ở chuyến đó trước.`,
+    status: (status: string) => `Trạng thái kiện: ${status}.`,
+    shipmentStatus: (code: string, status: string) => `Lô ${code}: ${status}.`,
+    finishCartonCheck: "Hoàn tất kiểm thùng và dán nhãn ở màn Kiểm thùng rồi quét lại.",
+    finishPacking: "Hoàn tất đóng gói và niêm phong kiện trước khi quét lên xe.",
+    checkShipment: "Quản lý kho kiểm tra trạng thái lô giao trước khi xếp kiện.",
+    checkLabel: "Kiểm tra mã trên nhãn và trạng thái thùng ở màn Kiểm thùng.",
   },
   /* ── Bàn giao + biên bản ─────────────────────────────────────────── */
   handover: {

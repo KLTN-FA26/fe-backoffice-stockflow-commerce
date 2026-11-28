@@ -5,11 +5,8 @@ import { useEffect, useRef, useState } from "react";
 import { UI_LABELS } from "@/constants";
 import { primeScanAudio } from "@/hooks/use-scan-tone";
 import { ApiError } from "@/lib/api/error";
-import {
-  isScanQueueFatal,
-  isTransientError,
-  shippingErrorMessage,
-} from "@/features/shipping/errors";
+import { isScanQueueFatal, isTransientError } from "@/features/shipping/errors";
+import { scanErrorMessage } from "@/features/shipping/scan-error";
 import { scanPackageInputSchema } from "@/features/shipping/input-schemas";
 import { useScanPackage } from "@/features/shipping/mutations";
 import { forgetScanId, scanIdFor } from "@/features/shipping/scan-ids";
@@ -95,7 +92,7 @@ export function ScanPanel({
           // Response sai hợp đồng (BE có thể đã nhận mã) → không ghi là kiện bị từ chối; bảng tải lại
           show({ tone: "danger", message: `${packageCode} — ${S.invalidResponse}` });
         } else {
-          const message = isTransientError(error) ? S.notSent : shippingErrorMessage(error);
+          const message = isTransientError(error) ? S.notSent : scanErrorMessage(error, load);
           show({ tone: "danger", message: `${packageCode} — ${message}` });
           onReject([packageCode], message);
         }
