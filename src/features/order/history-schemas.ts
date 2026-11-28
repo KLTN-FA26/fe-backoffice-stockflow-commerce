@@ -37,6 +37,10 @@ export const orderHistoryEntryDtoSchema = z.object({
   previousDeliveryMode: orderDeliveryModeDtoSchema.nullish(),
   previousAddress: orderAddressDtoSchema.nullish(),
   newAddress: orderAddressDtoSchema.nullish(),
+  /** `CARTON_REMOVAL` (WF4-F2C): LPN thùng bị loại, lý do (`DAMAGED`) và đơn có đi tiếp theo kiểu giao một phần không. */
+  cartonLpn: z.string().nullish(),
+  cartonRemovalReason: z.string().nullish(),
+  continuesPartial: z.boolean().nullish(),
 });
 
 export const orderHistoryDtoSchema = z.array(orderHistoryEntryDtoSchema);
@@ -85,5 +89,14 @@ export const orderHistoryEntrySchema = z.discriminatedUnion("kind", [
   }),
   /** WF-05 BE-52 / TT-3: Kế toán huỷ một phiếu hoàn tiền của đơn — trạng thái không đổi, `reason` = lý do huỷ. */
   z.object({ ...historyEntryBase, kind: z.literal("refund-voided") }),
+  /** WF4-F2C: kho loại một thùng ở trạm kiểm thùng — trạng thái không đổi, `reason` = ghi chú của kho. */
+  z.object({
+    ...historyEntryBase,
+    kind: z.literal("carton-removal"),
+    lpn: z.string(),
+    removalReason: z.string().nullable(),
+    /** true = đơn đã được cho giao một phần nên đi tiếp; false = đơn bị treo chờ Sale. */
+    continuesPartial: z.boolean(),
+  }),
   z.object({ ...historyEntryBase, kind: z.literal("unknown") }),
 ]);

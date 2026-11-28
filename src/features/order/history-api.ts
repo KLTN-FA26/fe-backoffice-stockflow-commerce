@@ -62,6 +62,16 @@ export function toOrderHistoryEntry(dto: OrderHistoryEntryDto): OrderHistoryEntr
   }
   // WF-05 BE-52 (TT-3): phiếu hoàn tiền bị huỷ khi còn yêu cầu trả hàng mở — không đổi trạng thái
   if (dto.type === "REFUND_VOIDED") return { ...base, kind: "refund-voided" };
+  // WF4-F2C (docs 08 §4.2 bước 4): kho loại thùng ở trạm kiểm thùng — không đổi trạng thái
+  if (dto.type === "CARTON_REMOVAL" && dto.cartonLpn) {
+    return {
+      ...base,
+      kind: "carton-removal",
+      lpn: dto.cartonLpn,
+      removalReason: dto.cartonRemovalReason ?? null,
+      continuesPartial: dto.continuesPartial === true,
+    };
+  }
   if (dto.type === "STATUS_CHANGE" && dto.to) {
     return {
       ...base,

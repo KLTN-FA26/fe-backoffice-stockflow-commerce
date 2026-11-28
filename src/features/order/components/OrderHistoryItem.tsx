@@ -1,6 +1,6 @@
 "use client";
 
-import { ReceiptText, Scissors, Split, Truck } from "lucide-react";
+import { PackageX, ReceiptText, Scissors, Split, Truck } from "lucide-react";
 
 import {
   ORDER_DELIVERY_MODE_LABELS,
@@ -126,6 +126,18 @@ export function EntryHead({ entry }: { entry: OrderHistoryEntry }) {
           {L.refundVoided}
         </span>
       );
+    case "carton-removal":
+      // Kho loại thùng ở trạm kiểm thùng (WF4-F2C): LPN + lý do + đơn đi tiếp theo kiểu giao một phần hay bị treo
+      return (
+        <span className="text-ink-primary inline-flex items-center gap-1.5 font-semibold">
+          <PackageX className="text-accent size-3.5" aria-hidden="true" />
+          {L.cartonRemoved(
+            entry.lpn,
+            entry.removalReason ? (L.cartonRemovalReasons[entry.removalReason] ?? null) : null,
+            entry.continuesPartial,
+          )}
+        </span>
+      );
     case "unknown":
       return <span className="text-ink-secondary">{L.unknownEntry}</span>;
   }
@@ -138,6 +150,7 @@ const HIGHLIGHTED_KINDS: readonly OrderHistoryEntry["kind"][] = [
   "delivery-mode",
   "address-change",
   "refund-voided",
+  "carton-removal",
 ];
 
 /** Một mục của lịch sử đơn: đầu mục theo loại, ai / khi nào, ghi chú. */
