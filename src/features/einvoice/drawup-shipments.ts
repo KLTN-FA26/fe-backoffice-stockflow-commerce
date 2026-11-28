@@ -72,6 +72,7 @@ export function shipmentChoiceLabel(
 ): string {
   const name =
     choice.code ?? text.byDate(choice.deliveredAt ? formatDate(choice.deliveredAt) : "—");
-  const state = choice.statusLabel === null ? text.noInvoice : text.invoiceState(choice.statusLabel);
+  const state =
+    choice.statusLabel === null ? text.noInvoice : text.invoiceState(choice.statusLabel);
   return `${name} · ${state}`;
 }

@@ -738,6 +738,39 @@ describe("CartonCheckStation — phiên của kho khác mở trong tab (spec §2
   });
 });
 
+describe("CartonCheckStation — đơn đang treo (WF4-K2)", () => {
+  const heldSession = (holdReason: string) =>
+    startedSession({
+      holdReason,
+      cartons: [
+        checkedCarton(),
+        apiCarton({ packageId: "p-2", packageNo: 2, lpn: "LPN000002", orderLineId: LINE_A_ID }),
+      ],
+    });
+
+  it("banner 'Đơn treo – lý do – chờ Sale gỡ treo'; vẫn quét được; dán nhãn và hoàn tất bị tắt, nói lý do", async () => {
+    const user = userEvent.setup();
+    renderCartonCheckStation({ session: heldSession("ADDRESS") });
+    expect(
+      await screen.findByText(L.hold.banner("Sai địa chỉ / hãng vận chuyển không giao tới")),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText(L.scan.label)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: L.action.complete })).toBeDisabled();
+    // Dán nhãn nằm trong menu "⋯" của dòng: mục hiện ra nhưng tắt, kèm lý do (không giấu thao tác)
+    const menu = await openRowMenu(user, rowOf("LPN000001"));
+    expect(within(menu).getByRole("button", { name: new RegExp(L.action.label) })).toBeDisabled();
+    expect(within(menu).getByText(/chờ Sale gỡ treo/)).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    expect(screen.getAllByText(/chờ Sale gỡ treo/).length).toBeGreaterThan(0);
+  });
+
+  it("đơn không treo: không có banner, hoàn tất bật", async () => {
+    renderCartonCheckStation({ session: startedSession() });
+    expect(await screen.findByRole("button", { name: L.action.complete })).toBeEnabled();
+    expect(screen.queryByText(/chờ Sale gỡ treo/)).toBeNull();
+  });
+});
+
 describe("Bảng thùng của đơn — gọn, không cắt cột, một nút chính (S15-1)", () => {
   it("chưa có kích thước / khối lượng / lô giao → ẩn các cột đó; mã không bẻ dòng", async () => {
     renderCartonCheckStation({ session: startedSession() });

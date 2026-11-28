@@ -51,10 +51,15 @@ export interface CartonCheckAccess {
   canPrint: boolean;
   /** In lại nhãn LPN của thùng (inventory-stock-packages:CREATE — nhân viên kho, quản lý kho). */
   canReprintLpn: boolean;
+  /**
+   * Đơn đang treo (WF4-K2, docs 08 §6): vẫn bắt đầu, quét, in lại, loại thùng hỏng; chỉ dán nhãn và hoàn tất bị chặn
+   * (BE `PACK_ORDER_ON_HOLD`) tới khi Sale gỡ treo. UI-only — Backend phải re-check.
+   */
+  held: boolean;
 }
 
 export function cartonCheckAccess(
-  session: Pick<CartonCheckSession, "status" | "startedBy">,
+  session: Pick<CartonCheckSession, "status" | "startedBy" | "holdReason">,
   actor: FulfillmentActor,
 ): CartonCheckAccess {
   const canRead = actor.can(FULFILLMENT_PACKAGE_PERMISSIONS.read);
@@ -75,6 +80,7 @@ export function cartonCheckAccess(
     managerAssist: canPack && inProgress && canTakeOver && !isOwner && !!session.startedBy,
     canPrint: actor.can(PACKING.read),
     canReprintLpn: actor.can(STOCK_PACKAGE_PERMISSIONS.create),
+    held: !!session.holdReason,
   };
 }
 
@@ -100,6 +106,27 @@ const NONE: CartonActions = {
   reprintLpn: false,
 };
 
+/** Thùng này dán nhãn được nếu đơn không treo: Checked, SKU có quy cách thùng, người dùng thao tác được. */
+function canLabel(carton: Carton, unmeasured: boolean, access: CartonCheckAccess): boolean {
+  return (
+    access.canWork &&
+    carton.status === CARTON_STATUS.CHECKED &&
+    canTransition(CARTON_TRANSITIONS, carton.status, CARTON_STATUS.LABELED) &&
+    !unmeasured
+  );
+}
+
+/** Đơn treo (WF4-K2): nút dán nhãn của thùng này hiện ra nhưng tắt, kèm lý do — không giấu thao tác. */
+export function cartonLabelHeld(
+  carton: Carton,
+  session: Pick<CartonCheckSession, "skusWithoutCartonSpec">,
+  access: CartonCheckAccess,
+): boolean {
+  return (
+    access.held && canLabel(carton, session.skusWithoutCartonSpec.includes(carton.sku), access)
+  );
+}
+
 export function cartonActions(
   carton: Carton,
   session: Pick<CartonCheckSession, "shipments" | "skusWithoutCartonSpec">,
@@ -113,11 +140,7 @@ export function cartonActions(
   // Thùng đã vào shipment: loại khỏi đơn chỉ qua shipment (BE `PACKAGE_SHIPPED`)
   const inShipment = !!carton.shipmentId;
   return {
-    label:
-      access.canWork &&
-      carton.status === CARTON_STATUS.CHECKED &&
-      canTransition(CARTON_TRANSITIONS, carton.status, CARTON_STATUS.LABELED) &&
-      !unmeasured,
+    label: canLabel(carton, unmeasured, access) && !access.held,
     print: access.canPrint && carton.status === CARTON_STATUS.LABELED,
     reprint:
       access.canReprint &&

@@ -3,6 +3,7 @@ import { ZodError } from "zod";
 
 import {
   CARTON_CHECK_ERROR_MESSAGES as MSG,
+  CARTON_CHECK_HOLD_ERROR_MESSAGES,
   CARTON_CHECK_FIELD_MESSAGES,
   CARTON_CHECK_INVALID_RESPONSE_MESSAGE,
   CARTON_NOT_CHECKED_MESSAGES,
@@ -136,5 +137,49 @@ describe("isStaleCartonCheckError — phiên đã đổi ở nơi khác → tả
   it("phản hồi sai hợp đồng (ZodError): BE có thể đã ghi → tải lại; lỗi lạ khác → không", () => {
     expect(isStaleCartonCheckError(new ZodError([]))).toBe(true);
     expect(isStaleCartonCheckError(new Error("x"))).toBe(false);
+  });
+});
+
+describe("PACK_ORDER_ON_HOLD (WF4-K2) — câu theo lý do treo, nói ai gỡ", () => {
+  const held = (details?: Record<string, unknown>) =>
+    new ApiError(
+      409,
+      "PACK_ORDER_ON_HOLD",
+      "English message",
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      details,
+    );
+
+  it.each(
+    Object.keys(
+      CARTON_CHECK_HOLD_ERROR_MESSAGES,
+    ) as (keyof typeof CARTON_CHECK_HOLD_ERROR_MESSAGES)[],
+  )("details.holdReason = %s → câu riêng của lý do đó", (reason) => {
+    expect(cartonCheckErrorMessage(held({ holdReason: reason }))).toBe(
+      CARTON_CHECK_HOLD_ERROR_MESSAGES[reason],
+    );
+  });
+
+  it("ADDRESS và PAYMENT là hai câu khác nhau, đều nói Sale gỡ treo", () => {
+    const address = cartonCheckErrorMessage(held({ holdReason: "ADDRESS" }));
+    const payment = cartonCheckErrorMessage(held({ holdReason: "PAYMENT" }));
+    expect(address).not.toBe(payment);
+    expect(address).toMatch(/Sale/);
+    expect(payment).toMatch(/Sale/);
+  });
+
+  it("lý do lạ hoặc BE không gửi details → câu chung, không câu PACK_STATE_CONFLICT", () => {
+    expect(cartonCheckErrorMessage(held({ holdReason: "NEW_REASON" }))).toBe(
+      MSG.PACK_ORDER_ON_HOLD,
+    );
+    expect(cartonCheckErrorMessage(held())).toBe(MSG.PACK_ORDER_ON_HOLD);
+    expect(MSG.PACK_ORDER_ON_HOLD).not.toBe(MSG.PACK_STATE_CONFLICT);
+  });
+
+  it("là lỗi 'phiên đã đổi' → tải lại phiên để hiện banner treo", () => {
+    expect(isStaleCartonCheckError(held({ holdReason: "ADDRESS" }))).toBe(true);
   });
 });

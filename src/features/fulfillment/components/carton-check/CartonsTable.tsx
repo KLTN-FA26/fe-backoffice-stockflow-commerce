@@ -1,8 +1,8 @@
 "use client";
 
-import { UI_LABELS } from "@/constants";
+import { cartonCheckHoldReasonLabel, UI_LABELS } from "@/constants";
 import { ScrollShadowBox } from "@/components/backoffice/ScrollShadowBox";
-import { cartonActions } from "@/features/fulfillment/carton-check-lifecycle";
+import { cartonActions, cartonLabelHeld } from "@/features/fulfillment/carton-check-lifecycle";
 
 import { CartonRow } from "./CartonRow";
 import { PINNED } from "./CartonRowActions";
@@ -30,6 +30,9 @@ export function CartonsTable({
   labeling: boolean;
   handlers: CartonRowHandlers;
 }) {
+  const heldTitle = session.holdReason
+    ? UI_LABELS.cartonCheck.hold.blocked(cartonCheckHoldReasonLabel(session.holdReason))
+    : undefined;
   const shipmentCode = (id: string | null | undefined) =>
     session.shipments.find((shipment) => shipment.shipmentId === id)?.code;
   // Cột chưa có dữ liệu ở bất kỳ thùng nào thì ẩn (toàn "—" chỉ làm bảng rộng thêm và đẩy nút thao tác ra ngoài khung)
@@ -82,6 +85,8 @@ export function CartonsTable({
               shipmentCode={shipmentCode(carton.shipmentId)}
               labeling={labeling}
               handlers={handlers}
+              labelHeld={cartonLabelHeld(carton, session, access)}
+              heldTitle={heldTitle}
               columns={columns}
             />
           ))}

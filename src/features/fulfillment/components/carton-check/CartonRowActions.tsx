@@ -35,11 +35,16 @@ export function CartonRowActions({
   actions,
   labeling,
   handlers,
+  labelHeld,
+  heldTitle,
 }: {
   carton: Carton;
   actions: CartonActions;
   labeling: boolean;
   handlers: CartonRowHandlers;
+  /** Đơn treo: hiện nút dán nhãn bị tắt (WF4-K2), `heldTitle` nói lý do. */
+  labelHeld?: boolean;
+  heldTitle?: string;
 }) {
   const menu: RowAction[] = [];
   if (actions.label) {
@@ -49,6 +54,10 @@ export function CartonRowActions({
       disabled: labeling,
       onSelect: () => handlers.onLabel(carton),
     });
+  }
+  if (labelHeld) {
+    // Đơn treo (WF4-K2): mục dán nhãn hiện ra nhưng tắt, kèm lý do — không giấu thao tác.
+    menu.push({ label: A.label, icon: Tag, disabled: true, hint: heldTitle });
   }
   if (actions.print) {
     menu.push({ label: A.print, icon: Printer, onSelect: () => handlers.onPrint(carton) });

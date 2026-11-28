@@ -3,10 +3,11 @@
  * `PACKAGE_SHIPPED`), nên khác `errors.ts` (task xuất kho chỉ có mã chung): tra theo mã.
  */
 
-import { ZodError } from "zod";
+import { ZodError, z } from "zod";
 
 import {
   CARTON_CHECK_ERROR_MESSAGES,
+  CARTON_CHECK_HOLD_ERROR_MESSAGES,
   CARTON_CHECK_INVALID_RESPONSE_MESSAGE,
   CARTON_CHECK_STALE_ERROR_CODES,
   CARTON_CHECK_VALIDATION_FIELD_MESSAGES,
@@ -55,6 +56,17 @@ function unmeasuredMessage(error: ApiError): string {
     : CARTON_SPEC_UNMEASURED_MESSAGES.generic;
 }
 
+const holdDetailsSchema = z.object({ holdReason: z.string() });
+
+/** `PACK_ORDER_ON_HOLD`: câu theo `details.holdReason` (lý do lạ hoặc thiếu → câu chung). */
+function holdMessage(error: ApiError): string {
+  const parsed = holdDetailsSchema.safeParse(error.details ?? {});
+  const reason = parsed.success ? parsed.data.holdReason : "";
+  return Object.hasOwn(CARTON_CHECK_HOLD_ERROR_MESSAGES, reason)
+    ? CARTON_CHECK_HOLD_ERROR_MESSAGES[reason as keyof typeof CARTON_CHECK_HOLD_ERROR_MESSAGES]
+    : CARTON_CHECK_ERROR_MESSAGES.PACK_ORDER_ON_HOLD;
+}
+
 /** Câu tiếng Việt cho một lỗi ở trạm kiểm thùng. */
 export function cartonCheckErrorMessage(error: unknown, state: CartonCheckErrorState = {}): string {
   if (error instanceof ZodError) return CARTON_CHECK_INVALID_RESPONSE_MESSAGE;
@@ -66,6 +78,7 @@ export function cartonCheckErrorMessage(error: unknown, state: CartonCheckErrorS
     return CARTON_NOT_CHECKED_MESSAGES[state.context ?? "generic"];
   }
   if (error.code === "CARTON_SPEC_UNMEASURED") return unmeasuredMessage(error);
+  if (error.code === "PACK_ORDER_ON_HOLD") return holdMessage(error);
   if (isCartonCheckCode(error.code)) return CARTON_CHECK_ERROR_MESSAGES[error.code];
   if (error.code === "VALIDATION_FAILED") return validationMessage(error);
   if (error.code === "NETWORK_ERROR") return FULFILLMENT_ERROR_MESSAGES.NETWORK_ERROR;

@@ -18,6 +18,7 @@ import { toCartonCheckSession } from "./carton-check-api";
 import {
   cartonActions,
   cartonCheckAccess,
+  cartonLabelHeld,
   labelableCartons,
   printableCartons,
 } from "./carton-check-lifecycle";
@@ -350,5 +351,50 @@ describe("cartonActions — In lại nhãn LPN (docs 08 §6 'Nhãn LPN rách', 0
     expect(
       cartonActions(carton(apiCarton()), view, access(IDENTITIES.warehouseStaff)).reprintLpn,
     ).toBe(false);
+  });
+});
+
+describe("đơn đang treo (WF4-K2, docs 08 §6): chỉ dán nhãn và hoàn tất bị tắt", () => {
+  const heldSession = () =>
+    session(
+      apiSession({
+        status: "IN_PROGRESS",
+        startedBy: STARTER_ID,
+        holdReason: "ADDRESS",
+        cartons: [checkedCarton()],
+      }),
+    );
+
+  it("vẫn quét, loại thùng hỏng, in lại được; dán nhãn thành nút bị tắt kèm lý do", () => {
+    const held = heldSession();
+    const access = cartonCheckAccess(held, actorOf(IDENTITIES.warehouseStaff));
+    expect(access.held).toBe(true);
+    expect(access.canWork).toBe(true);
+    const actions = cartonActions(held.cartons[0] as never, held, access);
+    expect(actions.label).toBe(false);
+    expect(cartonLabelHeld(held.cartons[0] as never, held, access)).toBe(true);
+    expect(actions.remove).toBe(true);
+  });
+
+  it("đơn không treo: dán nhãn bình thường, không có nút tắt", () => {
+    const free = session(
+      apiSession({ status: "IN_PROGRESS", startedBy: STARTER_ID, cartons: [checkedCarton()] }),
+    );
+    const access = cartonCheckAccess(free, actorOf(IDENTITIES.warehouseStaff));
+    expect(access.held).toBe(false);
+    const actions = cartonActions(free.cartons[0] as never, free, access);
+    expect(actions.label).toBe(true);
+    expect(cartonLabelHeld(free.cartons[0] as never, free, access)).toBe(false);
+  });
+
+  it("phiên mở lại để thay thùng của chuyến đã huỷ (RTM-RTDCANCEL): BE không gửi holdReason nên không bị tắt", () => {
+    // Đơn vẫn treo thiếu hàng ở phía BE nhưng BE bỏ `holdReason` khỏi phiên này: dán nhãn và hoàn tất mở.
+    const replacement = session(
+      apiSession({ status: "IN_PROGRESS", startedBy: STARTER_ID, cartons: [checkedCarton()] }),
+    );
+    const access = cartonCheckAccess(replacement, actorOf(IDENTITIES.warehouseStaff));
+    expect(access.held).toBe(false);
+    expect(cartonActions(replacement.cartons[0] as never, replacement, access).label).toBe(true);
+    expect(cartonLabelHeld(replacement.cartons[0] as never, replacement, access)).toBe(false);
   });
 });

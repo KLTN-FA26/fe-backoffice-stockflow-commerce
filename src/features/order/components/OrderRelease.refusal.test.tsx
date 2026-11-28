@@ -101,7 +101,9 @@ describe("thẻ 'Chưa ra lệnh xuất kho được' (đợt ON_SIGNING) — kh
         expect.anything(),
       ),
     );
-    await waitFor(() => expect(screen.queryByText("Chưa ra lệnh xuất kho được")).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.queryByText("Chưa ra lệnh xuất kho được")).not.toBeInTheDocument(),
+    );
   });
 
   it("người không có sales-order-releases:UPDATE (Sales) không thấy thẻ", async () => {

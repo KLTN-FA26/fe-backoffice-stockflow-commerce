@@ -50,6 +50,8 @@ export const beCartonCheckQueueRowSchema = z.object({
   labeledCount: count,
   /** Shipment đã tạo (đơn giao nhiều đợt có nhiều). */
   shipmentCount: count,
+  /** Lý do đơn đang treo (BE `HoldReason`, WF4-K2): đơn treo vẫn nằm trong hàng chờ; vắng khi không treo. */
+  holdReason: z.string().nullish(),
 });
 
 export const beCartonCheckQueuePageSchema = bePageSchema(beCartonCheckQueueRowSchema);
@@ -145,4 +147,7 @@ export const beCartonCheckSessionSchema = z.object({
   paymentDue: beCartonPaymentDueSchema.nullish(),
   /** SKU chưa có quy cách thùng (kích thước / khối lượng): thùng của SKU này chưa dán nhãn được (docs 08 BR-07). */
   skusWithoutCartonSpec: z.array(z.string()),
+  /** Lý do đơn đang treo (BE `HoldReason`, WF4-K2); vắng khi không treo. Treo thì dán nhãn và hoàn tất bị chặn;
+   * BE bỏ trường này ở phiên mở lại để thay thùng chuyến đã huỷ (RTM-RTDCANCEL) — ở đó dán nhãn / hoàn tất vẫn mở. */
+  holdReason: z.string().nullish(),
 });

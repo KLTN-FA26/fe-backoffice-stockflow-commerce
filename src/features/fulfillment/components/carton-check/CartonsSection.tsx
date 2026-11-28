@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Printer, Tag } from "lucide-react";
+import { Printer } from "lucide-react";
 
 import { UI_LABELS } from "@/constants";
 import { labelableCartons, printableCartons } from "@/features/fulfillment/carton-check-lifecycle";
@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 
 import { Section } from "../primitives";
 import { CartonsTable } from "./CartonsTable";
+import { LabelAllButton } from "./LabelAllButton";
 import { RemoveCartonDialog } from "./RemoveCartonDialog";
 import { ReprintLabelDialog } from "./ReprintLabelDialog";
 import { ShippingLabelsDialog } from "./ShippingLabelsDialog";
@@ -71,16 +72,13 @@ export function CartonsSection({
       description={L.cartons.description}
       actions={
         <>
-          {labelable.length > 0 && (
-            <Button
-              type="button"
-              size="xs"
-              disabled={label.isPending}
-              onClick={() => runLabel(labelable.map((carton) => carton.lpn))}
-            >
-              <Tag className="size-3" /> {L.action.labelAll} ({labelable.length})
-            </Button>
-          )}
+          <LabelAllButton
+            count={labelable.length}
+            pending={label.isPending}
+            access={access}
+            holdReason={access.held ? session.holdReason : null}
+            onLabel={() => runLabel(labelable.map((carton) => carton.lpn))}
+          />
           {printable.length > 0 && (
             <Button
               type="button"

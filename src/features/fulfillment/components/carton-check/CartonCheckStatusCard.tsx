@@ -2,19 +2,24 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, PlayCircle } from "lucide-react";
+import { ArrowRight, CheckCircle2 } from "lucide-react";
 
-import { FULFILLMENT_PICK_PERMISSIONS, PACK_STATUS, UI_LABELS, WORKSPACE_PATHS } from "@/constants";
+import {
+  cartonCheckHoldReasonLabel,
+  FULFILLMENT_PICK_PERMISSIONS,
+  PACK_STATUS,
+  UI_LABELS,
+  WORKSPACE_PATHS,
+} from "@/constants";
 import { useWorkspaceHref } from "@/lib/workspace";
 import { formatDateTime } from "@/lib/format/date";
-import { cartonCheckErrorMessage } from "@/features/fulfillment/carton-check-errors";
-import { useStartCartonCheck } from "@/features/fulfillment/carton-check-mutations";
-import { toast } from "@/components/shared/Toast";
 import { StatusDot } from "@/components/shared/StatusDot";
 import { Button } from "@/components/ui/button";
 
 import { MONO, taskCode } from "../primitives";
+import { CARTON_CHECK_BUTTON as BUTTON } from "./StartCheckButton";
 import { CompleteDialog } from "./CompleteDialog";
+import { StartCheckButton } from "./StartCheckButton";
 
 import type { CartonCheckAccess } from "@/features/fulfillment/carton-check-lifecycle";
 import type { CartonCheckSession } from "@/features/fulfillment/carton-check-types";
@@ -22,7 +27,6 @@ import type { FulfillmentActor } from "@/features/fulfillment/lifecycle";
 
 const S = UI_LABELS.cartonCheck.status;
 const N = UI_LABELS.cartonCheck.notice;
-const BUTTON = "h-(--action-h) w-full rounded-(--action-radius)";
 
 function noActionText(session: CartonCheckSession, access: CartonCheckAccess): string | null {
   if (session.status === PACK_STATUS.COMPLETED) return N.readOnlyDone;
@@ -47,7 +51,6 @@ export function CartonCheckStatusCard({
   /** Lấy hàng chưa xong (theo task) → chưa bắt đầu kiểm được, ẩn nút Bắt đầu. */
   waitingPick: boolean;
 }) {
-  const start = useStartCartonCheck();
   const href = useWorkspaceHref();
   const [dialog, setDialog] = useState<"complete" | null>(null);
   const idle = waitingPick ? N.waitingPick : noActionText(session, access);
@@ -93,28 +96,22 @@ export function CartonCheckStatusCard({
         </div>
       </dl>
       <div className="space-y-2">
-        {access.canStart && !waitingPick && (
+        {access.canStart && !waitingPick && <StartCheckButton session={session} />}
+        {access.canWork && (
           <Button
             type="button"
             size="sm"
-            disabled={start.isPending}
-            onClick={() =>
-              start.mutate(session.taskId, {
-                onError: (error) =>
-                  toast.error(
-                    cartonCheckErrorMessage(error, { starterName: session.startedByName }),
-                  ),
-              })
-            }
+            disabled={access.held}
+            onClick={() => setDialog("complete")}
             className={BUTTON}
           >
-            <PlayCircle className="size-3.5" /> {UI_LABELS.cartonCheck.action.start}
-          </Button>
-        )}
-        {access.canWork && (
-          <Button type="button" size="sm" onClick={() => setDialog("complete")} className={BUTTON}>
             <CheckCircle2 className="size-3.5" /> {UI_LABELS.cartonCheck.action.complete}
           </Button>
+        )}
+        {access.canWork && session.holdReason && (
+          <p className="text-ink-tertiary text-center text-xs">
+            {UI_LABELS.cartonCheck.hold.blocked(cartonCheckHoldReasonLabel(session.holdReason))}
+          </p>
         )}
         {idle && (waitingPick || (!access.canStart && !access.canWork)) && (
           <p className="text-ink-tertiary text-center text-xs">{idle}</p>

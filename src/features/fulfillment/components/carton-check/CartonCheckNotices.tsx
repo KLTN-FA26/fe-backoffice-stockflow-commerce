@@ -1,6 +1,6 @@
 "use client";
 
-import { UI_LABELS } from "@/constants";
+import { cartonCheckHoldReasonLabel, UI_LABELS } from "@/constants";
 import { formatMoney } from "@/lib/format/money";
 import { Alert } from "@/components/shared/Alert";
 import { removedCartons } from "@/features/fulfillment/carton-check-selectors";
@@ -11,11 +11,12 @@ import type { CartonCheckAccess } from "@/features/fulfillment/carton-check-life
 import type { CartonCheckSession } from "@/features/fulfillment/carton-check-types";
 
 const N = UI_LABELS.cartonCheck.notice;
+const H = UI_LABELS.cartonCheck.hold;
 
 /**
  * Các thông báo đầu trạm: phiên đang do người khác kiểm (tên lấy từ phiên — `PACKING_TAKEN` của BE không kèm tên), đơn
  * đã khoá từ thùng đầu tiên dán nhãn (BR-04), SKU thiếu quy cách thùng (BR-07), thùng đã bị loại, khoản phải thu trước
- * khi giao (BR-11 — chỉ cảnh báo) và hướng dẫn bắt đầu.
+ * khi giao (BR-11 — chỉ cảnh báo), đơn đang treo (WF4-K2: lý do + chờ Sale gỡ treo) và hướng dẫn bắt đầu.
  */
 export function CartonCheckNotices({
   session,
@@ -32,6 +33,11 @@ export function CartonCheckNotices({
   const removed = removedCartons(session);
   return (
     <>
+      {session.holdReason && (
+        <Alert tone="warning" title={H.banner(cartonCheckHoldReasonLabel(session.holdReason))}>
+          {H.bannerDescription}
+        </Alert>
+      )}
       {access.takenByOther && (
         <Alert tone="warning" title={starter ? N.takenTitle(starter) : N.takenAnonymous}>
           {N.takenDescription}

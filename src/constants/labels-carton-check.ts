@@ -5,6 +5,7 @@
  * chỉ trả message tiếng Anh không ổn định nên FE không hiển thị chuỗi đó.
  */
 
+import { ORDER_HOLD_REASON_LABELS, type ORDER_HOLD_REASONS } from "./labels-order";
 import { CARTON_CHECK_LIMITS } from "./numbers";
 
 export const CARTON_CHECK_UI_LABELS = {
@@ -19,7 +20,7 @@ export const CARTON_CHECK_UI_LABELS = {
   openStation: "Mở trạm",
   emptyTitle: "Không có đơn nào chờ kiểm thùng",
   emptyDescription:
-    "Chưa có đơn nào đã lấy hàng xong ở khu xuất hàng trong phạm vi kho bạn được xem, hoặc bộ lọc hiện tại không khớp. Đơn có thùng còn ở khu chờ xuất chỉ vào hàng chờ sau khi quản lý kho chuyển cả tác vụ sang khu xuất hàng.",
+    "Chưa có đơn nào đã lấy hàng xong ở khu xuất hàng trong phạm vi kho bạn được xem, hoặc bộ lọc hiện tại không khớp. Đơn có thùng còn ở khu chờ xuất chỉ vào hàng chờ sau khi quản lý kho chuyển cả tác vụ sang khu xuất hàng. Đơn đang treo vẫn hiện trong hàng chờ (làm mờ, kèm lý do treo) — không bị ẩn.",
   clearFilters: "Bỏ bộ lọc",
   filters: {
     warehouse: "Kho",
@@ -43,6 +44,21 @@ export const CARTON_CHECK_UI_LABELS = {
     shipments: "Lô giao",
   },
   noStarter: "Chưa bắt đầu",
+  /**
+   * Đơn đang treo (BE `PACK_ORDER_ON_HOLD`, WF4-K2; docs 08 §6): quét kiểm vẫn làm được, chỉ dán nhãn giao hàng và hoàn
+   * tất bị chặn tới khi Sale gỡ treo (kèm ghi chú).
+   */
+  hold: {
+    banner: (reason: string) => `Đơn treo – ${reason} – chờ Sale gỡ treo`,
+    bannerDescription:
+      "Vẫn bắt đầu kiểm, quét LPN và loại thùng hỏng được. Dán nhãn giao hàng và hoàn tất kiểm thùng tạm dừng tới khi Sale gỡ treo (kèm ghi chú).",
+    /** Nhãn lý do khi BE gửi mã mà FE chưa biết. */
+    unknownReason: "chưa rõ lý do",
+    /** Chữ nhỏ cạnh nút bị tắt vì đơn treo. */
+    blocked: (reason: string) =>
+      `Đơn đang treo (${reason}) — chờ Sale gỡ treo rồi làm tiếp bước này.`,
+    queueBadge: (reason: string) => `Treo: ${reason}`,
+  },
   cartonsCell: (checked: number, labeled: number, total: number) =>
     `${checked}/${total} đã quét · ${labeled} đã dán nhãn`,
   action: {
@@ -263,7 +279,10 @@ export const CARTON_CHECK_ERROR_MESSAGES = {
   PACKING_TAKEN:
     "Phiên kiểm thùng này do nhân viên khác bắt đầu — chỉ người bắt đầu hoặc quản lý kho thao tác tiếp.",
   PACK_STATE_CONFLICT:
-    "Trạng thái phiên kiểm thùng hoặc của đơn đã đổi (đơn đang treo, đã huỷ, hoặc thùng đã bị loại) nên không thực hiện được. Dữ liệu đã được tải lại.",
+    "Trạng thái phiên kiểm thùng hoặc của đơn đã đổi (đơn đã huỷ, hoặc thùng đã bị loại) nên không thực hiện được. Dữ liệu đã được tải lại.",
+  // Chỉ khi BE không gửi `details.holdReason`: câu theo từng lý do ở `CARTON_CHECK_HOLD_ERROR_MESSAGES`
+  PACK_ORDER_ON_HOLD:
+    "Đơn đang treo nên chưa dán nhãn hoặc hoàn tất kiểm thùng được — hỏi Sale gỡ treo (kèm ghi chú) rồi làm tiếp.",
   CARTON_NOT_IN_TASK:
     "Thùng này không thuộc phần lấy hàng của đơn, hoặc LPN không đọc đúng. Không ghi gì — báo quản lý kho kiểm lại phần lấy hàng và tồn kho.",
   PACKAGE_SHIPPED: "Thùng đã nằm trong lô giao nên không loại khỏi đơn được.",
@@ -276,6 +295,36 @@ export const CARTON_CHECK_ERROR_MESSAGES = {
   OUT_OF_DATA_SCOPE: "Đơn này thuộc kho ngoài phạm vi bạn được thao tác.",
   ORDER_CANCELLED: "Đơn hàng đã huỷ nên phiên kiểm thùng đã đóng.",
 } as const;
+
+/**
+ * `PACK_ORDER_ON_HOLD` (409, WF4-K2) theo lý do treo BE gửi trong `details.holdReason`: nói lý do và AI gỡ — dán nhãn và
+ * hoàn tất chờ Sale gỡ treo (CREDIT do người duyệt công nợ quyết). Lý do lạ → câu chung.
+ */
+export const CARTON_CHECK_HOLD_ERROR_MESSAGES = {
+  ADDRESS:
+    "Đơn đang treo vì địa chỉ giao chưa đúng nên chưa dán nhãn hoặc hoàn tất được — Sale liên hệ khách sửa địa chỉ rồi gỡ treo, sau đó làm tiếp. Vẫn quét kiểm được.",
+  PAYMENT:
+    "Đơn đang treo vì vướng thanh toán nên chưa dán nhãn hoặc hoàn tất được — Sale xử lý với khách rồi gỡ treo, sau đó làm tiếp. Vẫn quét kiểm được.",
+  INVENTORY:
+    "Đơn đang treo vì thiếu hàng hoặc có thùng bị loại nên chưa dán nhãn hoặc hoàn tất được — Sale quyết với khách (cho giao một phần hoặc gỡ treo), sau đó làm tiếp. Vẫn quét kiểm được.",
+  CUSTOMER:
+    "Đơn đang treo chờ khách xác nhận thay đổi nên chưa dán nhãn hoặc hoàn tất được — Sale gỡ treo khi khách xác nhận, sau đó làm tiếp. Vẫn quét kiểm được.",
+  FRAUD:
+    "Đơn đang treo vì nghi ngờ gian lận nên chưa dán nhãn hoặc hoàn tất được — Sale gỡ treo sau khi xác minh, sau đó làm tiếp. Vẫn quét kiểm được.",
+  OTHER:
+    "Đơn đang treo (lý do khác, xem ghi chú của Sale) nên chưa dán nhãn hoặc hoàn tất được — hỏi Sale gỡ treo rồi làm tiếp. Vẫn quét kiểm được.",
+  CREDIT:
+    "Đơn đang treo chờ duyệt công nợ nên chưa dán nhãn hoặc hoàn tất được — người duyệt công nợ xử lý xong thì làm tiếp. Vẫn quét kiểm được.",
+  DELIVERY_FAILED:
+    "Đơn đang treo vì giao thất bại (đơn cũ) nên chưa dán nhãn hoặc hoàn tất được — hỏi Sale xử lý. Vẫn quét kiểm được.",
+} as const satisfies Partial<Record<(typeof ORDER_HOLD_REASONS)[number], string>>;
+
+/** Nhãn lý do treo để hiện ở banner / hàng chờ — dùng chung nhãn của màn đơn hàng; mã lạ → câu chung. */
+export function cartonCheckHoldReasonLabel(reason: string): string {
+  return Object.hasOwn(ORDER_HOLD_REASON_LABELS, reason)
+    ? ORDER_HOLD_REASON_LABELS[reason as keyof typeof ORDER_HOLD_REASON_LABELS]
+    : CARTON_CHECK_UI_LABELS.hold.unknownReason;
+}
 
 /** `CARTON_NOT_CHECKED` đổi nghĩa theo thao tác: dán nhãn cần thùng đã quét; in / in lại cần thùng đã dán nhãn. */
 export const CARTON_NOT_CHECKED_MESSAGES = {
@@ -301,6 +350,7 @@ export const CARTON_CHECK_INVALID_RESPONSE_MESSAGE =
 
 /** Mã lỗi nghiệp vụ kiểm thùng — dữ liệu phiên đã đổi ở nơi khác thì tải lại (xem `carton-check-errors.ts`). */
 export const CARTON_CHECK_STALE_ERROR_CODES = [
+  "PACK_ORDER_ON_HOLD",
   "PACKING_NOT_READY",
   "PACKING_TAKEN",
   "PACK_STATE_CONFLICT",

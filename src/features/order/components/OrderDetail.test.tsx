@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  ORDER_ACTION_LABELS,
   ORDER_PERMISSIONS,
   PRODUCTION_ORDER_PERMISSIONS,
   SHIPMENT_PERMISSIONS,
@@ -618,6 +619,30 @@ describe("OrderDetail — Giữ đơn", () => {
     await renderDetail(CANCEL_ONLY, () => withStatus("PICKING"));
     await screen.findByRole("heading", { name: apiOrder.orderNumber });
     expect(await orderActionOrNull("Giữ đơn")).toBeNull();
+  });
+
+  it("đơn đã có thùng dán nhãn: chọn ADDRESS hiện cảnh báo địa chỉ đã khoá; chọn lý do khác thì không (WF4-K2)", async () => {
+    await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => ({
+      ...withStatus("PICKING"),
+      firstLabeledAt: "2026-11-10T02:00:00Z",
+    }));
+    const user = userEvent.setup();
+
+    await user.click(await orderAction("Giữ đơn"));
+    await pickSelectOption(user, /Lý do giữ/, "Sai địa chỉ / hãng vận chuyển không giao tới");
+    expect(screen.getByText(ORDER_ACTION_LABELS.hold.addressLockedWarning)).toBeInTheDocument();
+
+    await pickSelectOption(user, /Lý do giữ/, "Vấn đề thanh toán");
+    expect(screen.queryByText(ORDER_ACTION_LABELS.hold.addressLockedWarning)).toBeNull();
+  });
+
+  it("đơn chưa dán nhãn: chọn ADDRESS không có cảnh báo (WF4-K2)", async () => {
+    await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => withStatus("PICKING"));
+    const user = userEvent.setup();
+
+    await user.click(await orderAction("Giữ đơn"));
+    await pickSelectOption(user, /Lý do giữ/, "Sai địa chỉ / hãng vận chuyển không giao tới");
+    expect(screen.queryByText(ORDER_ACTION_LABELS.hold.addressLockedWarning)).toBeNull();
   });
 
   it("chọn lý do + ghi chú → POST /hold {reasonCode, note}, đóng dialog", async () => {
