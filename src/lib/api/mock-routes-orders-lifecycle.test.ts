@@ -142,6 +142,10 @@ describe("đăng ký route — mỗi METHOD + PATH đúng một chủ", () => {
     "GET /orders/:id/delivery-failures",
     "POST /orders/:id/delivery-failures/:caseId/cancellation",
     "POST /orders/:id/delivery-failures/cancellation",
+    // Thẻ thiếu thùng (`mock-routes-order-shortage.ts`, docs 17 §4.14)
+    "GET /orders/:id/shortage",
+    "POST /chat/conversations/:id/cards/shortage",
+    "POST /orders/:id/shortage-cards/:cardId/execution/:step",
     "POST /orders/:id/shipments/:shipmentId/lost-closure/evidence/uploads",
     "POST /orders/:id/shipments/:shipmentId/lost-closure",
     // Giữ hoàn tất (WF-05 GH-2)

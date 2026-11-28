@@ -53,6 +53,11 @@ export function WindowChangeHistory({ changes }: { changes: readonly DeliveryWin
                 {L.evidenceMessage(change.evidenceMessageId)}
               </span>
             )}
+            {change.evidenceShortageCardCode && (
+              <span className="text-ink-tertiary block break-all">
+                {L.evidenceShortageCard(change.evidenceShortageCardCode)}
+              </span>
+            )}
             {change.evidenceFileName && (
               <span className="text-ink-tertiary block break-all">
                 {L.evidenceFile(change.evidenceFileName)}

@@ -696,3 +696,21 @@ export {
   CUSTOMER_CREATE_OWNER_LABELS,
   SALES_OWNER_ACCESS_LABELS,
 } from "./labels-sales-owner-access";
+export {
+  SHORTAGE_CARD_STATUSES,
+  SHORTAGE_ENDED_LABELS,
+  SHORTAGE_ENDED_REASONS,
+  SHORTAGE_ERROR_MESSAGES,
+  SHORTAGE_LABELS,
+  SHORTAGE_NOT_SENDABLE_LABELS,
+  SHORTAGE_NOTE_MAX,
+  SHORTAGE_OPTIONS,
+  SHORTAGE_OPTION_LABELS,
+  SHORTAGE_STATUS_LABELS,
+  SHORTAGE_STATUS_TONE_KEY,
+} from "./labels-shortage-card";
+export type {
+  ShortageCardStatus,
+  ShortageEndedReason,
+  ShortageOption,
+} from "./labels-shortage-card";

@@ -30,6 +30,7 @@ import { OrderLoadError } from "./OrderLoadError";
 import { OrderPermissionGate } from "./OrderPermissionGate";
 import { LineProductionOrdersView, ProductionStatusNotice } from "./OrderProductionOrders";
 import { OrderDetailSkeleton } from "./OrderSkeletons";
+import { OrderShortageSection } from "./shortage-card/OrderShortageSection";
 
 import type { OrderEstimateSlot } from "../estimate-slot";
 import type { OrderReturnsSlot } from "../returns-slot";
@@ -171,6 +172,8 @@ function OrderDetailContent({
             />
           )}
         />
+        {/* Thiếu thùng (docs 17 §4.14): thẻ chọn hướng xử lý, nút Thực hiện — ngay dưới dòng hàng vì là việc cần làm */}
+        <OrderShortageSection order={order} can={can} enabled={fulfilmentStage} />
       </div>
       <OrderDetailTabs
         order={order}

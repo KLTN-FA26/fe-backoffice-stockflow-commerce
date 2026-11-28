@@ -146,6 +146,8 @@ export const ADMIN_ROUTES = {
     contract: (id: string) => `${ADMIN_BASE}/orders/${id}#contract`,
     /** Thẻ "Yêu cầu huỷ của khách" trên chi tiết đơn (hàng đợi yêu cầu huỷ mở thẳng tới đây — BO-UX-34). */
     cancellationRequest: (id: string) => `${ADMIN_BASE}/orders/${id}#cancellation-request`,
+    /** Mục "Thiếu thùng" trên chi tiết đơn (thông báo thẻ thiếu thùng và nút "Thực hiện" của thẻ trong chat mở tới đây). */
+    shortage: (id: string) => `${ADMIN_BASE}/orders/${id}#shortage`,
     list: `${ADMIN_BASE}/orders`,
   },
   packing: {

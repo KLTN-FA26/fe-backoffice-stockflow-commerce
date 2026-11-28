@@ -20,6 +20,7 @@ import { contextStatusLabel } from "../selectors";
 import { AttachContextDialog } from "./AttachContextDialog";
 import { OpenDocuments } from "./OpenDocuments";
 import { OwingInstallments } from "./OwingInstallments";
+import { ShortageCardPanelAction } from "./ShortageCardDialog";
 import { TransferDetailsDialog } from "./TransferDetailsDialog";
 
 import type { PermissionCode } from "@/lib/auth";
@@ -130,6 +131,7 @@ export function CustomerPanel({
           </Button>
         )}
       </div>
+      {canSend && <ShortageCardPanelAction conversationId={conversation.id} overview={data} />}
       <TransferDetailsDialog
         conversationId={conversation.id}
         installments={owing}

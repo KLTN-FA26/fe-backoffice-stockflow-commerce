@@ -66,6 +66,7 @@ export const CHAT_CARD_LABELS: Readonly<Record<string, string>> = {
   ORDER_STATUS: "Trạng thái đơn",
   PRODUCTION_PROGRESS: "Tiến độ sản xuất",
   CSAT_SURVEY: "Đánh giá hỗ trợ",
+  SHORTAGE_CHOICE: "Đơn thiếu thùng",
 };
 
 /** BE `CardState`. */

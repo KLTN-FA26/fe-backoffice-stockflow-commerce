@@ -2,7 +2,7 @@
 
 import { StatusDot } from "@/components/shared/StatusDot";
 
-import { cardKindLabel, cardStateView } from "../card-view";
+import { cardStateView, cardTitle } from "../card-view";
 
 import { DocumentCardBody } from "./DocumentCardBody";
 import { QuoteRequestCardBody } from "./QuoteRequestCardBody";
@@ -29,7 +29,7 @@ export function ChatCardView({
   return (
     <div className="border-border-default bg-bg-surface space-y-1 rounded-[var(--r-sm)] border p-3 text-[0.8125rem]">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-ink-primary font-semibold">{cardKindLabel(card.kind)}</span>
+        <span className="text-ink-primary font-semibold">{cardTitle(card)}</span>
         <StatusDot domain="order" status={state.toneKey} label={state.label} />
       </div>
       {card.kind === "QUOTE_REQUEST" ? (
