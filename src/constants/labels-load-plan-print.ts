@@ -77,7 +77,7 @@ export const LOAD_PLAN_PRINT_LABELS = {
   parcel: {
     title: "Danh sách kiện",
     step: "Bước",
-    label: "Mã kiện",
+    label: "Mã kiện (LPN)",
     item: "Mặt hàng",
     order: "Đơn hàng",
     size: "Kích thước (cm)",
