@@ -6,6 +6,7 @@
 import {
   DELIVERY_FAILURE_ERROR_MESSAGES,
   DELIVERY_FAILURE_LABELS,
+  FEE_BEARER_LABELS,
   LOST_SHIPMENT_CLOSURE_LABELS,
 } from "@/constants";
 import { ApiError } from "@/lib/api/error";
@@ -76,7 +77,8 @@ export const CANCEL_UNDELIVERED_FIELD_ERRORS = {
   "agreedFee.amount": { field: "feeAmount", message: V.feeInvalid },
   "agreedFee.reason": { field: "feeReason", message: V.feeReasonRequired },
   "agreedFee.detail": { field: "feeDetail", message: V.feeDetailRequired },
-} as const satisfies ServerFieldMap<"note" | "feeAmount" | "feeReason" | "feeDetail">;
+  feeBearer: { field: "feeBearer", message: FEE_BEARER_LABELS.required },
+} as const satisfies ServerFieldMap<"note" | "feeAmount" | "feeReason" | "feeDetail" | "feeBearer">;
 
 /** BE lost-closure request → ô form. */
 export const LOST_CLOSURE_FIELD_ERRORS = {

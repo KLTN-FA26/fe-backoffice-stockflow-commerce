@@ -93,7 +93,7 @@ describe("cancelUndeliveredInputSchema (BE Cancellation + CancellationFeeRequest
   it("không giữ phí → chỉ gửi ghi chú", () => {
     expect(
       cancelUndeliveredInputSchema.parse({ ...CANCEL_UNDELIVERED_DEFAULTS, note: "Khách huỷ" }),
-    ).toEqual({ note: "Khách huỷ", agreedFee: undefined });
+    ).toEqual({ note: "Khách huỷ", agreedFee: undefined, feeBearer: undefined });
   });
 
   it("giữ phí → cần đủ số tiền, lý do, nội dung", () => {
@@ -107,10 +107,21 @@ describe("cancelUndeliveredInputSchema (BE Cancellation + CancellationFeeRequest
         feeAmount: "100000",
         feeReason: "Hàng đã in",
         feeDetail: "Giữ tiền in 50 thùng",
+        feeBearer: "COMPANY",
       }),
     ).toEqual({
       note: "Khách huỷ",
       agreedFee: { amount: 100000, reason: "Hàng đã in", detail: "Giữ tiền in 50 thùng" },
+      feeBearer: "COMPANY",
     });
+    // D50: đủ phí mà chưa chọn bên chịu phí → chặn
+    expect(
+      cancelUndeliveredInputSchema.safeParse({
+        ...base,
+        feeAmount: "100000",
+        feeReason: "Hàng đã in",
+        feeDetail: "Giữ tiền in 50 thùng",
+      }).success,
+    ).toBe(false);
   });
 });

@@ -12,10 +12,11 @@ import {
   CANCELLATION_REQUEST_LABELS as L,
   CANCELLATION_REQUEST_STATUS_DISPLAY,
 } from "@/constants/labels-order-cancellation-request";
+import { FEE_BEARER_LABELS } from "@/constants/labels-order";
 import { ORDER_LIMITS } from "@/constants/numbers";
 import { bePageSchema } from "@/lib/api/page-schema";
 
-import { agreedFeeSchema } from "./input-schemas";
+import { agreedFeeSchema, feeBearerSchema } from "./input-schemas";
 
 /* ── DTO ─────────────────────────────────────────────────────────────── */
 
@@ -114,12 +115,20 @@ export const approveCancellationSchema = z
       ),
     retainedPercent: retainedPercentSchema.optional(),
     agreedFee: agreedFeeSchema.optional(),
+    /** D50: bắt buộc khi có phí (% hoặc thoả thuận), không mặc định. */
+    feeBearer: feeBearerSchema.optional(),
   })
   // docs 17 §4.8 bước 30 / BE `Order#requireAgreedFee`: "Keep a percentage or an agreed amount, not both"
   .refine((value) => !(value.retainedPercent !== undefined && value.agreedFee !== undefined), {
     path: ["agreedFee"],
     message: L.fee.bothChosen,
-  });
+  })
+  .refine(
+    (value) =>
+      (value.retainedPercent === undefined && value.agreedFee === undefined) ||
+      value.feeBearer !== undefined,
+    { path: ["feeBearer"], message: FEE_BEARER_LABELS.required },
+  );
 
 /** Từ chối (`.../rejection`, `RejectCancellationRequest`): ghi lý do BẮT BUỘC (docs 17 §4.8 bước 28) ≤ 1000. */
 export const rejectCancellationSchema = z.object({
@@ -149,6 +158,9 @@ const settlementSchema = z.object({
   feeCovered: z.number().nullish(),
   refundable: z.number().nullish(),
   feeOwed: z.number().nullish(),
+  /** D46/D50: bên chịu phí của lần tất toán này + phần công ty chịu (0 = không). */
+  feeBearer: z.string().nullish(),
+  feeBorneByCompany: z.number().nullish(),
   settledAt: z.string().nullish(),
 });
 

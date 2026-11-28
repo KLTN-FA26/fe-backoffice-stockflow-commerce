@@ -3,15 +3,23 @@
 import {
   ColumnFilterButton,
   HeaderDateRangeFilter,
+  HeaderOptionFilter,
   HeaderMultiOptionFilter,
   HeaderNumberRangeFilter,
 } from "@/components/shared/ColumnHeaderFilter";
+
+import { FEE_BEARER_LABELS } from "@/constants";
 
 import { STATUS_OPTIONS } from "./constants";
 import { OrderCustomerFilter } from "./OrderCustomerFilter";
 
 import type { ReactNode } from "react";
 import type { OrderListState } from "./useOrderListState";
+
+const FEE_BEARER_OPTIONS = [
+  { value: "COMPANY", label: FEE_BEARER_LABELS.optionLabel("COMPANY") },
+  { value: "CUSTOMER", label: FEE_BEARER_LABELS.optionLabel("CUSTOMER") },
+] as const;
 
 /**
  * Lọc trên header cột (backoffice-erp-ui A5) của danh sách đơn — đúng tham số BE `GET /orders`:
@@ -46,6 +54,16 @@ export function orderHeaderFilters(s: OrderListState): Partial<Record<string, Re
         from={extra.placedFrom}
         to={extra.placedTo}
         onChange={extra.setPlacedRange}
+      />
+    ),
+    payment: (
+      <HeaderOptionFilter
+        label={FEE_BEARER_LABELS.filter}
+        value={extra.feeBearer || null}
+        options={FEE_BEARER_OPTIONS}
+        onChange={(value) => extra.setFeeBearer(value ?? "")}
+        searchPlaceholder={FEE_BEARER_LABELS.filterSearch}
+        emptyLabel={FEE_BEARER_LABELS.filterEmpty}
       />
     ),
     totalAmount: (

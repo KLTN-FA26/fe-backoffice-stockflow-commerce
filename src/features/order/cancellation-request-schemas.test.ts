@@ -105,19 +105,38 @@ describe("cancellationRequestDisplayStatus — trạng thái nguyên văn của 
 });
 
 describe("approveCancellationSchema (docs 17 §4.8 bước 30)", () => {
+  it("D50: có phí (% hoặc thoả thuận) mà thiếu bên chịu phí → lỗi ở feeBearer; không phí thì không cần", () => {
+    const fee = { amount: 500_000, reason: "Phôi đã in", detail: "Thoả thuận" };
+    for (const input of [{ retainedPercent: 20 }, { agreedFee: fee }]) {
+      const result = approveCancellationSchema.safeParse({ note: "", ...input });
+      expect(result.success).toBe(false);
+      if (!result.success) expect(result.error.issues[0]?.path).toEqual(["feeBearer"]);
+    }
+    expect(approveCancellationSchema.safeParse({ note: "" }).success).toBe(true);
+  });
+
   it("không phí, không ghi chú → hợp lệ (hoàn toàn bộ)", () => {
     expect(approveCancellationSchema.parse({ note: "" })).toEqual({ note: "" });
   });
 
   it("giữ theo %: lớn hơn 0, tối đa 100, tối đa 2 chữ số thập phân", () => {
-    expect(approveCancellationSchema.safeParse({ note: "", retainedPercent: 30.5 }).success).toBe(
-      true,
-    );
-    expect(approveCancellationSchema.safeParse({ note: "", retainedPercent: 100 }).success).toBe(
-      true,
-    );
+    expect(
+      approveCancellationSchema.safeParse({
+        note: "",
+        retainedPercent: 30.5,
+        feeBearer: "CUSTOMER",
+      }).success,
+    ).toBe(true);
+    expect(
+      approveCancellationSchema.safeParse({ note: "", retainedPercent: 100, feeBearer: "COMPANY" })
+        .success,
+    ).toBe(true);
     for (const bad of [0, -5, 100.01, 12.345, Number.NaN]) {
-      const result = approveCancellationSchema.safeParse({ note: "", retainedPercent: bad });
+      const result = approveCancellationSchema.safeParse({
+        note: "",
+        retainedPercent: bad,
+        feeBearer: "CUSTOMER",
+      });
       expect(result.success).toBe(false);
       if (!result.success) expect(result.error.issues[0]?.message).toBe(L.fee.percentInvalid);
     }
@@ -125,14 +144,20 @@ describe("approveCancellationSchema (docs 17 §4.8 bước 30)", () => {
 
   it("giữ theo số tiền thoả thuận: nguyên VND > 0, kèm lý do + chi tiết", () => {
     const fee = { amount: 500_000, reason: "Phôi đã in", detail: "Thoả thuận qua điện thoại" };
-    expect(approveCancellationSchema.safeParse({ note: "", agreedFee: fee }).success).toBe(true);
+    expect(
+      approveCancellationSchema.safeParse({ note: "", agreedFee: fee, feeBearer: "CUSTOMER" })
+        .success,
+    ).toBe(true);
     for (const bad of [
       { ...fee, amount: 0 },
       { ...fee, amount: 1500.5 },
       { ...fee, reason: " " },
       { ...fee, detail: "" },
     ]) {
-      expect(approveCancellationSchema.safeParse({ note: "", agreedFee: bad }).success).toBe(false);
+      expect(
+        approveCancellationSchema.safeParse({ note: "", agreedFee: bad, feeBearer: "CUSTOMER" })
+          .success,
+      ).toBe(false);
     }
   });
 

@@ -51,6 +51,7 @@ export function OrderRemainderClosureAction({ order }: { order: ActionOrder }) {
           schema={remainderClosureSchema}
           extra={{
             values: fee.values,
+            canSubmit: fee.canSubmit,
             render: (errors) => <RemainderFeeFields fee={fee} errors={errors} />,
           }}
           isPending={isPending}

@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+import type { FeeBearerChoice } from "./FeeBearerField";
+
 /** Một chuỗi chữ số liền, hoặc các nhóm 3 chữ số cùng dùng một dấu nghìn (chấm, phẩy hoặc khoảng trắng). */
 const AMOUNT_TEXT = /^(?:\d+|\d{1,3}(?:([.,\s])\d{3}(?:\1\d{3})*))$/;
 
@@ -23,11 +25,14 @@ export function useAgreedFeeFields() {
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
   const [detail, setDetail] = useState("");
+  const [feeBearer, setFeeBearer] = useState<FeeBearerChoice>("");
   return {
     enabled,
     amount,
     reason,
     detail,
+    feeBearer,
+    setFeeBearer,
     setEnabled,
     setAmount,
     setReason,
@@ -35,12 +40,17 @@ export function useAgreedFeeFields() {
     /** Phần gộp vào input của schema: không bật thì không gửi `agreedFee`. */
     values: {
       agreedFee: enabled ? { amount: parseFeeAmount(amount), reason, detail } : undefined,
+      // D50: bên chịu phí chỉ đi cùng khoản phí (BE 400 nếu có bên chịu mà không có phí)
+      feeBearer: enabled && feeBearer !== "" ? feeBearer : undefined,
     },
+    /** Có khoản phí mà chưa chọn bên chịu → chưa cho gửi. */
+    canSubmit: !enabled || feeBearer !== "",
     reset: () => {
       setEnabled(false);
       setAmount("");
       setReason("");
       setDetail("");
+      setFeeBearer("");
     },
   };
 }

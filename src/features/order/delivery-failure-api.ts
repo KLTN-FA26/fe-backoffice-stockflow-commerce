@@ -62,8 +62,8 @@ export type CancelUndeliveredInput = CancelUndeliveredValues & {
 export async function cancelUndelivered(
   input: CancelUndeliveredInput,
 ): Promise<DeliveryFailureCase[]> {
-  const { orderId, caseId, idempotencyKey, note, agreedFee } = input;
-  const body = agreedFee ? { note, agreedFee } : { note };
+  const { orderId, caseId, idempotencyKey, note, agreedFee, feeBearer } = input;
+  const body = agreedFee ? { note, agreedFee, feeBearer } : { note };
   const config = idempotencyRequestConfig(idempotencyKey);
   if (caseId) {
     const { data } = await api.post<unknown>(

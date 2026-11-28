@@ -93,8 +93,11 @@ export {
   ORDER_SHIPMENT_READ_STATUSES,
   ORDER_SHIPMENT_STATUS_DISPLAY,
   ORDER_SHIPMENT_STATUSES,
+  FEE_BEARERS,
+  FEE_BEARER_LABELS,
 } from "./labels-order";
 export type { OrderErrorCode } from "./labels-order";
+export type { FeeBearer } from "./labels-order";
 export { PRODUCT_ERROR_MESSAGES, PRODUCT_REJECT_LABELS } from "./labels-product";
 export {
   MODEL3D_DIFFERENCE_MESSAGES,

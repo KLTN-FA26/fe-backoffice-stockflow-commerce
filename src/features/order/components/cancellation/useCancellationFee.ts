@@ -4,6 +4,8 @@ import { useState } from "react";
 
 import { parseFeeAmount } from "../useAgreedFeeFields";
 
+import type { FeeBearerChoice } from "../FeeBearerField";
+
 export type CancellationFeeMode = "none" | "percent" | "agreed";
 
 /**
@@ -17,12 +19,15 @@ export function useCancellationFee() {
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
   const [detail, setDetail] = useState("");
+  const [feeBearer, setFeeBearer] = useState<FeeBearerChoice>("");
   return {
     mode,
     percent,
     amount,
     reason,
     detail,
+    feeBearer,
+    setFeeBearer,
     setMode,
     setPercent,
     setAmount,
@@ -32,7 +37,11 @@ export function useCancellationFee() {
       retainedPercent:
         mode === "percent" ? (percent.trim() === "" ? Number.NaN : Number(percent)) : undefined,
       agreedFee: mode === "agreed" ? { amount: parseFeeAmount(amount), reason, detail } : undefined,
+      // D50: chỉ gửi khi có phí (BE 400 nếu có bên chịu mà không có phí)
+      feeBearer: mode !== "none" && feeBearer !== "" ? feeBearer : undefined,
     },
+    /** Có phí (% hoặc thoả thuận) mà chưa chọn bên chịu → chưa cho gửi. */
+    canSubmit: mode === "none" || feeBearer !== "",
   };
 }
 

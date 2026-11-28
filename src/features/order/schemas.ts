@@ -268,6 +268,8 @@ export const orderCancellationDtoSchema = z.object({
   feeReason: z.string().nullish(),
   feeDetail: z.string().nullish(),
   feeAmount: z.number().nullish(),
+  /** D46/D50: chỉ nhân viên thấy ("CUSTOMER" | "COMPANY"). */
+  feeBearer: z.string().nullish(),
 });
 
 export const orderDtoSchema = z.object({
@@ -308,6 +310,8 @@ export const orderDtoSchema = z.object({
   paidAmount: z.number().nullish(),
   outstandingAmount: z.number().nullish(),
   overdueAmount: z.number().nullish(),
+  /** D50: dòng `GET /orders` — công ty chịu một khoản phí của đơn (huy hiệu + bộ lọc). */
+  feeBorneByCompany: z.boolean().nullish(),
   releasedAt: z.string().nullish(),
   creditTermDays: z.number().int().nullish(),
   balancePolicy: orderBalancePolicyDtoSchema.nullish(),

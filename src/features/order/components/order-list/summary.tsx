@@ -1,3 +1,4 @@
+import { FEE_BEARER_LABELS } from "@/constants";
 import { formatDate } from "@/lib/format/date";
 import { CustomerName } from "@/components/backoffice/CustomerName";
 
@@ -68,6 +69,14 @@ export function buildSummaryItems(s: OrderListState): ListSummaryItem[] {
       ),
       active: extra.customerId !== "",
       onClear: () => extra.setCustomerId(""),
+    },
+    {
+      label: FEE_BEARER_LABELS.legend,
+      value: extra.feeBearer
+        ? FEE_BEARER_LABELS.optionLabel(extra.feeBearer)
+        : FEE_BEARER_LABELS.all,
+      active: extra.feeBearer !== "",
+      onClear: () => extra.setFeeBearer(""),
     },
     {
       label: FILTER_LABELS.placedAt,

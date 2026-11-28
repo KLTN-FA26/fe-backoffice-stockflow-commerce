@@ -345,6 +345,35 @@ export const ORDER_REMAINDER_FEE_LABELS = {
   detailTooLong: "Chi tiết tối đa 2000 ký tự",
 } as const;
 
+/* ── Bên chịu phí (D46 + D50) ─────────────────────────────────────────── */
+
+/** BE `CancellationFeeBearer`. */
+export const FEE_BEARERS = ["CUSTOMER", "COMPANY"] as const;
+export type FeeBearer = (typeof FEE_BEARERS)[number];
+
+const FEE_BEARER_NAMES = { CUSTOMER: "Khách", COMPANY: "Công ty" } as const;
+
+export const FEE_BEARER_LABELS = {
+  legend: "Bên chịu phí",
+  options: FEE_BEARER_NAMES,
+  hints: {
+    CUSTOMER: "Khách bị tính phí này như thường lệ.",
+    COMPANY: "Khách không bị tính phí; khoản này ghi là chi phí công ty để Kế toán xử lý.",
+  },
+  required: "Chọn bên chịu phí",
+  /** Khối tiền của đơn + dòng "Phí do công ty chịu". */
+  borneByCompany: "Phí do công ty chịu",
+  /** Bộ lọc danh sách đơn. */
+  filter: "bên chịu phí",
+  filterSearch: "Tìm bên chịu phí…",
+  filterEmpty: "Không có lựa chọn",
+  badge: "Công ty chịu phí",
+  /** Nhãn một lựa chọn của bộ lọc: "Khách chịu phí" / "Công ty chịu phí". */
+  optionLabel: (bearer: keyof typeof FEE_BEARER_NAMES) => `${FEE_BEARER_NAMES[bearer]} chịu phí`,
+  /** Tóm tắt bộ lọc khi chưa chọn bên nào. */
+  all: "Tất cả",
+} as const;
+
 /* ── Nhãn UI thao tác trạng thái ─────────────────────────────────────── */
 
 export const ORDER_ACTION_LABELS = {

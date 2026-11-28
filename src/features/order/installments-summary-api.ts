@@ -49,6 +49,8 @@ export const orderInstallmentsSummarySchema = z.object({
   onSigningPaid: z.boolean().nullish(),
   /** Phải thu trước khi hàng rời kho: đợt khi ký + trước khi giao còn thiếu (docs 15 BR-07, BR-08). */
   dueBeforeHandover: z.number().nullish(),
+  /** D46/D50: phần phí công ty chịu (0 = không). */
+  feeBorneByCompany: z.number().nullish(),
   currency: z.string(),
   installments: z.array(installmentSchema),
 });

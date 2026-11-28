@@ -103,6 +103,7 @@ export const orderCancellationSchema = z.object({
   feeReason: z.string().nullable(),
   feeDetail: z.string().nullable(),
   feeAmount: z.number().nullable(),
+  feeBearer: z.string().nullable(),
 });
 
 /**
@@ -148,6 +149,8 @@ export const orderSchema = z.object({
   paidAmount: z.number().nullish(),
   outstandingAmount: z.number().nullish(),
   overdueAmount: z.number().nullish(),
+  /** D50: công ty chịu một khoản phí của đơn (dòng danh sách). */
+  feeBorneByCompany: z.boolean(),
   releasedAt: z.string().nullable(),
   cancellation: orderCancellationSchema.nullable(),
   // Vòng đời (BE PR #133)

@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
+import { FeeBearerField } from "./FeeBearerField";
 import { parseFeeAmount, type AgreedFeeFields } from "./useAgreedFeeFields";
 
 import type { ReasonDialogErrors } from "./useReasonDialogValidation";
@@ -108,6 +109,11 @@ export function RemainderFeeFields({
             />
             <FieldError message={errors["agreedFee.detail"]} />
           </div>
+          <FeeBearerField
+            value={fee.feeBearer}
+            onChange={fee.setFeeBearer}
+            error={errors.feeBearer}
+          />
         </div>
       )}
     </div>

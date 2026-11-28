@@ -1,6 +1,6 @@
 "use client";
 
-import { Controller } from "react-hook-form";
+import { Controller, useWatch } from "react-hook-form";
 
 import { DELIVERY_FAILURE_LABELS, DELIVERY_FAILURE_LIMITS } from "@/constants";
 import { MoneyInput } from "@/components/shared/MoneyInput";
@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
+import { FeeBearerField } from "../FeeBearerField";
 import { FormFieldError, RequiredMark } from "../FormFieldError";
 
 import type { UseFormReturn } from "react-hook-form";
@@ -30,6 +31,7 @@ export function AgreedFeeInputs({
   enabled: boolean;
 }) {
   const errors = form.formState.errors;
+  const bearer = useWatch({ control: form.control, name: "feeBearer" });
   return (
     <fieldset className="border-border-default space-y-3 rounded-[var(--r-sm)] border p-3">
       <label className="flex cursor-pointer items-center gap-2">
@@ -85,6 +87,13 @@ export function AgreedFeeInputs({
             />
             <FormFieldError id="cancel-fee-detail-error" message={errors.feeDetail?.message} />
           </div>
+          <FeeBearerField
+            value={bearer === "CUSTOMER" || bearer === "COMPANY" ? bearer : ""}
+            onChange={(value) =>
+              form.setValue("feeBearer", value, { shouldValidate: true, shouldTouch: true })
+            }
+            error={errors.feeBearer?.message}
+          />
         </div>
       )}
     </fieldset>
