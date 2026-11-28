@@ -43,10 +43,9 @@ const lineSchema = z.object({
 export const shortageCardSchema = z.object({
   cardId: z.string(),
   /**
-   * Mã ngắn của thẻ `TT-yyyyMMdd-NNNN` (chủ dự án chốt 28/11; BE-3 thêm). Tên trường CHƯA có trong BE-1/BE-2 — giả định
-   * `number` như các thẻ chứng từ khác; đổi MỘT chỗ này khi PR BE-3 mở. Thiếu → `shortageCardName` dùng ngày gửi.
+   * Mã ngắn của thẻ `TT-yyyyMMdd-NNNN` (BE-3 #513: trường `code` ở mọi DTO thẻ). Thiếu → `shortageCardName` dùng ngày gửi.
    */
-  number: z.string().nullish(),
+  code: z.string().nullish(),
   orderId: z.string(),
   orderNumber: z.string(),
   status: z.enum(SHORTAGE_CARD_STATUSES),
@@ -80,8 +79,8 @@ export type ShortageCardLine = z.infer<typeof lineSchema>;
  * Tên thẻ để hiện cho người dùng: mã `TT-…`; chưa có (BE cũ) thì "Thẻ thiếu thùng ngày dd/MM/yyyy" — không bao giờ hiện
  * UUID của thẻ.
  */
-export function shortageCardName(card: Pick<ShortageCard, "number" | "sentAt">): string {
-  if (card.number) return card.number;
+export function shortageCardName(card: Pick<ShortageCard, "code" | "sentAt">): string {
+  if (card.code) return card.code;
   return card.sentAt ? `Thẻ thiếu thùng ngày ${formatDate(card.sentAt)}` : "Thẻ thiếu thùng";
 }
 

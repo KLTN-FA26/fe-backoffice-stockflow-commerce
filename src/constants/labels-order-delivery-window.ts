@@ -49,6 +49,7 @@ export const DELIVERY_SCHEDULE_LABELS = {
   lockedHint: "Đợt đã có thùng bàn giao (hoặc đã đóng) — cửa sổ giao không dời được.",
   history: "Lịch sử dời cửa sổ",
   historyEntry: (oldRange: string, newRange: string) => `${oldRange} → ${newRange}`,
+  evidenceShortageCard: (code: string) => `Thẻ thiếu thùng ${code}`,
   evidenceMessage: (id: string) => `Tin nhắn chat của khách (${id})`,
   evidenceFile: (name: string) => `Tệp: ${name}`,
   changedAt: (when: string) => `lúc ${when}`,

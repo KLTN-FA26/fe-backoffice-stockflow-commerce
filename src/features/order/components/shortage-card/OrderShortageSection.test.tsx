@@ -89,7 +89,7 @@ describe("OrderShortageSection", () => {
   });
 
   it("thẻ chưa có mã (BE cũ) → 'Thẻ thiếu thùng ngày …', không hiện UUID", async () => {
-    await open(previewOf({ ...baseCard, number: null }));
+    await open(previewOf({ ...baseCard, code: null }));
     expect(await screen.findByText("Thẻ thiếu thùng ngày 28/11/2026")).toBeInTheDocument();
     expect(screen.queryByText(new RegExp(CARD_ID))).not.toBeInTheDocument();
   });

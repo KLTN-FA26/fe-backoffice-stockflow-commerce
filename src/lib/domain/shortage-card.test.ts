@@ -16,12 +16,12 @@ describe("suggestedWindowEnd — ngày kết thúc gợi ý khi dời tới ngà
 
 describe("shortageCardName — mã TT-…, không bao giờ UUID", () => {
   it("có mã → mã", () => {
-    expect(shortageCardName({ number: "TT-20261128-0001", sentAt: "2026-11-28T03:00:00Z" })).toBe(
+    expect(shortageCardName({ code: "TT-20261128-0001", sentAt: "2026-11-28T03:00:00Z" })).toBe(
       "TT-20261128-0001",
     );
   });
   it("chưa có mã (BE cũ) → 'Thẻ thiếu thùng ngày dd/MM/yyyy'", () => {
-    expect(shortageCardName({ number: null, sentAt: "2026-11-28T03:00:00Z" })).toBe(
+    expect(shortageCardName({ code: null, sentAt: "2026-11-28T03:00:00Z" })).toBe(
       "Thẻ thiếu thùng ngày 28/11/2026",
     );
   });

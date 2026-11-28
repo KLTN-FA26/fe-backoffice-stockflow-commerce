@@ -10,7 +10,7 @@ export const waitOption = {
 
 export const baseCard = {
   cardId: CARD_ID,
-  number: "TT-20261128-0001",
+  code: "TT-20261128-0001",
   orderId: "0b6f7c1e-4c5d-4f1a-9a77-2f3e6f1d2a10",
   orderNumber: "SO-20260907-000431",
   status: "SENT",

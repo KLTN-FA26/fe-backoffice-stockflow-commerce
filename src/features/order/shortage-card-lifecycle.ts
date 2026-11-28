@@ -20,12 +20,11 @@ import type { OrderReadStatus } from "./types";
 type Can = (code: PermissionCode) => boolean;
 
 /**
- * Quyền của thao tác mà từng hướng chạy (BE `ShortageCardController`). "Giảm số thùng": quyền BE-3 chưa chốt trong spec —
- * chỉ gỡ treo; BE vẫn kiểm lại. Dời cửa sổ cần thêm `sales-contracts:UPDATE` (kiểm riêng trong hộp thoại).
+ * Quyền của thao tác mà từng hướng chạy (BE `ShortageCardController`). "Giảm số thùng" (BE-3 #513): cần cả gỡ treo và huỷ/đóng đơn. Dời cửa sổ cần thêm `sales-contracts:UPDATE` (kiểm riêng trong hộp thoại).
  */
 const OPTION_PERMISSIONS: Record<ShortageOption, readonly PermissionCode[]> = {
   WAIT_FOR_PRODUCTION: [ORDER_PERMISSIONS.hold],
-  REDUCE_CARTONS: [ORDER_PERMISSIONS.hold],
+  REDUCE_CARTONS: [ORDER_PERMISSIONS.hold, ORDER_PERMISSIONS.cancel],
   SHIP_PART_CLOSE_REST: [ORDER_PERMISSIONS.partialShipment, ORDER_PERMISSIONS.hold],
   CANCEL_ORDER: [ORDER_PERMISSIONS.cancel],
 };

@@ -28,6 +28,8 @@ export const beWindowChangeSchema = z.object({
   /** Bằng chứng là tệp: tên tệp; là tin nhắn chat: id tin nhắn — đúng một trong hai (BR-28). */
   evidenceFileName: z.string().nullish(),
   evidenceMessageId: z.string().nullish(),
+  /** Bằng chứng là thẻ thiếu thùng: mã `TT-…` (BE-3 #513). */
+  evidenceShortageCardCode: z.string().nullish(),
   changedBy: z.string().nullish(),
   /** Tên người dời (BE #342, staff read; docs 17 BR-28 / §5.2) — thiếu thì không hiện gì, không bao giờ hiện id. */
   changedByName: z.string().nullish(),
