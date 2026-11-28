@@ -9,24 +9,20 @@ describe("create product form helpers", () => {
     const input = buildCreateProductInput({
       productCode: "PRD-NEW",
       name: "Áo mới",
-      nameEn: "New shirt",
       categoryId: "c5ad8d15-e378-4ea7-8c75-b5c012508ced",
       brandId: "0b6a2f4e-9a43-4c55-8f0e-0c1c6e8c1b11",
       taxClass: "STANDARD",
       shortDescription: "  Áo thun in  ",
       description: "Mô tả",
-      descriptionEn: "Description",
     });
 
     expect(input).toEqual({
       code: "PRD-NEW",
       name: "Áo mới",
-      nameEn: "New shirt",
       categoryId: "c5ad8d15-e378-4ea7-8c75-b5c012508ced",
       brandId: "0b6a2f4e-9a43-4c55-8f0e-0c1c6e8c1b11",
       shortDescription: "Áo thun in",
       description: "Mô tả",
-      descriptionEn: "Description",
       taxClass: "STANDARD",
     });
   });
@@ -68,13 +64,11 @@ describe("create product form helpers", () => {
     const form = {
       productCode: "CUP",
       name: "Ly",
-      nameEn: "Cup",
       categoryId: "c",
       brandId: "b",
       taxClass: "STANDARD" as const,
       shortDescription: "",
       description: "",
-      descriptionEn: "",
     };
     expect(buildCreateProductInput(form)).not.toHaveProperty("axes");
     expect(buildCreateProductInput(form, [])).not.toHaveProperty("axes");

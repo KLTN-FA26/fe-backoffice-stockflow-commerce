@@ -3,9 +3,11 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { UI_LABELS } from "@/constants";
+import { PAYMENT_INSTALLMENT_PERMISSIONS } from "@/constants/payment";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 import { formatDate } from "@/lib/format/date";
+import { formatMoney } from "@/lib/format";
 import { HEADER_ACTIONS_ID } from "@/components/shared/HeaderActions";
 
 import { apiOrder, apiOrderPage } from "../__fixtures__/order";
@@ -14,6 +16,7 @@ import { OrderList } from "./OrderList";
 
 import type { PermissionCode } from "@/lib/auth";
 import type { RouteHandler } from "../__fixtures__/render";
+import type { OrderDto } from "../types";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
@@ -101,6 +104,65 @@ describe("OrderList — cột Khách hàng hiện tên, không hiện UUID (QA A
       `KH ${(apiOrder.customerId as string).slice(0, 8)}`,
     );
     expect(screen.queryByText(apiOrder.customerId as string)).not.toBeInTheDocument();
+  });
+});
+
+describe("OrderList — cột Thanh toán (audit bo-17, BE PR #497)", () => {
+  const WITH_INSTALLMENTS = [
+    ...ORDER_PERMISSION_SETS.salesStaff,
+    PAYMENT_INSTALLMENT_PERMISSIONS.read,
+  ];
+
+  /** Ô có đúng nội dung `text` (khoảng trắng của formatMoney chuẩn hoá). */
+  const byText = (text: string) =>
+    screen.getByText(
+      (_, el) =>
+        el?.tagName === "SPAN" &&
+        (el.textContent ?? "").replace(/\s+/g, " ") === text.replace(/\s+/g, " "),
+    );
+
+  function renderWith(permissions: readonly PermissionCode[], rows: OrderDto[]) {
+    mockOrderApiGet([...permissions], { "/orders": () => apiOrderPage(rows) });
+    return renderOrderScreen(<OrderList />);
+  }
+
+  it("đã thu / còn phải thu, phần quá hạn tô đỏ; đơn chưa có đợt → “Chưa có hợp đồng”", async () => {
+    renderWith(WITH_INSTALLMENTS, [
+      { ...apiOrder, paidAmount: 100000, outstandingAmount: 250000, overdueAmount: 50000 },
+      { ...secondOrder, paidAmount: null, outstandingAmount: null, overdueAmount: null },
+    ]);
+
+    await screen.findByText(apiOrder.orderNumber);
+    expect(screen.getByRole("columnheader", { name: /Thanh toán/ })).toBeInTheDocument();
+    expect(byText(`Còn ${formatMoney(250000, "VND")}`)).toBeInTheDocument();
+    expect(byText(`Quá hạn ${formatMoney(50000, "VND")}`)).toHaveClass("text-danger");
+    expect(screen.getByText("Chưa có hợp đồng")).toBeInTheDocument();
+  });
+
+  it("không quá hạn → không có dòng đỏ", async () => {
+    renderWith(WITH_INSTALLMENTS, [
+      { ...apiOrder, paidAmount: 100000, outstandingAmount: 250000, overdueAmount: 0 },
+    ]);
+
+    await screen.findByText(apiOrder.orderNumber);
+    expect(screen.queryByText(/Quá hạn/)).not.toBeInTheDocument();
+  });
+
+  it("không có payment-installments:READ → không có cột (BE cũng không trả số)", async () => {
+    renderWith(ORDER_PERMISSION_SETS.salesStaff, [
+      { ...apiOrder, paidAmount: null, outstandingAmount: null, overdueAmount: null },
+    ]);
+
+    await screen.findByText(apiOrder.orderNumber);
+    expect(screen.queryByRole("columnheader", { name: /Thanh toán/ })).not.toBeInTheDocument();
+    expect(screen.queryByText("Chưa có hợp đồng")).not.toBeInTheDocument();
+  });
+
+  it("BE chưa trả field (trước PR #497) → không có cột, trang vẫn chạy", async () => {
+    renderWith(WITH_INSTALLMENTS, [apiOrder]);
+
+    await screen.findByText(apiOrder.orderNumber);
+    expect(screen.queryByRole("columnheader", { name: /Thanh toán/ })).not.toBeInTheDocument();
   });
 });
 

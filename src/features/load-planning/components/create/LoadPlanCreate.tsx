@@ -35,7 +35,9 @@ function CreateForm() {
     >
       <Card className="space-y-4">
         <div className="max-w-sm space-y-1.5">
-          <Label htmlFor="lp-create-warehouse">{F.warehouse}</Label>
+          <Label htmlFor="lp-create-warehouse">
+            {F.warehouse} <span className="text-danger">*</span>
+          </Label>
           <WarehouseSelect
             id="lp-create-warehouse"
             value={form.warehouseId}
@@ -49,6 +51,7 @@ function CreateForm() {
           candidates={form.candidates}
           types={form.types}
           inputs={form.inputs}
+          recommendedCodes={form.estimatedCodes}
         />
         <div className="max-w-xl space-y-1.5">
           <Label htmlFor="lp-create-note">{F.note}</Label>
@@ -67,25 +70,32 @@ function CreateForm() {
           {error}
         </Alert>
       )}
-      <div className="flex items-center justify-end gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          asChild
-          disabled={form.pending}
-          className="h-(--action-h) rounded-(--action-radius) px-(--action-px)"
-        >
-          <Link href={ADMIN_ROUTES.loadPlans.list}>{F.back}</Link>
-        </Button>
-        <Button
-          type="submit"
-          size="sm"
-          disabled={form.pending}
-          className="bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse h-(--action-h) rounded-(--action-radius) px-(--action-px)"
-        >
-          {form.pending ? F.submitting : F.submit}
-        </Button>
+      <div className="flex flex-col items-end gap-1.5">
+        <div className="flex items-center justify-end gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            asChild
+            disabled={form.pending}
+            className="h-(--action-h) rounded-(--action-radius) px-(--action-px)"
+          >
+            <Link href={ADMIN_ROUTES.loadPlans.list}>{F.back}</Link>
+          </Button>
+          <Button
+            type="submit"
+            size="sm"
+            disabled={form.pending || form.missing.length > 0}
+            className="bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse h-(--action-h) rounded-(--action-radius) px-(--action-px)"
+          >
+            {form.pending ? F.submitting : F.submit}
+          </Button>
+        </div>
+        {form.missing.length > 0 && (
+          <p className="text-ink-secondary text-xs" aria-live="polite">
+            {F.missingPrefix}: {form.missing.join(", ")}
+          </p>
+        )}
       </div>
     </form>
   );

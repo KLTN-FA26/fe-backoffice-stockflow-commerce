@@ -32,6 +32,7 @@ export function VehiclePanel({
   pending,
   onRecalculate,
   onDrop,
+  productNames,
 }: {
   planId: string;
   vehicle: PlanVehicle;
@@ -45,6 +46,8 @@ export function VehiclePanel({
   pending: boolean;
   onRecalculate: () => void;
   onDrop: () => void;
+  /** Tên sản phẩm theo SKU cho chú giải 3D. */
+  productNames?: ReadonlyMap<string, string>;
 }) {
   const stats: [string, string][] = [
     [L.vehicleParcels, formatNumber(vehicle.packageCount)],
@@ -66,7 +69,14 @@ export function VehiclePanel({
           {vehicle.load && (
             <div>
               <dt className="text-ink-tertiary text-xs">{L.dispatchLoad}</dt>
-              <dd className="text-ink-primary font-mono text-[0.8125rem]">{vehicle.load.code}</dd>
+              <dd className="text-[0.8125rem]">
+                <Link
+                  href={ADMIN_ROUTES.loads.detail(vehicle.load.loadId)}
+                  className="text-accent-text font-mono hover:underline"
+                >
+                  {vehicle.load.code}
+                </Link>
+              </dd>
             </div>
           )}
         </dl>
@@ -103,6 +113,7 @@ export function VehiclePanel({
               a.localeCompare(b, "vi"),
             )}
             colorMap={colorMap}
+            productNames={productNames}
           />
         </>
       ) : (

@@ -21,6 +21,8 @@ interface CarrierSelectProps {
   placeholder?: string;
   /** Tên hãng hiện tại khi hãng không còn trong danh sách đang dùng (đã ngừng / chưa tải xong). */
   currentName?: string | null;
+  /** Hãng đưa lên đầu danh sách (hãng dùng gần nhất của kho). */
+  firstId?: string | null;
   className?: string;
   "aria-label"?: string;
   "aria-invalid"?: boolean;
@@ -36,11 +38,15 @@ export function CarrierSelect({
   disabled = false,
   placeholder = L.field.carrierPlaceholder,
   currentName,
+  firstId,
   className,
   ...aria
 }: CarrierSelectProps) {
   const { data } = useActiveCarriers({});
-  const carriers = data?.items ?? [];
+  // Hãng dùng gần nhất lên đầu; còn lại giữ thứ tự của BE
+  const carriers = [...(data?.items ?? [])].sort(
+    (a, b) => Number(b.carrierId === firstId) - Number(a.carrierId === firstId),
+  );
   const known = !value || carriers.some((carrier) => carrier.carrierId === value);
   return (
     <FormSelect
@@ -62,8 +68,13 @@ export function CarrierSelect({
         {allowNone && <SelectItem value={NONE}>{noneLabel}</SelectItem>}
         {!known && value && <SelectItem value={value}>{currentName ?? value}</SelectItem>}
         {carriers.map((carrier) => (
-          <SelectItem key={carrier.carrierId} value={carrier.carrierId}>
-            {carrier.code} · {carrier.name}
+          // Tên hãng, không "AHAMOVE Ahamove" (R3): mã không hiện, chỉ để gõ mã vẫn tìm ra hãng
+          <SelectItem
+            key={carrier.carrierId}
+            value={carrier.carrierId}
+            textValue={`${carrier.name} ${carrier.code}`}
+          >
+            {carrier.name}
           </SelectItem>
         ))}
       </TitledSelectContent>

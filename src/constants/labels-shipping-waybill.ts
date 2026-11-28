@@ -131,14 +131,16 @@ export const SHIPPING_WAYBILL_LABELS = {
       "Bàn giao là tất cả hoặc không. Xử lý từng đơn dưới đây rồi ký lại, hoặc dỡ kiện của đơn đó bằng huỷ có kiểm soát xe này.",
     order: "Đơn",
     reason: "Lý do",
-    unpaid: (amount: string) => `Còn ${amount} đợt thanh toán trước khi giao chưa thu.`,
+    unpaid: (amount: string) =>
+      `Còn ${amount} đợt thanh toán trước khi giao chưa thu — Kế toán lập phiếu thu.`,
     unpaidBatch: (amount: string, seq: number) =>
-      `Còn ${amount} đợt thanh toán trước khi giao chưa thu (đợt giao ${seq}).`,
+      `Còn ${amount} đợt thanh toán trước khi giao chưa thu (đợt giao ${seq}) — Kế toán lập phiếu thu.`,
     windowNotOpen: (date: string) =>
       `Chưa tới ngày bắt đầu cửa sổ giao — chỉ bàn giao được từ ${date}. Khách nhận sớm thì nhờ Sale dời cửa sổ giao.`,
     windowNotOpenBatch: (date: string, seq: number) =>
       `Đợt giao ${seq} chưa tới ngày bắt đầu cửa sổ giao — chỉ bàn giao được từ ${date}. Khách nhận sớm thì nhờ Sale dời cửa sổ giao.`,
-    onHold: "Đơn đang tạm giữ hoặc không ở trạng thái cho bàn giao.",
+    onHold:
+      "Đơn đang tạm giữ hoặc không ở trạng thái cho bàn giao — mở đơn xem lý do; Sale gỡ treo.",
     cancelled: "Đơn đã huỷ.",
     other: "Đơn không được phép bàn giao lúc này.",
     batch: "đợt giao",
@@ -156,8 +158,9 @@ export const SHIPPING_WAYBILL_LABELS = {
   /* ── Đặt xe qua API hãng (09 BR-29) ──────────────────────────────── */
   apiBooking: {
     description:
-      "Hãng này đặt xe qua API: hệ thống tạo đơn ở hãng khi bạn lưu. Nhập giờ hẹn lấy hàng và xác nhận thứ tự các điểm giao; mã vận đơn, biển số và tài xế do hãng trả về.",
+      "Hệ thống tạo đơn ở hãng khi bạn bấm tạo — nhập giờ hẹn lấy hàng và xác nhận thứ tự các điểm giao.",
     pickupAt: "Giờ hẹn lấy hàng",
+    pickupAtOutOfHours: "Giờ này ngoài giờ phục vụ của hãng — chọn giờ khác.",
     pickupAtHint:
       "Gõ ngày giờ (ngày/tháng/năm, 24 giờ) hoặc bấm nút chọn nhanh. Bỏ trống = lấy hàng càng sớm càng tốt.",
     pickupQuickEarliest: "Sớm nhất",

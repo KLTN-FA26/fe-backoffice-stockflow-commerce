@@ -128,11 +128,9 @@ describe("trục / mô tả / sinh ma trận — lỗi dữ liệu cũ tải l�
     const input: CreateProductInput = {
       code: "CUP",
       name: "Ly",
-      nameEn: "Cup",
       categoryId: "c-1",
       brandId: "b-1",
       description: "",
-      descriptionEn: "",
       taxClass: "STANDARD",
     };
     const keys = await failWith("ATTRIBUTE_VALUE_NOT_FOUND", () => useCreateProduct(), input);

@@ -10,7 +10,7 @@ import { UI_LABELS } from "@/constants";
 
 import { LAYOUT_PICKUP_KIT } from "./layouts";
 import { PLAN_ID, VEHICLE_TYPE_ID, planFixture, vehicleOfLayout } from "./plans";
-import { mockLoadPlanApi, renderLoadPlanScreen } from "./render-plan";
+import { mockLoadPlanApi, planAction, renderLoadPlanScreen } from "./render-plan";
 import { LoadPlanDetail } from "../components/LoadPlanDetail";
 
 import type userEvent from "@testing-library/user-event";
@@ -140,7 +140,7 @@ export function renderEditor(
 }
 
 export async function openEditor(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(await screen.findByRole("button", { name: E.open }));
+  await user.click((await planAction(user, E.open)) as HTMLElement);
   await screen.findByRole("toolbar", { name: E.toolbar.group });
 }
 

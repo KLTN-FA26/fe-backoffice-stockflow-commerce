@@ -41,3 +41,24 @@ export const creditProfileInputSchema = z
       ctx.addIssue({ code: "custom", path: [missing], message: BOTH_OR_NEITHER });
     }
   });
+
+/**
+ * BE `CreditPositionResponse` — `GET /orders/credit-position/{customerId}` (`customer-credit-profiles:READ`, cùng quyền
+ * đọc hạn mức): dư nợ phần trả sau giao, phần còn dùng được và khoản quá hạn HIỆN TẠI (15 BR-10). Jackson non_null:
+ * `creditLimit`, `creditTermDays`, `availableCredit` vắng khi khách không được bán trả sau; `oldestOverdueDueDate` vắng
+ * khi không có quá hạn.
+ */
+export const creditPositionDtoSchema = z.object({
+  customerId: z.string(),
+  creditLimit: z.number().nullish(),
+  creditTermDays: z.number().int().nullish(),
+  /** Phần trả sau giao của hợp đồng đã ký còn nợ + phí huỷ chưa trả. */
+  exposure: z.number(),
+  /** Hạn mức − dư nợ (không âm). */
+  availableCredit: z.number().nullish(),
+  currency: z.string(),
+  hasOverdue: z.boolean(),
+  /** Số còn phải trả trên các đợt quá hạn. */
+  overdueAmount: z.number().nullish(),
+  oldestOverdueDueDate: z.string().nullish(),
+});

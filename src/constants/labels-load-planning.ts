@@ -36,7 +36,7 @@ export const LOAD_PLANNING_LABELS = {
     vehicles: "Số xe",
     pieces: "Số kiện",
     volume: "Thể tích dùng",
-    utilization: "Hiệu suất",
+    utilization: "Lấp đầy thể tích",
     weight: "Khối lượng",
     unplaced: "Chưa xếp",
   },

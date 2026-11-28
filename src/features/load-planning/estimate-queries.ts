@@ -1,6 +1,6 @@
 /** Ước tính xếp xe — query hooks + mutation (React Query). */
 
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 
 import { SHARED_QUERY_ROOTS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
@@ -39,6 +39,24 @@ export function useCurrentEstimate(orderId: string, enabled: boolean) {
     ...QUERY_TIMES.detail,
     enabled,
     retry: retryTransient,
+  });
+}
+
+/**
+ * Ước tính hiện hành của nhiều đơn cùng lúc (màn lập kế hoạch lấy loại xe mặc định từ ước tính của các đơn có lô đã chọn).
+ * Cùng khoá với `useCurrentEstimate` nên dùng chung bộ nhớ đệm; đơn chưa có ước tính cho `null`, lỗi (vd thiếu quyền) bị
+ * bỏ qua — ước tính chỉ để gợi ý (docs 09 BR-20), không bao giờ chặn việc lập kế hoạch.
+ */
+export function useCurrentEstimates(orderIds: readonly string[], enabled: boolean) {
+  return useQueries({
+    queries: orderIds.map((orderId) => ({
+      queryKey: loadEstimateKeys.current(orderId),
+      queryFn: ({ signal }: { signal: AbortSignal }) => getCurrentLoadEstimate(orderId, signal),
+      ...QUERY_TIMES.detail,
+      enabled,
+      retry: retryTransient,
+    })),
+    combine: (results) => results.flatMap((result) => (result.data ? [result.data] : [])),
   });
 }
 

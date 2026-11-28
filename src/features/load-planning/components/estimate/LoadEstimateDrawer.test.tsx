@@ -117,7 +117,7 @@ describe("LoadEstimateDrawer — nội dung", () => {
       [TYPES]: () => apiVehicleTypePage,
     });
     // dải số liệu
-    expect(await screen.findByText("Hiệu suất")).toBeInTheDocument();
+    expect(await screen.findByText("Lấp đầy thể tích")).toBeInTheDocument();
     expect(screen.getByText("Số xe")).toBeInTheDocument();
     // bảng dòng
     const lines = screen.getByRole("table", { name: "Thùng hàng theo dòng đơn" });

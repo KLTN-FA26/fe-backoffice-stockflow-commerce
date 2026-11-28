@@ -67,6 +67,7 @@ export const CUSTOMER_PRICE_UI_LABELS = {
   },
   customer: {
     clear: "Bỏ chọn khách",
+    taxCode: (code: string) => `MST ${code}`,
     loading: "Đang tải thông tin khách hàng…",
     failed: "Không tải được thông tin khách hàng.",
     notFound: "Không tìm thấy khách hàng này.",
@@ -105,10 +106,7 @@ export const CUSTOMER_PRICE_UI_LABELS = {
     createDenied: "Bạn không có quyền thêm bảng giá.",
     pickCustomerFirst: "Chọn khách hàng trước khi thêm bảng giá.",
     searchSummary: "Tìm kiếm chính",
-    searchFields: "Trường search",
-    searchFieldsValue: "SKU",
-    columnSearch: "Search trong cột",
-    unused: "Chưa dùng",
+    columnSearch: "Tìm trong cột",
     skuFilter: "Tìm theo SKU…",
   },
   form: {

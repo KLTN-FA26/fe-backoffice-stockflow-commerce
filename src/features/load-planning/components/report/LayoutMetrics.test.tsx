@@ -15,7 +15,7 @@ describe("LayoutMetrics", () => {
     expect(valueOf("Số xe")).toHaveTextContent("1");
     expect(valueOf("Số kiện")).toHaveTextContent("23");
     expect(valueOf("Thể tích dùng")).toHaveTextContent(/^\d+,\d{2} m³$/);
-    expect(valueOf("Hiệu suất")).toHaveTextContent(/%$/);
+    expect(valueOf("Lấp đầy thể tích")).toHaveTextContent(/%$/);
     expect(valueOf("Khối lượng")).toHaveTextContent("133 / 1.000 kg");
     expect(valueOf("Chưa xếp")).toHaveTextContent("0");
   });
@@ -27,10 +27,10 @@ describe("LayoutMetrics", () => {
 
   it("tones utilisation: good when the 40HC is well filled, a warning under 50%", () => {
     const { unmount } = render(<LayoutMetrics summary={summarizeLayouts([LAYOUT_40HC])} />);
-    expect(valueOf("Hiệu suất")).toHaveClass("text-positive"); // 438 kiện ≈ 63% thể tích
+    expect(valueOf("Lấp đầy thể tích")).toHaveClass("text-positive"); // 438 kiện ≈ 63% thể tích
     unmount();
     render(<LayoutMetrics summary={summarizeLayouts([LAYOUT_PICKUP_KIT])} />);
-    expect(valueOf("Hiệu suất")).toHaveClass("text-warning");
+    expect(valueOf("Lấp đầy thể tích")).toHaveClass("text-warning");
   });
 
   it("tones the weight as a problem when ONE vehicle is overloaded even though the totals fit", () => {

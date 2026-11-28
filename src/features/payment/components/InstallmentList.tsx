@@ -15,6 +15,7 @@ import { useCan, usePermissionChecker } from "@/lib/auth/components/Can";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 import { ServerTableBody } from "@/components/backoffice/ServerTableBody";
 import { RowActionsMenu } from "@/components/shared/RowActionsMenu";
+import { Button } from "@/components/ui/button";
 
 import { allowedInstallmentActions } from "../lifecycle";
 import { installmentRef } from "../selectors";
@@ -27,6 +28,7 @@ import {
   INSTALLMENT_LOCKED_COLUMNS,
 } from "./installment-columns";
 import { InstallmentFilters } from "./InstallmentFilters";
+import { InstallmentKpis } from "./InstallmentKpis";
 import { useRecordedReceipt } from "./ReceiptRecordedNotice";
 import { RecordReceiptDialog } from "./RecordReceiptDialog";
 import { useInstallmentListState } from "./useInstallmentListState";
@@ -67,6 +69,7 @@ function InstallmentListContent() {
     <div className="surface-soft">
       <h1 className="sr-only">{L.pageTitle}</h1>
       {recorded.notice && <div className="mb-3">{recorded.notice}</div>}
+      <InstallmentKpis canRead={canRead} />
       {canRead && <InstallmentFilters s={s} columns={columnState} />}
       <ServerTableBody
         query={s.query}
@@ -77,13 +80,26 @@ function InstallmentListContent() {
         flagRow={(row) => row.overdue}
         noun="đợt thanh toán"
         errorCopy={INSTALLMENT_COPY}
-        hasFilters={s.hasFilters}
+        hasFilters={s.hasFilters && !s.defaultQueue}
         onClearFilters={s.clearFilters}
-        empty={{
-          icon: <CalendarClock className="size-8" />,
-          title: L.emptyTitle,
-          description: L.emptyDescription,
-        }}
+        empty={
+          s.defaultQueue
+            ? {
+                icon: <CalendarClock className="size-8" />,
+                title: L.emptyQueueTitle,
+                description: L.emptyQueueDescription,
+                action: (
+                  <Button type="button" variant="outline" size="sm" onClick={s.clearFilters}>
+                    {L.showAll}
+                  </Button>
+                ),
+              }
+            : {
+                icon: <CalendarClock className="size-8" />,
+                title: L.emptyTitle,
+                description: L.emptyDescription,
+              }
+        }
         pageSize={s.pageSize}
         onPageChange={s.goToPage}
         onPageSizeChange={s.changePageSize}

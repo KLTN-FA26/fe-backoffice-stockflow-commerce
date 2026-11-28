@@ -56,9 +56,6 @@ export function ProductObjectHeader({
           <span className="text-accent-text font-[family-name:var(--font-mono)] font-medium">
             {product.code ?? product.productId}
           </span>
-          {product.nameEn && product.nameEn !== product.name && (
-            <span className="truncate">{product.nameEn}</span>
-          )}
           <StatusDot domain="product" status={product.status} size="sm" withIcon />
         </div>
         <ProductStatusReason product={product} />

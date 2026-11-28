@@ -1,9 +1,5 @@
-import {
-  LOAD_PLAN_MODE_LABELS,
-  LOAD_PLAN_STATUS_LABELS,
-  UI_LABELS,
-  VEHICLE_TYPE_KIND_LABELS,
-} from "@/constants";
+import { LOAD_PLAN_MODE_LABELS, LOAD_PLAN_STATUS_LABELS, UI_LABELS } from "@/constants";
+import { vehicleTypeName } from "@/lib/domain/vehicle-type-name";
 import { formatDateTime } from "@/lib/format";
 import { loadPlanStatusTone } from "@/features/load-planning/plan-selectors";
 import { Card } from "@/components/shared/Card";
@@ -74,9 +70,13 @@ export function PlanHeaderCard({
         <Field label={L.vehicleTypes}>
           {plan.vehicleTypes.length === 0
             ? "—"
-            : plan.vehicleTypes
-                .map((t) => `${t.code} (${VEHICLE_TYPE_KIND_LABELS[t.kind]})`)
-                .join(", ")}
+            : plan.vehicleTypes.map((type, index) => (
+                // Tên tiếng Việt; mã chỉ ở chú thích khi rê chuột (R3)
+                <span key={type.vehicleTypeId} title={type.code}>
+                  {index > 0 && ", "}
+                  {vehicleTypeName(type)}
+                </span>
+              ))}
         </Field>
         {timeline.map(([label, value]) =>
           value ? (

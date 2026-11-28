@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { ADMIN_ROUTES, CUSTOMER_PERMISSIONS, VARIANT_PERMISSIONS } from "@/constants";
+import { SALES_OWNER_PERMISSIONS } from "@/constants/sales-owner";
 import { useCan, usePermissionChecker } from "@/lib/auth";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
@@ -16,6 +17,7 @@ import { CustomerEditDialog } from "./detail/CustomerEditDialog";
 import { CustomerObjectHeader } from "./detail/CustomerObjectHeader";
 import { CustomerOverviewPanel } from "./detail/CustomerOverviewPanel";
 import { CustomerSkusCard } from "./detail/CustomerSkusCard";
+import { SalesOwnerCard } from "./detail/SalesOwnerCard";
 
 function CustomerDetailContent({ id }: { id: string }) {
   const canRead = useCan(CUSTOMER_PERMISSIONS.read);
@@ -49,6 +51,14 @@ function CustomerDetailContent({ id }: { id: string }) {
         customer={customer}
         onEdit={can(CUSTOMER_PERMISSIONS.update) ? () => setEditOpen(true) : undefined}
       />
+      {/* Sale phụ trách (sales-owner): đọc cần customer-sales-owners:READ, đổi cần UPDATE (BR-S01) */}
+      {can(SALES_OWNER_PERMISSIONS.read) && (
+        <SalesOwnerCard
+          customerId={customer.customerId}
+          customerName={customer.fullName}
+          canUpdate={can(SALES_OWNER_PERMISSIONS.update)}
+        />
+      )}
       <div className="mb-6">
         <CustomerSkusCard
           customerId={customer.customerId}

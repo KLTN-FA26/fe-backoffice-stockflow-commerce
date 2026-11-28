@@ -70,7 +70,7 @@ describe("LoadScreen — thông tin chuyến và tiến độ", () => {
       await screen.findByRole("heading", { name: `${L.load.title} · ${LOAD_ID}` }),
     ).toBeInTheDocument();
     const info = infoCard();
-    expect(info.getByText("GHN Giao Hàng Nhanh")).toBeInTheDocument();
+    expect(info.getByText("Giao Hàng Nhanh")).toBeInTheDocument();
     expect(info.getByText("51C-628.14")).toBeInTheDocument();
     expect(info.getByText("Lê Văn Xế")).toBeInTheDocument();
     expect(info.getByText(UI_LABELS.shipping.waybill.card.number)).toBeInTheDocument();

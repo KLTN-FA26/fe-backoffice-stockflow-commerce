@@ -84,17 +84,15 @@ export type PriceTableState = ReturnType<typeof usePriceTableState>;
 function columnSearchSummary({ columnFilters: f }: PriceTableState): string {
   const range = (label: string, from: string, to: string) =>
     (from || to) && `${label} ${from || "…"}–${to || "…"}`;
-  return (
-    [
-      f.sku.trim() && `${L.field.sku} “${f.sku.trim()}”`,
-      range(L.field.moq, f.moqFrom, f.moqTo),
-      range(L.table.tierCount, f.tiersFrom, f.tiersTo),
-      range(L.table.lowest, f.lowestFrom, f.lowestTo),
-      range(L.table.highest, f.highestFrom, f.highestTo),
-    ]
-      .filter(Boolean)
-      .join(", ") || B.unused
-  );
+  return [
+    f.sku.trim() && `${L.field.sku} “${f.sku.trim()}”`,
+    range(L.field.moq, f.moqFrom, f.moqTo),
+    range(L.table.tierCount, f.tiersFrom, f.tiersTo),
+    range(L.table.lowest, f.lowestFrom, f.lowestTo),
+    range(L.table.highest, f.highestFrom, f.highestTo),
+  ]
+    .filter(Boolean)
+    .join(", ");
 }
 
 /** Thanh tìm + cấu hình kiểu Vercel (backoffice-erp-ui §2–3) của bảng giá một khách. */
@@ -107,20 +105,28 @@ export function CustomerPriceToolbar({ state }: { state: PriceTableState }) {
       search={q}
       onSearchChange={(value) => state.set({ cpQ: value })}
       searchPlaceholder={L.table.filter}
+      // Chỉ hiện ô tìm / tìm trong cột khi đang dùng — không có viên "Chưa dùng" hay "Trường search" (rà UI WF-02 bo-16).
       summaryItems={[
-        {
-          label: B.searchSummary,
-          value: q.trim() ? `“${q}”` : B.unused,
-          active: q.trim() !== "",
-          onClear: () => state.set({ cpQ: "" }),
-        },
-        { label: B.searchFields, value: B.searchFieldsValue },
-        {
-          label: B.columnSearch,
-          value: columnSearchSummary(state),
-          active: state.hasColumnFilters,
-          onClear: state.clearColumnFilters,
-        },
+        ...(q.trim()
+          ? [
+              {
+                label: B.searchSummary,
+                value: `“${q}”`,
+                active: true,
+                onClear: () => state.set({ cpQ: "" }),
+              },
+            ]
+          : []),
+        ...(state.hasColumnFilters
+          ? [
+              {
+                label: B.columnSearch,
+                value: columnSearchSummary(state),
+                active: true,
+                onClear: state.clearColumnFilters,
+              },
+            ]
+          : []),
         columnSummaryItem(columns),
       ]}
       onResetAll={() => {

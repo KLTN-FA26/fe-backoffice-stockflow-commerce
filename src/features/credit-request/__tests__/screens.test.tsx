@@ -28,6 +28,47 @@ describe("Danh sách đề nghị cấp hạn mức", () => {
     expect(params.get("customerId")).toBe(submitted.customerId);
   });
 
+  it("bo-28: không lọc trạng thái → không có chip 'Trạng thái Tất cả' lặp lại nút lọc; lọc từ URL → chip có X", async () => {
+    mockApi("ACCOUNTANT", { get: { "/credit-requests": () => bePage([pendingApproval]) } });
+    const view = renderScreen(<CreditRequestList />, "ACCOUNTANT");
+    await screen.findByRole("link", { name: "Công ty Ly Giấy Xanh" });
+    expect(screen.queryByText("Tất cả")).not.toBeInTheDocument();
+    view.unmount();
+    mockApi("ACCOUNTANT", { get: { "/credit-requests": () => bePage([pendingApproval]) } });
+    renderScreen(<CreditRequestList />, "ACCOUNTANT", "?status=PENDING_APPROVAL");
+    expect(await screen.findByRole("button", { name: "Xoá Trạng thái" })).toBeInTheDocument();
+  });
+
+  it("bo-28: dòng có hạn mức hiện tại → cột 'Hạn mức hiện tại → xin'; khách chưa có hạn mức → 'Chưa có'", async () => {
+    mockApi("ACCOUNTANT", {
+      get: {
+        "/credit-requests": () =>
+          bePage([
+            { ...pendingApproval, currentCreditLimit: 200_000_000 },
+            { ...submitted, id: "cr-2", customerName: "Công ty Mới", currentCreditLimit: null },
+          ]),
+      },
+    });
+    renderScreen(<CreditRequestList />, "ACCOUNTANT");
+    await screen.findByRole("link", { name: "Công ty Ly Giấy Xanh" });
+    expect(
+      screen.getByRole("columnheader", { name: "Hạn mức hiện tại → xin" }),
+    ).toBeInTheDocument();
+    const [, first, second] = screen.getAllByRole("row");
+    expect((first?.textContent ?? "").replace(/\s+/g, " ")).toMatch(
+      /200\.000\.000\s*₫\s*→\s*xin\s*500\.000\.000/,
+    );
+    expect(within(second as HTMLElement).getByText("Chưa có")).toBeInTheDocument();
+  });
+
+  it("bo-28: BE cũ không gửi hạn mức hiện tại → giữ cột 'Hạn mức xin'", async () => {
+    mockApi("ACCOUNTANT", { get: { "/credit-requests": () => bePage([pendingApproval]) } });
+    renderScreen(<CreditRequestList />, "ACCOUNTANT");
+    await screen.findByRole("link", { name: "Công ty Ly Giấy Xanh" });
+    expect(screen.getByRole("columnheader", { name: "Hạn mức xin" })).toBeInTheDocument();
+    expect(screen.queryByText("Chưa có")).not.toBeInTheDocument();
+  });
+
   it("?create= (lối từ trang khách, A2) mở form tạo cho Sale", async () => {
     mockApi("SALES_STAFF", { get: { "/credit-requests": () => bePage([]) } });
     renderScreen(

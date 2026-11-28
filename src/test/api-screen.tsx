@@ -235,8 +235,15 @@ export function apiError(
 export function mockApi(
   role: TestRole,
   routes: { get?: RouteTable; post?: RouteTable; put?: RouteTable } = {},
-  /** Phạm vi dữ liệu + kho được gán trả về ở `/identity/me/permissions` (BE #394). Mặc định `ALL`. */
-  me: { dataScope?: MyPermissions["dataScope"]; warehouses?: AssignedWarehouse[] } = {},
+  /**
+   * Phạm vi dữ liệu + kho được gán trả về ở `/identity/me/permissions` (BE #394). Mặc định `ALL`. `extra`: quyền thêm cho
+   * một test (vd quyền mới của BE chưa có trong bộ theo vai trò ở trên).
+   */
+  me: {
+    dataScope?: MyPermissions["dataScope"];
+    warehouses?: AssignedWarehouse[];
+    extra?: readonly PermissionCode[];
+  } = {},
 ) {
   const wrap =
     (table: RouteTable | undefined, method: string) =>
@@ -245,7 +252,7 @@ export function mockApi(
         return {
           data: {
             roles: [role],
-            permissions: [...ROLE_PERMISSIONS[role]],
+            permissions: [...ROLE_PERMISSIONS[role], ...(me.extra ?? [])],
             dataScope: me.dataScope ?? "ALL",
             ...(me.warehouses ? { warehouses: me.warehouses } : {}),
           },

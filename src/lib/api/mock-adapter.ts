@@ -167,7 +167,8 @@ async function mockAdapter(config: InternalAxiosRequestConfig): Promise<AxiosRes
     config.url === "/identity/roles" ||
     config.url?.startsWith("/identity/roles/") ||
     config.url === "/identity/users" ||
-    config.url?.startsWith("/identity/users/")
+    // Việc đang phụ trách của một Sale (sales-owner BR-S08) là route mock, không qua BFF.
+    (config.url?.startsWith("/identity/users/") && !config.url.endsWith("/handover-summary"))
   )
     return networkAdapter(config);
   if (routesReady) await routesReady;
@@ -256,8 +257,10 @@ export function activateMockAdapter(): void {
     import("./mock-routes-orders"),
     import("./mock-routes-goods-receipts"),
     import("./mock-routes-variants"),
+    import("./mock-routes-product-images"),
     import("./mock-routes-uom-conversions"),
     import("./mock-routes-customer-skus"),
+    import("./mock-routes-sales-owner-access"),
     import("./mock-routes-customers"),
     import("./mock-routes-customer-prices"),
     import("./mock-routes-standard-prices"),
@@ -291,8 +294,10 @@ export function activateMockAdapter(): void {
       { registerOrderMockRoutes },
       { registerGoodsReceiptMockRoutes },
       { registerVariantMockRoutes },
+      { registerProductImageMockRoutes },
       { registerUomConversionMockRoutes },
       { registerCustomerSkuMockRoutes },
+      { registerSalesOwnerAccessMockRoutes },
       { registerCustomerMockRoutes },
       { registerCustomerPriceMockRoutes },
       { registerStandardPriceMockRoutes },
@@ -334,8 +339,11 @@ export function activateMockAdapter(): void {
       registerReturnReceiptMockRoutes();
       registerGoodsReceiptMockRoutes();
       registerVariantMockRoutes();
+      registerProductImageMockRoutes();
       registerUomConversionMockRoutes();
       registerCustomerSkuMockRoutes();
+      // Sale phụ trách khách: `/customers/duplicates` phải khớp trước `/customers/:customerId`.
+      registerSalesOwnerAccessMockRoutes();
       registerCustomerMockRoutes();
       registerCustomerPriceMockRoutes();
       registerStandardPriceMockRoutes();

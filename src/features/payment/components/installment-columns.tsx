@@ -6,6 +6,7 @@ import { AlertTriangle, CalendarX2 } from "lucide-react";
 import { ADMIN_ROUTES, ORDER_PERMISSIONS } from "@/constants";
 import { PAYMENT_LABELS, PAYMENT_LIST_LABELS } from "@/constants/labels-payment";
 import { PAYMENT_ROUTES } from "@/constants/payment";
+import { formatDate } from "@/lib/format/date";
 import { CustomerName } from "@/components/backoffice/CustomerName";
 
 import {
@@ -51,9 +52,13 @@ export const INSTALLMENT_COLUMNS = [
   "actions",
 ] as const;
 export type InstallmentColumn = (typeof INSTALLMENT_COLUMNS)[number];
-/** "Đợt giao" ẩn mặc định — chỉ cần khi soát chặn bàn giao; bật lại qua Ẩn hiện cột. */
+/**
+ * Ẩn mặc định, bật lại qua Ẩn hiện cột: "Đợt giao" (chỉ cần khi soát chặn bàn giao), "Đã thu" (= số tiền − còn phải
+ * thu) và "Mốc" (tên đợt đã nói mốc) — để bảng vừa 1440px, cột "Thao tác" không bị đẩy ra ngoài (bo-22).
+ */
+const HIDDEN_BY_DEFAULT: readonly InstallmentColumn[] = ["batch", "paid", "milestone"];
 export const INSTALLMENT_DEFAULT_COLUMNS: readonly InstallmentColumn[] = INSTALLMENT_COLUMNS.filter(
-  (column) => column !== "batch",
+  (column) => !HIDDEN_BY_DEFAULT.includes(column),
 );
 export const INSTALLMENT_LOCKED_COLUMNS: readonly InstallmentColumn[] = ["contract", "actions"];
 export const INSTALLMENT_COLUMN_LABELS: Record<InstallmentColumn, string> = C;
@@ -148,9 +153,17 @@ export function buildInstallmentColumns(
       header: C.dueDate,
       sortable: true,
       align: "right",
+      // Đợt quá hạn: hạn trả chữ đỏ kèm icon — tín hiệu nằm ở ô, không tô cả dòng (data-table-mode-a)
       cell: (row) =>
         row.dueDate ? (
-          <DateCell iso={row.dueDate} />
+          row.overdue ? (
+            <span className="text-danger inline-flex items-center gap-1 font-medium tabular-nums">
+              <CalendarX2 className="size-3.5" aria-hidden="true" />
+              {formatDate(row.dueDate)}
+            </span>
+          ) : (
+            <DateCell iso={row.dueDate} />
+          )
         ) : (
           <span className="text-ink-tertiary">{L.noDueDate}</span>
         ),

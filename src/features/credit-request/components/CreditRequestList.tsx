@@ -24,7 +24,7 @@ import { useCreditRequests } from "../queries";
 
 import { CREDIT_REQUEST_COPY } from "./copy";
 import { CreateCreditRequestDialog } from "./CreateCreditRequestDialog";
-import { CREDIT_REQUEST_COLUMNS } from "./list-columns";
+import { creditRequestColumns, hasCurrentLimit } from "./list-columns";
 
 import type { CreditRequestApiStatus } from "@/constants/credit-request";
 
@@ -91,13 +91,18 @@ function CreditRequestListContent() {
           }}
           onClearStatuses={() => void setStatus(null)}
           hasStatusFilter={!!status}
+          // Chỉ chip của bộ lọc đang bật (bo-28): "Trạng thái: Tất cả" cạnh nút "Lọc trạng thái" là nói một điều hai lần
           summaryItems={[
-            {
-              label: "Trạng thái",
-              value: status ? statusLabel(status) : "Tất cả",
-              active: !!status,
-              onClear: () => void setStatus(null),
-            },
+            ...(status
+              ? [
+                  {
+                    label: "Trạng thái",
+                    value: statusLabel(status),
+                    active: true,
+                    onClear: () => void setStatus(null),
+                  },
+                ]
+              : []),
             ...(customerId
               ? [
                   {
@@ -116,7 +121,7 @@ function CreditRequestListContent() {
       <ServerTableBody
         query={query}
         canRead={canRead}
-        columns={CREDIT_REQUEST_COLUMNS}
+        columns={creditRequestColumns(hasCurrentLimit(query.data?.items))}
         rowKey={(row) => row.id}
         onRowClick={(row) => router.push(CREDIT_REQUEST_ROUTES.detail(row.id))}
         noun="đề nghị"

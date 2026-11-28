@@ -95,4 +95,28 @@ describe("CustomerSkusCard — SKU riêng của khách (BE GET /customer-skus)",
     await user.click(within(dialog).getByRole("button", { name: "Tạm chặn" }));
     await waitFor(() => expect(post).toHaveBeenCalledWith("/products/p-1/variants/v-1/blocking"));
   });
+
+  it("BE trả `id` (không có `variantId`, BE #491) → vẫn liệt kê SKU", async () => {
+    const { variantId, ...rest } = sku();
+    setup([{ ...rest, id: variantId }]);
+    expect(await screen.findByRole("link", { name: "LY12OZ-C1-01" })).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("lỗi tải → câu lỗi kèm nút Thử lại, bấm thì tải lại", async () => {
+    const user = userEvent.setup();
+    const get = vi.spyOn(api, "get").mockRejectedValueOnce(new Error("boom"));
+    get.mockResolvedValueOnce({ data: [sku()] });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <CustomerSkusCard customerId={CUSTOMER} canRead canBlock={false} canApprove={false} />
+      </QueryClientProvider>,
+    );
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Không tải được SKU riêng của khách.");
+    await user.click(within(alert).getByRole("button", { name: "Thử lại" }));
+    expect(await screen.findByRole("link", { name: "LY12OZ-C1-01" })).toBeInTheDocument();
+    expect(get).toHaveBeenCalledTimes(2);
+  });
 });

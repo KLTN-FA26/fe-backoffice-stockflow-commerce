@@ -141,6 +141,13 @@ export const orderSchema = z.object({
   /** Issue #286: mã + tên kho xuất, null khi BE chưa gửi. */
   warehouseCode: z.string().nullable(),
   warehouseName: z.string().nullable(),
+  /**
+   * Audit bo-17: tiền của các đợt trên dòng danh sách. null = chưa có hợp đồng (chưa có đợt); `undefined` = BE chưa trả
+   * field (bản trước PR #497) — danh sách ẩn hẳn cột khi cả trang không có.
+   */
+  paidAmount: z.number().nullish(),
+  outstandingAmount: z.number().nullish(),
+  overdueAmount: z.number().nullish(),
   releasedAt: z.string().nullable(),
   cancellation: orderCancellationSchema.nullable(),
   // Vòng đời (BE PR #133)

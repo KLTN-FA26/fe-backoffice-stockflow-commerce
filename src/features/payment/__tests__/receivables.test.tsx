@@ -65,10 +65,9 @@ describe("Công nợ phải thu theo khách (BO-UX-37, R5-11)", () => {
     expect(within(row).getByText(/30\.000\.000/)).toBeInTheDocument();
     expect(within(row).getByText(/15\.000\.000/)).toBeInTheDocument();
     expect(within(row).getByText(/^5\.000\.000/)).toBeInTheDocument();
-    expect(within(row).getByText(/01\/10\/2026/)).toBeInTheDocument();
     expect(within(row).getByText(/MST 0312345678/)).toBeInTheDocument();
     expect(row).toHaveAttribute("data-flagged", "true");
-    await userEvent.click(within(row).getByText(/01\/10\/2026/));
+    await userEvent.click(within(row).getByText(/^30\.000\.000/));
     expect(nav.push).toHaveBeenCalledWith(
       "/admin/payment/installments?owing=true&customerId=cust-9",
     );
@@ -189,8 +188,12 @@ describe("Đối chiếu công nợ (BE feat/business-documents #6)", () => {
     const row = (await screen.findByRole("link", { name: /Công ty Bao Bì An Phát/ })).closest(
       "tr",
     ) as HTMLElement;
-    await userEvent.click(within(row).getByRole("button", { name: /Đối chiếu công nợ/ }));
-    const dialog = await screen.findByRole("dialog");
+    // bo-23: đối chiếu công nợ là một mục của "⋯" trên dòng khách (cột thao tác ghim phải)
+    await userEvent.click(
+      within(row).getByRole("button", { name: "Thao tác — Công ty Bao Bì An Phát" }),
+    );
+    await userEvent.click(await screen.findByRole("button", { name: /Đối chiếu công nợ/ }));
+    const dialog = await screen.findByRole("dialog", { name: /đối chiếu/i });
     expect(nav.push).not.toHaveBeenCalled();
     expect(dialog).toHaveTextContent(/Công ty Bao Bì An Phát/);
     await userEvent.click(within(dialog).getByRole("button", { name: "Tải biên bản" }));
@@ -213,8 +216,80 @@ describe("Đối chiếu công nợ (BE feat/business-documents #6)", () => {
     const row = (await screen.findByRole("link", { name: /Công ty Bao Bì An Phát/ })).closest(
       "tr",
     ) as HTMLElement;
+    await userEvent.click(
+      within(row).getByRole("button", { name: "Thao tác — Công ty Bao Bì An Phát" }),
+    );
+    const menu = await screen.findByRole("dialog");
+    expect(within(menu).getByRole("link", { name: "Xem các đợt còn nợ" })).toBeInTheDocument();
     expect(
-      within(row).queryByRole("button", { name: /Đối chiếu công nợ/ }),
+      within(menu).queryByRole("button", { name: /Đối chiếu công nợ/ }),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("bo-23: tổng, hạn mức, chú thích cột quá hạn, cột vừa màn hình", () => {
+  it("dải tổng đọc `totals` của BE (mọi khách đang lọc), không cộng trang đang xem", async () => {
+    mockPaymentApi(ACCOUNTANT_GRANTS, {
+      get: {
+        "/reports/receivables": () => ({
+          ...report([anPhat]),
+          totals: [
+            {
+              currency: "VND",
+              customers: 26,
+              receivable: 900_000_000,
+              notYetDue: 0,
+              overdue1To30: 100_000_000,
+              overdue31To60: 200_000_000,
+              overdue61To90: 10_000_000,
+              overdueOver90: 5_000_000,
+              overdue: 315_000_000,
+              committedNotReached: 0,
+              exposure: 900_000_000,
+              signingOverdue: 7_000_000,
+            },
+          ],
+        }),
+      },
+    });
+    renderPaymentScreen(<ReceivablesList />);
+    const totals = await screen.findByRole("region", { name: /Tổng các cột/ });
+    expect(within(totals).getByText(/Tổng 26 khách/)).toBeInTheDocument();
+    expect(within(totals).getByText(/^900\.000\.000/)).toBeInTheDocument();
+    expect(within(totals).getByText(/^315\.000\.000/)).toBeInTheDocument();
+    expect(within(totals).getByText(/^7\.000\.000/)).toBeInTheDocument();
+    expect(within(totals).getByText(/^15\.000\.000/)).toBeInTheDocument();
+  });
+
+  it("cột Hạn mức: số hạn mức + % đã dùng (dư nợ / hạn mức); khách chưa có hạn mức → 'Chưa cấp'", async () => {
+    mockPaymentApi(ACCOUNTANT_GRANTS, {
+      get: {
+        "/reports/receivables": () =>
+          report([
+            { ...anPhat, creditLimit: 40_000_000, exposure: 50_000_000 },
+            { ...anPhat, customerId: "cust-2", customerName: "Công ty Không Hạn Mức" },
+          ]),
+      },
+    });
+    renderPaymentScreen(<ReceivablesList />);
+    const row = (await screen.findByRole("link", { name: /An Phát/ })).closest("tr") as HTMLElement;
+    expect(within(row).getByText(/^40\.000\.000/)).toBeInTheDocument();
+    expect(within(row).getByText("Đã dùng 125%")).toHaveClass("text-danger");
+    const none = screen.getByRole("link", { name: /Không Hạn Mức/ }).closest("tr") as HTMLElement;
+    expect(within(none).getByText("Chưa cấp")).toBeInTheDocument();
+  });
+
+  it("'Quá hạn' và 'Quá hạn đợt ký' có chú thích ở header; 'Hạn cũ nhất' / 'Số đợt' ẩn mặc định, thao tác ghim phải", async () => {
+    mockPaymentApi(ACCOUNTANT_GRANTS, { get: { "/reports/receivables": () => report([anPhat]) } });
+    renderPaymentScreen(<ReceivablesList />);
+    await screen.findByRole("link", { name: /An Phát/ });
+    expect(screen.getByRole("button", { name: "Giải thích cột Quá hạn" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Giải thích cột Quá hạn đợt ký" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: /Hạn cũ nhất/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: /Số đợt/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: /> 60 ngày/ })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Thao tác" }).className).toContain("sticky");
   });
 });

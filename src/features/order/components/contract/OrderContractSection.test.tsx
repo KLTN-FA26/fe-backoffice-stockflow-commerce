@@ -4,7 +4,11 @@ import { useState } from "react";
 import { focusManager } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
-import { ORDER_PERMISSIONS, SALES_CONTRACT_PERMISSIONS } from "@/constants";
+import {
+  CUSTOMER_CREDIT_PROFILE_PERMISSIONS,
+  ORDER_PERMISSIONS,
+  SALES_CONTRACT_PERMISSIONS,
+} from "@/constants";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 import { toast } from "@/components/shared/Toast";
@@ -66,14 +70,56 @@ function renderSection(contract: () => unknown, order: Order = draftOrder, permi
 afterEach(() => vi.restoreAllMocks());
 
 describe("Hợp đồng — đọc (B1)", () => {
-  it("404 SALES_CONTRACT_NOT_FOUND + đơn Nháp → 'Lập hợp đồng' gửi POST không body", async () => {
+  it("404 SALES_CONTRACT_NOT_FOUND + đơn Nháp → 'Lập hợp đồng' hỏi lại, rồi gửi POST không body", async () => {
     renderSection(() => {
       throw new ApiError(404, "SALES_CONTRACT_NOT_FOUND", "Đơn chưa có hợp đồng.");
     });
     const post = vi.spyOn(api, "post").mockResolvedValue({ data: contractDraft });
     expect(await screen.findByText("Đơn chưa có hợp đồng.")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Lập hợp đồng" }));
+    // bo-19: bấm nút chưa lập gì — hộp thoại nói đơn nào, tổng tiền, lịch mặc định
+    const dialog = await screen.findByRole("dialog");
+    expect(
+      within(dialog).getByText(`Lập hợp đồng nháp cho đơn ${draftOrder.orderNumber}?`),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByText("1 đợt giao cho cả đơn (sửa được)")).toBeInTheDocument();
+    expect(post).not.toHaveBeenCalled();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Lập hợp đồng" }));
     await waitFor(() => expect(post).toHaveBeenCalledWith(PATH, {}));
+  });
+
+  it("bo-19: 'Huỷ' trong hộp thoại không lập hợp đồng", async () => {
+    renderSection(() => {
+      throw new ApiError(404, "SALES_CONTRACT_NOT_FOUND", "Đơn chưa có hợp đồng.");
+    });
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: contractDraft });
+    await userEvent.click(await screen.findByRole("button", { name: "Lập hợp đồng" }));
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Huỷ" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  it("bo-19: vừa lập xong → mời xem lại: 'Sửa' là nút chính, 'Gửi hợp đồng' sau 'Xem trước PDF'", async () => {
+    let created = false;
+    renderSection(() => {
+      if (!created) throw new ApiError(404, "SALES_CONTRACT_NOT_FOUND", "Đơn chưa có hợp đồng.");
+      return contractDraft;
+    });
+    vi.spyOn(api, "post").mockImplementation(async () => {
+      created = true;
+      return { data: contractDraft };
+    });
+    await userEvent.click(await screen.findByRole("button", { name: "Lập hợp đồng" }));
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Lập hợp đồng" }));
+    expect(await screen.findByText(/Đã lập hợp đồng nháp .*Xem lại lịch giao/)).toBeInTheDocument();
+    await screen.findByRole("button", { name: /Gửi hợp đồng/ });
+    const names = screen
+      .getAllByRole("button")
+      .map((button) => button.textContent?.trim())
+      .filter((name) => ["Gửi hợp đồng", "Sửa", "Xem trước PDF"].includes(name ?? ""));
+    expect(names).toEqual(["Sửa", "Xem trước PDF", "Gửi hợp đồng"]);
   });
 
   it("409 CUSTOMER_LEGAL_PROFILE_MISSING → link to the legal profile that comes back to the contract (BO-UX-30)", async () => {
@@ -85,6 +131,8 @@ describe("Hợp đồng — đọc (B1)", () => {
       new ApiError(409, "CUSTOMER_LEGAL_PROFILE_MISSING", message),
     );
     await userEvent.click(await screen.findByRole("button", { name: "Lập hợp đồng" }));
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Lập hợp đồng" }));
     expect(await screen.findByText(new RegExp(message))).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Nhập thông tin pháp lý" })).toHaveAttribute(
       "href",
@@ -660,5 +708,62 @@ describe("Giấy tờ sau ký — phụ lục, biên bản thanh lý (BE feat/bu
     );
     await waitFor(() => expect(screen.queryByText(/loading/)).not.toBeInTheDocument());
     expect(screen.queryByRole("button", { name: "Tải phụ lục hợp đồng" })).not.toBeInTheDocument();
+  });
+});
+
+describe("Payment plan editor — bo-20", () => {
+  const credit = (overrides: Record<string, unknown> = {}) => ({
+    customerId: draftOrder.customerId,
+    creditLimit: 50_000_000,
+    creditTermDays: 30,
+    exposure: 30_000_000,
+    availableCredit: 20_000_000,
+    currency: "VND",
+    hasOverdue: false,
+    overdueAmount: 0,
+    ...overrides,
+  });
+  const withCredit = (position: unknown) => {
+    const permissions = [...SALES, CUSTOMER_CREDIT_PROFILE_PERMISSIONS.read];
+    mockOrderApiGet(permissions, {
+      [PATH]: () => contractDraft,
+      [`/orders/credit-position/${draftOrder.customerId}`]: () => position,
+    });
+    const can = (code: PermissionCode) => permissions.includes(code);
+    renderOrderScreen(<OrderContractSection order={draftOrder} can={can} />);
+  };
+
+  it("a % installment shows its amount under the field", async () => {
+    renderSection(() => contractDraft);
+    await userEvent.click(await screen.findByRole("button", { name: /Sửa/ }));
+    // 30 % of 77.550.000 (the total with tax)
+    expect(await screen.findByText(/≈ 23\.265\.000/)).toBeInTheDocument();
+  });
+
+  it("the customer's credit sits under the plan: limit, balance, what this contract defers, what is left", async () => {
+    withCredit(credit());
+    await userEvent.click(await screen.findByRole("button", { name: /Sửa/ }));
+    const panel = await screen.findByRole("region", { name: "Công nợ của khách" });
+    expect(within(panel).getByText(/50\.000\.000/)).toBeInTheDocument();
+    expect(within(panel).getByText(/30\.000\.000/)).toBeInTheDocument();
+    // Only the AFTER_DELIVERY installment is deferred (BE creditCheck)
+    expect(within(panel).getByText(/27\.142\.500/)).toBeInTheDocument();
+    expect(within(panel).getByText(/-7\.142\.500|−7\.142\.500/)).toBeInTheDocument();
+    expect(within(panel).getByText(/Vượt hạn mức 7\.142\.500/)).toBeInTheDocument();
+  });
+
+  it("overdue debt warns even within the limit; no credit permission → no panel", async () => {
+    withCredit(credit({ creditLimit: 500_000_000, hasOverdue: true, overdueAmount: 1_000_000 }));
+    await userEvent.click(await screen.findByRole("button", { name: /Sửa/ }));
+    const panel = await screen.findByRole("region", { name: "Công nợ của khách" });
+    expect(within(panel).getByText(/Khách đang có khoản quá hạn 1\.000\.000/)).toBeInTheDocument();
+    expect(within(panel).queryByText(/Vượt hạn mức/)).toBeNull();
+  });
+
+  it("without customer-credit-profiles:READ the editor shows no credit block", async () => {
+    renderSection(() => contractDraft);
+    await userEvent.click(await screen.findByRole("button", { name: /Sửa/ }));
+    await screen.findByText(/Tổng các đợt/);
+    expect(screen.queryByRole("region", { name: "Công nợ của khách" })).toBeNull();
   });
 });

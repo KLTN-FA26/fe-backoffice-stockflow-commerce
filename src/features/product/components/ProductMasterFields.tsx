@@ -59,18 +59,6 @@ export function ProductMasterFields({
         <ProductFormField htmlFor="name" label="Tên sản phẩm" error={errors.name?.message} required>
           <ProductInput {...register("name")} id="name" aria-invalid={Boolean(errors.name)} />
         </ProductFormField>
-        <ProductFormField
-          htmlFor="name-en"
-          label="Tên tiếng Anh"
-          error={errors.nameEn?.message}
-          required
-        >
-          <ProductInput
-            {...register("nameEn")}
-            id="name-en"
-            aria-invalid={Boolean(errors.nameEn)}
-          />
-        </ProductFormField>
         <CategorySelectField
           categories={categories}
           control={control}

@@ -4,13 +4,14 @@ import { useEffect, useRef } from "react";
 import { Controller, useWatch } from "react-hook-form";
 import { Trash2 } from "lucide-react";
 
-import { moqOf, tierPrice } from "@/features/quote/selectors";
+import { linePriceVerdict, moqOf, tierPrice } from "@/features/quote/selectors";
 import { Card } from "@/components/shared/Card";
 import { FORM_INPUT_CLASS, FormField, fieldA11y } from "@/components/shared/FormField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 import { LinePreview, SuggestionBar } from "./LinePriceHints";
+import { LinePriceVerdictChip } from "./LinePriceVerdict";
 import { QuoteSkuField } from "./QuoteSkuField";
 import { TierEditor } from "./TierEditor";
 import { useLinePriceSuggestion } from "./useLinePriceSuggestion";
@@ -29,6 +30,7 @@ function toTiers(values: QuoteFormValues["lines"][number]["tiers"] | undefined):
 /**
  * Một dòng báo giá: SKU riêng của khách + số thùng + bậc giá (thùng tối thiểu → đơn giá / cái).
  * `unitsPerCarton` chỉ biết sau khi lưu (BE trả trên dòng) — trước đó không quy đổi ra cái.
+ * Gọn (bo-10): đầu dòng có kết luận kiểm tra giá và tạm tính; SKU cạnh số thùng; bậc giá cạnh giá gợi ý trên màn rộng.
  */
 export function QuoteLineEditor({
   form,
@@ -38,6 +40,7 @@ export function QuoteLineEditor({
   unitsPerCarton,
   canRemove,
   onRemove,
+  thresholdPercent,
 }: {
   form: UseFormReturn<QuoteFormValues>;
   index: number;
@@ -46,6 +49,8 @@ export function QuoteLineEditor({
   unitsPerCarton: number | null;
   canRemove: boolean;
   onRemove: () => void;
+  /** Ngưỡng duyệt giá (%), xem `QuoteForm`. */
+  thresholdPercent: number;
 }) {
   const { register, control, formState, setValue, trigger } = form;
   const errors = formState.errors.lines?.[index];
@@ -87,18 +92,35 @@ export function QuoteLineEditor({
   const cartons = Number(cartonsText);
   const unitPrice = tierPrice(effective, cartons);
   const prefix = `line-${index}`;
+  const verdict = sku ? linePriceVerdict(tiers, price.references, thresholdPercent) : null;
 
   return (
     <Card className="space-y-3">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <h3 className="text-ink-primary text-sm font-semibold">Dòng {index + 1}</h3>
-        {canRemove && (
-          <Button type="button" variant="ghost" size="sm" onClick={onRemove}>
-            <Trash2 className="size-3.5" /> Xoá dòng
-          </Button>
-        )}
+        {verdict && <LinePriceVerdictChip verdict={verdict} />}
+        <div className="ml-auto flex min-w-0 items-center gap-2">
+          <LinePreview
+            cartons={cartons}
+            moq={moq}
+            unitPrice={unitPrice}
+            unitsPerCarton={unitsPerCarton}
+          />
+          {canRemove && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label={`Xoá dòng ${index + 1}`}
+              title="Xoá dòng"
+              onClick={onRemove}
+            >
+              <Trash2 className="size-3.5" />
+            </Button>
+          )}
+        </div>
       </div>
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_11rem]">
         <Controller
           control={control}
           name={`lines.${index}.sku`}
@@ -141,30 +163,28 @@ export function QuoteLineEditor({
           />
         </FormField>
       </div>
-      <SuggestionBar
-        sku={sku}
-        moq={moq}
-        cartons={cartons}
-        suggestion={suggestion}
-        loading={price.loading}
-        failed={price.failed}
-        tiersEmpty={tiers.length === 0}
-        onUse={(next) =>
-          setValue(`lines.${index}.tiers`, next, { shouldDirty: true, shouldValidate: true })
-        }
-      />
-      <TierEditor
-        lineIndex={index}
-        control={control}
-        register={register}
-        errors={formState.errors.lines}
-      />
-      <LinePreview
-        cartons={cartons}
-        moq={moq}
-        unitPrice={unitPrice}
-        unitsPerCarton={unitsPerCarton}
-      />
+      <div className="grid items-start gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,15rem)]">
+        <TierEditor
+          lineIndex={index}
+          control={control}
+          register={register}
+          errors={formState.errors.lines}
+          references={price.references}
+          thresholdPercent={thresholdPercent}
+        />
+        <SuggestionBar
+          sku={sku}
+          moq={moq}
+          cartons={cartons}
+          suggestion={suggestion}
+          loading={price.loading}
+          failed={price.failed}
+          tiersEmpty={tiers.length === 0}
+          onUse={(next) =>
+            setValue(`lines.${index}.tiers`, next, { shouldDirty: true, shouldValidate: true })
+          }
+        />
+      </div>
     </Card>
   );
 }

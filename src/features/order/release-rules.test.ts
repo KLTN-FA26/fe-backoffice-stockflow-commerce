@@ -15,31 +15,28 @@ describe("depositState", () => {
   });
 });
 
-describe("releaseBlockers (docs 19 BR-09)", () => {
-  const deposit = { paymentTerm: "DEPOSIT", depositReceivedAt: null } as const;
-
-  it("đơn cọc chưa nhận cọc ở Pending Payment → BR-PRD-09", () => {
-    expect(releaseBlockers({ status: "Pending Payment", ...deposit })).toEqual([
-      { rule: "BR-PRD-09", message: "Đơn đặt cọc chưa nhận đủ tiền cọc." },
+describe("releaseBlockers (docs 07 BR-01, 15 BR-07, 17 BR-02)", () => {
+  it("Pending Payment + ON_SIGNING chưa thu đủ → nêu lý do, không cần paymentTerm", () => {
+    expect(releaseBlockers({ status: "Pending Payment" }, { onSigningPaid: false })).toEqual([
+      {
+        rule: "BR-07",
+        message: "Đơn còn chờ thu đủ đợt khi ký — Kế toán kiểm tra và lập phiếu thu.",
+      },
     ]);
   });
 
-  it("cọc đã về, hoặc không phải đơn cọc, hoặc đã qua Pending Payment → không có lý do", () => {
-    expect(
-      releaseBlockers({
-        status: "Pending Payment",
-        paymentTerm: "DEPOSIT",
-        depositReceivedAt: "2026-10-20T01:00:00Z",
-      }),
-    ).toEqual([]);
-    expect(
-      releaseBlockers({
-        status: "Pending Payment",
-        paymentTerm: "PREPAID",
-        depositReceivedAt: null,
-      }),
-    ).toEqual([]);
-    expect(releaseBlockers({ status: "Confirmed", ...deposit })).toEqual([]);
-    expect(releaseBlockers({ status: "Cancelled", ...deposit })).toEqual([]);
+  it("ON_SIGNING đã thu đủ hoặc đơn không còn Pending Payment → không có blocker", () => {
+    expect(releaseBlockers({ status: "Pending Payment" }, { onSigningPaid: true })).toEqual([]);
+    expect(releaseBlockers({ status: "Confirmed" }, { onSigningPaid: false })).toEqual([]);
+    expect(releaseBlockers({ status: "Cancelled" }, { onSigningPaid: false })).toEqual([]);
+  });
+
+  it("không đọc được đợt thanh toán: Pending Payment vẫn có lời giải thích theo trạng thái BE", () => {
+    expect(releaseBlockers({ status: "Pending Payment" })).toEqual([
+      {
+        rule: "BR-07",
+        message: "Đơn còn chờ thu đủ đợt khi ký — Kế toán kiểm tra và lập phiếu thu.",
+      },
+    ]);
   });
 });

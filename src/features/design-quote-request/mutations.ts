@@ -10,6 +10,8 @@ import { DESIGN_QUOTE_REQUEST_LABELS as COPY } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 import { serverErrorMessage } from "@/lib/api/error-message";
 import { QUERY_ROOTS } from "@/lib/api/query-roots";
+import { isSalesOwnerError, salesOwnerErrorMessage } from "@/lib/references/sales-owner-access";
+import { salesOwnerAccessKeys } from "@/lib/references/sales-owner-queries";
 
 import { toast } from "@/components/shared/Toast";
 
@@ -75,6 +77,9 @@ const START_QUOTE_ERRORS: Readonly<Record<string, string>> = {
  * tên các thiết kế đó (lấy từ dòng của yêu cầu), không chỉ nói chung chung.
  */
 function startQuoteErrorMessage(error: Error, row: QuoteRequest): string {
+  // BR-S12: khách có Sale phụ trách khác.
+  const owned = salesOwnerErrorMessage(error);
+  if (owned) return owned;
   if (error instanceof ApiError && error.code === "DESIGN_NOT_APPROVED" && "lines" in row) {
     const ids = Array.isArray(error.details?.designIds) ? error.details.designIds : [];
     const names = row.lines
@@ -101,6 +106,9 @@ export function useStartQuote(navigate: Navigate) {
     },
     onError: (error, row) => {
       toast.error(startQuoteErrorMessage(error, row));
+      // Người phụ trách đã đổi so với màn đang hiện → tải lại người phụ trách của khách (nút "Lập báo giá" tắt theo).
+      if (isSalesOwnerError(error))
+        void queryClient.invalidateQueries({ queryKey: salesOwnerAccessKeys.one(row.customerId) });
       if (error instanceof ApiError && error.code in START_QUOTE_ERRORS) {
         void queryClient.invalidateQueries({ queryKey: designQuoteRequestKeys.all });
         void queryClient.invalidateQueries({ queryKey: projectQuoteRequestKeys.all });

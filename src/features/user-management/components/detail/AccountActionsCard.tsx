@@ -13,12 +13,17 @@ import { allowedStatusActions } from "../../lifecycle";
 import { STATUS_SUCCESS_MESSAGES, useChangeUserStatus } from "../../mutations";
 import { TemporaryPasswordDialog } from "../TemporaryPasswordDialog";
 
+import { HandoverSummaryNote } from "./HandoverSummaryNote";
 import { ResetPasswordDialog } from "./ResetPasswordDialog";
 import { STATUS_ACTION_COPY } from "./status-actions";
 
 import type { PasswordResetResult, UserDto, UserStatusAction } from "../../types";
 
-/** Khoá / mở khoá / vô hiệu hoá / kích hoạt lại (xác nhận + lý do bắt buộc 5–500 ký tự) và đặt lại mật khẩu. Hành động nào hợp lệ do `lifecycle.ts` quyết. */
+/**
+ * Khoá / mở khoá / vô hiệu hoá / kích hoạt lại (xác nhận + lý do bắt buộc 5–500 ký tự) và đặt lại mật khẩu. Hành động nào
+ * hợp lệ do `lifecycle.ts` quyết. Khoá / vô hiệu hoá một Sale: hộp xác nhận nói việc đang phụ trách sẽ chuyển sang chờ giao
+ * (BR-S08, `HandoverSummaryNote`).
+ */
 export function AccountActionsCard({
   user,
   canEdit,
@@ -83,7 +88,11 @@ export function AccountActionsCard({
             },
           )
         }
-      />
+      >
+        {(action === "lock" || action === "disable") && (
+          <HandoverSummaryNote userId={user.userId} action={action} />
+        )}
+      </ConfirmDialog>
       <ResetPasswordDialog
         userId={user.userId}
         accountLabel={accountLabel}

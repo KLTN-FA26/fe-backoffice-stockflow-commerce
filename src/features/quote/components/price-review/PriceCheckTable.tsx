@@ -24,6 +24,13 @@ function discountText(tier: PriceCheckTier): string {
     : `${formatDecimal(tier.discountPercent, 2)}%`;
 }
 
+/** Dòng cần duyệt lên đầu bảng (bo-09), giữ thứ tự dòng trong mỗi nhóm. */
+export function orderedForReview(lines: readonly PriceCheckLine[]): PriceCheckLine[] {
+  return [...lines].sort(
+    (a, b) => Number(b.needsApproval) - Number(a.needsApproval) || a.lineNo - b.lineNo,
+  );
+}
+
 /**
  * Bảng kiểm tra giá (14 BR-10): mỗi bậc của mỗi dòng với giá tham chiếu, nguồn ("Giá riêng của khách" / "Giá chuẩn"),
  * phần trăm thấp hơn và có phải duyệt không. Số đọc nguyên từ BE (`priceCheck` của nháp, hoặc `priceReview.lines` lúc
@@ -65,7 +72,7 @@ export function PriceCheckTable({ lines }: { lines: readonly PriceCheckLine[] })
           </tr>
         </thead>
         <tbody className="divide-y divide-[var(--table-line)]">
-          {lines.flatMap((line) =>
+          {orderedForReview(lines).flatMap((line) =>
             line.tiers.map((tier, index) => (
               <tr
                 key={`${line.lineNo}-${tier.minQuantity}`}

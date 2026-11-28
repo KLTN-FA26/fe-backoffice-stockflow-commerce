@@ -6,8 +6,9 @@ import { Plus } from "lucide-react";
 import { formatMoney } from "@/lib/format/money";
 import { Button } from "@/components/ui/button";
 
-import { planTotal } from "../../sales-contract-rules";
+import { planDeferredAmount, planTotal } from "../../sales-contract-rules";
 
+import { ContractCreditPosition } from "./ContractCreditPosition";
 import { PaymentPlanRow } from "./PaymentPlanRow";
 
 import type { UseFormReturn } from "react-hook-form";
@@ -16,15 +17,19 @@ import type { ContractFormValues } from "../../sales-contract-form";
 /**
  * Lịch thanh toán: mỗi đợt một thẻ — tên, mốc, số tiền hoặc %, số ngày (BEFORE_DELIVERY không có), đợt giao gắn kèm
  * (ON_SIGNING không gắn). F-04.2: hiện "Tổng các đợt / Tổng đơn có thuế" và chênh lệch trước khi lưu; % do BE quy ra tiền.
+ * bo-20: dưới tổng là công nợ của khách so với phần trả sau giao của lịch này (`ContractCreditPosition`).
  */
 export function PaymentPlanEditor({
   form,
   totalWithTax,
   currency,
+  customerId,
 }: {
   form: UseFormReturn<ContractFormValues>;
   totalWithTax: number;
   currency: string;
+  /** Khách của đơn — đọc công nợ hiện tại; null thì không hiện khối công nợ. */
+  customerId: string | null;
 }) {
   const { control, formState } = form;
   const plan = useFieldArray({ control, name: "paymentPlan" });
@@ -35,7 +40,8 @@ export function PaymentPlanEditor({
   const listError = errors?.root?.message ?? errors?.message;
 
   return (
-    <fieldset className="space-y-2">
+    // min-w-0: fieldset mặc định rộng tối thiểu bằng nội dung — thẻ đợt sẽ tràn khỏi khung thay vì co lại (bo-20)
+    <fieldset className="min-w-0 space-y-2">
       <legend className="text-ink-primary text-sm font-semibold">Lịch thanh toán</legend>
       {listError && (
         <p role="alert" className="text-danger text-xs">
@@ -52,6 +58,8 @@ export function PaymentPlanEditor({
             batchCount={(batches ?? []).length}
             canRemove={plan.fields.length > 1}
             onRemove={() => plan.remove(i)}
+            totalWithTax={totalWithTax}
+            currency={currency}
           />
         ))}
       </ul>
@@ -65,6 +73,11 @@ export function PaymentPlanEditor({
         {diff !== 0 &&
           ` — chênh ${formatMoney(Math.abs(diff), currency)} (${diff > 0 ? "dư" : "thiếu"})`}
       </p>
+      <ContractCreditPosition
+        customerId={customerId}
+        deferred={planDeferredAmount(entries ?? [], totalWithTax)}
+        currency={currency}
+      />
       <Button
         type="button"
         variant="outline"

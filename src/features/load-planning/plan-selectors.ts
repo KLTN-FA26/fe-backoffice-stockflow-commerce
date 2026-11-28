@@ -68,6 +68,38 @@ export function unplacedLinesOf(parcels: readonly PlanParcel[]): UnplacedLine[] 
   return [...lines.values()];
 }
 
+/**
+ * Tên sản phẩm theo `partName` (SKU) từ `packages[]` của kế hoạch — chú giải 3D và bảng kiện tra tên ở đây vì bố cục xe
+ * (`layouts`) chỉ có SKU (BE PR #488). Kiện chưa có tên (BE cũ) bỏ qua; hai kiện cùng SKU thì tên đầu tiên.
+ */
+export function productNamesByPart(
+  parcels: readonly Pick<PlanParcel, "partName" | "productName">[],
+): ReadonlyMap<string, string> {
+  const names = new Map<string, string>();
+  for (const parcel of parcels)
+    if (parcel.productName && !names.has(parcel.partName))
+      names.set(parcel.partName, parcel.productName);
+  return names;
+}
+
+/** Lô giao khớp ô tìm: mã lô, số đơn, tên khách hoặc tỉnh giao (không phân biệt hoa thường). */
+export function shipmentMatches(
+  candidate: Pick<
+    CandidateShipment,
+    "code" | "orderNumber" | "customerName" | "deliveryProvinceName"
+  >,
+  query: string,
+): boolean {
+  const needle = query.trim().toLowerCase();
+  if (!needle) return true;
+  return [
+    candidate.code,
+    candidate.orderNumber,
+    candidate.customerName,
+    candidate.deliveryProvinceName,
+  ].some((value) => (value ?? "").toLowerCase().includes(needle));
+}
+
 /** Có xe nào cần tính lại (bị bỏ kiện khi đơn bị huỷ). */
 export const vehiclesNeedingRecalculation = (plan: Pick<PlanDetail, "vehicles">): number[] =>
   plan.vehicles.filter((vehicle) => vehicle.needsRecalculation).map((vehicle) => vehicle.seq);
@@ -77,6 +109,8 @@ export interface FillLineOption {
   orderLineId: string;
   shipmentCode: string;
   sku: string;
+  /** Tên sản phẩm của dòng (BE PR #488), vắng khi chưa rõ. */
+  productName?: string;
   packages: number;
 }
 
@@ -97,6 +131,7 @@ export function fillLineOptions(
           orderLineId: parcel.orderLineId,
           shipmentCode: candidate.code,
           sku: parcel.partName,
+          ...(parcel.productName ? { productName: parcel.productName } : {}),
           packages: 1,
         });
     }
@@ -117,19 +152,43 @@ export function fillLinesToSend(
   return options.map((o) => o.orderLineId).filter((id) => ticked.has(id));
 }
 
-/** Tổng số kiện / khối lượng / thể tích của các lô đã chọn trong màn lập kế hoạch. */
+/** Tổng số lô / kiện / khối lượng (kg) / thể tích (mm³) của các lô đã chọn trong màn lập kế hoạch. */
 export function totalsOf(
   candidates: readonly Pick<
     CandidateShipment,
-    "shipmentId" | "packageCount" | "packagesInOtherPlans"
+    "shipmentId" | "packageCount" | "packagesInOtherPlans" | "weightKg" | "volumeMm3"
   >[],
   selected: ReadonlySet<string>,
-): { shipments: number; packages: number } {
+): { shipments: number; packages: number; weightKg: number; volumeMm3: number } {
   const chosen = candidates.filter((candidate) => selected.has(candidate.shipmentId));
   return {
     shipments: chosen.length,
     packages: chosen.reduce((sum, c) => sum + c.packageCount - c.packagesInOtherPlans, 0),
+    weightKg: chosen.reduce((sum, c) => sum + c.weightKg, 0),
+    volumeMm3: chosen.reduce((sum, c) => sum + c.volumeMm3, 0),
   };
+}
+
+/** Lô sắp theo giờ sẵn sàng, sớm nhất trước; chưa có giờ xuống cuối; bằng nhau theo mã lô. Bản mới, không sửa mảng gốc. */
+export function sortByReadyAt<T extends Pick<CandidateShipment, "code" | "readyAt">>(
+  candidates: readonly T[],
+): T[] {
+  const time = (candidate: T) => {
+    const parsed = candidate.readyAt ? Date.parse(candidate.readyAt) : Number.NaN;
+    return Number.isNaN(parsed) ? Number.POSITIVE_INFINITY : parsed;
+  };
+  return [...candidates].sort(
+    (a, b) =>
+      (time(a) === time(b) ? 0 : time(a) < time(b) ? -1 : 1) || a.code.localeCompare(b.code),
+  );
+}
+
+/** Mã đơn khác nhau của các lô đã chọn (mỗi đơn một ước tính tải). */
+export function orderIdsOf(
+  candidates: readonly Pick<CandidateShipment, "shipmentId" | "orderId">[],
+  selected: ReadonlySet<string>,
+): string[] {
+  return [...new Set(candidates.filter((c) => selected.has(c.shipmentId)).map((c) => c.orderId))];
 }
 
 /**

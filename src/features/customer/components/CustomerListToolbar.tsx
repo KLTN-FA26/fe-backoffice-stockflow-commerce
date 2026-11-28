@@ -5,12 +5,17 @@ import { CUSTOMER_STATUS_BY_API } from "@/constants";
 import { columnSummaryItem, columnToolbarProps } from "@/hooks/use-column-visibility";
 import { STATUS_LABEL_VI } from "@/lib/domain/status-map";
 
-import { ListToolbar } from "@/components/shared/ListToolbar";
+import { SALES_OWNER_LABELS } from "@/constants/labels-sales-owner";
 
+import { ListToolbar, ToolbarSwitch } from "@/components/shared/ListToolbar";
+
+import { ownerFilterOptions } from "./customer-header-filters";
 import { CUSTOMER_COLUMN_LABELS, CUSTOMER_COLUMNS, STATUS_OPTIONS } from "./list-columns";
+import { OWNER_FILTER_MINE, OWNER_FILTER_NEEDS } from "./useCustomerListFilters";
 
 import type { CustomerApiStatus } from "@/constants";
 import type { ColumnVisibility } from "@/hooks/use-column-visibility";
+import type { SalesOption } from "@/lib/references/sales-workload";
 import type { CustomerColumn } from "./list-columns";
 import type { CustomerListFilters } from "./useCustomerListFilters";
 
@@ -19,6 +24,7 @@ function columnSearchSummary(filters: CustomerListFilters): string {
   const f = filters.columnFilters;
   const parts = [
     f.custName && `Khách hàng “${f.custName}”`,
+    f.custTaxCode && `MST “${f.custTaxCode}”`,
     f.custEmail && `Email “${f.custEmail}”`,
     f.custPhone && `Điện thoại “${f.custPhone}”`,
     (f.custCreatedFrom || f.custCreatedTo) &&
@@ -34,16 +40,54 @@ function columnSearchSummary(filters: CustomerListFilters): string {
 export function CustomerListToolbar({
   filters,
   columns,
+  unavailable = [],
+  owners,
+  taxCodeFlag = false,
 }: {
   filters: CustomerListFilters;
   columns: ColumnVisibility<CustomerColumn>;
+  /** Cột phụ không có dữ liệu (bo-29: không quyền / BE chưa có) — không liệt kê trong popover ẩn / hiện cột. */
+  unavailable?: readonly CustomerColumn[];
+  /** Có khi người dùng đọc được Sale phụ trách: công tắc "Khách của tôi" / "Cần giao người phụ trách" (BR-S11). */
+  owners?: { sales: readonly SalesOption[] };
+  /** D41: BE gửi cờ `taxCodeMissing` → công tắc "Thiếu MST". */
+  taxCodeFlag?: boolean;
 }) {
-  const { status } = filters;
+  const { status, owner } = filters;
+  const ownerLabel = ownerFilterOptions(owners?.sales ?? []).find((o) => o.value === owner)?.label;
   const q = filters.filters.q;
+  const shown = CUSTOMER_COLUMNS.filter((c) => !unavailable.includes(c));
   return (
     <ListToolbar<CustomerApiStatus, never, CustomerColumn>
-      {...columnToolbarProps(columns, CUSTOMER_COLUMN_LABELS, CUSTOMER_COLUMNS)}
+      {...columnToolbarProps(columns, CUSTOMER_COLUMN_LABELS, shown)}
       controlsIn="summary"
+      tools={
+        (owners || taxCodeFlag) && (
+          <>
+            {owners && (
+              <>
+                <ToolbarSwitch
+                  label={SALES_OWNER_LABELS.list.mine}
+                  checked={owner === OWNER_FILTER_MINE}
+                  onCheckedChange={(on) => filters.setOwner(on ? OWNER_FILTER_MINE : "")}
+                />
+                <ToolbarSwitch
+                  label={SALES_OWNER_LABELS.list.needsAssignment}
+                  checked={owner === OWNER_FILTER_NEEDS}
+                  onCheckedChange={(on) => filters.setOwner(on ? OWNER_FILTER_NEEDS : "")}
+                />
+              </>
+            )}
+            {taxCodeFlag && (
+              <ToolbarSwitch
+                label={SALES_OWNER_LABELS.list.taxCodeMissing}
+                checked={filters.taxCodeMissing}
+                onCheckedChange={filters.setTaxCodeMissing}
+              />
+            )}
+          </>
+        )
+      }
       search={q}
       onSearchChange={(value) => void filters.filters.setQ(value)}
       searchPlaceholder="Tìm theo tên, email, SĐT (+84…) hoặc MST"
@@ -61,7 +105,6 @@ export function CustomerListToolbar({
           active: q.trim() !== "",
           onClear: () => void filters.filters.setQ(""),
         },
-        { label: "Tìm theo", value: "Tên · Email · SĐT · MST" },
         {
           label: "Tìm trong cột",
           value: columnSearchSummary(filters),
@@ -69,6 +112,7 @@ export function CustomerListToolbar({
           onClear: () =>
             filters.setColumnFilter({
               custName: "",
+              custTaxCode: "",
               custEmail: "",
               custPhone: "",
               custCreatedFrom: "",
@@ -81,6 +125,26 @@ export function CustomerListToolbar({
           active: !!status,
           onClear: () => filters.setStatus(null),
         },
+        ...(filters.taxCodeMissing
+          ? [
+              {
+                label: SALES_OWNER_LABELS.list.taxCodeMissing,
+                value: SALES_OWNER_LABELS.list.taxCodeMissingHint,
+                active: true,
+                onClear: () => filters.setTaxCodeMissing(false),
+              },
+            ]
+          : []),
+        ...(owner
+          ? [
+              {
+                label: SALES_OWNER_LABELS.list.bySales,
+                value: ownerLabel ?? "Đang lọc",
+                active: true,
+                onClear: () => filters.setOwner(""),
+              },
+            ]
+          : []),
         columnSummaryItem(columns),
       ]}
       onResetAll={() => {

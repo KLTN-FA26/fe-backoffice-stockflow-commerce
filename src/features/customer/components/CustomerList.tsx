@@ -4,14 +4,20 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, Users } from "lucide-react";
 
-import { ADMIN_ROUTES, CUSTOMER_PERMISSIONS, QUOTE_PERMISSIONS, STORAGE_KEYS } from "@/constants";
+import {
+  ADMIN_ROUTES,
+  CUSTOMER_CREDIT_PROFILE_PERMISSIONS,
+  CUSTOMER_PERMISSIONS,
+  QUOTE_PERMISSIONS,
+  STORAGE_KEYS,
+} from "@/constants";
 import { PERMISSION_UI } from "@/constants/permissions";
 
 import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { useCan } from "@/lib/auth";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 
-import { useCustomers } from "@/features/customer/queries";
+import { useCreditPositions, useCustomers, useSalesContacts } from "@/features/customer/queries";
 
 import { ServerTableBody } from "@/components/backoffice/ServerTableBody";
 import { withHeaderFilters } from "@/components/shared/ColumnHeaderFilter";
@@ -27,8 +33,10 @@ import {
   CUSTOMER_COLUMNS,
   CUSTOMER_LOCKED_COLUMNS,
   SORTABLE,
+  unavailableCustomerColumns,
 } from "./list-columns";
 import { useCustomerListFilters } from "./useCustomerListFilters";
+import { useCustomerOwners } from "./useCustomerOwners";
 
 function CustomerListContent() {
   const router = useRouter();
@@ -49,17 +57,36 @@ function CustomerListContent() {
       q: state.serverQ,
       status: state.status,
       sort: sort.key ? `${sort.key},${sort.direction}` : undefined,
+      ...state.ownerParams,
+      ...(state.taxCodeMissing ? { taxCodeMissing: true } : {}),
     },
     { enabled: canRead },
   );
+  const { canRead: canReadOwner, sales } = useCustomerOwners();
+  // D41: BE cũ không gửi `taxCodeMissing` → không có cờ, không có lọc (đang lọc thì giữ công tắc để tắt được)
+  const taxCodeFlag =
+    state.taxCodeMissing ||
+    (query.data?.items ?? []).some((row) => typeof row.taxCodeMissing === "boolean");
+  // bo-29: hạn mức / dư nợ và sale liên hệ gần nhất — mỗi thứ MỘT lần gọi cho id của trang đang xem. Không có quyền đọc
+  // hạn mức → không gọi, không có cột (BE cũng trả 403); BE chưa có endpoint → `null`, cũng không có cột.
+  const canReadCredit = useCan(CUSTOMER_CREDIT_PROFILE_PERMISSIONS.read);
+  const pageIds = (query.data?.items ?? []).map((row) => row.customerId);
+  const creditPositions = useCreditPositions(pageIds, canRead && canReadCredit);
+  const salesContacts = useSalesContacts(pageIds, canRead);
+  const extras = {
+    creditPositions: canReadCredit ? creditPositions.data : null,
+    salesContacts: salesContacts.data,
+    salesOwners: canReadOwner,
+  };
+  const unavailable = unavailableCustomerColumns(extras);
   const columnState = useColumnVisibility(STORAGE_KEYS.adminCustomersColumns, CUSTOMER_COLUMNS, {
     locked: CUSTOMER_LOCKED_COLUMNS,
   });
   const columns = withHeaderFilters(
-    buildCustomerColumns({ readQuote, createQuote }).filter((column) =>
+    buildCustomerColumns({ readQuote, createQuote }, extras).filter((column) =>
       columnState.visible.some((key) => key === column.key),
     ),
-    customerHeaderFilters(state),
+    customerHeaderFilters(state, sales),
   );
 
   return (
@@ -75,7 +102,15 @@ function CustomerListContent() {
           tooltip={canCreate ? "Tạo khách hàng" : PERMISSION_UI.customerCreateDenied}
         />
       </HeaderActions>
-      {canRead && <CustomerListToolbar filters={state} columns={columnState} />}
+      {canRead && (
+        <CustomerListToolbar
+          filters={state}
+          columns={columnState}
+          unavailable={unavailable}
+          owners={canReadOwner ? { sales } : undefined}
+          taxCodeFlag={taxCodeFlag}
+        />
+      )}
       <ServerTableBody
         query={query}
         canRead={canRead}
